@@ -119,6 +119,7 @@ export default function BillingTab({ num, reload, onDeleted }) {
   const { catalog, refreshSummary } = useShell();
   return (
     <div className="grid lg:grid-cols-2 gap-4 items-start" data-testid="billing-tab-grid">
+      {num.replacedBy ? <ReplaceNumber num={num} refreshSummary={refreshSummary} /> : <>
       <div className={`space-y-4 ${num.isSubNumber ? 'lg:col-span-2' : ''}`} data-testid="billing-col-main">
         <Renewal num={num} reload={reload} refreshSummary={refreshSummary} />
         {catalog && <Downgrade num={num} reload={reload} refreshSummary={refreshSummary} plans={catalog.plans} />}
@@ -126,6 +127,7 @@ export default function BillingTab({ num, reload, onDeleted }) {
         <ReplaceNumber num={num} refreshSummary={refreshSummary} />
       </div>
       {catalog && !num.isSubNumber && <Upgrade num={num} reload={reload} refreshSummary={refreshSummary} plans={catalog.plans} coins={catalog.coins || []} />}
+      </>}
       <Danger num={num} onDeleted={onDeleted} refreshSummary={refreshSummary} />
     </div>
   );

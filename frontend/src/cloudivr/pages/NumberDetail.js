@@ -62,7 +62,7 @@ export default function NumberDetail() {
           <span className="civr-pill" data-testid="number-detail-expiry">{n.autoRenew ? 'renews' : 'expires'} {day(n.expiresAt)}</span>
           {n.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}
           {n.replacedBy ? <span className="civr-pill civr-pill-warn" data-testid="number-detail-old-pill">{`Old number · until ${day(n.releaseAt)}`}</span>
-            : n.status === 'active' && <button type="button" onClick={() => setParams({ tab: 'billing' }, { replace: true })} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="number-detail-replace">Replace number</button>}
+            : n.status === 'active' && <button type="button" onClick={() => setParams({ tab: 'billing', replace: '1' }, { replace: true })} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="number-detail-replace">Replace number</button>}
         </div>
       </div>
       <SetupGuide n={n} />

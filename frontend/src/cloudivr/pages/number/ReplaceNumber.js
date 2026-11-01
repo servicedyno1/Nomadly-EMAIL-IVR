@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Repeat, Loader2, Search, Info } from 'lucide-react';
 import { api, enc, day } from '../../api';
+import { ask } from '../../confirm';
 import { cp } from '../../paths';
 import { ErrorNote } from '../../ui';
 import { CryptoPay } from '../../CryptoPay';
@@ -37,6 +38,9 @@ function Results({ list, pick, setPick }) {
 
 export function ReplaceNumber({ num, refreshSummary }) {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const box = useRef(null);
+  useEffect(() => { if (params.get('replace')) box.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [params]);
   const [open, setOpen] = useState(false);
   const [area, setArea] = useState('');
   const [list, setList] = useState(null);
@@ -56,7 +60,7 @@ export function ReplaceNumber({ num, refreshSummary }) {
     } catch (e) { setErr(e); } finally { setBusy(''); }
   };
   return (
-    <div className="civr-card p-6 space-y-4" data-testid="replace-card">
+    <div ref={box} className="civr-card p-6 space-y-4 scroll-mt-24" data-testid="replace-card">
       <div className="font-display text-2xl font-bold flex items-center gap-2"><Repeat className="w-5 h-5" />Replace number</div>
       {num.replaces && <p className="text-xs text-[var(--c-muted)]" data-testid="replace-was">{`Replaced ${num.replaces}.`}</p>}
       {!open ? <>
@@ -73,7 +77,7 @@ export function ReplaceNumber({ num, refreshSummary }) {
           <div><div className="text-xs text-[var(--c-muted)] mb-1">Moves to the new number</div><ul className="grid sm:grid-cols-2 gap-x-4 list-disc pl-5">{MOVES.map(m => <li key={m}>{m}</li>)}</ul></div>
           <p className="flex gap-2 text-xs text-[var(--c-muted)]"><Info className="w-4 h-4 shrink-0" />{`${num.phoneNumber} keeps receiving calls and texts for 7 days (marked “Old number” in Messages), then it’s released. Your renewal date stays ${day(num.expiresAt)}.`}</p>
           <div className="flex flex-wrap items-start gap-2">
-            <button type="button" onClick={go} disabled={!!busy} className="civr-btn civr-btn-primary" data-testid="replace-pay">{busy === 'pay' && <Loader2 className="w-4 h-4 animate-spin" />}{`Pay $${PRICE} from wallet`}</button>
+            <button type="button" onClick={async () => { if (await ask(`Replace ${num.phoneNumber} with ${pick} for $${PRICE} from your wallet?`, { ok: `Pay $${PRICE}`, title: 'Replace this number?' })) go(); }} disabled={!!busy} className="civr-btn civr-btn-primary" data-testid="replace-pay">{busy === 'pay' && <Loader2 className="w-4 h-4 animate-spin" />}{`Pay $${PRICE} from wallet`}</button>
             <button type="button" onClick={() => { setOpen(false); setList(null); setPick(''); }} className="civr-btn civr-btn-ghost" data-testid="replace-cancel">Cancel</button>
           </div>
           <CryptoPay price={PRICE} onReady={go} testid="replace-crypto" />

@@ -55,7 +55,7 @@ export function Composer({ t, onSent }) {
     }
   };
   const send = async () => {
-    if (busy || (!text.trim() && !pics.length)) return;
+    if (busy || pics.some(p => !p.id) || (!text.trim() && !pics.length)) return;
     setBusy(true);
     const draft = { id: `tmp-${Date.now()}`, kind: 'text', out: true, at: new Date().toISOString(), body: text.trim(), media: pics.filter(p => p.id).map(p => ({ id: p.id })), status: 'sending' };
     onSent(draft, true);
@@ -78,7 +78,7 @@ export function Composer({ t, onSent }) {
           <button type="button" onClick={() => fileRef.current?.click()} disabled={pics.length >= MAX_PICS} className="w-11 h-11 shrink-0 grid place-items-center rounded-full text-[var(--c-muted)] hover:text-[var(--c-accent)] hover:bg-[var(--c-accent-soft)] transition-colors" aria-label="Attach a picture" data-testid="composer-attach"><ImagePlus className="w-5 h-5" /></button>
         </>}
         <textarea value={text} onChange={e => setText(e.target.value.slice(0, max))} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} rows={1} placeholder="Text message" aria-label="Text message" className="civr-input flex-1 min-h-[44px] max-h-40 !rounded-[22px] resize-none py-2.5" data-testid="composer-input" />
-        <button type="button" onClick={send} disabled={busy || (!text.trim() && !pics.some(p => p.id))} className="w-11 h-11 shrink-0 grid place-items-center rounded-full bg-[var(--c-accent-strong)] text-white disabled:opacity-40 transition-opacity" aria-label="Send" data-testid="composer-send">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <SendHorizontal className="w-5 h-5" />}</button>
+        <button type="button" onClick={send} disabled={busy || pics.some(p => !p.id) || (!text.trim() && !pics.some(p => p.id))} className="w-11 h-11 shrink-0 grid place-items-center rounded-full bg-[var(--c-accent-strong)] text-white disabled:opacity-40 transition-opacity" aria-label="Send" data-testid="composer-send">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <SendHorizontal className="w-5 h-5" />}</button>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2 text-xs text-[var(--c-muted)]">
         <span data-testid="composer-cost">{cost}</span>

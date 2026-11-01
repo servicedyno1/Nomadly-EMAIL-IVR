@@ -264,6 +264,8 @@ function routes(router, deps) {
     req.num = num
     return fn(req, res)
   })
+  // A replaced number is released after its overlap week: no renewing, upgrading or extra lines on it.
+  const notReplaced = (fn) => withNumber(async (req, res) => (req.num.replacedBy ? bad(res, 409, 'replaced', `This number was replaced by ${req.num.replacedBy} and is released on ${String(req.num.releaseAt || '').slice(0, 10)}. Manage the plan on the new number.`) : fn(req, res)))
   const gate = (req, res, feature, label) => {
     if (phoneConfig.canAccessFeature(req.num.plan, feature)) return true
     bad(res, 403, 'plan_upgrade_required', `${label} needs a higher plan. Upgrade this number to use it.`)
@@ -522,6 +524,7 @@ function routes(router, deps) {
     const feature = String(req.body?.feature || '')
     const sw = SWITCHES[feature]
     if (!sw) return bad(res, 400, 'unknown_switch', 'Unknown switch.')
+    if (feature === 'autoRenew' && req.num.replacedBy) return bad(res, 409, 'replaced', `This number was replaced by ${req.num.replacedBy}. It’s released at the end of its overlap week.`)
     if (sw.gate && !gate(req, res, ...sw.gate)) return
     const enabled = !!req.body?.enabled
     const f = req.num.features || {}
@@ -638,13 +641,13 @@ function routes(router, deps) {
     res.json({ ...c, domain: phoneConfig.WEB_SIP_DOMAIN })
   }))
 
-  router.post('/numbers/:phone/auto-renew', withNumber(async (req, res) => {
+  router.post('/numbers/:phone/auto-renew', notReplaced(async (req, res) => {
     await setField(req.webChatId, req.num.phoneNumber, 'autoRenew', !!req.body.enabled)
     res.json({ autoRenew: !!req.body.enabled })
   }))
 
   // Wallet renewal; restoring a suspended main line also brings back its extra lines (see plan-lifecycle.js).
-  router.post('/numbers/:phone/renew', withNumber(async (req, res) => {
+  router.post('/numbers/:phone/renew', notReplaced(async (req, res) => {
     const numbers = (await phoneNumbersOf.findOne({ _id: req.webChatId }))?.val?.numbers || []
     const n = numbers.find(x => x.phoneNumber === req.num.phoneNumber && x.status !== 'released') || req.num
     const block = lifecycle.renewBlock(numbers, n)
@@ -695,7 +698,7 @@ function routes(router, deps) {
     return { status: 200, body: { plan: newPlan, charged: q.charge, balance: await w.balance(chatId) } }
   }
 
-  router.post('/numbers/:phone/upgrade', withNumber(async (req, res) => {
+  router.post('/numbers/:phone/upgrade', notReplaced(async (req, res) => {
     const newPlan = String(req.body.plan || '')
     const offer = await upgradeOffer(req.webChatId, req.num, newPlan)
     const q = upgradeQuote(req.num, newPlan, offer?.discount || 0)
@@ -755,7 +758,7 @@ function routes(router, deps) {
         const { _reminder3Sent, _reminder1Sent, ...keep } = old
         const doc = { ...keep, ...sip, phoneNumber: selected, telnyxOrderId: order.id, capabilities: caps, purchaseDate: new Date().toISOString(), replaces: old.phoneNumber, messagingProfileId: caps.sms ? tr.messagingProfileId || old.messagingProfileId || null : null, features: { ...(old.features || {}), sms: caps.sms }, ...(live ? {} : { dryRun: true }) }
         const releaseAt = new Date(Date.now() + OVERLAP_DAYS * 86400000).toISOString()
-        await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': old.phoneNumber }, { $set: { 'val.numbers.$.replacedBy': selected, 'val.numbers.$.releaseAt': releaseAt, 'val.numbers.$.autoRenew': false, 'val.numbers.$.telnyxCredentialId': null } })
+        await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': old.phoneNumber }, { $set: { 'val.numbers.$.replacedBy': selected, 'val.numbers.$.releaseAt': releaseAt, 'val.numbers.$.autoRenew': false, 'val.numbers.$.telnyxCredentialId': null, 'val.numbers.$.telnyxSipUsername': null, 'val.numbers.$.telnyxSipPassword': null, 'val.numbers.$.sipUsername': null, 'val.numbers.$.sipPassword': null } })
         await phoneNumbersOf.updateOne({ _id: chatId }, { $push: { 'val.numbers': doc } })
         await phoneNumbersOf.updateOne({ _id: chatId }, { $set: { 'val.numbers.$[s].parentNumber': selected } }, { arrayFilters: [{ 's.isSubNumber': true, 's.parentNumber': old.phoneNumber }] }).catch(() => {})
         await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: 'replace', oldNumber: old.phoneNumber, plan: old.plan, amount: REPLACE_PRICE, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })

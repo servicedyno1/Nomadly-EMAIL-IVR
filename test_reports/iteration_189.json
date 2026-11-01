@@ -1,0 +1,49 @@
+{
+  "summary": "Iter189: tested unified Messages (API + UI at 1920/390, ES/FR), picture upload/serve/send, block, save contact, call-back to browser phone, Replace number $25 for calling numbers (Bob, API + UI) and eSIM lines (Alice simulated es_9e5b0dd81f37, API + UI). Backend 16/16 pytest pass. All requested UI flows work. Found 1 HIGH backend gap (old/replaced numbers can still be renewed / auto-renew re-enabled / upgraded = paying for a number that is released in 7 days) and several minor UI/i18n issues.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/cloudivr-web/numbers/:phone/renew, /auto-renew, /upgrade (and extra-number add)", "issue": "No replacedBy guard. Verified: POST /numbers/+16813810070/auto-renew {enabled:true} on Bob's replaced number returned 200 and stored autoRenew=true. In the code, /renew and /upgrade also take money for a number that releaseReplaced() frees after 7 days. The old number's Billing tab still shows 'Renew now', the auto-renew toggle, 'Upgrade plan' and 'Extra numbers'. Fix: return 409 'replaced' on these routes when num.replacedBy is set, and hide those cards in the UI for old numbers.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/cloudivr-web/messages?q=", "issue": "Search only matches the body field. Voicemail transcripts are not searchable: q='TEST_zebra' found nothing when the word was only in a voicemail transcript."},
+      {"endpoint": "GET /api/cloudivr-web/messages", "issue": "Self-thread +16462556424|+16462556424 (the eSIM texted itself) shows as a conversation. Consider excluding contact == business number."},
+      {"endpoint": "POST /messages/media", "issue": "Uploaded pictures that are never sent stay in object storage and webMedia forever. No orphan cleanup."},
+      {"endpoint": "POST /messages/read", "issue": "Takes any number/contact without checking that the account owns the number. It only writes to the caller's own reads collection, so the impact is low."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ThreadList last-message preview", "issue": "The page auto-translator rewrites customer message text in the list preview: 'Hi there, did you get my voicemail?' becomes 'Hola there…' (ES) and 'Salut there…' (FR). The preview span needs data-no-translate. Thread bubbles are not affected.", "selector": "[data-testid^='thread-item-'] span (Last)", "priority": "MEDIUM"},
+      {"component": "NumberDetail → number-detail-replace", "issue": "The button switches to the Billing tab but does not scroll to replace-card. The card is below the fold at 1920x1080 (checked: in viewport = false). The user only sees Renewal/Upgrade.", "selector": "[data-testid='replace-card']", "priority": "LOW"},
+      {"component": "eSIM line actions", "issue": "The 'Auto-renew on' toggle label is clipped and reads '\\uto-renew on' (the switch covers the first letter).", "selector": "esim auto-renew toggle button", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Messages desktop 1920x1080", "issues": ["The messages-layout card is taller than the viewport (h-[calc(100dvh-15rem)] plus a ~265px header), so the composer-cost / count row sits below the fold and the page scrolls.", "The 'Missed calls' filter chip is cut off at 380px list width (scrolls sideways, but looks clipped)."]},
+      {"screen": "Messages mobile 390", "issues": ["The floating support-chat button sits over the bottom-right of the composer (send button / count row). The send button centre can still be clicked; consider hiding or offsetting the button while a thread is open.", "'to +1…' and the call/caps text under the thread title are not translated ('to' stays English in ES/FR)."]},
+      {"screen": "Thread bubbles", "issues": ["A 1x1 picture renders as a near-invisible dot. Consider a minimum thumbnail size."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_messages_replace_iter189.py", "/app/test_reports/pytest/pytest_iter189.xml"],
+  "action_items": [
+    "HIGH: block renew / auto-renew / upgrade / extra numbers on numbers with replacedBy (backend 409, and hide those cards on the old number's Billing tab)",
+    "Add data-no-translate to the ThreadList last-message preview (and any other customer text)",
+    "Scroll replace-card into view when number-detail-replace is clicked",
+    "Fix the clipped 'Auto-renew on' label on the eSIM card",
+    "Make Messages layout height fit the viewport (composer row is cut off at 1080px); keep the FAB off the composer on mobile",
+    "Optional: search voicemail transcripts; drop self-threads; clean up orphan media"
+  ],
+  "critical_code_review_comments": [
+    "numbers.js replace: the old number keeps telnyxSipUsername/Password while the new number gets the same credentials. The old one only has telnyxCredentialId nulled. Check that SIP lookups by username don't resolve to the old number.",
+    "Composer.send: if a picture is still uploading when Send is pressed, it is silently dropped (setPics([]) clears the slot and the upload result is then discarded). Disable Send while a picture is uploading.",
+    "messages.js threads(): webContacts lookup uses the raw chatId while other collections use String(chatId). Possible type mismatch for numeric chatIds.",
+    "ReplaceNumber: paying is one click with no confirm dialog, while the eSIM flow has one. Consider making them consistent."
+  ],
+  "updated_files": ["/app/backend/tests/test_messages_replace_iter189.py", "/app/memory/test_credentials.md"],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "~92% (all requested flows pass; i18n preview translation + minor design issues)"},
+  "seed_data_creation": "Temporary TEST_iter189 phoneLogs (voicemail/sms for +14165550111 and a landline text to +13125557703), a TEST_Sam contact and the UI-sent picture text were all deleted. Bob: bought +13526551296, which was replaced by +16813810070 (pytest); the UI then replaced +16813810070 with +17162659055. Alice's simulated eSIM es_9e5b0dd81f37 got its number changed twice (pytest, then UI). Wallets restored (Alice $624.94, Bob $174.55). es_69fcb8db0c34 and Alice +13346972125 were not changed.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use pytest backend/tests/test_messages_replace_iter189.py (it buys and replaces one Bob starter number per run and restores wallets). The eSIM test needs an Alice simulated active line with numberChange null; otherwise it skips. To re-test, $unset numberChange on es_9e5b0dd81f37 and never touch es_69fcb8db0c34. The UI language switcher is topbar-lang-switcher / -option-{es|fr|en}. Login uses auth-email-input, input[type=password] and auth-submit-button. Verified OK: list/thread/filters/search/unread dot+badge clearing, voicemail card, call rows, day separators, picture send + viewer (Esc/close), eSIM thread has no attach and 1000 limit, texting-only receive-only, call opens softphone prefilled (from/to), save contact title, block confirm + unblock, Replace UI → navigates to new number, old pill + done card, crypto option present, eSIM replace → New number coming → auto-updates in ~25s with former numbers.",
+  "rca of the issue": "Replaced-number money gap: the replace route sets replacedBy/releaseAt/autoRenew=false on the old entry, but the renew, auto-renew and upgrade routes (numbers.js ~641/647/698) and lifecycle.renewBlock never check replacedBy. Only phone-scheduler skips replaced numbers. Repro: as Bob, POST /numbers/+16813810070/auto-renew {enabled:true} returns 200 and autoRenew=true is stored. Mitigation: guard these routes with if (req.num.replacedBy) return bad(res, 409, 'replaced', ...), and hide the cards in NumberDetail for replaced numbers."
+}

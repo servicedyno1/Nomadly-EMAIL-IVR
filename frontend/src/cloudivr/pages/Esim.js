@@ -112,7 +112,7 @@ function AutoRenew({ item, reload }) {
   const flip = async () => { setBusy(true); try { await api(`/esim/${item.id}/auto-renew`, { method: 'POST', body: { on: !item.autoRenew } }); toast.success(item.autoRenew ? 'Auto-renew off: the line ends after this paid month' : 'Auto-renew on'); reload(); } catch (e) { toast.error(e.message); } finally { setBusy(false); } };
   return (
     <button type="button" role="switch" aria-checked={item.autoRenew} disabled={busy} onClick={flip} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`esim-autorenew-${item.id}`}>
-      <span className={`w-8 h-4 rounded-full relative transition-colors ${item.autoRenew ? 'bg-[#818cf8]' : 'bg-[#3f3f46]'}`}><span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${item.autoRenew ? 'translate-x-4' : 'translate-x-0.5'}`} /></span>
+      <span className={`shrink-0 inline-block w-8 h-4 rounded-full relative transition-colors ${item.autoRenew ? 'bg-[#818cf8]' : 'bg-[#3f3f46]'}`}><span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${item.autoRenew ? 'translate-x-4' : 'translate-x-0.5'}`} /></span>
       {item.autoRenew ? 'Auto-renew on' : 'Auto-renew off'}
     </button>
   );

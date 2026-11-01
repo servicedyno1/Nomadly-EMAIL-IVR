@@ -1998,3 +1998,28 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Webhook is account-wide on Spenza and currently points to the PREVIEW URL — after deploy click Admin → CloudIVR eSIM → "Reconnect texts" on cloudivr.net.
 - PRELINK: +16462556424 auto-links (no charge) to onarrival21@gmail.com when that account exists (production) — checked every 10 min.
 - Landing: EsimPlans section (#esim, live plans from /public/esim-plans) + channel card; signup?plan=esim → /app/esim. Name shown: "CloudIVR eSIM" (no Spenza branding to customers).
+
+
+## 2026-11-01 (g) — Crypto pay / auto-renew / $75 re-check + CloudIVR Messages + Replace number $25 — PREVIEW ONLY, NOT deployed
+- iter188 leftovers: suite test_crypto_autorenew_iter188.py now 12/12 (the 3 earlier failures were Alice's wallet drained by repeated
+  purchases; billOne already expires autoRenew=false lines whether active or suspended). Esim line action row items-start.
+- Messages (`js/cloudivr-web/messages.js`, page `/app/messages`, components in `frontend/src/cloudivr/pages/messages/`): threads per
+  (business number, contact) built from phoneLogs (sms, sms_out, missed, voicemail, forwarded, forward_failed, off_hours, outbound_sip, outbound_ivr),
+  scoped to each number's purchase/creation date; self-threads hidden; unread via `webThreadReads`; block list `webBlocked`; filters + search
+  (body, transcript, name, digits). Caps per number: calling (texts, pictures via MMS, calls), eSIM (texts only, no pictures), Landline to
+  Texting (receive-only). Texting a contact requires prior inbound contact on that number (anti-spam, same as Text back). Nav item + unread badge
+  (sidebar + mobile bottom nav replaces Inbox slot; Inbox stays for alerts). `/dashboard.messagesUnread`.
+- Pictures: `js/cloudivr-web/media.js` → Emergent object storage (EMERGENT_LLM_KEY added to backend/.env), `webMedia` collection,
+  public unguessable `/api/cloudivr-web/public/media/:id` (used as Telnyx media_urls). Inbound Telnyx MMS copied in sms-service.js.
+- Replace number $25: calling numbers `POST /numbers/:phone/replace` (same country+type from search; plan/expiry/features/sub-lines move; SIP
+  credential re-created for the new number; old number replacedBy/releaseAt +7 d, autoRenew off, skipped by phone-scheduler; released by
+  releaseReplaced() every 10 min; renew/auto-renew/upgrade/downgrade/extra blocked with 409 'replaced'). eSIM `POST /esim/:id/replace-number`
+  → Spenza `POST /api/v1.1/sims/{iccid}/renew-number` (no number choice, async; quota) → tick polls sims list → formerNumbers; refusal → refund;
+  not assigned in 24 h → refund + log alert. UI: Billing tab ReplaceNumber card (+ header shortcut), eSIM NewNumber panel; wallet or CryptoPay.
+- Tested: iteration_189 (backend 16/16, frontend all flows) + fixes (replaced-number guards, no-translate on customer text, layout height,
+  support button hidden while a thread is open, send disabled during upload, confirm dialog, scroll to card). Retest after fixes: pytest
+  test_messages_replace_iter189.py 15 pass / 1 skip.
+- NOT verified for real: Telnyx MMS sending/receiving (preview is dry run), Spenza renew-number on a real line (never run on es_69fcb8db0c34),
+  live SIP credential move. Orphan uploaded pictures are not cleaned up (storage has no delete API).
+- Next: owner says "push live" → deploy app-main only (active calls 0); then verify live eSIM $75, +1646 line in onarrival21 account Inbox/Messages.
+

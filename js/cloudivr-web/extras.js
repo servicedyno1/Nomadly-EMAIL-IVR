@@ -40,6 +40,7 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
   router.post('/numbers/:phone/extra', withNumber(async (req, res) => {
     const n = req.num, chatId = req.webChatId
     if (n.isSubNumber) return bad(res, 400, 'is_extra', 'This is already an extra number. Add extras from its main number.')
+    if (n.replacedBy) return bad(res, 409, 'replaced', `This number was replaced by ${n.replacedBy}. Add extra numbers there.`)
     if (n.status !== 'active') return bad(res, 400, 'not_active', 'The main number must be active to add extra numbers.')
     const limit = phoneConfig.getSubNumberLimit(n.plan)
     if ((await subsOf(chatId, n.phoneNumber)).length >= limit) return bad(res, 400, 'limit_reached', `The ${phoneConfig.plans[n.plan]?.name || n.plan} plan allows ${limit} extra numbers. Upgrade the main number to add more.`)
@@ -59,6 +60,7 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
     const n = req.num, newPlan = String(req.body.plan || '')
     const order = Object.keys(phoneConfig.plans)
     if (n.isSubNumber) return bad(res, 400, 'is_extra', 'Extra numbers follow the plan of their main number.')
+    if (n.replacedBy) return bad(res, 409, 'replaced', `This number was replaced by ${n.replacedBy}. Change the plan there.`)
     if (n.status === 'suspended' && n._holdUntil) return bad(res, 409, 'suspended', 'Restore this number first (Renew now), then change its plan.')
     if (!phoneConfig.plans[newPlan] || !phoneConfig.isPlanAvailable(newPlan) || order.indexOf(newPlan) >= order.indexOf(n.plan)) return bad(res, 400, 'invalid_plan', 'Pick a lower plan than the current one.')
     const cur = phoneConfig.plans[n.plan], next = phoneConfig.plans[newPlan]

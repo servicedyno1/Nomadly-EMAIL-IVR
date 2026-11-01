@@ -5,7 +5,7 @@ import { timeOf, dayOf } from './Events';
 export const FILTERS = [['all', 'All'], ['unread', 'Unread'], ['texts', 'Texts'], ['voicemail', 'Voicemail'], ['missed', 'Missed calls']];
 
 function Last({ l }) {
-  if (l.type === 'text') return <span className="truncate">{l.out ? 'You: ' : ''}{l.body === 'Picture' ? <span className="inline-flex items-center gap-1"><ImageIcon className="w-3.5 h-3.5" />Picture</span> : l.body}</span>;
+  if (l.type === 'text') return <span className="truncate">{l.out ? 'You: ' : ''}{l.body === 'Picture' ? <span className="inline-flex items-center gap-1"><ImageIcon className="w-3.5 h-3.5" />Picture</span> : <span data-no-translate>{l.body}</span>}</span>;
   if (l.type === 'voicemail') return <span className="inline-flex items-center gap-1"><Voicemail className="w-3.5 h-3.5" />Voicemail</span>;
   if (['missed', 'off_hours', 'forward_failed'].includes(l.type)) return <span className="inline-flex items-center gap-1 text-[#f43f5e]"><PhoneMissed className="w-3.5 h-3.5" />Missed call</span>;
   return <span className="inline-flex items-center gap-1">{l.out ? <PhoneOutgoing className="w-3.5 h-3.5" /> : <PhoneIncoming className="w-3.5 h-3.5" />}{l.out ? 'Outgoing call' : 'Answered call'}</span>;
@@ -21,7 +21,7 @@ export function ThreadList({ data, sel, onPick, filter, setFilter, q, setQ, mult
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search name, number or text" aria-label="Search conversations" className="civr-input !pl-9 w-full" data-testid="messages-search" />
         </label>
         <div className="flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label="Filter conversations">
-          {FILTERS.map(([k, label]) => <button key={k} type="button" role="tab" aria-selected={filter === k} onClick={() => setFilter(k)} className={`shrink-0 h-9 px-3 rounded-full text-sm transition-colors ${filter === k ? 'bg-[var(--c-accent-strong)] text-white' : 'border border-[var(--c-border)] text-[var(--c-muted)] hover:text-[var(--c-text)]'}`} data-testid={`messages-filter-${k}`}>{label}</button>)}
+          {FILTERS.map(([k, label]) => <button key={k} type="button" role="tab" aria-selected={filter === k} onClick={() => setFilter(k)} className={`shrink-0 h-9 px-2.5 rounded-full text-sm transition-colors ${filter === k ? 'bg-[var(--c-accent-strong)] text-white' : 'border border-[var(--c-border)] text-[var(--c-muted)] hover:text-[var(--c-text)]'}`} data-testid={`messages-filter-${k}`}>{label}</button>)}
         </div>
       </div>
       <ul className="flex-1 min-h-0 overflow-y-auto" data-testid="thread-list-items">
@@ -36,7 +36,7 @@ export function ThreadList({ data, sel, onPick, filter, setFilter, q, setQ, mult
                     <span className={`truncate ${t.unread ? 'font-bold' : 'font-semibold'}`}>{t.name || <span className="font-mono" data-no-translate>{t.contact}</span>}</span>
                     <span className="ml-auto shrink-0 text-xs text-[var(--c-muted)]">{stamp(t.at)}</span>
                   </span>
-                  <span className={`flex text-sm min-w-0 ${t.unread ? 'text-[var(--c-text)]' : 'text-[var(--c-muted)]'}`}><Last l={t.last} /></span>
+                  <span className={`flex text-sm min-w-0 ${t.unread ? 'text-[var(--c-text)]' : 'text-[var(--c-muted)]'}`} data-testid={`thread-last-${t.id}`}><Last l={t.last} /></span>
                   {(multi || t.old) && <span className="block text-[11px] text-[var(--c-muted)] mt-0.5">to <span className="font-mono" data-no-translate>{t.number}</span>{t.old ? ' · Old number' : ''}{t.blocked ? ' · Blocked' : ''}</span>}
                 </span>
               </button>

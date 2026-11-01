@@ -19,6 +19,8 @@ export default function Messages() {
   const { refreshSummary } = useShell();
   const sel = params.get('number') && params.get('contact') ? { number: params.get('number'), contact: params.get('contact') } : null;
   useEffect(() => { const t = setInterval(reload, 10000); return () => clearInterval(t); }, [reload]);
+  const threadOpen = !!sel;
+  useEffect(() => { document.body.classList.toggle('civr-thread-open', threadOpen); return () => document.body.classList.remove('civr-thread-open'); }, [threadOpen]);
   const pick = (t) => setParams({ number: t.number, contact: t.contact });
   const changed = () => { reload(); refreshSummary(); };
   const none = data && !data.numbers.length;
@@ -30,7 +32,7 @@ export default function Messages() {
       {none ? (
         <Empty icon={MessagesSquare} title="No numbers yet" sub="Get a number, a CloudIVR eSIM or Landline to Texting and conversations show up here." testid="messages-empty-numbers"><Link to={cp('/app/buy')} className="civr-btn civr-btn-primary mt-6" data-testid="messages-buy-link">Buy a number</Link></Empty>
       ) : (
-        <div className="civr-card !p-0 overflow-hidden grid md:grid-cols-[340px_1fr] lg:grid-cols-[380px_1fr] h-[calc(100dvh-14rem)] md:h-[calc(100dvh-15rem)] min-h-[440px]" data-testid="messages-layout">
+        <div className="civr-card !p-0 overflow-hidden grid md:grid-cols-[340px_1fr] lg:grid-cols-[380px_1fr] h-[calc(100dvh-14rem)] md:h-[calc(100dvh-18rem)] min-h-[440px]" data-testid="messages-layout">
           <div className={`min-h-0 md:border-r border-[var(--c-border)] ${sel ? 'hidden md:block' : ''}`}>
             {!data ? <div className="p-4"><SkeletonRows rows={6} card={false} /></div> : <ThreadList data={data} sel={sel} onPick={pick} filter={filter} setFilter={setFilter} q={q} setQ={setQ} multi={multi} />}
             {data && !data.threads.length && <p className="px-6 py-10 text-center text-sm text-[var(--c-muted)]" data-testid="messages-empty">{q || filter !== 'all' ? 'No conversations match.' : 'No conversations yet. When someone texts or calls your numbers, it shows up here.'}</p>}

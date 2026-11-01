@@ -3915,5 +3915,9 @@
 "The carrier picks the new number: you can’t choose the number or its area. Your SIM switches to it once it’s assigned (usually within minutes, up to 24 hours), so the old number stops working then. If the carrier refuses or nothing is assigned within 24 hours, the $25 is refunded.": "L’opérateur choisit le nouveau numéro : vous ne pouvez choisir ni le numéro ni sa zone. Votre SIM bascule dessus dès son attribution (en général en quelques minutes, jusqu’à 24 heures), et l’ancien numéro cesse alors de fonctionner. Si l’opérateur refuse ou si rien n’est attribué sous 24 heures, les 25 $ sont remboursés.",
 "Replace this eSIM number?": "Remplacer le numéro de cette eSIM ?",
 "Previous numbers:": "Numéros précédents :",
-"Old number: replaced by": "Ancien numéro : remplacé par"
+"Old number: replaced by": "Ancien numéro : remplacé par",
+"to": "vers",
+"Replace this number?": "Remplacer ce numéro ?",
+"Replace {0} with {1} for ${2} from your wallet?": "Remplacer {0} par {1} pour {2} $ depuis votre portefeuille ?",
+"Get a new number for {0}? ${1} from your wallet. {2}": "Obtenir un nouveau numéro pour {0} ? {1} $ depuis votre portefeuille. {2}"
 }

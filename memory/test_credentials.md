@@ -224,3 +224,9 @@
 - Testing agent (iter 181) sign-up via /signup?plan=texting: `qa.texting582973@example.com` / `QaTest#2026x` (no wallet, no numbers).
 - iter182 testing-agent sign-up (via /signup?plan=texting): `qa.texting572785@example.com` / `QaTest#2026x` (onboarded with purposes=['texting']).
 - iter188 testing-agent landing-checkout sign-up (no balance): `qa.crypto1793567668@example.com` / `QaTest#2026x`.
+
+## Messages + Replace number (iter189, preview)
+- Alice `civr.alice@example.com` / `AliceTest#2026` (chatId 5000000000000001): calling number +13346972125 (dry-run), eSIM lines incl. protected real line es_69fcb8db0c34 (+16462556424 — never replace/cancel it). Seeded Messages logs (phoneLogs.seedMsgs=true): +15125550199 (missed + voicemail + inbound text; US→US sends are blocked by the 10DLC rule), +14165550188 (Canadian, inbound text; sending works incl. pictures).
+- Bob `civr.bob@example.com` / `BobTest#2026` (chatId 5000000000000002): +13093051619 replaced by +14062358695 (old one "keeps working" 7 days). Wallet topped up +$200 for tests.
+
+- 2026-11-01 iter189 tester: Bob now has replaced pairs +13093051619→+14062358695, +13526551296→+16813810070→+17162659055 (+16813810070 is "Old number" until 2026-11-08). Alice sim eSIM es_9e5b0dd81f37 now +15550138054 (former +15558255540, +15559823054). Wallets restored (Alice $624.94, Bob $174.55). Regression: backend/tests/test_messages_replace_iter189.py (buys + replaces one Bob number per run).

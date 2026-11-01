@@ -29,10 +29,10 @@ export function Bubble({ e, tight, last, onView }) {
       <div className="max-w-[80%] sm:max-w-[70%]">
         {e.media?.length > 0 && (
           <div className={`flex flex-wrap gap-1 mb-1 ${e.out ? 'justify-end' : ''}`}>
-            {e.media.map(m => <button key={m.id} type="button" onClick={() => onView(m.id)} className="rounded-2xl overflow-hidden border border-[var(--c-border)] focus-visible:outline-2" aria-label="Open picture" data-testid={`msg-picture-${m.id}`}><img src={mediaSrc(m.id)} alt="Picture message" className="block max-h-56 max-w-[220px] object-cover" loading="lazy" /></button>)}
+            {e.media.map(m => <button key={m.id} type="button" onClick={() => onView(m.id)} className="rounded-2xl overflow-hidden border border-[var(--c-border)] focus-visible:outline-2" aria-label="Open picture" data-testid={`msg-picture-${m.id}`}><img src={mediaSrc(m.id)} alt="Picture message" className="block min-w-[72px] min-h-[72px] max-h-56 max-w-[220px] object-cover bg-[var(--c-card-hover)]" loading="lazy" /></button>)}
           </div>
         )}
-        {e.body && <div className={`px-4 py-2.5 text-[15px] leading-snug whitespace-pre-wrap break-words ${e.out ? 'bg-[var(--c-accent-strong)] text-white rounded-[20px] rounded-br-md' : 'civr-bubble-in rounded-[20px] rounded-bl-md'}`}>{e.body}</div>}
+        {e.body && <div data-no-translate className={`px-4 py-2.5 text-[15px] leading-snug whitespace-pre-wrap break-words ${e.out ? 'bg-[var(--c-accent-strong)] text-white rounded-[20px] rounded-br-md' : 'civr-bubble-in rounded-[20px] rounded-bl-md'}`}>{e.body}</div>}
         <div className={`text-[11px] text-[var(--c-muted)] mt-0.5 ${e.out ? 'text-right' : ''}`}>{timeOf(e.at)}</div>
         {e.out && (last || e.status === 'failed' || e.status === 'sending') && <Status e={e} />}
       </div>
@@ -59,7 +59,7 @@ export function VoicemailCard({ e }) {
       <div className="w-full max-w-[85%] sm:max-w-[420px] rounded-2xl border border-[var(--c-border)] bg-[var(--c-card)] p-3.5 space-y-2">
         <div className="flex items-center gap-2 text-sm font-semibold"><Voicemail className="w-4 h-4 text-[var(--c-accent)]" />Voicemail · {secs(e.duration)}<span className="ml-auto text-[11px] font-normal text-[var(--c-muted)]">{timeOf(e.at)}</span></div>
         {e.recordingUrl ? <audio controls preload="none" src={playUrl(e.recordingUrl)} className="w-full h-9" aria-label="Play voicemail" data-testid={`msg-voicemail-play-${e.id}`} /> : <div className="text-xs text-[var(--c-muted)]">Recording not available</div>}
-        {e.transcript && <p className="text-sm text-[var(--c-muted)] italic" data-testid={`msg-voicemail-transcript-${e.id}`}>“{e.transcript}”</p>}
+        {e.transcript && <p className="text-sm text-[var(--c-muted)] italic" data-no-translate data-testid={`msg-voicemail-transcript-${e.id}`}>“{e.transcript}”</p>}
       </div>
     </div>
   );

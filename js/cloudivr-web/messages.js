@@ -41,7 +41,7 @@ function create({ db, numbersApi, smsReply }) {
   const base = (nums) => [
     { $match: { phoneNumber: { $in: nums.map(n => n.phone) }, type: { $in: ALL } } },
     { $addFields: { at: { $toDate: '$timestamp' }, contact: { $cond: [OUT, '$to', '$from'] } } },
-    { $match: { ...scope(nums), contact: { $nin: [null, ''] } } },
+    { $match: { ...scope(nums), contact: { $nin: [null, ''] }, $expr: { $ne: ['$contact', '$phoneNumber'] } } },
   ]
 
   async function threads(chatId, { filter = 'all', q = '' } = {}) {
@@ -72,7 +72,8 @@ function create({ db, numbersApi, smsReply }) {
     else if (filter === 'missed') list = list.filter(t => t.has.missed)
     const s = String(q || '').trim().toLowerCase()
     if (s) {
-      const hits = new Set((await logs.aggregate([...base(nums), { $match: { body: { $regex: s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } } }, { $group: { _id: { b: '$phoneNumber', c: '$contact' } } }, { $limit: 500 }]).toArray()).map(r => `${r._id.b}|${r._id.c}`))
+      const rx = { $regex: s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' }
+      const hits = new Set((await logs.aggregate([...base(nums), { $match: { $or: [{ body: rx }, { transcript: rx }] } }, { $group: { _id: { b: '$phoneNumber', c: '$contact' } } }, { $limit: 500 }]).toArray()).map(r => `${r._id.b}|${r._id.c}`))
       const d = digits(s)
       list = list.filter(t => hits.has(t.id) || (t.name || '').toLowerCase().includes(s) || (d.length >= 3 && (digits(t.contact).includes(d) || digits(t.number).includes(d))))
     }
@@ -96,6 +97,7 @@ function create({ db, numbersApi, smsReply }) {
   const costOf = (n) => (n.kind === 'esim' ? { each: ES.TEXT_PRICE, note: 'wallet' } : { each: phoneConfig.OVERAGE_RATE_SMS, note: 'plan' })
 
   async function markRead(chatId, number, contact) {
+    if (!(await numbers(chatId)).some(n => n.phone === number)) return
     await reads.updateOne({ _id: `${chatId}|${number}|${contact}` }, { $set: { chatId: String(chatId), b: number, c: contact, at: new Date() } }, { upsert: true })
   }
 
