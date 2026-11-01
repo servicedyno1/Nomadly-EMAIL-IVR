@@ -1962,3 +1962,11 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Buy a number: new numbers only + link "Already have a business number? Add texting to it" → /app/texting?add=1.
 - Texting setup step 1: "Start a Texting plan" | "Add texting to one of my plans" (only if they have plans); add-on/extra-number wording.
 - Phase 2 backlog: self-serve 10DLC, usage meter + low-allowance notice. Phase 3: upgrade Texting plan ↔ calling plans, texting-only dashboard.
+
+## 2026-11-01 (c) — FINAL texting rules (supersede (a)/(b) pricing) — PREVIEW ONLY, NOT deployed (iteration_181/182: backend 15/15)
+- Texting plan is STANDALONE (no add-on to Starter/Pro/Business). $200 once incl. first month, then $50/month. Each number = its own plan.
+- Incoming SMS only and FREE. All hosted numbers are receive-only: POST /hosted-sms/:id/send → 400 receive_only; no composer; Inbox has no Reply for hosted texts.
+- TEXTING = { setup: 200, monthly: 50 } in js/hosted-sms.js; public catalog `texting`. start() ignores planNumber.
+- Legacy preview add-on records (plan starter/pro/business with planNumber) still bill with their plan; no new ones can be created.
+- Sign-up via /signup?plan=texting saves onboarding purpose 'texting' and skips the onboarding modal.
+- Cancel uses the in-app confirm dialog (translated). ES uses "billetera" consistently.

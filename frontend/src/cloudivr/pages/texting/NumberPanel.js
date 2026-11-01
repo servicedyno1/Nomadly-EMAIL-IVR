@@ -6,6 +6,7 @@ import { ErrorNote } from '../../ui';
 import { LoaStep, BillStep } from './DocumentsStep';
 import { Thread } from './Thread';
 import { useShell } from '../../Shell';
+import { ask } from '../../confirm';
 
 export const STATUS = {
   verify: { label: 'Step 2 · Ownership code', tone: 'text-[#fbbf24]' },
@@ -76,7 +77,10 @@ function VerifyStep({ item, onChange }) {
         <input className="civr-input font-mono tracking-widest" value={code} onChange={e => setCode(e.target.value)} placeholder="Code" inputMode="numeric" data-testid="texting-code-input" />
         <button type="button" onClick={submit} disabled={!!busy || !code.trim()} className="civr-btn civr-btn-primary" data-testid="texting-code-submit">{busy === 'code' && <Loader2 className="w-4 h-4 animate-spin" />}Confirm</button>
       </div>
-      <div className="text-sm text-[#a1a1aa] border-t border-[#27272a] pt-3">Can’t answer at that number? <button type="button" onClick={skip} disabled={!!busy} className="underline text-[#d4d4d8]" data-testid="texting-code-skip">{busy === 'skip' && <Loader2 className="w-3 h-3 animate-spin inline mr-1" />}Skip the code</button> and sign an authorization letter plus upload a recent phone bill instead.</div>
+      <div className="text-sm text-[#a1a1aa] border-t border-[#27272a] pt-3 space-y-2">
+        <p>Can’t answer at that number? You can sign an authorization letter and upload a recent phone bill instead.</p>
+        <button type="button" onClick={skip} disabled={!!busy} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="texting-code-skip">{busy === 'skip' && <Loader2 className="w-3 h-3 animate-spin" />}Skip the code</button>
+      </div>
       <ErrorNote error={err} testid="texting-verify-error" />
     </div>
   );
@@ -86,7 +90,7 @@ function CancelButton({ item, onChange }) {
   const { refreshSummary } = useShell();
   const [busy, setBusy] = useState(false);
   const go = async () => {
-    if (!window.confirm(`Cancel and refund $${item.paid} to your wallet?`)) return;
+    if (!(await ask(`Cancel and refund $${item.paid} to your wallet?`, { danger: true, ok: 'Cancel & refund', cancel: 'Keep it' }))) return;
     setBusy(true);
     try { await api(`/hosted-sms/${item.id}/cancel`, { method: 'POST' }); toast.success(`Cancelled — $${item.paid} refunded`); refreshSummary(); onChange(); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };

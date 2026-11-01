@@ -156,3 +156,34 @@ const r=await HS.onInbound({{from:'+14165550199',to:'{BOB_TEXTING}',body:'{body}
     assert log and log['charge'] == 0 and log['direction'] == 'inbound'
     assert bal(BOB[2]) == b0
     assert not db.transactions.find_one({"type": "hosted-sms-inbound", "metadata.from": "+14165550199", "metadata.phoneNumber": BOB_TEXTING, "createdAt": {"$gte": log['timestamp'].replace(microsecond=0)}})
+
+
+# --- iter182: legacy add-on number (Alice +13125557703, planNumber set) is also receive-only
+def test_send_receive_only_legacy_addon(alice):
+    d = db.hostedSms.find_one({"phoneNumber": "+13125557703"})
+    if not d:
+        pytest.skip("legacy record missing")
+    w0 = bal(ALICE[2])
+    r = alice.post(f"{API}/hosted-sms/{d['_id']}/send", json={"to": "+14165550177", "text": "TEST_legacy"})
+    assert r.status_code == 400 and r.json()['error'] == 'receive_only'
+    assert 'receives texts only' in r.json()['message']
+    assert not db.phoneLogs.find_one({"body": "TEST_legacy"})
+    assert bal(ALICE[2]) == w0
+
+
+# --- iter182: Inbox items from hosted numbers never offer Reply
+def test_notifications_hosted_cannot_reply(alice):
+    from datetime import datetime
+    col = db.webNotifications
+    ids = col.insert_many([
+        {"chatId": ALICE[2], "text": "TEST_hosted_legacy", "kind": "sms", "mediaUrl": None, "meta": {"from": "+14165550111", "to": "+13125557703", "hosted": "hs_166f867fcda2"}, "read": True, "createdAt": datetime.utcnow()},
+        {"chatId": ALICE[2], "text": "TEST_hosted_ro", "kind": "sms", "mediaUrl": None, "meta": {"from": "+14165550112", "to": "+13125557703", "hosted": "hs_166f867fcda2", "receiveOnly": True}, "read": True, "createdAt": datetime.utcnow()},
+    ]).inserted_ids
+    try:
+        r = alice.get(f"{API}/notifications")
+        assert r.status_code == 200
+        mine = [n for n in r.json()['notifications'] if n['text'].startswith('TEST_hosted')]
+        assert len(mine) == 2
+        assert all(n['canReply'] is False for n in mine), mine
+    finally:
+        col.delete_many({"_id": {"$in": ids}})

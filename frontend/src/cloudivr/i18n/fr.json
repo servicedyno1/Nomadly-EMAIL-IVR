@@ -3624,5 +3624,22 @@
 "showing the holder name and service address. Photos or screenshots of your carrier account work too.": "indiquant le nom du titulaire et l’adresse du service. Les photos ou captures de votre compte opérateur conviennent aussi.",
 "After the bill is sent, approval usually takes 1–3 business days (the carrier reviews Mon–Fri).": "Après l’envoi de la facture, l’approbation prend généralement 1 à 3 jours ouvrés (l’opérateur vérifie du lundi au vendredi).",
 "Ownership confirmed with the code. Your number is with the carrier for approval. This usually takes {0}, expected by {1}. We’ll message you the moment texting is on.": "Propriété confirmée par le code. Votre numéro est chez l’opérateur pour approbation. Cela prend généralement {0}, prévu le {1}. Nous vous préviendrons dès que les SMS seront actifs.",
-"Your documents are with the carrier for approval. This usually takes {0}, expected by {1}. We’ll message you the moment texting is on.": "Vos documents sont chez l’opérateur pour approbation. Cela prend généralement {0}, prévu le {1}. Nous vous préviendrons dès que les SMS seront actifs."
+"Your documents are with the carrier for approval. This usually takes {0}, expected by {1}. We’ll message you the moment texting is on.": "Vos documents sont chez l’opérateur pour approbation. Cela prend généralement {0}, prévu le {1}. Nous vous préviendrons dès que les SMS seront actifs.",
+"Can’t answer at that number? You can sign an authorization letter and upload a recent phone bill instead.": "Impossible de répondre à ce numéro ? Vous pouvez signer une lettre d’autorisation et téléverser une facture téléphonique récente.",
+"Cancel and refund ${0} to your wallet?": "Annuler et rembourser {0} $ sur votre portefeuille ?",
+"Cancel & refund": "Annuler et rembourser",
+"Keep it": "Le garder",
+"Cancelled — ${0} refunded": "Annulé — {0} $ remboursés",
+"This number couldn’t be text-enabled. ${0} was refunded to your wallet.": "Les SMS n’ont pas pu être activés sur ce numéro. {0} $ ont été remboursés sur votre portefeuille.",
+"Texting is paused because the plan on {0} isn’t active. Renew that plan and texting turns back on by itself.": "Les SMS sont en pause car le forfait de {0} n’est pas actif. Renouvelez ce forfait et ils se réactivent tout seuls.",
+"Texting is paused because the ${0} monthly fee couldn’t be paid. Top up your wallet and it turns back on within a day.": "Les SMS sont en pause car les frais mensuels de {0} $ n’ont pas pu être payés. Rechargez votre portefeuille et ils se réactivent sous un jour.",
+"Couldn’t build the preview.": "Impossible de créer l’aperçu.",
+"{0} couldn’t be read.": "Impossible de lire {0}.",
+"{0} isn’t a PDF, JPG or PNG.": "{0} n’est pas un PDF, JPG ou PNG.",
+"{0} couldn’t be read — save it again as JPG or PNG.": "Impossible de lire {0} — enregistrez-la à nouveau en JPG ou PNG.",
+"Together the files must be under 5 MB — use smaller photos.": "L’ensemble des fichiers doit faire moins de 5 Mo — utilisez des photos plus petites.",
+"Add the phone bill (PDF, JPG or PNG).": "Ajoutez la facture téléphonique (PDF, JPG ou PNG).",
+"Type the account holder’s full name exactly to sign.": "Tapez exactement le nom complet du titulaire pour signer.",
+"Tick the box to sign the authorization letter.": "Cochez la case pour signer la lettre d’autorisation.",
+"This number receives texts only. Your customers text it and you read them here.": "Ce numéro reçoit uniquement des SMS. Vos clients lui écrivent et vous les lisez ici."
 }

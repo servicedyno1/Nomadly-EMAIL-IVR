@@ -1,0 +1,45 @@
+{
+  "summary": "Retest of iteration_181 fixes. Backend: 15/15 pytest pass (13 old + 2 new). POST /hosted-sms/:id/send now returns 400 with error 'receive_only' for Bob's Texting-plan number and for Alice's legacy add-on +13125557703 (no log, wallet unchanged). /notifications returns canReply=false for hosted sms items (with or without meta.receiveOnly). Catalog texting is {setup:200, monthly:50}. Pay $200, code 123456 -> review, skip -> loa -> documents -> review, and help -> admin_docs (free) all pass. UI: Alice's +13125557703 panel has no compose box (texting-to-input and send button absent) and no 'Limited texting' chip. The Inbox shows no Reply on a hosted-number text. A real sign-up via /signup?plan=texting lands on /app/texting?start=texting with setup open; the onboarding modal never shows, including after reload and on /app, because purposes=['texting'] is saved. A full new order with Bob at 390px in ES and FR: setup, check, pay, verify panel, Cancel & refund button, skip, LOA intro, all field labels, hints and signature, Bill intro and approval line, review info, list statuses (Activo para mensajes / En revisión / No aprobado · reembolsado) and the toasts (paid, letter signed, sent for review, file type) are all translated. Spanish has no 'monedero' left. No horizontal overflow. Remaining gaps are small ES/FR strings listed below.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/hosted-sms/:id/documents", "issue": "Server error messages are English only, e.g. '<file> couldn’t be read.' (hosted-sms.js:253/259). In ES/FR they show in English in texting-documents-error."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "texting/NumberPanel.js CancelButton", "issue": "Uses native window.confirm('Cancel and refund $200 to your wallet?'). The i18n engine cannot translate it, so it is English in ES/FR, and it does not match the app's own confirm dialog (confirm.js / confirm-dialog-*). The success toast 'Cancelled — $200 refunded' is also missing from es/fr.json.", "selector": "[data-testid=texting-cancel-button]", "priority": "MEDIUM"},
+      {"component": "texting/NumberPanel.js rejected/paused Info", "issue": "Missing ES/FR keys: 'This number couldn’t be text-enabled. ${0} was refunded to your wallet.' (seen in English on Alice's +13125557702 in ES), and both paused texts ('Texting is paused because the plan on {0} isn’t active…' and 'Texting is paused because the ${0} monthly fee couldn’t be paid…').", "selector": "[data-testid=texting-rejected], [data-testid=texting-paused]", "priority": "MEDIUM"},
+      {"component": "texting/DocumentsStep.js preview", "issue": "Error 'Couldn’t build the preview.' has no ES/FR key.", "selector": "[data-testid=texting-loa-error]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Texting verify step (ES/FR)", "issues": ["The skip sentence mixes forms: ES '…Omitir el código y firma una carta…', FR '…Passer le code et signez une lettre…'. The button label and the sentence are joined. Reword it as one sentence."]},
+      {"screen": "Inbox (ES)", "issues": ["Hosted SMS notification text ('📩 SMS received / To / From') is built on the server and stays in English. This is pre-existing."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_hosted_sms_plans.py", "/app/test_reports/pytest/pytest_hosted_texting_182.xml", "/app/scripts/texting_i18n_flow.py", "/app/scripts/texting_i18n_missing.py"],
+  "action_items": [
+    "NumberPanel CancelButton: replace window.confirm with the app confirm dialog (confirm.js) so it can be translated; add ES/FR for 'Cancelled — ${0} refunded'",
+    "Add ES/FR keys for the rejected text and both paused texts in NumberPanel, and 'Couldn’t build the preview.'",
+    "Optional: translate or code-map the hosted-sms.js document errors ('… couldn’t be read'); reword the ES/FR 'skip the code and sign…' sentence"
+  ],
+  "critical_code_review_comments": [
+    "hosted-sms.js sendText(): everything after the early `return { code: 'receive_only' }` is unreachable dead code (status/paused/E164/length checks and the send). Delete it or keep it behind a flag.",
+    "Thread.js: `canSend = false` is a constant, so useDestCheck/ReachChip/compose JSX/send() are dead code. Simplify.",
+    "notify.js canReply: `!n.meta?.hosted` already covers receiveOnly. Fine, just redundant."
+  ],
+  "updated_files": [
+    "/app/frontend/src/cloudivr/i18n/es.json (fixed 4 gender typos left over from monedero->billetera: 'un/del/el billetera' -> 'una/de la/la billetera', including 'Pagar ${0} con la billetera' on the pay button)",
+    "/app/backend/tests/test_hosted_sms_plans.py (added test_send_receive_only_legacy_addon, test_notifications_hosted_cannot_reply)",
+    "/app/scripts/texting_i18n_flow.py (new: full ES/FR order walk at 390px with cancel)",
+    "/app/memory/test_credentials.md (new QA sign-up user)"
+  ],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "93% (all requested flows pass; a few untranslated strings remain)"},
+  "test_credentials": "Bob, Alice and the admin from /app/memory/test_credentials.md. New sign-up qa.texting572785@example.com / QaTest#2026x",
+  "seed_data_creation": "None kept. Bob's 4 UI test orders (+13125557588/9138/1845/4089) and their notifications were deleted, and his wallet was restored to usdIn 11750 / usdOut 11700.45 ($49.55). The TEST_UI Inbox notification was deleted. Pytest restores the wallets and deletes its own records. hs_855real4001 was not touched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run REACT_APP_BACKEND_URL=... pytest /app/backend/tests/test_hosted_sms_plans.py. For UI i18n: top up Bob in walletOf (needs >= $200, he has $49.55), then run `python /app/scripts/texting_i18n_flow.py es|fr`. Review-status orders have no cancel button, so the script cancels another pending order if one exists. Delete the created orders and restore the wallet afterwards. The cancel confirm is a native dialog (page.on('dialog')).",
+  "rca of the issue": "The leftover ES grammar errors came from a blind 'monedero' -> 'billetera' replace that kept masculine articles. The untranslated cancel confirm comes from window.confirm, which sits outside the DOM the i18n engine translates."
+}
