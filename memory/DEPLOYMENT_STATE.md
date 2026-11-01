@@ -336,3 +336,9 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
   tick only runs when SKIP_WEBHOOK_SYNC && WEB_CLOUDIVR_DRY_RUN), prod launcher/recovery skip dryRun docs, POST /campaigns validateOnly.
 - Verified live: health healthy, 0 calls at flip; /, /login 200; bundle has new strings. Live sign-in test skipped (owner account is Google sign-in).
 - Rollback: `bash /opt/nomadly/deploy.sh app-main rollback`. ⚠️ Save to GitHub (main) or the next CI deploy rolls this back.
+
+## 2026-11-01 20:55Z — Spenza keys added to prod app-main
+- Prod (sha 8a49f9d5, GitHub Actions deploy 20:40Z) showed no eSIM plans + +16462556424 not linked: `SPENZA_API_KEY/SECRET` were missing
+  from `/opt/nomadly/shared/app-main/backend.env`. Appended both (backup `backend.env.bak.spenza.20261101T205537Z`), `pm2 reload app-main-b --update-env` at 0 calls → healthy.
+- Verified: cloudivr.net /public/esim-plans → SPENZA_001 $100; log `[eSIM] linked +16462556424 to onarrival21@…`.
+- Still on prod: landing families/checkout + "T-Mobile network" label are NOT deployed (newer than 8a49f9d5). Spenza webhook still points at preview → owner must Admin → eSIM → Reconnect texts on cloudivr.net.
