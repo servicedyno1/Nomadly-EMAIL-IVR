@@ -1,0 +1,42 @@
+{
+  "summary": "Tested the standalone Texting plan (backend + UI, EN + ES, phone 390px + desktop). All backend rules hold: catalog and /hosted-sms return texting {setup:200, monthly:50}. POST /hosted-sms ignores planNumber (none / Business plan number / 'new') and always returns paid 200, plan texting, planNumber null, status verify, monthly 50. Low balance returns 402 'needs $200'. Three parallel clicks charge only once. Code by call -> 123456 -> review works. Skip -> LOA (name must match) -> bill upload -> review works. Help -> admin_docs is free. Sending from a Texting-plan number returns 400 with 'receives texts only', but the error code in the response is 'bad_request', not 'receive_only'. HS.onInbound to Bob +13125558801 stores the text with charge 0, leaves the wallet unchanged and writes no transaction. UI checks that passed: landing has 4 pricing cards; the Texting card says '$200 to start · first month included, then $50/month'; Start texting -> /signup?plan=texting shows the 'Texting plan picked' banner and texting next steps; a real sign-up lands on /app/texting?start=texting with setup open. The Buy page has only the one-line link to /app/texting?add=1, which opens setup. The setup card shows the Texting plan copy, then Check number and 'Pay $200 from wallet', with no plan picker and no code/letter/bill wording before payment. Bob's 8801 panel shows the right billing line and no compose box. The Prices card shows $200 / $50 / Free. The Inbox hides the reply button for receive-only texts. The landing mockup shows incoming bubbles only. No horizontal overflow on any texting page in EN/ES at phone or desktop size. Main gap: Spanish (and French) translations are missing for post-payment and status strings.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/hosted-sms/:id/send", "issue": "Returns 400 with error 'bad_request' instead of 'receive_only'. Cause: hosted.js line 40 calls `bad(res, r.error)` without passing r.code. Fix: `bad(res, r.error, 400, r.code || 'bad_request')`."},
+      {"endpoint": "GET /api/cloudivr-web/hosted-sms (plans[])", "issue": "plansFor() pushes texting entries with price: TEXTING.extra, which is undefined since TEXTING only has setup and monthly. start() still calls plansFor() but never uses the result (wasted DB queries) and still has dead plan_inactive / plan_limit / pick_plan branches."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "texting/NumberPanel.js STATUS labels + Texting.js ListItem", "issue": "Untranslated in ES/FR: 'Active for texting', 'Under review · 1–3 business days', 'Not approved · refunded'. Seen live in Spanish in the list and panel status.", "selector": "[data-testid=texting-panel-status], [data-testid^=texting-item-]", "priority": "MEDIUM"},
+      {"component": "texting/DocumentsStep.js LoaStep/BillStep", "issue": "English shown in Spanish: LOA intro ('Enter the details exactly as on your phone bill…' with a stray 'y'), every holder field label and hint (Account holder’s full name, As on the phone bill, Business name (optional), Street address, Service address on the bill, State / province, ZIP / postal code, Current phone provider, Account number (optional), From the bill), the bill intro ('Upload a recent phone bill for … showing the holder name y service address…'), the approval-time line, and the toasts 'Letter signed. Last step: your phone bill', 'Support has your request — we also emailed the team', 'Sent to the carrier for review' and 'Use PDF, JPG or PNG files under 5 MB.'", "selector": "[data-testid=texting-loa], [data-testid=texting-bill], [data-testid=texting-approval-time]", "priority": "MEDIUM"},
+      {"component": "texting/NumberPanel.js", "issue": "Untranslated in ES/FR: 'Cancel & refund $200' (texting-cancel-button), the review Info text ('Ownership confirmed with the code. Your number is…' / 'Your documents are…'), the toast 'Ownership confirmed. No letter or bill needed', and Thread 'No texts yet.'", "selector": "[data-testid=texting-cancel-button], [data-testid=texting-review]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Texting setup (ES)", "issues": ["The Spanish word for wallet is inconsistent: 'monedero' in the plan note and refund line, 'Billetera' in the Wallet link and nav."]},
+      {"screen": "After sign-up via /signup?plan=texting", "issues": ["The onboarding modal 'What will you use CloudIVR for?' opens over the already-open Texting setup. Consider preselecting 'Business texting' or skipping the modal when plan=texting."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_hosted_sms_plans.py", "/app/test_reports/pytest/pytest_hosted_texting.xml", "/app/scripts/texting_ux_review.py", "/app/test_reports/texting_ux_review.json", "/app/scripts/texting_i18n_missing.py"],
+  "action_items": [
+    "hosted.js /hosted-sms/:id/send: pass r.code so the API returns error 'receive_only'",
+    "Add ES+FR keys for every texting string listed by `python /app/scripts/texting_i18n_missing.py` (STATUS labels, LOA/Bill step labels and hints, toasts, Cancel & refund, review info, 'No texts yet.')",
+    "hosted-sms.js: remove the unused plansFor() call and dead branches in start(); fix price: TEXTING.extra (undefined) in plansFor",
+    "Use one Spanish word for wallet (monedero vs billetera)"
+  ],
+  "critical_code_review_comments": [
+    "hosted.js send route drops the error code (receive_only becomes bad_request)",
+    "hosted-sms.js start(): `plans` is computed but never used; `if (!parent)`, plan_inactive and plan_limit checks can never fire because parent is a constant",
+    "plansFor(): TEXTING.extra is undefined, so texting plan entries have price undefined",
+    "Legacy add-on numbers (planNumber set) still compose and are charged $0.05 per inbound text; this is expected per the note"
+  ],
+  "updated_files": ["/app/backend/tests/test_hosted_sms_plans.py (rewritten for standalone Texting rules)", "/app/scripts/texting_i18n_missing.py (new helper)", "/app/memory/test_credentials.md (added the QA sign-up user)"],
+  "success_rate": {"backend": "92% (12/13; only the receive_only error-code assertion fails)", "frontend": "85% (all flows pass; ES/FR translation gaps after payment)"},
+  "test_credentials": "Bob, Alice and the admin from /app/memory/test_credentials.md. New sign-up qa.texting582973@example.com / QaTest#2026x",
+  "seed_data_creation": "None kept. Pytest restores both wallets and deletes TEST records. The UI test record +13125558784 was cancelled (refunded) and deleted. The TEST receive-only Inbox notification was deleted. hs_855real4001 was not touched.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: REACT_APP_BACKEND_URL=... pytest /app/backend/tests/test_hosted_sms_plans.py. test_insufficient_balance_402 needs Bob's balance below $200 (currently $49.55). Run /app/scripts/texting_i18n_missing.py to list untranslated texting strings. Bob's active Texting-plan number is +13125558801 (hs_9da656aaf1a9). In preview the code is 123456."
+}

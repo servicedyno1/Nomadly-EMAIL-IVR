@@ -16,8 +16,11 @@ export function Onboarding({ data, setData }) {
   const [saved, setSaved] = useState(null);
   const nav = useNavigate();
   const { data: trial } = useApi(data && !data.onboarded ? '/calls/trial' : null);
-  const open = !!data && !data.onboarded;
+  // Arriving from "Start texting" already says what they want: save it and don't cover the setup.
+  const texting = /[?&]start=texting\b/.test(window.location.search);
+  const open = !!data && !data.onboarded && !texting;
   useEffect(() => { if (open) { setPick(data.purposes || []); setStep(0); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (data && !data.onboarded && texting) api('/prefs/onboarding', { method: 'PUT', body: { purposes: ['texting'] } }).then(d => setData({ ...data, ...d, onboarded: true })).catch(() => {}); }, [data?.onboarded, texting]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!open) return null;
   const save = async (purposes) => {
     setBusy(true);

@@ -6,7 +6,7 @@ import { ErrorNote } from '../../ui';
 import { useShell } from '../../Shell';
 import { ReachChip, useDestCheck, DestNote } from '../../SmsReach';
 
-// Texts on a hosted number (newest last). Texting-plan numbers are receive-only; older add-on numbers can compose.
+// Texts on a hosted number (newest last). Receive only.
 export function Thread({ item, meta }) {
   const { refreshSummary } = useShell();
   const box = useRef(null);
@@ -16,7 +16,7 @@ export function Thread({ item, meta }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const rows = [...(data?.messages || [])].reverse();
-  const canSend = item.status === 'active' && item.plan !== 'texting';
+  const canSend = false; // business texting numbers receive only
   const dest = useDestCheck(canSend ? item.phoneNumber : null, to);
   const blocked = dest ? !dest.ok : false;
   useEffect(() => { if (box.current) box.current.scrollTop = box.current.scrollHeight; }, [rows.length]);

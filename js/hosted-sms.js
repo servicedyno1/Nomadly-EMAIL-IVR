@@ -78,10 +78,6 @@ async function plansFor(chatId) {
   const used = await S.col.aggregate([{ $match: { chatId: String(chatId), live: true, planNumber: { $in: nums.map(n => n.phoneNumber) } } }, { $group: { _id: '$planNumber', n: { $sum: 1 } } }]).toArray()
   const count = Object.fromEntries(used.map(u => [u._id, u.n]))
   const out = nums.map(n => ({ phoneNumber: n.phoneNumber, plan: n.plan, status: n.status, expiresAt: n.expiresAt || null, price: PLAN_PRICE[n.plan], limit: PLAN_LIMIT[n.plan], used: count[n.phoneNumber] || 0 }))
-  // Texting plans: the first number is the plan; more numbers join it at TEXTING.extra each.
-  for (const t of await S.col.find({ chatId: String(chatId), live: true, plan: 'texting', planNumber: null }).toArray()) {
-    out.push({ phoneNumber: t.phoneNumber, plan: 'texting', status: t.status === 'active' ? 'active' : t.status === 'paused' ? 'paused' : 'pending', expiresAt: t.nextBillAt || null, price: TEXTING.extra, limit: null, used: 1 + (await S.col.countDocuments({ chatId: String(chatId), live: true, planNumber: t.phoneNumber })) })
-  }
   return out
 }
 const mine = (chatId, id) => S.col.findOne({ _id: String(id), chatId: String(chatId) })
@@ -103,12 +99,8 @@ async function check(phone) {
 // planNumber 'new' = start a Texting plan with this number; otherwise the plan number it joins.
 async function start(chatId, phone, planNumber) {
   if (!require('./cloudivr-web/notify.js').isWebChatId(chatId)) return { error: 'Business texting is available on cloudivr.net.' }
-  const plans = await plansFor(chatId)
   // Standalone only: every number is its own Texting plan.
-  const parent = { phoneNumber: null, plan: 'texting', status: 'active', limit: null, used: 0, price: TEXTING.setup }
-  if (!parent) return { error: 'Pick the plan this number goes on.', code: 'pick_plan' }
-  if (parent.status !== 'active') return { error: parent.plan === 'texting' ? (parent.status === 'paused' ? `The Texting plan on ${parent.phoneNumber} is paused: its $${TEXTING.monthly} monthly fee is due. Top up your wallet first.` : `The Texting plan on ${parent.phoneNumber} isn’t active yet. Add more numbers once it is.`) : `The plan on ${parent.phoneNumber} isn’t active. Renew it first.`, code: 'plan_inactive' }
-  if (parent.limit != null && parent.used >= parent.limit) return { error: `Your ${parent.plan[0].toUpperCase()}${parent.plan.slice(1)} plan on ${parent.phoneNumber} already has ${parent.limit} texting numbers. Upgrade or pick another plan.`, code: 'plan_limit' }
+  const parent = { phoneNumber: null, plan: 'texting', limit: null, price: TEXTING.setup }
   const el = await check(phone)
   if (!el.eligible) return { error: el.detail || 'This number can’t be text-enabled.' }
   const price = parent.price
@@ -411,7 +403,7 @@ async function onInbound({ from, to, body }) {
   if (!d) return false
   if (d.status === 'paused') { S.log(`[HostedSMS] ${d.phoneNumber} paused — inbound from ${from} not delivered`); return true }
   // Incoming texts are free on the Texting plan (older add-on numbers still pay per text).
-  const free = d.plan === 'texting'
+  const free = true
   const charge = free ? 0 : TEXT_PRICE
   // Receiving costs the same as sending. No balance → the text isn't delivered; one "top up" notice per day.
   if (!free && !(await S.w.debit(d.chatId, TEXT_PRICE))) {
@@ -422,14 +414,14 @@ async function onInbound({ from, to, body }) {
   }
   if (!free) await txn(d.chatId, 'hosted-sms-inbound', TEXT_PRICE, { phoneNumber: d.phoneNumber, hostedId: d._id, from })
   await S.db.collection('phoneLogs').insertOne({ chatId: d.chatId, phoneNumber: d.phoneNumber, from, to: d.phoneNumber, type: 'sms', direction: 'inbound', body, hosted: true, charge, timestamp: new Date() })
-  await S.tell(d.chatId, `📩 SMS received\n\nTo: ${d.phoneNumber}\nFrom: ${from}\n\n"${body}"`, { kind: 'sms', meta: { from, to: d.phoneNumber, hosted: d._id, ...(d.plan === 'texting' ? { receiveOnly: true } : {}) } })
+  await S.tell(d.chatId, `📩 SMS received\n\nTo: ${d.phoneNumber}\nFrom: ${from}\n\n"${body}"`, { kind: 'sms', meta: { from, to: d.phoneNumber, hosted: d._id, receiveOnly: true } })
   return true
 }
 
 async function sendText(chatId, id, to, text) {
   const d = await mine(chatId, id)
   if (!d) return { error: 'That number isn’t on your account.' }
-  if (d.plan === 'texting') return { error: 'This number receives texts only. Your customers text it and you read them here.', code: 'receive_only' }
+  return { error: 'This number receives texts only. Your customers text it and you read them here.', code: 'receive_only' }
   if (d.status !== 'active') return { error: d.status === 'paused' ? (d.planNumber ? `Texting is paused because the plan on ${d.planNumber} isn’t active. Renew the plan and it turns back on.` : `Texting is paused — the $${monthlyOf(d)} monthly fee is due. Top up your wallet.`) : 'This number isn’t active for texting yet.' }
   const dest = normPhone(to)
   const body = String(text || '').trim()

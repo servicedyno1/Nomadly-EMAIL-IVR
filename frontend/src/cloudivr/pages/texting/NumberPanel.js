@@ -31,7 +31,7 @@ export function NumberPanel({ item, meta, onChange }) {
       {item.status === 'verify' && <VerifyStep item={item} onChange={onChange} />}
       {(item.status === 'loa' || (item.status === 'documents' && !item.holder)) && <LoaStep item={item} onChange={onChange} />}
       {['documents', 'admin_docs'].includes(item.status) && item.holder && <BillStep item={item} onChange={onChange} />}
-      {item.status === 'review' && <Info icon={Hourglass} text={`${item.mode === 'code' ? 'Ownership confirmed with the code. Your number is' : 'Your documents are'} with the carrier${item.docsAt ? ` since ${String(item.docsAt).slice(0, 10)}` : ''}. Usually approved within 1–3 business days${item.expectedBy ? ` — expected by ${String(item.expectedBy).slice(0, 10)}` : ''}. We’ll message your Inbox the moment texting is on.`} testid="texting-review" />}
+      {item.status === 'review' && <Info icon={Hourglass} text={`${item.mode === 'code' ? 'Ownership confirmed with the code. Your number is' : 'Your documents are'} with the carrier for approval. This usually takes 1–3 business days, expected by ${String(item.expectedBy || '').slice(0, 10) || 'soon'}. We’ll message you the moment texting is on.`} testid="texting-review" />}
       {item.status === 'paused' && <Info icon={PauseCircle} text={item.planNumber ? `Texting is paused because the plan on ${item.planNumber} isn’t active. Renew that plan and texting turns back on by itself.` : `Texting is paused because the $${item.monthly} monthly fee couldn’t be paid. Top up your wallet and it turns back on within a day.`} testid="texting-paused" />}
       {item.status === 'rejected' && <Info icon={XCircle} text={`This number couldn’t be text-enabled. $${item.paid} was refunded to your wallet.`} testid="texting-rejected" />}
       {item.status === 'active' && <p className="text-xs text-[#a1a1aa]" data-testid="texting-billing">{item.planNumber ? `Texting add-on · renews with your ${item.plan[0].toUpperCase() + item.plan.slice(1)} plan on ${item.planNumber}, no monthly fee` : `Texting plan · next $${item.monthly} on ${String(item.nextBillAt || '').slice(0, 10)} · incoming texts are free`}</p>}
@@ -90,5 +90,5 @@ function CancelButton({ item, onChange }) {
     setBusy(true);
     try { await api(`/hosted-sms/${item.id}/cancel`, { method: 'POST' }); toast.success(`Cancelled — $${item.paid} refunded`); refreshSummary(); onChange(); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
-  return <button type="button" onClick={go} disabled={busy} className="text-xs text-[#a1a1aa] underline hover:text-[#fb7185]" data-testid="texting-cancel-button">Cancel & refund ${item.paid}</button>;
+  return <button type="button" onClick={go} disabled={busy} className="text-xs text-[#a1a1aa] underline hover:text-[#fb7185]" data-testid="texting-cancel-button">{`Cancel & refund $${item.paid}`}</button>;
 }

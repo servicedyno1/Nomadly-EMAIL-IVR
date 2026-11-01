@@ -113,7 +113,7 @@ function routes(router, { h, numbersApi, smsReply }) {
       numbersApi.myNumbers(req.webChatId).catch(() => []),
     ])
     const mine = nums.map(n => n.phoneNumber)
-    res.json({ ...counts, notifications: items.map(n => ({ id: String(n._id), text: n.text, kind: n.kind, mediaUrl: n.mediaUrl, meta: n.meta || null, read: n.read, createdAt: n.createdAt, link: linkOf(n, mine), canReply: n.kind === 'sms' && !!n.meta?.from && !!n.meta?.to && !n.meta?.receiveOnly })) })
+    res.json({ ...counts, notifications: items.map(n => ({ id: String(n._id), text: n.text, kind: n.kind, mediaUrl: n.mediaUrl, meta: n.meta || null, read: n.read, createdAt: n.createdAt, link: linkOf(n, mine), canReply: n.kind === 'sms' && !!n.meta?.from && !!n.meta?.to && !n.meta?.receiveOnly && !n.meta?.hosted })) })
   }))
   // body { id } marks one item read; { kind } marks only that filter's items read; nothing = everything.
   router.post('/notifications/read', h(async (req, res) => {

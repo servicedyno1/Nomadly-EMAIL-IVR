@@ -27,9 +27,7 @@
   "lang": "en",
   "page": "buy",
   "overflow": 0,
-  "small": [
-   "Add texting to it 95x20"
-  ],
+  "small": [],
   "old_wording": [],
   "english_in_es": []
  },
@@ -38,8 +36,13 @@
   "lang": "en",
   "page": "texting",
   "overflow": 0,
-  "small": [],
-  "old_wording": [],
+  "small": [
+   "texting-cancel-button 106x16"
+  ],
+  "old_wording": [
+   "\\$50\\b(?!0)",
+   "phone bill"
+  ],
   "english_in_es": []
  },
  {
@@ -48,7 +51,9 @@
   "page": "texting-add",
   "overflow": 0,
   "small": [],
-  "old_wording": [],
+  "old_wording": [
+   "\\$50\\b(?!0)"
+  ],
   "english_in_es": []
  },
  {
@@ -57,7 +62,9 @@
   "page": "texting-start",
   "overflow": 0,
   "small": [],
-  "old_wording": [],
+  "old_wording": [
+   "\\$50\\b(?!0)"
+  ],
   "english_in_es": []
  },
  {
@@ -97,9 +104,7 @@
   "lang": "es",
   "page": "buy",
   "overflow": 0,
-  "small": [
-   "A\u00f1\u00e1dele mensajes 108x20"
-  ],
+  "small": [],
   "old_wording": [],
   "english_in_es": []
  },
@@ -108,13 +113,16 @@
   "lang": "es",
   "page": "texting",
   "overflow": 0,
-  "small": [],
-  "old_wording": [],
+  "small": [
+   "texting-cancel-button 106x16"
+  ],
+  "old_wording": [
+   "\\$50\\b(?!0)",
+   "phone bill"
+  ],
   "english_in_es": [
-   "incoming texts used this month",
-   "per text \u00b7 incoming texts also land in your Inbox.",
-   "can text 8 countries",
-   "Texting US mobiles from this number needs business texting registration (10DLC) first. Rec"
+   "showing the holder name y service address. Photos or screenshots of your carrier account w",
+   "After the bill is sent, approval usually takes 1\u20133 business days (the carrier reviews Mon\u2013"
   ]
  },
  {
@@ -123,12 +131,10 @@
   "page": "texting-add",
   "overflow": 0,
   "small": [],
-  "old_wording": [],
-  "english_in_es": [
-   "Empezar un plan de mensajes",
-   "N\u00famero extra en tu plan de mensajes",
-   "Pago \u00fanico de $150. Comparte la renovaci\u00f3n mensual de ese plan de mensajes y sus 50 mensaj"
-  ]
+  "old_wording": [
+   "\\$50\\b(?!0)"
+  ],
+  "english_in_es": []
  },
  {
   "view": "phone",
@@ -136,10 +142,10 @@
   "page": "texting-start",
   "overflow": 0,
   "small": [],
-  "old_wording": [],
-  "english_in_es": [
-   "Empezar un plan de mensajes"
-  ]
+  "old_wording": [
+   "\\$50\\b(?!0)"
+  ],
+  "english_in_es": []
  },
  {
   "view": "desktop",
@@ -169,9 +175,7 @@
   "lang": "en",
   "page": "buy",
   "overflow": 0,
-  "small": [
-   "Add texting to it 95x20"
-  ],
+  "small": [],
   "old_wording": [],
   "english_in_es": []
  },
@@ -180,8 +184,13 @@
   "lang": "en",
   "page": "texting",
   "overflow": 0,
-  "small": [],
-  "old_wording": [],
+  "small": [
+   "texting-cancel-button 106x16"
+  ],
+  "old_wording": [
+   "\\$50\\b(?!0)",
+   "phone bill"
+  ],
   "english_in_es": []
  },
  {
@@ -190,7 +199,9 @@
   "page": "texting-add",
   "overflow": 0,
   "small": [],
-  "old_wording": [],
+  "old_wording": [
+   "\\$50\\b(?!0)"
+  ],
   "english_in_es": []
  },
  {
@@ -199,7 +210,9 @@
   "page": "texting-start",
   "overflow": 0,
   "small": [],
-  "old_wording": [],
+  "old_wording": [
+   "\\$50\\b(?!0)"
+  ],
   "english_in_es": []
  },
  {
@@ -239,9 +252,7 @@
   "lang": "es",
   "page": "buy",
   "overflow": 0,
-  "small": [
-   "A\u00f1\u00e1dele mensajes 108x20"
-  ],
+  "small": [],
   "old_wording": [],
   "english_in_es": []
  },
@@ -250,13 +261,16 @@
   "lang": "es",
   "page": "texting",
   "overflow": 0,
-  "small": [],
-  "old_wording": [],
+  "small": [
+   "texting-cancel-button 106x16"
+  ],
+  "old_wording": [
+   "\\$50\\b(?!0)",
+   "phone bill"
+  ],
   "english_in_es": [
-   "incoming texts used this month",
-   "per text \u00b7 incoming texts also land in your Inbox.",
-   "can text 8 countries",
-   "Texting US mobiles from this number needs business texting registration (10DLC) first. Rec"
+   "showing the holder name y service address. Photos or screenshots of your carrier account w",
+   "After the bill is sent, approval usually takes 1\u20133 business days (the carrier reviews Mon\u2013"
   ]
  },
  {
@@ -265,12 +279,10 @@
   "page": "texting-add",
   "overflow": 0,
   "small": [],
-  "old_wording": [],
-  "english_in_es": [
-   "Empezar un plan de mensajes",
-   "N\u00famero extra en tu plan de mensajes",
-   "Pago \u00fanico de $150. Comparte la renovaci\u00f3n mensual de ese plan de mensajes y sus 50 mensaj"
-  ]
+  "old_wording": [
+   "\\$50\\b(?!0)"
+  ],
+  "english_in_es": []
  },
  {
   "view": "desktop",
@@ -278,9 +290,9 @@
   "page": "texting-start",
   "overflow": 0,
   "small": [],
-  "old_wording": [],
-  "english_in_es": [
-   "Empezar un plan de mensajes"
-  ]
+  "old_wording": [
+   "\\$50\\b(?!0)"
+  ],
+  "english_in_es": []
  }
 ]

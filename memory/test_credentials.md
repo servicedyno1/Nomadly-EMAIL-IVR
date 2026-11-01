@@ -221,3 +221,4 @@
 - Email: moxxcompany@gmail.com  Password: Katiekendra123@
 - Second step: 6-digit code emailed to that address. In preview (WEB_CLOUDIVR_DRY_RUN=true) POST /api/cloudivr-web/admin/login also returns `devCode` and the login form pre-fills it.
 - Env: CIVR_ADMIN_EMAIL, CIVR_ADMIN_PASSWORD_HASH_B64 (base64 of bcrypt hash) in backend/.env
+- Testing agent (iter 181) sign-up via /signup?plan=texting: `qa.texting582973@example.com` / `QaTest#2026x` (no wallet, no numbers).

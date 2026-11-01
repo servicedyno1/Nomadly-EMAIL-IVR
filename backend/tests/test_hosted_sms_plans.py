@@ -1,16 +1,17 @@
-# Landline to Texting — plan pricing (Starter $150/5, Pro $120/10, Business $100/unlimited), plan sync, refunds. DRY-RUN preview.
-import os, time, json, random, threading, pytest, requests
+# Landline to Texting — STANDALONE Texting plan ($200 once incl. first month, then $50/mo), incoming-only + free. DRY-RUN preview.
+import os, time, random, json, subprocess, threading, pytest, requests
 from pymongo import MongoClient
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL').rstrip('/')
 API = f"{BASE_URL}/api/cloudivr-web"
 ALICE = ('civr.alice@example.com', 'AliceTest#2026', '5000000000000001')
 BOB = ('civr.bob@example.com', 'BobTest#2026', '5000000000000002')
-PLAN = '+13346972125'
-BILL = b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF"  # bill is now parsed + merged by pdf-lib
+PLAN = '+13346972125'           # Alice's Business plan number (must be ignored now)
+BOB_TEXTING = '+13125558801'    # Bob's active Texting-plan number
+BILL = b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF"
 HOLDER = {"name": "TEST Holder", "business": "TEST Biz", "address": "1 Test St", "city": "Austin", "state": "TX", "zip": "73301", "carrier": "AT&T", "account": "999"}
 db = MongoClient('mongodb://localhost:27017')['test']
-KEEP = [d['_id'] for d in db.hostedSms.find({"chatId": ALICE[2], "phoneNumber": {"$regex": "^\\+131255"}}, {"_id": 1})]  # pre-existing seed records
+KEEP = [d['_id'] for d in db.hostedSms.find({"phoneNumber": {"$regex": "^\\+131255"}}, {"_id": 1})]
 
 
 def login(acc):
@@ -21,52 +22,22 @@ def login(acc):
     return s
 
 
-class _B(float):
-    def __eq__(self, o):
-        return abs(float(self) - float(o)) < 0.011
-    __hash__ = float.__hash__
-    def __sub__(self, o):
-        return _B(float(self) - o)
-
-
 def bal(cid):
     w = db.walletOf.find_one({"_id": cid}) or {}
-    return _B(w.get('usdIn', 0) - w.get('usdOut', 0))
+    return round(w.get('usdIn', 0) - w.get('usdOut', 0), 2)
 
 
 def rnd():
     return f"+1312555{random.randint(1000, 9999)}"
 
 
-def set_plan(**kw):
-    db.phoneNumbersOf.update_one({"_id": ALICE[2], "val.numbers.phoneNumber": PLAN}, {"$set": {f"val.numbers.$.{k}": v for k, v in kw.items()}})
-
-
-def fill(n, plan):
-    if n <= 0:
-        return
-    db.hostedSms.insert_many([{"_id": f"hs_TEST_{plan}_{i}", "chatId": ALICE[2], "phoneNumber": f"+1312556{i:04d}", "mode": "code", "planNumber": PLAN, "plan": plan, "status": "active", "live": True, "paid": 0, "_test": True} for i in range(n)])
-
-
-def wait_for(pred, t=80):
-    end = time.time() + t
-    while time.time() < end:
-        v = pred()
-        if v:
-            return v
-        time.sleep(3)
-    return None
-
-
 @pytest.fixture(scope='module', autouse=True)
 def restore():
     w = {c: db.walletOf.find_one({"_id": c}) for c in (ALICE[2], BOB[2])}
-    bob_legacy = list(db.hostedSms.find({"chatId": BOB[2], "status": "active"}))
-    db.walletOf.update_one({"_id": ALICE[2]}, {"$inc": {"usdIn": 1000}})  # restored in teardown
+    db.walletOf.update_one({"_id": ALICE[2]}, {"$inc": {"usdIn": 2000}})
     yield
-    set_plan(plan='business', status='active')
-    db.hostedSms.delete_many({"_test": True})
-    db.hostedSms.delete_many({"chatId": ALICE[2], "phoneNumber": {"$regex": "^\\+131255"}, "_id": {"$nin": KEEP}})
+    db.hostedSms.delete_many({"phoneNumber": {"$regex": "^\\+131255"}, "_id": {"$nin": KEEP}})
+    db.phoneLogs.delete_many({"body": {"$regex": "^TEST_"}})
     for c, x in w.items():
         db.walletOf.update_one({"_id": c}, {"$set": {"usdIn": x['usdIn'], "usdOut": x['usdOut']}})
 
@@ -81,156 +52,107 @@ def bob():
     return login(BOB)
 
 
-# --- GET: plan prices / limits / plans
-def test_get_plans(alice):
+# --- catalog / GET prices
+def test_public_catalog_texting():
+    r = requests.get(f"{API}/public/catalog")
+    assert r.status_code == 200 and r.json()['texting'] == {"setup": 200, "monthly": 50}
+
+
+def test_get_hosted_texting(alice):
     d = alice.get(f"{API}/hosted-sms").json()
-    assert d['planPrices'] == {"starter": 150, "pro": 120, "business": 100}
-    assert d['planLimits'] == {"starter": 5, "pro": 10, "business": None}
-    p = [x for x in d['plans'] if x['phoneNumber'] == PLAN][0]
-    assert p['plan'] == 'business' and p['status'] == 'active' and p['price'] == 100 and p['limit'] is None and d['textPrice'] == 0.05
+    assert d['texting'] == {"setup": 200, "monthly": 50}
 
 
-def test_no_plan_account(bob):
-    # Bob has no CloudIVR plans: only Texting plans are listed; someone else's plan number -> pick_plan (no needs_plan any more)
-    d = bob.get(f"{API}/hosted-sms").json()
-    assert all(p['plan'] == 'texting' for p in d['plans'])
-    r = bob.post(f"{API}/hosted-sms", json={"phone": rnd(), "planNumber": PLAN})
-    assert r.status_code == 400 and r.json()['error'] == 'pick_plan'
-
-
-def test_pick_plan_errors(alice):
+# --- start: planNumber ignored, always standalone Texting plan
+@pytest.mark.parametrize('body_extra', [{}, {"planNumber": PLAN}, {"planNumber": "new"}])
+def test_start_is_standalone(alice, body_extra):
     b0 = bal(ALICE[2])
-    r = alice.post(f"{API}/hosted-sms", json={"phone": rnd(), "mode": "code"})
-    assert r.status_code == 400 and r.json()['error'] == 'pick_plan'
-    r = alice.post(f"{API}/hosted-sms", json={"phone": rnd(), "mode": "code", "planNumber": "+15555550000"})
-    assert r.status_code == 400 and r.json()['error'] == 'pick_plan'
-    assert bal(ALICE[2]) == b0
-
-
-# --- business: $100 once, both modes, cancel refunds $100
-@pytest.mark.parametrize('mode', ['code', 'nocode'])
-def test_business_charge_and_refund(alice, mode):
-    b0 = bal(ALICE[2])
-    r = alice.post(f"{API}/hosted-sms", json={"phone": rnd(), "mode": mode, "planNumber": PLAN})
+    r = alice.post(f"{API}/hosted-sms", json={"phone": rnd(), **body_extra})
     assert r.status_code == 200, r.text
     it = r.json()['item']
-    assert it['paid'] == 100 and it['planNumber'] == PLAN and it['plan'] == 'business' and it['monthly'] == 0
-    assert it['status'] == 'verify'  # 'mode' is ignored now: every order starts at the code step
-    assert bal(ALICE[2]) == b0 - 100
-    tx = list(db.transactions.find({"metadata.hostedId": it['id']}))
-    assert [t['type'] for t in tx] == ['hosted-sms-setup'] and tx[0]['amount'] == 100
+    assert it['paid'] == 200 and it['plan'] == 'texting' and it['planNumber'] is None and it['status'] == 'verify' and it['monthly'] == 50
+    assert bal(ALICE[2]) == round(b0 - 200, 2)
+    tx = db.transactions.find_one({"metadata.hostedId": it['id'], "type": "hosted-sms-setup"})
+    assert tx and tx['amount'] == 200
     listed = [x for x in alice.get(f"{API}/hosted-sms").json()['items'] if x['id'] == it['id']][0]
-    assert listed['planNumber'] == PLAN and listed['monthly'] == 0
+    assert listed['plan'] == 'texting' and listed['planNumber'] is None
     r = alice.post(f"{API}/hosted-sms/{it['id']}/cancel")
     assert r.status_code == 200 and r.json()['item']['status'] == 'cancelled'
     assert bal(ALICE[2]) == b0
-    assert db.transactions.find_one({"metadata.hostedId": it['id'], "type": "hosted-sms-refund"})['amount'] == 100
-    # second cancel does not refund twice
-    alice.post(f"{API}/hosted-sms/{it['id']}/cancel")
-    assert bal(ALICE[2]) == b0
+
+
+def test_insufficient_balance_402(bob):
+    b0 = bal(BOB[2])
+    assert b0 < 200, f"Bob balance {b0} >= 200; test needs < $200"
+    r = bob.post(f"{API}/hosted-sms", json={"phone": rnd()})
+    assert r.status_code == 402 and r.json()['error'] == 'insufficient_balance' and '$200' in r.json()['message'], r.text
+    assert bal(BOB[2]) == b0
 
 
 def test_double_click_single_debit(alice):
     b0 = bal(ALICE[2]); phone = rnd(); res = []
-    def go():
-        res.append(alice.post(f"{API}/hosted-sms", json={"phone": phone, "mode": "code", "planNumber": PLAN}))
-    ts = [threading.Thread(target=go) for _ in range(3)]
+    ts = [threading.Thread(target=lambda: res.append(alice.post(f"{API}/hosted-sms", json={"phone": phone}))) for _ in range(3)]
     [t.start() for t in ts]; [t.join() for t in ts]
     ok = [r for r in res if r.status_code == 200]
     assert len(ok) == 1, [r.text for r in res]
-    assert bal(ALICE[2]) == b0 - 100
+    assert bal(ALICE[2]) == round(b0 - 200, 2)
     alice.post(f"{API}/hosted-sms/{ok[0].json()['item']['id']}/cancel")
     assert bal(ALICE[2]) == b0
 
 
-def test_plan_inactive(alice):
-    b0 = bal(ALICE[2])
-    set_plan(status='expired')
-    try:
-        r = alice.post(f"{API}/hosted-sms", json={"phone": rnd(), "mode": "code", "planNumber": PLAN})
-        assert r.status_code == 400 and r.json()['error'] == 'plan_inactive'
-    finally:
-        set_plan(status='active')
-    assert bal(ALICE[2]) == b0
+# --- post-payment flows
+def test_code_flow_to_review(alice):
+    hid = alice.post(f"{API}/hosted-sms", json={"phone": rnd()}).json()['item']['id']
+    r = alice.post(f"{API}/hosted-sms/{hid}/code/send")
+    assert r.status_code == 200 and r.json()['method'] == 'call'
+    assert alice.post(f"{API}/hosted-sms/{hid}/code", json={"code": "000000"}).status_code == 400
+    r = alice.post(f"{API}/hosted-sms/{hid}/code", json={"code": "123456"})
+    assert r.status_code == 200 and r.json()['item']['status'] == 'review' and r.json()['item']['mode'] == 'code'
 
 
-@pytest.mark.parametrize('plan,limit,price', [('starter', 5, 150), ('pro', 10, 120)])
-def test_plan_limits(alice, plan, limit, price):
-    set_plan(plan=plan)
-    try:
-        pre = db.hostedSms.count_documents({"chatId": ALICE[2], "planNumber": PLAN, "live": True})  # seed records already on the plan
-        fill(limit - 1 - pre, plan)
-        p = [x for x in alice.get(f"{API}/hosted-sms").json()['plans'] if x['phoneNumber'] == PLAN][0]
-        assert p['used'] == limit - 1 and p['limit'] == limit and p['price'] == price
-        b0 = bal(ALICE[2])
-        r = alice.post(f"{API}/hosted-sms", json={"phone": rnd(), "mode": "nocode", "planNumber": PLAN})
-        assert r.status_code == 200, r.text
-        it = r.json()['item']
-        assert it['paid'] == price and it['plan'] == plan and bal(ALICE[2]) == b0 - price
-        r = alice.post(f"{API}/hosted-sms", json={"phone": rnd(), "mode": "code", "planNumber": PLAN})
-        assert r.status_code == 400 and r.json()['error'] == 'plan_limit', r.text
-        assert bal(ALICE[2]) == b0 - price
-        alice.post(f"{API}/hosted-sms/{it['id']}/cancel")
-        assert bal(ALICE[2]) == b0
-    finally:
-        db.hostedSms.delete_many({"_test": True})
-        set_plan(plan='business')
-
-
-# --- full flow -> active -> plan sync pause/resume -> texts; legacy untouched
-def test_full_flow_and_plan_sync(alice, bob):
-    b0 = bal(ALICE[2])
-    r = alice.post(f"{API}/hosted-sms", json={"phone": rnd(), "mode": "code", "planNumber": PLAN})
-    assert r.status_code == 200, r.text
-    hid = r.json()['item']['id']
-    assert alice.post(f"{API}/hosted-sms/{hid}/code/send", json={"method": "sms"}).status_code == 200
-    assert alice.post(f"{API}/hosted-sms/{hid}/code", json={"code": "123456"}).json()['item']['status'] == 'review'  # code = no LOA/bill
-    db.hostedSms.update_one({"_id": hid}, {"$set": {"docsAt": time.time() * 0 or __import__('datetime').datetime.utcnow().replace(year=2020)}})
-    d = wait_for(lambda: (x := db.hostedSms.find_one({"_id": hid, "status": "active"})) and x)
-    assert d, 'review did not auto-activate'
-    assert 'nextBillAt' not in d or d['nextBillAt'] is None
-    assert bal(ALICE[2]) == b0 - 100
-    # send a text while active
-    r = alice.post(f"{API}/hosted-sms/{hid}/send", json={"to": "+14165550177", "text": "TEST plan text"})
-    assert r.status_code == 200 and r.json()['charge'] > 0, r.text
-    legacy = {x['_id']: x.get('nextBillAt') for x in db.hostedSms.find({"chatId": BOB[2], "status": "active", "live": True})}
-    # plan expires -> paused
-    set_plan(status='expired')
-    try:
-        d = wait_for(lambda: db.hostedSms.find_one({"_id": hid, "status": "paused"}), 45)
-        assert d and 'isn’t active' in (d.get('note') or '')
-        r = alice.post(f"{API}/hosted-sms/{hid}/send", json={"to": "+14165550177", "text": "TEST paused"})
-        assert r.status_code == 400
-        pytest.paused_msg = r.json()['message']
-    finally:
-        set_plan(status='active')
-    d = wait_for(lambda: db.hostedSms.find_one({"_id": hid, "status": "active"}), 45)
-    assert d and not d.get('note')
-    for k, v in legacy.items():
-        x = db.hostedSms.find_one({"_id": k})
-        assert x['status'] == 'active' and x.get('nextBillAt') == v
-    pytest.active_hid = hid
-
-
-def test_paused_error_copy_mentions_plan():
-    msg = getattr(pytest, 'paused_msg', '')
-    assert msg and 'monthly fee' not in msg, f"plan-attached paused send error copy: {msg!r}"
-
-
-def test_reject_refund_plan_price(alice):
-    b0 = bal(ALICE[2])
-    r = alice.post(f"{API}/hosted-sms", json={"phone": rnd(), "mode": "nocode", "planNumber": PLAN})
-    hid = r.json()['item']['id']
-    alice.post(f"{API}/hosted-sms/{hid}/code/skip")
-    alice.post(f"{API}/hosted-sms/{hid}/loa", json={"holder": HOLDER, "signature": HOLDER['name'], "consent": True})
+def test_skip_loa_docs_to_review(alice):
+    hid = alice.post(f"{API}/hosted-sms", json={"phone": rnd()}).json()['item']['id']
+    assert alice.post(f"{API}/hosted-sms/{hid}/code/skip").json()['item']['status'] == 'loa'
+    r = alice.post(f"{API}/hosted-sms/{hid}/loa", json={"holder": HOLDER, "signature": "Wrong Name", "consent": True})
+    assert r.status_code == 400
+    r = alice.post(f"{API}/hosted-sms/{hid}/loa", json={"holder": HOLDER, "signature": HOLDER['name'], "consent": True})
+    assert r.status_code == 200 and r.json()['item']['status'] == 'documents'
     r = alice.post(f"{API}/hosted-sms/{hid}/documents", files={"files": ("b.pdf", BILL, "application/pdf")})
     assert r.status_code == 200 and r.json()['item']['status'] == 'review', r.text
-    import subprocess
-    out = subprocess.run(['node', '-e', f"""
-require('dotenv').config({{path:'/app/backend/.env'}});const {{MongoClient}}=require('mongodb');
+
+
+def test_skip_help_admin_docs_free(alice):
+    hid = alice.post(f"{API}/hosted-sms", json={"phone": rnd()}).json()['item']['id']
+    alice.post(f"{API}/hosted-sms/{hid}/code/skip")
+    alice.post(f"{API}/hosted-sms/{hid}/loa", json={"holder": HOLDER, "signature": HOLDER['name'], "consent": True})
+    b0 = bal(ALICE[2])
+    r = alice.post(f"{API}/hosted-sms/{hid}/help")
+    assert r.status_code == 200 and r.json()['item']['status'] == 'admin_docs' and r.json()['item']['noBill'] is True
+    assert bal(ALICE[2]) == b0
+
+
+# --- receive-only
+def test_send_receive_only(bob):
+    hid = db.hostedSms.find_one({"phoneNumber": BOB_TEXTING, "plan": "texting", "status": "active"})['_id']
+    r = bob.post(f"{API}/hosted-sms/{hid}/send", json={"to": "+14165550177", "text": "TEST_x"})
+    assert r.status_code == 400 and 'receives texts only' in r.json()['message']
+    pytest.receive_only_code = r.json()['error']
+
+
+def test_send_receive_only_error_code():
+    assert getattr(pytest, 'receive_only_code', None) == 'receive_only', f"error code returned: {getattr(pytest, 'receive_only_code', None)}"
+
+
+def test_inbound_free():
+    b0 = bal(BOB[2])
+    body = f"TEST_inbound_{random.randint(1000, 9999)}"
+    js = f"""require('dotenv').config({{path:'/app/backend/.env'}});const {{MongoClient}}=require('mongodb');
 (async()=>{{const c=await MongoClient.connect(process.env.MONGO_URL);const db=c.db(process.env.DB_NAME);
 const HS=require('/app/js/hosted-sms.js').init({{db,log:()=>{{}},tell:async()=>null}});
-const r=await HS.adminReject('{hid}','TEST reject');console.log(JSON.stringify(r));process.exit(0)}})()"""], capture_output=True, text=True, cwd='/app', timeout=60)
-    assert '"rejected"' in out.stdout, out.stdout + out.stderr
-    assert bal(ALICE[2]) == b0
-    assert db.transactions.find_one({"metadata.hostedId": hid, "type": "hosted-sms-refund"})['amount'] == 100
+const r=await HS.onInbound({{from:'+14165550199',to:'{BOB_TEXTING}',body:'{body}'}});console.log(JSON.stringify(r));process.exit(0)}})()"""
+    out = subprocess.run(['node', '-e', js], capture_output=True, text=True, cwd='/app', timeout=60)
+    assert 'true' in out.stdout, out.stdout + out.stderr
+    log = db.phoneLogs.find_one({"body": body})
+    assert log and log['charge'] == 0 and log['direction'] == 'inbound'
+    assert bal(BOB[2]) == b0
+    assert not db.transactions.find_one({"type": "hosted-sms-inbound", "metadata.from": "+14165550199", "metadata.phoneNumber": BOB_TEXTING, "createdAt": {"$gte": log['timestamp'].replace(microsecond=0)}})

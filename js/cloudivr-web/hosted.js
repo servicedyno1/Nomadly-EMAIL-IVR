@@ -37,7 +37,7 @@ function routes(router, { db, h, log, notifyAdmin }) {
   }))
   router.post('/hosted-sms/:id/send', h(async (req, res) => {
     const r = await HS.sendText(req.webChatId, req.params.id, req.body?.to, req.body?.text)
-    if (r.error) return bad(res, r.error)
+    if (r.error) return out(res, r)
     res.json({ message: { direction: 'outbound', to: r.log.to, body: r.log.body, at: r.log.timestamp, status: r.log.status }, charge: r.charge })
   }))
 }
