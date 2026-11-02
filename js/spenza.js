@@ -102,6 +102,28 @@ async function list(chatId, kind = 'esim') { return (await S.col.find({ chatId: 
 async function mine(chatId, id) { return S.col.findOne({ _id: String(id), chatId: String(chatId) }) }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+// Each CloudIVR buyer is a Spenza user (end user) holding their lines. Spenza needs an email: the account's,
+// or a private CloudIVR address for phone-only accounts (swapped for the real one once they add it).
+const privateEmail = (chatId) => `u${chatId}@users.${String(process.env.CLOUDIVR_WEB_DOMAIN || '').trim().toLowerCase() || 'cloudivr.net'}`
+async function spenzaUser(chatId) {
+  const acc = await S.db.collection('webAccounts').findOne({ _id: { $in: [String(chatId), Number(chatId)] } }, { projection: { email: 1, name: 1, phone: 1 } })
+  const email = acc?.email || privateEmail(chatId)
+  return { email, name: String(acc?.name || '').trim() || 'CloudIVR customer', private: !acc?.email, ...(acc?.phone ? { phoneNumber: acc.phone.replace(/^\+1/, '').replace(/\D/g, '') } : {}) }
+}
+// Assign one line's SIM to its owner's Spenza user (creates the user if new). Recorded on the line and the account.
+async function linkUser(d) {
+  const u = await spenzaUser(d.chatId)
+  if (d.spenzaUser?.email === u.email && d.spenzaUser?.linkedAt) return true
+  if (real(d)) await call('post', `/api/v1.1/sims/${encodeURIComponent(d.iccid)}/assign`, { email: u.email, name: u.name })
+  const rec = { email: u.email, private: u.private, linkedAt: new Date() }
+  await S.col.updateOne({ _id: d._id }, { $set: { spenzaUser: rec } })
+  await S.db.collection('webAccounts').updateOne({ _id: { $in: [String(d.chatId), Number(d.chatId)] } }, { $set: { spenzaUser: { email: u.email, private: u.private, at: new Date() } } })
+  return true
+}
+// Account email added/changed: move every line to the Spenza user for the new email.
+async function syncUser(chatId) {
+  for (const d of await S.col.find({ chatId: String(chatId), status: { $in: ['active', 'suspended'] }, iccid: { $ne: null } }).toArray()) await linkUser(d).catch(e => S.log(`[Spenza] user sync ${d._id}: ${e.message}`))
+}
 async function buy(chatId, { planId, imei, zipcode, email, autoRenew }) {
   const qrEmail = String(email || '').trim().toLowerCase()
   if (!EMAIL_RE.test(qrEmail)) return { error: 'Enter the email address where we should send your eSIM QR code.' }
@@ -119,8 +141,9 @@ async function buy(chatId, { planId, imei, zipcode, email, autoRenew }) {
   await txn(chatId, 'esim-purchase', plan.price, { planId, lineId: _id })
   if (dry()) { await S.col.updateOne({ _id }, { $set: { transactionId: 'preview-' + _id, simulated: true } }); return { item: pub(doc) } }
   try {
-    const r = await call('post', '/api/v1.1/esim', { imei: im, simId: plan.simId, planId, activateNow: true, ...(zip ? { zipcode: zip } : {}) }, { 'Idempotency-Key': _id })
-    await S.col.updateOne({ _id }, { $set: { transactionId: r?.data?.transactionId || r?.transactionId } })
+    const u = await spenzaUser(chatId)
+    const r = await call('post', '/api/v1.1/esim', { imei: im, simId: plan.simId, planId, activateNow: true, email: u.email, user: { name: u.name, email: u.email, ...(u.phoneNumber ? { phoneNumber: u.phoneNumber } : {}), ...(zip ? { zipcode: zip } : {}) }, ...(zip ? { zipcode: zip } : {}) }, { 'Idempotency-Key': _id })
+    await S.col.updateOne({ _id }, { $set: { transactionId: r?.data?.transactionId || r?.transactionId, spenzaUser: { email: u.email, private: u.private } } })
     return { item: pub(doc) }
   } catch (e) {
     await S.w.credit(chatId, plan.price); await txn(chatId, 'esim-refund', plan.price, { lineId: _id })
@@ -167,8 +190,9 @@ async function buyMobile(chatId, { zipcode, autoRenew }) {
   await txn(chatId, 'mobile-number-purchase', MOBILE_PRICE, { lineId: _id, zipcode: zip })
   if (dry()) { await S.col.updateOne({ _id }, { $set: { transactionId: 'preview-' + _id, simulated: true } }); return { item: pub(doc) } }
   try {
-    const r = await call('post', '/api/v1.1/esim', { imei: im, simId: plan.simId, planId: plan.planId, activateNow: true, zipcode: zip }, { 'Idempotency-Key': _id })
-    await S.col.updateOne({ _id }, { $set: { transactionId: r?.data?.transactionId || r?.transactionId } })
+    const u = await spenzaUser(chatId)
+    const r = await call('post', '/api/v1.1/esim', { imei: im, simId: plan.simId, planId: plan.planId, activateNow: true, zipcode: zip, email: u.email, user: { name: u.name, email: u.email, zipcode: zip, ...(u.phoneNumber ? { phoneNumber: u.phoneNumber } : {}) } }, { 'Idempotency-Key': _id })
+    await S.col.updateOne({ _id }, { $set: { transactionId: r?.data?.transactionId || r?.transactionId, spenzaUser: { email: u.email, private: u.private } } })
     return { item: pub(doc) }
   } catch (e) {
     await S.w.credit(chatId, MOBILE_PRICE); await txn(chatId, 'mobile-number-refund', MOBILE_PRICE, { lineId: _id })
@@ -217,7 +241,7 @@ async function pollOne(d) {
   const st = String(r?.status || '').toLowerCase()
   if (['completed', 'succeeded', 'success'].includes(st)) {
     const x = r.result || {}
-    await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', iccid: x.iccid || null, phoneNumber: x.mdn ? (String(x.mdn).startsWith('+') ? x.mdn : '+1' + String(x.mdn).replace(/\D/g, '').slice(-10)) : null, qrCode: x.qrCode || null, orderId: x.orderId || null, ...period((x.iccid && await subEnd(x.iccid)) || new Date(Date.now() + MONTH_MS)), updatedAt: new Date() } })
+    await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', iccid: x.iccid || null, phoneNumber: x.mdn ? (String(x.mdn).startsWith('+') ? x.mdn : '+1' + String(x.mdn).replace(/\D/g, '').slice(-10)) : null, qrCode: x.qrCode || null, orderId: x.orderId || null, providerResult: x, ...period((x.iccid && await subEnd(x.iccid, d._id)) || new Date(Date.now() + MONTH_MS)), updatedAt: new Date() } })
     if (d.kind === 'mobile') return ready(d, x.mdn ? '+1' + String(x.mdn).replace(/\D/g, '').slice(-10) : null)
     const sent = await emailQr({ ...d, phoneNumber: x.mdn || null })
     S.tell(d.chatId, `📱 Your eSIM is ready. Open CloudIVR eSIM and scan the QR code with your phone to install it. It has two-way SMS: send and receive texts on that phone.${sent ? ` We also emailed it to ${d.qrEmail}.` : ''}`, { kind: 'billing', meta: { esim: d._id } })
@@ -266,9 +290,11 @@ async function lineUsage(chatId, id) { const d = await mine(chatId, id); if (!d?
 const DAY_MS = 86400000
 const CUTOFF_MS = 60 * 60000
 const period = (expiresAt) => ({ expiresAt, nextBillAt: new Date(expiresAt.getTime() - DAY_MS) })
-async function subEnd(iccid) {
+async function subEnd(iccid, lineId) {
   const r = await call('get', `/api/v1.1/sims/${encodeURIComponent(iccid)}/subscription`).catch(() => null)
-  const t = new Date(r?.data?.endDate || 0)
+  const s = r?.data
+  if (lineId && s) await S.col.updateOne({ _id: lineId }, { $set: { subscription: { status: s.status || null, startDate: s.startDate || null, endDate: s.endDate || null, autoTopUp: s.autoTopUp ?? null, product: s.productName || s.product || null, at: new Date() } } })
+  const t = new Date(s?.endDate || 0)
   return t.getTime() > Date.now() ? t : null
 }
 const real = (d) => !dry() && !d.simulated && d.iccid && !d.linked
@@ -282,7 +308,7 @@ async function billOne(d) {
   if (!d.price || d.autoRenew === false) return false
   if (await S.w.debit(d.chatId, d.price)) {
     await txn(d.chatId, 'esim-renewal', d.price, { lineId: d._id })
-    const base = (real(d) && await subEnd(d.iccid)) || new Date(d.expiresAt)
+    const base = (real(d) && await subEnd(d.iccid, d._id)) || new Date(d.expiresAt)
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', ...period(new Date(base.getTime() + MONTH_MS)), renewFailedAt: null, note: null, updatedAt: new Date() } })
     if (d.status === 'suspended') await setService(d, true)
     return true
@@ -313,11 +339,15 @@ async function remind(d) {
   const text = renews
     ? `Your ${label(d)} renews on ${end}. $${d.price} will be taken from your wallet a day before. Wallet balance: $${round2(bal).toFixed(2)}.${bal < d.price ? ` Top up $${round2(d.price - bal).toFixed(2)} or more so it doesn’t end.` : ''}`
     : `Your ${label(d)} ends on ${end} because auto-renew is off. Turn auto-renew on before then to keep it. Wallet balance: $${round2(bal).toFixed(2)}.`
+  const short = round2(Math.max(0, d.price - bal))
+  const url = require('./cloudivr-web/emails').appUrl(`/app/wallet?amount=${Math.max(5, Math.ceil(short))}`)
+  const link = /^https?:\/\//.test(url) ? url : null
   await S.col.updateOne({ _id: d._id }, { $set: { remindedFor: new Date(d.expiresAt) } })
-  S.tell(d.chatId, `🔔 ${text}`, { kind: 'billing', meta: d.kind === 'mobile' ? { mobile: d._id } : { esim: d._id } })
+  S.tell(d.chatId, `🔔 ${text}`, { kind: 'billing', meta: { ...(d.kind === 'mobile' ? { mobile: d._id } : { esim: d._id }), ...(renews && short > 0 ? { topup: Math.ceil(short) } : {}) } })
   const acc = await S.db.collection('webAccounts').findOne({ _id: { $in: [d.chatId, Number(d.chatId)] } }, { projection: { email: 1, phone: 1 } })
-  if (acc?.email) await require('./cloudivr-web/auth').sendMail(acc.email, renews ? `Your CloudIVR line renews on ${end}` : `Your CloudIVR line ends on ${end}`, `<p>${text}</p><p>Manage it in CloudIVR under Numbers → eSIM &amp; mobile numbers.</p>`).catch(e => S.log(`[Spenza] reminder email ${d._id}: ${e.message}`))
-  else if (acc?.phone) await require('./cloudivr-web/phone-auth').sendText(acc.phone, `CloudIVR: ${text}`).catch(e => S.log(`[Spenza] reminder text ${d._id}: ${e.message}`))
+  const cta = renews && short > 0 && link
+  if (acc?.email) await require('./cloudivr-web/auth').sendMail(acc.email, renews ? `Your CloudIVR line renews on ${end}` : `Your CloudIVR line ends on ${end}`, `<p>${text}</p>${cta ? `<p><a href="${link}" style="display:inline-block;padding:10px 18px;background:#4f46e5;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">Top up $${Math.ceil(short)} now</a></p>` : ''}<p>Manage it in CloudIVR under Numbers → eSIM &amp; mobile numbers.</p>`).catch(e => S.log(`[Spenza] reminder email ${d._id}: ${e.message}`))
+  else if (acc?.phone) await require('./cloudivr-web/phone-auth').sendText(acc.phone, `CloudIVR: ${text}${cta ? ` Top up: ${link}` : ''}`).catch(e => S.log(`[Spenza] reminder text ${d._id}: ${e.message}`))
 }
 async function setAutoRenew(chatId, id, on) {
   const d = await mine(chatId, id)
@@ -514,6 +544,10 @@ async function tick() {
   for (const d of await S.col.find({ ...live, expiresAt: { $lte: new Date(Date.now() + CUTOFF_MS) } }).limit(50).toArray()) await expire(d).catch(e => S.log(`[Spenza] expire ${d._id}: ${e.message}`))
   for (const d of await S.col.find({ ...live, autoRenew: { $ne: false }, nextBillAt: { $lte: new Date() }, expiresAt: { $gt: new Date(Date.now() + CUTOFF_MS) } }).limit(50).toArray()) await billOne(d).catch(e => S.log(`[Spenza] bill ${d._id}: ${e.message}`))
   for (const d of await S.col.find({ ...live, expiresAt: { $gt: new Date(Date.now() + CUTOFF_MS), $lte: new Date(Date.now() + 3 * DAY_MS) }, $expr: { $ne: ['$remindedFor', '$expiresAt'] } }).limit(50).toArray()) await remind(d).catch(e => S.log(`[Spenza] remind ${d._id}: ${e.message}`))
+  // Every paid line (new and older ones) sits under its owner's Spenza user.
+  for (const d of await S.col.find({ status: { $in: ['active', 'suspended'] }, iccid: { $ne: null }, linked: { $ne: true }, 'spenzaUser.linkedAt': null, userLinkFailedAt: { $not: { $gt: new Date(Date.now() - 3600000) } } }).limit(20).toArray()) {
+    await linkUser(d).catch(async e => { S.log(`[Spenza] link user ${d._id}: ${e.message}`); await S.col.updateOne({ _id: d._id }, { $set: { userLinkFailedAt: new Date() } }) })
+  }
   for (const d of await S.col.find({ 'numberChange.status': 'pending' }).limit(20).toArray()) await pollNumber(d).catch(e => S.log(`[Spenza] number change ${d._id}: ${e.message}`))
 }
 
@@ -529,5 +563,5 @@ function init({ db, log = console.log, tell }) {
   return api
 }
 
-const api = { init, tick, MOBILE_PRICE, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
+const api = { init, tick, syncUser, linkUser, MOBILE_PRICE, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
 module.exports = api

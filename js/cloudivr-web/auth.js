@@ -179,11 +179,11 @@ function createAuth(db, { log = console.log, notifyAdmin = () => {} } = {}) {
 
   const mfa = createTwoFactor({ db, secret, sendMail, setSession, publicAccount, lockState, recordFailure, isHttps, parseCookies, log })
 
-  const phoneAuth = createPhoneAuth(db, { accounts, createAccount, finishLogin: mfa.finishLogin, lockState, recordFailure, clientIp, countryOf, referrerFor, log })
+  const phoneAuth = createPhoneAuth(db, { accounts, createAccount, finishLogin: mfa.finishLogin, lockState, recordFailure, clientIp, countryOf, referrerFor, log, publicAccount, sendMail, normEmail, EMAIL_RE, onEmailChange: (id) => require('../spenza').syncUser(id) })
 
   function routes(router, h) {
     mfa.routes(router, h, requireUser)
-    phoneAuth.routes(router, h)
+    phoneAuth.routes(router, h, requireUser)
     router.get('/auth/config', h(async (req, res) => res.json({ googleClientId: process.env.GOOGLE_OAUTH_CLIENT_ID || null, phoneVoice: (await phoneAuth.voiceEnabled()) || process.env.WEB_CLOUDIVR_DRY_RUN === 'true', phoneSignIn: !!(process.env.TELESIGN_CUSTOMER_ID && process.env.TELESIGN_API_KEY) || process.env.WEB_CLOUDIVR_DRY_RUN === 'true', brand: process.env.CHAT_BOT_BRAND || 'Nomadly' })))
 
     router.post('/auth/register', h(async (req, res) => {

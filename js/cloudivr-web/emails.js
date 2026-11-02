@@ -397,4 +397,4 @@ function createEmails(db, { log = console.log } = {}) {
   return { send, tick, runWeekly, weeklyFor, sample, render: build, routes, publicRoutes, start }
 }
 
-module.exports = { createEmails, DEFAULTS, GROUPS }
+module.exports = { createEmails, DEFAULTS, GROUPS, appUrl }

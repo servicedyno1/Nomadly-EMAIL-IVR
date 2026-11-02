@@ -235,3 +235,4 @@
 - Preview (WEB_CLOUDIVR_DRY_RUN=true): any `+1555xxxxxxx` number is SIMULATED — no SMS is sent, and `/auth/phone/start` returns `previewCode`; the UI shows it as "Preview test number: code ######".
 - Real numbers use Telesign SMS (`/v1/verify/sms`). Telesign voice is NOT enabled on the account, so real "Call me" requests return `voice_unavailable`.
 - Endpoints: POST /api/cloudivr-web/auth/phone/start {phone, channel:'sms'|'voice'}, then POST /api/cloudivr-web/auth/phone/verify {challenge, code, remember, name?, ref?}.
+- Account linking: POST /api/cloudivr-web/account/phone/start|verify and /account/email/start|verify (need a signed-in session). In preview, emails @example.com are simulated and return previewCode. Alice may have the test phone +15550177002 linked (preview only).

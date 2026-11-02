@@ -28,7 +28,7 @@ async function voiceEnabled() {
   return on
 }
 
-function createPhoneAuth(db, { accounts, createAccount, finishLogin, lockState, recordFailure, clientIp, countryOf, referrerFor, log }) {
+function createPhoneAuth(db, { accounts, createAccount, finishLogin, lockState, recordFailure, clientIp, countryOf, referrerFor, log, publicAccount, sendMail, normEmail, EMAIL_RE, onEmailChange }) {
   const challenges = db.collection('webPhoneChallenges')
   challenges.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }).catch(() => {})
   accounts.createIndex({ phone: 1 }, { unique: true, name: 'phone_partial', partialFilterExpression: { phone: { $type: 'string' } } }).catch(e => log(`[CloudIVR-Web] phone index: ${e.message}`))
@@ -41,35 +41,44 @@ function createPhoneAuth(db, { accounts, createAccount, finishLogin, lockState, 
     return { ref: r?.reference_id || null, codeHash: sha(code) }
   }
 
-  function routes(router, h) {
-    router.post('/auth/phone/start', h(async (req, res) => {
-      const phone = normPhone(req.body.phone), channel = req.body.channel === 'voice' ? 'voice' : 'sms'
-      if (!phone) return bad(res, 400, 'invalid_phone', 'Enter your number with the country code, like +44 7700 900123.')
-      if (!configured() && !simulated(phone)) return bad(res, 503, 'phone_not_configured', 'Phone sign-in is not available yet. Use email or Google.')
-      if (channel === 'voice' && !simulated(phone) && !(await voiceEnabled())) return bad(res, 400, 'voice_unavailable', 'Calls with the code aren’t available yet. Tap “Text me again” instead.')
-      const ipKey = `phone-send|${clientIp(req)}`, phoneKey = `phone-send|${phone}`
-      if ((await lockState(ipKey)) || (await lockState(phoneKey))) return bad(res, 429, 'too_many_codes', 'Too many codes asked for. Wait 15 minutes and try again.')
-      await recordFailure(ipKey, 30)
-      await recordFailure(phoneKey, 5)
-      let s
-      try { s = await start(phone, channel) } catch (e) {
-        log(`[CloudIVR-Web] Telesign ${channel} failed: ${e.response?.status || ''} ${JSON.stringify(e.response?.data?.status || e.message)}`)
-        return bad(res, 502, 'send_failed', channel === 'voice' ? 'We couldn’t place the call. Check the number and try again.' : 'We couldn’t send the text. Check the number, or ask for a call instead.')
-      }
-      const id = crypto.randomBytes(16).toString('hex')
-      await challenges.insertOne({ _id: id, phone, channel, ref: s.ref, codeHash: s.codeHash || null, tries: 0, used: false, expiresAt: new Date(Date.now() + TTL_MS), createdAt: new Date() })
-      res.json({ challenge: id, channel, expiresIn: TTL_MS / 1000, ...(s.previewCode ? { previewCode: s.previewCode } : {}) })
-    }))
+  // Sends a code to a phone and stores the challenge (extra: { linkTo } when adding a phone to a signed-in account).
+  async function sendPhoneCode(req, res, phone, channel, extra = {}) {
+    if (!phone) return bad(res, 400, 'invalid_phone', 'Enter your number with the country code, like +44 7700 900123.')
+    if (!configured() && !simulated(phone)) return bad(res, 503, 'phone_not_configured', 'Phone sign-in is not available yet. Use email or Google.')
+    if (channel === 'voice' && !simulated(phone) && !(await voiceEnabled())) return bad(res, 400, 'voice_unavailable', 'Calls with the code aren’t available yet. Tap “Text me again” instead.')
+    const ipKey = `phone-send|${clientIp(req)}`, phoneKey = `phone-send|${phone}`
+    if ((await lockState(ipKey)) || (await lockState(phoneKey))) return bad(res, 429, 'too_many_codes', 'Too many codes asked for. Wait 15 minutes and try again.')
+    await recordFailure(ipKey, 30)
+    await recordFailure(phoneKey, 5)
+    let s
+    try { s = await start(phone, channel) } catch (e) {
+      log(`[CloudIVR-Web] Telesign ${channel} failed: ${e.response?.status || ''} ${JSON.stringify(e.response?.data?.status || e.message)}`)
+      return bad(res, 502, 'send_failed', channel === 'voice' ? 'We couldn’t place the call. Check the number and try again.' : 'We couldn’t send the text. Check the number, or ask for a call instead.')
+    }
+    const id = crypto.randomBytes(16).toString('hex')
+    await challenges.insertOne({ _id: id, phone, channel, ref: s.ref, codeHash: s.codeHash, ...extra, tries: 0, used: false, expiresAt: new Date(Date.now() + TTL_MS), createdAt: new Date() })
+    res.json({ challenge: id, channel, expiresIn: TTL_MS / 1000, ...(s.previewCode ? { previewCode: s.previewCode } : {}) })
+  }
+
+  // Checks a code once (tries counted atomically). Returns the used challenge, or sends the error and returns null.
+  async function useCode(req, res, filter) {
+    const code = String(req.body.code || '').replace(/\D/g, '')
+    if (code.length < 3 || code.length > 10) { bad(res, 400, 'invalid_code', 'Enter the code we sent you.'); return null }
+    const c = await challenges.findOneAndUpdate({ _id: String(req.body.challenge || ''), ...filter, used: false, tries: { $lt: MAX_TRIES }, expiresAt: { $gt: new Date() } }, { $inc: { tries: 1 } }, { returnDocument: 'before' }).then(r => (r && r.value !== undefined ? r.value : r))
+    if (!c) { bad(res, 400, 'code_expired', 'This code has expired. Ask for a new one.'); return null }
+    if (sha(code) !== c.codeHash) { bad(res, 401, 'wrong_code', c.tries + 1 >= MAX_TRIES ? 'Wrong code. Ask for a new one.' : 'Wrong code. Try again.'); return null }
+    const r = await challenges.findOneAndUpdate({ _id: c._id, used: false }, { $set: { used: true } })
+    if (!(r && r.value !== undefined ? r.value : r)) { bad(res, 400, 'code_expired', 'This code was already used. Ask for a new one.'); return null }
+    return c
+  }
+  const takenBy = async (field, value, me) => { const o = await accounts.findOne({ [field]: value }, { projection: { _id: 1 } }); return o && String(o._id) !== String(me) }
+
+  function routes(router, h, requireUser) {
+    router.post('/auth/phone/start', h(async (req, res) => sendPhoneCode(req, res, normPhone(req.body.phone), req.body.channel === 'voice' ? 'voice' : 'sms')))
 
     router.post('/auth/phone/verify', h(async (req, res) => {
-      const code = String(req.body.code || '').replace(/\D/g, '')
-      if (code.length < 3 || code.length > 10) return bad(res, 400, 'invalid_code', 'Enter the code we sent you.')
-      const c = await challenges.findOneAndUpdate({ _id: String(req.body.challenge || ''), used: false, tries: { $lt: MAX_TRIES }, expiresAt: { $gt: new Date() } }, { $inc: { tries: 1 } }, { returnDocument: 'before' }).then(r => (r && r.value !== undefined ? r.value : r))
-      if (!c) return bad(res, 400, 'code_expired', 'This code has expired. Ask for a new one.')
-      const ok = sha(code) === c.codeHash
-      if (!ok) return bad(res, 401, 'wrong_code', c.tries + 1 >= MAX_TRIES ? 'Wrong code. Ask for a new one.' : 'Wrong code. Try again.')
-      const r = await challenges.findOneAndUpdate({ _id: c._id, used: false }, { $set: { used: true } })
-      if (!(r && r.value !== undefined ? r.value : r)) return bad(res, 400, 'code_expired', 'This code was already used. Ask for a new one.')
+      const c = await useCode(req, res, { linkTo: { $exists: false }, phone: { $exists: true } })
+      if (!c) return
       const ip = clientIp(req)
       let acc = await accounts.findOne({ phone: c.phone })
       if (!acc) {
@@ -81,6 +90,44 @@ function createPhoneAuth(db, { accounts, createAccount, finishLogin, lockState, 
       if (acc.disabled) return bad(res, 403, 'disabled', 'This account is disabled.')
       await accounts.updateOne({ _id: acc._id }, { $set: { lastLoginAt: new Date(), lastIp: ip, phoneVerifiedAt: new Date() } })
       return finishLogin(req, res, acc, { remember: !!req.body.remember })
+    }))
+
+    // Signed in: add (or change) the account's phone — a code proves it, then it works for phone sign-in.
+    router.post('/account/phone/start', requireUser, h(async (req, res) => {
+      const phone = normPhone(req.body.phone)
+      if (phone && await takenBy('phone', phone, req.webChatId)) return bad(res, 409, 'phone_taken', 'This number is already used by another CloudIVR account.')
+      return sendPhoneCode(req, res, phone, req.body.channel === 'voice' ? 'voice' : 'sms', { linkTo: String(req.webChatId) })
+    }))
+    router.post('/account/phone/verify', requireUser, h(async (req, res) => {
+      const c = await useCode(req, res, { linkTo: String(req.webChatId), phone: { $exists: true } })
+      if (!c) return
+      if (await takenBy('phone', c.phone, req.webChatId)) return bad(res, 409, 'phone_taken', 'This number is already used by another CloudIVR account.')
+      await accounts.updateOne({ _id: req.webUser._id }, { $set: { phone: c.phone, phoneVerifiedAt: new Date() } })
+      res.json({ account: publicAccount(await accounts.findOne({ _id: req.webUser._id })) })
+    }))
+
+    // Signed in without an email (phone accounts): add one. A code is emailed; the eSIM provider record moves to it.
+    router.post('/account/email/start', requireUser, h(async (req, res) => {
+      const email = normEmail(req.body.email)
+      if (!EMAIL_RE.test(email)) return bad(res, 400, 'invalid_email', 'Enter a valid email address.')
+      if (await takenBy('email', email, req.webChatId)) return bad(res, 409, 'email_taken', 'This email is already used by another CloudIVR account.')
+      const key = `email-link|${req.webChatId}`
+      if (await lockState(key)) return bad(res, 429, 'too_many_codes', 'Too many codes asked for. Wait 15 minutes and try again.')
+      await recordFailure(key, 5)
+      const code = String(crypto.randomInt(0, 1e6)).padStart(6, '0')
+      const preview = process.env.WEB_CLOUDIVR_DRY_RUN === 'true' && /@example\.(com|org|net)$/.test(email)
+      if (!preview && !(await sendMail(email, 'Your CloudIVR email code', `<p>Your code to add this email to CloudIVR is <b style="font-size:20px;letter-spacing:3px">${code}</b>.</p><p>It expires in 5 minutes. If you didn’t ask for it, ignore this email.</p>`).catch(() => false))) return bad(res, 502, 'send_failed', 'We couldn’t send the email right now. Try again in a few minutes.')
+      const id = crypto.randomBytes(16).toString('hex')
+      await challenges.insertOne({ _id: id, email, linkTo: String(req.webChatId), codeHash: sha(code), tries: 0, used: false, expiresAt: new Date(Date.now() + TTL_MS), createdAt: new Date() })
+      res.json({ challenge: id, expiresIn: TTL_MS / 1000, ...(preview ? { previewCode: code } : {}) })
+    }))
+    router.post('/account/email/verify', requireUser, h(async (req, res) => {
+      const c = await useCode(req, res, { linkTo: String(req.webChatId), email: { $exists: true } })
+      if (!c) return
+      if (await takenBy('email', c.email, req.webChatId)) return bad(res, 409, 'email_taken', 'This email is already used by another CloudIVR account.')
+      await accounts.updateOne({ _id: req.webUser._id }, { $set: { email: c.email, emailVerifiedAt: new Date() } })
+      onEmailChange(req.webChatId).catch(e => log(`[CloudIVR-Web] email change sync: ${e.message}`))
+      res.json({ account: publicAccount(await accounts.findOne({ _id: req.webUser._id })) })
     }))
   }
 

@@ -19,6 +19,7 @@ import { InstallApp } from './settings/InstallApp';
 import { EmailPrefs } from './settings/EmailPrefs';
 import { useUnsaved, SaveRow } from '../guard';
 import { SenderName } from './settings/SenderName';
+import { SignInMethods } from './settings/SignIn';
 
 function Profile({ account, setAccount }) {
   const [name, setName] = useState(account.name || '');
@@ -28,8 +29,6 @@ function Profile({ account, setAccount }) {
   return (
     <form onSubmit={save} className="civr-card p-6 space-y-6" data-testid="settings-profile-form" {...u.bind}>
       <div className="font-display text-2xl font-bold">Profile</div>
-      {account.email ? <Field label="Email"><input className="civr-input" value={account.email} disabled data-testid="settings-email" /></Field>
-        : <Field label="Phone number" hint="You sign in with a code sent to this number."><input className="civr-input" value={account.phone || ''} disabled data-testid="settings-phone" /></Field>}
       <Field label="Name"><input className="civr-input" value={name} onChange={e => setName(e.target.value)} data-testid="settings-name-input" /></Field>
       <div className="flex flex-wrap gap-2 text-xs">
         <span className="civr-pill" data-testid="settings-member-since">member since {day(account.createdAt)}</span>
@@ -174,7 +173,7 @@ export default function Settings() {
       <PageHeader label="Account" title="Settings" sub="Your login, language, alerts and security. This web account is separate from any Telegram bot account." testid="settings-header">
         <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={async () => { nav(cp(), { replace: true }); await logout(); }} data-testid="settings-logout-button"><LogOut className="w-4 h-4" />Sign out</button>
       </PageHeader>
-      <div className="grid lg:grid-cols-2 gap-4 max-w-5xl min-[1600px]:max-w-6xl min-[1800px]:max-w-7xl"><Profile account={account} setAccount={setAccount} /><Password account={account} refresh={refresh} /><Security account={account} refresh={refresh} /><Referral /><Suggest admin={account.admin} /><Language /><Appearance /><DefaultVoice /><SenderName /><EmailPrefs /><InstallApp /><Community /><Webhooks /></div>
+      <div className="grid lg:grid-cols-2 gap-4 max-w-5xl min-[1600px]:max-w-6xl min-[1800px]:max-w-7xl"><Profile account={account} setAccount={setAccount} /><SignInMethods account={account} /><Password account={account} refresh={refresh} /><Security account={account} refresh={refresh} /><Referral /><Suggest admin={account.admin} /><Language /><Appearance /><DefaultVoice /><SenderName /><EmailPrefs /><InstallApp /><Community /><Webhooks /></div>
     </div>
   );
 }

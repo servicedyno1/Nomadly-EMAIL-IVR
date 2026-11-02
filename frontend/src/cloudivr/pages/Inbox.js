@@ -125,6 +125,7 @@ export default function Inbox() {
                   {n.mediaUrl && /\.(mp3|wav|ogg)(\?|$)/i.test(n.mediaUrl) && <audio controls preload="none" src={playUrl(n.mediaUrl)} className="relative z-10 h-9 mt-2" data-testid={`inbox-item-${i}-audio`} />}
                   {n.meta?.coupon && couponLive(n) && <Link to={cp(`/app/buy?coupon=${encodeURIComponent(n.meta.coupon)}`)} className="relative z-10 civr-btn civr-btn-ghost civr-btn-sm mt-2" data-testid={`inbox-item-${i}-use-coupon`}><Ticket className="w-4 h-4" />Use coupon {n.meta.coupon}</Link>}
                   {n.meta?.cta && !n.meta.coupon && couponLive(n) && <Link to={cp(n.meta.cta.to)} className="relative z-10 civr-btn civr-btn-ghost civr-btn-sm mt-2" data-testid={`inbox-item-${i}-offer-cta`}><Ticket className="w-4 h-4" />{n.meta.cta.label}</Link>}
+                  {n.meta?.topup > 0 && <Link to={cp(`/app/wallet?amount=${Math.max(5, n.meta.topup)}`)} className="relative z-10 civr-btn civr-btn-primary civr-btn-sm mt-2" data-testid={`inbox-item-${i}-topup`}>Top up ${n.meta.topup} now</Link>}
                   {n.canReply && <SmsReply n={n} i={i} pv={pv} onReplied={onReplied} reload={reload} />}
                   {ccid && Date.now() - new Date(n.createdAt).getTime() < 15 * 60000 && (newestTry ? <OtpLive ccid={ccid} compact testid={`inbox-item-${i}-otp`} />
                     : <p className="text-xs text-[#a1a1aa] mt-2" data-testid={`inbox-item-${i}-otp-superseded`}>An earlier try. The newest code for this call is above.</p>)}

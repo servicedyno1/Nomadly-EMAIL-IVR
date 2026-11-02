@@ -8,7 +8,7 @@ import { PageHeader, SkeletonPage } from '../ui';
 import { LogTable } from '../LogTable';
 import { cp } from '../paths';
 import { GetStarted, YourNumbers } from './dashboard/Widgets';
-import { CouponBanner, ChannelCard, TrialCard } from './dashboard/Banners';
+import { TopBanner, TrialCard } from './dashboard/Banners';
 import { NewProducts } from './dashboard/NewProducts';
 import { ForYou, ReviewPrompt } from './dashboard/ForYou';
 import { TextingHome } from './dashboard/TextingHome';
@@ -67,8 +67,7 @@ export default function Dashboard() {
       </PageHeader>
       {!textingOnly && <>
         <TrialCard />
-        <ChannelCard />
-        <CouponBanner />
+        <TopBanner />
         <ReviewPrompt />
         <ForYou />
         <NewProducts />

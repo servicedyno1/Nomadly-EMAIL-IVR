@@ -12,54 +12,39 @@ const pad = (n) => String(n).padStart(2, '0');
 const hms = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`; };
 
 const OFFER_ICON = { number: Ticket, renew: RefreshCw, upgrade: ArrowUpCircle, topup: Gift, firstTopup: Gift };
-// Today's personal offer with a live countdown to midnight UTC; dismissible (stays hidden until the next offer), hidden once used.
-export function CouponBanner() {
-  const { offer, dismiss } = useOffer();
-  const [now, setNow] = useState(Date.now());
-  const live = !!offer && !offer.used && !offer.dismissed;
-  useEffect(() => { if (!live) return undefined; const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, [live]);
-  if (!live) return null;
-  const left = new Date(offer.expiresAt).getTime() - now;
-  if (left <= 0) return null;
-  const Icon = OFFER_ICON[offer.kind] || Ticket;
-  return (
-    <div className="civr-card civr-rise civr-offer p-5 sm:p-6 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 relative" data-testid="dashboard-coupon-banner" data-offer-kind={offer.kind}>
-      <div className="w-11 h-11 rounded-xl bg-[var(--c-accent-soft)] flex items-center justify-center shrink-0"><Icon className="w-5 h-5 text-[var(--c-accent)]" /></div>
-      <div className="flex-1 min-w-0 pr-8 sm:pr-0">
-        <div className="text-xs uppercase tracking-[0.14em] text-[var(--c-accent)] font-semibold">Today’s offer for you</div>
-        <div className="font-semibold text-base mt-1" data-testid="dashboard-offer-title">{offer.title}</div>
-        <div className="text-sm text-[var(--c-muted)] mt-1" data-testid="dashboard-offer-text">{offer.text}</div>
-        <div className="text-xs text-[var(--c-muted)] mt-2 flex flex-wrap items-center gap-x-2">
-          {offer.code && <><span>Code</span><span className="font-mono text-[var(--c-text)]" data-testid="dashboard-coupon-code" data-no-translate>{offer.code}</span><span>·</span></>}
-          <span>Ends in</span><span className="font-mono text-[var(--c-accent)] tabular-nums" data-testid="dashboard-coupon-countdown">{hms(left)}</span>
-        </div>
-      </div>
-      <Link to={cp(offer.cta.to)} className="civr-btn civr-btn-primary civr-btn-sm self-start sm:self-auto" data-testid="dashboard-coupon-use">{offer.cta.label}</Link>
-      <button type="button" onClick={dismiss} className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center text-[var(--c-muted)] hover:text-[var(--c-text)] hover:bg-[var(--c-accent-soft)]" aria-label="Dismiss offer" data-testid="dashboard-coupon-dismiss"><X className="w-4 h-4" /></button>
-    </div>
-  );
-}
-
 const dismissKey = (account) => `civr.channelCard.${account?.id || 'me'}`;
-// One-time welcome card pointing new accounts (first 30 days) to the Telegram channel; dismissal is per account.
-export function ChannelCard() {
+
+// One slim banner at the top of Overview: today's offer (countdown to midnight UTC) or, when there's none, the
+// welcome + Telegram channel link for new accounts. One X hides it (the offer until the next one, the welcome for good).
+export function TopBanner() {
+  const { offer, dismiss } = useOffer();
   const { catalog } = useShell();
   const { account } = useCivrAuth();
+  const [now, setNow] = useState(Date.now());
+  const [closed, setClosed] = useState(false);
   const DISMISS = dismissKey(account);
-  const [closed, setClosed] = useState(null); // key closed in this session (the account loads after the first render)
-  const hidden = closed === DISMISS || recall(DISMISS) === '1';
+  const live = !!offer && !offer.used && !offer.dismissed && new Date(offer.expiresAt).getTime() > now;
+  useEffect(() => { if (!live) return undefined; const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, [live]);
   const isNew = account?.createdAt && Date.now() - new Date(account.createdAt).getTime() < 30 * 86400000;
-  if (hidden || !isNew || !catalog?.channelLink) return null;
-  const close = () => { remember('preferences', DISMISS, '1'); setClosed(DISMISS); };
+  const welcome = !closed && isNew && !!catalog?.channelLink && recall(DISMISS) !== '1';
+  if (!live && !welcome) return null;
+  const close = () => { if (live) dismiss(); remember('preferences', DISMISS, '1'); setClosed(true); };
+  const Icon = live ? (OFFER_ICON[offer.kind] || Ticket) : Send;
   return (
-    <div className="civr-card civr-rise p-5 sm:p-6 mb-6 flex items-start sm:items-center gap-4" data-testid="dashboard-channel-card">
-      <div className="w-11 h-11 rounded-xl bg-[#38bdf8]/15 flex items-center justify-center shrink-0"><Send className="w-5 h-5 text-[#38bdf8]" /></div>
-      <div className="flex-1 min-w-0">
-        <div className="font-semibold text-base">Welcome to CloudIVR</div>
-        <div className="text-sm text-[#a1a1aa] mt-1">Join our Telegram channel for new countries, features, daily coupons and service updates.</div>
-        <a href={catalog.channelLink} target="_blank" rel="noopener noreferrer" onClick={close} className="civr-btn civr-btn-ghost civr-btn-sm mt-3" data-testid="dashboard-channel-join"><Send className="w-4 h-4" />Join the channel</a>
-      </div>
-      <button type="button" onClick={close} className="w-11 h-11 -mt-2 -mr-2 flex items-center justify-center rounded-lg text-[#a1a1aa] hover:text-white hover:bg-white/5 shrink-0" aria-label="Dismiss" data-testid="dashboard-channel-dismiss"><X className="w-4 h-4" /></button>
+    <div className="civr-card civr-rise civr-offer px-4 py-3 mb-6 flex flex-wrap items-center gap-x-4 gap-y-2" data-testid="dashboard-top-banner" data-offer-kind={live ? offer.kind : 'welcome'}>
+      <Icon className="w-5 h-5 text-[var(--c-accent)] shrink-0" />
+      {live ? (
+        <div className="flex-1 min-w-[12rem] text-sm" data-testid="dashboard-coupon-banner">
+          <span className="font-semibold" data-testid="dashboard-offer-title">{offer.title}</span>
+          <span className="text-[var(--c-muted)]"> · <span data-testid="dashboard-offer-text">{offer.text}</span></span>
+          <span className="text-xs text-[var(--c-muted)] whitespace-nowrap"> · {offer.code && <><span className="font-mono text-[var(--c-text)]" data-testid="dashboard-coupon-code" data-no-translate>{offer.code}</span> · </>}ends in <span className="font-mono text-[var(--c-accent)] tabular-nums" data-testid="dashboard-coupon-countdown">{hms(new Date(offer.expiresAt).getTime() - now)}</span></span>
+        </div>
+      ) : (
+        <div className="flex-1 min-w-[12rem] text-sm" data-testid="dashboard-channel-card"><span className="font-semibold">Welcome to CloudIVR</span><span className="text-[var(--c-muted)]"> · Join our Telegram channel for new countries, features, daily coupons and service updates.</span></div>
+      )}
+      {live ? <Link to={cp(offer.cta.to)} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="dashboard-coupon-use">{offer.cta.label}</Link>
+        : <a href={catalog.channelLink} target="_blank" rel="noopener noreferrer" onClick={close} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="dashboard-channel-join"><Send className="w-4 h-4" />Join the channel</a>}
+      <button type="button" onClick={close} className="w-9 h-9 rounded-lg flex items-center justify-center text-[var(--c-muted)] hover:text-[var(--c-text)] hover:bg-[var(--c-accent-soft)]" aria-label="Dismiss" data-testid="dashboard-top-banner-dismiss"><X className="w-4 h-4" /></button>
     </div>
   );
 }
