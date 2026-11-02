@@ -1,0 +1,7 @@
+require('dotenv').config({ path: '/app/backend/.env' })
+const { MongoClient } = require('mongodb')
+;(async () => { const c = await MongoClient.connect(process.env.MONGO_URL); const db = c.db(process.env.DB_NAME)
+  console.log(JSON.stringify(await db.collection('transactions').aggregate([{ $group: { _id: '$type', n: { $sum: 1 } } }, { $sort: { n: -1 } }]).toArray()))
+  const t = await db.collection('transactions').findOne({}, { projection: { _id: 0, chatId: 1, type: 1, amount: 1, createdAt: 1, currency: 1, metadata: 1 } }); console.log(Object.keys(t || {}), typeof t?.chatId)
+  console.log(JSON.stringify(await db.collection('phoneLogs').findOne({ type: 'sms_out' }, { projection: { _id: 0, chatId: 1, timestamp: 1, charge: 1, type: 1 } })))
+  await c.close(); process.exit(0) })()

@@ -11,7 +11,12 @@ function routes(router, { db, h, numbersApi }) {
 
   router.get('/prefs/onboarding', h(async (req, res) => {
     const p = await me(req)
-    res.json({ purposes: p?.purposes || [], onboarded: !!p?.onboardedAt, setups: p?.setups || {}, suggestionsHidden: !!p?.suggestionsHidden })
+    res.json({ purposes: p?.purposes || [], onboarded: !!p?.onboardedAt, setups: p?.setups || {}, suggestionsHidden: !!p?.suggestionsHidden, statementOff: !!p?.statementOff })
+  }))
+  router.put('/prefs/statement', h(async (req, res) => {
+    const off = !!req.body.off
+    await prefs.updateOne({ _id: req.webChatId }, { $set: { statementOff: off } }, { upsert: true })
+    res.json({ statementOff: off })
   }))
   router.put('/prefs/suggestions', h(async (req, res) => {
     const hidden = !!req.body.hidden

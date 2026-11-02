@@ -6,7 +6,7 @@ import { DateTimePicker } from '../../DateTimePicker';
 import { useBalance, ShortNote } from '../../WalletPay';
 import { shrink } from './shrink';
 import { mediaSrc } from './Events';
-import { SMS_REPLIES } from '../../QuickReply';
+import { Templates } from './Templates';
 import { smsOver, smsCount, smsParts } from '../../smsLimit';
 
 const BUDGET = 600 * 1024;
@@ -86,7 +86,7 @@ export function Composer({ t, onSent, seed, onScheduled }) {
   return (
     <div className="border-t border-[var(--c-border)] p-3" data-testid="composer">
       {t.replyFrom && t.replyFrom !== t.number.phone && <p className="text-xs text-[var(--c-muted)] px-1 pb-2" data-testid="composer-reply-from">Your reply comes from <span className="font-mono" data-no-translate>{t.replyFrom}</span></p>}
-      {quick && <div className="flex flex-wrap gap-1.5 px-1 pb-2" data-testid="composer-quick-replies">{SMS_REPLIES.map((r, i) => <button key={r} type="button" onClick={() => { setText(r.slice(0, t.maxLength)); setQuick(false); }} className="rounded-full border border-[var(--c-border)] px-3 py-1.5 text-xs text-left hover:border-[var(--c-accent)] transition-colors" data-testid={`composer-quick-reply-${i}`}>{r}</button>)}</div>}
+      {quick && <Templates text={text} onPick={(v) => { setText(v.slice(0, 600)); setQuick(false); }} />}
       <Pics pics={pics} remove={(i) => setPics(p => p.filter((_, j) => j !== i))} />
       {when !== null && <div className="flex flex-wrap items-center gap-2 px-1 pb-2" data-testid="composer-schedule">
         <span className="text-xs font-semibold flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Send later</span>
@@ -105,7 +105,7 @@ export function Composer({ t, onSent, seed, onScheduled }) {
         <span className={parts > 1 ? 'font-semibold text-[var(--c-text)]' : ''} data-testid="composer-cost">{over ? 'Too long to send' : cost}</span>
         <span className="flex items-center gap-3">
           {when === null && <button type="button" onClick={() => setWhen('')} className="underline underline-offset-2 hover:text-[var(--c-accent)]" data-testid="composer-schedule-toggle">Send later</button>}
-          <button type="button" onClick={() => setQuick(q => !q)} className="underline underline-offset-2 hover:text-[var(--c-accent)]" aria-expanded={quick} data-testid="composer-quick-toggle">Quick replies</button>
+          <button type="button" onClick={() => setQuick(q => !q)} className="underline underline-offset-2 hover:text-[var(--c-accent)]" aria-expanded={quick} data-testid="composer-quick-toggle">Templates</button>
           <span className={over ? 'text-red-500 font-semibold' : ''} data-testid="composer-count">{smsCount(text)}{over ? ' · too long: shorten it to 3 joined texts' : ''}</span>
         </span>
       </div>

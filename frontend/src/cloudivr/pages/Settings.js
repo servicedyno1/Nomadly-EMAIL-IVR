@@ -66,6 +66,21 @@ function Appearance() {
       <p className="text-sm text-[#a1a1aa]">Light or dark for the app on this device. “Match my device” switches with your phone or computer.</p>
       <div className="flex flex-wrap gap-2">{THEME_OPTIONS.map(([v, label]) => <button key={v} type="button" onClick={() => setPref(v)} aria-pressed={pref === v} className={`civr-pill cursor-pointer !normal-case !tracking-normal !text-sm h-10 ${pref === v ? 'civr-pill-on' : ''}`} data-testid={`settings-theme-${v}`}>{label}</button>)}</div>
       <SuggestionsPref />
+      <StatementPref />
+    </div>
+  );
+}
+
+// Monthly statement email on the 1st (line payments + texts). On by default.
+function StatementPref() {
+  const { onboarding, setOnboarding } = useShell();
+  if (!onboarding) return null;
+  const off = !!onboarding.statementOff;
+  const flip = () => api('/prefs/statement', { method: 'PUT', body: { off: !off } }).then(d => { setOnboarding({ ...onboarding, ...d }); toast.success(d.statementOff ? 'Monthly statements off' : 'Monthly statements on'); }).catch(e => toast.error(e.message));
+  return (
+    <div className="flex items-center justify-between gap-3 pt-4 border-t border-[#1f1f1f]" data-testid="settings-statement">
+      <div className="text-sm"><div className="font-semibold">Monthly statement email</div><div className="text-[#a1a1aa]">{off ? 'Off.' : 'On the 1st: last month’s line payments and texts sent.'}</div></div>
+      <button type="button" role="switch" aria-checked={!off} onClick={flip} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="settings-statement-toggle">{off ? 'Turn on' : 'Turn off'}</button>
     </div>
   );
 }

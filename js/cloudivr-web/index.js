@@ -59,6 +59,7 @@ function createCloudIvrWeb(deps) {
     const r = express.Router()
     const auth = createAuth(db, { log, notifyAdmin: deps.notifyAdmin })
     auth.routes(r, h)
+    require('./statement').start(db, { log })
     r.get('/public/catalog', (req, res) => res.json({
       ...numbers.catalog(), coins: deps.coins || [], minTopup: wallet.MIN_TOPUP_USD, supportLink: support.supportLink(), channelLink: String(process.env.CLOUDIVR_CHANNEL_LINK || '').trim(),
     }))
@@ -95,6 +96,7 @@ function createCloudIvrWeb(deps) {
     ai.routes(r, { h, numbersApi })
     extras.routes(r, { ...deps, db, h, numbersApi, offers })
     onboarding.routes(r, { db, h, numbersApi })
+    require('./templates').routes(r, { db, h })
     leads.routes(r, { db, h })
     require('./caller-ids').routes(r, { db, h, numbersApi })
     support.routes(r, { ...deps, db, h, numbersApi })
