@@ -47,7 +47,7 @@ export function ReviewPrompt() {
   return (
     <div className="civr-card p-5 md:p-6 mb-6 civr-rise relative" data-testid="review-prompt">
       <button type="button" onClick={close} className="absolute top-3 right-3 w-9 h-9 grid place-items-center text-[#a1a1aa] hover:text-white" aria-label="Not now" data-testid="review-dismiss"><X className="w-4 h-4" /></button>
-      <div className="font-semibold text-lg">Your first call is done — how is CloudIVR so far?</div>
+      <div className="font-semibold text-lg pr-10">Your first call is done — how is CloudIVR so far?</div>
       <div className="flex gap-1 mt-3" role="radiogroup" aria-label="Rating">
         {[1, 2, 3, 4, 5].map(k => <button key={k} type="button" role="radio" aria-checked={rating === k} aria-label={`${k} star${k > 1 ? 's' : ''}`} onClick={() => setRating(k)} className="w-10 h-10 grid place-items-center transition-transform hover:scale-110" data-testid={`review-star-${k}`}><Star className={`w-7 h-7 ${k <= rating ? 'fill-[#fbbf24] text-[#fbbf24]' : 'text-[#52525b]'}`} /></button>)}
       </div>

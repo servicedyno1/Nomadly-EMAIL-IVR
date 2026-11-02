@@ -1,0 +1,28 @@
+{
+  "summary": "Tested the slim, dismissible 'Suggested' line on Overview and the two-way SMS copy. Backend: 22/22 pytest pass. Covered: GET /prefs/onboarding returns suggestionsHidden, PUT /prefs/suggestions hides and shows, the hidden state holds in a second login session, hiding leaves purposes/onboarded untouched, and both endpoints return 401 without auth. A source check found the new copy in every listed file and no one-way wording. Frontend at 1920px (Alice, purposes=['sales']): dashboard-for-you is one row 49px tall with no cards. It shows 'Suggested | Start a Bulk IVR campaign | Quick IVR call | Import contacts | Change | X'. Link 0 goes to /cloudivr/app/campaigns/new. Change opens the purpose picker. X hides the line at once and shows the toast 'Suggestions hidden. You can turn them back on in Settings.' The line stays hidden after a reload and in a fresh browser context, and the API returned suggestionsHidden:true. In Settings → Appearance, settings-suggestions shows 'Hidden.' and a 'Show' button (aria-checked=false). Show → 'Hide' plus the toast 'Suggestions will show on Overview', and the line comes back. Hide → the line is gone again. With purposes=[] (set in the DB for the test, then restored) the line shows dashboard-for-you-start, which opens the picker. Copy checked in the rendered pages: landing product cards, Families mobile family, eSIM plans 'Two-way SMS on your phone', both FAQ answers (VoIP and the new 'Can I receive texts, not just send them?'), in-app esim-header, Buy mobile-offer, mobile-lines-empty on /numbers (QA account with no numbers), and messages-empty-numbers. At 390px the line wraps onto 2 rows, scrollWidth is 390 and no child overflows. Alice's suggestions were set back to visible, with purposes ['sales'].",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Overview (mobile 390px)", "issues": ["Already there before this change: the review-prompt close X (absolute top-3 right-3) overlaps the last word of 'Your first call is done — how is CloudIVR so far?'. Add right padding (pr-10) to the heading."]},
+      {"screen": "Overview", "issues": ["The Suggested line is clean now, but Overview still stacks the Welcome/Telegram card, Today's offer card and review prompt above it, so the top is still busy."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_suggestions_twoway_iter199.py", "/app/test_reports/pytest/iter199.xml"],
+  "action_items": [
+    "i18n: none of the new strings are in fr.json or es.json, so they show in English for French and Spanish users. Missing strings include 'Suggested', 'Suggestions on Overview', 'Tell us what you use CloudIVR for', 'Suggestions hidden. You can turn them back on in Settings.', 'Two-way SMS on your phone', 'Can I receive texts, not just send them?', 'Need a USA mobile number with two-way SMS?' and 'A USA eSIM sends and receives texts on your phone instead.'",
+    "Minor: the review-prompt X overlaps its heading on mobile"
+  ],
+  "critical_code_review_comments": [
+    "The landing eSIM product card's testid is 'product-card-esim-card' (Card id='esim-card'), not 'product-card-esim' as written in the review request. Update docs and tests to match.",
+    "ForYou.hide rollback uses the stale onboarding closure. This is fine for a single toggle.",
+    "The 'Receive-only' wording left in messages/Thread.js and texting/* is only for Landline to Texting (kind 'texting'). That is correct, not a leftover for eSIM or mobile."
+  ],
+  "updated_files": ["/app/backend/tests/test_suggestions_twoway_iter199.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None. Alice's purposes were set to [] for a moment to test the start state, then restored to ['sales']. suggestionsHidden is false.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Alice's chatId is 5000000000000001 (webPrefs in DB 'test'). To test the start state: db.webPrefs.updateOne({_id:'5000000000000001'},{$set:{purposes:[]}}), then restore ['sales']. On /cloudivr/app/esim, MobileLines does not show the empty card (noEmpty); it shows on /cloudivr/app/numbers for accounts with no mobile lines (e.g. qa.texting582973@example.com / QaTest#2026x). Landing FAQ items are <details> data-testid faq-item-N."
+}

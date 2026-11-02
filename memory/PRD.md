@@ -2095,3 +2095,8 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Auto-renew switch (RenewPick.js) appears at checkout, on by default: in-app eSIM, USA mobile offer, and the landing eSIM and mobile checkouts. Manage cards say "renews DATE" or "Auto-renew off · ends DATE".
 - Note: the GitHub save auto-deployed the sidebar merge and Buy page copy to live app-main (release 20261102T014105Z).
 - Backlog: phone sign-up inside the landing checkout Account step; ask Telesign to enable voice; let email accounts add a phone; fix mobile call copy ("USA and Canada" vs any country).
+
+## 2026-06 — Overview suggestions slimmed + two-way SMS copy (preview; iteration_199 100%)
+- "Recommended for you" cards became one slim "Suggested" line (ForYou.js). Its X hides it for good per account (webPrefs.suggestionsHidden, PUT /prefs/suggestions). Settings → Appearance → "Suggestions on Overview" turns it back on (Show/Hide).
+- The copy now says eSIM and USA mobile number both have two-way SMS (inbound + outbound) in: the landing product cards, eSIM plans, Families, the pricing FAQ (plus a new "Can I receive texts" question), the in-app eSIM page header, the Buy mobile offer, My numbers mobile lines, the Messages empty state, the Thread eSIM note, and the spenza.js ready message and QR email.
+- Backlog: French/Spanish translations are missing for the new strings (and for recent features). The Overview top is still busy with the Welcome/Telegram card and the Today's offer card.
