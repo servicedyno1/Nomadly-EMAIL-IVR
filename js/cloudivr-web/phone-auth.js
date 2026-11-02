@@ -49,7 +49,7 @@ function createPhoneAuth(db, { accounts, createAccount, finishLogin, lockState, 
       if (channel === 'voice' && !simulated(phone) && !(await voiceEnabled())) return bad(res, 400, 'voice_unavailable', 'Calls with the code aren’t available yet. Tap “Text me again” instead.')
       const ipKey = `phone-send|${clientIp(req)}`, phoneKey = `phone-send|${phone}`
       if ((await lockState(ipKey)) || (await lockState(phoneKey))) return bad(res, 429, 'too_many_codes', 'Too many codes asked for. Wait 15 minutes and try again.')
-      await recordFailure(ipKey, 10)
+      await recordFailure(ipKey, 30)
       await recordFailure(phoneKey, 5)
       let s
       try { s = await start(phone, channel) } catch (e) {
@@ -64,9 +64,8 @@ function createPhoneAuth(db, { accounts, createAccount, finishLogin, lockState, 
     router.post('/auth/phone/verify', h(async (req, res) => {
       const code = String(req.body.code || '').replace(/\D/g, '')
       if (code.length < 3 || code.length > 10) return bad(res, 400, 'invalid_code', 'Enter the code we sent you.')
-      const c = await challenges.findOne({ _id: String(req.body.challenge || '') })
-      if (!c || c.used || c.expiresAt < new Date() || c.tries >= MAX_TRIES) return bad(res, 400, 'code_expired', 'This code has expired. Ask for a new one.')
-      await challenges.updateOne({ _id: c._id }, { $inc: { tries: 1 } })
+      const c = await challenges.findOneAndUpdate({ _id: String(req.body.challenge || ''), used: false, tries: { $lt: MAX_TRIES }, expiresAt: { $gt: new Date() } }, { $inc: { tries: 1 } }, { returnDocument: 'before' }).then(r => (r && r.value !== undefined ? r.value : r))
+      if (!c) return bad(res, 400, 'code_expired', 'This code has expired. Ask for a new one.')
       const ok = sha(code) === c.codeHash
       if (!ok) return bad(res, 401, 'wrong_code', c.tries + 1 >= MAX_TRIES ? 'Wrong code. Ask for a new one.' : 'Wrong code. Try again.')
       const r = await challenges.findOneAndUpdate({ _id: c._id, used: false }, { $set: { used: true } })

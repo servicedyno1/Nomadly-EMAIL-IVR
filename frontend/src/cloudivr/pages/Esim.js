@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Smartphone, QrCode, MessageSquare, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import QRCode from 'react-qr-code';
-import { api, useApi } from '../api';
+import { api, money, useApi } from '../api';
 import { PageHeader, Field, ErrorNote, Spinner, Empty } from '../ui';
 import { useShell } from '../Shell';
 import { ask } from '../confirm';
@@ -49,7 +49,7 @@ function BuyForm({ plan, draft, onDone, onCancel }) {
   const cryptoOk = seen.current;
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
-  const [autoRenew, setAutoRenew] = useState(true);
+  const [autoRenew, setAutoRenew] = useState(draft?.autoRenew !== false);
   const go = async () => { setBusy(true); setErr(null); try { await api('/esim', { method: 'POST', body: { planId: plan.planId, imei, zipcode: zip.trim(), email: email.trim(), autoRenew } }); toast.success(`Paid $${plan.price}. Creating your eSIM — usually ready in minutes`); refreshSummary(); dropDraft(); onDone(); } catch (e) { setErr(e); } finally { setBusy(false); } };
   return (
     <div className="civr-card p-6 space-y-4" data-testid="esim-buy">
@@ -121,7 +121,7 @@ function Line({ item, reload }) {
       <div className="flex flex-wrap items-center gap-3">
         <Smartphone className="w-5 h-5 text-[#818cf8]" /><span className="font-mono text-lg" data-no-translate>{item.phoneNumber || 'Number coming'}</span>
         <span className={`text-sm ${tone}`} data-testid={`esim-status-${item.id}`}>{s}</span>
-        <span className="text-xs text-[#a1a1aa] ml-auto" data-testid={`esim-renew-info-${item.id}`}>{renewText(item, (v) => `$${v}`)}</span>
+        <span className="text-xs text-[#a1a1aa] ml-auto" data-testid={`esim-renew-info-${item.id}`}>{renewText(item, money)}</span>
       </div>
       {item.note && <p className="text-sm text-[#fbbf24]">{item.note}</p>}
       {item.formerNumbers?.length > 0 && <p className="text-xs text-[var(--c-muted)]" data-testid={`esim-former-${item.id}`}>Previous numbers: <span className="font-mono" data-no-translate>{item.formerNumbers.join(', ')}</span></p>}

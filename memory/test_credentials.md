@@ -230,3 +230,8 @@
 - Bob `civr.bob@example.com` / `BobTest#2026` (chatId 5000000000000002): +13093051619 replaced by +14062358695 (old one "keeps working" 7 days). Wallet topped up +$200 for tests.
 
 - 2026-11-01 iter189 tester: Bob now has replaced pairs +13093051619→+14062358695, +13526551296→+16813810070→+17162659055 (+16813810070 is "Old number" until 2026-11-08). Alice sim eSIM es_9e5b0dd81f37 now +15550138054 (former +15558255540, +15559823054). Wallets restored (Alice $624.94, Bob $174.55). Regression: backend/tests/test_messages_replace_iter189.py (buys + replaces one Bob number per run).
+
+## Phone sign-in (Telesign, added 2026-06)
+- Preview (WEB_CLOUDIVR_DRY_RUN=true): any `+1555xxxxxxx` number is SIMULATED — no SMS is sent, and `/auth/phone/start` returns `previewCode`; the UI shows it as "Preview test number: code ######".
+- Real numbers use Telesign SMS (`/v1/verify/sms`). Telesign voice is NOT enabled on the account, so real "Call me" requests return `voice_unavailable`.
+- Endpoints: POST /api/cloudivr-web/auth/phone/start {phone, channel:'sms'|'voice'}, then POST /api/cloudivr-web/auth/phone/verify {challenge, code, remember, name?, ref?}.

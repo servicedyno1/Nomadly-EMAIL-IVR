@@ -1,0 +1,40 @@
+{
+  "summary": "Tested phone sign-up/sign-in (Telesign, simulated +1555 numbers) and auto-renew for eSIM / USA mobile numbers, on both backend and frontend. Backend: 12/12 pytest pass, plus a probe that sends 40 wrong codes at once (MAX_TRIES=5 held), and esim_renewal.test.js prints PASS. Frontend: signup on the phone tab -> code step with preview code -> wrong code shows 'Wrong code. Try again.' -> right code lands on /cloudivr/app; settings-phone shows +1555..., settings-email is absent; the top bar shows 'Signed in as +1555...' at 1920px. Login with the same number (typed as '+1 (555) 479-3807') reached the same account id (5000000000000019). The 30s countdown ran 30->25s; after it ended, call-me and text-again buttons appeared; voice gave a new code and showed 'We're calling ...'. The email tab is the default and Alice's email login works. Auto-renew switches (esim-buy-autorenew, mobile-offer-autorenew, esim-co-autorenew, mobile-co-autorenew) are role=switch, aria-checked=true by default, and flip on click. Intercepted POST bodies: /esim autoRenew:false, /mobile-numbers autoRenew:true then false. Manage cards show 'renews YYYY-MM-DD' or 'Auto-renew off · ends YYYY-MM-DD', and the toggles flip both ways. No critical bugs; only minor issues below.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /auth/phone/start", "issue": "The per-IP budget is 10 codes / 15 min (recordFailure(ipKey,10)) and every request counts, even successful ones. Users behind a shared NAT (offices, mobile carrier CGNAT) could hit 429 too_many_codes quickly. Consider a higher IP limit."},
+      {"endpoint": "POST /auth/phone/verify", "issue": "The tries check (c.tries >= MAX_TRIES) runs before $inc and is not atomic. 40 parallel guesses through the ingress counted only 5 (held in the test), but an atomic findOneAndUpdate({tries:{$lt:5}},{$inc}) would close it fully."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Esim.js BuyForm", "issue": "autoRenew is useState(true) and ignores draft.autoRenew. A landing-page eSIM buyer who turned auto-renew OFF, paid by crypto and later finished the order in the app (draft resume) gets auto-renew ON.", "selector": "[data-testid='esim-buy-autorenew']", "priority": "MEDIUM"},
+      {"component": "Landing checkout Account step (EsimCheckout.Account, reused by MobileCheckout)", "issue": "Only email/password sign-up is offered; there is no phone sign-up option, though phone onboarding is a requested feature.", "selector": "[data-testid='esim-co-account']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Manage cards", "issues": ["Different price formats: eSIM shows '$75/month · renews …' but mobile shows '$75.00/month · renews …'", "The mobile toggle (mobile-autorenew-{id}) is a plain text button with no switch graphic, while the eSIM toggle has one"]},
+      {"screen": "Login phone tab", "issues": ["'Forgot password?' link still shows on the phone tab, where it does not apply"]},
+      {"screen": "RenewPick light theme", "issues": ["OFF track is rgb(226,232,240) with a white knob: very low contrast. The ~150ms transition also makes screenshots taken right after a click look still ON"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_iter198_phone_auth_autorenew.py", "/app/backend/tests/phone_verify_race_probe.py", "/app/backend/tests/esim_renewal.test.js", "/app/test_reports/pytest/iter198.xml"],
+  "action_items": [
+    "Esim.js BuyForm: start autoRenew from draft?.autoRenew !== false so the landing-checkout choice survives the draft resume",
+    "Optional: offer phone sign-up in the landing checkout Account step",
+    "Optional: make the tries increment atomic in /auth/phone/verify; review the per-IP limit of 10 codes / 15 min",
+    "Minor UI polish: one price format on manage cards, a switch graphic on the mobile toggle, hide 'Forgot password?' on the phone tab, more contrast for the OFF switch in the light theme"
+  ],
+  "critical_code_review_comments": [
+    "phone-auth.js is clean: E.164 normalization, codes stored as hashes, 5-minute TTL index, one-time use via findOneAndUpdate({used:false}), partial unique index on phone, E11000 race handled on account creation",
+    "2FA email setup already guards phone-only accounts (no_email); emails.send skips accounts with no email",
+    "spenza.js renewal: billOne/expire/setAutoRenew logic matches the spec; renew() turns autoRenew back on after a manual payment (intended)"
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_iter198_phone_auth_autorenew.py", "/app/backend/tests/phone_verify_race_probe.py"],
+  "success_rate": {"backend": "100%", "frontend": "95%"},
+  "seed_data_creation": "Phone test accounts +15554793807 (id 5000000000000019) plus several random +1555 accounts from pytest (names TEST_*). Alice bought one mobile line mn_272f87444e91 (autoRenew false) through the API, then it was cancelled. Alice's wallet went down $75 (now ~$399.79). The test clears webLoginAttempts keys 'phone-send|<ip>' between runs.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The phone code limit is 10 per IP per 15 min. Clear it with mongosh test: db.webLoginAttempts.deleteMany({_id:/^phone-send\\|\\d/}). The pytest does this automatically. Intercept POST /esim and /mobile-numbers with page.route to avoid spending Alice's wallet. The esim page is /cloudivr/app/esim (it lists both eSIM and mobile lines); the mobile offer is at /cloudivr/app/buy (mobile-offer-start, then mobile-offer-pay-button); the in-app eSIM pay button is esim-pay-button."
+}
