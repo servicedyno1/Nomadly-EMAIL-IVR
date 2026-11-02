@@ -28,7 +28,8 @@ function Profile({ account, setAccount }) {
   return (
     <form onSubmit={save} className="civr-card p-6 space-y-6" data-testid="settings-profile-form" {...u.bind}>
       <div className="font-display text-2xl font-bold">Profile</div>
-      <Field label="Email"><input className="civr-input" value={account.email} disabled data-testid="settings-email" /></Field>
+      {account.email ? <Field label="Email"><input className="civr-input" value={account.email} disabled data-testid="settings-email" /></Field>
+        : <Field label="Phone number" hint="You sign in with a code sent to this number."><input className="civr-input" value={account.phone || ''} disabled data-testid="settings-phone" /></Field>}
       <Field label="Name"><input className="civr-input" value={name} onChange={e => setName(e.target.value)} data-testid="settings-name-input" /></Field>
       <div className="flex flex-wrap gap-2 text-xs">
         <span className="civr-pill" data-testid="settings-member-since">member since {day(account.createdAt)}</span>

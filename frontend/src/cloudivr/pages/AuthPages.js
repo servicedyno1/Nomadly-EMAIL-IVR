@@ -11,6 +11,7 @@ import { forget } from '../consent';
 import { BRAND, Wordmark } from '../Brand';
 import { TwoFactorStep, RememberBox, useRefCode } from './auth/TwoFactorStep';
 import { GoogleButton } from './auth/GoogleButton';
+import { PhoneSignIn } from './auth/PhoneSignIn';
 import { ThemeRoot } from '../theme';
 
 const NEXT_STEPS = ['Pick a number and plan', 'Pay with crypto or your wallet (cards coming soon)', 'Choose what callers hear'];
@@ -84,11 +85,21 @@ function PasswordInput({ value, onChange, minLength, autoComplete, testid, toggl
   );
 }
 
+function MethodSwitch({ method, setMethod }) {
+  const opt = (k, label) => (
+    <button type="button" role="tab" aria-selected={method === k} onClick={() => setMethod(k)} data-testid={`auth-method-${k}`}
+      className={`flex-1 min-h-[40px] rounded-full text-sm font-medium transition-colors ${method === k ? 'bg-[var(--c-accent-strong,#6366f1)] text-white' : 'text-[#a1a1aa] hover:text-[var(--c-text,#f4f4f5)]'}`}>{label}</button>
+  );
+  return <div role="tablist" aria-label="Sign-in method" className="flex gap-1 p-1 mb-6 rounded-full border border-[#2a2a2a]" data-testid="auth-method-switch">{opt('email', 'Email')}{opt('phone', 'Phone number')}</div>;
+}
+
 export function AuthPage({ mode }) {
   const signup = mode === 'signup';
-  const { setAccount } = useCivrAuth();
+  const { setAccount, config } = useCivrAuth();
   const nav = useNavigate();
   const { plan, q, dest } = usePlanParam();
+  const [method, setMethod] = useState('email');
+  const phoneOn = !!config?.phoneSignIn;
   const [params] = useSearchParams();
   const refCode = useRefCode(params);
   const [f, setF] = useState({ name: '', email: '', password: '' });
@@ -114,6 +125,8 @@ export function AuthPage({ mode }) {
         : plan && <div className="flex items-center gap-2 text-sm text-[#818cf8] mb-6" data-testid="auth-chosen-plan"><Check className="w-4 h-4" /><span><span className="capitalize">{plan}</span> plan picked — you’ll choose your number next.</span></div>}
       {signup && refCode && <div className="flex items-center gap-2 text-sm text-[#818cf8] mb-6" data-testid="auth-referral-note"><Check className="w-4 h-4" />A friend invited you — you get a welcome credit after your first number.</div>}
       <GoogleButton dest={dest} signup={signup} refCode={refCode} onMfa={setMfa} />
+      {phoneOn && <MethodSwitch method={method} setMethod={setMethod} />}
+      {phoneOn && method === 'phone' ? <PhoneSignIn signup={signup} refCode={refCode} onDone={done} onMfa={setMfa} /> :
       <form onSubmit={submit} className="space-y-4">
         {signup && <Field label="Name (optional)"><input className="civr-input" value={f.name} onChange={set('name')} placeholder="Jane Doe" autoComplete="name" data-testid="auth-name-input" /></Field>}
         <Field label="Email"><input className="civr-input" type="email" required value={f.email} onChange={set('email')} placeholder="you@company.com" autoComplete="email" data-testid="auth-email-input" /></Field>
@@ -123,7 +136,7 @@ export function AuthPage({ mode }) {
         <RememberBox checked={remember} onChange={setRemember} />
         <ErrorNote error={error} testid="auth-error" />
         <button className="civr-btn civr-btn-primary w-full" disabled={busy} data-testid="auth-submit-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{signup ? 'Create free account' : 'Sign in'}</button>
-      </form>
+      </form>}
       {signup && <p className="text-xs text-[#a1a1aa] mt-4" data-testid="auth-terms-note">By creating an account you agree to the <Link to={cp('/terms')} target="_blank" className="text-[#818cf8] underline underline-offset-2" data-testid="auth-terms-link">Terms of Service</Link>.</p>}
       <div className="flex justify-between text-sm mt-6 text-[#a1a1aa]">
         {signup ? <Link to={cp(`/login${q}`)} className="hover:text-[#818cf8] py-2" data-testid="auth-switch-link">Have an account? Sign in</Link>

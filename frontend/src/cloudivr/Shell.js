@@ -121,7 +121,7 @@ function TopBar({ summary, onPhone }) {
     <header className="civr-glass sticky top-0 z-30 flex items-center gap-0.5 min-[400px]:gap-1 sm:gap-2 px-3 sm:px-4 md:px-8 h-16" data-civr-topbar>
       <Link to={cp('/app')} className="font-display text-xl sm:text-2xl font-extrabold tracking-tight mr-auto lg:hidden min-h-[44px] min-w-0 flex items-center gap-2" aria-label="CloudIVR home" data-testid="topbar-logo"><Wordmark iconClass="w-8 h-8" textClass="max-[379px]:sr-only" /></Link>
       <div className="hidden lg:block xl:hidden mr-auto" aria-hidden="true" />
-      <div className="hidden xl:block mr-auto min-w-0 truncate text-sm text-[#a1a1aa]" title={account?.email} data-testid="topbar-greeting">Signed in as <span className="text-[#f4f4f5]">{account?.email}</span></div>
+      <div className="hidden xl:block mr-auto min-w-0 truncate text-sm text-[#a1a1aa]" title={account?.email || account?.phone} data-testid="topbar-greeting">Signed in as <span className="text-[#f4f4f5]">{account?.email || account?.phone}</span></div>
       <Link to={cp('/app/wallet')} className="civr-pill civr-pill-on !text-sm !normal-case !tracking-normal h-10 shrink-0 !px-3.5" data-testid="topbar-balance">{money(summary?.balance)}</Link>
       <Link to={cp('/app/wallet')} className="civr-btn civr-btn-ghost civr-btn-sm !hidden md:!inline-flex" data-testid="topbar-add-funds-button"><Plus className="w-4 h-4" />Add funds</Link>
       <LangSwitcher testid="topbar-lang-switcher" className="hidden lg:inline-flex" />

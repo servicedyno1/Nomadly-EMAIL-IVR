@@ -9,6 +9,7 @@ const axios = require('axios')
 const { WEB_ID_BASE } = require('./notify')
 const { appPathPrefix } = require('./domain-guard')
 const { createTwoFactor } = require('./twofa')
+const { createPhoneAuth } = require('./phone-auth')
 
 const COOKIE = 'civr_session'
 const SESSION_DAYS = 7
@@ -71,7 +72,7 @@ function clearSession(req, res) {
 
 const adminEmails = () => String(process.env.CLOUDIVR_ADMIN_EMAILS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean)
 const isAdmin = (a) => !!a?.email && adminEmails().includes(String(a.email).toLowerCase())
-const publicAccount = (a) => ({ id: String(a._id), email: a.email, name: a.name || '', hasPassword: !!a.passwordHash, google: !!a.googleSub, createdAt: a.createdAt, twoFactor: a.twoFactor?.method || null, admin: isAdmin(a) })
+const publicAccount = (a) => ({ id: String(a._id), email: a.email || null, phone: a.phone || null, name: a.name || '', hasPassword: !!a.passwordHash, google: !!a.googleSub, createdAt: a.createdAt, twoFactor: a.twoFactor?.method || null, admin: isAdmin(a) })
 
 let mailer = null
 // cloudivr.net mails go out from its own address (CLOUDIVR_MAIL_SENDER) through js/mailer.js: MailerSend once the
@@ -95,7 +96,8 @@ function createAuth(db, { log = console.log, notifyAdmin = () => {} } = {}) {
   const counters = db.collection('webCounters')
   const attempts = db.collection('webLoginAttempts')
   const resets = db.collection('webPasswordResets')
-  accounts.createIndex({ email: 1 }, { unique: true }).catch(() => {})
+  // email is optional (phone accounts); the partial index ignores accounts without one.
+  accounts.dropIndex('email_1').catch(() => {}).then(() => accounts.createIndex({ email: 1 }, { unique: true, name: 'email_partial', partialFilterExpression: { email: { $type: 'string' } } })).catch(e => log(`[CloudIVR-Web] email index: ${e.message}`))
   // googleSub is only stored for Google accounts; the partial index ignores email-only accounts.
   accounts.dropIndex('googleSub_1').catch(() => {}).then(() => accounts.updateMany({ googleSub: null }, { $unset: { googleSub: '' } }))
     .then(() => accounts.createIndex({ googleSub: 1 }, { unique: true, name: 'googleSub_partial', partialFilterExpression: { googleSub: { $type: 'string' } } })).catch(e => log(`[CloudIVR-Web] googleSub index: ${e.message}`))
@@ -125,9 +127,9 @@ function createAuth(db, { log = console.log, notifyAdmin = () => {} } = {}) {
     try {
       notifyAdmin([
         `🆕 <b>New CloudIVR web sign-up</b>${preview}`,
-        `email: ${esc(acc.email)}`,
+        acc.email ? `email: ${esc(acc.email)}` : `phone: ${esc(acc.phone)}`,
         `name: ${acc.name ? esc(acc.name) : '—'}`,
-        `method: ${acc.googleSub ? 'Google' : 'Email + password'}`,
+        `method: ${acc.googleSub ? 'Google' : acc.phone ? 'Phone code' : 'Email + password'}`,
         country ? `country: ${esc(country)}` : null,
         acc.referredBy ? `referred by web account ${acc.referredBy}` : null,
         `web account: ${acc._id}`,
@@ -135,14 +137,14 @@ function createAuth(db, { log = console.log, notifyAdmin = () => {} } = {}) {
     } catch (e) { log(`[CloudIVR-Web] sign-up alert failed: ${e.message}`) }
   }
 
-  async function createAccount({ email, name, passwordHash = null, googleSub = null, referredBy = null, ip = null, country = null }) {
+  async function createAccount({ email = null, phone = null, name, passwordHash = null, googleSub = null, referredBy = null, ip = null, country = null }) {
     const _id = await nextChatId()
-    const acc = { _id, email, name: String(name || '').trim().slice(0, 80), passwordHash, ...(googleSub ? { googleSub } : {}), ...(referredBy ? { referredBy } : {}), signupIp: ip, lastIp: ip, tokenVersion: 0, createdAt: new Date(), lastLoginAt: new Date() }
+    const acc = { _id, ...(email ? { email } : {}), ...(phone ? { phone } : {}), name: String(name || '').trim().slice(0, 80), passwordHash, ...(googleSub ? { googleSub } : {}), ...(referredBy ? { referredBy } : {}), signupIp: ip, lastIp: ip, tokenVersion: 0, createdAt: new Date(), lastLoginAt: new Date() }
     await accounts.insertOne(acc)
     await db.collection('walletOf').updateOne({ _id: String(_id) }, { $setOnInsert: { usdIn: 0, usdOut: 0 } }, { upsert: true })
     await db.collection('state').updateOne({ _id: String(_id) }, { $setOnInsert: { userLanguage: 'en', webAccount: true } }, { upsert: true })
-    await db.collection('nameOf').updateOne({ _id: String(_id) }, { $setOnInsert: { val: acc.name || email.split('@')[0] } }, { upsert: true })
-    log(`[CloudIVR-Web] account created ${_id} (${googleSub ? 'google' : 'email'})`)
+    await db.collection('nameOf').updateOne({ _id: String(_id) }, { $setOnInsert: { val: acc.name || (email ? email.split('@')[0] : phone) } }, { upsert: true })
+    log(`[CloudIVR-Web] account created ${_id} (${googleSub ? 'google' : phone ? 'phone' : 'email'})`)
     alertSignup(acc, country)
     return acc
   }
@@ -177,9 +179,12 @@ function createAuth(db, { log = console.log, notifyAdmin = () => {} } = {}) {
 
   const mfa = createTwoFactor({ db, secret, sendMail, setSession, publicAccount, lockState, recordFailure, isHttps, parseCookies, log })
 
+  const phoneAuth = createPhoneAuth(db, { accounts, createAccount, finishLogin: mfa.finishLogin, lockState, recordFailure, clientIp, countryOf, referrerFor, log })
+
   function routes(router, h) {
     mfa.routes(router, h, requireUser)
-    router.get('/auth/config', (req, res) => res.json({ googleClientId: process.env.GOOGLE_OAUTH_CLIENT_ID || null, brand: process.env.CHAT_BOT_BRAND || 'Nomadly' }))
+    phoneAuth.routes(router, h)
+    router.get('/auth/config', h(async (req, res) => res.json({ googleClientId: process.env.GOOGLE_OAUTH_CLIENT_ID || null, phoneVoice: (await phoneAuth.voiceEnabled()) || process.env.WEB_CLOUDIVR_DRY_RUN === 'true', phoneSignIn: !!(process.env.TELESIGN_CUSTOMER_ID && process.env.TELESIGN_API_KEY) || process.env.WEB_CLOUDIVR_DRY_RUN === 'true', brand: process.env.CHAT_BOT_BRAND || 'Nomadly' })))
 
     router.post('/auth/register', h(async (req, res) => {
       const email = normEmail(req.body.email), password = String(req.body.password || '')
