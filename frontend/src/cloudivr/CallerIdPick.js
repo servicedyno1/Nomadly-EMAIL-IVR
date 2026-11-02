@@ -39,7 +39,7 @@ export function ShowAsSelect({ value, onChange, testid, compact = false }) {
     </div>
   );
   return (
-    <Field label="Show as (caller ID people see)" hint={list.length ? <>Calls are still billed to the calling number. {addBtn}</> : <>Verify a number you own to show it instead. {addBtn}</>}>
+    <Field label="Show as (caller ID people see)" hint={list.length ? <>Calls are still billed to the VoIP number you call from. {addBtn}</> : <>Verify a number you own to show it instead. {addBtn}</>}>
       {select}
       {dialog}
     </Field>

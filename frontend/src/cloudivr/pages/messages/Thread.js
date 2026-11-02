@@ -10,7 +10,7 @@ import { Timeline, Viewer } from './Events';
 import { Composer, ReceiveOnly } from './Composer';
 import { ContactPanel, AiCard, ScheduledList } from './Extras';
 
-const KIND = { calling: 'Calling number', esim: 'USA eSIM', texting: 'Landline to Texting' };
+const KIND = { calling: 'VoIP number', esim: 'USA eSIM', texting: 'Landline to Texting' };
 export function Caps({ n }) {
   const chips = n.old ? ['Old number'] : n.kind === 'texting' ? ['Receive-only'] : [n.caps.send || n.caps.receive ? 'Texts' : null, n.caps.pictures ? 'Pictures' : null, n.caps.calls ? 'Calls' : null].filter(Boolean);
   return <span className="inline-flex flex-wrap gap-1" data-testid={`caps-${n.phone}`}>{chips.map(c => <span key={c} className={`text-[11px] px-2 py-0.5 rounded-full border ${c === 'Old number' ? 'border-[#f59e0b]/50 text-[#b45309]' : 'border-[var(--c-border)] text-[var(--c-muted)]'}`}>{c}</span>)}</span>;
