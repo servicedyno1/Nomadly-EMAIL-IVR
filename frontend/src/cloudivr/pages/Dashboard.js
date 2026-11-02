@@ -29,7 +29,7 @@ function Stats({ s }) {
       <div className="col-span-2"><Stat icon={Wallet} label="Wallet" value={money(s.balance)} to={cp('/app/wallet')} testid="stat-balance" delay="civr-d1" /></div>
       <Stat icon={Hash} label="Numbers" value={s.numbers?.active ?? '—'} to={cp('/app/numbers')} testid="stat-numbers" delay="civr-d1" />
       <Stat icon={Clock} label="Minutes" value={s.minutesUsed ?? '—'} testid="stat-minutes" delay="civr-d2" />
-      <Stat icon={MessageSquare} label="SMS" value={s.smsUsed ?? '—'} testid="stat-sms" delay="civr-d2" />
+      <Stat icon={MessageSquare} label="Texts this month" value={s.textsThisMonth ?? '—'} testid="stat-sms" delay="civr-d2" />
       <Stat icon={Megaphone} label="Campaigns" value={s.activeCampaigns ?? '—'} to={cp('/app/campaigns')} testid="stat-campaigns" delay="civr-d3" />
     </div>
   );

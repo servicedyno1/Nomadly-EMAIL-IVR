@@ -81,6 +81,13 @@ function create({ db, numbersApi, smsReply }) {
   }
 
   async function unreadCount(chatId) { return (await threads(chatId)).unread }
+  // Texts sent + received on all the account's numbers since a date (Overview stat).
+  async function textCount(chatId, since) {
+    const nums = await numbers(chatId)
+    if (!nums.length) return 0
+    const r = await logs.aggregate([...base(nums), { $match: { type: { $in: TEXTS }, at: { $gte: since } } }, { $count: 'n' }]).toArray()
+    return r[0]?.n || 0
+  }
 
   async function thread(chatId, number, contact) {
     const nums = await numbers(chatId)
@@ -123,7 +130,7 @@ function create({ db, numbersApi, smsReply }) {
     return r.error ? { error: r.error } : { event: event({ ...r.log, at: new Date(r.log.timestamp), contact }), charge: r.charge }
   }
 
-  return { numbers, threads, thread, markRead, send, unreadCount, blocked }
+  return { numbers, threads, thread, markRead, send, unreadCount, textCount, blocked }
 }
 
 function preview(l) {
