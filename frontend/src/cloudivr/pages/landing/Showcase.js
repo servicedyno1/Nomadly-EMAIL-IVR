@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
-import { MessageSquareText, Hash, Smartphone, LayoutGrid, LayoutDashboard } from 'lucide-react';
+import { MessageSquareText, Hash, Smartphone } from 'lucide-react';
 import { Reveal } from './kit';
 
 const SHOT = (n, v) => `${process.env.PUBLIC_URL || ''}/cloudivr/shots/${n}-${v}.webp`;
 const SHOTS = [
-  ['messages', MessageSquareText, 'Messages', 'Codes and texts arrive in one inbox, in any browser.'],
+  ['messages', MessageSquareText, 'Messages', 'Two-way texts arrive in one inbox, in any browser.'],
   ['numbers', Hash, 'My numbers', 'Your USA mobile number, renewal and replacement in one place.'],
   ['esim', Smartphone, 'eSIM', 'The QR code to install your eSIM, plus plan and renewal.'],
-  ['ivr', LayoutGrid, 'Keypad menu', 'Callers press a key to reach a person, a message or a text.'],
-  ['overview', LayoutDashboard, 'Overview', 'Wallet, numbers and recent activity at a glance.'],
 ];
 
 // Real light-mode screenshots of the app (sample data); phones get the phone-sized capture.

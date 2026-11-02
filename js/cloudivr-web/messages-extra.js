@@ -1,5 +1,5 @@
 'use strict'
-const { smsTooLong, fitSms } = require('./sms-limit')
+const { smsTooLong, fitSms, gsmText } = require('./sms-limit')
 // Messages extras: contact notes + tags, scheduled texts, and AI summaries with suggested replies on long conversations.
 const axios = require('axios')
 const crypto = require('crypto')
@@ -57,7 +57,7 @@ function create({ db, M, log = console.log }) {
     const t = await M.thread(chatId, number, contact)
     if (!t) return { error: 'Conversation not found.' }
     if (!t.canText || t.blocked) return { error: 'You can’t text this contact from here.' }
-    const body = String(text || '').replace(/\s+/g, ' ').trim()
+    const body = gsmText(String(text || '')).replace(/[^\S\n]+/g, ' ').trim()
     if (!body && !media.length) return { error: 'Type a message.' }
     const long = smsTooLong(body)
     if (long) return { error: long }

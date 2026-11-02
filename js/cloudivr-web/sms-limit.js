@@ -3,9 +3,12 @@
 // scripts). The GSM extension characters (^{}\[~]|€) count as 2.
 const GSM = new Set('@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà')
 const EXT = new Set('^{}\\[~]|€')
+// Phones insert smart punctuation; swap it for the plain GSM version so the text still fits 160.
+const SMART = { '‘': "'", '’': "'", '‚': "'", '′': "'", '“': '"', '”': '"', '„': '"', '″': '"', '–': '-', '—': '-', '−': '-', '…': '...', '\u00a0': ' ', '\u2009': ' ', '\u200b': '' }
+const gsmText = (t) => String(t || '').replace(/[‘’‚′“”„″–—−…\u00a0\u2009\u200b]/g, (c) => SMART[c])
 
 function smsInfo(text) {
-  const s = String(text || '')
+  const s = gsmText(text)
   let units = 0, gsm = true
   for (const ch of s) {
     if (GSM.has(ch)) units += 1
@@ -28,4 +31,4 @@ function fitSms(text) {
   return s
 }
 
-module.exports = { smsInfo, smsTooLong, fitSms }
+module.exports = { smsInfo, smsTooLong, fitSms, gsmText }

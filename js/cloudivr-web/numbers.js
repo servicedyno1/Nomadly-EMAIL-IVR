@@ -191,7 +191,7 @@ function validateIvr(body, plan, audioOk = () => true) {
         out[digit] = { action, message: String(o.message || '').slice(0, 1000), audioUrl: audio(o.audioUrl, `Key ${digit}`), label }
       } else if (action === 'sms') {
         const smsFrom = String(o.smsFrom || '')
-        const smsText = String(o.smsText || '').trim().slice(0, 1000)
+        const smsText = require('./sms-limit').gsmText(String(o.smsText || '').trim()).slice(0, 1000)
         if (!/^(es|mn)_[0-9a-f]+$/.test(smsFrom)) throw new Error(`Key ${digit}: pick the number the text is sent from.`)
         if (!smsText) throw new Error(`Key ${digit}: write the text to send.`)
         const long = require('./sms-limit').smsTooLong(smsText)

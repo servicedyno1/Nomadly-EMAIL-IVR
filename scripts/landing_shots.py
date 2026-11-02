@@ -33,7 +33,7 @@ async def main():
             await pg.goto(BASE + '/login', wait_until='load'); await pg.wait_for_timeout(2000)
             await pg.fill('input[type=email]', 'civr.alice@example.com'); await pg.fill('input[type=password]', 'AliceTest#2026'); await pg.keyboard.press('Enter')
             await pg.wait_for_timeout(4000)
-            for name, path, scroll, click in PAGES:
+            for name, path, scroll, click in [x for x in PAGES if not os.environ.get('ONLY') or x[0] in os.environ['ONLY'].split(',')]:
                 for _ in range(3):
                     try: await pg.goto(BASE + path, wait_until='load'); break
                     except Exception: await pg.wait_for_timeout(1500)

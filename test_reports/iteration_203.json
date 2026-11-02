@@ -1,0 +1,41 @@
+{
+  "summary": "Iteration 203: tested the one-text SMS limit (160 GSM-7 characters, or 70 with emoji/Unicode) and the cleaned-up landing page. Backend: 10/10 pytest tests passed. The unit check prints null and then the message. POST /messages/send rejects 161 plain characters with 'Keep it to 160…' and 71 units with an emoji with 'Keep it to 70…', on both the USA mobile number (esim path) and the Business number (sms-reply path). Exactly 160 plain characters is accepted: mobile returned 200 'Sent (preview)', and Business returned 400 sms_blocked (10DLC), which is not a length error. /messages/schedule follows the same rule, and the 160-character schedule was created and then deleted. Thread GET returns maxLength 160. Saving the IVR with a 200-character smsText returns 'Key 3: Keep it to 160…', and the emoji case returns 'Keep it to 70…'. Frontend: the composer count shows N/160 and turns red with 'too long for one text' at 161, and composer-send is disabled. An emoji switches it to /70 with the note. é/ñ stay at 160/160, and GSM extension characters count as 2 ({ x81 = 162/160). Enter on an over-limit text does not send. The IVR keypad Text counter shows N/160, turns red over the limit with a red textarea border, and Save shows the toast 'Key 1: Keep it to 160 characters, one text (this has 200).' Landing at 1440: the nav is logo, Products, Use cases, Pricing, Help, Try a free call, language, Sign in, Sign up. There are no USA eSIM / USA mobile number / Business calling links. The Products menu has the group 'USA eSIM & mobile number', and both items scroll to the cards. esim-section, families and usecases-section are gone. The footer anchors #esim-card, #mobile, #coverage, #try, #pricing and #faq all scroll correctly. Both checkouts open. At 390 there is no horizontal overflow and the mobile menu lists the product links.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/messages/schedule", "issue": "The body is normalised with replace(/\\s+/g,' '), so line breaks in a scheduled text are collapsed, while send-now keeps them. Inconsistent, and not a length problem."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing: Showcase ('Inside the app') Messages screenshot", "issues": ["The static app screenshot still shows the composer counter '0/1000', which is the old limit the user complained about. Regenerate the shot (in /app/frontend/public/cloudivr/shots) so it shows 0/160."]},
+      {"screen": "Landing: duplicate app galleries", "issues": ["Two app-screenshot carousels remain: Showcase (Messages / My numbers / eSIM / Keypad menu / Overview) and the business Hero (#business) tab gallery (Overview / Keypad menus / Campaigns / Live map). Overview and Keypad-menu screens appear twice. The user asked for a page without duplicates, so consider merging them into one gallery."]},
+      {"screen": "Landing: mobile menu (390px)", "issues": ["The top list still has 'USA eSIM', 'USA mobile number' and 'Business calling', and the PRODUCTS list below repeats 'USA eSIM' and 'USA mobile number'. The same links appear twice in one menu."]},
+      {"screen": "Landing: Products mega menu", "issues": ["The 'Texting' group has one item, which leaves a large empty block above 'USA eSIM & mobile number'. Cosmetic."]},
+      {"screen": "Quick replies (Composer SMS_REPLIES / QuickReply REPLIES)", "issues": ["The preset texts use a curly apostrophe (’) and an em dash (—), which are not GSM-7, so picking one switches the limit to /70 (e.g. 'I’ll get back to you shortly.' shows 29/70). The same happens when phones auto-insert smart quotes. Consider using straight quotes in the presets, or smart-encoding ’ “ ” — to their GSM equivalents before counting and sending."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_iter203_sms_limit.py", "/app/test_reports/pytest/pytest_iter203.xml"],
+  "action_items": [
+    "Replace the landing Showcase Messages screenshot that shows '0/1000' with one that shows 0/160",
+    "Remove the duplicate USA eSIM / USA mobile number links from the mobile menu's top list (they are already under Products)",
+    "Optional: merge the Showcase and Hero app-screenshot galleries (Overview and Keypad menu shown twice)",
+    "Optional: use GSM-safe punctuation in the quick-reply presets, or smart-encode ’ “ ” — so they count against 160",
+    "Optional: delete the unused landing files EsimPlans.js, Families.js and UseCases.js"
+  ],
+  "critical_code_review_comments": [
+    "The server sms-limit.js and the client smsLimit.js duplicate the GSM table. They are kept in sync by hand, which is acceptable but fragile.",
+    "QuickReply.js (missed-call text-back) still uses a plain maxLength=160 and text.length counting, without smsInfo. An emoji reply over 70 is let through by the UI, and then the server rejects it with the 70 message. It should use smsCount/smsOver like the Composer.",
+    "Composer textarea input is cut at 400 characters (slice) and IvrSms has maxLength 400, while numbers.js still slices smsText to 1000 before smsTooLong. Harmless.",
+    "hosted-sms.js sendText has an unconditional receive-only return before the new length check (dead code). Fine for now.",
+    "Pricing nav link has max-xl:!hidden, so at 1024-1279px desktop only Products, Use cases and Help show."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_iter203_sms_limit.py"],
+  "success_rate": {"backend": "100%", "frontend": "100% of the requested checks (design notes only)"},
+  "seed_data_creation": "Sent 1 preview text 'TEST_iter203 bbb…' (160 characters) from Alice's +15554586272 to +14155550123 ($0.05 simulated). The 160-character test schedule was deleted. Alice's IVR was not saved (only failed saves).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Alice's USA mobile thread is number=+15554586272, contact=+14155550123. The Business number is +13346972125 (sends are blocked by 10DLC, so the 160-OK case returns sms_blocked). The IVR sms smsFrom line is es_69fcb8db0c34. The IVR builder is at /cloudivr/app/numbers/%2B13346972125?tab=ivr, where option 0 is key 1. The landing footer links use href='/cloudivr#…'."
+}

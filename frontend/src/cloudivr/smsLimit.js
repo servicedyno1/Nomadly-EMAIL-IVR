@@ -1,9 +1,12 @@
 // Same rule as the server (js/cloudivr-web/sms-limit.js): 160 GSM-7 characters per text, or 70 with emoji/Unicode.
 const GSM = new Set('@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà');
 const EXT = new Set('^{}\\[~]|€');
+// Smart punctuation is sent as the plain GSM version (the server does the same), so it still fits 160.
+const SMART = { '‘': "'", '’': "'", '‚': "'", '′': "'", '“': '"', '”': '"', '„': '"', '″': '"', '–': '-', '—': '-', '−': '-', '…': '...', '\u00a0': ' ', '\u2009': ' ', '\u200b': '' };
+const gsmText = (t) => String(t || '').replace(/[‘’‚′“”„″–—−…\u00a0\u2009\u200b]/g, (c) => SMART[c]);
 
 export function smsInfo(text) {
-  const s = String(text || '');
+  const s = gsmText(text);
   let units = 0;
   for (const ch of s) {
     if (GSM.has(ch)) units += 1;

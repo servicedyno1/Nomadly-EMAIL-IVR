@@ -11,7 +11,7 @@ import { PRODUCTS, USE_CASES, goTo, hrefOf } from './menu';
 
 export const LANDING_LINKS = [['#esim-card', 'USA eSIM', 'esim'], ['#mobile', 'USA mobile number', 'mobile'], ['#business', 'Business calling', 'business'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'Help', 'faq']];
 // Products mega menu groups (ids from menu.js PRODUCTS).
-const GROUPS = [['Calling & IVR', ['numbers', 'ivr', 'campaigns', 'phone', 'ai', 'text', 'inbox'], 'calling'], ['Texting', ['hosted'], 'texting'], ['USA eSIM & mobile number', ['esim', 'mobile'], 'mobile']];
+const GROUPS = [['Calling & IVR', ['numbers', 'ivr', 'campaigns', 'phone', 'ai', 'text', 'inbox'], 'calling'], ['Texting & mobile', ['esim', 'mobile', 'hosted'], 'mobile']];
 const MENUS = [['products', 'Products', PRODUCTS], ['usecases', 'Use cases', USE_CASES]];
 
 function Item({ it, onPick, testid }) {
@@ -57,7 +57,7 @@ function MobileMenu({ catalog, onClose, account }) {
     <div className="lg:hidden fixed inset-x-0 top-16 bottom-0 z-[45] bg-white text-slate-900 overflow-y-auto civr-l-swap" data-testid="landing-mobile-menu">
       <div className="px-4 sm:px-6 py-6 flex flex-col gap-8">
         <div className="flex flex-col border-b border-slate-200 pb-4">
-          {[...LANDING_LINKS, ['#try', 'Free test call', 'try']].map(([href, label, id]) => <a key={id} href={href} onClick={(e) => { goTo(href, e); onClose(); }} className="px-3 py-3 text-base font-medium text-slate-700" data-testid={`mobile-menu-link-${id}`}>{label}</a>)}
+          {[...LANDING_LINKS.filter(([, , id]) => id !== 'esim' && id !== 'mobile'), ['#try', 'Free test call', 'try']].map(([href, label, id]) => <a key={id} href={href} onClick={(e) => { goTo(href, e); onClose(); }} className="px-3 py-3 text-base font-medium text-slate-700" data-testid={`mobile-menu-link-${id}`}>{label}</a>)}
         </div>
         {MENUS.map(([id, label, items]) => (
           <div key={id}>

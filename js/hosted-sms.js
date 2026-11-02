@@ -434,7 +434,7 @@ async function sendText(chatId, id, to, text) {
   return { error: 'This number receives texts only. Your customers text it and you read them here.', code: 'receive_only' }
   if (d.status !== 'active') return { error: d.status === 'paused' ? (d.planNumber ? `Texting is paused because the plan on ${d.planNumber} isn’t active. Renew the plan and it turns back on.` : `Texting is paused — the $${monthlyOf(d)} monthly fee is due. Top up your wallet.`) : 'This number isn’t active for texting yet.' }
   const dest = normPhone(to)
-  const body = String(text || '').trim()
+  const body = require('./cloudivr-web/sms-limit').gsmText(String(text || '').trim())
   if (!E164.test(dest)) return { error: 'Enter the number to text with its country code.' }
   if (!body) return { error: 'Type a message.' }
   const long = require('./cloudivr-web/sms-limit').smsTooLong(body)

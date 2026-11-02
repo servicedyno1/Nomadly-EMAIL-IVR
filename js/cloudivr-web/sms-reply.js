@@ -122,7 +122,7 @@ function createSmsReply({ db, voiceService, log = console.log }) {
 
   // → { log } | { error: [status, code, message] }
   async function send({ chatId, num, to, text, simulated = false, replyTo = null, inboxId = null, media = [] }) {
-    const body = clean(text)
+    const body = require('./sms-limit').gsmText(clean(text))
     if (!body && !media.length) return { error: [400, 'empty', 'Type a reply or pick one.'] }
     if (media.length && !canMms(num)) return { error: [400, 'no_mms', 'This number can’t send pictures.'] }
     const long = require('./sms-limit').smsTooLong(body)
