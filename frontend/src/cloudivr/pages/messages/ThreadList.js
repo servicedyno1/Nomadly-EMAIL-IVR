@@ -41,7 +41,7 @@ export function ThreadList({ data, sel, onPick, filter, setFilter, q, setQ, mult
                   </span>
                   <span className={`flex text-sm min-w-0 ${t.unread ? 'text-[var(--c-text)]' : 'text-[var(--c-muted)]'}`} data-testid={`thread-last-${t.id}`}><Last l={t.last} /></span>
                   {t.tags?.length > 0 && <span className="flex flex-wrap gap-1 mt-1">{t.tags.slice(0, 3).map(x => <span key={x} className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--c-accent-soft)] text-[var(--c-accent)]" data-no-translate>{x}</span>)}</span>}
-                  {(multi || t.old) && <span className="block text-[11px] text-[var(--c-muted)] mt-0.5">to <span className="font-mono" data-no-translate>{t.number}</span>{t.old ? ' · Old number' : ''}{t.blocked ? ' · Blocked' : ''}</span>}
+                  {(multi || t.old) && <span className="block text-[11px] text-[var(--c-muted)] mt-0.5">via <span className="font-mono" data-no-translate>{t.number}</span>{t.old ? ' · Old number' : ''}{t.blocked ? ' · Blocked' : ''}</span>}
                 </span>
               </button>
             </li>

@@ -175,7 +175,7 @@ export default function Wallet() {
   const refresh = () => { reload(); refreshSummary(); };
   const header = (
     <PageHeader label="Wallet" title="Wallet" sub="Numbers, eSIMs, USA mobile numbers, renewals, texts, calls, campaigns and AI agent calls are all paid from here." testid="wallet-header">
-      <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={refresh} data-testid="wallet-refresh-button"><RefreshCw className="w-4 h-4" />Check now</button>
+      <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={refresh} data-testid="wallet-refresh-button"><RefreshCw className="w-4 h-4" />Check for my payment</button>
     </PageHeader>
   );
   if (loading && !data) return (
@@ -197,7 +197,7 @@ export default function Wallet() {
         </div>
         <div className="lg:col-span-2"><TopUp coins={data.coins} min={data.minTopup} initial={need ? Math.max(data.minTopup, Math.ceil(need)) : Number(params.get('amount')) || 50} onCreated={(d) => { setDep(d); reload(); }} /></div>
       </div>
-      {dep && <div className="mt-4"><DepositCard dep={dep} /></div>}
+      {dep && <div className="mt-4" ref={(el) => el && el.dataset.seen !== String(dep.address || dep.id) && (el.dataset.seen = String(dep.address || dep.id)) && el.scrollIntoView({ behavior: 'smooth', block: 'start' })}><DepositCard dep={dep} /></div>}
       <Tables data={data} />
     </div>
   );

@@ -3,13 +3,14 @@
 // payments and the texts it sent. Opt out in Settings (webPrefs.statementOff). Each month is sent once (webStatements).
 const LINE_TYPES = /purchase|renewal|replace|refund|^phone-number$|^hosted-sms-setup$/
 const LABEL = { 'esim-purchase': 'USA eSIM purchase', 'mobile-number-purchase': 'USA mobile number purchase', 'esim-renewal': 'eSIM / mobile number renewal', 'esim-number-replace': 'Mobile number replacement', 'number-replace': 'Number replacement', 'phone-number': 'Business number', 'hosted-sms-setup': 'Landline to Texting setup', 'hosted-sms-renewal': 'Landline to Texting renewal', 'esim-refund': 'Refund', 'mobile-number-refund': 'Refund', 'hosted-sms-refund': 'Refund' }
+const SENT = { $or: [{ type: 'sms_out' }, { type: 'sms', direction: 'outbound' }] }
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 const usd = (n) => `$${Number(n || 0).toFixed(2)}`
 const monthName = (d) => d.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 
 async function build(db, chatId, from, to) {
   const pays = await db.collection('transactions').find({ chatId: String(chatId), createdAt: { $gte: from, $lt: to }, type: LINE_TYPES }).sort({ createdAt: 1 }).limit(200).toArray()
-  const texts = await db.collection('phoneLogs').aggregate([{ $match: { chatId: String(chatId), type: 'sms_out', timestamp: { $gte: from, $lt: to } } }, { $group: { _id: null, n: { $sum: 1 }, cost: { $sum: { $ifNull: ['$charge', 0] } } } }]).toArray()
+  const texts = await db.collection('phoneLogs').aggregate([{ $match: { chatId: String(chatId), ...SENT, timestamp: { $gte: from, $lt: to } } }, { $group: { _id: null, n: { $sum: 1 }, cost: { $sum: { $ifNull: ['$charge', 0] } } } }]).toArray()
   return { pays, texts: texts[0]?.n || 0, textCost: texts[0]?.cost || 0 }
 }
 
@@ -27,7 +28,7 @@ async function runOnce(db, { log, now = new Date(), force = false } = {}) {
   if (!force && now.getUTCDate() !== 1) return 0
   const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)), from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1))
   const ym = from.toISOString().slice(0, 7), sent = db.collection('webStatements')
-  const active = new Set([...await db.collection('transactions').distinct('chatId', { createdAt: { $gte: from, $lt: to }, type: LINE_TYPES }), ...await db.collection('phoneLogs').distinct('chatId', { type: 'sms_out', timestamp: { $gte: from, $lt: to } })].map(String))
+  const active = new Set([...await db.collection('transactions').distinct('chatId', { createdAt: { $gte: from, $lt: to }, type: LINE_TYPES }), ...await db.collection('phoneLogs').distinct('chatId', { ...SENT, timestamp: { $gte: from, $lt: to } })].map(String))
   const { sendMail } = require('./auth'), { appUrl } = require('./emails')
   let n = 0
   for (const chatId of active) {

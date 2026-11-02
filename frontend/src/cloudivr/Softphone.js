@@ -29,6 +29,9 @@ export default function Softphone({ open, onClose }) {
   const { status: rtcStatus, call, msg: rtcMsg, connect, dial, answer, phone: rtcPhone, mic } = useRtc();
   const here = rtcPhone === sel; // the browser line is registered for the selected number
   const status = here ? rtcStatus : 'idle';
+  // Pressing Call while offline connects first, then dials as soon as the line is ready.
+  const [pending, setPending] = useState(null);
+  useEffect(() => { if (status === 'ready' && pending) { dial(...pending); setPending(null); } else if (status === 'error' || status === 'idle') setPending(null); }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
   const msg = here ? rtcMsg : '';
   useEffect(() => {
     if (!open) return;
@@ -66,7 +69,7 @@ export default function Softphone({ open, onClose }) {
       ) : (
         <>
           <div className="flex gap-2 mb-3">
-            <select className="civr-input !h-9 font-mono text-xs" value={sel} onChange={e => { setSel(e.target.value); setInfo(null); }} aria-label="Call from" data-testid="softphone-number-select">{nums.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{pv.phone(n.phoneNumber)}</option>)}</select>
+            <select className="civr-input !h-9 text-xs" value={sel} onChange={e => { setSel(e.target.value); setInfo(null); }} aria-label="Call from" data-testid="softphone-number-select">{nums.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{pv.phone(n.phoneNumber)} · {n.mobile ? 'USA mobile' : 'Business'}</option>)}</select>
             {!viaMobile && <button className="civr-btn civr-btn-ghost civr-btn-sm" disabled={status === 'connecting' || !selNum?.access?.browserPhone} onClick={() => connect(sel)} data-testid="softphone-connect-button">{status === 'connecting' ? <Loader2 className="w-4 h-4 animate-spin" /> : status === 'ready' ? 'Online' : 'Connect'}</button>}
           </div>
           <ShowAsSelect compact value={showAs} onChange={setShowAs} testid="softphone-show-as-select" />
@@ -86,7 +89,7 @@ export default function Softphone({ open, onClose }) {
             </div>
           ) : viaMobile ? (
             <button className="civr-btn civr-btn-primary w-full" disabled={busy || !dest || !myPhone} onClick={callMeFirst} data-testid="softphone-call-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Smartphone className="w-4 h-4" />}Call via my mobile</button>
-          ) : <button className="civr-btn civr-btn-primary w-full" disabled={status !== 'ready' || !dest} onClick={() => dial(dest, sel, showAs)} data-testid="softphone-call-button"><Phone className="w-4 h-4" />Call</button>}
+          ) : <button className="civr-btn civr-btn-primary w-full" disabled={!dest || !!pending || status === 'connecting' || (status !== 'ready' && !selNum?.access?.browserPhone)} onClick={() => { if (status === 'ready') dial(dest, sel, showAs); else { setPending([dest, sel, showAs]); connect(sel); } }} data-testid="softphone-call-button">{pending || status === 'connecting' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Phone className="w-4 h-4" />}{pending ? 'Connecting…' : 'Call'}</button>}
           {(call || last) && <CallNoteBox key={`${sel}-${last?.peer || ''}`} phone={sel} peer={call?.peer || last?.peer} direction={call ? (call.inbound ? 'inbound' : 'outbound') : last?.direction} />}
         </>
       )}

@@ -66,7 +66,7 @@ export default function Checkout({ pick, planObj, total, balance, coins, busy, o
   return (
     <div className="civr-card p-6 mt-6" data-testid="buy-summary">
       <div className="flex flex-col md:flex-row md:items-center gap-4">
-        <div className="flex-1"><div className="font-mono text-xl" data-testid="buy-summary-number">{pick.phoneNumber}</div><div className="text-sm text-[#a1a1aa]">{label || `${planObj?.name} plan · monthly`}</div></div>
+        <div className="flex-1"><div className="font-mono text-xl" data-testid="buy-summary-number">{pick.phoneNumber}</div><div className="text-sm text-[#a1a1aa]">{label || `${planObj?.name} plan · monthly`}{!label && <button type="button" onClick={() => document.querySelector('[data-testid="buy-plan-picker"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="ml-2 underline underline-offset-2 hover:text-[#818cf8]" data-testid="buy-change-plan">Change plan</button>}</div></div>
         <div className="text-right">{coupon && <div className="font-mono text-sm text-[#a1a1aa] line-through" data-testid="buy-total-before">{money(total)}</div>}<div className="font-mono text-3xl" data-testid="buy-total">{money(due)}</div>{coupon && <div className="text-xs text-[#a1a1aa]">first month · then {money(total)}/month</div>}</div>
       </div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-6">

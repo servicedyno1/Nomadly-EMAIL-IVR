@@ -35,24 +35,28 @@ function SearchForm({ catalog, q, setQ, onSearch, busy }) {
         </select>
       </Field>
       <Field label="Area code (optional)">
-        <input className="civr-input font-mono" disabled={!local} maxLength={3} value={q.areaCode} onChange={e => setQ({ ...q, areaCode: e.target.value.replace(/\D/g, '') })} placeholder={local ? '415' : 'USA/CA local only'} data-testid="buy-area-code-input" />
+        <input className="civr-input font-mono" disabled={!local} maxLength={3} value={q.areaCode} onChange={e => setQ({ ...q, areaCode: e.target.value.replace(/\D/g, '') })} placeholder={local ? 'Any (e.g. 415)' : 'USA/CA local only'} data-testid="buy-area-code-input" />
       </Field>
       <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="buy-search-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}Search numbers</button>
     </form>
   );
 }
 
+const cap = (w) => w.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+// 'CA, US, SHAFTER, SHAFTER' → 'Shafter, CA'
+const place = (r) => { const p = [...new Set(String(r || '').split(',').map(x => x.trim()).filter(Boolean))]; if (!p.length) return 'Any region'; const st = p.find(x => /^[A-Z]{2}$/.test(x) && x !== 'US'); const city = p.find(x => x.length > 2 && x !== 'US'); return city ? `${cap(city)}${st ? `, ${st}` : ''}` : p.join(', '); };
+
 function Results({ res, pick, setPick }) {
   if (!res.numbers.length) return <div className="civr-card p-6 text-sm text-[#a1a1aa]" data-testid="buy-no-results">No numbers available for that search. Try another area code or type.</div>;
   return (
     <div className="grid sm:grid-cols-2 lg:grid-cols-3 min-[1800px]:grid-cols-4 gap-4" data-testid="buy-results">
       {res.numbers.map((n, i) => (
-        <button key={n.phoneNumber} type="button" onClick={() => setPick(n)} data-testid={`buy-result-${i}`}
+        <button key={n.phoneNumber} type="button" onClick={() => { setPick(n); setTimeout(() => document.querySelector('[data-testid="buy-plan-picker"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150); }} data-testid={`buy-result-${i}`}
           className={`civr-card text-left p-4 ${pick?.phoneNumber === n.phoneNumber ? 'civr-trace' : ''}`}>
           <div className="flex items-center justify-between"><span className="font-mono text-lg">{n.phoneNumber}</span>{pick?.phoneNumber === n.phoneNumber && <Check className="w-4 h-4 text-[#818cf8]" />}</div>
-          <div className="text-xs text-[#a1a1aa] mt-1 truncate">{n.region || 'Any region'}</div>
+          <div className="text-xs text-[#a1a1aa] mt-1 truncate">{place(n.region)}</div>
           <div className="flex gap-2 mt-4">
-            {n.capabilities.voice && <span className="civr-pill">voice</span>}{n.capabilities.sms && <span className="civr-pill">sms</span>}{n.capabilities.fax && <span className="civr-pill">fax</span>}
+            {n.capabilities.voice && <span className="civr-pill">Calls</span>}{n.capabilities.sms && <span className="civr-pill">Texts</span>}
             {n.surcharge > 0 && <span className="civr-pill civr-pill-warn">+{money(n.surcharge)}/mo</span>}
           </div>
         </button>
@@ -144,7 +148,7 @@ export default function BuyNumber() {
   return (
     <div data-testid="buy-page">
       {extraOf ? <PageHeader label="Extra number" title="Add an extra number" sub={`Shares the plan of ${pv.phone(extraOf)} — ${money(extra?.price || 25)}/month, same features, and uses its minutes and SMS. Pay from your wallet or with crypto.${extra ? ` ${extra.used} of ${extra.limit} used.` : ''}`} testid="buy-header" />
-        : <PageHeader label="Buy" title="Get a VoIP number with SIP" sub={`Internet (VoIP) business numbers in ${catalog.countries.length} countries, with a browser phone on every plan. Pro plans and up add SIP logins for your own softphone, desk phone or PBX, plus IVR and campaigns. Pay with crypto or your wallet, renews monthly.`} testid="buy-header" />}
+        : <PageHeader label="Buy" title="Get a business phone number" sub={`Internet-based (VoIP) business numbers in ${catalog.countries.length} countries. Call and text from your browser on every plan; Pro and up add keypad menus (IVR), campaigns and logins for your own phone apps (SIP). Pay with crypto or your wallet, renews monthly.`} testid="buy-header" />}
       {!extraOf && <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-texting-link">Already have a business number? <Link to={cp('/app/texting?add=1')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-texting-link-button">Add texting to it</Link></p>}
       {open?.orders?.[0] && <OpenOrder order={open.orders[0]} />}
       {saved?.pick && <div className="civr-card p-4 mb-4 text-sm flex items-center gap-2" data-testid="buy-resume-note"><Check className="w-4 h-4 text-[#818cf8]" />Welcome back — {saved.pick.phoneNumber} and the {planObj?.name} plan are still selected below.</div>}

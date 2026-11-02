@@ -86,7 +86,7 @@ export function Composer({ t, onSent, seed, onScheduled }) {
   return (
     <div className="border-t border-[var(--c-border)] p-3" data-testid="composer">
       {t.replyFrom && t.replyFrom !== t.number.phone && <p className="text-xs text-[var(--c-muted)] px-1 pb-2" data-testid="composer-reply-from">Your reply comes from <span className="font-mono" data-no-translate>{t.replyFrom}</span></p>}
-      {quick && <Templates text={text} onPick={(v) => { setText(v.slice(0, 600)); setQuick(false); }} />}
+      {quick && <Templates text={text} onPick={(v) => { setText(cur => (cur.trim() ? `${cur.trimEnd()} ${v}` : v).slice(0, 600)); setQuick(false); }} />}
       <Pics pics={pics} remove={(i) => setPics(p => p.filter((_, j) => j !== i))} />
       {when !== null && <div className="flex flex-wrap items-center gap-2 px-1 pb-2" data-testid="composer-schedule">
         <span className="text-xs font-semibold flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Send later</span>

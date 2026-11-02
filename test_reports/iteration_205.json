@@ -1,0 +1,103 @@
+{
+  "summary": "Iteration 205 tested saved text templates, the monthly statement and opt-out, and did a usability walkthrough of buying, texting, calling and topping up as Alice at 1440 and 390. Backend: 9/9 pytest tests passed. Templates: create, list newest first, trim, 409 duplicate, 400 empty, 459 characters OK, 460 gives too_long, 50 max gives limit, 401 without login, Bob can't see or delete Alice's templates (404). statement.test.js PASS. PUT /prefs/statement and GET /prefs/onboarding statementOff work both ways. Frontend: composer-quick-toggle is labelled 'Templates'. It opens composer-templates with the empty state and 4 Starters. Save gives the toast 'Saved as a template' and shows composer-template-0. Use inserts the text and closes the panel. A duplicate save shows 'You already saved this text.' The template is shared with a calling-number thread (+13346972125), and delete returns the empty state. The Settings statement toggle shows Turn off / Turn on and keeps its state after a reload. 1 text sent (TEST_usability…) from +15554586272 to +15555550123: shows 'Sent (preview)', $0.05 esim-sms transaction. Found 1 real backend bug: the monthly statement leaves out texts sent from USA mobile numbers and eSIMs. Plus many usability findings, listed below.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "js/cloudivr-web/statement.js build() + runOnce() active set", "issue": "Texts sent only counts phoneLogs type:'sms_out'. Texts from USA mobile numbers and eSIMs are saved as type:'sms', direction:'outbound' (spenza.js:452), and messages.js OUT already handles both. Checked on Alice for Nov 2026: the statement says 4 texts, the real count is 12. An account whose only activity was mobile texts gets no statement at all. Fix: match {$or:[{type:'sms_out'},{type:'sms',direction:'outbound'}]} in both queries and add this case to statement.test.js.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "statement.js runOnce", "issue": "The webStatements row is written before sendMail. If the email fails, emailed:false is stored and it is never retried that month. Retry rows where emailed:false on the next hourly run."},
+      {"endpoint": "POST /messages/templates", "issue": "The duplicate and 50-limit checks are check-then-insert, so two quick taps can save the same text twice. Add a unique index on {chatId, text}."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Templates.js del()", "issue": "Delete removes the template from the screen before the API answers. If the API fails, it stays hidden but is not deleted. Put it back on error.", "selector": "[data-testid^='composer-template-delete-']", "priority": "LOW"},
+      {"component": "Templates onPick (Composer.js:89)", "issue": "Tapping a template or Starter replaces what you already typed, with no warning, so the draft is lost. Insert it at the cursor or after the draft, or ask before replacing.", "selector": "[data-testid^='composer-template-use-']", "priority": "MEDIUM"},
+      {"component": "Templates save link", "issue": "'Save this text as a template' still shows when the text is already saved. Clicking it gives a red error. Show 'Saved ✓' (disabled) when the text is already in the list.", "selector": "[data-testid='composer-template-save']", "priority": "LOW"},
+      {"component": "Template chips", "issue": "Chips are cut at 16rem and the full text is only in a title tooltip, which phones can't show. Long templates can't be read on mobile before inserting. Allow 2 lines, or expand on long-press.", "selector": "[data-testid^='composer-template-use-']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "BUY · Buy a number (/app/buy)", "issues": [
+        "HIGH · Title 'Get a VoIP number with SIP' and the intro (VoIP, SIP, PBX) are jargon for non-technical customers. The same product is called 'business number' (intro, 'Already have a business number?'), 'Calling number' (Messages From list) and 'Business' (also a plan name). Fix: pick one name, e.g. 'Business number', title it 'Get a business phone number', and keep SIP for a small 'Pro and up' line.",
+        "MEDIUM · Area code (optional) shows a grey placeholder '415' that looks like a filled value. Searching then returns numbers from every state. Fix: placeholder 'Any area code (e.g. 415)'.",
+        "MEDIUM · Result cards say 'CA, US, SHAFTER, SHAFTER' (repeated, all caps) plus chips 'voice sms fax'. Fix: show 'Shafter, CA' and 'Calls · Texts' (drop fax unless it is sold).",
+        "MEDIUM · After picking a number, nothing scrolls. Step 3 (plan) and the pay box are about 1.5 screens below, past 12 cards and 3 long feature lists. Fix: scroll to step 3 when a number is picked, or show a sticky 'Selected +1661… · Pro $75 · Continue' bar.",
+        "MEDIUM · Pro ($75) is selected for you, and the pay box only says 'Pro plan · monthly' with no change link. A customer can pay $75 without noticing Starter is $50. Fix: add 'Change plan' next to 'Pro plan · monthly', or ask the customer to pick a plan.",
+        "MEDIUM · 'Your offer CIVR9980E1 · 15% off — tap to use' is not applied and the button still says 'Pay $75.00 & activate'. Fix: apply it automatically, or show the discounted price next to the offer.",
+        "LOW · There is no Cancel or 'Start over' in the pay box. The only way out is to leave the page. Add 'Change number'."]},
+      {"screen": "BUY · eSIM & mobile numbers (/app/esim)", "issues": [
+        "HIGH · The buy options are hard to find. Every line you own shows its install QR, email box and actions open by default. At 390 the 'Get this eSIM' button is about 2350px down and 'Get a mobile number' about 4230px down (page height 4454). Fix: put 'Add a line' (eSIM / mobile number) at the top, and keep install QRs closed for active lines.",
+        "MEDIUM · Intro 'Two real USA carrier numbers, $75/month each' reads as if you get two numbers. Fix: 'Two kinds of USA number, $75/month each: an eSIM for your phone, or a mobile number you use in the browser.' Use side-by-side cards with one button each.",
+        "MEDIUM · 'USA Starter eSIM' clashes with the 'Starter' number plan ($50) on the Buy page. Also '20 MB data' is very small and needs a short note on what it is for. Fix: rename it 'USA eSIM' and add one line on what 20 MB covers.",
+        "MEDIUM · The pay button ('Pay $75.00 from wallet' / 'Pay $75.00 & activate') is disabled until the IMEI or ZIP is valid, and nothing says why. 'Pay with crypto' only appears after the form is valid (WalletPay hides crypto when disabled). Fix: always show both payment options, with a hint like 'Enter your 15-digit IMEI to continue'.",
+        "MEDIUM · Mobile number offer: the buttons are 'Pay from wallet' | 'Cancel' | 'Pay with crypto', so crypto comes after Cancel and looks like an afterthought. Fix: put both payment buttons together and Cancel last as a text link.",
+        "LOW · The 'Email the QR code' box on existing eSIM cards is filled with emails like qa3@example.com instead of the account email. Default to the account email.",
+        "LOW · Mobile number cards say 'Ring in CloudIVR · Not active yet' with a long explanation. Shorten it to 'Incoming calls: coming soon (carrier is switching it on). Outgoing calls work now.'"]},
+      {"screen": "Numbers (My numbers) — 1440 & 390", "issues": [
+        "MEDIUM · At 390 the tab bar is cut off ('eSIM & m…'). 'Landline to Texting' and 'SIP & softphones' are hidden, with no sign the bar scrolls. Fix: add a fade or arrow at the edge, or use a dropdown on mobile.",
+        "MEDIUM · Business number card actions are icon-only (copy, phone, chevron), while mobile number cards use text links ('Open texts in Messages', 'Call from this number'). Fix: add text labels such as 'Call', 'Open', or at least tooltips.",
+        "LOW · The 'Add texting to it' link and the 'Landline to Texting' tab name the same feature differently. Use one name."]},
+      {"screen": "TEXT · Messages / New message", "issues": [
+        "MEDIUM · The thread header and list rows say 'to +15554586272 · USA mobile number'. On a conversation you started, 'to' reads as the person you are texting. Fix: 'Your number: +1555… (USA mobile)' or 'via +1555…'.",
+        "MEDIUM · The New message 'From' dropdown is in monospace and cut off at 390 ('+13346972125 · Calling numb'). It also lists 3 USA mobile numbers with no nickname. Fix: use a normal font, put the label on a second line, and allow nicknames.",
+        "MEDIUM · When a calling number texts a USA mobile, the note 'USA carriers may block business texts…' is soft, but the send is then blocked (iteration 204 saw sms_blocked). The customer types a text and hits a dead end. Fix: say 'Texts from this number to USA mobiles will be blocked until it's registered', link 'Register for business texting', and suggest using the USA mobile number instead.",
+        "LOW · The composer shows '$0.05 from your wallet' before anything is typed. Say 'Each text: $0.05 from your wallet'. On calling numbers, 'Uses a plan text, then $0.02…' doesn't say how many plan texts are left. Show 'Plan texts left: 187'.",
+        "LOW · A new empty thread is a blank white area. Add 'No messages yet — say hello' and a Templates hint.",
+        "LOW · At 390 the thread header actions (Call, Save contact, Notes, Block) are icons only, and Block sits right next to Notes, so it is easy to tap by mistake. Add labels, or move Block into a ⋯ menu.",
+        "LOW · At 390 the floating help bubble covers list timestamps and the composer area. Move it above the bottom nav, or hide it on Messages."]},
+      {"screen": "CALL · Browser phone (header phone icon)", "issues": [
+        "HIGH · Making a call takes 3 separate steps: Connect, then Allow microphone, then Call. The Call button stays disabled with only 'Offline' as a hint. A first-time customer types a number and can't work out why Call is grey. Fix: connect and ask for the microphone automatically when the panel opens or when Call is pressed. If Call must stay disabled, say 'Tap Connect first'.",
+        "MEDIUM · The 'Call from' list shows only raw numbers (+13346972125, +15555769817, +15554586272, +16462556424), with no type or nickname. Fix: add '· Business' / '· USA mobile' like the Quick IVR list does.",
+        "MEDIUM · 'Show as' and '+ Add or verify a number' appear before the number field, which is jargon for a basic call. Fix: put 'Show as' under a collapsed 'More options'.",
+        "MEDIUM · The header phone icon is the only way to make a normal call, and it has no visible label (aria-label only). Sidebar 'Calls' opens Quick IVR (automated calls). Fix: add a visible 'Phone' label or tooltip, and a 'Make a call' button on the Calls page.",
+        "OK · The thread 'Call' button correctly fills in the thread's number and the contact."]},
+      {"screen": "CALL · Calls → Quick IVR call", "issues": [
+        "HIGH · Sidebar 'Calls' goes straight to 'Quick IVR call', an automated robocall form. Customers expecting call history or a dialer land in a 4-step form. Fix: make Calls a hub with 'Call someone (browser phone)', 'Quick IVR call', 'Text-to-voice' and recent calls.",
+        "MEDIUM · 'Place call' is enabled with an empty script. The error 'Pick a template, type a script or choose audio' appears only after clicking, at the bottom of the page (submit is about 2050px down), far from step 2. Fix: show the error on the step-2 field and scroll there, or disable Place call with a checklist.",
+        "MEDIUM · Step 2 has two voice pickers (a voice dropdown beside 'Make AI voice' and another 'Read out with'), both on Rachel. It is unclear which one is used. Fix: keep one picker, with 'Make AI voice' as an option.",
+        "MEDIUM · There is no cost estimate before 'Place call', only 'Billed per minute from your wallet'. Fix: show 'About $0.xx/min per person · N people' next to Place call.",
+        "MEDIUM · Step 3 'Connect to (when they press a key)' shows only a grey placeholder (+14155550199) and doesn't say it is required. Fix: mark it required, or pre-fill the customer's own mobile.",
+        "LOW · Schedule uses the custom date picker next to the browser's built-in time input ('-- : -- --'). Use one consistent date-and-time picker."]},
+      {"screen": "TOP UP · Wallet", "issues": [
+        "MEDIUM · After 'Get payment address', the deposit card appears below the form and the page doesn't scroll to it. At 390 the customer sees no change and may tap again. Fix: scroll to wallet-deposit-card and focus it.",
+        "MEDIUM · 'Check now' (top right) means nothing to a first-time customer. Fix: rename it 'Check for my payment' and show it only while a deposit is waiting.",
+        "LOW · The Balance card at 1440 is a tall, mostly empty box with the amount in the middle. Make it shorter, or add the last top-up and a 'what this pays for' list.",
+        "LOW · The preview deposit card says 'Send exactly $25.00 in BTC'. In live mode amountCrypto is shown, which is fine, but if amountCrypto is ever missing, customers get a USD amount for a crypto payment. Never show the address without the exact coin amount.",
+        "LOW · The header balance went from $249.44 to $249.38 after one $0.05 text (the transaction is 0.05). The balance is rounded on screen, so the jump looks like $0.06. Show 2 decimals consistently, or round the stored balance."]},
+      {"screen": "Settings · Monthly statement", "issues": [
+        "HIGH (findability) · 'Monthly statement email' sits in the Appearance card (theme), while the 'Email notifications' card is right below it. Customers looking to stop an email won't look under Appearance. Fix: move StatementPref into Email notifications.",
+        "LOW · The toggle is a text button ('Turn off') with role=switch. Use the same switch style as the other email toggles."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_iter205_templates_statement.py", "/app/test_reports/pytest/pytest_iter205.xml", "/app/backend/tests/statement.test.js"],
+  "action_items": [
+    "HIGH: In statement.js, count outbound texts as type 'sms_out' OR (type 'sms' AND direction 'outbound') in build() and in the runOnce active set. Add a test for it.",
+    "HIGH: Browser phone: connect and ask for the microphone automatically. Never leave Call disabled without saying why. Label numbers by type.",
+    "HIGH: Calls nav: add a Calls hub with 'Make a call' instead of opening Quick IVR directly.",
+    "HIGH: eSIM & mobile tab: put the buy options at the top and keep install QRs closed for active lines.",
+    "HIGH: Use one name for business numbers everywhere (VoIP / business / calling / Business plan) and remove SIP/VoIP jargon from the Buy page title.",
+    "HIGH: Move the Monthly statement toggle into Email notifications.",
+    "MEDIUM: Buy flow: scroll to step 3 after picking a number, make plan choice and coupon clear in the pay box, fix the area-code placeholder and the duplicated city in results.",
+    "MEDIUM: Show the crypto option before the form is valid, and put Cancel after both payment buttons.",
+    "MEDIUM: Quick IVR: show the error inline at step 2, one voice picker, a cost estimate, and mark 'Connect to' as required.",
+    "MEDIUM: Messages: reword 'to +1…' to 'Your number', fix the From dropdown on mobile, and make the 10DLC warning a clear block with a link.",
+    "MEDIUM: Templates: don't overwrite the draft when a template is tapped.",
+    "MEDIUM: Wallet: scroll to the deposit card after 'Get payment address', and rename 'Check now'.",
+    "LOW: The other LOW items in design_issues and ui_bugs."
+  ],
+  "critical_code_review_comments": [
+    "statement.js only counts type 'sms_out'. Texts from USA mobile numbers and eSIMs (type 'sms', direction 'outbound') are left out, so the statement is wrong and some accounts get none.",
+    "statement.js claims the month before sending and never retries a failed email.",
+    "templates.js: there is no unique index on {chatId, text}, so the duplicate and limit checks can race.",
+    "Templates.js: delete removes the item before the API answers and doesn't put it back on error; onPick replaces the draft.",
+    "WalletPay hides the crypto option while the form is invalid, so customers don't know crypto is offered until they finish the form."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_iter205_templates_statement.py"],
+  "success_rate": {"backend": "100% of tests (9/9); 1 logic bug found in the statement text count", "frontend": "100% of the templates and statement UI checks pass; usability findings listed above"},
+  "seed_data_creation": "Sent 1 preview text 'TEST_usability walkthrough hello' from +15554586272 to +15555550123 ($0.05). A thread +15555550123 was opened from +13346972125 (nothing sent). The TEST_ templates were deleted. Statement opt-out was set back to on (statementOff=false). A preview $25 BTC deposit address was created (test only, not paid). Quick IVR 'Place call' was clicked and stopped at validation (empty script), so no call was made.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Alice chatId '5000000000000001'. USA mobile thread line +15554586272. The calling/Business number is +13346972125. +16462556424 is a real line: don't send from it. Mobile texts are stored as phoneLogs type 'sms' with direction 'outbound', plus an esim-sms transaction. To check the statement fix: build(db, '5000000000000001', Nov 1 2026, Dec 1 2026).texts was 4, but there are 12 real outbound texts. The node script must run from /app (module resolution). Template testids are composer-template-0, -use-N, -delete-N, -save and -empty. The statement toggle is in the Settings Appearance card.",
+  "test_credentials": "Alice civr.alice@example.com / AliceTest#2026; Bob civr.bob@example.com / BobTest#2026 (from /app/memory/test_credentials.md)"
+}

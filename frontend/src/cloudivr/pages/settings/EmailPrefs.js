@@ -4,6 +4,7 @@ import { Mail, Loader2, ExternalLink, Send } from 'lucide-react';
 import { api, apiUrl, useApi, when } from '../../api';
 import { Toggle, SkeletonCard } from '../../ui';
 import { useLang } from '../../i18n';
+import { useShell } from '../../Shell';
 
 const SWITCHES = [
   ['weekly', 'Weekly summary', 'Monday morning: calls, texts, campaigns and what renews next.'],
@@ -93,9 +94,23 @@ export function EmailPrefs() {
       </div>
       <div className="grid lg:grid-cols-2 gap-6">
         <Switches prefs={data.prefs} setPrefs={setPrefs} />
-        <div className="space-y-6"><LowBalance key={data.prefs.lowBalanceAt} prefs={data.prefs} setPrefs={setPrefs} /><Examples onSent={log.reload} /></div>
+        <div className="space-y-6"><StatementPref /><LowBalance key={data.prefs.lowBalanceAt} prefs={data.prefs} setPrefs={setPrefs} /><Examples onSent={log.reload} /></div>
       </div>
       <div className="border-t border-[#1a1a1a] pt-4 space-y-2"><div className="text-sm font-medium">Recent emails</div><Recent list={log.data?.emails} /></div>
+    </div>
+  );
+}
+
+// Monthly statement email on the 1st (line payments + texts). On by default.
+function StatementPref() {
+  const { onboarding, setOnboarding } = useShell();
+  if (!onboarding) return null;
+  const off = !!onboarding.statementOff;
+  const flip = () => api('/prefs/statement', { method: 'PUT', body: { off: !off } }).then(d => { setOnboarding({ ...onboarding, ...d }); toast.success(d.statementOff ? 'Monthly statements off' : 'Monthly statements on'); }).catch(e => toast.error(e.message));
+  return (
+    <div className="flex items-center justify-between gap-3" data-testid="settings-statement">
+      <div className="text-sm"><div className="font-semibold">Monthly statement email</div><div className="text-[#a1a1aa]">{off ? 'Off.' : 'On the 1st: last month’s line payments and texts sent.'}</div></div>
+      <button type="button" role="switch" aria-checked={!off} onClick={flip} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="settings-statement-toggle">{off ? 'Turn on' : 'Turn off'}</button>
     </div>
   );
 }
