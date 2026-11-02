@@ -63,7 +63,7 @@ export function PlanCompare({ catalog, start }) {
 export function UsageRates({ catalog }) {
   const r = catalog?.rates;
   if (!r) return null;
-  const out = r.outboundPerMinUsCa != null ? `${money(r.outboundPerMinUsCa)}/min US & Canada · from ${money(r.outboundPerMinIntl ?? r.forwardingPerMin)}/min elsewhere` : 'Per minute, shown before you call';
+  const out = r.outboundPerMinUsCa != null ? `${money(r.outboundPerMinUsCa)}/min USA & Canada · from ${money(r.outboundPerMinIntl ?? r.forwardingPerMin)}/min elsewhere` : 'Per minute, shown before you call';
   const rows = [
     ['outbound', 'Outgoing calls — browser phone, softphone, Quick IVR, Bulk IVR campaigns', out, 'Wallet'],
     ['ai', 'AI voice agent (inbound or outbound)', `${money(r.aiAgentPerMin)}/min`, 'Wallet'],

@@ -10,8 +10,8 @@ export const PRODUCTS = [
   ['text', Captions, 'Text-to-voice calls', 'Type and a natural voice speaks for you; read their reply live.', 'text'],
   ['hosted', MessageSquareText, 'Landline to Texting', 'Get texts on the landline number you already have.', 'hosted'],
   ['inbox', Inbox, 'SMS & voicemail inbox', 'Every text and transcribed voicemail in one inbox.', 'sms'],
-  ['esim', Smartphone, 'US eSIM', 'A downloadable US line on T-Mobile for your phone, installed with a QR code.', '#esim'],
-  ['mobile', Smartphone, 'US mobile number', 'A virtual local number on a real US carrier, used in your browser.', '#mobile'],
+  ['esim', Smartphone, 'USA eSIM', 'A downloadable USA line on T-Mobile for your phone, installed with a QR code.', '#esim'],
+  ['mobile', Smartphone, 'USA mobile number', 'A virtual local number on a real USA carrier, used in your browser.', '#mobile'],
 ];
 
 export const USE_CASES = [

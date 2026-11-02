@@ -31,7 +31,7 @@ export default function Messages() {
       <div className={sel ? 'hidden md:block' : ''}><PageHeader label="Account" title="Messages" sub="Texts, pictures, voicemails and calls with each person, in one conversation." testid="messages-header" /></div>
       {error && <ErrorNote error={error} onRetry={reload} testid="messages-error" />}
       {none ? (
-        <Empty icon={MessagesSquare} title="No numbers yet" sub="Get a calling number, a US mobile number or Landline to Texting and your conversations show up here. A US eSIM texts on your phone instead." testid="messages-empty-numbers"><Link to={cp('/app/buy')} className="civr-btn civr-btn-primary mt-6" data-testid="messages-buy-link">Buy a number</Link></Empty>
+        <Empty icon={MessagesSquare} title="No numbers yet" sub="Get a calling number, a USA mobile number or Landline to Texting and your conversations show up here. A USA eSIM texts on your phone instead." testid="messages-empty-numbers"><Link to={cp('/app/buy')} className="civr-btn civr-btn-primary mt-6" data-testid="messages-buy-link">Buy a number</Link></Empty>
       ) : (
         <div className="civr-card !p-0 overflow-hidden grid md:grid-cols-[340px_1fr] lg:grid-cols-[380px_1fr] h-[calc(100dvh-14rem)] md:h-[calc(100dvh-18rem)] min-h-[440px]" data-testid="messages-layout">
           <div className={`min-h-0 md:border-r border-[var(--c-border)] ${sel ? 'hidden md:block' : ''}`}>

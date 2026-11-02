@@ -6,14 +6,14 @@ import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
 import { IN, Label, Btn, Account, Pay } from './EsimCheckout';
 
-// Landing-page US mobile number checkout: ZIP → account → pay (wallet, or crypto top-up then auto-order) → done.
+// Landing-page USA mobile number checkout: ZIP → account → pay (wallet, or crypto top-up then auto-order) → done.
 export const openMobileCheckout = () => window.dispatchEvent(new CustomEvent('civr-mobile-checkout'));
-const LATER = 'Closed it after paying? The money stays in your wallet. Open Buy a number → US mobile number in the app to finish the order.';
+const LATER = 'Closed it after paying? The money stays in your wallet. Open Buy a number → USA mobile number in the app to finish the order.';
 
 function Zip({ zip, setZip, onNext }) {
   return (
     <div className="space-y-5" data-testid="mobile-co-details">
-      <Label text="ZIP code" hint="We ask the carrier for a number near this US ZIP code. It’s a preference: the area code can’t be guaranteed.">
+      <Label text="ZIP code" hint="We ask the carrier for a number near this USA ZIP code. It’s a preference: the area code can’t be guaranteed.">
         <input className={`${IN} font-mono max-w-[200px]`} inputMode="numeric" autoComplete="postal-code" value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10011" data-testid="mobile-co-zip" />
       </Label>
       <p className="flex items-start gap-2 text-sm text-slate-600 rounded-xl bg-slate-50 p-3" data-testid="mobile-co-reveal-note"><Lock className="w-4 h-4 mt-0.5 shrink-0 text-[color:var(--np-blue)]" />You can’t pick the exact number. The carrier assigns it after your payment is confirmed, usually within minutes.</p>
@@ -48,12 +48,12 @@ function Checkout({ price, onClose }) {
     <div className="fixed inset-0 z-[70] bg-slate-900/50 grid place-items-center p-3 sm:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose()} data-testid="mobile-checkout">
       <div ref={box} role="dialog" aria-modal="true" aria-labelledby="mobile-co-title" className="bg-white text-slate-900 rounded-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-6 sm:p-8 shadow-2xl">
         <div className="flex items-start justify-between gap-4 mb-6">
-          <div><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[.14em] text-slate-500"><MessageSquareText className="w-4 h-4" />{`US mobile number · $${price}/month`}</div><h2 id="mobile-co-title" className="civr-l-h text-2xl mt-2" data-testid="mobile-co-step">{TITLES[step]}</h2></div>
+          <div><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[.14em] text-slate-500"><MessageSquareText className="w-4 h-4" />{`USA mobile number · $${price}/month`}</div><h2 id="mobile-co-title" className="civr-l-h text-2xl mt-2" data-testid="mobile-co-step">{TITLES[step]}</h2></div>
           <button type="button" onClick={onClose} className="w-11 h-11 grid place-items-center rounded-full hover:bg-slate-100 shrink-0" aria-label="Close" data-testid="mobile-co-close"><X className="w-5 h-5" /></button>
         </div>
         {step === 'details' && <Zip zip={zip} setZip={setZip} onNext={() => setStep(account ? 'pay' : 'account')} />}
         {step === 'account' && <Account intro="Create your free CloudIVR account. Your number and its texts live here." onDone={() => setStep('pay')} onMfa={() => nav(cp('/login'))} />}
-        {step === 'pay' && <Pay price={price} name={`US mobile number · ZIP ${zip}`} place={place} onPaid={paid} what="number" later={LATER} />}
+        {step === 'pay' && <Pay price={price} name={`USA mobile number · ZIP ${zip}`} place={place} onPaid={paid} what="number" later={LATER} />}
         {step === 'done' && <Done onClose={onClose} />}
       </div>
     </div>

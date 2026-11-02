@@ -30,7 +30,7 @@ function PlanCard({ p, plans, hot, start, delay }) {
 
 // The 4th plan: texting on a number the customer already has (calls stay with their carrier).
 function TextingCard({ t, start, delay }) {
-  const pts = ['Incoming texts are free', 'Keep your number and your calls', 'Read every text in the app', 'US & Canada landline or toll-free'];
+  const pts = ['Incoming texts are free', 'Keep your number and your calls', 'Read every text in the app', 'USA & Canada landline or toll-free'];
   return (
     <Reveal delay={delay} className="civr-l-card-cream p-8 flex flex-col" data-testid="civr-plan-card-texting">
       <div className="text-xs font-semibold uppercase tracking-[.14em] text-slate-500" data-testid="pricing-texting-eyebrow">Landline to Texting</div>
@@ -75,11 +75,11 @@ export function faqItems(c) {
   const ivr = on('ivr', 'Pro and Business'), out = on('ivrOutbound', 'Pro and Business');
   const ex = c?.extraNumber;
   return [
-    ['Is the US mobile number or the eSIM VoIP?', 'No. Both are real mobile numbers on a US carrier, not VoIP. The eSIM runs on your phone; the US mobile number lives in CloudIVR and you read and send its texts in Messages in any browser.'],
+    ['Is the USA mobile number or the USA eSIM VoIP?', 'No. Both are real mobile numbers on a USA carrier, not VoIP, and both send and receive SMS instantly. The eSIM runs on your phone; the USA mobile number lives in CloudIVR and you read and send its texts in Messages in any browser.'],
     ['Does it work with my bank?', 'It’s a real carrier number, and most banks and apps accept it for sign-ups and verification codes. Each service sets its own rules, so we can’t promise every one will.'],
-    ['Can I choose the number?', 'You pick a US ZIP code and we ask the carrier for a number near it. It’s a preference: the area code and the exact number can’t be chosen.'],
-    ['When do I get it?', 'After your payment is confirmed. It’s usually ready within minutes, and sometimes takes longer. The eSIM QR code is shown in the app and emailed to the address you enter; the US mobile number appears in My numbers.'],
-    ['Can the US mobile number make calls?', 'Yes, outgoing calls from the browser phone: $0.15 a minute to the US and Canada, other countries from $0.50 a minute, plus $0.03 per call, from your wallet. Incoming calls to the number aren’t answered in CloudIVR yet. Texts cost $0.05 each, and the number is a free verified caller ID for your other CloudIVR calls.'],
+    ['Can I choose the number?', 'You pick a USA ZIP code and we ask the carrier for a number near it. It’s a preference: the area code and the exact number can’t be chosen.'],
+    ['When do I get it?', 'After your payment is confirmed. It’s usually ready within minutes, and sometimes takes longer. The eSIM QR code is shown in the app and emailed to the address you enter; the USA mobile number appears in My numbers.'],
+    ['Can the USA mobile number make calls?', 'Yes, outgoing calls from the browser phone: $0.15 a minute to the USA and Canada, other countries from $0.50 a minute, plus $0.03 per call, from your wallet. Incoming calls to the number aren’t answered in CloudIVR yet. Texts cost $0.05 each, and the number is a free verified caller ID for your other CloudIVR calls.'],
     ['What happens if I don’t renew?', 'Both renew monthly at $75 from your wallet. If your wallet is short, the line pauses until you top up and tap Renew. If you turn auto-renew off, the line ends after the paid month. Cancelling ends it straight away with no refund for the current month, and the number can’t be recovered.'],
     ['Can I replace the number?', 'Yes, for $25. The carrier assigns the new number; you can’t choose it. If the carrier refuses, or doesn’t assign one within 24 hours, the $25 goes back to your wallet.'],
     ['Can I try it before I pay?', 'Yes, twice. Without an account: confirm your email with a 6-digit code and take one free test call of up to 60 seconds — we ring your phone with a demo menu, or you call from your browser. After you sign up: place one free Quick IVR call from our number — it plays your script to anyone you choose, then connects them to you when they press 1 or collects a code you accept or decline.'],
@@ -166,7 +166,7 @@ export function Footer({ catalog }) {
             <FooterCol title="Product" testid="footer-col-product">{menuLinks(PRODUCTS, 'product')}</FooterCol>
             <FooterCol title="Use cases" testid="footer-col-usecases">{menuLinks(USE_CASES, 'usecase')}</FooterCol>
             <FooterCol title="CloudIVR" testid="footer-col-company">
-              {[['#esim-card', 'CloudIVR eSIM', 'esim'], ['#mobile', 'US mobile number', 'mobile'], ['#coverage', 'Coverage', 'coverage'], ['#try', 'Free test call', 'try'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']].map(([h, l, id]) => <a key={id} href={`${base}${h}`} onClick={(e) => goTo(h, e)} className={fLink} data-testid={`footer-link-${id}`}>{l}</a>)}
+              {[['#esim-card', 'CloudIVR eSIM', 'esim'], ['#mobile', 'USA mobile number', 'mobile'], ['#coverage', 'Coverage', 'coverage'], ['#try', 'Free test call', 'try'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']].map(([h, l, id]) => <a key={id} href={`${base}${h}`} onClick={(e) => goTo(h, e)} className={fLink} data-testid={`footer-link-${id}`}>{l}</a>)}
               <Link to={cp('/sip')} className={fLink} data-testid="footer-link-sip">SIP & softphones</Link>
             </FooterCol>
             <FooterCol title="Support & legal" testid="footer-col-support">

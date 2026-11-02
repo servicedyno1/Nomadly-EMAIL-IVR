@@ -61,7 +61,7 @@ export function DestNote({ check, testid = 'sms-dest-note' }) {
     return (
       <p className="flex items-start gap-1.5 text-xs text-[#fbbf24]" role="status" data-testid={testid} data-ok="false">
         <AlertTriangle className="w-3.5 h-3.5 mt-px shrink-0" /><span>{check.why}{needsName && <> <Link to={cp('/app/settings#sender-name')} className="underline" data-testid={`${testid}-settings-link`}>Set it now</Link></>}
-          {needsReg && <> <button type="button" className="underline" onClick={() => openHelpChat('Please help me register my number for business texting (10DLC / toll-free approval) so I can text US mobiles.')} data-testid={`${testid}-register-button`}>Ask us to register it</button></>}</span>
+          {needsReg && <> <button type="button" className="underline" onClick={() => openHelpChat('Please help me register my number for business texting (10DLC / toll-free approval) so I can text USA mobiles.')} data-testid={`${testid}-register-button`}>Ask us to register it</button></>}</span>
       </p>
     );
   }

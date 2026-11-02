@@ -8,7 +8,7 @@ import { Field, ErrorNote } from '../../ui';
 import { WalletPay } from '../../WalletPay';
 import { cp } from '../../paths';
 
-// US mobile number for texting: the carrier assigns it after payment, near the ZIP given.
+// USA mobile number for texting: the carrier assigns it after payment, near the ZIP given.
 export function MobileOffer({ onBought, open: startOpen = false }) {
   const { data } = useApi('/mobile-numbers');
   const { refreshSummary } = useShell();
@@ -23,14 +23,14 @@ export function MobileOffer({ onBought, open: startOpen = false }) {
       <div className="flex flex-wrap items-start gap-3">
         <MessageSquare className="w-5 h-5 text-[#818cf8] mt-1" />
         <div className="flex-1 min-w-[200px]">
-          <div className="font-semibold">Need a US mobile number for texts and calls?</div>
-          <p className="text-sm text-[var(--c-muted)] mt-1">A virtual US mobile number on a real carrier (not VoIP), used in your browser: no phone or SIM. Texts arrive in Messages. Texts cost $0.05 each; calls from your browser $0.15/min to the US and Canada, from your wallet. Incoming calls aren’t answered in CloudIVR yet.</p>
+          <div className="font-semibold">Need a USA mobile number for texts and calls?</div>
+          <p className="text-sm text-[var(--c-muted)] mt-1">A virtual USA mobile number on a real carrier (not VoIP), used in your browser: no phone or SIM. Send and receive SMS instantly in Messages. Texts cost $0.05 each; calls from your browser $0.15/min to the USA and Canada, from your wallet. Incoming calls aren’t answered in CloudIVR yet.</p>
         </div>
         <div className="font-mono text-xl" data-testid="mobile-offer-price">{`${money(data.price)}`}<span className="text-xs text-[var(--c-muted)]"> /month</span></div>
       </div>
       <p className="text-sm flex items-start gap-2 text-[#fbbf24]" data-testid="mobile-offer-reveal-note"><Lock className="w-4 h-4 mt-0.5 shrink-0" />You can’t pick the exact number. The carrier assigns it after your payment is confirmed, and we show it to you as soon as it’s ready, usually within minutes.</p>
       {!open ? <button type="button" onClick={() => setOpen(true)} className="civr-btn civr-btn-ghost" data-testid="mobile-offer-start">Get a mobile number</button> : <>
-        <Field label="ZIP code" hint="We ask the carrier for a number near this US ZIP code. The area code can’t be guaranteed."><input className="civr-input font-mono max-w-[160px]" inputMode="numeric" value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10011" data-testid="mobile-offer-zip" /></Field>
+        <Field label="ZIP code" hint="We ask the carrier for a number near this USA ZIP code. The area code can’t be guaranteed."><input className="civr-input font-mono max-w-[160px]" inputMode="numeric" value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10011" data-testid="mobile-offer-zip" /></Field>
         <WalletPay price={data.price} onWallet={go} busy={busy} disabled={zip.length !== 5} testid="mobile-offer-pay" walletTestid="mobile-offer-pay-button" cryptoTestid="mobile-offer-crypto">
           <button type="button" onClick={() => setOpen(false)} className="civr-btn civr-btn-ghost" data-testid="mobile-offer-cancel">Cancel</button>
         </WalletPay>

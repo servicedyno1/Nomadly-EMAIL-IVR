@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Smartphone, QrCode, Globe2, MessageSquare, Phone, CheckCircle2, Circle, Download } from 'lucide-react';
+import { Smartphone, QrCode, MessageSquare, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import QRCode from 'react-qr-code';
 import { api, useApi } from '../api';
@@ -53,7 +53,7 @@ function BuyForm({ plan, draft, onDone, onCancel }) {
     <div className="civr-card p-6 space-y-4" data-testid="esim-buy">
       <div className="font-semibold">{plan.label || plan.planId}</div>
       <Field label="Your phone’s IMEI" hint="Dial *#06# on the phone that will use the eSIM. Use the first IMEI if it shows two."><input className="civr-input font-mono" inputMode="numeric" maxLength={17} value={imei} onChange={e => setImei(e.target.value)} placeholder="15 digits" data-testid="esim-imei-input" /></Field>
-      <Field label="ZIP code for your number (optional)" hint="We’ll ask for a number near this US ZIP code. The exact area code can’t be guaranteed."><input className="civr-input font-mono max-w-[160px]" inputMode="numeric" value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10011" data-testid="esim-zip-input" /></Field>
+      <Field label="ZIP code for your number (optional)" hint="We’ll ask for a number near this USA ZIP code. The exact area code can’t be guaranteed."><input className="civr-input font-mono max-w-[160px]" inputMode="numeric" value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10011" data-testid="esim-zip-input" /></Field>
       <Field label="Email for your QR code" hint="We send the eSIM QR code here as soon as it’s ready. It’s also on this page."><input className="civr-input" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" data-testid="esim-email-input" /></Field>
       <WalletPay price={plan.price} onWallet={go} busy={busy} disabled={!imeiOk(imei) || (zip.length > 0 && zip.length !== 5) || !emailOk} crypto={cryptoOk} testid="esim-pay" walletTestid="esim-pay-button" cryptoTestid="esim-crypto">
         <button type="button" onClick={onCancel} className="civr-btn civr-btn-ghost" data-testid="esim-buy-cancel">Cancel</button>
@@ -84,25 +84,6 @@ function QrBlock({ id }) {
   ) : <p className="text-sm text-[#a1a1aa]">The QR code isn’t ready yet.</p>;
 }
 
-function CallsChoice({ item, onChange }) {
-  const { data: nd } = useApi('/numbers');
-  const nums = (nd?.numbers || []).filter(n => n.status === 'active');
-  const [menu, setMenu] = useState(item.ivrNumber || '');
-  const pick = menu || nums[0]?.phoneNumber || '';
-  const set = async (to, ivrNumber = pick) => { try { const r = await api(`/esim/${item.id}/calls`, { method: 'POST', body: { to, ivrNumber } }); toast.success(r.pending && to === 'browser' ? 'Saved. We’ll switch calls to CloudIVR once routing is connected' : 'Saved'); onChange(); } catch (e) { toast.error(e.message); } };
-  const opts = [['device', Smartphone, 'Ring on my phone', 'Calls go to the eSIM on your phone.'], ['browser', Globe2, 'Ring in CloudIVR', 'Not active yet: we’re waiting for the carrier to switch on call routing. Calls keep ringing on your phone.']];
-  const off = (k) => k === 'browser' && item.callsTo !== 'browser';
-  return (
-    <div className="space-y-2">
-    <div className="grid sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Where calls ring" data-testid="esim-calls">
-      {opts.map(([k, I, t, s]) => { const on = item.callsTo === k; const Mark = on ? CheckCircle2 : Circle; return <button key={k} type="button" role="radio" aria-checked={on} onClick={() => !on && !off(k) && set(k)} disabled={off(k)} aria-disabled={off(k)} className={`civr-card text-left p-3 border-2 transition-colors ${on ? 'border-[#818cf8] bg-[#818cf8]/15' : off(k) ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-transparent opacity-80 hover:opacity-100'}`} data-testid={`esim-calls-${k}`}><div className="flex items-center gap-2 font-semibold text-sm"><I className="w-4 h-4 text-[#818cf8]" />{t}{off(k) && <span className="civr-pill" data-testid={`esim-calls-${k}-inactive`}>Not active yet</span>}<Mark className={`w-4 h-4 ml-auto ${on ? 'text-[#818cf8]' : 'text-[#52525b]'}`} aria-hidden="true" /></div><div className="text-xs text-[#a1a1aa] mt-1">{s}</div>{on && <div className="text-xs font-semibold text-[#818cf8] mt-1.5" data-testid={`esim-calls-${k}-selected`}>Selected</div>}</button>; })}
-    </div>
-      {nd && !nums.length && item.callsTo === 'browser' && <p className="text-xs text-[var(--c-muted)]" data-testid={`esim-calls-no-number-${item.id}`}>To ring in CloudIVR you need an active calling number: its menu answers these calls.</p>}
-      {nums.length > 0 && item.callsTo === 'browser' && <label className="flex flex-wrap items-center gap-2 text-sm" data-testid={`esim-calls-menu-${item.id}`}><span className="text-[var(--c-muted)]">Use the menu of</span>
-        <select className="civr-input !w-auto font-mono" value={pick} onChange={e => { setMenu(e.target.value); if (item.callsTo === 'browser') set('browser', e.target.value); }} data-testid={`esim-calls-menu-select-${item.id}`}>{nums.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{n.phoneNumber}</option>)}</select></label>}
-    </div>
-  );
-}
 
 function UsageLine({ id }) {
   const { data } = useApi(`/esim/${id}/usage`);
@@ -146,8 +127,7 @@ function Line({ item, reload }) {
         <button type="button" onClick={() => setOpen(!open)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`esim-qr-toggle-${item.id}`}><QrCode className="w-4 h-4" />{open ? 'Hide install QR' : 'Show install QR'}</button>
         {open && <QrBlock id={item.id} />}
         <EmailQr item={item} reload={reload} />
-        <div><div className="text-sm font-semibold mb-2 flex items-center gap-2"><Phone className="w-4 h-4" />Where should calls ring?</div><CallsChoice item={item} onChange={reload} /></div>
-        <p className="text-sm text-[var(--c-muted)] flex items-center gap-2" data-testid={`esim-texts-in-messages-${item.id}`}><MessageSquare className="w-4 h-4" />Texts on this eSIM are on your phone. Need texting in CloudIVR? Get a <Link to={cp('/app/buy')} className="underline font-semibold text-[var(--c-accent)]">US mobile number</Link>.</p>
+        <p className="text-sm text-[var(--c-muted)] flex items-center gap-2" data-testid={`esim-texts-in-messages-${item.id}`}><MessageSquare className="w-4 h-4" />Texts on this eSIM are on your phone. Need texting in CloudIVR? Get a <Link to={cp('/app/buy')} className="underline font-semibold text-[var(--c-accent)]">USA mobile number</Link>.</p>
       </>}
       <div className="flex flex-wrap items-start gap-2">
         {item.status === 'suspended' && <WalletPay price={item.price} small onWallet={() => act('renew', 'Renewed')} label={`Renew $${item.price}`} testid={`esim-renew-pay-${item.id}`} walletTestid={`esim-renew-${item.id}`} cryptoTestid={`esim-renew-crypto-${item.id}`} />}
@@ -174,7 +154,7 @@ export default function Esim() {
   if (!data) return <Spinner />;
   return (
     <div className="space-y-8" data-testid="esim-page">
-      <PageHeader label="Mobile lines" title="US eSIM and US mobile numbers" sub="Two real US carrier numbers, $75/month each. The US eSIM downloads to your phone with a QR code: data, calls and texts happen on the phone. The US mobile number is virtual: you use it in your browser, with texts in Messages and calls from the browser phone." testid="esim-header" />
+      <PageHeader label="Mobile lines" title="USA eSIM and USA mobile numbers" sub="Two real USA carrier numbers, $75/month each. Both send and receive SMS instantly. The USA eSIM downloads to your phone with a QR code: texts, calls and data happen on the phone. The USA mobile number is virtual: you use it in your browser, with texts in Messages and calls from the browser phone." testid="esim-header" />
       {data.items.length > 0 && <div className="space-y-4">{data.items.map(x => <Line key={x.id} item={x} reload={reload} />)}</div>}
       {data.items.length > 0 && !buying && data.plans.length > 0 && <h2 className="font-display text-xl font-bold" data-testid="esim-add-another">Add another eSIM</h2>}
       {buying ? <BuyForm plan={buying} draft={draft?.planId === buying.planId ? draft : null} onCancel={() => { dropDraft(); setBuying(null); }} onDone={() => { setBuying(null); reload(); }} /> : (

@@ -18,7 +18,7 @@ export default function Texting() {
   const done = (item) => { setAdding(false); setSel(item?.id || null); reload(); };
   return (
     <div data-testid="texting-page">
-      <PageHeader label="Business texting" title="Texts on your own number" sub="Keep your office, landline or toll-free number and its calls with your provider. Customers text it and you read every message here. US & Canada numbers." testid="texting-header">
+      <PageHeader label="Business texting" title="Texts on your own number" sub="Keep your office, landline or toll-free number and its calls with your provider. Customers text it and you read every message here. USA & Canada numbers." testid="texting-header">
         <button type="button" onClick={() => { setAdding(true); setSel(null); }} className="civr-btn civr-btn-primary" data-testid="texting-add-button"><Plus className="w-4 h-4" />Add a number</button>
       </PageHeader>
       <ErrorNote error={error} onRetry={reload} className="mb-6" />

@@ -108,7 +108,7 @@ async function buy(chatId, { planId, imei, zipcode, email }) {
   const im = String(imei || '').replace(/\D/g, '')
   if (im.length !== 15 || !luhn(im)) return { error: 'Enter your phone’s 15-digit IMEI (dial *#06# to see it).' }
   const zip = String(zipcode || '').trim()
-  if (zip && !/^\d{5}$/.test(zip)) return { error: 'Enter a 5-digit US ZIP code, or leave it empty.' }
+  if (zip && !/^\d{5}$/.test(zip)) return { error: 'Enter a 5-digit USA ZIP code, or leave it empty.' }
   const plan = (await forSale()).find(p => p.planId === planId)
   if (!plan) return { error: 'That plan isn’t available.' }
   if (!plan.simId) return { error: 'eSIMs are temporarily unavailable. Try again later.' }
@@ -131,7 +131,7 @@ async function buy(chatId, { planId, imei, zipcode, email }) {
   }
 }
 
-// ---------- US mobile number for texting ($75/month): an eSIM line held by CloudIVR, number shown once assigned ----------
+// ---------- USA mobile number for texting ($75/month): an eSIM line held by CloudIVR, number shown once assigned ----------
 const MOBILE_PRICE = 75
 const mobileImei = () => (dry() ? '356938035643809' : String(process.env.SPENZA_TEXT_LINE_IMEI || '').replace(/\D/g, ''))
 async function mobileOffer() {
@@ -140,10 +140,10 @@ async function mobileOffer() {
 }
 async function buyMobile(chatId, { zipcode }) {
   const zip = String(zipcode || '').trim()
-  if (!/^\d{5}$/.test(zip)) return { error: 'Enter a 5-digit US ZIP code so we can ask for a number near it.' }
+  if (!/^\d{5}$/.test(zip)) return { error: 'Enter a 5-digit USA ZIP code so we can ask for a number near it.' }
   const im = mobileImei()
   const plan = (await forSale()).find(p => p.simId)
-  if (!plan || im.length !== 15) return { error: 'US mobile numbers are temporarily unavailable. Try again later.' }
+  if (!plan || im.length !== 15) return { error: 'USA mobile numbers are temporarily unavailable. Try again later.' }
   if (!(await S.w.debit(chatId, MOBILE_PRICE))) return { error: `Your wallet needs $${MOBILE_PRICE} for this number. Top up first.`, code: 'insufficient_balance' }
   const _id = 'mn_' + crypto.randomBytes(6).toString('hex')
   const doc = { _id, kind: 'mobile', chatId: String(chatId), planId: plan.planId, price: MOBILE_PRICE, imei: im, zipcode: zip, simId: plan.simId, status: 'provisioning', callsTo: 'device', createdAt: new Date(), updatedAt: new Date() }
@@ -164,13 +164,13 @@ async function buyMobile(chatId, { zipcode }) {
 const CID = () => require('./cloudivr-web/caller-ids')
 async function ready(d, phone) {
   if (d.kind !== 'mobile') return
-  await S.tell(d.chatId, `📱 Your US mobile number is ready: ${phone || ''}. Texts to and from it are in Messages.`, { kind: 'billing', meta: { mobile: d._id } })
+  await S.tell(d.chatId, `📱 Your USA mobile number is ready: ${phone || ''}. Texts to and from it are in Messages.`, { kind: 'billing', meta: { mobile: d._id } })
   if (!phone) return
   const r = await CID().autoVerify(S.db, d.chatId, phone).catch(e => { S.log(`[mobile] caller ID ${d._id}: ${e.message}`); return null })
   if (r === 'verified') await S.tell(d.chatId, `✅ ${phone} is now one of your caller IDs, free. Pick it as “Show as” on calls and campaigns.`, { kind: 'system', meta: { mobile: d._id } })
 }
 
-// Browser-phone login for a US mobile number: calls go out through Telnyx showing this number (wallet per minute).
+// Browser-phone login for a USA mobile number: calls go out through Telnyx showing this number (wallet per minute).
 async function mobileSip(chatId, phone) {
   const d = await S.col.findOne({ chatId: String(chatId), kind: 'mobile', phoneNumber: phone, status: 'active' })
   if (!d) return null
@@ -207,7 +207,7 @@ async function pollOne(d) {
   } else if (['failed', 'error'].includes(st) || Date.now() - new Date(d.createdAt).getTime() > 86400000) {
     await S.w.credit(d.chatId, d.price); await txn(d.chatId, 'esim-refund', d.price, { lineId: d._id })
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'failed', note: 'The eSIM couldn’t be created. Your payment was refunded.', providerError: r?.error?.message || (st ? null : 'timed out after 24 h'), updatedAt: new Date() } })
-    S.tell(d.chatId, d.kind === 'mobile' ? `⚠️ Your US mobile number couldn’t be set up. $${d.price} was refunded to your wallet.` : `⚠️ Your eSIM couldn’t be created. $${d.price} was refunded to your wallet.`, { kind: 'billing', meta: d.kind === 'mobile' ? { mobile: d._id } : { esim: d._id } })
+    S.tell(d.chatId, d.kind === 'mobile' ? `⚠️ Your USA mobile number couldn’t be set up. $${d.price} was refunded to your wallet.` : `⚠️ Your eSIM couldn’t be created. $${d.price} was refunded to your wallet.`, { kind: 'billing', meta: d.kind === 'mobile' ? { mobile: d._id } : { esim: d._id } })
   }
 }
 
@@ -339,7 +339,7 @@ async function sendSms(chatId, id, to, text) {
   if (d && d.kind !== 'mobile') return { error: 'Texts from a QR eSIM are sent from your phone, not from CloudIVR.' }
   if (!d || d.status !== 'active' || !d.phoneNumber) return { error: 'This number can’t send texts right now.' }
   const dest = String(to || '').replace(/[^\d+]/g, ''), body = String(text || '').trim().slice(0, 1000)
-  if (!/^\+1[2-9]\d{2}[2-9]\d{6}$/.test(dest)) return { error: 'Texts can go to US numbers: enter +1 and the 10-digit number.' }
+  if (!/^\+1[2-9]\d{2}[2-9]\d{6}$/.test(dest)) return { error: 'Texts can go to USA numbers: enter +1 and the 10-digit number.' }
   if (!body) return { error: 'Type a message.' }
   if (!(await S.w.debit(chatId, TEXT_PRICE))) return { error: `Your wallet needs $${TEXT_PRICE} to send a text.` }
   if (!d.simulated) {
@@ -434,7 +434,7 @@ async function prelink() {
   }
 }
 
-// One-off owner decision: the linked 646 line is a web-only US mobile number (texts in Messages, no QR), not a QR eSIM.
+// One-off owner decision: the linked 646 line is a web-only USA mobile number (texts in Messages, no QR), not a QR eSIM.
 async function toMobile() {
   for (const p of PRELINK.filter(x => x.kind === 'mobile')) {
     const flag = 'mobile:' + p.phone
@@ -450,11 +450,11 @@ async function toMobile() {
   }
 }
 
-// One-off owner decision: US Starter eSIM sells at $75.
+// One-off owner decision: USA Starter eSIM sells at $75.
 async function defaultPrice() {
   const flag = 'price:SPENZA_001:75'
   if (await S.db.collection('spenzaConfig').findOne({ _id: flag })) return
-  await S.db.collection('esimPlans').updateOne({ _id: 'SPENZA_001' }, { $set: { price: 75, enabled: true, updatedAt: new Date() }, $setOnInsert: { label: 'US Starter eSIM' } }, { upsert: true })
+  await S.db.collection('esimPlans').updateOne({ _id: 'SPENZA_001' }, { $set: { price: 75, enabled: true, updatedAt: new Date() }, $setOnInsert: { label: 'USA Starter eSIM' } }, { upsert: true })
   await S.db.collection('spenzaConfig').insertOne({ _id: flag, at: new Date() })
 }
 

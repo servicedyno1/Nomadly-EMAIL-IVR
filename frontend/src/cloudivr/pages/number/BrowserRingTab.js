@@ -42,7 +42,7 @@ function Notes({ num }) {
         : num.access?.sipCredentials
           ? <li data-testid="browser-ring-voice-note">To also answer by voice, create a SIP login in the <Link to={cp(`/app/numbers/${enc(num.phoneNumber)}?tab=sip`)} className="text-[#818cf8] underline">SIP tab</Link>.</li>
           : <li data-testid="browser-ring-voice-note">Answering by voice turns on once this number is live on the network.</li>}
-      {info && num.access?.textRelay && <li>{`Text: same price as text calls — ${money(info.usRate + info.relayRate)}/min US & Canada, ${money(info.intlRate + info.relayRate)}/min international, from your wallet. Not counted in plan minutes.`}</li>}
+      {info && num.access?.textRelay && <li>{`Text: same price as text calls — ${money(info.usRate + info.relayRate)}/min USA & Canada, ${money(info.intlRate + info.relayRate)}/min international, from your wallet. Not counted in plan minutes.`}</li>}
       <li>{`Rings for ${f.callForwarding?.ringTimeout || 25} seconds. If nobody answers, the call goes to your usual fallback (forwarding when not answered, voicemail, or a missed call).`}</li>
       <li>Only rings while CloudIVR is open in a browser tab. The AI voice agent, keypad menus, always-forward and closed hours skip the browser.</li>
     </ul>

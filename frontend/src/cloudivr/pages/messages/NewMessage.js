@@ -31,7 +31,7 @@ export function NewMessage({ numbers, onStart }) {
           <div className="civr-card w-full max-w-md p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between"><span className="font-display text-xl font-bold">New message</span><button type="button" onClick={() => setOpen(false)} className="w-10 h-10 grid place-items-center rounded-full" aria-label="Close" data-testid="new-message-close"><X className="w-4 h-4" /></button></div>
             <label className="block text-sm"><span className="block text-xs text-[var(--c-muted)] mb-1">From</span>
-              <select value={from} onChange={e => setFrom(e.target.value)} className="civr-input w-full font-mono" data-testid="new-message-from">{senders.map(n => <option key={n.phone} value={n.phone}>{n.phone} · {n.kind === 'esim' ? (n.mobile ? 'US mobile number' : 'US eSIM') : 'Calling number'}</option>)}</select>
+              <select value={from} onChange={e => setFrom(e.target.value)} className="civr-input w-full font-mono" data-testid="new-message-from">{senders.map(n => <option key={n.phone} value={n.phone}>{n.phone} · {n.kind === 'esim' ? (n.mobile ? 'USA mobile number' : 'USA eSIM') : 'Calling number'}</option>)}</select>
             </label>
             <label className="block text-sm"><span className="block text-xs text-[var(--c-muted)] mb-1">To</span>
               <input autoFocus value={to} onChange={e => setTo(e.target.value)} onKeyDown={e => e.key === 'Enter' && ok && go(dest)} placeholder="+1 415 555 0123 or a contact name" className="civr-input w-full" data-testid="new-message-to" />
@@ -40,7 +40,7 @@ export function NewMessage({ numbers, onStart }) {
               {hits.map(c => <li key={c.id || c.phone}><button type="button" onClick={() => go(c.phone)} className="w-full text-left px-3 py-2 hover:bg-[var(--c-card-hover)]" data-testid={`new-message-contact-${c.phone}`}><span className="font-semibold" data-no-translate>{c.name || c.phone}</span> <span className="font-mono text-xs text-[var(--c-muted)]" data-no-translate>{c.phone}</span></button></li>)}
             </ul>}
             {to.trim() && !E164.test(dest) && !hits.length && <p className="text-xs text-[var(--c-muted)]" data-testid="new-message-hint">Type the full number with country code, like +14155550123.</p>}
-            {from && senders.find(n => n.phone === from)?.kind === 'calling' && dest.startsWith('+1') && <p className="text-xs text-[var(--c-muted)]" data-testid="new-message-10dlc">US carriers may block business texts to US mobiles until your number is registered for business texting.</p>}
+            {from && senders.find(n => n.phone === from)?.kind === 'calling' && dest.startsWith('+1') && <p className="text-xs text-[var(--c-muted)]" data-testid="new-message-10dlc">USA carriers may block business texts to USA mobiles until your number is registered for business texting.</p>}
             <button type="button" disabled={!ok} onClick={() => go(dest)} className="civr-btn civr-btn-primary w-full justify-center" data-testid="new-message-start">Start conversation</button>
           </div>
         </div>

@@ -77,7 +77,7 @@ export default function Numbers() {
   const onSaved = (d) => { if (d?.number) setData(x => ({ ...x, numbers: (x?.numbers || []).map(n => (n.phoneNumber === d.number.phoneNumber ? d.number : n)) })); };
   return (
     <div data-testid="numbers-page">
-      <PageHeader label="Numbers" title="My numbers" sub="Your CloudIVR calling numbers answer your callers: switch forwarding, the keypad menu or hours here, or open a number for everything else. Your US mobile numbers are listed below them." testid="numbers-header">
+      <PageHeader label="Numbers" title="My numbers" sub="Your CloudIVR calling numbers answer your callers: switch forwarding, the keypad menu or hours here, or open a number for everything else. Your USA mobile numbers are listed below them." testid="numbers-header">
         <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="numbers-buy-button"><ShoppingCart className="w-4 h-4" />Buy a number</Link>
       </PageHeader>
       <ErrorNote error={error} />
