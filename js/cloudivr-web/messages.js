@@ -98,7 +98,7 @@ function create({ db, numbersApi, smsReply }) {
     const isBlocked = !!(await blocked.findOne({ _id: `${chatId}|${contact}` }))
     // Replies go out from this number; if it can't text (old or receive-only), say which one would.
     const replyFrom = biz.caps.send ? biz.phone : (biz.old && nums.find(n => n.phone === biz.old.newNumber && n.caps.send)?.phone) || null
-    return { number: biz, contact, name, blocked: isBlocked, replyFrom, canText: !!replyFrom && !isBlocked && E164.test(contact), events: rows.reverse().map(event), cost: costOf(biz), maxLength: smsReply.MAX }
+    return { number: biz, contact, name, blocked: isBlocked, replyFrom, canText: !!replyFrom && !isBlocked && E164.test(contact), events: rows.reverse().map(event), cost: costOf(biz), maxLength: 459 }
   }
   const costOf = (n) => (n.kind === 'esim' ? { each: ES.TEXT_PRICE, note: 'wallet' } : { each: phoneConfig.OVERAGE_RATE_SMS, note: 'plan' })
 

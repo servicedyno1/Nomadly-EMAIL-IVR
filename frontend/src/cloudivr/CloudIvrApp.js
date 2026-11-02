@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { useTheme } from './theme';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
@@ -6,11 +6,11 @@ import './cloudivr.css';
 import { CivrAuthProvider, useCivrAuth } from './AuthContext';
 import { Spinner } from './ui';
 import Landing from './pages/Landing';
-import Terms from './pages/Terms';
-import SipFunnel from './pages/SipFunnel';
+const Terms = lazy(() => import('./pages/Terms'));
+const SipFunnel = lazy(() => import('./pages/SipFunnel'));
 import { AuthPage, ForgotPage, ResetPage } from './pages/AuthPages';
-import Shell from './Shell';
-import AdminApp from './pages/admin/AdminApp';
+const Shell = lazy(() => import('./Shell'));
+const AdminApp = lazy(() => import('./pages/admin/AdminApp'));
 import { cp, IS_CIVR_DOMAIN } from './paths';
 import { LangProvider } from './i18n';
 import { applyBrandHead } from './Brand';
@@ -85,6 +85,7 @@ export default function CloudIvrApp() {
         <XSignup />
         <Guarded>
         <PageFade>
+        <Suspense fallback={<div className="min-h-screen grid place-items-center"><Spinner /></div>}>
         <Routes>
           <Route index element={<Landing />} />
           <Route path="terms" element={<Terms />} />
@@ -99,6 +100,7 @@ export default function CloudIvrApp() {
           {IS_CIVR_DOMAIN && <Route path="cloudivr/*" element={<LegacyPrefixRedirect />} />}
           <Route path="*" element={<Navigate to={cp()} replace />} />
         </Routes>
+        </Suspense>
         </PageFade>
         </Guarded>
       </CivrAuthProvider>

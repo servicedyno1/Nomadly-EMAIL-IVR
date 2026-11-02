@@ -18,17 +18,21 @@ function smsInfo(text) {
   if (gsm) return { limit: 160, used: units, unicode: false }
   return { limit: 70, used: [...s].reduce((n, ch) => n + (ch.codePointAt(0) > 0xffff ? 2 : 1), 0), unicode: true }
 }
-// null when it fits one text, else the message to show.
-function smsTooLong(text) {
+// Long texts go as joined parts: 153 characters per part (67 with emoji/Unicode), at most 3 parts.
+const MAX_PARTS = 3
+const smsParts = (text) => { const i = smsInfo(text); return i.used <= i.limit ? 1 : Math.ceil(i.used / (i.unicode ? 67 : 153)) }
+// null when it fits (up to 3 joined parts), else the message to show.
+function smsTooLong(text, maxParts = MAX_PARTS) {
   const i = smsInfo(text)
-  if (i.used <= i.limit) return null
-  return i.unicode ? `Keep it to 70 characters: texts with emoji or special characters fit 70 in one message (this has ${i.used}).` : `Keep it to 160 characters, one text (this has ${i.used}).`
+  const cap = maxParts === 1 ? i.limit : (i.unicode ? 67 : 153) * maxParts
+  if (i.used <= cap) return null
+  return i.unicode ? `Keep it to ${cap} characters: with emoji or special characters a text fits ${cap} in ${maxParts === 1 ? 'one message' : `${maxParts} parts`} (this has ${i.used}).` : `Keep it to ${cap} characters${maxParts === 1 ? ', one text' : ` (${maxParts} joined texts)`} (this has ${i.used}).`
 }
 // Cut to one text (used for AI-suggested replies).
 function fitSms(text) {
   let s = String(text || '').trim()
-  while (s && smsTooLong(s)) s = [...s].slice(0, -1).join('')
+  while (s && smsTooLong(s, 1)) s = [...s].slice(0, -1).join('')
   return s
 }
 
-module.exports = { smsInfo, smsTooLong, fitSms, gsmText }
+module.exports = { smsInfo, smsTooLong, smsParts, fitSms, gsmText, MAX_PARTS }

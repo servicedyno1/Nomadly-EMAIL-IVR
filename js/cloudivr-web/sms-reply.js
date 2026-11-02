@@ -137,11 +137,12 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     // US/Canada: plan texts, then the extra-text rate. Other countries: that country's price from the wallet.
     const home = rule.iso === 'US' || rule.iso === 'CA'
     const ownerNumbers = (await db.collection('phoneNumbersOf').findOne({ _id: chatId }))?.val?.numbers || [num]
-    const overage = !home ? rule.price : voiceService.isSmsLimitReached(num, ownerNumbers) ? phoneConfig.OVERAGE_RATE_SMS : 0
+    const parts = require('./sms-limit').smsParts(body)
+    const overage = Math.round((!home ? rule.price : voiceService.isSmsLimitReached(num, ownerNumbers) ? phoneConfig.OVERAGE_RATE_SMS : 0) * parts * 100) / 100
     if (overage && !(await w.debit(chatId, overage))) return { error: [402, 'insufficient_balance', home ? `Your plan texts are used up; each extra text costs $${overage.toFixed(2)}. Top up first.` : `A text to ${rule.country} costs $${overage.toFixed(2)}. Top up first.`] }
     const out = preview ? { id: `preview-${crypto.randomUUID()}` } : await deliver(rule.from || num.phoneNumber, to, body, media.map(m => require('./media').publicUrl(m.id)))
     if (out.error) { if (overage) await w.credit(chatId, overage); return { error: [424, 'sms_failed', out.error] } }
-    if (home) await voiceService.incrementSmsUsed(chatId, num.phoneNumber)
+    if (home) for (let i = 0; i < parts; i++) await voiceService.incrementSmsUsed(chatId, num.phoneNumber)
     if (overage) await phoneTransactions.insertOne({ chatId, phoneNumber: num.phoneNumber, action: 'sms_reply', amount: overage, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
     const doc = { chatId: String(chatId), phoneNumber: num.phoneNumber, from: rule.from || num.phoneNumber, to, country: rule.iso, type: 'sms_out', direction: 'outbound', body, messageId: out.id, status: preview ? 'preview' : 'sent', webReply: true, ...(media.length ? { media } : {}), ...(overage ? { charge: overage } : {}), ...(replyTo ? { replyTo } : {}), ...(inboxId ? { inboxId: String(inboxId) } : {}), timestamp: new Date().toISOString() }
     await phoneLogs.insertOne(doc)

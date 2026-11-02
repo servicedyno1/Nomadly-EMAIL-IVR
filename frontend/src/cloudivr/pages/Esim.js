@@ -13,6 +13,7 @@ import { cp } from '../paths';
 import { WalletPay, RenewWarning } from '../WalletPay';
 import { NewNumber } from './esim/NewNumber';
 import { EmailQr } from './esim/EmailQr';
+import { Receipts } from './esim/Receipts';
 import { MobileOffer } from './buy/MobileOffer';
 import { RenewPick, renewText } from './esim/RenewPick';
 import { MobileLines } from './number/MobileLines';
@@ -136,6 +137,7 @@ function Line({ item, reload }) {
         {item.status === 'suspended' && <WalletPay price={item.price} small onWallet={() => act('renew', 'Renewed')} label={`Renew $${item.price}`} testid={`esim-renew-pay-${item.id}`} walletTestid={`esim-renew-${item.id}`} cryptoTestid={`esim-renew-crypto-${item.id}`} />}
         {['active', 'suspended'].includes(item.status) && item.price > 0 && <AutoRenew item={item} reload={reload} />}
         <NewNumber item={item} reload={reload} />
+        <Receipts item={item} />
         {['active', 'suspended'].includes(item.status) && <button type="button" onClick={cancel} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`esim-cancel-${item.id}`}>Cancel eSIM</button>}
       </div>
       <RenewWarning price={item.price} date={item.nextBillAt} on={item.status === 'active' && item.autoRenew && item.price > 0} testid={`esim-renew-warning-${item.id}`} />

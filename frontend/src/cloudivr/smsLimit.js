@@ -16,5 +16,11 @@ export function smsInfo(text) {
   return { limit: 160, used: units, unicode: false };
 }
 
-export const smsOver = (text) => { const i = smsInfo(text); return i.used > i.limit; };
-export const smsCount = (text) => { const i = smsInfo(text); return `${i.used}/${i.limit}${i.unicode ? ' · emoji or special characters: 70 per text' : ''}`; };
+export const SMS_MAX_PARTS = 3;
+// Joined parts: 153 per part (67 with emoji/Unicode), up to 3.
+export const smsParts = (text) => { const i = smsInfo(text); return i.used <= i.limit ? 1 : Math.ceil(i.used / (i.unicode ? 67 : 153)); };
+export const smsOver = (text, maxParts = SMS_MAX_PARTS) => { const i = smsInfo(text); return i.used > (maxParts === 1 ? i.limit : (i.unicode ? 67 : 153) * maxParts); };
+export const smsCount = (text) => {
+  const i = smsInfo(text), p = smsParts(text);
+  return p === 1 ? `${i.used}/${i.limit}${i.unicode ? ' · emoji or special characters: 70 per text' : ''}` : `${i.used} characters · ${p} joined texts (max ${(i.unicode ? 67 : 153) * SMS_MAX_PARTS})`;
+};

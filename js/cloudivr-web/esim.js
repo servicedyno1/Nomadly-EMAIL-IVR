@@ -37,6 +37,7 @@ function routes(r, { h }) {
   r.post('/esim', h(async (req, res) => out(res, await ES.buy(req.webChatId, req.body || {}))))
   r.get('/esim/:id/qr', h(async (req, res) => out(res, await ES.qr(req.webChatId, req.params.id))))
   r.get('/esim/:id/usage', h(async (req, res) => out(res, await ES.lineUsage(req.webChatId, req.params.id))))
+  r.get('/esim/:id/receipts', h(async (req, res) => out(res, await ES.receiptsOf(req.webChatId, req.params.id))))
   r.get('/esim/:id/messages', h(async (req, res) => res.json({ messages: (await ES.messages(req.webChatId, req.params.id)).map(m => ({ id: String(m._id), direction: m.direction, from: m.from, to: m.to, body: m.body, at: m.timestamp, status: m.status || null })) })))
   r.post('/esim/:id/sms', h(async (req, res) => out(res, await ES.sendSms(req.webChatId, req.params.id, req.body?.to, req.body?.text))))
   r.post('/esim/:id/calls', h(async (req, res) => out(res, await ES.setCallsTo(req.webChatId, req.params.id, req.body?.to, req.body?.ivrNumber))))

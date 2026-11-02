@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import CloudPhoneJourney from './components/CloudPhoneJourney';
-import URLShortenerDomainJourney from './components/URLShortenerDomainJourney';
+const CloudPhoneJourney = lazy(() => import('./components/CloudPhoneJourney'));
+const URLShortenerDomainJourney = lazy(() => import('./components/URLShortenerDomainJourney'));
 import { AuthProvider, useAuth } from './components/panel/AuthContext';
-import PanelLogin from './pages/PanelLogin';
-import PanelDashboard from './pages/PanelDashboard';
-import PhoneTestPage from './pages/PhoneTestPage';
-import Storefront from './pages/Storefront';
+const PanelLogin = lazy(() => import('./pages/PanelLogin'));
+const PanelDashboard = lazy(() => import('./pages/PanelDashboard'));
+const PhoneTestPage = lazy(() => import('./pages/PhoneTestPage'));
+const Storefront = lazy(() => import('./pages/Storefront'));
 import './App.css';
 import './panel-v2.css';
 import './store.css';
@@ -131,13 +131,13 @@ function MainApp() {
 
         {activeView === VIEWS.URL_SHORTENER && (
           <main className="main-content" data-testid="url-shortener-view">
-            <URLShortenerDomainJourney />
+            <Suspense fallback={null}><URLShortenerDomainJourney /></Suspense>
           </main>
         )}
 
         {activeView === VIEWS.CLOUD_PHONE && (
           <main className="main-content" data-testid="cloud-phone-view">
-            <CloudPhoneJourney />
+            <Suspense fallback={null}><CloudPhoneJourney /></Suspense>
           </main>
         )}
 
@@ -189,6 +189,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <Suspense fallback={null}>
         <Routes>
           {IS_CIVR_DOMAIN ? (
             // CloudIVR's own domain (cloudivr.net): the web app owns the site root — /, /login, /app/…
@@ -216,6 +217,7 @@ export default function App() {
             </>
           )}
         </Routes>
+        </Suspense>
       </AuthProvider>
     </BrowserRouter>
   );

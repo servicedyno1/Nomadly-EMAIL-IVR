@@ -317,6 +317,14 @@ async function receipt(d, until) {
   await S.col.updateOne({ _id: d._id }, { $set: { 'receipts.$[r].emailed': !!ok } }, { arrayFilters: [{ 'r.at': at }] })
   return ok
 }
+// Every payment and refund for one line (purchase, renewals, number replacement), newest first. Texts are left out.
+const RECEIPT_KIND = { 'esim-purchase': 'Purchase', 'mobile-number-purchase': 'Purchase', 'esim-renewal': 'Renewal', 'esim-number-replace': 'Number replacement', 'esim-refund': 'Refund', 'mobile-number-refund': 'Refund', 'esim-number-refund': 'Refund' }
+async function receiptsOf(chatId, id) {
+  const d = await mine(chatId, id)
+  if (!d) return { error: 'Line not found.' }
+  const rows = await S.db.collection('transactions').find({ chatId: String(chatId), 'metadata.lineId': d._id, type: { $in: Object.keys(RECEIPT_KIND) } }).sort({ createdAt: -1 }).limit(100).toArray()
+  return { receipts: rows.map(t => ({ id: String(t._id), kind: RECEIPT_KIND[t.type], refund: /refund/.test(t.type), amount: t.amount, at: t.createdAt, line: d.kind === 'mobile' ? 'USA mobile number' : 'USA eSIM', phoneNumber: d.phoneNumber || null, ...(t.metadata?.oldNumber ? { oldNumber: t.metadata.oldNumber } : {}) })) }
+}
 async function billOne(d) {
   if (!d.price || d.autoRenew === false) return false
   if (await S.w.debit(d.chatId, d.price)) {
@@ -435,12 +443,13 @@ async function sendSms(chatId, id, to, text) {
   if (long) return { error: long }
   if (!/^\+1[2-9]\d{2}[2-9]\d{6}$/.test(dest)) return { error: 'Texts can go to USA numbers: enter +1 and the 10-digit number.' }
   if (!body) return { error: 'Type a message.' }
-  if (!(await S.w.debit(chatId, TEXT_PRICE))) return { error: `Your wallet needs $${TEXT_PRICE} to send a text.` }
+  const parts = require('./cloudivr-web/sms-limit').smsParts(body), cost = round2(TEXT_PRICE * parts)
+  if (!(await S.w.debit(chatId, cost))) return { error: `Your wallet needs $${cost.toFixed(2)} to send this text${parts > 1 ? ` (${parts} parts)` : ''}.` }
   if (!d.simulated) {
-    try { await call('post', '/api/v1.1/sms', { fromNumber: d.phoneNumber, toNumber: dest, text: body }) } catch (e) { await S.w.credit(chatId, TEXT_PRICE); S.log(`[eSIM] sms ${d._id}: ${e.message}`); return { error: e.code === 'FORBIDDEN' || e.status === 401 || e.status === 403 ? 'Texts from this eSIM aren’t switched on yet. We’ve let support know. You weren’t charged.' : 'The text couldn’t be sent. You weren’t charged. Try again in a minute.' } }
+    try { await call('post', '/api/v1.1/sms', { fromNumber: d.phoneNumber, toNumber: dest, text: body }) } catch (e) { await S.w.credit(chatId, cost); S.log(`[eSIM] sms ${d._id}: ${e.message}`); return { error: e.code === 'FORBIDDEN' || e.status === 401 || e.status === 403 ? 'Texts from this eSIM aren’t switched on yet. We’ve let support know. You weren’t charged.' : 'The text couldn’t be sent. You weren’t charged. Try again in a minute.' } }
   }
-  await txn(chatId, 'esim-sms', TEXT_PRICE, { lineId: d._id, to: dest })
-  const log = { chatId: String(chatId), phoneNumber: d.phoneNumber, from: d.phoneNumber, to: dest, type: 'sms', direction: 'outbound', body, esim: d._id, charge: TEXT_PRICE, status: d.simulated ? 'preview' : 'sent', timestamp: new Date() }
+  await txn(chatId, 'esim-sms', cost, { lineId: d._id, to: dest, parts })
+  const log = { chatId: String(chatId), phoneNumber: d.phoneNumber, from: d.phoneNumber, to: dest, type: 'sms', direction: 'outbound', body, esim: d._id, charge: cost, status: d.simulated ? 'preview' : 'sent', timestamp: new Date() }
   await S.db.collection('phoneLogs').insertOne(log)
   return { log }
 }
@@ -579,5 +588,5 @@ function init({ db, log = console.log, tell }) {
   return api
 }
 
-const api = { init, tick, syncUser, linkUser, MOBILE_PRICE, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
+const api = { init, tick, syncUser, linkUser, receiptsOf, MOBILE_PRICE, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
 module.exports = api
