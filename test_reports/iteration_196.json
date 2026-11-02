@@ -1,0 +1,19 @@
+{
+  "summary": "Tested the USA mobile number IMEI-reuse fix (iteration 196). node backend/tests/mobile_imei_reuse.test.js printed PASS in live mode: offer {available:true, price:75}, IMEI cached as 15 digits, cache cleaned afterwards (checked in the DB). The IMEI value was never printed. GET /api/cloudivr-web/public/mobile-offer returns {available:true, price:75} and no IMEI. On the landing page /cloudivr, product-card-mobile shows hero-order-mobile (no waitlist), which opens mobile-checkout; the ZIP field and Continue work. Alice bought a simulated line from the eSIM page mobile-offer: the wallet was charged $75, the page went to My numbers, and the new card mn_939c82aa9a06 showed 'Assigning your number…'. The poller made it active (+15552779656) within about 20 s. It was then cancelled with mobile-cancel-<id> plus the confirm dialog ('Cancelled' toast, removed from the list). On Buy a number (USA), mobile-offer renders and the pay button is enabled; no second purchase was made. Regression: 31/31 pytest passed (iter194/192/195) and mobile_outbound_call.test.js printed PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/mobile_imei_reuse.test.js", "/app/backend/tests/test_mobile_outbound_iter194.py", "/app/backend/tests/test_mobile_ivr_sms_iter192.py", "/app/backend/tests/test_mobile_call_events_iter195.py", "/app/backend/tests/mobile_outbound_call.test.js", "/app/test_reports/pytest/pytest_iter196.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "mobileImei(): a negative result (no IMEI found) is not cached. In live mode, every call to the unauthenticated public /public/mobile-offer endpoint then triggers a Spenza GET /sims. Consider a short negative-result cache, e.g. 5-10 minutes.",
+    "The cached IMEI in spenzaConfig never expires or gets checked again. If Spenza later rejects that IMEI, every buyMobile fails (the refund path handles it) until someone deletes the cache by hand. Consider clearing the cache on an IMEI-related provider error in the buyMobile catch block.",
+    "Business/compliance note: the IMEI fallback reuses a real customer's device IMEI from their latest eSIM order for lines that CloudIVR holds. It is not exposed through pub() or public APIs (verified), but please confirm with Spenza that one IMEI on several lines is allowed.",
+    "The fallback query on the last eSIM order does not filter out status 'failed' or 'cancelled' orders. The IMEI itself is still valid, so this is low risk."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Alice simulated mobile line mn_939c82aa9a06 (+15552779656) was created and then cancelled. Alice's wallet is now $474.79 (purchase debit; cancel gave no refund).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Alice's mobile lines: mn_b5893a901b4f (+15554586272, simulated) and the REAL line es_69fcb8db0c34 (+16462556424). Never call /sip?browser=1 on the real line. The spenzaConfig {_id:'mobileImei'} cache doc is absent after the test (the node test deletes it). Log in with page.request.post /api/cloudivr-web/auth/login, then click cookie-deny. Routes: /cloudivr/app/esim, /cloudivr/app/buy, /cloudivr/app/numbers. Cancelling uses an in-app confirm dialog with the buttons 'Keep it' and 'Cancel number'."
+}

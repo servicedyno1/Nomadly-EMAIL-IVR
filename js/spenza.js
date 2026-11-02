@@ -133,22 +133,22 @@ async function buy(chatId, { planId, imei, zipcode, email }) {
 
 // ---------- USA mobile number for texting ($75/month): an eSIM line held by CloudIVR, number shown once assigned ----------
 const MOBILE_PRICE = 75
-// No customer phone for a virtual number: reuse a device IMEI already on file (env override → last real eSIM order → Spenza line device).
+// No customer phone for a virtual number: use the IMEI of the owner's own line (env override → the owner's prelinked line on Spenza).
+// Never a customer's device. A miss is cached for 10 minutes so the public offer endpoint doesn't hit Spenza each time.
+let imeiMiss = 0
 async function mobileImei() {
   if (dry()) return '356938035643809'
   const ok = (v) => { const x = String(v || '').replace(/\D/g, ''); return x.length === 15 ? x : null }
   if (ok(process.env.SPENZA_TEXT_LINE_IMEI)) return ok(process.env.SPENZA_TEXT_LINE_IMEI)
   const cfg = await S.db.collection('spenzaConfig').findOne({ _id: 'mobileImei' })
   if (ok(cfg?.imei)) return cfg.imei
-  const last = await S.col.find({ kind: { $ne: 'mobile' }, simulated: { $ne: true }, imei: { $regex: '^\\d{15}$' } }).sort({ createdAt: -1 }).limit(1).toArray()
-  let imei = ok(last[0]?.imei)
-  if (!imei) {
-    const r = await call('get', '/api/v1.1/sims?page=1&pageSize=100').catch(() => null)
-    const sims = r?.data?.items || r?.data || []
-    imei = sims.map(x => ok(x.device?.imei || x.imei)).find(Boolean) || null
-  }
-  if (imei) await S.db.collection('spenzaConfig').updateOne({ _id: 'mobileImei' }, { $set: { imei, at: new Date() } }, { upsert: true })
-  return imei || ''
+  if (Date.now() - imeiMiss < 10 * 60000) return ''
+  const r = await call('get', '/api/v1.1/sims?page=1&pageSize=100').catch(() => null)
+  const own = new Set(PRELINK.map(x => x.phone))
+  const imei = (r?.data?.items || r?.data || []).filter(x => own.has(x.phoneNumber) && x.status === 'ACTIVE').map(x => ok(x.device?.imei || x.imei)).find(Boolean) || null
+  if (!imei) { imeiMiss = Date.now(); return '' }
+  await S.db.collection('spenzaConfig').updateOne({ _id: 'mobileImei' }, { $set: { imei, at: new Date() } }, { upsert: true })
+  return imei
 }
 async function mobileOffer() {
   const plan = (await forSale().catch(() => [])).find(p => p.simId)
@@ -173,6 +173,7 @@ async function buyMobile(chatId, { zipcode }) {
   } catch (e) {
     await S.w.credit(chatId, MOBILE_PRICE); await txn(chatId, 'mobile-number-refund', MOBILE_PRICE, { lineId: _id })
     S.log(`[mobile] create ${_id}: ${e.message}`)
+    if (/imei/i.test(e.message)) await S.db.collection('spenzaConfig').deleteOne({ _id: 'mobileImei' })
     await S.col.updateOne({ _id }, { $set: { status: 'failed', note: 'The number couldn’t be set up. Your payment was refunded.', providerError: e.message, updatedAt: new Date() } })
     return { error: `We couldn’t set up the number right now. Your $${MOBILE_PRICE} was refunded to your wallet.`, code: 'mobile_failed' }
   }
