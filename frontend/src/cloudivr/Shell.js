@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { ThemeRoot, ThemeButton } from './theme';
-import { NavLink, Navigate, Route, Routes, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, Route, Routes, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, LogOut, Phone, Plus, LifeBuoy, Eye, EyeOff, Send, Lightbulb, HelpCircle, Search } from 'lucide-react';
 import { api, money } from './api';
 import { useCivrAuth } from './AuthContext';
@@ -12,7 +12,8 @@ import { IncomingCalls } from './Incoming';
 import { UpgradeHost } from './Upgrade';
 import MobileNav from './MobileNav';
 import { Wordmark } from './Brand';
-import { NAV, appPath } from './nav';
+import { NAV, appPath, isSideActive } from './nav';
+import SectionTabs from './SectionTabs';
 import Dashboard from './pages/Dashboard';
 import Numbers from './pages/Numbers';
 import NumberDetail from './pages/NumberDetail';
@@ -67,17 +68,18 @@ export function LiveDot({ testid = 'nav-live-dot' }) {
 }
 
 function SideNav() {
+  const { pathname } = useLocation();
   return (
     <nav className="flex flex-col gap-5" data-testid="nav-header">
       {NAV.map(([group, items]) => (
         <div key={group} data-testid={`nav-group-${group.toLowerCase()}`}>
           <div className="civr-side-label px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#a1a1aa]">{group}</div>
           <div className="flex flex-col gap-0.5">
-            {items.map(([to, label, Icon, id]) => (
-              <NavLink key={id} end={to === ''} to={appPath(to)} className={({ isActive }) => `civr-nav-link ${isActive ? 'active' : ''}`} data-testid={id}>
-                <Icon className="w-4 h-4" />{label}{id === 'nav-quick-call' && <FreeBadge />}{id === 'nav-live' && <LiveDot />}{id === 'nav-messages' && <MsgBadge />}
-              </NavLink>
-            ))}
+            {items.map((item) => { const [to, label, Icon, id] = item; const on = isSideActive(item, pathname); return (
+              <Link key={id} to={appPath(to)} aria-current={on ? 'page' : undefined} className={`civr-nav-link ${on ? 'active' : ''}`} data-testid={id}>
+                <Icon className="w-4 h-4" />{label}{id === 'nav-calls' && <FreeBadge />}{id === 'nav-live' && <LiveDot />}{id === 'nav-messages' && <MsgBadge />}
+              </Link>
+            ); })}
           </div>
         </div>
       ))}
@@ -183,6 +185,7 @@ export default function Shell() {
           <main className="px-4 md:px-8 min-[1800px]:px-12 pt-8 md:pt-10 pb-40 lg:pb-12 max-w-7xl min-[1600px]:max-w-[1440px] min-[1800px]:max-w-[1640px] min-[2300px]:max-w-[1880px] mx-auto" data-testid="app-main">
            <CrashGuard inApp resetKey={pathname} supportLink={catalog?.supportLink}>
             <CrashProbe />
+            <SectionTabs />
             <Routes>
               <Route index element={<Dashboard />} />
               <Route path="numbers" element={<Numbers />} />

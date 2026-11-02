@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useTheme } from './theme';
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Globe, Lightbulb, LogOut, MoreHorizontal, Send, Sun, Moon } from 'lucide-react';
-import { NAV_ITEMS, appPath } from './nav';
+import { SIDE_ITEMS, appPath, isSideActive } from './nav';
 import { useShell, LiveDot } from './Shell';
 import { useCivrAuth } from './AuthContext';
 import { usePrivacy } from './privacy';
@@ -13,8 +13,8 @@ import { confirmLeave } from './guard';
 const SHORT = { 'nav-dashboard': 'Overview', 'nav-numbers': 'Numbers', 'nav-messages': 'Messages', 'nav-wallet': 'Wallet' };
 // Tab labels whose translation is too long for a 5-column phone bar.
 const NARROW = { fr: { 'nav-messages': 'Messages' }, es: { 'nav-messages': 'Mensajes' } };
-const MAIN = ['nav-dashboard', 'nav-numbers', 'nav-messages', 'nav-wallet'].map(id => NAV_ITEMS.find(x => x[3] === id));
-const MORE = NAV_ITEMS.filter(([, , , id]) => !SHORT[id]);
+const MAIN = ['nav-dashboard', 'nav-numbers', 'nav-messages', 'nav-wallet'].map(id => SIDE_ITEMS.find(x => x[3] === id));
+const MORE = SIDE_ITEMS.filter(([, , , id]) => !SHORT[id]);
 const tab = (active) => `relative min-w-0 flex flex-col items-center justify-center gap-1 h-16 text-xs font-medium transition-colors ${active ? 'text-[#818cf8]' : 'text-[#a1a1aa]'}`;
 
 const Badge = ({ n }) => (n > 0 ? <span className="absolute top-2 left-1/2 ml-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#6366f1] text-white text-xs font-bold flex items-center justify-center" data-testid="mobile-messages-unread">{n > 99 ? '99+' : n}</span> : null);
@@ -59,28 +59,29 @@ export default function MobileNav() {
     window.addEventListener('keydown', esc);
     return () => window.removeEventListener('keydown', esc);
   }, [open]);
-  const moreActive = MORE.some(([to]) => pathname.startsWith(appPath(to)));
+  const moreActive = MORE.some((it) => isSideActive(it, pathname));
   return (
     <>
       {open && <button type="button" aria-label="Close menu" className="lg:hidden fixed inset-0 z-40 bg-black/60" onClick={() => setOpen(false)} data-testid="mobile-more-backdrop" />}
       {open && (
         <div className="lg:hidden fixed inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 civr-card civr-side p-2 civr-rise max-h-[calc(100dvh-9rem)] overflow-y-auto overscroll-contain" data-testid="mobile-more-menu">
-          {MORE.map(([to, label, Icon, id]) => (
-            <NavLink key={id} to={appPath(to)} className={({ isActive }) => `civr-nav-link ${isActive ? 'active' : ''}`} data-testid={`mobile-${id}`}><Icon className="w-4 h-4" />{label}{id === 'nav-live' && <LiveDot testid="mobile-nav-live-dot" />}{id === 'nav-quick-call' && shell?.summary?.ivrTrial && <span className="ml-auto text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#6366f1] text-white" data-testid="mobile-quick-call-free-badge">1 free</span>}</NavLink>
-          ))}
+          {MORE.map((item) => { const [to, label, Icon, id] = item; return (
+            <Link key={id} to={appPath(to)} className={`civr-nav-link ${isSideActive(item, pathname) ? 'active' : ''}`} data-testid={`mobile-${id}`}><Icon className="w-4 h-4" />{label}{id === 'nav-live' && <LiveDot testid="mobile-nav-live-dot" />}{id === 'nav-calls' && shell?.summary?.ivrTrial && <span className="ml-auto text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#6366f1] text-white" data-testid="mobile-quick-call-free-badge">1 free</span>}</Link>
+          ); })}
           {channelLink && <a href={channelLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link" data-testid="mobile-channel-link"><Send className="w-4 h-4" />Telegram channel</a>}
           <Link to={appPath('settings#suggest')} className="civr-nav-link" data-testid="mobile-suggest-link"><Lightbulb className="w-4 h-4" />Suggest a feature</Link>
           <MoreSettings />
         </div>
       )}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-5 bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom)]" data-testid="mobile-bottom-nav">
-        {MAIN.map(([to, , Icon, id]) => {
+        {MAIN.map((item) => {
+          const [to, , Icon, id] = item;
           const narrow = NARROW[lang]?.[id];
           return (
-            <NavLink key={id} end={to === ''} to={appPath(to)} className={({ isActive }) => tab(isActive && !open)} data-testid={`mobile-${id}`}>
+            <Link key={id} to={appPath(to)} aria-current={isSideActive(item, pathname) ? 'page' : undefined} className={tab(isSideActive(item, pathname) && !open)} data-testid={`mobile-${id}`}>
               <Icon className="w-5 h-5" />{id === 'nav-messages' && <Badge n={unread} />}
               {narrow ? <span key={lang} className="max-w-full truncate px-1" data-no-translate>{narrow}</span> : <span className="max-w-full truncate px-1">{SHORT[id]}</span>}
-            </NavLink>
+            </Link>
           );
         })}
         <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} className={tab(open || moreActive)} data-testid="mobile-nav-more"><MoreHorizontal className="w-5 h-5" />More</button>
