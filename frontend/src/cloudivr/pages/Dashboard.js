@@ -13,11 +13,12 @@ import { NewProducts } from './dashboard/NewProducts';
 import { ForYou, ReviewPrompt } from './dashboard/ForYou';
 import { TextingHome } from './dashboard/TextingHome';
 
-function Stat({ icon: Icon, label, value, to, testid, delay }) {
+function Stat({ icon: Icon, label, value, to, testid, delay, title }) {
   const body = (
-    <div className={`civr-card ${to ? 'civr-card-link' : ''} p-6 h-full civr-rise ${delay}`} data-testid={testid}>
+    <div className={`civr-card ${to ? 'civr-card-link' : ''} p-6 h-full civr-rise ${delay}`} data-testid={testid} title={title}>
       <div className="flex items-start justify-between gap-2"><span className="civr-label !text-[#a1a1aa] !tracking-[.12em] whitespace-nowrap truncate">{label}</span><Icon className="w-4 h-4 shrink-0 text-[#818cf8]" /></div>
       <div className="font-mono text-3xl mt-4" data-testid={`${testid}-value`}>{value}</div>
+      {title && <div className="text-xs text-[var(--c-muted)] mt-1">This month</div>}
     </div>
   );
   return to ? <Link to={to} className="block h-full">{body}</Link> : body;
@@ -29,7 +30,7 @@ function Stats({ s }) {
       <div className="col-span-2"><Stat icon={Wallet} label="Wallet" value={money(s.balance)} to={cp('/app/wallet')} testid="stat-balance" delay="civr-d1" /></div>
       <Stat icon={Hash} label="Numbers" value={s.numbers?.active ?? '—'} to={cp('/app/numbers')} testid="stat-numbers" delay="civr-d1" />
       <Stat icon={Clock} label="Minutes" value={s.minutesUsed ?? '—'} testid="stat-minutes" delay="civr-d2" />
-      <Stat icon={MessageSquare} label="Texts this month" value={s.textsThisMonth ?? '—'} testid="stat-sms" delay="civr-d2" />
+      <Stat icon={MessageSquare} label="Texts" title="Texts sent and received this month" value={s.textsThisMonth ?? '—'} testid="stat-sms" delay="civr-d2" />
       <Stat icon={Megaphone} label="Campaigns" value={s.activeCampaigns ?? '—'} to={cp('/app/campaigns')} testid="stat-campaigns" delay="civr-d3" />
     </div>
   );

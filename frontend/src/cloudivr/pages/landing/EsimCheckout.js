@@ -9,16 +9,16 @@ import { cp } from '../../paths';
 // Landing-page eSIM checkout: details → account → pay (wallet, or crypto top-up then auto-order) → done.
 export const openEsimCheckout = (planId) => window.dispatchEvent(new CustomEvent('civr-esim-checkout', { detail: planId || null }));
 export const DRAFT_KEY = 'civr.esimDraft';
-const IN = 'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[color:var(--np-blue)]';
+export const IN = 'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[color:var(--np-blue)]';
 export const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const saveDraft = (d) => { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch (_) { /* private mode */ } };
 const dropDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch (_) { /* private mode */ } };
 
-const Label = ({ text, hint, children }) => (
+export const Label = ({ text, hint, children }) => (
   <label className="block"><span className="block text-sm font-semibold text-slate-900 mb-1.5">{text}</span>{children}{hint && <span className="block text-xs text-slate-500 mt-1.5">{hint}</span>}</label>
 );
-const Err = ({ e, testid }) => (e ? <p role="alert" className="text-sm text-rose-600" data-testid={testid}>{e.message || String(e)}</p> : null);
-const Btn = ({ busy, children, ...p }) => <button type="button" className="civr-l-btn w-full inline-flex items-center justify-center gap-2 min-h-[48px] disabled:opacity-50" disabled={busy || p.disabled} {...p}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}{children}</button>;
+export const Err = ({ e, testid }) => (e ? <p role="alert" className="text-sm text-rose-600" data-testid={testid}>{e.message || String(e)}</p> : null);
+export const Btn = ({ busy, children, ...p }) => <button type="button" className="civr-l-btn w-full inline-flex items-center justify-center gap-2 min-h-[48px] disabled:opacity-50" disabled={busy || p.disabled} {...p}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}{children}</button>;
 
 function Details({ plans, d, set, onNext }) {
   const imeiOk = d.imei.replace(/\D/g, '').length === 15, zipOk = !d.zip || d.zip.length === 5, emailOk = EMAIL_OK.test(d.email.trim());
@@ -33,7 +33,7 @@ function Details({ plans, d, set, onNext }) {
   );
 }
 
-function Account({ onDone, onMfa }) {
+export function Account({ onDone, onMfa, intro = 'Create your free CloudIVR account. Your eSIM and its QR code live here.' }) {
   const { setAccount } = useCivrAuth();
   const [mode, setMode] = useState('signup');
   const [f, setF] = useState({ name: '', email: '', password: '' });
@@ -50,7 +50,7 @@ function Account({ onDone, onMfa }) {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   return (
     <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); go(); }} data-testid="esim-co-account">
-      <p className="text-sm text-slate-600">{mode === 'signup' ? 'Create your free CloudIVR account. Your eSIM, its texts and calls live here.' : 'Sign in to your CloudIVR account.'}</p>
+      <p className="text-sm text-slate-600">{mode === 'signup' ? intro : 'Sign in to your CloudIVR account.'}</p>
       {mode === 'signup' && <Label text="Name (optional)"><input className={IN} value={f.name} onChange={set('name')} autoComplete="name" data-testid="esim-co-name" /></Label>}
       <Label text="Email"><input className={IN} type="email" required value={f.email} onChange={set('email')} autoComplete="email" placeholder="you@company.com" data-testid="esim-co-email" /></Label>
       <Label text="Password" hint={mode === 'signup' ? 'At least 8 characters.' : null}><input className={IN} type="password" required minLength={mode === 'signup' ? 8 : 1} value={f.password} onChange={set('password')} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} data-testid="esim-co-password" /></Label>
@@ -62,7 +62,7 @@ function Account({ onDone, onMfa }) {
   );
 }
 
-function Deposit({ dep }) {
+function Deposit({ dep, what, later }) {
   const copy = () => navigator.clipboard?.writeText(dep.address);
   return (
     <div className="rounded-2xl border border-slate-200 p-4 space-y-3" data-testid="esim-co-deposit">
@@ -74,8 +74,8 @@ function Deposit({ dep }) {
           <div><span className="text-slate-500">To address</span><div className="flex items-center gap-2"><code className="break-all text-slate-900" data-testid="esim-co-deposit-address">{dep.address}</code>{!dep.dryRun && <button type="button" onClick={copy} className="w-10 h-10 shrink-0 grid place-items-center text-slate-500" aria-label="Copy address" data-testid="esim-co-deposit-copy"><Copy className="w-4 h-4" /></button>}</div></div>
         </div>
       </div>
-      <p className="text-xs text-slate-500">Keep this window open. We check every 15 seconds and place your eSIM order as soon as the payment confirms.</p>
-      <p className="text-xs text-slate-500" data-testid="esim-co-deposit-later">Closed it after paying? The money stays in your wallet. Open CloudIVR eSIM and your details will be filled in to finish the order.</p>
+      <p className="text-xs text-slate-500">Keep this window open. {`We check every 15 seconds and place your ${what} order as soon as the payment confirms.`}</p>
+      <p className="text-xs text-slate-500" data-testid="esim-co-deposit-later">{later}</p>
     </div>
   );
 }
@@ -96,7 +96,10 @@ function TopUp({ w, need, onDep }) {
   );
 }
 
-function Pay({ plan, d, onPaid }) {
+const ESIM_LATER = 'Closed it after paying? The money stays in your wallet. Open CloudIVR eSIM and your details will be filled in to finish the order.';
+
+// Wallet or crypto top-up, then place() runs automatically once the money lands.
+export function Pay({ price, name, place, onPaid, what = 'eSIM', later = ESIM_LATER }) {
   const { data: w, error: wErr, reload } = useApi('/wallet');
   const [dep, setDep] = useState(null);
   const [crypto, setCrypto] = useState(false);
@@ -107,10 +110,10 @@ function Pay({ plan, d, onPaid }) {
   const order = useCallback(async () => {
     if (placing.current) return;
     placing.current = true; setBusy(true); setErr(null);
-    try { await api('/esim', { method: 'POST', body: { planId: plan.planId, imei: d.imei, zipcode: d.zip, email: (d.email || '').trim() } }); onPaid(); } catch (e) { setErr(e); placing.current = false; } finally { setBusy(false); }
-  }, [plan.planId, d.imei, d.zip, d.email, onPaid]);
+    try { await place(); onPaid(); } catch (e) { setErr(e); placing.current = false; } finally { setBusy(false); }
+  }, [place, onPaid]);
   useEffect(() => { if (!dep) return undefined; const t = setInterval(reload, 15000); return () => clearInterval(t); }, [dep, reload]);
-  const enough = w && w.balance >= plan.price;
+  const enough = w && w.balance >= price;
   const paidIn = !!(dep && w && w.balance > base.current && enough);
   useEffect(() => { if (paidIn) order(); }, [paidIn, order]);
   const startDep = (x) => { base.current = w.balance; setDep(x); };
@@ -118,10 +121,10 @@ function Pay({ plan, d, onPaid }) {
   if (!w) return <div className="py-8 grid place-items-center"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
   return (
     <div className="space-y-4" data-testid="esim-co-pay">
-      <div className="rounded-2xl bg-slate-50 p-4 flex items-center justify-between gap-3 text-sm"><span className="text-slate-600">{plan.name}</span><span className="font-mono font-semibold text-slate-900" data-testid="esim-co-total">{`$${plan.price}`}</span></div>
-      {dep ? <Deposit dep={dep} />
-        : enough && !crypto ? <><Btn busy={busy} onClick={order} data-testid="esim-co-pay-wallet">{`Pay $${plan.price} from wallet`}</Btn><button type="button" onClick={() => setCrypto(true)} className="w-full text-sm font-semibold text-slate-700 underline underline-offset-4 py-2" data-testid="esim-co-use-crypto">Pay with crypto instead</button></>
-        : <TopUp w={w} need={enough ? plan.price : plan.price - w.balance} onDep={startDep} />}
+      <div className="rounded-2xl bg-slate-50 p-4 flex items-center justify-between gap-3 text-sm"><span className="text-slate-600">{name}</span><span className="font-mono font-semibold text-slate-900" data-testid="esim-co-total">{`$${price}`}</span></div>
+      {dep ? <Deposit dep={dep} what={what} later={later} />
+        : enough && !crypto ? <><Btn busy={busy} onClick={order} data-testid="esim-co-pay-wallet">{`Pay $${price} from wallet`}</Btn><button type="button" onClick={() => setCrypto(true)} className="w-full text-sm font-semibold text-slate-700 underline underline-offset-4 py-2" data-testid="esim-co-use-crypto">Pay with crypto instead</button></>
+        : <TopUp w={w} need={enough ? price : price - w.balance} onDep={startDep} />}
       <Err e={err} testid="esim-co-pay-error" />
     </div>
   );
@@ -152,6 +155,7 @@ function Checkout({ plans, first, onClose }) {
   const next = () => { if (account) saveDraft({ ...d, account: account.id }); setStep(account ? 'pay' : 'account'); };
   const signedIn = (acc) => { saveDraft({ ...d, account: acc?.id || null }); setStep('pay'); };
   const paid = useCallback(() => { dropDraft(); setStep('done'); }, []);
+  const place = useCallback(() => api('/esim', { method: 'POST', body: { planId: plan.planId, imei: d.imei, zipcode: d.zip, email: (d.email || '').trim() } }), [plan.planId, d.imei, d.zip, d.email]);
   return (
     <div className="fixed inset-0 z-[70] bg-slate-900/50 grid place-items-center p-3 sm:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose()} data-testid="esim-checkout">
       <div ref={box} role="dialog" aria-modal="true" aria-labelledby="esim-co-title" className="bg-white text-slate-900 rounded-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-6 sm:p-8 shadow-2xl">
@@ -161,7 +165,7 @@ function Checkout({ plans, first, onClose }) {
         </div>
         {step === 'details' && <Details plans={plans} d={d} set={set} onNext={next} />}
         {step === 'account' && <Account onDone={signedIn} onMfa={() => { saveDraft({ ...d, account: null }); nav(cp('/login?plan=esim')); }} />}
-        {step === 'pay' && <Pay plan={plan} d={d} onPaid={paid} />}
+        {step === 'pay' && <Pay price={plan.price} name={plan.name} place={place} onPaid={paid} />}
         {step === 'done' && <Done onClose={onClose} />}
       </div>
     </div>

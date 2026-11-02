@@ -11,7 +11,7 @@ export function StickyCta() {
   const { account } = useCivrAuth();
   const [show, setShow] = useState(false);
   useEffect(() => {
-    const hero = document.querySelector('[data-testid="civr-hero"]');
+    const hero = document.querySelector('[data-testid="product-hero"]');
     const hide = ['try-section', 'final-cta', 'landing-footer'].map(id => document.querySelector(`[data-testid="${id}"]`)).filter(Boolean);
     if (!hero || typeof IntersectionObserver === 'undefined') return undefined;
     let heroOut = false; const covering = new Set();
@@ -32,7 +32,7 @@ export function StickyCta() {
   return (
     <div className={`civr-l-sticky ${show ? '' : 'hide'}`} aria-hidden={!show} data-testid="mobile-sticky-cta">
       <div className="flex items-center gap-2">
-        <Link to={account ? cp('/app/buy') : cp('/signup')} tabIndex={show ? 0 : -1} className="civr-l-btn flex-1 !h-12" data-testid="sticky-cta-buy">{account ? 'Open dashboard' : 'Get your number'}<ArrowRight className="w-4 h-4" /></Link>
+        <a href="#product-hero" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} tabIndex={show ? 0 : -1} className="civr-l-btn flex-1 !h-12" data-testid="sticky-cta-order">Order eSIM or number<ArrowRight className="w-4 h-4" /></a>
         <a href="#try" onClick={(e) => goTo('#try', e)} tabIndex={show ? 0 : -1} className="civr-l-btn civr-l-btn-ghost !h-12 !px-4" aria-label="Try a free call" data-testid="sticky-cta-try"><PhoneCall className="w-4 h-4" />Try a call</a>
       </div>
     </div>

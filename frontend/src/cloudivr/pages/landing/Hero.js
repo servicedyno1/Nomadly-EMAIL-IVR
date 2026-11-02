@@ -21,13 +21,13 @@ export function Hero({ catalog }) {
   const t = TITLE[useLang().lang] || TITLE.en;
   const trust = ['Live in minutes', 'Browser phone on every plan', 'No contracts', 'Crypto & wallet payments'];
   return (
-    <section className="civr-l-cream relative pt-32 md:pt-40" data-testid="civr-hero">
+    <section id="business" className="civr-l-cream relative pt-16 md:pt-24 border-t civr-l-rule scroll-mt-16" data-testid="civr-hero">
       <span className="civr-np-stars" aria-hidden="true" />
       <HeroDecor />
       <div className="relative max-w-4xl mx-auto px-6 text-center">
-        <div className="civr-l-kicker civr-rise" data-testid="hero-eyebrow"><span className="civr-l-dot" /><span className="sm:hidden">IVR · AI voice agents · Campaigns</span><span className="hidden sm:inline">Virtual numbers · IVR · AI voice agents · Campaigns</span></div>
-        <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-[64px] lg:leading-[72px] mt-7 civr-rise civr-d1 text-slate-950" data-testid="hero-title" data-no-translate>{t[0]}<span className="civr-l-hl">{t[1]}</span>{t[2]}</h1>
-        <p className="text-base md:text-xl text-slate-600 mt-6 max-w-2xl mx-auto leading-relaxed civr-rise civr-d2" data-testid="hero-subtitle">
+        <div className="civr-l-kicker civr-rise" data-testid="business-eyebrow"><span className="civr-l-dot" /><span>For business · Calling numbers · IVR · AI voice agents</span></div>
+        <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl mt-7 civr-rise civr-d1 text-slate-950" data-testid="business-title" data-no-translate>{t[0]}<span className="civr-l-hl">{t[1]}</span>{t[2]}</h2>
+        <p className="text-base md:text-xl text-slate-600 mt-6 max-w-2xl mx-auto leading-relaxed civr-rise civr-d2" data-testid="business-subtitle">
           {`Get a number in ${n} countries and run your whole phone line from the browser. A keypad menu or an AI voice agent answers every call, texts and voicemails land in one inbox — and campaigns call your list and connect the hot leads to you.`}
         </p>
         <div className="flex flex-wrap justify-center gap-3 mt-10 civr-rise civr-d3">

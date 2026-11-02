@@ -9,6 +9,13 @@ const tell = async (id, text, extra) => { await notify.push(id, text, null, extr
 function publicRoutes(r, { db, h, log, A }) {
   ES.init({ db, log, tell })
   r.get('/public/esim-plans', h(async (req, res) => res.json({ plans: (await ES.plansForCustomers().catch(() => [])).map(p => ({ ...p, name: p.label || p.planId })) })))
+  r.get('/public/mobile-offer', h(async (req, res) => res.json(await ES.mobileOffer().catch(() => ({ available: false, price: ES.MOBILE_PRICE })))))
+  r.post('/public/waitlist', h(async (req, res) => {
+    const email = String(req.body?.email || '').trim().toLowerCase().slice(0, 200)
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return res.status(400).json({ error: 'bad_email', message: 'Enter a valid email address.' })
+    await db.collection('webWaitlist').updateOne({ _id: `mobile:${email}` }, { $setOnInsert: { email, product: 'mobile', createdAt: new Date() } }, { upsert: true })
+    res.json({ ok: true })
+  }))
   r.post('/public/spenza/webhook', h(async (req, res) => {
     const x = await ES.onWebhook(req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body || {}), req.headers, req.body)
     res.status(x.status).json({ ok: x.status === 200 })

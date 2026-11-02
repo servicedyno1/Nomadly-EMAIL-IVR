@@ -18,9 +18,9 @@ const FAMILIES = [
     'Customers text the office or landline number they already know. Calls stay with your current carrier; every text lands in the CloudIVR app.',
     ['Works with your existing US or Canada number', '$200 to start, then $50/month after the first month', 'Incoming texts are free'],
     ['Start texting', 'texting'], ['How it works', 'hosted']],
-  ['mobile', Smartphone, 'outreach', 'Mobile', 'CloudIVR eSIM',
-    'A US mobile line on the T-Mobile network. Install it instantly with a QR code, then use the same number for calls and texts on your phone and in the CloudIVR app.',
-    ['T-Mobile network · US phone number included', 'Instant QR code to install on your phone', 'Calls and texts on your phone and in the app'],
+  ['mobile', Smartphone, 'outreach', 'Mobile', 'CloudIVR eSIM & US mobile number',
+    'A US mobile line on the T-Mobile network for your phone, or a US mobile number for texting in your browser. Both are real carrier numbers, not VoIP.',
+    ['eSIM: install with a QR code; data, calls and texts on your phone', 'US mobile number: texts in CloudIVR Messages, no phone needed', 'Each $75/month, no contract'],
     ['Buy eSIM', 'esim'], ['See eSIM plans', '#esim']],
 ];
 

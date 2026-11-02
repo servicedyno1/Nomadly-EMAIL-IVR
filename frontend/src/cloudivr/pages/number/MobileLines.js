@@ -42,7 +42,13 @@ export function MobileLines() {
   const { data, reload } = useApi('/mobile-numbers');
   const waiting = !!data?.items?.some(x => x.status === 'provisioning');
   useEffect(() => { if (!waiting) return undefined; const t = setInterval(reload, 5000); return () => clearInterval(t); }, [waiting, reload]);
-  if (!data?.items?.length) return null;
+  if (!data?.items?.length) return data?.available ? (
+    <div className="civr-card p-5 mt-8 flex flex-wrap items-center gap-3" data-testid="mobile-lines-empty">
+      <MessageSquare className="w-5 h-5 text-[#818cf8]" />
+      <div className="flex-1 min-w-[200px]"><div className="font-semibold">Need a US mobile number for texting?</div><div className="text-sm text-[var(--c-muted)]">{`A real carrier number for codes and texts in Messages, ${money(data.price)}/month.`}</div></div>
+      <Link to={cp('/app/buy')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="mobile-lines-empty-buy">Get one</Link>
+    </div>
+  ) : null;
   return (
     <div className="mt-8 space-y-3" data-testid="mobile-lines">
       <h2 className="font-display text-xl font-bold">Mobile numbers for texting</h2>

@@ -75,6 +75,13 @@ export function faqItems(c) {
   const ivr = on('ivr', 'Pro and Business'), out = on('ivrOutbound', 'Pro and Business');
   const ex = c?.extraNumber;
   return [
+    ['Is the US mobile number or the eSIM VoIP?', 'No. Both are real mobile numbers on a US carrier, not VoIP. The eSIM runs on your phone; the US mobile number lives in CloudIVR and you read and send its texts in Messages in any browser.'],
+    ['Does it work with my bank?', 'It’s a real carrier number, and most banks and apps accept it for sign-ups and verification codes. Each service sets its own rules, so we can’t promise every one will.'],
+    ['Can I choose the number?', 'You pick a US ZIP code and we ask the carrier for a number near it. It’s a preference: the area code and the exact number can’t be chosen.'],
+    ['When do I get it?', 'After your payment is confirmed. It’s usually ready within minutes, and sometimes takes longer. The eSIM QR code is shown in the app and emailed to the address you enter; the US mobile number appears in My numbers.'],
+    ['Can the US mobile number make calls?', 'Not yet. It sends and receives texts in Messages (texts cost $0.05 each from your wallet), and it’s added as a verified caller ID for your CloudIVR calls for free. Calls on the number itself are coming later.'],
+    ['What happens if I don’t renew?', 'Both renew monthly at $75 from your wallet. If your wallet is short, the line pauses until you top up and tap Renew. If you turn auto-renew off, the line ends after the paid month and the number can’t be recovered.'],
+    ['Can I replace the number?', 'Yes, for $25. The carrier assigns the new number; you can’t choose it. If the carrier refuses, or doesn’t assign one within 24 hours, the $25 goes back to your wallet.'],
     ['Can I try it before I pay?', 'Yes, twice. Without an account: confirm your email with a 6-digit code and take one free test call of up to 60 seconds — we ring your phone with a demo menu, or you call from your browser. After you sign up: place one free Quick IVR call from our number — it plays your script to anyone you choose, then connects them to you when they press 1 or collects a code you accept or decline.'],
     ['Is the account really free?', `Yes. Creating an account costs nothing. You only pay when you buy a number${from ? ` (from ${from}/month)` : ''}, plus any extra usage.`],
     ['How do I pay?', `With crypto (${coinList(c) || 'BTC, ETH, USDT and more'}) or from your CloudIVR wallet (top-ups from ${usd(c?.minTopup || 10)}). Renewals and calls are paid from the wallet. Card payments are coming soon — until they are switched on, cards show as “coming soon” here and at checkout.`],

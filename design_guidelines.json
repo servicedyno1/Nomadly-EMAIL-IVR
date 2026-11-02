@@ -1,116 +1,137 @@
 {
-  "palette": {
-    "light": {
-      "bg": "#F7FAF5",
-      "surface": "#FFFFFF",
-      "ink": "#0D150C",
-      "ink_2": "#3A4A38",
-      "muted": "#687A65",
-      "line": "#E1EAD9",
-      "hero_tint": "#C0FFA5",
-      "secondary_tint": "#E8FAD8",
-      "accent": "#1FA84F",
-      "accent_ink": "#FFFFFF",
-      "link": "#0B8237"
-    },
-    "dark": {
-      "bg": "#0A1109",
-      "surface": "#121E11",
-      "ink": "#F2F7F0",
-      "ink_2": "#C3D4C0",
-      "muted": "#829680",
-      "line": "#223520",
-      "hero_tint": "#173B14",
-      "secondary_tint": "#112C0E",
-      "accent": "#22C55E",
-      "accent_ink": "#0A1109",
-      "link": "#4ADE80"
-    }
-  },
+  "project_name": "CloudIVR Landing Page Refresh",
+  "theme": "Light mode default, clean, trustworthy telecom-credible design",
   "typography": {
-    "fonts": {
-      "display": {
-        "family": "Outfit",
-        "weights": [600, 700],
-        "usage": "H1, H2 display headlines, hero rotating words"
+    "font_family": "Source Sans 3, Source Sans Pro, sans-serif",
+    "h1": "text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#0f172a]",
+    "h2": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#0f172a]",
+    "h3": "text-xl sm:text-2xl font-semibold text-[#0f172a]",
+    "body": "text-base text-[#334155] leading-relaxed",
+    "eyebrow_label": "text-xs font-bold uppercase tracking-widest text-[#1d6fd8]",
+    "trust_note": "text-xs text-[#556273] mt-2 flex items-center justify-center gap-1.5"
+  },
+  "colors": {
+    "background_light": "#ffffff",
+    "background_soft": "#f7f8fa",
+    "background_dark_section": "#1b1e22",
+    "accent_primary": "#1d6fd8",
+    "accent_primary_hover": "#195fba",
+    "badge_lime": "#daff7c",
+    "badge_lime_dark": "#3f6c0b",
+    "border_subtle": "rgba(15, 23, 42, 0.12)",
+    "text_dark": "#0f172a",
+    "text_muted": "#475569",
+    "text_light": "#ffffff"
+  },
+  "css_classes_reuse": {
+    "root_container": "civr civr-l civr-np",
+    "card_class": "civr-l-card v2-surface v2-lift",
+    "button_primary": "civr-l-btn civr-l-pill-ink bg-[#1d6fd8] text-white hover:bg-[#195fba] rounded-lg font-bold px-6 py-3.5 transition-all duration-200",
+    "button_secondary": "civr-l-pill-outline border border-[#1d6fd8] text-[#1d6fd8] hover:bg-[#1d6fd8]/10 rounded-lg font-bold px-6 py-3.5 transition-all duration-200",
+    "kicker": "civr-l-kicker px-3 py-1 rounded-full text-xs font-semibold bg-[#1d6fd8]/10 text-[#1d6fd8]"
+  },
+  "hero_layout": {
+    "layout_mode": "Phone-first stacked cards on mobile (col-span-1), 2-column side-by-side on desktop (md:grid-cols-2)",
+    "headline": "Instant US Phone Lines & eSIMs. Order in seconds, no account required.",
+    "subheadline": "Real carrier US mobile numbers and cellular eSIMs. Trusted by banks and apps worldwide.",
+    "cards": [
+      {
+        "title": "CloudIVR eSIM",
+        "price": "$75/month",
+        "badge": "Instant QR Delivery",
+        "key_points": [
+          "Install on your smartphone via QR code",
+          "Includes US data, cellular calls & SMS",
+          "QR code displayed immediately & sent via email",
+          "Works on any unlocked eSIM-compatible phone"
+        ],
+        "cta_text": "Order eSIM ($75/mo)",
+        "trust_note": "No contract • QR delivered in 30 seconds",
+        "modal_trigger": "eSIM checkout modal"
       },
-      "text": {
-        "family": "Plus Jakarta Sans",
-        "weights": [400, 500, 600],
-        "usage": "Subtitles, body copy, card titles, navigation, buttons"
+      {
+        "title": "US Mobile Number",
+        "price": "$75/month",
+        "badge": "Real Carrier (Non-VoIP)",
+        "key_points": [
+          "100% real cellular number (accepted by banks & 2FA)",
+          "Manage texts in CloudIVR Messages browser app",
+          "No physical SIM or smartphone required",
+          "Choose preferred ZIP code, exact number shown post-pay",
+          "Free automatic Caller ID included"
+        ],
+        "cta_text": "Order Mobile Number ($75/mo)",
+        "trust_note": "Bank 2FA verified • Instant web access",
+        "modal_trigger": "US mobile number checkout modal"
       }
-    },
-    "type_scale": {
-      "desktop": {
-        "h1": "52px / 1.1 line-height, tracking-tight, font-semibold",
-        "h2": "38px / 1.2 line-height, tracking-tight, font-semibold",
-        "h3": "24px / 1.3 line-height, font-semibold",
-        "body": "16px / 1.6 line-height, font-normal",
-        "small": "13px / 1.5 line-height, font-medium"
+    ]
+  },
+  "which_one_helper_spec": {
+    "container_style": "my-12 p-6 sm:p-8 rounded-2xl bg-[#f7f8fa] border border-[rgba(15,23,42,0.12)] text-center max-w-3xl mx-auto shadow-sm",
+    "title": "Which one do I need?",
+    "options": [
+      {
+        "question": "Want the line on your physical phone?",
+        "answer": "Choose eSIM ($75/mo) for device-native calling & data."
       },
-      "phone": {
-        "h1": "36px / 1.15 line-height, tracking-tight, font-semibold",
-        "h2": "28px / 1.25 line-height, tracking-tight, font-semibold",
-        "h3": "20px / 1.3 line-height, font-semibold",
-        "body": "15px / 1.5 line-height, font-normal",
-        "small": "12px / 1.4 line-height, font-medium"
+      {
+        "question": "Want the number inside your web browser?",
+        "answer": "Choose US Mobile Number ($75/mo) for instant browser SMS & 2FA."
       }
-    }
+    ]
   },
-  "radii": {
-    "button": "16px (rounded-2xl)",
-    "card": "24px (rounded-3xl)",
-    "hero_block": "32px top/right, 64px rounded bottom-left corner (Brevo signature shape)",
-    "badge": "9999px (rounded-full)"
+  "screenshot_showcase_spec": {
+    "section_title": "Light-mode App Experience",
+    "description": "Real light-mode app interface across desktop and mobile devices.",
+    "items": [
+      { "name": "Messages", "detail": "Bank code SMS text verification view", "device": "Desktop frame + Phone mockup" },
+      { "name": "My numbers", "detail": "Active US mobile numbers list", "device": "Desktop frame" },
+      { "name": "eSIM Page", "detail": "QR Code activation card view", "device": "Phone mockup frame" },
+      { "name": "Keypad Menu", "detail": "Interactive IVR menu route setup", "device": "Desktop frame" },
+      { "name": "Overview", "detail": "Account metrics and quick activity status", "device": "Desktop frame" }
+    ]
   },
-  "shadows": {
-    "subtle": "0 2px 8px -2px rgba(13,21,12,0.06), 0 1px 3px 0 rgba(13,21,12,0.04)",
-    "card_lift": "0 12px 32px -4px rgba(13,21,12,0.08), 0 4px 12px -2px rgba(13,21,12,0.04)",
-    "mega_menu": "0 20px 40px -6px rgba(13,21,12,0.12)"
+  "business_features_spec": {
+    "section_title": "Enterprise & Business Calling Features",
+    "features": [
+      "Dedicated Calling Numbers & Extensions",
+      "IVR Keypad Menus & Auto-attendant",
+      "Automated SMS & Voice Campaigns",
+      "AI Voice Agents for 24/7 Answering",
+      "Landline to Texting conversion",
+      "Browser Phone & Softphone Web Console"
+    ]
   },
-  "spacing_and_layout": {
-    "section_spacing_desktop": "96px to 128px (py-24 to py-32)",
-    "section_spacing_phone": "56px to 64px (py-14 to py-16)",
-    "container_max_width": "1280px (max-w-7xl px-4 sm:px-6 lg:px-8)",
-    "card_padding": "p-8 or p-10 (generous interior spacing)"
+  "sticky_mobile_order_bar": {
+    "display": "Fixed bottom bar visible on mobile (< 768px)",
+    "style": "fixed bottom-0 inset-x-0 z-50 p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg flex items-center justify-between gap-3 md:hidden",
+    "left_label": "eSIM or Mobile Line from $75/mo",
+    "cta_button": "Order Now"
   },
-  "button_specs": {
-    "primary": "Solid near-black ink background (#0D150C), accent text on hover, rounded-2xl (16px), px-6 py-3.5, font-medium",
-    "secondary": "Outlined ink-2 border, semi-transparent background, rounded-2xl (16px), px-6 py-3.5",
-    "cta": "Brevo-style high contrast primary CTA placed on tinted background block",
-    "mobile_rules": "Full-width (w-full) on phone screens"
-  },
-  "card_specs": {
-    "border": "1px solid #E1EAD9 (light) / #223520 (dark)",
-    "bg": "#FFFFFF (light) / #121E11 (dark)",
-    "radius": "24px (rounded-3xl)",
-    "shadow": "Subtle hover lift (-translate-y-1) with soft ambient shadow"
+  "faq_style": {
+    "accordion": "Clean border-b panels with smooth toggle",
+    "questions": [
+      { "q": "Is it VoIP?", "a": "No. Our US Mobile Numbers are real carrier lines, non-VoIP, ensuring compatibility with banks and shortcode SMS." },
+      { "q": "Can I choose the number?", "a": "You can select your preferred ZIP code during order, and your exact allocated number is displayed immediately after payment." },
+      { "q": "When do I get it?", "a": "Access is instant. eSIM QR codes and web message lines are provisioned right after checkout." },
+      { "q": "Does it work with my bank?", "a": "Yes! Because these are real cellular numbers, they bypass VoIP shortcode restrictions." },
+      { "q": "What if I don't renew?", "a": "Your line will remain active through your paid period, after which it enters a grace window before release." },
+      { "q": "Can I replace the number?", "a": "Yes, you can swap your assigned US number anytime for a flat $25 replacement fee." }
+    ]
   },
   "motion_rules": {
-    "transitions": "Explicit property transitions only: transform 0.2s ease, opacity 0.2s ease (NEVER transition: all)",
-    "rotating_word": "Vertical slide & fade animation cycling through 'calls' -> 'leads' -> 'bookings' -> 'texts'",
-    "app_previews": "Live-style micro-animated elements inside browser/mobile device frames (typing indicators, call waves, audio pulsing)"
+    "type": "Subtle fade-in and slight vertical lift on scroll",
+    "duration": "200ms - 300ms",
+    "library": "IntersectionObserver or subtle framer-motion fade-in",
+    "prefers_reduced_motion": "Disable all transforms when reduced motion is enabled"
   },
-  "illustration_style_prompt": "Clean vector 3D flat-hybrid editorial SaaS illustrations for virtual telephony and cloud communications. Vibrant parrot-green accents (#1FA84F) with soft warm sage greens, clay whites, and soft mint shadows. Smooth rounded geometry, minimal isometric perspective, clean lines without black strokes, representing voice waves, mobile device frames, AI call routing nodes, and landline text bubbles in a unified, modern tech aesthetic matching Brevo style.",
-  "key_functionalities_and_sections": {
-    "brand_identity": "Keep CloudIVR logo (green parrot icon + wordmark)",
-    "mega_menu": "Products mega menu grouping Calling (Browser phone, SIP), Automation (IVR keypad, Bulk IVR, Quick IVR), Texting (Landline to Texting), and AI (AI Voice Agents, Text-to-Voice)",
-    "hero_section": "Outcome headline with rotating word (calls -> leads -> bookings -> texts), tinted hero block (#C0FFA5) with large rounded bottom-left corner, left-aligned hero copy, proof chip, solid near-black primary CTA, outlined secondary CTA, layered UI card preview on right",
-    "trust_strip": "True facts proof strip: 17 countries supported, free test call available, crypto/wallet payments, EN/ES/FR multi-language support",
-    "value_pillars": "3 pillars: 'Every call answered', 'Automate outreach', 'AI that talks for you' with matching custom vector illustrations",
-    "channel_slider": "Interactive channel slider showcasing Browser Phone, SIP Trunking, Texting, AI Voice Agents, and Quick IVR",
-    "product_tour_tabs": "Tabbed interactive feature preview with device frames and live animated previews",
-    "use_cases": "Targeted use cases for E-commerce, Local Services, Sales Outreach, Healthcare & Booking",
-    "how_it_works": "3 simple steps: 1. Choose Number, 2. Pick Workflow / AI Agent, 3. Go Live",
-    "pricing_teaser": "4 plans teaser: Starter ($50), Pro ($75), Business ($120), Texting Plan / Landline to Texting ($200 setup + $50/mo standalone)",
-    "faq_section": "Accordion FAQ covering setup, landline texting, crypto wallet payments, and international numbers",
-    "final_cta": "Full-width Brevo-style tinted CTA banner with bold headline and conversion button",
-    "footer": "Multi-column footer with product links, legal compliance, language switcher (EN/ES/FR), and dark mode toggle"
-  },
-  "instructions_to_main_agent": {
-    "file_format": "Use React JS files (.js / .jsx), not TypeScript (.tsx)",
-    "testing_attributes": "All interactive elements (buttons, inputs, links, tabs, toggles) MUST include data-testid attributes",
-    "header_style": "Header background must use glassmorphism backdrop-blur-xl with light/dark translucent background, never fully transparent",
-    "css_theme_vars": "Integrate theme variables cleanly with light (#F7FAF5 / #C0FFA5) and dark (#0A1109 / #173B14) mode support"
+  "accessibility_and_testing": {
+    "data_testid_convention": "kebab-case, role-based identifiers on all buttons, cards, links, and inputs",
+    "contrast": "APCA high-contrast text on light white/slate background",
+    "mobile_first": "Fully functional and legible starting at 320px viewport width"
   }
+},
+  overwrite: true,
+  path: "/app/design_guidelines.json"
 }
+} Wrestling with standard tools...
