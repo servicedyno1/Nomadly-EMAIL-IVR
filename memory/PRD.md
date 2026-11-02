@@ -2077,3 +2077,11 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - 2026-11-02 (c): Outgoing browser calls from US mobile numbers (Telnyx credential on esimLines.sip; voice-service findNumberBySipUser maps it; existing SIP outbound wallet billing $0.15 US/CA, $0.50+ intl, $0.03/call). Softphone lists mobile lines; My numbers "Call from this number" + inactive "Ring in CloudIVR (Not active yet)". eSIM page offers eSIM plans AND the US mobile number. Spenza SIP re-tested 2026-11-02 with didRanges +1/1/10-digit variants: 0 packets at relay; routing disabled again. Real outbound call test only possible after go-live (SIP connection webhooks → prod). Tests: iteration_194 (100%).
 - 2026-11-02 (d): Call history: outbound_sip phoneLogs now store charge (+ esim id for mobile lines); Messages shows "Outgoing · 2m 34s · $0.48". Copy: "USA eSIM" (downloadable) vs "USA mobile number" (virtual, real carrier); "US"→"USA" sweep; nav "eSIM & mobile numbers"; QR eSIM cards no longer have any call-routing option; both products "send and receive SMS instantly". Tests iteration_195 (100%).
 - PENDING: SPENZA_TEXT_LINE_IMEI requested from owner via secrets card → then write to droplet /opt/nomadly/shared/app-main/backend.env and pm2 restart app-main (check active calls = 0 first). Risk: Spenza may refuse many lines on one IMEI.
+
+## 2026-06 — Sidebar merge + Buy page VoIP/SIP copy (preview only)
+- Sidebar cut from 18 to 12 links (nav.js NAV/SIDE_ITEMS/NAV_ITEMS, sectionOf/isSideActive). Merged sections show a tab strip (SectionTabs.js):
+  Numbers = My numbers | Buy | eSIM & mobile | Landline to Texting | SIP; Calls = Quick IVR | Text-to-voice; Campaigns = Bulk | Do-not-call.
+  Sub-page URLs unchanged. Mobile More menu uses merged links; active tab scrolls into view. Palette duplicate "Buy a number" action removed.
+- Testing agent iteration_197: frontend 100% (free trial badge only checked in code). Low-priority fixes were self-checked afterwards.
+- Buy page header: "Get a VoIP number with SIP". The copy says SIP logins, IVR and campaigns need Pro and up, because the Starter plan has no sipCredentials, ivr or bulkCall (phone-config.js).
+- Known copy conflict: the mobile offer card says calls cost $0.15/min "to the USA and Canada", but the user chose any country. Not fixed yet.

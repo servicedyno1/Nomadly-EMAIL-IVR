@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, Hash, Plus, Wallet, Phone, Eye, EyeOff, LogOut, HelpCircle, Megaphone, Bot, CornerDownLeft, Bell } from 'lucide-react';
+import { Search, Hash, Wallet, Phone, Eye, EyeOff, LogOut, HelpCircle, Megaphone, Bot, CornerDownLeft, Bell } from 'lucide-react';
 import { api, enc } from './api';
 import { NAV_ITEMS, appPath } from './nav';
 import { cp } from './paths';
@@ -51,7 +51,6 @@ export function Palette({ openPhone }) {
     const numbers = (nums || []).map(n => ({ id: `num-${n.phoneNumber}`, group: 'Numbers', label: pv.phone(n.phoneNumber), sub: `${n.countryName || n.country} · ${n.planName} · ${n.status}`, Icon: Hash, keys: [n.phoneNumber, n.countryName, n.planName, n.status], run: () => nav(cp(`/app/numbers/${enc(n.phoneNumber)}`)) }));
     const pages = [...NAV_ITEMS, ['inbox', 'Notifications', Bell, 'nav-notifications']].map(([to, label, Icon, id]) => ({ id: `page-${id}`, group: 'Pages', label, Icon, run: () => nav(appPath(to)) }));
     const actions = [
-      ['buy', 'Buy a number', Plus, () => nav(cp('/app/buy'))],
       ['campaign', 'New campaign', Megaphone, () => nav(cp('/app/campaigns/new'))],
       ['agent', 'New AI voice agent', Bot, () => nav(cp('/app/ai-agents/new'))],
       ['funds', 'Add funds', Wallet, () => nav(cp('/app/wallet'))],

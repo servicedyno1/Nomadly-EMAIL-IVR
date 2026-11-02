@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend-only test of the merged CloudIVR sidebar (12 links + section tab strips). Desktop 1920: exactly 12 links in 4 groups (home:3, numbers:1, calling:5, account:3); all 7 old nav ids absent. Numbers/Calls/Campaigns open the right default tab, every tab navigates and keeps its parent sidebar link active; numbers/:phone, orders/:id, verification, campaigns/new, campaigns/:id keep the right parent active and show tabs. The 9 non-tab pages show no tabs and only their own link active; Overview active only on /app. Page titles correct ('Buy a number · CloudIVR' etc.). Search palette finds Buy a number / Do-not-call list / Text-to-voice calls and navigates. Mobile 390 + 320: bottom nav works, Numbers tab highlighted on /app/buy, More menu lists exactly the 8 merged links (+ channel/suggest), More highlighted on /app/campaigns, tab strip scrolls (overflow-x auto) with no page overflow (scrollWidth == viewport). No page errors. One mobile UX issue found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SectionTabs (mobile)", "issue": "On narrow screens the active tab is not scrolled into view. At 320px on /app/sip, tab-sip sits at x=659-814, off screen, so the user can't see which tab they are on. The scrollbar is hidden and there's no fade/edge cue, so it isn't obvious the strip scrolls. Fix: scrollIntoView({inline:'nearest'}) on the active tab when the pathname changes, and/or add an edge fade.", "selector": "[data-testid=section-tabs-numbers] [data-testid=tab-sip]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Search palette", "issues": ["Typing 'Buy a number' shows two entries with the same label: palette-item-page-tab-buy (page) and palette-item-act-buy (action). Minor duplicate."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: auto-scroll the active section tab into view on mobile (SectionTabs.js), plus an overflow fade cue",
+    "Optional: remove the duplicate 'Buy a number' in the palette (page vs action)"
+  ],
+  "critical_code_review_comments": [
+    "nav.js sectionOf/isSideActive look correct; 'text-call' vs 'texting' prefixes can't collide because under() needs an exact match or a trailing '/'.",
+    "Free trial badge not checked in the browser: the QA trial account (qa.trial1793002485) does not exist on this DB ('Wrong email or password') and Alice has no ivrTrial. Code review: FreeBadge renders inside nav-calls (id === 'nav-calls') and mobile-quick-call-free-badge renders inside mobile-nav-calls."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100% of requested checks that were run (free badge only checked by code review)"},
+  "test_credentials": "Alice civr.alice@example.com / AliceTest#2026 works. qa.trial1793002485@example.com / QaTest#2026x is rejected on this pod.",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Sidebar is now NAV in cloudivr/nav.js. Tab strips use testids section-tabs-{numbers|calls|campaigns}. Active state = class 'active' on links under [data-testid=nav-header]; on mobile, aria-current=page on the bottom nav. Use load + timeout waits, not networkidle."
+}
