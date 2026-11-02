@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Plus, MessageCircle, Send, MessageSquareText, Check } from 'lucide-react';
+import { ArrowRight, ArrowUp, Plus, MessageCircle, Send, MessageSquareText, Check } from 'lucide-react';
 import { SocialLinks } from './Social';
 import { usd, money, startPrice } from '../../api';
 import { useCivrAuth } from '../../AuthContext';
@@ -166,7 +166,7 @@ export function Footer({ catalog }) {
             <FooterCol title="Product" testid="footer-col-product">{menuLinks(PRODUCTS, 'product')}</FooterCol>
             <FooterCol title="Use cases" testid="footer-col-usecases">{menuLinks(USE_CASES, 'usecase')}</FooterCol>
             <FooterCol title="CloudIVR" testid="footer-col-company">
-              {[['#coverage', 'Coverage', 'coverage'], ['#try', 'Free test call', 'try'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']].map(([h, l, id]) => <a key={id} href={`${base}${h}`} onClick={(e) => goTo(h, e)} className={fLink} data-testid={`footer-link-${id}`}>{l}</a>)}
+              {[['#esim-card', 'CloudIVR eSIM', 'esim'], ['#mobile', 'US mobile number', 'mobile'], ['#coverage', 'Coverage', 'coverage'], ['#try', 'Free test call', 'try'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']].map(([h, l, id]) => <a key={id} href={`${base}${h}`} onClick={(e) => goTo(h, e)} className={fLink} data-testid={`footer-link-${id}`}>{l}</a>)}
               <Link to={cp('/sip')} className={fLink} data-testid="footer-link-sip">SIP & softphones</Link>
             </FooterCol>
             <FooterCol title="Support & legal" testid="footer-col-support">
@@ -179,6 +179,7 @@ export function Footer({ catalog }) {
         </div>
         <div className="mt-14 pt-8 border-t border-slate-200 flex flex-col md:flex-row md:items-end gap-6 justify-between">
           <PaymentMethods catalog={catalog} label="We accept" testid="footer-payment-methods" />
+          <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-semibold text-slate-900 hover:text-[color:var(--np-blue)] min-h-[44px] md:order-last" data-testid="footer-back-to-top"><ArrowUp className="w-4 h-4" />Back to top</button>
           <div className="text-xs text-slate-500" data-testid="footer-copyright">© {new Date().getFullYear()} CloudIVR · Virtual numbers, inbound & outbound IVR, SIP and AI voice agents</div>
         </div>
       </div>

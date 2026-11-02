@@ -2072,3 +2072,5 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Public: GET /public/mobile-offer, POST /public/waitlist (webWaitlist). Live shows waitlist until SPENZA_TEXT_LINE_IMEI set.
 - App: Overview "Texts / This month"; My numbers empty-state link to the mobile number.
 - Tested: iteration_193 (backend 13/13, frontend 100%); design nits fixed after.
+- 2026-11-02 (b): Business section left-aligned (removed floating decor + dark phone mockup), HeroTabs now use new light shots (overview/ivr/campaigns/live, phone versions on mobile), all landing sections on max-w-7xl px-6 md:px-8, footer "Back to top" + eSIM/US mobile number links, sticky bar fits 320px. Mobile card note: "Calls to the number aren't answered in CloudIVR yet."
+- Next candidate: outbound calls from a US mobile number via Telnyx (verified caller ID) for accounts without a calling number.

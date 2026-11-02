@@ -13,6 +13,8 @@ PAGES = [
     ('esim', '/app/esim', '[data-testid="esim-list"], [data-testid^="esim-line-"]', 'Show install QR'),
     ('ivr', f'/app/numbers/{q("+13346972125")}?tab=ivr', 'text=Keypad menu (IVR)', None),
     ('overview', '/app', None, None),
+    ('campaigns', '/app/campaigns', None, None),
+    ('live', '/app/live', None, None),
 ]
 HIDE = """
 document.addEventListener('DOMContentLoaded', () => { const st = document.createElement('style'); st.textContent = '[aria-label="Preview mode notice"],[data-testid="support-chat-toggle"],[data-testid="dashboard-channel-card"],.civr-offer{display:none!important}'; document.head.appendChild(st); });

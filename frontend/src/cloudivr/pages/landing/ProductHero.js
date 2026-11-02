@@ -46,7 +46,7 @@ export function ProductHero({ esimPrice, offer }) {
   const mobilePrice = offer?.price || 75;
   return (
     <section className="civr-l-cream relative pt-24 md:pt-28 pb-14 md:pb-20" data-testid="product-hero">
-      <div className="relative max-w-6xl mx-auto px-5 sm:px-6">
+      <div className="relative max-w-7xl mx-auto px-6 md:px-8">
         <div className="max-w-4xl">
           <div className="civr-l-kicker civr-rise"><span className="civr-l-dot" />US mobile lines on a real carrier</div>
           <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-[54px] lg:leading-[1.08] mt-5 text-slate-950 civr-rise civr-d1" data-testid="hero-title">A real US number on a real carrier. <span className="civr-l-hl">On your phone, or in your browser.</span></h1>
@@ -56,7 +56,7 @@ export function ProductHero({ esimPrice, offer }) {
           <Card id="esim-card" icon={Smartphone} badge="On your phone" title="CloudIVR eSIM" price={esimPrice || 75} points={ESIM_POINTS} note="QR code usually ready within minutes of payment." delay={60}>
             <button type="button" onClick={() => openEsimCheckout()} className="civr-l-btn mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-esim">Order eSIM<ArrowRight className="w-4 h-4" /></button>
           </Card>
-          <Card id="mobile" icon={MessageSquareText} badge="In your browser" title="US mobile number" price={mobilePrice} points={MOBILE_POINTS} note="Pick a ZIP code; the exact number is shown after payment. Texts only for now, calls coming later." delay={140}>
+          <Card id="mobile" icon={MessageSquareText} badge="In your browser" title="US mobile number" price={mobilePrice} points={MOBILE_POINTS} note="Pick a ZIP code; the exact number is shown after payment. Calls to the number aren’t answered in CloudIVR yet." delay={140}>
             {offer?.available
               ? <button type="button" onClick={openMobileCheckout} className="civr-l-btn mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-mobile">Order number<ArrowRight className="w-4 h-4" /></button>
               : offer ? <Waitlist /> : <div className="mt-4 h-[52px]" />}

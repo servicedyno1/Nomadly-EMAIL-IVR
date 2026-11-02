@@ -33,7 +33,7 @@ export function StickyCta() {
     <div className={`civr-l-sticky ${show ? '' : 'hide'}`} aria-hidden={!show} data-testid="mobile-sticky-cta">
       <div className="flex items-center gap-2">
         <a href="#product-hero" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} tabIndex={show ? 0 : -1} className="civr-l-btn flex-1 !h-12" data-testid="sticky-cta-order">Order eSIM or number<ArrowRight className="w-4 h-4" /></a>
-        <a href="#try" onClick={(e) => goTo('#try', e)} tabIndex={show ? 0 : -1} className="civr-l-btn civr-l-btn-ghost !h-12 !px-4" aria-label="Try a free call" data-testid="sticky-cta-try"><PhoneCall className="w-4 h-4" />Try a call</a>
+        <a href="#try" onClick={(e) => goTo('#try', e)} tabIndex={show ? 0 : -1} className="civr-l-btn civr-l-btn-ghost !h-12 !px-4" aria-label="Try a free call" data-testid="sticky-cta-try"><PhoneCall className="w-4 h-4" /><span className="max-[419px]:hidden">Try a call</span></a>
       </div>
     </div>
   );

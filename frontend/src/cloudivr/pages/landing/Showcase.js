@@ -17,12 +17,12 @@ export function Showcase() {
   const cur = SHOTS.find(s => s[0] === on);
   return (
     <section id="app" className="py-14 md:py-20 bg-[color:var(--np-bg-soft)] scroll-mt-16" data-testid="showcase">
-      <div className="max-w-6xl mx-auto px-5 sm:px-6">
+      <div className="max-w-7xl mx-auto px-6 md:px-8">
         <Reveal>
           <div className="civr-l-kicker">Inside the app</div>
           <h2 className="civr-l-h text-3xl sm:text-4xl mt-4 text-slate-950 max-w-2xl">This is what you get after you order</h2>
         </Reveal>
-        <div className="flex gap-2 mt-7 overflow-x-auto pb-1 -mx-5 px-5 sm:mx-0 sm:px-0" role="tablist" aria-label="App screens">
+        <div className="flex gap-2 mt-7 overflow-x-auto pb-1 -mx-6 px-6 md:mx-0 md:px-0" role="tablist" aria-label="App screens">
           {SHOTS.map(([id, I, label]) => (
             <button key={id} type="button" role="tab" aria-selected={on === id} onClick={() => setOn(id)} className={`shrink-0 inline-flex items-center gap-2 rounded-full px-4 min-h-[44px] text-sm font-semibold border transition-colors ${on === id ? 'bg-slate-950 text-white border-slate-950' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'}`} data-testid={`showcase-tab-${id}`}><I className="w-4 h-4" />{label}</button>
           ))}
