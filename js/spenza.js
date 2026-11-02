@@ -94,7 +94,7 @@ async function linkSim(iccid, email, kind) {
 }
 
 // ---------- customer lines ----------
-const pub = (d) => ({ numberChange: d.numberChange ? { status: d.numberChange.status, at: d.numberChange.at, oldNumber: d.numberChange.oldNumber, newNumber: d.numberChange.newNumber || null } : null, formerNumbers: (d.formerNumbers || []).map(f => f.phone), autoRenew: d.autoRenew !== false, id: d._id, iccid: d.iccid || null, phoneNumber: d.phoneNumber || null, planId: d.planId, price: d.price, status: d.status, note: d.note || null, callsTo: d.callsTo || 'device', ivrNumber: d.ivrNumber || null, nextBillAt: d.nextBillAt || null, createdAt: d.createdAt, linked: !!d.linked, kind: d.kind || 'esim', zipcode: d.zipcode || null, hasQr: d.kind !== 'mobile' && !!(d.qrCode || d.iccid), qrEmail: d.qrEmail || null, qrEmailedAt: d.qrEmailedAt || null })
+const pub = (d) => ({ numberChange: d.numberChange ? { status: d.numberChange.status, at: d.numberChange.at, oldNumber: d.numberChange.oldNumber, newNumber: d.numberChange.newNumber || null } : null, formerNumbers: (d.formerNumbers || []).map(f => f.phone), autoRenew: d.autoRenew !== false, id: d._id, iccid: d.iccid || null, phoneNumber: d.phoneNumber || null, planId: d.planId, price: d.price, status: d.status, note: d.note || null, callsTo: d.callsTo || 'device', ivrNumber: d.ivrNumber || null, nextBillAt: d.nextBillAt || null, expiresAt: d.expiresAt || null, createdAt: d.createdAt, linked: !!d.linked, kind: d.kind || 'esim', zipcode: d.zipcode || null, hasQr: d.kind !== 'mobile' && !!(d.qrCode || d.iccid), qrEmail: d.qrEmail || null, qrEmailedAt: d.qrEmailedAt || null })
 const luhn = (s) => { let sum = 0; for (let i = 0; i < s.length; i++) { let n = +s[s.length - 1 - i]; if (i % 2) { n *= 2; if (n > 9) n -= 9 } sum += n } return sum % 10 === 0 }
 const txn = (chatId, type, amount, meta) => S.db.collection('transactions').insertOne({ chatId: String(chatId), type, amount: round2(amount), currency: 'USD', status: 'completed', metadata: { ...meta, channel: 'esim' }, createdAt: new Date(), updatedAt: new Date() })
 
@@ -102,7 +102,7 @@ async function list(chatId, kind = 'esim') { return (await S.col.find({ chatId: 
 async function mine(chatId, id) { return S.col.findOne({ _id: String(id), chatId: String(chatId) }) }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
-async function buy(chatId, { planId, imei, zipcode, email }) {
+async function buy(chatId, { planId, imei, zipcode, email, autoRenew }) {
   const qrEmail = String(email || '').trim().toLowerCase()
   if (!EMAIL_RE.test(qrEmail)) return { error: 'Enter the email address where we should send your eSIM QR code.' }
   const im = String(imei || '').replace(/\D/g, '')
@@ -114,7 +114,7 @@ async function buy(chatId, { planId, imei, zipcode, email }) {
   if (!plan.simId) return { error: 'eSIMs are temporarily unavailable. Try again later.' }
   if (!(await S.w.debit(chatId, plan.price))) return { error: `Your wallet needs $${plan.price} for this eSIM. Top up first.`, code: 'insufficient_balance' }
   const _id = 'es_' + crypto.randomBytes(6).toString('hex')
-  const doc = { _id, chatId: String(chatId), planId, price: plan.price, imei: im, zipcode: zip || null, simId: plan.simId, qrEmail, status: 'provisioning', callsTo: 'device', createdAt: new Date(), updatedAt: new Date() }
+  const doc = { _id, chatId: String(chatId), planId, price: plan.price, imei: im, zipcode: zip || null, simId: plan.simId, qrEmail, autoRenew: autoRenew !== false, status: 'provisioning', callsTo: 'device', createdAt: new Date(), updatedAt: new Date() }
   await S.col.insertOne(doc)
   await txn(chatId, 'esim-purchase', plan.price, { planId, lineId: _id })
   if (dry()) { await S.col.updateOne({ _id }, { $set: { transactionId: 'preview-' + _id, simulated: true } }); return { item: pub(doc) } }
@@ -154,7 +154,7 @@ async function mobileOffer() {
   const plan = (await forSale().catch(() => [])).find(p => p.simId)
   return { available: !!plan && (await mobileImei()).length === 15, price: MOBILE_PRICE }
 }
-async function buyMobile(chatId, { zipcode }) {
+async function buyMobile(chatId, { zipcode, autoRenew }) {
   const zip = String(zipcode || '').trim()
   if (!/^\d{5}$/.test(zip)) return { error: 'Enter a 5-digit USA ZIP code so we can ask for a number near it.' }
   const im = await mobileImei()
@@ -162,7 +162,7 @@ async function buyMobile(chatId, { zipcode }) {
   if (!plan || im.length !== 15) return { error: 'USA mobile numbers are temporarily unavailable. Try again later.' }
   if (!(await S.w.debit(chatId, MOBILE_PRICE))) return { error: `Your wallet needs $${MOBILE_PRICE} for this number. Top up first.`, code: 'insufficient_balance' }
   const _id = 'mn_' + crypto.randomBytes(6).toString('hex')
-  const doc = { _id, kind: 'mobile', chatId: String(chatId), planId: plan.planId, price: MOBILE_PRICE, imei: im, zipcode: zip, simId: plan.simId, status: 'provisioning', callsTo: 'device', createdAt: new Date(), updatedAt: new Date() }
+  const doc = { _id, kind: 'mobile', chatId: String(chatId), planId: plan.planId, price: MOBILE_PRICE, imei: im, zipcode: zip, simId: plan.simId, autoRenew: autoRenew !== false, status: 'provisioning', callsTo: 'device', createdAt: new Date(), updatedAt: new Date() }
   await S.col.insertOne(doc)
   await txn(chatId, 'mobile-number-purchase', MOBILE_PRICE, { lineId: _id, zipcode: zip })
   if (dry()) { await S.col.updateOne({ _id }, { $set: { transactionId: 'preview-' + _id, simulated: true } }); return { item: pub(doc) } }
@@ -210,14 +210,14 @@ async function pollOne(d) {
     if (Date.now() - new Date(d.createdAt).getTime() < 20000) return
     const iccid = '8901' + String(Date.now()).slice(-15)
     const phone = '+1555' + String(Date.now()).slice(-7)
-    await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', iccid, phoneNumber: phone, qrCode: `LPA:1$preview.spenza.test$${d._id}`, nextBillAt: new Date(Date.now() + MONTH_MS), updatedAt: new Date() } })
+    await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', iccid, phoneNumber: phone, qrCode: `LPA:1$preview.spenza.test$${d._id}`, ...period(new Date(Date.now() + MONTH_MS)), updatedAt: new Date() } })
     return d.kind === 'mobile' ? ready(d, phone) : emailQr({ ...d, phoneNumber: phone })
   }
   const r = await axios.get(`${API}/api/v3/transactions/${encodeURIComponent(d.transactionId)}`, { timeout: 15000 }).then(x => x.data?.data).catch(() => null)
   const st = String(r?.status || '').toLowerCase()
   if (['completed', 'succeeded', 'success'].includes(st)) {
     const x = r.result || {}
-    await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', iccid: x.iccid || null, phoneNumber: x.mdn ? (String(x.mdn).startsWith('+') ? x.mdn : '+1' + String(x.mdn).replace(/\D/g, '').slice(-10)) : null, qrCode: x.qrCode || null, orderId: x.orderId || null, nextBillAt: new Date(Date.now() + MONTH_MS), updatedAt: new Date() } })
+    await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', iccid: x.iccid || null, phoneNumber: x.mdn ? (String(x.mdn).startsWith('+') ? x.mdn : '+1' + String(x.mdn).replace(/\D/g, '').slice(-10)) : null, qrCode: x.qrCode || null, orderId: x.orderId || null, ...period((x.iccid && await subEnd(x.iccid)) || new Date(Date.now() + MONTH_MS)), updatedAt: new Date() } })
     if (d.kind === 'mobile') return ready(d, x.mdn ? '+1' + String(x.mdn).replace(/\D/g, '').slice(-10) : null)
     const sent = await emailQr({ ...d, phoneNumber: x.mdn || null })
     S.tell(d.chatId, `📱 Your eSIM is ready. Open CloudIVR eSIM and scan the QR code with your phone to install it.${sent ? ` We also emailed it to ${d.qrEmail}.` : ''}`, { kind: 'billing', meta: { esim: d._id } })
@@ -260,38 +260,56 @@ async function qr(chatId, id) {
 }
 async function lineUsage(chatId, id) { const d = await mine(chatId, id); if (!d?.iccid) return { usage: null }; return d.simulated ? { usage: { simulated: true } } : usage(d.iccid) }
 
-// Monthly renewal from the wallet; unpaid → voice/SMS/data off until paid.
+// Renewal. Spenza renews every line itself at its period end (expiresAt) and bills our Spenza balance; its API can only
+// cancel at period end. So: the wallet is charged a day before expiry (retried until then); a line that is
+// unpaid or has auto-renew off is cancelled with Spenza just before expiry, so we never pay for a month nobody paid for.
+const DAY_MS = 86400000
+const CUTOFF_MS = 60 * 60000
+const period = (expiresAt) => ({ expiresAt, nextBillAt: new Date(expiresAt.getTime() - DAY_MS) })
+async function subEnd(iccid) {
+  const r = await call('get', `/api/v1.1/sims/${encodeURIComponent(iccid)}/subscription`).catch(() => null)
+  const t = new Date(r?.data?.endDate || 0)
+  return t.getTime() > Date.now() ? t : null
+}
+const real = (d) => !dry() && !d.simulated && d.iccid && !d.linked
 async function setService(d, on) {
-  if (dry() || d.simulated || !d.iccid) return
+  if (!real(d)) return
   await call('patch', `/api/v1.1/sims/${encodeURIComponent(d.iccid)}/service-state`, { voice: on, sms: on, data: on }).catch(e => S.log(`[Spenza] service-state ${d.iccid}: ${e.message}`))
 }
+const label = (d) => d.kind === 'mobile' ? `USA mobile number ${d.phoneNumber || ''}` : `eSIM ${d.phoneNumber || ''}`
+const day = (t) => new Date(t).toISOString().slice(0, 10)
 async function billOne(d) {
-  if (d.autoRenew === false) return expire(d)
-  if (!d.price) return S.col.updateOne({ _id: d._id }, { $set: { nextBillAt: new Date(Date.now() + MONTH_MS) } })
+  if (!d.price || d.autoRenew === false) return false
   if (await S.w.debit(d.chatId, d.price)) {
     await txn(d.chatId, 'esim-renewal', d.price, { lineId: d._id })
-    await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', nextBillAt: new Date(Date.now() + MONTH_MS), note: null, updatedAt: new Date() } })
+    const base = (real(d) && await subEnd(d.iccid)) || new Date(d.expiresAt)
+    await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', ...period(new Date(base.getTime() + MONTH_MS)), renewFailedAt: null, note: null, updatedAt: new Date() } })
     if (d.status === 'suspended') await setService(d, true)
     return true
   }
   if (d.status !== 'suspended') {
-    await S.col.updateOne({ _id: d._id }, { $set: { status: 'suspended', note: `The $${d.price} monthly fee is due. Top up your wallet and tap Renew.`, updatedAt: new Date() } })
+    await S.col.updateOne({ _id: d._id }, { $set: { status: 'suspended', renewFailedAt: new Date(), note: `The $${d.price} renewal is due. Top up your wallet before ${day(d.expiresAt)} or the line ends then.`, updatedAt: new Date() } })
     await setService(d, false)
-    S.tell(d.chatId, `⏸️ Your eSIM ${d.phoneNumber || ''} is paused: the $${d.price} monthly fee couldn’t be paid. Top up your wallet and tap Renew.`, { kind: 'billing', meta: { esim: d._id } })
+    S.tell(d.chatId, `⏸️ Your ${label(d)} is paused: the $${d.price} renewal couldn’t be paid from your wallet. Top up before ${day(d.expiresAt)} — we’ll retry automatically — or it ends on that date.`, { kind: 'billing', meta: { esim: d._id } })
   }
   return false
 }
-// Auto-renew off: at the end of the paid month the line stops and its plan is cancelled with the carrier.
+// Not renewed by the cut-off: cancel with Spenza (takes effect at its period end) and end the line here.
 async function expire(d) {
-  if (!dry() && !d.simulated && d.iccid && !d.linked) await call('post', `/api/v1.1/subscriptions/${encodeURIComponent(d.iccid)}/cancel`, {}).catch(e => S.log(`[Spenza] expire ${d.iccid}: ${e.message}`))
-  await S.col.updateOne({ _id: d._id }, { $set: { status: 'cancelled', note: 'Ended: auto-renew was off.', updatedAt: new Date() } })
-  if (d.kind === 'mobile' && d.phoneNumber) await S.db.collection('webCallerIds').deleteOne({ _id: d.phoneNumber, method: 'auto' })
+  if (real(d)) {
+    const ok = await call('post', `/api/v1.1/subscriptions/${encodeURIComponent(d.iccid)}/cancel`, {}).then(() => true).catch(e => { S.log(`[Spenza] expire ${d.iccid}: ${e.message}`); return /cancel/i.test(e.message) })
+    if (!ok) return
+  }
+  const why = d.autoRenew === false ? 'auto-renew was off' : 'the renewal wasn’t paid'
+  await S.col.updateOne({ _id: d._id }, { $set: { status: 'cancelled', note: `Ended on ${day(d.expiresAt)}: ${why}.`, updatedAt: new Date() } })
+  if (d.kind === 'mobile' && d.phoneNumber) { await S.db.collection('webCallerIds').deleteOne({ _id: d.phoneNumber, method: 'auto' }); dropSip(d) }
   if (d.callsTo === 'browser') await syncSip()
-  S.tell(d.chatId, `📴 Your eSIM ${d.phoneNumber || ''} ended at the end of its paid month because auto-renew was off.`, { kind: 'billing', meta: { esim: d._id } })
+  S.tell(d.chatId, `📴 Your ${label(d)} ended on ${day(d.expiresAt)} because ${why}.`, { kind: 'billing', meta: { esim: d._id } })
 }
 async function setAutoRenew(chatId, id, on) {
   const d = await mine(chatId, id)
-  if (!d || !['active', 'suspended', 'provisioning'].includes(d.status)) return { error: 'Only active eSIMs have auto-renew.' }
+  if (!d || !['active', 'suspended', 'provisioning'].includes(d.status)) return { error: 'Only active lines have auto-renew.' }
+  if (d.expiresAt && new Date(d.expiresAt).getTime() - CUTOFF_MS <= Date.now()) return { error: 'This line is about to end and can’t be changed now.' }
   await S.col.updateOne({ _id: d._id }, { $set: { autoRenew: !!on, updatedAt: new Date() } })
   return { item: pub({ ...d, autoRenew: !!on }) }
 }
@@ -299,7 +317,7 @@ async function renew(chatId, id) {
   const d = await mine(chatId, id); if (!d || d.status !== 'suspended') return { error: 'Nothing to renew.' }
   if (!(await billOne({ ...d, autoRenew: true }))) return { error: `Your wallet needs $${d.price}. Top up first.`, code: 'insufficient_balance' }
   await S.col.updateOne({ _id: d._id }, { $set: { autoRenew: true } })
-  return { item: pub({ ...d, status: 'active', autoRenew: true }) }
+  return { item: pub(await mine(chatId, id)) }
 }
 async function cancel(chatId, id) {
   const d = await mine(chatId, id)
@@ -477,7 +495,11 @@ async function defaultPrice() {
 
 async function tick() {
   for (const d of await S.col.find({ status: 'provisioning' }).limit(50).toArray()) await pollOne(d).catch(e => S.log(`[Spenza] poll ${d._id}: ${e.message}`))
-  for (const d of await S.col.find({ status: { $in: ['active', 'suspended'] }, nextBillAt: { $lte: new Date() } }).limit(50).toArray()) await billOne(d).catch(e => S.log(`[Spenza] bill ${d._id}: ${e.message}`))
+  const live = { status: { $in: ['active', 'suspended'] }, price: { $gt: 0 } }
+  // Lines from before expiry tracking: their old bill date was the period end.
+  for (const d of await S.col.find({ ...live, expiresAt: null }).limit(50).toArray()) await S.col.updateOne({ _id: d._id }, { $set: period((real(d) && await subEnd(d.iccid)) || new Date(Math.max(new Date(d.nextBillAt || 0).getTime(), Date.now() + 2 * DAY_MS))) })
+  for (const d of await S.col.find({ ...live, expiresAt: { $lte: new Date(Date.now() + CUTOFF_MS) } }).limit(50).toArray()) await expire(d).catch(e => S.log(`[Spenza] expire ${d._id}: ${e.message}`))
+  for (const d of await S.col.find({ ...live, autoRenew: { $ne: false }, nextBillAt: { $lte: new Date() }, expiresAt: { $gt: new Date(Date.now() + CUTOFF_MS) } }).limit(50).toArray()) await billOne(d).catch(e => S.log(`[Spenza] bill ${d._id}: ${e.message}`))
   for (const d of await S.col.find({ 'numberChange.status': 'pending' }).limit(20).toArray()) await pollNumber(d).catch(e => S.log(`[Spenza] number change ${d._id}: ${e.message}`))
 }
 
@@ -493,5 +515,5 @@ function init({ db, log = console.log, tell }) {
   return api
 }
 
-const api = { init, MOBILE_PRICE, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
+const api = { init, tick, MOBILE_PRICE, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
 module.exports = api

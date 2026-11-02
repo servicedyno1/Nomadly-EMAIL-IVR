@@ -14,6 +14,7 @@ import { WalletPay, RenewWarning } from '../WalletPay';
 import { NewNumber } from './esim/NewNumber';
 import { EmailQr } from './esim/EmailQr';
 import { MobileOffer } from './buy/MobileOffer';
+import { RenewPick, renewText } from './esim/RenewPick';
 import { MobileLines } from './number/MobileLines';
 
 const imeiOk = (v) => { const s = String(v).replace(/\D/g, ''); if (s.length !== 15) return false; let sum = 0; for (let i = 0; i < 15; i++) { let n = +s[14 - i]; if (i % 2) { n *= 2; if (n > 9) n -= 9; } sum += n; } return sum % 10 === 0; };
@@ -48,13 +49,15 @@ function BuyForm({ plan, draft, onDone, onCancel }) {
   const cryptoOk = seen.current;
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
-  const go = async () => { setBusy(true); setErr(null); try { await api('/esim', { method: 'POST', body: { planId: plan.planId, imei, zipcode: zip.trim(), email: email.trim() } }); toast.success(`Paid $${plan.price}. Creating your eSIM — usually ready in minutes`); refreshSummary(); dropDraft(); onDone(); } catch (e) { setErr(e); } finally { setBusy(false); } };
+  const [autoRenew, setAutoRenew] = useState(true);
+  const go = async () => { setBusy(true); setErr(null); try { await api('/esim', { method: 'POST', body: { planId: plan.planId, imei, zipcode: zip.trim(), email: email.trim(), autoRenew } }); toast.success(`Paid $${plan.price}. Creating your eSIM — usually ready in minutes`); refreshSummary(); dropDraft(); onDone(); } catch (e) { setErr(e); } finally { setBusy(false); } };
   return (
     <div className="civr-card p-6 space-y-4" data-testid="esim-buy">
       <div className="font-semibold">{plan.label || plan.planId}</div>
       <Field label="Your phone’s IMEI" hint="Dial *#06# on the phone that will use the eSIM. Use the first IMEI if it shows two."><input className="civr-input font-mono" inputMode="numeric" maxLength={17} value={imei} onChange={e => setImei(e.target.value)} placeholder="15 digits" data-testid="esim-imei-input" /></Field>
       <Field label="ZIP code for your number (optional)" hint="We’ll ask for a number near this USA ZIP code. The exact area code can’t be guaranteed."><input className="civr-input font-mono max-w-[160px]" inputMode="numeric" value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10011" data-testid="esim-zip-input" /></Field>
       <Field label="Email for your QR code" hint="We send the eSIM QR code here as soon as it’s ready. It’s also on this page."><input className="civr-input" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" data-testid="esim-email-input" /></Field>
+      <RenewPick on={autoRenew} onChange={setAutoRenew} price={plan.price} testid="esim-buy-autorenew" />
       <WalletPay price={plan.price} onWallet={go} busy={busy} disabled={!imeiOk(imei) || (zip.length > 0 && zip.length !== 5) || !emailOk} crypto={cryptoOk} testid="esim-pay" walletTestid="esim-pay-button" cryptoTestid="esim-crypto">
         <button type="button" onClick={onCancel} className="civr-btn civr-btn-ghost" data-testid="esim-buy-cancel">Cancel</button>
       </WalletPay>
@@ -97,7 +100,7 @@ function UsageLine({ id }) {
 
 function AutoRenew({ item, reload }) {
   const [busy, setBusy] = useState(false);
-  const flip = async () => { setBusy(true); try { await api(`/esim/${item.id}/auto-renew`, { method: 'POST', body: { on: !item.autoRenew } }); toast.success(item.autoRenew ? 'Auto-renew off: the line ends after this paid month' : 'Auto-renew on'); reload(); } catch (e) { toast.error(e.message); } finally { setBusy(false); } };
+  const flip = async () => { setBusy(true); try { await api(`/esim/${item.id}/auto-renew`, { method: 'POST', body: { on: !item.autoRenew } }); toast.success(item.autoRenew ? `Auto-renew off: the line ends on ${String(item.expiresAt || '').slice(0, 10) || 'its end date'}` : 'Auto-renew on'); reload(); } catch (e) { toast.error(e.message); } finally { setBusy(false); } };
   return (
     <button type="button" role="switch" aria-checked={item.autoRenew} disabled={busy} onClick={flip} className="civr-btn civr-btn-ghost civr-btn-sm gap-2" data-testid={`esim-autorenew-${item.id}`}>
       <span className={`shrink-0 inline-block w-8 h-4 rounded-full relative overflow-hidden transition-colors ${item.autoRenew ? 'bg-[#818cf8]' : 'bg-[#3f3f46]'}`}><span className={`absolute left-0 top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${item.autoRenew ? 'translate-x-4' : 'translate-x-0.5'}`} /></span>
@@ -118,7 +121,7 @@ function Line({ item, reload }) {
       <div className="flex flex-wrap items-center gap-3">
         <Smartphone className="w-5 h-5 text-[#818cf8]" /><span className="font-mono text-lg" data-no-translate>{item.phoneNumber || 'Number coming'}</span>
         <span className={`text-sm ${tone}`} data-testid={`esim-status-${item.id}`}>{s}</span>
-        <span className="text-xs text-[#a1a1aa] ml-auto">{item.price ? (item.autoRenew ? `$${item.price}/month · next ${String(item.nextBillAt || '').slice(0, 10) || '—'}` : `Auto-renew off · ends ${String(item.nextBillAt || '').slice(0, 10) || '—'}`) : 'Linked by CloudIVR'}</span>
+        <span className="text-xs text-[#a1a1aa] ml-auto" data-testid={`esim-renew-info-${item.id}`}>{renewText(item, (v) => `$${v}`)}</span>
       </div>
       {item.note && <p className="text-sm text-[#fbbf24]">{item.note}</p>}
       {item.formerNumbers?.length > 0 && <p className="text-xs text-[var(--c-muted)]" data-testid={`esim-former-${item.id}`}>Previous numbers: <span className="font-mono" data-no-translate>{item.formerNumbers.join(', ')}</span></p>}

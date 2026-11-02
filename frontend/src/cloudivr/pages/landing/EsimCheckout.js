@@ -5,6 +5,7 @@ import { X, Loader2, Smartphone, Check, Copy, AlertTriangle, ArrowRight } from '
 import { api, useApi } from '../../api';
 import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
+import { RenewPick } from '../esim/RenewPick';
 
 // Landing-page eSIM checkout: details → account → pay (wallet, or crypto top-up then auto-order) → done.
 export const openEsimCheckout = (planId) => window.dispatchEvent(new CustomEvent('civr-esim-checkout', { detail: planId || null }));
@@ -28,6 +29,7 @@ function Details({ plans, d, set, onNext }) {
       <Label text="Your phone’s IMEI" hint="Dial *#06# on the phone that will use the eSIM. Use the first IMEI if it shows two."><input className={`${IN} font-mono`} inputMode="numeric" maxLength={17} value={d.imei} onChange={e => set({ imei: e.target.value })} placeholder="15 digits" data-testid="esim-co-imei" /></Label>
       <Label text="ZIP code for your number (optional)" hint="We’ll ask for a number near this USA ZIP code. The exact area code can’t be guaranteed."><input className={`${IN} font-mono max-w-[180px]`} inputMode="numeric" value={d.zip} onChange={e => set({ zip: e.target.value.replace(/\D/g, '').slice(0, 5) })} placeholder="e.g. 10011" data-testid="esim-co-zip" /></Label>
       <Label text="Email for your QR code" hint="We send the eSIM QR code here as soon as it’s ready. It’s also in the app."><input className={IN} type="email" autoComplete="email" value={d.email} onChange={e => set({ email: e.target.value })} placeholder="you@example.com" data-testid="esim-co-qr-email" /></Label>
+      <RenewPick on={d.autoRenew !== false} onChange={(v) => set({ autoRenew: v })} price={plans.find(p => p.planId === d.planId)?.price} testid="esim-co-autorenew" className="border-slate-200" />
       <Btn onClick={onNext} disabled={!imeiOk || !zipOk || !emailOk} data-testid="esim-co-next">Continue<ArrowRight className="w-4 h-4" /></Btn>
     </div>
   );
@@ -147,7 +149,7 @@ function Checkout({ plans, first, onClose }) {
   const { account } = useCivrAuth();
   const nav = useNavigate();
   const [step, setStep] = useState('details');
-  const [d, setD] = useState({ planId: first || plans[0].planId, imei: '', zip: '', email: account?.email || '' });
+  const [d, setD] = useState({ planId: first || plans[0].planId, imei: '', zip: '', email: account?.email || '', autoRenew: true });
   const set = (x) => setD(v => ({ ...v, ...x }));
   const plan = plans.find(p => p.planId === d.planId) || plans[0];
   const box = useRef(null);
@@ -155,7 +157,7 @@ function Checkout({ plans, first, onClose }) {
   const next = () => { if (account) saveDraft({ ...d, account: account.id }); setStep(account ? 'pay' : 'account'); };
   const signedIn = (acc) => { saveDraft({ ...d, account: acc?.id || null }); setStep('pay'); };
   const paid = useCallback(() => { dropDraft(); setStep('done'); }, []);
-  const place = useCallback(() => api('/esim', { method: 'POST', body: { planId: plan.planId, imei: d.imei, zipcode: d.zip, email: (d.email || '').trim() } }), [plan.planId, d.imei, d.zip, d.email]);
+  const place = useCallback(() => api('/esim', { method: 'POST', body: { planId: plan.planId, imei: d.imei, zipcode: d.zip, email: (d.email || '').trim(), autoRenew: d.autoRenew !== false } }), [plan.planId, d.imei, d.zip, d.email, d.autoRenew]);
   return (
     <div className="fixed inset-0 z-[70] bg-slate-900/50 grid place-items-center p-3 sm:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose()} data-testid="esim-checkout">
       <div ref={box} role="dialog" aria-modal="true" aria-labelledby="esim-co-title" className="bg-white text-slate-900 rounded-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-6 sm:p-8 shadow-2xl">

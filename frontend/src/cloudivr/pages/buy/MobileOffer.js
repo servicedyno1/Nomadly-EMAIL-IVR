@@ -7,6 +7,7 @@ import { useShell } from '../../Shell';
 import { Field, ErrorNote } from '../../ui';
 import { WalletPay } from '../../WalletPay';
 import { cp } from '../../paths';
+import { RenewPick } from '../esim/RenewPick';
 
 // USA mobile number for texting: the carrier assigns it after payment, near the ZIP given.
 export function MobileOffer({ onBought, open: startOpen = false }) {
@@ -16,8 +17,9 @@ export function MobileOffer({ onBought, open: startOpen = false }) {
   const [zip, setZip] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  const [autoRenew, setAutoRenew] = useState(true);
   if (!data?.available) return null;
-  const go = async () => { setBusy(true); setErr(null); try { await api('/mobile-numbers', { method: 'POST', body: { zipcode: zip } }); toast.success(`Paid ${money(data.price)}. Your number is being assigned`); refreshSummary(); onBought?.(); } catch (e) { setErr(e); } finally { setBusy(false); } };
+  const go = async () => { setBusy(true); setErr(null); try { await api('/mobile-numbers', { method: 'POST', body: { zipcode: zip, autoRenew } }); toast.success(`Paid ${money(data.price)}. Your number is being assigned`); refreshSummary(); onBought?.(); } catch (e) { setErr(e); } finally { setBusy(false); } };
   return (
     <div className="civr-card p-6 mt-6 space-y-4" data-testid="mobile-offer">
       <div className="flex flex-wrap items-start gap-3">
@@ -31,11 +33,12 @@ export function MobileOffer({ onBought, open: startOpen = false }) {
       <p className="text-sm flex items-start gap-2 text-[#fbbf24]" data-testid="mobile-offer-reveal-note"><Lock className="w-4 h-4 mt-0.5 shrink-0" />You can’t pick the exact number. The carrier assigns it after your payment is confirmed, and we show it to you as soon as it’s ready, usually within minutes.</p>
       {!open ? <button type="button" onClick={() => setOpen(true)} className="civr-btn civr-btn-ghost" data-testid="mobile-offer-start">Get a mobile number</button> : <>
         <Field label="ZIP code" hint="We ask the carrier for a number near this USA ZIP code. The area code can’t be guaranteed."><input className="civr-input font-mono max-w-[160px]" inputMode="numeric" value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10011" data-testid="mobile-offer-zip" /></Field>
+        <RenewPick on={autoRenew} onChange={setAutoRenew} price={data.price} testid="mobile-offer-autorenew" />
         <WalletPay price={data.price} onWallet={go} busy={busy} disabled={zip.length !== 5} testid="mobile-offer-pay" walletTestid="mobile-offer-pay-button" cryptoTestid="mobile-offer-crypto">
           <button type="button" onClick={() => setOpen(false)} className="civr-btn civr-btn-ghost" data-testid="mobile-offer-cancel">Cancel</button>
         </WalletPay>
         <ErrorNote error={err} testid="mobile-offer-error" />
-        <p className="text-xs text-[var(--c-muted)]">Renews monthly from your wallet. Manage it under <Link to={cp('/app/numbers')} className="underline">My numbers</Link>.</p>
+        <p className="text-xs text-[var(--c-muted)]">Manage it under <Link to={cp('/app/numbers')} className="underline">My numbers</Link>.</p>
       </>}
     </div>
   );

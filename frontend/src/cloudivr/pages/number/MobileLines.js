@@ -9,6 +9,7 @@ import { ask } from '../../confirm';
 import { cp } from '../../paths';
 import { WalletPay, RenewWarning } from '../../WalletPay';
 import { NewNumber } from '../esim/NewNumber';
+import { renewText } from '../esim/RenewPick';
 
 const STATUS = { provisioning: 'Assigning your number…', active: 'Active', suspended: 'Paused · monthly fee due', failed: 'Couldn’t be set up · refunded' };
 
@@ -17,7 +18,6 @@ function MobileLine({ item, reload }) {
   const [busy, setBusy] = useState(false);
   const act = async (path, body, msg) => { setBusy(true); try { await api(`/esim/${item.id}/${path}`, { method: 'POST', body }); toast.success(msg); reload(); } catch (e) { toast.error(e.message); } finally { setBusy(false); } };
   const cancel = async () => { if (await ask(`Cancel ${item.phoneNumber}? It stops sending and receiving texts and can’t be recovered.`, { danger: true, ok: 'Cancel number', cancel: 'Keep it', title: 'Cancel this number?' })) act('cancel', {}, 'Cancelled'); };
-  const date = String(item.nextBillAt || '').slice(0, 10);
   return (
     <div className="civr-card p-5 space-y-3" data-testid={`mobile-line-${item.id}`}>
       <div className="flex flex-wrap items-center gap-3">
@@ -25,7 +25,7 @@ function MobileLine({ item, reload }) {
         <span className="civr-pill">Virtual USA mobile · real carrier</span>
         <span className="text-sm text-[var(--c-muted)]" data-testid={`mobile-line-status-${item.id}`}>{STATUS[item.status] || item.status}</span>
         {item.status === 'provisioning' && <Loader2 className="w-4 h-4 animate-spin text-[var(--c-muted)]" />}
-        <span className="text-xs text-[var(--c-muted)] ml-auto">{!item.price ? 'Linked by CloudIVR' : item.autoRenew ? `${money(item.price)}/month${date ? ` · next ${date}` : ''}` : `Auto-renew off${date ? ` · ends ${date}` : ''}`}</span>
+        <span className="text-xs text-[var(--c-muted)] ml-auto" data-testid={`mobile-renew-info-${item.id}`}>{renewText(item, money)}</span>
       </div>
       {item.status === 'provisioning' && <p className="text-sm text-[var(--c-muted)]" data-testid={`mobile-line-pending-${item.id}`}>{`Paid. We asked for a number near ${item.zipcode || 'your ZIP code'}; it appears here as soon as the carrier assigns it.`}</p>}
       {item.note && <p className="text-sm text-[#fbbf24]">{item.note}</p>}
