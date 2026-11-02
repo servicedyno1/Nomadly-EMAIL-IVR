@@ -30,6 +30,8 @@ async function call(method, path, data, extra = {}) {
 }
 // Telegram-bot buyers (non-web chat ids) get every notice in their bot chat; web accounts in the CloudIVR inbox.
 const isBot = (id) => !!S?.bot && !require('./cloudivr-web/notify').isWebChatId(id)
+// Bot buyers' later notices in their own language (esim-bot.notice); web lines keep the English text.
+const bt = (d, key, ...a) => (isBot(d.chatId) ? (S.notice || require('./esim-bot').notice)(d.lang, key, ...a) : null)
 const say = (id, text, extra) => isBot(id) ? S.bot.sendMessage(id, text, { disable_web_page_preview: true }).catch(e => S.log(`[eSIM] bot notice ${id}: ${e.message}`)) : S.tell(id, text, extra)
 const unwrap = (r) => (Array.isArray(r?.data) ? r.data : r?.data?.items || r?.data || [])
 const FRIENDLY = 'The eSIM service didn’t respond. Try again in a minute.'
@@ -129,8 +131,8 @@ async function linkUser(d) {
 async function syncUser(chatId) {
   for (const d of await S.col.find({ chatId: String(chatId), status: { $in: ['active', 'suspended'] }, iccid: { $ne: null } }).toArray()) await linkUser(d).catch(e => S.log(`[Spenza] user sync ${d._id}: ${e.message}`))
 }
-async function buy(chatId, { planId, imei, zipcode, email, autoRenew, source }) {
-  const bot = source === 'telegram'
+async function buy(chatId, { planId, imei, zipcode, email, autoRenew, source, lang }) {
+  const bot = source === 'telegram' && !require('./cloudivr-web/notify').isWebChatId(chatId)
   const qrEmail = String(email || '').trim().toLowerCase()
   if ((!bot || qrEmail) && !EMAIL_RE.test(qrEmail)) return { error: 'Enter the email address where we should send your eSIM QR code.' }
   const im = String(imei || '').replace(/\D/g, '')
@@ -142,7 +144,7 @@ async function buy(chatId, { planId, imei, zipcode, email, autoRenew, source }) 
   if (!plan.simId) return { error: 'eSIMs are temporarily unavailable. Try again later.' }
   if (!(await S.w.debit(chatId, plan.price))) return { error: `Your wallet needs $${plan.price} for this eSIM. Top up first.`, code: 'insufficient_balance' }
   const _id = 'es_' + crypto.randomBytes(6).toString('hex')
-  const doc = { _id, chatId: String(chatId), planId, price: plan.price, imei: im, zipcode: zip || null, simId: plan.simId, qrEmail: qrEmail || null, autoRenew: autoRenew !== false, status: 'provisioning', callsTo: 'device', ...(bot ? { source: 'telegram' } : {}), createdAt: new Date(), updatedAt: new Date() }
+  const doc = { _id, chatId: String(chatId), planId, price: plan.price, imei: im, zipcode: zip || null, simId: plan.simId, qrEmail: qrEmail || null, autoRenew: autoRenew !== false, status: 'provisioning', callsTo: 'device', ...(bot ? { source: 'telegram', lang: ['en', 'fr', 'hi', 'zh'].includes(lang) ? lang : 'en' } : {}), createdAt: new Date(), updatedAt: new Date() }
   await S.col.insertOne(doc)
   await txn(chatId, 'esim-purchase', plan.price, { planId, lineId: _id })
   if (dry()) { await S.col.updateOne({ _id }, { $set: { transactionId: 'preview-' + _id, simulated: true } }); return { item: pub(doc) } }
@@ -155,7 +157,7 @@ async function buy(chatId, { planId, imei, zipcode, email, autoRenew, source }) 
     await S.w.credit(chatId, plan.price); await txn(chatId, 'esim-refund', plan.price, { lineId: _id })
     S.log(`[eSIM] create ${_id}: ${e.message}`)
     await S.col.updateOne({ _id }, { $set: { status: 'failed', note: 'The eSIM couldn’t be created. Your payment was refunded.', providerError: e.message, updatedAt: new Date() } })
-    say(chatId, `⚠️ Your eSIM couldn’t be created. $${plan.price} was refunded to your wallet.`, { kind: 'billing', meta: { esim: _id } })
+    say(chatId, bt({ chatId, lang: doc.lang }, 'failed', plan.price) || `⚠️ Your eSIM couldn’t be created. $${plan.price} was refunded to your wallet.`, { kind: 'billing', meta: { esim: _id } })
     return { error: `We couldn’t create the eSIM right now. Your $${plan.price} was refunded to your wallet.`, code: 'esim_failed' }
   }
 }
@@ -255,7 +257,7 @@ async function pollOne(d) {
   } else if (['failed', 'error'].includes(st) || Date.now() - new Date(d.createdAt).getTime() > 86400000) {
     await S.w.credit(d.chatId, d.price); await txn(d.chatId, 'esim-refund', d.price, { lineId: d._id })
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'failed', note: 'The eSIM couldn’t be created. Your payment was refunded.', providerError: r?.error?.message || (st ? null : 'timed out after 24 h'), updatedAt: new Date() } })
-    say(d.chatId, d.kind === 'mobile' ? `⚠️ Your USA mobile number couldn’t be set up. $${d.price} was refunded to your wallet.` : `⚠️ Your eSIM couldn’t be created. $${d.price} was refunded to your wallet.`, { kind: 'billing', meta: d.kind === 'mobile' ? { mobile: d._id } : { esim: d._id } })
+    say(d.chatId, bt(d, 'failed', d.price) || (d.kind === 'mobile' ? `⚠️ Your USA mobile number couldn’t be set up. $${d.price} was refunded to your wallet.` : `⚠️ Your eSIM couldn’t be created. $${d.price} was refunded to your wallet.`), { kind: 'billing', meta: d.kind === 'mobile' ? { mobile: d._id } : { esim: d._id } })
   }
 }
 
@@ -271,13 +273,13 @@ async function qrPng(d) {
 async function sendBotQr(d) {
   const q = await qrPng(d)
   if (!q) return false
-  const caption = `📱 Your USA T-Mobile eSIM${d.phoneNumber ? ` ${d.phoneNumber}` : ''}\n\n${INSTALL}${q.code ? `\n\nManual code: ${q.code}` : ''}`
+  const caption = bt(d, 'caption', d.phoneNumber, q.code) || `📱 Your USA T-Mobile eSIM${d.phoneNumber ? ` ${d.phoneNumber}` : ''}\n\n${INSTALL}${q.code ? `\n\nManual code: ${q.code}` : ''}`
   await S.bot.sendPhoto(d.chatId, q.png, { caption: caption.slice(0, 1024) }, { filename: 'esim-qr.png', contentType: 'image/png' })
   return true
 }
 async function botReady(d) {
   const sent = d.qrEmail ? await emailQr(d) : false
-  await say(d.chatId, `✅ Your USA T-Mobile eSIM is ready${d.phoneNumber ? `: ${d.phoneNumber}` : ''}. It has two-way SMS: send and receive texts on that phone.${sent ? ` We also emailed the QR code to ${d.qrEmail}.` : d.qrEmail ? '' : ' Tip: add an email under My eSIMs to keep a copy of the QR code.'}`)
+  await say(d.chatId, bt(d, 'ready', d.phoneNumber, sent ? d.qrEmail : null, !!d.qrEmail))
   await sendBotQr(d).catch(e => S.log(`[eSIM] bot QR ${d._id}: ${e.message}`))
 }
 async function emailQr(d) {
@@ -336,7 +338,7 @@ async function receipt(d, until) {
   const acc = await S.db.collection('webAccounts').findOne({ _id: { $in: [String(d.chatId), Number(d.chatId)] } }, { projection: { email: 1 } })
   const to = acc?.email || botEmailOf(d)
   const bal = round2(await S.w.balance(d.chatId)).toFixed(2), what = d.kind === 'mobile' ? 'USA mobile number' : 'USA eSIM'
-  if (isBot(d.chatId)) await say(d.chatId, `🧾 Your ${what}${d.phoneNumber ? ` ${d.phoneNumber}` : ''} renewed: $${Number(d.price).toFixed(2)} paid from your wallet. Active until ${day(until)}. Wallet balance: $${bal}.`)
+  if (isBot(d.chatId)) await say(d.chatId, bt(d, 'receipt', d.phoneNumber, Number(d.price).toFixed(2), day(until), bal))
   if (!to) return false
   const row = (k, v) => `<tr><td style="padding:4px 16px 4px 0;color:#64748b">${k}</td><td style="padding:4px 0"><b>${v}</b></td></tr>`
   const html = `<p>Your ${what} renewed. Here’s your receipt.</p><table style="border-collapse:collapse;font-size:14px">${row('Line', `${what}${d.phoneNumber ? ` ${d.phoneNumber}` : ''}`)}${row('Paid', `$${Number(d.price).toFixed(2)} from your wallet`)}${row('Date', day(new Date()))}${row('Now active until', day(until))}${row('Wallet balance', `$${bal}`)}${row('Reference', d._id)}</table><p>Auto-renew stays on. You can turn it off any time ${d.source === 'telegram' ? 'in the Telegram bot under My eSIMs' : 'under Numbers → eSIM &amp; mobile numbers'}.</p>`
@@ -367,7 +369,7 @@ async function billOne(d) {
   if (d.status !== 'suspended') {
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'suspended', renewFailedAt: new Date(), note: `The $${d.price} renewal is due. Top up your wallet before ${day(d.expiresAt)} or the line ends then.`, updatedAt: new Date() } })
     await setService(d, false)
-    say(d.chatId, `⏸️ Your ${label(d)} is paused: the $${d.price} renewal couldn’t be paid from your wallet. Top up before ${day(d.expiresAt)} — we’ll retry automatically — or it ends on that date.`, { kind: 'billing', meta: { esim: d._id } })
+    say(d.chatId, bt(d, 'paused', d.phoneNumber, d.price, day(d.expiresAt)) || `⏸️ Your ${label(d)} is paused: the $${d.price} renewal couldn’t be paid from your wallet. Top up before ${day(d.expiresAt)} — we’ll retry automatically — or it ends on that date.`, { kind: 'billing', meta: { esim: d._id } })
   }
   return false
 }
@@ -381,7 +383,7 @@ async function expire(d) {
   await S.col.updateOne({ _id: d._id }, { $set: { status: 'cancelled', note: `Ended on ${day(d.expiresAt)}: ${why}.`, updatedAt: new Date() } })
   if (d.kind === 'mobile' && d.phoneNumber) { await S.db.collection('webCallerIds').deleteOne({ _id: d.phoneNumber, method: 'auto' }); dropSip(d) }
   if (d.callsTo === 'browser') await syncSip()
-  say(d.chatId, `📴 Your ${label(d)} ended on ${day(d.expiresAt)} because ${why}.`, { kind: 'billing', meta: { esim: d._id } })
+  say(d.chatId, bt(d, 'ended', d.phoneNumber, day(d.expiresAt), d.autoRenew === false) || `📴 Your ${label(d)} ended on ${day(d.expiresAt)} because ${why}.`, { kind: 'billing', meta: { esim: d._id } })
 }
 // 3 days before expiry: app alert + email (or a text for phone-only accounts) with the date and wallet balance.
 async function remind(d) {
@@ -394,7 +396,7 @@ async function remind(d) {
   const url = isBot(d.chatId) ? '' : require('./cloudivr-web/emails').appUrl(`/app/wallet?amount=${Math.max(5, Math.ceil(short))}`)
   const link = /^https?:\/\//.test(url) ? url : null
   await S.col.updateOne({ _id: d._id }, { $set: { remindedFor: new Date(d.expiresAt) } })
-  say(d.chatId, `🔔 ${text}`, { kind: 'billing', meta: { ...(d.kind === 'mobile' ? { mobile: d._id } : { esim: d._id }), ...(renews && short > 0 ? { topup: Math.ceil(short) } : {}) } })
+  say(d.chatId, (renews ? bt(d, 'renews', d.phoneNumber, end, d.price, round2(bal).toFixed(2), Math.ceil(short)) : bt(d, 'ends', d.phoneNumber, end, round2(bal).toFixed(2))) || `🔔 ${text}`, { kind: 'billing', meta: { ...(d.kind === 'mobile' ? { mobile: d._id } : { esim: d._id }), ...(renews && short > 0 ? { topup: Math.ceil(short) } : {}) } })
   const acc = await S.db.collection('webAccounts').findOne({ _id: { $in: [d.chatId, Number(d.chatId)] } }, { projection: { email: 1, phone: 1 } })
   const cta = renews && short > 0 && link && !isBot(d.chatId)
   const to = acc?.email || botEmailOf(d)
@@ -607,7 +609,7 @@ async function tick() {
 }
 
 // The Telegram bot instance: bot buyers get notices and the QR code in their chat.
-function setBot(bot) { if (S && bot) S.bot = bot }
+function setBot(bot, notice) { if (S && bot) Object.assign(S, { bot, notice }) }
 function init({ db, log = console.log, tell }) {
   if (S) return api
   S = { db, col: db.collection('esimLines'), w: walletOps(db), log, tell }

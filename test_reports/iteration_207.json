@@ -1,0 +1,57 @@
+{
+  "summary": "Tested the Telegram bot USA T-Mobile eSIM through the mock Telegram API, plus the web eSIM regression and the 'calling number' to 'VoIP number' copy change. Bot results: the existing e2e passes 24/24 and the unit test passes. The new extra e2e passes 22/26; all 4 failures are in the test's crypto-callback block, which hit the underpay path (USDT conversion gave $74.90 for $75), and the rerun with an overpay passed 5/5. The rest of the extra e2e passed: Luhn and formatted IMEI, bad ZIP and bad email rejected, Back navigation, crypto coin list, the digitalOrders doc with the esim payload and productKey esim_spenza, the email-QR flow, and the Hindi and Chinese screens. The simulated BlockBee callback test passes 5/5: line created with source telegram, order delivered with esimLineId, wallet keeps only the overpay, 'Paid $75' message, and a replayed webhook creates no second line. Web: the eSIM purchase still needs an email (400 without it) and works with one. FOUND AND FIXED a bug: the web POST /esim accepted source:'telegram' in the request body, so a web user could skip the required email. No customer-facing 'calling number' text is left in EN/FR/ES on Messages > New message, the thread header, the browser phone, the caller-ID default, Numbers, Buy and Terms.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/cloudivr-web/esim", "issue": "FIXED by testing agent: route passed raw req.body to ES.buy, so a web client sending source:'telegram' skipped the required-email check and created a line marked as a Telegram line (reproduced: 200 with no email). Fix in js/cloudivr-web/esim.js: the route now forces source:'web' after spreading the body. nodejs restarted; retest passes 4/4.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "bot crypto-pay-digital-product", "issue": "Preview: DynoPay and the BlockBee fallback both fail, so the bot replies 'Error fetching cryptocurrency address'. It is still worth fixing that the digitalOrders doc (status pending_payment) is inserted BEFORE the address is fetched, so every failed attempt leaves an orphan pending order (same pattern for all digital products)."},
+      {"endpoint": "spenza.botReady / sendBotQr", "issue": "The 'eSIM is ready' notice, the QR photo caption with install steps, the provisioning-failed/refund notices and the receipt email are English only. FR/HI/ZH bot users get English after the translated order flow."},
+      {"endpoint": "esim-bot labels", "issue": "esimBot.PRICE=75 and lang dpEsim '$75/month' are hardcoded, while the amount charged comes from ES.forSale() plan.price. If the owner changes the web price, the bot buttons still say $75 (and the home handler matches on es.buy(75)) but charge the new price."},
+      {"endpoint": "QR email (preview env)", "issue": "'Email me the QR code' returns 'The email couldn’t be sent right now'. Log: '[eSIM] QR email ...: Not Found: The requested domain was not found' (mail provider domain not configured in preview). The handler shows a clean error and goes back to line details. This is an environment issue, not a code issue."},
+      {"endpoint": "BlockBee digital-product webhook", "issue": "The sentMoreMoney/sentLessMoney notices sent through sendMessage() did not show up in the mock tg-out. The extra amount was correctly credited to the wallet. This is a generic path, not specific to the eSIM."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Browser phone (Softphone) 'Show as' select", "issues": ["The default option 'Same as the VoIP number you call from' is cut off ('...you cal') in the narrow panel and uses a monospace font, unlike the number select above it. Consider a shorter label (e.g. 'Same as your VoIP number') or the normal font."]},
+      {"screen": "Landing", "issues": ["frontend/src/cloudivr/pages/landing/Families.js (holding 'VoIP numbers that answer, call and talk for you') is not imported anywhere, so the Families card is never rendered on the landing page. The copy change can't be seen; either wire the component in or delete it."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/js/tests/bot_ui_esim_tmobile_2026-11.js",
+    "/app/js/tests/bot_ui_esim_tmobile_extra_iter207.js",
+    "/app/js/tests/bot_esim_crypto_webhook_iter207.js",
+    "/app/backend/tests/test_iter207_web_esim_regression.py",
+    "/app/backend/tests/esim_bot.test.js",
+    "/app/test_reports/pytest/pytest_iter207.xml"
+  ],
+  "action_items": [
+    "Review the testing-agent fix in js/cloudivr-web/esim.js (POST /esim forces source:'web'). Consider an allow-list of body fields for ES.buy.",
+    "Translate the bot-side eSIM ready, QR caption and refund notices (spenza.botReady, sendBotQr, say) using the line owner's userLanguage.",
+    "Derive the bot eSIM button and label price from the plan (ES.forSale) instead of hardcoding 75, or make sure the labels and the charged price can't drift apart.",
+    "Insert the crypto digitalOrders doc only after a deposit address is obtained (or mark it failed), to avoid orphan pending_payment orders.",
+    "Landing Families.js is dead code: render it or remove it.",
+    "Shorten or restyle the Softphone caller-ID default option so it isn't truncated."
+  ],
+  "critical_code_review_comments": [
+    "js/_index.js is about 52k lines; the new eSIM handlers are fine but follow the existing monolith. esim-bot.js is clean and small.",
+    "fulfillPaid credits the wallet then runs ES.buy: if Spenza refuses, the money correctly stays in the wallet and the order is marked credited_to_wallet. This is good.",
+    "Crypto webhook replay protection relies on del(chatIdOfPayment, ref) plus the auth middleware. Verified: a replayed callback doesn't double-create. paidOrder.status is not checked before fulfilling, so a guard such as status !== 'delivered' would add defence in depth.",
+    "Wallet path: the walletOk balance check uses getBalance(walletOf) while ES.buy debits through walletOps, so there are two sources of truth. It is consistent today (usdOut +75 verified)."
+  ],
+  "updated_files": [
+    "/app/js/cloudivr-web/esim.js",
+    "/app/js/tests/bot_ui_esim_tmobile_extra_iter207.js",
+    "/app/js/tests/bot_esim_crypto_webhook_iter207.js",
+    "/app/backend/tests/test_iter207_web_esim_regression.py"
+  ],
+  "success_rate": {"backend": "100% after fix (bot 24/24 + 5/5 webhook; extra 22/26 with the 4 failures being the test's underpay path; web 4/4 after the source-spoof fix)", "frontend": "100% for the copy checks (EN/FR/ES); 2 minor design notes"},
+  "seed_data_creation": "Throwaway bot chat ids 990206071-074 and 990206081 were seeded and cleaned up (0 leftovers checked). Bob's test web eSIM lines were deleted and his wallet restored by the pytest fixture.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Bot runs on supervisor 'nodejs' (no hot reload: restart after JS edits). Mock Telegram on :5099. Run: node js/tests/bot_ui_esim_tmobile_2026-11.js ; node js/tests/bot_ui_esim_tmobile_extra_iter207.js (crypto address fetch fails in preview) ; node js/tests/bot_esim_crypto_webhook_iter207.js (seeds chatIdOfPayment and calls GET /crypto-pay-digital-product with coin=trc20_usdt; use VALUE_COIN>=76 because BlockBee converts 75 USDT to $74.90) ; pytest backend/tests/test_iter207_web_esim_regression.py. The UI language is set through localStorage 'civr.lang'.",
+  "rca of the issue": "Web eSIM email bypass: ES.buy(chatId, {source}) treats source==='telegram' as a bot buyer (email optional). js/cloudivr-web/esim.js passed req.body straight through, so the client controlled 'source'. Repro: POST /api/cloudivr-web/esim {planId, imei, source:'telegram'} with no email returned 200. Mitigation applied: the route sets source:'web' after spreading the body."
+}

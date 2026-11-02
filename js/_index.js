@@ -4881,7 +4881,7 @@ const loadData = async () => {
   cloudivrWeb.notify.setDb(db)
   // Bot eSIM orders (USA T-Mobile via Spenza): notices + QR code go to the buyer's bot chat.
   esimBot.ES.init({ db, log, tell: (id, text, extra) => cloudivrWeb.notify.push(id, text, null, extra || { kind: 'system' }).catch(() => {}) })
-  esimBot.ES.setBot(bot)
+  esimBot.ES.setBot(bot, esimBot.notice)
   rsApply.init({ db, brand: process.env.CHAT_BOT_BRAND })
   telnyxPendingOrders = db.collection('telnyxPendingOrders')
   telnyxPendingOrders.createIndex({ status: 1, nextCheckAt: 1 }).catch(() => {})
@@ -10818,8 +10818,9 @@ bot?.on('message', msg => {
     'esim-bot-home': async () => {
       const es = esimBot.s(lang)
       await set(state, chatId, 'action', 'esim-bot-home')
-      const has = (await esimBot.lines(chatId).catch(() => [])).length > 0
-      return send(chatId, es.home(esimBot.PRICE), k.of([[es.buy(esimBot.PRICE)], ...(has ? [[es.mine]] : []), ['↩️ Back', '🏠 Main Menu']]))
+      const [has, p] = await Promise.all([esimBot.lines(chatId).then(x => x.length > 0).catch(() => false), esimBot.plan()])
+      const price = p?.price || esimBot.PRICE
+      return send(chatId, es.home(price), k.of([[es.buy(price)], ...(has ? [[es.mine]] : []), ['↩️ Back', '🏠 Main Menu']]))
     },
     'esim-bot-list': async () => {
       const es = esimBot.s(lang)
@@ -20036,8 +20037,9 @@ ${message.replace(/\n/g, '<br>')}
       if (isBackPress(message)) return goto.submenu6()
       if (isMainMenuPress(message)) return goto.displayMainMenuButtons()
       if (message === es.mine) return goto['esim-bot-list']()
-      if (message !== es.buy(esimBot.PRICE)) return send(chatId, t.selectValidOption)
-      if (!(await esimBot.plan())) return send(chatId, es.unavailable)
+      const p = await esimBot.plan()
+      if (message !== es.buy(p?.price || esimBot.PRICE)) return send(chatId, t.selectValidOption)
+      if (!p) return send(chatId, es.unavailable)
       await saveInfo('esimOrder', {})
       await set(state, chatId, 'action', 'esim-bot-imei')
       return send(chatId, es.askImei, k.of([['↩️ Back']]))
@@ -20258,7 +20260,7 @@ ${message.replace(/\n/g, '<br>')}
         log('[CryptoFallback] BlockBee unavailable for digital product, falling back to DynoPay')
         const dynoCoin = tickerOfDyno[tickerKey]
         const dynoResult = await getDynopayCryptoAddress(price, dynoCoin, `${SELF_URL}/dynopay/crypto-pay-digital-product`, { "product_name": "payDigitalProduct", "refId": ref })
-        if (!dynoResult?.address) return send(chatId, t.errorFetchingCryptoAddress, trans('o'))
+        if (!dynoResult?.address) { await digitalOrdersCol.updateOne({ orderId }, { $set: { status: 'address_failed' } }); return send(chatId, t.errorFetchingCryptoAddress, trans('o')) }
         set(chatIdOfDynopayPayment, ref, { chatId, price, product, orderId, action: 'payDigitalProduct', address: dynoResult.address })
         log({ ref })
         await generateQr(bot, chatId, dynoResult.qr_code, info?.userLanguage ?? 'en')
@@ -20279,7 +20281,7 @@ ${message.replace(/\n/g, '<br>')}
       } else {
         log('[CryptoFallback] DynoPay unavailable for digital product, falling back to BlockBee')
         const { address: bbAddr, bb } = await getCryptoDepositAddress(ticker, chatId, SELF_URL, `/crypto-pay-digital-product?a=b&ref=${ref}&`)
-        if (!bbAddr) return send(chatId, t.errorFetchingCryptoAddress, trans('o'))
+        if (!bbAddr) { await digitalOrdersCol.updateOne({ orderId }, { $set: { status: 'address_failed' } }); return send(chatId, t.errorFetchingCryptoAddress, trans('o')) }
         set(chatIdOfPayment, ref, { chatId, price, product, orderId })
         log({ ref })
         await sendQrCode(bot, chatId, bb, info?.userLanguage ?? 'en')
@@ -41309,6 +41311,7 @@ app.get('/crypto-pay-digital-product', auth, async (req, res) => {
   }
   const paidOrder = await digitalOrdersCol.findOne({ orderId })
   if (paidOrder?.productKey === esimBot.PRODUCT_KEY && paidOrder.esim) {
+    if (paidOrder.status !== 'pending_payment') return res.send(html())
     const r = await esimBot.fulfillPaid(db, chatId, paidOrder.esim, Number(price), lang)
     await digitalOrdersCol.updateOne({ orderId }, { $set: { status: r.ok ? 'delivered' : 'credited_to_wallet', paymentConfirmedAt: new Date(), deliveredAt: r.ok ? new Date() : null, esimLineId: r.lineId || null } })
     await auditCryptoTx(chatId, 'digital-product', price, { product, orderId, coin, value, ref }, 'blockbee')
@@ -46709,6 +46712,7 @@ app.post('/dynopay/crypto-pay-digital-product', authDyno, async (req, res) => {
   }
   const paidOrder = await digitalOrdersCol.findOne({ orderId })
   if (paidOrder?.productKey === esimBot.PRODUCT_KEY && paidOrder.esim) {
+    if (paidOrder.status !== 'pending_payment') return res.send(html())
     const r = await esimBot.fulfillPaid(db, chatId, paidOrder.esim, Number(price), lang)
     await digitalOrdersCol.updateOne({ orderId }, { $set: { status: r.ok ? 'delivered' : 'credited_to_wallet', paymentConfirmedAt: new Date(), deliveredAt: r.ok ? new Date() : null, esimLineId: r.lineId || null } })
     await auditCryptoTx(chatId, 'digital-product', price, { product, orderId, coin, value, ref }, 'dynopay')

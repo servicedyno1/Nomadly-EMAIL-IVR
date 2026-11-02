@@ -131,6 +131,57 @@ const T = {
 }
 const s = (lang) => T[lang] || T.en
 
+// Notices the eSIM engine (spenza.js) sends to bot buyers later on, in the buyer's language.
+const INSTALL = {
+  en: 'On the phone that will use it: Settings → Mobile / Cellular → Add eSIM → Use QR code, then scan the QR code. Keep the phone on Wi-Fi while it installs. Each QR code can be installed once.',
+  fr: 'Sur le téléphone qui l’utilisera : Réglages → Données cellulaires / Réseau mobile → Ajouter une eSIM → Utiliser un QR code, puis scannez le QR code. Restez en Wi-Fi pendant l’installation. Chaque QR code ne s’installe qu’une fois.',
+  hi: 'जिस फ़ोन में लगाना है उस पर: Settings → Mobile / Cellular → Add eSIM → Use QR code, फिर QR कोड स्कैन करें। इंस्टॉल होते समय फ़ोन Wi-Fi पर रखें। हर QR कोड एक ही बार इंस्टॉल होता है।',
+  zh: '在要使用的手机上：设置 → 蜂窝网络/移动数据 → 添加 eSIM → 使用二维码，然后扫描二维码。安装时请保持 Wi-Fi 连接。每个二维码只能安装一次。',
+}
+const N = {
+  en: {
+    ready: (ph, mailed, hasEmail) => `✅ Your USA T-Mobile eSIM is ready${ph ? `: ${ph}` : ''}. It has two-way SMS: send and receive texts on that phone.${mailed ? ` We also emailed the QR code to ${mailed}.` : hasEmail ? '' : ' Tip: use “Email me the QR code” under My eSIMs to keep a copy.'}`,
+    caption: (ph, code) => `📱 Your USA T-Mobile eSIM${ph ? ` ${ph}` : ''}\n\n${INSTALL.en}${code ? `\n\nManual code: ${code}` : ''}`,
+    failed: (p) => `⚠️ Your eSIM couldn’t be created. $${p} was refunded to your wallet.`,
+    receipt: (ph, p, until, bal) => `🧾 Your USA eSIM${ph ? ` ${ph}` : ''} renewed: $${p} paid from your wallet. Active until ${until}. Wallet balance: $${bal}.`,
+    paused: (ph, p, end) => `⏸️ Your eSIM${ph ? ` ${ph}` : ''} is paused: the $${p} renewal couldn’t be paid from your wallet. Top up before ${end} — we’ll retry automatically — or it ends on that date.`,
+    ended: (ph, end, off) => `📴 Your eSIM${ph ? ` ${ph}` : ''} ended on ${end} because ${off ? 'auto-renew was off' : 'the renewal wasn’t paid'}.`,
+    renews: (ph, end, p, bal, short) => `🔔 Your eSIM${ph ? ` ${ph}` : ''} renews on ${end}. $${p} will be taken from your wallet a day before. Wallet balance: $${bal}.${short > 0 ? ` Top up $${short} or more so it doesn’t end.` : ''}`,
+    ends: (ph, end, bal) => `🔔 Your eSIM${ph ? ` ${ph}` : ''} ends on ${end} because auto-renew is off. Turn auto-renew on under My eSIMs before then to keep it. Wallet balance: $${bal}.`,
+  },
+  fr: {
+    ready: (ph, mailed, hasEmail) => `✅ Votre eSIM USA T-Mobile est prête${ph ? ` : ${ph}` : ''}. SMS dans les deux sens : envoyez et recevez des textos sur ce téléphone.${mailed ? ` Nous avons aussi envoyé le QR code à ${mailed}.` : hasEmail ? '' : ' Astuce : utilisez « M’envoyer le QR code par e-mail » dans Mes eSIM pour en garder une copie.'}`,
+    caption: (ph, code) => `📱 Votre eSIM USA T-Mobile${ph ? ` ${ph}` : ''}\n\n${INSTALL.fr}${code ? `\n\nCode manuel : ${code}` : ''}`,
+    failed: (p) => `⚠️ Votre eSIM n’a pas pu être créée. ${p} $ ont été remboursés sur votre portefeuille.`,
+    receipt: (ph, p, until, bal) => `🧾 Votre eSIM USA${ph ? ` ${ph}` : ''} est renouvelée : ${p} $ payés depuis votre portefeuille. Active jusqu’au ${until}. Solde : ${bal} $.`,
+    paused: (ph, p, end) => `⏸️ Votre eSIM${ph ? ` ${ph}` : ''} est suspendue : le renouvellement de ${p} $ n’a pas pu être payé. Rechargez avant le ${end} — nous réessaierons automatiquement — sinon elle se termine à cette date.`,
+    ended: (ph, end, off) => `📴 Votre eSIM${ph ? ` ${ph}` : ''} s’est terminée le ${end} car ${off ? 'le renouvellement auto était désactivé' : 'le renouvellement n’a pas été payé'}.`,
+    renews: (ph, end, p, bal, short) => `🔔 Votre eSIM${ph ? ` ${ph}` : ''} se renouvelle le ${end}. ${p} $ seront prélevés sur votre portefeuille la veille. Solde : ${bal} $.${short > 0 ? ` Rechargez au moins ${short} $ pour qu’elle ne s’arrête pas.` : ''}`,
+    ends: (ph, end, bal) => `🔔 Votre eSIM${ph ? ` ${ph}` : ''} se termine le ${end} car le renouvellement auto est désactivé. Activez-le dans Mes eSIM avant cette date pour la garder. Solde : ${bal} $.`,
+  },
+  hi: {
+    ready: (ph, mailed, hasEmail) => `✅ आपका USA T-Mobile eSIM तैयार है${ph ? `: ${ph}` : ''}। दो-तरफ़ा SMS: उस फ़ोन पर टेक्स्ट भेजें और पाएं।${mailed ? ` QR कोड ${mailed} पर भी ईमेल किया गया।` : hasEmail ? '' : ' सुझाव: कॉपी रखने के लिए मेरे eSIM में “QR कोड ईमेल करें” इस्तेमाल करें।'}`,
+    caption: (ph, code) => `📱 आपका USA T-Mobile eSIM${ph ? ` ${ph}` : ''}\n\n${INSTALL.hi}${code ? `\n\nमैनुअल कोड: ${code}` : ''}`,
+    failed: (p) => `⚠️ आपका eSIM नहीं बन सका। $${p} आपके वॉलेट में वापस कर दिए गए।`,
+    receipt: (ph, p, until, bal) => `🧾 आपका USA eSIM${ph ? ` ${ph}` : ''} रिन्यू हुआ: वॉलेट से $${p}। ${until} तक सक्रिय। वॉलेट बैलेंस: $${bal}।`,
+    paused: (ph, p, end) => `⏸️ आपका eSIM${ph ? ` ${ph}` : ''} रुका है: $${p} का रिन्यूअल वॉलेट से नहीं हो सका। ${end} से पहले टॉप-अप करें — हम अपने-आप फिर कोशिश करेंगे — वरना उसी दिन बंद होगा।`,
+    ended: (ph, end, off) => `📴 आपका eSIM${ph ? ` ${ph}` : ''} ${end} को बंद हुआ क्योंकि ${off ? 'ऑटो-रिन्यू बंद था' : 'रिन्यूअल का भुगतान नहीं हुआ'}।`,
+    renews: (ph, end, p, bal, short) => `🔔 आपका eSIM${ph ? ` ${ph}` : ''} ${end} को रिन्यू होगा। एक दिन पहले वॉलेट से $${p} लिए जाएंगे। वॉलेट बैलेंस: $${bal}।${short > 0 ? ` बंद होने से बचाने के लिए कम से कम $${short} टॉप-अप करें।` : ''}`,
+    ends: (ph, end, bal) => `🔔 आपका eSIM${ph ? ` ${ph}` : ''} ${end} को बंद होगा क्योंकि ऑटो-रिन्यू बंद है। रखने के लिए उससे पहले मेरे eSIM में ऑटो-रिन्यू चालू करें। वॉलेट बैलेंस: $${bal}।`,
+  },
+  zh: {
+    ready: (ph, mailed, hasEmail) => `✅ 您的美国 T-Mobile eSIM 已就绪${ph ? `：${ph}` : ''}。支持双向短信：在该手机上收发短信。${mailed ? `二维码也已发送至 ${mailed}。` : hasEmail ? '' : '提示：可在“我的 eSIM”中使用“将二维码发到邮箱”保留一份副本。'}`,
+    caption: (ph, code) => `📱 您的美国 T-Mobile eSIM${ph ? ` ${ph}` : ''}\n\n${INSTALL.zh}${code ? `\n\n手动代码：${code}` : ''}`,
+    failed: (p) => `⚠️ 您的 eSIM 未能开通。$${p} 已退回您的钱包。`,
+    receipt: (ph, p, until, bal) => `🧾 您的美国 eSIM${ph ? ` ${ph}` : ''} 已续费：从钱包支付 $${p}。有效期至 ${until}。钱包余额：$${bal}。`,
+    paused: (ph, p, end) => `⏸️ 您的 eSIM${ph ? ` ${ph}` : ''} 已暂停：$${p} 续费无法从钱包扣除。请在 ${end} 前充值（我们会自动重试），否则将在当天结束。`,
+    ended: (ph, end, off) => `📴 您的 eSIM${ph ? ` ${ph}` : ''} 已于 ${end} 结束，因为${off ? '自动续费已关闭' : '续费未支付'}。`,
+    renews: (ph, end, p, bal, short) => `🔔 您的 eSIM${ph ? ` ${ph}` : ''} 将于 ${end} 续费。前一天会从钱包扣除 $${p}。钱包余额：$${bal}。${short > 0 ? `请至少充值 $${short}，以免线路结束。` : ''}`,
+    ends: (ph, end, bal) => `🔔 您的 eSIM${ph ? ` ${ph}` : ''} 将于 ${end} 结束，因为自动续费已关闭。如需保留，请在此之前在“我的 eSIM”中开启自动续费。钱包余额：$${bal}。`,
+  },
+}
+const notice = (lang, key, ...args) => (N[lang] || N.en)[key](...args)
+
 const parseImei = (m) => { const x = String(m || '').replace(/\D/g, ''); return x.length === 15 && luhn(x) ? x : null }
 const parseZip = (m) => (/^\d{5}$/.test(String(m || '').trim()) ? String(m).trim() : null)
 const parseEmail = (m) => { const x = String(m || '').trim().toLowerCase(); return EMAIL_RE.test(x) ? x : null }
@@ -146,7 +197,7 @@ const lines = async (chatId) => (await ES.list(chatId)).filter(l => l.status !==
 
 // Wallet-paid order. ES.buy debits the wallet and refunds it if Spenza refuses.
 async function fulfill(db, chatId, order, lang) {
-  const r = await ES.buy(chatId, { ...order, source: 'telegram' })
+  const r = await ES.buy(chatId, { ...order, source: 'telegram', lang })
   if (r.error) return { ok: false, text: s(lang).failed(r.error) }
   const bal = round2(await walletOps(db).balance(chatId)).toFixed(2)
   return { ok: true, text: s(lang).placed(r.item.price, bal), lineId: r.item.id }
@@ -158,4 +209,4 @@ async function fulfillPaid(db, chatId, order, price, lang) {
   return r.ok ? r : { ...r, text: `${r.text}\n\n${s(lang).toWallet(price)}` }
 }
 
-module.exports = { PRODUCT_KEY, PRODUCT_NAME, PRICE, s, parseImei, parseZip, parseEmail, plan, lines, lineLabel, lineFromLabel, fulfill, fulfillPaid, ES }
+module.exports = { notice, PRODUCT_KEY, PRODUCT_NAME, PRICE, s, parseImei, parseZip, parseEmail, plan, lines, lineLabel, lineFromLabel, fulfill, fulfillPaid, ES }

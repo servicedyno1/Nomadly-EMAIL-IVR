@@ -28,13 +28,14 @@ const ES = EB.ES
   r.walletOrderNoEmail = ok.ok && line.source === 'telegram' && line.qrEmail === null && line.autoRenew === true && line.price === 75 && w.usdOut === 75
   const short = await EB.fulfill(db, poor, order, 'en')
   r.shortWalletRefused = !short.ok && /needs \$75/.test(short.text) && (await col.countDocuments({ chatId: poor })) === 0
-  const paid = await EB.fulfillPaid(db, cry, { ...order, email: 'buyer@example.com', autoRenew: false }, 75, 'en')
+  const paid = await EB.fulfillPaid(db, cry, { ...order, email: 'buyer@example.com', autoRenew: false }, 75, 'fr')
   const cl = await col.findOne({ _id: paid.lineId }), cw = await db.collection('walletOf').findOne({ _id: cry })
   r.cryptoOrder = paid.ok && cl.qrEmail === 'buyer@example.com' && cl.autoRenew === false && cw.usdIn === 75 && cw.usdOut === 75
   await col.updateMany({ chatId: { $in: [rich, cry] } }, { $set: { createdAt: new Date(Date.now() - 60000) } })
   await ES.tick()
   await new Promise(x => setTimeout(x, 1500))
   r.qrPhotoInChat = photos.some(x => x.id === rich && x.size > 500 && /Manual code/.test(x.caption)) && photos.some(x => x.id === cry)
+  r.frenchNotices = photos.some(x => x.id === cry && /Code manuel/.test(x.caption)) && chat.some(x => x.id === cry && /est prête/.test(x.text))
   r.readyNoticeInChat = chat.some(x => x.id === rich && /eSIM is ready/.test(x.text))
   const lines = await EB.lines(rich)
   r.listed = lines.length === 1 && lines[0].status === 'active' && EB.lineFromLabel(lines, EB.lineLabel(lines[0], 'en'))?.id === lines[0].id

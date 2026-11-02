@@ -19,7 +19,7 @@ export function ShowAsSelect({ value, onChange, testid, compact = false }) {
       <DialogContent className="civr !min-h-0 content-start max-w-2xl" data-testid={`${testid}-dialog`}>
         <DialogHeader>
           <DialogTitle>Your own caller IDs</DialogTitle>
-          <DialogDescription>Verify a number you own with a code, or request one we review by hand. $25 each, charged only when it’s accepted. Calls are still billed from your CloudIVR number.</DialogDescription>
+          <DialogDescription>Verify a number you own with a code, or request one we review by hand. $25 each, charged only when it’s accepted. Calls are still billed from your VoIP number.</DialogDescription>
         </DialogHeader>
         <CallerIdManager onVerified={onVerified} />
       </DialogContent>
@@ -27,7 +27,7 @@ export function ShowAsSelect({ value, onChange, testid, compact = false }) {
   );
   const select = (
     <select className={`civr-input font-mono ${compact ? '!h-9 text-xs' : ''}`} value={list.includes(value) ? value : ''} onChange={e => onChange(e.target.value)} disabled={!list.length} aria-label="Caller ID shown" data-testid={testid}>
-      <option value="">Same as the VoIP number you call from</option>
+      <option value="">Same as your VoIP number</option>
       {list.map(n => <option key={n} value={n}>{pv.phone(n)}</option>)}
     </select>
   );

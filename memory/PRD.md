@@ -1,5 +1,20 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-02 — Telegram bots: USA T-Mobile eSIM only, automatic Spenza order + "VoIP number" wording — TESTED (iteration_207 + fixes), NOT DEPLOYED
+- Owner choices: only T-Mobile eSIM at $75/month in all 4 bots (Nomadly/Voodoo/Smadav/ProShop share code via WhiteLabel sync); same automatic Spenza
+  order as web (IMEI → optional ZIP → optional-but-encouraged email → auto-renew on/off prompt → pay wallet or direct crypto, no bank); QR photo in chat;
+  older Airvoice eSIM menu removed completely; auto-renew like web + toggle under My eSIMs; "VoIP number" everywhere incl. Terms.
+- New `js/esim-bot.js` (en/fr/hi/zh strings, fulfill = ES.buy wallet, fulfillPaid = credit crypto amount to wallet then ES.buy, later notices `notice()`).
+  `js/spenza.js`: buy({source:'telegram', lang}) email optional (only for non-web chat ids), `say()` sends bot buyers' notices to Telegram (setBot),
+  botReady/sendBotQr (QR photo), receipts/reminders/pause/end translated for bot lines, emails use the bot email. `_index.js`: 'esim-bot-*' goto/actions,
+  walletOk + both crypto callbacks (BlockBee/DynoPay) eSIM branch (status guard), checkoutScreen `noBank`, orphan crypto orders marked address_failed.
+  Web POST /esim forces source:'web' (testing-agent fix). Label/price: menu button says $75/month; home/checkout use the live plan price.
+- VoIP wording: Terms free-calls section, caller-ID default "Same as your VoIP number", Buy title "Get a VoIP number", statement label, FR/ES filled.
+- Tests: backend/tests/esim_bot.test.js PASS; js/tests/bot_ui_esim_tmobile_2026-11.js 24/24 (mock Telegram on :5099 + TELEGRAM_API_BASE_URL, removed after);
+  js/tests/bot_esim_crypto_webhook_iter207.js 5/5 (VALUE_COIN=76); test_iter207_web_esim_regression.py 4/4; esim_renewal PASS.
+- ⚠️ Production: Voodoo/Smadav/ProShop backend.env need SPENZA_API_KEY/SECRET (else bot shows "temporarily unavailable"). Preview Spenza orders SIMULATED.
+- Open: landing Families.js is unused (copy changed but not rendered); real crypto address fetch fails in preview (DynoPay/BlockBee).
+
 ## 2026-10-27 (19:20Z) — Footer social icons (X + Telegram) — CODED ON PREVIEW, NOT VERIFIED, NOT DEPLOYED (session ended by owner)
 - New `frontend/src/cloudivr/pages/landing/Social.js` (SocialLinks: X https://x.com/CloudIVR, Telegram https://t.me/CloudIVRNet — owner typed
   "t.me.CloudIVRNet", corrected), rendered under the footer CTAs in PricingFaq.js Footer (testids footer-social, footer-social-x, footer-social-telegram).

@@ -34,7 +34,7 @@ function routes(r, { h }) {
   r.get('/esim', h(async (req, res) => res.json({ plans: await ES.plansForCustomers().catch(() => []), items: await ES.list(req.webChatId), textPrice: ES.TEXT_PRICE, replacePrice: ES.REPLACE_PRICE })))
   r.get('/mobile-numbers', h(async (req, res) => res.json({ ...(await ES.mobileOffer()), items: await ES.list(req.webChatId, 'mobile') })))
   r.post('/mobile-numbers', h(async (req, res) => out(res, await ES.buyMobile(req.webChatId, req.body || {}))))
-  r.post('/esim', h(async (req, res) => out(res, await ES.buy(req.webChatId, req.body || {}))))
+  r.post('/esim', h(async (req, res) => out(res, await ES.buy(req.webChatId, { ...(req.body || {}), source: 'web' }))))
   r.get('/esim/:id/qr', h(async (req, res) => out(res, await ES.qr(req.webChatId, req.params.id))))
   r.get('/esim/:id/usage', h(async (req, res) => out(res, await ES.lineUsage(req.webChatId, req.params.id))))
   r.get('/esim/:id/receipts', h(async (req, res) => out(res, await ES.receiptsOf(req.webChatId, req.params.id))))
