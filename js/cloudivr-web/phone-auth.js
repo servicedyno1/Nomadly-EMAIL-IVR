@@ -103,12 +103,14 @@ function createPhoneAuth(db, { accounts, createAccount, finishLogin, lockState, 
       if (!c) return
       if (await takenBy('phone', c.phone, req.webChatId)) return bad(res, 409, 'phone_taken', 'This number is already used by another CloudIVR account.')
       await accounts.updateOne({ _id: req.webUser._id }, { $set: { phone: c.phone, phoneVerifiedAt: new Date() } })
+      if (req.webUser.email) sendMail(req.webUser.email, 'Phone sign-in added to your CloudIVR account', `<p>${c.phone} can now sign in to your CloudIVR account with a texted code${req.webUser.phone ? ` (it replaces ${req.webUser.phone})` : ''}.</p><p>If this wasn’t you, change your password and contact support right away.</p>`).catch(() => {})
       res.json({ account: publicAccount(await accounts.findOne({ _id: req.webUser._id })) })
     }))
 
     // Signed in without an email (phone accounts): add one. A code is emailed; the eSIM provider record moves to it.
     router.post('/account/email/start', requireUser, h(async (req, res) => {
       const email = normEmail(req.body.email)
+      if (req.webUser.email) return bad(res, 400, 'has_email', 'Your account already has an email.')
       if (!EMAIL_RE.test(email)) return bad(res, 400, 'invalid_email', 'Enter a valid email address.')
       if (await takenBy('email', email, req.webChatId)) return bad(res, 409, 'email_taken', 'This email is already used by another CloudIVR account.')
       const key = `email-link|${req.webChatId}`
@@ -125,7 +127,8 @@ function createPhoneAuth(db, { accounts, createAccount, finishLogin, lockState, 
       const c = await useCode(req, res, { linkTo: String(req.webChatId), email: { $exists: true } })
       if (!c) return
       if (await takenBy('email', c.email, req.webChatId)) return bad(res, 409, 'email_taken', 'This email is already used by another CloudIVR account.')
-      await accounts.updateOne({ _id: req.webUser._id }, { $set: { email: c.email, emailVerifiedAt: new Date() } })
+      const r = await accounts.updateOne({ _id: req.webUser._id, email: { $exists: false } }, { $set: { email: c.email, emailVerifiedAt: new Date() } })
+      if (!r.modifiedCount) return bad(res, 400, 'has_email', 'Your account already has an email.')
       onEmailChange(req.webChatId).catch(e => log(`[CloudIVR-Web] email change sync: ${e.message}`))
       res.json({ account: publicAccount(await accounts.findOne({ _id: req.webUser._id })) })
     }))

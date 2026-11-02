@@ -2107,3 +2107,10 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Landing checkout Account step: Email | Phone number switch (landing/PhoneAccount.js), code by SMS, and a call option when Telesign voice is on.
 - Landing: removed "Incoming calls aren’t answered in CloudIVR yet." from the product card note and the FAQ. The in-app MobileOffer still has it (user scoped this to landing).
 - Discounts: the code already applied offers and coupons only to VoIP numbers (numbers purchase/renew/upgrade); eSIM and mobile take no coupon. The offer text now says "VoIP numbers only, not the eSIM or USA mobile number", and the number offer title says "new VoIP number".
+
+## 2026-06 — Spenza users, add phone/email, top-up link, one Overview banner (preview; iteration_201 100%)
+- Spenza users: every buyer is a Spenza end user. /api/v1.1/esim is sent with email + user{name,email,phoneNumber,zipcode}. tick() assigns active lines (new and older, but not linked owner lines) through POST /api/v1.1/sims/{iccid}/assign. The email is the account's, or a private u<id>@users.<CLOUDIVR_WEB_DOMAIN> for phone-only accounts. When a phone account adds an email, syncUser() reassigns its lines. Saved on the line: spenzaUser{email,private,linkedAt}, providerResult, and subscription{status,startDate,endDate,autoTopUp}. Saved on the account: spenzaUser. Preview records these in the DB only (no Spenza calls).
+- Sign-in methods card (settings/SignIn.js): add or change a phone (texted code), and phone accounts can add an email (emailed code). Endpoints are /account/phone|email/start|verify. Link codes can't be used to sign in. Email can only be added when the account has none. Adding a phone sends a security email.
+- Reminder: alerts carry meta.topup; Inbox shows a "Top up $X now" button. The email has a button and the text has a link (WEB_APP_URL / CLOUDIVR_WEB_DOMAIN must be set on prod for absolute links).
+- Overview: TopBanner (Banners.js) is one slim banner: today's offer first, otherwise the welcome/Telegram line. One X hides both.
+- The in-app MobileOffer no longer says "Incoming calls aren’t answered". FR/ES were refilled.

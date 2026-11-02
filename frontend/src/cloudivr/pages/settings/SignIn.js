@@ -55,7 +55,7 @@ export function SignInMethods({ account }) {
   return (
     <div className="civr-card p-6" data-testid="settings-signin-card">
       <div className="font-display text-2xl font-bold mb-2">Sign-in methods</div>
-      <Row icon={Mail} kind="email" label="Email" value={account.email} testid="settings-email" canAdd={!account.email} hint={account.email ? (account.hasPassword ? 'Sign in with email and password.' : 'Set a password with “Forgot password?” on the sign-in page to use it.') : 'Add one for receipts and to sign in with email.'} />
+      <Row icon={Mail} kind="email" label="Email" value={account.email} testid="settings-email" canAdd={!account.email} hint={account.email ? (account.hasPassword ? 'Sign in with email and password.' : 'Set a password in the “Set a password” card below to use it.') : 'Add one for receipts and to sign in with email.'} />
       <Row icon={Phone} kind="phone" label="Phone number" value={account.phone} testid="settings-phone" canAdd hint={account.phone ? 'Sign in with a code texted to this number.' : 'Add one to sign in with a code instead of a password.'} />
     </div>
   );

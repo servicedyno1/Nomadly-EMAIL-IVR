@@ -1,0 +1,37 @@
+{
+  "summary": "All 6 requested features passed. Backend: 8/8 new pytest tests pass, and node esim_renewal.test.js passes. (1) Spenza user linking: Alice bought a mobile number and it went active in about 25s. The line has spenzaUser {email: civr.alice@example.com, private: false, linkedAt}, and webAccounts.spenzaUser is set. The owner's real linked line es_69fcb8db0c34 is skipped. (2) A phone-only +1555 account's line gets u<id>@users.<domain> with private:true. After adding an email through /account/email (wrong code returns 401 wrong_code), the line's spenzaUser.email becomes the new email with private:false. A taken email returns 409. (3) Alice add-phone in the UI shows the toast 'Phone added: you can now sign in with a code'. After sign-out, Login → Phone number tab reaches Alice's account (same email/id), and email/password still works. phone_taken returns 409. An /account/phone challenge used on /auth/phone/verify returns 400 code_expired. The /account/* endpoints return 401 without a session. (4) The in-app Buy page mobile-offer has no 'aren’t answered' text. (5) Overview has exactly one dashboard-top-banner. With an offer: kind=number, coupon-banner, Use it CTA and live countdown inside, no separate channel card, 62px tall on desktop. Dismissing it and reloading shows neither the offer nor the welcome. With the offer dismissed and the local key cleared, the welcome + Join the channel shows in the same banner, and dismiss persists. On mobile (390px) it wraps to 130px, which is fine. (6) End to end on a fresh +1555 account with a $25 wallet: a line expiring in 2 days got the reminder notice with meta.topup=50 and the text 'Top up $50.00 or more'. Inbox inbox-item-N-topup shows 'Top up $40 now' (inserted notice) → /cloudivr/app/wallet?amount=40, with the amount prefilled to 40.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/account/email/start + /verify", "issue": "The backend accepts an email change for ANY signed-in account, including password/email accounts, with only a code to the new email. There's no current-password or old-email confirmation. The UI only offers it when there's no email, but someone holding a session could swap the account email through the API and then use password reset. Restrict it to accounts without an email, or require re-auth."},
+      {"endpoint": "POST /api/cloudivr-web/account/phone/start + /verify", "issue": "'Change' replaces an existing phone sign-in method without re-auth, and nothing is sent to the account email. A hijacked session can add a persistent phone login. Consider asking for the password (or the old phone) and sending a security notice email."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Buy page MobileOffer (fr/es)", "issues": ["frontend/src/cloudivr/i18n/fr.json and es.json line ~145 are still keyed on the OLD English string (with 'Incoming calls aren’t answered in CloudIVR yet.'). The new shorter string has no translation, so French/Spanish users now see this paragraph in English. Re-key both entries and drop the last sentence from the translations."]},
+      {"screen": "Settings → Sign-in methods (phone account that just added an email)", "issues": ["The hint says 'Set a password with “Forgot password?” on the sign-in page', but a 'Set a password' card sits right beside it on the same page. Point to that card instead."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_iter201_spenza_user_phone_email.py", "/app/backend/tests/test_cloudivr_iter201_reminder_topup.py", "/app/backend/tests/esim_renewal.test.js", "/app/test_reports/pytest/pytest_iter201.xml"],
+  "action_items": [
+    "Re-key the MobileOffer paragraph translation in fr.json and es.json to the new English string (it's untranslated now)",
+    "Optional hardening: limit /account/email/* to accounts without an email (or require the password), and require re-auth or send a notice email when the phone sign-in method changes",
+    "Optional copy: the Sign-in methods email hint should point to the 'Set a password' card"
+  ],
+  "critical_code_review_comments": [
+    "spenza.js tick(): the link query uses 'spenzaUser.linkedAt': null. For real (non-dry) lines, buy()/buyMobile() store spenzaUser without linkedAt, so tick will call /sims/{iccid}/assign once each line is active. That's intended. Note that buy() records spenzaUser before activation, while syncUser only touches lines with an iccid, so a line still provisioning when the email changes is fixed later by linkUser's email-mismatch check, but only if tick re-selects it. It won't: linkedAt is set once and tick only picks lines without linkedAt. Activation happens after the buy, though, so tick links it with the current email. Fine in practice.",
+    "linkUser in syncUser runs sequentially with no Spenza-side error marker (userLinkFailedAt is set only by tick). A failed /assign during an email change leaves the line on the old private email with linkedAt set, so tick never retries it. Consider clearing linkedAt or setting userLinkFailedAt on syncUser failures.",
+    "spenzaUser() sends phoneNumber with only the +1 prefix stripped. A non-US phone (e.g. +44…) is sent as a full international digit string, which Spenza may reject in user{}. Consider sending it only for +1 numbers.",
+    "remind(): the topup URL uses Math.max(5, ceil(short)), but the wallet minimum shown in the UI is $10 ('Amount (USD, min $10)'). A short of $1–9 prefills an amount below the minimum. Consider Math.max(10, …)."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_iter201_spenza_user_phone_email.py", "/app/backend/tests/test_cloudivr_iter201_reminder_topup.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Several TEST_iter201 phone-only accounts (+1555 random) were created, some with @example.com emails added. Simulated mobile lines from the tests were set to status cancelled. Alice's phone sign-in is now +15555243109 (changed through the UI). Her email/password civr.alice@example.com / AliceTest#2026 still works. Alice's offer for today was dismissed and her welcome banner was dismissed (localStorage). The temporary TEST_iter201 inbox notice was deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Onboarding modal (data-testid=onboarding) appears for new accounts: click 'Skip for now' before interacting. Login phone tab: auth-method-phone → phone-number-input → phone-send-code-button → phone-preview-code → phone-code-input → phone-verify-button. Element screenshots need type='jpeg' when you pass quality. Mongo: local, DB 'test'. Notifications live in webNotifications. Spenza tick runs every 15s; simulated lines go active after 20s.",
+  "test_credentials": "Alice civr.alice@example.com / AliceTest#2026 (phone +15555243109 also signs in to Alice)"
+}
