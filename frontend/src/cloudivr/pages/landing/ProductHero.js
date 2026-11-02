@@ -14,7 +14,7 @@ function Waitlist() {
   const go = async (e) => { e.preventDefault(); setState('busy'); try { await api('/public/waitlist', { method: 'POST', body: { email } }); setState('done'); } catch (x) { setState(x.message); } };
   if (state === 'done') return <p className="mt-6 text-sm font-semibold text-emerald-700" data-testid="mobile-waitlist-done">Thanks. We’ll email you when ordering opens.</p>;
   return (
-    <form onSubmit={go} className="mt-6 space-y-2" data-testid="mobile-waitlist">
+    <form onSubmit={go} className="mt-4 space-y-2" data-testid="mobile-waitlist">
       <p className="text-sm font-semibold text-slate-900">Coming soon. Join the waitlist</p>
       <div className="flex gap-2">
         <input type="email" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" aria-label="Your email" className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-4 h-12 text-slate-900" data-testid="mobile-waitlist-email" />
@@ -35,8 +35,8 @@ function Card({ id, icon: I, badge, title, price, points, note, children, delay 
       <h2 className="civr-l-h text-2xl sm:text-3xl mt-4 text-slate-950">{title}</h2>
       <div className="mt-2 font-mono text-slate-950" data-testid={`product-price-${id}`}><span className="text-3xl font-semibold">{`$${price}`}</span><span className="text-sm text-slate-500">/month</span></div>
       <ul className="mt-5 space-y-2.5 text-[15px] text-slate-700 flex-1">{points.map(x => <li key={x} className="flex gap-2.5"><Check className="w-4 h-4 mt-1 shrink-0 text-[color:var(--np-blue)]" />{x}</li>)}</ul>
+      <p className="mt-5 text-xs text-slate-500 flex items-start gap-1.5 min-h-[32px]" data-testid={`product-note-${id}`}><ShieldCheck className="w-3.5 h-3.5 mt-px shrink-0" />{note}</p>
       {children}
-      <p className="mt-3 text-xs text-slate-500 flex items-start gap-1.5" data-testid={`product-note-${id}`}><ShieldCheck className="w-3.5 h-3.5 mt-px shrink-0" />{note}</p>
     </Reveal>
   );
 }
@@ -54,12 +54,12 @@ export function ProductHero({ esimPrice, offer }) {
         </div>
         <div className="grid md:grid-cols-2 gap-5 mt-8">
           <Card id="esim-card" icon={Smartphone} badge="On your phone" title="CloudIVR eSIM" price={esimPrice || 75} points={ESIM_POINTS} note="QR code usually ready within minutes of payment." delay={60}>
-            <button type="button" onClick={() => openEsimCheckout()} className="civr-l-btn mt-7 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-esim">Order eSIM<ArrowRight className="w-4 h-4" /></button>
+            <button type="button" onClick={() => openEsimCheckout()} className="civr-l-btn mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-esim">Order eSIM<ArrowRight className="w-4 h-4" /></button>
           </Card>
           <Card id="mobile" icon={MessageSquareText} badge="In your browser" title="US mobile number" price={mobilePrice} points={MOBILE_POINTS} note="Pick a ZIP code; the exact number is shown after payment. Texts only for now, calls coming later." delay={140}>
             {offer?.available
-              ? <button type="button" onClick={openMobileCheckout} className="civr-l-btn mt-7 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-mobile">Order number<ArrowRight className="w-4 h-4" /></button>
-              : offer ? <Waitlist /> : <div className="mt-7 h-[52px]" />}
+              ? <button type="button" onClick={openMobileCheckout} className="civr-l-btn mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-mobile">Order number<ArrowRight className="w-4 h-4" /></button>
+              : offer ? <Waitlist /> : <div className="mt-4 h-[52px]" />}
           </Card>
         </div>
         <Reveal className="mt-6 rounded-2xl border civr-l-rule bg-white px-5 py-4 text-sm text-slate-700 flex flex-wrap gap-x-6 gap-y-1" data-testid="which-one">

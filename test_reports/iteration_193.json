@@ -1,0 +1,30 @@
+{
+  "summary": "Landing rewrite (/cloudivr) tested end-to-end. Backend: new pytest test_landing_products_iter193.py 13/13 pass (public mobile-offer {available:true,price:75}, esim-plans $75, waitlist 400 for 5 bad emails + empty body, valid email ok and idempotent (single doc), dashboard textsThisMonth int, 401 unauth, new signup → empty mobile list, $0 wallet, POST mobile-numbers 402, Bob empty). Frontend desktop 1920: single h1 hero-title, business-title is H2, both prices $75/month, which-one visible, nav eSIM/US mobile number/Business calling/Pricing/Help scroll to #esim-card/#mobile (top 112, scroll-mt) and #business/#pricing/#faq (top 64 = under header). FAQ starts with the 7 new questions in the right order. Showcase: all 5 tabs swap the image; desktop webp loads (naturalWidth 1440); at 320/390 currentSrc is <id>-phone.webp (780w). eSIM checkout logged out: IMEI 356938035643809 + QR email → account step; as Alice → pay $75 + 'Pay $75 from wallet'. Mobile checkout: ZIP strips letters, max 5 digits, Next disabled until 5, reveal note shown; logged out → account step (signed up landing.qa+1793579202@example.com) → pay $75, wallet $0.00 text, top-up → preview deposit block. Alice: 'Pay $75 from wallet' → mobile-co-done → mobile-co-open → /cloudivr/app/numbers, new line mn_7166f3ce82eb shows 'Number coming' then +15559259346 Active after ~30 s; cancelled via confirm dialog (line removed). Alice wallet restored to $549.785 in DB. Dashboard stat-sms = 'TEXTS / 10 / This month' matching API textsThisMonth=10. Bob My numbers → mobile-lines-empty, Get one → /cloudivr/app/buy. Mobile 320/390: scrollWidth == viewport (also with modal open), cards stacked, order buttons 52px, tabs 44px, menu button 44px, sticky bar shows once the hero is fully scrolled past, sticky-cta-order (48px) scrolls to top; mobile-menu-link-esim/mobile/business/pricing/faq all scroll correctly and close the menu. No page errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing product hero (desktop)", "issues": ["The 'Order eSIM' and 'Order number' buttons are not level (about 13 px apart). The mobile card's note wraps to 2 lines and sits under the button while the ul is flex-1. Put the note above the button or give both notes a fixed min-height."]},
+      {"screen": "Landing mobile menu (320/390)", "issues": ["The new links (eSIM, US mobile number, Business calling, Pricing, Help) are at the very bottom of the menu, about 1350 px down, after the long Products and Use cases lists. Move them to the top, since the page now leads with these two products."]},
+      {"screen": "Landing 390px", "issues": ["The floating support-chat button overlaps the right edge of the full-width 'Order eSIM' button when that button reaches the bottom of the screen."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_landing_products_iter193.py", "/app/test_reports/pytest/pytest_iter193.xml"],
+  "action_items": [
+    "Optional: line up the two hero order buttons on desktop",
+    "Optional: move the landing product links to the top of the mobile menu",
+    "Optional: stop the support FAB from overlapping the hero CTAs on small phones"
+  ],
+  "critical_code_review_comments": [
+    "The Waitlist UI (shown when available=false) was only checked by code review. It uses the same email regex as the backend; fine.",
+    "Cancelling a mobile line gives no refund (wallet stayed at -$75). This looks intended, but make sure the FAQ 'don't renew' / cancel copy matches.",
+    "StickyCta only shows when the hero bottom is < 0, so it stays hidden while the hero edge is exactly at the top. Acceptable."
+  ],
+  "updated_files": ["/app/backend/tests/test_landing_products_iter193.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "New accounts landing.qa+1793579131@example.com (API) and landing.qa+1793579202@example.com (UI), both with password QaTest#2026x and a $0 wallet. Alice line mn_7166f3ce82eb was created then cancelled. Alice wallet restored to 549.785 (usdOut -75).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Alice chatId 5000000000000001, wallet in test.walletOf usdIn/usdOut. Login via page.request.post /api/cloudivr-web/auth/login (cookie session) before page.goto. Click cookie-deny first. The mobile menu uses mobile-menu-link-<id> testids (landing-nav-* are desktop only). Mobile provisioning takes ~30 s in preview."
+}

@@ -2065,3 +2065,10 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Spenza fee/limit for renew-number is undocumented ("monthly quota enforced separately"); line cost at Spenza = $3 SIM + $7 plan.
 - Live env needed at go-live: SPENZA_SIP_INGRESS_IP=146.190.238.190, SPENZA_TEXT_LINE_IMEI.
 - 2026-11-01: +16462556424 (prelinked to onarrival21@gmail.com in prod; to Alice in preview) converted to kind 'mobile' (web-only texting, no QR, auto caller ID) via one-off spenza.toMobile() (flag spenzaConfig 'mobile:+16462556424'). Runs in prod on next deploy.
+
+## 2026-11-02 — Landing refresh: eSIM + US mobile number first (PREVIEW ONLY)
+- ProductHero (two $75 cards + "which one" helper), MobileCheckout (ZIP → account → wallet/crypto → My numbers), generic Pay in EsimCheckout, Showcase with light-mode screenshots (public/cloudivr/shots/*-desktop|phone.webp; regenerate: node scripts/seed_landing_shots.js && python3 scripts/landing_shots.py).
+- Old hero → #business section (h2). Nav: eSIM, US mobile number, Business calling, Pricing, Help (top of mobile menu). Sticky bar "Order eSIM or number". FAQ: 7 product questions first. Copy fixed (eSIM no longer claims in-app texting).
+- Public: GET /public/mobile-offer, POST /public/waitlist (webWaitlist). Live shows waitlist until SPENZA_TEXT_LINE_IMEI set.
+- App: Overview "Texts / This month"; My numbers empty-state link to the mobile number.
+- Tested: iteration_193 (backend 13/13, frontend 100%); design nits fixed after.

@@ -56,15 +56,16 @@ function MobileMenu({ catalog, onClose, account }) {
   return (
     <div className="lg:hidden fixed inset-x-0 top-16 bottom-0 z-[45] bg-white text-slate-900 overflow-y-auto civr-l-swap" data-testid="landing-mobile-menu">
       <div className="px-4 sm:px-6 py-6 flex flex-col gap-8">
+        <div className="flex flex-col border-b border-slate-200 pb-4">
+          {[...LANDING_LINKS, ['#try', 'Free test call', 'try']].map(([href, label, id]) => <a key={id} href={href} onClick={(e) => { goTo(href, e); onClose(); }} className="px-3 py-3 text-base font-medium text-slate-700" data-testid={`mobile-menu-link-${id}`}>{label}</a>)}
+        </div>
         {MENUS.map(([id, label, items]) => (
           <div key={id}>
             <div className="civr-l-eyebrow text-slate-500 px-3">{label}</div>
             <div className="mt-2 flex flex-col gap-1">{items.map(it => <Item key={it[0]} it={it} onPick={onClose} testid={`mobile-menu-${id}-item`} />)}</div>
           </div>
         ))}
-        <div className="flex flex-col border-t border-slate-200 pt-4">
-          {[...LANDING_LINKS, ['#try', 'Free test call', 'try']].map(([href, label, id]) => <a key={id} href={href} onClick={(e) => { goTo(href, e); onClose(); }} className="px-3 py-3 text-base font-medium text-slate-700" data-testid={`mobile-menu-link-${id}`}>{label}</a>)}
-        </div>
+
         <div className="grid gap-3 pb-6">
           <Link to={account ? cp('/app') : cp('/signup')} className="civr-l-btn w-full" data-testid="mobile-menu-cta">{account ? 'Open dashboard' : 'Sign up free'}</Link>
           {!account && <Link to={cp('/login')} className="civr-l-btn civr-l-btn-ghost w-full" data-testid="mobile-menu-signin">Sign in</Link>}
