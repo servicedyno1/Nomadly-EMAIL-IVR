@@ -4752,7 +4752,7 @@ async function handleCallHangup(payload) {
       const msg = `📞 <b>SIP Call Ended</b>\n\n📞 From: ${formatPhone(from)}\n📲 To: ${formatPhone(to)}\n⏱️ ${formatDuration(duration)}\n${planLine}${hangupInfo}\n🕐 ${time}`
       _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
     }
-    logEvent(from, to, 'outbound_sip', duration)
+    logEvent(from, to, 'outbound_sip', duration, null, null, { charge: session.isTestCall ? 0 : Math.round(((billingInfo.overageCharge || 0) + CALL_CONNECTION_FEE) * 100) / 100, ...(num.mobileLine ? { esim: num.mobileLine } : {}) })
   } else if (session.phase === 'missed' || session.phase === 'answering') {
     const langMissed = await _getUserLang(chatId)
     const msg = _trans('t.vs_missedCall', langMissed, formatPhone(to), formatPhone(from), time) || `📞 <b>Missed Call</b>\n\n📞 To: ${formatPhone(to)}\n👤 From: ${formatPhone(from)}\n🕐 ${time}`
@@ -4833,7 +4833,7 @@ async function notifyUser(chatId, num, type, session, extra = {}) {
   if (msg) _bot.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
 }
 
-function logEvent(to, from, type, duration, recordingUrl, forwardTo) {
+function logEvent(to, from, type, duration, recordingUrl, forwardTo, extra) {
   if (!_phoneLogs) return
   _phoneLogs.insertOne({
     phoneNumber: to,
@@ -4842,6 +4842,7 @@ function logEvent(to, from, type, duration, recordingUrl, forwardTo) {
     duration: duration || 0,
     recordingUrl: recordingUrl || null,
     ...(forwardTo ? { forwardTo } : {}),
+    ...(extra || {}),
     timestamp: new Date().toISOString(),
   }).catch(e => log(`[Voice] Log error: ${e.message}`))
 }

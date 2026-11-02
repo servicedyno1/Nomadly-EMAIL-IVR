@@ -16,7 +16,7 @@ export function EsimPlans() {
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
         <Reveal>
           <div className="civr-l-kicker"><Zap className="w-3.5 h-3.5" />Instant QR install</div>
-          <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl mt-4 max-w-3xl">CloudIVR eSIM: a US mobile line on the T-Mobile network</h2>
+          <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl mt-4 max-w-3xl">US eSIM: a downloadable US mobile line on the T-Mobile network</h2>
           <p className="v2-muted mt-4 max-w-2xl text-lg">Buy it right here, scan the QR code and your new number works on your phone, with calls, texts and data. The QR code is shown in the app and emailed to you.</p>
         </Reveal>
         <div className="grid sm:grid-cols-3 gap-4 mt-8" data-testid="esim-points">{POINTS.map(([I, t, s]) => <div key={t} className="flex gap-3"><span className="w-10 h-10 rounded-xl grid place-items-center v2-hero shrink-0"><I className="w-5 h-5" /></span><div><div className="font-semibold">{t}</div><div className="text-sm v2-muted mt-0.5">{s}</div></div></div>)}</div>

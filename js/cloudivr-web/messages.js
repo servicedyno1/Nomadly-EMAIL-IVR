@@ -142,7 +142,7 @@ function event(l) {
   const out = text ? (l.type === 'sms_out' || l.direction === 'outbound') : ['outbound_sip', 'outbound_ivr'].includes(l.type)
   return {
     id: String(l._id || ''), kind: text ? 'text' : l.type === 'voicemail' ? 'voicemail' : 'call', type: l.type, out, at: l.at || l.timestamp,
-    ...(text ? { body: l.body || '', media: (l.media || []).map(m => ({ id: m.id, type: m.type })), status: out ? (l.status || 'sent') : null, reason: l.smsReason || null, charge: l.charge || 0 } : { duration: l.duration || 0 }),
+    ...(text ? { body: l.body || '', media: (l.media || []).map(m => ({ id: m.id, type: m.type })), status: out ? (l.status || 'sent') : null, reason: l.smsReason || null, charge: l.charge || 0 } : { duration: l.duration || 0, ...(l.charge ? { charge: l.charge } : {}) }),
     ...(l.type === 'voicemail' ? { recordingUrl: l.recordingUrl || null, transcript: l.transcript || null } : {}),
   }
 }

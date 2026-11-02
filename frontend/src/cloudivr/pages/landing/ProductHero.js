@@ -5,7 +5,7 @@ import { Reveal } from './kit';
 import { openEsimCheckout, EMAIL_OK } from './EsimCheckout';
 import { openMobileCheckout } from './MobileCheckout';
 
-const ESIM_POINTS = ['Install it on your phone with a QR code', 'US data, calls and texts on your phone', 'QR code shown in the app and emailed to you', 'For unlocked phones that support eSIM'];
+const ESIM_POINTS = ['Scan a QR code and the line is on your phone', 'US data, calls and texts on your phone', 'QR code shown in the app and emailed to you', 'For unlocked phones that support eSIM'];
 const MOBILE_POINTS = ['A real carrier mobile number, not VoIP, accepted by most banks and apps', 'Texts in CloudIVR Messages and calls out from your browser', 'No phone or SIM needed', 'Free caller ID for your CloudIVR calls'];
 
 function Waitlist() {
@@ -25,7 +25,7 @@ function Waitlist() {
   );
 }
 
-function Card({ id, icon: I, badge, title, price, points, note, children, delay }) {
+function Card({ id, icon: I, badge, title, kind, price, points, note, children, delay }) {
   return (
     <Reveal delay={delay} id={id} className="v2-surface p-6 sm:p-7 flex flex-col text-left scroll-mt-28" data-testid={`product-card-${id}`}>
       <div className="flex items-center justify-between gap-3">
@@ -33,6 +33,7 @@ function Card({ id, icon: I, badge, title, price, points, note, children, delay 
         <span className="text-xs font-semibold rounded-full px-3 py-1 bg-slate-100 text-slate-700">{badge}</span>
       </div>
       <h2 className="civr-l-h text-2xl sm:text-3xl mt-4 text-slate-950">{title}</h2>
+      <p className="text-sm font-semibold text-[color:var(--np-blue)] mt-1" data-testid={`product-kind-${id}`}>{kind}</p>
       <div className="mt-2 font-mono text-slate-950" data-testid={`product-price-${id}`}><span className="text-3xl font-semibold">{`$${price}`}</span><span className="text-sm text-slate-500">/month</span></div>
       <ul className="mt-5 space-y-2.5 text-[15px] text-slate-700 flex-1">{points.map(x => <li key={x} className="flex gap-2.5"><Check className="w-4 h-4 mt-1 shrink-0 text-[color:var(--np-blue)]" />{x}</li>)}</ul>
       <p className="mt-5 text-xs text-slate-500 flex items-start gap-1.5 min-h-[32px]" data-testid={`product-note-${id}`}><ShieldCheck className="w-3.5 h-3.5 mt-px shrink-0" />{note}</p>
@@ -53,10 +54,10 @@ export function ProductHero({ esimPrice, offer }) {
           <p className="text-base md:text-lg text-slate-600 mt-4 leading-relaxed civr-rise civr-d2" data-testid="hero-subtitle">Order in a couple of minutes, right here. Pay with crypto or your CloudIVR wallet. No contract, renews monthly.</p>
         </div>
         <div className="grid md:grid-cols-2 gap-5 mt-8">
-          <Card id="esim-card" icon={Smartphone} badge="On your phone" title="CloudIVR eSIM" price={esimPrice || 75} points={ESIM_POINTS} note="QR code usually ready within minutes of payment." delay={60}>
+          <Card id="esim-card" icon={Smartphone} badge="On your phone" title="US eSIM" kind="Downloadable eSIM: install it on your phone" price={esimPrice || 75} points={ESIM_POINTS} note="QR code usually ready within minutes of payment." delay={60}>
             <button type="button" onClick={() => openEsimCheckout()} className="civr-l-btn mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-esim">Order eSIM<ArrowRight className="w-4 h-4" /></button>
           </Card>
-          <Card id="mobile" icon={MessageSquareText} badge="In your browser" title="US mobile number" price={mobilePrice} points={MOBILE_POINTS} note="Pick a ZIP code; the exact number is shown after payment. Incoming calls aren’t answered in CloudIVR yet." delay={140}>
+          <Card id="mobile" icon={MessageSquareText} badge="In your browser" title="US mobile number" kind="Virtual local number on a real US carrier" price={mobilePrice} points={MOBILE_POINTS} note="Pick a ZIP code; the exact number is shown after payment. Incoming calls aren’t answered in CloudIVR yet." delay={140}>
             {offer?.available
               ? <button type="button" onClick={openMobileCheckout} className="civr-l-btn mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-mobile">Order number<ArrowRight className="w-4 h-4" /></button>
               : offer ? <Waitlist /> : <div className="mt-4 h-[52px]" />}
@@ -64,8 +65,8 @@ export function ProductHero({ esimPrice, offer }) {
         </div>
         <Reveal className="mt-6 rounded-2xl border civr-l-rule bg-white px-5 py-4 text-sm text-slate-700 flex flex-wrap gap-x-6 gap-y-1" data-testid="which-one">
           <span className="font-semibold text-slate-950">Which one do I need?</span>
-          <span>Want the line on your phone? <b>eSIM</b>.</span>
-          <span>Want the number in your browser? <b>US mobile number</b>.</span>
+          <span>Want the line on your phone? <b>US eSIM</b> (downloadable).</span>
+          <span>Want a number you use in your browser? <b>US mobile number</b> (virtual, real carrier).</span>
         </Reveal>
       </div>
     </section>

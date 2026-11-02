@@ -77,7 +77,7 @@ export function Campaigns() {
   useEffect(() => { if (!running) return undefined; const t = setInterval(reload, 8000); return () => clearInterval(t); }, [running, reload]);
   return (
     <div data-testid="campaigns-page">
-      <PageHeader label="Outbound" title="Bulk IVR campaigns" sub="Automated calls to a whole list: play your message, see who answered and what they pressed, and connect interested people to you." testid="campaigns-header">
+      <PageHeader label="Calling" title="Bulk IVR campaigns" sub="Automated calls to a whole list: play your message, see who answered and what they pressed, and connect interested people to you." testid="campaigns-header">
         {running && <Link to={cp('/app/live')} className="civr-btn civr-btn-ghost" data-testid="campaigns-live-button"><Radio className="w-4 h-4 text-[#34d399]" />Watch live</Link>}
         <Link to={cp('/app/campaigns/new')} className="civr-btn civr-btn-primary" data-testid="campaigns-new-button"><Plus className="w-4 h-4" />New campaign</Link>
       </PageHeader>

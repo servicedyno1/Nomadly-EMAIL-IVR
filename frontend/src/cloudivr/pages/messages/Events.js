@@ -47,7 +47,7 @@ export function CallRow({ e }) {
     <div className="flex justify-center my-3" data-testid={`msg-call-${e.id}`}>
       <div className="inline-flex items-center gap-2 text-xs text-[var(--c-muted)] px-3 py-1.5 rounded-full border border-[var(--c-border)]">
         <Icon className={`w-3.5 h-3.5 ${missed ? 'text-[#f43f5e]' : 'text-[var(--c-accent)]'}`} />
-        <span>{label}{!missed && e.duration ? ` · ${secs(e.duration)}` : ''} · {timeOf(e.at)}</span>
+        <span>{label}{!missed && e.duration ? ` · ${secs(e.duration)}` : ''}{e.out && e.charge ? ` · $${e.charge.toFixed(2)}` : ''} · {timeOf(e.at)}</span>
       </div>
     </div>
   );

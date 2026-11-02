@@ -3,7 +3,7 @@ import { useApi } from '../../api';
 import { MobileOffer } from '../buy/MobileOffer';
 
 const shown = (x) => ['provisioning', 'active', 'suspended'].includes(x.status);
-const nameOf = (x) => `${x.phoneNumber || 'Number coming'} · ${x.kind === 'mobile' ? 'Mobile number' : 'CloudIVR eSIM'}${x.status === 'active' ? '' : x.status === 'provisioning' ? ' (being assigned)' : ' (paused)'}`;
+const nameOf = (x) => `${x.phoneNumber || 'Number coming'} · ${x.kind === 'mobile' ? 'US mobile number' : 'US eSIM'}${x.status === 'active' ? '' : x.status === 'provisioning' ? ' (being assigned)' : ' (paused)'}`;
 
 // IVR key that texts the caller from one of the owner's eSIM / mobile numbers; no number → buy one right here.
 export function IvrSms({ o, set, prefix }) {

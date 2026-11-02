@@ -22,7 +22,7 @@ function MobileLine({ item, reload }) {
     <div className="civr-card p-5 space-y-3" data-testid={`mobile-line-${item.id}`}>
       <div className="flex flex-wrap items-center gap-3">
         <span className="font-mono text-lg" data-no-translate data-testid={`mobile-line-number-${item.id}`}>{item.phoneNumber || 'Number coming'}</span>
-        <span className="civr-pill">US mobile · texts + calls out</span>
+        <span className="civr-pill">Virtual US mobile · real carrier</span>
         <span className="text-sm text-[var(--c-muted)]" data-testid={`mobile-line-status-${item.id}`}>{STATUS[item.status] || item.status}</span>
         {item.status === 'provisioning' && <Loader2 className="w-4 h-4 animate-spin text-[var(--c-muted)]" />}
         <span className="text-xs text-[var(--c-muted)] ml-auto">{!item.price ? 'Linked by CloudIVR' : item.autoRenew ? `${money(item.price)}/month${date ? ` · next ${date}` : ''}` : `Auto-renew off${date ? ` · ends ${date}` : ''}`}</span>
@@ -62,7 +62,7 @@ export function MobileLines({ noEmpty = false }) {
   ) : null;
   return (
     <div className="mt-8 space-y-3" data-testid="mobile-lines">
-      <h2 className="font-display text-xl font-bold">US mobile numbers</h2>
+      <h2 className="font-display text-xl font-bold">US mobile numbers <span className="text-sm font-normal text-[var(--c-muted)]">· virtual, on a real US carrier, used in your browser</span></h2>
       {data.items.map(x => <MobileLine key={x.id} item={x} reload={reload} />)}
     </div>
   );

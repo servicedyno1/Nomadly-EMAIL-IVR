@@ -90,14 +90,15 @@ function CallsChoice({ item, onChange }) {
   const [menu, setMenu] = useState(item.ivrNumber || '');
   const pick = menu || nums[0]?.phoneNumber || '';
   const set = async (to, ivrNumber = pick) => { try { const r = await api(`/esim/${item.id}/calls`, { method: 'POST', body: { to, ivrNumber } }); toast.success(r.pending && to === 'browser' ? 'Saved. We’ll switch calls to CloudIVR once routing is connected' : 'Saved'); onChange(); } catch (e) { toast.error(e.message); } };
-  const opts = [['device', Smartphone, 'Ring on my phone', 'Calls go to the eSIM on your phone.'], ['browser', Globe2, 'Ring in CloudIVR', 'Calls get the keypad menu, forwarding and voicemail of a calling number you pick.']];
+  const opts = [['device', Smartphone, 'Ring on my phone', 'Calls go to the eSIM on your phone.'], ['browser', Globe2, 'Ring in CloudIVR', 'Not active yet: we’re waiting for the carrier to switch on call routing. Calls keep ringing on your phone.']];
+  const off = (k) => k === 'browser' && item.callsTo !== 'browser';
   return (
     <div className="space-y-2">
     <div className="grid sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Where calls ring" data-testid="esim-calls">
-      {opts.map(([k, I, t, s]) => { const on = item.callsTo === k; const Mark = on ? CheckCircle2 : Circle; return <button key={k} type="button" role="radio" aria-checked={on} onClick={() => !on && set(k)} className={`civr-card text-left p-3 border-2 transition-colors ${on ? 'border-[#818cf8] bg-[#818cf8]/15' : 'border-transparent opacity-80 hover:opacity-100'}`} data-testid={`esim-calls-${k}`}><div className="flex items-center gap-2 font-semibold text-sm"><I className="w-4 h-4 text-[#818cf8]" />{t}<Mark className={`w-4 h-4 ml-auto ${on ? 'text-[#818cf8]' : 'text-[#52525b]'}`} aria-hidden="true" /></div><div className="text-xs text-[#a1a1aa] mt-1">{s}</div>{on && <div className="text-xs font-semibold text-[#818cf8] mt-1.5" data-testid={`esim-calls-${k}-selected`}>Selected</div>}</button>; })}
+      {opts.map(([k, I, t, s]) => { const on = item.callsTo === k; const Mark = on ? CheckCircle2 : Circle; return <button key={k} type="button" role="radio" aria-checked={on} onClick={() => !on && !off(k) && set(k)} disabled={off(k)} aria-disabled={off(k)} className={`civr-card text-left p-3 border-2 transition-colors ${on ? 'border-[#818cf8] bg-[#818cf8]/15' : off(k) ? 'border-transparent opacity-50 cursor-not-allowed' : 'border-transparent opacity-80 hover:opacity-100'}`} data-testid={`esim-calls-${k}`}><div className="flex items-center gap-2 font-semibold text-sm"><I className="w-4 h-4 text-[#818cf8]" />{t}{off(k) && <span className="civr-pill" data-testid={`esim-calls-${k}-inactive`}>Not active yet</span>}<Mark className={`w-4 h-4 ml-auto ${on ? 'text-[#818cf8]' : 'text-[#52525b]'}`} aria-hidden="true" /></div><div className="text-xs text-[#a1a1aa] mt-1">{s}</div>{on && <div className="text-xs font-semibold text-[#818cf8] mt-1.5" data-testid={`esim-calls-${k}-selected`}>Selected</div>}</button>; })}
     </div>
-      {nd && !nums.length && <p className="text-xs text-[var(--c-muted)]" data-testid={`esim-calls-no-number-${item.id}`}>To ring in CloudIVR you need an active calling number: its menu answers these calls.</p>}
-      {nums.length > 0 && <label className="flex flex-wrap items-center gap-2 text-sm" data-testid={`esim-calls-menu-${item.id}`}><span className="text-[var(--c-muted)]">Use the menu of</span>
+      {nd && !nums.length && item.callsTo === 'browser' && <p className="text-xs text-[var(--c-muted)]" data-testid={`esim-calls-no-number-${item.id}`}>To ring in CloudIVR you need an active calling number: its menu answers these calls.</p>}
+      {nums.length > 0 && item.callsTo === 'browser' && <label className="flex flex-wrap items-center gap-2 text-sm" data-testid={`esim-calls-menu-${item.id}`}><span className="text-[var(--c-muted)]">Use the menu of</span>
         <select className="civr-input !w-auto font-mono" value={pick} onChange={e => { setMenu(e.target.value); if (item.callsTo === 'browser') set('browser', e.target.value); }} data-testid={`esim-calls-menu-select-${item.id}`}>{nums.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{n.phoneNumber}</option>)}</select></label>}
     </div>
   );
@@ -173,7 +174,7 @@ export default function Esim() {
   if (!data) return <Spinner />;
   return (
     <div className="space-y-8" data-testid="esim-page">
-      <PageHeader label="CloudIVR eSIM" title="US mobile lines, ready in minutes" sub="Two ways to get a real US carrier number: an eSIM for your phone (data, calls and texts on the phone), or a US mobile number for texting and calling from your browser. Both are $75/month." testid="esim-header" />
+      <PageHeader label="Mobile lines" title="US eSIM and US mobile numbers" sub="Two real US carrier numbers, $75/month each. The US eSIM downloads to your phone with a QR code: data, calls and texts happen on the phone. The US mobile number is virtual: you use it in your browser, with texts in Messages and calls from the browser phone." testid="esim-header" />
       {data.items.length > 0 && <div className="space-y-4">{data.items.map(x => <Line key={x.id} item={x} reload={reload} />)}</div>}
       {data.items.length > 0 && !buying && data.plans.length > 0 && <h2 className="font-display text-xl font-bold" data-testid="esim-add-another">Add another eSIM</h2>}
       {buying ? <BuyForm plan={buying} draft={draft?.planId === buying.planId ? draft : null} onCancel={() => { dropDraft(); setBuying(null); }} onDone={() => { setBuying(null); reload(); }} /> : (
