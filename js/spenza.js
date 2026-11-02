@@ -306,6 +306,19 @@ async function expire(d) {
   if (d.callsTo === 'browser') await syncSip()
   S.tell(d.chatId, `📴 Your ${label(d)} ended on ${day(d.expiresAt)} because ${why}.`, { kind: 'billing', meta: { esim: d._id } })
 }
+// 3 days before expiry: app alert + email (or a text for phone-only accounts) with the date and wallet balance.
+async function remind(d) {
+  const end = day(d.expiresAt), bal = await S.w.balance(d.chatId)
+  const renews = d.autoRenew !== false
+  const text = renews
+    ? `Your ${label(d)} renews on ${end}. $${d.price} will be taken from your wallet a day before. Wallet balance: $${round2(bal).toFixed(2)}.${bal < d.price ? ` Top up $${round2(d.price - bal).toFixed(2)} or more so it doesn’t end.` : ''}`
+    : `Your ${label(d)} ends on ${end} because auto-renew is off. Turn auto-renew on before then to keep it. Wallet balance: $${round2(bal).toFixed(2)}.`
+  await S.col.updateOne({ _id: d._id }, { $set: { remindedFor: new Date(d.expiresAt) } })
+  S.tell(d.chatId, `🔔 ${text}`, { kind: 'billing', meta: d.kind === 'mobile' ? { mobile: d._id } : { esim: d._id } })
+  const acc = await S.db.collection('webAccounts').findOne({ _id: { $in: [d.chatId, Number(d.chatId)] } }, { projection: { email: 1, phone: 1 } })
+  if (acc?.email) await require('./cloudivr-web/auth').sendMail(acc.email, renews ? `Your CloudIVR line renews on ${end}` : `Your CloudIVR line ends on ${end}`, `<p>${text}</p><p>Manage it in CloudIVR under Numbers → eSIM &amp; mobile numbers.</p>`).catch(e => S.log(`[Spenza] reminder email ${d._id}: ${e.message}`))
+  else if (acc?.phone) await require('./cloudivr-web/phone-auth').sendText(acc.phone, `CloudIVR: ${text}`).catch(e => S.log(`[Spenza] reminder text ${d._id}: ${e.message}`))
+}
 async function setAutoRenew(chatId, id, on) {
   const d = await mine(chatId, id)
   if (!d || !['active', 'suspended', 'provisioning'].includes(d.status)) return { error: 'Only active lines have auto-renew.' }
@@ -500,6 +513,7 @@ async function tick() {
   for (const d of await S.col.find({ ...live, expiresAt: null }).limit(50).toArray()) await S.col.updateOne({ _id: d._id }, { $set: period((real(d) && await subEnd(d.iccid)) || new Date(Math.max(new Date(d.nextBillAt || 0).getTime(), Date.now() + 2 * DAY_MS))) })
   for (const d of await S.col.find({ ...live, expiresAt: { $lte: new Date(Date.now() + CUTOFF_MS) } }).limit(50).toArray()) await expire(d).catch(e => S.log(`[Spenza] expire ${d._id}: ${e.message}`))
   for (const d of await S.col.find({ ...live, autoRenew: { $ne: false }, nextBillAt: { $lte: new Date() }, expiresAt: { $gt: new Date(Date.now() + CUTOFF_MS) } }).limit(50).toArray()) await billOne(d).catch(e => S.log(`[Spenza] bill ${d._id}: ${e.message}`))
+  for (const d of await S.col.find({ ...live, expiresAt: { $gt: new Date(Date.now() + CUTOFF_MS), $lte: new Date(Date.now() + 3 * DAY_MS) }, $expr: { $ne: ['$remindedFor', '$expiresAt'] } }).limit(50).toArray()) await remind(d).catch(e => S.log(`[Spenza] remind ${d._id}: ${e.message}`))
   for (const d of await S.col.find({ 'numberChange.status': 'pending' }).limit(20).toArray()) await pollNumber(d).catch(e => S.log(`[Spenza] number change ${d._id}: ${e.message}`))
 }
 

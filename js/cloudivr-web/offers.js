@@ -29,9 +29,9 @@ function tierBonus(amount) {
 // Words + link the app shows for an offer.
 function present(o) {
   const enc = encodeURIComponent
-  if (o.kind === 'number') return { title: `${o.discount}% off a new number`, text: `Use code ${o.code} at checkout — works on a new number or an extra number.`, cta: { label: 'Use it', to: `/app/buy?coupon=${enc(o.code)}` } }
-  if (o.kind === 'renew') return { title: `${o.discount}% off your renewal`, text: `${o.phones[0]}${o.phones.length > 1 ? ` and ${o.phones.length - 1} more` : ''} ${o.phones.length > 1 ? 'renew' : 'renews'} soon. Renew today from the Billing tab and pay ${o.discount}% less.`, cta: { label: 'Renew now', to: `/app/numbers/${enc(o.phones[0])}?tab=billing` } }
-  if (o.kind === 'upgrade') return { title: `${o.discount}% off a plan upgrade`, text: `Move ${o.phone} from ${PLAN_NAME[o.from]} to ${PLAN_NAME[o.to]} today and pay ${o.discount}% less.`, cta: { label: 'See the upgrade', to: `/app/numbers/${enc(o.phone)}?tab=billing&plan=${o.to}` } }
+  if (o.kind === 'number') return { title: `${o.discount}% off a new VoIP number`, text: `Use code ${o.code} at checkout — works on a new or extra VoIP number. VoIP numbers only, not the eSIM or USA mobile number.`, cta: { label: 'Use it', to: `/app/buy?coupon=${enc(o.code)}` } }
+  if (o.kind === 'renew') return { title: `${o.discount}% off your renewal`, text: `${o.phones[0]}${o.phones.length > 1 ? ` and ${o.phones.length - 1} more` : ''} ${o.phones.length > 1 ? 'renew' : 'renews'} soon. Renew today from the Billing tab and pay ${o.discount}% less. VoIP numbers only, not the eSIM or USA mobile number.`, cta: { label: 'Renew now', to: `/app/numbers/${enc(o.phones[0])}?tab=billing` } }
+  if (o.kind === 'upgrade') return { title: `${o.discount}% off a plan upgrade`, text: `Move ${o.phone} from ${PLAN_NAME[o.from]} to ${PLAN_NAME[o.to]} today and pay ${o.discount}% less. VoIP numbers only, not the eSIM or USA mobile number.`, cta: { label: 'See the upgrade', to: `/app/numbers/${enc(o.phone)}?tab=billing&plan=${o.to}` } }
   if (o.kind === 'firstTopup') return { title: `First top-up bonus: +${FIRST.pct}%`, text: `Top up ${usd(FIRST.min)} or more for the first time and get ${FIRST.pct}% extra credit (up to ${usd(FIRST.max)}).`, cta: { label: 'Top up', to: '/app/wallet' } }
   return { title: 'Top up $100, get $115', text: `${TIERS.map(t => `${usd(t.min)} → ${usd(t.min + t.bonus)}`).join(' · ')}. One bonus per day — it lands in your wallet when the payment confirms.`, cta: { label: 'Top up', to: '/app/wallet?amount=100' } }
 }

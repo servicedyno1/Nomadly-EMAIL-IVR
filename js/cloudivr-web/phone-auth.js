@@ -87,4 +87,11 @@ function createPhoneAuth(db, { accounts, createAccount, finishLogin, lockState, 
   return { routes, voiceEnabled }
 }
 
-module.exports = { createPhoneAuth, normPhone, voiceEnabled }
+// Plain text message (e.g. renewal reminders for phone-only accounts). Preview never sends.
+async function sendText(phone, message) {
+  if (process.env.WEB_CLOUDIVR_DRY_RUN === 'true' || !configured()) return false
+  await telesign('/v1/messaging', { phone_number: String(phone).replace(/^\+/, ''), message, message_type: 'ARN' })
+  return true
+}
+
+module.exports = { createPhoneAuth, normPhone, voiceEnabled, sendText }

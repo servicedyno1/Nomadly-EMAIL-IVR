@@ -10,7 +10,8 @@ const H = 3600000, D = 24 * H
   const clean = () => Promise.all([col.deleteMany({ chatId: { $in: [rich, poor] } }), db.collection('walletOf').deleteMany({ _id: { $in: [rich, poor] } }), db.collection('transactions').deleteMany({ chatId: { $in: [rich, poor] } })])
   await clean()
   await db.collection('walletOf').insertMany([{ _id: rich, usdIn: 500, usdOut: 0 }, { _id: poor, usdIn: 0, usdOut: 0 }])
-  ES.init({ db, log: () => {}, tell: async () => null })
+  const told = []
+  ES.init({ db, log: () => {}, tell: async (id, text) => { told.push(text); return null } })
   const base = { status: 'active', price: 75, simulated: true, iccid: 'x', phoneNumber: '+15550000000', callsTo: 'device', createdAt: new Date() }
   const exp = new Date(Date.now() + 20 * H)
   await col.insertMany([
@@ -30,7 +31,14 @@ const H = 3600000, D = 24 * H
     legacyDated: !!legacy.expiresAt && Math.abs(legacy.expiresAt - legacy.nextBillAt - D) < 5000,
   }
   await col.updateMany({ _id: { $in: ['rt_unpaid', 'rt_off'] } }, { $set: { expiresAt: new Date(Date.now() + 30 * 60000) } })
+  await col.insertOne({ ...base, _id: 'rt_remind', chatId: poor, expiresAt: new Date(Date.now() + 2 * D), nextBillAt: new Date(Date.now() + D) })
+
   await ES.tick()
+  r.reminded = !!(await g('rt_remind')).remindedFor && told.some(t => /renews on .*Wallet balance: \$0\.00\. Top up \$75\.00/.test(t))
+  const n = told.length
+  await ES.tick()
+  const soon = new Date(Date.now() + 2 * D).toISOString().slice(0, 10)
+  r.remindOnce = told.filter(t => t.startsWith('🔔') && t.includes(soon)).length === 1 && told.length === n
   r.unpaidEnded = (await g('rt_unpaid')).status === 'cancelled'
   r.offEnded = (await g('rt_off')).status === 'cancelled'
   r.offNoCharge = (await db.collection('walletOf').findOne({ _id: rich })).usdOut === 75

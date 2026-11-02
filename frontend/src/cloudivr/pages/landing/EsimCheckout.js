@@ -6,6 +6,7 @@ import { api, useApi } from '../../api';
 import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
 import { RenewPick } from '../esim/RenewPick';
+import { PhoneAccount } from './PhoneAccount';
 
 // Landing-page eSIM checkout: details → account → pay (wallet, or crypto top-up then auto-order) → done.
 export const openEsimCheckout = (planId) => window.dispatchEvent(new CustomEvent('civr-esim-checkout', { detail: planId || null }));
@@ -36,8 +37,9 @@ function Details({ plans, d, set, onNext }) {
 }
 
 export function Account({ onDone, onMfa, intro = 'Create your free CloudIVR account. Your eSIM and its QR code live here.' }) {
-  const { setAccount } = useCivrAuth();
+  const { setAccount, config } = useCivrAuth();
   const [mode, setMode] = useState('signup');
+  const [method, setMethod] = useState('email');
   const [f, setF] = useState({ name: '', email: '', password: '' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -50,9 +52,16 @@ export function Account({ onDone, onMfa, intro = 'Create your free CloudIVR acco
     } catch (e) { setErr(e); } finally { setBusy(false); }
   };
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const tabs = config?.phoneSignIn && (
+    <div role="tablist" aria-label="Account method" className="flex gap-1 p-1 rounded-full border border-slate-200" data-testid="co-method-switch">
+      {[['email', 'Email'], ['phone', 'Phone number']].map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={method === k} onClick={() => { setMethod(k); setErr(null); }} className={`flex-1 min-h-[40px] rounded-full text-sm font-semibold transition-colors ${method === k ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`} data-testid={`co-method-${k}`}>{l}</button>)}
+    </div>
+  );
+  if (tabs && method === 'phone') return <div className="space-y-4" data-testid="esim-co-account"><p className="text-sm text-slate-600">{intro}</p>{tabs}<PhoneAccount onDone={onDone} onMfa={onMfa} /></div>;
   return (
     <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); go(); }} data-testid="esim-co-account">
       <p className="text-sm text-slate-600">{mode === 'signup' ? intro : 'Sign in to your CloudIVR account.'}</p>
+      {tabs}
       {mode === 'signup' && <Label text="Name (optional)"><input className={IN} value={f.name} onChange={set('name')} autoComplete="name" data-testid="esim-co-name" /></Label>}
       <Label text="Email"><input className={IN} type="email" required value={f.email} onChange={set('email')} autoComplete="email" placeholder="you@company.com" data-testid="esim-co-email" /></Label>
       <Label text="Password" hint={mode === 'signup' ? 'At least 8 characters.' : null}><input className={IN} type="password" required minLength={mode === 'signup' ? 8 : 1} value={f.password} onChange={set('password')} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} data-testid="esim-co-password" /></Label>
