@@ -25,7 +25,7 @@ export function Receipts({ item }) {
     try { setList((await api(`/esim/${item.id}/receipts`)).receipts); } catch (e) { setErr(e.message); } finally { setBusy(false); }
   };
   return (
-    <div data-testid={`receipts-${item.id}`}>
+    <div className={open ? "basis-full w-full order-last" : ""} data-testid={`receipts-${item.id}`}>
       <button type="button" onClick={toggle} className="civr-btn civr-btn-ghost civr-btn-sm" aria-expanded={open} data-testid={`receipts-toggle-${item.id}`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Receipt className="w-4 h-4" />}{open ? 'Hide receipts' : 'Receipts'}</button>
       {err && <p className="text-xs text-red-500 mt-1" data-testid={`receipts-error-${item.id}`}>{err}</p>}
       {open && (list.length ? (

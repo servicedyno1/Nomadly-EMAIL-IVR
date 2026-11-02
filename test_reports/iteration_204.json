@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 204 tested line receipts, long texts (3 joined parts) and the code-split landing. Backend: 13/13 pytest tests passed. Receipts API: the eSIM es_a52441cc7f4f returns Purchase + Renewal at $75, newest first, with all fields. The mobile mn_b5893a901b4f returns 1 Purchase and no texts. Without a login it returns 401. Bob and a bad id get 'Line not found.' Parts are 1/2/2/3/3 at 160/161/306/307/459 characters. 460 → 'Keep it to 459 characters (3 joined texts)' on both the mobile and Business numbers. Emoji 202 → 'Keep it to 201'. The thread maxLength is 459. A 300-character send from the USA mobile number took $0.10 from the wallet (transaction amount 0.1, metadata.parts 2, phoneLog charge 0.1). The 300-character Business send returned sms_blocked (10DLC), not a length error. Saving the IVR with 400 characters works; 500 → 'Key 3: Keep it to 459'. The IVR was restored afterwards. Frontend: receipts toggle, list, hide and print work on /esim and on /numbers mobile cards; the print popup opens with the receipt HTML and no errors. The composer count, cost, red state and send-disabled are exactly as specified at 160/161/306/307/459/460 and for emoji 70/71/201/202. The calling-number thread shows 'Uses 2/3 plan texts (1 per part)…'. A 200-character UI send took $0.10 (249.63→249.53). The IVR counter shows parts and per-press cost, with a red border at 460. /cloudivr renders at 390 (no overflow) and 1920 with no i18n chunk. /cloudivr/terms, /cloudivr/admin login, root '/' Nomadly dashboard and /panel login all render translated text; the i18n chunk loads only for non-CloudIVR pages. The app deep link redirects to login and the Shell loads after sign-in. No chunk or page errors; the only console errors are the expected unauthenticated 401s.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /messages/send (calling number, sms-reply.js L141)", "issue": "The overage check is all-or-nothing. If a plan has 1 text left and the message is 3 parts, isSmsLimitReached is false, so no overage is charged. All 3 parts are still added to the used count, so 2 parts go out for free. It should charge for each part beyond what is left in the plan."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Receipts (Esim.js L140, number/MobileLines.js L46)", "issue": "<Receipts> sits inside the flex-wrap action-button row. When it opens, the receipts list widens that flex item, which pushes 'Cancel eSIM' / 'Cancel number' far to the right with a large gap, and the list hangs under the Receipts button instead of spanning the card. Fix: render the list outside the button row (lift the open state up, or make the list basis-full / a separate block).", "selector": "[data-testid^=receipts-list-]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Composer / IVR counter when over the limit", "issues": ["At 460+ characters it still shows '$0.20 from your wallet · 4 parts × $0.05' for a text that can't be sent. Hide the cost or say 'too long' instead."]},
+      {"screen": "/panel login (likely pre-existing, CSS not changed this iteration)", "issues": ["At 1920 the card is left-aligned (x≈20) and leaves a big empty area. .panel-login-page is display:grid with 1fr columns and the card has no justify-self/margin:auto."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_iter204_receipts_longsms.py", "/app/test_reports/pytest/pytest_iter204.xml"],
+  "action_items": [
+    "Move the receipts list out of the action-button flex row in Esim.js and MobileLines.js so it spans the card and doesn't shove the Cancel button",
+    "sms-reply.js: charge overage for each part beyond the remaining plan texts, not all-or-nothing",
+    "Optional: hide the cost line when the text is over 3 parts; useBalance in Composer checks only one part (t.cost.each), not each*parts"
+  ],
+  "critical_code_review_comments": [
+    "Composer useBalance(t.cost.each) lets a user with $0.05–0.14 compose a 3-part text; the server then rejects it with 'wallet needs $0.15'. Acceptable, but the gate could use each*parts.",
+    "receiptsOf matches metadata.lineId only. Older purchases saved without lineId in metadata will not appear (seeded data was fine).",
+    "printReceipt uses window.open with 'noopener=no' plus document.write. It works, but if a popup blocker stops it, it returns silently with no message to the user."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_iter204_receipts_longsms.py"],
+  "success_rate": {"backend": "100%", "frontend": "95%"},
+  "seed_data_creation": "Two preview texts were sent from +15554586272 to +14155550123: 'TEST_iter204 c…' (300 characters, API) and 'TEST_iter204ui e…' (200 characters, UI). Each cost $0.10. The IVR on +13346972125 was saved and then restored to its original options.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Alice's mobile line ids are mn_b5893a901b4f (+15554586272, the thread line) and mn_3f7ea8df1d8f. es_69fcb8db0c34 (+16462556424) is a real, non-simulated mobile line: don't send from it. The eSIM es_a52441cc7f4f (cancelled) has purchase + renewal receipts, and es_069da6dee178 (active) has Number replacement $25 + Purchase $75. IVR key 3 is ivr-option-2-sms-text. The /esim list returns only kind=esim lines; mobile lines are on /numbers."
+}

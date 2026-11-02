@@ -102,7 +102,7 @@ export function Composer({ t, onSent, seed, onScheduled }) {
         <button type="button" onClick={send} disabled={busy || over || pics.some(p => !p.id) || (!text.trim() && !pics.some(p => p.id))} className="w-11 h-11 shrink-0 grid place-items-center rounded-full bg-[var(--c-accent-strong)] text-white disabled:opacity-40 transition-opacity" aria-label={when !== null ? 'Schedule' : 'Send'} data-testid="composer-send">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : when !== null ? <Clock className="w-5 h-5" /> : <SendHorizontal className="w-5 h-5" />}</button>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2 text-xs text-[var(--c-muted)]">
-        <span className={parts > 1 ? 'font-semibold text-[var(--c-text)]' : ''} data-testid="composer-cost">{cost}</span>
+        <span className={parts > 1 ? 'font-semibold text-[var(--c-text)]' : ''} data-testid="composer-cost">{over ? 'Too long to send' : cost}</span>
         <span className="flex items-center gap-3">
           {when === null && <button type="button" onClick={() => setWhen('')} className="underline underline-offset-2 hover:text-[var(--c-accent)]" data-testid="composer-schedule-toggle">Send later</button>}
           <button type="button" onClick={() => setQuick(q => !q)} className="underline underline-offset-2 hover:text-[var(--c-accent)]" aria-expanded={quick} data-testid="composer-quick-toggle">Quick replies</button>
