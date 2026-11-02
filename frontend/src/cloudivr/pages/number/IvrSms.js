@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useApi } from '../../api';
 import { MobileOffer } from '../buy/MobileOffer';
+import { smsOver, smsCount } from '../../smsLimit';
 
 const shown = (x) => ['provisioning', 'active', 'suspended'].includes(x.status);
 const nameOf = (x) => `${x.phoneNumber || 'Number coming'} · ${x.kind === 'mobile' ? 'USA mobile number' : 'USA eSIM'}${x.status === 'active' ? '' : x.status === 'provisioning' ? ' (being assigned)' : ' (paused)'}`;
@@ -28,8 +29,8 @@ export function IvrSms({ o, set, prefix }) {
           {lines.map(x => <option key={x.id} value={x.id}>{nameOf(x)}</option>)}
         </select>
       )}
-      <textarea rows={2} maxLength={1000} className="civr-input" value={o.smsText || ''} onChange={e => set({ smsText: e.target.value })} placeholder="Text to send the caller, e.g. Here is our address: …" data-testid={`${prefix}-sms-text`} />
-      <div className="text-xs text-[var(--c-muted)]" data-testid={`${prefix}-sms-count`}>{`${(o.smsText || '').length}/1000 · $0.05 from your wallet for each text`}</div>
+      <textarea rows={2} maxLength={400} className={`civr-input ${smsOver(o.smsText) ? '!border-red-500' : ''}`} value={o.smsText || ''} onChange={e => set({ smsText: e.target.value })} placeholder="Text to send the caller, e.g. Here is our address: …" data-testid={`${prefix}-sms-text`} />
+      <div className="text-xs text-[var(--c-muted)]" data-testid={`${prefix}-sms-count`}><span className={smsOver(o.smsText) ? 'text-red-500 font-semibold' : ''}>{smsCount(o.smsText)}{smsOver(o.smsText) ? ' · too long for one text' : ''}</span>{' · $0.05 from your wallet for each text'}</div>
       <div className="grid md:grid-cols-2 gap-2">
         <input className="civr-input" value={o.message || ''} onChange={e => set({ message: e.target.value })} placeholder="Say after sending (default: We have sent you a text message.)" data-testid={`${prefix}-sms-say`} />
         <select className="civr-input" value={o.after || 'hangup'} onChange={e => set({ after: e.target.value })} aria-label="Then" data-testid={`${prefix}-sms-after`}>

@@ -194,6 +194,8 @@ function validateIvr(body, plan, audioOk = () => true) {
         const smsText = String(o.smsText || '').trim().slice(0, 1000)
         if (!/^(es|mn)_[0-9a-f]+$/.test(smsFrom)) throw new Error(`Key ${digit}: pick the number the text is sent from.`)
         if (!smsText) throw new Error(`Key ${digit}: write the text to send.`)
+        const long = require('./sms-limit').smsTooLong(smsText)
+        if (long) throw new Error(`Key ${digit}: ${long}`)
         out[digit] = { action, smsFrom, smsText, message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label }
       } else if (action === 'voicemail') {
         if (!phoneConfig.canAccessFeature(plan, 'voicemail')) throw new Error('Voicemail needs the Pro plan or higher.')

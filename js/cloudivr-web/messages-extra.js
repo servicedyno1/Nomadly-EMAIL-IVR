@@ -1,4 +1,5 @@
 'use strict'
+const { smsTooLong, fitSms } = require('./sms-limit')
 // Messages extras: contact notes + tags, scheduled texts, and AI summaries with suggested replies on long conversations.
 const axios = require('axios')
 const crypto = require('crypto')
@@ -20,7 +21,7 @@ async function ai(lines, canText) {
       ],
     }, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` }, timeout: 30000 })
     const j = JSON.parse(r.data.choices[0].message.content)
-    return { summary: String(j.summary || '').slice(0, 700), replies: canText ? (Array.isArray(j.replies) ? j.replies : []).map(x => String(x).slice(0, 160)).filter(Boolean).slice(0, 3) : [] }
+    return { summary: String(j.summary || '').slice(0, 700), replies: canText ? (Array.isArray(j.replies) ? j.replies : []).map(x => fitSms(String(x))).filter(Boolean).slice(0, 3) : [] }
   } catch (e) { console.log(`[Messages] AI summary failed: ${e.response?.data?.error?.message || e.message}`); return null }
 }
 const lineOf = (e) => {
@@ -58,7 +59,8 @@ function create({ db, M, log = console.log }) {
     if (!t.canText || t.blocked) return { error: 'You can’t text this contact from here.' }
     const body = String(text || '').replace(/\s+/g, ' ').trim()
     if (!body && !media.length) return { error: 'Type a message.' }
-    if (body.length > t.maxLength) return { error: `Keep it to ${t.maxLength} characters.` }
+    const long = smsTooLong(body)
+    if (long) return { error: long }
     if (media.length && !t.number.caps.pictures) return { error: 'This number can’t send pictures.' }
     const ids = media.slice(0, 5).map(String)
     const pics = ids.length ? await db.collection('webMedia').find({ _id: { $in: ids }, chatId: String(chatId), isDeleted: false }).toArray() : []

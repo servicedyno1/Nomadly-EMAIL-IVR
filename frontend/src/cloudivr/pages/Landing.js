@@ -3,11 +3,8 @@ import { useSiteLook } from './landing/kit';
 import { useApi } from '../api';
 import { Hero } from './landing/Hero';
 import { Quotes } from './landing/V2Sections';
-import { Families } from './landing/Families';
 import { EsimCheckoutHost } from './landing/EsimCheckout';
-import { EsimPlans } from './landing/EsimPlans';
 import { Coverage, HowItWorks, Facts } from './landing/Sections';
-import { UseCases } from './landing/UseCases';
 import { Platform } from './landing/Platform';
 import { Trust } from './landing/Trust';
 import { TryCall } from './landing/TryCall';
@@ -36,14 +33,11 @@ export default function Landing() {
       <main>
         <ProductHero esimPrice={esim?.plans?.[0]?.price} offer={offer} />
         <Showcase />
-        <EsimPlans />
         <Hero catalog={catalog} />
         <Facts catalog={catalog} />
-        <Families />
         <Platform catalog={catalog} />
         <TryCall />
         <Coverage catalog={catalog} />
-        <UseCases />
         <Quotes />
         <Reviews />
         <Trust />

@@ -125,7 +125,8 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     const body = clean(text)
     if (!body && !media.length) return { error: [400, 'empty', 'Type a reply or pick one.'] }
     if (media.length && !canMms(num)) return { error: [400, 'no_mms', 'This number can’t send pictures.'] }
-    if (body.length > MAX) return { error: [400, 'too_long', `Keep it to ${MAX} characters (one text).`] }
+    const long = require('./sms-limit').smsTooLong(body)
+    if (long) return { error: [400, 'too_long', long] }
     if (!E164.test(String(to || ''))) return { error: [400, 'invalid_number', 'This caller’s number can’t receive texts.'] }
     if (num.capabilities?.sms === false) return { error: [400, 'no_sms', 'This number can’t send texts.'] }
     if (num.status !== 'active') return { error: [409, 'not_active', 'This number is suspended. Renew it to send texts again.'] }

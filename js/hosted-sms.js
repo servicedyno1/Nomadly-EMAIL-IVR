@@ -437,7 +437,8 @@ async function sendText(chatId, id, to, text) {
   const body = String(text || '').trim()
   if (!E164.test(dest)) return { error: 'Enter the number to text with its country code.' }
   if (!body) return { error: 'Type a message.' }
-  if (body.length > MAX_TEXT) return { error: `Keep it to ${MAX_TEXT} characters (one text).` }
+  const long = require('./cloudivr-web/sms-limit').smsTooLong(body)
+  if (long) return { error: long }
   const senderName = (await S.db.collection('webPrefs').findOne({ _id: chatId }, { projection: { senderName: 1 } }))?.senderName || null
   const rule = await require('./sms-rules.js').check(d.phoneNumber, dest, senderName, true)
   if (!rule.ok) return { error: rule.why }

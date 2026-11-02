@@ -430,7 +430,9 @@ async function sendSms(chatId, id, to, text) {
   const d = await mine(chatId, id)
   if (d && d.kind !== 'mobile') return { error: 'Texts from a QR eSIM are sent from your phone, not from CloudIVR.' }
   if (!d || d.status !== 'active' || !d.phoneNumber) return { error: 'This number can’t send texts right now.' }
-  const dest = String(to || '').replace(/[^\d+]/g, ''), body = String(text || '').trim().slice(0, 1000)
+  const dest = String(to || '').replace(/[^\d+]/g, ''), body = String(text || '').trim()
+  const long = require('./cloudivr-web/sms-limit').smsTooLong(body)
+  if (long) return { error: long }
   if (!/^\+1[2-9]\d{2}[2-9]\d{6}$/.test(dest)) return { error: 'Texts can go to USA numbers: enter +1 and the 10-digit number.' }
   if (!body) return { error: 'Type a message.' }
   if (!(await S.w.debit(chatId, TEXT_PRICE))) return { error: `Your wallet needs $${TEXT_PRICE} to send a text.` }
