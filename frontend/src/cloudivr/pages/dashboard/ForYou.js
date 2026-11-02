@@ -1,30 +1,32 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Star, X, Loader2 } from 'lucide-react';
+import { ArrowRight, Star, X, Loader2, Lightbulb } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, useApi } from '../../api';
 import { cp } from '../../paths';
 import { useShell } from '../../Shell';
 import { suggestionsFor } from '../../purpose';
 
-// Overview: the 3 next steps picked from the onboarding purposes.
+// Overview: one slim, dismissible line of next steps picked from the onboarding purposes. Bring it back in Settings.
 export function ForYou() {
   const { onboarding, setOnboarding } = useShell();
   const recs = suggestionsFor(onboarding?.purposes);
   const change = () => setOnboarding({ ...onboarding, onboarded: false });
-  if (!onboarding) return null;
-  if (!recs.length) return <button type="button" className="text-sm text-[#a1a1aa] hover:underline mb-4 min-h-[44px]" onClick={change} data-testid="dashboard-for-you-start">Tell us what you use CloudIVR for — we’ll put the right tools first</button>;
+  if (!onboarding || onboarding.suggestionsHidden) return null;
+  const hide = () => {
+    setOnboarding({ ...onboarding, suggestionsHidden: true });
+    api('/prefs/suggestions', { method: 'PUT', body: { hidden: true } }).then(() => toast('Suggestions hidden. You can turn them back on in Settings.')).catch(e => { setOnboarding({ ...onboarding, suggestionsHidden: false }); toast.error(e.message); });
+  };
   return (
-    <div className="mb-6" data-testid="dashboard-for-you">
-      <div className="flex items-center justify-between gap-3 mb-3"><div className="civr-label">Recommended for you</div><button type="button" className="text-xs text-[#a1a1aa] hover:underline min-h-[44px]" onClick={change} data-testid="dashboard-for-you-change">Change what I use CloudIVR for</button></div>
-      <div className="grid md:grid-cols-3 gap-3">
-        {recs.map(([label, to], i) => (
-          <Link key={to} to={cp(to)} className="civr-card civr-card-link p-4 flex items-center gap-3 civr-rise" style={{ animationDelay: `${i * 60}ms` }} data-testid={`dashboard-for-you-${i}`}>
-            <span className="w-8 h-8 rounded-full border-2 border-[#818cf8] text-[#818cf8] grid place-items-center text-sm font-semibold shrink-0">{i + 1}</span>
-            <span className="flex-1 font-semibold">{label}</span><ArrowRight className="w-4 h-4 text-[#a1a1aa]" />
-          </Link>
-        ))}
-      </div>
+    <div className="mb-6 flex items-center gap-x-4 gap-y-1 flex-wrap text-sm border-b border-[#1f1f1f] pb-3 civr-rise" data-testid="dashboard-for-you">
+      <span className="text-[#a1a1aa] inline-flex items-center gap-1.5"><Lightbulb className="w-4 h-4 text-[#818cf8]" />Suggested</span>
+      {recs.length ? recs.map(([label, to], i) => (
+        <Link key={to} to={cp(to)} className="font-medium text-[var(--c-text,#f4f4f5)] hover:text-[#818cf8] inline-flex items-center gap-1 min-h-[36px]" data-testid={`dashboard-for-you-${i}`}>{label}<ArrowRight className="w-3.5 h-3.5 opacity-60" /></Link>
+      )) : <button type="button" className="text-[var(--c-text,#f4f4f5)] hover:text-[#818cf8] min-h-[36px]" onClick={change} data-testid="dashboard-for-you-start">Tell us what you use CloudIVR for</button>}
+      <span className="ml-auto flex items-center gap-1">
+        {recs.length > 0 && <button type="button" className="text-xs text-[#a1a1aa] hover:underline min-h-[36px] px-1" onClick={change} data-testid="dashboard-for-you-change">Change</button>}
+        <button type="button" onClick={hide} className="w-9 h-9 grid place-items-center rounded-full text-[#a1a1aa] hover:text-[var(--c-text,#f4f4f5)]" aria-label="Hide suggestions" data-testid="dashboard-for-you-dismiss"><X className="w-4 h-4" /></button>
+      </span>
     </div>
   );
 }

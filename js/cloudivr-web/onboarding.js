@@ -11,7 +11,12 @@ function routes(router, { db, h, numbersApi }) {
 
   router.get('/prefs/onboarding', h(async (req, res) => {
     const p = await me(req)
-    res.json({ purposes: p?.purposes || [], onboarded: !!p?.onboardedAt, setups: p?.setups || {} })
+    res.json({ purposes: p?.purposes || [], onboarded: !!p?.onboardedAt, setups: p?.setups || {}, suggestionsHidden: !!p?.suggestionsHidden })
+  }))
+  router.put('/prefs/suggestions', h(async (req, res) => {
+    const hidden = !!req.body.hidden
+    await prefs.updateOne({ _id: req.webChatId }, { $set: { suggestionsHidden: hidden } }, { upsert: true })
+    res.json({ suggestionsHidden: hidden })
   }))
   router.put('/prefs/onboarding', h(async (req, res) => {
     const purposes = [...new Set((Array.isArray(req.body.purposes) ? req.body.purposes : []).map(String))].filter(x => PURPOSES.includes(x))

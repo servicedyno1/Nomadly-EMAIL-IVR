@@ -64,7 +64,7 @@ function Header({ t, onBack, reload, onNotes }) {
 function Footer({ t, onSent, seed, reload }) {
   if (t.blocked) return <ReceiveOnly text="You blocked this contact. Unblock them to text." />;
   if (t.number.kind === 'texting') return <ReceiveOnly text="This number receives texts only" />;
-  if (t.number.kind === 'esim' && !t.number.mobile && !t.replyFrom) return <ReceiveOnly text="Texts on a QR eSIM are on your phone. Older texts stay here to read." />;
+  if (t.number.kind === 'esim' && !t.number.mobile && !t.replyFrom) return <ReceiveOnly text="A QR eSIM sends and receives texts on your phone. Older texts stay here to read." />;
   if (!t.replyFrom) return <ReceiveOnly text="This number can’t send texts right now." />;
   if (!t.canText) return <ReceiveOnly text="This number can’t receive texts." />;
   return <><ScheduledList items={t.scheduled} reload={reload} /><Composer t={t} onSent={onSent} seed={seed} onScheduled={reload} /></>;

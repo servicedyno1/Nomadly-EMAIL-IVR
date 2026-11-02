@@ -130,7 +130,7 @@ function Line({ item, reload }) {
         <button type="button" onClick={() => setOpen(!open)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`esim-qr-toggle-${item.id}`}><QrCode className="w-4 h-4" />{open ? 'Hide install QR' : 'Show install QR'}</button>
         {open && <QrBlock id={item.id} />}
         <EmailQr item={item} reload={reload} />
-        <p className="text-sm text-[var(--c-muted)] flex items-center gap-2" data-testid={`esim-texts-in-messages-${item.id}`}><MessageSquare className="w-4 h-4" />Texts on this eSIM are on your phone. Need texting in CloudIVR? Get a <Link to={cp('/app/buy')} className="underline font-semibold text-[var(--c-accent)]">USA mobile number</Link>.</p>
+        <p className="text-sm text-[var(--c-muted)] flex items-center gap-2" data-testid={`esim-texts-in-messages-${item.id}`}><MessageSquare className="w-4 h-4" />This eSIM has two-way SMS on your phone: send and receive texts there. Need texting in CloudIVR? Get a <Link to={cp('/app/buy')} className="underline font-semibold text-[var(--c-accent)]">USA mobile number</Link>.</p>
       </>}
       <div className="flex flex-wrap items-start gap-2">
         {item.status === 'suspended' && <WalletPay price={item.price} small onWallet={() => act('renew', 'Renewed')} label={`Renew $${item.price}`} testid={`esim-renew-pay-${item.id}`} walletTestid={`esim-renew-${item.id}`} cryptoTestid={`esim-renew-crypto-${item.id}`} />}
@@ -157,7 +157,7 @@ export default function Esim() {
   if (!data) return <Spinner />;
   return (
     <div className="space-y-8" data-testid="esim-page">
-      <PageHeader label="Mobile lines" title="USA eSIM and USA mobile numbers" sub="Two real USA carrier numbers, $75/month each. Both send and receive SMS instantly. The USA eSIM downloads to your phone with a QR code: texts, calls and data happen on the phone. The USA mobile number is virtual: you use it in your browser, with texts in Messages and calls from the browser phone." testid="esim-header" />
+      <PageHeader label="Mobile lines" title="USA eSIM and USA mobile numbers" sub="Two real USA carrier numbers, $75/month each. Both have two-way SMS: they send and receive texts instantly. The USA eSIM downloads to your phone with a QR code: texts, calls and data happen on the phone. The USA mobile number is virtual: you use it in your browser, with texts in Messages and calls from the browser phone." testid="esim-header" />
       {data.items.length > 0 && <div className="space-y-4">{data.items.map(x => <Line key={x.id} item={x} reload={reload} />)}</div>}
       {data.items.length > 0 && !buying && data.plans.length > 0 && <h2 className="font-display text-xl font-bold" data-testid="esim-add-another">Add another eSIM</h2>}
       {buying ? <BuyForm plan={buying} draft={draft?.planId === buying.planId ? draft : null} onCancel={() => { dropDraft(); setBuying(null); }} onDone={() => { setBuying(null); reload(); }} /> : (

@@ -25,8 +25,8 @@ export function MobileOffer({ onBought, open: startOpen = false }) {
       <div className="flex flex-wrap items-start gap-3">
         <MessageSquare className="w-5 h-5 text-[#818cf8] mt-1" />
         <div className="flex-1 min-w-[200px]">
-          <div className="font-semibold">Need a USA mobile number for texts and calls?</div>
-          <p className="text-sm text-[var(--c-muted)] mt-1">A virtual USA mobile number on a real carrier (not VoIP), used in your browser: no phone or SIM. Send and receive SMS instantly in Messages. Texts cost $0.05 each; calls from your browser $0.15/min to the USA and Canada, from your wallet. Incoming calls aren’t answered in CloudIVR yet.</p>
+          <div className="font-semibold">Need a USA mobile number with two-way SMS?</div>
+          <p className="text-sm text-[var(--c-muted)] mt-1">A virtual USA mobile number on a real carrier (not VoIP), used in your browser: no phone or SIM. Two-way SMS: send and receive texts instantly in Messages. Texts cost $0.05 each; calls from your browser $0.15/min to the USA and Canada, from your wallet. Incoming calls aren’t answered in CloudIVR yet.</p>
         </div>
         <div className="font-mono text-xl" data-testid="mobile-offer-price">{`${money(data.price)}`}<span className="text-xs text-[var(--c-muted)]"> /month</span></div>
       </div>

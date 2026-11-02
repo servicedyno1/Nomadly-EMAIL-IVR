@@ -5,8 +5,8 @@ import { Reveal } from './kit';
 import { openEsimCheckout, EMAIL_OK } from './EsimCheckout';
 import { openMobileCheckout } from './MobileCheckout';
 
-const ESIM_POINTS = ['Scan a QR code and the line is on your phone', 'Send and receive SMS instantly, plus USA data and calls, on your phone', 'QR code shown in the app and emailed to you', 'For unlocked phones that support eSIM'];
-const MOBILE_POINTS = ['A real carrier mobile number, not VoIP, accepted by most banks and apps', 'Send and receive SMS instantly in CloudIVR Messages, and call out from your browser', 'No phone or SIM needed', 'Free caller ID for your CloudIVR calls'];
+const ESIM_POINTS = ['Scan a QR code and the line is on your phone', 'Two-way SMS: send and receive texts instantly on your phone, plus USA data and calls', 'QR code shown in the app and emailed to you', 'For unlocked phones that support eSIM'];
+const MOBILE_POINTS = ['A real carrier mobile number, not VoIP, accepted by most banks and apps', 'Two-way SMS: send and receive texts instantly in CloudIVR Messages, and call out from your browser', 'No phone or SIM needed', 'Free caller ID for your CloudIVR calls'];
 
 function Waitlist() {
   const [email, setEmail] = useState('');

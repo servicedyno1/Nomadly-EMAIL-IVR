@@ -19,8 +19,8 @@ const FAMILIES = [
     ['Works with your existing USA or Canada number', '$200 to start, then $50/month after the first month', 'Incoming texts are free'],
     ['Start texting', 'texting'], ['How it works', 'hosted']],
   ['mobile', Smartphone, 'outreach', 'Mobile', 'CloudIVR eSIM & USA mobile number',
-    'A USA mobile line on the T-Mobile network for your phone, or a USA mobile number for texting in your browser. Both are real carrier numbers, not VoIP.',
-    ['eSIM: install with a QR code; data, calls and texts on your phone', 'USA mobile number: texts in CloudIVR Messages, no phone needed', 'Each $75/month, no contract'],
+    'A USA mobile line on the T-Mobile network for your phone, or a USA mobile number for texting in your browser. Both are real carrier numbers with two-way SMS, not VoIP.',
+    ['eSIM: install with a QR code; two-way SMS, data and calls on your phone', 'USA mobile number: two-way SMS in CloudIVR Messages, no phone needed', 'Each $75/month, no contract'],
     ['Buy eSIM', 'esim'], ['See eSIM plans', '#esim']],
 ];
 

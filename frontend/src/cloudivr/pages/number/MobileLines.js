@@ -56,7 +56,7 @@ export function MobileLines({ noEmpty = false }) {
   if (!data?.items?.length) return data?.available && !noEmpty ? (
     <div className="civr-card p-5 mt-8 flex flex-wrap items-center gap-3" data-testid="mobile-lines-empty">
       <MessageSquare className="w-5 h-5 text-[#818cf8]" />
-      <div className="flex-1 min-w-[200px]"><div className="font-semibold">Need a USA mobile number for texts and calls?</div><div className="text-sm text-[var(--c-muted)]">{`A real carrier number for codes and texts in Messages, ${money(data.price)}/month.`}</div></div>
+      <div className="flex-1 min-w-[200px]"><div className="font-semibold">Need a USA mobile number with two-way SMS?</div><div className="text-sm text-[var(--c-muted)]">{`A real carrier number with two-way SMS in Messages: send and receive texts, including verification codes. ${money(data.price)}/month.`}</div></div>
       <Link to={cp('/app/buy')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="mobile-lines-empty-buy">Get one</Link>
     </div>
   ) : null;

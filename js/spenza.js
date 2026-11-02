@@ -181,7 +181,7 @@ async function buyMobile(chatId, { zipcode, autoRenew }) {
 const CID = () => require('./cloudivr-web/caller-ids')
 async function ready(d, phone) {
   if (d.kind !== 'mobile') return
-  await S.tell(d.chatId, `📱 Your USA mobile number is ready: ${phone || ''}. Texts to and from it are in Messages.`, { kind: 'billing', meta: { mobile: d._id } })
+  await S.tell(d.chatId, `📱 Your USA mobile number is ready: ${phone || ''}. It has two-way SMS: send and receive texts in Messages.`, { kind: 'billing', meta: { mobile: d._id } })
   if (!phone) return
   const r = await CID().autoVerify(S.db, d.chatId, phone).catch(e => { S.log(`[mobile] caller ID ${d._id}: ${e.message}`); return null })
   if (r === 'verified') await S.tell(d.chatId, `✅ ${phone} is now one of your caller IDs, free. Pick it as “Show as” on calls and campaigns.`, { kind: 'system', meta: { mobile: d._id } })
@@ -220,7 +220,7 @@ async function pollOne(d) {
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', iccid: x.iccid || null, phoneNumber: x.mdn ? (String(x.mdn).startsWith('+') ? x.mdn : '+1' + String(x.mdn).replace(/\D/g, '').slice(-10)) : null, qrCode: x.qrCode || null, orderId: x.orderId || null, ...period((x.iccid && await subEnd(x.iccid)) || new Date(Date.now() + MONTH_MS)), updatedAt: new Date() } })
     if (d.kind === 'mobile') return ready(d, x.mdn ? '+1' + String(x.mdn).replace(/\D/g, '').slice(-10) : null)
     const sent = await emailQr({ ...d, phoneNumber: x.mdn || null })
-    S.tell(d.chatId, `📱 Your eSIM is ready. Open CloudIVR eSIM and scan the QR code with your phone to install it.${sent ? ` We also emailed it to ${d.qrEmail}.` : ''}`, { kind: 'billing', meta: { esim: d._id } })
+    S.tell(d.chatId, `📱 Your eSIM is ready. Open CloudIVR eSIM and scan the QR code with your phone to install it. It has two-way SMS: send and receive texts on that phone.${sent ? ` We also emailed it to ${d.qrEmail}.` : ''}`, { kind: 'billing', meta: { esim: d._id } })
   } else if (['failed', 'error'].includes(st) || Date.now() - new Date(d.createdAt).getTime() > 86400000) {
     await S.w.credit(d.chatId, d.price); await txn(d.chatId, 'esim-refund', d.price, { lineId: d._id })
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'failed', note: 'The eSIM couldn’t be created. Your payment was refunded.', providerError: r?.error?.message || (st ? null : 'timed out after 24 h'), updatedAt: new Date() } })
@@ -235,7 +235,7 @@ async function emailQr(d) {
   const code = got?.qrCode || null
   if (!code && !got?.image) return false
   const png = code ? await require('qrcode').toBuffer(code, { width: 360, margin: 2 }) : Buffer.from(got.image.split(',')[1], 'base64')
-  const html = `<p>Your CloudIVR eSIM${d.phoneNumber ? ` for <b>${d.phoneNumber}</b>` : ''} is ready.</p><p>On the phone that will use it: Settings → Mobile / Cellular → Add eSIM → Use QR code, then scan the attached QR code. Keep the phone on Wi-Fi while it installs. Each QR code can be installed once.</p>${code ? `<p>Manual code: <code>${code}</code></p>` : ''}<p>You can also open the QR code any time in the CloudIVR app under CloudIVR eSIM.</p>`
+  const html = `<p>Your CloudIVR eSIM${d.phoneNumber ? ` for <b>${d.phoneNumber}</b>` : ''} is ready.</p><p>On the phone that will use it: Settings → Mobile / Cellular → Add eSIM → Use QR code, then scan the attached QR code. Keep the phone on Wi-Fi while it installs. Each QR code can be installed once.</p><p>Once installed, the line has two-way SMS on that phone: send and receive texts, plus calls and USA data.</p>${code ? `<p>Manual code: <code>${code}</code></p>` : ''}<p>You can also open the QR code any time in the CloudIVR app under CloudIVR eSIM.</p>`
   const ok = await require('./cloudivr-web/auth').sendMail(d.qrEmail, 'Your CloudIVR eSIM QR code', html, [{ filename: 'cloudivr-esim-qr.png', content: png, contentType: 'image/png' }]).catch(e => { S.log(`[eSIM] QR email ${d._id}: ${e.message}`); return false })
   await S.col.updateOne({ _id: d._id }, { $set: { qrEmailedAt: ok ? new Date() : null } })
   return ok

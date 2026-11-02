@@ -66,6 +66,21 @@ function Appearance() {
       <div className="font-display text-2xl font-bold">Appearance</div>
       <p className="text-sm text-[#a1a1aa]">Light or dark for the app on this device. “Match my device” switches with your phone or computer.</p>
       <div className="flex flex-wrap gap-2">{THEME_OPTIONS.map(([v, label]) => <button key={v} type="button" onClick={() => setPref(v)} aria-pressed={pref === v} className={`civr-pill cursor-pointer !normal-case !tracking-normal !text-sm h-10 ${pref === v ? 'civr-pill-on' : ''}`} data-testid={`settings-theme-${v}`}>{label}</button>)}</div>
+      <SuggestionsPref />
+    </div>
+  );
+}
+
+// Brings back (or hides) the "Suggested" line on Overview.
+function SuggestionsPref() {
+  const { onboarding, setOnboarding } = useShell();
+  if (!onboarding) return null;
+  const hidden = !!onboarding.suggestionsHidden;
+  const flip = () => api('/prefs/suggestions', { method: 'PUT', body: { hidden: !hidden } }).then(d => { setOnboarding({ ...onboarding, ...d }); toast.success(d.suggestionsHidden ? 'Suggestions hidden' : 'Suggestions will show on Overview'); }).catch(e => toast.error(e.message));
+  return (
+    <div className="flex items-center justify-between gap-3 pt-4 border-t border-[#1f1f1f]" data-testid="settings-suggestions">
+      <div className="text-sm"><div className="font-semibold">Suggestions on Overview</div><div className="text-[#a1a1aa]">{hidden ? 'Hidden.' : 'A short line of next steps at the top of Overview.'}</div></div>
+      <button type="button" role="switch" aria-checked={!hidden} onClick={flip} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="settings-suggestions-toggle">{hidden ? 'Show' : 'Hide'}</button>
     </div>
   );
 }

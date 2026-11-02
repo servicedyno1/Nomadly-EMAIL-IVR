@@ -5,7 +5,7 @@ import { Reveal } from './kit';
 import { openEsimCheckout } from './EsimCheckout';
 
 const slug = (id) => id.replace(/\W/g, '');
-const POINTS = [[Radio, 'T-Mobile network', 'Nationwide USA coverage on T-Mobile.'], [QrCode, 'Instant QR install', 'Pay, scan the QR code and the line is on your phone.'], [MessageSquareText, 'Calls & texts on your phone', 'Your number works like any mobile line. Want texting in the browser? Get a USA mobile number.']];
+const POINTS = [[Radio, 'T-Mobile network', 'Nationwide USA coverage on T-Mobile.'], [QrCode, 'Instant QR install', 'Pay, scan the QR code and the line is on your phone.'], [MessageSquareText, 'Two-way SMS on your phone', 'Send and receive texts, and make calls, like any mobile line. Want texting in the browser? Get a USA mobile number.']];
 
 // CloudIVR eSIM: live plans from the catalog (only the ones the owner put on sale); Buy opens the checkout.
 export function EsimPlans() {

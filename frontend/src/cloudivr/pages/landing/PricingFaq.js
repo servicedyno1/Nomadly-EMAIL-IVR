@@ -75,7 +75,8 @@ export function faqItems(c) {
   const ivr = on('ivr', 'Pro and Business'), out = on('ivrOutbound', 'Pro and Business');
   const ex = c?.extraNumber;
   return [
-    ['Is the USA mobile number or the USA eSIM VoIP?', 'No. Both are real mobile numbers on a USA carrier, not VoIP, and both send and receive SMS instantly. The eSIM runs on your phone; the USA mobile number lives in CloudIVR and you read and send its texts in Messages in any browser.'],
+    ['Is the USA mobile number or the USA eSIM VoIP?', 'No. Both are real mobile numbers on a USA carrier, not VoIP, and both have two-way SMS: they send and receive texts instantly. The eSIM runs on your phone; the USA mobile number lives in CloudIVR and you read and send its texts in Messages in any browser.'],
+    ['Can I receive texts, not just send them?', 'Yes. Both have two-way SMS, inbound and outbound. The eSIM sends and receives texts on your phone. The USA mobile number sends and receives them in CloudIVR Messages, including verification codes.'],
     ['Does it work with my bank?', 'It’s a real carrier number, and most banks and apps accept it for sign-ups and verification codes. Each service sets its own rules, so we can’t promise every one will.'],
     ['Can I choose the number?', 'You pick a USA ZIP code and we ask the carrier for a number near it. It’s a preference: the area code and the exact number can’t be chosen.'],
     ['When do I get it?', 'After your payment is confirmed. It’s usually ready within minutes, and sometimes takes longer. The eSIM QR code is shown in the app and emailed to the address you enter; the USA mobile number appears in My numbers.'],
