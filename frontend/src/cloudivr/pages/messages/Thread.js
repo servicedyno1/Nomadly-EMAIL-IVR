@@ -52,7 +52,7 @@ function Header({ t, onBack, reload, onNotes }) {
         </div>
       </div>
       <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-        {!t.number.mobile && <button type="button" onClick={call} className="civr-btn civr-btn-primary civr-btn-sm" aria-label={missed ? 'Call back' : 'Call'} data-testid="thread-call"><Phone className="w-4 h-4" /><span className="hidden sm:inline">{missed ? 'Call back' : 'Call'}</span></button>}
+        {(t.number.kind !== 'esim' || t.number.mobile) && <button type="button" onClick={call} className="civr-btn civr-btn-primary civr-btn-sm" aria-label={missed ? 'Call back' : 'Call'} data-testid="thread-call"><Phone className="w-4 h-4" /><span className="hidden sm:inline">{missed ? 'Call back' : 'Call'}</span></button>}
         <SaveContact t={t} onSaved={reload} />
         <button type="button" onClick={onNotes} className="civr-btn civr-btn-ghost civr-btn-sm" aria-label="Notes and tags" data-testid="thread-notes"><StickyNote className="w-4 h-4" /><span className="hidden sm:inline">Notes</span></button>
         <button type="button" onClick={block} className="civr-btn civr-btn-ghost civr-btn-sm" aria-label={t.blocked ? 'Unblock' : 'Block'} data-testid="thread-block"><Ban className="w-4 h-4" /><span className="hidden sm:inline">{t.blocked ? 'Unblock' : 'Block'}</span></button>

@@ -33,7 +33,7 @@ export default function Softphone({ open, onClose }) {
   useEffect(() => {
     if (!open) return;
     // The browser phone works on every plan; "Call me first" needs outbound IVR (Pro and up).
-    api('/numbers').then(d => { const l = d.numbers.filter(n => n.status === 'active' && (n.access.browserPhone || n.access.ivrOutbound)); setNums(l); setSel(s => s || (l.some(n => n.phoneNumber === rtcPhone) ? rtcPhone : l[0]?.phoneNumber) || ''); }).catch(() => {});
+    Promise.all([api('/numbers'), api('/mobile-numbers').catch(() => ({ items: [] }))]).then(([d, m]) => { const mob = (m.items || []).filter(x => x.status === 'active' && x.phoneNumber).map(x => ({ phoneNumber: x.phoneNumber, status: 'active', mobile: true, access: { browserPhone: true } })); const l = [...d.numbers.filter(n => n.status === 'active' && (n.access.browserPhone || n.access.ivrOutbound)), ...mob]; setNums(l); setSel(s => s || (l.some(n => n.phoneNumber === rtcPhone) ? rtcPhone : l[0]?.phoneNumber) || ''); }).catch(() => {});
     api('/calls/callback').then(d => setMyPhone(p => p || d.myPhone || '')).catch(() => {});
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (call) setLast({ peer: call.peer, direction: call.inbound ? 'inbound' : 'outbound' }); }, [call]);

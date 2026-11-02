@@ -6,7 +6,7 @@ import { openEsimCheckout, EMAIL_OK } from './EsimCheckout';
 import { openMobileCheckout } from './MobileCheckout';
 
 const ESIM_POINTS = ['Install it on your phone with a QR code', 'US data, calls and texts on your phone', 'QR code shown in the app and emailed to you', 'For unlocked phones that support eSIM'];
-const MOBILE_POINTS = ['A real carrier mobile number, not VoIP, accepted by most banks and apps', 'Send and receive texts in CloudIVR Messages, in any browser', 'No phone or SIM needed', 'Free caller ID for your CloudIVR calls'];
+const MOBILE_POINTS = ['A real carrier mobile number, not VoIP, accepted by most banks and apps', 'Texts in CloudIVR Messages and calls out from your browser', 'No phone or SIM needed', 'Free caller ID for your CloudIVR calls'];
 
 function Waitlist() {
   const [email, setEmail] = useState('');
@@ -56,7 +56,7 @@ export function ProductHero({ esimPrice, offer }) {
           <Card id="esim-card" icon={Smartphone} badge="On your phone" title="CloudIVR eSIM" price={esimPrice || 75} points={ESIM_POINTS} note="QR code usually ready within minutes of payment." delay={60}>
             <button type="button" onClick={() => openEsimCheckout()} className="civr-l-btn mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-esim">Order eSIM<ArrowRight className="w-4 h-4" /></button>
           </Card>
-          <Card id="mobile" icon={MessageSquareText} badge="In your browser" title="US mobile number" price={mobilePrice} points={MOBILE_POINTS} note="Pick a ZIP code; the exact number is shown after payment. Calls to the number aren’t answered in CloudIVR yet." delay={140}>
+          <Card id="mobile" icon={MessageSquareText} badge="In your browser" title="US mobile number" price={mobilePrice} points={MOBILE_POINTS} note="Pick a ZIP code; the exact number is shown after payment. Incoming calls aren’t answered in CloudIVR yet." delay={140}>
             {offer?.available
               ? <button type="button" onClick={openMobileCheckout} className="civr-l-btn mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-mobile">Order number<ArrowRight className="w-4 h-4" /></button>
               : offer ? <Waitlist /> : <div className="mt-4 h-[52px]" />}

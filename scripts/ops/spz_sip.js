@@ -1,0 +1,2 @@
+require('dotenv').config({path:'/app/backend/.env'});const axios=require('axios')
+module.exports=async(body)=>{const t=(await axios.post('https://api.spenza.com/api/v1.1/auth/token',{key:process.env.SPENZA_API_KEY,secret:process.env.SPENZA_API_SECRET})).data.data.access_token;return (await axios.post('https://api.spenza.com/api/v1/customer/register-sip',body,{headers:{Authorization:'Bearer '+t}})).data}

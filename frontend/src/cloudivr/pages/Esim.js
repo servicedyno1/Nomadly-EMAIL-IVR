@@ -8,11 +8,13 @@ import { useShell } from '../Shell';
 import { ask } from '../confirm';
 import { DRAFT_KEY, EMAIL_OK } from './landing/EsimCheckout';
 import { useCivrAuth } from '../AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { cp } from '../paths';
 import { WalletPay, RenewWarning } from '../WalletPay';
 import { NewNumber } from './esim/NewNumber';
 import { EmailQr } from './esim/EmailQr';
+import { MobileOffer } from './buy/MobileOffer';
+import { MobileLines } from './number/MobileLines';
 
 const imeiOk = (v) => { const s = String(v).replace(/\D/g, ''); if (s.length !== 15) return false; let sum = 0; for (let i = 0; i < 15; i++) { let n = +s[14 - i]; if (i % 2) { n *= 2; if (n > 9) n -= 9; } sum += n; } return sum % 10 === 0; };
 const readDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY)) || null; } catch (_) { return null; } };
@@ -160,6 +162,7 @@ function Line({ item, reload }) {
 export default function Esim() {
   const { data, error, reload } = useApi('/esim');
   const [buying, setBuying] = useState(null);
+  const nav = useNavigate();
   const { account } = useCivrAuth();
   const [draft] = useState(() => { const x = readDraft(); return x && (!x.account || x.account === account?.id) ? x : null; });
   const used = useRef(false);
@@ -170,13 +173,17 @@ export default function Esim() {
   if (!data) return <Spinner />;
   return (
     <div className="space-y-8" data-testid="esim-page">
-      <PageHeader label="CloudIVR eSIM" title="A US mobile line, ready in minutes" sub="Get an eSIM with a US number, calls, texts and data. It’s usually ready a few minutes after you pay: scan the QR code and it’s on your phone. Add as many lines as you need." testid="esim-header" />
+      <PageHeader label="CloudIVR eSIM" title="US mobile lines, ready in minutes" sub="Two ways to get a real US carrier number: an eSIM for your phone (data, calls and texts on the phone), or a US mobile number for texting and calling from your browser. Both are $75/month." testid="esim-header" />
       {data.items.length > 0 && <div className="space-y-4">{data.items.map(x => <Line key={x.id} item={x} reload={reload} />)}</div>}
       {data.items.length > 0 && !buying && data.plans.length > 0 && <h2 className="font-display text-xl font-bold" data-testid="esim-add-another">Add another eSIM</h2>}
       {buying ? <BuyForm plan={buying} draft={draft?.planId === buying.planId ? draft : null} onCancel={() => { dropDraft(); setBuying(null); }} onDone={() => { setBuying(null); reload(); }} /> : (
         data.plans.length ? <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="esim-plans">{data.plans.map(p => <PlanCard key={p.planId} p={p} onBuy={setBuying} />)}</div>
           : <Empty icon={Smartphone} title="eSIM plans are coming soon" sub="We’re adding mobile plans. Check back shortly." testid="esim-empty" />
       )}
+      {!buying && <div data-testid="esim-page-mobile">
+        <MobileLines noEmpty />
+        <MobileOffer onBought={() => nav(cp('/app/numbers'))} />
+      </div>}
     </div>
   );
 }

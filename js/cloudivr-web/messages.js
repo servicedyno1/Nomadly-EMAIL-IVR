@@ -29,7 +29,7 @@ function create({ db, numbersApi, smsReply }) {
       out.push({ phone: n.phoneNumber, kind: 'calling', status: n.status, since: n.purchaseDate || null, caps: { send: cur && sms, receive: sms, pictures: cur && sms && canMms(n), calls: cur }, old: n.replacedBy ? { newNumber: n.replacedBy, until: n.releaseAt } : null })
     }
     for (const d of await db.collection('esimLines').find({ chatId: String(chatId), status: { $in: ['active', 'suspended', 'cancelled'] } }).toArray()) {
-      if (d.phoneNumber && d.status !== 'cancelled') out.push({ phone: d.phoneNumber, kind: 'esim', mobile: d.kind === 'mobile', status: d.status, since: d.createdAt, lineId: d._id, caps: { send: d.kind === 'mobile' && d.status === 'active', receive: d.kind === 'mobile', pictures: false, calls: false }, old: null })
+      if (d.phoneNumber && d.status !== 'cancelled') out.push({ phone: d.phoneNumber, kind: 'esim', mobile: d.kind === 'mobile', status: d.status, since: d.createdAt, lineId: d._id, caps: { send: d.kind === 'mobile' && d.status === 'active', receive: d.kind === 'mobile', pictures: false, calls: d.kind === 'mobile' && d.status === 'active' }, old: null })
       for (const f of d.formerNumbers || []) out.push({ phone: f.phone, kind: 'esim', status: 'replaced', since: d.createdAt, lineId: d._id, caps: { send: false, receive: false, pictures: false, calls: false }, old: { newNumber: d.phoneNumber, until: f.until } })
     }
     for (const d of await db.collection('hostedSms').find({ chatId: String(chatId), status: { $nin: ['cancelled', 'rejected', 'failed'] } }).toArray()) {

@@ -624,6 +624,15 @@ function routes(router, deps) {
 
   // ?browser=1 = the built-in browser phone (every plan); without it = SIP apps / desk phones (plans with SIP).
   // browserKey = the signed header the browser phone adds to its calls (needed on plans without SIP apps).
+  // US mobile numbers (esimLines kind 'mobile') get a browser-phone login too; calling numbers fall through.
+  router.get('/numbers/:phone/sip', async (req, res, next) => {
+    try {
+      const sip = req.query.browser ? await require('../spenza').mobileSip(req.webChatId, req.params.phone) : null
+      if (!sip) return next()
+      if (sip.error) return bad(res, 424, 'sip_failed', sip.error)
+      res.json({ username: sip.username, password: sip.password, live: !!sip.live, browserOnly: true, mobile: true, browserKey: browserCallKey.mint(req.params.phone) })
+    } catch (e) { next(e) }
+  })
   router.get('/numbers/:phone/sip', withNumber(async (req, res) => {
     const n = req.num, sip = phoneConfig.canAccessFeature(n.plan, 'sipCredentials')
     if (!sip && !(req.query.browser && phoneConfig.canAccessFeature(n.plan, 'browserPhone'))) return gate(req, res, 'sipCredentials', 'SIP credentials')

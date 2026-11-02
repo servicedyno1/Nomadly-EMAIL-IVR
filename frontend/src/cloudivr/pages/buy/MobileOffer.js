@@ -24,7 +24,7 @@ export function MobileOffer({ onBought, open: startOpen = false }) {
         <MessageSquare className="w-5 h-5 text-[#818cf8] mt-1" />
         <div className="flex-1 min-w-[200px]">
           <div className="font-semibold">Need a US mobile number for texting?</div>
-          <p className="text-sm text-[var(--c-muted)] mt-1">A real US mobile number that sends and receives texts, right in Messages. Texts cost $0.05 each from your wallet. Calls aren’t included yet.</p>
+          <p className="text-sm text-[var(--c-muted)] mt-1">A real US mobile number that sends and receives texts, right in Messages. Texts cost $0.05 each; calls from your browser $0.15/min to the US and Canada, from your wallet. Incoming calls aren’t answered in CloudIVR yet.</p>
         </div>
         <div className="font-mono text-xl" data-testid="mobile-offer-price">{`${money(data.price)}`}<span className="text-xs text-[var(--c-muted)]"> /month</span></div>
       </div>

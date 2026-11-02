@@ -170,6 +170,23 @@ async function ready(d, phone) {
   if (r === 'verified') await S.tell(d.chatId, `✅ ${phone} is now one of your caller IDs, free. Pick it as “Show as” on calls and campaigns.`, { kind: 'system', meta: { mobile: d._id } })
 }
 
+// Browser-phone login for a US mobile number: calls go out through Telnyx showing this number (wallet per minute).
+async function mobileSip(chatId, phone) {
+  const d = await S.col.findOne({ chatId: String(chatId), kind: 'mobile', phoneNumber: phone, status: 'active' })
+  if (!d) return null
+  if (d.sip?.username) return d.sip
+  let sip
+  if (d.simulated) sip = { username: 'mnsip' + d._id.slice(3), password: crypto.randomBytes(9).toString('hex'), live: false }
+  else {
+    const c = await require('./telnyx-service').createSIPCredential(process.env.TELNYX_SIP_CONNECTION_ID, 'mn' + crypto.randomBytes(6).toString('hex'), crypto.randomBytes(12).toString('hex'), phone)
+    if (!c?.sip_username) return { error: 'We couldn’t set up calling for this number right now. Try again in a minute.' }
+    sip = { username: c.sip_username, password: c.sip_password, credId: c.id || null, live: true }
+  }
+  await S.col.updateOne({ _id: d._id }, { $set: { sip, updatedAt: new Date() } })
+  return sip
+}
+const dropSip = (d) => d.sip?.credId ? require('./telnyx-service').deleteSIPCredential(d.sip.credId).catch(() => {}) : null
+
 // Poll provisioning; a finished one gets its number, ICCID and QR.
 async function pollOne(d) {
   if (d.simulated) {
@@ -273,7 +290,7 @@ async function cancel(chatId, id) {
   if (!dry() && !d.simulated && d.iccid && !d.linked) await call('post', `/api/v1.1/subscriptions/${encodeURIComponent(d.iccid)}/cancel`, {}).catch(e => S.log(`[Spenza] cancel ${d.iccid}: ${e.message}`))
   await S.col.updateOne({ _id: d._id }, { $set: { status: 'cancelled', updatedAt: new Date() } })
   if (d.callsTo === 'browser') await syncSip()
-  if (d.kind === 'mobile' && d.phoneNumber) await S.db.collection('webCallerIds').deleteOne({ _id: d.phoneNumber, method: 'auto' })
+  if (d.kind === 'mobile' && d.phoneNumber) { await S.db.collection('webCallerIds').deleteOne({ _id: d.phoneNumber, method: 'auto' }); dropSip(d) }
   return { ok: true }
 }
 
@@ -459,5 +476,5 @@ function init({ db, log = console.log, tell }) {
   return api
 }
 
-const api = { init, MOBILE_PRICE, mobileOffer, buyMobile, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
+const api = { init, MOBILE_PRICE, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
 module.exports = api

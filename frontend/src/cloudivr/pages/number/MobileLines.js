@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { MessageSquare, Loader2 } from 'lucide-react';
+import { MessageSquare, Loader2, Phone, PhoneIncoming } from 'lucide-react';
+import { useShell } from '../../Shell';
+import { DIAL_FROM } from '../../Softphone';
 import { api, money, useApi } from '../../api';
 import { ask } from '../../confirm';
 import { cp } from '../../paths';
@@ -11,6 +13,7 @@ import { NewNumber } from '../esim/NewNumber';
 const STATUS = { provisioning: 'Assigning your number…', active: 'Active', suspended: 'Paused · monthly fee due', failed: 'Couldn’t be set up · refunded' };
 
 function MobileLine({ item, reload }) {
+  const { openPhone } = useShell();
   const [busy, setBusy] = useState(false);
   const act = async (path, body, msg) => { setBusy(true); try { await api(`/esim/${item.id}/${path}`, { method: 'POST', body }); toast.success(msg); reload(); } catch (e) { toast.error(e.message); } finally { setBusy(false); } };
   const cancel = async () => { if (await ask(`Cancel ${item.phoneNumber}? It stops sending and receiving texts and can’t be recovered.`, { danger: true, ok: 'Cancel number', cancel: 'Keep it', title: 'Cancel this number?' })) act('cancel', {}, 'Cancelled'); };
@@ -26,7 +29,15 @@ function MobileLine({ item, reload }) {
       </div>
       {item.status === 'provisioning' && <p className="text-sm text-[var(--c-muted)]" data-testid={`mobile-line-pending-${item.id}`}>{`Paid. We asked for a number near ${item.zipcode || 'your ZIP code'}; it appears here as soon as the carrier assigns it.`}</p>}
       {item.note && <p className="text-sm text-[#fbbf24]">{item.note}</p>}
-      {item.status === 'active' && <Link to={cp('/app/messages')} className="text-sm underline font-semibold text-[var(--c-accent)] inline-flex items-center gap-2" data-testid={`mobile-line-messages-${item.id}`}><MessageSquare className="w-4 h-4" />Open texts in Messages</Link>}
+      {item.status === 'active' && <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <Link to={cp('/app/messages')} className="text-sm underline font-semibold text-[var(--c-accent)] inline-flex items-center gap-2" data-testid={`mobile-line-messages-${item.id}`}><MessageSquare className="w-4 h-4" />Open texts in Messages</Link>
+        <button type="button" onClick={() => { window.dispatchEvent(new CustomEvent(DIAL_FROM, { detail: { from: item.phoneNumber } })); openPhone(); }} className="text-sm underline font-semibold text-[var(--c-accent)] inline-flex items-center gap-2" data-testid={`mobile-line-call-${item.id}`}><Phone className="w-4 h-4" />Call from this number</button>
+      </div>}
+      {item.status === 'active' && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--c-line)] p-3 opacity-70" aria-disabled="true" data-testid={`mobile-line-ring-${item.id}`}>
+        <PhoneIncoming className="w-4 h-4 text-[var(--c-muted)]" /><span className="text-sm font-semibold">Ring in CloudIVR</span>
+        <span className="civr-pill" data-testid={`mobile-line-ring-status-${item.id}`}>Not active yet</span>
+        <span className="text-xs text-[var(--c-muted)] basis-full">Calls to this number can’t ring in your browser yet: we’re waiting for the carrier to switch on call routing. Outgoing calls work: $0.15/min to the US and Canada, other countries from $0.50/min, plus $0.03 per call, from your wallet.</span>
+      </div>}
       <div className="flex flex-wrap items-start gap-2">
         {item.status === 'suspended' && <WalletPay price={item.price} small onWallet={() => act('renew', {}, 'Renewed')} label={`Renew ${money(item.price)}`} testid={`mobile-renew-pay-${item.id}`} walletTestid={`mobile-renew-${item.id}`} />}
         {['active', 'suspended'].includes(item.status) && item.price > 0 && <button type="button" role="switch" aria-checked={item.autoRenew} disabled={busy} onClick={() => act('auto-renew', { on: !item.autoRenew }, item.autoRenew ? 'Auto-renew off' : 'Auto-renew on')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`mobile-autorenew-${item.id}`}>{item.autoRenew ? 'Auto-renew on' : 'Auto-renew off'}</button>}
@@ -38,11 +49,11 @@ function MobileLine({ item, reload }) {
   );
 }
 
-export function MobileLines() {
+export function MobileLines({ noEmpty = false }) {
   const { data, reload } = useApi('/mobile-numbers');
   const waiting = !!data?.items?.some(x => x.status === 'provisioning');
   useEffect(() => { if (!waiting) return undefined; const t = setInterval(reload, 5000); return () => clearInterval(t); }, [waiting, reload]);
-  if (!data?.items?.length) return data?.available ? (
+  if (!data?.items?.length) return data?.available && !noEmpty ? (
     <div className="civr-card p-5 mt-8 flex flex-wrap items-center gap-3" data-testid="mobile-lines-empty">
       <MessageSquare className="w-5 h-5 text-[#818cf8]" />
       <div className="flex-1 min-w-[200px]"><div className="font-semibold">Need a US mobile number for texting?</div><div className="text-sm text-[var(--c-muted)]">{`A real carrier number for codes and texts in Messages, ${money(data.price)}/month.`}</div></div>

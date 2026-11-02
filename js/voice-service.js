@@ -3785,6 +3785,9 @@ async function handleOutboundSipCall(payload) {
 // When from=connectionPhoneNumber, we must NOT match by phone number (it would match wrong user)
 async function findNumberBySipUser(sipUsername, fromPhone, connectionPhoneNumber) {
   try {
+    // US mobile number browser login → outbound through Telnyx from that number, billed from the wallet like any SIP call.
+    const ml = _db && sipUsername ? await _db.collection('esimLines').findOne({ 'sip.username': sipUsername, kind: 'mobile', status: 'active' }) : null
+    if (ml) return { chatId: ml.chatId, num: { phoneNumber: ml.phoneNumber, provider: 'telnyx', status: 'active', plan: 'business', mobileLine: ml._id, features: {} } }
     const allUsers = await _phoneNumbersOf.find({}).toArray()
     for (const user of allUsers) {
       const numbers = user.val?.numbers || []
