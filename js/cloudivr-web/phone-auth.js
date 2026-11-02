@@ -88,7 +88,7 @@ function createPhoneAuth(db, { accounts, createAccount, finishLogin, lockState, 
     if (await lockState(key)) { bad(res, 429, 'too_many_attempts', 'Too many wrong tries. Wait 15 minutes and try again.'); return false }
     if (me.passwordHash) {
       if (await bcrypt.compare(String(req.body.password || ''), me.passwordHash)) return true
-      await recordFailure(key, 5)
+      if (req.body.password) await recordFailure(key, 5)
       bad(res, 401, 'wrong_password', req.body.password ? 'That password isn’t right.' : 'Enter your current password to continue.')
       return false
     }
@@ -134,8 +134,8 @@ function createPhoneAuth(db, { accounts, createAccount, finishLogin, lockState, 
     // Signed in: add (or change) the account's phone — a code proves it, then it works for phone sign-in.
     router.post('/account/phone/start', requireUser, h(async (req, res) => {
       const phone = normPhone(req.body.phone)
-      if (phone && await takenBy('phone', phone, req.webChatId)) return bad(res, 409, 'phone_taken', 'This number is already used by another CloudIVR account.')
       if (!(await confirmed(req, res))) return
+      if (phone && await takenBy('phone', phone, req.webChatId)) return bad(res, 409, 'phone_taken', 'This number is already used by another CloudIVR account.')
       return sendPhoneCode(req, res, phone, req.body.channel === 'voice' ? 'voice' : 'sms', { linkTo: String(req.webChatId) })
     }))
     router.post('/account/phone/verify', requireUser, h(async (req, res) => {
@@ -152,10 +152,10 @@ function createPhoneAuth(db, { accounts, createAccount, finishLogin, lockState, 
       const email = normEmail(req.body.email)
       if (req.webUser.email) return bad(res, 400, 'has_email', 'Your account already has an email.')
       if (!EMAIL_RE.test(email)) return bad(res, 400, 'invalid_email', 'Enter a valid email address.')
-      if (await takenBy('email', email, req.webChatId)) return bad(res, 409, 'email_taken', 'This email is already used by another CloudIVR account.')
       const problem = await emailProblem(email)
       if (problem) return bad(res, 400, 'invalid_email', problem)
       if (!(await confirmed(req, res))) return
+      if (await takenBy('email', email, req.webChatId)) return bad(res, 409, 'email_taken', 'This email is already used by another CloudIVR account.')
       const key = `email-link|${req.webChatId}`
       if (await lockState(key)) return bad(res, 429, 'too_many_codes', 'Too many codes asked for. Wait 15 minutes and try again.')
       await recordFailure(key, 5)

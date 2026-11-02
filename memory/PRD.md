@@ -2114,3 +2114,8 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Reminder: alerts carry meta.topup; Inbox shows a "Top up $X now" button. The email has a button and the text has a link (WEB_APP_URL / CLOUDIVR_WEB_DOMAIN must be set on prod for absolute links).
 - Overview: TopBanner (Banners.js) is one slim banner: today's offer first, otherwise the welcome/Telegram line. One X hides both.
 - The in-app MobileOffer no longer says "Incoming calls aren’t answered". FR/ES were refilled.
+
+## 2026-06 — Email domain check, confirm before sign-in changes, renewal receipts (preview; iteration_202 100%)
+- email-check.js emailProblem(): checks MX (A/AAAA as fallback), about 45 throwaway domains, and typos of the big providers. DNS errors let the address through. Used by /auth/register (app and landing checkout) and /account/email/start. Preview allows example.com/org/net. Existing accounts are left as they are.
+- Changing a sign-in method (/account/phone/start, /account/email/start) needs the current password. Accounts with no password need a confirmToken from /account/confirm/start|verify (code to the current phone, else email; 10 minutes). Only wrong passwords count toward the lockout (5 per 15 min). The taken checks run after confirmation (no account enumeration). UI: SignIn.js Confirm + password field.
+- Renewal receipt: spenza.js receipt() emails line, amount, date, active-until, balance and reference after each wallet renewal. It's logged in line.receipts (last 24).

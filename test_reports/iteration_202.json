@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 202: tested the sign-up email domain check, the password or confirm-code step before changing a sign-in method, and the renewal receipt. Backend: 20/20 pytest tests passed, and the node esim_renewal suite printed PASS with receiptSaved:true. Frontend: the /cloudivr/signup email tab and the landing eSIM checkout Account step both show the typo, throwaway and can't-deliver messages. Alice's add-phone flow works: Send is disabled until a password is entered, a wrong password shows 'That password isn’t right.', and the right password plus a code changes the phone. The phone-only account flow works: confirm code to the current phone, then the add-email form (gmial rejected), then a code, and the email is added. On a phone account, changing the phone also asks for a confirm code first.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/account/phone/start, /account/email/start", "issue": "A request with no password still counts toward the 5-try lockout (confirmed: 5 calls with no password lead to a 429 on the 6th call, which had the right password). The UI disables Send until a password is entered, so this mainly affects API clients."},
+      {"endpoint": "/account/phone/start, /account/email/start", "issue": "The takenBy check (409 phone_taken/email_taken) and the email domain check run before confirmed(), so a signed-in session can find out whether a phone or email belongs to another account without the password or a confirm code. Consider calling confirmed() first."},
+      {"endpoint": "/account/confirm/verify", "issue": "The confirmToken is not single-use: it can be reused for 10 minutes for any number of phone/email start calls. Acceptable, but it could be consumed after a successful verify."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Settings → Sign-in methods (account with no password)", "issues": ["In the Confirm step, Cancel sits on its own line under 'Send me a code', while the add form shows its buttons side by side. The confirm token is also not shared between the Email and Phone rows, so a user who adds an email and then changes the phone must confirm again."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_iter202_email_check_signin_confirm.py", "/app/backend/tests/esim_renewal.test.js", "/app/test_reports/pytest/pytest_iter202.xml"],
+  "action_items": [
+    "Optional: do not count requests with no password toward the acct-confirm lockout",
+    "Optional: call confirmed() before the takenBy checks to prevent account enumeration"
+  ],
+  "critical_code_review_comments": [
+    "email-check.js: a DNS timeout or SERVFAIL returns true (fail-open), which is intended. A null MX ('.') falls back to the A record, so domains that say 'no mail' (RFC 7505) still pass. Minor.",
+    "email-check.js: the example.com/org/net bypass only applies when WEB_CLOUDIVR_DRY_RUN=true. That is correct.",
+    "spenza.js receipt(): sends only when the account has an email. It includes line, amount, date, active-until, wallet balance and reference. The reference is the line id (d._id), not the wallet transaction id, so consider using the txn id. receipts[] is capped at 24 entries, and emailed is set using arrayFilters on 'at'. Fine.",
+    "The checkout QR email field (esim-co-qr-email) is not domain-checked; only the account email is. Probably out of scope."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_iter202_email_check_signin_confirm.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Created throwaway accounts named TEST_iter202 (test_iter202_*@example.com, test.iter202.*@gmail.com/outlook.com, which were deleted, and random +1555 phone-only accounts). Alice's phone changed from +15555243109 to a new +1555 number during the UI test, and her acct-confirm attempt counter was cleared.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Base API is /api/cloudivr-web. To clear sign-up and code limits, delete the webLoginAttempts keys reg|*, phone-send|<ip> and acct-confirm|<chatId>. After a phone sign-up, the onboarding modal (onboarding-skip) blocks Settings clicks. Alice has a password; do the lockout test only on throwaway accounts.",
+  "test_credentials": "Alice civr.alice@example.com / AliceTest#2026 (from /app/memory/test_credentials.md)"
+}
