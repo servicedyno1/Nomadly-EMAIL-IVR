@@ -24,7 +24,7 @@ export function NewSetup({ data, onDone, onCancel }) {
         <p className="text-sm text-[#a1a1aa] mt-1" data-testid="texting-plan-note">{`$${t.setup} once, includes your first month. Then $${t.monthly}/month from your wallet. Incoming texts are free.`}</p>
       </div>
       <div className="flex flex-col sm:flex-row gap-2 sm:items-start">
-        <div className="flex-1"><Field label="Your business number, with country code" hint="US or Canada landline or toll-free, e.g. +1 312 555 0100"><input className="civr-input font-mono" inputMode="tel" value={phone} onChange={e => { setPhone(e.target.value); setCheck(null); }} placeholder="+1 312 555 0100" data-testid="texting-phone-input" /></Field></div>
+        <div className="flex-1"><Field label="Your business number, with country code" hint="USA or Canada landline or toll-free, e.g. +1 312 555 0100"><input className="civr-input font-mono" inputMode="tel" value={phone} onChange={e => { setPhone(e.target.value); setCheck(null); }} placeholder="+1 312 555 0100" data-testid="texting-phone-input" /></Field></div>
         <button type="button" onClick={doCheck} disabled={busy || phone.replace(/\D/g, '').length < 10} className="civr-btn civr-btn-ghost sm:mt-6" data-testid="texting-check-button">{busy && !check ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}Check number</button>
       </div>
       {check && !check.eligible && <div className="text-sm text-[#fb7185]" role="alert" data-testid="texting-check-result">✕ {check.phoneNumber} can’t get texting. {check.detail}</div>}

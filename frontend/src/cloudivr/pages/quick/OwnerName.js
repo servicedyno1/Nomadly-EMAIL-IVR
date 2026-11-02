@@ -4,7 +4,7 @@ import { api, money } from '../../api';
 import { useShell } from '../../Shell';
 
 const RATE = 0.015;
-// "+1…" needs all 11 digits; without "+", 10 digits means a US/Canada number.
+// "+1…" needs all 11 digits; without "+", 10 digits means a USA/Canada number.
 const usPhone = (raw) => {
   const t = String(raw || '').trim();
   const d = t.replace(/\D/g, '');
@@ -12,7 +12,7 @@ const usPhone = (raw) => {
   return d.length === 11 && d.startsWith('1') ? `+${d}` : d.length === 10 ? `+1${d}` : '';
 };
 
-// Single US/Canada number → owner name (CNAM) when the user taps "Look up"; $0.015, free again for 30 days.
+// Single USA/Canada number → owner name (CNAM) when the user taps "Look up"; $0.015, free again for 30 days.
 export function OwnerName({ targets, onUse }) {
   const { refreshSummary } = useShell() || {};
   const [r, setR] = useState(null);

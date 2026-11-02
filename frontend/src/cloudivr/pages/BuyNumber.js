@@ -35,7 +35,7 @@ function SearchForm({ catalog, q, setQ, onSearch, busy }) {
         </select>
       </Field>
       <Field label="Area code (optional)">
-        <input className="civr-input font-mono" disabled={!local} maxLength={3} value={q.areaCode} onChange={e => setQ({ ...q, areaCode: e.target.value.replace(/\D/g, '') })} placeholder={local ? '415' : 'US/CA local only'} data-testid="buy-area-code-input" />
+        <input className="civr-input font-mono" disabled={!local} maxLength={3} value={q.areaCode} onChange={e => setQ({ ...q, areaCode: e.target.value.replace(/\D/g, '') })} placeholder={local ? '415' : 'USA/CA local only'} data-testid="buy-area-code-input" />
       </Field>
       <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="buy-search-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}Search numbers</button>
     </form>

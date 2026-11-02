@@ -31,7 +31,7 @@ async function call(method, path, data, extra = {}) {
 const unwrap = (r) => (Array.isArray(r?.data) ? r.data : r?.data?.items || r?.data || [])
 const FRIENDLY = 'The eSIM service didn’t respond. Try again in a minute.'
 const errOf = (e) => { S?.log(`[eSIM] provider: ${e.message}`); return { error: FRIENDLY } }
-const custPlan = (p) => ({ planId: p.planId, label: p.label || null, price: p.price, validityDays: p.validityDays, data: p.data, voiceMinutes: p.voiceMinutes, sms: p.sms, carrier: 'T-Mobile network' })
+const custPlan = (p) => ({ planId: p.planId, label: p.label ? String(p.label).replace(/\bUS\b/g, 'USA') : null, price: p.price, validityDays: p.validityDays, data: p.data, voiceMinutes: p.voiceMinutes, sms: p.sms, carrier: 'T-Mobile network' })
 
 const planOut = (p, cfg, sim) => ({
   planId: p.productId, cost: p.price, simId: sim?.simId || null, simCost: sim?.price ?? null, lineCost: round2((p.price || 0) + (sim?.price || 0)), currency: p.currency, validityDays: p.validityDays, recurring: !!p.recurring,
@@ -133,15 +133,31 @@ async function buy(chatId, { planId, imei, zipcode, email }) {
 
 // ---------- USA mobile number for texting ($75/month): an eSIM line held by CloudIVR, number shown once assigned ----------
 const MOBILE_PRICE = 75
-const mobileImei = () => (dry() ? '356938035643809' : String(process.env.SPENZA_TEXT_LINE_IMEI || '').replace(/\D/g, ''))
+// No customer phone for a virtual number: reuse a device IMEI already on file (env override → last real eSIM order → Spenza line device).
+async function mobileImei() {
+  if (dry()) return '356938035643809'
+  const ok = (v) => { const x = String(v || '').replace(/\D/g, ''); return x.length === 15 ? x : null }
+  if (ok(process.env.SPENZA_TEXT_LINE_IMEI)) return ok(process.env.SPENZA_TEXT_LINE_IMEI)
+  const cfg = await S.db.collection('spenzaConfig').findOne({ _id: 'mobileImei' })
+  if (ok(cfg?.imei)) return cfg.imei
+  const last = await S.col.find({ kind: { $ne: 'mobile' }, simulated: { $ne: true }, imei: { $regex: '^\\d{15}$' } }).sort({ createdAt: -1 }).limit(1).toArray()
+  let imei = ok(last[0]?.imei)
+  if (!imei) {
+    const r = await call('get', '/api/v1.1/sims?page=1&pageSize=100').catch(() => null)
+    const sims = r?.data?.items || r?.data || []
+    imei = sims.map(x => ok(x.device?.imei || x.imei)).find(Boolean) || null
+  }
+  if (imei) await S.db.collection('spenzaConfig').updateOne({ _id: 'mobileImei' }, { $set: { imei, at: new Date() } }, { upsert: true })
+  return imei || ''
+}
 async function mobileOffer() {
   const plan = (await forSale().catch(() => [])).find(p => p.simId)
-  return { available: !!plan && mobileImei().length === 15, price: MOBILE_PRICE }
+  return { available: !!plan && (await mobileImei()).length === 15, price: MOBILE_PRICE }
 }
 async function buyMobile(chatId, { zipcode }) {
   const zip = String(zipcode || '').trim()
   if (!/^\d{5}$/.test(zip)) return { error: 'Enter a 5-digit USA ZIP code so we can ask for a number near it.' }
-  const im = mobileImei()
+  const im = await mobileImei()
   const plan = (await forSale()).find(p => p.simId)
   if (!plan || im.length !== 15) return { error: 'USA mobile numbers are temporarily unavailable. Try again later.' }
   if (!(await S.w.debit(chatId, MOBILE_PRICE))) return { error: `Your wallet needs $${MOBILE_PRICE} for this number. Top up first.`, code: 'insufficient_balance' }

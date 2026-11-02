@@ -9,7 +9,7 @@ const path = geoPath();
 const slug = (s) => s.toLowerCase().replace(/[^a-z]+/g, '-').replace(/^-|-$/g, '');
 let atlas = null;
 
-// US states, pre-projected (Albers USA, 975×610), loaded once on first use.
+// USA states, pre-projected (Albers USA, 975×610), loaded once on first use.
 function useStates() {
   const [states, setStates] = useState(atlas);
   useEffect(() => {
@@ -37,7 +37,7 @@ function MapSvg({ states, by, shade, live, move, focus, blur }) {
   const dots = live.map(s => h('g', { key: s.name, transform: `translate(${s.c[0]} ${s.c[1]})`, 'data-testid': `live-map-dot-${slug(s.name)}` },
     h('circle', { r: 6, fill: '#34d399', className: 'civr-map-ping' }),
     h('circle', { r: 5, fill: '#34d399', stroke: '#0a0a0a', strokeWidth: 1.5 })));
-  return h('svg', { viewBox: '0 0 975 610', className: 'w-full h-auto', role: 'group', 'aria-label': 'Map of today’s calls by US state', 'data-testid': 'live-map' },
+  return h('svg', { viewBox: '0 0 975 610', className: 'w-full h-auto', role: 'group', 'aria-label': 'Map of today’s calls by USA state', 'data-testid': 'live-map' },
     h('g', null, paths), h('g', { pointerEvents: 'none' }, dots));
 }
 
@@ -105,7 +105,7 @@ export function LiveMap({ map = [] }) {
         </div>
         <div className="flex flex-col gap-6">
           <Side title="Busiest today" Icon={Flame} list={map.slice(0, 5)} empty="No calls today yet — the map lights up as calls go out." testid="live-map-busiest" />
-          <Side title="Outside the US" Icon={Globe2} list={outside.slice(0, 6)} empty="No calls outside the US today." testid="live-map-outside" />
+          <Side title="Outside the USA" Icon={Globe2} list={outside.slice(0, 6)} empty="No calls outside the USA today." testid="live-map-outside" />
         </div>
       </div>
     </div>

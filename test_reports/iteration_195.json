@@ -1,0 +1,36 @@
+{
+  "summary": "Iter195: USA mobile number call events in Messages and the USA eSIM vs USA mobile number copy. Backend: new pytest test_mobile_call_events_iter195.py 3/3 (thread returns the outgoing call with duration 154 and charge 0.48 and no _id; SMS events keep charge, call events only carry charge when > 0; Bob gets 404 and a request with no login gets 401). Regression: test_mobile_outbound_iter194.py + test_mobile_ivr_sms_iter192.py 28/28; mobile_outbound_call.test.js PASS. UI (Playwright, Alice and Bob): Alice thread shows 'Outgoing · 2m 34s · $0.48' and the header says 'USA mobile number'. eSIM page header, title and subtitle are correct; no esim-calls* testids and no 'Where should calls ring' text; QR toggle and the SVG download work; the mobile lines and mobile-offer appear below the plans (Bob sees plans + mobile-offer). nav-esim reads 'eSIM & mobile numbers'. My numbers: pill appears twice, heading is correct, the call button is there, the ring block says 'Not active yet'. Landing product-kind cards and FAQ answer 0 are correct; 'SMS instantly' appears on both cards. The Buy page mobile-offer copy is correct. New message From list shows 'USA mobile number' / 'Calling number'. The banned strings (US eSIM / US mobile / US & Canada / US carrier) appear on none of the pages checked. A few other 'US' strings are still visible (see minor issues).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/esim/:id/email-qr", "issue": "Returns 400 'The email couldn’t be sent right now' on preview. nodejs log: '[eSIM] QR email es_9e5b0dd81f37: Not Found: The requested domain was not found'. The mail provider's domain is not set up on this pod. It also failed before this change, and the UI shows the error correctly. This is an environment problem, not caused by this change."},
+      {"endpoint": "js/cloudivr-web/email-copy.js:111", "issue": "Email copy still says 'US & Canada IVR calls'. This is email text, not app UI, but the request asks for USA everywhere."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing + eSIM page plan card", "issues": ["The plan label 'US Starter eSIM' is shown on the landing page and on the eSIM page plan card (esim-plan-SPENZA_001). It comes from the backend /esim plans label (Spenza catalog or DB, not hardcoded in js/ or the frontend). Map it to a 'USA ...' label."]},
+      {"screen": "Landing EsimPlans.js POINTS", "issues": ["'Nationwide US coverage on T-Mobile.' should say USA."]},
+      {"screen": "Landing Platform.js / UseCases.js / Families.js, texting/NewSetup.js hint, BuyNumber area-code placeholder", "issues": ["'US or Canada' and 'US/CA local only' are still used in the Landline to Texting copy. They are not in the banned list, but the request asks for USA everywhere."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_mobile_call_events_iter195.py", "/app/backend/tests/test_mobile_outbound_iter194.py", "/app/backend/tests/test_mobile_ivr_sms_iter192.py", "/app/backend/tests/mobile_outbound_call.test.js", "/app/test_reports/pytest/pytest_iter195.xml"],
+  "action_items": [
+    "Rename the plan label 'US Starter eSIM' (from the backend plans API) to use USA.",
+    "Change 'Nationwide US coverage' in EsimPlans.js to USA.",
+    "Optional: change 'US or Canada' to 'USA or Canada' in the texting copy (Platform.js, UseCases.js, Families.js, NewSetup.js, BuyNumber placeholder) and in email-copy.js.",
+    "Environment: set up the mail provider domain on preview if eSIM QR email needs to work here."
+  ],
+  "critical_code_review_comments": [
+    "messages.js event(): spreading `l.charge ? { charge } : {}` drops a zero charge for call events, which is intended. The SMS branch always keeps charge. The two shapes are consistent with the UI.",
+    "NewMessage sender list leaves out QR eSIMs (they text on the phone). That matches the empty-state copy 'A USA eSIM texts on your phone instead', so the 'USA eSIM' label in the From list never appears for Alice."
+  ],
+  "updated_files": ["/app/backend/tests/test_mobile_call_events_iter195.py"],
+  "success_rate": {"backend": "100%", "frontend": "95% (all requested checks pass; minor leftover 'US' copy)"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Alice mobile line mn_b5893a901b4f (+15554586272, simulated); es_69fcb8db0c34 (+16462556424) is the REAL line: never call /sip?browser=1 for it. Alice QR eSIMs es_9e5b0dd81f37 (+15550138054) and es_069da6dee178 (+15559147993). The email-qr button testid is esim-qr-email-send-<id> (esim-email-qr-<id> is the wrapper). Bob now has numbers and messages, so the messages-empty-numbers empty state can't be shown with Bob; its copy was checked in Messages.js:34 only. Login via page.request.post /api/cloudivr-web/auth/login, then cookie-deny."
+}
