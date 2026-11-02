@@ -2100,3 +2100,10 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - "Recommended for you" cards became one slim "Suggested" line (ForYou.js). Its X hides it for good per account (webPrefs.suggestionsHidden, PUT /prefs/suggestions). Settings → Appearance → "Suggestions on Overview" turns it back on (Show/Hide).
 - The copy now says eSIM and USA mobile number both have two-way SMS (inbound + outbound) in: the landing product cards, eSIM plans, Families, the pricing FAQ (plus a new "Can I receive texts" question), the in-app eSIM page header, the Buy mobile offer, My numbers mobile lines, the Messages empty state, the Thread eSIM note, and the spenza.js ready message and QR email.
 - Backlog: French/Spanish translations are missing for the new strings (and for recent features). The Overview top is still busy with the Welcome/Telegram card and the Today's offer card.
+
+## 2026-06 — Translations, renewal reminder, phone checkout signup, VoIP-only discounts (preview; iteration_200 100%)
+- FR/ES: ran scripts/civr_i18n_extract.js + civr_i18n_fill_missing.py, which added about 1155 missing strings per language (two-way SMS, suggestions, phone sign-in, auto-renew and older gaps).
+- Reminder: spenza.js remind() runs 3 days before expiresAt, once per period (remindedFor). It sends an app alert, plus email if the account has one, else a Telesign SMS (phone-auth.sendText, message_type ARN; never sent in preview). It shows the date and wallet balance, with a top-up hint when the balance is short. It runs after billing, so paid lines skip it.
+- Landing checkout Account step: Email | Phone number switch (landing/PhoneAccount.js), code by SMS, and a call option when Telesign voice is on.
+- Landing: removed "Incoming calls aren’t answered in CloudIVR yet." from the product card note and the FAQ. The in-app MobileOffer still has it (user scoped this to landing).
+- Discounts: the code already applied offers and coupons only to VoIP numbers (numbers purchase/renew/upgrade); eSIM and mobile take no coupon. The offer text now says "VoIP numbers only, not the eSIM or USA mobile number", and the number offer title says "new VoIP number".

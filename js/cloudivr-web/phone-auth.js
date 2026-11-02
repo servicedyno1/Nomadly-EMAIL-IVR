@@ -73,7 +73,7 @@ function createPhoneAuth(db, { accounts, createAccount, finishLogin, lockState, 
       const ip = clientIp(req)
       let acc = await accounts.findOne({ phone: c.phone })
       if (!acc) {
-        try { acc = await createAccount({ phone: c.phone, name: req.body.name, referredBy: await referrerFor(req.body.ref, ip), ip, country: countryOf(req) }) } catch (e) {
+        try { acc = await createAccount({ phone: c.phone, name: String(req.body.name || '').trim() || null, referredBy: await referrerFor(req.body.ref, ip), ip, country: countryOf(req) }) } catch (e) {
           if (e.code !== 11000) throw e
           acc = await accounts.findOne({ phone: c.phone })
         }
