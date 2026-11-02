@@ -51,7 +51,7 @@ function Results({ res, pick, setPick }) {
   return (
     <div className="grid sm:grid-cols-2 lg:grid-cols-3 min-[1800px]:grid-cols-4 gap-4" data-testid="buy-results">
       {res.numbers.map((n, i) => (
-        <button key={n.phoneNumber} type="button" onClick={() => { setPick(n); setTimeout(() => document.querySelector('[data-testid="buy-plan-picker"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150); }} data-testid={`buy-result-${i}`}
+        <button key={n.phoneNumber} type="button" onClick={() => { setPick(n); setTimeout(() => document.querySelector('[data-testid="buy-plan-picker"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150); }} data-testid={`buy-result-${i}`}
           className={`civr-card text-left p-4 ${pick?.phoneNumber === n.phoneNumber ? 'civr-trace' : ''}`}>
           <div className="flex items-center justify-between"><span className="font-mono text-lg">{n.phoneNumber}</span>{pick?.phoneNumber === n.phoneNumber && <Check className="w-4 h-4 text-[#818cf8]" />}</div>
           <div className="text-xs text-[#a1a1aa] mt-1 truncate">{place(n.region)}</div>

@@ -389,7 +389,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   router.post('/calls/trial', h(async (req, res) => {
     const chatId = req.webChatId
     const t = await trialStatus(db, numbersApi, chatId)
-    if (!t.available) return bad(res, 403, 'trial_used', 'The free Quick IVR call is for accounts without a calling number, once.')
+    if (!t.available) return bad(res, 403, 'trial_used', 'The free Quick IVR call is for accounts without a VoIP number, once.')
     if (t.inProgress) return bad(res, 409, 'trial_in_progress', busyMsg)
     const { cfg, err } = await buildCall(chatId, req.body, { trial: true })
     if (err) return bad(res, ...err)

@@ -197,7 +197,7 @@ export default function Wallet() {
         </div>
         <div className="lg:col-span-2"><TopUp coins={data.coins} min={data.minTopup} initial={need ? Math.max(data.minTopup, Math.ceil(need)) : Number(params.get('amount')) || 50} onCreated={(d) => { setDep(d); reload(); }} /></div>
       </div>
-      {dep && <div className="mt-4" ref={(el) => el && el.dataset.seen !== String(dep.address || dep.id) && (el.dataset.seen = String(dep.address || dep.id)) && el.scrollIntoView({ behavior: 'smooth', block: 'start' })}><DepositCard dep={dep} /></div>}
+      {dep && <div className="mt-4" ref={(el) => el && el.dataset.seen !== String(dep.address || dep.id) && (el.dataset.seen = String(dep.address || dep.id)) && el.scrollIntoView({ behavior: 'smooth', block: 'center' })}><DepositCard dep={dep} /></div>}
       <Tables data={data} />
     </div>
   );

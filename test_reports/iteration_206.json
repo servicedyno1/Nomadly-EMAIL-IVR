@@ -1,0 +1,49 @@
+{
+  "summary": "Frontend-only test (Alice, 1440 and 390; Bob for the softphone). I checked the 'Calling number' → 'VoIP' rename and re-ran the iteration_205 walkthrough fixes. Nearly everything passes. One rename was missed: the caller-ID 'Show as' select (CallerIdPick.js:30) still has the option 'Same as calling number'. It shows in the browser phone and in Quick IVR call, and it renders in a monospace font. statement.test.js → PASS.",
+  "backend_issues": {"critical": [], "minor": [
+    {"endpoint": "POST /api/cloudivr quick-call trial (js/cloudivr-web/outbound.js:392)", "issue": "The trial_used error message still says 'accounts without a calling number'. Users can see it if the trial is used up."}
+  ]},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CallerIdPick (Softphone 'Show as' + Quick IVR caller ID)", "issue": "The default option still reads 'Same as calling number'. It should read something like 'Same as the number you call from' or 'Same as your VoIP number'. The select also renders in a monospace font, unlike the 'Call from' select.", "selector": "/app/frontend/src/cloudivr/CallerIdPick.js:30", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Buy number / Wallet / eSIM scroll-to targets", "issues": ["scrollIntoView({block:'start'}) puts the target at y≈0, under the sticky 64px top bar. This hides the top of the plan picker, the wallet deposit card heading and esim-plans. Add scroll-margin-top (about 80px) to these targets."]},
+      {"screen": "SectionTabs fade (390px, light mode)", "issue_note": "The fade works (gradient from white to transparent, 40px wide). The 'to-transparent' end is rgba(0,0,0,0), which can leave a faint grey band. Minor.", "issues": ["The fade's gradient ends in transparent black. Minor."]}
+    ]
+  },
+  "passed_checks": [
+    "The New message 'From' select shows '+13346972125 · VoIP number' and '· USA mobile number' for the mobile lines, in Source Sans (not monospace).",
+    "The thread header for a VoIP thread reads 'via your number +13346972125 · VoIP number'.",
+    "Thread list rows say 'via +1…'. No 'to +1' found.",
+    "Softphone 'Call from' options show '· VoIP' and '· USA mobile' (Alice and Bob).",
+    "The Call button is disabled while the number box is empty and enabled once a number is typed, even when offline. Pressing it auto-connects. On preview it shows 'Not connected' with the friendly simulated-line message, and the Call button is enabled again (no dead state).",
+    "My numbers subtitle says 'CloudIVR VoIP numbers'. The Messages empty state code says 'Get a VoIP number…' (checked in code only; both test accounts now have numbers).",
+    "Buy page: title 'Get a business phone number', placeholder 'Any (e.g. 415)'. Cards show 'Warrenton, MO | Calls | Texts' with no fax. Picking a number scrolls to the plan picker. buy-change-plan is there and scrolls back.",
+    "Wallet: the 'Check for my payment' button is there. After 'Get payment address' the deposit card scrolls into view (preview address).",
+    "Quick IVR: quick-call-phone-hint is shown, and quick-call-open-phone opens the softphone.",
+    "eSIM: esim-add-line-bar is shown. esim-jump-esim and esim-jump-mobile both scroll.",
+    "Settings: settings-statement sits inside the Email notifications card (checked on screen).",
+    "390px Numbers tabs: the right fade is there (scrollWidth 830 > clientWidth 358).",
+    "Templates: inserting appends ('Hello there TEST_tpl_saved_check'). 'Saved ✓' shows after saving and for retyped saved text, and not for unsaved text. A delete faked to fail with a 500 restores the chip and shows the toast. The test template was deleted afterwards.",
+    "node /app/backend/tests/statement.test.js → PASS"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "CallerIdPick.js:30: rename 'Same as calling number' to the VoIP wording and use the normal (non-monospace) font.",
+    "outbound.js:392 trial_used message: drop 'calling number' (for example 'accounts without a VoIP number').",
+    "Optional: 'Calling numbers' is still in the landing Hero eyebrow (Hero.js:25) and in the terms text (terms/content.js:24), if the rename should cover marketing and legal copy too.",
+    "Add scroll-margin-top to the buy-plan-picker, wallet-deposit-card and esim-plans scroll targets so the sticky top bar doesn't cover them."
+  ],
+  "critical_code_review_comments": [
+    "Softphone pending auto-connect: the pending dial is cleared on error or idle, so there is no stuck spinner. Good.",
+    "Templates del() restores the 'before' snapshot. A save made while the delete is in flight would be lost from the list (an edge case)."
+  ],
+  "updated_files": ["/app/test_reports/iteration_206.json"],
+  "success_rate": {"backend": "N/A (skipped; statement.test.js PASS)", "frontend": "95%"},
+  "seed_data_creation": "One preview $25 BTC wallet deposit address was created (not paid). The TEST_tpl_saved_check template was created and deleted. No texts were sent.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The CloudIVR app is at /cloudivr/login (the root '/' is the Nomadly admin). Alice's VoIP thread is +17785550199 via +13346972125. Bob now has 7 VoIP numbers, so the Messages empty state can't be shown with either account. Softphone testids: topbar-softphone-button, softphone-number-select, softphone-destination-input, softphone-call-button, softphone-status, softphone-message."
+}

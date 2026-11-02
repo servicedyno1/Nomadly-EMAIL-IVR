@@ -22,7 +22,7 @@ export function Hero({ catalog }) {
     <section id="business" className="civr-l-cream relative pt-16 md:pt-24 border-t civr-l-rule scroll-mt-16" data-testid="civr-hero">
       <span className="civr-np-stars" aria-hidden="true" />
       <div className="relative max-w-7xl mx-auto px-6 md:px-8">
-        <div className="civr-l-kicker civr-rise" data-testid="business-eyebrow"><span className="civr-l-dot" /><span>For business · Calling numbers · IVR · AI voice agents</span></div>
+        <div className="civr-l-kicker civr-rise" data-testid="business-eyebrow"><span className="civr-l-dot" /><span>For business · VoIP numbers · IVR · AI voice agents</span></div>
         <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl mt-7 civr-rise civr-d1 text-slate-950" data-testid="business-title" data-no-translate>{t[0]}<span className="civr-l-hl">{t[1]}</span>{t[2]}</h2>
         <p className="text-base md:text-lg text-slate-600 mt-5 max-w-3xl leading-relaxed civr-rise civr-d2" data-testid="business-subtitle">
           {`Get a number in ${n} countries and run your whole phone line from the browser. A keypad menu or an AI voice agent answers every call, texts and voicemails land in one inbox — and campaigns call your list and connect the hot leads to you.`}

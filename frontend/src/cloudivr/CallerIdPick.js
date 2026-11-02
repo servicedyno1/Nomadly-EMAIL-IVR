@@ -27,7 +27,7 @@ export function ShowAsSelect({ value, onChange, testid, compact = false }) {
   );
   const select = (
     <select className={`civr-input font-mono ${compact ? '!h-9 text-xs' : ''}`} value={list.includes(value) ? value : ''} onChange={e => onChange(e.target.value)} disabled={!list.length} aria-label="Caller ID shown" data-testid={testid}>
-      <option value="">Same as calling number</option>
+      <option value="">Same as the VoIP number you call from</option>
       {list.map(n => <option key={n} value={n}>{pv.phone(n)}</option>)}
     </select>
   );

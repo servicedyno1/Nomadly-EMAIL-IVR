@@ -162,8 +162,8 @@ export default function Esim() {
       <PageHeader label="Mobile lines" title="USA eSIM and USA mobile numbers" sub="Two real USA carrier numbers, $75/month each. Both have two-way SMS: they send and receive texts instantly. The USA eSIM downloads to your phone with a QR code: texts, calls and data happen on the phone. The USA mobile number is virtual: you use it in your browser, with texts in Messages and calls from the browser phone." testid="esim-header" />
       {data.items.length > 0 && !buying && <div className="flex flex-wrap items-center gap-2 -mt-2" data-testid="esim-add-line-bar">
         <span className="text-sm text-[var(--c-muted,#a1a1aa)] mr-1">Add a line:</span>
-        {data.plans.length > 0 && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => document.querySelector('[data-testid="esim-plans"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} data-testid="esim-jump-esim">USA eSIM</button>}
-        <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => document.querySelector('[data-testid="mobile-offer"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} data-testid="esim-jump-mobile">USA mobile number</button>
+        {data.plans.length > 0 && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => document.querySelector('[data-testid="esim-plans"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} data-testid="esim-jump-esim">USA eSIM</button>}
+        <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => document.querySelector('[data-testid="mobile-offer"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} data-testid="esim-jump-mobile">USA mobile number</button>
       </div>}
       {data.items.length > 0 && <div className="space-y-4">{data.items.map(x => <Line key={x.id} item={x} reload={reload} />)}</div>}
       {data.items.length > 0 && !buying && data.plans.length > 0 && <h2 className="font-display text-xl font-bold" data-testid="esim-add-another">Add another eSIM</h2>}
