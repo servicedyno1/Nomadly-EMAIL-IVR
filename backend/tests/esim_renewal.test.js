@@ -10,6 +10,8 @@ const H = 3600000, D = 24 * H
   const clean = () => Promise.all([col.deleteMany({ chatId: { $in: [rich, poor] } }), db.collection('walletOf').deleteMany({ _id: { $in: [rich, poor] } }), db.collection('transactions').deleteMany({ chatId: { $in: [rich, poor] } })])
   await clean()
   await db.collection('walletOf').insertMany([{ _id: rich, usdIn: 500, usdOut: 0 }, { _id: poor, usdIn: 0, usdOut: 0 }])
+  await db.collection('webAccounts').deleteMany({ _id: rich })
+  await db.collection('webAccounts').insertOne({ _id: rich, email: 'renewtest-rich@example.com', name: 'Renew Test', createdAt: new Date() })
   const told = []
   ES.init({ db, log: () => {}, tell: async (id, text) => { told.push(text); return null } })
   const base = { status: 'active', price: 75, simulated: true, iccid: 'x', phoneNumber: '+15550000000', callsTo: 'device', createdAt: new Date() }
@@ -24,10 +26,13 @@ const H = 3600000, D = 24 * H
   const g = async (id) => col.findOne({ _id: id })
   const paid = await g('rt_paid'), unpaid = await g('rt_unpaid'), off = await g('rt_off'), legacy = await g('rt_legacy')
   const w = await db.collection('walletOf').findOne({ _id: rich })
+  await new Promise(r => setTimeout(r, 4000))
+  const rc = (await g('rt_paid')).receipts || []
   const r = {
     paidRenewed: paid.status === 'active' && Math.abs(paid.expiresAt - exp - 30 * D) < 5000 && w.usdOut === 75,
     unpaidPaused: unpaid.status === 'suspended' && /renewal is due/.test(unpaid.note || ''),
     offUntouched: off.status === 'active',
+    receiptSaved: rc.length === 1 && rc[0].amount === 75,
     legacyDated: !!legacy.expiresAt && Math.abs(legacy.expiresAt - legacy.nextBillAt - D) < 5000,
   }
   await col.updateMany({ _id: { $in: ['rt_unpaid', 'rt_off'] } }, { $set: { expiresAt: new Date(Date.now() + 30 * 60000) } })
@@ -43,6 +48,6 @@ const H = 3600000, D = 24 * H
   r.offEnded = (await g('rt_off')).status === 'cancelled'
   r.offNoCharge = (await db.collection('walletOf').findOne({ _id: rich })).usdOut === 75
   console.log(JSON.stringify(r))
-  await clean(); await c.close()
+  await db.collection('webAccounts').deleteMany({ _id: rich }); await clean(); await c.close()
   const ok = Object.values(r).every(Boolean); console.log(ok ? 'PASS' : 'FAIL'); process.exit(ok ? 0 : 1)
 })().catch(e => { console.error(e); process.exit(1) })

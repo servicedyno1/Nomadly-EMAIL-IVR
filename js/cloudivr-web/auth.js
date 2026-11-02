@@ -10,6 +10,7 @@ const { WEB_ID_BASE } = require('./notify')
 const { appPathPrefix } = require('./domain-guard')
 const { createTwoFactor } = require('./twofa')
 const { createPhoneAuth } = require('./phone-auth')
+const { emailProblem } = require('./email-check')
 
 const COOKIE = 'civr_session'
 const SESSION_DAYS = 7
@@ -189,6 +190,8 @@ function createAuth(db, { log = console.log, notifyAdmin = () => {} } = {}) {
     router.post('/auth/register', h(async (req, res) => {
       const email = normEmail(req.body.email), password = String(req.body.password || '')
       if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'invalid_email', message: 'Enter a valid email address.' })
+      const bad = await emailProblem(email)
+      if (bad) return res.status(400).json({ error: 'invalid_email', message: bad })
       if (password.length < 8 || password.length > 128) return res.status(400).json({ error: 'weak_password', message: 'Password must be 8–128 characters.' })
       const ipKey = `reg|${clientIp(req)}`
       if (await lockState(ipKey)) return res.status(429).json({ error: 'too_many_attempts', message: 'Too many sign-ups from this network. Try again later.' })

@@ -3,6 +3,8 @@
 // One account per phone number. Preview (dry run) numbers +1555xxxxxxx are simulated and return the code.
 const crypto = require('crypto')
 const axios = require('axios')
+const bcrypt = require('bcryptjs')
+const { emailProblem } = require('./email-check')
 
 const E164 = /^\+[1-9]\d{7,14}$/
 const TTL_MS = 5 * 60000
@@ -72,6 +74,28 @@ function createPhoneAuth(db, { accounts, createAccount, finishLogin, lockState, 
     return c
   }
   const takenBy = async (field, value, me) => { const o = await accounts.findOne({ [field]: value }, { projection: { _id: 1 } }); return o && String(o._id) !== String(me) }
+  const previewEmail = (e) => process.env.WEB_CLOUDIVR_DRY_RUN === 'true' && /@example\.(com|org|net)$/.test(e)
+  async function mailCode(req, res, email, subject, line, extra) {
+    const code = String(crypto.randomInt(0, 1e6)).padStart(6, '0')
+    if (!previewEmail(email) && !(await sendMail(email, subject, `<p>${line} <b style="font-size:20px;letter-spacing:3px">${code}</b>.</p><p>It expires in 5 minutes. If you didn’t ask for it, ignore this email.</p>`).catch(() => false))) return bad(res, 502, 'send_failed', 'We couldn’t send the email right now. Try again in a few minutes.')
+    const id = crypto.randomBytes(16).toString('hex')
+    await challenges.insertOne({ _id: id, ...extra, codeHash: sha(code), tries: 0, used: false, expiresAt: new Date(Date.now() + TTL_MS), createdAt: new Date() })
+    res.json({ challenge: id, expiresIn: TTL_MS / 1000, ...(previewEmail(email) ? { previewCode: code } : {}) })
+  }
+  // Changing a sign-in method needs the current password, or (no password) a fresh code to the current phone/email.
+  async function confirmed(req, res) {
+    const me = req.webUser, key = `acct-confirm|${req.webChatId}`
+    if (await lockState(key)) { bad(res, 429, 'too_many_attempts', 'Too many wrong tries. Wait 15 minutes and try again.'); return false }
+    if (me.passwordHash) {
+      if (await bcrypt.compare(String(req.body.password || ''), me.passwordHash)) return true
+      await recordFailure(key, 5)
+      bad(res, 401, 'wrong_password', req.body.password ? 'That password isn’t right.' : 'Enter your current password to continue.')
+      return false
+    }
+    const ok = req.body.confirmToken && await challenges.findOne({ _id: String(req.body.confirmToken), linkTo: String(req.webChatId), purpose: 'confirm', confirmed: true, confirmUntil: { $gt: new Date() } })
+    if (!ok) bad(res, 401, 'confirm_needed', `Confirm it’s you first: we’ll send a code to your ${me.phone ? 'phone' : 'email'}.`)
+    return !!ok
+  }
 
   function routes(router, h, requireUser) {
     router.post('/auth/phone/start', h(async (req, res) => sendPhoneCode(req, res, normPhone(req.body.phone), req.body.channel === 'voice' ? 'voice' : 'sms')))
@@ -92,14 +116,30 @@ function createPhoneAuth(db, { accounts, createAccount, finishLogin, lockState, 
       return finishLogin(req, res, acc, { remember: !!req.body.remember })
     }))
 
+    // No password: prove it's you with a code to the current phone (or email) before changing a sign-in method.
+    router.post('/account/confirm/start', requireUser, h(async (req, res) => {
+      const me = req.webUser, extra = { linkTo: String(req.webChatId), purpose: 'confirm' }
+      if (me.passwordHash) return bad(res, 400, 'use_password', 'Enter your current password instead.')
+      if (me.phone) return sendPhoneCode(req, res, me.phone, 'sms', extra)
+      if (me.email) return mailCode(req, res, me.email, 'Your CloudIVR confirmation code', 'Your code to confirm a change to your CloudIVR sign-in is', extra)
+      return bad(res, 400, 'no_method', 'Your account has no phone or email to confirm with.')
+    }))
+    router.post('/account/confirm/verify', requireUser, h(async (req, res) => {
+      const c = await useCode(req, res, { linkTo: String(req.webChatId), purpose: 'confirm' })
+      if (!c) return
+      await challenges.updateOne({ _id: c._id }, { $set: { confirmed: true, confirmUntil: new Date(Date.now() + 10 * 60000), expiresAt: new Date(Date.now() + 10 * 60000) } })
+      res.json({ confirmToken: c._id })
+    }))
+
     // Signed in: add (or change) the account's phone — a code proves it, then it works for phone sign-in.
     router.post('/account/phone/start', requireUser, h(async (req, res) => {
       const phone = normPhone(req.body.phone)
       if (phone && await takenBy('phone', phone, req.webChatId)) return bad(res, 409, 'phone_taken', 'This number is already used by another CloudIVR account.')
+      if (!(await confirmed(req, res))) return
       return sendPhoneCode(req, res, phone, req.body.channel === 'voice' ? 'voice' : 'sms', { linkTo: String(req.webChatId) })
     }))
     router.post('/account/phone/verify', requireUser, h(async (req, res) => {
-      const c = await useCode(req, res, { linkTo: String(req.webChatId), phone: { $exists: true } })
+      const c = await useCode(req, res, { linkTo: String(req.webChatId), purpose: { $exists: false }, phone: { $exists: true } })
       if (!c) return
       if (await takenBy('phone', c.phone, req.webChatId)) return bad(res, 409, 'phone_taken', 'This number is already used by another CloudIVR account.')
       await accounts.updateOne({ _id: req.webUser._id }, { $set: { phone: c.phone, phoneVerifiedAt: new Date() } })
@@ -113,18 +153,16 @@ function createPhoneAuth(db, { accounts, createAccount, finishLogin, lockState, 
       if (req.webUser.email) return bad(res, 400, 'has_email', 'Your account already has an email.')
       if (!EMAIL_RE.test(email)) return bad(res, 400, 'invalid_email', 'Enter a valid email address.')
       if (await takenBy('email', email, req.webChatId)) return bad(res, 409, 'email_taken', 'This email is already used by another CloudIVR account.')
+      const problem = await emailProblem(email)
+      if (problem) return bad(res, 400, 'invalid_email', problem)
+      if (!(await confirmed(req, res))) return
       const key = `email-link|${req.webChatId}`
       if (await lockState(key)) return bad(res, 429, 'too_many_codes', 'Too many codes asked for. Wait 15 minutes and try again.')
       await recordFailure(key, 5)
-      const code = String(crypto.randomInt(0, 1e6)).padStart(6, '0')
-      const preview = process.env.WEB_CLOUDIVR_DRY_RUN === 'true' && /@example\.(com|org|net)$/.test(email)
-      if (!preview && !(await sendMail(email, 'Your CloudIVR email code', `<p>Your code to add this email to CloudIVR is <b style="font-size:20px;letter-spacing:3px">${code}</b>.</p><p>It expires in 5 minutes. If you didn’t ask for it, ignore this email.</p>`).catch(() => false))) return bad(res, 502, 'send_failed', 'We couldn’t send the email right now. Try again in a few minutes.')
-      const id = crypto.randomBytes(16).toString('hex')
-      await challenges.insertOne({ _id: id, email, linkTo: String(req.webChatId), codeHash: sha(code), tries: 0, used: false, expiresAt: new Date(Date.now() + TTL_MS), createdAt: new Date() })
-      res.json({ challenge: id, expiresIn: TTL_MS / 1000, ...(preview ? { previewCode: code } : {}) })
+      return mailCode(req, res, email, 'Your CloudIVR email code', 'Your code to add this email to CloudIVR is', { email, linkTo: String(req.webChatId) })
     }))
     router.post('/account/email/verify', requireUser, h(async (req, res) => {
-      const c = await useCode(req, res, { linkTo: String(req.webChatId), email: { $exists: true } })
+      const c = await useCode(req, res, { linkTo: String(req.webChatId), purpose: { $exists: false }, email: { $exists: true } })
       if (!c) return
       if (await takenBy('email', c.email, req.webChatId)) return bad(res, 409, 'email_taken', 'This email is already used by another CloudIVR account.')
       const r = await accounts.updateOne({ _id: req.webUser._id, email: { $exists: false } }, { $set: { email: c.email, emailVerifiedAt: new Date() } })

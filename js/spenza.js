@@ -304,6 +304,19 @@ async function setService(d, on) {
 }
 const label = (d) => d.kind === 'mobile' ? `USA mobile number ${d.phoneNumber || ''}` : `eSIM ${d.phoneNumber || ''}`
 const day = (t) => new Date(t).toISOString().slice(0, 10)
+// Short email receipt after a wallet renewal (accounts with an email).
+async function receipt(d, until) {
+  const acc = await S.db.collection('webAccounts').findOne({ _id: { $in: [String(d.chatId), Number(d.chatId)] } }, { projection: { email: 1 } })
+  if (!acc?.email) return false
+  const bal = round2(await S.w.balance(d.chatId)).toFixed(2), what = d.kind === 'mobile' ? 'USA mobile number' : 'USA eSIM'
+  const row = (k, v) => `<tr><td style="padding:4px 16px 4px 0;color:#64748b">${k}</td><td style="padding:4px 0"><b>${v}</b></td></tr>`
+  const html = `<p>Your ${what} renewed. Here’s your receipt.</p><table style="border-collapse:collapse;font-size:14px">${row('Line', `${what}${d.phoneNumber ? ` ${d.phoneNumber}` : ''}`)}${row('Paid', `$${Number(d.price).toFixed(2)} from your wallet`)}${row('Date', day(new Date()))}${row('Now active until', day(until))}${row('Wallet balance', `$${bal}`)}${row('Reference', d._id)}</table><p>Auto-renew stays on. You can turn it off any time under Numbers → eSIM &amp; mobile numbers.</p>`
+  const at = new Date()
+  await S.col.updateOne({ _id: d._id }, { $push: { receipts: { $each: [{ at, amount: d.price, until, emailed: null }], $slice: -24 } } })
+  const ok = await require('./cloudivr-web/auth').sendMail(acc.email, `Receipt: your CloudIVR ${what} renewed`, html).catch(() => false)
+  await S.col.updateOne({ _id: d._id }, { $set: { 'receipts.$[r].emailed': !!ok } }, { arrayFilters: [{ 'r.at': at }] })
+  return ok
+}
 async function billOne(d) {
   if (!d.price || d.autoRenew === false) return false
   if (await S.w.debit(d.chatId, d.price)) {
@@ -311,6 +324,7 @@ async function billOne(d) {
     const base = (real(d) && await subEnd(d.iccid, d._id)) || new Date(d.expiresAt)
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', ...period(new Date(base.getTime() + MONTH_MS)), renewFailedAt: null, note: null, updatedAt: new Date() } })
     if (d.status === 'suspended') await setService(d, true)
+    receipt(d, new Date(base.getTime() + MONTH_MS)).catch(e => S.log(`[Spenza] receipt ${d._id}: ${e.message}`))
     return true
   }
   if (d.status !== 'suspended') {
