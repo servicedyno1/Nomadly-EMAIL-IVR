@@ -1,6 +1,8 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
-## 2026-11-02 — Telegram bots: USA T-Mobile eSIM only, automatic Spenza order + "VoIP number" wording — TESTED (iteration_207 + fixes), NOT DEPLOYED
+## 2026-11-02 — Telegram bots: USA T-Mobile eSIM only, automatic Spenza order + "VoIP number" wording — TESTED (iteration_207 + fixes), DEPLOYED 2026-11-02 05:30Z to all 4 bots (see DEPLOYMENT_STATE)
+- Follow-up: bot home shows the plan allowance from Spenza (now "20 MB data · 20 min calls · Unlimited SMS"); unused landing Families.js deleted;
+  prod CLOUDIVR_CHANNEL_LINK added (sidebar Telegram channel CTA was hidden on prod because it was missing).
 - Owner choices: only T-Mobile eSIM at $75/month in all 4 bots (Nomadly/Voodoo/Smadav/ProShop share code via WhiteLabel sync); same automatic Spenza
   order as web (IMEI → optional ZIP → optional-but-encouraged email → auto-renew on/off prompt → pay wallet or direct crypto, no bank); QR photo in chat;
   older Airvoice eSIM menu removed completely; auto-renew like web + toggle under My eSIMs; "VoIP number" everywhere incl. Terms.

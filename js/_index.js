@@ -10820,7 +10820,7 @@ bot?.on('message', msg => {
       await set(state, chatId, 'action', 'esim-bot-home')
       const [has, p] = await Promise.all([esimBot.lines(chatId).then(x => x.length > 0).catch(() => false), esimBot.plan()])
       const price = p?.price || esimBot.PRICE
-      return send(chatId, es.home(price), k.of([[es.buy(price)], ...(has ? [[es.mine]] : []), ['↩️ Back', '🏠 Main Menu']]))
+      return send(chatId, es.home(price, esimBot.includes(p)), k.of([[es.buy(price)], ...(has ? [[es.mine]] : []), ['↩️ Back', '🏠 Main Menu']]))
     },
     'esim-bot-list': async () => {
       const es = esimBot.s(lang)

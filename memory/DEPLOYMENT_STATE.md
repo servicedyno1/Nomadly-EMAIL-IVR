@@ -342,3 +342,16 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
   from `/opt/nomadly/shared/app-main/backend.env`. Appended both (backup `backend.env.bak.spenza.20261101T205537Z`), `pm2 reload app-main-b --update-env` at 0 calls → healthy.
 - Verified: cloudivr.net /public/esim-plans → SPENZA_001 $100; log `[eSIM] linked +16462556424 to onarrival21@…`.
 - Still on prod: landing families/checkout + "T-Mobile network" label are NOT deployed (newer than 8a49f9d5). Spenza webhook still points at preview → owner must Admin → eSIM → Reconnect texts on cloudivr.net.
+
+## 2026-11-02 05:30Z — Bot T-Mobile-only eSIM LIVE on all 4 bots + Spenza keys on WL envs + channel link on app-main
+- Envs: SPENZA_API_KEY/SECRET copied from app-main to app-wl / app-voodoo / app-proshop backend.env (backups `backend.env.bak.spenza.20261102T053320Z`);
+  app-main got `CLOUDIVR_CHANNEL_LINK="https://t.me/CloudIVRNet"` (was missing → sidebar/settings/footer Telegram channel CTA hidden on prod;
+  backup `backend.env.bak.channel.20261102T053320Z`). Verified: cloudivr.net /public/catalog channelLink set.
+- app-main: workspace deploy 228dc33 (+9 uncommitted) → DONE, app-main-a :5000 (includes templates/statement/VoIP wording/bot eSIM).
+- WL (app-wl-b, app-voodoo-b, app-proshop-a): OVERLAY of only the eSIM files onto the live 59ee017 release trees (main diff 4d9afe79→workspace
+  applied cleanly with `patch` to WL js/_index.js, js/lang/{en,fr,hi,zh}.js, js/promo-copy/*, ai-support.js, promo-prices.js; new js/esim-bot.js +
+  js/spenza.js copied). Backups of the replaced files: /opt/nomadly/deploy-backups/<app>-esim-20261102T053633Z/before.tgz (restore = untar into
+  the release dir + pm2 reload <slot> --update-env). Reloaded at 0 calls, all healthy. Each brand (own DB) sees SPENZA_001 $75, button
+  "📱 USA T-Mobile eSIM — $75/month", no Airvoice.
+- ⚠️ Save to GitHub (main) or the next CI deploy rolls app-main back; the WL overlay is NOT on the WhiteLabel branch — the next WhiteLabel CI
+  deploy would drop it unless these files reach WhiteLabel.
