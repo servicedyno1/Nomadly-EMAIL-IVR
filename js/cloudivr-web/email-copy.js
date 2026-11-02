@@ -108,7 +108,7 @@ const en = {
     eyebrow: 'Top-up received', title: () => 'Your wallet is loaded.',
     intro: (d, f) => `We received your payment and added ${f.usd(d.amount)} to your wallet. You’re ready to call, renew and launch.`,
     getsTitle: (d, f) => `What ${f.usd(d.balance)} gets you`,
-    gets: (us, intl) => [`About ${us} minutes of US & Canada IVR calls`, `About ${intl} minutes of international calls`, 'Renewals paid automatically — no surprises'],
+    gets: (us, intl) => [`About ${us} minutes of USA & Canada IVR calls`, `About ${intl} minutes of international calls`, 'Renewals paid automatically — no surprises'],
     cta: () => 'Launch a campaign', wallet: 'View wallet history',
   },
   lowBalance: {
