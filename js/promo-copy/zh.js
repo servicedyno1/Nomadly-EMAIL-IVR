@@ -53,7 +53,7 @@ module.exports = {
       '完全验证、即开即用，直接发到您的聊天',
       '支持钱包、加密货币或银行转账',
     ],
-    price: p => `eSIM ${p.dpEsim} 起 · Twilio 子账号 ${p.dpTwilioSub}`,
+    price: p => `美国 T-Mobile eSIM ${p.dpEsim}/月 · Twilio 子账号 ${p.dpTwilioSub}`,
     button: '打开数字产品',
   },
   cards_bundles: {

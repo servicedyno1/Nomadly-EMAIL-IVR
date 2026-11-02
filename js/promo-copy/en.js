@@ -54,7 +54,7 @@ module.exports = {
       'Fully verified and ready to use, delivered to your chat',
       'Pay with wallet, crypto or bank transfer',
     ],
-    price: p => `eSIM from ${p.dpEsim} · Twilio sub-account ${p.dpTwilioSub}`,
+    price: p => `USA T-Mobile eSIM ${p.dpEsim}/month · Twilio sub-account ${p.dpTwilioSub}`,
     button: 'Open Digital Products',
   },
   cards_bundles: {

@@ -1825,6 +1825,7 @@ if (TELEGRAM_BOT_ON === 'true') {
 
 // CloudIVR web accounts (reserved chatId range): engine messages to them land in the web inbox, never Telegram.
 const cloudivrWeb = require('./cloudivr-web')
+const esimBot = require('./esim-bot')
 cloudivrWeb.notify.attach(bot)
 
 // Auto-detect when bot is added to or removed from groups
@@ -4878,6 +4879,9 @@ const loadData = async () => {
   // Telnyx international numbers — verification sessions + review poller (2026-10)
   txReg.init({ db, bot, log, downloadFile: cloudivrWeb.makeDownloader(() => db, bot) })
   cloudivrWeb.notify.setDb(db)
+  // Bot eSIM orders (USA T-Mobile via Spenza): notices + QR code go to the buyer's bot chat.
+  esimBot.ES.init({ db, log, tell: (id, text, extra) => cloudivrWeb.notify.push(id, text, null, extra || { kind: 'system' }).catch(() => {}) })
+  esimBot.ES.setBot(bot)
   rsApply.init({ db, brand: process.env.CHAT_BOT_BRAND })
   telnyxPendingOrders = db.collection('telnyxPendingOrders')
   telnyxPendingOrders.createIndex({ status: 1, nextCheckAt: 1 }).catch(() => {})
@@ -10575,11 +10579,11 @@ bot?.on('message', msg => {
   }
   // Render a payment-method screen. `text` may be a function (evaluated after the
   // loyalty restore so it never shows a transiently discounted price).
-  const checkoutScreen = async (step, text, { couponLabel = null, extraRows = [], backLabel = '↩️ Back', walletOnly = false } = {}) => {
+  const checkoutScreen = async (step, text, { couponLabel = null, extraRows = [], backLabel = '↩️ Back', walletOnly = false, noBank = false } = {}) => {
     await restoreLoyaltyMutation()
     const { usdBal, walletPrice, loyaltyInfo } = await checkoutWalletView(step)
     const body = typeof text === 'function' ? text() : text
-    const rows = hcx.invoiceRows({ lang, payIn: walletOnly ? {} : payIn, applyCouponLabel: couponLabel, couponApplied: !!info?.couponApplied, usdBal, walletPrice, extraRows, backLabel })
+    const rows = hcx.invoiceRows({ lang, payIn: walletOnly ? {} : noBank ? { crypto: payIn.crypto } : payIn, applyCouponLabel: couponLabel, couponApplied: !!info?.couponApplied, usdBal, walletPrice, extraRows, backLabel })
     return send(chatId, body + '\n\n' + hcx.walletSummary({ lang, usdBal, walletPrice, loyaltyInfo }), k.of(rows))
   }
   // "💵 Deposit $N" tapped on an invoice → pre-filled top-up; Order Resume returns to `walletOkKey`.
@@ -10796,7 +10800,6 @@ bot?.on('message', msg => {
         [t.dpGworkspaceNew, t.dpGworkspaceAged],
         [t.dpZohoNew, t.dpZohoAged],
         [t.dpEsim],
-        [t.dpEsimAirvoice],
         [t.dpIonosSmtp],
         ['↩️ Back', '🏠 Main Menu'],
       ]))
@@ -10808,17 +10811,35 @@ bot?.on('message', msg => {
         return goto.submenu6()
       }
       await set(state, chatId, 'action', a.digitalProductPay)
+      if (info?.dpProductKey === esimBot.PRODUCT_KEY && info?.esimOrder) return checkoutScreen('digital-product-pay', () => esimBot.s(lang).summary(info.esimOrder, info.dpPrice), { noBank: true })
       return checkoutScreen('digital-product-pay', () => t.dpPaymentPrompt(info?.dpProductName, info?.dpPrice), { extraRows: [['💬 Ask Question']] })
     },
-    'airvoice-duration': async () => {
-      await set(state, chatId, 'action', a.airvoiceDuration)
-      send(chatId, t.dpAirvoiceSelect, k.of([
-        [t.dpAirvoice1m],
-        [t.dpAirvoice3m],
-        [t.dpAirvoice6m],
-        [t.dpAirvoice1y],
-        ['↩️ Back'],
-      ]))
+    // ━━━ USA T-Mobile eSIM (automatic Spenza order, same as the web) ━━━
+    'esim-bot-home': async () => {
+      const es = esimBot.s(lang)
+      await set(state, chatId, 'action', 'esim-bot-home')
+      const has = (await esimBot.lines(chatId).catch(() => [])).length > 0
+      return send(chatId, es.home(esimBot.PRICE), k.of([[es.buy(esimBot.PRICE)], ...(has ? [[es.mine]] : []), ['↩️ Back', '🏠 Main Menu']]))
+    },
+    'esim-bot-list': async () => {
+      const es = esimBot.s(lang)
+      const mine = await esimBot.lines(chatId).catch(() => [])
+      if (!mine.length) { await send(chatId, es.none); return goto['esim-bot-home']() }
+      await set(state, chatId, 'action', 'esim-bot-list')
+      return send(chatId, es.pick, k.of([...mine.map(l => [esimBot.lineLabel(l, lang)]), ['↩️ Back']]))
+    },
+    'esim-bot-line': async (id) => {
+      const es = esimBot.s(lang)
+      const l = (await esimBot.lines(chatId).catch(() => [])).find(x => x.id === (id || info?.esimLineId))
+      if (!l) return goto['esim-bot-list']()
+      await saveInfo('esimLineId', l.id)
+      await set(state, chatId, 'action', 'esim-bot-line')
+      const rows = []
+      if (['active', 'suspended', 'provisioning'].includes(l.status)) rows.push([l.autoRenew ? es.turnOff : es.turnOn])
+      if (l.status === 'suspended') rows.push([es.renewNow])
+      if (l.hasQr) rows.push([es.qr], [es.emailQr])
+      rows.push(['↩️ Back'])
+      return send(chatId, es.line(l, es.status[l.status] || l.status), k.of(rows))
     },
     // ━━━ Virtual Card ━━━
     'virtual-card-start': async () => {
@@ -13812,6 +13833,21 @@ Enter new value:`), bc)
 
       const name = await get(nameOf, chatId)
       const orderId = nanoid(8).toUpperCase()
+
+      // USA T-Mobile eSIM: the same automatic Spenza order as the web (it charges the wallet itself, refunds on failure).
+      if (productKey === esimBot.PRODUCT_KEY) {
+        const r = await esimBot.fulfill(db, chatId, info?.esimOrder || {}, lang)
+        if (!r.ok) return send(chatId, r.text, trans('o'))
+        set(payments, nanoid(), `Wallet,DigitalProduct,${product},$${priceUsd},${chatId},${name},${new Date()}`)
+        _finalizeWalletPurchase()
+        await digitalOrdersCol.insertOne({ orderId, chatId, username: username || '', name: name || '', product, productKey, price: priceUsd, currency: 'USD', paymentMethod: 'wallet_usd', esim: info?.esimOrder || null, esimLineId: r.lineId, status: 'delivered', createdAt: new Date(), deliveredAt: new Date() })
+        await saveInfo('esimOrder', null)
+        await set(state, chatId, 'abandonedCartReminderSent', null)
+        sendAndReact(chatId, r.text, '🎉', trans('o'))
+        checkAndNotifyTierUpgrade(preSpend)
+        notifyGroup(`📱 <b>New eSIM order</b>\n\n👤 User: ${maskName(name)}\n💵 Paid: <b>$${priceUsd}</b> (wallet)\n🤖 Setting up automatically.`, `📱 <b>New eSIM order</b>\n\n🆔 Order: <code>${orderId}</code>\n👤 User: ${adminUserTag(name, chatId)}\n💵 Paid: <b>$${priceUsd}</b> (Wallet USD)\n🤖 Spenza line ${r.lineId}, set up automatically.`, buildAdminButtons({ chatId }))
+        return
+      }
 
       set(payments, nanoid(), `Wallet,DigitalProduct,${product},$${priceUsd},${chatId},${name},${new Date()}`)
       await atomicIncrement(walletOf, chatId, 'usdOut', priceUsd)
@@ -19959,8 +19995,8 @@ ${message.replace(/\n/g, '<br>')}
   if (action === a.submenu6) {
     if (isBackPress(message) || isCancelPress(message)) return goto.displayMainMenuButtons()
 
-    // Airvoice has a duration picker sub-menu
-    if (message === t.dpEsimAirvoice) return goto['airvoice-duration']()
+    // USA T-Mobile eSIM: automatic order (IMEI → ZIP → email → auto-renew → pay)
+    if (message === t.dpEsim) return goto['esim-bot-home']()
 
     const dpProducts = {
       [t.dpTwilioMain]:     { name: 'Twilio Main Account',            key: 'twilio_main',      price: DP_PRICE_TWILIO_MAIN },
@@ -19975,7 +20011,6 @@ ${message.replace(/\n/g, '<br>')}
       [t.dpGworkspaceAged]: { name: 'Google Workspace (Aged Domain)',  key: 'gworkspace_aged',  price: DP_PRICE_GWORKSPACE_AGED },
       [t.dpZohoNew]:        { name: 'Zoho Mail (New Domain)',          key: 'zoho_new',         price: DP_PRICE_ZOHO_NEW },
       [t.dpZohoAged]:       { name: 'Zoho Mail (Aged Domain)',         key: 'zoho_aged',        price: DP_PRICE_ZOHO_AGED },
-      [t.dpEsim]:           { name: 'eSIM T-Mobile',                   key: 'esim_tmobile',     price: DP_PRICE_ESIM },
       [t.dpIonosSmtp]:      { name: 'IONOS SMTP',                      key: 'ionos_smtp',       price: DP_PRICE_IONOS_SMTP },
     }
 
@@ -19990,31 +20025,105 @@ ${message.replace(/\n/g, '<br>')}
     return goto['digital-product-pay']()
   }
 
-  // Airvoice eSIM: duration selection
-  if (action === a.airvoiceDuration) {
-    if (isBackPress(message)) return goto.submenu6()
+  // Airvoice eSIMs are no longer sold: anyone left on the old picker goes back to Digital Products.
+  if (action === a.airvoiceDuration) return goto.submenu6()
 
-    const airvoicePlans = {
-      [t.dpAirvoice1m]: { name: 'eSIM Airvoice (AT&T) — 1 Month',   key: 'airvoice_1m', price: DP_PRICE_AIRVOICE_1M },
-      [t.dpAirvoice3m]: { name: 'eSIM Airvoice (AT&T) — 3 Months',  key: 'airvoice_3m', price: DP_PRICE_AIRVOICE_3M },
-      [t.dpAirvoice6m]: { name: 'eSIM Airvoice (AT&T) — 6 Months',  key: 'airvoice_6m', price: DP_PRICE_AIRVOICE_6M },
-      [t.dpAirvoice1y]: { name: 'eSIM Airvoice (AT&T) — 1 Year',    key: 'airvoice_1y', price: DP_PRICE_AIRVOICE_1Y },
+  // ━━━ USA T-Mobile eSIM order + management ━━━
+  if (typeof action === 'string' && action.startsWith('esim-bot-')) {
+    const es = esimBot.s(lang)
+    const skipRow = k.of([[es.skip], ['↩️ Back']])
+    if (action === 'esim-bot-home') {
+      if (isBackPress(message)) return goto.submenu6()
+      if (isMainMenuPress(message)) return goto.displayMainMenuButtons()
+      if (message === es.mine) return goto['esim-bot-list']()
+      if (message !== es.buy(esimBot.PRICE)) return send(chatId, t.selectValidOption)
+      if (!(await esimBot.plan())) return send(chatId, es.unavailable)
+      await saveInfo('esimOrder', {})
+      await set(state, chatId, 'action', 'esim-bot-imei')
+      return send(chatId, es.askImei, k.of([['↩️ Back']]))
     }
-
-    const selected = airvoicePlans[message]
-    if (!selected) return send(chatId, t.selectValidOption)
-
-    await saveInfo('dpProductName', selected.name)
-    await saveInfo('dpProductKey', selected.key)
-    await saveInfo('dpPrice', selected.price)
-    await saveInfo('lastStep', a.digitalProductPay)
-
-    return goto['digital-product-pay']()
+    if (action === 'esim-bot-imei') {
+      if (isBackPress(message)) return goto['esim-bot-home']()
+      const imei = esimBot.parseImei(message)
+      if (!imei) return send(chatId, es.badImei)
+      await saveInfo('esimOrder', { imei })
+      await set(state, chatId, 'action', 'esim-bot-zip')
+      return send(chatId, es.askZip, skipRow)
+    }
+    if (action === 'esim-bot-zip') {
+      if (isBackPress(message)) { await set(state, chatId, 'action', 'esim-bot-imei'); return send(chatId, es.askImei, k.of([['↩️ Back']])) }
+      const zipcode = message === es.skip ? null : esimBot.parseZip(message)
+      if (message !== es.skip && !zipcode) return send(chatId, es.badZip)
+      await saveInfo('esimOrder', { ...(info?.esimOrder || {}), zipcode })
+      await set(state, chatId, 'action', 'esim-bot-email')
+      return send(chatId, es.askEmail, skipRow)
+    }
+    if (action === 'esim-bot-email') {
+      if (isBackPress(message)) { await set(state, chatId, 'action', 'esim-bot-zip'); return send(chatId, es.askZip, skipRow) }
+      const email = message === es.skip ? null : esimBot.parseEmail(message)
+      if (message !== es.skip && !email) return send(chatId, es.badEmail)
+      await saveInfo('esimOrder', { ...(info?.esimOrder || {}), email })
+      await set(state, chatId, 'action', 'esim-bot-renew')
+      return send(chatId, es.askRenew, k.of([[es.renewOn], [es.renewOff], ['↩️ Back']]))
+    }
+    if (action === 'esim-bot-renew') {
+      if (isBackPress(message)) { await set(state, chatId, 'action', 'esim-bot-email'); return send(chatId, es.askEmail, skipRow) }
+      if (message !== es.renewOn && message !== es.renewOff) return send(chatId, t.selectValidOption)
+      const p = await esimBot.plan()
+      if (!p) return send(chatId, es.unavailable)
+      await saveInfo('esimOrder', { ...(info?.esimOrder || {}), autoRenew: message === es.renewOn, planId: p.planId })
+      await saveInfo('dpProductName', esimBot.PRODUCT_NAME)
+      await saveInfo('dpProductKey', esimBot.PRODUCT_KEY)
+      await saveInfo('dpPrice', p.price)
+      await saveInfo('lastStep', a.digitalProductPay)
+      return goto['digital-product-pay']()
+    }
+    if (action === 'esim-bot-list') {
+      if (isBackPress(message)) return goto['esim-bot-home']()
+      const l = esimBot.lineFromLabel(await esimBot.lines(chatId), message)
+      if (!l) return send(chatId, t.selectValidOption)
+      return goto['esim-bot-line'](l.id)
+    }
+    if (action === 'esim-bot-line') {
+      if (isBackPress(message)) return goto['esim-bot-list']()
+      const id = info?.esimLineId
+      if (message === es.turnOff || message === es.turnOn) {
+        const r = await esimBot.ES.setAutoRenew(chatId, id, message === es.turnOn)
+        await send(chatId, r.error ? es.failed(r.error) : es.renewSet(message === es.turnOn))
+        return goto['esim-bot-line'](id)
+      }
+      if (message === es.renewNow) {
+        const r = await esimBot.ES.renew(chatId, id)
+        await send(chatId, r.error ? es.failed(r.error) : es.renewed)
+        return goto['esim-bot-line'](id)
+      }
+      if (message === es.qr) {
+        const l = await esimBot.ES.list(chatId).then(x => x.find(y => y.id === id))
+        const ok = l && await esimBot.ES.sendBotQr({ chatId, _id: id, phoneNumber: l.phoneNumber }).catch(() => false)
+        if (!ok) return send(chatId, es.qrNotReady)
+        return
+      }
+      if (message === es.emailQr) {
+        await set(state, chatId, 'action', 'esim-bot-qr-email')
+        return send(chatId, es.askQrEmail, k.of([['↩️ Back']]))
+      }
+      return send(chatId, t.selectValidOption)
+    }
+    if (action === 'esim-bot-qr-email') {
+      if (isBackPress(message)) return goto['esim-bot-line']()
+      const email = esimBot.parseEmail(message)
+      if (!email) return send(chatId, es.badEmail)
+      const r = await esimBot.ES.resendQr(chatId, info?.esimLineId, email)
+      await send(chatId, r.error ? es.failed(r.error) : es.emailed(r.email))
+      return goto['esim-bot-line']()
+    }
   }
 
   // Digital Products: payment method selection
   if (action === a.digitalProductPay) {
-    if (isBackPress(message)) return goto.submenu6()
+    const isEsimOrder = info?.dpProductKey === esimBot.PRODUCT_KEY
+    if (isBackPress(message)) return isEsimOrder ? goto['esim-bot-home']() : goto.submenu6()
+    if (isEsimOrder && payIn.bank && message === payIn.bank) return send(chatId, esimBot.s(lang).noBank)
     if (isMainMenuPress(message)) return goto.displayMainMenuButtons()
     
     // Handle "Ask Question" button - direct user to support
@@ -20105,6 +20214,7 @@ ${message.replace(/\n/g, '<br>')}
   // Digital Products: crypto payment
   if (action === 'crypto-pay-digital-product') {
     if (isBackPress(message)) return goto['digital-product-pay']()
+    const esimOrder = info?.dpProductKey === esimBot.PRODUCT_KEY ? info?.esimOrder || null : null
     const supportedCryptoView = trans('supportedCryptoView')
     const tickerKey = supportedCryptoView[message]
     if (!tickerKey) return send(chatId, t.askValidCrypto)
@@ -20127,6 +20237,7 @@ ${message.replace(/\n/g, '<br>')}
       price,
       currency: 'crypto',
       paymentMethod: `crypto_${tickerKey}`,
+      ...(esimOrder ? { esim: esimOrder } : {}),
       status: 'pending_payment',
       createdAt: new Date(),
       deliveredAt: null,
@@ -20179,7 +20290,7 @@ ${message.replace(/\n/g, '<br>')}
 
     notifyGroup(
       `🛒 <b>New Digital Product Order!</b>\n\n👤 User: ${maskName(name)}\n📦 Product: <b>${product}</b>\n💵 Price: <b>$${price}</b> (Crypto)\n⏳ Awaiting crypto payment`,
-      `🛒 <b>New Digital Product Order!</b>\n\n🆔 Order: <code>${orderId}</code>\n👤 User: ${adminUserTag(name, chatId)}\n📦 Product: <b>${product}</b>\n💵 Price: <b>$${price}</b> (Crypto: ${tickerKey})\n⏳ Awaiting crypto payment\n\n📩 After payment confirms:\n<code>/deliver ${orderId} [details]</code>`,
+      `🛒 <b>New Digital Product Order!</b>\n\n🆔 Order: <code>${orderId}</code>\n👤 User: ${adminUserTag(name, chatId)}\n📦 Product: <b>${product}</b>\n💵 Price: <b>$${price}</b> (Crypto: ${tickerKey})\n⏳ Awaiting crypto payment\n\n${esimOrder ? '🤖 Set up automatically once paid (no /deliver needed).' : `📩 After payment confirms:\n<code>/deliver ${orderId} [details]</code>`}`,
       buildAdminButtons({ chatId })
     )
     return
@@ -41196,6 +41307,19 @@ app.get('/crypto-pay-digital-product', auth, async (req, res) => {
     addFundsTo(walletOf, chatId, 'usd', usdIn - price, lang)
     sendMessage(chatId, translation('t.sentMoreMoney', lang, `$${price}`, `$${usdIn}`))
   }
+  const paidOrder = await digitalOrdersCol.findOne({ orderId })
+  if (paidOrder?.productKey === esimBot.PRODUCT_KEY && paidOrder.esim) {
+    const r = await esimBot.fulfillPaid(db, chatId, paidOrder.esim, Number(price), lang)
+    await digitalOrdersCol.updateOne({ orderId }, { $set: { status: r.ok ? 'delivered' : 'credited_to_wallet', paymentConfirmedAt: new Date(), deliveredAt: r.ok ? new Date() : null, esimLineId: r.lineId || null } })
+    await auditCryptoTx(chatId, 'digital-product', price, { product, orderId, coin, value, ref }, 'blockbee')
+    send(chatId, r.text, translation('o', lang))
+    notifyGroup(`📱 <b>eSIM paid (crypto)</b>\n\n👤 User: ${maskName(name)}\n💵 Paid: <b>$${price}</b>\n${r.ok ? '🤖 Setting up automatically.' : '⚠️ Not set up; amount left in wallet.'}`, `📱 <b>eSIM paid (crypto BlockBee)</b>\n\n🆔 Order: <code>${orderId}</code>\n👤 User: ${adminUserTag(name, chatId)}\n💵 Paid: <b>$${price}</b> (${value} ${coin})\n${r.ok ? `🤖 Spenza line ${r.lineId}, set up automatically.` : '⚠️ Not set up; amount credited to wallet.'}`, buildAdminButtons({ chatId }))
+    webhookTierCheck(chatId, preSpend, lang)
+    if (cartRecovery) cartRecovery.recordPaymentCompleted(String(chatId))
+    if (userConversion) userConversion.markPurchased(chatId)
+    await set(state, chatId, 'action', 'none')
+    return res.send(html())
+  }
   await digitalOrdersCol.updateOne({ orderId }, { $set: { status: 'pending', paymentConfirmedAt: new Date() } })
   await auditCryptoTx(chatId, 'digital-product', price, { product, orderId, coin, value, ref }, 'blockbee')
 
@@ -46582,6 +46706,19 @@ app.post('/dynopay/crypto-pay-digital-product', authDyno, async (req, res) => {
   if (usdIn > price) {
     addFundsTo(walletOf, chatId, 'usd', usdIn - price, lang)
     sendMessage(chatId, translation('t.sentMoreMoney', lang, `$${price}`, `$${usdIn}`))
+  }
+  const paidOrder = await digitalOrdersCol.findOne({ orderId })
+  if (paidOrder?.productKey === esimBot.PRODUCT_KEY && paidOrder.esim) {
+    const r = await esimBot.fulfillPaid(db, chatId, paidOrder.esim, Number(price), lang)
+    await digitalOrdersCol.updateOne({ orderId }, { $set: { status: r.ok ? 'delivered' : 'credited_to_wallet', paymentConfirmedAt: new Date(), deliveredAt: r.ok ? new Date() : null, esimLineId: r.lineId || null } })
+    await auditCryptoTx(chatId, 'digital-product', price, { product, orderId, coin, value, ref }, 'dynopay')
+    send(chatId, r.text, translation('o', lang))
+    notifyGroup(`📱 <b>eSIM paid (crypto)</b>\n\n👤 User: ${maskName(name)}\n💵 Paid: <b>$${price}</b>\n${r.ok ? '🤖 Setting up automatically.' : '⚠️ Not set up; amount left in wallet.'}`, `📱 <b>eSIM paid (crypto DynoPay)</b>\n\n🆔 Order: <code>${orderId}</code>\n👤 User: ${adminUserTag(name, chatId)}\n💵 Paid: <b>$${price}</b> (${value} ${coin})\n${r.ok ? `🤖 Spenza line ${r.lineId}, set up automatically.` : '⚠️ Not set up; amount credited to wallet.'}`, buildAdminButtons({ chatId }))
+    webhookTierCheck(chatId, preSpend, lang)
+    if (cartRecovery) cartRecovery.recordPaymentCompleted(String(chatId))
+    if (userConversion) userConversion.markPurchased(chatId)
+    await set(state, chatId, 'action', 'none')
+    return res.send(html())
   }
   await digitalOrdersCol.updateOne({ orderId }, { $set: { status: 'pending', paymentConfirmedAt: new Date() } })
   await auditCryptoTx(chatId, 'digital-product', price, { product, orderId, coin, value, ref }, 'dynopay')

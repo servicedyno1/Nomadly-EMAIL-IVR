@@ -562,7 +562,7 @@ Verified accounts delivered instantly.
 <b>Telecom:</b> Twilio · Telnyx (SMS, Voice, SIP)
 <b>Cloud:</b> AWS · Google Cloud
 <b>Email:</b> Google Workspace · Zoho · IONOS SMTP
-<b>Mobile:</b> eSIM T-Mobile
+<b>Mobile:</b> USA T-Mobile eSIM (automatic, $75/month)
 
 Select below:`,
  dpTwilioMain: `📞 Twilio Main Account — $${DP_PRICE_TWILIO_MAIN}`,
@@ -571,13 +571,7 @@ Select below:`,
  dpTelnyxSub: `📡 Telnyx Sub-Account — $${DP_PRICE_TELNYX_SUB}`,
  dpGworkspaceNew: `📧 Google Workspace Admin (New Domain) — $${DP_PRICE_GWORKSPACE_NEW}`,
  dpGworkspaceAged: `📧 Google Workspace Admin (Aged Domain) — $${DP_PRICE_GWORKSPACE_AGED}`,
- dpEsim: `📱 eSIM T-Mobile — $${DP_PRICE_ESIM}`,
- dpEsimAirvoice: `📱 eSIM Airvoice (AT&T) — from $${DP_PRICE_AIRVOICE_1M}`,
- dpAirvoiceSelect: `📱 <b>eSIM Airvoice (AT&T)</b>\n\n📶 Unlimited talk, text & data on AT&T network.\nWorks on iOS & Android. Scan QR to activate.\n\nSelect plan duration:`,
- dpAirvoice1m: `1 Month — $${DP_PRICE_AIRVOICE_1M}`,
- dpAirvoice3m: `3 Months — $${DP_PRICE_AIRVOICE_3M}`,
- dpAirvoice6m: `6 Months — $${DP_PRICE_AIRVOICE_6M}`,
- dpAirvoice1y: `1 Year — $${DP_PRICE_AIRVOICE_1Y}`,
+ dpEsim: `📱 USA T-Mobile eSIM — $75/month`,
  dpZohoNew: `📧 Zoho Mail (New Domain) — $${DP_PRICE_ZOHO_NEW}`,
  dpZohoAged: `📧 Zoho Mail (Aged Domain) — $${DP_PRICE_ZOHO_AGED}`,
  dpAwsMain: `☁️ AWS Main Account — $${DP_PRICE_AWS_MAIN}`,
@@ -599,11 +593,6 @@ Select below:`,
  'Google Workspace (Aged Domain)': 'Google Workspace on an aged/established domain for better deliverability. Business email with full Google suite.\n\nYou receive: admin login + domain credentials.',
  'Zoho Mail (New Domain)': 'Zoho Mail professional email on a new domain. Custom @yourdomain email with calendar, contacts, and file storage.\n\nYou receive: admin login + domain setup.',
  'Zoho Mail (Aged Domain)': 'Zoho Mail on an aged domain for improved sender reputation. Professional email with full Zoho suite.\n\nYou receive: admin login + domain credentials.',
- 'eSIM T-Mobile': '📶 <b>1 month — Unlimited talk, text & data</b>\nWorks on iOS & Android. Scan QR to activate.\n\nYou receive: QR code or activation details.',
- 'eSIM Airvoice (AT&T) — 1 Month': '📶 <b>1 month — Unlimited talk, text & data (AT&T)</b>\nWorks on iOS & Android. Scan QR to activate.\n\nYou receive: QR code or activation details.',
- 'eSIM Airvoice (AT&T) — 3 Months': '📶 <b>3 months — Unlimited talk, text & data (AT&T)</b>\nWorks on iOS & Android. Scan QR to activate.\n\nYou receive: QR code or activation details.',
- 'eSIM Airvoice (AT&T) — 6 Months': '📶 <b>6 months — Unlimited talk, text & data (AT&T)</b>\nWorks on iOS & Android. Scan QR to activate.\n\nYou receive: QR code or activation details.',
- 'eSIM Airvoice (AT&T) — 1 Year': '📶 <b>1 year — Unlimited talk, text & data (AT&T)</b>\nWorks on iOS & Android. Scan QR to activate.\n\nYou receive: QR code or activation details.',
  }
  const desc = descriptions[product] || ''
  return `💰 <b>Order: ${product}</b>\n\n💵 Price: <b>$${price}</b>${desc ? '\n\n' + desc : ''}\n\nSelect payment method:\n\n<i>💡 Pay with ₿ Crypto for the full amount, or use your 👛 wallet (💵 Deposit first if it's short).</i>`

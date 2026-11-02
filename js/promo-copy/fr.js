@@ -53,7 +53,7 @@ module.exports = {
       'Entièrement vérifiés et prêts à l\'emploi, livrés dans votre chat',
       'Paiement par portefeuille, crypto ou virement',
     ],
-    price: p => `eSIM dès ${p.dpEsim} · sous-compte Twilio ${p.dpTwilioSub}`,
+    price: p => `eSIM USA T-Mobile ${p.dpEsim}/mois · sous-compte Twilio ${p.dpTwilioSub}`,
     button: 'Ouvrir Produits numériques',
   },
   cards_bundles: {

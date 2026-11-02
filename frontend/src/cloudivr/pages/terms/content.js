@@ -21,7 +21,7 @@ export const TERMS = [
     'Plan fees are not refunded for the current period, including when you move to a smaller plan or delete a number. Wallet credit can only be spent on CloudIVR services and cannot be withdrawn as cash, unless the law requires otherwise. Prices can change; any change applies from your next renewal and is shown before you are charged.',
   ] },
   { id: 'free', title: 'Free calls', body: [
-    'Visitors can take one free test call from the website after confirming their email. Signed-in accounts without a calling number get one free Quick IVR call: it rings the number you enter from our shared demo number, plays your script and connects them to you when they press 1. It is used up once someone answers.',
+    'Visitors can take one free test call from the website after confirming their email. Signed-in accounts without a VoIP number get one free Quick IVR call: it rings the number you enter from our shared demo number, plays your script and connects them to you when they press 1. It is used up once someone answers.',
     'Free calls are limited in length and number, are for trying the service only, and must follow the acceptable use rules below. We may change or end free offers, and refuse them to prevent abuse.',
   ] },
   { id: 'use', title: 'Acceptable use', body: [

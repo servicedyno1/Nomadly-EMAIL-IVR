@@ -10,7 +10,7 @@ const ART = (n) => `${process.env.PUBLIC_URL || ''}/cloudivr/art/${n}.webp`;
 
 // The three product families: [id, Icon, art, kicker, title, text, facts, primary CTA, secondary CTA].
 const FAMILIES = [
-  ['calling', PhoneCall, 'calls', 'Calling & IVR', 'Business numbers that answer, call and talk for you',
+  ['calling', PhoneCall, 'calls', 'Calling & IVR', 'VoIP numbers that answer, call and talk for you',
     'Local, mobile and toll-free numbers in many countries, with keypad menus, Bulk and Quick IVR campaigns, AI voice agents and text-to-voice calls.',
     ['Keypad menus (IVR), voicemail and call forwarding', 'Bulk & Quick IVR campaigns that connect everyone who presses 1', 'Browser phone, SIP softphones and AI voice agents'],
     ['See calling plans', '#pricing'], ['Explore features', 'ivr']],

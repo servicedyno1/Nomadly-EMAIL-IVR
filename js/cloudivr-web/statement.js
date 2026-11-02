@@ -2,7 +2,7 @@
 // Monthly statement: on the 1st (UTC) every account with activity last month gets one email listing its line
 // payments and the texts it sent. Opt out in Settings (webPrefs.statementOff). Each month is sent once (webStatements).
 const LINE_TYPES = /purchase|renewal|replace|refund|^phone-number$|^hosted-sms-setup$/
-const LABEL = { 'esim-purchase': 'USA eSIM purchase', 'mobile-number-purchase': 'USA mobile number purchase', 'esim-renewal': 'eSIM / mobile number renewal', 'esim-number-replace': 'Mobile number replacement', 'number-replace': 'Number replacement', 'phone-number': 'Business number', 'hosted-sms-setup': 'Landline to Texting setup', 'hosted-sms-renewal': 'Landline to Texting renewal', 'esim-refund': 'Refund', 'mobile-number-refund': 'Refund', 'hosted-sms-refund': 'Refund' }
+const LABEL = { 'esim-purchase': 'USA eSIM purchase', 'mobile-number-purchase': 'USA mobile number purchase', 'esim-renewal': 'eSIM / mobile number renewal', 'esim-number-replace': 'Mobile number replacement', 'number-replace': 'Number replacement', 'phone-number': 'VoIP number', 'hosted-sms-setup': 'Landline to Texting setup', 'hosted-sms-renewal': 'Landline to Texting renewal', 'esim-refund': 'Refund', 'mobile-number-refund': 'Refund', 'hosted-sms-refund': 'Refund' }
 const SENT = { $or: [{ type: 'sms_out' }, { type: 'sms', direction: 'outbound' }] }
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 const usd = (n) => `$${Number(n || 0).toFixed(2)}`

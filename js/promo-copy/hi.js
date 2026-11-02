@@ -53,7 +53,7 @@ module.exports = {
       'पूरी तरह वेरिफ़ाइड और इस्तेमाल के लिए तैयार, आपकी चैट में',
       'वॉलेट, क्रिप्टो या बैंक ट्रांसफ़र से भुगतान',
     ],
-    price: p => `eSIM ${p.dpEsim} से · Twilio सब-अकाउंट ${p.dpTwilioSub}`,
+    price: p => `USA T-Mobile eSIM ${p.dpEsim}/माह · Twilio सब-अकाउंट ${p.dpTwilioSub}`,
     button: 'Digital Products खोलें',
   },
   cards_bundles: {

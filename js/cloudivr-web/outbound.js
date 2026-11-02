@@ -383,7 +383,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     res.json(pubOtp(otpState(req.webChatId, ccid, voiceService)))
   }))
 
-  // One free Quick IVR call from our shared number for accounts without a calling number (the bot's "Quick IVR Call — 1 Free").
+  // One free Quick IVR call from our shared number for accounts without a VoIP number (the bot's "Quick IVR Call — 1 Free").
   const busyMsg = 'Your free call is still going. If nobody answered, you can try again in a few minutes.'
   router.get('/calls/trial', h(async (req, res) => res.json(await trialStatus(db, numbersApi, req.webChatId))))
   router.post('/calls/trial', h(async (req, res) => {
