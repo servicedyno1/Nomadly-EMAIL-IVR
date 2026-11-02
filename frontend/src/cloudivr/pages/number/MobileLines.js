@@ -22,7 +22,7 @@ function MobileLine({ item, reload }) {
     <div className="civr-card p-5 space-y-3" data-testid={`mobile-line-${item.id}`}>
       <div className="flex flex-wrap items-center gap-3">
         <span className="font-mono text-lg" data-no-translate data-testid={`mobile-line-number-${item.id}`}>{item.phoneNumber || 'Number coming'}</span>
-        <span className="civr-pill">US mobile · texting</span>
+        <span className="civr-pill">US mobile · texts + calls out</span>
         <span className="text-sm text-[var(--c-muted)]" data-testid={`mobile-line-status-${item.id}`}>{STATUS[item.status] || item.status}</span>
         {item.status === 'provisioning' && <Loader2 className="w-4 h-4 animate-spin text-[var(--c-muted)]" />}
         <span className="text-xs text-[var(--c-muted)] ml-auto">{!item.price ? 'Linked by CloudIVR' : item.autoRenew ? `${money(item.price)}/month${date ? ` · next ${date}` : ''}` : `Auto-renew off${date ? ` · ends ${date}` : ''}`}</span>
@@ -56,13 +56,13 @@ export function MobileLines({ noEmpty = false }) {
   if (!data?.items?.length) return data?.available && !noEmpty ? (
     <div className="civr-card p-5 mt-8 flex flex-wrap items-center gap-3" data-testid="mobile-lines-empty">
       <MessageSquare className="w-5 h-5 text-[#818cf8]" />
-      <div className="flex-1 min-w-[200px]"><div className="font-semibold">Need a US mobile number for texting?</div><div className="text-sm text-[var(--c-muted)]">{`A real carrier number for codes and texts in Messages, ${money(data.price)}/month.`}</div></div>
+      <div className="flex-1 min-w-[200px]"><div className="font-semibold">Need a US mobile number for texts and calls?</div><div className="text-sm text-[var(--c-muted)]">{`A real carrier number for codes and texts in Messages, ${money(data.price)}/month.`}</div></div>
       <Link to={cp('/app/buy')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="mobile-lines-empty-buy">Get one</Link>
     </div>
   ) : null;
   return (
     <div className="mt-8 space-y-3" data-testid="mobile-lines">
-      <h2 className="font-display text-xl font-bold">Mobile numbers for texting</h2>
+      <h2 className="font-display text-xl font-bold">US mobile numbers</h2>
       {data.items.map(x => <MobileLine key={x.id} item={x} reload={reload} />)}
     </div>
   );

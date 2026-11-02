@@ -1,0 +1,28 @@
+{
+  "summary": "Iter194: US mobile number outgoing browser calls. Backend: new pytest test_mobile_outbound_iter194.py has 7/7 passing (mobile sip?browser=1 creds with mobile/browserOnly/live:false/browserKey, creds stay the same and are saved on esimLines.sip, calling number creds unchanged and have no 'mobile' field, 404 for a number you don't own and for Bob asking for Alice's mobile, 401 without login, Messages caps). Regression: test_mobile_ivr_sms_iter192.py 21/21 after updating one outdated assertion; mobile_outbound_call.test.js PASS; ivr_sms_key.test.js PASS. UI: every item in the request was verified in Playwright and passes (My numbers call button and inactive ring block, browser phone From list and preselect, the 'not live' message on Connect, Messages mobile vs QR eSIM threads, eSIM page for Alice and Bob, landing copy and FAQ). Only minor copy issues found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "My numbers / eSIM page - MobileLines.js", "issues": ["Section heading 'Mobile numbers for texting' and pill 'US mobile · texting' are out of date now that these numbers can also call out (e.g. 'US mobile · texts + calls')."]},
+      {"screen": "eSIM page / Buy - MobileOffer", "issues": ["Offer title still says 'Need a US mobile number for texting?' while the body mentions calls. Consider 'for texts and calls'."]},
+      {"screen": "Browser phone with a mobile line selected", "issues": ["The 'Call me first' box says 'Needs the Pro plan or higher on this number'. Mobile lines have access {browserPhone:true} only, so upgrading the plan can never unlock it. Hide the box or change the text when selNum.mobile is set."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_mobile_outbound_iter194.py", "/app/backend/tests/test_mobile_ivr_sms_iter192.py", "/app/backend/tests/mobile_outbound_call.test.js", "/app/backend/tests/ivr_sms_key.test.js", "/app/test_reports/pytest/pytest_iter194.xml"],
+  "action_items": [
+    "Optional: update the mobile line copy (heading, pill, offer title) to cover texts + outgoing calls",
+    "Optional: hide or reword 'Call me first - Needs the Pro plan' in the browser phone for mobile lines"
+  ],
+  "critical_code_review_comments": [
+    "Thread.js shows the Call button when kind !== 'esim' || mobile, without checking number.caps.calls. A 'texting' (Landline to Texting, receive-only) thread therefore also shows Call, and from = t.replyFrom, which may be null. Consider gating on t.number.caps.calls.",
+    "numbers.js: the mobile branch runs before withNumber, so a mobile line that isn't active (suspended) falls through to withNumber and gives a 404 instead of a clearer 'line paused' message. This is acceptable."
+  ],
+  "updated_files": ["/app/backend/tests/test_mobile_ivr_sms_iter192.py (test_messages_numbers_mobile_flag now expects caps.calls True, the new spec)", "/app/backend/tests/test_mobile_outbound_iter194.py (new)"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None. GET sip?browser=1 stored a simulated sip cred on mn_b5893a901b4f (expected, idempotent). Never called sip for +16462556424 and never clicked Connect with it selected.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Alice mobile lines: mn_b5893a901b4f (+15554586272, simulated) and es_69fcb8db0c34 (+16462556424, REAL linked line: never call /sip?browser=1 for it or press Connect with it selected). Alice QR eSIM +15559147993 (thread URL ?number=%2B15559147993&contact=... shows the read-only note). Browser phone select testid: softphone-number-select; header button: topbar-softphone-button. Grant microphone permission in Playwright so Connect shows the NOT_LIVE message. Login via page.request.post /api/cloudivr-web/auth/login, then click cookie-deny."
+}

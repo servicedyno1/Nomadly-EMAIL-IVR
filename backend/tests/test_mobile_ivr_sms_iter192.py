@@ -132,7 +132,7 @@ def test_messages_numbers_mobile_flag(s):
     rows = r.json().get('numbers') or []
     m = [n for n in rows if n.get('lineId') == MN]
     assert m, list(r.json().keys())
-    assert m[0]['mobile'] is True and m[0]['caps']['calls'] is False and m[0]['caps']['pictures'] is False
+    assert m[0]['mobile'] is True and m[0]['caps']['calls'] is True and m[0]['caps']['pictures'] is False  # iter194: mobile lines can call out
 
 
 def test_messages_send_from_mobile(s):
