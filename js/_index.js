@@ -10818,9 +10818,20 @@ bot?.on('message', msg => {
     'esim-bot-home': async () => {
       const es = esimBot.s(lang)
       await set(state, chatId, 'action', 'esim-bot-home')
-      const [has, p] = await Promise.all([esimBot.lines(chatId).then(x => x.length > 0).catch(() => false), esimBot.plan()])
+      const [mine, p] = await Promise.all([esimBot.lines(chatId).catch(() => []), esimBot.plan()])
       const price = p?.price || esimBot.PRICE
-      return send(chatId, es.home(price, esimBot.includes(p)), k.of([[es.buy(price)], ...(has ? [[es.mine]] : []), ['↩️ Back', '🏠 Main Menu']]))
+      const waiting = mine.some(l => l.status === 'awaiting_imei')
+      return send(chatId, (waiting ? es.waitingNote + '\n\n' : '') + es.home(price, esimBot.includes(p)), k.of([...(waiting ? [[es.sendImeiPaid]] : []), [es.buy(price)], ...(mine.length ? [[es.mine]] : []), ['↩️ Back', '🏠 Main Menu']]))
+    },
+    // Paid eSIM still waiting for its IMEI: go straight to the IMEI prompt (or pick the line if there are several).
+    'esim-bot-imei-start': async () => {
+      const es = esimBot.s(lang)
+      const waiting = (await esimBot.lines(chatId).catch(() => [])).filter(l => l.status === 'awaiting_imei')
+      if (!waiting.length) { await send(chatId, es.noneWaiting); return goto['esim-bot-home']() }
+      if (waiting.length > 1) return goto['esim-bot-list']()
+      await saveInfo('esimPendingLine', waiting[0].id)
+      await set(state, chatId, 'action', 'esim-bot-imei')
+      return send(chatId, es.askImei, k.of([['↩️ Back']]))
     },
     'esim-bot-list': async () => {
       const es = esimBot.s(lang)
@@ -14909,6 +14920,7 @@ All verified numbers generated during sourcing.`))
   // signed token and DM the user an auto-login URL for the web storefront.
   // The QR on the storefront landing page points at `t.me/<bot>?start=web-login`
   // so scanning it on mobile lands the user here.
+  if (message === '/imei') return goto['esim-bot-imei-start']()
   if (message === '/start web-login' || message === '/start weblogin' || message === '/web' || message === '/store') {
     bot?.sendChatAction?.(chatId, 'typing').catch(() => {})
     try {
@@ -20039,6 +20051,7 @@ ${message.replace(/\n/g, '<br>')}
       if (isBackPress(message)) return goto.submenu6()
       if (isMainMenuPress(message)) return goto.displayMainMenuButtons()
       if (message === es.mine) return goto['esim-bot-list']()
+      if (message === es.sendImeiPaid) return goto['esim-bot-imei-start']()
       const p = await esimBot.plan()
       if (message !== es.buy(p?.price || esimBot.PRICE)) return send(chatId, t.selectValidOption)
       if (!p) return send(chatId, es.unavailable)

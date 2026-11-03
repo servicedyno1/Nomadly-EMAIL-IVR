@@ -198,7 +198,7 @@ async function imeiChase() {
   for (const d of await S.col.find({ status: 'awaiting_imei', createdAt: { $lte: new Date(now - DAY_MS) }, imeiRemindedAt: { $not: { $gt: new Date(now - DAY_MS) } } }).limit(50).toArray()) {
     await S.col.updateOne({ _id: d._id }, { $set: { imeiRemindedAt: new Date() } })
     const left = Math.max(1, Math.ceil((new Date(d.createdAt).getTime() + IMEI_WAIT_MS - now) / DAY_MS))
-    say(d.chatId, bt(d, 'imeiRemind', left, d.price) || `📟 Your paid eSIM is waiting for your phone’s IMEI. Open 📋 My eSIMs to send it. If it isn’t sent within ${left} day(s), $${d.price} goes back to your wallet.`)
+    say(d.chatId, bt(d, 'imeiRemind', left, d.price) || `📟 Your paid eSIM is waiting for your phone’s IMEI. Type /imei or open 📋 My eSIMs to send it. If it isn’t sent within ${left} day(s), $${d.price} goes back to your wallet.`)
   }
 }
 
