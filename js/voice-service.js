@@ -3331,8 +3331,10 @@ async function handleOutboundSipCall(payload) {
   _reserveOutbound(chatId, callControlId, sipRate * OUTBOUND_RESERVE_MINUTES)
 
   // ── SIMULTANEOUS-CALL LIMIT: extra calls wait in a queue (nothing is charged while queued) ──
-  if (!lookupResult.webTest && sipQueue.isFull(_activeCallsRaw, chatId)) {
+  let legAnswered = false // a queued call's leg is already answered
+  if (!lookupResult.webTest && !sipQueue.admit(_activeCallsRaw, chatId, callControlId)) {
     if (!(await queueUntilFree(chatId, callControlId, destination))) return
+    legAnswered = true
   }
 
   // ── CONNECTION FEE: Charge $CALL_CONNECTION_FEE per call attempt ──
@@ -3392,6 +3394,7 @@ async function handleOutboundSipCall(payload) {
       recordingEnabled: num.features?.recording === true,
       isTestCall: testCallInfo.isTestCall,
     }
+    sipQueue.settled(callControlId)
 
     // Auto-hangup for test calls after max duration
     if (testCallInfo.isTestCall && testCallInfo.maxDuration) {
@@ -3532,7 +3535,7 @@ async function handleOutboundSipCall(payload) {
     // the user's Twilio number), causing the callee to reject → call dies → our transfer fails.
     // Answering immediately claims the call on Telnyx's side, preventing the auto-route race.
     try {
-      await _telnyxApi.answerCall(callControlId)
+      if (!legAnswered) await _telnyxApi.answerCall(callControlId)
       log(`[Voice] Outbound SIP (Twilio): Answered call IMMEDIATELY to prevent auto-routing race`)
     } catch (ansErr) {
       await _abandonBridge({ chatId, num, destination, callControlId, reason: `answer failed: ${ansErr.message}` })
@@ -3592,6 +3595,7 @@ async function handleOutboundSipCall(payload) {
       bridgeId,
       alive: true,  // Track if call is still active for race condition detection
     }
+    sipQueue.settled(callControlId)
 
     // ── Mid-call wallet monitor for Twilio bridge calls ──
     // Outbound calls charge directly from wallet (plan minutes are for inbound only).

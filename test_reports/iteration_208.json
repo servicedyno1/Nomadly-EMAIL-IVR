@@ -1,0 +1,58 @@
+{
+  "summary": "Backend-only test of (1) the Telegram eSIM pay-first flow (IMEI sent after payment) and (2) the SIP simultaneous-call queue. The real bot ran against the mock Telegram API, and the voice-service.js webhooks ran with Telnyx mocked. eSIM: the new e2e passes 32/34; both failures are minor. Results: Buy goes to ZIP (Skip works), then email (Skip), then auto-renew, then a summary showing 'IMEI: you send it after paying'. Wallet $75 gives 'Paid $75. One last step...', sets state esim-bot-imei and esimPendingLine, makes the line awaiting_imei (source telegram, no imei) and sets digitalOrders to paid_awaiting_imei. Invalid and Luhn-invalid IMEIs are rejected. Back keeps the line waiting. My eSIMs shows 'Paid — waiting for your IMEI' with a 📟 Send IMEI button, and sending the IMEI moves the line to provisioning (simulated) with no second charge. A second IMEI is refused. The BlockBee crypto callback credits then charges the wallet, leaves the line awaiting_imei, sets the state and asks for the IMEI. The live 15s tick reminds once per day ('5 days left') and refunds $75 with a message after 7 days. Regressions pass: esim_pay_first 12/12, esim_bot.test PASS, esim_renewal PASS, bot_ui_esim_tmobile 24/24 and extra_iter207 25/25 (both updated to the pay-first order), crypto_webhook_iter207 5/5, web pytest 4/4 + 5/5 (web POST /esim still needs IMEI and email, including with a source:'telegram' spoof). SIP: unit test 5/5, webhook simulation 19/19 and race checks 2/2. Results: the 11th simultaneous call is answered, hears 'All your lines are busy...', gets hold music after 7s and a Telegram vs.sipCallQueued notice. No transfer or fee happens while queued and the reservation is held. When a slot frees: playbackStop, then transferCall, then the fee. A caller who hangs up while queued is never transferred or charged, and the reservation is released. Timeout gives 'still busy', then hangup, with no fee. The 4th call to the same number speaks a message instead of a silent hangup. One freed slot connects exactly one queued call (FIFO). The global 5-min cap and the hard-block are fully removed. FOUND 1 HIGH bug: when the IMEI arrives more than 24h after payment, the line is failed and refunded on the next poll (reproduced). Also 1 likely bug: queued calls on Twilio numbers would fail when dequeued (second answerCall).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "js/spenza.js pollOne() (tick)", "issue": "The 24h Spenza timeout counts from createdAt, which is now the payment time, not the time the IMEI was sent. A pay-first buyer who sends the IMEI after day 1 (the daily reminders start on day 1) has the line marked failed ('timed out after 24 h') and refunded on the first poll, about 15s later. Meanwhile the real Spenza order was already placed, so it may get created and billed by Spenza with no matching line. REPRODUCED with js/tests/esim_late_imei_timeout_repro_iter208.js: status failed, wallet +75. Fix: in submitImei set e.g. provisionStartedAt (or reset createdAt) and measure the timeout from that. The same applies to the simulated 20s check.", "priority": "HIGH"},
+      {"endpoint": "js/voice-service.js outbound SIP, Twilio-number branch (~3535)", "issue": "queueUntilFree() already answers the caller's leg. When a queued call gets its slot, the Twilio branch calls _telnyxApi.answerCall() again. Telnyx rejects answer on an answered leg (error 90018), so the catch runs _abandonBridge() and every queued call on a Twilio-provider number fails right after waiting. Fix: remember that the leg was answered (have queueUntilFree return 'answered', or set a flag) and skip the second answer, or ignore the 'already answered' error.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "BlockBee /crypto-pay-digital-product + DynoPay webhook", "issue": "A pay-first eSIM paid by crypto gets digitalOrders.status 'delivered' (deliveredAt set) while the line is still awaiting_imei. The wallet path uses 'paid_awaiting_imei'. Neither path updates digitalOrders after the IMEI is sent or after the 7-day refund, so admin and order reports go stale or wrong."},
+      {"endpoint": "js/voice-service.js queue + isAutoRouted calls", "issue": "For auto-routed SIP calls, where Telnyx has already bridged to PSTN, queueing only answers and plays music. If the PSTN leg is already up, the call can run for up to 2 min with no activeCalls session and no fee or per-minute billing. The removed rate-limit code handled this with handleAutoRoutedRealTimeBilling. Consider hanging up or billing auto-routed calls when they are queued."},
+      {"endpoint": "js/sip-call-queue.js isFull()", "issue": "Small race: there are awaits (connection fee, checkTestCredentialCall) between the isFull()/'go' decision and setting activeCalls[ccid]. A real burst or two near-simultaneous polls could briefly put the user over 10 live calls. With fast mocks it did not happen (burst test kept 10). A low-cost fix is to reserve the slot right away (count reservations or pending ids in liveCount)."},
+      {"endpoint": "js/esim-bot.js lineLabel", "issue": "In My eSIMs, a line waiting for its IMEI is labelled '📱 Setting up · xxxxxx', which reads as if it is already provisioning. The details screen correctly says 'Paid — waiting for your IMEI'. Use a 'Waiting for IMEI' label."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/bot_esim_pay_first_iter208.js",
+    "/app/js/tests/bot_esim_imei_cancel_iter208.js",
+    "/app/js/tests/sip_queue_webhook_sim_iter208.js",
+    "/app/js/tests/sip_queue_race_iter208.js",
+    "/app/js/tests/esim_late_imei_timeout_repro_iter208.js",
+    "/app/js/tests/bot_ui_esim_tmobile_2026-11.js",
+    "/app/js/tests/bot_ui_esim_tmobile_extra_iter207.js",
+    "/app/backend/tests/test_iter208_web_esim_imei_required.py",
+    "/app/backend/tests/esim_pay_first.test.js",
+    "/app/js/tests/test_sip_call_queue_2026-11.js"
+  ],
+  "action_items": [
+    "HIGH: in spenza.js, measure the provisioning timeout (and the simulated 20s delay) from the time the IMEI was submitted, not createdAt. Then rerun js/tests/esim_late_imei_timeout_repro_iter208.js; the line should stay provisioning.",
+    "HIGH: stop the second answerCall in the Twilio branch of the outbound SIP handler when the call was queued (and therefore already answered).",
+    "Set digitalOrders to paid_awaiting_imei in both crypto webhooks when r.awaitingImei, and update digitalOrders on IMEI submit (delivered) and on the 7-day refund (refunded).",
+    "Decide how queued auto-routed SIP calls should be handled (bill them or hang up) so they can't run unbilled for up to 2 min.",
+    "Optional: label waiting lines 'Waiting for IMEI' in the My eSIMs list, and reserve the slot right away to close the small over-limit race."
+  ],
+  "critical_code_review_comments": [
+    "spenza.pollOne uses createdAt for the 24h timeout and for the simulated 20s delay. This is wrong for pay-first lines (reproduced).",
+    "voice-service Twilio branch answers the call unconditionally; it conflicts with queueUntilFree, which has already answered it.",
+    "The queue path skips billing setup while queued. That is correct for parked calls but leaky for isAutoRouted calls.",
+    "The esim-bot-imei handler clears esimPendingLine and state even when submitImei fails with 'no longer waiting'. That is acceptable, but a Spenza refusal does the same, so the user can't retry the IMEI (refund handled by provision()).",
+    "Verified OK: the global 5-min cap and hard-block are fully removed (no leftover references); the queue check comes after _reserveOutbound and before the connection fee; call.hangup calls sipQueue.drop first; vs.sipCallQueued exists in en/fr/hi/zh; web buy still requires IMEI and email (bot = source 'telegram' is not reachable from web)."
+  ],
+  "updated_files": [
+    "/app/js/tests/bot_ui_esim_tmobile_2026-11.js (updated to pay-first order)",
+    "/app/js/tests/bot_ui_esim_tmobile_extra_iter207.js (updated to pay-first order; address_failed in preview treated as pending; overpay 77)",
+    "/app/js/tests/bot_esim_pay_first_iter208.js (new)",
+    "/app/js/tests/bot_esim_imei_cancel_iter208.js (new)",
+    "/app/js/tests/sip_queue_webhook_sim_iter208.js (new)",
+    "/app/js/tests/sip_queue_race_iter208.js (new)",
+    "/app/js/tests/esim_late_imei_timeout_repro_iter208.js (new)",
+    "/app/backend/tests/test_iter208_web_esim_imei_required.py (new)"
+  ],
+  "success_rate": {"backend": "~95% of executed checks (eSIM e2e 32/34 with 2 minor; all regressions pass; SIP sim 21/21). 2 HIGH bugs found by review + repro", "frontend": "not tested (backend only)"},
+  "seed_data_creation": "None persisted. Test chats 990208001-003/009/050/060 (walletOf/state/esimLines/digitalOrders/transactions) were created and deleted by id. The preview Bob web account wallet was restored by the pytest fixture.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Bot e2e: run `sudo supervisorctl stop nodejs`, then `node js/tests/mock_telegram_api.js &`, then `TELEGRAM_API_BASE_URL=http://127.0.0.1:5099 node --max-old-space-size=2048 js/start-bot.js &` (wait ~45s). Run from /app: node js/tests/bot_esim_pay_first_iter208.js (~3.5 min), bot_ui_esim_tmobile_2026-11.js, bot_ui_esim_tmobile_extra_iter207.js, VALUE_COIN=77 node js/tests/bot_esim_crypto_webhook_iter207.js, and esim_late_imei_timeout_repro_iter208.js (should NOT print 'BUG REPRODUCED' after the fix). After that, pkill the manual bot and mock, then `sudo supervisorctl start nodejs`. SIP: node js/tests/sip_queue_webhook_sim_iter208.js and sip_queue_race_iter208.js are standalone (Telnyx mocked, no db passed to voice-service so nothing is persisted). In preview the crypto address fetch fails with 401 and orders become address_failed.",
+  "rca of the issue": "Late-IMEI refund: pay-first inserts the line at payment time (createdAt), and submitImei later flips it to provisioning without changing any timestamp. pollOne's timeout check `Date.now() - createdAt > 86400000` then fires on the first poll for any IMEI sent after 24h. Repro: insert a provisioning line with createdAt 2 days ago, wait one tick, and the line is failed + refunded. Mitigation: store provisionStartedAt in submitImei/provision and use it in pollOne. Twilio double answer: queueUntilFree answers the call, then the Twilio branch's unconditional answerCall throws (Telnyx 90018) and runs _abandonBridge."
+}

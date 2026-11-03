@@ -209,7 +209,7 @@ async function plan() {
 }
 // Plan allowance shown as-is from the provider catalog, e.g. "20 MB data · 20 min calls · Unlimited SMS".
 const includes = (p) => [p?.data && `${p.data} data`, p?.voiceMinutes != null && `${p.voiceMinutes} min calls`, p?.sms != null && `${p.sms} SMS`].filter(Boolean).join(' · ')
-const lineLabel = (l, lang) => `📱 ${l.phoneNumber || s(lang).settingUp} · ${l.id.slice(-6)}`
+const lineLabel = (l, lang) => `📱 ${l.phoneNumber || (l.status === 'awaiting_imei' ? s(lang).status.awaiting_imei : s(lang).settingUp)} · ${l.id.slice(-6)}`
 const lineFromLabel = (lines, m) => lines.find(l => String(m || '').endsWith(`· ${l.id.slice(-6)}`)) || null
 const lines = async (chatId) => (await ES.list(chatId)).filter(l => l.status !== 'failed')
 
@@ -232,6 +232,7 @@ async function fulfillPaid(db, chatId, order, price, lang) {
 async function submitImei(db, chatId, lineId, imei, lang) {
   const r = await ES.submitImei(chatId, lineId, imei)
   if (r.error) return { ok: false, text: s(lang).failed(r.error) }
+  await db.collection('digitalOrders').updateOne({ esimLineId: lineId }, { $set: { status: 'delivered', deliveredAt: new Date() } }).catch(() => {})
   const bal = round2(await walletOps(db).balance(chatId)).toFixed(2)
   return { ok: true, text: s(lang).placed(r.item.price, bal), lineId: r.item.id }
 }

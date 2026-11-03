@@ -175,7 +175,7 @@ async function provision(doc) {
 async function submitImei(chatId, lineId, imei) {
   const im = String(imei || '').replace(/\D/g, '')
   if (im.length !== 15 || !luhn(im)) return { error: 'Enter your phone’s 15-digit IMEI (dial *#06# to see it).' }
-  const doc = await S.col.findOneAndUpdate({ _id: lineId, chatId: String(chatId), status: 'awaiting_imei' }, { $set: { imei: im, status: 'provisioning', updatedAt: new Date() } }, { returnDocument: 'after' })
+  const doc = await S.col.findOneAndUpdate({ _id: lineId, chatId: String(chatId), status: 'awaiting_imei' }, { $set: { imei: im, status: 'provisioning', provisionStartedAt: new Date(), updatedAt: new Date() } }, { returnDocument: 'after' })
   const d = doc?.value !== undefined ? doc.value : doc
   if (!d) return { error: 'This eSIM order is no longer waiting for an IMEI.' }
   return provision(d)
@@ -189,6 +189,7 @@ async function imeiChase() {
     const r = await S.col.updateOne({ _id: d._id, status: 'awaiting_imei' }, { $set: { status: 'cancelled', note: 'No IMEI sent within 7 days. Your payment was refunded.', updatedAt: new Date() } })
     if (!r.modifiedCount) continue
     await S.w.credit(d.chatId, d.price); await txn(d.chatId, 'esim-refund', d.price, { lineId: d._id, reason: 'no_imei' })
+    await S.db.collection('digitalOrders').updateOne({ esimLineId: d._id }, { $set: { status: 'refunded_no_imei', refundedAt: new Date() } }).catch(() => {})
     say(d.chatId, bt(d, 'imeiRefund', d.price) || `↩️ Your eSIM order was cancelled because no IMEI was sent within 7 days. $${d.price} was refunded to your wallet.`, { kind: 'billing', meta: { esim: d._id } })
   }
   for (const d of await S.col.find({ status: 'awaiting_imei', createdAt: { $lte: new Date(now - DAY_MS) }, imeiRemindedAt: { $not: { $gt: new Date(now - DAY_MS) } } }).limit(50).toArray()) {
@@ -275,7 +276,7 @@ const dropSip = (d) => d.sip?.credId ? require('./telnyx-service').deleteSIPCred
 // Poll provisioning; a finished one gets its number, ICCID and QR.
 async function pollOne(d) {
   if (d.simulated) {
-    if (Date.now() - new Date(d.createdAt).getTime() < 20000) return
+    if (Date.now() - new Date(d.provisionStartedAt || d.createdAt).getTime() < 20000) return
     const iccid = '8901' + String(Date.now()).slice(-15)
     const phone = '+1555' + String(Date.now()).slice(-7)
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', iccid, phoneNumber: phone, qrCode: `LPA:1$preview.spenza.test$${d._id}`, ...period(new Date(Date.now() + MONTH_MS)), updatedAt: new Date() } })
@@ -290,7 +291,7 @@ async function pollOne(d) {
     if (isBot(d.chatId)) return botReady({ ...d, phoneNumber: x.mdn ? '+1' + String(x.mdn).replace(/\D/g, '').slice(-10) : null })
     const sent = await emailQr({ ...d, phoneNumber: x.mdn || null })
     say(d.chatId, `📱 Your eSIM is ready. Open CloudIVR eSIM and scan the QR code with your phone to install it. It has two-way SMS: send and receive texts on that phone.${sent ? ` We also emailed it to ${d.qrEmail}.` : ''}`, { kind: 'billing', meta: { esim: d._id } })
-  } else if (['failed', 'error'].includes(st) || Date.now() - new Date(d.createdAt).getTime() > 86400000) {
+  } else if (['failed', 'error'].includes(st) || Date.now() - new Date(d.provisionStartedAt || d.createdAt).getTime() > 86400000) {
     await S.w.credit(d.chatId, d.price); await txn(d.chatId, 'esim-refund', d.price, { lineId: d._id })
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'failed', note: 'The eSIM couldn’t be created. Your payment was refunded.', providerError: r?.error?.message || (st ? null : 'timed out after 24 h'), updatedAt: new Date() } })
     say(d.chatId, bt(d, 'failed', d.price) || (d.kind === 'mobile' ? `⚠️ Your USA mobile number couldn’t be set up. $${d.price} was refunded to your wallet.` : `⚠️ Your eSIM couldn’t be created. $${d.price} was refunded to your wallet.`), { kind: 'billing', meta: d.kind === 'mobile' ? { mobile: d._id } : { esim: d._id } })

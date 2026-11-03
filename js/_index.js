@@ -41322,7 +41322,7 @@ app.get('/crypto-pay-digital-product', auth, async (req, res) => {
   if (paidOrder?.productKey === esimBot.PRODUCT_KEY && paidOrder.esim) {
     if (paidOrder.status !== 'pending_payment') return res.send(html())
     const r = await esimBot.fulfillPaid(db, chatId, paidOrder.esim, Number(price), lang)
-    await digitalOrdersCol.updateOne({ orderId }, { $set: { status: r.ok ? 'delivered' : 'credited_to_wallet', paymentConfirmedAt: new Date(), deliveredAt: r.ok ? new Date() : null, esimLineId: r.lineId || null } })
+    await digitalOrdersCol.updateOne({ orderId }, { $set: { status: r.awaitingImei ? 'paid_awaiting_imei' : r.ok ? 'delivered' : 'credited_to_wallet', paymentConfirmedAt: new Date(), deliveredAt: r.ok && !r.awaitingImei ? new Date() : null, esimLineId: r.lineId || null } })
     await auditCryptoTx(chatId, 'digital-product', price, { product, orderId, coin, value, ref }, 'blockbee')
     send(chatId, r.text, r.awaitingImei ? esimBot.backKb : translation('o', lang))
     notifyGroup(`📱 <b>eSIM paid (crypto)</b>\n\n👤 User: ${maskName(name)}\n💵 Paid: <b>$${price}</b>\n${r.ok ? '🤖 Setting up automatically.' : '⚠️ Not set up; amount left in wallet.'}`, `📱 <b>eSIM paid (crypto BlockBee)</b>\n\n🆔 Order: <code>${orderId}</code>\n👤 User: ${adminUserTag(name, chatId)}\n💵 Paid: <b>$${price}</b> (${value} ${coin})\n${r.ok ? `🤖 Spenza line ${r.lineId}, set up automatically.` : '⚠️ Not set up; amount credited to wallet.'}`, buildAdminButtons({ chatId }))
@@ -46723,7 +46723,7 @@ app.post('/dynopay/crypto-pay-digital-product', authDyno, async (req, res) => {
   if (paidOrder?.productKey === esimBot.PRODUCT_KEY && paidOrder.esim) {
     if (paidOrder.status !== 'pending_payment') return res.send(html())
     const r = await esimBot.fulfillPaid(db, chatId, paidOrder.esim, Number(price), lang)
-    await digitalOrdersCol.updateOne({ orderId }, { $set: { status: r.ok ? 'delivered' : 'credited_to_wallet', paymentConfirmedAt: new Date(), deliveredAt: r.ok ? new Date() : null, esimLineId: r.lineId || null } })
+    await digitalOrdersCol.updateOne({ orderId }, { $set: { status: r.awaitingImei ? 'paid_awaiting_imei' : r.ok ? 'delivered' : 'credited_to_wallet', paymentConfirmedAt: new Date(), deliveredAt: r.ok && !r.awaitingImei ? new Date() : null, esimLineId: r.lineId || null } })
     await auditCryptoTx(chatId, 'digital-product', price, { product, orderId, coin, value, ref }, 'dynopay')
     send(chatId, r.text, r.awaitingImei ? esimBot.backKb : translation('o', lang))
     notifyGroup(`📱 <b>eSIM paid (crypto)</b>\n\n👤 User: ${maskName(name)}\n💵 Paid: <b>$${price}</b>\n${r.ok ? '🤖 Setting up automatically.' : '⚠️ Not set up; amount left in wallet.'}`, `📱 <b>eSIM paid (crypto DynoPay)</b>\n\n🆔 Order: <code>${orderId}</code>\n👤 User: ${adminUserTag(name, chatId)}\n💵 Paid: <b>$${price}</b> (${value} ${coin})\n${r.ok ? `🤖 Spenza line ${r.lineId}, set up automatically.` : '⚠️ Not set up; amount credited to wallet.'}`, buildAdminButtons({ chatId }))
