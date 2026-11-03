@@ -2165,3 +2165,9 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - User decision: remove every eSIM product except T-Mobile (drop the "eSIM Airvoice (AT&T)" button t.dpEsimAirvoice and its airvoiceDuration step, around _index.js:19993; menu keyboard in the submenu6 / digital products list). The T-Mobile price matches the web, $75 (DP_PRICE_ESIM, lang/en.js:574 and the config/env on prod).
 - The order flow must match the web: the automatic Spenza order (spenza.js buy(chatId, {planId, imei, zipcode, email, autoRenew})). The bot asks for the IMEI (15 digits), then the ZIP (optional), then the email (optional but encouraged; the QR is also sent in the Telegram chat). Payment is the wallet OR direct crypto (as other digital products). For crypto, credit the wallet on confirmation and then call ES.buy. When the line is active, send the QR image + LPA code to the chat. Note ES.buy validates email with EMAIL_RE, so make email optional for bot orders.
 - Check that S.tell and the QR delivery reach Telegram chatIds (web chatIds start 5000…). Test in preview with a dry run.
+
+## 2026-11-03 — 7-day production bot activity audit (read-only)
+- Report: memory/PROD_BOT_ACTIVITY_AUDIT_2026-11-03_7d.md
+- CRITICAL: DigitalOcean team LOCKED for unpaid Oct invoice ($198.59 due), and the account hosts the prod droplet; VPS orders failing (refunded). Telnyx balance $5.12.
+- HIGH: Linkly 401, retired AI language-detect model, CR 401, silent SIP rate-limit hangups.
+- No fixes applied (user chose report-only).
