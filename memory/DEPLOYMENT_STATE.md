@@ -355,3 +355,21 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
   "📱 USA T-Mobile eSIM — $75/month", no Airvoice.
 - ⚠️ Save to GitHub (main) or the next CI deploy rolls app-main back; the WL overlay is NOT on the WhiteLabel branch — the next WhiteLabel CI
   deploy would drop it unless these files reach WhiteLabel.
+
+## 2026-11-03 15:30Z — secureonlineportal.org (johngambino/817673476) 523 fixed + link-flow ownership bug fixed & deployed
+- SYMPTOM: linked domain showed Cloudflare 523. RCA: platform created the CF zone (f9ca7dd5…, account ed6035, records root+www CNAME→tunnel
+  b395cebc proxied) but NEVER delegated nameservers at OpenProvider. OP stayed on an old pair (autumn/jake.ns.cloudflare.com) that doesn't
+  serve the new zone (assigned anderson/leanna) → zone stuck `pending` → 523. domainsOf.cfZoneId was null, nsAuditLog empty.
+- ROOT BUG: js/cpanel-routes.js `isDomainOwnedByChat()` queried domainsOf by `{_id: domain}` only; this domain's ownership doc is keyed by
+  ObjectId with `domainName`+`chatId` fields (the shape getDomainMeta reads by `{domainName}`). So the ownership check returned FALSE for the
+  real owner → every NS-delegation branch in the hosting-link paths (all gated on isOwnDomain/autoManaged) was skipped and the domain treated
+  as external. Fix: also query `domainsOf.findOne({domainName})` and compare chatId. Verified: owner→true (.org and .com), stranger→false.
+- LIVE DOMAIN FIX: ran domainService.ensureCloudflare('secureonlineportal.org', db) on prod → reused existing zone, pushed NS anderson/leanna
+  to OpenProvider (whois now shows anderson/leanna), relinked domainsOf cfZoneId/nameserverType/nameservers, aligned customNS +
+  registeredDomains, triggered CF activation_check. Result: zone ACTIVE, https://secureonlineportal.org → 302 (origin reachable via tunnel),
+  523 cleared. Both domains confirmed registered to chatId 817673476 at OpenProvider.
+- CODE FIX DEPLOYED (in-place patch /opt/nomadly/cpr_ownership.patch, applied cleanly, backups in /opt/nomadly/deploy-backups/
+  cpanel-routes.<app>.<ts>.bak): app-wl-b/app-voodoo-b/app-proshop-a (15:26Z) + app-main-b (15:30Z at 0 calls; live release 3ce70e2, has-fix=2).
+  Web HostPanel hosta.sh (/opt/hosta/backend) is a thin client → Nomadly reseller API (base …/reseller/v1 = app-main), so app-main is the
+  effective target; fix is live there.
+- ⚠️ Workspace js/cpanel-routes.js carries this fix UNCOMMITTED — Save to GitHub so the next CI/WhiteLabel deploy keeps it.
