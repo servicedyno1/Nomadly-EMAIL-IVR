@@ -1,0 +1,45 @@
+{
+  "summary": "Backend-only RETEST of the iteration_208 fixes. All 2 HIGH and 4 minor fixes are verified. HIGH-1 (late IMEI): a new e2e test runs through the real bot and mock Telegram. It pays by wallet, sets createdAt (Mongo) to 2 days earlier, then sends the IMEI through My eSIMs. Result: provisionStartedAt is set to now and createdAt is unchanged. The line stays provisioning through the first tick (the 20s simulated delay now counts from the IMEI), then becomes active. It is not failed and there is no refund or refund message. The repro script now prints 'not reproduced'. A control run without provisionStartedAt still fails with a refund, which proves the tick really ran. HIGH-2 (Twilio branch): a new webhook simulation uses a Twilio-provider number, with a mock answerCall that throws on a second answer, as Telnyx does with 90018. The 11th call is answered, hears the message and does not transfer. After a slot frees the ops are answerCall, speakOnCall, playbackStop, then transferCall to sip:bridge_*@domain. There is exactly one answerCall, no hangup and no _abandonBridge, and the session is outbound_twilio_bridge (6/6). Minor fixes verified: crypto digitalOrders goes paid_awaiting_imei (deliveredAt null) → delivered after the IMEI → refunded_no_imei (refundedAt set) after the 7-day refund on the live tick. The My eSIMs label reads exactly '📱 📟 Paid — waiting for your IMEI · xxxxxx'. The admit/settled/drop race fix works: race 2/2. Regressions: sip_queue_webhook_sim 19/19, sip unit 5/5, bot_esim_pay_first 33/34 (only the minor A5 keyboard expectation fails), bot_ui_esim_tmobile 24/24, extra_iter207 25/25, crypto_webhook_iter207 5/5, esim_bot PASS, esim_pay_first 12/12, esim_renewal PASS, pytest iter208 web 5/5. The imei_cancel_iter208 script is informational only: Cancel and Main Menu during the IMEI step go to the main menu with action none. Code review confirms our code creates no PSTN leg before transferCall for queued calls.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "js/esim-bot.js submitImei / js/spenza.js pollOne + provision", "issue": "digitalOrders is set to 'delivered' only when ES.submitImei succeeds. If provision fails right away (Spenza create error, refund), the order stays 'paid_awaiting_imei'. If pollOne later fails or times out (refund), the order stays 'delivered'. Admin and order reports can still show a refunded order as delivered or awaiting. Suggest updating digitalOrders {esimLineId} to 'refunded' in both refund paths."},
+      {"endpoint": "Bot IMEI step keyboard (bot_esim_pay_first A5)", "issue": "After the wallet payment, the IMEI prompt keyboard is ['↩️ Back','🏠 Main Menu','Cancel'], but the test expects Back only. This is cosmetic: Cancel and Main Menu leave the line awaiting_imei and the user can resume from My eSIMs. Either align the keyboard to Back only or update the test."},
+      {"endpoint": "js/voice-service.js queue for isAutoRouted calls (review only)", "issue": "Our code places no PSTN leg before transferCall for queued calls: queueUntilFree only calls answer, speak and playbackStart/Stop. However, a call that is truly auto-routed (matched by connection only, not by the from field) may already have Telnyx's own outbound-profile routing in progress before our answer. That is outside our code and was not testable with mocks. It is acceptable as a known limitation."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/bot_esim_late_imei_orders_iter209.js",
+    "/app/js/tests/sip_queue_twilio_branch_iter209.js",
+    "/app/js/tests/esim_late_imei_timeout_repro_iter208.js",
+    "/app/js/tests/sip_queue_race_iter208.js",
+    "/app/js/tests/sip_queue_webhook_sim_iter208.js",
+    "/app/js/tests/test_sip_call_queue_2026-11.js",
+    "/app/js/tests/bot_esim_pay_first_iter208.js",
+    "/app/js/tests/bot_esim_imei_cancel_iter208.js",
+    "/app/js/tests/bot_ui_esim_tmobile_2026-11.js",
+    "/app/js/tests/bot_ui_esim_tmobile_extra_iter207.js",
+    "/app/js/tests/bot_esim_crypto_webhook_iter207.js",
+    "/app/backend/tests/esim_bot.test.js",
+    "/app/backend/tests/esim_pay_first.test.js",
+    "/app/backend/tests/esim_renewal.test.js",
+    "/app/backend/tests/test_iter208_web_esim_imei_required.py",
+    "/app/test_reports/pytest/pytest_iter209.xml"
+  ],
+  "action_items": [
+    "Optional: set digitalOrders to a refunded status when a pay-first line fails after the IMEI (provision create error or pollOne fail/24h timeout).",
+    "Optional: make the IMEI-step keyboard Back only, or update test A5 in bot_esim_pay_first_iter208.js."
+  ],
+  "critical_code_review_comments": [
+    "spenza.pollOne now uses provisionStartedAt || createdAt for both the 20s simulated check and the 24h timeout. Older provisioning lines with no provisionStartedAt fall back to createdAt, as before.",
+    "sip-call-queue claim TTL is 15s. If the work between admit() and the activeCalls creation ever took longer than 15s, the slot would be released early. With the current code (fee deduct, checkTestCredentialCall, Twilio pre-flight lookups) this is very unlikely.",
+    "Early returns after admit() (test-call limit hangup, no Twilio SIP domain) hold the claim until call.hangup drop() or the 15s TTL. This is fine."
+  ],
+  "updated_files": ["/app/js/tests/bot_esim_late_imei_orders_iter209.js", "/app/js/tests/sip_queue_twilio_branch_iter209.js"],
+  "success_rate": {"backend": "99% (all fixes verified; 1 cosmetic test expectation fails)", "frontend": "N/A (skipped)"},
+  "seed_data_creation": "None persisted. Test chats 990209001-3, 990209061 and 990209070 were cleaned up by id.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Bot e2e uses the same setup as iter208: sudo supervisorctl stop nodejs; node js/tests/mock_telegram_api.js &; TELEGRAM_API_BASE_URL=http://127.0.0.1:5099 node --max-old-space-size=2048 js/start-bot.js & (wait ~50s); afterwards pkill both and sudo supervisorctl start nodejs (done; nodejs is RUNNING). The new iter209 tests are bot_esim_late_imei_orders_iter209.js (13/13, ~2 min, needs the mock bot) and sip_queue_twilio_branch_iter209.js (6/6, standalone, Telnyx mocked, answerCall throws on a second answer)."
+}

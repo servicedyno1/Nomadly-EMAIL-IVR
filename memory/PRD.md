@@ -2171,3 +2171,8 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - CRITICAL: DigitalOcean team LOCKED for unpaid Oct invoice ($198.59 due), and the account hosts the prod droplet; VPS orders failing (refunded). Telnyx balance $5.12.
 - HIGH: Linkly 401, retired AI language-detect model, CR 401, silent SIP rate-limit hangups.
 - No fixes applied (user chose report-only).
+
+## 2026-11-03 — SIP call queue + eSIM pay-first (preview, NOT deployed)
+- SIP: removed 10-calls/5-min cap + 10-min hard-block (our code; Telnyx OVP concurrent_call_limit=null). New js/sip-call-queue.js: max 10 simultaneous outbound calls per user (SIP_MAX_CONCURRENT_CALLS), extras answered + "queued" message + hold music, connect FIFO when a slot frees, 2 min max (SIP_QUEUE_MAX_WAIT_MS) then spoken "still busy" + hangup; nothing charged while queued. Same-number 3/min rule kept but now speaks a reason. Telegram notice vs.sipCallQueued (en/fr/hi/zh).
+- eSIM bot pay-first: Buy → ZIP (optional) → email (optional) → auto-renew → pay → IMEI. Line status awaiting_imei; Send IMEI from My eSIMs; daily reminder; refund + cancel after 7 days (spenza.imeiChase). 24h provisioning timeout counts from provisionStartedAt. digitalOrders statuses paid_awaiting_imei/delivered/refunded/refunded_no_imei.
+- Tests: iteration_208 (2 HIGH found, fixed) and iteration_209 (all verified); backend/tests/esim_pay_first.test.js, js/tests/test_sip_call_queue_2026-11.js + iter208 sims.

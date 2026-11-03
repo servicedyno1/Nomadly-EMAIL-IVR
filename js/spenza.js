@@ -153,6 +153,8 @@ async function buy(chatId, { planId, imei, zipcode, email, autoRenew, source, la
   return provision(doc)
 }
 
+// A bot order whose line was refunded shows as refunded in order reports.
+const orderRefunded = (lineId) => S.db.collection('digitalOrders').updateOne({ esimLineId: lineId }, { $set: { status: 'refunded', refundedAt: new Date() } }).catch(() => {})
 // Send the paid line to Spenza; refund the wallet if Spenza refuses.
 async function provision(doc) {
   const { _id, chatId, price, simId, planId, imei: im, zipcode: zip } = doc
@@ -164,6 +166,7 @@ async function provision(doc) {
     return { item: pub(doc) }
   } catch (e) {
     await S.w.credit(chatId, price); await txn(chatId, 'esim-refund', price, { lineId: _id })
+    orderRefunded(_id)
     S.log(`[eSIM] create ${_id}: ${e.message}`)
     await S.col.updateOne({ _id }, { $set: { status: 'failed', note: 'The eSIM couldn’t be created. Your payment was refunded.', providerError: e.message, updatedAt: new Date() } })
     say(chatId, bt({ chatId, lang: doc.lang }, 'failed', price) || `⚠️ Your eSIM couldn’t be created. $${price} was refunded to your wallet.`, { kind: 'billing', meta: { esim: _id } })
@@ -293,6 +296,7 @@ async function pollOne(d) {
     say(d.chatId, `📱 Your eSIM is ready. Open CloudIVR eSIM and scan the QR code with your phone to install it. It has two-way SMS: send and receive texts on that phone.${sent ? ` We also emailed it to ${d.qrEmail}.` : ''}`, { kind: 'billing', meta: { esim: d._id } })
   } else if (['failed', 'error'].includes(st) || Date.now() - new Date(d.provisionStartedAt || d.createdAt).getTime() > 86400000) {
     await S.w.credit(d.chatId, d.price); await txn(d.chatId, 'esim-refund', d.price, { lineId: d._id })
+    orderRefunded(d._id)
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'failed', note: 'The eSIM couldn’t be created. Your payment was refunded.', providerError: r?.error?.message || (st ? null : 'timed out after 24 h'), updatedAt: new Date() } })
     say(d.chatId, bt(d, 'failed', d.price) || (d.kind === 'mobile' ? `⚠️ Your USA mobile number couldn’t be set up. $${d.price} was refunded to your wallet.` : `⚠️ Your eSIM couldn’t be created. $${d.price} was refunded to your wallet.`), { kind: 'billing', meta: d.kind === 'mobile' ? { mobile: d._id } : { esim: d._id } })
   }
