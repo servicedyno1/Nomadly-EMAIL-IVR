@@ -727,6 +727,30 @@ const createGeoRule = async (zoneId, countryCodes, mode = 'block', description =
   }
 }
 
+// IP access rules for a hosted site (WAF Custom Rule). 'block' blocks the listed IPs/CIDRs;
+// 'allow' is allow-only: everyone NOT listed is blocked. Tagged by description prefix so the
+// reseller API only ever lists/deletes its own IP rules, never platform protection rules.
+const IP_RULE_PREFIX = { block: 'IP-block:', allow: 'IP-allow:' }
+const isIpRule = (r) => Object.values(IP_RULE_PREFIX).some(p => String(r?.description || '').startsWith(p))
+const createIpRule = async (zoneId, ips, mode = 'block', note = '') => {
+  try {
+    const list = ips.join(' ')
+    const expression = mode === 'allow' ? `(not (ip.src in {${list}}))` : `(ip.src in {${list}})`
+    const desc = `${IP_RULE_PREFIX[mode]} ${note || ips.join(', ')}`.slice(0, 500)
+    const ep = await _getOrCreateCustomRulesEntrypoint(zoneId)
+    if (!ep) return { success: false, errors: [{ message: 'Could not access WAF Custom Rules ruleset' }] }
+    const r = await axios.post(`${CF_BASE_URL}/zones/${zoneId}/rulesets/${ep.id}/rules`,
+      { expression, action: 'block', description: desc, enabled: true }, { headers: cfHeaders(), timeout: 15000 })
+    if (!r.data?.success) return { success: false, errors: r.data?.errors || [] }
+    const added = (r.data.result?.rules || []).filter(x => x.description === desc).pop() || null
+    return { success: true, rule: added ? _adaptRule(added) : null }
+  } catch (err) {
+    const detail = err.response?.data ? JSON.stringify(err.response.data).slice(0, 300) : ''
+    log(`CF createIpRule error: ${err.message}${detail ? ' :: ' + detail : ''}`)
+    return { success: false, errors: [{ message: err.message }] }
+  }
+}
+
 /**
  * Delete a WAF Custom Rule (legacy name: deleteFirewallRule).
  * The rule is identified by zone + rule id; we resolve the ruleset id from
@@ -1640,6 +1664,8 @@ module.exports = {
   setProxiedState,
   listFirewallRules,
   createGeoRule,
+  createIpRule,
+  isIpRule,
   deleteFirewallRule,
   // Public alias of _getOrCreateCustomRulesEntrypoint — used by anti-red-service.js
   // to mint additional WAF Custom Rules (JA3, anti-phishing) on the same

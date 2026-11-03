@@ -1024,16 +1024,32 @@ function createResellerApi(deps = {}) {
   // ════════════════════════════════════════════════════════
   // DNS management (free — no wallet charge)
   // ════════════════════════════════════════════════════════
-  router.get('/dns/:domain/records', apiKeyAuth, h(async (req, res) => {
+  // DNS records may only be read/changed on a domain this key's account owns: registered by it,
+  // the primary or an addon domain of one of its hosting accounts, or on its branded nameservers.
+  const ownsDomain = async (req, domain) => {
+    const owner = String(req.reseller.ownerChatId)
+    const [own, acct, bdoc] = await Promise.all([
+      col('domainsOf').findOne({ domainName: domain, chatId: owner }, { projection: { _id: 1 } }),
+      col('cpanelAccounts').findOne({ chatId: owner, deleted: { $ne: true }, $or: [{ domain }, { addonDomains: domain }, { 'addonDomains.domain': domain }] }, { projection: { _id: 1 } }),
+      brandedNs.getDoc(getDb(), domain),
+    ])
+    return !!(own || acct || (bdoc && String(bdoc.ownerChatId) === owner))
+  }
+  const dnsGuard = async (req, res) => {
     const domain = String(req.params.domain || '').trim().toLowerCase()
-    if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain' })
+    if (!domainOk(domain)) { res.status(400).json({ error: 'invalid_domain' }); return null }
+    if (!(await ownsDomain(req, domain))) { res.status(404).json({ error: 'domain_not_found', message: 'That domain is not on this account.' }); return null }
+    return domain
+  }
+
+  router.get('/dns/:domain/records', apiKeyAuth, h(async (req, res) => {
+    const domain = await dnsGuard(req, res); if (!domain) return
     const r = await domainService.viewDNSRecords(domain, getDb())
     res.json({ domain, records: r?.records || r || [], source: r?.source || null })
   }))
 
   router.post('/dns/:domain/records', apiKeyAuth, h(async (req, res) => {
-    const domain = String(req.params.domain || '').trim().toLowerCase()
-    if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain' })
+    const domain = await dnsGuard(req, res); if (!domain) return
     const { type, name, value, priority, ttl, proxied } = req.body || {}
     if (!type || value == null) return res.status(400).json({ error: 'invalid_record', message: 'Body must include { type, name, value }.' })
     // A domain flagged by Google Safe Browsing must not be pointed at any host/box (incl. a VPS/RDP
@@ -1057,8 +1073,7 @@ function createResellerApi(deps = {}) {
   }))
 
   router.put('/dns/:domain/records', apiKeyAuth, h(async (req, res) => {
-    const domain = String(req.params.domain || '').trim().toLowerCase()
-    if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain' })
+    const domain = await dnsGuard(req, res); if (!domain) return
     const recordData = req.body?.record || req.body
     if (!recordData || typeof recordData !== 'object') return res.status(400).json({ error: 'invalid_record', message: 'Body must include the record object to update (from GET records).' })
     const r = await domainService.updateDNSRecord(domain, recordData, getDb())
@@ -1067,8 +1082,7 @@ function createResellerApi(deps = {}) {
   }))
 
   router.delete('/dns/:domain/records', apiKeyAuth, h(async (req, res) => {
-    const domain = String(req.params.domain || '').trim().toLowerCase()
-    if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain' })
+    const domain = await dnsGuard(req, res); if (!domain) return
     const recordData = req.body?.record || req.body
     if (!recordData || typeof recordData !== 'object') return res.status(400).json({ error: 'invalid_record', message: 'Body must include the record object to delete (from GET records).' })
     const r = await domainService.deleteDNSRecord(domain, recordData, getDb())

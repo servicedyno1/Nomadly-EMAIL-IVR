@@ -1217,6 +1217,54 @@ function registerHostingMgmtRoutes(deps) {
   }))
 
   // ════════════════════════════════════════════════════════
+  // IP ACCESS RULES  (allow-only list or block list, per hosted site)
+  // ════════════════════════════════════════════════════════
+  const IP_RE = (s) => { const [ip, bits, extra] = String(s).trim().split('/'); const v = require('net').isIP(ip); if (!v || extra !== undefined) return false; if (bits === undefined) return true; const n = Number(bits); return /^\d+$/.test(bits) && n >= (v === 4 ? 8 : 16) && n <= (v === 4 ? 32 : 128) }
+  const ipRuleView = (r) => ({ id: r.id, mode: String(r.description).startsWith('IP-allow:') ? 'allow' : 'block', ips: ((r.filter?.expression || '').match(/\{([^}]*)\}/)?.[1] || '').trim().split(/\s+/).filter(Boolean), note: String(r.description).replace(/^IP-(allow|block):\s*/, ''), paused: r.paused || false })
+  const ipZone = async (req, res) => {
+    const acct = await loadOwned(req, res); if (!acct) return null
+    return { acct, ctx: ctxFromAccount(acct) }
+  }
+
+  router.get('/hosting/:user/security/ip-rules', apiKeyAuth, h(async (req, res) => {
+    const o = await ipZone(req, res); if (!o) return
+    const zone = await cfService.getZoneByName(o.ctx.cpDomain)
+    if (!zone) return res.json({ domain: o.ctx.cpDomain, rules: [], error: 'Domain not in Cloudflare' })
+    const rules = (await cfService.listFirewallRules(zone.id)).filter(cfService.isIpRule).map(ipRuleView)
+    res.json({ domain: o.ctx.cpDomain, rules })
+  }))
+
+  router.post('/hosting/:user/security/ip-rules', apiKeyAuth, h(async (req, res) => {
+    const o = await ipZone(req, res); if (!o) return
+    const { ips, mode, note } = req.body || {}
+    if (!['allow', 'block'].includes(mode)) return res.status(400).json({ error: 'invalid_mode', message: 'mode must be "allow" (only these IPs may visit) or "block" (these IPs are blocked).' })
+    if (!Array.isArray(ips) || !ips.length || ips.length > 100) return res.status(400).json({ error: 'invalid_ips', message: 'ips must be an array of 1–100 IPv4/IPv6 addresses or CIDR ranges.' })
+    const bad = ips.filter(x => !IP_RE(x))
+    if (bad.length) return res.status(400).json({ error: 'invalid_ips', message: 'Not a valid IP address or CIDR range.', invalid: bad })
+    const clean = [...new Set(ips.map(x => String(x).trim()))]
+    if (!isLive()) return dryRun(res, o.acct, 'security.ip-rules.create', { mode, ips: clean })
+    const zone = await cfService.getZoneByName(o.ctx.cpDomain)
+    if (!zone) return res.status(400).json({ error: 'cf_zone_not_found', message: 'Domain not in Cloudflare.' })
+    const r = await cfService.createIpRule(zone.id, clean, mode, String(note || '').slice(0, 200))
+    if (!r.success) return res.status(502).json({ error: 'ip_rule_failed', message: r.errors?.[0]?.message || 'Could not create the rule.' })
+    res.json({ domain: o.ctx.cpDomain, rule: r.rule ? ipRuleView(r.rule) : null })
+  }))
+
+  router.delete('/hosting/:user/security/ip-rules', apiKeyAuth, h(async (req, res) => {
+    const o = await ipZone(req, res); if (!o) return
+    const ruleId = bq(req, 'ruleId')
+    if (missing(res, ['ruleId', ruleId])) return
+    if (!isLive()) return dryRun(res, o.acct, 'security.ip-rules.delete', { ruleId })
+    const zone = await cfService.getZoneByName(o.ctx.cpDomain)
+    if (!zone) return res.status(400).json({ error: 'cf_zone_not_found', message: 'Domain not in Cloudflare.' })
+    const rule = (await cfService.listFirewallRules(zone.id)).find(r => r.id === ruleId)
+    if (!rule || !cfService.isIpRule(rule)) return res.status(404).json({ error: 'rule_not_found', message: 'No IP rule with that id on this site.' })
+    const r = await cfService.deleteFirewallRule(zone.id, ruleId)
+    if (r && r.success === false) return res.status(502).json({ error: 'ip_rule_delete_failed', message: r.errors?.[0]?.message || 'Could not delete the rule.' })
+    res.json({ domain: o.ctx.cpDomain, deleted: true, ruleId })
+  }))
+
+  // ════════════════════════════════════════════════════════
   // ANALYTICS  (Cloudflare zone analytics) — read
   // ════════════════════════════════════════════════════════
   router.get('/hosting/:user/analytics', apiKeyAuth, h(async (req, res) => {

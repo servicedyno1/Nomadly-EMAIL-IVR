@@ -1,5 +1,11 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-03 — Reseller API: DNS ownership guard (security) + IP allow/block rules — LIVE on app-main
+- DNS record endpoints now only work on the caller's own domains (registered, hosted primary/addon, branded NS) → 404 domain_not_found.
+- New /hosting/:user/security/ip-rules (GET/POST/DELETE), all hosting plans; allow = allow-only list, block = block list; docs updated.
+- Test: js/tests/test_reseller_dns_owner_ip_rules_2026-11.js 19/19. Details + incident note in DEPLOYMENT_STATE.md.
+- Hosta API pass-through gaps (files, ip-rules, geo, renew/auto-renew, jobs) handed to the owner as a route list (not built).
+
 ## 2026-11-02 — Telegram bots: USA T-Mobile eSIM only, automatic Spenza order + "VoIP number" wording — TESTED (iteration_207 + fixes), DEPLOYED 2026-11-02 05:30Z to all 4 bots (see DEPLOYMENT_STATE)
 - Follow-up: bot home shows the plan allowance from Spenza (now "20 MB data · 20 min calls · Unlimited SMS"); unused landing Families.js deleted;
   prod CLOUDIVR_CHANNEL_LINK added (sidebar Telegram channel CTA was hidden on prod because it was missing).

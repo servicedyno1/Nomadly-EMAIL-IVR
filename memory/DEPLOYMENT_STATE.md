@@ -373,3 +373,23 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
   Web HostPanel hosta.sh (/opt/hosta/backend) is a thin client → Nomadly reseller API (base …/reseller/v1 = app-main), so app-main is the
   effective target; fix is live there.
 - ⚠️ Workspace js/cpanel-routes.js carries this fix UNCOMMITTED — Save to GitHub so the next CI/WhiteLabel deploy keeps it.
+
+## 2026-11-03 17:45–18:10Z — Reseller API: DNS ownership guard + IP access rules (app-main only)
+- SECURITY: GET/POST/PUT/DELETE /reseller/v1/dns/:domain/records had NO ownership check (any reseller key could read/edit any
+  platform domain's DNS). Added `dnsGuard`/`ownsDomain` in js/reseller-api.js: domainsOf {domainName, chatId=owner} OR own
+  cpanelAccounts primary/addon (string or {domain}) OR branded-NS doc owned → else 404 domain_not_found. Audit before deploy: 0 DNS
+  record writes ever recorded; only 1 enabled key (Hosta "@onarrival1 reseller"); all 3 real Hosta DNS domains pass (10 "blocked" =
+  test/.example/shortener subdomains not on Nomadly). WL brands have 0 keys → not patched there.
+- NEW: GET/POST/DELETE /reseller/v1/hosting/:user/security/ip-rules (js/reseller-hosting-mgmt.js + cf-service createIpRule/isIpRule).
+  mode block → `(ip.src in {…})`, allow (allow-only) → `(not (ip.src in {…}))`, action block, WAF custom rule tagged by description
+  prefix "IP-block:"/"IP-allow:" so the API never lists/deletes platform rules. 1–100 IPv4/IPv6/CIDR per rule. ALL hosting plans (owner
+  choice; geo stays Golden-only). Docs updated (apidoc-page.js; DNS blurb states ownership rule). Live: https://2.speechcue.com/apidoc.
+- Tests: js/tests/test_reseller_dns_owner_ip_rules_2026-11.js 19/19; branded-ns 26/26; dup-guard 10/10; site-status 12/13 (1 failure
+  pre-exists without these changes: dry-run case reports 'live').
+- Deployed in place on release 20261103T153430Z-47a34bb (app-main-a :5000, reloaded at 0 calls). Backups:
+  /opt/nomadly/deploy-backups/app-main-rapi-20261103T174433Z, app-main-ipall-*. INCIDENT (fixed, never loaded): a 2nd `patch` run
+  without a TTY re-applied the IP-rules hunk (duplicate `const IP_RE` → would crash on restart); replaced both files with the
+  workspace copies, node --check OK, reloaded healthy. LESSON: never re-run `patch` on a tree that may already contain part of the
+  diff — copy verified files after a `diff` against live instead.
+- Hosta (/opt/hosta/backend, NOT a git repo) does not pass through files / ip-rules / geo / hosting renew+auto-renew / jobs — owner
+  chose to hand the route list to their Hosta developer (no Hosta changes made).
