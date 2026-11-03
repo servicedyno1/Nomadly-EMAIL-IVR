@@ -2931,6 +2931,7 @@ const vpsPlanOf = {
 const vs = {
   callDisconnectedAutoRouted: (usdBal, lowBalTrigger, lowBalResume) => `🚫 <b>कॉल डिस्कनेक्ट</b> (ऑटो-रूटेड)\n\nवॉलेट: <b>$${usdBal}</b> — $${lowBalTrigger} की सीमा से नीचे।\n💰 कॉल फिर से शुरू करने के लिए कम से कम $${lowBalResume} टॉप-अप करें।`,
   callDisconnectedWalletInsufficient: (rate, connFee) => `🚫 <b>कॉल डिस्कनेक्ट</b> — वॉलेट अपर्याप्त ($${rate}/मिनट + $${connFee} कनेक्ट शुल्क चाहिए)।\n👛 वॉलेट से टॉप-अप करें।`,
+  sipCallQueued: (to, max) => `⏳ <b>कॉल कतार में है</b> — ${to}\nआपके ${max} कॉल पहले से जुड़े हैं। किसी एक के खत्म होते ही यह कॉल अपने-आप जुड़ जाएगा (2 मिनट तक)। इंतज़ार के दौरान कोई शुल्क नहीं।`,
   callDisconnectedWalletExhausted: '🚫 <b>कॉल डिस्कनेक्ट</b> — वॉलेट खाली हो गया।\n👛 वॉलेट से टॉप-अप करें।',
   outboundCallFailedRouting: (fromPhone, toPhone) => `🚫 <b>आउटबाउंड कॉल विफल</b>\n📞 ${fromPhone} → ${toPhone}\nकारण: कॉल रूटिंग विफल। कृपया फिर से प्रयास करें।`,
   planMinutesExhausted: (phoneNumber, used, limit) => `⚠️ <b>प्लान मिनट समाप्त</b>\n\n📞 ${phoneNumber}\nइस चक्र में उपयोग: <b>${used}/${limit}</b> मिनट।\n\nअब ओवरेज बिलिंग आपके वॉलेट से सक्रिय है। टॉप-अप करें या प्लान अपग्रेड करें।`,

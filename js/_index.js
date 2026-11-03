@@ -10838,6 +10838,7 @@ bot?.on('message', msg => {
       const rows = []
       if (['active', 'suspended', 'provisioning'].includes(l.status)) rows.push([l.autoRenew ? es.turnOff : es.turnOn])
       if (l.status === 'suspended') rows.push([es.renewNow])
+      if (l.status === 'awaiting_imei') rows.push([es.sendImei])
       if (l.hasQr) rows.push([es.qr], [es.emailQr])
       rows.push(['↩️ Back'])
       return send(chatId, es.line(l, es.status[l.status] || l.status), k.of(rows))
@@ -13841,10 +13842,11 @@ Enter new value:`), bc)
         if (!r.ok) return send(chatId, r.text, trans('o'))
         set(payments, nanoid(), `Wallet,DigitalProduct,${product},$${priceUsd},${chatId},${name},${new Date()}`)
         _finalizeWalletPurchase()
-        await digitalOrdersCol.insertOne({ orderId, chatId, username: username || '', name: name || '', product, productKey, price: priceUsd, currency: 'USD', paymentMethod: 'wallet_usd', esim: info?.esimOrder || null, esimLineId: r.lineId, status: 'delivered', createdAt: new Date(), deliveredAt: new Date() })
+        await digitalOrdersCol.insertOne({ orderId, chatId, username: username || '', name: name || '', product, productKey, price: priceUsd, currency: 'USD', paymentMethod: 'wallet_usd', esim: info?.esimOrder || null, esimLineId: r.lineId, status: r.awaitingImei ? 'paid_awaiting_imei' : 'delivered', createdAt: new Date(), deliveredAt: r.awaitingImei ? null : new Date() })
         await saveInfo('esimOrder', null)
         await set(state, chatId, 'abandonedCartReminderSent', null)
-        sendAndReact(chatId, r.text, '🎉', trans('o'))
+        if (r.awaitingImei) { await saveInfo('esimPendingLine', r.lineId); await set(state, chatId, 'action', 'esim-bot-imei') }
+        sendAndReact(chatId, r.text, '🎉', r.awaitingImei ? k.of([['↩️ Back']]) : trans('o'))
         checkAndNotifyTierUpgrade(preSpend)
         notifyGroup(`📱 <b>New eSIM order</b>\n\n👤 User: ${maskName(name)}\n💵 Paid: <b>$${priceUsd}</b> (wallet)\n🤖 Setting up automatically.`, `📱 <b>New eSIM order</b>\n\n🆔 Order: <code>${orderId}</code>\n👤 User: ${adminUserTag(name, chatId)}\n💵 Paid: <b>$${priceUsd}</b> (Wallet USD)\n🤖 Spenza line ${r.lineId}, set up automatically.`, buildAdminButtons({ chatId }))
         return
@@ -20041,19 +20043,21 @@ ${message.replace(/\n/g, '<br>')}
       if (message !== es.buy(p?.price || esimBot.PRICE)) return send(chatId, t.selectValidOption)
       if (!p) return send(chatId, es.unavailable)
       await saveInfo('esimOrder', {})
-      await set(state, chatId, 'action', 'esim-bot-imei')
-      return send(chatId, es.askImei, k.of([['↩️ Back']]))
-    }
-    if (action === 'esim-bot-imei') {
-      if (isBackPress(message)) return goto['esim-bot-home']()
-      const imei = esimBot.parseImei(message)
-      if (!imei) return send(chatId, es.badImei)
-      await saveInfo('esimOrder', { imei })
       await set(state, chatId, 'action', 'esim-bot-zip')
       return send(chatId, es.askZip, skipRow)
     }
+    // After payment: the IMEI for a paid line that is waiting for it.
+    if (action === 'esim-bot-imei') {
+      if (isBackPress(message) || isMainMenuPress(message)) return goto['esim-bot-home']()
+      const imei = esimBot.parseImei(message)
+      if (!imei) return send(chatId, es.badImei)
+      const r = await esimBot.submitImei(db, chatId, info?.esimPendingLine, imei, lang)
+      await saveInfo('esimPendingLine', null)
+      await set(state, chatId, 'action', 'none')
+      return send(chatId, r.text, trans('o'))
+    }
     if (action === 'esim-bot-zip') {
-      if (isBackPress(message)) { await set(state, chatId, 'action', 'esim-bot-imei'); return send(chatId, es.askImei, k.of([['↩️ Back']])) }
+      if (isBackPress(message)) return goto['esim-bot-home']()
       const zipcode = message === es.skip ? null : esimBot.parseZip(message)
       if (message !== es.skip && !zipcode) return send(chatId, es.badZip)
       await saveInfo('esimOrder', { ...(info?.esimOrder || {}), zipcode })
@@ -20089,6 +20093,11 @@ ${message.replace(/\n/g, '<br>')}
     if (action === 'esim-bot-line') {
       if (isBackPress(message)) return goto['esim-bot-list']()
       const id = info?.esimLineId
+      if (message === es.sendImei) {
+        await saveInfo('esimPendingLine', id)
+        await set(state, chatId, 'action', 'esim-bot-imei')
+        return send(chatId, es.askImei, k.of([['↩️ Back']]))
+      }
       if (message === es.turnOff || message === es.turnOn) {
         const r = await esimBot.ES.setAutoRenew(chatId, id, message === es.turnOn)
         await send(chatId, r.error ? es.failed(r.error) : es.renewSet(message === es.turnOn))
@@ -41315,12 +41324,12 @@ app.get('/crypto-pay-digital-product', auth, async (req, res) => {
     const r = await esimBot.fulfillPaid(db, chatId, paidOrder.esim, Number(price), lang)
     await digitalOrdersCol.updateOne({ orderId }, { $set: { status: r.ok ? 'delivered' : 'credited_to_wallet', paymentConfirmedAt: new Date(), deliveredAt: r.ok ? new Date() : null, esimLineId: r.lineId || null } })
     await auditCryptoTx(chatId, 'digital-product', price, { product, orderId, coin, value, ref }, 'blockbee')
-    send(chatId, r.text, translation('o', lang))
+    send(chatId, r.text, r.awaitingImei ? esimBot.backKb : translation('o', lang))
     notifyGroup(`📱 <b>eSIM paid (crypto)</b>\n\n👤 User: ${maskName(name)}\n💵 Paid: <b>$${price}</b>\n${r.ok ? '🤖 Setting up automatically.' : '⚠️ Not set up; amount left in wallet.'}`, `📱 <b>eSIM paid (crypto BlockBee)</b>\n\n🆔 Order: <code>${orderId}</code>\n👤 User: ${adminUserTag(name, chatId)}\n💵 Paid: <b>$${price}</b> (${value} ${coin})\n${r.ok ? `🤖 Spenza line ${r.lineId}, set up automatically.` : '⚠️ Not set up; amount credited to wallet.'}`, buildAdminButtons({ chatId }))
     webhookTierCheck(chatId, preSpend, lang)
     if (cartRecovery) cartRecovery.recordPaymentCompleted(String(chatId))
     if (userConversion) userConversion.markPurchased(chatId)
-    await set(state, chatId, 'action', 'none')
+    await esimBot.afterCryptoPay(state, set, chatId, r)
     return res.send(html())
   }
   await digitalOrdersCol.updateOne({ orderId }, { $set: { status: 'pending', paymentConfirmedAt: new Date() } })
@@ -46716,12 +46725,12 @@ app.post('/dynopay/crypto-pay-digital-product', authDyno, async (req, res) => {
     const r = await esimBot.fulfillPaid(db, chatId, paidOrder.esim, Number(price), lang)
     await digitalOrdersCol.updateOne({ orderId }, { $set: { status: r.ok ? 'delivered' : 'credited_to_wallet', paymentConfirmedAt: new Date(), deliveredAt: r.ok ? new Date() : null, esimLineId: r.lineId || null } })
     await auditCryptoTx(chatId, 'digital-product', price, { product, orderId, coin, value, ref }, 'dynopay')
-    send(chatId, r.text, translation('o', lang))
+    send(chatId, r.text, r.awaitingImei ? esimBot.backKb : translation('o', lang))
     notifyGroup(`📱 <b>eSIM paid (crypto)</b>\n\n👤 User: ${maskName(name)}\n💵 Paid: <b>$${price}</b>\n${r.ok ? '🤖 Setting up automatically.' : '⚠️ Not set up; amount left in wallet.'}`, `📱 <b>eSIM paid (crypto DynoPay)</b>\n\n🆔 Order: <code>${orderId}</code>\n👤 User: ${adminUserTag(name, chatId)}\n💵 Paid: <b>$${price}</b> (${value} ${coin})\n${r.ok ? `🤖 Spenza line ${r.lineId}, set up automatically.` : '⚠️ Not set up; amount credited to wallet.'}`, buildAdminButtons({ chatId }))
     webhookTierCheck(chatId, preSpend, lang)
     if (cartRecovery) cartRecovery.recordPaymentCompleted(String(chatId))
     if (userConversion) userConversion.markPurchased(chatId)
-    await set(state, chatId, 'action', 'none')
+    await esimBot.afterCryptoPay(state, set, chatId, r)
     return res.send(html())
   }
   await digitalOrdersCol.updateOne({ orderId }, { $set: { status: 'pending', paymentConfirmedAt: new Date() } })

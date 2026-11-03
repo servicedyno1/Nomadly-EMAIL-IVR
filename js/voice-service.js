@@ -165,18 +165,8 @@ const sipRateLimit = {}
 const SIP_RATE_LIMIT_MAX = 3       // Max calls per window
 const SIP_RATE_LIMIT_WINDOW = 60000 // 60 seconds window
 
-// Per-user global rate limiter — caps total outbound calls from a single number/user
-// regardless of destination. Prevents spam dialing to many different numbers.
-const sipGlobalRateLimit = {}
-const SIP_GLOBAL_RATE_MAX = 10         // Max total calls per window (any destination)
-const SIP_GLOBAL_RATE_WINDOW = 300000  // 5-minute window
-
-// Fix #2: Escalating hard-block for persistent rate-limit abusers.
-// After N consecutive rejections, silently drop all webhooks for a cooldown period
-// instead of processing + logging + calling hangup on every single attempt.
-const sipHardBlock = {}
-const HARD_BLOCK_THRESHOLD = 5         // Consecutive rate-limit hits before hard block
-const HARD_BLOCK_DURATION = 600000     // 10 minutes of silent drop
+// Calls over a user's simultaneous-call limit wait in a queue instead of being hung up.
+const sipQueue = require('./sip-call-queue')
 
 // Expired test credential block set — prevents auto-route retry storm from expired test SIP users.
 // Key: sipUsername, Value: timestamp when blocked. Entries auto-expire after 10 minutes.
@@ -1053,56 +1043,38 @@ function checkSipRateLimit(sipUsername, destination) {
   return true // allowed
 }
 
-// Check global per-user rate limit (total calls across all destinations)
-function checkSipGlobalRateLimit(sipUsername) {
-  const now = Date.now()
-  const entry = sipGlobalRateLimit[sipUsername]
-  if (!entry || (now - entry.firstCallTime) > SIP_GLOBAL_RATE_WINDOW) {
-    sipGlobalRateLimit[sipUsername] = { count: 1, firstCallTime: now }
-    return true // allowed
-  }
-  entry.count++
-  if (entry.count > SIP_GLOBAL_RATE_MAX) {
-    return false // blocked
-  }
-  return true // allowed
+// Answer the caller's leg, say why the call can't go through, then hang up.
+async function sayAndHangup(callControlId, text) {
+  try {
+    await _telnyxApi.answerCall(callControlId)
+    await _telnyxApi.speakOnCall(callControlId, text)
+  } catch (e) { /* call may already be ended */ }
+  setTimeout(() => { _telnyxApi.hangupCall(callControlId).catch(() => {}) }, 9000)
 }
 
-/**
- * Fix #2: Check if a user is in hard-block (escalated rate limit).
- * Returns true if the user should be silently dropped (no logging, no hangup API call).
- */
-function isSipHardBlocked(key) {
-  const entry = sipHardBlock[key]
-  if (!entry) return false
-  if (Date.now() - entry.blockedAt > HARD_BLOCK_DURATION) {
-    delete sipHardBlock[key]
-    log(`[Voice] Hard-block expired for ${key} (was blocked after ${entry.consecutiveHits} consecutive rate-limit hits)`)
-    return false
-  }
-  return true
-}
-
-/**
- * Fix #2: Record a rate-limit hit. After HARD_BLOCK_THRESHOLD consecutive hits,
- * escalate to hard-block (silent drop for HARD_BLOCK_DURATION).
- */
-function recordRateLimitHit(key) {
-  const now = Date.now()
-  const entry = sipHardBlock[key]
-  if (entry && entry.blocked) return true // already hard-blocked
-  if (!entry || (now - (entry.lastHitAt || 0)) > SIP_GLOBAL_RATE_WINDOW) {
-    // Reset counter — gap between hits was too large
-    sipHardBlock[key] = { consecutiveHits: 1, lastHitAt: now, blocked: false }
-    return false
-  }
-  entry.consecutiveHits++
-  entry.lastHitAt = now
-  if (entry.consecutiveHits >= HARD_BLOCK_THRESHOLD) {
-    entry.blocked = true
-    entry.blockedAt = now
-    log(`[Voice] 🚫 HARD-BLOCK activated for ${key} — ${entry.consecutiveHits} consecutive rate-limit hits. Silent-dropping for ${HARD_BLOCK_DURATION/1000}s`)
+// Over the simultaneous-call limit: the caller hears a queued message + hold music until a line frees.
+// Returns true when the call may proceed, false when it gave up (timeout or caller hung up).
+async function queueUntilFree(chatId, callControlId, destination) {
+  log(`[Voice] 📥 SIP QUEUE: chatId ${chatId} has ${sipQueue.liveCount(_activeCallsRaw, chatId)} live calls (max ${sipQueue.MAX_LIVE}) — queuing ${callControlId} → ${destination}`)
+  try {
+    await _telnyxApi.answerCall(callControlId)
+    await _telnyxApi.speakOnCall(callControlId, 'All your lines are busy. Your call is queued and will connect automatically. Please hold.')
+  } catch (e) { /* caller may have hung up */ }
+  const music = setTimeout(() => { if (sipQueue.isQueued(callControlId)) _telnyxApi.playbackStart(callControlId, HOLD_MUSIC_URL, { loop: 'infinity' }).catch(() => {}) }, 7000)
+  const lang = await _getUserLang(chatId)
+  _bot?.sendMessage(chatId, _trans('vs.sipCallQueued', lang, formatPhone(destination), sipQueue.MAX_LIVE)
+    || `⏳ Your call to ${formatPhone(destination)} is queued: you already have ${sipQueue.MAX_LIVE} calls connected. It connects automatically when one ends.`).catch(() => {})
+  const result = await sipQueue.waitForSlot(_activeCallsRaw, chatId, callControlId)
+  clearTimeout(music)
+  log(`[Voice] 📤 SIP QUEUE: ${callControlId} → ${result}`)
+  if (result === 'go') {
+    await _telnyxApi.playbackStop(callControlId).catch(() => {})
     return true
+  }
+  _releaseOutbound(chatId, callControlId)
+  if (result === 'timeout') {
+    await _telnyxApi.playbackStop(callControlId).catch(() => {})
+    await sayAndHangup(callControlId, 'All your lines are still busy. Please try again in a minute.')
   }
   return false
 }
@@ -1177,25 +1149,11 @@ setInterval(() => {
       delete sipRateLimit[key]
     }
   }
-  for (const key of Object.keys(sipGlobalRateLimit)) {
-    if ((now - sipGlobalRateLimit[key].firstCallTime) > SIP_GLOBAL_RATE_WINDOW * 2) {
-      delete sipGlobalRateLimit[key]
-    }
-  }
   for (const key of Object.keys(walletRejectCooldown)) {
     const entry = walletRejectCooldown[key]
     const effectiveCooldown = getEscalatedCooldownMs(entry.hitCount || 1)
     if ((now - entry.timestamp) > effectiveCooldown * 2) {
       delete walletRejectCooldown[key]
-    }
-  }
-
-  // Fix #2: Clean expired hard-block entries
-  for (const key of Object.keys(sipHardBlock)) {
-    if (sipHardBlock[key].blockedAt && (now - sipHardBlock[key].blockedAt) > HARD_BLOCK_DURATION * 2) {
-      delete sipHardBlock[key]
-    } else if (!sipHardBlock[key].blocked && sipHardBlock[key].lastHitAt && (now - sipHardBlock[key].lastHitAt) > SIP_GLOBAL_RATE_WINDOW * 2) {
-      delete sipHardBlock[key]
     }
   }
 
@@ -2228,6 +2186,7 @@ async function handleVoiceWebhook(req, res) {
         await handleCallAnswered(payload)
         break
       case 'call.hangup': {
+        sipQueue.drop(callControlId)
         // If we haven't seen call.initiated for this call yet, buffer the hangup
         // UNLESS it's a known bridge transfer leg — those can be processed directly
         if (callControlId && !_initiatedCalls.has(callControlId) && !activeBridgeTransfers[callControlId]) {
@@ -2932,14 +2891,6 @@ async function handleOutboundSipCall(payload) {
     return
   }
 
-  // Fix #2: If user is in hard-block, silently drop — no logging, no hangup API call
-  const rateLimitKey = fromClean || sipUsername
-  if (isSipHardBlocked(rateLimitKey)) {
-    // FIX: Do NOT bill hard-blocked calls — they are rejected and never connected
-    // Billing blocked calls creates phantom charges for calls that were never completed
-    return // silent drop — saves webhook processing, logging, and Telnyx API calls
-  }
-
   // ── EXPIRED TEST CREDENTIAL EARLY BLOCK ──
   // If this SIP user was recently identified as an expired test credential,
   // silently drop without any DB lookups or API calls (saves resources)
@@ -2962,27 +2913,8 @@ async function handleOutboundSipCall(payload) {
   // ── SIP Rate Limiting — prevent spam dialing ──
   if (!checkSipRateLimit(sipUsername, destination)) {
     log(`[Voice] ⚠️ SIP RATE LIMIT: ${sipUsername} → ${destination} — exceeded ${SIP_RATE_LIMIT_MAX} calls/${SIP_RATE_LIMIT_WINDOW/1000}s, rejecting`)
-    // FIX: Do NOT bill rate-limited calls — they are rejected before connecting
-    try {
-      await _telnyxApi.hangupCall(callControlId)
-    } catch (e) { log(`[Voice] Reject error: ${e.message}`) }
-    return
-  }
-
-  // ── Global per-user rate limit — caps total outbound calls from any single user ──
-  // Prevents users from spam-dialing many different numbers to bypass per-destination limit
-  if (!checkSipGlobalRateLimit(rateLimitKey)) {
-    // Fix #2: Record hit and potentially escalate to hard-block
-    const hardBlocked = recordRateLimitHit(rateLimitKey)
-    if (!hardBlocked) {
-      // Still in soft-block — log + hangup
-      log(`[Voice] ⚠️ SIP GLOBAL RATE LIMIT: ${rateLimitKey} — exceeded ${SIP_GLOBAL_RATE_MAX} total calls/${SIP_GLOBAL_RATE_WINDOW/1000}s, rejecting`)
-      try {
-        await _telnyxApi.hangupCall(callControlId)
-      } catch (e) { /* suppress — call may already be ended */ }
-    }
-    // FIX: Do NOT bill rate-limited or hard-blocked calls — they are rejected before connecting
-    // If hard-blocked, recordRateLimitHit already logged the activation
+    // Not billed — the call never reaches the destination; the caller hears why.
+    await sayAndHangup(callControlId, `You have called this number ${SIP_RATE_LIMIT_MAX} times in the last minute. Please wait a minute and try again.`)
     return
   }
 
@@ -3397,6 +3329,11 @@ async function handleOutboundSipCall(payload) {
   // Keyed by callControlId; released at hangup (+ TTL safety-net). This is what
   // lets the check above see funds committed to sibling calls started moments ago.
   _reserveOutbound(chatId, callControlId, sipRate * OUTBOUND_RESERVE_MINUTES)
+
+  // ── SIMULTANEOUS-CALL LIMIT: extra calls wait in a queue (nothing is charged while queued) ──
+  if (!lookupResult.webTest && sipQueue.isFull(_activeCallsRaw, chatId)) {
+    if (!(await queueUntilFree(chatId, callControlId, destination))) return
+  }
 
   // ── CONNECTION FEE: Charge $CALL_CONNECTION_FEE per call attempt ──
   if (CALL_CONNECTION_FEE > 0 && _walletOf && !lookupResult.webTest) {

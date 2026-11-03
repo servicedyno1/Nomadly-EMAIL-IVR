@@ -136,7 +136,9 @@ async function buy(chatId, { planId, imei, zipcode, email, autoRenew, source, la
   const qrEmail = String(email || '').trim().toLowerCase()
   if ((!bot || qrEmail) && !EMAIL_RE.test(qrEmail)) return { error: 'Enter the email address where we should send your eSIM QR code.' }
   const im = String(imei || '').replace(/\D/g, '')
-  if (im.length !== 15 || !luhn(im)) return { error: 'Enter your phone’s 15-digit IMEI (dial *#06# to see it).' }
+  // Telegram buyers may pay first and send the IMEI afterwards (the line waits in 'awaiting_imei').
+  const later = bot && !im
+  if (!later && (im.length !== 15 || !luhn(im))) return { error: 'Enter your phone’s 15-digit IMEI (dial *#06# to see it).' }
   const zip = String(zipcode || '').trim()
   if (zip && !/^\d{5}$/.test(zip)) return { error: 'Enter a 5-digit USA ZIP code, or leave it empty.' }
   const plan = (await forSale()).find(p => p.planId === planId)
@@ -144,21 +146,55 @@ async function buy(chatId, { planId, imei, zipcode, email, autoRenew, source, la
   if (!plan.simId) return { error: 'eSIMs are temporarily unavailable. Try again later.' }
   if (!(await S.w.debit(chatId, plan.price))) return { error: `Your wallet needs $${plan.price} for this eSIM. Top up first.`, code: 'insufficient_balance' }
   const _id = 'es_' + crypto.randomBytes(6).toString('hex')
-  const doc = { _id, chatId: String(chatId), planId, price: plan.price, imei: im, zipcode: zip || null, simId: plan.simId, qrEmail: qrEmail || null, autoRenew: autoRenew !== false, status: 'provisioning', callsTo: 'device', ...(bot ? { source: 'telegram', lang: ['en', 'fr', 'hi', 'zh'].includes(lang) ? lang : 'en' } : {}), createdAt: new Date(), updatedAt: new Date() }
+  const doc = { _id, chatId: String(chatId), planId, price: plan.price, imei: im || null, zipcode: zip || null, simId: plan.simId, qrEmail: qrEmail || null, autoRenew: autoRenew !== false, status: later ? 'awaiting_imei' : 'provisioning', callsTo: 'device', ...(bot ? { source: 'telegram', lang: ['en', 'fr', 'hi', 'zh'].includes(lang) ? lang : 'en' } : {}), createdAt: new Date(), updatedAt: new Date() }
   await S.col.insertOne(doc)
   await txn(chatId, 'esim-purchase', plan.price, { planId, lineId: _id })
+  if (later) return { item: pub(doc), awaitingImei: true }
+  return provision(doc)
+}
+
+// Send the paid line to Spenza; refund the wallet if Spenza refuses.
+async function provision(doc) {
+  const { _id, chatId, price, simId, planId, imei: im, zipcode: zip } = doc
   if (dry()) { await S.col.updateOne({ _id }, { $set: { transactionId: 'preview-' + _id, simulated: true } }); return { item: pub(doc) } }
   try {
-    const u = await spenzaUser(chatId, bot ? qrEmail || null : null)
-    const r = await call('post', '/api/v1.1/esim', { imei: im, simId: plan.simId, planId, activateNow: true, email: u.email, user: { name: u.name, email: u.email, ...(u.phoneNumber ? { phoneNumber: u.phoneNumber } : {}), ...(zip ? { zipcode: zip } : {}) }, ...(zip ? { zipcode: zip } : {}) }, { 'Idempotency-Key': _id })
+    const u = await spenzaUser(chatId, doc.source === 'telegram' ? doc.qrEmail || null : null)
+    const r = await call('post', '/api/v1.1/esim', { imei: im, simId, planId, activateNow: true, email: u.email, user: { name: u.name, email: u.email, ...(u.phoneNumber ? { phoneNumber: u.phoneNumber } : {}), ...(zip ? { zipcode: zip } : {}) }, ...(zip ? { zipcode: zip } : {}) }, { 'Idempotency-Key': _id })
     await S.col.updateOne({ _id }, { $set: { transactionId: r?.data?.transactionId || r?.transactionId, spenzaUser: { email: u.email, private: u.private } } })
     return { item: pub(doc) }
   } catch (e) {
-    await S.w.credit(chatId, plan.price); await txn(chatId, 'esim-refund', plan.price, { lineId: _id })
+    await S.w.credit(chatId, price); await txn(chatId, 'esim-refund', price, { lineId: _id })
     S.log(`[eSIM] create ${_id}: ${e.message}`)
     await S.col.updateOne({ _id }, { $set: { status: 'failed', note: 'The eSIM couldn’t be created. Your payment was refunded.', providerError: e.message, updatedAt: new Date() } })
-    say(chatId, bt({ chatId, lang: doc.lang }, 'failed', plan.price) || `⚠️ Your eSIM couldn’t be created. $${plan.price} was refunded to your wallet.`, { kind: 'billing', meta: { esim: _id } })
-    return { error: `We couldn’t create the eSIM right now. Your $${plan.price} was refunded to your wallet.`, code: 'esim_failed' }
+    say(chatId, bt({ chatId, lang: doc.lang }, 'failed', price) || `⚠️ Your eSIM couldn’t be created. $${price} was refunded to your wallet.`, { kind: 'billing', meta: { esim: _id } })
+    return { error: `We couldn’t create the eSIM right now. Your $${price} was refunded to your wallet.`, code: 'esim_failed' }
+  }
+}
+
+// IMEI sent after payment: claim the waiting line once, then create the eSIM.
+async function submitImei(chatId, lineId, imei) {
+  const im = String(imei || '').replace(/\D/g, '')
+  if (im.length !== 15 || !luhn(im)) return { error: 'Enter your phone’s 15-digit IMEI (dial *#06# to see it).' }
+  const doc = await S.col.findOneAndUpdate({ _id: lineId, chatId: String(chatId), status: 'awaiting_imei' }, { $set: { imei: im, status: 'provisioning', updatedAt: new Date() } }, { returnDocument: 'after' })
+  const d = doc?.value !== undefined ? doc.value : doc
+  if (!d) return { error: 'This eSIM order is no longer waiting for an IMEI.' }
+  return provision(d)
+}
+
+const IMEI_WAIT_MS = 7 * 86400000
+// Paid lines still without an IMEI: a reminder each day, refund to the wallet after 7 days.
+async function imeiChase() {
+  const now = Date.now()
+  for (const d of await S.col.find({ status: 'awaiting_imei', createdAt: { $lte: new Date(now - IMEI_WAIT_MS) } }).limit(50).toArray()) {
+    const r = await S.col.updateOne({ _id: d._id, status: 'awaiting_imei' }, { $set: { status: 'cancelled', note: 'No IMEI sent within 7 days. Your payment was refunded.', updatedAt: new Date() } })
+    if (!r.modifiedCount) continue
+    await S.w.credit(d.chatId, d.price); await txn(d.chatId, 'esim-refund', d.price, { lineId: d._id, reason: 'no_imei' })
+    say(d.chatId, bt(d, 'imeiRefund', d.price) || `↩️ Your eSIM order was cancelled because no IMEI was sent within 7 days. $${d.price} was refunded to your wallet.`, { kind: 'billing', meta: { esim: d._id } })
+  }
+  for (const d of await S.col.find({ status: 'awaiting_imei', createdAt: { $lte: new Date(now - DAY_MS) }, imeiRemindedAt: { $not: { $gt: new Date(now - DAY_MS) } } }).limit(50).toArray()) {
+    await S.col.updateOne({ _id: d._id }, { $set: { imeiRemindedAt: new Date() } })
+    const left = Math.max(1, Math.ceil((new Date(d.createdAt).getTime() + IMEI_WAIT_MS - now) / DAY_MS))
+    say(d.chatId, bt(d, 'imeiRemind', left, d.price) || `📟 Your paid eSIM is waiting for your phone’s IMEI. Open 📋 My eSIMs to send it. If it isn’t sent within ${left} day(s), $${d.price} goes back to your wallet.`)
   }
 }
 
@@ -606,6 +642,7 @@ async function tick() {
     await linkUser(d).catch(async e => { S.log(`[Spenza] link user ${d._id}: ${e.message}`); await S.col.updateOne({ _id: d._id }, { $set: { userLinkFailedAt: new Date() } }) })
   }
   for (const d of await S.col.find({ 'numberChange.status': 'pending' }).limit(20).toArray()) await pollNumber(d).catch(e => S.log(`[Spenza] number change ${d._id}: ${e.message}`))
+  await imeiChase().catch(e => S.log(`[eSIM] IMEI chase: ${e.message}`))
 }
 
 // The Telegram bot instance: bot buyers get notices and the QR code in their chat.
@@ -622,5 +659,5 @@ function init({ db, log = console.log, tell }) {
   return api
 }
 
-const api = { init, setBot, sendBotQr, tick, syncUser, linkUser, receiptsOf, MOBILE_PRICE, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
+const api = { init, setBot, sendBotQr, tick, syncUser, linkUser, receiptsOf, MOBILE_PRICE, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, submitImei, imeiChase, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
 module.exports = api

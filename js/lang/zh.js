@@ -2917,6 +2917,7 @@ const vpsPlanOf = {
 const vs = {
   callDisconnectedAutoRouted: (usdBal, lowBalTrigger, lowBalResume) => `🚫 <b>通话已断开</b>（自动路由）\n\n钱包：<b>$${usdBal}</b> — 低于 $${lowBalTrigger} 阈值。\n💰 请至少充值 $${lowBalResume} 以恢复通话。`,
   callDisconnectedWalletInsufficient: (rate, connFee) => `🚫 <b>通话已断开</b> — 钱包余额不足（需要 $${rate}/分钟 + $${connFee} 接通费）。\n请通过 👛 钱包 充值。`,
+  sipCallQueued: (to, max) => `⏳ <b>通话排队中</b> — ${to}\n您已有 ${max} 个通话在进行中。任一通话结束后，此通话将自动接通（最多 2 分钟）。排队期间不收费。`,
   callDisconnectedWalletExhausted: '🚫 <b>通话已断开</b> — 钱包余额已用尽。\n请通过 👛 钱包 充值。',
   outboundCallFailedRouting: (fromPhone, toPhone) => `🚫 <b>呼出失败</b>\n📞 ${fromPhone} → ${toPhone}\n原因：呼叫路由失败。请重试。`,
   planMinutesExhausted: (phoneNumber, used, limit) => `⚠️ <b>套餐分钟数已用尽</b>\n\n📞 ${phoneNumber}\n本周期已用：<b>${used}/${limit}</b> 分钟。\n\n超额部分现在将从您的钱包计费。请充值或升级套餐。`,

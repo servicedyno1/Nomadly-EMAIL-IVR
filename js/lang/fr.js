@@ -2938,6 +2938,7 @@ const vpsPlanOf = {
 const vs = {
   callDisconnectedAutoRouted: (usdBal, lowBalTrigger, lowBalResume) => `🚫 <b>Appel coupé</b> (routage automatique)\n\nPortefeuille : <b>$${usdBal}</b> — sous le seuil de $${lowBalTrigger}.\n💰 Rechargez au moins $${lowBalResume} pour reprendre les appels.`,
   callDisconnectedWalletInsufficient: (rate, connFee) => `🚫 <b>Appel coupé</b> — Portefeuille insuffisant (requis $${rate}/min + $${connFee} de frais de connexion).\nRechargez via 👛 Portefeuille.`,
+  sipCallQueued: (to, max) => `⏳ <b>Appel en attente</b> — ${to}\nVous avez déjà ${max} appels en cours. Cet appel se connecte automatiquement dès qu’un appel se termine (jusqu’à 2 minutes). Rien n’est facturé pendant l’attente.`,
   callDisconnectedWalletExhausted: '🚫 <b>Appel coupé</b> — Portefeuille épuisé.\nRechargez via 👛 Portefeuille.',
   outboundCallFailedRouting: (fromPhone, toPhone) => `🚫 <b>Échec de l'appel sortant</b>\n📞 ${fromPhone} → ${toPhone}\nMotif : échec du routage. Veuillez réessayer.`,
   planMinutesExhausted: (phoneNumber, used, limit) => `⚠️ <b>Minutes du forfait épuisées</b>\n\n📞 ${phoneNumber}\nUtilisées : <b>${used}/${limit}</b> minutes ce cycle.\n\nLa facturation du dépassement est désormais active depuis votre portefeuille. Rechargez ou changez de forfait.`,
