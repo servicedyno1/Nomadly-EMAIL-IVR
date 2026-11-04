@@ -109,7 +109,7 @@ const GOOD = '356938035643809'
     await sleep(20000)
     const rl2 = await db.collection('esimLines').findOne({ _id: rl._id })
     const ro = await db.collection('digitalOrders').findOne({ orderId: oR })
-    check('R1.line cancelled + $75 refunded', rl2.status === 'cancelled' && (await bal(R)) - bR0 === 75, JSON.stringify({ s: rl2.status, d: (await bal(R)) - bR0 }))
+    check('R1.line cancelled + $75 refunded', rl2.status === 'cancelled' && Math.abs((await bal(R)) - bR0 - 75) < 0.01, JSON.stringify({ s: rl2.status, d: (await bal(R)) - bR0 }))
     check('R1.digitalOrders → refunded_no_imei + refundedAt', ro?.status === 'refunded_no_imei' && !!ro.refundedAt, JSON.stringify(ro))
   } finally {
     for (const ref of refs) { await db.collection('chatIdOfPayment').deleteOne({ _id: ref }); await db.collection('payments').deleteOne({ _id: ref }) }

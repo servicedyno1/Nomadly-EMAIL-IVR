@@ -51357,6 +51357,7 @@ const setupTelegramWebhook = async (retryCount = 0) => {
       { command: 'start', description: 'Start the bot / Main menu' },
       { command: 'testsip', description: 'Generate OTP for SIP test' },
       { command: 'sipguide', description: '3CX / SIP softphone setup guide' },
+      { command: 'imei', description: 'Send IMEI for a paid eSIM' },
     ])
     log('✅ Default bot commands registered')
 
