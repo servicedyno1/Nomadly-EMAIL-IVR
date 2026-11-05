@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="5" skipped="1" tests="55" time="8.116" timestamp="2026-11-05T08:06:22.674557+00:00" hostname="agent-env-c4ea8f4e-6caa-4734-adf8-0f01a828b5c7"><testcase classname="backend.tests.test_cloudivr_bot_parity.TestQuickIvr" name="test_transfer" time="0.592" /><testcase classname="backend.tests.test_cloudivr_bot_parity.TestQuickIvr" name="test_otp" time="0.070" /><testcase classname="backend.tests.test_cloudivr_bot_parity.TestQuickIvr" name="test_menu" time="0.068" /><testcase classname="backend.tests.test_cloudivr_bot_parity.TestQuickIvr" name="test_several_and_too_many" time="0.140" /><testcase classname="backend.tests.test_cloudivr_bot_parity.TestQuickIvr" name="test_errors[body0-invalid_number]" time="0.073" /><testcase classname="backend.tests.test_cloudivr_bot_parity.TestQuickIvr" name="test_errors[body1-unfilled_placeholders]" time="0.065" /><testcase classname="backend.tests.test_cloudivr_bot_parity.TestQuickIvr" name="test_errors[body2-blocked_destination]" time="0.061" /><testcase classname="backend.tests.test_cloudivr_bot_parity.TestQuickIvr" name="test_schedule_list_cancel" time="0.332" /><testcase classname="backend.tests.test_cloudivr_bot_parity.TestQuickIvr" name="test_history_recent_redial" time="0.191" /><testcase classname="backend.tests.test_cloudivr_bot_parity.TestQuickIvr" name="test_presets" time="0.135" /><testcase classname="backend.tests.test_cloudivr_bot_parity.TestQuickIvr" name="test_menu_stats" time="0.062" /><testcase classname="backend.tests.test_cloudivr_bot_parity.TestQuickIvr" name="test_templates_fill" time="0.124" /><testcase classname="backend.tests.test_cloudivr_bot_parity.TestTrial" name="test_alice_not_available" time="0.082" /><testcase classname="backend.tests.test_cloudivr_bot_parity.TestTrial" name="test_bob_trial_once" time="0.498"><failure message="assert False is True">self = &lt;test_cloudivr_bot_parity.TestTrial object at 0xffcdb50b33d0&gt;
+bob = &lt;requests.sessions.Session object at 0xffcdb50e4450&gt;
+
+    def test_bob_trial_once(self, bob):
+&gt;       assert bob.get(f'{API}/calls/trial').json()['available'] is True
+E       assert False is True
+
+backend/tests/test_cloudivr_bot_parity.py:117: AssertionError</failure></testcase><testcase classname="backend.tests.test_cloudivr_bot_parity.TestNumbersExtras" name="test_extra_info_and_buy" time="0.547" /><testcase classname="backend.tests.test_cloudivr_bot_parity.TestNumbersExtras" name="test_downgrade_flow" time="0.397"><failure message="AssertionError: {&#10;    &quot;error&quot;: &quot;insufficient_balance&quot;,&#10;    &quot;message&quot;: &quot;This number costs $120.00. Your wallet has $29.39 — top up first.&quot;&#10;  }&#10;assert 402 == 201&#10; +  where 402 = &lt;Response [402]&gt;.status_code">self = &lt;test_cloudivr_bot_parity.TestNumbersExtras object at 0xffcdb50b1250&gt;
+alice = &lt;requests.sessions.Session object at 0xffcdb5b1d210&gt;
+
+    def test_downgrade_flow(self, alice):
+        p = self._pick(alice)
+        r = alice.post(f'{API}/numbers/buy', json={'phoneNumber': p, 'plan': 'business'})
+&gt;       assert r.status_code == 201, r.text
+E       AssertionError: {
+E           "error": "insufficient_balance",
+E           "message": "This number costs $120.00. Your wallet has $29.39 — top up first."
+E         }
+E       assert 402 == 201
+E        +  where 402 = &lt;Response [402]&gt;.status_code
+
+backend/tests/test_cloudivr_bot_parity.py:147: AssertionError</failure></testcase><testcase classname="backend.tests.test_cloudivr_bot_parity.TestNumbersExtras" name="test_test_calls" time="0.223"><failure message="AssertionError: assert 404 == 403&#10; +  where 404 = &lt;Response [404]&gt;.status_code&#10; +    where &lt;Response [404]&gt; = post('https://vault-setup-30--5ddhk04r.preview.emergentagent.com/api/cloudivr-web/numbers/+19565971129/test-sip')&#10; +      where post = &lt;requests.sessions.Session object at 0xffcdb50e4450&gt;.post">self = &lt;test_cloudivr_bot_parity.TestNumbersExtras object at 0xffcdb50b3a10&gt;
+alice = &lt;requests.sessions.Session object at 0xffcdb5b1d210&gt;
+bob = &lt;requests.sessions.Session object at 0xffcdb50e4450&gt;
+
+    def test_test_calls(self, alice, bob):
+        assert alice.post(f'{API}/numbers/{A_NUM}/test-call').status_code == 202
+        assert alice.post(f'{API}/numbers/{A_NUM}/test-sip').status_code == 202
+&gt;       assert bob.post(f'{API}/numbers/{B_NUM}/test-sip').status_code == 403
+E       AssertionError: assert 404 == 403
+E        +  where 404 = &lt;Response [404]&gt;.status_code
+E        +    where &lt;Response [404]&gt; = post('https://vault-setup-30--5ddhk04r.preview.emergentagent.com/api/cloudivr-web/numbers/+19565971129/test-sip')
+E        +      where post = &lt;requests.sessions.Session object at 0xffcdb50e4450&gt;.post
+
+backend/tests/test_cloudivr_bot_parity.py:170: AssertionError</failure></testcase><testcase classname="backend.tests.test_cloudivr_bot_parity.TestNumbersExtras" name="test_fax" time="0.195"><skipped type="pytest.skip" message="no non-fax number available">/app/backend/tests/test_cloudivr_bot_parity.py:182: no non-fax number available</skipped></testcase><testcase classname="backend.tests.test_cloudivr_bot_parity.TestTemplatesVoice" name="test_ivr_templates" time="0.130" /><testcase classname="backend.tests.test_cloudivr_bot_parity.TestTemplatesVoice" name="test_voice" time="0.259" /><testcase classname="backend.tests.test_cloudivr_bot_parity.TestIsolation" name="test_isolation" time="0.360" /><testcase classname="backend.tests.test_cloudivr_bot_parity.TestCampaignCsv" name="test_report_csv" time="0.205" /><testcase classname="backend.tests.test_cloudivr_bot_parity.TestCoupons" name="test_check_and_buy" time="0.192"><failure message="AssertionError: {&#10;    &quot;error&quot;: &quot;invalid_coupon&quot;,&#10;    &quot;message&quot;: &quot;That coupon code is not valid.&quot;&#10;  }&#10;assert 400 == 200&#10; +  where 400 = &lt;Response [400]&gt;.status_code">self = &lt;test_cloudivr_bot_parity.TestCoupons object at 0xffcdb50b9c90&gt;
+bob = &lt;requests.sessions.Session object at 0xffcdb50e4450&gt;
+
+    def test_check_and_buy(self, bob):
+        today = bob.get(f'{API}/coupons/today').json()
+        STATE['today'] = today
+        assert bob.post(f'{API}/coupons/check', json={'code': 'NOPE_XYZ', 'amount': 50}).status_code == 400
+        r = bob.post(f'{API}/coupons/check', json={'code': 'NMD10EQA5U5', 'amount': 50})
+&gt;       assert r.status_code == 200, r.text
+E       AssertionError: {
+E           "error": "invalid_coupon",
+E           "message": "That coupon code is not valid."
+E         }
+E       assert 400 == 200
+E        +  where 400 = &lt;Response [400]&gt;.status_code
+
+backend/tests/test_cloudivr_bot_parity.py:241: AssertionError</failure></testcase><testcase classname="backend.tests.test_cloudivr_bot_parity.TestSupportChat" name="test_chat" time="0.065"><failure message="AssertionError: {'enabled': True, 'supportLink': '', 'messages': []}&#10;assert (True is True and False)&#10; +  where False = &lt;built-in method startswith of str object at 0xffcdb8170c08&gt;('https://t.me/')&#10; +    where &lt;built-in method startswith of str object at 0xffcdb8170c08&gt; = ''.startswith">self = &lt;test_cloudivr_bot_parity.TestSupportChat object at 0xffcdb50ba450&gt;
+alice = &lt;requests.sessions.Session object at 0xffcdb5b1d210&gt;
+
+    def test_chat(self, alice):
+        g = alice.get(f'{API}/support/chat').json()
+&gt;       assert g['enabled'] is True and g['supportLink'].startswith('https://t.me/'), g
+E       AssertionError: {'enabled': True, 'supportLink': '', 'messages': []}
+E       assert (True is True and False)
+E        +  where False = &lt;built-in method startswith of str object at 0xffcdb8170c08&gt;('https://t.me/')
+E        +    where &lt;built-in method startswith of str object at 0xffcdb8170c08&gt; = ''.startswith
+
+backend/tests/test_cloudivr_bot_parity.py:260: AssertionError</failure></testcase><testcase classname="backend.tests.test_cloudivr_bot_parity.TestZCleanup" name="test_cleanup" time="0.132" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestQuickIvrTypos" name="test_target_typo[+1707220640-is missing a digit]" time="0.588" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestQuickIvrTypos" name="test_target_typo[+170722064100-has an extra digit]" time="0.074" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestQuickIvrTypos" name="test_target_typo[+11234567890-not a valid USA/Canada number]" time="0.065" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestQuickIvrTypos" name="test_target_typo[+7072206410-Did you mean +17072206410?]" time="0.065" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestQuickIvrTypos" name="test_typo_among_several_targets" time="0.082" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestQuickIvrTypos" name="test_transfer_typo" time="0.063" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestQuickIvrTypos" name="test_otp_transfer_typo" time="0.066" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestQuickIvrTypos" name="test_menu_forward_typo" time="0.060" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestQuickIvrTypos" name="test_backup_typo" time="0.060" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestQuickIvrTypos" name="test_valid_targets_still_work[+17072206410]" time="0.061" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestQuickIvrTypos" name="test_valid_targets_still_work[+18002805175]" time="0.063" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestQuickIvrTypos" name="test_valid_targets_still_work[+447911123456]" time="0.079" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestQuickIvrTypos" name="test_valid_targets_still_work[+77072206410]" time="0.070" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestCampaignTypos" name="test_estimate_lists_typos" time="0.074" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestCampaignTypos" name="test_create_rejects_invalid_leads" time="0.156" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestCampaignTypos" name="test_create_rejects_invalid_leads_no_validate_only" time="0.061" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestCampaignTypos" name="test_only_typos_no_leads" time="0.061" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestCampaignTypos" name="test_transfer_number_typo" time="0.061" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestCampaignTypos" name="test_valid_leads_validate_ok" time="0.064" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestCampaignTypos" name="test_ai_campaign_rejects_typos" time="0.127" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestOtherScreens" name="test_callback_my_phone_typo" time="0.065" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestOtherScreens" name="test_callback_to_typo" time="0.080" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestOtherScreens" name="test_relay_typo" time="0.064" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestOtherScreens" name="test_ring_group_typo" time="0.064" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestOtherScreens" name="test_ring_group_fallback_typo" time="0.060" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestOtherScreens" name="test_forwarding_typo" time="0.061" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestOtherScreens" name="test_ivr_forward_key_typo" time="0.068" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestOtherScreens" name="test_contact_add_typo" time="0.068" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestOtherScreens" name="test_trycall_typo" time="0.112" /><testcase classname="backend.tests.test_dial_typo_check_iter211.TestContactsImport" name="test_import_check_counts_typos_invalid" time="0.133" /></testsuite></testsuites>

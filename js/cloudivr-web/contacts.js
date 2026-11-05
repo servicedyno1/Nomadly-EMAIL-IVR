@@ -29,7 +29,7 @@ async function listLeads(db, chatId, listId) {
   const bad = rows.filter(r => ci.numberIssue(r.phone))
   const ok = rows.filter(r => !ci.numberIssue(r.phone))
   const errors = rows.length ? bad.slice(0, 20).map(r => `${r.name ? r.name.slice(0, 40) + ': ' : ''}${ci.numberIssue(r.phone)}`) : [`The list “${list.name}” has no contacts yet.`]
-  return { leads: ok.map(r => ({ number: r.phone, name: r.name ? r.name.slice(0, 60) : null })), errors, list: publicList(list, rows.length) }
+  return { leads: ok.map(r => ({ number: r.phone, name: r.name ? r.name.slice(0, 60) : null })), errors, badCount: bad.length, list: publicList(list, rows.length) }
 }
 
 // Manual add / edit: only the fields sent are changed.

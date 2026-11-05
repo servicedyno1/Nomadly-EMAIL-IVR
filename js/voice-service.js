@@ -1145,6 +1145,7 @@ function setWalletRejectCooldown(fromNumber, chatId) {
 // Remove an old call session only when Telnyx confirms the call ended (non-Telnyx keys and anything past
 // SESSION_HARD_CAP_MS go as before). Live calls are re-checked every 5 minutes.
 const SESSION_HARD_CAP_MS = 6 * 3600 * 1000
+const _walletEndNoticeAt = new Map() // chatId → last 'wallet ran out' notice (parallel calls end together)
 const _aliveChecking = new Set()
 function _expireIfDead(store, key, ageMs, onDelete) {
   const e = store[key]
@@ -5228,13 +5229,14 @@ async function handleOutboundIvrAnswered(payload) {
               const midRate = +Math.max(allPerMin, costOf(callControlId, sess).perMin).toFixed(2)
               const left = usdBal - owed
               if (left < midRate) {
-                log(`[OutboundIVR] Mid-call wallet exhausted: balance $${usdBal.toFixed(2)}, call owes ~$${owed.toFixed(2)}, next minute $${midRate}. Disconnecting.`)
+                log(`[OutboundIVR] Mid-call wallet exhausted: balance $${usdBal.toFixed(2)}, live calls owe ~$${owed.toFixed(2)}, next minute $${midRate}. Disconnecting.`)
                 clearInterval(session._limitTimer)
                 await _telnyxApi.hangupCall(callControlId).catch(() => {})
                 if (leg) await _telnyxApi.hangupCall(leg[0]).catch(() => {})
                 const lang = await _getUserLang(session.chatId)
                 const msg = _trans('vs.ivrCallEndedWalletExhausted', lang, Math.max(0, left).toFixed(2), midRate)
-                if (msg) _bot?.sendMessage(session.chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
+                const k = String(session.chatId), last = _walletEndNoticeAt.get(k) || 0
+                if (msg && Date.now() - last > 120000) { _walletEndNoticeAt.set(k, Date.now()); _bot?.sendMessage(session.chatId, msg, { parse_mode: 'HTML' }).catch(() => {}) }
               }
             } catch (e) { log(`[OutboundIVR] Mid-call wallet check error: ${e.message}`) }
           }

@@ -1,0 +1,50 @@
+{
+  "summary": "Retest of the 4 fixes from iteration_211. All 4 pass. IMPORTANT: when testing started, the 'nodejs' bot process (started 07:42) was still running OLD code. The js files were saved at 08:01, so the public API still returned invalid_number with the text 'Did you mean +18816123456?' for +8816123456. After `supervisorctl restart nodejs`, it returns blocked_destination. (1) BLOCKED PREFIX: test_cloudivr_bot_parity.py::TestQuickIvr::test_errors passes 3/3, including [+8816123456] = blocked_destination, with no 'Did you mean'. dialIssue('+8816123456') returns null. (2) PARALLEL WALLET GUARD (new js/tests/parallel_wallet_guard_iter212.js: sandbox Mongo on 27999, the real voice-service, Telnyx and Telegram stubbed, 60 s monitors fired by hand, hangup webhooks billing): 10/10 PASS. Campaign with $1 and 5 answered calls: hangups at min 1,1,1,1,2 (the combined cost reaches the balance at min 2), final wallet $0.10. Multi-number Quick IVR with $1 and 5 calls: the same, final $0.10. $2 and 5 calls: hangups at min 2,2,3,3,3, final $0.05. $5, 10 calls and 1 answered transfer leg: all hung up by min 3-4, final $0.05. Another owner's 5 live calls are not counted: a single $1 call runs until min 6. The wallet never went negative. The iter211 long-call sim still passes 19/19. (3) PASTED LEADS: /campaigns/estimate returns the exact text 'Line 2: +7072206410 looks like a USA number missing the 1. Did you mean +17072206410?' and 'Line 3: +1707220640 is missing a digit…'. POST /campaigns, with and without validateOnly, returns 400 invalid_leads '2 numbers need fixing… <reasons>'. The UI line reads '2 number(s) to fix before starting: Line 2: … · Line 3: …' with no repeated phrase (campaign-estimate-errors). (4) SAVED LISTS: an old bad contact was put straight into Mongo in a TEST_ list. The estimate gives count=1 and errors ['TEST_legacy: +7072206410 looks like … Did you mean +17072206410?']. validateOnly gives ok. The real (scheduled) create gives 201 with skipped=1, and the campaign has only the valid number (it was then cancelled). A list where every contact is bad returns the reason. Manual contact add returns 400 invalid_contact with the exact reason (missing 1 / extra digit). REGRESSION: dial_check_iter211 29/29, test_dial_typo_check_iter211.py all pass, js contacts-import 8/8, bulk_telnyx 56/56, bulk_telnyx_edge 17/17, bulk_cancel_hangup 10/10, bulk_controls_edge 32/32, ring_group_triggers 16/16. The parity file had 5 failures unrelated to this work, caused by data/state (see minor).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "deployment / supervisor nodejs", "issue": "The bot was not restarted after the final edits. The process start time (07:42) was earlier than the file save time (08:01). As a result, the live API served the old dialIssue order until the testing agent restarted it. Always restart 'nodejs' after editing js/."},
+      {"endpoint": "voice-service mid-call wallet monitor", "issue": "When the combined wallet runs out, every parallel call's monitor sends its own vs.ivrCallEndedWalletExhausted Telegram message. With $1 and 5 calls, the user got 5 copies. Send it once per owner (for example, a short per-chatId debounce)."},
+      {"endpoint": "contacts.js listLeads", "issue": "errors is capped at the first 20 bad contacts, so the POST /campaigns response 'skipped' (= errors.length) undercounts when a list has more than 20 bad numbers. Return the real bad count separately."},
+      {"endpoint": "test_cloudivr_bot_parity.py (data/state, not this change)", "issue": "A_NUM and B_NUM are hardcoded to numbers from an old pod. I added PARITY_A_NUM/PARITY_B_NUM env overrides; run with PARITY_A_NUM=+13346972125. The remaining failures are test_bob_trial_once, test_downgrade_flow (Alice's wallet $29 gives 402), test_test_calls (stale B_NUM gives 404), test_check_and_buy (invalid_coupon) and test_chat (no support messages). These depend on the environment and are unrelated to the typo/wallet fixes."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Campaign estimate with a saved contact list", "issues": ["For a saved list, the line still reads 'N number(s) to fix before starting', but the campaign really starts and skips those numbers (the toast says 'N line(s) skipped'). Use wording such as 'N number(s) will be skipped: …' when the source is a list."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/js/tests/parallel_wallet_guard_iter212.js",
+    "/app/backend/tests/test_lead_reasons_iter212.py",
+    "/app/js/tests/long_call_billing_iter211.js",
+    "/app/js/tests/dial_check_iter211.js",
+    "/app/backend/tests/test_dial_typo_check_iter211.py",
+    "/app/backend/tests/test_cloudivr_bot_parity.py",
+    "/app/test_reports/pytest/iter212.xml",
+    "/app/test_reports/pytest/iter212_leads.xml"
+  ],
+  "action_items": [
+    "Restart supervisor 'nodejs' after js changes (it was serving stale code)",
+    "Send the wallet-exhausted message once per owner when parallel calls are cut together",
+    "For saved lists, change the estimate wording to 'will be skipped' and report the real skipped count (not capped at 20)"
+  ],
+  "critical_code_review_comments": [
+    "The wallet guard totals only outboundIvrCalls and ivrTransferLegs. Other wallet-billed live calls of the same owner (AI agent calls, SIP/forwarding) are not counted. This is acceptable for this scope but worth noting.",
+    "listLeads calls ci.numberIssue twice per row (filter and map). This is harmless, but a single pass would be cleaner.",
+    "When several calls are cut together, the remaining calls may keep running a little after earlier ones are billed, if what is left still covers their per-minute cost. This is correct (the wallet stays ≥ 0)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_cloudivr_bot_parity.py (A_NUM/B_NUM env override only)",
+    "/app/js/tests/parallel_wallet_guard_iter212.js (new)",
+    "/app/backend/tests/test_lead_reasons_iter212.py (new)"
+  ],
+  "success_rate": {"backend": "100% of in-scope (parity blocked test 3/3, wallet sim 10/10 + 19/19, leads 6/6, regression all pass)", "frontend": "100% (estimate errors line, pasted and list)"},
+  "seed_data_creation": "None kept. TEST_ lists, contacts and the inserted legacy contacts were deleted by id. A TEST_iter212 scheduled campaign was cancelled (status cancelled). The sandbox Mongo on 27999 was dropped and shut down.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Alice's active numbers are now +13346972125 (business) etc. Run the parity tests with PARITY_A_NUM=+13346972125. For the long-call/parallel sims, start the sandbox Mongo first: mongod --port 27999 --dbpath /tmp/mongo27999 --bind_ip 127.0.0.1 --fork --logpath /tmp/m.log. Local app DB name is 'test' (mongosh localhost:27017). The campaign estimate needs the 'campaign-estimate-button' click.",
+  "rca of the issue": "The +8816123456 parity failure persisted at first only because of a stale nodejs process. The code fix (isBlockedPrefix → null in dialIssue) is correct and passes after the restart."
+}

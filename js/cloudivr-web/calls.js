@@ -114,8 +114,8 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   }))
 
   router.post('/campaigns/estimate', h(async (req, res) => {
-    const { leads, errors } = await leadsOf(req.webChatId, req.body)
-    res.json({ count: leads.length, errors: errors.slice(0, 20), max: bulkCallService.MAX_BULK_LEADS, minWallet: bulkCallService.BULK_CALL_MIN_WALLET, estimate: bulkCallService.estimateLeadsCost(leads) })
+    const { leads, errors, badCount } = await leadsOf(req.webChatId, req.body)
+    res.json({ count: leads.length, errors: errors.slice(0, 20), badCount: badCount ?? errors.length, fromList: !!req.body.listId, max: bulkCallService.MAX_BULK_LEADS, minWallet: bulkCallService.BULK_CALL_MIN_WALLET, estimate: bulkCallService.estimateLeadsCost(leads) })
   }))
 
   router.get('/campaigns', h(async (req, res) => {
@@ -135,7 +135,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (!audio) return bad(res, 400, 'invalid_audio', 'Pick a message from your audio library, or write a script and press “Make AI voice”.')
     const vm = b.voicemailAudioId ? await ownAudio(chatId, b.voicemailAudioId) : null
     if (b.voicemailAudioId && !vm) return bad(res, 400, 'invalid_audio', 'Pick the voicemail drop from your audio library.')
-    const { leads, errors } = await leadsOf(chatId, b)
+    const { leads, errors, badCount } = await leadsOf(chatId, b)
     if (!leads.length) return bad(res, 400, 'no_leads', (!b.listId && !String(b.leads || '').trim() ? '' : errors[0]) || 'Add at least one number to call (one per line, optional ",name").')
     if (!b.listId && errors.length) return bad(res, 400, 'invalid_leads', `${errors.length === 1 ? '1 number needs' : `${errors.length} numbers need`} fixing before the campaign can start. ${errors.slice(0, 3).join(' · ')}`)
     if (leads.length > bulkCallService.MAX_BULK_LEADS) return bad(res, 400, 'too_many_leads', `Maximum ${bulkCallService.MAX_BULK_LEADS} numbers per campaign.`)
@@ -164,7 +164,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     })
     if (campaign.error) return bad(res, 400, 'create_failed', campaign.error)
     if (dryRun() || showAs) await db.collection('bulkCallCampaigns').updateOne({ id: campaign.id }, { $set: { ...(dryRun() ? { dryRun: true } : {}), ...(showAs ? { showAs } : {}) } })
-    res.status(201).json({ campaign: publicCampaign({ ...campaign, showAs, dryRun: dryRun() }), skipped: errors.length, doNotCall: await dncCount(chatId, leads) })
+    res.status(201).json({ campaign: publicCampaign({ ...campaign, showAs, dryRun: dryRun() }), skipped: badCount ?? errors.length, doNotCall: await dncCount(chatId, leads) })
   }))
 
   // AI agent campaign: the agent talks to every lead (8am–9pm lead's local time, do-not-call list skipped).
@@ -178,7 +178,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const agent = await ai.store.getAgent(b.agentId, chatId)
     if (!agent) return bad(res, 400, 'invalid_agent', 'Pick one of your AI agents.')
     if (agent.disabled) return bad(res, 403, 'agent_stopped', 'This AI agent was stopped by CloudIVR. Contact support.')
-    const { leads, errors } = await leadsOf(chatId, b)
+    const { leads, errors, badCount } = await leadsOf(chatId, b)
     if (!leads.length) return bad(res, 400, 'no_leads', (!b.listId && !String(b.leads || '').trim() ? '' : errors[0]) || 'Add at least one number to call (one per line, optional ",name").')
     if (!b.listId && errors.length) return bad(res, 400, 'invalid_leads', `${errors.length === 1 ? '1 number needs' : `${errors.length} numbers need`} fixing before the campaign can start. ${errors.slice(0, 3).join(' · ')}`)
     if (leads.length > bulkCallService.MAX_BULK_LEADS) return bad(res, 400, 'too_many_leads', `Maximum ${bulkCallService.MAX_BULK_LEADS} numbers per campaign.`)
@@ -191,7 +191,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     })
     if (campaign.error) return bad(res, 400, 'create_failed', campaign.error)
     await db.collection('bulkCallCampaigns').updateOne({ id: campaign.id }, { $set: { aiRecord: agent.record !== false, ...(showAs ? { showAs } : {}), ...(dryRun() ? { dryRun: true } : {}) } })
-    res.status(201).json({ campaign: publicCampaign({ ...campaign, showAs, dryRun: dryRun() }), skipped: errors.length, doNotCall: dnc, rate: ai.RATE(), recordRate: agent.record !== false ? ai.RECORD_RATE() : 0 })
+    res.status(201).json({ campaign: publicCampaign({ ...campaign, showAs, dryRun: dryRun() }), skipped: badCount ?? errors.length, doNotCall: dnc, rate: ai.RATE(), recordRate: agent.record !== false ? ai.RECORD_RATE() : 0 })
   }
 
   const withCampaign = (fn) => h(async (req, res) => {

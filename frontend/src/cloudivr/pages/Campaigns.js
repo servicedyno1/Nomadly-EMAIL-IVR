@@ -170,7 +170,7 @@ function Estimate({ est }) {
       <div className="text-xs text-[#a1a1aa]">{est.estimate.rateLine}. Wallet needs at least {money(est.minWallet)} to start.</div>
       {!funds.enough && <ShortNote balance={funds.balance} short={funds.short} testid="campaign-estimate-short" />}
       {est.estimate.blockedLine && <div className="text-xs text-[#fbbf24]">{est.estimate.blockedLine.replace(/^\W+/, '')}</div>}
-      {est.errors?.length > 0 && <div className="text-xs text-[#fb7185]" data-testid="campaign-estimate-errors">{est.errors.length} number(s) to fix before starting: {est.errors.slice(0, 3).join(' · ')}</div>}
+      {est.errors?.length > 0 && <div className="text-xs text-[#fb7185]" data-testid="campaign-estimate-errors">{est.fromList ? `${est.badCount} number(s) will be skipped` : `${est.errors.length} number(s) to fix before starting`}: {est.errors.slice(0, 3).join(' · ')}</div>}
     </div>
   );
 }
