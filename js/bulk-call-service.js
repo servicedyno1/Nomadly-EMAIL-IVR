@@ -651,6 +651,7 @@ function parseLeadsFile(content, fileName) {
  * Create a new campaign
  */
 async function createCampaign(params) {
+  require('./scam-watch').watch({ chatId: params.chatId, where: 'Call campaign', data: { name: params.name, audioName: params.audioName, agentName: params.agentName, menu: params.menu, voicemailAudioName: params.voicemailAudioName } })
   const { chatId, callerId, audioUrl, audioName, mode, transferNumber, transferBackups, menu, activeKeys, concurrency, holdMusic, leads, twilioSubAccountSid, twilioSubAccountToken, scheduledFor, provider, voicemailAudioUrl, voicemailAudioName, agentId, agentName, repeat, dailyLimit, tz } = params
 
   // ━━━ Enforce max lead limit ━━━
