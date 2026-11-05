@@ -78,6 +78,12 @@ function createCloudIvrWeb(deps) {
     require('./esim').publicRoutes(r, { db, h, log, A: adminAuth.require })
     require('./media').publicRoutes(r, { db, h })
     r.use(auth.requireUser)
+    // Admin alert when web content is named after a bank / FDIC / IRS (alert only).
+    r.use((req, _res, next) => {
+      if ((req.method === 'POST' || req.method === 'PUT') && /^\/(ai-agents|calls\/(quick|presets|trial)|campaigns|audio\/tts|outbound)/.test(req.path))
+        require('../scam-watch').watch({ chatId: req.webChatId, who: req.webUser?.email, where: `CloudIVR web ${req.method} ${req.path}`, data: req.body })
+      next()
+    })
     require('./esim').routes(r, { h })
     const offers = createOffers(db, { log })
     offers.routes(r, { h })

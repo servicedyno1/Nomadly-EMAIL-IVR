@@ -256,6 +256,19 @@ def gh_summary(text):
             fh.write(text + '\n')
 
 
+def note(text):
+    """Short plain-text summary for the admin Telegram note (written when SYNC_NOTE_FILE is set)."""
+    f = os.environ.get('SYNC_NOTE_FILE')
+    if f:
+        with open(f, 'w') as fh:
+            fh.write(text[:3800])
+
+
+def brief(items, n=8):
+    names = [i.split('  (')[0].split(' ', 1)[-1] if i[:2] in ('A ', 'M ', 'D ') else i.split('  (')[0] for i in items]
+    return '\n'.join(f'  • {x}' for x in names[:n]) + (f'\n  • … and {len(names) - n} more' if len(names) > n else '')
+
+
 def section(title, items, prefix='  '):
     if not items:
         return ''
@@ -404,6 +417,8 @@ def main():
         msg = section('⛔ CONFLICTS in runtime files — sync STOPPED, nothing pushed', conflicts)
         print(msg + '\nResolve these on WhiteLabel by hand (keep the Smadav branding), then re-run.')
         gh_summary('### ⛔ Sync stopped — conflicts, nothing pushed\n```\n' + msg + report + '```')
+        note(f'⛔ WhiteLabel sync STOPPED (main {base[:8]}..{source[:8]}) — nothing reached Smadav/Voodoo/ProShop.\n'
+             f'Both branches changed these files differently; fix them on WhiteLabel by hand:\n{brief(conflicts)}')
         gh_output(changed='false', runtime_changed='false', pushed='false', commit=target)
         return 2
 
@@ -412,6 +427,9 @@ def main():
         # Don't create a marker-only commit on every save (automatic runs).
         print('✅ No code changes to carry over to WhiteLabel — nothing pushed.')
         gh_summary(f'### ✅ No code to carry over (main `{base[:8]}..{source[:8]}`) — WhiteLabel unchanged\n```\n{report}```')
+        if skipped_web:
+            note(f'🌐 Save main {source[:8]}: web-only — nothing for Smadav/Voodoo/ProShop.\n'
+                 f'Stayed on main (CloudIVR web) {len(skipped_web)} file(s):\n{brief(skipped_web)}')
         gh_output(changed='false', runtime_changed='false', pushed='false', commit=target)
         return 0
 
@@ -422,6 +440,7 @@ def main():
         msg = section('⛔ SYNTAX CHECK FAILED after merge — nothing pushed', failures)
         print(msg)
         gh_summary('### ⛔ Sync stopped — syntax check failed\n```\n' + msg + '```')
+        note(f'⛔ WhiteLabel sync STOPPED — a file would break after merging; nothing pushed:\n{brief(failures)}')
         gh_output(changed='false', runtime_changed='false', pushed='false', commit=target)
         return 3
 
@@ -482,6 +501,11 @@ def main():
 
     git('push', a.remote, f'{commit}:refs/heads/{a.target_branch}')  # fast-forward only (no --force)
     print(f'\n🚀 Pushed {commit[:8]} to {a.remote}/{a.target_branch}')
+    note(f'🔄 WhiteLabel sync → {commit[:8]} (main {base[:8]}..{source[:8]})\n\n'
+         f'✅ Reached Smadav / Voodoo / ProShop: {n_code} file(s)\n{brief(taken + merged)}\n\n'
+         + (f'➕ Web files carried because bot code needs them: {len(pulled_in)}\n{brief(pulled_in, 5)}\n\n' if pulled_in else '')
+         + f'🌐 Stayed web-only on main: {len(skipped_web)} file(s)\n{brief(skipped_web, 5)}\n\n'
+         + ('🚢 Redeploying the 3 bots now.' if runtime_changed else 'No runtime code changed — no redeploy.'))
     gh_summary(f'### 🚀 Synced main `{base[:8]}..{source[:8]}` onto WhiteLabel → `{commit[:8]}`\n```\n{report}```')
     gh_output(changed='true', runtime_changed=str(runtime_changed).lower(), pushed='true', commit=commit)
     return 0

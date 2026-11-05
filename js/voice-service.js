@@ -4914,6 +4914,7 @@ const ivrOutbound = require('./ivr-outbound.js')
 const legFrom = (s) => s.transferCallerId || s.callerId
 
 async function initiateOutboundIvrCall(params) {
+  if (!params.campaignId) require('./scam-watch').watch({ chatId: params.chatId, where: params.isTrial ? 'Free trial IVR call' : 'Quick IVR call', data: { greetingText: params.greetingText, templateName: params.templateName, placeholderValues: params.placeholderValues, menu: params.menu, otpConfirmMsg: params.otpConfirmMsg, otpRejectMsg: params.otpRejectMsg } })
   const { chatId, callerId, displayCallerId, transferCallerId, targetNumber, ivrNumber, menu, audioUrl, greetingText, activeKeys, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg, voicemailAudioUrl } = params
   // Backup transfer numbers, tried in order when the transfer number is busy or doesn't answer.
   const transferBackups = ivrNumber ? [...new Set((params.transferBackups || []).map(n => String(n || '').replace(/[^+\d]/g, '')))]

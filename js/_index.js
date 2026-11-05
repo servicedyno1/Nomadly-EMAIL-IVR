@@ -3588,6 +3588,7 @@ async function escalationReminderTick() {
 singletonInterval('escalation-reminder', () => { escalationReminderTick().catch(() => {}) }, 5 * 60 * 1000)
 
 // Send admin-only notification (private, not to groups)
+require('./scam-watch').setNotifier((m) => notifyAdmin(m))
 const notifyAdmin = (message) => {
   try {
     if (TELEGRAM_ADMIN_CHAT_ID) {

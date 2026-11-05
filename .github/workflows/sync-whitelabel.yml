@@ -79,6 +79,7 @@ jobs:
           GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
           # push events have no inputs → dry_run is empty → --push
           MODE_FLAG: ${{ inputs.dry_run && '--dry-run' || '--push' }}
+          SYNC_NOTE_FILE: ${{ github.workspace }}/sync-note.txt
         run: |
           python3 scripts/sync_whitelabel.py \
             --source origin/main --target origin/WhiteLabel \
@@ -98,3 +99,22 @@ jobs:
           # branch with their own backend.env. One dispatch, so a queued run can't cancel the other.
           gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main -f app=whitelabel
           echo "### 🚢 Started \"Deploy to Droplet\" for app-wl + app-voodoo + app-proshop — see the Actions tab" >> "$GITHUB_STEP_SUMMARY"
+
+      # Telegram note to the Nomadly admin chat: what reached the 3 bots, what stayed web-only (or why it stopped).
+      # Sent from the droplet with app-main's own bot token / TELEGRAM_ADMIN_CHAT_ID (no extra GitHub secrets).
+      - name: Telegram sync note → Nomadly admin
+        if: ${{ always() && !inputs.dry_run && hashFiles('sync-note.txt') != '' }}
+        env:
+          SSH_KEY: ${{ secrets.DROPLET_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DROPLET_SSH_KNOWN_HOSTS }}
+          DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+          DROPLET_USER: ${{ secrets.DROPLET_USER }}
+        run: |
+          mkdir -p ~/.ssh && printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key -o UserKnownHostsFile=~/.ssh/known_hosts -o StrictHostKeyChecking=yes -o ConnectTimeout=20 \
+            "$DROPLET_USER@$DROPLET_HOST" 'f=/opt/nomadly/shared/app-main/backend.env
+              v(){ grep -E "^$1=" "$f" | tail -1 | cut -d= -f2- | tr -d "\"\r"; }
+              T=$(v TELEGRAM_BOT_TOKEN_PROD); C=$(v TELEGRAM_ADMIN_CHAT_ID)
+              [ -n "$T" ] && [ -n "$C" ] && curl -s -m 15 -o /dev/null -w "telegram %{http_code}\n" \
+                "https://api.telegram.org/bot$T/sendMessage" -d chat_id="$C" --data-urlencode text@-' < "${{ github.workspace }}/sync-note.txt" || true
