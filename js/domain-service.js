@@ -3,6 +3,7 @@ require('dotenv').config()
 const { log } = require('console')
 const { checkDomainPriceOnline } = require('./cr-domain-price-get')
 const { buyDomainOnline } = require('./cr-domain-register')
+const { isDomainDryRun, DRY_RUN_NS } = require('./domain-dry-run')
 const opService = require('./op-service')
 const cfService = require('./cf-service')
 
@@ -140,6 +141,11 @@ const registerDomain = async (domainName, registrar, nsChoice, db, chatId, custo
   let cfZoneCreated = false // true only if THIS call created the Cloudflare zone
   const originalRegistrar = registrar
   let actualPrice = null
+
+  if (isDomainDryRun()) {
+    log(`[domain-service] DRY RUN — not registering ${domainName} (${registrar}, ns=${nsChoice}); no registrar or Cloudflare call made`)
+    return { success: true, dryRun: true, registrar, nameservers: nsChoice !== 'provider_default' ? DRY_RUN_NS : [], cfZoneId: null, opDomainId: null, registrarChanged: false, actualPrice: null }
+  }
 
   // Remove a Cloudflare zone this attempt created when the registration did
   // not go through — otherwise every failed order leaves an orphan zone for a
@@ -359,7 +365,7 @@ const registerDomain = async (domainName, registrar, nsChoice, db, chatId, custo
  * Post-registration: update nameservers for custom NS or Cloudflare on CR domains
  */
 const postRegistrationNSUpdate = async (domainName, registrar, nsChoice, nameservers, db) => {
-  if (nsChoice === 'provider_default') return { success: true }
+  if (nsChoice === 'provider_default' || isDomainDryRun()) return { success: true }
   if (!nameservers || nameservers.length < 2) return { success: true }
 
   if (registrar === 'ConnectReseller') {

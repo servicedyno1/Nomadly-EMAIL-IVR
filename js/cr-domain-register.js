@@ -3,6 +3,7 @@ const axios = require('axios')
 require('dotenv').config()
 
 const buyDomainOnline = async (domain, ns1, ns2) => {
+  if (require('./domain-dry-run').isDomainDryRun()) return { error: 'Domain registration is disabled outside production (dry run).' }
   try {
     const apiUrl = 'https://api.connectreseller.com/ConnectReseller/ESHOP/Order'
     const requestData = {

@@ -1532,6 +1532,10 @@ async function sendResellerPrompt(chatId, p) {
 const clearResellerPanel = (chatId, mid) => mid && bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: mid }).catch(() => {})
 let _allUserLabels = null
 const isAnyUserLabel = m => (_allUserLabels ||= new Set(['en', 'fr', 'zh', 'hi', 'fa'].flatMap(l => Object.values(translation('user', l) || {}).filter(v => typeof v === 'string')))).has(m)
+// Welcome gift unlocks only on a main-menu SERVICE button (any language) — not typed text, Settings, Support, More or navigation.
+let _giftServiceLabels = null
+const isGiftServiceTap = m => typeof m === 'string' && !/^(⚙️|💬|➕)/.test(m) && (m.startsWith('🔗 ') || (_giftServiceLabels ||= new Set(['en', 'fr', 'zh', 'hi', 'fa'].flatMap(l => (translation('o', l)?.reply_markup?.keyboard || []).flat().map(b => (typeof b === 'string' ? b : b?.text)).filter(Boolean)))).has(m))
+
 async function closeResellerDraft(chatId) {
   const d = await rsApply.abandon(chatId)
   clearResellerPanel(chatId, d?.panelMsgId)
@@ -6081,8 +6085,8 @@ async function applyReferralCredit(refereeChatId, amountUsd, source) {
 
 // ── Order Resume (audit #16) ─────────────────────────────────────────────
 // Localized buttons for the "you topped up enough — finish your order" offer.
-const RESUME_ORDER_CTA = { en: '✅ Complete My Order', fr: '✅ Terminer ma commande', zh: '✅ 完成我的订单', hi: '✅ मेरा ऑर्डर पूरा करें' }
-const RESUME_DISMISS_CTA = { en: '🆕 Start Fresh', fr: '🆕 Recommencer', zh: '🆕 重新开始', hi: '🆕 नए सिरे से शुरू करें' }
+const RESUME_ORDER_CTA = { en: '✅ Complete My Order', fr: '✅ Terminer ma commande', zh: '✅ 完成我的订单', hi: '✅ मेरा ऑर्डर पूरा करें', fa: '✅ تکمیل سفارش من' }
+const RESUME_DISMISS_CTA = { en: '🆕 Start Fresh', fr: '🆕 Recommencer', zh: '🆕 重新开始', hi: '🆕 नए सिरे से शुरू करें', fa: '🆕 شروع دوباره' }
 const RESUME_ORDER_CTA_ALL = Object.values(RESUME_ORDER_CTA)
 const RESUME_DISMISS_CTA_ALL = Object.values(RESUME_DISMISS_CTA)
 
@@ -6108,7 +6112,21 @@ async function maybeOfferResume(chatId, lang = 'en') {
     const price = Number(session?.data?.price || 0)
     if (!(price > 0)) return
     const { usdBal } = await getBalance(walletOf, chatId)
-    if (!(usdBal >= price)) return  // still short — the wall's own nudges handle it
+    if (!(usdBal >= price)) {
+      const gap = price - usdBal
+      if (gap > 0 && gap <= 2 && bot && typeof bot.sendMessage === 'function') {
+        const short = ({
+          en: `💵 Your deposit arrived, but you are <b>$${gap.toFixed(2)}</b> short of your <b>$${price.toFixed(2)}</b> order (crypto conversion). Top up a little more and it completes automatically.`,
+          fr: `💵 Votre dépôt est arrivé, mais il manque <b>$${gap.toFixed(2)}</b> pour votre commande de <b>$${price.toFixed(2)}</b> (conversion crypto). Ajoutez un peu plus et elle se finalisera automatiquement.`,
+          zh: `💵 您的充值已到账，但距 <b>$${price.toFixed(2)}</b> 订单还差 <b>$${gap.toFixed(2)}</b>（加密货币换算）。再充值一点即可自动完成。`,
+          hi: `💵 आपकी जमा राशि आ गई, लेकिन <b>$${price.toFixed(2)}</b> के ऑर्डर के लिए <b>$${gap.toFixed(2)}</b> कम हैं (क्रिप्टो रूपांतरण)। थोड़ा और जोड़ें, ऑर्डर अपने आप पूरा हो जाएगा।`,
+          fa: `💵 واریز شما رسید، اما برای سفارش <b>$${price.toFixed(2)}</b> هنوز <b>$${gap.toFixed(2)}</b> کم است (تبدیل ارز دیجیتال). کمی بیشتر شارژ کنید تا سفارش خودکار تکمیل شود.`,
+        })[lang]
+        await bot.sendMessage(chatId, short || `💵 You are $${gap.toFixed(2)} short of your $${price.toFixed(2)} order.`, { parse_mode: 'HTML' }).catch(() => {})
+        log(`[Resume] deposit landed $${gap.toFixed(2)} short for ${chatId} — told user, session kept`)
+      }
+      return
+    }
     const label = session?.data?.label || ''
     const btn = RESUME_ORDER_CTA[lang] || RESUME_ORDER_CTA.en
     const dismiss = RESUME_DISMISS_CTA[lang] || RESUME_DISMISS_CTA.en
@@ -6117,6 +6135,7 @@ async function maybeOfferResume(chatId, lang = 'en') {
       fr: `✅ <b>$${usdBal.toFixed(2)} sont maintenant dans votre portefeuille.</b>\n\nVous pouvez finaliser votre commande ${label ? `<b>${label}</b> ` : ''}(<b>$${price.toFixed(2)}</b>) — appuyez ci-dessous.`,
       zh: `✅ <b>您的钱包现有 $${usdBal.toFixed(2)}。</b>\n\n现在即可完成您的${label ? `<b>${label}</b>` : ''}订单（<b>$${price.toFixed(2)}</b>）— 点击下方。`,
       hi: `✅ <b>अब आपके वॉलेट में $${usdBal.toFixed(2)} हैं।</b>\n\nआप अभी अपना ${label ? `<b>${label}</b> ` : ''}ऑर्डर (<b>$${price.toFixed(2)}</b>) पूरा कर सकते हैं — नीचे टैप करें।`,
+      fa: `✅ <b>اکنون $${usdBal.toFixed(2)} در کیف پول شماست.</b>\n\nهمین حالا می‌توانید سفارش ${label ? `<b>${label}</b> ` : ''}(<b>$${price.toFixed(2)}</b>) را تکمیل کنید — پایین بزنید.`,
     })[lang] || `✅ <b>$${usdBal.toFixed(2)} is now in your wallet.</b>\n\nYou can finish your order (<b>$${price.toFixed(2)}</b>) — tap below.`
     // The user chose "Deposit $X — tops up, then pays": finish the order for them (same taps: Complete → Yes).
     const fresh = Date.now() - new Date(session.createdAt || session.updatedAt || 0).getTime() < 6 * 3600e3
@@ -6124,10 +6143,14 @@ async function maybeOfferResume(chatId, lang = 'en') {
       const yes = translation('t.yes', lang) || 'Yes'
       const nm = await get(nameOf, chatId).catch(() => null)
       const tap = (text, n) => bot.processUpdate({ update_id: Date.now() + n, message: { message_id: Date.now() % 1e9 + n, from: { id: Number(chatId), is_bot: false, first_name: nm || 'user', username: nm || undefined }, chat: { id: Number(chatId), type: 'private' }, date: Math.floor(Date.now() / 1000), text } })
-      await bot.sendMessage(chatId, ({ en: '✅ <b>Payment received</b> — completing your order now…', fr: '✅ <b>Paiement reçu</b> — finalisation de votre commande…', zh: '✅ <b>已收到付款</b> — 正在完成您的订单…', hi: '✅ <b>भुगतान मिला</b> — आपका ऑर्डर पूरा किया जा रहा है…' })[lang] || '✅ <b>Payment received</b> — completing your order now…', { parse_mode: 'HTML' }).catch(() => {})
+      await bot.sendMessage(chatId, ({ en: '✅ <b>Payment received</b> — completing your order now…', fr: '✅ <b>Paiement reçu</b> — finalisation de votre commande…', zh: '✅ <b>已收到付款</b> — 正在完成您的订单…', hi: '✅ <b>भुगतान मिला</b> — आपका ऑर्डर पूरा किया जा रहा है…', fa: '✅ <b>پرداخت دریافت شد</b> — در حال تکمیل سفارش شما…' })[lang] || '✅ <b>Payment received</b> — completing your order now…', { parse_mode: 'HTML' }).catch(() => {})
       await tap(btn, 1)
       setTimeout(async () => {
-        try { if ((await get(state, chatId))?.action === 'walletSelectCurrencyConfirm') await tap(yes, 2) } catch (e) { log(`[Resume] auto-complete confirm error: ${e.message}`) }
+        try {
+          const act = (await get(state, chatId))?.action
+          if (act === 'walletSelectCurrencyConfirm') await tap(yes, 2)
+          else log(`[Resume] auto-complete: confirm screen not reached for ${chatId} (action=${act}) — user finishes manually`)
+        } catch (e) { log(`[Resume] auto-complete confirm error: ${e.message}`) }
       }, 2500)
       log(`[Resume] auto-completing order for ${chatId} (order $${price} covered by $${usdBal.toFixed(2)})`)
       return
@@ -9777,7 +9800,7 @@ bot?.on('message', msg => {
   const cpTxt = phoneConfig.getTxt(info?.userLanguage || 'en')
 
   // $5 welcome gift unlocks on the first real tap (a product / menu button), not at join — cuts bonus farming.
-  if (info?.welcomeGiftPending && typeof message === 'string' && !message.startsWith('/') && !/^(🇬🇧|🇫🇷|🇨🇳|🇮🇳|🇮🇷)|Back|Cancel|Main Menu|Skip/i.test(message)) {
+  if (info?.welcomeGiftPending && isGiftServiceTap(message)) {
     await set(state, chatId, 'welcomeGiftPending', false)
     if (info) info.welcomeGiftPending = false
     try {
@@ -15294,21 +15317,6 @@ All verified numbers generated during sourcing.`))
     // Returning user: reset action and show main menu with balance & tier
     await set(state, chatId, 'action', 'none')
     await set(state, chatId, 'processingPayment', false) // Clear any stale payment lock
-    // ── UX: gently re-onboard a returning but NOT-yet-activated user ──
-    // A returning user who has never purchased and hasn't seen/used the intent
-    // funnel gets the lightweight "what do you need today?" chooser ONCE more
-    // (bounded by firstIntentReshown), instead of the full 18-button wall.
-    // Activated customers and anyone who already saw it are unaffected.
-    if (!info.firstSessionIntentDone && !info.firstIntentReshown) {
-      try {
-        const _conv = await db.collection('userConversion').findOne({ chatId: String(chatId) }).catch(() => null)
-        if (!_conv?.hasPurchased) {
-          await set(state, chatId, 'firstIntentReshown', true)
-          await showFirstSessionIntent(info?.userLanguage || 'en')
-          return
-        }
-      } catch (e) { /* non-critical — fall through to the normal menu */ }
-    }
 
     const greeting = await getMainMenuGreeting()
     send(chatId, greeting + webAccess.cloudivrWelcomeLine(info?.userLanguage || 'en'), { ...trans('o'), disable_web_page_preview: true })
@@ -16109,13 +16117,6 @@ All verified numbers generated during sourcing.`))
       })
       send(chatId, teaser[validLanguage] || teaser.en, { parse_mode: 'HTML' })
       welcomeBonusShown = true
-      const bonus = null
-      if (bonus?.awarded) {
-        reactToMessage(chatId, msg?.message_id, '🎉', true) // UX #3: celebrate the welcome gift
-        send(chatId, bonus.message, { parse_mode: 'HTML' })
-        welcomeBonusShown = true
-        log(`[WelcomeBonus] Awarded $${bonus.amount} to new user chatId=${chatId}`)
-      }
     } catch (e) { /* non-critical */ }
 
     // ── Guided Onboarding for new users (Feature 1) ──
@@ -37753,6 +37754,8 @@ const buyDomainFullProcess = async (chatId, lang, domain, opts = {}) => {
       }
     }
 
+    if (buyResult.dryRun) { log(`[buyDomainFullProcess] DRY RUN for ${domain} — skipping shortener/DNS setup`); return }
+
     // NS was set at registration time (passed to registrar API directly) — no post-reg update needed
     if (nsChoice !== 'provider_default' && buyResult.nameservers && buyResult.nameservers.length >= 2) {
       const nsLabel = nsChoice === 'cloudflare' ? 'Cloudflare' : 'Custom'
@@ -41519,7 +41522,7 @@ app.get('/crypto-wallet', auth, async (req, res) => {
 
   // Update Wallet
   const usdIn = await convert(value, coin, 'usd')
-  addFundsTo(walletOf, chatId, 'usd', usdIn, lang)
+  await addFundsTo(walletOf, chatId, "usd", usdIn, lang)
   depositFunnel.recordDepositCompleted({ chatId, ref, amountUsd: usdIn, provider: 'blockbee' })
   sendAndReact(chatId, translation('t.confirmationDepositMoney', lang, value + ' ' + tickerViewOf[coin], usdIn), '💰')
 
