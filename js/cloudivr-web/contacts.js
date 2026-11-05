@@ -25,7 +25,11 @@ async function listLeads(db, chatId, listId) {
   const list = await listsCol(db).findOne({ _id: String(listId), chatId: String(chatId) })
   if (!list) return { leads: [], errors: ['That contact list was not found.'] }
   const rows = await contactsCol(db).find({ chatId: String(chatId), listIds: list._id }, { projection: { phone: 1, name: 1 } }).sort({ createdAt: 1 }).toArray()
-  return { leads: rows.map(r => ({ number: r.phone, name: r.name ? r.name.slice(0, 60) : null })), errors: rows.length ? [] : [`The list “${list.name}” has no contacts yet.`], list: publicList(list, rows.length) }
+  // Numbers saved before the typo check are skipped (and reported) instead of being dialled.
+  const bad = rows.filter(r => ci.numberIssue(r.phone))
+  const ok = rows.filter(r => !ci.numberIssue(r.phone))
+  const errors = rows.length ? bad.slice(0, 20).map(r => `${r.name ? r.name.slice(0, 40) + ': ' : ''}${ci.numberIssue(r.phone)}`) : [`The list “${list.name}” has no contacts yet.`]
+  return { leads: ok.map(r => ({ number: r.phone, name: r.name ? r.name.slice(0, 60) : null })), errors, list: publicList(list, rows.length) }
 }
 
 // Manual add / edit: only the fields sent are changed.
@@ -33,7 +37,7 @@ function cleanContact(b, partial) {
   const out = {}
   if (!partial || b.phone !== undefined) {
     const phone = ci.normalizeNumber(b.phone)
-    if (!phone) throw new Error('Enter the phone number with country code, e.g. +14155550100.')
+    if (!phone) throw new Error(ci.numberIssue(b.phone) || 'Enter the phone number with country code, e.g. +14155550100.')
     out.phone = phone
   }
   for (const [k, n] of [['name', 80], ['company', 120], ['notes', 2000]]) if (b[k] !== undefined) out[k] = str(b[k], n)

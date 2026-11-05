@@ -163,14 +163,19 @@ function readTable(input, fileName = '') {
 const { dialIssue } = require('./dial-check')
 // NANP fix (2026-02 @blacknmilds): a bare 10-digit US/Canada number must become +1…, not +40… (Romania).
 function normalizeNumber(raw) {
+  const n = toPlus(raw)
+  return /^\+\d{8,15}$/.test(n) && !dialIssue(n) ? n : null
+}
+// Why a typed number can't be dialled (null when it can).
+const numberIssue = (raw) => { const n = toPlus(raw); return /^\+\d{8,15}$/.test(n) ? dialIssue(n) : null }
+function toPlus(raw) {
   let number = String(raw || '').replace(/["'\s]/g, '').replace(/[^\d+]/g, '')
   if (!number.startsWith('+')) {
     if (/^\d{10}$/.test(number)) number = '+1' + number
     else if (/^1\d{10}$/.test(number)) number = '+' + number
     else number = '+' + number.replace(/^0+/, '')
   }
-  number = number.replace(/[^+\d]/g, '')
-  return /^\+\d{8,15}$/.test(number) && !dialIssue(number) ? number : null
+  return number.replace(/[^+\d]/g, '')
 }
 const DATE = /^(\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})$/
 const looksPhone = (v) => !!v && /^[\d\s+().\-/]+$/.test(v) && !DATE.test(v.trim()) && !!normalizeNumber(v)
@@ -252,7 +257,7 @@ function toRecords(rows, { hasHeader, columns }) {
     if (!r.some(Boolean)) return
     const raw = at.phone != null ? r[at.phone] || '' : ''
     const phone = at.phone != null ? normalizeNumber(raw) : null
-    if (!phone) { invalid.push({ row: i + 1, value: clip(raw || r.filter(Boolean).join(', '), 30).replace(/[<>&]/g, '') }); return }
+    if (!phone) { invalid.push({ row: i + 1, value: clip(raw || r.filter(Boolean).join(', '), 30).replace(/[<>&]/g, ''), reason: raw ? numberIssue(raw) : null }); return }
     if (seen.has(phone)) { dupes++; return }
     seen.add(phone)
     const name = at.name != null ? r[at.name] : [r[at.first], r[at.last]].filter(Boolean).join(' ')
@@ -275,9 +280,9 @@ function parseLeads(input, fileName) {
   const nameCol = head('name') || [head('first_name'), head('last_name')].filter(Boolean).join(' + ') || null
   return {
     leads: records.map(r => ({ number: r.phone, name: r.name.replace(/[^\x20-\x7E\u00A0-\uFFFC]/g, '').slice(0, 60) || null })),
-    errors: det.columns.some(c => c.role === 'phone') ? invalid.map(x => `Line ${x.row}: Invalid number "${x.value}" (check for a missing or extra digit)`) : ['No phone number column found. Add a column called Phone with numbers in it.'],
+    errors: det.columns.some(c => c.role === 'phone') ? invalid.map(x => `Line ${x.row}: ${x.reason || `Invalid number "${x.value}"`}`) : ['No phone number column found. Add a column called Phone with numbers in it.'],
     columns: det.hasHeader ? { phone: head('phone'), name: nameCol } : null,
   }
 }
 
-module.exports = { readTable, detectColumns, toRecords, parseLeads, normalizeNumber, looksBinary, ROLES, MAX_ROWS }
+module.exports = { readTable, detectColumns, toRecords, parseLeads, normalizeNumber, numberIssue, looksBinary, ROLES, MAX_ROWS }

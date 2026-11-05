@@ -1,0 +1,51 @@
+{
+  "summary": "Tested long-call billing, the mid-call wallet guard and the number typo check. LONG CALLS (sandbox Mongo on 27999, real voice-service, Telnyx/Telegram stubbed, 60 s cleanup and wallet-monitor intervals captured and run by hand): 19/19 PASS. A 20-min live Quick IVR session and its 19-min answered transfer leg are kept. A dead session (is_alive=false) is removed and its _limitTimer is cleared. Unknown status (null) keeps the session. Sessions over 6 h are dropped without asking Telnyx. Old non-v3 activeCalls entries are dropped, live v3 ones kept, dead v3 ones dropped. A live session is not checked again within 5 min, and an unknown session is removed once a later check says it ended. The hangup webhooks then bill the full time: IVR_Outbound 20 min x $0.15 = $3.00 and IVR_Transfer 19 min x $0.15 = $2.85, using the tracked time when Telnyx reports duration 0, both written to walletLedger. WALLET GUARD: with a $1.00 wallet and both legs answered, the call keeps running at minutes 1-2 and both legs are hung up at minute 3; the user gets the ivrCallEndedWalletExhausted message and the interval is cleared. With a $0.40 wallet and one leg, the call is cut at minute 2. DIAL CHECK (node unit test): 29/29 PASS, covering every example in the request and contacts normalizeNumber/parseLeads. WEB API (Alice, dry run): 30/30 PASS (the AI campaign test was skipped at first because of a wrong route, then passed after the fix). Typo numbers are rejected with 400 and the dialIssue message on: Quick IVR targets, a typo among several targets, transferTo, OTP transferTo, menu forward, backups, campaign estimate (lists the errors), campaign create (invalid_leads, with and without validateOnly), campaign transferNumber, AI campaign (invalid_leads), call-me-first myPhone and to, relay, ring group members and fallback, forwarding, number IVR forward key, contact add, and contacts import check (2 valid, 2 invalid). Valid numbers +17072206410, +18002805175, +447911123456 and +77072206410 still return 202 dryRun. FRONTEND: the campaign estimate shows the line 'N number(s) to fix before starting' (data-testid campaign-estimate-errors). Quick IVR shows the typo as an inline red error above Place call, not as a toast. REGRESSION: js tests for contacts import, bulk telnyx, bulk telnyx edge, bulk cancel hangup, bulk controls edge and ring group triggers all pass. Two unrelated stale failures: test_bulk_line_limit_ai IN-04/05 expects a $0.20 AI rate but the default is now $0.30, and test_bulk_provider_suspended REQ-69 is a git-diff check. One real behaviour change was found: the parity test for +8816123456 now gets invalid_number instead of blocked_destination.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/calls/quick (outbound.js buildCall), and likewise relay/calls.js/numbers.js", "issue": "The dialIssue check now runs BEFORE phoneConfig.isBlockedPrefix. A short satellite or premium number such as +8816123456 now returns invalid_number with the misleading text 'looks like a USA number missing the 1. Did you mean +18816123456?' instead of blocked_destination. This breaks backend/tests/test_cloudivr_bot_parity.py::TestQuickIvr::test_errors[+8816123456]. The call is still refused. Fix: run the blocked-prefix check first, or skip the '+1' suggestion when the number starts with a blocked prefix."},
+      {"endpoint": "voice-service handleOutboundIvrAnswered _limitTimer (campaigns and multi-target Quick IVR)", "issue": "Each call's monitor subtracts only its OWN owed amount from the wallet balance. Campaign calls (up to 20 lines) and Quick IVR calls (up to 10 targets) run at the same time and are billed only at hangup, so N parallel calls each believe they have the whole balance. Example: $1 wallet and 5 lines means each line runs about 3 min, about $4.50 owed in total, and the wallet goes negative. To really stop when the wallet runs out, total the owed amount of every live session of the same owner (outboundIvrCalls and ivrTransferLegs by chatId/callerId owner)."},
+      {"endpoint": "POST /campaigns, /campaigns/estimate (contacts-import parseLeads)", "issue": "Pasted-lead errors use a generic message, 'Invalid number \"+7072206410\" (check for a missing or extra digit)'. The specific dialIssue hint ('Did you mean +17072206410?' / 'has an extra digit') is lost, while Quick IVR shows it. The frontend line also repeats 'missing or extra digit' twice."},
+      {"endpoint": "POST /campaigns with listId (contacts.js listLeads)", "issue": "Leads from a saved contact list are not checked again with dialIssue. Contacts saved before this fix (for example +7072206410) will still be dialled and rejected by Telnyx. Consider filtering or reporting them in listLeads."},
+      {"endpoint": "js/dial-check.js", "issue": "Non-+1 numbers only need isPossible(), which is lenient. A UK mobile missing a digit (+44791112345) and India with 9 national digits (+9198765432) pass. This matches the spec ('possible length'), but isValid() would catch more."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Quick IVR typo", "issue": "The error appears as an inline red box above 'Place call', not as a toast as the request describes. It works and is visible; this is just a note.", "affected_selectors": ["[data-testid='quick-call-submit-button']"]}
+    ],
+    "design_issues": [
+      {"screen": "Campaign estimate", "issues": ["The error line says 'missing or extra digit' twice (prefix plus every error), which reads as repetitive."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/js/tests/long_call_billing_iter211.js",
+    "/app/js/tests/dial_check_iter211.js",
+    "/app/backend/tests/test_dial_typo_check_iter211.py",
+    "/app/test_reports/pytest/iter211_dial.xml"
+  ],
+  "action_items": [
+    "Run the blocked-prefix check before dialIssue (or skip the '+1' suggestion for blocked prefixes) so +8816123456 returns blocked_destination again. Re-run test_cloudivr_bot_parity::test_errors.",
+    "Mid-call wallet guard: total the owed amount across all live outbound IVR sessions and transfer legs of the same owner, so parallel campaign or multi-target calls cannot overdraw the wallet.",
+    "Optional: show the specific dialIssue message in parseLeads errors, and check saved-list leads again in listLeads.",
+    "Optional: refresh stale tests: bot_parity/triggers_ringgroup/quick_otp_trial hard-code old pod caller numbers; bulk_line_limit_ai IN-04 expects a $0.20 AI rate; campaign_sim stats expect the old count where voicemail was counted as answered."
+  ],
+  "critical_code_review_comments": [
+    "_expireIfDead looks correct: identity guard (store[key] !== e), _aliveChecking dedupe, 5-min re-check throttle, 6 h hard cap, and timers cleared in onDelete for activeCalls, outboundIvrCalls and ivrTransferLegs. activeBridgeTransfers has no onDelete, which is fine because it has no timers.",
+    "While Telnyx is down (isCallAlive returns null), ended sessions stay for up to 6 h. Acceptable, but if there is a long outage a per-store count or log would help.",
+    "Wallet monitor: Math.ceil minutes for the main leg plus the transfer leg is a conservative owed amount and matches how hangup bills. Only one transfer leg is counted (find). That is fine because backups are tried one after another.",
+    "The Telegram bot's Quick IVR single-target entry does not use dialIssue (only parseLeadsFile does, through contacts-import). This was not checked in the bot UI."
+  ],
+  "updated_files": [
+    "/app/js/tests/long_call_billing_iter211.js (new)",
+    "/app/js/tests/dial_check_iter211.js (new)",
+    "/app/backend/tests/test_dial_typo_check_iter211.py (new)"
+  ],
+  "success_rate": {"backend": "100% of in-scope tests (19/19 long-call, 29/29 dial-check, 30/30 web API); 1 regression in an older parity test (satellite error code)", "frontend": "100% (estimate errors line, Quick IVR inline error)"},
+  "seed_data_creation": "Sandbox Mongo only for the long-call harness (db dropped). Against the preview DB as Alice: 4 dry-run Quick IVR calls (call history rows) and 1 contacts import parse doc (not saved as contacts). The regression suites also created their own TEST_ campaigns (cancelled). No production data was touched.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Long-call harness: start a sandbox with `mongod --dbpath /tmp/sbx27999 --port 27999 --bind_ip 127.0.0.1 --fork --logpath /tmp/sbx.log`, then run `P3_SANDBOX_MONGO=mongodb://127.0.0.1:27999 node js/tests/long_call_billing_iter211.js`. It wraps global setInterval to capture the cleanup interval (source contains 'Memory Leak Prevention') and the wallet monitor ('Mid-call wallet'), then moves startTime/answerTime back to simulate age. For the web API, export REACT_APP_BACKEND_URL and run pytest with `-p no:xdist -o addopts=''`. Alice's current caller number is +13346972125 (business), audio and the AI agent 'Ava' exist.",
+  "rca of the issue": "Satellite error-code regression: in buildCall, `if (dialIssue(t))` now comes before `if (phoneConfig.isBlockedPrefix(t))`. +8816123456 has 10 digits, libphonenumber says it is not a possible length, and it matches the NANP pattern, so the 'missing the 1' branch is used."
+}

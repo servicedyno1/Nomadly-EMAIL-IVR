@@ -5212,12 +5212,20 @@ async function handleOutboundIvrAnswered(payload) {
               // Disconnect threshold = the ACTUAL per-min rate for the active leg(s)
               // (international IVR = $0.50/min, policy 2026-08-07), not the flat $0.15.
               // Legs are billed at hang-up, so count what this call already owes against the balance.
-              const ivrRate = getIvrCallRate(sess.targetNumber) || IVR_CALL_RATE
-              const leg = Object.entries(ivrTransferLegs).find(([, t]) => t.parentCallControlId === callControlId && t.answerTime)
-              const legRate = leg ? getIvrCallRate(leg[1].ivrNumber) || IVR_CALL_RATE : 0
+              // Every live call of this owner counts (campaign lines and multi-number Quick IVR run in parallel).
               const mins = (t0) => Math.ceil((Date.now() - t0) / 60000)
-              const owed = (sess.answerTime ? mins(sess.answerTime) * ivrRate : 0) + (leg ? mins(leg[1].answerTime) * legRate : 0)
-              const midRate = +(ivrRate + legRate).toFixed(2)
+              const legOf = (id) => Object.entries(ivrTransferLegs).find(([, t]) => t.parentCallControlId === id && t.answerTime)
+              const costOf = (id, s) => {
+                const r = getIvrCallRate(s.targetNumber) || IVR_CALL_RATE, l = legOf(id), lr = l ? getIvrCallRate(l[1].ivrNumber) || IVR_CALL_RATE : 0
+                return { owed: (s.answerTime ? mins(s.answerTime) * r : 0) + (l ? mins(l[1].answerTime) * lr : 0), perMin: (s.answerTime ? r : 0) + lr }
+              }
+              let owed = 0, allPerMin = 0
+              for (const [id, s] of Object.entries(outboundIvrCalls)) {
+                if (s.isTrial || s.phase === 'ended' || String(s.chatId) !== String(sess.chatId)) continue
+                const c = costOf(id, s); owed += c.owed; allPerMin += c.perMin
+              }
+              const leg = legOf(callControlId)
+              const midRate = +Math.max(allPerMin, costOf(callControlId, sess).perMin).toFixed(2)
               const left = usdBal - owed
               if (left < midRate) {
                 log(`[OutboundIVR] Mid-call wallet exhausted: balance $${usdBal.toFixed(2)}, call owes ~$${owed.toFixed(2)}, next minute $${midRate}. Disconnecting.`)
