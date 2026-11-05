@@ -1,6 +1,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Cloud Phone Scheduler — Expiry, Renewal & Usage Tracking
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const topup = require('./renewal-topup')
 const schedule = require('node-schedule')
 const { log } = require('console')
 const { get, set, atomicIncrement } = require('./db.js')
@@ -186,7 +187,7 @@ async function runExpiryCheck() {
           const { usdBal } = await getBalance(_walletOf, chatId)
           const plan = plans[num.plan] || { name: num.plan, price: num.planPrice }
           const msg = buildReminderMsg(num, 3, plan, usdBal)
-          sendToUser(chatId, msg)
+          sendToUser(chatId, msg, usdBal < num.planPrice ? { reply_markup: topup.depositKeyboard(num.planPrice - usdBal) } : {})
           numbers[i]._reminder3Sent = true
           modified = true
           remindersSent++
@@ -198,7 +199,7 @@ async function runExpiryCheck() {
           const { usdBal } = await getBalance(_walletOf, chatId)
           const plan = plans[num.plan] || { name: num.plan, price: num.planPrice }
           const msg = buildFinalWarningMsg(num, plan, usdBal)
-          sendToUser(chatId, msg)
+          sendToUser(chatId, msg, usdBal < num.planPrice ? { reply_markup: topup.depositKeyboard(num.planPrice - usdBal) } : {})
           numbers[i]._reminder1Sent = true
           modified = true
           remindersSent++
@@ -888,8 +889,8 @@ function buildUsageLimitMsg(num, type, used, limit, lang) {
       unit)
 }
 
-function sendToUser(chatId, text) {
-  _bot?.sendMessage(chatId, text, { parse_mode: 'HTML' })?.catch(e => {
+function sendToUser(chatId, text, extra = {}) {
+  _bot?.sendMessage(chatId, text, { parse_mode: 'HTML', ...extra })?.catch(e => {
     log(`[PhoneScheduler] Send error to ${chatId}: ${e.message}`)
   })
 }

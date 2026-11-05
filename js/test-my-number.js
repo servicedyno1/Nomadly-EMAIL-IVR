@@ -13,7 +13,7 @@
  *   ⚠️ Got voicemail / PBX            — AMD = 'machine' OR call answered but no DTMF
  *   ❌ No answer                       — call never answered (timeout / busy / failed)
  *
- * Throttle: 5 tests per number per 24h (in-memory + best-effort persisted in MongoDB).
+ * Throttle: 3 free tests per number per 24h (in-memory + persisted in MongoDB). Never billed (isFreeTestRing).
  *
  * Wiring: initTestMyNumber(app, { telnyxApi, bot, db, log, selfUrl, getTxt })
  */
@@ -22,7 +22,10 @@ const TRIAL_CALLER_ID = process.env.TELNYX_TRIAL_CALLER_ID || '+18889020132'
 const SESSION_TTL_MS = 5 * 60 * 1000 // 5 minutes — sessions auto-cleaned
 const TEST_TIMEOUT_MS = 60 * 1000     // 1 minute — overall test deadline
 const DTMF_WAIT_MS = 12 * 1000        // 12s to press '1' after answer
-const MAX_TESTS_PER_DAY = 5
+const MAX_TESTS_PER_DAY = 3
+const FREE_WINDOW_MS = TEST_TIMEOUT_MS + 60 * 1000
+// phoneNumber → ts the free ring was started; inbound billing skips calls from TRIAL_CALLER_ID while set
+const pendingTargets = {}
 
 // In-memory session map: callControlId → { chatId, num, lang, phase, dtmf, amdResult, ... }
 const sessions = {}
@@ -34,6 +37,9 @@ let _telnyxApi = null
 let _log = console.log
 let _getTxt = null
 let _selfUrl = ''
+let _col = null
+
+const isFreeTestRing = (from, to) => from === TRIAL_CALLER_ID && !!pendingTargets[to] && Date.now() - pendingTargets[to] < FREE_WINDOW_MS
 
 function initTestMyNumber(app, deps) {
   _bot = deps.bot
@@ -41,6 +47,7 @@ function initTestMyNumber(app, deps) {
   _log = deps.log || console.log
   _getTxt = deps.getTxt
   _selfUrl = deps.selfUrl || ''
+  _col = deps.db ? deps.db.collection('testMyNumberLog') : null
 
   // ── Webhook: Telnyx posts ALL events for the test call here ──
   // Route registered WITHOUT /api prefix because there's app-level middleware
@@ -150,7 +157,14 @@ async function placeTestCall(chatId, num, lang) {
   const M = (key, ...args) => (t?.testMyNumber?.[key] ? (typeof t.testMyNumber[key] === 'function' ? t.testMyNumber[key](...args) : t.testMyNumber[key]) : null)
 
   // ── Throttle ──
-  const recent = (testHistory[targetNumber] || []).filter(t => Date.now() - t < 24 * 60 * 60 * 1000)
+  const dayAgo = Date.now() - 24 * 60 * 60 * 1000
+  let saved = []
+  if (_col) {
+    try { saved = ((await _col.findOne({ _id: targetNumber }))?.ts || []).filter(t => t >= dayAgo) } catch (e) { /* in-memory fallback */ }
+  }
+  // Read in-memory after the await: from here to the reservation below is synchronous, so concurrent taps can't overshoot.
+  const mem = (testHistory[targetNumber] || []).filter(t => t >= dayAgo)
+  const recent = saved.length > mem.length ? saved : mem
   if (recent.length >= MAX_TESTS_PER_DAY) {
     return {
       ok: false,
@@ -171,15 +185,22 @@ async function placeTestCall(chatId, num, lang) {
 
   // ── Place outbound call (Telnyx → user's Twilio number, with AMD) ──
   const webhookUrl = `${_selfUrl}/api/test-call/webhook`
+  // Reserve the slot before dialling so concurrent taps can't exceed the limit.
+  let slot = Date.now()
+  while (recent.includes(slot)) slot++
+  testHistory[targetNumber] = [...recent, slot]
+  const release = () => { testHistory[targetNumber] = (testHistory[targetNumber] || []).filter(x => x !== slot); delete pendingTargets[targetNumber] }
+  pendingTargets[targetNumber] = slot
   const result = await _telnyxApi.createOutboundCall(
     TRIAL_CALLER_ID,
     targetNumber,
     webhookUrl,
     null,   // use default Telnyx call control connection
     { answering_machine_detection: 'detect' }
-  )
+  ).catch(e => ({ error: e.message }))
 
   if (result?.error) {
+    release()
     _log(`[TestMyNumber] createOutboundCall error: ${result.error}`)
     return {
       ok: false,
@@ -203,8 +224,7 @@ async function placeTestCall(chatId, num, lang) {
   }
   sessions[callControlId] = session
 
-  // Track for throttle
-  testHistory[targetNumber] = [...recent, Date.now()]
+  if (_col) _col.updateOne({ _id: targetNumber }, { $set: { ts: testHistory[targetNumber] } }, { upsert: true }).catch(() => {})
 
   // Hard timeout — finalize even if no hangup event arrives
   setTimeout(() => {
@@ -227,6 +247,7 @@ async function placeTestCall(chatId, num, lang) {
 async function finalizeAndReport(session) {
   if (session.reported) return
   session.reported = true
+  setTimeout(() => { if (pendingTargets[session.targetNumber] <= session.startedAt) delete pendingTargets[session.targetNumber] }, 30 * 1000)
 
   const t = _getTxt ? _getTxt(session.lang) : null
   const M = (key, ...args) => (t?.testMyNumber?.[key] ? (typeof t.testMyNumber[key] === 'function' ? t.testMyNumber[key](...args) : t.testMyNumber[key]) : null)
@@ -260,4 +281,5 @@ module.exports = {
   placeTestCall,
   TRIAL_CALLER_ID,
   MAX_TESTS_PER_DAY,
+  isFreeTestRing,
 }

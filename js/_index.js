@@ -2786,10 +2786,11 @@ const postActivationNudge = async (chatId, phoneNumber, planName) => {
 
     // Localized "next step" copy — concise, actionable, one tap to SIP creds.
     const body = ({
-      en: `🎯 <b>Next step — grab your SIP credentials</b>\n\nTap <b>${pc.sipCredentials}</b> below to reveal your SIP username / password and get your softphone or browser calling page up and running in under a minute.`,
-      fr: `🎯 <b>Prochaine étape — récupérez vos identifiants SIP</b>\n\nAppuyez sur <b>${pc.sipCredentials}</b> ci-dessous pour afficher votre nom d'utilisateur et mot de passe SIP et démarrer votre softphone ou page d'appel en moins d'une minute.`,
-      hi: `🎯 <b>अगला कदम — अपने SIP क्रेडेंशियल्स प्राप्त करें</b>\n\nअपना SIP उपयोगकर्ता नाम / पासवर्ड दिखाने और एक मिनट में सॉफ्टफोन या ब्राउज़र कॉलिंग शुरू करने के लिए नीचे <b>${pc.sipCredentials}</b> पर टैप करें।`,
-      zh: `🎯 <b>下一步 — 获取您的 SIP 凭据</b>\n\n点击下方的 <b>${pc.sipCredentials}</b> 查看您的 SIP 用户名 / 密码，几秒内即可在软电话或浏览器通话页面上线。`,
+      en: `🎯 <b>Next step — grab your SIP credentials</b>\n\nTap <b>${pc.sipCredentials}</b> below to reveal your SIP username / password and get your softphone or browser calling page up and running in under a minute.\n\n📲 Then tap <b>${pc.testMyNumber}</b> — we ring your SIP phone <b>for free</b> and tell you if it worked.`,
+      fr: `🎯 <b>Prochaine étape — récupérez vos identifiants SIP</b>\n\nAppuyez sur <b>${pc.sipCredentials}</b> ci-dessous pour afficher votre nom d'utilisateur et mot de passe SIP et démarrer votre softphone ou page d'appel en moins d'une minute.\n\n📲 Puis appuyez sur <b>${pc.testMyNumber}</b> — nous faisons sonner votre téléphone SIP <b>gratuitement</b> et vous disons si ça marche.`,
+      hi: `🎯 <b>अगला कदम — अपने SIP क्रेडेंशियल्स प्राप्त करें</b>\n\nअपना SIP उपयोगकर्ता नाम / पासवर्ड दिखाने और एक मिनट में सॉफ्टफोन या ब्राउज़र कॉलिंग शुरू करने के लिए नीचे <b>${pc.sipCredentials}</b> पर टैप करें।\n\n📲 फिर <b>${pc.testMyNumber}</b> पर टैप करें — हम आपके SIP फ़ोन पर <b>मुफ़्त</b> में रिंग करते हैं और बताते हैं कि यह काम किया या नहीं।`,
+      zh: `🎯 <b>下一步 — 获取您的 SIP 凭据</b>\n\n点击下方的 <b>${pc.sipCredentials}</b> 查看您的 SIP 用户名 / 密码，几秒内即可在软电话或浏览器通话页面上线。\n\n📲 然后点击 <b>${pc.testMyNumber}</b> — 我们会<b>免费</b>拨打您的 SIP 电话并告诉您是否成功。`,
+      fa: `🎯 <b>قدم بعدی — اطلاعات SIP خود را بگیرید</b>\n\nروی <b>${pc.sipCredentials}</b> بزنید تا نام کاربری و رمز SIP را ببینید و سافت‌فون یا صفحه تماس مرورگر را در کمتر از یک دقیقه راه‌اندازی کنید.\n\n📲 سپس روی <b>${pc.testMyNumber}</b> بزنید — ما <b>رایگان</b> با تلفن SIP شما تماس می‌گیریم و می‌گوییم که کار کرد یا نه.`,
     })[lang] || ({
       en: `🎯 <b>Next step — grab your SIP credentials</b>\n\nTap <b>${pc.sipCredentials}</b> below to reveal your SIP username / password.`,
     }).en
@@ -25528,7 +25529,14 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   if (RESUME_ORDER_CTA_ALL.includes(message)) {
     const session = await getResumableSession(db, chatId)
     if (!session || !session.step) {
+      // Expired saved order: take them straight back into the product they were buying (prices / numbers may have changed).
+      const old = await db.collection('resumableSessions').findOne({ _id: `resume_${chatId}` }).catch(() => null)
       await clearResumableSession(db, chatId)
+      const back = ({ 'phone-order': 'submenu5', 'domain-purchase': 'submenu2', 'hosting-setup': 'submenu3', 'vps-order': 'submenu4', 'digital-purchase': 'submenu6' })[old?.flowType]
+      if (back) {
+        send(chatId, ({ en: '⏳ That saved order timed out, so prices and available numbers may have changed. Here’s where you left off. Your wallet balance is untouched.', fr: '⏳ Cette commande a expiré, les prix et numéros disponibles ont pu changer. Voici où vous en étiez. Votre solde est intact.', zh: '⏳ 该订单已超时，价格和可用号码可能已变化。这是您上次停留的地方，钱包余额不受影响。', hi: '⏳ वह सहेजा गया ऑर्डर समय-सीमा पार कर गया, इसलिए कीमतें और उपलब्ध नंबर बदल सकते हैं। आप यहीं थे। आपका वॉलेट बैलेंस सुरक्षित है।', fa: '⏳ آن سفارش ذخیره‌شده منقضی شد، بنابراین قیمت‌ها و شماره‌های موجود ممکن است تغییر کرده باشند. این همان جایی است که بودید. موجودی کیف پول شما دست‌نخورده است.' }[lang] || '⏳ That saved order timed out, so prices and available numbers may have changed. Here’s where you left off. Your wallet balance is untouched.'))
+        return goto[back]()
+      }
       return send(chatId, ({ en: '⚠️ That saved order has expired — please start again from the menu.', fr: '⚠️ Cette commande sauvegardée a expiré — veuillez recommencer depuis le menu.', zh: '⚠️ 该保存的订单已过期 — 请从菜单重新开始。', hi: '⚠️ वह सहेजा गया ऑर्डर समाप्त हो गया — कृपया मेनू से फिर से शुरू करें।' }[lang] || '⚠️ That saved order has expired — please start again from the menu.'), trans('o'))
     }
     const _price = Number(session?.data?.price || 0)
@@ -26592,6 +26600,9 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (rawNumbers.length === 0) {
       return send(chatId, trans('t.cp_27'), k.of([]))
     }
+    // Free format check before dialling: catch mistyped / unassigned numbers instead of a carrier error.
+    const _bad = rawNumbers.map(n => require('./dial-check').dialIssue(n)).find(Boolean)
+    if (_bad) return send(chatId, `⚠️ ${_bad}\n\nNothing was dialled${info?.ivrObData?.isTrial ? ' and your free call is still unused' : ''}. Send the number again:`, k.of([]))
 
     const ivrObData = info?.ivrObData || {}
 
@@ -50659,6 +50670,8 @@ app.post('/twilio/voice-dial-status', async (req, res) => {
       const minutes = duration > 0 ? Math.ceil(duration / 60) : 0
       if (isBridgeLeg) {
         log(`[Twilio] SIP Bridge Call completed: ${minutes} min PSTN leg — not billed here (charged on the Telnyx SIP leg as SIPOutbound)`)
+      } else if (minutes > 0 && to && require('./test-my-number').isFreeTestRing(decodeURIComponent(from || ''), decodeURIComponent(to))) {
+        log(`[Twilio] Free Test My Number ring to ${decodeURIComponent(to)} — not billed`)
       } else if (minutes > 0 && chatId && to) {
         const label = type === 'sip_outbound' ? 'SIP Outbound Call' : 'Forwarded Call'
         try {

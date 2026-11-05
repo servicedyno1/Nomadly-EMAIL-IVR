@@ -88,6 +88,7 @@ const PHONE_RE = /\+?\d[\d\s().-]{6,}\d/g
 const digits = (s) => String(s || '').replace(/\D/g, '')
 // Where an item leads when tapped: the number's logs (texts, voicemails, calls) or billing, the wallet, campaigns.
 function linkOf(n, mine) {
+  if (n.meta?.link) return n.meta.link
   const found = (n.meta?.to && mine.find(p => digits(p) === digits(n.meta.to)))
     || mine.find(p => (String(n.text).match(PHONE_RE) || []).some(t => digits(t) === digits(p)))
   const num = (tab) => (found ? `/app/numbers/${encodeURIComponent(found)}?tab=${tab}` : '/app/numbers')

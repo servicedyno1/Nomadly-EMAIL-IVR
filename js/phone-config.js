@@ -1038,7 +1038,7 @@ ${/starter/i.test(String(plan)) ? `
 
   // ── Test My Number ──
   testMyNumber: {
-    placing: (phone) => `📞 Calling <code>${phone}</code> from a ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} test line… pick up on your softphone and press <b>1</b> when it rings (you have ~12 seconds after answer).\n\nResult will appear here within 60 seconds.`,
+    placing: (phone) => `🆓 <b>Free test ring</b> — calling <code>${phone}</code> from a ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} test line… pick up on your softphone and press <b>1</b> when it rings (you have ~12 seconds after answer).\n\nResult will appear here within 60 seconds.`,
     successDtmf: (phone) => `✅ <b>Reached your SIP device</b> — calls to <code>${phone}</code> are working end-to-end. The far end answered and a key was pressed.`,
     voicemail: (phone) => `⚠️ <b>Got voicemail / PBX answer</b> on <code>${phone}</code>.\n\nThis usually means a PBX (3CX, FreePBX, Asterisk…) is answering and dumping the call to its own voicemail instead of ringing your extension.\n\nFix: open /sipguide for the SIP TRUNK setup walk-through, or switch to a single-line softphone (Linphone, Zoiper) for an instant fix.`,
     answeredNoDtmf: (phone) => `⚠️ <b>Call answered, but no key was pressed</b> on <code>${phone}</code> within 12 seconds.\n\nIf you didn't pick up, your softphone may not be receiving the call. If you DID pick up but didn't press 1, just retry. If a PBX (3CX/FreePBX) is involved, see /sipguide for SIP TRUNK setup.`,
