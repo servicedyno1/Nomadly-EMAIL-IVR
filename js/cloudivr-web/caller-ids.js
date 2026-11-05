@@ -85,7 +85,8 @@ function routes(router, { db, h, numbersApi }) {
   const view = (d) => ({ number: d._id, status: d.status, method: d.method, note: d.note || null, label: d.label || null, verifiedAt: d.verifiedAt || null })
 
   router.get('/caller-ids', h(async (req, res) => {
-    const items = await col.find({ chatId: req.webChatId }).sort({ createdAt: -1 }).toArray()
+    const items = await col.find({ chatId: req.webChatId }).toArray()
+    items.sort((a, b) => (new Date(b.lastUsedAt || b.verifiedAt || b.createdAt || 0)) - (new Date(a.lastUsedAt || a.verifiedAt || a.createdAt || 0)))
     res.json({ price: PRICE, dryRun: dry(), items: items.filter(d => d.status === 'verified' || d.status === 'review' || Date.now() - d.createdAt < PENDING_MS).map(view) })
   }))
 

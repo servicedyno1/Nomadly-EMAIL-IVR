@@ -1,0 +1,41 @@
+{
+  "summary": "Iter221 tested caller ID labels, last-used-first order and the Business upgrade reminder (web + API + real bot on mock TG :5099). API pytest: 9/9 new tests and 8/8 from iter220 pass. Node unit test iter219: 18/18. Bot e2e: 18/19. Working: presets come back as {number,label}; GET /caller-ids returns label; PUT /caller-ids/:number/label trims to 24 characters, an empty value clears it, and it returns 404 for a number not on the account and for another user's number; 401 without auth. A dry-run callback call with showAs moves that ID to the front of the presets. Web (Alice): the attest form's Name field saves, the chip 'TEST_Sales · +14155552231' shows first and selected, and the dialog closes. The rename pencil (window.prompt) renames, and a blank name clears the label in both the list and the chips. Order stays the same after reload. No upsell card for Alice. Web (Bob): the card shows with the $45 text; dismissing it stores civr.cidUpsell.5000000000000002=1 and it stays hidden after reload. Bot: buttons read '🎭 Office · +num' and '🎭 +num' with the most recent first; tapping one applies it on Quick IVR New Call, Bulk caller select and SIP manage; touch() reorders. A forged preset is ignored. A Business user gets no hub nudge; the nudge is sent once (cidUpsellSent) and not again; Starter-only gets $70. TWO BUGS found in which number the upgrade offer picks (below).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "BOT submenu5 one-time nudge (js/_index.js ~L10828)", "issue": "For a user with both Starter and Pro numbers, the nudge picks the FIRST Starter number ('Upgrade +18336221102 to Business now for $70.00') instead of the Pro number at $45. The code uses myNums.find(...) with no preference. cidUpsell() (~L26285) already prefers Pro. The bot's $70 then disagrees with the web card's $45 for the same user (Bob would get Starter +14062358695 at $70). Reproduced in js/tests/bot_callerid_labels_upsell_iter221.js check 2b.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "caller-ids.js resolve()", "issue": "lastUsedAt is updated as soon as showAs passes validation, before later checks (insufficient balance, invalid targets in outbound buildCall, setDefault). A call that never goes out still reorders the presets."},
+      {"endpoint": "GET /caller-ids (manager list)", "issue": "Sorted by createdAt desc, not by last use, so the dialog list order differs from the chips ('most recently used first everywhere')."},
+      {"endpoint": "BOT one-time nudge", "issue": "Plain text only, with no '👑 Upgrade to Business — $X' button and no customCidUpgrade state, so the user cannot act on the offer from the message."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CallerIdUpsellCard (Banners.js)", "issue": "The CTA links to the FIRST active non-sub starter/pro number without filtering out replacedBy. For Bob it goes to /cloudivr/app/numbers/%2B13093051619?tab=billing&plan=business, a REPLACED Starter number whose billing tab only shows 'Replaced' and Delete, with no upgrade. It should target the Pro +18509558201 (exclude replacedBy and onHold, prefer pro, as cidUpsell does).", "selector": "[data-testid='dashboard-callerid-upsell-cta']", "priority": "HIGH"},
+      {"component": "CallerIdUpsellCard price", "issue": "The gap is always business − pro ($45) whatever number the CTA targets. A Starter-only account sees '$45' but is charged $70. Compute the gap from the targeted number's plan.", "selector": "[data-testid='dashboard-callerid-upsell']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Caller ID dialog manager list (Quick Call → Add a caller ID)", "issues": ["At 1920px the left column is so narrow that label and number both truncate ('TE… +14…', 'Off… +164625564…'), so the number cannot be read. Let the row wrap, or put the label on its own line.", "Renaming uses the browser's native window.prompt instead of an inline input or shadcn Dialog, which is inconsistent with the rest of the UI.", "When the dialog reopens it briefly shows 'No verified numbers yet.' while the list loads (empty state shown during loading)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_caller_id_labels_iter221.py", "/app/js/tests/bot_callerid_labels_upsell_iter221.js", "/app/backend/tests/test_caller_id_cap_upgrade_iter220.py", "/app/js/tests/caller_id_presets_iter219.js", "/app/test_reports/pytest/pytest_iter221.xml"],
+  "action_items": [
+    "Bot submenu5 nudge: choose the number like cidUpsell() does (prefer pro, exclude replacedBy/onHold/sub), so a Starter+Pro user is offered the Pro at $45. Optionally add the upgrade button and the customCidUpgrade state.",
+    "Web CallerIdUpsellCard: exclude replacedBy and onHold numbers, prefer the pro number for the CTA link, and compute the price gap from that number's plan ($45 Pro / $70 Starter).",
+    "Manager list in the dialog: stop the label and number truncating. Optionally replace window.prompt rename with an inline edit.",
+    "Optional: touch lastUsedAt only after the call or campaign is actually accepted, and sort GET /caller-ids by last use too."
+  ],
+  "critical_code_review_comments": [
+    "Number selection for the upgrade is now done three different ways: the bot nudge (.find first), bot cidUpsell (prefers pro) and the web card (.find first, no replacedBy filter). Extract one shared picker.",
+    "The consent GROUP_KEYS.preferences regex list does not include /^civr\\.cidUpsell\\./. The dismissal is not moved between localStorage and sessionStorage when consent changes, unlike civr.channelCard.",
+    "Bulk caller select shows presetRows for non-Business users. Code-verified presets show there, but tapping one hits hasPaidPlan → upsell, even though resolve() allows non-attested IDs without Business."
+  ],
+  "updated_files": ["/app/backend/tests/test_caller_id_labels_iter221.py", "/app/js/tests/bot_callerid_labels_upsell_iter221.js"],
+  "success_rate": {"backend": "97% (35/36 incl. bot e2e)", "frontend": "80% (labels/rename/order/dismiss pass; upsell CTA target wrong)"},
+  "seed_data_creation": "Temporary bot users 990221101-103 and caller IDs +14155552241/2 were created and then deleted. Alice's TEST_ IDs +14155552211 and +14155552231 were deleted by id. Alice is back to her 3 auto IDs (Office label kept). Her Office ID now has a fresh lastUsedAt from a dry-run callback call. Bob's +18509558201 is still Pro (NOT upgraded this run). Bob's browser localStorage dismissal exists only in the Playwright session.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Bot e2e: sudo supervisorctl stop nodejs; node js/tests/mock_telegram_api.js &; TELEGRAM_API_BASE_URL=http://127.0.0.1:5099 node --max-old-space-size=2048 js/start-bot.js & (wait ~80s); node js/tests/bot_callerid_labels_upsell_iter221.js (~1.5 min); then pkill both and sudo supervisorctl start nodejs. Check 2b covers the Starter+Pro nudge bug. Web: Bob's dashboard-callerid-upsell-cta href should point at %2B18509558201 once fixed. Callback dry-run API: POST /api/cloudivr-web/calls/callback {callerId, myPhone, to, showAs} returns 202 dryRun."
+}

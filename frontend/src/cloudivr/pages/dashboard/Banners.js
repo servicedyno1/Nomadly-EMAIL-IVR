@@ -80,12 +80,13 @@ export function CallerIdUpsellCard() {
   const KEY = `civr.cidUpsell.${account?.id || 'me'}`;
   const nums = data?.numbers || [];
   const hasBiz = nums.some(n => n.status === 'active' && n.plan === 'business');
-  const lower = nums.some(n => n.status === 'active' && !n.isSubNumber && ['starter', 'pro'].includes(n.plan));
+  const eligible = nums.filter(n => n.status === 'active' && !n.isSubNumber && !n.replacedBy && ['starter', 'pro'].includes(n.plan));
+  const target = eligible.find(n => n.plan === 'pro') || eligible[0];
   const plans = catalog?.plans || [];
   const biz = plans.find(p => p.id === 'business')?.price;
-  const pro = plans.find(p => p.id === 'pro')?.price;
-  const gap = Number.isFinite(biz) && Number.isFinite(pro) ? Math.max(0, biz - pro) : null;
-  if (closed || !data || hasBiz || !lower || recall(KEY) === '1') return null;
+  const base = plans.find(p => p.id === target?.plan)?.price;
+  const gap = Number.isFinite(biz) && Number.isFinite(base) ? Math.max(0, biz - base) : null;
+  if (closed || !data || hasBiz || !target || recall(KEY) === '1') return null;
   const close = () => { remember('preferences', KEY, '1'); setClosed(true); };
   return (
     <div className="civr-card civr-rise p-5 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 !border-[#fbbf24]/40 bg-gradient-to-r from-[#fbbf24]/10 to-transparent" data-testid="dashboard-callerid-upsell">
@@ -94,7 +95,7 @@ export function CallerIdUpsellCard() {
         <div className="font-semibold text-base">Show any caller ID with Business</div>
         <div className="text-sm text-[#a1a1aa] mt-1">Save up to 10 numbers you have the right to use and pick one with a tap on every call. Upgrade to Business{gap ? ` for just ${usd(gap)}` : ''} — you pay only the price difference and your renewal date stays the same.</div>
       </div>
-      <Link to={cp(`/app/numbers/${enc(nums.find(n => n.status === 'active' && !n.isSubNumber && ['starter', 'pro'].includes(n.plan))?.phoneNumber || '')}?tab=billing&plan=business`)} className="civr-btn civr-btn-primary civr-btn-sm self-start sm:self-auto" data-testid="dashboard-callerid-upsell-cta">Upgrade to Business</Link>
+      <Link to={cp(`/app/numbers/${enc(target.phoneNumber)}?tab=billing&plan=business`)} className="civr-btn civr-btn-primary civr-btn-sm self-start sm:self-auto" data-testid="dashboard-callerid-upsell-cta">Upgrade to Business</Link>
       <button type="button" onClick={close} className="w-9 h-9 rounded-lg flex items-center justify-center text-[var(--c-muted)] hover:text-[var(--c-text)] hover:bg-[var(--c-accent-soft)]" aria-label="Dismiss" data-testid="dashboard-callerid-upsell-dismiss"><X className="w-4 h-4" /></button>
     </div>
   );

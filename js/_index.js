@@ -10825,7 +10825,8 @@ bot?.on('message', msg => {
         if (!info?.cidUpsellSent) {
           const myNums = ((await get(phoneNumbersOf, chatId))?.numbers || [])
           const hasBiz = myNums.some(n => n.status === 'active' && n.plan === 'business')
-          const low = myNums.find(n => n.status === 'active' && !n.isSubNumber && !n.replacedBy && ['starter', 'pro'].includes(n.plan) && !planLifecycle.onHold(n))
+          const eligible = myNums.filter(n => n.status === 'active' && !n.isSubNumber && !n.replacedBy && ['starter', 'pro'].includes(n.plan) && !planLifecycle.onHold(n))
+          const low = eligible.find(n => n.plan === 'pro') || eligible[0]
           const q = low && phoneConfig.callerIdUpgradeQuote(low)
           if (!hasBiz && q) {
             await set(state, chatId, 'cidUpsellSent', true)
