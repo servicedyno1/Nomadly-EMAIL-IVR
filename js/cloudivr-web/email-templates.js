@@ -40,6 +40,8 @@ const B = {
 
   tryNudge: (d, c, f, x) => ({ ...head(c.tryNudge, d, f), t: 'brand',
     body: P(c.tryNudge.intro(d, f)) + L.steps(c.tryNudge.steps) + L.button(c.tryNudge.cta(d), x.app('/app/quick-call')) + L.small(c.tryNudge.ps) }),
+  depositNudge: (d, c, f, x) => ({ ...head(c.depositNudge, d, f), t: 'brand',
+    body: P(c.depositNudge.intro(d, f)) + L.button(c.depositNudge.cta(d), x.app(d.link)) + L.small(c.depositNudge.ps) }),
 
   tryFollowup: (d, c, f, x) => ({ ...head(c.tryFollowup, d, f), t: 'brand',
     body: P(d.noAnswer ? c.tryFollowup.missed : c.tryFollowup.intro(d, f)) + L.h2(c.tryFollowup.nextTitle) + L.bullets(c.tryFollowup.next, 'ok')

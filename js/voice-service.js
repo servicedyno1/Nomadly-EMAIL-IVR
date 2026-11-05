@@ -2006,7 +2006,7 @@ async function handleBridgeTransferHangup(payload) {
   if (transferMinutes > 0 && transfer.phase === 'bridged') {
     // Check both outboundIvrCalls and activeCalls for the parent session
     const parentSession = outboundIvrCalls[transfer.originalCallControlId] || activeCalls[transfer.originalCallControlId]
-    if (parentSession && !parentSession.isTrial) {
+    if (parentSession && !parentSession.isTrial && !parentSession.isTestCall) {
       try {
         // For inbound calls, the owner is already in the session (chatId, num)
         // For outbound IVR, we need to look up the callerId
@@ -2527,8 +2527,11 @@ async function handleCallInitiated(payload) {
     try { if (await require('./ai-agent').tryInbound({ payload, chatId, num })) return } catch (e) { log(`[AIAgent] inbound error: ${e.message}`) }
   }
 
+  const _freeTestRing = require('./test-my-number').isFreeTestRing(from, to)
+  if (_freeTestRing) log(`[Voice] Free Test My Number ring ${from} → ${to} — not billed`)
+
   // ── CHECK: Inbound minutes limit reached? → Try overage billing ──
-  if (isMinuteLimitReached(num, ownerNumbers)) {
+  if (!_freeTestRing && isMinuteLimitReached(num, ownerNumbers)) {
     const inboundRate = getCallRate(from) // Rate based on caller's country
     let overageAllowed = false
     if (_walletOf) {
@@ -2568,6 +2571,7 @@ async function handleCallInitiated(payload) {
     esimNumber: payload.esimNumber || null,
     startedAt: new Date(),
     phase: 'answering',
+    isTestCall: _freeTestRing,
     recordingEnabled: num.features?.recording === true && canAccessFeature(num.plan, 'callRecording'),
     // On/off hours (CloudIVR web): outside the hours the number doesn't ring (voicemail / message / backups) — see routeOffHours.
     offHours: !!(num.features?.hours?.enabled && !numberHours.isOpen(num.features.hours)),
@@ -2581,6 +2585,7 @@ async function handleCallInitiated(payload) {
   sessionRef._limitTimer = setInterval(async () => {
     const sess = activeCalls[callControlId]
     if (!sess) { clearInterval(sessionRef._limitTimer); return }
+    if (sess.isTestCall) return
     const elapsedSec = Math.floor((Date.now() - sess.startedAt.getTime()) / 1000)
     const elapsedMin = Math.ceil(elapsedSec / 60)
 
@@ -5144,10 +5149,14 @@ async function initiateOutboundIvrCall(params) {
     result = await _telnyxApi.createOutboundCall(callerId, targetNumber, webhookUrl, undefined, amdOpts)
     if (!result.error) result.callerIdRejected = true
   } else if (displayCallerId) require('./cloudivr-web/caller-ids').logUse(chatId, displayCallerId, bulkMode ? 'bulk' : 'ivr', targetNumber)
+  if (result.error && /D50|valid LRN|destination number is invalid|unallocated|D35\b/i.test(String(result.error))) {
+    log(`[OutboundIVR] Carrier rejected ${targetNumber} as not in service: ${result.error}`)
+    result = { ...result, error: `${targetNumber} isn’t an in-service number, so the call couldn’t go through. Nothing was charged — check the number and try again.`, invalidNumber: true }
+  }
   if (!result.error && !result.callerIdRejected && !isTrial && !campaignId) require('./cloudivr-web/caller-ids').rememberLast(chatId, callerId, displayCallerId || transferCallerId || null)
 
   if (result.error) {
-    return { error: result.error, lineLimit: _telnyxApi.isLineLimitError?.(result) || false }
+    return { error: result.error, lineLimit: _telnyxApi.isLineLimitError?.(result) || false, invalidNumber: !!result.invalidNumber }
   }
 
   // Store outbound IVR session

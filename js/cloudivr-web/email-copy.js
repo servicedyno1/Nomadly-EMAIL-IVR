@@ -29,6 +29,14 @@ const en = {
     cta: () => 'Get your number',
     ps: 'Not ready yet? Try a free 60-second test call from the home page and hear it for yourself.',
   },
+  depositNudge: {
+    subject: (d) => d.stage === '24h' ? `Still want it? Your $${d.amount} payment is open` : `Finish your $${d.amount} payment`,
+    preheader: (d) => d.phone ? `It completes your order for ${d.phone}.` : 'It goes straight into your CloudIVR wallet.',
+    eyebrow: 'Payment waiting', title: (d) => d.phone ? 'Your number is one step away.' : 'Your top-up is one step away.',
+    intro: (d) => `You started a $${d.amount} ${d.coin} payment${d.phone ? ` for ${d.phone}` : ''} but it hasn’t arrived yet. Open it to see the address and amount again — anything you already sent still lands in your wallet.`,
+    cta: (d) => d.phone ? 'Finish my order' : 'Finish my top-up',
+    ps: 'Changed your mind? Ignore this email — we won’t remind you again after tomorrow.',
+  },
   tryNudge: {
     subject: () => 'Your free CloudIVR call is waiting',
     preheader: () => 'Hear it on your own phone in under a minute — no number or payment needed.',
@@ -194,6 +202,14 @@ const fr = {
     cta: () => 'Obtenir mon numéro',
     ps: 'Pas encore prêt ? Essayez un appel test gratuit de 60 secondes depuis la page d’accueil et écoutez par vous-même.',
   },
+  depositNudge: {
+    subject: (d) => d.stage === '24h' ? `Toujours partant ? Votre paiement de $${d.amount} est ouvert` : `Finalisez votre paiement de $${d.amount}`,
+    preheader: (d) => d.phone ? `Il finalise votre commande pour ${d.phone}.` : 'Il arrive directement dans votre portefeuille CloudIVR.',
+    eyebrow: 'Paiement en attente', title: (d) => d.phone ? 'Votre numéro est à une étape.' : 'Votre recharge est à une étape.',
+    intro: (d) => `Vous avez commencé un paiement de $${d.amount} en ${d.coin}${d.phone ? ` pour ${d.phone}` : ''}, mais il n’est pas encore arrivé. Ouvrez-le pour revoir l’adresse et le montant — tout ce que vous avez déjà envoyé arrive dans votre portefeuille.`,
+    cta: (d) => d.phone ? 'Finaliser ma commande' : 'Finaliser ma recharge',
+    ps: 'Vous avez changé d’avis ? Ignorez cet e-mail — nous ne vous le rappellerons plus après demain.',
+  },
   tryNudge: {
     subject: () => 'Votre appel CloudIVR gratuit vous attend',
     preheader: () => 'Écoutez-le sur votre propre téléphone en moins d’une minute — sans numéro ni paiement.',
@@ -358,6 +374,14 @@ const es = {
     ],
     cta: () => 'Obtener mi número',
     ps: '¿Aún no? Prueba una llamada gratis de 60 segundos desde la página de inicio y escúchalo tú mismo.',
+  },
+  depositNudge: {
+    subject: (d) => d.stage === '24h' ? `¿Aún lo quieres? Tu pago de $${d.amount} sigue abierto` : `Termina tu pago de $${d.amount}`,
+    preheader: (d) => d.phone ? `Completa tu pedido de ${d.phone}.` : 'Va directo a tu monedero de CloudIVR.',
+    eyebrow: 'Pago pendiente', title: (d) => d.phone ? 'Tu número está a un paso.' : 'Tu recarga está a un paso.',
+    intro: (d) => `Empezaste un pago de $${d.amount} en ${d.coin}${d.phone ? ` para ${d.phone}` : ''}, pero aún no ha llegado. Ábrelo para ver de nuevo la dirección y el importe — lo que ya enviaste llega igualmente a tu monedero.`,
+    cta: (d) => d.phone ? 'Terminar mi pedido' : 'Terminar mi recarga',
+    ps: '¿Cambiaste de idea? Ignora este correo — no volveremos a recordártelo después de mañana.',
   },
   tryNudge: {
     subject: () => 'Tu llamada gratis de CloudIVR te espera',

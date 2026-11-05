@@ -7,6 +7,7 @@
 const crypto = require('crypto')
 const schedule = require('node-schedule')
 const { isWebChatId } = require('./notify')
+const notify = require('./notify')
 const { secret, sendMail, isAdmin } = require('./auth')
 const { appPathPrefix, parseDomain } = require('./domain-guard')
 const { walletOps, round2 } = require('./wallet')
@@ -174,6 +175,32 @@ function createEmails(db, { log = console.log } = {}) {
     return n ? { phone: n.phoneNumber, expiresAt: n.expiresAt, price: Number(n.planPrice) || 0 } : null
   }
 
+  // Abandoned web deposits: one reminder ~1 h after, one ~24 h after; stops once paid, cancelled or paid another way.
+  async function depositNudges() {
+    const now = Date.now(), jobs = []
+    const deps = await db.collection('webDeposits').find({ createdAt: { $gte: new Date(now - 48 * 3600e3), $lt: new Date(now - 3600e3) } }).toArray()
+    for (const d of deps) {
+      if (!isWebChatId(d.chatId)) continue
+      const paid = await db.collection('transactions').findOne({ chatId: String(d.chatId), type: 'wallet-topup', $or: [{ 'metadata.ref': d.ref }, { createdAt: { $gte: d.createdAt } }] })
+      if (paid) continue
+      let link = '/app/wallet', order = null
+      if (d.forNumber) {
+        order = await db.collection('webNumberOrders').findOne({ chatId: d.chatId, phoneNumber: d.forNumber }, { sort: { createdAt: -1 } })
+        if (!order || !['awaiting_payment', 'underpaid'].includes(order.status)) continue
+        link = `/app/orders/${encodeURIComponent(order._id)}`
+      }
+      const stage = now - d.createdAt.getTime() >= DAY ? '24h' : '1h'
+      const key = `depnudge:${d.ref}:${stage}`
+      jobs.push({ chatId: String(d.chatId), type: 'depositNudge', key, data: async () => {
+        if (!(await db.collection('webNotifications').findOne({ chatId: String(d.chatId), 'meta.nudge': key }))) {
+          await notify.push(d.chatId, `💳 Your $${d.amountUsd} ${d.coin || 'crypto'} deposit is still waiting${d.forNumber ? ` — it finishes your ${d.forNumber} order` : ''}. Tap to finish paying.`, null, { kind: 'wallet', meta: { link, nudge: key } }).catch(() => {})
+        }
+        return { amount: d.amountUsd, coin: d.coin || 'crypto', phone: d.forNumber || null, link, stage }
+      } })
+    }
+    return jobs
+  }
+
   // Renewal reminders, failed renewals and paused numbers.
   function numberStates(nums) {
     const now = Date.now(), jobs = []
@@ -188,7 +215,9 @@ function createEmails(db, { log = console.log } = {}) {
         if (n._graceUntil && new Date(n._graceUntil).getTime() > now) {
           jobs.push({ chatId, type: 'renewFailed', key: `grace:${phone}:${n._graceUntil}`, data: async () => { const balance = await w.balance(chatId); return { phone, price, balance, shortfall: round2(Math.max(0, price - balance)), graceUntil: n._graceUntil } } })
         } else if (exp > now && exp - now <= 3 * DAY) {
-          jobs.push({ chatId, type: 'renewSoon', key: `renewsoon:${phone}:${n.expiresAt}`, data: async () => { const balance = await w.balance(chatId); return { phone, planName, price, expiresAt: n.expiresAt, autoRenew: !!n.autoRenew, balance, shortfall: round2(Math.max(0, price - balance)) } } })
+          const soon = async () => { const balance = await w.balance(chatId); return { phone, planName, price, expiresAt: n.expiresAt, autoRenew: !!n.autoRenew, balance, shortfall: round2(Math.max(0, price - balance)) } }
+          if (exp - now > DAY) jobs.push({ chatId, type: 'renewSoon', key: `renewsoon:${phone}:${n.expiresAt}`, data: soon })
+          else jobs.push({ chatId, type: 'renewSoon', key: `renewsoon1:${phone}:${n.expiresAt}`, data: soon })
         }
       }
     }
@@ -243,7 +272,7 @@ function createEmails(db, { log = console.log } = {}) {
       const from = await cursor()
       const nums = await webNumbers()
       const jobs = await events(from, nums)
-      if (ticks++ % 5 === 0) jobs.push(...numberStates(nums), ...(await walletLevels(nums)))
+      if (ticks++ % 5 === 0) jobs.push(...numberStates(nums), ...(await walletLevels(nums)), ...(await depositNudges()))
       return await run(jobs)
     } catch (e) { log(`[CloudIVR-Email] scan failed: ${e.message}`); return 0 } finally { busy = false }
   }

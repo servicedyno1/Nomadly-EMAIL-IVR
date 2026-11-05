@@ -126,6 +126,7 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
       if (r?.error || !r?.callControlId) {
         await calls.deleteOne({ _id: doc._id })
         log(`[CloudIVR-Web] free test call to ${d.to} failed: ${r?.error || 'no call id'}`)
+        if (r?.invalidNumber) return bad(res, 400, 'invalid_number', `${r.error.replace('Nothing was charged', 'Your free call is still unused')}`)
         return bad(res, 424, 'call_failed', 'We could not place the call right now. Try again in a minute.')
       }
       if (showAs) require('../scam-watch').alert(`🎭 <b>Landing test call — custom caller ID</b>\n✉️ ${String(email).replace(/[<>&]/g, '')}\n📞 ${showAs} → ${d.to}${cidSvc.HOTLINES[showAs] ? ` — 🚩 matches <b>${cidSvc.HOTLINES[showAs]}</b> hotline` : ''}`)

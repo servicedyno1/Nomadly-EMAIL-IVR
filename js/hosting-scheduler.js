@@ -12,6 +12,7 @@
  */
 
 require('dotenv').config()
+const topup = require('./renewal-topup')
 const { log } = require('console')
 const activeSlot = require('./active-slot')
 const resellerWebhooks = require('./reseller-webhooks')
@@ -145,9 +146,9 @@ function initScheduler(deps) {
   /**
    * Send Telegram notification
    */
-  function notify(chatId, message) {
+  function notify(chatId, message, extra = {}) {
     if (!bot) return
-    bot.sendMessage(chatId, message, { parse_mode: 'HTML', disable_web_page_preview: true }).catch(err => {
+    bot.sendMessage(chatId, message, { parse_mode: 'HTML', disable_web_page_preview: true, ...extra }).catch(err => {
       log(`[HostingScheduler] Notify error for ${chatId}: ${err.message}`)
     })
   }
@@ -273,12 +274,16 @@ function initScheduler(deps) {
           const price = getRenewalCharge(account).priceUsd
           const lang = await getUserLang(chatId)
           const tt = (key, ...args) => translation(`t.${key}`, lang, ...args)
+          const { usdBal: bal3 } = await getBalance(walletOf, chatId)
+          const short3 = isAutoRenew && price > 0 && bal3 < price
           notify(chatId,
             tt('schedExpiryWarningTitle') + '\n\n'
             + tt('schedExpiry3dBody', plan, domain, tt('fmtDate', expiry)) + '\n\n'
             + `${isAutoRenew ? tt('schedRenewTextOnPrice', price) : tt('schedRenewTextOff', GRACE_PERIOD_HOURS)}\n\n`
             + tt('schedRenewTextWalletHint') + '\n'
             + tt('schedRenewTextToggleHint', domain)
+            + (short3 ? topup.topUpLine(price - bal3) : ''),
+            short3 ? { reply_markup: topup.depositKeyboard(price - bal3) } : {}
           )
           await cpanelAccounts.updateOne({ _id: account._id }, { $set: { expiry3dNotifiedFor: expiry.toISOString() } })
           notified++
@@ -292,6 +297,8 @@ function initScheduler(deps) {
           const tt = (key, ...args) => translation(`t.${key}`, lang, ...args)
 
           const renewText = isAutoRenew ? tt('schedRenewTextOnPrice', price) : tt('schedRenewTextOff', GRACE_PERIOD_HOURS)
+          const { usdBal: bal1 } = await getBalance(walletOf, chatId)
+          const short1 = isAutoRenew && price > 0 && bal1 < price
 
           notify(chatId,
             tt('schedExpiryWarningTitle') + '\n\n'
@@ -299,6 +306,8 @@ function initScheduler(deps) {
             + `${renewText}\n\n`
             + tt('schedRenewTextWalletHint') + '\n'
             + tt('schedRenewTextToggleHint', domain)
+            + (short1 ? topup.topUpLine(price - bal1) : ''),
+            short1 ? { reply_markup: topup.depositKeyboard(price - bal1) } : {}
           )
 
           await cpanelAccounts.updateOne(

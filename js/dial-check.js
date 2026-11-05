@@ -13,7 +13,10 @@ function dialIssue(e164) {
   if (d.startsWith('1')) {
     if (d.length < 11) return `${n} is missing a digit. USA/Canada numbers are +1 followed by 10 digits.`
     if (d.length > 11) return `${n} has an extra digit. USA/Canada numbers are +1 followed by 10 digits.`
-    return NANP.test(n) ? null : `${n} is not a valid USA/Canada number. Check the area code.`
+    if (!NANP.test(n)) return `${n} is not a valid USA/Canada number. Check the area code.`
+    // Valid shape but no such area code / exchange in the numbering plan (carriers reject these as "no valid LRN").
+    if (/^\+1[2-9]11/.test(n) || /^\+1\d{3}[2-9]11/.test(n) || parsePhoneNumberFromString(n)?.isValid() === false) return `${n} isn’t an in-service USA/Canada number. Check the area code and number.`
+    return null
   }
   if (parsePhoneNumberFromString(n)?.isPossible()) return null
   if (d.length === 10 && NANP.test('+1' + d)) return `${n} looks like a USA number missing the 1. Did you mean +1${d}?`
