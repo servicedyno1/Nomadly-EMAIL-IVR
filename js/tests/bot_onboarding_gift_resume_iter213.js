@@ -184,9 +184,10 @@ const MENU = '👛 Wallet'
     const incLog = (() => { const fd = require('fs').openSync(BOT_LOG, 'r'); const len = require('fs').statSync(BOT_LOG).size - logOff; const b = Buffer.alloc(Math.max(0, len)); require('fs').readSync(fd, b, 0, b.length, logOff); require('fs').closeSync(fd); return b.toString() })()
     console.log('INFO INC msgs:\n' + txt(dcs).slice(0, 1200) + '\nINFO INC log:\n' + incLog.split('\n').filter(l => l.includes(INC)).join('\n').slice(0, 1500))
     check('8a.incomplete session → no "Some Issue"', !/Some Issue/i.test(txt(dcs)), txt(dcs))
-    check('8b.log "[Resume] auto-complete: not confirming"', new RegExp(`auto-complete: not confirming for ${INC}`).test(incLog), incLog.slice(-800))
+    check('8b.iter216: "couldn\'t reopen that order — your $X is safe" shown, no $0.00 confirm', /couldn't reopen that order/.test(txt(dcs)) && /safe in your wallet/.test(txt(dcs)) && !/\$0\.00/.test(txt(dcs)), txt(dcs))
+    check('8b2.main menu keyboard shown after reopen-failure', btns(dcs).includes(MENU), JSON.stringify(btns(dcs)))
     check('8c.incomplete session not charged', !((await db.collection('walletOf').findOne({ _id: INC })).usdOut > 0))
-    check('8d.stops at confirm screen (action walletSelectCurrencyConfirm)', (await st(INC))?.action === 'walletSelectCurrencyConfirm', (await st(INC))?.action)
+    check('8d.iter216: NOT left at confirm screen (action != walletSelectCurrencyConfirm)', (await st(INC))?.action !== 'walletSelectCurrencyConfirm', (await st(INC))?.action)
   } catch (e) {
     check('script error', false, e.stack)
   } finally {

@@ -2185,7 +2185,7 @@ function isYesPress(message) {
   const m = message.trim()
   // eslint-disable-next-line no-misleading-character-class -- intentional: strips emoji + ZWJ/VS16 code points
   const stripped = m.replace(/^[\p{Extended_Pictographic}\u200d\ufe0f\s✅✔]+/u, '').trim()
-  const knownYes = new Set(['Yes', 'Oui', '是', 'हाँ', 'Confirm', 'Confirmer', '确认', 'पुष्टि करें'])
+  const knownYes = new Set(['Yes', 'Oui', '是', 'हाँ', 'Confirm', 'Confirmer', '确认', 'पुष्टि करें', 'بله', 'تأیید'])
   return knownYes.has(stripped)
 }
 
@@ -2198,7 +2198,7 @@ function isNoPress(message) {
   const m = message.trim()
   // eslint-disable-next-line no-misleading-character-class -- intentional: strips emoji + ZWJ/VS16 code points
   const stripped = m.replace(/^[\p{Extended_Pictographic}\u200d\ufe0f\s❌❎🚫]+/u, '').trim()
-  const knownNo = new Set(['No', 'Non', '否', 'नहीं'])
+  const knownNo = new Set(['No', 'Non', '否', 'नहीं', 'خیر'])
   return knownNo.has(stripped)
 }
 

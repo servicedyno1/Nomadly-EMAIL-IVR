@@ -1,0 +1,1 @@
+{"summary":"IN PROGRESS iter216. CRITICAL found+fixed: isYesPress/isNoPress (_index.js ~2183/2196) lacked Persian بله/خیر → fa users could not answer domain shortener Yes/No nor confirm wallet payments (walletSelectCurrencyConfirm ~25714). Verifying after restart.","retest_needed":true}

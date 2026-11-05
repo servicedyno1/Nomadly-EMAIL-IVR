@@ -2183,3 +2183,17 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - 2026-11-05 09:05Z: WhiteLabel sync automatic again (skips CloudIVR-web-only files unless needed); WL caught up (0862e470) and all 3 WL bots redeployed.
 - 2026-11-05 12:36Z: Scam-name admin alerts (js/scam-watch.js; web middleware + campaigns + quick IVR), WhiteLabel sync Telegram note (admin chat, verified 200), zod 4.6.7; Dependabot: zod fixed, pymongo alert dismissed as stale (4.19.0 pinned). Deployed all 4 bots (main a09aa840 / WL 6ac4eaa3).
 - 2026-11-05: 48h new-user analysis → memory/NEW_USERS_48H_2026-11-05.md (no code changes).
+
+## 2026-11-05 16:13Z — New-user conversion + Farsi + domain dry-run — LIVE all 4 bots (main 06321c23, WL e647febb)
+- js/domain-dry-run.js: registerDomain/renewDomain (OP), buyDomainOnline (CR), domain-service.registerDomain + postRegistrationNSUpdate are simulated whenever BOT_ENVIRONMENT !== 'production' (or DOMAIN_DRY_RUN=true). Prod verified dryRun=false. Test: js/tests/test_domain_dry_run_2026-11.js (13/13). NEVER test real domain registration.
+- iter213 accidental domains iter213auto87794.com / iter213auto89550.com deleted at OpenProvider (status DEL) + CF zones deleted (js/ops/delete_iter213_test_domains.js).
+- Onboarding: language → teaser → main menu; returning /start never shows intent picker. Gift: only main-menu service taps (isGiftServiceTap), once.
+- Resume: Deposit button +$1 buffer; $≤2 short → "you are $X short" notice; auto-confirm only if state.checkoutTotal>0 and ≤ balance; Complete My Order with lost order data → "couldn't reopen, $X safe in wallet".
+- Farsi: js/lang/fa.js (LLM-translated, ~93% strings), plan-copy fa, phone-config fa (msg/btn/txt/plans), i18n/fa.json, greetings/nudges, isYesPress بله/خیر. Tests: bot_onboarding_gift_resume_iter213 38/38, bot_fa_autocomplete_yesno_iter216 7/7, fa walks iter214/215, esim iter208 33/34 (A5 stale).
+- Harness: stop supervisor nodejs, run mock_telegram_api.js + TELEGRAM_API_BASE_URL=http://127.0.0.1:5099 node js/start-bot.js; restore supervisor after.
+- Deploy path: commit from /root/wlsync/repo (branch ship) → push origin main (retry on "commit_refs" error); WL sync rerun via API if it fails the same way.
+
+## 2026-11-05 — Analyses delivered (no code yet)
+- Bot Cloud IVR order flow issues: hub has 12 buttons; "Choose a Plan" sends a duplicate trial nudge first; minutes wording inconsistent (min/incoming/inbound) and wallet-billing note repeated 3x; Starter activation still shows SIP credentials block though Starter has no SIP; number list rows all say "☎️ Bulk IVR" and buttons are bare 1-4; invalid number-type reply removes keyboard; summary repeats price; SIP password needs extra tap; "Zoiper/Ooma".
+- Telnyx caller ID: credential connection ani_override=+18778570205 always; OVP "Speechcue Try First Call". Telnyx only accepts owned or Verified Numbers as From/PAI (else D35/D51). Existing product: verified numbers + admin-approved numbers ("Show as"). Arbitrary caller ID was previously declined (Truth in Caller ID / fraud risk) — keep declined.
+- unlimitmobile.com learnings recorded for landing redesign (single plan section with tabs, plan picker in hero, comparison table, 3-step how-it-works, short FAQ).
