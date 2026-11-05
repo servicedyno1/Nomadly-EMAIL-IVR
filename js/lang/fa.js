@@ -2486,8 +2486,8 @@ const validatorSelectAmount = ['ALL', '1000', '2000', '3000', '4000', '5000']
 const validatorSelectFormat = ['فرمت محلی', 'فرمت بین‌المللی']
 
 const selectFormatOf = {
- 'Local Format': 'فرمت محلی',
- 'International Format': 'فرمت بین‌المللی',
+ 'فرمت محلی': 'Local Format',
+ 'فرمت بین‌المللی': 'International Format',
 }
 
 //redSelectRandomCustom
@@ -2810,9 +2810,9 @@ const termsAndConditionType = lang => ({
 
 const planOptions = ['روزانه', 'هفتگی', 'ماهانه']
 const planOptionsOf = {
- Daily: 'روزانه',
- Weekly: 'هفتگی',
- Monthly: 'ماهانه',
+ 'روزانه': 'Daily',
+ 'هفتگی': 'Weekly',
+ 'ماهانه': 'Monthly',
 }
 
 const linkOptions = [t.randomLink, t.customLink]
@@ -4174,6 +4174,72 @@ for (const p of []) {
   let t = fa, s = _en
   for (const k of p.slice(0, -1)) { t = t?.[k]; s = s?.[k] }
   if (t && s) t[p[p.length - 1]] = s[p[p.length - 1]]
+}
+
+// Persian text for entries the first pass left in English.
+const _faText = {
+ "t␟phoneGenTimeout": "تایم‌اوت",
+ "t␟argsErr": "dev: آرگومان‌های اشتباه ارسال شد",
+ "t␟planAskCoupon": "آیا می‌خواهید کد تخفیف اعمال کنید؟ اگر کد دارید، آن را وارد کنید. در غیر این صورت می‌توانید 'رد کردن' را بزنید.",
+ "t␟enterCoupon": "لطفاً کد تخفیف را وارد کنید:",
+ "t␟couponInvalid": "کد تخفیف نامعتبر است. لطفاً دوباره کد تخفیف خود را وارد کنید:",
+ "t␟chooseDomainToManage": "لطفاً یک دامنه انتخاب کنید تا تنظیمات DNS آن را مدیریت کنید.",
+ "t␟chooseDomainWithShortener": "لطفاً دامنه‌ای را که می‌خواهید با لینک کوتاه‌شده‌تان متصل کنید انتخاب یا خریداری کنید.",
+ "t␟dpEsim": "📱 USA T-Mobile eSIM — $75/month",
+ "t␟vcWelcome": "💳 <b>کارت دبیت مجازی</b>\n\nکارت مجازی خود را با مبلغ دلخواه شارژ کنید.\n\n✅ در سراسر جهان به صورت آنلاین کار می‌کند\n✅ تحویل فوری\n✅ $50 – $1,000\n\nیک مبلغ انتخاب کنید یا مبلغ دلخواه وارد کنید:",
+ "t␟vcInvalidAmount": "❌ لطفاً یک مبلغ معتبر بین <b>$50</b> و <b>$1,000</b> وارد کنید.",
+ "t␟vcAskAddress": "📬 <b>آدرس ارسال</b>\n\nآدرس کامل خود را به فرمت بین‌المللی وارد کنید:\n\n<i>مثال:\nJohn Doe\n123 Main Street, Apt 4B\nNew York, NY 10001\nUnited States</i>",
+ "t␟vcAddressTooShort": "❌ آدرس خیلی کوتاه به نظر می‌رسد. لطفاً نام کامل، خیابان، شهر، کد پستی و کشور را وارد کنید.",
+ "t␟leadsFileNumbersOnly": "📄 <b>فایل ۱ — شماره تلفن‌ها</b>\nتمام شماره‌های تأییدشده در دسته شما.",
+ "t␟addDnsTxt": "نوع رکورد را انتخاب کنید:",
+ "t␟updateDnsTxt": "رکوردی که می‌خواهید به‌روزرسانی کنید را انتخاب کنید:",
+ "t␟deleteDnsTxt": "رکوردی که می‌خواهید حذف کنید را انتخاب کنید:",
+ "t␟confirmDeleteDnsTxt": "آیا مطمئن هستید که می‌خواهید این رکورد را حذف کنید؟",
+ "t␟dnsRecordSaved": "رکورد با موفقیت اضافه شد. تغییرات DNS ممکن است تا ۲۴ ساعت طول بکشد تا اعمال شود.",
+ "t␟dnsRecordDeleted": "رکورد با موفقیت حذف شد.",
+ "t␟dnsRecordUpdated": "رکورد با موفقیت به‌روزرسانی شد. تغییرات DNS ممکن است تا ۲۴ ساعت طول بکشد تا اعمال شود.",
+ "t␟dnsProxiedChoiceLabelDnsOnly": "⚪ DNS Only (Recommended)",
+ "t␟dnsProxiedChoiceLabelProxied": "🟠 Proxied through Cloudflare",
+ "t␟selectCryptoToDeposit": "لطفاً یک ارز دیجیتال انتخاب کنید:\n\n<i>ℹ️ USDT (TRC20) حداقل واریز $20 نیاز دارد.</i>",
+ "t␟trc20SwitchCryptoBtn": "🔄 انتخاب ارز دیگر",
+ "t␟trc20EditAmountBtn": "✏️ وارد کردن مبلغ دیگر",
+ "t␟trc20WhyMinBtn": "💡 چرا این حداقل مقدار؟",
+ "t␟trc20CancelBtn": "❌ لغو",
+ "t␟walletBalanceLow": "💰 موجودی کیف پول کم است. برای شارژ، روی واریز ضربه بزنید.",
+ "t␟phoneNumberLeads": "لیدهای تأیید شده ممتاز را بر اساس هدف دریافت کنید یا شماره‌های خود را اعتبارسنجی کنید:",
+ "t␟buyLeadsSelectCountry": "لطفاً کشور را انتخاب کنید",
+ "t␟buyLeadsSelectSmsVoice": "لطفاً SMS / تماس صوتی را انتخاب کنید",
+ "t␟buyLeadsSelectArea": "لطفاً منطقه را انتخاب کنید",
+ "t␟buyLeadsSelectAreaCode": "لطفاً کد منطقه را انتخاب کنید",
+ "t␟buyLeadsSelectCarrier": "لطفاً اپراتور را انتخاب کنید",
+ "t␟buyLeadsSelectCnam": "آیا می‌خواهید <b>نام صاحب شماره</b> را با هر لید دریافت کنید؟ هزینه اضافی $15 به ازای هر ۱٬۰۰۰ لید است — و ارزشش را دارد.",
+ "t␟buyLeadsSelectFormat": "فرمت را انتخاب کنید، مثلاً محلی (212) یا بین‌المللی (+1212)",
+ "t␟vps_48": "Bank ₦aira + Card 🌐︎",
+ "t␟vps_51": "Bank ₦aira + Card 🌐︎",
+ "l␟askPreferredLanguage": "🌍 برای اطمینان از نمایش همه چیز به زبان دلخواه شما، لطفاً یکی از گزینه‌های زیر را انتخاب کنید:\n \nهر زمان می‌توانید زبان خود را در تنظیمات تغییر دهید.",
+ "l␟askValidLanguage": "لطفاً یک زبان معتبر انتخاب کنید:",
+ "l␟settingsMenuText": "⚙️ <b>تنظیمات</b>\n\nترجیحات خود را در زیر مدیریت کنید:",
+ "l␟askUserEmail": "ایمیل شما چیست؟ بیایید تجربه شما را شخصی‌سازی کنیم! (مثال: davidsen@gmail.com)",
+ "l␟processUserEmail": " متشکرم 😊 در حال راه‌اندازی حساب شما هستیم.\nلطفاً لحظه‌ای صبر کنید تا جزئیات نهایی شود. ⏳\n \nما در پشت صحنه کار می‌کنیم. فقط مراحل را دنبال کنید!",
+ "l␟confirmUserEmail": "✨ خبر خوب! حساب شما آماده است! 🎉💃🎉\n\nاز ویژگی‌های ممتاز در دوره آزمایشی رایگان خود لذت ببرید!\n",
+ "l␟termsAndCond": "📜 قبل از ادامه، لطفاً شرایط و ضوابط ما را مطالعه و قبول کنید.",
+ "l␟acceptTermButton": "✅ قبول می‌کنم",
+ "vs␟callNotConnected": "📞 <b>تماس برقرار نشد</b> — مخاطب مشغول بود یا پاسخ نداد.\n\n🎁 تماس آزمایشی رایگان شما هنوز موجود است! هر زمان دوباره امتحان کنید.",
+ "vp␟vpsLinuxBtn": "🐧 Linux VPS (SSH)",
+ "vp␟vpsRdpBtn": "🪟 Windows RDP",
+ "vp␟chooseValidZone": "لطفاً یک منطقه معتبر از لیست انتخاب کنید:",
+ "vp␟failedFetchingData": "خطا در دریافت اطلاعات، لطفاً پس از مدتی دوباره تلاش کنید.",
+ "vp␟confirmBtn": "✅ تأیید انتخاب",
+ "vp␟askPaymentMethod": "یک روش پرداخت انتخاب کنید:",
+ "vp␟rdpNotSupported": "⚠️ این قابلیت فقط برای نمونه‌های Windows RDP در دسترس است.\n\nVPS شما در حال اجرای Linux است. به جای آن از کلیدهای SSH برای مدیریت دسترسی استفاده کنید.",
+ "vp␟upgradeVpsBtn": "⬆️ ارتقاء",
+ "vp␟doPlanNoOptions": "⚠️ در حال حاضر هیچ پلن دیگری قابل اعمال به این سرور نیست (فضای دیسک هرگز کاهش نمی‌یابد و برخی پلن‌ها ممکن است در این منطقه موجود نباشند).",
+ "vp␟doPlanKeepDiskBtn": "💾 نگه داشتن دیسک فعلی (قابل بازگشت)"
+}
+for (const [p, v] of Object.entries(_faText)) {
+  const ks = p.split('␟'); let o = fa
+  for (const k of ks.slice(0, -1)) o = o?.[k]
+  if (o && typeof o[ks[ks.length - 1]] === 'string') o[ks[ks.length - 1]] = v
 }
 module.exports = {
  fa,

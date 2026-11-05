@@ -157,6 +157,8 @@ const MENU = '👛 Wallet'
     check('6b.session kept', !!(await db.collection('resumableSessions').findOne({ _id: 'resume_' + SHORT })))
     // a deposit landing a little short tells the user how much is missing
     await db.collection('walletOf').updateOne({ _id: SHORT }, { $set: { usdIn: 0, usdOut: 0 } })
+    // the separate $5 first-deposit bonus (>= $20 deposit) would push $40.96 over the $42 order — mark it already used
+    await db.collection('userConversion').updateOne({ chatId: SHORT }, { $set: { chatId: SHORT, firstDepositBonusAwarded: true } }, { upsert: true })
     ;({ cs: dcs } = await deposit(SHORT, 41))
     check('6c.slightly short deposit → "you are $X short" notice, no charge', /short of your/.test(txt(dcs)) && !/completing your order/.test(txt(dcs)) && !((await db.collection('walletOf').findOne({ _id: SHORT })).usdOut > 0), txt(dcs))
 

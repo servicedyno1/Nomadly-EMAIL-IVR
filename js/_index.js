@@ -1534,7 +1534,7 @@ let _allUserLabels = null
 const isAnyUserLabel = m => (_allUserLabels ||= new Set(['en', 'fr', 'zh', 'hi', 'fa'].flatMap(l => Object.values(translation('user', l) || {}).filter(v => typeof v === 'string')))).has(m)
 // Welcome gift unlocks only on a main-menu SERVICE button (any language) — not typed text, Settings, Support, More or navigation.
 let _giftServiceLabels = null
-const isGiftServiceTap = m => typeof m === 'string' && !/^(⚙️|💬|➕)/.test(m) && (m.startsWith('🔗 ') || (_giftServiceLabels ||= new Set(['en', 'fr', 'zh', 'hi', 'fa'].flatMap(l => (translation('o', l)?.reply_markup?.keyboard || []).flat().map(b => (typeof b === 'string' ? b : b?.text)).filter(Boolean)))).has(m))
+const isGiftServiceTap = m => typeof m === 'string' && !/^(⚙️|💬|➕)/.test(m) && (m.startsWith('🔗') || /^📱.*BulkSMS/.test(m) || (_giftServiceLabels ||= new Set(['en', 'fr', 'zh', 'hi', 'fa'].flatMap(l => (translation('o', l)?.reply_markup?.keyboard || []).flat().map(b => (typeof b === 'string' ? b : b?.text)).filter(Boolean)))).has(m))
 
 async function closeResellerDraft(chatId) {
   const d = await rsApply.abandon(chatId)
@@ -6147,9 +6147,10 @@ async function maybeOfferResume(chatId, lang = 'en') {
       await tap(btn, 1)
       setTimeout(async () => {
         try {
-          const act = (await get(state, chatId))?.action
-          if (act === 'walletSelectCurrencyConfirm') await tap(yes, 2)
-          else log(`[Resume] auto-complete: confirm screen not reached for ${chatId} (action=${act}) — user finishes manually`)
+          const st = await get(state, chatId)
+          const act = st?.action, total = Number(st?.checkoutTotal || 0)
+          if (act === 'walletSelectCurrencyConfirm' && total > 0 && total <= usdBal + 1e-9) await tap(yes, 2)
+          else log(`[Resume] auto-complete: not confirming for ${chatId} (action=${act}, total=$${total}) — user finishes manually`)
         } catch (e) { log(`[Resume] auto-complete confirm error: ${e.message}`) }
       }, 2500)
       log(`[Resume] auto-completing order for ${chatId} (order $${price} covered by $${usdBal.toFixed(2)})`)
@@ -9855,6 +9856,7 @@ bot?.on('message', msg => {
         fr: { unlimited: "Raccourcisseur d'URL — Illimité", free: n => `Raccourcisseur d'URL — ${n} Essai${n !== 1 ? 's' : ''}`, zero: "Raccourcisseur d'URL — 0 Essais" },
         hi: { unlimited: 'URL छोटा करें — असीमित', free: n => `URL छोटा करें — ${n} मुफ्त लिंक`, zero: 'URL छोटा करें — 0 लिंक शेष' },
         zh: { unlimited: 'URL 缩短器 — 无限', free: n => `URL 缩短器 — ${n}次免费`, zero: 'URL 缩短器 — 0次剩余' },
+        fa: { unlimited: 'کوتاه‌کننده URL — نامحدود', free: n => `کوتاه‌کننده URL — ${n} لینک رایگان`, zero: 'کوتاه‌کننده URL — ۰ لینک باقی‌مانده' },
       }
       const sl = shortenerLabels[lang] || shortenerLabels.en
       const label = userSubscribed
@@ -9869,6 +9871,7 @@ bot?.on('message', msg => {
         fr: { active: 'SMS en masse ✅', trial: n => `SMS en masse — ${n} SMS gratuits`, noTrial: 'SMS en masse' },
         hi: { active: 'BulkSMS ✅', trial: n => `BulkSMS — ${n} मुफ्त SMS`, noTrial: 'BulkSMS' },
         zh: { active: 'BulkSMS ✅', trial: n => `BulkSMS — ${n}条免费`, noTrial: 'BulkSMS' },
+        fa: { active: 'BulkSMS ✅', trial: n => `BulkSMS — ${n} پیامک رایگان`, noTrial: 'BulkSMS' },
       }
       const smsL = smsLabels[lang] || smsLabels.en
       const smsLabel = smsSubStatus.isSubscribed
@@ -11996,6 +11999,7 @@ Enter new value:`), bc)
       const { usdBal } = await getBalance(walletOf, chatId)
       const finalPrice = checkoutOrder(step).total
       send(chatId, t.walletSelectCurrency(usdBal) + `\n\n💵 Amount: <b>$${Number(finalPrice).toFixed(2)}</b>\n\n` + t.walletSelectCurrencyConfirm, k.of([[t.yes], [t.no], ['↩️ Back']]))
+      await set(state, chatId, 'checkoutTotal', Number(finalPrice) || 0)
       await set(state, chatId, 'action', a.walletSelectCurrencyConfirm)
     },
     walletSelectCurrencyConfirm: async () => {
@@ -12003,6 +12007,7 @@ Enter new value:`), bc)
       const p = checkoutOrder(info?.lastStep).total
 
       send(chatId, trans('t.ld_1', Number(p).toFixed(2)) + t.walletSelectCurrencyConfirm, k.of([[t.yes], [t.no], ['↩️ Back']]))
+      await set(state, chatId, 'checkoutTotal', Number(p) || 0)
       await set(state, chatId, 'action', a.walletSelectCurrencyConfirm)
     },
     //

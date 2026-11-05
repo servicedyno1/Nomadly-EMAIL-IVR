@@ -1,0 +1,1046 @@
+{
+ "en": {
+  "menu": [
+   "📞 Cloud IVR + SIP",
+   "🛡️ Anti-Red Hosting",
+   "🌐 Bulletproof Domains",
+   "🖥️ VPS / RDP",
+   "📱🆓 BulkSMS — 100 Free SMS",
+   "📱 SMS Leads",
+   "🛒 Digital Products",
+   "🏪 Marketplace",
+   "🔗✂️ URL Shortener — 5 Free Links",
+   "💳 Virtual Card",
+   "👛 Wallet",
+   "⭐ Membership",
+   "⚙️ Settings",
+   "💬 Support",
+   "➕ More"
+  ],
+  "rows": [
+   {
+    "i": 0,
+    "btn": "📞 Cloud IVR + SIP",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 📞 Cloud IVR by Speechcue\n\nVirtual numbers in 17 countries · Most are live in minutes\n\n📞 Call forwarding · 💬 SMS to Telegram · 🌐 Browser calls · 🤖 IVR · ",
+     "btns": [
+      "🆓 Try SIP Call Free",
+      "📢 Quick IVR Call — 1 Free",
+      "🛒 Choose a Plan",
+      "📞 Bulk IVR Campaign",
+      "📋 My Campaigns",
+      "🎵 Audio Library"
+     ]
+    },
+    "sub": "🆓 Try SIP Call Free",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🔑 Your SIP Test Code\n\n897012\n\nEnter this code on the call page to get your free SIP credentials.\n⏱ Expires in 5 minutes.\n📞 2 test calls remaining.\n\n🌐 Open",
+     "btns": [
+      "⭐ Get My Own Number (Pro)",
+      "📞 Cloud IVR + SIP",
+      "↩️ Back"
+     ]
+    },
+    "r3": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | Hey, Sim\n\n🥉 Bronze  $0.00\nChoose a service below to get started 👇\n🆓 Free to try: tap 📞 Cloud "
+    }
+   },
+   {
+    "i": 1,
+    "btn": "🛡️ Anti-Red Hosting",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🛡️ Anti-Red Hosting — choose a plan\n\n⚡ Premium Weekly — $30 · 7 days\n   10 GB SSD · up to 2 domains · IP cloaking + bot detection\n\n🔷 Premium HostPanel — $7",
+     "btns": [
+      "⚡ Premium Anti-Red (1-Week)",
+      "🔷 Premium Anti-Red HostPanel (30 Days)",
+      "👑 Golden Anti-Red HostPanel (30 Days)",
+      "📋 My Hosting Plans",
+      "💳 My Plan / Billing",
+      "📞 Contact Support"
+     ]
+    },
+    "sub": "⚡ Premium Anti-Red (1-Week)",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 📍 Hosting › Plan\n\nPremium Anti-Red (1-Week) — $30\n\n10 GB SSD · 100 GB · Up to 2 domains\nFree SSL · IP cloaking · Bot detection · UA blocking\nHostPanel — fil",
+     "btns": [
+      "🌐 Register a New Domain",
+      "🔗 Connect External Domain",
+      "🔷 View Premium HostPanel",
+      "👑 View Golden HostPanel",
+      "⬅️ Back To Hosting Plans",
+      "🏠 Main Menu"
+     ]
+    },
+    "r3": null
+   },
+   {
+    "i": 2,
+    "btn": "🌐 Bulletproof Domains",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | Please select an option:\n\n🌐 186 domains registered this week",
+     "btns": [
+      "🛒🌐 Buy Domain Names",
+      "📂 My Domain Names",
+      "🔧 DNS Management",
+      "Back",
+      "Cancel"
+     ]
+    },
+    "sub": "🛒🌐 Buy Domain Names",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | Enter your domain name (e.g., mysite.com)\n\n💰 Pricing from $30/year",
+     "btns": [
+      "Back",
+      "Cancel"
+     ]
+    },
+    "r3": null
+   },
+   {
+    "i": 3,
+    "btn": "🖥️ VPS / RDP",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🖥️ Cloud VPS / Windows RDP\n\nTwo different products, two different plan lists:\n🐧 Linux VPS — SSH access · web hosting · dev · automation\n🪟 Windows RDP — Re",
+     "btns": [
+      "🐧 Create Linux VPS",
+      "🪟 Create Windows RDP",
+      "🖥️ Manage my servers",
+      "Back",
+      "Cancel"
+     ]
+    },
+    "sub": "🐧 Create Linux VPS",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🌍 Select a region closest to your users:",
+     "btns": [
+      "🇪🇺 Europe (EU)",
+      "🇺🇸 US Central",
+      "🇺🇸 US East",
+      "🇺🇸 US West",
+      "🇬🇧 United Kingdom",
+      "🇸🇬 Singapore"
+     ]
+    },
+    "r3": null
+   },
+   {
+    "i": 4,
+    "btn": "📱🆓 BulkSMS — 100 Free SMS",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 📧 BulkSMS — Free Trial (100 SMS left)\n\n📱 Works on Android devices only (iOS not supported).\n\nSends SMS from your phone's SIM — high deliverability, real se",
+     "btns": [
+      "📱 Create Campaign",
+      "📋 My Campaigns",
+      "📲 Download App",
+      "📱 Manage Devices",
+      "⚙️ SMS Settings",
+      "🔓 Reset Login"
+     ]
+    },
+    "sub": "📱 Create Campaign",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 📵 No Active Device\n\nYou need to activate the Nomadly SMS App on a device before creating campaigns.\n\n1️⃣ Download the app: https://panel.2.hostbay.io/sms-ap",
+     "btns": [
+      "📲 Download App",
+      "↩️ Back"
+     ]
+    },
+    "r3": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | Hey, Sim\n\n🥉 Bronze  $0.00\nChoose a service below to get started 👇\n🆓 Free to try: tap 📞 Cloud "
+    }
+   },
+   {
+    "i": 5,
+    "btn": "📱 SMS Leads",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | Get premium verified leads by target or validate your own numbers:",
+     "btns": [
+      "🎯 Premium Targeted Leads",
+      "✅📲 Validate PhoneLeads",
+      "Back",
+      "Cancel"
+     ]
+    },
+    "sub": "🎯 Premium Targeted Leads",
+    "r2": {
+     "n": 4,
+     "unrec": false,
+     "err": [],
+     "text": " | 💡 Subscribers get 5,000+ free validations with phone owner names per plan. Plans from $50/day. | 💳 Wallet: $0.00 — plans start at $20; top up first to skip",
+     "btns": [
+      "JPMorgan C",
+      "BOA",
+      "Wfargo Bnk",
+      "Citi Bnk",
+      "U.S Bnk",
+      "Capital One"
+     ]
+    },
+    "r3": null
+   },
+   {
+    "i": 6,
+    "btn": "🛒 Digital Products",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🛒 Digital Products\n\nVerified accounts delivered instantly.\n\nTelecom: Twilio · Telnyx (SMS, Voice, SIP)\nCloud: AWS · Google Cloud\nEmail: Google Workspace · Z",
+     "btns": [
+      "📞 Twilio Main Account — $450",
+      "📞 Twilio Sub-Account — $200",
+      "📡 Telnyx Main Account — $400",
+      "📡 Telnyx Sub-Account — $150",
+      "☁️ AWS Main Account — $350",
+      "☁️ AWS Sub-Account — $150"
+     ]
+    },
+    "sub": "📞 Twilio Main Account — $450",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 💰 Order: Twilio Main Account\n\n💵 Price: $450\n\nFull owner-level Twilio account with Console access, API keys, and ability to provision phone numbers, send SM",
+     "btns": [
+      "💵 Deposit $451",
+      "Crypto",
+      "💬 Ask Question",
+      "↩️ Back",
+      "🏠 Main Menu",
+      "Cancel"
+     ]
+    },
+    "r3": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🛒 Digital Products\n\nVerified accounts delivered instantly.\n\nTelecom: Twilio · Telnyx (SMS, Voice"
+    }
+   },
+   {
+    "i": 7,
+    "btn": "🏪 Marketplace",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🏪 NOMADLY MARKETPLACE\n\n💰 Sell your digital goods — list in 60 seconds, get paid safely through escrow\n🛍️ Find exclusive deals — verified sellers, real tra",
+     "btns": [
+      "🔥 Browse Deals",
+      "💰 Start Selling",
+      "💬 My Conversations",
+      "📦 My Listings",
+      "🤖 Ask AI",
+      "↩️ Back"
+     ]
+    },
+    "sub": "🔥 Browse Deals",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🏷️ Select a category:",
+     "btns": [
+      "📋 All Categories",
+      "💻 Digital Goods",
+      "🏦 Bnk Logs",
+      "🏧 Bnk Opening",
+      "🔧 Tools",
+      "Back"
+     ]
+    },
+    "r3": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🏪 NOMADLY MARKETPLACE\n\n💰 Sell your digital goods — list in 60 seconds, get paid safely through "
+    }
+   },
+   {
+    "i": 8,
+    "btn": "🔗✂️ URL Shortener — 5 Free Links",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🔗 5/5 trial links remaining\n\nShorten, brand, or track your links:\n\n💡 Tip: Use /shorten URL for quick links!",
+     "btns": [
+      "✂️ Bit.ly",
+      "✂️ Shortit (Trial)",
+      "✂️🌐 Custom Domain Shortener",
+      "🔗 Activate Domain for Shortener (Buy domain first)",
+      "📊 View Shortlink Analytics",
+      "Back"
+     ]
+    },
+    "sub": "✂️ Bit.ly",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | Kindly share the URL that you would like shortened and analyzed. e.g https://cnn.com",
+     "btns": [
+      "Back",
+      "Cancel"
+     ]
+    },
+    "r3": null
+   },
+   {
+    "i": 9,
+    "btn": "💳 Virtual Card",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 💳 Virtual Debit Card\n\nLoad a virtual card with your chosen amount.\n\n✅ Works online worldwide\n✅ Instant delivery\n✅ $50 – $1,000\n\nSelect an amount or enter a ",
+     "btns": [
+      "$50",
+      "$100",
+      "$200",
+      "$500",
+      "$1000",
+      "✏️ Custom Amount"
+     ]
+    },
+    "sub": "$50",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 📬 Shipping Address\n\nEnter your full address in international format:\n\nExample:\nJohn Doe\n123 Main Street, Apt 4B\nNew York, NY 10001\nUnited States",
+     "btns": []
+    },
+    "r3": null
+   },
+   {
+    "i": 10,
+    "btn": "👛 Wallet",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | Wallet Balance:\n\n$0.00\n\nSelect wallet option:\n🥉 Bronze — Spend $100 more to unlock 5% off\n\n💡 Tip: Deposit to unlock premium services like Anti-Red Hosting,",
+     "btns": [
+      "➕💵 Deposit",
+      "📜 Transactions",
+      "🏆 My Tier",
+      "↩️ Back",
+      "🏠 Main Menu",
+      "Cancel"
+     ]
+    },
+    "sub": "➕💵 Deposit",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 📍 Wallet › Deposit › Amount\n\n💵 Deposit Amount (min. $10):",
+     "btns": [
+      "$20",
+      "$50",
+      "$100",
+      "$200",
+      "↩️ Back",
+      "🏠 Main Menu"
+     ]
+    },
+    "r3": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | Wallet Balance:\n\n$0.00\n\nSelect wallet option:\n🥉 Bronze — Spend $100 more to unlock 5% off\n\n💡 Ti"
+    }
+   },
+   {
+    "i": 11,
+    "btn": "⭐ Membership",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | Choose Your Plan\n\nAll plans: 🔗 Unlimited links · 📱 Validations w/ owner names · 📱 BulkSMS\n\n🟢 Daily — $50\n  2 domain · 5,000 validations · 3 SMS devices\n\n",
+     "btns": [
+      "Daily",
+      "Weekly",
+      "Monthly",
+      "Back",
+      "Cancel"
+     ]
+    },
+    "sub": "Daily",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | The price is $50.00. Would you like to apply a coupon code? If you have one, please enter it now. Otherwise, you can press 'Skip'.",
+     "btns": [
+      "Skip",
+      "Back",
+      "Cancel"
+     ]
+    },
+    "r3": null
+   },
+   {
+    "i": 12,
+    "btn": "⚙️ Settings",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | ⚙️ Settings\n\nManage your preferences below:",
+     "btns": [
+      "📋 My Plans",
+      "🌍 Change Language",
+      "📢 Join Channel",
+      "↩️ Back",
+      "🏠 Main Menu",
+      "Cancel"
+     ]
+    },
+    "sub": "📋 My Plans",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | You don't have any active products or subscriptions yet.\n\nHosting, Cloud IVR numbers, VPS and Membership all show up here once you buy them. Tap a product on",
+     "btns": []
+    },
+    "r3": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | Hey, Sim\n\n🥉 Bronze  $0.00\nChoose a service below to get started 👇\n🆓 Free to try: tap 📞 Cloud "
+    }
+   },
+   {
+    "i": 13,
+    "btn": "💬 Support",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 💬 Support\n\n🤖 Our AI assistant will try to help you right away! If it can't resolve your issue, a human agent will step in.\n\nDescribe your question or issue",
+     "btns": [
+      "/done",
+      "🏠 Main Menu"
+     ]
+    },
+    "sub": "/done",
+    "r2": {
+     "n": 3,
+     "unrec": false,
+     "err": [],
+     "text": " | 📝 Quick feedback: Was our support helpful? | ✅ Support session ended. Thank you for reaching out!",
+     "btns": [
+      "👍 Yes, helpful",
+      "👎 Not helpful",
+      "📞 Cloud IVR + SIP",
+      "🛡️ Anti-Red Hosting",
+      "🌐 Bulletproof Domains",
+      "🖥️ VPS / RDP"
+     ]
+    },
+    "r3": null
+   },
+   {
+    "i": 14,
+    "btn": "➕ More",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | ➕ More services\n\nExtra tools and options:",
+     "btns": [
+      "📧 Email Validation",
+      "🤝 Refer & Earn",
+      "💼 Reseller",
+      "📢 Join Channel",
+      "🏠 Main Menu"
+     ]
+    },
+    "sub": "📧 Email Validation",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 📧 Email Validation\n\n97%+ accuracy · 7-layer deep check\n✅ Gmail, Hotmail, MSN, Outlook & all major providers\n✅ ProtonMail, Zoho, iCloud\n✅ Private domain emai",
+     "btns": [
+      "📤 Upload List (CSV/TXT)",
+      "📋 Paste Emails",
+      "📜 My Validations",
+      "↩️ Back"
+     ]
+    },
+    "r3": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | Hey, Sim\n\n🥉 Bronze  $0.00\nChoose a service below to get started 👇\n🆓 Free to try: tap 📞 Cloud "
+    }
+   }
+  ]
+ },
+ "fa": {
+  "menu": [
+   "📞 Cloud IVR + SIP",
+   "🛡️ هاستینگ ضد-قرمز",
+   "🌐 دامنه‌های ضدضربه",
+   "🖥️ VPS / RDP",
+   "📱🆓 BulkSMS — 100 Free SMS",
+   "📱 سرنخ‌های SMS",
+   "🛒 محصولات دیجیتال",
+   "🏪 مارکت‌پلیس",
+   "🔗✂️ URL Shortener — 5 Free Links",
+   "💳 کارت مجازی",
+   "👛 کیف پول",
+   "⭐ عضویت",
+   "⚙️ تنظیمات",
+   "💬 پشتیبانی",
+   "➕ بیشتر"
+  ],
+  "rows": [
+   {
+    "i": 0,
+    "btn": "📞 Cloud IVR + SIP",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 📞 Cloud IVR by Speechcue\n\nVirtual numbers in 17 countries · Most are live in minutes\n\n📞 Call forwarding · 💬 SMS to Telegram · 🌐 Browser calls · 🤖 IVR · ",
+     "btns": [
+      "🆓 Try SIP Call Free",
+      "📢 Quick IVR Call — 1 Free",
+      "🛒 Choose a Plan",
+      "📞 Bulk IVR Campaign",
+      "📋 My Campaigns",
+      "🎵 Audio Library"
+     ]
+    },
+    "sub": "🆓 Try SIP Call Free",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🔑 Your SIP Test Code\n\n827149\n\nEnter this code on the call page to get your free SIP credentials.\n⏱ Expires in 5 minutes.\n📞 2 test calls remaining.\n\n🌐 Open",
+     "btns": [
+      "⭐ Get My Own Number (Pro)",
+      "📞 Cloud IVR + SIP",
+      "↩️ Back"
+     ]
+    },
+    "r3": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | Hey, Sim\n\n🥉 Bronze  $0.00\nChoose a service below to get started 👇\n🆓 Free to try: tap 📞 Cloud "
+    }
+   },
+   {
+    "i": 1,
+    "btn": "🛡️ هاستینگ ضد-قرمز",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🛡️ Anti-Red Hosting — choose a plan\n\n⚡ Premium Weekly — $30 · 7 days\n   10 GB SSD · up to 2 domains · IP cloaking + bot detection\n\n🔷 Premium HostPanel — $7",
+     "btns": [
+      "⚡ پریمیوم ضد-ریدایرکت (۱ هفته)",
+      "🔷 هاست‌پنل پریمیوم ضد-ریدایرکت (۳۰ روز)",
+      "👑 هاست‌پنل گلدن ضد-ریدایرکت (۳۰ روز)",
+      "📋 پلن‌های هاستینگ من",
+      "💳 پلن من / صورت‌حساب",
+      "📞 تماس با پشتیبانی"
+     ]
+    },
+    "sub": "⚡ پریمیوم ضد-ریدایرکت (۱ هفته)",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 📍 Hosting › Plan\n\nPremium Anti-Red (1 هفته) — $30\n\n۱۰ گیگابایت SSD · ۱۰۰ گیگابایت · تا ۲ دامنه\nSSL رایگان · پنهان‌سازی IP · تشخیص ربات · مسدودسازی UA\nHostPa",
+     "btns": [
+      "🌐 ثبت دامنه جدید",
+      "🔗 اتصال دامنه خارجی",
+      "🔷 مشاهده پریمیوم HostPanel",
+      "👑 مشاهده گلدن HostPanel",
+      "⬅️ بازگشت به پلن‌های هاستینگ",
+      "🏠 منوی اصلی"
+     ]
+    },
+    "r3": null
+   },
+   {
+    "i": 2,
+    "btn": "🌐 دامنه‌های ضدضربه",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | لطفاً یک گزینه انتخاب کنید:\n\n🌐 186 domains registered this week",
+     "btns": [
+      "🛒🌐 خرید دامنه",
+      "📂 دامنه‌های من",
+      "🔧 مدیریت DNS",
+      "Back",
+      "Cancel"
+     ]
+    },
+    "sub": "🛒🌐 خرید دامنه",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | نام دامنه خود را وارد کنید (مثلاً mysite.com)\n\n💰 قیمت از $30/سال",
+     "btns": [
+      "Back",
+      "Cancel"
+     ]
+    },
+    "r3": null
+   },
+   {
+    "i": 3,
+    "btn": "🖥️ VPS / RDP",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🖥️ Cloud VPS / Windows RDP\n\nدو محصول متفاوت، دو لیست پلن متفاوت:\n🐧 Linux VPS — دسترسی SSH · هاستینگ وب · توسعه · اتوماسیون\n🪟 Windows RDP — ریموت دسکتاپ · ",
+     "btns": [
+      "🐧 ایجاد VPS لینوکس",
+      "🪟 ایجاد Windows RDP",
+      "🖥️ مدیریت سرورهای من",
+      "Back",
+      "Cancel"
+     ]
+    },
+    "sub": "🐧 ایجاد VPS لینوکس",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🌍 منطقه‌ای را که به کاربران شما نزدیک‌تر است انتخاب کنید:",
+     "btns": [
+      "🇪🇺 Europe (EU)",
+      "🇺🇸 US Central",
+      "🇺🇸 US East",
+      "🇺🇸 US West",
+      "🇬🇧 United Kingdom",
+      "🇸🇬 Singapore"
+     ]
+    },
+    "r3": null
+   },
+   {
+    "i": 4,
+    "btn": "📱🆓 BulkSMS — 100 Free SMS",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 📧 BulkSMS — آزمایش رایگان (100 پیامک باقی‌مانده)\n\n📱 فقط روی دستگاه‌های Android کار می‌کند (iOS پشتیبانی نمی‌شود).\n\nپیامک را از SIM تلفن شما ارسال می‌کند — ",
+     "btns": [
+      "📱 ایجاد کمپین",
+      "📋 کمپین‌های من",
+      "📲 دانلود اپلیکیشن",
+      "📱 مدیریت دستگاه‌ها",
+      "⚙️ تنظیمات SMS",
+      "🔓 بازنشانی ورود"
+     ]
+    },
+    "sub": "📱 ایجاد کمپین",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 📵 دستگاه فعالی وجود ندارد\n\nقبل از ایجاد کمپین باید اپلیکیشن Nomadly SMS را روی یک دستگاه فعال کنید.\n\n1️⃣ دانلود اپ: https://panel.2.hostbay.io/sms-app/downl",
+     "btns": [
+      "📲 دانلود اپلیکیشن",
+      "↩️ Back"
+     ]
+    },
+    "r3": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | Hey, Sim\n\n🥉 Bronze  $0.00\nChoose a service below to get started 👇\n🆓 Free to try: tap 📞 Cloud "
+    }
+   },
+   {
+    "i": 5,
+    "btn": "📱 سرنخ‌های SMS",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | Get premium verified leads by target or validate your own numbers:",
+     "btns": [
+      "🎯 لیدهای هدفمند ویژه",
+      "✅📲 اعتبارسنجی شماره تلفن",
+      "Back",
+      "Cancel"
+     ]
+    },
+    "sub": "🎯 لیدهای هدفمند ویژه",
+    "r2": {
+     "n": 4,
+     "unrec": false,
+     "err": [],
+     "text": " | 💡 مشترکان در هر پلن 5,000+ اعتبارسنجی رایگان همراه با نام صاحب شماره دریافت می‌کنند. پلن‌ها از $50/روز. | 💳 Wallet: $0.00 — plans start at $20; top up firs",
+     "btns": [
+      "JPMorgan C",
+      "BOA",
+      "Wfargo Bnk",
+      "Citi Bnk",
+      "U.S Bnk",
+      "Capital One"
+     ]
+    },
+    "r3": null
+   },
+   {
+    "i": 6,
+    "btn": "🛒 محصولات دیجیتال",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🛒 محصولات دیجیتال\n\nحساب‌های تأییدشده، فوری تحویل داده می‌شوند.\n\nمخابرات: Twilio · Telnyx (SMS، Voice، SIP)\nابری: AWS · Google Cloud\nایمیل: Google Workspace ",
+     "btns": [
+      "📞 حساب اصلی Twilio — $450",
+      "📞 حساب فرعی Twilio — $200",
+      "📡 حساب اصلی Telnyx — $400",
+      "📡 حساب فرعی Telnyx — $150",
+      "☁️ حساب اصلی AWS — $350",
+      "☁️ حساب فرعی AWS — $150"
+     ]
+    },
+    "sub": "📞 حساب اصلی Twilio — $450",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 💰 سفارش: Twilio Main Account\n\n💵 قیمت: $450\n\nحساب کامل Twilio در سطح مالک با دسترسی به کنسول، کلیدهای API و امکان تخصیص شماره تلفن، ارسال SMS/MMS و برقراری ",
+     "btns": [
+      "💵 Deposit $451",
+      "Crypto",
+      "💬 Ask Question",
+      "↩️ Back",
+      "🏠 Main Menu",
+      "Cancel"
+     ]
+    },
+    "r3": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🛒 محصولات دیجیتال\n\nحساب‌های تأییدشده، فوری تحویل داده می‌شوند.\n\nمخابرات: Twilio · Telnyx (SMS، V"
+    }
+   },
+   {
+    "i": 7,
+    "btn": "🏪 مارکت‌پلیس",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🏪 NOMADLY MARKETPLACE\n\n💰 کالاهای دیجیتال خود را بفروشید — در ۶۰ ثانیه فهرست کنید، از طریق امانت‌داری با خیال راحت پول دریافت کنید\n🛍️ معاملات انحصاری پیدا ",
+     "btns": [
+      "🔥 مرور معاملات",
+      "💰 شروع به فروش",
+      "💬 مکالمات من",
+      "📦 فهرست‌های من",
+      "🤖 از AI بپرسید",
+      "↩️ Back"
+     ]
+    },
+    "sub": "🔥 مرور معاملات",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🏷️ یک دسته‌بندی انتخاب کنید:",
+     "btns": [
+      "📋 همه دسته‌بندی‌ها",
+      "💻 کالاهای دیجیتال",
+      "🏦 لاگ‌های بانکی",
+      "🏧 افتتاح حساب بانکی",
+      "🔧 ابزارها",
+      "Back"
+     ]
+    },
+    "r3": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🏪 NOMADLY MARKETPLACE\n\n💰 کالاهای دیجیتال خود را بفروشید — در ۶۰ ثانیه فهرست کنید، از طریق امانت"
+    }
+   },
+   {
+    "i": 8,
+    "btn": "🔗✂️ URL Shortener — 5 Free Links",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 🔗 5/5 trial links remaining\n\nلینک‌های خود را کوتاه، برند یا ردیابی کنید:\n\n💡 Tip: Use /shorten URL for quick links!",
+     "btns": [
+      "✂️ Bit.ly",
+      "✂️ Shortit (آزمایشی)",
+      "✂️🌐 کوتاه‌کننده دامنه سفارشی",
+      "🔗 فعال‌سازی دامنه برای کوتاه‌کننده (Buy domain first)",
+      "📊 مشاهده آمار لینک‌های کوتاه",
+      "Back"
+     ]
+    },
+    "sub": "✂️ Bit.ly",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | لطفاً URL مورد نظر برای کوتاه‌سازی و تحلیل را وارد کنید. مثلاً https://cnn.com",
+     "btns": [
+      "Back",
+      "Cancel"
+     ]
+    },
+    "r3": null
+   },
+   {
+    "i": 9,
+    "btn": "💳 کارت مجازی",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 💳 Virtual Debit Card\n\nLoad a virtual card with your chosen amount.\n\n✅ Works online worldwide\n✅ Instant delivery\n✅ $50 – $1,000\n\nSelect an amount or enter a ",
+     "btns": [
+      "$50",
+      "$100",
+      "$200",
+      "$500",
+      "$1000",
+      "✏️ مقدار دلخواه"
+     ]
+    },
+    "sub": "$50",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 📬 Shipping Address\n\nEnter your full address in international format:\n\nExample:\nJohn Doe\n123 Main Street, Apt 4B\nNew York, NY 10001\nUnited States",
+     "btns": []
+    },
+    "r3": null
+   },
+   {
+    "i": 10,
+    "btn": "👛 کیف پول",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | موجودی کیف پول:\n\n$0.00\n\nیک گزینه را انتخاب کنید:\n🥉 Bronze — Spend $100 more to unlock 5% off\n\n💡 Tip: Deposit to unlock premium services like Anti-Red Hosti",
+     "btns": [
+      "➕💵 واریز",
+      "📜 تراکنش‌ها",
+      "🏆 سطح من",
+      "↩️ Back",
+      "🏠 Main Menu",
+      "Cancel"
+     ]
+    },
+    "sub": "➕💵 واریز",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 📍 Wallet › Deposit › Amount\n\n💵 مبلغ واریز (حداقل $10):",
+     "btns": [
+      "$20",
+      "$50",
+      "$100",
+      "$200",
+      "↩️ Back",
+      "🏠 Main Menu"
+     ]
+    },
+    "r3": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | موجودی کیف پول:\n\n$0.00\n\nیک گزینه را انتخاب کنید:\n🥉 Bronze — Spend $100 more to unlock 5% off\n\n💡"
+    }
+   },
+   {
+    "i": 11,
+    "btn": "⭐ عضویت",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | Choose Your Plan\n\nAll plans: 🔗 Unlimited links · 📱 Validations w/ owner names · 📱 BulkSMS\n\n🟢 Daily — $50\n  2 domain · 5,000 validations · 3 SMS devices\n\n",
+     "btns": [
+      "روزانه",
+      "هفتگی",
+      "ماهانه",
+      "Back",
+      "Cancel"
+     ]
+    },
+    "sub": "روزانه",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | The price is $50.00. Would you like to apply a coupon code? If you have one, please enter it now. Otherwise, you can press 'Skip'.",
+     "btns": [
+      "رد شدن",
+      "Back",
+      "Cancel"
+     ]
+    },
+    "r3": null
+   },
+   {
+    "i": 12,
+    "btn": "⚙️ تنظیمات",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | ⚙️ Settings\n\nManage your preferences below:",
+     "btns": [
+      "📋 پلن‌های من",
+      "🌍 تغییر زبان",
+      "📢 عضویت در کانال",
+      "↩️ Back",
+      "🏠 Main Menu",
+      "Cancel"
+     ]
+    },
+    "sub": "📋 پلن‌های من",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | شما هنوز هیچ محصول یا اشتراک فعالی ندارید.\n\nهاستینگ، شماره‌های Cloud IVR، VPS و عضویت پس از خرید اینجا نمایش داده می‌شوند. برای شروع روی یک محصول در منوی اصل",
+     "btns": []
+    },
+    "r3": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | Hey, Sim\n\n🥉 Bronze  $0.00\nChoose a service below to get started 👇\n🆓 Free to try: tap 📞 Cloud "
+    }
+   },
+   {
+    "i": 13,
+    "btn": "💬 پشتیبانی",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 💬 Support\n\n🤖 Our AI assistant will try to help you right away! If it can't resolve your issue, a human agent will step in.\n\nDescribe your question or issue",
+     "btns": [
+      "/done",
+      "🏠 Main Menu"
+     ]
+    },
+    "sub": "/done",
+    "r2": {
+     "n": 3,
+     "unrec": false,
+     "err": [],
+     "text": " | 📝 Quick feedback: Was our support helpful? | ✅ جلسه پشتیبانی پایان یافت. ممنون از تماس شما!",
+     "btns": [
+      "👍 Yes, helpful",
+      "👎 Not helpful",
+      "📞 Cloud IVR + SIP",
+      "🛡️ هاستینگ ضد-قرمز",
+      "🌐 دامنه‌های ضدضربه",
+      "🖥️ VPS / RDP"
+     ]
+    },
+    "r3": null
+   },
+   {
+    "i": 14,
+    "btn": "➕ بیشتر",
+    "r1": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | ➕ More services\n\nExtra tools and options:",
+     "btns": [
+      "📧 اعتبارسنجی ایمیل",
+      "🤝 معرفی و کسب درآمد",
+      "💼 نمایندگی",
+      "📢 عضویت در کانال",
+      "🏠 Main Menu"
+     ]
+    },
+    "sub": "📧 اعتبارسنجی ایمیل",
+    "r2": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | 📧 Email Validation\n\n97%+ accuracy · 7-layer deep check\n✅ Gmail, Hotmail, MSN, Outlook & all major providers\n✅ ProtonMail, Zoho, iCloud\n✅ Private domain emai",
+     "btns": [
+      "📤 Upload List (CSV/TXT)",
+      "📋 Paste Emails",
+      "📜 My Validations",
+      "↩️ Back"
+     ]
+    },
+    "r3": {
+     "n": 2,
+     "unrec": false,
+     "err": [],
+     "text": " | Hey, Sim\n\n🥉 Bronze  $0.00\nChoose a service below to get started 👇\n🆓 Free to try: tap 📞 Cloud "
+    }
+   }
+  ]
+ }
+}
