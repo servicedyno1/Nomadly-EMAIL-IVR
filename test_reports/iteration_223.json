@@ -1,0 +1,42 @@
+{
+  "summary": "Tested the 4 new caller ID features (inline rename, hand reorder, default per VoIP number, usage insights) on web (Alice) and bot (mock Telegram :5099). Backend: new pytest 11/11 pass, and the iter220/221 regressions pass. 2 iter222/iter221 tests fail because they still expect the old last-used-first order, which the hand order now replaces on purpose. Node unit tests: 11/11 and 18/18. New bot e2e: 13/13. iter221 bot regression: 19/19. Web: usage text, inline rename (Enter/save/clear), up/down arrows, HTML5 drag (PUT /order fires and the order sticks after reload), Quick Call chips following the order, Quick Call and Campaign prefill from the same 'Call from', and 'Your VoIP number' clearing the memory all work. Found 4 minor bugs (listed below).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/calls/quick (outbound.js buildCall) and POST /campaigns (calls.js)", "issue": "callerIds.resolve(chatId, showAs, from) calls rememberLast before the rest of the request is checked. A Quick Call that fails with 400 (invalid_message, invalid_transfer, bad target) still saves the caller ID as the default for that VoIP number. Reproduced in the UI and the API. The same happens for /calls/presets (saving a preset calls buildCall), campaign validateOnly, and redial. Fix: call rememberLast only after the call or campaign is accepted, e.g. return the number from resolve and remember it at the success point."},
+      {"endpoint": "caller-ids.js touch() / GET /caller-ids", "issue": "lastUsedAt is set by touch() when a bot preset is tapped (applyCustomCid), not only when a call goes out (logUse). Rows then read '0 calls in 30 days · last used Nov 5', which contradicts itself. Alice's 3 IDs all showed 0 calls with a 'last used' date before I seeded uses. Use the latest callerIdUses.at for lastUsedAt in the usage line, or only touch in logUse."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CallerIds.js SavedRow inline rename", "issue": "Escape (and only Escape) cancels without resetting local state: setEdit(false) is called but setLabel(i.label) is not. Reopening rename shows the discarded text (typed TEST_Nope → Escape → reopen → input still holds 'TEST_Nope'). The X cancel button resets it correctly.", "selector": "[data-testid=caller-ids-rename-input-N]", "priority": "MEDIUM"},
+      {"component": "CallerIdPick dialog (quick-call-show-as-select-dialog) + inline rename", "issue": "Pressing Escape in the rename input inside the Radix Dialog closes the whole caller ID dialog. Add e.stopPropagation() (and e.preventDefault()) for Escape in onKeyDown.", "selector": "[data-testid=caller-ids-rename-input-N]", "priority": "MEDIUM"},
+      {"component": "ShowAsSelect (CallerIdPick.js) when 'Call from' changes", "issue": "The prefill only applies when value is empty. If Call from X prefills chip A and the user switches to Call from Y (no memory, or memory B), chip A stays selected. Seen on Quick Call: switching +13346972125 → +18037534921 kept option-1 selected. So a caller ID remembered for X carries over to Y. When `from` changes, set value to data.last (or '') unless the user picked a chip by hand for this from.", "selector": "[data-testid=quick-call-caller-select], [data-testid=campaign-caller-select]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Caller ID dialog (max-w-2xl, 2 columns) and mobile 390px My numbers card", "issues": ["The saved-row column is too narrow: the BadgeCheck icon wraps onto its own line above the number, and the usage text wraps over 2 lines ('… · last' / 'used Nov 5…'). Consider stacking the dialog to one column, or keeping the icon and number on the same line (no flex-wrap, or put the icon outside)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_caller_id_order_usage_iter223.py", "/app/js/tests/bot_callerid_order_last_iter223.js", "/app/test_reports/pytest/pytest_iter223.xml"],
+  "action_items": [
+    "Move rememberLast out of resolve, or call it only after the Quick Call or campaign succeeds (failed or invalid requests now set the default)",
+    "SavedRow: reset the label on Escape and stop Escape from reaching the Radix Dialog",
+    "ShowAsSelect: re-apply data.last (or clear) when the 'from' prop changes",
+    "Usage line: make 'last used' agree with the 30-day count (base it on callerIdUses, not on touch() from a bot tap)",
+    "Update the stale regressions test_caller_id_order_iter222.py::test_use_moves_to_front_of_list and test_caller_id_labels_iter221.py::TestOrder::test_last_used_first. They assume last-used-first, but the hand order (pos) now wins. Alice's IDs keep pos 0..2.",
+    "Optional: dialog row layout (icon wraps)"
+  ],
+  "critical_code_review_comments": [
+    "outbound.js buildCall → resolve() side effect (rememberLast) runs for /calls/presets, redial and invalid requests. A function that validates should not write state.",
+    "PUT /caller-ids/order accepts duplicates and partial lists. Positions are only set for the numbers sent, which can leave equal or stale pos values; consider requiring the full set of verified numbers once each.",
+    "A re-attested or re-verified number loses its pos (replaceOne) and drops to the bottom. This is probably fine but should be documented.",
+    "The bot auto-apply message reuses t.cp_25 '📞 Calling from: <shown caller ID>'. It does not say this is the remembered caller ID or which VoIP number is billed."
+  ],
+  "updated_files": ["/app/backend/tests/test_caller_id_order_usage_iter223.py", "/app/js/tests/bot_callerid_order_last_iter223.js"],
+  "success_rate": {"backend": "100% of new tests (11/11 pytest, 11/11 + 18/18 unit, 13/13 bot e2e). 2 old regressions are now stale by design.", "frontend": "~85% (all core flows pass; 3 minor UI bugs)"},
+  "seed_data_creation": "I added 4 callerIdUses docs (via TEST_seed) for Alice to check the usage display, then deleted them. The bot test seeds chat 990223101 with its numbers and caller IDs, then cleans up. Alice's caller ID order was put back to Office, +15558574345, +15555769817 and her labels were restored (+15558574345 had no label). She now has pos set.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Bot e2e: sudo supervisorctl stop nodejs; node js/tests/mock_telegram_api.js &; TELEGRAM_API_BASE_URL=http://127.0.0.1:5099 node js/start-bot.js & (wait ~100s); node js/tests/bot_callerid_order_last_iter223.js; then pkill both and start nodejs. A dry-run Quick Call returns 202 only with transferTo filled in (mode transfer). Dry-run calls do not log callerIdUses. Seed it in Mongo db 'test' (Alice chatId 5000000000000001)."
+}

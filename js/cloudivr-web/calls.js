@@ -98,13 +98,14 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     if (me === c.n.phoneNumber || to === c.n.phoneNumber) return bad(res, 400, 'same_number', 'Use numbers other than your CloudIVR number.')
     if (me === to) return bad(res, 400, 'same_number', 'Your mobile and the number to call must be different.')
-    const showAs = await callerIds.resolve(chatId, req.body.showAs, c.n.phoneNumber).catch(e => e)
+    const showAs = await callerIds.resolve(chatId, req.body.showAs).catch(e => e)
     if (showAs instanceof Error) return bad(res, 400, 'invalid_show_as', showAs.message)
     const rateMe = voiceService.getIvrCallRate(me), rateTo = voiceService.getIvrCallRate(to)
     const rate = Math.round((rateMe + rateTo) * 100) / 100
     const bal = await w.balance(chatId)
     if (bal < Math.max(QUICK_MIN_WALLET, rate)) return bad(res, 402, 'insufficient_balance', `Call me first bills both calls — about $${rate.toFixed(2)}/min together after your plan minutes. Your balance is $${bal.toFixed(2)} — top up first.`)
     await prefs.updateOne({ _id: chatId }, { $set: { callbackPhone: me, updatedAt: new Date() } }, { upsert: true })
+    callerIds.rememberLast(chatId, c.n.phoneNumber, showAs)
     if (dryRun()) return res.status(202).json({ dryRun: true, rate, message: `Preview mode: we would ring ${me}, and after you press 1 connect you to ${to} showing ${showAs || c.n.phoneNumber}. Nothing was dialed.` })
     const greetingText = `This is your CloudIVR line. Press 1 to call ${spokenNumber(to)}. To cancel, just hang up.`
     const r = await voiceService.initiateOutboundIvrCall({ chatId, callerId: c.n.phoneNumber, transferCallerId: showAs, targetNumber: me, ivrNumber: to, greetingText, activeKeys: ['1'], ivrMode: 'transfer', templateName: 'Call me first', holdMusic: false, provider: 'telnyx' })
@@ -128,7 +129,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (b.mode === 'ai') return createAiCampaign(req, res)
     const c = await caller(chatId, b.callerId, 'bulkCall', 'Bulk IVR campaigns')
     if (c.err) return bad(res, ...c.err)
-    const showAs = await callerIds.resolve(chatId, b.showAs, c.n.phoneNumber).catch(e => e)
+    const showAs = await callerIds.resolve(chatId, b.showAs).catch(e => e)
     if (showAs instanceof Error) return bad(res, 400, 'invalid_show_as', showAs.message)
     // validateOnly + audioPending: check everything before the browser pays for the AI voice of a written script.
     const audio = b.validateOnly && b.audioPending ? {} : await ownAudio(chatId, b.audioId)
@@ -164,6 +165,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     })
     if (campaign.error) return bad(res, 400, 'create_failed', campaign.error)
     if (dryRun() || showAs) await db.collection('bulkCallCampaigns').updateOne({ id: campaign.id }, { $set: { ...(dryRun() ? { dryRun: true } : {}), ...(showAs ? { showAs } : {}) } })
+    callerIds.rememberLast(chatId, c.n.phoneNumber, showAs)
     res.status(201).json({ campaign: publicCampaign({ ...campaign, showAs, dryRun: dryRun() }), skipped: badCount ?? errors.length, doNotCall: await dncCount(chatId, leads) })
   }))
 
@@ -172,7 +174,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const chatId = req.webChatId, b = req.body
     const c = await caller(chatId, b.callerId, 'aiAgent', 'AI agent campaigns')
     if (c.err) return bad(res, ...c.err)
-    const showAs = await callerIds.resolve(chatId, b.showAs, c.n.phoneNumber).catch(e => e)
+    const showAs = await callerIds.resolve(chatId, b.showAs).catch(e => e)
     if (showAs instanceof Error) return bad(res, 400, 'invalid_show_as', showAs.message)
     const ai = require('../ai-agent')
     const agent = await ai.store.getAgent(b.agentId, chatId)
@@ -191,6 +193,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     })
     if (campaign.error) return bad(res, 400, 'create_failed', campaign.error)
     await db.collection('bulkCallCampaigns').updateOne({ id: campaign.id }, { $set: { aiRecord: agent.record !== false, ...(showAs ? { showAs } : {}), ...(dryRun() ? { dryRun: true } : {}) } })
+    callerIds.rememberLast(chatId, c.n.phoneNumber, showAs)
     res.status(201).json({ campaign: publicCampaign({ ...campaign, showAs, dryRun: dryRun() }), skipped: badCount ?? errors.length, doNotCall: dnc, rate: ai.RATE(), recordRate: agent.record !== false ? ai.RECORD_RATE() : 0 })
   }
 

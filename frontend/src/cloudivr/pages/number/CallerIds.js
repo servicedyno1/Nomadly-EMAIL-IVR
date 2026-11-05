@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { BadgeCheck, Loader2, Trash2, ShieldCheck, Clock, Pencil, Check, X, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
-import { api, useApi, enc, money, when } from '../../api';
+import { api, useApi, enc, money, day } from '../../api';
 import { Field, ErrorNote } from '../../ui';
 import { usePrivacy } from '../../privacy';
 import { useShell } from '../../Shell';
@@ -178,22 +178,22 @@ function SavedRow({ i, k, last, dragging, onDragStart, onDrop, onMove, onRemove,
     <div draggable={!edit} onDragStart={onDragStart} onDragOver={e => e.preventDefault()} onDrop={onDrop}
       className={`flex items-center gap-2 border rounded-xl px-3 py-2 transition-colors ${dragging ? 'border-[#818cf8] bg-[#818cf8]/10' : 'border-[#262626]'}`} data-testid={`caller-ids-item-${k}`}>
       <GripVertical className="w-4 h-4 text-[#52525b] cursor-grab shrink-0" aria-hidden />
+      <BadgeCheck className="w-4 h-4 text-[#818cf8] shrink-0" />
       <div className="flex-1 min-w-0">
         {edit ? (
           <div className="flex items-center gap-2">
-            <input autoFocus className="civr-input !h-8 text-sm" value={label} maxLength={24} onChange={e => setLabel(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEdit(false); }} placeholder="Name, e.g. Office" data-testid={`caller-ids-rename-input-${k}`} />
+            <input autoFocus className="civr-input !h-8 text-sm" value={label} maxLength={24} onChange={e => setLabel(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setLabel(i.label || ''); setEdit(false); } }} placeholder="Name, e.g. Office" data-testid={`caller-ids-rename-input-${k}`} />
             <button type="button" className={btn} onClick={save} aria-label="Save name" data-testid={`caller-ids-rename-save-${k}`}><Check className="w-4 h-4" /></button>
             <button type="button" className={btn} onClick={() => { setLabel(i.label || ''); setEdit(false); }} aria-label="Cancel" data-testid={`caller-ids-rename-cancel-${k}`}><X className="w-4 h-4" /></button>
           </div>
         ) : (
-          <div className="flex items-center gap-2 flex-wrap">
-            <BadgeCheck className="w-4 h-4 text-[#818cf8] shrink-0" />
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
             {i.label && <span className="truncate max-w-[8rem]" data-testid={`caller-ids-item-label-${k}`}>{i.label}</span>}
             <span className="font-mono text-[#a1a1aa]">{pv.phone(i.number)}</span>
             {i.method === 'attested' && <span className="civr-pill shrink-0">no code</span>}
           </div>
         )}
-        <div className="text-xs text-[#71717a] mt-0.5" data-testid={`caller-ids-item-usage-${k}`}>{`${i.uses30 || 0} call${i.uses30 === 1 ? '' : 's'} in 30 days · ${i.lastUsedAt ? `last used ${when(i.lastUsedAt)}` : 'not used yet'}`}</div>
+        <div className="text-xs text-[#71717a] mt-0.5" data-testid={`caller-ids-item-usage-${k}`}>{`${i.uses30 || 0} call${i.uses30 === 1 ? '' : 's'} · 30 days · ${i.lastUsedAt ? `last ${day(i.lastUsedAt)}` : 'not used yet'}`}</div>
       </div>
       {!edit && <span className="flex items-center shrink-0">
         <button type="button" className={btn} disabled={k === 0} onClick={() => onMove(-1)} aria-label="Move up" data-testid={`caller-ids-up-${k}`}><ChevronUp className="w-4 h-4" /></button>

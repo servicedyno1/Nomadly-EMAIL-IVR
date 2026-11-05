@@ -22,13 +22,12 @@ let col = null
 let dbRef = null
 
 // The verified number this account may show, or null for "use the CloudIVR number". Throws on a number they haven't verified.
-async function resolve(chatId, showAs, from) {
-  if (!showAs) { if (from) rememberLast(chatId, from, null); return null }
+async function resolve(chatId, showAs) {
+  if (!showAs) return null
   const n = clean(showAs)
   const doc = col && await col.findOne({ _id: n, chatId: String(chatId), status: 'verified' })
   if (!doc) { const e = new Error('Add that number under My numbers → Your own caller IDs before calling from it.'); e.code = 'invalid_show_as'; throw e }
   if (doc.method === 'attested' && !(await hasPaidPlan(chatId))) { const e = new Error('Showing any caller ID is a Business plan feature.'); e.code = 'invalid_show_as'; throw e }
-  if (from) rememberLast(chatId, from, n)
   return n
 }
 const isVerified = (chatId, n) => resolve(chatId, n).then(() => true, () => false)

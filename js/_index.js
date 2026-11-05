@@ -26303,7 +26303,6 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   async function applyCustomCid(cc, number) {
     const L = ccid.t(lang)
     await saveInfo('customCid', null)
-    require('./cloudivr-web/caller-ids').touch(chatId, number)
     if (cc.ctx === 'sip') {
       await require('./cloudivr-web/caller-ids').setDefault(chatId, cc.line, number)
       send(chatId, L.savedSip(cc.line, number), { parse_mode: 'HTML' })
@@ -26311,7 +26310,6 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.cpManageNumber)
       return send(chatId, '📱 ' + cc.line, k.of(buildManageMenu(info.cpActiveNumber)))
     }
-    require('./cloudivr-web/caller-ids').rememberLast(chatId, cc.line, number)
     const ownRow = cc.auto ? [[L.own]] : []
     if (cc.ctx === 'bulk') {
       const bulkData = { ...(info?.bulkData || {}), callerId: cc.line, showAs: number, callerType: cc.type, provider: 'telnyx', twilioSubAccountSid: null, twilioSubAccountToken: null }
@@ -26566,7 +26564,6 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   if (action === a.ivrObEnterTarget && ccid.isOwn(message) && info?.ivrObData?.displayCallerId && !info?.ivrObData?.isTrial) {
     const d = { ...info.ivrObData }; delete d.displayCallerId
     await saveInfo('ivrObData', d)
-    require('./cloudivr-web/caller-ids').rememberLast(chatId, d.callerId, null)
     return send(chatId, trans('t.cp_25', d.callerId), k.of([]))
   }
   if (action === a.ivrObEnterTarget) {
@@ -28420,7 +28417,6 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   if (action === a.bulkUploadLeads && ccid.isOwn(message) && info?.bulkData?.showAs) {
     const d = { ...info.bulkData }; delete d.showAs
     await saveInfo('bulkData', d)
-    require('./cloudivr-web/caller-ids').rememberLast(chatId, d.callerId, null)
     return send(chatId, trans('t.cp_132', d.callerId), k.of([['↩️ Back']]))
   }
   if (action === a.bulkUploadLeads) {

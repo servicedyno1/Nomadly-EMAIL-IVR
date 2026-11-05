@@ -18,14 +18,15 @@ function Chip({ on, onClick, children, testid, compact }) {
 // "Show as": the number people see. Empty = the CloudIVR number placing the call; otherwise one tap on a saved caller ID.
 export function ShowAsSelect({ value, onChange, testid, compact = false, from }) {
   const pv = usePrivacy();
-  const { data, reload } = useApi(`/caller-ids/presets${from ? `?from=${encodeURIComponent(from)}` : ''}`);
-  // Start each call from this VoIP number with the caller ID it used last time.
+  const { data, reload, stale } = useApi(`/caller-ids/presets${from ? `?from=${encodeURIComponent(from)}` : ''}`);
+  // Each VoIP number starts with the caller ID it used last time; switching numbers switches to that number's own.
   const applied = useRef(null);
   useEffect(() => {
-    if (!data || applied.current === (from || '')) return;
+    if (!data || stale || applied.current === (from || '')) return;
+    const first = applied.current === null;
     applied.current = from || '';
-    if (!value && data.last) onChange(data.last);
-  }, [data, from]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (first ? !value && data.last : (data.last || '') !== value) onChange(data.last || '');
+  }, [data, stale, from]); // eslint-disable-line react-hooks/exhaustive-deps
   const [open, setOpen] = useState(false);
   const list = data?.items || [];
   const cur = list.some(i => i.number === value) ? value : '';
@@ -33,7 +34,7 @@ export function ShowAsSelect({ value, onChange, testid, compact = false, from })
   const addBtn = <button type="button" className="text-[#818cf8] hover:underline inline-flex items-center gap-1 min-h-[44px]" onClick={() => setOpen(true)} data-testid={`${testid}-add-button`}><Plus className="w-3.5 h-3.5" />{list.length ? 'Add a caller ID' : 'Show a different caller ID'}</button>;
   const dialog = (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="civr !min-h-0 content-start max-w-2xl" data-testid={`${testid}-dialog`}>
+      <DialogContent className="civr !min-h-0 content-start max-w-4xl" data-testid={`${testid}-dialog`}>
         <DialogHeader>
           <DialogTitle>Your saved caller IDs</DialogTitle>
           <DialogDescription>On Business, save up to 10 numbers you have the right to use, name them, and pick one with a tap on any call. Or verify a number you own with a code. Calls are still billed from your VoIP number.</DialogDescription>

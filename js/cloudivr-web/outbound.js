@@ -188,7 +188,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     const callerId = trial ? ivrOb.TRIAL_CALLER_ID : caller.phoneNumber
     let showAs = null
-    if (!trial) try { showAs = await callerIds.resolve(chatId, b.showAs, callerId) } catch (e) { return { err: [400, 'invalid_show_as', e.message] } }
+    if (!trial) try { showAs = await callerIds.resolve(chatId, b.showAs) } catch (e) { return { err: [400, 'invalid_show_as', e.message] } }
     const targets = parseTargets(b)
     if (!targets.length) return { err: [400, 'invalid_number', 'Enter the number to call with country code, e.g. +14155550100.'] }
     if (targets.length > (trial ? 1 : MAX_TARGETS)) return { err: [400, 'too_many_numbers', trial ? 'The free call goes to one number.' : `Up to ${MAX_TARGETS} numbers per Quick IVR call — use a campaign for more.`] }
@@ -268,6 +268,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       if (bal < Math.max(MIN_WALLET, rate)) return { status: 402, body: { error: 'insufficient_balance', message: `Quick IVR calls bill about $${rate.toFixed(2)}/min from your wallet. Your balance is $${bal.toFixed(2)} — top up first.` } }
     }
     const doc = { _id: uid(), chatId, at: new Date(), body: { ...body, scheduleAt: undefined }, cfg, trial, dryRun: dryRun() }
+    if (!trial) callerIds.rememberLast(chatId, cfg.callerId, cfg.showAs)
     if (dryRun()) {
       doc.results = cfg.targets.map(to => ({ to, ok: true, preview: true, callControlId: cfg.mode === 'otp' ? otpSim.start(chatId, to, cfg) : null }))
       await history.insertOne(doc)
