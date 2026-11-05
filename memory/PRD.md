@@ -2207,3 +2207,13 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Farsi: hosting checkout fa block, AI support fa, payIn fa, social-proof fa, hub/free hints fa.
 - Tests: iteration_217/218 (all requested pass), unit tests js/tests/caller_ids_*_iter21{7,8}.js, phone_config_i18n_iter218.js 54/54.
 - Backlog: preset/manage-menu minor (manage menu after 🎭 save rebuilt without "Add Number" row); fr/zh/hi Quick IVR subscriber menu still English; design agent not used for landing (budget).
+
+## 2026-11-05 18:15Z — Caller ID presets + price-gap Business upgrade + 'logged' copy removed (preview, NOT deployed)
+- Presets: Business accounts keep up to 10 saved caller IDs (cap counts all verified IDs; `caller-ids.js` MAX_PRESETS, `presets()`, GET `/caller-ids/presets`).
+  Web: `CallerIdPick.js` 'Show as' is now one-tap chips (Quick Call, Campaigns, Softphone, text triggers); saving in the dialog selects the new chip and closes it.
+  Bot: saved IDs show as `🎭 +1…` buttons on Quick IVR New Call, Bulk IVR caller select, and inside 🎭 (incl. SIP default). One tap applies, no confirm (`applyCustomCid`).
+- Upgrade prompt: Pro/Starter trying a caller ID → one-tap upgrade to Business for the price gap only (Pro $45, Starter $70), renewal date unchanged.
+  `phone-config.callerIdUpgradeQuote`; web POST `/caller-ids/upgrade` (quote → confirm); bot `cidUpsell()` → action `customCidUpgrade` → `processChangePlanSelection(…, diff=true)`. Normal upgrades keep the 25%-credit rule.
+- Removed 'every use is logged' from web attest form and bot copy (en/fr/zh/hi/fa). Recording/transcription copy unchanged.
+- Tests: `js/tests/caller_id_presets_iter219.js` 14/14; iteration_219 (1 HIGH UI bug → fixed) + iteration_220 all pass; Quick Call 'Call from' refreshes after upgrade (self-checked).
+- Preview data: Bob's +18509558201 was upgraded to Business during tests.

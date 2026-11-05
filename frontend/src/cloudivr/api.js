@@ -91,6 +91,12 @@ export function useApi(path) {
     try { const d = await api(path); setData(d); dataPath.current = path; setError(null); return d; } catch (e) { setError(e); if (dataPath.current !== path) setData(null); return null; } finally { setLoading(false); setLoadedPath(path); }
   }, [path]);
   useEffect(() => { reload(); }, [reload]);
+  // A plan change elsewhere on the page (e.g. the caller-ID upgrade) refreshes every number list.
+  useEffect(() => {
+    if (!path?.startsWith('/numbers')) return undefined;
+    window.addEventListener('civr:numbers-changed', reload);
+    return () => window.removeEventListener('civr:numbers-changed', reload);
+  }, [path, reload]);
   // `stale` = the data on hand belongs to a previous path (e.g. another filter) and the new one is still loading.
   return { data, error, loading, reload, setData, stale: !!path && loadedPath !== path };
 }

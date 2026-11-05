@@ -51,7 +51,7 @@ function BizUpgrade({ onDone }) {
       const q = await api('/caller-ids/upgrade', { method: 'POST', body: {} });
       if (!window.confirm(`Upgrade ${q.number} to Business for ${money(q.quote.charge)} from your wallet? You only pay the price difference and your renewal date stays the same.`)) return;
       const d = await api('/caller-ids/upgrade', { method: 'POST', body: { number: q.number, confirm: true } });
-      toast.success(`${d.number} is now on Business · ${money(d.charged)} charged`); refreshSummary?.(); onDone();
+      toast.success(`${d.number} is now on Business · ${money(d.charged)} charged`); refreshSummary?.(); window.dispatchEvent(new Event('civr:numbers-changed')); onDone();
     } catch (e) { setError(e); } finally { setBusy(false); }
   };
   return (

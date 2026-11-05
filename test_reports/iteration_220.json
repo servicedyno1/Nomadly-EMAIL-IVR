@@ -1,0 +1,20 @@
+{
+  "summary": "Iter220 retest of the iter219 fixes. All pass. (1) HIGH bug FIXED: in Alice's Quick Call ShowAsSelect dialog, saving a no-code caller ID via caller-ids-attest-submit closes the dialog right away. The new chip appears first (quick-call-show-as-select-option-0 = +14155552301, aria-checked=true; chips went from 3 to 4) and the toast shows. Bob saw the same after his upgrade. (2) Web BizUpgrade with Bob's +18509558201 reset to pro/75: the confirm says $45.00. Then POST upgrade (quote), POST upgrade (confirm) and GET /dashboard run, and the header topbar-balance goes from $129.55 to $84.55 without a reload. In the DB the plan is business/120, expiresAt is unchanged (2026-12-01T22:02:04.242Z) and phoneTransactions shows amount 45.00, credit 0.00. The upsell box disappears and Add caller ID becomes enabled. (3) Light theme: .civr-upsell-text computes to rgb(180,83,9) (#b45309) and is readable. (4) API, new pytest 8/8: the cap counts ALL verified IDs (3 auto + 7 attested = 10, then too_many_presets). Presets slice to 10 even with 13 verified. An explicit upgrade number that is replaced (Bob +19522349029), a sub-number (Alice +12138340888), suspended (temporary flip of Bob +14062358695, restored) or unknown returns 404 not_found. Valid quotes: Pro $45, Starter $70. Bot regression on mock TG :5099 was NOT run (optional, skipped).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Web BizUpgrade success (Quick Call)", "issue": "The header wallet now updates. However, on the same page the Quick Call 'Call from' select still reads '+18509558201 · Pro' and the Presets card still shows the 'Business' lock until reload. QuickCall's /numbers data is not refreshed. Low priority.", "affected_selectors": ["caller-ids-upgrade-button"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_caller_id_cap_upgrade_iter220.py", "/app/test_reports/pytest/pytest_iter220.xml"],
+  "action_items": ["Optional: after BizUpgrade, also refresh the page-level /numbers data (Quick Call 'Call from' plan label and the Presets lock) so it shows Business without a reload."],
+  "critical_code_review_comments": ["attest() cap check (countDocuments) and replaceOne are still not atomic, so parallel requests could exceed 10. Low risk, unchanged from iter219."],
+  "updated_files": ["/app/backend/tests/test_caller_id_cap_upgrade_iter220.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Bob's +18509558201 was set back to pro/75 as requested, then upgraded again via the web UI. It is now business/120 again and Bob's wallet is $84.55 (another $45 charged). The test caller IDs +14155552301 (Alice) and +14155552302 (Bob) and the pytest-created IDs were deleted by id. Alice is back to her 3 auto IDs.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Bob's +18509558201 is Business again. To retest the upgrade, reset it in db test.phoneNumbersOf _id 5000000000000002 (plan pro, planPrice 75). Bob's replaced numbers stay status 'active' with replacedBy set. Alice has a Pro main number +12138340902 and a sub-number +12138340888. Use 'import asyncio' in Playwright dialog handlers."
+}
