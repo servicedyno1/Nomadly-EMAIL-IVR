@@ -158,14 +158,13 @@ async function placeTestCall(chatId, num, lang) {
 
   // ── Throttle ──
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000
-  let recent = (testHistory[targetNumber] || []).filter(t => t >= dayAgo)
+  let saved = []
   if (_col) {
-    try {
-      const doc = await _col.findOne({ _id: targetNumber })
-      const saved = (doc?.ts || []).filter(t => t >= dayAgo)
-      if (saved.length > recent.length) recent = saved
-    } catch (e) { /* in-memory fallback */ }
+    try { saved = ((await _col.findOne({ _id: targetNumber }))?.ts || []).filter(t => t >= dayAgo) } catch (e) { /* in-memory fallback */ }
   }
+  // Read in-memory after the await: from here to the reservation below is synchronous, so concurrent taps can't overshoot.
+  const mem = (testHistory[targetNumber] || []).filter(t => t >= dayAgo)
+  const recent = saved.length > mem.length ? saved : mem
   if (recent.length >= MAX_TESTS_PER_DAY) {
     return {
       ok: false,
@@ -186,17 +185,22 @@ async function placeTestCall(chatId, num, lang) {
 
   // ── Place outbound call (Telnyx → user's Twilio number, with AMD) ──
   const webhookUrl = `${_selfUrl}/api/test-call/webhook`
-  pendingTargets[targetNumber] = Date.now()
+  // Reserve the slot before dialling so concurrent taps can't exceed the limit.
+  let slot = Date.now()
+  while (recent.includes(slot)) slot++
+  testHistory[targetNumber] = [...recent, slot]
+  const release = () => { testHistory[targetNumber] = (testHistory[targetNumber] || []).filter(x => x !== slot); delete pendingTargets[targetNumber] }
+  pendingTargets[targetNumber] = slot
   const result = await _telnyxApi.createOutboundCall(
     TRIAL_CALLER_ID,
     targetNumber,
     webhookUrl,
     null,   // use default Telnyx call control connection
     { answering_machine_detection: 'detect' }
-  )
+  ).catch(e => ({ error: e.message }))
 
   if (result?.error) {
-    delete pendingTargets[targetNumber]
+    release()
     _log(`[TestMyNumber] createOutboundCall error: ${result.error}`)
     return {
       ok: false,
@@ -220,8 +224,6 @@ async function placeTestCall(chatId, num, lang) {
   }
   sessions[callControlId] = session
 
-  // Track for throttle
-  testHistory[targetNumber] = [...recent, Date.now()]
   if (_col) _col.updateOne({ _id: targetNumber }, { $set: { ts: testHistory[targetNumber] } }, { upsert: true }).catch(() => {})
 
   // Hard timeout — finalize even if no hangup event arrives

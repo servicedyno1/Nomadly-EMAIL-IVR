@@ -410,3 +410,14 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - Pushed main e8315b6a (token GITHUB_TOKEN_CLASSIC). Sync → WhiteLabel 0862e470 "carry main 5a1ffad4..e8315b6a (403 files)" (dry run beforehand:
   0 conflicts, all relative requires resolve, key modules load). Deploy whitelabel: app-wl-a, app-voodoo-a, app-proshop-b all success,
   healthy, 0 restarts, no new errors. The 2 Nov + today overlays are now real code on WhiteLabel (no longer drop on next deploy).
+
+
+## 2026-11-05 22:10Z — Five audit fixes LIVE on app-main + all 3 WhiteLabel bots (main e2151145, WL 9582e4e1)
+- Expired "Complete my order": reopens the product menu (phone→submenu5, domain→2, hosting→3, VPS→4, digital→6) with a "timed out, wallet untouched" note.
+- Bad numbers: free format check (dial-check.js, N11 rules; +14155550100 still valid) now also on bot Quick IVR target entry. Carrier not-in-service rejects (D50/LRN/unallocated/D35 text or code) → plain message + invalidNumber; checked BEFORE the custom-caller-ID retry (no false "caller ID rejected" notice). Bulk: such leads are 'skipped', daily slot refunded, campaign continues (`continue`, not `return`); final report lists "Not in service (skipped, not charged)". Web landing trial: 400 invalid_number, free call stays unused.
+- Renewal warnings 3d/1d (phone-scheduler, hosting-scheduler): "💵 Deposit $N" keyboard (renewal-topup.js, min $10) only when wallet < price. Web: new 1-day renewSoon email (key renewsoon1).
+- Abandoned web deposits: email + web inbox notice at 1h and 24h (emails.js depositNudges), skips paid / non-awaiting orders, deduped. Links: /app/wallet or /app/orders/:id.
+- Free SIP test ring: existing "📞 Test My Number" offered after purchase; limit 3 per number per 24h (persisted testMyNumberLog, slot reserved before dialing); isFreeTestRing() makes inbound/transfer/Twilio legs unbilled. Web app has no SIP test ring (bot only).
+- NOT in scope (user declined): self-call double charge from audit.
+- Tests: tests/test_improvements_iter225.js 19/19, test_iter225_edge_review.js 10/10, test_iter225_bulk_skip.js PASS, dial_check 29/29, caller-ID 12/12 + 18/18. Testing agent iteration_225 found 1 critical + 2 medium + 1 low — all fixed and re-verified by those tests (no second testing-agent run).
+- CI: lint ✅, Deploy app-main ✅ (health healthy), Sync → WhiteLabel ✅, Deploy whitelabel ✅. Deployed/agent-tested, not user-confirmed.

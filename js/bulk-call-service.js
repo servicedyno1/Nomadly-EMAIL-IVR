@@ -1166,7 +1166,7 @@ async function fireNextBatch(campaignId) {
           await recalcStats(campaignId)
           await sendProgressUpdate(campaignId, lead.index, { status: 'skipped', hangupCause: 'Not an in-service number — skipped, not charged', duration: 0 })
           await checkCampaignCompletion(campaignId)
-          return
+          continue
         }
         await updateLeadResult(campaignId, lead.index, {
           status: 'failed',
@@ -1653,7 +1653,7 @@ async function sendFinalReport(campaignId) {
     stats.voicemail ? `📭 ${tt('bulkCallReportVoicemail')} <b>${stats.voicemail}</b>${stats.voicemailLeft ? ` (📩 ${stats.voicemailLeft})` : ''}` : null,
     `🚫 ${tt('bulkCallReportBusy')} <b>${stats.busy}</b>`,
     `❌ ${tt('bulkCallReportFailed')} <b>${stats.failed}</b>`,
-    (() => { const bad = (leads || []).filter(l => /not an in-service number/i.test(l.hangupCause || '')); return bad.length ? `⏭ Not in service (skipped, not charged): <b>${bad.length}</b>${bad.length <= 5 ? '\n' + bad.map(l => `   • <code>${l.number}</code>`).join('\n') : ''}` : null })(),
+    (() => { const bad = (leads || []).filter(l => /not an in-service number|unallocated_number|^(404|604)$/i.test(String(l.hangupCause || ''))); return bad.length ? `⏭ Not in service (skipped, not charged): <b>${bad.length}</b>${bad.length <= 5 ? '\n' + bad.map(l => `   • <code>${l.number}</code>`).join('\n') : ''}` : null })(),
     campaign.status === 'cancelled' && (leads || []).some(l => l.notCalled) ? `⏭ ${tt('bulkCallReportNotDialed')} <b>${leads.filter(l => l.notCalled).length}</b>` : null,
   ].filter(Boolean).join('\n')
 

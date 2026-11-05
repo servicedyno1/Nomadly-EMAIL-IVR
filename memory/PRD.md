@@ -2237,3 +2237,14 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Recurring failure: platform auto-saves force-push main, orphaning the last synced commit in `.whitelabel-sync` → `git rev-parse … Needed a single revision`.
 - Fix in `scripts/sync_whitelabel.py` `resolve_base()`: fetch the orphaned base by SHA (GitHub still serves it), warn, and diff from its tree. Ancestry isn't needed because the sync is tree-based. If the object is gone, fall back to the main commit at the marker's `synced_at`. The same file was copied to /app so auto-saves don't revert it.
 - Verified: local dry-run, then a CI run where the orphaned object was fetched ("main history was rewritten … diffing from its tree") → Sync ✅, Deploy whitelabel ✅, app-main healthy.
+
+
+## 2026-11-05 22:10Z — Five audit fixes LIVE on app-main + all 3 WhiteLabel bots (main e2151145, WL 9582e4e1)
+- Expired "Complete my order": reopens the product menu (phone→submenu5, domain→2, hosting→3, VPS→4, digital→6) with a "timed out, wallet untouched" note.
+- Bad numbers: free format check (dial-check.js, N11 rules; +14155550100 still valid) now also on bot Quick IVR target entry. Carrier not-in-service rejects (D50/LRN/unallocated/D35 text or code) → plain message + invalidNumber; checked BEFORE the custom-caller-ID retry (no false "caller ID rejected" notice). Bulk: such leads are 'skipped', daily slot refunded, campaign continues (`continue`, not `return`); final report lists "Not in service (skipped, not charged)". Web landing trial: 400 invalid_number, free call stays unused.
+- Renewal warnings 3d/1d (phone-scheduler, hosting-scheduler): "💵 Deposit $N" keyboard (renewal-topup.js, min $10) only when wallet < price. Web: new 1-day renewSoon email (key renewsoon1).
+- Abandoned web deposits: email + web inbox notice at 1h and 24h (emails.js depositNudges), skips paid / non-awaiting orders, deduped. Links: /app/wallet or /app/orders/:id.
+- Free SIP test ring: existing "📞 Test My Number" offered after purchase; limit 3 per number per 24h (persisted testMyNumberLog, slot reserved before dialing); isFreeTestRing() makes inbound/transfer/Twilio legs unbilled. Web app has no SIP test ring (bot only).
+- NOT in scope (user declined): self-call double charge from audit.
+- Tests: tests/test_improvements_iter225.js 19/19, test_iter225_edge_review.js 10/10, test_iter225_bulk_skip.js PASS, dial_check 29/29, caller-ID 12/12 + 18/18. Testing agent iteration_225 found 1 critical + 2 medium + 1 low — all fixed and re-verified by those tests (no second testing-agent run).
+- CI: lint ✅, Deploy app-main ✅ (health healthy), Sync → WhiteLabel ✅, Deploy whitelabel ✅. Deployed/agent-tested, not user-confirmed.

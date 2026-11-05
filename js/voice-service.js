@@ -5142,14 +5142,15 @@ async function initiateOutboundIvrCall(params) {
   // Voicemail drop needs the end of the mailbox greeting (call.machine.greeting.ended) so the message records cleanly.
   const amdOpts = voicemailAudioUrl ? { answering_machine_detection: VM_AMD_MODE } : {}
   let result = await _telnyxApi.createOutboundCall(displayCallerId || callerId, targetNumber, webhookUrl, undefined, amdOpts)
-  if (displayCallerId && result.error && !_telnyxApi.isLineLimitError?.(result)) {
+  const badDest = (r) => r?.error && (/D50|valid LRN|destination number is invalid|unallocated|D35\b/i.test(String(r.error)) || /^D(50|35)$/.test(String(r.code || '')))
+  if (displayCallerId && result.error && !badDest(result) && !_telnyxApi.isLineLimitError?.(result)) {
     // Carrier refused the custom caller ID — place the call from the user's own number instead.
     log(`[OutboundIVR] custom caller ID ${displayCallerId} refused (${result.error}) — retrying from ${callerId}`)
     _notifyCidRejected(chatId, displayCallerId, callerId)
     result = await _telnyxApi.createOutboundCall(callerId, targetNumber, webhookUrl, undefined, amdOpts)
     if (!result.error) result.callerIdRejected = true
   } else if (displayCallerId) require('./cloudivr-web/caller-ids').logUse(chatId, displayCallerId, bulkMode ? 'bulk' : 'ivr', targetNumber)
-  if (result.error && /D50|valid LRN|destination number is invalid|unallocated|D35\b/i.test(String(result.error))) {
+  if (badDest(result)) {
     log(`[OutboundIVR] Carrier rejected ${targetNumber} as not in service: ${result.error}`)
     result = { ...result, error: `${targetNumber} isn’t an in-service number, so the call couldn’t go through. Nothing was charged — check the number and try again.`, invalidNumber: true }
   }
