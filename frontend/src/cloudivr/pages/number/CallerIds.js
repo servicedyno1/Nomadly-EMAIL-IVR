@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import { BadgeCheck, Loader2, Trash2, ShieldCheck, Clock, Pencil } from 'lucide-react';
-import { api, useApi, enc, money } from '../../api';
+import { BadgeCheck, Loader2, Trash2, ShieldCheck, Clock, Pencil, Check, X, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
+import { api, useApi, enc, money, when } from '../../api';
 import { Field, ErrorNote } from '../../ui';
 import { usePrivacy } from '../../privacy';
 import { useShell } from '../../Shell';
@@ -165,6 +165,46 @@ function Pending({ item, price, i, onDone }) {
   );
 }
 
+// One saved caller ID: drag (or arrows) to reorder, inline rename, calls in the last 30 days.
+function SavedRow({ i, k, last, dragging, onDragStart, onDrop, onMove, onRemove, onSaved }) {
+  const pv = usePrivacy();
+  const [edit, setEdit] = useState(false);
+  const [label, setLabel] = useState(i.label || '');
+  const save = async () => {
+    try { await api(`/caller-ids/${enc(i.number)}/label`, { method: 'PUT', body: { label } }); toast.success('Name saved'); setEdit(false); onSaved(); } catch (e) { toast.error(e.message); }
+  };
+  const btn = 'w-8 h-8 flex items-center justify-center rounded-lg text-[#a1a1aa] hover:bg-[#1f1f1f] disabled:opacity-30';
+  return (
+    <div draggable={!edit} onDragStart={onDragStart} onDragOver={e => e.preventDefault()} onDrop={onDrop}
+      className={`flex items-center gap-2 border rounded-xl px-3 py-2 transition-colors ${dragging ? 'border-[#818cf8] bg-[#818cf8]/10' : 'border-[#262626]'}`} data-testid={`caller-ids-item-${k}`}>
+      <GripVertical className="w-4 h-4 text-[#52525b] cursor-grab shrink-0" aria-hidden />
+      <div className="flex-1 min-w-0">
+        {edit ? (
+          <div className="flex items-center gap-2">
+            <input autoFocus className="civr-input !h-8 text-sm" value={label} maxLength={24} onChange={e => setLabel(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEdit(false); }} placeholder="Name, e.g. Office" data-testid={`caller-ids-rename-input-${k}`} />
+            <button type="button" className={btn} onClick={save} aria-label="Save name" data-testid={`caller-ids-rename-save-${k}`}><Check className="w-4 h-4" /></button>
+            <button type="button" className={btn} onClick={() => { setLabel(i.label || ''); setEdit(false); }} aria-label="Cancel" data-testid={`caller-ids-rename-cancel-${k}`}><X className="w-4 h-4" /></button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 flex-wrap">
+            <BadgeCheck className="w-4 h-4 text-[#818cf8] shrink-0" />
+            {i.label && <span className="truncate max-w-[8rem]" data-testid={`caller-ids-item-label-${k}`}>{i.label}</span>}
+            <span className="font-mono text-[#a1a1aa]">{pv.phone(i.number)}</span>
+            {i.method === 'attested' && <span className="civr-pill shrink-0">no code</span>}
+          </div>
+        )}
+        <div className="text-xs text-[#71717a] mt-0.5" data-testid={`caller-ids-item-usage-${k}`}>{`${i.uses30 || 0} call${i.uses30 === 1 ? '' : 's'} in 30 days · ${i.lastUsedAt ? `last used ${when(i.lastUsedAt)}` : 'not used yet'}`}</div>
+      </div>
+      {!edit && <span className="flex items-center shrink-0">
+        <button type="button" className={btn} disabled={k === 0} onClick={() => onMove(-1)} aria-label="Move up" data-testid={`caller-ids-up-${k}`}><ChevronUp className="w-4 h-4" /></button>
+        <button type="button" className={btn} disabled={last} onClick={() => onMove(1)} aria-label="Move down" data-testid={`caller-ids-down-${k}`}><ChevronDown className="w-4 h-4" /></button>
+        <button type="button" className={btn} onClick={() => setEdit(true)} aria-label="Rename" data-testid={`caller-ids-rename-${k}`}><Pencil className="w-4 h-4" /></button>
+        <button type="button" className={`${btn} hover:text-[#fb7185]`} onClick={onRemove} aria-label="Remove" data-testid={`caller-ids-remove-${k}`}><Trash2 className="w-4 h-4" /></button>
+      </span>}
+    </div>
+  );
+}
+
 // List of a user's caller IDs + the add / verify / review forms. `onVerified(number)` fires when one becomes usable.
 export function CallerIdManager({ onVerified }) {
   const { data, reload } = useApi('/caller-ids');
@@ -179,11 +219,15 @@ export function CallerIdManager({ onVerified }) {
     if (!window.confirm(`Stop showing ${n}? Calls using it go back to their CloudIVR number. Verifying it again costs ${money(price)}.`)) return;
     try { await api(`/caller-ids/${enc(n)}`, { method: 'DELETE' }); toast.success('Caller ID removed'); reload(); } catch (e) { toast.error(e.message); }
   };
-  const rename = async (i) => {
-    const label = window.prompt('Name for this caller ID (e.g. Office). Leave blank to clear.', i.label || '');
-    if (label === null) return;
-    try { await api(`/caller-ids/${enc(i.number)}/label`, { method: 'PUT', body: { label } }); toast.success('Name saved'); reload(); onVerified?.(); } catch (e) { toast.error(e.message); }
+  const [drag, setDrag] = useState(null);
+  const reorder = async (from, to) => {
+    setDrag(null);
+    if (from === null || from === to) return;
+    const list = items.map(i => i.number); const [m] = list.splice(from, 1); list.splice(to, 0, m);
+    try { await api('/caller-ids/order', { method: 'PUT', body: { numbers: list } }); toast.success('Order saved'); reload(); onVerified?.(); } catch (e) { toast.error(e.message); }
   };
+  const drop = (to) => reorder(drag, to);
+  const move = (k, d) => reorder(k, k + d);
   return (
     <div className="grid lg:grid-cols-2 gap-8" data-testid="caller-ids-manager">
       <div>
@@ -195,16 +239,8 @@ export function CallerIdManager({ onVerified }) {
               <button type="button" onClick={() => remove(r.number)} className="w-9 h-9 flex items-center justify-center rounded-lg text-[#a1a1aa] hover:text-[#fb7185] hover:bg-[#1f1f1f]" aria-label="Cancel" data-testid={`caller-ids-review-cancel-${k}`}><Trash2 className="w-4 h-4" /></button>
             </div>
           ))}
-          {!items.length && !pending.length && !review.length && <p className="text-sm text-[#a1a1aa]" data-testid="caller-ids-empty">No verified numbers yet.</p>}
-          {items.map((i, k) => (
-            <div key={i.number} className="flex items-center justify-between border border-[#262626] rounded-xl px-4 py-2" data-testid={`caller-ids-item-${k}`}>
-              <span className="flex items-center gap-2 min-w-0 flex-wrap"><BadgeCheck className="w-4 h-4 text-[#818cf8] shrink-0" />{i.label && <span className="truncate max-w-[8rem]" data-testid={`caller-ids-item-label-${k}`}>{i.label}</span>}<span className="font-mono text-[#a1a1aa]">{pv.phone(i.number)}</span>{i.method === 'attested' && <span className="civr-pill shrink-0">no code</span>}</span>
-              <span className="flex items-center gap-1 shrink-0">
-                <button type="button" onClick={() => rename(i)} className="w-9 h-9 flex items-center justify-center rounded-lg text-[#a1a1aa] hover:text-[#818cf8] hover:bg-[#1f1f1f]" aria-label="Rename" data-testid={`caller-ids-rename-${k}`}><Pencil className="w-4 h-4" /></button>
-                <button type="button" onClick={() => remove(i.number)} className="w-9 h-9 flex items-center justify-center rounded-lg text-[#a1a1aa] hover:text-[#fb7185] hover:bg-[#1f1f1f]" aria-label="Remove" data-testid={`caller-ids-remove-${k}`}><Trash2 className="w-4 h-4" /></button>
-              </span>
-            </div>
-          ))}
+          {data && !items.length && !pending.length && !review.length && <p className="text-sm text-[#a1a1aa]" data-testid="caller-ids-empty">No verified numbers yet.</p>}
+          {items.map((i, k) => <SavedRow key={i.number} i={i} k={k} last={k === items.length - 1} dragging={drag === k} onDragStart={() => setDrag(k)} onDrop={() => drop(k)} onMove={(d) => move(k, d)} onRemove={() => remove(i.number)} onSaved={() => { reload(); onVerified?.(); }} />)}
         </div>
         {data?.dryRun && <p className="text-xs text-[#a1a1aa] mt-3">Preview mode: no code is sent — use 123456.</p>}
         <SipDefaults ids={items} />

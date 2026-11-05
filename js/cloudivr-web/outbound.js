@@ -188,7 +188,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     const callerId = trial ? ivrOb.TRIAL_CALLER_ID : caller.phoneNumber
     let showAs = null
-    if (!trial) try { showAs = await callerIds.resolve(chatId, b.showAs) } catch (e) { return { err: [400, 'invalid_show_as', e.message] } }
+    if (!trial) try { showAs = await callerIds.resolve(chatId, b.showAs, callerId) } catch (e) { return { err: [400, 'invalid_show_as', e.message] } }
     const targets = parseTargets(b)
     if (!targets.length) return { err: [400, 'invalid_number', 'Enter the number to call with country code, e.g. +14155550100.'] }
     if (targets.length > (trial ? 1 : MAX_TARGETS)) return { err: [400, 'too_many_numbers', trial ? 'The free call goes to one number.' : `Up to ${MAX_TARGETS} numbers per Quick IVR call — use a campaign for more.`] }

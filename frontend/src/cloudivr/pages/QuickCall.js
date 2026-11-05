@@ -147,7 +147,7 @@ export default function QuickCall() {
             <DraftBanner draft={draft} onResume={(d) => { setF({ ...EMPTY, ...d }); toast.success('Draft restored'); }} />
             <Section n="1" title="Who to call">
               <Field label="Call from"><select className="civr-input font-mono" value={caller.phoneNumber} onChange={e => set({ callerId: e.target.value })} data-testid="quick-call-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{`${n.phoneNumber} · ${n.planName}`}</option>)}</select></Field>
-              <ShowAsSelect value={f.showAs} onChange={(v) => set({ showAs: v })} testid="quick-call-show-as-select" />
+              <ShowAsSelect value={f.showAs} onChange={(v) => set({ showAs: v })} from={caller?.phoneNumber} testid="quick-call-show-as-select" />
               <Field label="Number(s) to call" hint="With country code. Up to 10, separated by commas.">
                 <input className="civr-input font-mono" required value={f.targets} onChange={e => set({ targets: e.target.value })} placeholder="+14155550100, +14155550101" data-testid="quick-call-to-input" />
                 <Recent onPick={(n) => set({ targets: f.targets.includes(n) ? f.targets : [f.targets, n].filter(Boolean).join(', ') })} />

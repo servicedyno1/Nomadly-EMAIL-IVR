@@ -26311,16 +26311,18 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.cpManageNumber)
       return send(chatId, '📱 ' + cc.line, k.of(buildManageMenu(info.cpActiveNumber)))
     }
+    require('./cloudivr-web/caller-ids').rememberLast(chatId, cc.line, number)
+    const ownRow = cc.auto ? [[L.own]] : []
     if (cc.ctx === 'bulk') {
       const bulkData = { ...(info?.bulkData || {}), callerId: cc.line, showAs: number, callerType: cc.type, provider: 'telnyx', twilioSubAccountSid: null, twilioSubAccountToken: null }
       await saveInfo('bulkData', bulkData)
       await set(state, chatId, 'action', a.bulkUploadLeads)
-      return send(chatId, trans('t.cp_132', number), k.of([['↩️ Back']]))
+      return send(chatId, trans('t.cp_132', number), k.of([...ownRow, ['↩️ Back']]))
     }
     const ivrObData = { ...(info?.ivrObData || {}), callerId: cc.line, displayCallerId: number, callerProvider: 'telnyx', callerPlan: cc.plan || 'starter' }
     await saveInfo('ivrObData', ivrObData)
     await set(state, chatId, 'action', a.ivrObEnterTarget)
-    return send(chatId, trans('t.cp_25', number), k.of([]))
+    return send(chatId, trans('t.cp_25', number), k.of(ownRow))
   }
 
   if (action === 'customCidEnter' || action === 'customCidConfirm') {
@@ -26543,6 +26545,10 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     // ── Normal caller ID selection ──
     const found = numbers.find(n => n.phoneNumber === message)
     if (!found) return send(chatId, trans('t.cp_24'))
+    if (found.plan === 'business' && (found.provider || 'telnyx') !== 'twilio') {
+      const last = await require('./cloudivr-web/caller-ids').lastFor(chatId, found.phoneNumber)
+      if (last) return applyCustomCid({ ctx: 'ivr', line: found.phoneNumber, plan: found.plan, auto: true }, last)
+    }
     ivrObData.callerId = found.phoneNumber
     delete ivrObData.displayCallerId
     ivrObData.callerProvider = found.provider || 'telnyx'
@@ -26556,6 +26562,12 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     await saveInfo('customCid', { ctx: 'trial' })
     await set(state, chatId, 'action', 'customCidEnter')
     return send(chatId, ccid.t(lang).askTrial, k.of([['↩️ Back']]))
+  }
+  if (action === a.ivrObEnterTarget && ccid.isOwn(message) && info?.ivrObData?.displayCallerId && !info?.ivrObData?.isTrial) {
+    const d = { ...info.ivrObData }; delete d.displayCallerId
+    await saveInfo('ivrObData', d)
+    require('./cloudivr-web/caller-ids').rememberLast(chatId, d.callerId, null)
+    return send(chatId, trans('t.cp_25', d.callerId), k.of([]))
   }
   if (action === a.ivrObEnterTarget) {
     if (message === 'Cancel' || isCancelPress(message)) return goto.submenu5()
@@ -28388,6 +28400,10 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
     const found = allCallerIds.find(c => c.label === message)
     if (!found) return send(chatId, trans('t.cp_131'))
+    if (found.type !== 'owned_twilio' && (found.provider || 'telnyx') !== 'twilio' && await require('./cloudivr-web/caller-ids').hasPaidPlan(chatId)) {
+      const last = await require('./cloudivr-web/caller-ids').lastFor(chatId, found.phoneNumber)
+      if (last) return applyCustomCid({ ctx: 'bulk', line: found.phoneNumber, type: found.type, auto: true }, last)
+    }
 
     const bulkData = info?.bulkData || {}
     bulkData.callerId = found.phoneNumber
@@ -28401,6 +28417,12 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     return send(chatId, trans('t.cp_132', found.phoneNumber), k.of([['↩️ Back']]))
   }
 
+  if (action === a.bulkUploadLeads && ccid.isOwn(message) && info?.bulkData?.showAs) {
+    const d = { ...info.bulkData }; delete d.showAs
+    await saveInfo('bulkData', d)
+    require('./cloudivr-web/caller-ids').rememberLast(chatId, d.callerId, null)
+    return send(chatId, trans('t.cp_132', d.callerId), k.of([['↩️ Back']]))
+  }
   if (action === a.bulkUploadLeads) {
     if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkSelectCaller)

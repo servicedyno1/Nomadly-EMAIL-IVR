@@ -98,7 +98,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     if (me === c.n.phoneNumber || to === c.n.phoneNumber) return bad(res, 400, 'same_number', 'Use numbers other than your CloudIVR number.')
     if (me === to) return bad(res, 400, 'same_number', 'Your mobile and the number to call must be different.')
-    const showAs = await callerIds.resolve(chatId, req.body.showAs).catch(e => e)
+    const showAs = await callerIds.resolve(chatId, req.body.showAs, c.n.phoneNumber).catch(e => e)
     if (showAs instanceof Error) return bad(res, 400, 'invalid_show_as', showAs.message)
     const rateMe = voiceService.getIvrCallRate(me), rateTo = voiceService.getIvrCallRate(to)
     const rate = Math.round((rateMe + rateTo) * 100) / 100
@@ -128,7 +128,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (b.mode === 'ai') return createAiCampaign(req, res)
     const c = await caller(chatId, b.callerId, 'bulkCall', 'Bulk IVR campaigns')
     if (c.err) return bad(res, ...c.err)
-    const showAs = await callerIds.resolve(chatId, b.showAs).catch(e => e)
+    const showAs = await callerIds.resolve(chatId, b.showAs, c.n.phoneNumber).catch(e => e)
     if (showAs instanceof Error) return bad(res, 400, 'invalid_show_as', showAs.message)
     // validateOnly + audioPending: check everything before the browser pays for the AI voice of a written script.
     const audio = b.validateOnly && b.audioPending ? {} : await ownAudio(chatId, b.audioId)
@@ -172,7 +172,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const chatId = req.webChatId, b = req.body
     const c = await caller(chatId, b.callerId, 'aiAgent', 'AI agent campaigns')
     if (c.err) return bad(res, ...c.err)
-    const showAs = await callerIds.resolve(chatId, b.showAs).catch(e => e)
+    const showAs = await callerIds.resolve(chatId, b.showAs, c.n.phoneNumber).catch(e => e)
     if (showAs instanceof Error) return bad(res, 400, 'invalid_show_as', showAs.message)
     const ai = require('../ai-agent')
     const agent = await ai.store.getAgent(b.agentId, chatId)

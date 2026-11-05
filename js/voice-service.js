@@ -3481,6 +3481,7 @@ async function handleOutboundSipCall(payload) {
     const outFrom = lookupResult?.isTestCall && lookupResult.testShowAs ? String(lookupResult.testShowAs)
       : showAsHdr && await _cid.isVerified(chatId, showAsHdr).catch(() => false) ? String(showAsHdr) : num.phoneNumber
     if (outFrom !== num.phoneNumber) _cid.logUse(chatId, outFrom, 'sip', destination)
+    if ((payload.custom_headers || []).some(x => String(x?.name || '').toLowerCase() === 'x-civr-show-as')) _cid.rememberLast(chatId, num.phoneNumber, outFrom !== num.phoneNumber ? outFrom : null)
     if (outFrom !== num.phoneNumber) log(`[Voice] Outbound SIP: showing verified caller ID ${outFrom} for ${num.phoneNumber}`)
     try {
       const callState = activeCalls[callControlId]

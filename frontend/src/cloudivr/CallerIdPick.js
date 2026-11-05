@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Plus, Check } from 'lucide-react';
 import { useApi } from './api';
 import { Field } from './ui';
@@ -16,9 +16,16 @@ function Chip({ on, onClick, children, testid, compact }) {
 }
 
 // "Show as": the number people see. Empty = the CloudIVR number placing the call; otherwise one tap on a saved caller ID.
-export function ShowAsSelect({ value, onChange, testid, compact = false }) {
+export function ShowAsSelect({ value, onChange, testid, compact = false, from }) {
   const pv = usePrivacy();
-  const { data, reload } = useApi('/caller-ids/presets');
+  const { data, reload } = useApi(`/caller-ids/presets${from ? `?from=${encodeURIComponent(from)}` : ''}`);
+  // Start each call from this VoIP number with the caller ID it used last time.
+  const applied = useRef(null);
+  useEffect(() => {
+    if (!data || applied.current === (from || '')) return;
+    applied.current = from || '';
+    if (!value && data.last) onChange(data.last);
+  }, [data, from]); // eslint-disable-line react-hooks/exhaustive-deps
   const [open, setOpen] = useState(false);
   const list = data?.items || [];
   const cur = list.some(i => i.number === value) ? value : '';

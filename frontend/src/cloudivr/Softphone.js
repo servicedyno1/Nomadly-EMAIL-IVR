@@ -72,7 +72,7 @@ export default function Softphone({ open, onClose }) {
             <select className="civr-input !h-9 text-xs" value={sel} onChange={e => { setSel(e.target.value); setInfo(null); }} aria-label="Call from" data-testid="softphone-number-select">{nums.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{pv.phone(n.phoneNumber)} · {n.mobile ? 'USA mobile' : 'VoIP'}</option>)}</select>
             {!viaMobile && <button className="civr-btn civr-btn-ghost civr-btn-sm" disabled={status === 'connecting' || !selNum?.access?.browserPhone} onClick={() => connect(sel)} data-testid="softphone-connect-button">{status === 'connecting' ? <Loader2 className="w-4 h-4 animate-spin" /> : status === 'ready' ? 'Online' : 'Connect'}</button>}
           </div>
-          <ShowAsSelect compact value={showAs} onChange={setShowAs} testid="softphone-show-as-select" />
+          <ShowAsSelect compact value={showAs} onChange={setShowAs} from={sel} testid="softphone-show-as-select" />
           {!selNum?.mobile && <CallMeFirst on={cmf} onChange={v => { setCmf(v); setInfo(null); }} myPhone={myPhone} setMyPhone={setMyPhone} allowed={cmfAllowed} />}
           <div className="text-xs mb-3" data-testid="softphone-status">
             {viaMobile ? <span className="text-[#a1a1aa]">Rings your mobile first — no browser connection needed.</span> : <span className={status === 'ready' ? 'text-[#818cf8]' : status === 'error' ? 'text-[#fb7185]' : 'text-[#a1a1aa]'}>{call ? `Call ${call.state}` : STATUS[status]}</span>}
