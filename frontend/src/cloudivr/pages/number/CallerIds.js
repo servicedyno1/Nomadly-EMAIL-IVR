@@ -41,6 +41,8 @@ function AddForm({ price, onSent }) {
 
 // Paid-plan users: show any number they have the right to use — no code, free, logged.
 function AttestForm({ onDone }) {
+  const { data: nums } = useApi('/numbers');
+  const hasBiz = (nums?.numbers || []).some(n => n.status === 'active' && n.plan === 'business');
   const [number, setNumber] = useState('');
   const [authorized, setAuthorized] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -54,9 +56,10 @@ function AttestForm({ onDone }) {
     <div className="border-t border-[#262626] pt-4 space-y-3" data-testid="caller-ids-attest-form">
       <p className="text-sm font-medium">Use a number without a code</p>
       <p className="text-xs text-[#a1a1aa]">Business plan feature. Works right away; every use is logged. Emergency numbers aren’t allowed.</p>
+      {nums && !hasBiz && <p className="text-xs text-amber-400" data-testid="caller-ids-attest-upsell">Upgrade a number to Business to show any caller ID.</p>}
       <Field label="Number"><input className="civr-input font-mono" inputMode="tel" value={number} onChange={e => setNumber(e.target.value)} placeholder="+14155550100" data-testid="caller-ids-attest-number" /></Field>
       <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={authorized} onChange={e => setAuthorized(e.target.checked)} data-testid="caller-ids-attest-authorized" /><span>I have the right to use this number as my caller ID.</span></label>
-      <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || !number.trim() || !authorized} onClick={submit} data-testid="caller-ids-attest-submit">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Add caller ID</button>
+      <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || !hasBiz || !number.trim() || !authorized} onClick={submit} data-testid="caller-ids-attest-submit">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Add caller ID</button>
       <ErrorNote error={error} testid="caller-ids-attest-error" />
     </div>
   );

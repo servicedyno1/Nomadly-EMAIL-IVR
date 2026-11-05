@@ -1,0 +1,6 @@
+require('dotenv').config({ path: '/app/backend/.env' })
+const { MongoClient } = require('mongodb')
+;(async () => { const mc = await MongoClient.connect(process.env.MONGO_URL); const db = mc.db(process.env.DB_NAME)
+ const [id, plan] = process.argv.slice(2)
+ const r = await db.collection('phoneNumbersOf').updateOne({ _id: id }, { $set: { 'val.numbers.0.plan': plan, 'val.numbers.0.status': 'active' } })
+ console.log('set', id, plan, r.modifiedCount); await mc.close() })()

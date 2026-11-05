@@ -1,0 +1,60 @@
+{
+  "summary": "Iter218 retest of the iter217 fixes. All requested fixes are verified. (1) phone-config i18n: a new static test passed 54/54 across en/fr/zh/hi/fa. orderSummary is 'Step 4 of 4 · Review & pay' style. Price appears only as '$X/mo' plus 'Due today', with no 'Capabilities'/'Bulk IVR capable' line. paymentPrompt has no price. activated() uses the new 'You're live' copy, Starter has no SIP block and Pro does. hubWelcome has the 4-steps line. Live bot (mock TG :5099): the FA hub shows the new copy. The FA plan flow showed Step 1 → Step 2 → type → area → Step 3 with real numbers → Step 4 'مرحله ۴ از ۴ · بررسی و پرداخت' with one Due-today line. I stopped before paying. (2) Bot custom caller ID errors in FA: emergency, number_taken (seeded number owned by another chat) and plan_required are all translated. plan_required was hit by a downgrade between entry and confirm, and Pro tapping 🎭 gets the Business upsell. The 10-digit '4155550989' normalises to +14155550989. The FA and EN free-trial confirmations say 'Your free test call will show X', with no '(shared)'. On the '📋 recent' path, ivrObData before was {displayCallerId:+14155550989} and after had no displayCallerId. (3) caller-ids downgrade: a new unit test passed 9/9. isVerified/resolve are false after business→pro and when the Business number has expired, and true again after re-upgrade. A SIP default (the voice-service outFrom logic) falls back to the own number. Code-verified numbers still work on Pro. (4) The 10-digit showAs normalises to +14155550199: trycall _showAs 7/7 cases pass, and the /phone/test/caller-id API returns +14155550199. (5) Web: the CallerIds attest copy says 'Business plan feature', and the intro says 'on Business'. SIP defaults list exactly Alice's 4 Business numbers and exclude her 2 Pro numbers. The attest 911 error is shown. (6) Regression: caller-ids attest unit 23/23, reject-retry unit passes, iter217 web pytest 21/21, new showAs pytest 3/3, EN plan flow Steps 1–4 correct. Landing: the cycling word, 3 pickers, 3 tabs with panels, picker scrolls, 7 compare rows, 10 FAQ, #try with the showAs input; no page errors.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "_index.js Quick IVR 💾 preset path ~26433", "issue": "Object.assign(ivrObData, preset…) does not delete displayCallerId. Opening the Quick IVR menu keeps the old ivrObData (I saw displayCallerId still set after entering the menu). So a custom caller ID left over from an earlier session can carry into a preset call. This includes the free-trial custom caller ID, which needs no plan. Launch (~27947) passes ivrObData.displayCallerId without checking again. Fix: delete ivrObData.displayCallerId in the preset path. Ideally also re-check Business at launch, or clear displayCallerId when the Quick IVR menu opens."},
+      {"endpoint": "bot FA hub", "issue": "'📞 68 phone numbers activated this week' is still in English. 'اعداد مجازی' is the Arabic word for 'numbers'; Farsi would use 'شماره‌های مجازی'."},
+      {"endpoint": "bot FA main menu / reset hint", "issue": "These lines are in English for FA users: '🆓 Free to try: tap 📞 Cloud IVR for a free call, or send /testsip for a SIP test.' and '👇 Tap 📞 Cloud IVR + SIP below to continue.'"},
+      {"endpoint": "bot FA Quick IVR subscriber menu", "issue": "The text is all English: '📢 Quick IVR Call · Call a single number…', the wallet hint, '📱 Caller ID', and the buttons '📞 New Call' and '📊 Menu Stats'. The cp_9 'used trial' title '📢 Quick IVR Call' is English too. The hub and Step 1 buttons 'Back'/'Cancel' are English. This is probably pre-existing."},
+      {"endpoint": "bot plan flow area search", "issue": "Choosing 'Houston (713)' returned only +1281 numbers, and 'Step 3 · Choose your number — Houston (713)' does not say that a nearby area code was used. This is cosmetic and probably carrier behaviour."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CallerIds.js AttestForm", "issue": "The copy is fixed ('Business plan feature'). Starter/Pro users can still fill in and submit the form, and they only get the 403 after submitting. Consider disabling it or showing an upgrade link when the account has no Business number.", "selector": "[data-testid=caller-ids-attest-form]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/js/tests/phone_config_i18n_iter218.js",
+    "/app/js/tests/caller_ids_downgrade_iter218.js",
+    "/app/js/tests/showas_norm_iter218.js",
+    "/app/backend/tests/test_showas_normalise_iter218.py",
+    "/app/backend/tests/test_custom_caller_id_iter217.py",
+    "/app/js/tests/caller_ids_attest_iter217.js",
+    "/app/js/tests/caller_id_reject_retry_iter217.js",
+    "/app/js/tests/seed_iter218.js",
+    "/app/test_reports/pytest/iter218.xml",
+    "/app/test_reports/pytest/iter218_showas.xml"
+  ],
+  "action_items": [
+    "In the Quick IVR 💾 preset path (_index.js ~26433), delete ivrObData.displayCallerId. Optionally clear it when the Quick IVR menu opens, and re-check Business at launch (~27947).",
+    "Translate the remaining English strings for fa (and check fr/zh/hi): hub '68 phone numbers activated this week', the main-menu 'Free to try…' line, the 'Tap 📞 Cloud IVR + SIP below to continue' hint, and the Quick IVR subscriber menu (New Call / Menu Stats / wallet hint).",
+    "Optional: disable the web attest form, or show an upgrade link, for accounts without an active Business number."
+  ],
+  "critical_code_review_comments": [
+    "caller-ids.js: hasPaidPlan is declared below resolve(). This works at runtime but is fragile; consider moving it above resolve.",
+    "The 10-digit → +1 normalisation is copied in 4 places: trycall call-me inline, trycall _showAs, phone-test-routes, and the _index.js customCidEnter. Extract it into one helper, for example caller-ids clean()/toE164.",
+    "_index.js is over 52k lines. Keep moving new features into modules, like custom-caller-id-bot.js."
+  ],
+  "updated_files": [
+    "/app/js/tests/phone_config_i18n_iter218.js",
+    "/app/js/tests/caller_ids_downgrade_iter218.js",
+    "/app/js/tests/showas_norm_iter218.js",
+    "/app/js/tests/seed_iter218.js",
+    "/app/js/tests/t218_trial.js",
+    "/app/js/tests/t218_reactivate.js",
+    "/app/js/tests/t218_setplan.js",
+    "/app/js/tests/t218_recent.js",
+    "/app/js/tests/t218_cleanextra.js",
+    "/app/js/tests/q218.js",
+    "/app/backend/tests/test_showas_normalise_iter218.py"
+  ],
+  "success_rate": {"backend": "100% of requested fixes verified (1 new minor gap: preset path)", "frontend": "100%"},
+  "seed_data_creation": "Bot chats 990218001-009 (state/walletOf/userConversion/phoneNumbersOf) plus webCallerIds +14155550988 (owned by chat 990218009). ivrTrialUsed_990218006/007 state keys and phoneLogs T218_recent_990218006 were also created. All of these were removed by id or chatId. Caller IDs +14155550989/0991 are logged in callerIdUses; uses were removed by chatId. Mongo T218_down / T218_sipchat unit-test docs were removed by id. Alice's data was not modified; it was read only, apart from a 911 attest that was rejected. The nodejs supervisor service was restored and is RUNNING. No payments, no purchases, no calls.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Bot runbook: sudo supervisorctl stop nodejs; node js/tests/mock_telegram_api.js &; TELEGRAM_API_BASE_URL=http://127.0.0.1:5099 node js/start-bot.js > /tmp/bot218.log &; node js/tests/seed_iter218.js seed. PhoneMonitor suspends the fake seeded numbers about 30 s after start, so run node js/tests/t218_reactivate.js afterwards. Use t218_trial.js <chat…> to mark the free trial as used, so Business chats get the paid Quick IVR path instead of the trial. Drive the bot with BOT_LOG=/tmp/bot218.log node js/tests/say_iter215.js <chat> '<text>'. Clean with t218_cleanextra.js and then seed_iter218.js clean. Finally pkill the bot and the mock and run sudo supervisorctl start nodejs. Web app routes are under /cloudivr/app/* (Numbers page = /cloudivr/app/numbers). Alice has 4 Business and 2 Pro numbers. In dry run, /public/try/* does not persist showAs, so the normaliser is unit-tested via showas_norm_iter218.js."
+}

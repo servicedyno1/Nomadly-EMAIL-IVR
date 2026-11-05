@@ -3450,7 +3450,7 @@ SIP क्रेडेंशियल को "user / extension" के रूप
   fa: {
     hubWelcome: `📞 <b>Cloud IVR</b> <i>by Speechcue</i>
 
-اعداد مجازی در ${CLOUD_COUNTRY_COUNT} کشور · اکثر در چند دقیقه فعال می‌شوند
+شماره‌های مجازی در ${CLOUD_COUNTRY_COUNT} کشور · اکثر در چند دقیقه فعال می‌شوند
 
 📞 انتقال تماس · 💬 SMS به تلگرام · 🌐 تماس از مرورگر · 🤖 IVR · 🔗 SIP
 

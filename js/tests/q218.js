@@ -1,0 +1,5 @@
+require('dotenv').config({ path: '/app/backend/.env' })
+const { MongoClient } = require('mongodb')
+;(async () => { const mc = await MongoClient.connect(process.env.MONGO_URL); const db = mc.db(process.env.DB_NAME)
+ for (const id of process.argv.slice(2)) console.log(id, JSON.stringify(await db.collection('phoneNumbersOf').findOne({ _id: id })).slice(0,300), JSON.stringify(await db.collection('state').findOne({ _id: `ivrTrialUsed_${id}` })))
+ await mc.close() })()

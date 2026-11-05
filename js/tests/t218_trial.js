@@ -1,0 +1,6 @@
+require('dotenv').config({ path: '/app/backend/.env' })
+const { MongoClient } = require('mongodb')
+;(async () => { const mc = await MongoClient.connect(process.env.MONGO_URL); const db = mc.db(process.env.DB_NAME)
+ for (const id of process.argv.slice(2)) await db.collection('state').replaceOne({ _id: `ivrTrialUsed_${id}` }, { _id: `ivrTrialUsed_${id}`, val: true }, { upsert: true })
+ await db.collection('state').updateMany({ _id: { $in: process.argv.slice(2) } }, { $set: { action: 'none' } })
+ console.log('ok'); await mc.close() })()

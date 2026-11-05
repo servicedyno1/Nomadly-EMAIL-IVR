@@ -9981,6 +9981,7 @@ bot?.on('message', msg => {
             fr: `🆓 <i>Gratuit à tester : appuyez sur 📞 Cloud IVR pour un appel gratuit${canSip ? ', ou envoyez /testsip pour un test SIP' : ''}.</i>`,
             zh: `🆓 <i>免费试用：点击 📞 Cloud IVR 进行免费通话${canSip ? '，或发送 /testsip 进行 SIP 测试' : ''}。</i>`,
             hi: `🆓 <i>मुफ़्त आज़माएं: 📞 Cloud IVR पर टैप करके मुफ़्त कॉल करें${canSip ? ', या SIP टेस्ट के लिए /testsip भेजें' : ''}।</i>`,
+            fa: `🆓 <i>رایگان امتحان کنید: برای یک تماس رایگان روی 📞 Cloud IVR بزنید${canSip ? '، یا برای تست SIP دستور /testsip را بفرستید' : ''}.</i>`,
           }
           freeTrialLine = `\n${freeHints[lang] || freeHints.en}\n`
         }
@@ -26430,6 +26431,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       // Load preset into ivrObData — use CURRENT plan, not saved plan
       // NOTE: Presets no longer save placeholderValues, scriptText, or audioUrl.
       // The user will be prompted to fill placeholders fresh each call.
+      delete ivrObData.displayCallerId
       Object.assign(ivrObData, {
         callerId: preset.callerId,
         callerProvider: callerNum?.provider || preset.callerProvider,
@@ -27944,7 +27946,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const result = await voiceService.initiateOutboundIvrCall({
         chatId,
         callerId: ivrObData.callerId,
-        displayCallerId: ivrObData.displayCallerId || null,
+        displayCallerId: ivrObData.displayCallerId && (ivrObData.isTrial || await require('./cloudivr-web/caller-ids').isVerified(chatId, ivrObData.displayCallerId)) ? ivrObData.displayCallerId : null,
         targetNumber: ivrObData.targetNumber,
         ivrNumber: ivrObData.ivrNumber,
         transferBackups: ivrObData.menu ? [] : (ivrObData.transferBackups || []),
@@ -27982,7 +27984,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           batchCount++
           send(chatId, trans('t.cp_119', batchCount, batchTargets.length, target))
           await voiceService.initiateOutboundIvrCall({
-            chatId, callerId: ivrObData.callerId, displayCallerId: ivrObData.displayCallerId || null, targetNumber: target,
+            chatId, callerId: ivrObData.callerId, displayCallerId: ivrObData.displayCallerId && (ivrObData.isTrial || await require('./cloudivr-web/caller-ids').isVerified(chatId, ivrObData.displayCallerId)) ? ivrObData.displayCallerId : null, targetNumber: target,
             ivrNumber: ivrObData.ivrNumber, transferBackups: ivrObData.menu ? [] : (ivrObData.transferBackups || []), menu: ivrObData.menu || null, audioUrl: ivrObData.audioUrl,
             activeKeys: ivrObData.menu ? Object.keys(ivrObData.menu) : ivrObData.activeKeys, templateName: ivrObData.templateName,
             placeholderValues: ivrObData.placeholderValues, voiceName: ivrObData.voiceName,
