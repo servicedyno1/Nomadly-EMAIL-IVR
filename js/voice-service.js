@@ -1142,6 +1142,24 @@ function setWalletRejectCooldown(fromNumber, chatId) {
 }
 
 // Cleanup stale rate limit entries every 5 minutes
+// Remove an old call session only when Telnyx confirms the call ended (non-Telnyx keys and anything past
+// SESSION_HARD_CAP_MS go as before). Live calls are re-checked every 5 minutes.
+const SESSION_HARD_CAP_MS = 6 * 3600 * 1000
+const _aliveChecking = new Set()
+function _expireIfDead(store, key, ageMs, onDelete) {
+  const e = store[key]
+  if (!e || _aliveChecking.has(key)) return
+  if (e._aliveCheckedAt && Date.now() - e._aliveCheckedAt < 5 * 60000 && ageMs < SESSION_HARD_CAP_MS) return
+  const drop = () => { if (store[key] !== e) return; onDelete?.(e); delete store[key]; log(`[Voice] Memory cleanup: removed ended session ${key} (age ${Math.round(ageMs / 60000)} min)`) }
+  if (ageMs >= SESSION_HARD_CAP_MS || !String(key).startsWith('v3:') || !_telnyxApi?.isCallAlive) return drop()
+  _aliveChecking.add(key)
+  _telnyxApi.isCallAlive(key).then(alive => {
+    if (alive === false) return drop()
+    if (store[key]) store[key]._aliveCheckedAt = Date.now()
+    if (alive) log(`[Voice] Long call still live — keeping session ${key} (${Math.round(ageMs / 60000)} min)`)
+  }).catch(() => {}).finally(() => _aliveChecking.delete(key))
+}
+
 setInterval(() => {
   const now = Date.now()
   for (const key of Object.keys(sipRateLimit)) {
@@ -1172,6 +1190,8 @@ setInterval(() => {
   }
 
   // ── Memory Leak Prevention: Cleanup orphaned call session stores ──
+  // Old Telnyx call sessions are removed only once Telnyx says the call is over, so a long call keeps
+  // its end-of-call billing and its wallet guard (prod 2026-11-05: a 32-min transfer was never billed).
   // These stores rely on webhook events for cleanup. If webhooks are missed
   // (network glitch, server restart during active call), entries stay forever.
   // Clean up entries older than their max expected lifetime.
@@ -1189,9 +1209,7 @@ setInterval(() => {
   for (const key of Object.keys(activeCalls)) {
     const entry = activeCalls[key]
     if (entry?.startedAt && (now - new Date(entry.startedAt).getTime()) > ACTIVE_CALL_MAX_AGE) {
-      if (entry._limitTimer) clearInterval(entry._limitTimer)
-      delete activeCalls[key]
-      cleaned++
+      _expireIfDead(activeCalls, key, now - new Date(entry.startedAt).getTime(), e => { if (e._limitTimer) clearInterval(e._limitTimer) })
     }
   }
 
@@ -1200,9 +1218,7 @@ setInterval(() => {
     const entry = outboundIvrCalls[key]
     const ts = entry?.startedAt || entry?.createdAt || entry?.startTime
     if (ts && (now - (ts instanceof Date ? ts.getTime() : ts)) > IVR_SESSION_MAX_AGE) {
-      if (entry._limitTimer) clearInterval(entry._limitTimer)
-      delete outboundIvrCalls[key]
-      cleaned++
+      _expireIfDead(outboundIvrCalls, key, now - (ts instanceof Date ? ts.getTime() : ts), e => { if (e._limitTimer) clearInterval(e._limitTimer) })
     }
   }
 
@@ -1231,8 +1247,7 @@ setInterval(() => {
     const entry = activeBridgeTransfers[key]
     const ts = entry?.startedAt || entry?.createdAt
     if (ts && (now - new Date(ts).getTime()) > BRIDGE_TRANSFER_MAX_AGE) {
-      delete activeBridgeTransfers[key]
-      cleaned++
+      _expireIfDead(activeBridgeTransfers, key, now - new Date(ts).getTime())
     }
   }
 
@@ -1252,9 +1267,7 @@ setInterval(() => {
     const entry = ivrTransferLegs[key]
     const ts = entry?.createdAt || entry?.startedAt || entry?.startTime
     if (ts && (now - (ts instanceof Date ? ts.getTime() : ts)) > IVR_SESSION_MAX_AGE) {
-      if (entry._transferTimeout) clearTimeout(entry._transferTimeout)
-      delete ivrTransferLegs[key]
-      cleaned++
+      _expireIfDead(ivrTransferLegs, key, now - (ts instanceof Date ? ts.getTime() : ts), e => { if (e._transferTimeout) clearTimeout(e._transferTimeout) })
     }
   }
 
@@ -5198,13 +5211,21 @@ async function handleOutboundIvrAnswered(payload) {
               const { usdBal } = await getBalance(_walletOf, ownerId)
               // Disconnect threshold = the ACTUAL per-min rate for the active leg(s)
               // (international IVR = $0.50/min, policy 2026-08-07), not the flat $0.15.
-              const midRate = Math.max(getIvrCallRate(sess.targetNumber), sess.ivrNumber ? getIvrCallRate(sess.ivrNumber) : 0) || IVR_CALL_RATE
-              if (usdBal < midRate) {
-                log(`[OutboundIVR] Mid-call wallet exhausted: $${usdBal.toFixed(2)} < $${midRate}/min. Disconnecting.`)
+              // Legs are billed at hang-up, so count what this call already owes against the balance.
+              const ivrRate = getIvrCallRate(sess.targetNumber) || IVR_CALL_RATE
+              const leg = Object.entries(ivrTransferLegs).find(([, t]) => t.parentCallControlId === callControlId && t.answerTime)
+              const legRate = leg ? getIvrCallRate(leg[1].ivrNumber) || IVR_CALL_RATE : 0
+              const mins = (t0) => Math.ceil((Date.now() - t0) / 60000)
+              const owed = (sess.answerTime ? mins(sess.answerTime) * ivrRate : 0) + (leg ? mins(leg[1].answerTime) * legRate : 0)
+              const midRate = +(ivrRate + legRate).toFixed(2)
+              const left = usdBal - owed
+              if (left < midRate) {
+                log(`[OutboundIVR] Mid-call wallet exhausted: balance $${usdBal.toFixed(2)}, call owes ~$${owed.toFixed(2)}, next minute $${midRate}. Disconnecting.`)
                 clearInterval(session._limitTimer)
                 await _telnyxApi.hangupCall(callControlId).catch(() => {})
+                if (leg) await _telnyxApi.hangupCall(leg[0]).catch(() => {})
                 const lang = await _getUserLang(session.chatId)
-                const msg = _trans('vs.ivrCallEndedWalletExhausted', lang, usdBal.toFixed(2), midRate)
+                const msg = _trans('vs.ivrCallEndedWalletExhausted', lang, Math.max(0, left).toFixed(2), midRate)
                 if (msg) _bot?.sendMessage(session.chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
               }
             } catch (e) { log(`[OutboundIVR] Mid-call wallet check error: ${e.message}`) }

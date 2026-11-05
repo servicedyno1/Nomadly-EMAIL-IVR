@@ -8,6 +8,7 @@ const ivrOb = require('../ivr-outbound')
 const { walletOps } = require('./wallet')
 const callerIds = require('./caller-ids')
 const { normPhone, E164, parseBackups } = require('./numbers')
+const { dialIssue } = require('../dial-check')
 
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const MAX_TARGETS = 10
@@ -36,6 +37,7 @@ function cleanMenu(menu, callerId) {
     if (action === 'forward') {
       const to = normPhone(o.forwardTo)
       if (!E164.test(to)) throw new Error(`${where}: enter the forward number with country code, e.g. +14155550100.`)
+      if (dialIssue(to)) throw new Error(`${where}: ${dialIssue(to)}`)
       if (phoneConfig.isBlockedPrefix(to)) throw new Error(`${where}: ${to} is a blocked premium/satellite destination.`)
       if (to === callerId) throw new Error(`${where}: forward to a number other than your caller ID.`)
       return { action, forwardTo: to, label }
@@ -192,6 +194,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (targets.length > (trial ? 1 : MAX_TARGETS)) return { err: [400, 'too_many_numbers', trial ? 'The free call goes to one number.' : `Up to ${MAX_TARGETS} numbers per Quick IVR call — use a campaign for more.`] }
     for (const t of targets) {
       if (!E164.test(t)) return { err: [400, 'invalid_number', `${t} is not a valid number. Use the country code, e.g. +14155550100.`] }
+      if (dialIssue(t)) return { err: [400, 'invalid_number', dialIssue(t)] }
       if (phoneConfig.isBlockedPrefix(t)) return { err: [400, 'blocked_destination', `${t} is a blocked premium/satellite destination.`] }
       if (t === callerId) return { err: [400, 'same_number', 'You cannot call your own caller ID.'] }
     }
@@ -220,6 +223,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       if (String(b.transferTo || '').trim()) {
         transferTo = normPhone(b.transferTo)
         if (!E164.test(transferTo)) return { err: [400, 'invalid_transfer', 'Enter the number to connect with country code, e.g. +14155550100.'] }
+        if (dialIssue(transferTo)) return { err: [400, 'invalid_transfer', dialIssue(transferTo)] }
         if (phoneConfig.isBlockedPrefix(transferTo)) return { err: [400, 'invalid_transfer', `${transferTo} is a blocked premium/satellite destination.`] }
         if (transferTo === callerId) return { err: [400, 'invalid_transfer', 'The number to connect must differ from the caller ID.'] }
       }
@@ -230,6 +234,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     } else {
       transferTo = normPhone(b.transferTo)
       if (!E164.test(transferTo)) return { err: [400, 'invalid_transfer', 'Enter the transfer number with country code, e.g. +14155550100.'] }
+      if (dialIssue(transferTo)) return { err: [400, 'invalid_transfer', dialIssue(transferTo)] }
       if (phoneConfig.isBlockedPrefix(transferTo)) return { err: [400, 'invalid_transfer', `${transferTo} is a blocked premium/satellite destination.`] }
       if (transferTo === callerId) return { err: [400, 'invalid_transfer', 'The transfer number must differ from the caller ID.'] }
       const bk = parseBackups(b.transferBackups, [transferTo, callerId])

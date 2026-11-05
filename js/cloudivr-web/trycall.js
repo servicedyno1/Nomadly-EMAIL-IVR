@@ -6,6 +6,7 @@ const crypto = require('crypto')
 const jwt = require('jsonwebtoken')
 const phoneConfig = require('../phone-config')
 const { normPhone, E164 } = require('./numbers')
+const { dialIssue } = require('../dial-check')
 const { secret, clientIp, sendMail, normEmail, EMAIL_RE } = require('./auth')
 
 // WEB_TRYCALL_LIVE=true places real demo calls (and emails real codes) even on a dry-run preview.
@@ -61,6 +62,7 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     // Must start with + or 00: guessing the country of a bare number could ring someone abroad.
     const to = /^(\+|00)/.test(s) ? normPhone(s.replace(/^00/, '+')) : ''
     if (!E164.test(to)) return { err: 'Enter the phone number with + and country code, e.g. +14155550100.' }
+    if (dialIssue(to)) return { err: dialIssue(to) }
     if (phoneConfig.isBlockedPrefix(to) || voiceService.getIvrCallRate(to) > 0.5) return { err: 'Free test calls go to standard mobile and landline numbers only.' }
     return { to }
   }

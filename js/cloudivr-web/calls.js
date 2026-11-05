@@ -4,6 +4,7 @@ const phoneConfig = require('../phone-config')
 const { walletOps } = require('./wallet')
 const callerIds = require('./caller-ids')
 const { normPhone, E164, parseBackups } = require('./numbers')
+const { dialIssue } = require('../dial-check')
 const { spokenNumber } = require('../voicemail-greeting')
 const { cleanMenu, firstForward } = require('./outbound')
 const { listLeads } = require('./contacts')
@@ -52,6 +53,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   function transferTo(body, num) {
     const to = normPhone(body.transferTo)
     if (!E164.test(to)) return { err: 'Enter the transfer number with country code, e.g. +14155550100.' }
+    if (dialIssue(to)) return { err: dialIssue(to) }
     if (phoneConfig.isBlockedPrefix(to)) return { err: `${to} is a blocked premium/satellite destination.` }
     if (to === num) return { err: 'The transfer number must differ from the caller ID.' }
     return { to }
@@ -89,6 +91,8 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const me = normPhone(req.body.myPhone), to = normPhone(req.body.to)
     if (!E164.test(me)) return bad(res, 400, 'invalid_my_phone', 'Enter your mobile number with country code, e.g. +14155550100.')
     if (!E164.test(to)) return bad(res, 400, 'invalid_number', 'Enter the number to call with country code, e.g. +14155550100.')
+    if (dialIssue(me)) return bad(res, 400, 'invalid_my_phone', dialIssue(me))
+    if (dialIssue(to)) return bad(res, 400, 'invalid_number', dialIssue(to))
     for (const [n, label] of [[me, 'Your mobile'], [to, 'The number to call']]) {
       if (phoneConfig.isBlockedPrefix(n)) return bad(res, 400, 'blocked_destination', `${label} (${n}) is a blocked premium/satellite destination.`)
     }
@@ -133,6 +137,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (b.voicemailAudioId && !vm) return bad(res, 400, 'invalid_audio', 'Pick the voicemail drop from your audio library.')
     const { leads, errors } = await leadsOf(chatId, b)
     if (!leads.length) return bad(res, 400, 'no_leads', (!b.listId && !String(b.leads || '').trim() ? '' : errors[0]) || 'Add at least one number to call (one per line, optional ",name").')
+    if (!b.listId && errors.length) return bad(res, 400, 'invalid_leads', `${errors.length === 1 ? '1 number needs' : `${errors.length} numbers need`} fixing before the campaign can start. ${errors.slice(0, 3).join(' · ')}`)
     if (leads.length > bulkCallService.MAX_BULK_LEADS) return bad(res, 400, 'too_many_leads', `Maximum ${bulkCallService.MAX_BULK_LEADS} numbers per campaign.`)
     // 'menu' = route each key (forward / message / sub-menu); the engine runs it as a transfer campaign.
     const mode = ['transfer', 'menu'].includes(b.mode) ? 'transfer' : 'report_only'
@@ -175,6 +180,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (agent.disabled) return bad(res, 403, 'agent_stopped', 'This AI agent was stopped by CloudIVR. Contact support.')
     const { leads, errors } = await leadsOf(chatId, b)
     if (!leads.length) return bad(res, 400, 'no_leads', (!b.listId && !String(b.leads || '').trim() ? '' : errors[0]) || 'Add at least one number to call (one per line, optional ",name").')
+    if (!b.listId && errors.length) return bad(res, 400, 'invalid_leads', `${errors.length === 1 ? '1 number needs' : `${errors.length} numbers need`} fixing before the campaign can start. ${errors.slice(0, 3).join(' · ')}`)
     if (leads.length > bulkCallService.MAX_BULK_LEADS) return bad(res, 400, 'too_many_leads', `Maximum ${bulkCallService.MAX_BULK_LEADS} numbers per campaign.`)
     const plan = runPlan(b)
     if (plan.err) return bad(res, ...plan.err)

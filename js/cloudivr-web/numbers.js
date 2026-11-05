@@ -23,6 +23,7 @@ const webText = (s) => String(s).replace(/Telegram/g, 'your inbox')
 const normPhone = (p) => { const d = String(p || '').replace(/[^\d+]/g, ''); return d ? (d.startsWith('+') ? d : `+${d}`) : '' }
 // Numbers typed to dial (forward-to, backups, IVR forward keys): the bot's auto-correct (10-digit US → +1).
 const dialNorm = require('../backup-numbers').norm
+const { dialIssue } = require('../dial-check')
 const bad = (res, status, error, message) => res.status(status).json({ error, message })
 // Up to `max` backup numbers rung in order when the main one is busy or doesn't answer → { list } | { error }.
 function parseBackups(raw, exclude = [], max = 4) {
@@ -34,6 +35,7 @@ function parseBackups(raw, exclude = [], max = 4) {
   if (list.length > max) return { error: `Add up to ${max} backup numbers.` }
   for (const n of list) {
     if (!E164.test(n)) return { error: `Backup ${n}: use the country code, e.g. +14155550100.` }
+    if (dialIssue(n)) return { error: `Backup ${dialIssue(n)}` }
     if (phoneConfig.isBlockedPrefix(n)) return { error: `Backup ${n} is a blocked premium/satellite destination.` }
   }
   return { list }
@@ -184,6 +186,7 @@ function validateIvr(body, plan, audioOk = () => true) {
       if (action === 'forward') {
         const to = dialNorm(o.forwardTo)
         if (!E164.test(to)) throw new Error(`Key ${digit}: enter the forward number with country code, e.g. +14155550100.`)
+        if (dialIssue(to)) throw new Error(`Key ${digit}: ${dialIssue(to)}`)
         if (phoneConfig.isBlockedPrefix(to)) throw new Error(`Key ${digit}: ${to} is a blocked premium/satellite destination.`)
         out[digit] = { action, forwardTo: to, label }
       } else if (action === 'message') {
@@ -448,6 +451,7 @@ function routes(router, deps) {
     const to = mode === 'disabled' ? null : dialNorm(req.body.forwardTo)
     if (mode !== 'disabled') {
       if (!E164.test(to)) return bad(res, 400, 'invalid_number', 'Enter the forward number with country code, e.g. +14155550100.')
+      if (dialIssue(to)) return bad(res, 400, 'invalid_number', dialIssue(to))
       if (phoneConfig.isBlockedPrefix(to)) return bad(res, 400, 'blocked_destination', `${to} is a blocked premium/satellite destination.`)
       if (to === req.num.phoneNumber) return bad(res, 400, 'self_forward', 'A number cannot forward to itself.')
     }
