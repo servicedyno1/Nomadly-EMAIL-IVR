@@ -400,3 +400,13 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - Overlay: memory/patches/wl3_2026-11-05.patch (git diff 99e109db..2f30a1eb for js/sip-call-queue.js, voice-service.js, telnyx-service.js, spenza.js, esim-bot.js, _index.js, lang/{en,fr,hi,zh}.js) applied with `patch -p1` (0 failed hunks) onto live releases app-wl-b, app-voodoo-b, app-proshop-a (all 20261102T01xxxxZ-59ee017). Typo check NOT applied (WL has no contacts-import.js; web-only). Reloaded at 0 calls, healthy.
 - Backups: /opt/nomadly/deploy-backups/<slot>-wl3-20261105T084104Z/before.tgz (restore = untar into release dir, rm js/sip-call-queue.js, pm2 reload <slot> --update-env).
 - ⚠️ Overlay is not on the WhiteLabel branch — the next WhiteLabel deploy drops it (and the 2 Nov eSIM overlay) unless synced.
+
+## 2026-11-05 08:54Z — WhiteLabel auto-sync made web-aware and RE-ENABLED; WL caught up and redeployed
+- scripts/sync_whitelabel.py: new WEB_ONLY_PATTERNS (js/cloudivr-web/*, frontend/src/cloudivr/*, frontend/public/civr*) and WL_SHELL_PATTERNS
+  (frontend/src/App.js, frontend/src/index.js, frontend/public/index.html) are skipped, EXCEPT when synced runtime code require()/imports them
+  (deps_of closure, also pulls files WL lacks). Report shows "Carried because synced code needs them" + "Skipped — CloudIVR web only".
+- .github/workflows/sync-whitelabel.yml: full sync runs on every push to main again (pause: repo variable WL_AUTO_SYNC=false); the
+  separate "shared fixes" job removed (full sync covers it). ops/whitelabel-shared-files.txt is now unused.
+- Pushed main e8315b6a (token GITHUB_TOKEN_CLASSIC). Sync → WhiteLabel 0862e470 "carry main 5a1ffad4..e8315b6a (403 files)" (dry run beforehand:
+  0 conflicts, all relative requires resolve, key modules load). Deploy whitelabel: app-wl-a, app-voodoo-a, app-proshop-b all success,
+  healthy, 0 restarts, no new errors. The 2 Nov + today overlays are now real code on WhiteLabel (no longer drop on next deploy).
