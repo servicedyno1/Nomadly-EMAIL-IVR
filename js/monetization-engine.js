@@ -229,6 +229,10 @@ async function checkAndAwardWelcomeBonus(chatId, lang = 'en') {
         hi: `🎉 <b>स्वागत उपहार!</b>\n\n` +
             `$${WELCOME_BONUS_USD} स्वागत उपहार के रूप में आपके वॉलेट में जोड़ दिए गए!\n\n` +
             `💡 किसी भी सेवा पर इस्तेमाल करें। ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} में स्वागत है! 🚀`,
+        fa: `🎉 <b>هدیه خوش‌آمدگویی!</b>\n\n` +
+            `$${WELCOME_BONUS_USD} به عنوان هدیه خوش‌آمدگویی به کیف پول شما اضافه شد!\n\n` +
+            `💡 از آن برای هر سرویسی استفاده کنید — دامنه، شماره تلفن، هاستینگ و موارد دیگر.\n\n` +
+            `از پیوستن شما به ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} سپاسگزاریم! 🚀`,
       }
 
       return { awarded: true, amount: WELCOME_BONUS_USD, message: msgs[lang] || msgs.en }

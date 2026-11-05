@@ -435,6 +435,12 @@ const plansI18n = {
     pro: { features: ['सभी स्टार्टर सुविधाएँ', 'कस्टम वॉइसमेल', 'सॉफ्टफ़ोन के लिए SIP क्रेडेंशियल्स', 'SMS से Telegram और Email', 'Webhook इंटीग्रेशन', 'त्वरित IVR कॉल', 'बल्क IVR अभियान (अभी या शेड्यूल)', 'OTP संग्रह', 'IVR ऑटो-अटेंडेंट', 'IVR कॉल Analytics', 'कॉल रिकॉर्डिंग', `${SUB_NUMBER_LIMITS.pro} अतिरिक्त नंबर तक`] },
     business: { features: ['सभी Pro सुविधाएँ', 'IVR प्रीसेट और हाल की कॉलें', 'IVR रीडायल बटन', 'त्वरित IVR कॉल शेड्यूलिंग', 'कस्टम OTP संदेश', 'सुसंगत TTS आवाज़', 'प्राथमिकता समर्थन', `${SUB_NUMBER_LIMITS.business} अतिरिक्त नंबर तक`] },
   },
+  fa: {
+    starter: { features: ['انتقال تماس به هر شماره', 'ارسال SMS به Telegram', `افزودن تا ${SUB_NUMBER_LIMITS.starter} شماره اضافه`] },
+    pro: { features: ['همه امکانات Starter', 'پیغام‌گیر صوتی با خوشامد سفارشی', 'اطلاعات ورود SIP برای سافت‌فون', 'SMS به Telegram و ایمیل', 'یکپارچه‌سازی Webhook', 'تماس سریع IVR', 'کمپین IVR انبوه (فوری یا زمان‌بندی‌شده)', 'دریافت OTP', 'منشی خودکار IVR', 'آمار تماس IVR', 'ضبط تماس', `افزودن تا ${SUB_NUMBER_LIMITS.pro} شماره اضافه`] },
+    business: { features: ['همه امکانات Pro', 'پیش‌تنظیم‌های IVR و تماس‌های اخیر', 'دکمه تماس مجدد IVR', 'زمان‌بندی تماس سریع IVR', 'پیام‌های OTP سفارشی', 'صدای TTS یکسان', 'پشتیبانی ویژه', `افزودن تا ${SUB_NUMBER_LIMITS.business} شماره اضافه`] },
+  },
+
 }
 
 // Feature gating per plan — which features each plan unlocks
@@ -1526,6 +1532,48 @@ const msg = {
     tryBeforeYouBuy: `💡 <b>क्या आप जानते हैं?</b> प्लान चुनने से पहले आप <b>मुफ्त SIP टेस्ट कॉल</b> और <b>मुफ्त IVR ट्रायल कॉल</b> आज़मा सकते हैं!\n\n🆓 <b>🆓 SIP कॉल मुफ्त आज़माएं</b> पर टैप करें\n📢 <b>📢 त्वरित IVR कॉल</b> पर टैप करें\n\nया प्लान चुनने के लिए आगे बढ़ें 👇`,
     buyPlansHeader: `🛒 <b>क्लाउड IVR प्लान चुनें</b>\n\nपहले अपना प्लान चुनें:`,
   },
+  fa: {
+    selectOption: 'لطفاً یک گزینه انتخاب کنید.',
+    selectValidCountry: 'لطفاً یک کشور معتبر انتخاب کنید.',
+    selectLocalOrTollFree: 'لطفاً محلی یا رایگان را انتخاب کنید.',
+    selectValidArea: 'لطفاً یک منطقه انتخاب کنید یا از جستجو استفاده کنید.',
+    enterValidAreaCode: 'یک کد منطقه معتبر وارد کنید (مثال: 415).',
+    tapNumberToSelect: 'یک عدد (1-5) را برای انتخاب لمس کنید.',
+    selectPlan: 'لطفاً یک طرح انتخاب کنید.',
+    proceedOrBack: 'به پرداخت ادامه دهید یا بازگردید.',
+    selectByIndex: '💡 یکی از اندیس‌ها (1، 2، 3…) را در صفحه‌کلید زیر لمس کنید — اعداد تایپ‌شده در این مرحله کار نمی‌کنند.',
+    selectForwardMode: 'یک حالت انتقال انتخاب کنید.',
+    enterValidPhone: 'یک شماره معتبر با کد کشور وارد کنید (مثال: +14155551234).',
+    enterValidEmail: 'یک آدرس ایمیل معتبر وارد کنید.',
+    selectValidPlan: 'یک طرح معتبر انتخاب کنید.',
+    noActiveNumbers: 'هیچ شماره فعالی وجود ندارد. ابتدا یکی بخرید!',
+    purchasingNumber: '🔄 در حال خرید شماره شما...',
+    purchaseFailed: '❌ خرید ناموفق بود. کیف پول شما بازپرداخت شد. دوباره امتحان کنید یا با پشتیبانی تماس بگیرید.',
+    bundleRequired: '📋 این کشور نیاز به تأیید نظارتی دارد. تأیید معمولاً ۱ تا ۳ روز کاری طول می‌کشد.',
+    bundleSubmitted: '📋 پرونده نظارتی شما ارسال شد. پس از تأیید به شما اطلاع داده می‌شود.',
+    confirmOrCancel: 'لطفاً تأیید یا لغو کنید.',
+    typeLast4: (digits) => `۴ رقم آخر را تایپ کنید: ${digits}`,
+    noOptionForKey: (key) => `❌ هیچ گزینه‌ای برای کلید "${key}" وجود ندارد.`,
+    enterValidForwardTo: 'یک شماره معتبر وارد کنید. مثال: <code>1 forward +14155551234</code>',
+    autoRenewToggled: (state) => `🔁 تمدید خودکار: ${state ? '✅ فعال' : '❌ غیرفعال'}`,
+    vmTelegramToggled: (state) => `📲 پیام صوتی Telegram: ${state ? '✅ فعال' : '❌ غیرفعال'}`,
+    ringTimeUpdated: (seconds) => `✅ مدت زنگ: ${seconds} ثانیه.`,
+    changePlanHeader: (number, plan, price) => `📦 تغییر طرح برای ${formatPhone(number)}\n\nفعلی: ${plan.charAt(0).toUpperCase() + plan.slice(1)} — $${price}/ماه`,
+    planChanged: (plan, price) => `✅ طرح تغییر کرد: <b>${plan.charAt(0).toUpperCase() + plan.slice(1)}</b> — $${price}/ماه`,
+    featuresDisabled: 'ویژگی‌های غیرفعال‌شده:',
+    noIvrOptions: 'هیچ گزینه منوی IVR پیکربندی نشده است.',
+whichKeyRemove: 'کدام کلید را می‌خواهید حذف کنید؟',
+    sendVoiceOrText: 'یک پیام صوتی، فایل صوتی ارسال کنید، یا یک متن سفارشی تایپ کنید.',
+    noActivity: 'در حال حاضر هیچ فعالیتی وجود ندارد.',
+    insufficientBalUpgrade: (needed, bal) => `❌ موجودی ناکافی. شما به $${needed.toFixed(2)} نیاز دارید اما فقط $${bal.toFixed(2)} دارید.\n\nلطفاً کیف پول خود را شارژ کنید.`,
+    sipTestCode: (otp, remaining) => `🔑 <b>کد تست SIP شما</b>\n\n<code>${otp}</code>\n\nاین کد را در صفحه تماس وارد کنید تا اطلاعات ورود SIP رایگان خود را دریافت کنید.\n⏱ در ۵ دقیقه منقضی می‌شود.\n📞 ${remaining} تماس${remaining !== 1 ? '' : ''} تست باقی‌مانده.\n\n🌐 <a href="${CALL_PAGE_URL}">باز کردن صفحه تماس</a>\n\n💡 <b>آیا دوست داشتید؟</b> روی <b>📞 Cloud IVR + SIP</b> بزنید تا شماره اختصاصی خود را با تماس‌های نامحدود دریافت کنید.`,
+    sipTestComplete: `📞 <b>تست SIP تمام شد</b>\n\nشما تمام تماس‌های تست رایگان خود را استفاده کرده‌اید. برای تماس‌های SIP نامحدود، یک پلن <b>Cloud IVR</b> با پشتیبانی SIP تهیه کنید.\n\n👉 روی <b>📞 Cloud IVR + SIP</b> بزنید تا پلن‌ها را مشاهده کنید.\n\n🌐 از مرورگر خود تماس بگیرید: <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a>`,
+    sipTestReferral: (link) => `\n\n🎁 <b>می‌خواهید ۱ تماس تست رایگان بیشتر داشته باشید؟</b>\nاین لینک را با یک دوست به اشتراک بگذارید. وقتی او /testsip ارسال کند، شما یک تماس اضافه دریافت می‌کنید:\n\n${link}`,
+    sipTestError: '❌ تولید کد تست امکان‌پذیر نیست. لطفاً دوباره امتحان کنید.',
+    sipTestMenuHint: '🆓 <b>یک تماس SIP رایگان امتحان کنید!</b> ارسال /testsip',
+    tryBeforeYouBuy: `💡 <b>آیا می‌دانستید؟</b> می‌توانید قبل از انتخاب پلن، یک <b>تماس SIP رایگان</b> و یک <b>تماس آزمایشی IVR</b> امتحان کنید!\n\n🆓 <b>🆓 امتحان SIP رایگان</b> را تایپ کنید تا تست کنید\n📢 <b>📢 تماس سریع IVR</b> را تایپ کنید برای دمو\n\nیا در زیر ادامه دهید 👇`,
+    buyPlansHeader: `🛒 <b>انتخاب پلن Cloud IVR</b>\n\nابتدا پلن خود را انتخاب کنید:`,
+  },
 }
 
 // ── Translated button labels (for multilingual keyboards) ──
@@ -1787,6 +1835,92 @@ const btnI18n = {
     addNumber: '➕ प्लान में नंबर जोड़ें',
     back: 'वापस',
     cancel: 'रद्द करें',
+  },
+  fa: {
+    buyPhoneNumber: '🛒 انتخاب پلن',
+    myNumbers: '📋 پلن‌های من',
+    sipSettings: '📖 راهنمای SIP',
+    usageBilling: '📊 مصرف و صورت‌حساب',
+    localNumber: '📍 شماره محلی',
+    tollFreeNumber: '📞 شماره رایگان',
+    mobileNumber: '📱 شماره موبایل',
+    nationalNumber: '🌐 شماره ملی',
+    starterPlan: PHONE_STARTER_ON ? `💡 Starter — $${PHONE_STARTER_PRICE}/ماه` : '💡 Starter — به زودی 🔜',
+    proPlan: PHONE_PRO_ON ? `⭐ Pro — $${PHONE_PRO_PRICE}/ماه` : '⭐ Pro — به زودی 🔜',
+    businessPlan: PHONE_BUSINESS_ON ? `👑 Business — $${PHONE_BUSINESS_PRICE}/ماه` : '👑 Business — به زودی 🔜',
+    callForwarding: '📞 انتقال تماس',
+    smsSettings: '📩 تنظیمات SMS',
+    smsInbox: '📨 صندوق SMS',
+    voicemail: '🎙️ پیام‌گیر صوتی',
+    sipCredentials: '🔑 اطلاعات SIP',
+    callRecording: '🔴 ضبط تماس',
+    ivrAutoAttendant: '🤖 IVR / منشی خودکار',
+    callSmsLogs: '📊 گزارش تماس‌ها و SMS',
+    testMyNumber: '📞 آزمایش شماره من',
+    testOutboundSip: '📤 آزمایش SIP خروجی',
+    renewChangePlan: '🔄 تمدید / تغییر',
+    releaseNumber: '🗑️ حذف شماره',
+    alwaysForward: '📞 همیشه انتقال بده',
+    forwardBusy: '📵 انتقال در صورت اشغال',
+    forwardNoAnswer: '⏰ انتقال در صورت عدم پاسخ',
+    disableForwarding: '🚫 غیرفعال کردن انتقال',
+    holdMusicOn: '🎵 موسیقی انتظار: بله',
+    holdMusicOff: '🎵 موسیقی انتظار: خیر',
+   smsToTelegram: '📲 SMS به Telegram',
+    smsToEmail: '📧 SMS از طریق Email',
+    smsWebhook: '🔗 URL Webhook',
+    enableVoicemail: '✅ فعال‌کردن پیام‌گیر',
+    disableVoicemail: '🚫 غیرفعال‌کردن پیام‌گیر',
+    vmGreeting: '🔊 پیام خوشامدگویی',
+    vmCustomGreeting: '🎤 خوشامدگویی سفارشی',
+    vmDefaultGreeting: '🔄 خوشامدگویی پیش‌فرض',
+    vmToTelegram: '📲 ارسال به Telegram',
+    vmToEmail: '📧 ارسال از طریق Email',
+    vmRingTime: '⏰ زمان زنگ',
+    revealPassword: '👁️ نمایش رمز عبور',
+    resetPassword: '🔄 بازنشانی رمز عبور',
+    softphoneGuide: '📖 راهنمای SIP',
+    renewNow: '🔄 تمدید الان',
+    changePlan: '📦 تغییر طرح',
+    upgradeToPro: '⬆️ ارتقا به Pro',
+    upgradeToBusiness: '⬆️ ارتقا به Business',
+    autoRenew: '🔁 تمدید خودکار',
+    showMore: '🔄 شماره‌های بیشتر',
+    searchByArea: '🔍 جستجو بر اساس منطقه',
+    moreCountries: '🌍 کشورهای بیشتر',
+    applyCoupon: '🎟️ اعمال کوپن',
+    proceedPayment: '✅ ادامه به پرداخت',
+    buyAnother: '🛒 خرید شماره دیگر',
+    confirm: '✅ تأیید',
+    yesRelease: '⚠️ بله، حذف دائمی',
+    noKeep: '↩️ نه، نگه‌دار',
+    yesReset: 'بله، بازنشانی',
+    enableIvr: '✅ فعال‌کردن IVR',
+disableIvr: '🚫 غیرفعال کردن IVR',
+    ivrGreeting: '🎤 پیام خوشامدگویی',
+    ivrAddOption: '➕ افزودن گزینه',
+    ivrRemoveOption: '➖ حذف گزینه',
+    ivrViewOptions: '📋 مشاهده گزینه‌ها',
+    ivrAnalytics: '📊 آمار IVR',
+    ivrEditSubMenu: '🔧 ویرایش زیرمنو',
+    ivrUseTemplate: '📋 شروع از یک قالب',
+    ivrSaveTemplate: '💾 ذخیره به عنوان قالب',
+    enableRecording: '✅ فعال کردن ضبط',
+    disableRecording: '🚫 غیرفعال کردن ضبط',
+    inboxNewerPage: '◀️ جدیدتر',
+    inboxOlderPage: '▶️ قدیمی‌تر',
+    inboxRefresh: '🔄 بازنشانی',
+    ivrOutboundCall: '📢 تماس سریع IVR',
+    ivrOutboundCallTrial: '📢 تماس سریع IVR — ۱ رایگان',
+    ivrOutboundBack: '↩️ بازگشت',
+    bulkCallCampaign: '📞 کمپین IVR انبوه',
+    myCampaigns: '📋 کمپین‌های من',
+    audioLibrary: '🎵 کتابخانه صوتی',
+    testSipFree: '🆓 امتحان رایگان SIP',
+    howItWorks: '❓ چگونه کار می‌کند',
+    addNumber: '➕ افزودن شماره به طرح',
+    back: 'بازگشت',
+    cancel: 'لغو',
   },
 }
 
@@ -3276,6 +3410,486 @@ SIP क्रेडेंशियल को "user / extension" के रूप
       throttled: (max) => `⏳ आप पिछले 24 घंटों में इस नंबर पर ${max} आउटबाउंड SIP टेस्ट पहले ही चला चुके हैं। बाद में पुनः प्रयास करें।`,
       inactive: (phone) => `❌ नंबर <code>${phone}</code> सक्रिय नहीं है — आउटबाउंड SIP टेस्ट केवल सक्रिय नंबरों के लिए उपलब्ध है।`,
       noSipConfigured: (phone) => `❌ <code>${phone}</code> पर कोई SIP क्रेडेंशियल्स नहीं। पहले <b>🔑 SIP क्रेडेंशियल्स</b> के ज़रिए SIP सेट करें, फिर पुनः प्रयास करें।`,
+    },
+  },
+  fa: {
+    hubWelcome: `📞 <b>Cloud IVR</b> <i>توسط Speechcue</i>
+
+یک شماره مجازی در ${CLOUD_COUNTRY_COUNT} کشور دریافت کنید — اکثر شماره‌ها در چند دقیقه فعال می‌شوند.
+
+📞 تماس‌ها را به تلفن واقعی‌تان انتقال دهید
+💬 پیامک‌ها را مستقیماً در Telegram دریافت کنید
+🌐 از مرورگرتان تماس بگیرید و دریافت کنید — بدون نیاز به برنامه
+🤖 یک منشی تلفنی خودکار IVR راه‌اندازی کنید
+🔗 از طریق سافت‌فون SIP متصل شوید
+
+پلن‌ها از <b>$${PHONE_STARTER_PRICE}/ماه</b> با ${plans.starter.minutes} دقیقه ورودی + ${plans.starter.sms} پیامک ورودی شامل شده.
+💳 تماس‌های خروجی از کیف پول شما کسر می‌شود.
+
+تازه‌کار هستید؟ روی <b>❓ چطور کار می‌کند</b> بزنید تا راهنمای کامل را ببینید.`,
+
+    howItWorks: `📞 <b>Cloud IVR — چطور کار می‌کند</b>
+
+شماره مجازی اختصاصی خودتان در ${CLOUD_COUNTRY_COUNT} کشور. تماس و پیامک دریافت کنید، منوهای IVR بسازید — همه از طریق Telegram.
+
+<b>🚀 برای شروع:</b>
+1. روی <b>🛒 انتخاب پلن</b> بزنید ← کشور را انتخاب کنید ← شماره را انتخاب کنید
+2. از کیف پول خود پرداخت کنید (رمزارز، بانک یا کارت)
+3. اکثر شماره‌ها فوری فعال می‌شوند (برخی کشورها به اطلاعات هویتی نیاز دارند)
+
+<b>📞 کارهایی که می‌توانید انجام دهید:</b>
+• <b>انتقال تماس</b> به تلفن واقعی‌تان
+• <b>پیامک به Telegram</b> — پیام‌ها را اینجا دریافت کنید
+• <b>تماس مرورگری</b> — در ${CALL_PAGE_URL} تماس بگیرید/دریافت کنید (بدون برنامه)
+• <b>سافت‌فون SIP</b> — با هر برنامه SIP متصل شوید
+• <b>📢 تماس IVR سریع</b> — با یک پیام صوتی با شماره‌ای تماس بگیرید
+• <b>📞 کمپین IVR انبوه</b> — با صدها شماره تماس بگیرید
+• <b>🤖 مرکز تلفن خودکار IVR</b> — منوهای "برای فروش ۱، برای پشتیبانی ۲ را فشار دهید"
+• <b>🎙️ پیام‌گیر صوتی</b> — پیام‌های شخصی‌سازی‌شده، تحویل داده‌شده روی Telegram/Email
+
+<b>💰 صورت‌حساب :</b>
+• <b>ورودی</b> — تماس‌های پاسخ‌داده‌شده (SIP/مرورگر) و SMS دریافتی در پلن گنجانده شده
+• <b>خروجی</b> — تماس‌ها و انتقال‌ها به ازای هر دقیقه از کیف پول محاسبه می‌شوند
+• تمدید ماهانه. تمدید خودکار موجود است.
+
+<b>📋 پلن‌ها :</b>
+💡 <b>Starter $${PHONE_STARTER_PRICE}/ماه</b> — ${plans.starter.minutes} دقیقه، انتقال + SMS به Telegram
+⭐ <b>Pro $${PHONE_PRO_PRICE}/ماه</b> — ${plans.pro.minutes} دقیقه، + پیام‌گیر صوتی، SIP، ضبط تماس، مرکز تلفن خودکار، IVR سریع و انبوه، OTP
+👑 <b>Business $${PHONE_BUSINESS_PRICE}/ماه</b> — ${BUSINESS_MINUTES} دقیقه، + عامل صوتی هوش مصنوعی، بازگشت تماس IVR، زمان‌بندی IVR سریع، پشتیبانی اولویت‌دار
+
+🧪 SIP را رایگان امتحان کنید — <b>🧪 تست رایگان SIP</b> را فشار دهید`,
+
+    selectCountry: '📍 کشور را برای شماره جدید خود انتخاب کنید :',
+    searching: '🔍 در حال جستجوی شماره‌های موجود...',
+    noSearchResults: '❌ هیچ شماره‌ای موجود نیست. منطقه یا کشور دیگری را امتحان کنید.',
+    noNumbers: '📱 هنوز شماره‌ای ندارید.\n\nبرای دریافت اولین شماره مجازی خود روی دکمه زیر فشار دهید.',
+    ivrTrialUsed: (buyLabel) => `📢 <b>تماس IVR خروجی</b>\n\nشما قبلاً از تماس آزمایشی رایگان خود استفاده کرده‌اید.\n\nبرای تماس‌های IVR نامحدود با Caller ID اختصاصی خود، به Cloud IVR مشترک شوید!\n\nبرای شروع <b>${buyLabel}</b> را فشار دهید.`,
+    ivrTrialOffer: (callerId) => `📢 <b>تماس IVR خروجی — آزمایش رایگان</b>\n\n🎁 شما <b>۱ تماس آزمایشی رایگان دارید!</b>\n📱 Caller ID: <b>${callerId}</b> (اشتراکی)\n\nشماره‌ای که می‌خواهید با آن تماس بگیرید را وارد کنید (با کد کشور) :\n<i>مثال : +33612345678</i>`,
+    ivrSelectCallerId: '📢 <b>تماس IVR خروجی</b>\n\nشماره مورد نظر برای تماس (Caller ID) را انتخاب کنید :',
+    ivrEnterNumber: (phone) => `📱 Caller ID: <b>${phone}</b>\n\nشماره‌ای که می‌خواهید با آن تماس بگیرید را وارد کنید (با کد کشور) :\n<i>مثال : +33612345678</i>`,
+    ivrFoundCnam: (name) => `📋 یافت شد : <b>${name}</b>`,
+    ivrSelectCategory: (number) => `📞 هدف : <b>${number}</b>\n\nیک دسته‌بندی قالب IVR انتخاب کنید :`,
+    ivrCustomScript: `✍️ <b>اسکریپت سفارشی</b>\n\nپیام IVR خود را تایپ کنید. برای متغیرها از <b>[براکت]</b> استفاده کنید :\n\n<i>مثال : سلام [نام]. اینجا [شرکت]. پرداختی به مبلغ $[مبلغ] کسر شده. برای اعتراض ۱ را فشار دهید.</i>\n\nاسکریپت خود را تایپ کنید :`,
+    ivrEnterValue: (ph) => `مقدار <b>[${ph}]</b> را وارد کنید :`,
+    ivrValueSaved: (name, value, nextPh) => `✅ ${name} : <b>${value}</b>\n\nمقدار <b>[${nextPh}]</b> را وارد کنید :`,
+ivrSelectVoiceProvider: '🎙 <b>انتخاب ارائه‌دهنده صدا</b>\n\nموتور TTS خود را انتخاب کنید :',
+    ivrSelectVoice: '🎤 <b>انتخاب صدا</b>\n\nیک صدا برای صوت IVR انتخاب کنید :',
+    ivrGeneratingPreview: (voice) => `🎤 صدا : <b>${voice}</b>\n\n⏳ در حال تولید پیش‌نمایش صوتی...`,
+    ivrHoldMusicStatus: (on) => `🎵 موسیقی انتظار : <b>${on ? 'روشن' : 'خاموش'}</b>\n${on ? 'مخاطب قبل از انتقال "لطفاً صبر کنید" + موسیقی می‌شنود.' : 'مخاطب در حین انتقال زنگ استاندارد می‌شنود.'}`,
+    ivrConfirmPrompt: 'برای ادامه <b>✅ تأیید</b> را فشار دهید، <b>🎤 تغییر صدا</b>، یا <b>بازگشت</b>.',
+    ivrTemplatePreview: (icon, name, text, keys) => `📋 <b>${icon} ${name}</b>\n\n<i>"${text}"</i>\n\n🔘 کلیدهای فعال : <b>${keys}</b>`,
+    bulkCallNoPlan: (buyLabel) => `📞 <b>کمپین IVR انبوه</b>\n\n🔒 این قابلیت نیاز به پلن <b>Pro</b> یا بالاتر دارد.\n\nابتدا یک شماره Cloud IVR دریافت کنید !\n\nبرای شروع <b>${buyLabel}</b> را فشار دهید.`,
+    bulkCallNoNumber: (buyLabel) => `📞 <b>کمپین IVR انبوه</b>\n\nشما به یک شماره ☎️ با قابلیت IVR انبوه نیاز دارید.\n\n<b>${buyLabel}</b> را فشار دهید و شماره‌ای با نشان ☎️ انتخاب کنید.`,
+    bulkCallSelect: '📞 <b>کمپین تماس انبوه</b>\n\nتماس‌های IVR خودکار را به چندین سرنخ ارسال کنید.\n\n☎️ = شماره‌های دارای قابلیت IVR انبوه\n\n📱 شناسه تماس‌گیرنده را انتخاب کنید :',
+    audioLibEmpty: '🎵 <b>کتابخانه صوتی</b>\n\nهیچ فایل صوتی ذخیره‌شده‌ای ندارید.\n\nیک فایل صوتی (MP3، WAV، OGG) برای کمپین‌های IVR آپلود کنید.',
+    audioLibTitle: (list) => `🎵 <b>کتابخانه صوتی</b>\n\n${list}\n\nیک فایل جدید آپلود کنید یا یکی را حذف کنید :`,
+    audioUploadPrompt: '🎵 <b>آپلود صدا</b>\n\nیک فایل صوتی (MP3، WAV، OGG) یا پیام صوتی برای من ارسال کنید.\n\nدر کتابخانه شما برای کمپین‌های IVR ذخیره خواهد شد.',
+    audioSaved: (name) => `✅ صدا ذخیره شد : <b>${name}</b>\n\nاکنون می‌توانید از آن در کمپین‌های تماس انبوه استفاده کنید !`,
+    audioDeleted: (name) => `✅ حذف شد : <b>${name}</b>`,
+    audioNamePrompt: (defaultName) => `✅ صدا دریافت شد !\n\nیک نام برای آن انتخاب کنید :`,
+    audioNamePromptLib: (size, defaultName) => `✅ صدا دریافت شد ! (${size} KB)\n\nیک نام برای کتابخانه خود انتخاب کنید :`,
+    audioLibEmptyShort: '🎵 <b>کتابخانه صوتی</b>\n\nهیچ فایل صوتی وجود ندارد. برای شروع یکی آپلود کنید.',
+    vmRingPrompt: 'تلفن چه مدت باید زنگ بزند قبل از رفتن به پیام‌گیر ؟',
+    enterValidUrl: 'یک URL معتبر که با http:// یا https:// شروع می‌شود وارد کنید.',
+    enterAddress: (countryName, addrText) => `✅ پرداخت دریافت شد !\n\n📍 <b>${countryName}</b> برای فعال‌سازی شماره نیاز به آدرس صورت‌حساب دارد.\nآدرس ${addrText || 'الزامی'} است.\n\nلطفاً آدرس خود را وارد کنید :\n<code>خیابان، شهر، کشور</code>\n\n<i>مثال : خیابان ولیعصر ۱۲۳، تهران، ایران</i>`,
+    invalidAddress: '⚠️ لطفاً حداقل وارد کنید : <code>خیابان، شهر، کشور</code>\n\n<i>مثال : خیابان ولیعصر ۱۲۳، تهران، ایران</i>',
+    bulkUploadLeads: (phone) => `📱 Caller ID: <b>${phone}</b>\n\n📋 <b>آپلود سرنخ‌ها</b>\n\nیک فایل (.txt یا .csv) با یک شماره در هر خط ارسال کنید.\nاختیاری : <code>شماره،نام</code> در هر خط.\n\nیا شماره‌ها را مستقیماً جای‌گذاری کنید (یکی در هر خط) :`,
+    bulkLeadsLoaded: (count, preview, more, errNote) => `✅ <b>${count} سرنخ بارگذاری شد !</b>\n\n${preview}${more}${errNote}\n\n🎵 <b>انتخاب صدای IVR</b>\n\nیک فایل صوتی انتخاب کنید، آپلود کنید، یا با TTS تولید کنید :`,
+    bulkTtsHint: '💡 برای استفاده از TTS، ابتدا صدا را از طریق جریان <b>📢 تماس IVR خروجی</b> تولید کنید، یا یک فایل صوتی آپلود کنید.\n\nاز کتابخانه خود انتخاب کنید یا آپلود کنید :',
+    bulkAudioSelected: (name) => `🎵 صدا : <b>${name}</b>\n\n📋 <b>حالت کمپین</b>\n\n🔗 <b>انتقال + گزارش</b> — وقتی سرنخ ۱ را فشار می‌دهد، به SIP/تلفن شما متصل می‌شود + گزارش\n📊 <b>گزارش تنها</b> — فقط ردیابی + گزارش\n\nهر دو حالت نتایج کامل را گزارش می‌دهند.`,
+    bulkAudioSavedMode: (name) => `✅ ذخیره شد : <b>${name}</b>\n\n📋 <b>حالت کمپین</b>\n\n🔗 <b>انتقال + گزارش</b> — فشار دادن ۱ به تلفن شما وصل می‌شود\n📊 <b>گزارش تنها</b> — فقط ردیابی\n\nهر دو حالت نتایج را گزارش می‌دهند.`,
+    bulkTransferPrompt: '🔗 <b>حالت انتقال</b>\n\nشماره‌ای که وقتی سرنخ ۱ را فشار می‌دهد انتقال داده شود را وارد کنید :\n<i>(شماره SIP یا هر شماره تلفن)</i>',
+    bulkConcurrency: (transferTo) => `${transferTo ? `🔗 انتقال به : <b>${transferTo}</b>\n\n` : `📊 <b>گزارش تنها</b> — بدون انتقال.\n\n`}⚡ <b>همزمانی</b>\n\nچند تماس همزمان ؟ (۱-۲۰)\nپیش‌فرض : <b>۱۰</b>`,
+    bulkRunning: 'کمپین در حال اجراست ! به‌روزرسانی‌ها را اینجا خواهید دید.\n\nبرای لغو <b>🛑 توقف</b> را فشار دهید.',
+    bulkCancelled: '🛑 <b>کمپین لغو شد.</b>\n\nتماس‌های فعال پایان می‌یابند، هیچ تماس جدیدی آغاز نخواهد شد.',
+    // ── Phone number selection & management ──
+    selectType: (country, types = ['local', 'toll_free']) => {
+      const d = { local: '<b>📍 Local</b> — شماره جغرافیایی با پیش‌شماره منطقه', mobile: '<b>📱 Mobile</b> — شماره از محدوده موبایل', national: '<b>🌐 National</b> — شماره ملی، بدون پیش‌شماره منطقه', toll_free: '<b>📞 رایگان</b> — رایگان برای تماس‌گیرنده، ملی' }
+      return `📱 نوع شماره را برای <b>${country}</b> انتخاب کنید :\n\n${types.map(t => d[t]).filter(Boolean).join('\n')}`
+    },
+    selectArea: '🏙️ منطقه را انتخاب کنید یا پیش‌شماره منطقه‌ای خود را وارد کنید :',
+    enterAreaCode: 'پیش‌شماره منطقه را وارد کنید (مثال : 415) :',
+    showNumbers: (location, numbers) => {
+      let text = `📞 شماره‌های موجود در <b>${location}</b> :\n\n`
+      numbers.forEach((n, i) => {
+        const caps = n._capabilities || n.capabilities || {}
+        const voice = caps.voice === true || caps.voice === 'True'
+        const sms = caps.sms === true || caps.sms === 'True'
+        const fax = caps.fax === true || caps.fax === 'True'
+        let capLabel = ''
+        if (voice) capLabel += '📞'
+        if (sms) capLabel += '💬'
+        if (fax) capLabel += '📠'
+        text += `${i + 1}️⃣  ${formatPhone(n.phone_number)} ${capLabel}\n`
+      })
+      text += '\n📞 = صدا  💬 = SMS  📠 = فکس\nروی یک شماره بزنید تا انتخاب شود.'
+      return text
+    },
+    selectPlan: (number) => {
+      let text = `✅ انتخاب شده : <b>${formatPhone(number)}</b>\n\n📋 طرح خود را انتخاب کنید :\n\n`
+      if (PHONE_STARTER_ON) text += `<b>💡 Starter — $${PHONE_STARTER_PRICE}/ماه</b>\n📞 ${plans.starter.minutes} دقیقه ورودی · 📩 ${plans.starter.sms} SMS ورودی · ${plansI18n.fa.starter.features.join(' · ')}\n<b>🎙 IVR / SIP :</b> ❌ <i>شامل نمی‌شود</i>\n🛡️ <i>اعتبار ارتقاء ۱۴ روزه — ۲۵٪ تخفیف روی Pro/Business در صورت ارتقاء در ۱۴ روز</i>\n➕ تا ${SUB_NUMBER_LIMITS.starter} شماره اضافه اضافه کنید (از $${SUB_NUMBER_BASE_PRICE}/ماه هر کدام)\n\n`
+      if (PHONE_PRO_ON) text += `<b>⭐ Pro — $${PHONE_PRO_PRICE}/ماه</b>\n📞 ${plans.pro.minutes} دقیقه ورودی · 📩 ${plans.pro.sms} SMS ورودی · ${plansI18n.fa.pro.features.join(' · ')}\n<b>🎙 IVR / SIP :</b> ✅ <i>منشی اتوماتیک + Quick IVR + Bulk IVR + OTP</i>\n🛡️ <i>اعتبار ارتقاء ۱۴ روزه — ۲۵٪ تخفیف روی Business در صورت ارتقاء در ۱۴ روز</i>\n➕ تا ${SUB_NUMBER_LIMITS.pro} شماره اضافه اضافه کنید (از $${SUB_NUMBER_BASE_PRICE}/ماه هر کدام)\n\n`
+      if (PHONE_BUSINESS_ON) text += `<b>👑 Business — $${PHONE_BUSINESS_PRICE}/ماه</b>\n📞 ${plans.business.minutes} دقیقه ورودی · 📩 ${plans.business.sms} SMS ورودی · ${plansI18n.fa.business.features.join(' · ')}\n<b>🎙 IVR / SIP :</b> ✅ <i>Pro + IVR بازگشتی + پیام‌های OTP سفارشی</i>\n➕ تا ${SUB_NUMBER_LIMITS.business} شماره اضافه اضافه کنید (از $${SUB_NUMBER_BASE_PRICE}/ماه هر کدام)\n\n`
+      text += `<i>📞 دقیقه‌های طرح فقط برای تماس‌های ورودی است.\n💳 تماس‌های خروجی و انتقال از کیف پول شما کسر می‌شود.\n⚠️ به IVR نیاز دارید (Quick IVR، Bulk IVR، OTP، Auto-Attendant)؟ Pro یا Business انتخاب کنید — Starter شامل IVR <b>نمی‌شود</b>.</i>`
+      return text
+    },
+    orderSummary: (number, country, plan, price) => {
+      const planKey = plan.name.toLowerCase()
+      const features = plansI18n.fa[planKey]?.features || plan.features
+      const ivrLine = planKey === 'starter'
+        ? `\n\n<i>⚠️ Starter شامل IVR (Quick IVR, Bulk IVR, OTP, Auto-Attendant) و اطلاعات ورود SIP نمی‌شود. به IVR نیاز دارید؟ Pro یا Business را انتخاب کنید.</i>`
+        : ''
+      const creditLine = planKey === 'starter'
+        ? `\n<i>🛡️ اعتبار ارتقاء ۱۴ روزه — ۲۵٪ تخفیف در صورت ارتقاء به Pro/Business در ۱۴ روز</i>`
+        : planKey === 'pro'
+        ? `\n<i>🛡️ اعتبار ارتقاء ۱۴ روزه — ۲۵٪ تخفیف در صورت ارتقاء به Business در ۱۴ روز</i>`
+        : ''
+      return `📋 <b>خلاصه سفارش</b>\n\n📞 ${formatPhone(number)} · ${country}\n📦 ${plan.name} — $${price}/ماه\n📩 ${plan.sms} SMS دریافتی · 📞 ${plan.minutes} دقیقه دریافتی\n💳 تماس‌های خروجی و انتقال‌ها از کیف پول کسر می‌شوند\n⚡ ${features.join(', ')}\n\n💰 جمع کل : <b>$${price}</b> (ماه اول)${creditLine}${ivrLine}`
+    },
+    paymentPrompt: (price) => `قیمت : <b>$${price}</b>. روش پرداخت را انتخاب کنید :`,
+    activated: (number, plan, price, sipUser, sipDomain, expiry) => `🎉 <b>Cloud IVR شما فعال است!</b>\n\n📞 شماره : ${formatPhone(number)}\n📦 پلن : ${plan} ($${price}/ماه)\n📅 تمدید : ${expiry}\n\n━━━ <b>اطلاعات ورود SIP</b> ━━━\n🌐 سرور : ${sipDomain}\n👤 کاربر : ${sipUser}\n🔑 رمز عبور : ●●●●●●●● (برای نمایش از 🔑 اطلاعات SIP استفاده کنید)\n📡 پورت : 5060 (UDP/TCP) | 5061 (TLS)\n\n━━━ <b>راه‌اندازی سریع</b> ━━━\n• مرورگر : از <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a> تماس بگیرید\n• نرم‌افزار تلفن : Zoiper/Ooma را دانلود کنید و اطلاعات SIP را وارد کنید\n• SMS : پیام‌های دریافتی به‌طور خودکار اینجا ارسال می‌شوند\n• انتقال : از طریق 📱 شماره‌های من ← انتقال تماس تنظیم کنید`,
+    myNumbersList: (numbers) => {
+      let text = '📱 <b>شماره‌های Cloud IVR شما :</b>\n\n'
+      const primaryNumbers = numbers.filter(n => !n.isSubNumber)
+      const subNumbers = numbers.filter(n => n.isSubNumber)
+      primaryNumbers.forEach((n, i) => {
+        const status = n.status === 'active' ? '✅ فعال' : n.status === 'suspended' ? '⚠️ معلق' : n.status === 'inactive_released' ? '🚫 غیرفعال (توسط ارائه‌دهنده آزاد شده)' : '🗑️ حذف شده'
+        text += `${i + 1}️⃣  ${formatPhone(n.phoneNumber)}  ${status}\n`
+        text += `    پلن ${n.plan.charAt(0).toUpperCase() + n.plan.slice(1)} · تمدید ${shortDate(n.expiresAt)}\n`
+        if (n.provider === 'twilio' && !isTwilioEnabled() && (n.status === 'active' || n.status === 'suspended')) {
+          text += `    🔧 <i>در حال انتقال به شبکه تماس جدید ما — موقتاً متوقف شده</i>\n`
+        }
+        if (n.status === 'inactive_released') {
+          const hoursLeft = n._inactiveSince ? Math.max(0, 48 - Math.round((Date.now() - new Date(n._inactiveSince).getTime()) / 3600000)) : '?'
+          text += `    <i>حذف خودکار در ~${hoursLeft} ساعت · در صورت خطا با پشتیبانی تماس بگیرید</i>\n`
+        }
+        const subs = subNumbers.filter(s => s.parentNumber === n.phoneNumber && (s.status === 'active' || s.status === 'suspended'))
+        if (subs.length > 0) {
+          subs.forEach(s => {
+            const subStatus = s.status === 'active' ? '✅' : '⚠️'
+            text += `    ├ ${formatPhone(s.phoneNumber)} ${subStatus} (اضافه‌شده · $${s.planPrice}/ماه)\n`
+          })
+        }
+        text += '\n'
+      })
+      return text
+    },
+    manageNumber: (n, subCount, subLimit, allNumbers) => {
+      const pool = require('./plan-lifecycle.js').poolUsage(allNumbers && allNumbers.length ? allNumbers : [n], n)
+      const minLimit = pool.minuteLimit === Infinity ? 'نامحدود' : pool.minuteLimit
+      const smsLimit = pool.smsLimit === Infinity ? 0 : pool.smsLimit
+      const minUsed = pool.minutesUsed
+      const smsUsed = pool.smsUsed
+      const minDisplay = minLimit === 'نامحدود' ? `${minUsed} (نامحدود)` : `${minUsed} / ${minLimit}`
+      const smsDisplay = `${smsUsed} / ${smsLimit}`
+      const minWarning = minLimit !== 'نامحدود' && minUsed >= minLimit ? `\n💰 <b>مازاد فعال</b> — $${OVERAGE_RATE_MIN}/دقیقه از کیف پول` : ''
+      const smsWarning = smsUsed >= smsLimit ? `\n💰 <b>مازاد فعال</b> — $${OVERAGE_RATE_SMS}/SMS از کیف پول` : ''
+      const hasSms = n.capabilities?.sms !== false && n.features?.sms !== false
+      const hasFax = n.capabilities?.fax === true
+      const hasVoice = n.capabilities?.voice !== false
+      let text = `⚙️ مدیریت : <b>${formatPhone(n.phoneNumber)}</b>`
+      if (n.isSubNumber) text += ` <i>(شماره اضافه‌شده)</i>`
+      if (n.provider === 'twilio' && !isTwilioEnabled() && n.status !== 'inactive_released') {
+        text += `\n\n🔧 <b>این شماره در حال ارتقا است</b>\nما آن را به شبکه تماس جدید و قابل‌اعتمادتر خود منتقل می‌کنیم. تماس‌ها و SMS برای مدت کوتاهی متوقف شده‌اند. هیچ اقدامی لازم نیست — به محض آماده شدن به شما اطلاع می‌دهیم. سوالی دارید؟ روی 💬 پشتیبانی بزنید.`
+      }
+     if (n.status === 'inactive_released') {
+        const hoursLeft = n._inactiveSince ? Math.max(0, 48 - Math.round((Date.now() - new Date(n._inactiveSince).getTime()) / 3600000)) : '?'
+        text += `\n\n🚫 <b>غیرفعال — توسط ارائه‌دهنده آزاد شده</b>\nاین شماره توسط اپراتور حذف شده و دیگر نمی‌تواند تماس برقرار کند یا دریافت نماید.\nحذف خودکار در ~${hoursLeft} ساعت دیگر.\n\nاگر این یک خطاست، فوراً با پشتیبانی تماس بگیرید.`
+        return text
+      }
+      if (n.isSubNumber) {
+        text += `\n\nوضعیت : ${n.status === 'active' ? '✅ فعال' : '⚠️ ' + n.status}\nشماره اضافه‌شده — $${n.planPrice}/ماه (زیر پلن ${n.plan.charAt(0).toUpperCase() + n.plan.slice(1)})`
+      } else {
+        text += `\n\nوضعیت : ${n.status === 'active' ? '✅ فعال' : '⚠️ ' + n.status}\nپلن : ${n.plan.charAt(0).toUpperCase() + n.plan.slice(1)} ($${n.planPrice}/ماه)`
+      }
+      if (n.isSubNumber && n.parentNumber) text += `\n🔗 شماره اصلی : ${formatPhone(n.parentNumber)}`
+      if (hasVoice) text += `\n📞 دقایق ورودی : ${minDisplay}${minWarning}`
+      if (hasSms) text += `\n📩 SMS پلن : ${smsDisplay} (دریافت‌شده + پاسخ‌های وب، مشترک با شماره‌های اضافه‌شده)${smsWarning}`
+      if (hasFax) text += `\n📠 فکس : شامل — فکس‌های ورودی به Telegram ارسال می‌شوند`
+      if (hasVoice) text += `\n💳 تماس‌های خروجی از کیف پول کسر می‌شوند`
+      const caps = []
+      if (hasVoice) caps.push('صدا')
+      if (hasSms) caps.push('SMS')
+      if (hasFax) caps.push('فکس')
+      text += `\n📋 قابلیت‌ها : ${caps.join(' · ')}`
+      if (!n.isSubNumber && subCount !== undefined && subLimit !== undefined) {
+        text += `\n➕ شماره‌های اضافه‌شده : ${subCount} / ${subLimit}`
+      }
+      if (n.features?.ivr?.enabled && Object.keys(n.features.ivr.options || {}).length === 0) {
+        text += `\n\n⚠️ <b>IVR فعال است اما ناقص است</b> — هیچ گزینه منویی وجود ندارد. تماس‌گیرندگان از منو رد می‌شوند و به پیام‌گیر می‌روند. روی <b>🤖 IVR / مرکز تلفن خودکار</b> ضربه بزنید تا گزینه‌ها اضافه کنید.`
+      }
+      if (hasVoice) text += `\n\n🌐 <a href="${CALL_PAGE_URL}">تماس و دریافت در مرورگر</a>`
+      const lastChanged = formatRelativeTime(n.updatedAt, 'fr')
+      if (lastChanged) text += `\n<i>🕒 آخرین تغییر : ${lastChanged}</i>`
+      return text
+},
+    // ── Sub-number texts ──
+    subNumberLimitReached: (plan, limit) => `⚠️ شما به حداکثر تعداد شماره‌های قابل افزودن در پلن <b>${plan}</b> رسیده‌اید (${limit} شماره).\n\nبرای شماره‌های بیشتر به پلن بالاتر ارتقا دهید.`,
+    subNumberOrderSummary: (number, country, parentNumber, price, parentPlan) => `📋 <b>خلاصه سفارش شماره اضافی</b>\n\n📞 جدید : ${formatPhone(number)} · ${country}\n🔗 افزوده‌شده به : ${formatPhone(parentNumber)} (پلن ${parentPlan})\n💰 قیمت : <b>$${typeof price === 'number' ? price.toFixed(2) : price}/ماه</b>\n\n⚡ اشتراک دقیقه و SMS با پلن والد\n🔑 اطلاعات SIP اختصاصی شامل می‌شود`,
+    subActivated: (number, parentNumber, price, sipUser, sipDomain, expiry) => `🎉 <b>شماره اضافی افزوده شد!</b>\n\n📞 شماره : ${formatPhone(number)}\n🔗 مرتبط با : ${formatPhone(parentNumber)}\n💰 قیمت : $${typeof price === 'number' ? price.toFixed(2) : price}/ماه\n📅 تمدید : ${expiry}\n\n━━━ <b>اطلاعات SIP</b> ━━━\n🌐 سرور : ${sipDomain}\n👤 کاربر : ${sipUser}\n🔑 رمز عبور : ●●●●●●●● (از 🔑 اطلاعات SIP برای نمایش استفاده کنید)\n📡 پورت : 5060 (UDP/TCP) | 5061 (TLS)\n\n━━━ <b>تنظیمات سریع</b> ━━━\n• مرورگر : <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a>\n• نرم‌افزار تلفن : Zoiper/Ooma با اطلاعات SIP\n• دقیقه و SMS مشترک با پلن والد`,
+    adminSubPurchase: (name, number, parentNumber, price, paymentMethod) => `➕ <b>شماره افزوده شد</b>\n👤 ${name}\n📞 ${maskPhone(number)} → ${maskPhone(parentNumber)}\n💰 $${price} · ${paymentMethod}`,
+    adminSubPurchasePrivate: (name, number, parentNumber, price, paymentMethod) => `➕ <b>شماره افزوده شد</b>\n👤 ${name}\n📞 جدید : ${formatPhone(number)}\n🔗 والد : ${formatPhone(parentNumber)}\n💰 $${price}/ماه · ${paymentMethod}`,
+    
+    // Sub-number flow messages
+    subAddNumberHeader: (plan, parentNumber) => `➕ <b>افزودن شماره به پلن ${plan.charAt(0).toUpperCase() + plan.slice(1)}</b>\n📞 والد : ${formatPhone(parentNumber)}\n\n🌍 کشور شماره جدید خود را انتخاب کنید :`,
+    subNumbersAvailable: '📱 <b>شماره اضافی — موجود</b>',
+    subNumberArea: (area) => `📱 <b>شماره اضافی — منطقه ${area}</b>`,
+    subNumberSelected: (location) => `📱 <b>شماره اضافی — ${location}</b>`,
+    bulkIvrSupport: '☎️ = پشتیبانی از IVR انبوه',
+    tapToSelect: 'برای انتخاب ضربه بزنید :',
+    
+    // Call Forwarding
+    forwardingStatus: (number, config, walletBal) => {
+      const status = config?.enabled ? '✅ فعال' : '❌ غیرفعال'
+      let text = `📞 <b>انتقال تماس</b> — ${formatPhone(number)}\n\nوضعیت : ${status}`
+      if (config?.enabled) {
+        text += `\n📲 ${formatPhone(config.forwardTo)} · ${config.mode}`
+        text += `\n🎵 موسیقی انتظار : ${config.holdMusic ? 'بله' : 'خیر'}`
+        text += `\n🔁 شماره‌های پشتیبان : ${(config.backups || []).length ? config.backups.map(formatPhone).join(', ') : 'هیچ‌کدام'}`
+      }
+      const rate = config?.forwardTo && config.forwardTo.startsWith('+1') ? OVERAGE_RATE_MIN : CALL_FORWARDING_RATE_MIN
+      text += `\n💳 از کیف پول با نرخ $${rate}/دقیقه کسر می‌شود`
+      if (walletBal !== undefined) text += ` · 💳 $${walletBal.toFixed(2)}`
+      return text
+    },
+   enterForwardNumber: (walletBal) => {
+      let text = `شماره انتقال را با کد کشور وارد کنید (مثال: +14155551234)\n💰 نرخ: <b>$${CALL_FORWARDING_RATE_MIN}/دقیقه</b>`
+      if (walletBal !== undefined) {
+        text += ` · 💳 $${walletBal.toFixed(2)}`
+        if (walletBal < CALL_FORWARDING_RATE_MIN) text += `\n⚠️ ابتدا از طریق 👛 کیف پول <b>۲۵$</b> شارژ کنید.`
+      }
+      return text
+    },
+    forwardingUpdated: (number, forwardTo, mode, walletBal) => {
+      let text = `✅ <b>انتقال فعال</b>\n\n📞 ${formatPhone(number)} → ${formatPhone(forwardTo)}\n📋 ${mode} · $${CALL_FORWARDING_RATE_MIN}/دقیقه`
+      if (walletBal !== undefined) {
+        const estMin = Math.floor(walletBal / CALL_FORWARDING_RATE_MIN)
+        text += `\n💳 $${walletBal.toFixed(2)} (~${estMin} دقیقه)`
+        if (walletBal < 25) text += `\n💡 برای انتقال بدون وقفه، موجودی را به <b>۲۵$</b> شارژ کنید.`
+      }
+      return text
+    },
+    forwardingBlocked: (number) => `🚫 <b>مسدود شده</b> — ${formatPhone(number)} یک مقصد پریمیوم است.\nبرای درخواست فعال‌سازی روی 💬 <b>پشتیبانی</b> بزنید.`,
+    forwardingNotRoutable: (number) => `⚠️ ${formatPhone(number)} قابل مسیریابی نیست. شماره را بررسی کنید یا روی 💬 <b>پشتیبانی</b> بزنید.`,
+    forwardingInsufficientBalance: (walletBal) => `🚫 <b>موجودی ناکافی</b>\n\n💳 $${(walletBal || 0).toFixed(2)} · نیاز به $${CALL_FORWARDING_RATE_MIN}/دقیقه\n\n👉 برای فعال‌سازی انتقال، از طریق 👛 کیف پول <b>۲۵$</b> شارژ کنید.`,
+    forwardingDisabled: (number) => `✅ انتقال برای ${formatPhone(number)} غیرفعال شد.`,
+    // SMS Settings
+    smsSettingsMenu: (number, config, plan) => {
+      const tg = config?.toTelegram ? '✅ بله' : '❌ خیر'
+      const em = config?.toEmail ? '✅ ' + config.toEmail : '❌ خیر'
+      const wh = config?.webhookUrl ? '✅ تنظیم شده' : '❌ تنظیم نشده'
+      const canEmail = canAccessFeature(plan, 'smsToEmail')
+      const canWebhook = canAccessFeature(plan, 'smsWebhook')
+      const planName = plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : 'نامشخص'
+      return `📩 <b>تنظیمات SMS دریافتی</b> برای <b>${formatPhone(number)}</b>\n\n📌 SMS ها <b>فقط دریافتی</b> هستند — پیام دریافت می‌کنید اما نمی‌توانید ارسال کنید.\n\n📲 ارسال به تلگرام: ${tg}\n📧 ارسال به ایمیل: ${canEmail ? em : `🔒 نیاز به پلن Pro یا بالاتر دارد (فعلی: ${planName})`}\n🔗 آدرس Webhook: ${canWebhook ? wh : `🔒 نیاز به پلن Pro یا بالاتر دارد (فعلی: ${planName})`}`
+},
+    smsToggled: (channel, state) => `${channel} اکنون ${state ? '✅ فعال' : '❌ غیرفعال'} است`,
+    // Fax Settings
+    faxSettingsMenu: (number, config, provider) => {
+      const tg = config?.toTelegram !== false ? '✅ بله' : '❌ خیر'
+      if (provider === 'twilio') {
+        return `📠 <b>تنظیمات فکس</b> برای <b>${formatPhone(number)}</b>\n\n⚠️ <b>فکس برای این نوع شماره در دسترس نیست.</b>\nارائه‌دهنده سرویس فکس را متوقف کرده است. فکس‌های ورودی قابل دریافت نیستند.\n\nبرای استفاده از فکس، یک شماره سازگار با فکس از یک ارائه‌دهنده پشتیبانی‌شده خریداری کنید.`
+      }
+      return `📠 <b>تنظیمات فکس</b> برای <b>${formatPhone(number)}</b>\n\nفکس‌های ورودی به صورت PDF دریافت و به این چت تلگرام ارسال می‌شوند.\n\n📲 ارسال به تلگرام : ${tg}`
+    },
+    faxToggled: (state) => `📠 فکس به تلگرام اکنون ${state ? '✅ بله' : '❌ خیر'} است`,
+    faxReceived: (from, to, pages) => `📠 <b>فکس دریافت شد</b>\nاز : ${from}\nبه : ${formatPhone(to)}${pages ? `\nصفحات : ${pages}` : ''}`,
+    faxFailed: (from, to, reason) => `📠 <b>خطا در فکس</b>\nاز : ${from}\nبه : ${formatPhone(to)}\nدلیل : ${reason || 'نامشخص'}`,
+    enterEmail: 'آدرس ایمیل برای ارسال SMS را وارد کنید :',
+    emailSet: (email) => `✅ SMS از طریق ایمیل فعال شد !\nتمام SMS‌های ورودی همچنین به <b>${email}</b> ارسال خواهند شد.`,
+    enterWebhook: 'آدرس webhook خود را وارد کنید (SMS‌های ورودی به صورت JSON ارسال خواهند شد) :',
+    webhookSet: (url) => `✅ آدرس Webhook تنظیم شد !\nSMS‌ها به این آدرس ارسال می‌شوند : ${url}`,
+    // Voicemail
+    voicemailMenu: (number, config) => {
+      if (!config?.enabled) {
+        return `🎙️ پیام‌گیر برای <b>${formatPhone(number)}</b>\n\nوضعیت : ❌ غیرفعال\n\nوقتی فعال باشد، تماس‌های بی‌پاسخ یک پیام خوش‌آمدگویی می‌شنوند و تماس‌گیرندگان می‌توانند پیام بگذارند.`
+      }
+      const tg = config.forwardToTelegram ? '✅ بله' : '❌ خیر'
+      const em = config.forwardToEmail ? '✅ ' + config.forwardToEmail : '❌ خیر'
+      let greetInfo = ''
+      if (config.greetingType === 'custom' && config.customAudioGreetingUrl) {
+        greetInfo = '🎤 صدای سفارشی'
+      } else if (config.greetingType === 'custom' && config.customGreetingText) {
+        greetInfo = `📝 سفارشی : "${config.customGreetingText}"`
+      } else {
+greetInfo = '🔊 پیش‌فرض : "شما با ' + formatPhone(number) + ' تماس گرفته‌اید. لطفاً پس از بوق پیام بگذارید."'
+      }
+      return `🎙️ پیام‌گیر صوتی برای <b>${formatPhone(number)}</b>\n\nوضعیت : ✅ فعال\n🎤 پیام : ${greetInfo}\n\n📲 ارسال در تلگرام : ${tg}\n📧 ارسال با ایمیل : ${em}\n⏰ زمان زنگ : ${config.ringTimeout || 25}s`
+    },
+    voicemailEnabled: (number) => `✅ پیام‌گیر صوتی برای ${formatPhone(number)} فعال شد !\nضبط‌ها به این چت تلگرام ارسال خواهند شد.`,
+    voicemailDisabled: (number) => `✅ پیام‌گیر صوتی برای ${formatPhone(number)} غیرفعال شد.`,
+    vmGreetingMenu: (number, vm) => {
+      let current = ''
+      if (vm?.greetingType === 'custom' && vm?.customAudioGreetingUrl) {
+        current = '🎤 صدای سفارشی\n📎 فایل صوتی بارگذاری شده'
+      } else if (vm?.greetingType === 'custom' && vm?.customGreetingText) {
+        current = `📝 متن سفارشی : "${vm.customGreetingText}"`
+      } else {
+        current = `🔊 پیش‌فرض : "شما با ${formatPhone(number)} تماس گرفته‌اید. لطفاً پس از بوق پیام بگذارید."`
+      }
+      return `🔊 <b>پیام خوش‌آمدگویی</b> برای <b>${formatPhone(number)}</b>\n\nفعلی : ${current}\n\nیک گزینه انتخاب کنید :`
+    },
+    vmSendAudioPrompt: '🎤 <b>پیام صوتی سفارشی</b>\n\nیک پیام صوتی یا فایل صوتی به عنوان پیام خوش‌آمدگویی ارسال کنید.\n\nتماس‌گیرندگان این صدا را هنگام رسیدن به پیام‌گیر شما می‌شنوند.\n\n<i>نکته : یک پیام حرفه‌ای ضبط کنید مثل "سلام، شما با [نام] تماس گرفته‌اید. در حال حاضر نمی‌توانم پاسخ دهم. پس از بوق پیام بگذارید."</i>',
+    vmAudioSaved: '✅ پیام صوتی سفارشی ذخیره شد ! تماس‌گیرندگان اکنون پیام شما را خواهند شنید.',
+    vmDefaultRestored: '✅ پیام خوش‌آمدگویی به متن پیش‌فرض بازنشانی شد.',
+    vmTextGreetingPrompt: 'یک متن پیام خوش‌آمدگویی سفارشی وارد کنید (با صدای مصنوعی خوانده می‌شود) :',
+    vmTextGreetingSet: (text) => `✅ متن سفارشی ذخیره شد !\n\n"${text}"`,
+    // SIP
+    sipCredentialsMsg: (number, username, domain) => `🔑 اطلاعات SIP برای <b>${formatPhone(number)}</b>\n\n🌐 سرور SIP : ${domain}\n👤 کاربر : <code>${username}</code>\n🔑 رمز عبور : ●●●●●●●●\n📡 پورت‌ها : 5060 (UDP/TCP) · 5061 (TLS)\n🎵 کدک‌ها : G.711μ, G.711a, Opus`,
+    sipRevealed: (password) => `🔑 رمز عبور : <code>${password}</code>\n\n⚠️ همین الان ذخیره کنید — این پیام در ۳۰ ثانیه حذف خواهد شد.`,
+    sipReset: (password) => `✅ رمز عبور SIP بازنشانی شد !\n\n🔑 رمز عبور جدید : <code>${password}</code>\n\n⚠️ همین الان ذخیره کنید. این رمز را روی تمام دستگاه‌های SIP خود به‌روز کنید.`,
+    softphoneGuide: (domain) => `📖 <b>راهنمای پیکربندی SIP</b>
+
+<b>🌐 مرورگر (ساده‌ترین روش)</b>
+مستقیماً از مرورگر خود تماس بگیرید :
+<a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a>
+بدون نیاز به ثبت‌نام یا نصب برنامه.
+
+<b>📱 اپ‌های سافت‌فون — پیشنهادی</b>
+از یک سافت‌فون تک‌خطی استفاده کنید (یک دستگاه به ازای هر شناسه) :
+• <b>Linphone</b> — iOS / Android / Mac / Windows / Linux (رایگان)
+• <b>Zoiper</b> — iOS / Android / دسکتاپ (رایگان)
+• <b>MicroSIP</b> — Windows (رایگان، سبک)
+• <b>Bria Solo</b> — پولی، رابط کاربری شیک
+
+<b>مراحل</b>
+1. نصب اپ
+2. افزودن حساب ← SIP / VoIP
+3. نام کاربری + رمز عبور از 🔑 اطلاعات SIP
+4. دامنه / سرور SIP : <code>${domain}</code>
+5. پورت 5060 (UDP/TCP) یا 5061 (TLS) · DTMF : RFC 2833 · کدک : G.711μ
+6. ذخیره کنید و یک تماس آزمایشی بگیرید
+
+⚠️ <b>از 3CX، FreePBX، Asterisk یا PBX دیگری استفاده می‌کنید؟</b>
+شناسه SIP را به عنوان "کاربر / داخلی" اضافه نکنید — یک PBX تماس را پاسخ می‌دهد و مستقیماً به پیغام‌گیر خودش می‌فرستد (پیام "Record your message and press pound, or press star to contact the operator" و سپس "transfer failed" را خواهید شنید). آن را به عنوان <b>TRUNK SIP</b> تنظیم کنید :
+
+<b>مثال 3CX</b>
+1. SIP Trunks → Add SIP Trunk → "Generic SIP Trunk"
+2. Main Trunk No. : شماره ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} شما (مثال <code>+18882437690</code>)
+3. Registrar / سرور / Outbound Proxy : <code>${domain}</code> · پورت <code>5060</code>
+4. احراز هویت : <b>Register/Account based</b>
+   Username + Auth ID : شناسه SIP شما
+   رمز عبور : رمز SIP شما
+5. ذخیره → Inbound Rules → New Inbound Rule → <b>مسیردهی به داخلی شما</b> (نه پیغام‌گیر)
+6. Outbound Rules → داخلی‌های خود را از طریق این ترانک مسیردهی کنید
+7. تنظیم و راه‌اندازی &amp; بارگذاری مجدد — یک تماس آزمایشی برقرار کنید
+
+🧪 <b>تماس‌های آزمایشی رایگان :</b>
+برای دریافت کد آزمایشی خود /testsip را اینجا ارسال کنید.
+
+❓ گیر کردید؟ روی 💬 پشتیبانی بزنید، کمکتان می‌کنیم.`,
+    // Renew
+    renewMenu: (number, plan, price, expiry, autoRenewOn) => `🔄 طرح برای <b>${formatPhone(number)}</b>\n\nطرح فعلی : ${plan} — $${price}/ماه\nتاریخ تمدید : ${shortDate(expiry)}\nتمدید خودکار : ${autoRenewOn ? '✅ بله' : '❌ خیر'}`,
+    // Delete
+    releaseConfirm: (number) => `🗑️ <b>حذف ${formatPhone(number)} ؟</b>\n\n⚠️ <b>این عمل غیرقابل بازگشت است.</b>\n\n• شماره به طور دائمی حذف می‌شود\n• طرح ماهانه فوراً لغو می‌شود\n• تمام تنظیمات حذف می‌شوند\n• هیچ بازپرداختی برای روزهای باقیمانده انجام نمی‌شود\n\nمطمئن هستید؟`,
+    releaseConfirmDigits: (digits) => `⚠️ <b>تأیید نهایی</b>\n\n۴ رقم آخر شماره را برای حذف آن تایپ کنید : <b>${digits}</b>`,
+    released: (number) => `✅ ${formatPhone(number)} به طور دائمی حذف شد.\n\nطرح لغو شد. تمام تنظیمات حذف شدند.`,
+    // Real-time events
+    inboundSms: (to, from, body, time) => `📩 <b>پیامک دریافتی</b>\n\n📞 به : ${formatPhone(to)}\n👤 از : ${formatPhone(from)}\n🕐 ${time}\n\n💬 "${body}"`,
+    missedCall: (to, from, time) => `📞 <b>تماس از دست رفته</b>\n\n📞 به : ${formatPhone(to)}\n👤 از : ${formatPhone(from)}\n🕐 ${time}`,
+    callForwarded: (to, from, forwardedTo, duration, time) => `📞 <b>تماس انتقال‌یافته</b>\n\n📞 به : ${formatPhone(to)}\n👤 از : ${formatPhone(from)}\n📲 انتقال به : ${formatPhone(forwardedTo)}\n⏱️ مدت : ${formatDuration(duration)}\n🕐 ${time}`,
+    newVoicemail: (to, from, duration, time) => `🎙️ <b>پیام صوتی جدید</b>\n\n📞 به : ${formatPhone(to)}\n👤 از : ${formatPhone(from)}\n⏱️ مدت : ${formatDuration(duration)}\n🕐 ${time}`,
+    // Expiry
+    expiryReminder: (number, days, plan, price, balance) => `🔔 <b>یادآوری تمدید</b>\n\nشماره ${formatPhone(number)} (طرح ${plan}) در <b>${days} روز${days !== 1 ? '' : ''}</b> دیگر منقضی می‌شود.\n\nموجودی کیف پول : $${balance}\nقیمت طرح : $${price}/ماه${balance < price ? '\n\n⚠️ موجودی کافی نیست. لطفاً شارژ کنید.' : ''}`,
+    autoRenewed: (number, plan, price, newExpiry, oldBal, newBal) => `✅ <b>تمدید خودکار موفق</b>\n\n📞 ${formatPhone(number)}\n📦 طرح : ${plan} ($${price}/ماه)\n📅 انقضای جدید : ${shortDate(newExpiry)}\nکیف پول : $${oldBal} → $${newBal}`,
+    autoRenewFailed: (number, plan, price, balance) => `❌ <b>خطا در تمدید خودکار</b>\n\n📞 ${formatPhone(number)}\n📦 طرح : ${plan} ($${price}/ماه)\n💰 کیف پول : $${balance} (نیاز به $${price})\n\n⚠️ شماره شما اکنون تعلیق شده است. ظرف ۷ روز شارژ کرده و تمدید کنید.`,
+    // IVR
+    ivrMenu: (number, config) => {
+      if (!config?.enabled) {
+        return `🤖 <b>IVR / منوی خودکار</b> برای <b>${formatPhone(number)}</b>\n\nوضعیت : ❌ غیرفعال\n\nوقتی فعال باشد، تماس‌گیرندگان یک منوی خوشامدگویی می‌شنوند و می‌توانند کلیدی را فشار دهند تا به مقصد مناسب برسند.`
+      }
+      const hasOptions = config.options && Object.keys(config.options).length > 0
+      let text = `🤖 <b>IVR / منوی خودکار</b> برای <b>${formatPhone(number)}</b>\n\nوضعیت : ${hasOptions ? '✅ فعال' : '⚠️ فعال (ناقص)'}\n\n🎤 پیام : "${escapeHtml(config.greeting || 'پیش‌فرض')}"\n\n📋 <b>گزینه‌های منو :</b>\n`
+      if (hasOptions) {
+        Object.entries(config.options).forEach(([key, opt]) => {
+let desc
+          if (opt.action === 'forward') desc = '📲 انتقال به ' + formatPhone(opt.forwardTo)
+          else if (opt.action === 'voicemail') desc = '🎙️ پیام‌صوتی'
+          else if (opt.action === 'submenu') {
+            const subCount = Object.keys(opt.subMenu?.options || {}).length
+            const lbl = opt.label && opt.label.trim() ? opt.label.trim() : `زیرمنو ${key}`
+            desc = `📂 <b>${escapeHtml(lbl)}</b> — زیرمنو (${subCount} گزینه${subCount === 1 ? '' : ''})`
+          } else desc = '🔊 ' + escapeHtml(opt.message || 'پخش پیام')
+          text += `  دکمه <b>${escapeHtml(key)}</b> → ${desc}\n`
+        })
+      } else {
+        text += '  ⚠️ <b>هیچ گزینه‌ای اضافه نشده — IVR فعال نخواهد شد.</b>\n  تماس‌گیرندگان منو را نادیده می‌گیرند و مستقیماً به پیام‌صوتی می‌روند (یا اگر پیام‌صوتی غیرفعال باشد، «در دسترس نیست» می‌شنوند).\n  روی <b>➕ افزودن گزینه</b> در زیر بزنید تا حداقل یک گزینه اضافه کنید (مثلاً <code>1 forward +14155551234</code>).\n'
+      }
+      return text
+    },
+    ivrEnabled: (number) => `✅ IVR / منشی خودکار برای ${formatPhone(number)} فعال شد !\n\nتماس‌گیرندگان پیام خوش‌آمدگویی شما را می‌شنوند و می‌توانند با کلیدها پیمایش کنند.`,
+    ivrDisabled: (number) => `✅ IVR / منشی خودکار برای ${formatPhone(number)} غیرفعال شد.`,
+    ivrSetGreeting: 'پیام خوش‌آمدگویی IVR را وارد کنید (چیزی که تماس‌گیرندگان می‌شنوند) :\n\nمثال : "ممنون از تماس شما. برای پشتیبانی ۱، برای فروش ۲ را بفشارید، یا در خط بمانید."',
+    ivrGreetingSet: (greeting) => `✅ پیام خوش‌آمدگویی IVR به‌روز شد !\n\n"${greeting}"`,
+    ivrAddOption: 'کلید و عملکرد را در این قالب وارد کنید :\n\n<code>کلید عملکرد مقصد</code>\n\nمثال‌ها :\n• <code>1 forward +14155551234</code>\n• <code>2 voicemail</code>\n• <code>3 message با شما تماس خواهیم گرفت</code>\n• <code>0 forward +14155559999</code>',
+    ivrOptionAdded: (key, action, destination) => `✅ گزینه IVR اضافه شد !\n\nدکمه <b>${key}</b> → ${action === 'forward' ? '📲 انتقال به ' + formatPhone(destination) : action === 'voicemail' ? '🎙️ پیام‌صوتی' : '🔊 ' + destination}`,
+    ivrOptionRemoved: (key) => `✅ گزینه IVR برای کلید <b>${key}</b> حذف شد.`,
+    ivrInvalidFormat: '❌ قالب نامعتبر. از این استفاده کنید :\n<code>کلید عملکرد مقصد</code>\n\nمثال : <code>1 forward +14155551234</code>',
+    ivrAnalyticsReport: (number, data, labels) => {
+      let text = `📊 <b>آمار IVR</b> برای <b>${formatPhone(number)}</b>\n(۳۰ روز گذشته)\n\n`
+      text += `📞 مجموع تماس‌های IVR : <b>${data.totalCalls}</b>\n`
+      const _labelFor = (d) => (labels && labels[d]) ? ` <i>(${escapeHtml(labels[d])})</i>` : ''
+      if (data.topOption) text += `🏆 بیشترین فشار داده شده : کلید <b>${escapeHtml(data.topOption.digit)}</b>${_labelFor(data.topOption.digit)} (${data.topOption.count} بار، ${data.topOption.percent}%)\n`
+      text += '\n'
+      if (data.optionBreakdown.length > 0) {
+       text += '📋 <b>توزیع :</b>\n'
+        data.optionBreakdown.forEach(o => {
+          const bar = '█'.repeat(Math.max(1, Math.round(o.percent / 10))) + '░'.repeat(Math.max(0, 10 - Math.round(o.percent / 10)))
+          text += `  دکمه <b>${escapeHtml(o.digit)}</b>${_labelFor(o.digit)} : ${bar} ${o.count} (${o.percent}%)\n`
+        })
+        text += '\n'
+      }
+      if (data.recentCalls.length > 0) {
+        text += '📱 <b>تماس‌های اخیر IVR :</b>\n'
+        data.recentCalls.forEach(c => {
+          text += `  ${formatPhone(c.from)} → دکمه <b>${escapeHtml(c.digit)}</b>${_labelFor(c.digit)} (${escapeHtml(c.action)}) ${shortDate(c.time)}\n`
+        })
+      }
+      if (data.totalCalls === 0) text += '\nهیچ تماس IVR ثبت‌شده‌ای وجود ندارد.'
+      return text
+    },
+    // Recording
+    recordingMenu: (number, config) => {
+      const enabled = config?.recording === true
+      return `🔴 <b>ضبط تماس</b> برای <b>${formatPhone(number)}</b>\n\nوضعیت : ${enabled ? '✅ فعال' : '❌ غیرفعال'}\n\nوقتی فعال باشد، تمام تماس‌های ورودی و خروجی به‌صورت خودکار ضبط می‌شوند. ضبط‌ها به چت تلگرام شما ارسال می‌شوند.`
+    },
+    recordingEnabled: (number) => `✅ ضبط تماس برای ${formatPhone(number)} فعال شد !\n\nتمام تماس‌ها ضبط شده و به این چت ارسال می‌شوند.`,
+    recordingDisabled: (number) => `✅ ضبط تماس برای ${formatPhone(number)} غیرفعال شد.`,
+    // SMS Inbox
+    smsInboxHeader: (number, total) => `📨 <b>صندوق SMS</b> برای <b>${formatPhone(number)}</b>\n\n${total === 0 ? 'هیچ پیامی دریافت نشده.' : `${total} پیام${total > 1 ? '' : ''} دریافت‌شده${total > 1 ? '' : ''} :`}`,
+    smsInboxEntry: (i, from, name, body, time) => {
+      const nameDisplay = name && name !== 'None' ? ` (${name})` : ''
+      const bodyPreview = body.length > 80 ? body.substring(0, 80) + '...' : body
+      return `\n<b>${i}.</b> ${formatPhone(from)}${nameDisplay}\n   💬 "${bodyPreview}"\n   🕐 ${time}\n`
+    },
+   smsInboxEmpty: 'هیچ پیامک ورودی برای این شماره دریافت نشده است.\n\n<i>وقتی کسی به شماره شما پیامک می‌فرستد، پیام‌ها اینجا نمایش داده می‌شوند.</i>',
+    smsInboxFooter: (page, totalPages) => totalPages > 1 ? `\n📄 صفحه ${page}/${totalPages}` : '',
+    btnUploadAudio: '📎 آپلود صدا',
+    btnConfirm: '✅ تأیید',
+    btnChangeVoice: '🎤 تغییر صدا',
+    btnTransferReport: '🔗 انتقال + گزارش',
+    btnReportOnly: '📊 فقط گزارش',
+    btnStopCampaign: '🛑 توقف کمپین',
+    btnShowStatus: '📊 نمایش وضعیت',
+    btnUploadNewAudio: '📎 آپلود جدید',
+    btnBack: '↩️ بازگشت',
+    testMyNumber: {
+      placing: (phone) => `📞 تماس با <code>${phone}</code> از یک خط آزمایشی ${(process.env.CHAT_BOT_BRAND || 'Nomadly')}… گوشی را روی سافت‌فون خود بردارید و وقتی زنگ خورد <b>1</b> را فشار دهید (حدود ۱۲ ثانیه پس از برداشتن گوشی فرصت دارید).\n\nنتیجه در ۶۰ ثانیه اینجا نمایش داده می‌شود.`,
+      successDtmf: (phone) => `✅ <b>دستگاه SIP شما پاسخ داد</b> — تماس‌ها به <code>${phone}</code> از ابتدا تا انتها کار می‌کنند. گیرنده پاسخ داد و یک کلید فشرده شد.`,
+      voicemail: (phone) => `⚠️ <b>پست صوتی / PBX پاسخ داد</b> روی <code>${phone}</code>.\n\nاین معمولاً به این معنی است که یک PBX (3CX، FreePBX، Asterisk…) پاسخ می‌دهد و تماس را به جای زنگ زدن داخلی شما به پست صوتی خودش هدایت می‌کند.\n\nراه‌حل: /sipguide را برای پیکربندی SIP TRUNK باز کنید، یا برای راه‌حل فوری به یک سافت‌فون تک‌خطی (Linphone، Zoiper) بروید.`,
+      answeredNoDtmf: (phone) => `⚠️ <b>تماس پاسخ داده شد، اما هیچ کلیدی فشرده نشد</b> روی <code>${phone}</code> در ۱۲ ثانیه.\n\nاگر گوشی برنداشتید، شاید سافت‌فون شما تماس را دریافت نمی‌کند. اگر گوشی برداشتید اما 1 را فشار ندادید، دوباره امتحان کنید. اگر یک PBX (3CX/FreePBX) درگیر است، برای پیکربندی SIP TRUNK به /sipguide مراجعه کنید.`,
+      noAnswer: (phone) => `❌ <b>بدون پاسخ</b> روی <code>${phone}</code>.\n\nمطمئن شوید سافت‌فون شما (Linphone / Zoiper / trunk 3CX) ثبت‌نام شده و آنلاین است، سپس تست را مجدداً اجرا کنید. برای کمک در پیکربندی /sipguide را باز کنید.`,
+      throttled: (max) => `⏳ شما قبلاً ${max} تست روی این شماره در ۲۴ ساعت گذشته انجام داده‌اید. قبل از تست مجدد صبر کنید.`,
+      inactive: (phone) => `❌ شماره <code>${phone}</code> فعال نیست — تست فقط برای شماره‌های فعال در دسترس است.`,
+      placeFailed: (err) => `❌ امکان برقراری تماس آزمایشی وجود ندارد: ${err}`,
+    },
+    testOutboundSip: {
+      listening: (phone, sipUser) => `📤 <b>تست SIP خروجی — گوش دادن به مدت ۹۰ ثانیه</b>\n\n📞 شماره: <code>${phone}</code>\n🔑 کاربر SIP: <code>${sipUser}</code>\n\nاز سافت‌فون خود، <b>هر شماره‌ای</b> را در ۹۰ ثانیه آینده شماره‌گیری کنید — موبایل خودتان ایده‌آل است.\n\n💡 تماس به صورت ایمن رهگیری می‌شود: <b>هیچ کسری از کیف پول</b>، <b>هیچ شاخه PSTN</b> برقرار نخواهد شد. ما فقط بررسی می‌کنیم که مسیر خروجی سافت‌فون شما با اطلاعات SIP صحیح به سرورهای ما می‌رسد.\n\nنتیجه به محض رسیدن تماس شما نمایش داده می‌شود.`,
+      success: (phone, sipUser, provider, destination, elapsedSec) => `✅ <b>SIP خروجی تأیید شد</b>\n\nسافت‌فون شما با موفقیت یک تماس خروجی برقرار کرد.\n\n📞 شماره: <code>${phone}</code>\n🔑 کاربر SIP: <code>${sipUser}</code>\n🌐 اپراتور: <code>${provider}</code>\n📍 شماره‌گیری کردید: <code>${destination}</code>\n⏱️ تأخیر تا سرورهای ما: ${elapsedSec}s\n\n💡 تماس رهگیری شد — بدون کسر، بدون شاخه PSTN. مسیر SIP خروجی شما از ابتدا تا انتها کار می‌کند.`,
+      timeout: (phone) => `❌ <b>هیچ تماس SIP خروجی شناسایی نشد</b> روی <code>${phone}</code> در ۹۰ ثانیه.\n\nدلایل احتمالی:\n• سافت‌فون ثبت‌نام نشده — چراغ ثبت‌نام را در Linphone/Zoiper بررسی کنید\n• اطلاعات SIP اشتباه — نام کاربری + رمز عبور را از طریق <b>🔑 اطلاعات SIP</b> بررسی کنید\n• فایروال که UDP 5060 / ترافیک SIP را مسدود می‌کند\n• PBX (3CX / FreePBX) که به اشتباه به جای SIP TRUNK به عنوان کاربر/داخلی پیکربندی شده — به /sipguide مراجعه کنید\n\nپس از مشاهده "ثبت‌نام شده" در سافت‌فون، تست را مجدداً اجرا کنید.`,
+      throttled: (max) => `⏳ شما قبلاً ${max} تست SIP خروجی روی این شماره در ۲۴ ساعت گذشته انجام داده‌اید. بعداً دوباره امتحان کنید.`,
+      inactive: (phone) => `❌ شماره <code>${phone}</code> فعال نیست — تست SIP خروجی فقط برای شماره‌های فعال در دسترس است.`,
+      noSipConfigured: (phone) => `❌ هیچ اطلاعات SIP روی <code>${phone}</code> وجود ندارد. ابتدا SIP را از طریق <b>🔑 اطلاعات SIP</b> پیکربندی کنید، سپس دوباره امتحان کنید.`,
     },
   },
 }

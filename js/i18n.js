@@ -16,7 +16,7 @@
  */
 const path = require('path')
 
-const SUPPORTED = ['en', 'fr', 'zh', 'hi']
+const SUPPORTED = ['en', 'fr', 'zh', 'hi', 'fa']
 const FALLBACK = 'en'
 const _tables = {}
 

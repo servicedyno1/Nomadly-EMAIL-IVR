@@ -562,6 +562,10 @@ const getContactHandle = async (attempt = 1) => {
 // ─── Domain registration ────────────────────────────────
 
 const registerDomain = async (domainName, nameservers = []) => {
+  if (require('./domain-dry-run').isDomainDryRun()) {
+    log(`[OP] DRY RUN — refusing real registration of ${domainName} outside production`)
+    return { error: 'Domain registration is disabled outside production (dry run).' }
+  }
   try {
     const headers = await authHeaders()
     const { name, extension } = parseDomain(domainName)
@@ -798,6 +802,10 @@ const getRenewPrice = async (domainName) => {
 }
 
 const renewDomain = async (domainName, period = 1) => {
+  if (require('./domain-dry-run').isDomainDryRun()) {
+    log(`[OP] DRY RUN — refusing real renewal of ${domainName} outside production`)
+    return { error: 'Domain renewal is disabled outside production (dry run).' }
+  }
   try {
     const info = await getDomainInfo(domainName)
     if (!info || !info.domainId) return { error: 'Domain not found at OpenProvider' }

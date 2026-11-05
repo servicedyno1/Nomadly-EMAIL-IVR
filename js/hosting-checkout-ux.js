@@ -154,8 +154,9 @@ function parseUseEmailTap(message) {
 }
 
 // ── Screen 4: invoice with wallet balance + 1-tap pay / deposit ───────
+// +$1 buffer: crypto conversion often lands a few cents under the exact shortfall, which would block auto-complete.
 function depositAmountFor(walletPrice, usdBal) {
-  return Math.max(10, Math.ceil(Number(walletPrice) - Number(usdBal)))
+  return Math.max(10, Math.ceil(Number(walletPrice) - Number(usdBal) + 1))
 }
 
 function walletSummary({ lang, usdBal, walletPrice, loyaltyInfo = null }) {

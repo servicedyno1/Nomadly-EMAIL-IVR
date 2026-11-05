@@ -146,7 +146,7 @@ async function buy(chatId, { planId, imei, zipcode, email, autoRenew, source, la
   if (!plan.simId) return { error: 'eSIMs are temporarily unavailable. Try again later.' }
   if (!(await S.w.debit(chatId, plan.price))) return { error: `Your wallet needs $${plan.price} for this eSIM. Top up first.`, code: 'insufficient_balance' }
   const _id = 'es_' + crypto.randomBytes(6).toString('hex')
-  const doc = { _id, chatId: String(chatId), planId, price: plan.price, imei: im || null, zipcode: zip || null, simId: plan.simId, qrEmail: qrEmail || null, autoRenew: autoRenew !== false, status: later ? 'awaiting_imei' : 'provisioning', callsTo: 'device', ...(bot ? { source: 'telegram', lang: ['en', 'fr', 'hi', 'zh'].includes(lang) ? lang : 'en' } : {}), createdAt: new Date(), updatedAt: new Date() }
+  const doc = { _id, chatId: String(chatId), planId, price: plan.price, imei: im || null, zipcode: zip || null, simId: plan.simId, qrEmail: qrEmail || null, autoRenew: autoRenew !== false, status: later ? 'awaiting_imei' : 'provisioning', callsTo: 'device', ...(bot ? { source: 'telegram', lang: ['en', 'fr', 'hi', 'zh', 'fa'].includes(lang) ? lang : 'en' } : {}), createdAt: new Date(), updatedAt: new Date() }
   await S.col.insertOne(doc)
   await txn(chatId, 'esim-purchase', plan.price, { planId, lineId: _id })
   if (later) return { item: pub(doc), awaitingImei: true }

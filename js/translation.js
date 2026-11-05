@@ -2,6 +2,7 @@ const { en } = require('./lang/en.js')
 const { fr } = require('./lang/fr.js')
 const { zh } = require('./lang/zh.js')
 const { hi } = require('./lang/hi.js')
+const { fa } = require('./lang/fa.js')
 
 const translation = (key, language, ...args) => {
   const data = {
@@ -9,6 +10,7 @@ const translation = (key, language, ...args) => {
     fr: { ...fr },
     zh: { ...zh },
     hi: { ...hi },
+    fa: { ...fa },
   }
   const lang = language ? data[language] ? language : 'en' : 'en';
   // Helper function to resolve nested keys safely

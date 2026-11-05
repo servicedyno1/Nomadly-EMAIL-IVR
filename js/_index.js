@@ -1531,7 +1531,11 @@ async function sendResellerPrompt(chatId, p) {
 }
 const clearResellerPanel = (chatId, mid) => mid && bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: mid }).catch(() => {})
 let _allUserLabels = null
-const isAnyUserLabel = m => (_allUserLabels ||= new Set(['en', 'fr', 'zh', 'hi'].flatMap(l => Object.values(translation('user', l) || {}).filter(v => typeof v === 'string')))).has(m)
+const isAnyUserLabel = m => (_allUserLabels ||= new Set(['en', 'fr', 'zh', 'hi', 'fa'].flatMap(l => Object.values(translation('user', l) || {}).filter(v => typeof v === 'string')))).has(m)
+// Welcome gift unlocks only on a main-menu SERVICE button (any language) — not typed text, Settings, Support, More or navigation.
+let _giftServiceLabels = null
+const isGiftServiceTap = m => typeof m === 'string' && !/^(⚙️|💬|➕)/.test(m) && (/^🔗✂️ \S/.test(m) || /^📱(🆓)? BulkSMS/.test(m) || (_giftServiceLabels ||= new Set(['en', 'fr', 'zh', 'hi', 'fa'].flatMap(l => (translation('o', l)?.reply_markup?.keyboard || []).flat().map(b => (typeof b === 'string' ? b : b?.text)).filter(Boolean)))).has(m))
+
 async function closeResellerDraft(chatId) {
   const d = await rsApply.abandon(chatId)
   clearResellerPanel(chatId, d?.panelMsgId)
@@ -2148,6 +2152,7 @@ const STUCK_NUDGE = {
   fr: '🧭 Vous tournez en rond ? Appuyez sur 🏠 <b>Menu principal</b> à tout moment pour recommencer.',
   zh: '🧭 在原地打转？随时点击 🏠 <b>主菜单</b> 重新开始。',
   hi: '🧭 चक्कर में फँस गए? कभी भी 🏠 <b>मुख्य मेनू</b> दबाकर नए सिरे से शुरू करें।',
+  fa: '🧭 دور خودتان می‌چرخید؟ هر زمان روی 🏠 <b>Main Menu</b> بزنید تا از اول شروع کنید.',
 }
 
 
@@ -2180,7 +2185,7 @@ function isYesPress(message) {
   const m = message.trim()
   // eslint-disable-next-line no-misleading-character-class -- intentional: strips emoji + ZWJ/VS16 code points
   const stripped = m.replace(/^[\p{Extended_Pictographic}\u200d\ufe0f\s✅✔]+/u, '').trim()
-  const knownYes = new Set(['Yes', 'Oui', '是', 'हाँ', 'Confirm', 'Confirmer', '确认', 'पुष्टि करें'])
+  const knownYes = new Set(['Yes', 'Oui', '是', 'हाँ', 'Confirm', 'Confirmer', '确认', 'पुष्टि करें', 'بله', 'تأیید'])
   return knownYes.has(stripped)
 }
 
@@ -2193,7 +2198,7 @@ function isNoPress(message) {
   const m = message.trim()
   // eslint-disable-next-line no-misleading-character-class -- intentional: strips emoji + ZWJ/VS16 code points
   const stripped = m.replace(/^[\p{Extended_Pictographic}\u200d\ufe0f\s❌❎🚫]+/u, '').trim()
-  const knownNo = new Set(['No', 'Non', '否', 'नहीं'])
+  const knownNo = new Set(['No', 'Non', '否', 'नहीं', 'خیر'])
   return knownNo.has(stripped)
 }
 
@@ -6081,8 +6086,8 @@ async function applyReferralCredit(refereeChatId, amountUsd, source) {
 
 // ── Order Resume (audit #16) ─────────────────────────────────────────────
 // Localized buttons for the "you topped up enough — finish your order" offer.
-const RESUME_ORDER_CTA = { en: '✅ Complete My Order', fr: '✅ Terminer ma commande', zh: '✅ 完成我的订单', hi: '✅ मेरा ऑर्डर पूरा करें' }
-const RESUME_DISMISS_CTA = { en: '🆕 Start Fresh', fr: '🆕 Recommencer', zh: '🆕 重新开始', hi: '🆕 नए सिरे से शुरू करें' }
+const RESUME_ORDER_CTA = { en: '✅ Complete My Order', fr: '✅ Terminer ma commande', zh: '✅ 完成我的订单', hi: '✅ मेरा ऑर्डर पूरा करें', fa: '✅ تکمیل سفارش من' }
+const RESUME_DISMISS_CTA = { en: '🆕 Start Fresh', fr: '🆕 Recommencer', zh: '🆕 重新开始', hi: '🆕 नए सिरे से शुरू करें', fa: '🆕 شروع دوباره' }
 const RESUME_ORDER_CTA_ALL = Object.values(RESUME_ORDER_CTA)
 const RESUME_DISMISS_CTA_ALL = Object.values(RESUME_DISMISS_CTA)
 
@@ -6108,7 +6113,21 @@ async function maybeOfferResume(chatId, lang = 'en') {
     const price = Number(session?.data?.price || 0)
     if (!(price > 0)) return
     const { usdBal } = await getBalance(walletOf, chatId)
-    if (!(usdBal >= price)) return  // still short — the wall's own nudges handle it
+    if (!(usdBal >= price)) {
+      const gap = price - usdBal
+      if (gap > 0 && gap <= 2 && bot && typeof bot.sendMessage === 'function') {
+        const short = ({
+          en: `💵 Your deposit arrived, but you are <b>$${gap.toFixed(2)}</b> short of your <b>$${price.toFixed(2)}</b> order (crypto conversion). Top up a little more and it completes automatically.`,
+          fr: `💵 Votre dépôt est arrivé, mais il manque <b>$${gap.toFixed(2)}</b> pour votre commande de <b>$${price.toFixed(2)}</b> (conversion crypto). Ajoutez un peu plus et elle se finalisera automatiquement.`,
+          zh: `💵 您的充值已到账，但距 <b>$${price.toFixed(2)}</b> 订单还差 <b>$${gap.toFixed(2)}</b>（加密货币换算）。再充值一点即可自动完成。`,
+          hi: `💵 आपकी जमा राशि आ गई, लेकिन <b>$${price.toFixed(2)}</b> के ऑर्डर के लिए <b>$${gap.toFixed(2)}</b> कम हैं (क्रिप्टो रूपांतरण)। थोड़ा और जोड़ें, ऑर्डर अपने आप पूरा हो जाएगा।`,
+          fa: `💵 واریز شما رسید، اما برای سفارش <b>$${price.toFixed(2)}</b> هنوز <b>$${gap.toFixed(2)}</b> کم است (تبدیل ارز دیجیتال). کمی بیشتر شارژ کنید تا سفارش خودکار تکمیل شود.`,
+        })[lang]
+        await bot.sendMessage(chatId, short || `💵 You are $${gap.toFixed(2)} short of your $${price.toFixed(2)} order.`, { parse_mode: 'HTML' }).catch(() => {})
+        log(`[Resume] deposit landed $${gap.toFixed(2)} short for ${chatId} — told user, session kept`)
+      }
+      return
+    }
     const label = session?.data?.label || ''
     const btn = RESUME_ORDER_CTA[lang] || RESUME_ORDER_CTA.en
     const dismiss = RESUME_DISMISS_CTA[lang] || RESUME_DISMISS_CTA.en
@@ -6117,7 +6136,27 @@ async function maybeOfferResume(chatId, lang = 'en') {
       fr: `✅ <b>$${usdBal.toFixed(2)} sont maintenant dans votre portefeuille.</b>\n\nVous pouvez finaliser votre commande ${label ? `<b>${label}</b> ` : ''}(<b>$${price.toFixed(2)}</b>) — appuyez ci-dessous.`,
       zh: `✅ <b>您的钱包现有 $${usdBal.toFixed(2)}。</b>\n\n现在即可完成您的${label ? `<b>${label}</b>` : ''}订单（<b>$${price.toFixed(2)}</b>）— 点击下方。`,
       hi: `✅ <b>अब आपके वॉलेट में $${usdBal.toFixed(2)} हैं।</b>\n\nआप अभी अपना ${label ? `<b>${label}</b> ` : ''}ऑर्डर (<b>$${price.toFixed(2)}</b>) पूरा कर सकते हैं — नीचे टैप करें।`,
+      fa: `✅ <b>اکنون $${usdBal.toFixed(2)} در کیف پول شماست.</b>\n\nهمین حالا می‌توانید سفارش ${label ? `<b>${label}</b> ` : ''}(<b>$${price.toFixed(2)}</b>) را تکمیل کنید — پایین بزنید.`,
     })[lang] || `✅ <b>$${usdBal.toFixed(2)} is now in your wallet.</b>\n\nYou can finish your order (<b>$${price.toFixed(2)}</b>) — tap below.`
+    // The user chose "Deposit $X — tops up, then pays": finish the order for them (same taps: Complete → Yes).
+    const fresh = Date.now() - new Date(session.createdAt || session.updatedAt || 0).getTime() < 6 * 3600e3
+    if (fresh && session.step && bot && typeof bot.processUpdate === 'function') {
+      const yes = translation('t.yes', lang) || 'Yes'
+      const nm = await get(nameOf, chatId).catch(() => null)
+      const tap = (text, n) => bot.processUpdate({ update_id: Date.now() + n, message: { message_id: Date.now() % 1e9 + n, from: { id: Number(chatId), is_bot: false, first_name: nm || 'user', username: nm || undefined }, chat: { id: Number(chatId), type: 'private' }, date: Math.floor(Date.now() / 1000), text } })
+      await bot.sendMessage(chatId, ({ en: '✅ <b>Payment received</b> — completing your order now…', fr: '✅ <b>Paiement reçu</b> — finalisation de votre commande…', zh: '✅ <b>已收到付款</b> — 正在完成您的订单…', hi: '✅ <b>भुगतान मिला</b> — आपका ऑर्डर पूरा किया जा रहा है…', fa: '✅ <b>پرداخت دریافت شد</b> — در حال تکمیل سفارش شما…' })[lang] || '✅ <b>Payment received</b> — completing your order now…', { parse_mode: 'HTML' }).catch(() => {})
+      await tap(btn, 1)
+      setTimeout(async () => {
+        try {
+          const st = await get(state, chatId)
+          const act = st?.action, total = Number(st?.checkoutTotal || 0)
+          if (act === 'walletSelectCurrencyConfirm' && total > 0 && total <= usdBal + 1e-9) await tap(yes, 2)
+          else log(`[Resume] auto-complete: not confirming for ${chatId} (action=${act}, total=$${total}) — user finishes manually`)
+        } catch (e) { log(`[Resume] auto-complete confirm error: ${e.message}`) }
+      }, 2500)
+      log(`[Resume] auto-completing order for ${chatId} (order $${price} covered by $${usdBal.toFixed(2)})`)
+      return
+    }
     if (bot && typeof bot.sendMessage === 'function') {
       await bot.sendMessage(chatId, msg, { parse_mode: 'HTML', reply_markup: { keyboard: [[btn], [dismiss]], resize_keyboard: true } })
       log(`[Resume] offered completion to ${chatId} (order $${price} covered by $${usdBal.toFixed(2)})`)
@@ -8829,7 +8868,7 @@ bot?.on('message', msg => {
     const todayTheme = autoPromo.getTodayThemes().find(t => themes.includes(t)) || themes[0]
     if (sub === 'bot') {
       const theme = args[1] || todayTheme
-      const lang = ['en', 'fr', 'zh', 'hi'].includes(args[2]) ? args[2] : 'en'
+      const lang = ['en', 'fr', 'zh', 'hi', 'fa'].includes(args[2]) ? args[2] : 'en'
       if (!themes.includes(theme)) return send(chatId, `❌ Unknown theme <code>${theme}</code>. Try <code>/ad list</code>.`, { parse_mode: 'HTML' })
       const r = await autoPromo.previewPromo(chatId, theme, lang).catch(e => ({ success: false, error: e.message }))
       return r.success ? send(chatId, `👆 In-bot preview — <code>${theme}</code>/${lang}${r.banner ? ' (with banner)' : ' (text only)'}`, { parse_mode: 'HTML' }) : send(chatId, `❌ ${r.error}`)
@@ -9762,6 +9801,16 @@ bot?.on('message', msg => {
   let action = info?.action
   const cpTxt = phoneConfig.getTxt(info?.userLanguage || 'en')
 
+  // $5 welcome gift unlocks on the first real tap (a product / menu button), not at join — cuts bonus farming.
+  if (info?.welcomeGiftPending && isGiftServiceTap(message)) {
+    await set(state, chatId, 'welcomeGiftPending', false)
+    if (info) info.welcomeGiftPending = false
+    try {
+      const bonus = await monetization.checkAndAwardWelcomeBonus(chatId, info?.userLanguage || 'en')
+      if (bonus?.awarded) { send(chatId, bonus.message, { parse_mode: 'HTML' }); log(`[WelcomeBonus] Awarded $${bonus.amount} on first action to chatId=${chatId}`) }
+    } catch (e) { log(`[WelcomeBonus] first-action award error: ${e.message}`) }
+  }
+
   // ── IVR campaign resume after deposit ──────────────────────────────
   // If the user built an outbound IVR campaign, hit the wallet-insufficient
   // gate, deposited funds, then came back and typed `/yes` (or `/cancel`),
@@ -9808,6 +9857,7 @@ bot?.on('message', msg => {
         fr: { unlimited: "Raccourcisseur d'URL — Illimité", free: n => `Raccourcisseur d'URL — ${n} Essai${n !== 1 ? 's' : ''}`, zero: "Raccourcisseur d'URL — 0 Essais" },
         hi: { unlimited: 'URL छोटा करें — असीमित', free: n => `URL छोटा करें — ${n} मुफ्त लिंक`, zero: 'URL छोटा करें — 0 लिंक शेष' },
         zh: { unlimited: 'URL 缩短器 — 无限', free: n => `URL 缩短器 — ${n}次免费`, zero: 'URL 缩短器 — 0次剩余' },
+        fa: { unlimited: 'کوتاه‌کننده URL — نامحدود', free: n => `کوتاه‌کننده URL — ${n} لینک رایگان`, zero: 'کوتاه‌کننده URL — ۰ لینک باقی‌مانده' },
       }
       const sl = shortenerLabels[lang] || shortenerLabels.en
       const label = userSubscribed
@@ -9822,6 +9872,7 @@ bot?.on('message', msg => {
         fr: { active: 'SMS en masse ✅', trial: n => `SMS en masse — ${n} SMS gratuits`, noTrial: 'SMS en masse' },
         hi: { active: 'BulkSMS ✅', trial: n => `BulkSMS — ${n} मुफ्त SMS`, noTrial: 'BulkSMS' },
         zh: { active: 'BulkSMS ✅', trial: n => `BulkSMS — ${n}条免费`, noTrial: 'BulkSMS' },
+        fa: { active: 'BulkSMS ✅', trial: n => `BulkSMS — ${n} پیامک رایگان`, noTrial: 'BulkSMS' },
       }
       const smsL = smsLabels[lang] || smsLabels.en
       const smsLabel = smsSubStatus.isSubscribed
@@ -9900,6 +9951,7 @@ bot?.on('message', msg => {
         fr: { welcome: 'Bienvenue', hi: 'Salut', balance: 'Solde', tier: 'Niveau', discount: 'sur tous les achats', noDiscount: 'Choisissez un service ci-dessous pour commencer 👇', selectOption: 'Choisissez une option', services: 'Vos services' },
         zh: { welcome: '欢迎', hi: '你好', balance: '余额', tier: '等级', discount: '所有购买折扣', noDiscount: '选择下方服务开始使用 👇', selectOption: '请选择一个选项', services: '您的服务' },
         hi: { welcome: 'स्वागत है', hi: 'नमस्ते', balance: 'शेष', tier: 'स्तर', discount: 'सभी खरीदारी पर छूट', noDiscount: 'शुरू करने के लिए नीचे एक सेवा चुनें 👇', selectOption: 'नीचे एक विकल्प चुनें', services: 'आपकी सेवाएँ' },
+        fa: { welcome: 'خوش آمدید', hi: 'سلام', balance: 'موجودی', tier: 'سطح', discount: 'تخفیف روی همه خریدها', noDiscount: 'برای شروع یکی از سرویس‌های زیر را انتخاب کنید 👇', selectOption: 'یکی از گزینه‌های زیر را انتخاب کنید', services: 'سرویس‌های شما' },
       }
       const g = greetings[lang] || greetings.en
       const name = msg?.from?.first_name || username
@@ -11949,6 +12001,7 @@ Enter new value:`), bc)
       const { usdBal } = await getBalance(walletOf, chatId)
       const finalPrice = checkoutOrder(step).total
       send(chatId, t.walletSelectCurrency(usdBal) + `\n\n💵 Amount: <b>$${Number(finalPrice).toFixed(2)}</b>\n\n` + t.walletSelectCurrencyConfirm, k.of([[t.yes], [t.no], ['↩️ Back']]))
+      await set(state, chatId, 'checkoutTotal', Number(finalPrice) || 0)
       await set(state, chatId, 'action', a.walletSelectCurrencyConfirm)
     },
     walletSelectCurrencyConfirm: async () => {
@@ -11956,6 +12009,7 @@ Enter new value:`), bc)
       const p = checkoutOrder(info?.lastStep).total
 
       send(chatId, trans('t.ld_1', Number(p).toFixed(2)) + t.walletSelectCurrencyConfirm, k.of([[t.yes], [t.no], ['↩️ Back']]))
+      await set(state, chatId, 'checkoutTotal', Number(p) || 0)
       await set(state, chatId, 'action', a.walletSelectCurrencyConfirm)
     },
     //
@@ -15270,21 +15324,6 @@ All verified numbers generated during sourcing.`))
     // Returning user: reset action and show main menu with balance & tier
     await set(state, chatId, 'action', 'none')
     await set(state, chatId, 'processingPayment', false) // Clear any stale payment lock
-    // ── UX: gently re-onboard a returning but NOT-yet-activated user ──
-    // A returning user who has never purchased and hasn't seen/used the intent
-    // funnel gets the lightweight "what do you need today?" chooser ONCE more
-    // (bounded by firstIntentReshown), instead of the full 18-button wall.
-    // Activated customers and anyone who already saw it are unaffected.
-    if (!info.firstSessionIntentDone && !info.firstIntentReshown) {
-      try {
-        const _conv = await db.collection('userConversion').findOne({ chatId: String(chatId) }).catch(() => null)
-        if (!_conv?.hasPurchased) {
-          await set(state, chatId, 'firstIntentReshown', true)
-          await showFirstSessionIntent(info?.userLanguage || 'en')
-          return
-        }
-      } catch (e) { /* non-critical — fall through to the normal menu */ }
-    }
 
     const greeting = await getMainMenuGreeting()
     send(chatId, greeting + webAccess.cloudivrWelcomeLine(info?.userLanguage || 'en'), { ...trans('o'), disable_web_page_preview: true })
@@ -16072,16 +16111,19 @@ All verified numbers generated during sourcing.`))
       buildAdminButtons({ chatId })
     )
 
-    // ── Welcome Gift: Award $5 to new user ──
+    // ── Welcome Gift: $5 is promised now and credited on the first real tap (see top of handler) ──
     let welcomeBonusShown = false
     try {
-      const bonus = await monetization.checkAndAwardWelcomeBonus(chatId, validLanguage || 'en')
-      if (bonus?.awarded) {
-        reactToMessage(chatId, msg?.message_id, '🎉', true) // UX #3: celebrate the welcome gift
-        send(chatId, bonus.message, { parse_mode: 'HTML' })
-        welcomeBonusShown = true
-        log(`[WelcomeBonus] Awarded $${bonus.amount} to new user chatId=${chatId}`)
-      }
+      await set(state, chatId, 'welcomeGiftPending', true)
+      const teaser = ({
+        en: '🎁 <b>A $5 welcome gift is waiting for you.</b> It lands in your wallet as soon as you open any service below.',
+        fr: '🎁 <b>Un cadeau de bienvenue de 5 $ vous attend.</b> Il arrive dans votre portefeuille dès que vous ouvrez un service ci-dessous.',
+        zh: '🎁 <b>您有一份 $5 欢迎礼物。</b>打开下方任意服务后即自动存入钱包。',
+        hi: '🎁 <b>$5 का वेलकम गिफ्ट आपका इंतज़ार कर रहा है।</b> नीचे कोई भी सेवा खोलते ही यह आपके वॉलेट में आ जाएगा।',
+        fa: '🎁 <b>یک هدیه خوش‌آمدگویی ۵ دلاری منتظر شماست.</b> به محض باز کردن هر سرویس در پایین، به کیف پول شما اضافه می‌شود.',
+      })
+      send(chatId, teaser[validLanguage] || teaser.en, { parse_mode: 'HTML' })
+      welcomeBonusShown = true
     } catch (e) { /* non-critical */ }
 
     // ── Guided Onboarding for new users (Feature 1) ──
@@ -16108,7 +16150,9 @@ All verified numbers generated during sourcing.`))
       // never left keyboard-less). A short delay lets the $5 welcome-bonus
       // message land first; when no bonus message was shown, fire almost
       // immediately so there's no dead gap after the language pick.
-      setTimeout(() => { askJoinEmail(validLanguage).catch(() => {}) }, welcomeBonusShown ? 1200 : 300)
+      // Products first (2026-11-05: 43% of joiners quit at the email question / intent picker): go straight to
+      // the full menu. Email is still asked where a product needs it (hosting, eSIM, receipts).
+      setTimeout(() => { goto.displayMainMenuButtons().catch(() => {}) }, welcomeBonusShown ? 900 : 200)
 
       return
     } catch (e) { /* non-critical — fall through to normal menu */ }
@@ -25482,6 +25526,12 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       // Top-up didn't fully cover the order — re-show the pre-filled wall (keeps session).
       return _showBalanceWall(_rBal, _price)
     }
+    if (!(Number(checkoutOrder(session.step).total) > 0)) {
+      // Order details are gone from state (user moved on) — never show a "$0.00 — Confirm?" screen.
+      await clearResumableSession(db, chatId)
+      log(`[Resume] order details missing for ${chatId} (step=${session.step}) — asked user to restart the order`)
+      return send(chatId, ({ en: `⚠️ We couldn't reopen that order — your <b>$${_rBal.toFixed(2)}</b> is safe in your wallet. Please start the order again from the menu.`, fr: `⚠️ Impossible de rouvrir cette commande — vos <b>$${_rBal.toFixed(2)}</b> sont en sécurité dans votre portefeuille. Recommencez la commande depuis le menu.`, zh: `⚠️ 无法重新打开该订单 — 您的 <b>$${_rBal.toFixed(2)}</b> 安全地保存在钱包中。请从菜单重新下单。`, hi: `⚠️ वह ऑर्डर फिर से नहीं खुल सका — आपके <b>$${_rBal.toFixed(2)}</b> वॉलेट में सुरक्षित हैं। कृपया मेनू से ऑर्डर फिर से शुरू करें।`, fa: `⚠️ امکان باز کردن دوباره آن سفارش نبود — <b>$${_rBal.toFixed(2)}</b> شما در کیف پول امن است. لطفاً سفارش را از منو دوباره شروع کنید.` }[lang] || `⚠️ We couldn't reopen that order — your $${_rBal.toFixed(2)} is safe in your wallet. Please start the order again from the menu.`), trans('o'))
+    }
     await saveInfo('coin', 'usd')
     await set(state, chatId, 'action', session.step)
     await clearResumableSession(db, chatId)
@@ -25945,7 +25995,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       allBtns.push([pc.buyAnother])
       return send(chatId, displayText, k.of(allBtns))
     }
-    if (message === pc.ivrOutboundCall || message === '📢 Quick IVR Call — 1 Free' || message === '📢 Appel IVR Rapide — 1 Gratuit' || message === '📢 快速IVR呼叫 — 1次免费' || message === '📢 त्वरित IVR कॉल — 1 मुफ्त') {
+    if (message === pc.ivrOutboundCall || message === '📢 Quick IVR Call — 1 Free' || message === '📢 Appel IVR Rapide — 1 Gratuit' || message === '📢 快速IVR呼叫 — 1次免费' || message === '📢 त्वरित IVR कॉल — 1 मुफ्त' || message === '📢 تماس سریع IVR — ۱ رایگان') {
       // IVR Outbound Call — requires Pro or Business plan
       const ivrOb = require('./ivr-outbound.js')
       const userData = await get(phoneNumbersOf, chatId)
@@ -37717,6 +37767,8 @@ const buyDomainFullProcess = async (chatId, lang, domain, opts = {}) => {
       }
     }
 
+    if (buyResult.dryRun) { log(`[buyDomainFullProcess] DRY RUN for ${domain} — skipping shortener/DNS setup`); return }
+
     // NS was set at registration time (passed to registrar API directly) — no post-reg update needed
     if (nsChoice !== 'provider_default' && buyResult.nameservers && buyResult.nameservers.length >= 2) {
       const nsLabel = nsChoice === 'cloudflare' ? 'Cloudflare' : 'Custom'
@@ -41497,7 +41549,7 @@ app.get('/crypto-wallet', auth, async (req, res) => {
 
   // Update Wallet
   const usdIn = await convert(value, coin, 'usd')
-  addFundsTo(walletOf, chatId, 'usd', usdIn, lang)
+  await addFundsTo(walletOf, chatId, "usd", usdIn, lang)
   depositFunnel.recordDepositCompleted({ chatId, ref, amountUsd: usdIn, provider: 'blockbee' })
   sendAndReact(chatId, translation('t.confirmationDepositMoney', lang, value + ' ' + tickerViewOf[coin], usdIn), '💰')
 
@@ -41650,7 +41702,7 @@ app.get('/dev/ux-fixes-audit', (req, res) => {
   //         is shown ONLY to trial-eligible users (non-subscriber + unused trial) ---
   const quickIvrLabels = {}
   const freeWords = ['1 Free', 'Gratuit', '免费', 'मुफ्त', 'मुफ़्त']
-  for (const lang of ['en', 'fr', 'zh', 'hi']) {
+  for (const lang of ['en', 'fr', 'zh', 'hi', 'fa']) {
     const b = phoneConfig.getBtn(lang)
     const base = b.ivrOutboundCall || ''
     const trial = b.ivrOutboundCallTrial || ''
@@ -41782,7 +41834,7 @@ app.get('/dev/domain-payment-msg-test', (req, res) => {
   if ((process.env.BOT_ENVIRONMENT || '').toLowerCase() === 'production') {
     return res.status(404).json({ error: 'not found' })
   }
-  const langs = ['en', 'fr', 'zh', 'hi']
+  const langs = ['en', 'fr', 'zh', 'hi', 'fa']
 
   // 1) The pure helper must map defer→processing key, non-defer→payment key.
   const helperOk = _domainOpeningMsgKey(true) === 't.domainProcessingOrder' &&
@@ -42947,7 +42999,7 @@ app.get('/dev/vps-password-reveal-check', async (req, res) => {
     // 9 ── EVERY language renders the VPS-password UI. A missing key used to
     //      produce an `undefined` inline-keyboard button, which Telegram rejects
     //      — the bot became unresponsive for non-English users on VPS details.
-    for (const lng of ['en', 'fr', 'zh', 'hi']) {
+    for (const lng of ['en', 'fr', 'zh', 'hi', 'fa']) {
       const L = require(`./lang/${lng}.js`)[lng].vp
       const row = [L.revealPasswordBtn, L.resetPasswordBtn, L.reinstallWindowsBtn]
       add(`[${lng}] VPS keyboard buttons are all non-empty strings`,

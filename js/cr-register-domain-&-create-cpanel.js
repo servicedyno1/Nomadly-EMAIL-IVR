@@ -464,6 +464,7 @@ async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state,
           // confirmed this gap — fixing here eliminates the entire bug class for
           // future purchases without waiting for the DnsHealer to detect & heal it.
           if (
+            !regResult.dryRun &&
             regResult.registrar === 'OpenProvider' &&
             regNsChoice === 'cloudflare' &&
             Array.isArray(regResult.nameservers) &&
