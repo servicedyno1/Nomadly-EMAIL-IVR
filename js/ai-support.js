@@ -1044,6 +1044,7 @@ const CRITICAL_ESCALATION = {
   fr: ['remboursement', 'rembourser', 'fraude', 'arnaque', 'volé', 'en colère', 'furieux', 'terrible', 'pire', 'avocat', 'juridique', 'responsable', 'superviseur', 'humain', 'personne réelle', 'parler à quelqu\'un', 'supprimer le compte', 'fermer le compte', 'litige'],
   zh: ['退款', '退钱', '欺诈', '骗局', '被盗', '黑客', '生气', '愤怒', '糟糕', '最差', '律师', '法律', '经理', '主管', '真人', '人工客服', '找人', '删除账户', '关闭账户', '纠纷'],
   hi: ['रिफंड', 'पैसे वापस', 'धोखाधड़ी', 'धोखा', 'चोरी', 'हैक', 'गुस्सा', 'नाराज', 'भयानक', 'सबसे खराब', 'वकील', 'कानूनी', 'मैनेजर', 'सुपरवाइजर', 'इंसान', 'असली व्यक्ति', 'किसी से बात', 'अकाउंट हटाओ', 'अकाउंट बंद', 'विवाद'],
+  fa: ['بازپرداخت', 'پس دادن پول', 'کلاهبرداری', 'دزدی', 'هک', 'شکایت'],
 }
 
 // ── SOFT escalation keywords (only escalate if AI can't help) ──
@@ -1052,6 +1053,7 @@ const SOFT_ESCALATION = {
   fr: ['ne fonctionne pas', 'cassé', 'erreur', 'bug', 'plantage', 'annuler'],
   zh: ['不工作', '坏了', '错误', '故障', '崩溃', '取消'],
   hi: ['काम नहीं कर रहा', 'टूटा', 'त्रुटि', 'बग', 'क्रैश', 'रद्द'],
+  fa: ['کار نمی‌کند', 'خراب', 'خطا', 'باگ', 'لغو'],
 }
 
 // Combined for backward compat
@@ -1060,6 +1062,7 @@ const ESCALATION_KEYWORDS = {
   fr: [...CRITICAL_ESCALATION.fr, ...SOFT_ESCALATION.fr],
   zh: [...CRITICAL_ESCALATION.zh, ...SOFT_ESCALATION.zh],
   hi: [...CRITICAL_ESCALATION.hi, ...SOFT_ESCALATION.hi],
+  fa: [...CRITICAL_ESCALATION.fa, ...SOFT_ESCALATION.fa],
 }
 const ALL_ESCALATION_KEYWORDS = Object.values(ESCALATION_KEYWORDS).flat()
 
@@ -1675,6 +1678,7 @@ const LANG_NAMES = {
   fr: 'French (Français)',
   zh: 'Chinese (中文)',
   hi: 'Hindi (हिन्दी)',
+  fa: 'Persian (فارسی)',
 }
 
 // ── Main AI response function ──

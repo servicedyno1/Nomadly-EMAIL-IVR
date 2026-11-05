@@ -89,6 +89,25 @@ const L = {
     altsIntro: '✅ <b>अभी उपलब्ध</b> — उपयोग के लिए टैप करें, या दूसरा नाम लिखें:',
     altsNone: base => `<b>${base}</b> के लिए कोई विकल्प नहीं मिला। दूसरा नाम लिखें:`,
   },
+  fa: {
+    menu: ({ weekly, premium, golden, trialOn }) =>
+      `🛡️ <b>هاستینگ Anti-Red — یک پلن انتخاب کنید</b>\n\n` +
+      `⚡ <b>Premium هفتگی</b> — $${weekly} · ۷ روز\n   ۱۰ گیگ SSD · تا ۲ دامنه · cloaking IP + تشخیص ربات\n\n` +
+      `🔷 <b>Premium HostPanel</b> — $${premium} · ۳۰ روز  ⭐ محبوب‌ترین\n   ۵۰ گیگ SSD · تا ۶ دامنه · + چالش JS و مسدودسازی TLS\n\n` +
+      `👑 <b>Golden HostPanel</b> — $${golden} · ۳۰ روز\n   ۱۰۰ گیگ SSD · دامنه نامحدود · Anti-Red کامل + Captcha بازدیدکننده + پشتیبانی اولویت‌دار\n\n` +
+      (trialOn ? `💡 <b>آزمایش رایگان</b> — $0 · ۱۲ ساعت · دامنه رایگان .sbs\n\n` : '') +
+      `✅ همه پلن‌ها: SSL رایگان · HostPanel · DNS Cloudflare · آنلاین در چند دقیقه\n👇 روی یک پلن بزنید تا جزئیات را ببینید و شروع کنید.`,
+    chooseDomain: '👇 <b>انتخاب کنید چگونه دامنه خود را متصل کنید تا شروع کنید:</b>',
+    chooseDomainOwned: '👇 <b>روی یکی از دامنه‌های خود بزنید، یا یک دامنه جدید اضافه کنید:</b>',
+    emailUse: email => `✅ استفاده از ${email}`,
+    walletCovers: (bal) => `👛 کیف پول: <b>$${money(bal)}</b> ✅ این سفارش را پوشش می‌دهد — روی <b>پرداخت</b> در پایین بزنید.`,
+    walletShort: (bal, short) => `👛 کیف پول: <b>$${money(bal)}</b> — <b>$${money(short)}</b> کم دارید. روی <b>💵 Deposit</b> بزنید و مستقیماً برای تکمیل این سفارش بازمی‌گردید.`,
+    loyalty: (badge, tier, pct, amt) => `${badge} وفاداری ${tier} −${pct}% روی پرداخت‌های کیف پول → <b>$${money(amt)}</b>`,
+    payWallet: amt => `👛 پرداخت $${money(amt)} از طریق کیف پول`,
+    altsSearching: base => `🔍 جستجوی جایگزین‌ها برای <b>${base}</b>…`,
+    altsIntro: '✅ <b>در دسترس هستند</b> — برای استفاده بزنید، یا یک نام دیگر تایپ کنید:',
+    altsNone: base => `هیچ جایگزینی برای <b>${base}</b> پیدا نشد. یک نام دیگر تایپ کنید:`,
+  },
 }
 const strings = lang => L[lang] || L.en
 
@@ -172,6 +191,7 @@ function walletSummary({ lang, usdBal, walletPrice, loyaltyInfo = null }) {
       en: `\n\n<i>💵 Deposit tops up your wallet by the shortfall, then pays. ₿ Crypto pays the full amount directly.</i>`,
       fr: `\n\n<i>💵 Deposit recharge votre portefeuille du montant manquant, puis paie. ₿ Crypto paie le montant total directement.</i>`,
       zh: `\n\n<i>💵 Deposit 按差额充值钱包后再支付。₿ Crypto 直接支付全额。</i>`,
+      fa: `\n\n<i>💵 Deposit کمبود کیف پول را شارژ می‌کند و سپس پرداخت می‌کند. ₿ Crypto کل مبلغ را مستقیم پرداخت می‌کند.</i>`,
       hi: `\n\n<i>💵 Deposit वॉलेट में कमी जितनी राशि जोड़कर फिर भुगतान करता है। ₿ Crypto पूरी राशि सीधे भुगतान करता है।</i>`,
     }
     text += (legend[lang] || legend.en)

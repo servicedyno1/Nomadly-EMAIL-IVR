@@ -218,6 +218,29 @@ function initPhoneTestRoutes(app, db, telnyxApi, sipConnectionId, bot) {
     }
   })
 
+  // Free SIP test: show any caller ID (not emergency). Stored on the test credential; logged + admin alert.
+  app.post('/phone/test/caller-id', async (req, res) => {
+    try {
+      const { sipUsername, showAs } = req.body || {}
+      const cid = require('./cloudivr-web/caller-ids')
+      const n = String(showAs || '').replace(/[^\d+]/g, '')
+      const e164 = !n ? null : n.startsWith('+') ? n : n.length === 10 ? `+1${n}` : `+${n}`
+      if (e164 && cid.isEmergency(showAs)) return res.status(400).json({ error: 'Emergency numbers can’t be used as a caller ID.' })
+      if (e164 && !/^\+[1-9]\d{7,14}$/.test(e164)) return res.status(400).json({ error: 'Enter the full number with country code, e.g. +14155550100.' })
+      const cred = await db.collection('testCredentials').findOne({ sipUsername: String(sipUsername || ''), expired: { $ne: true } })
+      if (!cred) return res.status(404).json({ error: 'Test login not found or expired.' })
+      await db.collection('testCredentials').updateOne({ _id: cred._id }, { $set: { showAs: e164 } })
+      if (e164) {
+        cid.logUse(cred.chatId, e164, 'sip_test', '')
+        require('./scam-watch').alert(`🎭 <b>Free SIP test — custom caller ID</b>\n👤 ${cred.chatId}\n📞 ${e164}${cid.HOTLINES[e164] ? ` — 🚩 matches <b>${cid.HOTLINES[e164]}</b> hotline` : ''}`)
+      }
+      res.json({ showAs: e164 })
+    } catch (e) {
+      console.error('[PhoneTest] caller-id error:', e.message)
+      res.status(500).json({ error: 'Could not save the caller ID' })
+    }
+  })
+
   // ── Caller info lookup (CNAM + location) for incoming calls ──
   app.post('/phone/test/caller-info', async (req, res) => {
     try {

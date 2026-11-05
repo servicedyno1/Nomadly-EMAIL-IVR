@@ -43,4 +43,6 @@ function watch({ chatId, who, where, data }) {
   } catch (_) { /* never affects the user's request */ }
 }
 
-module.exports = { setNotifier, watch, scan, texts }
+const alert = (text) => { try { notifier?.(text) } catch (_) { /* best effort */ } }
+
+module.exports = { setNotifier, watch, scan, texts, alert }

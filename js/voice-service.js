@@ -36,6 +36,23 @@ let _selfUrl = null
 
 // i18n helper: get user language and translate
 const _langCache = new Map()
+// Tell a bot user their custom caller ID was refused by the phone carriers (never names the provider).
+const CID_REJECTED = {
+  en: (n, own) => `⚠️ <b>Phone carriers rejected caller ID ${n}.</b>\nYour call went out from your own number ${own} instead. Try a different caller ID.`,
+  fr: (n, own) => `⚠️ <b>Les opérateurs ont refusé le numéro affiché ${n}.</b>\nVotre appel est parti de votre numéro ${own}. Essayez un autre numéro.`,
+  zh: (n, own) => `⚠️ <b>电信运营商拒绝了来电号码 ${n}。</b>\n本次通话已改用您自己的号码 ${own} 拨出。请尝试其他来电号码。`,
+  hi: (n, own) => `⚠️ <b>फ़ोन कैरियर्स ने कॉलर ID ${n} अस्वीकार कर दिया।</b>\nआपकी कॉल आपके अपने नंबर ${own} से गई। कोई दूसरा कॉलर ID आज़माएँ।`,
+  fa: (n, own) => `⚠️ <b>اپراتورهای تلفن شماره نمایشی ${n} را رد کردند.</b>\nتماس شما از شماره خودتان ${own} برقرار شد. شماره نمایشی دیگری امتحان کنید.`,
+}
+const _cidRejectedSent = new Map()
+function _notifyCidRejected(chatId, n, own) {
+  if (!_bot || !chatId) return
+  const key = `${chatId}:${n}`
+  if (Date.now() - (_cidRejectedSent.get(key) || 0) < 3600000) return
+  _cidRejectedSent.set(key, Date.now())
+  _getUserLang(chatId).then(l => _bot.sendMessage(chatId, (CID_REJECTED[l] || CID_REJECTED.en)(n, own), { parse_mode: 'HTML' })).catch(() => {})
+}
+
 async function _getUserLang(chatId) {
   if (_langCache.has(chatId)) return _langCache.get(chatId)
   try {
@@ -3458,8 +3475,12 @@ async function handleOutboundSipCall(payload) {
     // overrides this per-call, ensuring each user's correct phone number displays as caller ID.
 
     // "Show as": the browser phone may ask to display a caller ID this account verified (X-Civr-Show-As).
-    const showAsHdr = (payload.custom_headers || []).find(x => String(x?.name || '').toLowerCase() === 'x-civr-show-as')?.value
-    const outFrom = showAsHdr && await require('./cloudivr-web/caller-ids').isVerified(chatId, showAsHdr).catch(() => false) ? String(showAsHdr) : num.phoneNumber
+    // Softphones can't add headers, so the number's saved default caller ID is used when no header is sent.
+    const _cid = require('./cloudivr-web/caller-ids')
+    const showAsHdr = (payload.custom_headers || []).find(x => String(x?.name || '').toLowerCase() === 'x-civr-show-as')?.value || await _cid.defaultFor(chatId, num.phoneNumber).catch(() => null)
+    const outFrom = lookupResult?.isTestCall && lookupResult.testShowAs ? String(lookupResult.testShowAs)
+      : showAsHdr && await _cid.isVerified(chatId, showAsHdr).catch(() => false) ? String(showAsHdr) : num.phoneNumber
+    if (outFrom !== num.phoneNumber) _cid.logUse(chatId, outFrom, 'sip', destination)
     if (outFrom !== num.phoneNumber) log(`[Voice] Outbound SIP: showing verified caller ID ${outFrom} for ${num.phoneNumber}`)
     try {
       const callState = activeCalls[callControlId]
@@ -3493,6 +3514,14 @@ async function handleOutboundSipCall(payload) {
           }
         }
         retryTransfer(0).catch(() => {})
+      } else if (outFrom !== num.phoneNumber) {
+        // Carrier refused the custom caller ID — place the call from the user's own number instead of dropping it.
+        log(`[Voice] Outbound SIP (Telnyx): custom caller ID ${outFrom} refused (${errMsg}) — retrying from ${num.phoneNumber}`)
+        _notifyCidRejected(chatId, outFrom, num.phoneNumber)
+        try {
+          _markSelfPstnLeg(payload.connection_id, destination, num.phoneNumber)
+          await _telnyxApi.transferCall(callControlId, destination, num.phoneNumber, { targetLegClientState: PSTN_LEG_STATE })
+        } catch (e2) { log(`[Voice] Outbound SIP (Telnyx): own-number retry failed — ${e2.message}`) }
       } else {
         log(`[Voice] Outbound SIP (Telnyx): Transfer failed — ${errMsg}`)
         if (isAutoRouted) {
@@ -3783,7 +3812,7 @@ async function findNumberBySipUser(sipUsername, fromPhone, connectionPhoneNumber
         const testNumbers = testAccountDoc?.val?.numbers || []
         const testNum = testNumbers.find(n => n.status === 'active')
         if (testNum) {
-          return { chatId: testCred.chatId, num: testNum, isTestCall: true, webTest: !!testCred.webTest }
+          return { chatId: testCred.chatId, num: testNum, isTestCall: true, webTest: !!testCred.webTest, testShowAs: testCred.showAs || null }
         }
         // FALLBACK: Test account has no active number — create a virtual test number
         // using TELNYX_DEFAULT_ANI so test calls can still be routed via the SIP connection
@@ -3797,7 +3826,7 @@ async function findNumberBySipUser(sipUsername, fromPhone, connectionPhoneNumber
             plan: 'test',
             _isVirtualTestNumber: true
           }
-          return { chatId: testCred.chatId, num: virtualTestNum, isTestCall: true, webTest: !!testCred.webTest }
+          return { chatId: testCred.chatId, num: virtualTestNum, isTestCall: true, webTest: !!testCred.webTest, testShowAs: testCred.showAs || null }
         }
         log(`[Voice] Test account ${TEST_ACCOUNT_CHAT_ID} has no active number and no TELNYX_DEFAULT_ANI fallback — cannot route test call`)
       }
@@ -5106,7 +5135,14 @@ async function initiateOutboundIvrCall(params) {
   const webhookUrl = `${_selfUrl}/telnyx/voice-webhook`
   // Voicemail drop needs the end of the mailbox greeting (call.machine.greeting.ended) so the message records cleanly.
   const amdOpts = voicemailAudioUrl ? { answering_machine_detection: VM_AMD_MODE } : {}
-  const result = await _telnyxApi.createOutboundCall(displayCallerId || callerId, targetNumber, webhookUrl, undefined, amdOpts)
+  let result = await _telnyxApi.createOutboundCall(displayCallerId || callerId, targetNumber, webhookUrl, undefined, amdOpts)
+  if (displayCallerId && result.error && !_telnyxApi.isLineLimitError?.(result)) {
+    // Carrier refused the custom caller ID — place the call from the user's own number instead.
+    log(`[OutboundIVR] custom caller ID ${displayCallerId} refused (${result.error}) — retrying from ${callerId}`)
+    _notifyCidRejected(chatId, displayCallerId, callerId)
+    result = await _telnyxApi.createOutboundCall(callerId, targetNumber, webhookUrl, undefined, amdOpts)
+    if (!result.error) result.callerIdRejected = true
+  } else if (displayCallerId) require('./cloudivr-web/caller-ids').logUse(chatId, displayCallerId, bulkMode ? 'bulk' : 'ivr', targetNumber)
 
   if (result.error) {
     return { error: result.error, lineLimit: _telnyxApi.isLineLimitError?.(result) || false }
@@ -5158,7 +5194,7 @@ async function initiateOutboundIvrCall(params) {
   }
 
   log(`[OutboundIVR] Call initiated: ${callerId} → ${targetNumber} (chatId: ${chatId}, template: ${templateName})`)
-  return { callControlId: result.callControlId }
+  return { callControlId: result.callControlId, callerIdRejected: !!result.callerIdRejected }
 }
 
 /**
