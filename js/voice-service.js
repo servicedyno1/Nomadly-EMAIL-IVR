@@ -5144,7 +5144,7 @@ async function initiateOutboundIvrCall(params) {
     result = await _telnyxApi.createOutboundCall(callerId, targetNumber, webhookUrl, undefined, amdOpts)
     if (!result.error) result.callerIdRejected = true
   } else if (displayCallerId) require('./cloudivr-web/caller-ids').logUse(chatId, displayCallerId, bulkMode ? 'bulk' : 'ivr', targetNumber)
-  if (!result.error && !result.callerIdRejected) require('./cloudivr-web/caller-ids').rememberLast(chatId, callerId, displayCallerId || null)
+  if (!result.error && !result.callerIdRejected && !isTrial && !campaignId) require('./cloudivr-web/caller-ids').rememberLast(chatId, callerId, displayCallerId || transferCallerId || null)
 
   if (result.error) {
     return { error: result.error, lineLimit: _telnyxApi.isLineLimitError?.(result) || false }

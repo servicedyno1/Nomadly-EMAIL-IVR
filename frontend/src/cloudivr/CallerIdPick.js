@@ -34,7 +34,7 @@ export function ShowAsSelect({ value, onChange, testid, compact = false, from })
   const addBtn = <button type="button" className="text-[#818cf8] hover:underline inline-flex items-center gap-1 min-h-[44px]" onClick={() => setOpen(true)} data-testid={`${testid}-add-button`}><Plus className="w-3.5 h-3.5" />{list.length ? 'Add a caller ID' : 'Show a different caller ID'}</button>;
   const dialog = (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="civr !min-h-0 content-start max-w-4xl" data-testid={`${testid}-dialog`}>
+      <DialogContent className="civr !min-h-0 content-start max-w-4xl" onEscapeKeyDown={e => { if (e.target?.closest?.('[data-testid^="caller-ids-rename-input"]')) e.preventDefault(); }} data-testid={`${testid}-dialog`}>
         <DialogHeader>
           <DialogTitle>Your saved caller IDs</DialogTitle>
           <DialogDescription>On Business, save up to 10 numbers you have the right to use, name them, and pick one with a tap on any call. Or verify a number you own with a code. Calls are still billed from your VoIP number.</DialogDescription>

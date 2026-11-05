@@ -176,7 +176,7 @@ function SavedRow({ i, k, last, dragging, onDragStart, onDrop, onMove, onRemove,
   const btn = 'w-8 h-8 flex items-center justify-center rounded-lg text-[#a1a1aa] hover:bg-[#1f1f1f] disabled:opacity-30';
   return (
     <div draggable={!edit} onDragStart={onDragStart} onDragOver={e => e.preventDefault()} onDrop={onDrop}
-      className={`flex items-center gap-2 border rounded-xl px-3 py-2 transition-colors ${dragging ? 'border-[#818cf8] bg-[#818cf8]/10' : 'border-[#262626]'}`} data-testid={`caller-ids-item-${k}`}>
+      className={`flex flex-wrap sm:flex-nowrap items-center gap-2 border rounded-xl px-3 py-2 transition-colors ${dragging ? 'border-[#818cf8] bg-[#818cf8]/10' : 'border-[#262626]'}`} data-testid={`caller-ids-item-${k}`}>
       <GripVertical className="w-4 h-4 text-[#52525b] cursor-grab shrink-0" aria-hidden />
       <BadgeCheck className="w-4 h-4 text-[#818cf8] shrink-0" />
       <div className="flex-1 min-w-0">
@@ -189,13 +189,13 @@ function SavedRow({ i, k, last, dragging, onDragStart, onDrop, onMove, onRemove,
         ) : (
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             {i.label && <span className="truncate max-w-[8rem]" data-testid={`caller-ids-item-label-${k}`}>{i.label}</span>}
-            <span className="font-mono text-[#a1a1aa]">{pv.phone(i.number)}</span>
+            <span className="font-mono text-[#a1a1aa] truncate min-w-0">{pv.phone(i.number)}</span>
             {i.method === 'attested' && <span className="civr-pill shrink-0">no code</span>}
           </div>
         )}
         <div className="text-xs text-[#71717a] mt-0.5" data-testid={`caller-ids-item-usage-${k}`}>{`${i.uses30 || 0} call${i.uses30 === 1 ? '' : 's'} · 30 days · ${i.lastUsedAt ? `last ${day(i.lastUsedAt)}` : 'not used yet'}`}</div>
       </div>
-      {!edit && <span className="flex items-center shrink-0">
+      {!edit && <span className="flex items-center shrink-0 ml-auto">
         <button type="button" className={btn} disabled={k === 0} onClick={() => onMove(-1)} aria-label="Move up" data-testid={`caller-ids-up-${k}`}><ChevronUp className="w-4 h-4" /></button>
         <button type="button" className={btn} disabled={last} onClick={() => onMove(1)} aria-label="Move down" data-testid={`caller-ids-down-${k}`}><ChevronDown className="w-4 h-4" /></button>
         <button type="button" className={btn} onClick={() => setEdit(true)} aria-label="Rename" data-testid={`caller-ids-rename-${k}`}><Pencil className="w-4 h-4" /></button>

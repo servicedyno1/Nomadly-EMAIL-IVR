@@ -268,7 +268,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       if (bal < Math.max(MIN_WALLET, rate)) return { status: 402, body: { error: 'insufficient_balance', message: `Quick IVR calls bill about $${rate.toFixed(2)}/min from your wallet. Your balance is $${bal.toFixed(2)} — top up first.` } }
     }
     const doc = { _id: uid(), chatId, at: new Date(), body: { ...body, scheduleAt: undefined }, cfg, trial, dryRun: dryRun() }
-    if (!trial) callerIds.rememberLast(chatId, cfg.callerId, cfg.showAs)
+    if (!trial && dryRun()) callerIds.rememberLast(chatId, cfg.callerId, cfg.showAs)
     if (dryRun()) {
       doc.results = cfg.targets.map(to => ({ to, ok: true, preview: true, callControlId: cfg.mode === 'otp' ? otpSim.start(chatId, to, cfg) : null }))
       await history.insertOne(doc)

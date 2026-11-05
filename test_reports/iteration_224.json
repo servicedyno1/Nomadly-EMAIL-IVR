@@ -1,0 +1,51 @@
+{
+  "summary": "Retest of the iter223 caller ID findings. Backend: new pytest test_caller_id_last_iter224.py passes 12/12. Accepted Quick Call (202) saves the default. 400 bad transfer, 400 bad target and preset save do not change it. Each number keeps its own default, and 'own' clears it. Call me first saves it at 202 and not on 400. Campaign validateOnly does not save it, and a created campaign (201) does. Dry-run calls leave lastUsedAt and uses30 unchanged. Node unit test 12/12. New bot e2e bot_callerid_last_iter224.js (mock Telegram) passes 13/13: bot preset buttons follow hand order; a preset tap or auto-apply does not set callerIdLast or lastUsedAt and logs no use; a remembered ID is auto-applied with the own button (bulk too). The bot default after createOutboundCall could not be tested in preview: it needs a real Telnyx call, so it was checked by code review only. Web: the 'Call from' switch now changes the chip to that number's own default or to 'Your VoIP number', on both Quick Call and Campaign create (FIXED). Dialog is max-w-4xl (896px). Usage line is 'N calls · 30 days · last <date>'. Rename save/clear works and chips update. Up/down reorder persists after reload and chips follow. Alice (Business) correctly sees no dashboard upsell. One fix FAILED: Escape in the inline rename input still closes the caller ID dialog.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "voice-service initiateOutboundIvrCall → rememberLast (live mode only)", "issue": "Call me first (calls.js:111) and the text-trigger callback (text-triggers.js:100) pass the caller ID as transferCallerId, not displayCallerId. In live mode, voice-service then runs rememberLast(chatId, callerId, null) after createOutboundCall succeeds. This overwrites the showAs that calls.js:108 just saved, so the default goes back to the VoIP number after every live Call me first. The bot redial (_index.js:7141) passes no displayCallerId and resets the default the same way. Trial and demo calls (trycall.js, isTrial) also write callerIdLast, which web run() avoids on purpose. Fix: in voice-service, call rememberLast only for !isTrial, and use (displayCallerId || transferCallerId || null). Or skip it when the caller already saved it."},
+      {"endpoint": "POST /api/cloudivr-web/calls/quick (live) and /calls/callback (live)", "issue": "rememberLast runs before the live dial. A live Quick Call that returns 424 call_failed, or a live callback that fails, still changes the default. It is also saved twice: once in run() and again in voice-service. In dry-run this is fine, because the 202 is the accept. In live mode, move it after a call succeeds (ok > 0) or rely only on voice-service."},
+      {"endpoint": "GET /api/cloudivr-web/caller-ids (data)", "issue": "Rows saved before the fix still have lastUsedAt values from the old touch() on bot taps. Alice's 3 IDs show '0 calls · 30 days · last Nov 5, 2026' today. New taps no longer do this (verified), but the old values were never cleaned up. Option: take lastUsedAt from max(callerIdUses.at), or unset it on rows that have no callerIdUses."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CallerIds.js SavedRow inline rename inside the ShowAsSelect dialog", "issue": "NOT FIXED: pressing Escape in caller-ids-rename-input-N still closes quick-call-show-as-select-dialog. Reproduced twice at 1920px. Radix DismissableLayer listens for Escape on document in the capture phase, which runs before React's onKeyDown, so e.stopPropagation() in the input has no effect. Fix: add onEscapeKeyDown to the DialogContent in CallerIdPick.js, e.g. onEscapeKeyDown={e => { if (e.target?.closest?.('[data-testid^=\"caller-ids-rename-input\"]')) e.preventDefault() }}. Then let the input handler reset the text. Escape on the My numbers page (no dialog) works: the text resets and reopening shows the saved name.", "selector": "[data-testid='caller-ids-rename-input-0']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "My numbers → Your own caller IDs card at 390px", "issues": ["On a named row ('Office'), the number '+16462556424' runs into the disabled up arrow: the text column has no min-w-0/truncate and the arrows sit right next to it. The label is on its own line and the usage line wraps to 2 lines (row is 108px tall versus 76px for the others). Add min-w-0 + truncate on the number, or wrap the action buttons below the number on mobile."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_caller_id_last_iter224.py",
+    "/app/backend/tests/set_last_iter224.py",
+    "/app/js/tests/bot_callerid_last_iter224.js",
+    "/app/test_reports/pytest/pytest_iter224.xml"
+  ],
+  "action_items": [
+    "Fix Escape in the inline rename input inside the Radix dialog: use onEscapeKeyDown on DialogContent (CallerIdPick.js). stopPropagation in the React handler is too late.",
+    "voice-service initiateOutboundIvrCall: do not call rememberLast(…, null) for transferCallerId flows (Call me first, text-trigger callback) or for redial without displayCallerId. Skip it when isTrial is set.",
+    "Live mode: save the Quick Call / Call me first default only after a successful dial (not before a 424), and remove the duplicate save in run().",
+    "Clear the old lastUsedAt left by bot taps (or take it from callerIdUses) so that no row shows '0 calls · … last <date>' within 30 days.",
+    "Mobile 390px: stop the number from overlapping the reorder arrows on a named row (min-w-0/truncate).",
+    "Update stale tests: test_caller_id_order_iter222.py::test_use_moves_to_front_of_list, test_caller_id_labels_iter221.py::TestOrder::test_last_used_first (hand order wins), test_caller_id_presets_iter219.py::test_attest_appears_in_presets (presets items are objects now) and ::test_cap_10 (the cap counts all verified IDs). test_caller_id_order_usage_iter223.py::TestLastPerFrom x3 sends a Quick Call with no transferTo (400 now), so it is replaced by test_caller_id_last_iter224.py."
+  ],
+  "critical_code_review_comments": [
+    "voice-service.js:5147 rememberLast(chatId, callerId, displayCallerId || null) runs for every outbound IVR call, including trial, bulk per lead, callback (transferCallerId) and bot redial. Callers that keep the caller ID somewhere other than displayCallerId lose their default.",
+    "outbound.js:271 rememberLast runs before the live dial, so a 424 still saves the default. It is fine in dry-run.",
+    "CallerIds.js:185 Escape handling assumes React stopPropagation can stop Radix. It cannot (Radix uses a document capture listener).",
+    "caller-ids.js: logUse now runs touch(), so lastUsedAt is correct for new data. Old rows were not migrated."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_caller_id_last_iter224.py",
+    "/app/backend/tests/set_last_iter224.py",
+    "/app/js/tests/bot_callerid_last_iter224.js"
+  ],
+  "success_rate": {"backend": "100% (12/12 new pytest, 12/12 node unit, 13/13 bot e2e); stale old tests excluded", "frontend": "86% (6/7 retest items pass; Escape-in-dialog fails)"},
+  "seed_data_creation": "No seeds. Test data: one dry-run campaign 'TEST_c224' (cancelled; there is no delete endpoint), dry-run Quick Call history rows, and the bot test chat 990224101 (cleaned up). Alice's caller ID order and labels were restored (Office pos0, +15558574345 pos1, +15555769817 pos2). Alice's callerIdLast is now: +13346972125 → +16462556424, +18037534921 → +15558574345, +12138340912 → own.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Set a per-number default with: python backend/tests/set_last_iter224.py FROM SHOWAS ... (a dry-run Quick Call with transferTo, which returns 202). Bot e2e: sudo supervisorctl stop nodejs; node js/tests/mock_telegram_api.js &; TELEGRAM_API_BASE_URL=http://127.0.0.1:5099 node js/start-bot.js & (wait ~100s); node js/tests/bot_callerid_last_iter224.js; then pkill both and start nodejs. Login UI: click cookie-allow-all first. The Escape test: open quick-call-show-as-select-add-button, click caller-ids-rename-1, fill, press Escape, then check that the dialog is still visible (it currently closes). Other pytest runs (iter221/222 callback tests) overwrite Alice's callerIdLast for +13346972125 with a temporary test ID that is later deleted, so the UI shows 'own'. Seed the defaults again before UI chip checks.",
+  "rca of the issue": "Escape closes the dialog: Radix Dialog's DismissableLayer uses useEscapeKeydown, a keydown listener on ownerDocument with capture:true. It fires before React's delegated onKeyDown on the input, so preventDefault/stopPropagation there come too late and onOpenChange(false) has already run. Repro: Quick Call → Add a caller ID → pencil on a row → type → Escape → the dialog closes. Fix: DialogContent onEscapeKeyDown that calls e.preventDefault() when the event target is a rename input."
+}

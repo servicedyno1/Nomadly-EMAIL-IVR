@@ -105,7 +105,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const bal = await w.balance(chatId)
     if (bal < Math.max(QUICK_MIN_WALLET, rate)) return bad(res, 402, 'insufficient_balance', `Call me first bills both calls — about $${rate.toFixed(2)}/min together after your plan minutes. Your balance is $${bal.toFixed(2)} — top up first.`)
     await prefs.updateOne({ _id: chatId }, { $set: { callbackPhone: me, updatedAt: new Date() } }, { upsert: true })
-    callerIds.rememberLast(chatId, c.n.phoneNumber, showAs)
+    if (dryRun()) callerIds.rememberLast(chatId, c.n.phoneNumber, showAs)
     if (dryRun()) return res.status(202).json({ dryRun: true, rate, message: `Preview mode: we would ring ${me}, and after you press 1 connect you to ${to} showing ${showAs || c.n.phoneNumber}. Nothing was dialed.` })
     const greetingText = `This is your CloudIVR line. Press 1 to call ${spokenNumber(to)}. To cancel, just hang up.`
     const r = await voiceService.initiateOutboundIvrCall({ chatId, callerId: c.n.phoneNumber, transferCallerId: showAs, targetNumber: me, ivrNumber: to, greetingText, activeKeys: ['1'], ivrMode: 'transfer', templateName: 'Call me first', holdMusic: false, provider: 'telnyx' })

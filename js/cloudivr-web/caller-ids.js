@@ -86,7 +86,7 @@ function routes(router, { db, h, numbersApi }) {
   router.get('/caller-ids', h(async (req, res) => {
     const items = (await col.find({ chatId: req.webChatId }).toArray()).sort(byOrder)
     const used = await usage30(req.webChatId)
-    res.json({ price: PRICE, dryRun: dry(), items: items.filter(d => d.status === 'verified' || d.status === 'review' || Date.now() - d.createdAt < PENDING_MS).map(d => ({ ...view(d), uses30: used[d._id] || 0, lastUsedAt: d.lastUsedAt || null })) })
+    res.json({ price: PRICE, dryRun: dry(), items: items.filter(d => d.status === 'verified' || d.status === 'review' || Date.now() - d.createdAt < PENDING_MS).map(d => ({ ...view(d), uses30: used[d._id]?.n || 0, lastUsedAt: used[d._id]?.last || null })) })
   }))
 
   // Admin-review path: show a number the customer owns but can't receive a code on (main line, toll-free, call center).
@@ -262,11 +262,11 @@ async function lastFor(chatId, from) {
   if (!d?.showAs) return null
   return (await presets(chatId)).some(p => p.number === d.showAs) ? d.showAs : null
 }
-// Calls in the last 30 days per caller ID → { '+1…': n }.
+// Per caller ID: calls in the last 30 days and the latest call → { '+1…': { n, last } }.
 async function usage30(chatId) {
   const since = new Date(Date.now() - 30 * 86400000)
-  const rows = await dbRef.collection('callerIdUses').aggregate([{ $match: { chatId: String(chatId), at: { $gte: since } } }, { $group: { _id: '$showAs', n: { $sum: 1 } } }]).toArray()
-  return Object.fromEntries(rows.map(r => [r._id, r.n]))
+  const rows = await dbRef.collection('callerIdUses').aggregate([{ $match: { chatId: String(chatId) } }, { $group: { _id: '$showAs', n: { $sum: { $cond: [{ $gte: ['$at', since] }, 1, 0] } }, last: { $max: '$at' } } }]).toArray()
+  return Object.fromEntries(rows.map(r => [r._id, { n: r.n, last: r.last }]))
 }
 // Hand order wins once set (pos); otherwise most recently used first.
 const recent = (d) => new Date(d.lastUsedAt || d.verifiedAt || d.createdAt || 0).getTime()
