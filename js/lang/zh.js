@@ -2480,12 +2480,13 @@ const languages = {
  fr: '🇫🇷 法语',
  zh: '🇨🇳 中国人',
  hi: '🇮🇳 印地语',
+ fa: '🇮🇷 فارسی (Persian)',
 }
 const supportedLanguages = reverseObject(languages)
 
 const languageMenu = {
  reply_markup: {
- keyboard: [[languages.en], [languages.fr], [languages.zh], [languages.hi]],
+ keyboard: [[languages.en], [languages.fr], [languages.zh], [languages.hi], [languages.fa]],
  },
  parse_mode: 'HTML',
  disable_web_page_preview: true,
