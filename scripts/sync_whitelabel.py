@@ -66,6 +66,20 @@ BRAND_PATTERNS = [
     'js/routes/sales.js',
 ]
 
+# CloudIVR web — the white-label bots don't serve it, so its changes stay on main.
+# A web file is still carried when synced code imports/requires it (see deps_of).
+WEB_ONLY_PATTERNS = [
+    'js/cloudivr-web/*',
+    'frontend/src/cloudivr/*',
+    'frontend/public/civr*',
+]
+# The web app shell on main boots CloudIVR web; WhiteLabel keeps its own (hosting panel) shell.
+WL_SHELL_PATTERNS = [
+    'frontend/src/App.js',
+    'frontend/src/index.js',
+    'frontend/public/index.html',
+]
+
 REGULAR_MODES = ('100644', '100755')
 
 # GitHub refuses pushes made with the Actions GITHUB_TOKEN that create/modify
@@ -156,6 +170,22 @@ def merge3(t_sha, b_sha, s_sha):
         return r.stdout, r.returncode
     finally:
         shutil.rmtree(d, ignore_errors=True)
+
+
+# ── dependencies ─────────────────────────────────────────────────────────────
+_REQ = re.compile(rb"""(?:require\(\s*|import\s*\(\s*|from\s+|import\s+)['"](\.{1,2}/[^'"]+)['"]""")
+
+
+def deps_of(path, content):
+    """Repo paths a .js file pulls in with relative require()/import (unresolved: all candidates)."""
+    if not path.endswith(('.js', '.jsx')):
+        return []
+    out_ = []
+    base_dir = os.path.dirname(path)
+    for m in _REQ.finditer(content):
+        rel = os.path.normpath(os.path.join(base_dir, m.group(1).decode(errors='replace')))
+        out_.append([rel, rel + '.js', rel + '.jsx', rel + '.json', rel + '/index.js'])
+    return out_
 
 
 # ── syntax check ─────────────────────────────────────────────────────────────
@@ -293,9 +323,23 @@ def main():
     taken, merged, kept_wl, in_sync, skipped_docs, skipped_brand, skipped_ci, conflicts = [], [], [], [], [], [], [], []
 
     skipped_unlisted = 0
-    for p in changed:
-        if listed is not None and not matches(p, listed):
+    skipped_web, pulled_in = [], []
+    queue, seen = list(changed), set()
+    changed_set = set(changed)
+    while queue:
+        p = queue.pop(0)
+        forced = p.startswith('\0')
+        p = p.lstrip('\0')
+        if p in seen:
+            if not (forced and p in skipped_web):
+                continue
+            skipped_web.remove(p)  # a skipped web file that synced code needs after all
+        seen.add(p)
+        if not forced and listed is not None and not matches(p, listed):
             skipped_unlisted += 1
+            continue
+        if not forced and listed is None and (matches(p, WEB_ONLY_PATTERNS) or matches(p, WL_SHELL_PATTERNS)):
+            skipped_web.append(p)
             continue
         if matches(p, DOC_PATTERNS):
             skipped_docs.append(p)
@@ -307,10 +351,21 @@ def main():
             skipped_ci.append(p)
             continue
         b, s, t = B.get(p), S.get(p), T.get(p)
+        if s is not None and listed is None and not is_non_runtime(p):
+            # Files this code needs: carry any that WhiteLabel lacks or that main changed but were skipped.
+            for cands in deps_of(p, blob(s[1])):
+                hit = next((c for c in cands if c in S), None)
+                if hit and hit not in seen and (hit not in T or hit in changed_set):
+                    queue.append('\0' + hit)
+                    if matches(hit, WEB_ONLY_PATTERNS) or hit not in changed_set:
+                        pulled_in.append(f'{hit}  (needed by {p})')
+                elif hit in seen and hit in skipped_web:
+                    skipped_web.remove(hit); seen.discard(hit); queue.append('\0' + hit)
+                    pulled_in.append(f'{hit}  (needed by {p})')
         if t == s:
             in_sync.append(p)
             continue
-        if t == b:  # WhiteLabel never edited it since the last sync -> take main's version
+        if t == b or (forced and t is None):  # WhiteLabel never edited it (or lacks a needed file) -> take main's version
             ops.append((p, s))
             taken.append(('D ' if s is None else ('A ' if b is None else 'M ')) + p)
             continue
@@ -335,6 +390,8 @@ def main():
         section('Updated from main (WhiteLabel had not edited them)', taken)
         + section('3-way merged (both branches edited, merged cleanly)', merged)
         + section('Kept WhiteLabel version (test/artifact file conflict)', kept_wl)
+        + section('Carried because synced code needs them', pulled_in)
+        + f'Skipped — CloudIVR web only (bots don\'t use it): {len(skipped_web)} file(s)\n'
         + section('Skipped — WhiteLabel brand files (never synced)', skipped_brand)
         + section('Skipped — GitHub workflow files (Actions token may not change them; run from main)', skipped_ci)
         + section('Already identical on both branches', in_sync)
