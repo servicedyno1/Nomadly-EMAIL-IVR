@@ -393,3 +393,10 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
   diff — copy verified files after a `diff` against live instead.
 - Hosta (/opt/hosta/backend, NOT a git repo) does not pass through files / ip-rules / geo / hosting renew+auto-renew / jobs — owner
   chose to hand the route list to their Hosta developer (no Hosta changes made).
+
+## 2026-11-05 08:41Z — SIP queue + eSIM pay-first/imei + long-call billing pushed to Smadav/Voodoo/ProShop (overlay)
+- app-main already had everything (CI deploy 2f30a1eb at 08:30Z, incl. CloudIVR web typo check).
+- WhiteLabel branch is stale (59ee017d, 2 Nov): "Sync main → WhiteLabel" auto-run is PAUSED since 2026-10-26 (workflow `if` = workflow_dispatch only), marker main=5a1ffad4, 259 main commits behind. Saving to GitHub does NOT update the WL bots.
+- Overlay: memory/patches/wl3_2026-11-05.patch (git diff 99e109db..2f30a1eb for js/sip-call-queue.js, voice-service.js, telnyx-service.js, spenza.js, esim-bot.js, _index.js, lang/{en,fr,hi,zh}.js) applied with `patch -p1` (0 failed hunks) onto live releases app-wl-b, app-voodoo-b, app-proshop-a (all 20261102T01xxxxZ-59ee017). Typo check NOT applied (WL has no contacts-import.js; web-only). Reloaded at 0 calls, healthy.
+- Backups: /opt/nomadly/deploy-backups/<slot>-wl3-20261105T084104Z/before.tgz (restore = untar into release dir, rm js/sip-call-queue.js, pm2 reload <slot> --update-env).
+- ⚠️ Overlay is not on the WhiteLabel branch — the next WhiteLabel deploy drops it (and the 2 Nov eSIM overlay) unless synced.

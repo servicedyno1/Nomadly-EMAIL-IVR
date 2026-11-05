@@ -1,0 +1,963 @@
+diff --git a/js/_index.js b/js/_index.js
+index 30ffa8d6..9c38de9b 100644
+--- a/js/_index.js
++++ b/js/_index.js
+@@ -10818,9 +10818,20 @@ bot?.on('message', msg => {
+     'esim-bot-home': async () => {
+       const es = esimBot.s(lang)
+       await set(state, chatId, 'action', 'esim-bot-home')
+-      const [has, p] = await Promise.all([esimBot.lines(chatId).then(x => x.length > 0).catch(() => false), esimBot.plan()])
++      const [mine, p] = await Promise.all([esimBot.lines(chatId).catch(() => []), esimBot.plan()])
+       const price = p?.price || esimBot.PRICE
+-      return send(chatId, es.home(price, esimBot.includes(p)), k.of([[es.buy(price)], ...(has ? [[es.mine]] : []), ['↩️ Back', '🏠 Main Menu']]))
++      const waiting = mine.some(l => l.status === 'awaiting_imei')
++      return send(chatId, (waiting ? es.waitingNote + '\n\n' : '') + es.home(price, esimBot.includes(p)), k.of([...(waiting ? [[es.sendImeiPaid]] : []), [es.buy(price)], ...(mine.length ? [[es.mine]] : []), ['↩️ Back', '🏠 Main Menu']]))
++    },
++    // Paid eSIM still waiting for its IMEI: go straight to the IMEI prompt (or pick the line if there are several).
++    'esim-bot-imei-start': async () => {
++      const es = esimBot.s(lang)
++      const waiting = (await esimBot.lines(chatId).catch(() => [])).filter(l => l.status === 'awaiting_imei')
++      if (!waiting.length) { await send(chatId, es.noneWaiting); return goto['esim-bot-home']() }
++      if (waiting.length > 1) return goto['esim-bot-list']()
++      await saveInfo('esimPendingLine', waiting[0].id)
++      await set(state, chatId, 'action', 'esim-bot-imei')
++      return send(chatId, es.askImei, k.of([['↩️ Back']]))
+     },
+     'esim-bot-list': async () => {
+       const es = esimBot.s(lang)
+@@ -10838,6 +10849,7 @@ bot?.on('message', msg => {
+       const rows = []
+       if (['active', 'suspended', 'provisioning'].includes(l.status)) rows.push([l.autoRenew ? es.turnOff : es.turnOn])
+       if (l.status === 'suspended') rows.push([es.renewNow])
++      if (l.status === 'awaiting_imei') rows.push([es.sendImei])
+       if (l.hasQr) rows.push([es.qr], [es.emailQr])
+       rows.push(['↩️ Back'])
+       return send(chatId, es.line(l, es.status[l.status] || l.status), k.of(rows))
+@@ -13841,10 +13853,11 @@ Enter new value:`), bc)
+         if (!r.ok) return send(chatId, r.text, trans('o'))
+         set(payments, nanoid(), `Wallet,DigitalProduct,${product},$${priceUsd},${chatId},${name},${new Date()}`)
+         _finalizeWalletPurchase()
+-        await digitalOrdersCol.insertOne({ orderId, chatId, username: username || '', name: name || '', product, productKey, price: priceUsd, currency: 'USD', paymentMethod: 'wallet_usd', esim: info?.esimOrder || null, esimLineId: r.lineId, status: 'delivered', createdAt: new Date(), deliveredAt: new Date() })
++        await digitalOrdersCol.insertOne({ orderId, chatId, username: username || '', name: name || '', product, productKey, price: priceUsd, currency: 'USD', paymentMethod: 'wallet_usd', esim: info?.esimOrder || null, esimLineId: r.lineId, status: r.awaitingImei ? 'paid_awaiting_imei' : 'delivered', createdAt: new Date(), deliveredAt: r.awaitingImei ? null : new Date() })
+         await saveInfo('esimOrder', null)
+         await set(state, chatId, 'abandonedCartReminderSent', null)
+-        sendAndReact(chatId, r.text, '🎉', trans('o'))
++        if (r.awaitingImei) { await saveInfo('esimPendingLine', r.lineId); await set(state, chatId, 'action', 'esim-bot-imei') }
++        sendAndReact(chatId, r.text, '🎉', r.awaitingImei ? k.of([['↩️ Back']]) : trans('o'))
+         checkAndNotifyTierUpgrade(preSpend)
+         notifyGroup(`📱 <b>New eSIM order</b>\n\n👤 User: ${maskName(name)}\n💵 Paid: <b>$${priceUsd}</b> (wallet)\n🤖 Setting up automatically.`, `📱 <b>New eSIM order</b>\n\n🆔 Order: <code>${orderId}</code>\n👤 User: ${adminUserTag(name, chatId)}\n💵 Paid: <b>$${priceUsd}</b> (Wallet USD)\n🤖 Spenza line ${r.lineId}, set up automatically.`, buildAdminButtons({ chatId }))
+         return
+@@ -14907,6 +14920,7 @@ All verified numbers generated during sourcing.`))
+   // signed token and DM the user an auto-login URL for the web storefront.
+   // The QR on the storefront landing page points at `t.me/<bot>?start=web-login`
+   // so scanning it on mobile lands the user here.
++  if (message === '/imei') return goto['esim-bot-imei-start']()
+   if (message === '/start web-login' || message === '/start weblogin' || message === '/web' || message === '/store') {
+     bot?.sendChatAction?.(chatId, 'typing').catch(() => {})
+     try {
+@@ -20037,23 +20051,26 @@ ${message.replace(/\n/g, '<br>')}
+       if (isBackPress(message)) return goto.submenu6()
+       if (isMainMenuPress(message)) return goto.displayMainMenuButtons()
+       if (message === es.mine) return goto['esim-bot-list']()
++      if (message === es.sendImeiPaid) return goto['esim-bot-imei-start']()
+       const p = await esimBot.plan()
+       if (message !== es.buy(p?.price || esimBot.PRICE)) return send(chatId, t.selectValidOption)
+       if (!p) return send(chatId, es.unavailable)
+       await saveInfo('esimOrder', {})
+-      await set(state, chatId, 'action', 'esim-bot-imei')
+-      return send(chatId, es.askImei, k.of([['↩️ Back']]))
++      await set(state, chatId, 'action', 'esim-bot-zip')
++      return send(chatId, es.askZip, skipRow)
+     }
++    // After payment: the IMEI for a paid line that is waiting for it.
+     if (action === 'esim-bot-imei') {
+-      if (isBackPress(message)) return goto['esim-bot-home']()
++      if (isBackPress(message) || isMainMenuPress(message)) return goto['esim-bot-home']()
+       const imei = esimBot.parseImei(message)
+       if (!imei) return send(chatId, es.badImei)
+-      await saveInfo('esimOrder', { imei })
+-      await set(state, chatId, 'action', 'esim-bot-zip')
+-      return send(chatId, es.askZip, skipRow)
++      const r = await esimBot.submitImei(db, chatId, info?.esimPendingLine, imei, lang)
++      await saveInfo('esimPendingLine', null)
++      await set(state, chatId, 'action', 'none')
++      return send(chatId, r.text, trans('o'))
+     }
+     if (action === 'esim-bot-zip') {
+-      if (isBackPress(message)) { await set(state, chatId, 'action', 'esim-bot-imei'); return send(chatId, es.askImei, k.of([['↩️ Back']])) }
++      if (isBackPress(message)) return goto['esim-bot-home']()
+       const zipcode = message === es.skip ? null : esimBot.parseZip(message)
+       if (message !== es.skip && !zipcode) return send(chatId, es.badZip)
+       await saveInfo('esimOrder', { ...(info?.esimOrder || {}), zipcode })
+@@ -20089,6 +20106,11 @@ ${message.replace(/\n/g, '<br>')}
+     if (action === 'esim-bot-line') {
+       if (isBackPress(message)) return goto['esim-bot-list']()
+       const id = info?.esimLineId
++      if (message === es.sendImei) {
++        await saveInfo('esimPendingLine', id)
++        await set(state, chatId, 'action', 'esim-bot-imei')
++        return send(chatId, es.askImei, k.of([['↩️ Back']]))
++      }
+       if (message === es.turnOff || message === es.turnOn) {
+         const r = await esimBot.ES.setAutoRenew(chatId, id, message === es.turnOn)
+         await send(chatId, r.error ? es.failed(r.error) : es.renewSet(message === es.turnOn))
+@@ -41313,14 +41335,14 @@ app.get('/crypto-pay-digital-product', auth, async (req, res) => {
+   if (paidOrder?.productKey === esimBot.PRODUCT_KEY && paidOrder.esim) {
+     if (paidOrder.status !== 'pending_payment') return res.send(html())
+     const r = await esimBot.fulfillPaid(db, chatId, paidOrder.esim, Number(price), lang)
+-    await digitalOrdersCol.updateOne({ orderId }, { $set: { status: r.ok ? 'delivered' : 'credited_to_wallet', paymentConfirmedAt: new Date(), deliveredAt: r.ok ? new Date() : null, esimLineId: r.lineId || null } })
++    await digitalOrdersCol.updateOne({ orderId }, { $set: { status: r.awaitingImei ? 'paid_awaiting_imei' : r.ok ? 'delivered' : 'credited_to_wallet', paymentConfirmedAt: new Date(), deliveredAt: r.ok && !r.awaitingImei ? new Date() : null, esimLineId: r.lineId || null } })
+     await auditCryptoTx(chatId, 'digital-product', price, { product, orderId, coin, value, ref }, 'blockbee')
+-    send(chatId, r.text, translation('o', lang))
++    send(chatId, r.text, r.awaitingImei ? esimBot.backKb : translation('o', lang))
+     notifyGroup(`📱 <b>eSIM paid (crypto)</b>\n\n👤 User: ${maskName(name)}\n💵 Paid: <b>$${price}</b>\n${r.ok ? '🤖 Setting up automatically.' : '⚠️ Not set up; amount left in wallet.'}`, `📱 <b>eSIM paid (crypto BlockBee)</b>\n\n🆔 Order: <code>${orderId}</code>\n👤 User: ${adminUserTag(name, chatId)}\n💵 Paid: <b>$${price}</b> (${value} ${coin})\n${r.ok ? `🤖 Spenza line ${r.lineId}, set up automatically.` : '⚠️ Not set up; amount credited to wallet.'}`, buildAdminButtons({ chatId }))
+     webhookTierCheck(chatId, preSpend, lang)
+     if (cartRecovery) cartRecovery.recordPaymentCompleted(String(chatId))
+     if (userConversion) userConversion.markPurchased(chatId)
+-    await set(state, chatId, 'action', 'none')
++    await esimBot.afterCryptoPay(state, set, chatId, r)
+     return res.send(html())
+   }
+   await digitalOrdersCol.updateOne({ orderId }, { $set: { status: 'pending', paymentConfirmedAt: new Date() } })
+@@ -46714,14 +46736,14 @@ app.post('/dynopay/crypto-pay-digital-product', authDyno, async (req, res) => {
+   if (paidOrder?.productKey === esimBot.PRODUCT_KEY && paidOrder.esim) {
+     if (paidOrder.status !== 'pending_payment') return res.send(html())
+     const r = await esimBot.fulfillPaid(db, chatId, paidOrder.esim, Number(price), lang)
+-    await digitalOrdersCol.updateOne({ orderId }, { $set: { status: r.ok ? 'delivered' : 'credited_to_wallet', paymentConfirmedAt: new Date(), deliveredAt: r.ok ? new Date() : null, esimLineId: r.lineId || null } })
++    await digitalOrdersCol.updateOne({ orderId }, { $set: { status: r.awaitingImei ? 'paid_awaiting_imei' : r.ok ? 'delivered' : 'credited_to_wallet', paymentConfirmedAt: new Date(), deliveredAt: r.ok && !r.awaitingImei ? new Date() : null, esimLineId: r.lineId || null } })
+     await auditCryptoTx(chatId, 'digital-product', price, { product, orderId, coin, value, ref }, 'dynopay')
+-    send(chatId, r.text, translation('o', lang))
++    send(chatId, r.text, r.awaitingImei ? esimBot.backKb : translation('o', lang))
+     notifyGroup(`📱 <b>eSIM paid (crypto)</b>\n\n👤 User: ${maskName(name)}\n💵 Paid: <b>$${price}</b>\n${r.ok ? '🤖 Setting up automatically.' : '⚠️ Not set up; amount left in wallet.'}`, `📱 <b>eSIM paid (crypto DynoPay)</b>\n\n🆔 Order: <code>${orderId}</code>\n👤 User: ${adminUserTag(name, chatId)}\n💵 Paid: <b>$${price}</b> (${value} ${coin})\n${r.ok ? `🤖 Spenza line ${r.lineId}, set up automatically.` : '⚠️ Not set up; amount credited to wallet.'}`, buildAdminButtons({ chatId }))
+     webhookTierCheck(chatId, preSpend, lang)
+     if (cartRecovery) cartRecovery.recordPaymentCompleted(String(chatId))
+     if (userConversion) userConversion.markPurchased(chatId)
+-    await set(state, chatId, 'action', 'none')
++    await esimBot.afterCryptoPay(state, set, chatId, r)
+     return res.send(html())
+   }
+   await digitalOrdersCol.updateOne({ orderId }, { $set: { status: 'pending', paymentConfirmedAt: new Date() } })
+@@ -51335,6 +51357,7 @@ const setupTelegramWebhook = async (retryCount = 0) => {
+       { command: 'start', description: 'Start the bot / Main menu' },
+       { command: 'testsip', description: 'Generate OTP for SIP test' },
+       { command: 'sipguide', description: '3CX / SIP softphone setup guide' },
++      { command: 'imei', description: 'Send IMEI for a paid eSIM' },
+     ])
+     log('✅ Default bot commands registered')
+ 
+diff --git a/js/esim-bot.js b/js/esim-bot.js
+index 6b3c06f8..7d034e42 100644
+--- a/js/esim-bot.js
++++ b/js/esim-bot.js
+@@ -1,6 +1,6 @@
+ 'use strict'
+-// Telegram bots: USA T-Mobile eSIM sold with the same automatic Spenza order as the web (IMEI, ZIP, optional email,
+-// auto-renew), paid from the wallet or directly in crypto. Lines live in esimLines (source 'telegram').
++// Telegram bots: USA T-Mobile eSIM sold with the same automatic Spenza order as the web (optional ZIP and email,
++// auto-renew; the IMEI is sent after payment), paid from the wallet or directly in crypto. Lines live in esimLines (source 'telegram').
+ const ES = require('./spenza')
+ const { walletOps, round2 } = require('./cloudivr-web/wallet')
+ 
+@@ -13,7 +13,7 @@ const day = (t) => (t ? new Date(t).toISOString().slice(0, 10) : '—')
+ 
+ const T = {
+   en: {
+-    home: (p, inc) => `📱 <b>USA T-Mobile eSIM — $${p}/month</b>\n\n${inc ? `📦 Each month: ${inc}\n\n` : ''}• A USA phone number on the T-Mobile network\n• Two-way SMS: send and receive texts on your phone\n• Calls and USA data\n• Scan a QR code to install (iPhone and Android with eSIM)\n• Renews monthly from your wallet; turn auto-renew off any time\n\nYou'll need your phone's IMEI (dial *#06#).`,
++    home: (p, inc) => `📱 <b>USA T-Mobile eSIM — $${p}/month</b>\n\n${inc ? `📦 Each month: ${inc}\n\n` : ''}• A USA phone number on the T-Mobile network\n• Two-way SMS: send and receive texts on your phone\n• Calls and USA data\n• Scan a QR code to install (iPhone and Android with eSIM)\n• Renews monthly from your wallet; turn auto-renew off any time\n\nPay first; you send your phone's IMEI (dial *#06#) right after.`,
+     buy: (p) => `🛒 Buy eSIM — $${p}/month`, mine: '📋 My eSIMs', skip: '⏭ Skip',
+     askImei: '📟 Send your phone’s <b>15-digit IMEI</b>.\n\nDial <b>*#06#</b> on the phone that will use the eSIM to see it.',
+     badImei: '❌ That isn’t a valid IMEI. It has 15 digits — dial *#06# to see it.',
+@@ -24,15 +24,20 @@ const T = {
+     askRenew: '🔁 <b>Auto-renew</b>\n\nWith auto-renew on, the monthly price is taken from your wallet one day before the renewal date. If the wallet is short, the line pauses and ends on its expiry date. You can change this any time under My eSIMs.',
+     renewOn: '✅ Auto-renew on (recommended)', renewOff: '⏹ Auto-renew off',
+     unavailable: '⚠️ eSIMs are temporarily unavailable. Please try again later.',
+-    summary: (o, p) => `💰 <b>Order: USA T-Mobile eSIM</b>\n\n💵 Price: <b>$${p}/month</b>\n📟 IMEI: <code>${o.imei}</code>\n📍 ZIP: ${o.zipcode || 'any'}\n📧 Email: ${o.email || 'none'}\n🔁 Auto-renew: ${o.autoRenew ? 'on' : 'off'}\n\nWe set up your eSIM automatically after payment and send the QR code right here.\n\nSelect payment method:`,
++    summary: (o, p) => `💰 <b>Order: USA T-Mobile eSIM</b>\n\n💵 Price: <b>$${p}/month</b>\n📟 IMEI: ${o.imei ? `<code>${o.imei}</code>` : 'you send it after paying'}\n📍 ZIP: ${o.zipcode || 'any'}\n📧 Email: ${o.email || 'none'}\n🔁 Auto-renew: ${o.autoRenew ? 'on' : 'off'}\n\nWe set up your eSIM automatically after payment and send the QR code right here.\n\nSelect payment method:`,
+     noBank: '⚠️ The eSIM can be paid from your wallet or directly in crypto.',
++    paidAskImei: (p) => `✅ <b>Paid $${p}.</b> One last step: send your phone’s <b>15-digit IMEI</b> so we can create the eSIM.\n\nDial <b>*#06#</b> on the phone that will use the eSIM to see it. You can also send it later: type /imei or open 📋 My eSIMs (within 7 days, or the $${p} goes back to your wallet).`,
++    sendImei: '📟 Send IMEI',
++    sendImeiPaid: '📟 Send IMEI for my paid eSIM',
++    waitingNote: '📟 <b>Your paid eSIM is waiting for your IMEI.</b> Tap “📟 Send IMEI for my paid eSIM” below, or type /imei any time.',
++    noneWaiting: 'You have no paid eSIM waiting for an IMEI.',
+     placed: (p, bal) => `✅ <b>Paid $${p}.</b> Your eSIM is being set up — usually a few minutes, sometimes longer.\n\nWe’ll send the QR code here as soon as it’s ready.\n👛 Wallet balance: $${bal}`,
+     failed: (m) => `⚠️ ${m}`,
+     toWallet: (p) => `💵 Your $${p} crypto payment was added to your wallet.`,
+     none: 'You don’t have any eSIMs yet.',
+     pick: '📋 <b>My eSIMs</b>\n\nPick one to manage:',
+     settingUp: 'Setting up',
+-    status: { provisioning: '⏳ Setting up', active: '🟢 Active', suspended: '⏸ Paused (renewal unpaid)', failed: '❌ Failed (refunded)' },
++    status: { provisioning: '⏳ Setting up', active: '🟢 Active', suspended: '⏸ Paused (renewal unpaid)', failed: '❌ Failed (refunded)', awaiting_imei: '📟 Paid — waiting for your IMEI' },
+     line: (l, s) => `📱 <b>USA T-Mobile eSIM</b>\n\nNumber: ${l.phoneNumber || 'being assigned'}\nStatus: ${s}\nPrice: $${l.price}/month\n${l.expiresAt ? `Active until: ${day(l.expiresAt)}\n` : ''}🔁 Auto-renew: <b>${l.autoRenew ? 'on' : 'off'}</b>${l.autoRenew && l.nextBillAt ? ` (wallet charged on ${day(l.nextBillAt)})` : ''}\n📧 QR email: ${l.qrEmail || 'none'}${l.note ? `\n\nℹ️ ${l.note}` : ''}`,
+     turnOff: '⏹ Turn auto-renew off', turnOn: '✅ Turn auto-renew on', qr: '📷 Show QR code', emailQr: '📧 Email me the QR code', renewNow: '💳 Renew now from wallet',
+     renewSet: (on) => on ? '✅ Auto-renew is on. The monthly price is taken from your wallet one day before renewal.' : '⏹ Auto-renew is off. The line ends on its expiry date unless you turn it back on.',
+@@ -42,7 +47,7 @@ const T = {
+     renewed: '✅ Renewed. Your eSIM is active again.',
+   },
+   fr: {
+-    home: (p, inc) => `📱 <b>eSIM USA T-Mobile — ${p} $/mois</b>\n\n${inc ? `📦 Chaque mois : ${inc}\n\n` : ''}• Un numéro américain sur le réseau T-Mobile\n• SMS dans les deux sens : envoyez et recevez des textos sur votre téléphone\n• Appels et données aux USA\n• Installation en scannant un QR code (iPhone et Android compatibles eSIM)\n• Renouvellement mensuel depuis votre portefeuille ; désactivable à tout moment\n\nIl vous faut l’IMEI de votre téléphone (composez *#06#).`,
++    home: (p, inc) => `📱 <b>eSIM USA T-Mobile — ${p} $/mois</b>\n\n${inc ? `📦 Chaque mois : ${inc}\n\n` : ''}• Un numéro américain sur le réseau T-Mobile\n• SMS dans les deux sens : envoyez et recevez des textos sur votre téléphone\n• Appels et données aux USA\n• Installation en scannant un QR code (iPhone et Android compatibles eSIM)\n• Renouvellement mensuel depuis votre portefeuille ; désactivable à tout moment\n\nPayez d’abord ; vous envoyez ensuite l’IMEI de votre téléphone (composez *#06#).`,
+     buy: (p) => `🛒 Acheter l’eSIM — ${p} $/mois`, mine: '📋 Mes eSIM', skip: '⏭ Passer',
+     askImei: '📟 Envoyez l’<b>IMEI à 15 chiffres</b> de votre téléphone.\n\nComposez <b>*#06#</b> sur le téléphone qui utilisera l’eSIM pour le voir.',
+     badImei: '❌ Cet IMEI n’est pas valide. Il a 15 chiffres — composez *#06# pour le voir.',
+@@ -53,15 +58,20 @@ const T = {
+     askRenew: '🔁 <b>Renouvellement automatique</b>\n\nActivé, le prix mensuel est prélevé sur votre portefeuille la veille du renouvellement. Si le solde est insuffisant, la ligne est suspendue puis se termine à sa date d’expiration. Modifiable à tout moment dans Mes eSIM.',
+     renewOn: '✅ Renouvellement auto activé (conseillé)', renewOff: '⏹ Renouvellement auto désactivé',
+     unavailable: '⚠️ Les eSIM sont temporairement indisponibles. Réessayez plus tard.',
+-    summary: (o, p) => `💰 <b>Commande : eSIM USA T-Mobile</b>\n\n💵 Prix : <b>${p} $/mois</b>\n📟 IMEI : <code>${o.imei}</code>\n📍 Code postal : ${o.zipcode || 'indifférent'}\n📧 E-mail : ${o.email || 'aucun'}\n🔁 Renouvellement auto : ${o.autoRenew ? 'activé' : 'désactivé'}\n\nNous créons votre eSIM automatiquement après le paiement et envoyons le QR code ici.\n\nChoisissez le mode de paiement :`,
++    summary: (o, p) => `💰 <b>Commande : eSIM USA T-Mobile</b>\n\n💵 Prix : <b>${p} $/mois</b>\n📟 IMEI : ${o.imei ? `<code>${o.imei}</code>` : 'à envoyer après le paiement'}\n📍 Code postal : ${o.zipcode || 'indifférent'}\n📧 E-mail : ${o.email || 'aucun'}\n🔁 Renouvellement auto : ${o.autoRenew ? 'activé' : 'désactivé'}\n\nNous créons votre eSIM automatiquement après le paiement et envoyons le QR code ici.\n\nChoisissez le mode de paiement :`,
+     noBank: '⚠️ L’eSIM se paie avec votre portefeuille ou directement en crypto.',
++    paidAskImei: (p) => `✅ <b>${p} $ payés.</b> Dernière étape : envoyez l’<b>IMEI à 15 chiffres</b> de votre téléphone pour créer l’eSIM.\n\nComposez <b>*#06#</b> sur le téléphone qui utilisera l’eSIM pour le voir. Vous pouvez aussi l’envoyer plus tard : tapez /imei ou ouvrez 📋 Mes eSIM (sous 7 jours, sinon les ${p} $ reviennent sur votre portefeuille).`,
++    sendImei: '📟 Envoyer l’IMEI',
++    sendImeiPaid: '📟 Envoyer l’IMEI de mon eSIM payée',
++    waitingNote: '📟 <b>Votre eSIM payée attend votre IMEI.</b> Touchez « 📟 Envoyer l’IMEI de mon eSIM payée » ci-dessous, ou tapez /imei à tout moment.',
++    noneWaiting: 'Aucune eSIM payée n’attend d’IMEI.',
+     placed: (p, bal) => `✅ <b>${p} $ payés.</b> Votre eSIM est en cours de création — en général quelques minutes, parfois plus.\n\nNous enverrons le QR code ici dès qu’il sera prêt.\n👛 Solde du portefeuille : ${bal} $`,
+     failed: (m) => `⚠️ ${m}`,
+     toWallet: (p) => `💵 Votre paiement crypto de ${p} $ a été ajouté à votre portefeuille.`,
+     none: 'Vous n’avez pas encore d’eSIM.',
+     pick: '📋 <b>Mes eSIM</b>\n\nChoisissez-en une à gérer :',
+     settingUp: 'En création',
+-    status: { provisioning: '⏳ En création', active: '🟢 Active', suspended: '⏸ Suspendue (renouvellement impayé)', failed: '❌ Échec (remboursée)' },
++    status: { provisioning: '⏳ En création', active: '🟢 Active', suspended: '⏸ Suspendue (renouvellement impayé)', failed: '❌ Échec (remboursée)', awaiting_imei: '📟 Payée — en attente de votre IMEI' },
+     line: (l, s) => `📱 <b>eSIM USA T-Mobile</b>\n\nNuméro : ${l.phoneNumber || 'en attribution'}\nStatut : ${s}\nPrix : ${l.price} $/mois\n${l.expiresAt ? `Active jusqu’au : ${day(l.expiresAt)}\n` : ''}🔁 Renouvellement auto : <b>${l.autoRenew ? 'activé' : 'désactivé'}</b>${l.autoRenew && l.nextBillAt ? ` (prélèvement le ${day(l.nextBillAt)})` : ''}\n📧 E-mail du QR : ${l.qrEmail || 'aucun'}${l.note ? `\n\nℹ️ ${l.note}` : ''}`,
+     turnOff: '⏹ Désactiver le renouvellement auto', turnOn: '✅ Activer le renouvellement auto', qr: '📷 Voir le QR code', emailQr: '📧 M’envoyer le QR code par e-mail', renewNow: '💳 Renouveler depuis le portefeuille',
+     renewSet: (on) => on ? '✅ Renouvellement auto activé. Le prix mensuel est prélevé sur votre portefeuille la veille du renouvellement.' : '⏹ Renouvellement auto désactivé. La ligne se termine à sa date d’expiration sauf si vous le réactivez.',
+@@ -71,7 +81,7 @@ const T = {
+     renewed: '✅ Renouvelée. Votre eSIM est de nouveau active.',
+   },
+   hi: {
+-    home: (p, inc) => `📱 <b>USA T-Mobile eSIM — $${p}/माह</b>\n\n${inc ? `📦 हर महीने: ${inc}\n\n` : ''}• T-Mobile नेटवर्क पर एक USA फ़ोन नंबर\n• दो-तरफ़ा SMS: अपने फ़ोन पर टेक्स्ट भेजें और पाएं\n• कॉल और USA डेटा\n• QR कोड स्कैन करके इंस्टॉल करें (eSIM वाले iPhone और Android)\n• हर महीने वॉलेट से रिन्यू; ऑटो-रिन्यू कभी भी बंद करें\n\nआपको अपने फ़ोन का IMEI चाहिए (*#06# डायल करें)।`,
++    home: (p, inc) => `📱 <b>USA T-Mobile eSIM — $${p}/माह</b>\n\n${inc ? `📦 हर महीने: ${inc}\n\n` : ''}• T-Mobile नेटवर्क पर एक USA फ़ोन नंबर\n• दो-तरफ़ा SMS: अपने फ़ोन पर टेक्स्ट भेजें और पाएं\n• कॉल और USA डेटा\n• QR कोड स्कैन करके इंस्टॉल करें (eSIM वाले iPhone और Android)\n• हर महीने वॉलेट से रिन्यू; ऑटो-रिन्यू कभी भी बंद करें\n\nपहले भुगतान करें; उसके बाद अपने फ़ोन का IMEI भेजें (*#06# डायल करें)।`,
+     buy: (p) => `🛒 eSIM खरीदें — $${p}/माह`, mine: '📋 मेरे eSIM', skip: '⏭ छोड़ें',
+     askImei: '📟 अपने फ़ोन का <b>15 अंकों का IMEI</b> भेजें।\n\nजिस फ़ोन में eSIM लगेगा उस पर <b>*#06#</b> डायल करें।',
+     badImei: '❌ यह मान्य IMEI नहीं है। इसमें 15 अंक होते हैं — *#06# डायल करें।',
+@@ -82,15 +92,20 @@ const T = {
+     askRenew: '🔁 <b>ऑटो-रिन्यू</b>\n\nचालू होने पर मासिक कीमत रिन्यूअल से एक दिन पहले वॉलेट से ली जाती है। वॉलेट में कम पैसे हों तो लाइन रुक जाती है और समाप्ति तिथि पर बंद हो जाती है। मेरे eSIM में कभी भी बदलें।',
+     renewOn: '✅ ऑटो-रिन्यू चालू (सुझाया गया)', renewOff: '⏹ ऑटो-रिन्यू बंद',
+     unavailable: '⚠️ eSIM अभी उपलब्ध नहीं हैं। बाद में फिर कोशिश करें।',
+-    summary: (o, p) => `💰 <b>ऑर्डर: USA T-Mobile eSIM</b>\n\n💵 कीमत: <b>$${p}/माह</b>\n📟 IMEI: <code>${o.imei}</code>\n📍 ZIP: ${o.zipcode || 'कोई भी'}\n📧 ईमेल: ${o.email || 'नहीं'}\n🔁 ऑटो-रिन्यू: ${o.autoRenew ? 'चालू' : 'बंद'}\n\nभुगतान के बाद हम eSIM अपने-आप बनाते हैं और QR कोड यहीं भेजते हैं।\n\nभुगतान का तरीका चुनें:`,
++    summary: (o, p) => `💰 <b>ऑर्डर: USA T-Mobile eSIM</b>\n\n💵 कीमत: <b>$${p}/माह</b>\n📟 IMEI: ${o.imei ? `<code>${o.imei}</code>` : 'भुगतान के बाद भेजें'}\n📍 ZIP: ${o.zipcode || 'कोई भी'}\n📧 ईमेल: ${o.email || 'नहीं'}\n🔁 ऑटो-रिन्यू: ${o.autoRenew ? 'चालू' : 'बंद'}\n\nभुगतान के बाद हम eSIM अपने-आप बनाते हैं और QR कोड यहीं भेजते हैं।\n\nभुगतान का तरीका चुनें:`,
+     noBank: '⚠️ eSIM का भुगतान वॉलेट से या सीधे क्रिप्टो में होता है।',
++    paidAskImei: (p) => `✅ <b>$${p} का भुगतान हुआ।</b> आख़िरी कदम: eSIM बनाने के लिए अपने फ़ोन का <b>15 अंकों का IMEI</b> भेजें।\n\nजिस फ़ोन पर eSIM चलेगा उस पर <b>*#06#</b> डायल करें। आप इसे बाद में भी भेज सकते हैं: /imei लिखें या 📋 मेरे eSIM खोलें (7 दिनों के अंदर, वरना $${p} वॉलेट में वापस)।`,
++    sendImei: '📟 IMEI भेजें',
++    sendImeiPaid: '📟 मेरे भुगतान किए eSIM का IMEI भेजें',
++    waitingNote: '📟 <b>आपका भुगतान किया हुआ eSIM आपके IMEI का इंतज़ार कर रहा है।</b> नीचे “📟 मेरे भुगतान किए eSIM का IMEI भेजें” दबाएँ, या कभी भी /imei लिखें।',
++    noneWaiting: 'आपका कोई भुगतान किया हुआ eSIM IMEI का इंतज़ार नहीं कर रहा।',
+     placed: (p, bal) => `✅ <b>$${p} का भुगतान हुआ।</b> आपका eSIM बन रहा है — आमतौर पर कुछ मिनट, कभी-कभी ज़्यादा।\n\nतैयार होते ही QR कोड यहीं भेजेंगे।\n👛 वॉलेट बैलेंस: $${bal}`,
+     failed: (m) => `⚠️ ${m}`,
+     toWallet: (p) => `💵 आपका $${p} क्रिप्टो भुगतान वॉलेट में जोड़ दिया गया।`,
+     none: 'आपके पास अभी कोई eSIM नहीं है।',
+     pick: '📋 <b>मेरे eSIM</b>\n\nप्रबंधित करने के लिए एक चुनें:',
+     settingUp: 'बन रहा है',
+-    status: { provisioning: '⏳ बन रहा है', active: '🟢 सक्रिय', suspended: '⏸ रुका हुआ (रिन्यूअल बाकी)', failed: '❌ विफल (रिफंड)' },
++    status: { provisioning: '⏳ बन रहा है', active: '🟢 सक्रिय', suspended: '⏸ रुका हुआ (रिन्यूअल बाकी)', failed: '❌ विफल (रिफंड)' , awaiting_imei: '📟 भुगतान हुआ — आपके IMEI का इंतज़ार' },
+     line: (l, s) => `📱 <b>USA T-Mobile eSIM</b>\n\nनंबर: ${l.phoneNumber || 'दिया जा रहा है'}\nस्थिति: ${s}\nकीमत: $${l.price}/माह\n${l.expiresAt ? `सक्रिय तक: ${day(l.expiresAt)}\n` : ''}🔁 ऑटो-रिन्यू: <b>${l.autoRenew ? 'चालू' : 'बंद'}</b>${l.autoRenew && l.nextBillAt ? ` (वॉलेट से ${day(l.nextBillAt)} को)` : ''}\n📧 QR ईमेल: ${l.qrEmail || 'नहीं'}${l.note ? `\n\nℹ️ ${l.note}` : ''}`,
+     turnOff: '⏹ ऑटो-रिन्यू बंद करें', turnOn: '✅ ऑटो-रिन्यू चालू करें', qr: '📷 QR कोड दिखाएं', emailQr: '📧 QR कोड ईमेल करें', renewNow: '💳 वॉलेट से अभी रिन्यू करें',
+     renewSet: (on) => on ? '✅ ऑटो-रिन्यू चालू है। मासिक कीमत रिन्यूअल से एक दिन पहले वॉलेट से ली जाती है।' : '⏹ ऑटो-रिन्यू बंद है। दोबारा चालू न करने पर लाइन समाप्ति तिथि पर बंद होगी।',
+@@ -100,7 +115,7 @@ const T = {
+     renewed: '✅ रिन्यू हो गया। आपका eSIM फिर से सक्रिय है।',
+   },
+   zh: {
+-    home: (p, inc) => `📱 <b>美国 T-Mobile eSIM — $${p}/月</b>\n\n${inc ? `📦 每月：${inc}\n\n` : ''}• T-Mobile 网络上的美国电话号码\n• 双向短信：在手机上收发短信\n• 通话和美国流量\n• 扫描二维码安装（支持 eSIM 的 iPhone 和安卓）\n• 每月从钱包自动续费；可随时关闭\n\n您需要手机的 IMEI（拨打 *#06#）。`,
++    home: (p, inc) => `📱 <b>美国 T-Mobile eSIM — $${p}/月</b>\n\n${inc ? `📦 每月：${inc}\n\n` : ''}• T-Mobile 网络上的美国电话号码\n• 双向短信：在手机上收发短信\n• 通话和美国流量\n• 扫描二维码安装（支持 eSIM 的 iPhone 和安卓）\n• 每月从钱包自动续费；可随时关闭\n\n先付款，然后再发送手机的 IMEI（拨打 *#06#）。`,
+     buy: (p) => `🛒 购买 eSIM — $${p}/月`, mine: '📋 我的 eSIM', skip: '⏭ 跳过',
+     askImei: '📟 请发送手机的 <b>15 位 IMEI</b>。\n\n在将使用 eSIM 的手机上拨打 <b>*#06#</b> 查看。',
+     badImei: '❌ IMEI 无效。IMEI 为 15 位数字 — 拨打 *#06# 查看。',
+@@ -111,15 +126,20 @@ const T = {
+     askRenew: '🔁 <b>自动续费</b>\n\n开启后，每月费用会在续费日前一天从钱包扣除。钱包余额不足时线路暂停，并在到期日结束。可随时在“我的 eSIM”中更改。',
+     renewOn: '✅ 开启自动续费（推荐）', renewOff: '⏹ 关闭自动续费',
+     unavailable: '⚠️ eSIM 暂时无法购买，请稍后再试。',
+-    summary: (o, p) => `💰 <b>订单：美国 T-Mobile eSIM</b>\n\n💵 价格：<b>$${p}/月</b>\n📟 IMEI：<code>${o.imei}</code>\n📍 邮编：${o.zipcode || '不限'}\n📧 邮箱：${o.email || '无'}\n🔁 自动续费：${o.autoRenew ? '开启' : '关闭'}\n\n付款后我们会自动开通 eSIM，并在这里发送二维码。\n\n请选择付款方式：`,
++    summary: (o, p) => `💰 <b>订单：美国 T-Mobile eSIM</b>\n\n💵 价格：<b>$${p}/月</b>\n📟 IMEI：${o.imei ? `<code>${o.imei}</code>` : '付款后发送'}\n📍 邮编：${o.zipcode || '不限'}\n📧 邮箱：${o.email || '无'}\n🔁 自动续费：${o.autoRenew ? '开启' : '关闭'}\n\n付款后我们会自动开通 eSIM，并在这里发送二维码。\n\n请选择付款方式：`,
+     noBank: '⚠️ eSIM 可用钱包或直接用加密货币付款。',
++    paidAskImei: (p) => `✅ <b>已支付 $${p}。</b>最后一步：请发送手机的 <b>15 位 IMEI</b>，以便开通 eSIM。\n\n在要使用 eSIM 的手机上拨打 <b>*#06#</b> 查看。也可稍后发送：输入 /imei 或打开 📋 我的 eSIM（7 天内，否则 $${p} 将退回钱包）。`,
++    sendImei: '📟 发送 IMEI',
++    sendImeiPaid: '📟 为已付款的 eSIM 发送 IMEI',
++    waitingNote: '📟 <b>您已付款的 eSIM 正在等待 IMEI。</b>点击下方“📟 为已付款的 eSIM 发送 IMEI”，或随时输入 /imei。',
++    noneWaiting: '您没有等待 IMEI 的已付款 eSIM。',
+     placed: (p, bal) => `✅ <b>已支付 $${p}。</b>您的 eSIM 正在开通 — 通常几分钟，有时更久。\n\n准备好后我们会在这里发送二维码。\n👛 钱包余额：$${bal}`,
+     failed: (m) => `⚠️ ${m}`,
+     toWallet: (p) => `💵 您的 $${p} 加密货币付款已存入钱包。`,
+     none: '您还没有 eSIM。',
+     pick: '📋 <b>我的 eSIM</b>\n\n选择要管理的 eSIM：',
+     settingUp: '开通中',
+-    status: { provisioning: '⏳ 开通中', active: '🟢 使用中', suspended: '⏸ 已暂停（未续费）', failed: '❌ 失败（已退款）' },
++    status: { provisioning: '⏳ 开通中', active: '🟢 使用中', suspended: '⏸ 已暂停（未续费）', failed: '❌ 失败（已退款）', awaiting_imei: '📟 已付款 — 等待您的 IMEI' },
+     line: (l, s) => `📱 <b>美国 T-Mobile eSIM</b>\n\n号码：${l.phoneNumber || '分配中'}\n状态：${s}\n价格：$${l.price}/月\n${l.expiresAt ? `有效期至：${day(l.expiresAt)}\n` : ''}🔁 自动续费：<b>${l.autoRenew ? '开启' : '关闭'}</b>${l.autoRenew && l.nextBillAt ? `（${day(l.nextBillAt)} 从钱包扣款）` : ''}\n📧 二维码邮箱：${l.qrEmail || '无'}${l.note ? `\n\nℹ️ ${l.note}` : ''}`,
+     turnOff: '⏹ 关闭自动续费', turnOn: '✅ 开启自动续费', qr: '📷 查看二维码', emailQr: '📧 将二维码发到邮箱', renewNow: '💳 立即从钱包续费',
+     renewSet: (on) => on ? '✅ 自动续费已开启。每月费用会在续费日前一天从钱包扣除。' : '⏹ 自动续费已关闭。除非重新开启，线路将在到期日结束。',
+@@ -140,6 +160,8 @@ const INSTALL = {
+ }
+ const N = {
+   en: {
++    imeiRemind: (left, p) => `📟 Your paid USA eSIM is waiting for your phone’s IMEI. Type /imei (or open 📋 My eSIMs → the line → 📟 Send IMEI). If it isn’t sent within ${left} day(s), $${p} goes back to your wallet.`,
++    imeiRefund: (p) => `↩️ Your eSIM order was cancelled because no IMEI was sent within 7 days. $${p} was refunded to your wallet.`,
+     ready: (ph, mailed, hasEmail) => `✅ Your USA T-Mobile eSIM is ready${ph ? `: ${ph}` : ''}. It has two-way SMS: send and receive texts on that phone.${mailed ? ` We also emailed the QR code to ${mailed}.` : hasEmail ? '' : ' Tip: use “Email me the QR code” under My eSIMs to keep a copy.'}`,
+     caption: (ph, code) => `📱 Your USA T-Mobile eSIM${ph ? ` ${ph}` : ''}\n\n${INSTALL.en}${code ? `\n\nManual code: ${code}` : ''}`,
+     failed: (p) => `⚠️ Your eSIM couldn’t be created. $${p} was refunded to your wallet.`,
+@@ -150,6 +172,8 @@ const N = {
+     ends: (ph, end, bal) => `🔔 Your eSIM${ph ? ` ${ph}` : ''} ends on ${end} because auto-renew is off. Turn auto-renew on under My eSIMs before then to keep it. Wallet balance: $${bal}.`,
+   },
+   fr: {
++    imeiRemind: (left, p) => `📟 Votre eSIM USA payée attend l’IMEI de votre téléphone. Tapez /imei (ou ouvrez 📋 Mes eSIM → la ligne → 📟 Envoyer l’IMEI). S’il n’est pas envoyé sous ${left} jour(s), les ${p} $ reviennent sur votre portefeuille.`,
++    imeiRefund: (p) => `↩️ Votre commande eSIM est annulée car aucun IMEI n’a été envoyé sous 7 jours. ${p} $ ont été remboursés sur votre portefeuille.`,
+     ready: (ph, mailed, hasEmail) => `✅ Votre eSIM USA T-Mobile est prête${ph ? ` : ${ph}` : ''}. SMS dans les deux sens : envoyez et recevez des textos sur ce téléphone.${mailed ? ` Nous avons aussi envoyé le QR code à ${mailed}.` : hasEmail ? '' : ' Astuce : utilisez « M’envoyer le QR code par e-mail » dans Mes eSIM pour en garder une copie.'}`,
+     caption: (ph, code) => `📱 Votre eSIM USA T-Mobile${ph ? ` ${ph}` : ''}\n\n${INSTALL.fr}${code ? `\n\nCode manuel : ${code}` : ''}`,
+     failed: (p) => `⚠️ Votre eSIM n’a pas pu être créée. ${p} $ ont été remboursés sur votre portefeuille.`,
+@@ -160,6 +184,8 @@ const N = {
+     ends: (ph, end, bal) => `🔔 Votre eSIM${ph ? ` ${ph}` : ''} se termine le ${end} car le renouvellement auto est désactivé. Activez-le dans Mes eSIM avant cette date pour la garder. Solde : ${bal} $.`,
+   },
+   hi: {
++    imeiRemind: (left, p) => `📟 आपका भुगतान किया हुआ USA eSIM आपके फ़ोन के IMEI का इंतज़ार कर रहा है। /imei लिखें (या 📋 मेरे eSIM → लाइन → 📟 IMEI भेजें खोलें)। ${left} दिन में न भेजने पर $${p} वॉलेट में वापस होंगे।`,
++    imeiRefund: (p) => `↩️ 7 दिनों में IMEI न मिलने से आपका eSIM ऑर्डर रद्द हुआ। $${p} आपके वॉलेट में वापस कर दिए गए।`,
+     ready: (ph, mailed, hasEmail) => `✅ आपका USA T-Mobile eSIM तैयार है${ph ? `: ${ph}` : ''}। दो-तरफ़ा SMS: उस फ़ोन पर टेक्स्ट भेजें और पाएं।${mailed ? ` QR कोड ${mailed} पर भी ईमेल किया गया।` : hasEmail ? '' : ' सुझाव: कॉपी रखने के लिए मेरे eSIM में “QR कोड ईमेल करें” इस्तेमाल करें।'}`,
+     caption: (ph, code) => `📱 आपका USA T-Mobile eSIM${ph ? ` ${ph}` : ''}\n\n${INSTALL.hi}${code ? `\n\nमैनुअल कोड: ${code}` : ''}`,
+     failed: (p) => `⚠️ आपका eSIM नहीं बन सका। $${p} आपके वॉलेट में वापस कर दिए गए।`,
+@@ -170,6 +196,8 @@ const N = {
+     ends: (ph, end, bal) => `🔔 आपका eSIM${ph ? ` ${ph}` : ''} ${end} को बंद होगा क्योंकि ऑटो-रिन्यू बंद है। रखने के लिए उससे पहले मेरे eSIM में ऑटो-रिन्यू चालू करें। वॉलेट बैलेंस: $${bal}।`,
+   },
+   zh: {
++    imeiRemind: (left, p) => `📟 您已付款的美国 eSIM 正在等待手机 IMEI。请输入 /imei（或打开 📋 我的 eSIM → 该线路 → 📟 发送 IMEI）。若 ${left} 天内未发送，$${p} 将退回钱包。`,
++    imeiRefund: (p) => `↩️ 由于 7 天内未发送 IMEI，您的 eSIM 订单已取消。$${p} 已退回您的钱包。`,
+     ready: (ph, mailed, hasEmail) => `✅ 您的美国 T-Mobile eSIM 已就绪${ph ? `：${ph}` : ''}。支持双向短信：在该手机上收发短信。${mailed ? `二维码也已发送至 ${mailed}。` : hasEmail ? '' : '提示：可在“我的 eSIM”中使用“将二维码发到邮箱”保留一份副本。'}`,
+     caption: (ph, code) => `📱 您的美国 T-Mobile eSIM${ph ? ` ${ph}` : ''}\n\n${INSTALL.zh}${code ? `\n\n手动代码：${code}` : ''}`,
+     failed: (p) => `⚠️ 您的 eSIM 未能开通。$${p} 已退回您的钱包。`,
+@@ -193,7 +221,7 @@ async function plan() {
+ }
+ // Plan allowance shown as-is from the provider catalog, e.g. "20 MB data · 20 min calls · Unlimited SMS".
+ const includes = (p) => [p?.data && `${p.data} data`, p?.voiceMinutes != null && `${p.voiceMinutes} min calls`, p?.sms != null && `${p.sms} SMS`].filter(Boolean).join(' · ')
+-const lineLabel = (l, lang) => `📱 ${l.phoneNumber || s(lang).settingUp} · ${l.id.slice(-6)}`
++const lineLabel = (l, lang) => `📱 ${l.phoneNumber || (l.status === 'awaiting_imei' ? s(lang).status.awaiting_imei : s(lang).settingUp)} · ${l.id.slice(-6)}`
+ const lineFromLabel = (lines, m) => lines.find(l => String(m || '').endsWith(`· ${l.id.slice(-6)}`)) || null
+ const lines = async (chatId) => (await ES.list(chatId)).filter(l => l.status !== 'failed')
+ 
+@@ -201,6 +229,7 @@ const lines = async (chatId) => (await ES.list(chatId)).filter(l => l.status !==
+ async function fulfill(db, chatId, order, lang) {
+   const r = await ES.buy(chatId, { ...order, source: 'telegram', lang })
+   if (r.error) return { ok: false, text: s(lang).failed(r.error) }
++  if (r.awaitingImei) return { ok: true, awaitingImei: true, text: s(lang).paidAskImei(r.item.price), lineId: r.item.id }
+   const bal = round2(await walletOps(db).balance(chatId)).toFixed(2)
+   return { ok: true, text: s(lang).placed(r.item.price, bal), lineId: r.item.id }
+ }
+@@ -211,4 +240,20 @@ async function fulfillPaid(db, chatId, order, price, lang) {
+   return r.ok ? r : { ...r, text: `${r.text}\n\n${s(lang).toWallet(price)}` }
+ }
+ 
+-module.exports = { includes, notice, PRODUCT_KEY, PRODUCT_NAME, PRICE, s, parseImei, parseZip, parseEmail, plan, lines, lineLabel, lineFromLabel, fulfill, fulfillPaid, ES }
++// IMEI sent after payment for a waiting line.
++async function submitImei(db, chatId, lineId, imei, lang) {
++  const r = await ES.submitImei(chatId, lineId, imei)
++  if (r.error) return { ok: false, text: s(lang).failed(r.error) }
++  await db.collection('digitalOrders').updateOne({ esimLineId: lineId }, { $set: { status: 'delivered', deliveredAt: new Date() } }).catch(() => {})
++  const bal = round2(await walletOps(db).balance(chatId)).toFixed(2)
++  return { ok: true, text: s(lang).placed(r.item.price, bal), lineId: r.item.id }
++}
++const backKb = { reply_markup: { keyboard: [['↩️ Back']], resize_keyboard: true } }
++// After a crypto-paid order: ask for the IMEI next, or leave the flow.
++async function afterCryptoPay(state, set, chatId, r) {
++  if (!r.awaitingImei) return set(state, chatId, 'action', 'none')
++  await set(state, chatId, 'esimPendingLine', r.lineId)
++  await set(state, chatId, 'action', 'esim-bot-imei')
++}
++
++module.exports = { includes, notice, PRODUCT_KEY, PRODUCT_NAME, PRICE, s, parseImei, parseZip, parseEmail, plan, lines, lineLabel, lineFromLabel, fulfill, fulfillPaid, submitImei, afterCryptoPay, backKb, ES }
+diff --git a/js/lang/en.js b/js/lang/en.js
+index 23907156..0aa5b489 100644
+--- a/js/lang/en.js
++++ b/js/lang/en.js
+@@ -3108,6 +3108,7 @@ const vpsPlanOf = {
+ const vs = {
+   callDisconnectedAutoRouted: (usdBal, lowBalTrigger, lowBalResume) => `🚫 <b>Call Disconnected</b> (auto-routed)\n\nWallet: <b>$${usdBal}</b> — below $${lowBalTrigger} threshold.\n💰 Top up at least $${lowBalResume} to resume calling.`,
+   callDisconnectedWalletInsufficient: (rate, connFee) => `🚫 <b>Call Disconnected</b> — Wallet insufficient (need $${rate}/min + $${connFee} connect fee).\nTop up via 👛 Wallet.`,
++  sipCallQueued: (to, max) => `⏳ <b>Call queued</b> — ${to}\nYou already have ${max} calls connected. This call connects automatically as soon as one ends (up to 2 minutes). Nothing is charged while it waits.`,
+   callDisconnectedWalletExhausted: `🚫 <b>Call Disconnected</b> — Wallet exhausted.\nTop up via 👛 Wallet.`,
+   outboundCallFailedRouting: (fromPhone, toPhone) => `🚫 <b>Outbound Call Failed</b>\n📞 ${fromPhone} → ${toPhone}\nReason: Call routing failed. Please try again.`,
+   planMinutesExhausted: (phoneNumber, used, limit) => `⚠️ <b>Plan Minutes Exhausted</b>\n\n📞 ${phoneNumber}\nUsed: <b>${used}/${limit}</b> minutes this cycle.\n\nOverage billing is now active from your wallet. Top up or upgrade your plan.`,
+diff --git a/js/lang/fr.js b/js/lang/fr.js
+index a57f29a0..f6d3a7c0 100644
+--- a/js/lang/fr.js
++++ b/js/lang/fr.js
+@@ -2938,6 +2938,7 @@ const vpsPlanOf = {
+ const vs = {
+   callDisconnectedAutoRouted: (usdBal, lowBalTrigger, lowBalResume) => `🚫 <b>Appel coupé</b> (routage automatique)\n\nPortefeuille : <b>$${usdBal}</b> — sous le seuil de $${lowBalTrigger}.\n💰 Rechargez au moins $${lowBalResume} pour reprendre les appels.`,
+   callDisconnectedWalletInsufficient: (rate, connFee) => `🚫 <b>Appel coupé</b> — Portefeuille insuffisant (requis $${rate}/min + $${connFee} de frais de connexion).\nRechargez via 👛 Portefeuille.`,
++  sipCallQueued: (to, max) => `⏳ <b>Appel en attente</b> — ${to}\nVous avez déjà ${max} appels en cours. Cet appel se connecte automatiquement dès qu’un appel se termine (jusqu’à 2 minutes). Rien n’est facturé pendant l’attente.`,
+   callDisconnectedWalletExhausted: '🚫 <b>Appel coupé</b> — Portefeuille épuisé.\nRechargez via 👛 Portefeuille.',
+   outboundCallFailedRouting: (fromPhone, toPhone) => `🚫 <b>Échec de l'appel sortant</b>\n📞 ${fromPhone} → ${toPhone}\nMotif : échec du routage. Veuillez réessayer.`,
+   planMinutesExhausted: (phoneNumber, used, limit) => `⚠️ <b>Minutes du forfait épuisées</b>\n\n📞 ${phoneNumber}\nUtilisées : <b>${used}/${limit}</b> minutes ce cycle.\n\nLa facturation du dépassement est désormais active depuis votre portefeuille. Rechargez ou changez de forfait.`,
+diff --git a/js/lang/hi.js b/js/lang/hi.js
+index 20ede87c..b821681b 100644
+--- a/js/lang/hi.js
++++ b/js/lang/hi.js
+@@ -2931,6 +2931,7 @@ const vpsPlanOf = {
+ const vs = {
+   callDisconnectedAutoRouted: (usdBal, lowBalTrigger, lowBalResume) => `🚫 <b>कॉल डिस्कनेक्ट</b> (ऑटो-रूटेड)\n\nवॉलेट: <b>$${usdBal}</b> — $${lowBalTrigger} की सीमा से नीचे।\n💰 कॉल फिर से शुरू करने के लिए कम से कम $${lowBalResume} टॉप-अप करें।`,
+   callDisconnectedWalletInsufficient: (rate, connFee) => `🚫 <b>कॉल डिस्कनेक्ट</b> — वॉलेट अपर्याप्त ($${rate}/मिनट + $${connFee} कनेक्ट शुल्क चाहिए)।\n👛 वॉलेट से टॉप-अप करें।`,
++  sipCallQueued: (to, max) => `⏳ <b>कॉल कतार में है</b> — ${to}\nआपके ${max} कॉल पहले से जुड़े हैं। किसी एक के खत्म होते ही यह कॉल अपने-आप जुड़ जाएगा (2 मिनट तक)। इंतज़ार के दौरान कोई शुल्क नहीं।`,
+   callDisconnectedWalletExhausted: '🚫 <b>कॉल डिस्कनेक्ट</b> — वॉलेट खाली हो गया।\n👛 वॉलेट से टॉप-अप करें।',
+   outboundCallFailedRouting: (fromPhone, toPhone) => `🚫 <b>आउटबाउंड कॉल विफल</b>\n📞 ${fromPhone} → ${toPhone}\nकारण: कॉल रूटिंग विफल। कृपया फिर से प्रयास करें।`,
+   planMinutesExhausted: (phoneNumber, used, limit) => `⚠️ <b>प्लान मिनट समाप्त</b>\n\n📞 ${phoneNumber}\nइस चक्र में उपयोग: <b>${used}/${limit}</b> मिनट।\n\nअब ओवरेज बिलिंग आपके वॉलेट से सक्रिय है। टॉप-अप करें या प्लान अपग्रेड करें।`,
+diff --git a/js/lang/zh.js b/js/lang/zh.js
+index 5d4742c2..b5926339 100644
+--- a/js/lang/zh.js
++++ b/js/lang/zh.js
+@@ -2917,6 +2917,7 @@ const vpsPlanOf = {
+ const vs = {
+   callDisconnectedAutoRouted: (usdBal, lowBalTrigger, lowBalResume) => `🚫 <b>通话已断开</b>（自动路由）\n\n钱包：<b>$${usdBal}</b> — 低于 $${lowBalTrigger} 阈值。\n💰 请至少充值 $${lowBalResume} 以恢复通话。`,
+   callDisconnectedWalletInsufficient: (rate, connFee) => `🚫 <b>通话已断开</b> — 钱包余额不足（需要 $${rate}/分钟 + $${connFee} 接通费）。\n请通过 👛 钱包 充值。`,
++  sipCallQueued: (to, max) => `⏳ <b>通话排队中</b> — ${to}\n您已有 ${max} 个通话在进行中。任一通话结束后，此通话将自动接通（最多 2 分钟）。排队期间不收费。`,
+   callDisconnectedWalletExhausted: '🚫 <b>通话已断开</b> — 钱包余额已用尽。\n请通过 👛 钱包 充值。',
+   outboundCallFailedRouting: (fromPhone, toPhone) => `🚫 <b>呼出失败</b>\n📞 ${fromPhone} → ${toPhone}\n原因：呼叫路由失败。请重试。`,
+   planMinutesExhausted: (phoneNumber, used, limit) => `⚠️ <b>套餐分钟数已用尽</b>\n\n📞 ${phoneNumber}\n本周期已用：<b>${used}/${limit}</b> 分钟。\n\n超额部分现在将从您的钱包计费。请充值或升级套餐。`,
+diff --git a/js/sip-call-queue.js b/js/sip-call-queue.js
+new file mode 100644
+index 00000000..16e5be27
+--- /dev/null
++++ b/js/sip-call-queue.js
+@@ -0,0 +1,52 @@
++'use strict'
++// Outbound SIP calls over a user's simultaneous-call limit wait here (caller hears a queued message + hold music)
++// instead of being hung up. A queued call connects as soon as one of the user's live calls ends.
++const MAX_LIVE = Number(process.env.SIP_MAX_CONCURRENT_CALLS || 10)
++const MAX_WAIT_MS = Number(process.env.SIP_QUEUE_MAX_WAIT_MS || 120000)
++const POLL_MS = 2000
++
++const waiting = new Map() // callControlId → { chatId, resolve, timer, poll }
++const claimed = new Map() // callControlId → chatId: let through, session not created yet (counted as live for 15s)
++const CLAIM_MS = 15000
++
++const claim = (chatId, ccid) => { claimed.set(ccid, String(chatId)); setTimeout(() => claimed.delete(ccid), CLAIM_MS).unref?.() }
++const liveCount = (calls, chatId) => {
++  for (const id of claimed.keys()) if (calls[id]) claimed.delete(id) // its session now counts itself
++  return Object.values(calls).filter(c => c && String(c.chatId) === String(chatId) && c.direction === 'outgoing' && !c.isTestCall).length +
++    [...claimed.values()].filter(c => c === String(chatId)).length
++}
++
++const queuedAhead = (chatId, ccid) => {
++  let n = 0
++  for (const [id, w] of waiting) { if (id === ccid) break; if (w.chatId === String(chatId)) n++ }
++  return n
++}
++
++const finish = (ccid, result) => {
++  const w = waiting.get(ccid)
++  if (!w) return
++  clearTimeout(w.timer); clearInterval(w.poll)
++  waiting.delete(ccid)
++  w.resolve(result)
++}
++
++// Resolves 'go' when a slot frees, 'timeout' after MAX_WAIT_MS, 'gone' if the caller hangs up first.
++function waitForSlot(calls, chatId, ccid) {
++  return new Promise(resolve => {
++    const w = { chatId: String(chatId), resolve }
++    w.poll = setInterval(() => {
++      if (liveCount(calls, chatId) + queuedAhead(chatId, ccid) < MAX_LIVE) { claim(chatId, ccid); finish(ccid, 'go') }
++    }, POLL_MS)
++    w.timer = setTimeout(() => finish(ccid, 'timeout'), MAX_WAIT_MS)
++    waiting.set(ccid, w)
++  })
++}
++
++const isFull = (calls, chatId) => liveCount(calls, chatId) + [...waiting.values()].filter(w => w.chatId === String(chatId)).length >= MAX_LIVE
++// Checks the limit and, when there is room, holds a slot for this call right away (no burst can overshoot).
++const admit = (calls, chatId, ccid) => { if (isFull(calls, chatId)) return false; claim(chatId, ccid); return true }
++const drop = (ccid) => { claimed.delete(ccid); finish(ccid, 'gone') }
++const settled = (ccid) => claimed.delete(ccid) // the call's own session now counts it
++const isQueued = (ccid) => waiting.has(ccid)
++
++module.exports = { MAX_LIVE, MAX_WAIT_MS, isFull, admit, settled, waitForSlot, drop, isQueued, liveCount }
+diff --git a/js/spenza.js b/js/spenza.js
+index 8610d930..ff05afcc 100644
+--- a/js/spenza.js
++++ b/js/spenza.js
+@@ -136,7 +136,9 @@ async function buy(chatId, { planId, imei, zipcode, email, autoRenew, source, la
+   const qrEmail = String(email || '').trim().toLowerCase()
+   if ((!bot || qrEmail) && !EMAIL_RE.test(qrEmail)) return { error: 'Enter the email address where we should send your eSIM QR code.' }
+   const im = String(imei || '').replace(/\D/g, '')
+-  if (im.length !== 15 || !luhn(im)) return { error: 'Enter your phone’s 15-digit IMEI (dial *#06# to see it).' }
++  // Telegram buyers may pay first and send the IMEI afterwards (the line waits in 'awaiting_imei').
++  const later = bot && !im
++  if (!later && (im.length !== 15 || !luhn(im))) return { error: 'Enter your phone’s 15-digit IMEI (dial *#06# to see it).' }
+   const zip = String(zipcode || '').trim()
+   if (zip && !/^\d{5}$/.test(zip)) return { error: 'Enter a 5-digit USA ZIP code, or leave it empty.' }
+   const plan = (await forSale()).find(p => p.planId === planId)
+@@ -144,21 +146,59 @@ async function buy(chatId, { planId, imei, zipcode, email, autoRenew, source, la
+   if (!plan.simId) return { error: 'eSIMs are temporarily unavailable. Try again later.' }
+   if (!(await S.w.debit(chatId, plan.price))) return { error: `Your wallet needs $${plan.price} for this eSIM. Top up first.`, code: 'insufficient_balance' }
+   const _id = 'es_' + crypto.randomBytes(6).toString('hex')
+-  const doc = { _id, chatId: String(chatId), planId, price: plan.price, imei: im, zipcode: zip || null, simId: plan.simId, qrEmail: qrEmail || null, autoRenew: autoRenew !== false, status: 'provisioning', callsTo: 'device', ...(bot ? { source: 'telegram', lang: ['en', 'fr', 'hi', 'zh'].includes(lang) ? lang : 'en' } : {}), createdAt: new Date(), updatedAt: new Date() }
++  const doc = { _id, chatId: String(chatId), planId, price: plan.price, imei: im || null, zipcode: zip || null, simId: plan.simId, qrEmail: qrEmail || null, autoRenew: autoRenew !== false, status: later ? 'awaiting_imei' : 'provisioning', callsTo: 'device', ...(bot ? { source: 'telegram', lang: ['en', 'fr', 'hi', 'zh'].includes(lang) ? lang : 'en' } : {}), createdAt: new Date(), updatedAt: new Date() }
+   await S.col.insertOne(doc)
+   await txn(chatId, 'esim-purchase', plan.price, { planId, lineId: _id })
++  if (later) return { item: pub(doc), awaitingImei: true }
++  return provision(doc)
++}
++
++// A bot order whose line was refunded shows as refunded in order reports.
++const orderRefunded = (lineId) => S.db.collection('digitalOrders').updateOne({ esimLineId: lineId }, { $set: { status: 'refunded', refundedAt: new Date() } }).catch(() => {})
++// Send the paid line to Spenza; refund the wallet if Spenza refuses.
++async function provision(doc) {
++  const { _id, chatId, price, simId, planId, imei: im, zipcode: zip } = doc
+   if (dry()) { await S.col.updateOne({ _id }, { $set: { transactionId: 'preview-' + _id, simulated: true } }); return { item: pub(doc) } }
+   try {
+-    const u = await spenzaUser(chatId, bot ? qrEmail || null : null)
+-    const r = await call('post', '/api/v1.1/esim', { imei: im, simId: plan.simId, planId, activateNow: true, email: u.email, user: { name: u.name, email: u.email, ...(u.phoneNumber ? { phoneNumber: u.phoneNumber } : {}), ...(zip ? { zipcode: zip } : {}) }, ...(zip ? { zipcode: zip } : {}) }, { 'Idempotency-Key': _id })
++    const u = await spenzaUser(chatId, doc.source === 'telegram' ? doc.qrEmail || null : null)
++    const r = await call('post', '/api/v1.1/esim', { imei: im, simId, planId, activateNow: true, email: u.email, user: { name: u.name, email: u.email, ...(u.phoneNumber ? { phoneNumber: u.phoneNumber } : {}), ...(zip ? { zipcode: zip } : {}) }, ...(zip ? { zipcode: zip } : {}) }, { 'Idempotency-Key': _id })
+     await S.col.updateOne({ _id }, { $set: { transactionId: r?.data?.transactionId || r?.transactionId, spenzaUser: { email: u.email, private: u.private } } })
+     return { item: pub(doc) }
+   } catch (e) {
+-    await S.w.credit(chatId, plan.price); await txn(chatId, 'esim-refund', plan.price, { lineId: _id })
++    await S.w.credit(chatId, price); await txn(chatId, 'esim-refund', price, { lineId: _id })
++    orderRefunded(_id)
+     S.log(`[eSIM] create ${_id}: ${e.message}`)
+     await S.col.updateOne({ _id }, { $set: { status: 'failed', note: 'The eSIM couldn’t be created. Your payment was refunded.', providerError: e.message, updatedAt: new Date() } })
+-    say(chatId, bt({ chatId, lang: doc.lang }, 'failed', plan.price) || `⚠️ Your eSIM couldn’t be created. $${plan.price} was refunded to your wallet.`, { kind: 'billing', meta: { esim: _id } })
+-    return { error: `We couldn’t create the eSIM right now. Your $${plan.price} was refunded to your wallet.`, code: 'esim_failed' }
++    say(chatId, bt({ chatId, lang: doc.lang }, 'failed', price) || `⚠️ Your eSIM couldn’t be created. $${price} was refunded to your wallet.`, { kind: 'billing', meta: { esim: _id } })
++    return { error: `We couldn’t create the eSIM right now. Your $${price} was refunded to your wallet.`, code: 'esim_failed' }
++  }
++}
++
++// IMEI sent after payment: claim the waiting line once, then create the eSIM.
++async function submitImei(chatId, lineId, imei) {
++  const im = String(imei || '').replace(/\D/g, '')
++  if (im.length !== 15 || !luhn(im)) return { error: 'Enter your phone’s 15-digit IMEI (dial *#06# to see it).' }
++  const doc = await S.col.findOneAndUpdate({ _id: lineId, chatId: String(chatId), status: 'awaiting_imei' }, { $set: { imei: im, status: 'provisioning', provisionStartedAt: new Date(), updatedAt: new Date() } }, { returnDocument: 'after' })
++  const d = doc?.value !== undefined ? doc.value : doc
++  if (!d) return { error: 'This eSIM order is no longer waiting for an IMEI.' }
++  return provision(d)
++}
++
++const IMEI_WAIT_MS = 7 * 86400000
++// Paid lines still without an IMEI: a reminder each day, refund to the wallet after 7 days.
++async function imeiChase() {
++  const now = Date.now()
++  for (const d of await S.col.find({ status: 'awaiting_imei', createdAt: { $lte: new Date(now - IMEI_WAIT_MS) } }).limit(50).toArray()) {
++    const r = await S.col.updateOne({ _id: d._id, status: 'awaiting_imei' }, { $set: { status: 'cancelled', note: 'No IMEI sent within 7 days. Your payment was refunded.', updatedAt: new Date() } })
++    if (!r.modifiedCount) continue
++    await S.w.credit(d.chatId, d.price); await txn(d.chatId, 'esim-refund', d.price, { lineId: d._id, reason: 'no_imei' })
++    await S.db.collection('digitalOrders').updateOne({ esimLineId: d._id }, { $set: { status: 'refunded_no_imei', refundedAt: new Date() } }).catch(() => {})
++    say(d.chatId, bt(d, 'imeiRefund', d.price) || `↩️ Your eSIM order was cancelled because no IMEI was sent within 7 days. $${d.price} was refunded to your wallet.`, { kind: 'billing', meta: { esim: d._id } })
++  }
++  for (const d of await S.col.find({ status: 'awaiting_imei', createdAt: { $lte: new Date(now - DAY_MS) }, imeiRemindedAt: { $not: { $gt: new Date(now - DAY_MS) } } }).limit(50).toArray()) {
++    await S.col.updateOne({ _id: d._id }, { $set: { imeiRemindedAt: new Date() } })
++    const left = Math.max(1, Math.ceil((new Date(d.createdAt).getTime() + IMEI_WAIT_MS - now) / DAY_MS))
++    say(d.chatId, bt(d, 'imeiRemind', left, d.price) || `📟 Your paid eSIM is waiting for your phone’s IMEI. Type /imei or open 📋 My eSIMs to send it. If it isn’t sent within ${left} day(s), $${d.price} goes back to your wallet.`)
+   }
+ }
+ 
+@@ -239,7 +279,7 @@ const dropSip = (d) => d.sip?.credId ? require('./telnyx-service').deleteSIPCred
+ // Poll provisioning; a finished one gets its number, ICCID and QR.
+ async function pollOne(d) {
+   if (d.simulated) {
+-    if (Date.now() - new Date(d.createdAt).getTime() < 20000) return
++    if (Date.now() - new Date(d.provisionStartedAt || d.createdAt).getTime() < 20000) return
+     const iccid = '8901' + String(Date.now()).slice(-15)
+     const phone = '+1555' + String(Date.now()).slice(-7)
+     await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', iccid, phoneNumber: phone, qrCode: `LPA:1$preview.spenza.test$${d._id}`, ...period(new Date(Date.now() + MONTH_MS)), updatedAt: new Date() } })
+@@ -254,8 +294,9 @@ async function pollOne(d) {
+     if (isBot(d.chatId)) return botReady({ ...d, phoneNumber: x.mdn ? '+1' + String(x.mdn).replace(/\D/g, '').slice(-10) : null })
+     const sent = await emailQr({ ...d, phoneNumber: x.mdn || null })
+     say(d.chatId, `📱 Your eSIM is ready. Open CloudIVR eSIM and scan the QR code with your phone to install it. It has two-way SMS: send and receive texts on that phone.${sent ? ` We also emailed it to ${d.qrEmail}.` : ''}`, { kind: 'billing', meta: { esim: d._id } })
+-  } else if (['failed', 'error'].includes(st) || Date.now() - new Date(d.createdAt).getTime() > 86400000) {
++  } else if (['failed', 'error'].includes(st) || Date.now() - new Date(d.provisionStartedAt || d.createdAt).getTime() > 86400000) {
+     await S.w.credit(d.chatId, d.price); await txn(d.chatId, 'esim-refund', d.price, { lineId: d._id })
++    orderRefunded(d._id)
+     await S.col.updateOne({ _id: d._id }, { $set: { status: 'failed', note: 'The eSIM couldn’t be created. Your payment was refunded.', providerError: r?.error?.message || (st ? null : 'timed out after 24 h'), updatedAt: new Date() } })
+     say(d.chatId, bt(d, 'failed', d.price) || (d.kind === 'mobile' ? `⚠️ Your USA mobile number couldn’t be set up. $${d.price} was refunded to your wallet.` : `⚠️ Your eSIM couldn’t be created. $${d.price} was refunded to your wallet.`), { kind: 'billing', meta: d.kind === 'mobile' ? { mobile: d._id } : { esim: d._id } })
+   }
+@@ -606,6 +647,7 @@ async function tick() {
+     await linkUser(d).catch(async e => { S.log(`[Spenza] link user ${d._id}: ${e.message}`); await S.col.updateOne({ _id: d._id }, { $set: { userLinkFailedAt: new Date() } }) })
+   }
+   for (const d of await S.col.find({ 'numberChange.status': 'pending' }).limit(20).toArray()) await pollNumber(d).catch(e => S.log(`[Spenza] number change ${d._id}: ${e.message}`))
++  await imeiChase().catch(e => S.log(`[eSIM] IMEI chase: ${e.message}`))
+ }
+ 
+ // The Telegram bot instance: bot buyers get notices and the QR code in their chat.
+@@ -622,5 +664,5 @@ function init({ db, log = console.log, tell }) {
+   return api
+ }
+ 
+-const api = { init, setBot, sendBotQr, tick, syncUser, linkUser, receiptsOf, MOBILE_PRICE, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
++const api = { init, setBot, sendBotQr, tick, syncUser, linkUser, receiptsOf, MOBILE_PRICE, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, submitImei, imeiChase, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
+ module.exports = api
+diff --git a/js/telnyx-service.js b/js/telnyx-service.js
+index 06b8ba99..251b69ff 100644
+--- a/js/telnyx-service.js
++++ b/js/telnyx-service.js
+@@ -597,6 +597,18 @@ async function hangupCall(callControlId) {
+   }
+ }
+ 
++// ── Call Control: is the call still up? true / false, or null when Telnyx can't be reached ──
++async function isCallAlive(callControlId) {
++  try {
++    const res = await axios.get(`${BASE}/calls/${encodeURIComponent(callControlId)}`, { headers: headers(), timeout: 10000 })
++    return res.data?.data?.is_alive === true
++  } catch (e) {
++    const s = e.response?.status
++    if (s === 404 || s === 422) return false
++    return null
++  }
++}
++
+ // ── Call Control: Reject (before answering — sends SIP 486/603) ──
+ // Use this for calls that should be rejected BEFORE connecting to PSTN.
+ // Unlike hangup, reject prevents the outbound PSTN leg from ever being set up.
+@@ -1059,6 +1071,7 @@ module.exports = {
+   startRecording,
+   stopRecording,
+   hangupCall,
++  isCallAlive,
+   rejectCall,
+   gatherDTMF,
+   gatherDTMFWithAudio,
+diff --git a/js/voice-service.js b/js/voice-service.js
+index 5e9a50ea..86b40f09 100644
+--- a/js/voice-service.js
++++ b/js/voice-service.js
+@@ -165,18 +165,8 @@ const sipRateLimit = {}
+ const SIP_RATE_LIMIT_MAX = 3       // Max calls per window
+ const SIP_RATE_LIMIT_WINDOW = 60000 // 60 seconds window
+ 
+-// Per-user global rate limiter — caps total outbound calls from a single number/user
+-// regardless of destination. Prevents spam dialing to many different numbers.
+-const sipGlobalRateLimit = {}
+-const SIP_GLOBAL_RATE_MAX = 10         // Max total calls per window (any destination)
+-const SIP_GLOBAL_RATE_WINDOW = 300000  // 5-minute window
+-
+-// Fix #2: Escalating hard-block for persistent rate-limit abusers.
+-// After N consecutive rejections, silently drop all webhooks for a cooldown period
+-// instead of processing + logging + calling hangup on every single attempt.
+-const sipHardBlock = {}
+-const HARD_BLOCK_THRESHOLD = 5         // Consecutive rate-limit hits before hard block
+-const HARD_BLOCK_DURATION = 600000     // 10 minutes of silent drop
++// Calls over a user's simultaneous-call limit wait in a queue instead of being hung up.
++const sipQueue = require('./sip-call-queue')
+ 
+ // Expired test credential block set — prevents auto-route retry storm from expired test SIP users.
+ // Key: sipUsername, Value: timestamp when blocked. Entries auto-expire after 10 minutes.
+@@ -1053,57 +1043,39 @@ function checkSipRateLimit(sipUsername, destination) {
+   return true // allowed
+ }
+ 
+-// Check global per-user rate limit (total calls across all destinations)
+-function checkSipGlobalRateLimit(sipUsername) {
+-  const now = Date.now()
+-  const entry = sipGlobalRateLimit[sipUsername]
+-  if (!entry || (now - entry.firstCallTime) > SIP_GLOBAL_RATE_WINDOW) {
+-    sipGlobalRateLimit[sipUsername] = { count: 1, firstCallTime: now }
+-    return true // allowed
+-  }
+-  entry.count++
+-  if (entry.count > SIP_GLOBAL_RATE_MAX) {
+-    return false // blocked
+-  }
+-  return true // allowed
+-}
+-
+-/**
+- * Fix #2: Check if a user is in hard-block (escalated rate limit).
+- * Returns true if the user should be silently dropped (no logging, no hangup API call).
+- */
+-function isSipHardBlocked(key) {
+-  const entry = sipHardBlock[key]
+-  if (!entry) return false
+-  if (Date.now() - entry.blockedAt > HARD_BLOCK_DURATION) {
+-    delete sipHardBlock[key]
+-    log(`[Voice] Hard-block expired for ${key} (was blocked after ${entry.consecutiveHits} consecutive rate-limit hits)`)
+-    return false
+-  }
+-  return true
++// Answer the caller's leg, say why the call can't go through, then hang up.
++async function sayAndHangup(callControlId, text) {
++  try {
++    await _telnyxApi.answerCall(callControlId)
++    await _telnyxApi.speakOnCall(callControlId, text)
++  } catch (e) { /* call may already be ended */ }
++  setTimeout(() => { _telnyxApi.hangupCall(callControlId).catch(() => {}) }, 9000)
+ }
+ 
+-/**
+- * Fix #2: Record a rate-limit hit. After HARD_BLOCK_THRESHOLD consecutive hits,
+- * escalate to hard-block (silent drop for HARD_BLOCK_DURATION).
+- */
+-function recordRateLimitHit(key) {
+-  const now = Date.now()
+-  const entry = sipHardBlock[key]
+-  if (entry && entry.blocked) return true // already hard-blocked
+-  if (!entry || (now - (entry.lastHitAt || 0)) > SIP_GLOBAL_RATE_WINDOW) {
+-    // Reset counter — gap between hits was too large
+-    sipHardBlock[key] = { consecutiveHits: 1, lastHitAt: now, blocked: false }
+-    return false
+-  }
+-  entry.consecutiveHits++
+-  entry.lastHitAt = now
+-  if (entry.consecutiveHits >= HARD_BLOCK_THRESHOLD) {
+-    entry.blocked = true
+-    entry.blockedAt = now
+-    log(`[Voice] 🚫 HARD-BLOCK activated for ${key} — ${entry.consecutiveHits} consecutive rate-limit hits. Silent-dropping for ${HARD_BLOCK_DURATION/1000}s`)
++// Over the simultaneous-call limit: the caller hears a queued message + hold music until a line frees.
++// Returns true when the call may proceed, false when it gave up (timeout or caller hung up).
++async function queueUntilFree(chatId, callControlId, destination) {
++  log(`[Voice] 📥 SIP QUEUE: chatId ${chatId} has ${sipQueue.liveCount(_activeCallsRaw, chatId)} live calls (max ${sipQueue.MAX_LIVE}) — queuing ${callControlId} → ${destination}`)
++  try {
++    await _telnyxApi.answerCall(callControlId)
++    await _telnyxApi.speakOnCall(callControlId, 'All your lines are busy. Your call is queued and will connect automatically. Please hold.')
++  } catch (e) { /* caller may have hung up */ }
++  const music = setTimeout(() => { if (sipQueue.isQueued(callControlId)) _telnyxApi.playbackStart(callControlId, HOLD_MUSIC_URL, { loop: 'infinity' }).catch(() => {}) }, 7000)
++  const lang = await _getUserLang(chatId)
++  _bot?.sendMessage(chatId, _trans('vs.sipCallQueued', lang, formatPhone(destination), sipQueue.MAX_LIVE)
++    || `⏳ Your call to ${formatPhone(destination)} is queued: you already have ${sipQueue.MAX_LIVE} calls connected. It connects automatically when one ends.`).catch(() => {})
++  const result = await sipQueue.waitForSlot(_activeCallsRaw, chatId, callControlId)
++  clearTimeout(music)
++  log(`[Voice] 📤 SIP QUEUE: ${callControlId} → ${result}`)
++  if (result === 'go') {
++    await _telnyxApi.playbackStop(callControlId).catch(() => {})
+     return true
+   }
++  _releaseOutbound(chatId, callControlId)
++  if (result === 'timeout') {
++    await _telnyxApi.playbackStop(callControlId).catch(() => {})
++    await sayAndHangup(callControlId, 'All your lines are still busy. Please try again in a minute.')
++  }
+   return false
+ }
+ 
+@@ -1170,6 +1142,25 @@ function setWalletRejectCooldown(fromNumber, chatId) {
+ }
+ 
+ // Cleanup stale rate limit entries every 5 minutes
++// Remove an old call session only when Telnyx confirms the call ended (non-Telnyx keys and anything past
++// SESSION_HARD_CAP_MS go as before). Live calls are re-checked every 5 minutes.
++const SESSION_HARD_CAP_MS = 6 * 3600 * 1000
++const _walletEndNoticeAt = new Map() // chatId → last 'wallet ran out' notice (parallel calls end together)
++const _aliveChecking = new Set()
++function _expireIfDead(store, key, ageMs, onDelete) {
++  const e = store[key]
++  if (!e || _aliveChecking.has(key)) return
++  if (e._aliveCheckedAt && Date.now() - e._aliveCheckedAt < 5 * 60000 && ageMs < SESSION_HARD_CAP_MS) return
++  const drop = () => { if (store[key] !== e) return; onDelete?.(e); delete store[key]; log(`[Voice] Memory cleanup: removed ended session ${key} (age ${Math.round(ageMs / 60000)} min)`) }
++  if (ageMs >= SESSION_HARD_CAP_MS || !String(key).startsWith('v3:') || !_telnyxApi?.isCallAlive) return drop()
++  _aliveChecking.add(key)
++  _telnyxApi.isCallAlive(key).then(alive => {
++    if (alive === false) return drop()
++    if (store[key]) store[key]._aliveCheckedAt = Date.now()
++    if (alive) log(`[Voice] Long call still live — keeping session ${key} (${Math.round(ageMs / 60000)} min)`)
++  }).catch(() => {}).finally(() => _aliveChecking.delete(key))
++}
++
+ setInterval(() => {
+   const now = Date.now()
+   for (const key of Object.keys(sipRateLimit)) {
+@@ -1177,11 +1168,6 @@ setInterval(() => {
+       delete sipRateLimit[key]
+     }
+   }
+-  for (const key of Object.keys(sipGlobalRateLimit)) {
+-    if ((now - sipGlobalRateLimit[key].firstCallTime) > SIP_GLOBAL_RATE_WINDOW * 2) {
+-      delete sipGlobalRateLimit[key]
+-    }
+-  }
+   for (const key of Object.keys(walletRejectCooldown)) {
+     const entry = walletRejectCooldown[key]
+     const effectiveCooldown = getEscalatedCooldownMs(entry.hitCount || 1)
+@@ -1190,15 +1176,6 @@ setInterval(() => {
+     }
+   }
+ 
+-  // Fix #2: Clean expired hard-block entries
+-  for (const key of Object.keys(sipHardBlock)) {
+-    if (sipHardBlock[key].blockedAt && (now - sipHardBlock[key].blockedAt) > HARD_BLOCK_DURATION * 2) {
+-      delete sipHardBlock[key]
+-    } else if (!sipHardBlock[key].blocked && sipHardBlock[key].lastHitAt && (now - sipHardBlock[key].lastHitAt) > SIP_GLOBAL_RATE_WINDOW * 2) {
+-      delete sipHardBlock[key]
+-    }
+-  }
+-
+   // Clean expired test credential block entries
+   for (const [key, blockedAt] of _expiredTestBlockSet) {
+     if (now - blockedAt > EXPIRED_TEST_BLOCK_DURATION * 2) {
+@@ -1214,6 +1191,8 @@ setInterval(() => {
+   }
+ 
+   // ── Memory Leak Prevention: Cleanup orphaned call session stores ──
++  // Old Telnyx call sessions are removed only once Telnyx says the call is over, so a long call keeps
++  // its end-of-call billing and its wallet guard (prod 2026-11-05: a 32-min transfer was never billed).
+   // These stores rely on webhook events for cleanup. If webhooks are missed
+   // (network glitch, server restart during active call), entries stay forever.
+   // Clean up entries older than their max expected lifetime.
+@@ -1231,9 +1210,7 @@ setInterval(() => {
+   for (const key of Object.keys(activeCalls)) {
+     const entry = activeCalls[key]
+     if (entry?.startedAt && (now - new Date(entry.startedAt).getTime()) > ACTIVE_CALL_MAX_AGE) {
+-      if (entry._limitTimer) clearInterval(entry._limitTimer)
+-      delete activeCalls[key]
+-      cleaned++
++      _expireIfDead(activeCalls, key, now - new Date(entry.startedAt).getTime(), e => { if (e._limitTimer) clearInterval(e._limitTimer) })
+     }
+   }
+ 
+@@ -1242,9 +1219,7 @@ setInterval(() => {
+     const entry = outboundIvrCalls[key]
+     const ts = entry?.startedAt || entry?.createdAt || entry?.startTime
+     if (ts && (now - (ts instanceof Date ? ts.getTime() : ts)) > IVR_SESSION_MAX_AGE) {
+-      if (entry._limitTimer) clearInterval(entry._limitTimer)
+-      delete outboundIvrCalls[key]
+-      cleaned++
++      _expireIfDead(outboundIvrCalls, key, now - (ts instanceof Date ? ts.getTime() : ts), e => { if (e._limitTimer) clearInterval(e._limitTimer) })
+     }
+   }
+ 
+@@ -1273,8 +1248,7 @@ setInterval(() => {
+     const entry = activeBridgeTransfers[key]
+     const ts = entry?.startedAt || entry?.createdAt
+     if (ts && (now - new Date(ts).getTime()) > BRIDGE_TRANSFER_MAX_AGE) {
+-      delete activeBridgeTransfers[key]
+-      cleaned++
++      _expireIfDead(activeBridgeTransfers, key, now - new Date(ts).getTime())
+     }
+   }
+ 
+@@ -1294,9 +1268,7 @@ setInterval(() => {
+     const entry = ivrTransferLegs[key]
+     const ts = entry?.createdAt || entry?.startedAt || entry?.startTime
+     if (ts && (now - (ts instanceof Date ? ts.getTime() : ts)) > IVR_SESSION_MAX_AGE) {
+-      if (entry._transferTimeout) clearTimeout(entry._transferTimeout)
+-      delete ivrTransferLegs[key]
+-      cleaned++
++      _expireIfDead(ivrTransferLegs, key, now - (ts instanceof Date ? ts.getTime() : ts), e => { if (e._transferTimeout) clearTimeout(e._transferTimeout) })
+     }
+   }
+ 
+@@ -2228,6 +2200,7 @@ async function handleVoiceWebhook(req, res) {
+         await handleCallAnswered(payload)
+         break
+       case 'call.hangup': {
++        sipQueue.drop(callControlId)
+         // If we haven't seen call.initiated for this call yet, buffer the hangup
+         // UNLESS it's a known bridge transfer leg — those can be processed directly
+         if (callControlId && !_initiatedCalls.has(callControlId) && !activeBridgeTransfers[callControlId]) {
+@@ -2932,14 +2905,6 @@ async function handleOutboundSipCall(payload) {
+     return
+   }
+ 
+-  // Fix #2: If user is in hard-block, silently drop — no logging, no hangup API call
+-  const rateLimitKey = fromClean || sipUsername
+-  if (isSipHardBlocked(rateLimitKey)) {
+-    // FIX: Do NOT bill hard-blocked calls — they are rejected and never connected
+-    // Billing blocked calls creates phantom charges for calls that were never completed
+-    return // silent drop — saves webhook processing, logging, and Telnyx API calls
+-  }
+-
+   // ── EXPIRED TEST CREDENTIAL EARLY BLOCK ──
+   // If this SIP user was recently identified as an expired test credential,
+   // silently drop without any DB lookups or API calls (saves resources)
+@@ -2962,27 +2927,8 @@ async function handleOutboundSipCall(payload) {
+   // ── SIP Rate Limiting — prevent spam dialing ──
+   if (!checkSipRateLimit(sipUsername, destination)) {
+     log(`[Voice] ⚠️ SIP RATE LIMIT: ${sipUsername} → ${destination} — exceeded ${SIP_RATE_LIMIT_MAX} calls/${SIP_RATE_LIMIT_WINDOW/1000}s, rejecting`)
+-    // FIX: Do NOT bill rate-limited calls — they are rejected before connecting
+-    try {
+-      await _telnyxApi.hangupCall(callControlId)
+-    } catch (e) { log(`[Voice] Reject error: ${e.message}`) }
+-    return
+-  }
+-
+-  // ── Global per-user rate limit — caps total outbound calls from any single user ──
+-  // Prevents users from spam-dialing many different numbers to bypass per-destination limit
+-  if (!checkSipGlobalRateLimit(rateLimitKey)) {
+-    // Fix #2: Record hit and potentially escalate to hard-block
+-    const hardBlocked = recordRateLimitHit(rateLimitKey)
+-    if (!hardBlocked) {
+-      // Still in soft-block — log + hangup
+-      log(`[Voice] ⚠️ SIP GLOBAL RATE LIMIT: ${rateLimitKey} — exceeded ${SIP_GLOBAL_RATE_MAX} total calls/${SIP_GLOBAL_RATE_WINDOW/1000}s, rejecting`)
+-      try {
+-        await _telnyxApi.hangupCall(callControlId)
+-      } catch (e) { /* suppress — call may already be ended */ }
+-    }
+-    // FIX: Do NOT bill rate-limited or hard-blocked calls — they are rejected before connecting
+-    // If hard-blocked, recordRateLimitHit already logged the activation
++    // Not billed — the call never reaches the destination; the caller hears why.
++    await sayAndHangup(callControlId, `You have called this number ${SIP_RATE_LIMIT_MAX} times in the last minute. Please wait a minute and try again.`)
+     return
+   }
+ 
+@@ -3398,6 +3344,13 @@ async function handleOutboundSipCall(payload) {
+   // lets the check above see funds committed to sibling calls started moments ago.
+   _reserveOutbound(chatId, callControlId, sipRate * OUTBOUND_RESERVE_MINUTES)
+ 
++  // ── SIMULTANEOUS-CALL LIMIT: extra calls wait in a queue (nothing is charged while queued) ──
++  let legAnswered = false // a queued call's leg is already answered
++  if (!lookupResult.webTest && !sipQueue.admit(_activeCallsRaw, chatId, callControlId)) {
++    if (!(await queueUntilFree(chatId, callControlId, destination))) return
++    legAnswered = true
++  }
++
+   // ── CONNECTION FEE: Charge $CALL_CONNECTION_FEE per call attempt ──
+   if (CALL_CONNECTION_FEE > 0 && _walletOf && !lookupResult.webTest) {
+     try {
+@@ -3455,6 +3408,7 @@ async function handleOutboundSipCall(payload) {
+       recordingEnabled: num.features?.recording === true,
+       isTestCall: testCallInfo.isTestCall,
+     }
++    sipQueue.settled(callControlId)
+ 
+     // Auto-hangup for test calls after max duration
+     if (testCallInfo.isTestCall && testCallInfo.maxDuration) {
+@@ -3595,7 +3549,7 @@ async function handleOutboundSipCall(payload) {
+     // the user's Twilio number), causing the callee to reject → call dies → our transfer fails.
+     // Answering immediately claims the call on Telnyx's side, preventing the auto-route race.
+     try {
+-      await _telnyxApi.answerCall(callControlId)
++      if (!legAnswered) await _telnyxApi.answerCall(callControlId)
+       log(`[Voice] Outbound SIP (Twilio): Answered call IMMEDIATELY to prevent auto-routing race`)
+     } catch (ansErr) {
+       await _abandonBridge({ chatId, num, destination, callControlId, reason: `answer failed: ${ansErr.message}` })
+@@ -3655,6 +3609,7 @@ async function handleOutboundSipCall(payload) {
+       bridgeId,
+       alive: true,  // Track if call is still active for race condition detection
+     }
++    sipQueue.settled(callControlId)
+ 
+     // ── Mid-call wallet monitor for Twilio bridge calls ──
+     // Outbound calls charge directly from wallet (plan minutes are for inbound only).
+@@ -5257,14 +5212,31 @@ async function handleOutboundIvrAnswered(payload) {
+               const { usdBal } = await getBalance(_walletOf, ownerId)
+               // Disconnect threshold = the ACTUAL per-min rate for the active leg(s)
+               // (international IVR = $0.50/min, policy 2026-08-07), not the flat $0.15.
+-              const midRate = Math.max(getIvrCallRate(sess.targetNumber), sess.ivrNumber ? getIvrCallRate(sess.ivrNumber) : 0) || IVR_CALL_RATE
+-              if (usdBal < midRate) {
+-                log(`[OutboundIVR] Mid-call wallet exhausted: $${usdBal.toFixed(2)} < $${midRate}/min. Disconnecting.`)
++              // Legs are billed at hang-up, so count what this call already owes against the balance.
++              // Every live call of this owner counts (campaign lines and multi-number Quick IVR run in parallel).
++              const mins = (t0) => Math.ceil((Date.now() - t0) / 60000)
++              const legOf = (id) => Object.entries(ivrTransferLegs).find(([, t]) => t.parentCallControlId === id && t.answerTime)
++              const costOf = (id, s) => {
++                const r = getIvrCallRate(s.targetNumber) || IVR_CALL_RATE, l = legOf(id), lr = l ? getIvrCallRate(l[1].ivrNumber) || IVR_CALL_RATE : 0
++                return { owed: (s.answerTime ? mins(s.answerTime) * r : 0) + (l ? mins(l[1].answerTime) * lr : 0), perMin: (s.answerTime ? r : 0) + lr }
++              }
++              let owed = 0, allPerMin = 0
++              for (const [id, s] of Object.entries(outboundIvrCalls)) {
++                if (s.isTrial || s.phase === 'ended' || String(s.chatId) !== String(sess.chatId)) continue
++                const c = costOf(id, s); owed += c.owed; allPerMin += c.perMin
++              }
++              const leg = legOf(callControlId)
++              const midRate = +Math.max(allPerMin, costOf(callControlId, sess).perMin).toFixed(2)
++              const left = usdBal - owed
++              if (left < midRate) {
++                log(`[OutboundIVR] Mid-call wallet exhausted: balance $${usdBal.toFixed(2)}, live calls owe ~$${owed.toFixed(2)}, next minute $${midRate}. Disconnecting.`)
+                 clearInterval(session._limitTimer)
+                 await _telnyxApi.hangupCall(callControlId).catch(() => {})
++                if (leg) await _telnyxApi.hangupCall(leg[0]).catch(() => {})
+                 const lang = await _getUserLang(session.chatId)
+-                const msg = _trans('vs.ivrCallEndedWalletExhausted', lang, usdBal.toFixed(2), midRate)
+-                if (msg) _bot?.sendMessage(session.chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
++                const msg = _trans('vs.ivrCallEndedWalletExhausted', lang, Math.max(0, left).toFixed(2), midRate)
++                const k = String(session.chatId), last = _walletEndNoticeAt.get(k) || 0
++                if (msg && Date.now() - last > 120000) { _walletEndNoticeAt.set(k, Date.now()); _bot?.sendMessage(session.chatId, msg, { parse_mode: 'HTML' }).catch(() => {}) }
+               }
+             } catch (e) { log(`[OutboundIVR] Mid-call wallet check error: ${e.message}`) }
+           }

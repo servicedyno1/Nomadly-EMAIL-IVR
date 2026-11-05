@@ -2179,3 +2179,4 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - 2026-11-03: Return-to-IMEI paths: /imei command (also in bot command menu), eSIM home note + "📟 Send IMEI for my paid eSIM" button, My eSIMs → Send IMEI. Tested iteration_210 (28/28). NOT deployed.
 - 2026-11-05: Web purchase review (user 5000000000000048) → memory/WEB_PURCHASE_REVIEW_2026-11-05.md. Billing leak on >15-min IVR transfers found; not fixed (report only).
 - 2026-11-05: Long-call billing fix (sessions kept while Telnyx says call is live; owner-wide mid-call wallet guard, one notice per owner) + number typo check (js/dial-check.js, libphonenumber-js) on all web call screens, campaigns, contact lists. Tested iteration_211/212. NOT deployed.
+- 2026-11-05 08:41Z: SIP queue, eSIM pay-first + /imei, long-call billing LIVE on all 4 bots (WL via overlay). Typo check is web/app-main only.
