@@ -106,6 +106,27 @@ def rev(ref):
     return out('rev-parse', '--verify', f'{ref}^{{commit}}')
 
 
+def resolve_base(base, source, target):
+    """The last-synced main commit. Main gets force-pushed by automatic saves, which orphans it;
+    the sync only compares trees, so an orphaned base still works once we have the object."""
+    have = lambda: git('rev-parse', '--verify', f'{base}^{{commit}}', check=False).returncode == 0
+    if not have():
+        git('fetch', '--no-tags', '--depth=1', 'origin', base, check=False)
+    if have():
+        b = rev(base)
+        if git('merge-base', '--is-ancestor', b, source, check=False).returncode != 0:
+            print(f'⚠️  main history was rewritten — last synced {b[:8]} is no longer on main; diffing from its tree')
+        return b
+    # Object gone too: fall back to the main commit that was current when WhiteLabel was last synced.
+    r = git('show', f'{target}:{MARKER}', check=False)
+    m = re.search(r'^synced_at=(\S+)\s*$', r.stdout.decode(errors='replace'), re.M) if r.returncode == 0 else None
+    b = out('rev-list', '-1', f'--before={m.group(1)}', source) if m else ''
+    if not b:
+        raise RuntimeError(f'last synced main {base[:8]} not found — re-run with --base <last synced main sha>')
+    print(f'⚠️  last synced {base[:8]} not found; using main {b[:8]} as of {m.group(1)}')
+    return b
+
+
 def tree_map(commit):
     """path -> (mode, blob_sha) for every blob/symlink in the commit's tree."""
     data = git('ls-tree', '-r', '-z', '--full-tree', commit).stdout.decode(errors='surrogateescape')
@@ -313,10 +334,7 @@ def main():
         r = git('show', f'{target}:{MARKER}', check=False)
         mm = re.search(r'^main=([0-9a-f]{7,64})\s*$', r.stdout.decode(errors='replace'), re.M) if r.returncode == 0 else None
         base, base_from = (mm.group(1), MARKER) if mm else (BOOTSTRAP_BASE, 'bootstrap (2026-10-02 hand sync)')
-    base = rev(base)
-    if git('merge-base', '--is-ancestor', base, source, check=False).returncode != 0:
-        raise RuntimeError(f'base {base[:8]} is not an ancestor of {a.source} {source[:8]} '
-                           f'(main history rewritten?) — re-run with --base <last synced main sha>')
+    base = resolve_base(base, source, target)
 
     print(f'main        : {a.source} {source[:8]}')
     print(f'WhiteLabel  : {a.target} {target[:8]}')
