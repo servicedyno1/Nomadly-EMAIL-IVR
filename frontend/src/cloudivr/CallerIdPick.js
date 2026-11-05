@@ -21,7 +21,7 @@ export function ShowAsSelect({ value, onChange, testid, compact = false }) {
   const { data, reload } = useApi('/caller-ids/presets');
   const [open, setOpen] = useState(false);
   const list = data?.items || [];
-  const cur = list.includes(value) ? value : '';
+  const cur = list.some(i => i.number === value) ? value : '';
   const onVerified = (n) => { reload(); if (n) { onChange(n); setOpen(false); } };
   const addBtn = <button type="button" className="text-[#818cf8] hover:underline inline-flex items-center gap-1 min-h-[44px]" onClick={() => setOpen(true)} data-testid={`${testid}-add-button`}><Plus className="w-3.5 h-3.5" />{list.length ? 'Add a caller ID' : 'Show a different caller ID'}</button>;
   const dialog = (
@@ -29,7 +29,7 @@ export function ShowAsSelect({ value, onChange, testid, compact = false }) {
       <DialogContent className="civr !min-h-0 content-start max-w-2xl" data-testid={`${testid}-dialog`}>
         <DialogHeader>
           <DialogTitle>Your saved caller IDs</DialogTitle>
-          <DialogDescription>On Business, save up to 10 numbers you have the right to use and pick one with a tap on any call. Or verify a number you own with a code. Calls are still billed from your VoIP number.</DialogDescription>
+          <DialogDescription>On Business, save up to 10 numbers you have the right to use, name them, and pick one with a tap on any call. Or verify a number you own with a code. Calls are still billed from your VoIP number.</DialogDescription>
         </DialogHeader>
         <CallerIdManager onVerified={onVerified} />
       </DialogContent>
@@ -38,7 +38,7 @@ export function ShowAsSelect({ value, onChange, testid, compact = false }) {
   const chips = (
     <div role="radiogroup" aria-label="Caller ID shown" className="flex flex-wrap gap-2" data-testid={testid}>
       <Chip on={!cur} onClick={() => onChange('')} compact={compact} testid={`${testid}-own`}>Your VoIP number</Chip>
-      {list.map((n, k) => <Chip key={n} on={cur === n} onClick={() => onChange(n)} compact={compact} testid={`${testid}-option-${k}`}>{pv.phone(n)}</Chip>)}
+      {list.map((i, k) => <Chip key={i.number} on={cur === i.number} onClick={() => onChange(i.number)} compact={compact} testid={`${testid}-option-${k}`}>{i.label ? `${i.label} · ${pv.phone(i.number)}` : pv.phone(i.number)}</Chip>)}
     </div>
   );
   if (compact) return (

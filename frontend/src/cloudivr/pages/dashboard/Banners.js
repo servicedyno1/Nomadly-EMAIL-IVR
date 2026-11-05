@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Ticket, Send, X, Gift, PhoneOutgoing, RefreshCw, ArrowUpCircle } from 'lucide-react';
 import { useOffer } from '../../offers';
-import { useApi } from '../../api';
+import { useApi, enc, usd } from '../../api';
 import { useShell } from '../../Shell';
 import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
@@ -69,4 +69,33 @@ export function TrialLink({ testid }) {
   const shell = useShell();
   if (!shell?.summary?.ivrTrial) return null;
   return <Link to={cp('/app/quick-call')} className="civr-btn civr-btn-ghost" data-testid={testid}><Gift className="w-4 h-4" />Try a free Quick IVR call</Link>;
+}
+
+// One-time note for Pro/Starter accounts: show any caller ID on Business, paying only the price difference.
+export function CallerIdUpsellCard() {
+  const { catalog } = useShell();
+  const { account } = useCivrAuth();
+  const { data } = useApi('/numbers');
+  const [closed, setClosed] = useState(false);
+  const KEY = `civr.cidUpsell.${account?.id || 'me'}`;
+  const nums = data?.numbers || [];
+  const hasBiz = nums.some(n => n.status === 'active' && n.plan === 'business');
+  const lower = nums.some(n => n.status === 'active' && !n.isSubNumber && ['starter', 'pro'].includes(n.plan));
+  const plans = catalog?.plans || [];
+  const biz = plans.find(p => p.id === 'business')?.price;
+  const pro = plans.find(p => p.id === 'pro')?.price;
+  const gap = Number.isFinite(biz) && Number.isFinite(pro) ? Math.max(0, biz - pro) : null;
+  if (closed || !data || hasBiz || !lower || recall(KEY) === '1') return null;
+  const close = () => { remember('preferences', KEY, '1'); setClosed(true); };
+  return (
+    <div className="civr-card civr-rise p-5 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 !border-[#fbbf24]/40 bg-gradient-to-r from-[#fbbf24]/10 to-transparent" data-testid="dashboard-callerid-upsell">
+      <div className="w-11 h-11 rounded-xl bg-[#fbbf24]/15 flex items-center justify-center shrink-0"><ArrowUpCircle className="w-5 h-5 text-[#fbbf24]" /></div>
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-base">Show any caller ID with Business</div>
+        <div className="text-sm text-[#a1a1aa] mt-1">Save up to 10 numbers you have the right to use and pick one with a tap on every call. Upgrade to Business{gap ? ` for just ${usd(gap)}` : ''} — you pay only the price difference and your renewal date stays the same.</div>
+      </div>
+      <Link to={cp(`/app/numbers/${enc(nums.find(n => n.status === 'active' && !n.isSubNumber && ['starter', 'pro'].includes(n.plan))?.phoneNumber || '')}?tab=billing&plan=business`)} className="civr-btn civr-btn-primary civr-btn-sm self-start sm:self-auto" data-testid="dashboard-callerid-upsell-cta">Upgrade to Business</Link>
+      <button type="button" onClick={close} className="w-9 h-9 rounded-lg flex items-center justify-center text-[var(--c-muted)] hover:text-[var(--c-text)] hover:bg-[var(--c-accent-soft)]" aria-label="Dismiss" data-testid="dashboard-callerid-upsell-dismiss"><X className="w-4 h-4" /></button>
+    </div>
+  );
 }

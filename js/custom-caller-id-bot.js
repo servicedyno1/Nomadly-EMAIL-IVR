@@ -8,14 +8,14 @@ const T = {
   fa: { emergency: '⚠️ شماره‌های اضطراری را نمی‌توان به عنوان شماره نمایشی استفاده کرد.', taken: '⚠️ این شماره در حساب دیگری استفاده می‌شود. اگر متعلق به شماست با پشتیبانی تماس بگیرید.', trialSet: n => `✅ تماس آزمایشی رایگان شما <b>${n}</b> را نمایش می‌دهد.\n\nاکنون شماره مقصد را با کد کشور بفرستید:`, btn: '🎭 نمایش هر شماره دلخواه', ask: '🎭 <b>نمایش هر شماره دلخواه</b>\n\nروی یک شماره ذخیره‌شده بزنید، یا شماره جدیدی را با کد کشور بفرستید (مثلاً <code>+14155550100</code>) — برای دفعه بعد ذخیره می‌شود.\n\nدر پلن Business · تا ۱۰ شماره ذخیره · شماره‌های اضطراری مجاز نیستند.', askTrial: '🎭 <b>نمایش هر شماره دلخواه در تماس آزمایشی رایگان</b>\n\nشماره‌ای را که طرف مقابل می‌بیند با کد کشور بفرستید (مثلاً <code>+14155550100</code>). شماره‌های اضطراری مجاز نیستند.', confirm: n => `لطفاً تأیید کنید که حق استفاده از <b>${n}</b> را به عنوان شماره نمایشی دارید.`, yes: '✅ حق استفاده از آن را دارم', own: '📞 استفاده از شماره خودم', savedSip: (own, n) => `✅ تماس‌های سافت‌فون از <b>${own}</b> اکنون <b>${n}</b> را نمایش می‌دهند.`, resetSip: own => `✅ تماس‌های سافت‌فون از <b>${own}</b> دوباره شماره خودش را نمایش می‌دهند.`, noLine: '🎭 نمایش هر شماره دلخواه در پلن <b>Business</b> گنجانده شده است. برای استفاده به Business ارتقا دهید.', up: (p, amt) => `🎭 نمایش هر شماره دلخواه در پلن <b>Business</b> گنجانده شده است.\n\n<b>${p}</b> را همین حالا با <b>$${amt}</b> به Business ارتقا دهید — فقط مابه‌التفاوت قیمت را می‌پردازید و تاریخ تمدید تغییر نمی‌کند.`, upBtn: amt => `👑 ارتقا به Business — $${amt}`, full: '⚠️ حداکثر ۱۰ شماره نمایشی می‌توانید ذخیره کنید. برای افزودن شماره جدید، یکی را از شماره‌های من → شماره‌های نمایشی شما حذف کنید.' },
 }
 const t = (lang) => T[lang] || T.en
-const PRESET = /^🎭 (\+[1-9]\d{7,14})$/
+const PRESET = /^🎭 (?:.+ · )?(\+[1-9]\d{7,14})$/
 const isPreset = (m) => typeof m === 'string' && PRESET.test(m)
 const presetOf = (m) => (isPreset(m) ? m.match(PRESET)[1] : null)
 const isBtn = (m) => typeof m === 'string' && m.startsWith('🎭 ') && !isPreset(m)
 const isYes = (m) => Object.values(T).some(x => x.yes === m)
 const isOwn = (m) => Object.values(T).some(x => x.own === m)
 const isUpBtn = (m) => typeof m === 'string' && m.startsWith('👑 ') && / — \$\d/.test(m)
-// One keyboard row per saved caller ID (one tap to use it on this call).
-const presetRows = async (chatId) => (await require('./cloudivr-web/caller-ids').presets(chatId)).map(n => [`🎭 ${n}`])
+// One keyboard row per saved caller ID (one tap to use it on this call); shows its label if set.
+const presetRows = async (chatId) => (await require('./cloudivr-web/caller-ids').presets(chatId)).map(p => [`🎭 ${p.label ? p.label + ' · ' : ''}${p.number}`])
 
 module.exports = { t, isBtn, isYes, isOwn, isPreset, presetOf, isUpBtn, presetRows }

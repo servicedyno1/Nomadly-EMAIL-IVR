@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import { BadgeCheck, Loader2, Trash2, ShieldCheck, Clock } from 'lucide-react';
+import { BadgeCheck, Loader2, Trash2, ShieldCheck, Clock, Pencil } from 'lucide-react';
 import { api, useApi, enc, money } from '../../api';
 import { Field, ErrorNote } from '../../ui';
 import { usePrivacy } from '../../privacy';
@@ -68,20 +68,22 @@ function AttestForm({ onDone }) {
   const { data: nums, reload } = useApi('/numbers');
   const hasBiz = (nums?.numbers || []).some(n => n.status === 'active' && n.plan === 'business');
   const [number, setNumber] = useState('');
+  const [label, setLabel] = useState('');
   const [authorized, setAuthorized] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const submit = async () => {
     setBusy(true); setError(null);
-    try { const d = await api('/caller-ids/attest', { method: 'POST', body: { number, authorized } }); toast.success(`${d.number} is ready to use as your caller ID`); setNumber(''); setAuthorized(false); onDone(d.number); }
+    try { const d = await api('/caller-ids/attest', { method: 'POST', body: { number, label, authorized } }); toast.success(`${d.number} is ready to use as your caller ID`); setNumber(''); setLabel(''); setAuthorized(false); onDone(d.number); }
     catch (e) { setError(e); } finally { setBusy(false); }
   };
   return (
     <div className="border-t border-[#262626] pt-4 space-y-3" data-testid="caller-ids-attest-form">
       <p className="text-sm font-medium">Save a caller ID without a code</p>
-      <p className="text-xs text-[#a1a1aa]">Business plan feature. Works right away; save up to 10 and pick one with a tap on any call. Emergency numbers aren’t allowed.</p>
+      <p className="text-xs text-[#a1a1aa]">Business plan feature. Works right away; save up to 10, give each a name, and pick one with a tap on any call. Emergency numbers aren’t allowed.</p>
       {nums && !hasBiz && <BizUpgrade onDone={reload} />}
       <Field label="Number"><input className="civr-input font-mono" inputMode="tel" value={number} onChange={e => setNumber(e.target.value)} placeholder="+14155550100" data-testid="caller-ids-attest-number" /></Field>
+      <Field label="Name (optional)" hint="e.g. Office, Support — shown on the call buttons."><input className="civr-input" value={label} maxLength={24} onChange={e => setLabel(e.target.value)} placeholder="Office" data-testid="caller-ids-attest-label" /></Field>
       <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={authorized} onChange={e => setAuthorized(e.target.checked)} data-testid="caller-ids-attest-authorized" /><span>I have the right to use this number as my caller ID.</span></label>
       <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || !hasBiz || !number.trim() || !authorized} onClick={submit} data-testid="caller-ids-attest-submit">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Add caller ID</button>
       <ErrorNote error={error} testid="caller-ids-attest-error" />
@@ -177,6 +179,11 @@ export function CallerIdManager({ onVerified }) {
     if (!window.confirm(`Stop showing ${n}? Calls using it go back to their CloudIVR number. Verifying it again costs ${money(price)}.`)) return;
     try { await api(`/caller-ids/${enc(n)}`, { method: 'DELETE' }); toast.success('Caller ID removed'); reload(); } catch (e) { toast.error(e.message); }
   };
+  const rename = async (i) => {
+    const label = window.prompt('Name for this caller ID (e.g. Office). Leave blank to clear.', i.label || '');
+    if (label === null) return;
+    try { await api(`/caller-ids/${enc(i.number)}/label`, { method: 'PUT', body: { label } }); toast.success('Name saved'); reload(); onVerified?.(); } catch (e) { toast.error(e.message); }
+  };
   return (
     <div className="grid lg:grid-cols-2 gap-8" data-testid="caller-ids-manager">
       <div>
@@ -191,8 +198,11 @@ export function CallerIdManager({ onVerified }) {
           {!items.length && !pending.length && !review.length && <p className="text-sm text-[#a1a1aa]" data-testid="caller-ids-empty">No verified numbers yet.</p>}
           {items.map((i, k) => (
             <div key={i.number} className="flex items-center justify-between border border-[#262626] rounded-xl px-4 py-2" data-testid={`caller-ids-item-${k}`}>
-              <span className="font-mono flex items-center gap-2"><BadgeCheck className="w-4 h-4 text-[#818cf8]" />{pv.phone(i.number)}{i.method === 'attested' && <span className="civr-pill">no code</span>}</span>
-              <button type="button" onClick={() => remove(i.number)} className="w-9 h-9 flex items-center justify-center rounded-lg text-[#a1a1aa] hover:text-[#fb7185] hover:bg-[#1f1f1f]" aria-label="Remove" data-testid={`caller-ids-remove-${k}`}><Trash2 className="w-4 h-4" /></button>
+              <span className="flex items-center gap-2 min-w-0"><BadgeCheck className="w-4 h-4 text-[#818cf8] shrink-0" />{i.label && <span className="truncate max-w-[9rem]" data-testid={`caller-ids-item-label-${k}`}>{i.label}</span>}<span className="font-mono text-[#a1a1aa] truncate">{pv.phone(i.number)}</span>{i.method === 'attested' && <span className="civr-pill shrink-0">no code</span>}</span>
+              <span className="flex items-center gap-1 shrink-0">
+                <button type="button" onClick={() => rename(i)} className="w-9 h-9 flex items-center justify-center rounded-lg text-[#a1a1aa] hover:text-[#818cf8] hover:bg-[#1f1f1f]" aria-label="Rename" data-testid={`caller-ids-rename-${k}`}><Pencil className="w-4 h-4" /></button>
+                <button type="button" onClick={() => remove(i.number)} className="w-9 h-9 flex items-center justify-center rounded-lg text-[#a1a1aa] hover:text-[#fb7185] hover:bg-[#1f1f1f]" aria-label="Remove" data-testid={`caller-ids-remove-${k}`}><Trash2 className="w-4 h-4" /></button>
+              </span>
             </div>
           ))}
         </div>

@@ -15,7 +15,7 @@ const nums = Array.from({ length: 11 }, (_, i) => `+1415555${String(2100 + i)}`)
   const mc = await MongoClient.connect(process.env.MONGO_URL); const db = mc.db(process.env.DB_NAME)
   sw.setNotifier(() => {})
   const routes = {}
-  const router = { get: (p, f) => (routes['GET ' + p] = f), post: (p, f) => (routes['POST ' + p] = f), put() {}, delete() {} }
+  const router = { get: (p, f) => (routes['GET ' + p] = f), post: (p, f) => (routes['POST ' + p] = f), put: (p, f) => (routes['PUT ' + p] = f), delete() {} }
   const upgradeCalls = []
   const numbersApi = {
     findMine: async () => null,
@@ -24,7 +24,7 @@ const nums = Array.from({ length: 11 }, (_, i) => `+1415555${String(2100 + i)}`)
     upgradeNumber: async (chatId, n, plan, via, pct, diff) => { upgradeCalls.push({ chatId, phone: n.phoneNumber, plan, pct, diff }); return { status: 200, body: { plan, charged: pc.callerIdUpgradeQuote(n).chargeAmount } } },
   }
   cid.routes(router, { db, h: f => f, numbersApi })
-  const call = async (key, chatId, body = {}) => { let out = { status: 200 }; const r = { status(s) { out.status = s; return this }, json(b) { out.body = b; return this } }; await routes[key]({ webChatId: chatId, body }, r); return out }
+  const call = async (key, chatId, body = {}, params = {}) => { let out = { status: 200 }; const r = { status(s) { out.status = s; return this }, json(b) { out.body = b; return this } }; await routes[key]({ webChatId: chatId, body, params }, r); return out }
   const P = db.collection('phoneNumbersOf')
   const cleanup = async () => { await P.deleteMany({ _id: { $in: [BIZ, PRO] } }); await db.collection('webCallerIds').deleteMany({ _id: { $in: nums } }) }
   try {
@@ -34,8 +34,14 @@ const nums = Array.from({ length: 11 }, (_, i) => `+1415555${String(2100 + i)}`)
     for (let i = 0; i < 10; i++) { const r = await cid.attest(BIZ, nums[i]); if (!r.ok) ok(`attest ${i}`, false, r) }
     const r11 = await cid.attest(BIZ, nums[10]); ok('11th preset refused too_many_presets', r11.error === 'too_many_presets', r11)
     ok('re-attesting a saved one still ok at cap', (await cid.attest(BIZ, nums[3])).ok)
-    const list = await cid.presets(BIZ); ok('presets lists 10', list.length === 10 && list.includes(nums[0]), list)
-    const g = await call('GET /caller-ids/presets', BIZ); ok('GET presets route', g.body.items.length === 10 && g.body.max === 10, g.body)
+    const list = await cid.presets(BIZ); ok('presets lists 10', list.length === 10 && list.some(p => p.number === nums[0]), list)
+    const g = await call('GET /caller-ids/presets', BIZ); ok('GET presets route', g.body.items.length === 10 && g.body.max === 10 && 'number' in g.body.items[0], g.body)
+    const lr = await call('POST /caller-ids/attest', BIZ, { number: nums[2], label: 'Office', authorized: true }); ok('attest accepts label', lr.status === 201 || lr.status === 200, lr)
+    await call('PUT /caller-ids/:number/label', BIZ, { label: 'Support' }, { number: nums[4] })
+    const withLabel = (await cid.presets(BIZ)).find(p => p.number === nums[2]); ok('preset carries label', withLabel?.label === 'Office', withLabel)
+    await cid.resolve(BIZ, nums[7]); await new Promise(r => setTimeout(r, 150))
+    ok('last-used-first: resolved number floats to top', (await cid.presets(BIZ))[0].number === nums[7], (await cid.presets(BIZ)).slice(0, 2))
+    ok('bot button with label parses to its number', ccid.presetOf('🎭 Office · ' + nums[2]) === nums[2] && ccid.isPreset('🎭 Office · ' + nums[2]) && !ccid.isBtn('🎭 Office · ' + nums[2]))
     await P.updateOne({ _id: BIZ }, { $set: { 'val.numbers.0.plan': 'pro' } })
     ok('attested presets hidden once off Business', (await cid.presets(BIZ)).length === 0)
     await P.updateOne({ _id: BIZ }, { $set: { 'val.numbers.0.plan': 'business' } })
@@ -43,11 +49,11 @@ const nums = Array.from({ length: 11 }, (_, i) => `+1415555${String(2100 + i)}`)
     ok('price-gap quote Pro→Business = Business − Pro', q.chargeAmount === pc.plans.business.price - pc.plans.pro.price && q.credit === 0, q)
     ok('normal quote unchanged (25% credit path)', pc.computeUpgradeQuote({ plan: 'pro', purchaseDate: new Date().toISOString() }, 'business').chargeAmount === pc.plans.business.price - pc.plans.pro.price * 0.25)
     const pq = await call('POST /caller-ids/upgrade', PRO, {}); ok('upgrade quote picks the Pro number', pq.body.number === '+18336112192' && pq.body.quote.charge === q.chargeAmount && !upgradeCalls.length, pq.body)
-    const pd = await call('POST /caller-ids/upgrade', PRO, { number: '+18336112192', confirm: true }); ok('confirm upgrades with diff pricing, no offer', pd.status === 200 && upgradeCalls[0]?.diff === true && upgradeCalls[0]?.pct === 0 && upgradeCalls[0]?.plan === 'business', { pd, upgradeCalls })
+    const pd = await call('POST /caller-ids/upgrade', PRO, { number: '+18336112192', confirm: true }, {}); ok('confirm upgrades with diff pricing, no offer', pd.status === 200 && upgradeCalls[0]?.diff === true && upgradeCalls[0]?.pct === 0 && upgradeCalls[0]?.plan === 'business', { pd, upgradeCalls })
     const pb = await call('POST /caller-ids/upgrade', BIZ, {}); ok('business-only account → not_found', pb.status === 404, pb)
     ok('bot preset button parsing', ccid.isPreset('🎭 +14155550100') && ccid.presetOf('🎭 +14155550100') === '+14155550100' && !ccid.isBtn('🎭 +14155550100') && ccid.isBtn(ccid.t('fa').btn))
     ok('bot upgrade button parsing', ccid.isUpBtn(ccid.t('en').upBtn('45.00')) && ccid.isUpBtn(ccid.t('fa').upBtn('45.00')) && !ccid.isUpBtn('👑 Upgrade to Business'))
-    ok('bot preset rows', (await ccid.presetRows(BIZ)).length === 10)
+    ok('bot preset rows', (await ccid.presetRows(BIZ)).length === 10 && (await ccid.presetRows(BIZ)).some(r => r[0].includes('Office · ')))
     ok('no "logged" wording in bot copy', Object.keys({ en: 1, fr: 1, zh: 1, hi: 1, fa: 1 }).every(l => !/logged|enregistrée|记录|लॉग|ثبت می/.test(ccid.t(l).ask)))
   } catch (e) { ok('exception', false, e.stack) }
   await cleanup(); await mc.close()

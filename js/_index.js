@@ -10820,6 +10820,19 @@ bot?.on('message', msg => {
         [pc.audioLibrary, pc.sipSettings],
         [pc.howItWorks],
       ]))
+      // One-time nudge: Pro/Starter users can show any caller ID on Business for the price gap only.
+      try {
+        if (!info?.cidUpsellSent) {
+          const myNums = ((await get(phoneNumbersOf, chatId))?.numbers || [])
+          const hasBiz = myNums.some(n => n.status === 'active' && n.plan === 'business')
+          const low = myNums.find(n => n.status === 'active' && !n.isSubNumber && !n.replacedBy && ['starter', 'pro'].includes(n.plan) && !planLifecycle.onHold(n))
+          const q = low && phoneConfig.callerIdUpgradeQuote(low)
+          if (!hasBiz && q) {
+            await set(state, chatId, 'cidUpsellSent', true)
+            send(chatId, ccid.t(info?.userLanguage).up(low.phoneNumber, q.chargeAmount.toFixed(2)), { parse_mode: 'HTML' })
+          }
+        }
+      } catch (e) { /* non-fatal nudge */ }
     },
     'phone-pay': async () => {
       // Guard: ensure phone number and price exist before showing payment
@@ -26289,6 +26302,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   async function applyCustomCid(cc, number) {
     const L = ccid.t(lang)
     await saveInfo('customCid', null)
+    require('./cloudivr-web/caller-ids').touch(chatId, number)
     if (cc.ctx === 'sip') {
       await require('./cloudivr-web/caller-ids').setDefault(chatId, cc.line, number)
       send(chatId, L.savedSip(cc.line, number), { parse_mode: 'HTML' })
@@ -26324,7 +26338,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (action === 'customCidEnter') {
       const cid = require('./cloudivr-web/caller-ids')
       const pre = ccid.presetOf(message)
-      if (pre && cc.ctx !== 'trial' && (await cid.presets(chatId)).includes(pre)) return applyCustomCid(cc, pre)
+      if (pre && cc.ctx !== 'trial' && (await cid.presets(chatId)).some(p => p.number === pre)) return applyCustomCid(cc, pre)
       if (cid.isEmergency(message)) return send(chatId, L.emergency)
       const n = String(message || '').replace(/[^\d+]/g, '')
       const e164 = n.startsWith('+') ? n : n.length === 10 ? `+1${n}` : `+${n}`
@@ -26520,7 +26534,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       if (!line) return cidUpsell()
       const cc = { ctx: 'ivr', line: line.phoneNumber, plan: line.plan || 'starter' }
       const pre = ccid.presetOf(message)
-      if (pre && (await require('./cloudivr-web/caller-ids').presets(chatId)).includes(pre)) return applyCustomCid(cc, pre)
+      if (pre && (await require('./cloudivr-web/caller-ids').presets(chatId)).some(p => p.number === pre)) return applyCustomCid(cc, pre)
       await saveInfo('customCid', cc)
       await set(state, chatId, 'action', 'customCidEnter')
       return send(chatId, ccid.t(lang).ask, k.of([...await ccid.presetRows(chatId), ['↩️ Back']]))
@@ -28366,7 +28380,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       if (!(await cid.hasPaidPlan(chatId))) return cidUpsell()
       const cc = { ctx: 'bulk', line: line.phoneNumber, type: line.type }
       const pre = ccid.presetOf(message)
-      if (pre && (await cid.presets(chatId)).includes(pre)) return applyCustomCid(cc, pre)
+      if (pre && (await cid.presets(chatId)).some(p => p.number === pre)) return applyCustomCid(cc, pre)
       await saveInfo('customCid', cc)
       await set(state, chatId, 'action', 'customCidEnter')
       return send(chatId, ccid.t(lang).ask, k.of([...await ccid.presetRows(chatId), ['↩️ Back']]))
