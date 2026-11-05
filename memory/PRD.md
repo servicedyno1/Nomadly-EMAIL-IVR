@@ -2177,3 +2177,4 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - eSIM bot pay-first: Buy → ZIP (optional) → email (optional) → auto-renew → pay → IMEI. Line status awaiting_imei; Send IMEI from My eSIMs; daily reminder; refund + cancel after 7 days (spenza.imeiChase). 24h provisioning timeout counts from provisionStartedAt. digitalOrders statuses paid_awaiting_imei/delivered/refunded/refunded_no_imei.
 - Tests: iteration_208 (2 HIGH found, fixed) and iteration_209 (all verified); backend/tests/esim_pay_first.test.js, js/tests/test_sip_call_queue_2026-11.js + iter208 sims.
 - 2026-11-03: Return-to-IMEI paths: /imei command (also in bot command menu), eSIM home note + "📟 Send IMEI for my paid eSIM" button, My eSIMs → Send IMEI. Tested iteration_210 (28/28). NOT deployed.
+- 2026-11-05: Web purchase review (user 5000000000000048) → memory/WEB_PURCHASE_REVIEW_2026-11-05.md. Billing leak on >15-min IVR transfers found; not fixed (report only).
