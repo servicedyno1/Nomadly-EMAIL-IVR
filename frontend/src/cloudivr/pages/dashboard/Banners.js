@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Ticket, Send, X, Gift, PhoneOutgoing, RefreshCw, ArrowUpCircle } from 'lucide-react';
+import { Ticket, Send, X, Gift, PhoneOutgoing, RefreshCw, ArrowUpCircle, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useOffer } from '../../offers';
-import { useApi, enc, usd } from '../../api';
+import { useApi, api, enc, usd } from '../../api';
 import { useShell } from '../../Shell';
 import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
@@ -73,10 +74,11 @@ export function TrialLink({ testid }) {
 
 // One-time note for Pro/Starter accounts: show any caller ID on Business, paying only the price difference.
 export function CallerIdUpsellCard() {
-  const { catalog } = useShell();
+  const { catalog, refreshSummary } = useShell();
   const { account } = useCivrAuth();
   const { data } = useApi('/numbers');
   const [closed, setClosed] = useState(false);
+  const [busy, setBusy] = useState(false);
   const KEY = `civr.cidUpsell.${account?.id || 'me'}`;
   const nums = data?.numbers || [];
   const hasBiz = nums.some(n => n.status === 'active' && n.plan === 'business');
@@ -88,6 +90,16 @@ export function CallerIdUpsellCard() {
   const gap = Number.isFinite(biz) && Number.isFinite(base) ? Math.max(0, biz - base) : null;
   if (closed || !data || hasBiz || !target || recall(KEY) === '1') return null;
   const close = () => { remember('preferences', KEY, '1'); setClosed(true); };
+  const upgrade = async () => {
+    setBusy(true);
+    try {
+      const q = await api('/caller-ids/upgrade', { method: 'POST', body: { number: target.phoneNumber } });
+      if (!window.confirm(`Upgrade ${q.number} to Business for ${usd(q.quote.charge)} from your wallet? You pay only the price difference and your renewal date stays the same.`)) { setBusy(false); return; }
+      const d = await api('/caller-ids/upgrade', { method: 'POST', body: { number: target.phoneNumber, confirm: true } });
+      toast.success(`${d.number} is now on Business · ${usd(d.charged)} charged`);
+      refreshSummary?.(); window.dispatchEvent(new Event('civr:numbers-changed')); close();
+    } catch (e) { toast.error(e.message); } finally { setBusy(false); }
+  };
   return (
     <div className="civr-card civr-rise p-5 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 !border-[#fbbf24]/40 bg-gradient-to-r from-[#fbbf24]/10 to-transparent" data-testid="dashboard-callerid-upsell">
       <div className="w-11 h-11 rounded-xl bg-[#fbbf24]/15 flex items-center justify-center shrink-0"><ArrowUpCircle className="w-5 h-5 text-[#fbbf24]" /></div>
@@ -95,7 +107,7 @@ export function CallerIdUpsellCard() {
         <div className="font-semibold text-base">Show any caller ID with Business</div>
         <div className="text-sm text-[#a1a1aa] mt-1">Save up to 10 numbers you have the right to use and pick one with a tap on every call. Upgrade to Business{gap ? ` for just ${usd(gap)}` : ''} — you pay only the price difference and your renewal date stays the same.</div>
       </div>
-      <Link to={cp(`/app/numbers/${enc(target.phoneNumber)}?tab=billing&plan=business`)} className="civr-btn civr-btn-primary civr-btn-sm self-start sm:self-auto" data-testid="dashboard-callerid-upsell-cta">Upgrade to Business</Link>
+      <button type="button" onClick={upgrade} disabled={busy} className="civr-btn civr-btn-primary civr-btn-sm self-start sm:self-auto" data-testid="dashboard-callerid-upsell-cta">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Upgrade to Business</button>
       <button type="button" onClick={close} className="w-9 h-9 rounded-lg flex items-center justify-center text-[var(--c-muted)] hover:text-[var(--c-text)] hover:bg-[var(--c-accent-soft)]" aria-label="Dismiss" data-testid="dashboard-callerid-upsell-dismiss"><X className="w-4 h-4" /></button>
     </div>
   );

@@ -2217,3 +2217,12 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Removed 'every use is logged' from web attest form and bot copy (en/fr/zh/hi/fa). Recording/transcription copy unchanged.
 - Tests: `js/tests/caller_id_presets_iter219.js` 14/14; iteration_219 (1 HIGH UI bug → fixed) + iteration_220 all pass; Quick Call 'Call from' refreshes after upgrade (self-checked).
 - Preview data: Bob's +18509558201 was upgraded to Business during tests.
+
+## 2026-11-05 18:50Z — Caller ID presets + labels + last-used-first + price-gap Business upgrade + 'logged' copy removed — LIVE (main 319f671d, WhiteLabel c76b1c41)
+- Presets: Business accounts keep up to 10 saved caller IDs, named, picked one-tap on every surface (web chips: Quick Call/Campaigns/Softphone/triggers; bot buttons `🎭 Label · +number` on Quick IVR/Bulk/SIP). Most-recently-used first (lastUsedAt).
+- Labels: `attest(label)`, PUT `/caller-ids/:number/label`, web AttestForm name field + rename pencil; shown on chips/buttons.
+- Price-gap upgrade: Pro/Starter → Business for the difference only (Pro $45, Starter $70), renewal unchanged. `phone-config.callerIdUpgradeQuote`; web POST `/caller-ids/upgrade`; dashboard `CallerIdUpsellCard` (one-tap, dismissible, one-time per account); bot one-time hub nudge (`cidUpsellSent`, prefers Pro). Normal upgrades keep 25%-credit rule.
+- Removed 'every use is logged' from web + bot copy (en/fr/zh/hi/fa). Recording/transcript copy unchanged.
+- Tests: local `caller_id_presets_iter219.js` 18/18; iteration_219→222 all green after fixes (bot e2e 19/19, API 19/19). Smoke-verified Bob upgrade charges exactly $45 and card clears; Alice labeled chip shows 'Office · +…'.
+- Deploy: pushed on top of live main (no force). GH Actions app-main ✅, Sync main→WhiteLabel ✅ (5 backend files → all brand bots), Deploy whitelabel ✅. 2.speechcue.com healthy, cloudivr.net 200. Web frontend changes live on main/cloudivr.net only (brands are bot storefronts, no CloudIVR web).
+- Preview data: Bob (+18509558201) ended on Business after tests.

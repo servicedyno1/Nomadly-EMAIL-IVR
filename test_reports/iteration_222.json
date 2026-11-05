@@ -1,0 +1,41 @@
+{
+  "summary": "Iter222 retested the iter221 caller ID fixes. All 3 fixes pass. (1) Bot hub nudge: the Starter+Pro user gets '+18336221103 … $45.00'; Starter-only gets $70.00; Business gets no nudge; the nudge is sent only once (bot e2e 19/19, including 2b which failed in iter221). (2) Web CallerIdUpsellCard: for Bob the CTA goes to /cloudivr/app/numbers/%2B18509558201?tab=billing&plan=business (the Pro number, not the replaced Starter) and the text reads 'for just $45'. With /numbers mocked to Starter-only, it shows $70 and targets the non-replaced +14062358695. Alice (Business) sees no card. (3) The manager list order matches the chips (most recently used first), and both reorder after a dry-run callback with showAs. Label and number are no longer truncated: the number shows in full and the label wraps onto its own line. Regression: pytest 19/19 (iter221 9, iter220 8, new iter222 2). Web UI checks pass: attest with label, chip 'TEST_Lbl · +num' shown first, rename and clear through the prompt, 911 blocked ('Emergency numbers can't be used as a caller ID.'), no 'logged' wording. NEW ISSUE: the dashboard card promises $45, but its CTA opens the general Billing upgrade, which quotes $101.25 for the same number. Details below.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/numbers/:n/upgrade vs POST /caller-ids/upgrade", "issue": "The price-difference quote (diff=true → callerIdUpgradeQuote) is used only by /caller-ids/upgrade, which returns charge 45 for Bob's Pro. The billing-tab upgrade, /numbers/%2B18509558201/upgrade {plan:business}, returns charge 101.25 (Business $120 minus an $18.75 upgrade credit). The dashboard card's CTA leads to the second one."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CallerIdUpsellCard CTA → BillingTab upgrade", "issue": "The card says 'Upgrade to Business for just $45 — you pay only the price difference', but the CTA lands on the Billing tab (?tab=billing&plan=business). There, 'See price' shows 'Pay $101.25 now — includes a $18.75 upgrade credit…'. The user is promised $45 and quoted $101.25. Fix: when plan=business comes from the caller ID card (or always for business), use /caller-ids/upgrade or the diff quote in BillingTab; or make the CTA call /caller-ids/upgrade directly with a confirm step. The bot nudge quotes $45 too, so both channels disagree with the Billing tab.", "selector": "[data-testid='dashboard-callerid-upsell-cta'] → [data-testid='billing-upgrade-quote']", "priority": "HIGH"},
+      {"component": "CallerIdUpsellCard price text", "issue": "The card renders before /public/catalog loads, so it briefly shows 'Upgrade to Business — you pay…' with no price, and the $45 appears a moment later. Minor flicker.", "selector": "[data-testid='dashboard-callerid-upsell']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Caller ID dialog", "issues": ["Rename still uses the native window.prompt (carried over from iter221, not addressed)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/js/tests/bot_callerid_labels_upsell_iter221.js",
+    "/app/backend/tests/test_caller_id_order_iter222.py",
+    "/app/backend/tests/test_caller_id_labels_iter221.py",
+    "/app/backend/tests/test_caller_id_cap_upgrade_iter220.py",
+    "/app/test_reports/pytest/pytest_iter222.xml"
+  ],
+  "action_items": [
+    "Make the dashboard card's upgrade path charge the $45 price difference it promises. Today BillingTab (/numbers/:n/upgrade) quotes $101.25 for Bob's Pro +18509558201. Either point the CTA at the /caller-ids/upgrade quote+confirm flow, or apply the diff quote when upgrading to business from the card.",
+    "Optional: hide the card's price text (or the card) until the catalog has loaded, to avoid the flicker."
+  ],
+  "critical_code_review_comments": [
+    "Banners.js eligible filter excludes replacedBy and isSubNumber but not on-hold or suspended numbers; the bot uses planLifecycle.onHold(n). A suspended Pro could be targeted on web, and its billing upgrade returns 409 'Restore this number first'.",
+    "There are two upgrade pricing models for the same plan change (diff vs credit). Users can get different prices depending on the entry point. Consider one rule."
+  ],
+  "updated_files": ["/app/backend/tests/test_caller_id_order_iter222.py"],
+  "success_rate": {"backend": "100% (pytest 19/19, bot e2e 19/19)", "frontend": "90% (all 3 fixes verified; new mismatch between the card CTA and the Billing price)"},
+  "seed_data_creation": "Temporary TEST caller ID +14155552291 for Alice, created in the UI and then deleted by _id+chatId. Bot test users 990221101-103 were created and cleaned up by the test itself. Alice's preset lastUsedAt order changed because of the dry-run callback tests; the label 'Office' is intact. Bob's data is unchanged (Pro +18509558201 planPrice 75, no upgrade confirmed).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Bot e2e: sudo supervisorctl stop nodejs; node js/tests/mock_telegram_api.js &; TELEGRAM_API_BASE_URL=http://127.0.0.1:5099 node --max-old-space-size=2048 js/start-bot.js & (wait ~90s); node js/tests/bot_callerid_labels_upsell_iter221.js; then pkill both and sudo supervisorctl start nodejs. Web: route.fetch() inside Playwright loses auth (returns 401), so mock /api/cloudivr-web/numbers with a static body to simulate Starter-only. Compare these two for the Pro number: POST /caller-ids/upgrade {} returns 45, POST /numbers/%2B18509558201/upgrade {plan:business} returns 101.25. Do NOT confirm, because Bob's wallet is $39.55.",
+  "rca of the issue": "The card computes its price with the diff model (business minus the current plan price). Its CTA opens BillingTab, which POSTs /numbers/:n/upgrade. That call goes to upgradeNumber(..., diff=false) → computeUpgradeQuote, which uses the credit model. Only caller-ids.js /caller-ids/upgrade passes diff=true. Reproduce: log in as Bob, click the card's CTA, then click 'See price' → $101.25."
+}
