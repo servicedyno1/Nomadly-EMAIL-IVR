@@ -26,6 +26,7 @@ async function resolve(chatId, showAs) {
   const n = clean(showAs)
   const doc = col && await col.findOne({ _id: n, chatId: String(chatId), status: 'verified' })
   if (!doc) { const e = new Error('Add that number under My numbers → Your own caller IDs before calling from it.'); e.code = 'invalid_show_as'; throw e }
+  if (doc.method === 'attested' && !(await hasPaidPlan(chatId))) { const e = new Error('Showing any caller ID is a Business plan feature.'); e.code = 'invalid_show_as'; throw e }
   return n
 }
 const isVerified = (chatId, n) => resolve(chatId, n).then(() => true, () => false)

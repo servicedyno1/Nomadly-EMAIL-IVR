@@ -224,7 +224,7 @@ function initPhoneTestRoutes(app, db, telnyxApi, sipConnectionId, bot) {
       const { sipUsername, showAs } = req.body || {}
       const cid = require('./cloudivr-web/caller-ids')
       const n = String(showAs || '').replace(/[^\d+]/g, '')
-      const e164 = !n ? null : n.startsWith('+') ? n : `+${n}`
+      const e164 = !n ? null : n.startsWith('+') ? n : n.length === 10 ? `+1${n}` : `+${n}`
       if (e164 && cid.isEmergency(showAs)) return res.status(400).json({ error: 'Emergency numbers can’t be used as a caller ID.' })
       if (e164 && !/^\+[1-9]\d{7,14}$/.test(e164)) return res.status(400).json({ error: 'Enter the full number with country code, e.g. +14155550100.' })
       const cred = await db.collection('testCredentials').findOne({ sipUsername: String(sipUsername || ''), expired: { $ne: true } })

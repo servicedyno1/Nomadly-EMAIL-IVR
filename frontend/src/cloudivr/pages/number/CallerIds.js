@@ -53,7 +53,7 @@ function AttestForm({ onDone }) {
   return (
     <div className="border-t border-[#262626] pt-4 space-y-3" data-testid="caller-ids-attest-form">
       <p className="text-sm font-medium">Use a number without a code</p>
-      <p className="text-xs text-[#a1a1aa]">Included with any Cloud IVR plan. Works right away; every use is logged. Emergency numbers aren’t allowed.</p>
+      <p className="text-xs text-[#a1a1aa]">Business plan feature. Works right away; every use is logged. Emergency numbers aren’t allowed.</p>
       <Field label="Number"><input className="civr-input font-mono" inputMode="tel" value={number} onChange={e => setNumber(e.target.value)} placeholder="+14155550100" data-testid="caller-ids-attest-number" /></Field>
       <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={authorized} onChange={e => setAuthorized(e.target.checked)} data-testid="caller-ids-attest-authorized" /><span>I have the right to use this number as my caller ID.</span></label>
       <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || !number.trim() || !authorized} onClick={submit} data-testid="caller-ids-attest-submit">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Add caller ID</button>
@@ -70,7 +70,7 @@ function SipDefaults({ ids }) {
   const save = async (number, showAs) => {
     try { await api('/caller-ids/default', { method: 'PUT', body: { number, showAs: showAs || null } }); toast.success('Softphone caller ID saved'); reload(); } catch (e) { toast.error(e.message); }
   };
-  const list = (nums?.numbers || []).filter(n => n.status === 'active');
+  const list = (nums?.numbers || []).filter(n => n.status === 'active' && n.plan === 'business');
   if (!list.length || !ids.length) return null;
   return (
     <div className="mt-6 space-y-2" data-testid="caller-ids-sip-defaults">
@@ -183,7 +183,7 @@ export function CallerIds() {
   return (
     <section id="caller-ids" className="civr-card p-6 mt-8 scroll-mt-24" data-testid="caller-ids-card">
       <div className="flex items-center gap-2 font-display text-xl font-bold mb-2"><ShieldCheck className="w-5 h-5 text-[#818cf8]" />Your own caller IDs</div>
-      <p className="text-sm text-[#a1a1aa] mb-6 max-w-2xl">Show a number you own, such as your mobile or office line, on Quick IVR calls, Call me first, campaigns, AI agent calls, text triggers and the browser phone. Verify it with a code ($25, charged only when the code is accepted), or add it instantly without a code if you have the right to use it. Calls are still billed from your CloudIVR number.</p>
+      <p className="text-sm text-[#a1a1aa] mb-6 max-w-2xl">Show a number you own, such as your mobile or office line, on Quick IVR calls, Call me first, campaigns, AI agent calls, text triggers and the browser phone. Verify it with a code ($25, charged only when the code is accepted), or, on Business, add any number instantly if you have the right to use it. Calls are still billed from your CloudIVR number.</p>
       <CallerIdManager />
     </section>
   );

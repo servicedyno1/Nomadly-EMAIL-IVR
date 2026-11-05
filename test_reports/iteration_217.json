@@ -1,0 +1,67 @@
+{
+  "summary": "Iter217 tested custom caller ID (A), bot plan ordering (B), landing one-page (C) and the Farsi pass (D). Unit tests: caller-ids.js attest/setDefault/defaultFor/logUse pass 23/23. voice-service retry when the carrier rejects the caller ID passes 4/4: it retries from the user's own number, tells the user 'Phone carriers rejected caller ID X' without naming Telnyx, and sends that notice at most once per hour. The earlier show-as unit test still passes. Web API pytest passes 21/21 (attest, defaults, default, try/call-me and try/browser showAs, /phone/test/caller-id). Bot (mock Telegram :5099, seeded test chats, no calls placed) passes: Quick IVR and Bulk IVR show '🎭 Show Any Caller ID'; Pro gets the Business upsell; Business can enter a number, confirm and continue, with displayCallerId/showAs set; the free trial accepts any non-emergency number; My Numbers 🎭 saves the softphone default and 'Use my own number' resets it. The EN plan flow is correct: hub with Choose a Plan first, Step 1 to Step 4 with real number buttons, an invalid type keeps the buttons, no 'Did you know' message. The FA plan flow fails at Step 4 (old summary, duplicate price line), and the FA hub/activation text is the old copy. Frontend: the landing hero cycling word, pickers, tabs, scroll to #pricing, compare table, try showAs inputs and 10 FAQ items all work. The page now has 8 sections, 7871px at 1920 wide. The CallerIds attest form, its error and the SIP default selector work. The /phone/test caller ID input works (emergency number blocked, number saved).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "bot FA plan flow Step 4 (phone-config.js fa.orderSummary ~line 3538)", "issue": "The Farsi order summary is still the OLD format. It is titled '📋 خلاصه سفارش' with no 'مرحله ۴ از ۴ · بررسی و پرداخت'. It has a duplicate price line ('جمع کل : $75' and 'قیمت : $75'), the old long features list, and English 'Capabilities: Voice · SMS · Fax' and '☎️ Bulk IVR capable'. fr/zh/hi orderSummary are also the old format.", "priority": "HIGH"},
+      {"endpoint": "bot FA activation (phone-config.js fa.activated ~line 3552)", "issue": "The Farsi activation text is still the old 'Cloud IVR شما فعال است!' and always shows the SIP block. It has no 'You're live' wording, so Starter users would see SIP credentials. Same for fr/zh/hi.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "bot FA Cloud IVR hub", "issue": "The Farsi hub still uses the old long copy (no 'Tap 🛒 انتخاب پلن … 4 steps' line). The '📞 68 phone numbers activated this week' line is English."},
+      {"endpoint": "_index.js customCidEnter ~26283", "issue": "'⚠️ Emergency numbers can’t be used as a caller ID.' is hard-coded in English. The attest error messages (r.message: plan_required, number_taken) are also English for fa/fr/zh/hi users."},
+      {"endpoint": "_index.js trial customCid ~26301", "issue": "After choosing a custom caller ID on the free trial, the confirmation reuses t.cp_10 and says 'Caller ID: +44… (shared)'. The '(shared)' label is wrong for a custom caller ID."},
+      {"endpoint": "_index.js recent-call path ~26466", "issue": "Picking '📋 <recent>' reuses info.ivrObData without deleting displayCallerId. A custom caller ID from the previous call can silently carry over, unlike the normal path, which deletes it at ~26495."},
+      {"endpoint": "caller-ids resolve()/isVerified (SIP default, web Quick IVR, bulk showAs)", "issue": "The Business plan is only checked when the number is attested. Use-time checks only status=verified, so after a Business→Pro downgrade or expiry, attested numbers (and saved SIP defaults) keep working. Fix: for method:'attested', re-check hasPaidPlan at use time."},
+      {"endpoint": "/api/public/try/* and /api/phone/test/caller-id showAs normalisation", "issue": "This differs from attest's clean(). A 10-digit '4155550199' becomes '+4155550199' (country 41) here, but '+14155550199' in attest and the bot."},
+      {"endpoint": "/api/phone/test/caller-id", "issue": "There is no auth beyond knowing sipUsername (acceptable for a test credential). The verify-otp response does not return the saved showAs, so after a reload the UI does not show the current caller ID."},
+      {"endpoint": "Step 4 summary (en)", "issue": "'Due today: $75' but the button is '💵 Deposit $76', and the 'Crypto' button has no ₿ although the text says '₿ Crypto'. This is cosmetic and was probably there before."},
+      {"endpoint": "bot manage menu after 🎭 save/reset", "issue": "backTo() rebuilds the manage menu with buildManageMenu(cpActiveNumber). The '➕ Add Number to Plan' row that was in the original menu is missing."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CallerIds.js AttestForm line 56", "issue": "The copy says 'Included with any Cloud IVR plan', but the backend restricts this to Business (403 plan_required). Starter and Pro users still see the form and only fail after they submit. Change the copy to 'Business plan' and show an upsell or disable the form for non-Business users.", "selector": "[data-testid=caller-ids-attest-form]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing pricing eSIM/mobile tab", "issues": ["The 'Which one do I need?' side card stretches to the plan card's height and leaves a large empty area."]},
+      {"screen": "CallerIds SIP defaults", "issues": ["Every active number is listed, including Starter numbers that have no SIP."]},
+      {"screen": "Landing mobile tab", "issues": ["hero-order-mobile is not shown in preview because /public/mobile-offer returns available:false, so the Waitlist shows instead. This is expected, not a bug."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/js/tests/caller_ids_attest_iter217.js",
+    "/app/js/tests/caller_id_reject_retry_iter217.js",
+    "/app/backend/tests/test_custom_caller_id_iter217.py",
+    "/app/test_reports/pytest/iter217.xml",
+    "/app/js/tests/seed_iter217.js",
+    "/app/js/tests/seed_ptest_iter217.js"
+  ],
+  "action_items": [
+    "Update phone-config fa (and fr/zh/hi) orderSummary to the new 'Step 4 of 4 · Review & pay' format without the duplicate price line, and activated to 'You're live' without the SIP block for Starter.",
+    "Update the fa Cloud IVR hub copy to the new compact copy and translate the social-proof line.",
+    "Fix the CallerIds attest copy to say Business only, and add an upsell for non-Business users.",
+    "Translate the bot emergency and attest error messages (use ccid.t(lang)).",
+    "Delete displayCallerId on the Quick IVR '📋 recent' path.",
+    "Optional: re-check the Business plan at use time for attested caller IDs, align 10-digit showAs normalisation in trycall/phone-test with clean(), and fix the '(shared)' label on the trial custom caller ID."
+  ],
+  "critical_code_review_comments": [
+    "voice-service IVR retry only covers synchronous createOutboundCall errors. A carrier rejection that arrives later as a call.hangup cause is not retried or notified.",
+    "SIP path: logUse runs before the transfer, so a rejected custom caller ID is still logged as used. This is acceptable for audit.",
+    "custom-caller-id-bot isBtn() matches any message starting with '🎭 '. That is safe today (no other 🎭 buttons) but fragile.",
+    "_index.js is 52k lines and voice-service.js 6k lines. The new logic is reasonably isolated in custom-caller-id-bot.js and caller-ids.js."
+  ],
+  "updated_files": [
+    "/app/js/tests/caller_ids_attest_iter217.js",
+    "/app/js/tests/caller_id_reject_retry_iter217.js",
+    "/app/js/tests/seed_iter217.js",
+    "/app/js/tests/seed_ptest_iter217.js",
+    "/app/js/tests/set_wallet_iter217.js",
+    "/app/js/tests/q_iter217.js",
+    "/app/backend/tests/test_custom_caller_id_iter217.py"
+  ],
+  "success_rate": {"backend": "48/48 unit+API checks pass; bot EN 100%, bot FA plan flow Step 4 failed (old summary)", "frontend": "~95% (one copy/upsell bug)"},
+  "seed_data_creation": "Seeded bot chats 990217001-005 (state/walletOf/phoneNumbersOf/userConversion), testCredentials T217_ptest, Mongo T217_* docs and Alice caller ID +14155550961. All were removed afterwards, by id or chatId. Alice's SIP default was cleared through the DELETE API. One webTryCalls doc (dry run) was deleted by id.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Bot test runbook: sudo supervisorctl stop nodejs; node js/tests/mock_telegram_api.js &; TELEGRAM_API_BASE_URL=http://127.0.0.1:5099 node js/start-bot.js > /tmp/bot217.log &; node js/tests/seed_iter217.js seed; drive with BOT_LOG=/tmp/bot217.log node js/tests/say_iter215.js <chat> '<text>'; clean with seed_iter217.js clean; pkill the bot and mock; sudo supervisorctl start nodejs (restored, RUNNING). Try-call token goes in the request BODY ('token'), not a header. /phone/test UI: seed a testCredentials doc with lastOtp, then enter that OTP on the 'Free Test' tab (reconnect path, no Telnyx). Alice (+13346972125) is Business; Bob has no numbers."
+}

@@ -116,7 +116,7 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     if (req.body.showAs) {
       if (cidSvc.isEmergency(req.body.showAs)) return bad(res, 400, 'invalid_show_as', 'Emergency numbers can’t be used as a caller ID.')
       const s = String(req.body.showAs).replace(/[^\d+]/g, '')
-      showAs = s.startsWith('+') ? s : `+${s}`
+      showAs = s.startsWith('+') ? s : s.length === 10 ? `+1${s}` : `+${s}`
       if (!/^\+[1-9]\d{7,14}$/.test(showAs)) return bad(res, 400, 'invalid_show_as', 'Enter the caller ID with country code, e.g. +14155550100.')
     }
     const doc = await record(req, email, 'call_me', d.to, { chatId: await nextChatId() })
@@ -201,7 +201,7 @@ function _showAs(raw) {
   if (!raw) return null
   if (require('./caller-ids').isEmergency(raw)) return undefined
   const s = String(raw).replace(/[^\d+]/g, '')
-  const n = s.startsWith('+') ? s : `+${s}`
+  const n = s.startsWith('+') ? s : s.length === 10 ? `+1${s}` : `+${s}`
   return /^\+[1-9]\d{7,14}$/.test(n) ? n : undefined
 }
 

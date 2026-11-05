@@ -10516,7 +10516,6 @@ bot?.on('message', msg => {
     if (caps.fax) capLabels.push('Fax')
     const bulkTag = info?.cpBulkIvrCapable ? '\n☎️ <b>Bulk IVR capable</b>' : ''
     let s = cpTxt.orderSummary(info?.cpSelectedNumber, info?.cpCountryName || 'US', plan, totalPrice)
-    if (capLabels.length) s += `\n📋 Capabilities: ${capLabels.join(' · ')}${bulkTag}`
     if (surcharge > 0) {
       const gross = Math.max(totalPrice, Number(info?.cpPriceBase) || 0)
       s += `\n\n💰 <b>Number Cost:</b> $${surcharge.toFixed(2)}/mo (added to plan)\n📋 Plan: $${info?.cpPlanBasePrice || plan?.price}/mo + Number: $${surcharge.toFixed(2)}/mo = <b>$${gross.toFixed(2)}/mo</b>`
@@ -26280,7 +26279,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
     if (action === 'customCidEnter') {
       const cid = require('./cloudivr-web/caller-ids')
-      if (cid.isEmergency(message)) return send(chatId, '⚠️ Emergency numbers can’t be used as a caller ID.')
+      if (cid.isEmergency(message)) return send(chatId, L.emergency)
       const n = String(message || '').replace(/[^\d+]/g, '')
       const e164 = n.startsWith('+') ? n : n.length === 10 ? `+1${n}` : `+${n}`
       if (!/^\+[1-9]\d{7,14}$/.test(e164)) return send(chatId, L.ask, k.of([['↩️ Back']]))
@@ -26298,10 +26297,10 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const ivrObData = { ...(info?.ivrObData || {}), displayCallerId: cc.number }
       await saveInfo('ivrObData', ivrObData)
       await set(state, chatId, 'action', a.ivrObEnterTarget)
-      return send(chatId, trans('t.cp_10', cc.number), k.of([]))
+      return send(chatId, L.trialSet(cc.number), k.of([]))
     }
     const r = await cid.attest(chatId, cc.number, { who: username ? `@${username}` : '', channel: 'bot' })
-    if (!r.ok) { await set(state, chatId, 'action', 'customCidEnter'); return send(chatId, `⚠️ ${r.message}`, k.of([['↩️ Back']])) }
+    if (!r.ok) { await set(state, chatId, 'action', 'customCidEnter'); return send(chatId, ({ plan_required: L.noLine, number_taken: L.taken, emergency_number: L.emergency })[r.error] || L.ask, k.of([['↩️ Back']])) }
     await saveInfo('customCid', null)
     if (cc.ctx === 'sip') {
       await cid.setDefault(chatId, cc.line, r.number)
@@ -26469,6 +26468,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       if (eligibleNumbers.length === 0) return send(chatId, trans('t.cp_22'))
       const caller = eligibleNumbers[0]
       ivrObData.callerId = caller.phoneNumber
+      delete ivrObData.displayCallerId
       ivrObData.callerProvider = caller.provider || 'telnyx'
       ivrObData.callerPlan = caller.plan || 'starter'
       ivrObData.targetNumber = recentNumber
