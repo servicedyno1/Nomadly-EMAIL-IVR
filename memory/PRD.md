@@ -2182,3 +2182,4 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - 2026-11-05 08:41Z: SIP queue, eSIM pay-first + /imei, long-call billing LIVE on all 4 bots (WL via overlay). Typo check is web/app-main only.
 - 2026-11-05 09:05Z: WhiteLabel sync automatic again (skips CloudIVR-web-only files unless needed); WL caught up (0862e470) and all 3 WL bots redeployed.
 - 2026-11-05 12:36Z: Scam-name admin alerts (js/scam-watch.js; web middleware + campaigns + quick IVR), WhiteLabel sync Telegram note (admin chat, verified 200), zod 4.6.7; Dependabot: zod fixed, pymongo alert dismissed as stale (4.19.0 pinned). Deployed all 4 bots (main a09aa840 / WL 6ac4eaa3).
+- 2026-11-05: 48h new-user analysis → memory/NEW_USERS_48H_2026-11-05.md (no code changes).
