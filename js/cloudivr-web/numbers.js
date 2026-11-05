@@ -694,12 +694,12 @@ function routes(router, deps) {
   }))
 
   // Price to move `n` up to `newPlan` now → { charge, credit, newPrice } or { error } (HTTP-style).
-  function upgradeQuote(n, newPlan, pct = 0) {
+  function upgradeQuote(n, newPlan, pct = 0, diff = false) {
     const order = Object.keys(phoneConfig.plans)
     if (n.isSubNumber) return { error: { status: 400, error: 'is_extra', message: 'Extra numbers follow the plan of their main number.' } }
     if (lifecycle.onHold(n)) return { error: { status: 409, error: 'suspended', message: 'Restore this number first (Renew now), then change its plan.' } }
     if (!phoneConfig.plans[newPlan] || order.indexOf(newPlan) <= order.indexOf(n.plan)) return { error: { status: 400, error: 'invalid_plan', message: 'Pick a higher plan than the current one.' } }
-    const q = phoneConfig.computeUpgradeQuote(n, newPlan)
+    const q = diff && newPlan === 'business' ? phoneConfig.callerIdUpgradeQuote(n) : phoneConfig.computeUpgradeQuote(n, newPlan)
     // Keep the number's surcharge (e.g. international) on top of the new plan price, as downgrade does.
     const surcharge = Math.max(0, round2((n.planPrice || phoneConfig.plans[n.plan].price) - phoneConfig.plans[n.plan].price))
     const full = round2(q && Number.isFinite(q.chargeAmount) ? q.chargeAmount : phoneConfig.plans[newPlan].price)
@@ -709,9 +709,9 @@ function routes(router, deps) {
   // Charges the wallet and switches the plan → { status, body }. viaOrder = crypto order ref that paid for it.
   const upgradeOffer = (chatId, n, plan) => (deps.offers ? deps.offers.upgradeOffer(chatId, n.phoneNumber, plan).catch(() => null) : null)
   // pct = offer discount already fixed on a crypto order (null → today's offer, if any).
-  async function upgradeNumber(chatId, n, newPlan, viaOrder = null, pct = null) {
+  async function upgradeNumber(chatId, n, newPlan, viaOrder = null, pct = null, diff = false) {
     const offer = pct === null ? await upgradeOffer(chatId, n, newPlan) : null
-    const q = upgradeQuote(n, newPlan, pct === null ? (offer?.discount || 0) : pct)
+    const q = upgradeQuote(n, newPlan, pct === null ? (offer?.discount || 0) : pct, diff)
     if (q.error) return { status: q.error.status, body: { error: q.error.error, message: q.error.message } }
     if (!(await w.debit(chatId, q.charge))) return { status: 402, body: { error: 'insufficient_balance', message: `The upgrade costs $${q.charge.toFixed(2)}. Top up your wallet first.` } }
     // Switch back on what a downgrade turned off, when the new plan includes it.

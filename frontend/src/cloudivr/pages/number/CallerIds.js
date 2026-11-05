@@ -39,9 +39,31 @@ function AddForm({ price, onSent }) {
   );
 }
 
-// Paid-plan users: show any number they have the right to use — no code, free, logged.
+// Pro/Starter: one tap moves a number to Business for just the price gap.
+function BizUpgrade({ onDone }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const go = async () => {
+    setBusy(true); setError(null);
+    try {
+      const q = await api('/caller-ids/upgrade', { method: 'POST', body: {} });
+      if (!window.confirm(`Upgrade ${q.number} to Business for ${money(q.quote.charge)} from your wallet? You only pay the price difference and your renewal date stays the same.`)) return;
+      const d = await api('/caller-ids/upgrade', { method: 'POST', body: { number: q.number, confirm: true } });
+      toast.success(`${d.number} is now on Business · ${money(d.charged)} charged`); onDone();
+    } catch (e) { setError(e); } finally { setBusy(false); }
+  };
+  return (
+    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 space-y-2" data-testid="caller-ids-attest-upsell">
+      <p className="text-xs text-amber-300">Showing any caller ID is on the Business plan. Upgrade now and pay only the price difference.</p>
+      <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy} onClick={go} data-testid="caller-ids-upgrade-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Upgrade to Business</button>
+      <ErrorNote error={error} testid="caller-ids-upgrade-error" />
+    </div>
+  );
+}
+
+// Business users: save up to 10 numbers they have the right to use — no code, free.
 function AttestForm({ onDone }) {
-  const { data: nums } = useApi('/numbers');
+  const { data: nums, reload } = useApi('/numbers');
   const hasBiz = (nums?.numbers || []).some(n => n.status === 'active' && n.plan === 'business');
   const [number, setNumber] = useState('');
   const [authorized, setAuthorized] = useState(false);
@@ -54,9 +76,9 @@ function AttestForm({ onDone }) {
   };
   return (
     <div className="border-t border-[#262626] pt-4 space-y-3" data-testid="caller-ids-attest-form">
-      <p className="text-sm font-medium">Use a number without a code</p>
-      <p className="text-xs text-[#a1a1aa]">Business plan feature. Works right away; every use is logged. Emergency numbers aren’t allowed.</p>
-      {nums && !hasBiz && <p className="text-xs text-amber-400" data-testid="caller-ids-attest-upsell">Upgrade a number to Business to show any caller ID.</p>}
+      <p className="text-sm font-medium">Save a caller ID without a code</p>
+      <p className="text-xs text-[#a1a1aa]">Business plan feature. Works right away; save up to 10 and pick one with a tap on any call. Emergency numbers aren’t allowed.</p>
+      {nums && !hasBiz && <BizUpgrade onDone={reload} />}
       <Field label="Number"><input className="civr-input font-mono" inputMode="tel" value={number} onChange={e => setNumber(e.target.value)} placeholder="+14155550100" data-testid="caller-ids-attest-number" /></Field>
       <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={authorized} onChange={e => setAuthorized(e.target.checked)} data-testid="caller-ids-attest-authorized" /><span>I have the right to use this number as my caller ID.</span></label>
       <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || !hasBiz || !number.trim() || !authorized} onClick={submit} data-testid="caller-ids-attest-submit">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Add caller ID</button>
@@ -186,7 +208,7 @@ export function CallerIds() {
   return (
     <section id="caller-ids" className="civr-card p-6 mt-8 scroll-mt-24" data-testid="caller-ids-card">
       <div className="flex items-center gap-2 font-display text-xl font-bold mb-2"><ShieldCheck className="w-5 h-5 text-[#818cf8]" />Your own caller IDs</div>
-      <p className="text-sm text-[#a1a1aa] mb-6 max-w-2xl">Show a number you own, such as your mobile or office line, on Quick IVR calls, Call me first, campaigns, AI agent calls, text triggers and the browser phone. Verify it with a code ($25, charged only when the code is accepted), or, on Business, add any number instantly if you have the right to use it. Calls are still billed from your CloudIVR number.</p>
+      <p className="text-sm text-[#a1a1aa] mb-6 max-w-2xl">Show a number you own, such as your mobile or office line, on Quick IVR calls, Call me first, campaigns, AI agent calls, text triggers and the browser phone. Verify it with a code ($25, charged only when the code is accepted), or, on Business, save up to 10 numbers you have the right to use and pick one with a tap on each call. Calls are still billed from your CloudIVR number.</p>
       <CallerIdManager />
     </section>
   );

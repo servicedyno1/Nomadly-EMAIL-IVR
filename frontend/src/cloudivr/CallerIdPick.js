@@ -1,46 +1,56 @@
 import React, { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Check } from 'lucide-react';
 import { useApi } from './api';
 import { Field } from './ui';
 import { usePrivacy } from './privacy';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
 import { CallerIdManager } from './pages/number/CallerIds';
 
-// "Show as": the number people see. Empty = the CloudIVR number placing the call; otherwise one the user verified.
+function Chip({ on, onClick, children, testid, compact }) {
+  return (
+    <button type="button" role="radio" aria-checked={on} onClick={onClick} data-testid={testid}
+      className={`inline-flex items-center gap-1 rounded-full border font-mono transition-colors ${compact ? 'px-2.5 h-8 text-xs' : 'px-3 h-9 text-sm'} ${on ? 'border-[#818cf8] bg-[#818cf8]/15 text-[#e0e7ff]' : 'border-[#3f3f46] text-[#a1a1aa] hover:border-[#71717a] hover:text-[#e4e4e7]'}`}>
+      {on && <Check className="w-3.5 h-3.5" />}{children}
+    </button>
+  );
+}
+
+// "Show as": the number people see. Empty = the CloudIVR number placing the call; otherwise one tap on a saved caller ID.
 export function ShowAsSelect({ value, onChange, testid, compact = false }) {
   const pv = usePrivacy();
-  const { data, reload } = useApi('/caller-ids');
+  const { data, reload } = useApi('/caller-ids/presets');
   const [open, setOpen] = useState(false);
-  const list = (data?.items || []).filter(i => i.status === 'verified').map(i => i.number);
+  const list = data?.items || [];
+  const cur = list.includes(value) ? value : '';
   const onVerified = (n) => { reload(); if (n) { onChange(n); setOpen(false); } };
-  const addBtn = <button type="button" className="text-[#818cf8] hover:underline inline-flex items-center gap-1 min-h-[44px]" onClick={() => setOpen(true)} data-testid={`${testid}-add-button`}><Plus className="w-3.5 h-3.5" />Add or verify a number</button>;
+  const addBtn = <button type="button" className="text-[#818cf8] hover:underline inline-flex items-center gap-1 min-h-[44px]" onClick={() => setOpen(true)} data-testid={`${testid}-add-button`}><Plus className="w-3.5 h-3.5" />{list.length ? 'Add a caller ID' : 'Show a different caller ID'}</button>;
   const dialog = (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="civr !min-h-0 content-start max-w-2xl" data-testid={`${testid}-dialog`}>
         <DialogHeader>
-          <DialogTitle>Your own caller IDs</DialogTitle>
-          <DialogDescription>Verify a number you own with a code, or request one we review by hand. $25 each, charged only when it’s accepted. Calls are still billed from your VoIP number.</DialogDescription>
+          <DialogTitle>Your saved caller IDs</DialogTitle>
+          <DialogDescription>On Business, save up to 10 numbers you have the right to use and pick one with a tap on any call. Or verify a number you own with a code. Calls are still billed from your VoIP number.</DialogDescription>
         </DialogHeader>
         <CallerIdManager onVerified={onVerified} />
       </DialogContent>
     </Dialog>
   );
-  const select = (
-    <select className={`civr-input font-mono ${compact ? '!h-9 text-xs' : ''}`} value={list.includes(value) ? value : ''} onChange={e => onChange(e.target.value)} disabled={!list.length} aria-label="Caller ID shown" data-testid={testid}>
-      <option value="">Same as your VoIP number</option>
-      {list.map(n => <option key={n} value={n}>{pv.phone(n)}</option>)}
-    </select>
+  const chips = (
+    <div role="radiogroup" aria-label="Caller ID shown" className="flex flex-wrap gap-2" data-testid={testid}>
+      <Chip on={!cur} onClick={() => onChange('')} compact={compact} testid={`${testid}-own`}>Your VoIP number</Chip>
+      {list.map((n, k) => <Chip key={n} on={cur === n} onClick={() => onChange(n)} compact={compact} testid={`${testid}-option-${k}`}>{pv.phone(n)}</Chip>)}
+    </div>
   );
   if (compact) return (
     <div className="mb-3" data-testid={`${testid}-compact`}>
       <div className="flex items-center justify-between mb-1"><span className="text-xs text-[#a1a1aa]">Show as</span>{addBtn}</div>
-      {list.length ? select : null}
+      {list.length ? chips : null}
       {dialog}
     </div>
   );
   return (
-    <Field label="Show as (caller ID people see)" hint={list.length ? <>Calls are still billed to the VoIP number you call from. {addBtn}</> : <>Verify a number you own to show it instead. {addBtn}</>}>
-      {select}
+    <Field label="Show as (caller ID people see)" hint={<>Calls are still billed to the VoIP number you call from. {addBtn}</>}>
+      {list.length ? chips : <p className="text-sm text-[#a1a1aa]" data-testid={`${testid}-empty`}>Calls show your VoIP number.</p>}
       {dialog}
     </Field>
   );
