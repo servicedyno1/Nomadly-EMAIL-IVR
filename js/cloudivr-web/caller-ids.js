@@ -28,7 +28,6 @@ async function resolve(chatId, showAs) {
   const doc = col && await col.findOne({ _id: n, chatId: String(chatId), status: 'verified' })
   if (!doc) { const e = new Error('Add that number under My numbers → Your own caller IDs before calling from it.'); e.code = 'invalid_show_as'; throw e }
   if (doc.method === 'attested' && !(await hasPaidPlan(chatId))) { const e = new Error('Showing any caller ID is a Business plan feature.'); e.code = 'invalid_show_as'; throw e }
-  col.updateOne({ _id: n }, { $set: { lastUsedAt: new Date() } }).catch(() => {})
   return n
 }
 const isVerified = (chatId, n) => resolve(chatId, n).then(() => true, () => false)
@@ -85,9 +84,9 @@ function routes(router, { db, h, numbersApi }) {
   const view = (d) => ({ number: d._id, status: d.status, method: d.method, note: d.note || null, label: d.label || null, verifiedAt: d.verifiedAt || null })
 
   router.get('/caller-ids', h(async (req, res) => {
-    const items = await col.find({ chatId: req.webChatId }).toArray()
-    items.sort((a, b) => (new Date(b.lastUsedAt || b.verifiedAt || b.createdAt || 0)) - (new Date(a.lastUsedAt || a.verifiedAt || a.createdAt || 0)))
-    res.json({ price: PRICE, dryRun: dry(), items: items.filter(d => d.status === 'verified' || d.status === 'review' || Date.now() - d.createdAt < PENDING_MS).map(view) })
+    const items = (await col.find({ chatId: req.webChatId }).toArray()).sort(byOrder)
+    const used = await usage30(req.webChatId)
+    res.json({ price: PRICE, dryRun: dry(), items: items.filter(d => d.status === 'verified' || d.status === 'review' || Date.now() - d.createdAt < PENDING_MS).map(d => ({ ...view(d), uses30: used[d._id]?.n || 0, lastUsedAt: used[d._id]?.last || null })) })
   }))
 
   // Admin-review path: show a number the customer owns but can't receive a code on (main line, toll-free, call center).
@@ -197,7 +196,15 @@ function routes(router, { db, h, numbersApi }) {
     const r = await numbersApi.upgradeNumber(req.webChatId, n, 'business', null, 0, true)
     res.status(r.status).json({ number: n.phoneNumber, ...r.body })
   }))
-  router.get('/caller-ids/presets', h(async (req, res) => res.json({ items: await presets(req.webChatId), max: MAX_PRESETS })))
+  router.get('/caller-ids/presets', h(async (req, res) => res.json({ items: await presets(req.webChatId), max: MAX_PRESETS, last: req.query?.from ? await lastFor(req.webChatId, clean(req.query.from)) : null })))
+  // Hand order for saved caller IDs: numbers in the order the user wants them.
+  router.put('/caller-ids/order', h(async (req, res) => {
+    const list = (Array.isArray(req.body.numbers) ? req.body.numbers : []).map(clean)
+    const mine = new Set((await col.find({ chatId: req.webChatId, status: 'verified' }).toArray()).map(d => d._id))
+    if (!list.length || list.some(n => !mine.has(n))) return bad(res, 400, 'invalid_order', 'Send the numbers of your saved caller IDs in the order you want.')
+    await Promise.all(list.map((n, i) => col.updateOne({ _id: n, chatId: req.webChatId }, { $set: { pos: i } })))
+    res.json({ items: await presets(req.webChatId) })
+  }))
   // Default caller ID for one of your numbers — used by SIP softphone calls (softphones can't pick a caller ID per call).
   router.get('/caller-ids/defaults', h(async (req, res) => {
     const items = await db.collection('callerIdDefaults').find({ chatId: req.webChatId }).toArray()
@@ -247,7 +254,23 @@ async function setDefault(chatId, ownNumber, showAs) {
   await resolve(chatId, showAs)
   return c.replaceOne({ _id: String(ownNumber) }, { _id: String(ownNumber), chatId: String(chatId), showAs: clean(showAs), at: new Date() }, { upsert: true })
 }
-const logUse = (chatId, showAs, via, to) => { dbRef?.collection('callerIdUses').insertOne({ chatId: String(chatId), showAs, via, to: String(to || ''), at: new Date() }).catch(() => {}) }
+const logUse = (chatId, showAs, via, to) => { dbRef?.collection('callerIdUses').insertOne({ chatId: String(chatId), showAs, via, to: String(to || ''), at: new Date() }).catch(() => {}); touch(chatId, showAs) }
+// Last caller ID picked for calls from one VoIP number (null = its own number), so the next call starts with it.
+function rememberLast(chatId, from, showAs) { dbRef?.collection('callerIdLast').replaceOne({ _id: `${chatId}:${from}` }, { _id: `${chatId}:${from}`, chatId: String(chatId), from: String(from), showAs: showAs || null, at: new Date() }, { upsert: true }).catch(() => {}) }
+async function lastFor(chatId, from) {
+  const d = await dbRef?.collection('callerIdLast').findOne({ _id: `${chatId}:${from}` })
+  if (!d?.showAs) return null
+  return (await presets(chatId)).some(p => p.number === d.showAs) ? d.showAs : null
+}
+// Per caller ID: calls in the last 30 days and the latest call → { '+1…': { n, last } }.
+async function usage30(chatId) {
+  const since = new Date(Date.now() - 30 * 86400000)
+  const rows = await dbRef.collection('callerIdUses').aggregate([{ $match: { chatId: String(chatId) } }, { $group: { _id: '$showAs', n: { $sum: { $cond: [{ $gte: ['$at', since] }, 1, 0] } }, last: { $max: '$at' } } }]).toArray()
+  return Object.fromEntries(rows.map(r => [r._id, { n: r.n, last: r.last }]))
+}
+// Hand order wins once set (pos); otherwise most recently used first.
+const recent = (d) => new Date(d.lastUsedAt || d.verifiedAt || d.createdAt || 0).getTime()
+const byOrder = (a, b) => (a.pos ?? Infinity) - (b.pos ?? Infinity) || recent(b) - recent(a)
 const touch = (chatId, number) => { col?.updateOne({ _id: clean(number), chatId: String(chatId) }, { $set: { lastUsedAt: new Date() } }).catch(() => {}) }
 // Saved caller IDs this account can pick with one tap right now (no-code ones only while on Business). Most recently used first.
 async function presets(chatId) {
@@ -255,11 +278,10 @@ async function presets(chatId) {
   const docs = await col.find({ chatId: String(chatId), status: 'verified' }).toArray()
   const biz = docs.some(d => d.method === 'attested') && await hasPaidPlan(chatId)
   return docs.filter(d => d.method !== 'attested' || biz)
-    .sort((a, b) => (new Date(b.lastUsedAt || b.verifiedAt || b.createdAt || 0)) - (new Date(a.lastUsedAt || a.verifiedAt || a.createdAt || 0)))
-    .slice(0, MAX_PRESETS).map(d => ({ number: d._id, label: d.label || null }))
+    .sort(byOrder).slice(0, MAX_PRESETS).map(d => ({ number: d._id, label: d.label || null, lastUsedAt: d.lastUsedAt || null }))
 }
 
-Object.assign(module.exports, { attest, isEmergency, defaultFor, setDefault, logUse, presets, touch, hasPaidPlan, HOTLINES, MAX_PRESETS })
+Object.assign(module.exports, { attest, isEmergency, defaultFor, setDefault, logUse, presets, touch, rememberLast, lastFor, usage30, hasPaidPlan, HOTLINES, MAX_PRESETS })
 
 // Admin: approve (→ verified) or reject (→ refund + remove) a review request. Returns the affected doc or null.
 function adminApi(db) {
