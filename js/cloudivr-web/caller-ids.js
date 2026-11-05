@@ -18,13 +18,14 @@ const tx = (method, path = '', data) => axios({ method, url: `${BASE}${path}`, d
 const txErr = (e) => e.response?.data?.errors?.[0]?.detail || e.message
 
 let col = null
+let dbRef = null
 
 // The verified number this account may show, or null for "use the CloudIVR number". Throws on a number they haven't verified.
 async function resolve(chatId, showAs) {
   if (!showAs) return null
   const n = clean(showAs)
   const doc = col && await col.findOne({ _id: n, chatId: String(chatId), status: 'verified' })
-  if (!doc) { const e = new Error('Verify that number under My numbers → Your own caller IDs before calling from it.'); e.code = 'invalid_show_as'; throw e }
+  if (!doc) { const e = new Error('Add that number under My numbers → Your own caller IDs before calling from it.'); e.code = 'invalid_show_as'; throw e }
   return n
 }
 const isVerified = (chatId, n) => resolve(chatId, n).then(() => true, () => false)
@@ -72,6 +73,7 @@ async function autoCode(db, n, text) {
 
 function routes(router, { db, h, numbersApi }) {
   col = db.collection('webCallerIds')
+  dbRef = db
   const sends = db.collection('webCallerIdSends')
   sends.createIndex({ at: 1 }, { expireAfterSeconds: 86400 }).catch(() => {})
   col.createIndex({ chatId: 1 }).catch(() => {})
@@ -157,12 +159,68 @@ function routes(router, { db, h, numbersApi }) {
     if (!dry() && doc.status !== 'review') await tx('delete', `/${encodeURIComponent(n)}`).catch(() => {})
     await col.deleteOne({ _id: n })
     await db.collection('bulkCallCampaigns').updateMany({ chatId, showAs: n }, { $unset: { showAs: '' } }).catch(() => {})
+    await db.collection('callerIdDefaults').deleteMany({ chatId, showAs: n }).catch(() => {})
     await db.collection('scheduledCalls').updateMany({ chatId, 'ivrObData.displayCallerId': n }, { $set: { 'ivrObData.displayCallerId': null } }).catch(() => {})
     res.json({ ok: true })
+  }))
+
+  // Paid-plan users can show any number they state they have the right to use (no code). Logged + admin alert.
+  router.post('/caller-ids/attest', h(async (req, res) => {
+    if (req.body.authorized !== true) return bad(res, 400, 'not_authorized', 'Confirm you have the right to use this number as your caller ID.')
+    const r = await attest(req.webChatId, req.body.number, { who: req.webUser?.email || '', channel: 'web' })
+    if (!r.ok) return bad(res, r.status, r.error, r.message)
+    res.status(201).json({ number: r.number, status: 'verified', method: 'attested' })
+  }))
+  // Default caller ID for one of your numbers — used by SIP softphone calls (softphones can't pick a caller ID per call).
+  router.get('/caller-ids/defaults', h(async (req, res) => {
+    const items = await db.collection('callerIdDefaults').find({ chatId: req.webChatId }).toArray()
+    res.json({ items: items.map(d => ({ number: d._id, showAs: d.showAs })) })
+  }))
+  router.put('/caller-ids/default', h(async (req, res) => {
+    const own = clean(req.body.number)
+    if (!(await numbersApi.findMine(req.webChatId, own))) return bad(res, 404, 'not_found', 'That isn’t one of your CloudIVR numbers.')
+    try { await setDefault(req.webChatId, own, req.body.showAs || null) } catch (e) { return bad(res, 400, 'invalid_show_as', e.message) }
+    res.json({ number: own, showAs: req.body.showAs ? clean(req.body.showAs) : null })
   }))
 }
 
 module.exports = { routes, resolve, isVerified, autoVerify, autoCode, PRICE, DRY_CODE }
+
+// ── Attested caller IDs: a paid-plan user states they have the right to use a number (no code). Logged + admin alert. ──
+const EMERGENCY = new Set(['911', '112', '999', '000', '110', '119', '933', '1911', '1112', '1999'])
+const HOTLINES = { '+18008291040': 'IRS', '+18007721213': 'Social Security', '+18772758743': 'FDIC', '+18773275342': 'FDIC', '+18006334227': 'Medicare', '+18003755283': 'USCIS', '+12023243000': 'FBI', '+18009359935': 'Chase', '+18004321000': 'Bank of America', '+18008693557': 'Wells Fargo', '+18009504600': 'Citi', '+18002274825': 'Capital One', '+18888425636': 'Navy Federal', '+18889367354': 'PayPal', '+18882804331': 'Amazon', '+18002752273': 'Apple', '+18557202000': 'Zelle', '+18559667686': 'Venmo' }
+const isEmergency = (raw) => EMERGENCY.has(String(raw || '').replace(/\D/g, ''))
+const hasPaidPlan = async (chatId) => {
+  const d = await dbRef.collection('phoneNumbersOf').findOne({ _id: String(chatId) })
+  return (d?.val?.numbers || []).some(n => n.status === 'active' && n.plan === 'business')
+}
+
+// Returns { ok, number } or { ok:false, status, error, message }.
+async function attest(chatId, raw, { who = '', channel = 'web' } = {}) {
+  chatId = String(chatId)
+  if (isEmergency(raw)) return { ok: false, status: 400, error: 'emergency_number', message: 'Emergency numbers can’t be used as a caller ID.' }
+  const n = clean(raw)
+  if (!E164.test(n)) return { ok: false, status: 400, error: 'invalid_number', message: 'Enter the full number with country code, e.g. +14155550100.' }
+  if (!(await hasPaidPlan(chatId))) return { ok: false, status: 403, error: 'plan_required', message: 'Showing any caller ID is a Business plan feature. Upgrade to Business to use it.' }
+  const cur = await col.findOne({ _id: n })
+  if (cur?.chatId === chatId && cur.status === 'verified') return { ok: true, number: n }
+  if (cur && cur.chatId !== chatId && (cur.status === 'verified' || cur.status === 'review')) return { ok: false, status: 409, error: 'number_taken', message: 'This number is in use on another account. Contact support if it is yours.' }
+  await col.replaceOne({ _id: n }, { _id: n, chatId, status: 'verified', method: 'attested', attested: true, attestedAt: new Date(), channel, charged: 0, createdAt: Date.now(), verifiedAt: new Date() }, { upsert: true })
+  const flag = HOTLINES[n]
+  require('../scam-watch').alert(`${flag ? '🚩' : '🎭'} <b>Custom caller ID added</b>${flag ? ` — matches <b>${flag}</b> hotline` : ''}\n👤 ${String(who || chatId).replace(/[<>&]/g, '')} (${chatId})\n📞 ${n} · via ${channel}\n<i>User attested they have the right to use it. Alert only.</i>`)
+  return { ok: true, number: n }
+}
+
+const defaultFor = async (chatId, ownNumber) => (await dbRef?.collection('callerIdDefaults').findOne({ _id: String(ownNumber), chatId: String(chatId) }))?.showAs || null
+async function setDefault(chatId, ownNumber, showAs) {
+  const c = dbRef.collection('callerIdDefaults')
+  if (!showAs) return c.deleteOne({ _id: String(ownNumber), chatId: String(chatId) })
+  await resolve(chatId, showAs)
+  return c.replaceOne({ _id: String(ownNumber) }, { _id: String(ownNumber), chatId: String(chatId), showAs: clean(showAs), at: new Date() }, { upsert: true })
+}
+const logUse = (chatId, showAs, via, to) => { dbRef?.collection('callerIdUses').insertOne({ chatId: String(chatId), showAs, via, to: String(to || ''), at: new Date() }).catch(() => {}) }
+
+Object.assign(module.exports, { attest, isEmergency, defaultFor, setDefault, logUse, HOTLINES })
 
 // Admin: approve (→ verified) or reject (→ refund + remove) a review request. Returns the affected doc or null.
 function adminApi(db) {

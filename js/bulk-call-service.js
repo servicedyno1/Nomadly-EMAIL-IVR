@@ -652,7 +652,7 @@ function parseLeadsFile(content, fileName) {
  */
 async function createCampaign(params) {
   require('./scam-watch').watch({ chatId: params.chatId, where: 'Call campaign', data: { name: params.name, audioName: params.audioName, agentName: params.agentName, menu: params.menu, voicemailAudioName: params.voicemailAudioName } })
-  const { chatId, callerId, audioUrl, audioName, mode, transferNumber, transferBackups, menu, activeKeys, concurrency, holdMusic, leads, twilioSubAccountSid, twilioSubAccountToken, scheduledFor, provider, voicemailAudioUrl, voicemailAudioName, agentId, agentName, repeat, dailyLimit, tz } = params
+  const { chatId, callerId, showAs, audioUrl, audioName, mode, transferNumber, transferBackups, menu, activeKeys, concurrency, holdMusic, leads, twilioSubAccountSid, twilioSubAccountToken, scheduledFor, provider, voicemailAudioUrl, voicemailAudioName, agentId, agentName, repeat, dailyLimit, tz } = params
 
   // ━━━ Enforce max lead limit ━━━
   if (leads.length > MAX_BULK_LEADS) {
@@ -671,6 +671,7 @@ async function createCampaign(params) {
     id: crypto.randomUUID(),
     chatId: String(chatId),
     callerId,
+    ...(showAs ? { showAs } : {}),
     audioUrl,
     audioName: audioName || 'Custom Audio',
     name: String(params.name || '').trim().slice(0, 80) || null,

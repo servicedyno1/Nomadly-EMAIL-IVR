@@ -3,6 +3,36 @@ import { TelnyxRTC } from '@telnyx/webrtc';
 import { useBrand } from '../hooks/useBrand';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
+
+// Free test: show any caller ID on the test call (emergency numbers blocked; every use is logged).
+function TestCallerId({ sipUsername }) {
+  const [value, setValue] = useState('');
+  const [saved, setSaved] = useState(null);
+  const [err, setErr] = useState('');
+  const save = async () => {
+    setErr('');
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/phone/test/caller-id`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sipUsername, showAs: value.trim() || null }) });
+      const d = await r.json();
+      if (!r.ok) return setErr(d.error || 'Could not save');
+      setSaved(d.showAs);
+    } catch (_) { setErr('Could not save'); }
+  };
+  return (
+    <div className="mt-3" data-testid="test-caller-id">
+      <label className="text-[11px] text-neutral-500 block mb-1">Caller ID to show (optional — any number)</label>
+      <div className="flex gap-2">
+        <input type="tel" value={value} onChange={e => setValue(e.target.value)} placeholder="+14155550100"
+          className="flex-1 bg-[#0a0a0a] border border-neutral-700 rounded-lg px-3 py-2 text-sm font-mono text-white" data-testid="test-caller-id-input" />
+        <button type="button" onClick={save} className="px-3 py-2 rounded-lg bg-green-600 text-white text-sm" data-testid="test-caller-id-save">Use</button>
+      </div>
+      {saved && <p className="text-xs text-green-400 mt-1" data-testid="test-caller-id-saved">Your test call will show {saved}.</p>}
+      {saved === null && !err && <p className="text-[11px] text-neutral-500 mt-1">Leave empty to use our number. On Business, every call can show any caller ID.</p>}
+      {err && <p className="text-xs text-red-400 mt-1" data-testid="test-caller-id-error">{err}</p>}
+    </div>
+  );
+}
+
 // Per-brand build env (deploy.sh exports the app's REACT_APP_*); defaults = Nomadly/Speechcue.
 const SIP_DOMAIN = process.env.REACT_APP_SIP_DOMAIN || 'sip.speechcue.com';
 const PHONE_NAME = process.env.REACT_APP_BRAND_PHONE_NAME || 'Speechcue';
@@ -669,6 +699,7 @@ const PhoneTestPage = () => {
                     {SIP_DOMAIN}
                   </div>
                 </div>
+                <TestCallerId sipUsername={testUsername} />
               </div>
             )}
           </div>

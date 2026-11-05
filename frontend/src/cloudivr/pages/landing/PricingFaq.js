@@ -16,7 +16,7 @@ import { PRODUCTS, USE_CASES, goTo, hrefOf } from './menu';
 // Plan button target: signed-in → Buy with the plan picked, otherwise sign-up keeps it (?plan=pro). Also used by the SIP page.
 export const useStart = () => { const { account } = useCivrAuth(); return (plan) => (plan === 'esim' && account ? cp('/app/esim') : plan === 'texting' && account ? cp('/app/texting?start=texting') : account ? cp(`/app/buy${plan ? `?plan=${plan}` : ''}`) : cp(`/signup${plan ? `?plan=${plan}` : ''}`)); };
 
-function PlanCard({ p, plans, hot, start, delay }) {
+export function PlanCard({ p, plans, hot, start, delay }) {
   return (
     <Reveal delay={delay} className={`civr-l-card-cream p-8 flex flex-col ${hot ? '!border-slate-900 ring-1 ring-slate-900 shadow-[0_24px_48px_-28px_rgba(15,23,42,.35)]' : ''}`} data-testid={`civr-plan-card-${p.id}`}>
       <div className="flex items-center justify-between gap-2"><div className="text-lg font-semibold text-slate-900">{p.name}</div>{p.recommended && <RecommendedBadge tone="landing" testid={`pricing-recommended-${p.id}`} />}</div>
@@ -29,7 +29,7 @@ function PlanCard({ p, plans, hot, start, delay }) {
 }
 
 // The 4th plan: texting on a number the customer already has (calls stay with their carrier).
-function TextingCard({ t, start, delay }) {
+export function TextingCard({ t, start, delay }) {
   const pts = ['Incoming texts are free', 'Keep your number and your calls', 'Read every text in the app', 'USA & Canada landline or toll-free'];
   return (
     <Reveal delay={delay} className="civr-l-card-cream p-8 flex flex-col" data-testid="civr-plan-card-texting">
@@ -86,7 +86,7 @@ export function faqItems(c) {
     ['Can I try it before I pay?', 'Yes, twice. Without an account: confirm your email with a 6-digit code and take one free test call of up to 60 seconds — we ring your phone with a demo menu, or you call from your browser. After you sign up: place one free Quick IVR call from our number — it plays your script to anyone you choose, then connects them to you when they press 1 or collects a code you accept or decline.'],
     ['Is the account really free?', `Yes. Creating an account costs nothing. You only pay when you buy a number${from ? ` (from ${from}/month)` : ''}, plus any extra usage.`],
     ['How do I pay?', `With crypto (${coinList(c) || 'BTC, ETH, USDT and more'}) or from your CloudIVR wallet (top-ups from ${usd(c?.minTopup || 10)}). Renewals and calls are paid from the wallet. Card payments are coming soon — until they are switched on, cards show as “coming soon” here and at checkout.`],
-    ['What does each plan include?', `Starter gives you a number with call forwarding, the SMS inbox and the browser phone — make and take calls in any browser tab. Pro adds the keypad menu, voicemail, SIP logins for desk phones and softphone apps, call recording, ring groups, Quick IVR calls, Bulk IVR campaigns and code collection. Business adds AI voice agents, text calls, Text Triggers, Quick IVR scheduling and saved presets, redial, your own accept / decline messages for codes, one saved voice for every call and priority support.`],
+    ['What does each plan include?', `Starter gives you a number with call forwarding, the SMS inbox and the browser phone — make and take calls in any browser tab. Pro adds the keypad menu, voicemail, SIP logins for desk phones and softphone apps, call recording, ring groups, Quick IVR calls, Bulk IVR campaigns and code collection. Business adds showing any caller ID on every call (softphone, browser, Quick IVR and campaigns), AI voice agents, text calls, Text Triggers, Quick IVR scheduling and saved presets, redial, your own accept / decline messages for codes, one saved voice for every call and priority support.`],
     ['What’s the difference between the keypad menu and Quick or Bulk IVR?', `They work in opposite directions. The keypad menu answers people who call your number: they hear your greeting and press a key to reach the right person, a message or voicemail (${ivr}). Quick IVR and Bulk IVR call people for you: they hear your message, then press a key to reach you, type a code or pick an option — Quick IVR for up to 10 numbers at once, Bulk IVR campaigns for a whole list (${out}).`],
     ['What’s the difference between the keypad menu and an AI voice agent?', `The keypad menu plays your greeting and callers press a key to reach the right person, message or voicemail — it uses your plan minutes. An AI voice agent talks with callers instead: it answers questions, books appointments and takes messages, billed ${money(r?.aiAgentPerMin ?? 0.3)}/min from your wallet. Each number uses one or the other.`],
     ['What if I go over my minutes or SMS?', r ? `Extra incoming minutes cost ${money(r.overagePerMin)} each and extra SMS ${money(r.overagePerSms)} each, paid from your wallet.` : 'Extra usage is paid from your wallet at a small per-minute and per-SMS rate.'],
@@ -105,7 +105,7 @@ export function Faq({ catalog }) {
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-24 grid lg:grid-cols-12 gap-12">
         <div className="lg:col-span-4"><SectionHead label="FAQ" title="Got questions? Good." /></div>
         <div className="lg:col-span-8 border-t civr-l-rule" data-testid="faq-list">
-          {faqItems(catalog).map(([q, a], i) => (
+          {faqItems(catalog).slice(0, 10).map(([q, a], i) => (
             <Reveal as="details" key={q} delay={Math.min(i, 6) * 60} className="border-b civr-l-rule group" data-testid={`faq-item-${i}`}>
               <summary className="flex items-center justify-between gap-4 cursor-pointer py-6 min-h-[56px] text-base md:text-lg font-semibold text-slate-900 hover:text-slate-600 transition-colors" data-testid={`faq-question-${i}`}>{q}<Plus className="civr-faq-chevron w-5 h-5 shrink-0 text-slate-400" /></summary>
               <p className="pb-6 text-sm text-slate-600 max-w-2xl" data-testid={`faq-answer-${i}`}>{a}</p>

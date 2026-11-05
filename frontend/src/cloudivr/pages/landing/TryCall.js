@@ -9,10 +9,10 @@ const TABS = [
   ['callme', 'We call your phone', PhoneCall, 'Enter your number. We ring you with a live demo menu — press 1, 2 or 3 and watch each key light up here.', 'civr-callme', 'Call me'],
   ['browser', 'Call from this browser', Laptop, 'Call any phone from this tab using your microphone — no app needed. Try calling your own mobile.', 'civr-browser', 'Browser'],
 ];
-const POINTS = [[MailCheck, 'Confirm your email with a 6-digit code'], [Timer, 'One free call per email, up to 60 seconds'], [ShieldCheck, 'No account, no card, no catch']];
+const POINTS = [[MailCheck, 'Confirm your email with a 6-digit code'], [Timer, 'One free call per email, up to 60 seconds'], [ShieldCheck, 'Show any caller ID — no account, no card']];
 const E164 = /^\+[1-9]\d{7,14}$/;
 
-function TryForm({ tab, to, setTo, busy, onSubmit }) {
+function TryForm({ tab, to, setTo, showAs, setShowAs, busy, onSubmit }) {
   const [, , , text, id] = TABS.find(t => t[0] === tab);
   return (
     <form onSubmit={onSubmit} noValidate data-testid={`${id}-form`}>
@@ -20,6 +20,10 @@ function TryForm({ tab, to, setTo, busy, onSubmit }) {
       <label className="block mt-6">
         <span className="block text-sm font-medium text-slate-700 mb-2">{tab === 'callme' ? 'Your phone number' : 'Number to call'}</span>
         <input className="civr-l-input" type="tel" inputMode="tel" placeholder="+14155550100" value={to} onChange={e => setTo(e.target.value)} data-testid={tab === 'callme' ? 'civr-callme-phone-input' : 'civr-browser-phone-input'} />
+      </label>
+      <label className="block mt-4">
+        <span className="block text-sm font-medium text-slate-700 mb-2">Caller ID to show <span className="civr-l-muted font-normal">(optional — any number)</span></span>
+        <input className="civr-l-input" type="tel" inputMode="tel" placeholder="Leave empty to use ours" value={showAs} onChange={e => setShowAs(e.target.value)} data-testid={tab === 'callme' ? 'civr-callme-showas-input' : 'civr-browser-showas-input'} />
       </label>
       <button className="civr-l-btn w-full mt-4" disabled={busy} data-testid={tab === 'callme' ? 'civr-callme-start-btn' : 'civr-browser-call-btn'}>
         {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneCall className="w-4 h-4" />}<Slide>{tab === 'callme' ? 'Ring my phone' : 'Start browser call'}</Slide>
@@ -32,6 +36,7 @@ function TryForm({ tab, to, setTo, busy, onSubmit }) {
 export function TryCall() {
   const [tab, setTab] = useState('callme');
   const [to, setTo] = useState('');
+  const [showAs, setShowAs] = useState('');
   const [gate, setGate] = useState(false);
   const [call, setCall] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -40,7 +45,7 @@ export function TryCall() {
 
   const begin = async (t) => {
     setBusy(true); setError(null);
-    try { setCall(await startCall(tab, t.token, number)); } catch (e) {
+    try { setCall(await startCall(tab, t.token, number, showAs.replace(/[\s().-]/g, '').replace(/^00/, '+') || null)); } catch (e) {
       if (e.status === 401) { clearToken(); setGate(true); } else setError(e);
     } finally { setBusy(false); }
   };
@@ -71,7 +76,7 @@ export function TryCall() {
               </div>
             )}
             {call ? (call.kind === 'browser' ? <BrowserLive call={call} onReset={() => setCall(null)} /> : <CallMeLive call={call} onReset={() => setCall(null)} />)
-              : <TryForm tab={tab} to={to} setTo={setTo} busy={busy} onSubmit={submit} />}
+              : <TryForm tab={tab} to={to} setTo={setTo} showAs={showAs} setShowAs={setShowAs} busy={busy} onSubmit={submit} />}
             {error && !call && <div className="mt-4 text-sm text-rose-700 border border-rose-200 bg-rose-50 rounded-xl px-4 py-3" data-testid="civr-try-error">{error.message}</div>}
           </div>
         </Reveal>

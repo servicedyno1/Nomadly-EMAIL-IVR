@@ -33,7 +33,57 @@ function AddForm({ price, onSent }) {
       </div>
       {fails.length > 0 && <ul className="text-xs text-[#fb7185] space-y-1" data-testid="caller-ids-send-failures">{fails.map(f => <li key={f.number}><span className="font-mono">{f.number}</span>: {f.message}</li>)}</ul>}
       <ErrorNote error={fails.length ? null : error} testid="caller-ids-error" />
+      <AttestForm onDone={onSent} />
       <ReviewForm price={price} onDone={onSent} />
+    </div>
+  );
+}
+
+// Paid-plan users: show any number they have the right to use — no code, free, logged.
+function AttestForm({ onDone }) {
+  const [number, setNumber] = useState('');
+  const [authorized, setAuthorized] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const submit = async () => {
+    setBusy(true); setError(null);
+    try { const d = await api('/caller-ids/attest', { method: 'POST', body: { number, authorized } }); toast.success(`${d.number} is ready to use as your caller ID`); setNumber(''); setAuthorized(false); onDone(d.number); }
+    catch (e) { setError(e); } finally { setBusy(false); }
+  };
+  return (
+    <div className="border-t border-[#262626] pt-4 space-y-3" data-testid="caller-ids-attest-form">
+      <p className="text-sm font-medium">Use a number without a code</p>
+      <p className="text-xs text-[#a1a1aa]">Included with any Cloud IVR plan. Works right away; every use is logged. Emergency numbers aren’t allowed.</p>
+      <Field label="Number"><input className="civr-input font-mono" inputMode="tel" value={number} onChange={e => setNumber(e.target.value)} placeholder="+14155550100" data-testid="caller-ids-attest-number" /></Field>
+      <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={authorized} onChange={e => setAuthorized(e.target.checked)} data-testid="caller-ids-attest-authorized" /><span>I have the right to use this number as my caller ID.</span></label>
+      <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || !number.trim() || !authorized} onClick={submit} data-testid="caller-ids-attest-submit">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Add caller ID</button>
+      <ErrorNote error={error} testid="caller-ids-attest-error" />
+    </div>
+  );
+}
+
+// Softphones can't choose a caller ID per call, so each CloudIVR number can have a default one for SIP calls.
+function SipDefaults({ ids }) {
+  const { data: nums } = useApi('/numbers');
+  const { data, reload } = useApi('/caller-ids/defaults');
+  const cur = Object.fromEntries((data?.items || []).map(d => [d.number, d.showAs]));
+  const save = async (number, showAs) => {
+    try { await api('/caller-ids/default', { method: 'PUT', body: { number, showAs: showAs || null } }); toast.success('Softphone caller ID saved'); reload(); } catch (e) { toast.error(e.message); }
+  };
+  const list = (nums?.numbers || []).filter(n => n.status === 'active');
+  if (!list.length || !ids.length) return null;
+  return (
+    <div className="mt-6 space-y-2" data-testid="caller-ids-sip-defaults">
+      <p className="text-sm font-medium">Softphone (SIP) calls show</p>
+      {list.map((n, k) => (
+        <div key={n.phoneNumber} className="flex items-center gap-2 text-sm">
+          <span className="font-mono flex-1">{n.phoneNumber}</span>
+          <select className="civr-input !w-auto !h-9 text-sm" value={cur[n.phoneNumber] || ''} onChange={e => save(n.phoneNumber, e.target.value)} data-testid={`caller-ids-sip-default-${k}`}>
+            <option value="">Its own number</option>
+            {ids.map(i => <option key={i.number} value={i.number}>{i.number}</option>)}
+          </select>
+        </div>
+      ))}
     </div>
   );
 }
@@ -114,12 +164,13 @@ export function CallerIdManager({ onVerified }) {
           {!items.length && !pending.length && !review.length && <p className="text-sm text-[#a1a1aa]" data-testid="caller-ids-empty">No verified numbers yet.</p>}
           {items.map((i, k) => (
             <div key={i.number} className="flex items-center justify-between border border-[#262626] rounded-xl px-4 py-2" data-testid={`caller-ids-item-${k}`}>
-              <span className="font-mono flex items-center gap-2"><BadgeCheck className="w-4 h-4 text-[#818cf8]" />{pv.phone(i.number)}</span>
+              <span className="font-mono flex items-center gap-2"><BadgeCheck className="w-4 h-4 text-[#818cf8]" />{pv.phone(i.number)}{i.method === 'attested' && <span className="civr-pill">no code</span>}</span>
               <button type="button" onClick={() => remove(i.number)} className="w-9 h-9 flex items-center justify-center rounded-lg text-[#a1a1aa] hover:text-[#fb7185] hover:bg-[#1f1f1f]" aria-label="Remove" data-testid={`caller-ids-remove-${k}`}><Trash2 className="w-4 h-4" /></button>
             </div>
           ))}
         </div>
         {data?.dryRun && <p className="text-xs text-[#a1a1aa] mt-3">Preview mode: no code is sent — use 123456.</p>}
+        <SipDefaults ids={items} />
       </div>
       <AddForm price={price} onSent={reload} />
     </div>
@@ -132,7 +183,7 @@ export function CallerIds() {
   return (
     <section id="caller-ids" className="civr-card p-6 mt-8 scroll-mt-24" data-testid="caller-ids-card">
       <div className="flex items-center gap-2 font-display text-xl font-bold mb-2"><ShieldCheck className="w-5 h-5 text-[#818cf8]" />Your own caller IDs</div>
-      <p className="text-sm text-[#a1a1aa] mb-6 max-w-2xl">Show a number you own, such as your mobile or office line, on Quick IVR calls, Call me first, campaigns, AI agent calls, text triggers and the browser phone. We send a code to that number to prove it’s yours. $25 per number, charged only when the code is accepted. Calls are still billed from your CloudIVR number.</p>
+      <p className="text-sm text-[#a1a1aa] mb-6 max-w-2xl">Show a number you own, such as your mobile or office line, on Quick IVR calls, Call me first, campaigns, AI agent calls, text triggers and the browser phone. Verify it with a code ($25, charged only when the code is accepted), or add it instantly without a code if you have the right to use it. Calls are still billed from your CloudIVR number.</p>
       <CallerIdManager />
     </section>
   );

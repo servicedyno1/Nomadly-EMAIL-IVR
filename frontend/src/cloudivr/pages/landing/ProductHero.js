@@ -5,10 +5,10 @@ import { Reveal } from './kit';
 import { openEsimCheckout, EMAIL_OK } from './EsimCheckout';
 import { openMobileCheckout } from './MobileCheckout';
 
-const ESIM_POINTS = ['Scan a QR code and the line is on your phone', 'Two-way SMS: send and receive texts instantly on your phone, plus USA data and calls', 'QR code shown in the app and emailed to you', 'For unlocked phones that support eSIM'];
-const MOBILE_POINTS = ['A real carrier mobile number, not VoIP, accepted by most banks and apps', 'Two-way SMS: send and receive texts instantly in CloudIVR Messages, and call out from your browser', 'No phone or SIM needed', 'Free caller ID for your CloudIVR calls'];
+export const ESIM_POINTS = ['Scan a QR code and the line is on your phone', 'Two-way SMS: send and receive texts instantly on your phone, plus USA data and calls', 'QR code shown in the app and emailed to you', 'For unlocked phones that support eSIM'];
+export const MOBILE_POINTS = ['A real carrier mobile number, not VoIP, accepted by most banks and apps', 'Two-way SMS: send and receive texts instantly in CloudIVR Messages, and call out from your browser', 'No phone or SIM needed', 'Free caller ID for your CloudIVR calls'];
 
-function Waitlist() {
+export function Waitlist() {
   const [email, setEmail] = useState('');
   const [state, setState] = useState(null);
   const go = async (e) => { e.preventDefault(); setState('busy'); try { await api('/public/waitlist', { method: 'POST', body: { email } }); setState('done'); } catch (x) { setState(x.message); } };
@@ -25,7 +25,7 @@ function Waitlist() {
   );
 }
 
-function Card({ id, icon: I, badge, title, kind, price, points, note, children, delay }) {
+export function Card({ id, icon: I, badge, title, kind, price, points, note, children, delay }) {
   return (
     <Reveal delay={delay} id={id} className="v2-surface p-6 sm:p-7 flex flex-col text-left scroll-mt-28" data-testid={`product-card-${id}`}>
       <div className="flex items-center justify-between gap-3">

@@ -21,7 +21,7 @@ export const clearToken = () => sessionStorage.removeItem(TOKEN_KEY);
 
 export const sendCode = (email) => api('/public/try/send-code', { method: 'POST', body: { email, deviceId: deviceId() } });
 export const verifyCode = (email, code) => api('/public/try/verify', { method: 'POST', body: { email, code } });
-export const startCall = (kind, token, to) => api(`/public/try/${kind === 'browser' ? 'browser' : 'call-me'}`, { method: 'POST', body: { token, to, deviceId: deviceId() } });
+export const startCall = (kind, token, to, showAs) => api(`/public/try/${kind === 'browser' ? 'browser' : 'call-me'}`, { method: 'POST', body: { token, to, showAs, deviceId: deviceId() } });
 
 // Seconds left once `running` turns true (stays put after it stops).
 export function useCountdown(running, max) {

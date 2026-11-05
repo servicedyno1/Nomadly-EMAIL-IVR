@@ -1600,13 +1600,13 @@ cp_189: (currentPh, value, icon, nextPh, description, generated) => `✅ ${curre
  cp_224: 'کمپین در حال اجراست. از دکمه زیر استفاده کنید:',
  cp_225: '🛒 <b>انتخاب پلن:</b>',
  cp_226: '🌍 <b>همه کشورهای موجود</b>\\n\\nیک کشور انتخاب کنید:',
- cp_227: (location, numberLines) => `📱 <b>شماره‌های موجود — ${location}</b>\n\n${numberLines}\n\n☎️ = از کمپین‌های IVR دسته‌ای پشتیبانی می‌کند\n\nبرای انتخاب روی یک شماره ضربه بزنید:`,
- cp_228: (message, numberLines) => `📱 <b>شماره‌های موجود — ${message}</b>\n\n${numberLines}\n\n☎️ = از کمپین‌های IVR دسته‌ای پشتیبانی می‌کند\n\nبرای انتخاب روی یک شماره ضربه بزنید:`,
- cp_229: (areaCode, numberLines) => `📱 <b>شماره‌های موجود — منطقه ${areaCode}</b>\n\n${numberLines}\n\n☎️ = از کمپین‌های IVR دسته‌ای پشتیبانی می‌کند\n\nبرای انتخاب روی یک شماره ضربه بزنید:`,
+ cp_227: (location, numberLines) => `📱 <b>مرحله ۳ از ۴ · انتخاب شماره</b> — ${location}\n\n${numberLines}\n\nهر شماره با تماس، پیامک و Bulk IVR کار می‌کند.\nروی شماره مورد نظر ضربه بزنید 👇`,
+ cp_228: (message, numberLines) => `📱 <b>مرحله ۳ از ۴ · انتخاب شماره</b> — ${message}\n\n${numberLines}\n\nهر شماره با تماس، پیامک و Bulk IVR کار می‌کند.\nروی شماره مورد نظر ضربه بزنید 👇`,
+ cp_229: (areaCode, numberLines) => `📱 <b>مرحله ۳ از ۴ · انتخاب شماره</b> — کد منطقه ${areaCode}\n\n${numberLines}\n\nهر شماره با تماس، پیامک و Bulk IVR کار می‌کند.\nروی شماره مورد نظر ضربه بزنید 👇`,
  cp_23: (phoneNumber, recentNumber) => `📱 از: <b>${phoneNumber}</b>\n📞 به: <b>${recentNumber}</b>\n\nیک دسته قالب IVR انتخاب کنید:`,
- cp_230: (location, numberLines) => `📱 <b>شماره‌های بیشتر — ${location}</b>\n\n${numberLines}\n\n☎️ = از کمپین‌های IVR دسته‌ای پشتیبانی می‌کند\n\nبرای انتخاب روی یک شماره ضربه بزنید:`,
+ cp_230: (location, numberLines) => `📱 <b>مرحله ۳ از ۴ · انتخاب شماره</b> — ${location} · بیشتر\n\n${numberLines}\n\nهر شماره با تماس، پیامک و Bulk IVR کار می‌کند.\nروی شماره مورد نظر ضربه بزنید 👇`,
  cp_231: 'این پلن هنوز در دسترس نیست. لطفاً از پلن‌های موجود زیر انتخاب کنید.',
- cp_232: (planLabel) => `✅ پلن: <b>${planLabel}</b>\n\n🌍 یک کشور انتخاب کنید:`,
+ cp_232: (planLabel) => `✅ پلن: <b>${planLabel}</b>\n\n🌍 <b>مرحله ۲ از ۴ · شماره شما کجا باشد؟</b>\nیک کشور انتخاب کنید:`,
  cp_233: '⚠️ پردازش پرداخت موقتاً در دسترس نیست (سرویس نرخ ارز از کار افتاده). لطفاً بعداً دوباره امتحان کنید یا از رمزارز استفاده کنید.',
  cp_234: (toLocaleString) => `Cloud IVR ₦${toLocaleString}`,
  cp_235: '⚠️ جلسه ارتقا منقضی شده. لطفاً دوباره شروع کنید.',
@@ -1783,7 +1783,7 @@ cp_40: (firstPh) => `\nمقدار <b>[${firstPh}]</b> را وارد کنید:`,
  cp_77: '🔑 <b>حالت دریافت OTP</b>\\n\\nکد باید چند رقم باشد؟\\n\\n💡 درخواست کد به‌طور خودکار پس از اسکریپت شما اضافه می‌شود — نیازی به درج آن نیست.\\n\\n<i>پیش‌فرض: ۶ رقم</i>',
  cp_78: 'یک حالت انتخاب کنید:',
  cp_79: '📋 <b>انتخاب حالت تماس</b>\\n\\n🔗 <b>انتقال</b> — وقتی هدف کلید را فشار می‌دهد، او را به شماره شما وصل می‌کند\\n🔑 <b>دریافت OTP</b> — پس از فشردن کلید، از هدف به‌طور خودکار کد درخواست می‌شود — از طریق Telegram به شما تحویل داده می‌شود\\n\\nهر دو حالت نتایج کامل را گزارش می‌دهند.',
- cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business) => `${buyPlansHeader}\n\n💡 <b>Starter</b> — $${price}/ماه\n📞 ${minutes} دقیقه + 📩 ${sms} پیامک · انتقال تماس · تا ${starter} شماره\n\n⭐ <b>Pro</b> — $${v5}/ماه\n📞 ${v6} دقیقه + 📩 ${v7} پیامک · همه امکانات Starter + پست صوتی · SIP · Webhooks · ضبط · پاسخگوی خودکار · Quick & Bulk IVR · OTP · تا ${pro} شماره\n\n👑 <b>Business</b> — $${v9}/ماه\n📞 ${v10} دقیقه + 📩 ${v11} پیامک · همه امکانات Pro + دستیار صوتی هوش مصنوعی · تماس مجدد IVR · پیام‌های OTP سفارشی · پشتیبانی اولویت‌دار · تا ${business} شماره\n\n<i>💳 تماس‌های خروجی از کیف پول کسر می‌شود</i>`,
+ cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business) => `🛒 <b>مرحله ۱ از ۴ · انتخاب پلن</b>\n\n💡 <b>Starter — $${price}/ماه</b>\n✅ ${minutes} دقیقه ورودی · ${sms} پیامک · انتقال تماس\n✖️ بدون SIP softphone، بدون IVR · تا ${starter} شماره\n\n⭐ <b>Pro — $${v5}/ماه</b> · محبوب‌ترین\n✅ ${v6} دقیقه ورودی · ${v7} پیامک\n✅ SIP softphone · تماس از مرورگر · پیام صوتی · ضبط مکالمه\n✅ Quick IVR، Bulk IVR، OTP، منشی خودکار · تا ${pro} شماره\n\n👑 <b>Business — $${v9}/ماه</b>\n✅ ${v10} دقیقه ورودی · ${v11} پیامک\n✅ همه امکانات Pro + 🎭 نمایش هر شناسه تماس‌گیرنده\n✅ عامل صوتی هوش مصنوعی، شماره‌گیری مجدد IVR، پیام‌های OTP سفارشی، پشتیبانی اولویت‌دار · تا ${business} شماره\n\n<i>تماس‌های خروجی و انتقال تماس از کیف پول شما کسر می‌شود.</i>`,
  cp_80: 'یک تعداد رقم معتبر (1-10) وارد کنید:',
  cp_81: (length) => `✅ طول OTP: <b>${length} رقم</b> (حداکثر ۳ تلاش)\n\n✍️ <b>سفارشی‌سازی پیام‌های تماس‌گیرنده</b>\n\nآیا می‌خواهید پیامی که تماس‌گیرندگان پس از تأیید می‌شنوند را سفارشی کنید؟\n\n<b>تأیید پیش‌فرض:</b> <i>"Your code has been verified successfully. Thank you. Goodbye."</i>\n<b>رد پیش‌فرض:</b> <i>"Maximum verification attempts reached. Goodbye."</i>`,
  cp_82: (length) => `✅ طول OTP: <b>${length} رقم</b> (حداکثر ۳ تلاش)\n\n🎙 <b>انتخاب ارائه‌دهنده صدا</b>\n\nموتور TTS خود را انتخاب کنید:`,
@@ -2531,8 +2531,8 @@ const _isEmojiBack = item => {
 
 const payIn = {
  crypto: 'Crypto',
- ...(HIDE_BANK_PAYMENT !== 'true' && { bank: 'Bank ₦aira + Card🏦💳' }),
- wallet: '👛 Wallet',
+ ...(HIDE_BANK_PAYMENT !== 'true' && { bank: 'بانک ₦aira + کارت🏦💳' }),
+ wallet: '👛 کیف پول',
 }
 
 const tickerViews = Object.keys(tickerOf)

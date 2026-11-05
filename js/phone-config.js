@@ -418,27 +418,27 @@ const plansI18n = {
   en: {
     starter: { features: ['Call forwarding to any number', 'SMS forwarded to Telegram', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
     pro: { features: ['All Starter features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign (start now or schedule)', 'OTP Collection', 'IVR Auto-Attendant', 'IVR Call Analytics', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
-    business: { features: ['All Pro features', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Quick IVR Call Scheduling', 'Custom OTP Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
+    business: { features: ['🎭 Show any caller ID', 'All Pro features', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Quick IVR Call Scheduling', 'Custom OTP Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
   },
   fr: {
     starter: { features: ['Transfert d\'appels vers n\'importe quel numéro', 'SMS vers Telegram', `Jusqu'à ${SUB_NUMBER_LIMITS.starter} numéros supplémentaires`] },
     pro: { features: ['Toutes fonctions Starter', 'Messagerie vocale personnalisée', 'Identifiants SIP pour softphones', 'SMS vers Telegram & Email', 'Intégrations Webhook', 'Appel IVR rapide', 'Campagne IVR en masse (immédiate ou planifiée)', 'Collecte OTP', 'Standard automatique IVR', 'Analytiques SVI', 'Enregistrement d\'appels', `Jusqu'à ${SUB_NUMBER_LIMITS.pro} numéros supplémentaires`] },
-    business: { features: ['Toutes fonctions Pro', 'Préréglages IVR & Appels récents', 'Bouton de rappel IVR', 'Planification des appels IVR rapides', 'Messages OTP personnalisés', 'Voix TTS cohérente', 'Support prioritaire', `Jusqu'à ${SUB_NUMBER_LIMITS.business} numéros supplémentaires`] },
+    business: { features: ['🎭 Afficher n’importe quel numéro', 'Toutes fonctions Pro', 'Préréglages IVR & Appels récents', 'Bouton de rappel IVR', 'Planification des appels IVR rapides', 'Messages OTP personnalisés', 'Voix TTS cohérente', 'Support prioritaire', `Jusqu'à ${SUB_NUMBER_LIMITS.business} numéros supplémentaires`] },
   },
   zh: {
     starter: { features: ['呼叫转移至任何号码', '短信转发至Telegram', `添加最多 ${SUB_NUMBER_LIMITS.starter} 个号码`] },
     pro: { features: ['所有入门版功能', '自定义语音信箱', 'SIP 软电话凭据', '短信转Telegram和邮箱', 'Webhook集成', '快速IVR呼叫', '批量IVR活动（立即或定时）', 'OTP收集', 'IVR自动应答', 'IVR 通话分析', '通话录音', `添加最多 ${SUB_NUMBER_LIMITS.pro} 个号码`] },
-    business: { features: ['所有专业版功能', 'IVR预设与最近通话', 'IVR重拨按钮', '快速IVR呼叫定时', '自定义OTP消息', '一致TTS语音', '优先支持', `添加最多 ${SUB_NUMBER_LIMITS.business} 个号码`] },
+    business: { features: ['🎭 显示任意来电号码', '所有专业版功能', 'IVR预设与最近通话', 'IVR重拨按钮', '快速IVR呼叫定时', '自定义OTP消息', '一致TTS语音', '优先支持', `添加最多 ${SUB_NUMBER_LIMITS.business} 个号码`] },
   },
   hi: {
     starter: { features: ['किसी भी नंबर पर कॉल फ़ॉरवर्डिंग', 'SMS से Telegram', `${SUB_NUMBER_LIMITS.starter} अतिरिक्त नंबर तक`] },
     pro: { features: ['सभी स्टार्टर सुविधाएँ', 'कस्टम वॉइसमेल', 'सॉफ्टफ़ोन के लिए SIP क्रेडेंशियल्स', 'SMS से Telegram और Email', 'Webhook इंटीग्रेशन', 'त्वरित IVR कॉल', 'बल्क IVR अभियान (अभी या शेड्यूल)', 'OTP संग्रह', 'IVR ऑटो-अटेंडेंट', 'IVR कॉल Analytics', 'कॉल रिकॉर्डिंग', `${SUB_NUMBER_LIMITS.pro} अतिरिक्त नंबर तक`] },
-    business: { features: ['सभी Pro सुविधाएँ', 'IVR प्रीसेट और हाल की कॉलें', 'IVR रीडायल बटन', 'त्वरित IVR कॉल शेड्यूलिंग', 'कस्टम OTP संदेश', 'सुसंगत TTS आवाज़', 'प्राथमिकता समर्थन', `${SUB_NUMBER_LIMITS.business} अतिरिक्त नंबर तक`] },
+    business: { features: ['🎭 कोई भी कॉलर ID दिखाएँ', 'सभी Pro सुविधाएँ', 'IVR प्रीसेट और हाल की कॉलें', 'IVR रीडायल बटन', 'त्वरित IVR कॉल शेड्यूलिंग', 'कस्टम OTP संदेश', 'सुसंगत TTS आवाज़', 'प्राथमिकता समर्थन', `${SUB_NUMBER_LIMITS.business} अतिरिक्त नंबर तक`] },
   },
   fa: {
     starter: { features: ['انتقال تماس به هر شماره', 'ارسال SMS به Telegram', `افزودن تا ${SUB_NUMBER_LIMITS.starter} شماره اضافه`] },
     pro: { features: ['همه امکانات Starter', 'پیغام‌گیر صوتی با خوشامد سفارشی', 'اطلاعات ورود SIP برای سافت‌فون', 'SMS به Telegram و ایمیل', 'یکپارچه‌سازی Webhook', 'تماس سریع IVR', 'کمپین IVR انبوه (فوری یا زمان‌بندی‌شده)', 'دریافت OTP', 'منشی خودکار IVR', 'آمار تماس IVR', 'ضبط تماس', `افزودن تا ${SUB_NUMBER_LIMITS.pro} شماره اضافه`] },
-    business: { features: ['همه امکانات Pro', 'پیش‌تنظیم‌های IVR و تماس‌های اخیر', 'دکمه تماس مجدد IVR', 'زمان‌بندی تماس سریع IVR', 'پیام‌های OTP سفارشی', 'صدای TTS یکسان', 'پشتیبانی ویژه', `افزودن تا ${SUB_NUMBER_LIMITS.business} شماره اضافه`] },
+    business: { features: ['🎭 نمایش هر شماره دلخواه', 'همه امکانات Pro', 'پیش‌تنظیم‌های IVR و تماس‌های اخیر', 'دکمه تماس مجدد IVR', 'زمان‌بندی تماس سریع IVR', 'پیام‌های OTP سفارشی', 'صدای TTS یکسان', 'پشتیبانی ویژه', `افزودن تا ${SUB_NUMBER_LIMITS.business} شماره اضافه`] },
   },
 
 }
@@ -658,9 +658,9 @@ Virtual numbers in ${CLOUD_COUNTRY_COUNT} countries · Most are live in minutes
 
 📞 Call forwarding · 💬 SMS to Telegram · 🌐 Browser calls · 🤖 IVR · 🔗 SIP
 
-Plans from <b>$${PHONE_STARTER_PRICE}/mo</b> (${plans.starter.minutes} incoming min + ${plans.starter.sms} SMS included — minutes cover calls you answer on SIP/browser · call forwarding & outgoing calls are billed from your wallet)
+Plans from <b>$${PHONE_STARTER_PRICE}/mo</b> with incoming minutes and SMS included.
 
-New? Tap <b>❓ How It Works</b>`,
+👉 Tap <b>🛒 Choose a Plan</b> to get your number in 4 quick steps.`,
 
   howItWorks: `📞 <b>Cloud IVR — How It Works</b>
 
@@ -738,35 +738,37 @@ Incoming calls you answer on SIP/browser + received SMS are included · Call for
   orderSummary: (number, country, plan, price) => {
     const planKey = (plan.name || '').toLowerCase()
     const ivrLine = planKey === 'starter'
-      ? `\n\n<i>⚠️ Starter does <b>not</b> include IVR (Quick IVR Call, Bulk IVR Campaign, OTP, Auto-Attendant) or SIP softphone credentials. Need IVR? Pick Pro or Business instead.</i>`
+      ? `\n\n<i>⚠️ Starter has no SIP softphone login and no IVR. Need them? Tap Back and pick Pro.</i>`
       : ''
     const creditLine = planKey === 'starter'
       ? `\n<i>🛡️ 14-day upgrade credit — 25% of your Starter price comes off Pro/Business if you upgrade within 14 days</i>`
       : planKey === 'pro'
       ? `\n<i>🛡️ 14-day upgrade credit — 25% of your Pro price comes off Business if you upgrade within 14 days</i>`
       : ''
-    return `📋 <b>Order Summary</b>\n\n📞 ${formatPhone(number)} · ${country}\n📦 ${plan.name} — $${price}/mo\n📩 ${plan.sms} SMS · 📞 ${plan.minutes} inbound min\n\n💰 Total: <b>$${price}</b> (first month)\n\n<i>📞 Included minutes cover incoming calls answered via SIP/browser. Call forwarding to another phone & all outbound (incl. IVR/OTP) are billed from your wallet.</i>${creditLine}${ivrLine}`
+    return `🧾 <b>Step 4 of 4 · Review & pay</b>\n\n📞 <b>${formatPhone(number)}</b> · ${country}\n📦 <b>${plan.name}</b> — $${price}/mo, renews monthly\n✅ ${plan.minutes} incoming minutes · ${plan.sms} SMS\n\n💰 Due today: <b>$${price}</b>\n<i>Outgoing calls and call forwarding are paid from your wallet.</i>${creditLine}${ivrLine}`
   },
 
-  paymentPrompt: (price) => `Price: <b>$${price}</b>. Choose payment method:`,
+  paymentPrompt: () => `Choose how to pay:`,
 
-  activated: (number, plan, price, sipUser, sipDomain, expiry) => `🎉 <b>Your Cloud IVR is Active!</b>
+  activated: (number, plan, price, sipUser, sipDomain, expiry) => `🎉 <b>You're live!</b>
 
-📞 Number: ${formatPhone(number)}
-📦 Plan: ${plan} ($${price}/mo)
-📅 Renewal: ${expiry}
-
-━━━ <b>SIP Credentials</b> ━━━
+📞 Number: <b>${formatPhone(number)}</b>
+📦 Plan: ${plan} ($${price}/mo) · renews ${expiry}
+${/starter/i.test(String(plan)) ? `
+💬 Texts to this number arrive in this chat.
+📲 Set call forwarding: 📱 My Numbers → Call Forwarding
+<i>Want a SIP softphone or IVR? Upgrade to Pro anytime.</i>` : `
+━━━ <b>SIP login</b> ━━━
 🌐 Server: ${sipDomain}
 👤 Username: ${sipUser}
-🔑 Password: ●●●●●●●● (use 🔑 SIP Credentials to reveal)
-📡 Port: 5060 (UDP/TCP) | 5061 (TLS)
+🔑 Password: tap <b>🔑 SIP Credentials</b> below to show it
+📡 Port: 5060 (UDP/TCP) · 5061 (TLS)
 
-━━━ <b>Quick Setup</b> ━━━
-• Browser: Make & receive calls at <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a> — no sign-up needed
-• Softphone: Download Zoiper/Ooma, enter SIP credentials
-• SMS: Inbound SMS forwarded to this chat automatically
-• Forwarding: Set up via 📱 My Numbers → Call Forwarding`,
+━━━ <b>Start calling</b> ━━━
+• Browser: <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a> — no app needed
+• Softphone: install Zoiper or Linphone and enter the SIP login above
+• SMS: texts to this number arrive in this chat
+• Forwarding: 📱 My Numbers → Call Forwarding`}`,
 
   noNumbers: '📱 You don\'t have any phone numbers yet.\n\nTap below to get your first virtual number.',
 
@@ -797,7 +799,7 @@ Incoming calls you answer on SIP/browser + received SMS are included · Call for
 
 ━━━ <b>Quick Setup</b> ━━━
 • Browser: <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a>
-• Softphone: Download Zoiper/Ooma, enter SIP credentials
+• Softphone: install Zoiper or Linphone and enter the SIP login above
 • Minutes & SMS shared with parent number's plan pool`,
 
   adminSubPurchase: (name, number, parentNumber, price, paymentMethod) => `➕ <b>Sub-Number Added</b>\n👤 ${name}\n📞 ${maskPhone(number)} → ${maskPhone(parentNumber)}\n💰 $${price} · ${paymentMethod}`,

@@ -73,6 +73,7 @@ const WEB_FEATURES = [
   ['recording', 'Call recording', 'callRecording'],
   ['ringGroup', 'Ring groups — ring several phones at once', 'ringGroup'],
   ['aiSummary', () => `AI summaries & caller mood for voicemails and recorded calls ($${Number(require('./ai-summary').RATE()).toFixed(2)}/min)`, 'aiSummary'],
+  ['anyCallerId', 'Show any caller ID on your calls — softphone, browser, Quick IVR and campaigns', (plan) => plan === 'business'],
   ['redial', 'Redial and your own accept / decline messages for codes', 'ivrRedial'],
   ['schedulePresets', 'Quick IVR scheduling and saved call presets', 'ivrSchedule'],
   ['defaultVoice', 'One saved AI voice for all your calls', 'consistentVoice'],

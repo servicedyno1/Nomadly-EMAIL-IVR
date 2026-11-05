@@ -657,6 +657,7 @@ const { handleError, safeRefund, safeExecute } = require('./error-handler.js')
 const { createProgressTracker } = require('./progress-tracker.js')
 const { checkDNSStatus, formatDNSStatus } = require('./dns-status-checker.js')
 const { saveResumableSession, getResumableSession, clearResumableSession, generateResumePrompt } = require('./session-recovery.js')
+const ccid = require('./custom-caller-id-bot')
 const { getInsufficientBalanceMessage, getDNSPropagationMessage, getPhoneVerificationMessage, getTransactionConfirmation } = require('./improved-messages.js')
 const { handleOrderHistory } = require('./order-history.js')
 const { hasCompletedOnboarding, markOnboardingComplete, showOnboarding } = require('./onboarding.js')
@@ -10812,14 +10813,11 @@ bot?.on('message', msg => {
       const ivrBtnHub = await quickIvrLabel(chatId, pc)
       send(chatId, cpWelcome, k.of([
         ...webAccess.cloudivrMenuRows(info?.userLanguage || 'en'),
-        [pc.testSipFree],
-        [ivrBtnHub],
         [pc.buyPhoneNumber],
+        [pc.testSipFree, ivrBtnHub],
+        [pc.myNumbers, pc.usageBilling],
         [pc.bulkCallCampaign, pc.myCampaigns],
-        [pc.audioLibrary],
-        [pc.myNumbers],
-        [pc.sipSettings],
-        [pc.usageBilling],
+        [pc.audioLibrary, pc.sipSettings],
         [pc.howItWorks],
       ]))
     },
@@ -25816,14 +25814,11 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const ivrBtnHiw = await quickIvrLabel(chatId, pc)
     return send(chatId, cpTxt.howItWorks, k.of([
       ...webAccess.cloudivrMenuRows(info?.userLanguage || 'en'),
-      [pc.testSipFree],
-      [ivrBtnHiw],
       [pc.buyPhoneNumber],
+      [pc.testSipFree, ivrBtnHiw],
+      [pc.myNumbers, pc.usageBilling],
       [pc.bulkCallCampaign, pc.myCampaigns],
-      [pc.audioLibrary],
-      [pc.myNumbers],
-      [pc.sipSettings],
-      [pc.usageBilling],
+      [pc.audioLibrary, pc.sipSettings],
       [pc.howItWorks],
     ]))
   }
@@ -25902,19 +25897,6 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const buyLabel = pc.buyPhoneNumber
     if (isBackPress(message) || message === pc.back || isCancelPress(message) || message === pc.cancel) return send(chatId, t.userPressedBtn(message), trans('o'))
     if (phoneConfig.btnKeyOf(message) === 'buyPhoneNumber') {
-      // ── "Try before you buy" nudge ──────────────────────────
-      // If the user hasn't tried a free test call yet, gently suggest it.
-      const trialKey = `ivrTrialUsed_${chatId}`
-      const ivrTrialUsed = await get(state, trialKey).catch(() => null)
-      const sipTestCreds = await db.collection('testCredentials').find({ chatId: String(chatId) }).toArray().catch(() => [])
-      const hasSipTested = sipTestCreds.length > 0
-      if (!ivrTrialUsed && !hasSipTested) {
-        const pMsg = phoneConfig.getMsg(info?.userLanguage || 'en')
-        const tryFirstMsg = pMsg.tryBeforeYouBuy || `💡 <b>Did you know?</b> You can try a <b>free SIP test call</b> and a <b>free IVR trial call</b> before choosing a plan!\n\n🆓 Tap <b>${pc.testSipFree}</b> to test SIP calling in your browser\n📢 Tap <b>${pc.ivrOutboundCall}</b> for a free IVR demo call\n\nOr continue below to pick a plan 👇`
-        await send(chatId, tryFirstMsg, { parse_mode: 'HTML' })
-        // Small delay so the nudge is visible before the plan list
-        await new Promise(r => setTimeout(r, 600))
-      }
       // Step 1: Select Plan FIRST — reset stale phone purchase state
       saveInfo('cpIsSubNumber', false)
       saveInfo('cpSubParentNumber', null)
@@ -26017,7 +25999,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         // Trial path — auto-assign caller ID (Twilio number on main account)
         await saveInfo('ivrObData', { callerId: ivrOb.TRIAL_CALLER_ID, isTrial: true, callerProvider: 'telnyx' })
         await set(state, chatId, 'action', a.ivrObEnterTarget)
-        return send(chatId, trans('t.cp_10', ivrOb.TRIAL_CALLER_ID), k.of([]))
+        return send(chatId, trans('t.cp_10', ivrOb.TRIAL_CALLER_ID), k.of([[ccid.t(lang).btn]]))
       }
 
       // Has numbers but no eligible plan
@@ -26234,7 +26216,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       } catch (_) { /* floor check best-effort — never block on a balance read error */ }
       await set(state, chatId, 'action', a.bulkSelectCaller)
       const numBtns = allCallerIds.map(c => [c.label])
-      return send(chatId, trans('t.cp_12'), k.of([...numBtns, ['↩️ Back']]))
+      return send(chatId, trans('t.cp_12'), k.of([...numBtns, [ccid.t(lang).btn], ['↩️ Back']]))
     }
 
     // ── Audio Library ──
@@ -26283,6 +26265,61 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
   }
 
+  if (action === 'customCidEnter' || action === 'customCidConfirm') {
+    const cc = info?.customCid || {}
+    const L = ccid.t(lang)
+    const backTo = async () => {
+      if (cc.ctx === 'sip' && info?.cpActiveNumber) { await set(state, chatId, 'action', a.cpManageNumber); return send(chatId, '📱 ' + cc.line, k.of(buildManageMenu(info.cpActiveNumber))) }
+      return goto.submenu5()
+    }
+    if (isBackPress(message) || isCancelPress(message)) return backTo()
+    if (cc.ctx === 'sip' && ccid.isOwn(message)) {
+      await require('./cloudivr-web/caller-ids').setDefault(chatId, cc.line, null)
+      send(chatId, L.resetSip(cc.line), { parse_mode: 'HTML' })
+      return backTo()
+    }
+    if (action === 'customCidEnter') {
+      const cid = require('./cloudivr-web/caller-ids')
+      if (cid.isEmergency(message)) return send(chatId, '⚠️ Emergency numbers can’t be used as a caller ID.')
+      const n = String(message || '').replace(/[^\d+]/g, '')
+      const e164 = n.startsWith('+') ? n : n.length === 10 ? `+1${n}` : `+${n}`
+      if (!/^\+[1-9]\d{7,14}$/.test(e164)) return send(chatId, L.ask, k.of([['↩️ Back']]))
+      await saveInfo('customCid', { ...cc, number: e164 })
+      await set(state, chatId, 'action', 'customCidConfirm')
+      return send(chatId, L.confirm(e164), k.of([[L.yes], ['↩️ Back']]))
+    }
+    if (!ccid.isYes(message)) return send(chatId, L.confirm(cc.number), k.of([[L.yes], ['↩️ Back']]))
+    const cid = require('./cloudivr-web/caller-ids')
+    if (cc.ctx === 'trial') {
+      // Free Quick IVR trial: any caller ID (not emergency), logged + admin alert, no plan needed.
+      await saveInfo('customCid', null)
+      cid.logUse(chatId, cc.number, 'ivr_trial', '')
+      require('./scam-watch').alert(`🎭 <b>Free Quick IVR trial — custom caller ID</b>\n👤 ${username ? '@' + username : ''} (${chatId})\n📞 ${cc.number}${cid.HOTLINES[cc.number] ? ` — 🚩 matches <b>${cid.HOTLINES[cc.number]}</b> hotline` : ''}`)
+      const ivrObData = { ...(info?.ivrObData || {}), displayCallerId: cc.number }
+      await saveInfo('ivrObData', ivrObData)
+      await set(state, chatId, 'action', a.ivrObEnterTarget)
+      return send(chatId, trans('t.cp_10', cc.number), k.of([]))
+    }
+    const r = await cid.attest(chatId, cc.number, { who: username ? `@${username}` : '', channel: 'bot' })
+    if (!r.ok) { await set(state, chatId, 'action', 'customCidEnter'); return send(chatId, `⚠️ ${r.message}`, k.of([['↩️ Back']])) }
+    await saveInfo('customCid', null)
+    if (cc.ctx === 'sip') {
+      await cid.setDefault(chatId, cc.line, r.number)
+      send(chatId, L.savedSip(cc.line, r.number), { parse_mode: 'HTML' })
+      return backTo()
+    }
+    if (cc.ctx === 'bulk') {
+      const bulkData = { ...(info?.bulkData || {}), callerId: cc.line, showAs: r.number, callerType: cc.type, provider: 'telnyx', twilioSubAccountSid: null, twilioSubAccountToken: null }
+      await saveInfo('bulkData', bulkData)
+      await set(state, chatId, 'action', a.bulkUploadLeads)
+      return send(chatId, trans('t.cp_132', r.number), k.of([['↩️ Back']]))
+    }
+    const ivrObData = { ...(info?.ivrObData || {}), callerId: cc.line, displayCallerId: r.number, callerProvider: 'telnyx', callerPlan: cc.plan || 'starter' }
+    await saveInfo('ivrObData', ivrObData)
+    await set(state, chatId, 'action', a.ivrObEnterTarget)
+    return send(chatId, trans('t.cp_25', r.number), k.of([]))
+  }
+
   if (action === a.ivrObSelectCallerId) {
     if (message === 'Cancel' || isCancelPress(message) || isBackPress(message)) return goto.submenu5()
     const userData = await get(phoneNumbersOf, chatId)
@@ -26315,7 +26352,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       // ivrObData explicitly and are unaffected.)
       await saveInfo('ivrObData', { isTrial: false })
       const rows = eligibleNumbers.map(n => [n.phoneNumber])
-      return send(chatId, trans('t.cp_15'), k.of([...rows, ['↩️ Back']]))
+      return send(chatId, trans('t.cp_15'), k.of([...rows, [ccid.t(lang).btn], ['↩️ Back']]))
     }
 
     // UX-fix-2: Resume Last Draft — restore everything the user had typed
@@ -26444,10 +26481,18 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return send(chatId, trans('t.cp_23', caller.phoneNumber, recentNumber), k.of(rows))
     }
 
+    if (ccid.isBtn(message)) {
+      const line = eligibleNumbers.find(n => n.plan === 'business' && (n.provider || 'telnyx') !== 'twilio')
+      if (!line) return send(chatId, ccid.t(lang).noLine, { parse_mode: 'HTML' })
+      await saveInfo('customCid', { ctx: 'ivr', line: line.phoneNumber, plan: line.plan || 'starter' })
+      await set(state, chatId, 'action', 'customCidEnter')
+      return send(chatId, ccid.t(lang).ask, k.of([['↩️ Back']]))
+    }
     // ── Normal caller ID selection ──
     const found = numbers.find(n => n.phoneNumber === message)
     if (!found) return send(chatId, trans('t.cp_24'))
     ivrObData.callerId = found.phoneNumber
+    delete ivrObData.displayCallerId
     ivrObData.callerProvider = found.provider || 'telnyx'
     ivrObData.callerPlan = found.plan || 'starter'
     await saveInfo('ivrObData', ivrObData)
@@ -26455,6 +26500,11 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     return send(chatId, trans('t.cp_25', found.phoneNumber), k.of([]))
   }
 
+  if (action === a.ivrObEnterTarget && ccid.isBtn(message) && info?.ivrObData?.isTrial) {
+    await saveInfo('customCid', { ctx: 'trial' })
+    await set(state, chatId, 'action', 'customCidEnter')
+    return send(chatId, ccid.t(lang).askTrial, k.of([['↩️ Back']]))
+  }
   if (action === a.ivrObEnterTarget) {
     if (message === 'Cancel' || isCancelPress(message)) return goto.submenu5()
     if (isBackPress(message)) {
@@ -27894,6 +27944,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const result = await voiceService.initiateOutboundIvrCall({
         chatId,
         callerId: ivrObData.callerId,
+        displayCallerId: ivrObData.displayCallerId || null,
         targetNumber: ivrObData.targetNumber,
         ivrNumber: ivrObData.ivrNumber,
         transferBackups: ivrObData.menu ? [] : (ivrObData.transferBackups || []),
@@ -27931,7 +27982,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           batchCount++
           send(chatId, trans('t.cp_119', batchCount, batchTargets.length, target))
           await voiceService.initiateOutboundIvrCall({
-            chatId, callerId: ivrObData.callerId, targetNumber: target,
+            chatId, callerId: ivrObData.callerId, displayCallerId: ivrObData.displayCallerId || null, targetNumber: target,
             ivrNumber: ivrObData.ivrNumber, transferBackups: ivrObData.menu ? [] : (ivrObData.transferBackups || []), menu: ivrObData.menu || null, audioUrl: ivrObData.audioUrl,
             activeKeys: ivrObData.menu ? Object.keys(ivrObData.menu) : ivrObData.activeKeys, templateName: ivrObData.templateName,
             placeholderValues: ivrObData.placeholderValues, voiceName: ivrObData.voiceName,
@@ -28271,11 +28322,19 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (isBackPress(message) || isCancelPress(message)) return goto.submenu5()
     // Match against caller ID labels
     const allCallerIds = info?.bulkCallerIds || []
+    if (ccid.isBtn(message)) {
+      const line = allCallerIds.find(c => c.type !== 'owned_twilio' && (c.provider || 'telnyx') !== 'twilio')
+      if (!line) return send(chatId, ccid.t(lang).noLine, { parse_mode: 'HTML' })
+      await saveInfo('customCid', { ctx: 'bulk', line: line.phoneNumber, type: line.type })
+      await set(state, chatId, 'action', 'customCidEnter')
+      return send(chatId, ccid.t(lang).ask, k.of([['↩️ Back']]))
+    }
     const found = allCallerIds.find(c => c.label === message)
     if (!found) return send(chatId, trans('t.cp_131'))
 
     const bulkData = info?.bulkData || {}
     bulkData.callerId = found.phoneNumber
+    delete bulkData.showAs
     bulkData.callerType = found.type
     bulkData.provider = found.provider || (found.type === 'owned_twilio' ? 'twilio' : 'telnyx')
     bulkData.twilioSubAccountSid = found.subAccountSid || null
@@ -28290,7 +28349,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.bulkSelectCaller)
       const allCallerIds = info?.bulkCallerIds || []
       const numBtns = allCallerIds.map(c => [c.label])
-      return send(chatId, trans('t.cp_133'), k.of([...numBtns, ['↩️ Back']]))
+      return send(chatId, trans('t.cp_133'), k.of([...numBtns, [ccid.t(lang).btn], ['↩️ Back']]))
     }
     const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     let content = ''
@@ -29090,6 +29149,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         const campaign = await bulkCallService.createCampaign({
           chatId,
           callerId: bulkData.callerId,
+          showAs: bulkData.showAs || null,
           audioUrl: bulkData.audioUrl,
           audioName: bulkData.audioName,
           mode: bulkData.mode,
@@ -29286,7 +29346,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (message === pc.tollFreeNumber) numberType = 'toll_free'
     if (message === (pc.mobileNumber || '📱 Mobile Number')) numberType = 'mobile'
     if (message === (pc.nationalNumber || '🌐 National Number')) numberType = 'national'
-    if (!numberType) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectLocalOrTollFree)
+    if (!numberType) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectLocalOrTollFree, k.of([[pc.localNumber], [pc.tollFreeNumber], [pc.back]]))
     await saveInfo('cpNumberType', numberType)
 
     const cc = info?.cpCountryCode || 'US'
@@ -29336,11 +29396,11 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const location = info?.cpCountryName || cc
     // Build tagged number display
     const numberLines = results.map((r, i) => {
-      const tag = r._bulkIvrCapable ? ' ☎️ Bulk IVR' : ''
+      const tag = ''
       return `${i + 1}. <code>${r.phone_number}</code>${tag}`
     }).join('\n')
-    const numBtns = results.map((_, i) => String(i + 1))
-    return send(chatId, trans('t.cp_227', location, numberLines), k.of([numBtns, [pc.showMore]]))
+    const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
+    return send(chatId, trans('t.cp_227', location, numberLines), k.of([...numBtns, [pc.showMore]]))
   }
 
   // ── BUY FLOW: Select Area ──
@@ -29385,11 +29445,11 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
     const numberLines = results.map((r, i) => {
-      const tag = r._bulkIvrCapable ? ' ☎️ Bulk IVR' : ''
+      const tag = ''
       return `${i + 1}. <code>${r.phone_number}</code>${tag}`
     }).join('\n')
-    const numBtns = results.map((_, i) => String(i + 1))
-    return send(chatId, trans('t.cp_228', message, numberLines), k.of([numBtns, [pc.showMore]]))
+    const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
+    return send(chatId, trans('t.cp_228', message, numberLines), k.of([...numBtns, [pc.showMore]]))
   }
 
   // ── BUY FLOW: Enter Area Code ──
@@ -29434,11 +29494,11 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (!results.length) return send(chatId, cpTxt.noSearchResults + '\nTry a different area code.', k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
     const numberLines = results.map((r, i) => {
-      const tag = r._bulkIvrCapable ? ' ☎️ Bulk IVR' : ''
+      const tag = ''
       return `${i + 1}. <code>${r.phone_number}</code>${tag}`
     }).join('\n')
-    const numBtns = results.map((_, i) => String(i + 1))
-    return send(chatId, trans('t.cp_229', areaCode, numberLines), k.of([numBtns, [pc.showMore]]))
+    const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
+    return send(chatId, trans('t.cp_229', areaCode, numberLines), k.of([...numBtns, [pc.showMore]]))
   }
 
   // ── BUY FLOW: Select Number ──
@@ -29484,14 +29544,16 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await saveInfo('cpSearchResults', results)
       const location = info?.cpAreaName || info?.cpCountryName || 'US'
       const numberLines = results.map((r, i) => {
-        const tag = r._bulkIvrCapable ? ' ☎️ Bulk IVR' : ''
+        const tag = ''
         return `${i + 1}. <code>${r.phone_number}</code>${tag}`
       }).join('\n')
-      const numBtns = results.map((_, i) => String(i + 1))
-      return send(chatId, trans('t.cp_230', location, numberLines), k.of([numBtns, [pc.showMore]]))
+      const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
+      return send(chatId, trans('t.cp_230', location, numberLines), k.of([...numBtns, [pc.showMore]]))
     }
-    const idx = parseInt(message) - 1
     const results = info?.cpSearchResults || []
+    const _dg = String(message || '').replace(/\D/g, '')
+    const _byNum = _dg.length > 6 ? results.findIndex(r => String(r.phone_number).replace(/\D/g, '') === _dg) : -1
+    const idx = _byNum >= 0 ? _byNum : parseInt(message) - 1
     if (isNaN(idx) || idx < 0 || idx >= results.length) return send(chatId, phoneConfig.getMsg(info?.userLanguage).tapNumberToSelect)
     const selected = results[idx]
     await saveInfo('cpSelectedNumber', selected.phone_number)
@@ -30486,6 +30548,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (phoneConfig.canAccessFeature(plan, 'voicemail')) rows.push([vmLabel])
     // SIP — always visible so users can find credentials (shows upgrade prompt if Starter)
     rows.push([sipLabel])
+    rows.push([ccid.t(info?.userLanguage).btn])
     // Advanced (plan-gated)
     if (phoneConfig.canAccessFeature(plan, 'callRecording')) rows.push([pc.callRecording])
     if (phoneConfig.canAccessFeature(plan, 'ivr')) rows.push([ivrLabel])
@@ -31016,6 +31079,12 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return send(chatId, `${preview}\n\n${cpTxt.voicemailMenu(num.phoneNumber, vm)}`, k.of(btns))
     }
 
+    if (ccid.isBtn(message)) {
+      if (num.plan !== 'business') return send(chatId, ccid.t(lang).noLine, { parse_mode: 'HTML' })
+      await saveInfo('customCid', { ctx: 'sip', line: num.phoneNumber })
+      await set(state, chatId, 'action', 'customCidEnter')
+      return send(chatId, ccid.t(lang).ask, k.of([[ccid.t(lang).own], ['↩️ Back']]))
+    }
     // SIP Credentials — Pro/Business only
     // Match both raw label and the "(skipped)" badged variant.
     if (message === pc.sipCredentials || (typeof message === 'string' && message.startsWith(pc.sipCredentials))) {
@@ -31313,7 +31382,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (message === pc.tollFreeNumber) numberType = 'toll_free'
     if (message === (pc.mobileNumber || '📱 Mobile Number')) numberType = 'mobile'
     if (message === (pc.nationalNumber || '🌐 National Number')) numberType = 'national'
-    if (!numberType) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectLocalOrTollFree)
+    if (!numberType) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectLocalOrTollFree, k.of([[pc.localNumber], [pc.tollFreeNumber], [pc.back]]))
     await saveInfo('cpNumberType', numberType)
     const cc = info?.cpCountryCode || 'US'
     const provider = info?.cpProvider || 'telnyx'
@@ -31346,11 +31415,11 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
     const numberLines = results.map((r, i) => {
-      const tag = r._bulkIvrCapable ? ' ☎️ Bulk IVR' : ''
+      const tag = ''
       return `${i + 1}. <code>${r.phone_number}</code>${tag}`
     }).join('\n')
-    const numBtns = results.map((_, i) => String(i + 1))
-    return send(chatId, trans('t.cp_260', cpTxt.subNumbersAvailable, numberLines, cpTxt.bulkIvrSupport, cpTxt.tapToSelect), k.of([numBtns, [pc.showMore]]))
+    const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
+    return send(chatId, trans('t.cp_260', cpTxt.subNumbersAvailable, numberLines, cpTxt.bulkIvrSupport, cpTxt.tapToSelect), k.of([...numBtns, [pc.showMore]]))
   }
 
   // ━━━ SUB-NUMBER: Select Area (US local) ━━━
@@ -31392,11 +31461,11 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
     const numberLines = results.map((r, i) => {
-      const tag = r._bulkIvrCapable ? ' ☎️ Bulk IVR' : ''
+      const tag = ''
       return `${i + 1}. <code>${r.phone_number}</code>${tag}`
     }).join('\n')
-    const numBtns = results.map((_, i) => String(i + 1))
-    return send(chatId, trans('t.cp_261', cpTxt.subNumberSelected(message), numberLines, cpTxt.bulkIvrSupport, cpTxt.tapToSelect), k.of([numBtns, [pc.showMore]]))
+    const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
+    return send(chatId, trans('t.cp_261', cpTxt.subNumberSelected(message), numberLines, cpTxt.bulkIvrSupport, cpTxt.tapToSelect), k.of([...numBtns, [pc.showMore]]))
   }
 
   // ━━━ SUB-NUMBER: Enter Area Code ━━━
@@ -31438,11 +31507,11 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (!results.length) return send(chatId, cpTxt.noSearchResults + '\nTry a different area code.', k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
     const numberLines = results.map((r, i) => {
-      const tag = r._bulkIvrCapable ? ' ☎️ Bulk IVR' : ''
+      const tag = ''
       return `${i + 1}. <code>${r.phone_number}</code>${tag}`
     }).join('\n')
-    const numBtns = results.map((_, i) => String(i + 1))
-    return send(chatId, trans('t.cp_262', cpTxt.subNumberArea(areaCode), numberLines, cpTxt.bulkIvrSupport, cpTxt.tapToSelect), k.of([numBtns, [pc.showMore]]))
+    const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
+    return send(chatId, trans('t.cp_262', cpTxt.subNumberArea(areaCode), numberLines, cpTxt.bulkIvrSupport, cpTxt.tapToSelect), k.of([...numBtns, [pc.showMore]]))
   }
 
   // ━━━ SUB-NUMBER: Select Number ━━━
@@ -31480,14 +31549,16 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
       await saveInfo('cpSearchResults', results)
       const numberLines = results.map((r, i) => {
-        const tag = r._bulkIvrCapable ? ' ☎️ Bulk IVR' : ''
+        const tag = ''
         return `${i + 1}. <code>${r.phone_number}</code>${tag}`
       }).join('\n')
-      const numBtns = results.map((_, i) => String(i + 1))
-      return send(chatId, trans('t.cp_263', numberLines), k.of([numBtns, [pc.showMore]]))
+      const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
+      return send(chatId, trans('t.cp_263', numberLines), k.of([...numBtns, [pc.showMore]]))
     }
-    const idx = parseInt(message) - 1
     const results = info?.cpSearchResults || []
+    const _dg = String(message || '').replace(/\D/g, '')
+    const _byNum = _dg.length > 6 ? results.findIndex(r => String(r.phone_number).replace(/\D/g, '') === _dg) : -1
+    const idx = _byNum >= 0 ? _byNum : parseInt(message) - 1
     if (isNaN(idx) || idx < 0 || idx >= results.length) return send(chatId, phoneConfig.getMsg(info?.userLanguage).tapNumberToSelect)
     const selected = results[idx]
     await saveInfo('cpSelectedNumber', selected.phone_number)
