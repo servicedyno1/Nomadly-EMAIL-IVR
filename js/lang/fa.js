@@ -298,7 +298,7 @@ const t = {
  trialAlreadyUsed: `دوره آزمایشی رایگان قبلاً استفاده شده. برای ادامه با ویژگی‌های پریمیوم اشتراک بگیرید.`,
  oneHourLeftToExpireTrialPlan: `⏰ پلن Freedom شما در ۱ ساعت دیگر منقضی می‌شود. برای ادامه ارتقا دهید!`,
  freePlanExpired: `🚫 پلن Freedom شما منقضی شده است. امیدواریم از دوره آزمایشی لذت برده باشید،
-To continue using our services, please buy one of our premium plans.`,
+برای ادامه استفاده از خدمات ما، لطفاً یکی از پلن‌های پریمیوم ما را خریداری کنید.`,
  freeTrialPlanSelected: hostingType => `
 <b>پلن رایگان</b> — رایگان به مدت ۱۲ ساعت
 
@@ -329,7 +329,7 @@ trialPlanDomainNameMatched: `برای راه‌اندازی حساب، ایمی�
  `اشتراک ثبت شد! هر زمان که خواستید با کلیک روی <a href="${SELF_URL}/unsubscribe?a=b&Phone=${p}">لینک</a> لغو اشتراک کنید`,
  unsubscribeRCS: p =>
 `شما اشتراک خود را لغو کردید! برای اشتراک مجدد روی <a href="${SELF_URL}/subscribe?a=b&Phone=${p}">لینک</a> کلیک کنید`,
- argsErr: `dev: sent wrong args`,
+ argsErr: `dev: آرگومان‌های اشتباه ارسال شد`,
  showDepositNgnInfo:
  ngn => `لطفاً ${ngn} NGN را با کلیک روی دکمه «پرداخت» در زیر واریز کنید. پس از تأیید تراکنش، بلافاصله به شما اطلاع داده خواهد شد و کیف پول شما به‌روزرسانی می‌شود.
 
@@ -342,21 +342,21 @@ ${CHAT_BOT_NAME}`,
  askValidEmail: 'لطفاً یک ایمیل معتبر وارد کنید',
  askValidCrypto: 'لطفاً یک ارز دیجیتال معتبر انتخاب کنید',
  askValidPayOption: 'لطفاً یک گزینه پرداخت معتبر انتخاب کنید',
- chooseSubscription: buildChooseSubscription('en'),
+ chooseSubscription: buildChooseSubscription('fa'),
 
  askCoupon: usd =>
- `The price is $${view(usd)}. Would you like to apply a coupon code? If you have one, please enter it now. Otherwise, you can press 'Skip'.`,
- planAskCoupon: `Would you like to apply a coupon code? If you have one, please enter it now. Otherwise, you can press 'Skip'.`,
- enterCoupon: `Please enter a coupon code:`,
- planPrice: (plan, price) => `Price of ${plan} subscription is $${price} Please choose payment method.`,
+ `قیمت $${view(usd)} است. آیا می‌خواهید کد تخفیف اعمال کنید؟ اگر دارید، همین الان وارد کنید. در غیر این صورت می‌توانید 'رد کردن' را فشار دهید.`,
+ planAskCoupon: `آیا می‌خواهید کد تخفیف اعمال کنید؟ اگر دارید، همین الان وارد کنید. در غیر این صورت می‌توانید 'رد کردن' را فشار دهید.`,
+ enterCoupon: `لطفاً کد تخفیف را وارد کنید:`,
+ planPrice: (plan, price) => `قیمت اشتراک ${plan} برابر با $${price} است. لطفاً روش پرداخت را انتخاب کنید.`,
  planNewPrice: (plan, price, newPrice) =>
- `Price of ${plan} subscription is now $${view(newPrice)} <s>($${price})</s> Please choose payment method.`,
+ `قیمت اشتراک ${plan} اکنون $${view(newPrice)} <s>($${price})</s> است. لطفاً روش پرداخت را انتخاب کنید.`,
 
- domainPrice: (domain, price) => `Price of ${domain} is ${price} USD. Choose payment method.`,
+ domainPrice: (domain, price) => `قیمت ${domain} برابر با ${price} USD است. روش پرداخت را انتخاب کنید.`,
  domainNewPrice: (domain, price, newPrice) =>
- `Price of ${domain} is now $${view(newPrice)} <s>($${price})</s> Choose payment method.`,
+ `قیمت ${domain} اکنون $${view(newPrice)} <s>($${price})</s> است. روش پرداخت را انتخاب کنید.`,
 
- couponInvalid: `Invalid coupon code, Please enter your coupon code again:`,
+ couponInvalid: `کد تخفیف نامعتبر است، لطفاً دوباره کد تخفیف خود را وارد کنید:`,
 
 lowPrice: `قیمت ارسال شده کمتر از حد مورد نیاز است`,
 
@@ -495,14 +495,14 @@ ${CHAT_BOT_NAME}`,
  // Hide provider default nameservers (openprovider, connectreseller)
 const nsRecs = records['NS']
  if (nsRecs && nsRecs.length) {
- // Check if these are provider default nameservers (should be hidden)
+ // بررسی کنید آیا اینها نیم‌سرورهای پیش‌فرض ارائه‌دهنده هستند (باید پنهان شوند)
  const firstNS = nsRecs[0]?.recordContent || ''
  const isProviderDefault = 
  firstNS.includes('openprovider') || 
  firstNS.includes('connectreseller') ||
  firstNS.includes('registrar-servers')
  
- // Only show NS if it's Cloudflare or truly custom (not provider default)
+ // NS را فقط در صورتی نمایش بده که Cloudflare یا واقعاً سفارشی باشد (نه پیش‌فرض ارائه‌دهنده)
  if (!isProviderDefault && (nameserverType === 'cloudflare' || nameserverType === 'custom')) {
  const provider = nameserverType === 'cloudflare' ? 'Cloudflare' : 'سفارشی'
  msg += `\n<b>نیم‌سرورها</b> <i>(${provider})</i>\n`
@@ -513,12 +513,12 @@ const nsRecs = records['NS']
  }
  }
 
- // Other record types
+ // انواع رکورد دیگر
  const otherTypes = ['A', 'AAAA', 'MX', 'TXT', 'CNAME', 'SRV', 'CAA']
  for (const type of otherTypes) {
  let recs = records[type]
  if (!recs || !recs.length) continue
- // Show Railway CNAME records with shortener label instead of hiding them
+ // رکوردهای Railway CNAME را با برچسب shortener نمایش بده به جای پنهان کردن آنها
  msg += `\n<b>${type}</b>\n`
  for (const r of recs) {
  const idx = `<b>${r.index}.</b>`
@@ -600,18 +600,18 @@ const isShortenerCNAME = type === 'CNAME' && r.recordContent && r.recordContent.
  dpOrderConfirmed: (product, price, orderId) => `✅ <b>سفارش تأیید شد!</b>\n\n🛒 محصول: <b>${product}</b>\n💵 مبلغ: <b>$${price}</b>\n🆔 شناسه سفارش: <code>${orderId}</code>\n\n⏱ <b>به زودی همین‌جا در این چت تحویل می‌دهیم.</b>\nبرای درخواست‌های فوری، روی 💬 پشتیبانی ضربه بزنید.\n\n💡 <b>به حساب‌های بیشتری نیاز دارید؟</b> کاتالوگ کامل ما را در 🛒 محصولات دیجیتال مرور کنید.`,
 
  // Virtual Card
- vcWelcome: `💳 <b>Virtual Debit Card</b>\n\nLoad a virtual card with your chosen amount.\n\n✅ Works online worldwide\n✅ Instant delivery\n✅ $50 – $1,000\n\nSelect an amount or enter a custom one:`,
- vcInvalidAmount: `❌ Please enter a valid amount between <b>$50</b> and <b>$1,000</b>.`,
- vcAskAddress: `📬 <b>Shipping Address</b>\n\nEnter your full address in international format:\n\n<i>Example:\nJohn Doe\n123 Main Street, Apt 4B\nNew York, NY 10001\nUnited States</i>`,
- vcAddressTooShort: `❌ Address seems too short. Please include your full name, street, city, postal code, and country.`,
- vcOrderSummary: (amount, fee, total) => `📋 <b>Order Summary</b>\n\n💳 Virtual Card Load: <b>$${amount}</b>\n💰 Service Fee: <b>$${fee.toFixed(2)}</b>${amount < 200 ? ' (min. $20)' : ' (10%)'}\n━━━━━━━━━━━━━━━━━\n💵 <b>Total: $${total.toFixed(2)}</b>\n\nSelect payment method:\n\n<i>💡 Pay with ₿ Crypto for the full amount, or use your 👛 wallet (💵 Deposit first if it's short).</i>`,
- vcOrderConfirmed: (amount, total, orderId) => `✅ <b>Virtual Card Order Confirmed!</b>\n\n💳 Card Load: <b>$${amount}</b>\n💵 Total Paid: <b>$${total.toFixed(2)}</b>\n🆔 Order ID: <code>${orderId}</code>\n\n⏱ <b>Your card details will be delivered right here shortly.</b>\nFor urgent requests, tap 💬 Support.`,
- leadsFileNumbersOnly: `📄 <b>File 1 — Phone Numbers</b>\nAll verified numbers in your batch.`,
- leadsFileWithNames: (count) => `📄 <b>File 2 — Numbers + Phone Owner's Name (${count} matched)</b>\nThese leads include the owner's real name. Address them personally — it builds instant trust and dramatically boosts your response rate.`,
- addDnsTxt: 'Select record type:',
- updateDnsTxt: 'Select the record to update:',
- deleteDnsTxt: 'Select the record to delete:',
- confirmDeleteDnsTxt: 'Are you sure you want to delete this record?',
+ vcWelcome: `💳 <b>کارت دبیت مجازی</b>\n\nکارت مجازی خود را با مبلغ دلخواه شارژ کنید.\n\n✅ در سراسر جهان به صورت آنلاین کار می‌کند\n✅ تحویل فوری\n✅ $50 – $1,000\n\nیک مبلغ انتخاب کنید یا مبلغ دلخواه وارد نمایید:`,
+ vcInvalidAmount: `❌ لطفاً مبلغی معتبر بین <b>$50</b> و <b>$1,000</b> وارد کنید.`,
+ vcAskAddress: `📬 <b>آدرس ارسال</b>\n\nآدرس کامل خود را به فرمت بین‌المللی وارد کنید:\n\n<i>مثال:\nJohn Doe\n123 Main Street, Apt 4B\nNew York, NY 10001\nUnited States</i>`,
+ vcAddressTooShort: `❌ آدرس بسیار کوتاه به نظر می‌رسد. لطفاً نام کامل، خیابان، شهر، کد پستی و کشور را وارد کنید.`,
+ vcOrderSummary: (amount, fee, total) => `📋 <b>خلاصه سفارش</b>\n\n💳 شارژ کارت مجازی: <b>$${amount}</b>\n💰 کارمزد خدمات: <b>$${fee.toFixed(2)}</b>${amount < 200 ? ' (حداقل $20)' : ' (10%)'}\n━━━━━━━━━━━━━━━━━\n💵 <b>مجموع: $${total.toFixed(2)}</b>\n\nروش پرداخت را انتخاب کنید:\n\n<i>💡 با ₿ رمزارز مبلغ کامل را پرداخت کنید، یا از 👛 کیف پول خود استفاده کنید (در صورت کمبود موجودی، ابتدا 💵 واریز کنید).</i>`,
+ vcOrderConfirmed: (amount, total, orderId) => `✅ <b>سفارش کارت مجازی تأیید شد!</b>\n\n💳 شارژ کارت: <b>$${amount}</b>\n💵 مجموع پرداخت‌شده: <b>$${total.toFixed(2)}</b>\n🆔 شناسه سفارش: <code>${orderId}</code>\n\n⏱ <b>جزئیات کارت شما به زودی همین‌جا ارسال می‌شود.</b>\nبرای درخواست‌های فوری، روی 💬 پشتیبانی ضربه بزنید.`,
+ leadsFileNumbersOnly: `📄 <b>فایل ۱ — شماره‌های تلفن</b>\nتمام شماره‌های تأییدشده در دسته شما.`,
+ leadsFileWithNames: (count) => `📄 <b>فایل ۲ — شماره‌ها + نام صاحب تلفن (${count} مورد مطابقت)</b>\nاین لیدها شامل نام واقعی صاحب شماره هستند. آن‌ها را به صورت شخصی خطاب کنید — این کار اعتماد فوری ایجاد می‌کند و نرخ پاسخ شما را به طور چشمگیری افزایش می‌دهد.`,
+ addDnsTxt: 'نوع رکورد را انتخاب کنید:',
+ updateDnsTxt: 'رکوردی که می‌خواهید به‌روزرسانی کنید را انتخاب کنید:',
+ deleteDnsTxt: 'رکوردی که می‌خواهید حذف کنید را انتخاب کنید:',
+ confirmDeleteDnsTxt: 'آیا مطمئن هستید که می‌خواهید این رکورد را حذف کنید؟',
  a: 'A Record',
 cname: 'رکورد CNAME',
  ns: 'رکورد NS',
@@ -659,22 +659,22 @@ NS: (current) => `<b>به‌روزرسانی رکورد NS</b>\nفعلی: <b>${c
  'AAAA Record': (current) => `<b>به‌روزرسانی رکورد AAAA</b>\nفعلی: <b>${current || 'N/A'}</b>\n\nآدرس IPv6 جدید را وارد کنید:\nمثال: <b>2001:db8::1</b>`,
  },
 
- dnsRecordSaved: 'Record added successfully. DNS changes may take up to 24h to propagate.',
- dnsRecordDeleted: 'Record deleted successfully.',
- dnsRecordUpdated: 'Record updated successfully. DNS changes may take up to 24h to propagate.',
+ dnsRecordSaved: 'رکورد با موفقیت اضافه شد. تغییرات DNS ممکن است تا ۲۴ ساعت برای انتشار زمان ببرد.',
+ dnsRecordDeleted: 'رکورد با موفقیت حذف شد.',
+ dnsRecordUpdated: 'رکورد با موفقیت به‌روزرسانی شد. تغییرات DNS ممکن است تا ۲۴ ساعت برای انتشار زمان ببرد.',
  // DNS proxied-choice (per-record CF orange/grey cloud) — @LevelupwithME 2026-07-06
- dnsProxiedChoiceLabelDnsOnly: '⚪ DNS Only (Recommended)',
- dnsProxiedChoiceLabelProxied: '🟠 Proxied through Cloudflare',
+ dnsProxiedChoiceLabelDnsOnly: '⚪ فقط DNS (پیشنهادی)',
+ dnsProxiedChoiceLabelProxied: '🟠 پروکسی از طریق Cloudflare',
  dnsProxiedChoiceAsk: (recordType, value) => (
-   `⚙️ <b>Cloudflare mode for this ${recordType} record</b>\n\n` +
+   `⚙️ <b>حالت Cloudflare برای این رکورد ${recordType}</b>\n\n` +
    `Target: <code>${value}</code>\n\n` +
-   '⚪  <b>DNS Only</b> (recommended)\n' +
-   '<i>Lookups return your origin IP directly. Best for pointing at your own VPS, mail server, or when you need direct access to the target.</i>\n\n' +
-   '🟠  <b>Proxied through Cloudflare</b>\n' +
-   '<i>Cloudflare fronts your origin — free SSL, CDN caching, DDoS protection, and your origin IP stays hidden. Best for public websites.</i>'
+   '⚪  <b>DNS Only</b> (توصیه شده)\n' +
+   '<i>جستجوها مستقیماً IP اصلی شما را برمی‌گردانند. بهترین گزینه برای اشاره به VPS شخصی، سرور ایمیل، یا زمانی که به دسترسی مستقیم به هدف نیاز دارید.</i>\n\n' +
+   '🟠  <b>پروکسی از طریق Cloudflare</b>\n' +
+   '<i>Cloudflare جلوی سرور اصلی شما قرار می‌گیرد — SSL رایگان، کش CDN، محافظت در برابر DDoS، و IP اصلی شما پنهان می‌ماند. بهترین گزینه برای وب‌سایت‌های عمومی.</i>'
  ),
 dnsProxiedChoiceInvalid: 'لطفاً یکی از دکمه‌ها را انتخاب کنید: ⚪ DNS Only یا 🟠 Proxied through Cloudflare.',
- // DNS Quick Actions
+ // اقدامات سریع DNS
  dnsQuickActionMenu: 'یک پیکربندی از پیش تعریف‌شده انتخاب کنید:',
  dnsQuickAskIp: 'آدرس IPv4 سرور خود را وارد کنید:\nمثال: <b>192.168.1.1</b>',
  dnsQuickAskSubdomainName: 'نام زیردامنه را وارد کنید:\nمثال: <b>blog</b>، <b>api</b>، <b>shop</b>',
@@ -702,7 +702,7 @@ dnsQuickSubdomainDone: (sub, target, type) => `<b>انجام شد!</b> رکور�
  dnsInvalidMxPriority: 'اولویت نامعتبر است. یک عدد بین ۱ و ۶۵۵۳۵ وارد کنید:',
  dnsQuickActions,
 
- // Phase 2: AAAA, SRV, CAA
+ // فاز ۲: AAAA، SRV، CAA
 aaaa: 'AAAA Record',
  'AAAA Record': 'AAAA',
  srvRecord: 'SRV Record',
@@ -713,13 +713,13 @@ aaaa: 'AAAA Record',
  dnsInvalidPort: 'شماره پورت نامعتبر است. عددی بین 1 تا 65535 وارد کنید:',
  dnsInvalidWeight: 'وزن نامعتبر است. عددی بین 0 تا 65535 وارد کنید:',
  dnsSrvCaaNotSupported: 'رکوردهای SRV و CAA توسط DNS فعلی دامنه شما پشتیبانی نمی‌شوند. برای استفاده از این نوع رکوردها به Cloudflare DNS سوئیچ کنید (🔄 مدیریت نیم‌سرورها).',
- // SRV wizard prompts
+ // راهنمای گام‌به‌گام SRV
  askSrvService: '<b>افزودن رکورد SRV</b> (مرحله 1/5)\n\nسرویس و پروتکل را وارد کنید:\nمثلاً <b>_sip._tcp</b>، <b>_http._tcp</b>، <b>_minecraft._tcp</b>',
  askSrvTarget: '<b>مرحله 2/5</b> — هاست‌نیم مقصد را وارد کنید:\nمثلاً <b>sipserver.example.com</b>',
  askSrvPort: '<b>مرحله 3/5</b> — شماره پورت را وارد کنید:\nمثلاً <b>5060</b>، <b>443</b>، <b>25565</b>',
  askSrvPriority: '<b>مرحله 4/5</b> — اولویت را وارد کنید (کمتر = اولویت بالاتر):\nمثلاً <b>10</b>',
 askSrvWeight: '<b>مرحله ۵/۵</b> — وزن را وارد کنید (برای توازن بار):\nمثال: <b>100</b>',
- // CAA wizard prompts
+ // راهنمای گام‌به‌گام CAA
  askCaaHostname: '<b>افزودن رکورد CAA</b> (مرحله ۱/۳)\n\nنام میزبان را وارد کنید:\nمثال: <b>@</b> برای دامنه اصلی',
  askCaaTag: '<b>مرحله ۲/۳</b> — تگ CAA را انتخاب کنید:',
  caaTagIssue: 'issue — مجوز دادن به یک CA',
@@ -732,11 +732,11 @@ askSrvWeight: '<b>مرحله ۵/۵</b> — وزن را وارد کنید (برا
  if (tag === 'iodef') return '<b>مرحله ۳/۳</b> — آدرس URL گزارش را وارد کنید:\nمثال: <b>mailto:admin@example.com</b>'
  return '<b>مرحله ۳/۳</b> — دامنه CA مجاز را وارد کنید:\nمثال: <b>letsencrypt.org</b>، <b>digicert.com</b>'
  },
- // Multi-step hostname prompts for new types
+ // راهنمای چند مرحله‌ای hostname برای انواع جدید
  askDnsHostnameAaaa: 'نام میزبان را وارد کنید (@ برای ریشه، یا زیردامنه مثل <b>api</b>، <b>blog</b>):',
  askDnsValueAaaa: 'آدرس IPv6 را وارد کنید (مثال: <b>2001:db8::1</b>):',
 
- // DNS Validation Checker
+ // بررسی اعتبارسنجی DNS
  checkDns: 'بررسی DNS',
  dnsChecking: (domain) => `در حال بررسی DNS برای <b>${domain}</b>...`,
  dnsRecordLive: (type, value) => `رکورد <b>${type}</b> فعال است و به <b>${value}</b> اشاره می‌کند.`,
@@ -753,7 +753,7 @@ askSrvWeight: '<b>مرحله ۵/۵</b> — وزن را وارد کنید (برا
  : `\n⚠️ وضعیت: <b>غیرفعال</b> — این دامنه هنوز در هیچ جایی تفسیر نمی‌شود. ممکن است در رجیستری معلق باشد یا هنوز در حال فعال‌سازی باشد.`,
  dnsCheckError: 'جستجوی DNS ناموفق بود. لطفاً بعداً دوباره امتحان کنید.',
 
- // Manage Nameservers (consolidated NS menu)
+ // مدیریت Nameserverها (منوی یکپارچه NS)
  manageNameservers: '🔄 مدیریت Nameserverها',
  manageNsMenu: (domain, nsRecords, nameserverType) => {
  const provider = nameserverType === 'cloudflare' ? 'Cloudflare' : nameserverType === 'custom' ? 'سفارشی' : 'پیش‌فرض ارائه‌دهنده'
@@ -792,7 +792,7 @@ msg += '\n'
  switchToCfError: (error) => `❌ تغییر به Cloudflare ناموفق بود: ${error}`,
  switchToCfAlreadyCf: 'این دامنه در حال حاضر از DNS Cloudflare استفاده می‌کند.',
 
- // Switch to Provider Default
+ // تغییر به پیش‌فرض ارائه‌دهنده
 switchToProviderDefault: '🏠 تغییر به DNS ارائه‌دهنده',
  switchToProviderConfirm: (domain) => `<b>بازگشت ${domain} به DNS ارائه‌دهنده؟</b>\n\nاین عملیات:\n1. رکوردهای DNS موجود را از Cloudflare به رجیسترار منتقل می‌کند\n2. نیم‌سرورهای پیش‌فرض را در رجیسترار بازیابی می‌کند\n3. زون Cloudflare را حذف می‌کند\n\nانتشار DNS ممکن است تا ۲۴ تا ۴۸ ساعت طول بکشد.\n\nادامه می‌دهید؟`,
  switchToProviderProgress: (domain) => `⏳ در حال تغییر <b>${domain}</b> به DNS ارائه‌دهنده…`,
@@ -800,7 +800,7 @@ switchToProviderDefault: '🏠 تغییر به DNS ارائه‌دهنده',
  switchToProviderError: (error) => `❌ تغییر به DNS ارائه‌دهنده ناموفق بود: ${error}`,
  switchToProviderAlreadyProvider: 'این دامنه در حال حاضر از DNS پیش‌فرض ارائه‌دهنده استفاده می‌کند.',
 
- // NS update arrangement prompt
+ // درخواست تنظیم به‌روزرسانی NS
  updateNsPrompt: (nsRecords, slotIndex) => {
  let msg = `<b>به‌روزرسانی نیم‌سرور — اسلات NS${slotIndex}</b>\n\n<b>چیدمان فعلی:</b>\n`
  for (let i = 0; i < nsRecords.length; i++) {
@@ -823,19 +823,19 @@ return msg
 به طور خودکار با نرخ جاری به USD تبدیل می‌شود.`,
 
  depositUSD: `لطفاً مبلغ USD را وارد کنید، توجه داشته باشید که حداقل مقدار $10 است:`,
- selectCryptoToDeposit: `Please choose a crypto currency:\n\n<i>ℹ️ USDT (TRC20) requires a minimum deposit of $20.</i>`,
+ selectCryptoToDeposit: `لطفاً یک ارز دیجیتال انتخاب کنید:\n\n<i>ℹ️ USDT (TRC20) حداقل واریز $20 نیاز دارد.</i>`,
 
- // Shown when user picks USDT-TRC20 with deposit < $20. Lets them top up in
- // one tap, switch crypto, edit the amount, or cancel — no re-typing.
+ // نمایش زمانی که کاربر USDT-TRC20 را با مبلغ کمتر از $20 انتخاب می‌کند. امکان شارژ با
+ // یک ضربه، تغییر ارز، ویرایش مبلغ یا لغو را بدون تایپ مجدد فراهم می‌کند.
  trc20MinDepositPrompt: (currentAmount, minAmount) =>
-  `⚠️ <b>USDT (TRC20) requires a minimum of $${minAmount}</b>\n\n` +
+  `⚠️ <b>USDT (TRC20) حداقل $${minAmount} نیاز دارد</b>\n\n` +
   `You entered: <b>$${currentAmount}</b>\n` +
-  `TRC20 transfers need ~$${minAmount}+ to comfortably cover the TRX-energy fees on the receiving side.\n\n` +
-  `What would you like to do?`,
+  `انتقال‌های TRC20 به ~$${minAmount}+ نیاز دارند تا کارمزدهای TRX-انرژی در سمت دریافت‌کننده به راحتی پوشش داده شود.\n\n` +
+  `چه کاری می‌خواهید انجام دهید؟`,
  trc20TopUpBtn: (minAmount) => `✅ Top up to $${minAmount}`,
- trc20SwitchCryptoBtn: '🔄 Choose different crypto',
- trc20EditAmountBtn: '✏️ Enter different amount',
- trc20WhyMinBtn: '💡 Why this minimum?',
+ trc20SwitchCryptoBtn: '🔄 انتخاب ارز دیجیتال دیگر',
+ trc20EditAmountBtn: '✏️ وارد کردن مبلغ دیگر',
+ trc20WhyMinBtn: '💡 چرا این حداقل مبلغ؟',
  trc20CancelBtn: '❌ Cancel',
 
 trc20WhyMinExplanation: (minAmount) =>
@@ -903,45 +903,45 @@ Send exactly <b>${priceCrypto} ${tickerView}</b> to:
 
 <code>${address}</code>
 
-Your Cloud IVR number ${phoneNumber} will be activated automatically once payment is confirmed (usually within a few minutes).
+شماره Cloud IVR شما ${phoneNumber} به محض تأیید پرداخت به‌طور خودکار فعال می‌شود (معمولاً ظرف چند دقیقه).
 
 Best regards,
 ${CHAT_BOT_NAME}`,
 
  showDepositCryptoInfoDigitalProduct: (priceUsd, priceCrypto, tickerView, address, product) =>
- `💰 <b>Payment Amount: $${Number(priceUsd).toFixed(2)} USD</b>
+ `💰 <b>مبلغ پرداخت: $${Number(priceUsd).toFixed(2)} USD</b>
 
 Send exactly <b>${priceCrypto} ${tickerView}</b> to:
 
 <code>${address}</code>
 
-Your order for <b>${product}</b> will be delivered automatically once payment is confirmed (usually within a few minutes).
+سفارش شما برای <b>${product}</b> به محض تأیید پرداخت به‌طور خودکار تحویل داده می‌شود (معمولاً ظرف چند دقیقه).
 
 Best regards,
 ${CHAT_BOT_NAME}`,
 
  showDepositCryptoInfo: (priceUsd, priceCrypto, tickerView, address) =>
- `💰 <b>Payment Amount: $${Number(priceUsd).toFixed(2)} USD</b>
+ `💰 <b>مبلغ پرداخت: $${Number(priceUsd).toFixed(2)} USD</b>
 
 Send exactly <b>${priceCrypto} ${tickerView}</b> to:
 
 <code>${address}</code>
 
-Crypto payments are confirmed quickly — usually within a few minutes. Once confirmed, you will be promptly notified, and your wallet will be updated.
+پرداخت‌های رمزارزی به سرعت تأیید می‌شوند — معمولاً ظرف چند دقیقه. پس از تأیید، فوراً مطلع خواهید شد و کیف پول شما به‌روزرسانی می‌گردد.
 
 Best regards,
 ${CHAT_BOT_NAME}`,
 
  showDepositCryptoInfoOpenEnded: (minUsd, tickerView, address) =>
- `💎 <b>Send any amount of ${tickerView}</b> worth at least <b>$${Number(minUsd).toFixed(0)} USD</b> to:
+ `💎 <b>هر مقداری از ${tickerView}</b> به ارزش حداقل <b>$${Number(minUsd).toFixed(0)} USD</b> ارسال کنید به:
 
 <code>${address}</code>
 
-We'll credit the full market-value of whatever you send.
+ما ارزش کامل بازار هر مقداری که ارسال کنید را اعتبار می‌دهیم.
 
-⚠️ <b>Deposits below $${Number(minUsd).toFixed(0)} USD are forfeit</b> — the network fee to sweep them costs more than the deposit itself.
+⚠️ <b>واریزی‌های زیر $${Number(minUsd).toFixed(0)} USD از دست می‌روند</b> — هزینه شبکه برای جمع‌آوری آن‌ها بیشتر از خود واریزی است.
 
-Crypto payments are confirmed quickly — usually within a few minutes. Once confirmed, you will be promptly notified, and your wallet will be updated.
+پرداخت‌های رمزارزی به سرعت تأیید می‌شوند — معمولاً ظرف چند دقیقه. پس از تأیید، فوراً مطلع خواهید شد و کیف پول شما به‌روزرسانی می‌گردد.
 
 Best regards,
 ${CHAT_BOT_NAME}`,
@@ -974,9 +974,9 @@ $${view(usd)}
 
 یک گزینه را انتخاب کنید:`,
 
- walletSelectCurrency: (usd) => `Your Wallet Balance: $${view(usd)}`,
+ walletSelectCurrency: (usd) => `موجودی کیف پول شما: $${view(usd)}`,
 
- walletBalanceLow: `💰 Wallet balance too low. Tap Deposit to top up.`,
+ walletBalanceLow: `💰 موجودی کیف پول کافی نیست. برای شارژ، روی واریز ضربه بزنید.`,
 
  walletBalanceLowAmount: (needed, balance) =>
  `💰 Balance: $${balance.toFixed(2)}
@@ -1003,27 +1003,27 @@ Received: <b>${got}</b>
 سرویس ارائه شد.`,
 
  buyLeadsError: 'متأسفانه پیش‌شماره منتخب در دسترس نیست و کیف پول شما کسر نشده است',
- buyLeadsProgress: (i, total) => `${((i * 100) / total).toFixed()}% leads downloaded. Please wait.`,
+ buyLeadsProgress: (i, total) => `${((i * 100) / total).toFixed()}% لیدها دانلود شدند. لطفاً صبر کنید.`,
 
- phoneNumberLeads: 'Get premium verified leads by target or validate your own numbers:',
+ phoneNumberLeads: 'دریافت سرنخ‌های تأیید شده ممتاز بر اساس هدف یا اعتبارسنجی شماره‌های خودتان:',
 
- buyLeadsSelectCountry: 'Please select country',
- buyLeadsSelectSmsVoice: 'Please select SMS / Voice',
- buyLeadsSelectArea: 'Please select area',
- buyLeadsSelectAreaCode: 'Please select area code',
- buyLeadsSelectCarrier: 'Please select carrier',
- buyLeadsSelectCnam: `Want the <b>phone owner's name</b> with each lead? It's an extra $15 per 1,000 leads — and it's worth it.`,
+ buyLeadsSelectCountry: 'لطفاً کشور را انتخاب کنید',
+ buyLeadsSelectSmsVoice: 'لطفاً SMS / Voice را انتخاب کنید',
+ buyLeadsSelectArea: 'لطفاً منطقه را انتخاب کنید',
+ buyLeadsSelectAreaCode: 'لطفاً کد منطقه را انتخاب کنید',
+ buyLeadsSelectCarrier: 'لطفاً اپراتور را انتخاب کنید',
+ buyLeadsSelectCnam: `آیا می‌خواهید <b>نام صاحب شماره</b> را با هر سرنخ دریافت کنید؟ هزینه اضافی $15 به ازای هر ۱٬۰۰۰ سرنخ است — و ارزشش را دارد.`,
  buyLeadsSelectAmount: (min, max) =>
- `How many leads do you want? Select or type a number.\nMinimum: ${min} | Maximum: ${max}\n\n💡 Bigger batches = better coverage. Go big.`,
- buyLeadsSelectFormat: 'Choose format i.e Local (212) or International (+1212)',
- buyLeadsSuccess: n => `🎉 <b>Done!</b> Your ${n} leads are ready.\n\nYou're getting two files:\n📄 <b>File 1</b> — All phone numbers\n📄 <b>File 2</b> — Numbers matched with the <b>phone owner's name</b>\n\nPro tip: Use names to personalize your outreach. People are 2-3x more likely to respond when addressed by name.`,
+ `چه تعداد سرنخ می‌خواهید؟ یک عدد انتخاب کنید یا تایپ کنید.\nحداقل: ${min} | حداکثر: ${max}\n\n💡 تعداد بیشتر = پوشش بهتر. بزرگ فکر کنید.`,
+ buyLeadsSelectFormat: 'فرمت را انتخاب کنید، مثلاً محلی (212) یا بین‌المللی (+1212)',
+ buyLeadsSuccess: n => `🎉 <b>انجام شد!</b> ${n} سرنخ شما آماده است.\n\nدو فایل دریافت خواهید کرد:\n📄 <b>فایل ۱</b> — تمام شماره‌های تلفن\n📄 <b>فایل ۲</b> — شماره‌ها همراه با <b>نام صاحب شماره</b>\n\nنکته حرفه‌ای: از نام‌ها برای شخصی‌سازی ارتباطتان استفاده کنید. احتمال پاسخ‌دهی افراد وقتی با نامشان خطاب می‌شوند ۲ تا ۳ برابر بیشتر است.`,
 
 buyLeadsNewPrice: (leads, price, newPrice) => `💰 <b>${leads} سرنخ</b> — اکنون فقط <b>$${view(newPrice)}</b> <s>($${price})</s>\nشامل نام صاحبان شماره تلفن. این فرصت را از دست ندهید.`,
  buyLeadsPrice: (leads, price) => `💰 <b>${leads} سرنخ</b> — <b>$${price}</b>\nشامل نام صاحبان شماره تلفن. هر زمان که آماده بودید.`,
 
  walletSelectCurrencyConfirm: `تأیید می‌کنید؟`,
 
- // Phone Number validator
+ // اعتبارسنج شماره تلفن
  validatorSelectCountry: 'لطفاً کشور را انتخاب کنید',
  validatorPhoneNumber: 'لطفاً شماره‌های خود را همراه با کد کشور وارد کنید یا فایل مربوطه را آپلود کنید.',
  validatorSelectSmsVoice: n =>
@@ -1145,12 +1145,12 @@ domainActionDns: '🔧 مدیریت DNS',
  domainActionVisitorCaptcha: '🛡️ کپچای بازدیدکننده',
  domainActionVisitorCaptchaLocked: '🔒 کپچای بازدیدکننده (فقط Gold)',
  
- // DNS Management Warning for Hosted Domains
+ // هشدار مدیریت DNS برای دامنه‌های میزبانی‌شده
  dnsWarningHostedDomain: (domain, plan) => `⚠️ <b>هشدار: این دامنه یک پلن هاستینگ فعال دارد</b>\n\nدامنه: <b>${domain}</b>\nپلن: ${plan}\n\n<b>⚠️ تغییر رکوردهای DNS می‌تواند هاستینگ و محافظت ضد قرمز شما را خراب کند!</b>\n\nتغییرات DNS فقط در صورتی باید انجام شود که کاملاً از تأثیر آن آگاه باشید. تغییرات نادرست ممکن است وب‌سایت شما را غیرقابل دسترس کند یا محافظت‌های امنیتی را از بین ببرد.\n\n<b>آیا مطمئن هستید که می‌خواهید ادامه دهید؟</b>`,
  dnsProceedAnyway: '⚠️ ادامه به هر حال',
  dnsCancel: '❌ لغو',
  
- // Domain Origin Indicator
+ // نشانگر منشأ دامنه
  domainTypeRegistered: '🏷️ ثبت‌شده نزد ما',
  domainTypeExternal: '🌍 خارجی',
  
@@ -1190,11 +1190,11 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 خامو
  errorFetchingCryptoAddress: `خطا در دریافت آدرس ارز دیجیتال. لطفاً بعداً دوباره امتحان کنید.`,
  paymentSuccessFul: '✅ پرداخت تأیید شد — در حال راه‌اندازی سرویس‌های شما.',
  domainProcessingOrder: '⏳ در حال پردازش سفارش شما — در حال ثبت دامنه.',
- // Pre-delegation TLD progress (.de/.nl/.se/.eu etc. need authoritative NS
- // at registry submit time, so we wait for Cloudflare to be live first)
+ // پیشرفت TLD پیش از واگذاری (.de/.nl/.se/.eu و غیره به NS معتبر
+ // در زمان ثبت رجیستری نیاز دارند، پس ابتدا منتظر فعال‌شدن Cloudflare می‌مانیم)
  nsVerifying: (tld) => `🔍 در حال تأیید تنظیمات nameserver در رجیستری .${tld} — این حدود ۳۰ تا ۶۰ ثانیه طول می‌کشد…`,
  nsVerifiedOk: '✅ Nameserver ها تأیید شدند — در حال ثبت.',
- // ── Marketplace one-time access fee ───────────────────────────────────
+ // ── هزینه دسترسی یک‌بار به Marketplace ───────────────────────────────────
  mpPaywall: (fee, balance) =>
    `🛒 <b>دسترسی به مارکت‌پلیس</b>\n\n` +
    `هزینه فعال‌سازی یک‌بار: <b>$${fee}</b>\n` +
@@ -1223,7 +1223,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 خامو
    `💳 موجودی جدید: <b>$${balance.toFixed(2)}</b>\n\n` +
    `خوش آمدید — در حال باز کردن مارکت‌پلیس…`,
 
- // Call Forwarding (Cloud IVR)
+ // انتقال تماس (Cloud IVR)
  fwdInsufficientBalance: (walletBal, rate) => `🚫 <b>موجودی کافی نیست</b>\n\n💳 $${(walletBal || 0).toFixed(2)} · نیاز به $${rate}/دقیقه\n👉 <b>$25</b> از طریق 👛 کیف پول شارژ کنید تا ارسال تماس فعال شود.`,
  fwdBlocked: (number) => `🚫 <b>مسدود شده</b> — ${number} یک مقصد ممتاز است.\nبرای درخواست فعال‌سازی روی 💬 <b>پشتیبانی</b> بزنید.`,
  fwdNotRoutable: (number) => `⚠️ ${number} قابل مسیریابی نیست. شماره را بررسی کنید یا روی 💬 <b>پشتیبانی</b> بزنید.`,
@@ -1242,7 +1242,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 خامو
  return `📲 <b>تأیید ارسال تماس</b>\n\n📞 شماره شما: <b>${number}</b>\n➡️ ارسال تماس به: <b>${forwardTo}</b>\n⚙️ حالت: <b>${modeLabel}</b>\n💰 نرخ: <b>$${Number(rate).toFixed(2)}/دقیقه</b> — از کیف پول کسر می‌شود\n💳 کیف پول: <b>$${walletBal.toFixed(2)}</b> — حدود <b>${estMin} دقیقه</b> پوشش می‌دهد\n\nروی <b>✅ تأیید</b> بزنید تا ارسال فعال شود، یا ↩️ بازگشت برای تغییر شماره.`
  },
  fwdConfirmBtn: '✅ تأیید و فعال‌سازی',
- // ── General inline translations ──
+ // ── ترجمه‌های درون‌خطی عمومی ──
  planNotFound: 'پلن یافت نشد.',
  noActivePlans: '📋 <b>پلن‌های هاستینگ من</b>\n\nشما هیچ پلن هاستینگ فعالی ندارید. برای شروع یک پلن خریداری کنید!',
  noRegisteredDomains: 'شما هیچ دامنه ثبت‌شده‌ای ندارید. لطفاً یک دامنه جدید ثبت کنید یا یک دامنه خارجی متصل کنید.',
@@ -1335,7 +1335,7 @@ ebAdminPanelTitle: '⚙️ <b>پنل مدیریت ایمیل</b>',
  ebInvalidMin: '❌ نامعتبر. یک عدد وارد کنید.',
  ebSelectIpDomain: (ip) => `🖥️ IP <b>${ip}</b> را به کدام دامنه اختصاص دهم؟`,
 
- // ── Audio Library / IVR i18n ──
+ // ── کتابخانه صوتی / بومی‌سازی IVR ──
  audioLibTitle: '🎵 <b>کتابخانه صوتی</b>',
  audioLibEmpty: '🎵 <b>کتابخانه صوتی</b>\n\nهیچ فایل صوتی ذخیره‌شده‌ای ندارید.\n\nیک فایل صوتی (MP3، WAV، OGG) برای استفاده در کمپین‌های IVR آپلود کنید.',
  audioLibEmptyShort: '🎵 <b>کتابخانه صوتی</b>\n\nهیچ فایل صوتی وجود ندارد. برای شروع یکی آپلود کنید.',
@@ -1849,11 +1849,11 @@ cp_93: 'شماره‌ای را وارد کنید که تماس‌گیرنده ب
  vps_45: '❌ نامعتبر. یک عدد وارد کنید.',
  vps_46: (max) => `✅ حداکثر تعداد ایمیل به <b>${max}</b> به‌روزرسانی شد`,
  vps_47: '⚠️ پردازش پرداخت موقتاً در دسترس نیست (سرویس نرخ ارز در دسترس نیست). لطفاً بعداً دوباره امتحان کنید یا از رمزارز استفاده کنید.',
- vps_48: 'Bank ₦aira + Card 🌐︎',
+ vps_48: 'بانک ₦aira + کارت 🌐︎',
  vps_49: '💵 مبلغی که می‌خواهید شارژ کنید را وارد کنید ($50 – $1,000):',
  vps_5: '⚠️ پردازش پرداخت موقتاً در دسترس نیست (سرویس نرخ ارز در دسترس نیست). لطفاً بعداً دوباره امتحان کنید یا از رمزارز استفاده کنید.',
  vps_50: '⚠️ پردازش پرداخت موقتاً در دسترس نیست (سرویس نرخ ارز در دسترس نیست). لطفاً بعداً دوباره امتحان کنید یا از رمزارز استفاده کنید.',
- vps_51: 'Bank ₦aira + Card 🌐︎',
+ vps_51: 'بانک ₦aira + کارت 🌐︎',
  vps_52: (reason) => `🚫 <b>دسترسی به مارکت‌پلیس محدود شده است</b>\n\nشما نمی‌توانید آگهی ایجاد کنید. دسترسی شما به مارکت‌پلیس تعلیق شده است.\nدلیل: <i>${reason}</i>`,
  vps_53: (reason) => `🚫 <b>دسترسی به مارکت‌پلیس محدود شده است</b>\n\nشما نمی‌توانید آگهی ایجاد کنید. دسترسی شما به مارکت‌پلیس تعلیق شده است.\nدلیل: <i>${reason}</i>`,
  vps_54: '❌ خطا در انتشار محصول. لطفاً دوباره امتحان کنید.',
@@ -1973,7 +1973,7 @@ ev_2: '📧 بازگشت به منوی اعتبارسنجی ایمیل...',
  host_31: '🚧 سرویس VPS به زودی راه‌اندازی می‌شود! همراه ما باشید.',
  host_32: '⚠️ بارگذاری صفحه معرفی امکان‌پذیر نیست. بعداً دوباره امتحان کنید.',
 
-// === Hosting Plan / Billing UX (added 2026-02) ===
+// === طرح هاستینگ / تجربه صورت‌حساب (اضافه‌شده ۲۰۲۶-۰۲) ===
 // Headers
 myHostingPlansHeader: '📋 <b>پلن‌های هاستینگ من</b>',
 billingMenuHeader: '💳 <b>پلن / صورتحساب من</b>',
@@ -1986,7 +1986,7 @@ statusSuspended: '🚫 معلق',
 statusSuspendedFull: '🚫 معلق (آفلاین — کامل)',
 statusExpired: '❌ منقضی',
 statusMaintenance: '🛠️ تعمیر و نگهداری (آفلاین — فقط عمومی)',
-// Auto-Renew states
+// حالت‌های تمدید خودکار
 autoRenewOn: '✅ روشن',
 autoRenewOff: '❌ خاموش',
 autoRenewWeeklyOff: '❌ خاموش (پلن‌های هفتگی هرگز تمدید خودکار ندارند)',
@@ -2007,7 +2007,7 @@ newExpiryLabel: 'تاریخ انقضای جدید:',
 remainingBalanceLabel: 'موجودی باقی‌مانده:',
 domainLabel: 'دامنه:',
 currentLabel: 'فعلی:',
-// Plan view body
+// بدنه نمای طرح
 planViewCredentialsHint: 'روی «نمایش اطلاعات ورود» بزنید تا نام کاربری و PIN پنل هاست شما نمایش داده شود.',
 planViewBillingNudge: '💡 برای تمدید یا تغییر تمدید خودکار، از منوی هاستینگ وارد <b>💳 پلن من / صورت‌حساب</b> شوید.',
 planViewMultiHostUpsell: '💡 <b>می‌خواهید سایت‌های بیشتری هاست کنید؟</b> به پلن ماهانه ارتقا دهید تا از هاستینگ چند سایته، فضای بیشتر و حفاظت پیشرفته Anti-Red بهره‌مند شوید.',
@@ -2021,14 +2021,14 @@ renewModalDuration: days => `<b>مدت:</b> ${days} روز`,
 renewModalConfirmHint: '✅ پرداخت را در زیر تأیید کنید:',
 renewModalInsufficient: '⚠️ موجودی کافی نیست. لطفاً ابتدا واریز کنید.',
 renewModalPayButton: price => `💵 پرداخت $${price} USD`,
-// Renew success / failure
+// موفقیت / شکست تمدید
 renewSuccessTitle: '✅ <b>پلن با موفقیت تمدید شد!</b>',
 renewSuccessAntiRedNote: 'حفاظت Anti-Red بازنشانی شده است.',
 renewFailureFallback: '❌ تمدید ناموفق بود. موجودی کیف پول شما بازگشت داده شد. لطفاً دوباره امتحان کنید یا با پشتیبانی تماس بگیرید.',
 // Upgrade modal
 upgradeModalHeader: '<b>⬆️ ارتقای هاستینگ</b>',
 upgradeModalChooseHint: 'پلن جدید خود را انتخاب کنید:',
-// Upgrade confirm screen
+// صفحه تأیید ارتقا
 upgradeConfirmTitle: '<b>⬆️ تأیید ارتقا</b>',
 upgradeConfirmTo: name => `<b>ارتقا به:</b> ${name}`,
 upgradeConfirmListPrice: price => `<b>قیمت اصلی:</b> $${price}`,
@@ -2038,7 +2038,7 @@ upgradeConfirmNextRenewal: (date, days) => `<b>📅 تمدید بعدی:</b> ${n
 upgradeModalKeepsExpiry: date => `📅 تاریخ انقضای شما (<b>${new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}</b>) بدون تغییر می‌ماند — اکنون فقط تفاوت قیمت بین پلن‌های ماهانه را پرداخت می‌کنید.`,
 upgradeConfirmKeepsExpiry: date => `<b>📅 تاریخ انقضا:</b> ${new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })} — بدون تغییر، سپس با قیمت جدید تمدید می‌شود`,
 upgradeQuoteChanged: 'ℹ️ قیمت ارتقا از زمان نمایش تغییر کرده است (تاریخ یا قیمت پلن شما تغییر کرده). هیچ مبلغی کسر نشده — روی ⬆️ ارتقای پلن بزنید تا قیمت فعلی را ببینید.',
-// Upgrade receipt + upgrade failures (wallet already refunded)
+// رسید ارتقا + خطاهای ارتقا (کیف پول قبلاً بازپرداخت شده)
 upgradeSuccessTitle: '✅ <b>ارتقای پلن با موفقیت انجام شد!</b>',
 upgradeSuccessOldPlan: name => `<b>پلن قبلی:</b> ${name}`,
 upgradeSuccessNewPlan: name => `<b>پلن جدید:</b> ${name}`,
@@ -2050,10 +2050,10 @@ upgradeFailServer: (reason, refund, supportBtn) => `❌ <b>ارتقا انجام
 fmtDate: d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }),
 renewTerminated: hostingBtn => `❌ این حساب هاستینگ به دلیل عدم تمدید در مهلت مقرر <b>حذف شده</b> است.\n\n🛒 برای راه‌اندازی مجدد سایت، لطفاً یک <b>پلن هاستینگ جدید</b> از <b>${hostingBtn}</b> خریداری کنید.`,
 renewalPriceChangedNotice: (domain, plan, oldPrice, newPrice, nextDate, autoRenew) => `ℹ️ <b>قیمت تمدید به‌روز شد</b>\n\nهاستینگ <b>${domain}</b> شما روی <b>${plan}</b> است. قیمت تمدید آن اکنون <b>$${newPrice}</b> (قبلاً $${oldPrice}) است تا با پلن فعلی شما مطابقت داشته باشد.${nextDate ? `\n\n📅 تمدید بعدی: <b>${new Date(nextDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}</b>${autoRenew ? ' — تمدید خودکار فعال است، لطفاً موجودی کافی در کیف پول داشته باشید.' : ''}` : ''}\n\nهیچ مبلغی اکنون کسر نشده و تمدیدهای قبلی تغییری نکرده‌اند.`,
-// Per-domain billing buttons
+// دکمه‌های صورت‌حساب هر دامنه
 billingRenewBtn: domain => `🔄 تمدید الان — ${domain}`,
 billingToggleAutoRenewBtn: domain => `🔁 تغییر وضعیت تمدید خودکار — ${domain}`,
-// Auto-Renew toggle status
+// وضعیت تغییر تمدید خودکار
 autoRenewTurnedOn: domain => `✅ تمدید خودکار برای <b>${domain}</b> اکنون <b>فعال</b> است. پلن شما به صورت خودکار پس از انقضا تمدید خواهد شد.`,
 autoRenewTurnedOff: domain => `❌ تمدید خودکار برای <b>${domain}</b> اکنون <b>غیرفعال</b> است. پلن شما منقضی شده و پس از مهلت مقرر تعلیق خواهد شد.`,
 autoRenewNotForWeekly: '❌ تمدید خودکار برای پلن‌های هفتگی در دسترس نیست.',
@@ -2068,7 +2068,7 @@ credentialsHeader: domain => `🔑 <b>اطلاعات ورود برای ${domain}
 credentialsPinLabel: 'PIN:',
 credentialsPanelUrlLabel: 'آدرس ورود به پنل:',
 credentialsFreshNotice: '⚠️ <i>این PIN به تازگی تولید شده است. PIN قدیمی شما دیگر معتبر نیست.</i>',
-// Hosting Scheduler notifications
+// اعلان‌های زمان‌بند هاستینگ
 schedExpiryWarningTitle: '⏰ <b>اطلاعیه انقضای هاستینگ</b>',
 schedExpiryWarningBody: (plan, domain) => `پلن <b>${plan}</b> برای <b>${domain}</b> کمتر از ۲۴ ساعت دیگر منقضی می‌شود.`,
 schedExpiry3dBody: (plan, domain, date) => `پلن <b>${plan}</b> برای <b>${domain}</b> در <b>۳ روز</b> دیگر (${date}) منقضی می‌شود.`,
@@ -2095,7 +2095,7 @@ schedDeletedBodyHours: (domain, plan, hoursExpired, gracePeriod) =>
 schedSuspendedTitle: '🚫 <b>هاستینگ تعلیق شد</b>',
 schedSuspendedBody: (domain, plan, hoursExpired, gracePeriod) =>
   `<b>${domain}</b> تعلیق شده است — پلن <b>${plan}</b> شما ${hoursExpired} ساعت پیش منقضی شد.\n\n⚠️ سایت شما اکنون <b>آفلاین</b> است.\nبرای فعال‌سازی مجدد از <b>💳 پلن من / صورتحساب</b> تمدید کنید.\nحساب در صورت عدم تمدید ${gracePeriod} ساعت پس از انقضا <b>به طور دائمی حذف خواهد شد</b>.`,
-// === Phone-monitor / Phone-scheduler ===
+// === مانیتور تلفن / زمان‌بند تلفن ===
 phoneCallerIdFlaggedTitle: '⚠️ <b>شناسه تماس‌گیرنده علامت‌گذاری شد</b>',
 phoneCallerIdFlaggedBody: phoneNumber =>
 `شماره تلفن شناسه تماس‌گیرنده <b>${phoneNumber}</b> توسط اپراتور علامت‌گذاری و تعلیق شده است.\n\nاین شماره دیگر نمی‌تواند برای تماس‌های خروجی یا کمپین‌ها استفاده شود.\n\n👉 لطفاً از منوی <b>Cloud IVR + SIP</b> یک شماره جدید خریداری کنید تا بتوانید تماس‌های خود را ادامه دهید.\n\nاگر سؤالی دارید، با پشتیبانی تماس بگیرید.`,
@@ -2111,13 +2111,13 @@ phoneUsageAlertBody: (phoneNumber, used, limit, type, percent, rate, unit) =>
 phoneUsageLimitTitle: type => `💰 <b>${type} ورودی — اضافه‌مصرف فعال است</b>`,
 phoneUsageLimitBody: (phoneNumber, type, limit, rate, unit) =>
   `📞 ${phoneNumber}\n\nشما تمام <b>${limit}</b> ${type} ورودی پلن خود را در این ماه مصرف کرده‌اید.\nصدور صورتحساب اضافه‌مصرف اکنون فعال است — <b>$${rate}/${unit}</b> به ازای هر استفاده از کیف پول شما کسر می‌شود.\nدر صورت اتمام موجودی کیف پول، سرویس متوقف می‌شود. کیف پول را شارژ کنید یا پلن خود را ارتقا دهید.`,
-// === Generic error toast (error-handler.js) ===
+// === خطای عمومی (error-handler.js) ===
 genericErrorTitle: '❌ <b>خطا</b>',
 genericErrorBody: txnId =>
   `مشکلی پیش آمد${txnId ? ` (تراکنش: ${txnId})` : ''}.\n\nتیم ما مطلع شده و بررسی خواهد کرد.`,
 genericErrorRefundedNote: '✅ پرداخت شما بازگردانده شده است.',
 genericErrorContactSupport: 'لطفاً در صورت ادامه مشکل با پشتیبانی تماس بگیرید.',
-// === Bulk-call campaign ===
+// === کمپین تماس گروهی ===
 bulkCallProgressLine: (icon, displayNumber, displayName, statusText, durText, bar, completed, total, pct, kp, missed, failed) =>
   `${icon} <b>${displayNumber}</b>${displayName} — ${statusText}${durText}\n${bar} ${completed}/${total} (${pct}%) | 🔘${kp} 📵${missed} ❌${failed}`,
 bulkCallReportTitle: '📊 <b>کمپین کامل شد!</b>',
@@ -2136,13 +2136,13 @@ bulkCallReportBusy: 'مشغول:',
 bulkCallReportFailed: 'ناموفق:',
 bulkCallReportTitleCancelled: '📊 <b>کمپین لغو شد</b>',
 bulkCallReportNotDialed: 'شماره‌گیری نشده (کمپین لغو شد):',
-// === SMS App service ===
+// === سرویس پیام‌رسان SMS ===
 smsAppTrialCompleteTitle: '📱 <b>آزمایش رایگان BulkSMS کامل شد!</b>',
 smsAppTrialCompleteBody: limit =>
   `شما تمام ${limit} پیامک رایگان دوره آزمایشی را مصرف کردید. عالی بود که پلتفرم را آزمایش کردید!`,
 smsAppTrialExpiredTitle: '📱 <b>دوره آزمایشی BulkSMS منقضی شد</b>',
 smsAppTrialExpiredBody: 'برای ادامه ارسال کمپین‌های SMS اشتراک تهیه کنید.\n👉 روی <b>👛 کیف پول → 📋 مشاهده اشتراک‌ها</b> ضربه بزنید تا ارتقا دهید!',
-// === cPanel-routes Anti-Red warnings ===
+// === هشدارهای ضد قرمز cPanel-routes ===
 antiRedWarningTitle: '⚠️ <b>هشدار حفاظت Anti-Red</b>',
 antiRedWarningBodyShort: domain =>
   `حفاظت برای <b>${domain}</b> اعمال شد اما هنوز تأیید نشده است. مطمئن شوید نیم‌سرورها به Cloudflare اشاره می‌کنند.`,
@@ -2243,7 +2243,7 @@ wlt_1: '⏳ پرداخت در حال انجام است. لطفاً صبر کنی
  dom_8: '💡 <b>سرنخ‌های خود را به حداکثر برسانید</b>\\n\\n📞 <b>دریافت Cloud IVR</b> — با این سرنخ‌ها با یک شماره محلی تماس بگیرید\\n🎯 <b>خرید سرنخ‌های بیشتر</b> — منطقه یا اپراتور دیگری را هدف قرار دهید\\n🔗 <b>کوتاه کردن لینک‌ها</b> — کمپین‌های ارتباطی خود را ردیابی کنید\\n\\nیک گزینه را در زیر انتخاب کنید.',
  dom_9: (totalPrice, toFixed) => `❌ موجودی کیف پول کافی نیست. $${totalPrice} نیاز است، $${toFixed} موجود است.\nبرای ادامه کیف پول خود را شارژ کنید و دوباره امتحان کنید.`,
 
- // Post-purchase upsells (hosting & VPS)
+ // پیشنهادهای پس از خرید (هاستینگ و VPS)
  host_5d: (domain) => `💡 <b>هاستینگ شما برای ${domain} فعال است!</b>\n\n🌐 <b>خرید دامنه‌های بیشتر</b> — سایت‌های اضافی میزبانی کنید\n📞 <b>Cloud IVR + SIP</b> — به بازدیدکنندگان اجازه دهید با یک شماره مجازی با شما تماس بگیرند\n✂️🌐 <b>کوتاه‌کننده دامنه سفارشی</b> — ترافیک ورودی را با لینک‌های کوتاه سفارشی ردیابی کنید\n\nیک گزینه را در زیر انتخاب کنید.`,
  vps_5d: (isRDP = false) => isRDP
   ? '💡 <b>RDP شما آماده است!</b>\n\n📧 <b>BulkSMS</b> — دروازه SMS را روی RDP جدید خود اجرا کنید\n📞 <b>Cloud IVR + SIP</b> — با یک شماره مجازی برای تماس‌های ورودی جفت کنید\n🌐 <b>دامنه‌های ضدمسدودسازی</b> — یک دامنه را به RDP خود اشاره دهید\n\nیک گزینه را در زیر انتخاب کنید.'
@@ -2308,12 +2308,12 @@ wh_22: (toFixed, toLowerCase) => `✅ پرداخت دریافت شد! کیف پ�
  util_8: (displayName, expiryDate, planPrice, toFixed, statusIcon, v5) => `🖥️ <b>VPS در ۳ روز دیگر منقضی می‌شود</b>\n\n<b>${displayName}</b> در تاریخ <b>${expiryDate}</b> منقضی می‌شود.\n💵 مورد نیاز: <b>$${planPrice}/ماه</b>\n💳 موجودی: $${toFixed}\n${statusIcon} ${v5}`,
  util_9: (domain, ngnPrice) => `💰 <b>بازپرداخت خودکار:</b> ثبت دامنه <b>${domain}</b> با شکست مواجه شد. پرداخت شما به مقدار ${ngnPrice} NGN به موجودی کیف پول شما اضافه شد.`,
 
- // === Windows RDP 2-day grace lifecycle ===
+ // === چرخه عمر دوره رایگان ۲ روزه Windows RDP ===
  rdpGraceStart: (displayName, deleteDate) => `🖥 <b>${displayName}</b> <b>منقضی</b> شده و <b>خاموش</b> شده است.\n\n🗑 در صورت عدم تمدید، <b>به‌طور دائم در تاریخ ${deleteDate}</b> (دوره رعایت ۲ روزه) حذف خواهد شد — تمام داده‌ها از بین خواهند رفت.\n\n♻️ هم‌اکنون تمدید کنید: 🖥️ VPS/RDP → مدیریت → تمدید`,
  rdpGraceReminder: (displayName, deleteDate) => `⏳ <b>یادآوری نهایی</b>\n\n🖥 <b>${displayName}</b> در صورت عدم تمدید، <b>به‌طور دائم در تاریخ ${deleteDate}</b> حذف خواهد شد.\n\nپس از آن، سرور و تمام داده‌های آن برای همیشه از بین خواهند رفت.\n\n♻️ هم‌اکنون تمدید کنید: 🖥️ VPS/RDP → مدیریت → تمدید`,
  rdpDeletedAfterGrace: (displayName) => `🗑 <b>${displayName}</b> پس از پایان دوره رعایت ۲ روزه بدون تمدید، <b>به‌طور دائم حذف شد</b>.\n\nتمام داده‌های روی سرور از بین رفته‌اند. می‌توانید در هر زمان از منو یک Windows RDP جدید سفارش دهید.`,
 
- // === DigitalOcean VPS 2-day grace lifecycle ===
+ // === چرخه عمر دوره رایگان ۲ روزه DigitalOcean VPS ===
  vpsGraceStart: (displayName, deleteDate) => `🖥 <b>${displayName}</b> <b>منقضی</b> شده و <b>خاموش</b> شده است.\n\n🗑 در صورت عدم تمدید، <b>به‌طور دائم در تاریخ ${deleteDate}</b> (دوره رعایت ۲ روزه) حذف خواهد شد — تمام داده‌ها از بین خواهند رفت.\n\n♻️ هم‌اکنون تمدید کنید: 🖥️ VPS/RDP → مدیریت → تمدید`,
  vpsGraceReminder: (displayName, deleteDate) => `⏳ <b>یادآوری نهایی</b>\n\n🖥 <b>${displayName}</b> در صورت عدم تمدید، <b>به‌طور دائم در تاریخ ${deleteDate}</b> حذف خواهد شد.\n\nپس از آن، سرور و تمام داده‌های آن برای همیشه از بین خواهند رفت.\n\n♻️ هم‌اکنون تمدید کنید: 🖥️ VPS/RDP → مدیریت → تمدید`,
  vpsDeletedAfterGrace: (displayName) => `🗑 <b>${displayName}</b> پس از پایان دوره رعایت ۲ روزه بدون تمدید، <b>به‌طور دائم حذف شد</b>.\n\nتمام داده‌های روی سرور از بین رفته‌اند. می‌توانید در هر زمان از منو یک VPS جدید سفارش دهید.`,
@@ -2361,7 +2361,7 @@ adm_27: (message) => `❌ خطا در شارژ کیف پول: ${message}`,
  adm_7: '⚠️ نحوه استفاده: /deliver <orderId> <product details/credentials>',
  adm_8: (orderId) => `⚠️ سفارش <code>${orderId}</code> یافت نشد.`,
  adm_9: (orderId) => `⚠️ سفارش <code>${orderId}</code> قبلاً تحویل داده شده است.`,
- // === Nested Template Keys ===
+ // === کلیدهای قالب تودرتو ===
  cp_nested_1: (count, numberList) => `📞 <b>دسته: ${count} شماره</b>\n${numberList}\n\nیک دسته‌بندی قالب IVR انتخاب کنید:`,
  cp_nested_2: (icon, firstPh, desc, hint) => `\n${icon} <b>[${firstPh}]</b> — ${desc}\n\n<i>${hint}</i>`,
  cp_nested_3: (icon, firstPh, desc, hint) => `${icon} <b>[${firstPh}]</b> — ${desc}\n\n<i>${hint}</i>`,
@@ -2405,7 +2405,7 @@ vs_ivrCall: (to, from, digit, time) => `📞 <b>تماس IVR</b>\n\n📞 به: \
  adm_error_prefix: '❌ خطا: ',
  dom_confirm_prompt: 'تأیید می‌کنید؟',
 
- // Payment timeout and abandoned cart reminders
+ // یادآوری پایان زمان پرداخت و سبد خرید رهاشده
  paymentTimeoutReminder: `⏰ <b>زمان جلسه پرداخت شما به پایان رسید</b>\n\nجلسه پرداخت شما پس از ۶ ساعت عدم فعالیت منقضی شد.\n\nنگران نباشید! هر زمان که خواستید می‌توانید دوباره شروع کنید و محصول یا سرویس مورد نظر خود را انتخاب کنید.\n\n💬 نیاز به کمک دارید؟ روی <b>پشتیبانی</b> ضربه بزنید`,
  abandonedCartReminder: (productName, price) =>
    `🛒 <b>هنوز به ${productName} علاقه دارید؟</b>\n\n` +
@@ -2414,7 +2414,7 @@ vs_ivrCall: (to, from, digit, time) => `📞 <b>تماس IVR</b>\n\n📞 به: \
    `همین الان خرید خود را تکمیل کنید! محصول منتظر شماست. 🎁\n\n` +
    `برای ادامه /start را بزنید یا در صورت داشتن سؤال روی 💬 <b>پشتیبانی</b> ضربه بزنید.`,
 
- // Unlink / cancel hosting plan
+ // لغو اتصال / لغو پلن هاستینگ
  selectDomainToUnlink: mainDomain => `🗑️ <b>حذف اتصال دامنه</b>\n\nدامنه‌ای را که می‌خواهید از این پلن هاستینگ جدا کنید انتخاب کنید.\n\n⚠️ جدا کردن موارد زیر را انجام می‌دهد:\n• حذف addon domain از cPanel\n• حذف رکوردهای DNS آن در Cloudflare\n• حذف محافظت Anti-Red\n• <b>حذف دائمی</b> تمام فایل‌های موجود در <code>public_html/&lt;domain&gt;/</code>\n\nاین عمل قابل بازگشت نیست.\n\n<i>دامنه اصلی (<b>${mainDomain}</b>) را نمی‌توان اینجا جدا کرد — به جای آن از «لغو پلن هاستینگ» استفاده کنید.</i>`,
  noAddonDomainsToUnlink: '⚠️ این پلن هاستینگ هیچ addon domain برای جداسازی ندارد. فقط دامنه اصلی متصل است.\n\nاگر می‌خواهید دامنه اصلی را حذف کنید، به جای آن از «🚫 لغو پلن هاستینگ» استفاده کنید.',
  confirmUnlinkDomain: (addonDomain, mainDomain) => `⚠️ <b>تأیید جداسازی</b>\n\nشما در حال جدا کردن <b>${addonDomain}</b> از پلن هاستینگ خود (<code>${mainDomain}</code>) هستید.\n\nاین عمل موارد زیر را انجام می‌دهد:\n• حذف addon domain از cPanel\n• حذف تمام رکوردهای DNS برای <b>${addonDomain}</b>\n• حذف محافظت Anti-Red\n• <b>حذف دائمی</b> فایل‌های موجود در <code>public_html/${addonDomain.replace(/\./g, '')}/</code>\n\nاین عمل <b>قابل بازگشت نیست</b> و هیچ استردادی صورت نمی‌گیرد.\n\nادامه می‌دهید؟`,
@@ -2422,11 +2422,11 @@ vs_ivrCall: (to, from, digit, time) => `📞 <b>تماس IVR</b>\n\n📞 به: \
  unlinkDomainSuccess: addonDomain => `✅ <b>${addonDomain}</b> از پلن هاستینگ شما جدا شد.\n\nرکوردهای DNS، ورودی addon domain و محافظت Anti-Red همگی حذف شدند.`,
  unlinkDomainFailed: addonDomain => `❌ جداسازی <b>${addonDomain}</b> با شکست مواجه شد. لطفاً دوباره امتحان کنید، یا در صورت ادامه مشکل با پشتیبانی تماس بگیرید.`,
 
- // Attach addon domain to existing hosting plan
+ // افزودن دامنه جانبی به پلن هاستینگ موجود
  selectDomainToAttachHeader: mainDomain => `➕ <b>افزودن دامنه به پلن</b>\n\nدامنه‌ای را که می‌خواهید به پلن هاستینگ خود (<code>${mainDomain}</code>) متصل کنید انتخاب کنید.\n\nفقط دامنه‌هایی که نزد ما ثبت شده و هنوز روی هیچ پلن هاستینگی نیستند نمایش داده می‌شوند.\n\n<i>فایل‌های دامنه جدید در <code>public_html/&lt;domain&gt;/</code> قرار می‌گیرند — جدا از سایت اصلی شما.</i>`,
  noEligibleDomainsToAttach: '⚠️ هیچ دامنه واجد شرایطی یافت نشد.\n\nبرای اتصال یک دامنه به این پلن، دامنه باید:\n• نزد ما ثبت شده باشد، و\n• روی هیچ پلن هاستینگی نباشد.\n\nیک دامنه جدید ثبت یا خریداری کنید، سپس به اینجا برگردید تا آن را متصل کنید.',
 
- // Change primary (main) domain of a hosting plan
+ // تغییر دامنه اصلی یک پلن هاستینگ
  selectDomainToMakePrimary: mainDomain => `🔄 <b>تغییر دامنه اصلی</b>\n\nدامنه‌ای را انتخاب کنید که باید دامنه اصلی جدید این پلن هاستینگ شود (در حال حاضر <code>${mainDomain}</code>).\n\nفقط دامنه‌هایی که متعلق به شما هستند و دامنه اصلی پلن دیگری نیستند نمایش داده می‌شوند.\n\n<i>فایل‌های وب‌سایت شما دقیقاً همانجا که هستند باقی می‌مانند (<code>public_html/</code>). نام کاربری و PIN یکسان cPanel را حفظ می‌کنید.</i>`,
  noEligibleDomainsToMakePrimary: '⚠️ هیچ دامنه واجد شرایطی یافت نشد.\n\nبرای تغییر دامنه اصلی به دامنه دیگری نیاز دارید که:\n• نزد ما ثبت شده باشد (یکی را در 🌐 Bulletproof Domains بخرید)، و\n• دامنه اصلی پلن هاستینگ دیگری نباشد.\n\nیک دامنه بخرید یا ثبت کنید، سپس به اینجا برگردید تا آن را جایگزین کنید.',
  confirmChangePrimaryDomain: (newDomain, oldDomain) => `⚠️ <b>تأیید تغییر دامنه اصلی</b>\n\n<b>${newDomain}</b> را به دامنه اصلی این پلن هاستینگ تبدیل کنیم؟\n\nاتفاقاتی که می‌افتد:\n• <b>${newDomain}</b> دامنه اصلی سایت شما می‌شود\n• <b>${oldDomain}</b> از این پلن هاستینگ حذف می‌شود — همچنان نزد شما ثبت است، فقط اتصال هاستینگ قطع می‌شود\n• فایل‌های شما در <code>public_html/</code> حفظ شده و اکنون روی <b>${newDomain}</b> سرو می‌شوند\n• DNS و محافظت Anti-Red برای <b>${newDomain}</b> تنظیم می‌شوند\n• نام کاربری و PIN یکسان cPanel را حفظ می‌کنید\n\nاین عمل <b>قابل بازگشت نیست</b> و هیچ استردادی صورت نمی‌گیرد.\n\nادامه می‌دهید؟`,
@@ -2447,7 +2447,7 @@ vs_ivrCall: (to, from, digit, time) => `📞 <b>تماس IVR</b>\n\n📞 به: \
  cancelHostingPlanSuccess: domain => `✅ پلن هاستینگ <b>${domain}</b> لغو شد.\n\nحساب cPanel، فایل‌ها و تمام addon domain های شما حذف شدند. دامنه شما همچنان ثبت شده و اکنون از هر پلن هاستینگی آزاد است.`,
  cancelHostingPlanFailed: domain => `❌ لغو پلن هاستینگ برای <b>${domain}</b> با شکست مواجه شد. لطفاً دوباره امتحان کنید، یا در صورت ادامه مشکل با پشتیبانی تماس بگیرید.`,
 
- // Site offline / maintenance toggle
+ // روشن/خاموش کردن سایت / حالت نگهداری
  chooseSiteOfflineMode: domain => `🔌 <b>آفلاین کردن سایت</b>\n\nدامنه: <b>${domain}</b>\n\nروش آفلاین کردن سایت را انتخاب کنید:\n\n🛠️ <b>حالت تعمیر و نگهداری</b> (توصیه شده)\nبازدیدکنندگان یک صفحه تمیز «به زودی برمی‌گردیم» می‌بینند. ایمیل، FTP و پایگاه‌های داده به کار خود ادامه می‌دهند. برای ویرایش‌های سریع یا قطعی‌های کوتاه بهترین گزینه است.\n\n🚫 <b>تعلیق کامل</b>\nHTTP، FTP، ایمیل و پایگاه‌های داده همگی متوقف می‌شوند. بازدیدکنندگان اطلاعیه استاندارد «حساب معلق» cPanel را می‌بینند. اگر می‌خواهید همه چیز را کاملاً خاموش کنید از این استفاده کنید.\n\n⚠️ <b>مهم — آفلاین کردن سایت موارد زیر را متوقف نمی‌کند:</b>\n• شمارش معکوس انقضا\n• صورت‌حساب تمدید خودکار\n\nپلن مثل همیشه به کار خود ادامه می‌دهد. این فقط یک تغییر وضعیت نمایش است.`,
  confirmSiteOfflineMode: (domain, mode) => mode === 'suspended'
   ? `⚠️ <b>تأیید تعلیق کامل</b>\n\nشما در حال تعلیق کامل <b>${domain}</b> هستید.\n\nاین عمل موارد زیر را متوقف می‌کند:\n• HTTP (وب‌سایت شما)\n• FTP\n• حساب‌های ایمیل\n• پایگاه‌های داده\n\nبازدیدکنندگان صفحه استاندارد «حساب معلق» cPanel را می‌بینند. می‌توانید هر زمان همه چیز را از همین منو آنلاین کنید.\n\n<b>یادآوری — صورت‌حساب ادامه دارد:</b>\n• تاریخ انقضا تغییر نمی‌کند\n• تمدید خودکار همچنان انجام می‌شود\n\nادامه می‌دهید؟`
@@ -2466,7 +2466,7 @@ bringingSiteOnline: domain => `⏳ در حال بازگرداندن <b>${domain}
 const phoneNumberLeads = ['🎯 لیدهای هدفمند ویژه', '✅📲 اعتبارسنجی شماره تلفن']
 
 const buyLeadsSelectCountry = Object.keys(areasOfCountry)
-const buyLeadsSelectSmsVoice = ['SMS (Price 20$ for 1000)', 'Voice (Price 0$ for 1000)']
+const buyLeadsSelectSmsVoice = ['SMS (قیمت 20$ برای 1000)', 'Voice (قیمت 0$ برای 1000)']
 const buyLeadsSelectArea = country => Object.keys(areasOfCountry?.[country])
 const buyLeadsSelectAreaCode = (country, area) => {
  const codes = areasOfCountry?.[country]?.[area].map(c => format(countryCodeOf[country], c))
@@ -2479,7 +2479,7 @@ const buyLeadsSelectAmount = ['1000', '2000', '3000', '4000', '5000']
 const buyLeadsSelectFormat = ['فرمت محلی', 'فرمت بین‌المللی']
 
 const validatorSelectCountry = Object.keys(areasOfCountry)
-const validatorSelectSmsVoice = ['SMS (Price 15$ for 1000)', 'Voice (Price 0$ for 1000)']
+const validatorSelectSmsVoice = ['SMS (قیمت 15$ برای 1000)', 'Voice (قیمت 0$ برای 1000)']
 const validatorSelectCarrier = country => carriersOf[country]
 const validatorSelectCnam = yesNo
 const validatorSelectAmount = ['ALL', '1000', '2000', '3000', '4000', '5000']
@@ -2494,7 +2494,7 @@ const selectFormatOf = {
 
 const redSelectRandomCustom = ['لینک کوتاه تصادفی']
 
-const redSelectProvider = ['Bit.ly $10', `Shortit (Trial ${FREE_LINKS})`]
+const redSelectProvider = ['Bit.ly $10', `Shortit (آزمایشی ${FREE_LINKS})`]
 
 const tickerOf = {
  BTC: 'btc',
@@ -2526,7 +2526,7 @@ const _mc = ['🏠 Main Menu', 'Cancel']
 const _isEmojiBack = item => {
   if (typeof item !== 'string') return false
   const s = item.replace(/^[^\p{L}]+/u, '').trim()
-  return s === 'Back' || s === 'Retour' || s === '返回' || s === 'वापस'
+  return s === 'Back' || s === 'Retour' || s === '返回' || s === 'वापस' || s === 'بازگشت'
 }
 
 const payIn = {
@@ -2543,7 +2543,7 @@ const supportedCryptoViewOf = Object.keys(supportedCryptoView)
 
 const kOf = list => ({
  reply_markup: {
- // Handle if there are multiples buttons in a row
+ // اگر چندین دکمه در یک ردیف وجود داشته باشد مدیریت کن
  keyboard: [
  ...list.map(a => (Array.isArray(a) ? a : [a])),
  ...((list.some(a => Array.isArray(a) && a.some(i => typeof i === 'string' && i.includes('🏠 Main Menu'))))
@@ -2560,7 +2560,7 @@ const kOf = list => ({
  item.includes(user.backToPurchaseOptions)),
  ),
  )
- ? [['🏠 منوی اصلی']]
+ ? [['🏠 Main Menu']]
  : (list.some(a => Array.isArray(a) && a.some(item => _isEmojiBack(item))) ? [_mc] : [_bc])),
  ],
 },
@@ -2610,7 +2610,7 @@ keyboard: [[u.deposit], _bc],
  buyLeadsSelectCnam: kOf(yesNo),
  buyLeadsSelectAmount: kOf(buyLeadsSelectAmount),
  buyLeadsSelectFormat: kOf(buyLeadsSelectFormat),
- // changing here for validatorSelectCountry
+ // تغییر اینجا برای validatorSelectCountry
  validatorSelectCountry: kOf(validatorSelectCountry),
  validatorSelectSmsVoice: kOf(validatorSelectSmsVoice),
  validatorSelectCarrier: country => kOf(validatorSelectCarrier(country)),
@@ -2699,48 +2699,48 @@ Google Workspace · Zoho Mail · eSIM
 💳 <b>کارت‌های دبیت مجازی</b>
 کارت مجازی فوری · استفاده جهانی
 
-🎯 <b>Verified Phone Leads</b>
-Filter by country, carrier & area code
-Premium leads with owner names
+🎯 <b>سرنخ‌های تلفنی تأییدشده</b>
+فیلتر بر اساس کشور، اپراتور و پیش‌شماره
+سرنخ‌های ممتاز با نام صاحبان
 
 🔗 <b>URL Shortener</b>
-Branded links · Custom domains · Analytics
+لینک‌های برندشده · دامنه‌های سفارشی · آمار و تحلیل
 
 ━━━━━━━━━━━━━━━━━━━━━━
-💰 Pay with <b>Crypto · Bank · Wallet</b>
+💰 پرداخت با <b>Crypto · Bank · Wallet</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
 🤖 <b>Start Now →</b> @${(process.env.BOT_USERNAME || 'Nomadlybot')}
-💬 <b>Need help?</b> Tap Support in the bot
+💬 <b>نیاز به کمک دارید؟</b> روی پشتیبانی در ربات بزنید
 📢 <b>Updates →</b> ${TG_CHANNEL}`,
 
- askPreferredLanguage: `🌍 To ensure everything is in your preferred language, please select one below:
+ askPreferredLanguage: `🌍 برای اطمینان از نمایش همه چیز به زبان دلخواه شما، لطفاً یکی از گزینه‌های زیر را انتخاب کنید:
  
-You can always change your language later in the settings.`,
- askValidLanguage: 'Please choose a valid language:',
- settingsMenuText: '⚙️ <b>Settings</b>\n\nManage your preferences below:',
+شما می‌توانید زبان خود را بعداً در تنظیمات تغییر دهید.`,
+ askValidLanguage: 'لطفاً یک زبان معتبر انتخاب کنید:',
+ settingsMenuText: '⚙️ <b>تنظیمات</b>\n\nتنظیمات برگزیده خود را در زیر مدیریت کنید:',
  welcomeMessage: `Welcome to ${CHAT_BOT_NAME}!
 
-Your all-in-one digital toolkit:
+جعبه‌ابزار دیجیتال همه‌کاره شما:
 
 <b>Cloud IVR</b> — Virtual numbers in ${require('../phone-config').CLOUD_COUNTRY_COUNT} countries, IVR, SMS, SIP
-<b>Domains</b> — 400+ TLDs, DMCA-ignored offshore registration
-<b>URL Shortener</b> — ${FREE_LINKS} free branded links to start
-<b>Phone Leads</b> — Verified by country, carrier, and area
-<b>Digital Products</b> — Twilio, Telnyx, AWS, Workspace, and more
+<b>Domains</b> — بیش از ۴۰۰ پسوند دامنه، ثبت آفشور با نادیده‌گرفتن DMCA
+<b>URL Shortener</b> — ${FREE_LINKS} لینک برندشده رایگان برای شروع
+<b>Phone Leads</b> — تأییدشده بر اساس کشور، اپراتور و منطقه
+<b>Digital Products</b> — Twilio، Telnyx، AWS، Workspace و موارد بیشتر
 
-Let's get you set up in 30 seconds.`,
- askUserEmail: 'What’s your email ? Let’s personalize your experience! (e.g., davidsen@gmail.com)',
- processUserEmail: ` Thank you 😊 We’re setting up your account now.
-Please hold on for just a moment while we finalize the details. ⏳
+بیایید در ۳۰ ثانیه راه‌اندازی‌تان کنیم.`,
+ askUserEmail: 'ایمیل شما چیست؟ بیایید تجربه شما را شخصی‌سازی کنیم! (مثال: davidsen@gmail.com)',
+ processUserEmail: ` ممنون 😊 در حال راه‌اندازی حساب شما هستیم.
+لطفاً چند لحظه صبر کنید تا جزئیات نهایی شود. ⏳
  
-We’re doing the work behind the scenes. Just follow the steps!`,
- confirmUserEmail: `✨ Great news! Your account is ready! 🎉💃🎉
+ما پشت صحنه در حال کار هستیم. فقط مراحل را دنبال کنید!`,
+ confirmUserEmail: `✨ خبر خوب! حساب شما آماده است! 🎉💃🎉
 
-Enjoy premium features during your free trial period!
+از ویژگی‌های ممتاز در دوره آزمایشی رایگان خود لذت ببرید!
 `,
- termsAndCond: `📜 Before proceeding, please review and accept our Terms and Conditions.`,
- acceptTermMsg: `Please accept the Terms and Conditions to continue using ${CHAT_BOT_NAME}`,
+ termsAndCond: `📜 قبل از ادامه، لطفاً شرایط و ضوابط ما را مرور و قبول کنید.`,
+ acceptTermMsg: `لطفاً شرایط و ضوابط را برای ادامه استفاده از ${CHAT_BOT_NAME} بپذیرید`,
 
  acceptTermButton: '✅ Accept',
 declineTermButton: '❌ رد کردن',
@@ -2889,7 +2889,7 @@ const dnsSubdomainTargetTypeKeyboard = {
  disable_web_page_preview: true,
 }
 
-// Phase 2: Provider-aware record type keyboard (NS excluded — update only)
+// فاز ۲: کیبورد نوع رکورد آگاه از ارائه‌دهنده (NS حذف شده — فقط به‌روزرسانی)
 const getRecordTypeKeyboard = (dnsSource) => {
  const base = [[t.a], [t.aaaa], [t.cname], [t.mx], [t.txt]]
  if (dnsSource !== 'connectreseller') {
@@ -3062,19 +3062,19 @@ ${plan} شما پس از تأیید پرداخت به‌صورت خودکار ف
 <b>Domain:</b> ${info.website_name}
 ${info.email ? `<b>Email:</b> ${info.email}\n` : ''}DNS auto-configured via Cloudflare.`,
 
- support: (plan, statusCode) => `Setup failed for ${plan} (${statusCode}). Tap 💬 Support for help.`,
+ support: (plan, statusCode) => `راه‌اندازی ${plan} (${statusCode}) با شکست مواجه شد. برای کمک روی 💬 پشتیبانی ضربه بزنید.`,
 
  bankPayDomain: (
  priceNGN,
  plan,
- ) => `Pay <b>${priceNGN} NGN</b> via the button below. Your ${plan} activates automatically once confirmed.`,
+ ) => `از طریق دکمه زیر <b>${priceNGN} NGN</b> پرداخت کنید. ${plan} شما پس از تأیید به‌طور خودکار فعال می‌شود.`,
 }
 
 const vpsBC = ['🔙 Back', 'Cancel']
 
 const vpsOptionsOf = list => ({
 reply_markup: {
- // Handle if there are multiples buttons in a row
+ // در صورت وجود چند دکمه در یک ردیف مدیریت می‌شود
  keyboard: [
  ...list.map(a => (Array.isArray(a) ? a : [a])),
  ...(list.some(
@@ -3099,13 +3099,13 @@ const vpsConfigurationMenu = ['پایه', 'استاندارد', 'پریمیوم'
 const vpsCpanelOptional = ['WHM', 'Plesk', '❌ رد کردن کنترل پنل']
 
 const vpsPlanOf = {
- Hourly: 'hourly',
- Monthly: 'monthly',
- Quarterly: 'quaterly',
- Annually: 'annually',
+ 'ساعتی': 'hourly',
+ 'ماهانه': 'monthly',
+ 'فصلی': 'quaterly',
+ 'سالانه': 'annually',
 }
 
-// Voice Service translations
+// ترجمه‌های سرویس صوتی
 const vs = {
   callDisconnectedAutoRouted: (usdBal, lowBalTrigger, lowBalResume) => `🚫 <b>تماس قطع شد</b> (مسیریابی خودکار)\n\nکیف پول: <b>$${usdBal}</b> — زیر آستانه $${lowBalTrigger}.\n💰 حداقل $${lowBalResume} شارژ کنید تا تماس از سر گرفته شود.`,
   callDisconnectedWalletInsufficient: (rate, connFee) => `🚫 <b>تماس قطع شد</b> — موجودی کیف پول کافی نیست (نیاز به $${rate}/دقیقه + $${connFee} هزینه اتصال).\nاز طریق 👛 کیف پول شارژ کنید.`,
@@ -3133,13 +3133,13 @@ incomingCallBlockedWalletEmpty: (toPhone, fromPhone, inboundRate, region) => `�
   sipOutboundCallWithRate: (fromPhone, toPhone, sipRate, connFeeNote, estMinutes) => `📞 <b>تماس خروجی SIP</b>\nاز: ${fromPhone}\nبه: ${toPhone}\nنرخ: $${sipRate}/دقیقه${connFeeNote} (~${estMinutes} دقیقه در دسترس)`,
   lowBalanceForward: (usdBal, estMinutes) => `⚠️ <b>موجودی کم است</b> — $${usdBal} (~${estMinutes} دقیقه انتقال). از طریق 👛 کیف پول <b>$25</b> شارژ کنید.`,
   forwardingBlocked: (usdBal, fwdRate) => `🚫 <b>انتقال مسدود شد</b> — کیف پول $${usdBal} (نیاز به $${fwdRate}/دقیقه).\nاز طریق 👛 کیف پول <b>$25</b> شارژ کنید.`,
-  ivrForwardBlocked: (fromPhone, forwardPhone, usdBal, ivrFwdRate, region) => `🚫 <b>IVR Forward Blocked — Wallet Empty</b>\n\n📞 ${fromPhone}\n📲 Forward to: ${forwardPhone}\n\nWallet $${usdBal} (need $${ivrFwdRate}/min ${region}).\nTop up via 👛 Wallet.`,
-  lowBalanceIvrForward: (usdBal, estMinutes) => `⚠️ <b>Low Balance</b> — $${usdBal} (~${estMinutes} min IVR fwd). Top up via 👛 Wallet.`,
-  sipCallEndedAutoRouted: (fromPhone, toPhone, duration, minutesBilled, rate) => `📞 <b>SIP Call Ended</b> (auto-routed)\n\nFrom: ${fromPhone}\nTo: ${toPhone}\n⏱️ ${duration}\n💰 ${minutesBilled} min × $${rate} billed`,
-  ivrCallEndedWalletExhausted: (usdBal, ivrCallRate) => `🚫 <b>IVR Call Ended</b> — Wallet exhausted ($${usdBal}).\nIVR calls cost $${ivrCallRate}/min. Top up via 👛 Wallet.`,
-  callNotConnected: `📞 <b>Call not connected</b> — the recipient was busy or didn't answer.\n\n🎁 Your free trial call is still available! Try again anytime.`,
-  transferTimeout: (toPhone) => `⏱ <b>Transfer Timeout</b>\n📞 ${toPhone} didn't answer after 30 seconds`,
-  transferConnected: (targetNumber, ivrNumber) => `✅ <b>Transfer Connected</b>\n📞 ${targetNumber} connected to ${ivrNumber}`,
+  ivrForwardBlocked: (fromPhone, forwardPhone, usdBal, ivrFwdRate, region) => `🚫 <b>ارسال IVR مسدود شد — کیف پول خالی است</b>\n\n📞 ${fromPhone}\n📲 ارسال به: ${forwardPhone}\n\nکیف پول $${usdBal} (نیاز به $${ivrFwdRate}/دقیقه ${region} دارید).\nاز طریق 👛 کیف پول شارژ کنید.`,
+  lowBalanceIvrForward: (usdBal, estMinutes) => `⚠️ <b>موجودی کم</b> — $${usdBal} (~${estMinutes} دقیقه ارسال IVR). از طریق 👛 کیف‌پول شارژ کنید.`,
+  sipCallEndedAutoRouted: (fromPhone, toPhone, duration, minutesBilled, rate) => `📞 <b>تماس SIP پایان یافت</b> (مسیریابی خودکار)\n\nاز: ${fromPhone}\nبه: ${toPhone}\n⏱️ ${duration}\n💰 ${minutesBilled} دقیقه × $${rate} محاسبه شد`,
+  ivrCallEndedWalletExhausted: (usdBal, ivrCallRate) => `🚫 <b>تماس IVR پایان یافت</b> — کیف‌پول خالی شد ($${usdBal}).\nتماس‌های IVR $${ivrCallRate}/دقیقه هزینه دارند. از طریق 👛 کیف‌پول شارژ کنید.`,
+  callNotConnected: `📞 <b>تماس برقرار نشد</b> — گیرنده مشغول بود یا پاسخ نداد.\n\n🎁 تماس آزمایشی رایگان شما هنوز در دسترس است! هر زمان دوباره امتحان کنید.`,
+  transferTimeout: (toPhone) => `⏱ <b>زمان انتقال به پایان رسید</b>\n📞 ${toPhone} پس از ۳۰ ثانیه پاسخ نداد`,
+  transferConnected: (targetNumber, ivrNumber) => `✅ <b>انتقال برقرار شد</b>\n📞 ${targetNumber} به ${ivrNumber} متصل شد`,
 }
 
 const vp = {
@@ -3148,8 +3148,8 @@ const vp = {
  skip: '❌ Skip',
  cancel: '❌ Cancel',
 
-// VPS/RDP choice (Step 1)
- vpsLinuxBtn: '🐧 Linux VPS (SSH)',
+// انتخاب VPS/RDP (مرحله ۱)
+ vpsLinuxBtn: '🐧 لینوکس VPS (SSH)',
  vpsRdpBtn: '🪟 Windows RDP',
  askVpsOrRdp: `🖥️ چه نوع سروری نیاز دارید؟
 
@@ -3163,20 +3163,20 @@ const vp = {
  chooseValidCountry: 'لطفاً کشور را از لیست انتخاب کنید:',
  askRegionForUser: country => `📍 یک دیتاسنتر در ${country} انتخاب کنید (قیمت ممکن است بر اساس موقعیت متفاوت باشد.)`,
  chooseValidRegion: 'لطفاً یک منطقه معتبر از لیست انتخاب کنید:',
- askZoneForUser: region => `📍 Choose the zone within ${region}.`,
- chooseValidZone: 'Please choose valid zone from the list:',
- confirmZone: (region, zone) => `✅ You’ve selected the ${region} (${zone}) Do you want to proceed with this choice?`,
- failedFetchingData: 'Error fetching, Please try again after some time.',
+ askZoneForUser: region => `📍 منطقه را در ${region} انتخاب کنید.`,
+ chooseValidZone: 'لطفاً یک منطقه معتبر از لیست انتخاب کنید:',
+ confirmZone: (region, zone) => `✅ شما ${region} (${zone}) را انتخاب کردید. آیا می‌خواهید با این انتخاب ادامه دهید؟`,
+ failedFetchingData: 'خطا در دریافت اطلاعات، لطفاً پس از مدتی دوباره تلاش کنید.',
  confirmBtn: `✅ Confirm Selection`,
 
  // disk type
- askVpsDiskType: list => `💾 <b>Choose Storage Type</b>
+ askVpsDiskType: list => `💾 <b>نوع فضای ذخیره‌سازی را انتخاب کنید</b>
 
-${list?.some(item => item.pricier) ? 'NVMe costs more but runs on newer CPUs with a much faster disk — SSD is the budget pick:' : 'Both options cost the same — pick what matters more to you:'}
+${list?.some(item => item.pricier) ? 'NVMe گران‌تر است اما روی پردازنده‌های جدیدتر با دیسک بسیار سریع‌تر اجرا می‌شود — SSD گزینه اقتصادی است:' : 'هر دو گزینه هزینه یکسانی دارند — آنچه برایتان مهم‌تر است را انتخاب کنید:'}
 
 ${list?.map(item => `${item.description}`).join('\n\n')}
 
-👇 Tap your choice below:`,
+👇 گزینه خود را در زیر انتخاب کنید:`,
 
 chooseValidDiskType: 'لطفاً یک نوع دیسک معتبر انتخاب کنید',
 
@@ -3193,7 +3193,7 @@ ${plans
  .join('\n')}`,
 
  planTypeMenu: vpsOptionsOf(vpsPlanMenu),
- // Billing (Monthly only)
+ // صورت‌حساب (فقط ماهانه)
  hourlyBillingMessage: '',
 
  // configs
@@ -3207,8 +3207,8 @@ ${plans
    return hw ? `${line}\n   <i>${hw}</i>` : line
   }).join('\n')
 
-  // Affordability footer — picks the priciest plan the user can afford,
-  // or tells them how much more to top up for the cheapest option.
+  // پاورقی مقرون‌به‌صرفه — گران‌ترین پلنی که کاربر می‌تواند بپردازد را انتخاب می‌کند،
+  // یا نشان می‌دهد چقدر باید برای ارزان‌ترین گزینه شارژ کند.
   let walletLine = ''
   if (typeof walletUsd === 'number') {
    const sorted = [...list].sort((a, b) => Number(a.monthlyPrice) - Number(b.monthlyPrice))
@@ -3300,7 +3300,7 @@ ${vpsDetails.config.hardware ? `<strong>⚙️ سخت‌افزار:</strong> ${v
 <strong>💻 سیستم‌عامل:</strong> ${osLabel}`
 
  if (isRDP) {
- summary += `\n<strong>🪟 Windows License:</strong> Included`
+ summary += `\n<strong>🪟 لایسنس ویندوز:</strong> شامل می‌شود`
  }
  if (isRDP || months > 1) {
  summary += `\n<strong>📅 Duration:</strong> ${months === 1 ? '1 month' : `${months} months (prepaid)`}`
@@ -3308,25 +3308,25 @@ ${vpsDetails.config.hardware ? `<strong>⚙️ سخت‌افزار:</strong> ${v
  if (vpsDetails.couponApplied && vpsDetails.couponDiscount > 0) {
  summary += `\n<strong>🎟️ Coupon:</strong> -$${Number(vpsDetails.couponDiscount).toFixed(2)} USD`
  }
- summary += `\n<strong>🔄 Auto-Renewal:</strong> ✅ Enabled`
+ summary += `\n<strong>🔄 تمدید خودکار:</strong> ✅ فعال`
  summary += `\n\n<strong>💰 Total: $${total} USD${months > 1 ? ` / ${months} months` : '/mo'}</strong>`
- summary += `\n\n<strong>✅ Proceed with the order?</strong>`
+ summary += `\n\n<strong>✅ آیا با سفارش ادامه می‌دهید؟</strong>`
  return summary
  },
 
  no: '❌ Cancel Order',
  yes: '✅ Confirm Order',
 
- askPaymentMethod: 'Choose a payment method:',
+ askPaymentMethod: 'یک روش پرداخت انتخاب کنید:',
 
  showDepositCryptoInfoVps: (priceUsd, priceCrypto, tickerView, address, vpsDetails) =>
- `💰 <b>Payment Amount: $${Number(priceUsd).toFixed(2)} USD</b>
+ `💰 <b>مبلغ پرداخت: $${Number(priceUsd).toFixed(2)} USD</b>
 
 Send exactly <b>${priceCrypto} ${tickerView}</b> to:
 
 <code>${address}</code>
 
-Your ${vpsDetails?.isRDP ? 'Windows RDP' : 'VPS'} will activate automatically once payment is confirmed (usually within a few minutes).
+پس از تأیید پرداخت، ${vpsDetails?.isRDP ? 'Windows RDP' : 'VPS'} شما به‌طور خودکار فعال می‌شود (معمولاً ظرف چند دقیقه).
 
 با احترام،
 ${CHAT_BOT_NAME}`,
@@ -3347,18 +3347,18 @@ ${isRDP ? 'RDP' : 'VPS'} شما در حال راه‌اندازی است — ا�
  vpsBoughtSuccess: (vpsDetails, response, credentials) => {
  const isRDP = response.isRDP || vpsDetails.isRDP || response.osType === 'Windows'
  const connectInfo = isRDP
- ? `<strong>🔗 Connect:</strong> 🖥 Remote Desktop (mstsc) → <code>${response.host}:3389</code>`
+ ? `<strong>🔗 اتصال:</strong> 🖥 Remote Desktop (mstsc) → <code>${response.host}:3389</code>`
  : `<strong>🔗 Connect:</strong> 💻 <code>ssh ${credentials.username}@${response.host}</code>`
 
  const readinessNote = isRDP
- ? `\n⏱ <b>Allow 5–10 minutes</b> for Windows first boot. ⚠️ <b>Save your password now</b> — it can't be retrieved later (use "Reset Password" in RDP management if lost).`
- : `\n⏱ <b>Allow 2–5 minutes</b> for first-boot setup. ⚠️ <b>Save your credentials securely.</b>`
+ ? `\n⏱ <b>۵ تا ۱۰ دقیقه</b> برای اولین راه‌اندازی Windows صبر کنید. ⚠️ <b>رمز عبور خود را همین الان ذخیره کنید</b> — بعداً قابل بازیابی نیست (در صورت فراموشی از «بازنشانی رمز» در مدیریت RDP استفاده کنید).`
+ : `\n⏱ <b>۲ تا ۵ دقیقه</b> برای راه‌اندازی اولیه صبر کنید. ⚠️ <b>اطلاعات ورود خود را در جای امنی ذخیره کنید.</b>`
 
  return `<strong>🎉 ${isRDP ? 'RDP' : 'VPS'} [${response.label}] is active!</strong>
 
 <strong>🔑 Login Credentials:</strong>
  <strong>• IP:</strong> <code>${response.host}</code>
-<strong>• OS:</strong> ${vpsDetails.os ? vpsDetails.os.name : (isRDP ? 'Windows Server' : 'Linux')}
+<strong>• سیستم‌عامل:</strong> ${vpsDetails.os ? vpsDetails.os.name : (isRDP ? 'Windows Server' : 'Linux')}
  <strong>• Username:</strong> <code>${credentials.username}</code>
  <strong>• Password:</strong> <tg-spoiler><code>${credentials.password}</code></tg-spoiler> (برای مشاهده و کپی لمس کنید)
 
@@ -3553,9 +3553,9 @@ failedStartedVPS: name => `❌ راه‌اندازی VPS (${name}) با شکست
 
 آیا می‌خواهید ادامه دهید؟`,
  
- // Provider-aware: DigitalOcean/Azure/Contabo-root apply the password on the
- // RUNNING server (nothing erased), while Vultr/OVH/Contabo-non-root can only
- // reinstall. Never promise "your data is kept" unless it is actually true.
+ // آگاه از ارائه‌دهنده: DigitalOcean/Azure/Contabo-root رمز را روی سرور
+ // در حال اجرا اعمال می‌کنند (هیچ چیز پاک نمی‌شود)، در حالی که Vultr/OVH/Contabo-non-root فقط می‌توانند
+ // نصب مجدد کنند. هرگز وعده «داده‌های شما حفظ می‌شود» ندهید مگر اینکه واقعاً درست باشد.
  confirmResetPasswordText: (name, impact = {}) => {
    const mode = impact.mode || 'in-place'
    const head = `🔑 <strong>بازنشانی رمز عبور ${impact.isRDP ? 'RDP' : 'VPS'}</strong>
@@ -3620,7 +3620,7 @@ failedStartedVPS: name => `❌ راه‌اندازی VPS (${name}) با شکست
    const isRDP = !!opts.isRDP
    const port = isRDP ? 3389 : 22
    // `dataPreserved` is true whenever the provider applied the password on the
-   // RUNNING server (the DigitalOcean/SSH path) instead of reinstalling it.
+   // سرور در حال اجرا (مسیر DigitalOcean/SSH) به جای نصب مجدد آن.
    const dataPreserved = opts.dataPreserved !== false
    return `✅ <strong>بازنشانی رمز عبور موفق بود!</strong>
 
@@ -3648,45 +3648,45 @@ ${dataPreserved
 🌐 <strong>IP:</strong> ${ip}
 👤 <strong>Username:</strong> ${username}
 
-📧 ${note || 'A new password has been sent to the account email by the provider (~5 min).'}
+📧 ${note || 'یک رمز عبور جدید توسط ارائه‌دهنده به ایمیل حساب ارسال شده است (~۵ دقیقه).'}
 
-🔑 <strong>For instant access, use your SSH key.</strong>
+🔑 <strong>برای دسترسی فوری، از کلید SSH خود استفاده کنید.</strong>
 
-⚠️ <i>Note: with this provider we can't display the password here for security — it is emailed by the provider or you authenticate with your SSH key.</i>`,
+⚠️ <i>توجه: با این ارائه‌دهنده به دلایل امنیتی نمی‌توانیم رمز عبور را اینجا نمایش دهیم — رمز توسط ارائه‌دهنده ایمیل می‌شود یا با کلید SSH احراز هویت می‌کنید.</i>`,
 
- // Box is ONLINE but SSH port 22 is firewalled (ufw) on the server itself.
- // A password reset can't help until the port is reopened, so guide the user.
+ // سرور آنلاین است اما پورت SSH 22 توسط فایروال (ufw) روی خود سرور بسته شده است.
+ // بازنشانی رمز عبور تا زمان باز شدن مجدد پورت کمکی نمی‌کند، پس کاربر را راهنمایی کنید.
  vpsSshBlockedHelp: (name, ip, username = 'root') => `🟠 <strong>Your VPS is online — but SSH is blocked</strong>
 
 🖥️ <strong>Server:</strong> ${name}
 🌐 <strong>IP:</strong> <code>${ip}</code>
 
-We reached your server (it's up and running), but <b>port 22 (SSH) is closed by a firewall inside the server</b>. That's why login and password reset don't work — no password can get through a closed port.
+ما به سرور شما دسترسی داشتیم (در حال اجراست)، اما <b>پورت 22 (SSH) توسط فایروال داخل سرور بسته است</b>. به همین دلیل ورود و بازنشانی رمز عبور کار نمی‌کند — هیچ رمزی نمی‌تواند از یک پورت بسته عبور کند.
 
-✅ <strong>How to reopen it (2 minutes):</strong>
-1. Open your provider's <b>Recovery / Web Console</b> for this server (no SSH needed).
+✅ <strong>چگونه آن را دوباره باز کنید (۲ دقیقه):</strong>
+1. <b>Recovery / Web Console</b> ارائه‌دهنده‌تان را برای این سرور باز کنید (بدون نیاز به SSH).
 2. Log in as <code>${username}</code>.
-3. Run: <code>ufw allow OpenSSH</code>  (or <code>ufw allow 22/tcp</code>)
-4. Then run: <code>ufw reload</code>
+3. اجرا کنید: <code>ufw allow OpenSSH</code>  (یا <code>ufw allow 22/tcp</code>)
+4. سپس اجرا کنید: <code>ufw reload</code>
 
-Once port 22 is open, come back and tap <b>🔑 Reset Password</b> — we'll set a fresh password on the running server and confirm it works, with your data kept.
+پس از باز شدن پورت 22، برگردید و روی <b>🔑 بازنشانی رمز عبور</b> ضربه بزنید — ما یک رمز تازه روی سرور در حال اجرا تنظیم می‌کنیم و تأیید می‌کنیم که کار می‌کند، با حفظ اطلاعات شما.
 
-💬 Stuck? Tap <b>💬 Support</b> and we'll reopen it for you.`,
+💬 گیر کردید؟ روی <b>💬 پشتیبانی</b> ضربه بزنید تا ما آن را برایتان باز کنیم.`,
 
- windowsReinstallEmailed: (name, ip, username, note) => `🎉 <strong>Windows Reinstall Started!</strong>
+ windowsReinstallEmailed: (name, ip, username, note) => `🎉 <strong>نصب مجدد Windows شروع شد!</strong>
 
 🖥️ <strong>RDP:</strong> ${name}
 🌐 <strong>IP:</strong> ${ip}
 👤 <strong>Username:</strong> ${username}
 
-⏱️ This takes 5-10 minutes. ${note || 'The new Administrator password will be emailed to the account by the provider.'}
+⏱️ این فرآیند ۵ تا ۱۰ دقیقه طول می‌کشد. ${note || 'رمز عبور جدید Administrator توسط ارائه‌دهنده به ایمیل حساب ارسال خواهد شد.'}
 
-⚠️ All previous data has been erased — this is a fresh Windows installation.`,
+⚠️ تمام داده‌های قبلی پاک شده‌اند — این یک نصب تازه Windows است.`,
 
- windowsReinstallInProgress: name => `🔄 Reinstalling Windows on <strong>${name}</strong>...
+ windowsReinstallInProgress: name => `🔄 در حال نصب مجدد Windows روی <strong>${name}</strong>...
 
-⏱️ This process takes 5-10 minutes. 
-📧 You'll receive new credentials when complete.`,
+⏱️ این فرآیند ۵ تا ۱۰ دقیقه طول می‌کشد. 
+📧 پس از اتمام، اطلاعات ورودی جدید را دریافت خواهید کرد.`,
 
 windowsReinstallSuccess: (name, ip, username, password) => `🎉 <strong>ویندوز با موفقیت نصب مجدد شد!</strong>
 
@@ -3704,21 +3704,21 @@ windowsReinstallSuccess: (name, ip, username, password) => `🎉 <strong>وین�
 💡 روی رمز عبور کلیک کنید تا کپی شود.
 🚀 RDP شما با این اطلاعات ورود جدید آماده استفاده است!`,
 
- passwordResetFailed: name => `❌ <strong>Password Reset Failed</strong>
+ passwordResetFailed: name => `❌ <strong>بازنشانی رمز عبور ناموفق بود</strong>
 
-Failed to reset password for <strong>${name}</strong>.
+بازنشانی رمز عبور برای <strong>${name}</strong> انجام نشد.
 
-Please try again in a few minutes or contact support if the issue persists.`,
+لطفاً چند دقیقه دیگر دوباره امتحان کنید یا در صورت ادامه مشکل با پشتیبانی تماس بگیرید.`,
 
- windowsReinstallFailed: name => `❌ <strong>Windows Reinstall Failed</strong>
+ windowsReinstallFailed: name => `❌ <strong>نصب مجدد Windows ناموفق بود</strong>
 
-Failed to reinstall Windows on <strong>${name}</strong>.
+نصب مجدد Windows روی <strong>${name}</strong> انجام نشد.
 
-Please try again in a few minutes or contact support if the issue persists.`,
+لطفاً چند دقیقه دیگر دوباره امتحان کنید یا در صورت ادامه مشکل با پشتیبانی تماس بگیرید.`,
 
- rdpNotSupported: `⚠️ This feature is only available for Windows RDP instances.
+ rdpNotSupported: `⚠️ این ویژگی فقط برای نمونه‌های Windows RDP در دسترس است.
 
-Your VPS is running Linux. Use SSH keys for access management instead.`,
+VPS شما روی لینوکس اجرا می‌شود. به جای آن از کلیدهای SSH برای مدیریت دسترسی استفاده کنید.`,
 
  // ── DigitalOcean Windows RDP: duration + edition pickers, in-place reinstall ──
  rdpDurationBtn: c => (Number(c.period) === 1 ? `1 ماه — $${c.price}` : `${c.period} ماه — $${c.price}${c.discountPct ? ` (صرفه‌جویی ${c.discountPct}%)` : ''}`),
@@ -3779,65 +3779,65 @@ ${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ حدود ${o
 آیا می‌خواهید ادامه دهید؟`,
  linuxReinstallStarted: (name, osName, etaMin) => `🔄 <b>نصب مجدد ${osName} روی ${name}</b>
 
-⏱️ Ready in about <b>${etaMin} minutes</b>. Your IP address, root password and SSH key stay the same.
-We'll message you with the login as soon as it is back online.`,
- linuxReinstallDone: (name, ip, username, password, osName) => `✅ <b>${osName} is ready on ${name}</b>
+⏱️ ظرف حدود <b>${etaMin} دقیقه</b> آماده می‌شود. آدرس IP، رمز عبور root و کلید SSH شما تغییر نمی‌کنند.
+به محض آنلاین شدن، اطلاعات ورود را برای شما ارسال می‌کنیم.`,
+ linuxReinstallDone: (name, ip, username, password, osName) => `✅ <b>${osName} روی ${name} آماده است</b>
 
 🌐 <b>IP:</b> <code>${ip}</code>
 👤 <b>Username:</b> ${username}
 🔑 <b>Password:</b> <code>${password}</code> (unchanged)
 
-💡 Your SSH key works too. You can always show the password again with 🔐 Show Password.`,
- linuxReinstallDoneNoPassword: (name, ip, username, osName) => `✅ <b>${osName} is ready on ${name}</b>
+💡 کلید SSH شما نیز کار می‌کند. همیشه می‌توانید رمز عبور را با 🔐 نمایش رمز عبور دوباره مشاهده کنید.`,
+ linuxReinstallDoneNoPassword: (name, ip, username, osName) => `✅ <b>${osName} روی ${name} آماده است</b>
 
 🌐 <b>IP:</b> <code>${ip}</code>
 👤 <b>Username:</b> ${username}
 
-🔑 Log in with your SSH key, or tap 🔐 Show Password / 🔄 Reset Password.`,
- linuxReinstallDoneUnverified: (name, ip, username, osName) => `✅ <b>${osName} has been reinstalled on ${name}</b>
+🔑 با کلید SSH خود وارد شوید، یا روی 🔐 نمایش رمز عبور / 🔄 بازنشانی رمز عبور ضربه بزنید.`,
+ linuxReinstallDoneUnverified: (name, ip, username, osName) => `✅ <b>${osName} روی ${name} مجدداً نصب شده است</b>
 
 🌐 <b>IP:</b> <code>${ip}</code>
 👤 <b>Username:</b> ${username}
 
-⚠️ We could not confirm your password yet. Your SSH key works; otherwise tap 🔐 Show Password or 🔄 Reset Password in a few minutes. Our team has been notified.`,
- linuxReinstallFailed: name => `❌ <b>Reinstall failed</b>
+⚠️ هنوز نتوانستیم رمز عبور شما را تأیید کنیم. کلید SSH شما کار می‌کند؛ در غیر این صورت چند دقیقه دیگر روی 🔐 نمایش رمز عبور یا 🔄 بازنشانی رمز عبور ضربه بزنید. تیم ما مطلع شده است.`,
+ linuxReinstallFailed: name => `❌ <b>نصب مجدد ناموفق بود</b>
 
-We could not reinstall <b>${name}</b>. Nothing was changed. Please try again in a few minutes or contact support.`,
- linuxReinstallNeedsKey: name => `🔑 <b>This system needs an SSH key</b>
+نتوانستیم <b>${name}</b> را مجدداً نصب کنیم. هیچ تغییری اعمال نشد. لطفاً چند دقیقه دیگر دوباره امتحان کنید یا با پشتیبانی تماس بگیرید.`,
+ linuxReinstallNeedsKey: name => `🔑 <b>این سیستم به کلید SSH نیاز دارد</b>
 
-<b>${name}</b> was created without an SSH key, so Fedora, CentOS, AlmaLinux and Rocky Linux cannot be installed on it. Pick Ubuntu or Debian instead. Nothing was changed.`,
- windowsReinstallQueued: (name, osName, copyMin, etaMin) => `⏳ <b>Reinstall of ${osName} on ${name} is queued</b>
+<b>${name}</b> بدون کلید SSH ایجاد شده، بنابراین Fedora، CentOS، AlmaLinux و Rocky Linux نمی‌توانند روی آن نصب شوند. به جای آن Ubuntu یا Debian را انتخاب کنید. هیچ تغییری اعمال نشد.`,
+ windowsReinstallQueued: (name, osName, copyMin, etaMin) => `⏳ <b>نصب مجدد ${osName} روی ${name} در صف قرار گرفت</b>
 
-The ${osName} image is being copied to your server's datacenter first (~${copyMin} min). Your server keeps running <b>unchanged</b> until then and the current password still works.
+تصویر ${osName} در حال کپی شدن به دیتاسنتر سرور شما است (~${copyMin} دقیقه). سرور شما تا آن زمان <b>بدون تغییر</b> به کار خود ادامه می‌دهد و رمز عبور فعلی همچنان معتبر است.
 
-Then the reinstall starts automatically (disk erased, IP kept) and we'll send you the <b>new password</b> — ready about <b>${etaMin} minutes</b> from now.`,
- windowsReinstallCopyFailed: (name, osName) => `❌ <b>Reinstall of ${osName} on ${name} could not start</b>
+سپس نصب مجدد به صورت خودکار شروع می‌شود (دیسک پاک می‌شود، IP حفظ می‌شود) و <b>رمز عبور جدید</b> برای شما ارسال خواهد شد — تقریباً <b>${etaMin} دقیقه</b> دیگر آماده است.`,
+ windowsReinstallCopyFailed: (name, osName) => `❌ <b>نصب مجدد ${osName} بر روی ${name} قادر به شروع نشد</b>
 
-The Windows image could not be prepared in your server's datacenter. <b>Nothing was changed</b> — your server and password are exactly as before. Please try again later or pick another edition. Our team has been notified.`,
- vpsBeingDeleted: name => `⚙️ Please wait while your VPS (${name}) is being deleted`,
- vpsDeleted: name => `✅ VPS (${name}) has been permanently deleted.`,
- failedDeletingVPS: name => `❌ Failed to delete VPS (${name}). 
+تصویر ویندوز نتوانست در دیتاسنتر سرور شما آماده شود. <b>هیچ تغییری اعمال نشده</b> — سرور و رمز عبور شما دقیقاً مثل قبل هستند. لطفاً بعداً دوباره امتحان کنید یا نسخه دیگری را انتخاب کنید. تیم ما مطلع شده است.`,
+ vpsBeingDeleted: name => `⚙️ لطفاً صبر کنید در حالی که VPS شما (${name}) در حال حذف است`,
+ vpsDeleted: name => `✅ VPS (${name}) به طور دائمی حذف شد.`,
+ failedDeletingVPS: name => `❌ حذف VPS (${name}) با شکست مواجه شد.
 
-Please Try again after sometime.`,
+لطفاً کمی بعد دوباره امتحان کنید.`,
  upgradeVpsBtn: '⬆️ Upgrade',
  doPlanOptionBtn: o => `${o.direction === 'upgrade' ? '⬆️' : o.direction === 'downgrade' ? '⬇️' : '🔄'} ${o.name} · $${o.monthly_price_usd}/mo`,
- doPlanOptionsMsg: (cur, opts, days, hidden) => `🔄 <b>Change plan</b> — applied in place: your data, IP and settings stay.
+ doPlanOptionsMsg: (cur, opts, days, hidden) => `🔄 <b>تغییر پلن</b> — در همان سرور اعمال می‌شود: داده‌ها، IP و تنظیمات شما حفظ می‌شوند.
 
 <b>Current:</b> ${cur.name} (${cur.vcpus || '?'} vCPU · ${cur.ram_gb || '?'} GB RAM · ${cur.disk_gb} GB ${cur.storage_type}) — $${cur.monthly_price_usd}/mo
-<b>Days left in this term:</b> ${Math.floor(days)}
+<b>روزهای باقی‌مانده در این دوره:</b> ${Math.floor(days)}
 
 ${opts.map(o => `${o.direction === 'upgrade' ? '⬆️' : o.direction === 'downgrade' ? '⬇️' : '🔄'} <b>${o.name}</b> (${o.vcpus} vCPU/${o.ram_gb} GB/${o.disk_gb} GB ${o.storage_type}) $${o.monthly_price_usd}/mo${o.charge_now_usd > 0 ? ` · pay now $${o.charge_now_usd.toFixed(2)}` : ''}`).join('\n')}
 
-💡 Upgrade: you pay only the price difference for the days left. Downgrade: free and immediate, no refund for this term. The new price starts at your next renewal.${hidden ? `\n⚠️ ${hidden} smaller plan(s) are hidden: a disk can never shrink.` : ''}`,
- doPlanNoOptions: '⚠️ No other plan can be applied to this server right now (a disk can never shrink, and some plans may be out of stock in this region).',
+💡 ارتقاء: فقط تفاوت قیمت برای روزهای باقی‌مانده پرداخت می‌کنید. تنزل: رایگان و فوری، بدون بازپرداخت برای این دوره. قیمت جدید از تمدید بعدی شما شروع می‌شود.${hidden ? `\n⚠️ ${hidden} پلن(های) کوچکتر پنهان شده‌اند: دیسک هرگز نمی‌تواند کوچک شود.` : ''}`,
+ doPlanNoOptions: '⚠️ در حال حاضر هیچ پلن دیگری نمی‌تواند به این سرور اعمال شود (دیسک هرگز نمی‌تواند کوچک شود و برخی پلن‌ها ممکن است در این منطقه موجود نباشند).',
  doPlanUnavailable: code => ({
  expired: '⚠️ This server\'s term has ended. Renew it first, then change the plan.',
- term_ending_soon: '⚠️ Less than 1 hour is left in this server\'s term. Renew it first, then change the plan.',
- not_active: '⚠️ This server is not active, so its plan cannot be changed right now.',
- plan_change_in_progress: '⏳ A plan change is already running for this server. You will get a message when it finishes.',
- not_supported: '⚠️ Plan changes are not available for this server.',
- }[code] || '⚠️ Plan changes are not available for this server right now. Please try again later or contact support.'),
- doPlanKeepDiskBtn: '💾 Keep current disk (reversible)',
+ term_ending_soon: '⚠️ کمتر از ۱ ساعت تا پایان دوره این سرور باقی مانده. ابتدا آن را تمدید کنید، سپس پلن را تغییر دهید.',
+ not_active: '⚠️ این سرور فعال نیست، بنابراین در حال حاضر نمی‌توان پلن آن را تغییر داد.',
+ plan_change_in_progress: '⏳ یک تغییر پلن در حال اجرا برای این سرور وجود دارد. پس از اتمام، پیامی دریافت خواهید کرد.',
+ not_supported: '⚠️ تغییر پلن برای این سرور در دسترس نیست.',
+ }[code] || '⚠️ تغییر پلن در حال حاضر برای این سرور در دسترس نیست. لطفاً بعداً دوباره امتحان کنید یا با پشتیبانی تماس بگیرید.'),
+ doPlanKeepDiskBtn: '💾 نگه داشتن دیسک فعلی (قابل بازگشت)',
 doPlanGrowDiskBtn: gb => `📀 افزایش دیسک به ${gb} گیگابایت (دائمی)`,
  doPlanDiskAsk: (o, cur) => `💾 <b>اندازه دیسک</b>
 
@@ -3903,14 +3903,14 @@ ${upgrades.map(val => `<strong>• ${val.from} ➡ ${val.to} –</strong> +$${va
 <strong>• Old Plan: </strong> ${newData.upgradeOption.from}
 <strong>• New Plan: </strong> ${newData.upgradeOption.to}
 <strong>• Billing Cycle: </strong> ${newData.billingCycle}
-<strong>• New Billing Rate: </strong> $${newData.totalPrice} USD${
- newData.billingCycle === 'Hourly' ? '/hour' : ' (prorated adjustment applied)'
+<strong>• نرخ صورت‌حساب جدید: </strong> $${newData.totalPrice} USD${
+ newData.billingCycle === 'Hourly' ? '/ساعت' : ' (تعدیل نسبی اعمال شده)'
  }
-<strong>• Effective Date: </strong> Immediately
+<strong>• تاریخ اجرا: </strong> فوری
 ${
  lowBal
  ? `
-Note: A $${VPS_HOURLY_PLAN_MINIMUM_AMOUNT_PAYABLE} USD deposit is included in your total. After the first hourly rate is deducted, the remaining deposit will be credited to your wallet.
+توجه: یک سپرده $${VPS_HOURLY_PLAN_MINIMUM_AMOUNT_PAYABLE} دلاری در مجموع شما لحاظ شده است. پس از کسر اولین نرخ ساعتی، مانده سپرده به کیف پول شما اعتبار داده می‌شود.
 `
  : ''
 }
@@ -3929,13 +3929,13 @@ Note: A $${VPS_HOURLY_PLAN_MINIMUM_AMOUNT_PAYABLE} USD deposit is included in yo
 ${
  lowBal
  ? `
-Note: A $${VPS_HOURLY_PLAN_MINIMUM_AMOUNT_PAYABLE} USD deposit is included in your total. After the first hourly rate is deducted, the remaining deposit will be credited to your wallet.
+توجه: یک سپرده $${VPS_HOURLY_PLAN_MINIMUM_AMOUNT_PAYABLE} دلاری در مجموع شما لحاظ شده است. پس از کسر اولین نرخ ساعتی، مانده سپرده به کیف پول شما اعتبار داده می‌شود.
 `
  : ''
 }
-<strong>• Total Price: </strong> $${lowBal ? VPS_HOURLY_PLAN_MINIMUM_AMOUNT_PAYABLE : newData.totalPrice} USD
+<strong>• قیمت کل: </strong> $${lowBal ? VPS_HOURLY_PLAN_MINIMUM_AMOUNT_PAYABLE : newData.totalPrice} USD
 
-<strong>✅ Proceed with the order?</strong>`,
+<strong>✅ آیا با سفارش ادامه می‌دهید?</strong>`,
 
  vpsSubscriptionData: (vpsData, planExpireDate, panelExpireDate) => {
  const isRDP = !!(vpsData.isRDP || vpsData.osType === 'Windows')
@@ -3959,7 +3959,7 @@ Note: A $${VPS_HOURLY_PLAN_MINIMUM_AMOUNT_PAYABLE} USD deposit is included in yo
 
 <strong>• سرور:</strong> ${data.name}
 <strong>• Plan:</strong> ${data.planDetails.name}${data.isRDP || data.osType === 'Windows' ? `\n<strong>• Billing period:</strong> ${(Number(data.durationMonths) || 1) === 1 ? 'ماهانه' : `${data.durationMonths} ماه (پیش‌پرداخت)`}` : ''}
-<strong>• Current Expiry Date:</strong> ${date}
+<strong>• تاریخ انقضای فعلی:</strong> ${date}
 <strong>• Auto-Renewal:</strong> ${data.autoRenewable ? 'فعال' : 'غیرفعال'}`,
 
  vpsCPanelDetails: (data, date) => `<strong>📅 جزئیات اشتراک کنترل پنل:</strong>
@@ -4080,18 +4080,18 @@ ${
  اطلاعات بیشتر ${TG_HANDLE}.`,
 
  vpsUpgradePlanTypeSuccess: vpsDetails => `
- ✅ VPS ${vpsDetails.name} upgraded to ${vpsDetails.upgradeOption.to}. Your new resources are now available.`,
+ ✅ VPS ${vpsDetails.name} به ${vpsDetails.upgradeOption.to} ارتقا یافت. منابع جدید شما اکنون در دسترس هستند.`,
 
  vpsUpgradeDiskTypeSuccess: vpsDetails =>
- `✅ Disk upgraded to ${vpsDetails.upgradeOption.to} for VPS ${vpsDetails.name}. Your updated disk type is now active.`,
+ `✅ دیسک برای VPS ${vpsDetails.name} به ${vpsDetails.upgradeOption.to} ارتقا یافت. نوع دیسک به‌روز شده شما اکنون فعال است.`,
 
  vpsRenewPlanSuccess: (vpsDetails, expiryDate) =>
- `✅ VPS subscription for ${vpsDetails.name} successfully renewed!
+ `✅ اشتراک VPS برای ${vpsDetails.name} با موفقیت تمدید شد!
 
-• New Expiry Date: ${expiryDate}
+• تاریخ انقضای جدید: ${expiryDate}
 `,
  vpsRenewCPanelSuccess: (vpsDetails, expiryDate) =>
- `✅ Control Panel subscription for ${vpsDetails.name} successfully renewed!
+ `✅ اشتراک پنل کنترل برای ${vpsDetails.name} با موفقیت تمدید شد!
 
 • تاریخ انقضای جدید: ${expiryDate}
 `,

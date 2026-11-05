@@ -1534,7 +1534,7 @@ let _allUserLabels = null
 const isAnyUserLabel = m => (_allUserLabels ||= new Set(['en', 'fr', 'zh', 'hi', 'fa'].flatMap(l => Object.values(translation('user', l) || {}).filter(v => typeof v === 'string')))).has(m)
 // Welcome gift unlocks only on a main-menu SERVICE button (any language) — not typed text, Settings, Support, More or navigation.
 let _giftServiceLabels = null
-const isGiftServiceTap = m => typeof m === 'string' && !/^(⚙️|💬|➕)/.test(m) && (m.startsWith('🔗') || /^📱.*BulkSMS/.test(m) || (_giftServiceLabels ||= new Set(['en', 'fr', 'zh', 'hi', 'fa'].flatMap(l => (translation('o', l)?.reply_markup?.keyboard || []).flat().map(b => (typeof b === 'string' ? b : b?.text)).filter(Boolean)))).has(m))
+const isGiftServiceTap = m => typeof m === 'string' && !/^(⚙️|💬|➕)/.test(m) && (/^🔗✂️ \S/.test(m) || /^📱(🆓)? BulkSMS/.test(m) || (_giftServiceLabels ||= new Set(['en', 'fr', 'zh', 'hi', 'fa'].flatMap(l => (translation('o', l)?.reply_markup?.keyboard || []).flat().map(b => (typeof b === 'string' ? b : b?.text)).filter(Boolean)))).has(m))
 
 async function closeResellerDraft(chatId) {
   const d = await rsApply.abandon(chatId)
@@ -2152,6 +2152,7 @@ const STUCK_NUDGE = {
   fr: '🧭 Vous tournez en rond ? Appuyez sur 🏠 <b>Menu principal</b> à tout moment pour recommencer.',
   zh: '🧭 在原地打转？随时点击 🏠 <b>主菜单</b> 重新开始。',
   hi: '🧭 चक्कर में फँस गए? कभी भी 🏠 <b>मुख्य मेनू</b> दबाकर नए सिरे से शुरू करें।',
+  fa: '🧭 دور خودتان می‌چرخید؟ هر زمان روی 🏠 <b>Main Menu</b> بزنید تا از اول شروع کنید.',
 }
 
 
@@ -9950,6 +9951,7 @@ bot?.on('message', msg => {
         fr: { welcome: 'Bienvenue', hi: 'Salut', balance: 'Solde', tier: 'Niveau', discount: 'sur tous les achats', noDiscount: 'Choisissez un service ci-dessous pour commencer 👇', selectOption: 'Choisissez une option', services: 'Vos services' },
         zh: { welcome: '欢迎', hi: '你好', balance: '余额', tier: '等级', discount: '所有购买折扣', noDiscount: '选择下方服务开始使用 👇', selectOption: '请选择一个选项', services: '您的服务' },
         hi: { welcome: 'स्वागत है', hi: 'नमस्ते', balance: 'शेष', tier: 'स्तर', discount: 'सभी खरीदारी पर छूट', noDiscount: 'शुरू करने के लिए नीचे एक सेवा चुनें 👇', selectOption: 'नीचे एक विकल्प चुनें', services: 'आपकी सेवाएँ' },
+        fa: { welcome: 'خوش آمدید', hi: 'سلام', balance: 'موجودی', tier: 'سطح', discount: 'تخفیف روی همه خریدها', noDiscount: 'برای شروع یکی از سرویس‌های زیر را انتخاب کنید 👇', selectOption: 'یکی از گزینه‌های زیر را انتخاب کنید', services: 'سرویس‌های شما' },
       }
       const g = greetings[lang] || greetings.en
       const name = msg?.from?.first_name || username
@@ -25524,6 +25526,12 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       // Top-up didn't fully cover the order — re-show the pre-filled wall (keeps session).
       return _showBalanceWall(_rBal, _price)
     }
+    if (!(Number(checkoutOrder(session.step).total) > 0)) {
+      // Order details are gone from state (user moved on) — never show a "$0.00 — Confirm?" screen.
+      await clearResumableSession(db, chatId)
+      log(`[Resume] order details missing for ${chatId} (step=${session.step}) — asked user to restart the order`)
+      return send(chatId, ({ en: `⚠️ We couldn't reopen that order — your <b>$${_rBal.toFixed(2)}</b> is safe in your wallet. Please start the order again from the menu.`, fr: `⚠️ Impossible de rouvrir cette commande — vos <b>$${_rBal.toFixed(2)}</b> sont en sécurité dans votre portefeuille. Recommencez la commande depuis le menu.`, zh: `⚠️ 无法重新打开该订单 — 您的 <b>$${_rBal.toFixed(2)}</b> 安全地保存在钱包中。请从菜单重新下单。`, hi: `⚠️ वह ऑर्डर फिर से नहीं खुल सका — आपके <b>$${_rBal.toFixed(2)}</b> वॉलेट में सुरक्षित हैं। कृपया मेनू से ऑर्डर फिर से शुरू करें।`, fa: `⚠️ امکان باز کردن دوباره آن سفارش نبود — <b>$${_rBal.toFixed(2)}</b> شما در کیف پول امن است. لطفاً سفارش را از منو دوباره شروع کنید.` }[lang] || `⚠️ We couldn't reopen that order — your $${_rBal.toFixed(2)} is safe in your wallet. Please start the order again from the menu.`), trans('o'))
+    }
     await saveInfo('coin', 'usd')
     await set(state, chatId, 'action', session.step)
     await clearResumableSession(db, chatId)
@@ -25987,7 +25995,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       allBtns.push([pc.buyAnother])
       return send(chatId, displayText, k.of(allBtns))
     }
-    if (message === pc.ivrOutboundCall || message === '📢 Quick IVR Call — 1 Free' || message === '📢 Appel IVR Rapide — 1 Gratuit' || message === '📢 快速IVR呼叫 — 1次免费' || message === '📢 त्वरित IVR कॉल — 1 मुफ्त') {
+    if (message === pc.ivrOutboundCall || message === '📢 Quick IVR Call — 1 Free' || message === '📢 Appel IVR Rapide — 1 Gratuit' || message === '📢 快速IVR呼叫 — 1次免费' || message === '📢 त्वरित IVR कॉल — 1 मुफ्त' || message === '📢 تماس سریع IVR — ۱ رایگان') {
       // IVR Outbound Call — requires Pro or Business plan
       const ivrOb = require('./ivr-outbound.js')
       const userData = await get(phoneNumbersOf, chatId)

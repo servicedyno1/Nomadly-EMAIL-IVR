@@ -40,7 +40,7 @@
      "n": 2,
      "unrec": false,
      "err": [],
-     "text": " | 🔑 Your SIP Test Code\n\n897012\n\nEnter this code on the call page to get your free SIP credentials.\n⏱ Expires in 5 minutes.\n📞 2 test calls remaining.\n\n🌐 Open",
+     "text": " | 🔑 Your SIP Test Code\n\n253976\n\nEnter this code on the call page to get your free SIP credentials.\n⏱ Expires in 5 minutes.\n📞 2 test calls remaining.\n\n🌐 Open",
      "btns": [
       "⭐ Get My Own Number (Pro)",
       "📞 Cloud IVR + SIP",
@@ -527,11 +527,11 @@
    "🛡️ هاستینگ ضد-قرمز",
    "🌐 دامنه‌های ضدضربه",
    "🖥️ VPS / RDP",
-   "📱🆓 BulkSMS — 100 Free SMS",
+   "📱🆓 BulkSMS — 100 پیامک رایگان",
    "📱 سرنخ‌های SMS",
    "🛒 محصولات دیجیتال",
    "🏪 مارکت‌پلیس",
-   "🔗✂️ URL Shortener — 5 Free Links",
+   "🔗✂️ کوتاه‌کننده URL — 5 لینک رایگان",
    "💳 کارت مجازی",
    "👛 کیف پول",
    "⭐ عضویت",
@@ -547,22 +547,22 @@
      "n": 2,
      "unrec": false,
      "err": [],
-     "text": " | 📞 Cloud IVR by Speechcue\n\nVirtual numbers in 17 countries · Most are live in minutes\n\n📞 Call forwarding · 💬 SMS to Telegram · 🌐 Browser calls · 🤖 IVR · ",
+     "text": " | 📞 Cloud IVR توسط Speechcue\n\nیک شماره مجازی در 17 کشور دریافت کنید — اکثر شماره‌ها در چند دقیقه فعال می‌شوند.\n\n📞 تماس‌ها را به تلفن واقعی‌تان انتقال دهید\n💬",
      "btns": [
-      "🆓 Try SIP Call Free",
-      "📢 Quick IVR Call — 1 Free",
-      "🛒 Choose a Plan",
-      "📞 Bulk IVR Campaign",
-      "📋 My Campaigns",
-      "🎵 Audio Library"
+      "🆓 امتحان رایگان SIP",
+      "📢 تماس سریع IVR — ۱ رایگان",
+      "🛒 انتخاب پلن",
+      "📞 کمپین IVR انبوه",
+      "📋 کمپین‌های من",
+      "🎵 کتابخانه صوتی"
      ]
     },
-    "sub": "🆓 Try SIP Call Free",
+    "sub": "🆓 امتحان رایگان SIP",
     "r2": {
      "n": 2,
      "unrec": false,
      "err": [],
-     "text": " | 🔑 Your SIP Test Code\n\n827149\n\nEnter this code on the call page to get your free SIP credentials.\n⏱ Expires in 5 minutes.\n📞 2 test calls remaining.\n\n🌐 Open",
+     "text": " | 🔑 کد تست SIP شما\n\n263521\n\nاین کد را در صفحه تماس وارد کنید تا اطلاعات ورود SIP رایگان خود را دریافت کنید.\n⏱ در ۵ دقیقه منقضی می‌شود.\n📞 2 تماس تست باقی‌ماند",
      "btns": [
       "⭐ Get My Own Number (Pro)",
       "📞 Cloud IVR + SIP",
@@ -674,7 +674,7 @@
    },
    {
     "i": 4,
-    "btn": "📱🆓 BulkSMS — 100 Free SMS",
+    "btn": "📱🆓 BulkSMS — 100 پیامک رایگان",
     "r1": {
      "n": 2,
      "unrec": false,
@@ -714,7 +714,7 @@
      "n": 2,
      "unrec": false,
      "err": [],
-     "text": " | Get premium verified leads by target or validate your own numbers:",
+     "text": " | لیدهای تأیید شده ممتاز را بر اساس هدف دریافت کنید یا شماره‌های خود را اعتبارسنجی کنید:",
      "btns": [
       "🎯 لیدهای هدفمند ویژه",
       "✅📲 اعتبارسنجی شماره تلفن",
@@ -819,7 +819,7 @@
    },
    {
     "i": 8,
-    "btn": "🔗✂️ URL Shortener — 5 Free Links",
+    "btn": "🔗✂️ کوتاه‌کننده URL — 5 لینک رایگان",
     "r1": {
      "n": 2,
      "unrec": false,
@@ -854,7 +854,7 @@
      "n": 2,
      "unrec": false,
      "err": [],
-     "text": " | 💳 Virtual Debit Card\n\nLoad a virtual card with your chosen amount.\n\n✅ Works online worldwide\n✅ Instant delivery\n✅ $50 – $1,000\n\nSelect an amount or enter a ",
+     "text": " | 💳 کارت دبیت مجازی\n\nکارت مجازی خود را با مبلغ دلخواه شارژ کنید.\n\n✅ در سراسر جهان به صورت آنلاین کار می‌کند\n✅ تحویل فوری\n✅ $50 – $1,000\n\nیک مبلغ انتخاب کنید ی",
      "btns": [
       "$50",
       "$100",
@@ -869,7 +869,7 @@
      "n": 2,
      "unrec": false,
      "err": [],
-     "text": " | 📬 Shipping Address\n\nEnter your full address in international format:\n\nExample:\nJohn Doe\n123 Main Street, Apt 4B\nNew York, NY 10001\nUnited States",
+     "text": " | 📬 آدرس ارسال\n\nآدرس کامل خود را به فرمت بین‌المللی وارد کنید:\n\nمثال:\nJohn Doe\n123 Main Street, Apt 4B\nNew York, NY 10001\nUnited States",
      "btns": []
     },
     "r3": null
@@ -950,7 +950,7 @@
      "n": 2,
      "unrec": false,
      "err": [],
-     "text": " | ⚙️ Settings\n\nManage your preferences below:",
+     "text": " | ⚙️ تنظیمات\n\nترجیحات خود را در زیر مدیریت کنید:",
      "btns": [
       "📋 پلن‌های من",
       "🌍 تغییر زبان",

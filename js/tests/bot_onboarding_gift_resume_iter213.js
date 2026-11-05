@@ -9,7 +9,9 @@ const WEBHOOK = 'http://localhost:5000/telegram/webhook'
 const MOCK = 'http://127.0.0.1:5099'
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const N1 = '990213101', N2 = '990213102', FA = '990213103', R = '990213110', SHORT = '990213111', OLD = '990213112', EX = '990213113'
-const ALL = [N1, N2, FA, R, SHORT, OLD, EX]
+const INC = '990213114'
+const BOT_LOG = process.env.BOT_LOG || '/tmp/bot.log'
+const ALL = [N1, N2, FA, R, SHORT, OLD, EX, INC]
 let uid = 7_000_000 + Math.floor(Math.random() * 100000)
 const results = []
 const check = (name, ok, d = '') => { results.push({ name, ok: !!ok }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${!ok ? ' :: ' + String(d).slice(0, 700) : ''}`) }
@@ -170,6 +172,21 @@ const MENU = '👛 Wallet'
     ;({ cs: dcs } = await deposit(OLD, 50))
     check('7a.old session → offer with Complete My Order + Start Fresh', btns(dcs).includes('✅ Complete My Order') && btns(dcs).includes('🆕 Start Fresh') && !/completing your order now/.test(txt(dcs)), txt(dcs) + JSON.stringify(btns(dcs)))
     check('7b.old session not charged', !((await db.collection('walletOf').findOne({ _id: OLD })).usdOut > 0))
+
+    // ── 8. iter215: fresh session with incomplete order data {price,coin,label} → stop at confirm, no 'Some Issue' ──
+    await db.collection('state').insertOne({ _id: INC, userLanguage: 'en', action: 'none', firstSessionIntentDone: true })
+    await db.collection('walletOf').insertOne({ _id: INC, usdIn: 0, usdOut: 0 })
+    await db.collection('userConversion').updateOne({ chatId: INC }, { $set: { chatId: INC, firstDepositBonusAwarded: true } }, { upsert: true })
+    await db.collection('resumableSessions').insertOne({ _id: 'resume_' + INC, chatId: INC, flowType: 'domain-purchase', step: 'domain-pay', data: { price: 42, coin: 'usd', label: 'inc.com' }, createdAt: new Date(), updatedAt: new Date(), expiresAt: new Date(Date.now() + 864e5) })
+    const logOff = require('fs').statSync(BOT_LOG).size
+    ;({ cs: dcs } = await deposit(INC, 50))
+    await sleep(3000)
+    const incLog = (() => { const fd = require('fs').openSync(BOT_LOG, 'r'); const len = require('fs').statSync(BOT_LOG).size - logOff; const b = Buffer.alloc(Math.max(0, len)); require('fs').readSync(fd, b, 0, b.length, logOff); require('fs').closeSync(fd); return b.toString() })()
+    console.log('INFO INC msgs:\n' + txt(dcs).slice(0, 1200) + '\nINFO INC log:\n' + incLog.split('\n').filter(l => l.includes(INC)).join('\n').slice(0, 1500))
+    check('8a.incomplete session → no "Some Issue"', !/Some Issue/i.test(txt(dcs)), txt(dcs))
+    check('8b.log "[Resume] auto-complete: not confirming"', new RegExp(`auto-complete: not confirming for ${INC}`).test(incLog), incLog.slice(-800))
+    check('8c.incomplete session not charged', !((await db.collection('walletOf').findOne({ _id: INC })).usdOut > 0))
+    check('8d.stops at confirm screen (action walletSelectCurrencyConfirm)', (await st(INC))?.action === 'walletSelectCurrencyConfirm', (await st(INC))?.action)
   } catch (e) {
     check('script error', false, e.stack)
   } finally {

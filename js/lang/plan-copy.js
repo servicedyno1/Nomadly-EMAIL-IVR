@@ -72,6 +72,20 @@ const LABELS = {
     validations: n => `${n.toLocaleString()} 次验证`,
     smsDevices: n => (n === Infinity ? '无限 SMS 设备' : `${n} 台 SMS 设备`),
   },
+  fa: {
+    title: 'پلن خود را انتخاب کنید',
+    perksIntro: 'همه پلن‌ها: ',
+    perkLinks: '🔗 لینک نامحدود',
+    perkValidations: '📱 اعتبارسنجی با نام صاحب خط',
+    perkBulkSms: '📱 BulkSMS',
+    daily: 'روزانه',
+    weekly: 'هفتگی',
+    monthly: 'ماهانه',
+    bestValue: 'بهترین ارزش',
+    domain: n => `${n} دامنه`,
+    validations: n => `${n.toLocaleString()} اعتبارسنجی`,
+    smsDevices: n => (n === Infinity ? 'دستگاه SMS نامحدود' : `${n} دستگاه SMS`),
+  },
 }
 
 // Build the "Choose Your Plan" message for a given language.
