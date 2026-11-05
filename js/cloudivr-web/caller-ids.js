@@ -7,6 +7,7 @@ const { walletOps } = require('./wallet')
 const PRICE = Number(process.env.RATE_CALLER_ID_VERIFY || 25)
 const MAX_SENDS_PER_DAY = 25
 const MAX_BATCH = 10
+const MAX_PRESETS = 10
 const MAX_TRIES = 5
 const PENDING_MS = 15 * 60000
 const DRY_CODE = '123456'
@@ -27,6 +28,7 @@ async function resolve(chatId, showAs) {
   const doc = col && await col.findOne({ _id: n, chatId: String(chatId), status: 'verified' })
   if (!doc) { const e = new Error('Add that number under My numbers → Your own caller IDs before calling from it.'); e.code = 'invalid_show_as'; throw e }
   if (doc.method === 'attested' && !(await hasPaidPlan(chatId))) { const e = new Error('Showing any caller ID is a Business plan feature.'); e.code = 'invalid_show_as'; throw e }
+  col.updateOne({ _id: n }, { $set: { lastUsedAt: new Date() } }).catch(() => {})
   return n
 }
 const isVerified = (chatId, n) => resolve(chatId, n).then(() => true, () => false)
@@ -80,10 +82,11 @@ function routes(router, { db, h, numbersApi }) {
   col.createIndex({ chatId: 1 }).catch(() => {})
   const w = walletOps(db)
   const bad = (res, status, error, message) => res.status(status).json({ error, message })
-  const view = (d) => ({ number: d._id, status: d.status, method: d.method, note: d.note || null, verifiedAt: d.verifiedAt || null })
+  const view = (d) => ({ number: d._id, status: d.status, method: d.method, note: d.note || null, label: d.label || null, verifiedAt: d.verifiedAt || null })
 
   router.get('/caller-ids', h(async (req, res) => {
-    const items = await col.find({ chatId: req.webChatId }).sort({ createdAt: -1 }).toArray()
+    const items = await col.find({ chatId: req.webChatId }).toArray()
+    items.sort((a, b) => (new Date(b.lastUsedAt || b.verifiedAt || b.createdAt || 0)) - (new Date(a.lastUsedAt || a.verifiedAt || a.createdAt || 0)))
     res.json({ price: PRICE, dryRun: dry(), items: items.filter(d => d.status === 'verified' || d.status === 'review' || Date.now() - d.createdAt < PENDING_MS).map(view) })
   }))
 
@@ -165,13 +168,36 @@ function routes(router, { db, h, numbersApi }) {
     res.json({ ok: true })
   }))
 
-  // Paid-plan users can show any number they state they have the right to use (no code). Logged + admin alert.
+  // Business users can show any number they state they have the right to use (no code). Admin alert.
   router.post('/caller-ids/attest', h(async (req, res) => {
     if (req.body.authorized !== true) return bad(res, 400, 'not_authorized', 'Confirm you have the right to use this number as your caller ID.')
-    const r = await attest(req.webChatId, req.body.number, { who: req.webUser?.email || '', channel: 'web' })
+    const r = await attest(req.webChatId, req.body.number, { who: req.webUser?.email || '', channel: 'web', label: req.body.label })
     if (!r.ok) return bad(res, r.status, r.error, r.message)
     res.status(201).json({ number: r.number, status: 'verified', method: 'attested' })
   }))
+  // Rename a saved caller ID (max 24 chars; empty clears it).
+  router.put('/caller-ids/:number/label', h(async (req, res) => {
+    const n = clean(req.params.number)
+    const label = String(req.body.label || '').trim().slice(0, 24)
+    const d = await col.findOne({ _id: n, chatId: req.webChatId, status: 'verified' })
+    if (!d) return bad(res, 404, 'not_found', 'That caller ID isn’t on your account.')
+    await col.updateOne({ _id: n }, label ? { $set: { label } } : { $unset: { label: '' } })
+    res.json({ number: n, label: label || null })
+  }))
+  // One-tap move to Business for the price gap only, so the user can show any caller ID.
+  router.post('/caller-ids/upgrade', h(async (req, res) => {
+    const mine = await numbersApi.myNumbers(req.webChatId)
+    const order = ['starter', 'pro', 'business']
+    const ok = mine.filter(x => x.status === 'active' && !x.isSubNumber && !x.replacedBy && [0, 1].includes(order.indexOf(x.plan))).sort((a, b) => order.indexOf(b.plan) - order.indexOf(a.plan))
+    const n = req.body.number ? ok.find(x => x.phoneNumber === clean(req.body.number)) : ok[0]
+    if (!n) return bad(res, 404, 'not_found', 'You have no number that can be upgraded to Business.')
+    const q = numbersApi.upgradeQuote(n, 'business', 0, true)
+    if (q.error) return bad(res, q.error.status, q.error.error, q.error.message)
+    if (req.body.confirm !== true) return res.json({ number: n.phoneNumber, plan: n.plan, quote: q })
+    const r = await numbersApi.upgradeNumber(req.webChatId, n, 'business', null, 0, true)
+    res.status(r.status).json({ number: n.phoneNumber, ...r.body })
+  }))
+  router.get('/caller-ids/presets', h(async (req, res) => res.json({ items: await presets(req.webChatId), max: MAX_PRESETS })))
   // Default caller ID for one of your numbers — used by SIP softphone calls (softphones can't pick a caller ID per call).
   router.get('/caller-ids/defaults', h(async (req, res) => {
     const items = await db.collection('callerIdDefaults').find({ chatId: req.webChatId }).toArray()
@@ -197,16 +223,18 @@ const hasPaidPlan = async (chatId) => {
 }
 
 // Returns { ok, number } or { ok:false, status, error, message }.
-async function attest(chatId, raw, { who = '', channel = 'web' } = {}) {
+async function attest(chatId, raw, { who = '', channel = 'web', label = '' } = {}) {
   chatId = String(chatId)
   if (isEmergency(raw)) return { ok: false, status: 400, error: 'emergency_number', message: 'Emergency numbers can’t be used as a caller ID.' }
   const n = clean(raw)
+  const lbl = String(label || '').trim().slice(0, 24)
   if (!E164.test(n)) return { ok: false, status: 400, error: 'invalid_number', message: 'Enter the full number with country code, e.g. +14155550100.' }
   if (!(await hasPaidPlan(chatId))) return { ok: false, status: 403, error: 'plan_required', message: 'Showing any caller ID is a Business plan feature. Upgrade to Business to use it.' }
   const cur = await col.findOne({ _id: n })
-  if (cur?.chatId === chatId && cur.status === 'verified') return { ok: true, number: n }
+  if (cur?.chatId === chatId && cur.status === 'verified') { if (lbl) await col.updateOne({ _id: n }, { $set: { label: lbl } }); return { ok: true, number: n } }
   if (cur && cur.chatId !== chatId && (cur.status === 'verified' || cur.status === 'review')) return { ok: false, status: 409, error: 'number_taken', message: 'This number is in use on another account. Contact support if it is yours.' }
-  await col.replaceOne({ _id: n }, { _id: n, chatId, status: 'verified', method: 'attested', attested: true, attestedAt: new Date(), channel, charged: 0, createdAt: Date.now(), verifiedAt: new Date() }, { upsert: true })
+  if (await col.countDocuments({ chatId, status: 'verified' }) >= MAX_PRESETS) return { ok: false, status: 400, error: 'too_many_presets', message: `You can save up to ${MAX_PRESETS} caller IDs. Remove one to add another.` }
+  await col.replaceOne({ _id: n }, { _id: n, chatId, status: 'verified', method: 'attested', attested: true, attestedAt: new Date(), channel, charged: 0, ...(lbl ? { label: lbl } : {}), createdAt: Date.now(), verifiedAt: new Date() }, { upsert: true })
   const flag = HOTLINES[n]
   require('../scam-watch').alert(`${flag ? '🚩' : '🎭'} <b>Custom caller ID added</b>${flag ? ` — matches <b>${flag}</b> hotline` : ''}\n👤 ${String(who || chatId).replace(/[<>&]/g, '')} (${chatId})\n📞 ${n} · via ${channel}\n<i>User attested they have the right to use it. Alert only.</i>`)
   return { ok: true, number: n }
@@ -220,8 +248,18 @@ async function setDefault(chatId, ownNumber, showAs) {
   return c.replaceOne({ _id: String(ownNumber) }, { _id: String(ownNumber), chatId: String(chatId), showAs: clean(showAs), at: new Date() }, { upsert: true })
 }
 const logUse = (chatId, showAs, via, to) => { dbRef?.collection('callerIdUses').insertOne({ chatId: String(chatId), showAs, via, to: String(to || ''), at: new Date() }).catch(() => {}) }
+const touch = (chatId, number) => { col?.updateOne({ _id: clean(number), chatId: String(chatId) }, { $set: { lastUsedAt: new Date() } }).catch(() => {}) }
+// Saved caller IDs this account can pick with one tap right now (no-code ones only while on Business). Most recently used first.
+async function presets(chatId) {
+  if (!col) return []
+  const docs = await col.find({ chatId: String(chatId), status: 'verified' }).toArray()
+  const biz = docs.some(d => d.method === 'attested') && await hasPaidPlan(chatId)
+  return docs.filter(d => d.method !== 'attested' || biz)
+    .sort((a, b) => (new Date(b.lastUsedAt || b.verifiedAt || b.createdAt || 0)) - (new Date(a.lastUsedAt || a.verifiedAt || a.createdAt || 0)))
+    .slice(0, MAX_PRESETS).map(d => ({ number: d._id, label: d.label || null }))
+}
 
-Object.assign(module.exports, { attest, isEmergency, defaultFor, setDefault, logUse, HOTLINES })
+Object.assign(module.exports, { attest, isEmergency, defaultFor, setDefault, logUse, presets, touch, hasPaidPlan, HOTLINES, MAX_PRESETS })
 
 // Admin: approve (→ verified) or reject (→ refund + remove) a review request. Returns the affected doc or null.
 function adminApi(db) {

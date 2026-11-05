@@ -10820,6 +10820,20 @@ bot?.on('message', msg => {
         [pc.audioLibrary, pc.sipSettings],
         [pc.howItWorks],
       ]))
+      // One-time nudge: Pro/Starter users can show any caller ID on Business for the price gap only.
+      try {
+        if (!info?.cidUpsellSent) {
+          const myNums = ((await get(phoneNumbersOf, chatId))?.numbers || [])
+          const hasBiz = myNums.some(n => n.status === 'active' && n.plan === 'business')
+          const eligible = myNums.filter(n => n.status === 'active' && !n.isSubNumber && !n.replacedBy && ['starter', 'pro'].includes(n.plan) && !planLifecycle.onHold(n))
+          const low = eligible.find(n => n.plan === 'pro') || eligible[0]
+          const q = low && phoneConfig.callerIdUpgradeQuote(low)
+          if (!hasBiz && q) {
+            await set(state, chatId, 'cidUpsellSent', true)
+            send(chatId, ccid.t(info?.userLanguage).up(low.phoneNumber, q.chargeAmount.toFixed(2)), { parse_mode: 'HTML' })
+          }
+        }
+      } catch (e) { /* non-fatal nudge */ }
     },
     'phone-pay': async () => {
       // Guard: ensure phone number and price exist before showing payment
@@ -26216,7 +26230,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       } catch (_) { /* floor check best-effort — never block on a balance read error */ }
       await set(state, chatId, 'action', a.bulkSelectCaller)
       const numBtns = allCallerIds.map(c => [c.label])
-      return send(chatId, trans('t.cp_12'), k.of([...numBtns, [ccid.t(lang).btn], ['↩️ Back']]))
+      return send(chatId, trans('t.cp_12'), k.of([...numBtns, ...await ccid.presetRows(chatId), [ccid.t(lang).btn], ['↩️ Back']]))
     }
 
     // ── Audio Library ──
@@ -26265,6 +26279,50 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
   }
 
+  // Pro/Starter tries to show a caller ID → one-tap upgrade to Business for the price gap only.
+  async function cidUpsell(prefer) {
+    const L = ccid.t(lang)
+    const nums = ((await get(phoneNumbersOf, chatId))?.numbers || []).filter(n => n.status === 'active' && !n.isSubNumber && !n.replacedBy && ['starter', 'pro'].includes(n.plan) && !planLifecycle.onHold(n))
+    const num = nums.find(n => n.phoneNumber === prefer) || nums.find(n => n.plan === 'pro') || nums[0]
+    const q = num && phoneConfig.callerIdUpgradeQuote(num)
+    if (!q) return send(chatId, L.noLine, { parse_mode: 'HTML' })
+    const amt = q.chargeAmount.toFixed(2)
+    await saveInfo('customCidUp', num.phoneNumber)
+    await set(state, chatId, 'action', 'customCidUpgrade')
+    return send(chatId, L.up(num.phoneNumber, amt), k.of([[L.upBtn(amt)], ['↩️ Back']]))
+  }
+  if (action === 'customCidUpgrade') {
+    if (!ccid.isUpBtn(message)) return goto.submenu5()
+    const num = ((await get(phoneNumbersOf, chatId))?.numbers || []).find(n => n.phoneNumber === info?.customCidUp && n.status === 'active')
+    if (!num || num.plan === 'business') return goto.submenu5()
+    await saveInfo('cpActiveNumber', num)
+    await set(state, chatId, 'action', a.cpChangePlan)
+    return processChangePlanSelection(chatId, num, 'business', lang, true)
+  }
+  // Puts a saved / just-confirmed caller ID on the call being set up (Quick IVR, Bulk IVR) or the SIP line.
+  async function applyCustomCid(cc, number) {
+    const L = ccid.t(lang)
+    await saveInfo('customCid', null)
+    require('./cloudivr-web/caller-ids').touch(chatId, number)
+    if (cc.ctx === 'sip') {
+      await require('./cloudivr-web/caller-ids').setDefault(chatId, cc.line, number)
+      send(chatId, L.savedSip(cc.line, number), { parse_mode: 'HTML' })
+      if (!info?.cpActiveNumber) return goto.submenu5()
+      await set(state, chatId, 'action', a.cpManageNumber)
+      return send(chatId, '📱 ' + cc.line, k.of(buildManageMenu(info.cpActiveNumber)))
+    }
+    if (cc.ctx === 'bulk') {
+      const bulkData = { ...(info?.bulkData || {}), callerId: cc.line, showAs: number, callerType: cc.type, provider: 'telnyx', twilioSubAccountSid: null, twilioSubAccountToken: null }
+      await saveInfo('bulkData', bulkData)
+      await set(state, chatId, 'action', a.bulkUploadLeads)
+      return send(chatId, trans('t.cp_132', number), k.of([['↩️ Back']]))
+    }
+    const ivrObData = { ...(info?.ivrObData || {}), callerId: cc.line, displayCallerId: number, callerProvider: 'telnyx', callerPlan: cc.plan || 'starter' }
+    await saveInfo('ivrObData', ivrObData)
+    await set(state, chatId, 'action', a.ivrObEnterTarget)
+    return send(chatId, trans('t.cp_25', number), k.of([]))
+  }
+
   if (action === 'customCidEnter' || action === 'customCidConfirm') {
     const cc = info?.customCid || {}
     const L = ccid.t(lang)
@@ -26280,6 +26338,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
     if (action === 'customCidEnter') {
       const cid = require('./cloudivr-web/caller-ids')
+      const pre = ccid.presetOf(message)
+      if (pre && cc.ctx !== 'trial' && (await cid.presets(chatId)).some(p => p.number === pre)) return applyCustomCid(cc, pre)
       if (cid.isEmergency(message)) return send(chatId, L.emergency)
       const n = String(message || '').replace(/[^\d+]/g, '')
       const e164 = n.startsWith('+') ? n : n.length === 10 ? `+1${n}` : `+${n}`
@@ -26301,23 +26361,9 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return send(chatId, L.trialSet(cc.number), k.of([]))
     }
     const r = await cid.attest(chatId, cc.number, { who: username ? `@${username}` : '', channel: 'bot' })
-    if (!r.ok) { await set(state, chatId, 'action', 'customCidEnter'); return send(chatId, ({ plan_required: L.noLine, number_taken: L.taken, emergency_number: L.emergency })[r.error] || L.ask, k.of([['↩️ Back']])) }
-    await saveInfo('customCid', null)
-    if (cc.ctx === 'sip') {
-      await cid.setDefault(chatId, cc.line, r.number)
-      send(chatId, L.savedSip(cc.line, r.number), { parse_mode: 'HTML' })
-      return backTo()
-    }
-    if (cc.ctx === 'bulk') {
-      const bulkData = { ...(info?.bulkData || {}), callerId: cc.line, showAs: r.number, callerType: cc.type, provider: 'telnyx', twilioSubAccountSid: null, twilioSubAccountToken: null }
-      await saveInfo('bulkData', bulkData)
-      await set(state, chatId, 'action', a.bulkUploadLeads)
-      return send(chatId, trans('t.cp_132', r.number), k.of([['↩️ Back']]))
-    }
-    const ivrObData = { ...(info?.ivrObData || {}), callerId: cc.line, displayCallerId: r.number, callerProvider: 'telnyx', callerPlan: cc.plan || 'starter' }
-    await saveInfo('ivrObData', ivrObData)
-    await set(state, chatId, 'action', a.ivrObEnterTarget)
-    return send(chatId, trans('t.cp_25', r.number), k.of([]))
+    if (!r.ok && r.error === 'plan_required') { await saveInfo('customCid', null); return cidUpsell(cc.line) }
+    if (!r.ok) { await set(state, chatId, 'action', 'customCidEnter'); return send(chatId, ({ number_taken: L.taken, emergency_number: L.emergency, too_many_presets: L.full })[r.error] || L.ask, k.of([...await ccid.presetRows(chatId), ['↩️ Back']])) }
+    return applyCustomCid(cc, r.number)
   }
 
   if (action === a.ivrObSelectCallerId) {
@@ -26352,7 +26398,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       // ivrObData explicitly and are unaffected.)
       await saveInfo('ivrObData', { isTrial: false })
       const rows = eligibleNumbers.map(n => [n.phoneNumber])
-      return send(chatId, trans('t.cp_15'), k.of([...rows, [ccid.t(lang).btn], ['↩️ Back']]))
+      const pre = eligibleNumbers.some(n => n.plan === 'business') ? await ccid.presetRows(chatId) : []
+      return send(chatId, trans('t.cp_15'), k.of([...rows, ...pre, [ccid.t(lang).btn], ['↩️ Back']]))
     }
 
     // UX-fix-2: Resume Last Draft — restore everything the user had typed
@@ -26483,12 +26530,15 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return send(chatId, trans('t.cp_23', caller.phoneNumber, recentNumber), k.of(rows))
     }
 
-    if (ccid.isBtn(message)) {
+    if (ccid.isBtn(message) || ccid.isPreset(message)) {
       const line = eligibleNumbers.find(n => n.plan === 'business' && (n.provider || 'telnyx') !== 'twilio')
-      if (!line) return send(chatId, ccid.t(lang).noLine, { parse_mode: 'HTML' })
-      await saveInfo('customCid', { ctx: 'ivr', line: line.phoneNumber, plan: line.plan || 'starter' })
+      if (!line) return cidUpsell()
+      const cc = { ctx: 'ivr', line: line.phoneNumber, plan: line.plan || 'starter' }
+      const pre = ccid.presetOf(message)
+      if (pre && (await require('./cloudivr-web/caller-ids').presets(chatId)).some(p => p.number === pre)) return applyCustomCid(cc, pre)
+      await saveInfo('customCid', cc)
       await set(state, chatId, 'action', 'customCidEnter')
-      return send(chatId, ccid.t(lang).ask, k.of([['↩️ Back']]))
+      return send(chatId, ccid.t(lang).ask, k.of([...await ccid.presetRows(chatId), ['↩️ Back']]))
     }
     // ── Normal caller ID selection ──
     const found = numbers.find(n => n.phoneNumber === message)
@@ -28324,12 +28374,17 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (isBackPress(message) || isCancelPress(message)) return goto.submenu5()
     // Match against caller ID labels
     const allCallerIds = info?.bulkCallerIds || []
-    if (ccid.isBtn(message)) {
+    if (ccid.isBtn(message) || ccid.isPreset(message)) {
       const line = allCallerIds.find(c => c.type !== 'owned_twilio' && (c.provider || 'telnyx') !== 'twilio')
       if (!line) return send(chatId, ccid.t(lang).noLine, { parse_mode: 'HTML' })
-      await saveInfo('customCid', { ctx: 'bulk', line: line.phoneNumber, type: line.type })
+      const cid = require('./cloudivr-web/caller-ids')
+      if (!(await cid.hasPaidPlan(chatId))) return cidUpsell()
+      const cc = { ctx: 'bulk', line: line.phoneNumber, type: line.type }
+      const pre = ccid.presetOf(message)
+      if (pre && (await cid.presets(chatId)).some(p => p.number === pre)) return applyCustomCid(cc, pre)
+      await saveInfo('customCid', cc)
       await set(state, chatId, 'action', 'customCidEnter')
-      return send(chatId, ccid.t(lang).ask, k.of([['↩️ Back']]))
+      return send(chatId, ccid.t(lang).ask, k.of([...await ccid.presetRows(chatId), ['↩️ Back']]))
     }
     const found = allCallerIds.find(c => c.label === message)
     if (!found) return send(chatId, trans('t.cp_131'))
@@ -28351,7 +28406,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.bulkSelectCaller)
       const allCallerIds = info?.bulkCallerIds || []
       const numBtns = allCallerIds.map(c => [c.label])
-      return send(chatId, trans('t.cp_133'), k.of([...numBtns, [ccid.t(lang).btn], ['↩️ Back']]))
+      return send(chatId, trans('t.cp_133'), k.of([...numBtns, ...await ccid.presetRows(chatId), [ccid.t(lang).btn], ['↩️ Back']]))
     }
     const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     let content = ''
@@ -30605,7 +30660,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // state.action = cpChangePlan and stashes cpUpgradeData / cpPendingPlan
   // exactly the same way so the wallet / crypto / bank handlers downstream
   // can pick up where the user left off.
-  async function processChangePlanSelection(chatId, num, newPlan, lang) {
+  async function processChangePlanSelection(chatId, num, newPlan, lang, diff = false) {
     const oldPlan = num.plan
     const newPrice = phoneConfig.plans[newPlan]?.price
     if (!newPrice) return send(chatId, phoneConfig.getMsg(lang).selectValidPlan)
@@ -30620,7 +30675,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const oldPlanObj = phoneConfig.plans[oldPlan]
     const newPlanObj = phoneConfig.plans[newPlan]
 
-    const quote = phoneConfig.computeUpgradeQuote(num, newPlan) || {}
+    const quote = (diff && newPlan === 'business' ? phoneConfig.callerIdUpgradeQuote(num) : phoneConfig.computeUpgradeQuote(num, newPlan)) || {}
     const credit = quote.credit ?? 0
     const chargeAmount = quote.chargeAmount ?? newPrice
     const eligibleForCredit = quote.eligibleForCredit === true
@@ -30640,7 +30695,9 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (chargeAmount > 0) {
       upgradeMsg += `💰 <b>Upgrade cost: $${chargeAmount.toFixed(2)}</b>\n`
       upgradeMsg += `   ├ New plan: $${newPrice}/mo\n`
-      if (eligibleForCredit && credit > 0) {
+      if (diff) {
+        upgradeMsg += `   └ You pay only the price difference ($${quote.newPrice} − $${quote.oldPrice}); renewal date unchanged\n`
+      } else if (eligibleForCredit && credit > 0) {
         upgradeMsg += `   └ 14-day upgrade credit (25% of ${oldPlan}): -$${credit.toFixed(2)}\n`
       } else {
         upgradeMsg += `   └ <i>No credit — the 14-day upgrade credit ended (number ${ageDays}d old)</i>\n`
@@ -31082,10 +31139,10 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
 
     if (ccid.isBtn(message)) {
-      if (num.plan !== 'business') return send(chatId, ccid.t(lang).noLine, { parse_mode: 'HTML' })
+      if (num.plan !== 'business') return cidUpsell(num.phoneNumber)
       await saveInfo('customCid', { ctx: 'sip', line: num.phoneNumber })
       await set(state, chatId, 'action', 'customCidEnter')
-      return send(chatId, ccid.t(lang).ask, k.of([[ccid.t(lang).own], ['↩️ Back']]))
+      return send(chatId, ccid.t(lang).ask, k.of([...await ccid.presetRows(chatId), [ccid.t(lang).own], ['↩️ Back']]))
     }
     // SIP Credentials — Pro/Business only
     // Match both raw label and the "(skipped)" badged variant.

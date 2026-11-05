@@ -633,6 +633,14 @@ function computeUpgradeQuote(num, newPlanKey) {
   }
 }
 
+// Caller-ID upsell: move a lower-plan number to Business for just the price gap between the two plans.
+function callerIdUpgradeQuote(num) {
+  const q = computeUpgradeQuote(num, 'business')
+  if (!q) return null
+  const chargeAmount = Math.max(0, parseFloat((q.newPrice - q.oldPrice).toFixed(2)))
+  return { ...q, chargeAmount, credit: 0, eligibleForCredit: false, prorationBasis: 'price_difference' }
+}
+
 // nextUpgradePlan — returns the natural next-tier plan key for one-tap
 // upgrades, or null if the number is on the top tier / sub-number / current
 // plan-key is unknown / next plan is not currently available.
@@ -4227,6 +4235,7 @@ module.exports = {
   formatCallFlowPreview,
   formatIvrOptionsInline,
   computeUpgradeQuote,
+  callerIdUpgradeQuote,
   nextUpgradePlan,
   PLAN_UPGRADE_CREDIT_AGE_DAYS,
   PLAN_UPGRADE_CREDIT_PCT,
