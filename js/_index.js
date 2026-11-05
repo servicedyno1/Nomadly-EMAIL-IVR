@@ -147,6 +147,15 @@ earlyApp.use(express.json({
   verify: (req, _res, buf) => { if (buf && buf.length) req.rawBody = buf },
 }))
 earlyApp.use(express.urlencoded({ extended: true, limit: '50mb' }))
+// Browser audio players (CloudIVR web: Audio library, Quick IVR, voice maker, Inbox, AI calls) load files as
+// /api/assets/... . Emergent's ingress strips /api, but on the droplet nginx passes it through and the generic /api
+// strip (`const app = earlyApp` further down) runs AFTER the /assets handlers below — so production answered with the
+// SPA HTML instead of the audio (players stuck at 0:00 / 0:00, users re-uploading the same clip). Fix: 2026-10-26,
+// web user iammills404@gmail.com. Rewrite only this prefix, before the static + restore handlers.
+earlyApp.use((req, res, next) => {
+  if (req.url.startsWith('/api/assets/')) req.url = req.url.slice(4)
+  next()
+})
 earlyApp.use('/assets', express.static(require('path').join(__dirname, 'assets')))
 
 // ── Fallback middleware for /assets/user-audio/ — Restore from MongoDB if file missing from ephemeral disk ──
@@ -199,6 +208,19 @@ const _twilioBilledCallSids = new Set()
 setInterval(() => _twilioBilledCallSids.clear(), 30 * 60 * 1000)
 
 // Health check endpoints - respond immediately
+// Site icon for every brand domain (root + panel): browsers, Google and email tools such as MailerSend fetch
+// /favicon.ico from the domain root to show the brand's logo. Served from assets/brand/<brand>/ (registered on
+// earlyApp so the link shortener's /:id route can't swallow it).
+earlyApp.get(['/favicon.ico', '/favicon.png', '/apple-touch-icon.png', '/apple-touch-icon-precomposed.png'], (req, res, next) => {
+  let slug
+  try { slug = require('./sms-app-brand.js').brandSlug() } catch (_) { return next() }
+  const dir = require('path').join(__dirname, 'assets', 'brand', slug)
+  const p = ['icon.png', 'mark.png', 'logo.png'].map(f => require('path').join(dir, f)).find(f => require('fs').existsSync(f))
+  if (!p) return next()
+  res.type('png')
+  res.setHeader('Cache-Control', 'public, max-age=86400')
+  res.sendFile(p)
+})
 earlyApp.get('/', (req, res) => {
   // On panel domain, serve the React SPA so the panel storefront/login renders (not the greeting).
   // Robust to operators setting PANEL_DOMAIN with a trailing slash or path (e.g.
@@ -1803,6 +1825,7 @@ if (TELEGRAM_BOT_ON === 'true') {
 
 // CloudIVR web accounts (reserved chatId range): engine messages to them land in the web inbox, never Telegram.
 const cloudivrWeb = require('./cloudivr-web')
+const esimBot = require('./esim-bot')
 cloudivrWeb.notify.attach(bot)
 
 // Auto-detect when bot is added to or removed from groups
@@ -4555,7 +4578,10 @@ const loadData = async () => {
   // claim so each campaign launches exactly once even if multiple instances run.
   try {
     schedule.scheduleJob('* * * * *', async function () {
-      if (process.env.SKIP_WEBHOOK_SYNC === 'true') return // dev sandbox: don't auto-launch / place calls
+      if (process.env.SKIP_WEBHOOK_SYNC === 'true') { // dev sandbox: never place calls; preview dry-run campaigns are simulated instead
+        if (process.env.WEB_CLOUDIVR_DRY_RUN === 'true' && db) await require('./cloudivr-web/campaign-sim').tick(db.collection('bulkCallCampaigns'), bulkCallService).catch(e => log('[CampaignSim] tick error:', e.message))
+        return
+      }
       try {
         const launched = await bulkCallService.launchDueScheduledCampaigns()
         for (const l of launched) {
@@ -4684,8 +4710,19 @@ const loadData = async () => {
       payments,
       nanoid,
       bot,
+      db,
     })
     log('[CloudPhone] SMS Service limits initialized with overage billing')
+    // Hosted SMS (text-enable an existing number): bot users get a chat message, web users an Inbox item.
+    require('./hosted-sms.js').init({
+      db, log, notifyAdmin,
+      brand: () => 'CloudIVR',
+      tell: async (id, text, extra) => {
+        const webNotify = require('./cloudivr-web/notify.js')
+        if (webNotify.isWebChatId(id)) { await webNotify.push(id, text, null, extra || { kind: 'system' }).catch(() => {}); return null }
+        return bot?.sendMessage(id, text).catch(() => null)
+      },
+    })
 
     // Defer-register Telnyx webhook routes — they call handleInboundSms (uses
     // sms-service module state from initSmsLimits) and handleVoiceWebhook (from
@@ -4752,7 +4789,7 @@ const loadData = async () => {
     .catch(e => log(`[BulkCall] init failed: ${e.message}`))
   // AI voice agents: Telnyx media streams ⇄ OpenAI Realtime (WebSocket upgrades on the main HTTP server).
   try {
-    require('./ai-agent').init({ db, server: earlyServer, walletOf, bot, selfUrl: SELF_URL, voiceService: require('./voice-service.js'), audioLibraryService, log })
+    require('./ai-agent').init({ db, server: earlyServer, walletOf, bot, selfUrl: SELF_URL, voiceService: require('./voice-service.js'), audioLibraryService, notifyAdmin, log })
     log('[AIAgent] initialized')
   } catch (e) { log(`[AIAgent] init failed: ${e.message}`) }
   try { require('./relay-call').init({ db, walletOf, bot, selfUrl: SELF_URL, log }) } catch (e) { log(`[Relay] init failed: ${e.message}`) }
@@ -4842,6 +4879,9 @@ const loadData = async () => {
   // Telnyx international numbers — verification sessions + review poller (2026-10)
   txReg.init({ db, bot, log, downloadFile: cloudivrWeb.makeDownloader(() => db, bot) })
   cloudivrWeb.notify.setDb(db)
+  // Bot eSIM orders (USA T-Mobile via Spenza): notices + QR code go to the buyer's bot chat.
+  esimBot.ES.init({ db, log, tell: (id, text, extra) => cloudivrWeb.notify.push(id, text, null, extra || { kind: 'system' }).catch(() => {}) })
+  esimBot.ES.setBot(bot, esimBot.notice)
   rsApply.init({ db, brand: process.env.CHAT_BOT_BRAND })
   telnyxPendingOrders = db.collection('telnyxPendingOrders')
   telnyxPendingOrders.createIndex({ status: 1, nextCheckAt: 1 }).catch(() => {})
@@ -8785,7 +8825,7 @@ bot?.on('message', msg => {
     const args = message.split(/\s+/).slice(1)
     const sub = args[0]
     if (sub === 'list') return send(chatId, `<b>Promo themes</b>\n${themes.map(t => `• <code>${t}</code>`).join('\n')}\n\n<code>/ad &lt;theme&gt;</code> preview · <code>/ad post &lt;theme&gt;</code> publish · <code>/ad bot &lt;theme&gt; [en|fr|zh|hi]</code> in-bot preview`, { parse_mode: 'HTML' })
-    const todayTheme = autoPromo.getTodayThemes()[0] || themes[0]
+    const todayTheme = autoPromo.getTodayThemes().find(t => themes.includes(t)) || themes[0]
     if (sub === 'bot') {
       const theme = args[1] || todayTheme
       const lang = ['en', 'fr', 'zh', 'hi'].includes(args[2]) ? args[2] : 'en'
@@ -9928,6 +9968,35 @@ bot?.on('message', msg => {
   // Adds a one-line value prop + a first-deposit-bonus tip, and is RESILIENT:
   // any send failure falls back to the full main menu so the user is NEVER
   // left without a keyboard. Returns true on success, false if it fell back.
+  // Optional email on join + one-time branded welcome email (first email the user gives: join step or hosting checkout).
+  const JOIN_EMAIL_SKIP = { en: '⏭ Skip for now', fr: '⏭ Passer pour l’instant', zh: '⏭ 暂时跳过', hi: '⏭ अभी छोड़ें' }
+  const maybeSendWelcomeEmail = async (email) => {
+    if (!isValidEmail(email || '') || info?.welcomeEmailSentTo) return
+    if (info) info.welcomeEmailSentTo = email
+    await set(state, chatId, 'welcomeEmailSentTo', email)
+    await set(state, chatId, 'welcomeEmailSentAt', new Date())
+    require('./bot-welcome-email.js').sendBotWelcome(email, { name: msg?.from?.first_name, lang: info?.userLanguage })
+      .then(() => log(`[WelcomeEmail] sent to ${email} (chatId=${chatId})`))
+      .catch(async e => {
+        log(`[WelcomeEmail] failed for chatId=${chatId}: ${e.message}`)
+        if (info) info.welcomeEmailSentTo = null
+        await set(state, chatId, 'welcomeEmailSentTo', null).catch(() => {})
+      })
+  }
+  const askJoinEmail = async (lang) => {
+    const _l = lang || info?.userLanguage || 'en'
+    const q = ({
+      en: '📧 <b>Add your email</b> (optional)\n\nWe’ll send your receipts, hosting logins and important account notices there — plus a short welcome guide.\n\nType your email below, or tap Skip.',
+      fr: '📧 <b>Ajoutez votre e-mail</b> (facultatif)\n\nNous y enverrons vos reçus, identifiants d’hébergement et avis importants — plus un petit guide de bienvenue.\n\nTapez votre e-mail ci-dessous, ou touchez Passer.',
+      zh: '📧 <b>添加您的邮箱</b>（可选）\n\n我们会将收据、主机登录信息和重要账户通知发送到该邮箱 — 以及一份简短的欢迎指南。\n\n请在下方输入邮箱，或点击跳过。',
+      hi: '📧 <b>अपना ईमेल जोड़ें</b> (वैकल्पिक)\n\nहम वहाँ आपकी रसीदें, होस्टिंग लॉगिन और ज़रूरी खाता सूचनाएँ भेजेंगे — साथ में एक छोटी वेलकम गाइड।\n\nनीचे अपना ईमेल लिखें, या छोड़ें टैप करें।',
+    })
+    try {
+      await bot.sendMessage(chatId, q[_l] || q.en, { parse_mode: 'HTML', reply_markup: { keyboard: [[JOIN_EMAIL_SKIP[_l] || JOIN_EMAIL_SKIP.en]], resize_keyboard: true } })
+      await set(state, chatId, 'action', a.joinEmail)
+    } catch (e) { await showFirstSessionIntent(_l) }
+  }
+
   const showFirstSessionIntent = async (lang) => {
     const _l = lang || info?.userLanguage || 'en'
     const depBonus = (userConversion && userConversion.FIRST_DEPOSIT_BONUS_USD) || 5
@@ -9938,7 +10007,7 @@ bot?.on('message', msg => {
         zh: `👋 <b>欢迎使用 ${CHAT_BOT_NAME}</b> — 一站式工具箱：电话号码、主机、域名和数字产品。\n\n<b>您今天需要什么？</b>点击直接进入 — 或点 👀 随便看看 浏览全部。\n\n💸 <i>提示：首次充值 $20+ 即可获得 $${depBonus} 赠金。</i>`,
         hi: `👋 <b>${CHAT_BOT_NAME} में आपका स्वागत है</b> — फ़ोन नंबर, होस्टिंग, डोमेन और डिजिटल प्रोडक्ट के लिए ऑल-इन-वन टूलकिट।\n\n<b>आज आपको क्या चाहिए?</b> सीधे जाने के लिए टैप करें — या सब कुछ देखने के लिए 👀 बस देख रहे हैं।\n\n💸 <i>टिप: $20+ जमा करें और पहली जमा पर $${depBonus} मुफ़्त पाएं।</i>`,
       })[_l] || `👋 <b>Welcome to ${CHAT_BOT_NAME}</b> — what do you need today?`
-      const qWeb = q + webAccess.webWelcomeLine(_l)
+      const qWeb = q + webAccess.webWelcomeLine(_l) + webAccess.cloudivrWelcomeLine(_l)
       const rows = [
         [FIRST_SESSION_INTENT.numbers[_l] || FIRST_SESSION_INTENT.numbers.en],
         [FIRST_SESSION_INTENT.hosting[_l] || FIRST_SESSION_INTENT.hosting.en, FIRST_SESSION_INTENT.domains[_l] || FIRST_SESSION_INTENT.domains.en],
@@ -9987,6 +10056,7 @@ bot?.on('message', msg => {
     useExistingDomain: 'useExistingDomain',
     useExistingDomainFound: 'useExistingDomainFound',
     firstSessionIntent: 'firstSessionIntent',
+    joinEmail: 'joinEmail',
     useMyDomain: 'useMyDomain',
     selectMyDomain: 'selectMyDomain',
     connectExternalDomain: 'connectExternalDomain',
@@ -10509,11 +10579,11 @@ bot?.on('message', msg => {
   }
   // Render a payment-method screen. `text` may be a function (evaluated after the
   // loyalty restore so it never shows a transiently discounted price).
-  const checkoutScreen = async (step, text, { couponLabel = null, extraRows = [], backLabel = '↩️ Back', walletOnly = false } = {}) => {
+  const checkoutScreen = async (step, text, { couponLabel = null, extraRows = [], backLabel = '↩️ Back', walletOnly = false, noBank = false } = {}) => {
     await restoreLoyaltyMutation()
     const { usdBal, walletPrice, loyaltyInfo } = await checkoutWalletView(step)
     const body = typeof text === 'function' ? text() : text
-    const rows = hcx.invoiceRows({ lang, payIn: walletOnly ? {} : payIn, applyCouponLabel: couponLabel, couponApplied: !!info?.couponApplied, usdBal, walletPrice, extraRows, backLabel })
+    const rows = hcx.invoiceRows({ lang, payIn: walletOnly ? {} : noBank ? { crypto: payIn.crypto } : payIn, applyCouponLabel: couponLabel, couponApplied: !!info?.couponApplied, usdBal, walletPrice, extraRows, backLabel })
     return send(chatId, body + '\n\n' + hcx.walletSummary({ lang, usdBal, walletPrice, loyaltyInfo }), k.of(rows))
   }
   // "💵 Deposit $N" tapped on an invoice → pre-filled top-up; Order Resume returns to `walletOkKey`.
@@ -10688,6 +10758,7 @@ bot?.on('message', msg => {
       }
       const ivrBtnHub = await quickIvrLabel(chatId, pc)
       send(chatId, cpWelcome, k.of([
+        ...webAccess.cloudivrMenuRows(info?.userLanguage || 'en'),
         [pc.testSipFree],
         [ivrBtnHub],
         [pc.buyPhoneNumber],
@@ -10729,7 +10800,6 @@ bot?.on('message', msg => {
         [t.dpGworkspaceNew, t.dpGworkspaceAged],
         [t.dpZohoNew, t.dpZohoAged],
         [t.dpEsim],
-        [t.dpEsimAirvoice],
         [t.dpIonosSmtp],
         ['↩️ Back', '🏠 Main Menu'],
       ]))
@@ -10741,17 +10811,48 @@ bot?.on('message', msg => {
         return goto.submenu6()
       }
       await set(state, chatId, 'action', a.digitalProductPay)
+      if (info?.dpProductKey === esimBot.PRODUCT_KEY && info?.esimOrder) return checkoutScreen('digital-product-pay', () => esimBot.s(lang).summary(info.esimOrder, info.dpPrice), { noBank: true })
       return checkoutScreen('digital-product-pay', () => t.dpPaymentPrompt(info?.dpProductName, info?.dpPrice), { extraRows: [['💬 Ask Question']] })
     },
-    'airvoice-duration': async () => {
-      await set(state, chatId, 'action', a.airvoiceDuration)
-      send(chatId, t.dpAirvoiceSelect, k.of([
-        [t.dpAirvoice1m],
-        [t.dpAirvoice3m],
-        [t.dpAirvoice6m],
-        [t.dpAirvoice1y],
-        ['↩️ Back'],
-      ]))
+    // ━━━ USA T-Mobile eSIM (automatic Spenza order, same as the web) ━━━
+    'esim-bot-home': async () => {
+      const es = esimBot.s(lang)
+      await set(state, chatId, 'action', 'esim-bot-home')
+      const [mine, p] = await Promise.all([esimBot.lines(chatId).catch(() => []), esimBot.plan()])
+      const price = p?.price || esimBot.PRICE
+      const waiting = mine.some(l => l.status === 'awaiting_imei')
+      return send(chatId, (waiting ? es.waitingNote + '\n\n' : '') + es.home(price, esimBot.includes(p)), k.of([...(waiting ? [[es.sendImeiPaid]] : []), [es.buy(price)], ...(mine.length ? [[es.mine]] : []), ['↩️ Back', '🏠 Main Menu']]))
+    },
+    // Paid eSIM still waiting for its IMEI: go straight to the IMEI prompt (or pick the line if there are several).
+    'esim-bot-imei-start': async () => {
+      const es = esimBot.s(lang)
+      const waiting = (await esimBot.lines(chatId).catch(() => [])).filter(l => l.status === 'awaiting_imei')
+      if (!waiting.length) { await send(chatId, es.noneWaiting); return goto['esim-bot-home']() }
+      if (waiting.length > 1) return goto['esim-bot-list']()
+      await saveInfo('esimPendingLine', waiting[0].id)
+      await set(state, chatId, 'action', 'esim-bot-imei')
+      return send(chatId, es.askImei, k.of([['↩️ Back']]))
+    },
+    'esim-bot-list': async () => {
+      const es = esimBot.s(lang)
+      const mine = await esimBot.lines(chatId).catch(() => [])
+      if (!mine.length) { await send(chatId, es.none); return goto['esim-bot-home']() }
+      await set(state, chatId, 'action', 'esim-bot-list')
+      return send(chatId, es.pick, k.of([...mine.map(l => [esimBot.lineLabel(l, lang)]), ['↩️ Back']]))
+    },
+    'esim-bot-line': async (id) => {
+      const es = esimBot.s(lang)
+      const l = (await esimBot.lines(chatId).catch(() => [])).find(x => x.id === (id || info?.esimLineId))
+      if (!l) return goto['esim-bot-list']()
+      await saveInfo('esimLineId', l.id)
+      await set(state, chatId, 'action', 'esim-bot-line')
+      const rows = []
+      if (['active', 'suspended', 'provisioning'].includes(l.status)) rows.push([l.autoRenew ? es.turnOff : es.turnOn])
+      if (l.status === 'suspended') rows.push([es.renewNow])
+      if (l.status === 'awaiting_imei') rows.push([es.sendImei])
+      if (l.hasQr) rows.push([es.qr], [es.emailQr])
+      rows.push(['↩️ Back'])
+      return send(chatId, es.line(l, es.status[l.status] || l.status), k.of(rows))
     },
     // ━━━ Virtual Card ━━━
     'virtual-card-start': async () => {
@@ -13746,6 +13847,22 @@ Enter new value:`), bc)
       const name = await get(nameOf, chatId)
       const orderId = nanoid(8).toUpperCase()
 
+      // USA T-Mobile eSIM: the same automatic Spenza order as the web (it charges the wallet itself, refunds on failure).
+      if (productKey === esimBot.PRODUCT_KEY) {
+        const r = await esimBot.fulfill(db, chatId, info?.esimOrder || {}, lang)
+        if (!r.ok) return send(chatId, r.text, trans('o'))
+        set(payments, nanoid(), `Wallet,DigitalProduct,${product},$${priceUsd},${chatId},${name},${new Date()}`)
+        _finalizeWalletPurchase()
+        await digitalOrdersCol.insertOne({ orderId, chatId, username: username || '', name: name || '', product, productKey, price: priceUsd, currency: 'USD', paymentMethod: 'wallet_usd', esim: info?.esimOrder || null, esimLineId: r.lineId, status: r.awaitingImei ? 'paid_awaiting_imei' : 'delivered', createdAt: new Date(), deliveredAt: r.awaitingImei ? null : new Date() })
+        await saveInfo('esimOrder', null)
+        await set(state, chatId, 'abandonedCartReminderSent', null)
+        if (r.awaitingImei) { await saveInfo('esimPendingLine', r.lineId); await set(state, chatId, 'action', 'esim-bot-imei') }
+        sendAndReact(chatId, r.text, '🎉', r.awaitingImei ? k.of([['↩️ Back']]) : trans('o'))
+        checkAndNotifyTierUpgrade(preSpend)
+        notifyGroup(`📱 <b>New eSIM order</b>\n\n👤 User: ${maskName(name)}\n💵 Paid: <b>$${priceUsd}</b> (wallet)\n🤖 Setting up automatically.`, `📱 <b>New eSIM order</b>\n\n🆔 Order: <code>${orderId}</code>\n👤 User: ${adminUserTag(name, chatId)}\n💵 Paid: <b>$${priceUsd}</b> (Wallet USD)\n🤖 Spenza line ${r.lineId}, set up automatically.`, buildAdminButtons({ chatId }))
+        return
+      }
+
       set(payments, nanoid(), `Wallet,DigitalProduct,${product},$${priceUsd},${chatId},${name},${new Date()}`)
       await atomicIncrement(walletOf, chatId, 'usdOut', priceUsd)
       _finalizeWalletPurchase()
@@ -14803,6 +14920,7 @@ All verified numbers generated during sourcing.`))
   // signed token and DM the user an auto-login URL for the web storefront.
   // The QR on the storefront landing page points at `t.me/<bot>?start=web-login`
   // so scanning it on mobile lands the user here.
+  if (message === '/imei') return goto['esim-bot-imei-start']()
   if (message === '/start web-login' || message === '/start weblogin' || message === '/web' || message === '/store') {
     bot?.sendChatAction?.(chatId, 'typing').catch(() => {})
     try {
@@ -14875,6 +14993,9 @@ All verified numbers generated during sourcing.`))
       emailval: () => _synthMenuTap(user.emailValidation),
       emailblast: () => _synthMenuTap(user.emailBlast),
       refer: () => _synthMenuTap(user.referEarn),
+      // Web-app ads (channel posts / old keyboards): the invite card with the website button.
+      web_hosta: () => (webAccess.websiteUrl() ? send(chatId, webAccess.webAccessMessage(info?.userLanguage || 'en').text, webAccess.webAccessMessage(info?.userLanguage || 'en').opts) : goto.displayMainMenuButtons()),
+      web_cloudivr: () => (webAccess.cloudivrUrl() ? send(chatId, webAccess.cloudivrWebMessage(info?.userLanguage || 'en').text, webAccess.cloudivrWebMessage(info?.userLanguage || 'en').opts) : goto.displayMainMenuButtons()),
     }[_hub]
     async function _synthMenuTap(label) {
       await set(state, chatId, 'action', 'none')
@@ -15165,7 +15286,7 @@ All verified numbers generated during sourcing.`))
     }
 
     const greeting = await getMainMenuGreeting()
-    send(chatId, greeting, trans('o'))
+    send(chatId, greeting + webAccess.cloudivrWelcomeLine(info?.userLanguage || 'en'), { ...trans('o'), disable_web_page_preview: true })
     await maybeSendTrialNudge(chatId, info?.userLanguage || 'en')
     return
   }
@@ -15986,7 +16107,7 @@ All verified numbers generated during sourcing.`))
       // never left keyboard-less). A short delay lets the $5 welcome-bonus
       // message land first; when no bonus message was shown, fire almost
       // immediately so there's no dead gap after the language pick.
-      setTimeout(() => { showFirstSessionIntent(validLanguage).catch(() => {}) }, welcomeBonusShown ? 1200 : 300)
+      setTimeout(() => { askJoinEmail(validLanguage).catch(() => {}) }, welcomeBonusShown ? 1200 : 300)
 
       return
     } catch (e) { /* non-critical — fall through to normal menu */ }
@@ -15996,6 +16117,26 @@ All verified numbers generated during sourcing.`))
     send(chatId, greeting, trans('o'))
     await maybeSendTrialNudge(chatId, validLanguage || 'en')
     return
+  }
+
+  if (action === a.joinEmail) {
+    const _l = info?.userLanguage || 'en'
+    const typed = String(message || '').trim()
+    if (isValidEmail(typed)) {
+      await set(state, chatId, 'accountEmail', typed)
+      await set(state, chatId, 'lastOrderEmail', typed)
+      info.lastOrderEmail = typed
+      await maybeSendWelcomeEmail(typed)
+      const ok = ({ en: `✅ Saved. A welcome email is on its way to <b>${typed}</b>.`, fr: `✅ Enregistré. Un e-mail de bienvenue arrive à <b>${typed}</b>.`, zh: `✅ 已保存。欢迎邮件正发送至 <b>${typed}</b>。`, hi: `✅ सेव हो गया। वेलकम ईमेल <b>${typed}</b> पर भेजा जा रहा है।` })[_l]
+      await bot.sendMessage(chatId, ok || `✅ Saved: <b>${typed}</b>`, { parse_mode: 'HTML' }).catch(() => {})
+      return showFirstSessionIntent(_l)
+    }
+    if (typed.includes('@') && !Object.values(JOIN_EMAIL_SKIP).includes(typed)) {
+      const bad = ({ en: '⚠️ That doesn’t look like an email. Try again (e.g. name@gmail.com), or tap Skip.', fr: '⚠️ Cela ne ressemble pas à un e-mail. Réessayez (ex. nom@gmail.com), ou touchez Passer.', zh: '⚠️ 这看起来不像邮箱。请重试（例如 name@gmail.com），或点击跳过。', hi: '⚠️ यह ईमेल जैसा नहीं लगता। फिर कोशिश करें (जैसे name@gmail.com), या छोड़ें टैप करें।' })[_l]
+      return bot.sendMessage(chatId, bad || '⚠️ Invalid email — try again or tap Skip.', { reply_markup: { keyboard: [[JOIN_EMAIL_SKIP[_l] || JOIN_EMAIL_SKIP.en]], resize_keyboard: true } }).catch(() => {})
+    }
+    // Skip, or anything else → carry on to the intent picker (never stuck).
+    return showFirstSessionIntent(_l)
   }
 
   // First-session intent funnel routing (audit #17) — set once after language selection. The
@@ -16014,10 +16155,15 @@ All verified numbers generated during sourcing.`))
     return goto.displayMainMenuButtons()
   }
 
-  // 🌐 Use on Web (top row of the main menu): invite + inline button to the brand website. Action untouched.
+  // 🌐 Hosting/RDP/VPS on Web (top row of the main menu, NomadlyBot only): invite + inline button to the brand website. Action untouched.
   if (webAccess.isWebButton(message)) {
     const { text: webText, opts: webOpts } = webAccess.webAccessMessage(info?.userLanguage || 'en')
     return send(chatId, webText, webOpts)
+  }
+  // 🌐 Use CloudIVR on the web (Cloud IVR + SIP menu, Nomadly only): invite + inline button to cloudivr.net. Action untouched.
+  if (webAccess.isCloudivrWebButton(message)) {
+    const { text: civrText, opts: civrOpts } = webAccess.cloudivrWebMessage(info?.userLanguage || 'en')
+    return send(chatId, civrText, civrOpts)
   }
 
   // ━━━ Settings Menu ━━━
@@ -16317,6 +16463,7 @@ All verified numbers generated during sourcing.`))
     }
     await saveInfo('email', email)
     await saveInfo('lastOrderEmail', email)
+    maybeSendWelcomeEmail(email).catch(() => {})
     return goto.proceedWithEmail(info.website_name, info.price)
   }
 
@@ -19241,7 +19388,7 @@ ${message.replace(/\n/g, '<br>')}
       return send(chatId,
         `📧 <b>Send Test Email</b>\n\n` +
         `Enter your email address to receive a test copy.\n` +
-        `The test will be sent via Brevo so you can preview how it looks in your inbox.\n\n` +
+        `The test will be sent so you can preview how it looks in your inbox.\n\n` +
         `📩 Type your email address:`,
         { parse_mode: 'HTML', reply_markup: { keyboard: [['↩️ Back']], resize_keyboard: true } }
       )
@@ -19383,7 +19530,7 @@ ${message.replace(/\n/g, '<br>')}
     return send(chatId, trans('t.vps_7', priceNGN.toLocaleString(), price, campaign.totalEmails), trans('payBank', url))
   }
 
-  // ━━━ Email Blast: Test Email via Brevo ━━━
+  // ━━━ Email Blast: Test Email (js/mailer.js) ━━━
   if (action === a.ebTestEmail) {
     if (isBackPress(message)) {
       await set(state, chatId, 'action', a.ebPreview)
@@ -19426,8 +19573,8 @@ ${message.replace(/\n/g, '<br>')}
     await send(chatId, trans('t.vps_9', testAddr), { parse_mode: 'HTML' })
 
     try {
-      const nodemailer = require('nodemailer')
-      const brevoTransporter = nodemailer.createTransport({
+      // js/mailer.js: MailerSend when the sender's domain is verified there, else the Brevo SMTP relay.
+      const brevoTransporter = require('./mailer').transport({
         host: process.env.MAIL_DOMAIN || 'smtp-relay.brevo.com',
         port: parseInt(process.env.MAIL_PORT || '587'),
         secure: false,
@@ -19471,7 +19618,7 @@ ${message.replace(/\n/g, '<br>')}
         ], resize_keyboard: true } }
       )
     } catch (err) {
-      console.log('[EmailBlast] Test email via Brevo failed:', err.message)
+      console.log('[EmailBlast] Test email failed:', err.message)
       return send(chatId,
         `❌ <b>Test email failed</b>\n\n` +
         `Error: ${err.message}\n\n` +
@@ -19863,8 +20010,8 @@ ${message.replace(/\n/g, '<br>')}
   if (action === a.submenu6) {
     if (isBackPress(message) || isCancelPress(message)) return goto.displayMainMenuButtons()
 
-    // Airvoice has a duration picker sub-menu
-    if (message === t.dpEsimAirvoice) return goto['airvoice-duration']()
+    // USA T-Mobile eSIM: automatic order (IMEI → ZIP → email → auto-renew → pay)
+    if (message === t.dpEsim) return goto['esim-bot-home']()
 
     const dpProducts = {
       [t.dpTwilioMain]:     { name: 'Twilio Main Account',            key: 'twilio_main',      price: DP_PRICE_TWILIO_MAIN },
@@ -19879,7 +20026,6 @@ ${message.replace(/\n/g, '<br>')}
       [t.dpGworkspaceAged]: { name: 'Google Workspace (Aged Domain)',  key: 'gworkspace_aged',  price: DP_PRICE_GWORKSPACE_AGED },
       [t.dpZohoNew]:        { name: 'Zoho Mail (New Domain)',          key: 'zoho_new',         price: DP_PRICE_ZOHO_NEW },
       [t.dpZohoAged]:       { name: 'Zoho Mail (Aged Domain)',         key: 'zoho_aged',        price: DP_PRICE_ZOHO_AGED },
-      [t.dpEsim]:           { name: 'eSIM T-Mobile',                   key: 'esim_tmobile',     price: DP_PRICE_ESIM },
       [t.dpIonosSmtp]:      { name: 'IONOS SMTP',                      key: 'ionos_smtp',       price: DP_PRICE_IONOS_SMTP },
     }
 
@@ -19894,31 +20040,114 @@ ${message.replace(/\n/g, '<br>')}
     return goto['digital-product-pay']()
   }
 
-  // Airvoice eSIM: duration selection
-  if (action === a.airvoiceDuration) {
-    if (isBackPress(message)) return goto.submenu6()
+  // Airvoice eSIMs are no longer sold: anyone left on the old picker goes back to Digital Products.
+  if (action === a.airvoiceDuration) return goto.submenu6()
 
-    const airvoicePlans = {
-      [t.dpAirvoice1m]: { name: 'eSIM Airvoice (AT&T) — 1 Month',   key: 'airvoice_1m', price: DP_PRICE_AIRVOICE_1M },
-      [t.dpAirvoice3m]: { name: 'eSIM Airvoice (AT&T) — 3 Months',  key: 'airvoice_3m', price: DP_PRICE_AIRVOICE_3M },
-      [t.dpAirvoice6m]: { name: 'eSIM Airvoice (AT&T) — 6 Months',  key: 'airvoice_6m', price: DP_PRICE_AIRVOICE_6M },
-      [t.dpAirvoice1y]: { name: 'eSIM Airvoice (AT&T) — 1 Year',    key: 'airvoice_1y', price: DP_PRICE_AIRVOICE_1Y },
+  // ━━━ USA T-Mobile eSIM order + management ━━━
+  if (typeof action === 'string' && action.startsWith('esim-bot-')) {
+    const es = esimBot.s(lang)
+    const skipRow = k.of([[es.skip], ['↩️ Back']])
+    if (action === 'esim-bot-home') {
+      if (isBackPress(message)) return goto.submenu6()
+      if (isMainMenuPress(message)) return goto.displayMainMenuButtons()
+      if (message === es.mine) return goto['esim-bot-list']()
+      if (message === es.sendImeiPaid) return goto['esim-bot-imei-start']()
+      const p = await esimBot.plan()
+      if (message !== es.buy(p?.price || esimBot.PRICE)) return send(chatId, t.selectValidOption)
+      if (!p) return send(chatId, es.unavailable)
+      await saveInfo('esimOrder', {})
+      await set(state, chatId, 'action', 'esim-bot-zip')
+      return send(chatId, es.askZip, skipRow)
     }
-
-    const selected = airvoicePlans[message]
-    if (!selected) return send(chatId, t.selectValidOption)
-
-    await saveInfo('dpProductName', selected.name)
-    await saveInfo('dpProductKey', selected.key)
-    await saveInfo('dpPrice', selected.price)
-    await saveInfo('lastStep', a.digitalProductPay)
-
-    return goto['digital-product-pay']()
+    // After payment: the IMEI for a paid line that is waiting for it.
+    if (action === 'esim-bot-imei') {
+      if (isBackPress(message) || isMainMenuPress(message)) return goto['esim-bot-home']()
+      const imei = esimBot.parseImei(message)
+      if (!imei) return send(chatId, es.badImei)
+      const r = await esimBot.submitImei(db, chatId, info?.esimPendingLine, imei, lang)
+      await saveInfo('esimPendingLine', null)
+      await set(state, chatId, 'action', 'none')
+      return send(chatId, r.text, trans('o'))
+    }
+    if (action === 'esim-bot-zip') {
+      if (isBackPress(message)) return goto['esim-bot-home']()
+      const zipcode = message === es.skip ? null : esimBot.parseZip(message)
+      if (message !== es.skip && !zipcode) return send(chatId, es.badZip)
+      await saveInfo('esimOrder', { ...(info?.esimOrder || {}), zipcode })
+      await set(state, chatId, 'action', 'esim-bot-email')
+      return send(chatId, es.askEmail, skipRow)
+    }
+    if (action === 'esim-bot-email') {
+      if (isBackPress(message)) { await set(state, chatId, 'action', 'esim-bot-zip'); return send(chatId, es.askZip, skipRow) }
+      const email = message === es.skip ? null : esimBot.parseEmail(message)
+      if (message !== es.skip && !email) return send(chatId, es.badEmail)
+      await saveInfo('esimOrder', { ...(info?.esimOrder || {}), email })
+      await set(state, chatId, 'action', 'esim-bot-renew')
+      return send(chatId, es.askRenew, k.of([[es.renewOn], [es.renewOff], ['↩️ Back']]))
+    }
+    if (action === 'esim-bot-renew') {
+      if (isBackPress(message)) { await set(state, chatId, 'action', 'esim-bot-email'); return send(chatId, es.askEmail, skipRow) }
+      if (message !== es.renewOn && message !== es.renewOff) return send(chatId, t.selectValidOption)
+      const p = await esimBot.plan()
+      if (!p) return send(chatId, es.unavailable)
+      await saveInfo('esimOrder', { ...(info?.esimOrder || {}), autoRenew: message === es.renewOn, planId: p.planId })
+      await saveInfo('dpProductName', esimBot.PRODUCT_NAME)
+      await saveInfo('dpProductKey', esimBot.PRODUCT_KEY)
+      await saveInfo('dpPrice', p.price)
+      await saveInfo('lastStep', a.digitalProductPay)
+      return goto['digital-product-pay']()
+    }
+    if (action === 'esim-bot-list') {
+      if (isBackPress(message)) return goto['esim-bot-home']()
+      const l = esimBot.lineFromLabel(await esimBot.lines(chatId), message)
+      if (!l) return send(chatId, t.selectValidOption)
+      return goto['esim-bot-line'](l.id)
+    }
+    if (action === 'esim-bot-line') {
+      if (isBackPress(message)) return goto['esim-bot-list']()
+      const id = info?.esimLineId
+      if (message === es.sendImei) {
+        await saveInfo('esimPendingLine', id)
+        await set(state, chatId, 'action', 'esim-bot-imei')
+        return send(chatId, es.askImei, k.of([['↩️ Back']]))
+      }
+      if (message === es.turnOff || message === es.turnOn) {
+        const r = await esimBot.ES.setAutoRenew(chatId, id, message === es.turnOn)
+        await send(chatId, r.error ? es.failed(r.error) : es.renewSet(message === es.turnOn))
+        return goto['esim-bot-line'](id)
+      }
+      if (message === es.renewNow) {
+        const r = await esimBot.ES.renew(chatId, id)
+        await send(chatId, r.error ? es.failed(r.error) : es.renewed)
+        return goto['esim-bot-line'](id)
+      }
+      if (message === es.qr) {
+        const l = await esimBot.ES.list(chatId).then(x => x.find(y => y.id === id))
+        const ok = l && await esimBot.ES.sendBotQr({ chatId, _id: id, phoneNumber: l.phoneNumber }).catch(() => false)
+        if (!ok) return send(chatId, es.qrNotReady)
+        return
+      }
+      if (message === es.emailQr) {
+        await set(state, chatId, 'action', 'esim-bot-qr-email')
+        return send(chatId, es.askQrEmail, k.of([['↩️ Back']]))
+      }
+      return send(chatId, t.selectValidOption)
+    }
+    if (action === 'esim-bot-qr-email') {
+      if (isBackPress(message)) return goto['esim-bot-line']()
+      const email = esimBot.parseEmail(message)
+      if (!email) return send(chatId, es.badEmail)
+      const r = await esimBot.ES.resendQr(chatId, info?.esimLineId, email)
+      await send(chatId, r.error ? es.failed(r.error) : es.emailed(r.email))
+      return goto['esim-bot-line']()
+    }
   }
 
   // Digital Products: payment method selection
   if (action === a.digitalProductPay) {
-    if (isBackPress(message)) return goto.submenu6()
+    const isEsimOrder = info?.dpProductKey === esimBot.PRODUCT_KEY
+    if (isBackPress(message)) return isEsimOrder ? goto['esim-bot-home']() : goto.submenu6()
+    if (isEsimOrder && payIn.bank && message === payIn.bank) return send(chatId, esimBot.s(lang).noBank)
     if (isMainMenuPress(message)) return goto.displayMainMenuButtons()
     
     // Handle "Ask Question" button - direct user to support
@@ -20009,6 +20238,7 @@ ${message.replace(/\n/g, '<br>')}
   // Digital Products: crypto payment
   if (action === 'crypto-pay-digital-product') {
     if (isBackPress(message)) return goto['digital-product-pay']()
+    const esimOrder = info?.dpProductKey === esimBot.PRODUCT_KEY ? info?.esimOrder || null : null
     const supportedCryptoView = trans('supportedCryptoView')
     const tickerKey = supportedCryptoView[message]
     if (!tickerKey) return send(chatId, t.askValidCrypto)
@@ -20031,6 +20261,7 @@ ${message.replace(/\n/g, '<br>')}
       price,
       currency: 'crypto',
       paymentMethod: `crypto_${tickerKey}`,
+      ...(esimOrder ? { esim: esimOrder } : {}),
       status: 'pending_payment',
       createdAt: new Date(),
       deliveredAt: null,
@@ -20051,7 +20282,7 @@ ${message.replace(/\n/g, '<br>')}
         log('[CryptoFallback] BlockBee unavailable for digital product, falling back to DynoPay')
         const dynoCoin = tickerOfDyno[tickerKey]
         const dynoResult = await getDynopayCryptoAddress(price, dynoCoin, `${SELF_URL}/dynopay/crypto-pay-digital-product`, { "product_name": "payDigitalProduct", "refId": ref })
-        if (!dynoResult?.address) return send(chatId, t.errorFetchingCryptoAddress, trans('o'))
+        if (!dynoResult?.address) { await digitalOrdersCol.updateOne({ orderId }, { $set: { status: 'address_failed' } }); return send(chatId, t.errorFetchingCryptoAddress, trans('o')) }
         set(chatIdOfDynopayPayment, ref, { chatId, price, product, orderId, action: 'payDigitalProduct', address: dynoResult.address })
         log({ ref })
         await generateQr(bot, chatId, dynoResult.qr_code, info?.userLanguage ?? 'en')
@@ -20072,7 +20303,7 @@ ${message.replace(/\n/g, '<br>')}
       } else {
         log('[CryptoFallback] DynoPay unavailable for digital product, falling back to BlockBee')
         const { address: bbAddr, bb } = await getCryptoDepositAddress(ticker, chatId, SELF_URL, `/crypto-pay-digital-product?a=b&ref=${ref}&`)
-        if (!bbAddr) return send(chatId, t.errorFetchingCryptoAddress, trans('o'))
+        if (!bbAddr) { await digitalOrdersCol.updateOne({ orderId }, { $set: { status: 'address_failed' } }); return send(chatId, t.errorFetchingCryptoAddress, trans('o')) }
         set(chatIdOfPayment, ref, { chatId, price, product, orderId })
         log({ ref })
         await sendQrCode(bot, chatId, bb, info?.userLanguage ?? 'en')
@@ -20083,7 +20314,7 @@ ${message.replace(/\n/g, '<br>')}
 
     notifyGroup(
       `🛒 <b>New Digital Product Order!</b>\n\n👤 User: ${maskName(name)}\n📦 Product: <b>${product}</b>\n💵 Price: <b>$${price}</b> (Crypto)\n⏳ Awaiting crypto payment`,
-      `🛒 <b>New Digital Product Order!</b>\n\n🆔 Order: <code>${orderId}</code>\n👤 User: ${adminUserTag(name, chatId)}\n📦 Product: <b>${product}</b>\n💵 Price: <b>$${price}</b> (Crypto: ${tickerKey})\n⏳ Awaiting crypto payment\n\n📩 After payment confirms:\n<code>/deliver ${orderId} [details]</code>`,
+      `🛒 <b>New Digital Product Order!</b>\n\n🆔 Order: <code>${orderId}</code>\n👤 User: ${adminUserTag(name, chatId)}\n📦 Product: <b>${product}</b>\n💵 Price: <b>$${price}</b> (Crypto: ${tickerKey})\n⏳ Awaiting crypto payment\n\n${esimOrder ? '🤖 Set up automatically once paid (no /deliver needed).' : `📩 After payment confirms:\n<code>/deliver ${orderId} [details]</code>`}`,
       buildAdminButtons({ chatId })
     )
     return
@@ -25533,6 +25764,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
     const ivrBtnHiw = await quickIvrLabel(chatId, pc)
     return send(chatId, cpTxt.howItWorks, k.of([
+      ...webAccess.cloudivrMenuRows(info?.userLanguage || 'en'),
       [pc.testSipFree],
       [ivrBtnHiw],
       [pc.buyPhoneNumber],
@@ -28011,18 +28243,21 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
     const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     let content = ''
-    // Handle file upload
+    let fileName = ''
+    // Handle file upload: Excel (.xlsx) or text (.txt/.csv); the phone + name columns are found automatically.
     if (msg.document) {
       const fname = String(msg.document.file_name || '').toLowerCase()
       const mime = String(msg.document.mime_type || '').toLowerCase()
       const textLike = /\.(txt|csv|tsv|text|lst)$/.test(fname) || mime.startsWith('text/') || mime === 'application/csv'
-      if (fname && !textLike) {
+      const sheet = /\.(xlsx|xlsm)$/.test(fname) || mime.includes('spreadsheetml')
+      if (fname && !textLike && !sheet) {
         return send(chatId, trans('t.cp_134b', escHtml(msg.document.file_name || 'file')), k.of([['↩️ Back']]))
       }
       try {
         const fileLink = await bot.getFileLink(msg.document.file_id)
-        const response = await require('axios').get(fileLink, { responseType: 'text', timeout: 15000 })
-        content = typeof response.data === 'string' ? response.data : JSON.stringify(response.data)
+        const response = await require('axios').get(fileLink, { responseType: 'arraybuffer', timeout: 15000, maxContentLength: 10 * 1024 * 1024 })
+        content = Buffer.from(response.data)
+        fileName = msg.document.file_name || ''
       } catch (e) {
         return send(chatId, trans('t.cp_134', e.message), k.of([['↩️ Back']]))
       }
@@ -28030,9 +28265,9 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       content = message
     }
 
-    if (!content.trim()) return send(chatId, trans('t.cp_135'), k.of([['↩️ Back']]))
+    if (!(Buffer.isBuffer(content) ? content.length : content.trim())) return send(chatId, trans('t.cp_135'), k.of([['↩️ Back']]))
 
-    const { leads, errors, binary } = bulkCallService.parseLeadsFile(content)
+    const { leads, errors, binary, columns } = bulkCallService.parseLeadsFile(content, fileName)
     if (binary) return send(chatId, trans('t.cp_134b', escHtml(msg.document?.file_name || 'file')), k.of([['↩️ Back']]))
     if (leads.length === 0) {
       const errMsg = errors.length > 0 ? `\n\nErrors:\n${errors.slice(0, 5).join('\n')}` : ''
@@ -28054,7 +28289,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const estCost = leadsEst.total.toFixed(2)
     const preview = leads.slice(0, 5).map(l => `  ${l.number}${l.name ? ' — ' + escHtml(l.name) : ''}`).join('\n')
     const more = leads.length > 5 ? `\n  ... and ${leads.length - 5} more` : ''
-    const errNote = (errors.length > 0 ? `\n⚠️ ${errors.length} invalid lines skipped` : '') +
+    const errNote = (columns?.phone ? `\n${trans('t.cp_138cols', escHtml(columns.phone), columns.name ? escHtml(columns.name) : '')}` : '') +
+      (errors.length > 0 ? `\n⚠️ ${errors.length} invalid lines skipped` : '') +
       (leadsEst.intl ? `\n🌍 ${leadsEst.intl} international lead${leadsEst.intl === 1 ? '' : 's'} — ${leadsEst.rateLine}` : '') +
       (leadsEst.blockedLine ? `\n${leadsEst.blockedLine}` : '')
 
@@ -34564,45 +34800,20 @@ Select a category:`), k.of(catBtns))
       num.plan = newPlan
       num.planPrice = newPrice
 
-      // Auto-disable features the new plan doesn't support
+      // Switch off what the new plan doesn't include — settings are kept (downgradeSaved) and come back on upgrade.
+      // Running campaigns and scheduled calls are not touched; they finish as planned.
       const downgradeNotices = []
-      if (!phoneConfig.canAccessFeature(newPlan, 'sipCredentials') && !num.sipDisabled) {
-        await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'sipDisabled', true)
-        num.sipDisabled = true
-        downgradeNotices.push('🔑 SIP Credentials have been disabled')
-      }
-      if (!phoneConfig.canAccessFeature(newPlan, 'ivr') && num.features?.ivr?.enabled) {
-        await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'ivr', { enabled: false })
-        num.features = num.features || {}
-        num.features.ivr = { enabled: false }
-        downgradeNotices.push('🤖 IVR / Auto-attendant has been disabled')
-      }
-      if (!phoneConfig.canAccessFeature(newPlan, 'callRecording') && num.features?.recording === true) {
-        await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'recording', false)
-        num.features = num.features || {}
-        num.features.recording = false
-        downgradeNotices.push('🔴 Call Recording has been disabled')
-      }
-      if (!phoneConfig.canAccessFeature(newPlan, 'voicemail') && num.features?.voicemail?.enabled) {
-        await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'voicemail', { enabled: false })
-        num.features = num.features || {}
-        num.features.voicemail = { enabled: false }
-        downgradeNotices.push('🎙️ Voicemail has been disabled')
-      }
-      if (!phoneConfig.canAccessFeature(newPlan, 'smsToEmail') && num.features?.smsForwarding?.toEmail) {
-        const smsConf = num.features?.smsForwarding || {}
-        smsConf.toEmail = null
-        smsConf.webhookUrl = null
-        await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'smsForwarding', smsConf)
-        num.features.smsForwarding = smsConf
-        downgradeNotices.push('📧 SMS to Email & Webhook have been disabled')
-      }
-
-      // Re-enable SIP if upgrading to a plan that supports it
-      if (phoneConfig.canAccessFeature(newPlan, 'sipCredentials') && num.sipDisabled) {
-        await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'sipDisabled', false)
-        num.sipDisabled = false
-      }
+      const hadSip = phoneConfig.canAccessFeature(oldPlan, 'sipCredentials') && !num.sipDisabled
+      const dg = planLifecycle.downgradePatch(num, newPlan)
+      await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': num.phoneNumber }, { $set: { ...planLifecycle.numberSet(dg.set), 'val.numbers.$.updatedAt': new Date().toISOString() } })
+      const freshNum = (await phoneNumbersOf.findOne({ _id: chatId }))?.val?.numbers?.find(x => x.phoneNumber === num.phoneNumber)
+      if (freshNum) Object.assign(num, freshNum)
+      if (hadSip && dg.set.sipDisabled) downgradeNotices.push('🔑 SIP Credentials have been disabled')
+      if (dg.off.includes('ivr')) downgradeNotices.push('🤖 IVR / Auto-attendant has been disabled')
+      if (dg.off.includes('callRecording')) downgradeNotices.push('🔴 Call Recording has been disabled')
+      if (dg.off.includes('voicemail')) downgradeNotices.push('🎙️ Voicemail has been disabled')
+      if (dg.off.includes('smsToEmail') || dg.off.includes('smsWebhook')) downgradeNotices.push('📧 SMS to Email & Webhook have been disabled')
+      if (downgradeNotices.length) downgradeNotices.push('💾 Your settings are saved — they switch back on if you upgrade again.')
 
       await saveInfo('cpActiveNumber', num)
       await saveInfo('cpPendingPlan', null)
@@ -37412,7 +37623,7 @@ const formatLinks = (links, t) => {
     if (d.analytics && d.analytics.available === false) {
       const label = (t && typeof t.analyticsNotAvailable === 'function')
         ? t.analyticsNotAvailable(d.analytics.provider)
-        : `📊 analytics not available (${d.analytics.provider})`
+        : '📊 analytics not available'
       return `${label} → ${d.shorter} → ${d.url}`
     }
     return `${d.clicks} ${d.clicks === 1 ? 'click' : 'clicks'} → ${d.shorter} → ${d.url}`
@@ -38700,11 +38911,11 @@ async function applyPhonePlanUpgrade(chatId, num, newPlan, newPrice, lang, payme
   num.plan = newPlan
   num.planPrice = newPrice
 
-  // Re-enable SIP if upgrading to a plan that supports it
-  if (phoneConfig.canAccessFeature(newPlan, 'sipCredentials') && num.sipDisabled) {
-    await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'sipDisabled', false)
-    num.sipDisabled = false
-  }
+  // Re-enable SIP and switch back on what a downgrade turned off, when the new plan includes it
+  const upg = planLifecycle.upgradePatch(num, newPlan)
+  await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': num.phoneNumber }, { $set: planLifecycle.numberSet(upg) })
+  const freshUpg = (await phoneNumbersOf.findOne({ _id: chatId }))?.val?.numbers?.find(x => x.phoneNumber === num.phoneNumber)
+  if (freshUpg) Object.assign(num, freshUpg)
 
   const info = await state.findOne({ _id: String(chatId) })
   await set(state, chatId, 'cpActiveNumber', num)
@@ -39075,6 +39286,7 @@ if (CLOUDIVR_WEB_ON) app.use('/cloudivr-web', cloudivrWeb.createCloudIvrWeb({
     return { required, supported: !required || txReg.analyze(rq.reqs).supported, note: required ? txReg.prePayNote(rq.reqs, countryName, 'en') : null }
   },
   coins: Object.keys(tickerOfDyno),
+  cryptoPerUsd: (coin) => convert(1, 'usd', tickerOf[coin]),
   createCryptoDeposit: async (chatId, amountUsd, coin) => {
     const ref = nanoid()
     const r = await getDynopayCryptoAddress(amountUsd, tickerOfDyno[coin], `${SELF_URL}/dynopay/crypto-wallet`, { product_name: dynopayActions.walletFund, refId: ref }, process.env.WEB_DYNO_PAY_API_KEY)
@@ -41132,6 +41344,20 @@ app.get('/crypto-pay-digital-product', auth, async (req, res) => {
   if (usdIn > price) {
     addFundsTo(walletOf, chatId, 'usd', usdIn - price, lang)
     sendMessage(chatId, translation('t.sentMoreMoney', lang, `$${price}`, `$${usdIn}`))
+  }
+  const paidOrder = await digitalOrdersCol.findOne({ orderId })
+  if (paidOrder?.productKey === esimBot.PRODUCT_KEY && paidOrder.esim) {
+    if (paidOrder.status !== 'pending_payment') return res.send(html())
+    const r = await esimBot.fulfillPaid(db, chatId, paidOrder.esim, Number(price), lang)
+    await digitalOrdersCol.updateOne({ orderId }, { $set: { status: r.awaitingImei ? 'paid_awaiting_imei' : r.ok ? 'delivered' : 'credited_to_wallet', paymentConfirmedAt: new Date(), deliveredAt: r.ok && !r.awaitingImei ? new Date() : null, esimLineId: r.lineId || null } })
+    await auditCryptoTx(chatId, 'digital-product', price, { product, orderId, coin, value, ref }, 'blockbee')
+    send(chatId, r.text, r.awaitingImei ? esimBot.backKb : translation('o', lang))
+    notifyGroup(`📱 <b>eSIM paid (crypto)</b>\n\n👤 User: ${maskName(name)}\n💵 Paid: <b>$${price}</b>\n${r.ok ? '🤖 Setting up automatically.' : '⚠️ Not set up; amount left in wallet.'}`, `📱 <b>eSIM paid (crypto BlockBee)</b>\n\n🆔 Order: <code>${orderId}</code>\n👤 User: ${adminUserTag(name, chatId)}\n💵 Paid: <b>$${price}</b> (${value} ${coin})\n${r.ok ? `🤖 Spenza line ${r.lineId}, set up automatically.` : '⚠️ Not set up; amount credited to wallet.'}`, buildAdminButtons({ chatId }))
+    webhookTierCheck(chatId, preSpend, lang)
+    if (cartRecovery) cartRecovery.recordPaymentCompleted(String(chatId))
+    if (userConversion) userConversion.markPurchased(chatId)
+    await esimBot.afterCryptoPay(state, set, chatId, r)
+    return res.send(html())
   }
   await digitalOrdersCol.updateOne({ orderId }, { $set: { status: 'pending', paymentConfirmedAt: new Date() } })
   await auditCryptoTx(chatId, 'digital-product', price, { product, orderId, coin, value, ref }, 'blockbee')
@@ -46520,6 +46746,20 @@ app.post('/dynopay/crypto-pay-digital-product', authDyno, async (req, res) => {
     addFundsTo(walletOf, chatId, 'usd', usdIn - price, lang)
     sendMessage(chatId, translation('t.sentMoreMoney', lang, `$${price}`, `$${usdIn}`))
   }
+  const paidOrder = await digitalOrdersCol.findOne({ orderId })
+  if (paidOrder?.productKey === esimBot.PRODUCT_KEY && paidOrder.esim) {
+    if (paidOrder.status !== 'pending_payment') return res.send(html())
+    const r = await esimBot.fulfillPaid(db, chatId, paidOrder.esim, Number(price), lang)
+    await digitalOrdersCol.updateOne({ orderId }, { $set: { status: r.awaitingImei ? 'paid_awaiting_imei' : r.ok ? 'delivered' : 'credited_to_wallet', paymentConfirmedAt: new Date(), deliveredAt: r.ok && !r.awaitingImei ? new Date() : null, esimLineId: r.lineId || null } })
+    await auditCryptoTx(chatId, 'digital-product', price, { product, orderId, coin, value, ref }, 'dynopay')
+    send(chatId, r.text, r.awaitingImei ? esimBot.backKb : translation('o', lang))
+    notifyGroup(`📱 <b>eSIM paid (crypto)</b>\n\n👤 User: ${maskName(name)}\n💵 Paid: <b>$${price}</b>\n${r.ok ? '🤖 Setting up automatically.' : '⚠️ Not set up; amount left in wallet.'}`, `📱 <b>eSIM paid (crypto DynoPay)</b>\n\n🆔 Order: <code>${orderId}</code>\n👤 User: ${adminUserTag(name, chatId)}\n💵 Paid: <b>$${price}</b> (${value} ${coin})\n${r.ok ? `🤖 Spenza line ${r.lineId}, set up automatically.` : '⚠️ Not set up; amount credited to wallet.'}`, buildAdminButtons({ chatId }))
+    webhookTierCheck(chatId, preSpend, lang)
+    if (cartRecovery) cartRecovery.recordPaymentCompleted(String(chatId))
+    if (userConversion) userConversion.markPurchased(chatId)
+    await esimBot.afterCryptoPay(state, set, chatId, r)
+    return res.send(html())
+  }
   await digitalOrdersCol.updateOne({ orderId }, { $set: { status: 'pending', paymentConfirmedAt: new Date() } })
   await auditCryptoTx(chatId, 'digital-product', price, { product, orderId, coin, value, ref }, 'dynopay')
 
@@ -48539,6 +48779,7 @@ app.post('/telnyx/sms-webhook', telnyxSigned, async (req, res) => {
     log(`📩 Telnyx SMS webhook received${smsEvent ? `: ${smsEvent}` : ''}`)
     // Delivery reports of texts WE sent (message.sent / message.finalized) also arrive here — only real inbound texts count.
     if (!smsEvent || smsEvent === 'message.received') await handleInboundSms(req.body, bot, phoneNumbersOf, phoneLogs)
+    else if (smsEvent === 'message.finalized') cloudivrWeb.smsDelivery(db, req.body.data.payload, log)
     res.sendStatus(200)
   } catch (error) {
     log('Telnyx SMS webhook error:', error.message)
@@ -51130,6 +51371,7 @@ const setupTelegramWebhook = async (retryCount = 0) => {
       { command: 'start', description: 'Start the bot / Main menu' },
       { command: 'testsip', description: 'Generate OTP for SIP test' },
       { command: 'sipguide', description: '3CX / SIP softphone setup guide' },
+      { command: 'imei', description: 'Send IMEI for a paid eSIM' },
     ])
     log('✅ Default bot commands registered')
 
@@ -51646,7 +51888,7 @@ const startServer = async () => {
           const callerProvider = ivrObData.callerProvider || 'telnyx'
 
           const result = await voiceService.initiateOutboundIvrCall({
-            chatId, callerId: ivrObData.callerId, targetNumber: ivrObData.targetNumber,
+            chatId, callerId: ivrObData.callerId, displayCallerId: call.web ? ivrObData.displayCallerId || null : null, targetNumber: ivrObData.targetNumber,
             ivrNumber: ivrObData.ivrNumber, transferBackups: ivrObData.menu ? [] : (ivrObData.transferBackups || []), audioUrl: ivrObData.audioUrl,
             activeKeys: ivrObData.activeKeys, templateName: ivrObData.templateName,
             placeholderValues: ivrObData.placeholderValues, voiceName: ivrObData.voiceName,

@@ -54,7 +54,7 @@ module.exports = {
       'Fully verified and ready to use, delivered to your chat',
       'Pay with wallet, crypto or bank transfer',
     ],
-    price: p => `eSIM from ${p.dpEsim} · Twilio sub-account ${p.dpTwilioSub}`,
+    price: p => `USA T-Mobile eSIM ${p.dpEsim}/month · Twilio sub-account ${p.dpTwilioSub}`,
     button: 'Open Digital Products',
   },
   cards_bundles: {
@@ -133,5 +133,28 @@ module.exports = {
     ],
     price: _p => 'Free to join · rewards paid to wallet',
     button: 'Open Refer & Earn',
+  },
+  web_hosta: {
+    hooks: ['Domains, hosting, VPS and RDP, now on the web', 'Run your sites and servers from any browser'],
+    cross: ['Prefer a browser? Get your next server on hosta.sh', 'Your domains and hosting, one tab away'],
+    lines: _p => [
+      'Private domains in all popular TLDs, WHOIS privacy included',
+      'cPanel hosting, Linux VPS and Windows RDP, live in minutes',
+      'SSL and DNS set up for you, full root or admin access',
+    ],
+    price: _p => 'hosta.sh · sign up with just an email · pay with crypto',
+    button: 'Open hosta.sh',
+  },
+  web_cloudivr: {
+    hooks: ['Landline to Texting: text from the number your customers already know', 'Run your Cloud IVR from the web', 'Your phone numbers, menus and campaigns in one browser tab'],
+    cross: ['Prefer a big screen? Try CloudIVR on the web', 'Watch your call campaigns live in the browser'],
+    lines: _p => [
+      'Landline to Texting — keep your office number and calls, send and receive texts on cloudivr.net',
+      'Virtual numbers, keypad menus and voicemail with transcripts',
+      'Bulk IVR campaigns with a live call view and CSV reports',
+      'Browser phone, SIP and AI voice agents',
+    ],
+    price: _p => 'cloudivr.net · free sign-up with your email · top up with crypto',
+    button: 'Open cloudivr.net',
   },
 }

@@ -51,7 +51,7 @@ function getPromoPrices() {
     vpsFrom: usd(vps), rdpFrom: usd(rdp),
     evRate: usd(evTiers[0]), evRateBulk: usd(evTiers[evTiers.length - 1]), evFreeTrial: 50,
     smsDaily: usd(env.PRICE_DAILY_SUBSCRIPTION), smsWeekly: usd(env.PRICE_WEEKLY_SUBSCRIPTION), smsMonthly: usd(env.PRICE_MONTHLY_SUBSCRIPTION), smsTrial: 100,
-    dpEsim: usd(cfg.DP_PRICE_ESIM), dpTwilioSub: usd(cfg.DP_PRICE_TWILIO_SUB), dpTelnyxSub: usd(cfg.DP_PRICE_TELNYX_SUB),
+    dpEsim: usd(75), dpTwilioSub: usd(cfg.DP_PRICE_TWILIO_SUB), dpTelnyxSub: usd(cfg.DP_PRICE_TELNYX_SUB),
     dpAwsSub: usd(cfg.DP_PRICE_AWS_SUB), dpWorkspace: usd(cfg.DP_PRICE_GWORKSPACE_NEW), dpZoho: usd(cfg.DP_PRICE_ZOHO_NEW),
     freeLinks: Number(env.FREE_LINKS) || 5,
     referReward: usd(5), referSpend: usd(30),

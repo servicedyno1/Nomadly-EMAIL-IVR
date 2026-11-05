@@ -6,7 +6,9 @@ const crypto = require('crypto')
 const phoneConfig = require('../phone-config')
 const ivrOb = require('../ivr-outbound')
 const { walletOps } = require('./wallet')
+const callerIds = require('./caller-ids')
 const { normPhone, E164, parseBackups } = require('./numbers')
+const { dialIssue } = require('../dial-check')
 
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const MAX_TARGETS = 10
@@ -35,6 +37,7 @@ function cleanMenu(menu, callerId) {
     if (action === 'forward') {
       const to = normPhone(o.forwardTo)
       if (!E164.test(to)) throw new Error(`${where}: enter the forward number with country code, e.g. +14155550100.`)
+      if (dialIssue(to)) throw new Error(`${where}: ${dialIssue(to)}`)
       if (phoneConfig.isBlockedPrefix(to)) throw new Error(`${where}: ${to} is a blocked premium/satellite destination.`)
       if (to === callerId) throw new Error(`${where}: forward to a number other than your caller ID.`)
       return { action, forwardTo: to, label }
@@ -184,11 +187,14 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       if (!phoneConfig.canAccessFeature(caller.plan, 'ivrOutbound')) return { err: [403, 'plan_upgrade_required', 'Quick IVR calls need the Pro plan or higher on the caller number.'] }
     }
     const callerId = trial ? ivrOb.TRIAL_CALLER_ID : caller.phoneNumber
+    let showAs = null
+    if (!trial) try { showAs = await callerIds.resolve(chatId, b.showAs) } catch (e) { return { err: [400, 'invalid_show_as', e.message] } }
     const targets = parseTargets(b)
     if (!targets.length) return { err: [400, 'invalid_number', 'Enter the number to call with country code, e.g. +14155550100.'] }
     if (targets.length > (trial ? 1 : MAX_TARGETS)) return { err: [400, 'too_many_numbers', trial ? 'The free call goes to one number.' : `Up to ${MAX_TARGETS} numbers per Quick IVR call — use a campaign for more.`] }
     for (const t of targets) {
       if (!E164.test(t)) return { err: [400, 'invalid_number', `${t} is not a valid number. Use the country code, e.g. +14155550100.`] }
+      if (dialIssue(t)) return { err: [400, 'invalid_number', dialIssue(t)] }
       if (phoneConfig.isBlockedPrefix(t)) return { err: [400, 'blocked_destination', `${t} is a blocked premium/satellite destination.`] }
       if (t === callerId) return { err: [400, 'same_number', 'You cannot call your own caller ID.'] }
     }
@@ -217,6 +223,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       if (String(b.transferTo || '').trim()) {
         transferTo = normPhone(b.transferTo)
         if (!E164.test(transferTo)) return { err: [400, 'invalid_transfer', 'Enter the number to connect with country code, e.g. +14155550100.'] }
+        if (dialIssue(transferTo)) return { err: [400, 'invalid_transfer', dialIssue(transferTo)] }
         if (phoneConfig.isBlockedPrefix(transferTo)) return { err: [400, 'invalid_transfer', `${transferTo} is a blocked premium/satellite destination.`] }
         if (transferTo === callerId) return { err: [400, 'invalid_transfer', 'The number to connect must differ from the caller ID.'] }
       }
@@ -227,6 +234,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     } else {
       transferTo = normPhone(b.transferTo)
       if (!E164.test(transferTo)) return { err: [400, 'invalid_transfer', 'Enter the transfer number with country code, e.g. +14155550100.'] }
+      if (dialIssue(transferTo)) return { err: [400, 'invalid_transfer', dialIssue(transferTo)] }
       if (phoneConfig.isBlockedPrefix(transferTo)) return { err: [400, 'invalid_transfer', `${transferTo} is a blocked premium/satellite destination.`] }
       if (transferTo === callerId) return { err: [400, 'invalid_transfer', 'The transfer number must differ from the caller ID.'] }
       const bk = parseBackups(b.transferBackups, [transferTo, callerId])
@@ -237,7 +245,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     return {
       cfg: {
-        callerId, callerPlan: caller?.plan || null, targets, mode, menu, transferTo, transferBackups, otp, activeKeys, holdMusic: !!b.holdMusic && !trial,
+        callerId, showAs, callerPlan: caller?.plan || null, targets, mode, menu, transferTo, transferBackups, otp, activeKeys, holdMusic: !!b.holdMusic && !trial,
         audioId: audio?.id || null, audioUrl: audio?.audioUrl || null, text, voiceName, templateName: String(b.templateName || audio?.name || 'Custom script').slice(0, 80),
       },
     }
@@ -245,12 +253,12 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
 
   const rateOf = (cfg) => Math.max(...cfg.targets.map(t => voiceService.getIvrCallRate(t)), cfg.transferTo ? voiceService.getIvrCallRate(cfg.transferTo) : 0)
   const engineParams = (chatId, cfg, to, trial) => ({
-    chatId, callerId: cfg.callerId, targetNumber: to, ivrNumber: cfg.menu ? firstForward(cfg.menu) : cfg.transferTo || null, transferBackups: cfg.menu || cfg.mode === 'otp' ? [] : (cfg.transferBackups || []), menu: cfg.menu,
+    chatId, callerId: cfg.callerId, displayCallerId: cfg.showAs || null, targetNumber: to, ivrNumber: cfg.menu ? firstForward(cfg.menu) : cfg.transferTo || null, transferBackups: cfg.menu || cfg.mode === 'otp' ? [] : (cfg.transferBackups || []), menu: cfg.menu,
     audioUrl: cfg.audioUrl, greetingText: cfg.audioUrl ? null : cfg.text, voiceName: cfg.voiceName || undefined, activeKeys: cfg.activeKeys, templateName: cfg.templateName,
     holdMusic: cfg.holdMusic, provider: 'telnyx', isTrial: !!trial, ivrMode: cfg.mode === 'otp' ? 'otp_collect' : 'transfer',
     otpLength: cfg.otp?.length || 6, otpMaxAttempts: 3, otpConfirmMsg: cfg.otp?.confirmMsg || null, otpRejectMsg: cfg.otp?.rejectMsg || null,
   })
-  const publicCall = (d) => ({ id: d._id, at: d.at, callerId: d.cfg.callerId, targets: d.cfg.targets, mode: d.cfg.mode, templateName: d.cfg.templateName, hasMenu: !!d.cfg.menu, transferTo: d.cfg.transferTo, results: d.results || [], dryRun: !!d.dryRun, trial: !!d.trial, scheduledFor: d.scheduledFor || null })
+  const publicCall = (d) => ({ id: d._id, at: d.at, callerId: d.cfg.callerId, showAs: d.cfg.showAs || null, targets: d.cfg.targets, mode: d.cfg.mode, templateName: d.cfg.templateName, hasMenu: !!d.cfg.menu, transferTo: d.cfg.transferTo, results: d.results || [], dryRun: !!d.dryRun, trial: !!d.trial, scheduledFor: d.scheduledFor || null })
 
   // Places (or validates, in preview) the call to every target; records it for Recent / Redial.
   async function run(chatId, body, cfg, { trial = false } = {}) {
@@ -380,13 +388,13 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     res.json(pubOtp(otpState(req.webChatId, ccid, voiceService)))
   }))
 
-  // One free Quick IVR call from our shared number for accounts without a calling number (the bot's "Quick IVR Call — 1 Free").
+  // One free Quick IVR call from our shared number for accounts without a VoIP number (the bot's "Quick IVR Call — 1 Free").
   const busyMsg = 'Your free call is still going. If nobody answered, you can try again in a few minutes.'
   router.get('/calls/trial', h(async (req, res) => res.json(await trialStatus(db, numbersApi, req.webChatId))))
   router.post('/calls/trial', h(async (req, res) => {
     const chatId = req.webChatId
     const t = await trialStatus(db, numbersApi, chatId)
-    if (!t.available) return bad(res, 403, 'trial_used', 'The free Quick IVR call is for accounts without a calling number, once.')
+    if (!t.available) return bad(res, 403, 'trial_used', 'The free Quick IVR call is for accounts without a VoIP number, once.')
     if (t.inProgress) return bad(res, 409, 'trial_in_progress', busyMsg)
     const { cfg, err } = await buildCall(chatId, req.body, { trial: true })
     if (err) return bad(res, ...err)

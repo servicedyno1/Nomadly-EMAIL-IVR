@@ -11,6 +11,7 @@ const dialGuard = require('./dial-rate-guard.js')
 const callSessionStore = require('./call-session-store.js')
 const numberHours = require('./number-hours.js')
 const browserRing = require('./relay-call/incoming') // CloudIVR web "Ring me in the browser" (ringing banner + online map)
+const browserCallKey = require('./browser-call-key.js')
 const vmGreeting = require('./voicemail-greeting.js')
 // CloudIVR web accounts (reserved chatId range): voicemail is kept, transcribed and emailed. Loaded lazily (see _webVoicemail).
 let _webVoicemailDeliver = null
@@ -164,18 +165,8 @@ const sipRateLimit = {}
 const SIP_RATE_LIMIT_MAX = 3       // Max calls per window
 const SIP_RATE_LIMIT_WINDOW = 60000 // 60 seconds window
 
-// Per-user global rate limiter — caps total outbound calls from a single number/user
-// regardless of destination. Prevents spam dialing to many different numbers.
-const sipGlobalRateLimit = {}
-const SIP_GLOBAL_RATE_MAX = 10         // Max total calls per window (any destination)
-const SIP_GLOBAL_RATE_WINDOW = 300000  // 5-minute window
-
-// Fix #2: Escalating hard-block for persistent rate-limit abusers.
-// After N consecutive rejections, silently drop all webhooks for a cooldown period
-// instead of processing + logging + calling hangup on every single attempt.
-const sipHardBlock = {}
-const HARD_BLOCK_THRESHOLD = 5         // Consecutive rate-limit hits before hard block
-const HARD_BLOCK_DURATION = 600000     // 10 minutes of silent drop
+// Calls over a user's simultaneous-call limit wait in a queue instead of being hung up.
+const sipQueue = require('./sip-call-queue')
 
 // Expired test credential block set — prevents auto-route retry storm from expired test SIP users.
 // Key: sipUsername, Value: timestamp when blocked. Entries auto-expire after 10 minutes.
@@ -1052,56 +1043,38 @@ function checkSipRateLimit(sipUsername, destination) {
   return true // allowed
 }
 
-// Check global per-user rate limit (total calls across all destinations)
-function checkSipGlobalRateLimit(sipUsername) {
-  const now = Date.now()
-  const entry = sipGlobalRateLimit[sipUsername]
-  if (!entry || (now - entry.firstCallTime) > SIP_GLOBAL_RATE_WINDOW) {
-    sipGlobalRateLimit[sipUsername] = { count: 1, firstCallTime: now }
-    return true // allowed
-  }
-  entry.count++
-  if (entry.count > SIP_GLOBAL_RATE_MAX) {
-    return false // blocked
-  }
-  return true // allowed
+// Answer the caller's leg, say why the call can't go through, then hang up.
+async function sayAndHangup(callControlId, text) {
+  try {
+    await _telnyxApi.answerCall(callControlId)
+    await _telnyxApi.speakOnCall(callControlId, text)
+  } catch (e) { /* call may already be ended */ }
+  setTimeout(() => { _telnyxApi.hangupCall(callControlId).catch(() => {}) }, 9000)
 }
 
-/**
- * Fix #2: Check if a user is in hard-block (escalated rate limit).
- * Returns true if the user should be silently dropped (no logging, no hangup API call).
- */
-function isSipHardBlocked(key) {
-  const entry = sipHardBlock[key]
-  if (!entry) return false
-  if (Date.now() - entry.blockedAt > HARD_BLOCK_DURATION) {
-    delete sipHardBlock[key]
-    log(`[Voice] Hard-block expired for ${key} (was blocked after ${entry.consecutiveHits} consecutive rate-limit hits)`)
-    return false
-  }
-  return true
-}
-
-/**
- * Fix #2: Record a rate-limit hit. After HARD_BLOCK_THRESHOLD consecutive hits,
- * escalate to hard-block (silent drop for HARD_BLOCK_DURATION).
- */
-function recordRateLimitHit(key) {
-  const now = Date.now()
-  const entry = sipHardBlock[key]
-  if (entry && entry.blocked) return true // already hard-blocked
-  if (!entry || (now - (entry.lastHitAt || 0)) > SIP_GLOBAL_RATE_WINDOW) {
-    // Reset counter — gap between hits was too large
-    sipHardBlock[key] = { consecutiveHits: 1, lastHitAt: now, blocked: false }
-    return false
-  }
-  entry.consecutiveHits++
-  entry.lastHitAt = now
-  if (entry.consecutiveHits >= HARD_BLOCK_THRESHOLD) {
-    entry.blocked = true
-    entry.blockedAt = now
-    log(`[Voice] 🚫 HARD-BLOCK activated for ${key} — ${entry.consecutiveHits} consecutive rate-limit hits. Silent-dropping for ${HARD_BLOCK_DURATION/1000}s`)
+// Over the simultaneous-call limit: the caller hears a queued message + hold music until a line frees.
+// Returns true when the call may proceed, false when it gave up (timeout or caller hung up).
+async function queueUntilFree(chatId, callControlId, destination) {
+  log(`[Voice] 📥 SIP QUEUE: chatId ${chatId} has ${sipQueue.liveCount(_activeCallsRaw, chatId)} live calls (max ${sipQueue.MAX_LIVE}) — queuing ${callControlId} → ${destination}`)
+  try {
+    await _telnyxApi.answerCall(callControlId)
+    await _telnyxApi.speakOnCall(callControlId, 'All your lines are busy. Your call is queued and will connect automatically. Please hold.')
+  } catch (e) { /* caller may have hung up */ }
+  const music = setTimeout(() => { if (sipQueue.isQueued(callControlId)) _telnyxApi.playbackStart(callControlId, HOLD_MUSIC_URL, { loop: 'infinity' }).catch(() => {}) }, 7000)
+  const lang = await _getUserLang(chatId)
+  _bot?.sendMessage(chatId, _trans('vs.sipCallQueued', lang, formatPhone(destination), sipQueue.MAX_LIVE)
+    || `⏳ Your call to ${formatPhone(destination)} is queued: you already have ${sipQueue.MAX_LIVE} calls connected. It connects automatically when one ends.`).catch(() => {})
+  const result = await sipQueue.waitForSlot(_activeCallsRaw, chatId, callControlId)
+  clearTimeout(music)
+  log(`[Voice] 📤 SIP QUEUE: ${callControlId} → ${result}`)
+  if (result === 'go') {
+    await _telnyxApi.playbackStop(callControlId).catch(() => {})
     return true
+  }
+  _releaseOutbound(chatId, callControlId)
+  if (result === 'timeout') {
+    await _telnyxApi.playbackStop(callControlId).catch(() => {})
+    await sayAndHangup(callControlId, 'All your lines are still busy. Please try again in a minute.')
   }
   return false
 }
@@ -1169,6 +1142,25 @@ function setWalletRejectCooldown(fromNumber, chatId) {
 }
 
 // Cleanup stale rate limit entries every 5 minutes
+// Remove an old call session only when Telnyx confirms the call ended (non-Telnyx keys and anything past
+// SESSION_HARD_CAP_MS go as before). Live calls are re-checked every 5 minutes.
+const SESSION_HARD_CAP_MS = 6 * 3600 * 1000
+const _walletEndNoticeAt = new Map() // chatId → last 'wallet ran out' notice (parallel calls end together)
+const _aliveChecking = new Set()
+function _expireIfDead(store, key, ageMs, onDelete) {
+  const e = store[key]
+  if (!e || _aliveChecking.has(key)) return
+  if (e._aliveCheckedAt && Date.now() - e._aliveCheckedAt < 5 * 60000 && ageMs < SESSION_HARD_CAP_MS) return
+  const drop = () => { if (store[key] !== e) return; onDelete?.(e); delete store[key]; log(`[Voice] Memory cleanup: removed ended session ${key} (age ${Math.round(ageMs / 60000)} min)`) }
+  if (ageMs >= SESSION_HARD_CAP_MS || !String(key).startsWith('v3:') || !_telnyxApi?.isCallAlive) return drop()
+  _aliveChecking.add(key)
+  _telnyxApi.isCallAlive(key).then(alive => {
+    if (alive === false) return drop()
+    if (store[key]) store[key]._aliveCheckedAt = Date.now()
+    if (alive) log(`[Voice] Long call still live — keeping session ${key} (${Math.round(ageMs / 60000)} min)`)
+  }).catch(() => {}).finally(() => _aliveChecking.delete(key))
+}
+
 setInterval(() => {
   const now = Date.now()
   for (const key of Object.keys(sipRateLimit)) {
@@ -1176,25 +1168,11 @@ setInterval(() => {
       delete sipRateLimit[key]
     }
   }
-  for (const key of Object.keys(sipGlobalRateLimit)) {
-    if ((now - sipGlobalRateLimit[key].firstCallTime) > SIP_GLOBAL_RATE_WINDOW * 2) {
-      delete sipGlobalRateLimit[key]
-    }
-  }
   for (const key of Object.keys(walletRejectCooldown)) {
     const entry = walletRejectCooldown[key]
     const effectiveCooldown = getEscalatedCooldownMs(entry.hitCount || 1)
     if ((now - entry.timestamp) > effectiveCooldown * 2) {
       delete walletRejectCooldown[key]
-    }
-  }
-
-  // Fix #2: Clean expired hard-block entries
-  for (const key of Object.keys(sipHardBlock)) {
-    if (sipHardBlock[key].blockedAt && (now - sipHardBlock[key].blockedAt) > HARD_BLOCK_DURATION * 2) {
-      delete sipHardBlock[key]
-    } else if (!sipHardBlock[key].blocked && sipHardBlock[key].lastHitAt && (now - sipHardBlock[key].lastHitAt) > SIP_GLOBAL_RATE_WINDOW * 2) {
-      delete sipHardBlock[key]
     }
   }
 
@@ -1213,6 +1191,8 @@ setInterval(() => {
   }
 
   // ── Memory Leak Prevention: Cleanup orphaned call session stores ──
+  // Old Telnyx call sessions are removed only once Telnyx says the call is over, so a long call keeps
+  // its end-of-call billing and its wallet guard (prod 2026-11-05: a 32-min transfer was never billed).
   // These stores rely on webhook events for cleanup. If webhooks are missed
   // (network glitch, server restart during active call), entries stay forever.
   // Clean up entries older than their max expected lifetime.
@@ -1230,9 +1210,7 @@ setInterval(() => {
   for (const key of Object.keys(activeCalls)) {
     const entry = activeCalls[key]
     if (entry?.startedAt && (now - new Date(entry.startedAt).getTime()) > ACTIVE_CALL_MAX_AGE) {
-      if (entry._limitTimer) clearInterval(entry._limitTimer)
-      delete activeCalls[key]
-      cleaned++
+      _expireIfDead(activeCalls, key, now - new Date(entry.startedAt).getTime(), e => { if (e._limitTimer) clearInterval(e._limitTimer) })
     }
   }
 
@@ -1241,9 +1219,7 @@ setInterval(() => {
     const entry = outboundIvrCalls[key]
     const ts = entry?.startedAt || entry?.createdAt || entry?.startTime
     if (ts && (now - (ts instanceof Date ? ts.getTime() : ts)) > IVR_SESSION_MAX_AGE) {
-      if (entry._limitTimer) clearInterval(entry._limitTimer)
-      delete outboundIvrCalls[key]
-      cleaned++
+      _expireIfDead(outboundIvrCalls, key, now - (ts instanceof Date ? ts.getTime() : ts), e => { if (e._limitTimer) clearInterval(e._limitTimer) })
     }
   }
 
@@ -1272,8 +1248,7 @@ setInterval(() => {
     const entry = activeBridgeTransfers[key]
     const ts = entry?.startedAt || entry?.createdAt
     if (ts && (now - new Date(ts).getTime()) > BRIDGE_TRANSFER_MAX_AGE) {
-      delete activeBridgeTransfers[key]
-      cleaned++
+      _expireIfDead(activeBridgeTransfers, key, now - new Date(ts).getTime())
     }
   }
 
@@ -1293,9 +1268,7 @@ setInterval(() => {
     const entry = ivrTransferLegs[key]
     const ts = entry?.createdAt || entry?.startedAt || entry?.startTime
     if (ts && (now - (ts instanceof Date ? ts.getTime() : ts)) > IVR_SESSION_MAX_AGE) {
-      if (entry._transferTimeout) clearTimeout(entry._transferTimeout)
-      delete ivrTransferLegs[key]
-      cleaned++
+      _expireIfDead(ivrTransferLegs, key, now - (ts instanceof Date ? ts.getTime() : ts), e => { if (e._transferTimeout) clearTimeout(e._transferTimeout) })
     }
   }
 
@@ -2072,6 +2045,16 @@ async function handleBridgeTransferHangup(payload) {
       delete activeBridgeTransfers[callControlId]
       return true
     }
+    // Off-hours forward: none of the backup numbers answered → voicemail or the closed message instead of hanging up.
+    const offS = activeCalls[transfer.originalCallControlId]
+    if (offS?.offHoursFallback && !isCallEnded(transfer.originalCallControlId)) {
+      offS.offHoursFallback = false
+      offS.offHoursTried = true
+      offS.bridgeRingSecs = null
+      await offHoursEnd(transfer.originalCallControlId, offS).catch(e => log(`[Voice] Off-hours fallback error: ${e.message}`))
+      delete activeBridgeTransfers[callControlId]
+      return true
+    }
     // Regular bridge transfer failure — hang up original leg and notify user
     await _telnyxApi.hangupCall(transfer.originalCallControlId).catch(() => {})
     const parentSession = outboundIvrCalls[transfer.originalCallControlId] || activeCalls[transfer.originalCallControlId]
@@ -2217,6 +2200,7 @@ async function handleVoiceWebhook(req, res) {
         await handleCallAnswered(payload)
         break
       case 'call.hangup': {
+        sipQueue.drop(callControlId)
         // If we haven't seen call.initiated for this call yet, buffer the hangup
         // UNLESS it's a known bridge transfer leg — those can be processed directly
         if (callControlId && !_initiatedCalls.has(callControlId) && !activeBridgeTransfers[callControlId]) {
@@ -2292,8 +2276,9 @@ async function handleVoiceWebhook(req, res) {
         break
       }
       case 'call.machine.greeting.ended':
-        // detect_beep: voicemail greeting finished (beep heard) → drop the message now
-        await playVoicemailDrop(payload.call_control_id, `greeting ${payload.result || 'ended'}`)
+        // greeting_end: mailbox greeting finished (beep or silence) → drop the message now
+        log(`[Voice] AMD greeting ended: ${payload.result || 'ended'} for callControlId=${payload.call_control_id}`)
+        await playVoicemailDrop(payload.call_control_id, `greeting ${payload.result || 'ended'}`, { fromGreeting: true })
         break
       case 'fax.received':
       case 'fax.receiving.started':
@@ -2311,11 +2296,22 @@ async function handleVoiceWebhook(req, res) {
   }
 }
 
-// ── Bulk voicemail drop (Telnyx detect_beep) ──
-// machine detected → stop the IVR prompt, wait for the beep (greeting.ended) or a fallback
-// timeout, play the campaign's voicemail clip once, then hang up when it finishes.
-const VM_BEEP_WAIT_MS = parseInt(process.env.BULK_VM_BEEP_WAIT_MS || '20000', 10)
-const VM_MAX_PLAY_MS = 120000
+// ── Bulk voicemail drop (Telnyx "greeting_end" AMD) ──
+// machine detected → stop the IVR prompt, wait for the end of the mailbox greeting (greeting.ended) or a
+// fallback timeout, play the campaign's voicemail clip once, then hang up when it finishes.
+// greeting.ended WITHOUT a prior machine result also drops the clip right away (the greeting just ended,
+// so a mailbox is recording). Prod 2026-10-22→26: with 'detect_beep' Telnyx sent NO call.machine.* webhooks
+// at all → 0 of 749 voicemail-drop leads (8 campaigns) ever got a message.
+const VM_AMD_MODES = ['greeting_end', 'detect_words', 'detect_beep', 'detect']
+const VM_AMD_MODE = VM_AMD_MODES.includes(process.env.BULK_VM_AMD_MODE) ? process.env.BULK_VM_AMD_MODE : 'greeting_end'
+const VM_BEEP_WAIT_MS = parseInt(process.env.BULK_VM_BEEP_WAIT_MS || '30000', 10)
+const VM_MAX_PLAY_MS = 180000 // safety stop for a playing voicemail clip (normally playback.ended hangs up first)
+// Per-call cap of voicemail-drop campaigns (maxCallMs = BULK_VM_MAX_CALL_SEC): hang up this much BEFORE the limit.
+// The hang-up webhook lands ~1 s after the command and billing rounds UP to whole minutes, so a cap that fired at
+// exactly 60 s billed 61 s = 2 minutes. Never applies while transferring/bridged or once a voicemail is being left.
+const VM_CAP_MARGIN_MS = Math.max(0, parseFloat(process.env.BULK_VM_CAP_MARGIN_SEC || '3') * 1000)
+const CAP_EXEMPT_PHASES = ['transferring', 'bridged', 'voicemail_wait', 'voicemail_playing']
+const capDelayMs = (maxCallMs) => (maxCallMs > VM_CAP_MARGIN_MS * 2 ? maxCallMs - VM_CAP_MARGIN_MS : maxCallMs)
 
 async function startVoicemailWait(callControlId, session) {
   session.phase = 'voicemail_wait'
@@ -2326,10 +2322,22 @@ async function startVoicemailWait(callControlId, session) {
   await _telnyxApi.gatherStop(callControlId).catch(() => {})
 }
 
-async function playVoicemailDrop(callControlId, reason) {
+async function playVoicemailDrop(callControlId, reason, { fromGreeting = false } = {}) {
   const session = outboundIvrCalls[callControlId]
-  if (!session || session.phase !== 'voicemail_wait' || isCallEnded(callControlId)) return
+  if (!session || isCallEnded(callControlId)) return
+  // Greeting ended but no machine-detection result arrived (or it was 'not_sure') → it is a mailbox: drop now.
+  if (fromGreeting && session.phase === 'playing' && session.campaignId && session.voicemailAudioUrl &&
+      !session.digitPressed && session.answeredBy !== 'human') {
+    session.answeredBy = 'machine'
+    session.phase = 'voicemail_wait' // set BEFORE gather_stop so the stopped prompt's gather.ended is ignored
+    log(`[OutboundIVR] Mailbox greeting ended without a machine result on ${session.targetNumber} (campaign ${session.campaignId}) — leaving voicemail now`)
+    await _telnyxApi.gatherStop(callControlId).catch(() => {})
+    if (isCallEnded(callControlId)) return
+  }
+  if (session.phase !== 'voicemail_wait') return
   if (session._vmTimer) clearTimeout(session._vmTimer)
+  // A message that has started is never cut off by the per-call cap (VM_MAX_PLAY_MS below is the only safety stop).
+  if (session._capTimer) { clearTimeout(session._capTimer); session._capTimer = null }
   session.phase = 'voicemail_playing'
   session.voicemailDropped = true
   log(`[OutboundIVR] Leaving voicemail on ${session.targetNumber} (${reason})`)
@@ -2388,6 +2396,23 @@ function handleCallBridged(payload) {
   }
 }
 
+// Desk phones / softphone apps ring only on plans with SIP. On browser-phone plans (Starter) the line rings only while the
+// owner's CloudIVR tab is open with "Ring me in the browser" on.
+function sipRingable(num, chatId) {
+  if (!num?.sipUsername) return false
+  if (canAccessFeature(num.plan, 'sipCredentials')) return true
+  return canAccessFeature(num.plan, 'browserPhone') && !!num.features?.browserRing?.enabled && browserRing.isOnline(chatId)
+}
+// "Phone apps are not on your plan" notice — at most once per 10 minutes per account (apps retry fast).
+const _sipPlanNotices = new Map()
+function _sipPlanNotice(chatId) {
+  const k = String(chatId), now = Date.now()
+  if (now - (_sipPlanNotices.get(k) || 0) < 10 * 60000) return false
+  _sipPlanNotices.set(k, now)
+  return true
+}
+
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CALL INITIATED — Answer or reject based on limits
 // Also handles OUTBOUND SIP calls (Twilio bridge)
@@ -2395,7 +2420,7 @@ function handleCallBridged(payload) {
 
 async function handleCallInitiated(payload) {
   const callControlId = payload.call_control_id
-  const to = (payload.to || '').replace(/[^+\d]/g, '')
+  let to = (payload.to || '').replace(/[^+\d]/g, '')
   const from = (payload.from || '').replace(/[^+\d]/g, '')
   const direction = payload.direction
   const connectionId = payload.connection_id || ''
@@ -2434,8 +2459,14 @@ async function handleCallInitiated(payload) {
   // With numbers assigned to Call Control App, all inbound calls arrive here
   // with direction='incoming'. We answer and apply IVR/forwarding/voicemail.
 
+  // eSIM set to "Ring in CloudIVR" (Spenza SIP gateway): the call runs the menu of the calling number the owner picked.
+  const esimLine = _db && /^\+1\d{10}$/.test(to) ? await _db.collection('esimLines').findOne({ phoneNumber: to, status: 'active', callsTo: 'browser', ivrNumber: { $ne: null } }).catch(() => null) : null
+  if (esimLine) log(`[Voice] eSIM ${to} → menu of ${esimLine.ivrNumber}`)
   // Lookup number owner — get FRESH data from DB
-  const { chatId, num, numbers: ownerNumbers } = await findNumberOwner(to)
+  const owner = await findNumberOwner(esimLine ? esimLine.ivrNumber : to)
+  if (esimLine && owner.chatId && String(owner.chatId) !== String(esimLine.chatId)) owner.chatId = null
+  const { chatId, num, numbers: ownerNumbers } = owner
+  if (esimLine) { to = esimLine.ivrNumber; payload.esimNumber = esimLine.phoneNumber }
   if (!chatId || !num) {
     log(`[Voice] ⚠️ ORPHANED NUMBER: No owner found for ${to} — inbound call from ${from} rejected. Number may need cleanup.`)
     // Reject BEFORE answering. A robocaller/scanner flooding an orphaned or
@@ -2517,10 +2548,11 @@ async function handleCallInitiated(payload) {
     num,
     from,
     to,
+    esimNumber: payload.esimNumber || null,
     startedAt: new Date(),
     phase: 'answering',
     recordingEnabled: num.features?.recording === true && canAccessFeature(num.plan, 'callRecording'),
-    // On/off hours (CloudIVR web): outside the hours the number doesn't ring or forward — see routeOffHours.
+    // On/off hours (CloudIVR web): outside the hours the number doesn't ring (voicemail / message / backups) — see routeOffHours.
     offHours: !!(num.features?.hours?.enabled && !numberHours.isOpen(num.features.hours)),
   }
 
@@ -2592,7 +2624,7 @@ async function handleCallInitiated(payload) {
   // If SIP device doesn't answer → answer + voicemail/forwarding/missed fallback.
   const fwdConfig = num.features?.callForwarding
   const ivrConfig = num.features?.ivr
-  const hasSip = !!num.sipUsername
+  const hasSip = sipRingable(num, chatId)
   const hasIvr = ivrConfig?.enabled && canAccessFeature(num.plan, 'ivr') && ivrConfig.options && Object.keys(ivrConfig.options).length > 0
   // A ring group (several phones at once) needs the answered call too, like forward-always.
   const hasForwardAlways = (fwdConfig?.enabled && fwdConfig.forwardTo && fwdConfig.mode === 'always') || ringGroupOn(num)
@@ -2873,14 +2905,6 @@ async function handleOutboundSipCall(payload) {
     return
   }
 
-  // Fix #2: If user is in hard-block, silently drop — no logging, no hangup API call
-  const rateLimitKey = fromClean || sipUsername
-  if (isSipHardBlocked(rateLimitKey)) {
-    // FIX: Do NOT bill hard-blocked calls — they are rejected and never connected
-    // Billing blocked calls creates phantom charges for calls that were never completed
-    return // silent drop — saves webhook processing, logging, and Telnyx API calls
-  }
-
   // ── EXPIRED TEST CREDENTIAL EARLY BLOCK ──
   // If this SIP user was recently identified as an expired test credential,
   // silently drop without any DB lookups or API calls (saves resources)
@@ -2903,27 +2927,8 @@ async function handleOutboundSipCall(payload) {
   // ── SIP Rate Limiting — prevent spam dialing ──
   if (!checkSipRateLimit(sipUsername, destination)) {
     log(`[Voice] ⚠️ SIP RATE LIMIT: ${sipUsername} → ${destination} — exceeded ${SIP_RATE_LIMIT_MAX} calls/${SIP_RATE_LIMIT_WINDOW/1000}s, rejecting`)
-    // FIX: Do NOT bill rate-limited calls — they are rejected before connecting
-    try {
-      await _telnyxApi.hangupCall(callControlId)
-    } catch (e) { log(`[Voice] Reject error: ${e.message}`) }
-    return
-  }
-
-  // ── Global per-user rate limit — caps total outbound calls from any single user ──
-  // Prevents users from spam-dialing many different numbers to bypass per-destination limit
-  if (!checkSipGlobalRateLimit(rateLimitKey)) {
-    // Fix #2: Record hit and potentially escalate to hard-block
-    const hardBlocked = recordRateLimitHit(rateLimitKey)
-    if (!hardBlocked) {
-      // Still in soft-block — log + hangup
-      log(`[Voice] ⚠️ SIP GLOBAL RATE LIMIT: ${rateLimitKey} — exceeded ${SIP_GLOBAL_RATE_MAX} total calls/${SIP_GLOBAL_RATE_WINDOW/1000}s, rejecting`)
-      try {
-        await _telnyxApi.hangupCall(callControlId)
-      } catch (e) { /* suppress — call may already be ended */ }
-    }
-    // FIX: Do NOT bill rate-limited or hard-blocked calls — they are rejected before connecting
-    // If hard-blocked, recordRateLimitHit already logged the activation
+    // Not billed — the call never reaches the destination; the caller hears why.
+    await sayAndHangup(callControlId, `You have called this number ${SIP_RATE_LIMIT_MAX} times in the last minute. Please wait a minute and try again.`)
     return
   }
 
@@ -3185,6 +3190,21 @@ async function handleOutboundSipCall(payload) {
   // Identification succeeded — clear any prior unidentified-failure state for this credential.
   if (credentialExtracted && sipUsername) _clearUnidentifiedFailure(sipUsername)
 
+  // ── PLAN GATE: SIP apps and desk phones need a plan with SIP; the CloudIVR browser phone (signed header) works on
+  // browser-phone plans (Starter). Free test credentials are not numbers on a plan. ──
+  if (!lookupResult.isTestCall && !canAccessFeature(num.plan, 'sipCredentials')) {
+    const fromBrowser = canAccessFeature(num.plan, 'browserPhone') && browserCallKey.valid(num.phoneNumber, browserCallKey.fromPayload(payload))
+    if (!fromBrowser) {
+      log(`[Voice] Outbound SIP: ${num.phoneNumber} (plan ${num.plan}) has no SIP apps and the call is not from the browser phone — rejecting`)
+      try { await _telnyxApi.hangupCall(callControlId) } catch (e) { log(`[Voice] Reject error: ${e.message}`) }
+      if (_sipPlanNotice(chatId)) {
+        const msg = _trans('vs.sipPlanBlocked', await _getUserLang(chatId), formatPhone(num.phoneNumber), formatPhone(destination))
+        if (msg) _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
+      }
+      return
+    }
+  }
+
   // ── TEST OUTBOUND SIP HOOK ──
   // If this user has an active "Test Outbound SIP" session, short-circuit the call:
   // hang up cleanly (no PSTN leg, no wallet charge, no connection fee) and report back.
@@ -3324,6 +3344,13 @@ async function handleOutboundSipCall(payload) {
   // lets the check above see funds committed to sibling calls started moments ago.
   _reserveOutbound(chatId, callControlId, sipRate * OUTBOUND_RESERVE_MINUTES)
 
+  // ── SIMULTANEOUS-CALL LIMIT: extra calls wait in a queue (nothing is charged while queued) ──
+  let legAnswered = false // a queued call's leg is already answered
+  if (!lookupResult.webTest && !sipQueue.admit(_activeCallsRaw, chatId, callControlId)) {
+    if (!(await queueUntilFree(chatId, callControlId, destination))) return
+    legAnswered = true
+  }
+
   // ── CONNECTION FEE: Charge $CALL_CONNECTION_FEE per call attempt ──
   if (CALL_CONNECTION_FEE > 0 && _walletOf && !lookupResult.webTest) {
     try {
@@ -3381,6 +3408,7 @@ async function handleOutboundSipCall(payload) {
       recordingEnabled: num.features?.recording === true,
       isTestCall: testCallInfo.isTestCall,
     }
+    sipQueue.settled(callControlId)
 
     // Auto-hangup for test calls after max duration
     if (testCallInfo.isTestCall && testCallInfo.maxDuration) {
@@ -3429,14 +3457,18 @@ async function handleOutboundSipCall(payload) {
     // which is a single global value — wrong for multi-user. transferCall's `from` param
     // overrides this per-call, ensuring each user's correct phone number displays as caller ID.
 
+    // "Show as": the browser phone may ask to display a caller ID this account verified (X-Civr-Show-As).
+    const showAsHdr = (payload.custom_headers || []).find(x => String(x?.name || '').toLowerCase() === 'x-civr-show-as')?.value
+    const outFrom = showAsHdr && await require('./cloudivr-web/caller-ids').isVerified(chatId, showAsHdr).catch(() => false) ? String(showAsHdr) : num.phoneNumber
+    if (outFrom !== num.phoneNumber) log(`[Voice] Outbound SIP: showing verified caller ID ${outFrom} for ${num.phoneNumber}`)
     try {
       const callState = activeCalls[callControlId]
       if (callState && callState.phase === 'outbound_telnyx') {
-        callState._pendingTransfer = { destination, callerNumber: num.phoneNumber }
+        callState._pendingTransfer = { destination, callerNumber: outFrom }
       }
       // Tag the NEW PSTN leg so its own call.initiated is skipped (no reverse lookup / re-route).
-      _markSelfPstnLeg(payload.connection_id, destination, num.phoneNumber)
-      await _telnyxApi.transferCall(callControlId, destination, num.phoneNumber, { targetLegClientState: PSTN_LEG_STATE })
+      _markSelfPstnLeg(payload.connection_id, destination, outFrom)
+      await _telnyxApi.transferCall(callControlId, destination, outFrom, { targetLegClientState: PSTN_LEG_STATE })
       log(`[Voice] Outbound SIP (Telnyx): Transfer initiated ${callerDisplay} → ${destination} (autoRouted=${isAutoRouted})`)
     } catch (e) {
       const errMsg = e.message || ''
@@ -3450,8 +3482,8 @@ async function handleOutboundSipCall(payload) {
           }
           await new Promise(r => setTimeout(r, 1500))
           try {
-            _markSelfPstnLeg(payload.connection_id, destination, num.phoneNumber)
-            await _telnyxApi.transferCall(callControlId, destination, num.phoneNumber, { targetLegClientState: PSTN_LEG_STATE })
+            _markSelfPstnLeg(payload.connection_id, destination, outFrom)
+            await _telnyxApi.transferCall(callControlId, destination, outFrom, { targetLegClientState: PSTN_LEG_STATE })
             log(`[Voice] Outbound SIP (Telnyx): Transfer retry ${retryCount + 1} succeeded ${callerDisplay} → ${destination}`)
           } catch (retryErr) {
             if ((retryErr.message || '').includes('not been answered') || (retryErr.message || '').includes('not answered')) {
@@ -3517,7 +3549,7 @@ async function handleOutboundSipCall(payload) {
     // the user's Twilio number), causing the callee to reject → call dies → our transfer fails.
     // Answering immediately claims the call on Telnyx's side, preventing the auto-route race.
     try {
-      await _telnyxApi.answerCall(callControlId)
+      if (!legAnswered) await _telnyxApi.answerCall(callControlId)
       log(`[Voice] Outbound SIP (Twilio): Answered call IMMEDIATELY to prevent auto-routing race`)
     } catch (ansErr) {
       await _abandonBridge({ chatId, num, destination, callControlId, reason: `answer failed: ${ansErr.message}` })
@@ -3577,6 +3609,7 @@ async function handleOutboundSipCall(payload) {
       bridgeId,
       alive: true,  // Track if call is still active for race condition detection
     }
+    sipQueue.settled(callControlId)
 
     // ── Mid-call wallet monitor for Twilio bridge calls ──
     // Outbound calls charge directly from wallet (plan minutes are for inbound only).
@@ -3707,6 +3740,9 @@ async function handleOutboundSipCall(payload) {
 // When from=connectionPhoneNumber, we must NOT match by phone number (it would match wrong user)
 async function findNumberBySipUser(sipUsername, fromPhone, connectionPhoneNumber) {
   try {
+    // US mobile number browser login → outbound through Telnyx from that number, billed from the wallet like any SIP call.
+    const ml = _db && sipUsername ? await _db.collection('esimLines').findOne({ 'sip.username': sipUsername, kind: 'mobile', status: 'active' }) : null
+    if (ml) return { chatId: ml.chatId, num: { phoneNumber: ml.phoneNumber, provider: 'telnyx', status: 'active', plan: 'business', mobileLine: ml._id, features: {} } }
     const allUsers = await _phoneNumbersOf.find({}).toArray()
     for (const user of allUsers) {
       const numbers = user.val?.numbers || []
@@ -3815,18 +3851,41 @@ async function playVoicemailGreeting(callControlId, num, vm = {}, say = null) {
 }
 
 // ── On/off hours ──
-// Outside a number's hours nothing rings or forwards: the caller gets voicemail (plans with voicemail, unless the
-// owner chose "message") or the closed message, then the call ends. Only numbers with hours switched on get here.
+// Outside a number's hours nothing rings: the backup numbers are tried one after another (offAction 'forward', ~20 s
+// each), else the caller gets voicemail (plans with voicemail, unless the owner chose "message") or the closed message.
+// Only numbers with hours switched on get here.
+const OFF_HOURS_RING_SECS = 20
 async function routeOffHours(callControlId, session) {
+  const { num, chatId, to, from } = session
+  const hrs = num.features?.hours || {}
+  const fwd = hrs.offAction === 'forward' ? [...new Set(hrs.offForward || [])].filter(n => n && n !== to && n !== from && !dialGuard.classifyDial(n).blocked).slice(0, 5) : []
+  if (fwd.length && _walletOf) {
+    const { usdBal } = await getBalance(_walletOf, chatId).catch(() => ({ usdBal: CALL_FORWARDING_RATE_MIN }))
+    if (usdBal < CALL_FORWARDING_RATE_MIN) { log(`[Voice] Off-hours forward wallet check: $${usdBal} < $${CALL_FORWARDING_RATE_MIN} — not forwarding`); fwd.length = 0 }
+  }
+  if (!fwd.length) return offHoursEnd(callControlId, session)
+  log(`[Voice] ${to} is OFF (outside hours, tz=${hrs.timezone}) — forwarding ${from} to ${fwd.join(' → ')}`)
+  logEvent(to, from, 'off_hours', 0)
+  _bot?.sendMessage(chatId, `📴 <b>Call outside your hours</b>\n\n📞 To: ${formatPhone(to)}\n👤 From: ${formatPhone(from)}\nForwarding to your backup numbers.`, { parse_mode: 'HTML' }).catch(() => {})
+  session.phase = 'forwarding'
+  session.forwardingRate = CALL_FORWARDING_RATE_MIN
+  session.offHoursFallback = true // nobody answers → offHoursEnd (see handleBridgeTransferHangup)
+  session.bridgeRingSecs = OFF_HOURS_RING_SECS
+  await playHoldMusicAndTransfer(callControlId, fwd[0], to, { holdMusic: true, backups: fwd.slice(1) })
+}
+
+// Voicemail or the closed message (also after none of the off-hours backup numbers answered).
+async function offHoursEnd(callControlId, session) {
   const { num, chatId, to, from } = session
   const hrs = num.features?.hours || {}
   const vm = num.features?.voicemail || {}
   const lang = vm.language || 'en'
   const toVoicemail = hrs.offAction !== 'message' && canAccessFeature(num.plan, 'voicemail')
-  log(`[Voice] ${to} is OFF (outside hours, tz=${hrs.timezone}) — ${toVoicemail ? 'voicemail' : 'closed message'} for ${from}`)
-  logEvent(to, from, 'off_hours', 0)
+  const tried = session.offHoursTried
+  log(`[Voice] ${to} is OFF (outside hours, tz=${hrs.timezone}) — ${toVoicemail ? 'voicemail' : 'closed message'} for ${from}${tried ? ' (no backup number answered)' : ''}`)
+  if (!tried) logEvent(to, from, 'off_hours', 0)
   const what = toVoicemail ? 'They were offered voicemail.' : 'They heard your closed message.'
-  _bot?.sendMessage(chatId, `📴 <b>Call outside your hours</b>\n\n📞 To: ${formatPhone(to)}\n👤 From: ${formatPhone(from)}\n${what}`, { parse_mode: 'HTML' }).catch(() => {})
+  _bot?.sendMessage(chatId, `📴 <b>Call outside your hours</b>\n\n📞 To: ${formatPhone(to)}\n👤 From: ${formatPhone(from)}\n${tried ? 'None of your backup numbers answered. ' : ''}${what}`, { parse_mode: 'HTML' }).catch(() => {})
   if (toVoicemail) {
     session.phase = 'voicemail_greeting'
     const custom = String(hrs.offMessage || '').trim()
@@ -4021,7 +4080,7 @@ async function handleCallAnswered(payload) {
       session.forwardingRate = CALL_FORWARDING_RATE_MIN
       const ringTime = (fwdConfig.ringTimeout || 25) * 1000
       // Play ringback tone to caller during the wait (prevents silence)
-      if (!num.sipUsername) {
+      if (!sipRingable(num, chatId)) {
         _telnyxApi.playbackStart(callControlId, RINGBACK_URL, { loop: 'infinity' }).catch(e => {
           log(`[Voice] Ringback playback during no-answer wait failed: ${e.message}`)
         })
@@ -4041,7 +4100,7 @@ async function handleCallAnswered(payload) {
 
   // 4. Ring SIP device — only reached when call was already answered (IVR/fwd-busy/no_answer fallthrough or SIP ring failed in handleCallInitiated)
   // Primary unanswered SIP ring is handled in handleCallInitiated
-  if (num.sipUsername && session.phase !== 'ringing_sip') {
+  if (sipRingable(num, chatId) && session.phase !== 'ringing_sip') {
     session.phase = 'ringing_sip'
     const sipUser = num.telnyxSipUsername || num.sipUsername
     const sipUri = `sip:${sipUser}@sip.telnyx.com`
@@ -4275,10 +4334,33 @@ async function handleGatherEnded(payload) {
       notifyUser(chatId, num, 'ivr_message', session, { digit: digits, message: option.message })
       break
 
+    case 'sms': {
+      session.phase = 'ivr_sms'
+      const r = await sendIvrText(chatId, option, session.from)
+      const said = r.ok ? (option.message || ivrL.textSent) : ivrL.textFailed
+      if (option.after === 'menu') {
+        session.ivrRetried = false
+        const menu = inSubMenu ? ivrConfig.options[session.ivrPath].subMenu : ivrConfig
+        await _telnyxApi.gatherDTMF(callControlId, `${said} ${menu.greeting || (inSubMenu ? ivrL.sub : ivrL.fallback)}`, { minDigits: 1, maxDigits: 1, timeout: 15000, validDigits: Object.keys(menu.options || {}).join(''), language: ivrL.tts })
+      } else {
+        await _telnyxApi.speakOnCall(callControlId, said, 'female', ivrL.tts)
+        setTimeout(() => _telnyxApi.hangupCall(callControlId), 6000)
+      }
+      break
+    }
+
     default:
       await _telnyxApi.speakOnCall(callControlId, ivrL.goodbye, 'female', ivrL.tts)
       setTimeout(() => _telnyxApi.hangupCall(callControlId), 2000)
   }
+}
+
+// IVR "send a text" key: the caller gets the owner's text from one of their eSIM / mobile texting numbers.
+async function sendIvrText(chatId, option, caller) {
+  const r = await require('./spenza.js').sendSms(chatId, option.smsFrom, caller, option.smsText).catch(e => ({ error: e.message }))
+  log(`[Voice] IVR text to ${caller}: ${r.error ? 'failed — ' + r.error : 'sent'}`)
+  if (r.error) require('./cloudivr-web/notify').push(chatId, `⚠️ A caller (${caller}) pressed a key for a text, but it wasn't sent: ${r.error}`, null, { kind: 'sms' }).catch(() => {})
+  return r.error ? { error: r.error } : { ok: true }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -4625,7 +4707,7 @@ async function handleCallHangup(payload) {
       const msg = `📞 <b>SIP Call Ended</b>\n\n📞 From: ${formatPhone(from)}\n📲 To: ${formatPhone(to)}\n⏱️ ${formatDuration(duration)}\n${planLine}${hangupInfo}\n🕐 ${time}`
       _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
     }
-    logEvent(from, to, 'outbound_sip', duration)
+    logEvent(from, to, 'outbound_sip', duration, null, null, { charge: session.isTestCall ? 0 : Math.round(((billingInfo.overageCharge || 0) + CALL_CONNECTION_FEE) * 100) / 100, ...(num.mobileLine ? { esim: num.mobileLine } : {}) })
   } else if (session.phase === 'missed' || session.phase === 'answering') {
     const langMissed = await _getUserLang(chatId)
     const msg = _trans('t.vs_missedCall', langMissed, formatPhone(to), formatPhone(from), time) || `📞 <b>Missed Call</b>\n\n📞 To: ${formatPhone(to)}\n👤 From: ${formatPhone(from)}\n🕐 ${time}`
@@ -4706,7 +4788,7 @@ async function notifyUser(chatId, num, type, session, extra = {}) {
   if (msg) _bot.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
 }
 
-function logEvent(to, from, type, duration, recordingUrl, forwardTo) {
+function logEvent(to, from, type, duration, recordingUrl, forwardTo, extra) {
   if (!_phoneLogs) return
   _phoneLogs.insertOne({
     phoneNumber: to,
@@ -4715,6 +4797,7 @@ function logEvent(to, from, type, duration, recordingUrl, forwardTo) {
     duration: duration || 0,
     recordingUrl: recordingUrl || null,
     ...(forwardTo ? { forwardTo } : {}),
+    ...(extra || {}),
     timestamp: new Date().toISOString(),
   }).catch(e => log(`[Voice] Log error: ${e.message}`))
 }
@@ -4827,8 +4910,11 @@ const ivrOutbound = require('./ivr-outbound.js')
  * @param {object} params - Call parameters from bot flow
  * @returns {{ callControlId, error }}
  */
+// Caller ID on the leg a key press connects to (a verified "Show as" number for Call me first / text callbacks).
+const legFrom = (s) => s.transferCallerId || s.callerId
+
 async function initiateOutboundIvrCall(params) {
-  const { chatId, callerId, targetNumber, ivrNumber, menu, audioUrl, greetingText, activeKeys, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg, voicemailAudioUrl } = params
+  const { chatId, callerId, displayCallerId, transferCallerId, targetNumber, ivrNumber, menu, audioUrl, greetingText, activeKeys, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg, voicemailAudioUrl } = params
   // Backup transfer numbers, tried in order when the transfer number is busy or doesn't answer.
   const transferBackups = ivrNumber ? [...new Set((params.transferBackups || []).map(n => String(n || '').replace(/[^+\d]/g, '')))]
     .filter(n => /^\+[1-9]\d{7,14}$/.test(n) && n !== ivrNumber && !dialGuard.classifyDial(n).blocked).slice(0, 4) : []
@@ -4934,7 +5020,7 @@ async function initiateOutboundIvrCall(params) {
     // ━━━ SECURITY: Block non-trial Twilio calls without sub-account credentials ━━━
     if (!params.twilioSubAccountSid || !params.twilioSubAccountToken) {
       log(`[OutboundIVR] SECURITY BLOCK: Twilio call rejected — missing sub-account credentials for chatId ${chatId}`)
-      return { error: 'Twilio calls require sub-account credentials. Cannot use main account.' }
+      return { error: 'This number cannot place calls right now. Please contact support.' }
     }
     const crypto = require('crypto')
     const sessionId = crypto.randomUUID()
@@ -5017,9 +5103,9 @@ async function initiateOutboundIvrCall(params) {
 
   // ── TELNYX PATH (default): Use Telnyx Call Control API ──
   const webhookUrl = `${_selfUrl}/telnyx/voice-webhook`
-  // Voicemail drop needs the beep (call.machine.greeting.ended) so the message records cleanly.
-  const amdOpts = voicemailAudioUrl ? { answering_machine_detection: 'detect_beep' } : {}
-  const result = await _telnyxApi.createOutboundCall(callerId, targetNumber, webhookUrl, undefined, amdOpts)
+  // Voicemail drop needs the end of the mailbox greeting (call.machine.greeting.ended) so the message records cleanly.
+  const amdOpts = voicemailAudioUrl ? { answering_machine_detection: VM_AMD_MODE } : {}
+  const result = await _telnyxApi.createOutboundCall(displayCallerId || callerId, targetNumber, webhookUrl, undefined, amdOpts)
 
   if (result.error) {
     return { error: result.error, lineLimit: _telnyxApi.isLineLimitError?.(result) || false }
@@ -5029,6 +5115,8 @@ async function initiateOutboundIvrCall(params) {
   outboundIvrCalls[result.callControlId] = {
     chatId,
     callerId,
+    displayCallerId: displayCallerId || null,
+    transferCallerId: transferCallerId || null,
     targetNumber,
     ivrNumber,
     audioUrl,
@@ -5051,6 +5139,7 @@ async function initiateOutboundIvrCall(params) {
     leadIndex: leadIndex != null ? leadIndex : null,
     bulkMode: bulkMode || null, // 'transfer' | 'report_only'
     voicemailAudioUrl: voicemailAudioUrl || null, // bulk voicemail drop clip (null → hang up on machine)
+    maxCallMs: params.maxCallSec > 0 ? params.maxCallSec * 1000 : null,
     voicemailDropped: false,
     answeredBy: null, // AMD result: 'human', 'machine', 'not_sure', null
     // OTP Collection fields (Business plan)
@@ -5098,6 +5187,17 @@ async function handleOutboundIvrAnswered(payload) {
   session.answerTime = Date.now()
   log(`[OutboundIVR] Answered: ${session.targetNumber} — playing IVR audio`)
 
+  // Bulk campaigns with a voicemail drop: hard cap per call (default 60 s, hung up VM_CAP_MARGIN_MS early so it stays
+  // inside the billed minute) unless the lead was connected to the owner or a voicemail message is being left.
+  if (session.maxCallMs) {
+    session._capTimer = setTimeout(() => {
+      const s = outboundIvrCalls[callControlId]
+      if (!s || isCallEnded(callControlId) || CAP_EXEMPT_PHASES.includes(s.phase)) return
+      log(`[OutboundIVR] Max call length ${Math.round(s.maxCallMs / 1000)}s reached on ${s.targetNumber} (campaign ${s.campaignId}) — hanging up`)
+      _telnyxApi.hangupCall(callControlId).catch(() => {})
+    }, capDelayMs(session.maxCallMs))
+  }
+
   // ── MID-CALL WALLET MONITOR for outbound IVR ──
   // Outbound IVR charges wallet at flat IVR rate (plan minutes are for inbound only)
   if (!session.isTrial) {
@@ -5112,14 +5212,31 @@ async function handleOutboundIvrAnswered(payload) {
               const { usdBal } = await getBalance(_walletOf, ownerId)
               // Disconnect threshold = the ACTUAL per-min rate for the active leg(s)
               // (international IVR = $0.50/min, policy 2026-08-07), not the flat $0.15.
-              const midRate = Math.max(getIvrCallRate(sess.targetNumber), sess.ivrNumber ? getIvrCallRate(sess.ivrNumber) : 0) || IVR_CALL_RATE
-              if (usdBal < midRate) {
-                log(`[OutboundIVR] Mid-call wallet exhausted: $${usdBal.toFixed(2)} < $${midRate}/min. Disconnecting.`)
+              // Legs are billed at hang-up, so count what this call already owes against the balance.
+              // Every live call of this owner counts (campaign lines and multi-number Quick IVR run in parallel).
+              const mins = (t0) => Math.ceil((Date.now() - t0) / 60000)
+              const legOf = (id) => Object.entries(ivrTransferLegs).find(([, t]) => t.parentCallControlId === id && t.answerTime)
+              const costOf = (id, s) => {
+                const r = getIvrCallRate(s.targetNumber) || IVR_CALL_RATE, l = legOf(id), lr = l ? getIvrCallRate(l[1].ivrNumber) || IVR_CALL_RATE : 0
+                return { owed: (s.answerTime ? mins(s.answerTime) * r : 0) + (l ? mins(l[1].answerTime) * lr : 0), perMin: (s.answerTime ? r : 0) + lr }
+              }
+              let owed = 0, allPerMin = 0
+              for (const [id, s] of Object.entries(outboundIvrCalls)) {
+                if (s.isTrial || s.phase === 'ended' || String(s.chatId) !== String(sess.chatId)) continue
+                const c = costOf(id, s); owed += c.owed; allPerMin += c.perMin
+              }
+              const leg = legOf(callControlId)
+              const midRate = +Math.max(allPerMin, costOf(callControlId, sess).perMin).toFixed(2)
+              const left = usdBal - owed
+              if (left < midRate) {
+                log(`[OutboundIVR] Mid-call wallet exhausted: balance $${usdBal.toFixed(2)}, live calls owe ~$${owed.toFixed(2)}, next minute $${midRate}. Disconnecting.`)
                 clearInterval(session._limitTimer)
                 await _telnyxApi.hangupCall(callControlId).catch(() => {})
+                if (leg) await _telnyxApi.hangupCall(leg[0]).catch(() => {})
                 const lang = await _getUserLang(session.chatId)
-                const msg = _trans('vs.ivrCallEndedWalletExhausted', lang, usdBal.toFixed(2), midRate)
-                if (msg) _bot?.sendMessage(session.chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
+                const msg = _trans('vs.ivrCallEndedWalletExhausted', lang, Math.max(0, left).toFixed(2), midRate)
+                const k = String(session.chatId), last = _walletEndNoticeAt.get(k) || 0
+                if (msg && Date.now() - last > 120000) { _walletEndNoticeAt.set(k, Date.now()); _bot?.sendMessage(session.chatId, msg, { parse_mode: 'HTML' }).catch(() => {}) }
               }
             } catch (e) { log(`[OutboundIVR] Mid-call wallet check error: ${e.message}`) }
           }
@@ -5184,8 +5301,8 @@ async function handleOutboundMenuDigit(callControlId, session, digits) {
       _bot?.sendMessage(session.chatId, ivrOutbound.formatCallNotification('key_pressed', { ...session, digit: session.digitPressed }), { parse_mode: 'HTML' }).catch(() => {})
     }
     session._pendingTransferTo = opt.forwardTo
-    session._pendingTransferFrom = session.callerId
-    await playHoldMusicAndTransfer(callControlId, opt.forwardTo, session.callerId, { holdMusic: session.holdMusic })
+    session._pendingTransferFrom = legFrom(session)
+    await playHoldMusicAndTransfer(callControlId, opt.forwardTo, legFrom(session), { holdMusic: session.holdMusic })
     log(`[OutboundIVR] Menu forward: key=${session.digitPressed} → ${opt.forwardTo}`)
     return true
   }
@@ -5379,10 +5496,10 @@ async function handleOutboundIvrGatherEnded(payload) {
     // Register pending transfer so we can recognize the new call leg
     // Telnyx creates a new outbound call to ivrNumber with a different callControlId
     session._pendingTransferTo = session.ivrNumber
-    session._pendingTransferFrom = session.callerId
+    session._pendingTransferFrom = legFrom(session)
 
     // Transfer to IVR number — use session's holdMusic flag
-    await playHoldMusicAndTransfer(callControlId, session.ivrNumber, session.callerId, { holdMusic: session.holdMusic })
+    await playHoldMusicAndTransfer(callControlId, session.ivrNumber, legFrom(session), { holdMusic: session.holdMusic })
     log(`[OutboundIVR] Transferring to ${session.ivrNumber}${session.holdMusic ? ' (with hold music)' : ''}`)
   } else if (!session.ivrRetried) {
     // No valid key — replay audio once
@@ -5425,6 +5542,7 @@ async function handleOutboundIvrHangup(payload) {
 
   // Clean up mid-call limit timer
   if (session._limitTimer) clearInterval(session._limitTimer)
+  if (session._capTimer) clearTimeout(session._capTimer)
   if (session._vmTimer) clearTimeout(session._vmTimer)
 
   // Use tracked answerTime for accurate duration (Telnyx reports 0 for bridged/transferred calls)
@@ -5645,7 +5763,7 @@ async function handleIvrTransferLegInitiated(payload) {
   for (const [parentId, session] of Object.entries(outboundIvrCalls)) {
     if (session.phase === 'transferring' &&
         session.ivrNumber === to &&
-        session.callerId === from) {
+        legFrom(session) === from) {
       // This is the transfer leg — register it
       ivrTransferLegs[callControlId] = {
         parentCallControlId: parentId,
@@ -5797,7 +5915,7 @@ async function failoverNativeTransfer(parentId) {
   log(`[OutboundIVR] ${s.ivrNumber} did not answer — trying backup ${next} for ${s.targetNumber}`)
   s.ivrNumber = next
   s._pendingTransferTo = next
-  await _telnyxApi.transferCall(parentId, next, s.callerId)
+  await _telnyxApi.transferCall(parentId, next, legFrom(s))
   return true
 }
 
@@ -5868,19 +5986,21 @@ async function ringGroupFallback(callControlId) {
   setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), Math.min(30000, Math.max(4000, msg.length * 90)))
 }
 
-// Dials `forwardTo` as a new leg that is bridged to the caller once answered (30 s ring limit). true when dialed.
+// Dials `forwardTo` as a new leg that is bridged to the caller once answered (30 s ring limit, or the session's
+// bridgeRingSecs). true when dialed.
 async function dialBridgeLeg(callControlId, forwardTo, fromNumber) {
   const newCall = await _telnyxApi.createOutboundCall(fromNumber, forwardTo)
   if (!newCall?.callControlId) return false
   activeBridgeTransfers[newCall.callControlId] = { originalCallControlId: callControlId, forwardTo, fromNumber }
+  const ringSecs = activeCalls[callControlId]?.bridgeRingSecs || 30
   log(`[Voice] Bridge transfer: dialing ${forwardTo} (new leg: ${newCall.callControlId}), hold music on ${callControlId}`)
   setTimeout(async () => {
     const t = activeBridgeTransfers[newCall.callControlId]
     if (t && t.phase !== 'bridged') {
-      log(`[Voice] Bridge transfer timeout: ${forwardTo} didn't answer in 30s`)
+      log(`[Voice] Bridge transfer timeout: ${forwardTo} didn't answer in ${ringSecs}s`)
       await _telnyxApi.hangupCall(newCall.callControlId).catch(() => {}) // handleBridgeTransferHangup takes it from here
     }
-  }, 30000)
+  }, ringSecs * 1000)
   return true
 }
 
@@ -5897,7 +6017,7 @@ async function resolveOtp(callControlId, action) {
     session.otpStatus = 'confirmed'
     await _telnyxApi.speakOnCall(callControlId, session.otpConfirmMsg || (session.ivrNumber ? 'Your code has been verified. Connecting you now.' : 'Your code has been verified. Thank you, goodbye.'), voice).catch(() => {})
     setTimeout(() => {
-      const next = session.ivrNumber ? _telnyxApi.transferCall(callControlId, session.ivrNumber, session.callerId) : _telnyxApi.hangupCall(callControlId)
+      const next = session.ivrNumber ? _telnyxApi.transferCall(callControlId, session.ivrNumber, legFrom(session)) : _telnyxApi.hangupCall(callControlId)
       Promise.resolve(next).catch(e => log(`[OTP-Web] after accept: ${e.message}`))
     }, session.ivrNumber ? 3000 : 5000)
     return { phase: session.phase }

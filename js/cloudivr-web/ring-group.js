@@ -7,6 +7,7 @@ const dialNorm = require('../backup-numbers').norm
 const MAX_MEMBERS = 5
 const FALLBACKS = ['voicemail', 'forward', 'message']
 const E164 = /^\+[1-9]\d{7,14}$/
+const { dialIssue } = require('../dial-check')
 const bad = (res, status, error, message) => res.status(status).json({ error, message })
 
 const defaults = () => ({ enabled: false, members: [], ringTimeout: 25, fallback: 'voicemail', fallbackTo: null, message: '' })
@@ -18,6 +19,7 @@ function validate(body = {}, num) {
   if (members.length > MAX_MEMBERS) throw new Error(`Add up to ${MAX_MEMBERS} phones.`)
   for (const m of members) {
     if (!E164.test(m)) throw new Error(`${m} is not a valid number. Use the country code, e.g. +14155550100.`)
+    if (dialIssue(m)) throw new Error(dialIssue(m))
     if (phoneConfig.isBlockedPrefix(m)) throw new Error(`${m} is a blocked premium/satellite destination.`)
     if (m === num.phoneNumber) throw new Error('A number cannot ring itself — add other phones.')
   }
@@ -32,6 +34,7 @@ function validate(body = {}, num) {
   if (fallback === 'forward') {
     fallbackTo = dialNorm(String(body.fallbackTo || '').trim())
     if (!E164.test(fallbackTo || '')) throw new Error('Enter the backup number with country code, e.g. +14155550100.')
+    if (dialIssue(fallbackTo)) throw new Error(dialIssue(fallbackTo))
     if (phoneConfig.isBlockedPrefix(fallbackTo)) throw new Error(`${fallbackTo} is a blocked premium/satellite destination.`)
     if (fallbackTo === num.phoneNumber) throw new Error('The backup number must be a different phone.')
     if (members.includes(fallbackTo)) throw new Error('The backup number already rings with the group — pick another phone.')

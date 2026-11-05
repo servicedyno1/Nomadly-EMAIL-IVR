@@ -1,16 +1,16 @@
 'use strict'
 // On/off hours for a number: a weekly schedule in the owner's time zone. Outside the hours the number is "off" —
-// it doesn't ring or forward; callers get voicemail (plans with voicemail) or a short closed message.
+// it doesn't ring; callers get voicemail (plans with voicemail), a short closed message, or the backup numbers in order.
 const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/
-const OFF_ACTIONS = ['voicemail', 'message']
+const OFF_ACTIONS = ['voicemail', 'message', 'forward']
 
 const validZone = (tz) => { try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); return true } catch (_) { return false } }
 
 function defaultHours(timezone = 'UTC') {
   const days = {}
   for (const d of DAYS) days[d] = { on: !['sat', 'sun'].includes(d), start: '09:00', end: '17:00' }
-  return { enabled: false, timezone, days, offAction: 'voicemail', offMessage: '' }
+  return { enabled: false, timezone, days, offAction: 'voicemail', offMessage: '', offForward: [] }
 }
 
 // Normalizes a client payload; throws Error(message) on bad input.
@@ -29,7 +29,8 @@ function validateHours(body = {}) {
   const enabled = !!body.enabled
   if (enabled && !DAYS.some(d => days[d].on)) throw new Error('Turn on at least one day, or switch the schedule off.')
   const offAction = OFF_ACTIONS.includes(body.offAction) ? body.offAction : 'voicemail'
-  return { enabled, timezone: tz, days, offAction, offMessage: String(body.offMessage || '').trim().slice(0, 500) }
+  // offForward (backup numbers for offAction 'forward') is checked by the caller, which knows the dialing rules.
+  return { enabled, timezone: tz, days, offAction, offMessage: String(body.offMessage || '').trim().slice(0, 500), offForward: [] }
 }
 
 // Weekday index (0=Sun) + minutes since midnight at `date` in `tz`.

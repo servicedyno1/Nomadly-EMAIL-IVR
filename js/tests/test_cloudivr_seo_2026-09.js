@@ -67,7 +67,10 @@ t('home HTML has CloudIVR SEO head + JSON-LD + noscript, no hosting panel', () =
   assert.ok(r.body.includes('<title>CloudIVR'), 'title')
   assert.ok(!r.body.includes('Hosting Panel') && !r.body.includes('Hosting Control Panel'), 'no panel branding')
   assert.ok(r.body.includes('<link rel="canonical" href="https://cloudivr.net/"'), 'canonical')
-  assert.ok(r.body.includes('property="og:image"') && r.body.includes('og-cover.png'), 'og image')
+  assert.ok(r.body.includes('property="og:image"') && r.body.includes('og-share.jpg'), 'og image')
+  assert.ok(r.body.includes('<meta property="og:description" content="Reach out: Quick IVR and Bulk IVR campaigns call your list, play your message, connect interested leads and collect codes." />'), 'share text')
+  assert.ok(r.body.includes('<meta property="og:image:type" content="image/jpeg" />'), 'og image type')
+  assert.ok(!r.body.includes('accounts.google.com/gsi/client'), 'no Google script preload on the home page')
   assert.ok(r.body.includes('name="twitter:card"'), 'twitter card')
   assert.ok(r.body.includes('application/ld+json'), 'json-ld present')
   assert.ok(r.body.includes('"FAQPage"') && r.body.includes('"SoftwareApplication"') && r.body.includes('"Organization"'), 'schema types')
@@ -87,6 +90,8 @@ t('signup page has its own canonical + title', () => {
   assert.ok(r.body.includes('<link rel="canonical" href="https://cloudivr.net/signup"'))
   assert.ok(r.body.includes('<title>Create your CloudIVR account'))
   assert.ok(r.body.includes('content="index, follow'), 'indexable')
+  assert.ok(r.body.includes('<link rel="preload" as="script" href="https://accounts.google.com/gsi/client" />'), 'Google script preloaded on sign-up')
+  assert.ok(run('/login').body.includes('<link rel="preload" as="script" href="https://accounts.google.com/gsi/client" />'), 'Google script preloaded on sign-in')
 })
 
 // Private app route must be noindex

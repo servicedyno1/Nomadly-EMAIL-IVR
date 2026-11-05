@@ -3,14 +3,14 @@
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const FONT = "'Helvetica Neue',Helvetica,Arial,sans-serif"
 const MONO = "'SFMono-Regular',Menlo,Consolas,monospace"
-const C = { ink: '#0f172a', body: '#334155', muted: '#64748b', line: '#e5e7f0', bg: '#eef0f7', night: '#0b0d1a', green: '#22c55e' }
+const C = { ink: '#0f172a', body: '#334155', muted: '#64748b', line: '#e8eaf2', bg: '#f4f5f9', green: '#16a34a' }
 const TONES = {
   brand: { fg: '#4f46e5', bg: '#eef2ff', glow: '#6366f1' },
   ok: { fg: '#15803d', bg: '#dcfce7', glow: '#22c55e' },
   warn: { fg: '#b45309', bg: '#fef3c7', glow: '#f59e0b' },
   bad: { fg: '#b91c1c', bg: '#fee2e2', glow: '#ef4444' },
 }
-const tone = (t) => TONES[t] || TONES.brand
+const tone = (t) => (t && typeof t === 'object' ? t : TONES[t] || TONES.brand)
 
 const p = (html, style = '') => `<p style="margin:0 0 16px;font:16px/1.6 ${FONT};color:${C.body};${style}">${html}</p>`
 const small = (html) => `<p style="margin:16px 0 0;font:13px/1.6 ${FONT};color:${C.muted}">${html}</p>`
@@ -56,9 +56,10 @@ function bullets(items, t = 'brand') {
 }
 
 // [{ title, text }] → numbered steps.
-function steps(items) {
+function steps(items, t = 'brand') {
+  const c = tone(t)
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0">`
-    + items.map((s, i) => `<tr><td valign="top" width="44" style="padding:10px 0"><div style="width:32px;height:32px;border-radius:10px;background:${C.night};color:#ffffff;font:700 15px/32px ${FONT};text-align:center">${i + 1}</div></td>`
+    + items.map((s, i) => `<tr><td valign="top" width="44" style="padding:10px 0"><div style="width:32px;height:32px;border-radius:10px;background:${c.bg};color:${c.fg};font:700 15px/32px ${FONT};text-align:center">${i + 1}</div></td>`
       + `<td style="padding:10px 0;${i < items.length - 1 ? `border-bottom:1px solid ${C.line}` : ''}"><div style="font:700 16px/1.4 ${FONT};color:${C.ink}">${esc(s.title)}</div><div style="font:15px/1.55 ${FONT};color:${C.body};margin-top:2px">${esc(s.text)}</div></td></tr>`).join('')
     + '</table>'
 }
@@ -72,27 +73,35 @@ function callout(html, t = 'brand', title) {
 
 const quote = (text) => `<div style="margin:16px 0;padding:18px 20px;background:#f6f7fb;border-radius:14px;font:italic 16px/1.6 Georgia,serif;color:${C.ink}">&ldquo;${esc(text)}&rdquo;</div>`
 
-// Whole email. `base` = site origin (logo), `foot` = { why, settings: [label, href], off: [label, href] | null, support: [label, href] | null }
-function layout({ lang = 'en', preheader = '', eyebrow, title, t = 'brand', body, base = '', foot }) {
+// Whole email (light card). `base` = site origin (logo), `brand` = { name, logo, href } for white-label senders,
+// `foot` = { why, settings: [label, href] | null, off: [label, href] | null, support: [label, href] | null }
+function layout({ lang = 'en', preheader = '', eyebrow, title, t = 'brand', body, base = '', brand, foot }) {
   const c = tone(t)
-  const logo = base ? `<img src="${esc(base)}/civr/brand/parrot-icon-128.png" width="34" height="34" alt="" style="display:block;border:0;border-radius:8px">` : ''
+  const mark = brand
+    ? (brand.logo ? `<img src="${esc(brand.logo)}" width="150" height="50" alt="${esc(brand.name)}" style="display:block;border:0;height:50px;width:150px">` : `<span style="font:800 20px/1 ${FONT};color:${C.ink}">${esc(brand.name)}</span>`)
+    : `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>${base ? `<td style="padding-right:10px"><img src="${esc(base)}/civr/brand/parrot-icon-128.png" width="34" height="34" alt="" style="display:block;border:0;border-radius:8px"></td>` : ''}<td style="font:800 20px/1 ${FONT};letter-spacing:.02em;color:${C.ink}">CLOUD<span style="color:${C.green}">IVR</span></td></tr></table>`
+  const footMark = brand ? `<div style="font:800 13px/1 ${FONT};letter-spacing:.04em;color:${C.ink};margin-bottom:10px">${esc(brand.name)}</div>` : `<div style="font:800 13px/1 ${FONT};letter-spacing:.04em;color:${C.ink};margin-bottom:10px">CLOUD<span style="color:${C.green}">IVR</span></div>`
   const links = [foot.settings, foot.off, foot.support].filter(Boolean).map(([l, h]) => `<a href="${esc(h)}" target="_blank" style="color:${C.muted};text-decoration:underline">${esc(l)}</a>`).join(' &nbsp;&middot;&nbsp; ')
-  return `<!doctype html><html lang="${esc(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${esc(title)}</title></head>`
+  return `<!doctype html><html lang="${esc(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${esc(title)}</title></head>`
     + `<body style="margin:0;padding:0;background:${C.bg};-webkit-text-size-adjust:100%">`
     + `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${esc(preheader)}&#8199;&#65279;&#847;&#8199;&#65279;&#847;&#8199;&#65279;&#847;</div>`
-    + `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.bg}"><tr><td align="center" style="padding:28px 12px 40px">`
+    + `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.bg}"><tr><td align="center" style="padding:32px 12px 40px">`
     + `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px">`
-    // hero
-    + `<tr><td style="background:${C.night};border-radius:22px 22px 0 0;padding:28px 32px 36px;background-image:radial-gradient(circle at 90% 0%, ${c.glow}55 0%, transparent 55%)">`
-    + `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>${logo ? `<td style="padding-right:10px">${logo}</td>` : ''}<td style="font:800 20px/1 ${FONT};letter-spacing:.02em;color:#ffffff">CLOUD<span style="color:${C.green}">IVR</span></td></tr></table>`
-    + (eyebrow ? `<div style="margin-top:28px"><span style="display:inline-block;padding:6px 12px;border-radius:999px;background:${c.glow}33;color:#ffffff;font:700 11px/1 ${FONT};letter-spacing:.12em;text-transform:uppercase">${esc(eyebrow)}</span></div>` : '')
-    + `<h1 style="margin:16px 0 0;font:800 32px/1.15 ${FONT};letter-spacing:-.01em;color:#ffffff">${esc(title)}</h1></td></tr>`
-    // body
-    + `<tr><td style="background:#ffffff;padding:32px 32px 28px;border-radius:0 0 22px 22px">${body}</td></tr>`
+    // logo above the card
+    + `<tr><td style="padding:0 8px 20px">${brand?.href ? `<a href="${esc(brand.href)}" target="_blank" style="text-decoration:none">${mark}</a>` : mark}</td></tr>`
+    // card: accent bar + hero + body
+    + `<tr><td style="background:#ffffff;border:1px solid ${C.line};border-radius:20px;box-shadow:0 8px 24px rgba(15,23,42,.06);overflow:hidden">`
+    + `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">`
+    + `<tr><td style="height:5px;line-height:5px;font-size:0;background:${c.fg};border-radius:20px 20px 0 0">&nbsp;</td></tr>`
+    + `<tr><td style="padding:34px 36px 8px">`
+    + (eyebrow ? `<span style="display:inline-block;padding:6px 12px;border-radius:999px;background:${c.bg};color:${c.fg};font:700 11px/1 ${FONT};letter-spacing:.12em;text-transform:uppercase">${esc(eyebrow)}</span>` : '')
+    + `<h1 style="margin:16px 0 0;font:800 30px/1.2 ${FONT};letter-spacing:-.01em;color:${C.ink}">${esc(title)}</h1></td></tr>`
+    + `<tr><td style="padding:20px 36px 32px">${body}</td></tr>`
+    + '</table></td></tr>'
     // footer
-    + `<tr><td style="padding:24px 24px 0;text-align:center;font:12px/1.7 ${FONT};color:${C.muted}">`
-    + `<div style="font:800 13px/1 ${FONT};letter-spacing:.04em;color:${C.ink};margin-bottom:10px">CLOUD<span style="color:#16a34a">IVR</span></div>`
-    + `<div>${esc(foot.why)}</div><div style="margin-top:6px">${links}</div></td></tr>`
+    + `<tr><td style="padding:28px 24px 0;text-align:center;font:12px/1.7 ${FONT};color:${C.muted}">`
+    + footMark
+    + `<div>${esc(foot.why)}</div>${links ? `<div style="margin-top:6px">${links}</div>` : ''}</td></tr>`
     + '</table></td></tr></table></body></html>'
 }
 

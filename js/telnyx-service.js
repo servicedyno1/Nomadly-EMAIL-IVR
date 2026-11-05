@@ -597,6 +597,18 @@ async function hangupCall(callControlId) {
   }
 }
 
+// ── Call Control: is the call still up? true / false, or null when Telnyx can't be reached ──
+async function isCallAlive(callControlId) {
+  try {
+    const res = await axios.get(`${BASE}/calls/${encodeURIComponent(callControlId)}`, { headers: headers(), timeout: 10000 })
+    return res.data?.data?.is_alive === true
+  } catch (e) {
+    const s = e.response?.status
+    if (s === 404 || s === 422) return false
+    return null
+  }
+}
+
 // ── Call Control: Reject (before answering — sends SIP 486/603) ──
 // Use this for calls that should be rejected BEFORE connecting to PSTN.
 // Unlike hangup, reject prevents the outbound PSTN leg from ever being set up.
@@ -1059,6 +1071,7 @@ module.exports = {
   startRecording,
   stopRecording,
   hangupCall,
+  isCallAlive,
   rejectCall,
   gatherDTMF,
   gatherDTMFWithAudio,

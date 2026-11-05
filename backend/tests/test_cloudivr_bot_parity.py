@@ -5,8 +5,8 @@ BASE = os.environ.get('REACT_APP_BACKEND_URL') or open('/app/frontend/.env').rea
 API = BASE.rstrip('/') + '/api/cloudivr-web'
 ALICE = ('civr.alice@example.com', 'AliceTest#2026')
 BOB = ('civr.bob@example.com', 'BobTest#2026')
-A_NUM = '+15156445205'
-B_NUM = '+19565971129'
+A_NUM = os.environ.get('PARITY_A_NUM', '+15156445205')
+B_NUM = os.environ.get('PARITY_B_NUM', '+19565971129')
 STATE = {}
 
 

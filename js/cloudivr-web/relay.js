@@ -3,6 +3,7 @@
 const phoneConfig = require('../phone-config')
 const relay = require('../relay-call')
 const { normPhone, E164 } = require('./numbers')
+const { dialIssue } = require('../dial-check')
 
 const bad = (res, status, error, message) => res.status(status).json({ error, message })
 const fail = (res, r) => bad(res, ...r.error)
@@ -20,6 +21,7 @@ function routes(router, { h, numbersApi, voiceService }) {
     if (!phoneConfig.canAccessFeature(n.plan, 'textRelay')) return bad(res, 403, 'plan_upgrade_required', 'Text calls need the Business plan on the number you call from.')
     const to = normPhone(b.to)
     if (!E164.test(to)) return bad(res, 400, 'invalid_number', 'Enter the number to call with country code, e.g. +14155550100.')
+    if (dialIssue(to)) return bad(res, 400, 'invalid_number', dialIssue(to))
     if (phoneConfig.isBlockedPrefix(to)) return bad(res, 400, 'blocked_destination', `${to} is a blocked premium/satellite destination.`)
     if (to === n.phoneNumber) return bad(res, 400, 'same_number', 'You cannot call your own number.')
     const r = await relay.start({ chatId, callerId: n.phoneNumber, to, name: b.name, lang: b.lang, voice: b.voice, announce: b.announce, callRate: voiceService.getIvrCallRate(to) })

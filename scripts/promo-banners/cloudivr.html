@@ -1,0 +1,51 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1280px; height: 860px; }
+  body { background: #0a0a0a; font-family: 'DM Sans', sans-serif; color: #fff; position: relative; overflow: hidden; }
+  .glow { position: absolute; width: 1000px; height: 1000px; right: -330px; top: -120px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(52,211,153,0.22) 0%, rgba(52,211,153,0.07) 40%, rgba(10,10,10,0) 68%); }
+  .glow2 { position: absolute; width: 760px; height: 760px; left: -360px; bottom: -420px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(16,185,129,0.30) 0%, rgba(10,10,10,0) 66%); }
+  .left { position: absolute; left: 80px; top: 84px; width: 560px; z-index: 2; }
+  .brand { display: flex; align-items: center; gap: 22px; }
+  .brand img { width: 124px; height: 124px; filter: drop-shadow(0 10px 28px rgba(52,211,153,.3)); }
+  .word { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 116px; line-height: .9; letter-spacing: 0.005em; }
+  .word span { color: #34d399; }
+  .tag { margin-top: 30px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 54px; line-height: 1.02; color: #f4f4f5; }
+  .tag span { color: #34d399; }
+  .sub { margin-top: 12px; font-size: 24px; color: #a1a1aa; }
+  .rows { margin-top: 36px; display: grid; gap: 16px; }
+  .row { display: flex; align-items: center; gap: 16px; font-size: 25px; color: #e4e4e7; }
+  .ico { width: 46px; height: 46px; border-radius: 12px; border: 1px solid #27272a; background: #141414; display: flex; align-items: center; justify-content: center; }
+  .ico svg { width: 22px; height: 22px; stroke: #34d399; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .cta { margin-top: 40px; display: inline-flex; align-items: center; gap: 14px; padding: 16px 30px; border-radius: 999px;
+    background: #34d399; color: #052e1f; font-weight: 700; font-size: 28px; }
+  .win { position: absolute; left: 690px; top: 150px; width: 860px; border-radius: 18px; border: 1px solid #2a2a2a; background: #0f0f0f;
+    box-shadow: 0 0 70px rgba(52,211,153,.18), 0 40px 90px rgba(0,0,0,.6); overflow: hidden; transform: perspective(1800px) rotateY(-14deg) rotateX(3deg); transform-origin: left center; }
+  .bar { display: flex; align-items: center; gap: 9px; padding: 13px 18px; background: #151515; border-bottom: 1px solid #262626; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: #3f3f46; }
+  .url { margin-left: 14px; padding: 5px 16px; border-radius: 999px; background: #0a0a0a; border: 1px solid #262626; font-size: 16px; color: #a1a1aa; }
+  .url b { color: #34d399; font-weight: 600; }
+  .shot { display: block; width: 860px; height: 538px; object-fit: cover; object-position: left top; }
+</style></head>
+<body>
+  <div class="glow"></div><div class="glow2"></div>
+  <div class="win">
+    <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">🔒 <b>cloudivr.net</b>/app</span></div>
+    <img class="shot" src="../../frontend/public/civr/shots/app-overview.webp" alt="">
+  </div>
+  <div class="left">
+    <div class="brand"><img src="../../frontend/public/civr/brand/parrot-icon-128.png" alt=""><div class="word">CLOUD<span>IVR</span></div></div>
+    <div class="tag">Your Cloud IVR,<br><span>now on the web</span></div>
+    <div class="sub">Numbers, menus and campaigns in one tab.</div>
+    <div class="rows">
+      <div class="row"><div class="ico"><svg viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg></div>Virtual numbers &amp; keypad menus</div>
+      <div class="row"><div class="ico"><svg viewBox="0 0 24 24"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg></div>Bulk IVR campaigns, live</div>
+      <div class="row"><div class="ico"><svg viewBox="0 0 24 24"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg></div>Browser phone &amp; AI voice agents</div>
+    </div>
+    <div class="cta">cloudivr.net &nbsp;→</div>
+  </div>
+</body></html>

@@ -562,7 +562,7 @@ Verified accounts delivered instantly.
 <b>Telecom:</b> Twilio · Telnyx (SMS, Voice, SIP)
 <b>Cloud:</b> AWS · Google Cloud
 <b>Email:</b> Google Workspace · Zoho · IONOS SMTP
-<b>Mobile:</b> eSIM T-Mobile
+<b>Mobile:</b> USA T-Mobile eSIM (automatic, $75/month)
 
 Select below:`,
  dpTwilioMain: `📞 Twilio Main Account — $${DP_PRICE_TWILIO_MAIN}`,
@@ -571,13 +571,7 @@ Select below:`,
  dpTelnyxSub: `📡 Telnyx Sub-Account — $${DP_PRICE_TELNYX_SUB}`,
  dpGworkspaceNew: `📧 Google Workspace Admin (New Domain) — $${DP_PRICE_GWORKSPACE_NEW}`,
  dpGworkspaceAged: `📧 Google Workspace Admin (Aged Domain) — $${DP_PRICE_GWORKSPACE_AGED}`,
- dpEsim: `📱 eSIM T-Mobile — $${DP_PRICE_ESIM}`,
- dpEsimAirvoice: `📱 eSIM Airvoice (AT&T) — from $${DP_PRICE_AIRVOICE_1M}`,
- dpAirvoiceSelect: `📱 <b>eSIM Airvoice (AT&T)</b>\n\n📶 Unlimited talk, text & data on AT&T network.\nWorks on iOS & Android. Scan QR to activate.\n\nSelect plan duration:`,
- dpAirvoice1m: `1 Month — $${DP_PRICE_AIRVOICE_1M}`,
- dpAirvoice3m: `3 Months — $${DP_PRICE_AIRVOICE_3M}`,
- dpAirvoice6m: `6 Months — $${DP_PRICE_AIRVOICE_6M}`,
- dpAirvoice1y: `1 Year — $${DP_PRICE_AIRVOICE_1Y}`,
+ dpEsim: `📱 USA T-Mobile eSIM — $75/month`,
  dpZohoNew: `📧 Zoho Mail (New Domain) — $${DP_PRICE_ZOHO_NEW}`,
  dpZohoAged: `📧 Zoho Mail (Aged Domain) — $${DP_PRICE_ZOHO_AGED}`,
  dpAwsMain: `☁️ AWS Main Account — $${DP_PRICE_AWS_MAIN}`,
@@ -599,11 +593,6 @@ Select below:`,
  'Google Workspace (Aged Domain)': 'Google Workspace on an aged/established domain for better deliverability. Business email with full Google suite.\n\nYou receive: admin login + domain credentials.',
  'Zoho Mail (New Domain)': 'Zoho Mail professional email on a new domain. Custom @yourdomain email with calendar, contacts, and file storage.\n\nYou receive: admin login + domain setup.',
  'Zoho Mail (Aged Domain)': 'Zoho Mail on an aged domain for improved sender reputation. Professional email with full Zoho suite.\n\nYou receive: admin login + domain credentials.',
- 'eSIM T-Mobile': '📶 <b>1 month — Unlimited talk, text & data</b>\nWorks on iOS & Android. Scan QR to activate.\n\nYou receive: QR code or activation details.',
- 'eSIM Airvoice (AT&T) — 1 Month': '📶 <b>1 month — Unlimited talk, text & data (AT&T)</b>\nWorks on iOS & Android. Scan QR to activate.\n\nYou receive: QR code or activation details.',
- 'eSIM Airvoice (AT&T) — 3 Months': '📶 <b>3 months — Unlimited talk, text & data (AT&T)</b>\nWorks on iOS & Android. Scan QR to activate.\n\nYou receive: QR code or activation details.',
- 'eSIM Airvoice (AT&T) — 6 Months': '📶 <b>6 months — Unlimited talk, text & data (AT&T)</b>\nWorks on iOS & Android. Scan QR to activate.\n\nYou receive: QR code or activation details.',
- 'eSIM Airvoice (AT&T) — 1 Year': '📶 <b>1 year — Unlimited talk, text & data (AT&T)</b>\nWorks on iOS & Android. Scan QR to activate.\n\nYou receive: QR code or activation details.',
  }
  const desc = descriptions[product] || ''
  return `💰 <b>Order: ${product}</b>\n\n💵 Price: <b>$${price}</b>${desc ? '\n\n' + desc : ''}\n\nSelect payment method:\n\n<i>💡 Pay with ₿ Crypto for the full amount, or use your 👛 wallet (💵 Deposit first if it's short).</i>`
@@ -723,7 +712,7 @@ Select below:`,
  dnsInvalidIpv6: 'Invalid IPv6 address. Please enter a valid IPv6 (e.g. 2001:db8::1):',
  dnsInvalidPort: 'Invalid port number. Enter a number between 1 and 65535:',
  dnsInvalidWeight: 'Invalid weight. Enter a number between 0 and 65535:',
- dnsSrvCaaNotSupported: 'SRV and CAA records are not supported by your current DNS provider (ConnectReseller). Switch to Cloudflare or OpenProvider nameservers to use these record types.',
+ dnsSrvCaaNotSupported: 'SRV and CAA records are not supported by your domain\'s current DNS. Switch to Cloudflare DNS (🔄 Manage Nameservers) to use these record types.',
  // SRV wizard prompts
  askSrvService: '<b>Add SRV Record</b> (Step 1/5)\n\nEnter service and protocol:\ne.g. <b>_sip._tcp</b>, <b>_http._tcp</b>, <b>_minecraft._tcp</b>',
  askSrvTarget: '<b>Step 2/5</b> — Enter target hostname:\ne.g. <b>sipserver.example.com</b>',
@@ -1125,7 +1114,7 @@ Service delivered.`,
  planNotSubscriped: `You don't have any active products or subscriptions yet.\n\nHosting, Cloud IVR numbers, VPS and Membership all show up here once you buy them. Tap a product on the main menu to get started!`,
  noShortenedUrlLink: 'You have no shortened links yet.',
  shortenedLinkText: linksText => `Here are your shortened links:\n${linksText}`,
- analyticsNotAvailable: provider => `📊 analytics not available (${provider})`,
+ analyticsNotAvailable: () => `📊 analytics not available`,
 
  qrCodeText: 'Here is your QR code!',
  scanQrOrUseChat: chatId => `📱 <b>${(process.env.CHAT_BOT_BRAND || 'Nomadly')} SMS App</b>\n\nYour activation code:\n<code>${chatId}</code>\n\n📲 Download: ${process.env.SMS_APP_LINK || 'Contact support'}`,
@@ -1318,7 +1307,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  ebFailedReadHtml: '❌ Failed to read HTML file. Please try again or upload a different file.',
  ebBundleNotFound: '❌ Bundle not found.',
  ebCampaignNotFound: '❌ Campaign not found.',
- ebTestSending: (addr) => `⏳ Sending test email to <b>${addr}</b> via Brevo...`,
+ ebTestSending: (addr) => `⏳ Sending test email to <b>${addr}</b>...`,
  ebAddDomainBtn: '➕ Add Domain',
  ebRemoveDomainBtn: '❌ Remove Domain',
  ebDashboardBtn: '📊 Dashboard',
@@ -1507,14 +1496,15 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_13: '🎵 <b>Audio Library</b>\\n\\nYou have no saved audio files.\\n\\nUpload an audio file (MP3, WAV, OGG) to use in IVR campaigns.',
  cp_130: (name) => `✅ Audio saved as: <b>${name}</b>\n\nYou can now use it in Bulk IVR Campaigns!`,
  cp_131: 'Please select a caller ID from the list.',
- cp_132: (phoneNumber) => `📱 Caller ID: <b>${phoneNumber}</b>\n\n📋 <b>Upload Leads File</b>\n\nSend a text file (.txt or .csv) with one phone number per line.\nOptional: <code>number,name</code> per line.\n\nOr paste the numbers directly (one per line):`,
+ cp_132: (phoneNumber) => `📱 Caller ID: <b>${phoneNumber}</b>\n\n📋 <b>Upload Leads File</b>\n\nSend an <b>Excel (.xlsx)</b>, <b>.csv</b> or <b>.txt</b> file. We find the phone and name columns for you (headers like Phone, Mobile, Name or First name work), or use one number per line.\nOptional: <code>number,name</code> per line.\n\nOr paste the numbers directly (one per line):`,
  cp_133: 'Select the Caller ID:',
  cp_134: (message) => `❌ Failed to read file: ${message}\n\nTry again or paste numbers directly.`,
- cp_134b: (fname) => `❌ <b>${fname}</b> is not a plain-text file.\n\nPlease upload a <b>.txt</b> or <b>.csv</b> file (one number per line, or number,name), or paste the numbers directly.`,
+ cp_134b: (fname) => `❌ We can't read <b>${fname}</b>.\n\nPlease upload an <b>Excel (.xlsx)</b>, <b>.csv</b> or <b>.txt</b> file (old .xls files: save them as .xlsx first), or paste the numbers directly.`,
  cp_135: 'Please send a file or paste phone numbers.',
  cp_136: (errMsg) => `❌ No valid phone numbers found.${errMsg}\n\nPlease check format: one number per line, with + country code.`,
  cp_137: (maxLeads, length) => `❌ <b>Too many leads!</b>\n\nMaximum <b>${maxLeads}</b> numbers per campaign.\nYou uploaded <b>${length}</b>.\n\nPlease reduce your list and try again.`,
  cp_138: (length, preview, more, errNote, estCost, toFixed) => `✅ <b>${length} leads loaded!</b>\n\n${preview}${more}${errNote}\n\n💰 <b>Estimated cost: $${estCost}</b> ($${toFixed}/min per number, min 1 min each — charged whether answered or not)\n\n🎵 <b>Select IVR Audio</b>\n\nChoose from your audio library, upload a new recording, or generate from a template with TTS:`,
+ cp_138cols: (phoneCol, nameCol) => `🔎 Phone numbers from column <b>${phoneCol}</b>${nameCol ? `, names from <b>${nameCol}</b>` : ''}`,
  cp_139: '📋 Send a leads file or paste numbers:',
  cp_14: (audioList) => `🎵 <b>Audio Library</b>\n\n${audioList}\n\nUpload a new audio or delete an existing one:`,
  cp_140: '🎵 Send an audio file (MP3, WAV, OGG) or voice message:',
@@ -1905,7 +1895,7 @@ Make an automated call that plays your recorded message and captures a keypress 
  vps_87: '⚠️ Payment processing temporarily unavailable (exchange rate service down). Please try again later or use crypto.',
  vps_88: 'Bank ₦aira + Card 🌐︎',
  vps_89: '⚠️ Payment processing temporarily unavailable (exchange rate service down). Please try again later or use crypto.',
- vps_9: (testAddr) => `⏳ Sending test email to <b>${testAddr}</b> via Brevo...`,
+ vps_9: (testAddr) => `⏳ Sending test email to <b>${testAddr}</b>...`,
  vps_90: 'Bank ₦aira + Card 🌐︎',
  vps_91: '⚠️ Payment processing temporarily unavailable (exchange rate service down). Please try again later or use crypto.',
  vps_92: 'Bank ₦aira + Card 🌐︎',
@@ -2648,7 +2638,7 @@ const userKeyboard = {
  // services (Email Validation, Refer, Reseller, Join Channel, Email Blast)
  // moved under "➕ More" to cut top-level clutter. Handlers match by label,
  // so grouping/order changes carry no routing risk.
- ...require('../web-access').webMenuRows('en'), // 🌐 Use on Web (only when WEBSITE_URL is set)
+ ...require('../web-access').webMenuRows('en'), // 🌐 Hosting/RDP/VPS on Web (NomadlyBot only, WEBSITE_URL set)
  [user.cloudPhone, user.hostingDomainsRedirect],
  ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
  ...(HIDE_SMS_APP !== 'true' ? [[user.smsAppMain, user.leadsValidation]] : [[user.leadsValidation]]),
@@ -3118,6 +3108,7 @@ const vpsPlanOf = {
 const vs = {
   callDisconnectedAutoRouted: (usdBal, lowBalTrigger, lowBalResume) => `🚫 <b>Call Disconnected</b> (auto-routed)\n\nWallet: <b>$${usdBal}</b> — below $${lowBalTrigger} threshold.\n💰 Top up at least $${lowBalResume} to resume calling.`,
   callDisconnectedWalletInsufficient: (rate, connFee) => `🚫 <b>Call Disconnected</b> — Wallet insufficient (need $${rate}/min + $${connFee} connect fee).\nTop up via 👛 Wallet.`,
+  sipCallQueued: (to, max) => `⏳ <b>Call queued</b> — ${to}\nYou already have ${max} calls connected. This call connects automatically as soon as one ends (up to 2 minutes). Nothing is charged while it waits.`,
   callDisconnectedWalletExhausted: `🚫 <b>Call Disconnected</b> — Wallet exhausted.\nTop up via 👛 Wallet.`,
   outboundCallFailedRouting: (fromPhone, toPhone) => `🚫 <b>Outbound Call Failed</b>\n📞 ${fromPhone} → ${toPhone}\nReason: Call routing failed. Please try again.`,
   planMinutesExhausted: (phoneNumber, used, limit) => `⚠️ <b>Plan Minutes Exhausted</b>\n\n📞 ${phoneNumber}\nUsed: <b>${used}/${limit}</b> minutes this cycle.\n\nOverage billing is now active from your wallet. Top up or upgrade your plan.`,
@@ -3133,6 +3124,7 @@ const vs = {
   outboundCallingLocked: `🚫 <b>Outbound Calling Locked</b>\n\n`,
   testCallsExpired: `⏰ <b>Test Calls Expired</b>\n\nYour free SIP test has ended. Please disconnect your SIP client to stop retrying.\n\n💡 To make more calls, purchase a Cloud Phone plan from the main menu.`,
   outboundCallBlocked: (fromPhone, toPhone, status) => `🚫 <b>Outbound Call Blocked</b>\n📞 ${fromPhone} → ${toPhone}\nReason: Number is ${status}. Please renew or contact support.`,
+  sipPlanBlocked: (fromPhone, toPhone) => `🚫 <b>Call Blocked — Phone App Not On Your Plan</b>\n📞 ${fromPhone} → ${toPhone}\nCalling from SIP apps and desk phones needs the Pro plan or higher on this number. Upgrade the number to use them again.`,
   sipCallBlocked: (sipRate, connFee, region, usdBal, ngnBal) => `🚫 <b>SIP Call Blocked</b> — Wallet balance insufficient (need $${sipRate}/min + $${connFee} connect fee ${region}).\nBalance: $${usdBal} / NGN: ₦${ngnBal}\nOutbound calls are billed from wallet. Top up via 👛 Wallet.`,
   freeSipTestCall: (fromPhone, toPhone, remaining, maxDuration) => `📞 <b>Free SIP Test Call</b>\nFrom: ${fromPhone}\nTo: ${toPhone}\n🆓 Free test call (${remaining} remaining, max ${maxDuration}s)`,
   sipOutboundCall: (fromPhone, toPhone, walletLine) => `📞 <b>SIP Outbound Call</b>\nFrom: ${fromPhone}\nTo: ${toPhone}\n${walletLine}`,

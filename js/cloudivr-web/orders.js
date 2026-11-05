@@ -11,6 +11,7 @@ const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const POLL_MS = 30000
 const MAX_AGE_MS = 7 * 86400000
 const OPEN = ['awaiting_payment', 'underpaid']
+const { PAY_WINDOW_MS } = require('./wallet')
 const bad = (res, status, error, message) => res.status(status).json({ error, message })
 
 // USD the wallet must hold to finish the order (extras/upgrades may deposit more than they cost: crypto minimum).
@@ -22,9 +23,11 @@ const publicOrder = (o) => ({
   coin: o.coin, address: o.address, amountCrypto: o.amountCrypto || null, autoRenew: o.autoRenew !== false, status: o.status,
   paidUsd: o.paidUsd || 0, assignedNumber: o.assignedNumber || null, substitutedFrom: o.substitutedFrom || null,
   message: o.message || null, dryRun: !!o.dryRun, preview: o.provider === 'preview', createdAt: o.createdAt, updatedAt: o.updatedAt,
+  // Still awaiting_payment in the DB so a late payment is picked up (see tick); shown as expired after the window.
+  expiresAt: new Date(new Date(o.createdAt).getTime() + PAY_WINDOW_MS), expired: o.status === 'awaiting_payment' && Date.now() > new Date(o.createdAt).getTime() + PAY_WINDOW_MS,
 })
 
-function routes(router, { db, h, numbersApi, coins = [], createCryptoDeposit, sendMail = async () => false, notifyAdmin = () => {}, log = console.log }) {
+function routes(router, { db, h, numbersApi, offers = null, coins = [], createCryptoDeposit, sendMail = async () => false, notifyAdmin = () => {}, log = console.log }) {
   const orders = db.collection('webNumberOrders')
   orders.createIndex({ chatId: 1, createdAt: -1 }).catch(() => {})
   orders.createIndex({ status: 1, createdAt: 1 }).catch(() => {})
@@ -60,7 +63,8 @@ function routes(router, { db, h, numbersApi, coins = [], createCryptoDeposit, se
     const n = await numbersApi.findMine(o.chatId, o.phoneNumber)
     const planName = phoneConfig.plans[o.planKey]?.name || o.planKey
     if (!n) { await save(o._id, { status: 'failed', message: `${o.phoneNumber} is no longer on your account. Your payment is in your wallet.` }); return }
-    const r = await numbersApi.upgradeNumber(o.chatId, n, o.planKey, o._id)
+    const r = await numbersApi.upgradeNumber(o.chatId, n, o.planKey, o._id, o.offerPct || 0)
+    if (r.status === 200 && o.offerId && offers) await offers.markUsed(o.offerId).catch(() => {})
     if (r.status === 200) {
       const message = `Payment confirmed — ${o.phoneNumber} is now on the ${planName} plan.${o.price > r.body.charged ? ` The $${round2(o.price - r.body.charged).toFixed(2)} left over stays in your wallet.` : ''}`
       await save(o._id, { status: 'active', assignedNumber: o.phoneNumber, chargedUsd: r.body.charged, message })
@@ -123,7 +127,7 @@ function routes(router, { db, h, numbersApi, coins = [], createCryptoDeposit, se
         const priceNote = charged < o.price ? `it costs $${charged.toFixed(2)}, so the $${round2(o.price - charged).toFixed(2)} difference stays in your wallet` : 'same price'
         const leftover = extra && o.price > charged ? ` The $${round2(o.price - charged).toFixed(2)} left over stays in your wallet.` : ''
         const message = swapped
-          ? `The number you picked (${o.phoneNumber}) was taken while your crypto payment was confirming, so we gave you ${assigned} instead — same country${o.areaCode ? ' and area code' : ''}, ${extra ? `same price.${leftover}` : priceNote}${extra ? '' : '.'}`
+          ? `The number you picked (${o.phoneNumber}) was taken while your payment was confirming, so we gave you ${assigned} instead — same country${o.areaCode ? ' and area code' : ''}, ${extra ? `same price.${leftover}` : priceNote}${extra ? '' : '.'}`
           : extra ? `Payment confirmed — ${assigned} is now an extra number on ${sub.parentNumber}.${leftover}` : `Payment confirmed — ${assigned} is yours.`
         await save(o._id, { status, assignedNumber: assigned, substitutedFrom: swapped ? o.phoneNumber : null, chargedUsd: charged, message })
         tell(o, `${message}${status === 'verification' ? ' Open Verification to send the details the carrier needs.' : ''}`, swapped ? `Your new CloudIVR number: ${assigned}` : null)
@@ -199,7 +203,8 @@ function routes(router, { db, h, numbersApi, coins = [], createCryptoDeposit, se
     const n = await numbersApi.findMine(chatId, req.params.phone)
     if (!n) return bad(res, 404, 'not_found', 'Number not found on your account.')
     const planKey = String(req.body.plan || '')
-    const q = numbersApi.upgradeQuote(n, planKey)
+    const offer = await numbersApi.upgradeOffer(chatId, n, planKey)
+    const q = numbersApi.upgradeQuote(n, planKey, offer?.discount || 0)
     if (q.error) return bad(res, q.error.status, q.error.error, q.error.message)
     const coin = String(req.body.coin || '')
     if (!coins.includes(coin)) return bad(res, 400, 'invalid_coin', `Pick one of: ${coins.join(', ')}.`)
@@ -209,7 +214,7 @@ function routes(router, { db, h, numbersApi, coins = [], createCryptoDeposit, se
       : await createCryptoDeposit(chatId, price, coin)
     if (!dep || !dep.address) return bad(res, 424, 'deposit_unavailable', 'The crypto payment service did not return an address. Try again or pick another coin.')
     const now = new Date()
-    const doc = { _id: dep.ref, kind: 'upgrade', chatId, email: req.webUser.email, phoneNumber: n.phoneNumber, planKey, price, charge: q.charge, autoRenew: n.autoRenew !== false, coin, address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider, status: 'awaiting_payment', dryRun: dryRun(), createdAt: now, updatedAt: now }
+    const doc = { _id: dep.ref, kind: 'upgrade', chatId, email: req.webUser.email, phoneNumber: n.phoneNumber, planKey, price, charge: q.charge, offerPct: offer?.discount || 0, offerId: offer?._id || null, autoRenew: n.autoRenew !== false, coin, address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider, status: 'awaiting_payment', dryRun: dryRun(), createdAt: now, updatedAt: now }
     await orders.insertOne(doc)
     await db.collection('webDeposits').insertOne({ chatId, ref: dep.ref, amountUsd: price, coin, address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider, forNumber: n.phoneNumber, forUpgrade: planKey, createdAt: now })
     log(`[CloudIVR-Web] crypto upgrade ${dep.ref} ${n.phoneNumber} → ${planKey} $${price} ${coin} for ${chatId}`)
@@ -255,7 +260,8 @@ function routes(router, { db, h, numbersApi, coins = [], createCryptoDeposit, se
   }))
 
   router.get('/numbers/orders', h(async (req, res) => {
-    const q = { chatId: req.webChatId, ...(req.query.open ? { status: { $in: OPEN } } : {}) }
+    const fresh = { $or: [{ status: 'underpaid' }, { status: 'awaiting_payment', createdAt: { $gt: new Date(Date.now() - PAY_WINDOW_MS) } }] }
+    const q = { chatId: req.webChatId, ...(req.query.open ? fresh : {}) }
     res.json({ orders: (await orders.find(q).sort({ createdAt: -1 }).limit(10).toArray()).map(publicOrder) })
   }))
 

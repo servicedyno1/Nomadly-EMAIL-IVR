@@ -6,10 +6,11 @@ const crypto = require('crypto')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const axios = require('axios')
-const nodemailer = require('nodemailer')
 const { WEB_ID_BASE } = require('./notify')
 const { appPathPrefix } = require('./domain-guard')
 const { createTwoFactor } = require('./twofa')
+const { createPhoneAuth } = require('./phone-auth')
+const { emailProblem } = require('./email-check')
 
 const COOKIE = 'civr_session'
 const SESSION_DAYS = 7
@@ -48,6 +49,9 @@ const clientIp = (req) => {
   return String(req.ip || '')
 }
 const isHttps = (req) => req.secure || /https/i.test(String(req.headers['x-forwarded-proto'] || '')) || /^https:/i.test(String(req.headers.origin || ''))
+// Cloudflare's visitor country (2-letter code); absent off Cloudflare.
+const countryOf = (req) => { const c = String(req.headers['cf-ipcountry'] || '').trim().toUpperCase(); return /^[A-Z]{2}$/.test(c) && c !== 'XX' && c !== 'T1' ? c : null }
+
 
 function parseCookies(req) {
   const out = {}
@@ -69,25 +73,32 @@ function clearSession(req, res) {
 
 const adminEmails = () => String(process.env.CLOUDIVR_ADMIN_EMAILS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean)
 const isAdmin = (a) => !!a?.email && adminEmails().includes(String(a.email).toLowerCase())
-const publicAccount = (a) => ({ id: String(a._id), email: a.email, name: a.name || '', hasPassword: !!a.passwordHash, google: !!a.googleSub, createdAt: a.createdAt, twoFactor: a.twoFactor?.method || null, admin: isAdmin(a) })
+const publicAccount = (a) => ({ id: String(a._id), email: a.email || null, phone: a.phone || null, name: a.name || '', hasPassword: !!a.passwordHash, google: !!a.googleSub, createdAt: a.createdAt, twoFactor: a.twoFactor?.method || null, admin: isAdmin(a) })
 
 let mailer = null
+// cloudivr.net mails go out from its own address (CLOUDIVR_MAIL_SENDER) through js/mailer.js: MailerSend once the
+// sender's domain is verified there, otherwise the Brevo API (and, without an own sender, the SMTP relay) as before.
 function sendMail(to, subject, html, attachments, extra) {
-  if (!process.env.MAIL_DOMAIN) return Promise.resolve(false)
+  const own = process.env.CLOUDIVR_MAIL_SENDER
+  const mail = { to, subject, html, ...(attachments ? { attachments } : {}), ...(extra || {}) }
+  if (own && process.env.BREVO_API_KEY) return require('../mailer').send({ ...mail, from: { name: 'CloudIVR', email: own } }).then(() => true)
+  if (!process.env.MAIL_DOMAIN && !own) return Promise.resolve(false)
   if (!mailer) {
     const port = Number(process.env.MAIL_PORT) || 2525
-    mailer = nodemailer.createTransport({ host: process.env.MAIL_DOMAIN, port, secure: port === 465, requireTLS: port !== 465, connectionTimeout: 15000, greetingTimeout: 10000, socketTimeout: 20000, auth: { user: process.env.MAIL_AUTH_USER, pass: process.env.MAIL_AUTH_PASSWORD } })
+    mailer = require('../mailer').transport({ host: process.env.MAIL_DOMAIN, port, secure: port === 465, requireTLS: port !== 465, connectionTimeout: 15000, greetingTimeout: 10000, socketTimeout: 20000, auth: { user: process.env.MAIL_AUTH_USER, pass: process.env.MAIL_AUTH_PASSWORD } })
   }
   const brand = process.env.CHAT_BOT_BRAND || 'Nomadly'
-  return mailer.sendMail({ from: `${brand} CloudIVR <${process.env.MAIL_SENDER}>`, to, subject, html, ...(attachments ? { attachments } : {}), ...(extra || {}) }).then(() => true)
+  // Own sender without a Brevo key: MailerSend when verified, else the SMTP relay.
+  return mailer.sendMail({ ...mail, from: own ? { name: 'CloudIVR', address: own } : `${brand} CloudIVR <${process.env.MAIL_SENDER}>` }).then(() => true)
 }
 
-function createAuth(db, { log = console.log } = {}) {
+function createAuth(db, { log = console.log, notifyAdmin = () => {} } = {}) {
   const accounts = db.collection('webAccounts')
   const counters = db.collection('webCounters')
   const attempts = db.collection('webLoginAttempts')
   const resets = db.collection('webPasswordResets')
-  accounts.createIndex({ email: 1 }, { unique: true }).catch(() => {})
+  // email is optional (phone accounts); the partial index ignores accounts without one.
+  accounts.dropIndex('email_1').catch(() => {}).then(() => accounts.createIndex({ email: 1 }, { unique: true, name: 'email_partial', partialFilterExpression: { email: { $type: 'string' } } })).catch(e => log(`[CloudIVR-Web] email index: ${e.message}`))
   // googleSub is only stored for Google accounts; the partial index ignores email-only accounts.
   accounts.dropIndex('googleSub_1').catch(() => {}).then(() => accounts.updateMany({ googleSub: null }, { $unset: { googleSub: '' } }))
     .then(() => accounts.createIndex({ googleSub: 1 }, { unique: true, name: 'googleSub_partial', partialFilterExpression: { googleSub: { $type: 'string' } } })).catch(e => log(`[CloudIVR-Web] googleSub index: ${e.message}`))
@@ -110,14 +121,32 @@ function createAuth(db, { log = console.log } = {}) {
     return r._id
   }
 
-  async function createAccount({ email, name, passwordHash = null, googleSub = null, referredBy = null, ip = null }) {
+  // New web sign-up → admin alert in the bot (HTML; user-supplied text escaped).
+  function alertSignup(acc, country) {
+    const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    const preview = process.env.WEB_CLOUDIVR_DRY_RUN === 'true' ? ' (preview)' : ''
+    try {
+      notifyAdmin([
+        `🆕 <b>New CloudIVR web sign-up</b>${preview}`,
+        acc.email ? `email: ${esc(acc.email)}` : `phone: ${esc(acc.phone)}`,
+        `name: ${acc.name ? esc(acc.name) : '—'}`,
+        `method: ${acc.googleSub ? 'Google' : acc.phone ? 'Phone code' : 'Email + password'}`,
+        country ? `country: ${esc(country)}` : null,
+        acc.referredBy ? `referred by web account ${acc.referredBy}` : null,
+        `web account: ${acc._id}`,
+      ].filter(Boolean).join('\n'))
+    } catch (e) { log(`[CloudIVR-Web] sign-up alert failed: ${e.message}`) }
+  }
+
+  async function createAccount({ email = null, phone = null, name, passwordHash = null, googleSub = null, referredBy = null, ip = null, country = null }) {
     const _id = await nextChatId()
-    const acc = { _id, email, name: String(name || '').trim().slice(0, 80), passwordHash, ...(googleSub ? { googleSub } : {}), ...(referredBy ? { referredBy } : {}), signupIp: ip, lastIp: ip, tokenVersion: 0, createdAt: new Date(), lastLoginAt: new Date() }
+    const acc = { _id, ...(email ? { email } : {}), ...(phone ? { phone } : {}), name: String(name || '').trim().slice(0, 80), passwordHash, ...(googleSub ? { googleSub } : {}), ...(referredBy ? { referredBy } : {}), signupIp: ip, lastIp: ip, tokenVersion: 0, createdAt: new Date(), lastLoginAt: new Date() }
     await accounts.insertOne(acc)
     await db.collection('walletOf').updateOne({ _id: String(_id) }, { $setOnInsert: { usdIn: 0, usdOut: 0 } }, { upsert: true })
     await db.collection('state').updateOne({ _id: String(_id) }, { $setOnInsert: { userLanguage: 'en', webAccount: true } }, { upsert: true })
-    await db.collection('nameOf').updateOne({ _id: String(_id) }, { $setOnInsert: { val: acc.name || email.split('@')[0] } }, { upsert: true })
-    log(`[CloudIVR-Web] account created ${_id} (${googleSub ? 'google' : 'email'})`)
+    await db.collection('nameOf').updateOne({ _id: String(_id) }, { $setOnInsert: { val: acc.name || (email ? email.split('@')[0] : phone) } }, { upsert: true })
+    log(`[CloudIVR-Web] account created ${_id} (${googleSub ? 'google' : phone ? 'phone' : 'email'})`)
+    alertSignup(acc, country)
     return acc
   }
 
@@ -151,20 +180,25 @@ function createAuth(db, { log = console.log } = {}) {
 
   const mfa = createTwoFactor({ db, secret, sendMail, setSession, publicAccount, lockState, recordFailure, isHttps, parseCookies, log })
 
+  const phoneAuth = createPhoneAuth(db, { accounts, createAccount, finishLogin: mfa.finishLogin, lockState, recordFailure, clientIp, countryOf, referrerFor, log, publicAccount, sendMail, normEmail, EMAIL_RE, onEmailChange: (id) => require('../spenza').syncUser(id) })
+
   function routes(router, h) {
     mfa.routes(router, h, requireUser)
-    router.get('/auth/config', (req, res) => res.json({ googleClientId: process.env.GOOGLE_OAUTH_CLIENT_ID || null, brand: process.env.CHAT_BOT_BRAND || 'Nomadly' }))
+    phoneAuth.routes(router, h, requireUser)
+    router.get('/auth/config', h(async (req, res) => res.json({ googleClientId: process.env.GOOGLE_OAUTH_CLIENT_ID || null, phoneVoice: (await phoneAuth.voiceEnabled()) || process.env.WEB_CLOUDIVR_DRY_RUN === 'true', phoneSignIn: !!(process.env.TELESIGN_CUSTOMER_ID && process.env.TELESIGN_API_KEY) || process.env.WEB_CLOUDIVR_DRY_RUN === 'true', brand: process.env.CHAT_BOT_BRAND || 'Nomadly' })))
 
     router.post('/auth/register', h(async (req, res) => {
       const email = normEmail(req.body.email), password = String(req.body.password || '')
       if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'invalid_email', message: 'Enter a valid email address.' })
+      const bad = await emailProblem(email)
+      if (bad) return res.status(400).json({ error: 'invalid_email', message: bad })
       if (password.length < 8 || password.length > 128) return res.status(400).json({ error: 'weak_password', message: 'Password must be 8–128 characters.' })
       const ipKey = `reg|${clientIp(req)}`
       if (await lockState(ipKey)) return res.status(429).json({ error: 'too_many_attempts', message: 'Too many sign-ups from this network. Try again later.' })
       if (await accounts.findOne({ email })) return res.status(409).json({ error: 'email_taken', message: 'An account with this email already exists. Sign in instead.' })
       await recordFailure(ipKey, 15) // counts sign-ups per IP (15 per 15 min)
       const ip = clientIp(req)
-      const acc = await createAccount({ email, name: req.body.name, passwordHash: await bcrypt.hash(password, 12), referredBy: await referrerFor(req.body.ref, ip), ip })
+      const acc = await createAccount({ email, name: req.body.name, passwordHash: await bcrypt.hash(password, 12), referredBy: await referrerFor(req.body.ref, ip), ip, country: countryOf(req) })
       setSession(req, res, acc, req.body.remember ? 30 : SESSION_DAYS)
       res.status(201).json({ account: publicAccount(acc) })
     }))
@@ -197,7 +231,7 @@ function createAuth(db, { log = console.log } = {}) {
       const email = normEmail(info.email)
       let acc = await accounts.findOne({ googleSub: info.sub }) || await accounts.findOne({ email })
       if (acc && !acc.googleSub) await accounts.updateOne({ _id: acc._id }, { $set: { googleSub: info.sub } })
-      if (!acc) acc = await createAccount({ email, name: info.name, googleSub: info.sub, referredBy: await referrerFor(req.body.ref, clientIp(req)), ip: clientIp(req) })
+      if (!acc) acc = await createAccount({ email, name: info.name, googleSub: info.sub, referredBy: await referrerFor(req.body.ref, clientIp(req)), ip: clientIp(req), country: countryOf(req) })
       if (acc.disabled) return res.status(403).json({ error: 'disabled' })
       await accounts.updateOne({ _id: acc._id }, { $set: { lastLoginAt: new Date(), lastIp: clientIp(req) } })
       return mfa.finishLogin(req, res, { ...acc, googleSub: info.sub }, { remember: !!req.body.remember })

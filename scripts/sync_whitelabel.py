@@ -46,6 +46,7 @@ import tempfile
 # 2026-10-02 RDP poll-hardening). Used only until `.whitelabel-sync` exists.
 BOOTSTRAP_BASE = 'e92a09ed4257823ae7b13da146a553faafcd0ba6'
 MARKER = '.whitelabel-sync'
+SHARED_MARKER = '.whitelabel-sync-shared'  # --only-listed runs (shared fixes) keep their own place
 ZERO_OID = '0' * 40
 
 # Session notes / reports — each branch keeps its own copy.
@@ -63,6 +64,20 @@ BRAND_PATTERNS = [
     'frontend/public/brand-placeholder-*',
     'js/branding.js',
     'js/routes/sales.js',
+]
+
+# CloudIVR web — the white-label bots don't serve it, so its changes stay on main.
+# A web file is still carried when synced code imports/requires it (see deps_of).
+WEB_ONLY_PATTERNS = [
+    'js/cloudivr-web/*',
+    'frontend/src/cloudivr/*',
+    'frontend/public/civr*',
+]
+# The web app shell on main boots CloudIVR web; WhiteLabel keeps its own (hosting panel) shell.
+WL_SHELL_PATTERNS = [
+    'frontend/src/App.js',
+    'frontend/src/index.js',
+    'frontend/public/index.html',
 ]
 
 REGULAR_MODES = ('100644', '100755')
@@ -157,6 +172,22 @@ def merge3(t_sha, b_sha, s_sha):
         shutil.rmtree(d, ignore_errors=True)
 
 
+# ── dependencies ─────────────────────────────────────────────────────────────
+_REQ = re.compile(rb"""(?:require\(\s*|import\s*\(\s*|from\s+|import\s+)['"](\.{1,2}/[^'"]+)['"]""")
+
+
+def deps_of(path, content):
+    """Repo paths a .js file pulls in with relative require()/import (unresolved: all candidates)."""
+    if not path.endswith(('.js', '.jsx')):
+        return []
+    out_ = []
+    base_dir = os.path.dirname(path)
+    for m in _REQ.finditer(content):
+        rel = os.path.normpath(os.path.join(base_dir, m.group(1).decode(errors='replace')))
+        out_.append([rel, rel + '.js', rel + '.jsx', rel + '.json', rel + '/index.js'])
+    return out_
+
+
 # ── syntax check ─────────────────────────────────────────────────────────────
 def _check_cmd(path):
     if path.endswith('.js') and path.split('/')[0] in ('js', 'scripts', 'backend'):
@@ -238,16 +269,33 @@ def main():
     ap.add_argument('--target', default='origin/WhiteLabel')
     ap.add_argument('--target-branch', default='WhiteLabel')
     ap.add_argument('--remote', default='origin')
-    ap.add_argument('--base', default=None, help='main commit last synced (default: read .whitelabel-sync)')
+    ap.add_argument('--base', default=None, help='main commit last synced (default: read the marker file)')
+    ap.add_argument('--only-listed', default=None, metavar='MANIFEST',
+                    help='shared-fix mode: carry ONLY files matching the globs in MANIFEST (e.g. ops/whitelabel-shared-files.txt); '
+                         'uses its own marker .whitelabel-sync-shared so the paused full sync is unaffected')
     mode = ap.add_mutually_exclusive_group()
     mode.add_argument('--dry-run', action='store_true', help='report only, push nothing (default)')
     mode.add_argument('--push', action='store_true', help='push the sync commit (fast-forward only)')
     a = ap.parse_args()
 
     source, target = rev(a.source), rev(a.target)
+    global MARKER
+    listed = None
+    if a.only_listed:
+        r0 = git('show', f'{source}:{a.only_listed}', check=False)
+        if r0.returncode != 0:
+            raise RuntimeError(f'manifest {a.only_listed} not found on {a.source}')
+        listed = [l.strip() for l in r0.stdout.decode().splitlines() if l.strip() and not l.lstrip().startswith('#')]
+        full_marker, MARKER = MARKER, SHARED_MARKER
+        print(f'shared-fix mode: only {len(listed)} manifest pattern(s) from {a.only_listed}')
 
     # 1) where did the last sync leave off?
     base, base_from = a.base, '--base'
+    if not base and listed is not None and git('show', f'{target}:{SHARED_MARKER}', check=False).returncode != 0:
+        # First shared run: start from where the last FULL sync left WhiteLabel.
+        r = git('show', f'{target}:{full_marker}', check=False)
+        mm = re.search(r'^main=([0-9a-f]{7,64})\s*$', r.stdout.decode(errors='replace'), re.M) if r.returncode == 0 else None
+        base, base_from = (mm.group(1), f'{full_marker} (first shared sync)') if mm else (BOOTSTRAP_BASE, 'bootstrap')
     if not base:
         r = git('show', f'{target}:{MARKER}', check=False)
         mm = re.search(r'^main=([0-9a-f]{7,64})\s*$', r.stdout.decode(errors='replace'), re.M) if r.returncode == 0 else None
@@ -274,7 +322,25 @@ def main():
     ops = []  # (path, (mode, sha) | None-for-delete)
     taken, merged, kept_wl, in_sync, skipped_docs, skipped_brand, skipped_ci, conflicts = [], [], [], [], [], [], [], []
 
-    for p in changed:
+    skipped_unlisted = 0
+    skipped_web, pulled_in = [], []
+    queue, seen = list(changed), set()
+    changed_set = set(changed)
+    while queue:
+        p = queue.pop(0)
+        forced = p.startswith('\0')
+        p = p.lstrip('\0')
+        if p in seen:
+            if not (forced and p in skipped_web):
+                continue
+            skipped_web.remove(p)  # a skipped web file that synced code needs after all
+        seen.add(p)
+        if not forced and listed is not None and not matches(p, listed):
+            skipped_unlisted += 1
+            continue
+        if not forced and listed is None and (matches(p, WEB_ONLY_PATTERNS) or matches(p, WL_SHELL_PATTERNS)):
+            skipped_web.append(p)
+            continue
         if matches(p, DOC_PATTERNS):
             skipped_docs.append(p)
             continue
@@ -285,10 +351,21 @@ def main():
             skipped_ci.append(p)
             continue
         b, s, t = B.get(p), S.get(p), T.get(p)
+        if s is not None and listed is None and not is_non_runtime(p):
+            # Files this code needs: carry any that WhiteLabel lacks or that main changed but were skipped.
+            for cands in deps_of(p, blob(s[1])):
+                hit = next((c for c in cands if c in S), None)
+                if hit and hit not in seen and (hit not in T or hit in changed_set):
+                    queue.append('\0' + hit)
+                    if matches(hit, WEB_ONLY_PATTERNS) or hit not in changed_set:
+                        pulled_in.append(f'{hit}  (needed by {p})')
+                elif hit in seen and hit in skipped_web:
+                    skipped_web.remove(hit); seen.discard(hit); queue.append('\0' + hit)
+                    pulled_in.append(f'{hit}  (needed by {p})')
         if t == s:
             in_sync.append(p)
             continue
-        if t == b:  # WhiteLabel never edited it since the last sync -> take main's version
+        if t == b or (forced and t is None):  # WhiteLabel never edited it (or lacks a needed file) -> take main's version
             ops.append((p, s))
             taken.append(('D ' if s is None else ('A ' if b is None else 'M ')) + p)
             continue
@@ -313,10 +390,13 @@ def main():
         section('Updated from main (WhiteLabel had not edited them)', taken)
         + section('3-way merged (both branches edited, merged cleanly)', merged)
         + section('Kept WhiteLabel version (test/artifact file conflict)', kept_wl)
+        + section('Carried because synced code needs them', pulled_in)
+        + f'Skipped — CloudIVR web only (bots don\'t use it): {len(skipped_web)} file(s)\n'
         + section('Skipped — WhiteLabel brand files (never synced)', skipped_brand)
         + section('Skipped — GitHub workflow files (Actions token may not change them; run from main)', skipped_ci)
         + section('Already identical on both branches', in_sync)
         + f'Skipped — docs/session notes: {len(skipped_docs)} file(s)\n'
+        + (f'Skipped — not in the shared-files manifest: {skipped_unlisted} file(s)\n' if listed is not None else '')
     )
     print('\n' + report)
 
@@ -374,7 +454,7 @@ def main():
             os.unlink(idx)
 
     n_code = len(taken) + len(merged)
-    body = (f'sync(WhiteLabel): carry main {base[:8]}..{source[:8]} ({n_code} file(s))\n\n'
+    body = (f'sync(WhiteLabel){" shared-fix" if listed is not None else ""}: carry main {base[:8]}..{source[:8]} ({n_code} file(s))\n\n'
             f'Brand-safe sync by scripts/sync_whitelabel.py — WhiteLabel brand files and\n'
             f'session docs untouched; only main\'s code changes carried over.\n\n' + report)
     commit = out('commit-tree', tree, '-p', target, input=body.encode(), env=env)

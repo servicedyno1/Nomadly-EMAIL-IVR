@@ -21,6 +21,7 @@ let _walletOf = null
 let _payments = null
 let _nanoid = null
 let _bot = null
+let _db = null
 
 function initSmsLimits(deps) {
   _incrementSmsUsed = deps.incrementSmsUsed
@@ -29,6 +30,7 @@ function initSmsLimits(deps) {
   _payments = deps.payments
   _nanoid = deps.nanoid
   _bot = deps.bot
+  _db = deps.db || null
   log('[SmsService] Initialized with real-time limit enforcement + overage billing')
 }
 
@@ -51,9 +53,11 @@ async function forwardSmsToTelegram(bot, chatId, from, to, body) {
   }
 }
 
-// ── Forward SMS to Email via Brevo ──
-async function forwardSmsToEmail(toEmail, from, to, body) {
-  if (!BREVO_API_KEY || !toEmail) return
+// ── Forward SMS to Email (js/mailer.js: MailerSend for verified sender domains, else Brevo) ──
+async function forwardSmsToEmail(toEmail, from, to, body, web = false) {
+  if ((!BREVO_API_KEY && !process.env.MAILERSEND_API_TOKEN && process.env.MAIL_PROVIDER !== 'telnyx') || !toEmail) return
+  const own = web && process.env.CLOUDIVR_MAIL_SENDER
+  const sender = own ? { name: 'CloudIVR', email: own } : { name: (process.env.CHAT_BOT_BRAND || 'Nomadly') + ' Cloud Phone', email: MAIL_SENDER }
 
   const subject = `Inbound SMS from ${formatPhone(from)} to ${formatPhone(to)}`
   const htmlContent = `
@@ -68,25 +72,15 @@ async function forwardSmsToEmail(toEmail, from, to, body) {
         <div style="background: #16213e; padding: 16px; border-radius: 8px; margin-top: 16px; border-left: 3px solid #10b981;">
           <p style="margin: 0; color: #e5e5e5; font-size: 15px;">${body}</p>
         </div>
-        <p style="color: #6b7280; font-size: 12px; margin-top: 16px;">Powered by ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} Cloud Phone</p>
+        <p style="color: #6b7280; font-size: 12px; margin-top: 16px;">Powered by ${sender.name}</p>
       </div>
     </div>`
 
   try {
-    await axios.post('https://api.brevo.com/v3/smtp/email', {
-      sender: { name: ((process.env.CHAT_BOT_BRAND || 'Nomadly') + ' Cloud Phone'), email: MAIL_SENDER },
-      to: [{ email: toEmail }],
-      subject: subject,
-      htmlContent: htmlContent,
-    }, {
-      headers: {
-        'api-key': BREVO_API_KEY,
-        'Content-Type': 'application/json',
-      }
-    })
-    log(`SMS forwarded to email=${toEmail} from=${from}`)
+    const r = await require('./mailer').send({ from: sender, to: toEmail, subject, html: htmlContent })
+    log(`SMS forwarded to email=${toEmail} from=${from} via ${r.provider}`)
   } catch (e) {
-    log('forwardSmsToEmail Brevo error:', e.response?.data || e.message)
+    log('forwardSmsToEmail error:', e.provider || '', e.status || '', e.message)
   }
 }
 
@@ -146,6 +140,7 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
     }
 
     if (!ownerChatId || !numberConfig) {
+      if (await require('./hosted-sms.js').onInbound({ from, to: cleanTo, body }).catch(e => { log(`[HostedSMS] inbound: ${e.message}`); return false })) return
       return log(`handleInboundSms: no owner found for ${cleanTo}`)
     }
 
@@ -183,15 +178,15 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
     const smsConfig = numberConfig.features?.smsForwarding || {}
 
     // Forward to Telegram (web accounts: an inbox item that can be answered in place)
+    const webNotify = require('./cloudivr-web/notify.js')
     if (smsConfig.toTelegram !== false) {
-      const webNotify = require('./cloudivr-web/notify.js')
       if (webNotify.isWebChatId(ownerChatId)) await webNotify.push(ownerChatId, `📩 SMS received\n\nTo: ${formatPhone(cleanTo)}\nFrom: ${formatPhone(from)}\n\n"${body}"`, null, { kind: 'sms', meta: { from, to: cleanTo } }).catch(() => {})
       else await forwardSmsToTelegram(bot, ownerChatId, from, to, body)
     }
 
     // Forward to Email via Brevo
     if (smsConfig.toEmail) {
-      await forwardSmsToEmail(smsConfig.toEmail, from, to, body)
+      await forwardSmsToEmail(smsConfig.toEmail, from, to, body, webNotify.isWebChatId(ownerChatId))
     }
 
     // Forward to Webhook
@@ -206,6 +201,8 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
 
     // Log in DB
     if (phoneLogs?.insertOne) {
+      // Picture messages: provider links expire, so CloudIVR keeps its own copy.
+      const media = (payload.media || []).length ? await require('./cloudivr-web/media').keepRemote({ collection: (n) => phoneLogs.s.db.collection(n) }, ownerChatId, payload.media, log).catch(() => []) : []
       await phoneLogs.insertOne({
         phoneNumber: cleanTo,
         chatId: ownerChatId,
@@ -214,6 +211,8 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
         from: from,
         to: to,
         body: body,
+        ...(media.length ? { media } : {}),
+        ...(payload.id ? { messageId: payload.id } : {}),
         timestamp: new Date().toISOString(),
       })
     }

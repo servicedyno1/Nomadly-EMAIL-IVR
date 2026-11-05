@@ -87,13 +87,21 @@ async function isDomainOwnedByChat(db, domain, chatId) {
   if (!db || !domain || !chatId) return false
   const cid = String(chatId)
   try {
-    // Newer schema: per-domain doc keyed by domain in either collection
-    const [regDom, domOfByDomain] = await Promise.all([
+    // Newer schema: per-domain doc keyed by domain in either collection.
+    // domainsOf also stores per-domain docs keyed by ObjectId _id with the
+    // domain in `domainName` — the original `_id: domain` lookup missed those,
+    // so platform-registered OpenProvider domains were misjudged as "external"
+    // and the panel skipped the automatic NS delegation (secureonlineportal.org
+    // / johngambino 2026-11: zone stuck pending → CF error 523). Query by
+    // domainName too (this is the shape getDomainMeta() reads).
+    const [regDom, domOfById, domOfByName] = await Promise.all([
       db.collection('registeredDomains').findOne({ _id: domain }),
       db.collection('domainsOf').findOne({ _id: domain }),
+      db.collection('domainsOf').findOne({ domainName: domain }),
     ])
     if (regDom?.val?.chatId && String(regDom.val.chatId) === cid) return true
-    if (domOfByDomain?.chatId && String(domOfByDomain.chatId) === cid) return true
+    if (domOfById?.chatId && String(domOfById.chatId) === cid) return true
+    if (domOfByName?.chatId && String(domOfByName.chatId) === cid) return true
 
     // Legacy schema: per-user doc keyed by chatId with `domain@tld: true` fields
     const legacyKey = domain.replace(/\./g, '@')

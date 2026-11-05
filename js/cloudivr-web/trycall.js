@@ -6,16 +6,17 @@ const crypto = require('crypto')
 const jwt = require('jsonwebtoken')
 const phoneConfig = require('../phone-config')
 const { normPhone, E164 } = require('./numbers')
+const { dialIssue } = require('../dial-check')
 const { secret, clientIp, sendMail, normEmail, EMAIL_RE } = require('./auth')
 
 // WEB_TRYCALL_LIVE=true places real demo calls (and emails real codes) even on a dry-run preview.
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true' && process.env.WEB_TRYCALL_LIVE !== 'true'
 const MAX_SECONDS = 60
-const RING_SECONDS = 30
+const RING_SECONDS = 45
 const DAILY_LIMIT = 3
 const CODE_TTL_MS = 10 * 60000
 const TRY_ID_BASE = 8e15 // inside the web chatId range, so engine messages for demo calls stay off Telegram
-const GREETING = 'Hi, this is the CloudIVR demo line. Press 1 to hear how call forwarding works. Press 2 for voicemail. Press 3 for outbound campaigns.'
+const GREETING = 'Hi! This is CloudIVR — the free test call you asked for on our website. This is a live phone menu, so use your keypad. Press 1 to hear call forwarding. Press 2 for voicemail. Press 3 for outbound campaigns. Again: press 1, 2 or 3 now.'
 const MENU = {
   1: { action: 'message', label: 'Forwarding', message: 'With call forwarding, this caller would now ring your phone, your team, or your SIP line, anywhere in the world. Thanks for trying CloudIVR. Goodbye.' },
   2: { action: 'message', label: 'Voicemail', message: 'With voicemail, callers leave a message after your greeting and the recording lands in your CloudIVR inbox and your email. Thanks for trying CloudIVR. Goodbye.' },
@@ -61,6 +62,7 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     // Must start with + or 00: guessing the country of a bare number could ring someone abroad.
     const to = /^(\+|00)/.test(s) ? normPhone(s.replace(/^00/, '+')) : ''
     if (!E164.test(to)) return { err: 'Enter the phone number with + and country code, e.g. +14155550100.' }
+    if (dialIssue(to)) return { err: dialIssue(to) }
     if (phoneConfig.isBlockedPrefix(to) || voiceService.getIvrCallRate(to) > 0.5) return { err: 'Free test calls go to standard mobile and landline numbers only.' }
     return { to }
   }

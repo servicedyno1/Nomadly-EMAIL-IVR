@@ -4,6 +4,7 @@
 const fs = require('fs')
 const crypto = require('crypto')
 const phoneConfig = require('../phone-config')
+const lifecycle = require('../plan-lifecycle')
 const ivrTpl = require('../ivr-templates')
 const vmGreeting = require('../voicemail-greeting')
 const notify = require('./notify')
@@ -16,7 +17,7 @@ const MAX_TEMPLATES = 20
 const html = (s) => notify.strip(s)
 const today = () => new Date().toISOString().slice(0, 10)
 
-function routes(router, { db, h, numbersApi, bulkCallService, getTodayCoupons, placeTestMyNumberCall, startTestOutboundSip, notifyAdmin = () => {}, log = console.log }) {
+function routes(router, { db, h, numbersApi, offers = null, bulkCallService, getTodayCoupons, placeTestMyNumberCall, startTestOutboundSip, notifyAdmin = () => {}, log = console.log }) {
   const phoneNumbersOf = db.collection('phoneNumbersOf')
   const phoneTransactions = db.collection('phoneTransactions')
   const prefs = db.collection('webPrefs')
@@ -39,6 +40,7 @@ function routes(router, { db, h, numbersApi, bulkCallService, getTodayCoupons, p
   router.post('/numbers/:phone/extra', withNumber(async (req, res) => {
     const n = req.num, chatId = req.webChatId
     if (n.isSubNumber) return bad(res, 400, 'is_extra', 'This is already an extra number. Add extras from its main number.')
+    if (n.replacedBy) return bad(res, 409, 'replaced', `This number was replaced by ${n.replacedBy}. Add extra numbers there.`)
     if (n.status !== 'active') return bad(res, 400, 'not_active', 'The main number must be active to add extra numbers.')
     const limit = phoneConfig.getSubNumberLimit(n.plan)
     if ((await subsOf(chatId, n.phoneNumber)).length >= limit) return bad(res, 400, 'limit_reached', `The ${phoneConfig.plans[n.plan]?.name || n.plan} plan allows ${limit} extra numbers. Upgrade the main number to add more.`)
@@ -58,6 +60,7 @@ function routes(router, { db, h, numbersApi, bulkCallService, getTodayCoupons, p
     const n = req.num, newPlan = String(req.body.plan || '')
     const order = Object.keys(phoneConfig.plans)
     if (n.isSubNumber) return bad(res, 400, 'is_extra', 'Extra numbers follow the plan of their main number.')
+    if (n.replacedBy) return bad(res, 409, 'replaced', `This number was replaced by ${n.replacedBy}. Change the plan there.`)
     if (n.status === 'suspended' && n._holdUntil) return bad(res, 409, 'suspended', 'Restore this number first (Renew now), then change its plan.')
     if (!phoneConfig.plans[newPlan] || !phoneConfig.isPlanAvailable(newPlan) || order.indexOf(newPlan) >= order.indexOf(n.plan)) return bad(res, 400, 'invalid_plan', 'Pick a lower plan than the current one.')
     const cur = phoneConfig.plans[n.plan], next = phoneConfig.plans[newPlan]
@@ -65,28 +68,18 @@ function routes(router, { db, h, numbersApi, bulkCallService, getTodayCoupons, p
     const newPrice = round2(next.price + surcharge)
     const was = new Set(webFeatures(n.plan).filter(f => f.included).map(f => f.key))
     const lost = webFeatures(newPlan).filter(f => !f.included && was.has(f.key)).map(f => f.label)
-    const extras = (await subsOf(req.webChatId, n.phoneNumber)).length
-    const preview = { plan: newPlan, planName: next.name, newPrice, lost, minutes: [cur.minutes, next.minutes], sms: [cur.sms, next.sms], extras, extraLimit: phoneConfig.getSubNumberLimit(newPlan) }
+    const subs = await subsOf(req.webChatId, n.phoneNumber)
+    // SIP apps / desk phones are signed out (new logins); the browser phone keeps working on every plan.
+    const sipSignOut = phoneConfig.canAccessFeature(n.plan, 'sipCredentials') && !phoneConfig.canAccessFeature(newPlan, 'sipCredentials')
+    const preview = { plan: newPlan, planName: next.name, newPrice, lost, minutes: [cur.minutes, next.minutes], sms: [cur.sms, next.sms], extras: subs.length, extraLimit: phoneConfig.getSubNumberLimit(newPlan), sipSignOut, settingsKept: true }
     if (req.body.confirm !== true) return res.json({ preview })
-    const can = (k) => phoneConfig.canAccessFeature(newPlan, k)
-    const f = n.features || {}
-    const set = { 'val.numbers.$.plan': newPlan, 'val.numbers.$.planPrice': newPrice }
-    if (!can('sipCredentials')) set['val.numbers.$.sipDisabled'] = true
-    // Settings switched off are remembered so a later upgrade can switch them back on.
-    const saved = [...(n.downgradeSaved || [])]
-    const off = (key, path, cur, val) => {
-      if (can(key) || cur === undefined || cur === null || cur === val) return
-      set[`val.numbers.$.${path}`] = val
-      if (!saved.some(x => x.path === path)) saved.push({ key, path, value: cur })
-    }
-    off('ivr', 'features.ivr.enabled', f.ivr?.enabled, false)
-    off('callRecording', 'features.recording', f.recording, false)
-    off('voicemail', 'features.voicemail.enabled', f.voicemail?.enabled, false)
-    off('smsToEmail', 'features.smsForwarding.toEmail', f.smsForwarding?.toEmail, null)
-    off('smsWebhook', 'features.smsForwarding.webhookUrl', f.smsForwarding?.webhookUrl, null)
-    set['val.numbers.$.downgradeSaved'] = saved
-    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: set })
+    // Settings switched off are remembered so a later upgrade can switch them back on. Running campaigns and
+    // scheduled calls are not touched — they finish as planned.
+    const { set } = lifecycle.downgradePatch(n, newPlan)
+    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: lifecycle.numberSet({ plan: newPlan, planPrice: newPrice, ...set }) })
     await syncExtras(req.webChatId, n.phoneNumber, newPlan)
+    if (sipSignOut) Promise.all([n, ...subs.filter(x => x.status !== 'released')].map(x => numbersApi.rotateSip(req.webChatId, x)))
+      .catch(e => log(`[CloudIVR-Web] SIP sign-out after downgrade failed for ${n.phoneNumber}: ${e.message}`))
     await phoneTransactions.insertOne({ chatId: req.webChatId, phoneNumber: n.phoneNumber, action: 'downgrade', oldPlan: n.plan, newPlan, oldPrice: n.planPrice, newPrice, amount: 0, paymentMethod: 'none', channel: 'web', timestamp: new Date().toISOString() })
     notifyAdmin(`🌐 CloudIVR web: ${n.phoneNumber} downgraded ${cur.name} → ${next.name} by web account ${req.webChatId}`)
     res.json({ plan: newPlan, planName: next.name, planPrice: newPrice, turnedOff: lost })
@@ -163,6 +156,34 @@ function routes(router, { db, h, numbersApi, bulkCallService, getTodayCoupons, p
     res.json({ lang, updated })
   }))
 
+  // ── Texting: sender name for brand-name countries + where each number can text ──
+  const SR = require('../sms-rules.js')
+  const senderOf = async (chatId) => (await prefs.findOne({ _id: chatId }, { projection: { senderName: 1 } }))?.senderName || null
+  const ownSender = async (chatId, phone) => {
+    if (await numbersApi.findMine(chatId, phone)) return { hosted: false }
+    const h = (await require('../hosted-sms.js').list(chatId)).find(x => x.phoneNumber === phone && x.status === 'active')
+    return h ? { hosted: true } : null
+  }
+  router.get('/prefs/sender-name', h(async (req, res) => res.json({ senderName: await senderOf(req.webChatId) })))
+  router.put('/prefs/sender-name', h(async (req, res) => {
+    const v = String(req.body.senderName || '').trim()
+    if (v && !/^(?=.*[A-Za-z])[A-Za-z0-9 ]{3,11}$/.test(v)) return bad(res, 400, 'invalid_sender', 'Use 3–11 letters or numbers (spaces allowed), with at least one letter.')
+    await prefs.updateOne({ _id: req.webChatId }, { $set: { senderName: v || null, updatedAt: new Date() } }, { upsert: true })
+    res.json({ senderName: v || null })
+  }))
+  router.get('/sms-reach', h(async (req, res) => {
+    const phone = String(req.query.phone || '')
+    const own = await ownSender(req.webChatId, phone)
+    if (!own) return bad(res, 404, 'not_found', 'Number not found.')
+    res.json(await SR.reach(phone, await senderOf(req.webChatId), own.hosted))
+  }))
+  router.post('/sms-reach/check', h(async (req, res) => {
+    const phone = String(req.body.phone || '')
+    const own = await ownSender(req.webChatId, phone)
+    if (!own) return bad(res, 404, 'not_found', 'Number not found.')
+    res.json(await SR.check(phone, String(req.body.to || '').replace(/[^\d+]/g, ''), await senderOf(req.webChatId), own.hosted))
+  }))
+
   // ── Daily coupon (same codes as the bot) ──
   const todaysCoupon = async () => {
     const codes = getTodayCoupons ? await getTodayCoupons().catch(() => ({})) : {}
@@ -175,28 +196,34 @@ function routes(router, { db, h, numbersApi, bulkCallService, getTodayCoupons, p
     const end = new Date(); end.setUTCHours(23, 59, 59, 0)
     res.json({ coupon: { code: c.code, discount: c.discount, used: c.usedBy.includes(String(req.webChatId)), expiresAt: end } })
   }))
-  // Once a day every web account gets today's code in its Inbox (one process sends it: unique marker per day).
+  // Once a day every web account gets its own offer in its Inbox (one marker per account per day, so accounts created
+  // later in the day get it on the next run). Top-up bonuses are paid by the same timer once deposits confirm.
   const notices = db.collection('webCouponNotices')
   notices.createIndex({ at: 1 }, { expireAfterSeconds: 3 * 86400 }).catch(() => {})
   async function announceCoupon() {
-    const c = await todaysCoupon()
-    if (!c) return
-    // One marker per account per day, so accounts created later in the day get the notice on the next run.
+    if (!offers) return
     const day = today()
     const accounts = await db.collection('webAccounts').find({}, { projection: { _id: 1 } }).toArray()
     let sent = 0
     for (const a of accounts) {
       const id = String(a._id)
-      if (c.usedBy.includes(id)) continue
-      try { await notices.insertOne({ _id: `daily:${day}:${id}`, code: c.code, at: new Date() }) } catch (e) { if (e.code === 11000) continue; throw e }
-      await notify.push(id, `Today's coupon: ${c.code} — ${c.discount}% off a new number or extra number. Use it at checkout before midnight UTC.`, null, { kind: 'coupon', meta: { coupon: c.code, discount: c.discount } }).catch(() => {})
+      if (await notices.findOne({ _id: `offer:${day}:${id}` }, { projection: { _id: 1 } })) continue
+      const o = await offers.current(id)
+      try { await notices.insertOne({ _id: `offer:${day}:${id}`, offer: o._id, at: new Date() }) } catch (e) { if (e.code === 11000) continue; throw e }
+      if (o.used) continue
+      const p = offers.present(o)
+      await notify.push(id, `Today's offer: ${p.title}. ${p.text} Ends at midnight UTC.`, null, { kind: 'coupon', meta: { ...(o.code ? { coupon: o.code } : {}), discount: o.discount || null, offer: o.kind, cta: p.cta } }).catch(() => {})
       sent++
     }
-    if (sent) log(`[CloudIVR-Web] daily coupon ${c.code} sent to ${sent} web account(s)`)
+    if (sent) log(`[CloudIVR-Web] daily offer sent to ${sent} web account(s)`)
   }
-  const timer = setInterval(() => { announceCoupon().catch(e => log(`[CloudIVR-Web] coupon notice: ${e.message}`)) }, 5 * 60000)
+  const tick = () => {
+    announceCoupon().catch(e => log(`[CloudIVR-Web] offer notice: ${e.message}`))
+    offers?.payBonuses((id, text) => notify.push(id, text, null, { kind: 'coupon', meta: { offer: 'bonus', used: true } })).catch(e => log(`[CloudIVR-Web] top-up bonus: ${e.message}`))
+  }
+  const timer = setInterval(tick, 60000)
   if (timer.unref) timer.unref()
-  setTimeout(() => announceCoupon().catch(() => {}), 20000).unref?.()
+  setTimeout(tick, 20000).unref?.()
 
   // ── Campaign CSV report (same file the bot sends at the end) ──
   router.get('/campaigns/:id/report.csv', h(async (req, res) => {

@@ -1,0 +1,41 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=DM+Sans:opsz,wght@9..40,500;9..40,600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1200px; height: 630px; }
+  body { background: #0a0a0a; font-family: 'DM Sans', sans-serif; color: #fff; position: relative; overflow: hidden; }
+  .glow { position: absolute; left: 50%; top: 40%; width: 1100px; height: 1100px; transform: translate(-50%, -50%); border-radius: 50%;
+    background: radial-gradient(circle, rgba(52,211,153,0.20) 0%, rgba(52,211,153,0.07) 30%, rgba(10,10,10,0) 62%); }
+  .dots { position: absolute; inset: 0; opacity: .07; background-image: radial-gradient(#34d399 1px, transparent 1px); background-size: 22px 22px;
+    -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%); }
+  .wave { position: absolute; top: 205px; height: 120px; display: flex; align-items: center; gap: 9px; }
+  .wave.l { left: 70px; } .wave.r { right: 70px; }
+  .wave i { display: block; width: 7px; border-radius: 4px; background: #34d399; }
+  .stack { position: absolute; left: 0; right: 0; top: 34px; display: flex; flex-direction: column; align-items: center; }
+  .ring { position: relative; width: 292px; height: 292px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    border: 2px solid rgba(52,211,153,.35); box-shadow: 0 0 0 18px rgba(52,211,153,.06), 0 0 0 40px rgba(52,211,153,.035), 0 0 80px rgba(52,211,153,.25); background: #0a0a0a; }
+  .ring img { width: 250px; height: 250px; border-radius: 50%; }
+  .word { margin-top: 30px; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 132px; line-height: .82; letter-spacing: .01em; }
+  .word span { color: #34d399; }
+  .line { margin-top: 22px; font-size: 31px; font-weight: 600; color: #e4e4e7; letter-spacing: -.01em; }
+  .line b { color: #34d399; font-weight: 600; }
+  .url { margin-top: 18px; font-family: 'JetBrains Mono', monospace; font-size: 22px; color: #a1a1aa; letter-spacing: .04em; }
+</style></head>
+<body>
+  <div class="glow"></div><div class="dots"></div>
+  <div class="wave l" id="wl"></div><div class="wave r" id="wr"></div>
+  <div class="stack">
+    <div class="ring"><img src="../../frontend/public/civr/brand/icon-512.png" alt=""></div>
+    <div class="word">CLOUD<span>IVR</span></div>
+    <div class="line">Quick IVR <b>&amp;</b> Bulk IVR campaigns</div>
+    <div class="url">cloudivr.net</div>
+  </div>
+  <script>
+    const H = [18, 34, 56, 30, 72, 98, 60, 40, 84, 110, 66, 38, 22]
+    for (const [id, arr] of [['wl', H], ['wr', [...H].reverse()]]) {
+      const el = document.getElementById(id)
+      arr.forEach((h, i) => { const b = document.createElement('i'); b.style.height = h + 'px'; const edge = id === 'wl' ? i : arr.length - 1 - i; b.style.opacity = (0.12 + edge * 0.035).toFixed(2); el.appendChild(b) })
+    }
+  </script>
+</body></html>

@@ -13,12 +13,15 @@ const { get } = require('./db.js')
 const { translation } = require('./translation.js')
 const { isTwilioEnabled } = require('./phone-config.js')
 const dialGuard = require('./dial-rate-guard.js')
+const contactsImport = require('./contacts-import.js')
+const sched = require('./campaign-schedule.js')
 
 // ━━━ Bulk Call Pricing & Limits ━━━
 const BULK_CALL_RATE       = parseFloat(process.env.BULK_CALL_RATE_PER_MIN || '0.15')   // $/min — charged whether answered or not
 const MAX_BULK_LEADS       = parseInt(process.env.BULK_CALL_MAX_LEADS || '500', 10)      // max leads per campaign
 const BULK_CALL_MIN_WALLET = parseFloat(process.env.BULK_CALL_MIN_WALLET || '20')        // minimum wallet balance to launch
 const TELNYX_DIAL_GAP_MS   = parseInt(process.env.BULK_TELNYX_DIAL_GAP_MS || '1000', 10) // account-wide Telnyx dial pacing (CPS)
+const VM_MAX_CALL_SEC      = parseInt(process.env.BULK_VM_MAX_CALL_SEC || '60', 10)      // voicemail-drop campaigns: max call length
 const STUCK_LEAD_MAX_MIN   = parseInt(process.env.BULK_STUCK_LEAD_MAX_MIN || '20', 10)   // in-flight lead with no completion → swept
 
 // Legacy campaigns (pre-Telnyx) carry no provider field — they are Twilio campaigns.
@@ -33,6 +36,8 @@ const LINE_403_MAX_RETRIES = 30 // a SIP 403 on hangup can also be a real carrie
 const HOURS_RECHECK_MS = 10 * 60000 // AI campaigns: leads outside 8am–9pm local time are rechecked every 10 min
 const isAiCampaign = (c) => c?.mode === 'ai'
 const aiAgent = () => require('./ai-agent')
+// The account's do-not-call list applies to every campaign (false if the list isn't loaded in this process).
+const onDnc = (chatId, number) => aiAgent().store.onDnc(chatId, number).catch(() => false)
 const TWILIO_UPGRADE_NOTICE = `⚠️ <b>Number Being Upgraded</b>\n\n` +
   `This campaign's caller ID is being moved to our new calling network, so it can't dial right now. ` +
   `Nothing was dialed or charged.\n\nStart a new campaign from your new number, or tap 💬 Support.`
@@ -346,7 +351,7 @@ const STALE_CAMPAIGN_HOURS = 24  // Campaigns with no progress for 24h are consi
 
 async function recoverRunningCampaigns() {
   if (!_collection) return
-  const runningCampaigns = await _collection.find({ status: 'running' }).toArray()
+  const runningCampaigns = await _collection.find({ status: 'running', dryRun: { $ne: true } }).toArray()
   if (runningCampaigns.length === 0) {
     log('[BulkCall] Recovery: No running campaigns to recover')
     return
@@ -392,7 +397,7 @@ async function recoverRunningCampaigns() {
       log(`[BulkCall] Recovery: Campaign ${campaignId} (user ${campaign.chatId}) — BLOCKED (no sub-account)`)
       _bot?.sendMessage(campaign.chatId,
         `🚫 <b>Campaign Cancelled After Restart</b>\n\n` +
-        `Your Bulk IVR campaign could not be resumed because it requires a Twilio-powered number.\n` +
+        `Your Bulk IVR campaign could not be resumed because its caller number no longer supports Bulk IVR.\n` +
         `${pendingLeads.length} leads were not dialed.`,
         { parse_mode: 'HTML' }
       ).catch(() => {})
@@ -404,7 +409,7 @@ async function recoverRunningCampaigns() {
     const hoursSinceActivity = lastActivity ? (Date.now() - lastActivity.getTime()) / (1000 * 60 * 60) : Infinity
     const hoursSinceStart = campaign.startedAt ? (Date.now() - new Date(campaign.startedAt).getTime()) / (1000 * 60 * 60) : Infinity
 
-    if (hoursSinceActivity > STALE_CAMPAIGN_HOURS && hoursSinceStart > STALE_CAMPAIGN_HOURS) {
+    if (hoursSinceActivity > STALE_CAMPAIGN_HOURS && hoursSinceStart > STALE_CAMPAIGN_HOURS && !campaign.waitingForDailyLimit) {
       await _collection.updateOne({ id: campaignId }, {
         $set: { status: 'cancelled', completedAt: new Date(), cancelledReason: `Recovery cleanup: stale campaign (${Math.round(hoursSinceActivity)}h since last activity)` }
       })
@@ -629,77 +634,24 @@ async function sweepStuckLeads() {
   return swept
 }
 
-/**
- * Parse a leads file (CSV or TXT)
- * Supports: one number per line, or CSV with number,name columns
- * @param {string} content - File content
- * @returns {{ leads: Array<{number, name}>, errors: string[] }}
- */
-// 2026-10-01 (@jameswalker3646): a binary upload (xlsx/pdf/audio) read as text yielded
-// garbage "leads" whose names contained "<" → Telegram HTML parse error → user saw nothing.
-function looksBinary(content) {
-  const sample = String(content || '').slice(0, 4000)
-  if (!sample) return false
-  if (sample.includes('\u0000') || sample.includes('\uFFFD')) return true
-  // eslint-disable-next-line no-control-regex
-  const bad = (sample.match(/[^\x09\x0A\x0D\x20-\x7E\u00A0-\uFFFC]/g) || []).length
-  return bad >= 8 && bad / sample.length > 0.1
-}
-
-function parseLeadsFile(content) {
-  if (looksBinary(content)) return { leads: [], errors: ['File is not plain text (binary/spreadsheet/audio). Upload a .txt or .csv file.'], binary: true }
-  const lines = content.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'))
-  const leads = []
-  const errors = []
-  const seen = new Set()
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-    let number = ''
-    let name = null
-
-    // Try CSV (comma or semicolon separated)
-    if (line.includes(',') || line.includes(';')) {
-      const parts = line.split(/[,;]/).map(p => p.trim())
-      number = parts[0]
-      name = parts[1] || null
-    } else {
-      number = line
-    }
-
-    // Clean the number
-    number = number.replace(/["'\s]/g, '')
-    // NANP fix (2026-02 @blacknmilds): a bare 10-digit US/Canada number pasted
-    // without "+" was becoming "+4065067340" — which E.164 parses as Romania
-    // (+40), not US (+1). Every call then failed with Twilio "Account not
-    // authorized to call…" geo-permissions. Prepend +1 for 10-digit input.
-    number = number.replace(/[^\d+]/g, '')
-    if (!number.startsWith('+')) {
-      if (/^\d{10}$/.test(number)) number = '+1' + number           // NANP 10-digit
-      else if (/^1\d{10}$/.test(number)) number = '+' + number      // NANP 1-prefixed
-      else number = '+' + number.replace(/^0+/, '')
-    }
-    number = number.replace(/[^+\d]/g, '')
-
-    if (!number.match(/^\+\d{8,15}$/)) {
-      errors.push(`Line ${i + 1}: Invalid number "${lines[i].substring(0, 30).replace(/[<>&]/g, '')}"`)
-      continue
-    }
-
-    if (seen.has(number)) continue // skip duplicates
-    seen.add(number)
-    const cleanName = name ? name.replace(/[^\x20-\x7E\u00A0-\uFFFC]/g, '').trim().slice(0, 60) : ''
-    leads.push({ number, name: cleanName || null })
+// Leads from a pasted list or an uploaded file (.xlsx / .csv / .txt). The phone and name columns are found from the
+// headers (Phone, Mobile, Name, First name…) or the cell contents; see contacts-import.js.
+// 2026-10-01 (@jameswalker3646): unreadable binary uploads (pdf/audio/old .xls) return { binary: true } so the bot
+// answers with a clear message instead of garbage "leads".
+function parseLeadsFile(content, fileName) {
+  try {
+    return contactsImport.parseLeads(Buffer.isBuffer(content) ? content : String(content || ''), fileName)
+  } catch (e) {
+    if (!e.code) throw e
+    return { leads: [], errors: [e.message], binary: true, columns: null }
   }
-
-  return { leads, errors }
 }
 
 /**
  * Create a new campaign
  */
 async function createCampaign(params) {
-  const { chatId, callerId, audioUrl, audioName, mode, transferNumber, transferBackups, menu, activeKeys, concurrency, holdMusic, leads, twilioSubAccountSid, twilioSubAccountToken, scheduledFor, provider, voicemailAudioUrl, voicemailAudioName, agentId, agentName } = params
+  const { chatId, callerId, audioUrl, audioName, mode, transferNumber, transferBackups, menu, activeKeys, concurrency, holdMusic, leads, twilioSubAccountSid, twilioSubAccountToken, scheduledFor, provider, voicemailAudioUrl, voicemailAudioName, agentId, agentName, repeat, dailyLimit, tz } = params
 
   // ━━━ Enforce max lead limit ━━━
   if (leads.length > MAX_BULK_LEADS) {
@@ -720,6 +672,7 @@ async function createCampaign(params) {
     callerId,
     audioUrl,
     audioName: audioName || 'Custom Audio',
+    name: String(params.name || '').trim().slice(0, 80) || null,
     mode: mode || 'report_only', // 'transfer' | 'report_only' | 'ai' (an AI voice agent talks to each lead)
     agentId: mode === 'ai' ? agentId : null,
     agentName: mode === 'ai' ? (agentName || null) : null,
@@ -767,7 +720,12 @@ async function createCampaign(params) {
     startedAt: null,
     completedAt: null,
     createdAt: new Date(),
+    // Repeat runs + daily call limit (web app); tz = owner's time zone for "same time" / "per day".
+    repeat: sched.REPEATS.includes(repeat) ? repeat : null,
+    dailyLimit: dailyLimit > 0 ? Math.floor(dailyLimit) : null,
+    tz: tz ? sched.zoneOf(tz) : null,
   }
+  if (campaign.repeat) { campaign.seriesId = campaign.id; campaign.runNumber = 1 }
 
   if (schedAt) campaign.status = 'scheduled'
 
@@ -786,11 +744,19 @@ async function launchDueScheduledCampaigns() {
   const launched = []
   if (!_collection) return launched
   const now = new Date()
-  const due = await _collection.find({ status: 'scheduled', scheduledFor: { $lte: now } }).limit(20).toArray()
+  const due = await _collection.find({ status: 'scheduled', scheduledFor: { $lte: now }, dryRun: { $ne: true } }).limit(20).toArray()
   for (const c of due) {
+    // Repeat run while the previous run is still calling → that run finishes first; this one moves to the next slot.
+    if (c.seriesId && await _collection.findOne({ seriesId: c.seriesId, id: { $ne: c.id }, status: { $in: ['running', 'paused'] } }, { projection: { id: 1 } })) {
+      const next = sched.nextRunAt(c)
+      await _collection.updateOne({ id: c.id, status: 'scheduled' }, { $set: { scheduledFor: next, lastSkippedAt: new Date() } })
+      log(`[BulkSchedule] ${c.id}: previous run still calling — moved to ${next.toISOString()}`)
+      continue
+    }
     // Atomic claim — only the winner flips 'scheduled' -> 'created' and proceeds.
     const claim = await _collection.updateOne({ id: c.id, status: 'scheduled' }, { $set: { status: 'created', claimedAt: new Date() } })
     if (!claim || claim.modifiedCount !== 1) continue
+    if (c.repeat) await spawnNextRun(c).catch(e => log(`[BulkSchedule] next run for ${c.id} failed: ${e.message}`))
     const leadCount = (c.stats && c.stats.total) || (Array.isArray(c.leads) ? c.leads.length : 0)
     try {
       const r = await startCampaign(c.id)
@@ -802,6 +768,30 @@ async function launchDueScheduledCampaigns() {
     }
   }
   return launched
+}
+
+// Repeating campaign: schedules its next run once (the launch of a run creates the one after it).
+async function spawnNextRun(c) {
+  if (!c.repeat) return null
+  const id = crypto.randomUUID()
+  const r = await _collection.updateOne({ id: c.id, nextRunId: { $exists: false } }, { $set: { nextRunId: id } })
+  if (r.modifiedCount !== 1) return null
+  const at = sched.nextRunAt(c)
+  await _collection.insertOne(sched.nextRunDoc(c, id, at))
+  log(`[BulkSchedule] ${c.id}: next ${c.repeat} run ${id} at ${at.toISOString()}`)
+  return id
+}
+
+// Stop repeating: no more runs are made and upcoming auto-made runs are cancelled. Runs calling now keep going.
+async function stopRepeat(campaignId) {
+  const c = await _collection.findOne({ id: campaignId })
+  if (!c?.repeat) return { error: 'This campaign does not repeat.' }
+  const seriesId = c.seriesId || c.id
+  await _collection.updateMany({ seriesId }, { $set: { repeat: null } })
+  const upcoming = await _collection.find({ seriesId, autoRun: true, status: 'scheduled' }, { projection: { id: 1 } }).toArray()
+  for (const u of upcoming) await cancelCampaign(u.id, 'Repeat stopped', { sendReport: false })
+  log(`[BulkSchedule] series ${seriesId}: repeat stopped (${upcoming.length} upcoming run(s) cancelled)`)
+  return { success: true, cancelledRuns: upcoming.length }
 }
 
 /**
@@ -839,6 +829,7 @@ async function startCampaign(campaignId) {
   const campaign = await _collection.findOne({ id: campaignId })
   if (!campaign) return { error: 'Campaign not found' }
   if (campaign.status === 'running') return { error: 'Campaign already running' }
+  if (campaign.dryRun) return { error: 'Preview campaigns are never dialed.' }
   const isTelnyx = campaignProvider(campaign) === 'telnyx'
 
   // Reversible guard: legacy Twilio campaigns can't dial while Twilio is disabled.
@@ -853,10 +844,10 @@ async function startCampaign(campaignId) {
     log(`[BulkCall] BLOCKED campaign ${campaignId}: no twilioSubAccountSid — would use main Twilio account`)
     await _collection.updateOne({ id: campaignId }, { $set: { status: 'cancelled', cancelledReason: 'No Twilio sub-account — bulk IVR requires an owned Twilio number' } })
     _bot?.sendMessage(campaign.chatId,
-      `🚫 <b>Campaign Blocked</b>\n\nBulk IVR campaigns require a Twilio-powered Cloud IVR number.\nYour current number does not support Bulk IVR.\n\nPurchase a ☎️ Bulk IVR capable number to use this feature.`,
+      `🚫 <b>Campaign Blocked</b>\n\nYour current number does not support Bulk IVR.\n\nPurchase a ☎️ Bulk IVR capable number to use this feature.`,
       { parse_mode: 'HTML' }
     ).catch(() => {})
-    return { error: 'Bulk IVR requires a Twilio-powered number with a sub-account. Campaign blocked.' }
+    return { error: 'This number does not support Bulk IVR. Campaign blocked.' }
   }
 
   // ━━━ PRE-CAMPAIGN CREDIT CHECK: Bulk calls charge $BULK_CALL_RATE/min from wallet (plan minutes NOT used) ━━━
@@ -944,6 +935,7 @@ async function startCampaign(campaignId) {
   await _collection.updateOne({ id: campaignId }, { $set: { status: 'running', startedAt: new Date() } })
   campaign.status = 'running'
   campaign.startedAt = new Date()
+  if (campaign.repeat) await spawnNextRun(campaign).catch(e => log(`[BulkSchedule] next run for ${campaignId} failed: ${e.message}`))
 
   // Initialize in-memory state
   activeCampaigns[campaignId] = {
@@ -1017,6 +1009,7 @@ function dialTelnyx(campaign, lead) {
   return _voiceService.initiateOutboundIvrCall({
     chatId: campaign.chatId,
     callerId: campaign.callerId,
+    displayCallerId: campaign.showAs || null,
     targetNumber: lead.number,
     ivrNumber: isTransfer ? (campaign.transferNumber || null) : null,
     transferBackups: isTransfer ? (campaign.transferBackups || []) : [],
@@ -1026,6 +1019,9 @@ function dialTelnyx(campaign, lead) {
     templateName: campaign.audioName,
     holdMusic: !!campaign.holdMusic,
     voicemailAudioUrl: /^https?:\/\//i.test(campaign.voicemailAudioUrl || '') ? campaign.voicemailAudioUrl : null,
+    // Voicemail-drop campaigns: no call runs past BULK_VM_MAX_CALL_SEC (default 60 s, hung up ~3 s early so it bills as 1 min)
+    // unless connected to the owner or a voicemail message is being left (voice-service CAP_EXEMPT_PHASES).
+    maxCallSec: campaign.voicemailAudioUrl ? VM_MAX_CALL_SEC : null,
     campaignId: campaign.id,
     leadIndex: lead.index,
     bulkMode: isTransfer ? 'transfer' : 'report_only',
@@ -1055,6 +1051,7 @@ async function requeueForLines(campaignId, leadIndex, extra = {}) {
     $set: { [`leads.${leadIndex}.status`]: 'pending', [`leads.${leadIndex}.startedAt`]: null, [`leads.${leadIndex}.callSid`]: null, [`leads.${leadIndex}.waitingForLine`]: true, lineLimitAt: new Date(), ...extra },
     $inc: { [`leads.${leadIndex}.lineRetries`]: 1 },
   })
+  await sched.refundDailySlot(_collection, campaignId)
   const st = activeCampaigns[campaignId]
   if (!st) return
   st.lineBackoff = Math.min(LINE_RETRY_MAX_MS, st.lineBackoff ? st.lineBackoff * 2 : LINE_RETRY_MIN_MS)
@@ -1069,7 +1066,8 @@ async function fireNextBatch(campaignId) {
   if (!state || state.paused) return
 
   const campaign = await _collection.findOne({ id: campaignId })
-  if (!campaign || campaign.status !== 'running') return
+  // Preview (dry-run) campaigns never place real calls, even after a restart's recovery.
+  if (!campaign || campaign.status !== 'running' || campaign.dryRun) return
 
   if (campaign.concurrency - state.activeCalls <= 0) return
 
@@ -1094,16 +1092,16 @@ async function fireNextBatch(campaignId) {
     } catch (e) { log(`[BulkCall] Per-batch credit check error: ${e.message}`) }
   }
 
-  let fired = 0, outsideHours = 0
+  let fired = 0, outsideHours = 0, limitHit = false
   for (const lead of pendingLeads) {
     if (state.paused || state.activeCalls >= campaign.concurrency) break
+    // Do-not-call list (every campaign): never dialed, never billed.
+    if (await onDnc(campaign.chatId, lead.number)) {
+      await _collection.updateOne({ id: campaignId, [`leads.${lead.index}.status`]: 'pending' }, { $set: { [`leads.${lead.index}.status`]: 'skipped', [`leads.${lead.index}.hangupCause`]: 'On your do-not-call list', [`leads.${lead.index}.completedAt`]: new Date() } })
+      await recalcStats(campaignId)
+      continue
+    }
     if (isAi) {
-      // Do-not-call list: never dialed, never billed.
-      if (await aiAgent().store.onDnc(campaign.chatId, lead.number)) {
-        await _collection.updateOne({ id: campaignId, [`leads.${lead.index}.status`]: 'pending' }, { $set: { [`leads.${lead.index}.status`]: 'skipped', [`leads.${lead.index}.hangupCause`]: 'On your do-not-call list', [`leads.${lead.index}.completedAt`]: new Date() } })
-        await recalcStats(campaignId)
-        continue
-      }
       // Calling hours (TCPA): only 8am–9pm in the lead's local time — otherwise the lead waits.
       if (!aiAgent().hours.callableNow(lead.number)) { outsideHours++; continue }
       const { usdBal } = await getBalance(_walletOf, campaign.chatId)
@@ -1120,9 +1118,12 @@ async function fireNextBatch(campaignId) {
       await telnyxDialSlot()
       if (state.paused || state.activeCalls >= campaign.concurrency) break
     }
+    // Daily call limit: today's calls used up → the rest wait for tomorrow (owner's time zone).
+    if (campaign.dailyLimit && !(await sched.reserveDailySlot(_collection, campaign))) { limitHit = true; break }
     state.activeCalls++
     if (!(await claimLead(campaignId, lead.index))) {
       state.activeCalls--
+      if (campaign.dailyLimit) await sched.refundDailySlot(_collection, campaignId)
       continue
     }
     fired++
@@ -1142,12 +1143,14 @@ async function fireNextBatch(campaignId) {
         // Provider account / caller ID suspended or out of funds → end the whole campaign now (no further dials, no charge).
         if (isProviderSuspended(result)) {
           await updateLeadResult(campaignId, lead.index, { status: 'pending', startedAt: null })
+          await sched.refundDailySlot(_collection, campaignId)
           await endCampaignProviderSuspended(campaignId, lead.number)
           return
         }
         // Wallet can't cover this lead's (destination) rate → pause instead of failing the lead.
         if (/^Insufficient wallet balance/i.test(String(result.error))) {
           await updateLeadResult(campaignId, lead.index, { status: 'pending', startedAt: null })
+          await sched.refundDailySlot(_collection, campaignId)
           const { usdBal } = await getBalance(_walletOf, campaign.chatId)
           log(`[BulkCall] Pausing campaign ${campaignId}: wallet can't cover ${lead.number} at $${leadRate(lead.number)}/min`)
           await pauseForWallet(campaign, usdBal, leadRate(lead.number))
@@ -1195,6 +1198,11 @@ async function fireNextBatch(campaignId) {
     const waiting = outsideHours > 0 && fired === 0 && state.activeCalls === 0
     if (!!campaign.waitingForHours !== waiting) await _collection.updateOne({ id: campaignId }, { $set: { waitingForHours: waiting } })
     if (outsideHours > 0) retryLater(campaignId, HOURS_RECHECK_MS)
+  }
+
+  if (campaign.dailyLimit) {
+    if (!!campaign.waitingForDailyLimit !== limitHit) await _collection.updateOne({ id: campaignId }, { $set: { waitingForDailyLimit: limitHit } })
+    if (limitHit) retryLater(campaignId, Math.min(sched.msToNextDay(campaign.tz) + 5000, HOURS_RECHECK_MS))
   }
 
   // Check if all done (in case all calls failed immediately)
@@ -1446,7 +1454,7 @@ async function billLead(campaign, leadIndex, finalStatus, duration) {
   }
 }
 
-// AI campaign lead: $0.20 per started minute of conversation (higher-cost destinations bill their IVR rate). Unanswered = free.
+// AI campaign lead: $0.30 per started minute of conversation (higher-cost destinations bill their IVR rate). Unanswered = free.
 async function billAiLead(campaign, leadIndex, bill) {
   const lead = campaign.leads[leadIndex]
   if (!bill || !(bill.charge > 0) || !_walletOf) return
@@ -1657,7 +1665,7 @@ async function sendFinalReport(campaignId) {
  * Generate a detailed CSV report file
  */
 async function generateReportFile(campaign) {
-  const lines = ['Number,Name,Status,Key Pressed,Duration (s),Transferred,Transfer Connected,Hangup Cause,Answered By']
+  const lines = ['Number,Name,Status,Key Pressed,Duration (s),Transferred,Transfer Connected,Hangup Cause,Answered By,Voicemail Left']
 
   for (const lead of campaign.leads) {
     lines.push([
@@ -1670,6 +1678,7 @@ async function generateReportFile(campaign) {
       lead.transferConnected ? 'Yes' : 'No',
       lead.hangupCause ? sanitizeHangupCause(lead.hangupCause) : '',
       lead.answeredBy ? `${lead.answeredBy}${lead.voicemailDropped ? ' (message left)' : ''}` : '',
+      lead.voicemailDropped ? 'Yes' : 'No',
     ].join(','))
   }
 
@@ -1825,6 +1834,8 @@ module.exports = {
   createCampaign,
   startCampaign,
   launchDueScheduledCampaigns,
+  spawnNextRun,
+  stopRepeat,
   onDigitReceived,
   onCallStatusUpdate,
   onCallComplete,

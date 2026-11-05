@@ -6,11 +6,12 @@ const store = require('./store')
 const { Bridge } = require('./bridge')
 const recorder = require('./recorder')
 const booking = require('./booking')
+const { SAMPLE_LEAD } = require('./opening')
 const phoneConfig = require('../phone-config')
 const telnyxApi = require('../telnyx-service')
 const { getBalance, smartWalletDeduct } = require('../utils.js')
 
-const RATE = () => parseFloat(process.env.AI_AGENT_RATE_PER_MIN || '0.20')
+const RATE = () => parseFloat(process.env.AI_AGENT_RATE_PER_MIN || '0.30')
 const TEST_MAX_SECS = 180
 const TEST_DAILY_SECS = 15 * 60
 const CLIENT_STATE = Buffer.from('ai_agent').toString('base64')
@@ -49,7 +50,7 @@ async function tryInbound({ payload, chatId, num }) {
   const cfg = num.features?.aiAgent
   if (!cfg?.enabled || !phoneConfig.canAccessFeature(num.plan, 'aiAgent')) return false
   const agent = await store.getAgent(cfg.agentId, chatId)
-  if (!agent || !process.env.APP_OPEN_API_KEY) return false
+  if (!agent || agent.disabled || !process.env.APP_OPEN_API_KEY) return false
   const rate = RATE() + recRate(agent)
   const { usdBal } = await getBalance(deps.walletOf, chatId)
   if (usdBal < rate + committed(chatId)) { log(`[AIAgent] ${num.phoneNumber}: wallet $${usdBal} < $${rate}/min — normal routing`); return false }
@@ -73,12 +74,13 @@ async function tryInbound({ payload, chatId, num }) {
 async function dialLead(campaign, lead) {
   const agent = await store.getAgent(campaign.agentId, campaign.chatId)
   if (!agent) return { error: 'The AI agent for this campaign was deleted.' }
+  if (agent.disabled) return { error: 'This AI agent was stopped by CloudIVR. Contact support.' }
   const token = newToken()
   const calendar = await booking.forCall(campaign.chatId, agent, lead.number).catch(() => null)
   try {
     const r = await tx('/calls', {
-      connection_id: process.env.TELNYX_CALL_CONTROL_APP_ID, to: lead.number, from: campaign.callerId, webhook_url: `${deps.selfUrl}/telnyx/voice-webhook`,
-      client_state: CLIENT_STATE, answering_machine_detection: 'detect', timeout_secs: 30, ...streamParams(token),
+      connection_id: process.env.TELNYX_CALL_CONTROL_APP_ID, to: lead.number, from: campaign.showAs || campaign.callerId, webhook_url: `${deps.selfUrl}/telnyx/voice-webhook`,
+      client_state: CLIENT_STATE, answering_machine_detection: 'premium', timeout_secs: 30, ...streamParams(token),
     })
     const ccid = r.data?.data?.call_control_id
     track(ccid, { kind: 'outbound', rate: leadRate(lead.number, records(agent)), baseRate: leadRate(lead.number), recRate: recRate(agent), calendar, token, chatId: String(campaign.chatId), agent, number: campaign.callerId, other: lead.number, leadName: lead.name || null, campaignId: campaign.id, leadIndex: lead.index, reason: lead.reason || null })
@@ -117,10 +119,22 @@ function watchWallet(s) {
 async function onWebhook(eventType, payload) {
   const s = sessions.get(payload.call_control_id)
   if (!s) return
-  if (eventType === 'call.answered' && !s.answeredAt) { s.answeredAt = Date.now(); watchWallet(s) }
-  else if (eventType === 'call.machine.detection.ended') { s.answeredBy = payload.result || null; if (payload.result === 'machine') s.bridge?.voicemail() }
+  if (eventType === 'call.answered' && !s.answeredAt) { s.answeredAt = Date.now(); watchWallet(s); signal(s, 'answered') }
+  else if (eventType === 'call.machine.detection.ended' || eventType === 'call.machine.premium.detection.ended') {
+    const r = payload.result || null
+    s.answeredBy = /^human/.test(r || '') ? 'human' : r
+    if (r === 'machine' || r === 'fax_detected') signal(s, 'onMachine')
+  } else if (eventType === 'call.machine.greeting.ended' || eventType === 'call.machine.premium.greeting.ended') {
+    if (/beep_detected|ended/.test(payload.result || 'ended')) signal(s, 'beep')
+  }
   else if (eventType === 'streaming.failed') { log(`[AIAgent] stream failed ${s.ccid}: ${payload.failure_reason || ''}`); hangup(s.ccid) }
   else if (eventType === 'call.hangup') await finish(s, payload).catch(e => log(`[AIAgent] finish error: ${e.stack || e.message}`))
+}
+
+// Call events can arrive before Telnyx opens the media stream: queue them for the bridge.
+function signal(s, what) {
+  if (s.bridge) return s.bridge[what]()
+  ;(s.pending = s.pending || []).push(what)
 }
 
 // Telnyx opened the media stream for a tracked call.
@@ -134,6 +148,8 @@ function onStream(token, ws) {
   ws.on('message', (m) => { try { s.bridge.onMedia(JSON.parse(m)) } catch (_) { /* bad frame */ } })
   ws.on('close', () => s.bridge.stop())
   s.bridge.start()
+  for (const what of s.pending || []) s.bridge[what]()
+  s.pending = null
 }
 
 async function transfer(s, to) {
@@ -161,7 +177,8 @@ async function finish(s, payload) {
     duration ? saveRecording(s.bridge?.rec, s.chatId) : null,
   ])
   const machine = res.voicemail || s.answeredBy === 'machine'
-  const outcome = res.optedOut ? 'opted_out' : res.booking ? 'booked' : s.transferredTo ? 'transferred' : machine ? 'voicemail' : res.outcome || (res.message ? 'message' : sum?.outcome) || (duration ? 'no_conversation' : null)
+  const talked = (res.transcript || []).some(x => x.role === 'caller')
+  const outcome = res.optedOut ? 'opted_out' : res.booking ? 'booked' : s.transferredTo ? 'transferred' : machine ? 'voicemail' : res.screened && !res.outcome && !sum?.outcome && (res.transcript || []).filter(x => x.role === 'caller').length <= 1 ? 'screened' : !duration ? 'no_answer' : !talked && !res.outcome ? 'no_conversation' : res.outcome || (res.message ? 'message' : sum?.outcome) || (duration ? 'no_conversation' : null)
   // The recording surcharge only applies when an MP3 was actually saved.
   const baseRate = s.baseRate ?? (s.kind === 'inbound' ? RATE() : leadRate(s.other))
   const recordingRate = recording ? (s.recRate ?? recorder.RECORD_RATE()) : 0
@@ -238,7 +255,7 @@ async function onTest(token, ws) {
   const startedAt = new Date()
   const sendUi = (o) => { if (ws.readyState === 1) ws.send(JSON.stringify(o)) }
   const bridge = new Bridge({
-    agent: { ...agent, maxMinutes: Math.max(0.6, maxSecs / 60) }, ctx: { direction: t.as, leadName: null, test: true, calendar: t.calendar, record: records(agent) }, media: ws, log,
+    agent: { ...agent, maxMinutes: Math.max(0.6, maxSecs / 60) }, ctx: { direction: t.as, leadName: t.as === 'outbound' ? SAMPLE_LEAD : null, test: true, calendar: t.calendar, record: records(agent) }, media: ws, log,
     actions: {
       hangup: () => { sendUi({ event: 'hangup' }); setTimeout(() => ws.close(), 300) },
       transfer: (to) => { sendUi({ event: 'notice', text: `On a real call the person is now connected to ${to}.` }); sendUi({ event: 'hangup' }); setTimeout(() => ws.close(), 300) },

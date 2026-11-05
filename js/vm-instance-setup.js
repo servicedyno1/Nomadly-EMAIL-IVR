@@ -16,7 +16,6 @@
 
 require('dotenv').config()
 const crypto = require('crypto')
-const nodemailer = require('nodemailer')
 
 // ─── Provider abstraction (2026-02 OVH migration) ─────────────────────────
 // `contabo` was originally a direct require of contabo-service.js. As of
@@ -1900,7 +1899,7 @@ async function renewVPSCPanel(telegramId, subscriptionId) {
 
 // ─── Email ────────────────────────────────────────────────────────────────
 
-const transporter = nodemailer.createTransport({
+const transporter = require('./mailer').transport({ // MailerSend for verified sender domains, else this SMTP relay
   host: process.env.MAIL_DOMAIN,
   port: process.env.MAIL_PORT,
   auth: {

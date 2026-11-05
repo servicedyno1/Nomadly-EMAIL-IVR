@@ -10,11 +10,15 @@ const numbers = require('./numbers')
 const verification = require('./verification')
 const audio = require('./audio')
 const calls = require('./calls')
+const contacts = require('./contacts')
 const orders = require('./orders')
 const trycall = require('./trycall')
+const publicStats = require('./public-stats')
 const notes = require('./notes')
 const outbound = require('./outbound')
 const extras = require('./extras')
+const onboarding = require('./onboarding')
+const leads = require('./leads')
 const support = require('./support')
 const ai = require('./ai')
 const referrals = require('./referrals')
@@ -28,10 +32,22 @@ const webhooks = require('./events')
 const aiSummary = require('./ai-summary')
 const { sendMail } = require('./auth')
 const { createEmails } = require('./emails')
+const { createOffers } = require('./offers')
+const { scrubProviderNames } = require('../sanitize-provider')
+
+// API messages (top level, and per-call errors in results / calls lists) never name the carrier or registrar.
+const MSG_KEYS = ['message', 'error', 'detail']
+function scrubBody(b) {
+  if (!b || typeof b !== 'object' || Array.isArray(b)) return b
+  for (const k of MSG_KEYS) if (typeof b[k] === 'string') b[k] = scrubProviderNames(b[k])
+  for (const list of [b.results, b.calls]) if (Array.isArray(list)) for (const x of list) if (x && typeof x.error === 'string') x.error = scrubProviderNames(x.error)
+  return b
+}
 
 function createCloudIvrWeb(deps) {
   const { getDb, log = console.log } = deps
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 1 } })
+  const mediaUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1024 * 1024, files: 1 } })
   const h = (fn) => async (req, res, next) => {
     try { await fn(req, res, next) } catch (e) {
       log(`[CloudIVR-Web] ${req.method} ${req.path} failed: ${e.stack || e.message}`)
@@ -41,36 +57,56 @@ function createCloudIvrWeb(deps) {
 
   function build(db) {
     const r = express.Router()
-    const auth = createAuth(db, { log })
+    const auth = createAuth(db, { log, notifyAdmin: deps.notifyAdmin })
     auth.routes(r, h)
+    require('./statement').start(db, { log })
     r.get('/public/catalog', (req, res) => res.json({
       ...numbers.catalog(), coins: deps.coins || [], minTopup: wallet.MIN_TOPUP_USD, supportLink: support.supportLink(), channelLink: String(process.env.CLOUDIVR_CHANNEL_LINK || '').trim(),
     }))
     trycall.routes(r, { ...deps, db, h })
+    publicStats.routes(r, { db, h })
+    onboarding.publicRoutes(r, { db, h })
     support.publicRoutes(r, { db, h, log })
     const emails = createEmails(db, { log })
     emails.publicRoutes(r, { h })
     emails.start()
     ai.publicRoutes(r, { h })
+    // Owner admin dashboard (own sign-in, before the customer session check).
+    const adminAuth = require('./admin-auth').createAdminAuth(db, { log })
+    adminAuth.routes(r, h)
+    require('./admin').createAdmin(db, { log, bulkCallService: deps.bulkCallService, adminAuth }).routes(r, h)
+    require('./esim').publicRoutes(r, { db, h, log, A: adminAuth.require })
+    require('./media').publicRoutes(r, { db, h })
     r.use(auth.requireUser)
-    wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit })
+    require('./esim').routes(r, { h })
+    const offers = createOffers(db, { log })
+    offers.routes(r, { h })
+    wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit, offers, cryptoPerUsd: deps.cryptoPerUsd })
     // Orders go first so /numbers/orders is not caught by /numbers/:phone; numbersApi is filled in right after.
     const numbersApi = {}
-    orders.routes(r, { ...deps, db, h, numbersApi, sendMail })
-    Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h }))
+    orders.routes(r, { ...deps, db, h, numbersApi, sendMail, offers })
+    Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h, offers }))
     verification.routes(r, { ...deps, db, h, upload })
     audio.routes(r, { ...deps, db, h, upload })
     outbound.routes(r, { ...deps, db, h, numbersApi })
+    contacts.routes(r, { db, h, upload })
+    require('./hosted').routes(r, { db, h, upload, log, notifyAdmin: deps.notifyAdmin })
     calls.routes(r, { ...deps, db, h, numbersApi })
     notes.routes(r, { db, h, numbersApi })
     ai.routes(r, { h, numbersApi })
-    extras.routes(r, { ...deps, db, h, numbersApi })
+    extras.routes(r, { ...deps, db, h, numbersApi, offers })
+    onboarding.routes(r, { db, h, numbersApi })
+    require('./templates').routes(r, { db, h })
+    leads.routes(r, { db, h })
+    require('./caller-ids').routes(r, { db, h, numbersApi })
     support.routes(r, { ...deps, db, h, numbersApi })
     referrals.routes(r, { db, h })
     suggestions.routes(r, { ...deps, db, h })
     relay.routes(r, { ...deps, h, numbersApi })
     const smsReply = smsReplyMod.createSmsReply({ db, voiceService: deps.voiceService, log })
     smsReplyMod.routes(r, { db, h, numbersApi, smsReply })
+    const messages = require('./messages').routes(r, { db, h, numbersApi, smsReply })
+    require('./media').routes(r, { db, h, upload: mediaUpload })
     notify.routes(r, { h, numbersApi, smsReply })
     incoming.routes(r, { ...deps, db, h, numbersApi, smsReply })
     textTriggers.routes(r, { ...deps, db, h, numbersApi })
@@ -81,18 +117,21 @@ function createCloudIvrWeb(deps) {
     r.get('/dashboard', h(async (req, res) => {
       const id = req.webChatId
       const nums = await numbersApi.myNumbers(id)
-      const [balance, unread, campaigns, pendingVerification, trial] = await Promise.all([
+      const [balance, unread, campaigns, pendingVerification, trial, liveCampaigns, messagesUnread, textsThisMonth] = await Promise.all([
         wallet.walletOps(db).balance(id),
         db.collection('webNotifications').countDocuments({ chatId: id, read: false }),
         db.collection('bulkCallCampaigns').countDocuments({ chatId: id, status: { $in: ['running', 'paused', 'scheduled'] } }),
         db.collection('telnyxRegSessions').countDocuments({ chatId: id, status: 'collecting' }),
         outbound.trialStatus(db, numbersApi, id).catch(() => ({ available: false })),
+        db.collection('bulkCallCampaigns').countDocuments({ chatId: id, status: 'running' }),
+        messages.unreadCount(id).catch(() => 0),
+        messages.textCount(id, new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1))).catch(() => null),
       ])
       const soon = Date.now() + 7 * 86400000
       res.json({
-        balance, unread, activeCampaigns: campaigns, pendingVerification, ivrTrial: !!trial.available,
+        balance, unread, messagesUnread, activeCampaigns: campaigns, liveCampaigns, pendingVerification, ivrTrial: !!trial.available,
         numbers: { total: nums.length, active: nums.filter(n => n.status === 'active').length, expiringSoon: nums.filter(n => n.expiresAt && new Date(n.expiresAt).getTime() < soon).length },
-        minutesUsed: nums.reduce((s, n) => s + (n.minutesUsed || 0), 0), smsUsed: nums.reduce((s, n) => s + (n.smsUsed || 0), 0),
+        minutesUsed: nums.reduce((s, n) => s + (n.minutesUsed || 0), 0), smsUsed: nums.reduce((s, n) => s + (n.smsUsed || 0), 0), textsThisMonth,
       })
     }))
     return r
@@ -104,6 +143,11 @@ function createCloudIvrWeb(deps) {
   const bootTimer = setInterval(() => { if (boot()) clearInterval(bootTimer) }, 5000)
   if (bootTimer.unref) bootTimer.unref()
   const router = express.Router()
+  router.use((req, res, next) => {
+    const json = res.json.bind(res)
+    res.json = (body) => json(scrubBody(body))
+    next()
+  })
   router.use((req, res, next) => {
     boot()
     if (!ready) return res.status(503).json({ error: 'starting', message: 'Service is starting. Try again in a moment.' })
@@ -117,4 +161,10 @@ function createCloudIvrWeb(deps) {
   return router
 }
 
-module.exports = { createCloudIvrWeb, notify, makeDownloader: verification.makeDownloader }
+// Telnyx message.finalized → status of a web-sent text. Handled 3 s later so the send route has saved its copies first.
+function smsDelivery(db, payload, log = console.log) {
+  const t = setTimeout(() => smsReplyMod.applyDeliveryReport({ db, notify, log }, payload).catch(e => log(`[SmsReply] delivery report failed: ${e.message}`)), 3000)
+  if (t.unref) t.unref()
+}
+
+module.exports = { createCloudIvrWeb, notify, makeDownloader: verification.makeDownloader, smsDelivery }

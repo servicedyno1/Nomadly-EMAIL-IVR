@@ -263,7 +263,7 @@ function endpointGroups(base) {
     },
     {
       id: 'dns', title: 'DNS Management',
-      blurb: 'Full CRUD over DNS records plus nameserver control. DNS operations are FREE — no wallet charge.',
+      blurb: 'Full CRUD over DNS records plus nameserver control. DNS operations are FREE — no wallet charge. Works only on domains your account owns: registered through your key, the primary or an addon domain of one of your hosting accounts, or on your branded nameservers. Any other domain returns 404 domain_not_found. Externally registered domains work once they are attached to one of your hosting accounts and their nameservers point to us.',
       endpoints: [
         {
           method: 'GET', path: '/dns/:domain/records', auth: true, billed: false,
@@ -1660,6 +1660,31 @@ HTTP 202 Accepted  (image is copied to this datacenter first — server unchange
           curl: `curl -s ${base}/hosting/mysite01/geo \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{ "rules": [ { "id": "…", "action": "block", "expression": "ip.geoip.country in {\\"CN\\"}" } ], "zoneId": "…" }`,
+        },
+        {
+          method: 'GET', path: '/hosting/:user/security/ip-rules', auth: true, billed: false,
+          desc: 'List the IP access rules on the hosting account\u2019s primary domain. Available on every hosting plan. Each rule is either mode "block" (the listed IPs/CIDR ranges are blocked) or mode "allow" (allow-only: every visitor NOT listed is blocked). Rules are enforced at the Cloudflare edge for the hosted website. Only rules created through this API are listed — platform protection rules are never shown or changed.',
+          curl: `curl -s ${base}/hosting/mysite01/security/ip-rules \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "domain": "mysite.com", "rules": [ { "id": "3f2a…", "mode": "block", "ips": ["198.51.100.7", "203.0.113.0/24"], "note": "abusive scanners", "paused": false } ] }`,
+        },
+        {
+          method: 'POST', path: '/hosting/:user/security/ip-rules', auth: true, billed: false,
+          desc: 'Create an IP access rule (every hosting plan). mode "block" blocks the listed IPs; mode "allow" lets ONLY the listed IPs visit the site (use with care — include your own IP). 1–100 IPv4/IPv6 addresses or CIDR ranges (IPv4 /8–/32, IPv6 /16–/128) per rule; create several rules for more. Errors: 400 invalid_mode | invalid_ips (with invalid:[…]), 400 cf_zone_not_found, 404 not_found (not your account), 502 ip_rule_failed. Changes apply within seconds.',
+          params: [['mode', true, '"allow" (allow-only list) or "block"'], ['ips', true, 'Array of IPs / CIDR ranges'], ['note', false, 'Label shown back in the list (max 200 chars)']],
+          curl: `curl -s -X POST ${base}/hosting/mysite01/security/ip-rules \\
+  -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" \\
+  -d '{"mode":"block","ips":["198.51.100.7","203.0.113.0/24"],"note":"abusive scanners"}'`,
+          resp: `{ "domain": "mysite.com", "rule": { "id": "3f2a…", "mode": "block", "ips": ["198.51.100.7", "203.0.113.0/24"], "note": "abusive scanners", "paused": false } }`,
+        },
+        {
+          method: 'DELETE', path: '/hosting/:user/security/ip-rules', auth: true, billed: false,
+          desc: 'Delete an IP access rule by id (from GET). Only IP rules can be deleted here — 404 rule_not_found for any other id.',
+          params: [['ruleId', true, 'Rule id (body or query string)']],
+          curl: `curl -s -X DELETE ${base}/hosting/mysite01/security/ip-rules \\
+  -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" \\
+  -d '{"ruleId":"3f2a…"}'`,
+          resp: `{ "domain": "mysite.com", "deleted": true, "ruleId": "3f2a…" }`,
         },
         {
           method: 'GET', path: '/hosting/:user/analytics', auth: true, billed: false,

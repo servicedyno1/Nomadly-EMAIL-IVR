@@ -62,8 +62,9 @@ function createEmails(db, { log = console.log } = {}) {
   }
 
   // Sends one email for `key` (never twice). `force` = a test email (ignores the on/off switches). → true when sent/recorded.
-  async function send(chatId, type, data, key, { force = false } = {}) {
-    const pr = await profile(chatId)
+  async function send(chatId, type, data, key, { force = false, email = null } = {}) {
+    let pr = await profile(chatId)
+    if (!pr.acc && email) pr = { acc: { _id: chatId, email, name: '' }, lang: 'en', email: { ...DEFAULTS } } // landing test-call visitor without an account
     if (!pr.acc?.email || pr.acc.disabled) return false
     const group = GROUPS[type]
     if (!force && group && pr.email[group] === false) return false
@@ -114,7 +115,7 @@ function createEmails(db, { log = console.log } = {}) {
     const c = await db.collection('bulkCallCampaigns').findOne({ id })
     const s = c.stats || {}
     return {
-      id, name: c.agentName || c.audioName || 'Campaign', callerId: c.callerId, cancelled: c.status === 'cancelled', mode: c.mode,
+      id, name: c.name || c.agentName || c.audioName || 'Campaign', callerId: c.callerId, cancelled: c.status === 'cancelled', mode: c.mode,
       duration: c.startedAt && c.completedAt ? Math.round((new Date(c.completedAt) - new Date(c.startedAt)) / 1000) : 0,
       stats: s, rate: s.total ? Math.round(((s.answered || 0) / s.total) * 100) : 0, notDialed: (c.leads || []).filter(l => l.notCalled).length,
     }
@@ -134,6 +135,24 @@ function createEmails(db, { log = console.log } = {}) {
     }
     const camps = await db.collection('bulkCallCampaigns').find({ completedAt: { $gte: from }, status: { $in: ['completed', 'cancelled'] }, startedAt: { $ne: null }, reportPending: { $ne: true } }, { projection: { id: 1, chatId: 1 } }).toArray()
     for (const c of camps) if (isWebChatId(c.chatId)) jobs.push({ chatId: String(c.chatId), type: 'campaignDone', key: `campaign:${c.id}`, data: () => campaignData(c.id) })
+    // Free-call nudge: signed up 24 h ago, still hasn't made the free Quick IVR call and has no calling number.
+    const dayAgo = new Date(Date.now() - DAY), scanned = new Date(from.getTime() - DAY)
+    for (const a of await accounts.find({ createdAt: { $gte: scanned, $lt: dayAgo }, disabled: { $ne: true } }, { projection: { _id: 1 } }).toArray()) {
+      const id = String(a._id)
+      const [st, tried, hasNum] = await Promise.all([db.collection('state').findOne({ _id: `ivrTrialUsed_${id}`, val: true }), db.collection('webQuickCalls').findOne({ chatId: id, trial: true }), nums.byChat.get(id)?.numbers?.length])
+      if (!st && !tried && !hasNum) jobs.push({ chatId: id, type: 'tryNudge', key: `trynudge:${id}`, data: async () => ({}) })
+    }
+    // Follow-up ~3 minutes after a free call (Quick IVR trial, or the landing-page test call matched to its email).
+    const lag = 3 * 60000, fromLag = new Date(from.getTime() - lag), toLag = new Date(Date.now() - lag)
+    for (const q of await db.collection('webQuickCalls').find({ trial: true, at: { $gte: fromLag, $lt: toLag } }, { projection: { chatId: 1 } }).toArray()) {
+      jobs.push({ chatId: String(q.chatId), type: 'tryFollowup', key: `tryfollow:${q.chatId}`, data: async () => ({ kind: 'quick' }) })
+    }
+    for (const t of await db.collection('webTryCalls').find({ createdAt: { $gte: fromLag, $lt: toLag } }, { projection: { email: 1, triedEmail: 1, noAnswer: 1 } }).toArray()) {
+      const email = String(t.triedEmail || t.email || '').split('#')[0].toLowerCase()
+      if (!email) continue
+      const acc = await accounts.findOne({ email }, { projection: { _id: 1 } })
+      jobs.push({ chatId: acc ? String(acc._id) : `try:${t._id}`, type: 'tryFollowup', key: `tryfollow:${email}`, email: acc ? null : email, data: async () => ({ kind: 'landing', noAnswer: !!t.noAnswer }) })
+    }
     const logs = await db.collection('phoneLogs').find({ timestamp: { $gte: iso }, type: { $in: ['voicemail', 'missed'] } }, { projection: { phoneNumber: 1, from: 1, type: 1, duration: 1, transcript: 1, timestamp: 1 } }).toArray()
     const missed = new Map()
     for (const l of logs) {
@@ -210,7 +229,7 @@ function createEmails(db, { log = console.log } = {}) {
           if (!items.length) continue
           if (items.length > 1) await sent.insertMany(items.slice(1).map(i => ({ _id: i.key, chatId: j.chatId, type: 'missed-grouped', at: new Date() })), { ordered: false }).catch(() => {})
           if (await send(j.chatId, j.type, await j.data(items), items[0].key)) n++
-        } else if (!done.has(j.key) && await send(j.chatId, j.type, await j.data(), j.key)) n++
+        } else if (!done.has(j.key) && await send(j.chatId, j.type, await j.data(), j.key, { email: j.email || null })) n++
       } catch (e) { log(`[CloudIVR-Email] ${j.type} for ${j.chatId} failed: ${e.message}`) }
     }
     return n
@@ -290,7 +309,7 @@ function createEmails(db, { log = console.log } = {}) {
       case 'topup': return { amount: 50, balance: Math.max(balance, 50) }
       case 'lowBalance': return { balance: 6.4, threshold: (await profile(chatId)).email.lowBalanceAt, next: { phone, expiresAt: n.expiresAt, price } }
       case 'walletEmpty': return { balance: 0.12 }
-      case 'campaignDone': return { id: 'sample', name: 'Spring offer', callerId: phone, cancelled: false, mode: 'transfer', duration: 1460, rate: 47, notDialed: 0, stats: { total: 250, answered: 118, keyPressed: 64, transferred: 21, noAnswer: 96, hungUp: 12, voicemail: 9, busy: 6, failed: 9 } }
+      case 'campaignDone': return { id: 'sample', name: 'Spring offer', callerId: phone, cancelled: false, mode: 'transfer', duration: 1460, rate: 47, notDialed: 0, stats: { total: 250, answered: 118, keyPressed: 64, transferred: 21, noAnswer: 96, hungUp: 12, voicemail: 9, voicemailLeft: 7, busy: 6, failed: 9 } }
       case 'voicemail': return { from: '+14155550122', to: phone, duration: 38, transcript: 'Hi, it’s Dana from Lakeside Realty — calling about the listing on Elm Street. Call me back when you get a minute.' }
       case 'missed': return { to: phone, calls: [{ from: '+14155550122', at: at(-20 * 60000) }, { from: '+447700900123', at: at(-5 * 60000) }] }
       case 'weekly': return weeklyFor(chatId, list.length ? list : [n])
@@ -378,4 +397,4 @@ function createEmails(db, { log = console.log } = {}) {
   return { send, tick, runWeekly, weeklyFor, sample, render: build, routes, publicRoutes, start }
 }
 
-module.exports = { createEmails, DEFAULTS, GROUPS }
+module.exports = { createEmails, DEFAULTS, GROUPS, appUrl }

@@ -402,7 +402,7 @@ async function createAddress(customerName, street, city, region, postalCode, iso
   try {
     // ━━━ SECURITY: Address creation MUST use sub-account — never main account ━━━
     const client = requireSubClient(subSid, subToken, 'createAddress')
-    if (!client) return { error: 'Address creation requires sub-account credentials. Cannot use main Twilio account.' }
+    if (!client) return { error: 'Address setup is not available for this number yet. Please contact support.' }
     const addr = await client.addresses.create({
       customerName,
       street,
@@ -439,7 +439,7 @@ async function updateNumberWebhooks(numberSid, webhookBaseUrl, subSid, subToken)
   try {
     // ━━━ SECURITY: Webhook updates MUST use sub-account — never main account ━━━
     const client = requireSubClient(subSid, subToken, 'updateNumberWebhooks')
-    if (!client) return { error: 'Webhook update requires sub-account credentials. Cannot use main Twilio account.' }
+    if (!client) return { error: 'This number cannot be updated right now. Please contact support.' }
     await client.incomingPhoneNumbers(numberSid).update({
       voiceUrl: `${webhookBaseUrl}/twilio/voice-webhook`,
       voiceMethod: 'POST',
@@ -463,7 +463,7 @@ async function createSipDomain(domainName, webhookBaseUrl, subSid, subToken) {
   try {
     // ━━━ SECURITY: SIP domain creation MUST use sub-account — never main account ━━━
     const client = requireSubClient(subSid, subToken, 'createSipDomain')
-    if (!client) return { error: 'SIP domain creation requires sub-account credentials. Cannot use main Twilio account.' }
+    if (!client) return { error: 'SIP setup is not available for this number yet. Please contact support.' }
     const domain = await client.sip.domains.create({
       domainName,
       friendlyName: `Nomadly SIP — ${domainName}`,
@@ -534,7 +534,7 @@ async function mapCredentialListToDomain(domainSid, credListSid, subSid, subToke
   try {
     // ━━━ SECURITY: Credential list mapping MUST use sub-account — never main account ━━━
     const client = requireSubClient(subSid, subToken, 'mapCredentialListToDomain')
-    if (!client) return { error: 'Credential list mapping requires sub-account credentials. Cannot use main Twilio account.' }
+    if (!client) return { error: 'SIP setup is not available for this number yet. Please contact support.' }
     const mapping = await client.sip.domains(domainSid).auth.registrations.credentialListMappings.create({
       credentialListSid: credListSid,
     })
@@ -570,7 +570,7 @@ async function makeOutboundCall(from, to, twimlUrl, subSid, subToken, options = 
   }
   // ━━━ SECURITY: Outbound calls MUST use sub-account — never main account ━━━
   if (!subSid || subSid === MAIN_ACCOUNT_SID) {
-    return { error: 'Outbound calls require a sub-account. Cannot use main Twilio account.' }
+    return { error: 'This number cannot place calls right now. Please contact support.' }
   }
 
   const callOpts = {
@@ -699,7 +699,7 @@ async function makeOutboundCall(from, to, twimlUrl, subSid, subToken, options = 
 async function makeTrialOutboundCall(from, to, twimlUrl, options = {}) {
   try {
     const client = getClient()
-    if (!client) return { error: 'Twilio main client not initialized.' }
+    if (!client) return { error: 'Voice service is temporarily unavailable. Please try again shortly.' }
     log(`[Twilio] Trial outbound call: ${from} → ${to} (main account)`)
     const callOpts = {
       from,

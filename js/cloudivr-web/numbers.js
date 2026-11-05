@@ -11,9 +11,10 @@ const notes = require('./notes')
 const notify = require('./notify')
 const referrals = require('./referrals')
 const safeUrl = require('../safe-url')
+const browserCallKey = require('../browser-call-key')
 
 const TYPE_NAMES = { local: 'Local', toll_free: 'Toll-free', mobile: 'Mobile', national: 'National' }
-const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent', 'textRelay', 'ringGroup', 'textTriggers', 'aiSummary', 'browserRing', 'ivrRedial', 'otpCustomMessages', 'ivrSchedule', 'ivrPresets', 'consistentVoice']
+const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'browserPhone', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent', 'textRelay', 'ringGroup', 'textTriggers', 'aiSummary', 'browserRing', 'ivrRedial', 'otpCustomMessages', 'ivrSchedule', 'ivrPresets', 'consistentVoice']
 const LOG_TYPES = { sms: ['sms', 'sms_out'], voicemail: ['voicemail'], fax: ['fax'] }
 const E164 = /^\+[1-9]\d{7,14}$/
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
@@ -22,21 +23,26 @@ const webText = (s) => String(s).replace(/Telegram/g, 'your inbox')
 const normPhone = (p) => { const d = String(p || '').replace(/[^\d+]/g, ''); return d ? (d.startsWith('+') ? d : `+${d}`) : '' }
 // Numbers typed to dial (forward-to, backups, IVR forward keys): the bot's auto-correct (10-digit US → +1).
 const dialNorm = require('../backup-numbers').norm
+const { dialIssue } = require('../dial-check')
 const bad = (res, status, error, message) => res.status(status).json({ error, message })
-// Up to 4 backup numbers rung in order when the main one is busy or doesn't answer → { list } | { error }.
-function parseBackups(raw, exclude = []) {
+// Up to `max` backup numbers rung in order when the main one is busy or doesn't answer → { list } | { error }.
+function parseBackups(raw, exclude = [], max = 4) {
   const tokens = (Array.isArray(raw) ? raw : String(raw || '').split(/[,;\n]+|\s+(?=\+)/)).map(t => String(t || '').trim()).filter(Boolean)
   const junk = tokens.find(t => !/^\+?[\d\s().-]+$/.test(t))
   if (junk) return { error: `Backup "${junk.slice(0, 20)}" is not a phone number. Use the country code, e.g. +14155550100.` }
   const items = tokens.map(dialNorm).filter(Boolean)
   const list = [...new Set(items)].filter(n => !exclude.includes(n))
-  if (list.length > 4) return { error: 'Add up to 4 backup numbers.' }
+  if (list.length > max) return { error: `Add up to ${max} backup numbers.` }
   for (const n of list) {
     if (!E164.test(n)) return { error: `Backup ${n}: use the country code, e.g. +14155550100.` }
+    if (dialIssue(n)) return { error: `Backup ${dialIssue(n)}` }
     if (phoneConfig.isBlockedPrefix(n)) return { error: `Backup ${n} is a blocked premium/satellite destination.` }
   }
   return { list }
 }
+
+// Saved hours, or the default Mon–Fri schedule (closed message instead of voicemail on plans without voicemail).
+const hoursOf = (n) => n.features?.hours || { ...numberHours.defaultHours(), offAction: phoneConfig.canAccessFeature(n.plan, 'voicemail') ? 'voicemail' : 'message' }
 
 // Same Telnyx catalogue the bot shows (US/CA + international, incl. countries that need ID checks).
 function countries() {
@@ -52,11 +58,12 @@ function countries() {
 const WEB_FEATURES = [
   ['inbox', 'SMS inbox — read texts and reply', null],
   ['forwarding', 'Call forwarding to any phone', 'callForwarding'],
+  ['browserPhone', 'Browser phone — make and take calls in any browser tab', 'browserPhone'],
   ['hours', 'On/off hours for each number', null],
   ['notes', 'Call notes', null],
   ['private', 'Private mode — hide numbers on screen', null],
   ['voicemail', () => `Voicemail in ${vmGreeting.LANG_CODES.length} languages + transcripts`, 'voicemail'],
-  ['browserPhone', 'Browser phone & SIP for softphones', 'sipCredentials'],
+  ['sip', 'SIP logins for desk phones and softphone apps', 'sipCredentials'],
   ['smsEmail', 'SMS to email & webhooks', 'smsToEmail'],
   ['ivr', 'Keypad menu (IVR) for incoming calls — press 1 for sales, with key stats', 'ivr'],
   ['quickIvr', 'Quick IVR — automated calls to up to 10 people', 'ivrOutbound'],
@@ -84,6 +91,9 @@ function recommendedPlan() {
   return [want, 'pro', 'business', 'starter'].find(id => phoneConfig.plans[id] && phoneConfig.isPlanAvailable(id)) || null
 }
 
+// US/Canada per-minute rate for outgoing calls (browser phone, softphone, Quick IVR, campaigns); other countries use the forwarding rate.
+const outboundRate = () => { try { return require('../voice-service').IVR_CALL_RATE } catch (_) { return parseFloat(process.env.BULK_CALL_RATE_PER_MIN || '0.15') } }
+
 const catalog = () => {
   const rec = recommendedPlan()
   return {
@@ -91,8 +101,11 @@ const catalog = () => {
     recommendedPlan: rec,
     voicemailLanguages: vmGreeting.publicLangs(),
     countries: countries(), typeNames: TYPE_NAMES,
-    rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS, aiAgentPerMin: require('../ai-agent').RATE(), aiSummaryPerMin: require('./ai-summary').RATE() },
+    rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS, aiAgentPerMin: require('../ai-agent').RATE(), aiSummaryPerMin: require('./ai-summary').RATE(), outboundPerMinUsCa: outboundRate(), outboundPerMinIntl: phoneConfig.CALL_FORWARDING_RATE_MIN },
     sipDomain: phoneConfig.WEB_SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(),
+    // Cards show as "coming soon" on the site until this is true (the checkout's card option is still disabled too).
+    cardPayments: String(process.env.CLOUDIVR_CARD_PAYMENTS || '').toLowerCase() === 'true',
+    texting: require('../hosted-sms.js').TEXTING,
     extraNumber: { price: phoneConfig.SUB_NUMBER_BASE_PRICE, limits: Object.fromEntries(Object.keys(phoneConfig.plans).map(id => [id, phoneConfig.getSubNumberLimit(id)])) },
   }
 }
@@ -130,6 +143,7 @@ function publicNumber(n, numbers) {
     plan: n.plan, planName: plan.name || n.plan, planPrice: n.planPrice, status: n.status, autoRenew: n.autoRenew !== false,
     renewalPrice: lifecycle.renewalPrice(n), holdUntil: lifecycle.onHold(n) ? n._holdUntil : null, suspendReason: lifecycle.onHold(n) ? n._suspendReason || null : null,
     purchaseDate: n.purchaseDate, expiresAt: n.expiresAt, isSubNumber: !!n.isSubNumber, parentNumber: n.parentNumber || null, dryRun: !!n.dryRun,
+    replacedBy: n.replacedBy || null, releaseAt: n.releaseAt || null, replaces: n.replaces || null,
     routeSummary: routeSummary(n),
     capabilities: n.capabilities || { voice: true, sms: true, fax: false },
     usage: { minutesUsed: pool.minutesUsed, minutesIncluded: poolPlan.minutes ?? null, smsUsed: pool.smsUsed, smsIncluded: poolPlan.sms ?? null, shared: pool.lines.length > 1 },
@@ -137,7 +151,7 @@ function publicNumber(n, numbers) {
     features: {
       callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25, holdMusic: false, backups: [], ...(f.callForwarding || {}) },
       voicemail: publicVoicemail(f.voicemail),
-      hours: f.hours || numberHours.defaultHours(),
+      hours: hoursOf(n),
       smsForwarding: f.smsForwarding || { toTelegram: true, toEmail: null, webhookUrl: null },
       fax: { toInbox: f.faxForwarding?.toTelegram !== false },
       recording: !!f.recording,
@@ -172,11 +186,20 @@ function validateIvr(body, plan, audioOk = () => true) {
       if (action === 'forward') {
         const to = dialNorm(o.forwardTo)
         if (!E164.test(to)) throw new Error(`Key ${digit}: enter the forward number with country code, e.g. +14155550100.`)
+        if (dialIssue(to)) throw new Error(`Key ${digit}: ${dialIssue(to)}`)
         if (phoneConfig.isBlockedPrefix(to)) throw new Error(`Key ${digit}: ${to} is a blocked premium/satellite destination.`)
         out[digit] = { action, forwardTo: to, label }
       } else if (action === 'message') {
         if (!o.message && !o.audioUrl) throw new Error(`Key ${digit}: add a message or pick an audio file.`)
         out[digit] = { action, message: String(o.message || '').slice(0, 1000), audioUrl: audio(o.audioUrl, `Key ${digit}`), label }
+      } else if (action === 'sms') {
+        const smsFrom = String(o.smsFrom || '')
+        const smsText = require('./sms-limit').gsmText(String(o.smsText || '').trim()).slice(0, 1000)
+        if (!/^(es|mn)_[0-9a-f]+$/.test(smsFrom)) throw new Error(`Key ${digit}: pick the number the text is sent from.`)
+        if (!smsText) throw new Error(`Key ${digit}: write the text to send.`)
+        const long = require('./sms-limit').smsTooLong(smsText)
+        if (long) throw new Error(`Key ${digit}: ${long}`)
+        out[digit] = { action, smsFrom, smsText, message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label }
       } else if (action === 'voicemail') {
         if (!phoneConfig.canAccessFeature(plan, 'voicemail')) throw new Error('Voicemail needs the Pro plan or higher.')
         out[digit] = { action, label }
@@ -208,6 +231,7 @@ const publicLog = (l) => ({
   from: l.from || null, to: l.to || l.phoneNumber || null, phoneNumber: l.phoneNumber || null, duration: l.duration || 0,
   body: l.body || null, recordingUrl: l.recordingUrl || null, digit: l.digitPressed || null, forwardTo: l.forwardTo || null, timestamp: l.timestamp,
   transcript: l.transcript || null, transcriptStatus: l.transcriptStatus || null, reply: l.reply || null, canReply: smsReplyMod.canReply(l),
+  smsStatus: l.type === 'sms_out' ? (l.status || 'sent') : null, smsReason: l.smsReason || null,
   aiSummary: !l.aiSummary ? null : require('./ai-summary').isStale(l.aiSummary)
     ? { status: 'failed', summary: null, sentiment: null, mood: null, actionItems: [], charge: 0, detail: 'The last summary did not finish. You can run it again.' }
     : { status: l.aiSummary.status, summary: l.aiSummary.summary || null, sentiment: l.aiSummary.sentiment || null, mood: l.aiSummary.mood || null, actionItems: l.aiSummary.actionItems || [], charge: l.aiSummary.charge || 0, detail: l.aiSummary.detail || null },
@@ -251,6 +275,8 @@ function routes(router, deps) {
     req.num = num
     return fn(req, res)
   })
+  // A replaced number is released after its overlap week: no renewing, upgrading or extra lines on it.
+  const notReplaced = (fn) => withNumber(async (req, res) => (req.num.replacedBy ? bad(res, 409, 'replaced', `This number was replaced by ${req.num.replacedBy} and is released on ${String(req.num.releaseAt || '').slice(0, 10)}. Manage the plan on the new number.`) : fn(req, res)))
   const gate = (req, res, feature, label) => {
     if (phoneConfig.canAccessFeature(req.num.plan, feature)) return true
     bad(res, 403, 'plan_upgrade_required', `${label} needs a higher plan. Upgrade this number to use it.`)
@@ -353,7 +379,7 @@ function routes(router, deps) {
         const cred = await telnyxApi.createSIPCredential(tr.sipConnectionId, sipUsername, sipPassword, selected)
         if (cred?.sip_username) { tUser = sipUsername = cred.sip_username; tPass = sipPassword = cred.sip_password || sipPassword; tCredId = cred.id || null }
       }
-      const caps = { voice: true, sms: !!hit.capabilities.sms, fax: !!hit.capabilities.fax }
+      const caps = { voice: true, sms: !!hit.capabilities.sms, mms: !!hit.capabilities.mms, fax: !!hit.capabilities.fax }
       const expiresAt = new Date(); expiresAt.setMonth(expiresAt.getMonth() + 1)
       const doc = {
         phoneNumber: selected, telnyxOrderId: order.id, provider: 'telnyx', country, countryName: c.name,
@@ -372,7 +398,8 @@ function routes(router, deps) {
       await phoneNumbersOf.updateOne({ _id: chatId }, { $push: { 'val.numbers': doc } }, { upsert: true })
       await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: sub ? 'purchase_sub' : 'purchase', plan: planKey, amount: price, paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), ...(sub ? { parentNumber: sub.parentNumber } : {}), ...(coupon ? { coupon: coupon.code, discountPct: coupon.discount } : {}), channel: 'web', timestamp: new Date().toISOString() })
       if (coupon?.code) {
-        if (deps.redeemCoupon) await Promise.resolve(deps.redeemCoupon(chatId, coupon.code, coupon.type)).catch(() => {})
+        if (coupon.type === 'web-offer') await deps.offers?.markCodeUsed(chatId, coupon.code).catch(() => {})
+        else if (deps.redeemCoupon) await Promise.resolve(deps.redeemCoupon(chatId, coupon.code, coupon.type)).catch(() => {})
         await notify.push(chatId, `Coupon ${coupon.code} applied: ${coupon.discount}% off ${selected}. You saved $${round2(base - price).toFixed(2)}.`, null, { kind: 'coupon', meta: { coupon: coupon.code, discount: coupon.discount, used: true } }).catch(() => {})
       }
       await txn(chatId, 'phone-number', price, { phoneNumber: selected, plan: planKey, provider: 'telnyx', country })
@@ -391,7 +418,9 @@ function routes(router, deps) {
   async function checkCoupon(chatId, raw) {
     const code = String(raw || '').trim().toUpperCase().slice(0, 40)
     if (!code) return { error: true, message: 'Enter a coupon code.' }
-    const r = deps.resolveCoupon ? await deps.resolveCoupon(code, chatId).catch(() => null) : null
+    const offer = deps.offers ? await deps.offers.checkCode(chatId, code).catch(() => null) : null
+    if (offer?.error === 'expired') return { error: true, message: 'This offer has ended.' }
+    const r = offer || (deps.resolveCoupon ? await deps.resolveCoupon(code, chatId).catch(() => null) : null)
     if (r?.error === 'already_used') return { error: true, message: 'You have already used this coupon.' }
     if (!r || !(Number(r.discount) > 0)) return { error: true, message: 'That coupon code is not valid.' }
     return { code: String(r.code || code).toUpperCase(), type: r.type || 'static', discount: Math.min(90, Number(r.discount)) }
@@ -422,6 +451,7 @@ function routes(router, deps) {
     const to = mode === 'disabled' ? null : dialNorm(req.body.forwardTo)
     if (mode !== 'disabled') {
       if (!E164.test(to)) return bad(res, 400, 'invalid_number', 'Enter the forward number with country code, e.g. +14155550100.')
+      if (dialIssue(to)) return bad(res, 400, 'invalid_number', dialIssue(to))
       if (phoneConfig.isBlockedPrefix(to)) return bad(res, 400, 'blocked_destination', `${to} is a blocked premium/satellite destination.`)
       if (to === req.num.phoneNumber) return bad(res, 400, 'self_forward', 'A number cannot forward to itself.')
     }
@@ -491,7 +521,8 @@ function routes(router, deps) {
   const SWITCHES = {
     callForwarding: { gate: ['callForwarding', 'Call forwarding'], need: (f) => (E164.test(String(f.callForwarding?.forwardTo || '')) ? null : 'Set a forward-to number in the Forwarding tab first.') },
     ivr: { gate: ['ivr', 'The keypad menu'], need: (f) => (Object.keys(f.ivr?.options || {}).length ? null : 'Add at least one menu key in the Keypad menu tab first.') },
-    hours: { need: (f) => (numberHours.DAYS.some(d => f.hours?.days?.[d]?.on) ? null : 'Turn on at least one day in the Hours tab first.') },
+    // Never-saved hours = the default Mon–Fri 09:00–17:00 the Hours tab shows.
+    hours: { need: (f) => (numberHours.DAYS.some(d => (f.hours || numberHours.defaultHours()).days?.[d]?.on) ? null : 'Turn on at least one day in the Hours tab first.') },
     voicemail: { gate: ['voicemail', 'Voicemail'] },
     transcribe: { gate: ['voicemail', 'Voicemail'] },
     recording: { gate: ['callRecording', 'Call recording'] },
@@ -505,6 +536,7 @@ function routes(router, deps) {
     const feature = String(req.body?.feature || '')
     const sw = SWITCHES[feature]
     if (!sw) return bad(res, 400, 'unknown_switch', 'Unknown switch.')
+    if (feature === 'autoRenew' && req.num.replacedBy) return bad(res, 409, 'replaced', `This number was replaced by ${req.num.replacedBy}. It’s released at the end of its overlap week.`)
     if (sw.gate && !gate(req, res, ...sw.gate)) return
     const enabled = !!req.body?.enabled
     const f = req.num.features || {}
@@ -530,17 +562,22 @@ function routes(router, deps) {
     res.json({ feature, enabled, ...extra, number: publicNumber(all.find(x => x.phoneNumber === phone) || req.num, all) })
   }))
 
-  // On/off hours (every plan). Outside the hours the number doesn't ring or forward.
+  // On/off hours (every plan). Outside the hours the number doesn't ring: voicemail, a closed message or up to 5 backup numbers.
   router.put('/numbers/:phone/hours', withNumber(async (req, res) => {
     let value
     try { value = numberHours.validateHours(req.body) } catch (e) { return bad(res, 400, 'invalid_hours', e.message) }
     if (value.offAction === 'voicemail' && !phoneConfig.canAccessFeature(req.num.plan, 'voicemail')) value.offAction = 'message'
+    const bk = parseBackups(req.body.offForward, [req.num.phoneNumber], 5)
+    if (value.offAction === 'forward' && bk.error) return bad(res, 400, 'invalid_backup', bk.error)
+    if (value.offAction === 'forward' && !bk.list.length) return bad(res, 400, 'no_backup', 'Add at least one backup number to forward to.')
+    // Other off actions keep the list for later; a half-typed (hidden) list never blocks saving them.
+    value.offForward = bk.error ? (req.num.features?.hours?.offForward || []) : bk.list
     await setField(req.webChatId, req.num.phoneNumber, 'features.hours', value)
     res.json({ hours: value, openNow: numberHours.isOpen(value) })
   }))
 
   router.get('/numbers/:phone/hours', withNumber(async (req, res) => {
-    const hours = req.num.features?.hours || numberHours.defaultHours()
+    const hours = hoursOf(req.num)
     res.json({ hours, openNow: numberHours.isOpen(hours) })
   }))
 
@@ -549,6 +586,11 @@ function routes(router, deps) {
     const urls = await ownAudioUrls(req.webChatId)
     let value
     try { value = validateIvr(req.body, req.num.plan, (u) => urls.has(u)) } catch (e) { return bad(res, 400, 'invalid_ivr', e.message) }
+    const lines = [...Object.values(value.options), ...Object.values(value.options).flatMap(o => Object.values(o.subMenu?.options || {}))].filter(o => o.action === 'sms').map(o => o.smsFrom)
+    if (lines.length) {
+      const ok = await deps.db.collection('esimLines').countDocuments({ _id: { $in: [...new Set(lines)] }, kind: 'mobile', chatId: String(req.webChatId), status: { $in: ['provisioning', 'active', 'suspended'] } })
+      if (ok !== new Set(lines).size) return bad(res, 400, 'invalid_ivr', 'Pick one of your own texting numbers to send the text from.')
+    }
     await setField(req.webChatId, req.num.phoneNumber, 'features.ivr', value)
     // One answers a number: the keypad menu going on switches the AI voice agent off.
     const ai = req.num.features?.aiAgent
@@ -586,50 +628,72 @@ function routes(router, deps) {
     res.json({ logs: logs.map(publicLog) })
   }))
 
+  // ?browser=1 = the built-in browser phone (every plan); without it = SIP apps / desk phones (plans with SIP).
+  // browserKey = the signed header the browser phone adds to its calls (needed on plans without SIP apps).
+  // US mobile numbers (esimLines kind 'mobile') get a browser-phone login too; calling numbers fall through.
+  router.get('/numbers/:phone/sip', async (req, res, next) => {
+    try {
+      const sip = req.query.browser ? await require('../spenza').mobileSip(req.webChatId, req.params.phone) : null
+      if (!sip) return next()
+      if (sip.error) return bad(res, 424, 'sip_failed', sip.error)
+      res.json({ username: sip.username, password: sip.password, live: !!sip.live, browserOnly: true, mobile: true, browserKey: browserCallKey.mint(req.params.phone) })
+    } catch (e) { next(e) }
+  })
   router.get('/numbers/:phone/sip', withNumber(async (req, res) => {
-    if (!gate(req, res, 'sipCredentials', 'SIP credentials')) return
-    const n = req.num
-    res.json({ username: n.telnyxSipUsername || n.sipUsername, password: n.telnyxSipPassword || n.sipPassword, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP/TLS', live: !!n.telnyxSipUsername })
+    const n = req.num, sip = phoneConfig.canAccessFeature(n.plan, 'sipCredentials')
+    if (!sip && !(req.query.browser && phoneConfig.canAccessFeature(n.plan, 'browserPhone'))) return gate(req, res, 'sipCredentials', 'SIP credentials')
+    res.json({ username: n.telnyxSipUsername || n.sipUsername, password: n.telnyxSipPassword || n.sipPassword, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP/TLS', live: !!n.telnyxSipUsername, browserOnly: !sip, browserKey: browserCallKey.mint(n.phoneNumber) })
   }))
 
-  router.post('/numbers/:phone/sip/reset', withNumber(async (req, res) => {
-    if (!gate(req, res, 'sipCredentials', 'SIP credentials')) return
-    const n = req.num, tr = getTelnyxResources() || {}
+  // New SIP login for a number (devices on the old one stop working) → { username, password } or null if the network refused.
+  async function rotateSip(chatId, n) {
+    const tr = getTelnyxResources() || {}
     let user = phoneConfig.generateSipUsername(), pass = phoneConfig.generateSipPassword(), credId = null
-    if (!dryRun() && tr.sipConnectionId) {
+    if (!dryRun() && !n.dryRun && tr.sipConnectionId) {
       const cred = await telnyxApi.createSIPCredential(tr.sipConnectionId, user, pass, n.phoneNumber)
-      if (!cred?.sip_username) return bad(res, 424, 'sip_reset_failed', 'Could not create new SIP credentials. Your current ones still work.')
+      if (!cred?.sip_username) return null
       user = cred.sip_username; pass = cred.sip_password || pass; credId = cred.id || null
       if (n.telnyxCredentialId) await telnyxApi.deleteSIPCredential(n.telnyxCredentialId).catch(() => {})
     }
-    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.sipUsername': user, 'val.numbers.$.sipPassword': pass, 'val.numbers.$.telnyxSipUsername': dryRun() ? n.telnyxSipUsername || null : user, 'val.numbers.$.telnyxSipPassword': dryRun() ? n.telnyxSipPassword || null : pass, 'val.numbers.$.telnyxCredentialId': credId || n.telnyxCredentialId || null } })
-    res.json({ username: user, password: pass, domain: phoneConfig.WEB_SIP_DOMAIN })
+    const live = !dryRun() && !n.dryRun
+    await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.sipUsername': user, 'val.numbers.$.sipPassword': pass, 'val.numbers.$.telnyxSipUsername': live ? user : n.telnyxSipUsername || null, 'val.numbers.$.telnyxSipPassword': live ? pass : n.telnyxSipPassword || null, 'val.numbers.$.telnyxCredentialId': credId || n.telnyxCredentialId || null } })
+    return { username: user, password: pass }
+  }
+
+  router.post('/numbers/:phone/sip/reset', withNumber(async (req, res) => {
+    if (!gate(req, res, 'sipCredentials', 'SIP credentials')) return
+    const c = await rotateSip(req.webChatId, req.num)
+    if (!c) return bad(res, 424, 'sip_reset_failed', 'Could not create new SIP credentials. Your current ones still work.')
+    res.json({ ...c, domain: phoneConfig.WEB_SIP_DOMAIN })
   }))
 
-  router.post('/numbers/:phone/auto-renew', withNumber(async (req, res) => {
+  router.post('/numbers/:phone/auto-renew', notReplaced(async (req, res) => {
     await setField(req.webChatId, req.num.phoneNumber, 'autoRenew', !!req.body.enabled)
     res.json({ autoRenew: !!req.body.enabled })
   }))
 
   // Wallet renewal; restoring a suspended main line also brings back its extra lines (see plan-lifecycle.js).
-  router.post('/numbers/:phone/renew', withNumber(async (req, res) => {
+  router.post('/numbers/:phone/renew', notReplaced(async (req, res) => {
     const numbers = (await phoneNumbersOf.findOne({ _id: req.webChatId }))?.val?.numbers || []
     const n = numbers.find(x => x.phoneNumber === req.num.phoneNumber && x.status !== 'released') || req.num
     const block = lifecycle.renewBlock(numbers, n)
     if (block === 'main_line_suspended') return bad(res, 409, block, 'This extra line comes back when its main line is restored. Renew the main line first.')
     if (block) return bad(res, 409, block, block === 'released' ? 'This number has been released and can no longer be renewed.' : 'We could not work out the renewal price for this line. Please contact support.')
-    const price = round2(lifecycle.renewalPrice(n))
+    const offer = deps.offers ? await deps.offers.renewOffer(req.webChatId, n.phoneNumber).catch(() => null) : null
+    const full = round2(lifecycle.renewalPrice(n))
+    const price = offer ? round2(full * (1 - offer.discount / 100)) : full
     if (price > 0 && !(await w.debit(req.webChatId, price))) return bad(res, 402, 'insufficient_balance', `Renewal costs $${price.toFixed(2)}. Top up your wallet first.`)
     const r = lifecycle.renewPatches(numbers, n)
     await lifecycle.applyDb(phoneNumbersOf, req.webChatId, r.patches)
     const action = r.wasSuspended ? 'restore' : 'renew'
-    await phoneTransactions.insertOne({ chatId: req.webChatId, phoneNumber: n.phoneNumber, action, plan: n.plan, amount: price, paymentMethod: 'wallet_usd', channel: 'web', restoredExtras: r.restored, timestamp: new Date().toISOString() })
+    await phoneTransactions.insertOne({ chatId: req.webChatId, phoneNumber: n.phoneNumber, action, plan: n.plan, amount: price, paymentMethod: 'wallet_usd', channel: 'web', restoredExtras: r.restored, ...(offer ? { offer: offer._id, discountPct: offer.discount } : {}), timestamp: new Date().toISOString() })
     await txn(req.webChatId, 'phone-renewal', price, { phoneNumber: n.phoneNumber, plan: n.plan, action })
-    res.json({ expiresAt: r.expiresAt, price, restored: r.restored, waiting: r.waiting, balance: await w.balance(req.webChatId) })
+    if (offer) await deps.offers.markUsed(offer._id).catch(() => {})
+    res.json({ expiresAt: r.expiresAt, price, discount: offer ? offer.discount : 0, restored: r.restored, waiting: r.waiting, balance: await w.balance(req.webChatId) })
   }))
 
   // Price to move `n` up to `newPlan` now → { charge, credit, newPrice } or { error } (HTTP-style).
-  function upgradeQuote(n, newPlan) {
+  function upgradeQuote(n, newPlan, pct = 0) {
     const order = Object.keys(phoneConfig.plans)
     if (n.isSubNumber) return { error: { status: 400, error: 'is_extra', message: 'Extra numbers follow the plan of their main number.' } }
     if (lifecycle.onHold(n)) return { error: { status: 409, error: 'suspended', message: 'Restore this number first (Renew now), then change its plan.' } }
@@ -637,30 +701,33 @@ function routes(router, deps) {
     const q = phoneConfig.computeUpgradeQuote(n, newPlan)
     // Keep the number's surcharge (e.g. international) on top of the new plan price, as downgrade does.
     const surcharge = Math.max(0, round2((n.planPrice || phoneConfig.plans[n.plan].price) - phoneConfig.plans[n.plan].price))
-    return { charge: round2(q && Number.isFinite(q.chargeAmount) ? q.chargeAmount : phoneConfig.plans[newPlan].price), credit: round2(q?.credit || 0), newPrice: round2(phoneConfig.plans[newPlan].price + surcharge) }
+    const full = round2(q && Number.isFinite(q.chargeAmount) ? q.chargeAmount : phoneConfig.plans[newPlan].price)
+    return { charge: round2(full * (1 - pct / 100)), fullCharge: full, discount: pct, credit: round2(q?.credit || 0), newPrice: round2(phoneConfig.plans[newPlan].price + surcharge) }
   }
 
   // Charges the wallet and switches the plan → { status, body }. viaOrder = crypto order ref that paid for it.
-  async function upgradeNumber(chatId, n, newPlan, viaOrder = null) {
-    const q = upgradeQuote(n, newPlan)
+  const upgradeOffer = (chatId, n, plan) => (deps.offers ? deps.offers.upgradeOffer(chatId, n.phoneNumber, plan).catch(() => null) : null)
+  // pct = offer discount already fixed on a crypto order (null → today's offer, if any).
+  async function upgradeNumber(chatId, n, newPlan, viaOrder = null, pct = null) {
+    const offer = pct === null ? await upgradeOffer(chatId, n, newPlan) : null
+    const q = upgradeQuote(n, newPlan, pct === null ? (offer?.discount || 0) : pct)
     if (q.error) return { status: q.error.status, body: { error: q.error.error, message: q.error.message } }
     if (!(await w.debit(chatId, q.charge))) return { status: 402, body: { error: 'insufficient_balance', message: `The upgrade costs $${q.charge.toFixed(2)}. Top up your wallet first.` } }
     // Switch back on what a downgrade turned off, when the new plan includes it.
-    const set = { 'val.numbers.$.plan': newPlan, 'val.numbers.$.planPrice': q.newPrice, 'val.numbers.$.sipDisabled': false }
-    const saved = n.downgradeSaved || []
-    for (const x of saved) if (phoneConfig.canAccessFeature(newPlan, x.key)) set[`val.numbers.$.${x.path}`] = x.value
-    set['val.numbers.$.downgradeSaved'] = saved.filter(x => !phoneConfig.canAccessFeature(newPlan, x.key))
+    const set = lifecycle.numberSet({ plan: newPlan, planPrice: q.newPrice, ...lifecycle.upgradePatch(n, newPlan) })
     await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: set })
     await phoneNumbersOf.updateOne({ _id: chatId }, { $set: { 'val.numbers.$[s].plan': newPlan } }, { arrayFilters: [{ 's.isSubNumber': true, 's.parentNumber': n.phoneNumber }] }).catch(() => {})
     await phoneTransactions.insertOne({ chatId, phoneNumber: n.phoneNumber, action: 'upgrade', oldPlan: n.plan, newPlan, oldPrice: n.planPrice, newPrice: q.newPrice, amount: q.charge.toFixed(2), credit: q.credit.toFixed(2), paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), channel: 'web', timestamp: new Date().toISOString() })
     await txn(chatId, 'phone-upgrade', q.charge, { phoneNumber: n.phoneNumber, plan: newPlan })
+    if (offer) await deps.offers.markUsed(offer._id).catch(() => {})
     if (viaOrder) notifyAdmin(`🌐 CloudIVR web: ${n.phoneNumber} upgraded ${phoneConfig.plans[n.plan]?.name} → ${phoneConfig.plans[newPlan].name} · crypto checkout $${q.charge}\nweb account: ${chatId}`)
     return { status: 200, body: { plan: newPlan, charged: q.charge, balance: await w.balance(chatId) } }
   }
 
-  router.post('/numbers/:phone/upgrade', withNumber(async (req, res) => {
+  router.post('/numbers/:phone/upgrade', notReplaced(async (req, res) => {
     const newPlan = String(req.body.plan || '')
-    const q = upgradeQuote(req.num, newPlan)
+    const offer = await upgradeOffer(req.webChatId, req.num, newPlan)
+    const q = upgradeQuote(req.num, newPlan, offer?.discount || 0)
     if (q.error) return bad(res, q.error.status, q.error.error, q.error.message)
     if (req.body.confirm !== true) return res.json({ quote: q })
     const r = await upgradeNumber(req.webChatId, req.num, newPlan)
@@ -681,7 +748,74 @@ function routes(router, deps) {
     res.json({ released: true })
   }))
 
-  return { myNumbers, findMine, purchase, pickFromSearch, searchSimilar, setField, checkCoupon, unheld, ownAudioUrls, upgradeQuote, upgradeNumber }
+  // ---------- Replace a number ($25): same country + type, settings move over, the old one keeps working 7 days ----------
+  const REPLACE_PRICE = 25, OVERLAP_DAYS = 7
+  router.post('/numbers/:phone/replace', withNumber(async (req, res) => {
+    const old = req.num, chatId = req.webChatId
+    if (old.replacedBy) return bad(res, 409, 'already_replaced', `This number was already replaced by ${old.replacedBy}.`)
+    if (old.status !== 'active') return bad(res, 409, 'not_active', 'Only active numbers can be replaced. Renew it first.')
+    const picked = await pickFromSearch(chatId, req.body?.phoneNumber)
+    if (!picked) return bad(res, 400, 'search_again', 'That number is no longer in your search results. Search again and pick a number.')
+    if (picked.country !== old.country || picked.type !== old.type) return bad(res, 400, 'same_kind', `Pick a ${old.countryName || old.country} ${TYPE_NAMES[old.type] || old.type} number, the same kind as the one you have.`)
+    const phone = normPhone(req.body.phoneNumber)
+    try { await locks.insertOne({ _id: phone, chatId, at: new Date() }) } catch (e) { if (e.code === 11000) return bad(res, 409, 'number_taken', 'Someone is buying that number right now. Pick another one.'); throw e }
+    try {
+      if (await holderOf(phone) !== null) return bad(res, 409, 'number_taken', 'Someone just took that number. Pick another one.')
+      const c = countries().find(x => x.code === old.country)
+      const ver = await verificationInfo(old.country, old.type, `${c?.flag || ''} ${c?.name || old.country}`)
+      if (ver.error) return bad(res, 424, 'lookup_failed', ver.error)
+      if (ver.required) return bad(res, 400, 'needs_documents', 'Numbers in this country need ID documents, so they can’t be replaced online. Message support and we’ll help.')
+      if (!(await w.debit(chatId, REPLACE_PRICE))) return bad(res, 402, 'insufficient_balance', `Replacing a number costs $${REPLACE_PRICE}. Your wallet has $${(await w.balance(chatId)).toFixed(2)} — top up first.`)
+      try {
+        const live = !dryRun() && !old.dryRun
+        const tr = getTelnyxResources() || {}
+        const order = live ? await paidCheckout(chatId, phone, { countryCode: old.country, numberType: old.type, areaCode: picked.areaCode, planKey: old.plan, price: REPLACE_PRICE, paymentMethod: 'wallet_usd', refund: { currency: 'usd', amount: REPLACE_PRICE }, capabilities: picked.hit.capabilities, numberCost: picked.hit.cost, countryName: c?.name, lang: 'en', hold: true }) : { id: `dryrun-${crypto.randomUUID().slice(0, 8)}` }
+        if (!order || order._verification) throw new Error('The new number could not be reserved — it may have just been taken. Pick another one.')
+        const selected = order._retriedNumber || phone
+        if (live && tr.callControlAppId) await telnyxApi.assignNumberToCallControlApp(selected, tr.callControlAppId)
+        // SIP apps keep their login: the credential moves to the new number.
+        let sip = { telnyxSipUsername: old.telnyxSipUsername || null, telnyxSipPassword: old.telnyxSipPassword || null, telnyxCredentialId: old.telnyxCredentialId || null }
+        if (live && tr.sipConnectionId) {
+          if (old.telnyxCredentialId) await telnyxApi.deleteSIPCredential(old.telnyxCredentialId).catch(() => {})
+          const cred = await telnyxApi.createSIPCredential(tr.sipConnectionId, old.sipUsername, old.sipPassword, selected)
+          if (cred?.sip_username) sip = { telnyxSipUsername: cred.sip_username, telnyxSipPassword: cred.sip_password || old.sipPassword, telnyxCredentialId: cred.id || null }
+        }
+        const caps = { voice: true, sms: !!picked.hit.capabilities.sms, mms: !!picked.hit.capabilities.mms, fax: !!picked.hit.capabilities.fax }
+        const { _reminder3Sent, _reminder1Sent, ...keep } = old
+        const doc = { ...keep, ...sip, phoneNumber: selected, telnyxOrderId: order.id, capabilities: caps, purchaseDate: new Date().toISOString(), replaces: old.phoneNumber, messagingProfileId: caps.sms ? tr.messagingProfileId || old.messagingProfileId || null : null, features: { ...(old.features || {}), sms: caps.sms }, ...(live ? {} : { dryRun: true }) }
+        const releaseAt = new Date(Date.now() + OVERLAP_DAYS * 86400000).toISOString()
+        await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': old.phoneNumber }, { $set: { 'val.numbers.$.replacedBy': selected, 'val.numbers.$.releaseAt': releaseAt, 'val.numbers.$.autoRenew': false, 'val.numbers.$.telnyxCredentialId': null, 'val.numbers.$.telnyxSipUsername': null, 'val.numbers.$.telnyxSipPassword': null, 'val.numbers.$.sipUsername': null, 'val.numbers.$.sipPassword': null } })
+        await phoneNumbersOf.updateOne({ _id: chatId }, { $push: { 'val.numbers': doc } })
+        await phoneNumbersOf.updateOne({ _id: chatId }, { $set: { 'val.numbers.$[s].parentNumber': selected } }, { arrayFilters: [{ 's.isSubNumber': true, 's.parentNumber': old.phoneNumber }] }).catch(() => {})
+        await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: 'replace', oldNumber: old.phoneNumber, plan: old.plan, amount: REPLACE_PRICE, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
+        await txn(chatId, 'number-replace', REPLACE_PRICE, { phoneNumber: selected, oldNumber: old.phoneNumber })
+        await notify.push(chatId, `🔁 ${old.phoneNumber} was replaced by ${selected} for $${REPLACE_PRICE}. Your plan, renewal date and settings moved over. The old number keeps working until ${releaseAt.slice(0, 10)}, then it’s released.`, null, { kind: 'billing', meta: { replaced: { old: old.phoneNumber, new: selected } } }).catch(() => {})
+        notifyAdmin(`🔁 CloudIVR web: ${old.phoneNumber} replaced by ${selected}${live ? '' : ' (DRY RUN)'} · $${REPLACE_PRICE}\nweb account: ${chatId}`)
+        await searchCache.deleteOne({ _id: chatId })
+        res.status(201).json({ number: publicNumber(doc), oldNumber: old.phoneNumber, releaseAt, charged: REPLACE_PRICE, balance: await w.balance(chatId) })
+      } catch (e) {
+        await w.credit(chatId, REPLACE_PRICE)
+        log(`[CloudIVR-Web] replace ${old.phoneNumber} → ${phone} failed: ${e.message} — refunded`)
+        bad(res, 424, 'replace_failed', `${e.message && e.message.length < 160 ? e.message : 'The new number could not be activated.'} You were refunded $${REPLACE_PRICE}.`)
+      }
+    } finally { await locks.deleteOne({ _id: phone }).catch(() => {}) }
+  }))
+  // After the overlap the old number is released.
+  async function releaseReplaced() {
+    const now = new Date().toISOString()
+    for (const acct of await phoneNumbersOf.find({ 'val.numbers': { $elemMatch: { replacedBy: { $ne: null }, status: 'active', releaseAt: { $lte: now } } } }).toArray()) {
+      for (const n of (acct.val?.numbers || []).filter(x => x.replacedBy && x.status === 'active' && x.releaseAt <= now)) {
+        if (!dryRun() && !n.dryRun) { const ok = n.telnyxOrderId ? await telnyxApi.releaseNumber(n.telnyxOrderId).catch(() => false) : false; if (!ok) await telnyxApi.releaseByPhoneNumber(n.phoneNumber).catch(() => {}) }
+        await setField(acct._id, n.phoneNumber, 'status', 'released')
+        await notify.push(acct._id, `${n.phoneNumber} was released. Calls and texts now reach ${n.replacedBy} only.`, null, { kind: 'billing' }).catch(() => {})
+        log(`[CloudIVR-Web] released replaced number ${n.phoneNumber} (now ${n.replacedBy})`)
+      }
+    }
+  }
+  const relT = setInterval(() => releaseReplaced().catch(e => log(`[CloudIVR-Web] release replaced: ${e.message}`)), 10 * 60000)
+  relT.unref?.()
+
+  return { myNumbers, findMine, purchase, REPLACE_PRICE, releaseReplaced, pickFromSearch, searchSimilar, setField, checkCoupon, unheld, ownAudioUrls, upgradeQuote, upgradeNumber, upgradeOffer, rotateSip }
 }
 
 module.exports = { parseBackups, routes, catalog, routeSummary, publicNumber, publicVoicemail, validateIvr, normPhone, countries, E164, webFeatures, recommendedPlan, WEB_FEATURES }

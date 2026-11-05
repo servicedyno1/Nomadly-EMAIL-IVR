@@ -63,6 +63,18 @@ function routes(router, { h, numbersApi }) {
     if (await needCalendar(req, res)) return
     try { res.status(201).json({ agent: s.publicAgent(await s.createAgent(req.webChatId, req.body || {})) }) } catch (e) { bad(res, 400, 'invalid_agent', e.message) }
   }))
+  // What the agent will say first, for the form preview (unsaved values; {lead_name} = a sample name).
+  router.post('/ai-agents/opening-preview', h(async (req, res) => {
+    const b = req.body || {}
+    const str = (v, n) => String(v ?? '').trim().slice(0, n)
+    const a = { name: str(b.name, 40) || 'Ava', businessName: str(b.businessName, 60), language: s.LANGS.includes(b.language) ? b.language : 'en', firstMessage: str(b.firstMessage, 500), greeting: str(b.greeting, 300), discloseAi: b.discloseAi !== false }
+    const recorded = b.record !== false
+    const sample = ai.opening.SAMPLE_LEAD
+    const inbound = ai.opening.openingInfo(a, 'inbound', recorded)
+    const outbound = ai.opening.openingInfo(a, 'outbound', recorded, sample)
+    const noName = ai.opening.openingInfo(a, 'outbound', recorded, null)
+    res.json({ inbound, outbound, outboundNoName: noName.text !== outbound.text ? noName.text : null, sampleLead: sample })
+  }))
   router.get('/ai-agents/:id', withAgent(async (req, res) => res.json({ agent: s.publicAgent(req.agent), rate: ai.RATE(), recordRate: ai.RECORD_RATE(), recordingDays: ai.recorder.RETENTION_DAYS(), voices: s.VOICES })))
   router.put('/ai-agents/:id', withAgent(async (req, res) => {
     if (await needCalendar(req, res)) return
@@ -76,6 +88,7 @@ function routes(router, { h, numbersApi }) {
     res.json({ deleted: true })
   }))
   router.post('/ai-agents/:id/test', withAgent(async (req, res) => {
+    if (req.agent.disabled) return bad(res, 403, 'agent_stopped', 'This AI agent was stopped by CloudIVR. Contact support.')
     const r = await ai.createTest(req.webChatId, req.agent.id, req.body?.as)
     if (r.error) return bad(res, ...r.error)
     res.json({ path: `/api/cloudivr-web/ai-agents/test/${r.token}`, maxSeconds: r.maxSeconds })
@@ -109,11 +122,14 @@ function routes(router, { h, numbersApi }) {
   }))
 
   router.get('/ai-dnc', h(async (req, res) => res.json({ numbers: await s.listDnc(req.webChatId) })))
+  // One number, or several separated by commas, spaces or new lines.
   router.post('/ai-dnc', h(async (req, res) => {
-    const n = s.normPhone(req.body?.number)
-    if (!/^\+[1-9]\d{7,14}$/.test(n)) return bad(res, 400, 'invalid_number', 'Enter the number with country code, e.g. +14155550100.')
-    await s.addDnc(req.webChatId, n, 'manual')
-    res.status(201).json({ number: n })
+    const raw = [].concat(req.body?.numbers ?? req.body?.number ?? []).join(' ')
+    const parts = [...new Set(raw.split(/[\s,;]+/).filter(Boolean).map(s.normPhone))].slice(0, 1000)
+    const valid = parts.filter(n => /^\+[1-9]\d{7,14}$/.test(n))
+    if (!valid.length) return bad(res, 400, 'invalid_number', 'Enter the number with country code, e.g. +14155550100.')
+    for (const n of valid) await s.addDnc(req.webChatId, n, 'manual')
+    res.status(201).json({ number: valid[0], added: valid.length, invalid: parts.length - valid.length })
   }))
   router.delete('/ai-dnc/:number', h(async (req, res) => {
     const r = await s.removeDnc(req.webChatId, req.params.number)

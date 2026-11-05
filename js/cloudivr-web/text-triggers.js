@@ -8,6 +8,7 @@ const numberHours = require('../number-hours')
 const { spokenNumber } = require('../voicemail-greeting')
 const { walletOps } = require('./wallet')
 const notify = require('./notify')
+const callerIds = require('./caller-ids')
 
 const ACTIONS = { callback: 'Auto Callback', message: 'Text-to-Call message', ai: 'AI agent calls them back' }
 const MAX_RULES = 5
@@ -42,7 +43,7 @@ function validate(body = {}, num, agentIds = []) {
     const rule = {
       id: /^[\w-]{6,40}$/.test(String(r.id || '')) ? String(r.id) : crypto.randomUUID(), enabled: r.enabled !== false, action,
       keywordOnly: !!r.keywordOnly, keywords: keywordsOf(r.keywords), businessHoursOnly: !!r.businessHoursOnly, oncePerHour: r.oncePerHour !== false,
-      message: null, agentId: null,
+      message: null, agentId: null, showAs: E164.test(normPhone(r.showAs)) ? normPhone(r.showAs) : null,
     }
     if (rule.keywordOnly && !rule.keywords.length) throw new Error(`${where}: type at least one keyword, or switch "Only when the text has a keyword" off.`)
     if (action === 'callback' && !myPhone) throw new Error(`${where}: Auto Callback rings your phone first — enter your phone number above.`)
@@ -86,23 +87,26 @@ async function execute(chatId, num, cfg, rule, from, text, simulate) {
   const vs = ctx.voiceService
   const callerId = num.phoneNumber
   const preview = simulate || dryRun()
+  // Removed caller IDs fall back to the CloudIVR number.
+  const showAs = rule.showAs && await callerIds.isVerified(chatId, rule.showAs) ? rule.showAs : null
+  const shown = showAs ? ` showing ${showAs}` : ''
   if (rule.action === 'callback') {
     const me = cfg.myPhone
     const rate = Math.round((vs.getIvrCallRate(me) + vs.getIvrCallRate(from)) * 100) / 100
     const low = await funded(chatId, rate)
     if (low) return { status: 'skipped', detail: low, rate }
-    if (preview) return { status: 'preview', detail: `Would ring ${me}, then connect you to ${from} when you press 1.`, rate }
+    if (preview) return { status: 'preview', detail: `Would ring ${me}, then connect you to ${from}${shown} when you press 1.`, rate }
     const greetingText = `New text on your CloudIVR line from ${spokenNumber(from)}: ${str(text, 300) || 'no words'}. Press 1 to call them back now. To skip, just hang up.`
-    const r = await vs.initiateOutboundIvrCall({ chatId, callerId, targetNumber: me, ivrNumber: from, greetingText, activeKeys: ['1'], ivrMode: 'transfer', templateName: ACTIONS.callback, holdMusic: false, provider: 'telnyx' })
+    const r = await vs.initiateOutboundIvrCall({ chatId, callerId, transferCallerId: showAs, targetNumber: me, ivrNumber: from, greetingText, activeKeys: ['1'], ivrMode: 'transfer', templateName: ACTIONS.callback, holdMusic: false, provider: 'telnyx' })
     return r?.error ? { status: 'failed', detail: strip(r.error), rate } : { status: 'started', detail: `Ringing ${me} — press 1 to reach ${from}.`, rate }
   }
   if (rule.action === 'message') {
     const rate = vs.getIvrCallRate(from)
     const low = await funded(chatId, rate)
     if (low) return { status: 'skipped', detail: low, rate }
-    if (preview) return { status: 'preview', detail: `Would call ${from} and read your message.`, rate }
+    if (preview) return { status: 'preview', detail: `Would call ${from}${shown} and read your message.`, rate }
     const voice = String((await ctx.db.collection('webPrefs').findOne({ _id: chatId }))?.ttsVoice || '') || undefined
-    const r = await vs.initiateOutboundIvrCall({ chatId, callerId, targetNumber: from, greetingText: rule.message, messageOnly: true, activeKeys: ['1'], ivrMode: 'transfer', templateName: ACTIONS.message, voiceName: voice, holdMusic: false, provider: 'telnyx' })
+    const r = await vs.initiateOutboundIvrCall({ chatId, callerId, displayCallerId: showAs, targetNumber: from, greetingText: rule.message, messageOnly: true, activeKeys: ['1'], ivrMode: 'transfer', templateName: ACTIONS.message, voiceName: voice, holdMusic: false, provider: 'telnyx' })
     return r?.error ? { status: 'failed', detail: strip(r.error), rate } : { status: 'started', detail: `Calling ${from} with your message.`, rate }
   }
   const ai = require('../ai-agent')
@@ -114,9 +118,9 @@ async function execute(chatId, num, cfg, rule, from, text, simulate) {
   const low = await funded(chatId, rate + ai.committed(chatId))
   if (low) return { status: 'skipped', detail: low, rate }
   if (!process.env.APP_OPEN_API_KEY && !preview) return { status: 'failed', detail: 'AI calls are not available right now.', rate }
-  if (preview) return { status: 'preview', detail: `Would have ${agent.name} call ${from} about their text.`, rate }
+  if (preview) return { status: 'preview', detail: `Would have ${agent.name} call ${from}${shown} about their text.`, rate }
   const reason = `They just texted the business: "${str(text, 300)}". Say you are calling back about their text, then help them with it.`
-  const r = await ai.dialLead({ id: null, chatId, agentId: agent.id, callerId }, { number: from, name: null, index: null, reason })
+  const r = await ai.dialLead({ id: null, chatId, agentId: agent.id, callerId, showAs }, { number: from, name: null, index: null, reason })
   return r?.error ? { status: 'failed', detail: strip(r.error), rate } : { status: 'started', detail: `${agent.name} is calling ${from}.`, rate }
 }
 
@@ -187,6 +191,9 @@ function routes(router, deps) {
   router.put('/numbers/:phone/text-triggers', withNumber(async (req, res) => {
     let value
     try { value = validate(req.body, req.num, (await agentsOf(req.webChatId)).map(a => a.id)) } catch (e) { return bad(res, 400, 'invalid_triggers', e.message) }
+    for (const [i, r] of value.rules.entries()) {
+      if (r.showAs && !(await callerIds.isVerified(req.webChatId, r.showAs))) return bad(res, 400, 'invalid_show_as', `Trigger ${i + 1}: verify ${r.showAs} under My numbers → Your own caller IDs first.`)
+    }
     await numbersApi.setField(req.webChatId, req.num.phoneNumber, 'features.textTriggers', value)
     if (value.myPhone) await prefs.updateOne({ _id: req.webChatId }, { $set: { callbackPhone: value.myPhone, updatedAt: new Date() } }, { upsert: true })
     res.json({ textTriggers: value })

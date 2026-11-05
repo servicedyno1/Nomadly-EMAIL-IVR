@@ -3,6 +3,7 @@
 // Every bot send to such an id is captured here as an in-app notification instead of hitting Telegram.
 const WEB_ID_BASE = 5e15
 const { ObjectId } = require('mongodb')
+const { scrubProviderNames } = require('../sanitize-provider')
 const isWebChatId = (id) => { const n = Number(id); return Number.isFinite(n) && n >= WEB_ID_BASE && n < Number.MAX_SAFE_INTEGER }
 
 let _col = null
@@ -30,10 +31,13 @@ function kindOf(t) {
 // Bot promos (they all carry the "/stoppromos" footer) never belong in a web inbox — a backstop for any broadcast path.
 async function push(chatId, text, mediaUrl = null, extra = null) {
   if (!_col) return
-  const clean = strip(text).slice(0, 4000)
-  if (!clean && !mediaUrl) return
-  if (/\/stoppromos/.test(clean)) return
-  await _col.insertOne({ chatId: String(chatId), text: clean, kind: extra?.kind || kindOf(clean), mediaUrl, meta: extra?.meta || null, read: false, createdAt: new Date() })
+  const raw = strip(text).slice(0, 4000)
+  if (!raw && !mediaUrl) return
+  if (/\/stoppromos/.test(raw)) return
+  // Engine notices never name the carrier; a forwarded text keeps the sender's own words.
+  const kind = extra?.kind || kindOf(raw)
+  const clean = kind === 'sms' ? raw : scrubProviderNames(raw)
+  await _col.insertOne({ chatId: String(chatId), text: clean, kind, mediaUrl, meta: extra?.meta || null, read: false, createdAt: new Date() })
 }
 
 const FAKE = (chatId) => Promise.resolve({ message_id: 0, chat: { id: chatId }, web: true })
@@ -88,6 +92,9 @@ function linkOf(n, mine) {
     || mine.find(p => (String(n.text).match(PHONE_RE) || []).some(t => digits(t) === digits(p)))
   const num = (tab) => (found ? `/app/numbers/${encodeURIComponent(found)}?tab=${tab}` : '/app/numbers')
   if (n.meta?.otp) return '/app/quick-call'
+  if (n.meta?.hosted) return '/app/texting'
+  if (n.meta?.mobile) return '/app/numbers'
+  if (n.meta?.esim) return n.kind === 'sms' ? '/app/messages' : '/app/esim'
   switch (n.kind) {
     case 'sms': case 'voicemail': case 'call': return num('logs')
     case 'billing': return num('billing')
@@ -108,7 +115,7 @@ function routes(router, { h, numbersApi, smsReply }) {
       numbersApi.myNumbers(req.webChatId).catch(() => []),
     ])
     const mine = nums.map(n => n.phoneNumber)
-    res.json({ ...counts, notifications: items.map(n => ({ id: String(n._id), text: n.text, kind: n.kind, mediaUrl: n.mediaUrl, meta: n.meta || null, read: n.read, createdAt: n.createdAt, link: linkOf(n, mine), canReply: n.kind === 'sms' && !!n.meta?.from && !!n.meta?.to })) })
+    res.json({ ...counts, notifications: items.map(n => ({ id: String(n._id), text: n.text, kind: n.kind, mediaUrl: n.mediaUrl, meta: n.meta || null, read: n.read, createdAt: n.createdAt, link: linkOf(n, mine), canReply: n.kind === 'sms' && !!n.meta?.from && !!n.meta?.to && !n.meta?.receiveOnly && !n.meta?.hosted })) })
   }))
   // body { id } marks one item read; { kind } marks only that filter's items read; nothing = everything.
   router.post('/notifications/read', h(async (req, res) => {
@@ -129,9 +136,23 @@ function routes(router, { h, numbersApi, smsReply }) {
     const n = _id && await _col.findOne({ _id, chatId: req.webChatId })
     if (!n) return res.status(404).json({ error: 'not_found', message: 'Message not found.' })
     if (n.kind !== 'sms' || !n.meta?.from || !n.meta?.to) return res.status(400).json({ error: 'cannot_reply', message: 'This message can’t be answered from here. Open the number’s Logs tab.' })
+    if (n.meta.esim) {
+      const er = await require('../spenza.js').sendSms(req.webChatId, n.meta.esim, n.meta.from, req.body?.text)
+      if (er.error) return res.status(400).json({ error: 'cannot_reply', message: er.error })
+      const reply = { text: er.log.body, at: er.log.timestamp, status: er.log.status }
+      await _col.updateOne({ _id }, { $set: { 'meta.reply': reply, read: true } })
+      return res.json({ reply, charge: 0.05 })
+    }
+    if (n.meta.hosted) {
+      const hr = await require('../hosted-sms.js').sendText(req.webChatId, n.meta.hosted, n.meta.from, req.body?.text)
+      if (hr.error) return res.status(400).json({ error: 'cannot_reply', message: hr.error })
+      const reply = { text: hr.log.body, at: hr.log.timestamp, status: hr.log.status }
+      await _col.updateOne({ _id }, { $set: { 'meta.reply': reply, read: true } })
+      return res.json({ reply, charge: hr.charge })
+    }
     const num = await numbersApi.findMine(req.webChatId, n.meta.to)
     if (!num) return res.status(404).json({ error: 'not_found', message: 'That number is no longer on your account.' })
-    const r = await smsReply.send({ chatId: req.webChatId, num, to: n.meta.from, text: req.body?.text })
+    const r = await smsReply.send({ chatId: req.webChatId, num, to: n.meta.from, text: req.body?.text, inboxId: String(_id) })
     if (r.error) return res.status(r.error[0]).json({ error: r.error[1], message: r.error[2] })
     const reply = { text: r.log.body, at: r.log.timestamp, status: r.log.status }
     await _col.updateOne({ _id }, { $set: { 'meta.reply': reply, read: true } })

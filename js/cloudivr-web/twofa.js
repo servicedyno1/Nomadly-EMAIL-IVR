@@ -122,8 +122,8 @@ function createTwoFactor({ db, secret, sendMail, setSession, publicAccount, lock
     }
     const challenge = jwt.sign({ sub: acc._id, typ: 'mfa', r: !!remember }, secret(), { expiresIn: `${CHALLENGE_MIN}m` })
     const previewCode = acc.twoFactor.method === 'email' ? (await emailCode(acc, 'login')).code : null
-    const [u, d] = acc.email.split('@')
-    res.json({ twoFactor: { method: acc.twoFactor.method, challenge, emailHint: `${u.slice(0, 2)}•••@${d}`, ...(previewCode ? { previewCode } : {}) } })
+    const [u, d] = String(acc.email || '').split('@')
+    res.json({ twoFactor: { method: acc.twoFactor.method, challenge, emailHint: d ? `${u.slice(0, 2)}•••@${d}` : null, ...(previewCode ? { previewCode } : {}) } })
   }
 
   const fromChallenge = async (token) => {
@@ -181,10 +181,11 @@ function createTwoFactor({ db, secret, sendMail, setSession, publicAccount, lock
       if (method === 'totp') {
         const secretB32 = b32encode(crypto.randomBytes(20))
         await accounts.updateOne({ _id: acc._id }, { $set: { twoFactorPending: { secretEnc: seal(secretB32), at: new Date() } } })
-        const label = encodeURIComponent(`CloudIVR:${acc.email}`)
+        const label = encodeURIComponent(`CloudIVR:${acc.email || acc.phone}`)
         return res.json({ method, secret: secretB32, otpauthUrl: `otpauth://totp/${label}?secret=${secretB32}&issuer=CloudIVR&algorithm=SHA1&digits=6&period=30` })
       }
       if (method === 'email') {
+        if (!acc.email) return bad(res, 400, 'no_email', 'Your account has no email. Use an authenticator app instead.')
         const previewCode = (await emailCode(acc, 'setup')).code
         return res.json({ method, sentTo: acc.email, ...(previewCode ? { previewCode } : {}) })
       }

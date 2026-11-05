@@ -1,4 +1,4 @@
-// "🌐 Use on Web" — hosta.sh entry point for bot users (2026-10-14).
+// "🌐 Hosting/RDP/VPS on Web" (was "🌐 Use on Web") — hosta.sh entry point, NomadlyBot only (2026-10-14, label 2026-10-27).
 //   node js/tests/test_web_access_2026-10.js
 const path = require('path')
 const fs = require('fs')
@@ -10,11 +10,21 @@ const langKeyboard = (l) => fresh(`../lang/${l}.js`)[l].o.reply_markup.keyboard
 
 console.log('\n── unset (Smadav / Voodoo) ──')
 process.env.WEBSITE_URL = ''
+process.env.CHAT_BOT_BRAND = 'Nomadly'
 let web = fresh('../web-access.js')
 ok('no menu row', web.webMenuRows('en').length === 0)
 ok('no welcome line', web.webWelcomeLine('fr') === '')
-ok('button text not intercepted', web.isWebButton('🌐 Use on Web') === false)
+ok('button text not intercepted', web.isWebButton('🌐 Hosting/RDP/VPS on Web') === false && web.isWebButton('🌐 Use on Web') === false)
 for (const l of LANGS) ok(`${l}: main menu unchanged (no web row)`, !langKeyboard(l).flat().some(b => Object.values(web.LABELS).includes(b)))
+
+console.log('\n── WEBSITE_URL set on a non-Nomadly bot ──')
+process.env.WEBSITE_URL = 'https://hosta.sh'
+for (const brand of ['PROSHOP', 'Voodoo Land', 'Smadav']) {
+  process.env.CHAT_BOT_BRAND = brand
+  web = fresh('../web-access.js')
+  ok(`${brand}: no hosta row / line / handler`, web.webMenuRows('en').length === 0 && web.webWelcomeLine('en') === '' && !web.isWebButton(web.LABELS.en) && !langKeyboard('en').flat().some(b => Object.values(web.LABELS).includes(b)))
+}
+process.env.CHAT_BOT_BRAND = 'Nomadly'
 
 console.log('\n── WEBSITE_URL=https://hosta.sh (Nomadly) ──')
 process.env.WEBSITE_URL = 'https://hosta.sh'
@@ -32,7 +42,9 @@ for (const l of LANGS) {
   const w = web.webWelcomeLine(l)
   ok(`${l}: welcome line links hosta.sh`, w.startsWith('\n\n🌐 ') && w.includes('<a href="https://hosta.sh">hosta.sh</a>'), w)
 }
-ok('unknown language falls back to English', web.webAccessMessage('xx').text.startsWith('🌐 <b>Prefer the web?</b>') && web.webMenuRows('xx')[0][0] === '🌐 Use on Web')
+ok('English label is "🌐 Hosting/RDP/VPS on Web"', web.LABELS.en === '🌐 Hosting/RDP/VPS on Web')
+ok('unknown language falls back to English', web.webAccessMessage('xx').text.startsWith('🌐 <b>Prefer the web?</b>') && web.webMenuRows('xx')[0][0] === '🌐 Hosting/RDP/VPS on Web')
+ok('old "Use on Web" labels on already-open keyboards still work', web.LEGACY_LABELS.every(x => web.isWebButton(x)))
 ok('other menu labels not intercepted', !web.isWebButton('🌐 Domain Names') && !web.isWebButton('🌍 Change Language') && !web.isWebButton('use on web'))
 process.env.WEBSITE_URL = 'https://hosta.sh/'
 ok('trailing slash trimmed from the shown host', fresh('../web-access.js').webWelcomeLine('en').includes('>hosta.sh</a>'))
@@ -40,7 +52,7 @@ ok('trailing slash trimmed from the shown host', fresh('../web-access.js').webWe
 console.log('\n── labels unique vs every existing button ──')
 const allLabels = new Set()
 for (const l of LANGS) { const u = fresh(`../lang/${l}.js`)[l].user || {}; Object.values(u).forEach(v => typeof v === 'string' && allLabels.add(v)) }
-ok('no existing user.* button shares a web label', !Object.values(web.LABELS).some(x => allLabels.has(x)))
+ok('no existing user.* button shares a web label', ![...Object.values(web.LABELS), ...web.LEGACY_LABELS].some(x => allLabels.has(x)))
 
 console.log('\n── _index.js wiring ──')
 const src = fs.readFileSync(path.join(__dirname, '../_index.js'), 'utf8')

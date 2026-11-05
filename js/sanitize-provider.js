@@ -324,6 +324,19 @@ function sanitizeUserText(text) {
   return s
 }
 
+// Neutral wording for any customer-facing text (CloudIVR web inbox + API messages): carrier and registrar names and
+// hostnames never reach the customer. No HTML escaping, line breaks kept.
+function scrubProviderNames(text) {
+  if (typeof text !== 'string' || !/twilio|telnyx|openprovider|connect\s?reseller/i.test(text)) return text
+  return text
+    .replace(/https?:\/\/(?:[\w-]+\.)*(?:twilio|telnyx|openprovider|connectreseller|connect-reseller)\.[a-z]{2,6}[^\s)\]<>"';]*/gi, '')
+    .replace(/\b(?:[\w-]+\.)*(?:twilio|telnyx)\.[a-z]{2,6}\b/gi, 'our network')
+    .replace(/\b(?:[\w-]+\.)*(?:openprovider|connectreseller|connect-reseller)\.[a-z]{2,6}\b/gi, 'the registrar')
+    .replace(/\b(?:Twilio|Telnyx)(?:'s)?\b/gi, 'our network')
+    .replace(/\b(?:OpenProvider|Connect\s?Reseller)(?:'s)?\b/gi, 'the registrar')
+    .replace(/[ \t]{2,}/g, ' ')
+}
+
 // Display name for a voice carrier in any chat message (customer, support or admin). Raw values stay in DB/logs.
 const NETWORK_LABELS = { telnyx: 'Speechcue' }
 const networkLabel = (provider) => NETWORK_LABELS[String(provider || '').toLowerCase()] || provider
@@ -334,4 +347,5 @@ module.exports = {
   sanitizeHangupCause,
   sanitizeAiContext,
   sanitizeUserText,
+  scrubProviderNames,
 }

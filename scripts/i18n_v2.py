@@ -1,0 +1,57 @@
+import json, os
+os.chdir('/app/frontend/src/cloudivr/i18n')
+N = {
+ "Virtual numbers · IVR · AI voice agents": ("Números virtuales · IVR · Agentes de voz IA", "Numéros virtuels · SVI · Agents vocaux IA"),
+ "A number in {0} countries, a keypad menu or AI agent that answers every call, campaigns that call your list, and texts on your landline. All from the browser.": ("Un número en {0} países, un menú de teclado o un agente IA que atiende cada llamada, campañas que llaman a tu lista y mensajes en tu fijo. Todo desde el navegador.", "Un numéro dans {0} pays, un menu à touches ou un agent IA qui répond à chaque appel, des campagnes qui appellent votre liste et des SMS sur votre fixe. Le tout depuis le navigateur."),
+ "Sign up free": ("Regístrate gratis", "Inscription gratuite"),
+ "Sign up": ("Regístrate", "S’inscrire"),
+ "Try a free call": ("Prueba una llamada gratis", "Essayez un appel gratuit"),
+ "Free to sign up": ("Registro gratis", "Inscription gratuite"),
+ "No contracts": ("Sin contratos", "Sans engagement"),
+ "Live in minutes": ("Listo en minutos", "En ligne en quelques minutes"),
+ "Everything a business phone line needs, ready in minutes": ("Todo lo que necesita una línea de empresa, listo en minutos", "Tout ce qu’il faut à une ligne professionnelle, prêt en quelques minutes"),
+ "{0} countries": ("{0} países", "{0} pays"),
+ "Local, mobile and toll-free numbers": ("Números locales, móviles y gratuitos", "Numéros locaux, mobiles et gratuits"),
+ "Free test call": ("Llamada de prueba gratis", "Appel test gratuit"),
+ "Hear it on your own phone, no card": ("Escúchalo en tu propio teléfono, sin tarjeta", "Écoutez-le sur votre téléphone, sans carte"),
+ "Crypto & wallet": ("Cripto y billetera", "Crypto et portefeuille"),
+ "Pay with 8 coins or your balance": ("Paga con 8 criptomonedas o tu saldo", "Payez avec 8 cryptos ou votre solde"),
+ "EN · ES · FR": ("EN · ES · FR", "EN · ES · FR"),
+ "App and voice in three languages": ("App y voz en tres idiomas", "App et voix en trois langues"),
+ "One phone line that answers, calls and talks for you": ("Una línea que contesta, llama y habla por ti", "Une ligne qui répond, appelle et parle pour vous"),
+ "Every call answered": ("Cada llamada atendida", "Chaque appel décroché"),
+ "A keypad menu routes callers in a second, voicemail is transcribed and calls ring your browser, desk phone or mobile.": ("Un menú de teclado dirige a cada llamante en un segundo, el buzón se transcribe y las llamadas suenan en tu navegador, teléfono fijo o móvil.", "Un menu à touches oriente chaque appelant en une seconde, la messagerie est transcrite et les appels sonnent sur votre navigateur, poste fixe ou mobile."),
+ "See keypad menus": ("Ver menús de teclado", "Voir les menus à touches"),
+ "Automate outreach": ("Automatiza tus llamadas", "Automatisez la prospection"),
+ "Bulk IVR and Quick IVR call your list, play your message and connect everyone who presses 1 straight to you.": ("Bulk IVR y Quick IVR llaman a tu lista, reproducen tu mensaje y te conectan con quien pulse 1.", "Bulk IVR et Quick IVR appellent votre liste, diffusent votre message et vous mettent en relation avec ceux qui appuient sur 1."),
+ "See campaigns": ("Ver campañas", "Voir les campagnes"),
+ "AI that talks for you": ("IA que habla por ti", "Une IA qui parle pour vous"),
+ "An AI voice agent answers around the clock, books visits and takes messages in 20 languages.": ("Un agente de voz IA atiende a toda hora, agenda citas y toma mensajes en 20 idiomas.", "Un agent vocal IA répond jour et nuit, prend des rendez-vous et des messages en 20 langues."),
+ "See AI agents": ("Ver agentes IA", "Voir les agents IA"),
+ "Reach customers on every line": ("Llega a tus clientes por cada línea", "Joignez vos clients sur chaque ligne"),
+ "Phone numbers": ("Números de teléfono", "Numéros de téléphone"),
+ "Local, mobile and toll-free numbers in many countries.": ("Números locales, móviles y gratuitos en muchos países.", "Numéros locaux, mobiles et gratuits dans de nombreux pays."),
+ "IVR menus": ("Menús IVR", "Menus SVI"),
+ "Press 1 for sales, 2 for support.": ("Pulsa 1 para ventas, 2 para soporte.", "Tapez 1 pour les ventes, 2 pour le support."),
+ "Bulk campaigns": ("Campañas masivas", "Campagnes en masse"),
+ "Call a whole list and connect the hot leads.": ("Llama a toda una lista y conecta a los interesados.", "Appelez toute une liste et connectez les prospects chauds."),
+ "Call up to 10 people with one message.": ("Llama hasta a 10 personas con un mensaje.", "Appelez jusqu’à 10 personnes avec un message."),
+ "Browser phone": ("Teléfono del navegador", "Téléphone navigateur"),
+ "Make and take calls in any browser tab.": ("Haz y recibe llamadas en cualquier pestaña.", "Passez et recevez des appels dans n’importe quel onglet."),
+ "Sign in from a desk phone or softphone.": ("Conéctate desde un teléfono de escritorio o softphone.", "Connectez-vous depuis un poste fixe ou un softphone."),
+ "AI agents": ("Agentes IA", "Agents IA"),
+ "A voice that answers, books and follows up.": ("Una voz que atiende, agenda y hace seguimiento.", "Une voix qui répond, réserve et relance."),
+ "Text-to-voice": ("Texto a voz", "Texte en voix"),
+ "Type and a natural voice speaks for you.": ("Escribe y una voz natural habla por ti.", "Tapez et une voix naturelle parle pour vous."),
+ "Customers text the office number you already have.": ("Tus clientes escriben al número de oficina que ya tienes.", "Vos clients écrivent au numéro de bureau que vous avez déjà."),
+ "Previous": ("Anterior", "Précédent"), "Next": ("Siguiente", "Suivant"),
+ "Ready to answer every call?": ("¿Listo para atender cada llamada?", "Prêt à répondre à chaque appel ?"),
+ "Free to sign up. Your number can be live in minutes, no contracts.": ("Registro gratis. Tu número puede estar activo en minutos, sin contratos.", "Inscription gratuite. Votre numéro peut être actif en quelques minutes, sans engagement."),
+ "Help": ("Ayuda", "Aide"), "Calling": ("Llamadas", "Appels"), "Automation": ("Automatización", "Automatisation"), "AI": ("IA", "IA"),
+}
+for lang, i in (('es', 0), ('fr', 1)):
+    p = f'{lang}.json'
+    d = json.load(open(p))
+    for k, v in N.items(): d[k] = v[i]
+    open(p, 'w').write('{\n' + ',\n'.join(f'{json.dumps(k, ensure_ascii=False)}: {json.dumps(x, ensure_ascii=False)}' for k, x in d.items()) + '\n}')
+print('ok', len(N))

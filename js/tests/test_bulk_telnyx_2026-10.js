@@ -9,6 +9,9 @@ process.env.DB_NAME = 'p2_telnyx_sandbox'
 process.env.BULK_TELNYX_DIAL_GAP_MS = '0'
 process.env.TWILIO_ENABLED = 'false'
 process.env.BULK_VM_BEEP_WAIT_MS = '1500'
+process.env.BULK_VM_MAX_CALL_SEC = '4'    // per-call cap of voicemail-drop campaigns (prod 60)
+process.env.BULK_VM_CAP_MARGIN_SEC = '1'  // → cap fires at 3 s
+delete process.env.BULK_VM_AMD_MODE
 delete process.env.SELF_URL; delete process.env.SELF_URL_PROD
 
 const { MongoClient } = require('mongodb')
@@ -277,7 +280,7 @@ const dialFor = (to) => dials.filter(d => d.to === to).slice(-1)[0]
   ok('P5-01', 'campaign stores the voicemail clip', campV.voicemailAudioUrl === vmUrl && campV.voicemailAudioName === 'Call us back', '')
   await bulk.startCampaign(campV.id)
   await waitFor(() => !!dialFor(L(90)) && !!dialFor(L(91)))
-  ok('P5-02', 'voicemail-drop campaign dials with AMD detect_beep', dialFor(L(90)).amd === 'detect_beep' && dialFor(L(91)).amd === 'detect_beep' && dials.filter(d => d.from === callerA).every(d => d.amd === 'detect'), `${dialFor(L(90)).amd}`)
+  ok('P5-02', 'voicemail-drop campaign dials with AMD greeting_end', dialFor(L(90)).amd === 'greeting_end' && dialFor(L(91)).amd === 'greeting_end' && dials.filter(d => d.from === callerA).every(d => d.amd === 'detect'), `${dialFor(L(90)).amd}`)
   // lead 0: beep detected → clip plays → finishes → hang up
   const v0 = dialFor(L(90)).id
   await hook('call.initiated', { call_control_id: v0, direction: 'outgoing', from: callerV, to: L(90) })
@@ -326,6 +329,45 @@ const dialFor = (to) => dials.filter(d => d.to === to).slice(-1)[0]
   await waitFor(async () => (await camps.findOne({ id: campF.id })).status === 'completed')
   const cF = await camps.findOne({ id: campF.id })
   ok('P5-13', 'failed clip → Voicemail, not counted as message left', cF.leads[0].status === 'voicemail' && !cF.leads[0].voicemailDropped && cF.stats.voicemailLeft === 0, JSON.stringify(cF.stats))
+
+  // ━━━ greeting_end: greeting.ended with NO machine result → clip now; cap never cuts a playing clip; cap still ends other calls ━━━
+  const G = '9000000532', callerG = '+18885550532'
+  await walletOf.insertOne({ _id: G, usdIn: 50, usdOut: 0 })
+  await phoneNumbersOf.insertOne({ _id: G, val: { numbers: [{ phoneNumber: callerG, status: 'active', plan: 'pro', provider: 'telnyx' }] } })
+  const campG = await bulk.createCampaign({ chatId: G, callerId: callerG, audioUrl: 'https://cdn.invalid/g.mp3', audioName: 'g', mode: 'report_only', concurrency: 3, provider: 'telnyx', voicemailAudioUrl: vmUrl, voicemailAudioName: 'Call us back', leads: [{ number: L(70) }, { number: L(71) }, { number: L(72) }] })
+  await bulk.startCampaign(campG.id)
+  await waitFor(() => !!dialFor(L(70)) && !!dialFor(L(71)) && !!dialFor(L(72)))
+  const [g0, g1, g2] = [dialFor(L(70)).id, dialFor(L(71)).id, dialFor(L(72)).id]
+  for (const [id, n] of [[g0, 70], [g1, 71], [g2, 72]]) {
+    await hook('call.initiated', { call_control_id: id, direction: 'outgoing', from: callerG, to: L(n) })
+    await hook('call.answered', { call_control_id: id })
+  }
+  // g0: mailbox, Telnyx sends only greeting.ended (no detection.ended)
+  await hook('call.machine.greeting.ended', { call_control_id: g0, result: 'ended' })
+  ok('P5-14', 'greeting.ended without a machine result → prompt stopped + clip played at once', gatherStops.includes(g0) && playbacks.some(pb => pb.id === g0 && pb.url === vmUrl) && voice.outboundIvrCalls[g0]?.phase === 'voicemail_playing', `phase=${voice.outboundIvrCalls[g0]?.phase}`)
+  await hook('call.playback.started', { call_control_id: g0, media_url: vmUrl })
+  // g1: human answered → a stray greeting.ended must NOT drop the clip
+  await hook('call.machine.detection.ended', { call_control_id: g1, result: 'human' })
+  await hook('call.machine.greeting.ended', { call_control_id: g1, result: 'ended' })
+  ok('P5-15', 'human answered → greeting.ended does not play the voicemail clip', !playbacks.some(pb => pb.id === g1) && voice.outboundIvrCalls[g1]?.phase === 'playing', `phase=${voice.outboundIvrCalls[g1]?.phase}`)
+  // g2: not_sure result, then greeting.ended → mailbox
+  await hook('call.machine.detection.ended', { call_control_id: g2, result: 'not_sure' })
+  await hook('call.machine.greeting.ended', { call_control_id: g2, result: 'ended' })
+  ok('P5-16', 'not_sure + greeting.ended → clip played', playbacks.some(pb => pb.id === g2 && pb.url === vmUrl), '')
+  await sleep(3600) // past the 3 s per-call cap
+  ok('P5-17', 'per-call cap does NOT hang up calls whose voicemail clip is playing', !hangups.includes(g0) && !hangups.includes(g2), `hangups g0=${hangups.includes(g0)} g2=${hangups.includes(g2)}`)
+  ok('P5-18', 'per-call cap still hangs up the call that is only playing the prompt (fires margin-early)', hangups.includes(g1), '')
+  await hook('call.hangup', { call_control_id: g1, hangup_cause: 'normal_clearing', duration_secs: 3 })
+  await hook('call.playback.ended', { call_control_id: g0, media_url: vmUrl, status: 'completed' })
+  await hook('call.playback.ended', { call_control_id: g2, media_url: vmUrl, status: 'completed' })
+  ok('P5-19', 'clips finished → app hangs up both mailbox calls', hangups.includes(g0) && hangups.includes(g2), '')
+  await hook('call.hangup', { call_control_id: g0, hangup_cause: 'normal_clearing', duration_secs: 78 })
+  await hook('call.hangup', { call_control_id: g2, hangup_cause: 'normal_clearing', duration_secs: 55 })
+  await waitFor(async () => (await camps.findOne({ id: campG.id })).status === 'completed')
+  const cG = await camps.findOne({ id: campG.id })
+  ok('P5-20', 'stats: 2 voicemail messages left, human lead answered', cG.stats.voicemailLeft === 2 && cG.leads[0].voicemailDropped && cG.leads[2].voicemailDropped && !cG.leads[1].voicemailDropped && cG.leads[1].answeredBy === 'human', JSON.stringify(cG.stats))
+  const rowsG = (await ledger.find({ chatId: G }).toArray()).map(l => r2(Math.abs(l.amount))).sort()
+  ok('P5-21', 'billed by real time used: 78 s → 2 min $0.30, 55 s → 1 min $0.15, 3 s → 1 min $0.15', JSON.stringify(rowsG) === JSON.stringify([0.15, 0.15, 0.3]), JSON.stringify(rowsG))
 
   console.log('\n| Journey | Check | Result | Detail |\n|---|---|---|---|')
   for (const r of results) console.log(`| ${r.id} | ${r.name} | ${r.pass ? 'PASS' : 'FAIL'} | ${r.detail} |`)

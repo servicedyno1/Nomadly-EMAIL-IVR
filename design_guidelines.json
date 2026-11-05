@@ -1,141 +1,137 @@
 {
-  "project_name": "CloudIVR",
-  "archetype": "SWISS TELECOM & CLEAN REAL PHONE COMPANY",
-  "emotional_tone": "Professional, authoritative, friction-free, dependable enterprise cloud communications",
-  "theme_mode": "Light mode primary for app and landing pages, with refined dark executive accents for high-contrast clarity",
+  "project_name": "CloudIVR Landing Page Refresh",
+  "theme": "Light mode default, clean, trustworthy telecom-credible design",
   "typography": {
-    "heading_font": "Plus Jakarta Sans",
-    "heading_google_import": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap",
-    "body_font": "Inter, sans-serif",
-    "mono_font": "JetBrains Mono, monospace",
-    "font_rules": {
-      "H1": "text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight",
-      "H2": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight",
-      "H3": "text-xl sm:text-2xl font-semibold tracking-tight",
-      "H4": "text-lg sm:text-xl font-semibold",
-      "Body": "text-base leading-relaxed text-slate-600 dark:text-slate-300",
-      "Labels_Overlines": "text-xs font-bold uppercase tracking-widest text-teal-600 dark:text-teal-400"
-    }
+    "font_family": "Source Sans 3, Source Sans Pro, sans-serif",
+    "h1": "text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#0f172a]",
+    "h2": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#0f172a]",
+    "h3": "text-xl sm:text-2xl font-semibold text-[#0f172a]",
+    "body": "text-base text-[#334155] leading-relaxed",
+    "eyebrow_label": "text-xs font-bold uppercase tracking-widest text-[#1d6fd8]",
+    "trust_note": "text-xs text-[#556273] mt-2 flex items-center justify-center gap-1.5"
   },
-  "color_system": {
-    "palette_name": "Swiss Corporate Cyan & Slate",
-    "primary": "#0F172A",
-    "primary_light": "#1E293B",
-    "accent_telecom": "#0284C7",
-    "accent_telecom_hover": "#0369A1",
-    "accent_teal": "#0D9488",
-    "accent_teal_light": "#CCFBF1",
-    "bg_light": "#F8FAFC",
-    "card_light": "#FFFFFF",
-    "card_border_light": "#E2E8F0",
-    "text_main_light": "#0F172A",
-    "text_muted_light": "#64748B",
-    "bg_dark_executive": "#0B0F19",
-    "card_dark_executive": "#111827",
-    "border_dark_executive": "#1F2937"
+  "colors": {
+    "background_light": "#ffffff",
+    "background_soft": "#f7f8fa",
+    "background_dark_section": "#1b1e22",
+    "accent_primary": "#1d6fd8",
+    "accent_primary_hover": "#195fba",
+    "badge_lime": "#daff7c",
+    "badge_lime_dark": "#3f6c0b",
+    "border_subtle": "rgba(15, 23, 42, 0.12)",
+    "text_dark": "#0f172a",
+    "text_muted": "#475569",
+    "text_light": "#ffffff"
   },
-  "palette_mapping_table": [
-    {
-      "old_hex_or_class": "#0a0a0a / --c-bg",
-      "new_hex_or_class": "#F8FAFC",
-      "context": "Main application background (Light corporate canvas)"
-    },
-    {
-      "old_hex_or_class": "#141414 / --c-card",
-      "new_hex_or_class": "#FFFFFF",
-      "context": "Main card surface background"
-    },
-    {
-      "old_hex_or_class": "#1a1a1a / --c-card-hover",
-      "new_hex_or_class": "#F1F5F9",
-      "context": "Card hover state background"
-    },
-    {
-      "old_hex_or_class": "#262626 / --c-border",
-      "new_hex_or_class": "#E2E8F0",
-      "context": "Standard container & divider borders"
-    },
-    {
-      "old_hex_or_class": "#3a3a3a / --c-border-hover",
-      "new_hex_or_class": "#CBD5E1",
-      "context": "Hovered container border"
-    },
-    {
-      "old_hex_or_class": "#f3f4f6 / --c-text",
-      "new_hex_or_class": "#0F172A",
-      "context": "Primary heading and body text"
-    },
-    {
-      "old_hex_or_class": "#a1a1aa / --c-text-2",
-      "new_hex_or_class": "#475569",
-      "context": "Secondary text and descriptions"
-    },
-    {
-      "old_hex_or_class": "#8b8b94 / --c-muted",
-      "new_hex_or_class": "#64748B",
-      "context": "Placeholder text and muted labels"
-    },
-    {
-      "old_hex_or_class": "#34d399 / --c-emerald (Mint AI Green)",
-      "new_hex_or_class": "#0284C7 (Corporate Telecom Blue) / #0D9488 (Teal)",
-      "context": "Primary action buttons, active tabs, call CTAs, status indicators"
-    },
-    {
-      "old_hex_or_class": "#0A0D0E / --l-ink (Landing Dark)",
-      "new_hex_or_class": "#0F172A",
-      "context": "Landing dark hero/executive background"
-    },
-    {
-      "old_hex_or_class": "#FEFDF5 / --l-cream (Landing Cream)",
-      "new_hex_or_class": "#FFFFFF",
-      "context": "Landing light content section background"
-    },
-    {
-      "old_hex_or_class": "#00E3AA / --l-green (Neon Glow Green)",
-      "new_hex_or_class": "#0284C7",
-      "context": "Landing CTA buttons and highlight accents"
-    },
-    {
-      "old_hex_or_class": "civr-trace (Neon Glow Shadow)",
-      "new_hex_or_class": "shadow-sm border border-sky-200 shadow-sky-100",
-      "context": "Replaced sci-fi glow with clean crisp enterprise elevation"
-    }
-  ],
-  "logo_concept": {
-    "brand_name": "CloudIVR",
-    "concept_description": "A precision telecommunications mark combining a solid rounded rectangular call-signal shield with twin crisp wave arcs and an integrated cloud node, paired with bold geometric typography in Plus Jakarta Sans.",
-    "inline_svg_code": "<svg width='160' height='36' viewBox='0 0 160 36' fill='none' xmlns='http://www.w3.org/2000/svg' data-testid='cloudivr-logo-svg'><rect x='2' y='2' width='32' height='32' rx='8' fill='#0284C7'/><path d='M12 18C12 15.2386 14.2386 13 17 13C19.3198 13 21.2581 14.5802 21.8217 16.7324C22.2857 16.2657 22.919 15.9783 23.619 15.9783C25.042 15.9783 26.1957 17.132 26.1957 18.555C26.1957 18.8358 26.1508 19.1061 26.0677 19.3589C26.6186 19.7226 27 20.352 27 21.0652C27 22.189 26.089 23 24.9652 23H17C14.2386 23 12 20.7614 12 18Z' fill='white'/><path d='M23.5 10.5C26.5 12.5 28 15 28 18' stroke='white' stroke-width='2' stroke-linecap='round'/><path d='M8.5 10.5C5.5 12.5 4 15 4 18' stroke='white' stroke-width='2' stroke-linecap='round'/><text x='42' y='24' font-family='Plus Jakarta Sans, sans-serif' font-weight='800' font-size='20' fill='#0F172A' letter-spacing='-0.5'>Cloud<tspan fill='#0284C7'>IVR</tspan></text></svg>",
-    "image_prompt": "Clean minimalist telecom logo icon, cloud combined with soundwave, solid sky blue icon on white background, vector graphic, flat modern tech style"
+  "css_classes_reuse": {
+    "root_container": "civr civr-l civr-np",
+    "card_class": "civr-l-card v2-surface v2-lift",
+    "button_primary": "civr-l-btn civr-l-pill-ink bg-[#1d6fd8] text-white hover:bg-[#195fba] rounded-lg font-bold px-6 py-3.5 transition-all duration-200",
+    "button_secondary": "civr-l-pill-outline border border-[#1d6fd8] text-[#1d6fd8] hover:bg-[#1d6fd8]/10 rounded-lg font-bold px-6 py-3.5 transition-all duration-200",
+    "kicker": "civr-l-kicker px-3 py-1 rounded-full text-xs font-semibold bg-[#1d6fd8]/10 text-[#1d6fd8]"
   },
-  "landing_hero_replacement": {
-    "action": "Replace Three.js 3D globe (Hero3D.js) with a high-fidelity interactive Live Softphone & Call Routing Control Panel Mockup, framed beside a professional enterprise call center support agent photo.",
-    "hero_mockup_structure": "A sleek 2-column hero: Left side has crisp headline 'Enterprise Virtual Phone Numbers & Smart IVR in 17 Countries', trust badges (99.99% Uptime, Carrier Grade, Instant Provisioning), search box for country numbers, and primary 'Get Started' button. Right side features an interactive browser softphone card with active call waveform, incoming call notification simulation, country flag dropdown selector, and real support photo overlay."
+  "hero_layout": {
+    "layout_mode": "Phone-first stacked cards on mobile (col-span-1), 2-column side-by-side on desktop (md:grid-cols-2)",
+    "headline": "Instant US Phone Lines & eSIMs. Order in seconds, no account required.",
+    "subheadline": "Real carrier US mobile numbers and cellular eSIMs. Trusted by banks and apps worldwide.",
+    "cards": [
+      {
+        "title": "CloudIVR eSIM",
+        "price": "$75/month",
+        "badge": "Instant QR Delivery",
+        "key_points": [
+          "Install on your smartphone via QR code",
+          "Includes US data, cellular calls & SMS",
+          "QR code displayed immediately & sent via email",
+          "Works on any unlocked eSIM-compatible phone"
+        ],
+        "cta_text": "Order eSIM ($75/mo)",
+        "trust_note": "No contract • QR delivered in 30 seconds",
+        "modal_trigger": "eSIM checkout modal"
+      },
+      {
+        "title": "US Mobile Number",
+        "price": "$75/month",
+        "badge": "Real Carrier (Non-VoIP)",
+        "key_points": [
+          "100% real cellular number (accepted by banks & 2FA)",
+          "Manage texts in CloudIVR Messages browser app",
+          "No physical SIM or smartphone required",
+          "Choose preferred ZIP code, exact number shown post-pay",
+          "Free automatic Caller ID included"
+        ],
+        "cta_text": "Order Mobile Number ($75/mo)",
+        "trust_note": "Bank 2FA verified • Instant web access",
+        "modal_trigger": "US mobile number checkout modal"
+      }
+    ]
   },
-  "media_assets": {
-    "hero_support_agent_image": "https://images.unsplash.com/photo-1626863905121-3b0c0ed7b94c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHwxfHxjdXN0b21lciUyMHN1cHBvcnQlMjBwaG9uZSUyMGFnZW50JTIwb2ZmaWNlfGVufDB8fHx8MTc5Mjg0NDYyMXww&ixlib=rb-4.1.0&q=85",
-    "hero_office_desk_phone": "https://images.unsplash.com/photo-1587560699334-bea93391dcef?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHw0fHxjdXN0b21lciUyMHN1cHBvcnQlMjBwaG9uZSUyMGFnZW50JTIwb2ZmaWNlfGVufDB8fHx8MTc5Mjg0NDYyMXww&ixlib=rb-4.1.0&q=85",
-    "team_agent_headset": "https://images.unsplash.com/photo-1766066014237-00645c74e9c6?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHwzfHxjdXN0b21lciUyMHN1cHBvcnQlMjBwaG9uZSUyMGFnZW50JTIwb2ZmaWNlfGVufDB8fHx8MTc5Mjg0NDYyMXww&ixlib=rb-4.1.0&q=85"
+  "which_one_helper_spec": {
+    "container_style": "my-12 p-6 sm:p-8 rounded-2xl bg-[#f7f8fa] border border-[rgba(15,23,42,0.12)] text-center max-w-3xl mx-auto shadow-sm",
+    "title": "Which one do I need?",
+    "options": [
+      {
+        "question": "Want the line on your physical phone?",
+        "answer": "Choose eSIM ($75/mo) for device-native calling & data."
+      },
+      {
+        "question": "Want the number inside your web browser?",
+        "answer": "Choose US Mobile Number ($75/mo) for instant browser SMS & 2FA."
+      }
+    ]
   },
-  "component_styles_redesign": {
-    "civr-card": "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200",
-    "civr-btn-primary": "bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white font-semibold rounded-lg shadow-sm px-5 py-2.5 transition-all text-sm",
-    "civr-btn-ghost": "bg-white hover:bg-slate-100 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-semibold rounded-lg px-4 py-2 text-sm",
-    "civr-input": "bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg h-11 px-3.5 focus:border-sky-600 focus:ring-2 focus:ring-sky-100 dark:focus:ring-sky-950 transition-all text-sm",
-    "civr-pill-on": "bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800 font-medium text-xs px-2.5 py-1 rounded-full",
-    "civr-glass": "bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs"
+  "screenshot_showcase_spec": {
+    "section_title": "Light-mode App Experience",
+    "description": "Real light-mode app interface across desktop and mobile devices.",
+    "items": [
+      { "name": "Messages", "detail": "Bank code SMS text verification view", "device": "Desktop frame + Phone mockup" },
+      { "name": "My numbers", "detail": "Active US mobile numbers list", "device": "Desktop frame" },
+      { "name": "eSIM Page", "detail": "QR Code activation card view", "device": "Phone mockup frame" },
+      { "name": "Keypad Menu", "detail": "Interactive IVR menu route setup", "device": "Desktop frame" },
+      { "name": "Overview", "detail": "Account metrics and quick activity status", "device": "Desktop frame" }
+    ]
   },
-  "instructions_to_main_agent": [
-    "1. Replace Google Font import in cloudivr.css with Plus Jakarta Sans and Inter.",
-    "2. Update CSS variables in cloudivr.css to map dark background variables to light corporate background (#F8FAFC, #FFFFFF, #E2E8F0) and green accent (#34d399) to enterprise sky blue (#0284C7).",
-    "3. Update cloudivr.css component rules (civr-card, civr-btn-primary, civr-input, civr-pill, civr-glass) removing heavy glows, dark fills, and 3D trace effects.",
-    "4. Modify Landing.js and Hero.js: Replace 3D globe (Hero3D) with clean 2-column hero featuring interactive phone simulator card and real stock photo asset from media_assets.",
-    "5. Ensure ALL data-testid attributes across all components and buttons remain 100% intact.",
-    "6. Verify i18n support, routes under /cloudivr, softphone modal, wallet payments, and mobile nav bar render cleanly without text contrast or overlap issues."
-  ],
-  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
-    "Never use dark background gradients or neon glows for enterprise telecom interfaces.",
-    "Ensure all text meets WCAG AA contrast (4.5:1 ratio for normal text).",
-    "Maintain responsive grid layouts with direct children alignment and subgrid support where applicable.",
-    "Ensure all interactive elements include data-testid attributes."
-  ]
+  "business_features_spec": {
+    "section_title": "Enterprise & Business Calling Features",
+    "features": [
+      "Dedicated Calling Numbers & Extensions",
+      "IVR Keypad Menus & Auto-attendant",
+      "Automated SMS & Voice Campaigns",
+      "AI Voice Agents for 24/7 Answering",
+      "Landline to Texting conversion",
+      "Browser Phone & Softphone Web Console"
+    ]
+  },
+  "sticky_mobile_order_bar": {
+    "display": "Fixed bottom bar visible on mobile (< 768px)",
+    "style": "fixed bottom-0 inset-x-0 z-50 p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg flex items-center justify-between gap-3 md:hidden",
+    "left_label": "eSIM or Mobile Line from $75/mo",
+    "cta_button": "Order Now"
+  },
+  "faq_style": {
+    "accordion": "Clean border-b panels with smooth toggle",
+    "questions": [
+      { "q": "Is it VoIP?", "a": "No. Our US Mobile Numbers are real carrier lines, non-VoIP, ensuring compatibility with banks and shortcode SMS." },
+      { "q": "Can I choose the number?", "a": "You can select your preferred ZIP code during order, and your exact allocated number is displayed immediately after payment." },
+      { "q": "When do I get it?", "a": "Access is instant. eSIM QR codes and web message lines are provisioned right after checkout." },
+      { "q": "Does it work with my bank?", "a": "Yes! Because these are real cellular numbers, they bypass VoIP shortcode restrictions." },
+      { "q": "What if I don't renew?", "a": "Your line will remain active through your paid period, after which it enters a grace window before release." },
+      { "q": "Can I replace the number?", "a": "Yes, you can swap your assigned US number anytime for a flat $25 replacement fee." }
+    ]
+  },
+  "motion_rules": {
+    "type": "Subtle fade-in and slight vertical lift on scroll",
+    "duration": "200ms - 300ms",
+    "library": "IntersectionObserver or subtle framer-motion fade-in",
+    "prefers_reduced_motion": "Disable all transforms when reduced motion is enabled"
+  },
+  "accessibility_and_testing": {
+    "data_testid_convention": "kebab-case, role-based identifiers on all buttons, cards, links, and inputs",
+    "contrast": "APCA high-contrast text on light white/slate background",
+    "mobile_first": "Fully functional and legible starting at 320px viewport width"
+  }
+},
+  overwrite: true,
+  path: "/app/design_guidelines.json"
 }
+} Wrestling with standard tools...

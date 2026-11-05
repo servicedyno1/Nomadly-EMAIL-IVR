@@ -74,10 +74,10 @@ const base = { enabled: true, timezone: 'America/New_York', days: week(), offAct
   const c = numbers.catalog()
   const inc = (id) => c.plans.find(p => p.id === id).webFeatures.filter(f => f.included).map(f => f.key)
   await t('Pro is the recommended plan', () => { assert.strictEqual(c.recommendedPlan, 'pro'); assert.strictEqual(c.plans.filter(p => p.recommended).map(p => p.id).join(), 'pro') })
-  await t('Starter: no browser phone / voicemail / IVR', () => { const s = inc('starter'); assert.ok(!s.includes('browserPhone') && !s.includes('voicemail') && !s.includes('ivr')); assert.ok(s.includes('forwarding') && s.includes('hours') && s.includes('notes')) })
-  await t('Pro: browser phone, voicemail, call me first, bulk, recording; no IVR', () => { const s = inc('pro'); assert.ok(['browserPhone', 'voicemail', 'callMeFirst', 'bulk', 'recording'].every(k => s.includes(k))); assert.ok(!s.includes('ivr')) })
+  await t('Starter: browser phone, but no SIP apps / voicemail / IVR', () => { const s = inc('starter'); assert.ok(s.includes('browserPhone') && !s.includes('sip') && !s.includes('voicemail') && !s.includes('ivr')); assert.ok(s.includes('forwarding') && s.includes('hours') && s.includes('notes')) })
+  await t('Pro: browser phone, SIP apps, voicemail, call me first, bulk, recording, IVR', () => { const s = inc('pro'); assert.ok(['browserPhone', 'sip', 'voicemail', 'callMeFirst', 'bulk', 'recording', 'ivr'].every(k => s.includes(k))) })
   await t('Business: everything', () => assert.strictEqual(inc('business').length, numbers.WEB_FEATURES.length))
-  await t('no Telegram-only items in the web list', () => assert.ok(!numbers.WEB_FEATURES.some(([, label]) => /redial|preset|extra numbers|otp|telegram/i.test(label))))
+  await t('no Telegram-only items in the web list', () => assert.ok(!numbers.WEB_FEATURES.some(([, label]) => /extra numbers|telegram/i.test(label))))
   await t('voicemail languages in catalog', () => assert.deepStrictEqual(c.voicemailLanguages.map(l => l.code), ['en', 'fr', 'es', 'pt', 'ar']))
 
   console.log(`\n${pass} passed${process.exitCode ? ', some FAILED' : ''}`)
