@@ -5,10 +5,11 @@ import { BadgeCheck, Loader2, Trash2, ShieldCheck, Clock } from 'lucide-react';
 import { api, useApi, enc, money } from '../../api';
 import { Field, ErrorNote } from '../../ui';
 import { usePrivacy } from '../../privacy';
+import { useShell } from '../../Shell';
 
 const split = (s) => String(s || '').split(/[\n,;]+/).map(x => x.trim()).filter(Boolean);
 
-function AddForm({ price, onSent }) {
+function AddForm({ price, onSent, onSaved }) {
   const [text, setText] = useState('');
   const [method, setMethod] = useState('sms');
   const [busy, setBusy] = useState(false);
@@ -33,7 +34,7 @@ function AddForm({ price, onSent }) {
       </div>
       {fails.length > 0 && <ul className="text-xs text-[#fb7185] space-y-1" data-testid="caller-ids-send-failures">{fails.map(f => <li key={f.number}><span className="font-mono">{f.number}</span>: {f.message}</li>)}</ul>}
       <ErrorNote error={fails.length ? null : error} testid="caller-ids-error" />
-      <AttestForm onDone={onSent} />
+      <AttestForm onDone={onSaved} />
       <ReviewForm price={price} onDone={onSent} />
     </div>
   );
@@ -41,6 +42,7 @@ function AddForm({ price, onSent }) {
 
 // Pro/Starter: one tap moves a number to Business for just the price gap.
 function BizUpgrade({ onDone }) {
+  const refreshSummary = useShell()?.refreshSummary;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const go = async () => {
@@ -49,12 +51,12 @@ function BizUpgrade({ onDone }) {
       const q = await api('/caller-ids/upgrade', { method: 'POST', body: {} });
       if (!window.confirm(`Upgrade ${q.number} to Business for ${money(q.quote.charge)} from your wallet? You only pay the price difference and your renewal date stays the same.`)) return;
       const d = await api('/caller-ids/upgrade', { method: 'POST', body: { number: q.number, confirm: true } });
-      toast.success(`${d.number} is now on Business · ${money(d.charged)} charged`); onDone();
+      toast.success(`${d.number} is now on Business · ${money(d.charged)} charged`); refreshSummary?.(); onDone();
     } catch (e) { setError(e); } finally { setBusy(false); }
   };
   return (
     <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 space-y-2" data-testid="caller-ids-attest-upsell">
-      <p className="text-xs text-amber-300">Showing any caller ID is on the Business plan. Upgrade now and pay only the price difference.</p>
+      <p className="text-xs text-amber-300 civr-upsell-text">Showing any caller ID is on the Business plan. Upgrade now and pay only the price difference.</p>
       <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy} onClick={go} data-testid="caller-ids-upgrade-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Upgrade to Business</button>
       <ErrorNote error={error} testid="caller-ids-upgrade-error" />
     </div>
@@ -197,7 +199,7 @@ export function CallerIdManager({ onVerified }) {
         {data?.dryRun && <p className="text-xs text-[#a1a1aa] mt-3">Preview mode: no code is sent — use 123456.</p>}
         <SipDefaults ids={items} />
       </div>
-      <AddForm price={price} onSent={reload} />
+      <AddForm price={price} onSent={reload} onSaved={afterVerify} />
     </div>
   );
 }

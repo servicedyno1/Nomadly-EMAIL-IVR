@@ -1,0 +1,10 @@
+// iter219: set wallet for iter218 test chats only. usage: node t219_wallet.js <chatId> <usd>
+require('dotenv').config({ path: '/app/backend/.env' })
+const { MongoClient } = require('mongodb')
+;(async () => { const [id, usd] = process.argv.slice(2); if (!/^9902180\d\d$/.test(id)) throw new Error('test ids only')
+  const mc = await MongoClient.connect(process.env.MONGO_URL); const db = mc.db(process.env.DB_NAME)
+  if (usd !== undefined) await db.collection('walletOf').updateOne({ _id: id }, { $set: { usdIn: Number(usd), usdOut: 0 } }, { upsert: true })
+  const w = await db.collection('walletOf').findOne({ _id: id }); const p = await db.collection('phoneNumbersOf').findOne({ _id: id })
+  console.log('wallet', (w.usdIn||0)-(w.usdOut||0), JSON.stringify((p?.val?.numbers||[]).map(n=>[n.phoneNumber,n.plan,n.status,n.expiresAt])), JSON.stringify(await db.collection('webCallerIds').find({chatId:id}).toArray()), JSON.stringify(await db.collection('callerIdDefaults').find({chatId:id}).toArray()))
+  const st = await db.collection('state').findOne({ _id: id }); console.log('state action', st?.action, 'displayCallerId', JSON.stringify(st?.ivrObData?.displayCallerId ?? st?.ivrObData), JSON.stringify(st?.bulkCallData?.displayCallerId ?? null))
+  await mc.close() })()

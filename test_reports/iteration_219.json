@@ -1,0 +1,48 @@
+{
+  "summary": "Iter219: tested Caller ID presets and the price-gap Business upgrade on web and bot. Backend: a new pytest has 12 tests; all 12 passed on the first run, then 9 passed and 3 skipped on the re-run after Bob's upgrade. The local unit test passed 14/14. Web (Alice): the 'Show as' chips on Quick Call, Campaign create and the Softphone compact picker render, and tapping a chip sets aria-checked. Quick Call submit sends showAs=<chip> (captured request), and a dry-run /calls/quick with that showAs returns 202. The 11th no-code caller ID shows 'You can save up to 10 caller IDs. Remove one to add another.' 911 is refused. The 'Your own caller IDs' card and the attest form have no 'logged' text and say 'save up to 10 … pick one with a tap'. Web (Bob): the upsell box appears in the caller ID dialog. Clicking upgrade gives a quote of $45 for +18509558201, then window.confirm, then confirm:true. The number becomes Business, $45 is debited (174.55 → 129.55) and expiresAt stays 2026-12-01T22:02:04.242Z. The phoneTransactions record shows amount 45, credit 0. Bob then saved a no-code caller ID. Bot (mock TG :5099): for Business, saved IDs show as '🎭 +1…' on the Quick IVR New Call screen; tapping one goes straight to 'Enter target' with displayCallerId set. 'Show Any Caller ID', then the ask text plus presets, then typing a new number and confirming saves it and applies it. Bulk caller select works the same way (bulkData.showAs set). SIP manage 🎭 sets callerIdDefaults. The ask and upsell copy has no 'logged' wording in en/fr/zh/hi/fa. For Pro, 🎭 in Quick IVR, Bulk and SIP manage offers '👑 Upgrade to Business — $45.00'. The preview shows Upgrade cost $45.00 with 'price difference ($120 − $75)', and wallet payment upgraded with $45 charged and expiry unchanged. Regression: the manage-number '⬆️ Upgrade to Business — $101.25' still uses the 25%-credit rule, and web /numbers/:phone/upgrade quotes 101.25 (Pro) or 107.5 (Starter). ONE REAL BUG: a no-code caller ID saved from the picker dialog does not show up as a chip right away, and the dialog stays open.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/cloudivr-web/caller-ids/presets", "issue": "The 10 limit only counts no-code (attested) IDs. Code-verified and auto IDs are added on top, so presets can return more than 10 items (seen: 13 with max:10). This doesn't match the 'Max 10 saved' wording. Decide whether that is intended."},
+      {"endpoint": "POST /api/cloudivr-web/caller-ids/upgrade", "issue": "When req.body.number is given, the number is looked up without checking status, isSubNumber or replacedBy (the auto-pick does check these). upgradeQuote catches sub-numbers and on-hold numbers, but a replaced 'old' number could still be upgraded. Apply the same filter as the auto-pick."},
+      {"endpoint": "attest() cap", "issue": "The countDocuments and replaceOne are separate steps (not atomic), so two parallel requests could save 11. Low risk."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CallerIdManager / AttestForm inside the ShowAsSelect dialog (frontend/src/cloudivr/pages/number/CallerIds.js)", "issue": "After 'Add caller ID' (no code), the toast shows but the new number is NOT added as a chip and the dialog stays open. The chip only appears after a page reload. Reproduced for Alice (Quick Call) and Bob (after the upgrade). RCA: CallerIdManager passes onSent={reload} to AddForm, and AddForm passes onDone={onSent} to AttestForm. AttestForm calls onDone(d.number), which only reloads /caller-ids. CallerIdManager's afterVerify, which calls onVerified, is never called, so ShowAsSelect.onVerified never runs: no presets reload(), no onChange(n), no setOpen(false). Fix: pass afterVerify to AttestForm, e.g. <AddForm price onSent={reload} onSaved={afterVerify}/> and AttestForm onDone={onSaved}.", "selector": "[data-testid=caller-ids-attest-submit] → [data-testid^=quick-call-show-as-select-option-]", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Web BizUpgrade success", "issue": "After the upgrade, the header wallet still shows the old balance ($174.55) and Quick Call 'Call from' still says '· Pro' until reload. The BizUpgrade onDone only reloads /numbers inside AttestForm. Refresh the wallet/me and numbers context.", "affected_selectors": ["caller-ids-upgrade-button"]}
+    ],
+    "design_issues": [
+      {"screen": "Caller ID dialog upsell (caller-ids-attest-upsell)", "issues": ["The text-amber-300 text on the bg-amber-500/5 box is hard to read in the light theme (pale yellow on near-white). Use a darker amber in light mode, e.g. text-amber-700 dark:text-amber-300."]}
+    ]
+  },
+  "bot_issues_minor": [
+    "In the customCidUpgrade state, '↩️ Back' (or any other message) goes to submenu5 (the Cloud IVR hub) instead of back to the screen the user came from (the Quick IVR caller select, Bulk caller select or the manage-number menu).",
+    "After paying for the upgrade from the wallet, the user is not taken back to the Quick IVR / Bulk / SIP flow they started in. They have to navigate again. Consider resuming the caller ID step after the upgrade.",
+    "After applyCustomCid in the SIP context, the manage menu is rebuilt from info.cpActiveNumber and was missing '➕ Add Number to Plan' compared with the original manage menu (stale object). Cosmetic.",
+    "The Upgrade Preview header shows 'Pro → Business ($165/mo)' while the line says 'New plan: $120/mo'. This happened because the iter218 seed sets planPrice 120 on the Pro number, so it was counted as a $45 surcharge. It is a seed artifact, but the header and the line use different bases."
+  ],
+  "test_report_links": ["/app/backend/tests/test_caller_id_presets_iter219.py", "/app/test_reports/pytest/pytest_iter219.xml", "/app/js/tests/caller_id_presets_iter219.js", "/app/js/tests/t219_wallet.js", "/app/js/tests/t219_seedpreset.js"],
+  "action_items": [
+    "HIGH: wire AttestForm's success to CallerIdManager.afterVerify so ShowAsSelect reloads presets, selects the new number and closes the dialog (CallerIds.js AddForm/AttestForm props).",
+    "Refresh the wallet balance and numbers in the shell after a BizUpgrade success.",
+    "Fix the light-mode contrast of the upsell text (amber-300 on a near-white box).",
+    "Optional: make bot customCidUpgrade '↩️ Back' return to the screen the user came from, and resume the caller ID step after the upgrade.",
+    "Optional: decide whether the 10 limit should include code-verified IDs, and filter replaced numbers when the upgrade body names a number."
+  ],
+  "critical_code_review_comments": [
+    "CallerIds.js AttestForm onDone wiring bug (see ui_bugs). This is the only blocker for 'appears as a new chip immediately'.",
+    "caller-ids.js /caller-ids/upgrade does not check replacedBy or status when body.number is set.",
+    "presets() returns code-verified and auto IDs with no cap, so max:10 can be misleading.",
+    "phone-config.js and _index.js are very large (4.2k and 30k lines). This was already flagged earlier."
+  ],
+  "updated_files": ["/app/backend/tests/test_caller_id_presets_iter219.py", "/app/js/tests/t219_wallet.js", "/app/js/tests/t219_seedpreset.js"],
+  "success_rate": {"backend": "100% (12/12 first run; 9 pass + 3 skipped after Bob upgrade; unit 14/14)", "frontend": "~88% (1 HIGH bug: new chip not shown after a no-code save)"},
+  "seed_data_creation": "Bob's Pro number +18509558201 was UPGRADED to Business through the web UI ($45 debited; wallet now $129.55; expiresAt unchanged). All test caller IDs created on Alice and Bob were deleted (Alice is back to her 3 auto IDs; Bob has none). The bot test chats 990218001/002 were seeded with seed_iter218.js and cleaned (t218_cleanextra + seed clean). Supervisor nodejs restarted and running.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Bob's +18509558201 is now Business, so Bob no longer sees the upsell. To retest the upsell, set it back to plan 'pro' / planPrice 75 in phoneNumbersOf (_id '5000000000000002'), or test it with a Starter account. The iter219 pytest skips the Bob Pro tests once he is on Business. Bot runbook is the same as iter218: stop nodejs, run the mock :5099, run start-bot with TELEGRAM_API_BASE_URL, seed_iter218 seed, t218_trial 990218001 990218002, then t219_wallet.js <chat> <usd> to fund. Bulk IVR needs a $20 wallet. Note: the bot's 'Plan Upgraded!' message after a wallet payment gets 'chat not found' from the mock (a mock limitation, the message is generated). Web route prefix is /cloudivr/app/*. The quick-call body uses callerId/targets/text/transferTo/activeKeys fields."
+}

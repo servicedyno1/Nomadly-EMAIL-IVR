@@ -177,7 +177,8 @@ function routes(router, { db, h, numbersApi }) {
   router.post('/caller-ids/upgrade', h(async (req, res) => {
     const mine = await numbersApi.myNumbers(req.webChatId)
     const order = ['starter', 'pro', 'business']
-    const n = (req.body.number && mine.find(x => x.phoneNumber === clean(req.body.number))) || mine.filter(x => x.status === 'active' && !x.isSubNumber && !x.replacedBy && [0, 1].includes(order.indexOf(x.plan))).sort((a, b) => order.indexOf(b.plan) - order.indexOf(a.plan))[0]
+    const ok = mine.filter(x => x.status === 'active' && !x.isSubNumber && !x.replacedBy && [0, 1].includes(order.indexOf(x.plan))).sort((a, b) => order.indexOf(b.plan) - order.indexOf(a.plan))
+    const n = req.body.number ? ok.find(x => x.phoneNumber === clean(req.body.number)) : ok[0]
     if (!n) return bad(res, 404, 'not_found', 'You have no number that can be upgraded to Business.')
     const q = numbersApi.upgradeQuote(n, 'business', 0, true)
     if (q.error) return bad(res, q.error.status, q.error.error, q.error.message)
@@ -220,7 +221,7 @@ async function attest(chatId, raw, { who = '', channel = 'web' } = {}) {
   const cur = await col.findOne({ _id: n })
   if (cur?.chatId === chatId && cur.status === 'verified') return { ok: true, number: n }
   if (cur && cur.chatId !== chatId && (cur.status === 'verified' || cur.status === 'review')) return { ok: false, status: 409, error: 'number_taken', message: 'This number is in use on another account. Contact support if it is yours.' }
-  if (await col.countDocuments({ chatId, status: 'verified', method: 'attested' }) >= MAX_PRESETS) return { ok: false, status: 400, error: 'too_many_presets', message: `You can save up to ${MAX_PRESETS} caller IDs. Remove one to add another.` }
+  if (await col.countDocuments({ chatId, status: 'verified' }) >= MAX_PRESETS) return { ok: false, status: 400, error: 'too_many_presets', message: `You can save up to ${MAX_PRESETS} caller IDs. Remove one to add another.` }
   await col.replaceOne({ _id: n }, { _id: n, chatId, status: 'verified', method: 'attested', attested: true, attestedAt: new Date(), channel, charged: 0, createdAt: Date.now(), verifiedAt: new Date() }, { upsert: true })
   const flag = HOTLINES[n]
   require('../scam-watch').alert(`${flag ? '🚩' : '🎭'} <b>Custom caller ID added</b>${flag ? ` — matches <b>${flag}</b> hotline` : ''}\n👤 ${String(who || chatId).replace(/[<>&]/g, '')} (${chatId})\n📞 ${n} · via ${channel}\n<i>User attested they have the right to use it. Alert only.</i>`)
@@ -240,7 +241,7 @@ async function presets(chatId) {
   if (!col) return []
   const docs = await col.find({ chatId: String(chatId), status: 'verified' }).sort({ createdAt: -1 }).toArray()
   const biz = docs.some(d => d.method === 'attested') && await hasPaidPlan(chatId)
-  return docs.filter(d => d.method !== 'attested' || biz).map(d => d._id)
+  return docs.filter(d => d.method !== 'attested' || biz).slice(0, MAX_PRESETS).map(d => d._id)
 }
 
 Object.assign(module.exports, { attest, isEmergency, defaultFor, setDefault, logUse, presets, hasPaidPlan, HOTLINES, MAX_PRESETS })

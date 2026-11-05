@@ -151,3 +151,4 @@ html[data-civr-theme] .civr .civr-side .civr-nav-link { min-height: 38px; paddin
 html[data-civr-theme] .civr .civr-side .civr-nav-link svg { width: 16px; height: 16px; opacity: .8; flex-shrink: 0; }
 html[data-civr-theme] .civr .civr-side .civr-nav-link.active svg { opacity: 1; }
 html[data-civr-theme] .civr .civr-side .civr-side-label { font-size: 10.5px; opacity: .85; }
+html[data-civr-theme="light"] .civr .civr-upsell-text { color: #b45309; }

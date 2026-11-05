@@ -1,0 +1,5 @@
+require('dotenv').config({ path: '/app/backend/.env' })
+const { MongoClient } = require('mongodb')
+;(async () => { const mc = await MongoClient.connect(process.env.MONGO_URL); const db = mc.db(process.env.DB_NAME)
+ await db.collection('webCallerIds').replaceOne({ _id: '+14155551961' }, { _id: '+14155551961', chatId: '990218001', status: 'verified', method: 'attested', createdAt: Date.now(), verifiedAt: new Date() }, { upsert: true })
+ console.log('ok'); await mc.close() })()
