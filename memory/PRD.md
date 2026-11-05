@@ -2232,3 +2232,8 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Inline rename (Escape is handled by the dialog's onEscapeKeyDown); hand reorder with drag + arrows (PUT /caller-ids/order, `pos` wins over last-used; bot buttons follow); default per VoIP number (`callerIdLast`, GET /caller-ids/presets?from → last; saved only on accepted calls: web dry-run in run()/Call me first, campaigns at 201, live calls in voice-service after dial, not for trial or campaign legs); usage = callerIdUses (30-day count + latest call). The bot auto-applies the remembered ID with a '📞 Use my own number' button.
 - Tests: iter223 unit 12/12, iter219 18/18, iter217 23/23; testing agent iterations 223 and 224 (bot e2e 13/13, pytest 12/12). Escape fix self-verified. The live-mode bot default was checked by code review only (it needs a real call).
 - Deploy: app-main ✅, Sync→WL ✅, Deploy whitelabel ✅; 2.speechcue.com healthy, cloudivr.net 200.
+
+## 2026-11-05 20:15Z — Sync main → WhiteLabel made force-push-proof (main cdd18f61, WL 9bffed85)
+- Recurring failure: platform auto-saves force-push main, orphaning the last synced commit in `.whitelabel-sync` → `git rev-parse … Needed a single revision`.
+- Fix in `scripts/sync_whitelabel.py` `resolve_base()`: fetch the orphaned base by SHA (GitHub still serves it), warn, and diff from its tree. Ancestry isn't needed because the sync is tree-based. If the object is gone, fall back to the main commit at the marker's `synced_at`. The same file was copied to /app so auto-saves don't revert it.
+- Verified: local dry-run, then a CI run where the orphaned object was fetched ("main history was rewritten … diffing from its tree") → Sync ✅, Deploy whitelabel ✅, app-main healthy.
