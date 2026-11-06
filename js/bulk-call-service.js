@@ -1621,6 +1621,22 @@ async function checkCampaignCompletion(campaignId) {
 /**
  * Send the final campaign report to the user
  */
+// Numbers the carrier said aren't in service (skipped at dial time, or hung up as unallocated / SIP 404·604).
+const NOT_IN_SERVICE = /not an in-service number|unallocated_number|^(404|604)$/i
+const notInService = (c) => [...new Set((c?.leads || []).filter(l => NOT_IN_SERVICE.test(String(l.hangupCause || ''))).map(l => l.number))]
+
+// One-tap cleanup: delete those numbers from the owner's saved contacts (every list) → { numbers, removed, cleanLeads }.
+async function removeNotInService(campaignId, chatId) {
+  const c = await _collection.findOne({ id: campaignId, chatId: String(chatId) })
+  if (!c) return null
+  if (c.badNumbersCleanedAt) return { numbers: notInService(c), removed: 0, alreadyCleaned: true, cleanLeads: [] }
+  const numbers = notInService(c)
+  const r = numbers.length && _db ? await _db.collection('webContacts').deleteMany({ chatId: { $in: [String(chatId), Number(chatId)] }, phone: { $in: numbers } }) : { deletedCount: 0 }
+  await _collection.updateOne({ id: campaignId }, { $set: { badNumbersCleanedAt: new Date(), badNumbersRemoved: r.deletedCount } })
+  const bad = new Set(numbers)
+  return { numbers, removed: r.deletedCount, cleanLeads: (c.leads || []).filter(l => !bad.has(l.number)).map(l => ({ number: l.number, name: l.name || null })) }
+}
+
 async function sendFinalReport(campaignId) {
   const campaign = await _collection.findOne({ id: campaignId })
   if (!campaign) return
@@ -1653,11 +1669,14 @@ async function sendFinalReport(campaignId) {
     stats.voicemail ? `📭 ${tt('bulkCallReportVoicemail')} <b>${stats.voicemail}</b>${stats.voicemailLeft ? ` (📩 ${stats.voicemailLeft})` : ''}` : null,
     `🚫 ${tt('bulkCallReportBusy')} <b>${stats.busy}</b>`,
     `❌ ${tt('bulkCallReportFailed')} <b>${stats.failed}</b>`,
-    (() => { const bad = (leads || []).filter(l => /not an in-service number|unallocated_number|^(404|604)$/i.test(String(l.hangupCause || ''))); return bad.length ? `⏭ Not in service (skipped, not charged): <b>${bad.length}</b>${bad.length <= 5 ? '\n' + bad.map(l => `   • <code>${l.number}</code>`).join('\n') : ''}` : null })(),
+    (() => { const bad = notInService(campaign); return bad.length ? `⏭ Not in service (skipped, not charged): <b>${bad.length}</b>${bad.length <= 5 ? '\n' + bad.map(n => `   • <code>${n}</code>`).join('\n') : ''}` : null })(),
     campaign.status === 'cancelled' && (leads || []).some(l => l.notCalled) ? `⏭ ${tt('bulkCallReportNotDialed')} <b>${leads.filter(l => l.notCalled).length}</b>` : null,
   ].filter(Boolean).join('\n')
 
-  _bot?.sendMessage(campaign.chatId, summary, { parse_mode: 'HTML' }).catch(() => {})
+  const badCount = notInService(campaign).length
+  const cleanBtn = badCount && !require('./cloudivr-web/notify').isWebChatId(campaign.chatId)
+    ? { reply_markup: { inline_keyboard: [[{ text: `🧹 Remove ${badCount} not-in-service number${badCount === 1 ? '' : 's'}`, callback_data: `bcclean:${campaign.id}` }]] } } : {}
+  _bot?.sendMessage(campaign.chatId, summary, { parse_mode: 'HTML', ...cleanBtn }).catch(() => {})
 
   // Generate detailed report file
   try {
@@ -1840,6 +1859,8 @@ function getCampaignMapping(callSid) {
 module.exports = {
   initBulkCallService,
   generateReportFile,
+  notInService,
+  removeNotInService,
   
   registerRoutes,
   recoverRunningCampaigns,
