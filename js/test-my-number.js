@@ -26,6 +26,8 @@ const MAX_TESTS_PER_DAY = 3
 const FREE_WINDOW_MS = TEST_TIMEOUT_MS + 60 * 1000
 // phoneNumber → ts the free ring was started; inbound billing skips calls from TRIAL_CALLER_ID while set
 const pendingTargets = {}
+// owner number → latest test { state: 'calling'|'done', code, outcome, to, external, startedAt } (web page polls it)
+const results = {}
 
 // In-memory session map: callControlId → { chatId, num, lang, phase, dtmf, amdResult, ... }
 const sessions = {}
@@ -151,8 +153,10 @@ function initTestMyNumber(app, deps) {
  * Place a test call. Returns { ok: true, message } or { ok: false, message }.
  * The message is what the bot should send to the user immediately.
  */
-async function placeTestCall(chatId, num, lang) {
-  const targetNumber = num.phoneNumber
+// opts.to = ring another phone (web "Another number"): straight from the test line, same daily limit, max 1 minute.
+async function placeTestCall(chatId, num, lang, { to = null } = {}) {
+  const owner = num.phoneNumber
+  const targetNumber = to || owner
   const t = _getTxt ? _getTxt(lang) : null
   const M = (key, ...args) => (t?.testMyNumber?.[key] ? (typeof t.testMyNumber[key] === 'function' ? t.testMyNumber[key](...args) : t.testMyNumber[key]) : null)
 
@@ -160,15 +164,15 @@ async function placeTestCall(chatId, num, lang) {
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000
   let saved = []
   if (_col) {
-    try { saved = ((await _col.findOne({ _id: targetNumber }))?.ts || []).filter(t => t >= dayAgo) } catch (e) { /* in-memory fallback */ }
+    try { saved = ((await _col.findOne({ _id: owner }))?.ts || []).filter(t => t >= dayAgo) } catch (e) { /* in-memory fallback */ }
   }
   // Read in-memory after the await: from here to the reservation below is synchronous, so concurrent taps can't overshoot.
-  const mem = (testHistory[targetNumber] || []).filter(t => t >= dayAgo)
+  const mem = (testHistory[owner] || []).filter(t => t >= dayAgo)
   const recent = saved.length > mem.length ? saved : mem
   if (recent.length >= MAX_TESTS_PER_DAY) {
     return {
       ok: false,
-      message: M('throttled', MAX_TESTS_PER_DAY) || `⏳ You've already run ${MAX_TESTS_PER_DAY} tests on ${targetNumber} in the last 24 hours. Try again later.`,
+      message: M('throttled', MAX_TESTS_PER_DAY) || `⏳ You've already run ${MAX_TESTS_PER_DAY} tests on ${owner} in the last 24 hours. Try again later.`,
     }
   }
 
@@ -179,7 +183,7 @@ async function placeTestCall(chatId, num, lang) {
   if (num.status !== 'active') {
     return {
       ok: false,
-      message: M('inactive', targetNumber) || `❌ Number ${targetNumber} is not active — testing is only available for active numbers.`,
+      message: M('inactive', owner) || `❌ Number ${owner} is not active — testing is only available for active numbers.`,
     }
   }
 
@@ -188,9 +192,10 @@ async function placeTestCall(chatId, num, lang) {
   // Reserve the slot before dialling so concurrent taps can't exceed the limit.
   let slot = Date.now()
   while (recent.includes(slot)) slot++
-  testHistory[targetNumber] = [...recent, slot]
-  const release = () => { testHistory[targetNumber] = (testHistory[targetNumber] || []).filter(x => x !== slot); delete pendingTargets[targetNumber] }
-  pendingTargets[targetNumber] = slot
+  testHistory[owner] = [...recent, slot]
+  const release = () => { testHistory[owner] = (testHistory[owner] || []).filter(x => x !== slot); if (!to) delete pendingTargets[owner]; results[owner] = null }
+  if (!to) pendingTargets[owner] = slot
+  results[owner] = { state: 'calling', to: targetNumber, external: !!to, startedAt: slot }
   const result = await _telnyxApi.createOutboundCall(
     TRIAL_CALLER_ID,
     targetNumber,
@@ -213,7 +218,9 @@ async function placeTestCall(chatId, num, lang) {
     id: callControlId,
     chatId,
     num,
+    owner,
     targetNumber,
+    external: !!to,
     lang,
     startedAt: Date.now(),
     answeredAt: null,
@@ -224,10 +231,11 @@ async function placeTestCall(chatId, num, lang) {
   }
   sessions[callControlId] = session
 
-  if (_col) _col.updateOne({ _id: targetNumber }, { $set: { ts: testHistory[targetNumber] } }, { upsert: true }).catch(() => {})
+  if (_col) _col.updateOne({ _id: owner }, { $set: { ts: testHistory[owner] } }, { upsert: true }).catch(() => {})
 
-  // Hard timeout — finalize even if no hangup event arrives
+  // Hard 1-minute cap — hang up and finalize even if no hangup event arrives
   setTimeout(() => {
+    Promise.resolve(_telnyxApi.hangupCall(callControlId)).catch(() => {})
     if (sessions[callControlId] && !sessions[callControlId].reported) {
       finalizeAndReport(sessions[callControlId]).catch(e => _log(`[TestMyNumber] timeout finalize err: ${e.message}`))
     }
@@ -241,20 +249,34 @@ async function placeTestCall(chatId, num, lang) {
   }
 }
 
+// Latest test for a number + tests left today (the limit itself is enforced in placeTestCall).
+function testStatus(owner) {
+  const left = MAX_TESTS_PER_DAY - (testHistory[owner] || []).filter(t => t >= Date.now() - 24 * 60 * 60 * 1000).length
+  return { ...(results[owner] || { state: 'idle' }), left: Math.max(0, left), max: MAX_TESTS_PER_DAY, maxSeconds: TEST_TIMEOUT_MS / 1000 }
+}
+
 /**
  * Compute the final outcome and send the result to the user.
  */
 async function finalizeAndReport(session) {
   if (session.reported) return
   session.reported = true
-  setTimeout(() => { if (pendingTargets[session.targetNumber] <= session.startedAt) delete pendingTargets[session.targetNumber] }, 30 * 1000)
+  if (!session.external) setTimeout(() => { if (pendingTargets[session.owner] <= session.startedAt) delete pendingTargets[session.owner] }, 30 * 1000)
 
   const t = _getTxt ? _getTxt(session.lang) : null
   const M = (key, ...args) => (t?.testMyNumber?.[key] ? (typeof t.testMyNumber[key] === 'function' ? t.testMyNumber[key](...args) : t.testMyNumber[key]) : null)
   const phone = session.targetNumber
 
   let outcome
-  if (session.dtmf && session.dtmf.length > 0) {
+  const code = session.dtmf ? 'ok' : (session.amdResult === 'machine' || session.amdResult === 'machine_premature_hangup') ? 'voicemail' : session.answeredAt ? 'no_key' : 'no_answer'
+  if (session.external) {
+    outcome = ({
+      ok: `✅ <b>Test call reached ${phone}</b> — it rang, was answered and a key was pressed.`,
+      voicemail: `⚠️ <b>Voicemail answered</b> on <code>${phone}</code> — the call went through, but nobody picked up in person.`,
+      no_key: `⚠️ <b>Answered, but no key was pressed</b> on <code>${phone}</code>. Run the test again and press 1 when you hear the message.`,
+      no_answer: `❌ <b>No answer</b> on <code>${phone}</code>. Check the number and that the phone has signal, then try again.`,
+    })[code]
+  } else if (session.dtmf && session.dtmf.length > 0) {
     // Best signal — a real human pressed a key
     outcome = M('successDtmf', phone) || `✅ <b>Reached your SIP device</b> — calls to <code>${phone}</code> are working. The far end answered and key <b>${session.dtmf}</b> was pressed.`
   } else if (session.amdResult === 'machine' || session.amdResult === 'machine_premature_hangup') {
@@ -266,6 +288,7 @@ async function finalizeAndReport(session) {
     outcome = M('noAnswer', phone) || `❌ <b>No answer</b> on <code>${phone}</code>.\n\nMake sure your softphone (Linphone / Zoiper / 3CX trunk) is registered and online, then run the test again. Open <b>/sipguide</b> for setup help.`
   }
 
+  results[session.owner] = { ...(results[session.owner] || {}), state: 'done', code, outcome, endedAt: Date.now() }
   try {
     await _bot?.sendMessage(session.chatId, outcome, { parse_mode: 'HTML', disable_web_page_preview: true })
   } catch (e) {
@@ -282,4 +305,5 @@ module.exports = {
   TRIAL_CALLER_ID,
   MAX_TESTS_PER_DAY,
   isFreeTestRing,
+  testStatus,
 }

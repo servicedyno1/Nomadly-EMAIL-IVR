@@ -90,12 +90,28 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
   ).catch(e => log(`[CloudIVR-Web] extra-number plan sync failed: ${e.message}`))
 
   // ── Test my number (we call it) · Test outbound SIP (90 s window). Results arrive in the Inbox. ──
+  // Free test ring: rings this number (SIP phone / browser phone) or, with `to`, another phone. 3 a day, max 1 minute, never billed.
+  const testStatus = () => require('../test-my-number').testStatus
+  router.get('/numbers/:phone/test-call', withNumber(async (req, res) => {
+    const s = testStatus()(req.num.phoneNumber)
+    res.json({ ...s, outcome: s.outcome ? html(s.outcome) : null })
+  }))
   router.post('/numbers/:phone/test-call', withNumber(async (req, res) => {
     if (req.num.status !== 'active') return bad(res, 400, 'not_active', 'Only active numbers can be tested.')
-    if (dryRun() || req.num.dryRun) return res.status(202).json({ dryRun: true, message: `Preview mode: we would call ${req.num.phoneNumber} from our test line. Pick up and press 1 — the result lands in your Inbox.` })
-    const r = await placeTestMyNumberCall(req.webChatId, req.num, 'en')
+    let to = null
+    if (req.body?.to) {
+      const raw = String(req.body.to).replace(/[^\d+]/g, '')
+      to = raw.startsWith('+') ? raw : raw.length === 10 ? `+1${raw}` : `+${raw}`
+      if (!/^\+[1-9]\d{7,14}$/.test(to)) return bad(res, 400, 'invalid_number', 'Enter the phone number with country code, e.g. +14155550100.')
+      const issue = require('../dial-check').dialIssue(to)
+      if (issue) return bad(res, 400, 'invalid_number', issue)
+      if (to === req.num.phoneNumber) to = null
+    }
+    const where = to ? to : 'your number'
+    if (dryRun() || req.num.dryRun) return res.status(202).json({ dryRun: true, to, message: `Preview mode: we would ring ${where} for free from our test line (up to 1 minute). Pick up and press 1 — the result shows here and in your Inbox.` })
+    const r = await placeTestMyNumberCall(req.webChatId, req.num, 'en', { to })
     if (!r?.ok) return bad(res, 400, 'test_failed', html(r?.message || 'The test call could not be placed.'))
-    res.status(201).json({ started: true, message: 'Calling your number now — pick up and press 1. The result lands in your Inbox within a minute.' })
+    res.status(201).json({ started: true, to, message: `Ringing ${where} now — pick up and press 1. The result shows here within a minute.` })
   }))
   router.post('/numbers/:phone/test-sip', withNumber(async (req, res) => {
     if (!phoneConfig.canAccessFeature(req.num.plan, 'sipCredentials')) return bad(res, 403, 'plan_upgrade_required', 'SIP needs the Pro plan or higher.')

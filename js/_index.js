@@ -6518,6 +6518,20 @@ bot?.on('callback_query', async (query) => {
     //   pd:* → after domain registration  (host / dns / short)
     //   pv:* → after VPS deployment      (domain / hosting / phone)
     //   pp:* → after phone activation    (sms / domain / vps)
+    // 🧹 Bulk report: drop the campaign's not-in-service numbers and hand back a clean list to reuse.
+    if (data.startsWith('bcclean:')) {
+      try { await bot.answerCallbackQuery(query.id) } catch { /* noop */ }
+      const r = await bulkCallService.removeNotInService(data.slice(8), chatId).catch(e => { log(`[BulkCall] cleanup error: ${e.message}`); return null })
+      if (!r) return send(chatId, '⚠️ That campaign could not be found.')
+      try { await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message.message_id }) } catch { /* noop */ }
+      const head = `🧹 <b>Removed ${r.numbers.length} not-in-service number${r.numbers.length === 1 ? '' : 's'}</b>${r.removed ? ` (also deleted from ${r.removed} saved contact${r.removed === 1 ? '' : 's'})` : ''}.`
+      if (!r.cleanLeads.length) return send(chatId, head + '\n\nNo numbers are left in this list.', { parse_mode: 'HTML' })
+      const file = require('path').join('/tmp', `clean-list-${data.slice(8, 16)}.txt`)
+      require('fs').writeFileSync(file, r.cleanLeads.map(l => (l.name ? `${l.number},${String(l.name).replace(/[\r\n,]/g, ' ')}` : l.number)).join('\n'))
+      await bot.sendDocument(chatId, file, { caption: `${head}\n\n📋 Your clean list — ${r.cleanLeads.length} number${r.cleanLeads.length === 1 ? '' : 's'}. Upload it for your next campaign.`, parse_mode: 'HTML' }).catch(e => log(`[BulkCall] clean list send error: ${e.message}`))
+      setTimeout(() => { try { require('fs').unlinkSync(file) } catch (_) { /* gone */ } }, 30000)
+      return
+    }
     if (data.startsWith('pd:') || data.startsWith('pv:') || data.startsWith('pp:')) {
       try { await bot.answerCallbackQuery(query.id) } catch { /* noop */ }
       const [prefix, kind, dom] = data.split(':')
@@ -51500,6 +51514,31 @@ app.post('/telegram/webhook', (req, res) => {
 })
 
 // Setup Telegram webhook
+// TELEGRAM_WEBHOOK_IP pins delivery to a fixed IP (Telegram caches DNS for hours after a host move)
+const telegramWebhookTarget = () => {
+  const webhookOpts = { allowed_updates: JSON.stringify(['message', 'callback_query', 'my_chat_member']) }
+  const pinnedIp = (process.env.TELEGRAM_WEBHOOK_IP || '').trim()
+  if (pinnedIp) webhookOpts.ip_address = pinnedIp
+  return { webhookUrl: `${SELF_URL}/telegram/webhook`, webhookOpts, pinnedIp }
+}
+
+// Production-only watchdog: if anything else (a preview pod, an old deploy) re-points this bot's webhook,
+// take it back within a minute and tell the admin who took it.
+const startWebhookWatchdog = () => {
+  if (TELEGRAM_BOT_ON !== 'true' || HOSTED_ON !== 'droplet' || process.env.SKIP_WEBHOOK_SYNC === 'true') return
+  let alerted = false
+  singletonInterval('telegram-webhook-watchdog', async () => {
+    try {
+      const { webhookUrl, webhookOpts } = telegramWebhookTarget()
+      const info = await bot.getWebHookInfo()
+      if (info?.url === webhookUrl) { alerted = false; return }
+      log(`[WebhookWatchdog] 🚨 Webhook was "${info?.url || '(none)'}" — restoring ${webhookUrl}`)
+      await bot.setWebHook(webhookUrl, webhookOpts)
+      if (!alerted) { alerted = true; notifyAdmin(`🚨 [Bot] Telegram webhook had been moved to ${info?.url || '(none)'} — restored to ${webhookUrl} automatically.`) }
+    } catch (e) { log(`[WebhookWatchdog] check failed: ${e.message}`) }
+  }, 60 * 1000)
+}
+
 const setupTelegramWebhook = async (retryCount = 0) => {
   const MAX_RETRIES = 3
   const RETRY_DELAY_MS = 10000 // 10 seconds
@@ -51526,17 +51565,12 @@ const setupTelegramWebhook = async (retryCount = 0) => {
       log(`📡 Existing webhook (left untouched): ${info?.url || '(none)'}`)
     } catch (_) { /* noop */ }
     // Fall through to register bot commands (safe, idempotent, per-token)
+  } else if (/\.preview\.emergentagent\.com|\.emergentagent\.com/i.test(SELF_URL || '') && process.env.TELEGRAM_BOT_TOKEN_PROD && bot.token === process.env.TELEGRAM_BOT_TOKEN_PROD) {
+    // A preview pod must never point the LIVE bot at itself (2026-11-06: a preview pod took @NomadlyBot for ~6h).
+    log(`[Webhooks] 🛑 Refusing to set the production bot webhook to a preview host (${SELF_URL}) — live users would stop getting replies`)
   } else {
     try {
-      const webhookUrl = `${SELF_URL}/telegram/webhook`
-
-      // Set the new webhook (atomically replaces any existing webhook — no deleteWebhook needed)
-      // TELEGRAM_WEBHOOK_IP pins delivery to a fixed IP (Telegram caches DNS for hours after a host move)
-      const webhookOpts = {
-        allowed_updates: JSON.stringify(['message', 'callback_query', 'my_chat_member'])
-      }
-      const pinnedIp = (process.env.TELEGRAM_WEBHOOK_IP || '').trim()
-      if (pinnedIp) webhookOpts.ip_address = pinnedIp
+      const { webhookUrl, webhookOpts, pinnedIp } = telegramWebhookTarget()
       await bot.setWebHook(webhookUrl, webhookOpts)
       log('✅ Telegram webhook set successfully')
       log(`📡 Webhook URL: ${webhookUrl}${pinnedIp ? ` (pinned ip ${pinnedIp})` : ''}`)
@@ -52063,6 +52097,7 @@ const startServer = async () => {
 
   // Set up Telegram webhook
   await setupTelegramWebhook()
+  startWebhookWatchdog()
 
   // ── Call Scheduler (#10): Check for due scheduled calls every 30s ──
   singletonInterval('scheduled-call-executor', async () => {

@@ -2646,7 +2646,8 @@ async function handleCallInitiated(payload) {
   // If SIP device doesn't answer → answer + voicemail/forwarding/missed fallback.
   const fwdConfig = num.features?.callForwarding
   const ivrConfig = num.features?.ivr
-  const hasSip = sipRingable(num, chatId)
+  // Free test ring: also ring the line's SIP login when only the web browser phone is signed in to it.
+  const hasSip = sipRingable(num, chatId) || (sessionRef.isTestCall && !!num.sipUsername)
   const hasIvr = ivrConfig?.enabled && canAccessFeature(num.plan, 'ivr') && ivrConfig.options && Object.keys(ivrConfig.options).length > 0
   // A ring group (several phones at once) needs the answered call too, like forward-always.
   const hasForwardAlways = (fwdConfig?.enabled && fwdConfig.forwardTo && fwdConfig.mode === 'always') || ringGroupOn(num)
