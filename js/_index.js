@@ -51514,6 +51514,31 @@ app.post('/telegram/webhook', (req, res) => {
 })
 
 // Setup Telegram webhook
+// TELEGRAM_WEBHOOK_IP pins delivery to a fixed IP (Telegram caches DNS for hours after a host move)
+const telegramWebhookTarget = () => {
+  const webhookOpts = { allowed_updates: JSON.stringify(['message', 'callback_query', 'my_chat_member']) }
+  const pinnedIp = (process.env.TELEGRAM_WEBHOOK_IP || '').trim()
+  if (pinnedIp) webhookOpts.ip_address = pinnedIp
+  return { webhookUrl: `${SELF_URL}/telegram/webhook`, webhookOpts, pinnedIp }
+}
+
+// Production-only watchdog: if anything else (a preview pod, an old deploy) re-points this bot's webhook,
+// take it back within a minute and tell the admin who took it.
+const startWebhookWatchdog = () => {
+  if (TELEGRAM_BOT_ON !== 'true' || HOSTED_ON !== 'droplet' || process.env.SKIP_WEBHOOK_SYNC === 'true') return
+  let alerted = false
+  singletonInterval('telegram-webhook-watchdog', async () => {
+    try {
+      const { webhookUrl, webhookOpts } = telegramWebhookTarget()
+      const info = await bot.getWebHookInfo()
+      if (info?.url === webhookUrl) { alerted = false; return }
+      log(`[WebhookWatchdog] 🚨 Webhook was "${info?.url || '(none)'}" — restoring ${webhookUrl}`)
+      await bot.setWebHook(webhookUrl, webhookOpts)
+      if (!alerted) { alerted = true; notifyAdmin(`🚨 [Bot] Telegram webhook had been moved to ${info?.url || '(none)'} — restored to ${webhookUrl} automatically.`) }
+    } catch (e) { log(`[WebhookWatchdog] check failed: ${e.message}`) }
+  }, 60 * 1000)
+}
+
 const setupTelegramWebhook = async (retryCount = 0) => {
   const MAX_RETRIES = 3
   const RETRY_DELAY_MS = 10000 // 10 seconds
@@ -51540,17 +51565,12 @@ const setupTelegramWebhook = async (retryCount = 0) => {
       log(`📡 Existing webhook (left untouched): ${info?.url || '(none)'}`)
     } catch (_) { /* noop */ }
     // Fall through to register bot commands (safe, idempotent, per-token)
+  } else if (/\.preview\.emergentagent\.com|\.emergentagent\.com/i.test(SELF_URL || '') && process.env.TELEGRAM_BOT_TOKEN_PROD && bot.token === process.env.TELEGRAM_BOT_TOKEN_PROD) {
+    // A preview pod must never point the LIVE bot at itself (2026-11-06: a preview pod took @NomadlyBot for ~6h).
+    log(`[Webhooks] 🛑 Refusing to set the production bot webhook to a preview host (${SELF_URL}) — live users would stop getting replies`)
   } else {
     try {
-      const webhookUrl = `${SELF_URL}/telegram/webhook`
-
-      // Set the new webhook (atomically replaces any existing webhook — no deleteWebhook needed)
-      // TELEGRAM_WEBHOOK_IP pins delivery to a fixed IP (Telegram caches DNS for hours after a host move)
-      const webhookOpts = {
-        allowed_updates: JSON.stringify(['message', 'callback_query', 'my_chat_member'])
-      }
-      const pinnedIp = (process.env.TELEGRAM_WEBHOOK_IP || '').trim()
-      if (pinnedIp) webhookOpts.ip_address = pinnedIp
+      const { webhookUrl, webhookOpts, pinnedIp } = telegramWebhookTarget()
       await bot.setWebHook(webhookUrl, webhookOpts)
       log('✅ Telegram webhook set successfully')
       log(`📡 Webhook URL: ${webhookUrl}${pinnedIp ? ` (pinned ip ${pinnedIp})` : ''}`)
@@ -52077,6 +52097,7 @@ const startServer = async () => {
 
   // Set up Telegram webhook
   await setupTelegramWebhook()
+  startWebhookWatchdog()
 
   // ── Call Scheduler (#10): Check for due scheduled calls every 30s ──
   singletonInterval('scheduled-call-executor', async () => {
