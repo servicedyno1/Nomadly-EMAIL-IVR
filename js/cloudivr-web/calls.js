@@ -14,6 +14,7 @@ const sim = require('./campaign-sim')
 
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const QUICK_MIN_WALLET = 1
+const { notInService } = require('../bulk-call-service')
 const KEYS = /^[0-9*#]$/
 
 const publicCampaign = (c, withLeads = false) => ({
@@ -25,6 +26,7 @@ const publicCampaign = (c, withLeads = false) => ({
   repeat: c.repeat || null, runNumber: c.runNumber || null, seriesId: c.seriesId || null, autoRun: !!c.autoRun, nextRunId: c.nextRunId || null,
   dailyLimit: c.dailyLimit || null, callsToday: c.dailyLimit ? sched.callsToday(c) : null, waitingForDailyLimit: !!c.waitingForDailyLimit,
   voicemailAudioName: c.voicemailAudioUrl ? (c.voicemailAudioName || 'Voicemail message') : null,
+  notInService: notInService(c).length, badNumbersCleanedAt: c.badNumbersCleanedAt || null, badNumbersRemoved: c.badNumbersRemoved ?? null,
   ...(withLeads ? { leads: (c.leads || []).slice(0, 500).map(l => ({ number: l.number, name: l.name, status: l.status, digitPressed: l.digitPressed, transferred: !!l.transferred, duration: l.duration || 0, hangupCause: l.hangupCause || null, waitingForLine: !!l.waitingForLine, voicemailDropped: !!l.voicemailDropped, ai: l.ai || null })) } : {}),
 })
 
@@ -215,6 +217,14 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const c = req.campaign
     const nextRun = c.nextRunId ? await db.collection('bulkCallCampaigns').findOne({ id: c.nextRunId, chatId: c.chatId }, { projection: { _id: 0, id: 1, scheduledFor: 1, status: 1 } }) : null
     res.json({ campaign: { ...publicCampaign(c, true), live: live.liveView(c, voiceService), feed: live.feedOf([c], voiceService, 25), areas: live.areasOf(c), nextRun } })
+  }))
+
+  // One tap: delete the numbers the carrier said aren't in service from the saved contacts.
+  router.post('/campaigns/:id/remove-bad-numbers', withCampaign(async (req, res) => {
+    const r = await bulkCallService.removeNotInService(req.campaign.id, req.webChatId)
+    if (!r) return bad(res, 404, 'not_found', 'Campaign not found.')
+    if (!r.numbers.length) return bad(res, 400, 'nothing_to_remove', 'This campaign has no not-in-service numbers.')
+    res.json({ ok: true, numbers: r.numbers.length, removed: r.removed, cleanList: r.cleanLeads.map(l => (l.name ? `${l.number},${l.name}` : l.number)).join('\n') })
   }))
 
   router.post('/campaigns/:id/stop-repeat', withCampaign(async (req, res) => {

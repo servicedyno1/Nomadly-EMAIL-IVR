@@ -1,7 +1,5 @@
-import React, { useState } from 'react';
-import { toast } from 'sonner';
-import { Compass, AlertTriangle, PhoneIncoming, Loader2 } from 'lucide-react';
-import { api, enc } from '../../api';
+import React from 'react';
+import { Compass, AlertTriangle } from 'lucide-react';
 import { usePrivacy } from '../../privacy';
 
 const SKIP = { ivr: 'Keypad menu', sip_ring: 'Softphone / SIP ring', voicemail: 'Voicemail' };
@@ -54,20 +52,3 @@ export function RouteSummary({ num, reload }) {
   );
 }
 
-// We call the number from our test line; the result lands in the Inbox.
-export function TestNumber({ num }) {
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState('');
-  const go = async () => {
-    setBusy(true);
-    try { const d = await api(`/numbers/${enc(num.phoneNumber)}/test-call`, { method: 'POST' }); setMsg(d.message); toast.success(d.dryRun ? 'Preview — no call placed' : 'Test call on its way'); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
-  };
-  return (
-    <div className="civr-card p-6 space-y-3" data-testid="test-number-card">
-      <div className="flex items-center gap-2 font-display text-2xl font-bold"><PhoneIncoming className="w-5 h-5 text-[#38bdf8]" />Test my number</div>
-      <p className="text-sm text-[#a1a1aa]">We call this number from our test line so you hear exactly what callers get. Up to 5 tests a day.</p>
-      <button className="civr-btn civr-btn-ghost civr-btn-sm" disabled={busy || num.status !== 'active'} onClick={go} data-testid="test-number-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneIncoming className="w-4 h-4" />}Call my number</button>
-      {msg && <div className="text-xs text-[#e4e4e7]" data-testid="test-number-result">{msg}</div>}
-    </div>
-  );
-}

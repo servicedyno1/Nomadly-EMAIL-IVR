@@ -8,6 +8,13 @@ import { useShell } from '../../Shell';
 import { PageHeader, Spinner, ErrorNote } from '../../ui';
 import { cp } from '../../paths';
 import { CoinIcon, PayWindow } from '../../Pickers';
+import { TestRing } from '../number/TestRing';
+
+// Right after purchase: offer the free test ring for the new number.
+function NewNumberTestRing({ phone }) {
+  const { data } = useApi(`/numbers/${enc(phone)}`);
+  return data?.number ? <TestRing num={data.number} compact /> : null;
+}
 
 const STEPS = ['Waiting for payment', 'Payment confirmed', 'Activating your line', 'Ready'];
 const UPGRADE_STEPS = ['Waiting for payment', 'Payment confirmed', 'Upgrading your plan', 'Done'];
@@ -69,6 +76,7 @@ function Outcome({ o, balance, busy, onFinish }) {
       {o.kind === 'extra' && !o.substitutedFrom && o.message && <p className="text-sm text-[#a1a1aa] mt-2" data-testid="order-message">{o.message}</p>}
       {o.substitutedFrom && <div className="mt-4 flex gap-3 text-sm rounded-xl border border-[#fbbf24]/40 bg-[#fbbf24]/5 p-4" data-testid="order-substituted-notice"><Sparkles className="w-5 h-5 text-[#fbbf24] shrink-0" /><span>{o.message} We also emailed you.</span></div>}
       <Link to={cp(`/app/numbers/${enc(num)}?setup=1`)} className="civr-btn civr-btn-primary mt-6" data-testid="order-open-number-btn">Set up {num} <ArrowRight className="w-4 h-4" /></Link>
+      <NewNumberTestRing phone={num} />
     </div>
   );
   if (o.status === 'verification') return (

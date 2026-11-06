@@ -76,6 +76,37 @@ const t = async (name, fn) => { try { await fn(); pass++; console.log('PASS', na
   const src = fs.readFileSync(path.join(__dirname, '../_index.js'), 'utf8')
   await t('resume: expired order reopens the product menu', () => assert.ok(/'phone-order': 'submenu5'[^\n]+return goto\[back\]\(\)|goto\[back\]\(\)/s.test(src) && /That saved order timed out/.test(src)))
 
+  // ── Web test ring: external target + status ──
+  const extNum = { phoneNumber: '+14155550122', status: 'active' }
+  calls.length = 0
+  const ext = await tmn.placeTestCall(2, extNum, 'en', { to: '+447911123456' })
+  await t('web ring: external number dialled from test line', () => { assert.strictEqual(ext.ok, true); assert.deepStrictEqual(calls[0], [tmn.TRIAL_CALLER_ID, '+447911123456']) })
+  await t('web ring: external call not marked as free inbound', () => assert.strictEqual(tmn.isFreeTestRing(tmn.TRIAL_CALLER_ID, '+447911123456'), false))
+  const ts = tmn.testStatus(extNum.phoneNumber)
+  await t('web ring: status calling with 2 left, 60s cap', () => { assert.strictEqual(ts.state, 'calling'); assert.strictEqual(ts.left, 2); assert.strictEqual(ts.maxSeconds, 60) })
+  await t('web ring: idle status for untested number', () => assert.strictEqual(tmn.testStatus('+19999999999').state, 'idle'))
+
+  // ── Bad-number cleanup ──
+  const bulk = require('../bulk-call-service')
+  await bulk.initBulkCallService(db, { sendMessage: async () => {} }, null, null, null).catch(() => {})
+  const owner = '5000000000009999'
+  await db.collection('bulkCallCampaigns').insertOne({ id: 'camp-clean-1', chatId: owner, leads: [
+    { index: 0, number: '+14155550100', name: 'Ok', status: 'completed' },
+    { index: 1, number: '+14155550199', status: 'skipped', hangupCause: 'Not an in-service number — skipped, not charged' },
+    { index: 2, number: '+14155550198', status: 'failed', hangupCause: 'unallocated_number' },
+  ] })
+  await db.collection('webContacts').insertMany([{ chatId: owner, phone: '+14155550199' }, { chatId: owner, phone: '+14155550100' }, { chatId: 'other', phone: '+14155550198' }])
+  await t('cleanup: notInService finds both kinds', async () => assert.deepStrictEqual(bulk.notInService(await db.collection('bulkCallCampaigns').findOne({ id: 'camp-clean-1' })).sort(), ['+14155550198', '+14155550199']))
+  await t('cleanup: other owner cannot clean', async () => assert.strictEqual(await bulk.removeNotInService('camp-clean-1', 'other'), null))
+  const cr = await bulk.removeNotInService('camp-clean-1', owner)
+  await t('cleanup: deletes only the owner\'s bad contacts', async () => {
+    assert.strictEqual(cr.removed, 1)
+    assert.strictEqual(await db.collection('webContacts').countDocuments({ chatId: owner }), 1)
+    assert.strictEqual(await db.collection('webContacts').countDocuments({ chatId: 'other' }), 1)
+  })
+  await t('cleanup: clean list keeps good numbers', () => assert.deepStrictEqual(cr.cleanLeads, [{ number: '+14155550100', name: 'Ok' }]))
+  await t('cleanup: campaign marked cleaned', async () => assert.ok((await db.collection('bulkCallCampaigns').findOne({ id: 'camp-clean-1' })).badNumbersCleanedAt))
+
   await db.dropDatabase()
   await client.close()
   console.log(`\n${pass}/${pass + fail} passed`)

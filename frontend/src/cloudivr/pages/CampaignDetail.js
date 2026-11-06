@@ -125,6 +125,36 @@ function Leads({ leads, isAi, ended }) {
 }
 
 
+// One tap: drop the numbers the carrier said aren't in service from saved contacts; offer the clean list.
+function BadNumbers({ c, id, onDone }) {
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(null);
+  if (!c.notInService) return null;
+  const n = c.notInService;
+  const go = async () => {
+    setBusy(true);
+    try {
+      const d = await api(`/campaigns/${id}/remove-bad-numbers`, { method: 'POST' });
+      setDone(d); toast.success(`Removed ${d.numbers} not-in-service number${d.numbers === 1 ? '' : 's'}`); onDone();
+    } catch (e) { toast.error(e.message); } finally { setBusy(false); }
+  };
+  const saveList = () => {
+    const url = URL.createObjectURL(new Blob([done.cleanList], { type: 'text/plain' }));
+    const a = Object.assign(document.createElement('a'), { href: url, download: `clean-list-${String(id).slice(0, 8)}.txt` });
+    a.click(); URL.revokeObjectURL(url);
+  };
+  const cleaned = done || c.badNumbersCleanedAt;
+  return (
+    <div className="mt-4 rounded-xl border border-[#fbbf24]/40 bg-[#fbbf24]/5 p-4 text-sm flex flex-wrap items-center gap-3" data-testid="campaign-bad-numbers">
+      <span className="flex-1 min-w-[220px]" data-testid="campaign-bad-numbers-text">{cleaned
+        ? `${n} not-in-service number${n === 1 ? '' : 's'} removed from your contacts${(done?.removed ?? c.badNumbersRemoved) ? ` (${done?.removed ?? c.badNumbersRemoved} saved contact${(done?.removed ?? c.badNumbersRemoved) === 1 ? '' : 's'} deleted)` : ''}.`
+        : `${n} number${n === 1 ? ' is' : 's are'} not in service — skipped and not charged.`}</span>
+      {!cleaned && <button className="civr-btn civr-btn-primary civr-btn-sm" onClick={go} disabled={busy} data-testid="campaign-remove-bad-numbers-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}Remove {n} from my contacts</button>}
+      {done?.cleanList && <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={saveList} data-testid="campaign-download-clean-list-button"><Download className="w-4 h-4" />Download clean list</button>}
+    </div>
+  );
+}
+
 export default function CampaignDetail() {
   const { id } = useParams();
   const { refreshSummary } = useShell();
@@ -152,7 +182,7 @@ export default function CampaignDetail() {
   const isAi = c.mode === 'ai';
   const pct = c.stats?.total ? Math.round(((c.stats.completed || 0) / c.stats.total) * 100) : 0;
   const hasVm = !isAi && !!(c.voicemailAudioName || c.stats?.voicemail);
-  const stats = isAi ? AI_STATS : [...STATS, ...(hasVm ? VM_STATS : []), ...(c.stats?.skipped ? [['skipped', 'Do-not-call']] : [])];
+  const stats = isAi ? AI_STATS : [...STATS, ...(hasVm ? VM_STATS : []), ...(c.stats?.skipped ? [['skipped', 'Skipped']] : [])];
   return (
     <div data-testid="campaign-detail-page">
       {back}
@@ -174,6 +204,7 @@ export default function CampaignDetail() {
         <div className="mt-6 flex flex-wrap gap-2"><Controls c={c} act={act} busy={busy} />
           <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => downloadFile(`/campaigns/${id}/report.csv`, `campaign-${String(id).slice(0, 8)}.csv`).catch(e => toast.error(e.message))} data-testid="campaign-report-download-button"><Download className="w-4 h-4" />Download CSV report</button></div>
         <Waiting c={c} />
+        <BadNumbers c={c} id={id} onDone={reload} />
         {(c.cancelledReason || c.pausedReason) && <div className="text-xs text-[#a1a1aa] mt-3" data-testid="campaign-reason">{c.cancelledReason || c.pausedReason}</div>}
       </div>
       <FeedAndAreas c={c} isAi={isAi} />
