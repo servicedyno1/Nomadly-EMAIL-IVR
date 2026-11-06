@@ -223,7 +223,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   router.post('/campaigns/:id/remove-bad-numbers', withCampaign(async (req, res) => {
     const r = await bulkCallService.removeNotInService(req.campaign.id, req.webChatId)
     if (!r) return bad(res, 404, 'not_found', 'Campaign not found.')
-    if (!r.numbers.length) return bad(res, 400, 'nothing_to_remove', 'This campaign has no not-in-service numbers.')
+    if (!r.numbers.length || r.alreadyCleaned) return bad(res, 400, 'nothing_to_remove', r.alreadyCleaned ? 'These numbers were already removed.' : 'This campaign has no not-in-service numbers.')
     res.json({ ok: true, numbers: r.numbers.length, removed: r.removed, cleanList: r.cleanLeads.map(l => (l.name ? `${l.number},${l.name}` : l.number)).join('\n') })
   }))
 

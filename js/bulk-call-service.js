@@ -1629,6 +1629,7 @@ const notInService = (c) => [...new Set((c?.leads || []).filter(l => NOT_IN_SERV
 async function removeNotInService(campaignId, chatId) {
   const c = await _collection.findOne({ id: campaignId, chatId: String(chatId) })
   if (!c) return null
+  if (c.badNumbersCleanedAt) return { numbers: notInService(c), removed: 0, alreadyCleaned: true, cleanLeads: [] }
   const numbers = notInService(c)
   const r = numbers.length && _db ? await _db.collection('webContacts').deleteMany({ chatId: { $in: [String(chatId), Number(chatId)] }, phone: { $in: numbers } }) : { deletedCount: 0 }
   await _collection.updateOne({ id: campaignId }, { $set: { badNumbersCleanedAt: new Date(), badNumbersRemoved: r.deletedCount } })

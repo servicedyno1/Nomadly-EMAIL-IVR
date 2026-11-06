@@ -139,7 +139,9 @@ function BadNumbers({ c, id, onDone }) {
     } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   const saveList = () => {
-    const url = URL.createObjectURL(new Blob([done.cleanList], { type: 'text/plain' }));
+    const bad = /not an in-service number|unallocated_number|^(404|604)$/i;
+    const list = done?.cleanList ?? (c.leads || []).filter(l => !bad.test(String(l.hangupCause || ''))).map(l => (l.name ? `${l.number},${l.name}` : l.number)).join('\n');
+    const url = URL.createObjectURL(new Blob([list], { type: 'text/plain' }));
     const a = Object.assign(document.createElement('a'), { href: url, download: `clean-list-${String(id).slice(0, 8)}.txt` });
     a.click(); URL.revokeObjectURL(url);
   };
@@ -148,9 +150,9 @@ function BadNumbers({ c, id, onDone }) {
     <div className="mt-4 rounded-xl border border-[#fbbf24]/40 bg-[#fbbf24]/5 p-4 text-sm flex flex-wrap items-center gap-3" data-testid="campaign-bad-numbers">
       <span className="flex-1 min-w-[220px]" data-testid="campaign-bad-numbers-text">{cleaned
         ? `${n} not-in-service number${n === 1 ? '' : 's'} removed from your contacts${(done?.removed ?? c.badNumbersRemoved) ? ` (${done?.removed ?? c.badNumbersRemoved} saved contact${(done?.removed ?? c.badNumbersRemoved) === 1 ? '' : 's'} deleted)` : ''}.`
-        : `${n} number${n === 1 ? ' is' : 's are'} not in service — skipped and not charged.`}</span>
+        : `${n} number${n === 1 ? ' is' : 's are'} not in service — skipped and not charged. Removing deletes them from all your contact lists.`}</span>
       {!cleaned && <button className="civr-btn civr-btn-primary civr-btn-sm" onClick={go} disabled={busy} data-testid="campaign-remove-bad-numbers-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}Remove {n} from my contacts</button>}
-      {done?.cleanList && <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={saveList} data-testid="campaign-download-clean-list-button"><Download className="w-4 h-4" />Download clean list</button>}
+      {cleaned && <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={saveList} data-testid="campaign-download-clean-list-button"><Download className="w-4 h-4" />Download clean list</button>}
     </div>
   );
 }

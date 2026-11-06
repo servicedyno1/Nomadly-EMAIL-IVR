@@ -6524,6 +6524,7 @@ bot?.on('callback_query', async (query) => {
       const r = await bulkCallService.removeNotInService(data.slice(8), chatId).catch(e => { log(`[BulkCall] cleanup error: ${e.message}`); return null })
       if (!r) return send(chatId, '⚠️ That campaign could not be found.')
       try { await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message.message_id }) } catch { /* noop */ }
+      if (!r.numbers.length || r.alreadyCleaned) return send(chatId, '✅ Nothing to remove — this campaign\'s not-in-service numbers were already cleaned up.')
       const head = `🧹 <b>Removed ${r.numbers.length} not-in-service number${r.numbers.length === 1 ? '' : 's'}</b>${r.removed ? ` (also deleted from ${r.removed} saved contact${r.removed === 1 ? '' : 's'})` : ''}.`
       if (!r.cleanLeads.length) return send(chatId, head + '\n\nNo numbers are left in this list.', { parse_mode: 'HTML' })
       const file = require('path').join('/tmp', `clean-list-${data.slice(8, 16)}.txt`)

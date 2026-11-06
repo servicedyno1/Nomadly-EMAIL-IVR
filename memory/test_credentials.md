@@ -25,7 +25,7 @@
   `TWILIO_ENABLED=false`, `CLOUDIVR_WEB_ON=true`, `WEB_TRYCALL_LIVE=false`, `CLOUDIVR_CHANNEL_LINK=https://t.me/CloudIVRNET` →
   `setup-nodejs.sh` (re-run after the alias switch) → restart → DEV bot setWebhook (was on old `setup-vault-app` pod) → seeds.
   Owner skipped setup questions → defaults: preview SIMULATED, DEV bot moved here, infra SSH keys NOT restored, sample accounts.
-  Fresh DB: Alice `civr.alice@example.com` / `AliceTest#2026` = Business dry-run `+15156445901`, $380, audio library has
+  Fresh DB: Alice `civr.alice@example.com` / `AliceTest#2026` = Business dry-run numbers (2026-11-06: `+13346972125`, `+18037534921`; old `+15156445901` is gone), $380, audio library has
   2 uploaded 50 s clips ("VM test vm50.wav", "VM test vm50.mp3"). Bob `civr.bob@example.com` / `BobTest#2026`, $500, no numbers.
   Panel `wpapps01`/`246810`. Login UI: dismiss the cookie banner first (`cookie-allow-all`) or it blocks the Sign in button.
 

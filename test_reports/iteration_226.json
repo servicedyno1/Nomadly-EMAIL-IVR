@@ -1,0 +1,39 @@
+{
+  "summary": "Tested web Free test ring (GET/POST /api/cloudivr-web/numbers/:phone/test-call, TestRing card on the number Overview tab and on the order success page) and the one-tap bad-number cleanup (campaign notInService, POST /campaigns/:id/remove-bad-numbers, CampaignDetail BadNumbers banner, plus a code review of the bot bcclean: handler). Backend: 14/14 pytest pass. Dev suite test_improvements_iter225.js: 28/28 pass. Frontend: there was a CRITICAL regression. The checkpoint commit 89437ab9 removed the imports that RouteSummary still uses (useState, toast, Loader2, api, enc), so every number detail page crashed with 'ReferenceError: useState is not defined' and showed 'This screen ran into a problem'. I fixed it by putting the imports back. After the fix, all the frontend flows passed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "bot callback bcclean:<id> (_index.js:6522)", "issue": "Nothing stops a second run. If the button is pressed again (for example from an older copy of the message), the bot replies 'Removed 0 not-in-service numbers' and sends the clean list again. It should say 'nothing to remove' when r.numbers is empty or badNumbersCleanedAt is already set."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "RouteSummary (pages/number/RouteSummary.js)", "issue": "FIXED BY TESTER: the imports for useState, toast, Loader2, api and enc were removed in this change, but the component still uses them. Every /cloudivr/app/numbers/:phone page crashed, so the TestRing card on the number page could not be reached at all.", "selector": "[data-testid=route-summary]", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Order success page, test-ring card (wide layout)", "issues": ["When 'Another phone' is chosen, the number input and the 'Ring my phone' button sit on the same line with no gap between them. The input is inline and space-y-3 only adds vertical spacing, so the button also sits a little lower than the input. Put the button on its own line or wrap both in a flex gap-2 row."]},
+      {"screen": "Campaign detail, after cleanup", "issues": ["'Download clean list' only shows right after the click. After a reload the banner says 'removed', but the user can no longer download the clean list. Consider letting them download it again, for example rebuilt from c.leads minus the not-in-service numbers."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter226_testring_badnumbers.py", "/app/js/tests/_t226_ui_seed.js", "/app/test_reports/pytest/iter226.xml"],
+  "action_items": [
+    "Review the RouteSummary.js import fix (useState, toast, Loader2, api, enc put back). Then check the rest of the 89437ab9 diff for other removed imports. Run an undefined-variable check (eslint no-undef) on cloudivr pages before deploying.",
+    "Optional: stop bcclean from running twice, so a repeat press says 'nothing to remove'.",
+    "Optional: fix the spacing between the input and the button in the test ring card on the wide order success card.",
+    "Optional: let users download the clean list again after a reload."
+  ],
+  "critical_code_review_comments": [
+    "TestRing.readyBrowser: the comment says 'Wait (≤8s)', but the function only starts rtc.connect and returns false right away. Nothing waits. The comment and the code disagree.",
+    "test-ring-note uses text-[#e4e4e7]. On the light theme it showed as dark text, so the theme seems to remap it, but the colour is meant for dark backgrounds. Confirm the contrast on both themes.",
+    "removeNotInService deletes the matching phones from all of the owner's contact lists. This is intended per the spec, but the UI does not say that every list is affected.",
+    "The +15156445901 number in the request and in test_credentials.md is no longer on Alice's account in this DB. Her active Business dry-run numbers are now +13346972125, +18037534921 and others. Update test_credentials.md."
+  ],
+  "updated_files": ["/app/frontend/src/cloudivr/pages/number/RouteSummary.js", "/app/backend/tests/test_iter226_testring_badnumbers.py", "/app/js/tests/_t226_ui_seed.js"],
+  "success_rate": {"backend": "100% (14/14 pytest + 28/28 node)", "frontend": "100% after the RouteSummary import fix (0% of number pages loaded before it)"},
+  "seed_data_creation": "The pytest suite seeds TEST_iter226_* campaigns for Alice and Bob in bulkCallCampaigns, plus webContacts, and deletes them by id in teardown. The UI test ran 'node js/tests/_t226_ui_seed.js seed' to create TEST_iter226_ui_camp, 3 contacts and an active order TEST_iter226_ui_order for +13346972125. It was cleaned up afterwards ('clean'), and I confirmed 0 leftovers. No real calls or payments were made.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Web API prefix: <REACT_APP_BACKEND_URL>/api/cloudivr-web. Login is POST /auth/login and sets a civr_session cookie. Alice chatId = '5000000000000001', Bob = '5000000000000002'. Use Alice's number +13346972125 (the old +15156445901 is gone) and Bob's number +18509558201. The order page route is /cloudivr/app/orders/:id, not /numbers/orders. The TestRing card is on the number page's Overview tab. Run: cd /app/backend && python -m pytest tests/test_iter226_testring_badnumbers.py -p no:xdist.",
+  "rca of the issue": "RouteSummary crash: when TestNumber was moved out of RouteSummary.js (replaced by TestRing.js), the import lines were trimmed to 'React' plus Compass and AlertTriangle. RouteSummary itself still calls useState and setFwd (api, enc, toast) and renders Loader2. To reproduce, open any /cloudivr/app/numbers/:phone page: CrashGuard shows the error screen and the console logs 'ReferenceError: useState is not defined in <RouteSummary>'. Fix: put back the imports from react, sonner, lucide-react (Loader2) and ../../api (api, enc)."
+}

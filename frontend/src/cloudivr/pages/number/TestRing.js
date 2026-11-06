@@ -8,7 +8,7 @@ const POLL_MS = 3000;
 const GIVE_UP_MS = 90000;
 const TONE = { ok: 'text-[#34d399]', voicemail: 'text-[#fbbf24]', no_key: 'text-[#fbbf24]', no_answer: 'text-[#fb7185]' };
 
-// Wait (≤8s) for the browser phone to register to this number so the SIP ring reaches this tab.
+// Start signing the browser phone in to this number so the SIP ring also reaches this tab (doesn't wait for it).
 async function readyBrowser(rtc, phone) {
   if (rtc.phone === phone && rtc.status === 'ready') return true;
   await rtc.connect(phone, { quiet: true });
@@ -75,10 +75,12 @@ export function TestRing({ num, compact = false }) {
       <div className="flex items-center gap-2 font-display text-xl font-bold"><PhoneIncoming className="w-5 h-5 text-[#38bdf8]" />Free test ring</div>
       <p className="text-sm text-[#a1a1aa]">We ring {mode === 'other' ? 'any phone you choose' : browserOk ? 'your SIP phone — or this browser if no SIP phone is signed in' : 'your number'} from our test line. Pick up and press 1. Free, up to 3 a day, 1 minute max.{left != null && <span className="text-[#e4e4e7]" data-testid="test-ring-left"> {left} left today.</span>}</p>
       <Mode mode={mode} setMode={setMode} />
-      {mode === 'other' && <input className="civr-input w-full max-w-xs font-mono" placeholder="+14155550100" value={to} onChange={(e) => setTo(e.target.value)} inputMode="tel" aria-label="Phone number to ring" data-testid="test-ring-other-input" />}
-      <button className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || num.status !== 'active' || st?.state === 'calling' || left === 0} onClick={go} data-testid="test-ring-button">
-        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneIncoming className="w-4 h-4" />}Ring my phone
-      </button>
+      <div className="flex flex-wrap items-center gap-2">
+        {mode === 'other' && <input className="civr-input w-full max-w-xs font-mono" placeholder="+14155550100" value={to} onChange={(e) => setTo(e.target.value)} inputMode="tel" aria-label="Phone number to ring" data-testid="test-ring-other-input" />}
+        <button className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || num.status !== 'active' || st?.state === 'calling' || left === 0} onClick={go} data-testid="test-ring-button">
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneIncoming className="w-4 h-4" />}Ring my phone
+        </button>
+      </div>
       <Result st={st} note={note} />
     </div>
   );

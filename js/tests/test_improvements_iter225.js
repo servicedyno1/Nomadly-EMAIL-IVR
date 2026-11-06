@@ -106,6 +106,7 @@ const t = async (name, fn) => { try { await fn(); pass++; console.log('PASS', na
   })
   await t('cleanup: clean list keeps good numbers', () => assert.deepStrictEqual(cr.cleanLeads, [{ number: '+14155550100', name: 'Ok' }]))
   await t('cleanup: campaign marked cleaned', async () => assert.ok((await db.collection('bulkCallCampaigns').findOne({ id: 'camp-clean-1' })).badNumbersCleanedAt))
+  await t('cleanup: second run reports already cleaned', async () => assert.strictEqual((await bulk.removeNotInService('camp-clean-1', owner)).alreadyCleaned, true))
 
   await db.dropDatabase()
   await client.close()
