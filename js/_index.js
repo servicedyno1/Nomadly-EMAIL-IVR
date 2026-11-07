@@ -717,6 +717,7 @@ const trans = (key, ...args) => translation(key, undefined, ...args)
 // and post-domain recommendation send). Without this module-level binding,
 // they would throw `ReferenceError: k is not defined`.
 const k = trans('k')
+const kOuter = k // same keyboards, for message-handler code that runs before the handler's own `k` is declared
 // Module-scope `TG_CHANNEL` shim — used in /ad admin command. Sourced from
 // env so prod and dev can have different channels.
 const TG_CHANNEL = process.env.TG_CHANNEL || '@nomadly'
@@ -8484,6 +8485,7 @@ bot?.on('message', msg => {
         return faxBulkList(chatId, num, text, userInfo.userLanguage)
       } catch (e) { log(`[Fax] bulk list file error for ${chatId}: ${e.message}`); return send(chatId, '⚠️ That file could not be read. Paste the numbers instead.') }
     }
+    if (userInfo?.action === 'cpFaxBulkTo' && userInfo?.cpActiveNumber) return send(chatId, faxService.t(userInfo.userLanguage).askBulk, { parse_mode: 'HTML' })
     if (userInfo?.action === 'cpFaxDoc' && userInfo?.cpActiveNumber) {
       const fx = faxService.t(userInfo.userLanguage)
       try {
@@ -8497,7 +8499,7 @@ bot?.on('message', msg => {
         await set(state, chatId, 'cpFaxStage', st.stageId)
         await set(state, chatId, 'action', 'cpFaxConfirm')
         const label = q.cost > 0 ? `${fx.btnConfirm} — $${q.cost.toFixed(2)}` : fx.btnConfirm
-        return send(chatId, userInfo.cpFaxBulk ? fx.bulkQuote(q) : fx.quote(userInfo.cpFaxTo, q), { parse_mode: 'HTML', ...k.of([[label], [fx.btnCancel]]) })
+        return send(chatId, userInfo.cpFaxBulk ? fx.bulkQuote(q) : fx.quote(userInfo.cpFaxTo, q), { parse_mode: 'HTML', ...kOuter.of([[label], [fx.btnCancel]]) })
       } catch (e) {
         log(`[Fax] bot upload error for ${chatId}: ${e.message}`)
         return send(chatId, `⚠️ ${e.code ? e.message : 'That file could not be read. Send a PDF, JPG or PNG.'}`)
@@ -30754,7 +30756,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     await set(state, chatId, 'cpFaxBulk', list.join('\n'))
     await set(state, chatId, 'action', 'cpFaxDoc')
     send(chatId, fx.bulkList(list.length, invalid.length))
-    return send(chatId, fx.askDoc(`${list.length} numbers`), { parse_mode: 'HTML', ...k.of([]) })
+    return send(chatId, fx.askDoc(`${list.length} numbers`), { parse_mode: 'HTML', ...kOuter.of([]) })
   }
 
   // ── Helper: Render upgrade preview for one-tap upgrades ──
@@ -32311,7 +32313,12 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
             await faxService.sendStaged({ chatId: String(chatId), num, stageId: info?.cpFaxStage, to: info?.cpFaxTo })
             send(chatId, fx.queued(info?.cpFaxTo))
           }
-        } catch (e) { send(chatId, `⚠️ ${e.code ? e.message : 'The fax could not be sent. Please try again.'}`); log(`[Fax] bot send error: ${e.message}`) }
+        } catch (e) {
+          log(`[Fax] bot send error: ${e.message}`)
+          // Upload is kept on a low balance: top up, then tap Send again.
+          if (e.code === 'insufficient_balance') return send(chatId, `⚠️ ${e.message}`)
+          send(chatId, `⚠️ ${e.code ? e.message : 'The fax could not be sent. Please try again.'}`)
+        }
         await saveInfo('cpFaxStage', null)
         return showFaxMenu(chatId, num)
       }

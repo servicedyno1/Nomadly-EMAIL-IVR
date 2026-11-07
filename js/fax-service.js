@@ -378,7 +378,7 @@ async function runBatch(id) {
   _running.add(id)
   try {
     for (;;) {
-      const b = await col('faxBatches').findOneAndUpdate({ _id: id, status: 'running', $expr: { $lt: ['$cursor', '$total'] } }, { $inc: { cursor: 1 } }, { returnDocument: 'after', includeResultMetadata: false })
+      const b = await col('faxBatches').findOneAndUpdate({ _id: id, status: 'running', $expr: { $lt: ['$cursor', '$total'] } }, { $inc: { cursor: 1 }, $set: { updatedAt: new Date() } }, { returnDocument: 'after', includeResultMetadata: false })
       if (!b) break
       const to = b.recipients[b.cursor - 1]
       const num = (await findMine(b.chatId, b.phoneNumber)) || { phoneNumber: b.phoneNumber }
@@ -404,13 +404,24 @@ async function finishBatch(id) {
   await tell(b.chatId, t(await langOf(b.chatId)).bulkDone({ ...done, cost: c?.cost || 0 }), { batchId: id })
 }
 async function cancelBatch(chatId, id) {
+  if (!(await col('faxBatches').findOne({ _id: String(id), chatId }, { projection: { _id: 1 } }))) throw new FaxError('not_found', 'Bulk fax not found.')
   const r = await col('faxBatches').findOneAndUpdate({ _id: String(id), chatId, status: 'running' }, { $set: { status: 'cancelled' } }, { returnDocument: 'after', includeResultMetadata: false })
   if (!r) throw new FaxError('not_running', 'This bulk fax has already finished.')
   setTimeout(() => finishBatch(r._id).catch(() => {}), 2000).unref?.()
   return publicBatch(r)
 }
+// After a restart: a recipient claimed but never recorded (process died mid-send) counts as failed, then the rest resumes.
 async function resumeBatches() {
-  for (const b of await col('faxBatches').find({ status: 'running' }, { projection: { _id: 1 } }).toArray()) runBatch(b._id)
+  const idle = new Date(Date.now() - 2 * 60000)
+  for (const b of await col('faxBatches').find({ status: { $in: ['running', 'cancelled'] }, summarySent: { $ne: true } }, { projection: { recipients: 0 } }).toArray()) {
+    if (!b.updatedAt || b.updatedAt < idle) {
+      const started = await col('faxes').countDocuments({ batchId: b._id })
+      const lost = Math.max(0, b.cursor - started - b.startFailed)
+      if (lost || started !== b.started) await col('faxBatches').updateOne({ _id: b._id }, { $set: { started }, $inc: { startFailed: lost } })
+    }
+    if (b.status === 'running') runBatch(b._id)
+    else finishBatch(b._id).catch(() => {})
+  }
 }
 const publicBatch = (b) => ({ id: b._id, phoneNumber: b.phoneNumber, pages: b.pages, total: b.total, sent: b.started, startFailed: b.startFailed, delivered: b.delivered, failed: b.failed, status: b.status, createdAt: b.createdAt })
 async function listBatches(chatId, limit = 20) {

@@ -25,7 +25,7 @@ function Batch({ b, reload }) {
         </div>
       </div>
       <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mt-3"><div className="h-full bg-[#818cf8] transition-[width] duration-500" style={{ width: `${(done / Math.max(1, b.total)) * 100}%` }} /></div>
-      <div className="text-xs text-[#a1a1aa] mt-1.5" data-testid={`fax-batch-progress-${b.id}`}>{b.sent} sent · {b.delivered} delivered · {b.failed + b.startFailed} failed · {Math.max(0, b.total - b.sent - b.startFailed)} waiting</div>
+      <div className="text-xs text-[#a1a1aa] mt-1.5" data-testid={`fax-batch-progress-${b.id}`}>{b.sent} sent · {b.delivered} delivered · {b.failed + b.startFailed} failed · {Math.max(0, b.total - b.sent - b.startFailed)} {b.status === 'cancelled' ? 'not sent' : 'waiting'}</div>
     </div>
   );
 }

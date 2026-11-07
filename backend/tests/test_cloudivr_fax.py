@@ -55,7 +55,7 @@ class TestOverview:
         r = alice.get(f'{API}/fax')
         assert r.status_code == 200, r.text
         d = r.json()
-        assert d['pricing'] == {'freePages': 50, 'pagePrice': 2}
+        assert d['pricing'] == {'freePages': 50, 'pagePrice': 2, 'bulkMax': 500}
         nums = {n['phoneNumber']: n for n in d['numbers']}
         assert BIZ in nums and BIZ2 in nums
         for n in d['numbers']:

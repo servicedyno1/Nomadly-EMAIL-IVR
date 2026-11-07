@@ -3,7 +3,8 @@ import { toast } from 'sonner';
 import { Upload } from 'lucide-react';
 import { Field } from '../../ui';
 
-export const countLines = (s) => String(s || '').split(/[\r\n,;\t|]+|\s+(?=\+)/).filter(t => /\d{3}/.test(t)).length;
+// Estimate of valid, unique numbers (8–15 digits); the server's quote is the final count.
+export const countLines = (s) => new Set(String(s || '').split(/[\r\n,;\t|]+|\s+(?=\+)/).map(t => t.replace(/\D/g, '')).filter(d => d.length >= 8 && d.length <= 15)).size;
 
 // Recipient list for bulk fax: paste numbers or load them from a CSV / TXT file (read in the browser).
 export function BulkRecipients({ value, onChange, max }) {

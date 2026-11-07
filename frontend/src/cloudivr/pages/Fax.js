@@ -14,7 +14,7 @@ const LIVE = ['queued', 'media.processed', 'sending.started'];
 export default function Fax() {
   const { data, error, loading, reload } = useApi('/fax');
   // Refresh while anything is still sending, so statuses move to Delivered / Failed on their own.
-  const live = !!data && (data.faxes?.some(f => LIVE.includes(f.status)) || data.batches?.some(b => b.status === 'running'));
+  const live = !!data && (data.faxes?.some(f => LIVE.includes(f.status)) || data.batches?.some(b => b.status === 'running' || b.sent > b.delivered + b.failed));
   useEffect(() => {
     if (!live) return undefined;
     const t = setInterval(reload, 5000);
