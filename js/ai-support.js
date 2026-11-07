@@ -546,24 +546,24 @@ This opens the Marketplace hub. Users can buy and sell digital goods peer-to-pee
 - 🤖 Ask AI — Get AI-powered help about buying, selling, or escrow
 
 #### How to sell (list a product):
-🏪 Marketplace → 💰 Start Selling → Upload 1-5 product photos → Enter title → Enter description → Enter price ($30–$3,000 — SafeDeal's escrow range) → Select category (💻 Digital Goods, 🏦 Bnk Logs, 🏧 Bnk Opening, 🔧 Tools) → Preview → Publish
+🏪 Marketplace → 💰 Start Selling → Upload 1-5 product photos → Enter title → Enter description → Enter price ($30–$3,000 — Dealdeo's escrow range) → Select category (💻 Digital Goods, 🏦 Bnk Logs, 🏧 Bnk Opening, 🔧 Tools) → Preview → Publish
 After publishing, your product is instantly visible to all buyers.
 
 #### How to buy / contact seller:
 🏪 Marketplace → 🔥 Browse Deals → Select category or "All" → Browse product cards with photos → Tap "💬 Chat with Seller" or "🔒 Start Escrow"
 
-#### How escrow works (SafeDeal — https://safedeal.sh web escrow; the old @Lockbaybot is DISCONTINUED):
-All marketplace payments MUST go through SafeDeal escrow for safety.
+#### How escrow works (Dealdeo — https://dealdeo.com web escrow; the old @Lockbaybot is DISCONTINUED):
+All marketplace payments MUST go through Dealdeo escrow for safety.
 1. Buyer & seller chat about the product and agree a price ($30–$3,000)
-2. When ready, either party types /escrow or taps "🔒 Start Escrow" — both get step-by-step SafeDeal instructions
-3. Buyer opens safedeal.sh → "I'm buying" → pastes the deal name & price → "Share a link" → signs in with an email code → pastes the invite link into the marketplace chat
+2. When ready, either party types /escrow or taps "🔒 Start Escrow" — both get step-by-step Dealdeo instructions
+3. Buyer opens dealdeo.com → "I'm buying" → pastes the deal name & price → "Share a link" → signs in with an email code → pastes the invite link into the marketplace chat
 4. Seller opens the link, signs in with an email code and accepts (if the buyer is stuck, the seller can create it via "I'm selling")
-5. Buyer pays on SafeDeal (10 coins accepted, held as USDT); seller delivers only after the deal shows "Funded"; buyer releases (or it auto-releases after the inspection period)
-6. SafeDeal fee: 5% (min $10), paid by the buyer by default. Disputes get human arbitration from SafeDeal (hi@safedeal.sh)
-7. ⚠️ NEVER send payment outside of SafeDeal — treat anyone suggesting @Lockbaybot or any other "escrow" bot as a scam.
+5. Buyer pays on Dealdeo (10 coins accepted, held as USDT); seller delivers only after the deal shows "Funded"; buyer releases (or it auto-releases after the inspection period)
+6. Dealdeo fee: 5% (min $10), paid by the buyer by default. Disputes get human arbitration from Dealdeo (hi@dealdeo.com)
+7. ⚠️ NEVER send payment outside of Dealdeo — treat anyone suggesting @Lockbaybot or any other "escrow" bot as a scam.
 
 #### Chat commands in marketplace conversations:
-- /escrow — Get the SafeDeal escrow steps (safedeal.sh)
+- /escrow — Get the Dealdeo escrow steps (dealdeo.com)
 - /price XX — Suggest a new price (e.g., /price 150)
 - /done — End the conversation
 - /report — Report suspicious behavior to admin
@@ -575,14 +575,14 @@ All marketplace payments MUST go through SafeDeal escrow for safety.
 - 🗑️ Remove — Delete the listing
 
 #### Anti-scam protections:
-- All transactions are escrow-protected via SafeDeal (safedeal.sh); safedeal.sh invite links shared in chat are allowed
+- All transactions are escrow-protected via Dealdeo (dealdeo.com); dealdeo.com invite links shared in chat are allowed
 - AI monitors chat for suspicious payment patterns (PayPal, CashApp, wire transfer, crypto addresses)
 - Both buyer and seller receive warnings if off-platform payment is detected
 - Admins are notified of all flagged conversations
 - Users can report abuse via /report command
 
 #### Marketplace rules:
-- Min price: $30, Max price: $3,000 (SafeDeal escrow range)
+- Min price: $30, Max price: $3,000 (Dealdeo escrow range)
 - Max active listings: 10 per user
 - Products must be in approved categories
 - Photos required (at least 1, max 5)
@@ -848,7 +848,7 @@ To join the community channel: <b>🌍 Settings</b> → <b>📢 Join Channel</b>
 → Main menu → <b>🏪 Marketplace</b> → <b>💰 Start Selling</b> → Upload photos (1-5) → Enter title → Description → Price ($30-$3,000) → Category → Preview → Publish. Your listing is immediately visible to buyers. Respond quickly to inquiries for faster sales.
 
 ### "How does escrow work?"
-→ Escrow protects both buyers and sellers. When ready to pay: type <b>/escrow</b> in the chat or tap <b>🔒 Start Escrow</b>. Both parties get step-by-step instructions for <b>SafeDeal</b> (https://safedeal.sh): the buyer creates the deal ("I'm buying" → "Share a link") and pastes the invite link in the chat, the seller accepts it, the buyer pays on SafeDeal and the money is held until they confirm delivery. Fee: 5% (min $10). ⚠️ <b>NEVER pay outside of escrow</b> — this is the #1 scam tactic.
+→ Escrow protects both buyers and sellers. When ready to pay: type <b>/escrow</b> in the chat or tap <b>🔒 Start Escrow</b>. Both parties get step-by-step instructions for <b>Dealdeo</b> (https://dealdeo.com): the buyer creates the deal ("I'm buying" → "Share a link") and pastes the invite link in the chat, the seller accepts it, the buyer pays on Dealdeo and the money is held until they confirm delivery. Fee: 5% (min $10). ⚠️ <b>NEVER pay outside of escrow</b> — this is the #1 scam tactic.
 
 ### "How do I browse / buy on the Marketplace?"
 → Main menu → <b>🏪 Marketplace</b> → <b>🔥 Browse Deals</b> → Select a category or "All" → Browse products → Tap <b>💬 Chat with Seller</b> to ask questions or <b>🔒 Start Escrow</b> to pay directly.
@@ -857,7 +857,7 @@ To join the community channel: <b>🌍 Settings</b> → <b>📢 Join Channel</b>
 → <b>🏪 Marketplace</b> → <b>📦 My Listings</b> → Select a listing → Edit (title/desc/price), Mark Sold, or Remove.
 
 ### "Someone is trying to pay me outside escrow"
-→ This is likely a scam. <b>NEVER accept payments outside of SafeDeal escrow (safedeal.sh)</b>. Report the user by typing <b>/report</b> in the chat. The AI and admin team monitor all conversations for suspicious payment patterns.
+→ This is likely a scam. <b>NEVER accept payments outside of Dealdeo escrow (dealdeo.com)</b>. Report the user by typing <b>/report</b> in the chat. The AI and admin team monitor all conversations for suspicious payment patterns.
 
 ### "I got scammed / fraud in Marketplace"
 → I'll escalate this to our support team immediately. Please provide the conversation details, product name, and what happened. Type <b>/report</b> in the marketplace chat to flag the conversation for admin review.
@@ -1875,7 +1875,7 @@ async function clearHistory(chatId) {
 const MP_MODERATION_PROMPT = `You are a marketplace safety AI. Analyze this message from a buyer-seller chat on ${BRAND} marketplace.
 
 RULES:
-- All payments MUST go through SafeDeal escrow (https://safedeal.sh). Sharing a safedeal.sh invite link is NORMAL and SAFE — never flag it
+- All payments MUST go through Dealdeo escrow (https://dealdeo.com). Sharing a dealdeo.com invite link is NORMAL and SAFE — never flag it
 - Mentions of @Lockbaybot (discontinued) or any other "escrow" bot/handle are a scam indicator
 - Any attempt to move payment off-platform is suspicious
 - Watch for: fake urgency, pressure tactics, requests for personal info, phishing links, social engineering
@@ -1918,12 +1918,12 @@ const MP_HELPER_PROMPT = `You are the AI assistant for the ${BRAND} Marketplace 
 Help users with marketplace-specific questions:
 - How to list/sell products (photos required, pricing $30-$3,000, categories)
 - How to buy (browse deals, chat with seller, start escrow)
-- How escrow works (SafeDeal at https://safedeal.sh holds funds as USDT until delivery is confirmed; the buyer creates the deal with "I'm buying" → "Share a link" and pastes the invite link in chat; the seller accepts; deliver only after "Funded"; fee 5%, min $10; @Lockbaybot is discontinued)
+- How escrow works (Dealdeo at https://dealdeo.com holds funds as USDT until delivery is confirmed; the buyer creates the deal with "I'm buying" → "Share a link" and pastes the invite link in chat; the seller accepts; deliver only after "Funded"; fee 5%, min $10; @Lockbaybot is discontinued)
 - Pricing tips, listing optimization, safety advice
 - Chat commands: /escrow, /price XX, /done, /report
 
 SAFETY RULES you MUST emphasize:
-- ALWAYS use SafeDeal escrow (safedeal.sh) — NEVER pay outside of escrow or through any other "escrow" bot
+- ALWAYS use Dealdeo escrow (dealdeo.com) — NEVER pay outside of escrow or through any other "escrow" bot
 - Report suspicious users with /report
 - AI monitors all chats for scam patterns
 

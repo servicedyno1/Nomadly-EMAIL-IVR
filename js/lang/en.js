@@ -1363,7 +1363,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  invalidAmountPositive: '⚠️ Amount must be a positive number.',
 
  // ── Marketplace ──
- mpHome: `🏪 <b>${(CHAT_BOT_BRAND || 'Nomadly').toUpperCase()} MARKETPLACE</b>\n\n💰 <b>Sell your digital goods</b> — list in 60 seconds, get paid safely through escrow\n🛍️ <b>Find exclusive deals</b> — verified sellers, real transactions\n\n🔒 <b>ESCROW IS MANDATORY</b> — every purchase goes through <b>SafeDeal</b> (safedeal.sh)\n⚠️ NEVER pay sellers directly or through their bots — use SafeDeal escrow ONLY.\n\n👇 Ready to earn or shop?`,
+ mpHome: `🏪 <b>${(CHAT_BOT_BRAND || 'Nomadly').toUpperCase()} MARKETPLACE</b>\n\n💰 <b>Sell your digital goods</b> — list in 60 seconds, get paid safely through escrow\n🛍️ <b>Find exclusive deals</b> — verified sellers, real transactions\n\n🔒 <b>ESCROW IS MANDATORY</b> — every purchase goes through <b>Dealdeo</b> (dealdeo.com)\n⚠️ NEVER pay sellers directly or through their bots — use Dealdeo escrow ONLY.\n\n👇 Ready to earn or shop?`,
  mpBrowse: '🔥 Browse Deals',
  mpListProduct: '💰 Start Selling',
  mpMyConversations: '💬 My Conversations',
@@ -1371,7 +1371,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  mpAiHelper: '🤖 Ask AI',
  mpAiHelperPrompt: '🤖 <b>Marketplace AI Assistant</b>\n\nAsk me anything about buying, selling, escrow, or marketplace safety.\n\nType your question below or tap ↩️ Back to return.',
  mpAiThinking: '🤖 Thinking...',
- mpAiScamWarning: `🚨 <b>AI Safety Alert</b>\n\n⚠️ This message may contain a suspicious payment request. Remember:\n\n🔒 <b>ALWAYS pay through SafeDeal escrow</b> — only links starting with https://safedeal.sh\n❌ NEVER send money via PayPal, CashApp, crypto, wire transfer or any other "escrow" bot\n📢 Type /report if you feel unsafe\n\nYour protection is our priority.`,
+ mpAiScamWarning: `🚨 <b>AI Safety Alert</b>\n\n⚠️ This message may contain a suspicious payment request. Remember:\n\n🔒 <b>ALWAYS pay through Dealdeo escrow</b> — only links starting with https://dealdeo.com\n❌ NEVER send money via PayPal, CashApp, crypto, wire transfer or any other "escrow" bot\n📢 Type /report if you feel unsafe\n\nYour protection is our priority.`,
  mpUploadImages: '📸 Upload product images (1-5 photos).\nSend photos one by one. When done, tap ✅ Done Uploading.',
  mpDoneUpload: '✅ Done Uploading',
  mpEnterTitle: '📝 Enter product title (max 100 chars):',
@@ -1379,13 +1379,13 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  mpEnterPrice: '💰 Set price in USD ($30 - $3,000):',
  mpSelectCategory: '🏷️ Select a category:',
  mpPreview: (title, desc, price, category, imageCount) =>
- `✅ <b>Product Preview</b>\n\n📦 <b>${title}</b>\n📄 ${desc}\n💰 <b>$${Number(price).toFixed(2)}</b>\n📂 ${category}\n📸 ${imageCount} image(s)\n\n🔒 Escrow protected via SafeDeal (safedeal.sh)`,
+ `✅ <b>Product Preview</b>\n\n📦 <b>${title}</b>\n📄 ${desc}\n💰 <b>$${Number(price).toFixed(2)}</b>\n📂 ${category}\n📸 ${imageCount} image(s)\n\n🔒 Escrow protected via Dealdeo (dealdeo.com)`,
  mpPublish: '✅ Publish',
  mpCancel: '❌ Cancel',
  mpEditProduct: '✏️ Edit',
  mpRemoveProduct: '❌ Remove Listing',
  mpMarkSold: '✅ Mark as Sold',
- mpProductPublished: `🎉 Your listing is LIVE!\n\nBuyers can now discover it in the marketplace.\n\n⚠️ <b>Reminder:</b> All sales must go through SafeDeal escrow (safedeal.sh). Deliver only after SafeDeal shows the deal as <b>Funded</b>.\n\n💡 <b>Tips to sell faster:</b>\n• Respond to inquiries within minutes\n• Add clear photos & detailed descriptions\n• Price competitively`,
+ mpProductPublished: `🎉 Your listing is LIVE!\n\nBuyers can now discover it in the marketplace.\n\n⚠️ <b>Reminder:</b> All sales must go through Dealdeo escrow (dealdeo.com). Deliver only after Dealdeo shows the deal as <b>Funded</b>.\n\n💡 <b>Tips to sell faster:</b>\n• Respond to inquiries within minutes\n• Add clear photos & detailed descriptions\n• Price competitively`,
  mpProductRemoved: '✅ Listing removed.',
  mpProductSold: '✅ Listing marked as sold.',
  mpMaxListings: "❌ You've reached the max of 10 active listings. Remove or mark some as sold to list more.",
@@ -1397,9 +1397,9 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  mpNoListings: '📭 You have no listings yet.',
  mpNoConversations: '📭 No active conversations.',
  mpChatStartBuyer: (title, price) =>
- `💬 You're chatting with the seller about <b>${title}</b> ($${price})\n\n⚠️ <b>ESCROW IS MANDATORY</b> — when you're ready to buy, type /escrow to pay safely through SafeDeal\n❌ Do NOT pay the seller directly or through any bot.\n\n💡 Ask for details or proof before purchasing.\nSend /done to end chat.`,
+ `💬 You're chatting with the seller about <b>${title}</b> ($${price})\n\n⚠️ <b>ESCROW IS MANDATORY</b> — when you're ready to buy, type /escrow to pay safely through Dealdeo\n❌ Do NOT pay the seller directly or through any bot.\n\n💡 Ask for details or proof before purchasing.\nSend /done to end chat.`,
  mpChatStartSeller: (title) =>
- `💬 🔔 A buyer is interested in <b>${title}</b>!\n🔒 Escrow-protected via SafeDeal — deliver only after the deal shows <b>Funded</b>\n\n💡 Tip: Respond quickly — fast sellers close more deals.\nReply below. Send /done to end chat.`,
+ `💬 🔔 A buyer is interested in <b>${title}</b>!\n🔒 Escrow-protected via Dealdeo — deliver only after the deal shows <b>Funded</b>\n\n💡 Tip: Respond quickly — fast sellers close more deals.\nReply below. Send /done to end chat.`,
  mpMessageSent: '✅ Message sent',
  mpSellerChatReady: (title) =>
  `💬 You are now in chat for <b>${title}</b>.\nType your reply below. Send /done to exit, /escrow to start escrow, /price XX to suggest price.`,
@@ -1411,15 +1411,15 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  mpSellerOffline: "⏳ Seller hasn't responded in 24 hours. You may browse other listings.",
  mpRateLimit: '⚠️ Message limit reached. Please wait before sending more.',
  mpOnlyTextPhoto: '⚠️ Only text and photos can be sent in marketplace chat.',
- mpPaymentWarning: `🚨 <b>WARNING: Direct payment detected!</b>\n\n❌ NEVER send money directly to the seller, to a wallet address, or through any bot.\n🔒 SafeDeal escrow (safedeal.sh) is <b>MANDATORY</b> — it's the only way to protect your money. Type /escrow to start.\n📢 Type /report if you feel unsafe.`,
+ mpPaymentWarning: `🚨 <b>WARNING: Direct payment detected!</b>\n\n❌ NEVER send money directly to the seller, to a wallet address, or through any bot.\n🔒 Dealdeo escrow (dealdeo.com) is <b>MANDATORY</b> — it's the only way to protect your money. Type /escrow to start.\n📢 Type /report if you feel unsafe.`,
  mpEscrowBuyer: (title, price) =>
- `🔒 <b>Pay safely with SafeDeal escrow</b>\n\n📦 Product: <b>${title}</b>\n💰 Price: <b>$${Number(price).toFixed(2)}</b>\n\n1. Tap <b>Open SafeDeal</b> → choose <b>I'm buying</b>\n2. Deal name: <code>${title}</code> (tap to copy)\n3. Price: <code>${Number(price).toFixed(2)}</code> (tap to copy)\n4. Choose <b>Share a link</b> → sign in with your email code\n5. <b>Paste the invite link here</b> so the seller can accept\n6. Pay on SafeDeal — your money is held until you confirm delivery\n\n💡 SafeDeal fee: 5% (min $10), paid by the buyer by default.\n⚠️ Never pay the seller directly.`,
+ `🔒 <b>Pay safely with Dealdeo escrow</b>\n\n📦 Product: <b>${title}</b>\n💰 Price: <b>$${Number(price).toFixed(2)}</b>\n\n1. Tap <b>Open Dealdeo</b> → choose <b>I'm buying</b>\n2. Deal name: <code>${title}</code> (tap to copy)\n3. Price: <code>${Number(price).toFixed(2)}</code> (tap to copy)\n4. Choose <b>Share a link</b> → sign in with your email code\n5. <b>Paste the invite link here</b> so the seller can accept\n6. Pay on Dealdeo — your money is held until you confirm delivery\n\n💡 Dealdeo fee: 5% (min $10), paid by the buyer by default.\n⚠️ Never pay the seller directly.`,
  mpEscrowSeller: (title, price) =>
- `🔒 <b>The buyer is starting SafeDeal escrow</b>\n\n📦 Product: <b>${title}</b>\n💰 Price: <b>$${Number(price).toFixed(2)}</b>\n\n1. Wait for the buyer's <b>safedeal.sh invite link</b> in this chat\n2. Open it, sign in with your email code and <b>accept</b>\n3. Deliver <b>only after</b> SafeDeal shows <b>Funded</b>\n4. You're paid when the buyer releases — add a USDT/USDC payout address on SafeDeal\n\n💡 Buyer stuck? Create it yourself: <b>Open SafeDeal</b> → <b>I'm selling</b> → name <code>${title}</code>, price <code>${Number(price).toFixed(2)}</code> → <b>Share a link</b> → paste it here.`,
+ `🔒 <b>The buyer is starting Dealdeo escrow</b>\n\n📦 Product: <b>${title}</b>\n💰 Price: <b>$${Number(price).toFixed(2)}</b>\n\n1. Wait for the buyer's <b>dealdeo.com invite link</b> in this chat\n2. Open it, sign in with your email code and <b>accept</b>\n3. Deliver <b>only after</b> Dealdeo shows <b>Funded</b>\n4. You're paid when the buyer releases — add a USDT/USDC payout address on Dealdeo\n\n💡 Buyer stuck? Create it yourself: <b>Open Dealdeo</b> → <b>I'm selling</b> → name <code>${title}</code>, price <code>${Number(price).toFixed(2)}</code> → <b>Share a link</b> → paste it here.`,
  mpEscrowOutOfRange: (price) =>
- `⚠️ <b>Escrow can't start at $${Number(price).toFixed(2)}</b>\n\nSafeDeal accepts deals from <b>$30 to $3,000</b>. Agree a price in that range in this chat — e.g. type <code>/price 50</code> — then type /escrow again.`,
- mpOpenSafeDeal: '🔒 Open SafeDeal',
- mpSafeDealLinkNote: `🔒 <b>That's a SafeDeal escrow invite</b> — the safe way to do this deal.\nOpen it, sign in with your email code and accept. The buyer pays on SafeDeal; the seller delivers only after it shows <b>Funded</b>.`,
+ `⚠️ <b>Escrow can't start at $${Number(price).toFixed(2)}</b>\n\nDealdeo accepts deals from <b>$30 to $3,000</b>. Agree a price in that range in this chat — e.g. type <code>/price 50</code> — then type /escrow again.`,
+ mpOpenDealdeo: '🔒 Open Dealdeo',
+ mpDealdeoLinkNote: `🔒 <b>That's a Dealdeo escrow invite</b> — the safe way to do this deal.\nOpen it, sign in with your email code and accept. The buyer pays on Dealdeo; the seller delivers only after it shows <b>Funded</b>.`,
  mpPriceSuggest: (role, amount) => `💰 <b>${role}</b> suggests: <b>$${amount}</b>`,
  mpPriceUsage: 'Usage: /price 50 to suggest $50',
  mpPriceInvalid: '❌ Invalid amount. Must be $30 - $3,000.',
@@ -1437,9 +1437,9 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  mpListingRemoved: '📦 [Listing Removed]',
  mpSellerStats: (sales, since) => `⭐ Seller: ${sales} sale${sales !== 1 ? 's' : ''} | Joined ${since}`,
  mpProductCard: (title, price, category, sellerStats) =>
- `🏷️ <b>${title}</b>\n💰 <b>$${Number(price).toFixed(2)}</b> · ${category}\n${sellerStats}\n🔒 ⚠️ Escrow mandatory — pay through SafeDeal only`,
+ `🏷️ <b>${title}</b>\n💰 <b>$${Number(price).toFixed(2)}</b> · ${category}\n${sellerStats}\n🔒 ⚠️ Escrow mandatory — pay through Dealdeo only`,
  mpProductDetail: (title, desc, price, category, sellerStats, listedAgo) =>
- `📦 <b>${title}</b>\n\n📄 ${desc}\n\n💰 Price: <b>$${Number(price).toFixed(2)}</b>\n📂 ${category}\n${sellerStats}\n📅 Listed: ${listedAgo}\n\n🔒 <b>ESCROW IS MANDATORY</b>\nPay ONLY through SafeDeal escrow (safedeal.sh). Never pay the seller directly or through their bot.`,
+ `📦 <b>${title}</b>\n\n📄 ${desc}\n\n💰 Price: <b>$${Number(price).toFixed(2)}</b>\n📂 ${category}\n${sellerStats}\n📅 Listed: ${listedAgo}\n\n🔒 <b>ESCROW IS MANDATORY</b>\nPay ONLY through Dealdeo escrow (dealdeo.com). Never pay the seller directly or through their bot.`,
  mpMyListingsHeader: (count, max) => `📦 <b>MY LISTINGS</b> (${count}/${max})`,
  mpConvHeader: '💬 <b>MY CONVERSATIONS</b>',
  mpConvItem: (title, role, lastMsg) => `💬 <b>${title}</b> (${role}) — ${lastMsg}`,
@@ -1448,7 +1448,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  mpPriceCmd: '/price',
  mpReportCmd: '/report',
  mpEnteredChat: (title, price) => `💬 You entered chat for <b>${title}</b> ($${price})\nSend /done to exit, /escrow to start escrow, /price XX to suggest price.`,
- mpResumedChat: (title, price, role) => `💬 Resumed chat: <b>${title}</b> ($${price}) — You are the ${role}\n⚠️ <b>ESCROW MANDATORY</b> — pay only through SafeDeal (safedeal.sh). Never pay the seller directly or through their bot.\n\nSend /done to exit, /escrow to start escrow, /price XX to suggest price.`,
+ mpResumedChat: (title, price, role) => `💬 Resumed chat: <b>${title}</b> ($${price}) — You are the ${role}\n⚠️ <b>ESCROW MANDATORY</b> — pay only through Dealdeo (dealdeo.com). Never pay the seller directly or through their bot.\n\nSend /done to exit, /escrow to start escrow, /price XX to suggest price.`,
  mpBuyerPhotoCaption: '💬 Buyer sent a photo:',
  mpSellerPhotoCaption: '💬 Seller sent a photo:',
  mpChatClosedReset: (title) => `💬 The conversation about <b>${title}</b> was closed by the other party. You have been returned to the marketplace.`,
