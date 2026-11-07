@@ -1,0 +1,29 @@
+{
+  "summary": "Backend-only check of the billing-reconciliation phoneLogs fix in js/voice-service.js (HEAD a670952e vs baseline HEAD~1). `node --check` passes. I built a harness, js/tests/test_phonelogs_billing_reconcile_iter228.js. It loads the real voice-service.js source in its own module scope, adds test-only exports (autoRoutedPendingBilling, handleCallHangup, handleOutboundIvrHangup, _initiatedCalls), and calls initVoiceService with a stubbed Telnyx API and Telegram bot. It uses the real Mongo collections on a SANDBOX mongod (127.0.0.1:27999, dropped DB) and a spy on phoneLogs.insertOne. Each scenario sends a call.hangup through the exported handleVoiceWebhook. Result: 18/18 pass on HEAD, and 4/18 pass on HEAD~1, so the harness does tell fixed and unfixed code apart. Checked: (a) the deferred auto-routed path (autoRoutedPendingBilling) now writes an outbound_sip row with phoneNumber=caller, from=destination, chatId as a string, minutesBilled=3 for 125s, planMinUsed, callControlId, autoRouted=true and charge=0.48. That charge equals the wallet deduction (3x$0.15 + $0.03 fee). The row is persisted, a duplicate hangup does not add a second row, and an unknown owner gets no row. (b) The normal SIP outbound path writes chatId, minutesBilled, planMinUsed and callControlId; free test calls log charge=0, and eSIM lines keep the esim field. (c) outbound_ivr and outbound_ivr_bulk rows carry chatId and callControlId, and bulk rows also carry campaignId; a missing chatId becomes '' rather than 'undefined'. No ReferenceError and no unhandled rejections. Regressions: I ran all 22 billing/voice/sip tests in js/tests. 20 pass (test_cloudivr_sip_page_seo printed 5/5 but hung and was killed at 150s on open handles). test_sip_gate_selfheal.js fails 1 check (lockedTemplates 'upgrade to X plan' copy) and test_test_outbound_sip.js fails 1 of 68 (testOutboundSip bundle not in all 4 locales). Both fail identically on HEAD~1, so they are older and unrelated to this change.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "voice-service.js handleOutboundIvrHangup (outbound_ivr / outbound_ivr_bulk logs)", "issue": "IVR rows now have chatId and callControlId but no minutesBilled or charge, even though minutesBilled and billingInfo are in scope. Matching against Telnyx works by callControlId, but checking amounts needs the ledger. Bulk calls are billed in bulk-call-service, so the charge is not known here."},
+      {"endpoint": "voice-service.js handleCallHangup normal SIP path (~L4747)", "issue": "The logged charge always adds CALL_CONNECTION_FEE and uses only billingInfo.overageCharge. It does not include the mid-call 'sip_per_minute' deductions from the _limitTimer (~L3450, ~L520). Per memory/CLOUDIVR_BILLING_AUDIT_2026-09-16.md item F1 (still open), those deductions are added on top of the hangup bill. So for calls over 60s the phoneLogs charge will not match the walletLedger total. This is older behaviour, not caused by this change."},
+      {"endpoint": "voice-service.js deferred auto-route path (~L4580)", "issue": "charge always includes CALL_CONNECTION_FEE, even when the fee deduction failed or was skipped as already charged (feeResult.idempotent). Low impact."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/js/tests/test_phonelogs_billing_reconcile_iter228.js"],
+  "action_items": [
+    "Optional: add minutesBilled and charge (billingInfo.overageCharge) to the non-bulk outbound_ivr phoneLogs row so every billed IVR leg can be checked for amount, not only matched by callControlId.",
+    "Billing-reconciliation risk (older issue, F1 in CLOUDIVR_BILLING_AUDIT_2026-09-16): mid-call sip_per_minute deductions stack on top of the hangup billCallMinutesUnified bill, so the phoneLogs charge does not match the wallet total for calls over 1 minute. Fix this or record those deductions in the log.",
+    "Older failures, not caused by this change: test_sip_gate_selfheal.js (lockedTemplates 'upgrade to X plan' copy) and test_test_outbound_sip.js (testOutboundSip bundle missing in one locale)."
+  ],
+  "critical_code_review_comments": [
+    "All variables used in the three changed logEvent calls are in scope: chatId, num, minutesBilled, billingInfo, callControlId, duration, pendingBill and CALL_CONNECTION_FEE in the deferred branch; session.chatId and session.campaignId in the IVR paths. Confirmed by running the code.",
+    "voice-service.js is 6160 lines, far over the 700-line guideline.",
+    "autoRoutedPendingBilling and handleCallHangup are not exported, so the harness has to recompile the module source to reach them. Consider adding __test exports, like the existing _isSelfPstnLeg."
+  ],
+  "updated_files": ["/app/js/tests/test_phonelogs_billing_reconcile_iter228.js"],
+  "success_rate": {"backend": "100% (18/18 new harness checks); regressions 20/22, the 2 failures are older and unrelated", "frontend": "not tested (backend only)"},
+  "seed_data_creation": "None in the app DB. The harness seeds and drops its own sandbox DB iter228_phonelogs_sandbox on the mongod at 127.0.0.1:27999, which I started with --dbpath /tmp/mongo27999 and left running.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: P3_SANDBOX_MONGO=mongodb://127.0.0.1:27999 node js/tests/test_phonelogs_billing_reconcile_iter228.js. If the sandbox is down, start it with: mongod --dbpath /tmp/mongo27999 --port 27999 --bind_ip 127.0.0.1 --fork --logpath /tmp/mongo27999.log. Hangup webhooks for calls never marked initiated are buffered, so the harness adds the call ID to _initiatedCalls first. Several js/tests scripts print their results and then hang on open handles; read the log, not the exit code. No real Telnyx calls were placed."
+}

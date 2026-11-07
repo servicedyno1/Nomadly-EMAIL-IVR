@@ -101,9 +101,10 @@ wait_healthy() {
 }
 # drain_calls <old-port>: before flipping nginx, let the CURRENTLY-ACTIVE (old) slot finish its
 # in-flight phone calls. nginx still points at it, so its /health "calls.total" drops to 0 as calls
-# end. Capped at DRAIN_MAX_SECONDS (default 30 min); after that we flip anyway — persisted
+# end. Capped at DRAIN_MAX_SECONDS (default 3 min — bulk campaigns keep calls live non-stop, and the CI job
+# times out at 25 min); after that we flip anyway — persisted
 # callSessions (Mongo, TTL-indexed) let the NEW slot keep serving any still-live call's webhooks.
-DRAIN_MAX_SECONDS="${DRAIN_MAX_SECONDS:-1800}"
+DRAIN_MAX_SECONDS="${DRAIN_MAX_SECONDS:-180}"
 DRAIN_POLL_SECONDS="${DRAIN_POLL_SECONDS:-10}"
 drain_calls() {
   local port="$1" deadline=$((SECONDS + DRAIN_MAX_SECONDS)) live
