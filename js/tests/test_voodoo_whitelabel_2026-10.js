@@ -72,7 +72,7 @@ Module._load = origLoad
   ok(brands.voodooland.appId === 'com.voodoo.sms' && brands.voodooland.apiBase === 'https://voodooivr.xyz' && brands.voodooland.apk === 'voodooland-sms.apk', 'Voodoo app id / api base / apk name')
   for (const f of ['mark.png', 'wordmark.png', 'logo.png']) ok(fs.existsSync(path.join(__dirname, '../assets/brand/voodooland', f)), `served brand asset voodooland/${f}`)
   process.env.CHAT_BOT_BRAND = 'Voodoo Land'
-  ok(String(fs.readFileSync(path.join(__dirname, '../config.js'), 'utf8')).includes("require('./sms-app-brand.js').accent()"), 'payment page accent comes from the brand registry')
+  ok(/require\('\.\/sms-app-brand\.js'\)\.(web)?[aA]ccent\(\)/.test(String(fs.readFileSync(path.join(__dirname, '../config.js'), 'utf8'))), 'payment page accent comes from the brand registry')
 
   console.log('\n[5] SMS app — every Subscribe/Upgrade link uses the brand bot (no hardcoded NomadlyBot)')
   const appJs = fs.readFileSync(path.join(__dirname, '../../sms-app/www/js/app.js'), 'utf8')

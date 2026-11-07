@@ -1018,7 +1018,7 @@ const payBank = url => ({
 
 const html = (text = t.successPayment) => {
   const brand = String(process.env.CHAT_BOT_BRAND || 'Nomadly')
-  const accent = require('./sms-app-brand.js').accent()
+  const accent = require('./sms-app-brand.js').webAccent()
   return `
         <html>
             <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${brand}</title></head>

@@ -1,0 +1,35 @@
+/* Nomadly brand colours (emerald + cream) — only on the Nomadly deployment; white-label brands keep theirs.
+   html[data-brand] is set by useBrand() once /api/store/config has loaded. */
+html[data-brand="nomadly"] {
+  --brand-accent: #0F6B55;
+  --st-accent: #0F6B55;
+  --st-accent-hover: #0B5744;
+  --st-accent-soft: rgba(15, 107, 85, 0.10);
+  --st-on-accent: #F4EBD9;
+  /* hosting panel (dark tokens) */
+  --pv-coral: #3CC29A;
+  --pv-coral-hover: #5AD3AE;
+  --pv-coral-deep: #2BA27F;
+  --pv-coral-glow: rgba(60, 194, 154, 0.35);
+  --pv-selection-bg: rgba(60, 194, 154, 0.18);
+  --pv-indigo: #2BA27F;
+  --pv-indigo-hover: #3CC29A;
+  --pv-indigo-glow: rgba(43, 162, 127, 0.40);
+}
+html.dark[data-brand="nomadly"],
+html[data-brand="nomadly"][data-theme="dark"] {
+  --st-accent: #3CC29A;
+  --st-accent-hover: #5AD3AE;
+  --st-accent-soft: rgba(60, 194, 154, 0.14);
+  --st-on-accent: #06231C;
+}
+html[data-brand="nomadly"] .panel-light {
+  --pv-coral: #0F6B55;
+  --pv-coral-hover: #0B5744;
+  --pv-coral-deep: #08463A;
+  --pv-coral-glow: rgba(15, 107, 85, 0.25);
+  --pv-selection-bg: rgba(15, 107, 85, 0.10);
+  --pv-indigo: #157A62;
+  --pv-indigo-hover: #0F6B55;
+  --pv-indigo-glow: rgba(21, 122, 98, 0.28);
+}

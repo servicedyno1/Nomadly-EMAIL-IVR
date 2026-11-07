@@ -35,7 +35,8 @@ export function useBrand() {
   }, []);
   useEffect(() => {
     if (brand.accent) document.documentElement.style.setProperty('--brand-accent', brand.accent);
-  }, [brand.accent]);
+    if (brand.loaded && brand.brandSlug) document.documentElement.dataset.brand = brand.brandSlug;
+  }, [brand.accent, brand.loaded, brand.brandSlug]);
   return brand;
 }
 
