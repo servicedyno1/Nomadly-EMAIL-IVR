@@ -5,7 +5,7 @@ require('dotenv').config()
 const baseUrl = process.env.DYNO_PAY_BASE_URL
 const apiKey = process.env.DYNO_PAY_API_KEY
 
-// DynoPay auth = the `x-api-key` header ALONE (per https://dynopay.com/documentation
+// DynoPay (now Noteller, base https://noteller.com/api) auth = the `x-api-key` header ALONE (per https://noteller.com/documentation
 // › Authentication: "Your API key is all you need … no token exchange"). The old
 // `Authorization: Bearer <DYNO_PAY_WALLET_TOKEN>` was an OPTIONAL per-customer token;
 // sending a stale/expired/malformed one made DynoPay reject the whole request (401).
