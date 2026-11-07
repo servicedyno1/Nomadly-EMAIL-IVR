@@ -1,4 +1,4 @@
-// Nomadly-only web entry points (2026-10-27): CloudIVR web button/welcome line, hosta.sh + cloudivr.net promo ads,
+// Nomadly-only web entry points (2026-10-27): CloudIVR web button/welcome line, jujucloud.com + cloudivr.net promo ads,
 // admin alert on every new CloudIVR web sign-up.   node js/tests/test_web_promos_signup_alert_2026-10.js
 const path = require('path')
 const fs = require('fs')
@@ -6,7 +6,7 @@ let pass = 0, fail = 0
 const ok = (name, cond, extra) => { if (cond) { pass++; console.log(`  ✅ ${name}`) } else { fail++; console.log(`  ❌ ${name}${extra ? ' — ' + extra : ''}`) } }
 const LANGS = ['en', 'fr', 'zh', 'hi']
 const fresh = (m) => { delete require.cache[require.resolve(m)]; return require(m) }
-const NOMADLY = { CHAT_BOT_BRAND: 'Nomadly', WEBSITE_URL: 'https://hosta.sh', CLOUDIVR_WEB_ON: 'true', CLOUDIVR_WEB_DOMAIN: 'cloudivr.net' }
+const NOMADLY = { CHAT_BOT_BRAND: 'Nomadly', WEBSITE_URL: 'https://jujucloud.com', CLOUDIVR_WEB_ON: 'true', CLOUDIVR_WEB_DOMAIN: 'cloudivr.net' }
 const setEnv = (e) => { for (const k of Object.keys(NOMADLY)) delete process.env[k]; Object.assign(process.env, e) }
 
 ;(async () => {
@@ -27,7 +27,7 @@ const setEnv = (e) => { for (const k of Object.keys(NOMADLY)) delete process.env
     ok(`${brand}: both web ads off + no CloudIVR web button/line`, !pc.themeEnabled('web_hosta') && !pc.themeEnabled('web_cloudivr') && web.cloudivrMenuRows('en').length === 0 && web.cloudivrWelcomeLine('en') === '' && !pc.enabledThemes().some(t => t.startsWith('web_')))
   }
 
-  console.log('\n── Nomadly (hosta.sh + cloudivr.net) ──')
+  console.log('\n── Nomadly (jujucloud.com + cloudivr.net) ──')
   setEnv(NOMADLY)
   web = fresh('../web-access.js'); pc = fresh('../promo-copy')
   for (const l of LANGS) {
@@ -55,7 +55,7 @@ const setEnv = (e) => { for (const k of Object.keys(NOMADLY)) delete process.env
   const { getPromoPrices } = require('../promo-prices.js')
   const prices = getPromoPrices()
   ok('both web ads enabled on Nomadly', pc.themeEnabled('web_hosta') && pc.themeEnabled('web_cloudivr'))
-  for (const [theme, url, host] of [['web_hosta', 'https://hosta.sh', 'hosta.sh'], ['web_cloudivr', 'https://cloudivr.net', 'cloudivr.net']]) {
+  for (const [theme, url, host] of [['web_hosta', 'https://jujucloud.com', 'jujucloud.com'], ['web_cloudivr', 'https://cloudivr.net', 'cloudivr.net']]) {
     for (const l of LANGS) for (const mode of ['hero', 'cross']) {
       const r = pc.renderPromo({ theme, lang: l, mode, prices })
       ok(`${theme}/${l}/${mode}: names ${host}, ≤ 380 chars, ≤ 4 emoji`, r.text.includes(host) && pc.visibleLength(r.text) <= 380 && pc.emojiCount(r.text) <= 4, `${pc.visibleLength(r.text)} chars`)
@@ -67,7 +67,7 @@ const setEnv = (e) => { for (const k of Object.keys(NOMADLY)) delete process.env
     ok(`${theme}: no bot coupon line (separate web account)`, !post.text.includes('TODAY 10% OFF') && !pc.renderPromo({ theme, lang: 'en', prices, couponLine: '🎁 X' }).text.includes('🎁'))
   }
   const ap = fresh('../auto-promo.js')
-  for (const [theme, logo] of [['web_hosta', 'hosta'], ['web_cloudivr', 'CloudIVR']]) {
+  for (const [theme, logo] of [['web_hosta', 'JujuCloud'], ['web_cloudivr', 'CloudIVR']]) {
     const bn = ap.bannerFor(theme)
     ok(`${theme}: Nomadly banner with the ${logo} logo exists`, !!bn && /nomadly/.test(bn) && fs.statSync(bn).size > 50000, bn)
   }
@@ -75,8 +75,8 @@ const setEnv = (e) => { for (const k of Object.keys(NOMADLY)) delete process.env
   ok('Cloud IVR owners can be offered CloudIVR web (cross-sell list)', pc.CROSS_SELL.cloudphone.includes('web_cloudivr') && !!pick)
   const src = fs.readFileSync(path.join(__dirname, '../auto-promo.js'), 'utf8')
   ok('/ad list + /ad <theme> only offer web ads where enabled (NomadlyBot)', /getThemes: \(\) => THEMES\.filter\(t => !t\.startsWith\('web_'\) \|\| promoCopy\.themeEnabled\(t\)\)/.test(src))
-  ok('day schedule: Thu evening cloudivr.net, Fri morning hosta.sh', /4: \[3, 13\]/.test(src) && /5: \[12, 4\]/.test(src) && pc.THEMES[12] === 'web_hosta' && pc.THEMES[13] === 'web_cloudivr')
-  ok('day schedule: web ads twice a week (Mon evening cloudivr.net, Sun evening hosta.sh)', /1: \[0, 13\]/.test(src) && /0: \[7, 12\]/.test(src))
+  ok('day schedule: Thu evening cloudivr.net, Fri morning jujucloud.com', /4: \[3, 13\]/.test(src) && /5: \[12, 4\]/.test(src) && pc.THEMES[12] === 'web_hosta' && pc.THEMES[13] === 'web_cloudivr')
+  ok('day schedule: web ads twice a week (Mon evening cloudivr.net, Sun evening jujucloud.com)', /1: \[0, 13\]/.test(src) && /0: \[7, 12\]/.test(src))
 
   console.log('\n── _index.js wiring ──')
   const idx = fs.readFileSync(path.join(__dirname, '../_index.js'), 'utf8')

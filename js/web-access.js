@@ -1,6 +1,6 @@
 /* global process */
 // "Prefer the web?" entry point: a top-row menu button + a welcome line pointing bot users to the brand's
-// website (WEBSITE_URL in the bot's .env — Nomadly → https://hosta.sh). Unset → nothing is shown.
+// website (WEBSITE_URL in the bot's .env — Nomadly → https://jujucloud.com). Unset → nothing is shown.
 
 const LABELS = { en: '🌐 Hosting/RDP/VPS on Web', fr: '🌐 Hébergement/RDP/VPS sur le Web', zh: '🌐 网页版 主机/RDP/VPS', hi: '🌐 वेब पर होस्टिंग/RDP/VPS' }
 // Previous labels — still on keyboards users already have open until the menu is redrawn.
