@@ -274,6 +274,14 @@ function addSipPreDialBlock(sipUsername, chatId, reason = 'low_balance', phoneNu
   } catch (e) { /* non-critical */ }
 }
 
+// True when the SIP login is a live free-test credential (in-memory first, then testCredentials).
+async function _isActiveTestCredential(sipUsername) {
+  if (_recentTestCredentials.has(sipUsername)) return true
+  const db = _phoneNumbersOf?.s?.db
+  if (!db) return false
+  return !!(await db.collection('testCredentials').findOne({ sipUsername, expired: { $ne: true } }, { projection: { _id: 1 } }).catch(() => null))
+}
+
 function removeSipPreDialBlock(sipUsername) {
   if (!sipUsername) return
   _sipPreDialBlocklist.delete(sipUsername)
@@ -2907,6 +2915,12 @@ async function handleOutboundSipCall(payload) {
   // Sub-millisecond check: if this SIP credential is known-blocked (low balance, etc.),
   // immediately reject the call. For auto-routed calls, this rejects so fast that
   // the PSTN leg likely hasn't connected yet → zero carrier charge.
+  // Free test logins are never billed, so a balance block must not stop them (e.g. a block left from when the wallet was $0).
+  if (credentialExtracted && sipUsername && (_sipPreDialBlocklist.has(sipUsername) || isWalletRejectCooldown(sipUsername)) && await _isActiveTestCredential(sipUsername)) {
+    log(`[Voice] Free test login ${sipUsername} — clearing balance block, test calls are free`)
+    removeSipPreDialBlock(sipUsername)
+    delete walletRejectCooldown[sipUsername]
+  }
   if (credentialExtracted && sipUsername && _sipPreDialBlocklist.has(sipUsername)) {
     const block = _sipPreDialBlocklist.get(sipUsername)
     log(`[Voice] PRE-DIAL BLOCK: ${sipUsername} (chatId ${block.chatId}) — instant reject (reason: ${block.reason})`)
@@ -3253,7 +3267,7 @@ async function handleOutboundSipCall(payload) {
   // we now check using the USER-SPECIFIC chatId. This ensures only the specific low-balance user
   // is blocked, not all users on the SIP connection.
   const userCooldownKey = `chatId:${chatId}`
-  if (isWalletRejectCooldown(userCooldownKey)) {
+  if (!lookupResult.isTestCall && isWalletRejectCooldown(userCooldownKey)) {
     const cooldownEntry = walletRejectCooldown[userCooldownKey]
     const hitCount = cooldownEntry?.hitCount || 1
     const effectiveDuration = getEscalatedCooldownMs(hitCount)
@@ -3295,8 +3309,8 @@ async function handleOutboundSipCall(payload) {
   // Wallet balance check — outbound calls charge directly from wallet (plan minutes are for inbound only)
   const sipRate = getCallRate(destination)
   const minRequired = sipRate + CALL_CONNECTION_FEE  // Per-minute rate + connection fee
-  // CloudIVR landing-page free test lines have no wallet: one capped 60 s call, never billed.
-  if (_walletOf && !lookupResult.webTest) {
+  // Free test calls (bot/web test logins, CloudIVR landing lines) are capped and never billed — no wallet needed.
+  if (_walletOf && !lookupResult.isTestCall) {
     try {
       const walletCheck = await smartWalletCheck(_walletOf, chatId, minRequired)
       // ── Concurrency Guard: subtract funds already committed to in-flight
@@ -3365,7 +3379,7 @@ async function handleOutboundSipCall(payload) {
   // ── Concurrency Guard: RESERVE this call's estimated not-yet-billed cost ──
   // Keyed by callControlId; released at hangup (+ TTL safety-net). This is what
   // lets the check above see funds committed to sibling calls started moments ago.
-  _reserveOutbound(chatId, callControlId, sipRate * OUTBOUND_RESERVE_MINUTES)
+  if (!lookupResult.isTestCall) _reserveOutbound(chatId, callControlId, sipRate * OUTBOUND_RESERVE_MINUTES)
 
   // ── SIMULTANEOUS-CALL LIMIT: extra calls wait in a queue (nothing is charged while queued) ──
   let legAnswered = false // a queued call's leg is already answered
@@ -3375,7 +3389,7 @@ async function handleOutboundSipCall(payload) {
   }
 
   // ── CONNECTION FEE: Charge $CALL_CONNECTION_FEE per call attempt ──
-  if (CALL_CONNECTION_FEE > 0 && _walletOf && !lookupResult.webTest) {
+  if (CALL_CONNECTION_FEE > 0 && _walletOf && !lookupResult.isTestCall) {
     try {
       const feeResult = await smartWalletDeduct(_walletOf, chatId, CALL_CONNECTION_FEE, {
         type: 'connection_fee', callType: 'SIPOutbound',
@@ -3429,7 +3443,7 @@ async function handleOutboundSipCall(payload) {
       phase: 'outbound_telnyx',
       direction: 'outgoing',
       recordingEnabled: num.features?.recording === true,
-      isTestCall: testCallInfo.isTestCall,
+      isTestCall: testCallInfo.isTestCall || !!lookupResult?.isTestCall,
     }
     sipQueue.settled(callControlId)
 
@@ -3445,7 +3459,7 @@ async function handleOutboundSipCall(payload) {
     }
 
     // Mid-call wallet monitor — outbound calls billed from wallet only (plan minutes are for inbound)
-    if (!testCallInfo.isTestCall) {
+    if (!activeCalls[callControlId].isTestCall) {
       const outboundSession = activeCalls[callControlId]
       outboundSession._limitTimer = setInterval(async () => {
         const sess = activeCalls[callControlId]

@@ -2286,3 +2286,13 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Tests: node js/tests/test_fax_service.js 37/37, js/tests/test_fax_resume.js 5/5, pytest backend/tests/test_cloudivr_fax*.py 28/28,
   test reports iteration_229–231. No real fax sent yet (preview is dry-run). Not user-confirmed.
 - Backlog: real end-to-end fax test on a prod Business number; bot top-up shortcut from fax confirm; WhiteLabel bots share same flow.
+
+## 2026-11-07 — Free SIP test calls unblocked (all 4 bots + test pages) — SHIPPED 46afc4aa
+- Custom caller ID audit (24h): only 2 custom-CID calls reached Telnyx (user 6611707354, showAs toll-free +18773279515) — Telnyx placed
+  both, far-end carrier returned SIP 603 within 1s; no auto-fallback for post-accept declines (backlog). 882365799's 13 test dials were
+  stopped by a stale Oct-3 low_balance pre-dial block (never reached Telnyx).
+- Fix (js/voice-service.js): free test logins (testCredentials, not expired) skip pre-dial/cooldown balance blocks (stale blocks
+  auto-cleared), post-ID cooldown, wallet check, fund reservation, connection fee; session isTestCall also from lookup. Caps
+  unchanged (calls per user, 60 s, rate limit). Paid $0 users still blocked. Test: js/tests/test_free_sip_test_unblock.js 9/9.
+- Prod env: TELNYX_DEFAULT_ANI added to app-wl/app-voodoo/app-proshop (same toll-free ANI as main; backups *.bak.testani.*) — WL
+  brands had none and no test-account number, so test calls could not route. Not yet verified with a live test call.
