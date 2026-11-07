@@ -4,7 +4,7 @@ const fax = require('../fax-service')
 const phoneConfig = require('../phone-config')
 
 const bad = (res, status, error, message) => res.status(status).json({ error, message })
-const STATUS = { plan_upgrade_required: 403, insufficient_balance: 402, expired: 410, unavailable: 503, send_failed: 502 }
+const STATUS = { plan_upgrade_required: 403, insufficient_balance: 402, expired: 410, unavailable: 503, send_failed: 502, not_running: 409 }
 const fail = (res, e) => (e instanceof fax.FaxError ? bad(res, STATUS[e.code] || 400, e.code, e.message) : Promise.reject(e))
 
 function routes(router, { db, h, upload, numbersApi }) {
@@ -16,7 +16,7 @@ function routes(router, { db, h, upload, numbersApi }) {
     const numbers = await Promise.all(nums.map(async n => ({
       phoneNumber: n.phoneNumber, plan: n.plan, eligible: fax.eligible(n), faxLine: fax.lineOn(n), usage: fax.eligible(n) ? await fax.usage(n) : null,
     })))
-    res.json({ numbers, faxes: await fax.list(req.webChatId), pricing: { freePages: fax.FREE_PAGES, pagePrice: fax.PAGE_PRICE } })
+    res.json({ numbers, faxes: await fax.list(req.webChatId), batches: await fax.listBatches(req.webChatId), pricing: { freePages: fax.FREE_PAGES, pagePrice: fax.PAGE_PRICE, bulkMax: fax.BULK_MAX } })
   }))
 
   router.post('/fax/stage', upload.single('file'), h(async (req, res) => {
@@ -30,6 +30,25 @@ function routes(router, { db, h, upload, numbersApi }) {
     const num = await mine(req, String(req.body?.from || ''))
     if (!num) return bad(res, 404, 'not_found', 'Number not found on your account.')
     try { res.json({ fax: await fax.sendStaged({ chatId: req.webChatId, num, stageId: req.body?.stageId, to: req.body?.to }) }) } catch (e) { return fail(res, e) }
+  }))
+
+  router.post('/fax/bulk/quote', h(async (req, res) => {
+    const num = await mine(req, String(req.body?.from || ''))
+    if (!num) return bad(res, 404, 'not_found', 'Number not found on your account.')
+    try {
+      const r = await fax.bulkQuote({ chatId: req.webChatId, num, stageId: req.body?.stageId, recipients: req.body?.recipients })
+      res.json({ quote: r.quote, invalid: r.invalid.slice(0, 20), invalidCount: r.invalid.length })
+    } catch (e) { return fail(res, e) }
+  }))
+
+  router.post('/fax/bulk', h(async (req, res) => {
+    const num = await mine(req, String(req.body?.from || ''))
+    if (!num) return bad(res, 404, 'not_found', 'Number not found on your account.')
+    try { res.json(await fax.sendBulk({ chatId: req.webChatId, num, stageId: req.body?.stageId, recipients: req.body?.recipients })) } catch (e) { return fail(res, e) }
+  }))
+
+  router.post('/fax/bulk/:id/cancel', h(async (req, res) => {
+    try { res.json({ batch: await fax.cancelBatch(req.webChatId, req.params.id) }) } catch (e) { return fail(res, e) }
   }))
 
   router.patch('/fax/line', h(async (req, res) => {

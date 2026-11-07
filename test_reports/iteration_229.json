@@ -1,0 +1,41 @@
+{
+  "summary": "Fax (Business plan) for CloudIVR web + bots. Backend: new pytest suite test_cloudivr_fax.py 17/17 pass against the public preview URL (overview/eligibility/usage, stage validation bad_type 400 / pro 403 / not-owned 404 / too_many_pages 400 / no_file 400, PNG->1 page, PDF quote, send bad_number (bad To + own number) 400, unknown/reused stage 410, dry-run delivery -> delivered after ~3s + free pages decrease, PDF download 200 application/pdf + 404 for Bob + 404 unknown, fax line PATCH on/off persisted, pro line 403, Bob 404, catalog fax feature business-only). Node harness js/tests/test_fax_service.js 24/24 pass (covers 402 insufficient_balance, inbound receipt, settle once, ledger). Frontend (Playwright): Numbers > Fax tab, fax-page, From select lists only business numbers, upload 3-page PDF -> quote (3 pages, Free) -> Send -> toast + history row Queued -> Delivered after Refresh, free-left 50->47, PNG quote 1 page, Send disabled without To, own-number error toast, Cancel, fax line toggle confirm dialog on/off + Escape cancel, PDF download, Inbox 'Fax' filter pill with 'Fax delivered' items linking to /cloudivr/app/fax, mobile 390px no horizontal overflow. Bot flow reviewed in code only.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/fax/send (fax-service.sendStaged)", "issue": "The staged upload is deleted (findOneAndDelete) BEFORE the wallet check, so a 402 insufficient_balance uses up the stage. The UI keeps the quote after a 402 (it only resets on 'expired'), so after topping up, Send gives 410 'upload expired' and the user has to upload again. Do the balance check before deleting the stage, or put the stage back when it fails."},
+      {"endpoint": "fax-service.stage / faxStaged", "issue": "Staged uploads have no TTL and no cleanup. Cancelled or abandoned stages leave faxStaged docs and GridFS faxFiles behind forever, so the 'upload expired' message only shows when a stage is reused. Add a TTL index on faxStaged.createdAt and delete the orphaned GridFS files."},
+      {"endpoint": "fax-service.sendStaged", "issue": "The wallet check doesn't count paid pages on faxes that are queued but not yet delivered. Several paid faxes sent close together can each pass the check, and then forceWalletDebit on delivery takes the wallet negative."},
+      {"endpoint": "POST /fax/send", "issue": "A stage isn't tied to the From number. A stage made on number A can be sent from number B, and B's allowance is used. The UI blocks this by resetting the stage when From changes, but the API allows it."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "FaxSend file input", "issue": "After a send or Cancel, the file state is cleared but the hidden <input type=file> value is not. Picking the same file again may not fire onChange, so the button stays disabled. Fix: set e.target.value = '' after reading the file, or clear it with a ref.", "selector": "[data-testid=fax-file-input]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Fax history status", "issue": "A row stays 'Queued' until the user clicks Refresh. There's no polling or SSE refresh when the delivered notification arrives.", "affected_selectors": ["[data-testid=fax-history-table]", "[data-testid=fax-refresh-button]"]}
+    ],
+    "design_issues": [
+      {"screen": "Fax > Receive faxes (light theme)", "issues": ["The fax-line Toggle in the off state is almost invisible: a white/very light track on a white card with a faint border. Raise the contrast of the off-state track."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_fax.py", "/app/backend/tests/make_fax_files.js", "/app/test_reports/pytest/fax.xml", "/app/js/tests/test_fax_service.js"],
+  "action_items": [
+    "Move the wallet check in sendStaged before findOneAndDelete of the stage, or restore the stage on 402",
+    "Add TTL/cleanup for faxStaged and orphaned GridFS staged files",
+    "Optional: reset the file input value after send/cancel; auto-refresh fax history on delivery; raise contrast of the off-state toggle in the light theme",
+    "Update /app/memory/test_credentials.md: Bob is no longer number-less (6 Starter numbers + Business +18509558201, about $194), Alice's wallet is now about $29 and she has 4 Business numbers (+13346972125, +18037534921, +12138340912, +12138340895)"
+  ],
+  "critical_code_review_comments": [
+    "Bot: the manage-number menu shows btnFax for every Telnyx number and non-business numbers get upgradeMessage. The cpFax/cpFaxTo/cpFaxDoc/cpFaxConfirm flow and the photo/document handler (stage -> quote with confirm label incl. price) look right. cpActiveNumber.plan is the cached snapshot for the upgrade check (it uses findMine only after entering the menu).",
+    "The confirm button match uses message.startsWith(fx.btnConfirm), which is correct because the label can have the price appended.",
+    "onReceived for a number that is no longer eligible switches the line back to voice by spoofing plan 'business'. It works but is fragile; consider a dedicated internal flag."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_fax.py", "/app/backend/tests/make_fax_files.js"],
+  "success_rate": {"backend": "100% (17/17 pytest + 24/24 node harness)", "frontend": "100% of tested flows"},
+  "seed_data_creation": "No seed data. Test sends used Alice's free allowance: +13346972125 now has 47-48 of 50 left, +18037534921 has 47 of 50 left. 3 dry-run fax records and 3 'Fax delivered' inbox notifications were added for Alice. The fax line on +18037534921 was toggled and left OFF. Some staged uploads remain in faxStaged/GridFS (there is no cleanup endpoint).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Fax tabs only render inside the Numbers section (nav-numbers -> tab-fax), or go to /cloudivr/app/fax directly. The Inbox is /cloudivr/app/inbox ('Messages' is a different page). Bob now owns numbers, so the fax-empty and Locked states can't be reached with the current accounts. API 402 can't be reached for Alice/Bob without changing data; it's covered by the node harness. Run: pytest backend/tests/test_cloudivr_fax.py -p no:xdist -o addopts=''."
+}

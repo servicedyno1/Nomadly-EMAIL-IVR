@@ -47,6 +47,12 @@ const TXT = {
     lineOff: (n) => `📞 ${fmt(n)} is back on voice. It no longer receives faxes.`,
     none: '🗂 No faxes yet.',
     cancelled: '❌ Fax cancelled.',
+    btnBulk: '📤 Bulk fax (up to 500 numbers)',
+    askBulk: '📤 <b>Bulk fax</b>\n\nPaste up to 500 fax numbers (one per line, with country code) or send a .csv / .txt file with the numbers.',
+    bulkList: (n, bad) => `✅ ${n} fax number${n === 1 ? '' : 's'} added${bad ? ` · ${bad} skipped (not valid)` : ''}.`,
+    bulkQuote: (q) => `📠 Ready to fax <b>${q.pagesEach}</b> page${q.pagesEach === 1 ? '' : 's'} to <b>${q.recipients}</b> numbers (${q.pages} pages total).\n\n🆓 Free: ${q.freePages} · 💵 Paid: ${q.paidPages} × $${PAGE_PRICE} = <b>$${q.cost.toFixed(2)}</b>\n<i>Free pages are used first. Failed faxes are not charged.</i>`,
+    bulkStarted: (n) => `📤 Bulk fax started to ${n} numbers. You'll get one summary when it's done.`,
+    bulkDone: (b) => `📠 <b>Bulk fax ${b.status === 'cancelled' ? 'stopped' : 'finished'}</b> — ${fmt(b.phoneNumber)}\n✅ Delivered: ${b.delivered}\n❌ Failed: ${b.failed + b.startFailed}${b.status === 'cancelled' ? `\n⏹ Not sent: ${b.total - b.cursor}` : ''}\n💵 Charged: $${Number(b.cost || 0).toFixed(2)}`,
   },
   fr: {
     btnFax: '📠 Fax', btnSend: '📤 Envoyer un fax', btnLineOn: '📥 Ligne fax : OUI — revenir à la voix', btnLineOff: '📥 Activer la ligne fax (recevoir)', btnRecent: '🗂 Fax récents', btnConfirm: '✅ Envoyer le fax', btnCancel: '❌ Annuler',
@@ -64,6 +70,12 @@ const TXT = {
     lineOff: (n) => `📞 ${fmt(n)} est revenu en mode voix. Il ne reçoit plus de fax.`,
     none: '🗂 Aucun fax pour l’instant.',
     cancelled: '❌ Fax annulé.',
+    btnBulk: '📤 Fax groupé (jusqu’à 500 numéros)',
+    askBulk: '📤 <b>Fax groupé</b>\n\nCollez jusqu’à 500 numéros de fax (un par ligne, avec indicatif) ou envoyez un fichier .csv / .txt.',
+    bulkList: (n, bad) => `✅ ${n} numéro(s) ajouté(s)${bad ? ` · ${bad} ignoré(s) (invalides)` : ''}.`,
+    bulkQuote: (q) => `📠 Prêt à faxer <b>${q.pagesEach}</b> page(s) vers <b>${q.recipients}</b> numéros (${q.pages} pages au total).\n\n🆓 Gratuites : ${q.freePages} · 💵 Payantes : ${q.paidPages} × ${PAGE_PRICE} $ = <b>${q.cost.toFixed(2)} $</b>\n<i>Les pages gratuites passent en premier. Les fax échoués ne sont pas facturés.</i>`,
+    bulkStarted: (n) => `📤 Fax groupé lancé vers ${n} numéros. Un résumé suivra à la fin.`,
+    bulkDone: (b) => `📠 <b>Fax groupé ${b.status === 'cancelled' ? 'arrêté' : 'terminé'}</b> — ${fmt(b.phoneNumber)}\n✅ Livrés : ${b.delivered}\n❌ Échecs : ${b.failed + b.startFailed}${b.status === 'cancelled' ? `\n⏹ Non envoyés : ${b.total - b.cursor}` : ''}\n💵 Débité : ${Number(b.cost || 0).toFixed(2)} $`,
   },
   zh: {
     btnFax: '📠 传真', btnSend: '📤 发送传真', btnLineOn: '📥 传真线路：开 — 切回语音', btnLineOff: '📥 开启传真线路（接收传真）', btnRecent: '🗂 最近传真', btnConfirm: '✅ 发送传真', btnCancel: '❌ 取消',
@@ -81,6 +93,12 @@ const TXT = {
     lineOff: (n) => `📞 ${fmt(n)} 已切回语音，不再接收传真。`,
     none: '🗂 暂无传真。',
     cancelled: '❌ 已取消传真。',
+    btnBulk: '📤 群发传真（最多 500 个号码）',
+    askBulk: '📤 <b>群发传真</b>\n\n粘贴最多 500 个传真号码（每行一个，带国家代码），或发送包含号码的 .csv / .txt 文件。',
+    bulkList: (n, bad) => `✅ 已添加 ${n} 个号码${bad ? ` · 跳过 ${bad} 个无效号码` : ''}。`,
+    bulkQuote: (q) => `📠 准备向 <b>${q.recipients}</b> 个号码各发送 <b>${q.pagesEach}</b> 页（共 ${q.pages} 页）。\n\n🆓 免费：${q.freePages} · 💵 付费：${q.paidPages} × $${PAGE_PRICE} = <b>$${q.cost.toFixed(2)}</b>\n<i>优先使用免费页数，失败的传真不收费。</i>`,
+    bulkStarted: (n) => `📤 已开始向 ${n} 个号码群发传真，完成后会发送汇总。`,
+    bulkDone: (b) => `📠 <b>群发传真${b.status === 'cancelled' ? '已停止' : '已完成'}</b> — ${fmt(b.phoneNumber)}\n✅ 送达：${b.delivered}\n❌ 失败：${b.failed + b.startFailed}${b.status === 'cancelled' ? `\n⏹ 未发送：${b.total - b.cursor}` : ''}\n💵 扣费：$${Number(b.cost || 0).toFixed(2)}`,
   },
   hi: {
     btnFax: '📠 फैक्स', btnSend: '📤 फैक्स भेजें', btnLineOn: '📥 फैक्स लाइन: चालू — वॉइस पर लौटें', btnLineOff: '📥 फैक्स लाइन चालू करें (फैक्स पाएँ)', btnRecent: '🗂 हाल के फैक्स', btnConfirm: '✅ फैक्स भेजें', btnCancel: '❌ रद्द करें',
@@ -98,6 +116,12 @@ const TXT = {
     lineOff: (n) => `📞 ${fmt(n)} वापस वॉइस पर है। अब फैक्स नहीं आएँगे।`,
     none: '🗂 अभी कोई फैक्स नहीं।',
     cancelled: '❌ फैक्स रद्द।',
+    btnBulk: '📤 बल्क फैक्स (500 नंबर तक)',
+    askBulk: '📤 <b>बल्क फैक्स</b>\n\n500 तक फैक्स नंबर पेस्ट करें (हर लाइन में एक, देश कोड सहित) या नंबरों वाली .csv / .txt फ़ाइल भेजें।',
+    bulkList: (n, bad) => `✅ ${n} नंबर जोड़े गए${bad ? ` · ${bad} छोड़े (अमान्य)` : ''}।`,
+    bulkQuote: (q) => `📠 <b>${q.recipients}</b> नंबरों पर <b>${q.pagesEach}</b> पेज भेजने के लिए तैयार (कुल ${q.pages} पेज)।\n\n🆓 मुफ़्त: ${q.freePages} · 💵 सशुल्क: ${q.paidPages} × $${PAGE_PRICE} = <b>$${q.cost.toFixed(2)}</b>\n<i>पहले मुफ़्त पेज लगेंगे। विफल फैक्स का शुल्क नहीं।</i>`,
+    bulkStarted: (n) => `📤 ${n} नंबरों पर बल्क फैक्स शुरू। पूरा होने पर सारांश मिलेगा।`,
+    bulkDone: (b) => `📠 <b>बल्क फैक्स ${b.status === 'cancelled' ? 'रोका गया' : 'पूरा'}</b> — ${fmt(b.phoneNumber)}\n✅ पहुँचे: ${b.delivered}\n❌ विफल: ${b.failed + b.startFailed}${b.status === 'cancelled' ? `\n⏹ नहीं भेजे: ${b.total - b.cursor}` : ''}\n💵 शुल्क: $${Number(b.cost || 0).toFixed(2)}`,
   },
 }
 const t = (lang) => TXT[lang] || TXT.en
@@ -106,6 +130,7 @@ function init({ db, bot, walletOf, log, callControlAppId }) {
   _db = db; if (bot) _bot = bot; _walletOf = walletOf || db.collection('walletOf')
   if (log) _log = log
   if (callControlAppId) _ccApp = callControlAppId
+  setTimeout(() => resumeBatches().catch(e => _log(`[Fax] resume bulk failed: ${e.message}`)), 15000).unref?.()
 }
 
 const eligible = (num) => !!num && phoneConfig.canAccessFeature(num.plan, 'fax') && (num.provider || 'telnyx') === 'telnyx' && num.status === 'active'
@@ -154,11 +179,18 @@ async function usage(num) {
   const used = d?.pages || 0
   return { used, free: FREE_PAGES, left: Math.max(0, FREE_PAGES - used), pagePrice: PAGE_PRICE, resetsOn: num.expiresAt || null }
 }
+// Pages already sent/queued but not yet delivered (incl. unsent bulk recipients) — they will use the allowance first.
+async function pendingPages(num) {
+  const [a] = await col('faxes').aggregate([{ $match: { phoneNumber: num.phoneNumber, direction: 'outbound', settled: { $ne: true }, status: { $ne: 'failed' } } }, { $group: { _id: null, p: { $sum: '$pages' } } }]).toArray()
+  const bs = await col('faxBatches').find({ phoneNumber: num.phoneNumber, status: 'running' }, { projection: { cursor: 1, total: 1, pages: 1 } }).toArray()
+  return (a?.p || 0) + bs.reduce((s, b) => s + Math.max(0, b.total - b.cursor) * b.pages, 0)
+}
 async function quote(num, pages) {
   const { left } = await usage(num)
-  const freePages = Math.min(pages, left)
+  const pending = await pendingPages(num)
+  const freePages = Math.min(pages, Math.max(0, left - pending))
   const paidPages = pages - freePages
-  return { pages, freePages, paidPages, cost: paidPages * PAGE_PRICE }
+  return { pages, freePages, paidPages, cost: paidPages * PAGE_PRICE, pendingCost: Math.max(0, pending - left) * PAGE_PRICE }
 }
 async function consume(num, pages) {
   const after = await col('faxUsage').findOneAndUpdate({ _id: usageKey(num) }, { $inc: { pages }, $setOnInsert: { phoneNumber: num.phoneNumber, createdAt: new Date() } }, { upsert: true, returnDocument: 'after', includeResultMetadata: false })
@@ -218,10 +250,20 @@ async function readFile(fileId) {
   return Buffer.concat(chunks)
 }
 
+// Uploads never sent within a day are removed with their file.
+async function sweepStages() {
+  const old = await col('faxStaged').find({ createdAt: { $lt: new Date(Date.now() - 86400000) } }).limit(100).toArray()
+  for (const st of old) {
+    await bucket().delete(new ObjectId(String(st.fileId))).catch(() => {})
+    await col('faxStaged').deleteOne({ _id: st._id })
+  }
+}
+
 // Step 1 (bot + web): store the document and price it → { stageId, pages, quote }.
 async function stage({ chatId, num, buffer }) {
   if (!eligible(num)) throw new FaxError('plan_upgrade_required', 'Fax is on the Business plan. Upgrade this number to use it.')
   const { pdf, pages } = await toPdf(buffer)
+  sweepStages().catch(() => {})
   const fileId = await saveFile(pdf, { chatId, kind: 'staged' })
   const stageId = crypto.randomUUID()
   await col('faxStaged').insertOne({ _id: stageId, chatId, phoneNumber: num.phoneNumber, fileId, pages, createdAt: new Date() })
@@ -238,43 +280,141 @@ function checkTo(to, from) {
   return { to: n }
 }
 
-// Step 2: send a staged document → fax record. Wallet must cover the paid pages up front (charged on delivery).
-async function sendStaged({ chatId, num, stageId, to }) {
-  if (!eligible(num)) throw new FaxError('plan_upgrade_required', 'Fax is on the Business plan. Upgrade this number to use it.')
-  const chk = checkTo(to, num.phoneNumber)
-  if (chk.error) throw new FaxError('bad_number', chk.error)
-  const st = await col('faxStaged').findOneAndDelete({ _id: String(stageId || ''), chatId }, { includeResultMetadata: false })
+const planErr = () => new FaxError('plan_upgrade_required', 'Fax is on the Business plan. Upgrade this number to use it.')
+const getStage = async (chatId, num, stageId) => {
+  const st = await col('faxStaged').findOne({ _id: String(stageId || ''), chatId, phoneNumber: num.phoneNumber })
   if (!st) throw new FaxError('expired', 'That upload expired. Please upload the document again.')
-  const q = await quote(num, st.pages)
-  if (q.cost > 0) {
-    const { usdBal } = await getBalance(_walletOf, chatId)
-    if ((usdBal || 0) < q.cost) throw new FaxError('insufficient_balance', `This fax needs $${q.cost.toFixed(2)} for ${q.paidPages} paid page(s). Your wallet has $${Number(usdBal || 0).toFixed(2)} — top up and try again.`)
-  }
+  return st
+}
+// Wallet must cover the paid pages of this send plus paid pages still waiting on earlier sends.
+async function coverCost(chatId, q) {
+  const need = q.cost + (q.pendingCost || 0)
+  if (need <= 0) return
+  const { usdBal } = await getBalance(_walletOf, chatId)
+  if ((usdBal || 0) < need) throw new FaxError('insufficient_balance', `This fax needs $${need.toFixed(2)} for paid pages${q.pendingCost ? ' (including faxes still sending)' : ''}. Your wallet has $${Number(usdBal || 0).toFixed(2)} — top up and try again.`)
+}
+const claimStage = async (st) => {
+  if (!(await col('faxStaged').findOneAndDelete({ _id: st._id }, { includeResultMetadata: false }))) throw new FaxError('expired', 'That upload expired. Please upload the document again.')
+}
+
+// Sends one fax through Telnyx (or simulates it in preview) → fax record.
+async function dispatch({ chatId, num, fileId, pages, to, batchId = null }) {
   let faxId
   if (dryRun()) faxId = `dry_${crypto.randomUUID()}`
   else {
     const appId = await ensureApp()
     if (!appId) throw new FaxError('unavailable', 'Fax is not available right now. Please try again later.')
-    const pdf = await readFile(st.fileId)
     const form = new FormData()
     form.append('connection_id', appId)
     form.append('from', num.phoneNumber)
-    form.append('to', chk.to)
-    form.append('contents', pdf, { filename: 'fax.pdf', contentType: 'application/pdf' })
+    form.append('to', to)
+    form.append('contents', await readFile(fileId), { filename: 'fax.pdf', contentType: 'application/pdf' })
     try {
       const r = await axios.post(`${BASE}/faxes`, form, { headers: { ...hdrs(), ...form.getHeaders() }, maxBodyLength: Infinity, timeout: 60000 })
       faxId = r.data?.data?.id
     } catch (e) {
-      const why = e.response?.data?.errors?.[0]?.detail || e.message
-      _log(`[Fax] send ${num.phoneNumber} → ${chk.to} failed: ${why}`)
+      _log(`[Fax] send ${num.phoneNumber} → ${to} failed: ${e.response?.data?.errors?.[0]?.detail || e.message}`)
       throw new FaxError('send_failed', 'The fax could not be sent. Check the number and try again.')
     }
   }
-  const fax = { _id: faxId, chatId, phoneNumber: num.phoneNumber, direction: 'outbound', from: num.phoneNumber, to: chk.to, pages: st.pages, status: 'queued', fileId: st.fileId, createdAt: new Date() }
+  const fax = { _id: faxId, chatId, phoneNumber: num.phoneNumber, direction: 'outbound', from: num.phoneNumber, to, pages, status: 'queued', fileId, ...(batchId ? { batchId } : {}), createdAt: new Date() }
   await col('faxes').insertOne(fax)
-  _log(`[Fax] queued ${faxId}: ${num.phoneNumber} → ${chk.to} (${st.pages} page(s), chatId=${chatId})`)
-  if (dryRun()) setTimeout(() => handleEvent({ event_type: 'fax.delivered', payload: { fax_id: faxId, page_count: st.pages, to: chk.to, from: num.phoneNumber } }).catch(() => {}), 3000).unref?.()
-  return publicFax(fax)
+  _log(`[Fax] queued ${faxId}: ${num.phoneNumber} → ${to} (${pages} page(s), chatId=${chatId}${batchId ? `, batch=${batchId}` : ''})`)
+  if (dryRun()) setTimeout(() => handleEvent({ event_type: 'fax.delivered', payload: { fax_id: faxId, page_count: pages, to, from: num.phoneNumber } }).catch(() => {}), 3000).unref?.()
+  return fax
+}
+
+// Step 2: send a staged document to one number. Paid pages are charged on delivery.
+async function sendStaged({ chatId, num, stageId, to }) {
+  if (!eligible(num)) throw planErr()
+  const chk = checkTo(to, num.phoneNumber)
+  if (chk.error) throw new FaxError('bad_number', chk.error)
+  const st = await getStage(chatId, num, stageId)
+  await coverCost(chatId, await quote(num, st.pages))
+  await claimStage(st)
+  try { return publicFax(await dispatch({ chatId, num, fileId: st.fileId, pages: st.pages, to: chk.to })) } catch (e) {
+    await col('faxStaged').insertOne(st).catch(() => {})
+    throw e
+  }
+}
+
+// ── Bulk: one document to up to 500 numbers (pasted list or CSV/TXT), sent one by one in the background ──
+const BULK_MAX = 500
+const gap = () => (dryRun() ? 100 : 1500)
+function parseRecipients(text, from) {
+  const list = [], invalid = [], seen = new Set()
+  for (const raw of String(text || '').split(/[\r\n,;\t|]+|\s+(?=\+)/)) {
+    const tk = raw.replace(/["']/g, '').trim()
+    if (!tk || !/\d{3}/.test(tk)) continue
+    const c = checkTo(tk, from)
+    if (c.error) { invalid.push(tk.slice(0, 30)); continue }
+    if (!seen.has(c.to)) { seen.add(c.to); list.push(c.to) }
+  }
+  return { list, invalid }
+}
+async function bulkQuote({ chatId, num, stageId, recipients }) {
+  if (!eligible(num)) throw planErr()
+  const { list, invalid } = parseRecipients(recipients, num.phoneNumber)
+  if (!list.length) throw new FaxError('no_recipients', 'Add at least one valid fax number with country code, e.g. +14155550100.')
+  if (list.length > BULK_MAX) throw new FaxError('too_many', `Bulk fax goes to up to ${BULK_MAX} numbers at a time — you added ${list.length}.`)
+  const st = await getStage(chatId, num, stageId)
+  return { st, list, invalid, quote: { ...(await quote(num, st.pages * list.length)), recipients: list.length, pagesEach: st.pages } }
+}
+async function sendBulk({ chatId, num, stageId, recipients }) {
+  const { st, list, invalid, quote: q } = await bulkQuote({ chatId, num, stageId, recipients })
+  await coverCost(chatId, q)
+  await claimStage(st)
+  const batch = { _id: crypto.randomUUID(), chatId, phoneNumber: num.phoneNumber, fileId: st.fileId, pages: st.pages, recipients: list, total: list.length, cursor: 0, started: 0, startFailed: 0, delivered: 0, failed: 0, status: 'running', createdAt: new Date() }
+  await col('faxBatches').insertOne(batch)
+  _log(`[Fax] bulk ${batch._id}: ${num.phoneNumber} → ${list.length} numbers × ${st.pages} page(s) (chatId=${chatId})`)
+  runBatch(batch._id)
+  return { batch: publicBatch(batch), invalid, quote: q }
+}
+const _running = new Set()
+const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+// Claims recipients one at a time ($inc cursor), so two app slots running the same batch never double-send.
+async function runBatch(id) {
+  if (_running.has(id)) return
+  _running.add(id)
+  try {
+    for (;;) {
+      const b = await col('faxBatches').findOneAndUpdate({ _id: id, status: 'running', $expr: { $lt: ['$cursor', '$total'] } }, { $inc: { cursor: 1 } }, { returnDocument: 'after', includeResultMetadata: false })
+      if (!b) break
+      const to = b.recipients[b.cursor - 1]
+      const num = (await findMine(b.chatId, b.phoneNumber)) || { phoneNumber: b.phoneNumber }
+      try {
+        await dispatch({ chatId: b.chatId, num, fileId: b.fileId, pages: b.pages, to, batchId: id })
+        await col('faxBatches').updateOne({ _id: id }, { $inc: { started: 1 } })
+      } catch (e) {
+        await col('faxBatches').updateOne({ _id: id }, { $inc: { startFailed: 1 }, $push: { errors: { $each: [{ to, error: e.message }], $slice: -50 } } })
+      }
+      await sleep(gap())
+    }
+    await finishBatch(id)
+  } catch (e) { _log(`[Fax] bulk ${id} worker error: ${e.message}`) } finally { _running.delete(id) }
+}
+async function finishBatch(id) {
+  const b = await col('faxBatches').findOne({ _id: id })
+  if (!b || b.summarySent) return
+  const dispatched = b.status === 'cancelled' ? b.cursor : b.total
+  if (b.started + b.startFailed < dispatched || b.delivered + b.failed < b.started) return
+  const done = await col('faxBatches').findOneAndUpdate({ _id: id, summarySent: { $ne: true } }, { $set: { summarySent: true, status: b.status === 'cancelled' ? 'cancelled' : 'done', finishedAt: new Date() } }, { returnDocument: 'after', includeResultMetadata: false })
+  if (!done) return
+  const [c] = await col('faxes').aggregate([{ $match: { batchId: id } }, { $group: { _id: null, cost: { $sum: { $ifNull: ['$cost', 0] } } } }]).toArray()
+  await tell(b.chatId, t(await langOf(b.chatId)).bulkDone({ ...done, cost: c?.cost || 0 }), { batchId: id })
+}
+async function cancelBatch(chatId, id) {
+  const r = await col('faxBatches').findOneAndUpdate({ _id: String(id), chatId, status: 'running' }, { $set: { status: 'cancelled' } }, { returnDocument: 'after', includeResultMetadata: false })
+  if (!r) throw new FaxError('not_running', 'This bulk fax has already finished.')
+  setTimeout(() => finishBatch(r._id).catch(() => {}), 2000).unref?.()
+  return publicBatch(r)
+}
+async function resumeBatches() {
+  for (const b of await col('faxBatches').find({ status: 'running' }, { projection: { _id: 1 } }).toArray()) runBatch(b._id)
+}
+const publicBatch = (b) => ({ id: b._id, phoneNumber: b.phoneNumber, pages: b.pages, total: b.total, sent: b.started, startFailed: b.startFailed, delivered: b.delivered, failed: b.failed, status: b.status, createdAt: b.createdAt })
+async function listBatches(chatId, limit = 20) {
+  return (await col('faxBatches').find({ chatId }, { projection: { recipients: 0 } }).sort({ createdAt: -1 }).limit(limit).toArray()).map(publicBatch)
 }
 
 // ── Fax line: move the number's connection to the Fax Application (receive) or back to voice ──
@@ -368,11 +508,13 @@ async function handleEvent(event) {
     await col('faxes').updateOne({ _id: faxId }, { $set: { status: 'delivered', deliveredAt: new Date() } })
     const num = (await findMine(fax.chatId, fax.phoneNumber)) || { phoneNumber: fax.phoneNumber, expiresAt: null }
     const q = await settle(fax, num, Number(p.page_count) || fax.pages)
+    if (fax.batchId) { await col('faxBatches').updateOne({ _id: fax.batchId }, { $inc: { delivered: 1 } }); return finishBatch(fax.batchId) }
     return tell(fax.chatId, t(await langOf(fax.chatId)).delivered(fax.to, Number(p.page_count) || fax.pages, q.cost), { faxId })
   }
   if (type === 'fax.failed') {
     if (fax.status === 'failed' || fax.status === 'delivered') return
     await col('faxes').updateOne({ _id: faxId }, { $set: { status: 'failed', failureReason: p.failure_reason || null } })
+    if (fax.batchId) { await col('faxBatches').updateOne({ _id: fax.batchId }, { $inc: { failed: 1 } }); return finishBatch(fax.batchId) }
     return tell(fax.chatId, t(await langOf(fax.chatId)).failed(fax.to, String(p.failure_reason || '').replace(/_/g, ' ')), { faxId })
   }
   if (!['delivered', 'failed'].includes(fax.status)) await col('faxes').updateOne({ _id: faxId }, { $set: { status } })
@@ -380,7 +522,7 @@ async function handleEvent(event) {
 
 const publicFax = (f) => ({ id: f._id, direction: f.direction, phoneNumber: f.phoneNumber, from: f.from, to: f.to, pages: f.pages, status: f.status, failureReason: f.failureReason || null, cost: f.cost || 0, freePages: f.freePages ?? null, hasFile: !!f.fileId, createdAt: f.createdAt })
 async function list(chatId, limit = 100) {
-  return (await col('faxes').find({ chatId }).sort({ createdAt: -1 }).limit(limit).toArray()).map(publicFax)
+  return (await col('faxes').find({ chatId, batchId: { $exists: false } }).sort({ createdAt: -1 }).limit(limit).toArray()).map(publicFax)
 }
 async function fileOf(chatId, faxId) {
   const f = await col('faxes').findOne({ _id: String(faxId), chatId })
@@ -389,4 +531,4 @@ async function fileOf(chatId, faxId) {
 
 const isReady = () => !!_db
 
-module.exports = { init, isReady, t, TXT, FREE_PAGES, PAGE_PRICE, FaxError, eligible, lineOn, ensureApp, usage, quote, stage, sendStaged, setLine, handleEvent, list, fileOf, toPdf, checkTo, findMine }
+module.exports = { BULK_MAX, parseRecipients, bulkQuote, sendBulk, cancelBatch, resumeBatches, listBatches, init, isReady, t, TXT, FREE_PAGES, PAGE_PRICE, FaxError, eligible, lineOn, ensureApp, usage, quote, stage, sendStaged, setLine, handleEvent, list, fileOf, toPdf, checkTo, findMine }
