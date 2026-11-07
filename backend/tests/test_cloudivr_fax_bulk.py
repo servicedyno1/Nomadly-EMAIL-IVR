@@ -161,7 +161,8 @@ class TestBulkSend:
         if left <= 30:
             assert st2['quote']['freePages'] == 0, st2['quote']
         # Bob cannot stop it
-        assert bob.post(f'{API}/fax/bulk/{bid}/cancel').status_code in (404, 409)
+        rb = bob.post(f'{API}/fax/bulk/{bid}/cancel')
+        assert rb.status_code == 404, rb.text
         time.sleep(0.5)
         r = alice.post(f'{API}/fax/bulk/{bid}/cancel')
         assert r.status_code == 200 and r.json()['batch']['status'] == 'cancelled', r.text

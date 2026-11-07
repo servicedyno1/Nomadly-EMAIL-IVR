@@ -1,0 +1,34 @@
+{
+  "summary": "Retest of iteration_230 fax action items. 5 of 6 items fully verified; item 4 (resumeBatches) is only partly fixed. (1) Bot TDZ: fixed. ESLint no-use-before-define on the real js/_index.js finds 0 hits in the early fax media block (8466-8506) and in faxBulkList (30751-30760). The same checker run on a copy with kOuter changed back to k flags line 8502, so the check does catch the bug. faxBulkList is hoisted and called at 8485, so I checked its identifiers by hand: fx is local, and faxService, send, set, state, kOuter, log and bot are module-level consts/lets. None is re-declared with let/const inside the handler, and no-undef finds nothing. node --check passes. (2) cpFaxConfirm returns on insufficient_balance before clearing cpFaxStage, so the stage and action are kept. (3) A photo sent in cpFaxBulkTo re-prompts with askBulk. (4) resumeBatches: a stale claim (more than 2 min idle) gets startFailed+1 and the batch finishes. A cancelled batch with no summary gets finished. A restart less than 2 min after the last claim stays stuck (bug below). (5) Bob cancelling Alice's batch returns 404 not_found, and a finished batch returns 409. (6) Web: stopped batches show 'N not sent'. Bulk send of 3 numbers was polled from Sending to Finished (3/3 delivered). Single send smoke works. Regression: pytest test_cloudivr_fax.py + test_cloudivr_fax_bulk.py 28/28 passed on the first run (test_cancel skipped on a later run because Alice's wallet is too low). node test_fax_service.js 37/37.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "js/fax-service.js resumeBatches()", "issue": "A batch stays 'running' forever and never gets a summary when the restart happens less than 2 min after the last claim. This is the normal case: claims refresh updatedAt every 1.5 s and resume runs 15 s after boot. The claimed-but-unrecorded recipient is only counted when updatedAt is older than 2 min, so it is skipped. runBatch then sends the rest, cursor reaches total, and finishBatch returns early because started+startFailed < total. Reproduced in js/tests/test_fax_resume.js case B: cursor 3, started 2, startFailed 0, status running. The web page also polls forever because status is running.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "fax-service dispatch (dry-run only)", "issue": "The simulated fax.delivered setTimeout is lost on restart, so in preview, batches that were in flight during a restart keep sent > delivered+failed and never get a summary. Not an issue in prod, where Telnyx sends the webhooks."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BulkRecipients countLines", "issue": "The client count counts national and E.164 forms of the same number as two: '(415) 555-0302' and '+1 415 555 0302' showed '4 numbers' while the server quote said 3. Strip a leading 1 from 11-digit NANP numbers (or match the server's norm) before dedupe.", "selector": "[data-testid='fax-bulk-count']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_fax.py", "/app/backend/tests/test_cloudivr_fax_bulk.py", "/app/js/tests/test_fax_service.js", "/app/js/tests/test_fax_resume.js", "/app/tests/tdz_check_fax.js", "/app/test_reports/pytest/pytest_fax_231.xml"],
+  "action_items": [
+    "Fix resumeBatches for a restart less than 2 min after the last claim. For example: after the resumed runBatch loop ends with cursor==total and started+startFailed<total, re-run the lost-claim reconcile once updatedAt is more than 2 min old (a delayed re-check or a periodic sweep). Or reconcile in finishBatch when cursor>=total and the batch has been idle more than 2 min. Then make js/tests/test_fax_resume.js case B pass.",
+    "Low: make the BulkRecipients count normalise NANP numbers the way the server does"
+  ],
+  "critical_code_review_comments": [
+    "resumeBatches: the 2-min idle guard keeps multiple instances from double-counting, but nothing runs the check again later, so a fresh-restart lost claim is never counted.",
+    "cpFaxConfirm insufficient_balance: the user is told to top up, but leaving for the wallet changes the action, so 'tap Send again' only works if they top up elsewhere (web or another device). Consider adding a wallet/top-up button that brings them back to cpFaxConfirm.",
+    "cancelBatch sets status but not updatedAt, which is fine for resume. Ownership check now returns 404 for another user's batch."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_fax_bulk.py (Bob cancel now asserts exactly 404)", "/app/js/tests/test_fax_resume.js (new)", "/app/tests/tdz_check_fax.js (new)"],
+  "success_rate": {"backend": "95% (pytest 28/28, node 37/37, resume sim 4/5)", "frontend": "95%"},
+  "seed_data_creation": "Through the web UI: Alice sent one 3-recipient bulk fax (+14155550301-0303) and one single fax (+14155550399) from +18037534921, both free pages. resume test uses a throwaway Mongo db that it drops.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: pytest backend/tests/test_cloudivr_fax_bulk.py backend/tests/test_cloudivr_fax.py -p no:xdist -o addopts=''. Alice's +13346972125 has 2 free pages left and her wallet is about $29, so test_cancel (30 pages) skips. Use +18037534921 (about 32 free pages left) or top Alice up. node js/tests/test_fax_resume.js case B is the open bug. node tests/tdz_check_fax.js checks for TDZ in the bot's early fax paths. It does not cover hoisted function bodies that appear after the declaration in the file; check those by hand."
+}

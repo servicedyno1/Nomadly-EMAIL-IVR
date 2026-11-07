@@ -2273,3 +2273,16 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - 2026-11-07 full Telnyx reconciliation (8,413 sip-trunking CDRs Oct 31–Nov 7): Telnyx $42.88 vs ~$735 charged; no unbilled calls. Earlier "SIP calls missing from phoneLogs" was a wrong query (I filtered by chatId, which those rows don't have). Real gap: the deferred auto-routed SIP path never logged → fixed in f0671228, plus chatId/minutesBilled/planMinUsed/callControlId added to the outbound_sip/outbound_ivr(_bulk) rows. Test: js/tests/test_phonelogs_billing_reconcile_iter228.js (needs a sandbox mongod on :27999), 18/18.
 - F1 double charge (SIP outbound ≥60s: mid-call sip_per_minute PLUS full hangup bill) confirmed live: $113.40 in 7d (6604316166 $45.90, 5828254066 $41.70, 6587790422 $24.45). USER DECISION 2026-11-07: leave billing as is, no refunds. Do not change without asking.
 - Deploy drain cap 1800s → 180s (2944f7df, scripts/droplet_deploy.sh; installed /opt/nomadly/deploy.sh now 180). Reason: the CI job timeout is 25m, so the 30m cap made the GitHub run show "cancelled" even though the server finished. All 4 bots live on 2944f7df/d346da3 with DYNO_PAY_BASE_URL=https://noteller.com/api.
+
+## 2026-11-07 — Fax for Business numbers (web + all 4 bots) + bulk fax — SHIPPED bf838d6c
+- User: send/receive fax on CloudIVR web and all bots, Business plan only. Telnyx Fax on existing numbers; 50 free pages (sent+received)
+  per number per plan month (key = number|expiresAt), then $2/page from wallet; received fax → web inbox + bot PDF + account email;
+  send PDF/JPG/PNG; per-number "Fax line" switch (number moves to the brand's Telnyx Fax Application — voice paused while on);
+  bulk fax up to 500 numbers (paste or CSV/TXT), billed pages × recipients, free pages first, failed faxes free.
+- Code: js/fax-service.js (core), js/cloudivr-web/fax.js (web API), js/_index.js (bot menu "📠 Fax", actions cpFax/cpFaxTo/cpFaxDoc/
+  cpFaxConfirm/cpFaxBulkTo, /telnyx/fax-webhook → faxService.handleEvent, startup migration skips fax-line numbers, `kOuter` alias
+  for early media handler), phone-config planFeatureAccess.business.fax, frontend pages/Fax.js + pages/fax/*.
+- Prod: Fax Applications auto-created per brand (Nomadly/Smadav/Voodoo Land/PROSHOP) with outbound voice profile + webhook.
+- Tests: node js/tests/test_fax_service.js 37/37, js/tests/test_fax_resume.js 5/5, pytest backend/tests/test_cloudivr_fax*.py 28/28,
+  test reports iteration_229–231. No real fax sent yet (preview is dry-run). Not user-confirmed.
+- Backlog: real end-to-end fax test on a prod Business number; bot top-up shortcut from fax confirm; WhiteLabel bots share same flow.

@@ -24,7 +24,7 @@ const hdrs = () => ({ Authorization: `Bearer ${process.env.TELNYX_API_KEY}` })
 const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const fmt = (p) => phoneConfig.formatPhone(p)
 
-let _db = null, _bot = null, _walletOf = null, _log = console.log, _ccApp = () => process.env.TELNYX_CALL_CONTROL_APP_ID, _appId = null
+let _sweep = null, _db = null, _bot = null, _walletOf = null, _log = console.log, _ccApp = () => process.env.TELNYX_CALL_CONTROL_APP_ID, _appId = null
 const col = (n) => _db.collection(n)
 const bucket = () => new GridFSBucket(_db, { bucketName: 'faxFiles' })
 
@@ -130,7 +130,12 @@ function init({ db, bot, walletOf, log, callControlAppId }) {
   _db = db; if (bot) _bot = bot; _walletOf = walletOf || db.collection('walletOf')
   if (log) _log = log
   if (callControlAppId) _ccApp = callControlAppId
-  setTimeout(() => resumeBatches().catch(e => _log(`[Fax] resume bulk failed: ${e.message}`)), 15000).unref?.()
+  if (!_sweep) {
+    const run = () => resumeBatches().catch(e => _log(`[Fax] resume bulk failed: ${e.message}`))
+    setTimeout(run, 15000).unref?.()
+    _sweep = setInterval(run, 2 * 60000)
+    _sweep.unref?.()
+  }
 }
 
 const eligible = (num) => !!num && phoneConfig.canAccessFeature(num.plan, 'fax') && (num.provider || 'telnyx') === 'telnyx' && num.status === 'active'
@@ -410,9 +415,15 @@ async function cancelBatch(chatId, id) {
   setTimeout(() => finishBatch(r._id).catch(() => {}), 2000).unref?.()
   return publicBatch(r)
 }
-// After a restart: a recipient claimed but never recorded (process died mid-send) counts as failed, then the rest resumes.
+// Runs at boot and every 2 min: a recipient claimed but never recorded (process died mid-send) counts as failed once the
+// batch has been idle 2 min, then the rest resumes and finished batches get their summary.
 async function resumeBatches() {
   const idle = new Date(Date.now() - 2 * 60000)
+  if (dryRun()) {
+    for (const f of await col('faxes').find({ batchId: { $exists: true }, status: 'queued', createdAt: { $lt: idle } }).limit(500).toArray()) {
+      await handleEvent({ event_type: 'fax.delivered', payload: { fax_id: f._id, page_count: f.pages } }).catch(() => {})
+    }
+  }
   for (const b of await col('faxBatches').find({ status: { $in: ['running', 'cancelled'] }, summarySent: { $ne: true } }, { projection: { recipients: 0 } }).toArray()) {
     if (!b.updatedAt || b.updatedAt < idle) {
       const started = await col('faxes').countDocuments({ batchId: b._id })
