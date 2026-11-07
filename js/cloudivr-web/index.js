@@ -117,6 +117,7 @@ function createCloudIvrWeb(deps) {
     incoming.routes(r, { ...deps, db, h, numbersApi, smsReply })
     textTriggers.routes(r, { ...deps, db, h, numbersApi })
     ringGroup.routes(r, { h, numbersApi })
+    require('./fax').routes(r, { db, h, upload, numbersApi })
     webhooks.routes(r, { db, h, log })
     aiSummary.routes(r, { ...deps, db, h, numbersApi })
     emails.routes(r, { h })

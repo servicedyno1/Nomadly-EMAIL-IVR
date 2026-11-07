@@ -717,6 +717,7 @@ const trans = (key, ...args) => translation(key, undefined, ...args)
 // and post-domain recommendation send). Without this module-level binding,
 // they would throw `ReferenceError: k is not defined`.
 const k = trans('k')
+const kOuter = k // same keyboards, for message-handler code that runs before the handler's own `k` is declared
 // Module-scope `TG_CHANNEL` shim — used in /ad admin command. Sourced from
 // env so prod and dev can have different channels.
 const TG_CHANNEL = process.env.TG_CHANNEL || '@nomadly'
@@ -771,6 +772,7 @@ const monetization = require('./monetization-engine.js')
 const { initAutoPromo } = require('./auto-promo.js')
 const { initDailyCoupons } = require('./daily-coupons.js')
 const telnyxApi = require('./telnyx-service.js')
+const faxService = require('./fax-service.js')
 const twilioService = require('./twilio-service.js')
 const { handleInboundSms, initSmsLimits } = require('./sms-service.js')
 const { handleVoiceWebhook, initVoiceService, getIvrAnalytics, trackIvrAnalytics, incrementSmsUsed, isSmsLimitReached, pendingBridges, initUserWalletMonitor } = require('./voice-service.js')
@@ -4278,7 +4280,7 @@ const loadData = async () => {
         const allPhoneUsers = await db.collection('phoneNumbersOf').find({}).toArray()
         for (const user of allPhoneUsers) {
           for (const n of (user.val?.numbers || [])) {
-            if (n.provider === 'telnyx' && n.status === 'active' && n.phoneNumber) {
+            if (n.provider === 'telnyx' && n.status === 'active' && n.phoneNumber && !faxService.lineOn(n)) {
               botTelnyxNumbers.push(n.phoneNumber)
             }
           }
@@ -4736,6 +4738,8 @@ const loadData = async () => {
     // sms-service module state from initSmsLimits) and handleVoiceWebhook (from
     // initVoiceService, run earlier in this function).
     registerTelnyxRoutes()
+    faxService.init({ db, bot, walletOf, log, callControlAppId: () => telnyxResources.callControlAppId || process.env.TELNYX_CALL_CONTROL_APP_ID })
+    if (process.env.SKIP_WEBHOOK_SYNC !== 'true') faxService.ensureApp().catch(e => log(`[Fax] Fax Application setup failed: ${e.response?.data?.errors?.[0]?.detail || e.message}`))
   }
 
   // Initialize CNAM Service
@@ -8469,6 +8473,40 @@ bot?.on('message', msg => {
     }
   }
 
+  // ── Fax: PDF / photo to send (Business plan) ──
+  if ((msg?.photo || msg?.document) && chatId) {
+    const userInfo = await get(state, chatId)
+    if (userInfo?.action === 'cpFaxBulkTo' && msg.document && userInfo?.cpActiveNumber) {
+      if (!/\.(csv|txt|tsv)$/i.test(msg.document.file_name || '') || (msg.document.file_size || 0) > 1024 * 1024) return send(chatId, '⚠️ Send a .csv or .txt file (under 1 MB) with one fax number per line.')
+      try {
+        const link = await bot.getFileLink(msg.document.file_id)
+        const text = String((await require('axios').get(link, { responseType: 'text', timeout: 30000 })).data || '')
+        const num = (await faxService.findMine(String(chatId), userInfo.cpActiveNumber.phoneNumber)) || userInfo.cpActiveNumber
+        return faxBulkList(chatId, num, text, userInfo.userLanguage)
+      } catch (e) { log(`[Fax] bulk list file error for ${chatId}: ${e.message}`); return send(chatId, '⚠️ That file could not be read. Paste the numbers instead.') }
+    }
+    if (userInfo?.action === 'cpFaxBulkTo' && userInfo?.cpActiveNumber) return send(chatId, faxService.t(userInfo.userLanguage).askBulk, { parse_mode: 'HTML' })
+    if (userInfo?.action === 'cpFaxDoc' && userInfo?.cpActiveNumber) {
+      const fx = faxService.t(userInfo.userLanguage)
+      try {
+        const num = (await faxService.findMine(String(chatId), userInfo.cpActiveNumber.phoneNumber)) || userInfo.cpActiveNumber
+        const fileId = msg.document ? msg.document.file_id : msg.photo[msg.photo.length - 1].file_id
+        if ((msg.document?.file_size || 0) > 10 * 1024 * 1024) return send(chatId, '⚠️ Files must be under 10 MB.')
+        const link = await bot.getFileLink(fileId)
+        const buffer = Buffer.from((await require('axios').get(link, { responseType: 'arraybuffer', timeout: 30000 })).data)
+        const st = await faxService.stage({ chatId: String(chatId), num, buffer })
+        const q = userInfo.cpFaxBulk ? (await faxService.bulkQuote({ chatId: String(chatId), num, stageId: st.stageId, recipients: userInfo.cpFaxBulk })).quote : st.quote
+        await set(state, chatId, 'cpFaxStage', st.stageId)
+        await set(state, chatId, 'action', 'cpFaxConfirm')
+        const label = q.cost > 0 ? `${fx.btnConfirm} — $${q.cost.toFixed(2)}` : fx.btnConfirm
+        return send(chatId, userInfo.cpFaxBulk ? fx.bulkQuote(q) : fx.quote(userInfo.cpFaxTo, q), { parse_mode: 'HTML', ...kOuter.of([[label], [fx.btnCancel]]) })
+      } catch (e) {
+        log(`[Fax] bot upload error for ${chatId}: ${e.message}`)
+        return send(chatId, `⚠️ ${e.code ? e.message : 'That file could not be read. Send a PDF, JPG or PNG.'}`)
+      }
+    }
+  }
+
   // ── Handle photo messages for Regulatory Document Collection ──
   if (msg?.photo && chatId) {
     const userInfo = await get(state, chatId)
@@ -10357,6 +10395,11 @@ bot?.on('message', msg => {
     cpIvrRemoveConfirm: 'cpIvrRemoveConfirm',
     cpCallRecording: 'cpCallRecording',
     cpFaxSettings: 'cpFaxSettings',
+    cpFax: 'cpFax',
+    cpFaxTo: 'cpFaxTo',
+    cpFaxDoc: 'cpFaxDoc',
+    cpFaxConfirm: 'cpFaxConfirm',
+    cpFaxBulkTo: 'cpFaxBulkTo',
     cpSmsInbox: 'cpSmsInbox',
     cpVmGreeting: 'cpVmGreeting',
     cpVmAudioUpload: 'cpVmAudioUpload',
@@ -30653,8 +30696,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     // Advanced (plan-gated)
     if (phoneConfig.canAccessFeature(plan, 'callRecording')) rows.push([pc.callRecording])
     if (phoneConfig.canAccessFeature(plan, 'ivr')) rows.push([ivrLabel])
-    // Fax
-    if (hasFax) rows.push(['📠 Fax Settings'])
+    // Fax (Business plan; other plans see the upgrade prompt)
+    if ((num.provider || 'telnyx') === 'telnyx') rows.push([faxService.t(lang).btnFax])
     // Add Number to Plan (only for primary numbers, not sub-numbers)
     if (!num.isSubNumber && subLimit > 0 && subCount < subLimit) {
       rows.push([pc.addNumber])
@@ -30694,6 +30737,26 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const subCount = num.isSubNumber ? 0 : allNumbers.filter(n => n.isSubNumber && n.parentNumber === num.phoneNumber && (n.status === 'active' || n.status === 'suspended')).length
     const subLimit = num.isSubNumber ? 0 : phoneConfig.getSubNumberLimit(num.plan)
     return send(chatId, cpTxt.manageNumber(num, subCount, subLimit, allNumbers), k.of(buildManageMenu(num, subCount, subLimit)))
+  }
+
+  // Fax menu for a Business number (re-reads the record so the fax-line state is current).
+  async function showFaxMenu(chatId, num) {
+    const fx = faxService.t(info?.userLanguage)
+    const fresh = (await faxService.findMine(String(chatId), num.phoneNumber)) || num
+    await set(state, chatId, 'action', a.cpFax)
+    const on = faxService.lineOn(fresh)
+    return send(chatId, fx.menu(fresh.phoneNumber, await faxService.usage(fresh), on), k.of([[fx.btnSend], [fx.btnBulk], [on ? fx.btnLineOn : fx.btnLineOff], [fx.btnRecent]]))
+  }
+  // Bulk fax: pasted list or CSV/TXT text → saved recipients, then ask for the document.
+  async function faxBulkList(chatId, num, text, lang) {
+    const fx = faxService.t(lang)
+    const { list, invalid } = faxService.parseRecipients(text, num.phoneNumber)
+    if (!list.length) return send(chatId, fx.badTo('Add at least one valid fax number with country code, e.g. +14155550100.'))
+    if (list.length > faxService.BULK_MAX) return send(chatId, fx.badTo(`Bulk fax goes to up to ${faxService.BULK_MAX} numbers at a time — you added ${list.length}.`))
+    await set(state, chatId, 'cpFaxBulk', list.join('\n'))
+    await set(state, chatId, 'action', 'cpFaxDoc')
+    send(chatId, fx.bulkList(list.length, invalid.length))
+    return send(chatId, fx.askDoc(`${list.length} numbers`), { parse_mode: 'HTML', ...kOuter.of([]) })
   }
 
   // ── Helper: Render upgrade preview for one-tap upgrades ──
@@ -31260,7 +31323,11 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return send(chatId, `${preview}\n\n${cpTxt.ivrMenu(num.phoneNumber, ivrConf)}`, k.of(btns))
     }
 
-    // Fax Settings
+    // Fax
+    if (message === faxService.t(info?.userLanguage).btnFax) {
+      if (!phoneConfig.canAccessFeature(num.plan, 'fax')) return send(chatId, phoneConfig.upgradeMessage('fax', num.plan, info?.userLanguage), { parse_mode: 'HTML' })
+      return showFaxMenu(chatId, num)
+    }
     if (message === '📠 Fax Settings') {
       await set(state, chatId, 'action', a.cpFaxSettings)
       const faxConf = num.features?.faxForwarding || { toTelegram: true }
@@ -32191,6 +32258,73 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return showSmsInbox(chatId, num, page)
     }
     return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectOption)
+  }
+
+  // ━━━ FAX (Business plan) ━━━
+  if ([a.cpFax, a.cpFaxTo, a.cpFaxDoc, a.cpFaxConfirm, a.cpFaxBulkTo].includes(action)) {
+    const fx = faxService.t(info?.userLanguage)
+    const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
+    const snap = info?.cpActiveNumber
+    if (!snap) return goto.submenu5()
+    const num = (await faxService.findMine(String(chatId), snap.phoneNumber)) || snap
+    const back = isBackPress(message) || message === pc.back
+    if (action === a.cpFax) {
+      if (back) { await set(state, chatId, 'action', a.cpManageNumber); return showManageScreen(chatId, num) }
+      if (message === fx.btnSend) { await saveInfo('cpFaxBulk', null); await set(state, chatId, 'action', a.cpFaxTo); return send(chatId, fx.askTo, k.of([])) }
+      if (message === fx.btnBulk) { await set(state, chatId, 'action', a.cpFaxBulkTo); return send(chatId, fx.askBulk, { parse_mode: 'HTML', ...k.of([]) }) }
+      if (message === fx.btnLineOn || message === fx.btnLineOff) {
+        const enabled = message === fx.btnLineOff
+        try { await faxService.setLine({ chatId: String(chatId), num, enabled }) } catch (e) { send(chatId, `⚠️ ${e.code ? e.message : 'Could not switch the fax line right now. Please try again.'}`); log(`[Fax] bot setLine error: ${e.message}`); return showFaxMenu(chatId, num) }
+        send(chatId, enabled ? fx.lineOn(num.phoneNumber) : fx.lineOff(num.phoneNumber))
+        return showFaxMenu(chatId, num)
+      }
+      if (message === fx.btnRecent) {
+        const rows = (await faxService.list(String(chatId), 50)).filter(f => f.phoneNumber === num.phoneNumber).slice(0, 10)
+        const icon = { delivered: '✅', failed: '❌', received: '📥', received_no_media: '📥' }
+        const text = rows.length ? rows.map(f => `${icon[f.status] || '⏳'} ${phoneConfig.shortDate(new Date(f.createdAt).toISOString())} · ${f.direction === 'inbound' ? `← ${phoneConfig.formatPhone(f.from)}` : `→ ${phoneConfig.formatPhone(f.to)}`} · ${f.pages}p${f.cost ? ` · $${f.cost.toFixed(2)}` : ''}`).join('\n') : fx.none
+        return send(chatId, text, { parse_mode: 'HTML' })
+      }
+      return showFaxMenu(chatId, num)
+    }
+    if (action === a.cpFaxTo) {
+      if (back) return showFaxMenu(chatId, num)
+      const chk = faxService.checkTo(message, num.phoneNumber)
+      if (chk.error) return send(chatId, fx.badTo(chk.error))
+      await saveInfo('cpFaxTo', chk.to)
+      await set(state, chatId, 'action', a.cpFaxDoc)
+      return send(chatId, fx.askDoc(chk.to), { parse_mode: 'HTML', ...k.of([]) })
+    }
+    if (action === a.cpFaxBulkTo) {
+      if (back) return showFaxMenu(chatId, num)
+      return faxBulkList(chatId, num, message, info?.userLanguage)
+    }
+    if (action === a.cpFaxDoc) {
+      if (back) return showFaxMenu(chatId, num)
+      return send(chatId, fx.needDoc)
+    }
+    if (action === a.cpFaxConfirm) {
+      if (message?.startsWith(fx.btnConfirm)) {
+        try {
+          if (info?.cpFaxBulk) {
+            const r = await faxService.sendBulk({ chatId: String(chatId), num, stageId: info?.cpFaxStage, recipients: info.cpFaxBulk })
+            await saveInfo('cpFaxBulk', null)
+            send(chatId, fx.bulkStarted(r.batch.total))
+          } else {
+            await faxService.sendStaged({ chatId: String(chatId), num, stageId: info?.cpFaxStage, to: info?.cpFaxTo })
+            send(chatId, fx.queued(info?.cpFaxTo))
+          }
+        } catch (e) {
+          log(`[Fax] bot send error: ${e.message}`)
+          // Upload is kept on a low balance: top up, then tap Send again.
+          if (e.code === 'insufficient_balance') return send(chatId, `⚠️ ${e.message}`)
+          send(chatId, `⚠️ ${e.code ? e.message : 'The fax could not be sent. Please try again.'}`)
+        }
+        await saveInfo('cpFaxStage', null)
+        return showFaxMenu(chatId, num)
+      }
+      if (back || message === fx.btnCancel) { await saveInfo('cpFaxStage', null); await saveInfo('cpFaxBulk', null); send(chatId, fx.cancelled); return showFaxMenu(chatId, num) }
+      return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectOption)
+    }
   }
 
   // ━━━ FAX SETTINGS ━━━
@@ -49038,6 +49172,7 @@ app.post('/telnyx/fax-webhook', telnyxSigned, async (req, res) => {
     const eventType = event?.event_type || event?.type
     const payload = event?.payload || event
     log(`📠 Telnyx fax webhook: ${eventType}`)
+    if (eventType) return await faxService.handleEvent(event)
 
     if (eventType === 'fax.received') {
       await handleInboundFax(payload)
