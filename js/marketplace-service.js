@@ -14,7 +14,7 @@ let _bans = null
 let _access = null
 
 const CATEGORIES = ['💻 Digital Goods', '🏦 Bnk Logs', '🏧 Bnk Opening', '🔧 Tools']
-// Matches SafeDeal's accepted deal range ($30 min, ~€2,999 max) so every listing can be escrowed.
+// Matches Dealdeo's accepted deal range ($30 min, ~€2,999 max) so every listing can be escrowed.
 const MIN_PRICE = 30
 const MAX_PRICE = 3000
 const MAX_LISTINGS = 10
@@ -55,7 +55,7 @@ const PAYMENT_PATTERNS = [
   /\b0x[a-fA-F0-9]{40}\b/,                      // Ethereum
   /\bT[A-Za-z1-9]{33}\b/,                       // USDT/TRC20
   /send\s*(payment|money|funds)/i,
-  /send\s*(to|me)\s+(?!(?:the\s+|your\s+|a\s+|my\s+)?(?:safedeal\s+)?(?:escrow\s+)?(?:link|invite|deal)\b)/i, // "send me the link" is fine
+  /send\s*(to|me)\s+(?!(?:the\s+|your\s+|a\s+|my\s+)?(?:dealdeo\s+)?(?:escrow\s+)?(?:link|invite|deal)\b)/i, // "send me the link" is fine
   /pay\s*(me|directly|outside|first)/i,
   /no\s*escrow/i,
   /wire\s*transfer/i,
@@ -64,7 +64,7 @@ const PAYMENT_PATTERNS = [
   /t\.me\/\w*escrow/i,
   /escrow\s*bot/i,
 ]
-const SAFEDEAL_LINK_RE = /https?:\/\/(?:www\.)?safedeal\.sh\S*/gi
+const SAFEDEAL_LINK_RE = /https?:\/\/(?:www\.)?dealdeo\.com\S*/gi
 
 /**
  * Initialize marketplace service
@@ -318,7 +318,7 @@ async function getRecentMessageCount(conversationId, withinHours = 1) {
 
 // ── Anti-Scam ──
 
-// SafeDeal (safedeal.sh) invite links are the sanctioned escrow — strip them before scanning.
+// Dealdeo (dealdeo.com) invite links are the sanctioned escrow — strip them before scanning.
 function detectPaymentPattern(text) {
   if (!text || typeof text !== 'string') return false
   const scan = text.replace(SAFEDEAL_LINK_RE, ' ')

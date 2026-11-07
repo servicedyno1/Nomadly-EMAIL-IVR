@@ -7656,7 +7656,7 @@ Tap a button below to change. Changes sync to your phone on next app open.`
       if (!conv) return
       const price = conv.agreedPrice || conv.originalPrice
       const started = await mpSafeDeal.sendSafeDealSteps({ conv, state, translation, send: sendMsg, marketplaceService })
-      if (started && TELEGRAM_ADMIN_CHAT_ID) sendMsg(TELEGRAM_ADMIN_CHAT_ID, `🔒 [Marketplace] SafeDeal escrow started\nProduct: ${conv.productTitle}\nPrice: $${price}\nBuyer: ${await resolveUserTag(conv.buyerId)}\nSeller: ${await resolveUserTag(conv.sellerId)}`)
+      if (started && TELEGRAM_ADMIN_CHAT_ID) sendMsg(TELEGRAM_ADMIN_CHAT_ID, `🔒 [Marketplace] Dealdeo escrow started\nProduct: ${conv.productTitle}\nPrice: $${price}\nBuyer: ${await resolveUserTag(conv.buyerId)}\nSeller: ${await resolveUserTag(conv.sellerId)}`)
       return
     }
 
@@ -7688,7 +7688,7 @@ Tap a button below to change. Changes sync to your phone on next app open.`
       await sendMsg(chatId, t.mpEnteredChat(conv.productTitle, price))
       const sellerCanReply = isNewConv ? await _mpNotifySeller(product, conv) : true
       const started = await mpSafeDeal.sendSafeDealSteps({ conv, state, translation, send: sendMsg, marketplaceService, notifySeller: sellerCanReply })
-      if (started && TELEGRAM_ADMIN_CHAT_ID) sendMsg(TELEGRAM_ADMIN_CHAT_ID, `🔒 [Marketplace] Direct SafeDeal escrow started\nProduct: ${conv.productTitle}\nPrice: $${price}\nBuyer: ${await resolveUserTag(conv.buyerId)}\nSeller: ${await resolveUserTag(conv.sellerId)}`)
+      if (started && TELEGRAM_ADMIN_CHAT_ID) sendMsg(TELEGRAM_ADMIN_CHAT_ID, `🔒 [Marketplace] Direct Dealdeo escrow started\nProduct: ${conv.productTitle}\nPrice: $${price}\nBuyer: ${await resolveUserTag(conv.buyerId)}\nSeller: ${await resolveUserTag(conv.sellerId)}`)
       return
     }
 
@@ -20733,7 +20733,7 @@ ${message.replace(/\n/g, '<br>')}
       if (!conv) return goto.marketplace()
       const price = conv.agreedPrice || conv.originalPrice
       const started = await mpSafeDeal.sendSafeDealSteps({ conv, state, translation, send, marketplaceService })
-      if (started && TELEGRAM_ADMIN_CHAT_ID) send(TELEGRAM_ADMIN_CHAT_ID, `🔒 [Marketplace] SafeDeal escrow started\nProduct: ${conv.productTitle}\nBuyer: ${await resolveUserTag(conv.buyerId)}\nSeller: ${await resolveUserTag(conv.sellerId)}\nPrice: $${price}`, { parse_mode: 'HTML' })
+      if (started && TELEGRAM_ADMIN_CHAT_ID) send(TELEGRAM_ADMIN_CHAT_ID, `🔒 [Marketplace] Dealdeo escrow started\nProduct: ${conv.productTitle}\nBuyer: ${await resolveUserTag(conv.buyerId)}\nSeller: ${await resolveUserTag(conv.sellerId)}\nPrice: $${price}`, { parse_mode: 'HTML' })
       return
     }
 
@@ -20784,7 +20784,7 @@ ${message.replace(/\n/g, '<br>')}
         const otherRole = conv.buyerId === chatId ? 'Seller' : 'Buyer'
         send(TELEGRAM_ADMIN_CHAT_ID, `🚨 [Marketplace] Payment pattern detected\nConv: ${convId}\nProduct: ${conv.productTitle || 'N/A'}\n${senderRole}: ${senderTag}\n${otherRole}: ${otherTag}\nMsg: ${message}`)
       }
-    } else if (isAiEnabled() && message.replace(/https?:\/\/(?:www\.)?safedeal\.sh\S*/gi, '').trim().length > 15) {
+    } else if (isAiEnabled() && message.replace(/https?:\/\/(?:www\.)?dealdeo\.com\S*/gi, '').trim().length > 15) {
       // AI-powered scam moderation for longer messages that bypass regex (SafeDeal links are the sanctioned escrow)
       moderateMarketplaceChat(message).then(async (result) => {
         if (result.flagged && (result.severity === 'medium' || result.severity === 'high')) {
