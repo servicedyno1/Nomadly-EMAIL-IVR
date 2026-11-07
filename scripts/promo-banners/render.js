@@ -1,10 +1,10 @@
-// Renders the web-app promo banners (real hosta.sh + CloudIVR logos) → js/assets/promo/nomadly/<theme>.jpg
+// Renders the web-app promo banners (real JujuCloud + CloudIVR logos) → js/assets/promo/nomadly/<theme>.jpg
 //   node scripts/promo-banners/render.js
 const path = require('path')
 const puppeteer = require('puppeteer-core')
 
 const OUT = path.join(__dirname, '../../js/assets/promo/nomadly')
-const BANNERS = [['hosta.html', 'web_hosta.jpg'], ['cloudivr.html', 'web_cloudivr.jpg']]
+const BANNERS = [['jujucloud.html', 'web_hosta.jpg'], ['cloudivr.html', 'web_cloudivr.jpg']]
 // Link-preview card for cloudivr.net (Telegram / WhatsApp / X) → frontend/public/civr/brand/og-share.jpg
 const SHARE = ['cloudivr-share.html', path.join(__dirname, '../../frontend/public/civr/brand/og-share.jpg'), 1200, 630]
 

@@ -1,4 +1,4 @@
-// "🌐 Hosting/RDP/VPS on Web" (was "🌐 Use on Web") — hosta.sh entry point, NomadlyBot only (2026-10-14, label 2026-10-27).
+// "🌐 Hosting/RDP/VPS on Web" (was "🌐 Use on Web") — jujucloud.com entry point, NomadlyBot only (2026-10-14, label 2026-10-27).
 //   node js/tests/test_web_access_2026-10.js
 const path = require('path')
 const fs = require('fs')
@@ -18,7 +18,7 @@ ok('button text not intercepted', web.isWebButton('🌐 Hosting/RDP/VPS on Web')
 for (const l of LANGS) ok(`${l}: main menu unchanged (no web row)`, !langKeyboard(l).flat().some(b => Object.values(web.LABELS).includes(b)))
 
 console.log('\n── WEBSITE_URL set on a non-Nomadly bot ──')
-process.env.WEBSITE_URL = 'https://hosta.sh'
+process.env.WEBSITE_URL = 'https://jujucloud.com'
 for (const brand of ['PROSHOP', 'Voodoo Land', 'Smadav']) {
   process.env.CHAT_BOT_BRAND = brand
   web = fresh('../web-access.js')
@@ -26,8 +26,8 @@ for (const brand of ['PROSHOP', 'Voodoo Land', 'Smadav']) {
 }
 process.env.CHAT_BOT_BRAND = 'Nomadly'
 
-console.log('\n── WEBSITE_URL=https://hosta.sh (Nomadly) ──')
-process.env.WEBSITE_URL = 'https://hosta.sh'
+console.log('\n── WEBSITE_URL=https://jujucloud.com (Nomadly) ──')
+process.env.WEBSITE_URL = 'https://jujucloud.com'
 web = fresh('../web-access.js')
 for (const l of LANGS) {
   const kb = langKeyboard(l)
@@ -36,18 +36,18 @@ for (const l of LANGS) {
   ok(`${l}: label recognised`, web.isWebButton(web.LABELS[l]))
   const m = web.webAccessMessage(l)
   const btn = m.opts.reply_markup.inline_keyboard[0][0]
-  ok(`${l}: reply has inline button → https://hosta.sh`, btn.url === 'https://hosta.sh' && btn.text.includes('hosta.sh'), JSON.stringify(btn))
-  ok(`${l}: reply mentions hosta.sh, HTML, no preview`, m.text.includes('<b>hosta.sh</b>') && m.opts.parse_mode === 'HTML' && m.opts.disable_web_page_preview === true)
+  ok(`${l}: reply has inline button → https://jujucloud.com`, btn.url === 'https://jujucloud.com' && btn.text.includes('jujucloud.com'), JSON.stringify(btn))
+  ok(`${l}: reply mentions jujucloud.com, HTML, no preview`, m.text.includes('<b>jujucloud.com</b>') && m.opts.parse_mode === 'HTML' && m.opts.disable_web_page_preview === true)
   ok(`${l}: reply does not replace the main keyboard`, !m.opts.reply_markup.keyboard && !m.opts.reply_markup.remove_keyboard)
   const w = web.webWelcomeLine(l)
-  ok(`${l}: welcome line links hosta.sh`, w.startsWith('\n\n🌐 ') && w.includes('<a href="https://hosta.sh">hosta.sh</a>'), w)
+  ok(`${l}: welcome line links jujucloud.com`, w.startsWith('\n\n🌐 ') && w.includes('<a href="https://jujucloud.com">jujucloud.com</a>'), w)
 }
 ok('English label is "🌐 Hosting/RDP/VPS on Web"', web.LABELS.en === '🌐 Hosting/RDP/VPS on Web')
 ok('unknown language falls back to English', web.webAccessMessage('xx').text.startsWith('🌐 <b>Prefer the web?</b>') && web.webMenuRows('xx')[0][0] === '🌐 Hosting/RDP/VPS on Web')
 ok('old "Use on Web" labels on already-open keyboards still work', web.LEGACY_LABELS.every(x => web.isWebButton(x)))
 ok('other menu labels not intercepted', !web.isWebButton('🌐 Domain Names') && !web.isWebButton('🌍 Change Language') && !web.isWebButton('use on web'))
-process.env.WEBSITE_URL = 'https://hosta.sh/'
-ok('trailing slash trimmed from the shown host', fresh('../web-access.js').webWelcomeLine('en').includes('>hosta.sh</a>'))
+process.env.WEBSITE_URL = 'https://jujucloud.com/'
+ok('trailing slash trimmed from the shown host', fresh('../web-access.js').webWelcomeLine('en').includes('>jujucloud.com</a>'))
 
 console.log('\n── labels unique vs every existing button ──')
 const allLabels = new Set()

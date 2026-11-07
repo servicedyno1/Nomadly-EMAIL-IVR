@@ -24,7 +24,7 @@ const THEME_META = {
   web_cloudivr:      { emoji: '📞', hub: 'web_cloudivr' },
 }
 
-// Web-app ads: NomadlyBot only; the button opens the website itself (hosta.sh / cloudivr.net).
+// Web-app ads: NomadlyBot only; the button opens the website itself (jujucloud.com / cloudivr.net).
 const WEB_URL = { web_hosta: websiteUrl, web_cloudivr: cloudivrUrl }
 const webUrlOf = (theme, env = process.env) => (WEB_URL[theme] && isNomadly(env) ? WEB_URL[theme](env) : '')
 

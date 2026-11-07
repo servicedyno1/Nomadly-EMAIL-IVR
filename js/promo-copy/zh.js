@@ -135,14 +135,14 @@ module.exports = {
   },
   web_hosta: {
     hooks: ['域名、主机、VPS 和 RDP，现已上线网页版', '在任意浏览器中管理您的网站和服务器'],
-    cross: ['更喜欢浏览器？在 hosta.sh 开通下一台服务器', '域名和主机，一个标签页搞定'],
+    cross: ['更喜欢浏览器？在 jujucloud.com 开通下一台服务器', '域名和主机，一个标签页搞定'],
     lines: _p => [
       '热门后缀的隐私域名，含 WHOIS 隐私保护',
       'cPanel 主机、Linux VPS 和 Windows RDP，几分钟上线',
       '自动配置 SSL 和 DNS，完整 root 或管理员权限',
     ],
-    price: _p => 'hosta.sh · 仅需邮箱注册 · 加密货币支付',
-    button: '打开 hosta.sh',
+    price: _p => 'jujucloud.com · 仅需邮箱注册 · 加密货币支付',
+    button: '打开 jujucloud.com',
   },
   web_cloudivr: {
     hooks: ['座机变短信：用客户熟悉的号码收发短信', '在网页上运行您的 Cloud IVR', '电话号码、菜单和活动，一个标签页全搞定'],

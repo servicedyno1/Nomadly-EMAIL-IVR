@@ -68,7 +68,7 @@ const CIVR_LINK = '<a href="https://cloudivr.net">cloudivr.net</a>'
     const intent = msgs(cs).find(c => /What do you need today/.test(c.text || ''))
     check('2.first-session intent shown', !!intent, allText(cs).slice(0, 1500))
     if (intent) {
-      check('2.intent has hosta.sh line', /Prefer the web\? Use <a href="https:\/\/hosta\.sh">hosta\.sh<\/a>/.test(intent.text), intent.text)
+      check('2.intent has jujucloud.com line', /Prefer the web\? Use <a href="https:\/\/jujucloud\.com">jujucloud\.com<\/a>/.test(intent.text), intent.text)
       check('2.intent has cloudivr.net line', intent.text.includes(CIVR_LINK), intent.text)
       check('2.intent no link preview', String(intent.raw?.disable_web_page_preview) === 'true', JSON.stringify(intent.raw))
     }
@@ -108,7 +108,7 @@ const CIVR_LINK = '<a href="https://cloudivr.net">cloudivr.net</a>'
     // ── 5. hosta Use on Web regression ──
     cs = await sendText(RET, '🌐 Hosting/RDP/VPS on Web', 2500)
     const hv = msgs(cs)[0] || {}
-    check('5.Use on Web → inline URL https://hosta.sh', inl(hv).flat().length === 1 && inl(hv).flat()[0].url === 'https://hosta.sh' && /hosta\.sh/.test(hv.text), allText(cs))
+    check('5.Use on Web → inline URL https://jujucloud.com', inl(hv).flat().length === 1 && inl(hv).flat()[0].url === 'https://jujucloud.com' && /jujucloud\.com/.test(hv.text), allText(cs))
 
     // ── 7. Deep links ──
     cs = await sendText(HUB, '/start open_web_cloudivr', 3000)
@@ -116,13 +116,13 @@ const CIVR_LINK = '<a href="https://cloudivr.net">cloudivr.net</a>'
     check('7.deep link open_web_cloudivr → cloudivr card', dl && inl(dl).flat()[0].url === 'https://cloudivr.net' && /CloudIVR on the web/.test(dl.text), allText(cs))
     cs = await sendText(HUB, '/start open_web_hosta', 3000)
     dl = msgs(cs).find(c => inl(c).flat().some(b => b.url))
-    check('7.deep link open_web_hosta → hosta card', dl && inl(dl).flat()[0].url === 'https://hosta.sh' && /Prefer the web/.test(dl.text), allText(cs))
+    check('7.deep link open_web_hosta → hosta card', dl && inl(dl).flat()[0].url === 'https://jujucloud.com' && /Prefer the web/.test(dl.text), allText(cs))
 
     // ── 6. Admin /ad ──
     cs = await sendText(ADMIN, '/ad list', 2500)
     const lst = allText(cs)
     check('6./ad list includes web_hosta + web_cloudivr', /web_hosta/.test(lst) && /web_cloudivr/.test(lst), lst)
-    for (const [theme, lang, url, host] of [['web_hosta', 'en', 'https://hosta.sh', 'hosta.sh'], ['web_cloudivr', 'en', 'https://cloudivr.net', 'cloudivr.net'], ['web_hosta', 'fr', 'https://hosta.sh', 'hosta.sh'], ['web_cloudivr', 'fr', 'https://cloudivr.net', 'cloudivr.net']]) {
+    for (const [theme, lang, url, host] of [['web_hosta', 'en', 'https://jujucloud.com', 'jujucloud.com'], ['web_cloudivr', 'en', 'https://cloudivr.net', 'cloudivr.net'], ['web_hosta', 'fr', 'https://jujucloud.com', 'jujucloud.com'], ['web_cloudivr', 'fr', 'https://cloudivr.net', 'cloudivr.net']]) {
       cs = await sendText(ADMIN, `/ad bot ${theme} ${lang}`, 5000)
       const ph = cs.find(c => c.method === 'sendPhoto')
       const conf = allText(msgs(cs))
@@ -144,7 +144,7 @@ const CIVR_LINK = '<a href="https://cloudivr.net">cloudivr.net</a>'
     check('6./ad web_cloudivr confirmation Button → https://cloudivr.net', /Button → https:\/\/cloudivr\.net/.test(allText(cs)), allText(cs))
     cs = await sendText(ADMIN, '/ad web_hosta', 3500)
     const chH = msgs(cs).find(c => inl(c).flat().some(b => b.url))
-    check('6./ad web_hosta channel preview URL button https://hosta.sh', chH && inl(chH).flat().some(b => b.url === 'https://hosta.sh'), JSON.stringify(chH && inl(chH)))
+    check('6./ad web_hosta channel preview URL button https://jujucloud.com', chH && inl(chH).flat().some(b => b.url === 'https://jujucloud.com'), JSON.stringify(chH && inl(chH)))
 
     // ── 8. Web sign-up admin alert ──
     const ts = Date.now()

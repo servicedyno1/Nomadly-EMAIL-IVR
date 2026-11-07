@@ -135,14 +135,14 @@ module.exports = {
   },
   web_hosta: {
     hooks: ['Domaines, hébergement, VPS et RDP, désormais sur le web', 'Gérez vos sites et serveurs depuis n\'importe quel navigateur'],
-    cross: ['Plutôt navigateur ? Votre prochain serveur sur hosta.sh', 'Vos domaines et votre hébergement, à un onglet'],
+    cross: ['Plutôt navigateur ? Votre prochain serveur sur jujucloud.com', 'Vos domaines et votre hébergement, à un onglet'],
     lines: _p => [
       'Domaines privés dans les TLD populaires, WHOIS privé inclus',
       'Hébergement cPanel, VPS Linux et RDP Windows en minutes',
       'SSL et DNS configurés pour vous, accès root ou admin complet',
     ],
-    price: _p => 'hosta.sh · inscription avec un simple e-mail · paiement en crypto',
-    button: 'Ouvrir hosta.sh',
+    price: _p => 'jujucloud.com · inscription avec un simple e-mail · paiement en crypto',
+    button: 'Ouvrir jujucloud.com',
   },
   web_cloudivr: {
     hooks: ['Fixe vers SMS : envoyez des SMS depuis le numéro que vos clients connaissent déjà', 'Pilotez votre Cloud IVR depuis le web', 'Vos numéros, menus et campagnes dans un onglet'],

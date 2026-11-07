@@ -1,0 +1,58 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1280px; height: 860px; }
+  body { background: #faf8ff; font-family: 'Geist', sans-serif; color: #17112b; position: relative; overflow: hidden; }
+  .wash { position: absolute; width: 900px; height: 900px; right: -280px; top: -260px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(124,58,237,0.16) 0%, rgba(124,58,237,0.05) 40%, rgba(250,248,255,0) 68%); }
+  .wash2 { position: absolute; width: 700px; height: 700px; left: -320px; bottom: -380px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(250,204,21,0.22) 0%, rgba(250,248,255,0) 65%); }
+  .grid { position: absolute; inset: 0; opacity: .5; background-image: linear-gradient(rgba(124,58,237,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,.06) 1px, transparent 1px); background-size: 48px 48px; }
+  .spark { position: absolute; color: #84cc16; font-size: 40px; }
+  .left { position: absolute; left: 84px; top: 84px; width: 610px; }
+  .brand { display: flex; align-items: center; gap: 22px; }
+  .brand img { width: 520px; height: auto; display: block; }
+  .word { font-weight: 800; font-size: 100px; letter-spacing: -0.05em; line-height: 1; color: #17112b; }
+  .word span { color: #6d28d9; }
+  .tag { margin-top: 30px; font-size: 44px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+  .tag u { text-decoration: none; background: linear-gradient(transparent 78%, #a3e635 78%); }
+  .sub { margin-top: 14px; font-size: 25px; color: #5b5675; }
+  .rows { margin-top: 38px; display: grid; gap: 16px; }
+  .row { display: flex; align-items: center; gap: 18px; font-size: 26px; color: #241d3d; font-weight: 500; }
+  .ico { width: 50px; height: 50px; border-radius: 14px; background: #ede9fe; border: 2px solid #ddd6fe;
+    display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', monospace; font-size: 19px; font-weight: 600; color: #6d28d9; }
+  .cta { margin-top: 42px; display: inline-flex; align-items: center; gap: 14px; padding: 18px 34px; border-radius: 16px;
+    background: #6d28d9; color: #fff; font-weight: 700; font-size: 30px; letter-spacing: -0.01em; box-shadow: 0 14px 34px rgba(109,40,217,.35); }
+  .card { position: absolute; right: 70px; top: 200px; width: 500px; border-radius: 22px; background: #fff; border: 2px solid #ece8f7;
+    box-shadow: 0 30px 80px rgba(60,30,120,.16); overflow: hidden; }
+  .bar { display: flex; align-items: center; gap: 9px; padding: 16px 20px; border-bottom: 2px solid #f1eefa; font-weight: 700; font-size: 20px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .svc { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid #f4f1fb; }
+  .svc b { display: block; font-size: 21px; } .svc small { color: #7a7594; font-size: 16px; }
+  .pill { font-size: 16px; font-weight: 700; color: #15803d; background: #dcfce7; padding: 6px 14px; border-radius: 999px; }
+</style></head>
+<body>
+  <div class="wash"></div><div class="wash2"></div><div class="grid"></div>
+  <div class="spark" style="left:640px;top:70px">✦</div><div class="spark" style="right:90px;bottom:70px;color:#ec4899">✦</div>
+  <div class="left">
+    <div class="brand"><img src="jujucloud-logo.png" alt="JujuCloud"></div>
+    <div class="tag">From domain to live server<br><u>in minutes</u></div>
+    <div class="sub">Everything from your browser — one dashboard.</div>
+    <div class="rows">
+      <div class="row"><div class="ico">.com</div>Private domains, WHOIS privacy included</div>
+      <div class="row"><div class="ico">cP</div>cPanel hosting with SSL &amp; DNS set up</div>
+      <div class="row"><div class="ico">&gt;_</div>Linux VPS &amp; Windows RDP in minutes</div>
+      <div class="row"><div class="ico">₿</div>Email sign-up · pay with crypto</div>
+    </div>
+    <div class="cta">jujucloud.com &nbsp;→</div>
+  </div>
+  <div class="card">
+    <div class="bar"><span class="dot" style="background:#f472b6"></span><span class="dot" style="background:#a3e635"></span><span class="dot" style="background:#a78bfa"></span>&nbsp; My Services</div>
+    <div class="svc"><div><b>yourbrand.com</b><small>Domain · auto-renew on</small></div><span class="pill">Active</span></div>
+    <div class="svc"><div><b>cPanel Hosting</b><small>SSL on · DNS ready</small></div><span class="pill">Live</span></div>
+    <div class="svc"><div><b>Cloud VPS</b><small>Ubuntu 24 · full root</small></div><span class="pill">Running</span></div>
+    <div class="svc" style="border:0"><div><b>Windows RDP</b><small>Server 2022</small></div><span class="pill">Ready</span></div>
+  </div>
+</body></html>

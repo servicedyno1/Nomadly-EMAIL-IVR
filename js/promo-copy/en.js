@@ -136,14 +136,14 @@ module.exports = {
   },
   web_hosta: {
     hooks: ['Domains, hosting, VPS and RDP, now on the web', 'Run your sites and servers from any browser'],
-    cross: ['Prefer a browser? Get your next server on hosta.sh', 'Your domains and hosting, one tab away'],
+    cross: ['Prefer a browser? Get your next server on jujucloud.com', 'Your domains and hosting, one tab away'],
     lines: _p => [
       'Private domains in all popular TLDs, WHOIS privacy included',
       'cPanel hosting, Linux VPS and Windows RDP, live in minutes',
       'SSL and DNS set up for you, full root or admin access',
     ],
-    price: _p => 'hosta.sh · sign up with just an email · pay with crypto',
-    button: 'Open hosta.sh',
+    price: _p => 'jujucloud.com · sign up with just an email · pay with crypto',
+    button: 'Open jujucloud.com',
   },
   web_cloudivr: {
     hooks: ['Landline to Texting: text from the number your customers already know', 'Run your Cloud IVR from the web', 'Your phone numbers, menus and campaigns in one browser tab'],
