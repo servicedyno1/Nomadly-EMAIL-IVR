@@ -4577,6 +4577,7 @@ async function handleCallHangup(payload) {
           log(`[Voice] Fix #4: Auto-routed call billed: ${num.phoneNumber} → ${pendingBill.destination}, ${minutesBilled} min @ $${billingInfo.rate}, reason=${pendingBill.reason}`)
           // Notify user
           const rate = billingInfo.rate || getCallRate(pendingBill.destination)
+          logEvent(num.phoneNumber, pendingBill.destination, 'outbound_sip', duration, null, null, { chatId: String(chatId), minutesBilled, planMinUsed: billingInfo.planMinUsed || 0, callControlId, autoRouted: true, charge: Math.round(((billingInfo.overageCharge || 0) + CALL_CONNECTION_FEE) * 100) / 100 })
           const lang = await _getUserLang(chatId)
           const msg = _trans('vs.sipCallEndedAutoRouted', lang, formatPhone(num.phoneNumber), formatPhone(pendingBill.destination), formatDuration(duration), minutesBilled, rate)
           if (msg) _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
@@ -4743,7 +4744,7 @@ async function handleCallHangup(payload) {
       const msg = `📞 <b>SIP Call Ended</b>\n\n📞 From: ${formatPhone(from)}\n📲 To: ${formatPhone(to)}\n⏱️ ${formatDuration(duration)}\n${planLine}${hangupInfo}\n🕐 ${time}`
       _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
     }
-    logEvent(from, to, 'outbound_sip', duration, null, null, { charge: session.isTestCall ? 0 : Math.round(((billingInfo.overageCharge || 0) + CALL_CONNECTION_FEE) * 100) / 100, ...(num.mobileLine ? { esim: num.mobileLine } : {}) })
+    logEvent(from, to, 'outbound_sip', duration, null, null, { chatId: String(chatId), minutesBilled, planMinUsed: billingInfo.planMinUsed || 0, callControlId, charge: session.isTestCall ? 0 : Math.round(((billingInfo.overageCharge || 0) + CALL_CONNECTION_FEE) * 100) / 100, ...(num.mobileLine ? { esim: num.mobileLine } : {}) })
   } else if (session.phase === 'missed' || session.phase === 'answering') {
     const langMissed = await _getUserLang(chatId)
     const msg = _trans('t.vs_missedCall', langMissed, formatPhone(to), formatPhone(from), time) || `📞 <b>Missed Call</b>\n\n📞 To: ${formatPhone(to)}\n👤 From: ${formatPhone(from)}\n🕐 ${time}`
@@ -5694,7 +5695,7 @@ async function handleOutboundIvrHangup(payload) {
     }
 
     // Skip per-call bot notification for bulk calls (bulk service sends progress)
-    logEvent(session.callerId, session.targetNumber, 'outbound_ivr_bulk', duration)
+    logEvent(session.callerId, session.targetNumber, 'outbound_ivr_bulk', duration, null, null, { chatId: String(session.chatId || ''), callControlId, campaignId: session.campaignId || null })
     // Clean up
     for (const [transferLegId, transfer] of Object.entries(activeBridgeTransfers)) {
       if (transfer.originalCallControlId === callControlId) {
@@ -5775,7 +5776,7 @@ async function handleOutboundIvrHangup(payload) {
   }
 
   // Log the outbound IVR call
-  logEvent(session.callerId, session.targetNumber, 'outbound_ivr', duration)
+  logEvent(session.callerId, session.targetNumber, 'outbound_ivr', duration, null, null, { chatId: String(session.chatId || ''), callControlId })
 
   // Clean up any active bridge transfer leg tied to this call
   for (const [transferLegId, transfer] of Object.entries(activeBridgeTransfers)) {
