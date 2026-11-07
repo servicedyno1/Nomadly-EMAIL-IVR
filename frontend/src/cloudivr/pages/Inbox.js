@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useOffer } from '../offers';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { Inbox as InboxIcon, CheckCheck, MessageSquare, Voicemail, Wallet, Megaphone, Receipt, Phone, Info, Ticket, MessageSquareReply, ChevronRight } from 'lucide-react';
+import { Inbox as InboxIcon, CheckCheck, MessageSquare, Voicemail, Wallet, Megaphone, Receipt, Phone, Info, Ticket, MessageSquareReply, ChevronRight, Printer } from 'lucide-react';
 import { cp } from '../paths';
 import { api, useApi, when, playUrl } from '../api';
 import { useShell } from '../Shell';
@@ -15,11 +15,11 @@ import { useSearch, SearchBox, NoMatches } from '../search';
 import { CheckedReply, SMS_REPLIES, SmsStatus } from '../QuickReply';
 import { OtpLive } from './quick/Otp';
 
-const KINDS = [['', 'All', InboxIcon], ['sms', 'SMS', MessageSquare], ['voicemail', 'Voicemail', Voicemail], ['call', 'Calls', Phone], ['campaign', 'Campaigns', Megaphone], ['wallet', 'Wallet', Wallet], ['billing', 'Billing', Receipt], ['coupon', 'Coupons', Ticket], ['info', 'Other', Info]];
+const KINDS = [['', 'All', InboxIcon], ['sms', 'SMS', MessageSquare], ['voicemail', 'Voicemail', Voicemail], ['fax', 'Fax', Printer], ['call', 'Calls', Phone], ['campaign', 'Campaigns', Megaphone], ['wallet', 'Wallet', Wallet], ['billing', 'Billing', Receipt], ['coupon', 'Coupons', Ticket], ['info', 'Other', Info]];
 const ICON = Object.fromEntries(KINDS.map(([k, , I]) => [k, I]));
 const NAME = Object.fromEntries(KINDS.map(([k, l]) => [k, l]));
 const lower = (s) => (s === 'SMS' ? s : s.toLowerCase());
-const OPENS = { sms: 'Open texts', voicemail: 'Open voicemails', call: 'Open call log', billing: 'Open billing', wallet: 'Open wallet', campaign: 'Open campaigns' };
+const OPENS = { sms: 'Open texts', voicemail: 'Open voicemails', call: 'Open call log', billing: 'Open billing', wallet: 'Open wallet', campaign: 'Open campaigns', fax: 'Open fax' };
 const opens = (n) => (n.meta?.otp ? 'Open Quick IVR call' : OPENS[n.kind] || 'Open');
 
 // One-tap filter; a small badge shows how many unread items it holds.

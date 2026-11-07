@@ -80,6 +80,7 @@ const WEB_FEATURES = [
   ['textRelay', () => `Text calls for deaf & hard-of-hearing users (+$${Number(require('../relay-call').RELAY_RATE()).toFixed(2)}/min)`, 'textRelay'],
   ['textTriggers', 'Text Triggers — a text starts a callback, a spoken reply or an AI call', 'textTriggers'],
   ['aiAgent', () => `AI voice agent — talks with callers, books and takes messages ($${Number(require('../ai-agent').RATE()).toFixed(2)}/min)`, 'aiAgent'],
+  ['fax', 'Fax — send and receive, 50 free pages a month then $2/page', 'fax'],
   ['priority', 'Priority support', (plan) => plan === 'business'],
 ]
 const webFeatures = (plan) => WEB_FEATURES.map(([key, label, gate]) => ({

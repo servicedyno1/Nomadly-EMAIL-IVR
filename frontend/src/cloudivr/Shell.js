@@ -35,6 +35,7 @@ import Inbox from './pages/Inbox';
 import Messages from './pages/Messages';
 import Settings from './pages/Settings';
 import SipPage from './pages/Sip';
+import Fax from './pages/Fax';
 import { AiAgents, AiAgentEdit } from './pages/AiAgents';
 import { cp } from './paths';
 import { LangSwitcher, useLang } from './i18n';
@@ -191,6 +192,7 @@ export default function Shell() {
               <Route path="numbers" element={<Numbers />} />
               <Route path="numbers/:phone" element={<NumberDetail />} />
               <Route path="sip" element={<SipPage />} />
+              <Route path="fax" element={<Fax />} />
               <Route path="buy" element={<BuyNumber />} />
               <Route path="orders/:id" element={<OrderStatus />} />
               <Route path="verification" element={<Verification />} />
