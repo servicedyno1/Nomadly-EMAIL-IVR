@@ -400,7 +400,7 @@ function createStoreRoutes(deps = {}) {
       brandSlug: smsBrand.brandSlug(),
       logoUrl: '/brand/wordmark.png',
       markUrl: '/brand/mark.png',
-      accent: smsBrand.accent(),
+      accent: smsBrand.webAccent(),
     })
   })
 

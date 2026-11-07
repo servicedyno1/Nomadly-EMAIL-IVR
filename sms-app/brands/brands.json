@@ -6,6 +6,7 @@
     "botUsername": "NomadlyBot",
     "apiBase": "https://2.speechcue.com",
     "accent": "#10d9a0",
+    "webAccent": "#0F6B55",
     "bg": "#0b0f1a",
     "apk": "nomadly-sms.apk"
   },

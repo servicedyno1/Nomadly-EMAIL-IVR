@@ -2254,3 +2254,9 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - c227ea41: web free test ring (TestRing.js on the number Overview tab + order success page): rings the number (SIP phone, or the browser phone, which signs in automatically) or another phone ({to}), 3/day per number, 60s hard hangup, never billed; GET/POST /numbers/:phone/test-call shows status on the page.
 - One-tap cleanup: the web campaign banner "Remove N from my contacts" (POST /campaigns/:id/remove-bad-numbers, deletes the matches from all of the owner's lists, then lets the user download the clean list) and the bot report button bcclean:<id> (sends a clean .txt). Both are idempotent (alreadyCleaned).
 - Tests: test_improvements_iter225.js 29/29, backend/tests/test_iter226_testring_badnumbers.py 14/14, testing agent iteration_226 (RouteSummary import crash fixed by the tester; minor items fixed). CI all green, all 4 webhooks correct.
+
+## 2026-11-07 — Nomadly rebrand LIVE (main 6c30acc3)
+- New logo: emerald "n" arch + dot (cream on #0F5B4A). Telegram set in frontend/public/brand/ (bot/channel 640/512/160, round previews, 640x360 description pic, 1280x720 banner with "Numbers · Calls · SIP · eSIM · Web Hosting").
+- js/assets/brand/nomadly/{mark,logo(rounded 1200x400),wordmark(cream, transparent),icon 256} → emails (bot welcome), hosting panel login/header, storefront header, favicon.
+- Colours: brand-nomadly.css overrides (html[data-brand="nomadly"], set by useBrand after config load) for store + panel light/dark. brands.json nomadly.webAccent=#0F6B55 → sms-app-brand.webAccent() used by store config, welcome email, payment page; SMS app keeps accent. CloudIVR + 3 white-label brands unchanged (verified smadav accent still #3b82f6).
+- Not changed: promo banners in js/assets/promo/nomadly (may still show old logo).

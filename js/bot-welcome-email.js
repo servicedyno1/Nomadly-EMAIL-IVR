@@ -75,7 +75,7 @@ function siteBase() {
 
 function build({ name, lang } = {}) {
   const c = COPY[lang] || COPY.en
-  const brand = B.brandName(), base = siteBase(), accent = B.accent()
+  const brand = B.brandName(), base = siteBase(), accent = B.webAccent()
   const t = { fg: accent, bg: `${accent}1f`, glow: accent }
   const support = process.env.APP_SUPPORT_LINK
   const body = L.p(L.esc(c.intro(brand))) + L.steps(c.steps, t) + L.button(c.cta(brand), B.botUrl(), t)
