@@ -45,7 +45,7 @@ const INFRA_SUFFIXES = new Set([
   // Cloudflare control-plane (NOT workers.dev/pages.dev — those carry customer names)
   'cloudflare.com', 'cloudflareapi.com', 'cloudflare.net',
   // Payments
-  'dynopay.com',
+  'dynopay.com', 'noteller.com',
   // Link shortener provider (Shortit "Random" links, 2026-10-22)
   'linkly.link', 'linklyhq.com',
   // Hosting / VPS / registry / voice infra
