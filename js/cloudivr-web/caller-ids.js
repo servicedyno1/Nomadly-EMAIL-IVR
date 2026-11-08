@@ -73,9 +73,14 @@ async function autoCode(db, n, text) {
   return 'verified'
 }
 
-function routes(router, { db, h, numbersApi }) {
+// Bind the DB on every brand, so bot-only white-labels (no CloudIVR web) still log and save caller IDs.
+function init(db) {
   col = db.collection('webCallerIds')
   dbRef = db
+}
+
+function routes(router, { db, h, numbersApi }) {
+  init(db)
   const sends = db.collection('webCallerIdSends')
   sends.createIndex({ at: 1 }, { expireAfterSeconds: 86400 }).catch(() => {})
   col.createIndex({ chatId: 1 }).catch(() => {})
@@ -218,7 +223,7 @@ function routes(router, { db, h, numbersApi }) {
   }))
 }
 
-module.exports = { routes, resolve, isVerified, autoVerify, autoCode, PRICE, DRY_CODE }
+module.exports = { init, routes, resolve, isVerified, autoVerify, autoCode, PRICE, DRY_CODE }
 
 // ── Attested caller IDs: a paid-plan user states they have the right to use a number (no code). Logged + admin alert. ──
 const EMERGENCY = new Set(['911', '112', '999', '000', '110', '119', '933', '1911', '1112', '1999'])

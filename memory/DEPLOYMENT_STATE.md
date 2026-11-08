@@ -421,3 +421,8 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - NOT in scope (user declined): self-call double charge from audit.
 - Tests: tests/test_improvements_iter225.js 19/19, test_iter225_edge_review.js 10/10, test_iter225_bulk_skip.js PASS, dial_check 29/29, caller-ID 12/12 + 18/18. Testing agent iteration_225 found 1 critical + 2 medium + 1 low — all fixed and re-verified by those tests (no second testing-agent run).
 - CI: lint ✅, Deploy app-main ✅ (health healthy), Sync → WhiteLabel ✅, Deploy whitelabel ✅. Deployed/agent-tested, not user-confirmed.
+
+## 2026-11-08 23:25Z — Caller-ID DB bound on every brand (main 9670d9ef, WL cb051880)
+- Bug: js/cloudivr-web/caller-ids.js only set col/dbRef inside routes() (CloudIVR web). Bot-only WL brands (Voodoo, WL, ProShop) never logged callerIdUses/callerIdDeclines (voodoo: 0 ever), so the daily caller-ID report missed them, and saved presets / setDefault did not work there.
+- Fix: new init(db), called from _index.js before initPhoneTestRoutes. Deployed by CI: app-main-b, app-wl-a, app-voodoo-b, app-proshop-a, all healthy with 0 restarts.
+- Prod read access: brand DB URLs are in DR droplet /opt/dr/conf/mongo_sources.conf (voodoo db "voodoo"). Nomadly prod = RESELLER_DB_URL db "test".
