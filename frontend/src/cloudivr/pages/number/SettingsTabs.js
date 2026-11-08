@@ -9,6 +9,7 @@ import { TestRing } from './TestRing';
 import { SipCredentials } from './SipTab';
 import { VoiceMaker } from '../../VoiceMaker';
 import { useUnsaved, SaveRow } from '../../guard';
+import { ask } from '../../confirm';
 
 const VM_TEMPLATES = [
   ['Standard', 'Hi, you have reached [Name]. I can’t take your call right now. Please leave a message after the tone.'],
@@ -144,10 +145,34 @@ export function VoicemailTab({ num, reload }) {
 
 function FaxCard({ num, reload }) {
   const [save, busy] = useSave(num, 'fax', reload);
+  const [lineBusy, setLineBusy] = useState(false);
   if (!num.capabilities?.fax) return null;
+  const eligible = num.plan === 'business' && num.status === 'active';
+  const on = num.features.fax?.line === true;
+  const f = num.features || {};
+  const voiceRouting = f.aiAgent?.enabled ? 'AI agent' : f.ivr?.enabled ? 'keypad menu (IVR)' : (f.ringGroup?.enabled && f.ringGroup?.members?.length) ? 'ring group' : (f.callForwarding?.enabled && f.callForwarding?.forwardTo) ? 'call forwarding' : null;
+  const flipLine = async (enabled) => {
+    const warn = enabled && voiceRouting;
+    const ok = await ask(warn
+      ? `This number takes calls with your ${voiceRouting}. A number can take calls or receive faxes — not both. If you turn the fax line on, callers will hear fax tones instead of your ${voiceRouting} until you switch it back to voice.`
+      : enabled ? `Turn on the fax line for ${num.phoneNumber}? It will receive faxes and voice calls to it stop until you switch back.` : `Switch ${num.phoneNumber} back to voice? It stops receiving faxes.`,
+      { ok: enabled ? 'Turn on fax line' : 'Back to voice', cancel: warn ? 'Keep taking calls' : 'Cancel', title: warn ? 'This stops your calls' : 'Fax line', danger: !!warn });
+    if (!ok) return;
+    setLineBusy(true);
+    try { await api('/fax/line', { method: 'PATCH', body: { phone: num.phoneNumber, enabled, confirm: true } }); toast.success(enabled ? 'Fax line on — faxes arrive in your Inbox and email' : 'Back on voice'); reload(); }
+    catch (e) { toast.error(e.message); } finally { setLineBusy(false); }
+  };
   return (
-    <Card title="Fax" sub="This number can receive faxes. Each fax arrives in your Inbox as a PDF.">
-      <div className="flex items-center justify-between"><span className="text-sm">Send faxes to my Inbox</span><Toggle checked={num.features.fax?.toInbox !== false} disabled={busy} onChange={v => save({ toInbox: v })} testid="fax-inbox-toggle" label="Send faxes to my Inbox" /></div>
+    <Card title="Fax" sub="This number can receive faxes on the Business plan. Each fax arrives in your Inbox as a PDF.">
+      {eligible ? (
+        <div className="flex items-center justify-between" data-testid="fax-line-card-row">
+          <div className="min-w-0"><div className="text-sm font-medium">Receive faxes (fax line)</div><div className="text-xs text-[#a1a1aa] mt-0.5">{on ? 'On — this number answers faxes, voice calls paused' : voiceRouting ? `Off — takes calls with your ${voiceRouting}` : 'Off — this number takes voice calls'}</div></div>
+          <Toggle checked={on} disabled={lineBusy} onChange={flipLine} testid="fax-line-settings-toggle" label="Receive faxes" />
+        </div>
+      ) : (
+        <div className="text-sm text-[#a1a1aa]" data-testid="fax-line-needs-business">Upgrade this number to the Business plan to send and receive faxes.</div>
+      )}
+      <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5"><span className="text-sm">Send faxes to my Inbox</span><Toggle checked={num.features.fax?.toInbox !== false} disabled={busy} onChange={v => save({ toInbox: v })} testid="fax-inbox-toggle" label="Send faxes to my Inbox" /></div>
     </Card>
   );
 }

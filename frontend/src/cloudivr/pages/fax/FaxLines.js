@@ -10,13 +10,16 @@ function LineRow({ n, reload }) {
   const u = n.usage || { left: 0, free: 50 };
   const id = n.phoneNumber.replace(/\D/g, '');
   const flip = async (enabled) => {
-    const ok = await ask(enabled
-      ? `Turn on the fax line for ${n.phoneNumber}? It will receive faxes, and voice calls to it stop until you switch it back.`
-      : `Switch ${n.phoneNumber} back to voice? It will take calls again and stop receiving faxes.`, { ok: enabled ? 'Turn on fax line' : 'Back to voice', title: 'Fax line' });
+    const warn = enabled && n.voiceRouting
+    const ok = await ask(warn
+      ? `This number takes calls with your ${n.voiceRouting}. A number can take calls or receive faxes — not both. If you turn the fax line on, callers will hear fax tones instead of your ${n.voiceRouting} until you switch it back to voice.`
+      : enabled
+        ? `Turn on the fax line for ${n.phoneNumber}? It will receive faxes, and voice calls to it stop until you switch it back.`
+        : `Switch ${n.phoneNumber} back to voice? It will take calls again and stop receiving faxes.`, { ok: enabled ? 'Turn on fax line' : 'Back to voice', cancel: warn ? 'Keep taking calls' : 'Cancel', title: warn ? 'This stops your calls' : 'Fax line', danger: !!warn });
     if (!ok) return;
     setBusy(true);
     try {
-      await api('/fax/line', { method: 'PATCH', body: { phone: n.phoneNumber, enabled } });
+      await api('/fax/line', { method: 'PATCH', body: { phone: n.phoneNumber, enabled, confirm: true } });
       toast.success(enabled ? 'Fax line on — faxes will arrive in your inbox and email' : 'Back on voice');
       reload();
     } catch (e) { toast.error(e.message); } finally { setBusy(false); }
@@ -27,6 +30,7 @@ function LineRow({ n, reload }) {
         <div className="min-w-0">
           <div className="font-medium tabular-nums">{n.phoneNumber}</div>
           <div className="text-xs text-[#a1a1aa] mt-1" data-testid={`fax-line-status-${id}`}>{n.faxLine ? 'Receiving faxes · voice calls paused' : 'Voice line · not receiving faxes'}</div>
+          {!n.faxLine && n.voiceRouting && <div className="text-xs text-[#a1a1aa] mt-0.5">Takes calls with your {n.voiceRouting}</div>}
         </div>
         <Toggle checked={!!n.faxLine} onChange={flip} disabled={busy} label={`Fax line for ${n.phoneNumber}`} testid={`fax-line-toggle-${id}`} />
       </div>

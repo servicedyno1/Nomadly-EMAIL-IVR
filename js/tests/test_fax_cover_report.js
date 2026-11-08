@@ -46,6 +46,31 @@ async function pdfOf(pages) { const d = await PDFDocument.create(); for (let i =
   const f = await fax.sendStaged({ chatId, num: biz, stageId: s1.stageId, to: '+14155550123' })
   ok(f.pages === 3, 'sent fax records 3 pages incl. cover')
 
+  console.log('Voice-routing warning + nudge')
+  ok(fax.voiceRouting({ plan: 'business', features: { ivr: { enabled: true } } }) === 'keypad menu (IVR)', 'IVR detected as voice routing')
+  ok(fax.voiceRouting({ plan: 'business', features: { callForwarding: { enabled: true, forwardTo: '+15551234567' } } }) === 'call forwarding', 'call forwarding detected')
+  ok(fax.voiceRouting(biz) === null, 'plain number has no voice routing')
+  ok(/keypad menu/.test(fax.t('en').lineWarn('+15550003333', 'keypad menu (IVR)')) && /fax tones/.test(fax.t('en').lineWarn('+15550003333', 'x')), 'warning names the routing + fax tones')
+  ok(['fr', 'zh', 'hi', 'fa'].every(l => fax.t(l).btnKeepVoice && fax.t(l).voiceOnFax('+1', 'x') !== fax.t('en').voiceOnFax('+1', 'x')), 'warn/nudge translated in all langs')
+  // Nudge: fax-line number with IVR, a call that hit fax tones (media_failed) in last day, no real fax → one message/day.
+  const ivrNum = { ...biz, phoneNumber: '+15550004444', features: { ivr: { enabled: true }, faxLine: { enabled: true } } }
+  await db.collection('phoneNumbersOf').updateOne({ _id: chatId }, { $set: { 'val.numbers': [ivrNum] } })
+  sent.length = 0
+  await fax.voiceOnFaxNudge(chatId, ivrNum)
+  ok(sent.length === 0, 'no nudge when there are no calls hitting fax tones')
+  await db.collection('faxes').insertOne({ _id: 'vf1', chatId, phoneNumber: ivrNum.phoneNumber, direction: 'inbound', status: 'media_failed', createdAt: new Date() })
+  await fax.voiceOnFaxNudge(chatId, ivrNum)
+  ok(sent.some(m => /fax tones/.test(m.t) && /keypad menu/.test(m.t)), 'nudge sent when a call hit fax tones')
+  sent.length = 0
+  await fax.voiceOnFaxNudge(chatId, ivrNum)
+  ok(sent.length === 0, 'nudge sent at most once per day per number')
+  await db.collection('faxes').insertOne({ _id: 'vf2', chatId, phoneNumber: ivrNum.phoneNumber, direction: 'inbound', status: 'received', createdAt: new Date() })
+  await db.collection('faxConfig').deleteMany({})
+  sent.length = 0
+  await fax.voiceOnFaxNudge(chatId, ivrNum)
+  ok(sent.length === 0, 'no nudge when a real fax arrived in the window')
+  await db.collection('phoneNumbersOf').updateOne({ _id: chatId }, { $set: { 'val.numbers': [biz] } })
+
   console.log('Failure reasons')
   ok(fax.reasonText('fax_initial_communication_timeout') === 'The number answered, but no fax machine responded. Check that it is a fax line that is switched on, then try again.', 'initial timeout → plain "no fax machine" wording')
   ok(fax.reasonText('user_busy', 'fr').includes('occupée') && fax.reasonText('weird_code').includes('couldn’t be completed') && !/_/.test(fax.reasonText('receiver_unallocated_number', 'fa')), 'busy (fr), unknown fallback, no raw codes')

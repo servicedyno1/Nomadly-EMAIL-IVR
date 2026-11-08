@@ -56,7 +56,7 @@ function Results({ res, pick, setPick }) {
           <div className="flex items-center justify-between"><span className="font-mono text-lg">{n.phoneNumber}</span>{pick?.phoneNumber === n.phoneNumber && <Check className="w-4 h-4 text-[#818cf8]" />}</div>
           <div className="text-xs text-[#a1a1aa] mt-1 truncate">{place(n.region)}</div>
           <div className="flex gap-2 mt-4">
-            {n.capabilities.voice && <span className="civr-pill">Calls</span>}{n.capabilities.sms && <span className="civr-pill">Texts</span>}
+            {n.capabilities.voice && <span className="civr-pill">Calls</span>}{n.capabilities.sms && <span className="civr-pill">Texts</span>}{n.capabilities.fax && <span className="civr-pill" title="Send and receive faxes on the Business plan" data-testid={`buy-fax-pill-${i}`}>Fax</span>}
             {n.surcharge > 0 && <span className="civr-pill civr-pill-warn">+{money(n.surcharge)}/mo</span>}
           </div>
         </button>
