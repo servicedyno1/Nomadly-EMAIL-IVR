@@ -2318,3 +2318,11 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Live prod test (spare toll-free numbers +18775877003 → +18889020132, RX restored to original connection): Telnyx send
   delivered + receive received in ~30 s, 1 page, media present; webhooks reached prod (fax.delivered / fax.received).
 - Tests: test_fax_service 52/52, test_free_sip_test_unblock 12/12, test_fax_resume 5/5, pytest fax suites 36 pass; iteration_232.
+
+## 2026-11-08 — Fax cover pages, fax announcement, daily caller ID report, Help fax guide — SHIPPED 5b90ec63
+- Cover page (optional, counts as 1 page, per number in bulk): sender name, recipient, subject, note + auto fax number/page count/date (pdf-lib, Latin text only). Web: "Add a cover page" on Fax page. Bot: 📝 Add a cover page on the quote screen (one message, one item per line). `fax-service.js` cleanCover/coverPdf/addCover/parseCoverText.
+- One-time Telegram message to every Business owner (`faxAnnounced` marker, hourly via maintain(), production only) + dismissible CloudIVR dashboard banner (`dashboard/FaxCard.js`).
+- Daily caller ID report (`js/caller-id-report.js`) → TELEGRAM_ADMIN_CHAT_ID after 08:00 UTC, once per brand/day (`reportRuns` lock): uses by channel/ID/account, hotline look-alikes, declines (`callerIdDeclines`, logged from voice-service `_notifyCidRejected`).
+- Help center "Fax" group: 6 articles with drawn diagrams (`help/FaxDiagrams.js`); Fax page "Fax guide" link. AI support (bot + web) knows cover pages.
+- Tests: test_fax_cover_report.js 18/18, test_fax_service.js 52/52, test_free_sip_test_unblock.js 12/12, backend/tests/test_cloudivr_fax_cover.py 10/10; iteration_233 frontend ~95% (fax line toggle regression + Bob no-banner check not finished by agent). Deployed app-main + WhiteLabel (success).
+- Watch: first announcement send in prod logs ("[Fax] announced fax to N"), first daily report ("[CallerIdReport] sent").

@@ -1,0 +1,23 @@
+{
+  "summary": "Tested fax cover pages, the dashboard fax banner, Fax help articles and diagrams, and ran regression on fax send/bulk. Backend: 19/19 pass after 1 fix (new test_cloudivr_fax_cover.py 10/10 + test_cloudivr_fax_fixes.py 9/9). Unit test test_fax_cover_report.js 18/18. Frontend: cover toggle/fields, single quote (2 pages incl. cover), no-cover quote (1 page), quote reset on cover edit, send + history (2 pages Delivered), bulk 2x2=4 pages, fax-help-link to help?topic=fax ('For this page: Fax'), Help Fax group with 6 articles and 5 diagrams on desktop and 390px with no overflow, dashboard banner open/help/dismiss persists after reload: all PASS. The fax line toggle regression and the Bob check were not finished (the browser run stopped on a selector error).",
+  "backend_issues": {"critical": [], "minor": [{"endpoint": "POST /api/cloudivr-web/fax/stage", "issue": "FIXED: cover JSON that parses to a non-object (e.g. '123') plus 'to' returned 500 (strict-mode TypeError on cover.toFax). It now returns 400 bad_cover."}]},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Help > How do I send a fax? (FaxDiagrams.js Step dashed)", "issues": ["The '2. Cover page' step card uses border-dashed border-white/25, which is invisible in the light theme, so the card shows no border"]},
+      {"screen": "Help > What does fax cost? (mobile 390px)", "issues": ["Price diagram labels are very small and low contrast"]},
+      {"screen": "Help > fax-bulk diagram (mobile)", "issues": ["Number chips are cut off ('+1 415…'); acceptable but looks clipped"]},
+      {"screen": "Fax > Bulk faxes card", "issues": ["Pluralisation: '5 numbers × 1 pages'"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_fax_cover.py", "/app/backend/tests/test_cloudivr_fax_fixes.py", "/app/test_reports/pytest/fax_cover.xml"],
+  "action_items": ["Fix the light-theme border on the dashed Cover page step in FaxDiagrams", "Optional: FaxCard hardcodes 50 free pages / $2; take them from the pricing API", "Optional: FaxCard dismiss uses remember('preferences'), so it does not persist if the user declined preference cookies", "Optional: fix '1 pages' pluralisation in the Bulk faxes card"],
+  "critical_code_review_comments": ["fax.js /fax/stage needed an object type guard for the cover (fixed)", "Bulk cover uses one Recipient for all numbers and no per-number To fax: fine but worth documenting"],
+  "updated_files": ["/app/js/cloudivr-web/fax.js (cover type guard; nodejs restarted)", "/app/backend/tests/test_cloudivr_fax_cover.py (new)"],
+  "success_rate": {"backend": "100% after fix", "frontend": "~95% (line toggle and Bob checks not finished)"},
+  "seed_data_creation": "Sent dry-run faxes from Alice: 2 two-page faxes from +13346972125 (cost $4 each from Alice's wallet; the earlier test picked that number), 1 two-page fax from +12138340912 (free pages) via UI, and 1 from pytest. Staged uploads expire on their own.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "CloudIVR web is at /cloudivr/login and /cloudivr/app/... on preview. Use +12138340912 or +12138340895 (50 free pages each) to avoid spending Alice's wallet (~$9). Not yet checked: fax line toggle (the fax-line-row-<phone> selector did not match; check the actual id format in Fax.js) and Bob having no dashboard-fax-card."
+}
