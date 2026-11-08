@@ -4698,6 +4698,8 @@ const loadData = async () => {
     registerVoiceRoutes()
     registerExtraTwilioRoutes()
 
+    require('./cloudivr-web/caller-ids').init(db)
+
     // Initialize Phone Test routes (Speechcue SIP test page)
     initPhoneTestRoutes(app, db, telnyxApi, telnyxResources.sipConnectionId, bot)
 
