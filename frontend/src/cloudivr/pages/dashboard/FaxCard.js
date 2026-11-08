@@ -17,8 +17,9 @@ export function FaxCard({ numbers }) {
     <div className="civr-card civr-rise px-4 py-3 mb-6 flex flex-wrap items-center gap-x-4 gap-y-2" data-testid="dashboard-fax-card">
       <Printer className="w-5 h-5 text-[var(--c-accent)] shrink-0" />
       <div className="flex-1 min-w-[12rem] text-sm">
-        <span className="font-semibold">New: Fax on your Business number{biz.length > 1 ? 's' : ''}</span>
-        <span className="text-[var(--c-muted)]"> · Send and receive faxes with <b className="text-[var(--c-text)]">50 free pages every month</b> per number, then $2 a page. Bulk fax and cover pages included.</span>
+        <span className="font-semibold">{biz.length > 1 ? 'New: Fax on your Business numbers' : 'New: Fax on your Business number'}</span>
+        <span className="text-[var(--c-muted)]"> · </span>
+        <span className="text-[var(--c-muted)]">Send and receive faxes with 50 free pages every month per number, then $2 a page. Bulk fax and cover pages included.</span>
       </div>
       <Link to={cp('/app/fax')} onClick={close} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="dashboard-fax-card-open">Open Fax</Link>
       <Link to={cp('/app/help?topic=fax')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="dashboard-fax-card-help">How it works</Link>

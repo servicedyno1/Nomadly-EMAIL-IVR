@@ -88,7 +88,7 @@ function NumberCard({ n, i, pv, onSaved, reload }) {
           {n.plan === 'business' && n.status === 'active' && n.capabilities?.fax && <FaxSwitch n={n} reload={reload} testid={`number-card-${i}-switch-fax`} />}
         </div>
       </div>
-      <div className="flex items-center justify-between gap-2 mt-5 text-xs text-[#a1a1aa]">
+      <div className="flex items-center justify-between gap-2 mt-auto pt-5 text-xs text-[#a1a1aa]">
         <span className="truncate">{n.autoRenew ? 'Renews' : 'Expires'} {day(n.expiresAt)}</span>
         <div className="flex items-center gap-0.5 -mr-2">
           <IconBtn icon={Copy} label="Copy number" onClick={copy} testid={`number-card-${i}-copy-button`} />
@@ -108,7 +108,7 @@ export default function Numbers() {
   // A switch reply carries the fresh number: swap it in without re-fetching the whole list.
   const onSaved = (d) => { if (d?.number) setData(x => ({ ...x, numbers: (x?.numbers || []).map(n => (n.phoneNumber === d.number.phoneNumber ? d.number : n)) })); };
   return (
-    <div data-testid="numbers-page">
+    <div data-testid="numbers-page" className="pb-20 lg:pb-0">
       <PageHeader label="Numbers" title="My numbers" sub="Your CloudIVR VoIP numbers answer your callers: switch forwarding, the keypad menu or hours here, or open a number for everything else. Your USA mobile numbers are listed below them." testid="numbers-header">
         <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="numbers-buy-button"><ShoppingCart className="w-4 h-4" />Buy a number</Link>
       </PageHeader>

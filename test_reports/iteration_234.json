@@ -1,0 +1,37 @@
+{
+  "summary": "Frontend-only test of the CloudIVR UI/UX + a11y pass, logged in as Alice, at 1920px and 390px. Passed: Overview order (stats, then Suggested, then one promo in the slot, then Fax card, then Your numbers/Quick actions, then the New strip, then Recent activity); the What's new dialog; the sidebar's Outbound entry with 5 tabs, highlighted on campaign detail and ai-agents/new; the account menu (avatar + first name, email, Appearance light/dark, Language fr/en, Private mode masking, Settings/Help links, keyboard open, Sign out with the protected route sending you back to login; topbar-greeting is gone); number cards (center click does nothing, the Hours switch shows a toast with Undo and is restored, Open and the phone link both go to detail); number detail groups (Calls badge 'Keypad menu' lands on ivr, Connect goes to sip with no strip, Account shows Logs/Billing, Messages shows the 5 sub-tabs, ?tab= updates, deep-link to billing works); Settings index with 4 sections and the #webhooks hash scroll; Buy 3-step progress (1, then 2 after search, then 3 after pick; nothing bought); mobile bottom nav, More menu, Open button, and scrolling group pills and sub-tabs; caller-ID select aria-labels; the Fax history table has no empty th. No console errors on any page visited. Found 1 real layout bug (the Settings side index does not stay in place) and a few minor issues.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Settings SectionIndex", "issue": "The side index has lg:sticky lg:top-24, but as a grid item it stretches to the full row height (measured 3694px). So it never sticks and scrolls off-screen once you scroll down. That defeats the point of a side index. Fix: add lg:self-start (or lg:h-fit) to the nav.", "selector": "[data-testid='settings-index']", "priority": "MEDIUM"},
+      {"component": "Settings SectionIndex active state", "issue": "Clicking 'Community & rewards' scrolls to the end of the page, but that section cannot reach the top 20-40% band. The IntersectionObserver therefore keeps 'Notifications & integrations' highlighted (aria-current) instead of Community.", "selector": "[data-testid='settings-index-community']", "priority": "LOW"},
+      {"component": "NumberDetail unknown tab", "issue": "?tab=bogus shows the Overview content, but the panel wrapper testid becomes number-tabpanel-bogus. The overview group is selected correctly. Better to normalise tab to the resolved TABS id.", "selector": "[data-testid^='number-tabpanel-']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "My numbers cards (desktop)", "issues": ["The footer row (Renews / copy / call / Open) is not pinned to the bottom of the card (no mt-auto). Cards in the same row have different footer heights, and card 0 has empty space under its footer."]},
+      {"screen": "My numbers (mobile 390px)", "issues": ["The floating support button sits over the last quick switch (Fax) and the Open button area on card 0. Consider bottom padding or moving the FAB."]},
+      {"screen": "Mobile More menu (light theme)", "issues": ["The More sheet stays dark (civr-side) while the page is in light theme. Inconsistent, though readable."]},
+      {"screen": "Overview in French", "issues": ["Most of the Fax announcement card text stays in English ('New: Fax on your Business numbers', 'Send and receive faxes with 50 free pages every month...') while the rest of the page is translated."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Settings.js SectionIndex: add lg:self-start (or lg:h-fit) so the sticky side index stays in view.",
+    "Settings useActiveSection: when an index link is clicked, set active to that id (or handle the last section at page bottom).",
+    "NumberCard: put mt-auto on the footer row so footers line up across cards.",
+    "Optional: translate the FaxCard copy, theme the mobile More sheet in light mode, and keep the FAB from covering card controls on mobile."
+  ],
+  "critical_code_review_comments": [
+    "NumberDetail: the Fax sub-tab shows only when the number is fax-capable (capabilities.fax), not when it is on the Business plan. So Pro numbers (+12138340902) also show a Fax tab, while the card shows the Fax switch only for Business. Check that this is intended.",
+    "NumberDetail: the 'Replace number' button calls setParams({tab:'billing', replace:'1'}) directly and skips confirmLeave, unlike go().",
+    "AccountMenu trigger uses hard-coded text-[#d4d4d8]. It reads fine in light mode only because a theme override exists; prefer var(--c-text)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "~95% (all 9 requested areas pass; 1 medium layout bug and minor polish items)"},
+  "seed_data_creation": "None. Hours on +13346972125 was toggled on and then undone (now off, as before). IVR on +13346972125 was not touched and stays ON. No purchases, top-ups or faxes.",
+  "test_credentials": "civr.alice@example.com / AliceTest#2026 (from /app/memory/test_credentials.md)",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Each Playwright session starts with fresh localStorage (default theme = system, which is light in headless; the last session left it on dark). Dismiss cookie-allow-all, then click get_by_role('button', name='Sign in'). Radix account menu: open the submenus by hovering topbar-theme-button or topbar-lang-switcher before clicking an option. Alice has campaigns (e.g. /app/campaigns/c6b3967e-...)."
+}
