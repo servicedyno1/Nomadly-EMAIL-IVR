@@ -38,6 +38,19 @@ const wait = (ms) => new Promise(r => setTimeout(r, ms))
   ok(vs.activeCalls['cc-free-1']?.isTestCall === true, 'session marked as free test call')
   ok(vs._reservedTotal(user) === 0, 'no funds reserved')
 
+  // Carrier declines the custom caller ID (SIP 603 on the PSTN leg) → one redial from our own number + user told
+  calls.length = 0
+  await vs.handleVoiceWebhook({ body: { data: { event_type: 'call.hangup', payload: { call_control_id: 'pstn-leg-1', call_leg_id: 'pstn-leg-1', from: '+13366357716', to: '+14173724608', hangup_cause: 'user_busy', hangup_source: 'callee', sip_hangup_cause: '603', client_state: Buffer.from('nomadly_pstn_leg').toString('base64') } } } }, { sendStatus: () => {}, status: () => ({ send: () => {}, json: () => {} }), json: () => {} })
+  for (let i = 0; i < 4 && !calls.some(c => c[0] === 'transferCall'); i++) await wait(500)
+  await wait(500)
+  const re = calls.find(c => c[0] === 'transferCall')
+  ok(re && re[1] === 'cc-free-1' && re[2] === '+14173724608' && re[3] !== '+13366357716', `603 → redialed A-leg from own number (${re && re[3]})`)
+  ok(sent.some(t => /caller ID/i.test(t || '')), 'user told caller ID was declined')
+  calls.length = 0
+  await vs.handleVoiceWebhook({ body: { data: { event_type: 'call.hangup', payload: { call_control_id: 'pstn-leg-2', from: re && re[3], to: '+14173724608', hangup_cause: 'user_busy', sip_hangup_cause: '603' } } } }, { sendStatus: () => {}, status: () => ({ send: () => {}, json: () => {} }), json: () => {} })
+  await wait(8000)
+  ok(!calls.some(c => c[0] === 'transferCall'), 'only one redial (no loop)')
+
   // A normal (non-test) $0 user is still blocked
   calls.length = 0
   await db.collection('walletOf').insertOne({ _id: '700000002', usdIn: 0, usdOut: 0 })

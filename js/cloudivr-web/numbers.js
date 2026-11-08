@@ -155,7 +155,7 @@ function publicNumber(n, numbers) {
       voicemail: publicVoicemail(f.voicemail),
       hours: hoursOf(n),
       smsForwarding: f.smsForwarding || { toTelegram: true, toEmail: null, webhookUrl: null },
-      fax: { toInbox: f.faxForwarding?.toTelegram !== false },
+      fax: { toInbox: f.faxForwarding?.toTelegram !== false, line: f.faxLine?.enabled === true },
       recording: !!f.recording,
       ivr: f.ivr || { enabled: false, options: {} },
       aiAgent: f.aiAgent || { enabled: false, agentId: null },

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
-import { Square } from 'lucide-react';
-import { api, when } from '../../api';
+import { Square, Download } from 'lucide-react';
+import { api, when, downloadFile } from '../../api';
 import { ask } from '../../confirm';
 import { statusPill } from '../../ui';
 
@@ -22,6 +22,7 @@ function Batch({ b, reload }) {
         <div className="flex items-center gap-2">
           <span className={statusPill(b.status === 'running' ? 'running' : b.status === 'done' ? 'completed' : 'cancelled')} data-testid={`fax-batch-status-${b.id}`}>{LABEL[b.status] || b.status}</span>
           {b.status === 'running' && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={stop} disabled={busy} data-testid={`fax-batch-stop-${b.id}`}><Square className="w-4 h-4" />Stop</button>}
+          <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => downloadFile(`/fax/bulk/${encodeURIComponent(b.id)}/report.csv`, `bulk_fax_${b.id.slice(0, 8)}.csv`).catch(e => toast.error(e.message))} data-testid={`fax-batch-report-${b.id}`}><Download className="w-4 h-4" />Report</button>
         </div>
       </div>
       <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mt-3"><div className="h-full bg-[#818cf8] transition-[width] duration-500" style={{ width: `${(done / Math.max(1, b.total)) * 100}%` }} /></div>

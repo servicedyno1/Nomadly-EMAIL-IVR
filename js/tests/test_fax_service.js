@@ -136,6 +136,44 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
   const b2 = await db.collection('faxBatches').findOne({ _id: r2.batch.id })
   ok(b2.status === 'cancelled' && b2.cursor < 30, `cancel stops the rest (sent ${b2.cursor}/30)`)
 
+  console.log('Held fax (wallet empty, allowance used) → released after top-up')
+  await db.collection('walletOf').updateOne({ _id: chatId }, { $set: { usdIn: 0, usdOut: 0 } })
+  await fax.setLine({ chatId, num: biz, enabled: true })
+  const origGet2 = axios.get
+  axios.get = async (url) => (url === 'https://media.test/h.pdf' ? { data: pdf } : origGet2(url))
+  await fax.handleEvent({ event_type: 'fax.received', payload: { fax_id: 'in-held', from: '+14155550188', to: biz.phoneNumber, media_url: 'https://media.test/h.pdf', page_count: 2 } })
+  axios.get = origGet2
+  let h = await db.collection('faxes').findOne({ _id: 'in-held' })
+  ok(h.held === true && h.cost === 4, 'received fax held, $4 owed')
+  ok(sent.some(m => /Top up and the fax is delivered/.test(m.t || '')), 'owner told to top up')
+  try { await fax.fileOf(chatId, 'in-held'); ok(false, 'held download') } catch (e) { ok(e.code === 'insufficient_balance', 'held fax cannot be downloaded') }
+  ok((await fax.list(chatId)).find(f => f.id === 'in-held').status === 'held', 'history shows held')
+  const docsBefore = sent.filter(m => m.doc).length
+  await fax.maintain()
+  ok((await db.collection('faxes').findOne({ _id: 'in-held' })).held === true, 'still held → no release without funds')
+  await db.collection('walletOf').updateOne({ _id: chatId }, { $set: { usdIn: 10 } })
+  await fax.maintain()
+  h = await db.collection('faxes').findOne({ _id: 'in-held' })
+  ok(!h.held && sent.filter(m => m.doc).length === docsBefore + 1, 'released + PDF delivered after top-up')
+  ok((await db.collection('walletOf').findOne({ _id: chatId })).usdOut === 4, 'charged $4 on release')
+  await fax.maintain()
+  ok((await db.collection('walletOf').findOne({ _id: chatId })).usdOut === 4, 'release is one-time')
+
+  console.log('Fax line auto-off when plan is no longer Business')
+  await db.collection('phoneNumbersOf').updateOne({ _id: chatId }, { $set: { 'val.numbers.$[n].plan': 'pro' } }, { arrayFilters: [{ 'n.phoneNumber': biz.phoneNumber }] })
+  await fax.maintain()
+  ok(!fax.lineOn(await fax.findMine(chatId, biz.phoneNumber)), 'fax line switched off after downgrade')
+  ok(sent.some(m => /no longer on an active Business plan/.test(m.t || '')), 'owner told number is back on voice')
+  await db.collection('phoneNumbersOf').updateOne({ _id: chatId }, { $set: { 'val.numbers.$[n].plan': 'business' } }, { arrayFilters: [{ 'n.phoneNumber': biz.phoneNumber }] })
+
+  console.log('Bulk report + fax email')
+  const rep = await fax.batchReport(chatId, r.batch.id)
+  ok(rep.length === 30 && rep.every(x => x.status === 'delivered'), 'report lists all 30 recipients')
+  ok(/^fax_number,status/.test(fax.reportCsv(rep)), 'CSV header')
+  ok(!(await fax.batchReport('nobody', r.batch.id)), 'other account gets no report')
+  await db.collection('state').updateOne({ _id: chatId }, { $set: { faxEmail: 'fx@example.com' } })
+  ok((await fax.emailOf(chatId)) === 'fx@example.com', 'fax email used for copies')
+
   await db.dropDatabase(); await client.close()
   console.log(`\n${pass} passed, ${fail} failed`)
   process.exit(fail ? 1 : 0)

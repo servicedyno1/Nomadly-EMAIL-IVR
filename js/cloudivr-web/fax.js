@@ -57,8 +57,16 @@ function routes(router, { db, h, upload, numbersApi }) {
     try { res.json({ faxLine: await fax.setLine({ chatId: req.webChatId, num, enabled: !!req.body?.enabled }) }) } catch (e) { return fail(res, e) }
   }))
 
+  router.get('/fax/bulk/:id/report.csv', h(async (req, res) => {
+    const rows = await fax.batchReport(req.webChatId, req.params.id)
+    if (!rows) return bad(res, 404, 'not_found', 'Bulk fax not found.')
+    res.set({ 'Content-Type': 'text/csv', 'Content-Disposition': `attachment; filename="bulk_fax_${String(req.params.id).slice(0, 8)}.csv"` })
+    res.send(fax.reportCsv(rows))
+  }))
+
   router.get('/fax/:id/pdf', h(async (req, res) => {
-    const f = await fax.fileOf(req.webChatId, req.params.id)
+    let f
+    try { f = await fax.fileOf(req.webChatId, req.params.id) } catch (e) { return fail(res, e) }
     if (!f) return bad(res, 404, 'not_found', 'Fax not found.')
     const other = f.fax.direction === 'inbound' ? f.fax.from : f.fax.to
     res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="fax_${String(other).replace(/\D/g, '')}_${String(f.fax._id).slice(0, 8)}.pdf"` })

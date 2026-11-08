@@ -4,7 +4,7 @@ import { Download, ArrowDownLeft, ArrowUpRight, RotateCcw } from 'lucide-react';
 import { downloadFile, when, money } from '../../api';
 import { statusPill } from '../../ui';
 
-const LABEL = { queued: 'Queued', 'media.processed': 'Preparing', 'sending.started': 'Sending', delivered: 'Delivered', failed: 'Failed', received: 'Received', received_no_media: 'Received' };
+const LABEL = { queued: 'Queued', 'media.processed': 'Preparing', 'sending.started': 'Sending', delivered: 'Delivered', failed: 'Failed', received: 'Received', received_no_media: 'Downloading', media_failed: 'Download failed', held: 'Top up to open' };
 const pill = (s) => statusPill(s === 'delivered' || s === 'received' ? 'completed' : s === 'failed' ? 'failed' : 'waiting');
 
 function Row({ f }) {
@@ -18,7 +18,7 @@ function Row({ f }) {
       <td>{f.pages}</td>
       <td><span className={pill(f.status)} data-testid={`fax-status-${f.id}`}>{LABEL[f.status] || f.status}</span>{f.failureReason && <div className="text-xs text-[#fb7185] mt-1">{f.failureReason.replace(/_/g, ' ')}</div>}</td>
       <td>{f.cost > 0 ? money(f.cost) : (f.status === 'delivered' || f.status?.startsWith('received')) ? 'Free' : '—'}</td>
-      <td className="text-right">{f.hasFile && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={save} data-testid={`fax-download-${f.id}`}><Download className="w-4 h-4" />PDF</button>}</td>
+      <td className="text-right">{f.hasFile && f.status !== 'held' && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={save} data-testid={`fax-download-${f.id}`}><Download className="w-4 h-4" />PDF</button>}</td>
     </tr>
   );
 }

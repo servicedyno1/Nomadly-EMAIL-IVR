@@ -2234,7 +2234,7 @@ async function handleVoiceWebhook(req, res) {
           // 2. SIP device delivery legs (to=sip:* or to=gencred*)
           // These commonly arrive after deployment restarts when _initiatedCalls is empty
           const toField = (payload?.to || '')
-          const isBenignLeg = toField.includes('bridge_') || toField.startsWith('sip:bridge_') || toField.startsWith('gencred') || sipLogins.isShortLogin(toField)
+          const isBenignLeg = toField.includes('bridge_') || toField.startsWith('sip:bridge_') || toField.startsWith('gencred') || sipLogins.isShortLogin(toField) || (CID_DECLINE_SIP.has(String(payload?.sip_hangup_cause || '')) && (() => { try { return Buffer.from(payload.client_state || '', 'base64').toString('utf8') === PSTN_LEG_STATE } catch (_) { return false } })())
           if (isBenignLeg) {
             log(`[Voice] Hangup for known bridge/delivery leg ${callControlId} — processing directly (no buffer)`)
           } else {
@@ -3506,7 +3506,7 @@ async function handleOutboundSipCall(payload) {
     try {
       const callState = activeCalls[callControlId]
       if (callState && callState.phase === 'outbound_telnyx') {
-        callState._pendingTransfer = { destination, callerNumber: outFrom }
+        callState._pendingTransfer = { destination, callerNumber: outFrom, ownNumber: num.phoneNumber, connectionId: payload.connection_id }
       }
       // Tag the NEW PSTN leg so its own call.initiated is skipped (no reverse lookup / re-route).
       _markSelfPstnLeg(payload.connection_id, destination, outFrom)
@@ -4547,6 +4547,28 @@ async function handleRecordingSaved(payload) {
 // CALL HANGUP — Cleanup + REAL-TIME minute tracking
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+// A carrier declined the custom caller ID on the PSTN leg (SIP 403/603/607/608 before answer) while the SIP caller is
+// still waiting → redial once from the user's own number and tell them why.
+const CID_DECLINE_SIP = new Set(['403', '603', '607', '608'])
+async function _retryDeclinedCid(payload) {
+  if (!CID_DECLINE_SIP.has(String(payload.sip_hangup_cause || ''))) return false
+  const n = (v) => String(v || '').replace(/[^+\d]/g, '')
+  const to = n(payload.to), from = n(payload.from)
+  const hit = Object.entries(activeCalls).find(([, s]) => s.phase === 'outbound_telnyx' && !s._cidRetried && s._pendingTransfer?.ownNumber &&
+    n(s._pendingTransfer.destination) === to && n(s._pendingTransfer.callerNumber) === from && n(s._pendingTransfer.ownNumber) !== from)
+  if (!hit) return false
+  const [aLeg, s] = hit
+  const pt = s._pendingTransfer
+  s._cidRetried = true
+  log(`[Voice] Outbound SIP (Telnyx): carrier declined caller ID ${from} (SIP ${payload.sip_hangup_cause}) → ${to} — redialing from ${pt.ownNumber}`)
+  _notifyCidRejected(s.chatId, from, pt.ownNumber)
+  pt.callerNumber = pt.ownNumber
+  _markSelfPstnLeg(pt.connectionId, pt.destination, pt.ownNumber)
+  await _telnyxApi.transferCall(aLeg, pt.destination, pt.ownNumber, { targetLegClientState: PSTN_LEG_STATE })
+    .catch(e => log(`[Voice] Outbound SIP (Telnyx): own-number redial failed — ${e.message}`))
+  return true
+}
+
 async function handleCallHangup(payload) {
   const callControlId = payload.call_control_id
   const hangupCauseRaw = payload.hangup_cause || payload.sip_hangup_cause || 'unknown'
@@ -4604,6 +4626,7 @@ async function handleCallHangup(payload) {
       return
     }
     // Log hangup details even for untracked calls (helps debug SIP failures)
+    if (await _retryDeclinedCid(payload).catch(e => { log(`[Voice] caller-ID decline retry error: ${e.message}`); return false })) return
     log(`[Voice] Hangup for untracked call ${callControlId}: cause=${hangupCauseRaw}, source=${hangupSourceRaw}, from=${payload.from}, to=${payload.to}, duration=${payload.duration_secs || 0}s`)
     return
   }
