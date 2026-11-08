@@ -4740,6 +4740,7 @@ const loadData = async () => {
     registerTelnyxRoutes()
     faxService.init({ db, bot, walletOf, log, callControlAppId: () => telnyxResources.callControlAppId || process.env.TELNYX_CALL_CONTROL_APP_ID })
     if (process.env.SKIP_WEBHOOK_SYNC !== 'true') faxService.ensureApp().catch(e => log(`[Fax] Fax Application setup failed: ${e.response?.data?.errors?.[0]?.detail || e.message}`))
+    if (process.env.SKIP_WEBHOOK_SYNC !== 'true' && TELEGRAM_ADMIN_CHAT_ID) require('./caller-id-report').start({ db, log, send: (text) => bot.sendMessage(TELEGRAM_ADMIN_CHAT_ID, text, { parse_mode: 'HTML' }) })
   }
 
   // Initialize CNAM Service
@@ -8499,7 +8500,7 @@ bot?.on('message', msg => {
         await set(state, chatId, 'cpFaxStage', st.stageId)
         await set(state, chatId, 'action', 'cpFaxConfirm')
         const label = q.cost > 0 ? `${fx.btnConfirm} — $${q.cost.toFixed(2)}` : fx.btnConfirm
-        return send(chatId, userInfo.cpFaxBulk ? fx.bulkQuote(q) : fx.quote(userInfo.cpFaxTo, q), { parse_mode: 'HTML', ...kOuter.of([[label], [fx.btnCancel]]) })
+        return send(chatId, userInfo.cpFaxBulk ? fx.bulkQuote(q) : fx.quote(userInfo.cpFaxTo, q), { parse_mode: 'HTML', ...kOuter.of([[label], [fx.btnCover], [fx.btnCancel]]) })
       } catch (e) {
         log(`[Fax] bot upload error for ${chatId}: ${e.message}`)
         return send(chatId, `⚠️ ${e.code ? e.message : 'That file could not be read. Send a PDF, JPG or PNG.'}`)
@@ -10401,6 +10402,7 @@ bot?.on('message', msg => {
     cpFaxConfirm: 'cpFaxConfirm',
     cpFaxBulkTo: 'cpFaxBulkTo',
     cpFaxEmail: 'cpFaxEmail',
+    cpFaxCover: 'cpFaxCover',
     cpSmsInbox: 'cpSmsInbox',
     cpVmGreeting: 'cpVmGreeting',
     cpVmAudioUpload: 'cpVmAudioUpload',
@@ -32264,7 +32266,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   // ━━━ FAX (Business plan) ━━━
-  if ([a.cpFax, a.cpFaxTo, a.cpFaxDoc, a.cpFaxConfirm, a.cpFaxBulkTo, a.cpFaxEmail].includes(action)) {
+  if ([a.cpFax, a.cpFaxTo, a.cpFaxDoc, a.cpFaxConfirm, a.cpFaxBulkTo, a.cpFaxEmail, a.cpFaxCover].includes(action)) {
     const fx = faxService.t(info?.userLanguage)
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
     const snap = info?.cpActiveNumber
@@ -32348,7 +32350,23 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         return showFaxMenu(chatId, num)
       }
       if (back || message === fx.btnCancel) { await saveInfo('cpFaxStage', null); await saveInfo('cpFaxBulk', null); send(chatId, fx.cancelled); return showFaxMenu(chatId, num) }
+      if (message === fx.btnCover) { await set(state, chatId, 'action', a.cpFaxCover); return send(chatId, fx.askCover, { parse_mode: 'HTML', ...k.of([[fx.btnCancel]]) }) }
       return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectOption)
+    }
+    if (action === a.cpFaxCover) {
+      if (back || message === fx.btnCancel) { await saveInfo('cpFaxStage', null); await saveInfo('cpFaxBulk', null); send(chatId, fx.cancelled); return showFaxMenu(chatId, num) }
+      try {
+        const st = await faxService.addCover({ chatId: String(chatId), num, stageId: info?.cpFaxStage, cover: { ...faxService.parseCoverText(message), toFax: info?.cpFaxBulk ? null : info?.cpFaxTo } })
+        const q = info?.cpFaxBulk ? (await faxService.bulkQuote({ chatId: String(chatId), num, stageId: st.stageId, recipients: info.cpFaxBulk })).quote : st.quote
+        await set(state, chatId, 'action', a.cpFaxConfirm)
+        const label = q.cost > 0 ? `${fx.btnConfirm} — $${q.cost.toFixed(2)}` : fx.btnConfirm
+        return send(chatId, `${fx.coverAdded}\n\n${info?.cpFaxBulk ? fx.bulkQuote(q) : fx.quote(info?.cpFaxTo, q)}`, { parse_mode: 'HTML', ...k.of([[label], [fx.btnCancel]]) })
+      } catch (e) {
+        log(`[Fax] bot cover error: ${e.message}`)
+        if (e.code === 'bad_cover') return send(chatId, `⚠️ ${e.message}`)
+        await set(state, chatId, 'action', a.cpFaxConfirm)
+        return send(chatId, `⚠️ ${e.code ? e.message : 'Could not add the cover page. Please try again.'}`)
+      }
     }
   }
 

@@ -10,6 +10,7 @@ import { openWhatsNew } from '../WhatsNew';
 import { ARTICLES, GROUPS, TOPIC_NAMES } from './help/topics';
 import { faqItems } from './landing/PricingFaq';
 import { cp } from '../paths';
+import { DIAGRAMS } from './help/FaxDiagrams';
 
 // Landing FAQ answers about plans and prices (the first two are for visitors only).
 const faqArticles = (catalog) => faqItems(catalog).slice(2).map(([q, a], i) => ({ id: `faq-${i}`, group: 'plans', topics: ['billing', 'buy', 'wallet'], q, a, to: null }));
@@ -24,6 +25,8 @@ function Article({ a, prefix, open, onToggle }) {
       {open && (
         <div id={`${id}-body`} className="pb-5 space-y-4 civr-rise" data-testid={`${id}-body`}>
           <p className="text-sm leading-relaxed text-[#d4d4d8] max-w-2xl">{a.a}</p>
+          {DIAGRAMS[a.visual] && <div className="max-w-3xl" data-testid={`${id}-visual`}>{React.createElement(DIAGRAMS[a.visual])}</div>}
+          {a.steps && <ol className="list-decimal pl-5 space-y-1 text-sm text-[#d4d4d8] max-w-2xl" data-testid={`${id}-steps`}>{a.steps.map(x => <li key={x}>{x}</li>)}</ol>}
           {a.to && <Link to={appPath(a.to[0])} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`${id}-link`}>{a.to[1]}<ArrowRight className="w-4 h-4" /></Link>}
         </div>
       )}

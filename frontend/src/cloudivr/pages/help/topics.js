@@ -6,6 +6,7 @@ const PAGES = [
   [/\/app\/numbers\/[^/]+/, 'number', 'Number details'],
   [/\/app\/numbers\/?$/, 'numbers', 'My numbers'],
   [/\/app\/sip/, 'sip', 'SIP & softphones'],
+  [/\/app\/fax/, 'fax', 'Fax'],
   [/\/app\/(buy|orders)/, 'buy', 'Buy a number'],
   [/\/app\/verification/, 'verification', 'Verification'],
   [/\/app\/audio/, 'audio', 'Audio library'],
@@ -41,6 +42,7 @@ export const GROUPS = [
   ['start', 'Getting started'],
   ['numbers', 'Your numbers'],
   ['calling', 'Calling'],
+  ['fax', 'Fax'],
   ['ai', 'AI voice agents'],
   ['billing', 'Billing and plans'],
   ['account', 'Account and privacy'],
@@ -52,7 +54,7 @@ export const TOPIC_NAMES = {
   overview: 'Overview', number: 'Number details', numbers: 'My numbers', sip: 'SIP & softphones', buy: 'Buy a number', verification: 'Verification',
   audio: 'Audio library', 'quick-call': 'Quick IVR call', 'text-call': 'Text calls', ai: 'AI voice agents', campaigns: 'Bulk IVR campaigns', wallet: 'Wallet',
   inbox: 'Notifications', settings: 'Settings', forwarding: 'Forwarding', hours: 'Hours', keypad: 'Keypad menu', voicemail: 'Voicemail', billing: 'Billing',
-  browser: 'Browser ring', recording: 'Recording', ringgroup: 'Ring group', triggers: 'Text Triggers', logs: 'Logs',
+  fax: 'Fax', browser: 'Browser ring', recording: 'Recording', ringgroup: 'Ring group', triggers: 'Text Triggers', logs: 'Logs',
 };
 
 // { id, group, topics: page/tab keys it belongs to, q, a, to: [path under /app, button label] }
@@ -72,6 +74,13 @@ export const ARTICLES = [
   { id: 'text-triggers', group: 'numbers', topics: ['triggers', 'number', 'inbox'], q: 'What are Text Triggers?', a: 'Text Triggers start a call when a text arrives on your number (Business plan). Auto Callback rings your phone first and reads you the text — press 1 to call them back. Text-to-Call message calls the person who texted and reads your message. AI agent calls them back uses your AI voice agent. Each trigger can run only on a keyword, only during business hours and once per sender per hour. Use “Try a text” to check your setup without dialing.', to: ['numbers', 'My numbers'] },
   { id: 'ai-summaries', group: 'numbers', topics: ['logs', 'voicemail', 'recording', 'number'], q: 'How do AI summaries and caller mood work?', a: 'Open your number, then the Logs tab (Pro plan and up). Switch on AI summaries to get a short summary, the caller’s mood and follow-ups for every new voicemail and recorded call, or tap Summarize on any one. It costs a small per-minute fee from your wallet; if nothing can be summarised you are not charged.', to: ['numbers', 'My numbers'] },
   { id: 'extra-numbers', group: 'numbers', topics: ['billing', 'number', 'numbers'], q: 'How do I add an extra number?', a: 'Open your main number, then Billing → Extra numbers. Search and buy. Extra numbers share the main number’s plan, minutes and SMS.', to: ['numbers', 'My numbers'] },
+
+  { id: 'fax-guide', group: 'fax', topics: ['fax', 'number', 'numbers'], q: 'How do I send a fax?', a: 'Fax is on the Business plan. Open Fax in the menu (under Numbers). Pick the From number, type the fax number with the country code (for example +14155550100) and choose the document. Tick “Add a cover page” if you want one. Press Upload & check price to see the pages and cost, then Send fax. The status in Fax history moves to Delivered or Failed on its own.', visual: 'fax-send', steps: ['Open Fax and pick your Business number as From.', 'Type the fax number with the country code.', 'Choose a PDF, JPG or PNG (a photo becomes one page).', 'Optional: tick Add a cover page and fill it in.', 'Press Upload & check price, then Send fax.'], to: ['fax', 'Open Fax'] },
+  { id: 'fax-cover', group: 'fax', topics: ['fax'], q: 'How do I add a fax cover page?', a: 'Before you press Upload & check price, tick “Add a cover page” and fill in your name, the recipient, a subject and a note. Your fax number, the total page count and the date are added for you. The cover page goes first and counts as one page (in bulk, one per number). Use Latin letters; other scripts show as “?”. In the Telegram bot, tap 📝 Add a cover page on the price screen and send the details one per line.', to: ['fax', 'Open Fax'] },
+  { id: 'fax-receive', group: 'fax', topics: ['fax', 'number', 'inbox'], q: 'How do I receive faxes?', a: 'On the Fax page, under Receive faxes, turn on the Fax line for that number. While it is on, the number receives faxes but does not take voice calls. Turn it off to go back to voice. Sending works with the fax line on or off.', visual: 'fax-line', to: ['fax', 'Open Fax'] },
+  { id: 'fax-receive-flow', group: 'fax', topics: ['fax', 'inbox'], q: 'Where do received faxes go?', a: 'Each received fax is saved as a PDF in Fax history (Download button), shows in your Inbox and is emailed to your account email. If your free pages are used up and the wallet can’t cover it, the fax shows “Top up to open” and is delivered a few minutes after you top up.', visual: 'fax-receive', to: ['fax', 'Open Fax'] },
+  { id: 'fax-bulk', group: 'fax', topics: ['fax'], q: 'How do I fax many numbers at once?', a: 'On the Fax page switch to “Bulk — up to 500”. Paste the fax numbers, one per line, or load a CSV / TXT file. Choose the document (and an optional cover page), check the price and send. Faxes go out one by one; you can stop the batch at any time, and its Report button downloads a CSV with every number’s result.', visual: 'fax-bulk', to: ['fax', 'Open Fax'] },
+  { id: 'fax-price', group: 'fax', topics: ['fax', 'billing', 'wallet'], q: 'What does fax cost?', a: 'Every Business number gets 50 free pages each plan month, sent and received together. After that each page is $2 from your wallet. You are only charged when a fax is delivered, and your wallet must cover the paid pages before sending.', visual: 'fax-price', to: ['wallet', 'Open Wallet'] },
 
   { id: 'browser-phone', group: 'calling', topics: ['overview', 'browser', 'number'], q: 'Can I make and answer calls in my browser?', a: 'Yes, on every plan. The phone icon in the top bar opens the browser phone. To answer incoming calls in the browser, open your number and turn on the Browser ring tab. Desk phones and softphone apps (SIP) are on Pro and up.', to: ['numbers', 'My numbers'] },
   { id: 'sip', group: 'calling', topics: ['sip', 'number'], q: 'How do I use a softphone app (SIP)?', a: 'Open SIP & softphones (Pro plan and up). Copy the username, password and server into Zoiper, Linphone or MicroSIP. The setup guide on that page shows each step.', to: ['sip', 'Open SIP & softphones'] },

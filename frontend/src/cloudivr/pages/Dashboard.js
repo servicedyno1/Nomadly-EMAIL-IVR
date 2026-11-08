@@ -10,6 +10,7 @@ import { cp } from '../paths';
 import { GetStarted, YourNumbers } from './dashboard/Widgets';
 import { TopBanner, TrialCard, CallerIdUpsellCard } from './dashboard/Banners';
 import { NewProducts } from './dashboard/NewProducts';
+import { FaxCard } from './dashboard/FaxCard';
 import { ForYou, ReviewPrompt } from './dashboard/ForYou';
 import { TextingHome } from './dashboard/TextingHome';
 
@@ -69,6 +70,7 @@ export default function Dashboard() {
         <TrialCard />
         <TopBanner />
         <CallerIdUpsellCard />
+        <FaxCard numbers={nums?.numbers} />
         <ReviewPrompt />
         <ForYou />
         <NewProducts />

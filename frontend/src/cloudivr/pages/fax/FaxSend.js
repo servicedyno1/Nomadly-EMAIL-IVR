@@ -4,13 +4,14 @@ import { Send, FileUp, Loader2 } from 'lucide-react';
 import { api, money } from '../../api';
 import { Field } from '../../ui';
 import { BulkRecipients, countLines } from './BulkRecipients';
+import { CoverPage, emptyCover, coverPayload } from './CoverPage';
 
 // Upload → price (pages, free vs paid) → send to one number or up to 500. Charged only once each fax is delivered.
 function Quote({ q }) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm" data-testid="fax-quote">
       {q.recipients && <div className="mb-1" data-testid="fax-quote-recipients"><b>{q.recipients}</b> numbers × {q.pagesEach} page{q.pagesEach === 1 ? '' : 's'}</div>}
-      <div><b data-testid="fax-quote-pages">{q.pages}</b> page{q.pages === 1 ? '' : 's'} · <span className="text-[#34d399]">{q.freePages} free</span> · {q.paidPages} paid</div>
+      <div><b data-testid="fax-quote-pages">{q.pages}</b> page{q.pages === 1 ? '' : 's'}{q.withCover && <span className="text-[#a1a1aa]" data-testid="fax-quote-cover"> (incl. cover page)</span>} · <span className="text-[#34d399]">{q.freePages} free</span> · {q.paidPages} paid</div>
       <div className="mt-1">Cost: <b data-testid="fax-quote-cost">{q.cost > 0 ? money(q.cost) : 'Free'}</b> <span className="text-xs text-[#a1a1aa]">— free pages first, charged only when delivered</span></div>
     </div>
   );
@@ -33,6 +34,7 @@ export function FaxSend({ numbers, onSent, bulkMax = 500 }) {
   const [file, setFile] = useState(null);
   const [fileKey, setFileKey] = useState(0);
   const [staged, setStaged] = useState(null);
+  const [cover, setCover] = useState(emptyCover);
   const [busy, setBusy] = useState(false);
   const reset = () => setStaged(null);
   const check = async () => {
@@ -41,11 +43,13 @@ export function FaxSend({ numbers, onSent, bulkMax = 500 }) {
     setBusy(true);
     try {
       const form = new FormData(); form.append('from', from); form.append('file', file);
+      const cv = coverPayload(cover);
+      if (cv) { form.append('cover', cv); if (!bulk && to.trim()) form.append('to', to.trim()); }
       const st = await api('/fax/stage', { method: 'POST', form });
-      if (!bulk) return setStaged(st);
+      if (!bulk) return setStaged({ ...st, quote: { ...st.quote, withCover: st.cover } });
       const bq = await api('/fax/bulk/quote', { method: 'POST', body: { from, stageId: st.stageId, recipients: list } });
       if (bq.invalidCount) toast.warning(`${bq.invalidCount} entr${bq.invalidCount === 1 ? 'y' : 'ies'} skipped (not a valid fax number): ${bq.invalid.slice(0, 3).join(', ')}${bq.invalidCount > 3 ? '…' : ''}`);
-      setStaged({ ...st, quote: bq.quote });
+      setStaged({ ...st, quote: { ...bq.quote, withCover: st.cover } });
     } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   const send = async () => {
@@ -60,7 +64,7 @@ export function FaxSend({ numbers, onSent, bulkMax = 500 }) {
         toast.success(`Fax to ${to} is on its way`);
         setTo('');
       }
-      setStaged(null); setFile(null); setFileKey(k => k + 1); onSent();
+      setStaged(null); setFile(null); setFileKey(k => k + 1); setCover(emptyCover); onSent();
     } catch (e) { toast.error(e.message); if (e.code === 'expired') setStaged(null); } finally { setBusy(false); }
   };
   const ready = bulk ? countLines(list) > 0 : !!to.trim();
@@ -75,7 +79,7 @@ export function FaxSend({ numbers, onSent, bulkMax = 500 }) {
         </Field>
         {!bulk && (
           <Field label="To (fax number)" hint="With country code, e.g. +14155550100">
-            <input className="civr-input w-full" value={to} onChange={e => setTo(e.target.value)} placeholder="+14155550100" inputMode="tel" data-testid="fax-to-input" />
+            <input className="civr-input w-full" value={to} onChange={e => { setTo(e.target.value); if (cover.on) reset(); }} placeholder="+14155550100" inputMode="tel" data-testid="fax-to-input" />
           </Field>
         )}
       </div>
@@ -86,6 +90,7 @@ export function FaxSend({ numbers, onSent, bulkMax = 500 }) {
           <input key={fileKey} type="file" accept="application/pdf,image/jpeg,image/png" className="hidden" onChange={e => { setFile(e.target.files?.[0] || null); reset(); }} data-testid="fax-file-input" />
         </label>
       </Field>
+      <CoverPage value={cover} onChange={(v) => { setCover(v); reset(); }} bulk={bulk} />
       {staged && <Quote q={staged.quote} />}
       <div className="flex flex-wrap gap-2 mt-auto">
         {!staged
