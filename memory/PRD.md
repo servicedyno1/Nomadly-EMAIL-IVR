@@ -2296,3 +2296,9 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   unchanged (calls per user, 60 s, rate limit). Paid $0 users still blocked. Test: js/tests/test_free_sip_test_unblock.js 9/9.
 - Prod env: TELNYX_DEFAULT_ANI added to app-wl/app-voodoo/app-proshop (same toll-free ANI as main; backups *.bak.testani.*) — WL
   brands had none and no test-account number, so test calls could not route. Not yet verified with a live test call.
+
+## 2026-11-08 — AI support knows Fax (bots + CloudIVR web) — SHIPPED 220f0b43
+- js/ai-support.js (all 4 bots): plan table row + Business features + FAQ "How do I send or receive a fax?" (path My Plans → number →
+  📠 Fax; single, bulk up to 500 via paste/CSV/TXT, fax line receive, pricing from fax-service constants, history, web pointer).
+- js/cloudivr-web/support.js: Fax page (Numbers → Fax tab), send/bulk/stop, fax line, history/inbox/email, pricing.
+- Verified on production with live AI answers (temp chats deleted). Preview has no OpenAI key.

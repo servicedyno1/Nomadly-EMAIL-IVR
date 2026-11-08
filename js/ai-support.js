@@ -9,6 +9,7 @@
  */
 
 const OpenAI = require('openai')
+const { FREE_PAGES: FAX_FREE, PAGE_PRICE: FAX_PRICE, BULK_MAX: FAX_BULK_MAX } = require('./fax-service.js')
 const { sanitizeAiContext, sanitizeUserText } = require('./sanitize-provider.js')
 const log = console.log
 
@@ -198,7 +199,7 @@ This opens the Cloud IVR hub with these buttons:
 #### Plans & Pricing:
 ${process.env.PHONE_SERVICE_ON === 'true' ? `- <b>Starter — $${process.env.PHONE_STARTER_PRICE || '50'}/mo</b>: ${process.env.STARTER_MINUTES || '100'} INBOUND min + ${process.env.STARTER_SMS || '50'} SMS included/month. Features: Call forwarding, SMS to Telegram. Up to 3 extra numbers.
 - <b>Pro — $${process.env.PHONE_PRO_PRICE || '75'}/mo</b>: ${process.env.PRO_MINUTES || '400'} INBOUND min + ${process.env.PRO_SMS || '200'} SMS included/month. Features: All Starter + Voicemail, SIP Credentials, SMS to Email, IVR Auto-attendant (keypad menu), Quick IVR, Bulk IVR, OTP Collection (basic — default prompts only), Call Recording. Up to 15 extra numbers.
-- <b>Business — $${process.env.PHONE_BUSINESS_PRICE || '120'}/mo</b>: ${process.env.BUSINESS_MINUTES || '600'} INBOUND min + ${process.env.BUSINESS_SMS || '300'} SMS included/month. Features: All Pro + AI Voice Agent, Custom OTP Messages & Goodbye, IVR Redial, Quick IVR Scheduling & Saved Presets, Priority Support. Up to 30 extra numbers.
+- <b>Business — $${process.env.PHONE_BUSINESS_PRICE || '120'}/mo</b>: ${process.env.BUSINESS_MINUTES || '600'} INBOUND min + ${process.env.BUSINESS_SMS || '300'} SMS included/month. Features: All Pro + AI Voice Agent, Fax send & receive (${FAX_FREE} free pages/mo then $${FAX_PRICE}/page, bulk up to ${FAX_BULK_MAX} numbers), Custom OTP Messages & Goodbye, IVR Redial, Quick IVR Scheduling & Saved Presets, Priority Support. Up to 30 extra numbers.
 - <b>IMPORTANT — included plan minutes are for INBOUND (received) calls only.</b> Outbound calls do NOT draw from plan minutes and are ALWAYS pay-as-you-go from the wallet. A funded wallet is required to place ANY outbound call, on every plan (including Pro/Business):
   • Outbound IVR / OTP / Bulk IVR calls: $${process.env.BULK_CALL_RATE_PER_MIN || '0.15'}/min + $${process.env.CALL_CONNECTION_FEE || '0.03'} connection fee per call
   • Call forwarding: $${process.env.CALL_FORWARDING_RATE_MIN || '0.50'}/min
@@ -236,6 +237,7 @@ ${process.env.PHONE_SERVICE_ON === 'true' ? `- <b>Starter — $${process.env.PHO
 | IVR Redial | ❌ | ❌ | ✅ |
 | Call Recording | ❌ | ✅ | ✅ |
 | IVR Auto-attendant | ❌ | ❌ | ✅ |
+| Fax — send, receive & bulk fax (up to ${FAX_BULK_MAX} numbers) | ❌ | ❌ | ✅ |
 
 #### Quick IVR Call — How to set up:
 📞 Cloud IVR + SIP → 📢 Quick IVR Call → Select Caller ID → Enter target number → Select template → Fill placeholders → Select Call Mode → Choose voice → Preview → Confirm
@@ -799,6 +801,15 @@ If the roster shows the domain has <b>no registration trace at all</b> AND <b>no
 
 ### "How do I set up SIP / connect a softphone?"
 → Two ways: (1) From hub: <b>📞 Cloud IVR + SIP</b> → <b>📖 SIP Setup Guide</b>. (2) From your number: <b>📋 My Plans</b> → select number → <b>🔑 SIP Credentials</b> → <b>📖 SIP Setup Guide</b>. Download Zoiper/Ooma, enter username + password from 🔑 SIP Credentials, domain: <code>${SIP_DOMAIN}</code>.
+
+### "How do I send or receive a fax?" / "Can I fax?"
+→ Fax (send + receive) is a <b>Business plan</b> feature. It lives <b>inside each number</b>, not on the Cloud IVR main menu — always give the full path: <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → select your Business number → <b>📠 Fax</b>. Starter/Pro users who tap 📠 Fax see an upgrade prompt (use ⬆️ Upgrade to Business on the Manage screen).
+→ <b>Send one fax</b>: 📠 Fax → <b>📤 Send a fax</b> → type the fax number with country code (e.g. +14155550100) → send the document here as a <b>PDF, JPG or PNG</b> (max 10 MB, max 50 pages; a photo becomes 1 page) → the bot shows pages, free vs paid pages and the cost → tap <b>✅ Send fax</b>. You get a message when it's ✅ delivered or ❌ failed.
+→ <b>Bulk fax (up to ${FAX_BULK_MAX} numbers at once)</b>: 📠 Fax → <b>📤 Bulk fax (up to ${FAX_BULK_MAX} numbers)</b> → paste the numbers (one per line, with country code) OR send a <b>.csv / .txt</b> file with them (duplicates and invalid entries are skipped) → send the PDF/photo → check the quote (pages × numbers) → tap ✅ Send fax. Faxes go out one by one in the background and you get <b>one summary</b> at the end (delivered / failed / charged).
+→ <b>Receive faxes</b>: 📠 Fax → <b>📥 Turn on fax line (receive faxes)</b>. While the fax line is ON, that number receives faxes and <b>does not take voice calls</b> (a number does voice or fax, not both at once). Tap <b>📥 Fax line: ON — switch back to voice</b> to return it to calls. Each received fax arrives here in the chat as a <b>PDF</b>, and a copy is emailed to your account email if one is on file. Sending works from any Business number, fax line on or off.
+→ <b>Price</b>: each Business number gets <b>${FAX_FREE} free pages per plan month</b> (sent + received combined, resets at renewal), then <b>$${FAX_PRICE} per page</b> from the wallet. Bulk = pages × recipients, free pages used first. You're charged only when a fax is delivered — failed faxes are free. The wallet must cover the paid pages before sending, otherwise top up first.
+→ <b>History</b>: 📠 Fax → <b>🗂 Recent faxes</b> (last 10 with status, pages, cost). The Fax screen also shows free pages left this plan month.
+→ The same Fax feature is in the CloudIVR web app under <b>Numbers → Fax</b>.
 
 ### "How do I set up voicemail?"
 → <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → select your number → <b>🎙️ Voicemail</b>. You can enable/disable, record a custom greeting, set ring time, and forward voicemails to Telegram or Email. Requires <b>Pro</b> or <b>Business</b> plan.
