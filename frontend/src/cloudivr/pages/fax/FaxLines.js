@@ -32,7 +32,7 @@ function LineRow({ n, reload }) {
       </div>
       <div className="mt-3">
         <div className="h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#34d399] transition-[width] duration-500" style={{ width: `${(u.left / u.free) * 100}%` }} /></div>
-        <div className="text-xs text-[#a1a1aa] mt-1.5" data-testid={`fax-free-left-${id}`}>{u.left} of {u.free} free pages left this plan month</div>
+        <div className="text-xs text-[#a1a1aa] mt-1.5" data-testid={`fax-free-left-${id}`}>{`${u.left} of ${u.free} free pages left this plan month`}</div>
       </div>
     </div>
   );

@@ -173,6 +173,8 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
   ok(!(await fax.batchReport('nobody', r.batch.id)), 'other account gets no report')
   await db.collection('state').updateOne({ _id: chatId }, { $set: { faxEmail: 'fx@example.com' } })
   ok((await fax.emailOf(chatId)) === 'fx@example.com', 'fax email used for copies')
+  await db.collection('state').updateOne({ _id: chatId }, { $set: { faxEmail: false, accountEmail: 'acct@example.com' } })
+  ok((await fax.emailOf(chatId)) === null, 'email copies off → no fallback to account email')
 
   await db.dropDatabase(); await client.close()
   console.log(`\n${pass} passed, ${fail} failed`)

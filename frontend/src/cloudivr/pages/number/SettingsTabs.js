@@ -55,7 +55,7 @@ export function OverviewTab({ num, reload }) {
   return (
     <div className="grid lg:grid-cols-3 gap-4">
       <RouteSummary num={num} reload={reload} />
-      <TestRing num={num} />
+      {!num.features.fax?.line && <TestRing num={num} />}
       {num.access?.sipCredentials && <SipCredentials num={num} prefix="overview-sip" heading="SIP login" />}
       <div className="civr-card p-6 lg:col-span-2 space-y-6">
         <div className="font-display text-2xl font-bold">This month</div>

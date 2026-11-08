@@ -544,6 +544,7 @@ async function langOf(chatId) { return (await col('state').findOne({ _id: chatId
 async function emailOf(chatId) {
   if (notify.isWebChatId(chatId)) return (await col('webAccounts').findOne({ _id: { $in: [chatId, Number(chatId)] } }, { projection: { email: 1 } }))?.email || null
   const s = await col('state').findOne({ _id: chatId }, { projection: { faxEmail: 1, accountEmail: 1, welcomeEmailSentTo: 1, email: 1 } })
+  if (s?.faxEmail === false) return null
   return s?.faxEmail || s?.accountEmail || s?.welcomeEmailSentTo || s?.email || null
 }
 async function tell(chatId, text, meta) {
@@ -634,8 +635,14 @@ async function maintain() {
     if ((usdBal || 0) < f.cost) continue
     const un = await col('faxes').findOneAndUpdate({ _id: f._id, held: true }, { $unset: { held: '' } }, { includeResultMetadata: false })
     if (!un) continue
-    await forceWalletDebit(_walletOf, f.chatId, f.cost, { type: 'fax', callType: 'Fax_Received', callRef: `fax:${f._id}`, description: `Fax received from ${f.from} — ${f.paidPages} paid page(s) × $${PAGE_PRICE}`, destination: f.from, phoneNumber: f.phoneNumber })
-    await deliverInbound(f, f.fileId ? await readFile(f.fileId) : null, f)
+    try {
+      const pdf = f.fileId ? await readFile(f.fileId) : null
+      await forceWalletDebit(_walletOf, f.chatId, f.cost, { type: 'fax', callType: 'Fax_Received', callRef: `fax:${f._id}`, description: `Fax received from ${f.from} — ${f.paidPages} paid page(s) × $${PAGE_PRICE}`, destination: f.from, phoneNumber: f.phoneNumber })
+      await deliverInbound(f, pdf, f)
+    } catch (e) {
+      _log(`[Fax] held release ${f._id} failed: ${e.message}`)
+      if (!(await col('walletLedger').findOne({ callRef: `fax:${f._id}` }).catch(() => null))) await col('faxes').updateOne({ _id: f._id }, { $set: { held: true } })
+    }
   }
   if (!dryRun()) {
     for (const f of await col('faxes').find({ status: 'received_no_media' }).limit(50).toArray()) {

@@ -45,6 +45,7 @@ export function RouteSummary({ num, reload }) {
           <b>Fax line is on.</b> This number receives faxes and does not take voice calls, so the settings below are paused. <Link to={cp('/app/fax')} className="underline" data-testid="route-summary-fax-link">Switch back to voice on the Fax page</Link>
         </div>
       )}
+      {!num.features.fax?.line && <>
       <p className="text-sm text-[#f4f4f5]" data-testid="route-summary-primary">{headline(r, pv.phone, sipApps)}</p>
       {r.brokenIvr && <div className="text-sm text-[#fbbf24] flex gap-2" data-testid="route-summary-broken-ivr"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />Your keypad menu is on but has no keys yet — add options in the Keypad menu tab or turn it off.</div>}
       {r.skipped?.length > 0 && (
@@ -57,6 +58,7 @@ export function RouteSummary({ num, reload }) {
           </div>
         </div>
       )}
+      </>}
     </div>
   );
 }

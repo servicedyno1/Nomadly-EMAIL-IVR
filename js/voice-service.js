@@ -4555,6 +4555,7 @@ async function _retryDeclinedCid(payload) {
   const n = (v) => String(v || '').replace(/[^+\d]/g, '')
   const to = n(payload.to), from = n(payload.from)
   const hit = Object.entries(activeCalls).find(([, s]) => s.phase === 'outbound_telnyx' && !s._cidRetried && s._pendingTransfer?.ownNumber &&
+    (!payload.connection_id || !s._pendingTransfer.connectionId || s._pendingTransfer.connectionId === payload.connection_id) &&
     n(s._pendingTransfer.destination) === to && n(s._pendingTransfer.callerNumber) === from && n(s._pendingTransfer.ownNumber) !== from)
   if (!hit) return false
   const [aLeg, s] = hit

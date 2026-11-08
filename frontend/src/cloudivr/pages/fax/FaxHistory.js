@@ -17,7 +17,7 @@ function Row({ f }) {
       <td><span className="inline-flex items-center gap-1.5"><Icon className="w-4 h-4 text-[#a1a1aa]" />{f.direction === 'inbound' ? 'From' : 'To'} <span className="tabular-nums">{other}</span></span><div className="text-xs text-[#a1a1aa]">on {f.phoneNumber}</div></td>
       <td>{f.pages}</td>
       <td><span className={pill(f.status)} data-testid={`fax-status-${f.id}`}>{LABEL[f.status] || f.status}</span>{f.failureReason && <div className="text-xs text-[#fb7185] mt-1">{f.failureReason.replace(/_/g, ' ')}</div>}</td>
-      <td>{f.cost > 0 ? money(f.cost) : (f.status === 'delivered' || f.status?.startsWith('received')) ? 'Free' : '—'}</td>
+      <td>{f.cost > 0 ? money(f.cost) : (f.status === 'delivered' || f.status === 'received') ? 'Free' : '—'}</td>
       <td className="text-right">{f.hasFile && f.status !== 'held' && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={save} data-testid={`fax-download-${f.id}`}><Download className="w-4 h-4" />PDF</button>}</td>
     </tr>
   );

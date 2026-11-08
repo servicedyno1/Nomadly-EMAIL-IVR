@@ -2302,3 +2302,19 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   📠 Fax; single, bulk up to 500 via paste/CSV/TXT, fax line receive, pricing from fax-service constants, history, web pointer).
 - js/cloudivr-web/support.js: Fax page (Numbers → Fax tab), send/bulk/stop, fax line, history/inbox/email, pricing.
 - Verified on production with live AI answers (temp chats deleted). Preview has no OpenAI key.
+
+## 2026-11-08 — Fax + caller-ID gap fixes — SHIPPED 5edc7d5c
+- User decisions: free test calls keep ANY caller ID (no blocking); received fax the wallet can't cover → HELD + user told, auto
+  delivered after top-up; no extra bulk limit; live prod fax test on spare account numbers.
+- fax-service: settle({hold}), maintain() every 2 min (release held faxes once wallet covers — one debit, try/catch per fax;
+  retry missing media up to 10× then media_failed; fax line auto-off + notify when number not Business/active; every 10 min
+  re-apply fax line connection); batchReport/reportCsv (bulk summary lists failed numbers, CSV attached >15; web Report button);
+  emailOf honours state.faxEmail (false = copies off, no fallback); TXT en/fr/zh/hi/fa with per-key en fallback.
+- Bot: ✉️ fax email button (cpFaxEmail), Recent faxes numbered + 📄 PDF n re-download, manage screen fax-line note.
+- Web: number Overview shows fax-line notice and hides call routing summary + test ring while on; history statuses held /
+  downloading / download failed; fr/es i18n for Fax page.
+- voice-service: _retryDeclinedCid — PSTN leg SIP 403/603/607/608 before answer → one redial from own number + user notified;
+  hangup buffer bypass only for our PSTN leg with a decline code.
+- Live prod test (spare toll-free numbers +18775877003 → +18889020132, RX restored to original connection): Telnyx send
+  delivered + receive received in ~30 s, 1 page, media present; webhooks reached prod (fax.delivered / fax.received).
+- Tests: test_fax_service 52/52, test_free_sip_test_unblock 12/12, test_fax_resume 5/5, pytest fax suites 36 pass; iteration_232.

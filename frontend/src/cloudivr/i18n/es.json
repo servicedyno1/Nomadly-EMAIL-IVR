@@ -5291,5 +5291,9 @@
 "Bulk fax": "Fax masivo",
 "Turn on the fax line for {0}? It will receive faxes, and voice calls to it stop until you switch it back.": "¿Activar la línea de fax para {0}? Recibirá faxes y las llamadas de voz se detendrán hasta que vuelvas a voz.",
 "Switch {0} back to voice? It will take calls again and stop receiving faxes.": "¿Volver {0} a voz? Volverá a recibir llamadas y dejará de recibir faxes.",
-"Stop this bulk fax? Numbers not sent yet will be skipped (no charge).": "¿Detener este fax masivo? Los números aún no enviados se omitirán (sin cargo)."
+"Stop this bulk fax? Numbers not sent yet will be skipped (no charge).": "¿Detener este fax masivo? Los números aún no enviados se omitirán (sin cargo).",
+"Refresh": "Actualizar",
+"Cost": "Costo",
+"{0} numbers × {1} pages": "{0} números × {1} páginas",
+"from {0} · {1}": "desde {0} · {1}"
 }

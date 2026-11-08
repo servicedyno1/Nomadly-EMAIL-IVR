@@ -1,0 +1,46 @@
+{
+  "summary": "Tested the Fax + caller ID 'fix all' round. Unit harnesses: test_fax_service 51/51, test_free_sip_test_unblock 12/12, test_fax_resume 5/5 (the case B bug from iteration_231 is now fixed). pytest: new test_cloudivr_fax_fixes.py plus the existing test_cloudivr_fax.py and test_cloudivr_fax_bulk.py gave 36 passed and 1 skipped (the known skip: Alice's wallet is too low for test_cancel). Checked: report.csv has the right header and one row per recipient, Bob gets 404, an unknown id gets 404, no session gets 401. A held fax lists as 'held' and its PDF returns 402 insufficient_balance. received_no_media and media_failed statuses come through. features.fax.line turns true and false with the toggle. Web UI: the Report button downloads bulk_fax_<id>.csv. History shows 'Top up to open', 'Downloading' and 'Download failed' with no PDF button on those rows. Normal PDF download works. The fax line toggle works through the confirm dialog. Number Overview shows route-summary-fax-line when the line is on, its link goes to /app/fax, and the notice is gone after switching back to voice. French and Spanish translate the main headings and buttons, but several dynamic strings stay in English (see issues). Code review of _index.js and voice-service.js found no TDZ problems (tdz_check 0 hits, node --check passes) and one real bug in emailOf (fax email 'off').",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "js/fax-service.js emailOf() + bot cpFaxEmail 'off'", "issue": "Typing 'off' saves faxEmail=null. emailOf() then falls back to state.accountEmail, then welcomeEmailSentTo, then email. So a user who has any of those fields still gets PDF copies of every received fax after turning email copies off. The menu button also shows that fallback address as 'Fax email: x'. Fix: store a sentinel such as faxEmail:false or faxEmailOff:true, and have emailOf return null when faxEmail === false, before trying the fallbacks.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "fax-service maintain() held release", "issue": "The code clears held, then debits the wallet, then calls deliverInbound, with no try/catch around each fax. If readFile or deliverInbound throws, the user has been charged but the fax was never delivered. The whole maintain run also stops, so the media retries and the fax-line auto-off checks are skipped for that cycle. Wrap each fax in a try/catch, and consider restoring held when delivery fails."},
+      {"endpoint": "_index.js Recent faxes icon map", "issue": "There is no icon for 'media_failed', so those rows show the pending icon ⏳ instead of a failure icon."},
+      {"endpoint": "voice-service _retryDeclinedCid", "issue": "The call is matched only on destination + callerNumber + phase across all activeCalls. Two users calling the same destination with the same custom caller ID at the same moment could redial the wrong A-leg. This is rare. Matching on connectionId as well (it is stored in _pendingTransfer) would make it safer."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Fax page in FR/ES (i18n)", "issues": [
+        "FaxLines: '{u.left} of {u.free} free pages left this plan month' stays in English. The fr/es key '{0} of {1} free pages left this plan month' exists, but JSX splits the text into several text nodes, so the engine never matches the key. Build the string as one template literal.",
+        "FaxBatches progress shows '5 sent · 5 delivered · 0 failed · 0 en attente'. Only the last word is translated, for the same split-node reason. Use one template literal.",
+        "FaxBatches header '{total} numbers × {pages} page(s) from {phone} · date' is not translated.",
+        "FaxHistory: the 'Refresh' button and the 'Cost' column header have no keys in fr.json or es.json, so they show in English."
+      ]},
+      {"screen": "Fax history", "issues": ["A received_no_media ('Downloading') row shows cost 'Free' before it has been settled. That could mislead, because it may be charged later. Show '—' until it is settled."]},
+      {"screen": "Number Overview with fax line ON", "issues": ["The fax notice shows correctly, but the 'Calls ring your softphone / browser phone' summary and the Free test ring card still appear under it. That contradicts the notice; consider hiding or dimming them."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_fax_fixes.py", "/app/backend/tests/test_cloudivr_fax.py", "/app/backend/tests/test_cloudivr_fax_bulk.py", "/app/js/tests/test_fax_service.js", "/app/js/tests/test_free_sip_test_unblock.js", "/app/js/tests/test_fax_resume.js", "/app/tests/tdz_check_fax.js", "/app/test_reports/pytest/pytest_fax_232.xml"],
+  "action_items": [
+    "HIGH: Fix fax email 'off'. emailOf must return null when the user turned copies off, and must not fall back to accountEmail, welcomeEmailSentTo or email. Add a harness case: set off, then emailOf → null.",
+    "Wrap each held-fax release in maintain() in a try/catch so a failed delivery does not leave a charged, undelivered fax and does not skip the rest of maintain.",
+    "i18n: rewrite the FaxLines free-pages text, the FaxBatches progress line and the FaxBatches header as single template strings so the existing {0} keys match. Add 'Refresh' and 'Cost' keys to fr.json and es.json.",
+    "Low: add a media_failed icon to the bot's Recent list. Show '—' as the cost for unsettled no-media faxes."
+  ],
+  "critical_code_review_comments": [
+    "settle(hold) checks the balance without reserving it. That is acceptable, because maintain re-checks the balance for each fax before debiting.",
+    "The hangup buffer bypass is correctly limited to a decline SIP code together with client_state === PSTN_LEG_STATE. _retryDeclinedCid sets _cidRetried, so there is only one redial.",
+    "Bot cpFaxEmail, btnPdf and faxNote: no TDZ or scope problems. The PDF buttons leave out held faxes, and fileOf also throws 402 for held faxes as a second guard.",
+    "batchReport maps faxes by 'to'. This is fine only because recipients are deduped; a duplicate recipient would collapse into one row."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_fax_fixes.py (new)"],
+  "success_rate": {"backend": "100% of the automated tests (36/36 pytest, 68/68 node harness); 1 HIGH bug found in code review", "frontend": "90% (all flows work; i18n partly untranslated)"},
+  "seed_data_creation": "TEST_ inbound faxes (held cost $9999, received_no_media, media_failed) were inserted into Mongo 'faxes' for Alice (chatId '5000000000000001') and deleted by id afterwards. The existing bulk pytest sent another paid bulk batch, so Alice's wallet is now about $21.39. Alice's fax line on +18037534921 was turned on and then back off. The UI language was reset to English.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: pytest backend/tests/test_cloudivr_fax_fixes.py backend/tests/test_cloudivr_fax.py backend/tests/test_cloudivr_fax_bulk.py -p no:xdist -o addopts=''. For held faxes use a large cost (9999); otherwise maintain() releases the fax and debits Alice's real wallet within 2 min. To check i18n, set localStorage civr.lang to fr or es with add_init_script before login. Alice's wallet is low (about $21), so the bulk tests spend money when the free pages are used up."
+}

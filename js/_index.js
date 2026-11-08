@@ -32283,7 +32283,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       }
       if (message === fx.btnRecent) {
         const rows = (await faxService.list(String(chatId), 50)).filter(f => f.phoneNumber === num.phoneNumber).slice(0, 10)
-        const icon = { delivered: '✅', failed: '❌', received: '📥', received_no_media: '📥', held: '💳' }
+        const icon = { delivered: '✅', failed: '❌', received: '📥', received_no_media: '📥', media_failed: '⚠️', held: '💳' }
         const text = rows.length ? rows.map((f, i) => `${i + 1}. ${icon[f.status] || '⏳'} ${phoneConfig.shortDate(new Date(f.createdAt).toISOString())} · ${f.direction === 'inbound' ? `← ${phoneConfig.formatPhone(f.from)}` : `→ ${phoneConfig.formatPhone(f.to)}`} · ${f.pages}p${f.cost ? ` · $${f.cost.toFixed(2)}` : ''}`).join('\n') : fx.none
         const files = rows.map((f, i) => [f, i + 1]).filter(([f]) => f.hasFile && f.status !== 'held')
         await saveInfo('cpFaxRecent', files.map(([f, n]) => ({ n, id: f.id })))
@@ -32307,7 +32307,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const typed = String(message || '').trim()
       const off = /^off$/i.test(typed)
       if (!off && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(typed)) return send(chatId, fx.badEmail)
-      await saveInfo('faxEmail', off ? null : typed.toLowerCase())
+      await saveInfo('faxEmail', off ? false : typed.toLowerCase())
       send(chatId, fx.emailSaved(off ? null : typed.toLowerCase()))
       return showFaxMenu(chatId, num)
     }
