@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { cp } from '../../paths';
 import { toast } from 'sonner';
 import { api, enc, useApi } from '../../api';
 import { Field, Toggle, BackupsField, InstantToggle, AudioSelect } from '../../ui';
@@ -178,7 +180,22 @@ function FaxCard({ num, reload }) {
 }
 
 export function SmsTab({ num, reload }) {
-  return <div className="space-y-4"><SmsCard num={num} reload={reload} /><FaxCard num={num} reload={reload} /></div>;
+  return <div className="space-y-4"><SmsCard num={num} reload={reload} /></div>;
+}
+
+// Dedicated Fax tab (Business plan): receive toggle, inbox copy and a clear link to send a fax.
+export function FaxTab({ num, reload }) {
+  return (
+    <div className="space-y-4">
+      <FaxCard num={num} reload={reload} />
+      {num.plan === 'business' && num.status === 'active' && num.capabilities?.fax && (
+        <div className="civr-card p-6 flex flex-wrap items-center justify-between gap-4" data-testid="fax-send-cta">
+          <div className="min-w-0"><div className="font-semibold">Send a fax</div><div className="text-sm text-[#a1a1aa] mt-1">Fax a PDF or photo from this number — one recipient or up to 500 at once, with an optional cover page.</div></div>
+          <Link to={`${cp('/app/fax')}?from=${enc(num.phoneNumber)}`} className="civr-btn civr-btn-primary civr-btn-sm shrink-0" data-testid="fax-send-cta-button">Send a fax</Link>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function SmsCard({ num, reload }) {

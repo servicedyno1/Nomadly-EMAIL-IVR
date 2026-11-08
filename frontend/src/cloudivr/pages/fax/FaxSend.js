@@ -28,7 +28,8 @@ const Mode = ({ bulk, setBulk, max }) => (
 
 export function FaxSend({ numbers, onSent, bulkMax = 500 }) {
   const [bulk, setBulk] = useState(false);
-  const [from, setFrom] = useState(numbers[0]?.phoneNumber || '');
+  const preferred = (() => { try { return new URLSearchParams(window.location.search).get('from'); } catch (_) { return null; } })();
+  const [from, setFrom] = useState((preferred && numbers.some(n => n.phoneNumber === preferred) ? preferred : numbers[0]?.phoneNumber) || '');
   const [to, setTo] = useState('');
   const [list, setList] = useState('');
   const [file, setFile] = useState(null);
