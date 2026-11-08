@@ -721,6 +721,15 @@ const kOuter = k // same keyboards, for message-handler code that runs before th
 // Module-scope `TG_CHANNEL` shim — used in /ad admin command. Sourced from
 // env so prod and dev can have different channels.
 const TG_CHANNEL = process.env.TG_CHANNEL || '@nomadly'
+// Capability tag for a number-search result line. Fax is Telnyx + Business plan only, so we flag it as "Fax (Business)".
+function numCapTag(r) {
+  const c = r?._capabilities || {}
+  const tags = []
+  if (c.sms) tags.push('📱 Texts')
+  if ((r?._provider || 'telnyx') === 'telnyx' && c.fax) tags.push('📠 Fax (Business plan)')
+  return tags.length ? `\n     ${tags.join(' · ')}` : ''
+}
+
 const webAccess = require('./web-access.js')
 // Module-scope `restoreData` stub — referenced from a developer-only command
 // ('Restore Data'). The original implementation was removed; this stub keeps
@@ -10403,6 +10412,7 @@ bot?.on('message', msg => {
     cpFaxBulkTo: 'cpFaxBulkTo',
     cpFaxEmail: 'cpFaxEmail',
     cpFaxCover: 'cpFaxCover',
+    cpFaxLineConfirm: 'cpFaxLineConfirm',
     cpSmsInbox: 'cpSmsInbox',
     cpVmGreeting: 'cpVmGreeting',
     cpVmAudioUpload: 'cpVmAudioUpload',
@@ -29543,7 +29553,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const location = info?.cpCountryName || cc
     // Build tagged number display
     const numberLines = results.map((r, i) => {
-      const tag = ''
+      const tag = numCapTag(r)
       return `${i + 1}. <code>${r.phone_number}</code>${tag}`
     }).join('\n')
     const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
@@ -29592,7 +29602,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
     const numberLines = results.map((r, i) => {
-      const tag = ''
+      const tag = numCapTag(r)
       return `${i + 1}. <code>${r.phone_number}</code>${tag}`
     }).join('\n')
     const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
@@ -29641,7 +29651,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (!results.length) return send(chatId, cpTxt.noSearchResults + '\nTry a different area code.', k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
     const numberLines = results.map((r, i) => {
-      const tag = ''
+      const tag = numCapTag(r)
       return `${i + 1}. <code>${r.phone_number}</code>${tag}`
     }).join('\n')
     const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
@@ -29691,7 +29701,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await saveInfo('cpSearchResults', results)
       const location = info?.cpAreaName || info?.cpCountryName || 'US'
       const numberLines = results.map((r, i) => {
-        const tag = ''
+        const tag = numCapTag(r)
         return `${i + 1}. <code>${r.phone_number}</code>${tag}`
       }).join('\n')
       const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
@@ -31590,7 +31600,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
     const numberLines = results.map((r, i) => {
-      const tag = ''
+      const tag = numCapTag(r)
       return `${i + 1}. <code>${r.phone_number}</code>${tag}`
     }).join('\n')
     const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
@@ -31636,7 +31646,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
     const numberLines = results.map((r, i) => {
-      const tag = ''
+      const tag = numCapTag(r)
       return `${i + 1}. <code>${r.phone_number}</code>${tag}`
     }).join('\n')
     const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
@@ -31682,7 +31692,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (!results.length) return send(chatId, cpTxt.noSearchResults + '\nTry a different area code.', k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
     const numberLines = results.map((r, i) => {
-      const tag = ''
+      const tag = numCapTag(r)
       return `${i + 1}. <code>${r.phone_number}</code>${tag}`
     }).join('\n')
     const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
@@ -31724,7 +31734,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
       await saveInfo('cpSearchResults', results)
       const numberLines = results.map((r, i) => {
-        const tag = ''
+        const tag = numCapTag(r)
         return `${i + 1}. <code>${r.phone_number}</code>${tag}`
       }).join('\n')
       const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
@@ -32266,7 +32276,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   // ━━━ FAX (Business plan) ━━━
-  if ([a.cpFax, a.cpFaxTo, a.cpFaxDoc, a.cpFaxConfirm, a.cpFaxBulkTo, a.cpFaxEmail, a.cpFaxCover].includes(action)) {
+  if ([a.cpFax, a.cpFaxTo, a.cpFaxDoc, a.cpFaxConfirm, a.cpFaxBulkTo, a.cpFaxEmail, a.cpFaxCover, a.cpFaxLineConfirm].includes(action)) {
     const fx = faxService.t(info?.userLanguage)
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
     const snap = info?.cpActiveNumber
@@ -32279,6 +32289,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       if (message === fx.btnBulk) { await set(state, chatId, 'action', a.cpFaxBulkTo); return send(chatId, fx.askBulk, { parse_mode: 'HTML', ...k.of([]) }) }
       if (message === fx.btnLineOn || message === fx.btnLineOff) {
         const enabled = message === fx.btnLineOff
+        const warnOf = enabled && faxService.voiceRouting(num)
+        if (warnOf) { await set(state, chatId, 'action', a.cpFaxLineConfirm); return send(chatId, fx.lineWarn(num.phoneNumber, warnOf), { parse_mode: 'HTML', ...k.of([[fx.btnLineYes], [fx.btnKeepVoice]]) }) }
         try { await faxService.setLine({ chatId: String(chatId), num, enabled }) } catch (e) { send(chatId, `⚠️ ${e.code ? e.message : 'Could not switch the fax line right now. Please try again.'}`); log(`[Fax] bot setLine error: ${e.message}`); return showFaxMenu(chatId, num) }
         send(chatId, enabled ? fx.lineOn(num.phoneNumber) : fx.lineOff(num.phoneNumber))
         return showFaxMenu(chatId, num)
@@ -32368,9 +32380,16 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         return send(chatId, `⚠️ ${e.code ? e.message : 'Could not add the cover page. Please try again.'}`)
       }
     }
+    if (action === a.cpFaxLineConfirm) {
+      if (back || message === fx.btnKeepVoice) { send(chatId, fx.voiceKept(num.phoneNumber)); return showFaxMenu(chatId, num) }
+      if (message === fx.btnLineYes) {
+        try { await faxService.setLine({ chatId: String(chatId), num, enabled: true }) } catch (e) { send(chatId, `⚠️ ${e.code ? e.message : 'Could not switch the fax line right now. Please try again.'}`); log(`[Fax] bot setLine error: ${e.message}`); return showFaxMenu(chatId, num) }
+        send(chatId, fx.lineOn(num.phoneNumber))
+        return showFaxMenu(chatId, num)
+      }
+      return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectOption)
+    }
   }
-
-  // ━━━ FAX SETTINGS ━━━
   if (action === a.cpFaxSettings) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
     const num = info?.cpActiveNumber

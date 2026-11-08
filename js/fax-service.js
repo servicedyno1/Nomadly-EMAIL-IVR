@@ -203,30 +203,55 @@ const EXTRA = {
     btnCover: '📝 Add a cover page',
     askCover: '📝 <b>Cover page</b> (counts as 1 page)\n\nSend the details in one message, one per line:\n1️⃣ Your name\n2️⃣ Recipient name\n3️⃣ Subject\n4️⃣ Note (any further lines)\n\nUse <b>-</b> to leave a line empty. Your fax number, page count and date are added for you. Latin letters only.',
     coverAdded: '✅ Cover page added.',
+    lineWarn: (n, what) => `⚠️ <b>Turn on the fax line for ${fmt(n)}?</b>\n\nThis number is set up to take <b>calls</b> with your ${what}. A number can do calls <b>or</b> receive faxes — not both at once.\n\nIf you turn the fax line on, callers will hear fax tones instead of your ${what} until you switch it back to voice.`,
+    btnLineYes: '📥 Turn on fax line anyway',
+    btnKeepVoice: '📞 Keep taking calls',
+    voiceKept: (n) => `📞 Fax line left off for ${fmt(n)} — it keeps taking calls as before.`,
+    voiceOnFax: (n, what) => `📞 <b>Callers may be hitting fax tones on ${fmt(n)}</b>\n\nIts fax line is ON, so the number answers as a fax machine and your ${what} is paused. We've seen incoming <b>calls</b> on it but no fax in the last day.\n\nIf you're done receiving faxes, open the number → 📠 Fax → switch the fax line back to voice so callers reach your ${what} again.`,
     announce: (list) => `📠 <b>New: Fax on your Business number</b>\n\nYou can now send and receive faxes on ${list}.\n\n🆓 <b>${FREE_PAGES} free pages every month</b> per number (sent + received), then $${PAGE_PRICE}/page.\n📤 Send a PDF or photo to one number or up to ${BULK_MAX} at once, with an optional cover page.\n📥 Turn on the Fax line to get faxes here as PDF.\n\nOpen: ${PATH}`,
   },
   fr: {
     btnCover: '📝 Ajouter une page de garde',
     askCover: '📝 <b>Page de garde</b> (compte comme 1 page)\n\nEnvoyez les infos en un message, une par ligne :\n1️⃣ Votre nom\n2️⃣ Nom du destinataire\n3️⃣ Objet\n4️⃣ Note (lignes suivantes)\n\nMettez <b>-</b> pour laisser une ligne vide. Votre numéro de fax, le nombre de pages et la date sont ajoutés automatiquement. Lettres latines uniquement.',
     coverAdded: '✅ Page de garde ajoutée.',
+    lineWarn: (n, what) => `⚠️ <b>Activer la ligne fax pour ${fmt(n)} ?</b>\n\nCe numéro est configuré pour prendre les <b>appels</b> avec votre ${what}. Un numéro peut prendre les appels <b>ou</b> recevoir des fax, pas les deux à la fois.\n\nSi vous activez la ligne fax, les appelants entendront une tonalité de fax au lieu de votre ${what} jusqu’à ce que vous reveniez à la voix.`,
+    btnLineYes: '📥 Activer la ligne fax quand même',
+    btnKeepVoice: '📞 Continuer à prendre les appels',
+    voiceKept: (n) => `📞 Ligne fax laissée désactivée pour ${fmt(n)} — il continue de prendre les appels.`,
+    voiceOnFax: (n, what) => `📞 <b>Des appelants tombent peut-être sur une tonalité de fax sur ${fmt(n)}</b>\n\nSa ligne fax est activée : le numéro répond comme un fax et votre ${what} est suspendu. Nous avons vu des <b>appels</b> mais aucun fax depuis un jour.\n\nSi vous n’attendez plus de fax, ouvrez le numéro → 📠 Fax → repassez la ligne fax en voix pour que les appelants retrouvent votre ${what}.`,
     announce: (list) => `📠 <b>Nouveau : le fax sur votre numéro Business</b>\n\nVous pouvez maintenant envoyer et recevoir des fax sur ${list}.\n\n🆓 <b>${FREE_PAGES} pages gratuites chaque mois</b> par numéro (envoyées + reçues), puis ${PAGE_PRICE} $/page.\n📤 Envoyez un PDF ou une photo à un numéro ou jusqu’à ${BULK_MAX} à la fois, avec page de garde en option.\n📥 Activez la ligne fax pour recevoir les fax ici en PDF.\n\nOuvrir : ${PATH}`,
   },
   zh: {
     btnCover: '📝 添加封面页',
     askCover: '📝 <b>封面页</b>（计为 1 页）\n\n请在一条消息中逐行发送：\n1️⃣ 您的姓名\n2️⃣ 收件人姓名\n3️⃣ 主题\n4️⃣ 备注（其余各行）\n\n用 <b>-</b> 留空某行。您的传真号码、页数和日期会自动添加。仅支持拉丁字母。',
     coverAdded: '✅ 已添加封面页。',
+    lineWarn: (n, what) => `⚠️ <b>要为 ${fmt(n)} 开启传真线路吗？</b>\n\n此号码已设置用您的${what}接听<b>来电</b>。一个号码只能接电话<b>或</b>收传真，不能同时进行。\n\n如果开启传真线路，来电者会听到传真提示音而不是您的${what}，直到您切回语音。`,
+    btnLineYes: '📥 仍然开启传真线路',
+    btnKeepVoice: '📞 继续接听来电',
+    voiceKept: (n) => `📞 ${fmt(n)} 的传真线路保持关闭——继续像以前一样接听来电。`,
+    voiceOnFax: (n, what) => `📞 <b>${fmt(n)} 的来电者可能听到传真提示音</b>\n\n它的传真线路已开启，号码以传真机方式应答，您的${what}被暂停。过去一天我们看到有<b>来电</b>但没有传真。\n\n如果您不再接收传真，请打开该号码 → 📠 传真 → 将传真线路切回语音，让来电者重新接通您的${what}。`,
     announce: (list) => `📠 <b>新功能：Business 号码支持传真</b>\n\n现在可以在 ${list} 上收发传真。\n\n🆓 每个号码<b>每月 ${FREE_PAGES} 页免费</b>（发送 + 接收），之后每页 $${PAGE_PRICE}。\n📤 可将 PDF 或照片发送到一个号码或一次最多 ${BULK_MAX} 个号码，可选封面页。\n📥 开启传真线路即可在这里收到 PDF 传真。\n\n打开：${PATH}`,
   },
   hi: {
     btnCover: '📝 कवर पेज जोड़ें',
     askCover: '📝 <b>कवर पेज</b> (1 पेज गिना जाएगा)\n\nएक ही संदेश में हर लाइन पर भेजें:\n1️⃣ आपका नाम\n2️⃣ प्राप्तकर्ता का नाम\n3️⃣ विषय\n4️⃣ नोट (बाकी लाइनें)\n\nकोई लाइन खाली छोड़ने के लिए <b>-</b> लिखें। आपका फैक्स नंबर, पेज संख्या और तारीख अपने-आप जुड़ते हैं। केवल लैटिन अक्षर।',
     coverAdded: '✅ कवर पेज जोड़ा गया।',
+    lineWarn: (n, what) => `⚠️ <b>${fmt(n)} के लिए फैक्स लाइन चालू करें?</b>\n\nयह नंबर आपके ${what} से <b>कॉल</b> लेने के लिए सेट है। एक नंबर या तो कॉल ले सकता है <b>या</b> फैक्स पा सकता है — एक साथ दोनों नहीं।\n\nफैक्स लाइन चालू करने पर, जब तक आप वापस वॉइस पर न लौटें, कॉल करने वालों को आपके ${what} के बजाय फैक्स टोन सुनाई देगी।`,
+    btnLineYes: '📥 फिर भी फैक्स लाइन चालू करें',
+    btnKeepVoice: '📞 कॉल लेते रहें',
+    voiceKept: (n) => `📞 ${fmt(n)} की फैक्स लाइन बंद रखी गई — यह पहले की तरह कॉल लेता रहेगा।`,
+    voiceOnFax: (n, what) => `📞 <b>${fmt(n)} पर कॉल करने वालों को फैक्स टोन मिल सकती है</b>\n\nइसकी फैक्स लाइन चालू है, इसलिए नंबर फैक्स मशीन की तरह जवाब देता है और आपका ${what} रुका है। पिछले एक दिन में इस पर <b>कॉल</b> आईं पर कोई फैक्स नहीं।\n\nअगर आपको अब फैक्स नहीं चाहिए, तो नंबर खोलें → 📠 फैक्स → फैक्स लाइन वापस वॉइस पर करें ताकि कॉल करने वाले फिर आपके ${what} तक पहुँचें।`,
     announce: (list) => `📠 <b>नया: आपके Business नंबर पर फैक्स</b>\n\nअब आप ${list} पर फैक्स भेज और पा सकते हैं।\n\n🆓 हर नंबर पर <b>हर महीने ${FREE_PAGES} मुफ़्त पेज</b> (भेजे + पाए), फिर $${PAGE_PRICE}/पेज।\n📤 PDF या फ़ोटो एक नंबर या एक साथ ${BULK_MAX} नंबरों तक भेजें, वैकल्पिक कवर पेज के साथ।\n📥 फैक्स लाइन चालू करें और फैक्स यहाँ PDF में पाएँ।\n\nखोलें: ${PATH}`,
   },
   fa: {
     btnCover: '📝 افزودن صفحه جلد',
     askCover: '📝 <b>صفحه جلد</b> (۱ صفحه حساب می‌شود)\n\nجزئیات را در یک پیام و هر کدام در یک خط بفرستید:\n1️⃣ نام شما\n2️⃣ نام گیرنده\n3️⃣ موضوع\n4️⃣ یادداشت (خطوط بعدی)\n\nبرای خالی گذاشتن یک خط <b>-</b> بنویسید. شماره فکس، تعداد صفحات و تاریخ خودکار اضافه می‌شوند. فقط حروف لاتین.',
     coverAdded: '✅ صفحه جلد اضافه شد.',
+    lineWarn: (n, what) => `⚠️ <b>خط فکس برای ${fmt(n)} روشن شود؟</b>\n\nاین شماره برای پاسخ‌گویی به <b>تماس‌ها</b> با ${what} شما تنظیم شده است. یک شماره یا می‌تواند تماس بگیرد <b>یا</b> فکس دریافت کند — نه هر دو با هم.\n\nاگر خط فکس را روشن کنید، تماس‌گیرندگان تا زمانی که به حالت صوتی برنگردید، به جای ${what} شما صدای فکس می‌شنوند.`,
+    btnLineYes: '📥 با این حال خط فکس روشن شود',
+    btnKeepVoice: '📞 ادامه پاسخ به تماس‌ها',
+    voiceKept: (n) => `📞 خط فکس ${fmt(n)} خاموش ماند — مثل قبل تماس‌ها را پاسخ می‌دهد.`,
+    voiceOnFax: (n, what) => `📞 <b>ممکن است تماس‌گیرندگان روی ${fmt(n)} صدای فکس بشنوند</b>\n\nخط فکس آن روشن است، پس شماره مانند دستگاه فکس پاسخ می‌دهد و ${what} شما متوقف شده است. در یک روز گذشته <b>تماس</b> دیده‌ایم اما هیچ فکسی نه.\n\nاگر دیگر فکس نمی‌خواهید، شماره را باز کنید → 📠 فکس → خط فکس را به حالت صوتی برگردانید تا تماس‌گیرندگان دوباره به ${what} شما برسند.`,
     announce: (list) => `📠 <b>جدید: فکس روی شماره Business شما</b>\n\nاکنون می‌توانید روی ${list} فکس ارسال و دریافت کنید.\n\n🆓 <b>${FREE_PAGES} صفحه رایگان در هر ماه</b> برای هر شماره (ارسال + دریافت)، سپس $${PAGE_PRICE} برای هر صفحه.\n📤 PDF یا عکس را به یک شماره یا تا ${BULK_MAX} شماره همزمان بفرستید، با صفحه جلد اختیاری.\n📥 خط فکس را روشن کنید تا فکس‌ها به صورت PDF اینجا برسند.\n\nباز کنید: ${PATH}`,
   },
 }
@@ -273,6 +298,15 @@ function init({ db, bot, walletOf, log, callControlAppId }) {
 
 const eligible = (num) => !!num && phoneConfig.canAccessFeature(num.plan, 'fax') && (num.provider || 'telnyx') === 'telnyx' && num.status === 'active'
 const lineOn = (num) => num?.features?.faxLine?.enabled === true
+// What voice routing is set on this number (so we can warn it'll stop when the fax line is turned on). Returns a label or null.
+function voiceRouting(num) {
+  const f = num?.features || {}
+  if (f.aiAgent?.enabled && phoneConfig.canAccessFeature(num.plan, 'aiAgent')) return 'AI agent'
+  if (f.ivr?.enabled && phoneConfig.canAccessFeature(num.plan, 'ivr')) return 'keypad menu (IVR)'
+  if (f.ringGroup?.enabled && f.ringGroup?.members?.length && phoneConfig.canAccessFeature(num.plan, 'ringGroup')) return 'ring group'
+  if (f.callForwarding?.enabled && f.callForwarding?.forwardTo) return 'call forwarding'
+  return null
+}
 
 // ── Fax Application (one per brand, found by name; production creates it and keeps its webhook on SELF_URL) ──
 async function ensureApp({ create = process.env.SKIP_WEBHOOK_SYNC !== 'true' } = {}) {
@@ -830,8 +864,26 @@ async function maintain() {
       if (num.status === 'released') continue
       if (!eligible(num)) { await switchOff(chatId, num).catch(e => _log(`[Fax] auto voice restore ${num.phoneNumber} failed: ${e.message}`)); continue }
       if (_maintRuns % 5 === 1 && !dryRun()) await reapplyLine(chatId, num).catch(e => _log(`[Fax] re-apply fax line ${num.phoneNumber} failed: ${e.message}`))
+      if (_maintRuns % 30 === 1) await voiceOnFaxNudge(chatId, num).catch(e => _log(`[Fax] voice-on-fax nudge ${num.phoneNumber} failed: ${e.message}`))
     }
   }
+}
+
+// Nudge the owner (max once/day/number) when a fax-line number has voice routing set and is getting calls
+// (which land as media-less inbound "faxes") but no real fax has arrived in the last day.
+const NUDGE_WINDOW_MS = 24 * 3600 * 1000
+async function voiceOnFaxNudge(chatId, num) {
+  const what = voiceRouting(num)
+  if (!what) return
+  const since = new Date(Date.now() - NUDGE_WINDOW_MS)
+  const gotFax = await col('faxes').findOne({ phoneNumber: num.phoneNumber, direction: 'inbound', status: 'received', createdAt: { $gte: since } })
+  if (gotFax) return
+  const callsHittingFax = await col('faxes').countDocuments({ phoneNumber: num.phoneNumber, direction: 'inbound', status: 'media_failed', createdAt: { $gte: since } })
+  if (callsHittingFax < 1) return
+  const today = new Date().toISOString().slice(0, 10)
+  try { await col('faxConfig').insertOne({ _id: `voiceNudge:${num.phoneNumber}:${today}`, chatId, at: new Date() }) } catch (e) { if (e.code === 11000) return; throw e }
+  await tell(chatId, t(await langOf(chatId)).voiceOnFax(num.phoneNumber, what), { phone: num.phoneNumber })
+  _log(`[Fax] voice-on-fax nudge sent for ${num.phoneNumber} (chatId=${chatId}, ${callsHittingFax} call(s) hit fax)`)
 }
 
 // Telnyx fax webhook (/telnyx/fax-webhook) — event = req.body.data.
@@ -888,4 +940,4 @@ const reportCsv = (rows) => ['fax_number,status,reason,pages,cost_usd', ...rows.
 
 const isReady = () => !!_db
 
-module.exports = { reasonText, reapplyLine, parseCoverText, addCover, cleanCover, coverPdf, announce, batchReport, reportCsv, emailOf, maintain, BULK_MAX, parseRecipients, bulkQuote, sendBulk, cancelBatch, resumeBatches, listBatches, init, isReady, t, TXT, FREE_PAGES, PAGE_PRICE, FaxError, eligible, lineOn, ensureApp, usage, quote, stage, sendStaged, setLine, handleEvent, list, fileOf, toPdf, checkTo, findMine }
+module.exports = { voiceRouting, voiceOnFaxNudge, reasonText, reapplyLine, parseCoverText, addCover, cleanCover, coverPdf, announce, batchReport, reportCsv, emailOf, maintain, BULK_MAX, parseRecipients, bulkQuote, sendBulk, cancelBatch, resumeBatches, listBatches, init, isReady, t, TXT, FREE_PAGES, PAGE_PRICE, FaxError, eligible, lineOn, ensureApp, usage, quote, stage, sendStaged, setLine, handleEvent, list, fileOf, toPdf, checkTo, findMine }
