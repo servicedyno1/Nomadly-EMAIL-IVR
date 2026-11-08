@@ -2347,3 +2347,7 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Number detail now has a dedicated "Fax" tab (only when capabilities.fax): receive (fax line) toggle, inbox copy, and a "Send a fax" CTA linking to the Fax page with ?from= preselected. Fax card removed from the SMS tab (no longer buried).
 - FaxSend preselects the From number from ?from= query param.
 - Verified in browser (4 fax chips on cards, Fax tab toggle + send CTA). app-main deployed; whitelabel not needed (bots don't serve the web UI).
+
+## 2026-06 CloudIVR UI/UX pass (complete, preview only)
+- Number cards: Open separated from switches, footers aligned; NumberDetail 4 groups (Calls/Messages/Connect/Account) with sub-tabs; Overview stats-first + What's new strip; AccountMenu (email/theme/lang/sign out); Outbound sidebar section; Settings 4 sections + sticky side index; Buy Find>Plan>Pay; a11y (labels, contrast, focus, fax table th); FaxCard translated FR/ES; replace=1 scrolls after load.
+- Tested: iteration_234 + iteration_235 (8/8 pass). Not yet pushed/deployed to production.

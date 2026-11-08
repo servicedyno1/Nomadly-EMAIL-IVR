@@ -40,7 +40,13 @@ export function ReplaceNumber({ num, refreshSummary }) {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const box = useRef(null);
-  useEffect(() => { if (params.get('replace')) box.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [params]);
+  useEffect(() => {
+    if (!params.get('replace')) return undefined;
+    const go = () => box.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    go();
+    const t = setTimeout(go, 900);
+    return () => clearTimeout(t);
+  }, [params]);
   const [open, setOpen] = useState(false);
   const [area, setArea] = useState('');
   const [list, setList] = useState(null);

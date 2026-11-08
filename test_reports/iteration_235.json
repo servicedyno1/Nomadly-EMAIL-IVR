@@ -1,0 +1,24 @@
+{
+  "summary": "Focused frontend retest of the iteration_234 fixes, logged in as Alice, at 1920px and 390px. All 8 requested items pass. (1) Settings side index stays in place: at scrollY 2500 and 2926 the nav stays at y=96, height 172 (it was 3694 before). (2) Clicking Community & rewards sets aria-current='location' on Community; it stays set 4.5s later and after a small scroll. Clicking Account moves it back correctly. (3) My numbers desktop: every card in a row has the same bottom, and the Open link sits 25px above the card bottom on all 6 cards, so footers line up. (4) Mobile 390: at the bottom of the page the FAB covers no card controls. The page has pb-20, and the caller-ID section sits below the cards. The FAB only covers card-0's Fax/Open at scroll 0, and card-1's Open at scroll 300, as you scroll past; that is normal for a floating button. (5) The Fax card is fully translated. FR: 'Nouveau : le fax sur vos numéros Business', the body text, 'Ouvrir Fax', 'Comment ça marche'. ES: 'Nuevo: fax en tus números Business', 'Abrir Fax', 'Cómo funciona'. Language set back to English; html lang=en. (6) ?tab=bogus renders number-tabpanel-overview with the overview group selected. (7) The Replace number button goes to ?tab=billing&replace=1 and number-tabpanel-billing renders with replace-card; nothing was bought. (8) Smoke: the 5 group pills (overview, calls→ivr, messages→voicemail, connect→sip, account→logs) all set aria-selected and swap the panel. The account menu opens. Buy steps show 1 current and 2/3 todo. No relevant console errors: one 401 before login and two 404s on resources.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ReplaceNumber scroll (pages/number/ReplaceNumber.js)", "issue": "After clicking Replace number (or deep-linking ?tab=billing&replace=1), replace-card is not scrolled into view. It stays below the fold (top=1132px after the click, 1464px on the deep link, viewport 1080). Cause: scrollIntoView runs once when the card mounts, then the billing content above loads and the page grows from 1708 to 2090px, pushing the card down. This existed before this pass (the file was not changed). Fix: re-run the scroll after the billing data loads, e.g. with a short timeout or on a data-ready dependency.", "selector": "[data-testid='replace-card']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: make the replace=1 flow scroll replace-card into view after the billing content has loaded."
+  ],
+  "critical_code_review_comments": [
+    "The FaxCard strings are still hard-coded in English in JSX. Translation relies on the DOM translation engine plus fr/es.json keys, which works. Any copy change must update the JSON keys exactly or the text goes back to English."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100% of requested retest items (8/8); 1 low-priority scroll issue that existed before"},
+  "seed_data_creation": "None. No switches toggled, nothing bought or replaced. The localStorage key civr.faxCard.* was cleared only in the test browser session. Language restored to English.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The Buy route is /cloudivr/app/buy (not /app/numbers/buy). Language: click topbar-account-menu, hover topbar-lang-switcher, click topbar-lang-switcher-option-{fr|es|en}. The support FAB testid is support-chat-toggle. Alice's wallet currently shows $9.38 (not $380) and she has 6 numbers; +13346972125 is Business."
+}
