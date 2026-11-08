@@ -4,7 +4,7 @@ import { ArrowRight, ArrowDown, FileUp, FileText, Calculator, CheckCircle2, Phon
 // Simple drawn diagrams for the Fax help articles (keyed by article.visual).
 function Step({ icon: Icon, title, sub, dashed, testid }) {
   return (
-    <div className={`flex-1 min-w-[8.5rem] rounded-xl border ${dashed ? 'border-dashed border-white/25' : 'border-white/10'} bg-white/[0.03] p-3 text-center`} data-testid={testid}>
+    <div className={`flex-1 min-w-[8.5rem] rounded-xl border ${dashed ? 'border-dashed border-[var(--c-border-hover)]' : 'border-[var(--c-border)]'} bg-white/[0.03] p-3 text-center`} data-testid={testid}>
       <div className="w-9 h-9 mx-auto mb-2 rounded-lg bg-[var(--c-accent-soft)] flex items-center justify-center"><Icon className="w-4 h-4 text-[var(--c-accent)]" /></div>
       <div className="text-sm font-semibold text-[#f3f4f6]">{title}</div>
       {sub && <div className="text-xs text-[#a1a1aa] mt-1 leading-snug">{sub}</div>}
@@ -52,11 +52,11 @@ function PriceDiagram() {
   const cells = Array.from({ length: 20 }, (_, i) => i);
   return (
     <div className="my-2" data-testid="fax-diagram-price">
-      <svg viewBox="0 0 400 70" className="w-full max-w-xl" role="img" aria-label="50 free pages, then $2 per page">
-        {cells.map(i => <rect key={i} x={i * 20 + 1} y={10} width={17} height={26} rx={3} fill={i < 12 ? 'var(--c-accent)' : 'none'} fillOpacity={i < 12 ? 0.35 : 0} stroke={i < 12 ? 'var(--c-accent)' : '#a1a1aa'} strokeDasharray={i < 12 ? '' : '3 2'} />)}
-        <text x="0" y="56" fill="#d4d4d8" fontSize="11">50 free pages / month / number</text>
-        <text x="400" y="56" fill="#d4d4d8" fontSize="11" textAnchor="end">then $2 a page</text>
-        <line x1="240" y1="4" x2="240" y2="42" stroke="#f3f4f6" strokeWidth="1.5" />
+      <svg viewBox="0 0 400 76" className="w-full max-w-xl" role="img" aria-label="50 free pages, then $2 per page">
+        {cells.map(i => <rect key={i} x={i * 20 + 1} y={6} width={17} height={26} rx={3} fill={i < 12 ? 'var(--c-accent)' : 'none'} fillOpacity={i < 12 ? 0.35 : 0} stroke={i < 12 ? 'var(--c-accent)' : 'var(--c-muted)'} strokeDasharray={i < 12 ? '' : '3 2'} />)}
+        <text x="0" y="56" fill="var(--c-text)" fontSize="14" fontWeight="600">50 free pages / month</text>
+        <text x="400" y="56" fill="var(--c-text)" fontSize="14" fontWeight="600" textAnchor="end">then $2 a page</text>
+        <line x1="240" y1="0" x2="240" y2="38" stroke="var(--c-text)" strokeWidth="1.5" />
       </svg>
       <Caption>Sent and received pages both count, a cover page too. The free pages reset when the plan renews. Bulk = pages × numbers, free pages first.</Caption>
     </div>
@@ -70,7 +70,7 @@ function BulkDiagram() {
         <Step icon={FileText} title="One document" sub="+ optional cover page" />
         <Arrow />
         <div className="flex-1 grid grid-cols-3 gap-2 w-full">
-          {['+1 415…', '+44 20…', '+1 212…', '+49 30…', '+1 305…', '… up to 500'].map(n => <div key={n} className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-2 text-xs text-center font-mono text-[#d4d4d8]" data-no-translate>{n}</div>)}
+          {['Fax 1', 'Fax 2', 'Fax 3', 'Fax 4', 'Fax 5', '… 500'].map(n => <div key={n} className="rounded-lg border border-[var(--c-border)] bg-white/[0.03] px-1 py-2 text-xs text-center font-mono text-[var(--c-text)] whitespace-nowrap">{n}</div>)}
         </div>
         <Arrow />
         <Step icon={Users} title="One summary" sub="Delivered · failed · charged + CSV report" />

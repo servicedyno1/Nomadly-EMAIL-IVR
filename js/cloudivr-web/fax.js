@@ -25,6 +25,7 @@ function routes(router, { db, h, upload, numbersApi }) {
     if (!req.file?.buffer) return bad(res, 400, 'no_file', 'Choose a PDF or photo to fax.')
     let cover = null
     try { cover = req.body?.cover ? JSON.parse(String(req.body.cover)) : null } catch (_) { return bad(res, 400, 'bad_cover', 'Cover page details could not be read.') }
+    if (cover !== null && (typeof cover !== 'object' || Array.isArray(cover))) return bad(res, 400, 'bad_cover', 'Cover page details could not be read.')
     if (cover && req.body?.to) cover.toFax = String(req.body.to)
     try { res.json(await fax.stage({ chatId: req.webChatId, num, buffer: req.file.buffer, cover })) } catch (e) { return fail(res, e) }
   }))
