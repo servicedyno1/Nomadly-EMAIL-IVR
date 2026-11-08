@@ -6,7 +6,7 @@
 const axios = require('axios')
 const crypto = require('crypto')
 const FormData = require('form-data')
-const { PDFDocument } = require('pdf-lib')
+const { PDFDocument, StandardFonts, rgb } = require('pdf-lib')
 const { GridFSBucket, ObjectId } = require('mongodb')
 const { getBalance, forceWalletDebit } = require('./utils')
 const phoneConfig = require('./phone-config')
@@ -197,7 +197,47 @@ const TXT = {
     btnPdf: (i) => `📄 PDF ${i}`,
   },
 }
+const PATH = '📞 Cloud IVR + SIP → 📋 My Plans → your number → 📠 Fax'
+const EXTRA = {
+  en: {
+    btnCover: '📝 Add a cover page',
+    askCover: '📝 <b>Cover page</b> (counts as 1 page)\n\nSend the details in one message, one per line:\n1️⃣ Your name\n2️⃣ Recipient name\n3️⃣ Subject\n4️⃣ Note (any further lines)\n\nUse <b>-</b> to leave a line empty. Your fax number, page count and date are added for you. Latin letters only.',
+    coverAdded: '✅ Cover page added.',
+    announce: (list) => `📠 <b>New: Fax on your Business number</b>\n\nYou can now send and receive faxes on ${list}.\n\n🆓 <b>${FREE_PAGES} free pages every month</b> per number (sent + received), then $${PAGE_PRICE}/page.\n📤 Send a PDF or photo to one number or up to ${BULK_MAX} at once, with an optional cover page.\n📥 Turn on the Fax line to get faxes here as PDF.\n\nOpen: ${PATH}`,
+  },
+  fr: {
+    btnCover: '📝 Ajouter une page de garde',
+    askCover: '📝 <b>Page de garde</b> (compte comme 1 page)\n\nEnvoyez les infos en un message, une par ligne :\n1️⃣ Votre nom\n2️⃣ Nom du destinataire\n3️⃣ Objet\n4️⃣ Note (lignes suivantes)\n\nMettez <b>-</b> pour laisser une ligne vide. Votre numéro de fax, le nombre de pages et la date sont ajoutés automatiquement. Lettres latines uniquement.',
+    coverAdded: '✅ Page de garde ajoutée.',
+    announce: (list) => `📠 <b>Nouveau : le fax sur votre numéro Business</b>\n\nVous pouvez maintenant envoyer et recevoir des fax sur ${list}.\n\n🆓 <b>${FREE_PAGES} pages gratuites chaque mois</b> par numéro (envoyées + reçues), puis ${PAGE_PRICE} $/page.\n📤 Envoyez un PDF ou une photo à un numéro ou jusqu’à ${BULK_MAX} à la fois, avec page de garde en option.\n📥 Activez la ligne fax pour recevoir les fax ici en PDF.\n\nOuvrir : ${PATH}`,
+  },
+  zh: {
+    btnCover: '📝 添加封面页',
+    askCover: '📝 <b>封面页</b>（计为 1 页）\n\n请在一条消息中逐行发送：\n1️⃣ 您的姓名\n2️⃣ 收件人姓名\n3️⃣ 主题\n4️⃣ 备注（其余各行）\n\n用 <b>-</b> 留空某行。您的传真号码、页数和日期会自动添加。仅支持拉丁字母。',
+    coverAdded: '✅ 已添加封面页。',
+    announce: (list) => `📠 <b>新功能：Business 号码支持传真</b>\n\n现在可以在 ${list} 上收发传真。\n\n🆓 每个号码<b>每月 ${FREE_PAGES} 页免费</b>（发送 + 接收），之后每页 $${PAGE_PRICE}。\n📤 可将 PDF 或照片发送到一个号码或一次最多 ${BULK_MAX} 个号码，可选封面页。\n📥 开启传真线路即可在这里收到 PDF 传真。\n\n打开：${PATH}`,
+  },
+  hi: {
+    btnCover: '📝 कवर पेज जोड़ें',
+    askCover: '📝 <b>कवर पेज</b> (1 पेज गिना जाएगा)\n\nएक ही संदेश में हर लाइन पर भेजें:\n1️⃣ आपका नाम\n2️⃣ प्राप्तकर्ता का नाम\n3️⃣ विषय\n4️⃣ नोट (बाकी लाइनें)\n\nकोई लाइन खाली छोड़ने के लिए <b>-</b> लिखें। आपका फैक्स नंबर, पेज संख्या और तारीख अपने-आप जुड़ते हैं। केवल लैटिन अक्षर।',
+    coverAdded: '✅ कवर पेज जोड़ा गया।',
+    announce: (list) => `📠 <b>नया: आपके Business नंबर पर फैक्स</b>\n\nअब आप ${list} पर फैक्स भेज और पा सकते हैं।\n\n🆓 हर नंबर पर <b>हर महीने ${FREE_PAGES} मुफ़्त पेज</b> (भेजे + पाए), फिर $${PAGE_PRICE}/पेज।\n📤 PDF या फ़ोटो एक नंबर या एक साथ ${BULK_MAX} नंबरों तक भेजें, वैकल्पिक कवर पेज के साथ।\n📥 फैक्स लाइन चालू करें और फैक्स यहाँ PDF में पाएँ।\n\nखोलें: ${PATH}`,
+  },
+  fa: {
+    btnCover: '📝 افزودن صفحه جلد',
+    askCover: '📝 <b>صفحه جلد</b> (۱ صفحه حساب می‌شود)\n\nجزئیات را در یک پیام و هر کدام در یک خط بفرستید:\n1️⃣ نام شما\n2️⃣ نام گیرنده\n3️⃣ موضوع\n4️⃣ یادداشت (خطوط بعدی)\n\nبرای خالی گذاشتن یک خط <b>-</b> بنویسید. شماره فکس، تعداد صفحات و تاریخ خودکار اضافه می‌شوند. فقط حروف لاتین.',
+    coverAdded: '✅ صفحه جلد اضافه شد.',
+    announce: (list) => `📠 <b>جدید: فکس روی شماره Business شما</b>\n\nاکنون می‌توانید روی ${list} فکس ارسال و دریافت کنید.\n\n🆓 <b>${FREE_PAGES} صفحه رایگان در هر ماه</b> برای هر شماره (ارسال + دریافت)، سپس $${PAGE_PRICE} برای هر صفحه.\n📤 PDF یا عکس را به یک شماره یا تا ${BULK_MAX} شماره همزمان بفرستید، با صفحه جلد اختیاری.\n📥 خط فکس را روشن کنید تا فکس‌ها به صورت PDF اینجا برسند.\n\nباز کنید: ${PATH}`,
+  },
+}
+for (const [l, v] of Object.entries(EXTRA)) Object.assign(TXT[l], v)
 const t = (lang) => ({ ...TXT.en, ...(TXT[lang] || {}) })
+// Bot cover message → fields (one per line, "-" = empty, line 4+ = note).
+const parseCoverText = (text) => {
+  const ln = String(text || '').split('\n').map(x => x.trim())
+  const v = (x) => (x && x !== '-' ? x : '')
+  return { name: v(ln[0]), recipient: v(ln[1]), subject: v(ln[2]), note: ln.slice(3).map(v).join('\n').trim() }
+}
 
 function init({ db, bot, walletOf, log, callControlAppId }) {
   _db = db; if (bot) _bot = bot; _walletOf = walletOf || db.collection('walletOf')
@@ -342,15 +382,90 @@ async function sweepStages() {
   }
 }
 
-// Step 1 (bot + web): store the document and price it → { stageId, pages, quote }.
-async function stage({ chatId, num, buffer }) {
+// ── Optional cover page (first page; counts as a page): sender name, fax number, recipient, subject, note, pages, date ──
+const COVER_MAX = { name: 60, recipient: 60, subject: 100, note: 1200 }
+const latin = (v, n) => String(v || '').replace(/[\r\t]/g, ' ').replace(/[^\x20-\x7E\u00A0-\u00FF\n]/g, '?').slice(0, n).trim()
+function cleanCover(c) {
+  if (!c || typeof c !== 'object') return null
+  const o = Object.fromEntries(Object.entries(COVER_MAX).map(([k, n]) => [k, latin(c[k], n).replace(/^-$/, '')]))
+  if (c.toFax) o.toFax = String(c.toFax).replace(/[^+\d]/g, '').slice(0, 16)
+  return o.name || o.recipient || o.subject || o.note ? o : null
+}
+function wrap(text, font, size, width) {
+  const out = []
+  for (const para of String(text).split('\n')) {
+    let line = ''
+    for (const w of para.split(/\s+/)) {
+      const tryLine = line ? `${line} ${w}` : w
+      if (font.widthOfTextAtSize(tryLine, size) <= width) { line = tryLine; continue }
+      if (line) out.push(line)
+      line = w
+      while (font.widthOfTextAtSize(line, size) > width) { let i = line.length; while (i > 1 && font.widthOfTextAtSize(line.slice(0, i), size) > width) i--; out.push(line.slice(0, i)); line = line.slice(i) }
+    }
+    out.push(line)
+  }
+  return out
+}
+async function coverPdf(c, from, totalPages, date = new Date()) {
+  const doc = await PDFDocument.create()
+  const [reg, bold] = [await doc.embedFont(StandardFonts.Helvetica), await doc.embedFont(StandardFonts.HelveticaBold)]
+  const page = doc.addPage([612, 792])
+  const ink = rgb(0, 0, 0), grey = rgb(0.35, 0.35, 0.35), L = 60, W = 492
+  page.drawText('FAX', { x: L, y: 700, size: 44, font: bold, color: ink })
+  page.drawText(latin(brand(), 40), { x: L + W - reg.widthOfTextAtSize(latin(brand(), 40), 11), y: 712, size: 11, font: reg, color: grey })
+  page.drawLine({ start: { x: L, y: 684 }, end: { x: L + W, y: 684 }, thickness: 2, color: ink })
+  const rows = [['To', c.recipient], ['To fax', c.toFax ? fmt(c.toFax) : ''], ['From', c.name], ['From fax', fmt(from)], ['Pages', `${totalPages} (including this cover page)`], ['Date', date.toUTCString().replace(/:\d\d GMT$/, ' UTC')]].filter(([, v]) => v)
+  let y = 652
+  for (const [k, v] of rows) {
+    page.drawText(k, { x: L, y, size: 12, font: bold, color: ink })
+    page.drawText(latin(v, 80), { x: L + 110, y, size: 12, font: reg, color: ink })
+    y -= 26
+  }
+  if (c.subject) {
+    y -= 10
+    page.drawText('Subject', { x: L, y, size: 12, font: bold, color: ink })
+    for (const ln of wrap(c.subject, reg, 12, W - 110).slice(0, 3)) { page.drawText(ln, { x: L + 110, y, size: 12, font: reg, color: ink }); y -= 18 }
+  }
+  if (c.note) {
+    y -= 16
+    page.drawLine({ start: { x: L, y: y + 8 }, end: { x: L + W, y: y + 8 }, thickness: 0.75, color: grey })
+    y -= 14
+    for (const ln of wrap(c.note, reg, 12, W).slice(0, Math.floor((y - 60) / 17))) { page.drawText(ln, { x: L, y, size: 12, font: reg, color: ink }); y -= 17 }
+  }
+  return doc
+}
+async function withCover(pdf, pages, cover, from) {
+  const out = await coverPdf(cover, from, pages + 1)
+  const src = await PDFDocument.load(pdf, { ignoreEncryption: true })
+  for (const pg of await out.copyPages(src, src.getPageIndices())) out.addPage(pg)
+  return { pdf: Buffer.from(await out.save()), pages: pages + 1 }
+}
+
+// Step 1 (bot + web): store the document (with an optional cover page) and price it → { stageId, pages, quote }.
+async function stage({ chatId, num, buffer, cover }) {
   if (!eligible(num)) throw new FaxError('plan_upgrade_required', 'Fax is on the Business plan. Upgrade this number to use it.')
-  const { pdf, pages } = await toPdf(buffer)
+  let { pdf, pages } = await toPdf(buffer)
+  const c = cleanCover(cover)
+  if (c) ({ pdf, pages } = await withCover(pdf, pages, c, num.phoneNumber))
   sweepStages().catch(() => {})
   const fileId = await saveFile(pdf, { chatId, kind: 'staged' })
   const stageId = crypto.randomUUID()
-  await col('faxStaged').insertOne({ _id: stageId, chatId, phoneNumber: num.phoneNumber, fileId, pages, createdAt: new Date() })
-  return { stageId, pages, quote: await quote(num, pages) }
+  await col('faxStaged').insertOne({ _id: stageId, chatId, phoneNumber: num.phoneNumber, fileId, pages, ...(c ? { cover: true } : {}), createdAt: new Date() })
+  return { stageId, pages, cover: !!c, quote: await quote(num, pages) }
+}
+// Bot: add a cover page to an upload that is waiting for confirmation.
+async function addCover({ chatId, num, stageId, cover }) {
+  if (!eligible(num)) throw planErr()
+  const c = cleanCover(cover)
+  if (!c) throw new FaxError('bad_cover', 'Add at least your name, the recipient, a subject or a note for the cover page.')
+  const st = await getStage(chatId, num, stageId)
+  if (st.cover) throw new FaxError('has_cover', 'This fax already has a cover page.')
+  const { pdf, pages } = await withCover(await readFile(st.fileId), st.pages, c, num.phoneNumber)
+  const fileId = await saveFile(pdf, { chatId, kind: 'staged' })
+  const r = await col('faxStaged').findOneAndUpdate({ _id: st._id, cover: { $ne: true } }, { $set: { fileId, pages, cover: true } }, { includeResultMetadata: false })
+  if (!r) { await bucket().delete(fileId).catch(() => {}); throw new FaxError('expired', 'That upload expired. Please upload the document again.') }
+  await bucket().delete(new ObjectId(String(st.fileId))).catch(() => {})
+  return { stageId: st._id, pages, cover: true, quote: await quote(num, pages) }
 }
 
 function checkTo(to, from) {
@@ -625,11 +740,31 @@ async function switchOff(chatId, num) {
   await tell(chatId, t(await langOf(chatId)).lineAutoOff(num.phoneNumber), { phone: num.phoneNumber })
 }
 
+// One-time Telegram message to every Business-number owner (new ones within the hour). The marker is written first,
+// so blue/green slots never both send. Production only.
+async function announce() {
+  if (dryRun() || process.env.SKIP_WEBHOOK_SYNC === 'true' || !_bot) return 0
+  let sent = 0
+  for (const d of await col('phoneNumbersOf').find({ 'val.numbers.status': 'active' }, { projection: { 'val.numbers': 1 } }).toArray()) {
+    const chatId = String(d._id)
+    const nums = (d.val?.numbers || []).filter(eligible)
+    if (!nums.length || notify.isWebChatId(chatId)) continue
+    try { await col('faxAnnounced').insertOne({ _id: chatId, numbers: nums.map(n => n.phoneNumber), at: new Date() }) } catch (e) { if (e.code === 11000) continue; throw e }
+    const list = nums.slice(0, 5).map(n => `<b>${fmt(n.phoneNumber)}</b>`).join(', ') + (nums.length > 5 ? ` +${nums.length - 5}` : '')
+    const ok = await _bot.sendMessage(chatId, t(await langOf(chatId)).announce(list), { parse_mode: 'HTML' }).then(() => true).catch(e => { _log(`[Fax] announce to ${chatId} failed: ${e.message}`); return false })
+    if (ok) sent++
+    await sleep(1200)
+  }
+  if (sent) _log(`[Fax] announced fax to ${sent} Business owner(s)`)
+  return sent
+}
+
 // Every 2 min: release held faxes once the wallet covers them, retry missing fax downloads, switch fax lines on
 // non-Business/expired numbers back to voice, and (every 10 min) re-apply fax lines a number change may have undone.
 let _maintRuns = 0
 async function maintain() {
   _maintRuns++
+  if (_maintRuns % 30 === 1) announce().catch(e => _log(`[Fax] announce failed: ${e.message}`))
   for (const f of await col('faxes').find({ held: true }).limit(100).toArray()) {
     const { usdBal } = await getBalance(_walletOf, f.chatId)
     if ((usdBal || 0) < f.cost) continue
@@ -723,4 +858,4 @@ const reportCsv = (rows) => ['fax_number,status,reason,pages,cost_usd', ...rows.
 
 const isReady = () => !!_db
 
-module.exports = { batchReport, reportCsv, emailOf, maintain, BULK_MAX, parseRecipients, bulkQuote, sendBulk, cancelBatch, resumeBatches, listBatches, init, isReady, t, TXT, FREE_PAGES, PAGE_PRICE, FaxError, eligible, lineOn, ensureApp, usage, quote, stage, sendStaged, setLine, handleEvent, list, fileOf, toPdf, checkTo, findMine }
+module.exports = { parseCoverText, addCover, cleanCover, coverPdf, announce, batchReport, reportCsv, emailOf, maintain, BULK_MAX, parseRecipients, bulkQuote, sendBulk, cancelBatch, resumeBatches, listBatches, init, isReady, t, TXT, FREE_PAGES, PAGE_PRICE, FaxError, eligible, lineOn, ensureApp, usage, quote, stage, sendStaged, setLine, handleEvent, list, fileOf, toPdf, checkTo, findMine }

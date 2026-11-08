@@ -45,7 +45,8 @@ const CID_REJECTED = {
   fa: (n, own) => `⚠️ <b>اپراتورهای تلفن شماره نمایشی ${n} را رد کردند.</b>\nتماس شما از شماره خودتان ${own} برقرار شد. شماره نمایشی دیگری امتحان کنید.`,
 }
 const _cidRejectedSent = new Map()
-function _notifyCidRejected(chatId, n, own) {
+function _notifyCidRejected(chatId, n, own, meta = {}) {
+  if (chatId) require('./cloudivr-web/caller-ids').logDecline(chatId, n, meta.via || 'sip', meta.to, meta.how || 'telnyx', meta.code)
   if (!_bot || !chatId) return
   const key = `${chatId}:${n}`
   if (Date.now() - (_cidRejectedSent.get(key) || 0) < 3600000) return
@@ -3500,7 +3501,7 @@ async function handleOutboundSipCall(payload) {
     const showAsHdr = (payload.custom_headers || []).find(x => String(x?.name || '').toLowerCase() === 'x-civr-show-as')?.value || await _cid.defaultFor(chatId, num.phoneNumber).catch(() => null)
     const outFrom = lookupResult?.isTestCall && lookupResult.testShowAs ? String(lookupResult.testShowAs)
       : showAsHdr && await _cid.isVerified(chatId, showAsHdr).catch(() => false) ? String(showAsHdr) : num.phoneNumber
-    if (outFrom !== num.phoneNumber) _cid.logUse(chatId, outFrom, 'sip', destination)
+    if (outFrom !== num.phoneNumber) _cid.logUse(chatId, outFrom, lookupResult?.isTestCall ? 'sip_test_call' : 'sip', destination)
     if ((payload.custom_headers || []).some(x => String(x?.name || '').toLowerCase() === 'x-civr-show-as')) _cid.rememberLast(chatId, num.phoneNumber, outFrom !== num.phoneNumber ? outFrom : null)
     if (outFrom !== num.phoneNumber) log(`[Voice] Outbound SIP: showing verified caller ID ${outFrom} for ${num.phoneNumber}`)
     try {
@@ -3538,7 +3539,7 @@ async function handleOutboundSipCall(payload) {
       } else if (outFrom !== num.phoneNumber) {
         // Carrier refused the custom caller ID — place the call from the user's own number instead of dropping it.
         log(`[Voice] Outbound SIP (Telnyx): custom caller ID ${outFrom} refused (${errMsg}) — retrying from ${num.phoneNumber}`)
-        _notifyCidRejected(chatId, outFrom, num.phoneNumber)
+        _notifyCidRejected(chatId, outFrom, num.phoneNumber, { via: 'sip', to: destination, how: 'telnyx' })
         try {
           _markSelfPstnLeg(payload.connection_id, destination, num.phoneNumber)
           await _telnyxApi.transferCall(callControlId, destination, num.phoneNumber, { targetLegClientState: PSTN_LEG_STATE })
@@ -4562,7 +4563,7 @@ async function _retryDeclinedCid(payload) {
   const pt = s._pendingTransfer
   s._cidRetried = true
   log(`[Voice] Outbound SIP (Telnyx): carrier declined caller ID ${from} (SIP ${payload.sip_hangup_cause}) → ${to} — redialing from ${pt.ownNumber}`)
-  _notifyCidRejected(s.chatId, from, pt.ownNumber)
+  _notifyCidRejected(s.chatId, from, pt.ownNumber, { via: 'sip', to: pt.destination, how: 'carrier', code: payload.sip_hangup_cause })
   pt.callerNumber = pt.ownNumber
   _markSelfPstnLeg(pt.connectionId, pt.destination, pt.ownNumber)
   await _telnyxApi.transferCall(aLeg, pt.destination, pt.ownNumber, { targetLegClientState: PSTN_LEG_STATE })
@@ -5186,7 +5187,7 @@ async function initiateOutboundIvrCall(params) {
   if (displayCallerId && result.error && !badDest(result) && !_telnyxApi.isLineLimitError?.(result)) {
     // Carrier refused the custom caller ID — place the call from the user's own number instead.
     log(`[OutboundIVR] custom caller ID ${displayCallerId} refused (${result.error}) — retrying from ${callerId}`)
-    _notifyCidRejected(chatId, displayCallerId, callerId)
+    _notifyCidRejected(chatId, displayCallerId, callerId, { via: bulkMode ? 'bulk' : 'ivr', to: targetNumber, how: 'telnyx' })
     result = await _telnyxApi.createOutboundCall(callerId, targetNumber, webhookUrl, undefined, amdOpts)
     if (!result.error) result.callerIdRejected = true
   } else if (displayCallerId) require('./cloudivr-web/caller-ids').logUse(chatId, displayCallerId, bulkMode ? 'bulk' : 'ivr', targetNumber)

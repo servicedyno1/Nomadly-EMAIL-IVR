@@ -256,6 +256,7 @@ async function setDefault(chatId, ownNumber, showAs) {
 }
 const logUse = (chatId, showAs, via, to) => { dbRef?.collection('callerIdUses').insertOne({ chatId: String(chatId), showAs, via, to: String(to || ''), at: new Date() }).catch(() => {}); touch(chatId, showAs) }
 // Last caller ID picked for calls from one VoIP number (null = its own number), so the next call starts with it.
+const logDecline = (chatId, showAs, via, to, how, code) => { dbRef?.collection('callerIdDeclines').insertOne({ chatId: String(chatId), showAs: String(showAs || ''), via, to: String(to || ''), how, code: code ? String(code) : null, at: new Date() }).catch(() => {}) }
 function rememberLast(chatId, from, showAs) { dbRef?.collection('callerIdLast').replaceOne({ _id: `${chatId}:${from}` }, { _id: `${chatId}:${from}`, chatId: String(chatId), from: String(from), showAs: showAs || null, at: new Date() }, { upsert: true }).catch(() => {}) }
 async function lastFor(chatId, from) {
   const d = await dbRef?.collection('callerIdLast').findOne({ _id: `${chatId}:${from}` })
@@ -281,7 +282,7 @@ async function presets(chatId) {
     .sort(byOrder).slice(0, MAX_PRESETS).map(d => ({ number: d._id, label: d.label || null, lastUsedAt: d.lastUsedAt || null }))
 }
 
-Object.assign(module.exports, { attest, isEmergency, defaultFor, setDefault, logUse, presets, touch, rememberLast, lastFor, usage30, hasPaidPlan, HOTLINES, MAX_PRESETS })
+Object.assign(module.exports, { logDecline, attest, isEmergency, defaultFor, setDefault, logUse, presets, touch, rememberLast, lastFor, usage30, hasPaidPlan, HOTLINES, MAX_PRESETS })
 
 // Admin: approve (→ verified) or reject (→ refund + remove) a review request. Returns the affected doc or null.
 function adminApi(db) {
