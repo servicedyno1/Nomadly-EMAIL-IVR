@@ -2341,3 +2341,9 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Number search shows Fax: bot search list tags "📠 Fax (Business plan)" (numCapTag, all 8 result lists); web Buy results show a "Fax" pill (buy-fax-pill-*).
 - Earlier same session: plain failure reasons (280023f1), cover pages + announce + caller-ID report (5b90ec63/280023f1).
 - Tests: test_fax_cover_report.js 31/31, test_fax_service.js 52/52. UI verified (IVR warn dialog, nudge, number-settings toggle, Fax badge). Deployed main + WhiteLabel success.
+
+## 2026-11-08 — Fax more visible in web UI — SHIPPED d313f08d (frontend-only)
+- My Numbers cards now show a "Fax" quick-toggle chip next to Forwarding/IVR/Hours for Business + fax-capable numbers (number-card-*-switch-fax), with the same voice-conflict confirm.
+- Number detail now has a dedicated "Fax" tab (only when capabilities.fax): receive (fax line) toggle, inbox copy, and a "Send a fax" CTA linking to the Fax page with ?from= preselected. Fax card removed from the SMS tab (no longer buried).
+- FaxSend preselects the From number from ?from= query param.
+- Verified in browser (4 fax chips on cards, Fax tab toggle + send CTA). app-main deployed; whitelabel not needed (bots don't serve the web UI).
