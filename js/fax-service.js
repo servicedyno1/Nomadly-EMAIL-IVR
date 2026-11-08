@@ -231,6 +231,26 @@ const EXTRA = {
   },
 }
 for (const [l, v] of Object.entries(EXTRA)) Object.assign(TXT[l], v)
+
+// Telnyx failure_reason → plain-language reason (users never see raw codes).
+const REASON_OF = {
+  notFax: ['fax_initial_communication_timeout', 'receiver_no_response', 'receiver_incompatible_destination', 'receiver_recovery_on_timer_expire'],
+  busy: ['user_busy', 'receiver_busy'],
+  noAnswer: ['receiver_no_answer', 'no_answer', 'timeout'],
+  badNumber: ['destination_invalid', 'receiver_invalid_number_format', 'receiver_unallocated_number', 'destination_unreachable', 'invalid_number'],
+  declined: ['receiver_decline', 'call_rejected', 'receiver_call_rejected'],
+  dropped: ['receiver_call_dropped', 'receiver_communication_error', 'fax_signaling_error', 'invalid_ecm_response_from_receiver', 'fax_communication_error'],
+  ours: ['service_unavailable', 'connection_channel_limit_exceeded', 'user_channel_limit_exceeded', 'outbound_profile_channel_limit_exceeded', 'outbound_profile_daily_spend_limit_exceeded', 'no_outbound_profile', 'account_disabled', 'destination_not_in_countries_whitelist', 'destination_not_in_service_plan'],
+}
+const REASONS = {
+  en: { notFax: 'The number answered, but no fax machine responded. Check that it is a fax line that is switched on, then try again.', busy: 'The fax line was busy. Please try again in a few minutes.', noAnswer: 'Nobody answered. Check the fax machine is on, then try again.', badNumber: 'This number can’t be reached. Check the fax number and country code.', declined: 'The receiving side declined the call. Check with the recipient, then try again.', dropped: 'The connection dropped part-way. Please try again — if it keeps happening, ask the recipient to check their fax line.', ours: 'Our fax service couldn’t place the call right now. Please try again shortly or message support.', other: 'The fax couldn’t be completed. Please try again.' },
+  fr: { notFax: 'Le numéro a répondu, mais aucun fax n’a répondu. Vérifiez qu’il s’agit d’une ligne fax allumée, puis réessayez.', busy: 'La ligne fax était occupée. Réessayez dans quelques minutes.', noAnswer: 'Pas de réponse. Vérifiez que le fax est allumé, puis réessayez.', badNumber: 'Ce numéro est injoignable. Vérifiez le numéro de fax et l’indicatif du pays.', declined: 'Le destinataire a refusé l’appel. Vérifiez avec lui, puis réessayez.', dropped: 'La connexion a été coupée en cours d’envoi. Réessayez — si cela se répète, demandez au destinataire de vérifier sa ligne fax.', ours: 'Notre service fax n’a pas pu passer l’appel pour le moment. Réessayez bientôt ou contactez le support.', other: 'Le fax n’a pas pu être envoyé. Réessayez.' },
+  zh: { notFax: '对方号码已接通，但没有传真机响应。请确认这是已开启的传真线路，然后重试。', busy: '传真线路忙。请几分钟后重试。', noAnswer: '无人接听。请确认传真机已开启，然后重试。', badNumber: '无法拨通此号码。请检查传真号码和国家代码。', declined: '接收方拒绝了呼叫。请与收件人确认后重试。', dropped: '发送途中连接中断。请重试——如果反复出现，请让收件人检查其传真线路。', ours: '我们的传真服务暂时无法拨出。请稍后重试或联系客服。', other: '传真未能完成。请重试。' },
+  hi: { notFax: 'नंबर ने कॉल उठाई, पर कोई फैक्स मशीन नहीं बोली। जाँचें कि यह चालू फैक्स लाइन है, फिर दोबारा भेजें।', busy: 'फैक्स लाइन व्यस्त थी। कुछ मिनट बाद फिर कोशिश करें।', noAnswer: 'किसी ने जवाब नहीं दिया। फैक्स मशीन चालू है यह जाँचें, फिर दोबारा भेजें।', badNumber: 'यह नंबर नहीं लग रहा। फैक्स नंबर और देश कोड जाँचें।', declined: 'प्राप्तकर्ता की ओर से कॉल अस्वीकार हुई। उनसे पूछें, फिर दोबारा भेजें।', dropped: 'भेजते समय कनेक्शन टूट गया। फिर कोशिश करें — बार-बार हो तो प्राप्तकर्ता से फैक्स लाइन जाँचने को कहें।', ours: 'हमारी फैक्स सेवा अभी कॉल नहीं कर सकी। थोड़ी देर बाद कोशिश करें या सपोर्ट से संपर्क करें।', other: 'फैक्स पूरा नहीं हो सका। फिर कोशिश करें।' },
+  fa: { notFax: 'شماره پاسخ داد، اما هیچ دستگاه فکسی جواب نداد. مطمئن شوید این یک خط فکس روشن است و دوباره امتحان کنید.', busy: 'خط فکس مشغول بود. چند دقیقه دیگر دوباره امتحان کنید.', noAnswer: 'کسی پاسخ نداد. مطمئن شوید دستگاه فکس روشن است و دوباره امتحان کنید.', badNumber: 'این شماره در دسترس نیست. شماره فکس و کد کشور را بررسی کنید.', declined: 'طرف گیرنده تماس را رد کرد. با گیرنده هماهنگ کنید و دوباره امتحان کنید.', dropped: 'اتصال در میانه ارسال قطع شد. دوباره امتحان کنید — اگر تکرار شد، از گیرنده بخواهید خط فکس خود را بررسی کند.', ours: 'سرویس فکس ما فعلاً نتوانست تماس بگیرد. کمی بعد دوباره امتحان کنید یا با پشتیبانی تماس بگیرید.', other: 'فکس کامل نشد. دوباره امتحان کنید.' },
+}
+const reasonKey = (code) => Object.keys(REASON_OF).find(k => REASON_OF[k].includes(String(code || '').toLowerCase())) || 'other'
+const reasonText = (code, lang = 'en') => (REASONS[lang] || REASONS.en)[reasonKey(code)]
 const t = (lang) => ({ ...TXT.en, ...(TXT[lang] || {}) })
 // Bot cover message → fields (one per line, "-" = empty, line 4+ = note).
 const parseCoverText = (text) => {
@@ -639,6 +659,15 @@ async function listBatches(chatId, limit = 20) {
 }
 
 // ── Fax line: move the number's connection to the Fax Application (receive) or back to voice ──
+// Periodic re-apply: fix the Telnyx connection only if it drifted; silent when nothing changed.
+async function reapplyLine(chatId, num) {
+  const target = await ensureApp()
+  const found = target && (await axios.get(`${BASE}/phone_numbers`, { headers: hdrs(), params: { 'filter[phone_number]': num.phoneNumber, 'page[size]': 1 } })).data?.data?.[0]
+  if (!found || found.connection_id === target) return false
+  await axios.patch(`${BASE}/phone_numbers/${found.id}`, { connection_id: target }, { headers: hdrs() })
+  _log(`[Fax] fax line re-applied for ${num.phoneNumber} (chatId=${chatId}) — connection had drifted to ${found.connection_id || 'none'}`)
+  return true
+}
 async function setLine({ chatId, num, enabled, force = false }) {
   if (!force && !eligible(num)) throw new FaxError('plan_upgrade_required', 'Fax is on the Business plan. Upgrade this number to use it.')
   if (!dryRun()) {
@@ -800,7 +829,7 @@ async function maintain() {
       const chatId = String(d._id)
       if (num.status === 'released') continue
       if (!eligible(num)) { await switchOff(chatId, num).catch(e => _log(`[Fax] auto voice restore ${num.phoneNumber} failed: ${e.message}`)); continue }
-      if (_maintRuns % 5 === 1 && !dryRun()) await setLine({ chatId, num, enabled: true }).catch(e => _log(`[Fax] re-apply fax line ${num.phoneNumber} failed: ${e.message}`))
+      if (_maintRuns % 5 === 1 && !dryRun()) await reapplyLine(chatId, num).catch(e => _log(`[Fax] re-apply fax line ${num.phoneNumber} failed: ${e.message}`))
     }
   }
 }
@@ -827,12 +856,13 @@ async function handleEvent(event) {
     if (fax.status === 'failed' || fax.status === 'delivered') return
     await col('faxes').updateOne({ _id: faxId }, { $set: { status: 'failed', failureReason: p.failure_reason || null } })
     if (fax.batchId) { await col('faxBatches').updateOne({ _id: fax.batchId }, { $inc: { failed: 1 } }); return finishBatch(fax.batchId) }
-    return tell(fax.chatId, t(await langOf(fax.chatId)).failed(fax.to, String(p.failure_reason || '').replace(/_/g, ' ')), { faxId })
+    const lang = await langOf(fax.chatId)
+    return tell(fax.chatId, t(lang).failed(fax.to, reasonText(p.failure_reason, lang)), { faxId })
   }
   if (!['delivered', 'failed'].includes(fax.status)) await col('faxes').updateOne({ _id: faxId }, { $set: { status } })
 }
 
-const publicFax = (f) => ({ id: f._id, direction: f.direction, phoneNumber: f.phoneNumber, from: f.from, to: f.to, pages: f.pages, status: f.held ? 'held' : f.status, failureReason: f.failureReason || null, cost: f.cost || 0, freePages: f.freePages ?? null, hasFile: !!f.fileId, createdAt: f.createdAt })
+const publicFax = (f) => ({ id: f._id, direction: f.direction, phoneNumber: f.phoneNumber, from: f.from, to: f.to, pages: f.pages, status: f.held ? 'held' : f.status, failureReason: f.failureReason || null, reason: f.failureReason ? reasonText(f.failureReason) : null, cost: f.cost || 0, freePages: f.freePages ?? null, hasFile: !!f.fileId, createdAt: f.createdAt })
 async function list(chatId, limit = 100) {
   return (await col('faxes').find({ chatId, batchId: { $exists: false } }).sort({ createdAt: -1 }).limit(limit).toArray()).map(publicFax)
 }
@@ -850,7 +880,7 @@ async function batchReport(chatId, id) {
   const errs = new Map((b.errors || []).map(e => [e.to, e.error]))
   return b.recipients.map((to, i) => {
     const f = by.get(to)
-    if (f) return { to, status: f.status, reason: f.failureReason || '', pages: f.pages, cost: f.cost || 0 }
+    if (f) return { to, status: f.status, reason: f.failureReason ? reasonText(f.failureReason) : '', pages: f.pages, cost: f.cost || 0 }
     return { to, status: i < b.cursor ? 'failed' : (b.status === 'cancelled' ? 'not_sent' : 'waiting'), reason: errs.get(to) || '', pages: 0, cost: 0 }
   })
 }
@@ -858,4 +888,4 @@ const reportCsv = (rows) => ['fax_number,status,reason,pages,cost_usd', ...rows.
 
 const isReady = () => !!_db
 
-module.exports = { parseCoverText, addCover, cleanCover, coverPdf, announce, batchReport, reportCsv, emailOf, maintain, BULK_MAX, parseRecipients, bulkQuote, sendBulk, cancelBatch, resumeBatches, listBatches, init, isReady, t, TXT, FREE_PAGES, PAGE_PRICE, FaxError, eligible, lineOn, ensureApp, usage, quote, stage, sendStaged, setLine, handleEvent, list, fileOf, toPdf, checkTo, findMine }
+module.exports = { reasonText, reapplyLine, parseCoverText, addCover, cleanCover, coverPdf, announce, batchReport, reportCsv, emailOf, maintain, BULK_MAX, parseRecipients, bulkQuote, sendBulk, cancelBatch, resumeBatches, listBatches, init, isReady, t, TXT, FREE_PAGES, PAGE_PRICE, FaxError, eligible, lineOn, ensureApp, usage, quote, stage, sendStaged, setLine, handleEvent, list, fileOf, toPdf, checkTo, findMine }

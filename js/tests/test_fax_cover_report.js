@@ -46,6 +46,16 @@ async function pdfOf(pages) { const d = await PDFDocument.create(); for (let i =
   const f = await fax.sendStaged({ chatId, num: biz, stageId: s1.stageId, to: '+14155550123' })
   ok(f.pages === 3, 'sent fax records 3 pages incl. cover')
 
+  console.log('Failure reasons')
+  ok(fax.reasonText('fax_initial_communication_timeout') === 'The number answered, but no fax machine responded. Check that it is a fax line that is switched on, then try again.', 'initial timeout → plain "no fax machine" wording')
+  ok(fax.reasonText('user_busy', 'fr').includes('occupée') && fax.reasonText('weird_code').includes('couldn’t be completed') && !/_/.test(fax.reasonText('receiver_unallocated_number', 'fa')), 'busy (fr), unknown fallback, no raw codes')
+  await db.collection('faxes').updateOne({ _id: f.id }, { $set: { status: 'queued' } })
+  sent.length = 0
+  await fax.handleEvent({ event_type: 'fax.failed', payload: { fax_id: f.id, failure_reason: 'fax_initial_communication_timeout' } })
+  ok(sent.some(m => /no fax machine responded/.test(m.t) && !/fax_initial|initial communication/.test(m.t)), 'bot failure message uses plain reason')
+  const h = await fax.list(chatId)
+  ok(h.find(x => x.id === f.id)?.reason?.startsWith('The number answered'), 'web history returns plain reason')
+
   console.log('Announcement')
   ok((await fax.announce()) === 0, 'never sends in preview / dry run')
   ok(/50 free pages every month/.test(fax.t('en').announce('<b>x</b>')) && /📠 Fax/.test(fax.t('en').announce('x')), 'message mentions free pages and bot path')
