@@ -2332,3 +2332,12 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - `reasonText(code, lang)` maps Telnyx failure codes → plain text (en/fr/zh/hi/fa) for bot failure message, web Fax history (`reason`), bulk CSV report.
 - Every-10-min fax-line re-apply now `reapplyLine()`: only patches + logs if the Telnyx connection drifted.
 - Tests: test_fax_cover_report.js 22/22, test_fax_service.js 52/52. Deployed main + WhiteLabel.
+
+## 2026-11-08 — Fax: easy on/off + voice-conflict warnings + search badge — SHIPPED 59f5cded
+- RCA (@Spirits_Of_The_Ancesters): callers heard fax tones because fax line was ON on his IVR number (+18886494782). Nothing wiped — fax/voice are mutually exclusive (number routed to Telnyx Fax App). Fix = turn fax line off; product hardening below.
+- Warn-on-enable: turning the fax line ON when the number has voice routing (IVR / forwarding / AI agent / ring group) now shows a clear "this stops your calls" confirm — bot (cpFaxLineConfirm), web Fax page (FaxLines) and number settings (SettingsTabs FaxCard). Web API PATCH /fax/line returns 409 voice_routing_active unless {confirm:true}. `fax.voiceRouting(num)` helper.
+- Auto-reminder: maintain() `voiceOnFaxNudge` — fax-line number with voice routing, ≥1 media_failed inbound (voice caller hitting fax) and no real received fax in 24h → one Telegram nudge/day (faxConfig lock). 5 languages.
+- Easy toggle: per-number fax-line on/off now also on the number's SMS/Fax settings tab (fax-line-settings-toggle), plus existing bot 📠 Fax button and web Fax page.
+- Number search shows Fax: bot search list tags "📠 Fax (Business plan)" (numCapTag, all 8 result lists); web Buy results show a "Fax" pill (buy-fax-pill-*).
+- Earlier same session: plain failure reasons (280023f1), cover pages + announce + caller-ID report (5b90ec63/280023f1).
+- Tests: test_fax_cover_report.js 31/31, test_fax_service.js 52/52. UI verified (IVR warn dialog, nudge, number-settings toggle, Fax badge). Deployed main + WhiteLabel success.
