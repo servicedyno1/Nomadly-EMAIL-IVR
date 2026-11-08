@@ -2326,3 +2326,9 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Help center "Fax" group: 6 articles with drawn diagrams (`help/FaxDiagrams.js`); Fax page "Fax guide" link. AI support (bot + web) knows cover pages.
 - Tests: test_fax_cover_report.js 18/18, test_fax_service.js 52/52, test_free_sip_test_unblock.js 12/12, backend/tests/test_cloudivr_fax_cover.py 10/10; iteration_233 frontend ~95% (fax line toggle regression + Bob no-banner check not finished by agent). Deployed app-main + WhiteLabel (success).
 - Watch: first announcement send in prod logs ("[Fax] announced fax to N"), first daily report ("[CallerIdReport] sent").
+
+## 2026-11-08 — Fax failure reasons in plain words + quiet fax-line re-apply — SHIPPED 280023f1
+- RCA: @Spirits_Of_The_Ancesters (7898648919) 2× 18-page faxes to +1 334-478-5072 failed `fax_initial_communication_timeout` (~40s call, 0 pages; destination is a VoIP line, no fax handshake). No charge.
+- `reasonText(code, lang)` maps Telnyx failure codes → plain text (en/fr/zh/hi/fa) for bot failure message, web Fax history (`reason`), bulk CSV report.
+- Every-10-min fax-line re-apply now `reapplyLine()`: only patches + logs if the Telnyx connection drifted.
+- Tests: test_fax_cover_report.js 22/22, test_fax_service.js 52/52. Deployed main + WhiteLabel.
