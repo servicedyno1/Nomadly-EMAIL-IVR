@@ -358,3 +358,10 @@ html[data-civr-theme="light"] .civr .civr-offer { border-color: rgba(79, 70, 229
 @keyframes civr-thread-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .civr .civr-msg-in, .civr .civr-thread-in { animation: none; } }
 body.civr-thread-open [data-testid="support-chat-toggle"] { display: none; }
+
+/* Segmented group selector (number detail groups, settings index). */
+.civr .civr-seg-btn { border: 1px solid transparent; }
+.civr .civr-seg-btn:hover { background: var(--c-accent-soft, rgba(129, 140, 248, 0.08)); }
+.civr .civr-seg-on { color: var(--c-text, #f4f4f5); background: var(--c-accent-soft, rgba(129, 140, 248, 0.12)); border-color: rgba(129, 140, 248, 0.45); }
+/* Overview promo slot: several banners may mount, only the first one that renders is shown. */
+.civr .civr-promo-slot > * ~ * { display: none; }

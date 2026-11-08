@@ -165,16 +165,65 @@ function useHashScroll() {
   }, [hash]);
 }
 
+const SECTIONS = [
+  ['account', 'Account', 'Who you are and how you sign in.'],
+  ['preferences', 'Preferences', 'Language, look and defaults for your calls.'],
+  ['notifications', 'Notifications & integrations', 'Emails we send you and webhooks for your own tools.'],
+  ['community', 'Community & rewards', 'Earn credit, suggest features, reach the team.'],
+];
+
+function SectionIndex({ active }) {
+  return (
+    <nav aria-label="Settings sections" className="lg:sticky lg:top-24 flex lg:flex-col gap-1 overflow-x-auto civr-scroll-x -mx-4 px-4 lg:mx-0 lg:px-0 mb-6 lg:mb-0" data-testid="settings-index">
+      {SECTIONS.map(([id, label]) => (
+        <a key={id} href={`#section-${id}`} aria-current={active === id ? 'location' : undefined} className={`civr-seg-btn shrink-0 inline-flex items-center min-h-[40px] px-4 rounded-full lg:rounded-lg text-sm font-medium transition-colors ${active === id ? 'civr-seg-on' : 'text-[#a1a1aa] hover:text-[var(--c-text,#f4f4f5)]'}`} data-testid={`settings-index-${id}`}>{label}</a>
+      ))}
+    </nav>
+  );
+}
+
+function Section({ id, children }) {
+  const [, title, sub] = SECTIONS.find(s => s[0] === id);
+  return (
+    <section id={`settings-section-${id}`} aria-labelledby={`settings-section-${id}-title`} className="scroll-mt-24" data-section={id} data-testid={`settings-section-${id}`}>
+      <div className="mb-4"><h2 id={`settings-section-${id}-title`} className="font-display text-xl font-bold">{title}</h2><p className="text-sm text-[#a1a1aa] mt-1">{sub}</p></div>
+      <div className="grid lg:grid-cols-2 gap-4">{children}</div>
+    </section>
+  );
+}
+
+// Highlights the section currently in view in the side index.
+function useActiveSection() {
+  const [active, setActive] = useState('account');
+  useEffect(() => {
+    const els = Array.from(document.querySelectorAll('[data-section]'));
+    if (!els.length || typeof IntersectionObserver === 'undefined') return undefined;
+    const io = new IntersectionObserver((entries) => { const hit = entries.filter(e => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]; if (hit) setActive(hit.target.dataset.section); }, { rootMargin: '-20% 0px -60% 0px' });
+    els.forEach(el => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+  return active;
+}
+
 export default function Settings() {
   const { account, setAccount, refresh, logout } = useCivrAuth();
   const nav = useNavigate();
   useHashScroll();
+  const active = useActiveSection();
   return (
     <div data-testid="settings-page">
       <PageHeader label="Account" title="Settings" sub="Your login, language, alerts and security. This web account is separate from any Telegram bot account." testid="settings-header">
         <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={async () => { nav(cp(), { replace: true }); await logout(); }} data-testid="settings-logout-button"><LogOut className="w-4 h-4" />Sign out</button>
       </PageHeader>
-      <div className="grid lg:grid-cols-2 gap-4 max-w-5xl min-[1600px]:max-w-6xl min-[1800px]:max-w-7xl"><Profile account={account} setAccount={setAccount} /><SignInMethods account={account} /><Password account={account} refresh={refresh} /><Security account={account} refresh={refresh} /><Referral /><Suggest admin={account.admin} /><Language /><Appearance /><DefaultVoice /><SenderName /><EmailPrefs /><InstallApp /><Community /><Webhooks /></div>
+      <div className="lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-10 max-w-6xl min-[1800px]:max-w-7xl">
+        <SectionIndex active={active} />
+        <div className="space-y-12">
+          <Section id="account"><Profile account={account} setAccount={setAccount} /><SignInMethods account={account} /><Password account={account} refresh={refresh} /><Security account={account} refresh={refresh} /></Section>
+          <Section id="preferences"><Language /><Appearance /><DefaultVoice /><SenderName /><InstallApp /></Section>
+          <Section id="notifications"><EmailPrefs /><Webhooks /></Section>
+          <Section id="community"><Referral /><Suggest admin={account.admin} /><Community /></Section>
+        </div>
+      </div>
     </div>
   );
 }

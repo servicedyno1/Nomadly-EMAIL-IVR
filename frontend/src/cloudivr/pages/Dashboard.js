@@ -60,21 +60,19 @@ export default function Dashboard() {
   const { data: nums } = useApi(s && !fresh ? '/numbers' : null);
   const { data: hosted } = useApi(fresh ? '/hosted-sms' : null);
   const textingOnly = fresh && hosted?.items?.some(x => !['rejected', 'cancelled'].includes(x.status));
+  // One promo at a time (first that applies wins) + one announcement; everything else is a slim strip lower down.
+  const promos = !textingOnly && (
+    <>
+      <div className="civr-promo-slot" data-testid="dashboard-promo-slot"><TrialCard /><TopBanner /><CallerIdUpsellCard /></div>
+      <FaxCard numbers={nums?.numbers} />
+    </>
+  );
   return (
     <div data-testid="dashboard-page">
       <PageHeader label="Overview" title={`Hi ${account?.name?.split(' ')[0] || 'there'}`} sub={textingOnly ? 'Your texting numbers and the latest texts from your customers.' : fresh ? 'Three quick steps and your number is live.' : 'Your numbers, wallet and live activity at a glance.'} testid="dashboard-header">
         {s && !fresh && <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="dashboard-buy-number-button"><ShoppingCart className="w-4 h-4" />Buy a number</Link>}
         {textingOnly && <Link to={cp('/app/texting?add=1')} className="civr-btn civr-btn-primary" data-testid="dashboard-add-texting-button">Add a number</Link>}
       </PageHeader>
-      {!textingOnly && <>
-        <TrialCard />
-        <TopBanner />
-        <CallerIdUpsellCard />
-        <FaxCard numbers={nums?.numbers} />
-        <ReviewPrompt />
-        <ForYou />
-        <NewProducts />
-      </>}
       {s?.pendingVerification > 0 && (
         <Link to={cp('/app/verification')} className="civr-card civr-trace p-6 mb-6 flex items-center gap-4" data-testid="dashboard-verification-alert">
           <ShieldCheck className="w-6 h-6 text-[#fbbf24]" />
@@ -82,13 +80,17 @@ export default function Dashboard() {
           <ArrowRight className="w-4 h-4" />
         </Link>
       )}
-      {!s || (fresh && !hosted) ? <SkeletonPage header={false} cards={3} rows={3} /> : textingOnly ? <TextingHome items={hosted.items} balance={s.balance} /> : fresh ? <GetStarted balance={s.balance} /> : (
+      {!s || (fresh && !hosted) ? <SkeletonPage header={false} cards={3} rows={3} /> : textingOnly ? <TextingHome items={hosted.items} balance={s.balance} /> : fresh ? <>{promos}<GetStarted balance={s.balance} /></> : (
         <>
           <Stats s={s} />
-          <div className="grid lg:grid-cols-12 gap-6 mt-6 items-start">
+          <div className="mt-6"><ForYou /></div>
+          {promos}
+          <div className="grid lg:grid-cols-12 gap-6 items-start">
             <div className="lg:col-span-7"><YourNumbers nums={nums?.numbers} balance={s.balance} /></div>
             <div className="lg:col-span-5"><div className="civr-label !text-[#a1a1aa] mb-3">Quick actions</div><QuickActions unread={s.messagesUnread} /></div>
           </div>
+          <NewProducts />
+          <ReviewPrompt />
           <div className="civr-card p-6 mt-6">
             <div className="font-display text-2xl font-bold mb-4">Recent activity</div>
             <LogTable logs={act?.logs} showNumber testid="dashboard-activity" emptyAction={<Link to={cp('/app/numbers')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="dashboard-activity-empty-action">Test one of your numbers</Link>} />

@@ -9,9 +9,11 @@ export const NAV = [
     ['texting', 'Landline to Texting', MessageSquareText, 'tab-texting'], ['sip', 'SIP & softphones', KeyRound, 'tab-sip'], ['fax', 'Fax', Printer, 'tab-fax'],
   ], ['orders', 'verification']]]],
   ['Calling', [
-    ['quick-call', 'Calls', PhoneOutgoing, 'nav-calls', [['quick-call', 'Quick IVR call', PhoneOutgoing, 'tab-quick-call'], ['text-call', 'Text-to-voice calls', Captions, 'tab-text-call']]],
-    ['campaigns', 'Campaigns', Megaphone, 'nav-campaigns', [['campaigns', 'Bulk IVR campaigns', Megaphone, 'tab-campaigns'], ['do-not-call', 'Do-not-call list', Ban, 'tab-dnc']]],
-    ['contacts', 'Contacts', Contact, 'nav-contacts'], ['ai-agents', 'AI voice agents', Bot, 'nav-ai-agents'], ['audio', 'Audio library', Music, 'nav-audio'],
+    ['quick-call', 'Outbound', PhoneOutgoing, 'nav-calls', [
+      ['quick-call', 'Quick IVR call', PhoneOutgoing, 'tab-quick-call'], ['text-call', 'Text-to-voice calls', Captions, 'tab-text-call'],
+      ['campaigns', 'Bulk IVR campaigns', Megaphone, 'tab-campaigns'], ['ai-agents', 'AI voice agents', Bot, 'tab-ai-agents'], ['do-not-call', 'Do-not-call list', Ban, 'tab-dnc'],
+    ]],
+    ['contacts', 'Contacts', Contact, 'nav-contacts'], ['audio', 'Audio library', Music, 'nav-audio'],
   ]],
   ['Account', [['wallet', 'Wallet', Wallet, 'nav-wallet'], ['settings', 'Settings', Settings, 'nav-settings'], ['help', 'Help center', BookOpen, 'nav-help']]],
 ];

@@ -95,6 +95,25 @@ function OpenOrder({ order }) {
   );
 }
 
+// 3-step progress: Find → Pick → Plan & pay (2 steps for an extra number, which has no plan to pick).
+function Steps({ current, extra }) {
+  const steps = extra ? ['Find a number', 'Pick & pay'] : ['Find a number', 'Pick a number', 'Plan & pay'];
+  return (
+    <ol className="flex items-center gap-2 sm:gap-3 mb-6 civr-rise" aria-label="Checkout steps" data-testid="buy-steps">
+      {steps.map((label, i) => {
+        const k = i + 1; const state = k < current ? 'done' : k === current ? 'current' : 'todo';
+        return (
+          <li key={label} className="flex items-center gap-2 sm:gap-3 min-w-0" aria-current={state === 'current' ? 'step' : undefined} data-state={state} data-testid={`buy-step-${k}`}>
+            <span className={`w-7 h-7 shrink-0 rounded-full grid place-items-center text-xs font-bold transition-colors ${state === 'done' ? 'bg-[#34d399] text-[#052e1f]' : state === 'current' ? 'bg-[var(--c-accent-strong,#6366f1)] text-white' : 'border border-[var(--c-border-hover,#2a2a2a)] text-[#a1a1aa]'}`} aria-hidden="true">{state === 'done' ? <Check className="w-4 h-4" /> : k}</span>
+            <span className={`text-sm truncate ${state === 'current' ? 'font-semibold' : 'text-[#a1a1aa]'} ${state === 'todo' ? 'hidden sm:inline' : ''}`}>{label}</span>
+            {i < steps.length - 1 && <span aria-hidden="true" className={`h-px w-6 sm:w-10 shrink-0 ${state === 'done' ? 'bg-[#34d399]' : 'bg-[var(--c-border-hover,#2a2a2a)]'}`} />}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 export default function BuyNumber() {
   const { catalog, summary, refreshSummary } = useShell();
   const nav = useNavigate();
@@ -153,6 +172,7 @@ export default function BuyNumber() {
       {open?.orders?.[0] && <OpenOrder order={open.orders[0]} />}
       {saved?.pick && <div className="civr-card p-4 mb-4 text-sm flex items-center gap-2" data-testid="buy-resume-note"><Check className="w-4 h-4 text-[#818cf8]" />Welcome back — {saved.pick.phoneNumber} and the {planObj?.name} plan are still selected below.</div>}
       {fromParam && <div className="text-sm text-[#818cf8] mb-4 flex items-center gap-2" data-testid="buy-plan-hint"><Check className="w-4 h-4" />{planObj.name} plan picked — search for a number below.</div>}
+      <Steps current={pick ? (extraOf ? 2 : 3) : res ? 2 : 1} extra={!!extraOf} />
       <Label>1 · Find a number</Label>
       <SearchForm catalog={catalog} q={q} setQ={setQ} onSearch={search} busy={busy === 'search'} />
       {!extraOf && q.country === 'US' && <MobileOffer onBought={() => nav(cp('/app/numbers'))} />}

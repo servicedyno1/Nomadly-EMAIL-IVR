@@ -33,7 +33,7 @@ export function FaxHistory({ faxes, reload }) {
       {!faxes.length ? <p className="text-sm text-[#a1a1aa]" data-testid="fax-history-empty">No faxes yet. Sent and received faxes show up here.</p> : (
         <div className="overflow-x-auto">
           <table className="civr-table w-full" data-testid="fax-history-table">
-            <thead><tr><th>When</th><th>Fax</th><th>Pages</th><th>Status</th><th>Cost</th><th /></tr></thead>
+            <thead><tr><th>When</th><th>Fax</th><th>Pages</th><th>Status</th><th>Cost</th><th><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>{faxes.map(f => <Row key={f.id} f={f} />)}</tbody>
           </table>
         </div>

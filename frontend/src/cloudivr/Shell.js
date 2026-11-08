@@ -1,11 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { ThemeRoot, ThemeButton } from './theme';
-import { Navigate, Route, Routes, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, LogOut, Phone, Plus, LifeBuoy, Eye, EyeOff, Send, Lightbulb, HelpCircle, Search } from 'lucide-react';
+import { ThemeRoot } from './theme';
+import { Navigate, Route, Routes, Link, useLocation } from 'react-router-dom';
+import { Bell, Phone, Plus, LifeBuoy, Send, Lightbulb, HelpCircle, Search } from 'lucide-react';
 import { api, money } from './api';
 import { useCivrAuth } from './AuthContext';
 import { PreviewBanner } from './ui';
-import { PrivacyProvider, PrivateBanner, usePrivacy } from './privacy';
+import { PrivacyProvider, PrivateBanner } from './privacy';
+import { AccountMenu } from './AccountMenu';
 import Softphone from './Softphone';
 import { RtcProvider } from './rtc';
 import { IncomingCalls } from './Incoming';
@@ -38,14 +39,14 @@ import SipPage from './pages/Sip';
 import Fax from './pages/Fax';
 import { AiAgents, AiAgentEdit } from './pages/AiAgents';
 import { cp } from './paths';
-import { LangSwitcher, useLang } from './i18n';
+import { useLang } from './i18n';
 import SupportChat from './SupportChat';
 import AdminSuggestions from './pages/AdminSuggestions';
 import Help from './pages/Help';
 import { CrashGuard, CrashProbe, OfflineBanner } from './safety';
 import { UpdateBanner } from './update';
 import { WhatsNew } from './WhatsNew';
-import { UnsavedGuard, confirmLeave } from './guard';
+import { UnsavedGuard } from './guard';
 import { Shortcuts, helpFor } from './shortcuts';
 import { Palette, openPalette, isMac } from './Palette';
 import { Onboarding, useOnboarding } from './Onboarding';
@@ -103,31 +104,16 @@ function Sidebar({ supportLink, channelLink, purposes }) {
   );
 }
 
-function PrivateButton({ className = '' }) {
-  const { on, toggle } = usePrivacy();
-  const Icon = on ? EyeOff : Eye;
-  const tip = on ? 'Private mode on — tap to show numbers and messages' : 'Private mode — hide numbers and messages';
-  return (
-    <button onClick={toggle} aria-pressed={on} aria-label={tip} title={tip} data-testid="topbar-private-mode-button" data-private={on ? 'on' : 'off'}
-      className={`${ICON_BTN} ${className} ${on ? 'text-[#c4b5fd] bg-[#a78bfa]/15 hover:bg-[#a78bfa]/25' : ''}`}><Icon className="w-5 h-5" /></button>
-  );
-}
-
 // Phones keep only balance, inbox and the browser phone here; language, private mode and sign-out live in the More menu.
+// Laptops get them in the account menu (avatar, top right).
 function TopBar({ summary, onPhone }) {
-  const { account, logout } = useCivrAuth();
-  const nav = useNavigate();
   const { pathname, search } = useLocation();
   return (
     <header className="civr-glass sticky top-0 z-30 flex items-center gap-0.5 min-[400px]:gap-1 sm:gap-2 px-3 sm:px-4 md:px-8 h-16" data-civr-topbar>
       <Link to={cp('/app')} className="font-display text-xl sm:text-2xl font-extrabold tracking-tight mr-auto lg:hidden min-h-[44px] min-w-0 flex items-center gap-2" aria-label="CloudIVR home" data-testid="topbar-logo"><Wordmark iconClass="w-8 h-8" textClass="max-[379px]:sr-only" /></Link>
-      <div className="hidden lg:block xl:hidden mr-auto" aria-hidden="true" />
-      <div className="hidden xl:block mr-auto min-w-0 truncate text-sm text-[#a1a1aa]" title={account?.email || account?.phone} data-testid="topbar-greeting">Signed in as <span className="text-[#f4f4f5]">{account?.email || account?.phone}</span></div>
+      <div className="hidden lg:block mr-auto" aria-hidden="true" />
       <Link to={cp('/app/wallet')} className="civr-pill civr-pill-on !text-sm !normal-case !tracking-normal h-10 shrink-0 !px-3.5" data-testid="topbar-balance">{money(summary?.balance)}</Link>
       <Link to={cp('/app/wallet')} className="civr-btn civr-btn-ghost civr-btn-sm !hidden md:!inline-flex" data-testid="topbar-add-funds-button"><Plus className="w-4 h-4" />Add funds</Link>
-      <LangSwitcher testid="topbar-lang-switcher" className="hidden lg:inline-flex" />
-      <PrivateButton className="hidden lg:flex" />
-      <ThemeButton className={`${ICON_BTN} hidden lg:flex`} />
       <button type="button" onClick={openPalette} className={ICON_BTN} data-testid="topbar-search-button" aria-label="Jump to a number, page or action" title={`Jump to… (${isMac ? '⌘' : 'Ctrl'} K)`}><Search className="w-5 h-5" /></button>
       <Link to={helpFor(pathname, search)} className={`${ICON_BTN} hidden sm:flex`} data-testid="topbar-help-button" aria-label="Help for this page" title="Help for this page (?)"><HelpCircle className="w-5 h-5" /></Link>
       <Link to={cp('/app/inbox')} className={ICON_BTN} data-testid="topbar-inbox-button" aria-label="Notifications" title="Notifications">
@@ -135,7 +121,7 @@ function TopBar({ summary, onPhone }) {
         {summary?.unread > 0 && <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#6366f1] text-white text-xs font-bold flex items-center justify-center" data-testid="topbar-unread-count">{summary.unread > 99 ? '99+' : summary.unread}</span>}
       </Link>
       <button onClick={onPhone} className={ICON_BTN} data-testid="topbar-softphone-button" aria-label="Browser phone"><Phone className="w-5 h-5" /></button>
-      <button onClick={async () => { if (!(await confirmLeave())) return; nav(cp(), { replace: true }); await logout(); }} className={`${ICON_BTN} hidden lg:flex`} data-testid="topbar-logout-button" aria-label="Sign out"><LogOut className="w-5 h-5" /></button>
+      <AccountMenu className="hidden lg:inline-flex ml-1" />
     </header>
   );
 }

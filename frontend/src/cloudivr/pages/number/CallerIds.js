@@ -107,7 +107,7 @@ function SipDefaults({ ids }) {
       {list.map((n, k) => (
         <div key={n.phoneNumber} className="flex items-center gap-2 text-sm">
           <span className="font-mono flex-1">{n.phoneNumber}</span>
-          <select className="civr-input !w-auto !h-9 text-sm" value={cur[n.phoneNumber] || ''} onChange={e => save(n.phoneNumber, e.target.value)} data-testid={`caller-ids-sip-default-${k}`}>
+          <select className="civr-input !w-auto !h-9 text-sm" value={cur[n.phoneNumber] || ''} onChange={e => save(n.phoneNumber, e.target.value)} aria-label={`Caller ID shown on softphone calls from ${n.phoneNumber}`} data-testid={`caller-ids-sip-default-${k}`}>
             <option value="">Its own number</option>
             {ids.map(i => <option key={i.number} value={i.number}>{i.number}</option>)}
           </select>

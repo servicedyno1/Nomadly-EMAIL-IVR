@@ -61,35 +61,39 @@ function NumberCard({ n, i, pv, onSaved, reload }) {
   const copy = async () => { try { await navigator.clipboard.writeText(n.phoneNumber); toast.success('Number copied'); } catch (_) { toast.error('Couldn’t copy — long-press the number instead.'); } };
   const call = () => { window.dispatchEvent(new CustomEvent(DIAL_FROM, { detail: { from: n.phoneNumber } })); openPhone(); };
   const canCall = n.status === 'active' && (n.access?.sipCredentials || n.access?.ivrOutbound);
+  const href = cp(`/app/numbers/${enc(n.phoneNumber)}`);
+  const switches = [n.access?.callForwarding, n.access?.ivr, true, n.plan === 'business' && n.status === 'active' && n.capabilities?.fax].filter(Boolean).length;
   return (
-    <div className={`civr-card civr-card-link relative p-6 civr-rise civr-d${(i % 4) + 1}`} data-testid={`number-card-${i}`}>
-      <Link to={cp(`/app/numbers/${enc(n.phoneNumber)}`)} className="absolute inset-0 rounded-[14px]" aria-label={`Open ${n.phoneNumber}`} data-testid={`number-card-${i}-link`} />
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="font-mono text-xl" data-testid={`number-card-${i}-phone`}>{pv.phone(n.phoneNumber)}</div>
+    <div className={`civr-card p-6 civr-rise civr-d${(i % 4) + 1} flex flex-col`} data-testid={`number-card-${i}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Link to={href} className="font-mono text-xl inline-flex items-center gap-1.5 min-h-[44px] -my-2 hover:text-[var(--c-accent,#818cf8)] transition-colors" data-testid={`number-card-${i}-phone`} aria-label={`Open ${n.phoneNumber}`}>{pv.phone(n.phoneNumber)}</Link>
           <div className="text-xs text-[#a1a1aa] mt-1">{n.countryName || n.country} · {n.type?.replace('_', '-')}</div>
         </div>
         <span className={statusPill(n.status)} data-testid={`number-card-${i}-status`}>{n.status}</span>
       </div>
-      <div className="flex flex-wrap gap-1.5 mt-6">
+      <div className="flex flex-wrap gap-1.5 mt-5">
         <span className="civr-pill">{n.planName} · {money(n.planPrice)}</span>
         {on(n.features.voicemail) && <span className="civr-pill civr-pill-on">Voicemail</span>}
         {n.features.recording && <span className="civr-pill civr-pill-on">Recording</span>}
         {n.isSubNumber && <span className="civr-pill" data-testid={`number-card-${i}-extra`}>Extra on {pv.phone(n.parentNumber)}</span>}
         {n.dryRun && <span className="civr-pill civr-pill-warn">Preview</span>}
       </div>
-      <div className="flex flex-wrap gap-1.5 mt-3" data-testid={`number-card-${i}-switches`}>
-        {n.access?.callForwarding && <QuickSwitch num={n} feature="callForwarding" label="Forwarding" checked={on(n.features.callForwarding)} onSaved={onSaved} testid={`number-card-${i}-switch-forwarding`} />}
-        {n.access?.ivr && <QuickSwitch num={n} feature="ivr" label="IVR" checked={on(n.features.ivr)} onSaved={onSaved} testid={`number-card-${i}-switch-ivr`} />}
-        <QuickSwitch num={n} feature="hours" label="Hours" checked={on(n.features.hours)} onSaved={onSaved} testid={`number-card-${i}-switch-hours`} />
-        {n.plan === 'business' && n.status === 'active' && n.capabilities?.fax && <FaxSwitch n={n} reload={reload} testid={`number-card-${i}-switch-fax`} />}
+      <div className="mt-5 pt-4 border-t border-[var(--c-border,#1f1f1f)]" data-testid={`number-card-${i}-switches`}>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-[#a1a1aa] mb-2">Quick switches{switches ? '' : ' · none'}</div>
+        <div className="flex flex-wrap gap-1.5">
+          {n.access?.callForwarding && <QuickSwitch num={n} feature="callForwarding" label="Forwarding" checked={on(n.features.callForwarding)} onSaved={onSaved} testid={`number-card-${i}-switch-forwarding`} />}
+          {n.access?.ivr && <QuickSwitch num={n} feature="ivr" label="IVR" checked={on(n.features.ivr)} onSaved={onSaved} testid={`number-card-${i}-switch-ivr`} />}
+          <QuickSwitch num={n} feature="hours" label="Hours" checked={on(n.features.hours)} onSaved={onSaved} testid={`number-card-${i}-switch-hours`} />
+          {n.plan === 'business' && n.status === 'active' && n.capabilities?.fax && <FaxSwitch n={n} reload={reload} testid={`number-card-${i}-switch-fax`} />}
+        </div>
       </div>
-      <div className="flex items-center justify-between mt-5 text-xs text-[#a1a1aa]">
-        <span>{n.autoRenew ? 'Renews' : 'Expires'} {day(n.expiresAt)}</span>
+      <div className="flex items-center justify-between gap-2 mt-5 text-xs text-[#a1a1aa]">
+        <span className="truncate">{n.autoRenew ? 'Renews' : 'Expires'} {day(n.expiresAt)}</span>
         <div className="flex items-center gap-0.5 -mr-2">
           <IconBtn icon={Copy} label="Copy number" onClick={copy} testid={`number-card-${i}-copy-button`} />
           {canCall && <IconBtn icon={PhoneOutgoing} label="Call from this number" onClick={call} testid={`number-card-${i}-call-button`} />}
-          <span className="w-9 h-9 flex items-center justify-center"><ChevronRight className="w-4 h-4" /></span>
+          <Link to={href} className="civr-btn civr-btn-ghost civr-btn-sm !h-9 ml-1" data-testid={`number-card-${i}-link`}>Open<ChevronRight className="w-4 h-4" /></Link>
         </div>
       </div>
     </div>

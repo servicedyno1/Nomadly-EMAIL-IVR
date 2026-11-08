@@ -21,14 +21,24 @@ import { confirmLeave } from '../guard';
 import { ReachChip } from '../SmsReach';
 import { SetupGuide } from './number/SetupGuide';
 
-// Tabs grouped (overview · what callers get · messages · account); a thin divider separates each group.
-const TABS = [
-  ['overview', 'Overview', null, OverviewTab, 0],
-  ['forwarding', 'Forwarding', 'callForwarding', ForwardingTab, 1], ['ringgroup', 'Ring group', 'ringGroup', RingGroupTab, 1], ['browser', 'Browser ring', 'browserRing', BrowserRingTab, 1], ['hours', 'Hours', null, HoursTab, 1], ['ivr', 'Keypad menu', 'ivr', IvrTab, 1], ['ai', 'AI voice agent', 'aiAgent', AiAgentTab, 1],
-  ['voicemail', 'Voicemail', 'voicemail', VoicemailTab, 1], ['recording', 'Recording', 'callRecording', RecordingTab, 1],
-  ['sms', 'SMS', null, SmsTab, 2], ['fax', 'Fax', null, FaxTab, 2], ['triggers', 'Text Triggers', 'textTriggers', TextTriggersTab, 2],
-  ['sip', 'SIP', 'sipCredentials', SipTab, 3], ['logs', 'Logs', null, LogsTab, 3], ['billing', 'Billing', null, BillingTab, 3],
+// Tabs in 4 groups + Overview. Group → [id, label, sub-tabs]; sub-tab → [id, label, access gate, component].
+const GROUPS = [
+  ['overview', 'Overview', [['overview', 'Overview', null, OverviewTab]]],
+  ['calls', 'Calls', [
+    ['forwarding', 'Forwarding', 'callForwarding', ForwardingTab], ['ringgroup', 'Ring group', 'ringGroup', RingGroupTab], ['browser', 'Browser ring', 'browserRing', BrowserRingTab],
+    ['ivr', 'Keypad menu', 'ivr', IvrTab], ['ai', 'AI voice agent', 'aiAgent', AiAgentTab], ['hours', 'Hours', null, HoursTab],
+  ]],
+  ['messages', 'Messages', [
+    ['voicemail', 'Voicemail', 'voicemail', VoicemailTab], ['recording', 'Recording', 'callRecording', RecordingTab], ['sms', 'SMS', null, SmsTab], ['fax', 'Fax', null, FaxTab], ['triggers', 'Text Triggers', 'textTriggers', TextTriggersTab],
+  ]],
+  ['connect', 'Connect', [['sip', 'SIP', 'sipCredentials', SipTab]]],
+  ['account', 'Account', [['logs', 'Logs', null, LogsTab], ['billing', 'Billing', null, BillingTab]]],
 ];
+const TABS = GROUPS.flatMap(([gid, , tabs]) => tabs.map(t => [...t, gid]));
+
+// What answers this number right now — shown as a badge on the group that controls it.
+const answering = (f = {}) => (f.fax?.line ? ['messages', 'Fax line on', 'fax'] : f.aiAgent?.enabled ? ['calls', 'AI agent', 'ai'] : f.ivr?.enabled ? ['calls', 'Keypad menu', 'ivr']
+  : (f.ringGroup?.enabled && f.ringGroup?.members?.length) ? ['calls', 'Ring group', 'ringgroup'] : (f.callForwarding?.enabled && f.callForwarding?.forwardTo) ? ['calls', 'Forwarding', 'forwarding'] : null);
 
 export default function NumberDetail() {
   const { phone } = useParams();
@@ -47,8 +57,11 @@ export default function NumberDetail() {
       <ErrorNote error={error} />
     </div>
   );
-  const [, label, gate, Comp] = TABS.find(t => t[0] === tab) || TABS[0];
-  const tabs = TABS.filter(t => t[0] !== 'fax' || n.capabilities?.fax);
+  const [, label, gate, Comp, gid] = TABS.find(t => t[0] === tab) || TABS[0];
+  const visible = (t) => t[0] !== 'fax' || n.capabilities?.fax;
+  const subTabs = (GROUPS.find(g => g[0] === gid) || GROUPS[0])[2].filter(visible);
+  const badge = answering(n.features);
+  const go = async (id) => { if (id !== tab && await confirmLeave()) setParams({ tab: id }, { replace: true }); };
   return (
     <div data-testid="number-detail-page">
       <Link to={cp('/app/numbers')} className="inline-flex items-center gap-2 min-h-[44px] text-sm text-[#a1a1aa] hover:text-[#818cf8] mb-3" data-testid="number-detail-back-link"><ArrowLeft className="w-4 h-4" />All numbers</Link>
@@ -67,15 +80,26 @@ export default function NumberDetail() {
         </div>
       </div>
       <SetupGuide n={n} />
-      <TabStrip active={tab} testid="number-tabstrip">
-        {tabs.map(([id, name, gate, , g], i) => (
-          <React.Fragment key={id}>
-          {i > 0 && g !== tabs[i - 1][4] && <span aria-hidden="true" className="w-px h-5 self-center bg-[#2a2a2a] mx-1 shrink-0" data-testid={`number-tab-divider-${g}`} />}
-          <button role="tab" aria-selected={tab === id} onClick={async () => { if (id !== tab && await confirmLeave()) setParams({ tab: id }, { replace: true }); }} data-testid={`number-tab-${id}`}
-            className={`inline-flex items-center gap-1 px-2.5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#818cf8] text-[#818cf8]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}{gate && !n.access[gate] && <Lock className="w-3 h-3 text-[#fbbf24]" aria-label="Needs a higher plan" data-testid={`number-tab-${id}-lock`} />}</button>
-          </React.Fragment>
-        ))}
-      </TabStrip>
+      <div className="civr-seg civr-scroll-x flex gap-1 overflow-x-auto mb-4" role="tablist" aria-label="Settings groups" data-testid="number-groups">
+        {GROUPS.map(([id, name, tabs]) => {
+          const first = (badge && badge[0] === id && tabs.some(t => t[0] === badge[2]) ? badge[2] : null) || tabs.filter(visible)[0]?.[0];
+          const active = gid === id;
+          return (
+            <button key={id} type="button" role="tab" aria-selected={active} onClick={() => go(active ? tab : first)} data-testid={`number-group-${id}`}
+              className={`civr-seg-btn shrink-0 inline-flex items-center gap-2 min-h-[40px] px-4 rounded-full text-sm font-medium transition-colors ${active ? 'civr-seg-on' : 'text-[#a1a1aa] hover:text-[var(--c-text,#f4f4f5)]'}`}>
+              {name}{badge && badge[0] === id && <span className="civr-pill civr-pill-ok !text-[11px] !py-0 !px-2" data-testid={`number-group-${id}-badge`}>{badge[1]}</span>}
+            </button>
+          );
+        })}
+      </div>
+      {subTabs.length > 1 && (
+        <TabStrip active={tab} testid="number-tabstrip" className="mb-6">
+          {subTabs.map(([id, name, g]) => (
+            <button key={id} role="tab" aria-selected={tab === id} onClick={() => go(id)} data-testid={`number-tab-${id}`}
+              className={`inline-flex items-center gap-1 px-2.5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#818cf8] text-[#818cf8]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}{g && !n.access[g] && <Lock className="w-3 h-3 text-[#fbbf24]" aria-label="Needs a higher plan" data-testid={`number-tab-${id}-lock`} />}</button>
+          ))}
+        </TabStrip>
+      )}
       <div data-testid={`number-tabpanel-${tab}`}>
         {gate && !n.access[gate] ? <Locked feature={label} phone={n.phoneNumber} need={planFor(catalog?.plans, gate)?.name} /> : <Comp num={n} reload={reload} onDeleted={() => nav(cp('/app/numbers'))} />}
       </div>
