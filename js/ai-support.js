@@ -808,7 +808,12 @@ If the roster shows the domain has <b>no registration trace at all</b> AND <b>no
 → <b>Bulk fax (up to ${FAX_BULK_MAX} numbers at once)</b>: 📠 Fax → <b>📤 Bulk fax (up to ${FAX_BULK_MAX} numbers)</b> → paste the numbers (one per line, with country code) OR send a <b>.csv / .txt</b> file with them (duplicates and invalid entries are skipped) → send the PDF/photo → check the quote (pages × numbers) → tap ✅ Send fax. Faxes go out one by one in the background and you get <b>one summary</b> at the end (delivered / failed / charged).
 → <b>Receive faxes</b>: 📠 Fax → <b>📥 Turn on fax line (receive faxes)</b>. While the fax line is ON, that number receives faxes and <b>does not take voice calls</b> (a number does voice or fax, not both at once). Tap <b>📥 Fax line: ON — switch back to voice</b> to return it to calls. Each received fax arrives here in the chat as a <b>PDF</b>, and a copy is emailed to your account email if one is on file. Sending works from any Business number, fax line on or off.
 → <b>Price</b>: each Business number gets <b>${FAX_FREE} free pages per plan month</b> (sent + received combined, resets at renewal), then <b>$${FAX_PRICE} per page</b> from the wallet. Bulk = pages × recipients, free pages used first. You're charged only when a fax is delivered — failed faxes are free. The wallet must cover the paid pages before sending, otherwise top up first.
-→ <b>History</b>: 📠 Fax → <b>🗂 Recent faxes</b> (last 10 with status, pages, cost). The Fax screen also shows free pages left this plan month.
+→ <b>History</b>: 📠 Fax → <b>🗂 Recent faxes</b> (last 10 with status, pages, cost) — tap <b>📄 PDF 1</b>, <b>📄 PDF 2</b>… to get any listed fax's PDF again. The Fax screen also shows free pages left this plan month.
+→ <b>Email copies</b>: 📠 Fax → <b>✉️ Add fax email (PDF copies)</b> → type the email (or <b>off</b> to stop).
+→ <b>Not enough balance for a received fax</b>: if the free pages are used up and the wallet can't cover it, the user is told a fax arrived and how much to top up; the PDF is delivered automatically within a few minutes after topping up.
+→ <b>Bulk results</b>: the end-of-batch summary lists failed numbers with the reason (a CSV file with all failed numbers is attached when there are more than 15).
+→ If a Business plan lapses or is downgraded while the fax line is on, the number is switched back to voice automatically and the user is told.
+→ A number on voice cannot receive faxes (fax machines calling it won't get through) — turn on the fax line first.
 → The same Fax feature is in the CloudIVR web app under <b>Numbers → Fax</b>.
 
 ### "How do I set up voicemail?"

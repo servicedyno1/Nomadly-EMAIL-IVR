@@ -10400,6 +10400,7 @@ bot?.on('message', msg => {
     cpFaxDoc: 'cpFaxDoc',
     cpFaxConfirm: 'cpFaxConfirm',
     cpFaxBulkTo: 'cpFaxBulkTo',
+    cpFaxEmail: 'cpFaxEmail',
     cpSmsInbox: 'cpSmsInbox',
     cpVmGreeting: 'cpVmGreeting',
     cpVmAudioUpload: 'cpVmAudioUpload',
@@ -30736,7 +30737,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const allNumbers = userData?.numbers || []
     const subCount = num.isSubNumber ? 0 : allNumbers.filter(n => n.isSubNumber && n.parentNumber === num.phoneNumber && (n.status === 'active' || n.status === 'suspended')).length
     const subLimit = num.isSubNumber ? 0 : phoneConfig.getSubNumberLimit(num.plan)
-    return send(chatId, cpTxt.manageNumber(num, subCount, subLimit, allNumbers), k.of(buildManageMenu(num, subCount, subLimit)))
+    const faxNote = faxService.lineOn(num) ? `\n\n${faxService.t(info?.userLanguage).lineOn(num.phoneNumber)}` : ''
+    return send(chatId, cpTxt.manageNumber(num, subCount, subLimit, allNumbers) + faxNote, k.of(buildManageMenu(num, subCount, subLimit)))
   }
 
   // Fax menu for a Business number (re-reads the record so the fax-line state is current).
@@ -30745,7 +30747,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const fresh = (await faxService.findMine(String(chatId), num.phoneNumber)) || num
     await set(state, chatId, 'action', a.cpFax)
     const on = faxService.lineOn(fresh)
-    return send(chatId, fx.menu(fresh.phoneNumber, await faxService.usage(fresh), on), k.of([[fx.btnSend], [fx.btnBulk], [on ? fx.btnLineOn : fx.btnLineOff], [fx.btnRecent]]))
+    const email = await faxService.emailOf(String(chatId))
+    return send(chatId, fx.menu(fresh.phoneNumber, await faxService.usage(fresh), on), k.of([[fx.btnSend], [fx.btnBulk], [on ? fx.btnLineOn : fx.btnLineOff], [fx.btnRecent], [fx.btnEmail(email)]]))
   }
   // Bulk fax: pasted list or CSV/TXT text → saved recipients, then ask for the document.
   async function faxBulkList(chatId, num, text, lang) {
@@ -32261,7 +32264,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   // ━━━ FAX (Business plan) ━━━
-  if ([a.cpFax, a.cpFaxTo, a.cpFaxDoc, a.cpFaxConfirm, a.cpFaxBulkTo].includes(action)) {
+  if ([a.cpFax, a.cpFaxTo, a.cpFaxDoc, a.cpFaxConfirm, a.cpFaxBulkTo, a.cpFaxEmail].includes(action)) {
     const fx = faxService.t(info?.userLanguage)
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
     const snap = info?.cpActiveNumber
@@ -32280,10 +32283,32 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       }
       if (message === fx.btnRecent) {
         const rows = (await faxService.list(String(chatId), 50)).filter(f => f.phoneNumber === num.phoneNumber).slice(0, 10)
-        const icon = { delivered: '✅', failed: '❌', received: '📥', received_no_media: '📥' }
-        const text = rows.length ? rows.map(f => `${icon[f.status] || '⏳'} ${phoneConfig.shortDate(new Date(f.createdAt).toISOString())} · ${f.direction === 'inbound' ? `← ${phoneConfig.formatPhone(f.from)}` : `→ ${phoneConfig.formatPhone(f.to)}`} · ${f.pages}p${f.cost ? ` · $${f.cost.toFixed(2)}` : ''}`).join('\n') : fx.none
-        return send(chatId, text, { parse_mode: 'HTML' })
+        const icon = { delivered: '✅', failed: '❌', received: '📥', received_no_media: '📥', media_failed: '⚠️', held: '💳' }
+        const text = rows.length ? rows.map((f, i) => `${i + 1}. ${icon[f.status] || '⏳'} ${phoneConfig.shortDate(new Date(f.createdAt).toISOString())} · ${f.direction === 'inbound' ? `← ${phoneConfig.formatPhone(f.from)}` : `→ ${phoneConfig.formatPhone(f.to)}`} · ${f.pages}p${f.cost ? ` · $${f.cost.toFixed(2)}` : ''}`).join('\n') : fx.none
+        const files = rows.map((f, i) => [f, i + 1]).filter(([f]) => f.hasFile && f.status !== 'held')
+        await saveInfo('cpFaxRecent', files.map(([f, n]) => ({ n, id: f.id })))
+        const btns = files.map(([, n]) => fx.btnPdf(n))
+        return send(chatId, text, { parse_mode: 'HTML', ...k.of([...Array.from({ length: Math.ceil(btns.length / 3) }, (_, r) => btns.slice(r * 3, r * 3 + 3)), [fx.btnSend]]) })
       }
+      const pdfHit = (info?.cpFaxRecent || []).find(r => message === fx.btnPdf(r.n))
+      if (pdfHit) {
+        try {
+          const f = await faxService.fileOf(String(chatId), pdfHit.id)
+          if (!f) return send(chatId, fx.none)
+          const other = f.fax.direction === 'inbound' ? f.fax.from : f.fax.to
+          return bot.sendDocument(chatId, f.buffer, {}, { filename: `fax_${String(other).replace(/\D/g, '')}.pdf`, contentType: 'application/pdf' })
+        } catch (e) { return send(chatId, `⚠️ ${e.code ? e.message : 'Could not load that fax.'}`) }
+      }
+      if (message === fx.btnEmail(await faxService.emailOf(String(chatId)))) { await set(state, chatId, 'action', a.cpFaxEmail); return send(chatId, fx.askEmail, { parse_mode: 'HTML', ...k.of([]) }) }
+      return showFaxMenu(chatId, num)
+    }
+    if (action === a.cpFaxEmail) {
+      if (back) return showFaxMenu(chatId, num)
+      const typed = String(message || '').trim()
+      const off = /^off$/i.test(typed)
+      if (!off && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(typed)) return send(chatId, fx.badEmail)
+      await saveInfo('faxEmail', off ? false : typed.toLowerCase())
+      send(chatId, fx.emailSaved(off ? null : typed.toLowerCase()))
       return showFaxMenu(chatId, num)
     }
     if (action === a.cpFaxTo) {
