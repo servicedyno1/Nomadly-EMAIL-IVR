@@ -2365,3 +2365,12 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Left VoIP-only by design: Quick IVR call, Campaigns, Contacts calling, Fax, AI summary, Minutes stat, missed-call reply, tryNudge email.
 - Pre-existing, not mine: test_cloudivr_emails depositNudge render check fails (37/38); 4 eslint errors in emails.js/numbers.js.
 - Push path: clone with GITHUB_PAT_CLASSIC (backend/.env) to /tmp, copy files, commit, push HEAD:main → CI deploys app-main + syncs WhiteLabel.
+
+## 2026-11-09 Landing-to-Texting counts as numbers + overview/expiry tidy (DEPLOYED: ca702155, app-main + WhiteLabel success)
+- Helper `textingLines(db, chatId)` + `LIVE_TEXTING` (verify/loa/documents/admin_docs/review/active/paused) in numbers.js; expiresAt = nextBillAt (null when included with a plan number).
+- /dashboard: total/active include texting, new `numbers.texting`; expiringSoon = status active AND expiry in (now, now+7d). Dashboard.js `fresh` ignores texting so texting-only accounts keep TextingHome.
+- /admin/overview: regular count excludes released ($filter), adds live hostedSms. Admin user detail lists live texting rows. Support context + /activity + emails.webNumbers (weekly, low-balance) include texting.
+- Widgets YourNumbers lists texting rows (link /app/texting); "Next renewal" only future dates.
+- Tested iteration_237 (backend 9/9, frontend 100%). Seed: scripts/seed_texting_gap_check.js seed|clean.
+- Note: the landing refresh (Doodles/HeroCard) was already on main in cca10e3 before this push, so it is live.
+- Backlog idea: "Your numbers" card shows first 5 only (VoIP first), so heavy VoIP accounts don't see mobile/texting rows there.

@@ -1,0 +1,22 @@
+{
+  "summary": "Tested the change that counts Landline-to-Texting numbers as numbers (backend and frontend). Backend: 9 of 9 pytest checks pass. (1) /dashboard for Alice with the GAPCHK seed returns total 18, active 15, expiringSoon 2, mobile 4, texting 6, the same as counts taken straight from Mongo. Released numbers and cancelled texting numbers are left out. (2) expiringSoon drops by 1 when the texting number's nextBillAt is moved into the past, when it is paused, or when it is attached to a plan, and comes back after the values are restored. The expired active number +19995550001 and the suspended +19995550003 are not counted. (3) /admin/overview numbers = 28, which is 11 non-released regular + 4 live mobile + 13 live texting, from Mongo. It returns 401 without the admin cookie. (4) /admin/users/5000000000000001 lists texting rows (plan 'texting', country US, expiresAt = nextBillAt) for GAPCHK-1 (active) and GAPCHK-2 (review), but not for the cancelled GAPCHK-3. (5) /activity includes the inbound hosted text on +12125550101. (6) A new texting-only account returns total 1, texting 1, expiringSoon 0. Frontend: on Alice's Overview the 'Your numbers' card renders; the low-balance warning names +12125550101 renewing Nov 12, a future date, and the past-dated expired number is never chosen. Bob, with a temporary active texting doc: the texting rows link to /cloudivr/app/texting and the link works; 'Next renewal' shows a future date (Nov 13). The texting-only account sees TextingHome ('Your texting numbers…', the Add a number button, no Buy-number or GetStarted). The onboarding purposes modal shows on top, which is expected for a new account.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [{"screen": "Dashboard Your numbers", "issues": ["The card shows only the first 5 numbers, with VoIP numbers first. Accounts with 5 or more VoIP numbers (for example Alice) never see their texting or mobile rows in this card. This is not a regression, just a note."]}]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_texting_counts.py", "/app/test_reports/pytest/texting_counts.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "numbers.js /activity: texting.map(d => d.phoneNumber) has no .filter(Boolean), unlike the mobile list. HS.start always sets phoneNumber today, but if a hostedSms doc ever lacks it, phoneNumber $in [null] would match logs from other users that have no phoneNumber. Add .filter(Boolean) as a safeguard.",
+    "/admin/users/:chatId still lists released regular numbers (raw val.numbers). That may be intended for the admin view, but it does not match the overview count, which leaves them out.",
+    "The dashboard total could count a number twice if the same E.164 number is both a calling number and a hostedSms phoneNumber. This is unlikely by design."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_texting_counts.py", "/app/backend/tests/txonly_ui_helper.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Created TEST_ web accounts test_txonly7199142@example.com (5000000000000067) and test_txonlyui4411@example.com (5000000000000068), password QaTest#2026x; their accounts were not deleted. Their temporary hostedSms docs (TEST-TXONLY-*) and the temporary TEST-BOBTX-1 doc on Bob were deleted. Ran `node scripts/seed_texting_gap_check.js clean` at the end and confirmed that no GAPCHK or TEST- hostedSms docs and no gapCheck phoneLogs remain.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run `node scripts/seed_texting_gap_check.js seed` before tests/test_cloudivr_texting_counts.py and `clean` after. The test computes the expected counts from Mongo, so it does not depend on fixed numbers. webAccounts _id is stored as a double, so cast it with int() in Python. Login UI: cookie-allow-all, auth-email-input, input[type=password], auth-submit-button."
+}
