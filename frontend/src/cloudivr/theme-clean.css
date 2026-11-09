@@ -152,3 +152,11 @@ html[data-civr-theme] .civr .civr-side .civr-nav-link svg { width: 16px; height:
 html[data-civr-theme] .civr .civr-side .civr-nav-link.active svg { opacity: 1; }
 html[data-civr-theme] .civr .civr-side .civr-side-label { font-size: 11px; opacity: 1; }
 html[data-civr-theme="light"] .civr .civr-upsell-text { color: #b45309; }
+
+/* JujuCloud-inspired app accents: softer-cornered buttons, lifted primary with a blue glow, blue→lime active marker. */
+html[data-civr-theme] .civr .civr-btn { border-radius: 12px; }
+html[data-civr-theme] .civr .civr-btn-primary { box-shadow: 0 6px 16px -10px rgba(29, 111, 216, .7); transition: background-color .15s ease, box-shadow .2s ease, transform .15s ease; }
+html[data-civr-theme] .civr .civr-btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 12px 24px -12px rgba(29, 111, 216, .75); }
+html[data-civr-theme] .civr .civr-btn-primary:active:not(:disabled) { transform: scale(.98); }
+html[data-civr-theme] .civr .civr-nav-link.active::before { background: linear-gradient(180deg, var(--c-accent), #a3e635); }
+html[data-civr-theme] .civr .civr-seg-on { box-shadow: inset 0 -2px 0 #a3e635; }

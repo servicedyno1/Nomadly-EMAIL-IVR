@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ArrowUp, Plus, MessageCircle, Send, MessageSquareText, Check } from 'lucide-react';
+import { ArrowRight, ArrowUp, ChevronDown, MessageCircle, Send, MessageSquareText, Check } from 'lucide-react';
 import { SocialLinks } from './Social';
 import { usd, money, startPrice } from '../../api';
 import { useCivrAuth } from '../../AuthContext';
@@ -102,13 +102,13 @@ export function faqItems(c) {
 export function Faq({ catalog }) {
   return (
     <section id="faq" className="civr-l-cream civr-l-soft scroll-mt-16 border-t civr-l-rule" data-testid="faq-section">
-      <div className="max-w-7xl mx-auto px-6 md:px-8 py-24 grid lg:grid-cols-12 gap-12">
-        <div className="lg:col-span-4"><SectionHead label="FAQ" title="Got questions? Good." /></div>
-        <div className="lg:col-span-8 border-t civr-l-rule" data-testid="faq-list">
+      <div className="max-w-7xl mx-auto px-6 md:px-8 py-24">
+        <Reveal className="mx-auto max-w-2xl text-center"><div className="civr-l-eyebrow">FAQ</div><h2 className="civr-l-h text-3xl sm:text-4xl text-slate-950 mt-3">Got questions? Good.</h2><p className="text-slate-600 mt-4">Plain answers about numbers, IVR, SIP and payments.</p></Reveal>
+        <div className="mx-auto mt-12 max-w-3xl space-y-3" data-testid="faq-list">
           {faqItems(catalog).slice(0, 10).map(([q, a], i) => (
-            <Reveal as="details" key={q} delay={Math.min(i, 6) * 60} className="border-b civr-l-rule group" data-testid={`faq-item-${i}`}>
-              <summary className="flex items-center justify-between gap-4 cursor-pointer py-6 min-h-[56px] text-base md:text-lg font-semibold text-slate-900 hover:text-slate-600 transition-colors" data-testid={`faq-question-${i}`}>{q}<Plus className="civr-faq-chevron w-5 h-5 shrink-0 text-slate-400" /></summary>
-              <p className="pb-6 text-sm text-slate-600 max-w-2xl" data-testid={`faq-answer-${i}`}>{a}</p>
+            <Reveal as="details" key={q} delay={Math.min(i, 6) * 60} className="civr-faq-item overflow-hidden rounded-2xl border border-slate-200 bg-white" data-testid={`faq-item-${i}`}>
+              <summary className="flex items-center justify-between gap-4 cursor-pointer px-5 sm:px-6 py-5 min-h-[56px] text-base font-semibold text-slate-950" data-testid={`faq-question-${i}`}>{q}<span className="civr-faq-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 text-[#1d6fd8]"><ChevronDown className="w-4 h-4" /></span></summary>
+              <p className="px-5 sm:px-6 pb-5 text-base leading-relaxed text-slate-600" data-testid={`faq-answer-${i}`}>{a}</p>
             </Reveal>
           ))}
         </div>
@@ -123,12 +123,14 @@ export function FinalCta({ catalog }) {
   return (
     <section className="civr-l-cream py-24" data-testid="final-cta">
       <div className="max-w-7xl mx-auto px-6 md:px-8">
-        <Reveal className="relative overflow-hidden rounded-[28px] border civr-l-rule bg-slate-50 px-8 py-16 md:px-16 md:py-20 text-center">
-          <span className="civr-np-stars" aria-hidden="true" />
+        <Reveal className="civr-l-ondark relative overflow-hidden rounded-3xl bg-[#07060f] ring-1 ring-white/10 px-8 py-16 md:px-16 md:py-20 text-center">
+          <span aria-hidden="true" className="pointer-events-none absolute -left-20 -top-24 h-72 w-72 rounded-full bg-[#1d6fd8]/30 blur-3xl" />
+          <span aria-hidden="true" className="pointer-events-none absolute -bottom-24 -right-16 h-72 w-72 rounded-full bg-lime-300/20 blur-3xl" />
+          <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-0 h-px w-2/3 -translate-x-1/2 bg-gradient-to-r from-transparent via-sky-400/60 to-transparent" />
           <div className="relative">
-            <div className="civr-l-eyebrow">Ready when you are</div>
-            <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl text-slate-950 max-w-3xl mx-auto mt-4">Stop missing calls. <span className="civr-l-hl">Start closing them.</span></h2>
-            <p className="text-base mt-5 text-slate-600">Your number can be answering — and calling — in minutes. Free to sign up{from ? ` · Numbers from ${from}/month` : ''} · No contracts</p>
+            <div className="civr-l-eyebrow !text-lime-300">Ready when you are</div>
+            <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl text-white max-w-3xl mx-auto mt-4">Stop missing calls. <span className="text-[#64acff]">Start closing them.</span></h2>
+            <p className="text-base mt-5 text-slate-300">Your number can be answering — and calling — in minutes. Free to sign up{from ? ` · Numbers from ${from}/month` : ''} · No contracts</p>
             <div className="flex flex-wrap justify-center gap-3 mt-9">
               <Link to={start()} className="civr-l-pill civr-l-pill-ink" data-testid="final-cta-button"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>
               <a href="#try" className="civr-l-pill civr-l-pill-outline" data-testid="final-cta-try-button"><Slide>Try a free call</Slide></a>

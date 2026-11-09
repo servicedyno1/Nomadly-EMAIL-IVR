@@ -7,6 +7,7 @@ import { Platform } from './landing/Platform';
 import { TryCall } from './landing/TryCall';
 import { Faq, FinalCta, Footer } from './landing/PricingFaq';
 import { OneHero, AllPlans, CompareTable } from './landing/OnePage';
+import { PromiseStrip, FeaturePills } from './landing/Highlights';
 import { startPrice } from '../api';
 import { LandingNav } from './landing/Nav';
 import { StickyCta } from './landing/StickyCta';
@@ -29,9 +30,11 @@ export default function Landing() {
     <div className="civr-l civr-np" data-testid="landing-page" data-catalog={data ? 'live' : 'snapshot'}>
       <LandingNav catalog={catalog} />
       <main>
-        <OneHero setTab={setTab} from={startPrice(catalog)} />
+        <OneHero setTab={setTab} from={startPrice(catalog)} esimPrice={esim?.plans?.[0]?.price} offer={offer} />
+        <PromiseStrip />
         <AllPlans catalog={catalog} tab={tab} setTab={setTab} esimPrice={esim?.plans?.[0]?.price} offer={offer} />
         <CompareTable catalog={catalog} />
+        <FeaturePills />
         <Platform catalog={catalog} />
         <HowItWorks catalog={catalog} />
         <TryCall />

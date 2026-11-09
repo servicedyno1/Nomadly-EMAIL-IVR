@@ -8,6 +8,9 @@ import { Card, Waitlist, ESIM_POINTS, MOBILE_POINTS } from './ProductHero';
 import { openEsimCheckout } from './EsimCheckout';
 import { openMobileCheckout } from './MobileCheckout';
 import { PaymentMethods } from './Payments';
+import { HeroDecor, Squiggle } from './Doodles';
+import { HeroCard } from './HeroCard';
+import { NumbersPreview } from './NumbersPreview';
 
 const WORDS = ['business calls', 'IVR campaigns', 'two-way texts', 'a USA eSIM'];
 export const PICKS = [
@@ -28,28 +31,19 @@ function CyclingWord() {
 
 const goPlans = (id, setTab) => { setTab(id); document.getElementById('pricing')?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' }); };
 
-// Short hero: cycling headline + "What do you need?" picker that opens the matching plans tab.
-export function OneHero({ setTab, from }) {
+// Hero: centred headline with a hand-drawn underline, floating telecom drawings, a tabbed card and a sample dashboard.
+export function OneHero({ setTab, from, esimPrice, offer }) {
   return (
-    <section className="civr-l-cream pt-28 md:pt-32 pb-14 md:pb-20" data-testid="product-hero">
-      <div className="max-w-7xl mx-auto px-6 md:px-8">
-        <div className="max-w-3xl">
+    <section className="relative overflow-hidden bg-white pt-28 md:pt-32 pb-14 md:pb-16" data-testid="product-hero">
+      <HeroDecor />
+      <div className="relative max-w-7xl mx-auto px-6 md:px-8 text-center">
+        <div className="mx-auto max-w-3xl">
           <div className="civr-l-kicker civr-rise"><span className="civr-l-dot" />Cloud phone, IVR and USA mobile lines</div>
-          <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-6xl mt-5 text-slate-950 civr-rise civr-d1" data-testid="hero-title">One place for <CyclingWord /></h1>
-          <p className="text-base md:text-lg text-slate-600 mt-5 leading-relaxed civr-rise civr-d2" data-testid="hero-subtitle">Pick what you need, pay with crypto or your wallet, and you are live in minutes. Month to month, no contract{from ? ` · from ${from}/month` : ''}.</p>
+          <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-6xl mt-5 text-slate-950 font-extrabold tracking-tight civr-rise civr-d1" data-testid="hero-title">One place for <span className="relative inline-block"><CyclingWord /><Squiggle /></span></h1>
+          <p className="mx-auto max-w-2xl text-base md:text-lg text-slate-600 mt-5 leading-relaxed civr-rise civr-d2" data-testid="hero-subtitle">Pick what you need, pay with crypto or your wallet, and you are live in minutes. Month to month, no contract{from ? ` · from ${from}/month` : ''}.</p>
         </div>
-        <div className="mt-10 civr-rise civr-d3" data-testid="plan-picker">
-          <p className="text-sm font-semibold text-slate-900 mb-3">What do you need?</p>
-          <div className="grid sm:grid-cols-3 gap-3">
-            {PICKS.map(([id, I, t, s]) => (
-              <button key={id} type="button" onClick={() => goPlans(id, setTab)} className="civr-pick group text-left rounded-2xl border civr-l-rule bg-white p-5 min-h-[96px]" data-testid={`plan-picker-${id}`}>
-                <span className="flex items-center gap-3"><span className="w-10 h-10 rounded-xl grid place-items-center bg-slate-950 text-white"><I className="w-5 h-5" /></span><span className="font-semibold text-slate-950">{t}</span><ArrowRight className="w-4 h-4 ml-auto text-slate-400 group-hover:translate-x-1 transition-transform" /></span>
-                <span className="block text-sm text-slate-500 mt-2">{s}</span>
-              </button>
-            ))}
-          </div>
-          <a href="#try" className="inline-flex items-center gap-2 mt-6 text-sm font-semibold text-slate-900 underline underline-offset-4" data-testid="hero-try-link">Or try a free call first — show any caller ID</a>
-        </div>
+        <HeroCard from={from} esimPrice={esimPrice} offer={offer} goPlans={(id) => goPlans(id, setTab)} />
+        <NumbersPreview />
       </div>
     </section>
   );
