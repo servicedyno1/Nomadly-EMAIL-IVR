@@ -820,4 +820,8 @@ function routes(router, deps) {
   return { myNumbers, findMine, purchase, REPLACE_PRICE, releaseReplaced, pickFromSearch, searchSimilar, setField, checkCoupon, unheld, ownAudioUrls, upgradeQuote, upgradeNumber, upgradeOffer, rotateSip }
 }
 
-module.exports = { parseBackups, routes, catalog, routeSummary, publicNumber, publicVoicemail, validateIvr, normPhone, countries, E164, webFeatures, recommendedPlan, WEB_FEATURES }
+// USA mobile numbers (two-way SMS lines, esimLines kind 'mobile') are numbers too; plain eSIMs are not.
+const LIVE_MOBILE = ['provisioning', 'awaiting_imei', 'active', 'suspended']
+const mobileLines = (db, chatId) => db.collection('esimLines').find({ chatId: String(chatId), kind: 'mobile', status: { $in: LIVE_MOBILE } }).toArray()
+
+module.exports = { mobileLines, LIVE_MOBILE, parseBackups, routes, catalog, routeSummary, publicNumber, publicVoicemail, validateIvr, normPhone, countries, E164, webFeatures, recommendedPlan, WEB_FEATURES }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Check, ArrowRight, AlertTriangle, ChevronRight } from 'lucide-react';
-import { money, day, enc, startPrice } from '../../api';
+import { money, day, enc, startPrice, useApi } from '../../api';
 import { useShell } from '../../Shell';
 import { statusPill } from '../../ui';
 import { cp } from '../../paths';
@@ -38,9 +38,13 @@ export function GetStarted({ balance }) {
 }
 
 // Existing accounts: their numbers with renewal dates + a warning when the wallet can't cover the next renewal.
-export function YourNumbers({ nums, balance }) {
+export function YourNumbers({ nums: voip, balance }) {
   const pv = usePrivacy();
-  if (!nums) return null;
+  const { data: mob } = useApi('/mobile-numbers');
+  if (!voip) return null;
+  // USA mobile numbers (two-way SMS) are numbers too; they open in the mobile section of My numbers.
+  const mobile = (mob?.items || []).filter(m => ['provisioning', 'awaiting_imei', 'active', 'suspended'].includes(m.status)).map(m => ({ phoneNumber: m.phoneNumber || 'Assigning number…', mobile: true, status: m.status, expiresAt: m.expiresAt, autoRenew: m.autoRenew, planPrice: m.price, countryName: 'United States', planName: 'USA mobile number' }));
+  const nums = [...voip, ...mobile];
   const next = nums.filter(n => n.autoRenew && n.status === 'active' && n.expiresAt).sort((a, b) => new Date(a.expiresAt) - new Date(b.expiresAt))[0];
   const shortBy = next ? Math.round(((next.planPrice || 0) - balance) * 100) / 100 : 0;
   return (
@@ -55,10 +59,10 @@ export function YourNumbers({ nums, balance }) {
       )}
       <div className="divide-y divide-[#1a1a1a]">
         {nums.slice(0, 5).map((n, i) => (
-          <Link key={n.phoneNumber} to={cp(`/app/numbers/${enc(n.phoneNumber)}`)} className="flex items-center gap-4 py-4 -mx-2 px-2 rounded-lg hover:bg-[#111] transition-colors" data-testid={`dashboard-number-${i}`}>
+          <Link key={n.phoneNumber} to={cp(n.mobile ? '/app/numbers' : `/app/numbers/${enc(n.phoneNumber)}`)} className="flex items-center gap-4 py-4 -mx-2 px-2 rounded-lg hover:bg-[#111] transition-colors" data-testid={`dashboard-number-${i}`}>
             <div className="flex-1 min-w-0">
               <div className="font-mono text-lg truncate" data-testid={`dashboard-number-${i}-phone`}>{pv.phone(n.phoneNumber)}</div>
-              <div className="text-xs text-[#a1a1aa] mt-1">{n.countryName || n.country} · {n.planName} · {n.autoRenew ? 'renews' : 'expires'} {day(n.expiresAt)}</div>
+              <div className="text-xs text-[#a1a1aa] mt-1">{n.countryName || n.country} · {n.planName}{n.expiresAt && <> · {n.autoRenew ? 'renews' : 'expires'} {day(n.expiresAt)}</>}</div>
             </div>
             <span className={statusPill(n.status)}>{n.status}</span><ChevronRight className="w-4 h-4 text-[#a1a1aa]" />
           </Link>

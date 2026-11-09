@@ -426,3 +426,7 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - Bug: js/cloudivr-web/caller-ids.js only set col/dbRef inside routes() (CloudIVR web). Bot-only WL brands (Voodoo, WL, ProShop) never logged callerIdUses/callerIdDeclines (voodoo: 0 ever), so the daily caller-ID report missed them, and saved presets / setDefault did not work there.
 - Fix: new init(db), called from _index.js before initPhoneTestRoutes. Deployed by CI: app-main-b, app-wl-a, app-voodoo-b, app-proshop-a, all healthy with 0 restarts.
 - Prod read access: brand DB URLs are in DR droplet /opt/dr/conf/mongo_sources.conf (voodoo db "voodoo"). Nomadly prod = RESELLER_DB_URL db "test".
+
+## 2026-11-09 11:18Z USA mobile numbers counted as numbers (main c9408b9c, app-main-b healthy)
+- numbers.js exports mobileLines(db, chatId) and LIVE_MOBILE. Used by /dashboard numbers.total/active/expiringSoon (+mobile), support AI context, admin overview count and admin user detail. Frontend: Overview "Your numbers" lists mobile lines; My numbers hides the "No numbers yet" empty state when the account has mobile lines.
+- Note: the platform auto-pushed the JujuCloud landing refresh to main at 09:15Z (c8747271), so it is LIVE on cloudivr.net.

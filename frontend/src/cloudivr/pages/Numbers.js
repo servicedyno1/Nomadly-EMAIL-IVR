@@ -102,6 +102,7 @@ function NumberCard({ n, i, pv, onSaved, reload }) {
 
 export default function Numbers() {
   const { data, error, loading, setData, reload } = useApi('/numbers');
+  const { data: mob } = useApi('/mobile-numbers');
   const pv = usePrivacy();
   const nums = data?.numbers || [];
   const s = useSearch(nums, n => [n.phoneNumber, n.countryName, n.country, n.planName, n.status, n.type?.replace('_', '-'), n.isSubNumber ? 'Extra' : '']);
@@ -113,7 +114,7 @@ export default function Numbers() {
         <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="numbers-buy-button"><ShoppingCart className="w-4 h-4" />Buy a number</Link>
       </PageHeader>
       <ErrorNote error={error} />
-      {loading ? <Spinner /> : !nums.length ? (
+      {loading ? <Spinner /> : !nums.length && mob?.items?.length ? null : !nums.length ? (
         <Empty icon={Hash} title="No numbers yet" sub="Pick a country, choose a number and a plan — most numbers are live in about a minute." testid="numbers-empty">
           <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="numbers-empty-buy-button">Buy your first number</Link>
         </Empty>

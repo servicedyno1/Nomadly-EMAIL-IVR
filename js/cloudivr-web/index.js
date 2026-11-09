@@ -123,7 +123,7 @@ function createCloudIvrWeb(deps) {
     emails.routes(r, { h })
     r.get('/dashboard', h(async (req, res) => {
       const id = req.webChatId
-      const nums = await numbersApi.myNumbers(id)
+      const [nums, mobile] = await Promise.all([numbersApi.myNumbers(id), numbers.mobileLines(db, id)])
       const [balance, unread, campaigns, pendingVerification, trial, liveCampaigns, messagesUnread, textsThisMonth] = await Promise.all([
         wallet.walletOps(db).balance(id),
         db.collection('webNotifications').countDocuments({ chatId: id, read: false }),
@@ -137,7 +137,7 @@ function createCloudIvrWeb(deps) {
       const soon = Date.now() + 7 * 86400000
       res.json({
         balance, unread, messagesUnread, activeCampaigns: campaigns, liveCampaigns, pendingVerification, ivrTrial: !!trial.available,
-        numbers: { total: nums.length, active: nums.filter(n => n.status === 'active').length, expiringSoon: nums.filter(n => n.expiresAt && new Date(n.expiresAt).getTime() < soon).length },
+        numbers: { total: nums.length + mobile.length, active: [...nums, ...mobile].filter(n => n.status === 'active').length, expiringSoon: [...nums, ...mobile].filter(n => n.expiresAt && new Date(n.expiresAt).getTime() < soon).length, mobile: mobile.length },
         minutesUsed: nums.reduce((s, n) => s + (n.minutesUsed || 0), 0), smsUsed: nums.reduce((s, n) => s + (n.smsUsed || 0), 0), textsThisMonth,
       })
     }))
