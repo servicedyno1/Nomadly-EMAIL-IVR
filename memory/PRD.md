@@ -2357,3 +2357,11 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - App: buttons 12px radius + blue glow/lift, blue to lime active nav marker (theme-clean.css end + line 70).
 - FR/ES keys added. Tested iteration_236 (~90%, 4 minor issues fixed and self-verified).
 - eSIM CTA falls back to signup in preview because /public/esim-plans is empty there.
+
+## 2026-11-09 USA mobile numbers count as numbers (DEPLOYED: c9408b9c + e8d642c4)
+- Rule: esimLines kind 'mobile' in LIVE_MOBILE (provisioning/awaiting_imei/active/suspended) are platform numbers; plain eSIMs are not. Helper `mobileLines(db, chatId)` + `LIVE_MOBILE` in js/cloudivr-web/numbers.js.
+- c9408b9c: /dashboard numbers total/active/expiringSoon/mobile, admin overview + user detail, support context, Numbers page empty state, Overview "Your numbers".
+- e8d642c4 (gap audit): spenza.buyMobile pays referrals.onPurchase (web accounts, dry run too); /activity includes mobile phones (aggregate $convert timestamp → sorted, mobile logs store Date not ISO text); emails.webNumbers returns {numbers, mobile} — weekly + walletLevels use both, numberStates (renewSoon/renewFailed) stays VoIP-only because spenza.js sends its own reminders; weeklyFor matches Date and ISO timestamps; Sip.js lists mobile numbers (MobileList, browser phone button) instead of "No numbers yet".
+- Left VoIP-only by design: Quick IVR call, Campaigns, Contacts calling, Fax, AI summary, Minutes stat, missed-call reply, tryNudge email.
+- Pre-existing, not mine: test_cloudivr_emails depositNudge render check fails (37/38); 4 eslint errors in emails.js/numbers.js.
+- Push path: clone with GITHUB_PAT_CLASSIC (backend/.env) to /tmp, copy files, commit, push HEAD:main → CI deploys app-main + syncs WhiteLabel.

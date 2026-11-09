@@ -236,11 +236,14 @@ async function buyMobile(chatId, { zipcode, autoRenew }) {
   const doc = { _id, kind: 'mobile', chatId: String(chatId), planId: plan.planId, price: MOBILE_PRICE, imei: im, zipcode: zip, simId: plan.simId, autoRenew: autoRenew !== false, status: 'provisioning', callsTo: 'device', createdAt: new Date(), updatedAt: new Date() }
   await S.col.insertOne(doc)
   await txn(chatId, 'mobile-number-purchase', MOBILE_PRICE, { lineId: _id, zipcode: zip })
-  if (dry()) { await S.col.updateOne({ _id }, { $set: { transactionId: 'preview-' + _id, simulated: true } }); return { item: pub(doc) } }
+  // A USA mobile number is a number: a referred friend's first purchase pays the referral like a calling number does.
+  const referral = () => isBot(chatId) ? null : require('./cloudivr-web/referrals').onPurchase(S.db, chatId, MOBILE_PRICE, S.log).catch(e => S.log(`[mobile] referral payout ${_id}: ${e.message}`))
+  if (dry()) { await S.col.updateOne({ _id }, { $set: { transactionId: 'preview-' + _id, simulated: true } }); await referral(); return { item: pub(doc) } }
   try {
     const u = await spenzaUser(chatId)
     const r = await call('post', '/api/v1.1/esim', { imei: im, simId: plan.simId, planId: plan.planId, activateNow: true, zipcode: zip, email: u.email, user: { name: u.name, email: u.email, zipcode: zip, ...(u.phoneNumber ? { phoneNumber: u.phoneNumber } : {}) } }, { 'Idempotency-Key': _id })
     await S.col.updateOne({ _id }, { $set: { transactionId: r?.data?.transactionId || r?.transactionId, spenzaUser: { email: u.email, private: u.private } } })
+    await referral()
     return { item: pub(doc) }
   } catch (e) {
     await S.w.credit(chatId, MOBILE_PRICE); await txn(chatId, 'mobile-number-refund', MOBILE_PRICE, { lineId: _id })

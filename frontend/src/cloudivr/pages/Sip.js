@@ -49,21 +49,41 @@ function LockedList({ nums }) {
   );
 }
 
+// USA mobile numbers (two-way SMS) have no softphone login but do work in the browser phone.
+function MobileList({ items, openPhone }) {
+  const pv = usePrivacy();
+  if (!items.length) return null;
+  return (
+    <div className="civr-card p-6 space-y-3" data-testid="sip-page-mobile">
+      <div className="flex items-center gap-2 font-semibold"><Phone className="w-4 h-4 text-[#818cf8]" />USA mobile numbers use the browser phone</div>
+      <p className="text-xs text-[#a1a1aa]" data-testid="sip-page-mobile-note">These numbers call and text from CloudIVR; they don’t have a separate SIP login for softphones.</p>
+      {items.map((m, i) => (
+        <div key={m.id || i} className="flex items-center justify-between gap-3 py-2 border-t border-[#262626]" data-testid={`sip-page-mobile-${i}`}>
+          <span className="min-w-0"><span className="block font-mono text-sm truncate">{m.phoneNumber ? pv.phone(m.phoneNumber) : 'Assigning number…'}</span><span className="block text-xs text-[#a1a1aa] mt-0.5">USA mobile number · {m.status}</span></span>
+          {m.status === 'active' && m.phoneNumber && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={openPhone} data-testid={`sip-page-mobile-phone-${i}`}><Phone className="w-4 h-4" />Browser phone</button>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Every number's SIP login in one place, plus a setup guide.
 export default function SipPage() {
   const { data, loading } = useApi('/numbers');
+  const { data: mob, loading: mobLoading } = useApi('/mobile-numbers');
   const { catalog, openPhone } = useShell();
   const pv = usePrivacy();
-  if (loading && !data) return <Spinner />;
+  if ((loading && !data) || (mobLoading && !mob)) return <Spinner />;
   const nums = (data?.numbers || []).filter(n => n.status !== 'released');
+  const mobile = (mob?.items || []).filter(m => ['provisioning', 'awaiting_imei', 'active', 'suspended'].includes(m.status));
   const withSip = nums.filter(n => n.access?.sipCredentials);
-  const canPhone = nums.some(n => n.status === 'active' && n.access?.browserPhone);
+  const canPhone = nums.some(n => n.status === 'active' && n.access?.browserPhone) || mobile.some(m => m.status === 'active' && m.phoneNumber);
   return (
     <div data-testid="sip-page">
       <PageHeader label="Numbers" title="SIP & softphones" sub="Log in to any softphone with these details to call and answer on your numbers." testid="sip-header">
         {canPhone && <button type="button" className="civr-btn civr-btn-primary" onClick={openPhone} data-testid="sip-page-open-phone"><Phone className="w-4 h-4" />Open browser phone</button>}
       </PageHeader>
-      {!nums.length ? (
+      {!nums.length && !mobile.length ? (
         <Empty icon={KeyRound} title="No numbers yet" sub="Buy a number on the Pro plan or higher to get SIP credentials." testid="sip-page-empty">
           <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="sip-page-buy"><ShoppingCart className="w-4 h-4" />Buy a number</Link>
         </Empty>
@@ -72,6 +92,7 @@ export default function SipPage() {
           <div className="xl:col-span-2 flex flex-col gap-4">
             {withSip.map((n, i) => <SipCredentials key={n.phoneNumber} num={n} prefix={`sip-page-${i}`} heading={pv.phone(n.phoneNumber)} className="" />)}
             <LockedList nums={nums.filter(n => !n.access?.sipCredentials)} />
+            <MobileList items={mobile} openPhone={openPhone} />
           </div>
           <Guide domain={catalog?.sipDomain || withSip[0]?.sipDomain} />
         </div>

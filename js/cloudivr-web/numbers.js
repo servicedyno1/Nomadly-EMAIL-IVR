@@ -624,9 +624,12 @@ function routes(router, deps) {
     res.json({ logs: await notes.attachNotes(db, req.webChatId, req.num.phoneNumber, logs) })
   }))
 
+  // Calling numbers + USA mobile numbers. Mobile texts store timestamp as a Date, calling numbers as ISO text: sort on $toDate.
   router.get('/activity', h(async (req, res) => {
-    const phones = (await myNumbers(req.webChatId)).map(n => n.phoneNumber)
-    const logs = phones.length ? await phoneLogs.find({ phoneNumber: { $in: phones } }).sort({ timestamp: -1 }).limit(Math.min(100, parseInt(req.query.limit, 10) || 30)).toArray() : []
+    const [mine, mobile] = await Promise.all([myNumbers(req.webChatId), mobileLines(deps.db, req.webChatId)])
+    const phones = [...mine.map(n => n.phoneNumber), ...mobile.map(d => d.phoneNumber).filter(Boolean)]
+    const limit = Math.min(100, parseInt(req.query.limit, 10) || 30)
+    const logs = phones.length ? await phoneLogs.aggregate([{ $match: { phoneNumber: { $in: phones } } }, { $addFields: { _at: { $convert: { input: '$timestamp', to: 'date', onError: null } } } }, { $sort: { _at: -1 } }, { $limit: limit }, { $project: { _at: 0 } }]).toArray() : []
     res.json({ logs: logs.map(publicLog) })
   }))
 
