@@ -13,7 +13,7 @@ const { appPathPrefix, parseDomain } = require('./domain-guard')
 const { walletOps, round2 } = require('./wallet')
 const { supportLink } = require('./support')
 const T = require('./email-templates')
-const { LIVE_MOBILE } = require('./numbers')
+const { LIVE_MOBILE, LIVE_TEXTING } = require('./numbers')
 
 const GROUPS = { weekly: 'weekly', campaignDone: 'campaigns', voicemail: 'voicemail', missed: 'missed' }
 const OPTIONAL = Object.values(GROUPS)
@@ -87,9 +87,10 @@ function createEmails(db, { log = console.log } = {}) {
   async function webNumbers() {
     const accs = await accounts.find({ disabled: { $ne: true } }, { projection: { _id: 1, createdAt: 1 } }).toArray()
     const ids = accs.map(a => String(a._id))
-    const [docs, lines] = await Promise.all([
+    const [docs, lines, texting] = await Promise.all([
       db.collection('phoneNumbersOf').find({ _id: { $in: ids } }).toArray(),
       db.collection('esimLines').find({ chatId: { $in: ids }, kind: 'mobile', status: { $in: LIVE_MOBILE } }).toArray(),
+      db.collection('hostedSms').find({ chatId: { $in: ids }, status: { $in: LIVE_TEXTING } }).toArray(),
     ])
     const created = new Map(accs.map(a => [String(a._id), a.createdAt]))
     const byChat = new Map(), byPhone = new Map()
@@ -100,6 +101,8 @@ function createEmails(db, { log = console.log } = {}) {
       for (const n of numbers) byPhone.set(n.phoneNumber, { chatId: String(d._id), num: n })
     }
     for (const d of lines) entry(String(d.chatId)).mobile.push({ phoneNumber: d.phoneNumber || null, plan: 'mobile', planPrice: Number(d.price) || 0, status: d.status, expiresAt: d.expiresAt || null, autoRenew: d.autoRenew !== false, mobile: true })
+    // Landline to Texting numbers ride in `mobile` too (platform numbers; their billing notices come from hosted-sms).
+    for (const d of texting) entry(String(d.chatId)).mobile.push({ phoneNumber: d.phoneNumber, plan: 'texting', planPrice: require('../hosted-sms.js').pub(d).monthly, status: d.status, expiresAt: d.planNumber ? null : d.nextBillAt || null, autoRenew: true, texting: true })
     return { byChat, byPhone }
   }
 
@@ -433,7 +436,7 @@ function createEmails(db, { log = console.log } = {}) {
     log('[CloudIVR-Email] scanner on (every minute) · weekly summary Mondays 08:00 UTC')
   }
 
-  return { send, tick, runWeekly, weeklyFor, sample, render: build, routes, publicRoutes, start }
+  return { send, tick, runWeekly, weeklyFor, webNumbers, sample, render: build, routes, publicRoutes, start }
 }
 
 module.exports = { createEmails, DEFAULTS, GROUPS, appUrl }

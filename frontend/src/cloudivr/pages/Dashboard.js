@@ -55,7 +55,8 @@ function QuickActions({ unread }) {
 export default function Dashboard() {
   const { summary: s } = useShell();
   const { account } = useCivrAuth();
-  const fresh = !!s && !s.numbers?.total;
+  // Texting-only accounts (Landline to Texting, no calling/mobile number) keep the texting home.
+  const fresh = !!s && !((s.numbers?.total || 0) - (s.numbers?.texting || 0));
   const { data: act } = useApi(s && !fresh ? '/activity?limit=12' : null);
   const { data: nums } = useApi(s && !fresh ? '/numbers' : null);
   const { data: hosted } = useApi(fresh ? '/hosted-sms' : null);

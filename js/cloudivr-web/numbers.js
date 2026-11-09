@@ -626,8 +626,8 @@ function routes(router, deps) {
 
   // Calling numbers + USA mobile numbers. Mobile texts store timestamp as a Date, calling numbers as ISO text: sort on $toDate.
   router.get('/activity', h(async (req, res) => {
-    const [mine, mobile] = await Promise.all([myNumbers(req.webChatId), mobileLines(deps.db, req.webChatId)])
-    const phones = [...mine.map(n => n.phoneNumber), ...mobile.map(d => d.phoneNumber).filter(Boolean)]
+    const [mine, mobile, texting] = await Promise.all([myNumbers(req.webChatId), mobileLines(deps.db, req.webChatId), textingLines(deps.db, req.webChatId)])
+    const phones = [...mine.map(n => n.phoneNumber), ...mobile.map(d => d.phoneNumber).filter(Boolean), ...texting.map(d => d.phoneNumber)]
     const limit = Math.min(100, parseInt(req.query.limit, 10) || 30)
     const logs = phones.length ? await phoneLogs.aggregate([{ $match: { phoneNumber: { $in: phones } } }, { $addFields: { _at: { $convert: { input: '$timestamp', to: 'date', onError: null } } } }, { $sort: { _at: -1 } }, { $limit: limit }, { $project: { _at: 0 } }]).toArray() : []
     res.json({ logs: logs.map(publicLog) })
@@ -827,4 +827,9 @@ function routes(router, deps) {
 const LIVE_MOBILE = ['provisioning', 'awaiting_imei', 'active', 'suspended']
 const mobileLines = (db, chatId) => db.collection('esimLines').find({ chatId: String(chatId), kind: 'mobile', status: { $in: LIVE_MOBILE } }).toArray()
 
-module.exports = { mobileLines, LIVE_MOBILE, parseBackups, routes, catalog, routeSummary, publicNumber, publicVoicemail, validateIvr, normPhone, countries, E164, webFeatures, recommendedPlan, WEB_FEATURES }
+// Landline to Texting numbers past checkout (setup underway, live or paused); expiresAt = next monthly bill (plan-attached ones have none).
+const LIVE_TEXTING = ['verify', 'loa', 'documents', 'admin_docs', 'review', 'active', 'paused']
+const textingLines = async (db, chatId) => (await db.collection('hostedSms').find({ chatId: String(chatId), status: { $in: LIVE_TEXTING } }).toArray())
+  .map(d => ({ ...d, plan: 'texting', expiresAt: d.planNumber ? null : d.nextBillAt || null, texting: true }))
+
+module.exports = { textingLines, LIVE_TEXTING, mobileLines, LIVE_MOBILE, parseBackups, routes, catalog, routeSummary, publicNumber, publicVoicemail, validateIvr, normPhone, countries, E164, webFeatures, recommendedPlan, WEB_FEATURES }

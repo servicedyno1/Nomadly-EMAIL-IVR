@@ -4,7 +4,7 @@
 const OpenAI = require('openai')
 const fax = require('../fax-service')
 const phoneConfig = require('../phone-config')
-const { catalog, mobileLines } = require('./numbers')
+const { catalog, mobileLines, textingLines } = require('./numbers')
 const { walletOps } = require('./wallet')
 const { clientIp } = require('./auth')
 
@@ -54,7 +54,8 @@ async function userContext(db, chatId, numbersApi) {
   const bal = await walletOps(db).balance(chatId)
   const list = nums.slice(0, 10).map(n => `${n.phoneNumber} (${phoneConfig.plans[n.plan]?.name || n.plan}, ${n.status}${n.isSubNumber ? `, extra on ${n.parentNumber}` : ''}, paid until ${String(n.expiresAt || '').slice(0, 10)})`).join('; ')
   const mob = (await mobileLines(db, chatId)).map(d => `${d.phoneNumber || 'number being assigned'} (USA mobile number with two-way SMS, ${d.status}${d.expiresAt ? `, paid until ${new Date(d.expiresAt).toISOString().slice(0, 10)}` : ''})`).join('; ')
-  return `This user: wallet $${bal.toFixed(2)}; numbers: ${[list, mob].filter(Boolean).join('; ') || 'none yet'}.`
+  const txt = (await textingLines(db, chatId)).map(d => `${d.phoneNumber} (Landline to Texting, receive-only texts, ${d.status}${d.planNumber ? `, included with ${d.planNumber}` : d.expiresAt ? `, next bill ${new Date(d.expiresAt).toISOString().slice(0, 10)}` : ''})`).join('; ')
+  return `This user: wallet $${bal.toFixed(2)}; numbers: ${[list, mob, txt].filter(Boolean).join('; ') || 'none yet'}.`
 }
 const VISITOR = 'This is a visitor on the public landing page, not signed in. Answer pre-sales questions (plans, prices, countries, features, how it works). To buy, they sign up free with the "Get your number" button; the free test call is on the landing page.'
 

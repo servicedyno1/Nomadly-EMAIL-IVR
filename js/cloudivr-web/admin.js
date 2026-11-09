@@ -7,7 +7,7 @@ const { walletOps } = require('./wallet')
 const HS = require('../hosted-sms.js')
 const aiStore = require('../ai-agent/store')
 const notify = require('./notify')
-const { mobileLines, LIVE_MOBILE } = require('./numbers')
+const { mobileLines, LIVE_MOBILE, LIVE_TEXTING } = require('./numbers')
 
 const DAY = 864e5
 const esc = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -40,7 +40,7 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
         db.collection('nameOf').estimatedDocumentCount(),
         db.collection('webAccounts').estimatedDocumentCount(),
         db.collection('webAccounts').countDocuments({ createdAt: { $gt: new Date(now - 7 * DAY) } }),
-        db.collection('phoneNumbersOf').aggregate([{ $project: { n: { $size: { $ifNull: ['$val.numbers', []] } } } }, { $group: { _id: null, n: { $sum: '$n' } } }]).toArray(),
+        db.collection('phoneNumbersOf').aggregate([{ $project: { n: { $size: { $filter: { input: { $ifNull: ['$val.numbers', []] }, cond: { $ne: ['$$this.status', 'released'] } } } } } }, { $group: { _id: null, n: { $sum: '$n' } } }]).toArray(),
         db.collection('bulkCallCampaigns').countDocuments({ status: 'running' }),
         db.collection('hostedSms').aggregate([{ $group: { _id: '$status', n: { $sum: 1 } } }]).toArray(),
         db.collection('aiAgents').find({}, { projection: { name: 1, goal: 1, firstMessage: 1, greeting: 1, knowledge: 1 } }).toArray(),
@@ -52,7 +52,7 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
       res.json({
         deposits30: num(deposits?.usd), depositCount30: deposits?.n || 0, depositsToday: num(today[0]?.usd), sales30: num(sales.reduce((a, x) => a + x.usd, 0)), refunds30: num(refunds), netSales30: num(sales.reduce((a, x) => a + x.usd, 0) - refunds),
         byType: byType.map(x => ({ type: x._id, n: x.n, usd: num(x.usd) })), series: series.map(x => ({ day: x._id, usd: num(x.usd), n: x.n })),
-        botUsers, webUsers, newWeb7: newWeb, numbers: (numbers[0]?.n || 0) + mobileCount, runningCampaigns: running,
+        botUsers, webUsers, newWeb7: newWeb, numbers: (numbers[0]?.n || 0) + mobileCount + hosted.filter(x => LIVE_TEXTING.includes(x._id)).reduce((a, x) => a + x.n, 0), runningCampaigns: running,
         hosted: Object.fromEntries(hosted.map(x => [x._id, x.n])), flaggedAgents: agents.filter(a => aiStore.flagOf(a)).length,
       })
     }))
@@ -125,7 +125,8 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
         suspended: acct ? !!acct.disabled : !!blocked, balance: num((wal?.usdIn || 0) - (wal?.usdOut || 0)), totalIn: num(wal?.usdIn), totalOut: num(wal?.usdOut),
         transactions: tx.map(t => ({ id: String(t._id), type: t.type, amount: num(t.amount), at: t.createdAt, meta: t.metadata || null })),
         numbers: [...(nums?.val?.numbers || []).map(n => ({ phoneNumber: n.phoneNumber, plan: n.plan, status: n.status || 'active', expiresAt: n.expiresAt, country: n.country })),
-          ...mobile.map(d => ({ phoneNumber: d.phoneNumber || 'Assigning…', plan: 'mobile', status: d.status, expiresAt: d.expiresAt || null, country: 'US' }))],
+          ...mobile.map(d => ({ phoneNumber: d.phoneNumber || 'Assigning…', plan: 'mobile', status: d.status, expiresAt: d.expiresAt || null, country: 'US' })),
+          ...hosted.filter(d => LIVE_TEXTING.includes(d.status)).map(d => ({ phoneNumber: d.phoneNumber, plan: 'texting', status: d.status, expiresAt: d.planNumber ? null : d.nextBillAt || null, country: d.phoneNumber?.startsWith('+1') ? 'US' : null }))],
         campaigns: camps.map(c => ({ id: c.id, name: c.name || c.audioName, mode: c.mode, status: c.status, createdAt: c.createdAt, stats: c.stats || null })),
         hosted: hosted.map(HS.pub), agents: agents.map(a => ({ id: a.id, name: a.name, disabled: !!a.disabled, flag: aiStore.flagOf(a) })),
       })
