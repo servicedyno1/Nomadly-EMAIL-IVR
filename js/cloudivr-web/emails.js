@@ -12,6 +12,7 @@ const { appPathPrefix, parseDomain } = require('./domain-guard')
 const { walletOps, round2 } = require('./wallet')
 const { supportLink } = require('./support')
 const T = require('./email-templates')
+const { LIVE_MOBILE } = require('./numbers')
 
 const GROUPS = { weekly: 'weekly', campaignDone: 'campaigns', voicemail: 'voicemail', missed: 'missed' }
 const OPTIONAL = Object.values(GROUPS)
@@ -80,17 +81,24 @@ function createEmails(db, { log = console.log } = {}) {
     return true
   }
 
-  // Web accounts' numbers: byChat chatId → { createdAt, numbers }, byPhone phone → { chatId, num }.
+  // Web accounts' numbers: byChat chatId → { createdAt, numbers, mobile }, byPhone phone → { chatId, num }.
+  // `mobile` = USA mobile numbers (two-way SMS lines): counted in weekly and wallet emails; their renewal reminders come from Spenza.
   async function webNumbers() {
     const accs = await accounts.find({ disabled: { $ne: true } }, { projection: { _id: 1, createdAt: 1 } }).toArray()
-    const docs = await db.collection('phoneNumbersOf').find({ _id: { $in: accs.map(a => String(a._id)) } }).toArray()
+    const ids = accs.map(a => String(a._id))
+    const [docs, lines] = await Promise.all([
+      db.collection('phoneNumbersOf').find({ _id: { $in: ids } }).toArray(),
+      db.collection('esimLines').find({ chatId: { $in: ids }, kind: 'mobile', status: { $in: LIVE_MOBILE } }).toArray(),
+    ])
     const created = new Map(accs.map(a => [String(a._id), a.createdAt]))
     const byChat = new Map(), byPhone = new Map()
+    const entry = (id) => { if (!byChat.has(id)) byChat.set(id, { createdAt: created.get(id), numbers: [], mobile: [] }); return byChat.get(id) }
     for (const d of docs) {
       const numbers = (d.val?.numbers || []).filter(n => n.status !== 'released')
-      byChat.set(String(d._id), { createdAt: created.get(String(d._id)), numbers })
+      entry(String(d._id)).numbers = numbers
       for (const n of numbers) byPhone.set(n.phoneNumber, { chatId: String(d._id), num: n })
     }
+    for (const d of lines) entry(String(d.chatId)).mobile.push({ phoneNumber: d.phoneNumber || null, plan: 'mobile', planPrice: Number(d.price) || 0, status: d.status, expiresAt: d.expiresAt || null, autoRenew: d.autoRenew !== false, mobile: true })
     return { byChat, byPhone }
   }
 
@@ -198,7 +206,8 @@ function createEmails(db, { log = console.log } = {}) {
   // Low / empty wallet: one email each time the balance drops a level (ok → low → empty); topping up resets it.
   async function walletLevels(nums) {
     const jobs = []
-    for (const [chatId, { createdAt, numbers }] of nums.byChat) {
+    for (const [chatId, { createdAt, numbers: voip, mobile }] of nums.byChat) {
+      const numbers = [...voip, ...mobile]
       if (!numbers.some(n => n.status === 'active')) continue
       const p = await prefs.findOne({ _id: chatId }, { projection: { emailPrefs: 1, emailState: 1 } })
       const at = Number(p?.emailPrefs?.lowBalanceAt ?? DEFAULTS.lowBalanceAt)
@@ -249,9 +258,10 @@ function createEmails(db, { log = console.log } = {}) {
   }
 
   async function weeklyFor(chatId, numbers, now = new Date()) {
-    const start = new Date(now.getTime() - 7 * DAY), phones = numbers.map(n => n.phoneNumber)
+    const start = new Date(now.getTime() - 7 * DAY), phones = numbers.map(n => n.phoneNumber).filter(Boolean)
+    // Calling numbers log timestamp as ISO text, USA mobile numbers as a Date: match both.
     const [logs, camps, balance] = await Promise.all([
-      phones.length ? db.collection('phoneLogs').find({ phoneNumber: { $in: phones }, timestamp: { $gte: start.toISOString(), $lt: now.toISOString() } }, { projection: { phoneNumber: 1, type: 1, duration: 1 } }).toArray() : [],
+      phones.length ? db.collection('phoneLogs').find({ phoneNumber: { $in: phones }, $or: [{ timestamp: { $gte: start.toISOString(), $lt: now.toISOString() } }, { timestamp: { $gte: start, $lt: now } }] }, { projection: { phoneNumber: 1, type: 1, duration: 1 } }).toArray() : [],
       db.collection('bulkCallCampaigns').find({ chatId: String(chatId), completedAt: { $gte: start, $lt: now } }, { projection: { stats: 1 } }).toArray(),
       w.balance(chatId),
     ])
@@ -284,8 +294,8 @@ function createEmails(db, { log = console.log } = {}) {
   async function runWeekly(now = new Date()) {
     const nums = await webNumbers(), day = now.toISOString().slice(0, 10)
     let n = 0
-    for (const [chatId, { numbers }] of nums.byChat) {
-      const mine = numbers.filter(x => x.status === 'active' || x.status === 'suspended')
+    for (const [chatId, { numbers, mobile }] of nums.byChat) {
+      const mine = [...numbers, ...mobile].filter(x => x.status === 'active' || x.status === 'suspended')
       if (!mine.length) continue
       try { if (await send(chatId, 'weekly', await weeklyFor(chatId, mine, now), `weekly:${chatId}:${day}`)) n++ } catch (e) { log(`[CloudIVR-Email] weekly for ${chatId} failed: ${e.message}`) }
     }
