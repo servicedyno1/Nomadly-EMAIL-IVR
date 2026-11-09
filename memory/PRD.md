@@ -2351,3 +2351,9 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 ## 2026-06 CloudIVR UI/UX pass (complete, preview only)
 - Number cards: Open separated from switches, footers aligned; NumberDetail 4 groups (Calls/Messages/Connect/Account) with sub-tabs; Overview stats-first + What's new strip; AccountMenu (email/theme/lang/sign out); Outbound sidebar section; Settings 4 sections + sticky side index; Buy Find>Plan>Pay; a11y (labels, contrast, focus, fax table th); FaxCard translated FR/ES; replace=1 scrolls after load.
 - Tested: iteration_234 + iteration_235 (8/8 pass). Not yet pushed/deployed to production.
+
+## 2026-11-09 Landing refresh (JujuCloud-inspired), PREVIEW ONLY, not deployed
+- New: landing/Doodles.js (floating telecom SVGs, sparkles, squiggle, circled text), HeroCard.js (3-tab hero card: Business line / USA eSIM / Mobile number), NumbersPreview.js (mock My numbers + Number>IVR>SIP>Live pipeline), Highlights.js (dark PromiseStrip, FeaturePills). OneHero centred; FAQ rounded accordion; FinalCta dark with glows. CloudIVR blue kept, lime/pink/sky accents.
+- App: buttons 12px radius + blue glow/lift, blue to lime active nav marker (theme-clean.css end + line 70).
+- FR/ES keys added. Tested iteration_236 (~90%, 4 minor issues fixed and self-verified).
+- eSIM CTA falls back to signup in preview because /public/esim-plans is empty there.

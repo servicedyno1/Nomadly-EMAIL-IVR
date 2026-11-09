@@ -1,0 +1,47 @@
+{
+  "summary": "Frontend-only test of the JujuCloud-styled CloudIVR landing (1920px + 390px), English and French, plus logged-in app (Alice) in dark and light themes on Overview/Numbers/Settings. Nearly everything works: hero, the HeroCard tabs and CTAs, NumbersPreview, PromiseStrip, FeaturePills, FAQ, FinalCta, the plan tabs and the compare table. 4 issues found: (1) the French translation is missing for the new hero kicker, title and cycling words, and subtitle (mixed EN/FR); (2) the landing FAQ chevron rotates 45deg instead of 180deg because of an old landing rule; (3) the new blue-to-lime active nav gradient never shows in the sidebar because a more specific rule wins; (4) the eSIM CTA goes to /signup?plan=esim instead of opening a dialog, because the preview /public/esim-plans returns an empty plans list (by-design fallback).",
+  "backend_issues": {"critical": [], "minor": [{"endpoint": "/api/cloudivr-web/public/esim-plans", "issue": "Returns {plans: []} on preview, so EsimCheckoutHost falls back to navigating to /signup?plan=esim. The eSIM checkout dialog cannot be opened on preview (environment/data, not a code bug)."}]},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Landing FAQ chevron", "issue": "When an item is open the chevron rotates 45deg (computed matrix 0.707), so the ChevronDown looks like a tilted 'L'. Cause: cloudivr.css:194 `.civr .civr-l details[open] .civr-faq-chevron { transform: rotate(45deg) }`, left over from the old plus icon, overrides cloudivr.css:105 rotate(180deg). Fix: change it to rotate(180deg) or remove it.", "selector": "[data-testid=faq-item-N] .civr-faq-chevron", "priority": "LOW"},
+      {"component": "App sidebar active marker", "issue": "The new `html[data-civr-theme] .civr .civr-nav-link.active::before { background: linear-gradient(...#a3e635) }` (theme-clean.css:161) is overridden by the more specific theme-clean.css:70 `.civr-side .civr-nav-link.active::before { background:#64acff }`. Computed: backgroundImage none, solid rgb(100,172,255). Fix: add .civr-side to the new selector or update line 70.", "selector": ".civr-side .civr-nav-link.active", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "French language switch on landing", "issue": "These new strings have no fr/es keys and come out mixed EN/FR: kicker 'Cloud phone, IVR and USA mobile lines' -> 'Cloud phone, IVR et USA mobile lines'; title 'One place for' plus the cycling words 'business calls', 'IVR campaigns', 'two-way texts', 'a USA eSIM' (rendered as 'One place for two-way SMS'); subtitle 'Pick what you need, pay with crypto or your wallet, and you are live in minutes. Month to month, no contract' -> 'Pick what you need, ... et you are live in minutes...'. The HeroCard, trust items, preview, strip, pills and final CTA translate fine. Minor: the preview badge 'Running' -> 'en cours' is lowercase while the other badges are capitalised ('Actif', 'Enregistré'). Spanish (es.json) is missing the same keys.", "affected_selectors": [".civr-l-kicker", "[data-testid=hero-title]", "[data-testid=hero-cycling-word]", "[data-testid=hero-subtitle]"]}
+    ],
+    "design_issues": [
+      {"screen": "Landing 390px", "issues": ["Large empty gap (~100px) between the NumbersPreview pipeline and the dark promise strip, and between the FAQ and the final CTA (FAQ py-20 + final py-24); consider tightening it. Not blocking."]}
+    ]
+  },
+  "passed_checks": [
+    "Desktop hero: cycling word changes every ~2.6s; lime squiggle (rgb 163,230,53) under the word; 4 hero-decor drawings visible at 1920px with no overlap with the title or card",
+    "Mobile 390px: decor hidden; no horizontal page overflow (scrollWidth 390; only the platform tab scroller extends, by design); hero card tabs 103x52 with no clipping",
+    "Hero card: ivr/esim/mobile tabs switch panels, aria-selected, pitch and price ($50/$75/$75) and labels ('See phone plans'/'Order eSIM'/'See details')",
+    "hero-card-cta-ivr scrolls #pricing to the top (63px) and selects plans-tab-ivr; mobile CTA (offer.available=false) scrolls to pricing with plans-tab-mobile selected and plans-panel-mobile shown",
+    "hero-try-link and final-cta-try-button scroll to #try; hero-trust-0..2 visible",
+    "NumbersPreview: 4 rows with badges Active/Registered/Running/Active; pipeline steps advance done 0->3 and loop while in view",
+    "PromiseStrip: bg rgb(7,6,15), headlines lime/pink/sky/blue, sub text rgb(203,213,225); readable",
+    "FeaturePills: 14 pills (0..13), pink circled 'and more' rgb(236,72,153)",
+    "FAQ: 10 items open/close, answers slate-600 readable",
+    "FinalCta: white h2, final-cta-button href /cloudivr/signup navigates correctly",
+    "Plans tabs and compare table (7 rows) still work; language switched back to English",
+    "App (Alice) dark+light: Overview/Numbers/Settings render, .civr-btn-primary radius 12px with blue glow shadow, no page errors (only the known 401 auth probes)"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Add fr.json and es.json keys for 'Cloud phone, IVR and USA mobile lines', 'One place for', 'business calls', 'IVR campaigns', 'two-way texts', 'a USA eSIM' and the hero subtitle sentence (check how the engine splits the dynamic ' · from $X/month' suffix)",
+    "Fix the landing FAQ chevron rotation: cloudivr.css:194 rotate(45deg) -> rotate(180deg)",
+    "Make the sidebar active marker gradient win over theme-clean.css:70 (specificity)",
+    "Optional: capitalise the 'Running' translation ('En cours' / 'En ejecución')"
+  ],
+  "critical_code_review_comments": [
+    "theme-clean.css new accent rules depend on cascade order but lose to the earlier, more specific .civr-side rules; check every new override for specificity",
+    "HeroCard's PITCH/SHORT/TRUST strings were added to the i18n JSON, but the OneHero strings in OnePage.js were not"
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "~90% (4 minor issues, no blockers)"},
+  "seed_data_creation": "None. Nothing purchased; no data changed. The eSIM CTA went to the signup page and nothing was submitted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Landing at /cloudivr. Preview /api/cloudivr-web/public/esim-plans returns empty plans (eSIM CTA -> /signup?plan=esim); mobile-offer available=false. Theme stored in localStorage 'civr.theme'. Login: cookie-allow-all, auth-email-input, input[type=password], auth-submit-button. Alice wallet now shows $9.38 (not $380)."
+}

@@ -191,7 +191,7 @@
 @keyframes civrFloat { 0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); } 50% { transform: translate3d(0, -14px, 0) rotate(-1.2deg); } }
 .civr .civr-l-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--l-live); box-shadow: 0 0 0 0 rgba(16, 185, 129, .5); animation: civrDot 1.8s ease-out infinite; flex-shrink: 0; }
 @keyframes civrDot { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, .5); } 100% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } }
-.civr .civr-l details[open] .civr-faq-chevron { transform: rotate(45deg); }
+.civr .civr-l details[open] .civr-faq-chevron { transform: rotate(180deg); }
 .civr .civr-l ::selection { background: rgba(15, 23, 42, .12); color: #0f172a; }
 @media (prefers-reduced-motion: reduce) { .civr .civr-l-marquee, .civr .civr-l-float, .civr .civr-l-dot { animation: none; } }
 .civr .civr-l-cream .civr-l-dark .civr-l-muted { color: rgba(241, 245, 249, .72); }
