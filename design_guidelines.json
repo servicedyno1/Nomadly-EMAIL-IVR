@@ -1,137 +1,135 @@
 {
-  "project_name": "CloudIVR Landing Page Refresh",
-  "theme": "Light mode default, clean, trustworthy telecom-credible design",
+  "theme": "Light landing page with JujuCloud soft top gradient wash, blurred color blobs & dark promise strip block. App keeps CloudIVR blue identity with light/dark theme options.",
+  "brand_identity": {
+    "name": "CloudIVR.net",
+    "primary_color_light": "#1d6fd8",
+    "primary_color_dark": "#64acff",
+    "logo": "Green Parrot logo"
+  },
   "typography": {
-    "font_family": "Source Sans 3, Source Sans Pro, sans-serif",
-    "h1": "text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#0f172a]",
-    "h2": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#0f172a]",
-    "h3": "text-xl sm:text-2xl font-semibold text-[#0f172a]",
-    "body": "text-base text-[#334155] leading-relaxed",
-    "eyebrow_label": "text-xs font-bold uppercase tracking-widest text-[#1d6fd8]",
-    "trust_note": "text-xs text-[#556273] mt-2 flex items-center justify-center gap-1.5"
+    "headline_font": "Source Sans 3, sans-serif",
+    "body_font": "Source Sans 3, sans-serif",
+    "mono_font": "JetBrains Mono, monospace",
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight",
+      "h3": "text-xl sm:text-2xl font-semibold",
+      "h4": "text-lg sm:text-xl font-semibold",
+      "body": "text-base sm:text-sm text-slate-700 dark:text-slate-300",
+      "caption": "text-xs font-mono uppercase tracking-wider"
+    }
   },
   "colors": {
-    "background_light": "#ffffff",
-    "background_soft": "#f7f8fa",
-    "background_dark_section": "#1b1e22",
-    "accent_primary": "#1d6fd8",
-    "accent_primary_hover": "#195fba",
-    "badge_lime": "#daff7c",
-    "badge_lime_dark": "#3f6c0b",
-    "border_subtle": "rgba(15, 23, 42, 0.12)",
-    "text_dark": "#0f172a",
-    "text_muted": "#475569",
-    "text_light": "#ffffff"
-  },
-  "css_classes_reuse": {
-    "root_container": "civr civr-l civr-np",
-    "card_class": "civr-l-card v2-surface v2-lift",
-    "button_primary": "civr-l-btn civr-l-pill-ink bg-[#1d6fd8] text-white hover:bg-[#195fba] rounded-lg font-bold px-6 py-3.5 transition-all duration-200",
-    "button_secondary": "civr-l-pill-outline border border-[#1d6fd8] text-[#1d6fd8] hover:bg-[#1d6fd8]/10 rounded-lg font-bold px-6 py-3.5 transition-all duration-200",
-    "kicker": "civr-l-kicker px-3 py-1 rounded-full text-xs font-semibold bg-[#1d6fd8]/10 text-[#1d6fd8]"
-  },
-  "hero_layout": {
-    "layout_mode": "Phone-first stacked cards on mobile (col-span-1), 2-column side-by-side on desktop (md:grid-cols-2)",
-    "headline": "Instant US Phone Lines & eSIMs. Order in seconds, no account required.",
-    "subheadline": "Real carrier US mobile numbers and cellular eSIMs. Trusted by banks and apps worldwide.",
-    "cards": [
-      {
-        "title": "CloudIVR eSIM",
-        "price": "$75/month",
-        "badge": "Instant QR Delivery",
-        "key_points": [
-          "Install on your smartphone via QR code",
-          "Includes US data, cellular calls & SMS",
-          "QR code displayed immediately & sent via email",
-          "Works on any unlocked eSIM-compatible phone"
-        ],
-        "cta_text": "Order eSIM ($75/mo)",
-        "trust_note": "No contract • QR delivered in 30 seconds",
-        "modal_trigger": "eSIM checkout modal"
+    "light_landing": {
+      "background": "#f8fafc",
+      "gradient_wash": "linear-gradient(180deg, #edf4ff 0%, #f8fafc 100%)",
+      "blob_lime": "rgba(223, 255, 120, 0.45)",
+      "blob_pink": "rgba(255, 192, 220, 0.45)",
+      "blob_sky": "rgba(186, 230, 253, 0.45)",
+      "primary_blue": "#1d6fd8",
+      "primary_blue_hover": "#155abf",
+      "primary_blue_text": "#0f4396",
+      "accent_lime": {
+        "fill": "#daff7c",
+        "stroke": "#2d5402",
+        "text": "#244301",
+        "bg_soft": "#f2ffcc"
       },
-      {
-        "title": "US Mobile Number",
-        "price": "$75/month",
-        "badge": "Real Carrier (Non-VoIP)",
-        "key_points": [
-          "100% real cellular number (accepted by banks & 2FA)",
-          "Manage texts in CloudIVR Messages browser app",
-          "No physical SIM or smartphone required",
-          "Choose preferred ZIP code, exact number shown post-pay",
-          "Free automatic Caller ID included"
-        ],
-        "cta_text": "Order Mobile Number ($75/mo)",
-        "trust_note": "Bank 2FA verified • Instant web access",
-        "modal_trigger": "US mobile number checkout modal"
-      }
-    ]
-  },
-  "which_one_helper_spec": {
-    "container_style": "my-12 p-6 sm:p-8 rounded-2xl bg-[#f7f8fa] border border-[rgba(15,23,42,0.12)] text-center max-w-3xl mx-auto shadow-sm",
-    "title": "Which one do I need?",
-    "options": [
-      {
-        "question": "Want the line on your physical phone?",
-        "answer": "Choose eSIM ($75/mo) for device-native calling & data."
+      "accent_pink": {
+        "fill": "#fbcfe8",
+        "stroke": "#be185d",
+        "text": "#9d174d",
+        "bg_soft": "#fdf2f8"
       },
-      {
-        "question": "Want the number inside your web browser?",
-        "answer": "Choose US Mobile Number ($75/mo) for instant browser SMS & 2FA."
+      "accent_sky": {
+        "fill": "#bae6fd",
+        "stroke": "#0284c7",
+        "text": "#0369a1",
+        "bg_soft": "#f0f9ff"
       }
-    ]
+    },
+    "dark_strip": {
+      "bg": "#07060f",
+      "border": "rgba(255, 255, 255, 0.1)",
+      "card_bg": "rgba(255, 255, 255, 0.05)",
+      "text_primary": "#ffffff",
+      "text_secondary": "#94a3b8",
+      "promise_lime": "#daff7c",
+      "promise_pink": "#f472b6",
+      "promise_sky": "#38bdf8",
+      "promise_brand": "#64acff"
+    },
+    "app_accents": {
+      "primary_button": "#1d6fd8",
+      "primary_button_hover": "#155abf",
+      "accent_blue": "#1d6fd8",
+      "dark_accent_blue": "#64acff",
+      "forbidden_purple": "DO NOT USE PURPLE (#7351B7)"
+    }
   },
-  "screenshot_showcase_spec": {
-    "section_title": "Light-mode App Experience",
-    "description": "Real light-mode app interface across desktop and mobile devices.",
-    "items": [
-      { "name": "Messages", "detail": "Bank code SMS text verification view", "device": "Desktop frame + Phone mockup" },
-      { "name": "My numbers", "detail": "Active US mobile numbers list", "device": "Desktop frame" },
-      { "name": "eSIM Page", "detail": "QR Code activation card view", "device": "Phone mockup frame" },
-      { "name": "Keypad Menu", "detail": "Interactive IVR menu route setup", "device": "Desktop frame" },
-      { "name": "Overview", "detail": "Account metrics and quick activity status", "device": "Desktop frame" }
-    ]
-  },
-  "business_features_spec": {
-    "section_title": "Enterprise & Business Calling Features",
+  "illustration_style_rules": {
+    "style": "Floating hand-drawn style SVGs",
     "features": [
-      "Dedicated Calling Numbers & Extensions",
-      "IVR Keypad Menus & Auto-attendant",
-      "Automated SMS & Voice Campaigns",
-      "AI Voice Agents for 24/7 Answering",
-      "Landline to Texting conversion",
-      "Browser Phone & Softphone Web Console"
+      "Outlined stroke (1.5px to 2px solid dark slate or brand tone)",
+      "Flat solid pastel color fills (lime #daff7c, pink #fbcfe8, sky #bae6fd)",
+      "Offset drop shadow (3px 3px 0px rgba(0,0,0,0.12))",
+      "Floating key elements: phone handset, IVR keypad, SMS bubble, SIM card",
+      "4-point sparkle stars twinkling in lime/pink/sky/brand",
+      "Hand-drawn squiggle underline (lime) under hero headline key word",
+      "Hand-drawn pink circle accent around 'Everything you need'",
+      "Curly arrow with handwritten style annotation 'Everything in one place'"
     ]
   },
-  "sticky_mobile_order_bar": {
-    "display": "Fixed bottom bar visible on mobile (< 768px)",
-    "style": "fixed bottom-0 inset-x-0 z-50 p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg flex items-center justify-between gap-3 md:hidden",
-    "left_label": "eSIM or Mobile Line from $75/mo",
-    "cta_button": "Order Now"
+  "animation_timings": {
+    "float_slow": "animate-float 6s ease-in-out infinite",
+    "sparkle_twinkle": "animate-pulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+    "tab_transition": "all 0.25s ease-in-out",
+    "accordion_slide": "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)"
   },
-  "faq_style": {
-    "accordion": "Clean border-b panels with smooth toggle",
-    "questions": [
-      { "q": "Is it VoIP?", "a": "No. Our US Mobile Numbers are real carrier lines, non-VoIP, ensuring compatibility with banks and shortcode SMS." },
-      { "q": "Can I choose the number?", "a": "You can select your preferred ZIP code during order, and your exact allocated number is displayed immediately after payment." },
-      { "q": "When do I get it?", "a": "Access is instant. eSIM QR codes and web message lines are provisioned right after checkout." },
-      { "q": "Does it work with my bank?", "a": "Yes! Because these are real cellular numbers, they bypass VoIP shortcode restrictions." },
-      { "q": "What if I don't renew?", "a": "Your line will remain active through your paid period, after which it enters a grace window before release." },
-      { "q": "Can I replace the number?", "a": "Yes, you can swap your assigned US number anytime for a flat $25 replacement fee." }
-    ]
+  "grids": {
+    "hero_grid": "grid-cols-1 lg:grid-cols-12 gap-8 items-center",
+    "dashboard_preview_grid": "grid-cols-1 lg:grid-cols-12 gap-6 items-center",
+    "promise_strip_grid": "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6",
+    "pills_cloud_layout": "flex flex-wrap gap-3 justify-center max-w-4xl mx-auto"
   },
-  "motion_rules": {
-    "type": "Subtle fade-in and slight vertical lift on scroll",
-    "duration": "200ms - 300ms",
-    "library": "IntersectionObserver or subtle framer-motion fade-in",
-    "prefers_reduced_motion": "Disable all transforms when reduced motion is enabled"
+  "layouts": {
+    "hero_section": "Centered hero headline + cycling word with lime squiggle underline, floating telecom SVGs + sparkle stars, centered 3-tab hero card (Business phone line / USA eSIM / USA mobile number)",
+    "mock_dashboard_section": "Mock 'My numbers' preview panel with browser dots (pink/lime/brand), active badges, overlapping 4-step progress pipeline (Number -> IVR -> SIP -> Live), lime swoosh background, curly arrow annotation",
+    "dark_promise_strip": "#07060f rounded-3xl container section with 4 colored promise cards (lime, pink, sky, brand blue)",
+    "feature_pills_cloud": "'Everything you need, and more' section with pink hand-drawn circle & tilted colourful pill tags (lime filled, pink filled, sky outline)",
+    "faq_accordion": "Rounded bordered accordion items with circular chevron button and smooth expansion",
+    "final_cta": "Dark rounded block with blurred glows and high-contrast CTA button"
   },
-  "accessibility_and_testing": {
-    "data_testid_convention": "kebab-case, role-based identifiers on all buttons, cards, links, and inputs",
-    "contrast": "APCA high-contrast text on light white/slate background",
-    "mobile_first": "Fully functional and legible starting at 320px viewport width"
-  }
-},
-  overwrite: true,
-  path: "/app/design_guidelines.json"
+  "motion": {
+    "micro_interactions": "Subtle hover lift (-2px), smooth active scale (0.98), hover glow on CTA buttons",
+    "prefers_reduced_motion": "Disable floating and pulse keyframes when prefers-reduced-motion is active"
+  },
+  "accessibility": {
+    "contrast_ratio": "WCAG AA (minimum 4.5:1 for body text, 3:1 for large text/interactive borders)",
+    "data_testid_rule": "All interactive and key informational elements MUST include a data-testid attribute for automated testing",
+    "header_overlay_rule": "DO NOT use complete transparent background in header or overlays over content. Always backdrop-blur or semi-solid fill."
+  },
+  "component_path": {
+    "landing": "frontend/src/cloudivr/pages/landing/",
+    "css": "frontend/src/cloudivr/pages/landing/np.css",
+    "hero": "frontend/src/cloudivr/pages/landing/HeroTabs.js",
+    "hero_phone": "frontend/src/cloudivr/pages/landing/HeroPhone.js"
+  },
+  "instructions_to_main_agent": [
+    "Keep CloudIVR blue brand identity (#1d6fd8) on primary buttons/accents across landing & web app.",
+    "Do NOT introduce purple (#7351B7).",
+    "Ensure all interactive components and buttons carry data-testid attributes.",
+    "Use JS/JSX syntax as the codebase consists of React .js files.",
+    "Implement the 3 hero card tabs: Business line, USA eSIM, USA mobile number with 1-line pitch and pricing.",
+    "Style floating telecom SVGs (handset, keypad, SMS bubble, SIM) with flat fill + outline + offset shadow + float animation.",
+    "Implement mock 'My numbers' dashboard preview with status badges and 4-step pipeline (Number -> IVR -> SIP -> Live).",
+    "Restyle FAQ accordion with rounded borders and circular chevron controls.",
+    "Ensure high contrast AA compliance for all text over lime, pink, sky, or dark backgrounds."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "Avoid centered generic AI slop layouts; use organic spacing, layered z-index hierarchy, and subtle grain/glows.",
+    "Do not use universal transitions like transition: all.",
+    "Never use generic AI emojis like 🤖, 🧠, 💡 for UI icons.",
+    "Ensure all buttons, inputs, links, tabs, and interactive containers contain kebab-case data-testid attributes."
+  ]
 }
-} Wrestling with standard tools...
