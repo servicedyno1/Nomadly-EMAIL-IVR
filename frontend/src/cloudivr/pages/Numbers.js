@@ -12,6 +12,7 @@ import { useShell } from '../Shell';
 import { DIAL_FROM } from '../Softphone';
 import { CallerIds } from './number/CallerIds';
 import { MobileLines } from './number/MobileLines';
+import { TextingLines, LIVE_TEXTING } from './number/TextingLines';
 
 const on = (f) => !!f?.enabled;
 
@@ -103,6 +104,7 @@ function NumberCard({ n, i, pv, onSaved, reload }) {
 export default function Numbers() {
   const { data, error, loading, setData, reload } = useApi('/numbers');
   const { data: mob } = useApi('/mobile-numbers');
+  const { data: hs } = useApi('/hosted-sms');
   const pv = usePrivacy();
   const nums = data?.numbers || [];
   const s = useSearch(nums, n => [n.phoneNumber, n.countryName, n.country, n.planName, n.status, n.type?.replace('_', '-'), n.isSubNumber ? 'Extra' : '']);
@@ -110,11 +112,11 @@ export default function Numbers() {
   const onSaved = (d) => { if (d?.number) setData(x => ({ ...x, numbers: (x?.numbers || []).map(n => (n.phoneNumber === d.number.phoneNumber ? d.number : n)) })); };
   return (
     <div data-testid="numbers-page" className="pb-20 lg:pb-0">
-      <PageHeader label="Numbers" title="My numbers" sub="Your CloudIVR VoIP numbers answer your callers: switch forwarding, the keypad menu or hours here, or open a number for everything else. Your USA mobile numbers are listed below them." testid="numbers-header">
+      <PageHeader label="Numbers" title="My numbers" sub="Your CloudIVR VoIP numbers answer your callers: switch forwarding, the keypad menu or hours here, or open a number for everything else. Your USA mobile and Landline to Texting numbers are listed below them." testid="numbers-header">
         <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="numbers-buy-button"><ShoppingCart className="w-4 h-4" />Buy a number</Link>
       </PageHeader>
       <ErrorNote error={error} />
-      {loading ? <Spinner /> : !nums.length && mob?.items?.length ? null : !nums.length ? (
+      {loading ? <Spinner /> : !nums.length && (mob?.items?.length || hs?.items?.some(t => LIVE_TEXTING.includes(t.status))) ? null : !nums.length ? (
         <Empty icon={Hash} title="No numbers yet" sub="Pick a country, choose a number and a plan — most numbers are live in about a minute." testid="numbers-empty">
           <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="numbers-empty-buy-button">Buy your first number</Link>
         </Empty>
@@ -128,6 +130,7 @@ export default function Numbers() {
         </>
       )}
       <MobileLines />
+      <TextingLines />
       {nums.some(n => n.status === 'active') && <CallerIds />}
     </div>
   );

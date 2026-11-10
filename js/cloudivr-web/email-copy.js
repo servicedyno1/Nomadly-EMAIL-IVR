@@ -176,6 +176,20 @@ const en = {
     covered: (d, f) => `Your wallet (${f.usd(d.balance)}) covers everything due this week.`,
     cta: (d) => (d.quiet ? 'Place a Quick IVR call' : 'Open CloudIVR'),
   },
+  textingStep: {
+    labels: { status: 'Status', expected: 'Expected by', bill: 'Next monthly fee', refund: 'Refunded to wallet' },
+    cta: 'Open Landline to Texting',
+    note: (n) => `From the carrier: ${n}`,
+    steps: {
+      verify: { subject: (d) => `Next step for ${d.phone}: confirm it’s yours`, eyebrow: 'Step 2 of 4', title: () => 'Confirm you own the number.', status: 'Ownership code', intro: (d) => `Your Landline to Texting setup for ${d.phone} has started. Next, confirm you own it: we send a one-time code to the number, you type it into CloudIVR. If the number can’t get the code, sign a short authorization letter instead.` },
+      loa: { subject: (d) => `Next step for ${d.phone}: sign the authorization letter`, eyebrow: 'Step 3 of 4', title: () => 'Sign the authorization letter.', status: 'Authorization letter', intro: (d) => `To text-enable ${d.phone}, the carrier needs a signed letter saying you allow it. It takes a minute: check your details and sign on screen.` },
+      documents: { subject: (d) => `Next step for ${d.phone}: upload a phone bill`, eyebrow: 'Step 4 of 4', title: () => 'Upload a recent phone bill.', status: 'Phone bill', intro: (d) => `Almost there. Upload a recent bill (PDF or a photo) showing ${d.phone} and the account name, so the carrier can match it to your letter. No bill to hand? Ask us for help on the same page.` },
+      admin_docs: { subject: (d) => `We’re helping with the documents for ${d.phone}`, eyebrow: 'In hand', title: () => 'Our team is on it.', status: 'Support is helping', intro: (d) => `Thanks — our team has your request for ${d.phone}. We’ll reply within 1 business day; a photo or screenshot of your phone account is usually enough. You can still upload the bill yourself any time.` },
+      review: { subject: (d) => `${d.phone} is with the carrier for approval`, eyebrow: 'Under review', title: () => 'Nothing more to do — it’s with the carrier.', status: 'Under review', intro: (d) => `Everything for ${d.phone} has gone to the carrier. Approval usually takes 1–3 business days, and we’ll email you the moment texting is on.` },
+      active: { subject: (d) => `Texting is on for ${d.phone}`, eyebrow: 'Live', title: () => 'Your number now takes texts.', status: 'Active', intro: (d) => `${d.phone} is ready. Texts your customers send to it land in CloudIVR and your Inbox, and receiving them is free. Calls keep working with your current provider.` },
+      failed: { subject: (d) => `We couldn’t set up texting for ${d.phone}`, eyebrow: 'Not approved', title: () => 'This number couldn’t be text-enabled.', status: 'Not approved', intro: (d, f) => `The carrier didn’t approve texting for ${d.phone}.${d.refund ? ` ${f.usd(d.refund)} has gone back to your wallet.` : ''} Reply to this email if you’d like us to look into it.` },
+    },
+  },
   off: { ask: { title: 'Stop these emails?', body: (w) => `You’ll stop getting ${w}. Receipts, renewal notices and wallet alerts still arrive.`, button: 'Yes, stop them' }, title: 'You’re unsubscribed', body: (w) => `You won’t get ${w} anymore. Changed your mind? Switch them back on in Settings → Email notifications.`, what: { weekly: 'weekly summaries', campaigns: 'campaign reports', voicemail: 'voicemail alerts', missed: 'missed-call alerts' }, back: 'Open CloudIVR', bad: 'This link is invalid or has expired.' },
 }
 
@@ -349,6 +363,20 @@ const fr = {
     covered: (d, f) => `Votre portefeuille (${f.usd(d.balance)}) couvre tout ce qui arrive cette semaine.`,
     cta: (d) => (d.quiet ? 'Lancer un appel Quick IVR' : 'Ouvrir CloudIVR'),
   },
+  textingStep: {
+    labels: { status: 'Statut', expected: 'Prévu le', bill: 'Prochain abonnement', refund: 'Remboursé sur le portefeuille' },
+    cta: 'Ouvrir Fixe vers SMS',
+    note: (n) => `De l’opérateur : ${n}`,
+    steps: {
+      verify: { subject: (d) => `Étape suivante pour ${d.phone} : confirmez qu’il est à vous`, eyebrow: 'Étape 2 sur 4', title: () => 'Confirmez que le numéro vous appartient.', status: 'Code de vérification', intro: (d) => `La configuration Fixe vers SMS de ${d.phone} a commencé. Confirmez maintenant qu’il vous appartient : nous envoyons un code unique au numéro, vous le saisissez dans CloudIVR. S’il ne peut pas recevoir le code, signez plutôt une courte lettre d’autorisation.` },
+      loa: { subject: (d) => `Étape suivante pour ${d.phone} : signez la lettre d’autorisation`, eyebrow: 'Étape 3 sur 4', title: () => 'Signez la lettre d’autorisation.', status: 'Lettre d’autorisation', intro: (d) => `Pour activer les SMS sur ${d.phone}, l’opérateur a besoin d’une lettre signée de votre part. Cela prend une minute : vérifiez vos informations et signez à l’écran.` },
+      documents: { subject: (d) => `Étape suivante pour ${d.phone} : envoyez une facture`, eyebrow: 'Étape 4 sur 4', title: () => 'Envoyez une facture téléphonique récente.', status: 'Facture', intro: (d) => `Presque fini. Envoyez une facture récente (PDF ou photo) indiquant ${d.phone} et le titulaire du compte, pour que l’opérateur la rapproche de votre lettre. Pas de facture sous la main ? Demandez-nous de l’aide sur la même page.` },
+      admin_docs: { subject: (d) => `Nous vous aidons avec les documents de ${d.phone}`, eyebrow: 'Pris en charge', title: () => 'Notre équipe s’en occupe.', status: 'Le support vous aide', intro: (d) => `Merci — notre équipe a reçu votre demande pour ${d.phone}. Nous répondons sous 1 jour ouvré ; une photo ou une capture de votre compte téléphonique suffit généralement. Vous pouvez toujours envoyer la facture vous-même.` },
+      review: { subject: (d) => `${d.phone} est en cours de validation par l’opérateur`, eyebrow: 'En validation', title: () => 'Plus rien à faire — c’est chez l’opérateur.', status: 'En validation', intro: (d) => `Tout ce qu’il faut pour ${d.phone} a été envoyé à l’opérateur. La validation prend en général 1 à 3 jours ouvrés, et nous vous écrirons dès que les SMS seront actifs.` },
+      active: { subject: (d) => `Les SMS sont actifs sur ${d.phone}`, eyebrow: 'Actif', title: () => 'Votre numéro reçoit désormais des SMS.', status: 'Actif', intro: (d) => `${d.phone} est prêt. Les SMS de vos clients arrivent dans CloudIVR et votre boîte de réception, et leur réception est gratuite. Les appels continuent de passer par votre opérateur actuel.` },
+      failed: { subject: (d) => `Impossible d’activer les SMS sur ${d.phone}`, eyebrow: 'Non validé', title: () => 'Ce numéro n’a pas pu être activé pour les SMS.', status: 'Non validé', intro: (d, f) => `L’opérateur n’a pas validé les SMS pour ${d.phone}.${d.refund ? ` ${f.usd(d.refund)} ont été recrédités sur votre portefeuille.` : ''} Répondez à cet e-mail si vous souhaitez que nous regardions.` },
+    },
+  },
   off: { ask: { title: 'Arrêter ces e-mails ?', body: (w) => `Vous ne recevrez plus ${w}. Les reçus, avis de renouvellement et alertes de portefeuille continueront d’arriver.`, button: 'Oui, les arrêter' }, title: 'Désinscription confirmée', body: (w) => `Vous ne recevrez plus ${w}. Vous avez changé d’avis ? Réactivez-les dans Paramètres → Notifications par e-mail.`, what: { weekly: 'le résumé hebdomadaire', campaigns: 'les rapports de campagne', voicemail: 'les alertes de messagerie vocale', missed: 'les alertes d’appel manqué' }, back: 'Ouvrir CloudIVR', bad: 'Ce lien est invalide ou a expiré.' },
 }
 
@@ -521,6 +549,20 @@ const es = {
     short: (d, f) => `A tu billetera (${f.usd(d.balance)}) le faltan ${f.usd(d.shortfall)} para cubrir lo que vence esta semana.`,
     covered: (d, f) => `Tu billetera (${f.usd(d.balance)}) cubre todo lo que vence esta semana.`,
     cta: (d) => (d.quiet ? 'Hacer una llamada Quick IVR' : 'Abrir CloudIVR'),
+  },
+  textingStep: {
+    labels: { status: 'Estado', expected: 'Previsto para', bill: 'Próxima cuota mensual', refund: 'Reembolsado a la billetera' },
+    cta: 'Abrir Fijo a SMS',
+    note: (n) => `Del operador: ${n}`,
+    steps: {
+      verify: { subject: (d) => `Siguiente paso para ${d.phone}: confirma que es tuyo`, eyebrow: 'Paso 2 de 4', title: () => 'Confirma que el número es tuyo.', status: 'Código de verificación', intro: (d) => `La configuración de Fijo a SMS para ${d.phone} ya empezó. Ahora confirma que es tuyo: enviamos un código único al número y lo escribes en CloudIVR. Si el número no puede recibir el código, firma una breve carta de autorización.` },
+      loa: { subject: (d) => `Siguiente paso para ${d.phone}: firma la carta de autorización`, eyebrow: 'Paso 3 de 4', title: () => 'Firma la carta de autorización.', status: 'Carta de autorización', intro: (d) => `Para activar SMS en ${d.phone}, el operador necesita una carta firmada por ti. Toma un minuto: revisa tus datos y firma en pantalla.` },
+      documents: { subject: (d) => `Siguiente paso para ${d.phone}: sube una factura`, eyebrow: 'Paso 4 de 4', title: () => 'Sube una factura telefónica reciente.', status: 'Factura', intro: (d) => `Casi listo. Sube una factura reciente (PDF o foto) donde se vea ${d.phone} y el titular de la cuenta, para que el operador la compare con tu carta. ¿No tienes factura a mano? Pídenos ayuda en la misma página.` },
+      admin_docs: { subject: (d) => `Te ayudamos con los documentos de ${d.phone}`, eyebrow: 'En marcha', title: () => 'Nuestro equipo se encarga.', status: 'Soporte te ayuda', intro: (d) => `Gracias — nuestro equipo recibió tu solicitud para ${d.phone}. Responderemos en 1 día hábil; normalmente basta con una foto o captura de tu cuenta telefónica. Puedes subir la factura tú mismo en cualquier momento.` },
+      review: { subject: (d) => `${d.phone} está en revisión con el operador`, eyebrow: 'En revisión', title: () => 'No tienes que hacer nada más — está con el operador.', status: 'En revisión', intro: (d) => `Todo lo de ${d.phone} se envió al operador. La aprobación suele tardar de 1 a 3 días hábiles y te escribiremos en cuanto los SMS estén activos.` },
+      active: { subject: (d) => `Los SMS están activos en ${d.phone}`, eyebrow: 'Activo', title: () => 'Tu número ya recibe SMS.', status: 'Activo', intro: (d) => `${d.phone} está listo. Los SMS que te envían tus clientes llegan a CloudIVR y a tu bandeja, y recibirlos es gratis. Las llamadas siguen con tu proveedor actual.` },
+      failed: { subject: (d) => `No pudimos activar SMS en ${d.phone}`, eyebrow: 'No aprobado', title: () => 'No se pudo activar SMS en este número.', status: 'No aprobado', intro: (d, f) => `El operador no aprobó SMS para ${d.phone}.${d.refund ? ` Devolvimos ${f.usd(d.refund)} a tu billetera.` : ''} Responde a este correo si quieres que lo revisemos.` },
+    },
   },
   off: { ask: { title: '¿Dejar de recibir estos correos?', body: (w) => `Dejarás de recibir ${w}. Los recibos, avisos de renovación y alertas de la billetera seguirán llegando.`, button: 'Sí, dejar de recibirlos' }, title: 'Suscripción cancelada', body: (w) => `Ya no recibirás ${w}. ¿Cambiaste de idea? Vuelve a activarlos en Configuración → Notificaciones por correo.`, what: { weekly: 'el resumen semanal', campaigns: 'los informes de campaña', voicemail: 'los avisos de buzón de voz', missed: 'los avisos de llamadas perdidas' }, back: 'Abrir CloudIVR', bad: 'Este enlace no es válido o ha caducado.' },
 }

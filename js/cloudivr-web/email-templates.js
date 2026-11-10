@@ -136,6 +136,14 @@ const B = {
         + L.button(k.cta(d), x.app(d.quiet ? '/app/quick-call' : '/app'))
         + (NEXT[d.plan] ? upsell(c, d.plan, x) : L.callout(`${L.esc(c.refer.text)}<br>${L.link(c.refer.cta, x.app('/app/settings'))}`, 'brand')) }
   },
+  // Landline to Texting setup: one email per step forward (d.step = verify | loa | documents | admin_docs | review | active | failed).
+  textingStep: (d, c, f, x) => {
+    const k = c.textingStep, st = k.steps[d.step] || k.steps.review, t = d.step === 'active' ? 'ok' : d.step === 'failed' ? 'bad' : ['review', 'admin_docs'].includes(d.step) ? 'brand' : 'warn'
+    return { subject: st.subject(d, f), preheader: st.title(d, f), eyebrow: st.eyebrow, title: st.title(d, f), t,
+      body: P(st.intro(d, f)) + (d.note ? L.callout(L.esc(k.note(d.note)), 'warn') : '')
+        + L.rows([{ k: c.labels.number, v: L.mono(d.phone), html: true }, { k: k.labels.status, v: st.status }, d.step === 'review' && d.expectedBy && { k: k.labels.expected, v: f.date(d.expectedBy) }, d.step === 'active' && d.nextBillAt && { k: k.labels.bill, v: `${f.usd(d.monthly)} · ${f.date(d.nextBillAt)}` }, d.step === 'failed' && d.refund && { k: k.labels.refund, v: f.usd(d.refund) }])
+        + L.button(k.cta, x.app(`/app/texting?id=${enc(d.id)}`), t === 'bad' ? 'bad' : 'brand') }
+  },
 }
 
 const TYPES = Object.keys(B)

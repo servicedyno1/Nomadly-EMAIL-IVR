@@ -20,6 +20,7 @@ const OPTIONAL = Object.values(GROUPS)
 const DEFAULTS = { weekly: true, campaigns: true, voicemail: true, missed: true, lowBalanceAt: 10 }
 const LANGS = ['en', 'fr', 'es']
 const EMPTY_AT = 0.5
+const TEXTING_STEPS = ['verify', 'loa', 'documents', 'admin_docs', 'review', 'active', 'rejected', 'failed']
 const RANK = { ok: 0, low: 1, empty: 2 }
 const DAY = 86400000
 const LOOKBACK = 6 * 3600000
@@ -258,6 +259,20 @@ function createEmails(db, { log = console.log } = {}) {
     return jobs
   }
 
+  // Landline to Texting setup steps: one email each time a setup moves to a new step (doc.emailedStatus = last step emailed).
+  // Changes older than LOOKBACK (deploy day, old records) are only marked, never emailed.
+  async function textingSteps() {
+    const hs = db.collection('hostedSms'), jobs = []
+    for (const d of await hs.find({ status: { $in: TEXTING_STEPS }, $expr: { $ne: ['$emailedStatus', '$status'] } }).limit(200).toArray()) {
+      const r = await hs.updateOne({ _id: d._id, status: d.status, emailedStatus: d.emailedStatus ?? null }, { $set: { emailedStatus: d.status } })
+      if (!r.modifiedCount || !isWebChatId(d.chatId) || new Date(d.updatedAt).getTime() < Date.now() - LOOKBACK) continue
+      const p = require('../hosted-sms.js').pub(d), step = ['rejected', 'failed'].includes(d.status) ? 'failed' : d.status
+      jobs.push({ chatId: String(d.chatId), type: 'textingStep', key: `texting:${d._id}:${d.status}:${new Date(d.updatedAt).getTime()}`,
+        data: async () => ({ id: String(d._id), step, phone: d.phoneNumber, expectedBy: p.expectedBy, monthly: p.monthly, nextBillAt: d.planNumber ? null : d.nextBillAt || null, note: d.note || null, refund: step === 'failed' ? Number(d.paid) || 0 : 0 }) })
+    }
+    return jobs
+  }
+
   async function run(jobs) {
     if (!jobs.length) return 0
     const keys = jobs.flatMap(j => (j.items ? j.items.map(i => i.key) : [j.key]))
@@ -284,6 +299,7 @@ function createEmails(db, { log = console.log } = {}) {
       const from = await cursor()
       const nums = await webNumbers()
       const jobs = await events(from, nums)
+      jobs.push(...(await textingSteps()))
       if (ticks++ % 5 === 0) jobs.push(...numberStates(nums), ...(await walletLevels(nums)), ...(await depositNudges()))
       return await run(jobs)
     } catch (e) { log(`[CloudIVR-Email] scan failed: ${e.message}`); return 0 } finally { busy = false }
@@ -355,6 +371,7 @@ function createEmails(db, { log = console.log } = {}) {
       case 'voicemail': return { from: '+14155550122', to: phone, duration: 38, transcript: 'Hi, it’s Dana from Lakeside Realty — calling about the listing on Elm Street. Call me back when you get a minute.' }
       case 'missed': return { to: phone, calls: [{ from: '+14155550122', at: at(-20 * 60000) }, { from: '+447700900123', at: at(-5 * 60000) }] }
       case 'weekly': return weeklyFor(chatId, list.length ? list : [n])
+      case 'textingStep': return { id: 'sample', step: 'review', phone: '+12125550123', expectedBy: at(3 * DAY), monthly: 50, nextBillAt: at(30 * DAY), note: null, refund: 0 }
       default: return {}
     }
   }
@@ -436,7 +453,7 @@ function createEmails(db, { log = console.log } = {}) {
     log('[CloudIVR-Email] scanner on (every minute) · weekly summary Mondays 08:00 UTC')
   }
 
-  return { send, tick, runWeekly, weeklyFor, webNumbers, sample, render: build, routes, publicRoutes, start }
+  return { send, tick, runWeekly, weeklyFor, webNumbers, textingSteps, sample, render: build, routes, publicRoutes, start }
 }
 
 module.exports = { createEmails, DEFAULTS, GROUPS, appUrl }
