@@ -16,7 +16,8 @@ const brand = () => (process.env.CHAT_BOT_BRAND || 'Nomadly').replace(/[^A-Za-z0
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const per500 = (x) => Math.round(x * 500 * 100) / 100
 const errText = (lang, r) => t(lang, r.error, ...(r.args || []))
-const isHome = (m) => m === '/esimsms' || allLabels('home').includes(m)
+const OLD_HOME = ['🛰 eSIM BulkSMS (USA/Canada)', '🛰 eSIM SMS en masse (USA/Canada)', '🛰 eSIM 群发短信（美国/加拿大）', '🛰 eSIM बल्क SMS (USA/कनाडा)', '🛰 پیامک انبوه eSIM (آمریکا/کانادا)'] // labels still on older keyboards
+const isHome = (m) => m === '/esimsms' || allLabels('home').includes(m) || OLD_HOME.includes(m)
 let T = null
 const drafts = () => B.db().collection('bsDrafts')
 
@@ -33,7 +34,11 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   const action = info?.action || '', lang = info?.userLanguage || 'en', L = btn(lang), say = (k, ...a) => t(lang, k, ...a)
   const cid = B.cidOf(brand(), chatId), go = (a) => set(state, chatId, 'action', a), put = (k, v) => saveInfo(k, v), HK = homeKb(L)
   if (isHome(message) && !B.configured()) { await send(chatId, say('soon')); return true }
-  if (isHome(message)) { await B.customer(brand(), chatId); await go('bse-home'); await home(send, chatId, lang); return true }
+  if (isHome(message)) {
+    await B.customer(brand(), chatId); await go('bse-home')
+    if (!info?.bseIntroAt) { const c = await B.cfg(); await send(chatId, say('intro', { minHours: c.scheduleMinHours, pct: c.scheduleDiscountPct })); await put('bseIntroAt', new Date().toISOString()) }
+    await home(send, chatId, lang); return true
+  }
   if (!action.startsWith('bse-')) return false
   if (message === L.back) { if (action === 'bse-home') { await go('none'); return goto.submenu7 ? (await goto.submenu7(), true) : false } await go('bse-home'); await home(send, chatId, lang); return true }
   if (action === 'bse-home') {

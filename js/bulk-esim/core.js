@@ -13,9 +13,9 @@ const DEFAULTS = {
   defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 8, quietEnd: 21,
   platformPerMin: 30, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
   minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testsPerDay: 4, testsPerWeek: 10, freeTestsPerDay: 50, numberCheck: true, lookupCost: 0.0025, lookupDays: 30,
-  minEsims: 2, monitorEsims: 1, testerEsims: 1, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
-  minCredit: 10, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
-  esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: true, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3, cancelDeadAfterDays: 3, checkEveryTexts: 100, apiFailsToReplace: 3, platformPerMinAuto: true,
+  minEsims: 2, monitorEsims: 0, testerEsims: 1, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
+  minCredit: 0, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
+  esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: false, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3, cancelDeadAfterDays: 3, checkEveryTexts: 100, apiFailsToReplace: 3, platformPerMinAuto: true,
 }
 const today = () => new Date().toISOString().slice(0, 10)
 const daysAhead = (date) => Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(today())) / 86400000)
@@ -52,7 +52,7 @@ const normPhone = (p) => { const d = String(p || '').replace(/[^\d]/g, ''); retu
 // headers), credit and forecast; `low` = balance under the floor → its lines sit out until it is topped up.
 async function cfg() {
   const c = { ...DEFAULTS, ...((await C('bsConfig').findOne({ _id: 'settings' }))?.values || {}) }, docs = await C('bsAccounts').find({}).toArray()
-  c.accounts = P.accounts().map(a => { const d = docs.find(x => x._id === a.id) || {}; return { id: a.id, n: a.n, perMin: (c.platformPerMinAuto && d.perMin) || c.platformPerMin, low: !!d.low, credit: d.credit ?? null, forecast: d.forecast || null, status: d.status || 'active' } }).filter(a => a.status !== 'disabled')
+  c.accounts = P.accounts().map(a => { const d = docs.find(x => x._id === a.id) || {}; return { id: a.id, n: a.n, perMin: (c.platformPerMinAuto && d.perMin) || c.platformPerMin, low: !!d.low, orderBlockedBal: d.orderBlockedBal ?? null, credit: d.credit ?? null, forecast: d.forecast || null, status: d.status || 'active' } }).filter(a => a.status !== 'disabled')
   return c
 }
 const firstAccount = (c) => c.accounts[0]?.id || P.accounts()[0]?.id || 'spenza1'
@@ -123,11 +123,12 @@ async function creditWatch() {
   const c = await cfg(), sum = { credit: 0, committed: 0, available: 0, daily: 0, renewals: 0, lineCost: 0 }; let seen = 0, lows = 0, lowNotes = [], toppedUp = false
   for (const a of c.accounts) {
     let bal; try { bal = await P.credit(a.id) } catch (err) { if (await once(`creditfail:${a.id}:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Could not read the Spenza ${acctLabel(a.id)} balance: ${err.message}${err.status ? ` [HTTP ${err.status}]` : ''}. Credit checks for it are paused until it answers.`); continue }
-    const f = await forecast(c, bal, a.id), low = bal < c.minCredit; seen++
+    const f = await forecast(c, bal, a.id), low = c.minCredit > 0 ? bal < c.minCredit : bal <= 0; seen++
     for (const k of ['credit', 'committed', 'available', 'daily', 'renewals']) sum[k] += f[k]; sum.lineCost = Math.max(sum.lineCost, f.lineCost)
     await setAccount(a.id, { credit: bal, creditAt: new Date(), forecast: f, low })
     if (low) { lows++; lowNotes.push(`${acctLabel(a.id)} $${bal}`); if (!a.low) { alert(`💳 Spenza ${acctLabel(a.id)} balance $${bal} is below the $${c.minCredit} floor — its lines sit out${c.accounts.length > 1 ? ' while the other account(s) keep sending' : ''}. Add credit at web.spenza.com`); incident('account_low', { account: a.id, credit: bal }) } }
     else if (a.low) { alert(`💳 Spenza ${acctLabel(a.id)} topped up ($${bal}) — its lines are back in the pool; ordering any lines still missing.`); toppedUp = true }
+    else if (a.orderBlockedBal != null && bal > a.orderBlockedBal) { await setAccount(a.id, { orderBlockedBal: null, orderBlockedAt: null }); alert(`💳 Spenza ${acctLabel(a.id)} topped up ($${bal}) — ordering the missing line(s) now.`); toppedUp = true }
     else if ((f.available < 0 || (f.runway != null && f.runway < c.creditWarnDays)) && await once(`creditwarn:${a.id}:${today()}`)) alert(`⚠️ Spenza ${acctLabel(a.id)} credit is getting low: $${bal} on the account, $${f.committed} already promised (${f.renewals} renewal(s) due within ${c.renewalWindowDays} days), ~$${f.daily}/day lately → ${f.available < 0 ? 'new bookings are on hold' : `about ${f.runway} day(s) left`}. Add credit at web.spenza.com`)
   }
   if (!seen) return
@@ -140,7 +141,7 @@ async function creditWatch() {
   if (toppedUp && !creditWatch.busy) { creditWatch.busy = true; try { await autoscale() } finally { creditWatch.busy = false } }
 }
 // Bookings stop while the balance can't cover what is already promised plus this one (no forecast yet → allowed).
-async function creditShort(c, parts) { const st = await state(); return st.reasons?.includes('provider_credit') || (st.forecast ? st.forecast.available - parts * c.providerSmsCost < 0 : false) }
+async function creditShort() { return !!(await state()).reasons?.includes('provider_credit') } // no floor: only a balance that is actually gone stops new bookings
 
 // ---------- inventory ----------
 async function nextEsimId() { const r = await C('bsConfig').findOneAndUpdate({ _id: 'esimSeq' }, { $inc: { n: 1 } }, { upsert: true, returnDocument: 'after' }); const n = (r?.value || r).n; return `ESIM-${String(n).padStart(4, '0')}` }
@@ -167,9 +168,10 @@ const budgetLeft = async (c) => (c.provisionBudget ? c.provisionBudget - await s
 async function acctRoom(c, role = 'service') {
   const out = []
   for (const a of c.accounts) {
-    if (a.low) continue
-    const cost = await planCost(a.id), lines = await liveCount(a.id), f = a.forecast
-    const byCredit = f ? Math.floor(f.available / cost) : Infinity, byCeiling = c.maxEsims ? Infinity : acctMaxLines(c, a) - lines
+    if (a.low || (a.orderBlockedBal != null && !(a.credit > a.orderBlockedBal))) continue
+    const cost = await planCost(a.id), lines = await liveCount(a.id)
+    // No balance floor: the order is tried and Spenza decides; a credit refusal parks the account until a top-up.
+    const byCredit = Infinity, byCeiling = c.maxEsims ? Infinity : acctMaxLines(c, a) - lines
     const room = AUX.includes(role) ? (byCredit > 0 ? 1 : 0) : Math.max(0, Math.min(byCeiling, byCredit))
     if (room > 0) out.push({ ...a, lines, room, cost, ratio: lines / acctMaxLines(c, a) })
   }
@@ -218,7 +220,11 @@ async function provisionOne(reason, by, role = 'service', account = null) {
     audit('provision', { esimId: e._id, reason, by, cost, role, account: pick.id }); return { ok: true, esimId: e._id, account: pick.id }
   } catch (err) {
     await setEsim(e._id, 'failed', { note: err.message }); alert(`❌ Spenza could not order a new line (${e._id}, ${role}, ${acctLabel(pick.id)}, reason: ${reason}): ${err.message}${err.status ? ` [HTTP ${err.status}]` : ''}.${err.kind === 'credit' ? ' Add credit at web.spenza.com.' : err.kind === 'auth' ? ' Check the API key/secret.' : err.kind === 'temporary' || err.kind === 'rate' ? ' Spenza is not answering — it is retried with the next booking / autoscale run, or /bulkprovision.' : ' /bulkprovision to try again once fixed.'}`); incident('provision_failed', { esimId: e._id, account: pick.id, role, reason, error: err.message, kind: err.kind || null })
-    if (err.kind === 'credit') { await setAccount(pick.id, { low: true }); await creditWatch() }
+    if (err.kind === 'credit') {
+      const bal = await P.credit(pick.id).catch(() => pick.credit ?? 0)
+      await setAccount(pick.id, { orderBlockedBal: bal, orderBlockedAt: new Date() })
+      if (await once(`ordertopup:${pick.id}:${today()}`)) alert(`💳 Top up Spenza ${acctLabel(pick.id)} to buy lines: balance $${bal}, one line ≈ $${cost}. Sending on the existing lines continues; the missing line(s) are ordered automatically as soon as the balance goes up.`)
+    }
     return { error: err.message }
   }
 }
@@ -582,7 +588,7 @@ async function cancelDead(c) {
   }
 }
 async function expireHolds() {
-  await C('bsConfig').deleteMany({ _id: /^(creditwarn|replaces|scale|provcredit|help|replimit|acctadvice|authfail|aifallback|aidown|lookupdown|creditfail|syncfail|noselfurl|urlcheckdown|linkflag|freecap):/, at: { $lt: new Date(Date.now() - 30 * DAY) } }).catch(() => {})
+  await C('bsConfig').deleteMany({ _id: /^(creditwarn|replaces|scale|provcredit|help|replimit|acctadvice|authfail|aifallback|aidown|lookupdown|creditfail|syncfail|noselfurl|urlcheckdown|linkflag|freecap|ordertopup|growth):/, at: { $lt: new Date(Date.now() - 30 * DAY) } }).catch(() => {})
   for (const b of await C('bsBookings').find({ status: { $in: ['pending', 'awaiting_payment'] }, holdUntil: { $lt: new Date(Date.now() - 6 * HOUR) } }).limit(100).toArray()) await setBooking(b._id, 'cancelled', { note: 'hold_expired' })
 }
 
@@ -1071,6 +1077,9 @@ async function autoscale() {
   const why = total < c.minEsims ? 'below minimum inventory' : `demand: peak ${p.peak} SMS/day, next-7-day target up to ${wanted} SMS`
   const healthy = await C('bsEsims').countDocuments({ status: { $in: USABLE }, health: { $in: GOOD_HEALTH } })
   if (c.autoProvision && !c.manualApproval) {
+    // Growth notice: tell the admin what the extra lines cost against the balance, so top-ups follow the business (no floor kept).
+    const st = await state(), cost = await planCost(firstAccount(c)), bal = st.forecast?.credit, needUsd = Math.round(need * cost * 100) / 100
+    if (bal != null && bal < needUsd + 1 && await once(`growth:${today()}:${need}`)) alert(`📈 Bookings need ${need} more line(s) (≈ $${needUsd}) — Spenza balance $${bal}. Top up about $${Math.round((needUsd - bal + 1) * 100) / 100}; whatever can't be bought now is ordered automatically after the top-up.`)
     const r = await provisionFor(why, async () => (await needOf()).n)
     if (r.ok) alert(`📈 Bought ${r.ok} eSIM(s) (${why}; ${healthy} healthy, ${total} total before).`); if (r.ok < r.need && await once(`scale:${today()}`)) alert(`📈 ${r.need - r.ok} more line(s) needed but not bought: ${r.error || `line ceiling ${p.maxLines} reached`}.`)
     await adviseAccounts(c, { lines: await liveCount(), target: wanted })

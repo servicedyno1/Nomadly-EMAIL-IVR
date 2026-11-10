@@ -15,6 +15,7 @@ const nums = (n, from) => Array.from({ length: n }, (_, i) => `+1212555${String(
   for (const c of COLS) await db.collection(c).deleteMany({})
   const alerts = []
   await B.init({ db, log: () => {}, notifyAdmin: (t) => alerts.push(t) })
+  await B.setConfig({ minCredit: 10, reserveBooking: true, monitorEsims: 1 }, 'test') // LEGACY_DEFAULTS: this suite covers the floor / spare-reserve / monitor paths
   process.env.BULK_ESIM_WORKER = ''
   await B.claimWorker()
   const M = db.collection('bsMessages'), A = db.collection('bsAccounts'), Es = db.collection('bsEsims')

@@ -13,6 +13,7 @@ const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${
   for (const c of COLS) await db.collection(c).deleteMany({})
   const alerts = [], last = () => alerts[alerts.length - 1] || '', since = (n) => alerts.slice(n).join('\n')
   await B.init({ db, log: () => {}, notifyAdmin: (t) => alerts.push(t) })
+  await B.setConfig({ minCredit: 10, reserveBooking: true, monitorEsims: 1 }, 'test') // LEGACY_DEFAULTS: this suite covers the floor / spare-reserve / monitor paths
   await B.setConfig({ monitorEsims: 0, testerEsims: 0, autoProvision: false, manualApproval: true }, 'test')
   await B.provisionMany(3, 'test', 'test'); await B.healthCheck()
   const E = db.collection('bsEsims'), live = () => E.countDocuments({ status: { $nin: ['replaced', 'failed', 'expired', 'retired'] } })
@@ -32,8 +33,10 @@ const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${
   const b = await E.findOne({ status: 'available' }); process.env.BULK_ESIM_FAKE_RENEW_FAIL = b.iccid; process.env.BULK_ESIM_FAKE_PROVISION_FAIL = 'credit'; P.resetFakeFails()
   n0 = alerts.length; const r2 = await B.replaceEsim(b._id, 'test', 'system')
   ok('both fail → admin told the pool is one line short', r2.ok === false && !r2.bought && /also failed/.test(since(n0)) && /one line short/.test(since(n0)) && /Spenza could not order a new line/.test(since(n0)), since(n0))
-  ok('credit error → account flagged low and balance re-read at once (simulated balance $500 → back in pool)', /topped up/.test(since(n0)))
-  await db.collection('bsAccounts').updateMany({}, { $set: { low: false } })
+  ok('credit refusal → admin told to top up; account parked for orders only', /Top up Spenza/.test(since(n0)) && (await db.collection('bsAccounts').findOne({ _id: 'spenza1' })).orderBlockedBal === 500)
+  process.env.BULK_ESIM_FAKE_CREDIT = '600'; n0 = alerts.length; await B.creditWatch()
+  ok('balance goes up → orders unparked + missing lines ordered', /ordering the missing line/.test(since(n0)) && (await db.collection('bsAccounts').findOne({ _id: 'spenza1' })).orderBlockedBal === null)
+  process.env.BULK_ESIM_FAKE_CREDIT = '500'; await db.collection('bsAccounts').updateMany({}, { $set: { orderBlockedBal: null } })
   delete process.env.BULK_ESIM_FAKE_PROVISION_FAIL
 
   // ---- admin /bulkreplace shows the outcome ----

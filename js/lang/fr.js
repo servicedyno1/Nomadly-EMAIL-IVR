@@ -119,6 +119,7 @@ const user = {
  testSip: '🧪 Tester SIP Gratuit',
  freeTrialAvailable: '🆓 Essai SMS en masse',
  smsAppMain: '📱 SMS en masse',
+ bulkSmsNew: '📲 SMS en masse 🇺🇸🇨🇦',
  smsCreateCampaign: '📱 Créer une campagne',
  smsMyCampaigns: '📋 Mes campagnes',
  smsDownloadApp: '📲 Télécharger l\'appli',
@@ -2479,7 +2480,7 @@ const userKeyboard = {
  ...require('../web-access').webMenuRows('fr'), // 🌐 Hosting/RDP/VPS on Web (NomadlyBot only, WEBSITE_URL set)
  [user.cloudPhone, user.hostingDomainsRedirect],
  ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
- ...(HIDE_SMS_APP !== 'true' ? [[user.smsAppMain, user.leadsValidation]] : [[user.leadsValidation]]),
+ [user.bulkSmsNew, user.leadsValidation],
  [user.digitalProducts, user.marketplace],
  [user.urlShortenerMain, user.virtualCard],
  [user.wallet, user.buyPlan],

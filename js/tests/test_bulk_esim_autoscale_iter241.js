@@ -17,6 +17,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   await wipe()
   const alerts = []
   await B.init({ db, log: () => {}, notifyAdmin: (t) => alerts.push(t) })
+  await B.setConfig({ minCredit: 10, reserveBooking: true, monitorEsims: 1 }, 'test') // LEGACY_DEFAULTS: this suite covers the floor / spare-reserve / monitor paths
   process.env.BULK_ESIM_WORKER = ''
   let provCalls = 0; const realProv = P.provision; P.provision = async (...a) => { provCalls++; return realProv(...a) }
   const fresh = async (cfg = {}) => { await wipe(); alerts.length = 0; provCalls = 0; process.env.BULK_ESIM_FAKE_CREDIT = '500'; await B.setConfig({ quietStart: 0, quietEnd: 24, reserveBooking: false, autoProvision: false, manualApproval: true, minEsims: 1, monitorEsims: 0, testerEsims: 0, ...cfg }, 'test'); return (await B.customer('TEST_Iter241', '9001'))._id }
@@ -57,12 +58,13 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
     await B.setConfig({ esimDailyLimit: 400, warmupDays: 5, platformPerMin: 30, esimPerMin: 10 }, 'test')
 
     // (e) credit forecast
-    await B.creditWatch(); const f0 = (await B.state()).forecast
+    await B.setConfig({ minCredit: 10 }, 'test'); await B.creditWatch(); const f0 = (await B.state()).forecast
     process.env.BULK_ESIM_FAKE_CREDIT = '20'; alerts.length = 0; await B.creditWatch(); const f1 = (await B.state()).forecast
     ok('(e) credit 20 → one "getting low" alert, not paused', alerts.filter(a => /getting low/.test(a)).length === 1 && !(await B.state()).reasons.length, `committed=${f1.committed} available=${f1.available}`)
     await B.creditWatch(); ok('(e) not repeated same day', alerts.filter(a => /getting low/.test(a)).length === 1)
-    ok('(e) createBooking refused err_no_lines', (await B.createBooking(cid, { date: d(4), hour: 12, volume: 600 })).error === 'err_no_lines')
-    const pe = await B.provisionOne('test'); ok('(e) provisionOne refused with credit error', !!pe.error && /credit/i.test(pe.error), pe.error)
+    const be = await B.createBooking(cid, { date: d(4), hour: 12, volume: 600 }); ok('(e) low-but-positive credit no longer blocks bookings (no forecast floor)', !!be.booking, be.error)
+    if (be.booking) await X('bsBookings').deleteOne({ _id: be.booking._id })
+    const pe = await B.provisionOne('test'); ok('(e) order is tried (Spenza decides) instead of refused by forecast', !!pe.ok, pe.error)
     process.env.BULK_ESIM_FAKE_CREDIT = '2'; alerts.length = 0; await B.creditWatch()
     ok('(e) credit 2 → paused', (await B.state()).reasons.includes('provider_credit') && alerts.some(a => /PAUSED/.test(a)))
     await B.creditWatch(); ok('(e) no nag within the hour', !alerts.some(a => /Still paused/.test(a)))

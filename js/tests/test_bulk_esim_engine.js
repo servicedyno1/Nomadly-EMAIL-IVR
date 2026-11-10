@@ -14,8 +14,9 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms))
   for (const c of COLS) await db.collection(c).deleteMany({})
   const alerts = []
   await B.init({ db, log: () => {}, notifyAdmin: (t) => alerts.push(t) })
+  await B.setConfig({ minCredit: 10, reserveBooking: true, monitorEsims: 1 }, 'test') // LEGACY_DEFAULTS: this suite covers the floor / spare-reserve / monitor paths
   process.env.BULK_ESIM_WORKER = ''
-  ok('starts with 1 monitor + 2 service lines, grows with demand (auto-buy on by default)', B.DEFAULTS.minEsims === 2 && B.DEFAULTS.monitorEsims === 1 && B.DEFAULTS.autoProvision === true && B.DEFAULTS.manualApproval === false)
+  ok('lean start: 2 service lines, no monitor, no floor, grows with demand (auto-buy on by default)', B.DEFAULTS.minEsims === 2 && B.DEFAULTS.monitorEsims === 0 && B.DEFAULTS.minCredit === 0 && B.DEFAULTS.autoProvision === true && B.DEFAULTS.manualApproval === false)
   await B.setConfig({ autoProvision: false, manualApproval: true }, 'test')
   process.env.WEB_CLOUDIVR_DRY_RUN = 'false'; const live = B.configured(); process.env.WEB_CLOUDIVR_DRY_RUN = 'true'
   ok('live mode needs the shared database', live === !!process.env.BULK_ESIM_MONGO_URL)

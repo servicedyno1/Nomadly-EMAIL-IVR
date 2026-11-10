@@ -14,6 +14,7 @@ const nums = (n, from = 1000) => Array.from({ length: n }, (_, i) => `+1212555${
   for (const c of COLS) await db.collection(c).deleteMany({})
   const alerts = [], since = (n) => alerts.slice(n).join('\n')
   await B.init({ db, log: () => {}, notifyAdmin: (t) => alerts.push(t) })
+  await B.setConfig({ minCredit: 10, reserveBooking: true, monitorEsims: 1 }, 'test') // LEGACY_DEFAULTS: this suite covers the floor / spare-reserve / monitor paths
   await B.bootstrap()
   await B.setConfig({ quietStart: 0, quietEnd: 24, monitorEsims: 0, testerEsims: 0, autoProvision: true, manualApproval: false, minEsims: 2, platformPerMin: 10000, esimPerMin: 10000 }, 'test')
   await B.provisionMany(2, 'test', 'test'); await B.healthCheck()
