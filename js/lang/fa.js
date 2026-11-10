@@ -116,6 +116,7 @@ const user = {
  getSupport: '💬 پشتیبانی',
  freeTrialAvailable: '🆓 آزمایش رایگان BulkSMS',
  smsAppMain: '📱 BulkSMS',
+ bulkSmsNew: '📲 پیامک انبوه 🇺🇸🇨🇦',
  smsCreateCampaign: '📱 ایجاد کمپین',
  smsMyCampaigns: '📋 کمپین‌های من',
 smsDownloadApp: '📲 دانلود اپلیکیشن',
@@ -2641,7 +2642,7 @@ const userKeyboard = {
 ...require('../web-access').webMenuRows('en'), // 🌐 Hosting/RDP/VPS on Web (NomadlyBot only, WEBSITE_URL set)
  [user.cloudPhone, user.hostingDomainsRedirect],
  ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
- ...(HIDE_SMS_APP !== 'true' ? [[user.smsAppMain, user.leadsValidation]] : [[user.leadsValidation]]),
+ [user.bulkSmsNew, user.leadsValidation],
  [user.digitalProducts, user.marketplace],
  [user.urlShortenerMain, user.virtualCard],
  [user.wallet, user.buyPlan],

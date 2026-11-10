@@ -118,6 +118,7 @@ const user = {
  more: '➕ 更多',
  freeTrialAvailable: '🆓 BulkSMS 免费试用',
  smsAppMain: '📱 BulkSMS',
+ bulkSmsNew: '📲 群发短信 🇺🇸🇨🇦',
  smsCreateCampaign: '📱 创建活动',
  smsMyCampaigns: '📋 我的活动',
  smsDownloadApp: '📲 下载应用',
@@ -2462,7 +2463,7 @@ const userKeyboard = {
  ...require('../web-access').webMenuRows('zh'), // 🌐 Hosting/RDP/VPS on Web (NomadlyBot only, WEBSITE_URL set)
  [user.cloudPhone, user.hostingDomainsRedirect],
  ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
- ...(HIDE_SMS_APP !== 'true' ? [[user.smsAppMain, user.leadsValidation]] : [[user.leadsValidation]]),
+ [user.bulkSmsNew, user.leadsValidation],
  [user.digitalProducts, user.marketplace],
  [user.urlShortenerMain, user.virtualCard],
  [user.wallet, user.buyPlan],
