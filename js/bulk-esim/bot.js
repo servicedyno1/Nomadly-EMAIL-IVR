@@ -91,12 +91,14 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   async function review() {
     const c = await B.cfg(), d = await drafts().findOne({ _id: cid }) || {}, v = info.bseContent, links = v.some(B.hasLinkOrPhone), n = (d.contacts || []).length
     await go('bse-review')
-    return send(chatId, say('review', { v, optOut: info.bseOptOut !== false, links, n, price: Math.round(n * unitOf(c, links) * 100) / 100 }), kb([[v.length > 1 ? L.use_these : L.use_one], [L.rotate_ai], ...(v.length > 1 ? [] : [[L.rotate_own]]), [L.edit], [L.back]]))
+    return send(chatId, say('review', { v, found: [...new Set(v.flatMap(B.linksIn))], optOut: info.bseOptOut !== false, links, n, price: Math.round(n * unitOf(c, links) * 100) / 100 }), kb([[v.length > 1 ? L.use_these : L.use_one], [L.rotate_ai], ...(v.length > 1 ? [] : [[L.rotate_own]]), [L.edit], [L.back]]))
   }
   if (action === 'bse-content') {
     if (message === L.optout_no || message === L.optout_yes) { info.bseOptOut = message === L.optout_yes; await put('bseOptOut', info.bseOptOut); return contentAsk() }
     const optOut = info.bseOptOut !== false, k = B.checkContent(message, undefined, optOut)
     if (k.error) return send(chatId, `⚠️ ${errText(lang, k)}`, kb([[optOut ? L.optout_no : L.optout_yes], [L.back]]))
+    const sc = await B.screenContent(cid, k.parts); if (sc.error) return send(chatId, errText(lang, sc), kb([[optOut ? L.optout_no : L.optout_yes], [L.back]]))
+    await put('bseLinksUnchecked', !!sc.unchecked)
     info.bseContent = k.parts; await put('bseContent', k.parts); await put('bseVarAll', []); await put('bseVarRounds', 0); await put('bseVariants', []); await put('bseSwap', [])
     return review()
   }
@@ -124,6 +126,8 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     if (message === L.use_one || message === L.use_these) return finalize([])
     const alts = String(message).split('\n').map(x => x.trim()).filter(Boolean)
     if (!alts.length || alts.length > 10 || !alts.every(B.onlyLinkOrPhone)) return send(chatId, `⚠️ ${say('err_links_bad')}`, kb([[L.same_links], [L.use_one], [L.back]]))
+    const sc = await B.screenContent(cid, alts, 'rotation links'); if (sc.error) return send(chatId, errText(lang, sc), kb([[L.same_links], [L.use_one], [L.back]]))
+    if (sc.unchecked) await put('bseLinksUnchecked', true)
     await put('bseSwap', alts); return offerVariants(alts)
   }
   if (action === 'bse-variants-pick') {
@@ -139,7 +143,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   async function finalize(variants) {
     const d = await drafts().findOne({ _id: cid }) || {}, f = d.file, content = [...info.bseContent, ...(variants || [])]
     const upload = f ? await saveUpload(B.db(), cid, { name: f.name, data: f.raw }).catch(e => { console.log(`[BulkESIM] upload store: ${e.message}`); return null }) : null
-    const cr = await B.createCampaign(cid, { name: content[0].slice(0, 40), content, contacts: d.contacts || [], skip: d.skip || [], optOut: info.bseOptOut !== false, consent: true, uploadId: upload?._id })
+    const cr = await B.createCampaign(cid, { name: content[0].slice(0, 40), content, contacts: d.contacts || [], skip: d.skip || [], linksUnchecked: !!info.bseLinksUnchecked, optOut: info.bseOptOut !== false, consent: true, uploadId: upload?._id })
     if (cr.error) { await go('bse-contacts'); const c = await B.cfg(); return send(chatId, `⚠️ ${errText(lang, cr)}\n\n${say('contacts_q', { min: c.minVolume, max: c.maxVolume })}`, kb([[L.back]])) }
     const cp = cr.campaign, c = await B.cfg(), unit = unitOf(c, cp.withLinks)
     await put('bseCampaign', cp._id); await drafts().deleteOne({ _id: cid }); await go('bse-test')

@@ -5,7 +5,7 @@ process.env.WEB_CLOUDIVR_DRY_RUN = 'true'; process.env.BULK_ESIM_WORKER = 'false
 const { MongoClient } = require('mongodb')
 const B = require('../bulk-esim/core')
 const P = require('../bulk-esim/provider-spenza')
-const COLS = ['bsConfig', 'bsAccounts', 'bsEsims', 'bsEsimDaily', 'bsDemand', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation']
+const COLS = ['bsConfig', 'bsAccounts', 'bsEsims', 'bsEsimDaily', 'bsDemand', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation', 'bsFreeTests']
 let pass = 0, fail = 0
 const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${cond ? '✅' : '❌'} ${name}${extra ? ` — ${extra}` : ''}`) }
 const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().slice(0, 10)
@@ -192,7 +192,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   ok('then the model keeps room for one more full booking → grows', provCalls === Math.ceil(2520 / 320) - 2, `+${provCalls}`)
   process.env.SPENZA_BULK_API_KEY = 'key-two'; alerts.length = 0; provCalls = 0
   const b2 = await B.bootstrap()
-  ok('new credentials → old lines retired, new account bootstrapped again (tester only)', b2.ok && b2.retired >= 4 && b2.testers === 1 && b2.monitors === 0 && provCalls === 1 && alerts.some(a => /New credentials for Spenza account #1/.test(a)) && (await db.collection('bsEsims').countDocuments({ status: 'retired' })) === b2.retired, JSON.stringify(b2))
+  ok('new credentials → old lines retired, new account bootstrapped again (tester + lines for the waiting work ordered at once)', b2.ok && b2.retired >= 4 && b2.testers === 1 && provCalls >= 1 && alerts.some(a => /New credentials for Spenza account #1/.test(a)) && (await db.collection('bsEsims').countDocuments({ status: 'retired' })) === b2.retired, JSON.stringify(b2))
   ok('bootstrap without credit does not buy', await (async () => { process.env.SPENZA_BULK_API_KEY = 'key-three'; process.env.BULK_ESIM_FAKE_CREDIT = '12'; await B.creditWatch(); provCalls = 0; const b3 = await B.bootstrap(); return b3.ok && provCalls === 0 && b3.testers === 0 })())
   delete process.env.SPENZA_BULK_API_KEY
   // next free day for a full day

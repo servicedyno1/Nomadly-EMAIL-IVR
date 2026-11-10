@@ -6,7 +6,7 @@ for (const k of ['SPENZA_BULK_API_KEY', 'SPENZA_BULK_API_SECRET', 'EMERGENT_LLM_
 process.env.BULK_ESIM_FAKE_ACCOUNTS = '3'
 const { MongoClient } = require('mongodb')
 const B = require('../bulk-esim/core')
-const COLS = ['bsConfig', 'bsAccounts', 'bsEsims', 'bsEsimDaily', 'bsDemand', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation', 'bsAiVariants']
+const COLS = ['bsConfig', 'bsAccounts', 'bsEsims', 'bsEsimDaily', 'bsDemand', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation', 'bsFreeTests', 'bsAiVariants']
 let pass = 0, fail = 0; const bugs = []
 const ok = (name, cond, extra = '') => { cond ? pass++ : (fail++, bugs.push(name)); console.log(`${cond ? '✅' : '❌'} ${name}${extra ? ` — ${extra}` : ''}`) }
 const nums = (n, from) => Array.from({ length: n }, (_, i) => `+1212555${String(from + i).padStart(4, '0')}`)

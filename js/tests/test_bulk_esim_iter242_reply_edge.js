@@ -4,7 +4,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '../../backend/
 process.env.WEB_CLOUDIVR_DRY_RUN = 'true'; process.env.BULK_ESIM_WORKER = 'false'; process.env.BULK_ESIM_FAKE_CREDIT = '500'
 for (const k of ['SPENZA_BULK_API_KEY', 'SPENZA_BULK_API_SECRET', 'EMERGENT_LLM_KEY', 'BULK_ESIM_FAKE_ACCOUNTS']) delete process.env[k]
 const { MongoClient } = require('mongodb'), B = require('../bulk-esim/core')
-const COLS = ['bsConfig', 'bsAccounts', 'bsEsims', 'bsEsimDaily', 'bsDemand', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation', 'bsAiVariants']
+const COLS = ['bsConfig', 'bsAccounts', 'bsEsims', 'bsEsimDaily', 'bsDemand', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation', 'bsFreeTests', 'bsAiVariants']
 const nums = (n, from) => Array.from({ length: n }, (_, i) => `+1212555${String(from + i).padStart(4, '0')}`)
 ;(async () => {
   const cl = await MongoClient.connect(process.env.MONGO_URL), db = cl.db(process.env.DB_NAME)
