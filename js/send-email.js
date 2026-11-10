@@ -224,7 +224,7 @@ function buildEmailHtml(info, response, pin) {
           <!-- Header -->
           <tr>
             <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center; border-radius: 16px 16px 0 0;">
-              <div style="font-size: 48px; margin-bottom: 10px;">🚀</div>
+              ${require('./sms-app-brand').logoImg(44) || '<div style="font-size: 48px; margin-bottom: 10px;">🚀</div>'}
               <h1 style="margin: 0; color: #ffffff; font-size: 26px; font-weight: 700; letter-spacing: -0.5px;">${t.headerTitle}</h1>
               <p style="margin: 8px 0 0; color: rgba(255,255,255,0.85); font-size: 15px;">${t.headerSubtitle(plan, info.website_name)}</p>
             </td>

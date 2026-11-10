@@ -53,4 +53,11 @@ function resolveApk() {
 
 function latestVersion() { return resolveApk().version }
 
-module.exports = { brandName, brandSlug, appName, botUsername, botUrl, accent, webAccent, setBotUsername, resolveApk, latestVersion, packageVersion }
+// Public URL of this bot's logo for emails (its own site); ?v busts mail-client caches when the logo changes.
+function logoUrl() {
+  const d = String(process.env.PANEL_DOMAIN || '').trim().replace(/^https?:\/\//, '').split('/')[0]
+  const base = d ? `https://${d}` : String(process.env.SELF_URL_PROD || '').replace(/\/api\/?$/, '').replace(/\/+$/, '')
+  return base ? `${base}/assets/brand/${brandSlug()}/logo.png?v=2026-11` : null
+}
+const logoImg = (h = 40) => { const u = logoUrl(); return u ? `<img src="${u}" height="${h}" width="${h * 3}" alt="${brandName()}" style="display:block;margin:0 auto 14px;border:0;height:${h}px;width:${h * 3}px">` : '' }
+module.exports = { logoUrl, logoImg, brandName, brandSlug, appName, botUsername, botUrl, accent, webAccent, setBotUsername, resolveApk, latestVersion, packageVersion }

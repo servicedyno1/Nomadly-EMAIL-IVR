@@ -737,7 +737,7 @@ async function emailCopy(chatId, fax, pdf) {
   const attachments = [{ filename: `fax_${String(fax.from).replace(/\D/g, '')}.pdf`, content: pdf, contentType: 'application/pdf' }]
   try {
     if (notify.isWebChatId(chatId)) return await require('./cloudivr-web/auth').sendMail(to, subject, html, attachments)
-    await require('./mailer').send({ from: { name: process.env.MAIL_SENDER_NAME || brand(), address: process.env.MAIL_SENDER }, to, subject, html, attachments })
+    await require('./mailer').send({ from: { name: process.env.MAIL_SENDER_NAME || brand(), address: process.env.MAIL_SENDER }, to, subject, html: require('./sms-app-brand').logoImg(36) + html, attachments })
     return true
   } catch (e) { _log(`[Fax] email copy to ${to} failed: ${e.message}`); return false }
 }

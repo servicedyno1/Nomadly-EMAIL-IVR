@@ -65,9 +65,9 @@ const SERVICE_CONTEXT = {
     services: 'Linux VPS and Windows RDP servers',
     details: ['Full root or admin access', 'DMCA-ignored, port 25 open by default', 'Ready in minutes, multiple regions', 'Prepay 3, 6 or 12 months for a discount'],
   },
-  bulksms_app: {
-    services: 'BulkSMS Android app — bulk SMS from your own phone number',
-    details: ['Send from your own SIM, no shared sender IDs', 'Schedule campaigns, control gaps between messages', 'Live delivery analytics', 'Free trial of 100 SMS without a subscription'],
+  bulksms_esim: {
+    services: 'BulkSMS to USA & Canada mobiles — no SIM or phone needed, managed right in the bot',
+    details: ['Upload numbers, write once, send in minutes', 'Real US numbers reaching every major US & Canadian carrier', 'First test SMS free, replies forwarded in the bot', '$50 per 500 SMS, 10% off when booked a day ahead'],
   },
   email_blast: {
     services: 'Email Blast — email campaigns from Telegram',
@@ -160,6 +160,7 @@ Rules:
 const TIMEZONE_OFFSETS = { en: 0, fr: 1, zh: 8, hi: 5.5 }
 const LOCAL_TIMES = [{ hour: 10, minute: 0 }, { hour: 19, minute: 0 }] // Morning hero + Evening cross-sell
 const THEMES = promoCopy.THEMES
+const FEATURED_THEME = 'bulksms_esim'
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 function getOptOutFooter(lang) { return promoCopy.FOOTER[lang] || promoCopy.FOOTER.en }
@@ -190,6 +191,7 @@ function pickTheme({ owned = new Set(), browsed = null, hash = 0, dayTheme = nul
   const prio = []
   if (ok(browsed)) prio.push(browsed)
   for (const o of owned) for (const x of promoCopy.CROSS_SELL[o] || []) if (ok(x) && !prio.includes(x)) prio.push(x)
+  if (dayTheme === FEATURED_THEME && ok(dayTheme)) return { theme: dayTheme, mode: slot === 'evening' ? 'cross' : 'hero', reason: 'featured' }
   const tick = Math.floor((dayIndex + hash) / 2) // advances once per eligible (every-other) day
   if (prio.length && tick % 3 !== 2) {
     const theme = prio[tick % prio.length]
@@ -749,7 +751,10 @@ function initAutoPromo(bot, db, nameOf, stateCol, lifecycleDiet = null) {
     6: [5, 8],                // Sat: cards_bundles, vps_rdp
   }
 
+  // BulkSMS (SIM-free) is the featured ad: it fills both daily slots on every bot while enabled (BULK_ESIM_PROMO=false → old schedule).
   function getTodayThemes() {
+    const f = THEMES.indexOf(FEATURED_THEME)
+    if (f >= 0 && promoCopy.themeEnabled(FEATURED_THEME)) return [f, f]
     const day = new Date().getDay()
     return DAY_SCHEDULE[day] || []
   }
