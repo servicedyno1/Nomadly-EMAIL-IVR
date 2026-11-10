@@ -1,0 +1,45 @@
+{
+  "summary": "eSIM BulkSMS (USA/Canada) round-2 backend/bot QA, simulated Spenza provider. Engine suite 39/39 passed. Bot flow (en) all 16 steps passed: bse-type, bse-consent, plain campaign with www.qa.com refused, wallet charged $51 for 510 plain SMS. test_bulk_esim_bot_pay.js was broken by the new API (createCampaign had no consent; it booked hour 06 UTC, which is now quiet). I updated it and it passes: crypto confirm leads to scheduled. I rewrote test_bulk_esim_stop_upload_iter239.js for the new API (error keys, consent step, bsDrafts, upload saved only after consent) and added the requested edge cases: 82/82 pass. New file test_bulk_esim_bot_flow_i18n.js walks the whole wizard in fr/zh/hi/fa through the live webhook using each language's button labels: 5/5 pass, and the home label in any language opens the menu. ESLint is clean and node --check js/_index.js passes. Probes found 1 real bug (a STOP does not give back the allowance reserved for queued prepaid texts) and 3 minor gaps.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "core.onWebhook (STOP)", "issue": "A STOP marks the number's queued texts as rejected with updateMany (core.js line 414) but never calls unreserve for prepaid campaign texts. That allowance stays used for the booking day (seen: used 500 → 500 after a STOP from one queued recipient; expected 499). The money is still refunded at the end, because refundUnsent counts rejected texts. Only the daily allowance leaks."},
+      {"endpoint": "core.createBooking", "issue": "Throws RangeError 'Invalid time value' (from dayKey) when hour is undefined or the date is invalid. It does not return an error key. The bot checks the hour first, so only direct/API callers hit this."},
+      {"endpoint": "core.checkContent (LINK regex)", "issue": "The TLD whitelist misses many domains, so plain-price campaigns can still carry links: 'visit example.fr' (also .de/.uk/.ai and similar) passes as plain. 7-digit local numbers ('Call 555-1234') are not caught as phone numbers either. bit.ly, www.* and http(s) are caught."},
+      {"endpoint": "core.expireStale", "issue": "Only expires prepaid texts with status 'queued'. A text left in 'processing' or 'submitted' after a process crash never expires, so its campaign never completes and never gets refundUnsent."},
+      {"endpoint": "core.cancelBooking (admin)", "issue": "An admin can cancel a 'scheduled' booking in the up-to-1-minute window after sending started and before finishCampaigns switches it to 'processing'. That gives a full refund and returns the full allowance even though some texts already went out."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/test_bulk_esim_engine.js",
+    "/app/js/tests/test_bulk_esim_bot_flow.js",
+    "/app/js/tests/test_bulk_esim_bot_pay.js",
+    "/app/js/tests/test_bulk_esim_stop_upload_iter239.js",
+    "/app/js/tests/test_bulk_esim_bot_flow_i18n.js"
+  ],
+  "action_items": [
+    "onWebhook STOP: for each queued prepaid text that is rejected, unreserve(m.cid, m.quotaDay, segments). Or reject them one by one through the same drop() logic.",
+    "createBooking: check the date (YYYY-MM-DD, valid) and that hour is an integer from 0 to 23. Return an error key (e.g. err_slot) instead of throwing.",
+    "Optional: widen the LINK detection (any 'word.tld' with 2–24 letters, or url-regex-safe/linkify-it) so plain campaigns can't carry .fr/.de/.uk/.ai links.",
+    "Optional: let expireStale also expire prepaid texts stuck in 'processing'/'submitted' for more than X hours.",
+    "Optional: remove the unused en.st.processing_ key. The err_too_long text says ~430 characters, but the real GSM room with the opt-out line is 437."
+  ],
+  "critical_code_review_comments": [
+    "Confirmed with tests: a paid booking reserves the allowance for its day when payment is confirmed. Cancelling returns the money and the allowance. Expired prepaid texts give the allowance back and are refunded once (refundedUnsent set). A retry of a prepaid text keeps its quotaDay and is not counted twice. Quiet hours delay one-off texts (nextAt pushed) without dropping them; conversation replies and test texts skip quiet hours, and replies get no opt-out line. Hawaii (808) and Newfoundland (709, half-hour zone) are handled. The 3-part limit includes the opt-out line (437 GSM characters of room). Jamaica, Puerto Rico, Guam, Bahamas, 800 and 888 numbers are refused. Live mode without BULK_ESIM_MONGO_URL makes configured() false.",
+    "Bookings only use mainland-open hours: allocation stops at the first slot with no free capacity, so a campaign can't run into quiet hours. Alaska, Hawaii and Atlantic Canada recipients are delayed by quietWait, as customers are told.",
+    "test_bulk_esim_bot_flow.js and test_bulk_esim_bot_pay.js never clean up: they leave 5 simulated eSIMs, bookings and queued messages in the bot DB, and the running nodejs worker then 'sends' them (simulated). Add cleanup, or start them from an empty bs* state."
+  ],
+  "updated_files": [
+    "/app/js/tests/test_bulk_esim_bot_pay.js",
+    "/app/js/tests/test_bulk_esim_stop_upload_iter239.js",
+    "/app/js/tests/test_bulk_esim_bot_flow_i18n.js"
+  ],
+  "success_rate": {"backend": "100% of the requested suites (engine 39/39, bot flow 16/16, pay OK, iter239 QA 82/82, i18n flow 5/5); 1 real bug + 4 minor gaps found by probes", "frontend": "N/A (backend-only request)"},
+  "test_credentials": "None needed (simulated provider). Test chats 990000111 and 990000112, customers Nomadly:9001-9104 and OtherBrand:9003 were used and then removed.",
+  "seed_data_creation": "None kept. All bs* collections were emptied at the end with nodejs stopped; before that I checked that only test customers were present. The state and walletOf rows for test chats 990000111/990000112 were removed. Object storage copies of the uploaded test CSVs can't be deleted through the API.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run order: (1) sudo supervisorctl stop nodejs && node js/tests/test_bulk_esim_engine.js && node js/tests/test_bulk_esim_stop_upload_iter239.js; sudo supervisorctl start nodejs. The iter239 file refuses to run unless the bs* collections are empty, and wipes them before and after. (2) With nodejs running: test_bulk_esim_bot_flow.js, test_bulk_esim_bot_pay.js, test_bulk_esim_bot_flow_i18n.js. The i18n one cleans up after itself; flow/pay do not. One eSIM gives 480 SMS/hour, so 500-SMS bookings span 2 hours. The container clock is 2026-11, and hour 06 UTC is now a quiet (closed) hour. After a fix, re-check STOP → allowance return (probe: book 500, STOP one queued recipient, expect bsDaily.used 499).",
+  "rca of the issue": "STOP allowance leak: onWebhook rejects queued texts in bulk with C('bsMessages').updateMany(...{status:'rejected'}). Prepaid texts carry quotaDay, and the allowance they reserved is only returned in processOne.drop(), cancelBooking or expireStale. The bulk update skips all of those, so the reserved parts stay counted in bsDaily.used. Repro: confirm a campaign booking, send a STOP from one of its recipients, then read bsDaily.used (unchanged). Fix: loop over the matched prepaid texts and unreserve each one (or $group by cid+quotaDay and decrement the totals)."
+}

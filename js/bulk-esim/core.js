@@ -22,9 +22,9 @@ const HELP = /^(help|info)$/
 const kw = (t) => String(t || '').toLowerCase().replace(/[^a-z ]/g, ' ').trim().replace(/\s+/g, ' ')
 // Appended to every first-contact text (campaigns, tests, one-off texts).
 const OPT = '\nReply STOP to opt out'
-const LINK = /(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|io|co|us|ca|ly|me|info|biz|app|link|xyz|site|online|shop|store|gl|to|cc|tv)\b)/i
-const PHONE = /(\+?\d[\d\s().-]{8,}\d)/
-const hasLinkOrPhone = (t) => LINK.test(t) || PHONE.test(t)
+const LINK = /(https?:\/\/|www\.|\b[a-z0-9-]{2,}\.[a-z]{2,24}\b)/i
+const hasPhone = (t) => (String(t).match(/\+?\d[\d\s().-]{5,}\d/g) || []).some(x => x.replace(/\D/g, '').length >= 7)
+const hasLinkOrPhone = (t) => LINK.test(t) || hasPhone(t)
 const E = (error, ...args) => ({ error, args })
 const MIN = 60000, HOUR = 3600000, DAY = 86400000
 
@@ -204,6 +204,7 @@ const unlock = (key) => C('bsLocks').deleteOne({ _id: key })
 // Holds capacity for `holdMinutes` while the customer pays. type: 'paid' | 'free'.
 // Volume = SMS parts. Price = parts × (link/phone or plain rate). The day's allowance must have room for the whole booking.
 async function createBooking(cid, { date, hour, volume, type = 'paid', campaignId }) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || isNaN(Date.parse(date)) || !(Number.isInteger(Number(hour)) && hour !== null && hour !== '' && Number(hour) >= 0 && Number(hour) < 24)) return E('err_slot')
   const c = await cfg(), cu = await C('bsCustomers').findOne({ _id: cid }), cp = campaignId ? await C('bsCampaigns').findOne({ _id: campaignId, cid }) : null
   const v = Math.round(Number(cp ? cp.parts : volume)), unit = cp?.withLinks ? c.priceLink : c.pricePlain, limit = cu?.dailyLimit ?? c.defaultDailyLimit
   if (cu?.status !== 'active') return E('err_suspended')
@@ -242,6 +243,7 @@ async function cancelBooking(bid, { by = 'customer', cid } = {}) {
   const b = await C('bsBookings').findOne({ _id: bid, ...(cid ? { cid } : {}) }); if (!b) return E('err_not_found')
   if (!['pending', 'awaiting_payment', 'confirmed', 'scheduled', 'provisioning'].includes(b.status)) return E('err_cant_cancel')
   if (by === 'customer' && b.startAt < new Date(Date.now() + 30 * MIN) && b.paymentStatus === 'paid') return E('err_cancel_late')
+  if (await C('bsMessages').countDocuments({ bookingId: bid, test: { $ne: true }, status: { $ne: 'queued' } }, { limit: 1 })) return E('err_cant_cancel')
   const paid = b.paymentStatus === 'paid'
   await setBooking(bid, paid ? 'refunded' : 'cancelled', { cancelledBy: by })
   await C('bsMessages').updateMany({ bookingId: bid, status: 'queued' }, { $set: { status: 'expired', failureReason: 'booking_cancelled' } })
@@ -363,8 +365,9 @@ async function notifyQuotaOnce(cid, c) {
 }
 // Prepaid texts still waiting 2 days after the start (long pause, no healthy line) expire; their allowance is returned.
 async function expireStale(c) {
-  for (const m of await C('bsMessages').find({ prepaid: true, status: 'queued', expireAt: { $lt: new Date() } }).limit(2000).toArray()) {
-    const r = await C('bsMessages').updateOne({ _id: m._id, status: 'queued' }, { $set: { status: 'expired', failureReason: 'too_late' } })
+  // 'processing'/'submitted' left behind by a crash: outcome unknown, counted as failed so the customer is refunded.
+  for (const m of await C('bsMessages').find({ prepaid: true, status: { $in: ['queued', 'processing', 'submitted'] }, expireAt: { $lt: new Date() } }).limit(2000).toArray()) {
+    const r = await C('bsMessages').updateOne({ _id: m._id, status: m.status }, { $set: { status: m.status === 'queued' ? 'expired' : 'failed', failureReason: m.status === 'queued' ? 'too_late' : 'stuck_unknown' } })
     if (r.modifiedCount && m.quotaDay) await unreserve(m.cid, m.quotaDay, c.countSegments ? m.segments : 1)
   }
 }
@@ -411,7 +414,12 @@ async function onWebhook(raw, headers, body) {
   const isStop = STOP.test(kw(x.text)), isHelp = HELP.test(kw(x.text))
   // STOP blocks the number for every customer, even when the line or the reply can't be matched.
   const newStop = isStop && (await C('bsSuppression').updateOne({ cid: '*', phone: x.from }, { $setOnInsert: { reason: 'STOP', source: 'inbound', line: x.to, at: new Date() } }, { upsert: true })).upsertedCount
-  if (isStop) await C('bsMessages').updateMany({ to: x.from, direction: 'out', status: 'queued', system: { $ne: true } }, { $set: { status: 'rejected', failureReason: 'opted_out' } })
+  if (isStop) {
+    for (const q of await C('bsMessages').find({ to: x.from, direction: 'out', status: 'queued', system: { $ne: true } }).toArray()) {
+      const r = await C('bsMessages').updateOne({ _id: q._id, status: 'queued' }, { $set: { status: 'rejected', failureReason: 'opted_out' } })
+      if (r.modifiedCount && q.prepaid && q.quotaDay) await unreserve(q.cid, q.quotaDay, q.segments || 1)
+    }
+  }
   const e = await C('bsEsims').findOne({ msisdn: x.to, status: { $ne: 'replaced' } })
   if (!e) { await C('bsWebhooks').updateOne({ _id: key }, { $set: { status: 'unmatched_number' } }); return { status: 200 } }
   const peer = await C('bsEsims').findOne({ msisdn: x.from })

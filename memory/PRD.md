@@ -2388,3 +2388,4 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - User choices: 1 eSIM to start (none bought yet), paste or CSV/TXT upload (Object Storage copy), STOP = block for all customers, Telegram only.
 - Tested (simulated provider): engine 28/28, QA suite 32/32, bot flow + pay OK (iteration_239).
 - Next: fund Spenza → /bulkprovision 1 eSIM → /bulkwebhook → live send/receive check → deploy on user go-ahead.
+- 2026-06 round 2: fixes 1,2,3,5,7,8 + per-part pricing ($50/$75 per 500) + 5-language screens. All suites green (iteration_240). Still NOT deployed; needs BULK_ESIM_MONGO_URL + first eSIM before go-live.
