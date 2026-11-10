@@ -138,6 +138,7 @@ async function provisionOne(reason, by) {
     const r = await P.provision({ key: e._id })
     await C('bsConfig').updateOne({ _id: `spend:${month}` }, { $inc: { usd: cost } }, { upsert: true })
     await setEsim(e._id, r.phoneNumber ? 'testing' : 'provisioning', { providerRef: r.transactionId, iccid: r.iccid || null, providerEsimId: r.iccid || null, msisdn: r.phoneNumber || null, activationDate: r.phoneNumber ? new Date() : null })
+    await C('bsConfig').updateOne({ _id: 'state', forecast: { $ne: null } }, { $inc: { 'forecast.available': -cost } }).catch(() => {})
     audit('provision', { esimId: e._id, reason, by, cost }); return { ok: true, esimId: e._id }
   } catch (err) {
     await setEsim(e._id, 'failed', { note: err.message }); alert(`❌ Provisioning ${e._id} failed: ${err.message}`)
@@ -150,11 +151,16 @@ async function provisionMany(n, reason, by) {
   for (let i = 0; i < n; i++) { const r = await provisionOne(reason, by); if (r.error) { error = r.error; break } ok++ }
   return { ok, error }
 }
+// Serialises "how many lines are missing → buy them" so two payments or a payment + autoscale never buy the same gap twice.
+async function provisionFor(reason, computeNeed, buy = true) {
+  if (!(await lock('provision', 120000))) return { need: 0, ok: 0, error: 'busy' }
+  try { const need = await computeNeed(); const r = need && buy ? await provisionMany(need, reason) : { ok: 0, error: null }; return { need, ...r } } finally { await unlock('provision') }
+}
 // Provider-suspended / restricted line: ask for a new number (bounded per day); the new number must pass a delivery test.
 async function autoReplace(e, why, c) {
   if (!c.autoReplace || e.replacedBy || e.status === 'replaced') return
-  const key = `replaces:${today()}`, r = await C('bsConfig').updateOne({ _id: key, n: { $not: { $gte: c.maxReplacesPerDay } } }, { $inc: { n: 1 } }, { upsert: true }).catch(x => (x.code === 11000 ? null : Promise.reject(x)))
-  if (!r || !(r.modifiedCount || r.upsertedCount)) { alert(`⚠️ ${e._id} ${e.msisdn || ''}: ${why} — today's auto-replacement limit (${c.maxReplacesPerDay}) is reached. /bulkreplace ${e._id} to do it by hand.`); return }
+  const key = `replaces:${today()}`, r = await C('bsConfig').updateOne({ _id: key, n: { $not: { $gte: c.maxReplacesPerDay } } }, { $inc: { n: 1 }, $set: { at: new Date() } }, { upsert: true }).catch(x => (x.code === 11000 ? null : Promise.reject(x)))
+  if (!r || !(r.modifiedCount || r.upsertedCount)) { if (await once(`replimit:${today()}:${e._id}`)) alert(`⚠️ ${e._id} ${e.msisdn || ''}: ${why} — today's auto-replacement limit (${c.maxReplacesPerDay}) is reached. /bulkreplace ${e._id} to do it by hand.`); return }
   const x = await replaceEsim(e._id, `auto: ${why}`, 'system')
   alert(x.ok ? `🔁 ${e._id} ${e.msisdn || ''} ${why} → new number requested as ${x.newEsimId}; it joins the pool only after a delivery test.` : `❌ ${e._id} ${why} — number replacement failed. ${c.autoProvision && !c.manualApproval ? 'Buying a new eSIM instead.' : 'Use /bulkprovision for a new eSIM.'}`)
   if (!x.ok && c.autoProvision && !c.manualApproval) await provisionOne(`replacement of ${e._id} failed`)
@@ -190,7 +196,7 @@ async function replaceEsim(eid, reason, by) {
 // ---------- health ----------
 async function healthCheck() {
   const c = await cfg()
-  for (const e of await C('bsEsims').find({ status: { $in: [...USABLE, 'testing', 'degraded'] }, iccid: { $ne: null } }).toArray()) {
+  for (const e of await C('bsEsims').find({ status: { $in: [...USABLE, 'testing', 'degraded', 'suspended'] }, iccid: { $ne: null }, replacedBy: null }).toArray()) {
     let health = 'healthy', err = null, expires = e.expirationDate || null
     try { const sim = await P.getSim(e.iccid), sv = await P.serviceState(e.iccid), sub = await P.subscription(e.iccid).catch(() => null); const st = String(sim?.status || '').toUpperCase()
       if (sub?.endDate && !isNaN(Date.parse(sub.endDate))) expires = new Date(sub.endDate)
@@ -209,7 +215,8 @@ async function healthCheck() {
     }
     if (['suspended', 'technically_failed', 'sending_failure', 'provider_restricted'].includes(health) && e.health !== health) { alert(`⚠️ ${e._id} ${e.msisdn || ''}: ${health.replace(/_/g, ' ')}${err ? ` (${err.message})` : ''}. New sends avoid it.`); incident('esim_health', { esimId: e._id, health }) }
     await C('bsEsims').updateOne({ _id: e._id }, { $set: set })
-    if (['suspended', 'provider_restricted'].includes(health) && USABLE.includes(e.status)) { await setEsim(e._id, 'suspended', { note: health }); await autoReplace({ ...e, ...set }, health.replace(/_/g, ' '), c) }
+    if (['suspended', 'provider_restricted'].includes(health) && [...USABLE, 'suspended'].includes(e.status)) { if (e.status !== 'suspended') await setEsim(e._id, 'suspended', { note: health }); await autoReplace({ ...e, ...set }, health.replace(/_/g, ' '), c) }
+    else if (e.status === 'suspended' && health === 'healthy') { await setEsim(e._id, 'available', { note: 'provider lifted the suspension' }); alert(`✅ ${e._id} ${e.msisdn || ''}: suspension lifted by the provider — back in the pool.`) }
   }
   if (Date.now() - ((await state()).loopAt || 0) > c.testEveryHours * HOUR) await loopTest()
 }
@@ -248,8 +255,8 @@ async function loopTimeouts() {
 
 // ---------- capacity + bookings ----------
 // Lines that can carry `date` with each one's cap that day: usable healthy lines, plus (from tomorrow) lines already bought/testing.
-async function fleet(date, c) {
-  const ahead = daysAhead(date), rows = await C('bsEsims').find({ $or: [{ status: { $in: USABLE }, health: { $in: GOOD_HEALTH } }, ...(ahead >= 1 ? [{ status: { $in: ['purchasing', 'provisioning', 'testing'] } }] : [])] }, { projection: { activationDate: 1, createdAt: 1 } }).toArray()
+async function fleet(date, c, pendingToo = daysAhead(date) >= 1) {
+  const rows = await C('bsEsims').find({ $or: [{ status: { $in: USABLE }, health: { $in: GOOD_HEALTH } }, ...(pendingToo ? [{ status: { $in: ['purchasing', 'provisioning', 'testing'] } }] : [])] }, { projection: { activationDate: 1, createdAt: 1 } }).toArray()
   return rows.map(e => ({ id: e._id, cap: lineCap(c, lineAge(e.activationDate || e.createdAt, date)) }))
 }
 // Capacity for `date`: per hour (Spenza limit vs lines × per-line rate) and per day (sum of line caps). Dates at least
@@ -260,14 +267,14 @@ async function capacity(date, c) {
   return { lines: n, projected: extra, perHour: Math.floor(Math.min(c.platformPerMin, n * c.esimPerMin) * 60 * c.slotUtilization), perDay: Math.floor(dayCap * c.slotUtilization) }
 }
 // Lines still missing to carry everything booked for `date` (plus `extra` unmet demand); lines on their way count, unbought ones don't.
-async function linesShort(date, c, extra = 0) {
+async function linesShort(date, c, extra = 0, pendingToo = true) {
   const res = await reservedBySlot([date]), dayRes = Object.values(res).reduce((a, v) => a + v, 0) + extra, hourMax = Math.max(0, ...Object.values(res))
-  const lines = await fleet(date, c), dayCap = lines.reduce((a, l) => a + l.cap, 0) * c.slotUtilization, hourCap = Math.min(c.platformPerMin, lines.length * c.esimPerMin) * 60 * c.slotUtilization
+  const lines = await fleet(date, c, pendingToo), dayCap = lines.reduce((a, l) => a + l.cap, 0) * c.slotUtilization, hourCap = Math.min(c.platformPerMin, lines.length * c.esimPerMin) * 60 * c.slotUtilization
   const per = lineCap(c, daysAhead(date) + 1) * c.slotUtilization, perHour = c.esimPerMin * 60 * c.slotUtilization
   return Math.max(0, Math.ceil((dayRes - dayCap) / per), Math.ceil((hourMax - hourCap) / perHour))
 }
 // A refused booking is demand too: remembered per customer and day so the autoscaler buys lines for the coming days.
-const unmet = (cid, date, volume) => C('bsDemand').updateOne({ _id: `${cid}:${date}` }, { $max: { volume }, $set: { at: new Date() } }, { upsert: true }).catch(() => {})
+const unmet = (cid, date, volume) => { const a = daysAhead(date); return a >= 0 && a <= 7 ? C('bsDemand').updateOne({ _id: `${cid}:${date}` }, { $max: { volume }, $set: { at: new Date(), date } }, { upsert: true }).catch(() => {}) : null }
 async function unmetDemand() { const [g] = await C('bsDemand').aggregate([{ $match: { at: { $gt: new Date(Date.now() - DAY) } } }, { $group: { _id: null, v: { $sum: '$volume' } } }]).toArray(); return g?.v || 0 }
 const slotKey = (date, h) => `${date}T${String(h).padStart(2, '0')}`
 async function reservedBySlot(dates) {
@@ -313,9 +320,9 @@ async function createBooking(cid, { date, hour, volume, type = 'paid', campaignI
   if (!(await lock(`book:${date}`))) return E('err_busy')
   try {
     const { slots, dayFree } = await availability(date), alloc = allocate(slots, Number(hour), v, dayFree)
-    if (!alloc) { await unmet(cid, date, v); return E('err_slot') }
+    if (!alloc) { if (v > dayFree) await unmet(cid, date, v); return E('err_slot') }
     const b = { _id: id('bk'), cid, campaignId: campaignId || null, type, date, hour: Number(hour), startAt, estimatedCompletion: new Date(`${Object.keys(alloc).pop()}:59:59Z`), volume: v, unitPrice: unit, allocation: alloc, price: type === 'free' ? 0 : Math.round(v * unit * 100) / 100, status: 'awaiting_payment', paymentStatus: type === 'free' ? 'free' : 'unpaid', holdUntil: new Date(Date.now() + c.holdMinutes * MIN), history: [{ status: 'awaiting_payment', at: new Date() }], createdAt: new Date() }
-    await C('bsBookings').insertOne(b); return { booking: b }
+    await C('bsBookings').insertOne(b); await C('bsDemand').deleteOne({ _id: `${cid}:${date}` }).catch(() => {}); return { booking: b }
   } finally { await unlock(`book:${date}`) }
 }
 const setBooking = (bid, status, extra = {}) => C('bsBookings').updateOne({ _id: bid }, { $set: { status, ...extra, updatedAt: new Date() }, $push: { history: { status, at: new Date() } } })
@@ -328,11 +335,12 @@ async function confirmBooking(bid, { method, amount, ref } = {}) {
   if (!quotaDay) { await setBooking(bid, 'failed', { note: 'daily allowance full' }); return { ...E('err_allowance_day', 0, dayKey(b.startAt, c0)), refund: b.price } }
   await C('bsBookings').updateOne({ _id: bid }, { $set: { quotaDay } }); b.quotaDay = quotaDay
   await C('bsPayments').insertOne({ cid: b.cid, bookingId: bid, amount: amount ?? b.price, currency: 'USD', method: method || 'wallet', reference: ref || null, status: 'paid', at: new Date() })
-  const c = await cfg(), short = await linesShort(b.date, c)
-  await setBooking(bid, short ? 'provisioning' : 'scheduled', { paymentStatus: b.type === 'free' ? 'free' : 'paid' })
-  if (short) {
-    const r = c.autoProvision && !c.manualApproval && b.type === 'paid' ? await provisionMany(short, `booking ${bid}`) : { ok: 0 }
-    alert(`📦 Booking ${bid} (${b.volume} SMS on ${b.date}) needs ${short} more line(s)${r.ok ? ` — buying ${r.ok}` : ''}${r.ok < short ? `. ${short - r.ok} still missing: ${r.error || 'approve with /bulkprovision'}` : ''}.`)
+  const c = await cfg()
+  await setBooking(bid, 'scheduled', { paymentStatus: b.type === 'free' ? 'free' : 'paid', holdUntil: new Date(Date.now() + c.holdMinutes * MIN) })
+  const r = await provisionFor(`booking ${bid}`, () => linesShort(b.date, c), c.autoProvision && !c.manualApproval && b.type === 'paid')
+  if (r.need) {
+    await setBooking(bid, 'provisioning')
+    alert(`📦 Booking ${bid} (${b.volume} SMS on ${b.date}) needs ${r.need} more line(s)${r.ok ? ` — buying ${r.ok}` : ''}${r.ok < r.need ? `. ${r.need - r.ok} still missing: ${r.error || 'approve with /bulkprovision'}` : ''}.`)
   }
   if (b.campaignId) await queueCampaign(b.campaignId, b)
   await notify(b.cid, 'booking', 'n_booking', [b.volume, b.date, String(b.hour).padStart(2, '0')], { bookingId: bid })
@@ -352,6 +360,7 @@ async function cancelBooking(bid, { by = 'customer', cid } = {}) {
   audit('booking_cancel', { bookingId: bid, by }); return { ok: true, refunded: paid ? b.price : 0 }
 }
 async function expireHolds() {
+  await C('bsConfig').deleteMany({ _id: /^(creditwarn|replaces|scale|provcredit|help|replimit):/, at: { $lt: new Date(Date.now() - 30 * DAY) } }).catch(() => {})
   for (const b of await C('bsBookings').find({ status: { $in: ['pending', 'awaiting_payment'] }, holdUntil: { $lt: new Date(Date.now() - 6 * HOUR) } }).limit(100).toArray()) await setBooking(b._id, 'cancelled', { note: 'hold_expired' })
 }
 
@@ -425,7 +434,7 @@ async function pickEsim(m, c) {
   const ok = (e) => e && USABLE.includes(e.status) && GOOD_HEALTH.includes(e.health) && roomIn(win.esim[e._id] ||= [], c.esimPerMin)
   if (s) { const e = await C('bsEsims').findOne({ _id: s.esimId }); if (ok(e)) return e; if (e && USABLE.includes(e.status) && GOOD_HEALTH.includes(e.health)) return null }
   // New conversations respect each line's daily cap (warm-up); replies inside a session stay on their line regardless.
-  const pool = await C('bsEsims').find({ status: { $in: USABLE }, health: { $in: GOOD_HEALTH }, msisdn: { $ne: null } }).sort({ 'stats.submitted': 1 }).toArray(), d = today()
+  const pool = await C('bsEsims').find({ status: { $in: USABLE }, health: { $in: GOOD_HEALTH }, msisdn: { $ne: null } }).sort({ 'stats.submitted': 1 }).toArray(), d = dayKey(Date.now(), c)
   const used = Object.fromEntries((await C('bsEsimDaily').find({ _id: { $in: pool.map(e => `${e._id}:${d}`) } }).toArray()).map(x => [x._id, x.n]))
   return pool.find(e => ok(e) && (used[`${e._id}:${d}`] || 0) < lineCap(c, lineAge(e.activationDate || e.createdAt, d))) || null
 }
@@ -445,7 +454,7 @@ async function processOne(m, c) {
   win.all.push(Date.now()); (win.esim[e._id] ||= []).push(Date.now())
   await mark(m, 'submitted', { esimId: e._id, from: e.msisdn, quotaDay: day, submittedAt: new Date() })
   await C('bsEsims').updateOne({ _id: e._id }, { $inc: { 'stats.submitted': 1 } })
-  if (!m.system && !m.sessionId) await C('bsEsimDaily').updateOne({ _id: `${e._id}:${today()}` }, { $inc: { n: 1 }, $setOnInsert: { esimId: e._id, day: today() } }, { upsert: true })
+  if (!m.system && !m.sessionId) { const d = dayKey(Date.now(), c); await C('bsEsimDaily').updateOne({ _id: `${e._id}:${d}` }, { $inc: { n: 1 }, $setOnInsert: { esimId: e._id, day: d } }, { upsert: true }) }
   try {
     await P.sendSms({ from: e.msisdn, to: m.to, text: m.body, key: m._id })
     await mark(m, 'sent', { sentAt: new Date() }); await C('bsEsims').updateOne({ _id: e._id }, { $inc: { 'stats.sent': 1 } })
@@ -564,7 +573,7 @@ async function report(campaignId) {
   return { total, sent, failed, rejected: g('out', ['rejected', 'expired']), queued: g('out', ['queued', 'processing', 'submitted']), replies: g('in'), successPct: total ? Math.round((sent / total) * 1000) / 10 : 0 }
 }
 async function overview() {
-  const d = today()
+  const d = dayKey(Date.now(), await cfg())
   const [esims, st, c, bookings, todayRows, used] = await Promise.all([C('bsEsims').find({}, { projection: { history: 0 } }).sort({ _id: 1 }).toArray(), state(), cfg(), C('bsBookings').aggregate([{ $group: { _id: { s: '$status', t: '$type' }, n: { $sum: 1 }, usd: { $sum: '$price' } } }]).toArray(), C('bsMessages').aggregate([{ $match: { direction: 'out', createdAt: { $gte: new Date(d) } } }, { $group: { _id: '$status', n: { $sum: 1 } } }]).toArray(), C('bsEsimDaily').find({ day: d }).toArray()])
   const by = (s) => esims.filter(e => s.includes(e.status)).length, cap = await capacity(d, c), tomorrow = await capacity(new Date(Date.now() + DAY).toISOString().slice(0, 10), c)
   const list = esims.map(e => ({ ...e, today: used.find(u => u.esimId === e._id)?.n || 0, cap: lineCap(c, lineAge(e.activationDate || e.createdAt, d)) }))
@@ -587,10 +596,13 @@ async function autoscale() {
   const c = await cfg(), total = await liveCount(), extra = await unmetDemand()
   let need = Math.max(0, c.minEsims - total), why = need ? 'below minimum inventory' : 'demand'
   for (let i = 0; i < 7; i++) { const d = new Date(Date.now() + i * DAY).toISOString().slice(0, 10); need = Math.max(need, await linesShort(d, c, i >= c.leadDays ? extra : 0)) }
-  for (const b of await C('bsBookings').find({ status: 'provisioning' }).toArray()) if (!(await linesShort(b.date, c))) await setBooking(b._id, 'scheduled')
+  for (const b of await C('bsBookings').find({ status: 'provisioning' }).toArray()) if (b.startAt < new Date() || !(await linesShort(b.date, c, 0, false))) await setBooking(b._id, 'scheduled')
   if (!need) return
   const healthy = await C('bsEsims').countDocuments({ status: { $in: USABLE }, health: { $in: GOOD_HEALTH } })
-  if (c.autoProvision && !c.manualApproval) { const r = await provisionMany(Math.min(need, Math.max(0, c.maxEsims - total)), why); if (r.ok) alert(`📈 Bought ${r.ok} eSIM(s) (${why}; ${healthy} healthy, ${total} total before).`); if (r.ok < need && await once(`scale:${today()}`)) alert(`📈 ${need - r.ok} more line(s) needed but not bought: ${r.error || `maximum ${c.maxEsims} reached`}.`) }
+  if (c.autoProvision && !c.manualApproval) {
+    const r = await provisionFor(why, async () => { let n = Math.max(0, c.minEsims - await liveCount()); for (let i = 0; i < 7; i++) n = Math.max(n, await linesShort(new Date(Date.now() + i * DAY).toISOString().slice(0, 10), c, i >= c.leadDays ? extra : 0)); return Math.min(n, Math.max(0, c.maxEsims - await liveCount())) })
+    if (r.ok) alert(`📈 Bought ${r.ok} eSIM(s) (${why}; ${healthy} healthy, ${total} total before).`); if (r.ok < r.need && await once(`scale:${today()}`)) alert(`📈 ${r.need - r.ok} more line(s) needed but not bought: ${r.error || `maximum ${c.maxEsims} reached`}.`)
+  }
   else if (await once(`scale:${today()}`)) alert(`📈 Capacity: ${healthy} healthy eSIM(s), ${total} total (min ${c.minEsims}); ${need} more line(s) needed for the next 7 days${extra ? ` (incl. ${extra} SMS refused in the last 24 h)` : ''}. Provisioning needs approval: /bulkprovision, or /bulkset autoProvision true + /bulkset manualApproval false.`)
 }
 
@@ -614,4 +626,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { OPT, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, verifyLine, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+module.exports = { OPT, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, verifyLine, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }

@@ -30,3 +30,18 @@ Test sends: max 2 per campaign during setup, not counted in booking volume, coun
 - i18n.js: en/fr/zh/hi/fa; notices stored as key+args, translated on delivery.
 - Tests: engine 39/39, iter239 suite 86/86, bot_flow 16/16, bot_flow_i18n 5/5, bot_pay OK (iteration_240).
 - Open (need user OK): one-off SMS are free (only allowance), delay notices, admin view of held replies, START opt-in, re-check capacity after eSIM loss.
+
+
+## 2026-06 round 3 — automation layer (user decisions: 400/line/day + warm-up; accept + auto-buy for bookings ≥2 days ahead; credit forecast; auto renew/replace; keep 1 line now)
+- Per-line cap: esimDailyLimit 400, warm-up warmupDays 5 from warmupStart 50 → 80/160/240/320/400 (lineCap/lineAge). Counter bsEsimDaily `${esim}:${day}` (dayKey). Session replies bypass the cap. Worker returns 'starved' (tick breaks) when no line has room.
+- Capacity: capacity(date) = perHour (Spenza 30/min vs lines×esimPerMin) + perDay (Σ line caps ×0.8). Dates ≥ leadDays(2) also count buyable() lines (needs autoProvision && !manualApproval; bounded by maxEsims, provisionBudget, forecast). Pending lines count from tomorrow (selling) / always (shortfall). allocate(dayFree) caps a booking by the day.
+- Math: 1 mature line = 320 bookable/day (< 500 min booking!) → 2k/day customer ≈ 7 lines, 4k/day launch ≈ 13 lines; buy ~1 week before launch (raise minEsims).
+- confirmBooking: status set first (P1 hold-expired fix), then provisionFor() = lock('provision') → linesShort(date) → provisionMany. Booking 'provisioning' until autoscale sees healthy-only shortfall 0 or start passed.
+- autoscale (30 min): need = max(minEsims gap, linesShort over next 7 days incl. unmetDemand() for days ≥ leadDays) under the same lock. bsDemand records refusals only for real capacity refusals within 0..7 days; cleared on successful booking.
+- Credit: forecast {credit, committed = queued prepaid parts×providerSmsCost(0.01) + volume-only paid bookings + renewals(≤30d)×lineCost, available = credit−committed−minCredit, runway}. creditWatch: warn once/day (runway<creditWarnDays 3 or available<0), bookings blocked (err_no_lines) via creditShort(), provisionOne blocked when available<cost (and each purchase $inc forecast.available −cost), paused below floor with hourly 'Still paused' nag, auto-resume.
+- Replace: autoReplace() on provider SUSPEND/restricted (syncInventory + healthCheck; max maxReplacesPerDay 3, alert once/line/day) → replaceEsim(verify:true) → new number 'testing' must pass verifyLine(): 'CloudIVR line check <code>' to a peer pool line, reply via webhook (bsTests type verify) → available; 2 no_reply → failed + provisionOne (if auto). Suspended lines re-checked: lifted → back to pool. No peer → joins unverified (alert).
+- Expiry: P.subscription(iccid).endDate synced each healthCheck → expirationDate; past → status 'expired' + alert (Spenza renews itself from balance; renewals are in the forecast).
+- Dry-mode fakes: BULK_ESIM_FAKE_CREDIT, BULK_ESIM_FAKE_SUSPENDED=<iccid,..>, BULK_ESIM_FAKE_EXPIRED=<iccid,..>.
+- /bulk shows forecast, today/tomorrow perDay, unmet demand, auto-buy/replace state, per-line today/cap + plan end.
+- Tests (nodejs stopped): engine 39/39, autoscale 25/25 (js/tests/test_bulk_esim_autoscale.js), iter239 86/86, agent probes test_bulk_esim_autoscale_iter241.js 21/21 (P4 probe's "+12" is correct warm-up math for a same-day booking, no re-buy loop). bot_flow 16/16 with nodejs running. iteration_241.
+- Still NOT done: no live eSIM, no deploy, autoProvision stays OFF until user flips (/bulkset autoProvision true + /bulkset manualApproval false), real Spenza plan/SMS cost unknown (providerSmsCost default 0.01 — set after first live test).
