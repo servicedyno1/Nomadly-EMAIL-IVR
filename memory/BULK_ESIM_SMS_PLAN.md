@@ -12,3 +12,10 @@ admin alerted; auto-resume when credit >= cfg.minCredit; admin alerted again.
 Multi-bot: ONE shared Mongo for pool/queue (env BULK_ESIM_MONGO_URL/BULK_ESIM_DB; default = own DB). Customer id = brand:chatId.
 Single worker via lock doc (leader). Each bot delivers its own customers' notices by polling bsNotify where brand = its brand.
 Test sends: max 2 per campaign during setup, not counted in booking volume, count against daily quota.
+
+## 2026-06 update (user decisions)
+- Start with ONE eSIM, scale as needed (minEsims=1, autoProvision=false). NO eSIM bought yet — admin runs /bulkprovision when ready.
+- Contacts: paste or .txt/.csv upload (<=2MB); file copy saved to Emergent Object Storage (js/bulk-esim/storage.js, bsUploads) only after it passes the 500-number minimum.
+- STOP (punctuation-tolerant) = platform-wide block (bsSuppression cid:'*'), saved even if line/sender unmatched; one confirmation per number; HELP auto-reply max once/day/number.
+- DO NOT DEPLOY until user says so. Tests: js/tests/test_bulk_esim_engine.js (28/28), test_bulk_esim_stop_upload_iter239.js (32/32), bot_flow + bot_pay OK. Run with nodejs stopped.
+- Pending: buy first live eSIM, register webhook (/bulkwebhook), live send/receive check, deploy.

@@ -10,14 +10,15 @@ const DEFAULTS = {
   defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: false, refundFailed: true,
   platformPerMin: 30, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
   minVolume: 500, maxVolume: 2000, pricePerSms: 0.05, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2,
-  minEsims: 1, maxEsims: 20, initialEsims: 1, autoProvision: false, manualApproval: true, provisionThreshold: 0.8, provisionBudget: 100,
+  minEsims: 1, maxEsims: 20, autoProvision: false, manualApproval: true, provisionThreshold: 0.8, provisionBudget: 100,
   minCredit: 10, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
 }
 const LIVE_BOOKING = ['pending', 'awaiting_payment', 'confirmed', 'provisioning', 'scheduled', 'processing']
 const USABLE = ['active', 'available', 'allocated']
 const GOOD_HEALTH = ['healthy', 'degraded']
-const STOP = /^\s*(stop|stopall|unsubscribe|cancel|end|quit|optout|opt out)\s*$/i
-const HELP = /^\s*(help|info)\s*$/i
+const STOP = /^(stop|stop all|stopall|unsubscribe|cancel|end|quit|optout|opt out)$/
+const HELP = /^(help|info)$/
+const kw = (t) => String(t || '').toLowerCase().replace(/[^a-z ]/g, ' ').trim().replace(/\s+/g, ' ')
 const NANP = /^\+1[2-9]\d{2}[2-9]\d{6}$/
 const MIN = 60000, HOUR = 3600000, DAY = 86400000
 
@@ -363,17 +364,18 @@ async function onWebhook(raw, headers, body) {
   const x = P.parseInbound(body); if (x.event === 'webhook.test' || x.direction !== 'inbound' || !x.text) return { status: 200 }
   const key = x.providerId || crypto.createHash('sha1').update(`${x.from}|${x.to}|${x.text}|${Math.floor(Date.now() / MIN)}`).digest('hex')
   try { await C('bsWebhooks').insertOne({ _id: key, eventType: 'incoming-sms', providerMessageId: x.providerId, payload: body, status: 'received', at: new Date() }) } catch (e) { if (e.code === 11000) return { status: 200 }; throw e }
+  const isStop = STOP.test(kw(x.text)), isHelp = HELP.test(kw(x.text))
+  // STOP blocks the number for every customer, even when the line or the reply can't be matched.
+  const newStop = isStop && (await C('bsSuppression').updateOne({ cid: '*', phone: x.from }, { $setOnInsert: { reason: 'STOP', source: 'inbound', line: x.to, at: new Date() } }, { upsert: true })).upsertedCount
+  if (isStop) await C('bsMessages').updateMany({ to: x.from, direction: 'out', status: 'queued', system: { $ne: true } }, { $set: { status: 'rejected', failureReason: 'opted_out' } })
   const e = await C('bsEsims').findOne({ msisdn: x.to, status: { $ne: 'replaced' } })
   if (!e) { await C('bsWebhooks').updateOne({ _id: key }, { $set: { status: 'unmatched_number' } }); return { status: 200 } }
   const peer = await C('bsEsims').findOne({ msisdn: x.from })
   if (peer) { const code = (x.text.match(/check ([0-9a-f]{6})/) || [])[1]; const t = code && await C('bsTests').findOneAndUpdate({ type: 'loop', code, result: 'pending' }, { $set: { result: 'passed', at2: new Date() } }); if (t) await C('bsEsims').updateOne({ _id: e._id }, { $set: { recvMiss: 0, lastRecvOkAt: new Date() } }); await C('bsWebhooks').updateOne({ _id: key }, { $set: { status: 'health_test' } }); return { status: 200 } }
-  const isStop = STOP.test(x.text)
-  // STOP blocks the number for every customer, even when the reply can't be routed.
-  if (isStop) {
-    await C('bsSuppression').updateOne({ cid: '*', phone: x.from }, { $setOnInsert: { reason: 'STOP', source: 'inbound', esimId: e._id, at: new Date() } }, { upsert: true })
-    await C('bsMessages').updateMany({ to: x.from, direction: 'out', status: 'queued', system: { $ne: true } }, { $set: { status: 'rejected', failureReason: 'opted_out' } })
+  const helpOnce = isHelp && (await C('bsConfig').updateOne({ _id: `help:${x.from}:${new Date().toISOString().slice(0, 10)}` }, { $setOnInsert: { at: new Date() } }, { upsert: true })).upsertedCount
+  if (newStop) {
     await C('bsMessages').insertOne(msgDoc({ cid: 'system:compliance', to: x.from, body: 'You are unsubscribed and will not get more texts from this number. Reply HELP for help.', esimId: e._id, priority: 2, system: true }))
-  } else if (HELP.test(x.text)) await C('bsMessages').insertOne(msgDoc({ cid: 'system:compliance', to: x.from, body: 'Business text messages sent via CloudIVR. Reply STOP to opt out. Msg & data rates may apply.', esimId: e._id, priority: 2, system: true }))
+  } else if (helpOnce) await C('bsMessages').insertOne(msgDoc({ cid: 'system:compliance', to: x.from, body: 'Business text messages sent via CloudIVR. Reply STOP to opt out. Msg & data rates may apply.', esimId: e._id, priority: 2, system: true }))
   const sess = await C('bsSessions').find({ esimId: e._id, to: x.from, status: 'active', expiresAt: { $gt: new Date() } }).sort({ lastActivityAt: -1 }).toArray()
   const owners = [...new Set(sess.map(s => s.cid))]
   if (owners.length !== 1) { await C('bsMessages').insertOne({ _id: id('m'), cid: null, esimId: e._id, from: x.from, to: x.to, body: x.text, direction: 'in', status: owners.length ? 'review' : 'unrouted', providerMessageId: x.providerId, createdAt: new Date() }); if (owners.length) { incident('ambiguous_inbound', { esimId: e._id, from: x.from, owners }); alert(`❓ Reply from ${x.from} to ${e._id} matches ${owners.length} customers — held for review.`) } await C('bsWebhooks').updateOne({ _id: key }, { $set: { status: owners.length ? 'review' : 'unrouted' } }); return { status: 200 } }

@@ -2382,3 +2382,9 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Emails: new type `textingStep` (en/fr/es). emails.textingSteps() each scanner tick: hostedSms status in verify/loa/documents/admin_docs/review/active/rejected/failed and emailedStatus != status → mark, email web accounts (always sent, no opt-out). Changes older than 6h only marked. Paused→active doesn't re-email.
 - Tested iteration_238 (100% backend + frontend).
 - WhiteLabel sync LESSON: never commit scripts outside js/cloudivr-web or frontend/src/cloudivr that require web-only files; the sync pulls the dependency in and conflicts (WL emails.js is older). Web files are web-only by design (bots don't serve the web UI), so ca702155's WL sync only carried the seed script.
+
+## 2026-06 — eSIM BulkSMS (USA/Canada, separate Spenza account) — BUILT + TESTED, NOT DEPLOYED (user: don't deploy yet)
+- Code: js/bulk-esim/{core,bot,provider-spenza,storage}.js, hooks in js/_index.js. Details: memory/BULK_ESIM_SMS_PLAN.md.
+- User choices: 1 eSIM to start (none bought yet), paste or CSV/TXT upload (Object Storage copy), STOP = block for all customers, Telegram only.
+- Tested (simulated provider): engine 28/28, QA suite 32/32, bot flow + pay OK (iteration_239).
+- Next: fund Spenza → /bulkprovision 1 eSIM → /bulkwebhook → live send/receive check → deploy on user go-ahead.

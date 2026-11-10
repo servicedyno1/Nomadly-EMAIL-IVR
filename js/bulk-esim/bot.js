@@ -66,15 +66,16 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   }
   if (action === 'bse-contacts') {
     let raw = message
-    let upload = null
+    let fileName = null
     if (msg?.document) {
       const name = msg.document.file_name || ''
       if (!/\.(txt|csv)$/i.test(name) || (msg.document.file_size || 0) > 2e6) return send(chatId, '⚠️ Send a .txt or .csv file under 2 MB.')
       try { const link = await bot.getFileLink(msg.document.file_id); raw = String((await axios.get(link, { timeout: 20000, responseType: 'text', maxContentLength: 2e6 })).data) } catch (_) { return send(chatId, '⚠️ Couldn’t read that file. Send a .txt or .csv under 2 MB.') }
-      upload = await saveUpload(B.db(), cid, { name, data: raw }).catch(e => { console.log(`[BulkESIM] upload store: ${e.message}`); return null })
+      fileName = name
     }
     const r = await B.parseContacts(cid, raw), c = await B.cfg()
     if (r.contacts.length < c.minVolume) return send(chatId, `⚠️ Found ${r.contacts.length} valid USA/Canada number(s)${r.invalid ? `, ${r.invalid} invalid` : ''}${r.optedOut ? `, ${r.optedOut} opted out` : ''}. A campaign needs at least ${c.minVolume}. Send more numbers.`)
+    const upload = fileName ? await saveUpload(B.db(), cid, { name: fileName, data: raw }).catch(e => { console.log(`[BulkESIM] upload store: ${e.message}`); return null }) : null
     const list = r.contacts.slice(0, c.maxVolume)
     const cr = await B.createCampaign(cid, { name: info.bseName, content: info.bseContent, contacts: list, uploadId: upload?._id }); if (cr.error) return send(chatId, `⚠️ ${cr.error}`)
     await put('bseCampaign', cr.campaign._id); await go('bse-test')
