@@ -60,17 +60,18 @@ async function forwardSmsToEmail(toEmail, from, to, body, web = false) {
   const sender = own ? { name: 'CloudIVR', email: own } : { name: (process.env.CHAT_BOT_BRAND || 'Nomadly') + ' Cloud Phone', email: MAIL_SENDER }
 
   const subject = `Inbound SMS from ${formatPhone(from)} to ${formatPhone(to)}`
+  const BA = require('./sms-app-brand').accent()
   const htmlContent = `
     <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="background: #1a1a2e; color: #e5e5e5; padding: 24px; border-radius: 12px;">
         ${require('./sms-app-brand').logoImg(36)}
-        <h2 style="color: #10b981; margin: 0 0 16px 0;">📩 Inbound SMS Received</h2>
+        <h2 style="color: ${BA}; margin: 0 0 16px 0;">📩 Inbound SMS Received</h2>
         <table style="width: 100%; border-collapse: collapse;">
           <tr><td style="color: #9ca3af; padding: 4px 0;">To:</td><td style="color: #e5e5e5; padding: 4px 0;">${formatPhone(to)}</td></tr>
           <tr><td style="color: #9ca3af; padding: 4px 0;">From:</td><td style="color: #e5e5e5; padding: 4px 0;">${formatPhone(from)}</td></tr>
           <tr><td style="color: #9ca3af; padding: 4px 0;">Time:</td><td style="color: #e5e5e5; padding: 4px 0;">${new Date().toLocaleString()}</td></tr>
         </table>
-        <div style="background: #16213e; padding: 16px; border-radius: 8px; margin-top: 16px; border-left: 3px solid #10b981;">
+        <div style="background: #16213e; padding: 16px; border-radius: 8px; margin-top: 16px; border-left: 3px solid ${BA};">
           <p style="margin: 0; color: #e5e5e5; font-size: 15px;">${body}</p>
         </div>
         <p style="color: #6b7280; font-size: 12px; margin-top: 16px;">Powered by ${sender.name}</p>

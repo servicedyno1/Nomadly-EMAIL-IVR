@@ -18,7 +18,8 @@
     "apiBase": "https://1.smadavspeech.com",
     "accent": "#3b82f6",
     "bg": "#0d1117",
-    "apk": "smadav-sms.apk"
+    "apk": "smadav-sms.apk",
+    "webAccent": "#2563EB"
   },
   "voodooland": {
     "name": "Voodoo Land",
@@ -28,7 +29,8 @@
     "apiBase": "https://voodooivr.xyz",
     "accent": "#14B8A6",
     "bg": "#0b1215",
-    "apk": "voodooland-sms.apk"
+    "apk": "voodooland-sms.apk",
+    "webAccent": "#0F766E"
   },
   "proshop": {
     "name": "PROSHOP",
@@ -38,6 +40,7 @@
     "apiBase": "https://proshopivr.xyz",
     "accent": "#F59E0B",
     "bg": "#0f0d0a",
-    "apk": "proshop-sms.apk"
+    "apk": "proshop-sms.apk",
+    "webAccent": "#B45309"
   }
 }

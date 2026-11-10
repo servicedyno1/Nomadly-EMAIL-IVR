@@ -60,4 +60,10 @@ function logoUrl() {
   return base ? `${base}/assets/brand/${brandSlug()}/logo.png?v=2026-11` : null
 }
 const logoImg = (h = 40) => { const u = logoUrl(); return u ? `<img src="${u}" height="${h}" width="${h * 3}" alt="${brandName()}" style="display:block;margin:0 auto 14px;border:0;height:${h}px;width:${h * 3}px">` : '' }
-module.exports = { logoUrl, logoImg, brandName, brandSlug, appName, botUsername, botUrl, accent, webAccent, setBotUsername, resolveApk, latestVersion, packageVersion }
+// Email colours: brand web accent + a deeper shade for gradients/headings.
+function emailColors() {
+  const a = webAccent(), n = parseInt(a.slice(1), 16), k = 0.72
+  const d = '#' + [16, 8, 0].map(s => Math.round(((n >> s) & 255) * k).toString(16).padStart(2, '0')).join('')
+  return { a, d }
+}
+module.exports = { emailColors, logoUrl, logoImg, brandName, brandSlug, appName, botUsername, botUrl, accent, webAccent, setBotUsername, resolveApk, latestVersion, packageVersion }
