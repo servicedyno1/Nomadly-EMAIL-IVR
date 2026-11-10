@@ -19,7 +19,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   await B.init({ db, log: () => {}, notifyAdmin: (t) => alerts.push(t) })
   process.env.BULK_ESIM_WORKER = ''
   let provCalls = 0; const realProv = P.provision; P.provision = async (...a) => { provCalls++; return realProv(...a) }
-  const fresh = async (cfg = {}) => { await wipe(); alerts.length = 0; provCalls = 0; process.env.BULK_ESIM_FAKE_CREDIT = '500'; await B.setConfig({ quietStart: 0, quietEnd: 24, reserveBooking: false, ...cfg }, 'test'); return (await B.customer('TEST_Iter241', '9001'))._id }
+  const fresh = async (cfg = {}) => { await wipe(); alerts.length = 0; provCalls = 0; process.env.BULK_ESIM_FAKE_CREDIT = '500'; await B.setConfig({ quietStart: 0, quietEnd: 24, reserveBooking: false, autoProvision: false, manualApproval: true, minEsims: 1, monitorEsims: 0, ...cfg }, 'test'); return (await B.customer('TEST_Iter241', '9001'))._id }
   const AUTO = { autoProvision: true, manualApproval: false, provisionBudget: 500, maxEsims: 20 }
   const hourAhead = () => (new Date().getUTCHours() + 2) % 24
   try {
@@ -71,21 +71,15 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
     process.env.BULK_ESIM_FAKE_CREDIT = '500'; await B.creditWatch()
     ok('(e) credit 500 → resumed + booking accepted', !(await B.state()).reasons.length && !!(await B.createBooking(cid, { date: d(4), hour: 12, volume: 600 })).booking, `f0.committed=${f0.committed}`)
 
-    // (f) suspended → replace → verify → pool
+    // (f) suspended → replace → pre-use check (auto-passed in dry run) → pool
     const victim = await X('bsEsims').findOne({ status: 'available' })
     process.env.BULK_ESIM_FAKE_SUSPENDED = victim.iccid; alerts.length = 0; await B.healthCheck(); process.env.BULK_ESIM_FAKE_SUSPENDED = ''
     const old = await X('bsEsims').findOne({ _id: victim._id }), nl = await X('bsEsims').findOne({ replaces: victim._id })
     ok('(f) old line replaced, new {replaces, testing, verify:true}', old.status === 'replaced' && nl?.status === 'testing' && nl.verify === true, `${old.status}/${nl?.status}`)
     await B.healthCheck()
-    const vt = await X('bsTests').findOne({ esimId: nl._id, type: 'verify', result: 'pending' })
-    const vm = vt && await X('bsMessages').findOne({ esimId: nl._id, system: true, body: `CloudIVR line check ${vt.code}` })
-    ok('(f) verify test pending + system msg new line → peer', !!vm && vm.to === (await X('bsEsims').findOne({ _id: vt.peer })).msisdn)
-    await B.tick()
-    ok('(f) tick sends verify message from the new line', (await X('bsMessages').findOne({ _id: vm._id })).status === 'sent' && (await X('bsMessages').findOne({ _id: vm._id })).from === nl.msisdn)
-    const peer = await X('bsEsims').findOne({ _id: vt.peer })
-    await B.onWebhook('', {}, { data: { From: nl.msisdn, Owner: peer.msisdn, Message_Body: `CloudIVR line check ${vt.code}`, Message_ID: 'x241' } })
-    await B.healthCheck()
-    ok('(f) reply → new line available', (await X('bsEsims').findOne({ _id: nl._id })).status === 'available')
+    const vt = await X('bsTests').findOne({ esimId: nl._id, type: 'check', kind: 'pre_use' })
+    ok('(f) pre-use check recorded + check text new line → peer', !!vt && vt.result === 'passed' && !!(await X('bsMessages').findOne({ esimId: nl._id, system: true, body: `CloudIVR line check ${vt.code}` })))
+    ok('(f) new line available after the check', (await X('bsEsims').findOne({ _id: nl._id })).status === 'available')
 
     // (g) expiry
     const ex = await X('bsEsims').findOne({ status: 'available' }); alerts.length = 0

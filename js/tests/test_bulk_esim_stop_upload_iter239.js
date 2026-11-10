@@ -26,6 +26,7 @@ const openHour = async (date, need = 1) => (await B.availability(date)).slots.fi
   for (const c of COLS) await db.collection(c).deleteMany({})
   const alerts = []
   await BOT.init({ db, log: () => {}, notifyAdmin: (t) => alerts.push(t) })
+  await B.setConfig({ autoProvision: false, manualApproval: true, minEsims: 1, monitorEsims: 0 }, 'qa')
   process.env.BULK_ESIM_WORKER = ''
   const day = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10)
 
@@ -40,8 +41,9 @@ const openHour = async (date, need = 1) => (await B.availability(date)).slots.fi
   ok('day picker with 0 lines shows "not available" message', av0.capacity === 0 && st0.action === 'bse-day' && /not available/.test(sent0[0] || ''), sent0[0])
 
   // ---- defaults / no auto provisioning ----
+  await B.setConfig({ autoProvision: false, manualApproval: true, minEsims: 1 }, 'qa')
   const c0 = await B.cfg()
-  ok('defaults minEsims=1 autoProvision=false manualApproval=true price .10/.15', c0.minEsims === 1 && c0.autoProvision === false && c0.manualApproval === true && c0.pricePlain === 0.1 && c0.priceLink === 0.15)
+  ok('defaults: 2 service + 1 monitor line, auto-buy on; price .10/.15 (this suite runs with auto-buy off)', B.DEFAULTS.minEsims === 2 && B.DEFAULTS.monitorEsims === 1 && B.DEFAULTS.autoProvision === true && c0.autoProvision === false && c0.pricePlain === 0.1 && c0.priceLink === 0.15)
   let provCalls = 0; const realProv = P.provision; P.provision = async (...a) => { provCalls++; return realProv(...a) }
   await B.autoscale()
   ok('autoscale with 0 eSIMs does NOT provision (alerts instead)', provCalls === 0 && (await db.collection('bsEsims').countDocuments()) === 0 && alerts.some(a => /Provisioning needs approval/.test(a)))

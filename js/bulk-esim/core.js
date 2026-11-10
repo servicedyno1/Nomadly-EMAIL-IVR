@@ -11,7 +11,7 @@ const DEFAULTS = {
   defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 8, quietEnd: 21,
   platformPerMin: 30, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
   minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2,
-  minEsims: 1, maxEsims: 0, autoProvision: false, manualApproval: true, provisionThreshold: 0.8, provisionBudget: 0,
+  minEsims: 2, monitorEsims: 1, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
   minCredit: 10, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
   esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: true, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3,
 }
@@ -23,6 +23,8 @@ const lineCap = (c, age) => (age >= c.warmupDays ? c.esimDailyLimit : Math.max(c
 const LIVE_BOOKING = ['pending', 'awaiting_payment', 'confirmed', 'provisioning', 'scheduled', 'processing']
 const USABLE = ['active', 'available', 'allocated']
 const GOOD_HEALTH = ['healthy', 'degraded']
+const GONE = ['replaced', 'failed', 'expired', 'retired']
+const SERVICE = { role: { $ne: 'monitor' } }
 const STOP = /^(stop|stop all|stopall|unsubscribe|cancel|end|quit|optout|opt out)$/
 const HELP = /^(help|info)$/
 const kw = (t) => String(t || '').toLowerCase().replace(/[^a-z ]/g, ' ').trim().replace(/\s+/g, ' ')
@@ -115,11 +117,12 @@ async function creditShort(c, parts) { const st = await state(); return st.reaso
 // ---------- inventory ----------
 async function nextEsimId() { const r = await C('bsConfig').findOneAndUpdate({ _id: 'esimSeq' }, { $inc: { n: 1 } }, { upsert: true, returnDocument: 'after' }); const n = (r?.value || r).n; return `ESIM-${String(n).padStart(4, '0')}` }
 async function addEsim(fields, status = 'testing') {
-  const doc = { _id: await nextEsimId(), provider: P.name, providerEsimId: fields.iccid || null, iccid: fields.iccid || null, imsi: fields.imsi || null, msisdn: fields.msisdn || null, providerRef: fields.providerRef || null, status, health: 'unknown', healthScore: 100, activationDate: fields.msisdn ? new Date() : null, expirationDate: fields.expirationDate || null, replaces: fields.replaces || null, verify: !!fields.verify, stats: { submitted: 0, sent: 0, failed: 0 }, history: [{ status, at: new Date() }], createdAt: new Date() }
+  const doc = { _id: await nextEsimId(), provider: P.name, providerEsimId: fields.iccid || null, iccid: fields.iccid || null, imsi: fields.imsi || null, msisdn: fields.msisdn || null, providerRef: fields.providerRef || null, status, health: 'unknown', healthScore: 100, activationDate: fields.msisdn ? new Date() : null, expirationDate: fields.expirationDate || null, replaces: fields.replaces || null, role: fields.role || 'service', verify: !!fields.verify, stats: { submitted: 0, sent: 0, failed: 0 }, history: [{ status, at: new Date() }], createdAt: new Date() }
   await C('bsEsims').insertOne(doc); return doc
 }
 const setEsim = (eid, status, extra = {}) => C('bsEsims').updateOne({ _id: eid }, { $set: { status, ...extra, updatedAt: new Date() }, $push: { history: { status, at: new Date(), ...(extra.note ? { note: extra.note } : {}) } } })
-const liveCount = () => C('bsEsims').countDocuments({ status: { $nin: ['replaced', 'failed', 'expired'] } })
+const liveCount = () => C('bsEsims').countDocuments({ ...SERVICE, status: { $nin: GONE } })
+const monitorCount = () => C('bsEsims').countDocuments({ role: 'monitor', status: { $nin: GONE } })
 const spentMonth = async () => (await C('bsConfig').findOne({ _id: `spend:${new Date().toISOString().slice(0, 7)}` }))?.usd || 0
 // Most texts the account can push on `date`: Spenza's per-minute limit × the hours open for all mainland zones. More lines than
 // ceiling / per-line cap add nothing, so that is the line ceiling unless the admin sets maxEsims. provisionBudget 0 = credit forecast only.
@@ -133,28 +136,29 @@ async function buyable(c) {
   const cost = await planCost(), f = (await state()).forecast
   return Math.max(0, Math.min(maxLines(c) - await liveCount(), Math.floor((await budgetLeft(c)) / cost), f ? Math.floor(f.available / cost) : Infinity))
 }
-async function provisionOne(reason, by) {
+async function provisionOne(reason, by, role = 'service') {
   const c = await cfg(), month = new Date().toISOString().slice(0, 7)
+  if (role === 'monitor' && (await monitorCount()) >= c.monitorEsims) return { error: 'Monitor line already present.' }
   const spent = await spentMonth(), cost = await planCost(), f = (await state()).forecast
-  if ((await liveCount()) >= maxLines(c)) return { error: `Inventory is at the line ceiling (${maxLines(c)}${c.maxEsims ? '' : ' — set by the Spenza sending rate'}).` }
+  if (role !== 'monitor' && (await liveCount()) >= maxLines(c)) return { error: `Inventory is at the line ceiling (${maxLines(c)}${c.maxEsims ? '' : ' — set by the Spenza sending rate'}).` }
   if (c.provisionBudget && spent + cost > c.provisionBudget) { alert(`Provisioning blocked: monthly budget $${c.provisionBudget} (spent $${spent}).`); return { error: 'Monthly provisioning budget reached.' } }
   if (f && f.available - cost < 0) { if (await once(`provcredit:${today()}`)) alert(`Provisioning blocked: Spenza credit $${f.credit} must keep $${f.committed} for promised texts/renewals plus the $${c.minCredit} floor — a new line costs $${cost}. Add credit at web.spenza.com`); return { error: 'Not enough Spenza credit for a new line.' } }
-  const e = await addEsim({}, 'purchasing')
+  const e = await addEsim({ role }, 'purchasing')
   try {
     const r = await P.provision({ key: e._id })
     await C('bsConfig').updateOne({ _id: `spend:${month}` }, { $inc: { usd: cost } }, { upsert: true })
     await setEsim(e._id, r.phoneNumber ? 'testing' : 'provisioning', { providerRef: r.transactionId, iccid: r.iccid || null, providerEsimId: r.iccid || null, msisdn: r.phoneNumber || null, activationDate: r.phoneNumber ? new Date() : null })
     await C('bsConfig').updateOne({ _id: 'state', forecast: { $ne: null } }, { $inc: { 'forecast.available': -cost } }).catch(() => {})
-    audit('provision', { esimId: e._id, reason, by, cost }); return { ok: true, esimId: e._id }
+    audit('provision', { esimId: e._id, reason, by, cost, role }); return { ok: true, esimId: e._id }
   } catch (err) {
     await setEsim(e._id, 'failed', { note: err.message }); alert(`❌ Provisioning ${e._id} failed: ${err.message}`)
     if (err.kind === 'credit') await pause('provider_credit', err.message)
     return { error: err.message }
   }
 }
-async function provisionMany(n, reason, by) {
+async function provisionMany(n, reason, by, role = 'service') {
   let ok = 0, error = null
-  for (let i = 0; i < n; i++) { const r = await provisionOne(reason, by); if (r.error) { error = r.error; break } ok++ }
+  for (let i = 0; i < n; i++) { const r = await provisionOne(reason, by, role); if (r.error) { error = r.error; break } ok++ }
   return { ok, error }
 }
 // Serialises "how many lines are missing → buy them" so two payments or a payment + autoscale never buy the same gap twice.
@@ -185,7 +189,7 @@ async function syncInventory() {
     const msisdn = P.norm(s.phoneNumber || s.msisdn), iccid = s.iccid
     let e = await C('bsEsims').findOne({ iccid, status: { $ne: 'replaced' } })
     if (!e) e = await C('bsEsims').findOne({ status: 'provisioning', iccid: null })
-    if (!e) { await addEsim({ iccid, msisdn, imsi: s.imsi || null }); continue }
+    if (!e) { const c0 = await cfg(); await addEsim({ iccid, msisdn, imsi: s.imsi || null, role: (await monitorCount()) < c0.monitorEsims ? 'monitor' : 'service' }); continue }
     const set = { iccid, providerEsimId: iccid, imsi: s.imsi || e.imsi || null }
     if (msisdn && msisdn !== e.msisdn) Object.assign(set, { msisdn, activationDate: new Date() })
     const st = String(s.status || '').toUpperCase()
@@ -197,7 +201,7 @@ async function syncInventory() {
 async function replaceEsim(eid, reason, by) {
   const e = await C('bsEsims').findOne({ _id: eid }); if (!e || e.status === 'replaced') return { error: 'Not found' }
   await setEsim(eid, 'replaced', { note: reason })
-  const n = await addEsim({ iccid: e.iccid, replaces: eid, verify: true }, 'provisioning')
+  const n = await addEsim({ iccid: e.iccid, replaces: eid, role: e.role || 'service', verify: true }, 'provisioning')
   await C('bsEsims').updateOne({ _id: eid }, { $set: { replacedBy: n._id } })
   let st = 'requested'
   try { const r = await P.replaceNumber(e.iccid); if (r?.simulated) await setEsim(n._id, 'testing', { msisdn: `+1201555${String(Math.floor(1000 + Math.random() * 8999))}`, activationDate: new Date() }) } catch (err) { st = 'failed'; await setEsim(n._id, 'failed', { note: err.message }); alert(`❌ Replacement of ${eid} failed: ${err.message}`) }
@@ -217,59 +221,80 @@ async function healthCheck() {
     } catch (x) { err = x; health = x.kind === 'temporary' || x.kind === 'rate' ? 'temporarily_unavailable' : 'technically_failed' }
     const recent = await C('bsMessages').find({ esimId: e._id, direction: 'out', submittedAt: { $gt: new Date(Date.now() - DAY) } }, { projection: { status: 1 } }).toArray()
     const fails = recent.filter(m => m.status === 'failed').length, rate = recent.length ? fails / recent.length : 0
-    if (health === 'healthy' && recent.length >= 20 && rate > 0.3) health = 'sending_failure'; else if (health === 'healthy' && (e.recvMiss || 0) >= 3) health = 'degraded'
+    if (health === 'healthy' && ((recent.length >= 20 && rate > 0.3) || ((e.sendMiss || 0) >= 2 && e.status !== 'testing'))) health = 'sending_failure'; else if (health === 'healthy' && (e.recvMiss || 0) >= 3) health = 'degraded'
     const score = Math.max(0, Math.round(100 - rate * 100 - (e.recvMiss || 0) * 5 - (health === 'healthy' ? 0 : 30)))
     await C('bsTests').insertOne({ esimId: e._id, type: 'status', result: health, providerResponse: err?.message || null, errorCode: err?.code || null, at: new Date() })
     const set = { health, healthScore: score, lastTestAt: new Date(), expirationDate: expires, ...(health === 'healthy' ? { lastOkAt: new Date() } : {}) }
     if (health === 'expired') { await setEsim(e._id, 'expired', { ...set, note: 'plan ended' }); alert(`⌛ ${e._id} ${e.msisdn || ''}: plan ended (not renewed by Spenza — check the account credit). It left the pool.`); incident('esim_expired', { esimId: e._id }); continue }
     if (e.status === 'testing' && health === 'healthy' && e.msisdn) {
-      if (e.verify && (await verifyLine(e, c)) !== 'passed') { await C('bsEsims').updateOne({ _id: e._id }, { $set: set }); continue }
-      await setEsim(e._id, 'available', set); alert(`✅ ${e._id} ${e.msisdn} passed checks and joined the pool.`); continue
+      const v = await preUse(e, c); if (v !== 'passed') { await C('bsEsims').updateOne({ _id: e._id }, { $set: set }); continue }
+      await setEsim(e._id, 'available', set); alert(`✅ ${e._id} ${e.msisdn}${e.role === 'monitor' ? ' (monitor line)' : ''} passed checks and joined the pool.`); continue
     }
+    if (USABLE.includes(e.status) && health === 'healthy') await dueCheck(e, c)
     if (['suspended', 'technically_failed', 'sending_failure', 'provider_restricted'].includes(health) && e.health !== health) { alert(`⚠️ ${e._id} ${e.msisdn || ''}: ${health.replace(/_/g, ' ')}${err ? ` (${err.message})` : ''}. New sends avoid it.`); incident('esim_health', { esimId: e._id, health }) }
     await C('bsEsims').updateOne({ _id: e._id }, { $set: set })
-    if (['suspended', 'provider_restricted'].includes(health) && [...USABLE, 'suspended'].includes(e.status)) { if (e.status !== 'suspended') await setEsim(e._id, 'suspended', { note: health }); await autoReplace({ ...e, ...set }, health.replace(/_/g, ' '), c) }
+    if (['suspended', 'provider_restricted', 'sending_failure'].includes(health) && [...USABLE, 'suspended'].includes(e.status)) { if (e.status !== 'suspended') await setEsim(e._id, 'suspended', { note: health }); await autoReplace({ ...e, ...set }, health.replace(/_/g, ' '), c) }
     else if (e.status === 'suspended' && health === 'healthy') { await setEsim(e._id, 'available', { note: 'provider lifted the suspension' }); alert(`✅ ${e._id} ${e.msisdn || ''}: suspension lifted by the provider — back in the pool.`) }
   }
-  if (Date.now() - ((await state()).loopAt || 0) > c.testEveryHours * HOUR) await loopTest()
 }
-// Delivery test for a replaced line: a text to another pool line must come back through the webhook (2 misses → retired, new eSIM bought).
-async function verifyLine(e, c) {
-  if (await C('bsTests').findOne({ esimId: e._id, type: 'verify', result: 'passed' })) return 'passed'
-  if ((await C('bsTests').countDocuments({ esimId: e._id, type: 'verify', result: 'no_reply' })) >= 2) {
-    await setEsim(e._id, 'failed', { note: 'delivery test failed twice' }); alert(`❌ ${e._id} ${e.msisdn}: the new number does not deliver texts — retired.${c.autoProvision && !c.manualApproval ? ' Buying a new eSIM.' : ' Use /bulkprovision for a new eSIM.'}`); incident('verify_failed', { esimId: e._id })
-    if (c.autoProvision && !c.manualApproval) await provisionOne(`${e._id} failed its delivery test`)
-    return 'failed'
-  }
-  if (await C('bsTests').findOne({ esimId: e._id, type: 'verify', result: 'pending' })) return 'pending'
-  const peer = await C('bsEsims').findOne({ _id: { $ne: e._id }, status: { $in: USABLE }, health: { $in: GOOD_HEALTH }, msisdn: { $ne: null } })
-  if (!peer) { alert(`⚠️ ${e._id} ${e.msisdn}: no other line to test delivery against — joined the pool unverified.`); return 'passed' }
-  const code = crypto.randomBytes(3).toString('hex')
-  await C('bsTests').insertOne({ esimId: e._id, peer: peer._id, type: 'verify', code, result: 'pending', at: new Date() })
+// ---------- line checks (monitor eSIM) ----------
+// A check is a round trip through the webhook: line → monitor "CloudIVR line check CODE", monitor → line "... CODE ok". It proves the
+// line sends AND receives for 2 texts. Without a monitor another pool line is the peer. Preview (dry run) passes checks by itself
+// unless BULK_ESIM_FAKE_CHECKS=manual.
+const monitorLine = () => C('bsEsims').findOne({ role: 'monitor', status: { $in: [...USABLE, 'testing'] }, health: { $nin: ['suspended', 'technically_failed', 'provider_restricted'] }, msisdn: { $ne: null } })
+async function startCheck(e, kind) {
+  if (await C('bsTests').findOne({ esimId: e._id, type: 'check', result: 'pending' })) return 'pending'
+  const mon = await monitorLine(), peer = mon && mon._id !== e._id ? mon : await C('bsEsims').findOne({ _id: { $ne: e._id }, ...SERVICE, status: { $in: USABLE }, health: { $in: GOOD_HEALTH }, msisdn: { $ne: null } })
+  if (!peer) return 'no_peer'
+  const code = crypto.randomBytes(3).toString('hex'), auto = P.dry() && process.env.BULK_ESIM_FAKE_CHECKS !== 'manual'
+  await C('bsTests').insertOne({ esimId: e._id, peer: peer._id, type: 'check', kind, code, legs: { out: auto, back: auto }, result: auto ? 'passed' : 'pending', at: new Date(), ...(auto ? { at2: new Date() } : {}) })
   await C('bsMessages').insertOne(msgDoc({ cid: 'system:health', to: peer.msisdn, body: `CloudIVR line check ${code}`, priority: 2, esimId: e._id, system: true }))
+  if (auto) { await C('bsEsims').updateOne({ _id: e._id }, { $set: { recvMiss: 0, sendMiss: 0, lastCheckOkAt: new Date(), checkedSubmitted: e.stats?.submitted || 0 } }); return 'passed' }
   return 'pending'
 }
-// Send/receive test between two pool lines. A missing reply only counts as a "miss", never as a failure by itself.
-async function loopTest() {
-  await C('bsConfig').updateOne({ _id: 'state' }, { $set: { loopAt: Date.now() } }, { upsert: true })
-  const pool = await C('bsEsims').find({ status: { $in: [...USABLE, 'testing'] }, msisdn: { $ne: null } }).toArray()
-  for (let i = 0; i < pool.length && pool.length > 1; i++) {
-    const a = pool[i], b = pool[(i + 1) % pool.length], code = crypto.randomBytes(3).toString('hex')
-    await C('bsTests').insertOne({ esimId: a._id, peer: b._id, type: 'loop', code, result: 'pending', at: new Date() })
-    await C('bsMessages').insertOne(msgDoc({ cid: 'system:health', to: b.msisdn, body: `CloudIVR line check ${code}`, priority: 2, esimId: a._id, system: true }))
+// New or replaced line: must pass one check before it joins the pool; two failed checks retire it (and a new eSIM is bought).
+async function preUse(e, c) {
+  if (await C('bsTests').findOne({ esimId: e._id, type: 'check', kind: 'pre_use', result: 'passed' })) return 'passed'
+  if ((await C('bsTests').countDocuments({ esimId: e._id, type: 'check', kind: 'pre_use', result: { $in: ['no_delivery', 'no_return'] } })) >= 2) {
+    await setEsim(e._id, 'failed', { note: 'pre-use check failed twice' }); alert(`❌ ${e._id} ${e.msisdn}: the new ${e.role === 'monitor' ? 'monitor ' : ''}line does not pass the delivery check — retired.${c.autoProvision && !c.manualApproval ? ' Buying a new eSIM.' : ' Use /bulkprovision for a new eSIM.'}`); incident('verify_failed', { esimId: e._id })
+    if (c.autoProvision && !c.manualApproval) await provisionOne(`${e._id} failed its pre-use check`, 'system', e.role || 'service')
+    return 'failed'
   }
+  const r = await startCheck(e, 'pre_use')
+  if (r === 'no_peer') { if (await once(`nopeer:${e._id}`)) alert(`⚠️ ${e._id} ${e.msisdn}: no other line to check delivery against — joined the pool unchecked.`); return 'passed' }
+  return r
 }
-async function loopTimeouts() {
-  for (const t of await C('bsTests').find({ type: { $in: ['loop', 'verify'] }, result: 'pending', at: { $lt: new Date(Date.now() - 10 * MIN) } }).toArray()) {
-    await C('bsTests').updateOne({ _id: t._id }, { $set: { result: 'no_reply' } })
-    if (t.type === 'loop') await C('bsEsims').updateOne({ _id: t.peer }, { $inc: { recvMiss: 1 } })
+// Active line: re-checked every testEveryHours if it sent anything since the last pass; at once when failures spike (3+ in an hour).
+async function dueCheck(e, c) {
+  // The monitor proves itself every testEveryHours against a service line, traffic or not.
+  const sentSince = e.role === 'monitor' || (e.stats?.submitted || 0) > (e.checkedSubmitted || 0), stale = Date.now() - new Date(e.lastCheckOkAt || 0).getTime() > c.testEveryHours * HOUR
+  const spike = await C('bsMessages').countDocuments({ esimId: e._id, status: 'failed', submittedAt: { $gt: new Date(Date.now() - HOUR) } }, { limit: 3 }) >= 3
+  if (spike && Date.now() - new Date(e.lastCheckOkAt || 0).getTime() > 30 * MIN) return startCheck(e, 'spike')
+  if (stale && sentSince) return startCheck(e, 'periodic')
+}
+// Pending checks older than 10 min fail: no_delivery (line → monitor never arrived) or no_return (monitor → line never arrived).
+// Several lines failing delivery to the same monitor at once means the monitor is the problem: those checks are voided and it is replaced.
+async function checkTimeouts(c) {
+  for (const t of await C('bsTests').find({ type: 'check', result: 'pending', at: { $lt: new Date(Date.now() - 10 * MIN) } }).toArray()) {
+    const result = t.legs?.out ? 'no_return' : 'no_delivery'
+    await C('bsTests').updateOne({ _id: t._id }, { $set: { result } })
+    await C('bsEsims').updateOne({ _id: t.esimId }, { $inc: t.legs?.out ? { recvMiss: 1 } : { sendMiss: 1 } })
+    incident('check_failed', { esimId: t.esimId, peer: t.peer, kind: t.kind, result })
+  }
+  for (const t of await C('bsTests').find({ type: { $in: ['loop', 'verify'] }, result: 'pending', at: { $lt: new Date(Date.now() - 10 * MIN) } }).toArray()) await C('bsTests').updateOne({ _id: t._id }, { $set: { result: 'no_reply' } })
+  const mon = await monitorLine(); if (!mon) return
+  const bad = await C('bsTests').find({ type: 'check', peer: mon._id, result: 'no_delivery', at: { $gt: new Date(Date.now() - 30 * MIN) }, voided: { $ne: true } }).toArray()
+  if (new Set(bad.map(t => t.esimId)).size >= 2) {
+    for (const t of bad) { await C('bsTests').updateOne({ _id: t._id }, { $set: { voided: true, result: 'monitor_fault' } }); await C('bsEsims').updateOne({ _id: t.esimId }, { $inc: { sendMiss: -1 } }) }
+    alert(`🩺 Monitor line ${mon._id} ${mon.msisdn} missed checks from ${bad.length} lines — it is the suspect, not the lines. Replacing the monitor.`); incident('monitor_fault', { esimId: mon._id, lines: [...new Set(bad.map(t => t.esimId))] })
+    await setEsim(mon._id, 'suspended', { health: 'technically_failed', note: 'monitor not receiving' }); await autoReplace({ ...mon, status: 'suspended' }, 'monitor not receiving checks', c)
   }
 }
 
 // ---------- capacity + bookings ----------
 // Lines that can carry `date` with each one's cap that day: usable healthy lines, plus (from tomorrow) lines already bought/testing.
 async function fleet(date, c, pendingToo = daysAhead(date) >= 1) {
-  const rows = await C('bsEsims').find({ $or: [{ status: { $in: USABLE }, health: { $in: GOOD_HEALTH } }, ...(pendingToo ? [{ status: { $in: ['purchasing', 'provisioning', 'testing'] } }] : [])] }, { projection: { activationDate: 1, createdAt: 1 } }).toArray()
+  const rows = await C('bsEsims').find({ ...SERVICE, $or: [{ status: { $in: USABLE }, health: { $in: GOOD_HEALTH } }, ...(pendingToo ? [{ status: { $in: ['purchasing', 'provisioning', 'testing'] } }] : [])] }, { projection: { activationDate: 1, createdAt: 1 } }).toArray()
   return rows.map(e => ({ id: e._id, cap: lineCap(c, lineAge(e.activationDate || e.createdAt, date)) }))
 }
 // Capacity for `date`: per hour (Spenza limit vs lines × per-line rate) and per day (sum of line caps). Dates at least
@@ -286,14 +311,16 @@ async function linesShort(date, c, { floor = 0, pendingToo = true } = {}) {
   const per = lineCap(c, daysAhead(date) + 1) * c.slotUtilization, perHour = c.esimPerMin * 60 * c.slotUtilization
   return Math.max(0, Math.ceil((dayRes - dayCap) / per), Math.ceil((Math.min(hourMax, c.platformPerMin * 60 * c.slotUtilization) - hourCap) / perHour))
 }
-// Demand model (no fixed benchmark): a day's target = what is booked + room for one more full booking (reserveBooking), never below
+// Demand model (no fixed benchmark): a day's target = what is booked + room for one more full booking (reserveBooking, once any
+// customer has booked or been refused), never below
 // the busiest day (booked + refused) of the last `demandDays`. Grows with customers, falls back when they leave; capped by the day ceiling.
 async function demandModel(c) {
   const since = new Date(Date.now() - c.demandDays * DAY).toISOString().slice(0, 10), byDay = {}
   for (const r of await C('bsBookings').aggregate([{ $match: { date: { $gte: since }, status: { $in: ['confirmed', 'scheduled', 'provisioning', 'processing', 'completed'] } } }, { $group: { _id: '$date', v: { $sum: '$volume' } } }]).toArray()) byDay[r._id] = (byDay[r._id] || 0) + r.v
   for (const r of await C('bsDemand').aggregate([{ $match: { date: { $gte: since } } }, { $group: { _id: '$date', v: { $sum: '$volume' } } }]).toArray()) byDay[r._id] = (byDay[r._id] || 0) + r.v
   const t = today(), peak = Math.max(0, ...Object.entries(byDay).filter(([d]) => d <= t).map(([, v]) => v))
-  const target = (date) => Math.min(dayCeiling(date, c), Math.max((byDay[date] || 0) + (c.reserveBooking ? c.maxVolume : 0), peak))
+  const hasDemand = Object.values(byDay).some(v => v > 0)
+  const target = (date) => Math.min(dayCeiling(date, c), Math.max((byDay[date] || 0) + (c.reserveBooking && hasDemand ? c.maxVolume : 0), peak))
   return { peak, byDay, target }
 }
 // A refused booking is demand too: remembered per customer and day so the autoscaler buys lines for the coming days.
@@ -457,7 +484,7 @@ async function pickEsim(m, c) {
   const ok = (e) => e && USABLE.includes(e.status) && GOOD_HEALTH.includes(e.health) && roomIn(win.esim[e._id] ||= [], c.esimPerMin)
   if (s) { const e = await C('bsEsims').findOne({ _id: s.esimId }); if (ok(e)) return e; if (e && USABLE.includes(e.status) && GOOD_HEALTH.includes(e.health)) return null }
   // New conversations respect each line's daily cap (warm-up); replies inside a session stay on their line regardless.
-  const pool = await C('bsEsims').find({ status: { $in: USABLE }, health: { $in: GOOD_HEALTH }, msisdn: { $ne: null } }).sort({ 'stats.submitted': 1 }).toArray(), d = dayKey(Date.now(), c)
+  const pool = await C('bsEsims').find({ ...SERVICE, status: { $in: USABLE }, health: { $in: GOOD_HEALTH }, msisdn: { $ne: null } }).sort({ 'stats.submitted': 1 }).toArray(), d = dayKey(Date.now(), c)
   const used = Object.fromEntries((await C('bsEsimDaily').find({ _id: { $in: pool.map(e => `${e._id}:${d}`) } }).toArray()).map(x => [x._id, x.n]))
   return pool.find(e => ok(e) && (used[`${e._id}:${d}`] || 0) < lineCap(c, lineAge(e.activationDate || e.createdAt, d))) || null
 }
@@ -557,7 +584,17 @@ async function onWebhook(raw, headers, body) {
   const e = await C('bsEsims').findOne({ msisdn: x.to, status: { $ne: 'replaced' } })
   if (!e) { await C('bsWebhooks').updateOne({ _id: key }, { $set: { status: 'unmatched_number' } }); return { status: 200 } }
   const peer = await C('bsEsims').findOne({ msisdn: x.from })
-  if (peer) { const code = (x.text.match(/check ([0-9a-f]{6})/) || [])[1]; const t = code && await C('bsTests').findOneAndUpdate({ type: { $in: ['loop', 'verify'] }, code, result: 'pending' }, { $set: { result: 'passed', at2: new Date() } }); if (t) await C('bsEsims').updateOne({ _id: e._id }, { $set: { recvMiss: 0, lastRecvOkAt: new Date() } }); await C('bsWebhooks').updateOne({ _id: key }, { $set: { status: 'health_test' } }); return { status: 200 } }
+  if (peer) {
+    const [, code, back] = x.text.match(/check ([0-9a-f]{6})( ok)?/) || []
+    if (code && back) { // monitor → line: the line under test received it → check passed
+      const t = await C('bsTests').findOneAndUpdate({ type: 'check', code, esimId: e._id, result: 'pending' }, { $set: { 'legs.back': true, result: 'passed', at2: new Date() } })
+      if (t) await C('bsEsims').updateOne({ _id: e._id }, { $set: { recvMiss: 0, sendMiss: 0, lastCheckOkAt: new Date(), checkedSubmitted: e.stats?.submitted || 0 } })
+    } else if (code) { // line → monitor arrived: answer so the line proves it can receive too
+      const t = await C('bsTests').findOneAndUpdate({ type: 'check', code, esimId: peer._id, result: 'pending' }, { $set: { 'legs.out': true } })
+      if (t) await C('bsMessages').insertOne(msgDoc({ cid: 'system:health', to: peer.msisdn, body: `CloudIVR line check ${code} ok`, priority: 2, esimId: e._id, system: true }))
+    }
+    await C('bsWebhooks').updateOne({ _id: key }, { $set: { status: 'health_test' } }); return { status: 200 }
+  }
   const helpOnce = isHelp && (await C('bsConfig').updateOne({ _id: `help:${x.from}:${new Date().toISOString().slice(0, 10)}` }, { $setOnInsert: { at: new Date() } }, { upsert: true })).upsertedCount
   if (newStop) {
     await C('bsMessages').insertOne(msgDoc({ cid: 'system:compliance', to: x.from, body: 'You are unsubscribed and will not get more texts from this number. Reply HELP for help.', esimId: e._id, priority: 2, system: true }))
@@ -634,6 +671,8 @@ async function plan(c) {
 }
 async function autoscale() {
   const c = await cfg(), total = await liveCount()
+  const monMissing = c.monitorEsims - await monitorCount()
+  if (monMissing > 0 && c.autoProvision && !c.manualApproval) { const r = await provisionMany(monMissing, 'monitor line', 'system', 'monitor'); if (r.ok) alert(`🩺 Bought ${r.ok} monitor eSIM(s) — it only receives and answers line checks.`) }
   const needOf = async () => { const p = await plan(c); return { p, n: Math.min(Math.max(0, c.minEsims - p.lines, ...p.rows.map(r => r.short)), Math.max(0, p.maxLines - p.lines)) } }
   for (const b of await C('bsBookings').find({ status: 'provisioning' }).toArray()) if (b.startAt < new Date() || !(await linesShort(b.date, c, { pendingToo: false }))) await setBooking(b._id, 'scheduled')
   const { p, n: need } = await needOf()
@@ -647,6 +686,24 @@ async function autoscale() {
   else if (await once(`scale:${today()}`)) alert(`📈 Capacity: ${healthy} healthy eSIM(s), ${total} total (min ${c.minEsims}); ${need} more line(s) needed for the next 7 days (${why}). Provisioning needs approval: /bulkprovision, or /bulkset autoProvision true + /bulkset manualApproval false.`)
 }
 
+// New Spenza credentials (key changed since last start): retire the old account's lines, adopt the new account's SIMs, check credit,
+// register the webhook and let autoscale buy the minimum (1 monitor + minEsims service lines) if the forecast allows it.
+async function bootstrap() {
+  const key = process.env.SPENZA_BULK_API_KEY || ''; if (!key) return { skipped: true }
+  const h = crypto.createHash('sha256').update(key).digest('hex').slice(0, 16), prev = await C('bsConfig').findOne({ _id: 'provider' })
+  if (prev?.keyHash === h) return { same: true }
+  await C('bsConfig').updateOne({ _id: 'provider' }, { $set: { keyHash: h, at: new Date() } }, { upsert: true })
+  let retired = 0
+  if (prev) { retired = (await C('bsEsims').updateMany({ status: { $nin: GONE } }, { $set: { status: 'retired', note: 'previous Spenza account', updatedAt: new Date() } })).modifiedCount; alert(`🔑 New Spenza BulkSMS credentials detected — ${retired} line(s) of the previous account retired. Syncing the new account…`) }
+  else alert('🔑 Spenza BulkSMS account connected — syncing its SIMs and credit…')
+  await syncInventory().catch(e => alert(`⚠️ Could not list the account's SIMs: ${e.message}`))
+  await creditWatch()
+  if (process.env.SELF_URL && !P.dry()) await registerWebhook(process.env.SELF_URL).catch(e => alert(`⚠️ Webhook registration failed: ${e.message}`))
+  await autoscale()
+  const c = await cfg(), st = await state(), o = { lines: await liveCount(), monitors: await monitorCount() }
+  alert(`🔑 Account ready: ${o.monitors}/${c.monitorEsims} monitor + ${o.lines}/${c.minEsims} service line(s) (new lines pass a delivery check before use) · credit $${st.credit ?? '?'}${st.forecast ? ` · free $${st.forecast.available}` : ''}${c.autoProvision && !c.manualApproval ? '' : ' · auto-buy is OFF'}.`)
+  audit('bootstrap', { retired, ...o }); return { ok: true, retired, ...o }
+}
 function init({ db, log = console.log, notifyAdmin }) {
   const own = db, url = process.env.BULK_ESIM_MONGO_URL
   S = { db: own, log, notifyAdmin }
@@ -657,8 +714,9 @@ function init({ db, log = console.log, notifyAdmin }) {
     if (process.env.BULK_ESIM_WORKER === 'false') return
     if (!configured()) { log('[BulkESIM] needs SPENZA_BULK_API_KEY/SECRET and BULK_ESIM_MONGO_URL (shared DB) — engine idle'); return }
     const every = (ms, fn, name) => setInterval(async () => { try { if (await leader()) await fn() } catch (e) { log(`[BulkESIM] ${name}: ${e.message}`) } }, ms)
+    bootstrap().catch(e => log(`[BulkESIM] bootstrap: ${e.message}`))
     setInterval(tick, 2000)
-    every(2 * MIN, creditWatch, 'credit'); every(5 * MIN, syncInventory, 'sync'); every(MIN, async () => { await finishCampaigns(); await expireHolds(); await loopTimeouts() }, 'campaigns')
+    every(2 * MIN, creditWatch, 'credit'); every(5 * MIN, syncInventory, 'sync'); every(MIN, async () => { await finishCampaigns(); await expireHolds(); await checkTimeouts(await cfg()) }, 'campaigns')
     every(10 * MIN, healthCheck, 'health'); every(30 * MIN, autoscale, 'autoscale')
     log(`[BulkESIM] engine ready (${P.dry() ? 'simulated provider' : 'live Spenza'}${url ? ', shared DB' : ''})`)
   })
@@ -667,4 +725,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { OPT, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, verifyLine, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+module.exports = { OPT, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
