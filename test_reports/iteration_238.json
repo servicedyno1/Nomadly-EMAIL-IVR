@@ -1,0 +1,31 @@
+{
+  "summary": "Tested the Overview 'Your numbers' tabs, the Landline to Texting section on My numbers, and the Landline-to-Texting setup-step emails. Everything requested passed. Overview (Alice): the Calling 8 / Mobile 4 / Texting 6 tabs show counts and switch the panel. Each tab shows at most 5 rows, with '+3 more' (to /app/numbers) and '+1 more' (to /app/texting). Texting rows link to /app/texting?id=<id>, and opening GAPCHK-2 from the Overview selects that number. Mobile rows go to /app/numbers and calling rows to /app/numbers/<enc phone>. The low-balance warning shows the earliest future renewal (GAPCHK-1, Nov 13, $50). The past-dated +19995550001 (Nov 8) was correctly left out. My numbers: the texting-lines section sits below the calling cards and mobile-lines. It shows 6 cards with the right number, status and bill text: 'Next bill Nov 13, 2026 · $50.00/month' (standalone active), 'Included with your plan on +13346972125 · no monthly fee' (plan-attached), and 'Billing starts once texting is on' (verify step). The cancelled GAPCHK-3 is not shown, and the cards open /app/texting?id=<id>. A texting-only TEST_ account sees the section and no empty state; a fresh TEST_ account with no numbers sees 'No numbers yet'. Emails: check_texting_step_emails.js matched every expectation. On the live server, GAPCHK-2 got a 'review' email and then an 'active' email when the dry-run moved it on; the cancelled GAPCHK-3 got none. textingStep renders in en/fr/es for all 7 steps, with the link, the refund and the note.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "TextingLines billText", "issue": "The plan number in 'Included with your plan on <planNumber>' skips pv.phone(), so privacy mode still shows it in full while the line's own number is masked.", "selector": "[data-testid^=texting-line-bill-]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Overview Your numbers - Texting tab", "issues": ["The subtitle reads 'Your number · Landline to Texting'. 'Your number' stands in for a country and reads oddly. Plan-attached rows show no billing hint, unlike My numbers ('Included with your plan')."]}
+    ]
+  },
+  "test_report_links": ["/app/scripts/check_texting_step_emails.js", "/app/js/tests/test_cloudivr_emails_2026-10.js", "/app/js/tests/test_texting_step_render_all.js", "/app/js/tests/helper_texting_only_account.js"],
+  "action_items": [
+    "Optional: wrap the planNumber in TextingLines billText with pv.phone() for privacy mode.",
+    "Optional: on the Overview texting rows, show 'included with plan' for plan-attached numbers and use a clearer label than 'Your number'."
+  ],
+  "critical_code_review_comments": [
+    "emails.textingSteps marks emailedStatus before sending. If send() throws (e.g. an SMTP error in live mode), that step's email is lost for good. Acceptable for at-most-once delivery, but worth knowing.",
+    "textingSteps runs find() with $expr and no index on hostedSms(status, emailedStatus), every tick. Fine at the current volume.",
+    "A number going paused then back to active sends no new email, because emailedStatus stays 'active'. Probably intended.",
+    "Numbers.js still treats any mobile item (any status, including cancelled) as 'has numbers' and hides the empty state. This is old code, not part of this change.",
+    "Bob (civr.bob@example.com) is not a 'no numbers' account any more: he has 3 calling numbers and 7 texting setups left by earlier test runs. Update test_credentials.md; I used a fresh TEST_ account for the empty state instead."
+  ],
+  "updated_files": ["/app/js/tests/test_texting_step_render_all.js (new)", "/app/js/tests/helper_texting_only_account.js (new)"],
+  "success_rate": {"backend": "100% (the depositNudge render failure in test_cloudivr_emails_2026-10.js is old and already known)", "frontend": "100%"},
+  "seed_data_creation": "I created 2 TEST_ accounts (ids 5000000000000069 and 5000000000000070) and one hostedSms doc (TESTONLY-5000000000000069), then deleted all three by id. Other records the sign-ups may have created were not removed. Ran `node scripts/seed_texting_gap_check.js clean` at the end.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "In preview the dry-run moves hostedSms from review to active within about a minute, so GAPCHK-2 shows as active a little after seeding. Email log collection: webEmailLog, keys texting:<id>:<status>:<ts>. On webAccounts, _id is numeric while hostedSms.chatId is a string. Don't rely on Bob having no numbers."
+}

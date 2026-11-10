@@ -2374,3 +2374,11 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Tested iteration_237 (backend 9/9, frontend 100%). Seed: scripts/seed_texting_gap_check.js seed|clean.
 - Note: the landing refresh (Doodles/HeroCard) was already on main in cca10e3 before this push, so it is live.
 - Backlog idea: "Your numbers" card shows first 5 only (VoIP first), so heavy VoIP accounts don't see mobile/texting rows there.
+
+
+## 2026-11-10 Your numbers tabs + Texting on My numbers + texting setup emails (DEPLOYED app-main 98c881c7/73922500)
+- Widgets.YourNumbers: Calling / Mobile / Texting tabs (only types the account has; hidden with one type), 5 rows + "+N more"; texting rows → /app/texting?id=<id>, show "included with <plan number>".
+- number/TextingLines.js: "Landline to Texting" section below mobile lines on My numbers (status from texting/NumberPanel STATUS, bill text, link). Numbers.js empty state skipped for texting-only accounts.
+- Emails: new type `textingStep` (en/fr/es). emails.textingSteps() each scanner tick: hostedSms status in verify/loa/documents/admin_docs/review/active/rejected/failed and emailedStatus != status → mark, email web accounts (always sent, no opt-out). Changes older than 6h only marked. Paused→active doesn't re-email.
+- Tested iteration_238 (100% backend + frontend).
+- WhiteLabel sync LESSON: never commit scripts outside js/cloudivr-web or frontend/src/cloudivr that require web-only files; the sync pulls the dependency in and conflicts (WL emails.js is older). Web files are web-only by design (bots don't serve the web UI), so ca702155's WL sync only carried the seed script.

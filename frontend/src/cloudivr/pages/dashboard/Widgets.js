@@ -45,7 +45,7 @@ function NumberRow({ n, i, pv }) {
     <Link to={numberLink(n)} className="flex items-center gap-4 py-4 -mx-2 px-2 rounded-lg hover:bg-[#111] transition-colors" data-testid={`dashboard-number-${i}`}>
       <div className="flex-1 min-w-0">
         <div className="font-mono text-lg truncate" data-testid={`dashboard-number-${i}-phone`}>{pv.phone(n.phoneNumber)}</div>
-        <div className="text-xs text-[#a1a1aa] mt-1">{n.countryName || n.country} · {n.planName}{n.expiresAt && <> · {n.texting ? 'next bill' : n.autoRenew ? 'renews' : 'expires'} {day(n.expiresAt)}</>}</div>
+        <div className="text-xs text-[#a1a1aa] mt-1">{n.texting ? n.planName : `${n.countryName || n.country} · ${n.planName}`}{n.planNumber && <> · included with {pv.phone(n.planNumber)}</>}{n.expiresAt && <> · {n.texting ? 'next bill' : n.autoRenew ? 'renews' : 'expires'} {day(n.expiresAt)}</>}</div>
       </div>
       <span className={statusPill(n.status)}>{n.status}</span><ChevronRight className="w-4 h-4 text-[#a1a1aa]" />
     </Link>
@@ -73,7 +73,7 @@ export function YourNumbers({ nums: voip, balance }) {
   // USA mobile numbers (two-way SMS) are numbers too; they open in the mobile section of My numbers.
   const mobile = (mob?.items || []).filter(m => ['provisioning', 'awaiting_imei', 'active', 'suspended'].includes(m.status)).map(m => ({ phoneNumber: m.phoneNumber || 'Assigning number…', mobile: true, status: m.status, expiresAt: m.expiresAt, autoRenew: m.autoRenew, planPrice: m.price, countryName: 'United States', planName: 'USA mobile number' }));
   const { data: hs } = useApi('/hosted-sms');
-  const texting = (hs?.items || []).filter(t => ['verify', 'loa', 'documents', 'admin_docs', 'review', 'active', 'paused'].includes(t.status)).map(t => ({ id: t.id, phoneNumber: t.phoneNumber, texting: true, status: t.status, expiresAt: t.planNumber ? null : t.nextBillAt, autoRenew: true, planPrice: t.planNumber ? 0 : t.monthly, countryName: 'Your number', planName: 'Landline to Texting' }));
+  const texting = (hs?.items || []).filter(t => ['verify', 'loa', 'documents', 'admin_docs', 'review', 'active', 'paused'].includes(t.status)).map(t => ({ id: t.id, phoneNumber: t.phoneNumber, texting: true, status: t.status, expiresAt: t.planNumber ? null : t.nextBillAt, autoRenew: true, planPrice: t.planNumber ? 0 : t.monthly, planNumber: t.planNumber, planName: 'Landline to Texting' }));
   if (!voip) return null;
   const groups = { calling: voip, mobile, texting };
   const nums = [...voip, ...mobile, ...texting];

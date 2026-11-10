@@ -8,8 +8,8 @@ import { STATUS } from '../texting/NumberPanel';
 
 export const LIVE_TEXTING = ['verify', 'loa', 'documents', 'admin_docs', 'review', 'active', 'paused'];
 
-const billText = (t) => (t.status !== 'active' && t.status !== 'paused' ? 'Billing starts once texting is on'
-  : t.planNumber ? `Included with your plan on ${t.planNumber} · no monthly fee`
+const billText = (t, pv) => (t.status !== 'active' && t.status !== 'paused' ? 'Billing starts once texting is on'
+  : t.planNumber ? `Included with your plan on ${pv.phone(t.planNumber)} · no monthly fee`
   : t.nextBillAt ? `Next bill ${day(t.nextBillAt)} · ${money(t.monthly)}/month` : `${money(t.monthly)}/month`);
 
 function TextingLine({ t, pv }) {
@@ -22,7 +22,7 @@ function TextingLine({ t, pv }) {
           <span className="civr-pill">Landline to Texting</span>
         </div>
         <div className={`text-sm ${s.tone || ''}`} data-testid={`texting-line-status-${t.id}`}>{s.label}</div>
-        <div className="text-xs text-[var(--c-muted)]" data-testid={`texting-line-bill-${t.id}`}>{billText(t)}</div>
+        <div className="text-xs text-[var(--c-muted)]" data-testid={`texting-line-bill-${t.id}`}>{billText(t, pv)}</div>
       </div>
       <ChevronRight className="w-4 h-4 text-[var(--c-muted)] shrink-0" />
     </Link>
