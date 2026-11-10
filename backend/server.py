@@ -117,6 +117,10 @@ app = FastAPI(lifespan=lifespan)
 # ============================================================
 # SUBACCOUNT MONITOR ENDPOINTS (must be BEFORE the proxy catch-all)
 # ============================================================
+from bulk_variants import router as bulk_variants_router
+app.include_router(bulk_variants_router)
+
+
 @app.post("/api/admin/subaccount-check")
 async def manual_subaccount_check():
     """Manually trigger a phone number health check."""

@@ -6,7 +6,7 @@ process.env.WEB_CLOUDIVR_DRY_RUN = 'true'; process.env.BULK_ESIM_WORKER = 'false
 const { MongoClient } = require('mongodb')
 const B = require('../bulk-esim/core')
 const P = require('../bulk-esim/provider-spenza')
-const COLS = ['bsConfig', 'bsEsims', 'bsEsimDaily', 'bsDemand', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation']
+const COLS = ['bsConfig', 'bsAccounts', 'bsEsims', 'bsEsimDaily', 'bsDemand', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation']
 let pass = 0, fail = 0, probes = []
 const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${cond ? '✅' : '❌'} ${name}${extra ? ` — ${extra}` : ''}`) }
 const probe = (name, bug, extra = '') => { probes.push({ name, bug }); console.log(`${bug ? '🐞 BUG' : '🟢 ok '} [probe] ${name}${extra ? ` — ${extra}` : ''}`) }
@@ -31,7 +31,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
     // (b) auto-buy on, 1000 SMS 3 days ahead
     await B.setConfig({ autoProvision: true, manualApproval: false }, 'test'); await X('bsDemand').deleteMany({})
     const rb = await B.createBooking(cid, { date: d(3), hour: 12, volume: 1000 })
-    ok('(b) 1000-SMS booking 3 days ahead accepted with zero lines', !!rb.booking && rb.booking.price === 100, JSON.stringify(rb.error || rb.booking?.allocation))
+    ok('(b) 1000-SMS booking 3 days ahead accepted with zero lines (10% schedule discount)', !!rb.booking && rb.booking.price === 90, JSON.stringify(rb.error || rb.booking?.allocation))
     const cr = await B.confirmBooking(rb.booking._id, { method: 'wallet' })
     const bk = await X('bsBookings').findOne({ _id: rb.booking._id })
     ok('(b) confirm buys ceil(1000/(320*0.8)) = 4 lines, status provisioning', cr.ok && provCalls === 4 && (await X('bsEsims').countDocuments()) === 4 && bk.status === 'provisioning', `prov=${provCalls} status=${bk.status}`)
@@ -51,7 +51,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
     const lines = await X('bsEsims').countDocuments({ status: 'available' })
     await B.setConfig({ esimDailyLimit: 3, warmupDays: 1, platformPerMin: 10000, esimPerMin: 10000 }, 'test')
     for (let i = 0; i < 20; i++) { const r = await B.sendOne(cid, `+1212555${4100 + i}`, `TEST hi ${i}`); if (r.error) console.log('sendOne', r.error) }
-    for (let i = 0; i < 30; i++) await B.tick()
+    for (let i = 0; i < 30; i++) await B.claimWorker(); await B.tick()
     const sent = await X('bsMessages').countDocuments({ cid, status: 'sent' }), queued = await X('bsMessages').countDocuments({ cid, status: 'queued' }), daily = await X('bsEsimDaily').find().toArray()
     ok(`(d) exactly lines×3 = ${lines * 3} sent, rest queued, bsEsimDaily n<=3`, sent === lines * 3 && queued === 20 - lines * 3 && daily.every(x => x.n <= 3), `sent=${sent} queued=${queued} daily=${daily.map(x => x.n)}`)
     await B.setConfig({ esimDailyLimit: 400, warmupDays: 5, platformPerMin: 30, esimPerMin: 10 }, 'test')

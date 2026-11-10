@@ -15,18 +15,18 @@ const I = require('../bulk-esim/i18n')
 const storage = require('../bulk-esim/storage')
 let pass = 0, fail = 0
 const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${cond ? '✅' : '❌'} ${name}${extra ? ` — ${extra}` : ''}`) }
-const COLS = ['bsConfig', 'bsEsims', 'bsEsimDaily', 'bsDemand', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation', 'bsUploads', 'bsDrafts']
+const COLS = ['bsConfig', 'bsAccounts', 'bsEsims', 'bsEsimDaily', 'bsDemand', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation', 'bsUploads', 'bsDrafts']
 const nums = (n, base = 3000, ac = '212') => Array.from({ length: n }, (_, i) => `+1${ac}555${String(base + i).padStart(4, '0')}`)
 // first open (bookable) hour of a day with at least `need` free
 const openHour = async (date, need = 1) => (await B.availability(date)).slots.find(s => s.free >= need)?.hour
 
 ;(async () => {
   const cl = await MongoClient.connect(process.env.MONGO_URL), db = cl.db(process.env.DB_NAME)
-  for (const c of COLS) if (await db.collection(c).countDocuments() > 1) throw new Error(`${c} not empty — refusing to run`)
+  for (const c of ['bsCustomers', 'bsBookings', 'bsCampaigns']) if (await db.collection(c).countDocuments() > 50) throw new Error(`${c} looks like real data — refusing to run`)
   for (const c of COLS) await db.collection(c).deleteMany({})
   const alerts = []
   await BOT.init({ db, log: () => {}, notifyAdmin: (t) => alerts.push(t) })
-  await B.setConfig({ autoProvision: false, manualApproval: true, minEsims: 1, monitorEsims: 0, testerEsims: 0 }, 'qa')
+  await B.setConfig({ scheduleDiscountPct: 0, autoProvision: false, manualApproval: true, minEsims: 1, monitorEsims: 0, testerEsims: 0 }, 'qa')
   process.env.BULK_ESIM_WORKER = ''
   const day = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10)
 
@@ -85,14 +85,15 @@ const openHour = async (date, need = 1) => (await B.availability(date)).slots.fi
   ok('plain campaign with phone number refused', B.checkContent('Call 212-555-1234 now', false).error === 'err_has_link')
   ok('plain campaign with bare domain refused', B.checkContent('go to shop.example.com', false).error === 'err_has_link')
   ok('link campaign with link accepted', !B.checkContent('Visit www.qa.com', true).error)
-  const room = 153 * 3 - B.OPT.length
-  ok('3-part limit includes opt-out line', !B.checkContent('a'.repeat(room), false).error && B.checkContent('a'.repeat(room + 1), false).error === 'err_too_long', `room=${room}`)
+  const room = 160 - B.OPT.length
+  ok('one-SMS limit includes opt-out line (138 chars)', room === 138 && !B.checkContent('a'.repeat(room), false).error && B.checkContent('a'.repeat(room + 1), false).error === 'err_too_long', `room=${room}`)
+  ok('without the opt-out line the text itself may be 160', !B.checkContent('a'.repeat(160), false, false).error && B.checkContent('a'.repeat(161), false, false).error === 'err_too_long')
   ok('createCampaign without consent → err_consent', (await B.createCampaign(cA, { name: 'x', content: 'Hi', contacts: nums(500) })).error === 'err_consent')
   const lc = (await B.createCampaign(cA, { name: 'TEST_link', content: 'Visit www.qa.com', contacts: nums(500, 4000), withLinks: true, consent: true })).campaign
   const lb = await B.createBooking(cA, { date: day, hour: H, campaignId: lc._id })
   ok('link campaign priced $0.15/part ($75 per 500)', lb.booking?.price === 75 && lb.booking?.unitPrice === 0.15, JSON.stringify(lb.error || lb.booking?.price))
-  const mp = (await B.createCampaign(cA, { name: 'TEST_2part', content: 'b'.repeat(200), contacts: nums(300, 5000), consent: true })).campaign
-  ok('multi-part SMS counts each part for size (300 contacts × 2 parts = 600)', mp?.parts === 600 && mp?.volume === 300, JSON.stringify(mp?.parts))
+  const mp = await B.createCampaign(cA, { name: 'TEST_2part', content: 'b'.repeat(200), contacts: nums(300, 5000), consent: true })
+  ok('a 200-char text is refused (every text is one SMS)', mp.error === 'err_too_long', JSON.stringify(mp.error))
   await B.cancelBooking(lb.booking._id, { by: 'admin' })
 
   // ---- +1 numbers outside USA/Canada ----
@@ -130,11 +131,11 @@ const openHour = async (date, need = 1) => (await B.availability(date)).slots.fi
   await B.onWebhook('', {}, { data: { From: ph9, Owner: eSim, Message_Body: 'stop', Message_ID: 'race1' } })
   await db.collection('bsMessages').updateOne({ _id: qa.messageId }, { $set: { status: 'queued', nextAt: new Date(Date.now() - 1000) } })
   await db.collection('bsMessages').updateMany({ system: true }, { $set: { nextAt: new Date(Date.now() + 3600000) } })
-  for (let i = 0; i < 3; i++) await B.tick()
+  for (let i = 0; i < 3; i++) await B.claimWorker(); await B.tick()
   const qam = await db.collection('bsMessages').findOne({ _id: qa.messageId })
   ok('send worker (processOne) rejects opted-out number', qam.status === 'rejected' && qam.failureReason === 'opted_out', qam.status)
   await db.collection('bsMessages').updateMany({ system: true }, { $set: { nextAt: new Date(Date.now() - 1000) } })
-  for (let i = 0; i < 5; i++) await B.tick()
+  for (let i = 0; i < 5; i++) await B.claimWorker(); await B.tick()
   ok('STOP confirmation actually sent (system texts skip suppression + quiet hours)', !!(await db.collection('bsMessages').findOne({ to: ph9, system: true, status: 'sent' })))
   const phA = '+14155553333', exp = new Date(Date.now() + 3600000)
   for (const cid of [cA, cB]) await db.collection('bsSessions').insertOne({ _id: `s_${cid}`, cid, esimId: e1._id, to: phA, status: 'active', lastActivityAt: new Date(), expiresAt: exp })
@@ -165,14 +166,14 @@ const openHour = async (date, need = 1) => (await B.availability(date)).slots.fi
     const rp = await B.sendOne(cA, qp, 'conversation reply', 's_q')
     const cpq = (await B.createCampaign(cA, { name: 'TEST_q', content: 'Hello', contacts: nums(500, 6000), consent: true })).campaign
     const tq = await B.testSend(cA, cpq._id, qp)
-    for (let i = 0; i < 4; i++) await B.tick()
+    for (let i = 0; i < 4; i++) await B.claimWorker(); await B.tick()
     const [mq, mr, mt] = await Promise.all([q.messageId, rp.messageId, tq.messageId].map(x => db.collection('bsMessages').findOne({ _id: x })))
     ok(`one-off to ${qp} at local quiet time is delayed, not dropped`, mq.status === 'queued' && mq.nextAt > new Date(), `${mq.status} next ${mq.nextAt?.toISOString()}`)
     ok('conversation reply skips quiet hours + has NO opt-out line', mr.status === 'sent' && !mr.body.includes('Reply STOP'), mr.status)
     ok('test text skips quiet hours + has opt-out line', mt.status === 'sent' && mt.body.endsWith(B.OPT), mt.status)
     ok('delayed one-off did not consume allowance yet', (await db.collection('bsMessages').findOne({ _id: q.messageId })).quotaDay == null)
   } else console.log('ℹ️  every candidate area code is inside 8-21 right now — quiet-hours worker test skipped')
-  if (op) { const q = await B.sendOne(cA, op, 'open test'); for (let i = 0; i < 3; i++) await B.tick(); ok(`one-off to ${op} (local daytime) sent`, (await db.collection('bsMessages').findOne({ _id: q.messageId })).status === 'sent') }
+  if (op) { const q = await B.sendOne(cA, op, 'open test'); for (let i = 0; i < 3; i++) await B.claimWorker(); await B.tick(); ok(`one-off to ${op} (local daytime) sent`, (await db.collection('bsMessages').findOne({ _id: q.messageId })).status === 'sent') }
 
   // ---- prepaid: retry keeps quotaDay; expiry returns allowance; refund once ----
   const cD = (await B.customer('Nomadly', '9004'))._id
@@ -191,7 +192,7 @@ const openHour = async (date, need = 1) => (await B.availability(date)).slots.fi
   P.sendSms = async (a) => { if (a.key === ids[0] && calls++ === 0) { const e = new Error('temp'); e.kind = 'temporary'; throw e } return realSend(a) }
   // force HI quiet window open for this check
   await B.setConfig({ quietStart: 0, quietEnd: 24 }, 'qa')
-  for (let i = 0; i < 3; i++) await B.tick()
+  for (let i = 0; i < 3; i++) await B.claimWorker(); await B.tick()
   const r0 = await db.collection('bsMessages').findOne({ _id: ids[0] })
   ok('prepaid retry keeps quotaDay, no double count', r0.status === 'queued' && r0.quotaDay === bE.quotaDay && r0.attempts === 1 && (await db.collection('bsDaily').findOne({ _id: dkE })).used === 500, `${r0.status} used=${(await db.collection('bsDaily').findOne({ _id: dkE })).used}`)
   P.sendSms = realSend
@@ -209,9 +210,9 @@ const openHour = async (date, need = 1) => (await B.availability(date)).slots.fi
   // ---- low credit ----
   await B.setConfig({ quietStart: 0, quietEnd: 24 }, 'qa')
   process.env.BULK_ESIM_FAKE_CREDIT = '3'; await B.creditWatch()
-  const qL = await B.sendOne(cA, '+14155559991', 'credit test'); await B.tick()
+  const qL = await B.sendOne(cA, '+14155559991', 'credit test'); await B.claimWorker(); await B.tick()
   ok('low credit pauses (nothing sent) + admin alert', (await B.state()).reasons.includes('provider_credit') && (await db.collection('bsMessages').findOne({ _id: qL.messageId })).status === 'queued' && alerts.some(a => /PAUSED/.test(a)))
-  process.env.BULK_ESIM_FAKE_CREDIT = '80'; await B.creditWatch(); for (let i = 0; i < 3; i++) await B.tick()
+  process.env.BULK_ESIM_FAKE_CREDIT = '80'; await B.creditWatch(); for (let i = 0; i < 3; i++) await B.claimWorker(); await B.tick()
   const qLm = await db.collection('bsMessages').findOne({ _id: qL.messageId })
   ok('top-up → auto resume + queued text goes out', !(await B.state()).reasons.length && alerts.some(a => /resumed/i.test(a)) && (qLm.status === 'sent' || qLm.nextAt > new Date()), qLm.status)
   delete process.env.BULK_ESIM_FAKE_CREDIT

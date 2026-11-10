@@ -11,8 +11,8 @@ const tg = async (msg) => { await axios.post('http://localhost:5000/telegram/web
   const st = async () => (await db.collection('state').findOne({ _id: String(CHAT) })) || {}
   await db.collection('state').updateOne({ _id: String(CHAT) }, { $set: { userLanguage: 'en', action: 'none' } }, { upsert: true })
   await db.collection('walletOf').updateOne({ _id: String(CHAT) }, { $set: { usdIn: 100, usdOut: 0 } }, { upsert: true })
-  const steps = [['🛰 eSIM BulkSMS (USA/Canada)', 'bse-home'], ['📤 New campaign', 'bse-name'], ['QA campaign', 'bse-type'], ['📝 Text only', 'bse-content'], ['Visit www.qa.com', 'bse-content'], ['Hi from QA\n---\nHello from QA', 'bse-contacts'],
-    [Array.from({ length: 510 }, (_, i) => `+1212555${2000 + i}`).join('\n'), 'bse-consent'], ['✅ Yes, they all agreed', 'bse-test'], ['🧪 Send a test SMS', 'bse-test-to'], ['+12125550999', 'bse-test'], ['➡️ Continue to booking', 'bse-day'],
+  const steps = [['🛰 eSIM BulkSMS (USA/Canada)', 'bse-home'], ['📤 New campaign', 'bse-name'], ['QA campaign', 'bse-type'], ['📝 Text only', 'bse-optout'], ['✅ Add “Reply STOP to opt out”', 'bse-content'], ['Visit www.qa.com', 'bse-content'], ['Hi from QA\n---\nHello from QA', 'bse-variants'], ['➡️ Keep my text only', 'bse-contacts'],
+    [Array.from({ length: 510 }, (_, i) => `+1212555${2000 + i}`).join('\n'), 'bse-consent'], ['✅ Yes, they all agreed', 'bse-test'], ['🧪 Send a test SMS', 'bse-test-to'], ['+12125550999', 'bse-test'], ['➡️ Continue to booking', 'bse-replies'], ['🚫 No replies', 'bse-when'], ['📅 Schedule (cheaper)', 'bse-day'],
     [new Date(Date.now() + 86400000).toISOString().slice(0, 10), 'bse-hour'], ['18:00 · x free', 'bse-pay'], ['💰 Pay from wallet', 'bse-home'], ['📅 My bookings', 'bse-home'], ['📊 Daily usage', 'bse-home']]
   for (const [text, want] of steps) { await tg({ text }); const a = (await st()).action; console.log(a === want ? '✅' : '❌', JSON.stringify(text.slice(0, 30)), '→', a) }
   const bk = await db.collection('bsBookings').findOne({ cid: `${require('../bulk-esim/bot').brand()}:${CHAT}` })

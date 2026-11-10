@@ -5,7 +5,7 @@ process.env.WEB_CLOUDIVR_DRY_RUN = 'true'; process.env.BULK_ESIM_WORKER = 'false
 const { MongoClient } = require('mongodb')
 const B = require('../bulk-esim/core')
 const P = require('../bulk-esim/provider-spenza')
-const COLS = ['bsConfig', 'bsEsims', 'bsEsimDaily', 'bsDemand', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation']
+const COLS = ['bsConfig', 'bsAccounts', 'bsEsims', 'bsEsimDaily', 'bsDemand', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation']
 let pass = 0, fail = 0
 const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${cond ? '✅' : '❌'} ${name}${extra ? ` — ${extra}` : ''}`) }
 const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().slice(0, 10)
@@ -36,7 +36,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   ok('projected capacity counts lines that can still be bought (budget $500 / $10 → 20 max)', cap3.projected === 20 && cap3.perDay === Math.floor(20 * B.lineCap(c, 4) * 0.8), JSON.stringify(cap3))
   ok('today has no projected lines, tomorrow does (lead time 1 day)', (await B.capacity(d(0), await B.cfg())).lines === 0 && (await B.capacity(d(1), await B.cfg())).projected === 20)
   const bk = await B.createBooking(cid, { date: d(3), hour: 12, volume: 1000 })
-  ok('1,000 SMS booked 3 days ahead with zero lines', !!bk.booking && bk.booking.price === 100, JSON.stringify(bk.error || bk.booking?.allocation))
+  ok('1,000 SMS booked 3 days ahead with zero lines — scheduled 24h+ ahead → 10% off ($90, list $100)', !!bk.booking && bk.booking.price === 90 && bk.booking.discountPct === 10 && bk.booking.listPrice === 100 && bk.booking.unitPrice === 0.09, JSON.stringify(bk.error || bk.booking?.allocation))
   await B.confirmBooking(bk.booking._id, { method: 'wallet' })
   const need = Math.ceil(1000 / (B.lineCap(c, 4) * 0.8)), bought = await db.collection('bsEsims').countDocuments()
   ok(`payment buys exactly the ${need} lines the booking needs`, provCalls === need && bought === need && (await db.collection('bsBookings').findOne({ _id: bk.booking._id })).status === 'provisioning', `${provCalls} bought`)
@@ -46,7 +46,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   // ---- per-line daily cap in the send loop ----
   await B.setConfig({ platformPerMin: 10000, esimPerMin: 10000, esimDailyLimit: 3, warmupDays: 1 }, 'test')
   for (let i = 0; i < 20; i++) await B.sendOne(cid, `+1212555${3000 + i}`, `hello ${i}`)
-  for (let i = 0; i < 25; i++) await B.tick()
+  for (let i = 0; i < 25; i++) await B.claimWorker(); await B.tick()
   const sentNow = await db.collection('bsMessages').countDocuments({ status: 'sent', cid }), perLine = await db.collection('bsEsimDaily').find().toArray()
   ok(`send loop stops each line at its daily cap (${need} lines × 3)`, sentNow === need * 3 && perLine.every(x => x.n <= 3) && (await db.collection('bsMessages').countDocuments({ status: 'queued', cid })) === 20 - need * 3, `${sentNow} sent`)
   await B.setConfig({ esimDailyLimit: 400, warmupDays: 0 }, 'test')
@@ -86,11 +86,11 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   await B.healthCheck()
   const vt = await db.collection('bsTests').findOne({ esimId: repl._id, type: 'check', kind: 'pre_use', result: 'pending' })
   ok('pre-use check: text queued from the new line to the monitor', !!vt && vt.peer === mon._id && (await db.collection('bsMessages').countDocuments({ esimId: repl._id, system: true, body: new RegExp(vt.code) })) === 1 && (await db.collection('bsEsims').findOne({ _id: repl._id })).status === 'testing')
-  await B.tick()
+  await B.claimWorker(); await B.tick()
   await B.onWebhook('', {}, { data: { From: repl.msisdn, Owner: mon.msisdn, Message_Body: `CloudIVR line check ${vt.code}`, Message_ID: 'v1' } })
   const back = await db.collection('bsMessages').findOne({ esimId: mon._id, system: true, body: `CloudIVR line check ${vt.code} ok` })
   ok('monitor received it → answers from the monitor line', !!back && back.to === repl.msisdn && (await db.collection('bsTests').findOne({ _id: vt._id })).legs.out === true)
-  await B.tick()
+  await B.claimWorker(); await B.tick()
   await B.onWebhook('', {}, { data: { From: mon.msisdn, Owner: repl.msisdn, Message_Body: `CloudIVR line check ${vt.code} ok`, Message_ID: 'v2' } })
   await B.healthCheck()
   ok('answer arrives → check passed → new number joins the pool', (await db.collection('bsEsims').findOne({ _id: repl._id })).status === 'available' && (await db.collection('bsTests').findOne({ _id: vt._id })).result === 'passed')
@@ -169,7 +169,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   ok('line history report lists every line with days + incidents', hist.length === (await db.collection('bsEsims').countDocuments()) && hist.some(h => h.days.length) && hist.some(h => h.incidents.length), `${hist.length} lines`)
   // ---- new Spenza credentials → bootstrap buys only the tester line; monitor + 2 starters come with the first paid booking ----
   for (const col of ['bsEsims', 'bsBookings', 'bsDemand', 'bsTests', 'bsMessages', 'bsCampaigns', 'bsDaily']) await db.collection(col).deleteMany({})
-  await db.collection('bsConfig').deleteMany({ _id: { $in: ['settings', 'provider', 'esimSeq', `scale:${d(0)}`] } })
+  await db.collection('bsConfig').deleteMany({ _id: { $in: ['settings', 'provider', 'esimSeq', `scale:${d(0)}`] } }); await db.collection('bsAccounts').deleteMany({})
   await B.setConfig({ quietStart: 8, quietEnd: 21 }, 'test')
   process.env.SPENZA_BULK_API_KEY = 'key-one'; process.env.BULK_ESIM_FAKE_CREDIT = '500'; alerts.length = 0; provCalls = 0
   const b1 = await B.bootstrap()
@@ -180,7 +180,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   const tester = await db.collection('bsEsims').findOne({ role: 'tester' })
   ok('tester line passed its check and is ready (not in the sending pool)', tester.status === 'available' && (await B.capacity(d(0), await B.cfg())).lines === 0)
   const cust2 = await B.customer('Nomadly', '777'), cp2 = await B.createCampaign(cust2._id, { name: 'First', content: 'Hello there', contacts: Array.from({ length: 520 }, (_, i) => `+1212555${4000 + i}`), consent: true })
-  const ts = await B.testSend(cust2._id, cp2.campaign._id, '+12125550777'); await B.setConfig({ quietStart: 0, quietEnd: 24 }, 'test'); await B.tick(); await B.setConfig({ quietStart: 8, quietEnd: 21 }, 'test')
+  const ts = await B.testSend(cust2._id, cp2.campaign._id, '+12125550777'); await B.setConfig({ quietStart: 0, quietEnd: 24 }, 'test'); await B.claimWorker(); await B.tick(); await B.setConfig({ quietStart: 8, quietEnd: 21 }, 'test')
   const tm = await db.collection('bsMessages').findOne({ _id: ts.messageId })
   ok('customer test text goes out through the tester line before any service line exists', ts.ok && tm.status === 'sent' && tm.esimId === tester._id, `${tm.status} via ${tm.esimId}`)
   const first = await B.createBooking(cust2._id, { date: d(1), hour: 16, campaignId: cp2.campaign._id })
@@ -191,7 +191,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   ok('then the model keeps room for one more full booking → grows', provCalls === Math.ceil(2520 / 320) - 2, `+${provCalls}`)
   process.env.SPENZA_BULK_API_KEY = 'key-two'; alerts.length = 0; provCalls = 0
   const b2 = await B.bootstrap()
-  ok('new credentials → old lines retired, new account bootstrapped again (tester only)', b2.ok && b2.retired >= 4 && b2.testers === 1 && b2.monitors === 0 && provCalls === 1 && alerts.some(a => /New Spenza BulkSMS credentials detected/.test(a)) && (await db.collection('bsEsims').countDocuments({ status: 'retired' })) === b2.retired, JSON.stringify(b2))
+  ok('new credentials → old lines retired, new account bootstrapped again (tester only)', b2.ok && b2.retired >= 4 && b2.testers === 1 && b2.monitors === 0 && provCalls === 1 && alerts.some(a => /New credentials for Spenza account #1/.test(a)) && (await db.collection('bsEsims').countDocuments({ status: 'retired' })) === b2.retired, JSON.stringify(b2))
   ok('bootstrap without credit does not buy', await (async () => { process.env.SPENZA_BULK_API_KEY = 'key-three'; process.env.BULK_ESIM_FAKE_CREDIT = '12'; await B.creditWatch(); provCalls = 0; const b3 = await B.bootstrap(); return b3.ok && provCalls === 0 && b3.testers === 0 })())
   delete process.env.SPENZA_BULK_API_KEY
   // next free day for a full day
@@ -266,13 +266,13 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   await B.setConfig({ platformPerMin: 30 }, 'test')
   process.env.BULK_ESIM_FAKE_RATE = '20,0,5'; alerts.length = 0
   const held = await B.paceByHeaders(await B.cfg())
-  ok('X-RateLimit: limit 20 adopted as platformPerMin + admin told', held === true && (await B.cfg()).platformPerMin === 20 && alerts.some(a => /rate limit is 20\/min/.test(a)))
-  await B.sendOne(ipCid, '+12125559999', 'rate test'); await B.tick()
+  ok('X-RateLimit: limit 20 adopted as the account rate + admin told', held === true && (await B.cfg()).accounts[0].perMin === 20 && B.ratePerMin(await B.cfg()) === 20 && alerts.some(a => /rate limit is 20\/min/.test(a)))
+  await B.sendOne(ipCid, '+12125559999', 'rate test'); await B.claimWorker(); await B.tick()
   ok('remaining 0 → nothing sent until the window resets', (await db.collection('bsMessages').countDocuments({ cid: ipCid, body: /rate test/, status: 'queued' })) === 1)
-  process.env.BULK_ESIM_FAKE_RATE = '1000,999,55'; await B.setConfig({ quietStart: 0, quietEnd: 24, esimDailyLimit: 5000 }, 'test'); await B.tick()
+  process.env.BULK_ESIM_FAKE_RATE = '1000,999,55'; await B.setConfig({ quietStart: 0, quietEnd: 24, esimDailyLimit: 5000 }, 'test'); await B.claimWorker(); await B.tick()
   const rm = await db.collection('bsMessages').findOne({ cid: ipCid, body: /rate test/ })
   ok('window open again → sends', rm.status === 'sent', `${rm.status} ${rm.failureReason || ''} ${JSON.stringify(rm.history.slice(-2))} lines=${JSON.stringify(await db.collection('bsEsims').find({ role: 'service' }, { projection: { status: 1, health: 1 } }).toArray())}`)
-  delete process.env.BULK_ESIM_FAKE_RATE; await B.setConfig({ platformPerMin: 30 }, 'test')
+  delete process.env.BULK_ESIM_FAKE_RATE; await B.setConfig({ platformPerMin: 30 }, 'test'); await B.setAccount('spenza1', { perMin: null })
   console.log(`\n${pass} passed, ${fail} failed`)
   for (const c of COLS) await db.collection(c).deleteMany({})
   await cl.close(); process.exit(fail ? 1 : 0)

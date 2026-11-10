@@ -1,10 +1,12 @@
 require('dotenv').config({ path: '/app/backend/.env' })
-process.env.WEB_CLOUDIVR_DRY_RUN = 'true'; process.env.BULK_ESIM_WORKER = 'false'
+process.env.WEB_CLOUDIVR_DRY_RUN = 'true'; process.env.BULK_ESIM_WORKER = 'false'; process.env.BULK_ESIM_FAKE_CREDIT = '500'
 const axios = require('axios'), { MongoClient } = require('mongodb'), B = require('../bulk-esim/core'), BOT = require('../bulk-esim/bot')
 const CHAT = 990000111
 ;(async () => {
   const cl = await MongoClient.connect(process.env.MONGO_URL), db = cl.db(process.env.DB_NAME); await B.init({ db, log: () => {} })
-  const cid = B.cidOf(BOT.brand(), CHAT), cr = await B.createCampaign(cid, { name: 'Pay', content: 'x', consent: true, contacts: Array.from({ length: 500 }, (_, i) => `+1212555${3000 + i}`) }), cp = cr.campaign
+  if (!(await db.collection('bsEsims').countDocuments({ status: 'available' }))) { await B.setConfig({ monitorEsims: 0, testerEsims: 0 }, 'test'); for (let i = 0; i < 5; i++) await B.provisionOne('qa'); await B.healthCheck() }
+  await B.creditWatch()
+  const cid = B.cidOf(BOT.brand(), CHAT); await B.customer(BOT.brand(), String(CHAT)); const cr = await B.createCampaign(cid, { name: 'Pay', content: 'x', consent: true, contacts: Array.from({ length: 500 }, (_, i) => `+1212555${3000 + i}`) }), cp = cr.campaign
   if (!cp) throw new Error(`createCampaign: ${JSON.stringify(cr)}`)
   const date = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10), { slots } = await B.availability(date), hour = slots.find(x => x.free >= 500)?.hour
   const br = await B.createBooking(cid, { date, hour, volume: 500, campaignId: cp._id }), bk = br.booking
