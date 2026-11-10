@@ -2507,3 +2507,12 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Bulk IVR limit stays 500 numbers/campaign (bot + web, prod env BULK_CALL_MAX_LEADS=500); web shows counter, hints, Help FAQ; bot upload step says so.
 - BulkSMS prod verified: min 500 / max 2000 per campaign / 2000 per day, no DB overrides.
 - CloudIVR FR/ES dictionary filled (280 strings). Preview test accounts deleted.
+
+## 2026-11-10 — Country code required everywhere (owner rule)
+- Bare 10-digit / national 0… numbers are REJECTED with the fix (never silently +1): BulkSMS upload (core.normPhone/parseContacts → noCode note),
+  BulkSMS single SMS + test number, Bulk IVR lists (contacts-import toPlus/numberIssue — bot + web), single IVR bot (ivrObEnterTarget, 5 langs),
+  web normPhone (numbers.js: quick call, relay, outbound targets/transfer, test-call), web New message.
+- Prompts say it up front: BulkSMS contacts/test/one-SMS (5 langs), bot cp_25 / cp_132 (5 langs), web campaign counter warns "no country code".
+- Tests: tests/test_country_code_required.js 9/9, contacts_import 9/9, dial_check 29/29 (expectations updated to the new rule).
+- BulkSMS wallet pay on the shared invoice now returns to BulkSMS home.
+- Known pre-existing: test_bulk_esim_stop_upload_iter239 TypeError (fails before these changes too); iter243 journey 1 flaky AI-cache assertion.

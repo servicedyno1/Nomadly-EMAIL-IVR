@@ -75,7 +75,7 @@ function firstForward(menu) {
 
 function parseTargets(b) {
   const raw = Array.isArray(b.targets) ? b.targets : String(b.targets || b.to || '').split(/[,;\s]+/)
-  const list = [...new Set(raw.map(x => { let d = String(x || '').replace(/[^\d+]/g, ''); if (/^\d{10}$/.test(d)) d = `+1${d}`; return normPhone(d) }).filter(Boolean))]
+  const list = [...new Set(raw.map(x => normPhone(x) || String(x || '').trim()).filter(Boolean))] // no country code → kept raw so the E164 check rejects it with the fix
   return list
 }
 

@@ -3,7 +3,7 @@ import { X, PenSquare } from 'lucide-react';
 import { api } from '../../api';
 
 const E164 = /^\+[1-9]\d{7,14}$/;
-const norm = (s) => { const d = String(s || '').replace(/[^\d+]/g, ''); if (!d) return ''; if (d.startsWith('+')) return d; return d.length === 10 ? `+1${d}` : `+${d}`; };
+const norm = (s) => { const d = String(s || '').replace(/[^\d+]/g, '').replace(/^00/, '+'); if (!d) return ''; if (d.startsWith('+')) return d; return /^1\d{10}$/.test(d) ? `+${d}` : ''; };
 
 // Start a conversation: pick the business number to send from, then type a number or pick a contact.
 export function NewMessage({ numbers, onStart }) {

@@ -724,6 +724,18 @@ const LINKS = {
   fa: { err_link_flagged: (l) => `⛔ <b>لینک ناامن.</b> ${l} ناامن تشخیص داده شد (فیشینگ یا بدافزار). برای ادامه حذف یا جایگزینش کنید.`, err_link_flagged_all: '⛔ همه نسخه‌ها لینک ناامن دارند — این کمپین قابل تست یا رزرو نیست.', n_link_flagged: (name, l, n, all) => `⛔ «${name}»: ${l} ناامن تشخیص داده شد. ${n} پیامک با این لینک متوقف شد (بدون بازپرداخت).${all ? ' کمپین متوقف شد.' : ' نسخه‌های دیگر شما ادامه دارند.'}` },
 }
 for (const [l, d] of Object.entries(LINKS)) Object.assign(LANGS[l], d)
+// Country code is required on every number (owner rule): numbers like 4155550100 are rejected with how to fix them.
+const CC = {
+  en: { cc: 'Include the country code: <code>+14155550100</code>', err_number: '📞 Include the country code: +1 then 10 digits, e.g. <code>+14155550100</code>.', nocode: (n) => `⚠️ ${n} number(s) left out — no country code. Add +1 in front (e.g. <code>+14155550100</code>) and send them again.` },
+  fr: { cc: 'Indiquez l’indicatif pays : <code>+14155550100</code>', err_number: '📞 Indiquez l’indicatif pays : +1 puis 10 chiffres, ex. <code>+14155550100</code>.', nocode: (n) => `⚠️ ${n} numéro(s) écarté(s) — sans indicatif pays. Ajoutez +1 devant (ex. <code>+14155550100</code>) et renvoyez-les.` },
+  zh: { cc: '请包含国家代码：<code>+14155550100</code>', err_number: '📞 请包含国家代码：+1 加 10 位数字，例如 <code>+14155550100</code>。', nocode: (n) => `⚠️ ${n} 个号码未计入 — 缺少国家代码。请在前面加 +1（如 <code>+14155550100</code>）后重新发送。` },
+  hi: { cc: 'देश कोड ज़रूर लिखें: <code>+14155550100</code>', err_number: '📞 देश कोड ज़रूर लिखें: +1 और फिर 10 अंक, जैसे <code>+14155550100</code>।', nocode: (n) => `⚠️ ${n} नंबर छोड़े गए — देश कोड नहीं है। आगे +1 लगाएँ (जैसे <code>+14155550100</code>) और फिर से भेजें।` },
+  fa: { cc: 'کد کشور را بنویسید: <code>+14155550100</code>', err_number: '📞 کد کشور را بنویسید: +1 و سپس ۱۰ رقم، مثلاً <code>+14155550100</code>.', nocode: (n) => `⚠️ ${n} شماره کنار گذاشته شد — بدون کد کشور. +1 را جلوی آن‌ها بگذارید (مثلاً <code>+14155550100</code>) و دوباره بفرستید.` },
+}
+for (const [l, d] of Object.entries(CC)) {
+  const P = LANGS[l], q = P.contacts_q, tq = P.test_to_q, oq = P.one_to_q
+  Object.assign(P, { err_number: d.err_number, nocode: d.nocode, contacts_q: (o) => `${q(o)}\n📞 ${d.cc}`, test_to_q: (free) => `${tq(free)}\n${d.cc}`, one_to_q: `${oq}\n${d.cc}` })
+}
 
 const pack = (lang) => LANGS[lang] || en
 function t(lang, key, ...args) {

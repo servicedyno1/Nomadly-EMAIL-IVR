@@ -967,6 +967,14 @@ const _BULK_ROT = {
   fa: { btn: '🔁 چرخش شناسه‌های تماس‌گیرنده', done: '✅ انجام شد', verified: 'تأییدشده', none: '🔁 هنوز شناسه تماس‌گیرنده دیگری ندارید — ابتدا شماره دیگری بخرید یا شناسه خود را تأیید کنید.', title: 'چرخش شناسه‌های تماس‌گیرنده', help: 'برای افزودن یا حذف، روی شماره‌ها بزنید. هر تماس در جریان از شناسه متفاوتی استفاده می‌کند تا همه حجم روی یک شماره نباشد.', sel: (n, cid) => `انتخاب‌شده: <b>${n}</b> (شامل ${cid}) ← ${n} تماس همزمان.`, rotating: (n) => `🔁 چرخش بین <b>${n}</b> شناسه — ${n} تماس همزمان.`, max: (n) => `🔁 حداکثر ${n} شناسه در هر کمپین.`, more: (m, n) => ` + ${m} مورد دیگر (🔁 چرخشی، ${n} تماس همزمان)` },
 }
 const _bulkRot = (lang) => _BULK_ROT[lang] || _BULK_ROT.en
+const _CC_MISSING = {
+  en: (n, ex) => `📞 <b>${n}</b> has no country code.\nAdd it in front and send it again — e.g. <code>${ex}</code> (USA/Canada) or <code>+44…</code> (UK).`,
+  fr: (n, ex) => `📞 <b>${n}</b> n’a pas d’indicatif pays.\nAjoutez-le devant et renvoyez — ex. <code>${ex}</code> (USA/Canada) ou <code>+44…</code> (R.-U.).`,
+  zh: (n, ex) => `📞 <b>${n}</b> 缺少国家代码。\n请在前面加上后重新发送 — 例如 <code>${ex}</code>（美国/加拿大）或 <code>+44…</code>（英国）。`,
+  hi: (n, ex) => `📞 <b>${n}</b> में देश कोड नहीं है।\nआगे जोड़कर फिर भेजें — जैसे <code>${ex}</code> (USA/कनाडा) या <code>+44…</code> (UK)।`,
+  fa: (n, ex) => `📞 <b>${n}</b> کد کشور ندارد.\nآن را جلوی شماره بگذارید و دوباره بفرستید — مثلاً <code>${ex}</code> (آمریکا/کانادا) یا <code>+44…</code> (انگلیس).`,
+}
+const _ccMissing = (lang, n) => (_CC_MISSING[lang] || _CC_MISSING.en)(n, /^\d{10}$/.test(n) ? `+1${n}` : '+14155550100')
 const _isBulkRotBtn = (m) => Object.values(_BULK_ROT).some(t => t.btn === m)
 const _isBulkRotDone = (m) => Object.values(_BULK_ROT).some(t => t.done === m)
 const _bulkEsc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -14006,7 +14014,9 @@ Enter new value:`), bc)
 
       if (productKey === bulkEsimBot.PRODUCT_KEY) {
         const r = await bulkEsimBot.paidFromWallet(chatId, info, priceUsd)
-        return send(chatId, r.text, trans('o'))
+        if (!r.ok) return send(chatId, r.text, trans('o'))
+        await set(state, chatId, 'action', 'bse-home'); await send(chatId, r.text)
+        return bulkEsimBot.showHome(send, chatId, lang)
       }
       // USA T-Mobile eSIM: the same automatic Spenza order as the web (it charges the wallet itself, refunds on failure).
       if (productKey === esimBot.PRODUCT_KEY) {
@@ -26684,15 +26694,11 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return send(chatId, trans('t.cp_26'), k.of(rows))
     }
     const clean = message.replace(/[^+\d,\s]/g, '')
-    // Check for batch numbers (comma-separated) — auto-prepend +1 for 10-digit US numbers
-    const rawNumbers = clean.split(/[,\s]+/).map(n => {
-      let num = n.trim().replace(/[^+\d]/g, '')
-      // Auto-correct: 10-digit number without country code → prepend +1 (US)
-      if (/^\d{10}$/.test(num)) num = '+1' + num
-      // Auto-correct: +10digits (missing country code 1) → +1 + 10digits
-      if (/^\+\d{10}$/.test(num) && /^\+[2-9]/.test(num)) num = '+1' + num.slice(1)
-      return num
-    }).filter(n => n.match(/^\+\d{10,15}$/))
+    // Country code required (owner rule): 4155550100 is rejected with how to fix it — never guessed as +1.
+    const _toks = clean.split(/[,\s]+/).map(n => n.trim().replace(/[^+\d]/g, '').replace(/^00/, '+')).filter(Boolean)
+    const _noCc = _toks.find(n => !n.startsWith('+') && !/^1\d{10}$/.test(n))
+    if (_noCc) return send(chatId, _ccMissing(lang, _noCc), k.of([]))
+    const rawNumbers = _toks.map(n => (n.startsWith('+') ? n : '+' + n)).filter(n => n.match(/^\+\d{10,15}$/))
     if (rawNumbers.length === 0) {
       return send(chatId, trans('t.cp_27'), k.of([]))
     }

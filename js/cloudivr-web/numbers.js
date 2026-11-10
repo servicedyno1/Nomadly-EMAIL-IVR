@@ -20,7 +20,8 @@ const E164 = /^\+[1-9]\d{7,14}$/
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const webText = (s) => String(s).replace(/Telegram/g, 'your inbox')
 
-const normPhone = (p) => { const d = String(p || '').replace(/[^\d+]/g, ''); return d ? (d.startsWith('+') ? d : `+${d}`) : '' }
+// Country code required (owner rule 2026-11): 4155550100 / 07911… are rejected instead of guessed.
+const normPhone = (p) => { const d = String(p || '').replace(/[^\d+]/g, '').replace(/^00/, '+'); if (!d) return ''; if (d.startsWith('+')) return d; return /^1\d{10}$/.test(d) || (d.length > 11 && !d.startsWith('0')) ? `+${d}` : '' }
 // Numbers typed to dial (forward-to, backups, IVR forward keys): the bot's auto-correct (10-digit US → +1).
 const dialNorm = require('../backup-numbers').norm
 const { dialIssue } = require('../dial-check')

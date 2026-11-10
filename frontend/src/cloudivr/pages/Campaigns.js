@@ -145,7 +145,11 @@ const MAX_LEADS = 500;
 function LeadCount({ text }) {
   const n = text.split('\n').filter(l => /\d{7,}/.test(l.replace(/\D/g, ''))).length;
   if (!n) return null;
-  return <div className={`text-xs mt-1 ${n > MAX_LEADS ? 'text-[#f87171]' : 'text-[#a1a1aa]'}`} data-testid="campaign-leads-count">{n > MAX_LEADS ? `${n} numbers — campaigns can call up to ${MAX_LEADS}. Split the list into smaller campaigns.` : `${n} of ${MAX_LEADS} numbers`}</div>;
+  const noCc = text.split('\n').map(l => (l.split(/[,;\t]/)[0] || '').trim()).filter(t => t && !/^(\+|00)/.test(t) && !/^1\d{10}$/.test(t.replace(/\D/g, '')) && /\d{7,}/.test(t.replace(/\D/g, ''))).length;
+  return (<>
+    <div className={`text-xs mt-1 ${n > MAX_LEADS ? 'text-[#f87171]' : 'text-[#a1a1aa]'}`} data-testid="campaign-leads-count">{n > MAX_LEADS ? `${n} numbers — campaigns can call up to ${MAX_LEADS}. Split the list into smaller campaigns.` : `${n} of ${MAX_LEADS} numbers`}</div>
+    {noCc > 0 && <div className="text-xs mt-1 text-[#fbbf24]" data-testid="campaign-leads-nocc">{noCc === 1 ? '1 number has no country code. Add it in front (e.g. +14155550100) before starting.' : `${noCc} numbers have no country code. Add it in front (e.g. +14155550100) before starting.`}</div>}
+  </>);
 }
 
 function LeadsField({ value, onChange, source, onSource, listId, onList }) {

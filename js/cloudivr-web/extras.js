@@ -101,7 +101,7 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
     let to = null
     if (req.body?.to) {
       const raw = String(req.body.to).replace(/[^\d+]/g, '')
-      to = raw.startsWith('+') ? raw : raw.length === 10 ? `+1${raw}` : `+${raw}`
+      to = require('./numbers').normPhone(raw)
       if (!/^\+[1-9]\d{7,14}$/.test(to)) return bad(res, 400, 'invalid_number', 'Enter the phone number with country code, e.g. +14155550100.')
       const issue = require('../dial-check').dialIssue(to)
       if (issue) return bad(res, 400, 'invalid_number', issue)
