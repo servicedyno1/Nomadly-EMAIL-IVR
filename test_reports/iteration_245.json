@@ -1,0 +1,26 @@
+{
+  "summary": "Frontend-only test of the country-code warnings and the scheduled-campaign notification hint (preview, CloudIVR web). Signed up a fresh account qa.cc1794350432@example.com / QaTest#2026x (no numbers). Playwright faked GET /api/cloudivr-web/numbers (2 fake active Pro numbers) to open /cloudivr/app/campaigns/new, and faked GET /api/cloudivr-web/messages (1 fake texting-capable VoIP number, no threads) to show the New message button. Only the browser saw the fakes; no backend data was changed and no campaign was saved or launched. All 4 requested items PASS. (1) Leads '+14155550100\\n4155550101\\n4155550102' shows '3 of 500 numbers' and the amber campaign-leads-nocc '2 numbers have no country code. Add it in front (e.g. +14155550100) before starting.' (amber rgb(180,83,9) on the light theme, readable). With one such line it reads '1 number has no country code…'. With '+1…', '14155550102' and '0044…' lines only, the warning goes away and the counter shows 4. (2) The Schedule hint text is exact. (3) In New message, 4155550123 keeps Start conversation disabled and shows 'Type the full number with country code, like +14155550123.'. +14155550123, 14155550123, '+1 (415) 555-0123' and '004420 7946 0958' all turn it on. (4) FR and ES translate the counter, both warning forms, the schedule hint, the New message hint and the button.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Messages (ES)", "issues": ["Minor, probably existed before: the filter chip row clips the last chip ('Llamadas perdidas' shows as 'Lla…') with no visible scroll cue at 1920px. Cosmetic only."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Delete the test account qa.cc1794350432@example.com (it has no numbers, campaigns or deposits)"
+  ],
+  "critical_code_review_comments": [
+    "LeadCount (Campaigns.js line 148) and NewMessage norm (line 6) both accept 11 digits starting with 1 (e.g. 14155550100) as having a country code. The two agree, and per the agent note the backend does too. Make sure that stays true, so the UI never passes a number the backend rejects.",
+    "NewMessage norm keeps any '+…' string. '+4155550123' (a mistyped +1) passes E164 and enables the button. That is expected for E.164, but the backend has to validate it."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend only)", "frontend": "100% (4/4 requested items, EN/FR/ES)"},
+  "test_credentials": "Created qa.cc1794350432@example.com / QaTest#2026x (CloudIVR web, no numbers, $0). The main agent should delete it.",
+  "seed_data_creation": "One sign-up account only (above).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "CloudIVR web is at /cloudivr. To get past the no-number empty states, use page.route to fake: GET **/api/cloudivr-web/numbers -> {numbers:[{phoneNumber,status:'active',plan:'pro',access:{bulkCall:true}}]} for campaigns; and GET **/api/cloudivr-web/messages?* -> {numbers:[{phone,kind:'calling',caps:{send:true,...},old:false}],threads:[],allTags:[]} for Messages. Fulfil it fully: route.fetch() pass-through came back with 'Please sign in again.'. Switch language: topbar-account-menu > topbar-lang-switcher > topbar-lang-switcher-option-{en|fr|es}. Click cookie-allow-all on the login page first."
+}

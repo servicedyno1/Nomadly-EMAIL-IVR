@@ -2516,3 +2516,12 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Tests: tests/test_country_code_required.js 9/9, contacts_import 9/9, dial_check 29/29 (expectations updated to the new rule).
 - BulkSMS wallet pay on the shared invoice now returns to BulkSMS home.
 - Known pre-existing: test_bulk_esim_stop_upload_iter239 TypeError (fails before these changes too); iter243 journey 1 flaky AI-cache assertion.
+
+## 2026-11-10 — Prod report + auto-notify awareness
+- Prod report (read-only): custom caller ID — Nomadly 94 calls placed with a custom ID (bulk 64 / SIP 13 / SIP tests 17), 8 IDs, 1 carrier decline (auto-retried from own number);
+  Voodoo 6 SIP test calls, 0 declines; Smadav/Proshop none. BulkSMS — 0 campaign tests, 0 bookings; 8 users sent 16 single SMS (all carrier-accepted);
+  tester +16317901824 + monitor +16317900834 healthy; ESIM-0001 failed (pre-IMEI, no number). Checks: 6 h for tester+monitor regardless of traffic.
+- Bot Bulk IVR: rejected-line reasons summarised in user's language (_leadErrSummary); "Schedule for later" + launch/fail notices localized (5 langs) with auto-notify line.
+- BulkSMS: booking + paid_ok say start/finish are messaged automatically (5 langs). Web: schedule hint + toast say Inbox notifies start/finish.
+- Fixed old test test_bulk_esim_stop_upload_iter239 (84/84; expectations matched readiness gate + country-code rule). Messages filter chips wrap (ES clipping).
+- Tests: tests/test_bulkivr_errs_sched_i18n.js 6/6; frontend iteration_245 all pass.

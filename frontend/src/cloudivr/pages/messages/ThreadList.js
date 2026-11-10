@@ -22,7 +22,7 @@ export function ThreadList({ data, sel, onPick, filter, setFilter, q, setQ, mult
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--c-muted)]" />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search name, number or text" aria-label="Search conversations" className="civr-input !pl-9 w-full" data-testid="messages-search" />
         </label>
-        <div className="flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label="Filter conversations">
+        <div className="flex flex-wrap gap-1.5 pb-1" role="tablist" aria-label="Filter conversations">
           {FILTERS.map(([k, label]) => <button key={k} type="button" role="tab" aria-selected={filter === k} onClick={() => setFilter(k)} className={`shrink-0 h-9 px-2.5 rounded-full text-sm transition-colors ${filter === k ? 'bg-[var(--c-accent-strong)] text-white' : 'border border-[var(--c-border)] text-[var(--c-muted)] hover:text-[var(--c-text)]'}`} data-testid={`messages-filter-${k}`}>{label}</button>)}
         </div>
         {data?.allTags?.length > 0 && <select value={tag} onChange={e => setTag(e.target.value)} aria-label="Filter by tag" className="civr-input !h-9 w-full text-sm" data-testid="messages-tag-filter"><option value="">All tags</option>{data.allTags.map(x => <option key={x} value={x}>{x}</option>)}</select>}
