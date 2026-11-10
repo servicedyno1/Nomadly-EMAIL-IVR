@@ -13,7 +13,7 @@ const DEFAULTS = {
   minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2,
   minEsims: 1, maxEsims: 20, autoProvision: false, manualApproval: true, provisionThreshold: 0.8, provisionBudget: 100,
   minCredit: 10, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
-  esimDailyLimit: 400, warmupDays: 5, warmupStart: 50, leadDays: 2, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3,
+  esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, spareDaily: 2000, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3,
 }
 const today = () => new Date().toISOString().slice(0, 10)
 const daysAhead = (date) => Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(today())) / 86400000)
@@ -156,9 +156,16 @@ async function provisionFor(reason, computeNeed, buy = true) {
   if (!(await lock('provision', 120000))) return { need: 0, ok: 0, error: 'busy' }
   try { const need = await computeNeed(); const r = need && buy ? await provisionMany(need, reason) : { ok: 0, error: null }; return { need, ...r } } finally { await unlock('provision') }
 }
+// Per line per day: n = new conversations (counts against the cap), out/sent/failed/session, in/stops, plus the line's age that day.
+async function lineLog(e, c, inc) {
+  const d = dayKey(Date.now(), c), age = lineAge(e.activationDate || e.createdAt, d)
+  await C('bsEsimDaily').updateOne({ _id: `${e._id}:${d}` }, { $inc: inc, $set: { age }, $setOnInsert: { esimId: e._id, day: d } }, { upsert: true }).catch(() => {})
+}
 // Provider-suspended / restricted line: ask for a new number (bounded per day); the new number must pass a delivery test.
 async function autoReplace(e, why, c) {
   if (!c.autoReplace || e.replacedBy || e.status === 'replaced') return
+  const d = dayKey(Date.now(), c), last7 = await C('bsEsimDaily').find({ esimId: e._id }, { sort: { day: -1 }, limit: 7, projection: { _id: 0, day: 1, age: 1, n: 1, out: 1, sent: 1, failed: 1, in: 1, stops: 1 } }).toArray()
+  incident('line_suspended', { esimId: e._id, msisdn: e.msisdn, why, age: lineAge(e.activationDate || e.createdAt, d), stats: e.stats, last7 })
   const key = `replaces:${today()}`, r = await C('bsConfig').updateOne({ _id: key, n: { $not: { $gte: c.maxReplacesPerDay } } }, { $inc: { n: 1 }, $set: { at: new Date() } }, { upsert: true }).catch(x => (x.code === 11000 ? null : Promise.reject(x)))
   if (!r || !(r.modifiedCount || r.upsertedCount)) { if (await once(`replimit:${today()}:${e._id}`)) alert(`⚠️ ${e._id} ${e.msisdn || ''}: ${why} — today's auto-replacement limit (${c.maxReplacesPerDay}) is reached. /bulkreplace ${e._id} to do it by hand.`); return }
   const x = await replaceEsim(e._id, `auto: ${why}`, 'system')
@@ -454,17 +461,17 @@ async function processOne(m, c) {
   win.all.push(Date.now()); (win.esim[e._id] ||= []).push(Date.now())
   await mark(m, 'submitted', { esimId: e._id, from: e.msisdn, quotaDay: day, submittedAt: new Date() })
   await C('bsEsims').updateOne({ _id: e._id }, { $inc: { 'stats.submitted': 1 } })
-  if (!m.system && !m.sessionId) { const d = dayKey(Date.now(), c); await C('bsEsimDaily').updateOne({ _id: `${e._id}:${d}` }, { $inc: { n: 1 }, $setOnInsert: { esimId: e._id, day: d } }, { upsert: true }) }
+  if (!m.system) await lineLog(e, c, { n: m.sessionId ? 0 : 1, out: 1, session: m.sessionId ? 1 : 0 })
   try {
     await P.sendSms({ from: e.msisdn, to: m.to, text: m.body, key: m._id })
-    await mark(m, 'sent', { sentAt: new Date() }); await C('bsEsims').updateOne({ _id: e._id }, { $inc: { 'stats.sent': 1 } })
+    await mark(m, 'sent', { sentAt: new Date() }); await C('bsEsims').updateOne({ _id: e._id }, { $inc: { 'stats.sent': 1 } }); if (!m.system) await lineLog(e, c, { sent: 1 })
     if (day) await countDay(m.cid, day, 'sent')
     if (!m.system) await C('bsSessions').updateOne({ cid: m.cid, esimId: e._id, to: m.to }, { $set: { status: 'active', lastActivityAt: new Date(), expiresAt: new Date(Date.now() + c.sessionHours * HOUR) }, $setOnInsert: { _id: id('s'), from: e.msisdn, startedAt: new Date() } }, { upsert: true })
     if (m.campaignId) await C('bsCampaigns').updateOne({ _id: m.campaignId }, { $inc: { 'stats.sent': 1 } })
   } catch (err) {
     const retryable = ['rate', 'credit', 'auth'].includes(err.kind) || (err.kind === 'temporary' && m.attempts < 3)
     if (retryable) { if (day && !m.prepaid) await unreserve(m.cid, day, n); await later(err.kind === 'rate' ? (err.retryAfter || 30) * 1000 : err.kind === 'temporary' ? 30000 * 2 ** m.attempts : 60000, { quotaDay: m.prepaid ? day : null, attempts: m.attempts + (err.kind === 'temporary' ? 1 : 0), lastError: err.message }) }
-    else { await mark(m, 'failed', { failureReason: err.message }); await C('bsEsims').updateOne({ _id: e._id }, { $inc: { 'stats.failed': 1 } }); if (day) { if (c.refundFailed) await unreserve(m.cid, day, n, 'failed'); else await countDay(m.cid, day, 'failed') } if (m.campaignId) await C('bsCampaigns').updateOne({ _id: m.campaignId }, { $inc: { 'stats.failed': 1 } }); await C('bsReputation').insertOne({ esimId: e._id, cid: m.cid, deliveryStatus: 'failed', providerError: err.message, incidentType: err.status === 400 ? 'invalid_recipient' : 'provider_rejection', at: new Date() }) }
+    else { await mark(m, 'failed', { failureReason: err.message }); await C('bsEsims').updateOne({ _id: e._id }, { $inc: { 'stats.failed': 1 } }); if (!m.system) await lineLog(e, c, { failed: 1 }); if (day) { if (c.refundFailed) await unreserve(m.cid, day, n, 'failed'); else await countDay(m.cid, day, 'failed') } if (m.campaignId) await C('bsCampaigns').updateOne({ _id: m.campaignId }, { $inc: { 'stats.failed': 1 } }); await C('bsReputation').insertOne({ esimId: e._id, cid: m.cid, deliveryStatus: 'failed', providerError: err.message, incidentType: err.status === 400 ? 'invalid_recipient' : 'provider_rejection', at: new Date() }) }
     if (err.kind === 'credit') await pause('provider_credit', err.message)
     if (err.kind === 'auth') await pause('provider_auth', err.message)
   }
@@ -543,6 +550,7 @@ async function onWebhook(raw, headers, body) {
   const owners = [...new Set(sess.map(s => s.cid))]
   if (owners.length !== 1) { await C('bsMessages').insertOne({ _id: id('m'), cid: null, esimId: e._id, from: x.from, to: x.to, body: x.text, direction: 'in', status: owners.length ? 'review' : 'unrouted', providerMessageId: x.providerId, createdAt: new Date() }); if (owners.length) { incident('ambiguous_inbound', { esimId: e._id, from: x.from, owners }); alert(`❓ Reply from ${x.from} to ${e._id} matches ${owners.length} customers — held for review.`) } await C('bsWebhooks').updateOne({ _id: key }, { $set: { status: owners.length ? 'review' : 'unrouted' } }); return { status: 200 } }
   const s = sess[0], cid = s.cid
+  await lineLog(e, await cfg(), { in: 1, stops: isStop ? 1 : 0 })
   await C('bsSessions').updateOne({ _id: s._id }, { $set: { lastActivityAt: new Date() } })
   const last = await C('bsMessages').findOne({ cid, to: x.from, direction: 'out', campaignId: { $ne: null } }, { sort: { createdAt: -1 } })
   await C('bsMessages').insertOne({ _id: id('m'), cid, brand: cid.split(':')[0], sessionId: s._id, esimId: e._id, from: x.from, to: x.to, body: x.text, direction: 'in', status: 'received', campaignId: last?.campaignId || null, providerMessageId: x.providerId, createdAt: new Date() })
@@ -579,6 +587,12 @@ async function overview() {
   const list = esims.map(e => ({ ...e, today: used.find(u => u.esimId === e._id)?.n || 0, cap: lineCap(c, lineAge(e.activationDate || e.createdAt, d)) }))
   return { paused: st.reasons || [], notes: st.notes || {}, credit: st.credit ?? null, forecast: st.forecast || null, esims: { total: esims.length, active: by(USABLE), available: by(['available']), allocated: by(['allocated']), testing: by(['testing']), pending: by(['pending', 'purchasing', 'provisioning', 'activating']), failed: by(['failed']), suspended: by(['suspended']), replaced: by(['replaced']), expired: by(['expired']), list }, capacity: { perHour: cap.perHour, perDay: cap.perDay, lines: cap.lines, tomorrow: tomorrow.perDay, unmet: await unmetDemand() }, bookings, today: Object.fromEntries(todayRows.map(x => [x._id, x.n])), config: c }
 }
+// Per-line history (age, daily volumes, replies, STOPs, suspensions) — the raw data for tuning caps / a warm-up later.
+async function lineHistory(days = 14) {
+  const since = new Date(Date.now() - days * DAY).toISOString().slice(0, 10), c = await cfg(), d = dayKey(Date.now(), c)
+  const [esims, rows, inc] = await Promise.all([C('bsEsims').find({}, { projection: { history: 0 } }).sort({ _id: 1 }).toArray(), C('bsEsimDaily').find({ day: { $gte: since } }).sort({ day: 1 }).toArray(), C('bsIncidents').find({ type: { $in: ['line_suspended', 'esim_health', 'verify_failed', 'esim_expired'] }, at: { $gt: new Date(Date.now() - days * DAY) } }).toArray()])
+  return esims.map(e => ({ id: e._id, msisdn: e.msisdn, status: e.status, health: e.health, age: lineAge(e.activationDate || e.createdAt, d), stats: e.stats, days: rows.filter(r => r.esimId === e._id).map(r => ({ day: r.day, age: r.age, n: r.n || 0, out: r.out || 0, sent: r.sent || 0, failed: r.failed || 0, in: r.in || 0, stops: r.stops || 0 })), incidents: inc.filter(x => x.esimId === e._id).map(x => ({ type: x.type, why: x.why || x.health || null, age: x.age ?? null, at: x.at })) }))
+}
 async function setConfig(patch, by) {
   const allowed = Object.keys(DEFAULTS), clean = {}
   for (const [k, v] of Object.entries(patch || {})) if (allowed.includes(k)) clean[`values.${k}`] = typeof DEFAULTS[k] === 'boolean' ? v === true || v === 'true' || v === 'on' : Number(v)
@@ -595,15 +609,16 @@ async function setCustomer(cid, { dailyLimit, status }, by) {
 async function autoscale() {
   const c = await cfg(), total = await liveCount(), extra = await unmetDemand()
   let need = Math.max(0, c.minEsims - total), why = need ? 'below minimum inventory' : 'demand'
-  for (let i = 0; i < 7; i++) { const d = new Date(Date.now() + i * DAY).toISOString().slice(0, 10); need = Math.max(need, await linesShort(d, c, i >= c.leadDays ? extra : 0)) }
+  const want = (i) => (i >= 1 ? extra + c.spareDaily : 0)
+  for (let i = 0; i < 7; i++) { const d = new Date(Date.now() + i * DAY).toISOString().slice(0, 10); need = Math.max(need, await linesShort(d, c, want(i))) }
   for (const b of await C('bsBookings').find({ status: 'provisioning' }).toArray()) if (b.startAt < new Date() || !(await linesShort(b.date, c, 0, false))) await setBooking(b._id, 'scheduled')
   if (!need) return
   const healthy = await C('bsEsims').countDocuments({ status: { $in: USABLE }, health: { $in: GOOD_HEALTH } })
   if (c.autoProvision && !c.manualApproval) {
-    const r = await provisionFor(why, async () => { let n = Math.max(0, c.minEsims - await liveCount()); for (let i = 0; i < 7; i++) n = Math.max(n, await linesShort(new Date(Date.now() + i * DAY).toISOString().slice(0, 10), c, i >= c.leadDays ? extra : 0)); return Math.min(n, Math.max(0, c.maxEsims - await liveCount())) })
+    const r = await provisionFor(why, async () => { let n = Math.max(0, c.minEsims - await liveCount()); for (let i = 0; i < 7; i++) n = Math.max(n, await linesShort(new Date(Date.now() + i * DAY).toISOString().slice(0, 10), c, want(i))); return Math.min(n, Math.max(0, c.maxEsims - await liveCount())) })
     if (r.ok) alert(`📈 Bought ${r.ok} eSIM(s) (${why}; ${healthy} healthy, ${total} total before).`); if (r.ok < r.need && await once(`scale:${today()}`)) alert(`📈 ${r.need - r.ok} more line(s) needed but not bought: ${r.error || `maximum ${c.maxEsims} reached`}.`)
   }
-  else if (await once(`scale:${today()}`)) alert(`📈 Capacity: ${healthy} healthy eSIM(s), ${total} total (min ${c.minEsims}); ${need} more line(s) needed for the next 7 days${extra ? ` (incl. ${extra} SMS refused in the last 24 h)` : ''}. Provisioning needs approval: /bulkprovision, or /bulkset autoProvision true + /bulkset manualApproval false.`)
+  else if (await once(`scale:${today()}`)) alert(`📈 Capacity: ${healthy} healthy eSIM(s), ${total} total (min ${c.minEsims}); ${need} more line(s) needed for the next 7 days (bookings + ${c.spareDaily} SMS/day spare${extra ? ` + ${extra} SMS refused in the last 24 h` : ''}). Provisioning needs approval: /bulkprovision, or /bulkset autoProvision true + /bulkset manualApproval false.`)
 }
 
 function init({ db, log = console.log, notifyAdmin }) {
@@ -626,4 +641,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { OPT, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, verifyLine, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+module.exports = { OPT, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, verifyLine, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }

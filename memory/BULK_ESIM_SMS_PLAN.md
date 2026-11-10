@@ -45,3 +45,8 @@ Test sends: max 2 per campaign during setup, not counted in booking volume, coun
 - /bulk shows forecast, today/tomorrow perDay, unmet demand, auto-buy/replace state, per-line today/cap + plan end.
 - Tests (nodejs stopped): engine 39/39, autoscale 25/25 (js/tests/test_bulk_esim_autoscale.js), iter239 86/86, agent probes test_bulk_esim_autoscale_iter241.js 21/21 (P4 probe's "+12" is correct warm-up math for a same-day booking, no re-buy loop). bot_flow 16/16 with nodejs running. iteration_241.
 - Still NOT done: no live eSIM, no deploy, autoProvision stays OFF until user flips (/bulkset autoProvision true + /bulkset manualApproval false), real Spenza plan/SMS cost unknown (providerSmsCost default 0.01 — set after first live test).
+
+## 2026-06 round 4 — "customers send now" (user decisions)
+- NO warm-up by default (warmupDays 0 → lineCap = esimDailyLimit 400 from day 1; ramp still available via /bulkset warmupDays N). leadDays 1. spareDaily 2000: autoscale keeps bookings + 2,000 SMS/day spare from tomorrow on (≈7 idle mature lines) so same-day bookings always fit.
+- Learning infrastructure for a future data-driven warm-up: bsEsimDaily per line/day {age, n(new convs), out, session, sent, failed, in, stops}; incident 'line_suspended' snapshots {age, lifetime stats, last7 days}; admin /bulklines prints 14-day history per line; core.lineHistory().
+- Still nothing bought (autoProvision off, minEsims 1) — user will say when. Tests: autoscale 30/30, iter241 probes 21/21 (none), engine 39/39, iter239 86/86, bot_flow 16/16.

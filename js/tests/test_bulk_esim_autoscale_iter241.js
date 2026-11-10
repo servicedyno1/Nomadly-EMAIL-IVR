@@ -19,7 +19,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   await B.init({ db, log: () => {}, notifyAdmin: (t) => alerts.push(t) })
   process.env.BULK_ESIM_WORKER = ''
   let provCalls = 0; const realProv = P.provision; P.provision = async (...a) => { provCalls++; return realProv(...a) }
-  const fresh = async (cfg = {}) => { await wipe(); alerts.length = 0; provCalls = 0; process.env.BULK_ESIM_FAKE_CREDIT = '500'; await B.setConfig({ quietStart: 0, quietEnd: 24, ...cfg }, 'test'); return (await B.customer('TEST_Iter241', '9001'))._id }
+  const fresh = async (cfg = {}) => { await wipe(); alerts.length = 0; provCalls = 0; process.env.BULK_ESIM_FAKE_CREDIT = '500'; await B.setConfig({ quietStart: 0, quietEnd: 24, spareDaily: 0, ...cfg }, 'test'); return (await B.customer('TEST_Iter241', '9001'))._id }
   const AUTO = { autoProvision: true, manualApproval: false, provisionBudget: 500, maxEsims: 20 }
   const hourAhead = () => (new Date().getUTCHours() + 2) % 24
   try {
@@ -40,10 +40,10 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
 
     // (c) today / tomorrow with zero lines still refused
     cid = await fresh(AUTO)
-    const rc0 = await B.createBooking(cid, { date: d(0), hour: 23, volume: 600 }), rc1 = await B.createBooking(cid, { date: d(1), hour: 12, volume: 600 })
-    ok('(c) today + tomorrow with zero lines refused even with auto-buy on', rc0.error && rc1.error === 'err_no_lines' && provCalls === 0, `${rc0.error}/${rc1.error}`)
-    const rc2 = await B.createBooking(cid, { date: d(2), hour: 12, volume: 600 })
-    ok('(c) exactly leadDays (2) ahead is accepted', !!rc2.booking, rc2.error || '')
+    const rc0 = await B.createBooking(cid, { date: d(0), hour: 23, volume: 600 })
+    ok('(c) today with zero lines refused even with auto-buy on', rc0.error === 'err_no_lines' && provCalls === 0, `${rc0.error}`)
+    const rc2 = await B.createBooking(cid, { date: d(1), hour: 12, volume: 600 })
+    ok('(c) exactly leadDays (1) ahead is accepted', !!rc2.booking, rc2.error || '')
 
     // (d) per-line daily cap in the send loop
     cid = await fresh(AUTO)

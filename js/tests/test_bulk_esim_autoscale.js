@@ -17,9 +17,9 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   process.env.BULK_ESIM_WORKER = ''
   let provCalls = 0; const realProv = P.provision; P.provision = async (...a) => { provCalls++; return realProv(...a) }
   const c = await B.cfg()
-  ok('defaults: 400/line/day, 5-day warm-up from 50, 2 lead days, auto-replace on, auto-buy off', c.esimDailyLimit === 400 && c.warmupDays === 5 && c.warmupStart === 50 && c.leadDays === 2 && c.autoReplace === true && c.autoProvision === false)
-  ok('warm-up ramp 80/160/240/320/400', [1, 2, 3, 4, 5, 9].map(a => B.lineCap(c, a)).join() === '80,160,240,320,400,400')
-  await B.setConfig({ quietStart: 0, quietEnd: 24 }, 'test')
+  ok('defaults: 400/line/day, no warm-up, 1 lead day, 2,000/day spare, auto-replace on, auto-buy off', c.esimDailyLimit === 400 && c.warmupDays === 0 && c.leadDays === 1 && c.spareDaily === 2000 && c.autoReplace === true && c.autoProvision === false)
+  ok('no ramp: full cap from day 1 (ramp available via warmupDays)', [1, 2, 9].map(a => B.lineCap(c, a)).join() === '400,400,400' && [1, 3, 5].map(a => B.lineCap({ ...c, warmupDays: 5 }, a)).join() === '80,240,400')
+  await B.setConfig({ quietStart: 0, quietEnd: 24, spareDaily: 0 }, 'test')
   const cust = await B.customer('Nomadly', '501'), cid = cust._id
 
   // ---- no lines, auto-buy off: refused + demand remembered + daily nudge ----
@@ -32,7 +32,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   await B.setConfig({ autoProvision: true, manualApproval: false, provisionBudget: 500, maxEsims: 20 }, 'test')
   const cap3 = await B.capacity(d(3), await B.cfg())
   ok('projected capacity counts lines that can still be bought (budget $500 / $10 → 20 max)', cap3.projected === 20 && cap3.perDay === Math.floor(20 * B.lineCap(c, 4) * 0.8), JSON.stringify(cap3))
-  ok('today has no projected lines (lead time 2 days)', (await B.capacity(d(0), await B.cfg())).lines === 0)
+  ok('today has no projected lines, tomorrow does (lead time 1 day)', (await B.capacity(d(0), await B.cfg())).lines === 0 && (await B.capacity(d(1), await B.cfg())).projected === 20)
   const bk = await B.createBooking(cid, { date: d(3), hour: 12, volume: 1000 })
   ok('1,000 SMS booked 3 days ahead with zero lines', !!bk.booking && bk.booking.price === 100, JSON.stringify(bk.error || bk.booking?.allocation))
   await B.confirmBooking(bk.booking._id, { method: 'wallet' })
@@ -47,7 +47,9 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   for (let i = 0; i < 25; i++) await B.tick()
   const sentNow = await db.collection('bsMessages').countDocuments({ status: 'sent', cid }), perLine = await db.collection('bsEsimDaily').find().toArray()
   ok(`send loop stops each line at its daily cap (${need} lines × 3)`, sentNow === need * 3 && perLine.every(x => x.n <= 3) && (await db.collection('bsMessages').countDocuments({ status: 'queued', cid })) === 20 - need * 3, `${sentNow} sent`)
-  await B.setConfig({ esimDailyLimit: 400, warmupDays: 5 }, 'test')
+  await B.setConfig({ esimDailyLimit: 400, warmupDays: 0 }, 'test')
+  const lg = await db.collection('bsEsimDaily').findOne({ esimId: perLine[0].esimId })
+  ok('line log keeps age + new/out/sent per day', lg.age === 1 && lg.out === lg.sent && lg.n === lg.out, JSON.stringify(lg))
   await db.collection('bsMessages').deleteMany({ cid, status: 'queued' })
 
   // ---- credit forecast: warning, booking gate, purchase reserve, hourly nag ----
@@ -71,6 +73,8 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   await B.healthCheck()
   const old = await db.collection('bsEsims').findOne({ _id: victim._id }), repl = await db.collection('bsEsims').findOne({ replaces: victim._id })
   ok('suspended line replaced automatically, new number waits for a delivery test', old.status === 'replaced' && repl?.status === 'testing' && repl.verify === true && alerts.some(a => /new number requested/.test(a)))
+  const snap = await db.collection('bsIncidents').findOne({ type: 'line_suspended', esimId: victim._id })
+  ok('suspension snapshot logged with age, lifetime stats and daily history', !!snap && snap.age === 1 && Array.isArray(snap.last7) && snap.last7.length >= 1 && snap.stats.sent >= 1, JSON.stringify(snap?.last7))
   process.env.BULK_ESIM_FAKE_SUSPENDED = ''
   await B.healthCheck()
   const vt = await db.collection('bsTests').findOne({ esimId: repl._id, type: 'verify', result: 'pending' })
@@ -102,6 +106,15 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   const before = await db.collection('bsEsims').countDocuments({ status: { $nin: ['replaced', 'failed', 'expired'] } }); provCalls = 0; await B.autoscale()
   ok('refused demand (3,000 SMS) makes the autoscaler buy lines for the coming days', provCalls > 0 && alerts.some(a => /Bought \d+ eSIM/.test(a)), `${before} → +${provCalls}`)
 
+  // ---- standing spare capacity ----
+  await db.collection('bsDemand').deleteMany({}); await B.setConfig({ spareDaily: 2000 }, 'test')
+  const liveNow = await db.collection('bsEsims').countDocuments({ status: { $nin: ['replaced', 'failed', 'expired'] } }); provCalls = 0; await B.autoscale()
+  const want = Math.max(0, Math.ceil(2000 / 320) - liveNow + 1)
+  ok('autoscaler keeps 2,000 SMS/day spare from tomorrow (buys the gap, once)', provCalls >= Math.ceil(2000 / 320) - liveNow && provCalls <= want, `${liveNow} live → +${provCalls}`)
+  provCalls = 0; await B.healthCheck(); await B.autoscale()
+  ok('spare satisfied → no further purchase', provCalls === 0)
+  const hist = await B.lineHistory(14)
+  ok('line history report lists every line with days + incidents', hist.length === (await db.collection('bsEsims').countDocuments()) && hist.some(h => h.days.length) && hist.some(h => h.incidents.length), `${hist.length} lines`)
   console.log(`\n${pass} passed, ${fail} failed`)
   for (const c of COLS) await db.collection(c).deleteMany({})
   await cl.close(); process.exit(fail ? 1 : 0)
