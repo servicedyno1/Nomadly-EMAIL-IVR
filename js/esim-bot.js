@@ -219,8 +219,9 @@ async function plan() {
   const p = (await ES.forSale().catch(() => [])).find(x => x.simId)
   return p ? { planId: p.planId, price: p.price, data: p.data, voiceMinutes: p.voiceMinutes, sms: p.sms } : null
 }
-// Plan allowance shown as-is from the provider catalog, e.g. "20 MB data · 20 min calls · Unlimited SMS".
-const includes = (p) => [p?.data && `${p.data} data`, p?.voiceMinutes != null && `${p.voiceMinutes} min calls`, p?.sms != null && `${p.sms} SMS`].filter(Boolean).join(' · ')
+// Owner: sold as unlimited — the provider's MB / minute allowance is never shown to customers.
+const UNLIMITED = { en: 'Unlimited data · Unlimited calls · Unlimited SMS', fr: 'Données illimitées · Appels illimités · SMS illimités', zh: '无限流量 · 无限通话 · 无限短信', hi: 'अनलिमिटेड डेटा · अनलिमिटेड कॉल · अनलिमिटेड SMS', fa: 'اینترنت نامحدود · تماس نامحدود · پیامک نامحدود' }
+const includes = (p, lang) => UNLIMITED[lang] || UNLIMITED.en
 const lineLabel = (l, lang) => `📱 ${l.phoneNumber || (l.status === 'awaiting_imei' ? s(lang).status.awaiting_imei : s(lang).settingUp)} · ${l.id.slice(-6)}`
 const lineFromLabel = (lines, m) => lines.find(l => String(m || '').endsWith(`· ${l.id.slice(-6)}`)) || null
 const lines = async (chatId) => (await ES.list(chatId)).filter(l => l.status !== 'failed')

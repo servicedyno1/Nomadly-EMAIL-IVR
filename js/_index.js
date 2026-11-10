@@ -967,6 +967,7 @@ const _BULK_ROT = {
   fa: { btn: '🔁 چرخش شناسه‌های تماس‌گیرنده', done: '✅ انجام شد', verified: 'تأییدشده', none: '🔁 هنوز شناسه تماس‌گیرنده دیگری ندارید — ابتدا شماره دیگری بخرید یا شناسه خود را تأیید کنید.', title: 'چرخش شناسه‌های تماس‌گیرنده', help: 'برای افزودن یا حذف، روی شماره‌ها بزنید. هر تماس در جریان از شناسه متفاوتی استفاده می‌کند تا همه حجم روی یک شماره نباشد.', sel: (n, cid) => `انتخاب‌شده: <b>${n}</b> (شامل ${cid}) ← ${n} تماس همزمان.`, rotating: (n) => `🔁 چرخش بین <b>${n}</b> شناسه — ${n} تماس همزمان.`, max: (n) => `🔁 حداکثر ${n} شناسه در هر کمپین.`, more: (m, n) => ` + ${m} مورد دیگر (🔁 چرخشی، ${n} تماس همزمان)` },
 }
 const _bulkRot = (lang) => _BULK_ROT[lang] || _BULK_ROT.en
+const _ESIM_MAIN_LABELS = new Set(['📱 USA eSIM', '📱 eSIM USA', '📱 美国 eSIM', '📱 eSIM آمریکا'])
 const _CC_MISSING = {
   en: (n, ex) => `📞 <b>${n}</b> has no country code.\nAdd it in front and send it again — e.g. <code>${ex}</code> (USA/Canada) or <code>+44…</code> (UK).`,
   fr: (n, ex) => `📞 <b>${n}</b> n’a pas d’indicatif pays.\nAjoutez-le devant et renvoyez — ex. <code>${ex}</code> (USA/Canada) ou <code>+44…</code> (R.-U.).`,
@@ -1045,13 +1046,21 @@ function _bulkPreviewText(bulkData, lang) {
   ].filter(v => v !== null).join('\n')
 }
 
-async function _bulkVoicemailPrompt(chatId) {
-  const audios = await audioLibraryService.listAudios(chatId)
-  const rows = [[BULK_VM_HANGUP_BTN], ..._bulkClipLabels(audios.slice(0, 20)).map(l => [l]), ['↩️ Back']]
-  const text = `📭 <b>Voicemail</b>\n\nIf a call reaches voicemail, what should happen?\n\n` +
-    `• <b>${BULK_VM_HANGUP_BTN}</b> — end the call right away\n` +
-    `• <b>🎵 Pick a clip</b> — wait for the beep, then leave that recording from your Audio Library` +
-    (audios.length ? '' : `\n\n<i>Your Audio Library is empty — upload a clip via 🎵 Audio Library to leave voicemail messages.</i>`)
+// "When voicemail answers" — leaving the campaign's own message is the first (recommended) choice.
+const _BULK_VM = {
+  en: { leave: '📩 Leave my message (recommended)', hang: '📵 Hang up (no message)', title: 'When voicemail answers', q: 'Most people don’t pick up — this decides what they find in their mailbox.', how: (n) => `• <b>📩 Leave my message</b> — waits for the beep, then leaves “${n}”\n• <b>📵 Hang up</b> — ends the call, nothing is left\n• <b>🎵 A different clip</b> — pick one below to leave instead`, flow: '👤 Answers → hears your message · 📭 Voicemail → your choice · 🔕 No answer → marked “no answer”' },
+  fr: { leave: '📩 Laisser mon message (conseillé)', hang: '📵 Raccrocher (aucun message)', title: 'Si la messagerie répond', q: 'Beaucoup ne décrochent pas — ce choix décide de ce qu’ils trouvent sur leur messagerie.', how: (n) => `• <b>📩 Laisser mon message</b> — attend le bip puis laisse « ${n} »\n• <b>📵 Raccrocher</b> — fin de l’appel, rien n’est laissé\n• <b>🎵 Un autre clip</b> — choisissez-en un ci-dessous`, flow: '👤 Décroche → entend votre message · 📭 Messagerie → votre choix · 🔕 Pas de réponse → noté « sans réponse »' },
+  zh: { leave: '📩 留下我的语音（推荐）', hang: '📵 挂断（不留言）', title: '遇到语音信箱时', q: '很多人不会接听 — 这里决定他们的语音信箱里会收到什么。', how: (n) => `• <b>📩 留下我的语音</b> — 等提示音后留下“${n}”\n• <b>📵 挂断</b> — 结束通话，不留言\n• <b>🎵 其他音频</b> — 在下方选择一个`, flow: '👤 接听 → 听到您的语音 · 📭 语音信箱 → 按您的选择 · 🔕 无人接听 → 标记为“未接听”' },
+  hi: { leave: '📩 मेरा संदेश छोड़ें (सुझाया गया)', hang: '📵 कॉल काटें (कोई संदेश नहीं)', title: 'जब वॉइसमेल उठाए', q: 'ज़्यादातर लोग फ़ोन नहीं उठाते — यह तय करता है कि उनके मेलबॉक्स में क्या मिलेगा।', how: (n) => `• <b>📩 मेरा संदेश छोड़ें</b> — बीप के बाद “${n}” छोड़ता है\n• <b>📵 कॉल काटें</b> — कॉल खत्म, कुछ नहीं छोड़ा जाता\n• <b>🎵 दूसरी क्लिप</b> — नीचे से चुनें`, flow: '👤 उठाया → आपका संदेश सुनेंगे · 📭 वॉइसमेल → आपकी पसंद · 🔕 जवाब नहीं → “जवाब नहीं” दर्ज' },
+  fa: { leave: '📩 پیام من گذاشته شود (پیشنهادی)', hang: '📵 قطع تماس (بدون پیام)', title: 'وقتی پیغام‌گیر جواب دهد', q: 'بیشتر افراد جواب نمی‌دهند — این انتخاب تعیین می‌کند در صندوق صوتی‌شان چه بماند.', how: (n) => `• <b>📩 پیام من</b> — بعد از بوق «${n}» را می‌گذارد\n• <b>📵 قطع تماس</b> — تماس تمام می‌شود و چیزی نمی‌ماند\n• <b>🎵 کلیپ دیگر</b> — یکی را از پایین انتخاب کنید`, flow: '👤 جواب داد ← پیام شما را می‌شنود · 📭 پیغام‌گیر ← انتخاب شما · 🔕 بی‌پاسخ ← «بی‌پاسخ» ثبت می‌شود' },
+}
+const _bulkVm = (lang) => _BULK_VM[lang] || _BULK_VM.en
+const _isVmLeave = (m) => Object.values(_BULK_VM).some(t => t.leave === m)
+const _isVmHang = (m) => m === BULK_VM_HANGUP_BTN || Object.values(_BULK_VM).some(t => t.hang === m)
+async function _bulkVoicemailPrompt(chatId, lang, bulkData = {}) {
+  const T = _bulkVm(lang), audios = (await audioLibraryService.listAudios(chatId)).filter(x => x.audioUrl !== bulkData.audioUrl)
+  const rows = [...(bulkData.audioUrl ? [[T.leave]] : []), [T.hang], ..._bulkClipLabels(audios.slice(0, 20)).map(l => [l]), ['↩️ Back']]
+  const text = `📭 <b>${T.title}</b>\n\n${T.q}\n\n${T.how(_bulkEsc(bulkData.audioName || 'message'))}\n\n<i>${T.flow}</i>`
   return { text, rows }
 }
 
@@ -11013,7 +11022,7 @@ bot?.on('message', msg => {
       const [mine, p] = await Promise.all([esimBot.lines(chatId).catch(() => []), esimBot.plan()])
       const price = p?.price || esimBot.PRICE
       const waiting = mine.some(l => l.status === 'awaiting_imei')
-      return send(chatId, (waiting ? es.waitingNote + '\n\n' : '') + es.home(price, esimBot.includes(p)), k.of([...(waiting ? [[es.sendImeiPaid]] : []), [es.buy(price)], ...(mine.length ? [[es.mine]] : []), ['↩️ Back', '🏠 Main Menu']]))
+      return send(chatId, (waiting ? es.waitingNote + '\n\n' : '') + es.home(price, esimBot.includes(p, lang)), k.of([...(waiting ? [[es.sendImeiPaid]] : []), [es.buy(price)], ...(mine.length ? [[es.mine]] : []), ['↩️ Back', '🏠 Main Menu']]))
     },
     // Paid eSIM still waiting for its IMEI: go straight to the IMEI prompt (or pick the line if there are several).
     'esim-bot-imei-start': async () => {
@@ -18668,6 +18677,7 @@ All verified numbers generated during sourcing.`))
   }
 
   // ━━━ Marketplace ━━━
+  if (_ESIM_MAIN_LABELS.has(message)) { await saveInfo('esimEntry', 'main'); return goto['esim-bot-home']() }
   if (message === user.marketplace || message === '🏪 Marketplace' || message === '🏪 Marché' || message === '🏪 市场' || message === '🏪 मार्केटप्लेस') {
     return goto.marketplace()
   }
@@ -20202,7 +20212,7 @@ ${message.replace(/\n/g, '<br>')}
     if (isBackPress(message) || isCancelPress(message)) return goto.displayMainMenuButtons()
 
     // USA T-Mobile eSIM: automatic order (IMEI → ZIP → email → auto-renew → pay)
-    if (message === t.dpEsim) return goto['esim-bot-home']()
+    if (message === t.dpEsim) { await saveInfo('esimEntry', 'dp'); return goto['esim-bot-home']() }
 
     const dpProducts = {
       [t.dpTwilioMain]:     { name: 'Twilio Main Account',            key: 'twilio_main',      price: DP_PRICE_TWILIO_MAIN },
@@ -20239,7 +20249,7 @@ ${message.replace(/\n/g, '<br>')}
     const es = esimBot.s(lang)
     const skipRow = k.of([[es.skip], ['↩️ Back']])
     if (action === 'esim-bot-home') {
-      if (isBackPress(message)) return goto.submenu6()
+      if (isBackPress(message)) return info?.esimEntry === 'main' ? goto.displayMainMenuButtons() : goto.submenu6()
       if (isMainMenuPress(message)) return goto.displayMainMenuButtons()
       if (message === es.mine) return goto['esim-bot-list']()
       if (message === es.sendImeiPaid) return goto['esim-bot-imei-start']()
@@ -29357,7 +29367,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     // Telnyx campaigns: choose what happens on voicemail, then preview
     if (!_bulkIsTwilio(bulkData)) {
       await set(state, chatId, 'action', a.bulkSelectVoicemail)
-      const vm = await _bulkVoicemailPrompt(chatId)
+      const vm = await _bulkVoicemailPrompt(chatId, lang, info?.bulkData || {})
       return send(chatId, vm.text, k.of(vm.rows))
     }
     await set(state, chatId, 'action', a.bulkConfirm)
@@ -29370,14 +29380,17 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return send(chatId, trans('t.cp_216'), k.of([['5'], ['10'], ['15'], ['20'], ['↩️ Back']]))
     }
     const bulkData = info?.bulkData || {}
-    if (message === BULK_VM_HANGUP_BTN) {
+    if (_isVmLeave(message) && bulkData.audioUrl) {
+      bulkData.voicemailAudioUrl = bulkData.audioUrl
+      bulkData.voicemailAudioName = bulkData.audioName || 'message'
+    } else if (_isVmHang(message)) {
       bulkData.voicemailAudioUrl = null
       bulkData.voicemailAudioName = null
     } else {
-      const audios = await audioLibraryService.listAudios(chatId)
+      const audios = (await audioLibraryService.listAudios(chatId)).filter(x => x.audioUrl !== bulkData.audioUrl)
       const picked = audios.slice(0, 20)[_bulkClipLabels(audios.slice(0, 20)).indexOf(message)]
       if (!picked || !/^https?:\/\//i.test(picked.audioUrl || '')) {
-        const vm = await _bulkVoicemailPrompt(chatId)
+        const vm = await _bulkVoicemailPrompt(chatId, lang, info?.bulkData || {})
         return send(chatId, `⚠️ Please pick an option from the list.\n\n${vm.text}`, k.of(vm.rows))
       }
       bulkData.voicemailAudioUrl = picked.audioUrl
@@ -29392,7 +29405,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (isBackPress(message)) {
       if (!_bulkIsTwilio(info?.bulkData || {})) {
         await set(state, chatId, 'action', a.bulkSelectVoicemail)
-        const vm = await _bulkVoicemailPrompt(chatId)
+        const vm = await _bulkVoicemailPrompt(chatId, lang, info?.bulkData || {})
         return send(chatId, vm.text, k.of(vm.rows))
       }
       await set(state, chatId, 'action', a.bulkSetConcurrency)
@@ -36154,7 +36167,7 @@ Select a category:`), k.of(catBtns))
   if (message === user.more) {
     const rows = [[user.emailValidation, user.referEarn]]
     if (process.env.HIDE_BECOME_RESELLER !== 'true') rows.push([user.becomeReseller])
-    rows.push([user.joinChannel])
+    rows.push([user.marketplace, user.joinChannel])
     if (process.env.EMAIL_BLAST_ON === 'true') rows.push([user.emailBlast])
     rows.push(['🏠 Main Menu'])
     const moreText = {
@@ -37862,7 +37875,8 @@ Tap a button below to change. Changes sync to your phone on next app open.`
       { btn: user.bulkSmsNew,             kw: ['bulk sms', 'bulksms', 'send sms', 'mass sms', 'text blast', 'sms campaign'] },
       { btn: user.virtualCard,            kw: ['virtual card', 'debit card', 'prepaid card'] },
       { btn: user.marketplace,            kw: ['marketplace', 'escrow'] },
-      { btn: user.digitalProducts,        kw: ['twilio', 'telnyx', 'workspace', 'zoho', 'esim', 'e-sim', 'digital product'] },
+      { btn: user.esimMain,               kw: ['esim', 'e-sim', 't-mobile', 'tmobile', 'sim card'] },
+      { btn: user.digitalProducts,        kw: ['twilio', 'telnyx', 'workspace', 'zoho', 'digital product'] },
       { btn: user.wallet,                 kw: ['deposit', 'top up', 'topup', 'add funds', 'add money', 'fund my wallet', 'wallet balance', 'recharge'] },
     ]
     const nlHit = nlIntents.find(it => it.btn && it.kw.some(k => messageLower.includes(k)))
