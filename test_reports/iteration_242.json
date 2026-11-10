@@ -1,0 +1,41 @@
+{
+  "summary": "Iteration 242, eSIM BulkSMS (Node engine + Telegram webhook, backend only). All 10 existing suites were run one after another and all pass: accounts 33/33, replies_variants 28/28, autoscale 74/74, engine 40/40, stop_upload_iter239 88/88, autoscale_iter241 20/20, bot_flow (all steps OK, $45.9 scheduled), bot_nextday 15/15, bot_flow_i18n 5/5, bot_pay (crypto confirm OK). New engine probe test_bulk_esim_iter242_probe.js: 53/53 pass. It covers 3 accounts (rate 90/min, ceiling 135 lines, lines spread 2/2/2, a low account sits out of new lines and sending, all low pauses on provider_credit, top-up resumes), per-account rate headers (#2 adopts 50/min and is skipped; when every account is exhausted 500 texts stay queued), bootstrap remove/re-add/same, adviseAccounts (one alert a day naming SPENZA_BULK_API_KEY_4), send-now vs schedule pricing (now $50/$70, scheduled 45.9 with list 51, link 0.135 + $20 fee not discounted, under 24h no discount, refund at the discounted unit $0.9), the one-SMS and link rules incl. the booking-time manipulation guard, simulated AI variants (5, avoid, err_ai, URL kept, phone source dropped, logged), paid vs kept replies, global STOP, and the replyImpact/replaceEsim alert. Wizard over HTTP (test_bulk_esim_iter242_wizard.js): 37/37 pass. Run 1 (161 chars refused, 160 accepted, no opt-out, replies yes, Send now) gave mode now, price 71, replyFee 20, wallet -71. Run 2 (opt-out, real Claude variants, picked '1 3', schedule 2 days ahead) gave 45.9 (list 51, 10% off). Python endpoint: loopback 200 with 2 Claude variants in about 2s; public URL returns 403, also with spoofed X-Forwarded-For/X-Real-IP. Claude was called twice in total (curl + wizard). Found 1 bug in reply routing, plus minor notes.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "core.onWebhook (reply routing, core.js ~L802-805)", "issue": "Which campaign a reply belongs to is decided by the customer's most recently CREATED outbound message to that number, whatever its status. Repro (js/tests/test_bulk_esim_iter242_reply_edge.js): campaign PAID (replies=true) is sent to X. The same customer then books campaign FREE (replies=false) to X for 2 days later, so it is only queued. X replies to PAID, but the reply is stored status 'kept', forwarded:false, campaignId=FREE, and stats.replies goes to the wrong campaign. The customer paid $20 and loses the reply. Fix: only consider sent/delivered/submitted messages (sort by submittedAt/sentAt), or prefer messages from the matched session's esimId."},
+      {"endpoint": "core.bootstrap (re-adding a removed account)", "issue": "Removing account #n retires its lines. Re-adding the same key marks it 'added' but its old lines stay 'retired'. syncInventory only updates fields (no status change), and cancelDead skips 'retired', so in live mode those SIMs stay billed by Spenza but are never used or cancelled. Either revive lines whose iccid still lists on the re-added account, or cancel them."},
+      {"endpoint": "core.adviseAccounts", "issue": "The once-key is acctadvice:<day> for the whole pool, not per account count. If an account is added during the day and the pool is near the ceiling again, the advice for account #n+2 waits until the next day. Low impact."},
+      {"endpoint": "core.refundUnsent", "issue": "The $20 reply fee is never refunded, even if every text of the campaign failed or expired (0 sent). It may be a business decision, but please confirm."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/test_bulk_esim_iter242_probe.js",
+    "/app/js/tests/test_bulk_esim_iter242_wizard.js",
+    "/app/js/tests/test_bulk_esim_iter242_reply_edge.js"
+  ],
+  "action_items": [
+    "Fix reply attribution in onWebhook: only already-sent outbound messages (not queued/expired/rejected) should decide the campaign and whether the reply is forwarded (repro: js/tests/test_bulk_esim_iter242_reply_edge.js).",
+    "Decide what happens to the retired lines of a removed account that is later re-added (revive or cancel with Spenza) so they are not billed forever.",
+    "Optional: per-account-count key for adviseAccounts; confirm the reply-fee refund policy when nothing was sent."
+  ],
+  "critical_code_review_comments": [
+    "core.js is 937 lines and dense (many one-line functions over 300 chars). Consider splitting it into accounts/credit, booking/pricing, worker, inbound and bootstrap modules.",
+    "Customers who did not pay for replies still get the replies count in the n_done summary (report() counts 'kept' inbound). Check that this is intended (upsell) and not a leak.",
+    "test_bulk_esim_bot_pay.js has no assertions (console output only) and leaves a booking/campaign for chat 990000111. Add asserts and cleanup.",
+    "bulk_variants.py: loopback guard verified (403 publicly, even with spoofed forwarding headers). The text length is not capped server-side; the engine already limits it to one SMS, so this is fine for internal use."
+  ],
+  "updated_files": [
+    "/app/js/tests/test_bulk_esim_iter242_probe.js",
+    "/app/js/tests/test_bulk_esim_iter242_wizard.js",
+    "/app/js/tests/test_bulk_esim_iter242_reply_edge.js"
+  ],
+  "success_rate": {"backend": "99% (90/91 new checks pass; the one failure is a real bug shown by the reply-edge repro; all 10 existing suites pass)", "frontend": "N/A (not requested)"},
+  "test_credentials": "None needed (simulated provider). EMERGENT_LLM_KEY was used only through the Python endpoint and was not printed.",
+  "seed_data_creation": "None kept. The probe/edge scripts clear the bs* collections before and after, like the existing suites. The wizard script deleted the bookings, campaigns, messages and other bs* data of cid <brand>:990000333 (2 bookings, 2 campaigns), plus its walletOf/state, and restored bsConfig settings.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run the suites one at a time (they share the DB and wipe the bs* collections). The live nodejs app (port 5000) shares the DB and holds the worker lock: call B.claimWorker() before tick(). Provider env vars are read live, so probes can flip BULK_ESIM_FAKE_ACCOUNTS/CREDIT_n/RATE_n mid-run. A suffixed fake var falls back to the unsuffixed one for accounts 2 and up, so BULK_ESIM_FAKE_RATE applies to every account. The wizard uses the live process's EMERGENT_LLM_KEY, so '✨ 5 AI variants' in the HTTP wizard makes a real Claude call. After the reply-routing fix, rerun js/tests/test_bulk_esim_iter242_reply_edge.js (it must print ✅ OK).",
+  "rca of the issue": "onWebhook: `last = findOne({cid, to: x.from, direction:'out', system:{$ne:true}}, sort createdAt -1)`. There is no status filter, so a queued future campaign to the same number counts as 'last' and decides forward = lastCp.replies. Repro: test_bulk_esim_iter242_reply_edge.js. Fix: add status:{$in:['submitted','sent','delivered']} and sort by submittedAt, ideally limited to the session's esimId."
+}

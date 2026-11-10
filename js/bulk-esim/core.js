@@ -184,7 +184,7 @@ async function buyable(c) {
 async function adviseAccounts(c, { lines, target } = {}) {
   const n = c.accounts.length, max = maxLines(c), ceiling = dayCeiling(today(), c), near = lines != null && max && lines >= Math.ceil(max * 0.8), over = target != null && target > ceiling
   if ((!near && !over) || c.maxEsims || n >= P.MAX_ACCOUNTS) return false
-  if (!(await once(`acctadvice:${today()}`))) return true
+  if (!(await once(`acctadvice:${n}:${today()}`))) return true
   alert(`📣 Capacity is near the Spenza limit: ${lines ?? '?'} of ${max} line(s) across ${n} account(s)${over ? `, and the demand model wants ${target} SMS/day against a ceiling of ${ceiling}` : ''}. Spenza caps each account at ${c.accounts.map(a => `${a.perMin}`).join('/')} SMS/min, so more lines on the same account add nothing. To grow further add Spenza account #${n + 1}: set SPENZA_BULK_API_KEY_${n + 1} and SPENZA_BULK_API_SECRET_${n + 1} (plus SPENZA_BULK_IMEI_${n + 1} if its handset differs) and redeploy — the engine connects it, syncs its SIMs and starts buying lines on it automatically.`)
   incident('account_advice', { lines, max, target, ceiling, accounts: n }); return true
 }
@@ -270,6 +270,7 @@ async function syncAccount(sims, account, c0) {
     if (/SUSPEND|DEACTIV|BLOCK/.test(st) && e.status !== 'suspended') { await setEsim(e._id, 'suspended', { ...set, note: `provider ${st}` }); alert(`⚠️ ${e._id} ${e.msisdn || ''} suspended by provider (${st}).`); await autoReplace({ ...e, ...set }, `suspended by provider (${st})`, await cfg()); continue }
     await C('bsEsims').updateOne({ _id: e._id }, { $set: set })
     if (e.status === 'provisioning' && msisdn) await setEsim(e._id, 'testing')
+    if (e.status === 'retired' && msisdn) { await setEsim(e._id, 'testing', { note: 'account re-connected', recvMiss: 0, sendMiss: 0, apiFails: 0 }); alert(`♻️ ${e._id} ${msisdn} is back (Spenza ${acctLabel(account)} re-connected) — re-checking it before use.`) }
   }
 }
 // A line that loses its number can't receive replies any more: list the campaigns that paid for replies and texted from it
@@ -549,7 +550,7 @@ async function cancelDead(c) {
   }
 }
 async function expireHolds() {
-  await C('bsConfig').deleteMany({ _id: /^(creditwarn|replaces|scale|provcredit|help|replimit|acctadvice|authfail):/, at: { $lt: new Date(Date.now() - 30 * DAY) } }).catch(() => {})
+  await C('bsConfig').deleteMany({ _id: /^(creditwarn|replaces|scale|provcredit|help|replimit|acctadvice|authfail|aifallback|aidown):/, at: { $lt: new Date(Date.now() - 30 * DAY) } }).catch(() => {})
   for (const b of await C('bsBookings').find({ status: { $in: ['pending', 'awaiting_payment'] }, holdUntil: { $lt: new Date(Date.now() - 6 * HOUR) } }).limit(100).toArray()) await setBooking(b._id, 'cancelled', { note: 'hold_expired' })
 }
 
@@ -587,7 +588,14 @@ async function aiVariants(cid, { text, withLinks = false, optOut = true, avoid =
   let raw = [], model = 'simulated'
   if (P.dry() && !process.env.EMERGENT_LLM_KEY) raw = Array.from({ length: want + 2 }, (_, i) => `${['Hi!', 'Hello,', 'Quick note:', 'Heads up:', 'FYI:', 'Reminder:', 'Today:'][i]} ${src}`)
   else {
-    try { const r = await axios.post(`http://127.0.0.1:${process.env.BACKEND_PORT || 8001}/api/internal/bulk-esim/variants`, { text: src, limit, n: want + 2, with_links: withLinks, avoid: avoid.slice(-30) }, { timeout: 90000 }); raw = r.data?.variants || []; model = r.data?.model || model } catch (err) { audit('ai_variants_error', { cid, error: err.response?.data?.error || err.message }); return E('err_ai') }
+    try {
+      const r = await axios.post(`http://127.0.0.1:${process.env.BACKEND_PORT || 8001}/api/internal/bulk-esim/variants`, { text: src, limit, n: want + 2, with_links: withLinks, avoid: avoid.slice(-30) }, { timeout: 90000 }); raw = r.data?.variants || []; model = r.data?.model || model
+      if (r.data?.fallback) { audit('ai_fallback', { cid, model, primaryError: r.data.primary_error }); if (await once(`aifallback:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Claude is not answering (${r.data.primary_error}) — AI variants are being served by OpenAI ${model} meanwhile. If the Universal Key balance is low, top it up: Profile → Manage plan → Universal Key → Add Balance.`) }
+    } catch (err) {
+      const d = err.response?.data || {}; audit('ai_variants_error', { cid, error: d.error || err.message })
+      if (await once(`aidown:${new Date().toISOString().slice(0, 13)}`)) alert(`❌ AI variants unavailable — Claude and the OpenAI fallback both failed (${d.error || err.message}). Customers see "try again or keep your text". Check the Universal Key balance (Profile → Manage plan → Universal Key → Add Balance) or set OPENAI_API_KEY for an independent fallback.`)
+      return E('err_ai')
+    }
   }
   const out = []
   for (const v of raw) { const t = valid(v); if (t && !out.some(x => x.toLowerCase() === t.toLowerCase())) out.push(t); if (out.length === want) break }
@@ -714,8 +722,9 @@ async function expireStale(c) {
 async function refundUnsent(cp) {
   const b = await C('bsBookings').findOne({ _id: cp.bookingId }); if (!b || b.paymentStatus !== 'paid' || b.refundedUnsent != null) return
   const [g] = await C('bsMessages').aggregate([{ $match: { campaignId: cp._id, test: { $ne: true }, direction: 'out', status: { $in: ['failed', 'rejected', 'expired'] } } }, { $group: { _id: null, parts: { $sum: '$segments' } } }]).toArray()
-  const parts = Math.min(g?.parts || 0, b.volume), amount = Math.round(parts * (b.unitPrice ?? b.price / b.volume) * 100) / 100
-  const r = await C('bsBookings').updateOne({ _id: b._id, refundedUnsent: null }, { $set: { refundedUnsent: amount, refundedParts: parts } })
+  const sentAny = await C('bsMessages').countDocuments({ campaignId: cp._id, test: { $ne: true }, direction: 'out', status: { $in: ['sent', 'delivered'] } }, { limit: 1 })
+  const parts = Math.min(g?.parts || 0, b.volume), fee = !sentAny && b.replyFee ? b.replyFee : 0, amount = Math.round((parts * (b.unitPrice ?? b.price / b.volume) + fee) * 100) / 100
+  const r = await C('bsBookings').updateOne({ _id: b._id, refundedUnsent: null }, { $set: { refundedUnsent: amount, refundedParts: parts, refundedReplyFee: fee } })
   if (r.modifiedCount && amount > 0) await notify(cp.cid, 'refund', 'n_refund_unsent', [cp.name, parts, amount], { amount, bookingId: b._id, campaignId: cp._id })
 }
 async function finishCampaigns() {
@@ -799,7 +808,8 @@ async function onWebhook(raw, headers, body) {
   const s = sess[0], cid = s.cid
   await lineLog(e, await cfg(), { in: 1, stops: isStop ? 1 : 0 })
   await C('bsSessions').updateOne({ _id: s._id }, { $set: { lastActivityAt: new Date() } })
-  const last = await C('bsMessages').findOne({ cid, to: x.from, direction: 'out', system: { $ne: true } }, { sort: { createdAt: -1 } })
+  const outQ = { cid, to: x.from, direction: 'out', system: { $ne: true }, status: { $in: ['sent', 'delivered', 'submitted'] } }
+  const last = (await C('bsMessages').findOne({ ...outQ, esimId: e._id }, { sort: { submittedAt: -1 } })) || (await C('bsMessages').findOne(outQ, { sort: { submittedAt: -1 } }))
   const lastCp = last?.campaignId ? await C('bsCampaigns').findOne({ _id: last.campaignId }, { projection: { replies: 1 } }) : null, forward = !lastCp || lastCp.replies === true
   await C('bsMessages').insertOne({ _id: id('m'), cid, brand: cid.split(':')[0], sessionId: s._id, esimId: e._id, from: x.from, to: x.to, body: x.text, direction: 'in', status: forward ? 'received' : 'kept', forwarded: forward, campaignId: last?.campaignId || null, providerMessageId: x.providerId, createdAt: new Date() })
   if (last?.campaignId) await C('bsCampaigns').updateOne({ _id: last.campaignId }, { $inc: { 'stats.replies': 1 } })
@@ -828,7 +838,7 @@ async function report(campaignId) {
   const rows = await C('bsMessages').aggregate([{ $match: { campaignId, test: { $ne: true } } }, { $group: { _id: { d: '$direction', s: '$status' }, n: { $sum: 1 } } }]).toArray()
   const g = (d, s) => rows.filter(r => r._id.d === d && (!s || s.includes(r._id.s))).reduce((a, r) => a + r.n, 0)
   const sent = g('out', ['sent', 'delivered']), failed = g('out', ['failed']), total = g('out')
-  return { total, sent, failed, rejected: g('out', ['rejected', 'expired']), queued: g('out', ['queued', 'processing', 'submitted']), replies: g('in'), successPct: total ? Math.round((sent / total) * 1000) / 10 : 0 }
+  return { total, sent, failed, rejected: g('out', ['rejected', 'expired']), queued: g('out', ['queued', 'processing', 'submitted']), replies: g('in', ['received']), kept: g('in', ['kept']), successPct: total ? Math.round((sent / total) * 1000) / 10 : 0 }
 }
 async function overview() {
   const d = dayKey(Date.now(), await cfg())

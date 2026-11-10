@@ -2402,3 +2402,9 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Tested (simulated provider): engine 28/28, QA suite 32/32, bot flow + pay OK (iteration_239).
 - Next: fund Spenza → /bulkprovision 1 eSIM → /bulkwebhook → live send/receive check → deploy on user go-ahead.
 - 2026-06 round 2: fixes 1,2,3,5,7,8 + per-part pricing ($50/$75 per 500) + 5-language screens. All suites green (iteration_240). Still NOT deployed; needs BULK_ESIM_MONGO_URL + first eSIM before go-live.
+
+## 2026-06 — eSIM BulkSMS rounds 12–13 — multi-account, send now/schedule, AI variants, paid replies (BUILT + TESTED, NOT DEPLOYED)
+- Several Spenza accounts (SPENZA_BULK_API_KEY_n/SECRET_n), lines spread across them, per-account rate/credit/ceiling, low account sits out, admin advised via bot when to add the next account; /bulkaccounts.
+- Send now (this hour, full price) vs schedule (≥24 h ahead → 10% off the SMS part). Opt-out line optional per campaign; every text is one SMS (138/160/70 chars); text-only ↔ link choice enforced at content, variants and booking time.
+- AI variants (Claude Opus 5.5 → OpenAI fallover, universal key) approved by the customer (5, more, pick by number, or own `---` versions). Paid replies +$20 per campaign; unpaid replies kept by the platform (STOP/HELP always honoured); admin told when a line with paid replies loses its number.
+- Details + test counts: memory/BULK_ESIM_SMS_PLAN.md rounds 12–13; report test_reports/iteration_242.json.

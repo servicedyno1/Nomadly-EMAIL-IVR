@@ -32,6 +32,17 @@ def _local(request: Request) -> bool:
     return host in ("127.0.0.1", "::1", "localhost")
 
 
+PRIMARY = ("anthropic", "claude-opus-5-5")
+FALLBACK = ("openai", "gpt-5.6-terra")
+
+
+async def _ask(prov_model: tuple, key: str, prompt: str) -> str:
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+
+    chat = LlmChat(api_key=key, session_id=f"bulk-variants-{uuid.uuid4()}", system_message=SYSTEM).with_model(*prov_model)
+    return str(await chat.send_message(UserMessage(text=prompt)) or "")
+
+
 @router.post("/api/internal/bulk-esim/variants")
 async def variants(body: VariantsIn, request: Request):
     if not _local(request):
@@ -39,9 +50,6 @@ async def variants(body: VariantsIn, request: Request):
     key = os.environ.get("EMERGENT_LLM_KEY")
     if not key:
         return JSONResponse({"error": "EMERGENT_LLM_KEY not set"}, status_code=503)
-    from emergentintegrations.llm.chat import LlmChat, UserMessage
-
-    chat = LlmChat(api_key=key, session_id=f"bulk-variants-{uuid.uuid4()}", system_message=SYSTEM).with_model("anthropic", "claude-opus-5-5")
     n = max(1, min(body.n, 10))
     avoid = "\n".join(f"- {a}" for a in body.avoid[:30])
     prompt = (
@@ -50,15 +58,21 @@ async def variants(body: VariantsIn, request: Request):
         + (f"\n\nDo not reuse these earlier variants:\n{avoid}" if avoid else "")
         + "\n\nReturn only a JSON array of strings."
     )
+    # Claude first; if it fails (outage, model error, low balance) OpenAI answers — with OPENAI_API_KEY when set (own credit), else the same universal key.
+    used, primary_error, text = PRIMARY, None, ""
     try:
-        raw = await chat.send_message(UserMessage(text=prompt))
-    except Exception as e:  # provider/key problems → the engine tells the customer to try later
-        return JSONResponse({"error": str(e)[:300]}, status_code=502)
-    text = str(raw or "")
+        text = await _ask(PRIMARY, key, prompt)
+    except Exception as e:
+        primary_error = str(e)[:300]
+        try:
+            used = FALLBACK
+            text = await _ask(FALLBACK, os.environ.get("OPENAI_API_KEY") or key, prompt)
+        except Exception as e2:  # both down → the engine tells the customer to try later and alerts the admin
+            return JSONResponse({"error": f"claude: {primary_error} | openai: {str(e2)[:300]}", "primary_error": primary_error, "fallback_error": str(e2)[:300]}, status_code=502)
     m = re.search(r"\[[\s\S]*\]", text)
     try:
         arr = json.loads(m.group(0)) if m else []
     except Exception:
         arr = []
     out = [str(x).strip() for x in arr if isinstance(x, (str, int, float)) and str(x).strip()]
-    return {"variants": out[:n], "model": "claude-opus-5-5"}
+    return {"variants": out[:n], "model": used[1], "provider": used[0], "fallback": used is FALLBACK, "primary_error": primary_error}
