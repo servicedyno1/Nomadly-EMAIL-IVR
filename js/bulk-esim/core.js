@@ -450,7 +450,7 @@ async function cancelDead(c) {
   const cut = new Date(Date.now() - c.cancelDeadAfterDays * DAY)
   const dead = await C('bsEsims').find({ iccid: { $ne: null }, cancelledAt: null, $or: [{ status: 'failed', updatedAt: { $lt: new Date(Date.now() - HOUR) } }, { status: 'suspended', updatedAt: { $lt: cut } }] }).limit(20).toArray()
   for (const e of dead) {
-    if (await C('bsEsims').findOne({ _id: { $ne: e._id }, iccid: e.iccid, status: { $nin: GONE } })) { await C('bsEsims').updateOne({ _id: e._id }, { $set: { cancelledAt: new Date(), note: 'eSIM lives on in its replacement' } }); continue }
+    if (await C('bsEsims').findOne({ _id: { $ne: e._id }, iccid: e.iccid, $or: [{ status: { $nin: GONE } }, { cancelledAt: { $ne: null } }] })) { await C('bsEsims').updateOne({ _id: e._id }, { $set: { cancelledAt: new Date(), note: 'eSIM lives on in its replacement or was already cancelled' } }); continue }
     try { await P.cancelSubscription(e.iccid); await C('bsEsims').updateOne({ _id: e._id }, { $set: { cancelledAt: new Date(), status: e.status === 'suspended' ? 'failed' : e.status } }); alert(`🗑 ${e._id} ${e.msisdn || ''} (${e.status}) cancelled with Spenza — no more monthly billing for this eSIM.`); audit('cancel_line', { esimId: e._id, iccid: e.iccid, was: e.status }) }
     catch (err) { if (await once(`cancelfail:${today()}:${e._id}`)) alert(`⚠️ Could not cancel ${e._id} with Spenza: ${err.message}. Cancel it at web.spenza.com to stop the billing.`) }
   }
@@ -500,7 +500,13 @@ async function testSend(cid, campaignId, to) {
 }
 async function queueCampaign(campaignId, b) {
   const cp = await C('bsCampaigns').findOne({ _id: campaignId }); if (!cp || cp.status !== 'draft') return
-  const docs = cp.contacts.map((to, i) => msgDoc({ cid: cp.cid, to, body: cp.content[i % cp.content.length] + OPT, campaignId, bookingId: b._id, notBefore: b.startAt, prepaid: true, quotaDay: b.quotaDay, expireAt: new Date(b.startAt.getTime() + 2 * DAY) }))
+  // Texts are released per booked hour (the allocation), so campaigns sharing a day don't crowd each other's slots.
+  const slots = Object.entries(b.allocation || {}).sort(([a], [z]) => a.localeCompare(z)); let si = 0, left = slots[0]?.[1] ?? Infinity
+  const docs = cp.contacts.map((to, i) => {
+    while (left <= 0 && si < slots.length - 1) { si++; left = slots[si][1] }
+    left--; const notBefore = slots.length ? new Date(`${slots[si][0]}:00:00Z`) : b.startAt
+    return msgDoc({ cid: cp.cid, to, body: cp.content[i % cp.content.length] + OPT, campaignId, bookingId: b._id, notBefore, prepaid: true, quotaDay: b.quotaDay, expireAt: new Date(b.startAt.getTime() + 2 * DAY) })
+  })
   for (let i = 0; i < docs.length; i += 500) await C('bsMessages').insertMany(docs.slice(i, i + 500))
   await C('bsCampaigns').updateOne({ _id: campaignId }, { $set: { status: 'scheduled', bookingId: b._id, scheduledAt: b.startAt, 'stats.queued': docs.length } })
 }
@@ -593,6 +599,7 @@ async function finishCampaigns() {
     const open = await C('bsMessages').countDocuments({ campaignId: cp._id, test: false, status: { $in: ['queued', 'processing', 'submitted'] } })
     const started = await C('bsMessages').countDocuments({ campaignId: cp._id, test: false, status: { $ne: 'queued' } })
     if (cp.status === 'scheduled' && started) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'running', startedAt: new Date() } }); await setBooking(cp.bookingId, 'processing'); await notify(cp.cid, 'campaign', 'n_started', [cp.name], { campaignId: cp._id }) }
+    if (open && !cp.lateNotified && cp.scheduledAt && Date.now() - new Date(cp.scheduledAt).getTime() > 2 * HOUR && started < (cp.stats?.queued || 0) / 2) { const r = await C('bsCampaigns').updateOne({ _id: cp._id, lateNotified: { $ne: true } }, { $set: { lateNotified: true } }); if (r.modifiedCount) await notify(cp.cid, 'campaign', 'n_late', [cp.name, (cp.stats?.sent || 0), cp.stats?.queued || 0], { campaignId: cp._id }) }
     if (started && !open) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'completed', completedAt: new Date() } }); await setBooking(cp.bookingId, 'completed'); const r = await report(cp._id); await notify(cp.cid, 'campaign', 'n_done', [cp.name, r.sent, r.failed, r.rejected, r.replies], { campaignId: cp._id }); await refundUnsent(cp) }
   }
 }

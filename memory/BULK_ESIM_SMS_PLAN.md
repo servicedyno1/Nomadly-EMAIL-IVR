@@ -82,3 +82,9 @@ Test sends: max 2 per campaign during setup, not counted in booking volume, coun
 - Dead triggers: provider SUSPEND/BLOCK, sms service off, plan ended, sendMiss ≥2 (checks), fail rate >30%/20, technically_failed × apiFailsToReplace(3) consecutive, monitor-fault vote. Checks: pre_use, periodic (6 h; AUX roles traffic or not, service when it sent), volume (every checkEveryTexts=100 texts), spike (3 fails/h).
 - roleCount excludes suspended → ensureRoles buys a new monitor/tester when replacement is capped. Dry fakes: BULK_ESIM_FAKE_BROKEN (API error), BULK_ESIM_FAKE_RENEW_FAIL (501 on renew-number).
 - Tests: autoscale 67/67, iter241 20/20, engine 39/39, iter239 86/86.
+
+## 2026-06 round 10 — interplay audit (replacement ↔ booking ↔ sending)
+- Verified: queued texts are line-agnostic (chosen at send time) → replacement mid-campaign is free; sessions reassign; lost capacity → linesShort → autoscale, else texts expire at start+2d and refundUnsent pays back; AUX roles never in the pool.
+- Fixed: queueCampaign releases texts per allocated hour (notBefore = slot) instead of all at startAt; n_late notice once when <50% out 2 h after start (i18n ×5); cancelDead cancels an iccid once even if both the suspended line and its failed replacement are dead.
+- Known/accepted: replies to the OLD number after renew-number are lost (number gone at the operator); booking hours are UTC slots but recipient quiet hours still apply per area code.
+- Tests: autoscale 71/71, engine 39/39, iter239 86/86, iter241 20/20, bot_flow 16/16.

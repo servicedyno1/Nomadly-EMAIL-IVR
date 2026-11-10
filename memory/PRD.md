@@ -8,6 +8,7 @@
 - Round 6: dedicated monitor eSIM + round-trip delivery checks (pre-use, periodic, spike, monitor self-check, monitor-fault detection), bootstrap on new Spenza credentials (retire old lines, adopt SIMs, credit, webhook, buys ONLY the tester line; monitor + 2 starter lines are bought at the first PAID booking), tester line carries customers' 2 test texts, auto-buy ON by default, fleet grows only after first demand. renew-number is tried before any new eSIM. Deploying with real keys + credit WILL buy 1 tester eSIM; 3 more at the first paid booking.
 - Round 8: full day → bot offers the next day with room as a one-tap button (14-day horizon, translated); dead lines (failed / long-suspended, eSIM not reused) are cancelled with Spenza hourly so monthly billing stops.
 - Round 9: number-first replacement + dead detection audited for all roles (service/monitor/tester): API-error streaks, stuck number requests, volume-based re-checks, role-preserving rebuy, suspended aux lines count as missing.
+- Round 10: interplay audit — texts released per booked hour, 'running late' customer notice, single cancellation per eSIM.
 - Next: controlled live test with ONE eSIM (needs user OK to spend): /bulkprovision → number → health → 2 test sends → reply/STOP via /bulkwebhook → set providerSmsCost from real Spenza pricing → then /bulkset autoProvision true + manualApproval false and raise minEsims a week before launch. Deploy only when the user says so.
 
 

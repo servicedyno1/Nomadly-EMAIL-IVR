@@ -244,6 +244,24 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   process.env.BULK_ESIM_FAKE_SUSPENDED = Mnew.iccid; provCalls = 0; await B.healthCheck(); process.env.BULK_ESIM_FAKE_SUSPENDED = ''; await B.autoscale()
   ok('suspended monitor + replacement cap → counted as missing, new monitor bought', provCalls === 1 && (await db.collection('bsEsims').findOne({ _id: Mnew._id })).status === 'suspended' && (await B.roleCount('monitor')) === 1)
   await B.setConfig({ autoProvision: false, manualApproval: true }, 'test')
+
+  // ---- interplay: booked hours honoured, late notice, cancel once per eSIM ----
+  for (const col of ['bsBookings', 'bsDemand', 'bsMessages', 'bsCampaigns', 'bsDaily', 'bsNotify']) await db.collection(col).deleteMany({})
+  await B.setConfig({ platformPerMin: 30, esimPerMin: 10, esimDailyLimit: 5000 }, 'test')
+  const ipCid = (await B.customer('Nomadly', '999'))._id, ipC = await B.createCampaign(ipCid, { name: 'Hours', content: 'Hello', contacts: Array.from({ length: 2000 }, (_, i) => `+1212${String(5550000 + i)}`), consent: true })
+  const ipB = await B.createBooking(ipCid, { date: d(1), hour: 16, campaignId: ipC.campaign._id })
+  ok('2,000 texts need 2 booked hours at 1,440/hour', !!ipB.booking && Object.keys(ipB.booking.allocation).length === 2, JSON.stringify(ipB.booking?.allocation || ipB.error))
+  await B.confirmBooking(ipB.booking._id, {})
+  const byHour = await db.collection('bsMessages').aggregate([{ $match: { campaignId: ipC.campaign._id } }, { $group: { _id: '$nextAt', n: { $sum: 1 } } }, { $sort: { _id: 1 } }]).toArray()
+  ok('texts released per booked hour exactly as allocated', byHour.length === 2 && byHour.every(h => ipB.booking.allocation[h._id.toISOString().slice(0, 13)] === h.n), JSON.stringify(byHour.map(h => [h._id.toISOString().slice(11, 13), h.n])))
+  await db.collection('bsCampaigns').updateOne({ _id: ipC.campaign._id }, { $set: { scheduledAt: new Date(Date.now() - 3 * 3600000), status: 'running' } })
+  await B.finishCampaigns(); await B.finishCampaigns()
+  ok('campaign behind schedule → customer told once', (await db.collection('bsNotify').countDocuments({ key: 'n_late', chatId: '999' })) === 1)
+  await db.collection('bsEsims').insertMany([{ _id: 'ESIM-DEAD1', role: 'service', status: 'failed', iccid: 'dead-iccid', updatedAt: new Date(Date.now() - 3 * 3600000), stats: {}, history: [] }, { _id: 'ESIM-DEAD2', role: 'service', status: 'failed', iccid: 'dead-iccid', replaces: 'ESIM-DEAD1', updatedAt: new Date(Date.now() - 3 * 3600000), stats: {}, history: [] }])
+  let cc = []; const rc = P.cancelSubscription; P.cancelSubscription = async (i) => { cc.push(i); return rc(i) }
+  await B.cancelDead(await B.cfg()); P.cancelSubscription = rc
+  ok('line + its failed replacement share one eSIM → cancelled once', cc.length === 1 && (await db.collection('bsEsims').countDocuments({ iccid: 'dead-iccid', cancelledAt: { $ne: null } })) === 2, JSON.stringify(cc))
+  await db.collection('bsEsims').deleteMany({ _id: /^ESIM-DEAD/ })
   console.log(`\n${pass} passed, ${fail} failed`)
   for (const c of COLS) await db.collection(c).deleteMany({})
   await cl.close(); process.exit(fail ? 1 : 0)
