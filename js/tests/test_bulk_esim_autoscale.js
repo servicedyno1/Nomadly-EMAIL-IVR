@@ -180,6 +180,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   const tester = await db.collection('bsEsims').findOne({ role: 'tester' })
   ok('tester line passed its check and is ready (not in the sending pool)', tester.status === 'available' && (await B.capacity(d(0), await B.cfg())).lines === 0)
   const cust2 = await B.customer('Nomadly', '777'), cp2 = await B.createCampaign(cust2._id, { name: 'First', content: 'Hello there', contacts: Array.from({ length: 520 }, (_, i) => `+1212555${4000 + i}`), consent: true })
+  await db.collection('bsCustomers').updateOne({ _id: cust2._id }, { $set: { testNumbers: [{ phone: '+12125550777', verifiedAt: new Date() }] } })
   const ts = await B.testSend(cust2._id, cp2.campaign._id, '+12125550777'); await B.setConfig({ quietStart: 0, quietEnd: 24 }, 'test'); await B.claimWorker(); await B.tick(); await B.setConfig({ quietStart: 8, quietEnd: 21 }, 'test')
   const tm = await db.collection('bsMessages').findOne({ _id: ts.messageId })
   ok('customer test text goes out through the tester line before any service line exists', ts.ok && tm.status === 'sent' && tm.esimId === tester._id, `${tm.status} via ${tm.esimId}`)

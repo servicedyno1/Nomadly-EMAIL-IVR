@@ -107,11 +107,11 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   ok('defaults: 10% off for bookings 24 h+ ahead', c.scheduleDiscountPct === 10 && c.scheduleMinHours === 24 && B.discountFor(c, new Date(Date.now() + 25 * 3600000)) === 10 && B.discountFor(c, new Date(Date.now() + 23 * 3600000)) === 0)
   const cp = (await B.createCampaign(cid, { name: 'Now', content: 'Hello now', contacts: Array.from({ length: 510 }, (_, i) => `+1212555${8000 + i}`), consent: true })).campaign
   const w = await B.whenOptions(cid, cp._id)
-  ok('whenOptions: send now this hour at $51, schedule at $45.90 (list $51)', w.now && w.now.hour === new Date().getUTCHours() && w.now.price === 51 && w.schedule.pct === 10 && w.schedule.price === 45.9 && w.schedule.list === 51, JSON.stringify(w))
+  ok('whenOptions: send now this hour at $51, schedule at $45.90 (list $51)', w.now && w.now.hour === (new Date().getUTCMinutes() > 55 ? new Date().getUTCHours() + 1 : new Date().getUTCHours()) && w.now.price === 51 && w.schedule.pct === 10 && w.schedule.price === 45.9 && w.schedule.list === 51, JSON.stringify(w))
   const av = await B.availability(d(0)), cur = av.slots[new Date().getUTCHours()]
   ok('current hour is open pro rata (what is left of it), earlier hours closed', cur.now === true && cur.free > 0 && cur.free <= av.capacity && av.slots.filter(s => s.hour < cur.hour).every(s => s.free === 0))
   const bn = await B.createBooking(cid, { campaignId: cp._id, now: true })
-  ok('send now → booking this hour, full price $51, mode now', !!bn.booking && bn.booking.mode === 'now' && bn.booking.date === d(0) && bn.booking.hour === new Date().getUTCHours() && bn.booking.price === 51 && bn.booking.discountPct === 0, JSON.stringify(bn.error || [bn.booking?.price, bn.booking?.hour]))
+  ok('send now → booking this hour, full price $51, mode now', !!bn.booking && bn.booking.mode === 'now' && bn.booking.date === d(0) && bn.booking.hour === (new Date().getUTCMinutes() > 55 ? new Date().getUTCHours() + 1 : new Date().getUTCHours()) && bn.booking.price === 51 && bn.booking.discountPct === 0, JSON.stringify(bn.error || [bn.booking?.price, bn.booking?.hour]))
   await B.confirmBooking(bn.booking._id, { method: 'wallet' })
   await B.claimWorker(); await B.tick()
   ok('paid → texts start going out right away', (await db.collection('bsMessages').countDocuments({ campaignId: cp._id, test: false, status: 'sent' })) > 0 && (await db.collection('bsBookings').findOne({ _id: bn.booking._id })).status === 'scheduled')

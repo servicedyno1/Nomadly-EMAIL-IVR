@@ -11,7 +11,7 @@ const { validUsCa, quietWait, hourOpen } = require('./tz')
 const DEFAULTS = {
   defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 8, quietEnd: 21,
   platformPerMin: 30, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
-  minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20,
+  minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testNumbersMax: 3, testsPerDay: 4, testsPerWeek: 10,
   minEsims: 2, monitorEsims: 1, testerEsims: 1, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
   minCredit: 10, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
   esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: true, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3, cancelDeadAfterDays: 3, checkEveryTexts: 100, apiFailsToReplace: 3, platformPerMinAuto: true,
@@ -458,10 +458,12 @@ const discountFor = (c, startAt) => (c.scheduleDiscountPct > 0 && startAt.getTim
 const priced = (c, parts, unit, startAt) => { const pct = discountFor(c, startAt), u = Math.round(unit * (1 - pct / 100) * 10000) / 10000; return { pct, unit: u, price: Math.round(parts * u * 100) / 100, list: Math.round(parts * unit * 100) / 100 } }
 // "Send now or schedule?" for a campaign: can it start this hour (and what would it cost), else the earliest hour today, and the
 // scheduled price (−scheduleDiscountPct from tomorrow at this hour onwards).
+// "Now" = the current hour, or the next one when fewer than 5 minutes of it are left (null in the last minutes of the UTC day).
+const nowSlot = () => { const d = new Date(), h = d.getUTCHours(), left = 60 - d.getUTCMinutes(); if (left > 5) return { date: today(), hour: h }; return h === 23 ? null : { date: today(), hour: h + 1 } }
 async function whenOptions(cid, campaignId) {
   const c = await cfg(), cp = await C('bsCampaigns').findOne({ _id: campaignId, cid }); if (!cp) return E('err_campaign')
-  const unit = cp.withLinks ? c.priceLink : c.pricePlain, t = today(), h = new Date().getUTCHours(), { slots, dayFree, capacity: cap } = await availability(t)
-  const fits = (from) => !!allocate(slots, from, cp.parts, dayFree), nowOk = cap > 0 && slots[h].free > 0 && fits(h)
+  const unit = cp.withLinks ? c.priceLink : c.pricePlain, t = today(), h = nowSlot()?.hour ?? 24, { slots, dayFree, capacity: cap } = await availability(t)
+  const fits = (from) => !!allocate(slots, from, cp.parts, dayFree), nowOk = cap > 0 && h < 24 && slots[h].free > 0 && fits(h)
   const later = cap > 0 && !nowOk ? slots.find(s => s.hour > h && s.free > 0 && fits(s.hour)) : null
   const fee = cp.replies ? c.replyFee : 0, r2 = (x) => Math.round((x + fee) * 100) / 100, full = priced(c, cp.parts, unit, new Date()), disc = priced(c, cp.parts, unit, new Date(Date.now() + c.scheduleMinHours * HOUR + MIN))
   return { parts: cp.parts, replyFee: fee, now: nowOk ? { hour: h, price: r2(full.price) } : null, later: later ? { hour: later.hour, price: r2(full.price) } : null, lines: cap > 0, quiet: cap > 0 && !nowOk && !later && slots.slice(h).every(s => s.quiet || s.free === 0), schedule: { pct: disc.pct, price: r2(disc.price), list: r2(disc.list), minHours: c.scheduleMinHours } }
@@ -480,12 +482,12 @@ const unlock = (key) => C('bsLocks').deleteOne({ _id: key })
 // Holds capacity for `holdMinutes` while the customer pays. type: 'paid' | 'free'.
 // Volume = SMS parts. Price = parts × (link/phone or plain rate). The day's allowance must have room for the whole booking.
 async function createBooking(cid, { date, hour, volume, type = 'paid', campaignId, now = false }) {
-  if (now) { date = today(); hour = new Date().getUTCHours() }
+  if (now) { const ns = nowSlot(); if (!ns) return E('err_slot'); date = ns.date; hour = ns.hour }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || isNaN(Date.parse(date)) || !(Number.isInteger(Number(hour)) && hour !== null && hour !== '' && Number(hour) >= 0 && Number(hour) < 24)) return E('err_slot')
   const c = await cfg(), cu = await C('bsCustomers').findOne({ _id: cid }), cp = campaignId ? await C('bsCampaigns').findOne({ _id: campaignId, cid }) : null
   const v = Math.round(Number(cp ? cp.parts : volume)), listUnit = cp?.withLinks ? c.priceLink : c.pricePlain, limit = cu?.dailyLimit ?? c.defaultDailyLimit
   if (cu?.status !== 'active') return E('err_suspended')
-  if (cp) { const k = checkContent(cp.content, cp.withLinks, cp.optOut); if (k.error) return k } // the stored text must still match the paid type
+  if (cp) { const k = checkContent(cp.content, cp.withLinks, cp.optOut); if (k.error) return k; if (cp.testedHash && contentHash(cp) !== cp.testedHash) return E('err_content_changed') } // the stored text must still match the paid type and the tested text
   const fee = cp?.replies && type !== 'free' ? c.replyFee : 0
   if (!(v >= c.minVolume && v <= c.maxVolume)) return E('err_volume', c.minVolume, c.maxVolume)
   if (v > limit) return E('err_allowance_over', limit)
@@ -521,7 +523,7 @@ async function confirmBooking(bid, { method, amount, ref } = {}) {
     await setBooking(bid, 'provisioning')
     alert(`📦 Booking ${bid} (${b.volume} SMS on ${b.date}) needs ${r.need} more line(s)${r.ok ? ` — buying ${r.ok}` : ''}${r.ok < r.need ? `. ${r.need - r.ok} still missing: ${r.error || 'approve with /bulkprovision'}` : ''}.`)
   }
-  if (b.campaignId) await queueCampaign(b.campaignId, b)
+  if (b.campaignId) { await queueCampaign(b.campaignId, b); await refundTestCharges(b.campaignId, b.type === 'paid') }
   await notify(b.cid, 'booking', 'n_booking', [b.volume, b.date, String(b.hour).padStart(2, '0')], { bookingId: bid })
   audit('booking_confirm', { bookingId: bid, method }); return { ok: true }
 }
@@ -613,15 +615,63 @@ async function createCampaign(cid, { name, content, contacts, withLinks = false,
 }
 // Paid replies (+cfg.replyFee at booking): only then are replies to this campaign's texts forwarded to the customer.
 const setReplies = (cid, campaignId, on) => C('bsCampaigns').updateOne({ _id: campaignId, cid, status: 'draft' }, { $set: { replies: !!on } })
-// Up to cfg.testSends test texts per campaign during setup; they use the daily allowance like any text.
-async function testSend(cid, campaignId, to) {
+// Test texts: only to the customer's own verified numbers (code by SMS, max cfg.testNumbersMax), within an account-wide quota
+// (cfg.testsPerDay / testsPerWeek across all drafts), paid at the campaign's unit price (the bot debits the wallet; refunded
+// when the campaign is booked), and the tested text is frozen (hash checked at booking).
+const contentHash = (cp) => crypto.createHash('sha1').update(JSON.stringify([cp.content, cp.optOut !== false, !!cp.withLinks])).digest('hex').slice(0, 16)
+const testUnit = (cp, c) => Math.round((cp.withLinks ? c.priceLink : c.pricePlain) * segs(bodyOf(cp, 0)) * 100) / 100
+async function requestTestNumber(cid, phone) {
+  const c = await cfg(), cu = await C('bsCustomers').findOne({ _id: cid }), p = normPhone(phone)
+  if (cu?.status !== 'active') return E('err_suspended')
+  if (!validUsCa(p)) return E('err_number')
+  if ((cu.testNumbers || []).some(x => x.phone === p)) return { ok: true, verified: true, phone: p }
+  if ((cu.testNumbers || []).length >= c.testNumbersMax) return E('err_test_max', c.testNumbersMax)
+  if (cu.testVerify?.sentAt && Date.now() - new Date(cu.testVerify.sentAt).getTime() < MIN) return E('err_code_wait')
+  if (await C('bsSuppression').findOne({ $or: [{ cid }, { cid: '*' }], phone: p })) return E('err_opted')
+  const code = String(crypto.randomInt(100000, 999999))
+  await C('bsCustomers').updateOne({ _id: cid }, { $set: { testVerify: { phone: p, code, attempts: 0, sentAt: new Date(), expiresAt: new Date(Date.now() + 15 * MIN) } } })
+  await C('bsMessages').insertOne(msgDoc({ cid: 'system:verify', to: p, body: `CloudIVR BulkSMS: your verification code is ${code}. It expires in 15 minutes.`, test: true, system: true, priority: 1 }))
+  audit('test_number_request', { cid, phone: p }); return { ok: true, phone: p }
+}
+async function verifyTestNumber(cid, code) {
+  const cu = await C('bsCustomers').findOne({ _id: cid }), v = cu?.testVerify
+  if (!v || new Date(v.expiresAt) < new Date()) return E('err_code_expired')
+  if (v.attempts >= 5) { await C('bsCustomers').updateOne({ _id: cid }, { $unset: { testVerify: 1 } }); return E('err_code_expired') }
+  if (String(code || '').replace(/\D/g, '') !== v.code) { await C('bsCustomers').updateOne({ _id: cid }, { $inc: { 'testVerify.attempts': 1 } }); return E('err_code_bad', 4 - v.attempts) }
+  await C('bsCustomers').updateOne({ _id: cid }, { $push: { testNumbers: { phone: v.phone, verifiedAt: new Date() } }, $unset: { testVerify: 1 } })
+  audit('test_number_verified', { cid, phone: v.phone }); return { ok: true, phone: v.phone }
+}
+const testNumbers = async (cid) => ((await C('bsCustomers').findOne({ _id: cid }))?.testNumbers || []).map(x => x.phone)
+async function testQuota(cid, c) {
+  const q = (ms) => C('bsMessages').countDocuments({ cid, test: true, system: { $ne: true }, createdAt: { $gt: new Date(Date.now() - ms) } })
+  const day = await q(DAY), week = await q(7 * DAY)
+  return { day, week, dayLeft: Math.max(0, c.testsPerDay - day), weekLeft: Math.max(0, c.testsPerWeek - week) }
+}
+// What a test costs right now and whether the customer may send one: verified number, campaign tests left, account quota.
+async function testCheck(cid, campaignId, to) {
   const c = await cfg(), cp = await C('bsCampaigns').findOne({ _id: campaignId, cid }), p = normPhone(to)
   if (!cp) return E('err_campaign')
   if (!validUsCa(p)) return E('err_number')
-  const r = await C('bsCampaigns').updateOne({ _id: campaignId, testsUsed: { $lt: c.testSends } }, { $inc: { testsUsed: 1 } })
+  if (!(await testNumbers(cid)).includes(p)) return E('err_test_unverified')
+  if (cp.testsUsed >= c.testSends) return E('err_tests_used', c.testSends)
+  const q = await testQuota(cid, c); if (!q.dayLeft || !q.weekLeft) return E('err_test_quota', c.testsPerDay, c.testsPerWeek)
+  return { ok: true, charge: testUnit(cp, c), left: c.testSends - cp.testsUsed, quota: q, to: p }
+}
+// Test texts were paid up front; once the campaign is booked and paid they are credited back (bsNotify 'refund' → wallet).
+async function refundTestCharges(campaignId, paid) {
+  if (!paid) return
+  const r = await C('bsCampaigns').findOneAndUpdate({ _id: campaignId, testCharges: { $gt: 0 }, testRefunded: null }, { $set: { testRefunded: new Date() } })
+  const cp = r?.value !== undefined ? r.value : r; if (!cp) return
+  await notify(cp.cid, 'refund', 'n_test_refund', [cp.name, cp.testCharges], { amount: cp.testCharges, campaignId })
+}
+// Up to cfg.testSends test texts per campaign during setup (after testCheck passed and the wallet was debited `charge`).
+async function testSend(cid, campaignId, to, { charge = 0 } = {}) {
+  const k = await testCheck(cid, campaignId, to); if (k.error) return k
+  const c = await cfg(), cp = await C('bsCampaigns').findOne({ _id: campaignId, cid })
+  const r = await C('bsCampaigns').updateOne({ _id: campaignId, testsUsed: { $lt: c.testSends } }, { $inc: { testsUsed: 1, testCharges: charge }, $set: { testedHash: contentHash(cp), testedAt: new Date() } })
   if (!r.modifiedCount) return E('err_tests_used', c.testSends)
-  const m = msgDoc({ cid, to: p, body: bodyOf(cp, 0), campaignId, priority: 1, test: true })
-  await C('bsMessages').insertOne(m); return { ok: true, left: c.testSends - cp.testsUsed - 1, messageId: m._id }
+  const m = msgDoc({ cid, to: k.to, body: bodyOf(cp, 0), campaignId, priority: 1, test: true })
+  await C('bsMessages').insertOne(m); return { ok: true, left: c.testSends - cp.testsUsed - 1, charge, messageId: m._id }
 }
 async function queueCampaign(campaignId, b) {
   const cp = await C('bsCampaigns').findOne({ _id: campaignId }); if (!cp || cp.status !== 'draft') return
@@ -944,4 +994,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { OPT, MAX_PARTS, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+module.exports = { OPT, MAX_PARTS, requestTestNumber, verifyTestNumber, testNumbers, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }

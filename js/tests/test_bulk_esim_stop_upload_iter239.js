@@ -108,6 +108,7 @@ const openHour = async (date, need = 1) => (await B.availability(date)).slots.fi
   // ---- STOP variants & cross-customer ----
   const eSim = e1.msisdn, cB = (await B.customer('Nomadly', '9002'))._id, cC = (await B.customer('OtherBrand', '9003'))._id
   const variants = ['STOP', 'stopall', ' Unsubscribe ', 'Opt Out', 'QUIT', 'cancel', 'End', 'STOP.']
+  await B.claimWorker() // keep the preview app's worker off the queue while STOP races the queued texts
   for (let i = 0; i < variants.length; i++) {
     const ph = `+1415555${String(1000 + i)}`
     const q1 = await B.sendOne(cB, ph, 'hello B'), q2 = await B.sendOne(cC, ph, 'hello C')
@@ -165,6 +166,7 @@ const openHour = async (date, need = 1) => (await B.availability(date)).slots.fi
     await db.collection('bsSessions').insertOne(sess)
     const rp = await B.sendOne(cA, qp, 'conversation reply', 's_q')
     const cpq = (await B.createCampaign(cA, { name: 'TEST_q', content: 'Hello', contacts: nums(500, 6000), consent: true })).campaign
+    await db.collection('bsCustomers').updateOne({ _id: cA }, { $set: { testNumbers: [{ phone: qp, verifiedAt: new Date() }] } })
     const tq = await B.testSend(cA, cpq._id, qp)
     for (let i = 0; i < 4; i++) await B.claimWorker(); await B.tick()
     const [mq, mr, mt] = await Promise.all([q.messageId, rp.messageId, tq.messageId].map(x => db.collection('bsMessages').findOne({ _id: x })))

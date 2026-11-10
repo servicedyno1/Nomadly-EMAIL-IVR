@@ -12,10 +12,12 @@ const tg = async (msg) => { await axios.post('http://localhost:5000/telegram/web
   await db.collection('state').updateOne({ _id: String(CHAT) }, { $set: { userLanguage: 'en', action: 'none' } }, { upsert: true })
   await db.collection('walletOf').updateOne({ _id: String(CHAT) }, { $set: { usdIn: 100, usdOut: 0 } }, { upsert: true })
   const steps = [['🛰 eSIM BulkSMS (USA/Canada)', 'bse-home'], ['📤 New campaign', 'bse-name'], ['QA campaign', 'bse-type'], ['📝 Text only', 'bse-optout'], ['✅ Add “Reply STOP to opt out”', 'bse-content'], ['Visit www.qa.com', 'bse-content'], ['Hi from QA\n---\nHello from QA', 'bse-variants'], ['➡️ Keep my text only', 'bse-contacts'],
-    [Array.from({ length: 510 }, (_, i) => `+1212555${2000 + i}`).join('\n'), 'bse-consent'], ['✅ Yes, they all agreed', 'bse-test'], ['🧪 Send a test SMS', 'bse-test-to'], ['+12125550999', 'bse-test'], ['➡️ Continue to booking', 'bse-replies'], ['🚫 No replies', 'bse-when'], ['📅 Schedule (cheaper)', 'bse-day'],
+    [Array.from({ length: 510 }, (_, i) => `+1212555${2000 + i}`).join('\n'), 'bse-consent'], ['✅ Yes, they all agreed', 'bse-test'], ['🧪 Send a test SMS', 'bse-test-add'], ['+12125550999', 'bse-test-code'], ['<CODE>', 'bse-test-to'], ['+12125550999', 'bse-test'], ['➡️ Continue to booking', 'bse-replies'], ['🚫 No replies', 'bse-when'], ['📅 Schedule (cheaper)', 'bse-day'],
     [new Date(Date.now() + 86400000).toISOString().slice(0, 10), 'bse-hour'], ['18:00 · x free', 'bse-pay'], ['💰 Pay from wallet', 'bse-home'], ['📅 My bookings', 'bse-home'], ['📊 Daily usage', 'bse-home']]
-  for (const [text, want] of steps) { await tg({ text }); const a = (await st()).action; console.log(a === want ? '✅' : '❌', JSON.stringify(text.slice(0, 30)), '→', a) }
+  const cidQ = `${require('../bulk-esim/bot').brand()}:${CHAT}`; await db.collection('bsCustomers').updateOne({ _id: cidQ }, { $unset: { testNumbers: 1, testVerify: 1 } })
+  for (let [text, want] of steps) { if (text === '<CODE>') text = (await db.collection('bsCustomers').findOne({ _id: cidQ }))?.testVerify?.code || 'nocode'; await tg({ text }); const a = (await st()).action; console.log(a === want ? '✅' : '❌', JSON.stringify(text.slice(0, 30)), '→', a) }
   const bk = await db.collection('bsBookings').findOne({ cid: `${require('../bulk-esim/bot').brand()}:${CHAT}` })
+  console.log('test charge', (await db.collection('bsCampaigns').findOne({ _id: bk?.campaignId }))?.testCharges, 'refund notice', await db.collection('bsNotify').countDocuments({ key: 'n_test_refund', chatId: String(CHAT) }))
   console.log('booking', bk?.status, bk?.volume, bk?.price, 'wallet out', (await db.collection('walletOf').findOne({ _id: String(CHAT) }))?.usdOut)
   console.log('queued', await db.collection('bsMessages').countDocuments({ bookingId: bk?._id }), 'test msgs', await db.collection('bsMessages').countDocuments({ test: true, cid: bk?.cid }))
   await cl.close(); process.exit(0)

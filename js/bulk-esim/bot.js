@@ -127,10 +127,39 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     await put('bseCampaign', cp._id); await drafts().deleteOne({ _id: cid }); await go('bse-test')
     return send(chatId, say('contacts_ok', { n: cp.volume, parts: cp.parts, dropped: cp.dropped, max: c.maxVolume, price: Math.round(cp.parts * unit * 100) / 100, tests: c.testSends, ...info.bseParsed }), kb([[L.test], [L.cont], [L.back]]))
   }
+  // Tests: wallet must cover the campaign (so tests mean "about to buy"), only to verified own numbers, charged at the unit price
+  // (refunded when the campaign is paid), within the account quota.
+  const price = async (cp) => { const c = await B.cfg(); return Math.round((cp.parts * (cp.withLinks ? c.priceLink : c.pricePlain) + (cp.replies ? c.replyFee : 0)) * 100) / 100 }
+  async function askTestNumber() {
+    const nums = await B.testNumbers(cid), c = await B.cfg(); await go('bse-test-to')
+    if (!nums.length) { await go('bse-test-add'); return send(chatId, say('test_add_q', c.testNumbersMax), kb([[L.back]])) }
+    return send(chatId, say('test_pick_q'), kb([...nums.map(n => [n]), ...(nums.length < c.testNumbersMax ? [[L.add_num]] : []), [L.back]]))
+  }
   if (action === 'bse-test') {
-    if (message === L.test) { await go('bse-test-to'); return send(chatId, say('test_to_q'), kb([[L.back]])) }
+    if (message === L.test) {
+      const cp = await B.db().collection('bsCampaigns').findOne({ _id: info.bseCampaign, cid }), need = cp ? await price(cp) : 0, bal = await walletOps(T.db).balance(chatId).catch(() => 0)
+      if (bal < need) return send(chatId, say('test_locked', need, Number(bal).toFixed(2)), kb([[L.cont], [L.back]]))
+      return askTestNumber()
+    }
     if (message === L.cont) { const c = await B.cfg(); await go('bse-replies'); return send(chatId, say('replies_q', c.replyFee), kb([[L.replies_yes(c.replyFee)], [L.replies_no], [L.back]])) }
     return false
+  }
+  if (action === 'bse-test-add') {
+    const r = await B.requestTestNumber(cid, message); if (r.error) return send(chatId, `⚠️ ${errText(lang, r)}`)
+    if (r.verified) return askTestNumber()
+    await go('bse-test-code'); return send(chatId, say('test_code_sent', r.phone), kb([[L.back]]))
+  }
+  if (action === 'bse-test-code') {
+    const r = await B.verifyTestNumber(cid, message); if (r.error) return send(chatId, `⚠️ ${errText(lang, r)}`)
+    await send(chatId, say('test_verified', r.phone)); return askTestNumber()
+  }
+  if (action === 'bse-test-to') {
+    if (message === L.add_num) { const c = await B.cfg(); await go('bse-test-add'); return send(chatId, say('test_add_q', c.testNumbersMax), kb([[L.back]])) }
+    const k = await B.testCheck(cid, info.bseCampaign, message); if (k.error) { await go('bse-test'); return send(chatId, `⚠️ ${errText(lang, k)}`, kb([[L.test], [L.cont], [L.back]])) }
+    const w = walletOps(T.db); if (!(await w.debit(chatId, k.charge))) { await go('bse-test'); return send(chatId, say('wallet_low', k.charge), kb([[L.cont], [L.back]])) }
+    const r = await B.testSend(cid, info.bseCampaign, message, { charge: k.charge }); await go('bse-test')
+    if (r.error) { await w.credit(chatId, k.charge); return send(chatId, `⚠️ ${errText(lang, r)}`, kb([[L.test], [L.cont], [L.back]])) }
+    return send(chatId, say('test_ok', r.left, k.charge), kb([...(r.left ? [[L.test]] : []), [L.cont], [L.back]]))
   }
   // Paid replies: only campaigns that pay the reply fee get their replies forwarded; otherwise replies stay with the platform (STOP/HELP always honoured).
   if (action === 'bse-replies') {
@@ -139,7 +168,6 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     await B.setReplies(cid, info.bseCampaign, yes); await put('bseReplies', yes)
     return askWhen()
   }
-  if (action === 'bse-test-to') { const r = await B.testSend(cid, info.bseCampaign, message); await go('bse-test'); return send(chatId, r.error ? `⚠️ ${errText(lang, r)}` : say('test_ok', r.left), kb([...(r.left ? [[L.test]] : []), [L.cont], [L.back]])) }
   // Send now (this hour, full price) or schedule (24 h+ ahead → scheduleDiscountPct cheaper). When the pool is busy right now the
   // earliest hour today is offered instead, still at full price.
   async function askWhen() {
