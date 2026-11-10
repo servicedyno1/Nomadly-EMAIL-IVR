@@ -260,7 +260,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   ok('texts released per booked hour exactly as allocated', byHour.length === 2 && byHour.every(h => ipB.booking.allocation[h._id.toISOString().slice(0, 13)] === h.n), JSON.stringify(byHour.map(h => [h._id.toISOString().slice(11, 13), h.n])))
   await db.collection('bsCampaigns').updateOne({ _id: ipC.campaign._id }, { $set: { scheduledAt: new Date(Date.now() - 3 * 3600000), status: 'running' } })
   await B.finishCampaigns(); await B.finishCampaigns()
-  ok('campaign behind schedule → customer told once', (await db.collection('bsNotify').countDocuments({ key: 'n_late', chatId: '999' })) === 1)
+  ok('campaign behind schedule → admin told once, customer not', (await db.collection('bsNotify').countDocuments({ key: 'n_late', chatId: '999' })) === 0 && alerts.filter(a => /is running behind/.test(a)).length === 1, String(alerts.filter(a => /is running behind/.test(a)).length))
   await db.collection('bsEsims').insertMany([{ _id: 'ESIM-DEAD1', role: 'service', status: 'failed', iccid: 'dead-iccid', updatedAt: new Date(Date.now() - 3 * 3600000), stats: {}, history: [] }, { _id: 'ESIM-DEAD2', role: 'service', status: 'failed', iccid: 'dead-iccid', replaces: 'ESIM-DEAD1', updatedAt: new Date(Date.now() - 3 * 3600000), stats: {}, history: [] }])
   let cc = []; const rc = P.cancelSubscription; P.cancelSubscription = async (i) => { cc.push(i); return rc(i) }
   await B.cancelDead(await B.cfg()); P.cancelSubscription = rc

@@ -46,13 +46,14 @@ const nums = (n, from = 1000) => Array.from({ length: n }, (_, i) => `+1212555${
   const cp2 = await db.collection('bsCampaigns').findOne({ _id: cp._id })
   ok('sweep: version 2 blocked, its 250 queued texts stopped, version 1 keeps sending', JSON.stringify(cp2.blockedVersions) === '[1]' && (await M.countDocuments({ campaignId: cp._id, status: 'blocked' })) === 250 && (await M.countDocuments({ campaignId: cp._id, status: 'queued' })) === 250)
   ok('admin alert names customer, campaign, link and "no refund"', /Link flagged by Google in Nomadly:931/.test(since(n0)) && /b\.example\.com/.test(since(n0)) && /no refund/.test(since(n0)), since(n0))
-  const nt = await db.collection('bsNotify').findOne({ key: 'n_link_flagged', campaignId: cp._id })
-  ok('customer notified (other versions keep sending)', nt && nt.args[2] === 250 && nt.args[3] === false && /keep sending/.test(I.t('en', 'n_link_flagged', ...nt.args)))
+  ok('customer is NOT told about the flag (admin only)', !(await db.collection('bsNotify').findOne({ key: 'n_link_flagged', campaignId: cp._id })))
   n0 = alerts.length; await B.linkSweep()
   ok('second sweep: no duplicate alert', !/Link flagged/.test(since(n0)))
   await M.updateMany({ campaignId: cp._id, status: 'queued' }, { $set: { status: 'sent' } }); await B.finishCampaigns()
   const bk2 = await db.collection('bsBookings').findOne({ _id: bk._id })
   ok('campaign completes; blocked texts not refunded', (await db.collection('bsCampaigns').findOne({ _id: cp._id })).status === 'completed' && (bk2.refundedUnsent || 0) === 0, JSON.stringify(bk2.refundedUnsent))
+  const done = await db.collection('bsNotify').findOne({ key: 'n_done', campaignId: cp._id })
+  ok('customer gets the completion alert once nothing eligible is left (blocked counted as not sent, no refund)', done && done.args[1] === 250 && done.args[3] === 250 && !done.args[6], JSON.stringify(done?.args))
   ok('report counts blocked', (await B.report(cp._id)).blocked === 250)
 
   // ---- all versions flagged → cannot book ----

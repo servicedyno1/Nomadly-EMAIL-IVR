@@ -714,7 +714,6 @@ async function linkSweep() {
     const stopped = cp.status === 'draft' ? 0 : (await C('bsMessages').updateMany({ campaignId: cp._id, test: false, status: 'queued', body: { $in: bodies } }, { $set: { status: 'blocked', failureReason: 'link flagged by Google', updatedAt: new Date() }, $push: { history: { s: 'blocked', at: new Date() } } })).modifiedCount
     audit('link_flagged_sweep', { campaignId: cp._id, cid: cp.cid, versions: hit, stopped, flagged: r.flagged }); incident('link_flagged', { cid: cp.cid, where: 'sending', campaignId: cp._id, versions: hit, stopped, flagged: r.flagged })
     alert(`⛔ Link flagged by Google in ${cp.cid} — “${cp.name}” (${cp.status}): ${fmtFlag(r.flagged)} [${[...new Set(r.flagged.flatMap(x => x.threats))].join(', ')}]. Version(s) ${hit.map(i => i + 1).join(', ')} stopped: ${stopped} queued text(s) cancelled, no refund.${all ? ' Every version is now stopped.' : ''}`)
-    await notify(cp.cid, 'campaign', 'n_link_flagged', [cp.name, fmtFlag(r.flagged), stopped, all], { campaignId: cp._id })
   }
 }
 // Every uploaded number is billed; numbers in `skip` (failed the number check) are billed but never texted.
@@ -769,7 +768,7 @@ async function refundTestCharges(campaignId, paid) {
   if (!paid) return
   const r = await C('bsCampaigns').findOneAndUpdate({ _id: campaignId, testCharges: { $gt: 0 }, testRefunded: null }, { $set: { testRefunded: new Date() } })
   const cp = r?.value !== undefined ? r.value : r; if (!cp) return
-  await notify(cp.cid, 'refund', 'n_test_refund', [cp.name, cp.testCharges], { amount: cp.testCharges, campaignId })
+  await notify(cp.cid, 'refund', 'n_test_refund', [cp.name, cp.testCharges], { amount: cp.testCharges, campaignId, silent: true })
 }
 // Up to cfg.testSends test texts per campaign during setup (after testCheck passed and the wallet was debited `charge`).
 async function testSend(cid, campaignId, to, { charge = 0 } = {}) {
@@ -875,7 +874,7 @@ async function processOne(m, c) {
 async function notifyQuotaOnce(cid, c) {
   const k = `${cid}:${dayKey(Date.now(), c)}`
   const r = await C('bsDaily').updateOne({ _id: k, quotaNotified: { $ne: true } }, { $set: { quotaNotified: true } })
-  if (r.modifiedCount) await notify(cid, 'quota', 'n_quota', [nextReset(c).toISOString().slice(11, 16)])
+  if (r.modifiedCount) alert(`⛔ ${cid} used up the daily SMS allowance — texts over it were not sent (resets ${nextReset(c).toISOString().slice(11, 16)} UTC). /bulklimit ${cid} to raise it.`)
 }
 // Prepaid texts still waiting 2 days after the start (long pause, no healthy line) expire; their allowance is returned.
 // Sending is impossible right now: paused (credit, admin…) or not one usable service line on any account (e.g. an account swap).
@@ -910,7 +909,8 @@ async function refundUnsent(cp) {
   const sentAny = await C('bsMessages').countDocuments({ campaignId: cp._id, test: { $ne: true }, direction: 'out', status: { $in: ['sent', 'delivered'] } }, { limit: 1 })
   const parts = Math.min(g?.parts || 0, b.volume), fee = !sentAny && b.replyFee ? b.replyFee : 0, amount = Math.round((parts * (b.unitPrice ?? b.price / b.volume) + fee) * 100) / 100
   const r = await C('bsBookings').updateOne({ _id: b._id, refundedUnsent: null }, { $set: { refundedUnsent: amount, refundedParts: parts, refundedReplyFee: fee } })
-  if (r.modifiedCount && amount > 0) await notify(cp.cid, 'refund', 'n_refund_unsent', [cp.name, parts, amount], { amount, bookingId: b._id, campaignId: cp._id })
+  if (r.modifiedCount && amount > 0) { await notify(cp.cid, 'refund', 'n_refund_unsent', [cp.name, parts, amount], { amount, bookingId: b._id, campaignId: cp._id, silent: true }); alert(`↩️ ${cp.cid} “${cp.name}”: ${parts} SMS failed or couldn’t be sent — $${amount} refunded to the customer’s wallet.`) }
+  return r.modifiedCount ? amount : 0
 }
 async function finishCampaigns() {
   await expireStale(await cfg())
@@ -918,8 +918,8 @@ async function finishCampaigns() {
     const open = await C('bsMessages').countDocuments({ campaignId: cp._id, test: false, status: { $in: ['queued', 'processing', 'submitted'] } })
     const started = await C('bsMessages').countDocuments({ campaignId: cp._id, test: false, status: { $ne: 'queued' } })
     if (cp.status === 'scheduled' && started) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'running', startedAt: new Date() } }); await setBooking(cp.bookingId, 'processing'); await notify(cp.cid, 'campaign', 'n_started', [cp.name], { campaignId: cp._id }) }
-    if (open && !cp.lateNotified && cp.scheduledAt && Date.now() - new Date(cp.scheduledAt).getTime() > 2 * HOUR && started < (cp.stats?.queued || 0) / 2) { const r = await C('bsCampaigns').updateOne({ _id: cp._id, lateNotified: { $ne: true } }, { $set: { lateNotified: true } }); if (r.modifiedCount) await notify(cp.cid, 'campaign', 'n_late', [cp.name, (cp.stats?.sent || 0), cp.stats?.queued || 0], { campaignId: cp._id }) }
-    if (started && !open) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'completed', completedAt: new Date() } }); await setBooking(cp.bookingId, 'completed'); const r = await report(cp._id); await notify(cp.cid, 'campaign', 'n_done', [cp.name, r.sent, r.failed, r.rejected, r.replies, r.skipped], { campaignId: cp._id }); await refundUnsent(cp) }
+    if (open && !cp.lateNotified && cp.scheduledAt && Date.now() - new Date(cp.scheduledAt).getTime() > 2 * HOUR && started < (cp.stats?.queued || 0) / 2) { const r = await C('bsCampaigns').updateOne({ _id: cp._id, lateNotified: { $ne: true } }, { $set: { lateNotified: true } }); if (r.modifiedCount) alert(`⏳ ${cp.cid} “${cp.name}” is running behind: ${cp.stats?.sent || 0} of ${cp.stats?.queued || 0} texts out 2 h after its start. Check lines / balance (/bulk).`) }
+    if (started && !open) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'completed', completedAt: new Date() } }); await setBooking(cp.bookingId, 'completed'); const refunded = await refundUnsent(cp), r = await report(cp._id); await notify(cp.cid, 'campaign', 'n_done', [cp.name, r.sent, r.failed, r.rejected + (r.blocked || 0), r.replies, r.skipped, refunded || 0], { campaignId: cp._id }) }
   }
 }
 // Spenza tells each account's real SMS limit in X-RateLimit-* headers: adopt a changed limit as that account's rate (so capacity,

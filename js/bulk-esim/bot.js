@@ -306,6 +306,7 @@ function startNotices(bot, db) {
         const r = await col().findOneAndUpdate({ brand: brand(), sent: false }, { $set: { sent: true, sentAt: new Date() } }, { sort: { at: 1 } })
         const n = r?.value !== undefined ? r.value : r; if (!n) break
         if (n.type === 'refund' && n.amount) await walletOps(db).credit(n.chatId, Number(n.amount))
+        if (n.silent) continue
         const lang = (await db.collection('state').findOne({ _id: String(n.chatId) }, { projection: { userLanguage: 1 } }).catch(() => null))?.userLanguage || 'en'
         const text = n.key ? t(lang, n.key, ...(n.args || [])) : n.text
         await bot.sendMessage(n.chatId, text, { disable_web_page_preview: true, ...(n.type === 'inbound' ? { reply_markup: { inline_keyboard: [[{ text: t(lang, 'reply_btn'), callback_data: `bse-reply:${n.sessionId}` }]] } } : {}) }).catch(() => {})
