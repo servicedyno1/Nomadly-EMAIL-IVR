@@ -660,6 +660,12 @@ function swapIn(text, src, alt) {
   const a = String(alt).trim(), link = isLinkTok(a), orig = [...linkToks(src).map(x => [x, true]), ...(String(src).match(PHONE_G) || []).filter(x => x.replace(/\D/g, '').length >= 7).map(x => [x, false])].find(([, l]) => l === link)
   return orig && text.includes(orig[0]) ? text.split(orig[0]).join(a) : null
 }
+const OPENAI_MODEL = () => process.env.BULK_ESIM_OPENAI_MODEL || 'gpt-4o-mini'
+async function openaiVariants(text, limit, n, withLinks, avoid) {
+  const sys = `You rewrite one SMS marketing message into ${n} alternative versions for rotation. Rules: keep the same meaning and the same offer; every version at most ${limit} characters; ${withLinks ? 'copy every link and phone number EXACTLY as written, never add new ones' : 'no links, no phone numbers, no web addresses'}; plain text, no emojis, no quotes; vary wording and order, not facts. Reply with JSON {"variants": ["..."]} only.`
+  const r = await axios.post('https://api.openai.com/v1/chat/completions', { model: OPENAI_MODEL(), response_format: { type: 'json_object' }, temperature: 0.9, messages: [{ role: 'system', content: sys }, { role: 'user', content: `Message:\n${text}${avoid.length ? `\n\nDo not repeat these:\n${avoid.slice(-30).join('\n')}` : ''}` }] }, { headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }, timeout: 60000 })
+  return JSON.parse(r.data?.choices?.[0]?.message?.content || '{}').variants || []
+}
 async function aiVariants(cid, { text, withLinks, optOut = true, avoid = [], swap = [] }) {
   const src = String(text || '').trim(), limit = 160 - optLine(optOut).length, want = 5
   if (!src) return E('err_add_text')
@@ -669,7 +675,13 @@ async function aiVariants(cid, { text, withLinks, optOut = true, avoid = [], swa
   const allowed = urlsAndPhones([src, ...alts].join(' ')), known = new Set([src, ...avoid].map(x => x.toLowerCase()))
   const valid = (v) => { const t = String(v || '').trim(); if (!t || known.has(t.toLowerCase()) || segs(t + optLine(optOut)) > MAX_PARTS) return null; if (!withLinks && hasLinkOrPhone(t)) return null; for (const u of urlsAndPhones(t)) if (!allowed.has(u)) return null; for (const u of urlsAndPhones(src)) if (!alts.length && !t.toLowerCase().includes(u)) return null; return t }
   let raw = [], model = 'simulated'
-  if (P.dry() && !process.env.EMERGENT_LLM_KEY) raw = Array.from({ length: want + 2 }, (_, i) => `${['Hi!', 'Hello,', 'Quick note:', 'Heads up:', 'FYI:', 'Reminder:', 'Today:'][i]} ${src}`)
+  if (!process.env.EMERGENT_LLM_KEY && process.env.OPENAI_API_KEY) { // production server: the customer's text goes straight to OpenAI with the owner's key
+    try { raw = await openaiVariants(src, limit, want + 2, withLinks, avoid); model = OPENAI_MODEL() } catch (err) {
+      const msg = err.response?.data?.error?.message || err.message; audit('ai_variants_error', { cid, error: msg })
+      if (await once(`aidown:${new Date().toISOString().slice(0, 13)}`)) alert(`❌ AI variants unavailable — OpenAI failed (${msg}). Customers see "try again or keep your text". Check the OpenAI key / billing.`)
+      return E('err_ai')
+    }
+  } else if (P.dry() && !process.env.EMERGENT_LLM_KEY) raw = Array.from({ length: want + 2 }, (_, i) => `${['Hi!', 'Hello,', 'Quick note:', 'Heads up:', 'FYI:', 'Reminder:', 'Today:'][i]} ${src}`)
   else {
     try {
       const r = await axios.post(`http://127.0.0.1:${process.env.BACKEND_PORT || 8001}/api/internal/bulk-esim/variants`, { text: src, limit, n: want + 2, with_links: withLinks, avoid: avoid.slice(-30) }, { timeout: 90000 }); raw = r.data?.variants || []; model = r.data?.model || model
@@ -1090,7 +1102,12 @@ async function autoscale() {
 // Spenza accounts in the environment vs the ones we know (bsAccounts): a new account is connected (SIMs synced, credit read, webhook
 // registered, admin told); a changed key retires that account's lines; an account that left the environment is disabled and its
 // lines retired. The tester line is bought on the first account; the monitor + starter lines come with the first paid booking.
+// 4 bots share one engine database and start together: only one runs the start-up at a time (no double tester purchase).
 async function bootstrap() {
+  if (!(await lock('bootstrap', 5 * MIN))) return { ok: true, skipped: 'another bot is starting BulkSMS' }
+  try { return await bootstrapRun() } finally { await unlock('bootstrap') }
+}
+async function bootstrapRun() {
   const envAccts = P.accounts(); if (!envAccts.length) return { skipped: true }
   const hash = (k) => crypto.createHash('sha256').update(k).digest('hex').slice(0, 16)
   const legacy = await C('bsConfig').findOne({ _id: 'provider' }) // single-account installs before bsAccounts existed
