@@ -736,6 +736,18 @@ for (const [l, d] of Object.entries(CC)) {
   const P = LANGS[l], q = P.contacts_q, tq = P.test_to_q, oq = P.one_to_q
   Object.assign(P, { err_number: d.err_number, nocode: d.nocode, contacts_q: (o) => `${q(o)}\n📞 ${d.cc}`, test_to_q: (free) => `${tq(free)}\n${d.cc}`, one_to_q: `${oq}\n${d.cc}` })
 }
+// Customers are told before paying that start + finish are messaged automatically (no need to watch the bot).
+const BELL = {
+  en: '🔔 We’ll message you here automatically when sending starts and when it finishes.',
+  fr: '🔔 Nous vous écrirons ici automatiquement au début de l’envoi et à la fin.',
+  zh: '🔔 开始发送和发送完成时，我们会自动在这里通知您。',
+  hi: '🔔 भेजना शुरू होने और खत्म होने पर हम आपको यहीं अपने-आप संदेश भेजेंगे।',
+  fa: '🔔 وقتی ارسال شروع شود و وقتی تمام شود، خودکار همین‌جا به شما پیام می‌دهیم.',
+}
+for (const [l, bell] of Object.entries(BELL)) {
+  const P = LANGS[l], bk = P.booking, ok = P.paid_ok
+  Object.assign(P, { booking: (o) => `${bk(o)}\n${bell}`, paid_ok: `${ok}\n${bell}` })
+}
 
 const pack = (lang) => LANGS[lang] || en
 function t(lang, key, ...args) {

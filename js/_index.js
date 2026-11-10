@@ -974,6 +974,38 @@ const _CC_MISSING = {
   hi: (n, ex) => `📞 <b>${n}</b> में देश कोड नहीं है।\nआगे जोड़कर फिर भेजें — जैसे <code>${ex}</code> (USA/कनाडा) या <code>+44…</code> (UK)।`,
   fa: (n, ex) => `📞 <b>${n}</b> کد کشور ندارد.\nآن را جلوی شماره بگذارید و دوباره بفرستید — مثلاً <code>${ex}</code> (آمریکا/کانادا) یا <code>+44…</code> (انگلیس).`,
 }
+// Bulk IVR upload: rejected lines summed up in the user's language (the parser's reasons are English).
+const _LEAD_ERR = {
+  en: { head: (n) => `⚠️ ${n} line${n === 1 ? '' : 's'} skipped:`, nocc: 'no country code', typo: 'missing or extra digit', bad: 'not a valid / in-service number', nocol: 'no phone column found — add a column called Phone', fix: (v, f) => `e.g. ${v} → ${f}` },
+  fr: { head: (n) => `⚠️ ${n} ligne(s) ignorée(s) :`, nocc: 'sans indicatif pays', typo: 'chiffre manquant ou en trop', bad: 'numéro invalide / hors service', nocol: 'aucune colonne téléphone — ajoutez une colonne « Phone »', fix: (v, f) => `ex. ${v} → ${f}` },
+  zh: { head: (n) => `⚠️ 跳过 ${n} 行：`, nocc: '缺少国家代码', typo: '少一位或多一位数字', bad: '号码无效或未启用', nocol: '未找到电话列 — 请添加名为 Phone 的列', fix: (v, f) => `如 ${v} → ${f}` },
+  hi: { head: (n) => `⚠️ ${n} लाइन छोड़ी गईं:`, nocc: 'देश कोड नहीं', typo: 'अंक कम या ज़्यादा', bad: 'अमान्य / बंद नंबर', nocol: 'फ़ोन कॉलम नहीं मिला — Phone नाम का कॉलम जोड़ें', fix: (v, f) => `जैसे ${v} → ${f}` },
+  fa: { head: (n) => `⚠️ ${n} خط رد شد:`, nocc: 'بدون کد کشور', typo: 'رقم کم یا زیاد', bad: 'شماره نامعتبر / غیرفعال', nocol: 'ستون تلفن پیدا نشد — ستونی به نام Phone اضافه کنید', fix: (v, f) => `مثلاً ${v} ← ${f}` },
+}
+function _leadErrSummary(lang, errors) {
+  if (!errors?.length) return ''
+  const T = _LEAD_ERR[lang] || _LEAD_ERR.en, cnt = { nocc: 0, typo: 0, bad: 0, nocol: 0 }
+  let ex = null
+  for (const e of errors) {
+    const k = /No phone number column/i.test(e) ? 'nocol' : /no country code/i.test(e) ? 'nocc' : /missing a digit|extra digit|not a complete number|missing the 1/i.test(e) ? 'typo' : 'bad'
+    cnt[k]++
+    if (k === 'nocc' && !ex) { const v = (e.match(/^Line \d+:\s*(.+?) has no country code/) || [])[1], d = String(v || '').replace(/\D/g, ''); if (v) ex = T.fix(String(v).replace(/[<>&]/g, ''), d.length === 10 ? `+1${d}` : `+${d}`) }
+  }
+  if (cnt.nocol) return `⚠️ ${T.nocol}`
+  const parts = ['nocc', 'typo', 'bad'].filter(k => cnt[k]).map(k => `${cnt[k]} ${T[k]}${k === 'nocc' && ex ? ` (${ex})` : ''}`)
+  return `${T.head(errors.length)} ${parts.join(' · ')}`
+}
+// Bulk IVR "Schedule for later" (bot) in the user's language. Users are told up front that start + finish are messaged automatically.
+const _BULK_SCHED = {
+  en: { btns: ['⏰ In 1 hour', '⏰ In 3 hours', '⏰ In 6 hours', '⏰ In 12 hours', '⏰ In 24 hours'], prompt: 'When should this campaign start? Pick an option, or type a number of hours from now (e.g. <code>2</code> or <code>0.5</code>, max 168 = 7 days).', title: 'Schedule launch', bell: '🔔 You’ll get a message here automatically when it starts calling, and the full report when it finishes.', bad: '⚠️ Pick an option, or type hours from now between 0.1 and 168:', rel: (h) => h >= 1 ? `${h % 1 === 0 ? h : h.toFixed(1)} hour${h === 1 ? '' : 's'}` : `${Math.round(h * 60)} minutes`, done: (n, rel, when) => `⏰ <b>Campaign scheduled</b>\n\n📞 Leads: <b>${n}</b>\n🚀 Launches in <b>~${rel}</b>\n🕒 At <b>${when} UTC</b>`, cancelHint: 'You can cancel it below any time before then.', launched: (n, web) => `🚀 <b>Your scheduled campaign just started calling</b>\n\n📞 ${n} lead${n === 1 ? '' : 's'} now being dialed. ${web ? 'Open Campaigns for live progress.' : 'Open 📞 Bulk Calls → 📊 Show Status for live progress.'} You’ll get the full report when it finishes.`, failed: (n, err, web) => `⚠️ <b>Scheduled campaign couldn't launch</b>\n\nYour scheduled bulk campaign (${n} lead${n === 1 ? '' : 's'}) failed to start: ${err}\n\n${web ? 'Open Campaigns to retry.' : 'Open 📞 Bulk Calls to retry.'}` },
+  fr: { btns: ['⏰ Dans 1 heure', '⏰ Dans 3 heures', '⏰ Dans 6 heures', '⏰ Dans 12 heures', '⏰ Dans 24 heures'], prompt: 'Quand cette campagne doit-elle démarrer ? Choisissez une option, ou tapez un nombre d’heures (ex. <code>2</code> ou <code>0.5</code>, max 168 = 7 jours).', title: 'Programmer le lancement', bell: '🔔 Vous recevrez automatiquement un message ici au début des appels, puis le rapport complet à la fin.', bad: '⚠️ Choisissez une option, ou tapez un nombre d’heures entre 0.1 et 168 :', rel: (h) => h >= 1 ? `${h % 1 === 0 ? h : h.toFixed(1)} heure${h === 1 ? '' : 's'}` : `${Math.round(h * 60)} minutes`, done: (n, rel, when) => `⏰ <b>Campagne programmée</b>\n\n📞 Contacts : <b>${n}</b>\n🚀 Lancement dans <b>~${rel}</b>\n🕒 À <b>${when} UTC</b>`, cancelHint: 'Vous pouvez l’annuler ci-dessous à tout moment avant.', launched: (n, web) => `🚀 <b>Votre campagne programmée vient de démarrer</b>\n\n📞 ${n} contact(s) en cours d’appel. ${web ? 'Ouvrez Campagnes pour suivre en direct.' : 'Ouvrez 📞 Bulk Calls → 📊 Show Status pour suivre en direct.'} Vous recevrez le rapport complet à la fin.`, failed: (n, err, web) => `⚠️ <b>La campagne programmée n’a pas pu démarrer</b>\n\nVotre campagne (${n} contact(s)) n’a pas démarré : ${err}\n\n${web ? 'Ouvrez Campagnes pour réessayer.' : 'Ouvrez 📞 Bulk Calls pour réessayer.'}` },
+  zh: { btns: ['⏰ 1 小时后', '⏰ 3 小时后', '⏰ 6 小时后', '⏰ 12 小时后', '⏰ 24 小时后'], prompt: '活动何时开始？请选择，或输入从现在起的小时数（如 <code>2</code> 或 <code>0.5</code>，最多 168 = 7 天）。', title: '预约启动', bell: '🔔 开始拨打时我们会自动在这里通知您，结束时发送完整报告。', bad: '⚠️ 请选择一个选项，或输入 0.1 到 168 之间的小时数：', rel: (h) => h >= 1 ? `${h % 1 === 0 ? h : h.toFixed(1)} 小时` : `${Math.round(h * 60)} 分钟`, done: (n, rel, when) => `⏰ <b>活动已预约</b>\n\n📞 号码：<b>${n}</b>\n🚀 约 <b>${rel}</b> 后启动\n🕒 时间 <b>${when} UTC</b>`, cancelHint: '在此之前可随时在下方取消。', launched: (n, web) => `🚀 <b>您预约的活动已开始拨打</b>\n\n📞 正在拨打 ${n} 个号码。${web ? '打开“活动”查看实时进度。' : '打开 📞 Bulk Calls → 📊 Show Status 查看实时进度。'}结束后会发送完整报告。`, failed: (n, err, web) => `⚠️ <b>预约的活动未能启动</b>\n\n您的活动（${n} 个号码）启动失败：${err}\n\n${web ? '打开“活动”重试。' : '打开 📞 Bulk Calls 重试。'}` },
+  hi: { btns: ['⏰ 1 घंटे में', '⏰ 3 घंटे में', '⏰ 6 घंटे में', '⏰ 12 घंटे में', '⏰ 24 घंटे में'], prompt: 'यह अभियान कब शुरू हो? कोई विकल्प चुनें, या अभी से घंटे लिखें (जैसे <code>2</code> या <code>0.5</code>, अधिकतम 168 = 7 दिन)।', title: 'लॉन्च शेड्यूल करें', bell: '🔔 कॉल शुरू होते ही आपको यहाँ अपने-आप संदेश मिलेगा, और खत्म होने पर पूरी रिपोर्ट।', bad: '⚠️ कोई विकल्प चुनें, या 0.1 से 168 के बीच घंटे लिखें:', rel: (h) => h >= 1 ? `${h % 1 === 0 ? h : h.toFixed(1)} घंटे` : `${Math.round(h * 60)} मिनट`, done: (n, rel, when) => `⏰ <b>अभियान शेड्यूल हो गया</b>\n\n📞 नंबर: <b>${n}</b>\n🚀 लगभग <b>${rel}</b> में शुरू\n🕒 <b>${when} UTC</b> पर`, cancelHint: 'उससे पहले कभी भी नीचे से रद्द कर सकते हैं।', launched: (n, web) => `🚀 <b>आपका शेड्यूल किया अभियान कॉल करने लगा है</b>\n\n📞 ${n} नंबर डायल हो रहे हैं। ${web ? 'लाइव प्रगति के लिए Campaigns खोलें।' : 'लाइव प्रगति के लिए 📞 Bulk Calls → 📊 Show Status खोलें।'} खत्म होने पर पूरी रिपोर्ट मिलेगी।`, failed: (n, err, web) => `⚠️ <b>शेड्यूल किया अभियान शुरू नहीं हो सका</b>\n\nआपका अभियान (${n} नंबर) शुरू नहीं हुआ: ${err}\n\n${web ? 'फिर कोशिश के लिए Campaigns खोलें।' : 'फिर कोशिश के लिए 📞 Bulk Calls खोलें।'}` },
+  fa: { btns: ['⏰ ۱ ساعت بعد', '⏰ ۳ ساعت بعد', '⏰ ۶ ساعت بعد', '⏰ ۱۲ ساعت بعد', '⏰ ۲۴ ساعت بعد'], prompt: 'این کمپین کی شروع شود؟ یک گزینه انتخاب کنید یا تعداد ساعت از الان را بنویسید (مثلاً <code>2</code> یا <code>0.5</code>، حداکثر ۱۶۸ = ۷ روز).', title: 'زمان‌بندی شروع', bell: '🔔 وقتی تماس‌ها شروع شود خودکار همین‌جا پیام می‌گیرید و در پایان گزارش کامل.', bad: '⚠️ یک گزینه انتخاب کنید یا عددی بین 0.1 تا 168 ساعت بنویسید:', rel: (h) => h >= 1 ? `${h % 1 === 0 ? h : h.toFixed(1)} ساعت` : `${Math.round(h * 60)} دقیقه`, done: (n, rel, when) => `⏰ <b>کمپین زمان‌بندی شد</b>\n\n📞 شماره‌ها: <b>${n}</b>\n🚀 شروع حدود <b>${rel}</b> دیگر\n🕒 ساعت <b>${when} UTC</b>`, cancelHint: 'تا قبل از آن هر وقت خواستید از پایین لغو کنید.', launched: (n, web) => `🚀 <b>کمپین زمان‌بندی‌شده شما شروع به تماس کرد</b>\n\n📞 ${n} شماره در حال شماره‌گیری. ${web ? 'برای پیشرفت زنده «کمپین‌ها» را باز کنید.' : 'برای پیشرفت زنده 📞 Bulk Calls → 📊 Show Status را باز کنید.'} در پایان گزارش کامل می‌رسد.`, failed: (n, err, web) => `⚠️ <b>کمپین زمان‌بندی‌شده شروع نشد</b>\n\nکمپین شما (${n} شماره) شروع نشد: ${err}\n\n${web ? 'برای تلاش دوباره «کمپین‌ها» را باز کنید.' : 'برای تلاش دوباره 📞 Bulk Calls را باز کنید.'}` },
+}
+const _bulkSched = (lang) => _BULK_SCHED[lang] || _BULK_SCHED.en
+const _bulkSchedKb = (lang) => { const b = _bulkSched(lang).btns; return { keyboard: [[b[0], b[1]], [b[2], b[3]], [b[4]], ['↩️ Back']], resize_keyboard: true } }
+const _bulkSchedHours = (m) => { for (const t of Object.values(_BULK_SCHED)) { const i = t.btns.indexOf(m); if (i >= 0) return [1, 3, 6, 12, 24][i] } }
 const _ccMissing = (lang, n) => (_CC_MISSING[lang] || _CC_MISSING.en)(n, /^\d{10}$/.test(n) ? `+1${n}` : '+14155550100')
 const _isBulkRotBtn = (m) => Object.values(_BULK_ROT).some(t => t.btn === m)
 const _isBulkRotDone = (m) => Object.values(_BULK_ROT).some(t => t.done === m)
@@ -4624,11 +4656,9 @@ const loadData = async () => {
         const launched = await bulkCallService.launchDueScheduledCampaigns()
         for (const l of launched) {
           try {
-            if (l.error) {
-              await bot.sendMessage(l.chatId, `⚠️ <b>Scheduled campaign couldn't launch</b>\n\nYour scheduled bulk campaign (${l.leadCount} lead${l.leadCount === 1 ? '' : 's'}) failed to start: ${l.error}\n\nOpen 📞 Bulk Calls to retry.`, { parse_mode: 'HTML' })
-            } else {
-              await bot.sendMessage(l.chatId, `🚀 <b>Your scheduled campaign just launched</b>\n\n📞 ${l.leadCount} lead${l.leadCount === 1 ? '' : 's'} now being dialed. Open 📞 Bulk Calls → 📊 Show Status for live progress.`, { parse_mode: 'HTML' })
-            }
+            const S = _bulkSched((await db.collection('state').findOne({ _id: String(l.chatId) }, { projection: { userLanguage: 1 } }).catch(() => null))?.userLanguage)
+            const web = require('./cloudivr-web/notify').isWebChatId?.(l.chatId)
+            await bot.sendMessage(l.chatId, l.error ? S.failed(l.leadCount, l.error, web) : S.launched(l.leadCount, web), { parse_mode: 'HTML' })
           } catch (_) { /* user may have blocked the bot — ignore */ }
         }
         if (launched.length) log(`[BulkSchedule] Launched ${launched.length} scheduled campaign(s)`)
@@ -28609,7 +28639,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const { leads, errors, binary, columns } = bulkCallService.parseLeadsFile(content, fileName)
     if (binary) return send(chatId, trans('t.cp_134b', escHtml(msg.document?.file_name || 'file')), k.of([['↩️ Back']]))
     if (leads.length === 0) {
-      const errMsg = errors.length > 0 ? `\n\nErrors:\n${errors.slice(0, 5).join('\n')}` : ''
+      const errMsg = errors.length > 0 ? `\n\n${_leadErrSummary(lang, errors)}` : ''
       return send(chatId, trans('t.cp_136', errMsg), k.of([['↩️ Back']]))
     }
 
@@ -28629,7 +28659,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const preview = leads.slice(0, 5).map(l => `  ${l.number}${l.name ? ' — ' + escHtml(l.name) : ''}`).join('\n')
     const more = leads.length > 5 ? `\n  ... and ${leads.length - 5} more` : ''
     const errNote = (columns?.phone ? `\n${trans('t.cp_138cols', escHtml(columns.phone), columns.name ? escHtml(columns.name) : '')}` : '') +
-      (errors.length > 0 ? `\n⚠️ ${errors.length} invalid lines skipped` : '') +
+      (errors.length > 0 ? `\n${_leadErrSummary(lang, errors)}` : '') +
       (leadsEst.intl ? `\n🌍 ${leadsEst.intl} international lead${leadsEst.intl === 1 ? '' : 's'} — ${leadsEst.rateLine}` : '') +
       (leadsEst.blockedLine ? `\n${leadsEst.blockedLine}` : '')
 
@@ -29415,7 +29445,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         return send(chatId, trans('t.cp_217'))
       }
       await set(state, chatId, 'action', a.bulkScheduleTime)
-      return send(chatId, `⏰ <b>Schedule launch</b>\n\nWhen should this campaign start? Pick an option, or type a number of hours from now (e.g. <code>2</code> or <code>0.5</code>, max 168 = 7 days).`, { parse_mode: 'HTML', reply_markup: { keyboard: [['⏰ In 1 hour', '⏰ In 3 hours'], ['⏰ In 6 hours', '⏰ In 12 hours'], ['⏰ In 24 hours'], ['↩️ Back']], resize_keyboard: true } })
+      const S = _bulkSched(lang)
+      return send(chatId, `⏰ <b>${S.title}</b>\n\n${S.prompt}\n\n${S.bell}`, { parse_mode: 'HTML', reply_markup: _bulkSchedKb(lang) })
     }
     return send(chatId, trans('t.cp_222'))
   }
@@ -29426,12 +29457,11 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.bulkConfirm)
       return send(chatId, `Tap <b>🚀 Launch Campaign</b> to start now, or <b>⏰ Schedule for later</b>.`, { parse_mode: 'HTML', reply_markup: { keyboard: [['🚀 Launch Campaign'], ['⏰ Schedule for later'], ['↩️ Back']], resize_keyboard: true } })
     }
-    const presetHours = { '⏰ In 1 hour': 1, '⏰ In 3 hours': 3, '⏰ In 6 hours': 6, '⏰ In 12 hours': 12, '⏰ In 24 hours': 24 }
-    let hours = presetHours[message]
+    let hours = _bulkSchedHours(message)
     if (hours === undefined) {
       const n = parseFloat(String(message || '').trim())
       if (isNaN(n) || n < 0.1 || n > 168) {
-        return send(chatId, `⚠️ Pick an option, or type hours from now between 0.1 and 168:`, { reply_markup: { keyboard: [['⏰ In 1 hour', '⏰ In 3 hours'], ['⏰ In 6 hours', '⏰ In 12 hours'], ['⏰ In 24 hours'], ['↩️ Back']], resize_keyboard: true } })
+        return send(chatId, _bulkSched(lang).bad, { reply_markup: _bulkSchedKb(lang) })
       }
       hours = n
     }
@@ -29468,9 +29498,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       }
       await saveInfo('scheduledCampaignId', campaign.id)
       await set(state, chatId, 'action', a.bulkScheduled)
-      const relHrs = hours >= 1 ? `${hours % 1 === 0 ? hours : hours.toFixed(1)} hour${hours === 1 ? '' : 's'}` : `${Math.round(hours * 60)} minutes`
-      const when = scheduledFor.toISOString().replace('T', ' ').slice(0, 16)
-      return send(chatId, `⏰ <b>Campaign scheduled</b>\n\n📞 Leads: <b>${(bulkData.leads || []).length}</b>\n🚀 Launches in <b>~${relHrs}</b>\n🕒 At <b>${when} UTC</b>\n\nIt'll start automatically — you'll get a message when it launches. You can cancel it below any time before then.`, { parse_mode: 'HTML', reply_markup: { keyboard: [['❌ Cancel scheduled launch'], ['↩️ Back']], resize_keyboard: true } })
+      const S = _bulkSched(lang), when = scheduledFor.toISOString().replace('T', ' ').slice(0, 16)
+      return send(chatId, `${S.done((bulkData.leads || []).length, S.rel(hours), when)}\n\n${S.bell}\n${S.cancelHint}`, { parse_mode: 'HTML', reply_markup: { keyboard: [['❌ Cancel scheduled launch'], ['↩️ Back']], resize_keyboard: true } })
     } catch (e) {
       log(`[BulkSchedule] schedule error: ${e.message}`)
       return send(chatId, trans('t.cp_221', sanitizeProviderError(e.message, 'voice')), k.of([['↩️ Back']]))

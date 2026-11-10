@@ -214,15 +214,16 @@ const openHour = async (date, need = 1) => (await B.availability(date)).slots.fi
   await B.setConfig({ quietStart: 0, quietEnd: 24 }, 'qa')
   process.env.BULK_ESIM_FAKE_CREDIT = '3'; await B.creditWatch()
   const qL = await B.sendOne(cA, '+14155559991', 'credit test'); await B.claimWorker(); await B.tick()
-  ok('low credit pauses (nothing sent) + admin alert', (await B.state()).reasons.includes('provider_credit') && (await db.collection('bsMessages').findOne({ _id: qL.messageId })).status === 'queued' && alerts.some(a => /PAUSED/.test(a)))
+  // Readiness gate (owner rule): while sending is paused a single text is refused up front (off_one), never queued to fail.
+  ok('low credit pauses + single text refused up front (off_one) + admin alert', (await B.state()).reasons.includes('provider_credit') && qL.error === 'off_one' && alerts.some(a => /PAUSED/.test(a)), JSON.stringify(qL))
   process.env.BULK_ESIM_FAKE_CREDIT = '80'; await B.creditWatch(); for (let i = 0; i < 3; i++) await B.claimWorker(); await B.tick()
-  const qLm = await db.collection('bsMessages').findOne({ _id: qL.messageId })
-  ok('top-up → auto resume + queued text goes out', !(await B.state()).reasons.length && alerts.some(a => /resumed/i.test(a)) && (qLm.status === 'sent' || qLm.nextAt > new Date()), qLm.status)
+  const qL2 = await B.sendOne(cA, '+14155559991', 'credit test')
+  ok('top-up → auto resume + single text accepted again', !(await B.state()).reasons.length && alerts.some(a => /resumed/i.test(a)) && !!qL2.messageId, JSON.stringify(qL2))
   delete process.env.BULK_ESIM_FAKE_CREDIT
   await B.setConfig({ quietStart: 8, quietEnd: 21 }, 'qa')
 
   // ---- contacts upload via bot flow (contacts → consent → campaign; file saved only after consent) ----
-  const list = Array.from({ length: 505 }, (_, i) => `(212) 555-${String(3000 + i)}`).join('\n') + `\n${ph0}\nfoo,bar\n`
+  const list = Array.from({ length: 505 }, (_, i) => `+1 (212) 555-${String(3000 + i)}`).join('\n') + `\n${ph0}\nfoo,bar\n`
   const srv = http.createServer((req, res) => { res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end(list) }).listen(0)
   const port = srv.address().port
   const mkCtx = (chatId, msg, st) => { const sent = []; return { sent, ctx: { chatId, msg, message: msg.text || '', info: st, state: {}, set: async (_s, _c, k, v) => { st[k] = v }, saveInfo: async (k, v) => { st[k] = v }, send: async (_c, t) => { sent.push(t) }, goto: {}, bot: { getFileLink: async () => `http://127.0.0.1:${port}/f.csv` } } } }

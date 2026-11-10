@@ -264,6 +264,7 @@ export function CampaignNew() {
         : { ...base, audioId };
       const d = await api('/campaigns', { method: 'POST', body });
       toast.success(d.skipped ? `Campaign saved · ${d.skipped} line(s) skipped` : 'Campaign saved');
+      if (scheduledFor) toast.message('Scheduled — we’ll notify you in Inbox when calling starts and when it finishes.');
       if (d.doNotCall) toast.message(`${d.doNotCall} number(s) are on your do-not-call list and will be skipped`);
       u.reset();
       nav(cp(`/app/campaigns/${d.campaign.id}`));
@@ -302,7 +303,7 @@ export function CampaignNew() {
           {f.mode === 'menu' ? <MenuBuilder value={f.menu} onChange={set('menu')} testid="campaign-menu" /> : <Field label="Keys that count"><KeyPicker value={f.activeKeys} onChange={set('activeKeys')} testid="campaign-keys" /></Field>}
           </>}
           {f.callerIds?.length ? null : <Field label="Calls at the same time" hint="1 to 20 calls at once. Need more? Rotate caller IDs — one call per caller ID, up to 50 at once."><input type="number" min={1} max={20} className="civr-input" value={f.concurrency} onChange={set('concurrency')} data-testid="campaign-concurrency-input" /></Field>}
-          <Field label="Schedule (optional)" hint={f.repeat ? 'First run. Leave empty to start it yourself — the next runs follow at the same time.' : 'Leave empty to start manually.'}><DateTimePicker value={f.scheduledFor} onChange={set("scheduledFor")} minMinutes={2} testid="campaign-schedule" /></Field>
+          <Field label="Schedule (optional)" hint={f.repeat ? 'First run. Leave empty to start it yourself — the next runs follow at the same time. You’re notified in Inbox when each run starts and when it finishes.' : 'Leave empty to start manually. Scheduled campaigns start by themselves — you’re notified in Inbox when calling starts and when it finishes.'}><DateTimePicker value={f.scheduledFor} onChange={set("scheduledFor")} minMinutes={2} testid="campaign-schedule" /></Field>
           <RunPlanFields f={f} set={set} />
           {!isAi && f.mode !== 'report_only' && <div className="flex items-center justify-between"><span className="text-sm">Hold music during transfer</span><Toggle checked={f.holdMusic} onChange={set('holdMusic')} testid="campaign-hold-music-toggle" label="Hold music during transfer" /></div>}
           <ErrorNote error={error} testid="campaign-create-error" />
