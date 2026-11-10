@@ -398,8 +398,8 @@ function createStoreRoutes(deps = {}) {
       botStartPayload: 'web-login',
       brandName,
       brandSlug: smsBrand.brandSlug(),
-      logoUrl: '/brand/wordmark.png',
-      markUrl: '/brand/mark.png',
+      logoUrl: '/brand/wordmark.png?v=2026-11',
+      markUrl: '/brand/mark.png?v=2026-11',
       accent: smsBrand.webAccent(),
     })
   })

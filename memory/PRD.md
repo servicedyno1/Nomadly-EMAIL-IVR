@@ -1,5 +1,9 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-10 — Brand favicons on panels/storefront
+- useBrand (frontend) sets <link rel=icon/apple-touch-icon> to /api/brand/icon.png?v=2026-11 once the brand loads (hosting panel + storefront on every bot domain). store/config logoUrl/markUrl now ?v=2026-11 (cache-bust). Bot landing page (config.js) head gets favicon links + wordmark ?v. Root /favicon.ico route already serves assets/brand/<slug>/icon.png. Verified in preview: panel tab icon = brand icon (200 image/png).
+
+
 ## 2026-11-10 — Logos in bot emails
 - sms-app-brand: logoUrl() (PANEL_DOMAIN site → /assets/brand/<slug>/logo.png?v=2026-11) + logoImg(h). Used by welcome email, hosting-live email (send-email.js header, replaces 🚀), inbound-SMS email (sms-service), VPS/RDP ready email (vm-instance-setup), fax email (bot users). Email Blast = customer content, untouched. CloudIVR web emails use their own layout (unchanged).
 

@@ -36,7 +36,16 @@ export function useBrand() {
   useEffect(() => {
     if (brand.accent) document.documentElement.style.setProperty('--brand-accent', brand.accent);
     if (brand.loaded && brand.brandSlug) document.documentElement.dataset.brand = brand.brandSlug;
-  }, [brand.accent, brand.loaded, brand.brandSlug]);
+    // Browser-tab icon = this bot brand's icon (panel + storefront domains).
+    if (brand.loaded && brand.markUrl) {
+      const href = `${BACKEND_URL}/api/brand/icon.png?v=2026-11`;
+      for (const rel of ['icon', 'apple-touch-icon']) {
+        let l = document.querySelector(`link[rel="${rel}"]`);
+        if (!l) { l = document.createElement('link'); l.rel = rel; document.head.appendChild(l); }
+        l.href = href;
+      }
+    }
+  }, [brand.accent, brand.loaded, brand.brandSlug, brand.markUrl]);
   return brand;
 }
 
