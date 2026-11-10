@@ -22,7 +22,7 @@ const drafts = () => B.db().collection('bsDrafts')
 
 async function homeArgs(cid) {
   const c = await B.cfg(), u = await B.usage(cid)
-  return { min: c.minVolume, max: c.maxVolume, plain: per500(c.pricePlain), link: per500(c.priceLink), pct: c.scheduleDiscountPct, minHours: c.scheduleMinHours, fee: c.replyFee, used: u.used, limit: u.limit, from: c.quietStart, to: c.quietEnd }
+  return { min: c.minVolume, max: c.maxVolume, plain: per500(c.pricePlain), link: per500(c.priceLink), pct: c.scheduleDiscountPct, minHours: c.scheduleMinHours, fee: c.replyFee, perDay: c.testsPerDay, used: u.used, limit: u.limit, from: c.quietStart, to: c.quietEnd }
 }
 const home = async (send, chatId, lang) => send(chatId, t(lang, 'home', await homeArgs(B.cidOf(brand(), chatId))), homeKb(btn(lang)))
 const days = () => Array.from({ length: 7 }, (_, i) => new Date(Date.now() + i * 86400000).toISOString().slice(0, 10))
@@ -61,6 +61,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     return home(send, chatId, lang)
   }
   if (action === 'bse-cancel') { const b = await B.db().collection('bsBookings').findOne({ cid, _id: new RegExp(`${String(message).trim().replace(/\W/g, '')}$`) }); const r = b ? await B.cancelBooking(b._id, { cid }) : { error: 'err_not_found' }; await go('bse-home'); return send(chatId, r.error ? `⚠️ ${errText(lang, r)}` : say('cancelled', r.refunded), HK) }
+  const testKb = () => kb([[L.test], [L.cont], [L.back]])
   const unitOf = (c, links) => (links ? c.priceLink : c.pricePlain)
   const contentAsk = async (key = 'content_q') => { const c = await B.cfg(), optOut = info.bseOptOut !== false; return send(chatId, say(key, { max: optOut ? 160 - B.OPT.length : 160, optOut, plain: per500(c.pricePlain), link: per500(c.priceLink) }), kb([[optOut ? L.optout_no : L.optout_yes], [L.back]])) }
   // Step 1 — numbers: parsed, capped at maxVolume, checked (Telnyx carrier lookup, free); every kept number is billed, only mobiles are texted.
@@ -103,7 +104,8 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   async function offerVariants(swap) {
     const rounds = info.bseVarRounds || 0; if (rounds >= 3) return send(chatId, say('variants_max'), kb([[L.use_all], [L.keep], [L.back]]))
     const prev = info.bseVarAll || [], r = await B.aiVariants(cid, { text: info.bseContent[0], optOut: info.bseOptOut !== false, avoid: [...info.bseContent, ...prev], swap: swap ?? info.bseSwap ?? [] })
-    if (r.error) return send(chatId, `⚠️ ${errText(lang, r)}`, kb([[L.rotate_ai], [L.use_one], [L.back]]))
+    if (r.error === 'err_links_bad') return send(chatId, `⚠️ ${errText(lang, r)}`, kb([[L.same_links], [L.use_one], [L.back]]))
+    if (r.error) { await go('bse-review'); return send(chatId, `⚠️ ${errText(lang, r)}`, kb([[info.bseContent.length > 1 ? L.use_these : L.use_one], [L.rotate_ai], [L.edit], [L.back]])) }
     await put('bseVarShown', r.variants); await put('bseVarAll', [...prev, ...r.variants]); await put('bseVarRounds', rounds + 1); await go('bse-variants-pick')
     return send(chatId, say('variants_list', r.variants, info.bseOptOut !== false), kb([[L.use_all], [L.more], [L.keep], [L.back]]))
   }
@@ -113,14 +115,15 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     if (message === L.rotate_own) { await go('bse-content'); return contentAsk('own_q') }
     if (message === L.rotate_ai) {
       if (!B.hasLinkOrPhone(info.bseContent[0])) return offerVariants([])
-      await go('bse-ai-links'); return send(chatId, say('ai_links_q'), kb([[L.same_links], [L.back]]))
+      await go('bse-ai-links'); return send(chatId, say('ai_links_q'), kb([[L.same_links], [L.use_one], [L.back]]))
     }
     return send(chatId, say('pick_option'))
   }
   if (action === 'bse-ai-links') {
     if (message === L.same_links) { await put('bseSwap', []); return offerVariants([]) }
+    if (message === L.use_one || message === L.use_these) return finalize([])
     const alts = String(message).split('\n').map(x => x.trim()).filter(Boolean)
-    if (!alts.length || alts.length > 10 || !alts.every(B.onlyLinkOrPhone)) return send(chatId, `⚠️ ${say('err_links_bad')}`)
+    if (!alts.length || alts.length > 10 || !alts.every(B.onlyLinkOrPhone)) return send(chatId, `⚠️ ${say('err_links_bad')}`, kb([[L.same_links], [L.use_one], [L.back]]))
     await put('bseSwap', alts); return offerVariants(alts)
   }
   if (action === 'bse-variants-pick') {
@@ -140,40 +143,31 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     if (cr.error) { await go('bse-contacts'); const c = await B.cfg(); return send(chatId, `⚠️ ${errText(lang, cr)}\n\n${say('contacts_q', { min: c.minVolume, max: c.maxVolume })}`, kb([[L.back]])) }
     const cp = cr.campaign, c = await B.cfg(), unit = unitOf(c, cp.withLinks)
     await put('bseCampaign', cp._id); await drafts().deleteOne({ _id: cid }); await go('bse-test')
-    return send(chatId, say('ready', { n: cp.volume, v: cp.content.length, price: Math.round(cp.parts * unit * 100) / 100, unit, tests: c.testSends }), kb([[L.test], [L.cont], [L.back]]))
+    const o = await B.testOffer(cid)
+    return send(chatId, say('ready', { n: cp.volume, v: cp.content.length, price: Math.round(cp.parts * unit * 100) / 100, unit, tests: c.testSends, free: o.free, perDay: c.testsPerDay }), testKb())
   }
-  // Tests: wallet must cover the campaign (so tests mean "about to buy"), only to verified own numbers, charged at the unit price
-  // (refunded when the campaign is paid), within the account quota.
+  // Tests go to any USA/Canada number. Never paid for a campaign → one free test, no wallet needed. Otherwise the wallet must cover
+  // the campaign (so tests mean "about to buy"), each test is charged at the unit price (refunded when the campaign is paid), quota applies.
   const price = async (cp) => { const c = await B.cfg(); return Math.round((cp.parts * unitOf(c, cp.withLinks) + (cp.replies ? c.replyFee : 0)) * 100) / 100 }
-  async function askTestNumber() {
-    const nums = await B.testNumbers(cid), c = await B.cfg(); await go('bse-test-to')
-    if (!nums.length) { await go('bse-test-add'); return send(chatId, say('test_add_q', c.testNumbersMax), kb([[L.back]])) }
-    return send(chatId, say('test_pick_q'), kb([...nums.map(n => [n]), ...(nums.length < c.testNumbersMax ? [[L.add_num]] : []), [L.back]]))
-  }
   if (action === 'bse-test') {
     if (message === L.test) {
-      const cp = await B.db().collection('bsCampaigns').findOne({ _id: info.bseCampaign, cid }), need = cp ? await price(cp) : 0, bal = await walletOps(T.db).balance(chatId).catch(() => 0)
-      if (bal < need) return send(chatId, say('test_locked', need, Number(bal).toFixed(2)), kb([[L.cont], [L.back]]))
-      return askTestNumber()
+      const o = await B.testOffer(cid), c = await B.cfg()
+      if (!o.free) {
+        const cp = await B.db().collection('bsCampaigns').findOne({ _id: info.bseCampaign, cid }), need = cp ? await price(cp) : 0, bal = await walletOps(T.db).balance(chatId).catch(() => 0)
+        if (bal < need) return send(chatId, say('test_locked', need, Number(bal).toFixed(2), { firstTime: o.firstTime, perDay: c.testsPerDay }), kb([[L.cont], [L.back]]))
+      }
+      await go('bse-test-to'); return send(chatId, say('test_to_q', o.free), kb([[L.back]]))
     }
     if (message === L.cont) return askWhen()
     return false
   }
-  if (action === 'bse-test-add') {
-    const r = await B.requestTestNumber(cid, message); if (r.error) return send(chatId, `⚠️ ${errText(lang, r)}`)
-    if (r.verified) return askTestNumber()
-    await go('bse-test-code'); return send(chatId, say('test_code_sent', r.phone), kb([[L.back]]))
-  }
-  if (action === 'bse-test-code') {
-    const r = await B.verifyTestNumber(cid, message); if (r.error) return send(chatId, `⚠️ ${errText(lang, r)}`)
-    await send(chatId, say('test_verified', r.phone)); return askTestNumber()
-  }
   if (action === 'bse-test-to') {
-    if (message === L.add_num) { const c = await B.cfg(); await go('bse-test-add'); return send(chatId, say('test_add_q', c.testNumbersMax), kb([[L.back]])) }
-    const k = await B.testCheck(cid, info.bseCampaign, message); if (k.error) { await go('bse-test'); return send(chatId, `⚠️ ${errText(lang, k)}`, kb([[L.test], [L.cont], [L.back]])) }
-    const w = walletOps(T.db); if (!(await w.debit(chatId, k.charge))) { await go('bse-test'); return send(chatId, say('wallet_low', k.charge), kb([[L.cont], [L.back]])) }
+    const k = await B.testCheck(cid, info.bseCampaign, message); if (k.error) return send(chatId, `⚠️ ${errText(lang, k)}`, kb([[L.cont], [L.back]]))
+    const w = walletOps(T.db), c = await B.cfg()
+    if (k.charge && !(await w.debit(chatId, k.charge))) { await go('bse-test'); return send(chatId, say('wallet_low', k.charge), kb([[L.cont], [L.back]])) }
     const r = await B.testSend(cid, info.bseCampaign, message, { charge: k.charge }); await go('bse-test')
-    if (r.error) { await w.credit(chatId, k.charge); return send(chatId, `⚠️ ${errText(lang, r)}`, kb([[L.test], [L.cont], [L.back]])) }
+    if (r.error) { if (k.charge) await w.credit(chatId, k.charge); return send(chatId, `⚠️ ${errText(lang, r)}`, testKb()) }
+    if (r.free) return send(chatId, say('test_ok_free', c.testsPerDay), kb([[L.cont], [L.test], [L.back]]))
     return send(chatId, say('test_ok', r.left, k.charge), kb([...(r.left ? [[L.test]] : []), [L.cont], [L.back]]))
   }
   // Step 4 — one screen: send now (this hour, full price) or schedule (24 h+ ahead → cheaper), with the paid-replies toggle.
@@ -279,7 +273,7 @@ async function admin(chatId, message, say) {
     case '/bulkset': return a1 ? ok(await B.setConfig({ [a1]: rest[0] }, by)) : say(`Settings:\n${Object.entries(await B.cfg()).filter(([k]) => k !== 'accounts').map(([k, v]) => `${k} = ${v}`).join('\n')}`)
     case '/bulkprovision': return ok(await B.provisionOne('admin', by))
     case '/bulktest': await B.healthCheck(); return say('🩺 Health check done. /bulk to see results.')
-    case '/bulkreplace': return ok(await B.replaceEsim(a1, rest.join(' ') || 'admin', by))
+    case '/bulkreplace': { const r = await B.replaceEsim(a1, rest.join(' ') || 'admin', by); return r.error || r.ok ? ok(r) : say(r.bought ? `⚠️ Spenza could not replace the number — new line ${r.bought} ordered instead.` : `❌ Spenza could not replace the number and ordering a new line failed: ${r.buyError}`) }
     case '/bulklimit': return ok(await B.setCustomer(a1, { dailyLimit: rest[0] }, by))
     case '/bulksuspend': return ok(await B.setCustomer(a1, { status: 'suspended' }, by))
     case '/bulkrestore': return ok(await B.setCustomer(a1, { status: 'active' }, by))

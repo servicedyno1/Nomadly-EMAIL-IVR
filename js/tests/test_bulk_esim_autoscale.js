@@ -223,7 +223,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   process.env.BULK_ESIM_FAKE_SUSPENDED = M.iccid; process.env.BULK_ESIM_FAKE_RENEW_FAIL = M.iccid; provCalls = 0; alerts.length = 0
   await B.healthCheck(); process.env.BULK_ESIM_FAKE_SUSPENDED = ''; process.env.BULK_ESIM_FAKE_RENEW_FAIL = ''; await B.healthCheck()
   const Mnew = await B.monitorLine()
-  ok('monitor: renew-number refused → fresh eSIM bought as monitor', provCalls === 1 && Mnew && Mnew._id !== M._id && !Mnew.replaces && Mnew.role === 'monitor' && alerts.some(a => /number replacement failed/.test(a)), `${provCalls} bought, monitor ${Mnew?._id}`)
+  ok('monitor: renew-number refused → fresh eSIM bought as monitor', provCalls === 1 && Mnew && Mnew._id !== M._id && !Mnew.replaces && Mnew.role === 'monitor' && alerts.some(a => /could not replace the number/.test(a)), `${provCalls} bought, monitor ${Mnew?._id}`)
   // c) service line: Spenza API keeps erroring on it (3×) → treated as dead → number replaced
   process.env.BULK_ESIM_FAKE_BROKEN = S.iccid; for (let i = 0; i < 2; i++) await B.healthCheck()
   ok('two API errors → flagged, not yet replaced', (await db.collection('bsEsims').findOne({ _id: S._id })).apiFails === 2 && (await db.collection('bsEsims').findOne({ _id: S._id })).status !== 'replaced')

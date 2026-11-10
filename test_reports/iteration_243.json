@@ -1,0 +1,34 @@
+{
+  "summary": "Tested the new 4-step eSIM BulkSMS Telegram journey through the live :5000 webhook (dry run, simulated Telnyx lookup and Spenza) with the new suite js/tests/test_bulk_esim_iter243_journey.js: 140 of 148 checks passed. One of the 8 failures was a mistake in my test (fr prices are written as '50 $'), and I fixed it. Also ran a probe with 1 real Claude call. Working: free number check (landline/VoIP skipped, all uploaded numbers billed: 520 → $78, only 500 queued, progress shows 20 skipped), consent, auto price type, 139/138 and 161/160 opt-out limits, own '---' versions with different links/numbers, rejecting bad swap lines without an AI call, swapping in the customer's links, the replies toggle (+$20), send now, schedule −10% ($68.85), wallet pay, fr/zh/hi/fa labels, and the copy (every US/CA carrier, free check, 'You pay for all N'). HIGH bug: when a link is followed by punctuation (':', '.', ','), AI variants are almost all thrown away. In 'keep same link' mode, 6 of 7 good Claude variants were dropped and the second run returned none (err_ai). After an error the user is stuck on bse-ai-links.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "core.js LINK_G / urlsAndPhones / swapIn / aiVariants.valid", "issue": "LINK_G ends in \\S*, so trailing punctuation becomes part of the link token ('shop.example.com:'). The keep-same-link check needs each variant to contain 'shop.example.com:' exactly, and a variant that writes 'shop.example.com.' produces a token that is not in the allowed set. Swap mode is also broken: swapIn(variant, src, alt) returns null when the variant lacks the colon. Reproduced with real Claude on src 'Spring sale at shop.example.com: 20% off all plans this week.': only 1 of 7 valid variants kept. The second call in the journey (keep same link) returned 0, so err_ai. Any link at the end of a sentence ('Visit shop.example.com.') breaks AI rotation.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "bot.js bse-ai-links error path", "issue": "When aiVariants fails (err_links_bad, e.g. a phone number sent when the text only has a link, or err_ai), offerVariants shows the keyboard [✨ Rotate, ✅ Send this one message, Back] but the state stays bse-ai-links. Pressing those buttons gives 'Each line must be one link or one phone number.' Only Back gets the user out, and it goes to home, so the wizard has to start over. Verified: L.use_one in bse-ai-links stays bse-ai-links."},
+      {"endpoint": "core.js PHONE_G / LINK (checkContent auto price)", "issue": "False link-price matches: 'Offer valid 2026-01-15 to 2026-01-31 only' is treated as a phone number (8+ digits), and 'Big sale today.Come in' as a link. Both are billed $75/500 instead of $50."},
+      {"endpoint": "i18n.js btn.use_all", "issue": "The label is always '✅ Use all 5' even when only 1–4 variants passed validation (the run showed 1)."},
+      {"endpoint": "i18n.js when_q", "issue": "The quiet-hours text is hardcoded as '8am–9pm local only' instead of using cfg quietStart/quietEnd."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/js/tests/test_bulk_esim_iter243_journey.js", "/app/js/tests/test_bulk_esim_iter243_linkpunct_probe.js"],
+  "action_items": [
+    "Stop counting trailing punctuation as part of a link/phone token: strip /[.,:;!?)\\]'\"]+$/ in urlsAndPhones and in swapIn's orig token, or tighten LINK_G. Then check that ≥3 of 7 Claude variants survive for 'Spring sale at shop.example.com: …' and 'Visit shop.example.com.' (run js/tests/test_bulk_esim_iter243_linkpunct_probe.js).",
+    "In bse-ai-links, when the AI or the links step fails, either handle L.use_one / L.rotate_ai / L.same_links there, or go back to bse-review before showing that keyboard.",
+    "Make price detection ignore dates (YYYY-MM-DD, MM/DD) and 'word.Word' typos, or show the detected link/phone in the review screen so the customer sees why it is $75.",
+    "Make the use_all label show the real number of variants; make the when_q quiet hours come from cfg."
+  ],
+  "critical_code_review_comments": [
+    "js/tests/test_bulk_esim_numbercheck_flow.js runs deleteMany({}) on every bs* collection (COLS) at start. That wipes shared data and must not run alongside other suites or on real data; scope it to its own cid.",
+    "Simulated AI mode (no EMERGENT_LLM_KEY) returns 'Hi! <src>', which keeps the original punctuation, so the link-punctuation bug is never caught by the dry suites.",
+    "bse-review button text for 1 vs many versions is fine. rotate_ai with several own versions only rewrites content[0] (by design?)."
+  ],
+  "updated_files": ["/app/js/tests/test_bulk_esim_iter243_journey.js", "/app/js/tests/test_bulk_esim_iter243_linkpunct_probe.js"],
+  "success_rate": {"backend": "94.6% (140/148, 1 failure was a test-assertion artifact, now fixed)", "frontend": "N/A"},
+  "seed_data_creation": "Chat 990000444 (state, walletOf usdIn 300), its campaigns/bookings/messages/drafts/lookup log. All cleaned by cid at the end. bsConfig restored. Probe cid 'qa-iter243-probe' bsAiVariants deleted.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run sequentially from /app: node js/tests/test_bulk_esim_iter243_journey.js (~6 min, 2 Claude calls), then node js/tests/test_bulk_esim_iter243_linkpunct_probe.js (1 Claude call). Bot text replies cannot be captured (fake chat → Telegram 400), so the copy is checked by rendering i18n directly. Expected failures until fixed: edge price detection (2), 'Send this one message' in bse-ai-links (1), C run keep-same-link (4, caused by the punctuation bug). The system date is Nov 2026.",
+  "rca of the issue": "LINK_G = /(https?:\\/\\/\\S+|www\\.\\S+|\\b[a-z0-9-]{2,}\\.[a-z]{2,24}\\b\\S*)/gi — the trailing \\S* includes ':' '.' ','. urlsAndPhones(src) gives 'shop.example.com:'. In valid(): without swaps, a variant must include that exact string (most Claude rewrites move or drop the colon, so they are rejected), and each variant token, e.g. 'shop.example.com.', must be in allowed (it is not, so rejected). With swaps, swapIn searches the variant for 'shop.example.com:' and returns null. Repro: probe script. Fix: trim trailing punctuation from tokens."
+}

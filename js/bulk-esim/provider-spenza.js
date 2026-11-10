@@ -52,14 +52,14 @@ const sendSms = async ({ from, to, text, key, account }) => {
   await call('post', '/api/v1.1/sms', { fromNumber: from, toNumber: to, text }, { 'Idempotency-Key': key }, account)
   return { ok: true }
 }
-const listSims = async (account) => (dry() ? null : items(await call('get', '/api/v1.1/sims?page=1&pageSize=100', undefined, {}, account)))
+const listSims = async (account) => (dry() ? (process.env.BULK_ESIM_FAKE_SYNC_FAIL ? Promise.reject(Object.assign(new Error('Spenza unavailable (simulated 503)'), { kind: 'temporary', status: 503 })) : null) : items(await call('get', '/api/v1.1/sims?page=1&pageSize=100', undefined, {}, account)))
 const brokenFake = (iccid) => { if (String(process.env.BULK_ESIM_FAKE_BROKEN || '').split(',').includes(iccid)) { const e = new Error('SIM not found (simulated)'); e.kind = 'permanent'; throw e } }
 const getSim = async (iccid, account) => (dry() ? (brokenFake(iccid), { iccid, status: String(process.env.BULK_ESIM_FAKE_SUSPENDED || '').split(',').includes(iccid) ? 'SUSPENDED' : 'ACTIVE' }) : (await call('get', `/api/v1.1/sims/${encodeURIComponent(iccid)}`, undefined, {}, account))?.data)
 const serviceState = async (iccid, account) => (dry() ? { sms: true } : (await call('get', `/api/v1.1/sims/${encodeURIComponent(iccid)}/service-state`, undefined, {}, account))?.data)
 // Plan period. Spenza renews a line itself at endDate and bills the account balance (so renewals are part of the credit forecast).
 const subscription = async (iccid, account) => (dry() ? { status: 'ACTIVE', endDate: new Date(Date.now() + (String(process.env.BULK_ESIM_FAKE_EXPIRED || '').split(',').includes(iccid) ? -1 : 30) * 86400000).toISOString() } : (await call('get', `/api/v1.1/sims/${encodeURIComponent(iccid)}/subscription`, undefined, {}, account))?.data)
 const credit = async (account) => {
-  if (dry()) return Number(fake('BULK_ESIM_FAKE_CREDIT', account) ?? 50)
+  if (dry()) { const v = fake('BULK_ESIM_FAKE_CREDIT', account); if (v === 'fail') throw Object.assign(new Error('Spenza unavailable (simulated 503)'), { kind: 'temporary', status: 503 }); return Number(v ?? 50) }
   const c = (await call('get', '/api/v1.1/credit-balance', undefined, {}, account))?.data?.creditBalance || []
   return Number((c.find(x => x.currency === 'USD') || c[0])?.amount || 0)
 }
@@ -70,7 +70,10 @@ async function plan(account) {
   return pl ? { planId: pl.productId, simId: sim?.simId || null, cost: (pl.price || 0) + (sim?.price || 0) } : null
 }
 // New line: Spenza needs a device IMEI (the platform's own handset, SPENZA_BULK_IMEI[_n]) and a user email.
+let fakeFails = 0
+const resetFakeFails = () => { fakeFails = 0 }
 async function provision({ key, zipcode, account }) {
+  if (dry() && process.env.BULK_ESIM_FAKE_PROVISION_FAIL) { const [kind, n] = process.env.BULK_ESIM_FAKE_PROVISION_FAIL.split(':'); fakeFails++; if (!(Number(n) > 0) || fakeFails <= Number(n)) throw Object.assign(new Error(`Spenza ${kind} error (simulated)`), { kind, status: kind === 'credit' ? 402 : kind === 'temporary' ? 503 : 422 }) }
   if (dry()) return { transactionId: `preview-${key}`, simulated: true, phoneNumber: `+1201555${String(Math.floor(1000 + Math.random() * 8999))}`, iccid: `89${crypto.randomBytes(8).toString('hex').replace(/\D/g, '').padEnd(17, '7').slice(0, 17)}` }
   const a = acct(account), p = await plan(a.id), imei = String(a.imei).replace(/\D/g, '')
   if (!p || imei.length !== 15) { const e = new Error(!p ? `No plan on the BulkSMS Spenza account ${a.id}` : `SPENZA_BULK_IMEI${a.n === 1 ? '' : `_${a.n}`} is not set`); e.kind = 'permanent'; throw e }
@@ -99,4 +102,4 @@ function parseInbound(body) {
   return { event: b.eventType || body?.eventType || null, from: norm(b.From || b.from || b.fromNumber), to: norm(b.Owner || first(b.To) || b.to || b.toNumber || b.mdn), text: String(b.Message_Body || b.text || b.message || b.body || '').slice(0, 2000), providerId: b.Message_ID || b.id || null, direction: String(b.Direction || 'inbound').toLowerCase() }
 }
 
-module.exports = { name: 'spenza', MAX_ACCOUNTS, dry, configured, accounts, smsRate, sendSms, listSims, getSim, serviceState, subscription, cancelSubscription, credit, plan, provision, replaceNumber, setSms, registerWebhook, verify, parseInbound, norm }
+module.exports = { resetFakeFails, name: 'spenza', MAX_ACCOUNTS, dry, configured, accounts, smsRate, sendSms, listSims, getSim, serviceState, subscription, cancelSubscription, credit, plan, provision, replaceNumber, setSms, registerWebhook, verify, parseInbound, norm }

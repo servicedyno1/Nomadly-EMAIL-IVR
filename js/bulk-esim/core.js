@@ -11,7 +11,7 @@ const { validUsCa, quietWait, hourOpen } = require('./tz')
 const DEFAULTS = {
   defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 8, quietEnd: 21,
   platformPerMin: 30, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
-  minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testNumbersMax: 3, testsPerDay: 4, testsPerWeek: 10, numberCheck: true, lookupCost: 0.0025, lookupDays: 30,
+  minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testsPerDay: 4, testsPerWeek: 10, numberCheck: true, lookupCost: 0.0025, lookupDays: 30,
   minEsims: 2, monitorEsims: 1, testerEsims: 1, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
   minCredit: 10, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
   esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: true, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3, cancelDeadAfterDays: 3, checkEveryTexts: 100, apiFailsToReplace: 3, platformPerMinAuto: true,
@@ -35,7 +35,7 @@ const OPT = '\nReply STOP to opt out'
 const LINK = /(https?:\/\/|www\.|\b[a-z0-9-]{2,}\.[a-z]{2,24}\b)/i
 const LINK_G = /(https?:\/\/\S+|www\.\S+|\b[a-z0-9-]{2,}\.[a-z]{2,24}\b\S*)/gi
 const PHONE_G = /\+?\d[\d\s().-]{5,}\d/g
-const hasPhone = (t) => (String(t).match(PHONE_G) || []).some(x => x.replace(/\D/g, '').length >= 7)
+const hasPhone = (t) => (String(t).match(PHONE_G) || []).some(x => { const d = x.replace(/\D/g, '').length; return d >= 10 || (d === 7 && /^\d{3}[\s.-]\d{4}$/.test(x)) })
 const hasLinkOrPhone = (t) => LINK.test(t) || hasPhone(t)
 const E = (error, ...args) => ({ error, args })
 const MIN = 60000, HOUR = 3600000, DAY = 86400000
@@ -121,7 +121,7 @@ const once = async (key) => (await C('bsConfig').updateOne({ _id: key }, { $setO
 async function creditWatch() {
   const c = await cfg(), sum = { credit: 0, committed: 0, available: 0, daily: 0, renewals: 0, lineCost: 0 }; let seen = 0, lows = 0, lowNotes = []
   for (const a of c.accounts) {
-    let bal; try { bal = await P.credit(a.id) } catch (_) { continue }
+    let bal; try { bal = await P.credit(a.id) } catch (err) { if (await once(`creditfail:${a.id}:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Could not read the Spenza ${acctLabel(a.id)} balance: ${err.message}${err.status ? ` [HTTP ${err.status}]` : ''}. Credit checks for it are paused until it answers.`); continue }
     const f = await forecast(c, bal, a.id), low = bal < c.minCredit; seen++
     for (const k of ['credit', 'committed', 'available', 'daily', 'renewals']) sum[k] += f[k]; sum.lineCost = Math.max(sum.lineCost, f.lineCost)
     await setAccount(a.id, { credit: bal, creditAt: new Date(), forecast: f, low })
@@ -204,14 +204,18 @@ async function provisionOne(reason, by, role = 'service', account = null) {
   }
   const e = await addEsim({ role, account: pick.id }, 'purchasing')
   try {
-    const r = await P.provision({ key: e._id, account: pick.id })
+    const r = await P.provision({ key: e._id, account: pick.id }).catch(async (err) => {
+      if (err.kind !== 'temporary' && err.kind !== 'rate') throw err
+      await new Promise(ok => setTimeout(ok, P.dry() ? 10 : Math.min(10, err.retryAfter || 3) * 1000))
+      return P.provision({ key: e._id, account: pick.id })
+    })
     await C('bsConfig').updateOne({ _id: `spend:${month}` }, { $inc: { usd: cost } }, { upsert: true })
     await setEsim(e._id, r.phoneNumber ? 'testing' : 'provisioning', { providerRef: r.transactionId, iccid: r.iccid || null, providerEsimId: r.iccid || null, msisdn: r.phoneNumber || null, activationDate: r.phoneNumber ? new Date() : null })
     await C('bsConfig').updateOne({ _id: 'state', forecast: { $ne: null } }, { $inc: { 'forecast.available': -cost } }).catch(() => {})
     await C('bsAccounts').updateOne({ _id: pick.id, forecast: { $ne: null } }, { $inc: { 'forecast.available': -cost } }).catch(() => {})
     audit('provision', { esimId: e._id, reason, by, cost, role, account: pick.id }); return { ok: true, esimId: e._id, account: pick.id }
   } catch (err) {
-    await setEsim(e._id, 'failed', { note: err.message }); alert(`❌ Provisioning ${e._id} (${acctLabel(pick.id)}) failed: ${err.message}`)
+    await setEsim(e._id, 'failed', { note: err.message }); alert(`❌ Spenza could not order a new line (${e._id}, ${role}, ${acctLabel(pick.id)}, reason: ${reason}): ${err.message}${err.status ? ` [HTTP ${err.status}]` : ''}.${err.kind === 'credit' ? ' Add credit at web.spenza.com.' : err.kind === 'auth' ? ' Check the API key/secret.' : err.kind === 'temporary' || err.kind === 'rate' ? ' Spenza is not answering — it is retried with the next booking / autoscale run, or /bulkprovision.' : ' /bulkprovision to try again once fixed.'}`); incident('provision_failed', { esimId: e._id, account: pick.id, role, reason, error: err.message, kind: err.kind || null })
     if (err.kind === 'credit') { await setAccount(pick.id, { low: true }); await creditWatch() }
     return { error: err.message }
   }
@@ -250,13 +254,16 @@ async function autoReplace(e, why, c) {
   const key = `replaces:${today()}`, r = await C('bsConfig').updateOne({ _id: key, n: { $not: { $gte: c.maxReplacesPerDay } } }, { $inc: { n: 1 }, $set: { at: new Date() } }, { upsert: true }).catch(x => (x.code === 11000 ? null : Promise.reject(x)))
   if (!r || !(r.modifiedCount || r.upsertedCount)) { if (await once(`replimit:${today()}:${e._id}`)) alert(`⚠️ ${e._id} ${e.msisdn || ''}: ${why} — today's auto-replacement limit (${c.maxReplacesPerDay}) is reached. /bulkreplace ${e._id} to do it by hand.`); return }
   const x = await replaceEsim(e._id, `auto: ${why}`, 'system')
-  alert(x.ok ? `🔁 ${e._id} ${e.msisdn || ''} ${why} → new number requested as ${x.newEsimId}; it joins the pool only after a delivery test.` : `❌ ${e._id} ${why} — number replacement failed. ${c.autoProvision && !c.manualApproval ? 'Buying a new eSIM instead.' : 'Use /bulkprovision for a new eSIM.'}`)
-  if (!x.ok && c.autoProvision && !c.manualApproval) await provisionOne(`replacement of ${e._id} failed`, 'system', e.role || 'service')
+  if (x.ok) alert(`🔁 ${e._id} ${e.msisdn || ''} ${why} → new number requested as ${x.newEsimId}; it joins the pool only after a delivery test.`)
 }
 // Provider fleet → inventory: new lines get an internal id, pending lines get their number, provider-suspended lines are flagged.
 async function syncInventory(onlyAccount) {
   const c0 = await cfg()
-  for (const a of c0.accounts) { if (onlyAccount && a.id !== onlyAccount) continue; const sims = await P.listSims(a.id); if (sims) await syncAccount(sims, a.id, c0) }
+  for (const a of c0.accounts) {
+    if (onlyAccount && a.id !== onlyAccount) continue
+    let sims; try { sims = await P.listSims(a.id) } catch (err) { if (onlyAccount) throw err; if (await once(`syncfail:${a.id}:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Could not list the SIMs of Spenza ${acctLabel(a.id)}: ${err.message}${err.status ? ` [HTTP ${err.status}]` : ''}. New numbers and provider suspensions are not picked up until it answers.`); continue }
+    if (sims) await syncAccount(sims, a.id, c0)
+  }
 }
 async function syncAccount(sims, account, c0) {
   for (const s of sims) {
@@ -292,10 +299,22 @@ async function replaceEsim(eid, reason, by) {
   const n = await addEsim({ iccid: e.iccid, replaces: eid, role: e.role || 'service', verify: true, account: e.account }, 'provisioning')
   await C('bsEsims').updateOne({ _id: eid }, { $set: { replacedBy: n._id } })
   let st = 'requested'
-  try { const r = await P.replaceNumber(e.iccid, e.account); if (r?.simulated) await setEsim(n._id, 'testing', { msisdn: `+1201555${String(Math.floor(1000 + Math.random() * 8999))}`, activationDate: new Date() }) } catch (err) { st = 'failed'; await setEsim(n._id, 'failed', { note: err.message }); alert(`❌ Replacement of ${eid} failed: ${err.message}`) }
-  await C('bsReplacements').insertOne({ oldEsimId: eid, newEsimId: n._id, reason, providerRef: e.iccid, status: st, by: by || 'system', at: new Date() })
+  let bought = null
+  try {
+    if (!e.iccid) { const x = new Error('line has no eSIM yet (never activated)'); x.kind = 'permanent'; throw x }
+    const r = await P.replaceNumber(e.iccid, e.account), num = P.norm(r?.data?.phoneNumber || r?.phoneNumber || '')
+    if (r?.simulated) await setEsim(n._id, 'testing', { msisdn: `+1201555${String(Math.floor(1000 + Math.random() * 8999))}`, activationDate: new Date() })
+    else if (num) await setEsim(n._id, 'testing', { msisdn: num, activationDate: new Date() })
+  } catch (err) {
+    st = 'failed'; await setEsim(n._id, 'failed', { note: err.message })
+    alert(`❌ Spenza could not replace the number of ${eid} ${e.msisdn || ''} (${acctLabel(e.account || firstAccount(await cfg()))}): ${err.message}${err.status ? ` [HTTP ${err.status}]` : ''}. Ordering a new line instead…`)
+    incident('replace_failed', { esimId: eid, error: err.message, status: err.status || null })
+    bought = await provisionOne(`replacement of ${eid} failed`, by || 'system', e.role || 'service', e.account)
+    alert(bought.ok ? `🆕 New line ${bought.esimId} ordered on ${acctLabel(bought.account)} to replace ${eid} — it joins the pool after its delivery check.` : `❌ Ordering a new line to replace ${eid} also failed: ${bought.error} — the pool is one line short. Fix the cause, then /bulkprovision.`)
+  }
+  await C('bsReplacements').insertOne({ oldEsimId: eid, newEsimId: n._id, reason, providerRef: e.iccid, status: st, boughtEsimId: bought?.esimId || null, by: by || 'system', at: new Date() })
   await C('bsSessions').updateMany({ esimId: eid, status: 'active' }, { $set: { status: 'reassign' } })
-  audit('replace', { esimId: eid, newEsimId: n._id, reason, by }); return { ok: st !== 'failed', newEsimId: n._id }
+  audit('replace', { esimId: eid, newEsimId: n._id, reason, by, bought: bought?.esimId || bought?.error || null }); return { ok: st !== 'failed', newEsimId: n._id, ...(bought ? { bought: bought.ok ? bought.esimId : null, buyError: bought.error || null } : {}) }
 }
 
 // ---------- health ----------
@@ -552,7 +571,7 @@ async function cancelDead(c) {
   }
 }
 async function expireHolds() {
-  await C('bsConfig').deleteMany({ _id: /^(creditwarn|replaces|scale|provcredit|help|replimit|acctadvice|authfail|aifallback|aidown|lookupdown):/, at: { $lt: new Date(Date.now() - 30 * DAY) } }).catch(() => {})
+  await C('bsConfig').deleteMany({ _id: /^(creditwarn|replaces|scale|provcredit|help|replimit|acctadvice|authfail|aifallback|aidown|lookupdown|creditfail|syncfail|noselfurl):/, at: { $lt: new Date(Date.now() - 30 * DAY) } }).catch(() => {})
   for (const b of await C('bsBookings').find({ status: { $in: ['pending', 'awaiting_payment'] }, holdUntil: { $lt: new Date(Date.now() - 6 * HOUR) } }).limit(100).toArray()) await setBooking(b._id, 'cancelled', { note: 'hold_expired' })
 }
 
@@ -612,21 +631,23 @@ async function checkNumbers(cid, list) {
   await C('bsLookupLog').insertOne({ cid, at: new Date(), numbers: list.length, looked, cached: list.length - todo.length, failed, skipped: skip.length, counts, cost }).catch(() => {})
   return { skip, counts, sendable: list.length - skip.length, looked, cost }
 }
-const urlsAndPhones = (t) => new Set([...(String(t).match(LINK_G) || []), ...(String(t).match(PHONE_G) || [])].map(x => x.toLowerCase()))
+const trimTok = (x) => x.replace(/[.,:;!?)\]'"]+$/, '')
+const linkToks = (t) => (String(t).match(LINK_G) || []).map(trimTok).filter(Boolean)
+const urlsAndPhones = (t) => new Set([...linkToks(t), ...(String(t).match(PHONE_G) || [])].map(x => x.toLowerCase()))
 // AI variants of one text (Claude Opus 5.5 through the Python backend). Every variant is re-validated: fits one SMS with the opt-out
 // line, no link/phone for text-only, no URL/phone that the original lacks, not a duplicate. Dry mode: simulated variants.
 // swap: other links/phone numbers the customer wants rotated — variant i gets swap[i % n] in place of the original link/number of the same kind.
 const isLinkTok = (t) => LINK.test(t) && !hasPhone(t)
-const onlyLinkOrPhone = (t) => hasLinkOrPhone(t) && !String(t).replace(LINK_G, '').replace(PHONE_G, '').trim()
+const onlyLinkOrPhone = (t) => hasLinkOrPhone(t) && !trimTok(String(t).trim()).replace(LINK_G, '').replace(PHONE_G, '').trim()
 function swapIn(text, src, alt) {
-  const a = String(alt).trim(), link = isLinkTok(a), orig = [...(String(src).match(LINK_G) || []).map(x => [x, true]), ...(String(src).match(PHONE_G) || []).filter(x => x.replace(/\D/g, '').length >= 7).map(x => [x, false])].find(([, l]) => l === link)
+  const a = String(alt).trim(), link = isLinkTok(a), orig = [...linkToks(src).map(x => [x, true]), ...(String(src).match(PHONE_G) || []).filter(x => x.replace(/\D/g, '').length >= 7).map(x => [x, false])].find(([, l]) => l === link)
   return orig && text.includes(orig[0]) ? text.split(orig[0]).join(a) : null
 }
 async function aiVariants(cid, { text, withLinks, optOut = true, avoid = [], swap = [] }) {
   const src = String(text || '').trim(), limit = 160 - optLine(optOut).length, want = 5
   if (!src) return E('err_add_text')
   if (withLinks === undefined) withLinks = hasLinkOrPhone(src)
-  const alts = withLinks ? swap.map(x => String(x).trim()).filter(Boolean).slice(0, 10) : []
+  const alts = withLinks ? swap.map(x => trimTok(String(x).trim())).filter(Boolean).slice(0, 10) : []
   if (alts.some(a => !onlyLinkOrPhone(a) || swapIn(src, src, a) == null)) return E('err_links_bad')
   const allowed = urlsAndPhones([src, ...alts].join(' ')), known = new Set([src, ...avoid].map(x => x.toLowerCase()))
   const valid = (v) => { const t = String(v || '').trim(); if (!t || known.has(t.toLowerCase()) || segs(t + optLine(optOut)) > MAX_PARTS) return null; if (!withLinks && hasLinkOrPhone(t)) return null; for (const u of urlsAndPhones(t)) if (!allowed.has(u)) return null; for (const u of urlsAndPhones(src)) if (!alts.length && !t.toLowerCase().includes(u)) return null; return t }
@@ -661,33 +682,15 @@ async function createCampaign(cid, { name, content, contacts, withLinks, optOut 
 }
 // Paid replies (+cfg.replyFee at booking): only then are replies to this campaign's texts forwarded to the customer.
 const setReplies = (cid, campaignId, on) => C('bsCampaigns').updateOne({ _id: campaignId, cid, status: 'draft' }, { $set: { replies: !!on } })
-// Test texts: only to the customer's own verified numbers (code by SMS, max cfg.testNumbersMax), within an account-wide quota
-// (cfg.testsPerDay / testsPerWeek across all drafts), paid at the campaign's unit price (the bot debits the wallet; refunded
-// when the campaign is booked), and the tested text is frozen (hash checked at booking).
+// Test texts go to any USA/Canada number (not opted out). A customer who never paid for a campaign gets ONE free test (no wallet
+// needed); every other test needs a wallet that covers the campaign, is charged at the unit price (refunded when the campaign is
+// booked), stays within the account quota (cfg.testsPerDay / testsPerWeek) and freezes the tested text (hash checked at booking).
 const contentHash = (cp) => crypto.createHash('sha1').update(JSON.stringify([cp.content, cp.optOut !== false, !!cp.withLinks])).digest('hex').slice(0, 16)
 const testUnit = (cp, c) => Math.round((cp.withLinks ? c.priceLink : c.pricePlain) * segs(bodyOf(cp, 0)) * 100) / 100
-async function requestTestNumber(cid, phone) {
-  const c = await cfg(), cu = await C('bsCustomers').findOne({ _id: cid }), p = normPhone(phone)
-  if (cu?.status !== 'active') return E('err_suspended')
-  if (!validUsCa(p)) return E('err_number')
-  if ((cu.testNumbers || []).some(x => x.phone === p)) return { ok: true, verified: true, phone: p }
-  if ((cu.testNumbers || []).length >= c.testNumbersMax) return E('err_test_max', c.testNumbersMax)
-  if (cu.testVerify?.sentAt && Date.now() - new Date(cu.testVerify.sentAt).getTime() < MIN) return E('err_code_wait')
-  if (await C('bsSuppression').findOne({ $or: [{ cid }, { cid: '*' }], phone: p })) return E('err_opted')
-  const code = String(crypto.randomInt(100000, 999999))
-  await C('bsCustomers').updateOne({ _id: cid }, { $set: { testVerify: { phone: p, code, attempts: 0, sentAt: new Date(), expiresAt: new Date(Date.now() + 15 * MIN) } } })
-  await C('bsMessages').insertOne(msgDoc({ cid: 'system:verify', to: p, body: `CloudIVR BulkSMS: your verification code is ${code}. It expires in 15 minutes.`, test: true, system: true, priority: 1 }))
-  audit('test_number_request', { cid, phone: p }); return { ok: true, phone: p }
+async function testOffer(cid) {
+  const paid = !!(await C('bsBookings').findOne({ cid, paymentStatus: 'paid' }, { projection: { _id: 1 } })), cu = await C('bsCustomers').findOne({ _id: cid }, { projection: { freeTestAt: 1 } })
+  return { firstTime: !paid, free: !paid && !cu?.freeTestAt }
 }
-async function verifyTestNumber(cid, code) {
-  const cu = await C('bsCustomers').findOne({ _id: cid }), v = cu?.testVerify
-  if (!v || new Date(v.expiresAt) < new Date()) return E('err_code_expired')
-  if (v.attempts >= 5) { await C('bsCustomers').updateOne({ _id: cid }, { $unset: { testVerify: 1 } }); return E('err_code_expired') }
-  if (String(code || '').replace(/\D/g, '') !== v.code) { await C('bsCustomers').updateOne({ _id: cid }, { $inc: { 'testVerify.attempts': 1 } }); return E('err_code_bad', 4 - v.attempts) }
-  await C('bsCustomers').updateOne({ _id: cid }, { $push: { testNumbers: { phone: v.phone, verifiedAt: new Date() } }, $unset: { testVerify: 1 } })
-  audit('test_number_verified', { cid, phone: v.phone }); return { ok: true, phone: v.phone }
-}
-const testNumbers = async (cid) => ((await C('bsCustomers').findOne({ _id: cid }))?.testNumbers || []).map(x => x.phone)
 async function testQuota(cid, c) {
   const q = (ms) => C('bsMessages').countDocuments({ cid, test: true, system: { $ne: true }, createdAt: { $gt: new Date(Date.now() - ms) } })
   const day = await q(DAY), week = await q(7 * DAY)
@@ -698,10 +701,12 @@ async function testCheck(cid, campaignId, to) {
   const c = await cfg(), cp = await C('bsCampaigns').findOne({ _id: campaignId, cid }), p = normPhone(to)
   if (!cp) return E('err_campaign')
   if (!validUsCa(p)) return E('err_number')
-  if (!(await testNumbers(cid)).includes(p)) return E('err_test_unverified')
+  if (await C('bsSuppression').findOne({ $or: [{ cid }, { cid: '*' }], phone: p })) return E('err_opted')
+  const o = await testOffer(cid)
+  if (o.free) return { ok: true, free: true, charge: 0, left: 1, to: p }
   if (cp.testsUsed >= c.testSends) return E('err_tests_used', c.testSends)
   const q = await testQuota(cid, c); if (!q.dayLeft || !q.weekLeft) return E('err_test_quota', c.testsPerDay, c.testsPerWeek)
-  return { ok: true, charge: testUnit(cp, c), left: c.testSends - cp.testsUsed, quota: q, to: p }
+  return { ok: true, free: false, charge: testUnit(cp, c), left: c.testSends - cp.testsUsed, quota: q, to: p }
 }
 // Test texts were paid up front; once the campaign is booked and paid they are credited back (bsNotify 'refund' → wallet).
 async function refundTestCharges(campaignId, paid) {
@@ -714,6 +719,12 @@ async function refundTestCharges(campaignId, paid) {
 async function testSend(cid, campaignId, to, { charge = 0 } = {}) {
   const k = await testCheck(cid, campaignId, to); if (k.error) return k
   const c = await cfg(), cp = await C('bsCampaigns').findOne({ _id: campaignId, cid })
+  if (k.free) {
+    if (charge || !(await C('bsCustomers').updateOne({ _id: cid, freeTestAt: null }, { $set: { freeTestAt: new Date() } })).modifiedCount) return E('err_free_used')
+    await C('bsCampaigns').updateOne({ _id: campaignId }, { $set: { testedHash: contentHash(cp), testedAt: new Date(), freeTest: true } })
+    const m = msgDoc({ cid, to: k.to, body: bodyOf(cp, 0), campaignId, priority: 1, test: true })
+    await C('bsMessages').insertOne(m); audit('free_test', { cid, campaignId, to: k.to }); return { ok: true, free: true, left: 0, charge: 0, messageId: m._id }
+  }
   const r = await C('bsCampaigns').updateOne({ _id: campaignId, testsUsed: { $lt: c.testSends } }, { $inc: { testsUsed: 1, testCharges: charge }, $set: { testedHash: contentHash(cp), testedAt: new Date() } })
   if (!r.modifiedCount) return E('err_tests_used', c.testSends)
   const m = msgDoc({ cid, to: k.to, body: bodyOf(cp, 0), campaignId, priority: 1, test: true })
@@ -1012,6 +1023,7 @@ async function bootstrap() {
   if (!added.length && !changed.length) return retired || known.some(k => k.status !== 'disabled' && !envAccts.some(a => a.id === k._id)) ? { ok: true, retired, added, changed } : { same: true }
   for (const id of changed) alert(`🔑 New credentials for Spenza ${acctLabel(id)} — its previous lines were retired. Syncing the account…`)
   for (const id of added) alert(known.some(k => k.keyHash && k._id !== id) || added.indexOf(id) > 0 ? `🔑 Spenza ${acctLabel(id)} connected — the pool now spans ${envAccts.length} accounts (each with its own ${DEFAULTS.platformPerMin} SMS/min from Spenza). Syncing its SIMs and credit…` : '🔑 Spenza BulkSMS account connected — syncing its SIMs and credit…')
+  if (!process.env.SELF_URL && !P.dry() && await once(`noselfurl:${today()}`)) alert('⚠️ SELF_URL is not set, so the Spenza webhook was not registered — replies and STOP texts will not reach the platform. Set SELF_URL and run /bulkwebhook.')
   for (const id of [...added, ...changed]) await syncInventory(id).catch(e => alert(`⚠️ Could not list the SIMs of ${acctLabel(id)}: ${e.message}`))
   await creditWatch()
   if (process.env.SELF_URL && !P.dry()) for (const id of [...added, ...changed]) await registerWebhook(process.env.SELF_URL, id).catch(e => alert(`⚠️ Webhook registration failed for ${acctLabel(id)}: ${e.message}`))
@@ -1041,4 +1053,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, requestTestNumber, verifyTestNumber, testNumbers, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+module.exports = { onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
