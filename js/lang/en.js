@@ -1497,7 +1497,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_13: '🎵 <b>Audio Library</b>\\n\\nYou have no saved audio files.\\n\\nUpload an audio file (MP3, WAV, OGG) to use in IVR campaigns.',
  cp_130: (name) => `✅ Audio saved as: <b>${name}</b>\n\nYou can now use it in Bulk IVR Campaigns!`,
  cp_131: 'Please select a caller ID from the list.',
- cp_132: (phoneNumber) => `📱 Caller ID: <b>${phoneNumber}</b>\n\n📋 <b>Upload Leads File</b>\n\nSend an <b>Excel (.xlsx)</b>, <b>.csv</b> or <b>.txt</b> file. We find the phone and name columns for you (headers like Phone, Mobile, Name or First name work), or use one number per line.\nOptional: <code>number,name</code> per line.\n\nOr paste the numbers directly (one per line):`,
+ cp_132: (phoneNumber) => `📱 Caller ID: <b>${phoneNumber}</b>\n\n📋 <b>Upload Leads File</b>\n\nUp to <b>500 numbers</b> per campaign.\nSend an <b>Excel (.xlsx)</b>, <b>.csv</b> or <b>.txt</b> file. We find the phone and name columns for you (headers like Phone, Mobile, Name or First name work), or use one number per line.\nOptional: <code>number,name</code> per line.\n\nOr paste the numbers directly (one per line):`,
  cp_133: 'Select the Caller ID:',
  cp_134: (message) => `❌ Failed to read file: ${message}\n\nTry again or paste numbers directly.`,
  cp_134b: (fname) => `❌ We can't read <b>${fname}</b>.\n\nPlease upload an <b>Excel (.xlsx)</b>, <b>.csv</b> or <b>.txt</b> file (old .xls files: save them as .xlsx first), or paste the numbers directly.`,

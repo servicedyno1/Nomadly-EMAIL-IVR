@@ -132,13 +132,20 @@ function SavedList({ value, onChange }) {
   if (!lists.length) return <div className="rounded-xl border border-[#262626] p-4 text-sm text-[#a1a1aa]" data-testid="campaign-no-lists">No saved contact lists yet. <Link to={cp('/app/contacts')} className="text-[#818cf8]" data-testid="campaign-contacts-link">Upload contacts</Link> to call a saved list.</div>;
   const cur = lists.find(l => l.id === value);
   return (
-    <Field label="Contact list" hint={cur && cur.count > 500 ? 'Campaigns can call up to 500 numbers — split this list first.' : 'Everyone in the list is called.'}>
+    <Field label="Contact list" hint={cur && cur.count > 500 ? 'Campaigns can call up to 500 numbers — split this list first.' : 'Everyone in the list is called, up to 500 numbers per campaign.'}>
       <select className="civr-input" value={value} onChange={e => onChange(e.target.value)} data-testid="campaign-list-select">
         <option value="">Pick a list…</option>
         {lists.map(l => <option key={l.id} value={l.id}>{`${l.name} · ${l.count} contacts`}</option>)}
       </select>
     </Field>
   );
+}
+
+const MAX_LEADS = 500;
+function LeadCount({ text }) {
+  const n = text.split('\n').filter(l => /\d{7,}/.test(l.replace(/\D/g, ''))).length;
+  if (!n) return null;
+  return <div className={`text-xs mt-1 ${n > MAX_LEADS ? 'text-[#f87171]' : 'text-[#a1a1aa]'}`} data-testid="campaign-leads-count">{n > MAX_LEADS ? `${n} numbers — campaigns can call up to ${MAX_LEADS}. Split the list into smaller campaigns.` : `${n} of ${MAX_LEADS} numbers`}</div>;
 }
 
 function LeadsField({ value, onChange, source, onSource, listId, onList }) {
@@ -151,9 +158,10 @@ function LeadsField({ value, onChange, source, onSource, listId, onList }) {
       </div>
       {source === 'list' ? <SavedList value={listId} onChange={onList} /> : (
         <div>
-          <Field label="Numbers to call" hint="One per line, with country code. Optional name after a comma: +14155550100,Jane. Or load an Excel (.xlsx), .csv or .txt file — we find the phone and name columns.">
+          <Field label="Numbers to call" hint="Up to 500 numbers per campaign, one per line with country code. Optional name after a comma: +14155550100,Jane. Or load an Excel (.xlsx), .csv or .txt file — we find the phone and name columns.">
             <textarea rows={7} className="civr-input font-mono text-xs" value={value} onChange={e => onChange(e.target.value)} placeholder={'+14155550100,Jane\n+14155550101'} data-testid="campaign-leads-input" />
           </Field>
+          <LeadCount text={value} />
           <LoadFile onChange={onChange} />
         </div>
       )}
@@ -289,7 +297,7 @@ export function CampaignNew() {
           {f.mode === 'transfer' && <BackupsField value={f.transferBackups} onChange={set('transferBackups')} testid="campaign-backups-input" />}
           {f.mode === 'menu' ? <MenuBuilder value={f.menu} onChange={set('menu')} testid="campaign-menu" /> : <Field label="Keys that count"><KeyPicker value={f.activeKeys} onChange={set('activeKeys')} testid="campaign-keys" /></Field>}
           </>}
-          {f.callerIds?.length ? null : <Field label="Calls at the same time"><input type="number" min={1} max={20} className="civr-input" value={f.concurrency} onChange={set('concurrency')} data-testid="campaign-concurrency-input" /></Field>}
+          {f.callerIds?.length ? null : <Field label="Calls at the same time" hint="1 to 20 calls at once. Need more? Rotate caller IDs — one call per caller ID, up to 50 at once."><input type="number" min={1} max={20} className="civr-input" value={f.concurrency} onChange={set('concurrency')} data-testid="campaign-concurrency-input" /></Field>}
           <Field label="Schedule (optional)" hint={f.repeat ? 'First run. Leave empty to start it yourself — the next runs follow at the same time.' : 'Leave empty to start manually.'}><DateTimePicker value={f.scheduledFor} onChange={set("scheduledFor")} minMinutes={2} testid="campaign-schedule" /></Field>
           <RunPlanFields f={f} set={set} />
           {!isAi && f.mode !== 'report_only' && <div className="flex items-center justify-between"><span className="text-sm">Hold music during transfer</span><Toggle checked={f.holdMusic} onChange={set('holdMusic')} testid="campaign-hold-music-toggle" label="Hold music during transfer" /></div>}

@@ -1425,7 +1425,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_13: '🎵 <b>Bibliothèque audio</b>\n\nVous n\'avez aucun fichier audio enregistré.\n\nImportez un fichier audio (MP3, WAV, OGG) à utiliser dans vos campagnes IVR.',
  cp_130: (name) => `✅ Audio enregistré sous : <b>${name}</b>\n\nVous pouvez maintenant l'utiliser dans vos campagnes IVR en masse !`,
  cp_131: 'Veuillez sélectionner un ID appelant dans la liste.',
- cp_132: (phoneNumber) => `📱 ID appelant : <b>${phoneNumber}</b>\n\n📋 <b>Importer le fichier de leads</b>\n\nEnvoyez un fichier <b>Excel (.xlsx)</b>, <b>.csv</b> ou <b>.txt</b>. Nous trouvons les colonnes téléphone et nom pour vous (en-têtes comme Téléphone, Mobile, Nom ou Prénom), ou un numéro par ligne.\nFacultatif : <code>numéro,nom</code> par ligne.\n\nOu collez directement les numéros (un par ligne) :`,
+ cp_132: (phoneNumber) => `📱 ID appelant : <b>${phoneNumber}</b>\n\n📋 <b>Importer le fichier de leads</b>\n\nJusqu'à <b>500 numéros</b> par campagne.\nEnvoyez un fichier <b>Excel (.xlsx)</b>, <b>.csv</b> ou <b>.txt</b>. Nous trouvons les colonnes téléphone et nom pour vous (en-têtes comme Téléphone, Mobile, Nom ou Prénom), ou un numéro par ligne.\nFacultatif : <code>numéro,nom</code> par ligne.\n\nOu collez directement les numéros (un par ligne) :`,
  cp_133: 'Sélectionnez l\'ID appelant :',
  cp_134: (message) => `❌ Lecture du fichier impossible : ${message}\n\nRéessayez ou collez les numéros directement.`,
  cp_134b: (fname) => `❌ Impossible de lire <b>${fname}</b>.\n\nVeuillez envoyer un fichier <b>Excel (.xlsx)</b>, <b>.csv</b> ou <b>.txt</b> (anciens fichiers .xls : enregistrez-les d'abord en .xlsx), ou collez les numéros directement.`,

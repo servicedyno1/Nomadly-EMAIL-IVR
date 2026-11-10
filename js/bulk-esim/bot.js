@@ -190,9 +190,11 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     return send(chatId, say('when_q', { parts: w.parts, replyFee: w.replyFee, fee: c.replyFee, nowPrice: w.now?.price, later: w.later ? hh(w.later.hour) : null, laterPrice: w.later?.price, quiet: w.quiet, lines: w.lines, pct: w.schedule.pct, schedPrice: w.schedule.price, list: w.schedule.list, minHours: w.schedule.minHours }) + (w.off ? `\n\n${say('off_now')}` : ''), kb(rows))
   }
   async function showBooking(b) {
-    await put('bseBookingId', b._id); await go('bse-pay')
-    const bal = await walletOps(T.db).balance(chatId).catch(() => null), c = await B.cfg()
-    return send(chatId, say('booking', { code: b._id.slice(-6), parts: b.volume, date: b.date, hour: String(b.hour).padStart(2, '0'), end: b.estimatedCompletion.toISOString().slice(11, 16), price: b.price, unit: b.unitPrice, wallet: bal != null ? bal.toFixed(2) : null, hold: c.holdMinutes }) + (b.replyFee ? `\n${say('replies_line', b.replyFee)}` : '') + (b.discountPct ? `\n${say('disc_line', b.discountPct, b.listPrice)}` : b.mode === 'now' ? `\n${say('now_line')}` : ''), kb([[L.wallet], [L.other], [L.back]]))
+    const c = await B.cfg()
+    // Same one-screen checkout as every other product: wallet + crypto coins (+ bank) on one invoice.
+    const summary = say('booking', { code: b._id.slice(-6), parts: b.volume, date: b.date, hour: String(b.hour).padStart(2, '0'), end: b.estimatedCompletion.toISOString().slice(11, 16), price: b.price, unit: b.unitPrice, wallet: null, hold: c.holdMinutes }) + (b.replyFee ? `\n${say('replies_line', b.replyFee)}` : '') + (b.discountPct ? `\n${say('disc_line', b.discountPct, b.listPrice)}` : b.mode === 'now' ? `\n${say('now_line')}` : '')
+    await put('bseBookingId', b._id); await put('dpProductKey', PRODUCT_KEY); await put('dpProductName', `eSIM BulkSMS ${b.volume} SMS`); await put('dpPrice', b.price); await put('bseSummary', summary)
+    await go('none'); await goto['digital-product-pay'](); return true
   }
   if (action === 'bse-when') {
     const fee = (await B.cfg()).replyFee
@@ -327,4 +329,4 @@ async function onCallback(q, { set, state, saveInfo, send, lang = 'en' }) {
 }
 const homeBtn = (lang) => btn(lang || 'en').home
 
-module.exports = { PRODUCT_KEY, BTN, homeBtn, handle, paid, paidFromWallet, admin, startNotices, onCallback, brand, init: (o) => { T = o; return B.init(o) } }
+module.exports = { PRODUCT_KEY, BTN, homeBtn, handle, paid, paidFromWallet, showHome: (send, chatId, lang) => home(send, chatId, lang), admin, startNotices, onCallback, brand, init: (o) => { T = o; return B.init(o) } }

@@ -49,6 +49,13 @@ mkdir -p "$RELEASES" "$ROOT/current" "$LOG_DIR"
 exec > >(tee -a -p "$LOG_DIR/deploy-$APP.log") 2>&1
 exec 9>"$ROOT/.deploy-$APP.lock"
 flock -w 900 9 || { echo "$P ERROR: another deploy of $APP is still running"; exit 1; }
+# Box-wide lock: deploys of different apps queue here (one build at a time on the 2-vCPU droplet,
+# and only one writer of the shared nginx upstreams file). GitHub no longer serialises them.
+exec 8>"$ROOT/.deploy-box.lock"
+if ! flock -n 8; then
+  echo "$P waiting for another app's deploy to finish…"
+  flock -w 3000 8 || { echo "$P ERROR: box deploy lock busy for 50 min"; exit 1; }
+fi
 echo "$P ===== $(date -u +%FT%TZ) $CMD $ARG ====="
 
 envval() { grep -E "^$1=" "$SHARED/backend.env" 2>/dev/null | tail -1 | cut -d= -f2- | sed -e 's/^["'"'"']//' -e 's/["'"'"']$//'; }
@@ -298,3 +305,13 @@ fi
 prune_releases
 echo "$P DONE → ${SHA:0:8}"
 notify "✅ $APP deployed ${SHA:0:8} on $BRANCH — $SUBJECT${FE_NOTE}"
+
+# Catch-up: a save landed while this one was building → ship the newest commit too, so production
+# never stays behind GitHub even if a queued CI run was dropped. Bounded to 3 extra rounds.
+if [ "$CMD" = "deploy" ] && [ "${DEPLOY_CATCHUP:-0}" -lt 3 ] \
+   && git --git-dir="$REPO" fetch -q --force --prune origin "+refs/heads/$BRANCH:refs/heads/$BRANCH" \
+   && NEW_SHA="$(git --git-dir="$REPO" rev-parse "refs/heads/$BRANCH")" && [ "$NEW_SHA" != "$SHA" ]; then
+  echo "$P newer commit ${NEW_SHA:0:8} arrived during this deploy → deploying it now"
+  exec 8>&- 9>&-
+  DEPLOY_CATCHUP=$(( ${DEPLOY_CATCHUP:-0} + 1 )) exec bash "$SELF" "$APP"
+fi

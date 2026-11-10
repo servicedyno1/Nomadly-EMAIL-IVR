@@ -47,16 +47,20 @@ on:
 # The job only SSHes out — it needs no GITHUB_TOKEN permissions at all.
 permissions: {}
 
-# Never let two deploys overlap (one 2-vCPU box serves every brand).
-concurrency:
-  group: droplet-deploy
-  cancel-in-progress: false
+# One queue PER APP (job-level `concurrency` below). A single shared group made GitHub cancel
+# the pending app-main deploy whenever the white-label deploy queued behind it, so Nomadly /
+# CloudIVR stayed on an old release. A newer run of the SAME app may still replace a pending
+# one — fine, deploy.sh always ships the newest commit. deploy.sh itself takes a box-wide lock,
+# so two builds never run at once on the 2-vCPU droplet.
 
 jobs:
   deploy-main:
     name: Deploy app-main (branch from droplet shared/app-main/branch — main)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 60
+    concurrency:
+      group: droplet-deploy-app-main
+      cancel-in-progress: false
     if: >-
       (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/WITH-WEBIVR')) ||
       (github.event_name == 'workflow_dispatch' && (github.event.inputs.app == 'both' || github.event.inputs.app == 'app-main'))
@@ -89,7 +93,10 @@ jobs:
   deploy-wl:
     name: Deploy app-wl (branch WhiteLabel)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 60
+    concurrency:
+      group: droplet-deploy-app-wl
+      cancel-in-progress: false
     if: >-
       (github.event_name == 'push' && github.ref == 'refs/heads/WhiteLabel') ||
       (github.event_name == 'workflow_dispatch' && (github.event.inputs.app == 'both' || github.event.inputs.app == 'app-wl' || github.event.inputs.app == 'whitelabel'))
@@ -122,7 +129,10 @@ jobs:
   deploy-voodoo:
     name: Deploy app-voodoo (Voodoo Land, branch WhiteLabel)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 60
+    concurrency:
+      group: droplet-deploy-app-voodoo
+      cancel-in-progress: false
     # After app-wl (never two builds at once on the 2-vCPU box); still runs when app-wl was skipped or failed.
     needs: deploy-wl
     if: >-
@@ -158,7 +168,10 @@ jobs:
   deploy-proshop:
     name: Deploy app-proshop (PROSHOP, branch WhiteLabel)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 60
+    concurrency:
+      group: droplet-deploy-app-proshop
+      cancel-in-progress: false
     # After app-voodoo (never two builds at once on the 2-vCPU box); still runs when an earlier brand was skipped or failed.
     needs: deploy-voodoo
     if: >-
