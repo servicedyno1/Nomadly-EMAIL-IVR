@@ -63,3 +63,27 @@ export function ShowAsSelect({ value, onChange, testid, compact = false, from })
     </Field>
   );
 }
+
+// Rotate one list across several caller IDs: each call in progress uses a different one (own numbers + verified caller IDs).
+export function RotateCallerIds({ numbers = [], primary, value = [], onChange, testid = 'campaign-rotate' }) {
+  const { data } = useApi('/caller-ids/presets');
+  const own = numbers.map(n => n.phoneNumber).filter(n => n && n !== primary);
+  const verified = (data?.items || []).map(i => i.number).filter(n => n && !own.includes(n) && n !== primary);
+  const all = [...own.map(n => ({ n, kind: 'Your number' })), ...verified.map(n => ({ n, kind: 'Verified caller ID' }))];
+  const pick = new Set(value.filter(v => all.some(a => a.n === v)));
+  const toggle = (n) => { const s = new Set(pick); s.has(n) ? s.delete(n) : s.add(n); onChange([...s]); };
+  if (!all.length) return null;
+  return (
+    <Field label="Rotate caller IDs (optional)" hint={pick.size ? `${pick.size + 1} caller IDs · ${pick.size + 1} calls at the same time, one per caller ID. The list is spread evenly so no single number takes all the volume.` : 'Pick more caller IDs to dial this list from several numbers at once.'}>
+      <div className="flex flex-wrap gap-2" data-testid={testid}>
+        {all.map(({ n, kind }) => (
+          <button key={n} type="button" title={kind} onClick={() => toggle(n)} data-testid={`${testid}-${n.replace(/\D/g, '')}`}
+            className={`inline-flex items-center gap-1 rounded-full border font-mono transition-colors px-3 h-9 text-sm ${pick.has(n) ? 'border-[#818cf8] bg-[#818cf8]/15 text-[#e0e7ff]' : 'border-[#3f3f46] text-[#a1a1aa] hover:border-[#71717a]'}`}>
+            {pick.has(n) ? <Check size={12} /> : <Plus size={12} />}{n}{kind !== 'Your number' ? <span className="opacity-60">· verified</span> : null}
+          </button>
+        ))}
+        {pick.size ? <button type="button" onClick={() => onChange([])} className="text-xs underline text-[#a1a1aa]" data-testid={`${testid}-clear`}>Clear</button> : null}
+      </div>
+    </Field>
+  );
+}

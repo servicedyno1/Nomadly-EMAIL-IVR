@@ -959,6 +959,7 @@ function _ivrSpeedPrompt(lang, voiceName) {
 
 // ── Bulk IVR UI helpers (preview / voicemail-drop prompt / My Campaigns list) ──
 const BULK_VM_HANGUP_BTN = '📵 Hang up (no message)'
+const BULK_ROT_BTN = '🔁 Rotate caller IDs'
 const _bulkEsc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const _bulkIsTwilio = (bd) => (bd?.provider ? bd.provider === 'twilio' : !!bd?.twilioSubAccountSid)
 // One button label per clip; clips whose names clash get a " #2", " #3"… suffix.
@@ -977,7 +978,7 @@ function _bulkPreviewText(bulkData, lang) {
   return [
     `📋 <b>Campaign Preview</b>`,
     ``,
-    `📱 Caller ID: <b>${bulkData.callerId}</b>`,
+    `📱 Caller ID: <b>${bulkData.showAs || bulkData.callerId}</b>${bulkData.callerPool?.length ? ` + ${bulkData.callerPool.length} more (🔁 rotating, ${bulkData.callerPool.length + 1} calls at once)` : ''}`,
     `📞 Leads: <b>${leads.length}</b> (max ${bulkCallService.MAX_BULK_LEADS || 500})${est.intl ? ` — ${est.domestic} US/CA · ${est.intl} international` : ''}`,
     est.blockedLine || null,
     `🎵 Audio: <b>${_bulkEsc(bulkData.audioName || 'Selected')}</b>`,
@@ -28504,15 +28505,55 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     bulkData.provider = found.provider || (found.type === 'owned_twilio' ? 'twilio' : 'telnyx')
     bulkData.twilioSubAccountSid = found.subAccountSid || null
     bulkData.twilioSubAccountToken = found.subAccountToken || null
+    delete bulkData.callerPool
     await saveInfo('bulkData', bulkData)
     await set(state, chatId, 'action', a.bulkUploadLeads)
-    return send(chatId, trans('t.cp_132', found.phoneNumber), k.of([['↩️ Back']]))
+    return send(chatId, trans('t.cp_132', found.phoneNumber), k.of([[BULK_ROT_BTN], ['↩️ Back']]))
+  }
+
+  // ── Rotate caller IDs: one list dialed from several numbers at once (one call per caller ID at a time) ──
+  const bulkRotChoices = async (bd) => {
+    const tw = bd.provider === 'twilio'
+    const own = (info?.bulkCallerIds || []).filter(c => c.phoneNumber !== bd.callerId && (tw ? c.provider === 'twilio' && (c.subAccountSid || null) === (bd.twilioSubAccountSid || null) : (c.provider || 'telnyx') !== 'twilio' && c.type !== 'owned_twilio'))
+      .map(c => ({ key: c.phoneNumber, entry: { callerId: c.phoneNumber } }))
+    const ver = tw ? [] : (await require('./cloudivr-web/caller-ids').presets(chatId).catch(() => [])).filter(p => p.number && p.number !== bd.showAs)
+      .map(p => ({ key: p.number, entry: { callerId: bd.callerId, showAs: p.number }, verified: true }))
+    return [...own, ...ver]
+  }
+  const bulkRotPrompt = async (bd) => {
+    const ch = await bulkRotChoices(bd), on = new Set((bd.callerPool || []).map(e => e.showAs || e.callerId))
+    if (!ch.length) return send(chatId, '🔁 No other caller IDs yet — buy another number or verify your own caller ID first.', k.of([['↩️ Back']]))
+    const rows = ch.map(c => [`${on.has(c.key) ? '✅' : '➕'} ${c.key}${c.verified ? ' (verified)' : ''}`])
+    return send(chatId, `🔁 <b>Rotate caller IDs</b>\nTap numbers to add or remove. Each call in progress uses a different caller ID, so no single number takes all the volume.\n\nSelected: <b>${on.size + 1}</b> (incl. ${bd.showAs || bd.callerId}) → ${on.size + 1} calls at once.`, { parse_mode: 'HTML', ...k.of([...rows, ['✅ Done'], ['↩️ Back']]) })
+  }
+  if (action === a.bulkUploadLeads && message === BULK_ROT_BTN) {
+    await set(state, chatId, 'action', 'bulkRotateCids')
+    return bulkRotPrompt(info?.bulkData || {})
+  }
+  if (action === 'bulkRotateCids') {
+    const bd = { ...(info?.bulkData || {}) }
+    if (isBackPress(message) || message === '✅ Done') {
+      await set(state, chatId, 'action', a.bulkUploadLeads)
+      const n = (bd.callerPool || []).length
+      return send(chatId, (n ? `🔁 Rotating across <b>${n + 1}</b> caller IDs — ${n + 1} calls at once.\n\n` : '') + trans('t.cp_132', bd.callerId), { parse_mode: 'HTML', ...k.of([[BULK_ROT_BTN], ['↩️ Back']]) })
+    }
+    const key = String(message).replace(/^(✅|➕)\s*/, '').replace(/\s*\(verified\)$/, '').trim()
+    const c = (await bulkRotChoices(bd)).find(x => x.key === key)
+    if (!c) return bulkRotPrompt(bd)
+    const pool = (bd.callerPool || []).filter(e => (e.showAs || e.callerId) !== key)
+    if (pool.length === (bd.callerPool || []).length) {
+      if (pool.length + 1 >= bulkCallService.MAX_CALLER_POOL) return send(chatId, `🔁 Up to ${bulkCallService.MAX_CALLER_POOL} caller IDs per campaign.`)
+      pool.push(c.entry)
+    }
+    bd.callerPool = pool
+    await saveInfo('bulkData', bd)
+    return bulkRotPrompt(bd)
   }
 
   if (action === a.bulkUploadLeads && ccid.isOwn(message) && info?.bulkData?.showAs) {
     const d = { ...info.bulkData }; delete d.showAs
     await saveInfo('bulkData', d)
-    return send(chatId, trans('t.cp_132', d.callerId), k.of([['↩️ Back']]))
+    return send(chatId, trans('t.cp_132', d.callerId), k.of([[BULK_ROT_BTN], ['↩️ Back']]))
   }
   if (action === a.bulkUploadLeads) {
     if (isBackPress(message)) {
@@ -29320,6 +29361,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           chatId,
           callerId: bulkData.callerId,
           showAs: bulkData.showAs || null,
+          callerPool: bulkData.callerPool || null,
           audioUrl: bulkData.audioUrl,
           audioName: bulkData.audioName,
           mode: bulkData.mode,
@@ -29384,6 +29426,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const campaign = await bulkCallService.createCampaign({
         chatId,
         callerId: bulkData.callerId,
+        showAs: bulkData.showAs || null,
+        callerPool: bulkData.callerPool || null,
         audioUrl: bulkData.audioUrl,
         audioName: bulkData.audioName,
         mode: bulkData.mode,

@@ -19,7 +19,7 @@ import { useShell } from '../Shell';
 import { showUpgrade } from '../Upgrade';
 import { planFor } from '../PlanFeatures';
 import { LeadCheck } from '../LeadCheck';
-import { ShowAsSelect } from '../CallerIdPick';
+import { ShowAsSelect, RotateCallerIds } from '../CallerIdPick';
 import { useBalance, ShortNote } from '../WalletPay';
 
 const pct = (c) => (c.stats?.total ? Math.round(((c.stats.completed || 0) / c.stats.total) * 100) : 0);
@@ -246,9 +246,9 @@ export function CampaignNew() {
     try {
       const scheduledFor = f.scheduledFor ? new Date(f.scheduledFor).toISOString() : null;
       const plan = { repeat: f.repeat || null, dailyLimit: f.dailyLimit === '' ? null : Number(f.dailyLimit), tz: TZ };
-      const base = { ...f, ...audience, source: undefined, callerId, showAs: f.showAs || undefined, menu: f.mode === 'menu' ? menuToApi(f.menu) : undefined, scheduledFor, ...plan };
+      const base = { ...f, ...audience, source: undefined, callerId, callerIds: f.callerIds?.length ? f.callerIds : undefined, showAs: f.showAs || undefined, menu: f.mode === 'menu' ? menuToApi(f.menu) : undefined, scheduledFor, ...plan };
       const audioId = !isAi && !f.audioId && script ? await scriptAudio(() => api('/campaigns', { method: 'POST', body: { ...base, validateOnly: true, audioPending: true } })) : f.audioId;
-      const body = isAi ? { mode: 'ai', name: f.name, agentId: f.agentId, callerId, showAs: f.showAs || undefined, ...audience, concurrency: f.concurrency, scheduledFor, ...plan }
+      const body = isAi ? { mode: 'ai', name: f.name, agentId: f.agentId, callerId, callerIds: f.callerIds?.length ? f.callerIds : undefined, showAs: f.showAs || undefined, ...audience, concurrency: f.concurrency, scheduledFor, ...plan }
         : { ...base, audioId };
       const d = await api('/campaigns', { method: 'POST', body });
       toast.success(d.skipped ? `Campaign saved · ${d.skipped} line(s) skipped` : 'Campaign saved');
@@ -267,6 +267,7 @@ export function CampaignNew() {
           <Field label="Campaign name (optional)" hint="Shown in your campaign list and reports. Leave empty to use the message name."><input className="civr-input" maxLength={80} value={f.name} onChange={set('name')} placeholder="e.g. June follow-ups" data-testid="campaign-name-input" /></Field>
           <Field label="Caller ID"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="campaign-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{n.phoneNumber}</option>)}</select></Field>
           <ShowAsSelect value={f.showAs} onChange={set('showAs')} from={callerId} testid="campaign-show-as-select" />
+          <RotateCallerIds numbers={numbers} primary={callerId} value={f.callerIds || []} onChange={(v) => setF(x => ({ ...x, callerIds: v }))} />
           {isAi ? <AiCampaignFields agentId={f.agentId} onChange={set('agentId')} /> : <>
           <Field label="Message"><AudioSelect value={f.audioId} onChange={set('audioId')} audios={au?.audios} by="id" onAdded={reloadAudio} testid="campaign-audio-select" /></Field>
           {script ? <div className="border border-[#262626] rounded-xl p-4"><ScriptBox value={script} onChange={setScript} onAudio={(a) => { reloadAudio(); setF(x => ({ ...x, audioId: a.id })); setScript(null); }} testid="campaign-script" /></div>
@@ -288,7 +289,7 @@ export function CampaignNew() {
           {f.mode === 'transfer' && <BackupsField value={f.transferBackups} onChange={set('transferBackups')} testid="campaign-backups-input" />}
           {f.mode === 'menu' ? <MenuBuilder value={f.menu} onChange={set('menu')} testid="campaign-menu" /> : <Field label="Keys that count"><KeyPicker value={f.activeKeys} onChange={set('activeKeys')} testid="campaign-keys" /></Field>}
           </>}
-          <Field label="Calls at the same time"><input type="number" min={1} max={20} className="civr-input" value={f.concurrency} onChange={set('concurrency')} data-testid="campaign-concurrency-input" /></Field>
+          {f.callerIds?.length ? null : <Field label="Calls at the same time"><input type="number" min={1} max={20} className="civr-input" value={f.concurrency} onChange={set('concurrency')} data-testid="campaign-concurrency-input" /></Field>}
           <Field label="Schedule (optional)" hint={f.repeat ? 'First run. Leave empty to start it yourself — the next runs follow at the same time.' : 'Leave empty to start manually.'}><DateTimePicker value={f.scheduledFor} onChange={set("scheduledFor")} minMinutes={2} testid="campaign-schedule" /></Field>
           <RunPlanFields f={f} set={set} />
           {!isAi && f.mode !== 'report_only' && <div className="flex items-center justify-between"><span className="text-sm">Hold music during transfer</span><Toggle checked={f.holdMusic} onChange={set('holdMusic')} testid="campaign-hold-music-toggle" label="Hold music during transfer" /></div>}

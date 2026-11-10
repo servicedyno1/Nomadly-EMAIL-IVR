@@ -19,7 +19,7 @@ const KEYS = /^[0-9*#]$/
 
 const publicCampaign = (c, withLeads = false) => ({
   id: c.id, name: c.name || null, callerId: c.callerId, showAs: c.showAs || null, audioName: c.audioName, mode: c.menu ? 'menu' : c.mode, menu: c.menu || null, transferNumber: c.transferNumber, transferBackups: c.transferBackups || [], activeKeys: c.activeKeys,
-  concurrency: c.concurrency, status: c.status, stats: c.stats, scheduledFor: c.scheduledFor, startedAt: c.startedAt, completedAt: c.completedAt,
+  concurrency: c.concurrency, callerPool: c.callerPool || null, status: c.status, stats: c.stats, scheduledFor: c.scheduledFor, startedAt: c.startedAt, completedAt: c.completedAt,
   createdAt: c.createdAt, cancelledReason: c.cancelledReason || null, pausedReason: c.pausedReason || null, dryRun: !!c.dryRun,
   agentId: c.agentId || null, agentName: c.agentName || null, waitingForHours: !!c.waitingForHours,
   waitingForLine: (c.leads || []).some(l => l.status === 'pending' && l.waitingForLine),
@@ -43,6 +43,20 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (n.provider !== 'telnyx') return { err: [400, 'invalid_caller', 'This number cannot place outbound IVR calls.'] }
     if (!phoneConfig.canAccessFeature(n.plan, feature)) return { err: [403, 'plan_upgrade_required', phoneConfig.canAccessFeature('pro', feature) ? `${label} needs the Pro plan or higher on the caller number.` : `${label} need the Business plan on the caller number.`] }
     return { n }
+  }
+  // Extra caller IDs to rotate through (own numbers, or verified caller IDs shown on calls from the primary number).
+  async function rotation(chatId, b, primary, feature, label) {
+    const list = Array.isArray(b.callerIds) ? [...new Set(b.callerIds.map(x => String(x || '').trim()).filter(Boolean))] : []
+    if (list.length > bulkCallService.MAX_CALLER_POOL) return { err: [400, 'too_many_callers', `Pick up to ${bulkCallService.MAX_CALLER_POOL} caller IDs.`] }
+    const pool = []
+    for (const x of list) {
+      if (normPhone(x) === normPhone(primary)) continue
+      if (await numbersApi.findMine(chatId, x)) { const c = await caller(chatId, x, feature, label); if (c.err) return { err: c.err }; pool.push({ callerId: c.n.phoneNumber }); continue }
+      const v = await callerIds.resolve(chatId, x).catch(() => null)
+      if (!v) return { err: [400, 'invalid_caller', `${x} isn't one of your numbers or verified caller IDs.`] }
+      pool.push({ callerId: primary, showAs: v })
+    }
+    return { pool }
   }
   async function ownAudio(chatId, id) {
     const a = id ? await audioLibraryService.getAudio(String(id)) : null
@@ -131,6 +145,8 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (b.mode === 'ai') return createAiCampaign(req, res)
     const c = await caller(chatId, b.callerId, 'bulkCall', 'Bulk IVR campaigns')
     if (c.err) return bad(res, ...c.err)
+    const rot = await rotation(chatId, b, c.n.phoneNumber, 'bulkCall', 'Bulk IVR campaigns')
+    if (rot.err) return bad(res, ...rot.err)
     const showAs = await callerIds.resolve(chatId, b.showAs).catch(e => e)
     if (showAs instanceof Error) return bad(res, 400, 'invalid_show_as', showAs.message)
     // validateOnly + audioPending: check everything before the browser pays for the AI voice of a written script.
@@ -161,7 +177,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (plan.err) return bad(res, ...plan.err)
     if (b.validateOnly) return res.json({ ok: true })
     const campaign = await bulkCallService.createCampaign({
-      chatId, callerId: c.n.phoneNumber, audioUrl: audio.audioUrl, audioName: audio.name, name: b.name, mode, transferNumber, transferBackups: bk.list, menu,
+      chatId, callerId: c.n.phoneNumber, showAs, callerPool: rot.pool, audioUrl: audio.audioUrl, audioName: audio.name, name: b.name, mode, transferNumber, transferBackups: bk.list, menu,
       activeKeys, concurrency: Math.min(20, Math.max(1, parseInt(b.concurrency, 10) || 5)), holdMusic: !!b.holdMusic,
       leads, scheduledFor: plan.scheduledFor, repeat: plan.repeat, dailyLimit: plan.dailyLimit, tz: plan.tz, provider: 'telnyx', voicemailAudioUrl: vm?.audioUrl || null, voicemailAudioName: vm?.name || null,
     })
@@ -176,6 +192,8 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const chatId = req.webChatId, b = req.body
     const c = await caller(chatId, b.callerId, 'aiAgent', 'AI agent campaigns')
     if (c.err) return bad(res, ...c.err)
+    const rot = await rotation(chatId, b, c.n.phoneNumber, 'aiAgent', 'AI agent campaigns')
+    if (rot.err) return bad(res, ...rot.err)
     const showAs = await callerIds.resolve(chatId, b.showAs).catch(e => e)
     if (showAs instanceof Error) return bad(res, 400, 'invalid_show_as', showAs.message)
     const ai = require('../ai-agent')
@@ -190,7 +208,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (plan.err) return bad(res, ...plan.err)
     const dnc = await dncCount(chatId, leads)
     const campaign = await bulkCallService.createCampaign({
-      chatId, callerId: c.n.phoneNumber, audioUrl: null, audioName: `AI agent: ${agent.name}`, name: b.name, mode: 'ai', agentId: agent.id, agentName: agent.name,
+      chatId, callerId: c.n.phoneNumber, showAs, callerPool: rot.pool, audioUrl: null, audioName: `AI agent: ${agent.name}`, name: b.name, mode: 'ai', agentId: agent.id, agentName: agent.name,
       concurrency: Math.min(20, Math.max(1, parseInt(b.concurrency, 10) || 5)), leads, scheduledFor: plan.scheduledFor, repeat: plan.repeat, dailyLimit: plan.dailyLimit, tz: plan.tz, provider: 'telnyx',
     })
     if (campaign.error) return bad(res, 400, 'create_failed', campaign.error)

@@ -1,5 +1,13 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-10 — Multi-Caller-ID rotation (bulk IVR) — engine+web tested, bot flow syntax-only
+- Engine (bulk-call-service): campaign.callerPool [{callerId, showAs}] (primary first, ≤50, persisted); concurrency = pool size (one call per entry); poolPicker picks the free least-used entry; lead.callerId/shownAs recorded at claim; Twilio IVR/transfer/billing + reports use leadCid(); report "N rotating — +1… ×100 · …". Test: js/tests/test_bulkcall_rotation.js 8/8 (1,000 leads × 10 IDs → 10 at once, even 10×10).
+- Web: POST /campaigns accepts callerIds[] (own numbers → own entry; verified caller IDs → primary number + showAs); invalid → 400 invalid_caller. UI: RotateCallerIds chips under "Show as" (Campaigns.js); concurrency field hidden when rotating. Verified via curl + preview screenshot.
+- Bot: "🔁 Rotate caller IDs" button after picking the caller ID → toggle list (same provider/sub-account; verified IDs for Telnyx) → bulkData.callerPool → createCampaign (both launch paths). NOT yet exercised end-to-end.
+- Note: prod BULK_CALL_MAX_LEADS=500 (spec example uses 1,000).
+- Prod check 20:5x: admin Users tabs/"Has a plan" ARE live on cloudivr.net (chunk 706.dacd7e41; API returns 6 plan owners). Preview DB has seeded test accounts (Alice/Bob etc.) by design.
+
+
 ## 2026-11-10 — Brand colours (panel/storefront + emails)
 - frontend/src/brand-colors.css (imported in App.js after brand-nomadly.css): html[data-brand=proshop|voodooland|smadav] sets --pv-coral/--pv-indigo (dark = logo colour, .panel-light = deeper shade), --st-accent (store light/dark), --brand-accent. panel-v2.css hardcoded coral/indigo rgba → color-mix(var(--pv-coral|--pv-indigo)).
 - brands.json webAccent: proshop #B45309, voodooland #0F766E, smadav #2563EB (email/web). sms-app-brand.emailColors() {a, d}. Hosting-live email gradient/links, VPS email, inbound-SMS email now use brand colours (welcome email already used webAccent).
