@@ -14,7 +14,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   for (const c of COLS) await db.collection(c).deleteMany({})
   const alerts = []
   await B.init({ db, log: () => {}, notifyAdmin: (t) => alerts.push(t) })
-  await B.setConfig({ minCredit: 10, reserveBooking: true, monitorEsims: 1 }, 'test') // LEGACY_DEFAULTS: this suite covers the floor / spare-reserve / monitor paths
+  await B.setConfig({ minCredit: 10, reserveBooking: true, monitorEsims: 1, rateMargin: 0 }, 'test') // LEGACY_DEFAULTS: this suite covers the floor / spare-reserve / monitor paths
   process.env.BULK_ESIM_WORKER = ''
   let provCalls = 0; const realProv = P.provision; P.provision = async (...a) => { provCalls++; return realProv(...a) }
   const c = await B.cfg()
@@ -173,7 +173,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   // ---- new Spenza credentials → bootstrap buys only the tester line; monitor + 2 starters come with the first paid booking ----
   for (const col of ['bsEsims', 'bsBookings', 'bsDemand', 'bsTests', 'bsMessages', 'bsCampaigns', 'bsDaily']) await db.collection(col).deleteMany({})
   await db.collection('bsConfig').deleteMany({ _id: { $in: ['settings', 'provider', 'esimSeq', `scale:${d(0)}`] } }); await db.collection('bsAccounts').deleteMany({})
-  await B.setConfig({ quietStart: 8, quietEnd: 21, minCredit: 10, reserveBooking: true, monitorEsims: 1 }, 'test')
+  await B.setConfig({ quietStart: 8, quietEnd: 21, minCredit: 10, reserveBooking: true, monitorEsims: 1, rateMargin: 0 }, 'test')
   process.env.SPENZA_BULK_API_KEY = 'key-one'; process.env.BULK_ESIM_FAKE_CREDIT = '500'; alerts.length = 0; provCalls = 0
   const b1 = await B.bootstrap()
   ok('first credentials → account connected, only the tester line is bought', b1.ok && b1.testers === 1 && b1.monitors === 0 && b1.lines === 0 && provCalls === 1 && alerts.some(a => /account connected/.test(a)) && alerts.some(a => /Account ready: 1\/1 tester/.test(a)), JSON.stringify(b1))
@@ -201,7 +201,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   // next free day for a full day
   await db.collection('bsBookings').deleteMany({}); await db.collection('bsDemand').deleteMany({}); await B.setConfig({ autoProvision: false, manualApproval: true, quietStart: 0, quietEnd: 24 }, 'test')
   for (const e of await db.collection('bsEsims').find({ role: 'service', status: { $in: ['available', 'testing', 'provisioning', 'purchasing', 'degraded'] } }).toArray()) await db.collection('bsEsims').updateOne({ _id: e._id }, { $set: { status: 'retired' } })
-  await db.collection('bsConfig').deleteOne({ _id: 'settings' }); await B.setConfig({ minCredit: 10, reserveBooking: true, monitorEsims: 1 }, 'test'); await B.setConfig({ autoProvision: false, manualApproval: true, quietStart: 0, quietEnd: 24, testerEsims: 0, monitorEsims: 0 }, 'test')
+  await db.collection('bsConfig').deleteOne({ _id: 'settings' }); await B.setConfig({ minCredit: 10, reserveBooking: true, monitorEsims: 1, rateMargin: 0 }, 'test'); await B.setConfig({ autoProvision: false, manualApproval: true, quietStart: 0, quietEnd: 24, testerEsims: 0, monitorEsims: 0 }, 'test')
   process.env.BULK_ESIM_FAKE_CREDIT = '500'; await B.creditWatch()
   for (let i = 0; i < 2; i++) await B.provisionOne('nf'); await B.healthCheck()
   const nfCid = (await B.customer('Nomadly', '888'))._id, avail1 = await B.availability(d(1))
@@ -214,7 +214,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   // ---- replacement + dead detection for EVERY role (service, monitor, tester) ----
   for (const col of ['bsEsims', 'bsBookings', 'bsDemand', 'bsTests', 'bsMessages', 'bsIncidents']) await db.collection(col).deleteMany({})
   await db.collection('bsConfig').deleteMany({ _id: { $regex: /^(settings|replaces:|replimit:|stuck:|nopeer:)/ } })
-  await B.setConfig({ autoProvision: true, manualApproval: false, quietStart: 0, quietEnd: 24, monitorEsims: 1, minCredit: 10, reserveBooking: true }, 'test'); process.env.BULK_ESIM_FAKE_CREDIT = '500'; await B.creditWatch()
+  await B.setConfig({ autoProvision: true, manualApproval: false, quietStart: 0, quietEnd: 24, monitorEsims: 1, minCredit: 10, reserveBooking: true, rateMargin: 0 }, 'test'); process.env.BULK_ESIM_FAKE_CREDIT = '500'; await B.creditWatch()
   await B.ensureRoles(await B.cfg()); for (let i = 0; i < 2; i++) await B.provisionOne('role-test'); await B.healthCheck(); await B.healthCheck()
   const T = await db.collection('bsEsims').findOne({ role: 'tester' }), M = await B.monitorLine(), S = await db.collection('bsEsims').findOne({ role: 'service', status: 'available' })
   ok('fleet for the role test: tester + monitor + 2 service, all available', T?.status === 'available' && M?.status === 'available' && (await db.collection('bsEsims').countDocuments({ role: 'service', status: 'available' })) === 2)

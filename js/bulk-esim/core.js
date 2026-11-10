@@ -11,7 +11,7 @@ const { validUsCa, quietWait, hourOpen } = require('./tz')
 
 const DEFAULTS = {
   defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 8, quietEnd: 21,
-  platformPerMin: 30, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
+  platformPerMin: 30, rateMargin: 2, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
   minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testsPerDay: 4, testsPerWeek: 10, freeTestsPerDay: 50, numberCheck: true, lookupCost: 0.0025, lookupDays: 30,
   minEsims: 2, monitorEsims: 0, testerEsims: 1, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
   minCredit: 0, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
@@ -52,7 +52,8 @@ const normPhone = (p) => { const d = String(p || '').replace(/[^\d]/g, ''); retu
 // headers), credit and forecast; `low` = balance under the floor → its lines sit out until it is topped up.
 async function cfg() {
   const c = { ...DEFAULTS, ...((await C('bsConfig').findOne({ _id: 'settings' }))?.values || {}) }, docs = await C('bsAccounts').find({}).toArray()
-  c.accounts = P.accounts().map(a => { const d = docs.find(x => x._id === a.id) || {}; return { id: a.id, n: a.n, perMin: (c.platformPerMinAuto && d.perMin) || c.platformPerMin, low: !!d.low, orderBlockedBal: d.orderBlockedBal ?? null, credit: d.credit ?? null, forecast: d.forecast || null, status: d.status || 'active' } }).filter(a => a.status !== 'disabled')
+  c.accounts = P.accounts().map(a => { const d = docs.find(x => x._id === a.id) || {}; return { id: a.id, n: a.n, perMin: Math.max(1, ((c.platformPerMinAuto && d.perMin) || c.platformPerMin) - (c.rateMargin || 0)), limitPerMin: (c.platformPerMinAuto && d.perMin) || c.platformPerMin, low: !!d.low, orderBlockedBal: d.orderBlockedBal ?? null, credit: d.credit ?? null, forecast: d.forecast || null, status: d.status || 'active' } }).filter(a => a.status !== 'disabled')
+  S.rateMargin = c.rateMargin || 0 // header pacing stops this many sends before Spenza's own limit
   return c
 }
 const firstAccount = (c) => c.accounts[0]?.id || P.accounts()[0]?.id || 'spenza1'
@@ -675,7 +676,7 @@ async function aiVariants(cid, { text, withLinks, optOut = true, avoid = [], swa
   const allowed = urlsAndPhones([src, ...alts].join(' ')), known = new Set([src, ...avoid].map(x => x.toLowerCase()))
   const valid = (v) => { const t = String(v || '').trim(); if (!t || known.has(t.toLowerCase()) || segs(t + optLine(optOut)) > MAX_PARTS) return null; if (!withLinks && hasLinkOrPhone(t)) return null; for (const u of urlsAndPhones(t)) if (!allowed.has(u)) return null; for (const u of urlsAndPhones(src)) if (!alts.length && !t.toLowerCase().includes(u)) return null; return t }
   let raw = [], model = 'simulated'
-  if (!process.env.EMERGENT_LLM_KEY && process.env.OPENAI_API_KEY) { // production server: the customer's text goes straight to OpenAI with the owner's key
+  if (!process.env.EMERGENT_LLM_KEY && process.env.OPENAI_API_KEY && !P.dry()) { // production server: the customer's text goes straight to OpenAI with the owner's key
     try { raw = await openaiVariants(src, limit, want + 2, withLinks, avoid); model = OPENAI_MODEL() } catch (err) {
       const msg = err.response?.data?.error?.message || err.message; audit('ai_variants_error', { cid, error: msg })
       if (await once(`aidown:${new Date().toISOString().slice(0, 13)}`)) alert(`❌ AI variants unavailable — OpenAI failed (${msg}). Customers see "try again or keep your text". Check the OpenAI key / billing.`)
@@ -832,7 +833,7 @@ const me = id('w')
 const win = { acct: {}, esim: {} }
 const roomIn = (arr, per) => { const t = Date.now() - MIN; while (arr.length && arr[0] < t) arr.shift(); return arr.length < per }
 // An account can take another text now: not low on credit, our own minute window has room, and Spenza's headers don't say exhausted.
-const headersExhausted = (id) => { const rl = P.smsRate(id); return rl.remaining != null && rl.remaining < 1 && !!rl.resetAt && rl.resetAt > Date.now() && Date.now() - rl.at < 2 * MIN }
+const headersExhausted = (id) => { const rl = P.smsRate(id); return rl.remaining != null && rl.remaining < 1 + (S.rateMargin || 0) && !!rl.resetAt && rl.resetAt > Date.now() && Date.now() - rl.at < 2 * MIN }
 const acctOpen = (c, id) => { const a = c.accounts.find(x => x.id === id) || c.accounts[0]; return !!a && !a.low && roomIn(win.acct[a.id] ||= [], a.perMin) && !headersExhausted(a.id) }
 const openAccounts = (c) => acctIds(c).filter(id => acctOpen(c, id))
 // Tests / admin: take the worker lock for this process (another process — e.g. the preview app on the same DB — may hold it).
@@ -941,7 +942,7 @@ async function paceByHeaders(c) {
   for (const a of c.accounts) {
     const rl = P.smsRate(a.id); if (rl.limit == null || Date.now() - rl.at > 2 * MIN) continue
     seen++
-    if (c.platformPerMinAuto && rl.limit > 0 && rl.limit !== a.perMin) { await setAccount(a.id, { perMin: rl.limit }); alert(`📶 Spenza ${acctLabel(a.id)} SMS rate limit is ${rl.limit}/min (was ${a.perMin}) — capacity, bookings and the planner now follow it.`); audit('rate_limit_adopted', { account: a.id, from: a.perMin, to: rl.limit }) }
+    if (c.platformPerMinAuto && rl.limit > 0 && rl.limit !== a.limitPerMin) { await setAccount(a.id, { perMin: rl.limit }); alert(`📶 Spenza ${acctLabel(a.id)} SMS rate limit is ${rl.limit}/min (was ${a.perMin}) — capacity, bookings and the planner now follow it.`); audit('rate_limit_adopted', { account: a.id, from: a.perMin, to: rl.limit }) }
     if (headersExhausted(a.id)) exhausted++
   }
   return seen > 0 && exhausted === c.accounts.length
@@ -1155,4 +1156,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+module.exports = { acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }

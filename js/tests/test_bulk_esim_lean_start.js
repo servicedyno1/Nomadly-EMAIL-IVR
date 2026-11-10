@@ -17,6 +17,12 @@ const nums = (n, from = 1000) => Array.from({ length: n }, (_, i) => `+1212555${
   const E = db.collection('bsEsims'), live = (q = {}) => E.countDocuments({ status: { $nin: ['replaced', 'failed', 'expired', 'retired'] }, ...q })
   const c0 = await B.cfg()
   ok('defaults: no monitor, 1 tester, 2 service minimum, no balance floor, no spare reserve', c0.monitorEsims === 0 && c0.testerEsims === 1 && c0.minEsims === 2 && c0.minCredit === 0 && c0.reserveBooking === false)
+  ok('Spenza limit 30/min → we send at most 28/min per account (2 below), ceiling ≈ 13,440 SMS/day', c0.accounts[0].perMin === 28 && c0.accounts[0].limitPerMin === 30)
+  process.env.BULK_ESIM_FAKE_RATE = '30,2,40'
+  ok('header pacing stops with 2 sends still left in Spenza’s window', (await B.cfg()) && B.acctOpen(await B.cfg(), 'spenza1') === false)
+  process.env.BULK_ESIM_FAKE_RATE = '30,3,40'
+  ok('…and keeps going at 3 left', B.acctOpen(await B.cfg(), 'spenza1') === true)
+  delete process.env.BULK_ESIM_FAKE_RATE
   const r = await B.bootstrap()
   ok('go-live: only the tester line is bought', r.testers === 1 && (await live()) === 1, JSON.stringify(r))
   await B.setConfig({ quietStart: 0, quietEnd: 24 }, 'test'); await B.healthCheck()
