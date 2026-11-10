@@ -2538,3 +2538,10 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Web form: "When voicemail answers" 3 cards — Leave my message (default, recommended) / Leave a different clip / Hang up; flow hint; validation.
 - Bot: same question in 5 langs, "📩 Leave my message (recommended)" first (uses campaign audio), Hang up, other clips. tests/test_bulkivr_voicemail_choice.js 6/6.
 - Help FAQ campaign-voicemail. Frontend iteration_246 all pass.
+
+## 2026-11-10 — Voicemail count + voicemail script; eSIM unlimited + front menu
+- Web: campaign detail banner "📩 N voicemails left" (VoicemailWin), green list pill; "Write a voicemail script" card (VoicemailScript.js: shorten from call script, word/seconds count, AI voice, preview). Validation before any request.
+- Bot: final Bulk IVR report leads with bulkCallReportVmLeft (5 langs). tests/test_bulkcall_vm_report.js 2/2.
+- eSIM sold as "Unlimited data · Unlimited calls · Unlimited SMS": esim-bot includes() (5 langs), web Esim.js plan card + usage line hidden, ProductHero ESIM_POINTS, spenza custPlan returns 'Unlimited', AI support told never to quote caps.
+- Main menu: "📱 USA eSIM" (user.esimMain) replaces Marketplace; Marketplace moved under ➕ More; Back from eSIM returns to where it was opened. tests/test_esim_front_menu.js 8/8.
+- Frontend iteration_247/248 pass; dark-theme green via .civr-vm-green (theme uses html[data-civr-theme]).

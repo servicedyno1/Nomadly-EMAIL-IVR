@@ -365,3 +365,7 @@ body.civr-thread-open [data-testid="support-chat-toggle"] { display: none; }
 .civr .civr-seg-on { color: var(--c-text, #f4f4f5); background: var(--c-accent-soft, rgba(129, 140, 248, 0.12)); border-color: rgba(129, 140, 248, 0.45); }
 /* Overview promo slot: several banners may mount, only the first one that renders is shown. */
 .civr .civr-promo-slot > * ~ * { display: none; }
+
+/* Voicemail-left green: readable on light and dark cards */
+.civr-vm-green { color: #15803d !important; }
+html[data-civr-theme='dark'] .civr-vm-green { color: #4ade80 !important; }

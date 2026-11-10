@@ -29,7 +29,7 @@ export function VoicemailScript({ value, onChange, mainText, onMade, madeName })
       <VoiceMaker text={value.text} name={madeName} onMade={onMade} choice={value} onChoice={set} testid="campaign-vm-script-voice" preview={false} />
       {value.audioId && <div className="space-y-2" data-testid="campaign-vm-script-ready-box">
         {value.audioUrl && <audio controls src={playUrl(value.audioUrl)} className="h-9 max-w-full" data-testid="campaign-vm-script-preview" />}
-        <div className="text-xs text-[#15803d] dark:text-[#4ade80]" data-testid="campaign-vm-script-ready">Voicemail audio ready — it will be left after the beep.</div></div>}
+        <div className="text-xs civr-vm-green" data-testid="campaign-vm-script-ready">Voicemail audio ready — it will be left after the beep.</div></div>}
     </div>
   );
 }

@@ -50,7 +50,7 @@ function CampaignRow({ c, i, pv, onChange }) {
       <div className="flex flex-col md:flex-row md:items-center gap-3">
         <div className="flex-1 min-w-0"><div className="font-semibold truncate" data-testid={`campaign-row-${i}-name`}>{c.name || c.audioName || 'Campaign'}</div><div className="text-xs text-[#a1a1aa] font-mono">{pv.phone(c.callerId)} · {when(c.createdAt)}</div></div>
         <div className="font-mono text-sm text-[#d4d4d8]" data-testid={`campaign-row-${i}-progress-text`}>{c.stats?.completed || 0}/{c.stats?.total || 0} called</div>
-        {c.voicemailAudioName && c.startedAt && <span className={`civr-pill ${c.stats?.voicemailLeft ? '!bg-[#22c55e]/15 !text-[#15803d] dark:!text-[#4ade80] !border-[#22c55e]/40' : ''}`} data-testid={`campaign-row-${i}-voicemail-left`}>{c.stats?.voicemailLeft === 1 ? '📩 1 voicemail left' : `📩 ${c.stats?.voicemailLeft || 0} voicemails left`}</span>}
+        {c.voicemailAudioName && c.startedAt && <span className={`civr-pill ${c.stats?.voicemailLeft ? '!bg-[#22c55e]/15 civr-vm-green !border-[#22c55e]/40' : ''}`} data-testid={`campaign-row-${i}-voicemail-left`}>{c.stats?.voicemailLeft === 1 ? '📩 1 voicemail left' : `📩 ${c.stats?.voicemailLeft || 0} voicemails left`}</span>}
         {c.repeat && <span className="civr-pill civr-pill-on" data-testid={`campaign-row-${i}-repeat`}><Repeat className="w-3 h-3" />{c.repeat === 'weekly' ? 'weekly' : 'daily'}{c.runNumber > 1 ? ` · run ${c.runNumber}` : ''}</span>}
         {c.waitingForDailyLimit && c.status === 'running' && <span className="civr-pill civr-pill-warn" data-testid={`campaign-row-${i}-daily-limit`}>daily limit reached</span>}
         <span className={statusPill(c.status)} data-testid={`campaign-row-${i}-status`}>{c.status}</span>
@@ -150,7 +150,7 @@ function VoicemailChoice({ mode, onMode, children }) {
         {VM_OPTS.map(([v, label, sub]) => (
           <button key={v} type="button" role="radio" aria-checked={mode === v} onClick={() => onMode(v)} data-testid={`campaign-voicemail-${v}`}
             className={`text-left rounded-xl border px-3 py-2.5 transition-colors ${mode === v ? 'border-[var(--civr-accent,#22c55e)] bg-[#22c55e]/10' : 'border-[#262626] hover:border-[#3f3f46]'}`}>
-            <div className="text-sm font-medium">{label}{v === 'main' && <span className="ml-1.5 text-[10px] uppercase tracking-wide font-semibold text-[#15803d] dark:text-[#4ade80]">Recommended</span>}</div>
+            <div className="text-sm font-medium">{label}{v === 'main' && <span className="ml-1.5 text-[10px] uppercase tracking-wide font-semibold civr-vm-green">Recommended</span>}</div>
             <div className="text-xs text-[#a1a1aa] mt-0.5">{sub}</div>
           </button>
         ))}
@@ -308,7 +308,7 @@ export function CampaignNew() {
           <Field label="Message"><AudioSelect value={f.audioId} onChange={set('audioId')} audios={au?.audios} by="id" onAdded={reloadAudio} testid="campaign-audio-select" /></Field>
           {script ? <div className="border border-[#262626] rounded-xl p-4"><ScriptBox value={script} onChange={setScript} onAudio={(a) => { reloadAudio(); setMadeTexts(m => ({ ...m, [a.id]: fillScript(script.text, script.values) })); setF(x => ({ ...x, audioId: a.id })); setScript(null); }} testid="campaign-script" /></div>
             : <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => setScript({ text: '', values: {} })} data-testid="campaign-write-script-button">Write a script with a template instead</button>}
-          <VoicemailChoice mode={f.vmMode} onMode={set('vmMode')}>
+          <VoicemailChoice mode={f.vmMode} onMode={(v) => { setError(null); set('vmMode')(v); }}>
             {f.vmMode === 'script' && <VoicemailScript value={vmScript} onChange={setVmScript} mainText={script ? fillScript(script.text, script.values) : madeTexts[f.audioId]}
               onMade={(a) => { reloadAudio(); setVmScript(x => ({ ...x, audioId: a.id, audioUrl: a.audioUrl })); }} madeName={`${f.name.trim() || 'Campaign'} · voicemail`} />}
             {f.vmMode === 'other' && <AudioSelect value={f.voicemailAudioId} onChange={set('voicemailAudioId')} audios={au?.audios} by="id" placeholder="Pick the clip to leave" onAdded={reloadAudio} compact testid="campaign-voicemail-audio-select" />}

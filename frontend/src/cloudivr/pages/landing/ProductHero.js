@@ -5,7 +5,7 @@ import { Reveal } from './kit';
 import { openEsimCheckout, EMAIL_OK } from './EsimCheckout';
 import { openMobileCheckout } from './MobileCheckout';
 
-export const ESIM_POINTS = ['Scan a QR code and the line is on your phone', 'Two-way SMS: send and receive texts instantly on your phone, plus USA data and calls', 'QR code shown in the app and emailed to you', 'For unlocked phones that support eSIM'];
+export const ESIM_POINTS = ['Unlimited data, calls and texts', 'Scan a QR code and the line is on your phone', 'Two-way SMS: send and receive texts instantly on your phone', 'QR code shown in the app and emailed to you', 'For unlocked phones that support eSIM'];
 export const MOBILE_POINTS = ['A real carrier mobile number, not VoIP, accepted by most banks and apps', 'Two-way SMS: send and receive texts instantly in CloudIVR Messages, and call out from your browser', 'No phone or SIM needed', 'Free caller ID for your CloudIVR calls'];
 
 export function Waitlist() {
