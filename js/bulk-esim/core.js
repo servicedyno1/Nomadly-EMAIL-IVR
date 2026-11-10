@@ -47,7 +47,9 @@ const C = (n) => S.db.collection(n)
 const id = (p) => `${p}_${crypto.randomBytes(6).toString('hex')}`
 const cidOf = (brand, chatId) => `${brand}:${chatId}`
 const segs = (t) => { const s = String(t || ''); const gsm = /^[\x20-\x7E\n\r£¥èéùìòÇØøÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ¡ÄÖÑÜ§¿äöñüà€]*$/.test(s); const one = gsm ? 160 : 70, many = gsm ? 153 : 67; return s.length <= one ? 1 : Math.ceil(s.length / many) }
-const normPhone = (p) => { const d = String(p || '').replace(/[^\d]/g, ''); return d.length === 10 ? `+1${d}` : d.length === 11 && d[0] === '1' ? `+${d}` : '' }
+// Country code required: +1XXXXXXXXXX / 1XXXXXXXXXX / 001XXXXXXXXXX. A bare 10-digit number is rejected (customer is told to add +1).
+const normPhone = (p) => { const d = String(p || '').trim().replace(/^00/, '').replace(/[^\d]/g, ''); return d.length === 11 && d[0] === '1' ? `+${d}` : '' }
+const noCountryCode = (t) => !/^\s*(\+|00)/.test(String(t)) && String(t).replace(/\D/g, '').length === 10
 
 // Settings + the Spenza accounts in use: each account has its own SMS rate (platformPerMin, or the limit Spenza reported in its
 // headers), credit and forecast; `low` = balance under the floor → its lines sit out until it is topped up.
@@ -645,10 +647,10 @@ function msgDoc({ cid, to, body, campaignId = null, bookingId = null, sessionId 
 }
 // contacts: raw text (one per line / comma separated, CSV ok). Keeps valid USA/Canada numbers, drops duplicates and opted-out ones.
 async function parseContacts(cid, raw) {
-  const seen = new Set(); let bad = 0, dup = 0
-  for (const tok of String(raw || '').split(/[\n,;\t]+/)) { const t = tok.trim(); if (!t) continue; const p = normPhone(t); if (p && validUsCa(p)) { if (seen.has(p)) dup++; seen.add(p) } else if (/\d{7,}/.test(t)) bad++ }
+  const seen = new Set(); let bad = 0, dup = 0, noCode = 0
+  for (const tok of String(raw || '').split(/[\n,;\t]+/)) { const t = tok.trim(); if (!t) continue; const p = normPhone(t); if (p && validUsCa(p)) { if (seen.has(p)) dup++; seen.add(p) } else if (noCountryCode(t)) noCode++; else if (/\d{7,}/.test(t)) bad++ }
   const list = [...seen], sup = new Set((await C('bsSuppression').find({ $or: [{ cid }, { cid: '*' }], phone: { $in: list } }).toArray()).map(s => s.phone))
-  return { contacts: list.filter(p => !sup.has(p)), invalid: bad, optedOut: sup.size, duplicates: dup }
+  return { contacts: list.filter(p => !sup.has(p)), invalid: bad, optedOut: sup.size, duplicates: dup, noCode }
 }
 // Content rules: each version + the opt-out line (when kept) must fit ONE SMS (160 GSM / 70 unicode chars); the declared link/phone
 // choice is checked on every version (text-only may contain none; the choice is re-checked at booking, so it can't be gamed).

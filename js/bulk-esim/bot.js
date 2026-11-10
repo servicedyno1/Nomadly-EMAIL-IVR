@@ -80,14 +80,15 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
       fileName = name
     }
     const r = await B.parseContacts(cid, raw), c = await B.cfg()
-    if (r.contacts.length < c.minVolume) return send(chatId, say('contacts_few', { ...r, n: r.contacts.length, parts: r.contacts.length }, c.minVolume))
+    const ccNote = r.noCode ? `\n\n${say('nocode', r.noCode)}` : ''
+    if (r.contacts.length < c.minVolume) return send(chatId, say('contacts_few', { ...r, n: r.contacts.length, parts: r.contacts.length }, c.minVolume) + ccNote, { parse_mode: 'HTML' })
     const list = r.contacts.slice(0, c.maxVolume)
     await send(chatId, say('checking', list.length))
     const k = await B.checkNumbers(cid, list)
     if (!k.sendable) return send(chatId, `⚠️ ${say('err_no_mobile')}`)
     await drafts().updateOne({ _id: cid }, { $set: { contacts: list, skip: k.skip, file: fileName ? { name: fileName, raw } : null, at: new Date() } }, { upsert: true })
     await go('bse-consent')
-    return send(chatId, say('list_ok', { n: list.length, max: c.maxVolume, dropped: r.contacts.length - list.length, send: k.sendable, skipped: k.skip.length, counts: k.counts, invalid: r.invalid, duplicates: r.duplicates, optedOut: r.optedOut }), kb([[L.agree], [L.back]]))
+    return send(chatId, say('list_ok', { n: list.length, max: c.maxVolume, dropped: r.contacts.length - list.length, send: k.sendable, skipped: k.skip.length, counts: k.counts, invalid: r.invalid, duplicates: r.duplicates, optedOut: r.optedOut }) + ccNote, kb([[L.agree], [L.back]]))
   }
   if (action === 'bse-consent') {
     if (message !== L.agree) return send(chatId, say('pick_option'))
@@ -239,7 +240,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     if (message === L.other) { await put('dpProductKey', PRODUCT_KEY); await put('dpProductName', `eSIM BulkSMS ${b.volume} SMS`); await put('dpPrice', b.price); await go('none'); await goto['digital-product-pay'](); return true }
     return false
   }
-  if (action === 'bse-one-to') { if (!/^\+?1?\d{10}$/.test(String(message).replace(/[\s()-]/g, ''))) return send(chatId, say('err_number')); await put('bseTo', message); await go('bse-one-text'); return send(chatId, say('one_text_q'), kb([[L.back]])) }
+  if (action === 'bse-one-to') { if (!/^(\+|00)?1\d{10}$/.test(String(message).replace(/[\s().-]/g, ''))) return send(chatId, say('err_number'), { parse_mode: 'HTML' }); await put('bseTo', message); await go('bse-one-text'); return send(chatId, say('one_text_q'), kb([[L.back]])) }
   if (action === 'bse-one-text' || action === 'bse-reply') {
     const r = await B.sendOne(cid, info.bseTo, message, action === 'bse-reply' ? info.bseSession : null)
     if (r.error) return send(chatId, `⚠️ ${errText(lang, r)}`)

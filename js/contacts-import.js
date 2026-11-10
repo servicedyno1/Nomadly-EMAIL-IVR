@@ -162,23 +162,28 @@ function readTable(input, fileName = '') {
 // ── numbers ──
 const { dialIssue } = require('./dial-check')
 // NANP fix (2026-02 @blacknmilds): a bare 10-digit US/Canada number must become +1…, not +40… (Romania).
+// Owner rule (2026-11): every number needs its country code. A bare 10-digit number or a national 0… number is rejected
+// with how to fix it (no more silent +1), so nobody dials the wrong country.
+const NO_CC = 'no country code'
 function normalizeNumber(raw) {
   const n = toPlus(raw)
-  return /^\+\d{8,15}$/.test(n) && !dialIssue(n) ? n : null
+  return n !== NO_CC && /^\+\d{8,15}$/.test(n) && !dialIssue(n) ? n : null
 }
 // Why a typed number can't be dialled (null when it can).
-const numberIssue = (raw) => { const n = toPlus(raw); return /^\+\d{8,15}$/.test(n) ? dialIssue(n) : null }
+const numberIssue = (raw) => { const n = toPlus(raw); if (n === NO_CC) return ccIssue(raw); return /^\+\d{8,15}$/.test(n) ? dialIssue(n) : null }
+const ccIssue = (raw) => { const d = String(raw || '').replace(/\D/g, ''); return `${String(raw || '').trim()} has no country code. Add it in front, e.g. ${d.length === 10 ? `+1${d}` : '+14155550100'} (USA/Canada) or +44… (UK).` }
 function toPlus(raw) {
   let number = String(raw || '').replace(/["'\s]/g, '').replace(/[^\d+]/g, '')
+  if (number.startsWith('00')) number = '+' + number.slice(2)
   if (!number.startsWith('+')) {
-    if (/^\d{10}$/.test(number)) number = '+1' + number
-    else if (/^1\d{10}$/.test(number)) number = '+' + number
-    else number = '+' + number.replace(/^0+/, '')
+    if (/^1\d{10}$/.test(number)) number = '+' + number
+    else if (/^\d{10}$/.test(number) || /^0\d{6,}$/.test(number)) return NO_CC
+    else number = '+' + number
   }
   return number.replace(/[^+\d]/g, '')
 }
 const DATE = /^(\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})$/
-const looksPhone = (v) => !!v && /^[\d\s+().\-/]+$/.test(v) && !DATE.test(v.trim()) && !!normalizeNumber(v)
+const looksPhone = (v) => !!v && /^[\d\s+().\-/]+$/.test(v) && !DATE.test(v.trim()) && (!!normalizeNumber(v) || toPlus(v) === NO_CC)
 const looksEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
 // ── column matching ──

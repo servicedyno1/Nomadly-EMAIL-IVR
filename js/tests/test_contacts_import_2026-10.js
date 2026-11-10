@@ -42,7 +42,7 @@ ok('xlsx leads: phone + name columns found by header', () => {
   assert.deepStrictEqual(r.columns, { phone: 'Cell', name: 'Full Name' })
 })
 ok('csv with header in any order + first/last name + extra column', () => {
-  const rows = ci.readTable('Email;Last name;First name;Mobile;Zip\njo@x.io;Smith;Jo;(415) 555-0101;94107\n')
+  const rows = ci.readTable('Email;Last name;First name;Mobile;Zip\njo@x.io;Smith;Jo;+1 (415) 555-0101;94107\n')
   const det = ci.detectColumns(rows)
   assert.deepStrictEqual(det.columns.map(c => c.role), ['email', 'last_name', 'first_name', 'phone', 'keep'])
   const { records } = ci.toRecords(rows, det)
@@ -50,13 +50,19 @@ ok('csv with header in any order + first/last name + extra column', () => {
   assert.deepStrictEqual(records[0].fields, [{ label: 'Zip', value: '94107' }])
 })
 ok('headerless: phone column found by content, name by text', () => {
-  const r = parseLeadsFile('Jane,+14155550100\nBob,4155550101\n')
+  const r = parseLeadsFile('Jane,+14155550100\nBob,14155550101\n')
   assert.deepStrictEqual(r.leads.map(l => [l.number, l.name]), [['+14155550100', 'Jane'], ['+14155550101', 'Bob']])
 })
-ok('legacy number-per-line + NANP + duplicates + invalid line', () => {
-  const r = parseLeadsFile('4065067340\n+14065067340,Dup\nnotaphone\n')
+ok('number-per-line + 1XXXXXXXXXX + duplicates + invalid line', () => {
+  const r = parseLeadsFile('14065067340\n+14065067340,Dup\nnotaphone\n')
   assert.deepStrictEqual(r.leads.map(l => l.number), ['+14065067340'])
   assert.strictEqual(r.errors.length, 1)
+})
+ok('no country code → rejected with how to fix it (never guessed as +1)', () => {
+  const r = parseLeadsFile('4065067340\n07911123456\n+447911123456\n')
+  assert.deepStrictEqual(r.leads.map(l => l.number), ['+447911123456'])
+  assert.strictEqual(r.errors.length, 2)
+  assert.ok(/no country code.*\+14065067340/.test(r.errors[0]), r.errors[0])
 })
 ok('quoted csv cells with commas and newlines', () => {
   const rows = ci.readTable('Name,Phone,Notes\n"Doe, Jane",+14155550100,"line1\nline2"\n')

@@ -18,8 +18,8 @@ for (const ok of ['+17072206410', '+18002805175', '+447911123456', '+77072206410
   t(`${ok} valid`, dialIssue(ok) === null, `got: ${dialIssue(ok)}`)
 
 // normalizeNumber
-t('normalize 7072206410 → +17072206410', ci.normalizeNumber('7072206410') === '+17072206410', ci.normalizeNumber('7072206410'))
-t('normalize (707) 220-6410 → +17072206410', ci.normalizeNumber('(707) 220-6410') === '+17072206410')
+t('no country code: 7072206410 → rejected', ci.normalizeNumber('7072206410') === null && /no country code.*\+17072206410/.test(ci.numberIssue('7072206410')), ci.numberIssue('7072206410'))
+t('no country code: (707) 220-6410 → rejected', ci.normalizeNumber('(707) 220-6410') === null)
 t('normalize 17072206410 → +17072206410', ci.normalizeNumber('17072206410') === '+17072206410')
 t('normalize +7072206410 → null', ci.normalizeNumber('+7072206410') === null, String(ci.normalizeNumber('+7072206410')))
 t('normalize +1707220640 → null', ci.normalizeNumber('+1707220640') === null)
@@ -32,6 +32,6 @@ t('parseLeads keeps 3 valid', r.leads.length === 3 && r.leads.map(l => l.number)
 t('parseLeads reports 2 errors', r.errors.length === 2, JSON.stringify(r.errors))
 // CSV with header
 const r2 = ci.parseLeads('Name,Phone\nAnn,+17072206410\nBob,+7072206410\nCy,800-280-5175', 'x.csv')
-t('csv header: 2 valid, 1 error', r2.leads.length === 2 && r2.errors.length === 1, JSON.stringify(r2))
+t('csv header: 1 valid, 2 errors (bad + no country code)', r2.leads.length === 1 && r2.errors.length === 2 && /no country code/.test(r2.errors[1]), JSON.stringify(r2))
 console.log(`\n${pass}/${pass + fail} passed`)
 process.exit(fail ? 1 : 0)

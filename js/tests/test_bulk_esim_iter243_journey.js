@@ -56,10 +56,10 @@ const tg = async (text, wait = 1900) => { await axios.post('http://localhost:500
     ok('A replies OFF after remove', (await db.collection('bsCampaigns').findOne({ _id: sA.bseCampaign }))?.replies === false)
     await tg(L.now, 2600); let aA = (await st()).action
     if (aA === 'bse-when') { const w = await B.whenOptions(cid, sA.bseCampaign); if (w.later) { console.log('   (send now gone → later today)'); await tg(`${L.later} ${String(w.later.hour).padStart(2, '0')}:00`, 2600); aA = (await st()).action } }
-    ok('A: 🚀 Send now → bse-pay', aA === 'bse-pay', aA)
+    ok('A: 🚀 Send now → shared invoice (wallet + crypto)', aA === 'digital-product-pay', aA)
     const bA = await db.collection('bsBookings').findOne({ _id: (await st()).bseBookingId })
     ok('A booking: 520 SMS, $78 (link $75/500 × 520), no reply fee', bA?.volume === 520 && bA.price === 78 && bA.replyFee === 0, JSON.stringify(bA && [bA.volume, bA.price, bA.replyFee, bA.mode]))
-    await walk('A', [[L.wallet, 'bse-home', 3500]])
+    await walk('A', [[`👛 Pay $${Number(bA?.price).toFixed(2)} from Wallet`, 'bse-home', 3500]])
     const wA = await db.collection('walletOf').findOne({ _id: String(CHAT) }), qA = await db.collection('bsMessages').find({ bookingId: bA?._id }).toArray()
     ok('A wallet debited $78', wA?.usdOut === 78, String(wA?.usdOut))
     const skipSet = new Set(cpA?.skipped || [])
@@ -106,11 +106,11 @@ const tg = async (text, wait = 1900) => { await axios.post('http://localhost:500
     const own = 'Shop at a.example.com today\n---\nCall +1 212 555 0101 for deals\n---\nNew deals at b.example.com'
     await walk('D', [[L.rotate_own, 'bse-content'], [own, 'bse-review']])
     ok('D: review holds 3 own versions', (await st()).bseContent?.length === 3, JSON.stringify((await st()).bseContent))
-    await walk('D', [[L.use_these, 'bse-test', 2600], [L.cont, 'bse-when'], [L.sched, 'bse-day'], [d2, 'bse-hour', 2600], ['12:00 · x free', 'bse-pay', 2600]])
+    await walk('D', [[L.use_these, 'bse-test', 2600], [L.cont, 'bse-when'], [L.sched, 'bse-day'], [d2, 'bse-hour', 2600], ['12:00 · x free', 'digital-product-pay', 2600]])
     const sD = await st(), cpD = await db.collection('bsCampaigns').findOne({ _id: sD.bseCampaign }), bD = await db.collection('bsBookings').findOne({ _id: sD.bseBookingId })
     ok('D campaign: 3 versions, link type, opt-out off', cpD?.content?.length === 3 && cpD.withLinks === true && cpD.optOut === false, JSON.stringify(cpD && [cpD.content.length, cpD.withLinks, cpD.optOut]))
     ok('D booking scheduled −10%: list 76.5 → 68.85', bD?.mode === 'scheduled' && bD.listPrice === 76.5 && bD.price === 68.85 && bD.discountPct === 10, JSON.stringify(bD && [bD.mode, bD.listPrice, bD.price, bD.discountPct]))
-    await walk('D', [[L.wallet, 'bse-home', 3500]])
+    await walk('D', [[`👛 Pay $${Number(bD?.price).toFixed(2)} from Wallet`, 'bse-home', 3500]])
     const wD = await db.collection('walletOf').findOne({ _id: String(CHAT) }), bD2 = await db.collection('bsBookings').findOne({ _id: bD?._id })
     ok('D paid from wallet (out 78+68.85=146.85)', Math.abs((wD?.usdOut || 0) - 146.85) < 0.001 && bD2?.paymentStatus === 'paid', JSON.stringify([wD?.usdOut, bD2?.status, bD2?.paymentStatus]))
 
