@@ -104,6 +104,14 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   provCalls = 0; await B.healthCheck()
   ok('two missed checks → number retired, new eSIM bought', (await db.collection('bsEsims').findOne({ _id: r2._id })).status === 'failed' && provCalls === 1 && alerts.some(a => /does not pass the delivery check/.test(a)), `${(await db.collection('bsEsims').findOne({ _id: r2._id })).status} prov=${provCalls} ${alerts.slice(-2).join(' | ').slice(0, 300)}`)
   ok('auto-replacements capped per day', (await db.collection('bsConfig').findOne({ _id: `replaces:${d(0)}` })).n === 2 && (await B.cfg()).maxReplacesPerDay === 3)
+  // dead lines are cancelled with Spenza, unless the eSIM lives on in a replacement
+  let cancels = []; const realCancel = P.cancelSubscription; P.cancelSubscription = async (iccid) => { cancels.push(iccid); return realCancel(iccid) }
+  await db.collection('bsEsims').updateMany({ _id: { $in: [r2._id, victim._id] } }, { $set: { updatedAt: new Date(Date.now() - 2 * 3600000) } })
+  await B.cancelDead(await B.cfg())
+  const r2d = await db.collection('bsEsims').findOne({ _id: r2._id }), vd = await db.collection('bsEsims').findOne({ _id: victim._id })
+  ok('failed line cancelled with Spenza (no more billing); replaced line whose eSIM lives on is not', cancels.length === 1 && cancels[0] === r2.iccid && !!r2d.cancelledAt && !vd.cancelledAt && alerts.some(a => /cancelled with Spenza/.test(a)), JSON.stringify(cancels))
+  cancels = []; await B.cancelDead(await B.cfg()); ok('cancellation happens once', cancels.length === 0)
+  P.cancelSubscription = realCancel
   // active lines: re-checked only when they sent something since the last pass; a spike of failures checks at once
   const act = await db.collection('bsEsims').find({ status: 'available', role: 'service' }).limit(2).toArray()
   await db.collection('bsEsims').updateMany({ _id: { $in: act.map(x => x._id) } }, { $set: { lastCheckOkAt: new Date(Date.now() - 7 * 3600000), checkedSubmitted: 0, 'stats.submitted': 5 } })
@@ -186,6 +194,19 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   ok('new credentials → old lines retired, new account bootstrapped again (tester only)', b2.ok && b2.retired >= 4 && b2.testers === 1 && b2.monitors === 0 && provCalls === 1 && alerts.some(a => /New Spenza BulkSMS credentials detected/.test(a)) && (await db.collection('bsEsims').countDocuments({ status: 'retired' })) === b2.retired, JSON.stringify(b2))
   ok('bootstrap without credit does not buy', await (async () => { process.env.SPENZA_BULK_API_KEY = 'key-three'; process.env.BULK_ESIM_FAKE_CREDIT = '12'; await B.creditWatch(); provCalls = 0; const b3 = await B.bootstrap(); return b3.ok && provCalls === 0 && b3.testers === 0 })())
   delete process.env.SPENZA_BULK_API_KEY
+  // next free day for a full day
+  await db.collection('bsBookings').deleteMany({}); await db.collection('bsDemand').deleteMany({}); await B.setConfig({ autoProvision: false, manualApproval: true, quietStart: 0, quietEnd: 24 }, 'test')
+  for (const e of await db.collection('bsEsims').find({ role: 'service', status: 'available' }).toArray()) await db.collection('bsEsims').updateOne({ _id: e._id }, { $set: { status: 'retired' } })
+  await db.collection('bsConfig').deleteOne({ _id: 'settings' }); await B.setConfig({ autoProvision: false, manualApproval: true, quietStart: 0, quietEnd: 24, testerEsims: 0, monitorEsims: 0 }, 'test')
+  process.env.BULK_ESIM_FAKE_CREDIT = '500'; await B.creditWatch()
+  for (let i = 0; i < 2; i++) await B.provisionOne('nf'); await B.healthCheck()
+  const nfCid = (await B.customer('Nomadly', '888'))._id, avail1 = await B.availability(d(1))
+  ok('2 fresh lines → 640 bookable per day', avail1.perDay === 640, `${avail1.perDay}`)
+  const full = await B.createBooking(nfCid, { date: d(1), hour: 10, volume: 600 })
+  ok('a 600 booking fills tomorrow', !!full.booking && (await B.availability(d(1))).dayFree === 40)
+  const nf = await B.nextFreeDay(600, d(1))
+  ok('next free day for 600 SMS is the day after', nf?.date === d(2) && nf.dayFree === 640, JSON.stringify(nf))
+  ok('no day within 14 days for 700 SMS → null', (await B.nextFreeDay(700, d(1))) === null)
   console.log(`\n${pass} passed, ${fail} failed`)
   for (const c of COLS) await db.collection(c).deleteMany({})
   await cl.close(); process.exit(fail ? 1 : 0)

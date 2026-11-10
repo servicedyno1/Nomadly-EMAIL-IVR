@@ -71,3 +71,8 @@ Test sends: max 2 per campaign during setup, not counted in booking volume, coun
 - Roles: 'tester' (customers' 2 test texts per campaign route through it via pickEsim m.test; never campaigns), 'monitor', 'service'. AUX = monitor+tester excluded from fleet/pool/liveCount. testerEsims 1.
 - bootstrap (new credentials): sync, credit, webhook, buy ONLY the tester line. First PAID booking (confirmBooking): ensureRoles → monitor, then provisionFor need = max(linesShort, minEsims(2) − live). autoscale buys roles/minimum only once `started` (lines exist or demandModel.hasDemand). Demand model uses paid-status bookings only (awaiting_payment excluded) + capacity refusals.
 - Tests: autoscale 53/53, iter241 20/20, engine 39/39, iter239 86/86, bot_flow 16/16.
+
+## 2026-06 round 8 — next free day + dead-line cancellation
+- nextFreeDay(parts, fromDate): first of the next 14 days where the parts fit (availability + allocate with dayFree). Bot: day step accepts any date 0..14 days ahead; when the picked day is full (no open hour or dayFree < parts) or the hour step returns err_slot → message no_cap_day + next_free(date) (i18n en/fr/zh/hi/fa) with the next day as a one-tap button.
+- cancelDead(c) hourly: 'failed' lines (>1 h) and 'suspended' lines (> cancelDeadAfterDays 3) with an iccid and no other live doc on that iccid → P.cancelSubscription (POST /api/v1.1/subscriptions/{iccid}/cancel, period-end cancel) → cancelledAt, alert, audit cancel_line. Replaced originals whose eSIM lives on are skipped; expired already over; retired = other account.
+- Tests: autoscale 59/59, bot_nextday 11/11 (js/tests/test_bulk_esim_bot_nextday.js, nodejs running), bot_flow 16/16, engine 39/39.

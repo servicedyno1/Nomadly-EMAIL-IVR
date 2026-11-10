@@ -13,7 +13,7 @@ const DEFAULTS = {
   minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2,
   minEsims: 2, monitorEsims: 1, testerEsims: 1, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
   minCredit: 10, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
-  esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: true, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3,
+  esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: true, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3, cancelDeadAfterDays: 3,
 }
 const today = () => new Date().toISOString().slice(0, 10)
 const daysAhead = (date) => Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(today())) / 86400000)
@@ -336,6 +336,15 @@ async function demandModel(c) {
   const target = (date) => Math.min(dayCeiling(date, c), Math.max((byDay[date] || 0) + (c.reserveBooking && hasDemand ? c.maxVolume : 0), peak))
   return { peak, byDay, target, hasDemand }
 }
+// First day after `fromDate` (within 14 days) where `parts` SMS fit from some open hour.
+async function nextFreeDay(parts, fromDate = today()) {
+  for (let i = 1; i <= 14; i++) {
+    const date = new Date(Date.parse(`${fromDate}T00:00:00Z`) + i * DAY).toISOString().slice(0, 10), { slots, dayFree, capacity: cap } = await availability(date)
+    if (!cap) continue
+    const h = slots.find(x => x.free > 0 && allocate(slots, x.hour, parts, dayFree)); if (h) return { date, hour: h.hour, dayFree }
+  }
+  return null
+}
 // A refused booking is demand too: remembered per customer and day so the autoscaler buys lines for the coming days.
 const unmet = (cid, date, volume) => { const a = daysAhead(date); return a >= 0 && a <= 7 ? C('bsDemand').updateOne({ _id: `${cid}:${date}` }, { $max: { volume }, $set: { at: new Date(), date } }, { upsert: true }).catch(() => {}) : null }
 async function unmetDemand() { const [g] = await C('bsDemand').aggregate([{ $match: { at: { $gt: new Date(Date.now() - DAY) } } }, { $group: { _id: null, v: { $sum: '$volume' } } }]).toArray(); return g?.v || 0 }
@@ -422,6 +431,17 @@ async function cancelBooking(bid, { by = 'customer', cid } = {}) {
   if (b.quotaDay) await unreserve(b.cid, b.quotaDay, b.volume)
   if (paid) await notify(b.cid, 'refund', 'n_refund_cancel', [b.volume, b.date, b.price], { amount: b.price, bookingId: bid })
   audit('booking_cancel', { bookingId: bid, by }); return { ok: true, refunded: paid ? b.price : 0 }
+}
+// Dead lines (failed, or suspended for cancelDeadAfterDays without recovery) are cancelled with Spenza so the plan stops billing —
+// unless the same eSIM (iccid) lives on in a replacement line. Expired lines are already over; 'retired' ones belong to another account.
+async function cancelDead(c) {
+  const cut = new Date(Date.now() - c.cancelDeadAfterDays * DAY)
+  const dead = await C('bsEsims').find({ iccid: { $ne: null }, cancelledAt: null, $or: [{ status: 'failed', updatedAt: { $lt: new Date(Date.now() - HOUR) } }, { status: 'suspended', updatedAt: { $lt: cut } }] }).limit(20).toArray()
+  for (const e of dead) {
+    if (await C('bsEsims').findOne({ _id: { $ne: e._id }, iccid: e.iccid, status: { $nin: GONE } })) { await C('bsEsims').updateOne({ _id: e._id }, { $set: { cancelledAt: new Date(), note: 'eSIM lives on in its replacement' } }); continue }
+    try { await P.cancelSubscription(e.iccid); await C('bsEsims').updateOne({ _id: e._id }, { $set: { cancelledAt: new Date(), status: e.status === 'suspended' ? 'failed' : e.status } }); alert(`🗑 ${e._id} ${e.msisdn || ''} (${e.status}) cancelled with Spenza — no more monthly billing for this eSIM.`); audit('cancel_line', { esimId: e._id, iccid: e.iccid, was: e.status }) }
+    catch (err) { if (await once(`cancelfail:${today()}:${e._id}`)) alert(`⚠️ Could not cancel ${e._id} with Spenza: ${err.message}. Cancel it at web.spenza.com to stop the billing.`) }
+  }
 }
 async function expireHolds() {
   await C('bsConfig').deleteMany({ _id: /^(creditwarn|replaces|scale|provcredit|help|replimit):/, at: { $lt: new Date(Date.now() - 30 * DAY) } }).catch(() => {})
@@ -732,7 +752,7 @@ function init({ db, log = console.log, notifyAdmin }) {
     bootstrap().catch(e => log(`[BulkESIM] bootstrap: ${e.message}`))
     setInterval(tick, 2000)
     every(2 * MIN, creditWatch, 'credit'); every(5 * MIN, syncInventory, 'sync'); every(MIN, async () => { await finishCampaigns(); await expireHolds(); await checkTimeouts(await cfg()) }, 'campaigns')
-    every(10 * MIN, healthCheck, 'health'); every(30 * MIN, autoscale, 'autoscale')
+    every(10 * MIN, healthCheck, 'health'); every(30 * MIN, autoscale, 'autoscale'); every(HOUR, async () => cancelDead(await cfg()), 'cancelDead')
     log(`[BulkESIM] engine ready (${P.dry() ? 'simulated provider' : 'live Spenza'}${url ? ', shared DB' : ''})`)
   })
 }
@@ -740,4 +760,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { OPT, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+module.exports = { OPT, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }

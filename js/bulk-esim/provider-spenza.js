@@ -56,6 +56,8 @@ async function provision({ key, zipcode }) {
   const r = await call('post', '/api/v1.1/esim', { imei, simId: p.simId, planId: p.planId, activateNow: true, email, user: { name: 'BulkSMS pool', email, ...(zipcode ? { zipcode } : {}) }, ...(zipcode ? { zipcode } : {}) }, { 'Idempotency-Key': key })
   return { transactionId: r?.data?.transactionId || r?.transactionId || null }
 }
+// Ends the plan at the current period end (Spenza bills the balance for every active line each month).
+const cancelSubscription = async (iccid) => (dry() ? { ok: true, simulated: true } : call('post', `/api/v1.1/subscriptions/${encodeURIComponent(iccid)}/cancel`, {}))
 const replaceNumber = async (iccid) => (dry() ? { ok: true, simulated: true } : call('post', `/api/v1.1/sims/${encodeURIComponent(iccid)}/renew-number`, {}))
 const setSms = async (iccid, on) => (dry() ? { ok: true } : call('patch', `/api/v1.1/sims/${encodeURIComponent(iccid)}/service-state`, { sms: !!on }))
 async function registerWebhook(url) {
@@ -76,4 +78,4 @@ function parseInbound(body) {
   return { event: b.eventType || body?.eventType || null, from: norm(b.From || b.from || b.fromNumber), to: norm(b.Owner || first(b.To) || b.to || b.toNumber || b.mdn), text: String(b.Message_Body || b.text || b.message || b.body || '').slice(0, 2000), providerId: b.Message_ID || b.id || null, direction: String(b.Direction || 'inbound').toLowerCase() }
 }
 
-module.exports = { name: 'spenza', dry, configured, sendSms, listSims, getSim, serviceState, subscription, credit, plan, provision, replaceNumber, setSms, registerWebhook, verify, parseInbound, norm }
+module.exports = { name: 'spenza', dry, configured, sendSms, listSims, getSim, serviceState, subscription, cancelSubscription, credit, plan, provision, replaceNumber, setSms, registerWebhook, verify, parseInbound, norm }

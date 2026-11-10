@@ -102,16 +102,19 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   }
   if (action === 'bse-test-to') { const r = await B.testSend(cid, info.bseCampaign, message); await go('bse-test'); return send(chatId, r.error ? `⚠️ ${errText(lang, r)}` : say('test_ok', r.left), kb([...(r.left ? [[L.test]] : []), [L.cont], [L.back]])) }
   if (action === 'bse-day') {
-    if (!days().includes(message)) return send(chatId, say('pick_option'))
-    const { slots, capacity } = await B.availability(message), cp = await B.db().collection('bsCampaigns').findOne({ _id: info.bseCampaign }), c = await B.cfg()
+    const ahead = /^\d{4}-\d{2}-\d{2}$/.test(message) ? Math.round((Date.parse(`${message}T00:00:00Z`) - Date.parse(new Date().toISOString().slice(0, 10))) / 86400000) : -1
+    if (!(ahead >= 0 && ahead <= 14)) return send(chatId, say('pick_option'))
+    const { slots, capacity, dayFree } = await B.availability(message), cp = await B.db().collection('bsCampaigns').findOne({ _id: info.bseCampaign }), c = await B.cfg()
     if (!capacity) return send(chatId, `⚠️ ${say('err_no_lines')}`)
-    const open = slots.filter(s => s.free > 0); if (!open.length) return send(chatId, say('no_cap_day'))
+    const open = slots.filter(s => s.free > 0)
+    if (!open.length || dayFree < cp.parts) { const n = await B.nextFreeDay(cp.parts, message); return send(chatId, `${say('no_cap_day')}${n ? `\n${say('next_free', n.date)}` : ''}`, kb([...(n ? [[n.date]] : []), ...days().map(d => [d]), [L.back]])) }
     await put('bseDay', message); await go('bse-hour')
     return send(chatId, say('hour_q', message, cp.parts, c.quietStart, c.quietEnd), kb([...open.map(s => [`${String(s.hour).padStart(2, '0')}:00 · ${s.free} ${say('free')}`]), [L.back]]))
   }
   if (action === 'bse-hour') {
     const h = parseInt(String(message), 10); if (!(h >= 0 && h < 24)) return send(chatId, say('pick_option'))
     const r = await B.createBooking(cid, { date: info.bseDay, hour: h, campaignId: info.bseCampaign })
+    if (r.error === 'err_slot') { const cp = await B.db().collection('bsCampaigns').findOne({ _id: info.bseCampaign }), n = await B.nextFreeDay(cp?.parts || 500, info.bseDay); await go('bse-day'); return send(chatId, `⚠️ ${errText(lang, r)}${n ? `\n${say('next_free', n.date)}` : ''}`, kb([...(n ? [[n.date]] : []), ...days().map(d => [d]), [L.back]])) }
     if (r.error) return send(chatId, `⚠️ ${errText(lang, r)}`)
     const b = r.booking; await put('bseBookingId', b._id); await go('bse-pay')
     const bal = await walletOps(T.db).balance(chatId).catch(() => null), c = await B.cfg()
