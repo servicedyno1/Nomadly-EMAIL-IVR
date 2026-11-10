@@ -50,17 +50,28 @@ function Detail({ id, onClose }) {
 export default function Users() {
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(null);
+  const [kind, setKind] = useState('web');
+  const [plan, setPlan] = useState(false);
   return (
     <div className="space-y-4" data-testid="admin-users">
+      <div className="flex flex-wrap items-center gap-2">
+        {[['web', 'Web (CloudIVR)'], ['bot', 'Bot'], ['all', 'All']].map(([k, label]) => (
+          <button key={k} type="button" className={`civr-btn civr-btn-sm ${kind === k ? '' : 'civr-btn-ghost'}`} onClick={() => setKind(k)} data-testid={`admin-users-kind-${k}`}>{label}</button>
+        ))}
+        <label className="flex items-center gap-2 text-sm ml-2 cursor-pointer"><input type="checkbox" checked={plan} onChange={e => setPlan(e.target.checked)} data-testid="admin-users-has-plan" /> Has a plan</label>
+      </div>
       <Search value={q} onChange={setQ} placeholder="Search by chat id, email or name" testid="admin-users-search" />
-      <Load path={`/admin/users?q=${enc(q.trim())}`} testid="admin-users-list">
+      <Load path={`/admin/users?q=${enc(q.trim())}&kind=${kind}${plan ? '&plan=1' : ''}`} testid="admin-users-list">
         {(d) => (
           <div className="civr-card civr-scroll-x">
-            <table className="civr-table w-full text-sm"><thead><tr><th className="text-left">User</th><th className="text-left">Type</th><th className="text-right">Balance</th><th className="text-left">Status</th></tr></thead>
+            <table className="civr-table w-full text-sm"><thead><tr><th className="text-left">User</th><th className="text-left">Type</th><th className="text-left">Plan</th><th className="text-left">Joined</th><th className="text-right">Balance</th><th className="text-left">Status</th></tr></thead>
               <tbody>{d.items.map(u => (
                 <tr key={`${u.kind}-${u.chatId}`} className="cursor-pointer hover:bg-white/5" onClick={() => setOpen(u.chatId)} data-testid={`admin-user-row-${u.chatId}`}>
                   <td><div>{u.name || u.email || u.chatId}</div><div className="text-xs text-[#a1a1aa]">{u.email || u.chatId}</div></td>
-                  <td>{u.kind}</td><td className="text-right tabular-nums">{fmt(u.balance)}</td><td>{u.suspended ? <Pill tone="bad">Suspended</Pill> : <Pill tone="ok">Active</Pill>}</td>
+                  <td>{u.kind}</td>
+                  <td data-testid={`admin-user-plan-${u.chatId}`}>{(u.plans || []).length ? u.plans.map((p, i) => <div key={i} className="whitespace-nowrap">{p.plan} <span className={p.status === 'active' ? 'text-emerald-400' : 'text-amber-400'}>· {p.status}</span>{p.expiresAt ? <span className="text-xs text-[#a1a1aa]"> · until {String(p.expiresAt).slice(0, 10)}</span> : null}</div>) : <span className="text-[#71717a]">—</span>}</td>
+                  <td className="whitespace-nowrap text-[#a1a1aa]">{u.createdAt ? dt(u.createdAt) : '—'}</td>
+                  <td className="text-right tabular-nums">{fmt(u.balance)}</td><td>{u.suspended ? <Pill tone="bad">Suspended</Pill> : <Pill tone="ok">Active</Pill>}</td>
                 </tr>
               ))}</tbody></table>
             {!d.items.length && <p className="p-5 text-sm text-[#a1a1aa]">No users found.</p>}

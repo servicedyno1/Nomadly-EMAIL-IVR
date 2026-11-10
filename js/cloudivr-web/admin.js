@@ -87,9 +87,18 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
 
     // Users: web accounts + bot users (nameOf). q = chat id, email or name.
     r.get('/admin/users', A, h(async (req, res) => {
-      const q = String(req.query.q || '').trim()
+      const q = String(req.query.q || '').trim(), kind = ['web', 'bot'].includes(req.query.kind) ? req.query.kind : 'all', withPlan = req.query.plan === '1'
+      const P = { projection: { passwordHash: 0, twoFactor: 0 } }
       let web = [], bot = []
-      if (!q) { web = await db.collection('webAccounts').find({}, { projection: { passwordHash: 0, twoFactor: 0 } }).sort({ createdAt: -1 }).limit(25).toArray() }
+      if (!q && withPlan) {
+        // "Has a plan": accounts that own at least one number/plan, newest purchases first.
+        const owners = await db.collection('phoneNumbersOf').find({ 'val.numbers.0': { $exists: true } }, { projection: { _id: 1 } }).sort({ _id: -1 }).limit(500).toArray(), oid = owners.map(o => String(o._id))
+        if (kind !== 'bot') web = await db.collection('webAccounts').find({ _id: { $in: oid.filter(x => /^\d+$/.test(x)).map(Number) } }, P).sort({ createdAt: -1 }).limit(50).toArray()
+        if (kind !== 'web') bot = await db.collection('nameOf').find({ _id: { $in: oid } }).limit(50).toArray()
+      } else if (!q) {
+        if (kind !== 'bot') web = await db.collection('webAccounts').find({}, P).sort({ createdAt: -1 }).limit(50).toArray()
+        if (kind === 'bot') bot = await db.collection('nameOf').find({}).sort({ $natural: -1 }).limit(50).toArray()
+      }
       else if (/^\d{5,}$/.test(q)) {
         web = await db.collection('webAccounts').find({ _id: Number(q) }, { projection: { passwordHash: 0, twoFactor: 0 } }).toArray()
         bot = await db.collection('nameOf').find({ _id: q }).toArray()
@@ -98,11 +107,13 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
         web = await db.collection('webAccounts').find({ $or: [{ email: rx }, { name: rx }] }, { projection: { passwordHash: 0, twoFactor: 0 } }).limit(25).toArray()
         bot = await db.collection('nameOf').find({ val: rx }).limit(25).toArray()
       }
+      if (kind === 'web') bot = []; if (kind === 'bot') web = []
       const ids = [...web.map(x => String(x._id)), ...bot.map(x => String(x._id))]
-      const [bal, blocked] = await Promise.all([balanceOf(ids), blockedOf(ids)])
+      const [bal, blocked, owned] = await Promise.all([balanceOf(ids), blockedOf(ids), db.collection('phoneNumbersOf').find({ _id: { $in: ids } }, { projection: { 'val.numbers.plan': 1, 'val.numbers.status': 1, 'val.numbers.expiresAt': 1 } }).toArray()])
+      const plans = Object.fromEntries(owned.map(o => [String(o._id), (o.val?.numbers || []).map(n => ({ plan: n.plan || 'number', status: n.status || 'active', expiresAt: n.expiresAt || null }))]))
       res.json({ items: [
-        ...web.map(a => ({ chatId: String(a._id), kind: 'web', name: a.name || '', email: a.email, createdAt: a.createdAt, lastLoginAt: a.lastLoginAt, balance: bal[String(a._id)] || 0, suspended: !!a.disabled })),
-        ...bot.filter(b => !web.some(x => String(x._id) === String(b._id))).map(b => ({ chatId: String(b._id), kind: 'bot', name: b.val || '', email: null, balance: bal[String(b._id)] || 0, suspended: blocked.has(String(b._id)) })),
+        ...web.map(a => ({ chatId: String(a._id), kind: 'web', name: a.name || '', email: a.email, createdAt: a.createdAt, lastLoginAt: a.lastLoginAt, balance: bal[String(a._id)] || 0, suspended: !!a.disabled, plans: plans[String(a._id)] || [] })),
+        ...bot.filter(b => !web.some(x => String(x._id) === String(b._id))).map(b => ({ chatId: String(b._id), kind: 'bot', name: b.val || '', email: null, balance: bal[String(b._id)] || 0, suspended: blocked.has(String(b._id)), plans: plans[String(b._id)] || [] })),
       ] })
     }))
     r.get('/admin/users/:chatId', A, h(async (req, res) => {

@@ -1,5 +1,14 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-10 (evening) — Admin Users page, neutral link warning, free-test identity, lifecycle gaps — TESTED, NOT YET DEPLOYED
+- CloudIVR admin → Users: Web (CloudIVR) / Bot / All tabs (default Web), "Has a plan" filter, Plan (plan · status · until) + Joined columns; GET /admin/users?kind=&plan=1 returns plans[] from phoneNumbersOf. Verified against a scratch DB (web buyer with business/active shows).
+- Unsafe-link texts (5 langs) no longer name Google (LINKS dict in i18n.js); internal failureReason 'link flagged unsafe'.
+- Free test: open to every new user, NO daily cap (freeTestsPerDay default 0 = off; /bulkset freeTestsPerDay N re-enables). One free test per Telegram chat id across all 4 bots (testOffer matches cid suffix :chatId). test_bulk_esim_freetest_identity.js 6/6.
+- Start screen adds "💬 Get replies here: +$20 per campaign" (5 langs).
+- Lifecycle fixes: (1) provider_auth pause now lifts itself when Spenza answers again (creditWatch); (2) no inbound texts for 6 h → pending line checks voided as inbound_down (no retire / no buy loop), webhook re-registered, admin alerted hourly. test_bulk_esim_lifecycle_gaps.js 5/5.
+- Remaining (report only): repeated tester re-order failures alert every 30 min; IMEI eSIM limit per Spenza unknown; monitor stays after service lines exist (~$10/mo).
+
+
 ## 2026-11-10 (later) — BulkSMS: admin alerts via @NomadlyBot, short copy, tester always has a peer — TESTED, NOT YET DEPLOYED
 - Admin alerts (live) are queued in shared bsNotify {brand:'Nomadly', type:'admin'} and delivered only by the NomadlyBot process (bot.js startNotices). Dry/tests still call notifyAdmin directly. Test: test_bulk_esim_admin_route.js 3/3.
 - Short journey copy in en/fr/zh/hi/fa (SHORT dict at the end of i18n.js overrides the long texts); the separate intro message is gone (start screen carries it).
