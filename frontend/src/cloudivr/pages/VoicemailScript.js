@@ -2,6 +2,7 @@ import React from 'react';
 import { Scissors } from 'lucide-react';
 import { Field } from '../ui';
 import { VoiceMaker } from '../VoiceMaker';
+import { playUrl } from '../api';
 
 // Voicemail keeps the gist and drops keypad prompts ("Press 1…") — nobody can press keys on a recording.
 export const shortenForVoicemail = (text) => {
@@ -18,15 +19,17 @@ export function VoicemailScript({ value, onChange, mainText, onMade, madeName })
   return (
     <div className="border border-[#262626] rounded-xl p-4 space-y-3" data-testid="campaign-vm-script">
       <Field label="Voicemail script" hint="Keep it short (about 15–25 seconds): who you are, why you called, how to reach you. Keypad prompts don’t work on voicemail.">
-        <textarea rows={3} maxLength={600} className="civr-input" value={value.text || ''} onChange={e => set({ text: e.target.value, audioId: '' })}
+        <textarea rows={3} maxLength={600} className="civr-input" value={value.text || ''} onChange={e => set({ text: e.target.value, audioId: '', audioUrl: '' })}
           placeholder="Hi, this is Acme Dental calling about your appointment on Friday. Please call us back at 415-555-0100. Thank you." data-testid="campaign-vm-script-text" />
       </Field>
       <div className="flex flex-wrap items-center gap-2 text-xs text-[#a1a1aa]">
-        {mainText && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => set({ text: shortenForVoicemail(mainText), audioId: '' })} data-testid="campaign-vm-script-shorten"><Scissors className="w-4 h-4" />Start from my call script</button>}
+        {mainText && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => set({ text: shortenForVoicemail(mainText), audioId: '', audioUrl: '' })} data-testid="campaign-vm-script-shorten"><Scissors className="w-4 h-4" />Start from my call script</button>}
         {words > 0 && <span data-testid="campaign-vm-script-length">{`${words} words · about ${Math.max(3, Math.round(words / 2.5))} seconds`}</span>}
       </div>
-      <VoiceMaker text={value.text} name={madeName} onMade={onMade} choice={value} onChoice={set} testid="campaign-vm-script-voice" />
-      {value.audioId && <div className="text-xs text-[#4ade80]" data-testid="campaign-vm-script-ready">Voicemail audio ready — it will be left after the beep.</div>}
+      <VoiceMaker text={value.text} name={madeName} onMade={onMade} choice={value} onChoice={set} testid="campaign-vm-script-voice" preview={false} />
+      {value.audioId && <div className="space-y-2" data-testid="campaign-vm-script-ready-box">
+        {value.audioUrl && <audio controls src={playUrl(value.audioUrl)} className="h-9 max-w-full" data-testid="campaign-vm-script-preview" />}
+        <div className="text-xs text-[#15803d] dark:text-[#4ade80]" data-testid="campaign-vm-script-ready">Voicemail audio ready — it will be left after the beep.</div></div>}
     </div>
   );
 }

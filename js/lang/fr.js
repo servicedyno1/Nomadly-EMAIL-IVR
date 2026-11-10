@@ -141,6 +141,7 @@ const user = {
  // Sub Menu 6: Digital Products
  digitalProducts: '🛒 Produits numériques',
  marketplace: '🏪 Marché',
+ esimMain: '📱 eSIM USA',
  shippingLabel: '📦 Expédition & Courrier',
  emailBlast: '📧 Email en Masse',
  emailValidation: '📧 Validation d\'Email',
@@ -2482,7 +2483,7 @@ const userKeyboard = {
  [user.cloudPhone, user.hostingDomainsRedirect],
  ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
  [user.bulkSmsNew, user.leadsValidation],
- [user.digitalProducts, user.marketplace],
+ [user.digitalProducts, user.esimMain], // 2026-11: eSIM on the front menu; Marketplace moved under ➕ More
  [user.urlShortenerMain, user.virtualCard],
  [user.wallet, user.buyPlan],
  [user.changeSetting, user.getSupport],

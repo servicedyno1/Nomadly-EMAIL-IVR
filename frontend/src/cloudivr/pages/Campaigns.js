@@ -50,7 +50,7 @@ function CampaignRow({ c, i, pv, onChange }) {
       <div className="flex flex-col md:flex-row md:items-center gap-3">
         <div className="flex-1 min-w-0"><div className="font-semibold truncate" data-testid={`campaign-row-${i}-name`}>{c.name || c.audioName || 'Campaign'}</div><div className="text-xs text-[#a1a1aa] font-mono">{pv.phone(c.callerId)} · {when(c.createdAt)}</div></div>
         <div className="font-mono text-sm text-[#d4d4d8]" data-testid={`campaign-row-${i}-progress-text`}>{c.stats?.completed || 0}/{c.stats?.total || 0} called</div>
-        {c.voicemailAudioName && c.startedAt && <span className={`civr-pill ${c.stats?.voicemailLeft ? 'civr-pill-on' : ''}`} data-testid={`campaign-row-${i}-voicemail-left`}>{`📩 ${c.stats?.voicemailLeft || 0} ${c.stats?.voicemailLeft === 1 ? 'voicemail' : 'voicemails'} left`}</span>}
+        {c.voicemailAudioName && c.startedAt && <span className={`civr-pill ${c.stats?.voicemailLeft ? '!bg-[#22c55e]/15 !text-[#15803d] dark:!text-[#4ade80] !border-[#22c55e]/40' : ''}`} data-testid={`campaign-row-${i}-voicemail-left`}>{c.stats?.voicemailLeft === 1 ? '📩 1 voicemail left' : `📩 ${c.stats?.voicemailLeft || 0} voicemails left`}</span>}
         {c.repeat && <span className="civr-pill civr-pill-on" data-testid={`campaign-row-${i}-repeat`}><Repeat className="w-3 h-3" />{c.repeat === 'weekly' ? 'weekly' : 'daily'}{c.runNumber > 1 ? ` · run ${c.runNumber}` : ''}</span>}
         {c.waitingForDailyLimit && c.status === 'running' && <span className="civr-pill civr-pill-warn" data-testid={`campaign-row-${i}-daily-limit`}>daily limit reached</span>}
         <span className={statusPill(c.status)} data-testid={`campaign-row-${i}-status`}>{c.status}</span>
@@ -236,6 +236,7 @@ export function CampaignNew() {
   const [f, setF] = useState(() => ({ name: '', callerId: '', showAs: '', audioId: '', voicemailAudioId: '', vmMode: 'main', leads: '', source: params.get('list') ? 'list' : 'numbers', listId: params.get('list') || '', mode: 'report_only', transferNumber: '', transferBackups: '', activeKeys: ['1'], menu: [], concurrency: 5, scheduledFor: '', holdMusic: false, agentId: '', repeat: '', dailyLimit: '' }));
   const [script, setScript] = useState(null);
   const [vmScript, setVmScript] = useState({ text: '' });
+  const [madeTexts, setMadeTexts] = useState({}); // audioId → script text, so the voicemail can start from it after the voice is made
   const [est, setEst] = useState(null);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState(null);
@@ -269,21 +270,21 @@ export function CampaignNew() {
     await check();
     setBusy('voice');
     const d = await api('/audio/tts', { method: 'POST', body: { text, voice: script.voice || voiceDef.voice, speed: script.speed || voiceDef.speed, name: f.name.trim() || (script.templateName ? `${script.templateName} · ${text.slice(0, 24)}…` : text.slice(0, 40)) } });
-    reloadAudio(); setF(x => ({ ...x, audioId: d.audio.id })); setScript(null);
+    reloadAudio(); setMadeTexts(m => ({ ...m, [d.audio.id]: text })); setF(x => ({ ...x, audioId: d.audio.id })); setScript(null);
     setBusy('create');
     return d.audio.id;
   };
   const create = async (e) => {
     e.preventDefault(); setBusy('create'); setError(null);
     try {
+      if (!isAi && f.vmMode === 'script' && !vmScript.audioId) throw new Error('Create the voicemail audio first, or pick another option.');
+      if (!isAi && f.vmMode === 'other' && !f.voicemailAudioId) throw new Error('Pick the clip to leave on voicemail, or choose “Leave my message”.');
       const scheduledFor = f.scheduledFor ? new Date(f.scheduledFor).toISOString() : null;
       const plan = { repeat: f.repeat || null, dailyLimit: f.dailyLimit === '' ? null : Number(f.dailyLimit), tz: TZ };
       const base = { ...f, ...audience, source: undefined, callerId, callerIds: f.callerIds?.length ? f.callerIds : undefined, showAs: f.showAs || undefined, menu: f.mode === 'menu' ? menuToApi(f.menu) : undefined, scheduledFor, ...plan };
       const audioId = !isAi && !f.audioId && script ? await scriptAudio(() => api('/campaigns', { method: 'POST', body: { ...base, validateOnly: true, audioPending: true } })) : f.audioId;
       const body = isAi ? { mode: 'ai', name: f.name, agentId: f.agentId, callerId, callerIds: f.callerIds?.length ? f.callerIds : undefined, showAs: f.showAs || undefined, ...audience, concurrency: f.concurrency, scheduledFor, ...plan }
         : { ...base, vmMode: undefined, audioId, voicemailAudioId: f.vmMode === 'main' ? audioId : f.vmMode === 'other' ? f.voicemailAudioId : f.vmMode === 'script' ? vmScript.audioId : '' };
-      if (!isAi && f.vmMode === 'script' && !vmScript.audioId) throw new Error('Make the voicemail audio first (tap Make AI voice under the voicemail script), or pick another option.');
-      if (!isAi && f.vmMode === 'other' && !f.voicemailAudioId) throw new Error('Pick the clip to leave on voicemail, or choose “Leave my message”.');
       const d = await api('/campaigns', { method: 'POST', body });
       toast.success(d.skipped ? `Campaign saved · ${d.skipped} line(s) skipped` : 'Campaign saved');
       if (scheduledFor) toast.message('Scheduled — we’ll notify you in Inbox when calling starts and when it finishes.');
@@ -305,11 +306,11 @@ export function CampaignNew() {
           <RotateCallerIds numbers={numbers} primary={callerId} value={f.callerIds || []} onChange={(v) => setF(x => ({ ...x, callerIds: v }))} />
           {isAi ? <AiCampaignFields agentId={f.agentId} onChange={set('agentId')} /> : <>
           <Field label="Message"><AudioSelect value={f.audioId} onChange={set('audioId')} audios={au?.audios} by="id" onAdded={reloadAudio} testid="campaign-audio-select" /></Field>
-          {script ? <div className="border border-[#262626] rounded-xl p-4"><ScriptBox value={script} onChange={setScript} onAudio={(a) => { reloadAudio(); setF(x => ({ ...x, audioId: a.id })); setScript(null); }} testid="campaign-script" /></div>
+          {script ? <div className="border border-[#262626] rounded-xl p-4"><ScriptBox value={script} onChange={setScript} onAudio={(a) => { reloadAudio(); setMadeTexts(m => ({ ...m, [a.id]: fillScript(script.text, script.values) })); setF(x => ({ ...x, audioId: a.id })); setScript(null); }} testid="campaign-script" /></div>
             : <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => setScript({ text: '', values: {} })} data-testid="campaign-write-script-button">Write a script with a template instead</button>}
           <VoicemailChoice mode={f.vmMode} onMode={set('vmMode')}>
-            {f.vmMode === 'script' && <VoicemailScript value={vmScript} onChange={setVmScript} mainText={script ? fillScript(script.text, script.values) : (au?.audios || []).find(a => a.id === f.audioId)?.text}
-              onMade={(a) => { reloadAudio(); setVmScript(x => ({ ...x, audioId: a.id })); }} madeName={`${f.name.trim() || 'Campaign'} · voicemail`} />}
+            {f.vmMode === 'script' && <VoicemailScript value={vmScript} onChange={setVmScript} mainText={script ? fillScript(script.text, script.values) : madeTexts[f.audioId]}
+              onMade={(a) => { reloadAudio(); setVmScript(x => ({ ...x, audioId: a.id, audioUrl: a.audioUrl })); }} madeName={`${f.name.trim() || 'Campaign'} · voicemail`} />}
             {f.vmMode === 'other' && <AudioSelect value={f.voicemailAudioId} onChange={set('voicemailAudioId')} audios={au?.audios} by="id" placeholder="Pick the clip to leave" onAdded={reloadAudio} compact testid="campaign-voicemail-audio-select" />}
           </VoicemailChoice>
           </>}

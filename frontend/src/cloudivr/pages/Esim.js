@@ -30,7 +30,7 @@ function PlanCard({ p, onBuy }) {
       <div className="font-semibold">{p.label || p.planId}</div>
       <div className="font-display text-3xl font-bold mt-2">{`$${p.price}`} <span className="text-sm font-normal text-[#a1a1aa]">{`/ ${p.validityDays} days`}</span></div>
       <ul className="text-sm text-[#d4d4d8] mt-3 space-y-1 flex-1">
-        {p.data && <li>{`${p.data} data`}</li>}{p.voiceMinutes != null && <li>{`${p.voiceMinutes} minutes of calls`}</li>}{p.sms != null && <li>{p.sms === 'Unlimited' ? 'Unlimited texts' : `${p.sms} texts`}</li>}
+        <li>Unlimited data</li><li>Unlimited calls</li><li>Unlimited texts</li>
         <li className="text-[#a1a1aa]">{`${p.carrier} · renews monthly from your wallet`}</li>
       </ul>
       <button type="button" onClick={() => onBuy(p)} className="civr-btn civr-btn-primary mt-4" data-testid={`esim-plan-buy-${p.planId.replace(/\W/g, '')}`}>Get this eSIM</button>
@@ -92,7 +92,8 @@ function QrBlock({ id }) {
 function UsageLine({ id }) {
   const { data } = useApi(`/esim/${id}/usage`);
   const u = data?.usage;
-  if (!u || u.simulated) return null;
+  if (!u || u.simulated || !id) return null; // allowances are not shown to customers (sold as unlimited)
+  return null;
   const mb = u.data && /^gb$/i.test(u.data.unit) && Number(u.data.allowance) < 1;
   const amt = (v) => (mb ? +(Number(v) * 1000).toFixed(1) : v);
   const parts = [u.data && `Data ${amt(u.data.used)} of ${amt(u.data.allowance)} ${mb ? 'MB' : u.data.unit}`, u.voice && `Calls ${u.voice.usedMinutes} of ${u.voice.allowanceMinutes} min`, u.sms && `Texts ${u.sms.used}${u.sms.allowance === 'unlimited' ? ' (unlimited)' : ` of ${u.sms.allowance}`}`].filter(Boolean);

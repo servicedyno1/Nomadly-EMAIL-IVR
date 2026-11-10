@@ -967,6 +967,7 @@ const _BULK_ROT = {
   fa: { btn: '🔁 چرخش شناسه‌های تماس‌گیرنده', done: '✅ انجام شد', verified: 'تأییدشده', none: '🔁 هنوز شناسه تماس‌گیرنده دیگری ندارید — ابتدا شماره دیگری بخرید یا شناسه خود را تأیید کنید.', title: 'چرخش شناسه‌های تماس‌گیرنده', help: 'برای افزودن یا حذف، روی شماره‌ها بزنید. هر تماس در جریان از شناسه متفاوتی استفاده می‌کند تا همه حجم روی یک شماره نباشد.', sel: (n, cid) => `انتخاب‌شده: <b>${n}</b> (شامل ${cid}) ← ${n} تماس همزمان.`, rotating: (n) => `🔁 چرخش بین <b>${n}</b> شناسه — ${n} تماس همزمان.`, max: (n) => `🔁 حداکثر ${n} شناسه در هر کمپین.`, more: (m, n) => ` + ${m} مورد دیگر (🔁 چرخشی، ${n} تماس همزمان)` },
 }
 const _bulkRot = (lang) => _BULK_ROT[lang] || _BULK_ROT.en
+const _ESIM_MAIN_LABELS = new Set(['📱 USA eSIM', '📱 eSIM USA', '📱 美国 eSIM', '📱 eSIM آمریکا'])
 const _CC_MISSING = {
   en: (n, ex) => `📞 <b>${n}</b> has no country code.\nAdd it in front and send it again — e.g. <code>${ex}</code> (USA/Canada) or <code>+44…</code> (UK).`,
   fr: (n, ex) => `📞 <b>${n}</b> n’a pas d’indicatif pays.\nAjoutez-le devant et renvoyez — ex. <code>${ex}</code> (USA/Canada) ou <code>+44…</code> (R.-U.).`,
@@ -11021,7 +11022,7 @@ bot?.on('message', msg => {
       const [mine, p] = await Promise.all([esimBot.lines(chatId).catch(() => []), esimBot.plan()])
       const price = p?.price || esimBot.PRICE
       const waiting = mine.some(l => l.status === 'awaiting_imei')
-      return send(chatId, (waiting ? es.waitingNote + '\n\n' : '') + es.home(price, esimBot.includes(p)), k.of([...(waiting ? [[es.sendImeiPaid]] : []), [es.buy(price)], ...(mine.length ? [[es.mine]] : []), ['↩️ Back', '🏠 Main Menu']]))
+      return send(chatId, (waiting ? es.waitingNote + '\n\n' : '') + es.home(price, esimBot.includes(p, lang)), k.of([...(waiting ? [[es.sendImeiPaid]] : []), [es.buy(price)], ...(mine.length ? [[es.mine]] : []), ['↩️ Back', '🏠 Main Menu']]))
     },
     // Paid eSIM still waiting for its IMEI: go straight to the IMEI prompt (or pick the line if there are several).
     'esim-bot-imei-start': async () => {
@@ -18676,6 +18677,7 @@ All verified numbers generated during sourcing.`))
   }
 
   // ━━━ Marketplace ━━━
+  if (_ESIM_MAIN_LABELS.has(message)) { await saveInfo('esimEntry', 'main'); return goto['esim-bot-home']() }
   if (message === user.marketplace || message === '🏪 Marketplace' || message === '🏪 Marché' || message === '🏪 市场' || message === '🏪 मार्केटप्लेस') {
     return goto.marketplace()
   }
@@ -20210,7 +20212,7 @@ ${message.replace(/\n/g, '<br>')}
     if (isBackPress(message) || isCancelPress(message)) return goto.displayMainMenuButtons()
 
     // USA T-Mobile eSIM: automatic order (IMEI → ZIP → email → auto-renew → pay)
-    if (message === t.dpEsim) return goto['esim-bot-home']()
+    if (message === t.dpEsim) { await saveInfo('esimEntry', 'dp'); return goto['esim-bot-home']() }
 
     const dpProducts = {
       [t.dpTwilioMain]:     { name: 'Twilio Main Account',            key: 'twilio_main',      price: DP_PRICE_TWILIO_MAIN },
@@ -20247,7 +20249,7 @@ ${message.replace(/\n/g, '<br>')}
     const es = esimBot.s(lang)
     const skipRow = k.of([[es.skip], ['↩️ Back']])
     if (action === 'esim-bot-home') {
-      if (isBackPress(message)) return goto.submenu6()
+      if (isBackPress(message)) return info?.esimEntry === 'main' ? goto.displayMainMenuButtons() : goto.submenu6()
       if (isMainMenuPress(message)) return goto.displayMainMenuButtons()
       if (message === es.mine) return goto['esim-bot-list']()
       if (message === es.sendImeiPaid) return goto['esim-bot-imei-start']()
@@ -36165,7 +36167,7 @@ Select a category:`), k.of(catBtns))
   if (message === user.more) {
     const rows = [[user.emailValidation, user.referEarn]]
     if (process.env.HIDE_BECOME_RESELLER !== 'true') rows.push([user.becomeReseller])
-    rows.push([user.joinChannel])
+    rows.push([user.marketplace, user.joinChannel])
     if (process.env.EMAIL_BLAST_ON === 'true') rows.push([user.emailBlast])
     rows.push(['🏠 Main Menu'])
     const moreText = {
@@ -37873,7 +37875,8 @@ Tap a button below to change. Changes sync to your phone on next app open.`
       { btn: user.bulkSmsNew,             kw: ['bulk sms', 'bulksms', 'send sms', 'mass sms', 'text blast', 'sms campaign'] },
       { btn: user.virtualCard,            kw: ['virtual card', 'debit card', 'prepaid card'] },
       { btn: user.marketplace,            kw: ['marketplace', 'escrow'] },
-      { btn: user.digitalProducts,        kw: ['twilio', 'telnyx', 'workspace', 'zoho', 'esim', 'e-sim', 'digital product'] },
+      { btn: user.esimMain,               kw: ['esim', 'e-sim', 't-mobile', 'tmobile', 'sim card'] },
+      { btn: user.digitalProducts,        kw: ['twilio', 'telnyx', 'workspace', 'zoho', 'digital product'] },
       { btn: user.wallet,                 kw: ['deposit', 'top up', 'topup', 'add funds', 'add money', 'fund my wallet', 'wallet balance', 'recharge'] },
     ]
     const nlHit = nlIntents.find(it => it.btn && it.kw.some(k => messageLower.includes(k)))

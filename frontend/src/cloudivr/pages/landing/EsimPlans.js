@@ -25,7 +25,7 @@ export function EsimPlans() {
             <div key={p.planId} className="v2-surface p-6 flex flex-col v2-lift" data-testid={`esim-landing-plan-${slug(p.planId)}`}>
               <div className="flex items-center justify-between gap-2"><span className="font-semibold">{p.name}</span><span className="text-xs v2-muted">{p.carrier}</span></div>
               <div className="civr-l-h text-4xl mt-4">{`$${p.price}`} <span className="text-base font-medium v2-muted">{`/ ${p.validityDays} days`}</span></div>
-              <ul className="mt-4 space-y-1.5 text-sm flex-1">{[p.data && `${p.data} data`, p.voiceMinutes != null && `${p.voiceMinutes} minutes of calls`, p.sms && (p.sms === 'Unlimited' ? 'Unlimited texts' : `${p.sms} texts`), 'USA phone number included', 'QR code in the app and by email'].filter(Boolean).map(x => <li key={x}>{x}</li>)}</ul>
+              <ul className="mt-4 space-y-1.5 text-sm flex-1">{['Unlimited data', 'Unlimited calls', 'Unlimited texts', 'USA phone number included', 'QR code in the app and by email'].filter(Boolean).map(x => <li key={x}>{x}</li>)}</ul>
               <button type="button" onClick={() => openEsimCheckout(p.planId)} className="civr-l-pill civr-l-pill-ink mt-6 inline-flex items-center justify-center gap-2" data-testid={`esim-landing-order-${slug(p.planId)}`}>Buy eSIM<ArrowRight className="w-4 h-4" /></button>
             </div>
           ))}</div>

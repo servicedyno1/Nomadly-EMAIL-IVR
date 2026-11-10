@@ -140,6 +140,7 @@ const user = {
  // Sub Menu 6: Digital Products
  digitalProducts: '🛒 数字产品',
  marketplace: '🏪 市场',
+ esimMain: '📱 美国 eSIM',
  shippingLabel: '📦 寄件与邮寄',
  emailBlast: '📧 群发邮件',
  emailValidation: '📧 邮箱验证',
@@ -2465,7 +2466,7 @@ const userKeyboard = {
  [user.cloudPhone, user.hostingDomainsRedirect],
  ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
  [user.bulkSmsNew, user.leadsValidation],
- [user.digitalProducts, user.marketplace],
+ [user.digitalProducts, user.esimMain], // 2026-11: eSIM on the front menu; Marketplace moved under ➕ More
  [user.urlShortenerMain, user.virtualCard],
  [user.wallet, user.buyPlan],
  [user.changeSetting, user.getSupport],

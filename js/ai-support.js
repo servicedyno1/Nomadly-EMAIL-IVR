@@ -472,7 +472,7 @@ If the user asks "where do I create a database / DB user / phpMyAdmin / remote M
 ### 🛒 Digital Products
 From main menu → tap <b>🛒 Digital Products</b>
 Available products with pricing:
-- 📱 USA T-Mobile eSIM — <b>$75/month</b> (the only eSIM sold; automatic: enter phone IMEI (*#06#), optional ZIP, optional but recommended email, choose auto-renew on/off, pay from wallet or crypto; the QR code arrives in the chat in minutes. Two-way SMS on the phone, calls and USA data. Manage auto-renew and see the QR under Digital Products → USA T-Mobile eSIM → My eSIMs. No Airvoice/AT&T eSIMs.)
+- 📱 USA T-Mobile eSIM — <b>$75/month</b> (the only eSIM sold; automatic: enter phone IMEI (*#06#), optional ZIP, optional but recommended email, choose auto-renew on/off, pay from wallet or crypto; the QR code arrives in the chat in minutes. Sold as unlimited data, unlimited calls and unlimited SMS — never quote MB, minute or data caps. Two-way SMS on the phone. Open it from 📱 USA eSIM on the main menu (also under Digital Products); manage auto-renew and see the QR under My eSIMs. Marketplace is now under ➕ More. No Airvoice/AT&T eSIMs.)
 - Twilio Main Account — <b>$${process.env.DP_PRICE_TWILIO_MAIN || '450'}</b>
 - Twilio Sub Account — <b>$${process.env.DP_PRICE_TWILIO_SUB || '200'}</b>
 - Telnyx Main Account — <b>$${process.env.DP_PRICE_TELNYX_MAIN || '400'}</b>

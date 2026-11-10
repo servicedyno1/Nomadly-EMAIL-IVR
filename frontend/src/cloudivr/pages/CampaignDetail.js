@@ -22,8 +22,10 @@ function VoicemailWin({ c, hasVm }) {
   const share = reached ? Math.round((left / reached) * 100) : 0;
   return (
     <div className="mt-5 rounded-xl border border-[#22c55e]/40 bg-[#22c55e]/10 p-4 flex flex-wrap items-center gap-x-4 gap-y-1" data-testid="campaign-voicemail-win">
-      <div className="font-display text-3xl font-bold text-[#15803d] dark:text-[#4ade80]" data-testid="campaign-voicemail-win-count">{`📩 ${left} ${left === 1 ? 'voicemail' : 'voicemails'} left`}</div>
-      <div className="text-sm text-[#a1a1aa]">{left ? `${left === 1 ? 'Someone who' : `${left} people who`} didn’t pick up will hear “${c.voicemailAudioName}” later${reached > left ? ` · ${share}% of the ${reached} voicemails reached` : ''}.` : `${reached} voicemail${reached === 1 ? '' : 's'} reached so far — messages are left after the beep.`}</div>
+      <div className="font-display text-3xl font-bold text-[#15803d] dark:text-[#4ade80]" data-testid="campaign-voicemail-win-count">{left === 1 ? '📩 1 voicemail left' : `📩 ${left} voicemails left`}</div>
+      <div className="text-sm text-[#a1a1aa]" data-testid="campaign-voicemail-win-text">{!left ? (reached === 1 ? '1 voicemail reached so far — messages are left after the beep.' : `${reached} voicemails reached so far — messages are left after the beep.`)
+        : left === 1 ? `Someone who didn’t pick up will hear “${c.voicemailAudioName}” later.` : `${left} people who didn’t pick up will hear “${c.voicemailAudioName}” later.`}
+        {left > 0 && reached > left && <span>{` ${share}% of the ${reached} voicemails reached.`}</span>}</div>
     </div>
   );
 }

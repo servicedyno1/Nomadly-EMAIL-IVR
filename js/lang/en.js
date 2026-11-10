@@ -130,6 +130,7 @@ const user = {
  testSip: '🧪 Test SIP Free',
  digitalProducts: '🛒 Digital Products',
  marketplace: '🏪 Marketplace',
+ esimMain: '📱 USA eSIM',
  shippingLabel: '📦 Ship & Mail',
  emailBlast: '📧 Email Blast',
  emailValidation: '📧 Email Validation',
@@ -2644,7 +2645,7 @@ const userKeyboard = {
  [user.cloudPhone, user.hostingDomainsRedirect],
  ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
  [user.bulkSmsNew, user.leadsValidation],
- [user.digitalProducts, user.marketplace],
+ [user.digitalProducts, user.esimMain], // 2026-11: eSIM on the front menu; Marketplace moved under ➕ More
  [user.urlShortenerMain, user.virtualCard],
  [user.wallet, user.buyPlan],
  [user.changeSetting, user.getSupport],

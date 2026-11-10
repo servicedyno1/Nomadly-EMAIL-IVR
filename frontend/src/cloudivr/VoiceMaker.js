@@ -19,7 +19,7 @@ export function VoiceSelect({ value, onChange, voices, testid }) {
 }
 
 // Turns `text` into an AI-voice audio file (saved to the library) and previews it; onMade(audio).
-export function VoiceMaker({ text, name, onMade, testid, choice, onChoice }) {
+export function VoiceMaker({ text, name, onMade, testid, choice, onChoice, preview = true }) {
   const { voices, speeds, def } = useVoices();
   const [own, setOwn] = useState({});
   const [busy, setBusy] = useState(false);
@@ -40,7 +40,7 @@ export function VoiceMaker({ text, name, onMade, testid, choice, onChoice }) {
       <VoiceSelect value={v} onChange={(x) => pick({ voice: x })} voices={voices} testid={`${testid}-voice`} />
       <select className="civr-input !w-24" value={s} onChange={e => pick({ speed: Number(e.target.value) })} data-testid={`${testid}-speed`} aria-label="Speed">{speeds.map(x => <option key={x} value={x}>{`${x}×`}</option>)}</select>
       <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={make} disabled={busy} data-testid={`${testid}-make`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}{busy ? 'Making…' : 'Make AI voice'}</button>
-      {made && <audio controls src={playUrl(made.audioUrl)} className="h-9 max-w-full" data-testid={`${testid}-preview`} />}
+      {preview && made && <audio controls src={playUrl(made.audioUrl)} className="h-9 max-w-full" data-testid={`${testid}-preview`} />}
     </div>
   );
 }

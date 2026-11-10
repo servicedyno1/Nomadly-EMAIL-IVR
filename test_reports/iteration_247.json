@@ -1,0 +1,43 @@
+{
+  "summary": "Frontend-only test of the Voicemail-Only Script and Voicemail Count Highlight features on CloudIVR web, in EN, FR and ES. Signed up a fresh account qa.vmscript1794352808@example.com / QaTest#2026x (dry-run). Playwright faked numbers, audio, audio/tts and campaigns in the browser, so no real TTS was run and no real campaign was created. PASS: (1) There are 4 voicemail cards: main (aria-checked=true by default, RECOMMENDED tag), script, other and hangup. (2) The script card shows campaign-vm-script. 'Start from my call script' fills 'Hi, this is Acme. Your bill is due Friday. Please call us back at your earliest convenience. Thank you.' (the Press 1 sentence is dropped). The counter reads '19 words · about 8 seconds'. (3) Make AI voice sends POST /audio/tts with the voicemail text and the name 'Campaign · voicemail', then campaign-vm-script-ready shows. Editing the text hides it. On submit the body has audioId='mainA' (the main script's TTS clip) and voicemailAudioId='vm1'. When the main message is a library clip and no voicemail audio was made, the exact inline error shows and NO request is sent. (4) In the list, the started campaign shows the pill '📩 12 voicemails left' with class civr-pill-on. The not-started campaign has no pill. (5) The detail banner reads '📩 12 voicemails left' and '12 people who didn’t pick up will hear “Promo” later · 80% of the 15 voicemails reached.' With voicemail 0 and voicemailLeft 0 there is no banner. FAIL/ISSUES: (a) When the MAIN message is a written script and the user submits in script mode without making the voicemail audio, the app first sends a validateOnly POST /campaigns and a real POST /audio/tts for the main script (this can be billed), and only then shows the error. Afterwards the main ScriptBox is gone and the 'Start from my call script' button disappears too. (b) The FR and ES translations of the banner and pill are broken (details below).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Campaigns.js create()", "issue": "Setup: main message is a written script, vmMode is 'script', and no voicemail audio was made. On submit, scriptAudio() runs first. It sends POST /campaigns validateOnly and POST /audio/tts for the main script (a real, possibly billed TTS clip), and only then throws 'Make the voicemail audio first…'. The request says nothing should be sent. Fix: move the vmMode==='script' and vmMode==='other' checks above the scriptAudio call (line 282).", "selector": "[data-testid='campaign-create-button']", "priority": "HIGH"},
+      {"component": "VoicemailScript 'Start from my call script'", "issue": "mainText comes from the open ScriptBox, or else from the selected library clip's .text. The /audio/tts backend never saves text on the clip (js/cloudivr-web/audio.js saveAudio has no text). So once the user presses 'Make AI voice' on the main script, the ScriptBox closes and the shorten button disappears. It never shows for library clips either. This is the most common flow: write the script, make the voice, then set up the voicemail.", "selector": "[data-testid='campaign-vm-script-shorten']", "priority": "MEDIUM"},
+      {"component": "VoiceMaker inside VoicemailScript", "issue": "After the user edits the text, the 'ready' line hides correctly, but the audio preview of the old clip (campaign-vm-script-voice-preview) stays on screen. Stale preview.", "selector": "[data-testid='campaign-vm-script-voice-preview']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Campaign detail banner + list pill (FR/ES)", "issues": [
+        "The word 'voicemails' is not translated: FR shows '📩 12 voicemails laissés' and ES shows '📩 12 voicemails dejados'. The {1} slot word 'voicemails'/'voicemail' has no dictionary entry.",
+        "FR banner: '12 personnes qui n’a pas répondu, entendra « Promo » plus tard…'. The verbs are singular with a plural subject and there is a stray comma. It should read 'n’ont pas répondu entendront'.",
+        "ES banner: '12 personas que que no contestó escuchará “Promo”…'. 'que' is doubled and the verbs are singular. The '{0} people who' and '{0} didn’t pick up…' keys need to be one full sentence per language, or the ES 'que' must be removed from one of them."
+      ]},
+      {"screen": "New campaign error (FR/ES)", "issues": ["FR error text keeps the English 'Make AI voice', while the button says 'Créer une voix IA'. ES error says 'Hacer voz AI', while the button says 'Crear voz IA'. The button names do not match."]},
+      {"screen": "Campaign list (light theme)", "issues": ["civr-pill-on shows blue/indigo, not green, in the light theme. The request expected a green 'on' pill. This is cosmetic and matches the other 'on' pills."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Move the voicemail checks (script with no audioId, other with no clip) ABOVE the scriptAudio() call in Campaigns.js create(), so nothing is sent or billed before the error",
+    "Keep the main script text available after its voice is made (e.g. keep it in state, or save text on TTS audio docs) so 'Start from my call script' still works",
+    "Fix the FR/ES translations: 'voicemail(s)' in the '📩 {0} {1} left' pill and banner, the plural grammar in FR, the doubled 'que' in ES, and 'Make AI voice' inside the error",
+    "Optional: hide or reset the VoiceMaker preview when the voicemail text changes",
+    "Delete the test account qa.vmscript1794352808@example.com"
+  ],
+  "critical_code_review_comments": [
+    "Campaigns.js:282-286: the validation order makes the expensive side effects (validateOnly POST, TTS) happen before cheap local checks. The same issue was reported in iteration_246 for 'other' and it is still not fixed.",
+    "Campaigns.js:311: the mainText fallback to the audio library's .text is dead code, because publicAudio/saveAudio never store text.",
+    "VoicemailScript.js shortenForVoicemail: the keyword filter also matches 'key', 'hold' and 'option' in ordinary sentences (e.g. 'Your account is on hold.'), so those sentences get dropped. Acceptable, but worth a narrower regex such as /\\bpress \\d|dial \\d/.",
+    "VoicemailScript onChoice=set: changing the voice or speed after the audio was made keeps audioId, so the saved clip no longer matches the chosen voice. Minor."
+  ],
+  "updated_files": ["/app/test_reports/iteration_247.json"],
+  "success_rate": {"backend": "not tested (frontend only)", "frontend": "~75% (EN core flows pass; the HIGH ordering bug in the script+script case and broken FR/ES banner/pill translations)"},
+  "test_credentials": "Created qa.vmscript1794352808@example.com / QaTest#2026x (CloudIVR web, no numbers, $0). Please delete it.",
+  "seed_data_creation": "One sign-up account only. All numbers, audio, TTS and campaign calls were faked in the browser.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login is at /cloudivr/login. Click cookie-allow-all first. Fake all calls with one page.route('**/api/cloudivr-web/**') that dispatches by path and method. Make the TTS mock return a different id depending on the text (e.g. 'Please call us back' -> vm1, otherwise mainA), so voicemailAudioId and audioId can be told apart. The main script textarea is campaign-script-text. Switch language with topbar-account-menu > topbar-lang-switcher > topbar-lang-switcher-option-{fr|es|en}. The account was reset to EN at the end.",
+  "rca of the issue": "Ordering bug: in create(), the audioId line calls scriptAudio(), which does a network validateOnly call and TTS, before the vmMode guard lines run. Repro: write a main script, pick 'Write a voicemail script', don't press Make AI voice, then Save. Result: 1 validateOnly POST, 1 TTS POST, and the main ScriptBox is cleared. Mitigation: run both voicemail guards right after setError(null)."
+}
