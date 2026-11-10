@@ -13,7 +13,7 @@ const DEFAULTS = {
   minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2,
   minEsims: 2, monitorEsims: 1, testerEsims: 1, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
   minCredit: 10, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
-  esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: true, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3, cancelDeadAfterDays: 3,
+  esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: true, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3, cancelDeadAfterDays: 3, checkEveryTexts: 100, apiFailsToReplace: 3,
 }
 const today = () => new Date().toISOString().slice(0, 10)
 const daysAhead = (date) => Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(today())) / 86400000)
@@ -123,7 +123,7 @@ async function addEsim(fields, status = 'testing') {
 }
 const setEsim = (eid, status, extra = {}) => C('bsEsims').updateOne({ _id: eid }, { $set: { status, ...extra, updatedAt: new Date() }, $push: { history: { status, at: new Date(), ...(extra.note ? { note: extra.note } : {}) } } })
 const liveCount = () => C('bsEsims').countDocuments({ ...SERVICE, status: { $nin: GONE } })
-const roleCount = (role) => C('bsEsims').countDocuments({ role, status: { $nin: GONE } })
+const roleCount = (role) => C('bsEsims').countDocuments({ role, status: { $nin: [...GONE, 'suspended'] } })
 const monitorCount = () => roleCount('monitor')
 const spentMonth = async () => (await C('bsConfig').findOne({ _id: `spend:${new Date().toISOString().slice(0, 7)}` }))?.usd || 0
 // Most texts the account can push on `date`: Spenza's per-minute limit × the hours open for all mainland zones. More lines than
@@ -193,7 +193,7 @@ async function autoReplace(e, why, c) {
   if (!r || !(r.modifiedCount || r.upsertedCount)) { if (await once(`replimit:${today()}:${e._id}`)) alert(`⚠️ ${e._id} ${e.msisdn || ''}: ${why} — today's auto-replacement limit (${c.maxReplacesPerDay}) is reached. /bulkreplace ${e._id} to do it by hand.`); return }
   const x = await replaceEsim(e._id, `auto: ${why}`, 'system')
   alert(x.ok ? `🔁 ${e._id} ${e.msisdn || ''} ${why} → new number requested as ${x.newEsimId}; it joins the pool only after a delivery test.` : `❌ ${e._id} ${why} — number replacement failed. ${c.autoProvision && !c.manualApproval ? 'Buying a new eSIM instead.' : 'Use /bulkprovision for a new eSIM.'}`)
-  if (!x.ok && c.autoProvision && !c.manualApproval) await provisionOne(`replacement of ${e._id} failed`)
+  if (!x.ok && c.autoProvision && !c.manualApproval) await provisionOne(`replacement of ${e._id} failed`, 'system', e.role || 'service')
 }
 // Provider fleet → inventory: new lines get an internal id, pending lines get their number, provider-suspended lines are flagged.
 async function syncInventory() {
@@ -226,18 +226,20 @@ async function replaceEsim(eid, reason, by) {
 // ---------- health ----------
 async function healthCheck() {
   const c = await cfg()
+  await stuckLines(c)
   for (const e of await C('bsEsims').find({ status: { $in: [...USABLE, 'testing', 'degraded', 'suspended'] }, iccid: { $ne: null }, replacedBy: null }).toArray()) {
     let health = 'healthy', err = null, expires = e.expirationDate || null
     try { const sim = await P.getSim(e.iccid), sv = await P.serviceState(e.iccid), sub = await P.subscription(e.iccid).catch(() => null); const st = String(sim?.status || '').toUpperCase()
       if (sub?.endDate && !isNaN(Date.parse(sub.endDate))) expires = new Date(sub.endDate)
       if (expires && expires < new Date()) health = 'expired'; else if (/SUSPEND|BLOCK/.test(st)) health = 'suspended'; else if (sv && sv.sms === false) health = 'provider_restricted'; else if (st && st !== 'ACTIVE') health = 'temporarily_unavailable'
     } catch (x) { err = x; health = x.kind === 'temporary' || x.kind === 'rate' ? 'temporarily_unavailable' : 'technically_failed' }
+    const apiFails = health === 'technically_failed' ? (e.apiFails || 0) + 1 : 0
     const recent = await C('bsMessages').find({ esimId: e._id, direction: 'out', submittedAt: { $gt: new Date(Date.now() - DAY) } }, { projection: { status: 1 } }).toArray()
     const fails = recent.filter(m => m.status === 'failed').length, rate = recent.length ? fails / recent.length : 0
     if (health === 'healthy' && ((recent.length >= 20 && rate > 0.3) || ((e.sendMiss || 0) >= 2 && e.status !== 'testing'))) health = 'sending_failure'; else if (health === 'healthy' && (e.recvMiss || 0) >= 3) health = 'degraded'
     const score = Math.max(0, Math.round(100 - rate * 100 - (e.recvMiss || 0) * 5 - (health === 'healthy' ? 0 : 30)))
     await C('bsTests').insertOne({ esimId: e._id, type: 'status', result: health, providerResponse: err?.message || null, errorCode: err?.code || null, at: new Date() })
-    const set = { health, healthScore: score, lastTestAt: new Date(), expirationDate: expires, ...(health === 'healthy' ? { lastOkAt: new Date() } : {}) }
+    const set = { health, healthScore: score, lastTestAt: new Date(), expirationDate: expires, apiFails, ...(health === 'healthy' ? { lastOkAt: new Date() } : {}) }
     if (health === 'expired') { await setEsim(e._id, 'expired', { ...set, note: 'plan ended' }); alert(`⌛ ${e._id} ${e.msisdn || ''}: plan ended (not renewed by Spenza — check the account credit). It left the pool.`); incident('esim_expired', { esimId: e._id }); continue }
     if (e.status === 'testing' && health === 'healthy' && e.msisdn) {
       const v = await preUse(e, c); if (v !== 'passed') { await C('bsEsims').updateOne({ _id: e._id }, { $set: set }); continue }
@@ -246,8 +248,16 @@ async function healthCheck() {
     if (USABLE.includes(e.status) && health === 'healthy') await dueCheck(e, c)
     if (['suspended', 'technically_failed', 'sending_failure', 'provider_restricted'].includes(health) && e.health !== health) { alert(`⚠️ ${e._id} ${e.msisdn || ''}: ${health.replace(/_/g, ' ')}${err ? ` (${err.message})` : ''}. New sends avoid it.`); incident('esim_health', { esimId: e._id, health }) }
     await C('bsEsims').updateOne({ _id: e._id }, { $set: set })
-    if (['suspended', 'provider_restricted', 'sending_failure'].includes(health) && [...USABLE, 'suspended'].includes(e.status)) { if (e.status !== 'suspended') await setEsim(e._id, 'suspended', { note: health }); await autoReplace({ ...e, ...set }, health.replace(/_/g, ' '), c) }
-    else if (e.status === 'suspended' && health === 'healthy') { await setEsim(e._id, 'available', { note: 'provider lifted the suspension' }); alert(`✅ ${e._id} ${e.msisdn || ''}: suspension lifted by the provider — back in the pool.`) }
+    if ((['suspended', 'provider_restricted', 'sending_failure'].includes(health) || (health === 'technically_failed' && apiFails >= c.apiFailsToReplace)) && [...USABLE, 'suspended'].includes(e.status)) { if (e.status !== 'suspended') await setEsim(e._id, 'suspended', { note: health }); await autoReplace({ ...e, ...set }, health.replace(/_/g, ' '), c) }
+    else if (e.status === 'suspended' && health === 'healthy' && !e.replacedBy) { await setEsim(e._id, 'available', { note: 'provider lifted the suspension' }); alert(`✅ ${e._id} ${e.msisdn || ''}: suspension lifted by the provider — back in the pool.`) }
+  }
+}
+// A requested number (or purchase) that never arrives: alert after 2 h, retire and rebuy the same role after 24 h.
+async function stuckLines(c) {
+  for (const e of await C('bsEsims').find({ status: { $in: ['provisioning', 'purchasing'] }, updatedAt: { $lt: new Date(Date.now() - 2 * HOUR) } }).toArray()) {
+    const age = Date.now() - new Date(e.updatedAt || e.createdAt).getTime()
+    if (age > DAY) { await setEsim(e._id, 'failed', { note: 'no number after 24 h' }); alert(`❌ ${e._id} (${e.role}) never received a number in 24 h — retired.${c.autoProvision && !c.manualApproval ? ' Buying a replacement.' : ''}`); incident('stuck_line', { esimId: e._id, role: e.role }); if (c.autoProvision && !c.manualApproval) await provisionOne(`${e._id} never got a number`, 'system', e.role || 'service') }
+    else if (await once(`stuck:${e._id}`)) alert(`⏳ ${e._id} (${e.role}) has been waiting ${Math.round(age / HOUR)} h for its number from Spenza. It is retired and replaced automatically at 24 h.`)
   }
 }
 // ---------- line checks (monitor eSIM) ----------
@@ -279,8 +289,10 @@ async function preUse(e, c) {
 }
 // Active line: re-checked every testEveryHours if it sent anything since the last pass; at once when failures spike (3+ in an hour).
 async function dueCheck(e, c) {
-  // The monitor proves itself every testEveryHours against a service line, traffic or not.
-  const sentSince = e.role === 'monitor' || (e.stats?.submitted || 0) > (e.checkedSubmitted || 0), stale = Date.now() - new Date(e.lastCheckOkAt || 0).getTime() > c.testEveryHours * HOUR
+  // Monitor and tester prove themselves every testEveryHours, traffic or not; service lines when they carried traffic, and any
+  // line after checkEveryTexts texts since its last pass.
+  const since = (e.stats?.submitted || 0) - (e.checkedSubmitted || 0), sentSince = AUX.includes(e.role) || since > 0, stale = Date.now() - new Date(e.lastCheckOkAt || 0).getTime() > c.testEveryHours * HOUR
+  if (since >= c.checkEveryTexts) return startCheck(e, 'volume')
   const spike = await C('bsMessages').countDocuments({ esimId: e._id, status: 'failed', submittedAt: { $gt: new Date(Date.now() - HOUR) } }, { limit: 3 }) >= 3
   if (spike && Date.now() - new Date(e.lastCheckOkAt || 0).getTime() > 30 * MIN) return startCheck(e, 'spike')
   if (stale && sentSince) return startCheck(e, 'periodic')
@@ -760,4 +772,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { OPT, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+module.exports = { OPT, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }

@@ -76,3 +76,9 @@ Test sends: max 2 per campaign during setup, not counted in booking volume, coun
 - nextFreeDay(parts, fromDate): first of the next 14 days where the parts fit (availability + allocate with dayFree). Bot: day step accepts any date 0..14 days ahead; when the picked day is full (no open hour or dayFree < parts) or the hour step returns err_slot → message no_cap_day + next_free(date) (i18n en/fr/zh/hi/fa) with the next day as a one-tap button.
 - cancelDead(c) hourly: 'failed' lines (>1 h) and 'suspended' lines (> cancelDeadAfterDays 3) with an iccid and no other live doc on that iccid → P.cancelSubscription (POST /api/v1.1/subscriptions/{iccid}/cancel, period-end cancel) → cancelledAt, alert, audit cancel_line. Replaced originals whose eSIM lives on are skipped; expired already over; retired = other account.
 - Tests: autoscale 59/59, bot_nextday 11/11 (js/tests/test_bulk_esim_bot_nextday.js, nodejs running), bot_flow 16/16, engine 39/39.
+
+## 2026-06 round 9 — replacement + dead detection for every role
+- Order for any dead line (service/monitor/tester): renew-number (same eSIM) → wait for number → pre-use round-trip check → pool. New eSIM (same role) only if renew-number refused, new number fails 2 checks, or number never arrives (stuckLines: alert 2 h, retire+rebuy 24 h).
+- Dead triggers: provider SUSPEND/BLOCK, sms service off, plan ended, sendMiss ≥2 (checks), fail rate >30%/20, technically_failed × apiFailsToReplace(3) consecutive, monitor-fault vote. Checks: pre_use, periodic (6 h; AUX roles traffic or not, service when it sent), volume (every checkEveryTexts=100 texts), spike (3 fails/h).
+- roleCount excludes suspended → ensureRoles buys a new monitor/tester when replacement is capped. Dry fakes: BULK_ESIM_FAKE_BROKEN (API error), BULK_ESIM_FAKE_RENEW_FAIL (501 on renew-number).
+- Tests: autoscale 67/67, iter241 20/20, engine 39/39, iter239 86/86.

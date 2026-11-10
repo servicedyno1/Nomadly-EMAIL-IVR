@@ -207,6 +207,43 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   const nf = await B.nextFreeDay(600, d(1))
   ok('next free day for 600 SMS is the day after', nf?.date === d(2) && nf.dayFree === 640, JSON.stringify(nf))
   ok('no day within 14 days for 700 SMS → null', (await B.nextFreeDay(700, d(1))) === null)
+  // ---- replacement + dead detection for EVERY role (service, monitor, tester) ----
+  for (const col of ['bsEsims', 'bsBookings', 'bsDemand', 'bsTests', 'bsMessages', 'bsIncidents']) await db.collection(col).deleteMany({})
+  await db.collection('bsConfig').deleteMany({ _id: { $regex: /^(settings|replaces:|replimit:|stuck:|nopeer:)/ } })
+  await B.setConfig({ autoProvision: true, manualApproval: false, quietStart: 0, quietEnd: 24 }, 'test'); process.env.BULK_ESIM_FAKE_CREDIT = '500'; await B.creditWatch()
+  await B.ensureRoles(await B.cfg()); for (let i = 0; i < 2; i++) await B.provisionOne('role-test'); await B.healthCheck(); await B.healthCheck()
+  const T = await db.collection('bsEsims').findOne({ role: 'tester' }), M = await B.monitorLine(), S = await db.collection('bsEsims').findOne({ role: 'service', status: 'available' })
+  ok('fleet for the role test: tester + monitor + 2 service, all available', T?.status === 'available' && M?.status === 'available' && (await db.collection('bsEsims').countDocuments({ role: 'service', status: 'available' })) === 2)
+  // a) tester suspended → number replaced first → new number passes check → tester back (same role)
+  process.env.BULK_ESIM_FAKE_SUSPENDED = T.iccid; alerts.length = 0; await B.healthCheck(); process.env.BULK_ESIM_FAKE_SUSPENDED = ''; await B.healthCheck()
+  const T2 = await db.collection('bsEsims').findOne({ replaces: T._id })
+  ok('tester: number replaced first, new number checked, back in service as tester', T2?.role === 'tester' && T2.status === 'available' && (await db.collection('bsEsims').findOne({ _id: T._id })).status === 'replaced' && (await B.roleCount('tester')) === 1 && (await db.collection('bsTests').findOne({ esimId: T2._id, kind: 'pre_use', result: 'passed' })) !== null)
+  // b) monitor suspended and renew-number refused by Spenza → new eSIM bought with the monitor role
+  process.env.BULK_ESIM_FAKE_SUSPENDED = M.iccid; process.env.BULK_ESIM_FAKE_RENEW_FAIL = M.iccid; provCalls = 0; alerts.length = 0
+  await B.healthCheck(); process.env.BULK_ESIM_FAKE_SUSPENDED = ''; process.env.BULK_ESIM_FAKE_RENEW_FAIL = ''; await B.healthCheck()
+  const Mnew = await B.monitorLine()
+  ok('monitor: renew-number refused → fresh eSIM bought as monitor', provCalls === 1 && Mnew && Mnew._id !== M._id && !Mnew.replaces && Mnew.role === 'monitor' && alerts.some(a => /number replacement failed/.test(a)), `${provCalls} bought, monitor ${Mnew?._id}`)
+  // c) service line: Spenza API keeps erroring on it (3×) → treated as dead → number replaced
+  process.env.BULK_ESIM_FAKE_BROKEN = S.iccid; for (let i = 0; i < 2; i++) await B.healthCheck()
+  ok('two API errors → flagged, not yet replaced', (await db.collection('bsEsims').findOne({ _id: S._id })).apiFails === 2 && (await db.collection('bsEsims').findOne({ _id: S._id })).status !== 'replaced')
+  await B.healthCheck(); process.env.BULK_ESIM_FAKE_BROKEN = ''
+  ok('third API error → number replacement requested', (await db.collection('bsEsims').findOne({ _id: S._id })).status === 'replaced' && !!(await db.collection('bsEsims').findOne({ replaces: S._id, role: 'service' })))
+  // d) a replacement number that never arrives
+  await B.healthCheck()
+  const stuckOld = await db.collection('bsEsims').insertOne({ _id: 'ESIM-STUCK1', role: 'service', status: 'provisioning', iccid: 'x1', health: 'unknown', stats: {}, history: [], createdAt: new Date(Date.now() - 25 * 3600000), updatedAt: new Date(Date.now() - 25 * 3600000) })
+  await db.collection('bsEsims').insertOne({ _id: 'ESIM-STUCK2', role: 'tester', status: 'provisioning', iccid: 'x2', health: 'unknown', stats: {}, history: [], createdAt: new Date(Date.now() - 3 * 3600000), updatedAt: new Date(Date.now() - 3 * 3600000) })
+  provCalls = 0; alerts.length = 0; await B.stuckLines(await B.cfg())
+  ok('number never arrived: 24 h → retired + same-role rebuy; 3 h → warning only', stuckOld.acknowledged && (await db.collection('bsEsims').findOne({ _id: 'ESIM-STUCK1' })).status === 'failed' && provCalls === 1 && (await db.collection('bsEsims').findOne({ _id: 'ESIM-STUCK2' })).status === 'provisioning' && alerts.some(a => /never received a number in 24 h/.test(a)) && alerts.some(a => /waiting 3 h/.test(a)))
+  await db.collection('bsEsims').deleteMany({ _id: /^ESIM-STUCK/ })
+  // e) a line is re-checked after 100 texts even inside the 6 h window
+  const S2 = await db.collection('bsEsims').findOne({ role: 'service', status: 'available' })
+  await db.collection('bsEsims').updateOne({ _id: S2._id }, { $set: { lastCheckOkAt: new Date(), checkedSubmitted: 0, 'stats.submitted': 120 } }); await B.healthCheck()
+  ok('100 texts since the last pass → volume check', !!(await db.collection('bsTests').findOne({ esimId: S2._id, type: 'check', kind: 'volume' })))
+  // f) replacement cap reached and monitor suspended → a suspended aux line no longer counts, a new monitor is bought
+  await db.collection('bsConfig').updateOne({ _id: `replaces:${d(0)}` }, { $set: { n: 3, at: new Date() } }, { upsert: true })
+  process.env.BULK_ESIM_FAKE_SUSPENDED = Mnew.iccid; provCalls = 0; await B.healthCheck(); process.env.BULK_ESIM_FAKE_SUSPENDED = ''; await B.autoscale()
+  ok('suspended monitor + replacement cap → counted as missing, new monitor bought', provCalls === 1 && (await db.collection('bsEsims').findOne({ _id: Mnew._id })).status === 'suspended' && (await B.roleCount('monitor')) === 1)
+  await B.setConfig({ autoProvision: false, manualApproval: true }, 'test')
   console.log(`\n${pass} passed, ${fail} failed`)
   for (const c of COLS) await db.collection(c).deleteMany({})
   await cl.close(); process.exit(fail ? 1 : 0)

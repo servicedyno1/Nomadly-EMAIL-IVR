@@ -32,7 +32,8 @@ const sendSms = async ({ from, to, text, key }) => {
   return { ok: true }
 }
 const listSims = async () => (dry() ? null : items(await call('get', '/api/v1.1/sims?page=1&pageSize=100')))
-const getSim = async (iccid) => (dry() ? { iccid, status: String(process.env.BULK_ESIM_FAKE_SUSPENDED || '').split(',').includes(iccid) ? 'SUSPENDED' : 'ACTIVE' } : (await call('get', `/api/v1.1/sims/${encodeURIComponent(iccid)}`))?.data)
+const brokenFake = (iccid) => { if (String(process.env.BULK_ESIM_FAKE_BROKEN || '').split(',').includes(iccid)) { const e = new Error('SIM not found (simulated)'); e.kind = 'permanent'; throw e } }
+const getSim = async (iccid) => (dry() ? (brokenFake(iccid), { iccid, status: String(process.env.BULK_ESIM_FAKE_SUSPENDED || '').split(',').includes(iccid) ? 'SUSPENDED' : 'ACTIVE' }) : (await call('get', `/api/v1.1/sims/${encodeURIComponent(iccid)}`))?.data)
 const serviceState = async (iccid) => (dry() ? { sms: true } : (await call('get', `/api/v1.1/sims/${encodeURIComponent(iccid)}/service-state`))?.data)
 // Plan period. Spenza renews a line itself at endDate and bills the account balance (so renewals are part of the credit forecast).
 const subscription = async (iccid) => (dry() ? { status: 'ACTIVE', endDate: new Date(Date.now() + (String(process.env.BULK_ESIM_FAKE_EXPIRED || '').split(',').includes(iccid) ? -1 : 30) * 86400000).toISOString() } : (await call('get', `/api/v1.1/sims/${encodeURIComponent(iccid)}/subscription`))?.data)
@@ -58,7 +59,7 @@ async function provision({ key, zipcode }) {
 }
 // Ends the plan at the current period end (Spenza bills the balance for every active line each month).
 const cancelSubscription = async (iccid) => (dry() ? { ok: true, simulated: true } : call('post', `/api/v1.1/subscriptions/${encodeURIComponent(iccid)}/cancel`, {}))
-const replaceNumber = async (iccid) => (dry() ? { ok: true, simulated: true } : call('post', `/api/v1.1/sims/${encodeURIComponent(iccid)}/renew-number`, {}))
+const replaceNumber = async (iccid) => (dry() ? (String(process.env.BULK_ESIM_FAKE_RENEW_FAIL || '').split(',').includes(iccid) ? Promise.reject(Object.assign(new Error('Number change not supported by the operator (simulated 501)'), { kind: 'permanent' })) : { ok: true, simulated: true }) : call('post', `/api/v1.1/sims/${encodeURIComponent(iccid)}/renew-number`, {}))
 const setSms = async (iccid, on) => (dry() ? { ok: true } : call('patch', `/api/v1.1/sims/${encodeURIComponent(iccid)}/service-state`, { sms: !!on }))
 async function registerWebhook(url) {
   if (dry()) return { url, signingSecret: 'whsec_preview', simulated: true }
