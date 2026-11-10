@@ -1,0 +1,29 @@
+/* White-label brand colours (match each new logo). html[data-brand] is set by useBrand() once /api/store/config loads.
+   Dark surfaces use the bright logo colour; light surfaces use a deeper shade for readable buttons. */
+html[data-brand="proshop"] {
+  --brand-accent: #F59E0B;
+  --st-accent: #B45309; --st-accent-hover: #92400E; --st-accent-soft: rgba(180, 83, 9, 0.10); --st-on-accent: #FFF7E6;
+  --pv-coral: #F59E0B; --pv-coral-hover: #FBBF24; --pv-coral-deep: #D97706; --pv-coral-glow: rgba(245, 158, 11, 0.35);
+  --pv-selection-bg: rgba(245, 158, 11, 0.18);
+  --pv-indigo: #D97706; --pv-indigo-hover: #F59E0B; --pv-indigo-glow: rgba(217, 119, 6, 0.40);
+}
+html[data-brand="voodooland"] {
+  --brand-accent: #14B8A6;
+  --st-accent: #0F766E; --st-accent-hover: #115E59; --st-accent-soft: rgba(15, 118, 110, 0.10); --st-on-accent: #F0FDFA;
+  --pv-coral: #14B8A6; --pv-coral-hover: #2DD4BF; --pv-coral-deep: #0D9488; --pv-coral-glow: rgba(20, 184, 166, 0.35);
+  --pv-selection-bg: rgba(20, 184, 166, 0.18);
+  --pv-indigo: #0D9488; --pv-indigo-hover: #14B8A6; --pv-indigo-glow: rgba(13, 148, 136, 0.40);
+}
+html[data-brand="smadav"] {
+  --brand-accent: #3B82F6;
+  --st-accent: #2563EB; --st-accent-hover: #1D4ED8; --st-accent-soft: rgba(37, 99, 235, 0.10); --st-on-accent: #FFFFFF;
+  --pv-coral: #3B82F6; --pv-coral-hover: #60A5FA; --pv-coral-deep: #2563EB; --pv-coral-glow: rgba(59, 130, 246, 0.35);
+  --pv-selection-bg: rgba(59, 130, 246, 0.18);
+  --pv-indigo: #2563EB; --pv-indigo-hover: #3B82F6; --pv-indigo-glow: rgba(37, 99, 235, 0.40);
+}
+html.dark[data-brand="proshop"], html[data-brand="proshop"][data-theme="dark"] { --st-accent: #F59E0B; --st-accent-hover: #FBBF24; --st-accent-soft: rgba(245, 158, 11, 0.14); --st-on-accent: #1A1206; }
+html.dark[data-brand="voodooland"], html[data-brand="voodooland"][data-theme="dark"] { --st-accent: #14B8A6; --st-accent-hover: #2DD4BF; --st-accent-soft: rgba(20, 184, 166, 0.14); --st-on-accent: #04201D; }
+html.dark[data-brand="smadav"], html[data-brand="smadav"][data-theme="dark"] { --st-accent: #3B82F6; --st-accent-hover: #60A5FA; --st-accent-soft: rgba(59, 130, 246, 0.14); --st-on-accent: #FFFFFF; }
+html[data-brand="proshop"] .panel-light { --pv-coral: #B45309; --pv-coral-hover: #92400E; --pv-coral-deep: #78350F; --pv-coral-glow: rgba(180, 83, 9, 0.25); --pv-selection-bg: rgba(180, 83, 9, 0.10); --pv-indigo: #C2410C; --pv-indigo-hover: #B45309; --pv-indigo-glow: rgba(194, 65, 12, 0.28); }
+html[data-brand="voodooland"] .panel-light { --pv-coral: #0F766E; --pv-coral-hover: #115E59; --pv-coral-deep: #134E4A; --pv-coral-glow: rgba(15, 118, 110, 0.25); --pv-selection-bg: rgba(15, 118, 110, 0.10); --pv-indigo: #0D9488; --pv-indigo-hover: #0F766E; --pv-indigo-glow: rgba(13, 148, 136, 0.28); }
+html[data-brand="smadav"] .panel-light { --pv-coral: #2563EB; --pv-coral-hover: #1D4ED8; --pv-coral-deep: #1E40AF; --pv-coral-glow: rgba(37, 99, 235, 0.25); --pv-selection-bg: rgba(37, 99, 235, 0.10); --pv-indigo: #1D4ED8; --pv-indigo-hover: #2563EB; --pv-indigo-glow: rgba(29, 78, 216, 0.28); }

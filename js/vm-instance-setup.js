@@ -1932,9 +1932,10 @@ async function sendVPSCredentialsEmail(info, response, vpsDetails, credentials) 
           <strong>SSH Command:</strong> ssh ${credentials?.username || 'root'}@${response.host}
        </td></tr>`
 
+  const VA = require('./sms-app-brand').webAccent()
   const emailHtml = `
     <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #007bff; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+        <div style="background-color: ${VA}; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
             ${require('./sms-app-brand').logoImg(40)}
             <h1 style="margin: 0;">🎉 Congratulations!</h1>
         </div>
@@ -1945,7 +1946,7 @@ async function sendVPSCredentialsEmail(info, response, vpsDetails, credentials) 
             <p style="font-size: 18px; line-height: 1.6;">
                 Your <strong style="text-transform: capitalize;">${plan}</strong> has been successfully activated!
             </p>
-            <p style="font-size: 18px; line-height: 1.6; color: #007bff;">
+            <p style="font-size: 18px; line-height: 1.6; color: ${VA};">
                 Here's your order summary:
             </p>
             <table style="width: 100%; margin-top: 10px; border-collapse: separate; border-spacing: 0 10px;">

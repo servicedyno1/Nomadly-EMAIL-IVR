@@ -1,5 +1,10 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-10 — Brand colours (panel/storefront + emails)
+- frontend/src/brand-colors.css (imported in App.js after brand-nomadly.css): html[data-brand=proshop|voodooland|smadav] sets --pv-coral/--pv-indigo (dark = logo colour, .panel-light = deeper shade), --st-accent (store light/dark), --brand-accent. panel-v2.css hardcoded coral/indigo rgba → color-mix(var(--pv-coral|--pv-indigo)).
+- brands.json webAccent: proshop #B45309, voodooland #0F766E, smadav #2563EB (email/web). sms-app-brand.emailColors() {a, d}. Hosting-live email gradient/links, VPS email, inbound-SMS email now use brand colours (welcome email already used webAccent).
+
+
 ## 2026-11-10 — Brand favicons on panels/storefront
 - useBrand (frontend) sets <link rel=icon/apple-touch-icon> to /api/brand/icon.png?v=2026-11 once the brand loads (hosting panel + storefront on every bot domain). store/config logoUrl/markUrl now ?v=2026-11 (cache-bust). Bot landing page (config.js) head gets favicon links + wordmark ?v. Root /favicon.ico route already serves assets/brand/<slug>/icon.png. Verified in preview: panel tab icon = brand icon (200 image/png).
 

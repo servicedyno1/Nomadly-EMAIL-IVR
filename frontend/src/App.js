@@ -13,6 +13,7 @@ import './store.css';
 import './store-landing.css';
 import './panel-v3.css';
 import './brand-nomadly.css';
+import './brand-colors.css';
 import CloudIvrApp from './cloudivr/CloudIvrApp';
 import { IS_CIVR_DOMAIN } from './cloudivr/paths';
 

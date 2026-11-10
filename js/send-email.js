@@ -195,6 +195,7 @@ function emailSubject(info) {
 }
 
 function buildEmailHtml(info, response, pin) {
+  const { a: A, d: D } = require('./sms-app-brand').emailColors()
   const plan = info.plan || 'Hosting Plan'
   const t = T[langOf(info)]
   const panelDomain = process.env.PANEL_DOMAIN
@@ -223,7 +224,7 @@ function buildEmailHtml(info, response, pin) {
 
           <!-- Header -->
           <tr>
-            <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center; border-radius: 16px 16px 0 0;">
+            <td style="background: linear-gradient(135deg, ${A} 0%, ${D} 100%); padding: 40px 30px; text-align: center; border-radius: 16px 16px 0 0;">
               ${require('./sms-app-brand').logoImg(44) || '<div style="font-size: 48px; margin-bottom: 10px;">🚀</div>'}
               <h1 style="margin: 0; color: #ffffff; font-size: 26px; font-weight: 700; letter-spacing: -0.5px;">${t.headerTitle}</h1>
               <p style="margin: 8px 0 0; color: rgba(255,255,255,0.85); font-size: 15px;">${t.headerSubtitle(plan, info.website_name)}</p>
@@ -243,7 +244,7 @@ function buildEmailHtml(info, response, pin) {
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #f5f7ff 0%, #ede9fe 100%); border-radius: 12px; border: 1px solid #e0d4fd; margin-bottom: 25px;">
                 <tr>
                   <td style="padding: 25px;">
-                    <h2 style="margin: 0 0 18px; font-size: 16px; color: #764ba2; text-transform: uppercase; letter-spacing: 1px;">${t.loginDetailsTitle}</h2>
+                    <h2 style="margin: 0 0 18px; font-size: 16px; color: ${D}; text-transform: uppercase; letter-spacing: 1px;">${t.loginDetailsTitle}</h2>
 
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                       <tr>
@@ -273,13 +274,13 @@ function buildEmailHtml(info, response, pin) {
                       <tr>
                         <td style="padding: 10px 0; border-bottom: 1px solid rgba(118,75,162,0.15);">
                           <span style="color: #666; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">${t.labelPin}</span><br>
-                          <span style="color: #764ba2; font-size: 20px; font-weight: 700; font-family: 'Courier New', monospace; background: #fff; padding: 2px 10px; border-radius: 4px; letter-spacing: 3px;">${pin}</span>
+                          <span style="color: ${D}; font-size: 20px; font-weight: 700; font-family: 'Courier New', monospace; background: #fff; padding: 2px 10px; border-radius: 4px; letter-spacing: 3px;">${pin}</span>
                         </td>
                       </tr>` : ''}
                       <tr>
                         <td style="padding: 10px 0;">
                           <span style="color: #666; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">${t.labelPanel}</span><br>
-                          <a href="${panelUrl}" style="color: #667eea; font-size: 16px; font-weight: 600; text-decoration: none;">${panelUrl}</a>
+                          <a href="${panelUrl}" style="color: ${A}; font-size: 16px; font-weight: 600; text-decoration: none;">${panelUrl}</a>
                         </td>
                       </tr>
                     </table>
@@ -291,7 +292,7 @@ ${nameserverCard}
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 25px;">
                 <tr>
                   <td align="center">
-                    <a href="${panelUrl}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;">${t.cta}</a>
+                    <a href="${panelUrl}" style="display: inline-block; background: linear-gradient(135deg, ${A} 0%, ${D} 100%); color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;">${t.cta}</a>
                   </td>
                 </tr>
               </table>
@@ -308,7 +309,7 @@ ${nameserverCard}
               </table>
 
               <p style="font-size: 14px; color: #666; line-height: 1.6; margin: 0;">
-                ${t.needHelp} <a href="${supportLink}" style="color: #667eea; text-decoration: none; font-weight: 600;">${t.contactSupport}</a>
+                ${t.needHelp} <a href="${supportLink}" style="color: ${A}; text-decoration: none; font-weight: 600;">${t.contactSupport}</a>
               </p>
 
             </td>
