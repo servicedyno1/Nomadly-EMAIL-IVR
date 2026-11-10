@@ -2494,3 +2494,16 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - OPEN: production engine stays idle ("coming soon") until BULK_ESIM_MONGO_URL (shared DB for the 4 bots) is set — configured() requires it outside dry run. Not set in secrets yet.
 - R23 (2026-06): PRODUCTION ENV WRITTEN (droplet 146.190.238.190, /opt/nomadly/shared/<app>/backend.env, backups *.bak-bulkesim-20261110175014): app-main (Nomadly), app-proshop (PROSHOP), app-voodoo (Voodoo Land), app-wl (Smadav) all have SPENZA_BULK_API_KEY/SECRET, GOOGLE_WEB_RISK_API_KEY, OPENAI_API_KEY, BULK_ESIM_DB=bulkesim, BULK_ESIM_MONGO_URL = Nomadly's Railway Mongo (roundhouse) → shared DB "bulkesim" (write/read verified from all 4). Takes effect on the next code push (CI deploy + pm2 reload). Production AI variants: direct OpenAI (BULK_ESIM_OPENAI_MODEL, default gpt-4o-mini) when EMERGENT_LLM_KEY is absent — verified. bootstrap() now runs under a shared lock (4 bots starting together buy one tester, verified with 4 processes).
 - R24 (2026-06): rate safety margin — cfg.rateMargin=2: each Spenza account is driven at (Spenza limit − 2)/min = 28/min (limit still adopted from X-RateLimit-Limit headers, stored as limitPerMin), and header pacing stops when ≤ 2 sends remain in Spenza's window. One-account ceiling ≈ 13,440 SMS/day (≈ 42 useful lines). Direct-OpenAI AI variants only when not dry (tests stay simulated). Older suites pin rateMargin 0.
+
+## 2026-11-10 — Deploy consistency + translations + limits
+- ROOT CAUSE: deploy.yml used ONE workflow-level concurrency group; the white-label dispatch queued behind app-main's push run
+  and GitHub cancelled the pending app-main run → Nomadly/CloudIVR stayed on old releases (runs 42894447255, 42894962287 cancelled).
+- FIX: per-app job-level concurrency (droplet-deploy-<app>), timeout 60 min; deploy.sh takes a box-wide lock (/opt/nomadly/.deploy-box.lock)
+  so builds still never overlap, and a catch-up loop redeploys if a newer commit arrived mid-deploy (max 3). New deploy.sh installed on droplet.
+  app-main caught up manually to 3d3dbf35.
+- White-label panels never got brand colours (WL App.js shell not synced) → brand-colors.css now imported from hooks/useBrand.js.
+- Bot "Rotate caller IDs" translated (en/fr/zh/hi/fa) — tests/test_bulkcall_rotate_i18n.js 12/12.
+- BulkSMS booking opens the shared one-screen invoice (wallet + crypto) directly — tests/test_bulk_esim_direct_checkout.js 4/4.
+- Bulk IVR limit stays 500 numbers/campaign (bot + web, prod env BULK_CALL_MAX_LEADS=500); web shows counter, hints, Help FAQ; bot upload step says so.
+- BulkSMS prod verified: min 500 / max 2000 per campaign / 2000 per day, no DB overrides.
+- CloudIVR FR/ES dictionary filled (280 strings). Preview test accounts deleted.

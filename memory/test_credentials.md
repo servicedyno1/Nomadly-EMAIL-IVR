@@ -236,3 +236,8 @@
 - Real numbers use Telesign SMS (`/v1/verify/sms`). Telesign voice is NOT enabled on the account, so real "Call me" requests return `voice_unavailable`.
 - Endpoints: POST /api/cloudivr-web/auth/phone/start {phone, channel:'sms'|'voice'}, then POST /api/cloudivr-web/auth/phone/verify {challenge, code, remember, name?, ref?}.
 - Account linking: POST /api/cloudivr-web/account/phone/start|verify and /account/email/start|verify (need a signed-in session). In preview, emails @example.com are simulated and return previewCode. Alice may have the test phone +15550177002 linked (preview only).
+
+## 2026-11-10 — Preview test accounts REMOVED (owner request)
+- All CloudIVR web test accounts (Alice/Bob/QA/TEST_*, every @example.com) and their data were deleted from the PREVIEW DB only.
+  Production untouched. For future UI tests, sign up a fresh @example.com account (dry-run) and delete it afterwards,
+  or re-seed with `node scripts/seed_landing_shots.js` / `scripts/seed_e2e_sandbox.js` and clean up after.

@@ -1,0 +1,31 @@
+{
+  "summary": "Frontend-only test of the CloudIVR web bulk-campaign limits copy and FR/ES translations (preview, /cloudivr/app/campaigns/new). I signed up a fresh account, qa.limits1794345975@example.com. It has no number, so the page showed the 'No number can run campaigns' empty state (Pro plan gating; a preview top-up does not credit the wallet). To get past it, Playwright faked GET /api/cloudivr-web/numbers in the browser only, returning 2 fake active Pro numbers. No backend data was changed and no campaign was saved or called. All 5 requested items PASS in EN, FR and ES: (1) the leads hint starts with 'Up to 500 numbers per campaign'. (2) The counter shows '3 of 500 numbers' and '500 of 500 numbers' in grey; at 501 it reads '501 numbers — campaigns can call up to 500. Split the list into smaller campaigns.' in red rgb(248,113,113). (3) The concurrency hint text is exact; the field is hidden once a rotation caller ID is picked, as expected. (4) The Help centre FAQ campaign-limits shows and expands with the right answer. (5) In FR and ES the Rotate caller IDs label, its empty and picked hints, the leads hint, the counter (both states), the concurrency hint and the FAQ question and answer are all translated.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "New campaign > lead check card (LeadCheck.js line 75)", "issues": ["Probably existed before this change: the title is built from separate JSX text nodes, 'Check {n} number{s} before calling', so the dictionary engine misses 'numbers'. FR shows 'Vérifier 501 numbers avant d’appeler' and ES shows 'Verificar 501 numbers antes de llamar'. Fix: one template string, e.g. `Check ${n} numbers before calling` plus a singular key, with fr/es entries."]},
+      {"screen": "New campaign / Help (FR, ES)", "issues": ["The feature name is translated differently in different places, so users may not link the hint to the picker. FR: label 'Faire tourner les ID appelants', hint 'Faites tourner les caller IDs', FAQ 'activez Rotation des caller IDs'. ES: label 'Rotar identificadores', hint 'Rota los caller IDs', FAQ 'activa Rotar caller IDs', picked hint 'IDs de llamada'. Use one term in each language, ideally the label's."]},
+      {"screen": "New campaign > lead check card", "issues": ["With 501+ numbers (over the limit) the paid number check still offers to check all of them ('Check 501 numbers… $7.51'). Consider disabling it or capping it at 500 while the counter is red."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: make the LeadCheck title one translatable string so 'numbers' is translated in FR/ES",
+    "Optional: use one FR term and one ES term for 'Rotate caller IDs' across the label, the concurrency hint and the FAQ",
+    "Optional: block or cap the paid number check when there are more than 500 leads",
+    "Delete the test account qa.limits1794345975@example.com (it also has 1 'Test only' preview deposit of $100)"
+  ],
+  "critical_code_review_comments": [
+    "LeadCount counts a line as a number if it has 7+ digits, so a header line or a line with a long digit name counts as a number. This is fine for a hint; the backend should still enforce the 500 cap on save (not checked here, as asked).",
+    "The 500 cap is hardcoded twice in Campaigns.js (MAX_LEADS and the 'Contact list' hint at line 135); keep it in one constant."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend only)", "frontend": "100% of requested checks (5/5 in EN/FR/ES)"},
+  "test_credentials": "Created qa.limits1794345975@example.com / QaTest#2026x (CloudIVR web, no numbers, $0). The main agent should delete it.",
+  "seed_data_creation": "One sign-up account (above) and one preview 'Test only' $100 BTC deposit record from trying a wallet top-up. No campaigns or numbers.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "CloudIVR web on preview is at /cloudivr (e.g. /cloudivr/signup, /cloudivr/app/campaigns/new). A new account cannot open the campaign form without an active Pro number, and a preview top-up does not credit the wallet. Workaround: Playwright page.route that answers GET /api/cloudivr-web/numbers with {numbers:[{phoneNumber,status:'active',access:{bulkCall:true}}…]}. Switch language with topbar-account-menu > topbar-lang-switcher > topbar-lang-switcher-option-{fr|es}. The FAQ testid contains 'campaign-limits'. Dismiss the onboarding 'Skip for now' modal after sign-up."
+}
