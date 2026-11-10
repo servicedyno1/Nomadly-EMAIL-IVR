@@ -1,5 +1,9 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-10 — Logos in bot emails
+- sms-app-brand: logoUrl() (PANEL_DOMAIN site → /assets/brand/<slug>/logo.png?v=2026-11) + logoImg(h). Used by welcome email, hosting-live email (send-email.js header, replaces 🚀), inbound-SMS email (sms-service), VPS/RDP ready email (vm-instance-setup), fax email (bot users). Email Blast = customer content, untouched. CloudIVR web emails use their own layout (unchanged).
+
+
 ## 2026-11-10 — New logos (ProShop, Voodoo Land, Smadav) + banners for every ad
 - assets/brand/{proshop,voodooland,smadav}/{logo.png 1200x400 on brand-dark, wordmark.png transparent, mark.png 1024 icon, icon.png 256} regenerated (amber bag+bolt / teal hexagon eye / blue shield+bubble). Used by /brand/:file (landing, panel, storefront, favicon) and welcome emails (logo.png?v=2026-11 cache-bust).
 - Promo banners: assets/promo/{proshop,voodooland,smadav}/{antired_hosting,cloudphone,domains_shortener,leads_validation,vps_rdp,bulksms_esim}.jpg (web ads stay NomadlyBot-only). Old files are in git history.

@@ -1935,6 +1935,7 @@ async function sendVPSCredentialsEmail(info, response, vpsDetails, credentials) 
   const emailHtml = `
     <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
         <div style="background-color: #007bff; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+            ${require('./sms-app-brand').logoImg(40)}
             <h1 style="margin: 0;">🎉 Congratulations!</h1>
         </div>
         <div style="padding: 10px 20px; background-color: #f9f9f9; border-radius: 0 0 10px 10px;">

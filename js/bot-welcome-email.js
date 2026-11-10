@@ -81,7 +81,7 @@ function build({ name, lang } = {}) {
   const body = L.p(L.esc(c.intro(brand))) + L.steps(c.steps, t) + L.button(c.cta(brand), B.botUrl(), t)
   const html = L.layout({
     lang: COPY[lang] ? lang : 'en', preheader: c.preheader(brand), eyebrow: c.eyebrow, title: c.title(name, brand), t, body,
-    brand: { name: brand, logo: base ? `${base}/assets/brand/${B.brandSlug()}/logo.png?v=2026-11` : null, href: B.botUrl() },
+    brand: { name: brand, logo: B.logoUrl(), href: B.botUrl() },
     foot: { why: c.why(brand), support: support ? [c.support, support] : null },
   })
   return { subject: c.subject(brand), html }

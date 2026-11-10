@@ -63,6 +63,7 @@ async function forwardSmsToEmail(toEmail, from, to, body, web = false) {
   const htmlContent = `
     <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="background: #1a1a2e; color: #e5e5e5; padding: 24px; border-radius: 12px;">
+        ${require('./sms-app-brand').logoImg(36)}
         <h2 style="color: #10b981; margin: 0 0 16px 0;">📩 Inbound SMS Received</h2>
         <table style="width: 100%; border-collapse: collapse;">
           <tr><td style="color: #9ca3af; padding: 4px 0;">To:</td><td style="color: #e5e5e5; padding: 4px 0;">${formatPhone(to)}</td></tr>
