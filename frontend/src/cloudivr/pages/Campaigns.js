@@ -149,7 +149,7 @@ function VoicemailChoice({ mode, onMode, children }) {
         {VM_OPTS.map(([v, label, sub]) => (
           <button key={v} type="button" role="radio" aria-checked={mode === v} onClick={() => onMode(v)} data-testid={`campaign-voicemail-${v}`}
             className={`text-left rounded-xl border px-3 py-2.5 transition-colors ${mode === v ? 'border-[var(--civr-accent,#22c55e)] bg-[#22c55e]/10' : 'border-[#262626] hover:border-[#3f3f46]'}`}>
-            <div className="text-sm font-medium">{label}{v === 'main' && <span className="ml-1.5 text-[10px] uppercase tracking-wide text-[#22c55e]">Recommended</span>}</div>
+            <div className="text-sm font-medium">{label}{v === 'main' && <span className="ml-1.5 text-[10px] uppercase tracking-wide font-semibold text-[#15803d] dark:text-[#4ade80]">Recommended</span>}</div>
             <div className="text-xs text-[#a1a1aa] mt-0.5">{sub}</div>
           </button>
         ))}

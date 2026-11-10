@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend-only test of the 'When voicemail answers' choice on CloudIVR web /cloudivr/app/campaigns/new (recorded-message mode), the new Help question, and FR/ES. Signed up a fresh account qa.vm1794352201@example.com / QaTest#2026x. Playwright faked GET /api/cloudivr-web/numbers (1 fake Pro number) and GET /api/cloudivr-web/audio (2 clips, aud1 and aud2). POST /api/cloudivr-web/campaigns was caught in the browser and answered with {campaign:{id:'x'}}, so no campaign was created or launched. All 5 requested items PASS. (1) campaign-voicemail-choice shows 3 radio cards: main 'Leave my message' with a RECOMMENDED tag (aria-checked=true by default), other 'Leave a different clip' and hangup 'Hang up'. The 'Voicemail drop' dropdown is gone (0 matches). (2) The campaign-voicemail-audio-select picker is hidden by default. It appears after clicking 'other' and goes away after clicking hangup or main. (3) Request bodies: main sent audioId=aud1, voicemailAudioId='aud1'. hangup sent voicemailAudioId=''. other with clip aud2 sent voicemailAudioId='aud2'. Switching other→main or other→hangup after picking a clip sent 'aud1' and '' (no stale clip). No vmMode key was sent. 'other' with no clip showed the exact inline error 'Pick the clip to leave on voicemail, or choose “Leave my message”.' and sent no request. (4) In the Help centre, the question 'If nobody answers, does a Bulk IVR campaign leave a voicemail?' shows under Calling, opens with the right answer and a 'New campaign' link, and a search for 'voicemail' finds it. (5) FR and ES translate the label, all 3 cards and their sub-lines, the RECOMMENDED tag, the hint, the clip picker placeholder, the inline error and the Help question.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "New campaign, light theme", "issues": ["The 10px green (#22c55e) 'RECOMMENDED' tag on the white card is low contrast (about 2.3:1). A darker green such as #15803d would be easier to read."]},
+      {"screen": "Help (ES)", "issues": ["The question reads '¿una campaña IVR masiva deja un buzón de voz?', which means 'leave a voicemail box'. '¿...deja un mensaje de voz?' would be more natural Spanish."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Delete the test account qa.vm1794352201@example.com (no numbers, campaigns or deposits)",
+    "Optional: darken the RECOMMENDED tag colour on the light theme",
+    "Optional: change the ES Help question wording to 'mensaje de voz'"
+  ],
+  "critical_code_review_comments": [
+    "Campaigns.js create(): the check for 'other' with no clip runs after scriptAudio(). On the 'write a script' path, the TTS clip is made (and may be billed) before the voicemail error shows. Move the vmMode==='other' check before the scriptAudio call.",
+    "The inline error stays on screen after the user picks a clip, until they press Save again. Cosmetic."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend only)", "frontend": "100% (5/5 requested items, EN/FR/ES)"},
+  "test_credentials": "Created qa.vm1794352201@example.com / QaTest#2026x (CloudIVR web, no numbers, $0). The main agent should delete it.",
+  "seed_data_creation": "One sign-up account only (above). No campaigns were created: all campaign POSTs were faked in the browser.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "CloudIVR web is at /cloudivr. A new account shows an onboarding dialog (data-testid onboarding) that blocks clicks. Click onboarding-skip. Fake with page.route: GET numbers -> {numbers:[{phoneNumber,status:'active',plan:'pro',access:{bulkCall:true}}]}, GET audio -> {audios:[{id,name,audioUrl,duration}]}, and fulfil POST campaigns -> {campaign:{id:'x'}}. To switch language: topbar-account-menu > topbar-lang-switcher > topbar-lang-switcher-option-{en|fr|es}. On the login page, click cookie-allow-all first."
+}

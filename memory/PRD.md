@@ -2532,3 +2532,9 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   re-check pass → healthy; second miss → sending_failure → suspended + auto-replaced. Monitor-fault voiding restores suspect lines.
 - Warm-up: tester idle > 60 min re-proven when a customer opens BulkSMS; service lines idle > 60 min re-proven 15 min before a paid booking starts
   (warmStaleMin / warmLeadMin, /bulkset-able). Test: tests/test_bulk_esim_fast_detect.js 12/12; lifecycle/ready/automation/spenza/lean/engine/autoscale all pass.
+
+## 2026-11-10 — Voicemail clarity (Bulk IVR)
+- Confirmed prod: all Bulk IVR campaigns since Oct 22 + all active numbers are Telnyx (Twilio path unused).
+- Web form: "When voicemail answers" 3 cards — Leave my message (default, recommended) / Leave a different clip / Hang up; flow hint; validation.
+- Bot: same question in 5 langs, "📩 Leave my message (recommended)" first (uses campaign audio), Hang up, other clips. tests/test_bulkivr_voicemail_choice.js 6/6.
+- Help FAQ campaign-voicemail. Frontend iteration_246 all pass.
