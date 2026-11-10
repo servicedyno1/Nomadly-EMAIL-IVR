@@ -21,6 +21,7 @@ import { planFor } from '../PlanFeatures';
 import { LeadCheck } from '../LeadCheck';
 import { ShowAsSelect, RotateCallerIds } from '../CallerIdPick';
 import { useBalance, ShortNote } from '../WalletPay';
+import { VoicemailScript } from './VoicemailScript';
 
 const pct = (c) => (c.stats?.total ? Math.round(((c.stats.completed || 0) / c.stats.total) * 100) : 0);
 
@@ -49,7 +50,7 @@ function CampaignRow({ c, i, pv, onChange }) {
       <div className="flex flex-col md:flex-row md:items-center gap-3">
         <div className="flex-1 min-w-0"><div className="font-semibold truncate" data-testid={`campaign-row-${i}-name`}>{c.name || c.audioName || 'Campaign'}</div><div className="text-xs text-[#a1a1aa] font-mono">{pv.phone(c.callerId)} · {when(c.createdAt)}</div></div>
         <div className="font-mono text-sm text-[#d4d4d8]" data-testid={`campaign-row-${i}-progress-text`}>{c.stats?.completed || 0}/{c.stats?.total || 0} called</div>
-        {c.voicemailAudioName && c.startedAt && <div className="font-mono text-sm text-[#a1a1aa]" data-testid={`campaign-row-${i}-voicemail-left`}>{`${c.stats?.voicemailLeft || 0} ${c.stats?.voicemailLeft === 1 ? 'message' : 'messages'} left`}</div>}
+        {c.voicemailAudioName && c.startedAt && <span className={`civr-pill ${c.stats?.voicemailLeft ? 'civr-pill-on' : ''}`} data-testid={`campaign-row-${i}-voicemail-left`}>{`📩 ${c.stats?.voicemailLeft || 0} ${c.stats?.voicemailLeft === 1 ? 'voicemail' : 'voicemails'} left`}</span>}
         {c.repeat && <span className="civr-pill civr-pill-on" data-testid={`campaign-row-${i}-repeat`}><Repeat className="w-3 h-3" />{c.repeat === 'weekly' ? 'weekly' : 'daily'}{c.runNumber > 1 ? ` · run ${c.runNumber}` : ''}</span>}
         {c.waitingForDailyLimit && c.status === 'running' && <span className="civr-pill civr-pill-warn" data-testid={`campaign-row-${i}-daily-limit`}>daily limit reached</span>}
         <span className={statusPill(c.status)} data-testid={`campaign-row-${i}-status`}>{c.status}</span>
@@ -141,11 +142,11 @@ function SavedList({ value, onChange }) {
   );
 }
 
-const VM_OPTS = [['main', 'Leave my message', 'Waits for the beep, then leaves the message above.'], ['other', 'Leave a different clip', 'Pick another recording to leave in the mailbox.'], ['hangup', 'Hang up', 'Ends the call — nothing is left.']];
+const VM_OPTS = [['main', 'Leave my message', 'Waits for the beep, then leaves the message above.'], ['script', 'Write a voicemail script', 'A shorter message, turned into audio in one tap.'], ['other', 'Leave a different clip', 'Pick another recording to leave in the mailbox.'], ['hangup', 'Hang up', 'Ends the call — nothing is left.']];
 function VoicemailChoice({ mode, onMode, children }) {
   return (
     <Field label="When voicemail answers" hint="Answered → they hear your message · Voicemail → what you pick here · No answer → marked “no answer”. Calls end just before 1 minute unless connected to you; a voicemail message that has started always plays to the end.">
-      <div className="grid sm:grid-cols-3 gap-2" role="radiogroup" aria-label="When voicemail answers" data-testid="campaign-voicemail-choice">
+      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-2" role="radiogroup" aria-label="When voicemail answers" data-testid="campaign-voicemail-choice">
         {VM_OPTS.map(([v, label, sub]) => (
           <button key={v} type="button" role="radio" aria-checked={mode === v} onClick={() => onMode(v)} data-testid={`campaign-voicemail-${v}`}
             className={`text-left rounded-xl border px-3 py-2.5 transition-colors ${mode === v ? 'border-[var(--civr-accent,#22c55e)] bg-[#22c55e]/10' : 'border-[#262626] hover:border-[#3f3f46]'}`}>
@@ -234,6 +235,7 @@ export function CampaignNew() {
   // Contacts → "Start a campaign" opens this page with ?list=<id>.
   const [f, setF] = useState(() => ({ name: '', callerId: '', showAs: '', audioId: '', voicemailAudioId: '', vmMode: 'main', leads: '', source: params.get('list') ? 'list' : 'numbers', listId: params.get('list') || '', mode: 'report_only', transferNumber: '', transferBackups: '', activeKeys: ['1'], menu: [], concurrency: 5, scheduledFor: '', holdMusic: false, agentId: '', repeat: '', dailyLimit: '' }));
   const [script, setScript] = useState(null);
+  const [vmScript, setVmScript] = useState({ text: '' });
   const [est, setEst] = useState(null);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState(null);
@@ -279,7 +281,8 @@ export function CampaignNew() {
       const base = { ...f, ...audience, source: undefined, callerId, callerIds: f.callerIds?.length ? f.callerIds : undefined, showAs: f.showAs || undefined, menu: f.mode === 'menu' ? menuToApi(f.menu) : undefined, scheduledFor, ...plan };
       const audioId = !isAi && !f.audioId && script ? await scriptAudio(() => api('/campaigns', { method: 'POST', body: { ...base, validateOnly: true, audioPending: true } })) : f.audioId;
       const body = isAi ? { mode: 'ai', name: f.name, agentId: f.agentId, callerId, callerIds: f.callerIds?.length ? f.callerIds : undefined, showAs: f.showAs || undefined, ...audience, concurrency: f.concurrency, scheduledFor, ...plan }
-        : { ...base, vmMode: undefined, audioId, voicemailAudioId: f.vmMode === 'main' ? audioId : f.vmMode === 'other' ? f.voicemailAudioId : '' };
+        : { ...base, vmMode: undefined, audioId, voicemailAudioId: f.vmMode === 'main' ? audioId : f.vmMode === 'other' ? f.voicemailAudioId : f.vmMode === 'script' ? vmScript.audioId : '' };
+      if (!isAi && f.vmMode === 'script' && !vmScript.audioId) throw new Error('Make the voicemail audio first (tap Make AI voice under the voicemail script), or pick another option.');
       if (!isAi && f.vmMode === 'other' && !f.voicemailAudioId) throw new Error('Pick the clip to leave on voicemail, or choose “Leave my message”.');
       const d = await api('/campaigns', { method: 'POST', body });
       toast.success(d.skipped ? `Campaign saved · ${d.skipped} line(s) skipped` : 'Campaign saved');
@@ -305,6 +308,8 @@ export function CampaignNew() {
           {script ? <div className="border border-[#262626] rounded-xl p-4"><ScriptBox value={script} onChange={setScript} onAudio={(a) => { reloadAudio(); setF(x => ({ ...x, audioId: a.id })); setScript(null); }} testid="campaign-script" /></div>
             : <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => setScript({ text: '', values: {} })} data-testid="campaign-write-script-button">Write a script with a template instead</button>}
           <VoicemailChoice mode={f.vmMode} onMode={set('vmMode')}>
+            {f.vmMode === 'script' && <VoicemailScript value={vmScript} onChange={setVmScript} mainText={script ? fillScript(script.text, script.values) : (au?.audios || []).find(a => a.id === f.audioId)?.text}
+              onMade={(a) => { reloadAudio(); setVmScript(x => ({ ...x, audioId: a.id })); }} madeName={`${f.name.trim() || 'Campaign'} · voicemail`} />}
             {f.vmMode === 'other' && <AudioSelect value={f.voicemailAudioId} onChange={set('voicemailAudioId')} audios={au?.audios} by="id" placeholder="Pick the clip to leave" onAdded={reloadAudio} compact testid="campaign-voicemail-audio-select" />}
           </VoicemailChoice>
           </>}

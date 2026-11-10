@@ -1700,6 +1700,7 @@ async function sendFinalReport(campaignId) {
   const summary = [
     tt(campaign.status === 'cancelled' ? 'bulkCallReportTitleCancelled' : 'bulkCallReportTitle'),
     ``,
+    stats.voicemailLeft ? tt('bulkCallReportVmLeft', stats.voicemailLeft) + '\n' : null,
     `📱 ${tt('bulkCallReportCallerId')} <b>${cidSummary(campaign)}</b>`,
     `🎵 ${tt('bulkCallReportAudio')} <b>${campaign.audioName}</b>`,
     `📞 ${tt('bulkCallReportProvider')} <b>Speechcue</b>`,
@@ -1914,6 +1915,7 @@ module.exports = {
   createCampaign,
   startCampaign,
   launchDueScheduledCampaigns,
+  sendFinalReport,
   spawnNextRun,
   stopRepeat,
   onDigitReceived,

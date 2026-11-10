@@ -15,6 +15,19 @@ import { useBalance, ShortNote } from '../WalletPay';
 const STATS = [['total', 'Numbers'], ['completed', 'Called'], ['answered', 'Answered'], ['keyPressed', 'Pressed a key'], ['transferred', 'Transferred'], ['noAnswer', 'No answer']];
 const VM_STATS = [['voicemail', 'Voicemail'], ['voicemailLeft', 'Messages left']];
 const AI_STATS = [['total', 'Numbers'], ['completed', 'Called'], ['answered', 'Talked'], ['booked', 'Booked'], ['interested', 'Interested'], ['callback', 'Call back'], ['skipped', 'Do-not-call']];
+// Headline for the voicemail drop: how many people will hear the message later even though they never picked up.
+function VoicemailWin({ c, hasVm }) {
+  const left = c.stats?.voicemailLeft || 0, reached = c.stats?.voicemail || 0;
+  if (!hasVm || !c.voicemailAudioName || (!left && !reached)) return null;
+  const share = reached ? Math.round((left / reached) * 100) : 0;
+  return (
+    <div className="mt-5 rounded-xl border border-[#22c55e]/40 bg-[#22c55e]/10 p-4 flex flex-wrap items-center gap-x-4 gap-y-1" data-testid="campaign-voicemail-win">
+      <div className="font-display text-3xl font-bold text-[#15803d] dark:text-[#4ade80]" data-testid="campaign-voicemail-win-count">{`📩 ${left} ${left === 1 ? 'voicemail' : 'voicemails'} left`}</div>
+      <div className="text-sm text-[#a1a1aa]">{left ? `${left === 1 ? 'Someone who' : `${left} people who`} didn’t pick up will hear “${c.voicemailAudioName}” later${reached > left ? ` · ${share}% of the ${reached} voicemails reached` : ''}.` : `${reached} voicemail${reached === 1 ? '' : 's'} reached so far — messages are left after the beep.`}</div>
+    </div>
+  );
+}
+
 const GRID = (n) => (n > 7 ? 'grid-cols-4 md:grid-cols-8' : n > 6 ? 'grid-cols-4 md:grid-cols-7' : 'grid-cols-3 md:grid-cols-6');
 const LIVE = ['running', 'scheduled'];
 
@@ -202,6 +215,7 @@ export default function CampaignDetail() {
         <div className="flex items-center justify-between mb-3"><span className="text-sm text-[#d4d4d8]">Progress</span><span className="font-mono text-sm" data-testid="campaign-progress">{pct}%</span></div>
         <div className="h-2 rounded-full bg-[#262626] overflow-hidden"><div className={`h-full bg-[#818cf8] transition-[width] duration-700 ${c.status === 'running' ? 'civr-pulse' : ''}`} style={{ width: `${pct}%` }} /></div>
         <LiveNow c={c} />
+        <VoicemailWin c={c} hasVm={hasVm} />
         <div className={`grid gap-4 mt-6 ${GRID(stats.length)}`}>{stats.map(([k, l]) => <div key={k} data-testid={`campaign-stat-${k}`}><div className="font-mono text-2xl">{c.stats?.[k] || 0}</div><div className="text-xs text-[#a1a1aa]">{l}</div></div>)}</div>
         <div className="mt-6 flex flex-wrap gap-2"><Controls c={c} act={act} busy={busy} />
           <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => downloadFile(`/campaigns/${id}/report.csv`, `campaign-${String(id).slice(0, 8)}.csv`).catch(e => toast.error(e.message))} data-testid="campaign-report-download-button"><Download className="w-4 h-4" />Download CSV report</button></div>
