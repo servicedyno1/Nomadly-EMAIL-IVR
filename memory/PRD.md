@@ -2525,3 +2525,10 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - BulkSMS: booking + paid_ok say start/finish are messaged automatically (5 langs). Web: schedule hint + toast say Inbox notifies start/finish.
 - Fixed old test test_bulk_esim_stop_upload_iter239 (84/84; expectations matched readiness gate + country-code rule). Messages filter chips wrap (ES clipping).
 - Tests: tests/test_bulkivr_errs_sched_i18n.js 6/6; frontend iteration_245 all pass.
+
+## 2026-11-10 — Fast dead-line detection (BulkSMS eSIM)
+- Canary: every line texts the monitor after each 50 texts (checkEveryTexts 50, checked every minute via volumeChecks).
+- First missed check → line health 'suspect' (out of sending at once, texts move to other lines) + immediate re-check + admin alert;
+  re-check pass → healthy; second miss → sending_failure → suspended + auto-replaced. Monitor-fault voiding restores suspect lines.
+- Warm-up: tester idle > 60 min re-proven when a customer opens BulkSMS; service lines idle > 60 min re-proven 15 min before a paid booking starts
+  (warmStaleMin / warmLeadMin, /bulkset-able). Test: tests/test_bulk_esim_fast_detect.js 12/12; lifecycle/ready/automation/spenza/lean/engine/autoscale all pass.
