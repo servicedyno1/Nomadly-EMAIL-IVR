@@ -1,6 +1,6 @@
 'use strict'
-// Telegram side of eSIM BulkSMS (USA/Canada): campaign wizard (link/phone choice + content + contacts upload + consent + 2 test texts
-// + slot booking + payment), one-off texts, conversations with reply, usage, bookings, progress, help. Every rule lives in core.js.
+// Telegram side of eSIM BulkSMS (USA/Canada): 4-step campaign wizard (numbers + free number check + consent → message, price type
+// detected, optional rotation → optional test → when + replies → pay), one-off texts, conversations with reply, usage, bookings, progress, help. Every rule lives in core.js.
 // Each bot delivers its own customers' notices (bsNotify) and wallet refunds. Texts: ./i18n.js (en, fr, zh, hi, fa).
 const axios = require('axios')
 const B = require('./core')
@@ -20,10 +20,11 @@ const isHome = (m) => m === '/esimsms' || allLabels('home').includes(m)
 let T = null
 const drafts = () => B.db().collection('bsDrafts')
 
-async function home(send, chatId, lang) {
-  const c = await B.cfg(), u = await B.usage(B.cidOf(brand(), chatId))
-  return send(chatId, t(lang, 'home', { min: c.minVolume, max: c.maxVolume, plain: per500(c.pricePlain), link: per500(c.priceLink), tests: c.testSends, used: u.used, limit: u.limit, from: c.quietStart, to: c.quietEnd }), homeKb(btn(lang)))
+async function homeArgs(cid) {
+  const c = await B.cfg(), u = await B.usage(cid)
+  return { min: c.minVolume, max: c.maxVolume, plain: per500(c.pricePlain), link: per500(c.priceLink), pct: c.scheduleDiscountPct, minHours: c.scheduleMinHours, fee: c.replyFee, used: u.used, limit: u.limit, from: c.quietStart, to: c.quietEnd }
 }
+const home = async (send, chatId, lang) => send(chatId, t(lang, 'home', await homeArgs(B.cidOf(brand(), chatId))), homeKb(btn(lang)))
 const days = () => Array.from({ length: 7 }, (_, i) => new Date(Date.now() + i * 86400000).toISOString().slice(0, 10))
 
 // Returns true when the message was handled here (anything but an explicit false).
@@ -36,10 +37,10 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   if (!action.startsWith('bse-')) return false
   if (message === L.back) { if (action === 'bse-home') { await go('none'); return goto.submenu7 ? (await goto.submenu7(), true) : false } await go('bse-home'); await home(send, chatId, lang); return true }
   if (action === 'bse-home') {
-    if (message === L.newc) { await go('bse-name'); return send(chatId, say('name_q'), kb([[L.back]])) }
+    if (message === L.newc) { const c = await B.cfg(); await go('bse-contacts'); return send(chatId, say('contacts_q', { min: c.minVolume, max: c.maxVolume }), kb([[L.back]])) }
     if (message === L.one) { await go('bse-one-to'); return send(chatId, say('one_to_q'), kb([[L.back]])) }
     if (message === L.usage) { const u = await B.usage(cid); return send(chatId, say('usage', { ...u, reset: u.resetAt.toISOString().slice(0, 16).replace('T', ' ') }), HK) }
-    if (message === L.help) { const c = await B.cfg(); return send(chatId, say('help', { from: c.quietStart, to: c.quietEnd }), HK) }
+    if (message === L.help) return send(chatId, say('help', await homeArgs(cid)), HK)
     if (message === L.convs) {
       const ss = await B.db().collection('bsSessions').find({ cid, status: 'active' }).sort({ lastActivityAt: -1 }).limit(10).toArray()
       if (!ss.length) return send(chatId, say('conv_none'), HK)
@@ -60,48 +61,9 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     return home(send, chatId, lang)
   }
   if (action === 'bse-cancel') { const b = await B.db().collection('bsBookings').findOne({ cid, _id: new RegExp(`${String(message).trim().replace(/\W/g, '')}$`) }); const r = b ? await B.cancelBooking(b._id, { cid }) : { error: 'err_not_found' }; await go('bse-home'); return send(chatId, r.error ? `⚠️ ${errText(lang, r)}` : say('cancelled', r.refunded), HK) }
-  if (action === 'bse-name') { const c = await B.cfg(); await put('bseName', String(message).slice(0, 60)); await go('bse-type'); return send(chatId, say('type_q', per500(c.pricePlain), per500(c.priceLink)), kb([[L.plain], [L.link], [L.back]])) }
-  if (action === 'bse-type') {
-    if (message !== L.plain && message !== L.link) return send(chatId, say('pick_option'))
-    await put('bseLinks', message === L.link); await go('bse-optout'); return send(chatId, say('optout_q'), kb([[L.optout_yes], [L.optout_no], [L.back]]))
-  }
-  if (action === 'bse-optout') {
-    if (message !== L.optout_yes && message !== L.optout_no) return send(chatId, say('pick_option'))
-    const optOut = message === L.optout_yes; await put('bseOptOut', optOut); await go('bse-content')
-    return send(chatId, say('content_q', { links: !!info.bseLinks, max: optOut ? 160 - B.OPT.length : 160, optOut }), kb([[L.back]]))
-  }
-  if (action === 'bse-content') {
-    const k = B.checkContent(message, !!info.bseLinks, info.bseOptOut !== false); if (k.error) return send(chatId, `⚠️ ${errText(lang, k)}`)
-    await put('bseContent', k.parts); await put('bseVariants', []); await put('bseVarRounds', 0); await go('bse-variants')
-    return send(chatId, say('variants_q', k.parts.length), kb([[L.ai], [L.keep], [L.back]]))
-  }
-  // Optional AI variants (Claude): the customer opts in, sees 5, approves all / some (type "1 3 5") / asks for more (max 3 rounds).
-  async function offerVariants() {
-    const rounds = info.bseVarRounds || 0; if (rounds >= 3) return send(chatId, say('variants_max'), kb([[L.use_all], [L.keep], [L.back]]))
-    const prev = info.bseVarAll || [], r = await B.aiVariants(cid, { text: info.bseContent[0], withLinks: !!info.bseLinks, optOut: info.bseOptOut !== false, avoid: [...info.bseContent, ...prev] })
-    if (r.error) return send(chatId, `⚠️ ${errText(lang, r)}`, kb([[L.ai], [L.keep], [L.back]]))
-    await put('bseVarShown', r.variants); await put('bseVarAll', [...prev, ...r.variants]); await put('bseVarRounds', rounds + 1); await go('bse-variants-pick')
-    return send(chatId, say('variants_list', r.variants, info.bseOptOut !== false), kb([[L.use_all], [L.more], [L.keep], [L.back]]))
-  }
-  async function toContacts(variants) {
-    const content = [...info.bseContent, ...(variants || [])]; await put('bseContent', content); await go('bse-contacts')
-    const k = B.checkContent(content, !!info.bseLinks, info.bseOptOut !== false)
-    return send(chatId, say('content_ok', { n: content.length, s: (k.segs || [1]).join('/'), optOut: info.bseOptOut !== false }), kb([[L.back]]))
-  }
-  if (action === 'bse-variants') {
-    if (message === L.ai) return offerVariants()
-    if (message === L.keep) return toContacts([])
-    return send(chatId, say('pick_option'))
-  }
-  if (action === 'bse-variants-pick') {
-    const shown = info.bseVarShown || [], chosen = info.bseVariants || []
-    if (message === L.use_all) return toContacts([...chosen, ...shown])
-    if (message === L.more) { await put('bseVariants', chosen); return offerVariants() }
-    if (message === L.keep) return toContacts(chosen)
-    const nums = [...new Set((String(message).match(/\d+/g) || []).map(Number).filter(n => n >= 1 && n <= shown.length))]
-    if (nums.length && /^[\d\s,.]+$/.test(String(message).trim())) return toContacts([...chosen, ...nums.map(n => shown[n - 1])])
-    return send(chatId, say('pick_option'))
-  }
+  const unitOf = (c, links) => (links ? c.priceLink : c.pricePlain)
+  const contentAsk = async (key = 'content_q') => { const c = await B.cfg(), optOut = info.bseOptOut !== false; return send(chatId, say(key, { max: optOut ? 160 - B.OPT.length : 160, optOut, plain: per500(c.pricePlain), link: per500(c.priceLink) }), kb([[optOut ? L.optout_no : L.optout_yes], [L.back]])) }
+  // Step 1 — numbers: parsed, capped at maxVolume, checked (Telnyx carrier lookup, free); every kept number is billed, only mobiles are texted.
   if (action === 'bse-contacts') {
     let raw = message, fileName = null
     if (msg?.document) {
@@ -111,25 +73,78 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
       fileName = name
     }
     const r = await B.parseContacts(cid, raw), c = await B.cfg()
-    const sg = B.checkContent(info.bseContent, !!info.bseLinks, info.bseOptOut !== false).segs || [1], parts = r.contacts.reduce((a, _, i) => a + sg[i % sg.length], 0)
-    if (parts < c.minVolume) return send(chatId, say('contacts_few', { ...r, n: r.contacts.length, parts }, c.minVolume))
-    await drafts().updateOne({ _id: cid }, { $set: { contacts: r.contacts, file: fileName ? { name: fileName, raw } : null, at: new Date() } }, { upsert: true })
-    await put('bseParsed', { invalid: r.invalid, optedOut: r.optedOut, duplicates: r.duplicates })
-    await go('bse-consent'); return send(chatId, say('consent_q', r.contacts.length), kb([[L.agree], [L.back]]))
+    if (r.contacts.length < c.minVolume) return send(chatId, say('contacts_few', { ...r, n: r.contacts.length, parts: r.contacts.length }, c.minVolume))
+    const list = r.contacts.slice(0, c.maxVolume)
+    await send(chatId, say('checking', list.length))
+    const k = await B.checkNumbers(cid, list)
+    if (!k.sendable) return send(chatId, `⚠️ ${say('err_no_mobile')}`)
+    await drafts().updateOne({ _id: cid }, { $set: { contacts: list, skip: k.skip, file: fileName ? { name: fileName, raw } : null, at: new Date() } }, { upsert: true })
+    await go('bse-consent')
+    return send(chatId, say('list_ok', { n: list.length, max: c.maxVolume, dropped: r.contacts.length - list.length, send: k.sendable, skipped: k.skip.length, counts: k.counts, invalid: r.invalid, duplicates: r.duplicates, optedOut: r.optedOut }), kb([[L.agree], [L.back]]))
   }
   if (action === 'bse-consent') {
     if (message !== L.agree) return send(chatId, say('pick_option'))
-    const d = await drafts().findOne({ _id: cid }) || {}, f = d.file
+    await put('bseOptOut', true); info.bseOptOut = true; await go('bse-content'); return contentAsk()
+  }
+  // Step 2 — message: the price type comes from the text (link/phone → link price); one SMS per version.
+  async function review() {
+    const c = await B.cfg(), d = await drafts().findOne({ _id: cid }) || {}, v = info.bseContent, links = v.some(B.hasLinkOrPhone), n = (d.contacts || []).length
+    await go('bse-review')
+    return send(chatId, say('review', { v, optOut: info.bseOptOut !== false, links, n, price: Math.round(n * unitOf(c, links) * 100) / 100 }), kb([[v.length > 1 ? L.use_these : L.use_one], [L.rotate_ai], ...(v.length > 1 ? [] : [[L.rotate_own]]), [L.edit], [L.back]]))
+  }
+  if (action === 'bse-content') {
+    if (message === L.optout_no || message === L.optout_yes) { info.bseOptOut = message === L.optout_yes; await put('bseOptOut', info.bseOptOut); return contentAsk() }
+    const optOut = info.bseOptOut !== false, k = B.checkContent(message, undefined, optOut)
+    if (k.error) return send(chatId, `⚠️ ${errText(lang, k)}`, kb([[optOut ? L.optout_no : L.optout_yes], [L.back]]))
+    info.bseContent = k.parts; await put('bseContent', k.parts); await put('bseVarAll', []); await put('bseVarRounds', 0); await put('bseVariants', []); await put('bseSwap', [])
+    return review()
+  }
+  // Rotation with AI: link/number kept exactly — or the customer gives other links/numbers and each version gets one of them.
+  async function offerVariants(swap) {
+    const rounds = info.bseVarRounds || 0; if (rounds >= 3) return send(chatId, say('variants_max'), kb([[L.use_all], [L.keep], [L.back]]))
+    const prev = info.bseVarAll || [], r = await B.aiVariants(cid, { text: info.bseContent[0], optOut: info.bseOptOut !== false, avoid: [...info.bseContent, ...prev], swap: swap ?? info.bseSwap ?? [] })
+    if (r.error) return send(chatId, `⚠️ ${errText(lang, r)}`, kb([[L.rotate_ai], [L.use_one], [L.back]]))
+    await put('bseVarShown', r.variants); await put('bseVarAll', [...prev, ...r.variants]); await put('bseVarRounds', rounds + 1); await go('bse-variants-pick')
+    return send(chatId, say('variants_list', r.variants, info.bseOptOut !== false), kb([[L.use_all], [L.more], [L.keep], [L.back]]))
+  }
+  if (action === 'bse-review') {
+    if (message === L.use_one || message === L.use_these) return finalize([])
+    if (message === L.edit) { await go('bse-content'); return contentAsk() }
+    if (message === L.rotate_own) { await go('bse-content'); return contentAsk('own_q') }
+    if (message === L.rotate_ai) {
+      if (!B.hasLinkOrPhone(info.bseContent[0])) return offerVariants([])
+      await go('bse-ai-links'); return send(chatId, say('ai_links_q'), kb([[L.same_links], [L.back]]))
+    }
+    return send(chatId, say('pick_option'))
+  }
+  if (action === 'bse-ai-links') {
+    if (message === L.same_links) { await put('bseSwap', []); return offerVariants([]) }
+    const alts = String(message).split('\n').map(x => x.trim()).filter(Boolean)
+    if (!alts.length || alts.length > 10 || !alts.every(B.onlyLinkOrPhone)) return send(chatId, `⚠️ ${say('err_links_bad')}`)
+    await put('bseSwap', alts); return offerVariants(alts)
+  }
+  if (action === 'bse-variants-pick') {
+    const shown = info.bseVarShown || [], chosen = info.bseVariants || []
+    if (message === L.use_all) return finalize([...chosen, ...shown])
+    if (message === L.more) { await put('bseVariants', chosen); return offerVariants() }
+    if (message === L.keep) return finalize(chosen)
+    const nums = [...new Set((String(message).match(/\d+/g) || []).map(Number).filter(n => n >= 1 && n <= shown.length))]
+    if (nums.length && /^[\d\s,.]+$/.test(String(message).trim())) return finalize([...chosen, ...nums.map(n => shown[n - 1])])
+    return send(chatId, say('pick_option'))
+  }
+  // Campaign created from the draft (numbers + message); then Step 3 — optional test.
+  async function finalize(variants) {
+    const d = await drafts().findOne({ _id: cid }) || {}, f = d.file, content = [...info.bseContent, ...(variants || [])]
     const upload = f ? await saveUpload(B.db(), cid, { name: f.name, data: f.raw }).catch(e => { console.log(`[BulkESIM] upload store: ${e.message}`); return null }) : null
-    const cr = await B.createCampaign(cid, { name: info.bseName, content: info.bseContent, contacts: d.contacts || [], withLinks: !!info.bseLinks, optOut: info.bseOptOut !== false, consent: true, uploadId: upload?._id })
-    if (cr.error) { await go('bse-contacts'); return send(chatId, `⚠️ ${errText(lang, cr)}\n\n${say('contacts_again')}`, kb([[L.back]])) }
-    const cp = cr.campaign, c = await B.cfg(), unit = cp.withLinks ? c.priceLink : c.pricePlain
+    const cr = await B.createCampaign(cid, { name: content[0].slice(0, 40), content, contacts: d.contacts || [], skip: d.skip || [], optOut: info.bseOptOut !== false, consent: true, uploadId: upload?._id })
+    if (cr.error) { await go('bse-contacts'); const c = await B.cfg(); return send(chatId, `⚠️ ${errText(lang, cr)}\n\n${say('contacts_q', { min: c.minVolume, max: c.maxVolume })}`, kb([[L.back]])) }
+    const cp = cr.campaign, c = await B.cfg(), unit = unitOf(c, cp.withLinks)
     await put('bseCampaign', cp._id); await drafts().deleteOne({ _id: cid }); await go('bse-test')
-    return send(chatId, say('contacts_ok', { n: cp.volume, parts: cp.parts, dropped: cp.dropped, max: c.maxVolume, price: Math.round(cp.parts * unit * 100) / 100, tests: c.testSends, ...info.bseParsed }), kb([[L.test], [L.cont], [L.back]]))
+    return send(chatId, say('ready', { n: cp.volume, v: cp.content.length, price: Math.round(cp.parts * unit * 100) / 100, unit, tests: c.testSends }), kb([[L.test], [L.cont], [L.back]]))
   }
   // Tests: wallet must cover the campaign (so tests mean "about to buy"), only to verified own numbers, charged at the unit price
   // (refunded when the campaign is paid), within the account quota.
-  const price = async (cp) => { const c = await B.cfg(); return Math.round((cp.parts * (cp.withLinks ? c.priceLink : c.pricePlain) + (cp.replies ? c.replyFee : 0)) * 100) / 100 }
+  const price = async (cp) => { const c = await B.cfg(); return Math.round((cp.parts * unitOf(c, cp.withLinks) + (cp.replies ? c.replyFee : 0)) * 100) / 100 }
   async function askTestNumber() {
     const nums = await B.testNumbers(cid), c = await B.cfg(); await go('bse-test-to')
     if (!nums.length) { await go('bse-test-add'); return send(chatId, say('test_add_q', c.testNumbersMax), kb([[L.back]])) }
@@ -141,7 +156,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
       if (bal < need) return send(chatId, say('test_locked', need, Number(bal).toFixed(2)), kb([[L.cont], [L.back]]))
       return askTestNumber()
     }
-    if (message === L.cont) { const c = await B.cfg(); await go('bse-replies'); return send(chatId, say('replies_q', c.replyFee), kb([[L.replies_yes(c.replyFee)], [L.replies_no], [L.back]])) }
+    if (message === L.cont) return askWhen()
     return false
   }
   if (action === 'bse-test-add') {
@@ -161,20 +176,13 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     if (r.error) { await w.credit(chatId, k.charge); return send(chatId, `⚠️ ${errText(lang, r)}`, kb([[L.test], [L.cont], [L.back]])) }
     return send(chatId, say('test_ok', r.left, k.charge), kb([...(r.left ? [[L.test]] : []), [L.cont], [L.back]]))
   }
-  // Paid replies: only campaigns that pay the reply fee get their replies forwarded; otherwise replies stay with the platform (STOP/HELP always honoured).
-  if (action === 'bse-replies') {
-    const c = await B.cfg(), yes = message === L.replies_yes(c.replyFee)
-    if (!yes && message !== L.replies_no) return send(chatId, say('pick_option'))
-    await B.setReplies(cid, info.bseCampaign, yes); await put('bseReplies', yes)
-    return askWhen()
-  }
-  // Send now (this hour, full price) or schedule (24 h+ ahead → scheduleDiscountPct cheaper). When the pool is busy right now the
-  // earliest hour today is offered instead, still at full price.
+  // Step 4 — one screen: send now (this hour, full price) or schedule (24 h+ ahead → cheaper), with the paid-replies toggle.
+  // Only campaigns that pay the reply fee get replies forwarded; otherwise replies stay with the platform (STOP/HELP always honoured).
   async function askWhen() {
     const w = await B.whenOptions(cid, info.bseCampaign); if (w.error) return send(chatId, `⚠️ ${errText(lang, w)}`)
-    await go('bse-when')
-    const hh = (h) => `${String(h).padStart(2, '0')}:00`, rows = [...(w.now ? [[L.now]] : w.later ? [[`${L.later} ${hh(w.later.hour)}`]] : []), [L.sched], [L.back]]
-    return send(chatId, say('when_q', { parts: w.parts, replyFee: w.replyFee, nowPrice: w.now?.price, later: w.later ? hh(w.later.hour) : null, laterPrice: w.later?.price, quiet: w.quiet, lines: w.lines, pct: w.schedule.pct, schedPrice: w.schedule.price, list: w.schedule.list, minHours: w.schedule.minHours }), kb(rows))
+    const c = await B.cfg(); await go('bse-when')
+    const hh = (h) => `${String(h).padStart(2, '0')}:00`, rows = [...(w.now ? [[L.now]] : w.later ? [[`${L.later} ${hh(w.later.hour)}`]] : []), [L.sched], [w.replyFee ? L.replies_off : L.replies_add(c.replyFee)], [L.back]]
+    return send(chatId, say('when_q', { parts: w.parts, replyFee: w.replyFee, fee: c.replyFee, nowPrice: w.now?.price, later: w.later ? hh(w.later.hour) : null, laterPrice: w.later?.price, quiet: w.quiet, lines: w.lines, pct: w.schedule.pct, schedPrice: w.schedule.price, list: w.schedule.list, minHours: w.schedule.minHours }), kb(rows))
   }
   async function showBooking(b) {
     await put('bseBookingId', b._id); await go('bse-pay')
@@ -182,6 +190,8 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     return send(chatId, say('booking', { code: b._id.slice(-6), parts: b.volume, date: b.date, hour: String(b.hour).padStart(2, '0'), end: b.estimatedCompletion.toISOString().slice(11, 16), price: b.price, unit: b.unitPrice, wallet: bal != null ? bal.toFixed(2) : null, hold: c.holdMinutes }) + (b.replyFee ? `\n${say('replies_line', b.replyFee)}` : '') + (b.discountPct ? `\n${say('disc_line', b.discountPct, b.listPrice)}` : b.mode === 'now' ? `\n${say('now_line')}` : ''), kb([[L.wallet], [L.other], [L.back]]))
   }
   if (action === 'bse-when') {
+    const fee = (await B.cfg()).replyFee
+    if (message === L.replies_add(fee) || message === L.replies_off) { await B.setReplies(cid, info.bseCampaign, message !== L.replies_off); return askWhen() }
     const laterH = message.startsWith(L.later) ? parseInt(message.slice(L.later.length).trim(), 10) : NaN
     if (message === L.now || laterH >= 0) {
       const r = await B.createBooking(cid, { campaignId: info.bseCampaign, ...(message === L.now ? { now: true } : { date: new Date().toISOString().slice(0, 10), hour: laterH }) })

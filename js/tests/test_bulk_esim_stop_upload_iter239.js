@@ -225,20 +225,20 @@ const openHour = async (date, need = 1) => (await B.availability(date)).slots.fi
   const srv = http.createServer((req, res) => { res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end(list) }).listen(0)
   const port = srv.address().port
   const mkCtx = (chatId, msg, st) => { const sent = []; return { sent, ctx: { chatId, msg, message: msg.text || '', info: st, state: {}, set: async (_s, _c, k, v) => { st[k] = v }, saveInfo: async (k, v) => { st[k] = v }, send: async (_c, t) => { sent.push(t) }, goto: {}, bot: { getFileLink: async () => `http://127.0.0.1:${port}/f.csv` } } } }
-  const agree = async (chatId, st) => { const r = mkCtx(chatId, { text: I.btn(st.userLanguage || 'en').agree }, st); await BOT.handle(r.ctx); return r }
+  const agree = async (chatId, st) => { const L = I.btn(st.userLanguage || 'en'); for (const text of [L.agree, 'Hi', L.use_one]) { const r = mkCtx(chatId, { text }, st); await BOT.handle(r.ctx) } }
   let st = { action: 'bse-contacts', bseName: 'TEST_upload', bseContent: ['Hi'], bseLinks: false }
   let r = mkCtx('9100', { document: { file_id: 'x', file_name: 'list.exe', file_size: 100 } }, st); await BOT.handle(r.ctx)
   ok('upload .exe rejected', /\.txt or \.csv/.test(r.sent[0] || '') && st.action === 'bse-contacts')
   r = mkCtx('9100', { document: { file_id: 'x', file_name: 'big.csv', file_size: 3e6 } }, st); await BOT.handle(r.ctx)
   ok('upload >2MB rejected', /under 2 MB/.test(r.sent[0] || '') && st.action === 'bse-contacts')
   r = mkCtx('9100', { document: { file_id: 'x', file_name: 'Contacts.CSV', file_size: 9000 } }, st); await BOT.handle(r.ctx)
-  ok('.CSV parsed → consent step, list in bsDrafts, nothing stored yet', st.action === 'bse-consent' && (await db.collection('bsDrafts').findOne({ _id: 'Nomadly:9100' }))?.contacts?.length === 505 && (await db.collection('bsUploads').countDocuments()) === 0 && /505 numbers/.test(r.sent[0] || ''), r.sent[0]?.slice(0, 60))
+  ok('.CSV parsed → consent step, list in bsDrafts, nothing stored yet', st.action === 'bse-consent' && (await db.collection('bsDrafts').findOne({ _id: 'Nomadly:9100' }))?.contacts?.length === 505 && (await db.collection('bsUploads').countDocuments()) === 0 && /505<\/b> numbers/.test(r.sent[1] || '') && /opted out/.test(r.sent[1] || ''), r.sent[1]?.slice(0, 90))
   r = mkCtx('9100', { text: 'yes' }, st); await BOT.handle(r.ctx)
   ok('consent step needs the button', st.action === 'bse-consent' && /pick one/.test(r.sent[0] || ''))
-  r = await agree('9100', st)
+  await agree('9100', st)
   const cp = await db.collection('bsCampaigns').findOne({ _id: st.bseCampaign })
   const up = cp?.uploadId && await db.collection('bsUploads').findOne({ _id: cp.uploadId })
-  ok('consent → campaign (opted-out skipped, consentAt set, draft removed)', st.action === 'bse-test' && cp?.volume === 505 && !!cp.consentAt && /opted out/.test(r.sent[0] || '') && !(await db.collection('bsDrafts').findOne({ _id: 'Nomadly:9100' })), r.sent[0]?.slice(0, 90))
+  ok('consent → campaign (opted-out skipped, consentAt set, draft removed)', st.action === 'bse-test' && cp?.volume === 505 && !!cp.consentAt && cp.contacts.length === 505 && !(await db.collection('bsDrafts').findOne({ _id: 'Nomadly:9100' })), JSON.stringify([st.action, cp?.volume]))
   ok('upload copy stored after consent (bsUploads + campaign.uploadId)', !!up && !!up.storagePath && up.originalName === 'Contacts.CSV' && up.contentType === 'text/csv')
   if (up) ok('stored object readable from Object Storage', (await storage.get(up.storagePath)).toString().includes('555-3000'))
   // too few → never stored

@@ -20,9 +20,9 @@ const tg = async (text, wait = 1800) => { await axios.post('http://localhost:500
   const walk = async (label, steps) => { for (const [text, want, wait] of steps) { await tg(text, wait); const a = (await st()).action; ok(`${label}: ${JSON.stringify(String(text).slice(0, 28))} → ${want}`, a === want, a) } }
 
   // Run 1: text only, no opt-out, 161 refused / 160 ok, keep text, replies yes, send now → $71
-  await walk('run1', [['🛰 eSIM BulkSMS (USA/Canada)', 'bse-home'], ['📤 New campaign', 'bse-name'], ['TEST_iter242 now', 'bse-type'], ['📝 Text only', 'bse-optout'], ['✖️ No opt-out line', 'bse-content'],
-    ['a'.repeat(161), 'bse-content'], ['a'.repeat(160), 'bse-variants'], ['➡️ Keep my text only', 'bse-contacts'], [contacts(4000), 'bse-consent', 2500], ['✅ Yes, they all agreed', 'bse-test', 2500],
-    ['➡️ Continue to booking', 'bse-replies'], ['💬 Yes, route replies to me (+$20)', 'bse-when'], ['🚀 Send now', 'bse-pay']])
+  await walk('run1', [['🛰 eSIM BulkSMS (USA/Canada)', 'bse-home'], ['📤 New campaign', 'bse-contacts'], [contacts(4000), 'bse-consent', 2500], ['✅ Yes, they all agreed', 'bse-content'], ['✖️ Remove opt-out line (160 chars)', 'bse-content'],
+    ['a'.repeat(161), 'bse-content'], ['a'.repeat(160), 'bse-review'], ['✅ Send this one message', 'bse-test', 2500],
+    ['➡️ Continue: choose when', 'bse-when'], ['💬 Add replies (+$20)', 'bse-when'], ['🚀 Send now', 'bse-pay']])
   const s1 = await st(), b1 = await db.collection('bsBookings').findOne({ _id: s1.bseBookingId }), cp1 = await db.collection('bsCampaigns').findOne({ _id: s1.bseCampaign })
   ok('run1 campaign optOut=false replies=true content 160 chars', cp1?.optOut === false && cp1.replies === true && cp1.content[0].length === 160, JSON.stringify([cp1?.optOut, cp1?.replies]))
   ok('run1 booking mode now, replyFee 20, price 71, no discount', b1?.mode === 'now' && b1.replyFee === 20 && b1.price === 71 && b1.discountPct === 0 && b1.hour === new Date().getUTCHours(), JSON.stringify(b1 && [b1.mode, b1.replyFee, b1.price, b1.discountPct, b1.hour]))
@@ -34,13 +34,14 @@ const tg = async (text, wait = 1800) => { await axios.post('http://localhost:500
 
   // Run 2: text only + opt-out, real AI variants (1 Claude call), pick "1 3", no replies, schedule 2 days ahead → $45.9
   const d2 = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10)
-  await walk('run2', [['🛰 eSIM BulkSMS (USA/Canada)', 'bse-home'], ['📤 New campaign', 'bse-name'], ['TEST_iter242 sched', 'bse-type'], ['📝 Text only', 'bse-optout'], ['✅ Add “Reply STOP to opt out”', 'bse-content'],
-    ['a'.repeat(139), 'bse-content'], ['Spring sale at Nomadly: 20% off all eSIM plans this week.', 'bse-variants'], ['✨ 5 AI variants', 'bse-variants-pick', 25000], ['1 3', 'bse-contacts']])
+  await walk('run2', [['🛰 eSIM BulkSMS (USA/Canada)', 'bse-home'], ['📤 New campaign', 'bse-contacts'], [contacts(6000), 'bse-consent', 2500], ['✅ Yes, they all agreed', 'bse-content'],
+    ['a'.repeat(139), 'bse-content'], ['Spring sale at Nomadly: 20% off all eSIM plans this week.', 'bse-review'], ['✨ Rotate: AI writes versions', 'bse-variants-pick', 25000], ['1 3', 'bse-test', 2500]])
   const s2a = await st()
-  ok('run2 content = original + 2 picked AI variants, each fits one SMS w/ opt-out', s2a.bseContent?.length === 3 && s2a.bseContent.every(v => !B.checkContent(v, false, true).error), JSON.stringify(s2a.bseContent))
+  const cp2 = await db.collection('bsCampaigns').findOne({ _id: s2a.bseCampaign })
+  ok('run2 content = original + 2 picked AI variants, each fits one SMS w/ opt-out', cp2?.content?.length === 3 && cp2.content.every(v => !B.checkContent(v, false, true).error), JSON.stringify(cp2?.content))
   const av = await db.collection('bsAiVariants').findOne({ cid }, { sort: { at: -1 } })
   ok('run2 bsAiVariants logged with model claude-opus-5-5', av?.model === 'claude-opus-5-5' && av.variants.length >= 1, JSON.stringify([av?.model, av?.variants?.length, av?.raw?.length]))
-  await walk('run2b', [[contacts(6000), 'bse-consent', 2500], ['✅ Yes, they all agreed', 'bse-test', 2500], ['➡️ Continue to booking', 'bse-replies'], ['🚫 No replies', 'bse-when'], ['📅 Schedule (cheaper)', 'bse-day'], [d2, 'bse-hour', 2500]])
+  await walk('run2b', [['➡️ Continue: choose when', 'bse-when'], ['📅 Schedule (cheaper)', 'bse-day'], [d2, 'bse-hour', 2500]])
   await walk('run2c', [['12:00 · x free', 'bse-pay', 2500]])
   const s2 = await st(), b2 = await db.collection('bsBookings').findOne({ _id: s2.bseBookingId })
   ok('run2 booking scheduled, 10% off: price 45.9, list 51, unit 0.09, replyFee 0', b2?.mode === 'scheduled' && b2.price === 45.9 && b2.listPrice === 51 && b2.unitPrice === 0.09 && b2.replyFee === 0 && b2.discountPct === 10, JSON.stringify(b2 && [b2.mode, b2.price, b2.listPrice, b2.unitPrice, b2.replyFee, b2.discountPct]))

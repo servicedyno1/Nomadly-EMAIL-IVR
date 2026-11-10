@@ -19,8 +19,8 @@ const tg = async (text) => { await axios.post('http://localhost:5000/telegram/we
     await db.collection('state').updateOne({ _id: String(CHAT) }, { $set: { userLanguage: lang, action: 'none' } }, { upsert: true })
     await db.collection('walletOf').updateOne({ _id: String(CHAT) }, { $set: { usdIn: 100, usdOut: 0 } }, { upsert: true })
     const hour = (await B.availability(day)).slots.find(s => s.free >= 600)?.hour
-    const steps = [[L.home, 'bse-home'], [L.newc, 'bse-name'], [`QA ${lang}`, 'bse-type'], [L.plain, 'bse-optout'], [L.optout_yes, 'bse-content'], ['Visit www.qa.com', 'bse-content'], ['Call 2125551234', 'bse-content'], ['Hi from QA', 'bse-variants'], [L.keep, 'bse-contacts'],
-      [Array.from({ length: 510 }, (_, i) => `+1212555${2000 + i}`).join('\n'), 'bse-consent'], ['yes', 'bse-consent'], [L.agree, 'bse-test'], [L.cont, 'bse-replies'], [L.replies_no, 'bse-when'], [L.sched, 'bse-day'], [day, 'bse-hour'], [`${String(hour).padStart(2, '0')}:00`, 'bse-pay'], [L.wallet, 'bse-home'], [L.bookings, 'bse-home'], [L.usage, 'bse-home'], [L.back, 'none']]
+    const steps = [[L.home, 'bse-home'], [L.newc, 'bse-contacts'], ['+12125550000', 'bse-contacts'], [Array.from({ length: 510 }, (_, i) => `+1212555${2000 + i}`).join('\n'), 'bse-consent'], ['yes', 'bse-consent'], [L.agree, 'bse-content'], ['x'.repeat(139), 'bse-content'], [L.optout_no, 'bse-content'], ['Hi from QA', 'bse-review'], [L.use_one, 'bse-test'],
+      [L.cont, 'bse-when'], [L.replies_add(20), 'bse-when'], [L.replies_off, 'bse-when'], [L.sched, 'bse-day'], [day, 'bse-hour'], [`${String(hour).padStart(2, '0')}:00`, 'bse-pay'], [L.wallet, 'bse-home'], [L.bookings, 'bse-home'], [L.usage, 'bse-home'], [L.back, 'none']]
     let allOk = true
     for (const [text, want] of steps) { await tg(text); const a = (await st()).action; if (a !== want) { allOk = false; console.log(`   ❌ [${lang}] ${JSON.stringify(text.slice(0, 30))} → ${a} (want ${want})`) } }
     const bk = await db.collection('bsBookings').findOne({ cid, date: day, status: 'scheduled' }), w = await db.collection('walletOf').findOne({ _id: String(CHAT) })

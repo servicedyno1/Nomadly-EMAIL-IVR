@@ -11,7 +11,7 @@ const { validUsCa, quietWait, hourOpen } = require('./tz')
 const DEFAULTS = {
   defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 8, quietEnd: 21,
   platformPerMin: 30, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
-  minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testNumbersMax: 3, testsPerDay: 4, testsPerWeek: 10,
+  minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testNumbersMax: 3, testsPerDay: 4, testsPerWeek: 10, numberCheck: true, lookupCost: 0.0025, lookupDays: 30,
   minEsims: 2, monitorEsims: 1, testerEsims: 1, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
   minCredit: 10, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
   esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: true, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3, cancelDeadAfterDays: 3, checkEveryTexts: 100, apiFailsToReplace: 3, platformPerMinAuto: true,
@@ -552,7 +552,7 @@ async function cancelDead(c) {
   }
 }
 async function expireHolds() {
-  await C('bsConfig').deleteMany({ _id: /^(creditwarn|replaces|scale|provcredit|help|replimit|acctadvice|authfail|aifallback|aidown):/, at: { $lt: new Date(Date.now() - 30 * DAY) } }).catch(() => {})
+  await C('bsConfig').deleteMany({ _id: /^(creditwarn|replaces|scale|provcredit|help|replimit|acctadvice|authfail|aifallback|aidown|lookupdown):/, at: { $lt: new Date(Date.now() - 30 * DAY) } }).catch(() => {})
   for (const b of await C('bsBookings').find({ status: { $in: ['pending', 'awaiting_payment'] }, holdUntil: { $lt: new Date(Date.now() - 6 * HOUR) } }).limit(100).toArray()) await setBooking(b._id, 'cancelled', { note: 'hold_expired' })
 }
 
@@ -572,21 +572,64 @@ async function parseContacts(cid, raw) {
 const MAX_PARTS = 1
 const optLine = (optOut) => (optOut === false ? '' : OPT)
 const bodyOf = (cp, i) => cp.content[i % cp.content.length] + optLine(cp.optOut)
+// withLinks undefined → the price type comes from the text itself (any version with a link/phone = link price), so it can't be gamed.
 function checkContent(content, withLinks, optOut = true) {
   const parts = (Array.isArray(content) ? content : String(content || '').split(/\n?---\n?/)).map(x => x.trim()).filter(Boolean)
   if (!parts.length) return E('err_add_text')
   if (parts.some(p => segs(p + optLine(optOut)) > MAX_PARTS)) return E('err_too_long', optOut === false ? 160 : 160 - OPT.length)
-  if (!withLinks && parts.some(hasLinkOrPhone)) return E('err_has_link')
-  return { parts, segs: parts.map(p => segs(p + optLine(optOut))), optOut: optOut !== false }
+  const linked = parts.some(hasLinkOrPhone)
+  if (withLinks === false && linked) return E('err_has_link')
+  return { parts, segs: parts.map(p => segs(p + optLine(optOut))), optOut: optOut !== false, withLinks: withLinks === undefined ? linked : !!withLinks }
+}
+// Number check before sending (Telnyx carrier lookup, cached cfg.lookupDays): only mobile numbers get texts; landlines, internet
+// (VoIP) and invalid numbers are skipped. Free for the customer (cost logged for the admin). A failed lookup never blocks a number.
+const SENDABLE = ['mobile', 'fixed line or mobile', 'unknown']
+let lookupHook = null
+const setLookup = (fn) => { lookupHook = fn }
+const lookupLive = () => !!process.env.TELNYX_API_KEY && (!P.dry() || process.env.BULK_ESIM_LOOKUP_LIVE === 'true')
+async function lookupOne(p) {
+  if (lookupHook) return lookupHook(p)
+  if (!lookupLive()) { const n = Number(p.slice(-4)); return { type: n >= 9900 && n < 9950 ? 'fixed line' : n >= 9950 ? 'voip' : 'mobile', simulated: true } }
+  const r = await axios.get(`https://api.telnyx.com/v2/number_lookup/${encodeURIComponent(p)}`, { params: { type: 'carrier' }, headers: { Authorization: `Bearer ${process.env.TELNYX_API_KEY}` }, timeout: 15000 })
+  const d = r.data?.data || {}
+  return { type: d.valid_number === false ? 'invalid' : String(d.carrier?.type || 'unknown').toLowerCase(), carrier: d.carrier?.normalized_carrier || d.carrier?.name || null }
+}
+async function checkNumbers(cid, list) {
+  const c = await cfg(), res = new Map(); let looked = 0, failed = 0
+  if (!c.numberCheck || !list.length) return { skip: [], counts: { landline: 0, voip: 0, invalid: 0, other: 0 }, sendable: list.length, looked: 0, cost: 0 }
+  for (const x of await C('bsLookups').find({ _id: { $in: list }, at: { $gt: new Date(Date.now() - c.lookupDays * DAY) } }).toArray()) res.set(x._id, x)
+  const todo = list.filter(p => !res.has(p))
+  for (let i = 0; i < todo.length; i += 20) {
+    await Promise.all(todo.slice(i, i + 20).map(async (p) => {
+      try { const r = await lookupOne(p), doc = { _id: p, type: r.type, carrier: r.carrier || null, at: new Date() }; res.set(p, doc); if (!r.simulated) { looked++; await C('bsLookups').replaceOne({ _id: p }, doc, { upsert: true }) } } catch (_) { failed++ }
+    }))
+  }
+  if (failed && await once(`lookupdown:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Number check: ${failed} of ${todo.length} Telnyx lookups failed — those numbers were kept (not skipped). Check the Telnyx balance / API key.`)
+  const kind = (t) => (t === 'fixed line' ? 'landline' : t === 'voip' ? 'voip' : t === 'invalid' ? 'invalid' : 'other')
+  const skip = list.filter(p => res.has(p) && !SENDABLE.includes(res.get(p).type)), counts = { landline: 0, voip: 0, invalid: 0, other: 0 }
+  for (const p of skip) counts[kind(res.get(p).type)]++
+  const cost = Math.round(looked * c.lookupCost * 10000) / 10000
+  await C('bsLookupLog').insertOne({ cid, at: new Date(), numbers: list.length, looked, cached: list.length - todo.length, failed, skipped: skip.length, counts, cost }).catch(() => {})
+  return { skip, counts, sendable: list.length - skip.length, looked, cost }
 }
 const urlsAndPhones = (t) => new Set([...(String(t).match(LINK_G) || []), ...(String(t).match(PHONE_G) || [])].map(x => x.toLowerCase()))
 // AI variants of one text (Claude Opus 5.5 through the Python backend). Every variant is re-validated: fits one SMS with the opt-out
 // line, no link/phone for text-only, no URL/phone that the original lacks, not a duplicate. Dry mode: simulated variants.
-async function aiVariants(cid, { text, withLinks = false, optOut = true, avoid = [] }) {
+// swap: other links/phone numbers the customer wants rotated — variant i gets swap[i % n] in place of the original link/number of the same kind.
+const isLinkTok = (t) => LINK.test(t) && !hasPhone(t)
+const onlyLinkOrPhone = (t) => hasLinkOrPhone(t) && !String(t).replace(LINK_G, '').replace(PHONE_G, '').trim()
+function swapIn(text, src, alt) {
+  const a = String(alt).trim(), link = isLinkTok(a), orig = [...(String(src).match(LINK_G) || []).map(x => [x, true]), ...(String(src).match(PHONE_G) || []).filter(x => x.replace(/\D/g, '').length >= 7).map(x => [x, false])].find(([, l]) => l === link)
+  return orig && text.includes(orig[0]) ? text.split(orig[0]).join(a) : null
+}
+async function aiVariants(cid, { text, withLinks, optOut = true, avoid = [], swap = [] }) {
   const src = String(text || '').trim(), limit = 160 - optLine(optOut).length, want = 5
   if (!src) return E('err_add_text')
-  const allowed = urlsAndPhones(src), known = new Set([src, ...avoid].map(x => x.toLowerCase()))
-  const valid = (v) => { const t = String(v || '').trim(); if (!t || known.has(t.toLowerCase()) || segs(t + optLine(optOut)) > MAX_PARTS) return null; if (!withLinks && hasLinkOrPhone(t)) return null; for (const u of urlsAndPhones(t)) if (!allowed.has(u)) return null; return t }
+  if (withLinks === undefined) withLinks = hasLinkOrPhone(src)
+  const alts = withLinks ? swap.map(x => String(x).trim()).filter(Boolean).slice(0, 10) : []
+  if (alts.some(a => !onlyLinkOrPhone(a) || swapIn(src, src, a) == null)) return E('err_links_bad')
+  const allowed = urlsAndPhones([src, ...alts].join(' ')), known = new Set([src, ...avoid].map(x => x.toLowerCase()))
+  const valid = (v) => { const t = String(v || '').trim(); if (!t || known.has(t.toLowerCase()) || segs(t + optLine(optOut)) > MAX_PARTS) return null; if (!withLinks && hasLinkOrPhone(t)) return null; for (const u of urlsAndPhones(t)) if (!allowed.has(u)) return null; for (const u of urlsAndPhones(src)) if (!alts.length && !t.toLowerCase().includes(u)) return null; return t }
   let raw = [], model = 'simulated'
   if (P.dry() && !process.env.EMERGENT_LLM_KEY) raw = Array.from({ length: want + 2 }, (_, i) => `${['Hi!', 'Hello,', 'Quick note:', 'Heads up:', 'FYI:', 'Reminder:', 'Today:'][i]} ${src}`)
   else {
@@ -600,17 +643,20 @@ async function aiVariants(cid, { text, withLinks = false, optOut = true, avoid =
     }
   }
   const out = []
-  for (const v of raw) { const t = valid(v); if (t && !out.some(x => x.toLowerCase() === t.toLowerCase())) out.push(t); if (out.length === want) break }
+  for (const v0 of raw) { const v = alts.length ? swapIn(String(v0 || ''), src, alts[out.length % alts.length]) : v0; const t = v && valid(v); if (t && !out.some(x => x.toLowerCase() === t.toLowerCase())) out.push(t); if (out.length === want) break }
   await C('bsAiVariants').insertOne({ _id: id('av'), cid, text: src, withLinks, optOut, model, raw, variants: out, at: new Date() })
   return out.length ? { variants: out, dropped: raw.length - out.length } : E('err_ai')
 }
-async function createCampaign(cid, { name, content, contacts, withLinks = false, optOut = true, replies = false, consent = false, uploadId = null }) {
+// Every uploaded number is billed; numbers in `skip` (failed the number check) are billed but never texted.
+async function createCampaign(cid, { name, content, contacts, withLinks, optOut = true, replies = false, consent = false, uploadId = null, skip = [] }) {
   const c = await cfg(), k = checkContent(content, withLinks, optOut); if (k.error) return k
   if (!consent) return E('err_consent')
   let total = 0, n = 0
   for (; n < contacts.length; n++) { const s = k.segs[n % k.parts.length]; if (total + s > c.maxVolume) break; total += s }
   if (total < c.minVolume) return E('err_few', c.minVolume, total)
-  const doc = { _id: id('cp'), cid, name: String(name || 'Campaign').slice(0, 60), content: k.parts, withLinks: !!withLinks, optOut: k.optOut, replies: !!replies, consentAt: new Date(), contacts: contacts.slice(0, n), dropped: contacts.length - n, parts: total, uploadId, volume: n, status: 'draft', testsUsed: 0, stats: { queued: 0, sent: 0, failed: 0, rejected: 0, replies: 0, optOuts: 0 }, createdAt: new Date() }
+  const kept = contacts.slice(0, n), sk = new Set(skip), send = kept.filter(p => !sk.has(p)), skipped = kept.filter(p => sk.has(p))
+  if (!send.length) return E('err_no_mobile')
+  const doc = { _id: id('cp'), cid, name: String(name || 'Campaign').slice(0, 60), content: k.parts, withLinks: k.withLinks, optOut: k.optOut, replies: !!replies, consentAt: new Date(), contacts: send, skipped, dropped: contacts.length - n, parts: total, uploadId, volume: n, status: 'draft', testsUsed: 0, stats: { queued: 0, sent: 0, failed: 0, rejected: 0, replies: 0, optOuts: 0, skipped: skipped.length }, createdAt: new Date() }
   await C('bsCampaigns').insertOne(doc); return { campaign: doc }
 }
 // Paid replies (+cfg.replyFee at booking): only then are replies to this campaign's texts forwarded to the customer.
@@ -784,7 +830,7 @@ async function finishCampaigns() {
     const started = await C('bsMessages').countDocuments({ campaignId: cp._id, test: false, status: { $ne: 'queued' } })
     if (cp.status === 'scheduled' && started) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'running', startedAt: new Date() } }); await setBooking(cp.bookingId, 'processing'); await notify(cp.cid, 'campaign', 'n_started', [cp.name], { campaignId: cp._id }) }
     if (open && !cp.lateNotified && cp.scheduledAt && Date.now() - new Date(cp.scheduledAt).getTime() > 2 * HOUR && started < (cp.stats?.queued || 0) / 2) { const r = await C('bsCampaigns').updateOne({ _id: cp._id, lateNotified: { $ne: true } }, { $set: { lateNotified: true } }); if (r.modifiedCount) await notify(cp.cid, 'campaign', 'n_late', [cp.name, (cp.stats?.sent || 0), cp.stats?.queued || 0], { campaignId: cp._id }) }
-    if (started && !open) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'completed', completedAt: new Date() } }); await setBooking(cp.bookingId, 'completed'); const r = await report(cp._id); await notify(cp.cid, 'campaign', 'n_done', [cp.name, r.sent, r.failed, r.rejected, r.replies], { campaignId: cp._id }); await refundUnsent(cp) }
+    if (started && !open) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'completed', completedAt: new Date() } }); await setBooking(cp.bookingId, 'completed'); const r = await report(cp._id); await notify(cp.cid, 'campaign', 'n_done', [cp.name, r.sent, r.failed, r.rejected, r.replies, r.skipped], { campaignId: cp._id }); await refundUnsent(cp) }
   }
 }
 // Spenza tells each account's real SMS limit in X-RateLimit-* headers: adopt a changed limit as that account's rate (so capacity,
@@ -888,7 +934,8 @@ async function report(campaignId) {
   const rows = await C('bsMessages').aggregate([{ $match: { campaignId, test: { $ne: true } } }, { $group: { _id: { d: '$direction', s: '$status' }, n: { $sum: 1 } } }]).toArray()
   const g = (d, s) => rows.filter(r => r._id.d === d && (!s || s.includes(r._id.s))).reduce((a, r) => a + r.n, 0)
   const sent = g('out', ['sent', 'delivered']), failed = g('out', ['failed']), total = g('out')
-  return { total, sent, failed, rejected: g('out', ['rejected', 'expired']), queued: g('out', ['queued', 'processing', 'submitted']), replies: g('in', ['received']), kept: g('in', ['kept']), successPct: total ? Math.round((sent / total) * 1000) / 10 : 0 }
+  const cp = await C('bsCampaigns').findOne({ _id: campaignId }, { projection: { 'stats.skipped': 1 } })
+  return { skipped: cp?.stats?.skipped || 0, total, sent, failed, rejected: g('out', ['rejected', 'expired']), queued: g('out', ['queued', 'processing', 'submitted']), replies: g('in', ['received']), kept: g('in', ['kept']), successPct: total ? Math.round((sent / total) * 1000) / 10 : 0 }
 }
 async function overview() {
   const d = dayKey(Date.now(), await cfg())
@@ -994,4 +1041,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { OPT, MAX_PARTS, requestTestNumber, verifyTestNumber, testNumbers, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+module.exports = { onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, requestTestNumber, verifyTestNumber, testNumbers, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }

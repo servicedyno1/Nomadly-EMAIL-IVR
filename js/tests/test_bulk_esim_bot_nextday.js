@@ -20,8 +20,8 @@ const tg = async (text) => { await axios.post('http://localhost:5000/telegram/we
   const st = async () => (await db.collection('state').findOne({ _id: String(CHAT) })) || {}
   await db.collection('state').updateOne({ _id: String(CHAT) }, { $set: { userLanguage: 'en', action: 'none' } }, { upsert: true })
   await db.collection('walletOf').updateOne({ _id: String(CHAT) }, { $set: { usdIn: 100, usdOut: 0 } }, { upsert: true })
-  const steps = [['🛰 eSIM BulkSMS (USA/Canada)', 'bse-home'], ['📤 New campaign', 'bse-name'], ['QA next day', 'bse-type'], ['📝 Text only', 'bse-optout'], ['✅ Add “Reply STOP to opt out”', 'bse-content'], ['Hi from QA', 'bse-variants'], ['➡️ Keep my text only', 'bse-contacts'],
-    [Array.from({ length: 510 }, (_, i) => `+1212555${6000 + i}`).join('\n'), 'bse-consent'], ['✅ Yes, they all agreed', 'bse-test'], ['➡️ Continue to booking', 'bse-replies'], ['🚫 No replies', 'bse-when'], ['📅 Schedule (cheaper)', 'bse-day']]
+  const steps = [['🛰 eSIM BulkSMS (USA/Canada)', 'bse-home'], ['📤 New campaign', 'bse-contacts'], [Array.from({ length: 510 }, (_, i) => `+1212555${6000 + i}`).join('\n'), 'bse-consent'], ['✅ Yes, they all agreed', 'bse-content'], ['Hi from QA', 'bse-review'], ['✅ Send this one message', 'bse-test'],
+    ['➡️ Continue: choose when', 'bse-when'], ['📅 Schedule (cheaper)', 'bse-day']]
   for (const [text, want] of steps) { await tg(text); const a = (await st()).action; ok(`"${text.slice(0, 28)}" → ${want}`, a === want, a) }
   await tg(d(1))
   ok('full day → stays on the day step', (await st()).action === 'bse-day')

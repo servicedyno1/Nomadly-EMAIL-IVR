@@ -39,7 +39,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms))
   const raw = Array.from({ length: 520 }, (_, i) => `+1212555${1000 + i}`).join('\n') + '\nbad,123\n+15551234567\n+18765551234\n+12125551000'
   const pc = await B.parseContacts(cid, raw)
   ok('contacts: invalid, Caribbean and duplicates removed', pc.contacts.length === 520 && pc.invalid === 2 && pc.duplicates === 1, JSON.stringify({ ...pc, contacts: pc.contacts.length }))
-  ok('plain campaign with a link or phone is refused', (await B.createCampaign(cid, { name: 'x', content: 'Shop at www.shop.com', contacts: pc.contacts, consent: true })).error === 'err_has_link' && (await B.createCampaign(cid, { name: 'x', content: 'Call 212 555 0100', contacts: pc.contacts, consent: true })).error === 'err_has_link')
+  ok('declared text-only with a link or phone is refused; undeclared → link price type', (await B.createCampaign(cid, { name: 'x', content: 'Shop at www.shop.com', contacts: pc.contacts, withLinks: false, consent: true })).error === 'err_has_link' && (await B.createCampaign(cid, { name: 'x', content: 'Call 212 555 0100', contacts: pc.contacts, withLinks: false, consent: true })).error === 'err_has_link' && (await B.createCampaign(cid, { name: 'x', content: 'Call 212 555 0100', contacts: pc.contacts, consent: true })).campaign?.withLinks === true)
   ok('campaign needs consent', (await B.createCampaign(cid, { name: 'x', content: 'Hi', contacts: pc.contacts })).error === 'err_consent')
   const cr = await B.createCampaign(cid, { name: 'Spring', content: 'Hello A\n---\nHello B', contacts: pc.contacts, consent: true })
   ok('campaign created with rotation, opt-out line and part count', cr.campaign?.content.length === 2 && cr.campaign.parts === 520 && cr.campaign.withLinks === false)
