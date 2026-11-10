@@ -91,10 +91,18 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
       const P = { projection: { passwordHash: 0, twoFactor: 0 } }
       let web = [], bot = []
       if (!q && withPlan) {
-        // "Has a plan": accounts that own at least one number/plan, newest purchases first.
-        const owners = await db.collection('phoneNumbersOf').find({ 'val.numbers.0': { $exists: true } }, { projection: { _id: 1 } }).sort({ _id: -1 }).limit(500).toArray(), oid = owners.map(o => String(o._id))
-        if (kind !== 'bot') web = await db.collection('webAccounts').find({ _id: { $in: oid.filter(x => /^\d+$/.test(x)).map(Number) } }, P).sort({ createdAt: -1 }).limit(50).toArray()
-        if (kind !== 'web') bot = await db.collection('nameOf').find({ _id: { $in: oid } }).limit(50).toArray()
+        // "Has a plan": accounts that own at least one number/plan. Web ids are matched directly (a sorted owner list would be all bot ids).
+        const has = { 'val.numbers.0': { $exists: true } }
+        const wids = (await db.collection('webAccounts').find({}, { projection: { _id: 1 } }).sort({ createdAt: -1 }).limit(5000).toArray()).map(x => String(x._id))
+        if (kind !== 'bot') {
+          const own = (await db.collection('phoneNumbersOf').find({ ...has, _id: { $in: wids } }, { projection: { _id: 1 } }).toArray()).map(o => Number(o._id))
+          web = await db.collection('webAccounts').find({ _id: { $in: own } }, P).sort({ createdAt: -1 }).limit(50).toArray()
+        }
+        if (kind !== 'web') {
+          const own = (await db.collection('phoneNumbersOf').find({ ...has, _id: { $nin: wids } }, { projection: { _id: 1 } }).limit(50).toArray()).map(o => String(o._id))
+          bot = await db.collection('nameOf').find({ _id: { $in: own } }).toArray()
+          const named = new Set(bot.map(b => String(b._id))); bot.push(...own.filter(id => !named.has(id)).map(id => ({ _id: id, val: '' })))
+        }
       } else if (!q) {
         if (kind !== 'bot') web = await db.collection('webAccounts').find({}, P).sort({ createdAt: -1 }).limit(50).toArray()
         if (kind === 'bot') bot = await db.collection('nameOf').find({}).sort({ $natural: -1 }).limit(50).toArray()

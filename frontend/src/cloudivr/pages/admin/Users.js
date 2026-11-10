@@ -56,7 +56,7 @@ export default function Users() {
     <div className="space-y-4" data-testid="admin-users">
       <div className="flex flex-wrap items-center gap-2">
         {[['web', 'Web (CloudIVR)'], ['bot', 'Bot'], ['all', 'All']].map(([k, label]) => (
-          <button key={k} type="button" className={`civr-btn civr-btn-sm ${kind === k ? '' : 'civr-btn-ghost'}`} onClick={() => setKind(k)} data-testid={`admin-users-kind-${k}`}>{label}</button>
+          <button key={k} type="button" className={`rounded-full px-3.5 py-1.5 text-sm transition-colors ${kind === k ? 'bg-white text-black' : 'border border-white/15 text-[#a1a1aa] hover:text-white'}`} onClick={() => setKind(k)} data-testid={`admin-users-kind-${k}`}>{label}</button>
         ))}
         <label className="flex items-center gap-2 text-sm ml-2 cursor-pointer"><input type="checkbox" checked={plan} onChange={e => setPlan(e.target.checked)} data-testid="admin-users-has-plan" /> Has a plan</label>
       </div>
@@ -69,7 +69,7 @@ export default function Users() {
                 <tr key={`${u.kind}-${u.chatId}`} className="cursor-pointer hover:bg-white/5" onClick={() => setOpen(u.chatId)} data-testid={`admin-user-row-${u.chatId}`}>
                   <td><div>{u.name || u.email || u.chatId}</div><div className="text-xs text-[#a1a1aa]">{u.email || u.chatId}</div></td>
                   <td>{u.kind}</td>
-                  <td data-testid={`admin-user-plan-${u.chatId}`}>{(u.plans || []).length ? u.plans.map((p, i) => <div key={i} className="whitespace-nowrap">{p.plan} <span className={p.status === 'active' ? 'text-emerald-400' : 'text-amber-400'}>· {p.status}</span>{p.expiresAt ? <span className="text-xs text-[#a1a1aa]"> · until {String(p.expiresAt).slice(0, 10)}</span> : null}</div>) : <span className="text-[#71717a]">—</span>}</td>
+                  <td data-testid={`admin-user-plan-${u.chatId}`}>{(u.plans || []).length ? Object.entries((u.plans || []).reduce((m, p) => { const key = `${p.plan}|${p.status}`; m[key] = (m[key] || 0) + 1; return m; }, {})).map(([key, n]) => { const [plan, status] = key.split('|'); return <div key={key} className="whitespace-nowrap">{plan}{n > 1 ? ` ×${n}` : ''} <span className={status === 'active' ? 'text-emerald-400' : 'text-amber-400'}>· {status}</span></div>; }) : <span className="text-[#71717a]">—</span>}</td>
                   <td className="whitespace-nowrap text-[#a1a1aa]">{u.createdAt ? dt(u.createdAt) : '—'}</td>
                   <td className="text-right tabular-nums">{fmt(u.balance)}</td><td>{u.suspended ? <Pill tone="bad">Suspended</Pill> : <Pill tone="ok">Active</Pill>}</td>
                 </tr>

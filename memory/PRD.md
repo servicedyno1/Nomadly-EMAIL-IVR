@@ -1,5 +1,9 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-10 — Admin "Has a plan" fix
+- Bug: plan filter sorted phoneNumbersOf ids as strings and took 500 → only bot ids, web buyers missed; also preview Node wasn't restarted (Node has NO hot reload: `sudo supervisorctl restart nodejs` after js/ changes). Now web owners are matched directly against webAccounts ids. Plans grouped "starter ×4 · released". Verified in preview UI (50 rows → 2 with plans).
+
+
 ## 2026-11-10 (evening) — Admin Users page, neutral link warning, free-test identity, lifecycle gaps — TESTED, NOT YET DEPLOYED
 - CloudIVR admin → Users: Web (CloudIVR) / Bot / All tabs (default Web), "Has a plan" filter, Plan (plan · status · until) + Joined columns; GET /admin/users?kind=&plan=1 returns plans[] from phoneNumbersOf. Verified against a scratch DB (web buyer with business/active shows).
 - Unsafe-link texts (5 langs) no longer name Google (LINKS dict in i18n.js); internal failureReason 'link flagged unsafe'.
