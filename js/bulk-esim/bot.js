@@ -11,7 +11,7 @@ const { t, btn, allLabels } = require('./i18n')
 const PRODUCT_KEY = 'bulk-esim-sms'
 const BTN = btn('en')
 const kb = (rows) => ({ parse_mode: 'HTML', reply_markup: { keyboard: rows, resize_keyboard: true } })
-const homeKb = (L) => kb([[L.newc], [L.one, L.convs], [L.usage, L.bookings], [L.progress, L.help], [L.back]])
+const homeKb = (L, r = { send: true }) => kb([[L.newc], r.send ? [L.one, L.convs] : [L.convs], [L.usage, L.bookings], [L.progress, L.help], [L.back]])
 const brand = () => (process.env.CHAT_BOT_BRAND || 'Nomadly').replace(/[^A-Za-z0-9]/g, '')
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const per500 = (x) => Math.round(x * 500 * 100) / 100
@@ -25,14 +25,14 @@ async function homeArgs(cid) {
   const c = await B.cfg(), u = await B.usage(cid)
   return { min: c.minVolume, max: c.maxVolume, plain: per500(c.pricePlain), link: per500(c.priceLink), pct: c.scheduleDiscountPct, minHours: c.scheduleMinHours, fee: c.replyFee, perDay: c.testsPerDay, used: u.used, limit: u.limit, from: c.quietStart, to: c.quietEnd }
 }
-const home = async (send, chatId, lang) => send(chatId, t(lang, 'home', await homeArgs(B.cidOf(brand(), chatId))), homeKb(btn(lang)))
+const home = async (send, chatId, lang) => { const r = await B.ready(); return send(chatId, t(lang, 'home', await homeArgs(B.cidOf(brand(), chatId))) + (r.send ? '' : `\n\n${t(lang, 'off_one')}`), homeKb(btn(lang), r)) }
 const days = () => Array.from({ length: 7 }, (_, i) => new Date(Date.now() + i * 86400000).toISOString().slice(0, 10))
 
 // Returns true when the message was handled here (anything but an explicit false).
 const handle = async (ctx) => (await flow(ctx)) !== false
 async function flow({ chatId, msg, message, info, set, state, send, saveInfo, goto, bot }) {
   const action = info?.action || '', lang = info?.userLanguage || 'en', L = btn(lang), say = (k, ...a) => t(lang, k, ...a)
-  const cid = B.cidOf(brand(), chatId), go = (a) => set(state, chatId, 'action', a), put = (k, v) => saveInfo(k, v), HK = homeKb(L)
+  const cid = B.cidOf(brand(), chatId), go = (a) => set(state, chatId, 'action', a), put = (k, v) => saveInfo(k, v)
   if (isHome(message) && !B.configured()) { await send(chatId, say('soon')); return true }
   if (isHome(message)) {
     await B.customer(brand(), chatId); await go('bse-home')
@@ -40,10 +40,11 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     await home(send, chatId, lang); return true
   }
   if (!action.startsWith('bse-')) return false
+  const RD = await B.ready(), HK = homeKb(L, RD)
   if (message === L.back) { if (action === 'bse-home') { await go('none'); return goto.submenu7 ? (await goto.submenu7(), true) : false } await go('bse-home'); await home(send, chatId, lang); return true }
   if (action === 'bse-home') {
     if (message === L.newc) { const c = await B.cfg(); await go('bse-contacts'); return send(chatId, say('contacts_q', { min: c.minVolume, max: c.maxVolume }), kb([[L.back]])) }
-    if (message === L.one) { await go('bse-one-to'); return send(chatId, say('one_to_q'), kb([[L.back]])) }
+    if (message === L.one) { if (!RD.send) return send(chatId, say('off_one'), HK); await go('bse-one-to'); return send(chatId, say('one_to_q'), kb([[L.back]])) }
     if (message === L.usage) { const u = await B.usage(cid); return send(chatId, say('usage', { ...u, reset: u.resetAt.toISOString().slice(0, 16).replace('T', ' ') }), HK) }
     if (message === L.help) return send(chatId, say('help', await homeArgs(cid)), HK)
     if (message === L.convs) {
@@ -66,7 +67,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     return home(send, chatId, lang)
   }
   if (action === 'bse-cancel') { const b = await B.db().collection('bsBookings').findOne({ cid, _id: new RegExp(`${String(message).trim().replace(/\W/g, '')}$`) }); const r = b ? await B.cancelBooking(b._id, { cid }) : { error: 'err_not_found' }; await go('bse-home'); return send(chatId, r.error ? `⚠️ ${errText(lang, r)}` : say('cancelled', r.refunded), HK) }
-  const testKb = () => kb([[L.test], [L.cont], [L.back]])
+  const testKb = () => kb([...(RD.test ? [[L.test]] : []), [L.cont], [L.back]])
   const unitOf = (c, links) => (links ? c.priceLink : c.pricePlain)
   const contentAsk = async (key = 'content_q') => { const c = await B.cfg(), optOut = info.bseOptOut !== false; return send(chatId, say(key, { max: optOut ? 160 - B.OPT.length : 160, optOut, plain: per500(c.pricePlain), link: per500(c.priceLink) }), kb([[optOut ? L.optout_no : L.optout_yes], [L.back]])) }
   // Step 1 — numbers: parsed, capped at maxVolume, checked (Telnyx carrier lookup, free); every kept number is billed, only mobiles are texted.
@@ -153,13 +154,14 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     const cp = cr.campaign, c = await B.cfg(), unit = unitOf(c, cp.withLinks)
     await put('bseCampaign', cp._id); await drafts().deleteOne({ _id: cid }); await go('bse-test')
     const o = await B.testOffer(cid)
-    return send(chatId, say('ready', { n: cp.volume, v: cp.content.length, price: Math.round(cp.parts * unit * 100) / 100, unit, tests: c.testSends, free: o.free, perDay: c.testsPerDay }), testKb())
+    return send(chatId, say('ready', { n: cp.volume, v: cp.content.length, price: Math.round(cp.parts * unit * 100) / 100, unit, tests: c.testSends, free: o.free, perDay: c.testsPerDay }) + (RD.test ? '' : `\n\n${say('off_test')}`), testKb())
   }
   // Tests go to any USA/Canada number. Never paid for a campaign → one free test, no wallet needed. Otherwise the wallet must cover
   // the campaign (so tests mean "about to buy"), each test is charged at the unit price (refunded when the campaign is paid), quota applies.
   const price = async (cp) => { const c = await B.cfg(); return Math.round((cp.parts * unitOf(c, cp.withLinks) + (cp.replies ? c.replyFee : 0)) * 100) / 100 }
   if (action === 'bse-test') {
     if (message === L.test) {
+      if (!RD.test) return send(chatId, say('off_test'), testKb())
       const o = await B.testOffer(cid), c = await B.cfg()
       if (!o.free) {
         const cp = await B.db().collection('bsCampaigns').findOne({ _id: info.bseCampaign, cid }), need = cp ? await price(cp) : 0, bal = await walletOps(T.db).balance(chatId).catch(() => 0)
@@ -176,8 +178,8 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     if (k.charge && !(await w.debit(chatId, k.charge))) { await go('bse-test'); return send(chatId, say('wallet_low', k.charge), kb([[L.cont], [L.back]])) }
     const r = await B.testSend(cid, info.bseCampaign, message, { charge: k.charge }); await go('bse-test')
     if (r.error) { if (k.charge) await w.credit(chatId, k.charge); return send(chatId, `⚠️ ${errText(lang, r)}`, testKb()) }
-    if (r.free) return send(chatId, say('test_ok_free', c.testsPerDay), kb([[L.cont], [L.test], [L.back]]))
-    return send(chatId, say('test_ok', r.left, k.charge), kb([...(r.left ? [[L.test]] : []), [L.cont], [L.back]]))
+    if (r.free) return send(chatId, say('test_ok_free', c.testsPerDay), kb([[L.cont], ...(RD.test ? [[L.test]] : []), [L.back]]))
+    return send(chatId, say('test_ok', r.left, k.charge), kb([...(r.left && RD.test ? [[L.test]] : []), [L.cont], [L.back]]))
   }
   // Step 4 — one screen: send now (this hour, full price) or schedule (24 h+ ahead → cheaper), with the paid-replies toggle.
   // Only campaigns that pay the reply fee get replies forwarded; otherwise replies stay with the platform (STOP/HELP always honoured).
@@ -185,7 +187,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     const w = await B.whenOptions(cid, info.bseCampaign); if (w.error) return send(chatId, `⚠️ ${errText(lang, w)}`)
     const c = await B.cfg(); await go('bse-when')
     const hh = (h) => `${String(h).padStart(2, '0')}:00`, rows = [...(w.now ? [[L.now]] : w.later ? [[`${L.later} ${hh(w.later.hour)}`]] : []), [L.sched], [w.replyFee ? L.replies_off : L.replies_add(c.replyFee)], [L.back]]
-    return send(chatId, say('when_q', { parts: w.parts, replyFee: w.replyFee, fee: c.replyFee, nowPrice: w.now?.price, later: w.later ? hh(w.later.hour) : null, laterPrice: w.later?.price, quiet: w.quiet, lines: w.lines, pct: w.schedule.pct, schedPrice: w.schedule.price, list: w.schedule.list, minHours: w.schedule.minHours }), kb(rows))
+    return send(chatId, say('when_q', { parts: w.parts, replyFee: w.replyFee, fee: c.replyFee, nowPrice: w.now?.price, later: w.later ? hh(w.later.hour) : null, laterPrice: w.later?.price, quiet: w.quiet, lines: w.lines, pct: w.schedule.pct, schedPrice: w.schedule.price, list: w.schedule.list, minHours: w.schedule.minHours }) + (w.off ? `\n\n${say('off_now')}` : ''), kb(rows))
   }
   async function showBooking(b) {
     await put('bseBookingId', b._id); await go('bse-pay')
@@ -198,6 +200,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     const laterH = message.startsWith(L.later) ? parseInt(message.slice(L.later.length).trim(), 10) : NaN
     if (message === L.now || laterH >= 0) {
       const r = await B.createBooking(cid, { campaignId: info.bseCampaign, ...(message === L.now ? { now: true } : { date: new Date().toISOString().slice(0, 10), hour: laterH }) })
+      if (r.error === 'off_now') return askWhen()
       if (r.error === 'err_slot' || r.error === 'err_no_lines') { await send(chatId, `⚠️ ${say('now_gone')}`); return askWhen() }
       if (r.error) return send(chatId, `⚠️ ${errText(lang, r)}`)
       return showBooking(r.booking)
@@ -245,8 +248,8 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     const to = String(message).replace(/^💬\s*/, ''), s = await B.db().collection('bsSessions').findOne({ cid, to })
     if (!s) return send(chatId, say('pick_option'))
     const ms = await B.db().collection('bsMessages').find({ cid, $or: [{ to }, { from: to }] }).sort({ createdAt: -1 }).limit(10).toArray()
-    await put('bseTo', to); await put('bseSession', s._id); await go('bse-reply')
-    return send(chatId, `💬 <b>${to}</b>\n${ms.reverse().map(m => `${m.direction === 'in' ? '⬅️' : '➡️'} ${esc(m.body).slice(0, 300)}${m.direction === 'out' ? ` <i>(${say(`st_${m.status}`)})</i>` : ''}`).join('\n')}\n\n${say('reply_q')}`, kb([[L.back]]))
+    const live = await B.lineReady(s.esimId); if (live) { await put('bseTo', to); await put('bseSession', s._id); await go('bse-reply') }
+    return send(chatId, `💬 <b>${to}</b>\n${ms.reverse().map(m => `${m.direction === 'in' ? '⬅️' : '➡️'} ${esc(m.body).slice(0, 300)}${m.direction === 'out' ? ` <i>(${say(`st_${m.status}`)})</i>` : ''}`).join('\n')}\n\n${say(live ? 'reply_q' : 'off_reply')}`, kb([[L.back]]))
   }
   return false
 }

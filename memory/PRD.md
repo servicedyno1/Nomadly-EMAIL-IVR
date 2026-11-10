@@ -1,5 +1,13 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-10 — BulkSMS: buttons follow real line availability + tester alerts + AI support guide — TESTED, NOT YET DEPLOYED
+- core.ready()/lineReady(): "Send one SMS", "Send a test", "Send now" and Conversation replies hidden (with short translated reason off_one/off_test/off_now/off_reply) when no working line; core refuses stale taps too. Tests off while the tester line is being bought/replaced/re-checked even if service lines work.
+- Admin alerts name the tester line on replace/replace-failed/new tester ordered/failed checks, and say when test buttons are back.
+- AI support: live BulkSMS guide (prices/limits/steps/refunds from cfg) + the user's own campaigns/bookings; strict no-provider/no-internals rule; sanitizer strips Spenza/Web Risk.
+- Tests: js/tests/test_bulk_esim_ready_gate.js 21/21, test_bulk_esim_ai_support.js 6/6 (live OpenAI); regressions green.
+- Prod: tester eSIM ESIM-0002 ordered 18:53 UTC ($10, status provisioning, waiting for its number).
+
+
 ## 2026-11-10 — BulkSMS production env audit (4 bots) — DONE
 - All 4 bots (app-main, app-proshop, app-voodoo, app-wl) run latest BulkSMS code; shared/<app>/backend.env has SPENZA_BULK_API_KEY/SECRET, SPENZA_BULK_IMEI (added now, 15 digits, same IMEI for every eSIM on account 1; per-account _n optional), BULK_ESIM_MONGO_URL, BULK_ESIM_DB, GOOGLE_WEB_RISK_API_KEY, TELNYX_API_KEY, OPENAI_API_KEY, TELEGRAM_ADMIN_CHAT_ID, SELF_URL. Restarted; all report "engine ready (live Spenza, shared DB)", sites 200.
 - Intentionally NOT set on droplet: EMERGENT_LLM_KEY (would route AI variants to non-existent :8001 Python backend; cost = contact-file archive skipped). SPENZA_BULK_EMAIL defaults to bulksms@cloudivr.net.
