@@ -12,7 +12,7 @@ const { validUsCa, quietWait, hourOpen } = require('./tz')
 const DEFAULTS = {
   defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 8, quietEnd: 21,
   platformPerMin: 30, rateMargin: 2, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
-  minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testsPerDay: 4, testsPerWeek: 10, freeTestsPerDay: 50, numberCheck: true, lookupCost: 0.0025, lookupDays: 30,
+  minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testsPerDay: 4, testsPerWeek: 10, freeTestsPerDay: 0, numberCheck: true, lookupCost: 0.0025, lookupDays: 30,
   minEsims: 2, monitorEsims: 0, testerEsims: 1, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
   minCredit: 0, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
   esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: false, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3, cancelDeadAfterDays: 3, checkEveryTexts: 100, apiFailsToReplace: 3, platformPerMinAuto: true,
@@ -141,6 +141,8 @@ async function creditWatch() {
     else if ((f.available < 0 || (f.runway != null && f.runway < c.creditWarnDays)) && await once(`creditwarn:${a.id}:${today()}`)) alert(`⚠️ Spenza ${acctLabel(a.id)} credit is getting low: $${bal} on the account, $${f.committed} already promised (${f.renewals} renewal(s) due within ${c.renewalWindowDays} days), ~$${f.daily}/day lately → ${f.available < 0 ? 'new bookings are on hold' : `about ${f.runway} day(s) left`}. Add credit at web.spenza.com`)
   }
   if (!seen) return
+  // Spenza answered with our keys again → lift an auth pause on its own (it was never lifted before without /bulkresume).
+  if ((await state()).reasons?.includes('provider_auth')) { await resume('provider_auth'); alert('▶️ Spenza accepts our credentials again — sending resumed automatically.') }
   const r2 = (x) => Math.round(x * 100) / 100, f = { ...sum, credit: r2(sum.credit), committed: r2(sum.committed), available: r2(sum.available), daily: r2(sum.daily), runway: sum.daily > 0 ? Math.round((sum.available / sum.daily) * 10) / 10 : null, accounts: seen, low: lows, at: new Date() }
   await C('bsConfig').updateOne({ _id: 'state' }, { $set: { credit: f.credit, creditAt: new Date(), forecast: f } }, { upsert: true }).catch(() => {})
   if (lows === seen) {
@@ -432,7 +434,18 @@ async function dueCheck(e, c) {
 // Pending checks older than 10 min fail: no_delivery (line → monitor never arrived) or no_return (monitor → line never arrived).
 // Several lines failing delivery to the same monitor at once means the monitor is the problem: those checks are voided and it is replaced.
 async function checkTimeouts(c) {
-  for (const t of await C('bsTests').find({ type: 'check', result: 'pending', at: { $lt: new Date(Date.now() - 10 * MIN) } }).toArray()) {
+  // No inbound text at all for 6 h means texts aren't reaching us (webhook), not that every line is dead: void the checks instead of
+  // retiring lines and buying new ones in a loop; re-register the webhook and tell the admin.
+  const due = await C('bsTests').find({ type: 'check', result: 'pending', at: { $lt: new Date(Date.now() - 10 * MIN) } }).toArray()
+  if (due.length && !(await C('bsWebhooks').countDocuments({ at: { $gt: new Date(Date.now() - 6 * HOUR) } }, { limit: 1 }))) {
+    await C('bsTests').updateMany({ _id: { $in: due.map(t => t._id) } }, { $set: { result: 'inbound_down', voided: true } })
+    if (await once(`inbounddown:${new Date().toISOString().slice(0, 13)}`)) {
+      const r = process.env.SELF_URL && !P.dry() ? await registerWebhook(process.env.SELF_URL).then(() => 're-registered').catch(e => `re-registration failed: ${e.message}`) : 'SELF_URL not set'
+      alert(`📭 No incoming texts have reached the platform for 6 h, so line checks can't pass — lines are NOT retired or replaced meanwhile. Webhook ${r}. If this continues, check SELF_URL and /bulkwebhook.`); incident('inbound_down', { checks: due.length })
+    }
+    return
+  }
+  for (const t of due) {
     const result = t.legs?.out ? 'no_return' : 'no_delivery'
     await C('bsTests').updateOne({ _id: t._id }, { $set: { result } })
     await C('bsEsims').updateOne({ _id: t.esimId }, { $inc: t.legs?.out ? { recvMiss: 1 } : { sendMiss: 1 } })
@@ -781,9 +794,11 @@ const setReplies = (cid, campaignId, on) => C('bsCampaigns').updateOne({ _id: ca
 // booked), stays within the account quota (cfg.testsPerDay / testsPerWeek) and freezes the tested text (hash checked at booking).
 const contentHash = (cp) => crypto.createHash('sha1').update(JSON.stringify([cp.content, cp.optOut !== false, !!cp.withLinks])).digest('hex').slice(0, 16)
 const testUnit = (cp, c) => Math.round((cp.withLinks ? c.priceLink : c.pricePlain) * segs(bodyOf(cp, 0)) * 100) / 100
+// One free test per person: keyed by the Telegram chat id across all 4 bots (a new username or another brand doesn't reset it).
+const sameUser = (cid) => ({ $regex: `:${String(cid).split(':').pop().replace(/\D/g, '')}$` })
 async function testOffer(cid) {
-  const paid = !!(await C('bsBookings').findOne({ cid, paymentStatus: 'paid' }, { projection: { _id: 1 } })), cu = await C('bsCustomers').findOne({ _id: cid }, { projection: { freeTestAt: 1 } })
-  return { firstTime: !paid, free: !paid && !cu?.freeTestAt }
+  const paid = !!(await C('bsBookings').findOne({ cid: sameUser(cid), paymentStatus: 'paid' }, { projection: { _id: 1 } })), used = !!(await C('bsCustomers').findOne({ _id: sameUser(cid), freeTestAt: { $ne: null } }, { projection: { _id: 1 } }))
+  return { firstTime: !paid, free: !paid && !used }
 }
 async function testQuota(cid, c) {
   const q = (ms) => C('bsMessages').countDocuments({ cid, test: true, system: { $ne: true }, createdAt: { $gt: new Date(Date.now() - ms) } })
@@ -802,8 +817,9 @@ async function testCheck(cid, campaignId, to) {
   const o = await testOffer(cid)
   if (o.free) {
     if (await C('bsFreeTests').findOne({ _id: p })) return E('err_free_number_used')
-    const day = await C('bsFreeTests').countDocuments({ at: { $gt: new Date(Date.now() - DAY) } })
-    if (day >= c.freeTestsPerDay) { if (await once(`freecap:${today()}`)) alert(`🎁 Free-test daily cap (${c.freeTestsPerDay}) reached — new customers must top up to test until tomorrow. Possible farming: check /bulkreport and bsFreeTests.`); return E('err_free_cap') }
+    // freeTestsPerDay 0 = no daily cap (owner's choice); a number re-enables the cap.
+    const day = c.freeTestsPerDay ? await C('bsFreeTests').countDocuments({ at: { $gt: new Date(Date.now() - DAY) } }) : 0
+    if (c.freeTestsPerDay && day >= c.freeTestsPerDay) { if (await once(`freecap:${today()}`)) alert(`🎁 Free-test daily cap (${c.freeTestsPerDay}) reached — new customers must top up to test until tomorrow. Possible farming: check /bulkreport and bsFreeTests.`); return E('err_free_cap') }
     return { ok: true, free: true, charge: 0, left: 1, to: p }
   }
   if (cp.testsUsed >= c.testSends) return E('err_tests_used', c.testSends)
@@ -841,7 +857,7 @@ async function queueCampaign(campaignId, b) {
     while (left <= 0 && si < slots.length - 1) { si++; left = slots[si][1] }
     left--; const notBefore = slots.length ? new Date(`${slots[si][0]}:00:00Z`) : b.startAt
     const m = msgDoc({ cid: cp.cid, to, body: bodyOf(cp, i), campaignId, bookingId: b._id, notBefore, prepaid: true, quotaDay: b.quotaDay, expireAt: new Date(b.startAt.getTime() + 2 * DAY) })
-    if ((cp.blockedVersions || []).includes(i % cp.content.length)) Object.assign(m, { status: 'blocked', failureReason: 'link flagged by Google' })
+    if ((cp.blockedVersions || []).includes(i % cp.content.length)) Object.assign(m, { status: 'blocked', failureReason: 'link flagged unsafe' })
     return m
   })
   for (let i = 0; i < docs.length; i += 500) await C('bsMessages').insertMany(docs.slice(i, i + 500))

@@ -564,7 +564,7 @@ const k = (n) => Number(n).toLocaleString('en-US')
 const nc = (o, w) => [o.invalid && `${o.invalid} ${w[0]}`, o.duplicates && `${o.duplicates} ${w[1]}`, o.optedOut && `${o.optedOut} ${w[2]}`].filter(Boolean).join(', ')
 const SHORT = {
   en: {
-    home: (o) => `📲 <b>BulkSMS — USA & Canada</b>\nReach every US & Canadian carrier from real US numbers.\n\n💵 $${o.plain} / 500 SMS · $${o.link} with a link or number\n📅 −${o.pct}% when booked ${o.minHours} h ahead\n🎁 First test SMS free\n📊 Today: ${k(o.used)} / ${k(o.limit)}`,
+    home: (o) => `📲 <b>BulkSMS — USA & Canada</b>\nReach every US & Canadian carrier from real US numbers.\n\n💵 $${o.plain} / 500 SMS · $${o.link} with a link or number\n📅 −${o.pct}% when booked ${o.minHours} h ahead\n💬 Get replies here: +$${o.fee} per campaign\n🎁 First test SMS free\n📊 Today: ${k(o.used)} / ${k(o.limit)}`,
     help: (o) => `❓ <b>How it works</b>\n1. 📇 Upload ${o.min}–${o.max} numbers — checked free, only active mobiles get your text\n2. ✍️ Write one SMS, or rotate versions (yours or AI)\n3. 🧪 Test it (first test free)\n4. 🚀 Send now, or schedule ${o.minHours} h ahead for −${o.pct}%\n\n💵 $${o.plain} / 500 · $${o.link} with a link or number · replies +$${o.fee}\n🕗 Delivered ${o.from}:00–${o.to}:00 recipient time\n🛑 STOP replies are blocked for good\n↩️ Unsent texts are refunded; every uploaded number is billed`,
     contacts_q: (o) => `📇 <b>1/4 · Numbers</b>\nPaste ${o.min}–${o.max} USA/Canada numbers, or upload .txt / .csv.\nWe check them free — only active mobiles get your text.`,
     checking: (n) => `🔎 Checking ${n} numbers…`,
@@ -594,7 +594,7 @@ const SHORT = {
     off_one: '✉️ Single SMS is back shortly.', off_test: '🧪 Tests are back shortly — you can still book.', off_now: '⏸ “Send now” is back shortly — you can still schedule.', off_reply: '💬 Replies to this chat are back shortly.',
   },
   fr: {
-    home: (o) => `📲 <b>SMS en masse — USA & Canada</b>\nTous les opérateurs USA & Canada, depuis de vrais numéros US.\n\n💵 ${o.plain} $ / 500 SMS · ${o.link} $ avec lien ou numéro\n📅 −${o.pct} % réservé ${o.minHours} h à l’avance\n🎁 1er SMS de test offert\n📊 Aujourd’hui : ${k(o.used)} / ${k(o.limit)}`,
+    home: (o) => `📲 <b>SMS en masse — USA & Canada</b>\nTous les opérateurs USA & Canada, depuis de vrais numéros US.\n\n💵 ${o.plain} $ / 500 SMS · ${o.link} $ avec lien ou numéro\n📅 −${o.pct} % réservé ${o.minHours} h à l’avance\n💬 Réponses reçues ici : +${o.fee} $ par campagne\n🎁 1er SMS de test offert\n📊 Aujourd’hui : ${k(o.used)} / ${k(o.limit)}`,
     help: (o) => `❓ <b>Fonctionnement</b>\n1. 📇 Envoyez ${o.min}–${o.max} numéros — vérifiés gratuitement, seuls les mobiles actifs reçoivent le SMS\n2. ✍️ Un SMS, ou des versions alternées (les vôtres ou l’IA)\n3. 🧪 Testez (1er test offert)\n4. 🚀 Envoyez maintenant, ou programmez ${o.minHours} h à l’avance pour −${o.pct} %\n\n💵 ${o.plain} $ / 500 · ${o.link} $ avec lien ou numéro · réponses +${o.fee} $\n🕗 Livré ${o.from}h–${o.to}h heure du destinataire\n🛑 Les réponses STOP sont bloquées définitivement\n↩️ SMS non envoyés remboursés ; chaque numéro envoyé est facturé`,
     contacts_q: (o) => `📇 <b>1/4 · Numéros</b>\nCollez ${o.min}–${o.max} numéros USA/Canada, ou envoyez un .txt / .csv.\nVérification gratuite — seuls les mobiles actifs reçoivent le SMS.`,
     checking: (n) => `🔎 Vérification de ${n} numéros…`,
@@ -624,7 +624,7 @@ const SHORT = {
     off_one: '✉️ Le SMS individuel revient bientôt.', off_test: '🧪 Les tests reviennent bientôt — vous pouvez déjà réserver.', off_now: '⏸ « Envoyer maintenant » revient bientôt — vous pouvez programmer.', off_reply: '💬 Les réponses à cette conversation reviennent bientôt.',
   },
   zh: {
-    home: (o) => `📲 <b>群发短信 — 美国和加拿大</b>\n用真实美国号码，覆盖美加所有运营商。\n\n💵 $${o.plain} / 500 条 · 含链接或号码 $${o.link}\n📅 提前 ${o.minHours} 小时预订 −${o.pct}%\n🎁 首条测试短信免费\n📊 今日：${k(o.used)} / ${k(o.limit)}`,
+    home: (o) => `📲 <b>群发短信 — 美国和加拿大</b>\n用真实美国号码，覆盖美加所有运营商。\n\n💵 $${o.plain} / 500 条 · 含链接或号码 $${o.link}\n📅 提前 ${o.minHours} 小时预订 −${o.pct}%\n💬 在这里接收回复：每个活动 +$${o.fee}\n🎁 首条测试短信免费\n📊 今日：${k(o.used)} / ${k(o.limit)}`,
     help: (o) => `❓ <b>使用方法</b>\n1. 📇 上传 ${o.min}–${o.max} 个号码 — 免费检测，只发给有效手机\n2. ✍️ 写一条短信，或轮换多个版本（自己写或 AI 写）\n3. 🧪 测试（首次免费）\n4. 🚀 立即发送，或提前 ${o.minHours} 小时预约享 −${o.pct}%\n\n💵 $${o.plain} / 500 · 含链接或号码 $${o.link} · 回复 +$${o.fee}\n🕗 收件人当地 ${o.from}:00–${o.to}:00 送达\n🛑 回复 STOP 的号码永久屏蔽\n↩️ 未发出的短信退款；上传的每个号码都计费`,
     contacts_q: (o) => `📇 <b>1/4 · 号码</b>\n粘贴 ${o.min}–${o.max} 个美国/加拿大号码，或上传 .txt / .csv。\n免费检测 — 只发给有效手机。`,
     checking: (n) => `🔎 正在检测 ${n} 个号码…`,
@@ -654,7 +654,7 @@ const SHORT = {
     off_one: '✉️ 单条短信稍后恢复。', off_test: '🧪 测试稍后恢复 — 您仍可预订。', off_now: '⏸ “立即发送”稍后恢复 — 您仍可预约。', off_reply: '💬 此对话的回复稍后恢复。',
   },
   hi: {
-    home: (o) => `📲 <b>BulkSMS — USA और कनाडा</b>\nअसली US नंबरों से USA व कनाडा के हर कैरियर तक।\n\n💵 $${o.plain} / 500 SMS · लिंक या नंबर के साथ $${o.link}\n📅 ${o.minHours} घंटे पहले बुक करें तो −${o.pct}%\n🎁 पहला टेस्ट SMS मुफ़्त\n📊 आज: ${k(o.used)} / ${k(o.limit)}`,
+    home: (o) => `📲 <b>BulkSMS — USA और कनाडा</b>\nअसली US नंबरों से USA व कनाडा के हर कैरियर तक।\n\n💵 $${o.plain} / 500 SMS · लिंक या नंबर के साथ $${o.link}\n📅 ${o.minHours} घंटे पहले बुक करें तो −${o.pct}%\n💬 जवाब यहीं पाएँ: +$${o.fee} प्रति कैंपेन\n🎁 पहला टेस्ट SMS मुफ़्त\n📊 आज: ${k(o.used)} / ${k(o.limit)}`,
     help: (o) => `❓ <b>कैसे काम करता है</b>\n1. 📇 ${o.min}–${o.max} नंबर भेजें — मुफ़्त जाँच, सिर्फ़ सक्रिय मोबाइल को SMS\n2. ✍️ एक SMS, या कई वर्ज़न (आपके या AI के)\n3. 🧪 टेस्ट करें (पहला मुफ़्त)\n4. 🚀 अभी भेजें, या ${o.minHours} घंटे पहले शेड्यूल करें −${o.pct}%\n\n💵 $${o.plain} / 500 · लिंक या नंबर के साथ $${o.link} · जवाब +$${o.fee}\n🕗 प्राप्तकर्ता के समय ${o.from}:00–${o.to}:00 डिलीवरी\n🛑 STOP भेजने वाले हमेशा के लिए ब्लॉक\n↩️ न भेजे गए SMS का पैसा वापस; हर अपलोड नंबर का शुल्क`,
     contacts_q: (o) => `📇 <b>1/4 · नंबर</b>\n${o.min}–${o.max} USA/कनाडा नंबर पेस्ट करें, या .txt / .csv भेजें।\nमुफ़्त जाँच — सिर्फ़ सक्रिय मोबाइल को SMS।`,
     checking: (n) => `🔎 ${n} नंबर जाँच रहे हैं…`,
@@ -684,7 +684,7 @@ const SHORT = {
     off_one: '✉️ एकल SMS जल्द वापस आएगा।', off_test: '🧪 टेस्ट जल्द वापस आएँगे — आप अभी बुक कर सकते हैं।', off_now: '⏸ “अभी भेजें” जल्द वापस आएगा — आप शेड्यूल कर सकते हैं।', off_reply: '💬 इस बातचीत के जवाब जल्द वापस आएँगे।',
   },
   fa: {
-    home: (o) => `📲 <b>پیامک انبوه — آمریکا و کانادا</b>\nبا شماره‌های واقعی آمریکا، به همه اپراتورهای آمریکا و کانادا.\n\n💵 $${o.plain} / ۵۰۰ پیامک · با لینک یا شماره $${o.link}\n📅 رزرو ${o.minHours} ساعت جلوتر: −${o.pct}%\n🎁 اولین پیامک تست رایگان\n📊 امروز: ${k(o.used)} / ${k(o.limit)}`,
+    home: (o) => `📲 <b>پیامک انبوه — آمریکا و کانادا</b>\nبا شماره‌های واقعی آمریکا، به همه اپراتورهای آمریکا و کانادا.\n\n💵 $${o.plain} / ۵۰۰ پیامک · با لینک یا شماره $${o.link}\n📅 رزرو ${o.minHours} ساعت جلوتر: −${o.pct}%\n💬 دریافت پاسخ‌ها همین‌جا: +$${o.fee} برای هر کمپین\n🎁 اولین پیامک تست رایگان\n📊 امروز: ${k(o.used)} / ${k(o.limit)}`,
     help: (o) => `❓ <b>روش کار</b>\n1. 📇 ${o.min}–${o.max} شماره بفرستید — بررسی رایگان، فقط موبایل‌های فعال پیامک می‌گیرند\n2. ✍️ یک پیامک، یا چند نسخه چرخشی (خودتان یا هوش مصنوعی)\n3. 🧪 تست کنید (اولی رایگان)\n4. 🚀 همین حالا بفرستید، یا ${o.minHours} ساعت جلوتر با −${o.pct}%\n\n💵 $${o.plain} / ۵۰۰ · با لینک یا شماره $${o.link} · پاسخ‌ها +$${o.fee}\n🕗 تحویل ${o.from}:00–${o.to}:00 به وقت گیرنده\n🛑 پاسخ STOP برای همیشه مسدود می‌شود\n↩️ پیامک‌های ارسال‌نشده بازپرداخت می‌شوند؛ هر شماره آپلودی هزینه دارد`,
     contacts_q: (o) => `📇 <b>۱/۴ · شماره‌ها</b>\n${o.min}–${o.max} شماره آمریکا/کانادا بچسبانید، یا فایل .txt / .csv بفرستید.\nبررسی رایگان — فقط موبایل‌های فعال پیامک می‌گیرند.`,
     checking: (n) => `🔎 در حال بررسی ${n} شماره…`,
@@ -715,6 +715,15 @@ const SHORT = {
   },
 }
 for (const [l, d] of Object.entries(SHORT)) Object.assign(LANGS[l], d)
+// Unsafe-link texts in the bot's own words (no third-party names).
+const LINKS = {
+  en: { err_link_flagged: (l) => `⛔ <b>Unsafe link.</b> ${l} was found unsafe (phishing or malware). Remove or replace it to continue.`, err_link_flagged_all: '⛔ Every version has an unsafe link — this campaign can’t be tested or booked.', n_link_flagged: (name, l, n, all) => `⛔ “${name}”: ${l} was found unsafe. ${n} text(s) with it stopped (not refunded).${all ? ' The campaign has stopped.' : ' Your other versions keep sending.'}` },
+  fr: { err_link_flagged: (l) => `⛔ <b>Lien dangereux.</b> ${l} a été jugé dangereux (hameçonnage ou malware). Retirez-le ou remplacez-le pour continuer.`, err_link_flagged_all: '⛔ Chaque version contient un lien dangereux — cette campagne ne peut être ni testée ni réservée.', n_link_flagged: (name, l, n, all) => `⛔ « ${name} » : ${l} a été jugé dangereux. ${n} SMS avec ce lien arrêtés (non remboursés).${all ? ' La campagne est arrêtée.' : ' Vos autres versions continuent.'}` },
+  zh: { err_link_flagged: (l) => `⛔ <b>不安全链接。</b>${l} 被判定为不安全（钓鱼或恶意软件）。请删除或替换后继续。`, err_link_flagged_all: '⛔ 每个版本都含不安全链接 — 此活动无法测试或预订。', n_link_flagged: (name, l, n, all) => `⛔ “${name}”：${l} 被判定为不安全。含此链接的 ${n} 条已停止（不退款）。${all ? '活动已停止。' : '其他版本继续发送。'}` },
+  hi: { err_link_flagged: (l) => `⛔ <b>असुरक्षित लिंक।</b> ${l} असुरक्षित पाया गया (फ़िशिंग या मैलवेयर)। आगे बढ़ने के लिए इसे हटाएँ या बदलें।`, err_link_flagged_all: '⛔ हर वर्ज़न में असुरक्षित लिंक है — यह कैंपेन न टेस्ट हो सकता है, न बुक।', n_link_flagged: (name, l, n, all) => `⛔ “${name}”: ${l} असुरक्षित पाया गया। इस लिंक वाले ${n} SMS रोके गए (रिफ़ंड नहीं)।${all ? ' कैंपेन रुक गया है।' : ' आपके बाकी वर्ज़न भेजे जा रहे हैं।'}` },
+  fa: { err_link_flagged: (l) => `⛔ <b>لینک ناامن.</b> ${l} ناامن تشخیص داده شد (فیشینگ یا بدافزار). برای ادامه حذف یا جایگزینش کنید.`, err_link_flagged_all: '⛔ همه نسخه‌ها لینک ناامن دارند — این کمپین قابل تست یا رزرو نیست.', n_link_flagged: (name, l, n, all) => `⛔ «${name}»: ${l} ناامن تشخیص داده شد. ${n} پیامک با این لینک متوقف شد (بدون بازپرداخت).${all ? ' کمپین متوقف شد.' : ' نسخه‌های دیگر شما ادامه دارند.'}` },
+}
+for (const [l, d] of Object.entries(LINKS)) Object.assign(LANGS[l], d)
 
 const pack = (lang) => LANGS[lang] || en
 function t(lang, key, ...args) {

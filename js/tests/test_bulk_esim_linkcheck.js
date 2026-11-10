@@ -21,7 +21,7 @@ const nums = (n, from = 1000) => Array.from({ length: n }, (_, i) => `+1212555${
   // ---- message step ----
   ok('no key → simulated mode', U.keyMode() === null || process.env.BULK_ESIM_URLCHECK_LIVE !== 'true')
   const f = await B.screenContent(cid, ['Win now at login.flagged-test.com today'])
-  ok('flagged link → content refused with the link named', f.error === 'err_link_flagged' && /login\.flagged-test\.com/.test(f.args[0]) && /Content flagged/.test(I.t('en', f.error, ...f.args)))
+  ok('flagged link → content refused with the link named', f.error === 'err_link_flagged' && /login\.flagged-test\.com/.test(f.args[0]) && /Unsafe link/.test(I.t('en', f.error, ...f.args)) && !/Google/.test(I.t('en', f.error, ...f.args)))
   ok('admin told (once per customer per day) + incident', /tried to use a link Google flags/.test(alerts.join('\n')) && !!(await db.collection('bsIncidents').findOne({ type: 'link_flagged' })))
   ok('clean link passes', (await B.screenContent(cid, ['Sale at shop.example.com'])).ok === true)
   ok('text without links passes without a check', (await B.screenContent(cid, ['Hello there'])).unchecked === false)
@@ -71,7 +71,7 @@ const nums = (n, from = 1000) => Array.from({ length: n }, (_, i) => `+1212555${
   // ---- bot message step shows "Content flagged" and stays ----
   const st = { action: 'bse-content', bseOptOut: true, userLanguage: 'en' }, sent = []
   await BOT.handle({ chatId: '931', message: 'Claim at win.flagged-test.com now', info: st, state: {}, set: async (_s, _c, k, v) => { st[k] = v }, saveInfo: async (k, v) => { st[k] = v }, send: async (_c, t) => { sent.push(t) }, goto: {} })
-  ok('bot: flagged content refused at the message step', st.action === 'bse-content' && /Content flagged/.test(sent[0] || ''), sent[0])
+  ok('bot: flagged content refused at the message step', st.action === 'bse-content' && /Unsafe link/.test(sent[0] || '') && !/Google/.test(sent[0] || ''), sent[0])
 
   // ---- over the daily number-change cap → new line ordered ----
   await B.setConfig({ autoReplace: true, maxReplacesPerDay: 3 }, 'test'); await db.collection('bsConfig').updateOne({ _id: `replaces:${new Date().toISOString().slice(0, 10)}` }, { $set: { n: 3, at: new Date() } }, { upsert: true })
