@@ -5,11 +5,12 @@
 const crypto = require('crypto')
 const { MongoClient } = require('mongodb')
 const P = require('./provider-spenza')
+const { validUsCa, quietWait, hourOpen } = require('./tz')
 
 const DEFAULTS = {
-  defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: false, refundFailed: true,
+  defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 8, quietEnd: 21,
   platformPerMin: 30, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
-  minVolume: 500, maxVolume: 2000, pricePerSms: 0.05, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2,
+  minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2,
   minEsims: 1, maxEsims: 20, autoProvision: false, manualApproval: true, provisionThreshold: 0.8, provisionBudget: 100,
   minCredit: 10, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
 }
@@ -19,7 +20,12 @@ const GOOD_HEALTH = ['healthy', 'degraded']
 const STOP = /^(stop|stop all|stopall|unsubscribe|cancel|end|quit|optout|opt out)$/
 const HELP = /^(help|info)$/
 const kw = (t) => String(t || '').toLowerCase().replace(/[^a-z ]/g, ' ').trim().replace(/\s+/g, ' ')
-const NANP = /^\+1[2-9]\d{2}[2-9]\d{6}$/
+// Appended to every first-contact text (campaigns, tests, one-off texts).
+const OPT = '\nReply STOP to opt out'
+const LINK = /(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|io|co|us|ca|ly|me|info|biz|app|link|xyz|site|online|shop|store|gl|to|cc|tv)\b)/i
+const PHONE = /(\+?\d[\d\s().-]{8,}\d)/
+const hasLinkOrPhone = (t) => LINK.test(t) || PHONE.test(t)
+const E = (error, ...args) => ({ error, args })
 const MIN = 60000, HOUR = 3600000, DAY = 86400000
 
 let S = null
@@ -36,7 +42,7 @@ const audit = (action, d = {}) => C('bsAudit').insertOne({ action, ...d, at: new
 const incident = (type, d = {}) => C('bsIncidents').insertOne({ type, ...d, at: new Date() }).catch(() => {})
 const alert = (text) => { try { S.notifyAdmin?.(`🛰 <b>eSIM BulkSMS</b>\n${text}`) } catch (_) { /* best effort */ } }
 // Customer notices go through the owning bot (it may live in another process).
-const notify = (cid, type, text, extra = {}) => { const [brand, chatId] = cid.split(':'); return C('bsNotify').insertOne({ brand, chatId, type, text, ...extra, sent: false, at: new Date() }) }
+const notify = (cid, type, key, args = [], extra = {}) => { const [brand, chatId] = cid.split(':'); return C('bsNotify').insertOne({ brand, chatId, type, key, args, ...extra, sent: false, at: new Date() }) }
 
 // ---------- customers + quota ----------
 async function customer(brand, chatId) {
@@ -51,8 +57,8 @@ async function usage(cid) {
   return { limit, used, remaining: Math.max(0, limit - used), pct: limit ? Math.round((used / limit) * 1000) / 10 : 0, resetAt: nextReset(c), delivered: d?.sent || 0, failed: d?.failed || 0, unit: c.countSegments ? 'SMS segments' : 'messages' }
 }
 // Atomic: never lets `used` pass the limit (a full day makes the upsert collide → rejected).
-async function reserve(cid, n, c) {
-  const cu = await C('bsCustomers').findOne({ _id: cid }), limit = cu?.dailyLimit ?? c.defaultDailyLimit, day = dayKey(Date.now(), c)
+async function reserve(cid, n, c, day = dayKey(Date.now(), c)) {
+  const cu = await C('bsCustomers').findOne({ _id: cid }), limit = cu?.dailyLimit ?? c.defaultDailyLimit
   try { await C('bsDaily').findOneAndUpdate({ _id: `${cid}:${day}`, used: { $lte: limit - n } }, { $inc: { used: n }, $setOnInsert: { cid, day, limit } }, { upsert: true }); return day } catch (e) { if (e.code === 11000) return null; throw e }
 }
 const unreserve = (cid, day, n, field) => C('bsDaily').updateOne({ _id: `${cid}:${day}` }, { $inc: { used: -n, ...(field ? { [field]: n } : {}) } })
@@ -168,7 +174,7 @@ async function loopTimeouts() {
 // ---------- capacity + bookings ----------
 async function slotCapacity(c) {
   const healthy = await C('bsEsims').countDocuments({ status: { $in: USABLE }, health: { $in: GOOD_HEALTH } })
-  return Math.floor(Math.min(c.platformPerMin, Math.max(1, healthy) * c.esimPerMin) * 60 * c.slotUtilization)
+  return Math.floor(Math.min(c.platformPerMin, healthy * c.esimPerMin) * 60 * c.slotUtilization)
 }
 const slotKey = (date, h) => `${date}T${String(h).padStart(2, '0')}`
 async function reservedBySlot(dates) {
@@ -183,7 +189,7 @@ async function reservedBySlot(dates) {
 async function availability(date) {
   const c = await cfg(), cap = await slotCapacity(c), next = new Date(new Date(`${date}T00:00:00Z`).getTime() + DAY).toISOString().slice(0, 10)
   const res = await reservedBySlot([date, next]), maint = (await C('bsConfig').findOne({ _id: 'maintenance' }))?.slots || []
-  return { capacity: cap, slots: Array.from({ length: 24 }, (_, h) => { const k = slotKey(date, h), past = new Date(`${k}:00:00Z`).getTime() < Date.now() + 5 * MIN; return { hour: h, key: k, free: past || maint.includes(k) || c.emergencyStop ? 0 : Math.max(0, cap - (res[k] || 0)) } }) }
+  return { capacity: cap, slots: Array.from({ length: 24 }, (_, h) => { const k = slotKey(date, h), past = new Date(`${k}:00:00Z`).getTime() < Date.now() + 5 * MIN, quiet = !hourOpen(date, h, c.quietStart, c.quietEnd); return { hour: h, key: k, quiet, free: past || quiet || maint.includes(k) || c.emergencyStop ? 0 : Math.max(0, cap - (res[k] || 0)) } }) }
 }
 function allocate(slots, from, volume) {
   const alloc = {}; let left = volume
@@ -196,43 +202,52 @@ async function lock(key, ms = 8000) {
 }
 const unlock = (key) => C('bsLocks').deleteOne({ _id: key })
 // Holds capacity for `holdMinutes` while the customer pays. type: 'paid' | 'free'.
+// Volume = SMS parts. Price = parts × (link/phone or plain rate). The day's allowance must have room for the whole booking.
 async function createBooking(cid, { date, hour, volume, type = 'paid', campaignId }) {
-  const c = await cfg(), v = Math.round(Number(volume)), cu = await C('bsCustomers').findOne({ _id: cid })
-  if (cu?.status !== 'active') return { error: 'Your BulkSMS access is suspended. Contact support.' }
-  if (!(v >= c.minVolume && v <= c.maxVolume)) return { error: `Volume must be between ${c.minVolume} and ${c.maxVolume} SMS.` }
-  if (v > (cu.dailyLimit ?? c.defaultDailyLimit)) return { error: `That is above your daily allowance (${cu.dailyLimit ?? c.defaultDailyLimit}).` }
-  if (type === 'free' && (!c.freeBookings || v > c.freeVolume)) return { error: 'Free bookings are not available for this volume.' }
-  if (!(await lock(`book:${date}`))) return { error: 'Busy, try again in a moment.' }
+  const c = await cfg(), cu = await C('bsCustomers').findOne({ _id: cid }), cp = campaignId ? await C('bsCampaigns').findOne({ _id: campaignId, cid }) : null
+  const v = Math.round(Number(cp ? cp.parts : volume)), unit = cp?.withLinks ? c.priceLink : c.pricePlain, limit = cu?.dailyLimit ?? c.defaultDailyLimit
+  if (cu?.status !== 'active') return E('err_suspended')
+  if (!(v >= c.minVolume && v <= c.maxVolume)) return E('err_volume', c.minVolume, c.maxVolume)
+  if (v > limit) return E('err_allowance_over', limit)
+  if (type === 'free' && (!c.freeBookings || v > c.freeVolume)) return E('err_free')
+  if (!(await slotCapacity(c))) return E('err_no_lines')
+  const startAt = new Date(`${slotKey(date, hour)}:00:00Z`), used = (await C('bsDaily').findOne({ _id: `${cid}:${dayKey(startAt, c)}` }))?.used || 0
+  if (used + v > limit) return E('err_allowance_day', Math.max(0, limit - used), dayKey(startAt, c))
+  if (!(await lock(`book:${date}`))) return E('err_busy')
   try {
     const { slots } = await availability(date), alloc = allocate(slots, Number(hour), v)
-    if (!alloc) return { error: 'Not enough capacity from that time. Pick another slot.' }
-    const b = { _id: id('bk'), cid, campaignId: campaignId || null, type, date, hour: Number(hour), startAt: new Date(`${slotKey(date, hour)}:00:00Z`), estimatedCompletion: new Date(`${Object.keys(alloc).pop()}:59:59Z`), volume: v, allocation: alloc, price: type === 'free' ? 0 : Math.round(v * c.pricePerSms * 100) / 100, status: 'awaiting_payment', paymentStatus: type === 'free' ? 'free' : 'unpaid', holdUntil: new Date(Date.now() + c.holdMinutes * MIN), history: [{ status: 'awaiting_payment', at: new Date() }], createdAt: new Date() }
+    if (!alloc) return E('err_slot')
+    const b = { _id: id('bk'), cid, campaignId: campaignId || null, type, date, hour: Number(hour), startAt, estimatedCompletion: new Date(`${Object.keys(alloc).pop()}:59:59Z`), volume: v, unitPrice: unit, allocation: alloc, price: type === 'free' ? 0 : Math.round(v * unit * 100) / 100, status: 'awaiting_payment', paymentStatus: type === 'free' ? 'free' : 'unpaid', holdUntil: new Date(Date.now() + c.holdMinutes * MIN), history: [{ status: 'awaiting_payment', at: new Date() }], createdAt: new Date() }
     await C('bsBookings').insertOne(b); return { booking: b }
   } finally { await unlock(`book:${date}`) }
 }
 const setBooking = (bid, status, extra = {}) => C('bsBookings').updateOne({ _id: bid }, { $set: { status, ...extra, updatedAt: new Date() }, $push: { history: { status, at: new Date() } } })
 // Payment confirmed by the bot (wallet / crypto / bank already collected). Expired holds are re-checked for capacity.
 async function confirmBooking(bid, { method, amount, ref } = {}) {
-  const b = await C('bsBookings').findOne({ _id: bid }); if (!b) return { error: 'Booking not found.' }
-  if (!['pending', 'awaiting_payment'].includes(b.status)) return { error: 'This booking is no longer waiting for payment.', refund: b.price }
-  if (b.holdUntil < new Date()) { const { slots } = await availability(b.date); if (!allocate(slots, b.hour, b.volume)) { await setBooking(bid, 'failed', { note: 'Hold expired and the slot filled up' }); return { error: 'The hold expired and that slot is now full.', refund: b.price } } }
+  const b = await C('bsBookings').findOne({ _id: bid }); if (!b) return E('err_not_found')
+  if (!['pending', 'awaiting_payment'].includes(b.status)) return { ...E('err_not_waiting'), refund: b.price }
+  if (b.holdUntil < new Date()) { const { slots } = await availability(b.date); if (!allocate(slots, b.hour, b.volume)) { await setBooking(bid, 'failed', { note: 'Hold expired and the slot filled up' }); return { ...E('err_hold_full'), refund: b.price } } }
+  const c0 = await cfg(), quotaDay = await reserve(b.cid, b.volume, c0, dayKey(b.startAt, c0))
+  if (!quotaDay) { await setBooking(bid, 'failed', { note: 'daily allowance full' }); return { ...E('err_allowance_day', 0, dayKey(b.startAt, c0)), refund: b.price } }
+  await C('bsBookings').updateOne({ _id: bid }, { $set: { quotaDay } }); b.quotaDay = quotaDay
   await C('bsPayments').insertOne({ cid: b.cid, bookingId: bid, amount: amount ?? b.price, currency: 'USD', method: method || 'wallet', reference: ref || null, status: 'paid', at: new Date() })
   const c = await cfg(), cap = await slotCapacity(c), needMore = Math.max(...Object.values(b.allocation)) > cap
   await setBooking(bid, needMore ? 'provisioning' : 'scheduled', { paymentStatus: b.type === 'free' ? 'free' : 'paid' })
   if (needMore) { const r = c.autoProvision && !c.manualApproval && b.type === 'paid' ? await provisionOne(`booking ${bid}`) : null; alert(`📦 Booking ${bid} needs more capacity${r?.ok ? ` — provisioning ${r.esimId}` : ' — approve provisioning in admin'}.`) }
   if (b.campaignId) await queueCampaign(b.campaignId, b)
-  await notify(b.cid, 'booking', `✅ Booking confirmed: ${b.volume} SMS from ${b.date} ${String(b.hour).padStart(2, '0')}:00 UTC. We'll tell you when sending starts.`, { bookingId: bid })
+  await notify(b.cid, 'booking', 'n_booking', [b.volume, b.date, String(b.hour).padStart(2, '0')], { bookingId: bid })
   audit('booking_confirm', { bookingId: bid, method }); return { ok: true }
 }
 async function cancelBooking(bid, { by = 'customer', cid } = {}) {
-  const b = await C('bsBookings').findOne({ _id: bid, ...(cid ? { cid } : {}) }); if (!b) return { error: 'Booking not found.' }
-  if (!['pending', 'awaiting_payment', 'confirmed', 'scheduled', 'provisioning'].includes(b.status)) return { error: 'This booking can no longer be cancelled.' }
-  if (by === 'customer' && b.startAt < new Date(Date.now() + 30 * MIN) && b.paymentStatus === 'paid') return { error: 'Bookings can be cancelled up to 30 minutes before the start.' }
+  const b = await C('bsBookings').findOne({ _id: bid, ...(cid ? { cid } : {}) }); if (!b) return E('err_not_found')
+  if (!['pending', 'awaiting_payment', 'confirmed', 'scheduled', 'provisioning'].includes(b.status)) return E('err_cant_cancel')
+  if (by === 'customer' && b.startAt < new Date(Date.now() + 30 * MIN) && b.paymentStatus === 'paid') return E('err_cancel_late')
   const paid = b.paymentStatus === 'paid'
   await setBooking(bid, paid ? 'refunded' : 'cancelled', { cancelledBy: by })
   await C('bsMessages').updateMany({ bookingId: bid, status: 'queued' }, { $set: { status: 'expired', failureReason: 'booking_cancelled' } })
   if (b.campaignId) await C('bsCampaigns').updateOne({ _id: b.campaignId }, { $set: { status: 'cancelled' } })
-  if (paid) await notify(b.cid, 'refund', `↩️ Booking ${b.volume} SMS on ${b.date} cancelled. $${b.price} refunded to your wallet.`, { amount: b.price, bookingId: bid })
+  if (b.quotaDay) await unreserve(b.cid, b.quotaDay, b.volume)
+  if (paid) await notify(b.cid, 'refund', 'n_refund_cancel', [b.volume, b.date, b.price], { amount: b.price, bookingId: bid })
   audit('booking_cancel', { bookingId: bid, by }); return { ok: true, refunded: paid ? b.price : 0 }
 }
 async function expireHolds() {
@@ -240,49 +255,60 @@ async function expireHolds() {
 }
 
 // ---------- campaigns + messages ----------
-function msgDoc({ cid, to, body, campaignId = null, bookingId = null, sessionId = null, esimId = null, priority = 0, notBefore = null, test = false, system = false }) {
-  return { _id: id('m'), cid, brand: cid.split(':')[0], campaignId, bookingId, sessionId, esimId, to, from: null, body, segments: segs(body), direction: 'out', status: 'queued', history: [{ s: 'queued', at: new Date() }], attempts: 0, priority, nextAt: notBefore || new Date(), test, system, createdAt: new Date() }
+function msgDoc({ cid, to, body, campaignId = null, bookingId = null, sessionId = null, esimId = null, priority = 0, notBefore = null, test = false, system = false, prepaid = false, quotaDay = null, expireAt = null }) {
+  return { _id: id('m'), cid, brand: cid.split(':')[0], campaignId, bookingId, sessionId, esimId, to, from: null, body, segments: segs(body), direction: 'out', status: 'queued', history: [{ s: 'queued', at: new Date() }], attempts: 0, priority, nextAt: notBefore || new Date(), test, system, prepaid, quotaDay, expireAt, createdAt: new Date() }
 }
 // contacts: raw text (one per line / comma separated, CSV ok). Keeps valid USA/Canada numbers, drops duplicates and opted-out ones.
 async function parseContacts(cid, raw) {
-  const seen = new Set(), bad = []
-  for (const tok of String(raw || '').split(/[\n,;\t]+/)) { const t = tok.trim(); if (!t) continue; const p = normPhone(t); if (p && NANP.test(p)) seen.add(p); else if (/\d{7,}/.test(t)) bad.push(t) }
+  const seen = new Set(); let bad = 0, dup = 0
+  for (const tok of String(raw || '').split(/[\n,;\t]+/)) { const t = tok.trim(); if (!t) continue; const p = normPhone(t); if (p && validUsCa(p)) { if (seen.has(p)) dup++; seen.add(p) } else if (/\d{7,}/.test(t)) bad++ }
   const list = [...seen], sup = new Set((await C('bsSuppression').find({ $or: [{ cid }, { cid: '*' }], phone: { $in: list } }).toArray()).map(s => s.phone))
-  return { contacts: list.filter(p => !sup.has(p)), invalid: bad.length, optedOut: sup.size, duplicates: 0 }
+  return { contacts: list.filter(p => !sup.has(p)), invalid: bad, optedOut: sup.size, duplicates: dup }
 }
-async function createCampaign(cid, { name, content, contacts, uploadId = null }) {
+// Checks the declared link/phone choice, adds the opt-out line, counts SMS parts and keeps contacts within the max parts.
+function checkContent(content, withLinks) {
   const parts = (Array.isArray(content) ? content : String(content || '').split(/\n?---\n?/)).map(x => x.trim()).filter(Boolean)
-  if (!parts.length) return { error: 'Add the message text.' }
-  if (parts.some(p => segs(p) > 3)) return { error: 'Each message must fit in 3 SMS parts (about 459 characters).' }
-  const doc = { _id: id('cp'), cid, name: String(name || 'Campaign').slice(0, 60), content: parts, contacts, uploadId, volume: contacts.length, status: 'draft', testsUsed: 0, stats: { queued: 0, sent: 0, failed: 0, rejected: 0, replies: 0, optOuts: 0 }, createdAt: new Date() }
+  if (!parts.length) return E('err_add_text')
+  if (parts.some(p => segs(p + OPT) > 3)) return E('err_too_long')
+  if (!withLinks && parts.some(hasLinkOrPhone)) return E('err_has_link')
+  return { parts, segs: parts.map(p => segs(p + OPT)) }
+}
+async function createCampaign(cid, { name, content, contacts, withLinks = false, consent = false, uploadId = null }) {
+  const c = await cfg(), k = checkContent(content, withLinks); if (k.error) return k
+  if (!consent) return E('err_consent')
+  let total = 0, n = 0
+  for (; n < contacts.length; n++) { const s = k.segs[n % k.parts.length]; if (total + s > c.maxVolume) break; total += s }
+  if (total < c.minVolume) return E('err_few', c.minVolume, total)
+  const doc = { _id: id('cp'), cid, name: String(name || 'Campaign').slice(0, 60), content: k.parts, withLinks: !!withLinks, consentAt: new Date(), contacts: contacts.slice(0, n), dropped: contacts.length - n, parts: total, uploadId, volume: n, status: 'draft', testsUsed: 0, stats: { queued: 0, sent: 0, failed: 0, rejected: 0, replies: 0, optOuts: 0 }, createdAt: new Date() }
   await C('bsCampaigns').insertOne(doc); return { campaign: doc }
 }
 // Up to cfg.testSends test texts per campaign during setup; they use the daily allowance like any text.
 async function testSend(cid, campaignId, to) {
   const c = await cfg(), cp = await C('bsCampaigns').findOne({ _id: campaignId, cid }), p = normPhone(to)
-  if (!cp) return { error: 'Campaign not found.' }
-  if (!NANP.test(p)) return { error: 'Enter a USA or Canada number: +1 and 10 digits.' }
+  if (!cp) return E('err_campaign')
+  if (!validUsCa(p)) return E('err_number')
   const r = await C('bsCampaigns').updateOne({ _id: campaignId, testsUsed: { $lt: c.testSends } }, { $inc: { testsUsed: 1 } })
-  if (!r.modifiedCount) return { error: `You've used your ${c.testSends} test texts for this campaign.` }
-  const m = msgDoc({ cid, to: p, body: cp.content[0], campaignId, priority: 1, test: true })
+  if (!r.modifiedCount) return E('err_tests_used', c.testSends)
+  const m = msgDoc({ cid, to: p, body: cp.content[0] + OPT, campaignId, priority: 1, test: true })
   await C('bsMessages').insertOne(m); return { ok: true, left: c.testSends - cp.testsUsed - 1, messageId: m._id }
 }
 async function queueCampaign(campaignId, b) {
   const cp = await C('bsCampaigns').findOne({ _id: campaignId }); if (!cp || cp.status !== 'draft') return
-  const docs = cp.contacts.slice(0, b.volume).map((to, i) => msgDoc({ cid: cp.cid, to, body: cp.content[i % cp.content.length], campaignId, bookingId: b._id, notBefore: b.startAt }))
+  const docs = cp.contacts.map((to, i) => msgDoc({ cid: cp.cid, to, body: cp.content[i % cp.content.length] + OPT, campaignId, bookingId: b._id, notBefore: b.startAt, prepaid: true, quotaDay: b.quotaDay, expireAt: new Date(b.startAt.getTime() + 2 * DAY) }))
   for (let i = 0; i < docs.length; i += 500) await C('bsMessages').insertMany(docs.slice(i, i + 500))
   await C('bsCampaigns').updateOne({ _id: campaignId }, { $set: { status: 'scheduled', bookingId: b._id, scheduledAt: b.startAt, 'stats.queued': docs.length } })
 }
 // One text in an existing conversation (or a new one). Same queue, same quota.
 async function sendOne(cid, to, text, sessionId) {
   const cu = await C('bsCustomers').findOne({ _id: cid }), p = normPhone(to), body = String(text || '').trim()
-  if (cu?.status !== 'active') return { error: 'Your BulkSMS access is suspended.' }
-  if (!NANP.test(p)) return { error: 'Enter a USA or Canada number: +1 and 10 digits.' }
-  if (!body) return { error: 'Type a message.' }
-  if (segs(body) > 3) return { error: 'The message is too long (max 3 SMS parts).' }
-  if ((await usage(cid)).remaining < segs(body)) return { error: 'Your daily SMS allowance is used up. It resets at the next reset time.' }
-  if (await C('bsSuppression').findOne({ $or: [{ cid }, { cid: '*' }], phone: p })) return { error: 'This number opted out of your texts.' }
-  const m = msgDoc({ cid, to: p, body, sessionId: sessionId || null, priority: 1 }); await C('bsMessages').insertOne(m)
+  if (cu?.status !== 'active') return E('err_suspended')
+  if (!validUsCa(p)) return E('err_number')
+  if (!body) return E('err_add_text')
+  const full = sessionId ? body : body + OPT
+  if (segs(full) > 3) return E('err_too_long')
+  if ((await usage(cid)).remaining < segs(full)) return E('err_quota_used')
+  if (await C('bsSuppression').findOne({ $or: [{ cid }, { cid: '*' }], phone: p })) return E('err_opted')
+  const m = msgDoc({ cid, to: p, body: full, sessionId: sessionId || null, priority: 1 }); await C('bsMessages').insertOne(m)
   return { ok: true, messageId: m._id, segments: m.segments }
 }
 
@@ -304,9 +330,11 @@ async function processOne(m, c) {
   const later = (ms, extra = {}) => C('bsMessages').updateOne({ _id: m._id }, { $set: { status: 'queued', nextAt: new Date(Date.now() + ms), ...extra } })
   if (!m.system) {
     const cu = await C('bsCustomers').findOne({ _id: m.cid })
-    if (cu?.status !== 'active') return mark(m, 'rejected', { failureReason: 'customer_suspended' })
-    if (await C('bsSuppression').findOne({ $or: [{ cid: m.cid }, { cid: '*' }], phone: m.to })) return mark(m, 'rejected', { failureReason: 'opted_out' })
-    if (m.bookingId && Date.now() - new Date(m.nextAt).getTime() > 2 * DAY) return mark(m, 'expired', { failureReason: 'too_late' })
+    const drop = async (status, why) => { if (m.prepaid && m.quotaDay) await unreserve(m.cid, m.quotaDay, c.countSegments ? m.segments : 1); return mark(m, status, { failureReason: why }) }
+    if (cu?.status !== 'active') return drop('rejected', 'customer_suspended')
+    if (await C('bsSuppression').findOne({ $or: [{ cid: m.cid }, { cid: '*' }], phone: m.to })) return drop('rejected', 'opted_out')
+    if (m.expireAt && new Date(m.expireAt) < new Date()) return drop('expired', 'too_late')
+    if (!m.test && !m.sessionId) { const w = quietWait(m.to, c.quietStart, c.quietEnd); if (w) return later(w) }
   }
   const e = await pickEsim(m, c); if (!e) return later(5000)
   const n = c.countSegments ? m.segments : 1, day = m.system ? null : m.quotaDay || await reserve(m.cid, n, c)
@@ -322,7 +350,7 @@ async function processOne(m, c) {
     if (m.campaignId) await C('bsCampaigns').updateOne({ _id: m.campaignId }, { $inc: { 'stats.sent': 1 } })
   } catch (err) {
     const retryable = ['rate', 'credit', 'auth'].includes(err.kind) || (err.kind === 'temporary' && m.attempts < 3)
-    if (retryable) { if (day) await unreserve(m.cid, day, n); await later(err.kind === 'rate' ? (err.retryAfter || 30) * 1000 : err.kind === 'temporary' ? 30000 * 2 ** m.attempts : 60000, { quotaDay: null, attempts: m.attempts + (err.kind === 'temporary' ? 1 : 0), lastError: err.message }) }
+    if (retryable) { if (day && !m.prepaid) await unreserve(m.cid, day, n); await later(err.kind === 'rate' ? (err.retryAfter || 30) * 1000 : err.kind === 'temporary' ? 30000 * 2 ** m.attempts : 60000, { quotaDay: m.prepaid ? day : null, attempts: m.attempts + (err.kind === 'temporary' ? 1 : 0), lastError: err.message }) }
     else { await mark(m, 'failed', { failureReason: err.message }); await C('bsEsims').updateOne({ _id: e._id }, { $inc: { 'stats.failed': 1 } }); if (day) { if (c.refundFailed) await unreserve(m.cid, day, n, 'failed'); else await countDay(m.cid, day, 'failed') } if (m.campaignId) await C('bsCampaigns').updateOne({ _id: m.campaignId }, { $inc: { 'stats.failed': 1 } }); await C('bsReputation').insertOne({ esimId: e._id, cid: m.cid, deliveryStatus: 'failed', providerError: err.message, incidentType: err.status === 400 ? 'invalid_recipient' : 'provider_rejection', at: new Date() }) }
     if (err.kind === 'credit') await pause('provider_credit', err.message)
     if (err.kind === 'auth') await pause('provider_auth', err.message)
@@ -331,14 +359,30 @@ async function processOne(m, c) {
 async function notifyQuotaOnce(cid, c) {
   const k = `${cid}:${dayKey(Date.now(), c)}`
   const r = await C('bsDaily').updateOne({ _id: k, quotaNotified: { $ne: true } }, { $set: { quotaNotified: true } })
-  if (r.modifiedCount) await notify(cid, 'quota', `⛔ Your daily SMS allowance is used up. Remaining texts wait for the next reset (${nextReset(c).toISOString().slice(11, 16)} UTC).`)
+  if (r.modifiedCount) await notify(cid, 'quota', 'n_quota', [nextReset(c).toISOString().slice(11, 16)])
+}
+// Prepaid texts still waiting 2 days after the start (long pause, no healthy line) expire; their allowance is returned.
+async function expireStale(c) {
+  for (const m of await C('bsMessages').find({ prepaid: true, status: 'queued', expireAt: { $lt: new Date() } }).limit(2000).toArray()) {
+    const r = await C('bsMessages').updateOne({ _id: m._id, status: 'queued' }, { $set: { status: 'expired', failureReason: 'too_late' } })
+    if (r.modifiedCount && m.quotaDay) await unreserve(m.cid, m.quotaDay, c.countSegments ? m.segments : 1)
+  }
+}
+// Paid campaign done: SMS parts that failed or never went out go back to the wallet.
+async function refundUnsent(cp) {
+  const b = await C('bsBookings').findOne({ _id: cp.bookingId }); if (!b || b.paymentStatus !== 'paid' || b.refundedUnsent != null) return
+  const [g] = await C('bsMessages').aggregate([{ $match: { campaignId: cp._id, test: { $ne: true }, direction: 'out', status: { $in: ['failed', 'rejected', 'expired'] } } }, { $group: { _id: null, parts: { $sum: '$segments' } } }]).toArray()
+  const parts = Math.min(g?.parts || 0, b.volume), amount = Math.round(parts * (b.unitPrice ?? b.price / b.volume) * 100) / 100
+  const r = await C('bsBookings').updateOne({ _id: b._id, refundedUnsent: null }, { $set: { refundedUnsent: amount, refundedParts: parts } })
+  if (r.modifiedCount && amount > 0) await notify(cp.cid, 'refund', 'n_refund_unsent', [cp.name, parts, amount], { amount, bookingId: b._id, campaignId: cp._id })
 }
 async function finishCampaigns() {
+  await expireStale(await cfg())
   for (const cp of await C('bsCampaigns').find({ status: { $in: ['scheduled', 'running'] } }).toArray()) {
     const open = await C('bsMessages').countDocuments({ campaignId: cp._id, test: false, status: { $in: ['queued', 'processing', 'submitted'] } })
     const started = await C('bsMessages').countDocuments({ campaignId: cp._id, test: false, status: { $ne: 'queued' } })
-    if (cp.status === 'scheduled' && started) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'running', startedAt: new Date() } }); await setBooking(cp.bookingId, 'processing'); await notify(cp.cid, 'campaign', `🚀 Campaign “${cp.name}” started sending.`, { campaignId: cp._id }) }
-    if (started && !open) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'completed', completedAt: new Date() } }); await setBooking(cp.bookingId, 'completed'); const r = await report(cp._id); await notify(cp.cid, 'campaign', `🏁 Campaign “${cp.name}” finished: ${r.sent} sent, ${r.failed} failed, ${r.rejected} skipped, ${r.replies} replies.`, { campaignId: cp._id }) }
+    if (cp.status === 'scheduled' && started) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'running', startedAt: new Date() } }); await setBooking(cp.bookingId, 'processing'); await notify(cp.cid, 'campaign', 'n_started', [cp.name], { campaignId: cp._id }) }
+    if (started && !open) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'completed', completedAt: new Date() } }); await setBooking(cp.bookingId, 'completed'); const r = await report(cp._id); await notify(cp.cid, 'campaign', 'n_done', [cp.name, r.sent, r.failed, r.rejected, r.replies], { campaignId: cp._id }); await refundUnsent(cp) }
   }
 }
 let busy = false
@@ -389,7 +433,7 @@ async function onWebhook(raw, headers, body) {
     if (last?.campaignId) await C('bsCampaigns').updateOne({ _id: last.campaignId }, { $inc: { 'stats.optOuts': 1 } })
     await optOutWatch(cid)
   }
-  await notify(cid, 'inbound', `💬 Reply from ${x.from}${isStop ? ' (opted out — blocked for all future campaigns)' : ''}:\n${x.text}`, { sessionId: s._id, from: x.from })
+  await notify(cid, 'inbound', isStop ? 'n_inbound_stop' : 'n_inbound', [x.from, x.text], { sessionId: s._id, from: x.from })
   await C('bsWebhooks').updateOne({ _id: key }, { $set: { status: 'routed', cid } }); return { status: 200 }
 }
 // Many opt-outs in a day → admin alert (suspension stays a human decision).
@@ -444,7 +488,7 @@ function init({ db, log = console.log, notifyAdmin }) {
     C('bsMessages').createIndex({ status: 1, priority: -1, nextAt: 1 }).catch(() => {}); C('bsMessages').createIndex({ campaignId: 1, status: 1 }).catch(() => {}); C('bsMessages').createIndex({ cid: 1, createdAt: -1 }).catch(() => {})
     C('bsSessions').createIndex({ esimId: 1, to: 1, status: 1 }).catch(() => {}); C('bsSuppression').createIndex({ cid: 1, phone: 1 }, { unique: true }).catch(() => {}); C('bsNotify').createIndex({ brand: 1, sent: 1 }).catch(() => {}); C('bsEsims').createIndex({ msisdn: 1 }).catch(() => {})
     if (process.env.BULK_ESIM_WORKER === 'false') return
-    if (!P.configured()) { log('[BulkESIM] SPENZA_BULK_API_KEY/SECRET not set — engine idle'); return }
+    if (!configured()) { log('[BulkESIM] needs SPENZA_BULK_API_KEY/SECRET and BULK_ESIM_MONGO_URL (shared DB) — engine idle'); return }
     const every = (ms, fn, name) => setInterval(async () => { try { if (await leader()) await fn() } catch (e) { log(`[BulkESIM] ${name}: ${e.message}`) } }, ms)
     setInterval(tick, 2000)
     every(2 * MIN, creditWatch, 'credit'); every(5 * MIN, syncInventory, 'sync'); every(MIN, async () => { await finishCampaigns(); await expireHolds(); await loopTimeouts() }, 'campaigns')
@@ -454,5 +498,6 @@ function init({ db, log = console.log, notifyAdmin }) {
 }
 const db = () => S.db
 
-const configured = () => P.configured()
-module.exports = { init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+// Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
+const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
+module.exports = { OPT, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
