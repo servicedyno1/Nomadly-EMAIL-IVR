@@ -11,9 +11,9 @@ const DEFAULTS = {
   defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 8, quietEnd: 21,
   platformPerMin: 30, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
   minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2,
-  minEsims: 1, maxEsims: 20, autoProvision: false, manualApproval: true, provisionThreshold: 0.8, provisionBudget: 100,
+  minEsims: 1, maxEsims: 0, autoProvision: false, manualApproval: true, provisionThreshold: 0.8, provisionBudget: 0,
   minCredit: 10, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
-  esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, spareDaily: 2000, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3,
+  esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: true, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3,
 }
 const today = () => new Date().toISOString().slice(0, 10)
 const daysAhead = (date) => Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(today())) / 86400000)
@@ -121,17 +121,23 @@ async function addEsim(fields, status = 'testing') {
 const setEsim = (eid, status, extra = {}) => C('bsEsims').updateOne({ _id: eid }, { $set: { status, ...extra, updatedAt: new Date() }, $push: { history: { status, at: new Date(), ...(extra.note ? { note: extra.note } : {}) } } })
 const liveCount = () => C('bsEsims').countDocuments({ status: { $nin: ['replaced', 'failed', 'expired'] } })
 const spentMonth = async () => (await C('bsConfig').findOne({ _id: `spend:${new Date().toISOString().slice(0, 7)}` }))?.usd || 0
-// How many lines could still be bought right now (max, monthly budget, credit forecast); 0 unless auto-provisioning is on.
+// Most texts the account can push on `date`: Spenza's per-minute limit × the hours open for all mainland zones. More lines than
+// ceiling / per-line cap add nothing, so that is the line ceiling unless the admin sets maxEsims. provisionBudget 0 = credit forecast only.
+const openHours = (date, c) => Array.from({ length: 24 }, (_, h) => h).filter(h => hourOpen(date, h, c.quietStart, c.quietEnd)).length
+const dayCeiling = (date, c) => Math.floor(c.platformPerMin * 60 * openHours(date, c) * c.slotUtilization)
+const maxLines = (c, date = today()) => c.maxEsims || Math.max(1, Math.ceil(dayCeiling(date, c) / (c.esimDailyLimit * c.slotUtilization)))
+const budgetLeft = async (c) => (c.provisionBudget ? c.provisionBudget - await spentMonth() : Infinity)
+// How many lines could still be bought right now (line ceiling, budget if set, credit forecast); 0 unless auto-provisioning is on.
 async function buyable(c) {
   if (!c.autoProvision || c.manualApproval) return 0
   const cost = await planCost(), f = (await state()).forecast
-  return Math.max(0, Math.min(c.maxEsims - await liveCount(), Math.floor((c.provisionBudget - await spentMonth()) / cost), f ? Math.floor(f.available / cost) : Infinity))
+  return Math.max(0, Math.min(maxLines(c) - await liveCount(), Math.floor((await budgetLeft(c)) / cost), f ? Math.floor(f.available / cost) : Infinity))
 }
 async function provisionOne(reason, by) {
   const c = await cfg(), month = new Date().toISOString().slice(0, 7)
   const spent = await spentMonth(), cost = await planCost(), f = (await state()).forecast
-  if ((await liveCount()) >= c.maxEsims) return { error: `Inventory is at the maximum (${c.maxEsims}).` }
-  if (spent + cost > c.provisionBudget) { alert(`Provisioning blocked: monthly budget $${c.provisionBudget} (spent $${spent}).`); return { error: 'Monthly provisioning budget reached.' } }
+  if ((await liveCount()) >= maxLines(c)) return { error: `Inventory is at the line ceiling (${maxLines(c)}${c.maxEsims ? '' : ' — set by the Spenza sending rate'}).` }
+  if (c.provisionBudget && spent + cost > c.provisionBudget) { alert(`Provisioning blocked: monthly budget $${c.provisionBudget} (spent $${spent}).`); return { error: 'Monthly provisioning budget reached.' } }
   if (f && f.available - cost < 0) { if (await once(`provcredit:${today()}`)) alert(`Provisioning blocked: Spenza credit $${f.credit} must keep $${f.committed} for promised texts/renewals plus the $${c.minCredit} floor — a new line costs $${cost}. Add credit at web.spenza.com`); return { error: 'Not enough Spenza credit for a new line.' } }
   const e = await addEsim({}, 'purchasing')
   try {
@@ -274,11 +280,21 @@ async function capacity(date, c) {
   return { lines: n, projected: extra, perHour: Math.floor(Math.min(c.platformPerMin, n * c.esimPerMin) * 60 * c.slotUtilization), perDay: Math.floor(dayCap * c.slotUtilization) }
 }
 // Lines still missing to carry everything booked for `date` (plus `extra` unmet demand); lines on their way count, unbought ones don't.
-async function linesShort(date, c, extra = 0, pendingToo = true) {
-  const res = await reservedBySlot([date]), dayRes = Object.values(res).reduce((a, v) => a + v, 0) + extra, hourMax = Math.max(0, ...Object.values(res))
+async function linesShort(date, c, { floor = 0, pendingToo = true } = {}) {
+  const res = await reservedBySlot([date]), dayRes = Math.max(Object.values(res).reduce((a, v) => a + v, 0), floor), hourMax = Math.max(0, ...Object.values(res))
   const lines = await fleet(date, c, pendingToo), dayCap = lines.reduce((a, l) => a + l.cap, 0) * c.slotUtilization, hourCap = Math.min(c.platformPerMin, lines.length * c.esimPerMin) * 60 * c.slotUtilization
   const per = lineCap(c, daysAhead(date) + 1) * c.slotUtilization, perHour = c.esimPerMin * 60 * c.slotUtilization
-  return Math.max(0, Math.ceil((dayRes - dayCap) / per), Math.ceil((hourMax - hourCap) / perHour))
+  return Math.max(0, Math.ceil((dayRes - dayCap) / per), Math.ceil((Math.min(hourMax, c.platformPerMin * 60 * c.slotUtilization) - hourCap) / perHour))
+}
+// Demand model (no fixed benchmark): a day's target = what is booked + room for one more full booking (reserveBooking), never below
+// the busiest day (booked + refused) of the last `demandDays`. Grows with customers, falls back when they leave; capped by the day ceiling.
+async function demandModel(c) {
+  const since = new Date(Date.now() - c.demandDays * DAY).toISOString().slice(0, 10), byDay = {}
+  for (const r of await C('bsBookings').aggregate([{ $match: { date: { $gte: since }, status: { $in: ['confirmed', 'scheduled', 'provisioning', 'processing', 'completed'] } } }, { $group: { _id: '$date', v: { $sum: '$volume' } } }]).toArray()) byDay[r._id] = (byDay[r._id] || 0) + r.v
+  for (const r of await C('bsDemand').aggregate([{ $match: { date: { $gte: since } } }, { $group: { _id: '$date', v: { $sum: '$volume' } } }]).toArray()) byDay[r._id] = (byDay[r._id] || 0) + r.v
+  const t = today(), peak = Math.max(0, ...Object.entries(byDay).filter(([d]) => d <= t).map(([, v]) => v))
+  const target = (date) => Math.min(dayCeiling(date, c), Math.max((byDay[date] || 0) + (c.reserveBooking ? c.maxVolume : 0), peak))
+  return { peak, byDay, target }
 }
 // A refused booking is demand too: remembered per customer and day so the autoscaler buys lines for the coming days.
 const unmet = (cid, date, volume) => { const a = daysAhead(date); return a >= 0 && a <= 7 ? C('bsDemand').updateOne({ _id: `${cid}:${date}` }, { $max: { volume }, $set: { at: new Date(), date } }, { upsert: true }).catch(() => {}) : null }
@@ -585,7 +601,7 @@ async function overview() {
   const [esims, st, c, bookings, todayRows, used] = await Promise.all([C('bsEsims').find({}, { projection: { history: 0 } }).sort({ _id: 1 }).toArray(), state(), cfg(), C('bsBookings').aggregate([{ $group: { _id: { s: '$status', t: '$type' }, n: { $sum: 1 }, usd: { $sum: '$price' } } }]).toArray(), C('bsMessages').aggregate([{ $match: { direction: 'out', createdAt: { $gte: new Date(d) } } }, { $group: { _id: '$status', n: { $sum: 1 } } }]).toArray(), C('bsEsimDaily').find({ day: d }).toArray()])
   const by = (s) => esims.filter(e => s.includes(e.status)).length, cap = await capacity(d, c), tomorrow = await capacity(new Date(Date.now() + DAY).toISOString().slice(0, 10), c)
   const list = esims.map(e => ({ ...e, today: used.find(u => u.esimId === e._id)?.n || 0, cap: lineCap(c, lineAge(e.activationDate || e.createdAt, d)) }))
-  return { paused: st.reasons || [], notes: st.notes || {}, credit: st.credit ?? null, forecast: st.forecast || null, esims: { total: esims.length, active: by(USABLE), available: by(['available']), allocated: by(['allocated']), testing: by(['testing']), pending: by(['pending', 'purchasing', 'provisioning', 'activating']), failed: by(['failed']), suspended: by(['suspended']), replaced: by(['replaced']), expired: by(['expired']), list }, capacity: { perHour: cap.perHour, perDay: cap.perDay, lines: cap.lines, tomorrow: tomorrow.perDay, unmet: await unmetDemand() }, bookings, today: Object.fromEntries(todayRows.map(x => [x._id, x.n])), config: c }
+  return { paused: st.reasons || [], notes: st.notes || {}, credit: st.credit ?? null, forecast: st.forecast || null, esims: { total: esims.length, active: by(USABLE), available: by(['available']), allocated: by(['allocated']), testing: by(['testing']), pending: by(['pending', 'purchasing', 'provisioning', 'activating']), failed: by(['failed']), suspended: by(['suspended']), replaced: by(['replaced']), expired: by(['expired']), list }, capacity: { perHour: cap.perHour, perDay: cap.perDay, lines: cap.lines, tomorrow: tomorrow.perDay, unmet: await unmetDemand(), maxLines: maxLines(c) }, bookings, today: Object.fromEntries(todayRows.map(x => [x._id, x.n])), config: c }
 }
 // Per-line history (age, daily volumes, replies, STOPs, suspensions) — the raw data for tuning caps / a warm-up later.
 async function lineHistory(days = 14) {
@@ -605,20 +621,30 @@ async function setCustomer(cid, { dailyLimit, status }, by) {
   if (status) set.status = status === 'suspended' ? 'suspended' : 'active'
   const r = await C('bsCustomers').updateOne({ _id: cid }, { $set: set }); audit('customer', { cid, set, by }); return r.matchedCount ? { ok: true } : { error: 'Customer not found.' }
 }
-// Every 30 min: keep the minimum, cover the next 7 days of bookings plus yesterday's refused demand, release bookings whose lines arrived.
+// Every 30 min: keep the minimum, meet the demand model for the next 7 days (from tomorrow; today's lines can't be bought in time),
+// release bookings whose lines arrived.
+async function plan(c) {
+  const dm = await demandModel(c), rows = []
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(Date.now() + i * DAY).toISOString().slice(0, 10), booked = Object.values(await reservedBySlot([date])).reduce((a, v) => a + v, 0)
+    const have = (await fleet(date, c, true)).reduce((a, l) => a + l.cap, 0) * c.slotUtilization, target = i >= 1 ? dm.target(date) : booked
+    rows.push({ date, booked, target, have: Math.floor(have), ceiling: dayCeiling(date, c), short: await linesShort(date, c, { floor: target }) })
+  }
+  return { peak: dm.peak, lines: await liveCount(), maxLines: maxLines(c), rows }
+}
 async function autoscale() {
-  const c = await cfg(), total = await liveCount(), extra = await unmetDemand()
-  let need = Math.max(0, c.minEsims - total), why = need ? 'below minimum inventory' : 'demand'
-  const want = (i) => (i >= 1 ? extra + c.spareDaily : 0)
-  for (let i = 0; i < 7; i++) { const d = new Date(Date.now() + i * DAY).toISOString().slice(0, 10); need = Math.max(need, await linesShort(d, c, want(i))) }
-  for (const b of await C('bsBookings').find({ status: 'provisioning' }).toArray()) if (b.startAt < new Date() || !(await linesShort(b.date, c, 0, false))) await setBooking(b._id, 'scheduled')
+  const c = await cfg(), total = await liveCount()
+  const needOf = async () => { const p = await plan(c); return { p, n: Math.min(Math.max(0, c.minEsims - p.lines, ...p.rows.map(r => r.short)), Math.max(0, p.maxLines - p.lines)) } }
+  for (const b of await C('bsBookings').find({ status: 'provisioning' }).toArray()) if (b.startAt < new Date() || !(await linesShort(b.date, c, { pendingToo: false }))) await setBooking(b._id, 'scheduled')
+  const { p, n: need } = await needOf()
   if (!need) return
+  const why = total < c.minEsims ? 'below minimum inventory' : `demand: peak ${p.peak} SMS/day, next-7-day target up to ${Math.max(...p.rows.map(r => r.target))} SMS`
   const healthy = await C('bsEsims').countDocuments({ status: { $in: USABLE }, health: { $in: GOOD_HEALTH } })
   if (c.autoProvision && !c.manualApproval) {
-    const r = await provisionFor(why, async () => { let n = Math.max(0, c.minEsims - await liveCount()); for (let i = 0; i < 7; i++) n = Math.max(n, await linesShort(new Date(Date.now() + i * DAY).toISOString().slice(0, 10), c, want(i))); return Math.min(n, Math.max(0, c.maxEsims - await liveCount())) })
-    if (r.ok) alert(`📈 Bought ${r.ok} eSIM(s) (${why}; ${healthy} healthy, ${total} total before).`); if (r.ok < r.need && await once(`scale:${today()}`)) alert(`📈 ${r.need - r.ok} more line(s) needed but not bought: ${r.error || `maximum ${c.maxEsims} reached`}.`)
+    const r = await provisionFor(why, async () => (await needOf()).n)
+    if (r.ok) alert(`📈 Bought ${r.ok} eSIM(s) (${why}; ${healthy} healthy, ${total} total before).`); if (r.ok < r.need && await once(`scale:${today()}`)) alert(`📈 ${r.need - r.ok} more line(s) needed but not bought: ${r.error || `line ceiling ${p.maxLines} reached`}.`)
   }
-  else if (await once(`scale:${today()}`)) alert(`📈 Capacity: ${healthy} healthy eSIM(s), ${total} total (min ${c.minEsims}); ${need} more line(s) needed for the next 7 days (bookings + ${c.spareDaily} SMS/day spare${extra ? ` + ${extra} SMS refused in the last 24 h` : ''}). Provisioning needs approval: /bulkprovision, or /bulkset autoProvision true + /bulkset manualApproval false.`)
+  else if (await once(`scale:${today()}`)) alert(`📈 Capacity: ${healthy} healthy eSIM(s), ${total} total (min ${c.minEsims}); ${need} more line(s) needed for the next 7 days (${why}). Provisioning needs approval: /bulkprovision, or /bulkset autoProvision true + /bulkset manualApproval false.`)
 }
 
 function init({ db, log = console.log, notifyAdmin }) {
@@ -641,4 +667,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { OPT, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, verifyLine, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+module.exports = { OPT, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, verifyLine, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }

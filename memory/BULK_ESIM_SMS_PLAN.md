@@ -50,3 +50,10 @@ Test sends: max 2 per campaign during setup, not counted in booking volume, coun
 - NO warm-up by default (warmupDays 0 → lineCap = esimDailyLimit 400 from day 1; ramp still available via /bulkset warmupDays N). leadDays 1. spareDaily 2000: autoscale keeps bookings + 2,000 SMS/day spare from tomorrow on (≈7 idle mature lines) so same-day bookings always fit.
 - Learning infrastructure for a future data-driven warm-up: bsEsimDaily per line/day {age, n(new convs), out, session, sent, failed, in, stops}; incident 'line_suspended' snapshots {age, lifetime stats, last7 days}; admin /bulklines prints 14-day history per line; core.lineHistory().
 - Still nothing bought (autoProvision off, minEsims 1) — user will say when. Tests: autoscale 30/30, iter241 probes 21/21 (none), engine 39/39, iter239 86/86, bot_flow 16/16.
+
+## 2026-06 round 5 — fully dynamic scaling (user: "no daily benchmark")
+- demandModel(c): byDay = booked volume (bsBookings confirmed..completed) + refused (bsDemand.date) over demandDays(14); peak = busiest past day; target(date) = min(dayCeiling, max(booked(date) + (reserveBooking ? maxVolume : 0), peak)).
+- dayCeiling(date) = platformPerMin×60×openHours(date)×util (≈14,400 with 10 mainland-open hours); maxLines = cfg.maxEsims || ceil(ceiling/(esimDailyLimit×util)) ≈ 45. provisionBudget 0 = no monthly cap (credit forecast is the budget). maxEsims 0 = auto.
+- plan(c) → 7 rows {date, booked, target, have, ceiling, short}; autoscale buys max(short over days ≥1, minEsims gap) ≤ maxLines−live, under the provision lock. /bulkplan prints it. linesShort hour-shortfall capped by the platform rate (lines can't beat 30/min).
+- Removed spareDaily. Example: 4×2000 + 6×500 = 11,000/day → 35 lines, 7.6 of 10 open hours, within ceiling; growth past ~12k/day needs Spenza to raise 30/min (or a 2nd account).
+- Tests: autoscale 36/36, iter241 probes 21/21, engine 39/39, iter239 86/86, bot_flow 16/16.

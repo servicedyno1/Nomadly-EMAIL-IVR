@@ -17,9 +17,10 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   process.env.BULK_ESIM_WORKER = ''
   let provCalls = 0; const realProv = P.provision; P.provision = async (...a) => { provCalls++; return realProv(...a) }
   const c = await B.cfg()
-  ok('defaults: 400/line/day, no warm-up, 1 lead day, 2,000/day spare, auto-replace on, auto-buy off', c.esimDailyLimit === 400 && c.warmupDays === 0 && c.leadDays === 1 && c.spareDaily === 2000 && c.autoReplace === true && c.autoProvision === false)
+  ok('defaults: 400/line/day, no warm-up, 1 lead day, dynamic ceilings (maxEsims 0, budget 0), reserve one booking, auto-replace on, auto-buy off', c.esimDailyLimit === 400 && c.warmupDays === 0 && c.leadDays === 1 && c.maxEsims === 0 && c.provisionBudget === 0 && c.reserveBooking === true && c.demandDays === 14 && c.autoReplace === true && c.autoProvision === false)
+  ok('line ceiling derived from Spenza rate × open hours (10 h → 14,400/day → 45 lines)', B.dayCeiling(d(3), c) === 14400 && B.maxLines(c, d(3)) === 45 && B.maxLines({ ...c, maxEsims: 7 }) === 7)
   ok('no ramp: full cap from day 1 (ramp available via warmupDays)', [1, 2, 9].map(a => B.lineCap(c, a)).join() === '400,400,400' && [1, 3, 5].map(a => B.lineCap({ ...c, warmupDays: 5 }, a)).join() === '80,240,400')
-  await B.setConfig({ quietStart: 0, quietEnd: 24, spareDaily: 0 }, 'test')
+  await B.setConfig({ quietStart: 0, quietEnd: 24, reserveBooking: false }, 'test')
   const cust = await B.customer('Nomadly', '501'), cid = cust._id
 
   // ---- no lines, auto-buy off: refused + demand remembered + daily nudge ----
@@ -102,17 +103,31 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
 
   // ---- unmet demand drives purchases for the coming days ----
   await B.setConfig({ maxEsims: 40 }, 'test')
-  await db.collection('bsDemand').insertOne({ _id: 'x:demand', volume: 3000, at: new Date() })
+  await db.collection('bsDemand').insertOne({ _id: 'x:demand', date: d(0), volume: 3000, at: new Date() })
   const before = await db.collection('bsEsims').countDocuments({ status: { $nin: ['replaced', 'failed', 'expired'] } }); provCalls = 0; await B.autoscale()
   ok('refused demand (3,000 SMS) makes the autoscaler buy lines for the coming days', provCalls > 0 && alerts.some(a => /Bought \d+ eSIM/.test(a)), `${before} → +${provCalls}`)
 
-  // ---- standing spare capacity ----
-  await db.collection('bsDemand').deleteMany({}); await B.setConfig({ spareDaily: 2000 }, 'test')
+  // ---- dynamic demand model: room for one more booking + busiest recent day, capped by the day ceiling ----
+  await db.collection('bsDemand').deleteMany({}); await db.collection('bsBookings').deleteMany({}); await B.setConfig({ reserveBooking: true, quietStart: 8, quietEnd: 21, maxEsims: 0, platformPerMin: 30, esimPerMin: 10 }, 'test')
+  const cfgNow = await B.cfg(), dm0 = await B.demandModel(cfgNow)
+  ok('empty history → target = one full booking (2,000) per day', dm0.peak === 0 && dm0.target(d(2)) === 2000)
+  await db.collection('bsBookings').insertMany([{ _id: 'bk_hist1', cid, date: d(-3), volume: 2000, status: 'completed', paymentStatus: 'paid' }, { _id: 'bk_hist2', cid, date: d(-3), volume: 2000, status: 'completed', paymentStatus: 'paid' }, { _id: 'bk_hist3', cid, date: d(-3), volume: 500, status: 'completed', paymentStatus: 'paid' }, { _id: 'bk_fut', cid, date: d(2), volume: 1500, status: 'scheduled', paymentStatus: 'paid', allocation: { [`${d(2)}T16`]: 1500 } }])
+  await db.collection('bsDemand').insertOne({ _id: 'x:hist', date: d(-3), volume: 2000, at: new Date() })
+  const dm = await B.demandModel(cfgNow)
+  ok('busiest recent day (4,500 booked + 2,000 refused) lifts every day\'s target to 6,500', dm.peak === 6500 && dm.target(d(3)) === 6500 && dm.target(d(2)) === 6500)
+  await db.collection('bsBookings').updateOne({ _id: 'bk_fut' }, { $set: { volume: 6000, allocation: { [`${d(2)}T16`]: 6000 } } })
+  ok('a day booked above the peak targets booked + one more booking (8,000)', (await B.demandModel(cfgNow)).target(d(2)) === 8000)
+  await db.collection('bsBookings').updateOne({ _id: 'bk_fut' }, { $set: { volume: 14000, allocation: { [`${d(2)}T16`]: 14000 } } })
+  ok('target never exceeds the Spenza day ceiling (14,400)', (await B.demandModel(cfgNow)).target(d(2)) === 14400)
+  await db.collection('bsBookings').updateOne({ _id: 'bk_fut' }, { $set: { volume: 1500, allocation: { [`${d(2)}T16`]: 1500 } } })
   const liveNow = await db.collection('bsEsims').countDocuments({ status: { $nin: ['replaced', 'failed', 'expired'] } }); provCalls = 0; await B.autoscale()
-  const want = Math.max(0, Math.ceil(2000 / 320) - liveNow + 1)
-  ok('autoscaler keeps 2,000 SMS/day spare from tomorrow (buys the gap, once)', provCalls >= Math.ceil(2000 / 320) - liveNow && provCalls <= want, `${liveNow} live → +${provCalls}`)
+  const wantLines = Math.ceil(6500 / 320)
+  ok(`autoscaler buys up to the demand target (${wantLines} lines for 6,500/day), once`, provCalls === Math.max(0, wantLines - liveNow) && alerts.some(a => /peak 6500/.test(a)), `${liveNow} live → +${provCalls}`)
   provCalls = 0; await B.healthCheck(); await B.autoscale()
-  ok('spare satisfied → no further purchase', provCalls === 0)
+  ok('target met → no further purchase', provCalls === 0)
+  const pl = await B.plan(cfgNow)
+  ok('/bulkplan rows: 7 days with booked/target/have/ceiling/short', pl.rows.length === 7 && pl.rows[2].booked === 1500 && pl.rows[2].target === 6500 && pl.rows.every(r => r.ceiling === 14400) && pl.maxLines === 45 && pl.rows.slice(1).every(r => r.short === 0), JSON.stringify(pl.rows[2]))
+  await db.collection('bsBookings').deleteMany({ _id: /^bk_/ })
   const hist = await B.lineHistory(14)
   ok('line history report lists every line with days + incidents', hist.length === (await db.collection('bsEsims').countDocuments()) && hist.some(h => h.days.length) && hist.some(h => h.incidents.length), `${hist.length} lines`)
   console.log(`\n${pass} passed, ${fail} failed`)
