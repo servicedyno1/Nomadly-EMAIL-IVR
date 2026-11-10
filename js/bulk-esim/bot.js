@@ -25,7 +25,7 @@ async function homeArgs(cid) {
   const c = await B.cfg(), u = await B.usage(cid)
   return { min: c.minVolume, max: c.maxVolume, plain: per500(c.pricePlain), link: per500(c.priceLink), pct: c.scheduleDiscountPct, minHours: c.scheduleMinHours, fee: c.replyFee, perDay: c.testsPerDay, used: u.used, limit: u.limit, from: c.quietStart, to: c.quietEnd }
 }
-const home = async (send, chatId, lang) => { const r = await B.ready(); return send(chatId, t(lang, 'home', await homeArgs(B.cidOf(brand(), chatId))) + (r.one ? '' : `\n\n${t(lang, 'off_one')}`), homeKb(btn(lang), r)) }
+const home = async (send, chatId, lang) => { B.warmUp({ roles: 'tester' }).catch(() => {}); const r = await B.ready(); return send(chatId, t(lang, 'home', await homeArgs(B.cidOf(brand(), chatId))) + (r.one ? '' : `\n\n${t(lang, 'off_one')}`), homeKb(btn(lang), r)) }
 const days = () => Array.from({ length: 7 }, (_, i) => new Date(Date.now() + i * 86400000).toISOString().slice(0, 10))
 
 // Returns true when the message was handled here (anything but an explicit false).

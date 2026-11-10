@@ -15,7 +15,7 @@ const DEFAULTS = {
   minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testsPerDay: 4, testsPerWeek: 10, freeTestsPerDay: 0, numberCheck: true, lookupCost: 0.0025, lookupDays: 30,
   minEsims: 2, monitorEsims: 0, testerEsims: 1, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
   minCredit: 0, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
-  esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: false, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3, cancelDeadAfterDays: 3, checkEveryTexts: 100, apiFailsToReplace: 3, platformPerMinAuto: true,
+  esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: false, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3, cancelDeadAfterDays: 3, checkEveryTexts: 50, warmStaleMin: 60, warmLeadMin: 15, apiFailsToReplace: 3, platformPerMinAuto: true,
 }
 const today = () => new Date().toISOString().slice(0, 10)
 const daysAhead = (date) => Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(today())) / 86400000)
@@ -366,7 +366,7 @@ async function healthCheck() {
     const apiFails = health === 'technically_failed' ? (e.apiFails || 0) + 1 : 0
     const recent = await C('bsMessages').find({ esimId: e._id, direction: 'out', submittedAt: { $gt: new Date(Date.now() - DAY) } }, { projection: { status: 1 } }).toArray()
     const fails = recent.filter(m => m.status === 'failed').length, rate = recent.length ? fails / recent.length : 0
-    if (health === 'healthy' && ((recent.length >= 20 && rate > 0.3) || ((e.sendMiss || 0) >= 2 && e.status !== 'testing'))) health = 'sending_failure'; else if (health === 'healthy' && (e.recvMiss || 0) >= 3) health = 'degraded'
+    if (health === 'healthy' && ((recent.length >= 20 && rate > 0.3) || ((e.sendMiss || 0) >= 2 && e.status !== 'testing'))) health = 'sending_failure'; else if (health === 'healthy' && (e.sendMiss || 0) >= 1 && e.status !== 'testing') health = 'suspect'; else if (health === 'healthy' && (e.recvMiss || 0) >= 3) health = 'degraded'
     const score = Math.max(0, Math.round(100 - rate * 100 - (e.recvMiss || 0) * 5 - (health === 'healthy' ? 0 : 30)))
     await C('bsTests').insertOne({ esimId: e._id, type: 'status', result: health, providerResponse: err?.message || null, errorCode: err?.code || null, at: new Date() })
     const set = { health, healthScore: score, lastTestAt: new Date(), expirationDate: expires, apiFails, ...(health === 'healthy' ? { lastOkAt: new Date() } : {}) }
@@ -433,6 +433,25 @@ async function dueCheck(e, c) {
   if (spike && Date.now() - new Date(e.lastCheckOkAt || 0).getTime() > 30 * MIN) return startCheck(e, 'spike')
   if (stale && sentSince) return startCheck(e, 'periodic')
 }
+// Canary: while sending, every line texts the monitor after each checkEveryTexts texts → a silently filtered line is caught in ~15 min.
+async function volumeChecks(c) {
+  for (const e of await C('bsEsims').find({ status: { $in: USABLE }, health: 'healthy', msisdn: { $ne: null } }).toArray()) {
+    if ((e.stats?.submitted || 0) - (e.checkedSubmitted || 0) >= c.checkEveryTexts) await startCheck(e, 'volume')
+  }
+}
+// Warm-up: a line idle for warmStaleMin is re-proven before customers use it (tester when a customer opens BulkSMS; service lines
+// warmLeadMin before a booked start). A dead idle line is pulled before anything is sent from it. One check per line at a time.
+async function warmUp({ roles = null } = {}) {
+  const c = await cfg(), stale = new Date(Date.now() - c.warmStaleMin * MIN), q = { status: { $in: USABLE }, health: 'healthy', msisdn: { $ne: null }, $or: [{ lastCheckOkAt: { $lt: stale } }, { lastCheckOkAt: null }] }
+  if (roles === 'tester') q.role = 'tester'; else if (roles === 'service') Object.assign(q, SERVICE)
+  let n = 0
+  for (const e of await C('bsEsims').find(q).toArray()) if (await startCheck(e, 'warmup') !== 'no_peer') n++
+  return n
+}
+async function warmBookings(c) {
+  const soon = await C('bsBookings').countDocuments({ paymentStatus: 'paid', status: { $in: ['confirmed', 'scheduled', 'provisioning', 'processing'] }, startAt: { $lte: new Date(Date.now() + c.warmLeadMin * MIN), $gt: new Date(Date.now() - HOUR) } }, { limit: 1 })
+  if (soon) await warmUp({ roles: 'service' })
+}
 // Pending checks older than 10 min fail: no_delivery (line → monitor never arrived) or no_return (monitor → line never arrived).
 // Several lines failing delivery to the same monitor at once means the monitor is the problem: those checks are voided and it is replaced.
 async function checkTimeouts(c) {
@@ -450,14 +469,21 @@ async function checkTimeouts(c) {
   for (const t of due) {
     const result = t.legs?.out ? 'no_return' : 'no_delivery'
     await C('bsTests').updateOne({ _id: t._id }, { $set: { result } })
-    await C('bsEsims').updateOne({ _id: t.esimId }, { $inc: t.legs?.out ? { recvMiss: 1 } : { sendMiss: 1 } })
+    await C('bsEsims').updateOne({ _id: t.esimId }, { $inc: t.legs?.out ? { recvMiss: 1 } : { sendMiss: 1 } }); const e = await C('bsEsims').findOne({ _id: t.esimId })
     incident('check_failed', { esimId: t.esimId, peer: t.peer, kind: t.kind, result })
+    // Silent death guard: the check text never left this line → stop sending from it now (texts move to other lines) and re-check at once.
+    if (result === 'no_delivery' && e && USABLE.includes(e.status) && e.health === 'healthy' && (e.sendMiss || 0) < 2) {
+      await C('bsEsims').updateOne({ _id: e._id, health: 'healthy' }, { $set: { health: 'suspect', suspectAt: new Date() } })
+      alert(`🟠 ${e._id} ${e.msisdn || ''}${roleTag(e)}: a check text didn't arrive — paused from sending and re-checking now. A second miss retires and replaces it.`)
+      incident('line_suspect', { esimId: e._id, kind: t.kind })
+      await startCheck(e, 'recheck')
+    }
   }
   for (const t of await C('bsTests').find({ type: { $in: ['loop', 'verify'] }, result: 'pending', at: { $lt: new Date(Date.now() - 10 * MIN) } }).toArray()) await C('bsTests').updateOne({ _id: t._id }, { $set: { result: 'no_reply' } })
   const mon = await monitorLine(); if (!mon) return
   const bad = await C('bsTests').find({ type: 'check', peer: mon._id, result: 'no_delivery', at: { $gt: new Date(Date.now() - 30 * MIN) }, voided: { $ne: true } }).toArray()
   if (new Set(bad.map(t => t.esimId)).size >= 2) {
-    for (const t of bad) { await C('bsTests').updateOne({ _id: t._id }, { $set: { voided: true, result: 'monitor_fault' } }); await C('bsEsims').updateOne({ _id: t.esimId }, { $inc: { sendMiss: -1 } }) }
+    for (const t of bad) { await C('bsTests').updateOne({ _id: t._id }, { $set: { voided: true, result: 'monitor_fault' } }); await C('bsEsims').updateOne({ _id: t.esimId }, { $inc: { sendMiss: -1 } }); await C('bsEsims').updateOne({ _id: t.esimId, health: 'suspect' }, { $set: { health: 'healthy' }, $unset: { suspectAt: '' } }) }
     alert(`🩺 Monitor line ${mon._id} ${mon.msisdn} missed checks from ${bad.length} lines — it is the suspect, not the lines. Replacing the monitor.`); incident('monitor_fault', { esimId: mon._id, lines: [...new Set(bad.map(t => t.esimId))] })
     await setEsim(mon._id, 'suspended', { health: 'technically_failed', note: 'monitor not receiving' }); await autoReplace({ ...mon, status: 'suspended' }, 'monitor not receiving checks', c)
   }
@@ -1047,6 +1073,7 @@ async function onWebhook(raw, headers, body) {
     if (code && back) { // monitor → line: the line under test received it → check passed
       const t = await C('bsTests').findOneAndUpdate({ type: 'check', code, esimId: e._id, result: 'pending' }, { $set: { 'legs.back': true, result: 'passed', at2: new Date() } })
       if (t) await C('bsEsims').updateOne({ _id: e._id }, { $set: { recvMiss: 0, sendMiss: 0, lastCheckOkAt: new Date(), checkedSubmitted: e.stats?.submitted || 0 } })
+      if (t && e.health === 'suspect') { await C('bsEsims').updateOne({ _id: e._id, health: 'suspect' }, { $set: { health: 'healthy' }, $unset: { suspectAt: '' } }); alert(`✅ ${e._id} ${e.msisdn}: re-check passed — back to sending.`) }
     } else if (code) { // line → monitor arrived: answer so the line proves it can receive too
       const t = await C('bsTests').findOneAndUpdate({ type: 'check', code, esimId: peer._id, result: 'pending' }, { $set: { 'legs.out': true } })
       if (t) await C('bsMessages').insertOne(msgDoc({ cid: 'system:health', to: peer.msisdn, body: `CloudIVR line check ${code} ok`, priority: 2, esimId: e._id, system: true }))
@@ -1204,7 +1231,7 @@ function init({ db, log = console.log, notifyAdmin }) {
     const every = (ms, fn, name) => setInterval(async () => { try { if (await leader()) await fn() } catch (e) { log(`[BulkESIM] ${name}: ${e.message}`) } }, ms)
     bootstrap().catch(e => log(`[BulkESIM] bootstrap: ${e.message}`))
     setInterval(tick, 2000)
-    every(2 * MIN, creditWatch, 'credit'); every(5 * MIN, syncInventory, 'sync'); every(MIN, async () => { await finishCampaigns(); await expireHolds(); await checkTimeouts(await cfg()) }, 'campaigns')
+    every(2 * MIN, creditWatch, 'credit'); every(5 * MIN, syncInventory, 'sync'); every(MIN, async () => { await finishCampaigns(); await expireHolds(); const c = await cfg(); await checkTimeouts(c); await volumeChecks(c); await warmBookings(c) }, 'campaigns')
     every(10 * MIN, healthCheck, 'health'); every(30 * MIN, autoscale, 'autoscale'); every(HOUR, async () => cancelDead(await cfg()), 'cancelDead'); every(10 * MIN, linkSweep, 'linkSweep')
     log(`[BulkESIM] engine ready (${P.dry() ? 'simulated provider' : 'live Spenza'}${url ? ', shared DB' : ''})`)
   })
@@ -1213,4 +1240,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+module.exports = { warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
