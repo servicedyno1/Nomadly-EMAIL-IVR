@@ -293,6 +293,8 @@ function sanitizeUserText(text) {
   // Brand names → user-facing alternatives
   s = s.replace(/\bTwilio\b/gi, 'Speechcue')
   s = s.replace(/\bTelnyx\b/gi, 'Speechcue')
+  s = s.replace(/\bSpenza\b/gi, (process.env.CHAT_BOT_BRAND || 'Nomadly'))
+  s = s.replace(/\bGoogle (?:Web Risk|Safe Browsing)\b/gi, 'our link safety check')
   s = s.replace(/\bOpenProvider\b/gi, (process.env.CHAT_BOT_BRAND || 'Nomadly'))
   s = s.replace(/\bopenprovider\b/gi, (process.env.CHAT_BOT_BRAND || 'Nomadly'))
   s = s.replace(/\bConnect\s?Reseller\b/gi, (process.env.CHAT_BOT_BRAND || 'Nomadly'))

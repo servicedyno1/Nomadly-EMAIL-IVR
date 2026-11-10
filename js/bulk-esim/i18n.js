@@ -550,6 +550,15 @@ const FLOW = {
 
 const LANGS = { en, fr, zh, hi, fa }
 for (const [l, d] of Object.entries(FLOW)) { const { btn: b, ...rest } = d; Object.assign(LANGS[l], rest); Object.assign(LANGS[l].btn, b) }
+// Shown instead of a button that is hidden because no line can deliver right now.
+const OFF = {
+  en: { off_one: '✉️ Single texts are paused for a moment — no line can deliver right now. Please try again shortly.', off_test: '🧪 Test texts are paused for a moment — you can still book your campaign.', off_now: '⏸ Sending is paused for a moment, so “Send now” is off — you can still schedule your campaign.', off_reply: '💬 Replies in this chat are paused for a moment while its line is checked. Please try again shortly.' },
+  fr: { off_one: '✉️ Les SMS individuels sont en pause un instant — aucune ligne ne peut livrer pour le moment. Réessayez bientôt.', off_test: '🧪 Les SMS de test sont en pause un instant — vous pouvez quand même réserver votre campagne.', off_now: '⏸ L\'envoi est en pause un instant, donc « Envoyer maintenant » est désactivé — vous pouvez quand même programmer votre campagne.', off_reply: '💬 Les réponses dans cette conversation sont en pause un instant, le temps de vérifier sa ligne. Réessayez bientôt.' },
+  zh: { off_one: '✉️ 单条短信暂时停用 — 目前没有线路可以送达，请稍后再试。', off_test: '🧪 测试短信暂时停用 — 您仍可预订活动。', off_now: '⏸ 发送暂时暂停，“立即发送”不可用 — 您仍可预约活动。', off_reply: '💬 此对话的线路正在检查，回复暂时停用，请稍后再试。' },
+  hi: { off_one: '✉️ एकल SMS कुछ देर के लिए रुके हैं — अभी कोई लाइन डिलीवर नहीं कर सकती। थोड़ी देर में फिर कोशिश करें।', off_test: '🧪 टेस्ट SMS कुछ देर के लिए रुके हैं — आप फिर भी अपना कैंपेन बुक कर सकते हैं।', off_now: '⏸ भेजना कुछ देर के लिए रुका है, इसलिए “अभी भेजें” बंद है — आप फिर भी कैंपेन शेड्यूल कर सकते हैं।', off_reply: '💬 इस बातचीत की लाइन जाँची जा रही है, जवाब कुछ देर के लिए रुके हैं। थोड़ी देर में फिर कोशिश करें।' },
+  fa: { off_one: '✉️ ارسال تکی پیامک چند لحظه متوقف است — فعلاً هیچ خطی نمی‌تواند تحویل دهد. کمی بعد دوباره امتحان کنید.', off_test: '🧪 پیامک‌های تست چند لحظه متوقف است — همچنان می‌توانید کمپین را رزرو کنید.', off_now: '⏸ ارسال چند لحظه متوقف است، پس «همین حالا» غیرفعال است — همچنان می‌توانید کمپین را زمان‌بندی کنید.', off_reply: '💬 خط این گفتگو در حال بررسی است و پاسخ‌ها چند لحظه متوقف است. کمی بعد دوباره امتحان کنید.' },
+}
+for (const [l, d] of Object.entries(OFF)) Object.assign(LANGS[l], d)
 const pack = (lang) => LANGS[lang] || en
 function t(lang, key, ...args) {
   const p = pack(lang)

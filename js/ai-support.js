@@ -106,7 +106,7 @@ Every price, billing period, or range you give MUST come verbatim from this know
 
 ## BRAND CONFIDENTIALITY — CRITICAL
 - NEVER mention third-party providers/vendors by name. The user must perceive ${BRAND} as the sole provider of everything.
-- BANNED words/brands you must never output: "OpenProvider", "openprovider", "ConnectReseller", "Connect Reseller", "Telnyx", "Twilio", "Cloudflare" (as a vendor — you may say "DNS"), "Contabo", "Render", "Railway", "SignalWire", "Multitel", "BlockBee", "Brevo", "Fincra", "DynoPay", "WHM", "cPanel" (you may say "hosting panel"), "Hostbay" (use "${BRAND}"), "OpenAI", "GPT".
+- BANNED words/brands you must never output: "OpenProvider", "openprovider", "ConnectReseller", "Connect Reseller", "Telnyx", "Twilio", "Cloudflare" (as a vendor — you may say "DNS"), "Contabo", "Render", "Railway", "SignalWire", "Multitel", "BlockBee", "Brevo", "Fincra", "DynoPay", "WHM", "cPanel" (you may say "hosting panel"), "Hostbay" (use "${BRAND}"), "OpenAI", "GPT", "Spenza", "Web Risk", "Safe Browsing", "Claude", "Anthropic", "Gemini".
 - If a registrar/provider/vendor name appears in the user context below (e.g. "registered ✅ (OpenProvider)"), DO NOT echo that name back. Refer to it as "${BRAND}" or "our registrar".
 - If a user asks WHO the registrar/provider is, answer: "Your domain is registered through ${BRAND}." Do NOT name the upstream provider.
 - This rule overrides everything else. If unsure whether a word is a vendor name, say "${BRAND}" instead.
@@ -173,7 +173,7 @@ Row 4: 🖥️ VPS/RDP — Port 25 Open🛡️ (if VPS enabled)
 Row 5: 📧 Email Validation  |  💳 Virtual Card
 Row 6: 👛 Wallet  |  📱 SMS Leads
 Row 7: 🔗 URL Shortener
-Row 8: 📧🆓 BulkSMS -Trial  |  📧 Email Blast (conditional)
+Row 8: 📲 BulkSMS 🇺🇸🇨🇦 (managed USA/Canada SMS campaigns)  |  📧 Email Blast (conditional)
 Row 9: 📦 Ship & Mail  |  🎁 Service Bundles
 Row 10: 🤝 Refer & Earn
 Row 11: 💼 Reseller  |  🌍 Settings  |  💬 Support
@@ -1698,15 +1698,71 @@ const LANG_NAMES = {
   fa: 'Persian (فارسی)',
 }
 
+// BulkSMS (USA/Canada) guide for customers: live prices/limits from the engine + the customer's own campaigns.
+// Deliberately holds no provider names, line/number pool, sending speed or internal checks.
+async function bulkSmsKnowledge(chatId) {
+  let B, L
+  try { B = require('./bulk-esim/core'); L = require('./bulk-esim/i18n').btn('en'); if (!B.configured() || !B.db()) return '' } catch { return '' }
+  try {
+    const c = await B.cfg(), per500 = (x) => Math.round(x * 500 * 100) / 100, money = (x) => `$${Number(x).toFixed(2)}`
+    const brand = (process.env.CHAT_BOT_BRAND || 'Nomadly').replace(/[^A-Za-z0-9]/g, ''), cid = B.cidOf(brand, chatId)
+    let mine = ''
+    try {
+      const u = await B.usage(cid)
+      const bs = await B.db().collection('bsBookings').find({ cid }).sort({ createdAt: -1 }).limit(5).toArray()
+      const cps = await B.db().collection('bsCampaigns').find({ cid, status: { $ne: 'draft' } }).sort({ createdAt: -1 }).limit(3).toArray()
+      const rows = []
+      for (const cp of cps) { const r = await B.report(cp._id); rows.push(`- Campaign "${String(cp.name || '').slice(0, 40)}" — ${cp.status}: ${r.sent}/${r.total} sent, ${r.failed} failed, ${r.rejected} not sent, ${r.queued} waiting, ${r.replies} replies${r.skipped ? `, ${r.skipped} skipped by the number check` : ''}`) }
+      for (const b of bs) rows.push(`- Booking ${b._id.slice(-6)}: ${b.date} ${String(b.hour).padStart(2, '0')}:00 UTC, ${b.volume} SMS, $${b.price}, ${b.status}${b.refundedUnsent ? `, $${b.refundedUnsent} refunded for unsent texts` : ''}`)
+      mine = `\n### This user's BulkSMS account\n- Today: ${u.used}/${u.limit} SMS used (resets ${u.resetAt.toISOString().slice(11, 16)} UTC)\n${rows.length ? rows.join('\n') : '- No BulkSMS campaigns or bookings yet.'}\n`
+    } catch { /* customer section is optional */ }
+    return `
+
+## 📲 BulkSMS 🇺🇸🇨🇦 — managed SMS campaigns to USA & Canada (CURRENT, LIVE PRICES)
+This is the main BulkSMS product. (The older "BulkSMS -Trial" Android app is a separate thing.)
+Open: main menu → <b>${L.home}</b>. Inside: <b>${L.newc}</b>, <b>${L.one}</b>, <b>${L.convs}</b>, <b>${L.usage}</b>, <b>${L.bookings}</b>, <b>${L.progress}</b>, <b>${L.help}</b>.
+
+<b>Prices</b>
+- Text only: $${per500(c.pricePlain)} per 500 SMS ($${c.pricePlain} each).
+- With a link or phone number in the text: $${per500(c.priceLink)} per 500 SMS ($${c.priceLink} each). Anything that looks like a link or phone number counts.
+- Schedule ${c.scheduleMinHours} h or more ahead: ${c.scheduleDiscountPct}% off. Send now = full price.
+- Replies forwarded to you in the bot: +$${c.replyFee} per campaign (answers arrive for ${c.sessionHours} h). Without it, replies stay with us; STOP/HELP are always handled.
+- The number check is free, but every uploaded number is billed, including ones skipped as landline, internet/VoIP or invalid.
+- Pay from the wallet or other bot payment methods; a booking is held ${c.holdMinutes} min for payment.
+
+<b>Limits</b>
+- ${c.minVolume}–${c.maxVolume} numbers per campaign. Default daily allowance: ${c.defaultDailyLimit} SMS per customer (resets ${String(c.resetHourUtc).padStart(2, '0')}:00 UTC).
+- USA & Canada mobiles only (no toll-free or Caribbean numbers). Texts are delivered ${c.quietStart}:00–${c.quietEnd}:00 in each recipient's local time; the rest waits for the morning.
+- One SMS per text: up to ${160 - B.OPT.length} characters with the "Reply STOP to opt out" line, 160 without it. Emoji or special characters can cut the limit to 70.
+- The customer must confirm every recipient agreed to receive messages. Anyone who replies STOP is blocked for good.
+
+<b>Steps (${L.newc})</b>
+1. Numbers: paste them or upload .txt/.csv. They are checked for free; only active mobiles get the text.
+2. Message: one text, or rotate versions. The customer can write their own, separated by a line with only ---, or let AI suggest 5 to pick from. Each version may use its own link or number. Unsafe links are refused. If a link is later found unsafe during sending, only the versions with that link stop, and those are not refunded.
+3. Test (optional): the first campaign ever gets 1 free test to any USA/Canada number. After that, tests unlock when the wallet covers the campaign: up to ${c.testSends} per campaign, ${c.testsPerDay} a day, ${c.testsPerWeek} a week. Each costs the SMS price and is refunded when the campaign is booked. Changing the text after a test needs a new test. Using tests to send real traffic gets the account suspended.
+4. When: send now or schedule (−${c.scheduleDiscountPct}%), optionally add replies, then pay.
+- The customer gets a message when the campaign starts and when it finishes (with sent/failed/replies). Texts that fail or never go out are refunded to the wallet automatically. Skipped numbers are not refunded.
+- Cancel from <b>${L.bookings}</b> up to 30 min before the start for a full refund.
+- If a button such as "${L.one}", "${L.test}" or "Send now" is missing, it is temporarily unavailable. Scheduling still works; try again shortly. Never explain why.
+${mine}
+<b>BulkSMS confidentiality (CRITICAL)</b>
+- If asked how messages are delivered or where the numbers come from, give one short answer: "Texts go out from real US mobile numbers and reach all major US & Canadian carriers." Then move on.
+- NEVER name or hint at any company, network, SIM/eSIM supplier, link checker, number checker or AI model behind BulkSMS. NEVER discuss sending lines, SIMs, number pools, sending speed or limits per minute, capacity planning, test routing, health checks, number replacement or admin alerts.
+- Never promise 100% delivery. If pressed for internals, reply only: "That part is internal, but I can help with prices, steps or your campaigns." Do NOT repeat the technical words the user asked about (SIM, lines, speed, checker, provider, etc.).
+`
+  } catch { return '' }
+}
+
 // ── Main AI response function ──
 // Builds the OpenAI `messages` array (system prompt + language instruction +
 // user context + conversation history + the new user message). Shared by both
 // getAiResponse (non-streaming) and getAiResponseStreaming so the prompt
 // construction lives in exactly one place.
 async function buildAiMessages(chatId, userMessage, lang = 'en') {
-  const [userContext, history] = await Promise.all([
+  const [userContext, history, bulkSms] = await Promise.all([
     getUserContext(chatId, userMessage),
     getConversationHistory(chatId),
+    bulkSmsKnowledge(chatId),
   ])
 
   const langName = LANG_NAMES[lang] || LANG_NAMES.en
@@ -1715,7 +1771,7 @@ async function buildAiMessages(chatId, userMessage, lang = 'en') {
     : ''
 
   return [
-    { role: 'system', content: SYSTEM_PROMPT + langInstruction + userContext },
+    { role: 'system', content: SYSTEM_PROMPT + bulkSms + langInstruction + userContext + (bulkSms ? '\n\nFINAL RULE (BulkSMS): when asked about how BulkSMS works internally (SIMs, lines, speed, checkers, providers, number source), answer with exactly one sentence — "Texts go out from real US mobile numbers and reach all major US & Canadian carriers; the rest is internal." — and never repeat those technical words.' : '') },
     ...history,
     { role: 'user', content: userMessage },
   ]
@@ -2065,7 +2121,7 @@ function extractActionButtons(aiResponse, lang = 'en') {
       'sms lead': '📱 SMS Leads',
       'virtual card': '💳 Virtual Card',
       'email validation': '📧 Email Validation',
-      'bulk sms': '📲 BulkSMS — Free',
+      'bulk sms': '📲 BulkSMS 🇺🇸🇨🇦',
       'digital product': '📦 Digital Products',
       '/testsip': '🧪 Free SIP Test',
     },
