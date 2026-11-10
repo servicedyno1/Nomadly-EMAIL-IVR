@@ -1021,10 +1021,10 @@ const html = (text = t.successPayment) => {
   const accent = require('./sms-app-brand.js').webAccent()
   return `
         <html>
-            <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${brand}</title></head>
+            <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${brand}</title><link rel="icon" href="/favicon.png?v=2026-11"><link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2026-11"></head>
             <body style="margin:0;background:#0b0f1a;color:#e6e8ee;font-family:system-ui,-apple-system,Segoe UI,sans-serif;">
                 <div style="max-width:640px;margin:0 auto;padding:48px 24px;">
-                  <img src="/brand/wordmark.png" alt="${brand}" style="height:44px;display:block;margin-bottom:28px" onerror="this.outerHTML='<div style=\\'font-weight:800;font-size:28px;letter-spacing:.08em;color:${accent};margin-bottom:28px\\'>${brand.toUpperCase()}</div>'">
+                  <img src="/brand/wordmark.png?v=2026-11" alt="${brand}" style="height:44px;display:block;margin-bottom:28px" onerror="this.outerHTML='<div style=\\'font-weight:800;font-size:28px;letter-spacing:.08em;color:${accent};margin-bottom:28px\\'>${brand.toUpperCase()}</div>'">
                   <p style="font-size:16px;line-height:1.6;white-space:pre-wrap;">${text}</p>
                 </div>
             </body>
