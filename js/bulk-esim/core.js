@@ -44,7 +44,19 @@ const cidOf = (brand, chatId) => `${brand}:${chatId}`
 const segs = (t) => { const s = String(t || ''); const gsm = /^[\x20-\x7E\n\r£¥èéùìòÇØøÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ¡ÄÖÑÜ§¿äöñüà€]*$/.test(s); const one = gsm ? 160 : 70, many = gsm ? 153 : 67; return s.length <= one ? 1 : Math.ceil(s.length / many) }
 const normPhone = (p) => { const d = String(p || '').replace(/[^\d]/g, ''); return d.length === 10 ? `+1${d}` : d.length === 11 && d[0] === '1' ? `+${d}` : '' }
 
-async function cfg() { return { ...DEFAULTS, ...((await C('bsConfig').findOne({ _id: 'settings' }))?.values || {}) } }
+// Settings + the Spenza accounts in use: each account has its own SMS rate (platformPerMin, or the limit Spenza reported in its
+// headers), credit and forecast; `low` = balance under the floor → its lines sit out until it is topped up.
+async function cfg() {
+  const c = { ...DEFAULTS, ...((await C('bsConfig').findOne({ _id: 'settings' }))?.values || {}) }, docs = await C('bsAccounts').find({}).toArray()
+  c.accounts = P.accounts().map(a => { const d = docs.find(x => x._id === a.id) || {}; return { id: a.id, n: a.n, perMin: (c.platformPerMinAuto && d.perMin) || c.platformPerMin, low: !!d.low, credit: d.credit ?? null, forecast: d.forecast || null, status: d.status || 'active' } }).filter(a => a.status !== 'disabled')
+  return c
+}
+const firstAccount = (c) => c.accounts[0]?.id || P.accounts()[0]?.id || 'spenza1'
+const acctIds = (c) => c.accounts.map(a => a.id)
+// Combined outbound rate of every account (each one is capped by Spenza on its own).
+const ratePerMin = (c) => c.accounts.reduce((a, x) => a + x.perMin, 0) || c.platformPerMin
+const setAccount = (id, set) => { const ins = { addedAt: new Date(), n: Number(String(id).replace(/\D/g, '')) || 1, status: 'active' }; for (const k of Object.keys(set)) delete ins[k]; return C('bsAccounts').updateOne({ _id: id }, { $set: { ...set, updatedAt: new Date() }, $setOnInsert: ins }, { upsert: true }) }
+const acctLabel = (id) => `account #${String(id).replace(/\D/g, '') || 1}`
 const dayKey = (t, c) => new Date(new Date(t).getTime() - (c.resetHourUtc || 0) * HOUR).toISOString().slice(0, 10)
 const nextReset = (c) => { const d = new Date(Date.now() - c.resetHourUtc * HOUR); d.setUTCHours(0, 0, 0, 0); return new Date(d.getTime() + DAY + c.resetHourUtc * HOUR) }
 const audit = (action, d = {}) => C('bsAudit').insertOne({ action, ...d, at: new Date() }).catch(() => {})
@@ -83,34 +95,44 @@ async function resume(reason) {
   const r = await C('bsConfig').updateOne({ _id: 'state', reasons: reason }, { $pull: { reasons: reason } })
   if (r.modifiedCount) { const left = (await state()).reasons; alert(`▶️ ${reason} cleared. ${left.length ? `Still paused: ${left.join(', ')}` : 'Sending resumed.'}`); incident('resumed', { reason }) }
 }
-let planCache = { at: 0, cost: 10 }
-async function planCost() { if (Date.now() - planCache.at > 10 * MIN) { const p = await P.plan().catch(() => null); planCache = { at: Date.now(), cost: p?.cost || planCache.cost } } return planCache.cost }
-// Credit forecast: balance minus what is already promised (queued prepaid texts, plan renewals due soon) minus the floor, and the runway at the last week's pace.
-async function forecast(c, bal) {
-  const wk = new Date(Date.now() - 7 * DAY)
+let planCache = {}
+async function planCost(account) { const k = account || 'spenza1', pc = planCache[k] || { at: 0, cost: 10 }; if (Date.now() - pc.at > 10 * MIN) { const p = await P.plan(account).catch(() => null); planCache[k] = { at: Date.now(), cost: p?.cost || pc.cost } } return planCache[k].cost }
+// Credit forecast for one account: balance minus what is already promised (its share of queued prepaid texts — by its share of the
+// service lines — plus its plan renewals due soon) minus the floor, and the runway at the last week's pace.
+async function forecast(c, bal, account) {
+  const wk = new Date(Date.now() - 7 * DAY), acc = account ? { account } : {}
   const [q] = await C('bsMessages').aggregate([{ $match: { direction: 'out', status: { $in: ['queued', 'processing', 'submitted'] }, test: { $ne: true } } }, { $group: { _id: null, parts: { $sum: '$segments' } } }]).toArray()
   const [vb] = await C('bsBookings').aggregate([{ $match: { campaignId: null, paymentStatus: 'paid', status: { $in: ['confirmed', 'scheduled', 'provisioning', 'processing'] } } }, { $group: { _id: null, parts: { $sum: '$volume' } } }]).toArray()
-  const parts = (q?.parts || 0) + (vb?.parts || 0)
-  const cost = await planCost(), renewals = await C('bsEsims').countDocuments({ status: { $in: [...USABLE, 'testing'] }, expirationDate: { $ne: null, $lt: new Date(Date.now() + c.renewalWindowDays * DAY) } })
-  const sent7 = await C('bsMessages').countDocuments({ direction: 'out', status: { $in: ['sent', 'delivered'] }, sentAt: { $gt: wk } })
-  const [p7] = await C('bsAudit').aggregate([{ $match: { action: 'provision', at: { $gt: wk } } }, { $group: { _id: null, usd: { $sum: '$cost' } } }]).toArray()
+  const all = await liveCount(), mine = account ? await liveCount(account) : all, share = account ? (all ? mine / all : 1 / Math.max(1, c.accounts.length)) : 1
+  const parts = Math.round(((q?.parts || 0) + (vb?.parts || 0)) * share)
+  const cost = await planCost(account), renewals = await C('bsEsims').countDocuments({ ...acc, status: { $in: [...USABLE, 'testing'] }, expirationDate: { $ne: null, $lt: new Date(Date.now() + c.renewalWindowDays * DAY) } })
+  const sent7 = await C('bsMessages').countDocuments({ direction: 'out', status: { $in: ['sent', 'delivered'] }, sentAt: { $gt: wk }, ...(account ? { account } : {}) })
+  const [p7] = await C('bsAudit').aggregate([{ $match: { action: 'provision', at: { $gt: wk }, ...acc } }, { $group: { _id: null, usd: { $sum: '$cost' } } }]).toArray()
   const committed = Math.round((parts * c.providerSmsCost + renewals * cost) * 100) / 100, available = Math.round((bal - committed - c.minCredit) * 100) / 100
   const daily = (sent7 * c.providerSmsCost + (p7?.usd || 0)) / 7
   return { credit: bal, committed, available, daily: Math.round(daily * 100) / 100, runway: daily > 0 ? Math.round((available / daily) * 10) / 10 : null, renewals, lineCost: cost, at: new Date() }
 }
 const once = async (key) => (await C('bsConfig').updateOne({ _id: key }, { $setOnInsert: { at: new Date() } }, { upsert: true })).upsertedCount > 0
+// Every account's balance → per-account forecast + `low` flag (its lines sit out), a combined forecast in state, and the global
+// pause only when every account is under the floor.
 async function creditWatch() {
-  const c = await cfg()
-  let bal; try { bal = await P.credit() } catch (_) { return }
-  const f = await forecast(c, bal)
-  await C('bsConfig').updateOne({ _id: 'state' }, { $set: { credit: bal, creditAt: new Date(), forecast: f } }, { upsert: true }).catch(() => {})
-  if (bal < c.minCredit) {
-    await pause('provider_credit', `Spenza balance $${bal} is below $${c.minCredit}. Add credit at web.spenza.com`)
-    const st = await state(); if (Date.now() - (st.creditNagAt || 0) > HOUR) { await C('bsConfig').updateOne({ _id: 'state' }, { $set: { creditNagAt: Date.now() } }); if (st.creditNagAt) alert(`⏸ Still paused: Spenza balance $${bal} (floor $${c.minCredit}). ${f.committed ? `$${f.committed} of texts are waiting. ` : ''}Add credit at web.spenza.com`) }
-  } else {
-    await resume('provider_credit')
-    if ((f.available < 0 || (f.runway != null && f.runway < c.creditWarnDays)) && await once(`creditwarn:${today()}`)) alert(`⚠️ Spenza credit is getting low: $${bal} on the account, $${f.committed} already promised (${f.renewals} renewal(s) due within ${c.renewalWindowDays} days), ~$${f.daily}/day lately → ${f.available < 0 ? 'new bookings are on hold' : `about ${f.runway} day(s) left`}. Add credit at web.spenza.com`)
+  const c = await cfg(), sum = { credit: 0, committed: 0, available: 0, daily: 0, renewals: 0, lineCost: 0 }; let seen = 0, lows = 0, lowNotes = []
+  for (const a of c.accounts) {
+    let bal; try { bal = await P.credit(a.id) } catch (_) { continue }
+    const f = await forecast(c, bal, a.id), low = bal < c.minCredit; seen++
+    for (const k of ['credit', 'committed', 'available', 'daily', 'renewals']) sum[k] += f[k]; sum.lineCost = Math.max(sum.lineCost, f.lineCost)
+    await setAccount(a.id, { credit: bal, creditAt: new Date(), forecast: f, low })
+    if (low) { lows++; lowNotes.push(`${acctLabel(a.id)} $${bal}`); if (!a.low) { alert(`💳 Spenza ${acctLabel(a.id)} balance $${bal} is below the $${c.minCredit} floor — its lines sit out${c.accounts.length > 1 ? ' while the other account(s) keep sending' : ''}. Add credit at web.spenza.com`); incident('account_low', { account: a.id, credit: bal }) } }
+    else if (a.low) alert(`💳 Spenza ${acctLabel(a.id)} topped up ($${bal}) — its lines are back in the pool.`)
+    else if ((f.available < 0 || (f.runway != null && f.runway < c.creditWarnDays)) && await once(`creditwarn:${a.id}:${today()}`)) alert(`⚠️ Spenza ${acctLabel(a.id)} credit is getting low: $${bal} on the account, $${f.committed} already promised (${f.renewals} renewal(s) due within ${c.renewalWindowDays} days), ~$${f.daily}/day lately → ${f.available < 0 ? 'new bookings are on hold' : `about ${f.runway} day(s) left`}. Add credit at web.spenza.com`)
   }
+  if (!seen) return
+  const r2 = (x) => Math.round(x * 100) / 100, f = { ...sum, credit: r2(sum.credit), committed: r2(sum.committed), available: r2(sum.available), daily: r2(sum.daily), runway: sum.daily > 0 ? Math.round((sum.available / sum.daily) * 10) / 10 : null, accounts: seen, low: lows, at: new Date() }
+  await C('bsConfig').updateOne({ _id: 'state' }, { $set: { credit: f.credit, creditAt: new Date(), forecast: f } }, { upsert: true }).catch(() => {})
+  if (lows === seen) {
+    await pause('provider_credit', `Spenza balance ${lowNotes.join(', ')} is below $${c.minCredit}. Add credit at web.spenza.com`)
+    const st = await state(); if (Date.now() - (st.creditNagAt || 0) > HOUR) { await C('bsConfig').updateOne({ _id: 'state' }, { $set: { creditNagAt: Date.now() } }); if (st.creditNagAt) alert(`⏸ Still paused: Spenza balance ${lowNotes.join(', ')} (floor $${c.minCredit}). ${f.committed ? `$${f.committed} of texts are waiting. ` : ''}Add credit at web.spenza.com`) }
+  } else await resume('provider_credit')
 }
 // Bookings stop while the balance can't cover what is already promised plus this one (no forecast yet → allowed).
 async function creditShort(c, parts) { const st = await state(); return st.reasons?.includes('provider_credit') || (st.forecast ? st.forecast.available - parts * c.providerSmsCost < 0 : false) }
@@ -118,43 +140,76 @@ async function creditShort(c, parts) { const st = await state(); return st.reaso
 // ---------- inventory ----------
 async function nextEsimId() { const r = await C('bsConfig').findOneAndUpdate({ _id: 'esimSeq' }, { $inc: { n: 1 } }, { upsert: true, returnDocument: 'after' }); const n = (r?.value || r).n; return `ESIM-${String(n).padStart(4, '0')}` }
 async function addEsim(fields, status = 'testing') {
-  const doc = { _id: await nextEsimId(), provider: P.name, providerEsimId: fields.iccid || null, iccid: fields.iccid || null, imsi: fields.imsi || null, msisdn: fields.msisdn || null, providerRef: fields.providerRef || null, status, health: 'unknown', healthScore: 100, activationDate: fields.msisdn ? new Date() : null, expirationDate: fields.expirationDate || null, replaces: fields.replaces || null, role: fields.role || 'service', verify: !!fields.verify, stats: { submitted: 0, sent: 0, failed: 0 }, history: [{ status, at: new Date() }], createdAt: new Date() }
+  const doc = { _id: await nextEsimId(), provider: P.name, account: fields.account || firstAccount(await cfg()), providerEsimId: fields.iccid || null, iccid: fields.iccid || null, imsi: fields.imsi || null, msisdn: fields.msisdn || null, providerRef: fields.providerRef || null, status, health: 'unknown', healthScore: 100, activationDate: fields.msisdn ? new Date() : null, expirationDate: fields.expirationDate || null, replaces: fields.replaces || null, role: fields.role || 'service', verify: !!fields.verify, stats: { submitted: 0, sent: 0, failed: 0 }, history: [{ status, at: new Date() }], createdAt: new Date() }
   await C('bsEsims').insertOne(doc); return doc
 }
 const setEsim = (eid, status, extra = {}) => C('bsEsims').updateOne({ _id: eid }, { $set: { status, ...extra, updatedAt: new Date() }, $push: { history: { status, at: new Date(), ...(extra.note ? { note: extra.note } : {}) } } })
-const liveCount = () => C('bsEsims').countDocuments({ ...SERVICE, status: { $nin: GONE } })
+const liveCount = (account) => C('bsEsims').countDocuments({ ...SERVICE, status: { $nin: GONE }, ...(account ? { account } : {}) })
 const roleCount = (role) => C('bsEsims').countDocuments({ role, status: { $nin: [...GONE, 'suspended'] } })
 const monitorCount = () => roleCount('monitor')
 const spentMonth = async () => (await C('bsConfig').findOne({ _id: `spend:${new Date().toISOString().slice(0, 7)}` }))?.usd || 0
-// Most texts the account can push on `date`: Spenza's per-minute limit × the hours open for all mainland zones. More lines than
-// ceiling / per-line cap add nothing, so that is the line ceiling unless the admin sets maxEsims. provisionBudget 0 = credit forecast only.
+// Most texts one account can push on `date`: its per-minute limit × the hours open for all mainland zones. More lines than
+// ceiling / per-line cap add nothing, so that is the account's line ceiling; the pool ceiling is the sum over accounts unless the
+// admin sets maxEsims. provisionBudget 0 = credit forecast only.
 const openHours = (date, c) => Array.from({ length: 24 }, (_, h) => h).filter(h => hourOpen(date, h, c.quietStart, c.quietEnd)).length
-const dayCeiling = (date, c) => Math.floor(c.platformPerMin * 60 * openHours(date, c) * c.slotUtilization)
-const maxLines = (c, date = today()) => c.maxEsims || Math.max(1, Math.ceil(dayCeiling(date, c) / (c.esimDailyLimit * c.slotUtilization)))
+const acctCeiling = (date, c, a) => Math.floor(a.perMin * 60 * openHours(date, c) * c.slotUtilization)
+const acctMaxLines = (c, a, date = today()) => Math.max(1, Math.ceil(acctCeiling(date, c, a) / (c.esimDailyLimit * c.slotUtilization)))
+const dayCeiling = (date, c) => c.accounts.reduce((s, a) => s + acctCeiling(date, c, a), 0)
+const maxLines = (c, date = today()) => c.maxEsims || c.accounts.reduce((s, a) => s + acctMaxLines(c, a, date), 0)
 const budgetLeft = async (c) => (c.provisionBudget ? c.provisionBudget - await spentMonth() : Infinity)
-// How many lines could still be bought right now (line ceiling, budget if set, credit forecast); 0 unless auto-provisioning is on.
+// Accounts that can take a new service line now: not low on credit, under their own line ceiling (unless maxEsims overrides), forecast
+// covers a plan. Sorted by headroom so new lines spread evenly; `room` = lines it can still take.
+async function acctRoom(c, role = 'service') {
+  const out = []
+  for (const a of c.accounts) {
+    if (a.low) continue
+    const cost = await planCost(a.id), lines = await liveCount(a.id), f = a.forecast
+    const byCredit = f ? Math.floor(f.available / cost) : Infinity, byCeiling = c.maxEsims ? Infinity : acctMaxLines(c, a) - lines
+    const room = AUX.includes(role) ? (byCredit > 0 ? 1 : 0) : Math.max(0, Math.min(byCeiling, byCredit))
+    if (room > 0) out.push({ ...a, lines, room, cost, ratio: lines / acctMaxLines(c, a) })
+  }
+  return out.sort((x, y) => x.ratio - y.ratio || x.n - y.n)
+}
+// How many lines could still be bought right now (line ceiling, budget if set, per-account credit forecast); 0 unless auto-provisioning is on.
 async function buyable(c) {
   if (!c.autoProvision || c.manualApproval) return 0
-  const cost = await planCost(), f = (await state()).forecast
-  return Math.max(0, Math.min(maxLines(c) - await liveCount(), Math.floor((await budgetLeft(c)) / cost), f ? Math.floor(f.available / cost) : Infinity))
+  const rooms = await acctRoom(c), cost = Math.min(...rooms.map(r => r.cost), await planCost(firstAccount(c)))
+  return Math.max(0, Math.min(maxLines(c) - await liveCount(), Math.floor((await budgetLeft(c)) / cost), rooms.reduce((s, r) => s + r.room, 0)))
 }
-async function provisionOne(reason, by, role = 'service') {
+// Spenza caps each account's sending rate, so the pool can only grow by adding accounts: tell the admin once a day when the lines
+// are near the ceiling or the demand model wants more than the ceiling allows.
+async function adviseAccounts(c, { lines, target } = {}) {
+  const n = c.accounts.length, max = maxLines(c), ceiling = dayCeiling(today(), c), near = lines != null && max && lines >= Math.ceil(max * 0.8), over = target != null && target > ceiling
+  if ((!near && !over) || c.maxEsims || n >= P.MAX_ACCOUNTS) return false
+  if (!(await once(`acctadvice:${today()}`))) return true
+  alert(`📣 Capacity is near the Spenza limit: ${lines ?? '?'} of ${max} line(s) across ${n} account(s)${over ? `, and the demand model wants ${target} SMS/day against a ceiling of ${ceiling}` : ''}. Spenza caps each account at ${c.accounts.map(a => `${a.perMin}`).join('/')} SMS/min, so more lines on the same account add nothing. To grow further add Spenza account #${n + 1}: set SPENZA_BULK_API_KEY_${n + 1} and SPENZA_BULK_API_SECRET_${n + 1} (plus SPENZA_BULK_IMEI_${n + 1} if its handset differs) and redeploy — the engine connects it, syncs its SIMs and starts buying lines on it automatically.`)
+  incident('account_advice', { lines, max, target, ceiling, accounts: n }); return true
+}
+async function provisionOne(reason, by, role = 'service', account = null) {
   const c = await cfg(), month = new Date().toISOString().slice(0, 7)
   if (AUX.includes(role) && (await roleCount(role)) >= c[`${role}Esims`]) return { error: `${role} line already present.` }
-  const spent = await spentMonth(), cost = await planCost(), f = (await state()).forecast
-  if (!AUX.includes(role) && (await liveCount()) >= maxLines(c)) return { error: `Inventory is at the line ceiling (${maxLines(c)}${c.maxEsims ? '' : ' — set by the Spenza sending rate'}).` }
+  const spent = await spentMonth(), live = await liveCount()
+  if (!AUX.includes(role) && live >= maxLines(c)) { await adviseAccounts(c, { lines: live }); return { error: `Inventory is at the line ceiling (${maxLines(c)}${c.maxEsims ? '' : ` — set by the Spenza sending rate of ${c.accounts.length} account(s)`}).` } }
+  const rooms = await acctRoom(c, role), pick = (account && rooms.find(r => r.id === account)) || rooms[0]
+  const cost = pick ? pick.cost : await planCost(account || firstAccount(c))
   if (c.provisionBudget && spent + cost > c.provisionBudget) { alert(`Provisioning blocked: monthly budget $${c.provisionBudget} (spent $${spent}).`); return { error: 'Monthly provisioning budget reached.' } }
-  if (f && f.available - cost < 0) { if (await once(`provcredit:${today()}`)) alert(`Provisioning blocked: Spenza credit $${f.credit} must keep $${f.committed} for promised texts/renewals plus the $${c.minCredit} floor — a new line costs $${cost}. Add credit at web.spenza.com`); return { error: 'Not enough Spenza credit for a new line.' } }
-  const e = await addEsim({ role }, 'purchasing')
+  if (!pick) {
+    const lowAll = c.accounts.length && c.accounts.every(a => a.low), f = (await state()).forecast
+    if (await once(`provcredit:${today()}`)) alert(lowAll || !f || f.available - cost < 0 ? `Provisioning blocked: Spenza credit $${f?.credit ?? '?'} across ${c.accounts.length} account(s) must keep $${f?.committed ?? '?'} for promised texts/renewals plus the $${c.minCredit} floor each — a new line costs $${cost}. Add credit at web.spenza.com` : `Provisioning blocked: every Spenza account is at its own line ceiling.`)
+    if (!lowAll && f && f.available - cost >= 0) await adviseAccounts(c, { lines: live })
+    return { error: lowAll || !f || f.available - cost < 0 ? 'Not enough Spenza credit for a new line.' : 'Every Spenza account is at its line ceiling.' }
+  }
+  const e = await addEsim({ role, account: pick.id }, 'purchasing')
   try {
-    const r = await P.provision({ key: e._id })
+    const r = await P.provision({ key: e._id, account: pick.id })
     await C('bsConfig').updateOne({ _id: `spend:${month}` }, { $inc: { usd: cost } }, { upsert: true })
     await setEsim(e._id, r.phoneNumber ? 'testing' : 'provisioning', { providerRef: r.transactionId, iccid: r.iccid || null, providerEsimId: r.iccid || null, msisdn: r.phoneNumber || null, activationDate: r.phoneNumber ? new Date() : null })
     await C('bsConfig').updateOne({ _id: 'state', forecast: { $ne: null } }, { $inc: { 'forecast.available': -cost } }).catch(() => {})
-    audit('provision', { esimId: e._id, reason, by, cost, role }); return { ok: true, esimId: e._id }
+    await C('bsAccounts').updateOne({ _id: pick.id, forecast: { $ne: null } }, { $inc: { 'forecast.available': -cost } }).catch(() => {})
+    audit('provision', { esimId: e._id, reason, by, cost, role, account: pick.id }); return { ok: true, esimId: e._id, account: pick.id }
   } catch (err) {
-    await setEsim(e._id, 'failed', { note: err.message }); alert(`❌ Provisioning ${e._id} failed: ${err.message}`)
-    if (err.kind === 'credit') await pause('provider_credit', err.message)
+    await setEsim(e._id, 'failed', { note: err.message }); alert(`❌ Provisioning ${e._id} (${acctLabel(pick.id)}) failed: ${err.message}`)
+    if (err.kind === 'credit') { await setAccount(pick.id, { low: true }); await creditWatch() }
     return { error: err.message }
   }
 }
