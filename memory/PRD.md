@@ -1,5 +1,11 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-10 — New logos (ProShop, Voodoo Land, Smadav) + banners for every ad
+- assets/brand/{proshop,voodooland,smadav}/{logo.png 1200x400 on brand-dark, wordmark.png transparent, mark.png 1024 icon, icon.png 256} regenerated (amber bag+bolt / teal hexagon eye / blue shield+bubble). Used by /brand/:file (landing, panel, storefront, favicon) and welcome emails (logo.png?v=2026-11 cache-bust).
+- Promo banners: assets/promo/{proshop,voodooland,smadav}/{antired_hosting,cloudphone,domains_shortener,leads_validation,vps_rdp,bulksms_esim}.jpg (web ads stay NomadlyBot-only). Old files are in git history.
+- Telegram bot avatars (manual via BotFather): frontend/public/downloads/{proshop,voodooland,smadav}-telegram-avatar-640.png.
+
+
 ## 2026-11-10 — BulkSMS (SIM-free) featured ad
 - Theme `bulksms_app` (old Android-app ad) replaced by `bulksms_esim` in promo-copy (en/fr/zh/hi), THEME_META (📲, hub 'bulksms' → opens 📲 BulkSMS 🇺🇸🇨🇦), CROSS_SELL, SERVICE_CONTEXT. Enabled unless BULK_ESIM_PROMO=false.
 - auto-promo: FEATURED_THEME='bulksms_esim' fills both daily slots (10:00 + 19:00 local) on every bot; pickTheme returns it ahead of browsed/cross-sell; per-user cadence (≈ every other day) unchanged. BULK_ESIM_PROMO=false → old DAY_SCHEDULE.
