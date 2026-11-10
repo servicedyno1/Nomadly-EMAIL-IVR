@@ -5,7 +5,7 @@ const { MongoClient } = require('mongodb')
 const B = require('../bulk-esim/core')
 const TZ = require('../bulk-esim/tz')
 const { t, LANGS } = require('../bulk-esim/i18n')
-const COLS = ['bsConfig', 'bsEsims', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation', 'bsUploads', 'bsDrafts']
+const COLS = ['bsConfig', 'bsEsims', 'bsEsimDaily', 'bsDemand', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation', 'bsUploads', 'bsDrafts']
 let pass = 0, fail = 0
 const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${cond ? '✅' : '❌'} ${name}${extra ? ` — ${extra}` : ''}`) }
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
@@ -33,7 +33,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms))
   await B.healthCheck()
   const pool = await db.collection('bsEsims').find().toArray()
   ok('eSIMs get internal ids and join the pool only after checks', pool.length === 5 && pool[0]._id === 'ESIM-0001' && pool.every(e => e.status === 'available' && e.health === 'healthy'))
-  await B.setConfig({ platformPerMin: 600, esimPerMin: 200 }, 'test')
+  await B.setConfig({ platformPerMin: 600, esimPerMin: 200, esimDailyLimit: 5000, warmupDays: 1 }, 'test')
   ok('customer gets the 2,000/day default', (await B.usage(cid)).limit === 2000)
   const raw = Array.from({ length: 520 }, (_, i) => `+1212555${1000 + i}`).join('\n') + '\nbad,123\n+15551234567\n+18765551234\n+12125551000'
   const pc = await B.parseContacts(cid, raw)
@@ -53,7 +53,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms))
   const bk = await B.createBooking(cid, { date: day, hour: 18, campaignId: cr.campaign._id })
   ok('plain price $50 per 500 SMS', bk.booking?.status === 'awaiting_payment' && bk.booking.price === 52, `$${bk.booking?.price}`)
   const av = await B.availability(day), slot = av.slots.find(s => s.hour === 18)
-  ok('availability reduced by the hold', slot.free === av.capacity - bk.booking.allocation[`${day}T18`])
+  ok('availability reduced by the hold', av.dayFree === av.perDay - 520 && slot.free === Math.min(av.dayFree, av.capacity - bk.booking.allocation[`${day}T18`]))
   await B.confirmBooking(bk.booking._id, { method: 'wallet' })
   const bDay = (await db.collection('bsBookings').findOne({ _id: bk.booking._id })).quotaDay
   ok('payment reserves the allowance for the booking day', (await db.collection('bsDaily').findOne({ _id: `${cid}:${bDay}` }))?.used === 520)

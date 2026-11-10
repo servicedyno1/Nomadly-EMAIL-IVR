@@ -1,0 +1,108 @@
+// eSIM BulkSMS automation check: per-line daily cap + warm-up, projected bookings that buy lines, credit forecast gate,
+// auto-replace with delivery test, plan expiry. Simulated provider. Run from /app: node js/tests/test_bulk_esim_autoscale.js
+require('dotenv').config({ path: require('path').join(__dirname, '../../backend/.env') })
+process.env.WEB_CLOUDIVR_DRY_RUN = 'true'; process.env.BULK_ESIM_WORKER = 'false'; process.env.BULK_ESIM_FAKE_CREDIT = '200'
+const { MongoClient } = require('mongodb')
+const B = require('../bulk-esim/core')
+const P = require('../bulk-esim/provider-spenza')
+const COLS = ['bsConfig', 'bsEsims', 'bsEsimDaily', 'bsDemand', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation']
+let pass = 0, fail = 0
+const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${cond ? '✅' : '❌'} ${name}${extra ? ` — ${extra}` : ''}`) }
+const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().slice(0, 10)
+;(async () => {
+  const cl = await MongoClient.connect(process.env.MONGO_URL), db = cl.db(process.env.DB_NAME)
+  for (const c of COLS) await db.collection(c).deleteMany({})
+  const alerts = []
+  await B.init({ db, log: () => {}, notifyAdmin: (t) => alerts.push(t) })
+  process.env.BULK_ESIM_WORKER = ''
+  let provCalls = 0; const realProv = P.provision; P.provision = async (...a) => { provCalls++; return realProv(...a) }
+  const c = await B.cfg()
+  ok('defaults: 400/line/day, 5-day warm-up from 50, 2 lead days, auto-replace on, auto-buy off', c.esimDailyLimit === 400 && c.warmupDays === 5 && c.warmupStart === 50 && c.leadDays === 2 && c.autoReplace === true && c.autoProvision === false)
+  ok('warm-up ramp 80/160/240/320/400', [1, 2, 3, 4, 5, 9].map(a => B.lineCap(c, a)).join() === '80,160,240,320,400,400')
+  await B.setConfig({ quietStart: 0, quietEnd: 24 }, 'test')
+  const cust = await B.customer('Nomadly', '501'), cid = cust._id
+
+  // ---- no lines, auto-buy off: refused + demand remembered + daily nudge ----
+  const r0 = await B.createBooking(cid, { date: d(3), hour: 12, volume: 600 })
+  ok('no lines + auto-buy off → refused, unmet demand recorded', r0.error === 'err_no_lines' && (await B.unmetDemand()) === 600)
+  await B.autoscale()
+  ok('autoscale nudges admin (no purchase)', provCalls === 0 && alerts.some(a => /needed for the next 7 days/.test(a)))
+
+  // ---- auto-buy on: a booking 3 days ahead is accepted on projected lines, payment buys them ----
+  await B.setConfig({ autoProvision: true, manualApproval: false, provisionBudget: 500, maxEsims: 20 }, 'test')
+  const cap3 = await B.capacity(d(3), await B.cfg())
+  ok('projected capacity counts lines that can still be bought (budget $500 / $10 → 20 max)', cap3.projected === 20 && cap3.perDay === Math.floor(20 * B.lineCap(c, 4) * 0.8), JSON.stringify(cap3))
+  ok('today has no projected lines (lead time 2 days)', (await B.capacity(d(0), await B.cfg())).lines === 0)
+  const bk = await B.createBooking(cid, { date: d(3), hour: 12, volume: 1000 })
+  ok('1,000 SMS booked 3 days ahead with zero lines', !!bk.booking && bk.booking.price === 100, JSON.stringify(bk.error || bk.booking?.allocation))
+  await B.confirmBooking(bk.booking._id, { method: 'wallet' })
+  const need = Math.ceil(1000 / (B.lineCap(c, 4) * 0.8)), bought = await db.collection('bsEsims').countDocuments()
+  ok(`payment buys exactly the ${need} lines the booking needs`, provCalls === need && bought === need && (await db.collection('bsBookings').findOne({ _id: bk.booking._id })).status === 'provisioning', `${provCalls} bought`)
+  await db.collection('bsDemand').deleteMany({}); await B.healthCheck(); await B.autoscale()
+  ok('lines pass checks, booking becomes scheduled, nothing extra bought', (await db.collection('bsEsims').countDocuments({ status: 'available' })) === need && (await db.collection('bsBookings').findOne({ _id: bk.booking._id })).status === 'scheduled' && provCalls === need)
+
+  // ---- per-line daily cap in the send loop ----
+  await B.setConfig({ platformPerMin: 10000, esimPerMin: 10000, esimDailyLimit: 3, warmupDays: 1 }, 'test')
+  for (let i = 0; i < 20; i++) await B.sendOne(cid, `+1212555${3000 + i}`, `hello ${i}`)
+  for (let i = 0; i < 25; i++) await B.tick()
+  const sentNow = await db.collection('bsMessages').countDocuments({ status: 'sent', cid }), perLine = await db.collection('bsEsimDaily').find().toArray()
+  ok(`send loop stops each line at its daily cap (${need} lines × 3)`, sentNow === need * 3 && perLine.every(x => x.n <= 3) && (await db.collection('bsMessages').countDocuments({ status: 'queued', cid })) === 20 - need * 3, `${sentNow} sent`)
+  await B.setConfig({ esimDailyLimit: 400, warmupDays: 5 }, 'test')
+  await db.collection('bsMessages').deleteMany({ cid, status: 'queued' })
+
+  // ---- credit forecast: warning, booking gate, purchase reserve, hourly nag ----
+  await B.creditWatch()
+  const f = (await B.state()).forecast
+  ok('forecast: promised = queued parts × cost + renewals × line cost', f && f.committed === Math.round((1000 * 0.01 + need * 10) * 100) / 100 && f.available === Math.round((200 - f.committed - 10) * 100) / 100, JSON.stringify(f))
+  process.env.BULK_ESIM_FAKE_CREDIT = '20'; alerts.length = 0; await B.creditWatch()
+  ok('low runway → one warning, sending continues', alerts.filter(a => /getting low/.test(a)).length === 1 && !(await B.state()).reasons.length)
+  await B.creditWatch(); ok('warning not repeated the same day', alerts.filter(a => /getting low/.test(a)).length === 1)
+  ok('bookings on hold while credit can’t cover them', (await B.createBooking(cid, { date: d(4), hour: 12, volume: 600 })).error === 'err_no_lines')
+  const pr = await B.provisionOne('test'); ok('no eSIM purchase with the reserve unmet', !!pr.error && /credit/i.test(pr.error) && alerts.some(a => /Provisioning blocked: Spenza credit/.test(a)))
+  process.env.BULK_ESIM_FAKE_CREDIT = '2'; alerts.length = 0; await B.creditWatch()
+  await db.collection('bsConfig').updateOne({ _id: 'state' }, { $set: { creditNagAt: Date.now() - 2 * 3600000 } }); await B.creditWatch()
+  ok('below the floor: paused, then reminded again after an hour', (await B.state()).reasons.includes('provider_credit') && alerts.some(a => /PAUSED/.test(a)) && alerts.some(a => /Still paused/.test(a)))
+  process.env.BULK_ESIM_FAKE_CREDIT = '500'; await B.creditWatch()
+  ok('top-up → resumes and bookings open again', !(await B.state()).reasons.length && !!(await B.createBooking(cid, { date: d(4), hour: 12, volume: 600 })).booking)
+
+  // ---- provider suspends a line → new number → delivery test → pool (or retire + new eSIM) ----
+  const victim = await db.collection('bsEsims').findOne({ status: 'available' })
+  process.env.BULK_ESIM_FAKE_SUSPENDED = victim.iccid; alerts.length = 0; provCalls = 0
+  await B.healthCheck()
+  const old = await db.collection('bsEsims').findOne({ _id: victim._id }), repl = await db.collection('bsEsims').findOne({ replaces: victim._id })
+  ok('suspended line replaced automatically, new number waits for a delivery test', old.status === 'replaced' && repl?.status === 'testing' && repl.verify === true && alerts.some(a => /new number requested/.test(a)))
+  process.env.BULK_ESIM_FAKE_SUSPENDED = ''
+  await B.healthCheck()
+  const vt = await db.collection('bsTests').findOne({ esimId: repl._id, type: 'verify', result: 'pending' })
+  ok('delivery test text queued to another pool line', !!vt && (await db.collection('bsMessages').countDocuments({ esimId: repl._id, system: true, body: new RegExp(vt.code) })) === 1 && (await db.collection('bsEsims').findOne({ _id: repl._id })).status === 'testing')
+  await B.tick()
+  const peer = await db.collection('bsEsims').findOne({ _id: vt.peer })
+  await B.onWebhook('', {}, { data: { From: repl.msisdn, Owner: peer.msisdn, Message_Body: `CloudIVR line check ${vt.code}`, Message_ID: 'v1' } })
+  await B.healthCheck()
+  ok('reply arrives → new number joins the pool', (await db.collection('bsEsims').findOne({ _id: repl._id })).status === 'available' && (await db.collection('bsTests').findOne({ _id: vt._id })).result === 'passed')
+  // second suspension: the new number never delivers → retired, a fresh eSIM is bought
+  const v2 = await db.collection('bsEsims').findOne({ status: 'available', _id: { $ne: repl._id } })
+  process.env.BULK_ESIM_FAKE_SUSPENDED = v2.iccid; await B.healthCheck(); process.env.BULK_ESIM_FAKE_SUSPENDED = ''
+  const r2 = await db.collection('bsEsims').findOne({ replaces: v2._id })
+  for (let i = 0; i < 2; i++) { await B.healthCheck(); await db.collection('bsTests').updateMany({ esimId: r2._id, type: 'verify', result: 'pending' }, { $set: { result: 'no_reply' } }) }
+  provCalls = 0; await B.healthCheck()
+  ok('two missed delivery tests → number retired, new eSIM bought', (await db.collection('bsEsims').findOne({ _id: r2._id })).status === 'failed' && provCalls === 1 && alerts.some(a => /does not deliver texts/.test(a)))
+  ok('auto-replacements capped per day', (await db.collection('bsConfig').findOne({ _id: `replaces:${d(0)}` })).n === 2 && (await B.cfg()).maxReplacesPerDay === 3)
+
+  // ---- plan ended → line leaves the pool ----
+  const live = await db.collection('bsEsims').findOne({ status: 'available' }); process.env.BULK_ESIM_FAKE_EXPIRED = live.iccid; await B.healthCheck(); process.env.BULK_ESIM_FAKE_EXPIRED = ''
+  ok('expired plan → line marked expired + admin told', (await db.collection('bsEsims').findOne({ _id: live._id })).status === 'expired' && alerts.some(a => /plan ended/.test(a)))
+  await B.healthCheck()
+  const avail = await db.collection('bsEsims').find({ status: 'available' }).toArray()
+  ok('expiry dates synced into the pool', avail.length >= 2 && avail.every(e => e.expirationDate && new Date(e.expirationDate) > new Date()), `${avail.length} lines`)
+
+  // ---- unmet demand drives purchases for the coming days ----
+  await B.setConfig({ maxEsims: 40 }, 'test')
+  await db.collection('bsDemand').insertOne({ _id: 'x:demand', volume: 3000, at: new Date() })
+  const before = await db.collection('bsEsims').countDocuments({ status: { $nin: ['replaced', 'failed', 'expired'] } }); provCalls = 0; await B.autoscale()
+  ok('refused demand (3,000 SMS) makes the autoscaler buy lines for the coming days', provCalls > 0 && alerts.some(a => /Bought \d+ eSIM/.test(a)), `${before} → +${provCalls}`)
+
+  console.log(`\n${pass} passed, ${fail} failed`)
+  for (const c of COLS) await db.collection(c).deleteMany({})
+  await cl.close(); process.exit(fail ? 1 : 0)
+})().catch(e => { console.error(e); process.exit(1) })

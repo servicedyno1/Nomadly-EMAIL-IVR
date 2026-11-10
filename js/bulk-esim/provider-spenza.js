@@ -32,8 +32,10 @@ const sendSms = async ({ from, to, text, key }) => {
   return { ok: true }
 }
 const listSims = async () => (dry() ? null : items(await call('get', '/api/v1.1/sims?page=1&pageSize=100')))
-const getSim = async (iccid) => (dry() ? { iccid, status: 'ACTIVE' } : (await call('get', `/api/v1.1/sims/${encodeURIComponent(iccid)}`))?.data)
+const getSim = async (iccid) => (dry() ? { iccid, status: String(process.env.BULK_ESIM_FAKE_SUSPENDED || '').split(',').includes(iccid) ? 'SUSPENDED' : 'ACTIVE' } : (await call('get', `/api/v1.1/sims/${encodeURIComponent(iccid)}`))?.data)
 const serviceState = async (iccid) => (dry() ? { sms: true } : (await call('get', `/api/v1.1/sims/${encodeURIComponent(iccid)}/service-state`))?.data)
+// Plan period. Spenza renews a line itself at endDate and bills the account balance (so renewals are part of the credit forecast).
+const subscription = async (iccid) => (dry() ? { status: 'ACTIVE', endDate: new Date(Date.now() + (String(process.env.BULK_ESIM_FAKE_EXPIRED || '').split(',').includes(iccid) ? -1 : 30) * 86400000).toISOString() } : (await call('get', `/api/v1.1/sims/${encodeURIComponent(iccid)}/subscription`))?.data)
 const credit = async () => {
   if (dry()) return Number(process.env.BULK_ESIM_FAKE_CREDIT ?? 50)
   const c = (await call('get', '/api/v1.1/credit-balance'))?.data?.creditBalance || []
@@ -74,4 +76,4 @@ function parseInbound(body) {
   return { event: b.eventType || body?.eventType || null, from: norm(b.From || b.from || b.fromNumber), to: norm(b.Owner || first(b.To) || b.to || b.toNumber || b.mdn), text: String(b.Message_Body || b.text || b.message || b.body || '').slice(0, 2000), providerId: b.Message_ID || b.id || null, direction: String(b.Direction || 'inbound').toLowerCase() }
 }
 
-module.exports = { name: 'spenza', dry, configured, sendSms, listSims, getSim, serviceState, credit, plan, provision, replaceNumber, setSms, registerWebhook, verify, parseInbound, norm }
+module.exports = { name: 'spenza', dry, configured, sendSms, listSims, getSim, serviceState, subscription, credit, plan, provision, replaceNumber, setSms, registerWebhook, verify, parseInbound, norm }

@@ -15,7 +15,7 @@ const I = require('../bulk-esim/i18n')
 const storage = require('../bulk-esim/storage')
 let pass = 0, fail = 0
 const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${cond ? '✅' : '❌'} ${name}${extra ? ` — ${extra}` : ''}`) }
-const COLS = ['bsConfig', 'bsEsims', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation', 'bsUploads', 'bsDrafts']
+const COLS = ['bsConfig', 'bsEsims', 'bsEsimDaily', 'bsDemand', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation', 'bsUploads', 'bsDrafts']
 const nums = (n, base = 3000, ac = '212') => Array.from({ length: n }, (_, i) => `+1${ac}555${String(base + i).padStart(4, '0')}`)
 // first open (bookable) hour of a day with at least `need` free
 const openHour = async (date, need = 1) => (await B.availability(date)).slots.find(s => s.free >= need)?.hour
@@ -50,6 +50,7 @@ const openHour = async (date, need = 1) => (await B.availability(date)).slots.fi
   await B.healthCheck()
   const e1 = await db.collection('bsEsims').findOne({ _id: 'ESIM-0001' })
   ok('eSIM healthy + available after check', e1.status === 'available' && e1.health === 'healthy')
+  await B.setConfig({ esimDailyLimit: 5000, warmupDays: 1 }, 'qa')
   const H = await openHour(day, 1)
   ok('booking hours offered only inside mainland quiet window', H != null && (await B.availability(day)).slots.filter(s => s.free).every(s => TZ.hourOpen(day, s.hour)), `first open ${H}`)
   // booking needing more capacity than 1 eSIM → no provisioning
