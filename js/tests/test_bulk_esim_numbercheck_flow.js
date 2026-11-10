@@ -62,9 +62,9 @@ const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${
 
   // ---- copy ----
   const L = I.btn('en'), h = I.t('en', 'home', { min: 500, max: 2000, plain: 50, link: 75, pct: 10, minHours: 24, fee: 20, used: 0, limit: 2000, from: 8, to: 21 })
-  ok('home says it reaches every US and Canadian mobile carrier', /every US and Canadian mobile carrier/.test(h) && /Free number check/.test(h))
+  ok('home says it reaches every US & Canadian carrier (short copy)', /every US & Canadian carrier/.test(h) && /First test SMS free/.test(h))
   const lo = I.t('en', 'list_ok', { n: 500, send: 480, skipped: 20, counts: { landline: 12, voip: 8, invalid: 0, other: 0 }, max: 2000 })
-  ok('list summary tells who gets the text and that all are billed', /480<\/b> active mobiles/.test(lo) && /12 landline, 8 internet/.test(lo) && /pay for all <b>500/.test(lo), lo)
+  ok('list summary tells who gets the text and that all are billed', /480<\/b> will get your text/.test(lo) && /12 landline, 8 VoIP/.test(lo) && /Billed for all 500/.test(lo), lo)
   let allLangs = true
   const O = { min: 1, max: 2, plain: 1, link: 2, pct: 10, minHours: 24, fee: 20, used: 0, limit: 1, from: 8, to: 21, n: 500, send: 480, skipped: 1, counts: { landline: 1, voip: 0, invalid: 0, other: 0 }, v: ['a'], optOut: true, links: false, price: 50, unit: 0.1, tests: 2, parts: 500, schedPrice: 45, list: 50, lines: true }
   const args = (key) => (key === 'progress_line' ? ['n', 'st', { sent: 1, total: 1, skipped: 1 }] : key === 'n_done' ? ['n', 1, 0, 0, 0, 2] : [O])

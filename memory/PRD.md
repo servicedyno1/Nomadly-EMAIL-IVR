@@ -1,5 +1,13 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-10 (later) — BulkSMS: admin alerts via @NomadlyBot, short copy, tester always has a peer — TESTED, NOT YET DEPLOYED
+- Admin alerts (live) are queued in shared bsNotify {brand:'Nomadly', type:'admin'} and delivered only by the NomadlyBot process (bot.js startNotices). Dry/tests still call notifyAdmin directly. Test: test_bulk_esim_admin_route.js 3/3.
+- Short journey copy in en/fr/zh/hi/fa (SHORT dict at the end of i18n.js overrides the long texts); the separate intro message is gone (start screen carries it).
+- ready().one = service line OR tester → "Send one SMS" works with only the tester; single texts fall back to the tester line in pickEsim. "Send now" still needs a service line.
+- ensureRoles: tester present + no service line + no monitor → buys one monitor automatically; startCheck falls back to tester↔monitor checks. lean_start updated (go-live = tester + monitor).
+- Prod: tester ESIM-0002 +16317901824 active/healthy; monitor ESIM-0003 bought by admin request 2026-11-10 (~$10).
+
+
 ## 2026-11-10 — BulkSMS: buttons follow real line availability + tester alerts + AI support guide — TESTED, NOT YET DEPLOYED
 - core.ready()/lineReady(): "Send one SMS", "Send a test", "Send now" and Conversation replies hidden (with short translated reason off_one/off_test/off_now/off_reply) when no working line; core refuses stale taps too. Tests off while the tester line is being bought/replaced/re-checked even if service lines work.
 - Admin alerts name the tester line on replace/replace-failed/new tester ordered/failed checks, and say when test buttons are back.

@@ -22,7 +22,7 @@ const nums = (n, from = 1000) => Array.from({ length: n }, (_, i) => `+1212555${
   await B.setConfig({ quietStart: 0, quietEnd: 24 }, 'test')
 
   let r = await B.ready()
-  ok('no lines at all → nothing can send', !r.send && !r.test, JSON.stringify(r))
+  ok('no lines at all → nothing can send', !r.send && !r.test && !r.one, JSON.stringify(r))
   let m = await say('/esimsms')
   ok('home: "Send one SMS" hidden + short reason shown', !m.keys.includes(L.one) && m.keys.includes(L.convs) && m.text.includes(t('en', 'off_one')))
   m = await say(L.one)
@@ -33,7 +33,13 @@ const nums = (n, from = 1000) => Array.from({ length: n }, (_, i) => `+1212555${
   await B.bootstrap(); await B.healthCheck()
   const tester = await E.findOne({ role: 'tester' })
   r = await B.ready()
-  ok('tester live, no service line → tests on, single texts off', r.test && !r.send && tester.status === 'available', JSON.stringify(r))
+  ok('tester live, no service line → tests + single texts on (via tester), "Send now" off', r.test && r.one && !r.send && tester.status === 'available', JSON.stringify(r))
+  const mon = await E.findOne({ role: 'monitor' })
+  ok('a monitor was bought so the tester has a number to check against', !!mon && /monitor eSIM .* tester line has another number/.test(alerts.join('\n')))
+  ok('tester and monitor were checked against each other', !!(await db.collection('bsTests').findOne({ type: 'check', $or: [{ esimId: tester._id, peer: mon._id }, { esimId: mon._id, peer: tester._id }] })))
+  const one = await B.sendOne(cid, '+12125550100', 'hello there')
+  delete process.env.BULK_ESIM_WORKER; await B.claimWorker(); await B.tick(); process.env.BULK_ESIM_WORKER = 'false'; const pick = one.ok && await db.collection('bsMessages').findOne({ _id: one.messageId })
+  ok('single text goes out on the tester line', one.ok && pick && pick.esimId === tester._id, JSON.stringify({ one, esim: pick?.esimId, st: pick?.status }))
 
   await B.provisionMany(2, 'test', 'test'); await B.healthCheck()
   r = await B.ready()
