@@ -1408,7 +1408,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 关闭' 
  cp_13: '🎵 <b>音频库</b>\n\n您还没有保存的音频文件。\n\n上传音频文件（MP3、WAV、OGG）以用于 IVR 活动。',
  cp_130: (name) => `✅ 音频已保存为：<b>${name}</b>\n\n您现在可以在批量 IVR 活动中使用它了！`,
  cp_131: '请从列表中选择来电显示。',
- cp_132: (phoneNumber) => `📱 来电显示：<b>${phoneNumber}</b>\n\n📋 <b>上传线索文件</b>\n\n发送 <b>Excel (.xlsx)</b>、<b>.csv</b> 或 <b>.txt</b> 文件。我们会自动找到电话和姓名列（如 Phone、Mobile、Name 或 First name 表头），也可以每行一个号码。\n可选：每行 <code>号码,姓名</code>。\n\n或直接粘贴号码（每行一个）：`,
+ cp_132: (phoneNumber) => `📱 来电显示：<b>${phoneNumber}</b>\n\n📋 <b>上传线索文件</b>\n\n每个活动最多 <b>500 个号码</b>。\n发送 <b>Excel (.xlsx)</b>、<b>.csv</b> 或 <b>.txt</b> 文件。我们会自动找到电话和姓名列（如 Phone、Mobile、Name 或 First name 表头），也可以每行一个号码。\n可选：每行 <code>号码,姓名</code>。\n\n或直接粘贴号码（每行一个）：`,
  cp_133: '请选择来电显示：',
  cp_134: (message) => `❌ 读取文件失败：${message}\n\n请重试或直接粘贴号码。`,
  cp_134b: (fname) => `❌ 无法读取 <b>${fname}</b>。\n\n请上传 <b>Excel (.xlsx)</b>、<b>.csv</b> 或 <b>.txt</b> 文件（旧版 .xls 请先另存为 .xlsx），或直接粘贴号码。`,

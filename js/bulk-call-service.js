@@ -205,7 +205,7 @@ function registerRoutes(app) {
         if (opt) {
           try {
             const leadNum = (Array.isArray(campaign.leads) && campaign.leads[parseInt(leadIndex)]) ? campaign.leads[parseInt(leadIndex)].number : null
-            require('./voice-service.js').recordOutboundMenuPress({ callerId: campaign.callerId, chatId: campaign.chatId, targetNumber: leadNum, digit: atSub ? `${path}.${digits}` : digits, action: opt.action, campaignId })
+            require('./voice-service.js').recordOutboundMenuPress({ callerId: leadCid(campaign, campaign.leads?.[parseInt(leadIndex)]), chatId: campaign.chatId, targetNumber: leadNum, digit: atSub ? `${path}.${digits}` : digits, action: opt.action, campaignId })
           } catch (_) { /* non-blocking */ }
         }
         const selfUrl = process.env.SELF_URL_PROD || process.env.SELF_URL || ''
@@ -213,7 +213,7 @@ function registerRoutes(app) {
         if (opt && opt.action === 'forward' && opt.forwardTo) {
           response.say('Please hold while we connect you.')
           const transferStatusUrl = `${selfUrl}/twilio/bulk-ivr-transfer-status?campaignId=${encodeURIComponent(campaignId)}&leadIndex=${encodeURIComponent(leadIndex)}&dest=${encodeURIComponent(opt.forwardTo)}`
-          const dial = response.dial({ callerId: campaign.callerId, timeout: 30, action: transferStatusUrl, method: 'POST' })
+          const dial = response.dial({ callerId: leadCid(campaign, campaign.leads?.[parseInt(leadIndex)]), timeout: 30, action: transferStatusUrl, method: 'POST' })
           dial.number(opt.forwardTo)
           log(`[BulkIVR] Menu forward: lead=${leadIndex} key=${atSub ? path + '.' : ''}${digits} → ${opt.forwardTo}`)
           return res.type('text/xml').send(response.toString())
@@ -250,7 +250,7 @@ function registerRoutes(app) {
           const selfUrl = process.env.SELF_URL_PROD || process.env.SELF_URL || ''
           const transferStatusUrl = `${selfUrl}/twilio/bulk-ivr-transfer-status?campaignId=${encodeURIComponent(campaignId)}&leadIndex=${encodeURIComponent(leadIndex)}`
           const dial = response.dial({
-            callerId: campaign.callerId,
+            callerId: leadCid(campaign, campaign.leads?.[parseInt(leadIndex)]),
             timeout: 30,
             action: transferStatusUrl,
             method: 'POST',
@@ -297,7 +297,7 @@ function registerRoutes(app) {
         const dest = req.query.dest || campaign.transferNumber
         try {
           const voiceService = require('./voice-service.js')
-          await voiceService.billCallMinutesUnified(campaign.chatId, campaign.callerId, minutes, dest, 'IVR_Transfer', callRef)
+          await voiceService.billCallMinutesUnified(campaign.chatId, leadCid(campaign, campaign.leads?.[parseInt(leadIndex)]), minutes, dest, 'IVR_Transfer', callRef)
           log(`[BulkIVR] Transfer leg billed: campaign=${campaignId} lead=${leadIndex} → ${dest} ${minutes} min (dialSid=${dialSid})`)
         } catch (e) { log('[BulkIVR] Transfer leg billing error:', e.message) }
       } else {
@@ -530,7 +530,7 @@ function formatCampaignStatus(c) {
   return [
     `📊 <b>Campaign Status</b> — ${STATUS_ICON[c.status] || ''} <b>${String(c.status).toUpperCase()}</b>`,
     ``,
-    `📱 Caller ID: <b>${c.callerId}</b>`,
+    `📱 Caller ID: <b>${cidSummary(c)}</b>`,
     `🎵 Audio: <b>${escHtml(c.audioName || 'Custom Audio')}</b>`,
     `Progress: <b>${s.completed || 0}/${s.total || 0}</b> (${pct}%)`,
     `✅ Answered: <b>${s.answered || 0}</b>`,
@@ -683,6 +683,7 @@ async function createCampaign(params) {
     menu: menu || null,
     activeKeys: activeKeys || ['1'],
     concurrency: Math.min(concurrency || 10, 20),
+    ...(poolOf(params.callerPool, callerId, showAs) ? { callerPool: poolOf(params.callerPool, callerId, showAs), concurrency: poolOf(params.callerPool, callerId, showAs).length } : {}),
     holdMusic: holdMusic || false,
     provider: provider || (twilioSubAccountSid ? 'twilio' : 'telnyx'),
     voicemailAudioUrl: voicemailAudioUrl || null,
@@ -953,7 +954,7 @@ async function startCampaign(campaignId) {
     `🚀 <b>Campaign Started!</b>\n\n` +
     `📞 Leads: <b>${campaign.leads.length}</b>\n` +
     `🎵 Audio: <b>${campaign.audioName}</b>\n` +
-    `📱 Caller ID: <b>${campaign.callerId}</b>\n` +
+    `📱 Caller ID: <b>${cidSummary(campaign)}</b>\n` +
     `📞 Provider: <b>Speechcue</b>\n` +
     `⚡ Concurrency: <b>${campaign.concurrency}</b>\n` +
     `📊 Mode: <b>${campaign.mode === 'transfer' ? '🔗 Transfer + Report' : '📊 Report Only'}</b>\n` +
@@ -979,12 +980,50 @@ async function telnyxDialSlot() {
 }
 
 // Atomically flips one lead pending → calling so concurrent batches never dial the same lead twice.
-async function claimLead(campaignId, leadIndex) {
+async function claimLead(campaignId, leadIndex, cid = null) {
   const r = await _collection.updateOne(
     { id: campaignId, status: 'running', [`leads.${leadIndex}.status`]: 'pending' },
-    { $set: { [`leads.${leadIndex}.status`]: 'calling', [`leads.${leadIndex}.startedAt`]: new Date() } }
+    { $set: { [`leads.${leadIndex}.status`]: 'calling', [`leads.${leadIndex}.startedAt`]: new Date(), ...(cid ? { [`leads.${leadIndex}.callerId`]: cid.callerId, [`leads.${leadIndex}.shownAs`]: cid.showAs || null } : {}) } }
   )
   return r.modifiedCount === 1
+}
+
+// Caller-ID rotation: campaign.callerPool = [{ callerId, showAs }] (2+ entries). Every call in progress uses a different entry
+// (one call per entry at a time); the next call takes the free entry that has dialed the fewest leads so far.
+const MAX_CALLER_POOL = 50
+const poolKey = (e) => `${e.callerId}|${e.showAs || ''}`
+const leadCid = (campaign, lead) => lead?.callerId || campaign.callerId
+// "📱 +1… ×120 · +1… ×118 …" — calls per rotating caller ID (report); plain number when there is no pool.
+function cidSummary(campaign) {
+  if (!Array.isArray(campaign.callerPool) || campaign.callerPool.length < 2) return campaign.callerId
+  const n = {}; for (const l of campaign.leads || []) if (l.callerId) { const k = l.shownAs || l.callerId; n[k] = (n[k] || 0) + 1 }
+  return `${campaign.callerPool.length} rotating — ` + campaign.callerPool.map(e => e.showAs || e.callerId).map(k => `${k}${n[k] ? ` ×${n[k]}` : ''}`).join(' · ')
+}
+function poolPicker(campaign) {
+  const pool = Array.isArray(campaign.callerPool) && campaign.callerPool.length > 1 ? campaign.callerPool : null
+  if (!pool) return null
+  const used = {}, busy = new Set()
+  for (const l of campaign.leads) {
+    if (!l.callerId) continue
+    const k = `${l.callerId}|${l.shownAs || ''}`; used[k] = (used[k] || 0) + 1
+    if (['calling', 'ringing', 'answered', 'in-progress'].includes(l.status)) busy.add(k)
+  }
+  return {
+    next() { const e = pool.filter(x => !busy.has(poolKey(x))).sort((a, b) => (used[poolKey(a)] || 0) - (used[poolKey(b)] || 0))[0]; if (e) { busy.add(poolKey(e)); used[poolKey(e)] = (used[poolKey(e)] || 0) + 1 } return e || null },
+    free(e) { busy.delete(poolKey(e)) },
+  }
+}
+
+function poolOf(list, callerId, showAs) {
+  if (!Array.isArray(list)) return null
+  const seen = new Set(), out = []
+  for (const e of [{ callerId, showAs: showAs || null }, ...list]) {
+    if (!e?.callerId) continue
+    const x = { callerId: String(e.callerId), showAs: e.showAs ? String(e.showAs) : null }
+    if (seen.has(poolKey(x))) continue
+    seen.add(poolKey(x)); out.push(x)
+  }
+  return out.length > 1 ? out.slice(0, MAX_CALLER_POOL) : null
 }
 
 function dialTwilio(campaign, lead, selfUrl) {
@@ -1078,6 +1117,7 @@ async function fireNextBatch(campaignId) {
 
   // Find pending leads
   const pendingLeads = campaign.leads.filter(l => l.status === 'pending')
+  const picker = poolPicker(campaign)
   const isAi = isAiCampaign(campaign)
   const minRate = isAi ? aiAgent().RATE() : BULK_CALL_RATE
 
@@ -1122,16 +1162,21 @@ async function fireNextBatch(campaignId) {
     }
     // Daily call limit: today's calls used up → the rest wait for tomorrow (owner's time zone).
     if (campaign.dailyLimit && !(await sched.reserveDailySlot(_collection, campaign))) { limitHit = true; break }
+    const cid = picker ? picker.next() : null
+    if (picker && !cid) { if (campaign.dailyLimit) await sched.refundDailySlot(_collection, campaignId); break }
     state.activeCalls++
-    if (!(await claimLead(campaignId, lead.index))) {
+    if (!(await claimLead(campaignId, lead.index, cid))) {
       state.activeCalls--
+      if (cid) picker.free(cid)
       if (campaign.dailyLimit) await sched.refundDailySlot(_collection, campaignId)
       continue
     }
     fired++
+    const cc = cid ? { ...campaign, callerId: cid.callerId, showAs: cid.showAs || null } : campaign
 
     try {
-      const result = isAi ? await aiAgent().dialLead(campaign, lead) : isTelnyx ? await dialTelnyx(campaign, lead) : await dialTwilio(campaign, lead, SELF_URL)
+      const result = isAi ? await aiAgent().dialLead(cc, lead) : isTelnyx ? await dialTelnyx(cc, lead) : await dialTwilio(cc, lead, SELF_URL)
+      if (result.error && cid) picker.free(cid)
 
       if (result.error && isTelnyx && result.lineLimit) {
         // Every line is in use (account concurrent-call limit) → lead goes back in the queue, retried shortly.
@@ -1421,7 +1466,7 @@ async function billLead(campaign, leadIndex, finalStatus, duration) {
       callType: 'BulkIVR',
       destination: lead?.number || null,
       phoneNumber: lead?.number || null,
-      description: `BulkIVR ${campaign.callerId} → ${lead?.number || 'unknown'} (${minutesBilled} min × $${rate}, status=${finalStatus})`,
+      description: `BulkIVR ${leadCid(campaign, lead)} → ${lead?.number || 'unknown'} (${minutesBilled} min × $${rate}, status=${finalStatus})`,
     })
     if (deductResult.success) {
       const chargedStr = deductResult.currency === 'ngn' ? `₦${deductResult.chargedNgn}` : `$${charge.toFixed(2)}`
@@ -1431,7 +1476,7 @@ async function billLead(campaign, leadIndex, finalStatus, duration) {
           type: 'BulkIVR',
           direction: 'outbound',
           provider: campaignProvider(campaign),
-          from: campaign.callerId,
+          from: leadCid(campaign, lead),
           to: lead?.number || 'unknown',
           duration: duration || 0,
           minutesBilled,
@@ -1472,8 +1517,8 @@ async function billAiLead(campaign, leadIndex, bill) {
   if (!bill || !(bill.charge > 0) || !_walletOf) return
   try {
     const r = await smartWalletDeduct(_walletOf, campaign.chatId, bill.charge, {
-      type: 'ai_agent_call', callType: 'AIAgent', destination: lead?.number || null, phoneNumber: campaign.callerId,
-      description: `AI agent campaign ${campaign.callerId} → ${lead?.number || 'unknown'} (${bill.minutesBilled} min × $${bill.rate}${bill.recordingRate ? ` incl. $${bill.recordingRate} recording` : ''})`,
+      type: 'ai_agent_call', callType: 'AIAgent', destination: lead?.number || null, phoneNumber: leadCid(campaign, lead),
+      description: `AI agent campaign ${leadCid(campaign, lead)} → ${lead?.number || 'unknown'} (${bill.minutesBilled} min × $${bill.rate}${bill.recordingRate ? ` incl. $${bill.recordingRate} recording` : ''})`,
     })
     log(`[BulkCall] AI lead billed $${bill.charge} (${bill.minutesBilled} min) campaign=${campaign.id} lead=${leadIndex} ok=${!!r?.success}`)
     const post = await smartWalletCheck(_walletOf, campaign.chatId, aiAgent().RATE())
@@ -1655,7 +1700,7 @@ async function sendFinalReport(campaignId) {
   const summary = [
     tt(campaign.status === 'cancelled' ? 'bulkCallReportTitleCancelled' : 'bulkCallReportTitle'),
     ``,
-    `📱 ${tt('bulkCallReportCallerId')} <b>${campaign.callerId}</b>`,
+    `📱 ${tt('bulkCallReportCallerId')} <b>${cidSummary(campaign)}</b>`,
     `🎵 ${tt('bulkCallReportAudio')} <b>${campaign.audioName}</b>`,
     `📞 ${tt('bulkCallReportProvider')} <b>Speechcue</b>`,
     `⏱ ${tt('bulkCallReportDuration')} <b>${durMin}m ${durSec}s</b>`,
@@ -1857,6 +1902,7 @@ function getCampaignMapping(callSid) {
 }
 
 module.exports = {
+  MAX_CALLER_POOL,
   initBulkCallService,
   generateReportFile,
   notInService,

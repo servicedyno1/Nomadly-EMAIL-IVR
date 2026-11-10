@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import '../brand-colors.css';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 const FALLBACK = { brandName: 'Nomadly', brandSlug: 'nomadly', botUsername: 'NomadlyBot', accent: '#10d9a0', logoUrl: null, markUrl: null, loaded: false };

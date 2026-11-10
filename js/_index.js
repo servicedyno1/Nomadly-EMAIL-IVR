@@ -959,6 +959,16 @@ function _ivrSpeedPrompt(lang, voiceName) {
 
 // ── Bulk IVR UI helpers (preview / voicemail-drop prompt / My Campaigns list) ──
 const BULK_VM_HANGUP_BTN = '📵 Hang up (no message)'
+const _BULK_ROT = {
+  en: { btn: '🔁 Rotate caller IDs', done: '✅ Done', verified: 'verified', none: '🔁 No other caller IDs yet — buy another number or verify your own caller ID first.', title: 'Rotate caller IDs', help: 'Tap numbers to add or remove. Each call in progress uses a different caller ID, so no single number takes all the volume.', sel: (n, cid) => `Selected: <b>${n}</b> (incl. ${cid}) → ${n} calls at once.`, rotating: (n) => `🔁 Rotating across <b>${n}</b> caller IDs — ${n} calls at once.`, max: (n) => `🔁 Up to ${n} caller IDs per campaign.`, more: (m, n) => ` + ${m} more (🔁 rotating, ${n} calls at once)` },
+  fr: { btn: '🔁 Alterner les ID appelant', done: '✅ Terminé', verified: 'vérifié', none: '🔁 Aucun autre ID appelant — achetez un autre numéro ou vérifiez d\'abord votre propre ID appelant.', title: 'Alterner les ID appelant', help: 'Touchez les numéros pour les ajouter ou les retirer. Chaque appel en cours utilise un ID appelant différent, aucun numéro ne porte tout le volume.', sel: (n, cid) => `Sélectionnés : <b>${n}</b> (dont ${cid}) → ${n} appels simultanés.`, rotating: (n) => `🔁 Alternance sur <b>${n}</b> ID appelant — ${n} appels simultanés.`, max: (n) => `🔁 ${n} ID appelant maximum par campagne.`, more: (m, n) => ` + ${m} autre(s) (🔁 alternance, ${n} appels simultanés)` },
+  zh: { btn: '🔁 轮换来电显示', done: '✅ 完成', verified: '已验证', none: '🔁 暂无其他来电显示号码 — 请先购买其他号码或验证您自己的来电显示。', title: '轮换来电显示', help: '点击号码以添加或移除。每通进行中的通话使用不同的来电显示，避免单个号码承担全部通话量。', sel: (n, cid) => `已选：<b>${n}</b>（含 ${cid}）→ 同时拨打 ${n} 通。`, rotating: (n) => `🔁 在 <b>${n}</b> 个来电显示间轮换 — 同时拨打 ${n} 通。`, max: (n) => `🔁 每个活动最多 ${n} 个来电显示。`, more: (m, n) => ` + 另外 ${m} 个（🔁 轮换，同时 ${n} 通）` },
+  hi: { btn: '🔁 कॉलर ID बदलते रहें', done: '✅ हो गया', verified: 'सत्यापित', none: '🔁 अभी कोई और कॉलर ID नहीं — पहले दूसरा नंबर खरीदें या अपना कॉलर ID सत्यापित करें।', title: 'कॉलर ID बदलते रहें', help: 'जोड़ने या हटाने के लिए नंबर टैप करें। हर चल रही कॉल अलग कॉलर ID से जाती है, ताकि किसी एक नंबर पर सारा भार न पड़े।', sel: (n, cid) => `चुने गए: <b>${n}</b> (${cid} सहित) → एक साथ ${n} कॉल।`, rotating: (n) => `🔁 <b>${n}</b> कॉलर ID के बीच बारी-बारी — एक साथ ${n} कॉल।`, max: (n) => `🔁 हर अभियान में अधिकतम ${n} कॉलर ID।`, more: (m, n) => ` + ${m} और (🔁 बारी-बारी, एक साथ ${n} कॉल)` },
+  fa: { btn: '🔁 چرخش شناسه‌های تماس‌گیرنده', done: '✅ انجام شد', verified: 'تأییدشده', none: '🔁 هنوز شناسه تماس‌گیرنده دیگری ندارید — ابتدا شماره دیگری بخرید یا شناسه خود را تأیید کنید.', title: 'چرخش شناسه‌های تماس‌گیرنده', help: 'برای افزودن یا حذف، روی شماره‌ها بزنید. هر تماس در جریان از شناسه متفاوتی استفاده می‌کند تا همه حجم روی یک شماره نباشد.', sel: (n, cid) => `انتخاب‌شده: <b>${n}</b> (شامل ${cid}) ← ${n} تماس همزمان.`, rotating: (n) => `🔁 چرخش بین <b>${n}</b> شناسه — ${n} تماس همزمان.`, max: (n) => `🔁 حداکثر ${n} شناسه در هر کمپین.`, more: (m, n) => ` + ${m} مورد دیگر (🔁 چرخشی، ${n} تماس همزمان)` },
+}
+const _bulkRot = (lang) => _BULK_ROT[lang] || _BULK_ROT.en
+const _isBulkRotBtn = (m) => Object.values(_BULK_ROT).some(t => t.btn === m)
+const _isBulkRotDone = (m) => Object.values(_BULK_ROT).some(t => t.done === m)
 const _bulkEsc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const _bulkIsTwilio = (bd) => (bd?.provider ? bd.provider === 'twilio' : !!bd?.twilioSubAccountSid)
 // One button label per clip; clips whose names clash get a " #2", " #3"… suffix.
@@ -977,7 +987,7 @@ function _bulkPreviewText(bulkData, lang) {
   return [
     `📋 <b>Campaign Preview</b>`,
     ``,
-    `📱 Caller ID: <b>${bulkData.callerId}</b>`,
+    `📱 Caller ID: <b>${bulkData.showAs || bulkData.callerId}</b>${bulkData.callerPool?.length ? _bulkRot(lang).more(bulkData.callerPool.length, bulkData.callerPool.length + 1) : ''}`,
     `📞 Leads: <b>${leads.length}</b> (max ${bulkCallService.MAX_BULK_LEADS || 500})${est.intl ? ` — ${est.domestic} US/CA · ${est.intl} international` : ''}`,
     est.blockedLine || null,
     `🎵 Audio: <b>${_bulkEsc(bulkData.audioName || 'Selected')}</b>`,
@@ -10955,6 +10965,7 @@ bot?.on('message', msg => {
       }
       await set(state, chatId, 'action', a.digitalProductPay)
       if (info?.dpProductKey === esimBot.PRODUCT_KEY && info?.esimOrder) return checkoutScreen('digital-product-pay', () => esimBot.s(lang).summary(info.esimOrder, info.dpPrice), { noBank: true })
+      if (info?.dpProductKey === bulkEsimBot.PRODUCT_KEY && info?.bseSummary) return checkoutScreen('digital-product-pay', info.bseSummary)
       return checkoutScreen('digital-product-pay', () => t.dpPaymentPrompt(info?.dpProductName, info?.dpPrice), { extraRows: [['💬 Ask Question']] })
     },
     // ━━━ USA T-Mobile eSIM (automatic Spenza order, same as the web) ━━━
@@ -20286,6 +20297,7 @@ ${message.replace(/\n/g, '<br>')}
   // Digital Products: payment method selection
   if (action === a.digitalProductPay) {
     const isEsimOrder = info?.dpProductKey === esimBot.PRODUCT_KEY
+    if (isBackPress(message) && info?.dpProductKey === bulkEsimBot.PRODUCT_KEY) { await set(state, chatId, 'action', 'bse-home'); return bulkEsimBot.showHome(send, chatId, lang) }
     if (isBackPress(message)) return isEsimOrder ? goto['esim-bot-home']() : goto.submenu6()
     if (isEsimOrder && payIn.bank && message === payIn.bank) return send(chatId, esimBot.s(lang).noBank)
     if (isMainMenuPress(message)) return goto.displayMainMenuButtons()
@@ -28504,15 +28516,56 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     bulkData.provider = found.provider || (found.type === 'owned_twilio' ? 'twilio' : 'telnyx')
     bulkData.twilioSubAccountSid = found.subAccountSid || null
     bulkData.twilioSubAccountToken = found.subAccountToken || null
+    delete bulkData.callerPool
     await saveInfo('bulkData', bulkData)
     await set(state, chatId, 'action', a.bulkUploadLeads)
-    return send(chatId, trans('t.cp_132', found.phoneNumber), k.of([['↩️ Back']]))
+    return send(chatId, trans('t.cp_132', found.phoneNumber), k.of([[_bulkRot(lang).btn], ['↩️ Back']]))
+  }
+
+  // ── Rotate caller IDs: one list dialed from several numbers at once (one call per caller ID at a time) ──
+  const bulkRotChoices = async (bd) => {
+    const tw = bd.provider === 'twilio'
+    const own = (info?.bulkCallerIds || []).filter(c => c.phoneNumber !== bd.callerId && (tw ? c.provider === 'twilio' && (c.subAccountSid || null) === (bd.twilioSubAccountSid || null) : (c.provider || 'telnyx') !== 'twilio' && c.type !== 'owned_twilio'))
+      .map(c => ({ key: c.phoneNumber, entry: { callerId: c.phoneNumber } }))
+    const ver = tw ? [] : (await require('./cloudivr-web/caller-ids').presets(chatId).catch(() => [])).filter(p => p.number && p.number !== bd.showAs)
+      .map(p => ({ key: p.number, entry: { callerId: bd.callerId, showAs: p.number }, verified: true }))
+    return [...own, ...ver]
+  }
+  const bulkRotPrompt = async (bd) => {
+    const ch = await bulkRotChoices(bd), on = new Set((bd.callerPool || []).map(e => e.showAs || e.callerId))
+    const R = _bulkRot(lang)
+    if (!ch.length) return send(chatId, R.none, k.of([['↩️ Back']]))
+    const rows = ch.map(c => [`${on.has(c.key) ? '✅' : '➕'} ${c.key}${c.verified ? ` (${R.verified})` : ''}`])
+    return send(chatId, `🔁 <b>${R.title}</b>\n${R.help}\n\n${R.sel(on.size + 1, bd.showAs || bd.callerId)}`, { parse_mode: 'HTML', ...k.of([...rows, [R.done], ['↩️ Back']]) })
+  }
+  if (action === a.bulkUploadLeads && _isBulkRotBtn(message)) {
+    await set(state, chatId, 'action', 'bulkRotateCids')
+    return bulkRotPrompt(info?.bulkData || {})
+  }
+  if (action === 'bulkRotateCids') {
+    const bd = { ...(info?.bulkData || {}) }
+    if (isBackPress(message) || _isBulkRotDone(message)) {
+      await set(state, chatId, 'action', a.bulkUploadLeads)
+      const n = (bd.callerPool || []).length
+      return send(chatId, (n ? `${_bulkRot(lang).rotating(n + 1)}\n\n` : '') + trans('t.cp_132', bd.callerId), { parse_mode: 'HTML', ...k.of([[_bulkRot(lang).btn], ['↩️ Back']]) })
+    }
+    const key = String(message).replace(/^(✅|➕)\s*/, '').replace(/\s*\([^)]*\)$/, '').trim()
+    const c = (await bulkRotChoices(bd)).find(x => x.key === key)
+    if (!c) return bulkRotPrompt(bd)
+    const pool = (bd.callerPool || []).filter(e => (e.showAs || e.callerId) !== key)
+    if (pool.length === (bd.callerPool || []).length) {
+      if (pool.length + 1 >= bulkCallService.MAX_CALLER_POOL) return send(chatId, _bulkRot(lang).max(bulkCallService.MAX_CALLER_POOL))
+      pool.push(c.entry)
+    }
+    bd.callerPool = pool
+    await saveInfo('bulkData', bd)
+    return bulkRotPrompt(bd)
   }
 
   if (action === a.bulkUploadLeads && ccid.isOwn(message) && info?.bulkData?.showAs) {
     const d = { ...info.bulkData }; delete d.showAs
     await saveInfo('bulkData', d)
-    return send(chatId, trans('t.cp_132', d.callerId), k.of([['↩️ Back']]))
+    return send(chatId, trans('t.cp_132', d.callerId), k.of([[_bulkRot(lang).btn], ['↩️ Back']]))
   }
   if (action === a.bulkUploadLeads) {
     if (isBackPress(message)) {
@@ -29320,6 +29373,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           chatId,
           callerId: bulkData.callerId,
           showAs: bulkData.showAs || null,
+          callerPool: bulkData.callerPool || null,
           audioUrl: bulkData.audioUrl,
           audioName: bulkData.audioName,
           mode: bulkData.mode,
@@ -29384,6 +29438,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const campaign = await bulkCallService.createCampaign({
         chatId,
         callerId: bulkData.callerId,
+        showAs: bulkData.showAs || null,
+        callerPool: bulkData.callerPool || null,
         audioUrl: bulkData.audioUrl,
         audioName: bulkData.audioName,
         mode: bulkData.mode,
