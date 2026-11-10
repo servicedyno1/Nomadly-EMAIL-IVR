@@ -11,7 +11,7 @@ const { t, btn, allLabels } = require('./i18n')
 const PRODUCT_KEY = 'bulk-esim-sms'
 const BTN = btn('en')
 const kb = (rows) => ({ parse_mode: 'HTML', reply_markup: { keyboard: rows, resize_keyboard: true } })
-const homeKb = (L, r = { send: true }) => kb([[L.newc], r.send ? [L.one, L.convs] : [L.convs], [L.usage, L.bookings], [L.progress, L.help], [L.back]])
+const homeKb = (L, r = { one: true }) => kb([[L.newc], r.one ? [L.one, L.convs] : [L.convs], [L.usage, L.bookings], [L.progress, L.help], [L.back]])
 const brand = () => (process.env.CHAT_BOT_BRAND || 'Nomadly').replace(/[^A-Za-z0-9]/g, '')
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const per500 = (x) => Math.round(x * 500 * 100) / 100
@@ -25,7 +25,7 @@ async function homeArgs(cid) {
   const c = await B.cfg(), u = await B.usage(cid)
   return { min: c.minVolume, max: c.maxVolume, plain: per500(c.pricePlain), link: per500(c.priceLink), pct: c.scheduleDiscountPct, minHours: c.scheduleMinHours, fee: c.replyFee, perDay: c.testsPerDay, used: u.used, limit: u.limit, from: c.quietStart, to: c.quietEnd }
 }
-const home = async (send, chatId, lang) => { const r = await B.ready(); return send(chatId, t(lang, 'home', await homeArgs(B.cidOf(brand(), chatId))) + (r.send ? '' : `\n\n${t(lang, 'off_one')}`), homeKb(btn(lang), r)) }
+const home = async (send, chatId, lang) => { const r = await B.ready(); return send(chatId, t(lang, 'home', await homeArgs(B.cidOf(brand(), chatId))) + (r.one ? '' : `\n\n${t(lang, 'off_one')}`), homeKb(btn(lang), r)) }
 const days = () => Array.from({ length: 7 }, (_, i) => new Date(Date.now() + i * 86400000).toISOString().slice(0, 10))
 
 // Returns true when the message was handled here (anything but an explicit false).
@@ -36,7 +36,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   if (isHome(message) && !B.configured()) { await send(chatId, say('soon')); return true }
   if (isHome(message)) {
     await B.customer(brand(), chatId); await go('bse-home')
-    if (!info?.bseIntroAt) { const c = await B.cfg(); await send(chatId, say('intro', { minHours: c.scheduleMinHours, pct: c.scheduleDiscountPct })); await put('bseIntroAt', new Date().toISOString()) }
+    if (!info?.bseIntroAt) await put('bseIntroAt', new Date().toISOString()) // the start screen now carries the intro
     await home(send, chatId, lang); return true
   }
   if (!action.startsWith('bse-')) return false
@@ -44,7 +44,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   if (message === L.back) { if (action === 'bse-home') { await go('none'); return goto.submenu7 ? (await goto.submenu7(), true) : false } await go('bse-home'); await home(send, chatId, lang); return true }
   if (action === 'bse-home') {
     if (message === L.newc) { const c = await B.cfg(); await go('bse-contacts'); return send(chatId, say('contacts_q', { min: c.minVolume, max: c.maxVolume }), kb([[L.back]])) }
-    if (message === L.one) { if (!RD.send) return send(chatId, say('off_one'), HK); await go('bse-one-to'); return send(chatId, say('one_to_q'), kb([[L.back]])) }
+    if (message === L.one) { if (!RD.one) return send(chatId, say('off_one'), HK); await go('bse-one-to'); return send(chatId, say('one_to_q'), kb([[L.back]])) }
     if (message === L.usage) { const u = await B.usage(cid); return send(chatId, say('usage', { ...u, reset: u.resetAt.toISOString().slice(0, 16).replace('T', ' ') }), HK) }
     if (message === L.help) return send(chatId, say('help', await homeArgs(cid)), HK)
     if (message === L.convs) {
@@ -310,6 +310,7 @@ function startNotices(bot, db) {
         const n = r?.value !== undefined ? r.value : r; if (!n) break
         if (n.type === 'refund' && n.amount) await walletOps(db).credit(n.chatId, Number(n.amount))
         if (n.silent) continue
+        if (n.type === 'admin') { await T?.notifyAdmin?.(n.text); continue }
         const lang = (await db.collection('state').findOne({ _id: String(n.chatId) }, { projection: { userLanguage: 1 } }).catch(() => null))?.userLanguage || 'en'
         const text = n.key ? t(lang, n.key, ...(n.args || [])) : n.text
         await bot.sendMessage(n.chatId, text, { disable_web_page_preview: true, ...(n.type === 'inbound' ? { reply_markup: { inline_keyboard: [[{ text: t(lang, 'reply_btn'), callback_data: `bse-reply:${n.sessionId}` }]] } } : {}) }).catch(() => {})

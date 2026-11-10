@@ -27,10 +27,10 @@ const tg = async (text, wait = 1900) => { await axios.post('http://localhost:500
     // ---------- Copy checks (rendered from i18n) ----------
     const ha = { min: 500, max: 2000, plain: 50, link: 75, pct: 10, minHours: 24, fee: 20, used: 0, limit: 2000, from: 8, to: 21 }
     const homeEn = I.t('en', 'home', ha)
-    ok('copy: en home mentions every US and Canadian mobile carrier + free number check', /every US and Canadian mobile carrier/.test(homeEn) && /Free number check/.test(homeEn), homeEn.slice(0, 120))
-    for (const l of ['fr', 'zh', 'hi', 'fa']) { const h = I.t(l, 'home', ha); ok(`copy: ${l} home names carriers (AT&T/Rogers) and $50/$75`, /AT&T/.test(h) && /Rogers/.test(h) && /50/.test(h) && /75/.test(h), h.slice(0, 80)) }
+    ok('copy: en home (short) mentions every US & Canadian carrier + free first test', /every US & Canadian carrier/.test(homeEn) && /First test SMS free/.test(homeEn), homeEn.slice(0, 120))
+    for (const l of ['fr', 'zh', 'hi', 'fa']) { const h = I.t(l, 'home', ha); ok(`copy: ${l} short home shows $50/$75 and today's usage`, /50/.test(h) && /75/.test(h) && /2,000/.test(h) && h.split('\n').length <= 8, h.slice(0, 80)) }
     const lo = I.t('en', 'list_ok', { n: 520, max: 2000, dropped: 0, send: 500, skipped: 20, counts: { landline: 10, voip: 10, invalid: 0, other: 0 }, invalid: 0, duplicates: 0, optedOut: 0 })
-    ok('copy: consent summary shows 520 numbers, 500 mobiles, skipped breakdown, "You pay for all 520"', lo.includes('<b>520</b> numbers') && lo.includes('<b>500</b> active mobiles') && /20 skipped/.test(lo) && /landline/.test(lo) && /VoIP/.test(lo) && lo.includes('You pay for all <b>520</b>'), lo.replace(/\n/g, ' | ').slice(0, 260))
+    ok('copy: consent summary shows 520 numbers, 500 mobiles, skipped breakdown, "You pay for all 520"', lo.includes('<b>520</b> numbers') && lo.includes('<b>500</b> will get your text') && /20 skipped/.test(lo) && /landline/.test(lo) && /VoIP/.test(lo) && lo.includes('Billed for all 520'), lo.replace(/\n/g, ' | ').slice(0, 260))
 
     // ---------- Price-type auto-detect (direct) ----------
     ok('detect: link text → withLinks', B.checkContent('Sale at shop.example.com').withLinks === true)
@@ -38,7 +38,7 @@ const tg = async (text, wait = 1900) => { await axios.post('http://localhost:500
     ok('detect: plain text → text only', B.checkContent('Spring sale 20% off all plans this week').withLinks === false)
     const dateTxt = B.checkContent('Offer valid 2026-01-15 to 2026-01-31 only'), typoTxt = B.checkContent('Big sale today.Come in and save')
     ok('detect (edge): a date like 2026-01-15 is NOT a phone (text only)', dateTxt.withLinks === false, `withLinks=${dateTxt.withLinks}`)
-    ok('detect (edge): missing space after period "today.Come" is NOT a link', typoTxt.withLinks === false, `withLinks=${typoTxt.withLinks}`)
+    ok('detect (edge): "today.Come" counts as a link (strict, user-approved — no price dodging)', typoTxt.withLinks === true, `withLinks=${typoTxt.withLinks}`)
 
     // ---------- Run A: link text, 500 mobiles + 10 landline + 10 VoIP, send one, replies toggle, send now, wallet ----------
     const listA = [...nums(4000, 500), ...nums(9900, 10), ...nums(9950, 10)]

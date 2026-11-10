@@ -68,7 +68,13 @@ const dayKey = (t, c) => new Date(new Date(t).getTime() - (c.resetHourUtc || 0) 
 const nextReset = (c) => { const d = new Date(Date.now() - c.resetHourUtc * HOUR); d.setUTCHours(0, 0, 0, 0); return new Date(d.getTime() + DAY + c.resetHourUtc * HOUR) }
 const audit = (action, d = {}) => C('bsAudit').insertOne({ action, ...d, at: new Date() }).catch(() => {})
 const incident = (type, d = {}) => C('bsIncidents').insertOne({ type, ...d, at: new Date() }).catch(() => {})
-const alert = (text) => { try { S.notifyAdmin?.(`🛰 <b>eSIM BulkSMS</b>\n${text}`) } catch (_) { /* best effort */ } }
+// Admin alerts: live, all 4 bots queue them in the shared DB and only the @Nomadlybot process delivers them (bot.js startNotices).
+const ADMIN_BRAND = 'Nomadly'
+const alert = (text) => {
+  const msg = `🛰 <b>eSIM BulkSMS</b>\n${text}`
+  if (P.dry() || !S?.db) { try { S?.notifyAdmin?.(msg) } catch (_) { /* best effort */ } return }
+  C('bsNotify').insertOne({ brand: ADMIN_BRAND, type: 'admin', text: msg, sent: false, at: new Date() }).catch(() => { try { S.notifyAdmin?.(msg) } catch (_) { /* best effort */ } })
+}
 // Customer notices go through the owning bot (it may live in another process).
 const notify = (cid, type, key, args = [], extra = {}) => { const [brand, chatId] = cid.split(':'); return C('bsNotify').insertOne({ brand, chatId, type, key, args, ...extra, sent: false, at: new Date() }) }
 
@@ -195,9 +201,9 @@ async function adviseAccounts(c, { lines, target } = {}) {
   alert(`📣 Capacity is near the Spenza limit: ${lines ?? '?'} of ${max} line(s) across ${n} account(s)${over ? `, and the demand model wants ${target} SMS/day against a ceiling of ${ceiling}` : ''}. Spenza caps each account at ${c.accounts.map(a => `${a.perMin}`).join('/')} SMS/min, so more lines on the same account add nothing. To grow further add Spenza account #${n + 1}: set SPENZA_BULK_API_KEY_${n + 1} and SPENZA_BULK_API_SECRET_${n + 1} (plus SPENZA_BULK_IMEI_${n + 1} if its handset differs) and redeploy — the engine connects it, syncs its SIMs and starts buying lines on it automatically.`)
   incident('account_advice', { lines, max, target, ceiling, accounts: n }); return true
 }
-async function provisionOne(reason, by, role = 'service', account = null) {
+async function provisionOne(reason, by, role = 'service', account = null, { want } = {}) {
   const c = await cfg(), month = new Date().toISOString().slice(0, 7)
-  if (AUX.includes(role) && (await roleCount(role)) >= c[`${role}Esims`]) return { error: `${role} line already present.` }
+  if (AUX.includes(role) && (await roleCount(role)) >= Math.max(c[`${role}Esims`], want || 0)) return { error: `${role} line already present.` }
   const spent = await spentMonth(), live = await liveCount()
   if (!AUX.includes(role) && live >= maxLines(c)) { await adviseAccounts(c, { lines: live }); return { error: `Inventory is at the line ceiling (${maxLines(c)}${c.maxEsims ? '' : ` — set by the Spenza sending rate of ${c.accounts.length} account(s)`}).` } }
   const rooms = await acctRoom(c, role), pick = (account && rooms.find(r => r.id === account)) || rooms[0]
@@ -244,6 +250,11 @@ async function ensureRoles(c, { monitor = true } = {}) {
     const missing = c[`${role}Esims`] - await roleCount(role); if (missing <= 0) continue
     const r = await provisionMany(missing, `${role} line`, 'system', role); ok += r.ok
     if (r.ok) alert(role === 'tester' ? `🧪 Bought ${r.ok} tester eSIM(s) — customers' test texts go out through it.` : `🩺 Bought ${r.ok} monitor eSIM(s) — it only receives and answers line checks.`)
+  }
+  // The tester always needs another number to check delivery against: no service line and no monitor → buy one monitor.
+  if ((await roleCount('tester')) && !(await liveCount()) && !(await monitorCount())) {
+    const r = await provisionOne('peer for the tester line', 'system', 'monitor', null, { want: 1 }); ok += r.ok ? 1 : 0
+    if (r.ok) alert(`🩺 Bought a monitor eSIM (${r.esimId}) so the tester line has another number to check delivery against.`)
   }
   return { ok }
 }
@@ -383,7 +394,13 @@ const monitorLine = () => C('bsEsims').findOne({ role: 'monitor', status: { $in:
 async function startCheck(e, kind) {
   if (await C('bsTests').findOne({ esimId: e._id, type: 'check', result: 'pending' })) return 'pending'
   const mon = await monitorLine(), peer = mon && mon._id !== e._id ? mon : await C('bsEsims').findOne({ _id: { $ne: e._id }, ...SERVICE, status: { $in: USABLE }, health: { $in: GOOD_HEALTH }, msisdn: { $ne: null } })
-  if (!peer) return 'no_peer'
+  // Last resort: the tester and the monitor check each other while there is no service line.
+  const aux = peer ? null : await C('bsEsims').findOne({ _id: { $ne: e._id }, role: { $in: AUX }, status: { $in: [...USABLE, 'testing'] }, health: { $in: [...GOOD_HEALTH, 'unknown'] }, msisdn: { $ne: null } })
+  if (!peer && !aux) return 'no_peer'
+  if (!peer) return startCheckWith(e, kind, aux)
+  return startCheckWith(e, kind, peer)
+}
+async function startCheckWith(e, kind, peer) {
   const code = crypto.randomBytes(3).toString('hex'), auto = P.dry() && process.env.BULK_ESIM_FAKE_CHECKS !== 'manual'
   await C('bsTests').insertOne({ esimId: e._id, peer: peer._id, type: 'check', kind, code, legs: { out: auto, back: auto }, result: auto ? 'passed' : 'pending', at: new Date(), ...(auto ? { at2: new Date() } : {}) })
   await C('bsMessages').insertOne(msgDoc({ cid: 'system:health', to: peer.msisdn, body: `CloudIVR line check ${code}`, priority: 2, esimId: e._id, system: true }))
@@ -507,7 +524,7 @@ async function ready() {
   const has = async (f) => !paused && !!(await C('bsEsims').countDocuments({ ...lineQ(c), ...f }, { limit: 1 }))
   // While the tester line is being bought, replaced or re-checked, tests stay off (they would not use the tester line).
   const send = await has(SERVICE), tester = await has({ role: 'tester' }), testerBusy = !tester && !!(await C('bsEsims').countDocuments({ role: 'tester', status: { $in: TESTER_BUSY } }, { limit: 1 }))
-  return { paused, send, test: tester || (send && !testerBusy) }
+  return { paused, send, one: send || tester, test: tester || (send && !testerBusy) }
 }
 async function lineReady(esimId) {
   const c = await cfg(), st = await state()
@@ -836,7 +853,7 @@ async function sendOne(cid, to, text, sessionId) {
   if (cu?.status !== 'active') return E('err_suspended')
   if (!validUsCa(p)) return E('err_number')
   if (!body) return E('err_add_text')
-  if (sessionId) { const ss = await C('bsSessions').findOne({ _id: sessionId, cid }); if (!ss || !(await lineReady(ss.esimId))) return E('off_reply') } else if (!(await ready()).send) return E('off_one')
+  if (sessionId) { const ss = await C('bsSessions').findOne({ _id: sessionId, cid }); if (!ss || !(await lineReady(ss.esimId))) return E('off_reply') } else if (!(await ready()).one) return E('off_one')
   const full = sessionId ? body : body + OPT
   if (segs(full) > 3) return E('err_too_long')
   if (hasLinkOrPhone(body)) { const sc = await screenContent(cid, [body], 'one-off text'); if (sc.error) return sc }
@@ -868,7 +885,11 @@ async function pickEsim(m, c) {
   // New conversations respect each line's daily cap (warm-up); replies inside a session stay on their line regardless.
   const pool = await C('bsEsims').find({ ...SERVICE, status: { $in: USABLE }, health: { $in: GOOD_HEALTH }, msisdn: { $ne: null } }).sort({ 'stats.submitted': 1 }).toArray(), d = dayKey(Date.now(), c)
   const used = Object.fromEntries((await C('bsEsimDaily').find({ _id: { $in: pool.map(e => `${e._id}:${d}`) } }).toArray()).map(x => [x._id, x.n]))
-  return pool.find(e => ok(e) && (used[`${e._id}:${d}`] || 0) < lineCap(c, lineAge(e.activationDate || e.createdAt, d))) || null
+  const hit = pool.find(e => ok(e) && (used[`${e._id}:${d}`] || 0) < lineCap(c, lineAge(e.activationDate || e.createdAt, d)))
+  if (hit || m.campaignId || pool.length) return hit || null
+  // No service line yet: a single text goes out on the tester line.
+  const t = await C('bsEsims').findOne({ role: 'tester', status: { $in: USABLE }, health: { $in: GOOD_HEALTH }, msisdn: { $ne: null } })
+  return ok(t) ? t : null
 }
 async function processOne(m, c) {
   const later = (ms, extra = {}) => C('bsMessages').updateOne({ _id: m._id }, { $set: { status: 'queued', nextAt: new Date(Date.now() + ms), ...extra } })

@@ -24,14 +24,14 @@ const nums = (n, from = 1000) => Array.from({ length: n }, (_, i) => `+1212555${
   ok('…and keeps going at 3 left', B.acctOpen(await B.cfg(), 'spenza1') === true)
   delete process.env.BULK_ESIM_FAKE_RATE
   const r = await B.bootstrap()
-  ok('go-live: only the tester line is bought', r.testers === 1 && (await live()) === 1, JSON.stringify(r))
+  ok('go-live: tester + one monitor so the tester has a number to check against', r.testers === 1 && (await live({ role: 'monitor' })) === 1 && (await live()) === 2, JSON.stringify(r))
   await B.setConfig({ quietStart: 0, quietEnd: 24 }, 'test'); await B.healthCheck()
   const cid = (await B.customer('Nomadly', '961'))._id
   const cp = (await B.createCampaign(cid, { content: 'Spring sale this week', contacts: nums(500), consent: true })).campaign
   const bk = await B.createBooking(cid, { campaignId: cp._id, date: new Date(Date.now() + 86400000).toISOString().slice(0, 10), hour: 16 })
   ok('first booking allowed with a small balance (no floor)', !!bk.booking, bk.error)
   await B.confirmBooking(bk.booking._id, { method: 'wallet' }); await B.autoscale()
-  ok('first paid campaign → 2 service lines, no monitor = 3 eSIMs total', (await live({ role: { $nin: ['tester', 'monitor'] } })) === 2 && (await live({ role: 'monitor' })) === 0 && (await live()) === 3, String(await live()))
+  ok('first paid campaign → 2 service lines + tester + monitor = 4 eSIMs, no extra monitor', (await live({ role: { $nin: ['tester', 'monitor'] } })) === 2 && (await live({ role: 'monitor' })) === 1 && (await live()) === 4, String(await live()))
   await B.healthCheck()
   ok('service lines check each other (no monitor needed) and join the pool', (await E.countDocuments({ role: { $nin: ['tester', 'monitor'] }, status: 'available' })) === 2)
 

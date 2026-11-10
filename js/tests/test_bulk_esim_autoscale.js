@@ -176,8 +176,8 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   await B.setConfig({ quietStart: 8, quietEnd: 21, minCredit: 10, reserveBooking: true, monitorEsims: 1, rateMargin: 0 }, 'test')
   process.env.SPENZA_BULK_API_KEY = 'key-one'; process.env.BULK_ESIM_FAKE_CREDIT = '500'; alerts.length = 0; provCalls = 0
   const b1 = await B.bootstrap()
-  ok('first credentials → account connected, only the tester line is bought', b1.ok && b1.testers === 1 && b1.monitors === 0 && b1.lines === 0 && provCalls === 1 && alerts.some(a => /account connected/.test(a)) && alerts.some(a => /Account ready: 1\/1 tester/.test(a)), JSON.stringify(b1))
-  ok('same credentials again → nothing happens', (await B.bootstrap()).same === true && provCalls === 1)
+  ok('first credentials → account connected, tester + a monitor peer are bought', b1.ok && b1.testers === 1 && b1.monitors === 1 && b1.lines === 0 && provCalls === 2 && alerts.some(a => /account connected/.test(a)) && alerts.some(a => /Account ready: 1\/1 tester/.test(a)), JSON.stringify(b1))
+  ok('same credentials again → nothing happens', (await B.bootstrap()).same === true && provCalls === 2)
   await B.healthCheck(); provCalls = 0; await B.autoscale()
   ok('no demand yet → nothing else bought, no target', provCalls === 0 && (await B.demandModel(await B.cfg())).target(d(2)) === 0)
   const tester = await db.collection('bsEsims').findOne({ role: 'tester' })
@@ -190,7 +190,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   const first = await B.createBooking(cust2._id, { date: d(1), hour: 16, campaignId: cp2.campaign._id })
   ok('first customer books 520 tomorrow with zero service lines (auto-buy on)', !!first.booking, first.error || '')
   provCalls = 0; alerts.length = 0; await B.confirmBooking(first.booking._id, {})
-  ok('first paid booking buys the monitor + 2 starter lines', provCalls === 3 && (await B.monitorCount()) === 1 && (await db.collection('bsEsims').countDocuments({ role: 'service' })) === 2 && alerts.some(a => /Bought 1 monitor/.test(a)), `+${provCalls}`)
+  ok('first paid booking buys the 2 starter lines (monitor already there)', provCalls === 2 && (await B.monitorCount()) === 1 && (await db.collection('bsEsims').countDocuments({ role: 'service' })) === 2, `+${provCalls}`)
   await B.healthCheck(); provCalls = 0; await B.autoscale()
   ok('then the model keeps room for one more full booking → grows', provCalls === Math.ceil(2520 / 320) - 2, `+${provCalls}`)
   process.env.SPENZA_BULK_API_KEY = 'key-two'; alerts.length = 0; provCalls = 0
