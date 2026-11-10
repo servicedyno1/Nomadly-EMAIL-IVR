@@ -141,6 +141,24 @@ function SavedList({ value, onChange }) {
   );
 }
 
+const VM_OPTS = [['main', 'Leave my message', 'Waits for the beep, then leaves the message above.'], ['other', 'Leave a different clip', 'Pick another recording to leave in the mailbox.'], ['hangup', 'Hang up', 'Ends the call — nothing is left.']];
+function VoicemailChoice({ mode, onMode, children }) {
+  return (
+    <Field label="When voicemail answers" hint="Answered → they hear your message · Voicemail → what you pick here · No answer → marked “no answer”. Calls end just before 1 minute unless connected to you; a voicemail message that has started always plays to the end.">
+      <div className="grid sm:grid-cols-3 gap-2" role="radiogroup" aria-label="When voicemail answers" data-testid="campaign-voicemail-choice">
+        {VM_OPTS.map(([v, label, sub]) => (
+          <button key={v} type="button" role="radio" aria-checked={mode === v} onClick={() => onMode(v)} data-testid={`campaign-voicemail-${v}`}
+            className={`text-left rounded-xl border px-3 py-2.5 transition-colors ${mode === v ? 'border-[var(--civr-accent,#22c55e)] bg-[#22c55e]/10' : 'border-[#262626] hover:border-[#3f3f46]'}`}>
+            <div className="text-sm font-medium">{label}{v === 'main' && <span className="ml-1.5 text-[10px] uppercase tracking-wide text-[#22c55e]">Recommended</span>}</div>
+            <div className="text-xs text-[#a1a1aa] mt-0.5">{sub}</div>
+          </button>
+        ))}
+      </div>
+      {children && <div className="mt-2">{children}</div>}
+    </Field>
+  );
+}
+
 const MAX_LEADS = 500;
 function LeadCount({ text }) {
   const n = text.split('\n').filter(l => /\d{7,}/.test(l.replace(/\D/g, ''))).length;
@@ -214,7 +232,7 @@ export function CampaignNew() {
   const { data: au, reload: reloadAudio } = useApi('/audio');
   const [params] = useSearchParams();
   // Contacts → "Start a campaign" opens this page with ?list=<id>.
-  const [f, setF] = useState(() => ({ name: '', callerId: '', showAs: '', audioId: '', voicemailAudioId: '', leads: '', source: params.get('list') ? 'list' : 'numbers', listId: params.get('list') || '', mode: 'report_only', transferNumber: '', transferBackups: '', activeKeys: ['1'], menu: [], concurrency: 5, scheduledFor: '', holdMusic: false, agentId: '', repeat: '', dailyLimit: '' }));
+  const [f, setF] = useState(() => ({ name: '', callerId: '', showAs: '', audioId: '', voicemailAudioId: '', vmMode: 'main', leads: '', source: params.get('list') ? 'list' : 'numbers', listId: params.get('list') || '', mode: 'report_only', transferNumber: '', transferBackups: '', activeKeys: ['1'], menu: [], concurrency: 5, scheduledFor: '', holdMusic: false, agentId: '', repeat: '', dailyLimit: '' }));
   const [script, setScript] = useState(null);
   const [est, setEst] = useState(null);
   const [busy, setBusy] = useState('');
@@ -261,7 +279,8 @@ export function CampaignNew() {
       const base = { ...f, ...audience, source: undefined, callerId, callerIds: f.callerIds?.length ? f.callerIds : undefined, showAs: f.showAs || undefined, menu: f.mode === 'menu' ? menuToApi(f.menu) : undefined, scheduledFor, ...plan };
       const audioId = !isAi && !f.audioId && script ? await scriptAudio(() => api('/campaigns', { method: 'POST', body: { ...base, validateOnly: true, audioPending: true } })) : f.audioId;
       const body = isAi ? { mode: 'ai', name: f.name, agentId: f.agentId, callerId, callerIds: f.callerIds?.length ? f.callerIds : undefined, showAs: f.showAs || undefined, ...audience, concurrency: f.concurrency, scheduledFor, ...plan }
-        : { ...base, audioId };
+        : { ...base, vmMode: undefined, audioId, voicemailAudioId: f.vmMode === 'main' ? audioId : f.vmMode === 'other' ? f.voicemailAudioId : '' };
+      if (!isAi && f.vmMode === 'other' && !f.voicemailAudioId) throw new Error('Pick the clip to leave on voicemail, or choose “Leave my message”.');
       const d = await api('/campaigns', { method: 'POST', body });
       toast.success(d.skipped ? `Campaign saved · ${d.skipped} line(s) skipped` : 'Campaign saved');
       if (scheduledFor) toast.message('Scheduled — we’ll notify you in Inbox when calling starts and when it finishes.');
@@ -285,7 +304,9 @@ export function CampaignNew() {
           <Field label="Message"><AudioSelect value={f.audioId} onChange={set('audioId')} audios={au?.audios} by="id" onAdded={reloadAudio} testid="campaign-audio-select" /></Field>
           {script ? <div className="border border-[#262626] rounded-xl p-4"><ScriptBox value={script} onChange={setScript} onAudio={(a) => { reloadAudio(); setF(x => ({ ...x, audioId: a.id })); setScript(null); }} testid="campaign-script" /></div>
             : <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => setScript({ text: '', values: {} })} data-testid="campaign-write-script-button">Write a script with a template instead</button>}
-          <Field label="Voicemail drop (optional)" hint="Played when an answering machine picks up, right after its greeting ends. Calls end just before 1 minute unless the person is connected to you — a voicemail message that has started always plays to the end."><AudioSelect value={f.voicemailAudioId} onChange={set('voicemailAudioId')} audios={au?.audios} by="id" placeholder="None" onAdded={reloadAudio} compact testid="campaign-voicemail-audio-select" /></Field>
+          <VoicemailChoice mode={f.vmMode} onMode={set('vmMode')}>
+            {f.vmMode === 'other' && <AudioSelect value={f.voicemailAudioId} onChange={set('voicemailAudioId')} audios={au?.audios} by="id" placeholder="Pick the clip to leave" onAdded={reloadAudio} compact testid="campaign-voicemail-audio-select" />}
+          </VoicemailChoice>
           </>}
           <LeadsField value={f.leads} onChange={(v) => { set('leads')(v); setEst(null); }} source={f.source} onSource={(v) => { setF(x => ({ ...x, source: v })); setEst(null); }} listId={f.listId} onList={(v) => { setF(x => ({ ...x, listId: v })); setEst(null); }} />
           {fromList ? (f.listId && <LeadCheck source={{ listId: f.listId }} testid="campaign-lead-check" />)
