@@ -19,7 +19,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   await B.init({ db, log: () => {}, notifyAdmin: (t) => alerts.push(t) })
   process.env.BULK_ESIM_WORKER = ''
   let provCalls = 0; const realProv = P.provision; P.provision = async (...a) => { provCalls++; return realProv(...a) }
-  const fresh = async (cfg = {}) => { await wipe(); alerts.length = 0; provCalls = 0; process.env.BULK_ESIM_FAKE_CREDIT = '500'; await B.setConfig({ quietStart: 0, quietEnd: 24, reserveBooking: false, autoProvision: false, manualApproval: true, minEsims: 1, monitorEsims: 0, ...cfg }, 'test'); return (await B.customer('TEST_Iter241', '9001'))._id }
+  const fresh = async (cfg = {}) => { await wipe(); alerts.length = 0; provCalls = 0; process.env.BULK_ESIM_FAKE_CREDIT = '500'; await B.setConfig({ quietStart: 0, quietEnd: 24, reserveBooking: false, autoProvision: false, manualApproval: true, minEsims: 1, monitorEsims: 0, testerEsims: 0, ...cfg }, 'test'); return (await B.customer('TEST_Iter241', '9001'))._id }
   const AUTO = { autoProvision: true, manualApproval: false, provisionBudget: 500, maxEsims: 20 }
   const hourAhead = () => (new Date().getUTCHours() + 2) % 24
   try {

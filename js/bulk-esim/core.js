@@ -11,7 +11,7 @@ const DEFAULTS = {
   defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 8, quietEnd: 21,
   platformPerMin: 30, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
   minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2,
-  minEsims: 2, monitorEsims: 1, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
+  minEsims: 2, monitorEsims: 1, testerEsims: 1, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
   minCredit: 10, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
   esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: true, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3,
 }
@@ -24,7 +24,8 @@ const LIVE_BOOKING = ['pending', 'awaiting_payment', 'confirmed', 'provisioning'
 const USABLE = ['active', 'available', 'allocated']
 const GOOD_HEALTH = ['healthy', 'degraded']
 const GONE = ['replaced', 'failed', 'expired', 'retired']
-const SERVICE = { role: { $ne: 'monitor' } }
+const AUX = ['monitor', 'tester']
+const SERVICE = { role: { $nin: AUX } }
 const STOP = /^(stop|stop all|stopall|unsubscribe|cancel|end|quit|optout|opt out)$/
 const HELP = /^(help|info)$/
 const kw = (t) => String(t || '').toLowerCase().replace(/[^a-z ]/g, ' ').trim().replace(/\s+/g, ' ')
@@ -122,7 +123,8 @@ async function addEsim(fields, status = 'testing') {
 }
 const setEsim = (eid, status, extra = {}) => C('bsEsims').updateOne({ _id: eid }, { $set: { status, ...extra, updatedAt: new Date() }, $push: { history: { status, at: new Date(), ...(extra.note ? { note: extra.note } : {}) } } })
 const liveCount = () => C('bsEsims').countDocuments({ ...SERVICE, status: { $nin: GONE } })
-const monitorCount = () => C('bsEsims').countDocuments({ role: 'monitor', status: { $nin: GONE } })
+const roleCount = (role) => C('bsEsims').countDocuments({ role, status: { $nin: GONE } })
+const monitorCount = () => roleCount('monitor')
 const spentMonth = async () => (await C('bsConfig').findOne({ _id: `spend:${new Date().toISOString().slice(0, 7)}` }))?.usd || 0
 // Most texts the account can push on `date`: Spenza's per-minute limit × the hours open for all mainland zones. More lines than
 // ceiling / per-line cap add nothing, so that is the line ceiling unless the admin sets maxEsims. provisionBudget 0 = credit forecast only.
@@ -138,9 +140,9 @@ async function buyable(c) {
 }
 async function provisionOne(reason, by, role = 'service') {
   const c = await cfg(), month = new Date().toISOString().slice(0, 7)
-  if (role === 'monitor' && (await monitorCount()) >= c.monitorEsims) return { error: 'Monitor line already present.' }
+  if (AUX.includes(role) && (await roleCount(role)) >= c[`${role}Esims`]) return { error: `${role} line already present.` }
   const spent = await spentMonth(), cost = await planCost(), f = (await state()).forecast
-  if (role !== 'monitor' && (await liveCount()) >= maxLines(c)) return { error: `Inventory is at the line ceiling (${maxLines(c)}${c.maxEsims ? '' : ' — set by the Spenza sending rate'}).` }
+  if (!AUX.includes(role) && (await liveCount()) >= maxLines(c)) return { error: `Inventory is at the line ceiling (${maxLines(c)}${c.maxEsims ? '' : ' — set by the Spenza sending rate'}).` }
   if (c.provisionBudget && spent + cost > c.provisionBudget) { alert(`Provisioning blocked: monthly budget $${c.provisionBudget} (spent $${spent}).`); return { error: 'Monthly provisioning budget reached.' } }
   if (f && f.available - cost < 0) { if (await once(`provcredit:${today()}`)) alert(`Provisioning blocked: Spenza credit $${f.credit} must keep $${f.committed} for promised texts/renewals plus the $${c.minCredit} floor — a new line costs $${cost}. Add credit at web.spenza.com`); return { error: 'Not enough Spenza credit for a new line.' } }
   const e = await addEsim({ role }, 'purchasing')
@@ -160,6 +162,17 @@ async function provisionMany(n, reason, by, role = 'service') {
   let ok = 0, error = null
   for (let i = 0; i < n; i++) { const r = await provisionOne(reason, by, role); if (r.error) { error = r.error; break } ok++ }
   return { ok, error }
+}
+// Tester line (customers' 2 test texts) is bought as soon as the account is connected; the monitor only once there is demand.
+async function ensureRoles(c, { monitor = true } = {}) {
+  if (!c.autoProvision || c.manualApproval) return { ok: 0 }
+  let ok = 0
+  for (const role of monitor ? ['tester', 'monitor'] : ['tester']) {
+    const missing = c[`${role}Esims`] - await roleCount(role); if (missing <= 0) continue
+    const r = await provisionMany(missing, `${role} line`, 'system', role); ok += r.ok
+    if (r.ok) alert(role === 'tester' ? `🧪 Bought ${r.ok} tester eSIM(s) — customers' test texts go out through it.` : `🩺 Bought ${r.ok} monitor eSIM(s) — it only receives and answers line checks.`)
+  }
+  return { ok }
 }
 // Serialises "how many lines are missing → buy them" so two payments or a payment + autoscale never buy the same gap twice.
 async function provisionFor(reason, computeNeed, buy = true) {
@@ -189,7 +202,7 @@ async function syncInventory() {
     const msisdn = P.norm(s.phoneNumber || s.msisdn), iccid = s.iccid
     let e = await C('bsEsims').findOne({ iccid, status: { $ne: 'replaced' } })
     if (!e) e = await C('bsEsims').findOne({ status: 'provisioning', iccid: null })
-    if (!e) { const c0 = await cfg(); await addEsim({ iccid, msisdn, imsi: s.imsi || null, role: (await monitorCount()) < c0.monitorEsims ? 'monitor' : 'service' }); continue }
+    if (!e) { const c0 = await cfg(); await addEsim({ iccid, msisdn, imsi: s.imsi || null, role: (await roleCount('tester')) < c0.testerEsims ? 'tester' : (await monitorCount()) < c0.monitorEsims ? 'monitor' : 'service' }); continue }
     const set = { iccid, providerEsimId: iccid, imsi: s.imsi || e.imsi || null }
     if (msisdn && msisdn !== e.msisdn) Object.assign(set, { msisdn, activationDate: new Date() })
     const st = String(s.status || '').toUpperCase()
@@ -228,7 +241,7 @@ async function healthCheck() {
     if (health === 'expired') { await setEsim(e._id, 'expired', { ...set, note: 'plan ended' }); alert(`⌛ ${e._id} ${e.msisdn || ''}: plan ended (not renewed by Spenza — check the account credit). It left the pool.`); incident('esim_expired', { esimId: e._id }); continue }
     if (e.status === 'testing' && health === 'healthy' && e.msisdn) {
       const v = await preUse(e, c); if (v !== 'passed') { await C('bsEsims').updateOne({ _id: e._id }, { $set: set }); continue }
-      await setEsim(e._id, 'available', set); alert(`✅ ${e._id} ${e.msisdn}${e.role === 'monitor' ? ' (monitor line)' : ''} passed checks and joined the pool.`); continue
+      await setEsim(e._id, 'available', set); alert(`✅ ${e._id} ${e.msisdn}${AUX.includes(e.role) ? ` (${e.role} line)` : ''} passed checks and joined the pool.`); continue
     }
     if (USABLE.includes(e.status) && health === 'healthy') await dueCheck(e, c)
     if (['suspended', 'technically_failed', 'sending_failure', 'provider_restricted'].includes(health) && e.health !== health) { alert(`⚠️ ${e._id} ${e.msisdn || ''}: ${health.replace(/_/g, ' ')}${err ? ` (${err.message})` : ''}. New sends avoid it.`); incident('esim_health', { esimId: e._id, health }) }
@@ -321,7 +334,7 @@ async function demandModel(c) {
   const t = today(), peak = Math.max(0, ...Object.entries(byDay).filter(([d]) => d <= t).map(([, v]) => v))
   const hasDemand = Object.values(byDay).some(v => v > 0)
   const target = (date) => Math.min(dayCeiling(date, c), Math.max((byDay[date] || 0) + (c.reserveBooking && hasDemand ? c.maxVolume : 0), peak))
-  return { peak, byDay, target }
+  return { peak, byDay, target, hasDemand }
 }
 // A refused booking is demand too: remembered per customer and day so the autoscaler buys lines for the coming days.
 const unmet = (cid, date, volume) => { const a = daysAhead(date); return a >= 0 && a <= 7 ? C('bsDemand').updateOne({ _id: `${cid}:${date}` }, { $max: { volume }, $set: { at: new Date(), date } }, { upsert: true }).catch(() => {}) : null }
@@ -387,7 +400,8 @@ async function confirmBooking(bid, { method, amount, ref } = {}) {
   await C('bsPayments').insertOne({ cid: b.cid, bookingId: bid, amount: amount ?? b.price, currency: 'USD', method: method || 'wallet', reference: ref || null, status: 'paid', at: new Date() })
   const c = await cfg()
   await setBooking(bid, 'scheduled', { paymentStatus: b.type === 'free' ? 'free' : 'paid', holdUntil: new Date(Date.now() + c.holdMinutes * MIN) })
-  const r = await provisionFor(`booking ${bid}`, () => linesShort(b.date, c), c.autoProvision && !c.manualApproval && b.type === 'paid')
+  if (b.type === 'paid') await ensureRoles(c)
+  const r = await provisionFor(`booking ${bid}`, async () => Math.max(await linesShort(b.date, c), c.minEsims - await liveCount()), c.autoProvision && !c.manualApproval && b.type === 'paid')
   if (r.need) {
     await setBooking(bid, 'provisioning')
     alert(`📦 Booking ${bid} (${b.volume} SMS on ${b.date}) needs ${r.need} more line(s)${r.ok ? ` — buying ${r.ok}` : ''}${r.ok < r.need ? `. ${r.need - r.ok} still missing: ${r.error || 'approve with /bulkprovision'}` : ''}.`)
@@ -480,6 +494,7 @@ async function leader() { try { await C('bsLocks').findOneAndUpdate({ _id: 'work
 const mark = (m, status, extra = {}) => C('bsMessages').updateOne({ _id: m._id }, { $set: { status, ...extra }, $push: { history: { s: status, at: new Date(), ...(extra.failureReason ? { r: extra.failureReason } : {}) } } })
 async function pickEsim(m, c) {
   if (m.esimId) return C('bsEsims').findOne({ _id: m.esimId, msisdn: { $ne: null } })
+  if (m.test) { const t = await C('bsEsims').findOne({ role: 'tester', status: { $in: USABLE }, health: { $in: GOOD_HEALTH }, msisdn: { $ne: null } }); if (t) return roomIn(win.esim[t._id] ||= [], c.esimPerMin) ? t : null }
   const s = await C('bsSessions').findOne({ cid: m.cid, to: m.to, status: 'active' }, { sort: { lastActivityAt: -1 } })
   const ok = (e) => e && USABLE.includes(e.status) && GOOD_HEALTH.includes(e.health) && roomIn(win.esim[e._id] ||= [], c.esimPerMin)
   if (s) { const e = await C('bsEsims').findOne({ _id: s.esimId }); if (ok(e)) return e; if (e && USABLE.includes(e.status) && GOOD_HEALTH.includes(e.health)) return null }
@@ -671,9 +686,9 @@ async function plan(c) {
 }
 async function autoscale() {
   const c = await cfg(), total = await liveCount()
-  const monMissing = c.monitorEsims - await monitorCount()
-  if (monMissing > 0 && c.autoProvision && !c.manualApproval) { const r = await provisionMany(monMissing, 'monitor line', 'system', 'monitor'); if (r.ok) alert(`🩺 Bought ${r.ok} monitor eSIM(s) — it only receives and answers line checks.`) }
-  const needOf = async () => { const p = await plan(c); return { p, n: Math.min(Math.max(0, c.minEsims - p.lines, ...p.rows.map(r => r.short)), Math.max(0, p.maxLines - p.lines)) } }
+  const started = total > 0 || (await demandModel(c)).hasDemand
+  await ensureRoles(c, { monitor: started })
+  const needOf = async () => { const p = await plan(c); return { p, n: Math.min(Math.max(0, started ? c.minEsims - p.lines : 0, ...p.rows.map(r => r.short)), Math.max(0, p.maxLines - p.lines)) } }
   for (const b of await C('bsBookings').find({ status: 'provisioning' }).toArray()) if (b.startAt < new Date() || !(await linesShort(b.date, c, { pendingToo: false }))) await setBooking(b._id, 'scheduled')
   const { p, n: need } = await needOf()
   if (!need) return
@@ -699,9 +714,9 @@ async function bootstrap() {
   await syncInventory().catch(e => alert(`⚠️ Could not list the account's SIMs: ${e.message}`))
   await creditWatch()
   if (process.env.SELF_URL && !P.dry()) await registerWebhook(process.env.SELF_URL).catch(e => alert(`⚠️ Webhook registration failed: ${e.message}`))
-  await autoscale()
-  const c = await cfg(), st = await state(), o = { lines: await liveCount(), monitors: await monitorCount() }
-  alert(`🔑 Account ready: ${o.monitors}/${c.monitorEsims} monitor + ${o.lines}/${c.minEsims} service line(s) (new lines pass a delivery check before use) · credit $${st.credit ?? '?'}${st.forecast ? ` · free $${st.forecast.available}` : ''}${c.autoProvision && !c.manualApproval ? '' : ' · auto-buy is OFF'}.`)
+  const c = await cfg(); await ensureRoles(c, { monitor: false })
+  const st = await state(), o = { lines: await liveCount(), monitors: await monitorCount(), testers: await roleCount('tester') }
+  alert(`🔑 Account ready: ${o.testers}/${c.testerEsims} tester line for customers' test texts · ${o.lines} service line(s) · credit $${st.credit ?? '?'}${st.forecast ? ` · free $${st.forecast.available}` : ''}. ${c.autoProvision && !c.manualApproval ? `The monitor line + ${c.minEsims} starter lines are bought at the first paid booking.` : 'Auto-buy is OFF.'}`)
   audit('bootstrap', { retired, ...o }); return { ok: true, retired, ...o }
 }
 function init({ db, log = console.log, notifyAdmin }) {
@@ -725,4 +740,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { OPT, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+module.exports = { OPT, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }

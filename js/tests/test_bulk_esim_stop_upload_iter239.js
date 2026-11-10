@@ -26,7 +26,7 @@ const openHour = async (date, need = 1) => (await B.availability(date)).slots.fi
   for (const c of COLS) await db.collection(c).deleteMany({})
   const alerts = []
   await BOT.init({ db, log: () => {}, notifyAdmin: (t) => alerts.push(t) })
-  await B.setConfig({ autoProvision: false, manualApproval: true, minEsims: 1, monitorEsims: 0 }, 'qa')
+  await B.setConfig({ autoProvision: false, manualApproval: true, minEsims: 1, monitorEsims: 0, testerEsims: 0 }, 'qa')
   process.env.BULK_ESIM_WORKER = ''
   const day = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10)
 

@@ -66,3 +66,8 @@ Test sends: max 2 per campaign during setup, not counted in booking volume, coun
 - Demand model: reserve (room for one more booking) applies only once any booking/refusal exists in the 14-day window → fleet stays 1+2 until the first customer, then grows.
 - Tests: autoscale 51/51, iter241 20/20, engine 39/39, iter239 86/86 (these three suites force auto-buy OFF), bot_flow 16/16. Preview has no SPENZA_BULK key → bootstrap skipped; on deploy with real keys + credit it WILL buy 1 monitor + 2 service eSIMs.
 - Verified (docs.spenza.com "Request a new phone number"): POST /api/v1.1/sims/{iccid}/renew-number = new phone number on the same eSIM (NOT plan renewal); sync, 200 without the new number (arrives on the SIM record → syncInventory), 20 req/min, 409 state / 501 operator unsupported / monthly number-change quota → engine falls back to a new eSIM. Live-test checkpoint: confirm renew-number works on the BulkSMS plan.
+
+## 2026-06 round 7 — tester line + buy-on-first-booking (user decisions)
+- Roles: 'tester' (customers' 2 test texts per campaign route through it via pickEsim m.test; never campaigns), 'monitor', 'service'. AUX = monitor+tester excluded from fleet/pool/liveCount. testerEsims 1.
+- bootstrap (new credentials): sync, credit, webhook, buy ONLY the tester line. First PAID booking (confirmBooking): ensureRoles → monitor, then provisionFor need = max(linesShort, minEsims(2) − live). autoscale buys roles/minimum only once `started` (lines exist or demandModel.hasDemand). Demand model uses paid-status bookings only (awaiting_payment excluded) + capacity refusals.
+- Tests: autoscale 53/53, iter241 20/20, engine 39/39, iter239 86/86, bot_flow 16/16.

@@ -17,7 +17,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   process.env.BULK_ESIM_WORKER = ''
   let provCalls = 0; const realProv = P.provision; P.provision = async (...a) => { provCalls++; return realProv(...a) }
   const c = await B.cfg()
-  ok('defaults: 400/line/day, no warm-up, 1 lead day, dynamic ceilings, reserve one booking, auto-replace on, auto-buy ON, 1 monitor + 2 service', c.esimDailyLimit === 400 && c.warmupDays === 0 && c.leadDays === 1 && c.maxEsims === 0 && c.provisionBudget === 0 && c.reserveBooking === true && c.demandDays === 14 && c.autoReplace === true && c.autoProvision === true && c.manualApproval === false && c.minEsims === 2 && c.monitorEsims === 1)
+  ok('defaults: 400/line/day, no warm-up, 1 lead day, dynamic ceilings, reserve one booking, auto-replace on, auto-buy ON, 1 monitor + 2 service', c.esimDailyLimit === 400 && c.warmupDays === 0 && c.leadDays === 1 && c.maxEsims === 0 && c.provisionBudget === 0 && c.reserveBooking === true && c.demandDays === 14 && c.autoReplace === true && c.autoProvision === true && c.manualApproval === false && c.minEsims === 2 && c.monitorEsims === 1 && c.testerEsims === 1)
   await B.setConfig({ autoProvision: false, manualApproval: true, minEsims: 1 }, 'test')
   ok('line ceiling derived from Spenza rate × open hours (10 h → 14,400/day → 45 lines)', B.dayCeiling(d(3), c) === 14400 && B.maxLines(c, d(3)) === 45 && B.maxLines({ ...c, maxEsims: 7 }) === 7)
   ok('no ramp: full cap from day 1 (ramp available via warmupDays)', [1, 2, 9].map(a => B.lineCap(c, a)).join() === '400,400,400' && [1, 3, 5].map(a => B.lineCap({ ...c, warmupDays: 5 }, a)).join() === '80,240,400')
@@ -31,7 +31,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   ok('autoscale nudges admin (no purchase)', provCalls === 0 && alerts.some(a => /needed for the next 7 days/.test(a)))
 
   // ---- auto-buy on: a booking 3 days ahead is accepted on projected lines, payment buys them ----
-  await B.setConfig({ autoProvision: true, manualApproval: false, provisionBudget: 500, maxEsims: 20, monitorEsims: 0 }, 'test')
+  await B.setConfig({ autoProvision: true, manualApproval: false, provisionBudget: 500, maxEsims: 20, monitorEsims: 0, testerEsims: 0 }, 'test')
   const cap3 = await B.capacity(d(3), await B.cfg())
   ok('projected capacity counts lines that can still be bought (budget $500 / $10 → 20 max)', cap3.projected === 20 && cap3.perDay === Math.floor(20 * B.lineCap(c, 4) * 0.8), JSON.stringify(cap3))
   ok('today has no projected lines, tomorrow does (lead time 1 day)', (await B.capacity(d(0), await B.cfg())).lines === 0 && (await B.capacity(d(1), await B.cfg())).projected === 20)
@@ -159,24 +159,32 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   await db.collection('bsBookings').deleteMany({ _id: /^bk_/ })
   const hist = await B.lineHistory(14)
   ok('line history report lists every line with days + incidents', hist.length === (await db.collection('bsEsims').countDocuments()) && hist.some(h => h.days.length) && hist.some(h => h.incidents.length), `${hist.length} lines`)
-  // ---- new Spenza credentials → bootstrap: 1 monitor + 2 service lines, nothing more until demand appears ----
-  for (const col of ['bsEsims', 'bsBookings', 'bsDemand', 'bsTests', 'bsMessages']) await db.collection(col).deleteMany({})
+  // ---- new Spenza credentials → bootstrap buys only the tester line; monitor + 2 starters come with the first paid booking ----
+  for (const col of ['bsEsims', 'bsBookings', 'bsDemand', 'bsTests', 'bsMessages', 'bsCampaigns', 'bsDaily']) await db.collection(col).deleteMany({})
   await db.collection('bsConfig').deleteMany({ _id: { $in: ['settings', 'provider', 'esimSeq', `scale:${d(0)}`] } })
   await B.setConfig({ quietStart: 8, quietEnd: 21 }, 'test')
   process.env.SPENZA_BULK_API_KEY = 'key-one'; process.env.BULK_ESIM_FAKE_CREDIT = '500'; alerts.length = 0; provCalls = 0
   const b1 = await B.bootstrap()
-  ok('first credentials → account connected, 1 monitor + 2 service lines bought', b1.ok && b1.monitors === 1 && b1.lines === 2 && provCalls === 3 && alerts.some(a => /account connected/.test(a)) && alerts.some(a => /Account ready: 1\/1 monitor \+ 2\/2 service/.test(a)), JSON.stringify(b1))
-  ok('same credentials again → nothing happens', (await B.bootstrap()).same === true && provCalls === 3)
+  ok('first credentials → account connected, only the tester line is bought', b1.ok && b1.testers === 1 && b1.monitors === 0 && b1.lines === 0 && provCalls === 1 && alerts.some(a => /account connected/.test(a)) && alerts.some(a => /Account ready: 1\/1 tester/.test(a)), JSON.stringify(b1))
+  ok('same credentials again → nothing happens', (await B.bootstrap()).same === true && provCalls === 1)
   await B.healthCheck(); provCalls = 0; await B.autoscale()
-  ok('no demand yet → fleet stays at 1 + 2 (no "room for one more" before the first customer)', provCalls === 0 && (await B.demandModel(await B.cfg())).target(d(2)) === 0)
-  const cust2 = await B.customer('Nomadly', '777'), first = await B.createBooking(cust2._id, { date: d(1), hour: 16, volume: 600 })
-  ok('first customer books 600 tomorrow on the 2 service lines (640/day)', !!first.booking, first.error || '')
-  await B.confirmBooking(first.booking._id, {}); provCalls = 0; await B.autoscale()
-  ok('after the first booking the model keeps room for one more full booking → grows', provCalls === Math.ceil(2600 / 320) - 2, `+${provCalls}`)
+  ok('no demand yet → nothing else bought, no target', provCalls === 0 && (await B.demandModel(await B.cfg())).target(d(2)) === 0)
+  const tester = await db.collection('bsEsims').findOne({ role: 'tester' })
+  ok('tester line passed its check and is ready (not in the sending pool)', tester.status === 'available' && (await B.capacity(d(0), await B.cfg())).lines === 0)
+  const cust2 = await B.customer('Nomadly', '777'), cp2 = await B.createCampaign(cust2._id, { name: 'First', content: 'Hello there', contacts: Array.from({ length: 520 }, (_, i) => `+1212555${4000 + i}`), consent: true })
+  const ts = await B.testSend(cust2._id, cp2.campaign._id, '+12125550777'); await B.setConfig({ quietStart: 0, quietEnd: 24 }, 'test'); await B.tick(); await B.setConfig({ quietStart: 8, quietEnd: 21 }, 'test')
+  const tm = await db.collection('bsMessages').findOne({ _id: ts.messageId })
+  ok('customer test text goes out through the tester line before any service line exists', ts.ok && tm.status === 'sent' && tm.esimId === tester._id, `${tm.status} via ${tm.esimId}`)
+  const first = await B.createBooking(cust2._id, { date: d(1), hour: 16, campaignId: cp2.campaign._id })
+  ok('first customer books 520 tomorrow with zero service lines (auto-buy on)', !!first.booking, first.error || '')
+  provCalls = 0; alerts.length = 0; await B.confirmBooking(first.booking._id, {})
+  ok('first paid booking buys the monitor + 2 starter lines', provCalls === 3 && (await B.monitorCount()) === 1 && (await db.collection('bsEsims').countDocuments({ role: 'service' })) === 2 && alerts.some(a => /Bought 1 monitor/.test(a)), `+${provCalls}`)
+  await B.healthCheck(); provCalls = 0; await B.autoscale()
+  ok('then the model keeps room for one more full booking → grows', provCalls === Math.ceil(2520 / 320) - 2, `+${provCalls}`)
   process.env.SPENZA_BULK_API_KEY = 'key-two'; alerts.length = 0; provCalls = 0
   const b2 = await B.bootstrap()
-  ok('new credentials → old lines retired, new account bootstrapped again', b2.ok && b2.retired >= 3 && b2.monitors === 1 && alerts.some(a => /New Spenza BulkSMS credentials detected/.test(a)) && (await db.collection('bsEsims').countDocuments({ status: 'retired' })) === b2.retired, JSON.stringify(b2))
-  ok('bootstrap without credit does not buy', await (async () => { process.env.SPENZA_BULK_API_KEY = 'key-three'; process.env.BULK_ESIM_FAKE_CREDIT = '12'; provCalls = 0; const b3 = await B.bootstrap(); return b3.ok && provCalls === 0 && b3.lines === 0 })())
+  ok('new credentials → old lines retired, new account bootstrapped again (tester only)', b2.ok && b2.retired >= 4 && b2.testers === 1 && b2.monitors === 0 && provCalls === 1 && alerts.some(a => /New Spenza BulkSMS credentials detected/.test(a)) && (await db.collection('bsEsims').countDocuments({ status: 'retired' })) === b2.retired, JSON.stringify(b2))
+  ok('bootstrap without credit does not buy', await (async () => { process.env.SPENZA_BULK_API_KEY = 'key-three'; process.env.BULK_ESIM_FAKE_CREDIT = '12'; await B.creditWatch(); provCalls = 0; const b3 = await B.bootstrap(); return b3.ok && provCalls === 0 && b3.testers === 0 })())
   delete process.env.SPENZA_BULK_API_KEY
   console.log(`\n${pass} passed, ${fail} failed`)
   for (const c of COLS) await db.collection(c).deleteMany({})
