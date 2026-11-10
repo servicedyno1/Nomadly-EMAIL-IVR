@@ -1,5 +1,11 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-10 — BulkSMS production env audit (4 bots) — DONE
+- All 4 bots (app-main, app-proshop, app-voodoo, app-wl) run latest BulkSMS code; shared/<app>/backend.env has SPENZA_BULK_API_KEY/SECRET, SPENZA_BULK_IMEI (added now, 15 digits, same IMEI for every eSIM on account 1; per-account _n optional), BULK_ESIM_MONGO_URL, BULK_ESIM_DB, GOOGLE_WEB_RISK_API_KEY, TELNYX_API_KEY, OPENAI_API_KEY, TELEGRAM_ADMIN_CHAT_ID, SELF_URL. Restarted; all report "engine ready (live Spenza, shared DB)", sites 200.
+- Intentionally NOT set on droplet: EMERGENT_LLM_KEY (would route AI variants to non-existent :8001 Python backend; cost = contact-file archive skipped). SPENZA_BULK_EMAIL defaults to bulksms@cloudivr.net.
+- Open: confirm with Spenza how many eSIMs one IMEI may hold. No eSIM bought yet.
+
+
 ## 2026-11-10 — eSIM BulkSMS: automation layer (per-line cap, NO warm-up by default + 2,000/day spare buffer + line-history logging for a later data-driven warm-up, auto-buy on demand, credit forecast, auto-replace with delivery test, expiry) — TESTED (iteration_241, 171/171 + 6 race fixes), NOT DEPLOYED, no eSIM bought
 - User decisions (round 5 supersedes): 400 texts/line/day, no warm-up (ramp configurable), 1-day lead, NO fixed benchmarks — demand model: each day's target = booked + room for one more full booking, never below the busiest day of the last 14 days (booked + refused), capped by the Spenza day ceiling (30/min × open hours ≈ 14,400); line ceiling derived (≈45) unless maxEsims set; budget = credit forecast (provisionBudget 0). /bulkplan shows the 7-day decision. 11,000/day scenario (4×2000+6×500) = 35 lines, fits the ceiling; /bulklines + bsEsimDaily/incident snapshots record per-line activity to design a warm-up from real data later. Earlier: bookings ≥2 days ahead accepted on projected lines and paid bookings buy them; credit forecast (warn 3 days runway, block bookings, pause at floor, hourly nag, auto-resume); renew/replace automatically — replaced number must deliver a test SMS to another pool line or a new eSIM is bought; keep minEsims=1 for now (auto-buy flags still OFF).
 - Fleet math for the user: 1 mature line = 320 bookable/day (< 500 minimum booking); 2,000/day customer ≈ 7 lines; 4,000/day launch ≈ 13 lines bought ~1 week ahead (warm-up).
