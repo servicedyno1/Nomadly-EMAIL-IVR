@@ -15,9 +15,14 @@ async function token() {
   return tok.value
 }
 // Errors carry { status, code, retryAfter, kind }: kind = rate | credit | temporary | permanent | auth.
+// Last X-RateLimit-* headers seen on the SMS endpoint (Spenza: 30/60 s per account by default). The worker paces itself on these.
+const rate = { limit: null, remaining: null, resetAt: null, at: 0 }
+const smsRate = () => (dry() && process.env.BULK_ESIM_FAKE_RATE ? (([l, r, sec]) => ({ limit: +l, remaining: +r, resetAt: Date.now() + (+sec) * 1000, at: Date.now() }))(process.env.BULK_ESIM_FAKE_RATE.split(',')) : rate)
+const noteRate = (h = {}) => { if (h['x-ratelimit-limit'] == null) return; const reset = Number(h['x-ratelimit-reset']); rate.limit = Number(h['x-ratelimit-limit']); rate.remaining = Number(h['x-ratelimit-remaining']); rate.resetAt = reset ? (reset > 1e9 ? (reset > 1e12 ? reset : reset * 1000) : Date.now() + reset * 1000) : null; rate.at = Date.now() }
 async function call(method, path, data, headers = {}, retried = false) {
-  try { return (await axios({ method, url: API + path, data, timeout: 30000, headers: { Authorization: `Bearer ${await token()}`, ...headers } })).data } catch (e) {
+  try { const r = await axios({ method, url: API + path, data, timeout: 30000, headers: { Authorization: `Bearer ${await token()}`, ...headers } }); if (path.startsWith('/api/v1.1/sms')) noteRate(r.headers); return r.data } catch (e) {
     if (e.response?.status === 401 && !retried) { tok = { value: null, exp: 0 }; return call(method, path, data, headers, true) }
+    if (e.response?.status === 429 && path.startsWith('/api/v1.1/sms')) { rate.remaining = 0; rate.resetAt = Date.now() + (Number(e.response.headers?.['retry-after']) || 30) * 1000; rate.at = Date.now() }
     const st = e.response?.status, code = e.response?.data?.error?.code || null, msg = e.response?.data?.error?.message || e.message
     const err = new Error(msg); err.status = st; err.code = code; err.retryAfter = Number(e.response?.headers?.['retry-after']) || null
     err.kind = st === 429 ? 'rate' : /credit|balance|insufficient|payment/i.test(`${code} ${msg}`) || st === 402 ? 'credit' : !st || st >= 500 ? 'temporary' : st === 401 || st === 403 ? 'auth' : 'permanent'
@@ -79,4 +84,4 @@ function parseInbound(body) {
   return { event: b.eventType || body?.eventType || null, from: norm(b.From || b.from || b.fromNumber), to: norm(b.Owner || first(b.To) || b.to || b.toNumber || b.mdn), text: String(b.Message_Body || b.text || b.message || b.body || '').slice(0, 2000), providerId: b.Message_ID || b.id || null, direction: String(b.Direction || 'inbound').toLowerCase() }
 }
 
-module.exports = { name: 'spenza', dry, configured, sendSms, listSims, getSim, serviceState, subscription, cancelSubscription, credit, plan, provision, replaceNumber, setSms, registerWebhook, verify, parseInbound, norm }
+module.exports = { name: 'spenza', dry, configured, smsRate, sendSms, listSims, getSim, serviceState, subscription, cancelSubscription, credit, plan, provision, replaceNumber, setSms, registerWebhook, verify, parseInbound, norm }

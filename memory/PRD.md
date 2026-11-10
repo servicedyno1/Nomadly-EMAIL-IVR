@@ -9,6 +9,7 @@
 - Round 8: full day → bot offers the next day with room as a one-tap button (14-day horizon, translated); dead lines (failed / long-suspended, eSIM not reused) are cancelled with Spenza hourly so monthly billing stops.
 - Round 9: number-first replacement + dead detection audited for all roles (service/monitor/tester): API-error streaks, stuck number requests, volume-based re-checks, role-preserving rebuy, suspended aux lines count as missing.
 - Round 10: interplay audit — texts released per booked hour, 'running late' customer notice, single cancellation per eSIM.
+- Round 11: sending speed follows Spenza's X-RateLimit headers (adopts limit changes, holds before 429s).
 - Next: controlled live test with ONE eSIM (needs user OK to spend): /bulkprovision → number → health → 2 test sends → reply/STOP via /bulkwebhook → set providerSmsCost from real Spenza pricing → then /bulkset autoProvision true + manualApproval false and raise minEsims a week before launch. Deploy only when the user says so.
 
 

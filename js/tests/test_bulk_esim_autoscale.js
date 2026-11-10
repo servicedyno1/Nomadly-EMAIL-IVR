@@ -262,6 +262,17 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   await B.cancelDead(await B.cfg()); P.cancelSubscription = rc
   ok('line + its failed replacement share one eSIM → cancelled once', cc.length === 1 && (await db.collection('bsEsims').countDocuments({ iccid: 'dead-iccid', cancelledAt: { $ne: null } })) === 2, JSON.stringify(cc))
   await db.collection('bsEsims').deleteMany({ _id: /^ESIM-DEAD/ })
+  // ---- rate-limit headers: worker holds while exhausted, limit changes are adopted ----
+  await B.setConfig({ platformPerMin: 30 }, 'test')
+  process.env.BULK_ESIM_FAKE_RATE = '20,0,5'; alerts.length = 0
+  const held = await B.paceByHeaders(await B.cfg())
+  ok('X-RateLimit: limit 20 adopted as platformPerMin + admin told', held === true && (await B.cfg()).platformPerMin === 20 && alerts.some(a => /rate limit is 20\/min/.test(a)))
+  await B.sendOne(ipCid, '+12125559999', 'rate test'); await B.tick()
+  ok('remaining 0 → nothing sent until the window resets', (await db.collection('bsMessages').countDocuments({ cid: ipCid, body: /rate test/, status: 'queued' })) === 1)
+  process.env.BULK_ESIM_FAKE_RATE = '1000,999,55'; await B.setConfig({ quietStart: 0, quietEnd: 24, esimDailyLimit: 5000 }, 'test'); await B.tick()
+  const rm = await db.collection('bsMessages').findOne({ cid: ipCid, body: /rate test/ })
+  ok('window open again → sends', rm.status === 'sent', `${rm.status} ${rm.failureReason || ''} ${JSON.stringify(rm.history.slice(-2))} lines=${JSON.stringify(await db.collection('bsEsims').find({ role: 'service' }, { projection: { status: 1, health: 1 } }).toArray())}`)
+  delete process.env.BULK_ESIM_FAKE_RATE; await B.setConfig({ platformPerMin: 30 }, 'test')
   console.log(`\n${pass} passed, ${fail} failed`)
   for (const c of COLS) await db.collection(c).deleteMany({})
   await cl.close(); process.exit(fail ? 1 : 0)

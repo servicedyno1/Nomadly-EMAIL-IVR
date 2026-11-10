@@ -88,3 +88,9 @@ Test sends: max 2 per campaign during setup, not counted in booking volume, coun
 - Fixed: queueCampaign releases texts per allocated hour (notBefore = slot) instead of all at startAt; n_late notice once when <50% out 2 h after start (i18n ×5); cancelDead cancels an iccid once even if both the suspended line and its failed replacement are dead.
 - Known/accepted: replies to the OLD number after renew-number are lost (number gone at the operator); booking hours are UTC slots but recipient quiet hours still apply per area code.
 - Tests: autoscale 71/71, engine 39/39, iter239 86/86, iter241 20/20, bot_flow 16/16.
+
+## 2026-06 round 11 — Spenza rate-limit headers
+- Docs: POST /api/v1.1/sms = 30 req/60 s per account (+120/min general); 429 RATE_LIMITED with Retry-After; X-RateLimit-Limit/Remaining/Reset on 2xx.
+- provider-spenza: noteRate() stores headers from /sms calls (and 429 → remaining 0, resetAt = Retry-After); smsRate() getter (dry: BULK_ESIM_FAKE_RATE='limit,remaining,resetSec').
+- core: paceByHeaders(c) in tick — adopts a changed limit as platformPerMin when platformPerMinAuto (default true) + alert/audit; holds the worker while remaining < 1 until reset. Per-send check inside the loop too. healthCheck spaces provider calls 600 ms apart in live mode (general budget).
+- Tests: autoscale 74/74, engine 39/39, iter239 87/87, iter241 20/20, bot_flow 16/16.
