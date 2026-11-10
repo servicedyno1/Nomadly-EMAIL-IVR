@@ -1842,6 +1842,7 @@ if (TELEGRAM_BOT_ON === 'true') {
 // CloudIVR web accounts (reserved chatId range): engine messages to them land in the web inbox, never Telegram.
 const cloudivrWeb = require('./cloudivr-web')
 const esimBot = require('./esim-bot')
+const bulkEsimBot = require('./bulk-esim/bot')
 cloudivrWeb.notify.attach(bot)
 
 // Auto-detect when bot is added to or removed from groups
@@ -4906,6 +4907,7 @@ const loadData = async () => {
   // Bot eSIM orders (USA T-Mobile via Spenza): notices + QR code go to the buyer's bot chat.
   esimBot.ES.init({ db, log, tell: (id, text, extra) => cloudivrWeb.notify.push(id, text, null, extra || { kind: 'system' }).catch(() => {}) })
   esimBot.ES.setBot(bot, esimBot.notice)
+  bulkEsimBot.init({ db, log, notifyAdmin }).then(() => bot && bulkEsimBot.startNotices(bot, db)).catch(e => log(`[BulkESIM] init failed: ${e.message}`))
   rsApply.init({ db, brand: process.env.CHAT_BOT_BRAND })
   telnyxPendingOrders = db.collection('telnyxPendingOrders')
   telnyxPendingOrders.createIndex({ status: 1, nextCheckAt: 1 }).catch(() => {})
@@ -6479,6 +6481,7 @@ bot?.on('callback_query', async (query) => {
   try {
     const data = query?.data || ''
     const chatId = String(query?.message?.chat?.id) // Always convert to string for DB consistency
+    if (data.startsWith('bse-reply:')) { bot.answerCallbackQuery(query.id).catch(() => {}); await bulkEsimBot.onCallback(query, { set, state, saveInfo: (k, v) => set(state, chatId, k, v), send: (id, t, o) => bot.sendMessage(id, t, o) }); return }
     try { setChatLang(chatId, (await get(state, chatId))?.userLanguage || 'en') } catch { /* non-fatal */ }
 
     // ── 💼 Reseller application: service toggles, Continue, admin Approve/Reject ──
@@ -8216,6 +8219,7 @@ bot?.on('message', msg => {
   // a button on a notification. /cancel aborts. Only fires for the admin chat
   // and only on text messages (media falls through to the existing flows).
   // ═══════════════════════════════════════════════════
+  if (isAdmin(chatId) && /^\/bulk/.test(message) && await bulkEsimBot.admin(chatId, message, (t) => bot.sendMessage(chatId, t, { parse_mode: 'HTML' }))) return
   if (isAdmin(chatId) && message && !msg?.photo && !msg?.document && !msg?.video) {
     const adminInfo = await get(state, chatId)
     const pending = adminInfo?.awaitingAdminAction
@@ -13571,6 +13575,7 @@ Enter new value:`), bc)
         : vp.renewVpsPanelConfirmMsg(vpsDetails, vpsData.cPanelPlanDetails, expiryDate), vp.of([vp.payNowBtn, vp.cancel]))
     }
   }
+  if (await bulkEsimBot.handle({ chatId, msg, message, info, set, state, send, saveInfo, goto, bot })) return
 
   // ━━━ Loyalty: check tier upgrade after any payment ━━━
   async function checkAndNotifyTierUpgrade(previousSpend) {
@@ -13988,6 +13993,10 @@ Enter new value:`), bc)
       const name = await get(nameOf, chatId)
       const orderId = nanoid(8).toUpperCase()
 
+      if (productKey === bulkEsimBot.PRODUCT_KEY) {
+        const r = await bulkEsimBot.paidFromWallet(chatId, info, priceUsd)
+        return send(chatId, r.text, trans('o'))
+      }
       // USA T-Mobile eSIM: the same automatic Spenza order as the web (it charges the wallet itself, refunds on failure).
       if (productKey === esimBot.PRODUCT_KEY) {
         const r = await esimBot.fulfill(db, chatId, info?.esimOrder || {}, lang)
@@ -20345,6 +20354,7 @@ ${message.replace(/\n/g, '<br>')}
       name: name || '',
       product,
       productKey: info?.dpProductKey,
+      bulkBookingId: info?.bseBookingId || null,
       price,
       currency: 'NGN',
       paymentMethod: 'bank',
@@ -20389,6 +20399,7 @@ ${message.replace(/\n/g, '<br>')}
       name: name || '',
       product,
       productKey: info?.dpProductKey,
+      bulkBookingId: info?.bseBookingId || null,
       price,
       currency: 'crypto',
       paymentMethod: `crypto_${tickerKey}`,
@@ -36649,7 +36660,7 @@ Select a category:`), k.of(catBtns))
     const smsKeyboard = {
       reply_markup: {
         keyboard: [
-          [user.smsCreateCampaign],
+          [bulkEsimBot.BTN.home], [user.smsCreateCampaign],
           [user.smsMyCampaigns],
           [user.smsDownloadApp, user.smsManageDevices],
           [user.smsAppSettings, user.smsResetLogin],
@@ -36690,7 +36701,7 @@ Select a category:`), k.of(catBtns))
     const smsKeyboard = {
       reply_markup: {
         keyboard: [
-          [user.smsCreateCampaign],
+          [bulkEsimBot.BTN.home], [user.smsCreateCampaign],
           [user.smsMyCampaigns],
           [user.smsDownloadApp, user.smsManageDevices],
           [user.smsAppSettings, user.smsResetLogin],
@@ -36846,7 +36857,7 @@ Tap a button below to change. Changes sync to your phone on next app open.`
       await set(state, chatId, 'action', null)
       const sub = smsSubStatus
       const smsKeyboard = {
-        reply_markup: { keyboard: [[user.smsCreateCampaign], [user.smsMyCampaigns], [user.smsDownloadApp, user.smsResetLogin], [user.smsHowItWorks], ...(sub.isSubscribed ? [] : [[user.buyPlan]]), ['↩️ Back']], resize_keyboard: true },
+        reply_markup: { keyboard: [[bulkEsimBot.BTN.home], [user.smsCreateCampaign], [user.smsMyCampaigns], [user.smsDownloadApp, user.smsResetLogin], [user.smsHowItWorks], ...(sub.isSubscribed ? [] : [[user.buyPlan]]), ['↩️ Back']], resize_keyboard: true },
         parse_mode: 'HTML', disable_web_page_preview: true,
       }
       if (sub.isSubscribed) return send(chatId, t.smsAppMenuSubscribed(chatId), smsKeyboard)
@@ -36880,7 +36891,7 @@ Tap a button below to change. Changes sync to your phone on next app open.`
   if (message === user.smsMyCampaigns) {
     try {
       const campaigns = await smsAppService.getCampaigns(chatId)
-      const smsKeyboard = { parse_mode: 'HTML', reply_markup: { keyboard: [[user.smsCreateCampaign], ['↩️ Back']], resize_keyboard: true } }
+      const smsKeyboard = { parse_mode: 'HTML', reply_markup: { keyboard: [[bulkEsimBot.BTN.home], [user.smsCreateCampaign], ['↩️ Back']], resize_keyboard: true } }
       if (!campaigns || campaigns.length === 0) {
         return send(chatId, t.smsMyCampaignsEmpty, smsKeyboard)
       }
@@ -37012,7 +37023,7 @@ Tap a button below to change. Changes sync to your phone on next app open.`
       // Return to BulkSMS sub-menu
       const sub = smsSubStatus
       const smsKeyboard = {
-        reply_markup: { keyboard: [[user.smsCreateCampaign], [user.smsMyCampaigns], [user.smsDownloadApp, user.smsResetLogin], [user.smsHowItWorks], ...(sub.isSubscribed ? [] : [[user.buyPlan]]), ['↩️ Back']], resize_keyboard: true },
+        reply_markup: { keyboard: [[bulkEsimBot.BTN.home], [user.smsCreateCampaign], [user.smsMyCampaigns], [user.smsDownloadApp, user.smsResetLogin], [user.smsHowItWorks], ...(sub.isSubscribed ? [] : [[user.buyPlan]]), ['↩️ Back']], resize_keyboard: true },
         parse_mode: 'HTML', disable_web_page_preview: true,
       }
       if (sub.isSubscribed) return send(chatId, t.smsAppMenuSubscribed(chatId), smsKeyboard)
@@ -37261,12 +37272,12 @@ Tap a button below to change. Changes sync to your phone on next app open.`
         await set(state, chatId, 'action', null)
         const deviceLine = deviceId && deviceId !== 'default' ? `\n📱 Device: ${deviceId}` : ''
         if (isDraft) {
-          return send(chatId, trans('t.sms_46', campaignName, content.length, contacts.length, deviceLine), { parse_mode: 'HTML', reply_markup: { keyboard: [[user.smsCreateCampaign], [user.smsMyCampaigns], ['↩️ Back']], resize_keyboard: true } })
+          return send(chatId, trans('t.sms_46', campaignName, content.length, contacts.length, deviceLine), { parse_mode: 'HTML', reply_markup: { keyboard: [[bulkEsimBot.BTN.home], [user.smsCreateCampaign], [user.smsMyCampaigns], ['↩️ Back']], resize_keyboard: true } })
         }
         // Ask user which SIM to use for this campaign (only if the app has
         // reported SIMs already). Preferences and campaign `simSelection`
         // are honored by the app when it picks up the queued campaign.
-        await send(chatId, trans('t.sms_47', campaignName, content.length, contacts.length, gapTime, deviceLine), { parse_mode: 'HTML', reply_markup: { keyboard: [[user.smsCreateCampaign], [user.smsMyCampaigns], ['↩️ Back']], resize_keyboard: true } })
+        await send(chatId, trans('t.sms_47', campaignName, content.length, contacts.length, gapTime, deviceLine), { parse_mode: 'HTML', reply_markup: { keyboard: [[bulkEsimBot.BTN.home], [user.smsCreateCampaign], [user.smsMyCampaigns], ['↩️ Back']], resize_keyboard: true } })
         await renderCampaignSimPicker(chatId, campaign._id)
         return
       } catch (err) {
@@ -37355,7 +37366,7 @@ Tap a button below to change. Changes sync to your phone on next app open.`
       await set(state, chatId, 'action', null)
       const schedDate = parsed.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' })
       const deviceLine = deviceId && deviceId !== 'default' ? `\n📱 Device: ${deviceId}` : ''
-      await send(chatId, trans('t.sms_52', campaignName, content.length, contacts.length, gapTime, schedDate, deviceLine), { parse_mode: 'HTML', reply_markup: { keyboard: [[user.smsCreateCampaign], [user.smsMyCampaigns], ['↩️ Back']], resize_keyboard: true } })
+      await send(chatId, trans('t.sms_52', campaignName, content.length, contacts.length, gapTime, schedDate, deviceLine), { parse_mode: 'HTML', reply_markup: { keyboard: [[bulkEsimBot.BTN.home], [user.smsCreateCampaign], [user.smsMyCampaigns], ['↩️ Back']], resize_keyboard: true } })
       await renderCampaignSimPicker(chatId, campaign._id)
       return
     } catch (err) {
@@ -39638,6 +39649,9 @@ const authDyno = async (req, res, next) => {
 
 // Use the early app that's already listening
 const app = earlyApp
+app.post('/api/bulk-esim/webhook', async (req, res) => {
+  try { const x = await require('./bulk-esim/core').onWebhook(req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body || {}), req.headers, req.body); res.status(x.status).json({ ok: x.status === 200 }) } catch (e) { log(`[BulkESIM] webhook: ${e.message}`); res.status(500).json({ ok: false }) }
+})
 // Strip /api prefix from incoming requests (Emergent ingress sends /api/* to port 8001 without stripping)
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) {
@@ -40591,6 +40605,12 @@ const bankApis = {
     set(payments, ref, `Bank,DigitalProduct,${product},$${usdIn},${chatId},${name},${new Date()},${ngnIn} NGN`)
 
     const ngnPrice = await usdToNgn(price)
+    if (info?.dpProductKey === bulkEsimBot.PRODUCT_KEY && info?.bseBookingId && usdIn >= price) {
+      if (ngnIn > ngnPrice) addFundsTo(walletOf, chatId, 'ngn', ngnIn - ngnPrice, lang)
+      const r = await bulkEsimBot.paid(chatId, info, price, 'bank')
+      sendMessage(chatId, r.text, translation('o', lang))
+      return res.send(html())
+    }
     if (usdIn < price) {
       sendMessage(chatId, translation('t.sentLessMoney', lang, `${ngnPrice} NGN`, `${ngnIn} NGN`), translation('o', lang))
       addFundsTo(walletOf, chatId, 'ngn', ngnIn, lang)
@@ -41757,6 +41777,13 @@ app.get('/crypto-pay-digital-product', auth, async (req, res) => {
     sendMessage(chatId, translation('t.sentMoreMoney', lang, `$${price}`, `$${usdIn}`))
   }
   const paidOrder = await digitalOrdersCol.findOne({ orderId })
+  if (paidOrder?.productKey === bulkEsimBot.PRODUCT_KEY && paidOrder.bulkBookingId) {
+    if (paidOrder.status !== 'pending_payment') return res.send(html())
+    const r = await bulkEsimBot.paid(chatId, { bseBookingId: paidOrder.bulkBookingId }, Number(price), 'crypto')
+    await digitalOrdersCol.updateOne({ orderId }, { $set: { status: r.ok ? 'delivered' : 'credited_to_wallet', paymentConfirmedAt: new Date() } })
+    send(chatId, r.text, translation('o', lang))
+    return res.send(html())
+  }
   if (paidOrder?.productKey === esimBot.PRODUCT_KEY && paidOrder.esim) {
     if (paidOrder.status !== 'pending_payment') return res.send(html())
     const r = await esimBot.fulfillPaid(db, chatId, paidOrder.esim, Number(price), lang)
@@ -47158,6 +47185,13 @@ app.post('/dynopay/crypto-pay-digital-product', authDyno, async (req, res) => {
     sendMessage(chatId, translation('t.sentMoreMoney', lang, `$${price}`, `$${usdIn}`))
   }
   const paidOrder = await digitalOrdersCol.findOne({ orderId })
+  if (paidOrder?.productKey === bulkEsimBot.PRODUCT_KEY && paidOrder.bulkBookingId) {
+    if (paidOrder.status !== 'pending_payment') return res.send(html())
+    const r = await bulkEsimBot.paid(chatId, { bseBookingId: paidOrder.bulkBookingId }, Number(price), 'crypto')
+    await digitalOrdersCol.updateOne({ orderId }, { $set: { status: r.ok ? 'delivered' : 'credited_to_wallet', paymentConfirmedAt: new Date() } })
+    send(chatId, r.text, translation('o', lang))
+    return res.send(html())
+  }
   if (paidOrder?.productKey === esimBot.PRODUCT_KEY && paidOrder.esim) {
     if (paidOrder.status !== 'pending_payment') return res.send(html())
     const r = await esimBot.fulfillPaid(db, chatId, paidOrder.esim, Number(price), lang)
