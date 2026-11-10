@@ -100,16 +100,12 @@ module.exports = {
     price: p => `Linux VPS ${p.vpsFrom}/月起 · Windows RDP ${p.rdpFrom}/月起`,
     button: '打开 VPS / RDP',
   },
-  bulksms_app: {
-    hooks: ['用您自己的号码群发短信', '在 Android 上发 BulkSMS，在这里管理'],
-    cross: ['有线索？用自己的号码给他们发短信', '把线索交给 BulkSMS 应用'],
-    lines: p => [
-      '您的 SIM、您的发送方 — 不走共享网关',
-      '定时发送、控制间隔、实时追踪送达',
-      `免费试用：${p.smsTrial} 条短信，无需订阅`,
-    ],
-    price: p => `日付 ${p.smsDaily} · 周付 ${p.smsWeekly} · 月付 ${p.smsMonthly}`,
-    button: '打开 BulkSMS',
+  bulksms_esim: {
+    hooks: ["美加群发短信 — 无需 SIM 卡和手机", "几分钟内触达数千美加手机"],
+    cross: ["有客户线索？今天就发短信 — 无需 SIM", "用短信把美国线索变成回复"],
+    lines: () => ["上传号码，写一次，几分钟发出", "真实美国号码，覆盖所有主要运营商", "首条测试短信免费 · 回复直接在这里"],
+    price: () => "$50 / 500 条 · 提前一天预订 −10%",
+    button: "打开群发短信",
   },
   email_blast: {
     hooks: ['不离开 Telegram 发邮件营销', '上传列表，写一次，发给成千上万人'],

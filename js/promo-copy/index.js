@@ -5,7 +5,7 @@
 const COPY = { en: require('./en.js'), fr: require('./fr.js'), zh: require('./zh.js'), hi: require('./hi.js') }
 const { websiteUrl, cloudivrUrl, isNomadly } = require('../web-access.js')
 
-const THEMES = ['cloudphone', 'antired_hosting', 'leads_validation', 'domains_shortener', 'digital_products', 'cards_bundles', 'email_validation', 'marketplace', 'vps_rdp', 'bulksms_app', 'email_blast', 'refer_earn', 'web_hosta', 'web_cloudivr']
+const THEMES = ['cloudphone', 'antired_hosting', 'leads_validation', 'domains_shortener', 'digital_products', 'cards_bundles', 'email_validation', 'marketplace', 'vps_rdp', 'bulksms_esim', 'email_blast', 'refer_earn', 'web_hosta', 'web_cloudivr']
 
 const THEME_META = {
   cloudphone:        { emoji: '📞', hub: 'cloudphone' },
@@ -17,7 +17,7 @@ const THEME_META = {
   email_validation:  { emoji: '📧', hub: 'emailval' },
   marketplace:       { emoji: '🏪', hub: 'marketplace' },
   vps_rdp:           { emoji: '🖥️', hub: 'vps' },
-  bulksms_app:       { emoji: '📱', hub: 'bulksms' },
+  bulksms_esim:      { emoji: '📲', hub: 'bulksms' },
   email_blast:       { emoji: '✉️', hub: 'emailblast' },
   refer_earn:        { emoji: '🤝', hub: 'refer' },
   web_hosta:         { emoji: '🌐', hub: 'web_hosta' },
@@ -30,14 +30,14 @@ const webUrlOf = (theme, env = process.env) => (WEB_URL[theme] && isNomadly(env)
 
 // Owned product → what to cross-sell next (first entry preferred).
 const CROSS_SELL = {
-  leads_validation:  ['cloudphone', 'bulksms_app'],
+  leads_validation:  ['cloudphone', 'bulksms_esim'],
   cloudphone:        ['leads_validation', 'digital_products', 'web_cloudivr'],
   domains_shortener: ['antired_hosting', 'web_hosta'],
   antired_hosting:   ['domains_shortener', 'vps_rdp', 'web_hosta'],
   email_validation:  ['email_blast'],
   email_blast:       ['email_validation', 'vps_rdp'],
   vps_rdp:           ['domains_shortener', 'email_blast', 'web_hosta'],
-  bulksms_app:       ['leads_validation'],
+  bulksms_esim:      ['leads_validation'],
   digital_products:  ['cloudphone'],
   marketplace:       ['refer_earn'],
   cards_bundles:     ['digital_products'],
@@ -57,7 +57,7 @@ const MUTE_BUTTON = { en: '🔕 Mute promos', fr: '🔕 Couper les promos', zh: 
 
 function themeEnabled(theme, env = process.env) {
   if (theme === 'vps_rdp') return env.VPS_ENABLED === 'true'
-  if (theme === 'bulksms_app') return env.HIDE_SMS_APP !== 'true'
+  if (theme === 'bulksms_esim') return env.BULK_ESIM_PROMO !== 'false'
   if (theme === 'email_blast') return env.EMAIL_BLAST_ON === 'true'
   if (WEB_URL[theme]) return !!webUrlOf(theme, env)
   return true

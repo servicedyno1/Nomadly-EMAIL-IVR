@@ -1,5 +1,12 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-10 — BulkSMS (SIM-free) featured ad
+- Theme `bulksms_app` (old Android-app ad) replaced by `bulksms_esim` in promo-copy (en/fr/zh/hi), THEME_META (📲, hub 'bulksms' → opens 📲 BulkSMS 🇺🇸🇨🇦), CROSS_SELL, SERVICE_CONTEXT. Enabled unless BULK_ESIM_PROMO=false.
+- auto-promo: FEATURED_THEME='bulksms_esim' fills both daily slots (10:00 + 19:00 local) on every bot; pickTheme returns it ahead of browsed/cross-sell; per-user cadence (≈ every other day) unchanged. BULK_ESIM_PROMO=false → old DAY_SCHEDULE.
+- Banners: assets/promo/{nomadly,smadav}/bulksms_esim.jpg (generated, brand logos kept).
+- Pre-existing unrelated test failures: test_promo_pipeline price-env checks (local env lacks prices), test_promo_skips_web_accounts (no dotenv).
+
+
 ## 2026-11-10 — Admin "Has a plan" fix
 - Bug: plan filter sorted phoneNumbersOf ids as strings and took 500 → only bot ids, web buyers missed; also preview Node wasn't restarted (Node has NO hot reload: `sudo supervisorctl restart nodejs` after js/ changes). Now web owners are matched directly against webAccounts ids. Plans grouped "starter ×4 · released". Verified in preview UI (50 rows → 2 with plans).
 

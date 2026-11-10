@@ -100,16 +100,12 @@ module.exports = {
     price: p => `VPS Linux dès ${p.vpsFrom}/mois · RDP Windows dès ${p.rdpFrom}/mois`,
     button: 'Ouvrir VPS / RDP',
   },
-  bulksms_app: {
-    hooks: ['Envoyez des SMS en masse depuis votre propre numéro', 'Campagnes BulkSMS depuis votre Android, pilotées ici'],
-    cross: ['Des leads ? Envoyez-leur un SMS depuis votre numéro', 'Associez vos leads à l\'app BulkSMS'],
-    lines: p => [
-      'Votre SIM, votre expéditeur — aucune passerelle partagée',
-      'Programmez les envois, réglez les délais, suivez la livraison',
-      `Essai gratuit : ${p.smsTrial} SMS, sans abonnement`,
-    ],
-    price: p => `Jour ${p.smsDaily} · Semaine ${p.smsWeekly} · Mois ${p.smsMonthly}`,
-    button: 'Ouvrir BulkSMS',
+  bulksms_esim: {
+    hooks: ["SMS en masse USA & Canada — sans SIM, sans téléphone", "Des milliers de mobiles US & Canada en quelques minutes"],
+    cross: ["Des leads ? Envoyez-leur un SMS aujourd’hui — sans SIM", "Transformez vos leads US en réponses par SMS"],
+    lines: () => ["Importez les numéros, écrivez une fois, envoyez en minutes", "Vrais numéros US, tous les grands opérateurs", "1er SMS de test offert · réponses ici même"],
+    price: () => "50 $ / 500 SMS · −10 % réservé la veille",
+    button: "Ouvrir BulkSMS",
   },
   email_blast: {
     hooks: ['Des campagnes email sans quitter Telegram', 'Importez une liste, écrivez une fois, envoyez à des milliers'],
