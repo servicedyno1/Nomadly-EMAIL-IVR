@@ -33,6 +33,8 @@ const handle = async (ctx) => (await flow(ctx)) !== false
 async function flow({ chatId, msg, message, info, set, state, send, saveInfo, goto, bot }) {
   const action = info?.action || '', lang = info?.userLanguage || 'en', L = btn(lang), say = (k, ...a) => t(lang, k, ...a)
   const cid = B.cidOf(brand(), chatId), go = (a) => set(state, chatId, 'action', a), put = (k, v) => saveInfo(k, v)
+  // /start always leaves BulkSMS for the main menu, whatever step the user is on.
+  if (/^\/start\b/.test(String(message || '')) && action.startsWith('bse-')) { await go('none'); if (info) info.action = 'none'; return false }
   if (isHome(message) && !B.configured()) { await send(chatId, say('soon')); return true }
   if (isHome(message)) {
     await B.customer(brand(), chatId); await go('bse-home')
@@ -240,13 +242,14 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     if (message === L.other) { await put('dpProductKey', PRODUCT_KEY); await put('dpProductName', `eSIM BulkSMS ${b.volume} SMS`); await put('dpPrice', b.price); await go('none'); await goto['digital-product-pay'](); return true }
     return false
   }
-  if (action === 'bse-one-to') { if (!/^(\+|00)?1\d{10}$/.test(String(message).replace(/[\s().-]/g, ''))) return send(chatId, say('err_number'), { parse_mode: 'HTML' }); await put('bseTo', message); await go('bse-one-opt'); return send(chatId, say('one_opt_q'), kb([[L.one_opt_yes, L.one_opt_no], [L.back]])) }
+  if (action === 'bse-one-to') { if (!/^(\+|00)?1\d{10}$/.test(String(message).replace(/[\s().-]/g, ''))) return send(chatId, say('err_number'), { parse_mode: 'HTML' }); if (await B.numberBusy(cid, B.normPhone(String(message).replace(/[\s().-]/g, '')) || message)) { await go('bse-home'); return send(chatId, `⚠️ ${say('err_number_busy', (await B.cfg()).sessionHours)}`, HK) } await put('bseTo', message); await go('bse-one-opt'); return send(chatId, say('one_opt_q'), kb([[L.one_opt_yes, L.one_opt_no], [L.back]])) }
   if (action === 'bse-one-opt') {
     if (message !== L.one_opt_yes && message !== L.one_opt_no) return send(chatId, say('pick_option'), kb([[L.one_opt_yes, L.one_opt_no], [L.back]]))
     const opt = message === L.one_opt_yes; await put('bseOneOpt', opt); await go('bse-one-text'); return send(chatId, say(opt ? 'one_text_q' : 'one_text_q_plain'), kb([[L.back]]))
   }
   if (action === 'bse-one-text' || action === 'bse-reply') {
     const r = await B.sendOne(cid, info.bseTo, message, action === 'bse-reply' ? info.bseSession : null, { optOut: info.bseOneOpt !== false })
+    if (['err_number_busy', 'err_one_used', 'reply_route_changed', 'reply_campaign_only'].includes(r.error)) { await go('bse-home'); return send(chatId, `⚠️ ${errText(lang, r)}`, HK) }
     if (r.error) return send(chatId, `⚠️ ${errText(lang, r)}`)
     if (action === 'bse-one-text') await go('bse-home')
     return send(chatId, say('queued', r.segments, action === 'bse-reply') + (r.left != null ? `\n${say('one_left', r.left)}` : ''), action === 'bse-reply' ? kb([[L.back]]) : homeKb(L, { ...RD, oneLeft: r.left }))
@@ -320,7 +323,7 @@ function startNotices(bot, db) {
         if (n.type === 'admin') { await T?.notifyAdmin?.(n.text); continue }
         const lang = (await db.collection('state').findOne({ _id: String(n.chatId) }, { projection: { userLanguage: 1 } }).catch(() => null))?.userLanguage || 'en'
         const text = n.key ? t(lang, n.key, ...(n.args || [])) : n.text
-        await bot.sendMessage(n.chatId, text, { disable_web_page_preview: true, ...(n.type === 'inbound' ? { reply_markup: { inline_keyboard: [[{ text: t(lang, 'reply_btn'), callback_data: `bse-reply:${n.sessionId}` }]] } } : {}) }).catch(() => {})
+        await bot.sendMessage(n.chatId, text, { disable_web_page_preview: true, ...(n.type === 'inbound' && n.canReply !== false ? { reply_markup: { inline_keyboard: [[{ text: t(lang, 'reply_btn'), callback_data: `bse-reply:${n.sessionId}` }]] } } : {}) }).catch(() => {})
       }
     } catch (_) { /* next round */ }
   }, 3000)
