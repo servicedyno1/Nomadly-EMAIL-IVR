@@ -1802,15 +1802,19 @@ async function hangupUntransferred(c) {
 // part calls at a time; the next one starts by itself (autoNext) or waits for the customer to start it.
 const MAX_SERIES_PARTS = parseInt(process.env.BULK_CALL_MAX_SERIES_PARTS || '10', 10)
 const MAX_SERIES_LEADS = MAX_BULK_LEADS * MAX_SERIES_PARTS
+// Biggest upload: over MAX_SERIES_LEADS only 'first' (500) or 'part' (first MAX_SERIES_LEADS kept) are allowed.
+const MAX_UPLOAD_LEADS = parseInt(process.env.BULK_CALL_MAX_UPLOAD_LEADS || '50000', 10)
 const splitLeads = (leads) => { const out = []; for (let i = 0; i < leads.length; i += MAX_BULK_LEADS) out.push(leads.slice(i, i + MAX_BULK_LEADS)); return out }
 
 // mode: 'auto' | 'ask' (wallet covers all parts) · 'part' (pay per part: first 500 now, the rest wait unpaid for
 // the customer to start) · 'first' (call only the first 500, the rest are dropped).
 async function createSeries(params, { autoNext = true, mode } = {}) {
   mode = mode || (autoNext ? 'auto' : 'ask')
-  const leads = params.leads || []
+  let leads = params.leads || [], seriesDropped = 0
   if (leads.length <= MAX_BULK_LEADS) return createCampaign(params)
-  if (leads.length > MAX_SERIES_LEADS) return { error: `Up to ${MAX_SERIES_LEADS.toLocaleString()} numbers (${MAX_SERIES_PARTS} parts of ${MAX_BULK_LEADS}). You uploaded ${leads.length.toLocaleString()}.` }
+  if (leads.length > MAX_UPLOAD_LEADS) return { error: `Up to ${MAX_UPLOAD_LEADS.toLocaleString()} numbers per upload. You uploaded ${leads.length.toLocaleString()}.` }
+  if (leads.length > MAX_SERIES_LEADS && mode !== 'first' && mode !== 'part') return { error: `Lists over ${MAX_SERIES_LEADS.toLocaleString()} numbers can call only the first ${MAX_BULK_LEADS}, or the first ${MAX_BULK_LEADS} now and keep the rest up to ${MAX_SERIES_LEADS.toLocaleString()}. You uploaded ${leads.length.toLocaleString()}.`, code: 'series_too_big' }
+  if (mode === 'part' && leads.length > MAX_SERIES_LEADS) { seriesDropped = leads.length - MAX_SERIES_LEADS; leads = leads.slice(0, MAX_SERIES_LEADS) }
   if (mode === 'first') {
     const need = estimateLeadsCost(leads.slice(0, MAX_BULK_LEADS)).total, w = await smartWalletCheck(_walletOf, params.chatId, need)
     if (!w.sufficient) return { error: `Your wallet must cover the first ${MAX_BULK_LEADS} numbers: about $${need.toFixed(2)} (wallet: $${Number(w.usdBal ?? 0).toFixed(2)}). Add $${Math.max(0.01, need - Number(w.usdBal ?? 0)).toFixed(2)} and try again.`, code: 'series_funds', needed: need }
@@ -1837,9 +1841,9 @@ async function createSeries(params, { autoNext = true, mode } = {}) {
     const c = await createCampaign({ ...params, leads: chunks[i], ...(i ? { scheduledFor: null } : {}) })
     if (c.error) { await _collection.deleteMany({ id: { $in: ids } }); return c }
     ids.push(c.id)
-    await _collection.updateOne({ id: c.id }, { $set: { splitId, part: i + 1, parts: chunks.length, autoNext: !!autoNext, payPerPart, seriesTotal: leads.length, ...(i ? { status: 'series_waiting' } : {}) } })
+    await _collection.updateOne({ id: c.id }, { $set: { splitId, part: i + 1, parts: chunks.length, autoNext: !!autoNext, payPerPart, seriesTotal: leads.length, ...(seriesDropped ? { seriesDropped } : {}), ...(i ? { status: 'series_waiting' } : {}) } })
   }
-  return { ...(await _collection.findOne({ id: ids[0] })), splitId, parts: chunks.length, partIds: ids }
+  return { ...(await _collection.findOne({ id: ids[0] })), splitId, parts: chunks.length, partIds: ids, seriesDropped }
 }
 
 // A part finished (or was stopped): start / offer the next one, or stop the rest.
@@ -1887,6 +1891,12 @@ async function startSeriesPart(campaignId, chatId) {
 }
 
 // The customer drops the parts that haven't started yet (this one and every later part).
+// A scheduled part 1 was cancelled before launch: the later parts never run either.
+async function cancelSeriesAfter(campaignId) {
+  const c = await _collection.findOne({ id: campaignId })
+  if (c?.splitId) await _collection.updateMany({ splitId: c.splitId, part: { $gt: c.part }, status: { $in: ['series_waiting', 'series_ready'] } }, { $set: { status: 'cancelled', completedAt: new Date(), cancelReason: `Part ${c.part} was cancelled` } })
+}
+
 async function dropSeriesRest(campaignId, chatId) {
   const c = await _collection.findOne({ id: campaignId, chatId, splitId: { $exists: true }, status: { $in: ['series_waiting', 'series_ready'] } })
   if (!c) return { error: 'There are no waiting parts to drop.' }
@@ -2027,7 +2037,9 @@ module.exports = {
   startSeriesPart,
   partFundsError,
   dropSeriesRest,
+  cancelSeriesAfter,
   MAX_SERIES_LEADS,
+  MAX_UPLOAD_LEADS,
   MAX_SERIES_PARTS,
   startCampaign,
   launchDueScheduledCampaigns,

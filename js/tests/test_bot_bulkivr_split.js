@@ -46,6 +46,34 @@ const outs = () => fs.readFileSync(LOG, 'utf8').split('\n').filter(l => l.includ
   await tg('📵 Hang up (no message)')
   const o3 = outs().slice(n3).join('\n')
   ok(o3.includes('🚀 Launch Campaign') && !o3.includes('parts'), '≤500 numbers → normal single Launch')
+  // schedule a split list → same choices after the time is picked
+  await db.collection('walletOf').updateOne({ _id: String(CHAT) }, { $set: { usdIn: 3 } })
+  await db.collection('state').updateOne({ _id: String(CHAT) }, { $set: { action: 'bulkConfirm', bulkData: base } })
+  await tg('⏰ Schedule for later')
+  const ns = outs().length
+  await tg('2')
+  const os = outs().slice(ns).join('\n')
+  ok((await st()).action === 'bulkScheduleMode' && os.includes('⏰ First 500 — keep the rest for later') && os.includes('⏰ All parts — start each automatically'), 'schedule: after the time, the 4 choices are shown')
+  const nl = outs().length
+  await tg('⏰ Only the first 500 — drop the rest'); await wait(1000)
+  ok(/must cover the first 500/.test(outs().slice(nl).join('\n')) && (await st()).action === 'bulkScheduleMode', 'schedule: low wallet → error, choices stay')
+  await db.collection('walletOf').updateOne({ _id: String(CHAT) }, { $set: { usdIn: 100000 } })
+  const nk = outs().length
+  await tg('⏰ First 500 — keep the rest for later'); await wait(1500)
+  const ok2 = outs().slice(nk).join('\n')
+  const sched = await db.collection('bulkCallCampaigns').find({ $or: [{ chatId: CHAT }, { chatId: String(CHAT) }] }).sort({ part: 1 }).toArray()
+  ok(sched.length === 3 && sched[0].status === 'scheduled' && sched[0].payPerPart && sched[1].status === 'series_waiting', 'schedule: pay-per-part series created, part 1 scheduled', sched.map(c => c.status).join(','))
+  ok(ok2.includes('starts at the scheduled time') && ok2.includes('Cancel scheduled launch'), 'schedule: confirmation explains the parts')
+  await tg('❌ Cancel scheduled launch'); await wait(800)
+  const after = await db.collection('bulkCallCampaigns').find({ splitId: sched[0].splitId }).toArray()
+  ok(after.every(c => c.status === 'cancelled'), 'schedule: cancelling the launch cancels every part')
+  await db.collection('bulkCallCampaigns').deleteMany({ $or: [{ chatId: CHAT }, { chatId: String(CHAT) }] })
+  // over 5,000 → only the two pay-less choices
+  await db.collection('state').updateOne({ _id: String(CHAT) }, { $set: { action: 'bulkSelectVoicemail', bulkData: { ...base, leads: Array.from({ length: 6000 }, (_, i) => ({ number: `+1555020${String(i).padStart(4, '0')}` })) } } })
+  const nh = outs().length
+  await tg('📵 Hang up (no message)')
+  const oh = outs().slice(nh).join('\n')
+  ok(oh.includes('First 500 now — keep the rest for later') && oh.includes('Only the first 500 — drop the rest') && !oh.includes('start each part automatically') && oh.includes('1,000 are dropped'), '>5,000 → only pay-per-part and first-500 choices, dropped count shown')
   await db.collection('state').deleteOne({ _id: String(CHAT) }); await db.collection('walletOf').deleteOne({ _id: String(CHAT) }); await cl.close()
   console.log(`${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0)
 })().catch(e => { console.error(e.message); process.exit(1) })

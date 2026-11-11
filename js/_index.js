@@ -1028,16 +1028,28 @@ const BULK_SPLIT_ASK = '🚀 Launch — ask me before each part'
 const BULK_SPLIT_PART = '💳 First 500 now — keep the rest for later'
 const BULK_SPLIT_FIRST = '✂️ Only the first 500 — drop the rest'
 const BULK_SPLIT_MODES = { [BULK_SPLIT_AUTO]: 'auto', [BULK_SPLIT_ASK]: 'ask', [BULK_SPLIT_PART]: 'part', [BULK_SPLIT_FIRST]: 'first' }
+// Same 4 choices after a launch time is picked for a split list.
+const BULK_SCHED_MODES = { '⏰ All parts — start each automatically': 'auto', '⏰ All parts — ask me before each': 'ask', '⏰ First 500 — keep the rest for later': 'part', '⏰ Only the first 500 — drop the rest': 'first' }
+const _bulkTooBig = (n) => n > (bulkCallService.MAX_SERIES_LEADS || 5000)
+const _bulkModeOk = (n, sm) => !!sm && (!_bulkTooBig(n) || ['part', 'first'].includes(sm))
+function _bulkSchedModeRows(n) {
+  return [...Object.keys(BULK_SCHED_MODES).filter(l => _bulkModeOk(n, BULK_SCHED_MODES[l])).map(l => [l]), ['↩️ Back']]
+}
 function _bulkLaunchRows(bulkData) {
-  const split = (bulkData?.leads?.length || 0) > (bulkCallService.MAX_BULK_LEADS || 500)
-  return split ? [[BULK_SPLIT_AUTO], [BULK_SPLIT_ASK], [BULK_SPLIT_PART], [BULK_SPLIT_FIRST], ['⏰ Schedule for later'], ['↩️ Back']] : [['🚀 Launch Campaign'], ['⏰ Schedule for later'], ['↩️ Back']]
+  const n = bulkData?.leads?.length || 0
+  if (n <= (bulkCallService.MAX_BULK_LEADS || 500)) return [['🚀 Launch Campaign'], ['⏰ Schedule for later'], ['↩️ Back']]
+  return [...(_bulkTooBig(n) ? [] : [[BULK_SPLIT_AUTO], [BULK_SPLIT_ASK]]), [BULK_SPLIT_PART], [BULK_SPLIT_FIRST], ['⏰ Schedule for later'], ['↩️ Back']]
 }
-function _bulkSplitLine(n) {
-  const max = bulkCallService.MAX_BULK_LEADS || 500
+function _bulkSplitLine(n, sched = false) {
+  const max = bulkCallService.MAX_BULK_LEADS || 500, cap = bulkCallService.MAX_SERIES_LEADS || 5000
   if (n <= max) return ''
+  if (n > cap) return `\n📦 <b>${n.toLocaleString()} numbers</b> — more than ${cap.toLocaleString()}, the most that can run as parts.\n\nChoose how to run it:\n• <b>First 500 now, keep the rest</b> — the first ${cap.toLocaleString()} are kept as ${Math.ceil(cap / max)} parts of ${max}; wallet covers part 1 only; you start and pay for each next part yourself, or drop it. The other ${(n - cap).toLocaleString()} are dropped.\n• <b>Only the first 500</b> — wallet covers 500 numbers; the other ${(n - max).toLocaleString()} are dropped.`
   const parts = Math.ceil(n / max)
-  return `\n📦 <b>${n.toLocaleString()} numbers → ${parts} parts</b> of up to ${max}, called one after another (same message and settings), in your list order.\n\nChoose how to run it:\n• <b>Start each part automatically</b> / <b>Ask me before each part</b> — your wallet must cover all ${parts} parts now.\n• <b>First 500 now, keep the rest</b> — wallet covers part 1 only; you start and pay for each next part yourself, or drop it.\n• <b>Only the first 500</b> — wallet covers 500 numbers; the other ${(n - max).toLocaleString()} are dropped.\n⏰ Scheduling runs all parts automatically.`
+  return `\n📦 <b>${n.toLocaleString()} numbers → ${parts} parts</b> of up to ${max}, called one after another (same message and settings), in your list order.\n\nChoose how to run it:\n• <b>All parts, automatically</b> / <b>All parts, ask me before each</b> — your wallet must cover all ${parts} parts now.\n• <b>First 500 now, keep the rest</b> — wallet covers part 1 only; you start and pay for each next part yourself, or drop it.\n• <b>Only the first 500</b> — wallet covers 500 numbers; the other ${(n - max).toLocaleString()} are dropped.${sched ? '' : '\n⏰ Scheduling lets you pick the same choices.'}`
 }
+const _bulkStartedLine = (campaign, bulkData, sm, when = 'starts now') => sm === 'first'
+  ? `✂️ Calling only the <b>first ${campaign.leads.length}</b> of your ${bulkData.leads.length.toLocaleString()} numbers. The other ${(bulkData.leads.length - campaign.leads.length).toLocaleString()} are dropped.`
+  : `📦 Split into <b>${campaign.parts} parts</b>. Part 1 of ${campaign.parts} (${campaign.leads.length} numbers) ${when}. ${sm === 'part' ? 'The other parts wait — when a part finishes I’ll ask if you want to start (and pay for) the next one or drop the rest.' : sm === 'ask' ? 'I’ll ask you before each next part.' : 'Each next part starts by itself when the one before finishes.'}${campaign.seriesDropped ? ` The last ${campaign.seriesDropped.toLocaleString()} numbers (over ${(bulkCallService.MAX_SERIES_LEADS || 5000).toLocaleString()}) are dropped.` : ''}`
 
 function _bulkPreviewText(bulkData, lang) {
   const leads = bulkData.leads || []
@@ -10575,6 +10587,7 @@ bot?.on('message', msg => {
     ivrObMenuStarter: 'ivrObMenuStarter',
     bulkPickPresetMenu: 'bulkPickPresetMenu',
     bulkScheduleTime: 'bulkScheduleTime',
+    bulkScheduleMode: 'bulkScheduleMode',
     bulkScheduled: 'bulkScheduled',
 
     // Bulk IVR Campaign
@@ -28697,7 +28710,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
 
     // ━━━ Enforce max lead limit ━━━
-    const maxLeads = bulkCallService.MAX_SERIES_LEADS || 5000
+    const maxLeads = bulkCallService.MAX_UPLOAD_LEADS || 50000
     if (leads.length > maxLeads) {
       return send(chatId, trans('t.cp_137', maxLeads, leads.length), k.of([['↩️ Back']]))
     }
@@ -29484,9 +29497,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           twilioSubAccountToken: bulkData.twilioSubAccountToken || null,
         }, { mode: BULK_SPLIT_MODES[message] || 'auto' })
         if (campaign.error) return send(chatId, `⚠️ ${campaign.error}`, k.of(_bulkLaunchRows(bulkData)))
-        const sm = BULK_SPLIT_MODES[message]
-        if (split && sm === 'first') send(chatId, `✂️ Calling only the <b>first ${campaign.leads.length}</b> of your ${bulkData.leads.length.toLocaleString()} numbers. The other ${(bulkData.leads.length - campaign.leads.length).toLocaleString()} are dropped.`, { parse_mode: 'HTML' })
-        else if (split) send(chatId, `📦 Split into <b>${campaign.parts} parts</b>. Part 1 of ${campaign.parts} (${campaign.leads.length} numbers) starts now. ${sm === 'part' ? 'The other parts wait — when a part finishes I’ll ask if you want to start (and pay for) the next one or drop the rest.' : sm === 'ask' ? 'I’ll ask you before each next part.' : 'Each next part starts by itself when the one before finishes.'}`, { parse_mode: 'HTML' })
+        if (split) send(chatId, _bulkStartedLine(campaign, bulkData, BULK_SPLIT_MODES[message]), { parse_mode: 'HTML' })
         await saveInfo('activeCampaignId', campaign.id)
         await set(state, chatId, 'action', a.bulkRunning)
         const startResult = await bulkCallService.startCampaign(campaign.id)
@@ -29506,10 +29517,28 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         return send(chatId, trans('t.cp_217'))
       }
       await set(state, chatId, 'action', a.bulkScheduleTime)
+      if (bulkData.schedMode) { delete bulkData.schedMode; await saveInfo('bulkData', bulkData) }
       const S = _bulkSched(lang)
       return send(chatId, `⏰ <b>${S.title}</b>\n\n${S.prompt}\n\n${S.bell}`, { parse_mode: 'HTML', reply_markup: _bulkSchedKb(lang) })
     }
     return send(chatId, trans('t.cp_222'))
+  }
+
+  if (action === a.bulkScheduleMode) {
+    const bd = info?.bulkData || {}
+    if (isCancelPress(message)) return goto.submenu5()
+    if (isBackPress(message)) {
+      await set(state, chatId, 'action', a.bulkScheduleTime)
+      const S = _bulkSched(lang)
+      return send(chatId, `⏰ <b>${S.title}</b>\n\n${S.prompt}\n\n${S.bell}`, { parse_mode: 'HTML', reply_markup: _bulkSchedKb(lang) })
+    }
+    const sm = BULK_SCHED_MODES[message]
+    if (!_bulkModeOk(bd.leads?.length || 0, sm) || !bd.schedHours) return send(chatId, '⚠️ Please pick an option from the list.', k.of(_bulkSchedModeRows(bd.leads?.length || 0)))
+    bd.schedMode = sm
+    await saveInfo('bulkData', bd)
+    if (info) info.bulkData = bd
+    message = String(bd.schedHours)
+    action = a.bulkScheduleTime
   }
 
   if (action === a.bulkScheduleTime) {
@@ -29530,9 +29559,17 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (!bulkData.leads?.length || !bulkData.callerId || !bulkData.audioUrl) {
       return send(chatId, trans('t.cp_217'))
     }
+    const split = (bulkData.leads?.length || 0) > (bulkCallService.MAX_BULK_LEADS || 500)
+    if (split && !bulkData.schedMode) {
+      bulkData.schedHours = hours
+      await saveInfo('bulkData', bulkData)
+      await set(state, chatId, 'action', a.bulkScheduleMode)
+      return send(chatId, `⏰ How should your ${bulkData.leads.length.toLocaleString()} numbers run?${_bulkSplitLine(bulkData.leads.length, true)}`, { parse_mode: 'HTML', ...k.of(_bulkSchedModeRows(bulkData.leads.length)) })
+    }
+    const schedMode = bulkData.schedMode
     const scheduledFor = new Date(Date.now() + hours * 60 * 60 * 1000)
     try {
-      const campaign = await bulkCallService[(bulkData.leads?.length || 0) > (bulkCallService.MAX_BULK_LEADS || 500) ? 'createSeries' : 'createCampaign']({
+      const campaign = await bulkCallService[split ? 'createSeries' : 'createCampaign']({
         chatId,
         callerId: bulkData.callerId,
         showAs: bulkData.showAs || null,
@@ -29553,14 +29590,17 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         twilioSubAccountSid: bulkData.twilioSubAccountSid || null,
         twilioSubAccountToken: bulkData.twilioSubAccountToken || null,
         scheduledFor,
-      })
+      }, { mode: schedMode || 'auto' })
       if (campaign.error) {
-        return send(chatId, trans('t.cp_221', campaign.error), k.of([['↩️ Back']]))
+        if (schedMode) { delete bulkData.schedMode; await saveInfo('bulkData', bulkData) }
+        return send(chatId, trans('t.cp_221', campaign.error), k.of(split ? _bulkSchedModeRows(bulkData.leads.length) : [['↩️ Back']]))
       }
+      if (schedMode) { delete bulkData.schedMode; delete bulkData.schedHours; await saveInfo('bulkData', bulkData) }
       await saveInfo('scheduledCampaignId', campaign.id)
       await set(state, chatId, 'action', a.bulkScheduled)
       const S = _bulkSched(lang), when = scheduledFor.toISOString().replace('T', ' ').slice(0, 16)
-      return send(chatId, `${S.done((bulkData.leads || []).length, S.rel(hours), when)}\n\n${S.bell}\n${S.cancelHint}`, { parse_mode: 'HTML', reply_markup: { keyboard: [['❌ Cancel scheduled launch'], ['↩️ Back']], resize_keyboard: true } })
+      const splitNote = split ? `\n\n${_bulkStartedLine(campaign, bulkData, schedMode, 'starts at the scheduled time')}` : ''
+      return send(chatId, `${S.done(campaign.leads?.length || (bulkData.leads || []).length, S.rel(hours), when)}${splitNote}\n\n${S.bell}\n${S.cancelHint}`, { parse_mode: 'HTML', reply_markup: { keyboard: [['❌ Cancel scheduled launch'], ['↩️ Back']], resize_keyboard: true } })
     } catch (e) {
       log(`[BulkSchedule] schedule error: ${e.message}`)
       return send(chatId, trans('t.cp_221', sanitizeProviderError(e.message, 'voice')), k.of([['↩️ Back']]))
@@ -29574,6 +29614,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         try {
           const r = await db.collection('bulkCallCampaigns').updateOne({ id: cid, status: 'scheduled' }, { $set: { status: 'cancelled', cancelledReason: 'Cancelled by user before scheduled launch' } })
           if (r.modifiedCount === 1) {
+            await bulkCallService.cancelSeriesAfter(cid).catch(() => {})
             await saveInfo('scheduledCampaignId', null)
             await set(state, chatId, 'action', a.submenu5)
             return send(chatId, `✅ Scheduled campaign cancelled. Nothing will be dialed.`, k.of([['📞 New Call'], ['↩️ Back']]))
