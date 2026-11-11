@@ -1867,7 +1867,7 @@ async function createFollowup(campaignId, chatId, kind, { at = null, start = fal
   const label = kind === 'listeners' ? 'listeners' : 'unanswered'
   const nc = await createCampaign({ ...params, callerPool: c.callerPool?.length ? c.callerPool : undefined, name: `${(c.name || 'Campaign').slice(0, 60)} — ${label}`, leads: leads.slice(0, MAX_BULK_LEADS), ...(when ? { scheduledFor: when } : {}) })
   if (nc.error) return nc
-  await _collection.updateOne({ id: nc.id }, { $set: { followupOf: c.id, followupKind: kind } })
+  await _collection.updateOne({ id: nc.id }, { $set: { followupOf: c.id, followupKind: kind, ...(c.dryRun ? { dryRun: true } : {}) } })
   if (start && !when) { const r = await startCampaign(nc.id); if (r?.error) return { ...nc, startError: r.error } }
   return { ...nc, leadsCount: Math.min(leads.length, MAX_BULK_LEADS), scheduledFor: when }
 }

@@ -2610,3 +2610,7 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 ## 2026-06 — Bulk IVR lists >500: four launch choices (web + 4 bots)
 - All parts, auto-start · All parts, ask before each (wallet covers all parts) · First 500 now, keep the rest for later (pay per part, Start/Drop each next part) · Only the first 500, drop the rest (wallet covers 500). First 500 = list order after cleaning. Details in CHANGELOG.
 - Scheduling (bot) offers the same 4 choices. Lists 5,001–50,000: only "first 500" or "first 500 now, keep the rest" (first 5,000 kept, rest dropped).
+
+## Status 2026-11-12
+- DONE (agent-tested): live campaign engagement end-to-end + campaign summary email respecting in-app "Campaign reports" switch (see CHANGELOG 2026-11-12).
+- Backlog: preview simulator (campaign-sim.js) doesn't emit hot-lead/digest notifications (real engine does); label "Re-call N unanswered" counts busy too; SMS DLR reconciliation; compliance/abuse controls.

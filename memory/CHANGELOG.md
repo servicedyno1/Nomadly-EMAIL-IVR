@@ -2571,3 +2571,11 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - voice-service: a show-as number refused as unverified (D51 / "not been verified") is stored in Mongo `cidRefused` {_id, at, error} (+ 60 s in-memory cache) and skipped for 24 h — the call dials straight from the customer's own number (one request, no doomed attempt); after 24 h it's tried once again. Result carries `refusedCid`.
 - Bulk campaigns: no customer message while running (only `callerIdDeclines` log); campaign stores `$addToSet refusedCids`; final report adds "⚠️ Network carriers refused caller IDs … Those calls showed your own number …" (5 languages, never names the provider). Single IVR calls keep the existing hourly "Phone carriers rejected" notice.
 - Tests: test_cid_refused_skip.js 8/8; caller_id_reject_retry 5 PASS; presets 18/18; attest 23/23; bulk throughput/split/voicemail/rotation pass.
+
+## 2026-11-12 — Live campaign engagement + campaign summary email (verified)
+- bulk-engagement.js: reach / listened 30s+ / voicemails / hot leads / cost per person & per hot lead / best hour & area; fresh-campaign calls/min + ETA use time since start; no per-call no-answer notices; instant hot-lead alerts; 25/50/75% digests.
+- CampaignDetail Results card + follow-up buttons (re-call unanswered, re-engage listeners, best time tomorrow); follow-ups keep dryRun in preview; other accounts get 404.
+- Campaign summary email (existing in-app "Campaign reports" switch): engagement rows; hot-lead line + "pressed key" stat hidden when 0; reach + re-call tip always shown.
+- Fix: emails blocked by a switch now record `webEmailLog {ok:'off'}` so switching back ON never sends old ones (hidden from Recent emails).
+- Fix: bot Bulk IVR country picker fully localized (en/fr/zh/hi/fa text + buttons); depositNudge sample data for previews.
+- Tests: emails 41/0, i18n 6/0, engagement 11/0, paste 13/0, splits 17/17/23, throughput (19.1 avg live), cid skip 8/0, auto-resume 6/0, backend pytest test_cloudivr_engagement_email.py 10/10; testing agent iteration_252.

@@ -70,7 +70,7 @@ function createEmails(db, { log = console.log } = {}) {
     if (!pr.acc && email) pr = { acc: { _id: chatId, email, name: '' }, lang: 'en', email: { ...DEFAULTS } } // landing test-call visitor without an account
     if (!pr.acc?.email || pr.acc.disabled) return false
     const group = GROUPS[type]
-    if (!force && group && pr.email[group] === false) return false
+    if (!force && group && pr.email[group] === false) { await sent.insertOne({ _id: key, chatId: String(chatId), type, at: new Date(), ok: 'off' }).catch(() => {}); return false }
     if (!force && type === 'voicemail' && String(data.forwardedTo || '').toLowerCase() === pr.acc.email.toLowerCase()) return false // already gets the MP3 email
     try { await sent.insertOne({ _id: key, chatId: String(chatId), type, at: new Date() }) } catch (e) { if (e.code === 11000) return false; throw e }
     const { subject, html } = build(type, data, pr)
@@ -440,7 +440,7 @@ function createEmails(db, { log = console.log } = {}) {
       res.json({ sent: row?.ok === true, preview: row?.ok === 'preview', to: row?.to || null, subject: row?.subject || null })
     }))
     router.get('/emails/log', h(async (req, res) => {
-      const rows = await sent.find({ chatId: req.webChatId, type: { $ne: 'missed-grouped' } }, { projection: { html: 0 } }).sort({ at: -1 }).limit(20).toArray()
+      const rows = await sent.find({ chatId: req.webChatId, type: { $ne: 'missed-grouped' }, ok: { $ne: 'off' } }, { projection: { html: 0 } }).sort({ at: -1 }).limit(20).toArray()
       res.json({ emails: rows.map(r => ({ id: r._id, type: r.type, subject: r.subject || null, at: r.at, status: r.ok === true ? 'sent' : r.ok === 'preview' ? 'preview' : 'failed', test: String(r._id).startsWith('test:') })) })
     }))
     router.post('/admin/emails/weekly', h(async (req, res) => {

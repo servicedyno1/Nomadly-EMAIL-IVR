@@ -25,7 +25,7 @@ async function main() {
   const logs = []
   const e = createEmails(db, { log: (m) => logs.push(m) })
   const sent = db.collection('webEmailLog')
-  const mine = async (chatId, type) => sent.find({ chatId, type }).toArray()
+  const mine = async (chatId, type) => sent.find({ chatId, type, ok: { $ne: 'off' } }).toArray()
 
   // First tick sets the watermark: older records never produce emails.
   await db.collection('webAccounts').insertOne({ _id: OLD, email: 'old@example.com', name: 'Old Timer', createdAt: new Date(Date.now() - 40 * DAY) })
@@ -114,6 +114,13 @@ async function main() {
   const n = await e.runWeekly()
   it('weekly summary sent to A only (B switched it off; old account included)', n === 2 && (await mine(a, 'weekly')).length === 1 && (await mine(b, 'weekly')).length === 0)
   it('weekly run is once per day', (await e.runWeekly()) === 0)
+  await db.collection('webPrefs').updateOne({ _id: b }, { $set: { 'emailPrefs.campaigns': false } })
+  await db.collection('bulkCallCampaigns').insertOne({ id: 'camp-off', chatId: b, status: 'completed', callerId: '+15550000001', mode: 'transfer', startedAt: new Date(Date.now() - 600000), completedAt: new Date(), stats: { total: 4, answered: 1, noAnswer: 3 }, leads: [] })
+  await e.tick(); await e.tick()
+  await db.collection('webPrefs').updateOne({ _id: b }, { $set: { 'emailPrefs.campaigns': true } })
+  await e.tick(); await e.tick()
+  it('campaign that ended while reports were OFF is not emailed after switching back ON', !(await sent.findOne({ _id: 'campaign:camp-off', ok: { $ne: 'off' } })) && !!(await sent.findOne({ _id: 'campaign:camp-off', ok: 'off' })))
+
   const wk = await e.weeklyFor(a, (await db.collection('phoneNumbersOf').findOne({ _id: a })).val.numbers)
   it('weekly counts calls, missed, voicemails and minutes', wk.callsIn === 4 && wk.missed === 2 && wk.voicemails === 1 && wk.minutes === 2, JSON.stringify(wk))
   it('weekly lists numbers renewing within 7 days', wk.renewals.length === 1 && wk.renewals[0].phone === '+15550000011')

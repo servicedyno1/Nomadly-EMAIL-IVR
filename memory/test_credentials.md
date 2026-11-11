@@ -245,3 +245,6 @@
 - All CloudIVR web test accounts (Alice/Bob/QA/TEST_*, every @example.com) and their data were deleted from the PREVIEW DB only.
   Production untouched. For future UI tests, sign up a fresh @example.com account (dry-run) and delete it afterwards,
   or re-seed with `node scripts/seed_landing_shots.js` / `scripts/seed_e2e_sandbox.js` and clean up after.
+
+## Note 2026-11-12
+- In the current pod DB, Alice/Bob accounts were NOT present (testing agent iteration_252). Use `civr.uxtest@example.com` / `UxTest#2026` (chatId 5000000000000077, number +13341112222, audio aud-split-test) for CloudIVR web tests.
