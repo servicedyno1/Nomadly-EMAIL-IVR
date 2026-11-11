@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Megaphone, Plus, Loader2, Calculator, FileUp, ChevronRight, Pause, Play, Contact, Repeat, Radio } from 'lucide-react';
+import { Megaphone, Plus, Loader2, Calculator, FileUp, ChevronRight, Pause, Play, Contact, Repeat, Radio, Check } from 'lucide-react';
 import { TextCountryFix } from '../CountryFix';
 import { api, useApi, when, money } from '../api';
 import { PageHeader, Field, SkeletonRows, SkeletonPage, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, statusPill, BackupsField } from '../ui';
@@ -165,6 +165,8 @@ function VoicemailChoice({ mode, onMode, children }) {
 
 const MAX_LEADS = 500;
 const MAX_SPLIT = 5000;
+// Unique numbers — the server drops repeats, so the split plan counts each number once.
+const uniqCount = (text) => new Set(text.split('\n').map(l => l.replace(/\D/g, '')).filter(d => d.length >= 7)).size;
 // Over 500 numbers: all parts (auto or ask), pay per part, or the first 500 only.
 const SPLIT_MODES = [
   ['auto', 'All parts — start each one automatically', 'Wallet must cover every part now.'],
@@ -181,8 +183,8 @@ function SplitNote({ n, mode, onMode }) {
       <div className="text-xs text-[#a1a1aa] mt-1">{mode === 'first' ? `The first 500 in your list order are called. The other ${(n - MAX_LEADS).toLocaleString()} are dropped.` : `${parts - 1 === 1 ? 'Part 1' : `Parts 1–${parts - 1}`}: 500 numbers each · Part ${parts}: ${last}. Only one part calls at a time, with the same message and settings.`}</div>
       <div className="grid sm:grid-cols-2 gap-2 mt-3" role="radiogroup" aria-label="How to run this list">
         {SPLIT_MODES.map(([k, label, sub]) => (
-          <button key={k} type="button" role="radio" aria-checked={mode === k} onClick={() => onMode(k)} className={`text-left rounded-xl border p-3 transition-colors ${mode === k ? 'border-[var(--c-accent)] bg-[var(--c-accent)]/10' : 'border-[#3f3f46] hover:border-[#71717a]'}`} data-testid={`campaign-split-${k}`}>
-            <div className="text-sm font-medium">{label}</div><div className="text-xs text-[#a1a1aa] mt-0.5">{sub}</div>
+          <button key={k} type="button" role="radio" aria-checked={mode === k} onClick={() => onMode(k)} className={`text-left rounded-xl border-2 p-3 transition-colors ${mode === k ? 'border-[var(--c-accent)] bg-[var(--c-accent)]/20' : 'border-[#71717a]/40 hover:border-[#71717a]'}`} data-testid={`campaign-split-${k}`}>
+            <div className="text-sm font-medium flex items-start gap-2"><span className={`mt-0.5 w-4 h-4 shrink-0 rounded-full border-2 flex items-center justify-center ${mode === k ? 'border-[var(--c-accent)] bg-[var(--c-accent)]' : 'border-[#71717a]'}`}>{mode === k && <Check className="w-3 h-3 text-white" />}</span>{label}</div><div className="text-xs text-[#a1a1aa] mt-0.5 pl-6">{sub}</div>
           </button>
         ))}
       </div>
@@ -190,7 +192,7 @@ function SplitNote({ n, mode, onMode }) {
   );
 }
 function LeadCount({ text, onChange }) {
-  const n = text.split('\n').filter(l => /\d{7,}/.test(l.replace(/\D/g, ''))).length;
+  const n = uniqCount(text);
   if (!n) return null;
   return (<>
     <div className={`text-xs mt-1 ${n > MAX_SPLIT ? 'text-[#f87171]' : 'text-[#a1a1aa]'}`} data-testid="campaign-leads-count">{n > MAX_SPLIT ? `${n.toLocaleString()} numbers — up to ${MAX_SPLIT.toLocaleString()} (${MAX_SPLIT / MAX_LEADS} parts of ${MAX_LEADS}). Use a smaller list.` : n > MAX_LEADS ? `${n.toLocaleString()} numbers` : `${n} of ${MAX_LEADS} numbers`}</div>
@@ -342,7 +344,7 @@ export function CampaignNew() {
           </VoicemailChoice>
           </>}
           <LeadsField value={f.leads} onChange={(v) => { set('leads')(v); setEst(null); }} source={f.source} onSource={(v) => { setF(x => ({ ...x, source: v })); setEst(null); }} listId={f.listId} onList={(v) => { setF(x => ({ ...x, listId: v })); setEst(null); }} />
-          {!isAi && <SplitNote n={fromList ? est?.count : f.leads.split('\n').filter(l => /\d{7,}/.test(l.replace(/\D/g, ''))).length} mode={f.splitMode || 'auto'} onMode={(v) => setF(x => ({ ...x, splitMode: v }))} />}
+          {!isAi && <SplitNote n={fromList ? est?.count : uniqCount(f.leads)} mode={f.splitMode || 'auto'} onMode={(v) => setF(x => ({ ...x, splitMode: v }))} />}
           {fromList ? (f.listId && <LeadCheck source={{ listId: f.listId }} testid="campaign-lead-check" />)
             : <LeadCheck numbers={f.leads} onClean={(keep, dead) => { const gone = new Set(dead.map(r => r.phone.replace(/\D/g, '').slice(-10))); set('leads')(f.leads.split('\n').filter(line => { const d = (line.split(/[,;\t]/)[0] || '').replace(/\D/g, ''); return !d || !gone.has(d.slice(-10)); }).join('\n')); setEst(null); toast.success(`${dead.length} dead number${dead.length === 1 ? '' : 's'} removed from this campaign`); }} testid="campaign-lead-check" />}
           <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" disabled={(fromList ? !f.listId : !f.leads.trim()) || busy === 'est'} onClick={estimate} data-testid="campaign-estimate-button">{busy === 'est' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}Check numbers &amp; cost</button>

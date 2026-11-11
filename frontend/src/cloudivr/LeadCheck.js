@@ -72,7 +72,7 @@ export function LeadCheck({ numbers, source, onClean, cleanLabel = 'Keep only li
         <div className="flex flex-wrap items-center gap-3">
           <ShieldCheck className="w-5 h-5 text-[#34d399]" />
           <div className="flex-1 min-w-[12rem] text-sm">
-            <b data-testid={`${testid}-title`}>{n === 1 ? 'Check 1 number before calling' : `Check ${n} numbers before calling`}</b>
+            <b data-testid={`${testid}-title`}>{n === 1 ? 'Check 1 number before calling' : `Check ${n.toLocaleString()} numbers before calling`}</b>
             <div className="text-[#a1a1aa]">Finds dead lines, mobile vs landline, carrier and owner name · {money(quote.rate)} each · numbers we can’t check are refunded</div>
             {quote.cached > 0 && <div className="text-[#34d399] text-xs mt-1" data-testid={`${testid}-cached`}>{quote.cached} checked in the last 30 days — free{quote.fresh ? `, only ${quote.fresh} new to pay for` : ''}</div>}
           </div>

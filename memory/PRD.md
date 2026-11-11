@@ -2606,3 +2606,7 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Support: messages chasing a reply ("never got a reply", "ref VcWXH", "pas de réponse") → human handoff + admin escalation.
 - eSIM intro (bot, 4 langs): IMEI line removed → "⚡ Instant delivery — QR ready right after payment". IMEI still asked after payment. Web buy form still asks IMEI before payment (pending owner decision).
 - Tests: test_ux_fixes_2026_11.js 4/4; iter242 wizard 31/31 + bot_flow_i18n 5/5 updated for shared invoice; esim_front_menu 8/8; country_code 9/9.
+
+## 2026-06 — Bulk IVR lists >500: four launch choices (web + 4 bots)
+- All parts, auto-start · All parts, ask before each (wallet covers all parts) · First 500 now, keep the rest for later (pay per part, Start/Drop each next part) · Only the first 500, drop the rest (wallet covers 500). First 500 = list order after cleaning. Details in CHANGELOG.
+- Known limits: bot "Schedule for later" on split lists = all parts auto; lists >5,000 rejected even for first-500-only.

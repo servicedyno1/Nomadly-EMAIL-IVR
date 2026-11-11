@@ -1865,19 +1865,22 @@ async function advanceSeries(c) {
   if (r?.error) { await _collection.updateOne({ id: doc.id }, { $set: { status: 'series_ready' } }); _bot?.sendMessage(c.chatId, `⏸ ${label} couldn't start: ${r.error}`, require('./cloudivr-web/notify').isWebChatId(c.chatId) ? {} : { reply_markup: { inline_keyboard: [[{ text: `▶️ Try part ${doc.part} again`, callback_data: `bcnext:${doc.id}` }]] } }).catch(() => {}) }
 }
 
+// Pay-per-part: the wallet must cover this part's estimate when the customer starts it.
+async function partFundsError(doc, chatId) {
+  if (!doc?.payPerPart) return null
+  const need = estimateLeadsCost(doc.leads).total, w = await smartWalletCheck(_walletOf, chatId, need)
+  if (w.sufficient) return null
+  const bal = Number(w.usdBal ?? 0)
+  return { error: `Your wallet must cover part ${doc.part}: about $${need.toFixed(2)} for ${doc.leads.length} numbers (wallet: $${bal.toFixed(2)}). Add $${Math.max(0.01, need - bal).toFixed(2)} and start it again.`, lowBalance: true }
+}
+
 // The customer starts a waiting part ("Ask me before each part", or a retry after an error).
 async function startSeriesPart(campaignId, chatId) {
   const c = await _collection.findOneAndUpdate({ id: campaignId, chatId, status: 'series_ready' }, { $set: { status: 'created' } }, { returnDocument: 'after' })
   const doc = c?.value !== undefined ? c.value : c
   if (!doc) return { error: 'This part is not ready to start.' }
-  if (doc.payPerPart) {
-    const need = estimateLeadsCost(doc.leads).total, w = await smartWalletCheck(_walletOf, chatId, need)
-    if (!w.sufficient) {
-      await _collection.updateOne({ id: doc.id }, { $set: { status: 'series_ready' } })
-      const bal = Number(w.usdBal ?? 0)
-      return { error: `Your wallet must cover part ${doc.part}: about $${need.toFixed(2)} for ${doc.leads.length} numbers (wallet: $${bal.toFixed(2)}). Add $${Math.max(0.01, need - bal).toFixed(2)} and start it again.`, lowBalance: true }
-    }
-  }
+  const low = await partFundsError(doc, chatId)
+  if (low) { await _collection.updateOne({ id: doc.id }, { $set: { status: 'series_ready' } }); return low }
   const r = await startCampaign(doc.id)
   if (r?.error) await _collection.updateOne({ id: doc.id }, { $set: { status: 'series_ready' } })
   return r
@@ -2022,6 +2025,7 @@ module.exports = {
   createCampaign,
   createSeries,
   startSeriesPart,
+  partFundsError,
   dropSeriesRest,
   MAX_SERIES_LEADS,
   MAX_SERIES_PARTS,

@@ -2518,3 +2518,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
   Draft (civr.esimDraft, tied to account id) prefills /app/esim buy form; cleared on buy or Cancel. Plans fetch failure → Buy goes to signup/app.
 - Customer carrier label is now "T-Mobile network" (owner statement). i18n: scripts/i18n_esim5.py.
 - Tests: iteration_187 frontend 100%; follow-ups (ZIP paste, draft scope/cancel, wallet error state, single-plan width, UseCases es/fr) fixed + self-verified.
+
+## 2026-06 — Bulk IVR >500: pay-less choices (web + all 4 bots)
+- New launch choices for lists over 500 (besides "all parts auto" / "all parts ask"): `part` = first 500 now, rest kept as unpaid parts (never auto-start; wallet checked per part at start; Start/Drop buttons), `first` = only the first 500 in list order, rest dropped (`trimmedFrom` stored). Wallet needs only 500 numbers' estimate for both.
+- `bulk-call-service.js`: `createSeries(params, { mode })`, `partFundsError`, `dropSeriesRest`; web `POST /campaigns` takes `splitMode`; cancel on waiting/ready part = drop it and later parts; dry-run start also checks part funds.
+- Bot: 4 launch buttons + `bcdrop:` callback; part-ready message shows part cost + "Drop the remaining parts". Scheduling a split list still runs all parts automatically.
+- Web: 4-option split card (unique-number count), row pills "pay per part" / "first 500 of N", detail SeriesNote + Start & pay / Drop buttons. fr/es translated.
+- Tests: test_bulkcall_split_partial.js 17/17, split_series 17/17, bot split 11/11, voicemail 6/6, backend/tests/test_cloudivr_split_first_part.py 16/16, testing agent iteration_251 (all flows pass; minor findings fixed).

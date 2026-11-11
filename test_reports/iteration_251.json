@@ -1,0 +1,37 @@
+{
+  "summary": "CloudIVR web Bulk IVR >500 split choices (auto / ask / part 'First 500 now, keep the rest' / first 'Only the first 500'). Backend: new pytest suite of 16 tests, all passing (first-mode trim in list order, trimmedFrom, repeat allowed only for first, part-mode Part1 500 + Part2 waiting, payPerPart/autoNext, dry-run part1 complete -> part2 series_ready, start of the ready part, drop of waiting/ready parts with cascade to later parts, clear error when cancelling a finished/cancelled part, cancelling part 1 cascades, start of a waiting part rejected, <=500 normal, auto/ask 402 with 'all N parts', >5000 rejected, low-wallet 402 messages for first/part mention only the first 500 / part 1). Frontend (Playwright, desktop + mobile): split card with 4 radios, summary switches to 'only the first 500 are called', no card at 500; UI create in first mode -> detail series note 'Only the first 500 of your 700 numbers…' + list pill 'first 500 of 700'; part mode -> pills 'Part 1 of 2 · pay per part' / 'Part 2 of 2 · pay per part' + 'waits for part 1'; after part 1 finished -> 'ready to start' + row button 'Start & pay part 2' (works, row goes to running); detail of part 2 shows 'Start & pay part 2' + 'Drop this part'; drop asks for confirmation ('Keep them' keeps it, 'Drop' cancels it + toast 'Remaining parts dropped'); low-wallet error text shows inline in the form for first/part/auto. Everything requested works. Only minor UX issues were found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/campaigns/:id/start (series_ready, dry-run)", "issue": "The preview dry-run path changes series_ready to created and runs the simulation without the per-part wallet check that startSeriesPart does. This only affects preview, but the 'Start & pay part N' low-wallet 402 cannot be tested in preview. The real path (startSeriesPart) was only reviewed in code, not run."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Campaigns.js SplitNote count", "issue": "The count is the number of pasted lines, not unique numbers. 700 lines with only 350 unique numbers show the split card ('700 numbers → 2 parts'). The server removes duplicates and creates one normal 350-number campaign (skipped=0), so the card is misleading for lists with duplicates.", "selector": "[data-testid='campaign-split-note']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "New campaign split card", "issues": ["The selected radio card is hard to tell apart from the others: only a slightly lighter accent border, and the bg-accent/10 tint is almost invisible on the dark theme, mostly on mobile. Add a check icon or a stronger tint/border."]},
+      {"screen": "Campaign detail, dropped part", "issues": ["After a part is dropped (status cancelled), campaign-series-note still says 'Pay per part: each next part waits for you to start it…'. It should say the part was dropped."]},
+      {"screen": "Numbers-check card", "issues": ["'Check 1240 numbers before calling' has no thousands separator, while the split card shows '1,240' (small inconsistency)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_split_first_part.py", "/app/test_reports/pytest/split_first_part.xml"],
+  "action_items": [
+    "(Low) In SplitNote/LeadCount, count unique normalized numbers so lists with duplicates don't show the split card by mistake.",
+    "(Low) Make the selected split option easier to see.",
+    "(Low) Change SeriesNote text when the part's status is cancelled (dropped)."
+  ],
+  "critical_code_review_comments": [
+    "bulk-call-service createSeries 'first' builds its low-balance message from w.usdBal only. The other branches fall back to getBalance. Fine today, because smartWalletCheck always returns usdBal.",
+    "calls.js dry-run start of a series_ready part skips the payPerPart wallet check (preview only). Consider calling the same wallet estimate there so preview behaves like live.",
+    "Controls in CampaignDetail.js call useBalance(0) for series_ready, so 'Start & pay part N' is never disabled for a low wallet before the click. The server returns 402 instead. Consider useBalance(part estimate) for payPerPart."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_split_first_part.py"],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "None kept. Test campaigns (TEST_split_*, TEST_ui_*) were deleted by id/splitId (only the 2 seeded 'Split test' campaigns remain). The uxtest wallet was lowered to $100/$10 for the low-wallet tests and restored to usdIn 1000 / usdOut 0 (checked).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: REACT_APP_BACKEND_URL=... pytest /app/backend/tests/test_cloudivr_split_first_part.py -p no:xdist. It uses pymongo (MONGO_URL/DB_NAME from backend/.env) to fast-forward dry-run parts (marks part 1 leads completed) and to change the wallet (uxtest chatId 5000000000000077), then restores it. The sim step is 1.5 s per lead, so 500 leads take about 12 minutes unless fast-forwarded. Login button: get_by_role('button', name='Sign in'); the audio select is a native select (campaign-audio-select, value aud-split-test). Bot not retested, as instructed."
+}

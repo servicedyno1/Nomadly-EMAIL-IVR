@@ -263,6 +263,8 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const c = await caller(req.webChatId, req.campaign.callerId, ai ? 'aiAgent' : 'bulkCall', ai ? 'AI agent campaigns' : 'Bulk IVR campaigns')
     if (c.err) return bad(res, ...c.err)
     if (req.campaign.dryRun || dryRun()) {
+      const low = req.campaign.status === 'series_ready' && await bulkCallService.partFundsError(req.campaign, req.webChatId)
+      if (low) return bad(res, 402, 'start_failed', low.error)
       if (req.campaign.status === 'series_ready') await db.collection('bulkCallCampaigns').updateOne({ id: req.campaign.id, status: 'series_ready' }, { $set: { status: 'created' } })
       if (!req.campaign.dryRun || !(await sim.run(db.collection('bulkCallCampaigns'), req.campaign.id))) return bad(res, 400, 'start_failed', 'This campaign is not waiting to start.')
       return res.status(202).json({ dryRun: true, message: 'Preview mode: simulating the calls with made-up results. Nobody is dialed.' })
