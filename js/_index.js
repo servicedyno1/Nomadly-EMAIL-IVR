@@ -976,6 +976,12 @@ const _CC_MISSING = {
   fa: (n, ex) => `📞 <b>${n}</b> کد کشور ندارد.\nآن را جلوی شماره بگذارید و دوباره بفرستید — مثلاً <code>${ex}</code> (آمریکا/کانادا) یا <code>+44…</code> (انگلیس).`,
 }
 // Bulk IVR upload: rejected lines summed up in the user's language (the parser's reasons are English).
+const contactsImport = require('./contacts-import.js')
+const _BULK_ADD_US = '🇺🇸 Add +1 (USA/Canada)'
+const _BULK_SKIP_NOCC = '➡️ Continue without them'
+const _pasteJoin = new Map()
+const PASTE_JOIN_MS = parseInt(process.env.PASTE_JOIN_MS || '1500', 10)
+const PASTE_SPLIT_MIN = 3000
 const _LEAD_ERR = {
   en: { head: (n) => `⚠️ ${n} line${n === 1 ? '' : 's'} skipped:`, nocc: 'no country code', typo: 'missing or extra digit', bad: 'not a valid / in-service number', nocol: 'no phone column found — add a column called Phone', fix: (v, f) => `e.g. ${v} → ${f}` },
   fr: { head: (n) => `⚠️ ${n} ligne(s) ignorée(s) :`, nocc: 'sans indicatif pays', typo: 'chiffre manquant ou en trop', bad: 'numéro invalide / hors service', nocol: 'aucune colonne téléphone — ajoutez une colonne « Phone »', fix: (v, f) => `ex. ${v} → ${f}` },
@@ -8273,6 +8279,20 @@ bot?.on('message', msg => {
       ).then(() => { log(`[NotifyGroups] Auto-registered group: ${msg?.chat?.title} (${groupId})`) }).catch(() => {})
     }
     return
+  }
+
+  // Telegram splits a long paste (over 4,096 characters) into several messages sent a moment apart → join them
+  // back into one message so lists of numbers aren't read in pieces.
+  if (msg?.text && !msg._joined) {
+    const pj = _pasteJoin.get(chatId)
+    if (pj) { pj.parts.push(msg.text); clearTimeout(pj.t); pj.t = setTimeout(pj.flush, PASTE_JOIN_MS); return }
+    if (msg.text.length >= PASTE_SPLIT_MIN) {
+      const entry = { parts: [msg.text] }
+      entry.flush = () => { _pasteJoin.delete(chatId); bot.emit('message', { ...msg, text: entry.parts.join('\n'), _joined: true }) }
+      entry.t = setTimeout(entry.flush, PASTE_JOIN_MS)
+      _pasteJoin.set(chatId, entry)
+      return
+    }
   }
 
   // B2 fix: Deduplicate — skip if same message text from same user within 2 seconds
@@ -28699,11 +28719,38 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     } else if (message) {
       content = message
     }
+    let parseOpts
+    const pend = info?.bulkData?.pendingLeads
+    if (message === _BULK_ADD_US && pend) { // "Add +1" on numbers sent without a country code
+      parseOpts = { country: 'US' }
+      if (pend.fileId) {
+        try {
+          const response = await require('axios').get(await bot.getFileLink(pend.fileId), { responseType: 'arraybuffer', timeout: 15000, maxContentLength: 10 * 1024 * 1024 })
+          content = Buffer.from(response.data); fileName = pend.fileName || ''
+        } catch (e) { return send(chatId, trans('t.cp_134', e.message), k.of([['↩️ Back']])) }
+      } else content = pend.text
+    } else if (message === _BULK_SKIP_NOCC && pend) content = pend.fileId ? null : pend.text
+    if (content === null) { // "continue without them" on a file → re-read it
+      try {
+        const response = await require('axios').get(await bot.getFileLink(pend.fileId), { responseType: 'arraybuffer', timeout: 15000, maxContentLength: 10 * 1024 * 1024 })
+        content = Buffer.from(response.data); fileName = pend.fileName || ''
+      } catch (e) { return send(chatId, trans('t.cp_134', e.message), k.of([['↩️ Back']])) }
+    }
 
     if (!(Buffer.isBuffer(content) ? content.length : content.trim())) return send(chatId, trans('t.cp_135'), k.of([['↩️ Back']]))
 
-    const { leads, errors, binary, columns } = bulkCallService.parseLeadsFile(content, fileName)
+    const { leads, errors, binary, columns, noCode } = bulkCallService.parseLeadsFile(content, fileName, parseOpts)
     if (binary) return send(chatId, trans('t.cp_134b', escHtml(msg.document?.file_name || 'file')), k.of([['↩️ Back']]))
+    // Numbers without a country code that are valid USA/Canada numbers → offer to add +1 (never added silently).
+    const usFit = !parseOpts && message !== _BULK_SKIP_NOCC ? (noCode || []).filter(x => contactsImport.withCountry(x.raw, 'US')).length : 0
+    if (usFit && usFit >= (noCode || []).length * 0.8) {
+      const bd = info?.bulkData || {}
+      bd.pendingLeads = msg.document ? { fileId: msg.document.file_id, fileName: msg.document.file_name || '' } : { text: String(content) }
+      await saveInfo('bulkData', bd)
+      const ex = noCode[0].raw, rows = [[_BULK_ADD_US], ...(leads.length ? [[_BULK_SKIP_NOCC]] : []), ['↩️ Back']]
+      return send(chatId, `📞 <b>${usFit.toLocaleString()}</b> number${usFit === 1 ? ' has' : 's have'} no country code (e.g. <code>${escHtml(ex)}</code>). They look like USA/Canada numbers.\n\nAdd <b>+1</b> to them?${leads.length ? `\n\n${leads.length.toLocaleString()} other number${leads.length === 1 ? ' is' : 's are'} fine already.` : ''}`, { parse_mode: 'HTML', ...k.of(rows) })
+    }
+    if (info?.bulkData?.pendingLeads) { const bd = info.bulkData; delete bd.pendingLeads; await saveInfo('bulkData', bd) }
     if (leads.length === 0) {
       const errMsg = errors.length > 0 ? `\n\n${_leadErrSummary(lang, errors)}` : ''
       return send(chatId, trans('t.cp_136', errMsg), k.of([['↩️ Back']]))

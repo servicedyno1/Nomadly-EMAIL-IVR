@@ -2550,3 +2550,8 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - `adoptOrphans`: a `running` campaign no server is dialing (startedAt/resumedAt > 2 min ago) is recovered on the dialer within a minute — used to resume businessintelusa's two campaigns by setting status=running in DB after deploy.
 - Prod check 20:47 UTC: GitHub main = cfad601 but droplet still on 3a1dfc1 (20:06) — the push did NOT deploy (CI run not visible from here).
 - Test: test_bulkcall_auto_resume.js 6/6.
+
+## 2026-11-11 — PROD BUG: bot Bulk IVR "No valid phone numbers found / no phone column" (user 9013312785)
+- Prod logs: pasted "15713310731 - Name" and "Name 5619298395" lines (no delimiter) → whole line was one cell → "no phone column"; Telegram split the 4k+ paste into 3 messages → 3 error replies; then a .txt of 400 10-digit numbers → "400 no country code".
+- Fixes: contacts-import `splitNameLine` (no-delimiter lines → [number, name], handles (561) 929-8396 / dots / dashes); bot message handler joins a long paste split by Telegram (first part ≥3000 chars, parts within 1.5 s, `_pasteJoin`); Bulk IVR upload offers "🇺🇸 Add +1 (USA/Canada)" when ≥80% of no-code numbers are valid US/CA (text or file; file re-downloaded by fileId), plus "➡️ Continue without them" when some numbers are fine. Never adds +1 silently.
+- Tests: js/tests/test_bot_bulkivr_paste.js 9/9; bot split 17/17; contacts import 9/9; pytest country+split 32/32.
