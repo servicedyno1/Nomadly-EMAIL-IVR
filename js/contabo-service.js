@@ -213,6 +213,8 @@ async function getAccessToken() {
   if (_tokenCache.token && now < _tokenCache.expiresAt - 60000) {
     return _tokenCache.token
   }
+  // Contabo is not in use right now → fail fast and silently (no keycloak call, no log). CONTABO_ENABLED=true re-enables it.
+  if (process.env.CONTABO_ENABLED !== 'true') throw _makeAuthError()
   // Auth breaker open → fast-fail without touching keycloak or logging.
   if (now < _authFail.openUntil) {
     throw _makeAuthError()

@@ -748,6 +748,15 @@ for (const [l, bell] of Object.entries(BELL)) {
   const P = LANGS[l], bk = P.booking, ok = P.paid_ok
   Object.assign(P, { booking: (o) => `${bk(o)}\n${bell}`, paid_ok: `${ok}\n${bell}` })
 }
+// The questions customers asked most (prod logs): can I pick the sender? can I send more per day? — answered on the home screen.
+const FAQ = {
+  en: (o) => `❓ Sender numbers are assigned and rotated for you — you can’t pick one. Need more than ${o.limit} SMS a day? Ask 💬 Support for a higher limit.`,
+  fr: (o) => `❓ Les numéros d’envoi sont attribués et alternés pour vous — vous ne pouvez pas en choisir un. Besoin de plus de ${o.limit} SMS par jour ? Demandez une limite plus haute au 💬 Support.`,
+  zh: (o) => `❓ 发送号码由系统分配并轮换，无法自选。每天需要超过 ${o.limit} 条？请联系 💬 客服提高上限。`,
+  hi: (o) => `❓ भेजने वाले नंबर आपके लिए तय और बदले जाते हैं — आप खुद नहीं चुन सकते। रोज़ ${o.limit} से ज़्यादा SMS चाहिए? ऊँची सीमा के लिए 💬 सपोर्ट से पूछें।`,
+  fa: (o) => `❓ شماره‌های ارسال خودکار تعیین و چرخانده می‌شوند — نمی‌توانید یکی را انتخاب کنید. روزانه بیش از ${o.limit} پیامک لازم دارید؟ برای سقف بالاتر از 💬 پشتیبانی بپرسید.`,
+}
+for (const [l, f] of Object.entries(FAQ)) { const P = LANGS[l], h = P.home; if (typeof h === 'function') P.home = (o) => `${h(o)}\n\n${f(o)}` }
 
 const pack = (lang) => LANGS[lang] || en
 function t(lang, key, ...args) {

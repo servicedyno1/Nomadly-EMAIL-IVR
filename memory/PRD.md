@@ -2545,3 +2545,12 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - eSIM sold as "Unlimited data · Unlimited calls · Unlimited SMS": esim-bot includes() (5 langs), web Esim.js plan card + usage line hidden, ProductHero ESIM_POINTS, spenza custPlan returns 'Unlimited', AI support told never to quote caps.
 - Main menu: "📱 USA eSIM" (user.esimMain) replaces Marketplace; Marketplace moved under ➕ More; Back from eSIM returns to where it was opened. tests/test_esim_front_menu.js 8/8.
 - Frontend iteration_247/248 pass; dark-theme green via .civr-vm-green (theme uses html[data-civr-theme]).
+
+## 2026-11-11 — Prod-log fixes (silence unused integrations, UX)
+- Silenced (off unless env flag = true): ConnectReseller price checks (CONNECTRESELLER_ENABLED; OpenProvider still prices), Twilio PhoneMonitor (PHONE_MONITOR_ENABLED), Contabo auth (CONTABO_ENABLED — 1 legacy Contabo VPS record exists; new VPS = DigitalOcean).
+- utils.sendMessage: chat not found / blocked / deactivated → one short warning, chat skipped 6 h; removed full-message debug dump.
+- Old Android-app BulkSMS ("100 Free SMS") buttons now open the simless BulkSMS (SMS_APP_LEGACY=true restores old menu). VPS screen shortcut → new BulkSMS.
+- BulkSMS home answers "can I pick the sender / more per day" (5 langs). Leads/plans wallet bar says "add $X more, or pay full price with crypto" (5 langs).
+- Support: messages chasing a reply ("never got a reply", "ref VcWXH", "pas de réponse") → human handoff + admin escalation.
+- eSIM intro (bot, 4 langs): IMEI line removed → "⚡ Instant delivery — QR ready right after payment". IMEI still asked after payment. Web buy form still asks IMEI before payment (pending owner decision).
+- Tests: test_ux_fixes_2026_11.js 4/4; iter242 wizard 31/31 + bot_flow_i18n 5/5 updated for shared invoice; esim_front_menu 8/8; country_code 9/9.
