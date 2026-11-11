@@ -38,6 +38,7 @@ function knowledge() {
 Plans:
 ${plans}
 A new number costs its plan's monthly price (from $${Math.min(...c.plans.filter(p => p.available).map(p => p.price))}/month, plus a small surcharge for some countries/types). Extra numbers ($${phoneConfig.SUB_NUMBER_BASE_PRICE}/month) can only be added to a number you already have.
+Texting Number (sidebar Phone numbers → Texting Number): a USA number on a real carrier for sending and receiving texts in Messages (incl. verification codes), used in the browser, no phone or SIM; $${require('../spenza.js').MOBILE_PRICE}/month; each text $${require('../spenza.js').TEXT_PRICE} from the wallet; outgoing browser-phone calls $${c.rates.outboundPerMinUsCa}/min to USA/Canada (other countries from $${c.rates.outboundPerMinIntl}/min) plus $${phoneConfig.CALL_CONNECTION_FEE} per call, from the wallet. The app no longer shows these per-text/per-minute prices, so tell customers when they ask. USA eSIM = a line on their own phone; Landline to Texting = add texting to a number they already have.
 Extra usage: forwarding $${c.rates.forwardingPerMin}/min, overage $${c.rates.overagePerMin}/min and $${c.rates.overagePerSms}/SMS. Quick IVR and campaign calls bill per minute from the wallet (US/CA cheaper than international).
 Countries: ${c.countries.map(x => x.name).join(', ')}. Some countries need an ID check after payment (Verification page).
 Payments: wallet (top up with crypto on the Wallet page) or pay a number directly with crypto. No card or bank transfer. Coupon codes work at checkout; a daily coupon is posted in the Inbox.
@@ -53,7 +54,7 @@ async function userContext(db, chatId, numbersApi) {
   const nums = await numbersApi.myNumbers(chatId)
   const bal = await walletOps(db).balance(chatId)
   const list = nums.slice(0, 10).map(n => `${n.phoneNumber} (${phoneConfig.plans[n.plan]?.name || n.plan}, ${n.status}${n.isSubNumber ? `, extra on ${n.parentNumber}` : ''}, paid until ${String(n.expiresAt || '').slice(0, 10)})`).join('; ')
-  const mob = (await mobileLines(db, chatId)).map(d => `${d.phoneNumber || 'number being assigned'} (USA mobile number with two-way SMS, ${d.status}${d.expiresAt ? `, paid until ${new Date(d.expiresAt).toISOString().slice(0, 10)}` : ''})`).join('; ')
+  const mob = (await mobileLines(db, chatId)).map(d => `${d.phoneNumber || 'number being assigned'} (Texting Number: two-way SMS in Messages, ${d.status}${d.expiresAt ? `, paid until ${new Date(d.expiresAt).toISOString().slice(0, 10)}` : ''})`).join('; ')
   const txt = (await textingLines(db, chatId)).map(d => `${d.phoneNumber} (Landline to Texting, receive-only texts, ${d.status}${d.planNumber ? `, included with ${d.planNumber}` : d.expiresAt ? `, next bill ${new Date(d.expiresAt).toISOString().slice(0, 10)}` : ''})`).join('; ')
   return `This user: wallet $${bal.toFixed(2)}; numbers: ${[list, mob, txt].filter(Boolean).join('; ') || 'none yet'}.`
 }

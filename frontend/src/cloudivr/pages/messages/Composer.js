@@ -79,10 +79,10 @@ export function Composer({ t, onSent, seed, onScheduled }) {
     } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   const funds = useBalance(t.number.kind === 'esim' ? t.cost.each : 0, false);
-  if (!funds.enough && !funds.loading) return <div className="border-t border-[var(--c-border)] p-4 flex flex-col items-center gap-1 text-center" data-testid="composer-topup"><span className="text-sm">{`Each text costs ${money(t.cost.each)} from your wallet. Top up to send.`}</span><ShortNote balance={funds.balance} short={funds.short} testid="composer-short" /></div>;
+  if (!funds.enough && !funds.loading) return <div className="border-t border-[var(--c-border)] p-4 flex flex-col items-center gap-1 text-center" data-testid="composer-topup"><span className="text-sm">Your wallet is too low to send texts. Top up to keep texting.</span><ShortNote balance={funds.balance} short={funds.short} testid="composer-short" /></div>;
   const over = smsOver(text);
   const parts = smsParts(text);
-  const cost = t.number.kind === 'esim' ? `${money(t.cost.each * parts)} from your wallet${parts > 1 ? ` · ${parts} parts × ${money(t.cost.each)}` : ''}` : parts > 1 ? `Uses ${parts} plan texts (1 per part), then ${money(t.cost.each)} each from your wallet` : `Uses a plan text, then ${money(t.cost.each)} from your wallet`;
+  const cost = t.number.kind === 'esim' ? (parts > 1 ? `Sends as ${parts} joined texts` : '') : parts > 1 ? `Uses ${parts} plan texts (1 per part), then ${money(t.cost.each)} each from your wallet` : `Uses a plan text, then ${money(t.cost.each)} from your wallet`;
   return (
     <div className="border-t border-[var(--c-border)] p-3" data-testid="composer">
       {t.replyFrom && t.replyFrom !== t.number.phone && <p className="text-xs text-[var(--c-muted)] px-1 pb-2" data-testid="composer-reply-from">Your reply comes from <span className="font-mono" data-no-translate>{t.replyFrom}</span></p>}

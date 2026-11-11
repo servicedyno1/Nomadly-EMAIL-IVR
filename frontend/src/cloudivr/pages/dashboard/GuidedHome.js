@@ -15,8 +15,8 @@ const TASKS = [
     ['…or let an AI receptionist pick up', '/app/ai-agents?use=inbound'], ['Test it: call your number from the browser phone', 'phone']]],
   ['leads', Megaphone, 'Call a list of leads', 'Bulk voice campaigns with press-1 transfer to you.', [
     ['Add or upload your contacts', '/app/contacts'], ['Record or pick the message they hear', '/app/audio'], ['Start the campaign and watch it live', '/app/campaigns/new']]],
-  ['texts', MessageSquareText, 'Send texts', 'Text customers from your business number.', [
-    ['Use a number with texting — or add texting to your landline', '/app/texting'], ['Open Messages and send your first text', '/app/messages']]],
+  ['texts', MessageSquareText, 'Send texts', 'Text customers from CloudIVR.', [
+    ['Order a Texting Number — send and receive texts right here', '/app/texting-number'], ['…or add texting to a number you already have', '/app/texting'], ['Open Messages and send your first text', '/app/messages']]],
   ['agent', Bot, 'Set up an AI agent', 'An AI that answers or calls, in 20 languages.', [
     ['Create the agent and give it a script', '/app/ai-agents/new'], ['Talk to it in your browser — free', '/app/ai-agents'], ['Give it its own number to answer', '/app/ai-agents?use=inbound']]],
   ['connect', KeyRound, 'Connect my phone or softphone', 'Use your number in Zoiper, a desk phone or the browser.', [

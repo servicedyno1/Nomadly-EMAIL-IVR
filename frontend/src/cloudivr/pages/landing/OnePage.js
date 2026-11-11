@@ -16,7 +16,7 @@ const WORDS = ['business calls', 'IVR campaigns', 'two-way texts', 'a USA eSIM']
 export const PICKS = [
   ['ivr', PhoneCall, 'A business phone line', 'Calls, IVR, SIP and campaigns'],
   ['esim', Smartphone, 'A USA eSIM', 'A real line on your phone'],
-  ['mobile', MessageSquareText, 'A USA mobile number', 'Real carrier number in your browser'],
+  ['mobile', MessageSquareText, 'A Texting Number', 'Send and receive texts in your browser'],
 ];
 
 function CyclingWord() {
@@ -38,7 +38,7 @@ export function OneHero({ setTab, from, esimPrice, offer }) {
       <HeroDecor />
       <div className="relative max-w-7xl mx-auto px-6 md:px-8 text-center">
         <div className="mx-auto max-w-3xl">
-          <div className="civr-l-kicker civr-rise"><span className="civr-l-dot" />Cloud phone, IVR and USA mobile lines</div>
+          <div className="civr-l-kicker civr-rise"><span className="civr-l-dot" />Cloud phone, IVR and texting</div>
           <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-6xl mt-5 text-slate-950 font-extrabold tracking-tight civr-rise civr-d1" data-testid="hero-title">One place for <span className="relative inline-block"><CyclingWord /><Squiggle /></span></h1>
           <p className="mx-auto max-w-2xl text-base md:text-lg text-slate-600 mt-5 leading-relaxed civr-rise civr-d2" data-testid="hero-subtitle">Pick what you need, pay with crypto or your wallet, and you are live in minutes. Month to month, no contract{from ? ` · from ${from}/month` : ''}.</p>
         </div>
@@ -74,11 +74,11 @@ export function AllPlans({ catalog, tab, setTab, esimPrice, offer }) {
             <div className="grid md:grid-cols-2 gap-5 max-w-5xl">
               {tab === 'esim'
                 ? <Card id="esim-card" icon={Smartphone} badge="On your phone" title="USA eSIM" kind="Downloadable eSIM on a real USA carrier" price={esimPrice || 75} points={ESIM_POINTS} note="QR code usually ready within minutes of payment."><button type="button" onClick={() => openEsimCheckout()} className="civr-l-btn mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-esim">Order eSIM<ArrowRight className="w-4 h-4" /></button></Card>
-                : <Card id="mobile" icon={MessageSquareText} badge="In your browser" title="USA mobile number" kind="Virtual number on a real USA carrier" price={offer?.price || 75} points={MOBILE_POINTS} note="Pick a ZIP code; the exact number is shown after payment.">{offer?.available ? <button type="button" onClick={openMobileCheckout} className="civr-l-btn mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-mobile">Order number<ArrowRight className="w-4 h-4" /></button> : offer ? <Waitlist /> : <div className="mt-4 h-[52px]" />}</Card>}
+                : <Card id="mobile" icon={MessageSquareText} badge="In your browser" title="Texting Number" kind="Virtual number on a real USA carrier" price={offer?.price || 75} points={MOBILE_POINTS} note="Pick a ZIP code; the exact number is shown after payment.">{offer?.available ? <button type="button" onClick={openMobileCheckout} className="civr-l-btn mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-mobile">Order number<ArrowRight className="w-4 h-4" /></button> : offer ? <Waitlist /> : <div className="mt-4 h-[52px]" />}</Card>}
               <div className="rounded-2xl border civr-l-rule bg-white p-6 text-sm text-slate-700 space-y-3" data-testid="which-one">
                 <p className="font-semibold text-slate-950">Which one do I need?</p>
                 <p>Want the line on your phone? <b>USA eSIM</b>.</p>
-                <p>Want a number you use in your browser? <b>USA mobile number</b>.</p>
+                <p>Want to text from your browser? <b>Texting Number</b>.</p>
                 <p>Need IVR, campaigns, SIP or any caller ID? <button type="button" className="font-semibold underline" onClick={() => setTab('ivr')} data-testid="which-one-ivr">Cloud IVR plans</button>.</p>
               </div>
             </div>

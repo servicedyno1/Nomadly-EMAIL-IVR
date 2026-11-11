@@ -174,7 +174,7 @@ export default function Wallet() {
   }, [dep, reload, refreshSummary]);
   const refresh = () => { reload(); refreshSummary(); };
   const header = (
-    <PageHeader label="Account" title="Wallet & billing" sub="Numbers, eSIMs, USA mobile numbers, renewals, texts, calls, campaigns and AI agent calls are all paid from here." testid="wallet-header">
+    <PageHeader label="Account" title="Wallet & billing" sub="Numbers, eSIMs, Texting Numbers, renewals, texts, calls, campaigns and AI agent calls are all paid from here." testid="wallet-header">
       <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={refresh} data-testid="wallet-refresh-button"><RefreshCw className="w-4 h-4" />Check for my payment</button>
     </PageHeader>
   );

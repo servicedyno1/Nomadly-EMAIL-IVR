@@ -8,13 +8,13 @@ import { useShell } from '../Shell';
 import { ask } from '../confirm';
 import { DRAFT_KEY, EMAIL_OK } from './landing/EsimCheckout';
 import { useCivrAuth } from '../AuthContext';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { cp } from '../paths';
 import { WalletPay, RenewWarning } from '../WalletPay';
 import { NewNumber } from './esim/NewNumber';
 import { EmailQr } from './esim/EmailQr';
 import { Receipts } from './esim/Receipts';
-import { MobileOffer } from './buy/MobileOffer';
+import { TextingNumberCta } from './buy/TextingNumberCta';
 import { RenewPick, renewText } from './esim/RenewPick';
 import { MobileLines } from './number/MobileLines';
 import { ImeiStep } from './esim/ImeiStep';
@@ -131,7 +131,7 @@ function Line({ item, reload, fresh }) {
         <button type="button" onClick={() => setOpen(!open)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`esim-qr-toggle-${item.id}`}><QrCode className="w-4 h-4" />{open ? 'Hide install QR' : 'Show install QR'}</button>
         {open && <QrBlock id={item.id} />}
         <EmailQr item={item} reload={reload} />
-        <p className="text-sm text-[var(--c-muted)] flex items-center gap-2" data-testid={`esim-texts-in-messages-${item.id}`}><MessageSquare className="w-4 h-4" />This eSIM has two-way SMS on your phone: send and receive texts there. Need texting in CloudIVR? Get a <Link to={cp('/app/buy')} className="underline font-semibold text-[var(--c-accent)]">USA mobile number</Link>.</p>
+        <p className="text-sm text-[var(--c-muted)] flex items-center gap-2" data-testid={`esim-texts-in-messages-${item.id}`}><MessageSquare className="w-4 h-4" />This eSIM has two-way SMS on your phone: send and receive texts there. Need texting in CloudIVR? Get a <Link to={cp('/app/texting-number')} className="underline font-semibold text-[var(--c-accent)]">Texting Number</Link>.</p>
       </>}
       <div className="flex flex-wrap items-start gap-2">
         {item.status === 'suspended' && <WalletPay price={item.price} small onWallet={() => act('renew', 'Renewed')} label={`Renew $${item.price}`} testid={`esim-renew-pay-${item.id}`} walletTestid={`esim-renew-${item.id}`} cryptoTestid={`esim-renew-crypto-${item.id}`} />}
@@ -149,7 +149,6 @@ export default function Esim() {
   const { data, error, reload } = useApi('/esim');
   const [buying, setBuying] = useState(null);
   const [fresh, setFresh] = useState(null);
-  const nav = useNavigate();
   const { account } = useCivrAuth();
   const [draft] = useState(() => { const x = readDraft(); return x && (!x.account || x.account === account?.id) ? x : null; });
   const used = useRef(false);
@@ -160,11 +159,11 @@ export default function Esim() {
   if (!data) return <Spinner />;
   return (
     <div className="space-y-8" data-testid="esim-page">
-      <PageHeader label="Phone numbers · eSIM & mobile" title="USA eSIM and USA mobile numbers" sub="Two real USA carrier numbers, $75/month each. Both have two-way SMS: they send and receive texts instantly. The USA eSIM downloads to your phone with a QR code: texts, calls and data happen on the phone. The USA mobile number is virtual: you use it in your browser, with texts in Messages and calls from the browser phone." testid="esim-header" />
+      <PageHeader label="Phone numbers · USA eSIM" title="USA eSIM" sub="A real USA carrier line on your own phone, installed with a QR code: texts, calls and data happen on the phone. Want to send and receive texts inside CloudIVR instead? Get a Texting Number." testid="esim-header" />
       {data.items.length > 0 && !buying && <div className="flex flex-wrap items-center gap-2 -mt-2" data-testid="esim-add-line-bar">
         <span className="text-sm text-[var(--c-muted,#a1a1aa)] mr-1">Add a line:</span>
         {data.plans.length > 0 && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => document.querySelector('[data-testid="esim-plans"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} data-testid="esim-jump-esim">USA eSIM</button>}
-        <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => document.querySelector('[data-testid="mobile-offer"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} data-testid="esim-jump-mobile">USA mobile number</button>
+        <Link to={cp('/app/texting-number')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="esim-jump-mobile">Texting Number</Link>
       </div>}
       {data.items.length > 0 && <div className="space-y-4">{data.items.map(x => <Line key={x.id} item={x} reload={reload} fresh={x.id === fresh} />)}</div>}
       {data.items.length > 0 && !buying && data.plans.length > 0 && <h2 className="font-display text-xl font-bold" data-testid="esim-add-another">Add another eSIM</h2>}
@@ -174,7 +173,7 @@ export default function Esim() {
       )}
       {!buying && <div data-testid="esim-page-mobile">
         <MobileLines noEmpty />
-        <MobileOffer onBought={() => nav(cp('/app/numbers'))} />
+        <TextingNumberCta testid="esim-texting-number-cta" className="mt-6" />
       </div>}
     </div>
   );

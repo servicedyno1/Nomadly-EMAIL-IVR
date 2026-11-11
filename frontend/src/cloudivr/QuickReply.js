@@ -31,7 +31,7 @@ export function QuickReply({ onSend, busy, max = 160, testid, sendLabel = 'Send 
         <input className="civr-input !h-9 text-sm" maxLength={max} value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && go()} placeholder="Or type your own reply" aria-label="Your reply" autoFocus={autoFocus} data-testid={`${testid}-input`} />
         <button type="button" disabled={busy || blocked || !text.trim()} onClick={go} className="civr-btn civr-btn-primary civr-btn-sm shrink-0" data-testid={`${testid}-send-button`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}{sendLabel}</button>
       </div>
-      <div className="text-xs text-[#a1a1aa]" data-testid={`${testid}-count`}>{`${text.length}/${max} · ${costNote}`}</div>
+      <div className="text-xs text-[#a1a1aa]" data-testid={`${testid}-count`}>{`${text.length}/${max}${costNote ? ` · ${costNote}` : ''}`}</div>
     </div>
   );
 }

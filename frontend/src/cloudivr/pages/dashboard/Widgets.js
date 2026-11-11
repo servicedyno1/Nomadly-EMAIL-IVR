@@ -71,7 +71,7 @@ export function YourNumbers({ nums: voip, balance }) {
   const [picked, setTab] = useState(null);
   const { data: mob } = useApi('/mobile-numbers');
   // USA mobile numbers (two-way SMS) are numbers too; they open in the mobile section of My numbers.
-  const mobile = (mob?.items || []).filter(m => ['provisioning', 'awaiting_imei', 'active', 'suspended'].includes(m.status)).map(m => ({ phoneNumber: m.phoneNumber || 'Assigning number…', mobile: true, status: m.status, expiresAt: m.expiresAt, autoRenew: m.autoRenew, planPrice: m.price, countryName: 'United States', planName: 'USA mobile number' }));
+  const mobile = (mob?.items || []).filter(m => ['provisioning', 'awaiting_imei', 'active', 'suspended'].includes(m.status)).map(m => ({ phoneNumber: m.phoneNumber || 'Assigning number…', mobile: true, status: m.status, expiresAt: m.expiresAt, autoRenew: m.autoRenew, planPrice: m.price, countryName: 'United States', planName: 'Texting Number' }));
   const { data: hs } = useApi('/hosted-sms');
   const texting = (hs?.items || []).filter(t => ['verify', 'loa', 'documents', 'admin_docs', 'review', 'active', 'paused'].includes(t.status)).map(t => ({ id: t.id, phoneNumber: t.phoneNumber, texting: true, status: t.status, expiresAt: t.planNumber ? null : t.nextBillAt, autoRenew: true, planPrice: t.planNumber ? 0 : t.monthly, planNumber: t.planNumber, planName: 'Landline to Texting' }));
   if (!voip) return null;

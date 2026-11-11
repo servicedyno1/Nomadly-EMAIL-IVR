@@ -70,7 +70,7 @@ COPY = {
     'landing/Families.js': ['two-way SMS'],
     'landing/PricingFaq.js': ['Can I receive texts, not just send them?', 'two-way SMS'],
     'Esim.js': ['Both have two-way SMS'],
-    'buy/MobileOffer.js': ['Need a USA mobile number with two-way SMS?', 'Two-way SMS: send and receive texts instantly in Messages.'],
+    'buy/MobileOffer.js': ['Order a Texting Number', 'sending and receiving texts right here in Messages'],
     'number/MobileLines.js': ['two-way SMS'],
     'Messages.js': ['A USA eSIM sends and receives texts on your phone instead.'],
 }

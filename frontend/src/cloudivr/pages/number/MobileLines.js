@@ -23,7 +23,7 @@ function MobileLine({ item, reload }) {
     <div className="civr-card p-5 space-y-3" data-testid={`mobile-line-${item.id}`}>
       <div className="flex flex-wrap items-center gap-3">
         <span className="font-mono text-lg" data-no-translate data-testid={`mobile-line-number-${item.id}`}>{item.phoneNumber || 'Number coming'}</span>
-        <span className="civr-pill">Virtual USA mobile · real carrier</span>
+        <span className="civr-pill">Texting Number</span>
         <span className="text-sm text-[var(--c-muted)]" data-testid={`mobile-line-status-${item.id}`}>{STATUS[item.status] || item.status}</span>
         {item.status === 'provisioning' && <Loader2 className="w-4 h-4 animate-spin text-[var(--c-muted)]" />}
         <span className="text-xs text-[var(--c-muted)] ml-auto" data-testid={`mobile-renew-info-${item.id}`}>{renewText(item, money)}</span>
@@ -37,7 +37,7 @@ function MobileLine({ item, reload }) {
       {item.status === 'active' && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--c-line)] p-3 opacity-70" aria-disabled="true" data-testid={`mobile-line-ring-${item.id}`}>
         <PhoneIncoming className="w-4 h-4 text-[var(--c-muted)]" /><span className="text-sm font-semibold">Ring in CloudIVR</span>
         <span className="civr-pill" data-testid={`mobile-line-ring-status-${item.id}`}>Not active yet</span>
-        <span className="text-xs text-[var(--c-muted)] basis-full">Calls to this number can’t ring in your browser yet: we’re waiting for the carrier to switch on call routing. Outgoing calls work: $0.15/min to the USA and Canada, other countries from $0.50/min, plus $0.03 per call, from your wallet.</span>
+        <span className="text-xs text-[var(--c-muted)] basis-full">Calls to this number can’t ring in your browser yet: we’re waiting for the carrier to switch on call routing. Outgoing calls from the browser phone already work.</span>
       </div>}
       <div className="flex flex-wrap items-start gap-2">
         {item.status === 'suspended' && <WalletPay price={item.price} small onWallet={() => act('renew', {}, 'Renewed')} label={`Renew ${money(item.price)}`} testid={`mobile-renew-pay-${item.id}`} walletTestid={`mobile-renew-${item.id}`} />}
@@ -58,13 +58,13 @@ export function MobileLines({ noEmpty = false }) {
   if (!data?.items?.length) return data?.available && !noEmpty ? (
     <div className="civr-card p-5 mt-8 flex flex-wrap items-center gap-3" data-testid="mobile-lines-empty">
       <MessageSquare className="w-5 h-5 text-[#818cf8]" />
-      <div className="flex-1 min-w-[200px]"><div className="font-semibold">Need a USA mobile number with two-way SMS?</div><div className="text-sm text-[var(--c-muted)]">{`A real carrier number with two-way SMS in Messages: send and receive texts, including verification codes. ${money(data.price)}/month.`}</div></div>
-      <Link to={cp('/app/buy')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="mobile-lines-empty-buy">Get one</Link>
+      <div className="flex-1 min-w-[200px]"><div className="font-semibold">Send and receive texts in CloudIVR</div><div className="text-sm text-[var(--c-muted)]">{`Get a Texting Number: a USA number for texts and verification codes, right in Messages. ${money(data.price)}/month.`}</div></div>
+      <Link to={cp('/app/texting-number')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="mobile-lines-empty-buy">Order a Texting Number</Link>
     </div>
   ) : null;
   return (
     <div className="mt-8 space-y-3" data-testid="mobile-lines">
-      <h2 className="font-display text-xl font-bold">USA mobile numbers <span className="text-sm font-normal text-[var(--c-muted)]">· virtual, on a real USA carrier, used in your browser</span></h2>
+      <h2 className="font-display text-xl font-bold">Your Texting Numbers <span className="text-sm font-normal text-[var(--c-muted)]">· texts in Messages, calls from the browser phone</span></h2>
       {data.items.map(x => <MobileLine key={x.id} item={x} reload={reload} />)}
     </div>
   );

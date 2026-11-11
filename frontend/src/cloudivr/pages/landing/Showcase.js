@@ -5,7 +5,7 @@ import { Reveal } from './kit';
 const SHOT = (n, v) => `${process.env.PUBLIC_URL || ''}/cloudivr/shots/${n}-${v}.webp`;
 const SHOTS = [
   ['messages', MessageSquareText, 'Messages', 'Two-way texts arrive in one inbox, in any browser.'],
-  ['numbers', Hash, 'My numbers', 'Your USA mobile number, renewal and replacement in one place.'],
+  ['numbers', Hash, 'My numbers', 'Your Texting Number, renewal and replacement in one place.'],
   ['esim', Smartphone, 'eSIM', 'The QR code to install your eSIM, plus plan and renewal.'],
 ];
 

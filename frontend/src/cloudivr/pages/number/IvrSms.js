@@ -4,7 +4,7 @@ import { MobileOffer } from '../buy/MobileOffer';
 import { smsOver, smsCount, smsParts } from '../../smsLimit';
 
 const shown = (x) => ['provisioning', 'active', 'suspended'].includes(x.status);
-const nameOf = (x) => `${x.phoneNumber || 'Number coming'} · ${x.kind === 'mobile' ? 'USA mobile number' : 'USA eSIM'}${x.status === 'active' ? '' : x.status === 'provisioning' ? ' (being assigned)' : ' (paused)'}`;
+const nameOf = (x) => `${x.phoneNumber || 'Number coming'} · ${x.kind === 'mobile' ? 'Texting Number' : 'USA eSIM'}${x.status === 'active' ? '' : x.status === 'provisioning' ? ' (being assigned)' : ' (paused)'}`;
 
 // IVR key that texts the caller from one of the owner's eSIM / mobile numbers; no number → buy one right here.
 export function IvrSms({ o, set, prefix }) {
@@ -21,8 +21,8 @@ export function IvrSms({ o, set, prefix }) {
       {loaded && !lines.length ? (
         <div className="space-y-2" data-testid={`${prefix}-sms-none`}>
           <p className="text-sm text-[var(--c-muted)]">You need a texting number to send texts to callers. Texts go to USA callers only.</p>
-          {!buying ? <button type="button" onClick={() => setBuying(true)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`${prefix}-sms-buy`}>Get a USA mobile number</button>
-            : mn.data.available ? <MobileOffer onBought={bought} open /> : <p className="text-sm text-[#fbbf24]" data-testid={`${prefix}-sms-unavailable`}>USA mobile numbers are temporarily unavailable. Try again later.</p>}
+          {!buying ? <button type="button" onClick={() => setBuying(true)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`${prefix}-sms-buy`}>Order a Texting Number</button>
+            : mn.data.available ? <MobileOffer onBought={bought} open /> : <p className="text-sm text-[#fbbf24]" data-testid={`${prefix}-sms-unavailable`}>Texting Numbers are temporarily unavailable. Try again later.</p>}
         </div>
       ) : (
         <select className="civr-input font-mono" value={o.smsFrom || ''} onChange={e => set({ smsFrom: e.target.value })} aria-label="Send the text from" data-testid={`${prefix}-sms-from`}>

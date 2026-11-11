@@ -9,7 +9,7 @@ import { startPrice } from '../../api';
 import { Slide, SiteThemeButton } from './kit';
 import { PRODUCTS, USE_CASES, goTo, hrefOf } from './menu';
 
-export const LANDING_LINKS = [['#esim-card', 'USA eSIM', 'esim'], ['#mobile', 'USA mobile number', 'mobile'], ['#business', 'Business calling', 'business'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'Help', 'faq']];
+export const LANDING_LINKS = [['#esim-card', 'USA eSIM', 'esim'], ['#mobile', 'Texting Number', 'mobile'], ['#business', 'Business calling', 'business'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'Help', 'faq']];
 // Products mega menu groups (ids from menu.js PRODUCTS).
 const GROUPS = [['Calling & IVR', ['numbers', 'ivr', 'campaigns', 'phone', 'ai', 'text', 'inbox'], 'calling'], ['Texting & mobile', ['esim', 'mobile', 'hosted'], 'mobile']];
 const MENUS = [['products', 'Products', PRODUCTS], ['usecases', 'Use cases', USE_CASES]];

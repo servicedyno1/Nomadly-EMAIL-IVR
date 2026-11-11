@@ -14,6 +14,7 @@ import { FaxCard } from './dashboard/FaxCard';
 import { ForYou, ReviewPrompt } from './dashboard/ForYou';
 import { TextingHome } from './dashboard/TextingHome';
 import { TaskCards, SetupChecklist } from './dashboard/GuidedHome';
+import { TextingNumberCta } from './buy/TextingNumberCta';
 
 function Stat({ icon: Icon, label, value, to, testid, delay, title }) {
   const body = (
@@ -76,9 +77,10 @@ export default function Dashboard() {
           <ArrowRight className="w-4 h-4" />
         </Link>
       )}
-      {!s || (fresh && !hosted) ? <SkeletonPage header={false} cards={3} rows={3} /> : textingOnly ? <TextingHome items={hosted.items} balance={s.balance} /> : fresh ? <>{promos}<Guided nums={[]} /><div className="mt-8"><GetStarted balance={s.balance} /></div></> : (
+      {!s || (fresh && !hosted) ? <SkeletonPage header={false} cards={3} rows={3} /> : textingOnly ? <TextingHome items={hosted.items} balance={s.balance} /> : fresh ? <>{promos}<Guided nums={[]} /><TextingNumberCta testid="dashboard-texting-number-cta" className="mt-6" /><div className="mt-8"><GetStarted balance={s.balance} /></div></> : (
         <>
           <Guided nums={nums?.numbers} />
+          <TextingNumberCta testid="dashboard-texting-number-cta" className="mt-6" />
           <h2 className="font-display text-xl font-bold mt-10 mb-4">At a glance</h2>
           <Stats s={s} />
           <div className="mt-6"><ForYou /></div>

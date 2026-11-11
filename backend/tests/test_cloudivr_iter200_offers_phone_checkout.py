@@ -11,7 +11,7 @@ BASE_URL = (os.environ.get('REACT_APP_BACKEND_URL') or FE_ENV['REACT_APP_BACKEND
 API = f"{BASE_URL}/api/cloudivr-web"
 BE_ENV = dotenv_values('/app/backend/.env')
 DB = MongoClient(BE_ENV['MONGO_URL'])[BE_ENV['DB_NAME']]
-NOTE = "VoIP numbers only, not the eSIM or USA mobile number."
+NOTE = "VoIP numbers only, not the eSIM or Texting Number."
 
 
 def new_phone():

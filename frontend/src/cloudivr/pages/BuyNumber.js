@@ -10,7 +10,7 @@ import Checkout from './buy/Checkout';
 import { PlanFeatures, RecommendedBadge, availablePlans } from '../PlanFeatures';
 import { usePrivacy } from '../privacy';
 import { Flag, IconSelect } from '../Pickers';
-import { MobileOffer } from './buy/MobileOffer';
+import { TextingNumberCta } from './buy/TextingNumberCta';
 
 // The chosen number + plan survive the wallet top-up detour (Wallet links back with ?resume=1).
 const RESUME_KEY = 'civr.buyResume';
@@ -197,6 +197,7 @@ export default function BuyNumber() {
       {extraOf
         ? <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-extra-back"><Link to={cp('/app/buy')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-extra-back-button">Buy a brand-new number with its own plan instead</Link></p>
         : <>
+          <TextingNumberCta testid="buy-texting-number-cta" className="mb-6" />
           {eligible.length > 0 && <ExistingPlanChooser nums={eligible} price={catalog.extraNumber?.price || 25} pv={pv} />}
           <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-texting-link">Already have a business number? <Link to={cp('/app/texting?add=1')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-texting-link-button">Add texting to it</Link></p>
         </>}
@@ -206,7 +207,7 @@ export default function BuyNumber() {
       <Steps current={pick ? (extraOf ? 2 : 3) : res ? 2 : 1} extra={!!extraOf} />
       <Label>1 · Find a number</Label>
       <SearchForm catalog={catalog} q={q} setQ={setQ} onSearch={search} busy={busy === 'search'} />
-      {!extraOf && q.country === 'US' && <MobileOffer onBought={() => nav(cp('/app/numbers'))} />}
+
       <div className="mt-4"><ErrorNote error={error} testid="buy-error" /></div>
       {res && <div className="mt-8"><Label>2 · Pick a number</Label><Results res={res} pick={pick} setPick={setPick} /></div>}
       {pick && (

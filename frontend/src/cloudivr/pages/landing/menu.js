@@ -11,7 +11,7 @@ export const PRODUCTS = [
   ['hosted', MessageSquareText, 'Landline to Texting', 'Get texts on the landline number you already have.', 'hosted'],
   ['inbox', Inbox, 'SMS & voicemail inbox', 'Every text and transcribed voicemail in one inbox.', 'sms'],
   ['esim', Smartphone, 'USA eSIM', 'A downloadable USA line on T-Mobile for your phone, installed with a QR code.', '#esim-card'],
-  ['mobile', Smartphone, 'USA mobile number', 'A virtual local number on a real USA carrier, used in your browser.', '#mobile'],
+  ['mobile', Smartphone, 'Texting Number', 'Send and receive texts in your browser, on a real USA carrier number.', '#mobile'],
 ];
 
 export const USE_CASES = [

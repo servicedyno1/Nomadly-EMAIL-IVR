@@ -49,7 +49,7 @@ export function ProductHero({ esimPrice, offer }) {
     <section className="civr-l-cream relative pt-24 md:pt-28 pb-14 md:pb-20" data-testid="product-hero">
       <div className="relative max-w-7xl mx-auto px-6 md:px-8">
         <div className="max-w-4xl">
-          <div className="civr-l-kicker civr-rise"><span className="civr-l-dot" />USA mobile lines on a real carrier</div>
+          <div className="civr-l-kicker civr-rise"><span className="civr-l-dot" />USA carrier lines and texting</div>
           <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-[54px] lg:leading-[1.08] mt-5 text-slate-950 civr-rise civr-d1" data-testid="hero-title">A real USA number on a real carrier. <span className="civr-l-hl">On your phone, or in your browser.</span></h1>
           <p className="text-base md:text-lg text-slate-600 mt-4 leading-relaxed civr-rise civr-d2" data-testid="hero-subtitle">Order in a couple of minutes, right here. Pay with crypto or your CloudIVR wallet. No contract, renews monthly.</p>
         </div>
@@ -57,7 +57,7 @@ export function ProductHero({ esimPrice, offer }) {
           <Card id="esim-card" icon={Smartphone} badge="On your phone" title="USA eSIM" kind="Downloadable eSIM: install it on your phone" price={esimPrice || 75} points={ESIM_POINTS} note="QR code usually ready within minutes of payment." delay={60}>
             <button type="button" onClick={() => openEsimCheckout()} className="civr-l-btn mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-esim">Order eSIM<ArrowRight className="w-4 h-4" /></button>
           </Card>
-          <Card id="mobile" icon={MessageSquareText} badge="In your browser" title="USA mobile number" kind="Virtual local number on a real USA carrier" price={mobilePrice} points={MOBILE_POINTS} note="Pick a ZIP code; the exact number is shown after payment." delay={140}>
+          <Card id="mobile" icon={MessageSquareText} badge="In your browser" title="Texting Number" kind="Virtual local number on a real USA carrier" price={mobilePrice} points={MOBILE_POINTS} note="Pick a ZIP code; the exact number is shown after payment." delay={140}>
             {offer?.available
               ? <button type="button" onClick={openMobileCheckout} className="civr-l-btn mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-mobile">Order number<ArrowRight className="w-4 h-4" /></button>
               : offer ? <Waitlist /> : <div className="mt-4 h-[52px]" />}
@@ -66,7 +66,7 @@ export function ProductHero({ esimPrice, offer }) {
         <Reveal className="mt-6 rounded-2xl border civr-l-rule bg-white px-5 py-4 text-sm text-slate-700 flex flex-wrap gap-x-6 gap-y-1" data-testid="which-one">
           <span className="font-semibold text-slate-950">Which one do I need?</span>
           <span>Want the line on your phone? <b>USA eSIM</b> (downloadable).</span>
-          <span>Want a number you use in your browser? <b>USA mobile number</b> (virtual, real carrier).</span>
+          <span>Want to text from your browser? <b>Texting Number</b> (real USA carrier).</span>
         </Reveal>
       </div>
     </section>

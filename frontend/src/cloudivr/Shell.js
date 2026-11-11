@@ -26,6 +26,7 @@ import AudioLibrary from './pages/AudioLibrary';
 import QuickCall from './pages/QuickCall';
 import Contacts from './pages/Contacts';
 import Texting from './pages/Texting';
+import TextingNumber from './pages/TextingNumber';
 import Esim from './pages/Esim';
 import TextCall from './pages/TextCall';
 import { Campaigns, CampaignNew } from './pages/Campaigns';
@@ -196,6 +197,7 @@ export default function Shell() {
               <Route path="audio" element={<AudioLibrary />} />
               <Route path="contacts" element={<Contacts />} />
               <Route path="texting" element={<Texting />} />
+              <Route path="texting-number" element={<TextingNumber />} />
               <Route path="esim" element={<Esim />} />
               <Route path="quick-call" element={<QuickCall />} />
               <Route path="text-call" element={<TextCall />} />

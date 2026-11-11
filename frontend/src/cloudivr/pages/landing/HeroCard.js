@@ -11,7 +11,7 @@ const PITCH = {
   mobile: 'A real USA carrier number you use in your browser, for calls and texts.',
 };
 
-const SHORT = { ivr: 'Business line', esim: 'USA eSIM', mobile: 'Mobile number' };
+const SHORT = { ivr: 'Business line', esim: 'USA eSIM', mobile: 'Texting Number' };
 const TRUST = [[ShieldCheck, 'Month to month, no contract'], [Zap, 'Live in minutes'], [LifeBuoy, 'Real human support']];
 
 // JujuCloud-style hero card: three tabs, one pitch, price and action each.

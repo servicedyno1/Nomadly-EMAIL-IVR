@@ -7,6 +7,7 @@ import { cp } from '../paths';
 import { PageHeader, Empty, ErrorNote, SkeletonRows } from '../ui';
 import { ThreadList } from './messages/ThreadList';
 import { Thread } from './messages/Thread';
+import { TextingNumberCta } from './buy/TextingNumberCta';
 
 const useDebounced = (v, ms) => { const [d, setD] = useState(v); useEffect(() => { const t = setTimeout(() => setD(v), ms); return () => clearTimeout(t); }, [v, ms]); return d; };
 
@@ -31,8 +32,9 @@ export default function Messages() {
       <div className={sel ? 'hidden md:block' : ''}><PageHeader label="Home" title="Messages" sub="Texts, pictures, voicemails and calls with each person, in one conversation." testid="messages-header" /></div>
       {error && <ErrorNote error={error} onRetry={reload} testid="messages-error" />}
       {none ? (
-        <Empty icon={MessagesSquare} title="No numbers yet" sub="Get a VoIP number, a USA mobile number or Landline to Texting and your conversations show up here. A USA eSIM sends and receives texts on your phone instead." testid="messages-empty-numbers"><Link to={cp('/app/buy')} className="civr-btn civr-btn-primary mt-6" data-testid="messages-buy-link">Buy a number</Link></Empty>
-      ) : (
+        <Empty icon={MessagesSquare} title="No numbers yet" sub="Order a Texting Number to send and receive texts right here. Already have a business number? Add texting to it." testid="messages-empty-numbers"><div className="flex flex-wrap justify-center gap-2 mt-6"><Link to={cp('/app/texting-number')} className="civr-btn civr-btn-primary" data-testid="messages-order-texting-number">Order a Texting Number</Link><Link to={cp('/app/texting?add=1')} className="civr-btn civr-btn-ghost" data-testid="messages-buy-link">Add texting to my number</Link></div></Empty>
+      ) : (<>
+        {!sel && <TextingNumberCta testid="messages-texting-cta" className="mb-4" />}
         <div className="civr-card !p-0 overflow-hidden grid md:grid-cols-[340px_1fr] lg:grid-cols-[380px_1fr] h-[calc(100dvh-14rem)] md:h-[calc(100dvh-18rem)] min-h-[440px]" data-testid="messages-layout">
           <div className={`min-h-0 md:border-r border-[var(--c-border)] ${sel ? 'hidden md:block' : ''}`}>
             {!data ? <div className="p-4"><SkeletonRows rows={6} card={false} /></div> : <ThreadList data={data} sel={sel} onPick={pick} filter={filter} setFilter={setFilter} q={q} setQ={setQ} multi={multi} tag={tag} setTag={setTag} />}
@@ -43,7 +45,7 @@ export default function Messages() {
               : <div className="text-center text-[var(--c-muted)] p-8" data-testid="messages-pick"><MessagesSquare className="w-10 h-10 mx-auto mb-3 opacity-50" />Pick a conversation</div>}
           </div>
         </div>
-      )}
+      </>)}
     </div>
   );
 }

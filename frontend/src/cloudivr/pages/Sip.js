@@ -55,11 +55,11 @@ function MobileList({ items, openPhone }) {
   if (!items.length) return null;
   return (
     <div className="civr-card p-6 space-y-3" data-testid="sip-page-mobile">
-      <div className="flex items-center gap-2 font-semibold"><Phone className="w-4 h-4 text-[#818cf8]" />USA mobile numbers use the browser phone</div>
+      <div className="flex items-center gap-2 font-semibold"><Phone className="w-4 h-4 text-[#818cf8]" />Texting Numbers use the browser phone</div>
       <p className="text-xs text-[#a1a1aa]" data-testid="sip-page-mobile-note">These numbers call and text from CloudIVR; they don’t have a separate SIP login for softphones.</p>
       {items.map((m, i) => (
         <div key={m.id || i} className="flex items-center justify-between gap-3 py-2 border-t border-[#262626]" data-testid={`sip-page-mobile-${i}`}>
-          <span className="min-w-0"><span className="block font-mono text-sm truncate">{m.phoneNumber ? pv.phone(m.phoneNumber) : 'Assigning number…'}</span><span className="block text-xs text-[#a1a1aa] mt-0.5">USA mobile number · {m.status}</span></span>
+          <span className="min-w-0"><span className="block font-mono text-sm truncate">{m.phoneNumber ? pv.phone(m.phoneNumber) : 'Assigning number…'}</span><span className="block text-xs text-[#a1a1aa] mt-0.5">Texting Number · {m.status}</span></span>
           {m.status === 'active' && m.phoneNumber && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={openPhone} data-testid={`sip-page-mobile-phone-${i}`}><Phone className="w-4 h-4" />Browser phone</button>}
         </div>
       ))}

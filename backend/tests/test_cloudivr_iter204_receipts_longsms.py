@@ -68,7 +68,7 @@ class TestReceipts:
         rec = r.json()["receipts"]
         print("mobile receipts", rec[:3])
         assert all(x["kind"] != "Text" for x in rec)
-        assert all(x["line"] == "USA mobile number" for x in rec)
+        assert all(x["line"] == "Texting Number" for x in rec)
 
     def test_other_user_line(self):
         bob = login(BOB)
