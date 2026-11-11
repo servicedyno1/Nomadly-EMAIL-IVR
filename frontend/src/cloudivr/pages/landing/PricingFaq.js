@@ -176,6 +176,8 @@ export function Footer({ catalog }) {
               {catalog?.supportLink && <a href={catalog.supportLink} target="_blank" rel="noopener noreferrer" className={`${fLink} flex items-center gap-2`} data-testid="footer-support-link"><MessageCircle className="w-4 h-4" />Support on Telegram</a>}
               {catalog?.channelLink && <a href={catalog.channelLink} target="_blank" rel="noopener noreferrer" className={`${fLink} flex items-center gap-2`} data-testid="footer-channel-link"><Send className="w-4 h-4" />Telegram channel</a>}
               <Link to={cp('/terms')} className={fLink} data-testid="footer-link-terms">Terms of Service</Link>
+              <Link to={cp('/terms#privacy')} className={fLink} data-testid="footer-link-privacy">Privacy</Link>
+              <Link to={cp('/terms#legal-notice')} className={fLink} data-testid="footer-link-legal-notice">Legal notice</Link>
               <button type="button" onClick={openCookieSettings} className={fLink} data-testid="footer-link-cookies">Cookie settings</button>
             </FooterCol>
           </div>
@@ -183,7 +185,7 @@ export function Footer({ catalog }) {
         <div className="mt-14 pt-8 border-t border-slate-200 flex flex-col md:flex-row md:items-end gap-6 justify-between">
           <PaymentMethods catalog={catalog} label="We accept" testid="footer-payment-methods" />
           <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-semibold text-slate-900 hover:text-[color:var(--np-blue)] min-h-[44px] md:order-last" data-testid="footer-back-to-top"><ArrowUp className="w-4 h-4" />Back to top</button>
-          <div className="text-xs text-slate-500" data-testid="footer-copyright">© {new Date().getFullYear()} CloudIVR · Virtual numbers, inbound & outbound IVR, SIP and AI voice agents</div>
+          <div className="text-xs text-slate-500 md:whitespace-nowrap" data-testid="footer-copyright">© {new Date().getFullYear()} CloudIVR — a Dynotech Innovations product</div>
         </div>
       </div>
     </footer>

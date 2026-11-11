@@ -1,9 +1,9 @@
 // Terms of Service text. Plain data so it is easy to edit; sections render in this order.
-export const UPDATED = '26 October 2026';
+export const UPDATED = '11 November 2026';
 
 export const TERMS = [
   { id: 'about', title: 'About these terms', body: [
-    'These Terms of Service are an agreement between you and CloudIVR ("we", "us") for the cloudivr.net website, the CloudIVR web app and every phone number, call, text message and AI feature we provide (the "service").',
+    'These Terms of Service are an agreement between you and Dynotech Innovations, the company that owns and operates CloudIVR ("CloudIVR", "we", "us"), for the cloudivr.net website, the CloudIVR web app and every phone number, call, text message and AI feature we provide (the "service").',
     'By creating an account, buying a number or using the service you agree to these terms. If you use CloudIVR for a business, you confirm you may accept them on its behalf. CloudIVR web accounts are separate from any Telegram bot account.',
   ] },
   { id: 'account', title: 'Your account', body: [
@@ -45,7 +45,7 @@ export const TERMS = [
     'Greetings, audio, scripts, contact lists and messages you add stay yours. You let us store, process and play them only to run the service for you. You confirm you have the right to use them and to contact the people on your lists.',
   ] },
   { id: 'privacy', title: 'Your data', body: [
-    'We keep your account details, numbers, call and message logs, recordings and transcripts to run the service, bill you, prevent abuse and meet legal duties. We share them only with the carriers and providers that make calls, texts, payments and AI features work, or when the law requires it. We do not sell your data.',
+    'Dynotech Innovations is responsible for the personal data used to run CloudIVR. We keep your account details, numbers, call and message logs, recordings and transcripts to run the service, bill you, prevent abuse and meet legal duties. We share them only with the carriers and providers that make calls, texts, payments and AI features work, or when the law requires it. We do not sell your data.',
   ] },
   { id: 'availability', title: 'Service availability', body: [
     'Calls and texts depend on carriers, the internet and other providers outside our control, so the service is provided "as is" and may sometimes be interrupted or delayed. We may change, add or remove features; when a change affects something you pay for, we will tell you in the app or by email.',
@@ -61,7 +61,11 @@ export const TERMS = [
   { id: 'changes', title: 'Changes to these terms', body: [
     'We may update these terms. The date at the top shows the latest version. If a change is significant we will let you know by email or in the app before it applies. Using the service after that means you accept the new terms.',
   ] },
+  { id: 'legal-notice', title: 'Legal notice', body: [
+    'CloudIVR and the cloudivr.net website are owned and operated by Dynotech Innovations.',
+    'CloudIVR is a product of Dynotech Innovations. The CloudIVR name, logo and website content belong to Dynotech Innovations.',
+  ] },
   { id: 'contact', title: 'Contact', body: [
-    'Questions about these terms? Use the help assistant in the app or message our support team.',
+    'Questions about these terms or Dynotech Innovations? Use the help assistant in the app or message our support team.',
   ] },
 ];
