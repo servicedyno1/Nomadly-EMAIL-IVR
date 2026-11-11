@@ -1068,7 +1068,7 @@ async function tick() {
 
 // ---------- inbound ----------
 async function onWebhook(raw, headers, body) {
-  if (!P.dry()) { const secrets = [...(await C('bsAccounts').find({ 'webhook.signingSecret': { $ne: null } }).toArray()).map(a => a.webhook.signingSecret), (await C('bsConfig').findOne({ _id: 'webhook' }))?.signingSecret].filter(Boolean); if (!secrets.some(s => P.verify(raw, headers['x-spenza-signature'], headers['x-spenza-timestamp'], s))) return { status: 401 } }
+  if (!P.dry()) { const secrets = [...(await C('bsAccounts').find({ 'webhook.signingSecret': { $ne: null } }).toArray()).map(a => a.webhook.signingSecret), (await C('bsConfig').findOne({ _id: 'webhook' }))?.signingSecret].filter(Boolean); if (!secrets.some(s => P.verify(raw, headers['x-spenza-signature'], headers['x-spenza-timestamp'], s))) { if (await once(`sigfail:${new Date().toISOString().slice(0, 13)}`)) alert(`🚨 Incoming texts are being REJECTED: Spenza's signature doesn't match our stored secret (${secrets.length} on file). Replies and line checks are lost until the webhook is re-registered (/bulkwebhook).`); return { status: 401 } } }
   const x = P.parseInbound(body); if (x.event === 'webhook.test' || x.direction !== 'inbound' || !x.text) return { status: 200 }
   const key = x.providerId || crypto.createHash('sha1').update(`${x.from}|${x.to}|${x.text}|${Math.floor(Date.now() / MIN)}`).digest('hex')
   try { await C('bsWebhooks').insertOne({ _id: key, eventType: 'incoming-sms', providerMessageId: x.providerId, payload: body, status: 'received', at: new Date() }) } catch (e) { if (e.code === 11000) return { status: 200 }; throw e }
@@ -1171,7 +1171,7 @@ async function ensureStatusWebhook() {
 }
 async function registerWebhook(baseUrl, onlyAccount) {
   const url = `${String(baseUrl || '').replace(/\/$/, '')}/api/bulk-esim/webhook`, out = []
-  for (const a of (await cfg()).accounts) { if (onlyAccount && a.id !== onlyAccount) continue; const r = await P.registerWebhook(url, a.id); await setAccount(a.id, { webhook: { ...r, at: new Date() } }); out.push({ account: a.id, ...r }) }
+  for (const a of (await cfg()).accounts) { if (onlyAccount && a.id !== onlyAccount) continue; const r = await P.registerWebhook(url, a.id), prev = (await C('bsAccounts').findOne({ _id: a.id }))?.webhook; await setAccount(a.id, { webhook: { ...r, signingSecret: r.signingSecret || prev?.signingSecret || null, at: new Date() } }); out.push({ account: a.id, ...r }) }
   return { url, accounts: out, simulated: out.every(x => x.simulated) }
 }
 

@@ -87,7 +87,11 @@ const replaceNumber = async (iccid, account) => (dry() ? (String(process.env.BUL
 const setSms = async (iccid, on, account) => (dry() ? { ok: true } : call('patch', `/api/v1.1/sims/${encodeURIComponent(iccid)}/service-state`, { sms: !!on }, {}, account))
 async function registerWebhook(url, account) {
   if (dry()) return { url, statusUrl: url.replace(/\/webhook$/, '/webhook-status'), signingSecret: 'whsec_preview', simulated: true }
-  const r = await call('post', '/api/v1.1/webhooks', { operator: 'SpenzaJ', network: 'SpenzaJ', eventType: 'sms', webhookUrls: { messageUrl: url, callbackMessageUrl: url.replace(/\/webhook$/, '/webhook-status') }, authentication: { type: 'none' }, update: true }, {}, account)
+  const body = { operator: 'SpenzaJ', network: 'SpenzaJ', eventType: 'sms', webhookUrls: { messageUrl: url, callbackMessageUrl: url.replace(/\/webhook$/, '/webhook-status') }, authentication: { type: 'none' } }
+  let r = await call('post', '/api/v1.1/webhooks', { ...body, update: true }, {}, account)
+  // An update can come back without a signing secret; without it every inbound text fails verification → recreate to get one.
+  if (!r?.data?.signingSecret && r?.data?.id) { await call('delete', `/api/v1.1/webhooks/${r.data.id}`, null, {}, account); r = await call('post', '/api/v1.1/webhooks', body, {}, account) }
+  if (!r?.data?.signingSecret) throw Object.assign(new Error('Spenza returned no webhook signing secret'), { kind: 'temporary' })
   return { url, statusUrl: url.replace(/\/webhook$/, '/webhook-status'), id: r?.data?.id || null, signingSecret: r?.data?.signingSecret || null }
 }
 function verify(raw, sig, ts, secret) {
