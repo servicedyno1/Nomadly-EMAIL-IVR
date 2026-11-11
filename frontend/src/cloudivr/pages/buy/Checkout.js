@@ -55,13 +55,13 @@ export function CouponField({ total, coupon, setCoupon, initialCode }) {
 }
 
 // Pay for the picked number from the wallet or with crypto; auto-renew starts switched on.
-export default function Checkout({ pick, planObj, total, balance, coins, busy, onPay, onTopUp, coupon, setCoupon, initialCode, cryptoOk = true, cryptoMin = 0, label }) {
+export default function Checkout({ pick, planObj, total, balance, coins, busy, onPay, onTopUp, coupon, setCoupon, initialCode, cryptoOk = true, cryptoMin = 0, label, autoRenewDefault = true }) {
   const due = coupon ? Math.round(total * (1 - coupon.discount / 100) * 100) / 100 : total;
   const short = Math.max(0, Math.round((due - (balance || 0)) * 100) / 100);
   const [method, setMethod] = useState(short > 0 && cryptoOk ? 'crypto' : 'wallet');
   useEffect(() => { if (short > 0 && cryptoOk && method === 'wallet') setMethod('crypto'); }, [short, cryptoOk, method]);
   const [coin, setCoin] = useState(coins[0] || '');
-  const [autoRenew, setAutoRenew] = useState(true);
+  const [autoRenew, setAutoRenew] = useState(autoRenewDefault);
   const walletShort = method === 'wallet' && short > 0;
   return (
     <div className="civr-card p-6 mt-6" data-testid="buy-summary">

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Search, Check, Loader2, Clock } from 'lucide-react';
+import { Search, Check, Loader2, Clock, Layers, Plus } from 'lucide-react';
 import { api, money, enc, useApi } from '../api';
 import { useShell } from '../Shell';
 import { PageHeader, Field, Spinner, ErrorNote, Label } from '../ui';
@@ -114,6 +114,28 @@ function Steps({ current, extra }) {
   );
 }
 
+// Existing customers: hang a new number off a plan they already pay for (shares its minutes, SMS & features)
+// instead of buying a whole new plan. One tap jumps into the ?extra= flow.
+function ExistingPlanChooser({ nums, price, pv }) {
+  const nav = useNavigate();
+  const [sel, setSel] = useState(nums[0]?.phoneNumber || '');
+  return (
+    <div className="civr-card civr-rise p-5 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 !border-[#38bdf8]/40 bg-gradient-to-r from-[#38bdf8]/10 to-transparent" data-testid="buy-add-to-plan-card">
+      <div className="w-11 h-11 rounded-xl bg-[#38bdf8]/15 flex items-center justify-center shrink-0"><Layers className="w-5 h-5 text-[#38bdf8]" /></div>
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-base">Already have a plan? Add a number to it</div>
+        <div className="text-sm text-[#a1a1aa] mt-1">Skip picking a plan — a new number on one you already pay for is {money(price)}/month and shares its minutes, SMS and features.</div>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+        <select className="civr-input !h-10 sm:w-48" value={sel} onChange={e => setSel(e.target.value)} data-testid="buy-add-to-plan-select">
+          {nums.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{`${pv.phone(n.phoneNumber)} · ${n.planName}`}</option>)}
+        </select>
+        <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={!sel} onClick={() => nav(cp(`/app/buy?extra=${enc(sel)}`))} data-testid="buy-add-to-plan-cta"><Plus className="w-4 h-4" />Add to this plan</button>
+      </div>
+    </div>
+  );
+}
+
 export default function BuyNumber() {
   const { catalog, summary, refreshSummary } = useShell();
   const nav = useNavigate();
@@ -128,10 +150,14 @@ export default function BuyNumber() {
   const [coupon, setCoupon] = useState(saved?.coupon || null);
   const extraOf = params.get('extra');
   const { data: extra } = useApi(extraOf ? `/numbers/${enc(extraOf)}/extra` : null);
+  const { data: myNums } = useApi('/numbers');
   const pv = usePrivacy();
   const { data: open } = useApi('/numbers/orders?open=1');
   useEffect(() => { refreshSummary(); }, [refreshSummary]);
   if (!catalog) return <Spinner />;
+  // Active main numbers the caller can hang an extra number off of.
+  const eligible = (myNums?.numbers || []).filter(n => n.status === 'active' && !n.isSubNumber && !n.replacedBy);
+  const parent = extraOf ? (myNums?.numbers || []).find(n => n.phoneNumber === extraOf) : null;
   // Picked plan → the recommended plan (Pro) → the first plan on sale.
   const avail = (id) => catalog.plans.find(p => p.id === id && p.available);
   const planObj = avail(plan) || avail(catalog.recommendedPlan) || catalog.plans.find(p => p.available);
@@ -168,7 +194,12 @@ export default function BuyNumber() {
     <div data-testid="buy-page">
       {extraOf ? <PageHeader label="Extra number" title="Add an extra number" sub={`Shares the plan of ${pv.phone(extraOf)} — ${money(extra?.price || 25)}/month, same features, and uses its minutes and SMS. Pay from your wallet or with crypto.${extra ? ` ${extra.used} of ${extra.limit} used.` : ''}`} testid="buy-header" />
         : <PageHeader label="Buy" title="Get a VoIP number" sub={`Internet-based (VoIP) business phone numbers in ${catalog.countries.length} countries. Call and text from your browser on every plan; Pro and up add keypad menus (IVR), campaigns and logins for your own phone apps (SIP). Pay with crypto or your wallet, renews monthly.`} testid="buy-header" />}
-      {!extraOf && <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-texting-link">Already have a business number? <Link to={cp('/app/texting?add=1')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-texting-link-button">Add texting to it</Link></p>}
+      {extraOf
+        ? <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-extra-back"><Link to={cp('/app/buy')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-extra-back-button">Buy a brand-new number with its own plan instead</Link></p>
+        : <>
+          {eligible.length > 0 && <ExistingPlanChooser nums={eligible} price={catalog.extraNumber?.price || 25} pv={pv} />}
+          <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-texting-link">Already have a business number? <Link to={cp('/app/texting?add=1')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-texting-link-button">Add texting to it</Link></p>
+        </>}
       {open?.orders?.[0] && <OpenOrder order={open.orders[0]} />}
       {saved?.pick && <div className="civr-card p-4 mb-4 text-sm flex items-center gap-2" data-testid="buy-resume-note"><Check className="w-4 h-4 text-[#818cf8]" />Welcome back — {saved.pick.phoneNumber} and the {planObj?.name} plan are still selected below.</div>}
       {fromParam && <div className="text-sm text-[#818cf8] mb-4 flex items-center gap-2" data-testid="buy-plan-hint"><Check className="w-4 h-4" />{planObj.name} plan picked — search for a number below.</div>}
@@ -186,7 +217,7 @@ export default function BuyNumber() {
           <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} surcharge={pick.surcharge} />
           </>}
           <Checkout key={`${pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}
-            coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `Extra number on ${pv.phone(extraOf)} · monthly` : null} />
+            coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `Extra number on ${pv.phone(extraOf)} · monthly` : null} autoRenewDefault={extraOf ? (parent ? parent.autoRenew !== false : true) : true} />
         </div>
       )}
     </div>

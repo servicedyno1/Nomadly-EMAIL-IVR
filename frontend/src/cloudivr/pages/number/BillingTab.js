@@ -107,6 +107,8 @@ function Danger({ num, onDeleted, refreshSummary }) {
   const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
   const del = async () => {
+    const extraNote = !num.isSubNumber ? ' Any extra numbers sharing its plan are released too.' : '';
+    if (!(await ask(`Permanently delete ${num.phoneNumber}? It goes back to the carrier and can’t be recovered, with no refund for this month.${extraNote}`, { danger: true, ok: 'Delete permanently', cancel: 'Keep number', title: 'Delete this number?' }))) return;
     setBusy(true);
     try { await api(`/numbers/${enc(num.phoneNumber)}`, { method: 'DELETE', body: { confirm: typed } }); toast.success('Number deleted'); refreshSummary(); onDeleted(); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };

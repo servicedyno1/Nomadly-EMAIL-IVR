@@ -1,3 +1,11 @@
+## 2026-06 — CloudIVR: make "add a number to an existing plan" easy to find — CODE DONE & TESTED (preview; user deploys)
+- Complaint (MAZE on cloudivr.net/app/buy): adding another number to a plan they already pay for was buried in Number → Billing → Extra numbers → `/app/buy?extra=<phone>`; the generic "Buy a number" button only offered a full new-plan purchase.
+- Added entry points (all three, per owner): (1) `BuyNumber.js` — prominent "Already have a plan? Add a number to it" chooser card at top (`buy-add-to-plan-card`, dropdown of eligible active main numbers → jumps to `?extra=`); in extra mode a "Buy a brand-new number with its own plan instead" escape link (`buy-extra-back-button`). (2) `Numbers.js` — "Add number" action on each active main number card (`number-card-N-add-extra`), hidden on sub-numbers/replaced. (3) Billing-tab entry kept as-is.
+- Auto-renew default for an extra number now matches its main number (`Checkout.js` `autoRenewDefault`; parent read from `/numbers`), instead of always-on.
+- Delete number: added an `ask()` double-confirmation on top of the existing type-the-number step (`BillingTab.js` Danger), warns extras on the plan are released too.
+- Tested: logged-in preview (seeded account `civr.uxtest@example.com` + dry-run Business +13341112222 with a sub-number) — chooser card, add-number button, and extra-mode page all render; sub-number correctly excluded. PENDING: Save to GitHub → deploy.
+
+
 ## 2026-06 — CloudIVR AI agent: fix premature "Are you still there?" / turn cut-offs — CODE DONE & TESTED (preview; user deploys)
 - Root cause: `js/ai-agent/bridge.js` `vad()` used OpenAI `semantic_vad` `eagerness: 'high'` (~2 s max wait) → a caller pausing to think after a question was treated as "finished", so the agent spoke / nudged over them.
 - Fix: switched to `eagerness: 'low'` (~8 s, OpenAI's most patient preset). Single `vad()` helper → applies to browser test, inbound & outbound (all 5 turn_detection updates: initial session, opening, machine, screener, barge-in).

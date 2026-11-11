@@ -1,5 +1,9 @@
 # Test / Setup Credentials
 
+## CloudIVR web QA (this fork, local preview DB)
+- `civr.uxtest@example.com` / `UxTest#2026` — has a dry-run Business number `+13341112222` and one extra/sub-number `+13343334444` (seeded for the "add number to existing plan" UX test). App mounts under `/cloudivr` on preview; login path `/cloudivr/login`, dismiss cookie banner (`Allow all`) first.
+
+
 ## Secrets Vault (Nomadly)
 - The full `/app/backend/.env` credential set is stored encrypted at `/app/memory/nomadly.vault.enc`.
 - **Vault passphrase:** `Katiekendra123@`
