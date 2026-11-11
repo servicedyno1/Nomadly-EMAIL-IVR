@@ -1,3 +1,10 @@
+## 2026-06 — CloudIVR AI agent: fix premature "Are you still there?" / turn cut-offs — CODE DONE & TESTED (preview; user deploys)
+- Root cause: `js/ai-agent/bridge.js` `vad()` used OpenAI `semantic_vad` `eagerness: 'high'` (~2 s max wait) → a caller pausing to think after a question was treated as "finished", so the agent spoke / nudged over them.
+- Fix: switched to `eagerness: 'low'` (~8 s, OpenAI's most patient preset). Single `vad()` helper → applies to browser test, inbound & outbound (all 5 turn_detection updates: initial session, opening, machine, screener, barge-in).
+- Unchanged: "Are you still there?" check-in still ~7 s (`AI_AGENT_IDLE_MS`), asked once then wrap-up; barge-in/interrupt still on; caller speech still resets idle watch.
+- Tested: `js/tests/ai_bridge_flow.test.js` 16/16 pass. Reported by businessintelusa@gmail.com. PENDING: Save to GitHub → deploy.
+
+
 ## 2026-10-26 (late) — BUG: CloudIVR web audio players dead on cloudivr.net (0:00 / 0:00) — FIXED, TESTED, DEPLOYED 23:46Z (release 20261026T234433Z-cd345a7)
 - 🔴 Found after deploy (NOT fixed): bulk voicemail drop never fires in prod (0 of 749 leads; detect_beep calls get no call.machine.* webhooks) — see DEPLOYMENT_STATE.md
 - Report: web user iammills404@gmail.com uploaded a 50 s voicemail clip 3× ("B", "vm.mpeg", "vm"); Audio library players
