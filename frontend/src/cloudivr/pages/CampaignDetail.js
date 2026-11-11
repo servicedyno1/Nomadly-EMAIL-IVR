@@ -241,7 +241,7 @@ export default function CampaignDetail() {
           <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => downloadFile(`/campaigns/${id}/report.csv`, `campaign-${String(id).slice(0, 8)}.csv`).catch(e => toast.error(e.message))} data-testid="campaign-report-download-button"><Download className="w-4 h-4" />Download CSV report</button></div>
         <Waiting c={c} />
         <BadNumbers c={c} id={id} onDone={reload} />
-        {(c.cancelledReason || c.pausedReason) && <div className="text-xs text-[#a1a1aa] mt-3" data-testid="campaign-reason">{c.cancelledReason || c.pausedReason}</div>}
+        {(c.cancelledReason || c.pausedReason) && <div className="text-xs text-[#a1a1aa] mt-3" data-testid="campaign-reason">{c.cancelledReason || (c.pausedReason === "wallet" ? "Paused — wallet ran low. Top up and it continues by itself within a minute." : c.pausedReason === "user" ? "Paused by you." : c.pausedReason)}</div>}
       </div>
       <FeedAndAreas c={c} isAi={isAi} />
       <div className="civr-card p-5 sm:p-6 overflow-x-auto">

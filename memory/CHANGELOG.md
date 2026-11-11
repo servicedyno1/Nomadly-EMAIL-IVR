@@ -2544,3 +2544,9 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Low-lines alert (admin Telegram only): every 60 s; fires when a running campaign has < half its lines busy for 10 samples in a row with enough numbers waiting (not waiting for hours/daily limit); likely reason (line limit / many failures + top causes / nothing started / not refilled); max 1/campaign/hour.
 - Rollout caveat: the first deploy of this code still overlaps once (old process has no lease/endpoint); the droplet deploy script self-updates after the app-main deploy, so the stop step is active from the next deploy.
 - Tests: test_bulkcall_handover.js 9/9, test_bulkcall_low_lines.js 8/8, all other bulk suites pass.
+
+## 2026-11-11 — Auto-resume
+- Wallet-paused campaigns (`pausedReason: 'wallet'`) continue by themselves within a minute of a top-up (`resumeToppedUp`, in the 60 s tick) and the customer gets "▶️ Campaign resumed". Customer-paused (`'user'`) stay paused. Copy updated (bot status/pause msg, web Live + CampaignDetail).
+- `adoptOrphans`: a `running` campaign no server is dialing (startedAt/resumedAt > 2 min ago) is recovered on the dialer within a minute — used to resume businessintelusa's two campaigns by setting status=running in DB after deploy.
+- Prod check 20:47 UTC: GitHub main = cfad601 but droplet still on 3a1dfc1 (20:06) — the push did NOT deploy (CI run not visible from here).
+- Test: test_bulkcall_auto_resume.js 6/6.

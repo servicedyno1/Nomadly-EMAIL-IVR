@@ -54,7 +54,7 @@ function CardActions({ c, i, onDone }) {
   );
 }
 
-const waitNote = (c) => (c.status === 'paused' ? (c.pausedReason === 'wallet' ? 'Paused — your wallet ran low. Top up, then resume.' : 'Paused — no new calls until you resume.')
+const waitNote = (c) => (c.status === 'paused' ? (c.pausedReason === 'wallet' ? 'Paused — your wallet ran low. Top up and it continues by itself within a minute.' : 'Paused — no new calls until you resume.')
   : c.waitingForDailyLimit ? 'Today’s call limit is reached — calling goes on after midnight your time.'
     : c.waitingForHours ? 'Waiting for calling hours (8am–9pm in each person’s time zone).'
       : c.waitingForLine ? 'All your lines are busy — waiting numbers are redialed as soon as one frees up.' : null);

@@ -189,7 +189,39 @@ const LOW_LINES_EVERY_MS = parseInt(process.env.BULK_LOW_LINES_EVERY_MS || '6000
 const LOW_LINES_SAMPLES = parseInt(process.env.BULK_LOW_LINES_SAMPLES || '10', 10)
 const LOW_LINES_REALERT_MS = 60 * 60 * 1000
 
+// Campaigns paused for a low wallet continue by themselves once the wallet covers the next call (checked every minute).
+// Campaigns the customer paused stay paused.
+async function resumeToppedUp() {
+  if (!_collection || !_walletOf || !canDial()) return
+  const paused = await _collection.find({ status: 'paused', pausedReason: 'wallet', dryRun: { $ne: true } }, { projection: { id: 1, chatId: 1, name: 1, agentId: 1, mode: 1, 'leads.status': 1, 'leads.number': 1 } }).toArray()
+  for (const c of paused) {
+    const next = c.leads.find(l => l.status === 'pending')
+    if (!next) continue
+    const need = isAiCampaign(c) ? aiAgent().RATE() : leadRate(next.number)
+    if (!(await smartWalletCheck(_walletOf, c.chatId, need)).sufficient) continue
+    const r = await resumeCampaign(c.id)
+    if (!r.success) continue
+    log(`[BulkCall] Auto-resumed ${c.id} — wallet topped up`)
+    _bot?.sendMessage(c.chatId, `▶️ <b>Campaign resumed</b>\n\n${escHtml(c.name || 'Your campaign')} continues — your wallet was topped up. ${c.leads.filter(l => l.status === 'pending').length} numbers left to call.`,
+      { parse_mode: 'HTML', reply_markup: { inline_keyboard: campaignControls({ id: c.id, status: 'running' }) } }).catch(() => {})
+  }
+}
+
+// A campaign marked running in the database that no server is dialing (e.g. resumed by support, or a lost handover)
+// is picked up within a minute. Skips anything started/resumed in the last 2 minutes (still starting up).
+async function adoptOrphans() {
+  if (!_collection || !canDial()) return
+  const cut = new Date(Date.now() - 120000)
+  const q = { id: { $nin: Object.keys(activeCampaigns) }, startedAt: { $lt: cut }, $or: [{ resumedAt: { $exists: false } }, { resumedAt: null }, { resumedAt: { $lt: cut } }] }
+  if (await _collection.countDocuments({ status: 'running', dryRun: { $ne: true }, ...q })) {
+    log('[BulkCall] Found running campaign(s) no server is dialing — picking them up')
+    await recoverRunningCampaigns(q)
+  }
+}
+
 async function checkLowLines() {
+  await adoptOrphans().catch(e => log(`[BulkCall] orphan pick-up error: ${e.message}`))
+  await resumeToppedUp().catch(e => log(`[BulkCall] wallet auto-resume error: ${e.message}`))
   const admin = process.env.TELEGRAM_ADMIN_CHAT_ID
   if (!_collection || !canDial() || !admin) return
   for (const [id, st] of Object.entries(activeCampaigns)) {
@@ -499,9 +531,9 @@ function registerRoutes(app) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const STALE_CAMPAIGN_HOURS = 24  // Campaigns with no progress for 24h are considered zombie/stale
 
-async function recoverRunningCampaigns() {
+async function recoverRunningCampaigns(extra = {}) {
   if (!_collection) return
-  const runningCampaigns = await _collection.find({ status: 'running', dryRun: { $ne: true } }).toArray()
+  const runningCampaigns = await _collection.find({ status: 'running', dryRun: { $ne: true }, ...extra }).toArray()
   if (runningCampaigns.length === 0) {
     log('[BulkCall] Recovery: No running campaigns to recover')
     return
@@ -691,7 +723,7 @@ function formatCampaignStatus(c) {
     s.voicemail ? `📭 Voicemail: <b>${s.voicemail}</b>${s.voicemailLeft ? ` (📩 ${s.voicemailLeft} message${s.voicemailLeft === 1 ? '' : 's'} left)` : ''}` : null,
     `🚫 Busy: <b>${s.busy || 0}</b>`,
     `❌ Failed: <b>${s.failed || 0}</b>`,
-    c.status === 'paused' && c.pausedReason === 'wallet' ? `\n⏸ Paused — wallet depleted. Top up via 👛 Wallet, then tap ▶️ Resume.` : null,
+    c.status === 'paused' && c.pausedReason === 'wallet' ? `\n⏸ Paused — wallet depleted. Top up via 👛 Wallet — it continues by itself within a minute.` : null,
     c.status === 'scheduled' && c.scheduledFor ? `\n⏰ Launches at <b>${new Date(c.scheduledFor).toISOString().replace('T', ' ').slice(0, 16)} UTC</b>` : null,
     c.status === 'cancelled' && c.cancelledReason ? `\nReason: ${escHtml(c.cancelledReason)}` : null,
   ].filter(v => v !== null).join('\n')
@@ -711,7 +743,7 @@ async function pauseForWallet(campaign, usdBal, rate, title = 'Campaign Paused �
     `⏸️ <b>${title}</b>\n\n` +
     `📞 ${fresh?.stats?.completed || 0}/${fresh?.stats?.total || 0} calls completed so far.\n` +
     `Wallet: <b>$${Number(usdBal || 0).toFixed(2)}</b> (need $${rate.toFixed(2)}/min per call).\n\n` +
-    `Top up via 👛 Wallet, then tap ▶️ Resume.`,
+    `Top up via 👛 Wallet — the campaign continues by itself within a minute of your top-up.`,
     { parse_mode: 'HTML', reply_markup: { inline_keyboard: campaignControls({ id: campaign.id, status: 'paused' }) } }
   ).catch(() => {})
 }
