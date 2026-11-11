@@ -1441,7 +1441,7 @@ async function fireBatchOnce(campaignId) {
         callToCampaign[sid] = { campaignId, leadIndex: lead.index }
         await _collection.updateOne(
           { id: campaignId, [`leads.${lead.index}.status`]: { $in: INFLIGHT_STATUSES } },
-          { $set: { [`leads.${lead.index}.callSid`]: sid } }
+          { $set: { [`leads.${lead.index}.callSid`]: sid }, ...(result.refusedCid ? { $addToSet: { refusedCids: result.refusedCid } } : {}) }
         )
         log(`[BulkCall] Speechcue call initiated (${isTelnyx ? 'telnyx' : 'twilio'}): ${sid} → ${lead.number}`)
       }
@@ -1890,6 +1890,20 @@ async function removeNotInService(campaignId, chatId) {
   return { numbers, removed: r.deletedCount, cleanLeads: (c.leads || []).filter(l => !bad.has(l.number)).map(l => ({ number: l.number, name: l.name || null })) }
 }
 
+// After the campaign only: "show as" numbers the network carriers refused (calls went out from the customer's own number).
+const REFUSED_NOTE = {
+  en: (list, own) => `\n⚠️ <b>Network carriers refused caller ID${list.length > 1 ? 's' : ''}</b> ${list.join(', ')} — they are not verified for calling. Those calls showed your own number ${own} instead.`,
+  fr: (list, own) => `\n⚠️ <b>Les opérateurs réseau ont refusé le(s) numéro(s) affiché(s)</b> ${list.join(', ')} — non vérifié(s) pour appeler. Ces appels ont affiché votre numéro ${own}.`,
+  zh: (list, own) => `\n⚠️ <b>网络运营商拒绝了来电号码</b> ${list.join(', ')} — 这些号码未经验证，不能用于拨号。相关通话改为显示您自己的号码 ${own}。`,
+  hi: (list, own) => `\n⚠️ <b>नेटवर्क कैरियर्स ने कॉलर ID अस्वीकार किए</b> ${list.join(', ')} — ये कॉल के लिए सत्यापित नहीं हैं। उन कॉल में आपका अपना नंबर ${own} दिखा।`,
+  fa: (list, own) => `\n⚠️ <b>اپراتورهای شبکه شماره(های) نمایشی را رد کردند</b> ${list.join(', ')} — برای تماس تأیید نشده‌اند. در آن تماس‌ها شماره خودتان ${own} نمایش داده شد.`,
+}
+function refusedNote(c, lang) {
+  const list = (c.refusedCids || []).slice(0, 10)
+  if (!list.length) return null
+  return (REFUSED_NOTE[lang] || REFUSED_NOTE.en)(list.map(n => `<code>${n}</code>`).concat(c.refusedCids.length > 10 ? [`+${c.refusedCids.length - 10} more`] : []), c.callerId)
+}
+
 async function sendFinalReport(campaignId) {
   const campaign = await _collection.findOne({ id: campaignId })
   if (!campaign) return
@@ -1926,6 +1940,7 @@ async function sendFinalReport(campaignId) {
     `❌ ${tt('bulkCallReportFailed')} <b>${stats.failed}</b>`,
     (() => { const bad = notInService(campaign); return bad.length ? `⏭ Not in service (skipped, not charged): <b>${bad.length}</b>${bad.length <= 5 ? '\n' + bad.map(n => `   • <code>${n}</code>`).join('\n') : ''}` : null })(),
     campaign.status === 'cancelled' && (leads || []).some(l => l.notCalled) ? `⏭ ${tt('bulkCallReportNotDialed')} <b>${leads.filter(l => l.notCalled).length}</b>` : null,
+    refusedNote(campaign, lang),
   ].filter(Boolean).join('\n')
 
   const badCount = notInService(campaign).length
@@ -2233,6 +2248,7 @@ module.exports = {
   releaseDialer,
   dialerStatus,
   checkLowLines,
+  refusedNote,
   parseLeadsFile,
   createCampaign,
   createSeries,
