@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
-import { ArrowLeft, Lock } from 'lucide-react';
+import { ArrowLeft, Lock, Bot, Plus, RefreshCw } from 'lucide-react';
 import { useApi, enc, day } from '../api';
 import { Spinner, ErrorNote, Locked, statusPill, TabStrip } from '../ui';
 import { OverviewTab, ForwardingTab, VoicemailTab, SmsTab, FaxTab, RecordingTab } from './number/SettingsTabs';
@@ -20,25 +20,26 @@ import { usePrivacy } from '../privacy';
 import { confirmLeave } from '../guard';
 import { ReachChip } from '../SmsReach';
 import { SetupGuide } from './number/SetupGuide';
+import { Crumbs } from '../SectionTabs';
 
-// Tabs in 4 groups + Overview. Group → [id, label, sub-tabs]; sub-tab → [id, label, access gate, component].
+// Tabs in 5 groups. Group → [id, label, sub-tabs]; sub-tab → [id, label, access gate, component]. Tab ids are unchanged (old ?tab= links work).
 const GROUPS = [
   ['overview', 'Overview', [['overview', 'Overview', null, OverviewTab]]],
-  ['calls', 'Calls', [
-    ['forwarding', 'Forwarding', 'callForwarding', ForwardingTab], ['ringgroup', 'Ring group', 'ringGroup', RingGroupTab], ['browser', 'Browser ring', 'browserRing', BrowserRingTab],
-    ['ivr', 'Keypad menu', 'ivr', IvrTab], ['ai', 'AI voice agent', 'aiAgent', AiAgentTab], ['hours', 'Hours', null, HoursTab],
+  ['answering', 'Answering', [
+    ['forwarding', 'Forwarding', 'callForwarding', ForwardingTab], ['ivr', 'Keypad menu', 'ivr', IvrTab], ['ai', 'AI agent', 'aiAgent', AiAgentTab],
+    ['ringgroup', 'Ring group', 'ringGroup', RingGroupTab], ['browser', 'Browser ring', 'browserRing', BrowserRingTab], ['voicemail', 'Voicemail', 'voicemail', VoicemailTab],
+    ['hours', 'Hours', null, HoursTab], ['sip', 'Softphone (SIP)', 'sipCredentials', SipTab], ['fax', 'Fax', null, FaxTab],
   ]],
-  ['messages', 'Messages', [
-    ['voicemail', 'Voicemail', 'voicemail', VoicemailTab], ['recording', 'Recording', 'callRecording', RecordingTab], ['sms', 'SMS', null, SmsTab], ['fax', 'Fax', null, FaxTab], ['triggers', 'Text Triggers', 'textTriggers', TextTriggersTab],
-  ]],
-  ['connect', 'Connect', [['sip', 'SIP', 'sipCredentials', SipTab]]],
-  ['account', 'Account', [['logs', 'Logs', null, LogsTab], ['billing', 'Billing', null, BillingTab]]],
+  ['texting', 'Texting', [['sms', 'SMS', null, SmsTab], ['triggers', 'Text Triggers', 'textTriggers', TextTriggersTab]]],
+  ['recordings', 'Recordings', [['recording', 'Recording', 'callRecording', RecordingTab], ['logs', 'Call log', null, LogsTab]]],
+  ['billing', 'Billing', [['billing', 'Billing', null, BillingTab]]],
 ];
 const TABS = GROUPS.flatMap(([gid, , tabs]) => tabs.map(t => [...t, gid]));
+export const TAB_LABEL = Object.fromEntries(TABS.map(t => [t[0], t[1]]));
 
-// What answers this number right now — shown as a badge on the group that controls it.
-const answering = (f = {}) => (f.fax?.line ? ['messages', 'Fax line on', 'fax'] : f.aiAgent?.enabled ? ['calls', 'AI agent', 'ai'] : f.ivr?.enabled ? ['calls', 'Keypad menu', 'ivr']
-  : (f.ringGroup?.enabled && f.ringGroup?.members?.length) ? ['calls', 'Ring group', 'ringgroup'] : (f.callForwarding?.enabled && f.callForwarding?.forwardTo) ? ['calls', 'Forwarding', 'forwarding'] : null);
+// What answers this number right now → [group, label, tab].
+export const answering = (f = {}) => (f.fax?.line ? ['answering', 'Fax line on', 'fax'] : f.aiAgent?.enabled ? ['answering', 'AI agent', 'ai'] : f.ivr?.enabled ? ['answering', 'Keypad menu', 'ivr']
+  : (f.ringGroup?.enabled && f.ringGroup?.members?.length) ? ['answering', 'Ring group', 'ringgroup'] : (f.callForwarding?.enabled && f.callForwarding?.forwardTo) ? ['answering', 'Forwarding', 'forwarding'] : null);
 
 export default function NumberDetail() {
   const { phone } = useParams();
@@ -62,9 +63,10 @@ export default function NumberDetail() {
   const subTabs = (GROUPS.find(g => g[0] === gid) || GROUPS[0])[2].filter(visible);
   const badge = answering(n.features);
   const go = async (id) => { if (id !== tab && await confirmLeave()) setParams({ tab: id }, { replace: true }); };
+  const main = n.status === 'active' && !n.isSubNumber && !n.replacedBy;
   return (
     <div data-testid="number-detail-page">
-      <Link to={cp('/app/numbers')} className="inline-flex items-center gap-2 min-h-[44px] text-sm text-[#a1a1aa] hover:text-[#818cf8] mb-3" data-testid="number-detail-back-link"><ArrowLeft className="w-4 h-4" />All numbers</Link>
+      <Crumbs testid="number-breadcrumbs" items={[['Phone numbers'], ['My numbers', cp('/app/numbers')], [pv.phone(n.phoneNumber), tab !== 'overview' ? cp(`/app/numbers/${enc(n.phoneNumber)}`) : undefined], ...(tab !== 'overview' ? [[TAB_LABEL[tab] || label]] : [])]} />
       <div className="flex flex-col md:flex-row md:items-start gap-4 justify-between mb-8 civr-rise">
         <div>
           <div className="civr-label">{n.countryName || n.country} · {n.type?.replace('_', '-')} · {n.planName}</div>
@@ -99,6 +101,13 @@ export default function NumberDetail() {
               className={`inline-flex items-center gap-1 px-2.5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#818cf8] text-[#818cf8]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}{g && !n.access[g] && <Lock className="w-3 h-3 text-[#fbbf24]" aria-label="Needs a higher plan" data-testid={`number-tab-${id}-lock`} />}</button>
           ))}
         </TabStrip>
+      )}
+      {tab === 'overview' && n.status === 'active' && (
+        <div className="flex flex-wrap gap-2 mb-6" data-testid="number-quick-actions">
+          {n.access?.aiAgent && <button type="button" onClick={() => go('ai')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="number-quick-assign-ai"><Bot className="w-4 h-4" />Assign an AI agent</button>}
+          {main && <Link to={cp(`/app/buy?extra=${enc(n.phoneNumber)}`)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="number-quick-add-extra"><Plus className="w-4 h-4" />Add an extra number</Link>}
+          {!n.replacedBy && <button type="button" onClick={() => go('billing')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="number-quick-renew"><RefreshCw className="w-4 h-4" />Renew or change plan</button>}
+        </div>
       )}
       <div data-testid={`number-tabpanel-${TABS.some(t => t[0] === tab) ? tab : TABS[0][0]}`}>
         {gate && !n.access[gate] ? <Locked feature={label} phone={n.phoneNumber} need={planFor(catalog?.plans, gate)?.name} /> : <Comp num={n} reload={reload} onDeleted={() => nav(cp('/app/numbers'))} />}

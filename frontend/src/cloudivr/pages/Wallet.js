@@ -152,7 +152,7 @@ function Tables({ data }) {
         <div className="font-display text-2xl font-bold mb-4">History</div>
         {!data.history.length ? (
           <Empty bare icon={Receipt} title="No transactions yet" sub="Number purchases, renewals and call charges show up here." testid="wallet-history-empty">
-            <Link to={cp('/app/buy')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="wallet-history-empty-buy-link">Buy a number</Link>
+            <Link to={cp('/app/buy')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="wallet-history-empty-buy-link">Get a number</Link>
           </Empty>
         ) : <History list={data.history} />}
       </div>
@@ -174,7 +174,7 @@ export default function Wallet() {
   }, [dep, reload, refreshSummary]);
   const refresh = () => { reload(); refreshSummary(); };
   const header = (
-    <PageHeader label="Wallet" title="Wallet" sub="Numbers, eSIMs, USA mobile numbers, renewals, texts, calls, campaigns and AI agent calls are all paid from here." testid="wallet-header">
+    <PageHeader label="Account" title="Wallet & billing" sub="Numbers, eSIMs, USA mobile numbers, renewals, texts, calls, campaigns and AI agent calls are all paid from here." testid="wallet-header">
       <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={refresh} data-testid="wallet-refresh-button"><RefreshCw className="w-4 h-4" />Check for my payment</button>
     </PageHeader>
   );

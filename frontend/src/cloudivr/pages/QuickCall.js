@@ -134,12 +134,12 @@ export default function QuickCall() {
 
   return (
     <div data-testid="quick-call-page">
-      <PageHeader label="Outbound" title="Quick IVR call" sub={numbers.length ? 'Automated calls to up to 10 people: they hear your script or recording, then press a key to reach you, type a code you accept or decline, or pick from a menu. Billed per minute from your wallet.' : 'Call one person from our number for free: play your script, then connect them on key 1 or collect a code you accept or decline.'} testid="quick-call-header" />
+      <PageHeader label="Make calls · IVR" title="Quick call" sub={numbers.length ? 'Automated calls to up to 10 people: they hear your script or recording, then press a key to reach you, type a code you accept or decline, or pick from a menu. Billed per minute from your wallet.' : 'Call one person from our number for free: play your script, then connect them on key 1 or collect a code you accept or decline.'} testid="quick-call-header" />
       <div className="civr-card px-4 py-3 mb-6 flex flex-wrap items-center gap-3 text-sm" data-testid="quick-call-phone-hint"><Phone className="w-4 h-4 text-[#818cf8]" /><span className="flex-1 min-w-[12rem]">Want to talk to someone yourself? Use the browser phone: a normal call from any of your numbers.</span><button type="button" onClick={openPhone} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="quick-call-open-phone">Open browser phone</button></div>
       {!numbers.length ? (trial?.available || trialShown ? <TrialCall status={trial} onUsed={() => { setTrialShown(true); reloadTrial(); refreshSummary(); }} /> : (
         <Empty icon={PhoneOutgoing} title="No number can place IVR calls yet" sub={all.length ? 'Quick IVR calls need an active number on the Pro plan or higher. Upgrade one in its Billing tab.' : 'Buy a number on the Pro plan or higher to place IVR calls.'} testid="quick-call-empty">
           {all.length ? <button type="button" onClick={() => showUpgrade({ feature: 'Quick IVR calls', need: planFor(catalog?.plans, 'ivrOutbound')?.id || 'pro' })} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">See what you get</button>
-            : <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">Buy a number</Link>}
+            : <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">Get a number</Link>}
         </Empty>
       )) : (
         <div className="grid xl:grid-cols-3 gap-4 items-start">

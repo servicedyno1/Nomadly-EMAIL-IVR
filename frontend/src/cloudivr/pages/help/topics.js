@@ -7,9 +7,11 @@ const PAGES = [
   [/\/app\/numbers\/?$/, 'numbers', 'My numbers'],
   [/\/app\/sip/, 'sip', 'SIP & softphones'],
   [/\/app\/fax/, 'fax', 'Fax'],
-  [/\/app\/(buy|orders)/, 'buy', 'Buy a number'],
+  [/\/app\/(buy|orders)/, 'buy', 'Get a number'],
   [/\/app\/verification/, 'verification', 'Verification'],
   [/\/app\/audio/, 'audio', 'Audio library'],
+  [/\/app\/answer\/ivr/, 'keypad', 'Keypad menus'],
+  [/\/app\/answer\/forwarding/, 'forwarding', 'Call forwarding & voicemail'],
   [/\/app\/quick-call/, 'quick-call', 'Quick IVR call'],
   [/\/app\/text-call/, 'text-call', 'Text calls'],
   [/\/app\/ai-agents/, 'ai', 'AI voice agents'],
@@ -51,7 +53,7 @@ export const GROUPS = [
 
 // Readable names of the topic keys, for the "For this page" heading.
 export const TOPIC_NAMES = {
-  overview: 'Overview', number: 'Number details', numbers: 'My numbers', sip: 'SIP & softphones', buy: 'Buy a number', verification: 'Verification',
+  overview: 'Overview', number: 'Number details', numbers: 'My numbers', sip: 'SIP & softphones', buy: 'Get a number', verification: 'Verification',
   audio: 'Audio library', 'quick-call': 'Quick IVR call', 'text-call': 'Text calls', ai: 'AI voice agents', campaigns: 'Bulk IVR campaigns', wallet: 'Wallet',
   inbox: 'Notifications', settings: 'Settings', forwarding: 'Forwarding', hours: 'Hours', keypad: 'Keypad menu', voicemail: 'Voicemail', billing: 'Billing',
   fax: 'Fax', browser: 'Browser ring', recording: 'Recording', ringgroup: 'Ring group', triggers: 'Text Triggers', logs: 'Logs',

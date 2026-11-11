@@ -78,7 +78,7 @@ export default function Help() {
   const common = { open, toggle };
   return (
     <div data-testid="help-page">
-      <PageHeader label="Help" title="Help center" sub="Short answers to common questions. Search, or open a topic below." testid="help-header">
+      <PageHeader label="Account" title="Help center" sub="Short answers to common questions. Search, or open a topic below." testid="help-header">
         <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={openWhatsNew} data-testid="help-whats-new-button"><Gift className="w-4 h-4" />What’s new</button>
       </PageHeader>
       <div className="grid xl:grid-cols-3 gap-6 items-start">

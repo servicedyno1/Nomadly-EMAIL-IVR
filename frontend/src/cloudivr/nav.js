@@ -1,28 +1,54 @@
-import { Gauge, Hash, ShoppingCart, PhoneOutgoing, Megaphone, Music, Wallet, Settings, KeyRound, Bot, Captions, BookOpen, Contact, Radio, Ban, MessageSquareText, Smartphone, MessagesSquare, Printer } from 'lucide-react';
+import { Home, Hash, PlusCircle, PhoneOutgoing, Megaphone, Music, Wallet, Settings, KeyRound, Bot, Captions, BookOpen, Contact, Radio, Ban, MessageSquareText, Smartphone, MessagesSquare, Printer, Workflow, PhoneForwarded, Headphones, BotMessageSquare } from 'lucide-react';
 import { cp } from './paths';
 
-// Sidebar links: [path, label, Icon, testid, tabs?, alsoMatches?]; tabs: [path, label, Icon, testid]. Alerts live behind the top-bar bell.
+// Job-based menu. Group → [id, label, items]; item → [path, label, Icon, testid, subtitle?].
+// Paths are unchanged from the old menu so every bookmark and emailed link still works.
+// A path of '#phone' opens the browser phone instead of a page.
 export const NAV = [
-  ['Home', [['', 'Overview', Gauge, 'nav-dashboard'], ['messages', 'Messages', MessagesSquare, 'nav-messages'], ['live', 'Live', Radio, 'nav-live']]],
-  ['Numbers', [['numbers', 'Numbers', Hash, 'nav-numbers', [
-    ['numbers', 'My numbers', Hash, 'tab-numbers'], ['buy', 'Buy a number', ShoppingCart, 'tab-buy'], ['esim', 'eSIM & mobile numbers', Smartphone, 'tab-esim'],
-    ['texting', 'Landline to Texting', MessageSquareText, 'tab-texting'], ['sip', 'SIP & softphones', KeyRound, 'tab-sip'], ['fax', 'Fax', Printer, 'tab-fax'],
-  ], ['orders', 'verification']]]],
-  ['Calling', [
-    ['quick-call', 'Outbound', PhoneOutgoing, 'nav-calls', [
-      ['quick-call', 'Quick IVR call', PhoneOutgoing, 'tab-quick-call'], ['text-call', 'Text-to-voice calls', Captions, 'tab-text-call'],
-      ['campaigns', 'Bulk IVR campaigns', Megaphone, 'tab-campaigns'], ['ai-agents', 'AI voice agents', Bot, 'tab-ai-agents'], ['do-not-call', 'Do-not-call list', Ban, 'tab-dnc'],
-    ]],
-    ['contacts', 'Contacts', Contact, 'nav-contacts'], ['audio', 'Audio library', Music, 'nav-audio'],
+  ['home', 'Home', [
+    ['', 'Home', Home, 'nav-dashboard'], ['messages', 'Messages', MessagesSquare, 'nav-messages'], ['live', 'Live activity', Radio, 'nav-live'],
   ]],
-  ['Account', [['wallet', 'Wallet', Wallet, 'nav-wallet'], ['settings', 'Settings', Settings, 'nav-settings'], ['help', 'Help center', BookOpen, 'nav-help']]],
+  ['numbers', 'Phone numbers', [
+    ['numbers', 'My numbers', Hash, 'nav-numbers'], ['buy', 'Get a number', PlusCircle, 'nav-buy'], ['esim', 'eSIM & mobile', Smartphone, 'nav-esim'],
+    ['texting', 'Add texting to a landline', MessageSquareText, 'nav-texting'], ['fax', 'Fax', Printer, 'nav-fax'],
+  ]],
+  ['answer', 'Answer calls', [
+    ['answer/ivr', 'Keypad menus', Workflow, 'nav-answer-ivr', 'IVR'], ['answer/forwarding', 'Call forwarding & voicemail', PhoneForwarded, 'nav-answer-forwarding'],
+    ['ai-agents?use=inbound', 'AI receptionist', BotMessageSquare, 'nav-ai-receptionist'],
+  ]],
+  ['calls', 'Make calls', [
+    ['quick-call', 'Quick call', PhoneOutgoing, 'nav-calls'], ['text-call', 'Text-to-voice call', Captions, 'nav-text-call'],
+    ['campaigns', 'Bulk campaigns', Megaphone, 'nav-campaigns', 'IVR'], ['ai-agents', 'AI calling agents', Bot, 'nav-ai-agents'], ['do-not-call', 'Do-not-call list', Ban, 'nav-dnc'],
+  ]],
+  ['media', 'Contacts & media', [['contacts', 'Contacts', Contact, 'nav-contacts'], ['audio', 'Audio library', Music, 'nav-audio']]],
+  ['devices', 'Connect devices', [['sip', 'Softphone logins', KeyRound, 'nav-sip', 'SIP'], ['#phone', 'Browser phone', Headphones, 'nav-browser-phone']]],
+  ['account', 'Account', [['wallet', 'Wallet & billing', Wallet, 'nav-wallet'], ['settings', 'Settings', Settings, 'nav-settings'], ['help', 'Help center', BookOpen, 'nav-help']]],
 ];
 
-export const SIDE_ITEMS = NAV.flatMap(([, items]) => items);
-// Every page (sidebar links + tabs), used for search and page titles.
-export const NAV_ITEMS = SIDE_ITEMS.flatMap((it) => (it[4] ? it[4] : [it]));
+export const SIDE_ITEMS = NAV.flatMap(([, , items]) => items);
+// Every page in the menu (used for search and page titles).
+export const NAV_ITEMS = SIDE_ITEMS.filter(it => it[0] !== '#phone');
 export const appPath = (to) => cp(to ? `/app/${to}` : '/app');
 
-const under = (pathname, to) => { const p = appPath(to); return pathname === p || pathname.startsWith(`${p}/`); };
-export const sectionOf = (pathname) => SIDE_ITEMS.find(([, , , , tabs, also = []]) => tabs && [...tabs.map(t => t[0]), ...also].some(to => under(pathname, to)));
-export const isSideActive = (item, pathname) => (item[4] ? sectionOf(pathname) === item : (item[0] === '' ? pathname === appPath('') : under(pathname, item[0])));
+const under = (pathname, p) => pathname === p || pathname.startsWith(`${p}/`);
+const purposeOf = (search) => new URLSearchParams(search || '').get('use');
+// Old pages that now live under a menu item (orders → Get a number, verification → My numbers).
+const ALSO = { buy: ['orders'], numbers: ['verification'] };
+
+export function isSideActive(item, pathname, search = '') {
+  const [to] = item;
+  if (to === '#phone') return false;
+  if (to === '') return pathname === appPath('');
+  const [path, q] = to.split('?');
+  if (path === 'ai-agents') {
+    if (!under(pathname, appPath('ai-agents'))) return false;
+    return q ? purposeOf(search) === 'inbound' : purposeOf(search) !== 'inbound';
+  }
+  return [path, ...(ALSO[path] || [])].some(p => under(pathname, appPath(p)));
+}
+
+// The menu group (and item) the current page belongs to — for breadcrumbs and the phone tab strip.
+export function groupOf(pathname, search) {
+  for (const g of NAV) { const it = g[2].find(i => isSideActive(i, pathname, search)); if (it) return [g, it]; }
+  return [null, null];
+}

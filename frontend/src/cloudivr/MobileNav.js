@@ -2,19 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { useTheme } from './theme';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Globe, Lightbulb, LogOut, MoreHorizontal, Send, Sun, Moon } from 'lucide-react';
-import { SIDE_ITEMS, appPath, isSideActive } from './nav';
-import { useShell, LiveDot } from './Shell';
+import { NAV, SIDE_ITEMS, appPath, isSideActive } from './nav';
+import { useShell, NavRow } from './Shell';
 import { useCivrAuth } from './AuthContext';
 import { usePrivacy } from './privacy';
 import { LangSwitcher, useLang } from './i18n';
 import { cp } from './paths';
 import { confirmLeave } from './guard';
 
-const SHORT = { 'nav-dashboard': 'Overview', 'nav-numbers': 'Numbers', 'nav-messages': 'Messages', 'nav-wallet': 'Wallet' };
+const SHORT = { 'nav-dashboard': 'Home', 'nav-numbers': 'Numbers', 'nav-messages': 'Messages', 'nav-wallet': 'Wallet' };
 // Tab labels whose translation is too long for a 5-column phone bar.
 const NARROW = { fr: { 'nav-messages': 'Messages' }, es: { 'nav-messages': 'Mensajes' } };
 const MAIN = ['nav-dashboard', 'nav-numbers', 'nav-messages', 'nav-wallet'].map(id => SIDE_ITEMS.find(x => x[3] === id));
-const MORE = SIDE_ITEMS.filter(([, , , id]) => !SHORT[id]);
+// "More" sheet: everything not on the bar, under the same group headings as the desktop menu.
+const MORE_GROUPS = NAV.map(([gid, label, items]) => [gid, label, items.filter(([, , , id]) => !SHORT[id])]).filter(g => g[2].length);
+const MORE = MORE_GROUPS.flatMap(g => g[2]);
 const tab = (active) => `relative min-w-0 flex flex-col items-center justify-center gap-1 h-16 text-xs font-medium transition-colors ${active ? 'text-[#818cf8]' : 'text-[#a1a1aa]'}`;
 
 const Badge = ({ n }) => (n > 0 ? <span className="absolute top-2 left-1/2 ml-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#6366f1] text-white text-xs font-bold flex items-center justify-center" data-testid="mobile-messages-unread">{n > 99 ? '99+' : n}</span> : null);
@@ -45,9 +47,9 @@ function MoreSettings() {
 }
 
 // Phone-sized screens: bottom tab bar with Overview, Numbers, Inbox, Wallet + a "More" menu for the rest.
-export default function MobileNav() {
+export default function MobileNav({ onPhone }) {
   const [open, setOpen] = useState(false);
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const shell = useShell();
   const channelLink = shell?.catalog?.channelLink;
   const unread = shell?.summary?.messagesUnread || 0;
@@ -59,15 +61,18 @@ export default function MobileNav() {
     window.addEventListener('keydown', esc);
     return () => window.removeEventListener('keydown', esc);
   }, [open]);
-  const moreActive = MORE.some((it) => isSideActive(it, pathname));
+  const moreActive = MORE.some((it) => isSideActive(it, pathname, search));
   return (
     <>
       {open && <button type="button" aria-label="Close menu" className="lg:hidden fixed inset-0 z-40 bg-black/60" onClick={() => setOpen(false)} data-testid="mobile-more-backdrop" />}
       {open && (
         <div className="lg:hidden fixed inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 civr-card civr-side p-2 civr-rise max-h-[calc(100dvh-9rem)] overflow-y-auto overscroll-contain" data-testid="mobile-more-menu">
-          {MORE.map((item) => { const [to, label, Icon, id] = item; return (
-            <Link key={id} to={appPath(to)} className={`civr-nav-link ${isSideActive(item, pathname) ? 'active' : ''}`} data-testid={`mobile-${id}`}><Icon className="w-4 h-4" />{label}{id === 'nav-live' && <LiveDot testid="mobile-nav-live-dot" />}{id === 'nav-calls' && shell?.summary?.ivrTrial && <span className="ml-auto text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#6366f1] text-white" data-testid="mobile-quick-call-free-badge">1 free</span>}</Link>
-          ); })}
+          {MORE_GROUPS.map(([gid, glabel, items]) => (
+            <div key={gid} className="mb-1" data-testid={`mobile-group-${gid}`}>
+              <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[#a1a1aa]">{glabel}</div>
+              {items.map((item) => <NavRow key={item[3]} item={item} active={isSideActive(item, pathname, search)} onPhone={() => { setOpen(false); onPhone?.(); }} testid={`mobile-${item[3]}`} />)}
+            </div>
+          ))}
           {channelLink && <a href={channelLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link" data-testid="mobile-channel-link"><Send className="w-4 h-4" />Telegram channel</a>}
           <Link to={appPath('settings#suggest')} className="civr-nav-link" data-testid="mobile-suggest-link"><Lightbulb className="w-4 h-4" />Suggest a feature</Link>
           <MoreSettings />

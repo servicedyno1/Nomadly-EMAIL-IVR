@@ -28,7 +28,7 @@ export default function Messages() {
   const multi = (data?.numbers || []).filter(n => !n.old).length > 1;
   return (
     <div data-testid="messages-page">
-      <div className={sel ? 'hidden md:block' : ''}><PageHeader label="Account" title="Messages" sub="Texts, pictures, voicemails and calls with each person, in one conversation." testid="messages-header" /></div>
+      <div className={sel ? 'hidden md:block' : ''}><PageHeader label="Home" title="Messages" sub="Texts, pictures, voicemails and calls with each person, in one conversation." testid="messages-header" /></div>
       {error && <ErrorNote error={error} onRetry={reload} testid="messages-error" />}
       {none ? (
         <Empty icon={MessagesSquare} title="No numbers yet" sub="Get a VoIP number, a USA mobile number or Landline to Texting and your conversations show up here. A USA eSIM sends and receives texts on your phone instead." testid="messages-empty-numbers"><Link to={cp('/app/buy')} className="civr-btn civr-btn-primary mt-6" data-testid="messages-buy-link">Buy a number</Link></Empty>

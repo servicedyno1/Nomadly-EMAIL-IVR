@@ -14,8 +14,9 @@ import { UpgradeHost } from './Upgrade';
 import MobileNav from './MobileNav';
 import { Wordmark } from './Brand';
 import { NAV, appPath, isSideActive } from './nav';
-import SectionTabs from './SectionTabs';
+import SectionTabs, { AutoCrumbs } from './SectionTabs';
 import Dashboard from './pages/Dashboard';
+import AnswerCalls from './pages/AnswerCalls';
 import Numbers from './pages/Numbers';
 import NumberDetail from './pages/NumberDetail';
 import BuyNumber from './pages/BuyNumber';
@@ -69,19 +70,27 @@ export function LiveDot({ testid = 'nav-live-dot' }) {
   return <span className="ml-auto w-2 h-2 rounded-full bg-[#34d399] civr-live-dot" role="img" aria-label="Calling now" title="Calling now" data-testid={testid} />;
 }
 
-function SideNav() {
-  const { pathname } = useLocation();
+// One menu row: a page link, or (for "Browser phone") a button that opens the phone panel.
+export function NavRow({ item, active, onPhone, testid, className = '' }) {
+  const [to, label, Icon, id, sub] = item;
+  const body = <>
+    <Icon className="w-4 h-4" />
+    <span className="min-w-0 flex-1 truncate">{label}{sub && <span className="civr-nav-sub" data-testid={`${testid || id}-sub`}>{sub}</span>}</span>
+    {id === 'nav-calls' && <FreeBadge />}{id === 'nav-live' && <LiveDot />}{id === 'nav-messages' && <MsgBadge />}
+  </>;
+  if (to === '#phone') return <button type="button" onClick={onPhone} className={`civr-nav-link w-full text-left ${className}`} data-testid={testid || id}>{body}</button>;
+  return <Link to={appPath(to)} aria-current={active ? 'page' : undefined} className={`civr-nav-link ${active ? 'active' : ''} ${className}`} data-testid={testid || id}>{body}</Link>;
+}
+
+function SideNav({ onPhone }) {
+  const { pathname, search } = useLocation();
   return (
-    <nav className="flex flex-col gap-5" data-testid="nav-header">
-      {NAV.map(([group, items]) => (
-        <div key={group} data-testid={`nav-group-${group.toLowerCase()}`}>
-          <div className="civr-side-label px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#a1a1aa]">{group}</div>
+    <nav className="flex flex-col gap-4" data-testid="nav-header">
+      {NAV.map(([gid, group, items]) => (
+        <div key={gid} data-testid={`nav-group-${gid}`}>
+          <div className="civr-side-label px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-[#a1a1aa]">{group}</div>
           <div className="flex flex-col gap-0.5">
-            {items.map((item) => { const [to, label, Icon, id] = item; const on = isSideActive(item, pathname); return (
-              <Link key={id} to={appPath(to)} aria-current={on ? 'page' : undefined} className={`civr-nav-link ${on ? 'active' : ''}`} data-testid={id}>
-                <Icon className="w-4 h-4" />{label}{id === 'nav-calls' && <FreeBadge />}{id === 'nav-live' && <LiveDot />}{id === 'nav-messages' && <MsgBadge />}
-              </Link>
-            ); })}
+            {items.map((item) => <NavRow key={item[3]} item={item} active={isSideActive(item, pathname, search)} onPhone={onPhone} />)}
           </div>
         </div>
       ))}
@@ -89,11 +98,11 @@ function SideNav() {
   );
 }
 
-function Sidebar({ supportLink, channelLink, purposes }) {
+function Sidebar({ supportLink, channelLink, onPhone }) {
   return (
-    <aside aria-label="Main navigation" className="civr-side hidden lg:flex lg:flex-col w-60 shrink-0 h-screen sticky top-0 border-r border-[#1a1a1a] px-3 py-5 overflow-y-auto" data-testid="app-sidebar">
+    <aside aria-label="Main navigation" className="civr-side hidden lg:flex lg:flex-col w-64 shrink-0 h-screen sticky top-0 border-r border-[#1a1a1a] px-3 py-5 overflow-y-auto" data-testid="app-sidebar">
       <Link to={cp('/app')} className="civr-side-logo font-display text-2xl font-extrabold tracking-tight px-3 mb-6 flex items-center gap-2.5" data-testid="sidebar-logo"><Wordmark iconClass="w-8 h-8" /></Link>
-      <SideNav />
+      <SideNav onPhone={onPhone} />
       <div className="civr-side-rule mt-auto pt-4 border-t border-[#1a1a1a] flex flex-col gap-0.5" data-testid="nav-group-support">
         <div className="civr-side-label px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-[#a1a1aa]">Support</div>
         {channelLink && <a href={channelLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link" data-testid="sidebar-channel-link"><Send className="w-4 h-4" />Telegram channel</a>}
@@ -162,7 +171,7 @@ export default function Shell() {
       <Palette openPhone={openPhone} />
       <Onboarding data={onb.data} setData={onb.setData} />
       <div className="lg:flex">
-        <Sidebar supportLink={catalog?.supportLink} channelLink={catalog?.channelLink} purposes={onb.data?.purposes} />
+        <Sidebar supportLink={catalog?.supportLink} channelLink={catalog?.channelLink} onPhone={openPhone} />
         <div className="flex-1 min-w-0">
           <PreviewBanner show={catalog?.dryRun} livePayments={catalog?.livePayments} />
           <OfflineBanner />
@@ -173,8 +182,10 @@ export default function Shell() {
            <CrashGuard inApp resetKey={pathname} supportLink={catalog?.supportLink}>
             <CrashProbe />
             <SectionTabs />
+            <AutoCrumbs />
             <Routes>
               <Route index element={<Dashboard />} />
+              <Route path="answer/:mode" element={<AnswerCalls />} />
               <Route path="numbers" element={<Numbers />} />
               <Route path="numbers/:phone" element={<NumberDetail />} />
               <Route path="sip" element={<SipPage />} />
@@ -208,7 +219,7 @@ export default function Shell() {
           </main>
         </div>
       </div>
-      <MobileNav />
+      <MobileNav onPhone={openPhone} />
       <Softphone open={phoneOpen} onClose={closePhone} />
       <SupportChat supportLink={catalog?.supportLink} />
       <WhatsNew />

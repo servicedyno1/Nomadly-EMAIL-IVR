@@ -78,7 +78,7 @@ export function Campaigns() {
   useEffect(() => { if (!running) return undefined; const t = setInterval(reload, 8000); return () => clearInterval(t); }, [running, reload]);
   return (
     <div data-testid="campaigns-page">
-      <PageHeader label="Calling" title="Bulk IVR campaigns" sub="Automated calls to a whole list: play your message, see who answered and what they pressed, and connect interested people to you." testid="campaigns-header">
+      <PageHeader label="Make calls · IVR" title="Bulk campaigns" sub="Automated calls to a whole list: play your message, see who answered and what they pressed, and connect interested people to you." testid="campaigns-header">
         {running && <Link to={cp('/app/live')} className="civr-btn civr-btn-ghost" data-testid="campaigns-live-button"><Radio className="w-4 h-4 text-[#34d399]" />Watch live</Link>}
         <Link to={cp('/app/campaigns/new')} className="civr-btn civr-btn-primary" data-testid="campaigns-new-button"><Plus className="w-4 h-4" />New campaign</Link>
       </PageHeader>
@@ -246,11 +246,11 @@ export function CampaignNew() {
   if (loading) return <SkeletonPage cards={2} rows={0} />;
   if (!numbers.length) return (
     <div data-testid="campaign-new-page">
-      <PageHeader label="Campaigns" title="New campaign" testid="campaign-new-header" />
+      <PageHeader label="Make calls" title="New campaign" testid="campaign-new-header" />
       <CampaignKind value={kind} onChange={setKind} aiLocked={aiLocked} />
       <Empty icon={Megaphone} title={kind === 'ai' ? 'No number can run AI voice agent campaigns' : 'No number can run campaigns'} sub={kind === 'ai' ? 'AI voice agent campaigns need an active number on the Business plan.' : 'Bulk IVR needs an active number on the Pro plan or higher.'} testid="campaign-new-empty">
         {all.length ? <button type="button" onClick={() => showUpgrade({ feature: kind === 'ai' ? 'AI voice agent campaigns' : 'Bulk IVR campaigns', need: planFor(catalog?.plans, kind === 'ai' ? 'aiAgent' : 'bulkCall')?.id || 'business' })} className="civr-btn civr-btn-primary" data-testid="campaign-new-empty-action">See what you get</button>
-          : <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="campaign-new-empty-action">Buy a number</Link>}
+          : <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="campaign-new-empty-action">Get a number</Link>}
         {kind !== 'ai' && <TrialLink testid="campaign-new-trial-link" />}
       </Empty>
     </div>
@@ -296,7 +296,7 @@ export function CampaignNew() {
 
   return (
     <div data-testid="campaign-new-page">
-      <PageHeader label="Campaigns" title="New campaign" testid="campaign-new-header" />
+      <PageHeader label="Make calls" title="New campaign" testid="campaign-new-header" />
       <CampaignKind value={kind} onChange={setKind} aiLocked={aiLocked} />
       <form onSubmit={create} className="grid lg:grid-cols-2 gap-4" {...u.bind}>
         <div className="civr-card p-6 space-y-6">

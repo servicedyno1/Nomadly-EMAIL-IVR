@@ -80,12 +80,12 @@ export default function SipPage() {
   const canPhone = nums.some(n => n.status === 'active' && n.access?.browserPhone) || mobile.some(m => m.status === 'active' && m.phoneNumber);
   return (
     <div data-testid="sip-page">
-      <PageHeader label="Numbers" title="SIP & softphones" sub="Log in to any softphone with these details to call and answer on your numbers." testid="sip-header">
+      <PageHeader label="Connect devices · SIP" title="Softphone logins" sub="Log in to any softphone with these details to call and answer on your numbers." testid="sip-header">
         {canPhone && <button type="button" className="civr-btn civr-btn-primary" onClick={openPhone} data-testid="sip-page-open-phone"><Phone className="w-4 h-4" />Open browser phone</button>}
       </PageHeader>
       {!nums.length && !mobile.length ? (
         <Empty icon={KeyRound} title="No numbers yet" sub="Buy a number on the Pro plan or higher to get SIP credentials." testid="sip-page-empty">
-          <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="sip-page-buy"><ShoppingCart className="w-4 h-4" />Buy a number</Link>
+          <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="sip-page-buy"><ShoppingCart className="w-4 h-4" />Get a number</Link>
         </Empty>
       ) : (
         <div className="grid xl:grid-cols-3 gap-6 items-start">

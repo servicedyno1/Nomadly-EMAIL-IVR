@@ -33,7 +33,7 @@ export function Setup({ info, onStarted }) {
   const [err, setErr] = useState(null);
   const set = (k) => (v) => setF(p => ({ ...p, [k]: v?.target ? v.target.value : v }));
   if (loading) return <SkeletonCard lines={4} />;
-  if (!all.length) return <Empty icon={Captions} title="Get a number first" sub="Text calls go out from your own CloudIVR number." testid="text-call-no-number"><Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="text-call-buy-link">Buy a number</Link></Empty>;
+  if (!all.length) return <Empty icon={Captions} title="Get a number first" sub="Text calls go out from your own CloudIVR number." testid="text-call-no-number"><Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="text-call-buy-link">Get a number</Link></Empty>;
   if (!numbers.length) return <Locked feature="Text calls" phone={all[0].phoneNumber} need={planFor(catalog?.plans, 'textRelay')?.name || 'Business'} />;
   // Every active number is listed; ones whose plan has no text calls show the plan and open the upgrade pop-up.
   const active = all.filter(n => n.status === 'active');

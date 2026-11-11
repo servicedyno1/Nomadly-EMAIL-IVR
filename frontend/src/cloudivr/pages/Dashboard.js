@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Wallet, Hash, Clock, MessageSquare, Megaphone, ShieldCheck, ArrowRight, ShoppingCart, PhoneOutgoing, Workflow } from 'lucide-react';
+import { Wallet, Hash, Clock, MessageSquare, ShieldCheck, ArrowRight, PlusCircle, Radio } from 'lucide-react';
 import { useApi, money } from '../api';
 import { useShell } from '../Shell';
 import { useCivrAuth } from '../AuthContext';
@@ -13,6 +13,7 @@ import { NewProducts } from './dashboard/NewProducts';
 import { FaxCard } from './dashboard/FaxCard';
 import { ForYou, ReviewPrompt } from './dashboard/ForYou';
 import { TextingHome } from './dashboard/TextingHome';
+import { TaskCards, SetupChecklist } from './dashboard/GuidedHome';
 
 function Stat({ icon: Icon, label, value, to, testid, delay, title }) {
   const body = (
@@ -27,27 +28,21 @@ function Stat({ icon: Icon, label, value, to, testid, delay, title }) {
 
 function Stats({ s }) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-6 gap-4" data-testid="home-overview">
       <div className="col-span-2"><Stat icon={Wallet} label="Wallet" value={money(s.balance)} to={cp('/app/wallet')} testid="stat-balance" delay="civr-d1" /></div>
-      <Stat icon={Hash} label="Numbers" value={s.numbers?.active ?? '—'} to={cp('/app/numbers')} testid="stat-numbers" delay="civr-d1" />
-      <Stat icon={Clock} label="Minutes" value={s.minutesUsed ?? '—'} testid="stat-minutes" delay="civr-d2" />
-      <Stat icon={MessageSquare} label="Texts" title="Texts sent and received this month" value={s.textsThisMonth ?? '—'} testid="stat-sms" delay="civr-d2" />
-      <Stat icon={Megaphone} label="Campaigns" value={s.activeCampaigns ?? '—'} to={cp('/app/campaigns')} testid="stat-campaigns" delay="civr-d3" />
+      <Stat icon={Hash} label="Active numbers" value={s.numbers?.active ?? '—'} to={cp('/app/numbers')} testid="stat-numbers" delay="civr-d1" />
+      <Stat icon={Radio} label="Calling now" value={s.liveCampaigns ?? 0} to={cp('/app/live')} testid="stat-live" delay="civr-d2" />
+      <Stat icon={MessageSquare} label="Unread messages" value={s.messagesUnread ?? 0} to={cp('/app/messages')} testid="stat-unread" delay="civr-d2" />
+      <Stat icon={Clock} label="Minutes" title="Minutes used this month" value={s.minutesUsed ?? '—'} testid="stat-minutes" delay="civr-d3" />
     </div>
   );
 }
 
-function QuickActions({ unread }) {
-  const items = [[cp('/app/numbers'), Workflow, 'Set up a keypad menu', 'Greet callers and let them press a key', 'quick-action-ivr'],
-    [cp('/app/quick-call'), PhoneOutgoing, 'Place a Quick IVR call', 'We call up to 10 people with your message', 'quick-action-quick-call'],
-    [cp('/app/messages'), MessageSquare, `Messages${unread ? ` · ${unread} new` : ''}`, 'Texts, voicemails and calls with each person', 'quick-action-inbox']];
+function Guided({ nums }) {
   return (
-    <div className="flex flex-col gap-4" data-testid="dashboard-quick-actions">
-      {items.map(([to, Icon, t, sub, id]) => (
-        <Link key={id} to={to} className="civr-card civr-card-link p-5 flex items-center gap-4" data-testid={id}>
-          <span className="w-10 h-10 rounded-xl bg-[#818cf8]/10 flex items-center justify-center shrink-0"><Icon className="w-5 h-5 text-[#818cf8]" /></span><div className="flex-1 min-w-0"><div className="font-semibold">{t}</div><div className="text-xs text-[#a1a1aa]">{sub}</div></div><ArrowRight className="w-4 h-4 text-[#a1a1aa]" />
-        </Link>
-      ))}
+    <div className="grid lg:grid-cols-12 gap-6 items-start">
+      <div className="lg:col-span-8"><TaskCards nums={nums} /></div>
+      <div className="lg:col-span-4 lg:mt-11"><SetupChecklist nums={nums} /></div>
     </div>
   );
 }
@@ -70,8 +65,8 @@ export default function Dashboard() {
   );
   return (
     <div data-testid="dashboard-page">
-      <PageHeader label="Overview" title={`Hi ${account?.name?.split(' ')[0] || 'there'}`} sub={textingOnly ? 'Your texting numbers and the latest texts from your customers.' : fresh ? 'Three quick steps and your number is live.' : 'Your numbers, wallet and live activity at a glance.'} testid="dashboard-header">
-        {s && !fresh && <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="dashboard-buy-number-button"><ShoppingCart className="w-4 h-4" />Buy a number</Link>}
+      <PageHeader label="Home" title={`Hi ${account?.name?.split(' ')[0] || 'there'}`} sub={textingOnly ? 'Your texting numbers and the latest texts from your customers.' : 'Pick what you want to do — we walk you through it, step by step.'} testid="dashboard-header">
+        {s && !fresh && <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="dashboard-buy-number-button"><PlusCircle className="w-4 h-4" />Get a number</Link>}
         {textingOnly && <Link to={cp('/app/texting?add=1')} className="civr-btn civr-btn-primary" data-testid="dashboard-add-texting-button">Add a number</Link>}
       </PageHeader>
       {s?.pendingVerification > 0 && (
@@ -81,15 +76,14 @@ export default function Dashboard() {
           <ArrowRight className="w-4 h-4" />
         </Link>
       )}
-      {!s || (fresh && !hosted) ? <SkeletonPage header={false} cards={3} rows={3} /> : textingOnly ? <TextingHome items={hosted.items} balance={s.balance} /> : fresh ? <>{promos}<GetStarted balance={s.balance} /></> : (
+      {!s || (fresh && !hosted) ? <SkeletonPage header={false} cards={3} rows={3} /> : textingOnly ? <TextingHome items={hosted.items} balance={s.balance} /> : fresh ? <>{promos}<Guided nums={[]} /><div className="mt-8"><GetStarted balance={s.balance} /></div></> : (
         <>
+          <Guided nums={nums?.numbers} />
+          <h2 className="font-display text-xl font-bold mt-10 mb-4">At a glance</h2>
           <Stats s={s} />
           <div className="mt-6"><ForYou /></div>
           {promos}
-          <div className="grid lg:grid-cols-12 gap-6 items-start">
-            <div className="lg:col-span-7"><YourNumbers nums={nums?.numbers} balance={s.balance} /></div>
-            <div className="lg:col-span-5"><div className="civr-label !text-[#a1a1aa] mb-3">Quick actions</div><QuickActions unread={s.messagesUnread} /></div>
-          </div>
+          <YourNumbers nums={nums?.numbers} balance={s.balance} />
           <NewProducts />
           <ReviewPrompt />
           <div className="civr-card p-6 mt-6">

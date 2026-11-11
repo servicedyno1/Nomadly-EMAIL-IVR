@@ -192,8 +192,8 @@ export default function BuyNumber() {
 
   return (
     <div data-testid="buy-page">
-      {extraOf ? <PageHeader label="Extra number" title="Add an extra number" sub={`Shares the plan of ${pv.phone(extraOf)} — ${money(extra?.price || 25)}/month, same features, and uses its minutes and SMS. Pay from your wallet or with crypto.${extra ? ` ${extra.used} of ${extra.limit} used.` : ''}`} testid="buy-header" />
-        : <PageHeader label="Buy" title="Get a VoIP number" sub={`Internet-based (VoIP) business phone numbers in ${catalog.countries.length} countries. Call and text from your browser on every plan; Pro and up add keypad menus (IVR), campaigns and logins for your own phone apps (SIP). Pay with crypto or your wallet, renews monthly.`} testid="buy-header" />}
+      {extraOf ? <PageHeader label="Phone numbers · Extra number" title="Add an extra number" sub={`Shares the plan of ${pv.phone(extraOf)} — ${money(extra?.price || 25)}/month, same features, and uses its minutes and SMS. Pay from your wallet or with crypto.${extra ? ` ${extra.used} of ${extra.limit} used.` : ''}`} testid="buy-header" />
+        : <PageHeader label="Phone numbers" title="Get a number" sub={`Internet-based (VoIP) business phone numbers in ${catalog.countries.length} countries. Call and text from your browser on every plan; Pro and up add keypad menus (IVR), campaigns and logins for your own phone apps (SIP). Pay with crypto or your wallet, renews monthly.`} testid="buy-header" />}
       {extraOf
         ? <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-extra-back"><Link to={cp('/app/buy')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-extra-back-button">Buy a brand-new number with its own plan instead</Link></p>
         : <>

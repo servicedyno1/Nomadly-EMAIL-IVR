@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, Hash, Wallet, Phone, Eye, EyeOff, LogOut, HelpCircle, Megaphone, Bot, CornerDownLeft, Bell } from 'lucide-react';
+import { Search, Hash, Wallet, Phone, Eye, EyeOff, LogOut, HelpCircle, Megaphone, Bot, CornerDownLeft, Bell, PlusCircle, Workflow, PhoneOutgoing, Sun, Moon, Contact } from 'lucide-react';
 import { api, enc } from './api';
-import { NAV_ITEMS, appPath } from './nav';
+import { NAV, appPath } from './nav';
+import { useTheme, setThemePref } from './theme';
 import { cp } from './paths';
 import { useCivrAuth } from './AuthContext';
 import { usePrivacy } from './privacy';
@@ -27,10 +28,12 @@ export function Palette({ openPhone }) {
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(0);
   const [nums, setNums] = useState(null);
+  const [more, setMore] = useState({ agents: [], campaigns: [], lists: [] });
   const nav = useNavigate();
   const { pathname, search } = useLocation();
   const { logout } = useCivrAuth();
   const pv = usePrivacy();
+  const { theme } = useTheme();
   const input = useRef(null);
   const listRef = useRef(null);
 
@@ -45,22 +48,34 @@ export function Palette({ openPhone }) {
     setQ(''); setSel(0);
     setTimeout(() => input.current?.focus(), 0);
     api('/numbers').then(d => setNums(d.numbers || [])).catch(() => setNums(n => n || []));
+    Promise.all([api('/ai-agents').catch(() => ({})), api('/campaigns').catch(() => ({})), api('/contacts/lists').catch(() => ({}))])
+      .then(([a, c, l]) => setMore({ agents: a.agents || [], campaigns: c.campaigns || [], lists: l.lists || [] }));
   }, [open]);
 
   const items = useMemo(() => {
     const numbers = (nums || []).map(n => ({ id: `num-${n.phoneNumber}`, group: 'Numbers', label: pv.phone(n.phoneNumber), sub: `${n.countryName || n.country} · ${n.planName} · ${n.status}`, Icon: Hash, keys: [n.phoneNumber, n.countryName, n.planName, n.status], run: () => nav(cp(`/app/numbers/${enc(n.phoneNumber)}`)) }));
-    const pages = [...NAV_ITEMS, ['inbox', 'Notifications', Bell, 'nav-notifications']].map(([to, label, Icon, id]) => ({ id: `page-${id}`, group: 'Pages', label, Icon, run: () => nav(appPath(to)) }));
+    const pages = [...NAV.flatMap(([, g, its]) => its.filter(i => i[0] !== '#phone').map(i => [...i.slice(0, 4), g])), ['inbox', 'Notifications', Bell, 'nav-notifications', 'Home']]
+      .map(([to, label, Icon, id, g]) => ({ id: `page-${id}`, group: 'Pages', label, sub: g, Icon, run: () => nav(appPath(to)) }));
     const actions = [
-      ['campaign', 'New campaign', Megaphone, () => nav(cp('/app/campaigns/new'))],
-      ['agent', 'New AI voice agent', Bot, () => nav(cp('/app/ai-agents/new'))],
+      ['buy', 'Get a number', PlusCircle, () => nav(cp('/app/buy'))],
+      ['answer', 'Set up how my calls are answered', Workflow, () => nav(cp('/app/answer/ivr'))],
+      ['quick-call', 'Place a quick call', PhoneOutgoing, () => nav(cp('/app/quick-call'))],
+      ['campaign', 'Start a campaign', Megaphone, () => nav(cp('/app/campaigns/new'))],
+      ['agent', 'New AI agent', Bot, () => nav(cp('/app/ai-agents/new'))],
       ['funds', 'Add funds', Wallet, () => nav(cp('/app/wallet'))],
       ['phone', 'Open the browser phone', Phone, openPhone],
+      ['theme', theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode', theme === 'light' ? Moon : Sun, () => setThemePref(theme === 'light' ? 'dark' : 'light')],
       ['private', pv.on ? 'Private mode off' : 'Private mode on', pv.on ? Eye : EyeOff, pv.toggle],
       ['help', 'Help for this page', HelpCircle, () => nav(helpFor(pathname, search))],
       ['logout', 'Sign out', LogOut, async () => { if (!(await confirmLeave())) return; nav(cp(), { replace: true }); await logout(); }],
     ].map(([id, label, Icon, run]) => ({ id: `act-${id}`, group: 'Actions', label, Icon, run }));
-    return [...numbers, ...pages, ...actions].filter(it => hit(q, [it.label, it.sub, ...(it.keys || [])])).slice(0, 40);
-  }, [q, nums, pv, pathname, search, nav, openPhone, logout]);
+    const found = q.trim() ? [
+      ...more.agents.map(a => ({ id: `agent-${a.id}`, group: 'AI agents', label: a.name, sub: a.businessName, Icon: Bot, run: () => nav(cp(`/app/ai-agents/${a.id}`)) })),
+      ...more.campaigns.map(c => ({ id: `camp-${c.id}`, group: 'Campaigns', label: c.name || c.audioName || 'Campaign', sub: c.status, Icon: Megaphone, run: () => nav(cp(`/app/campaigns/${c.id}`)) })),
+      ...more.lists.map(l => ({ id: `list-${l.id}`, group: 'Contact lists', label: l.name, sub: l.count != null ? `${l.count} contacts` : '', Icon: Contact, run: () => nav(cp(`/app/contacts?list=${enc(l.id)}`)) })),
+    ] : [];
+    return [...numbers, ...pages, ...actions, ...found].filter(it => hit(q, [it.label, it.sub, ...(it.keys || [])])).slice(0, 50);
+  }, [q, nums, more, pv, pathname, search, nav, openPhone, logout, theme]);
 
   useEffect(() => { setSel(0); }, [q]);
   useEffect(() => { listRef.current?.querySelector(`[data-idx="${sel}"]`)?.scrollIntoView({ block: 'nearest' }); }, [sel]);

@@ -1,73 +1,97 @@
-# CloudIVR AI Agent — Fix "Are you still there?" Interruptions
+# CloudIVR Web App — Simpler Navigation and Modern Redesign
 
-The AI phone agent is cutting callers off: right after it asks a question, it jumps
-back in (often with "Are you still there?") before the caller has had a chance to
-reply. This change makes the agent wait patiently for a natural pause, on every call.
+A reorganized, modern CloudIVR web app where customers find each feature quickly, grouped by the job they want to do rather than by technical category.
+It keeps every current feature and adds a guided home screen, a clearer menu, and a consistent new look in both light and dark mode.
 
 ## Who it's for
-CloudIVR business customers who turn on the AI voice agent to answer or make calls,
-and the people those agents talk to on the phone. Reported by businessintelusa@gmail.com
-after testing their own agent.
+- CloudIVR business customers, mostly non-technical small-business owners and teams, who buy numbers, answer calls, run outbound calling (IVR, campaigns, AI agents) and send texts.
+- New customers who need a clear first step, and existing customers who already know the features but get lost moving between them.
 
-## Root cause (confirmed)
-The agent's turn-taking is set to the most impatient preset available. OpenAI's
-real-time voice engine is told to treat a ~2-second pause as "the caller is finished
-talking," so the instant a caller pauses to think after a question, the agent decides
-the turn is over and speaks again. This is the wrong setting for a phone receptionist,
-whose callers routinely pause to think, look something up, or take a breath. A second,
-separate "Are you still there?" check adds to the feeling of being rushed.
+## Core features and experience
 
-This was diagnosed from the agent's live configuration and OpenAI's current turn-
-detection documentation; the behavior reproduces from the settings alone.
+### 1. Menu grouped by what customers want to do
+The current menu has 4 groups, several items with up to 6 hidden tabs each, and job names that use internal terms. For example, "AI voice agents" sits under "Outbound" even though agents also answer incoming calls, and Contacts and Audio library sit under "Calling". The new menu is organized around jobs:
 
-## What changes
-- The agent waits for a genuine, natural pause before it speaks again, instead of
-  treating any ~2-second gap as the caller being done. Callers can think, pause, and
-  start their sentence without being talked over or prompted.
-- The "Are you still there?" check-in still happens only after a real silence (kept at
-  about 7 seconds), still asks once, and then politely wraps up if there's truly no one
-  there — unchanged from today.
-- Any sound or speech from the caller resets the silence timer, so the check-in never
-  lands on someone who is mid-reply.
-- Applies everywhere: the free browser test talk and real inbound and outbound phone
-  calls, so what a customer hears when testing matches what their callers get.
+| Group | What's in it |
+|---|---|
+| **Home** | Guided home, Messages, Live activity |
+| **Phone numbers** | My numbers, Get a number, eSIM and mobile, Add texting to a landline, Fax |
+| **Answer calls** | Keypad menus (IVR), Call forwarding and voicemail, AI receptionist (agents answering numbers) |
+| **Make calls** | Quick call, Text-to-voice call, Bulk campaigns, AI calling agents, Do-not-call list |
+| **Contacts and media** | Contacts, Audio library |
+| **Connect devices** | SIP and softphone logins, Browser phone |
+| **Account** | Wallet and billing, Settings, Help center |
 
-## Experience, before vs after
-- Before: Agent asks "What's the best number to reach you?" → caller takes ~2 seconds to
-  recall it → agent cuts in / asks "Are you still there?" → caller feels rushed and
-  talked over.
-- After: Agent asks the question → caller pauses, then answers at their own pace → agent
-  listens and responds to the actual answer. Only if the caller stays completely silent
-  for about 7 seconds does the agent gently check in once.
+- Labels are plain and action-led ("Get a number", not "Buy a number"; "AI receptionist", not just "AI voice agents"). Technical terms (IVR, SIP) stay in short subtitles so experienced users still recognize them.
+- Every feature stays visible in the menu and on its page. Nothing moves behind an "Advanced" reveal. Long settings pages get clear section headings and an in-page jump list.
+- All existing web addresses and bookmarks still work and redirect to the new location.
+
+### 2. Guided, task-based home
+- The home screen leads with "What do you want to do?" and offers large task cards: Get a business number, Answer my calls (menu, forwarding or AI receptionist), Call a list of leads, Send texts, Set up an AI agent, Connect my phone or softphone.
+- Each card opens a short step-by-step setup, such as "Answer my calls: 1) pick a number, 2) choose how calls are answered, 3) test it". Each step links to the real settings.
+- A "Your setup" checklist tracks progress (number bought, calls handled, first campaign, wallet funded) and stays until it's complete or dismissed.
+- Below the tasks, a compact overview shows balance, active numbers, live calls, unread messages and recent activity. The existing stats and banners move into it.
+- The home adapts to the customer. Someone without a number sees "Get a number" first. Someone with numbers and no call handling sees "Answer my calls" first.
+
+### 3. Consistent page layouts
+- Every page uses the same layout: a header with title, one-line description and a main action button on the right; sub-sections as tabs under the header; then the content.
+- Sub-pages show a breadcrumb trail, such as Phone numbers › +1 334… › Billing.
+- Each number's settings page gets a clear tab order: Overview · Answering · Texting · Recordings · Billing. Its quick actions (assign AI agent, add extra number, renew) stay on the Overview tab.
+- Empty pages show a short explanation and one clear next-step button.
+
+### 4. Modern visual refresh in light and dark
+- A new design system covers typography, spacing, colors, buttons, inputs, cards, tables, tabs, dialogs and toasts, and every page uses it.
+- Light and dark mode both get full support and have equal quality. A "Match my device" option stays. The setting is in the account menu and in Settings.
+- Hover, focus and transition states stay subtle. Loading placeholders replace bare spinners where content takes time to load.
+- Accessible contrast in both themes, visible keyboard focus, touch targets of at least 44 px on phones.
+
+### 5. Quicker ways to get around
+- Search and command palette (⌘K / Ctrl K, already in the app) finds every page, number, agent, campaign and contact. It also runs actions like "Get a number", "Start a campaign" and "Add funds".
+- Contextual help: the "?" button opens help for the current page. Short inline hints appear next to confusing fields.
+- Phone layout: the bottom navigation bar uses the same new groups, and the "More" sheet lists everything else.
+
+## User flow
+1. A customer signs in and lands on the guided home, which highlights the next most useful task based on their account.
+2. They choose a task card, for example "Answer my calls", and follow 2–4 short steps that take them through the real settings.
+3. To find something specific, they open the matching menu group or use search (⌘K).
+4. On any page the layout is the same, so the main action is always in the same place, top right.
+5. The setup checklist on home marks progress until the account is fully set up.
+
+## UI/UX feel
+- Calm, clean and professional, in the style of current business tools such as Stripe, Linear and Intercom.
+- Readable type, generous spacing, fewer competing colors, one accent color for main actions.
+- Dark mode is fully finished, not an afterthought. Light mode is bright and crisp.
+- Clear, friendly wording that names the outcome ("Answer my calls"), with technical terms secondary.
 
 ## Implementation phases
 
 ### Phase 1 — MVP (built now)
-- Switch the agent's turn-taking to the patient preset so natural pauses no longer end
-  the caller's turn, across browser test, inbound, and outbound calls.
-- Keep the "Are you still there?" check-in at ~7 seconds, asked once, then wrap up.
-- Confirm caller speech reliably cancels a pending check-in.
-- Verify the opening greeting, caller interruptions ("barge-in"), transfers, voicemail
-  detection, and booking prompts still work with the calmer turn-taking.
+- New job-based menu (desktop sidebar and phone navigation), plain labels, redirects for all old addresses.
+- Guided task-based home with task cards, short step-by-step setups, an adaptive "next task" and the setup checklist, plus the compact overview.
+- New design system applied across every page in both light and dark mode.
+- Consistent page header, tabs, breadcrumbs and empty states on all pages. Clearer tab order on each number's settings page.
+- Search and command palette extended to cover the new groups and quick actions.
+- Every existing feature keeps working the same way. This release changes only placement, wording and appearance.
 
-### Phase 2 — Later (not now)
-- Per-agent "conversation pace" control in the agent settings (Patient / Balanced /
-  Snappy) so each business can tune how quickly its agent responds.
-- Make the silence check-in wording and timing adjustable per agent.
+### Phase 2 — Later
+- First-visit guided tour of the new menu for existing customers, plus a "What's new" summary of where things moved.
+- Inline contextual hints and short how-to videos on the most complex pages (campaigns, keypad menus, AI agents).
+- Saved favorites and shortcuts in the menu.
 
-### Phase 3 — Later (not now)
-- Review the live call recordings/transcripts after release to confirm fewer rushed
-  turns, and tune the pause length from real-world calls if needed.
+### Phase 3 — Later
+- Measure where customers get stuck (page visits, abandoned setups) and simplify those screens further.
+- Customizable home (reorder or hide cards) and per-team role views.
+- Usability check with real customers, then polish based on the feedback.
 
 ## Assumptions
-- "Patient" is applied as OpenAI's lowest-eagerness turn detection (waits for a natural
-  pause, up to roughly 8 seconds, before considering the caller finished). This is the
-  vendor-recommended setting for letting callers speak at their own pace.
-- The "Are you still there?" check-in stays at about 7 seconds (as chosen), asked once,
-  followed by a polite wrap-up — existing behavior is kept, only the premature
-  turn-ending is fixed.
-- The caller can still interrupt the agent at any time (barge-in) — that stays on.
-- No change to pricing, call limits, recording, transfers, booking, or voicemail
-  behavior; only the pause/turn-taking timing changes.
-- Changes take effect in production after the usual Save to GitHub / deploy step, which
-  is done by the account owner.
+- **Navigation and visuals ship together in the first release**, since all three focus options were selected.
+- **No feature is removed or hidden.** Everything stays visible and is regrouped and relabeled, as requested.
+- **Light and dark mode** both get full support, with "Match my device" as the default. The app already has this switch, so it is being upgraded, not built from scratch.
+- **Group names and labels** in the table above are the proposed wording, and some feature names change ("Buy a number" → "Get a number"). Technical terms stay as subtitles.
+- **AI agents appear in two places:** "AI receptionist" under Answer calls and "AI calling agents" under Make calls. Both open the same agents, filtered by use.
+- **Existing bookmarks and links** (including links in emails and Telegram) keep working through redirects.
+- **The public CloudIVR website** (landing, pricing, legal pages) is not part of this redesign. Only the signed-in web app changes.
+- **The Telegram bots are not affected.**
+- **No changes** to pricing, plans, billing, call handling, campaigns, AI agent behavior or any backend logic.
+- **Existing translations** (English, French, Spanish and others) cover all new and changed wording.
+- **Changes reach customers** after the account owner's usual Save to GitHub / deploy step.

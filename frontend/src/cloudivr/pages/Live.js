@@ -116,7 +116,7 @@ export default function Live() {
   useEffect(() => { if (data && (running > 0) !== ((summary?.liveCampaigns || 0) > 0)) refreshSummary(); }, [data, running, summary, refreshSummary]);
   const onDone = () => { reload(); refreshSummary(); };
   const header = (
-    <PageHeader label="Calling" title="Live" sub="Every campaign that is calling right now: who is ringing, who is talking, how fast it goes and what is coming up. Updates every few seconds." testid="live-header">
+    <PageHeader label="Home" title="Live activity" sub="Every campaign that is calling right now: who is ringing, who is talking, how fast it goes and what is coming up. Updates every few seconds." testid="live-header">
       <Link to={cp('/app/campaigns/new')} className="civr-btn civr-btn-primary" data-testid="live-new-campaign-button"><Plus className="w-4 h-4" />New campaign</Link>
     </PageHeader>
   );

@@ -88,7 +88,7 @@ export default function AudioLibrary() {
   const hide = (id) => setData(d => ({ ...d, audios: (d?.audios || []).filter(x => x.id !== id) }));
   return (
     <div data-testid="audio-page">
-      <PageHeader label="Audio" title="Audio library" sub="Greetings, IVR prompts and campaign messages. Upload your own or type it and pick a voice." testid="audio-header" />
+      <PageHeader label="Contacts & media" title="Audio library" sub="Greetings, IVR prompts and campaign messages. Upload your own or type it and pick a voice." testid="audio-header" />
       <div className="grid lg:grid-cols-3 gap-4"><UploadCard onDone={reload} /><TtsCard onDone={reload} /></div>
       <div className="mt-8 flex flex-col gap-2">
         <ErrorNote error={error} onRetry={reload} />

@@ -20,7 +20,7 @@ export default function Fax() {
     const t = setInterval(reload, 5000);
     return () => clearInterval(t);
   }, [live, reload]);
-  const head = <PageHeader label="Numbers" title="Fax" sub="Send and receive faxes on your Business plan numbers. 50 free pages a month per number (sent + received), then $2 a page from your wallet." testid="fax-header"><Link to={cp('/app/help?topic=fax')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="fax-help-link"><HelpCircle className="w-4 h-4" />Fax guide</Link></PageHeader>;
+  const head = <PageHeader label="Phone numbers" title="Fax" sub="Send and receive faxes on your Business plan numbers. 50 free pages a month per number (sent + received), then $2 a page from your wallet." testid="fax-header"><Link to={cp('/app/help?topic=fax')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="fax-help-link"><HelpCircle className="w-4 h-4" />Fax guide</Link></PageHeader>;
   if (loading && !data) return <div data-testid="fax-page">{head}<SkeletonPage header={false} cards={2} rows={3} /></div>;
   if (error && !data) return <div data-testid="fax-page">{head}<ErrorNote error={error} onRetry={reload} /></div>;
   const nums = data?.numbers || [];
@@ -30,7 +30,7 @@ export default function Fax() {
       {head}
       {!nums.length && (
         <Empty icon={Printer} title="No numbers yet" sub="Buy a number on the Business plan to send and receive faxes." testid="fax-empty">
-          <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="fax-buy-link">Buy a number</Link>
+          <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="fax-buy-link">Get a number</Link>
         </Empty>
       )}
       {nums.length > 0 && !ready.length && <Locked feature="Fax" need="Business" phone={nums[0].phoneNumber} />}
