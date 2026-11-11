@@ -1,0 +1,42 @@
+{
+  "summary": "Frontend-only Playwright test (desktop 1920x1080, civr.uxtest) of the plan helper on Get a Business Line, the top-3 plan features, the 'Get a Business Line' rename and the removal of usage prices. ALL REQUESTED CHECKS PASS: nav-buy and the Ctrl+K palette say 'Get a Business Line'. plan-helper shows 6 answers: calls→Starter, menu→Pro, campaigns→Pro, ai→Business (the result text is correct and aria-pressed=true). After search + pick, the matching buy-plan-<id> card has data-selected=true, and a helper click after picking switches the selected card (calls→starter). texts→/app/texting-number (texting-number-page renders) and phone→/app/esim. App plan cards show 3 bold top features in the right order (Starter browserPhone/forwarding/inbox, Pro ivr/bulk/voicemail, Business aiAgent/anyCallerId/textTriggers), then 'See all 6/11/9 features'. Expanding shows the full list and 'Show fewer', and the selection does not change. The website /cloudivr pricing cards behave the same (pricing-feature-pro-more expands, no navigation). A regex scan for $x/min, /page, 'SMS included' and 'min ·' found no matches on the buy plan cards, the landing page, number tabs logs/triggers/ai/ring/overview, AI agents, text-call, campaigns/new, contacts, texting-number and messages. The notes now read: triggers-cost-note 'Calls are paid from your wallet…', ai-agents-rate-note 'Real calls are paid from your wallet. Browser tests are free.', text-call-pricing / text-call-rate-hint 'paid from your wallet'. The AI campaign kind option shows no price, and the AiSummary button label is just 'Summarize' (checked in code; the uxtest logs are empty so no button rendered). French: the helper title 'Pour quoi allez-vous l’utiliser ?', nav 'Obtenir une ligne professionnelle' and the result 'Forfait Pro choisi pour vous…' are translated. Checkout panel (wallet/crypto/pay button) renders after picking a plan; the pay step was NOT clicked, to avoid adding a number to the shared account. A few minor issues are listed below.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/calls/callback (402 insufficient_balance)", "issue": "The error text still shows a usage price: 'Call me first bills both calls — about $X/min together after your plan minutes.' It shows as the softphone/contacts toast when the wallet is low."},
+      {"endpoint": "js/cloudivr-web/seo.js:111 (public SEO page for the AI agent)", "issue": "Public page copy still says 'It is billed ${ai}/min from your wallet.' This conflicts with the request that no usage prices show anywhere."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PlanHelper selected answer (light theme)", "issue": "The selected answer uses !text-[#c7d2fe] (pale lavender) on a white button. The selected label is almost unreadable (seen in the EN and FR screenshots). Use the accent colour (e.g. var(--c-accent) / #4f46e5 in light theme) or a theme-aware class.", "selector": "[data-testid^=plan-helper-][aria-pressed=true]", "priority": "MEDIUM"},
+      {"component": "PlanHelper result", "issue": "The result goes stale: after the helper picks Business and the user then clicks the Starter card by hand, plan-helper-result still says 'Business plan picked for you' and the ai answer stays highlighted. Clear `picked` (or re-sync it) when the plan changes outside the helper.", "selector": "[data-testid=plan-helper-result]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Get a Business Line plan helper", "issues": ["The answer labels are centred: civr-btn sets text-align:center and justify-content:center, so text-left and !justify-start on the button do not left-align the label span. Add text-left to the span. Icons sit at the far left while the text is centred, so the row looks off."]},
+      {"screen": "Other pages (rename consistency)", "issues": ["Several CTAs still say 'Get a number' and link to /app/buy: Numbers.js numbers-buy-button, AnswerCalls.js answer-get-number-button / answer-empty-get-number, Sip.js sip-page-buy, Fax.js fax-buy-link, Campaigns.js campaign-new-empty-action, contacts/CallActions.js contact-call-buy-link, dashboard/TextingHome.js texting-home-buy. Consider 'Get a Business Line'.", "QuickCall.js:166 result after starting says 'Started N call(s) · about $X/min.' This is Quick IVR (estimates were meant to stay), but it is a per-minute price after launch, not before. Confirm it is intended."]},
+      {"screen": "French Get a Business Line", "issues": ["The 'Already have a plan?' card subtitle is half English: '…sur celui que vous payez déjà est $25.00/month and shares its plan features.' (probably a dynamic string missing from fr.json; likely existed before this change)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix the low-contrast selected state of the plan-helper answers in the light theme (replace !text-[#c7d2fe] with a theme-aware accent colour).",
+    "Optionally reset or sync PlanHelper `picked` when the user changes the plan by hand, so plan-helper-result never names a plan that is not selected.",
+    "Left-align the plan-helper answer labels (text-left on the label span).",
+    "Remove the $/min from the call-me-first 402 message (calls.js:123) and from the seo.js:111 AI agent page if 'no usage prices anywhere' should also cover errors and public SEO pages.",
+    "Optionally rename the remaining 'Get a number' CTAs to 'Get a Business Line', and finish the French string for the 'Already have a plan' subtitle."
+  ],
+  "critical_code_review_comments": [
+    "PlanHelper.choose(): it uses document.querySelector for scrolling, which is fine. When a number is already picked, though, it scrolls the user up to the search form, away from the plan cards that just changed. Consider scrolling to buy-plan-picker when it exists.",
+    "PlanFeatures: `short` only turns on when sorted.length > 4. A plan with exactly 4 'plus' features would show all of them with the bold top 3 and no toggle. That's acceptable, but note it.",
+    "catalogSnapshot.js still ships the rates (forwardingPerMin, aiAgentPerMin, etc.) and the minutes/sms in the client bundle. They are not displayed, but they are visible in the JS."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend only)", "frontend": "100% of requested checks (2 minor UI bugs + copy nits)"},
+  "test_credentials": "civr.uxtest@example.com / UxTest#2026 (works). Number +13341112222.",
+  "seed_data_creation": "None. No purchase completed. localStorage civr.lang was reset to 'en' after the FR check.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Number tabs are at /cloudivr/app/numbers/%2B13341112222?tab=logs|triggers|ai|ring. The uxtest logs are empty, so the AiSummary 'Summarize' button can't be seen in the UI without seeding a voicemail/recording log. The helper search button is found with get_by_role('button', name='Search numbers'); results are buy-result-N. Website pricing cards: pricing-feature-<id>-<key>/-more. Texting Number order CTAs were not tested (mobile-numbers available:false in preview)."
+}

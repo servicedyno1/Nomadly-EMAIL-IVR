@@ -85,7 +85,7 @@ export default function SipPage() {
       </PageHeader>
       {!nums.length && !mobile.length ? (
         <Empty icon={KeyRound} title="No numbers yet" sub="Buy a number on the Pro plan or higher to get SIP credentials." testid="sip-page-empty">
-          <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="sip-page-buy"><ShoppingCart className="w-4 h-4" />Get a number</Link>
+          <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="sip-page-buy"><ShoppingCart className="w-4 h-4" />Get a Business Line</Link>
         </Empty>
       ) : (
         <div className="grid xl:grid-cols-3 gap-6 items-start">

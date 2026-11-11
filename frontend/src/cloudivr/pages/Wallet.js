@@ -152,7 +152,7 @@ function Tables({ data }) {
         <div className="font-display text-2xl font-bold mb-4">History</div>
         {!data.history.length ? (
           <Empty bare icon={Receipt} title="No transactions yet" sub="Number purchases, renewals and call charges show up here." testid="wallet-history-empty">
-            <Link to={cp('/app/buy')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="wallet-history-empty-buy-link">Get a number</Link>
+            <Link to={cp('/app/buy')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="wallet-history-empty-buy-link">Get a Business Line</Link>
           </Empty>
         ) : <History list={data.history} />}
       </div>

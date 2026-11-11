@@ -30,7 +30,7 @@ export function TextingHome({ items, balance }) {
         <div className="civr-card p-4 flex items-center gap-3" data-testid="texting-home-upsell">
           <Phone className="w-5 h-5 text-[#818cf8] shrink-0" />
           <div className="flex-1 text-sm"><div className="font-semibold">Want calls too?</div><div className="text-xs text-[#a1a1aa]">Get a CloudIVR number for menus, forwarding and AI agents.</div></div>
-          <Link to={cp('/app/buy')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="texting-home-buy">Get a number</Link>
+          <Link to={cp('/app/buy')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="texting-home-buy">Get a Business Line</Link>
         </div>
       </div>
       <div className="lg:col-span-7 civr-card p-6" data-testid="texting-home-latest">

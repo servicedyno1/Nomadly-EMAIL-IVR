@@ -114,7 +114,7 @@ export default function Numbers() {
   return (
     <div data-testid="numbers-page" className="pb-20 lg:pb-0">
       <PageHeader label="Phone numbers" title="My numbers" sub="Your CloudIVR VoIP numbers answer your callers: switch forwarding, the keypad menu or hours here, or open a number for everything else. Your Texting Numbers and Landline to Texting numbers are listed below them." testid="numbers-header">
-        <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="numbers-buy-button"><ShoppingCart className="w-4 h-4" />Get a number</Link>
+        <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="numbers-buy-button"><ShoppingCart className="w-4 h-4" />Get a Business Line</Link>
       </PageHeader>
       <ErrorNote error={error} />
       {loading ? <Spinner /> : !nums.length && (mob?.items?.length || hs?.items?.some(t => LIVE_TEXTING.includes(t.status))) ? null : !nums.length ? (

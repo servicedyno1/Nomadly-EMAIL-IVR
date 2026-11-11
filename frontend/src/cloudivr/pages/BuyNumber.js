@@ -124,7 +124,7 @@ function ExistingPlanChooser({ nums, price, pv }) {
       <div className="w-11 h-11 rounded-xl bg-[#38bdf8]/15 flex items-center justify-center shrink-0"><Layers className="w-5 h-5 text-[#38bdf8]" /></div>
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-base">Already have a plan? Add a number to it</div>
-        <div className="text-sm text-[#a1a1aa] mt-1">Skip picking a plan — a new number on one you already pay for is {money(price)}/month and shares its plan features.</div>
+        <div className="text-sm text-[#a1a1aa] mt-1">{`Skip picking a plan — a new number on one you already pay for is ${money(price)}/month and shares its plan features.`}</div>
       </div>
       <div className="flex flex-col sm:flex-row gap-2 shrink-0">
         <select className="civr-input !h-10 sm:w-48" value={sel} onChange={e => setSel(e.target.value)} data-testid="buy-add-to-plan-select">
@@ -197,7 +197,7 @@ export default function BuyNumber() {
       {extraOf
         ? <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-extra-back"><Link to={cp('/app/buy')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-extra-back-button">Buy a brand-new number with its own plan instead</Link></p>
         : <>
-          <PlanHelper plans={catalog.plans} onPlan={setPlan} />
+          <PlanHelper plans={catalog.plans} current={planObj?.id} onPlan={setPlan} />
           <TextingNumberCta testid="buy-texting-number-cta" className="mb-6" />
           {eligible.length > 0 && <ExistingPlanChooser nums={eligible} price={catalog.extraNumber?.price || 25} pv={pv} />}
           <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-texting-link">Already have a number elsewhere? <Link to={cp('/app/texting?add=1')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-texting-link-button">Add texting to it</Link></p>

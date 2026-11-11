@@ -284,7 +284,7 @@ export function CampaignNew() {
       <CampaignKind value={kind} onChange={setKind} aiLocked={aiLocked} />
       <Empty icon={Megaphone} title={kind === 'ai' ? 'No number can run AI voice agent campaigns' : 'No number can run campaigns'} sub={kind === 'ai' ? 'AI voice agent campaigns need an active number on the Business plan.' : 'Bulk IVR needs an active number on the Pro plan or higher.'} testid="campaign-new-empty">
         {all.length ? <button type="button" onClick={() => showUpgrade({ feature: kind === 'ai' ? 'AI voice agent campaigns' : 'Bulk IVR campaigns', need: planFor(catalog?.plans, kind === 'ai' ? 'aiAgent' : 'bulkCall')?.id || 'business' })} className="civr-btn civr-btn-primary" data-testid="campaign-new-empty-action">See what you get</button>
-          : <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="campaign-new-empty-action">Get a number</Link>}
+          : <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="campaign-new-empty-action">Get a Business Line</Link>}
         {kind !== 'ai' && <TrialLink testid="campaign-new-trial-link" />}
       </Empty>
     </div>

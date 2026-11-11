@@ -67,7 +67,7 @@ export default function Dashboard() {
   return (
     <div data-testid="dashboard-page">
       <PageHeader label="Home" title={`Hi ${account?.name?.split(' ')[0] || 'there'}`} sub={textingOnly ? 'Your texting numbers and the latest texts from your customers.' : 'Pick what you want to do — we walk you through it, step by step.'} testid="dashboard-header">
-        {s && !fresh && <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="dashboard-buy-number-button"><PlusCircle className="w-4 h-4" />Get a number</Link>}
+        {s && !fresh && <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="dashboard-buy-number-button"><PlusCircle className="w-4 h-4" />Get a Business Line</Link>}
         {textingOnly && <Link to={cp('/app/texting?add=1')} className="civr-btn civr-btn-primary" data-testid="dashboard-add-texting-button">Add a number</Link>}
       </PageHeader>
       {s?.pendingVerification > 0 && (

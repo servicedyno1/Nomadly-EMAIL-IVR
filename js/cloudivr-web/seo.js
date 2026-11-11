@@ -35,7 +35,6 @@ const LOGO = `${CANONICAL}/civr/brand/icon-512.png`
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const usd = (n) => { const v = Number(n) || 0; return '$' + (Number.isInteger(v) ? v : v.toFixed(2)) }
-const perMin = (n) => { const v = Number(n) || 0; return '$' + (Number.isInteger(v) ? v.toFixed(0) : v.toFixed(2)) }
 const andList = (a) => { const x = (a || []).filter(Boolean); return x.length <= 1 ? (x[0] || '') : `${x.slice(0, -1).join(', ')} and ${x[x.length - 1]}` }
 
 // ── Live catalogue (plans, rates, countries) — safe if engine not ready ──────
@@ -96,7 +95,6 @@ function faqs() {
   const start = startPrice(c)
   const fromTxt = start != null ? ` (from ${usd(start)}/month)` : ''
   const minTopup = c && c.minTopup != null ? usd(c.minTopup) : '$10'
-  const ai = perMin(c && c.rates ? c.rates.aiAgentPerMin : 0.3)
   const extra = c && c.extraNumber ? usd(c.extraNumber.price) : '$25'
   const countries = c && c.countryCount ? c.countryCount : null
   const ivrPlans = andList(plansWith(c, 'ivr')) || 'the Business'
@@ -108,7 +106,7 @@ function faqs() {
     ['What is a keypad menu (IVR)?',
       `An IVR is a phone keypad menu: callers hear your greeting and press a key to reach the right person, hear a message or leave voicemail. It runs on your plan's included minutes. The keypad menu is on the ${ivrPlans} plan.`],
     ['What can an AI voice agent do?',
-      `Instead of a keypad menu, an AI voice agent talks naturally with callers — it answers questions, books appointments and takes messages. It is billed ${ai}/min from your wallet. Each number uses either a keypad menu or an AI agent.`],
+      `Instead of a keypad menu, an AI voice agent talks naturally with callers — it answers questions, books appointments and takes messages. It is paid from your wallet. Each number uses either a keypad menu or an AI agent.`],
     ['Are outgoing calls included in my minutes?',
       'No. Plan minutes cover incoming calls you answer. Outgoing calls — the browser phone, SIP, Quick IVR calls, campaigns and AI agent calls — and forwarded calls are billed per minute from your wallet, and the price is shown before you call.'],
     ['Can I use my number from a browser or a SIP app?',
@@ -320,7 +318,6 @@ function bodyNoscript() {
   const start = startPrice(c)
   const minTopup = c && c.minTopup != null ? usd(c.minTopup) : '$10'
   const extra = c && c.extraNumber ? usd(c.extraNumber.price) : null
-  const r = (c && c.rates) || {}
 
   const featuresHtml = FEATURES.map(([t, d]) => `<li><strong>${esc(t)}:</strong> ${esc(d)}</li>`).join('')
   const howHtml = HOW.map(([t, d]) => `<li><strong>${esc(t)}.</strong> ${esc(d)}</li>`).join('')
@@ -330,18 +327,13 @@ function bodyNoscript() {
   if (c && c.plans && c.plans.length) {
     const rows = c.plans.map((p) => {
       const feats = (p.webFeatures || []).filter((f) => f.included).map((f) => f.label)
-      return `<li><strong>${esc(p.name)} — ${esc(usd(p.price))}/month per number.</strong> ${esc(p.minutes)} incoming minutes and ${esc(p.sms)} SMS included each month.${feats.length ? ' Includes: ' + esc(feats.join(', ')) + '.' : ''}</li>`
+      return `<li><strong>${esc(p.name)} — ${esc(usd(p.price))}/month per number.</strong>${feats.length ? ' Includes: ' + esc(feats.join(', ')) + '.' : ''}</li>`
     }).join('')
-    const usage = []
-    if (r.overagePerMin != null) usage.push(`extra incoming minutes ${perMin(r.overagePerMin)}/min`)
-    if (r.overagePerSms != null) usage.push(`extra SMS ${perMin(r.overagePerSms)} each`)
-    if (r.forwardingPerMin != null) usage.push(`forwarding to a phone ${perMin(r.forwardingPerMin)}/min`)
-    if (r.aiAgentPerMin != null) usage.push(`AI voice agent ${perMin(r.aiAgentPerMin)}/min`)
     pricingHtml =
       `<h2>Pricing</h2>` +
       `<p>Free to sign up. Plans are billed monthly per number — pay with crypto or from your CloudIVR wallet (top up from ${esc(minTopup)}; cards coming soon). Auto-renew keeps your number; cancel any time. No contracts.</p>` +
       `<ul>${rows}</ul>` +
-      (usage.length ? `<p>Usage beyond your plan is billed from your wallet: ${esc(usage.join(', '))}. Outgoing calls show their price before you dial.${extra ? ` Extra numbers cost from ${esc(extra)}/month each and share a plan's minutes and SMS.` : ''}</p>` : '')
+      `<p>Outgoing calls, forwarding and AI agent calls are paid from your wallet.${extra ? ` Extra numbers cost from ${esc(extra)}/month each and share a plan's features.` : ''}</p>`
   } else {
     pricingHtml = `<h2>Pricing</h2><p>Free to sign up. Numbers are billed monthly per number and paid with crypto or from your CloudIVR wallet. Auto-renew keeps your number; cancel any time.</p>`
   }
@@ -447,7 +439,6 @@ function llmsFullTxt() {
   const start = startPrice(c)
   const minTopup = c && c.minTopup != null ? usd(c.minTopup) : '$10'
   const extra = c && c.extraNumber ? usd(c.extraNumber.price) : null
-  const r = (c && c.rates) || {}
   const lines = []
   lines.push(`# ${BRAND} — full overview`, '', `> ${tagline()}`, '')
   lines.push(`## What ${BRAND} is`,
@@ -463,15 +454,10 @@ function llmsFullTxt() {
   if (c && c.plans && c.plans.length) {
     c.plans.forEach((p) => {
       const feats = (p.webFeatures || []).filter((f) => f.included).map((f) => f.label)
-      lines.push(`- **${p.name} — ${usd(p.price)}/month per number.** ${p.minutes} incoming minutes and ${p.sms} SMS included per month.${feats.length ? ' Includes: ' + feats.join(', ') + '.' : ''}`)
+      lines.push(`- **${p.name} — ${usd(p.price)}/month per number.**${feats.length ? ' Includes: ' + feats.join(', ') + '.' : ''}`)
     })
     lines.push('')
-    const usage = []
-    if (r.overagePerMin != null) usage.push(`extra incoming minutes ${perMin(r.overagePerMin)}/min`)
-    if (r.overagePerSms != null) usage.push(`extra SMS ${perMin(r.overagePerSms)} each`)
-    if (r.forwardingPerMin != null) usage.push(`calls forwarded to a phone ${perMin(r.forwardingPerMin)}/min`)
-    if (r.aiAgentPerMin != null) usage.push(`AI voice agent calls ${perMin(r.aiAgentPerMin)}/min`)
-    if (usage.length) lines.push(`Usage beyond your plan is billed from your wallet: ${usage.join(', ')}. Outgoing calls (browser phone, SIP, Quick IVR, campaigns and AI agent) are billed per minute and show the price before you dial.${extra ? ` Extra numbers cost from ${extra}/month each and share the plan's minutes and SMS.` : ''}`, '')
+    lines.push(`Outgoing calls (browser phone, SIP, Quick IVR, campaigns and AI agent) and forwarding are paid from your wallet.${extra ? ` Extra numbers cost from ${extra}/month each and share the plan's features.` : ''}`, '')
   }
   lines.push('## Frequently asked questions')
   faqs().forEach(([q, a]) => lines.push(`### ${q}`, a, ''))

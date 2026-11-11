@@ -30,7 +30,7 @@ export default function Fax() {
       {head}
       {!nums.length && (
         <Empty icon={Printer} title="No numbers yet" sub="Buy a number on the Business plan to send and receive faxes." testid="fax-empty">
-          <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="fax-buy-link">Get a number</Link>
+          <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="fax-buy-link">Get a Business Line</Link>
         </Empty>
       )}
       {nums.length > 0 && !ready.length && <Locked feature="Fax" need="Business" phone={nums[0].phoneNumber} />}

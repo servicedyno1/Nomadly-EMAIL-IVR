@@ -140,7 +140,7 @@ export default function QuickCall() {
       {!numbers.length ? (trial?.available || trialShown ? <TrialCall status={trial} onUsed={() => { setTrialShown(true); reloadTrial(); refreshSummary(); }} /> : (
         <Empty icon={PhoneOutgoing} title="No number can place IVR calls yet" sub={all.length ? 'Quick IVR calls need an active number on the Pro plan or higher. Upgrade one in its Billing tab.' : 'Buy a number on the Pro plan or higher to place IVR calls.'} testid="quick-call-empty">
           {all.length ? <button type="button" onClick={() => showUpgrade({ feature: 'Quick IVR calls', need: planFor(catalog?.plans, 'ivrOutbound')?.id || 'pro' })} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">See what you get</button>
-            : <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">Get a number</Link>}
+            : <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">Get a Business Line</Link>}
         </Empty>
       )) : (
         <div className="grid xl:grid-cols-3 gap-4 items-start">
@@ -163,7 +163,7 @@ export default function QuickCall() {
                 ? <DateTimePicker value={f.scheduleAt} onChange={(v) => set({ scheduleAt: v })} maxDays={1} testid="quick-schedule" />
                 : <LockedNote text="Schedule calls from 5 minutes to 24 hours ahead." feature="Scheduling Quick IVR calls" phone={caller.phoneNumber} testid="quick-schedule-locked" />}</Field>
               <ErrorNote error={error} testid="quick-call-error" />
-              {result && <div className="civr-card p-4 text-sm" data-testid="quick-call-result">{result.message || (result.scheduled ? `Scheduled ${result.scheduled} call(s).` : `Started ${result.started} call(s) · about $${Number(result.rate).toFixed(2)}/min.`)}</div>}
+              {result && <div className="civr-card p-4 text-sm" data-testid="quick-call-result">{result.message || (result.scheduled ? `Scheduled ${result.scheduled} call(s).` : `Started ${result.started} call(s).`)}</div>}
               {result?.mode === 'otp' && (result.results || []).filter(r => r.callControlId).map((r, i) => <OtpLive key={r.callControlId} ccid={r.callControlId} testid={`quick-otp-live-${i}`} />)}
               {!funds.enough && <ShortNote balance={funds.balance} short={funds.short} testid="quick-call-short" />}
               <button className="civr-btn civr-btn-primary" disabled={busy || !funds.enough} data-testid="quick-call-submit-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneOutgoing className="w-4 h-4" />}{scheduleAt ? 'Schedule call' : 'Place call'}</button>

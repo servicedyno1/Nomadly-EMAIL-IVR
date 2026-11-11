@@ -27,7 +27,7 @@ export function CallActions({ contact }) {
         <div className="font-semibold">Calling from Contacts needs a number on the Pro plan or higher</div>
         <div className="text-[#a1a1aa] mt-1">Your number rings your phone first, or sends an automated IVR call.</div>
         {all.length ? <button type="button" onClick={() => showUpgrade({ feature: 'Calling from Contacts', need: 'pro' })} className="civr-btn civr-btn-primary civr-btn-sm mt-3" data-testid="contact-call-upgrade-button">See what Pro adds</button>
-          : <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary civr-btn-sm mt-3" data-testid="contact-call-buy-link">Get a number</Link>}
+          : <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary civr-btn-sm mt-3" data-testid="contact-call-buy-link">Get a Business Line</Link>}
       </div>
     </div>
   );

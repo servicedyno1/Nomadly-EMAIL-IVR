@@ -2593,3 +2593,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Included minutes/SMS lines removed from plan cards everywhere: Get a number, SIP plans page (card + compare table), website pricing cards + compare table, upgrade preview, extra-number copy.
 - Website: per-use "Usage rates" table removed (UsageRates deleted), extra-usage paragraphs and FAQ answers rewritten without rates (support chat gives exact rates).
 - fr/es translations added. Self-verified via screenshots (no $/min, $/page, "N min", "N SMS" on plan pickers or landing).
+
+## 2026-11-12 — Plan helper, top-3 plan features, menu rename, no per-minute notes
+- Get a Business Line: "What will you use it for?" helper (pages/buy/PlanHelper.js): calls→Starter, menu/voicemail/desk phones→Pro, campaigns→Pro, AI receptionist/any caller ID→Business, texts→Texting Number page, own-phone line→USA eSIM. Result stays in sync with the selected plan.
+- PlanFeatures: 3 biggest differences first (bold) + "See all N features" toggle (app + website cards).
+- Sidebar/palette/help/CTAs: "Get a number" → "Get a Business Line".
+- Per-minute notes removed: AI summaries (bar + Summarize button), Text Triggers, AI agent tab/page, AI campaign option, text calls, browser ring, call-me-first toasts + 402 error, Quick IVR result, SEO/llms pricing text. Campaign/Quick IVR pre-launch estimates kept.
+- Testing agent iteration_253: all checks pass; its UI notes (contrast, alignment, stale result, CTAs, FR subtitle) fixed and re-verified by screenshot.
