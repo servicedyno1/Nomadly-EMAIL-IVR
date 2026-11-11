@@ -1,5 +1,9 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-11 — CloudIVR web: AI agent patience fix · easier "add a number to my plan" · dedicated number per AI agent · job-based menu + guided home redesign (Phase 1) — TESTED in preview, NOT YET DEPLOYED
+- Details in CHANGELOG.md (top 4 entries). Backlog: Phase 2 (first-visit tour/"What's new" of moved items, inline hints/how-to videos, menu favorites), Phase 3 (measure stuck points, customizable home, role views, usability test); per-agent conversation pace; buy-to-agent auto-assign.
+
+
 ## 2026-11-11 — Forwarded calls show the real caller
 - Complaint: callbacks to toll-free numbers forwarded to the customer's phone showed our toll-free number. voice-service `playHoldMusicAndTransfer` now takes `presentFrom` (caller for inbound forwards / no-answer / off-hours / IVR-menu forward / ring-group fallback / SIP-unanswered→forward; the lead for outbound IVR press-1 transfers unless the flow set an explicit transferCallerId, e.g. web "call me first"). Tries the caller's number first; if Telnyx refuses (transfer error or bridge-leg dial error) retries once with our number. Browser/SIP rings already showed the caller.
 - Test: test_offhours_forward_2026-10 15/15 (sandbox mongod :27999) incl. F03 caller shown + F14 refused→fallback; voicemail suites pass. IVR lead-number transfer is code-reviewed only.

@@ -61,14 +61,17 @@ export function TaskCards({ nums }) {
   const { summary: s, openPhone } = useShell();
   const active = s?.numbers?.active || 0;
   const answered = (nums || []).some(n => answering(n.features));
-  const next = nextTask(active, answered);
+  // Wait for the numbers list before suggesting (else "Answer my calls" opens for accounts already answering).
+  const ready = !active || nums !== undefined;
+  const next = ready ? nextTask(active, answered) : null;
   const order = next ? [TASKS.find(t => t[0] === next), ...TASKS.filter(t => t[0] !== next)] : TASKS;
-  const [open, setOpen] = useState(next);
+  const [picked, setOpen] = useState(undefined);
+  const open = picked === undefined ? next : picked;
   return (
     <section aria-labelledby="civr-tasks-h" data-testid="home-tasks">
       <h2 id="civr-tasks-h" className="font-display text-xl font-bold mb-4">What do you want to do?</h2>
       <div className="grid md:grid-cols-2 gap-3 items-start">
-        {order.map(t => <TaskCard key={t[0]} task={t} open={open === t[0]} onToggle={() => setOpen(o => (o === t[0] ? null : t[0]))} suggested={t[0] === next} openPhone={openPhone} />)}
+        {order.map(t => <TaskCard key={t[0]} task={t} open={open === t[0]} onToggle={() => setOpen(open === t[0] ? null : t[0])} suggested={t[0] === next} openPhone={openPhone} />)}
       </div>
     </section>
   );

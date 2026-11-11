@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { Workflow, PhoneForwarded, Voicemail, Clock, Lock, PlusCircle, ChevronRight, Hash } from 'lucide-react';
 import { useApi, enc } from '../api';
 import { PageHeader, SkeletonRows, Empty, ErrorNote } from '../ui';
@@ -49,11 +49,12 @@ function NumberRow({ n, mode, i }) {
 // "Answer calls" hub: every number with how it is answered now, one tap into the right settings tab.
 export default function AnswerCalls() {
   const { mode: m } = useParams();
-  const mode = MODES[m] || MODES.ivr;
+  const mode = MODES[m];
   const { data, loading, error, reload } = useApi('/numbers');
+  if (!mode) return <Navigate to={cp('/app/answer/ivr')} replace />;
   const nums = (data?.numbers || []).filter(n => n.status === 'active' && n.capabilities?.voice !== false);
   return (
-    <div data-testid={`answer-page-${MODES[m] ? m : 'ivr'}`}>
+    <div data-testid={`answer-page-${m}`}>
       <PageHeader label={mode.label} title={mode.title} sub={mode.sub} testid="answer-header">
         <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="answer-get-number-button"><PlusCircle className="w-4 h-4" />Get a number</Link>
       </PageHeader>
@@ -65,7 +66,7 @@ export default function AnswerCalls() {
       ) : (
         <div className="flex flex-col gap-3" data-testid="answer-list">
           {nums.map((n, i) => <NumberRow key={n.phoneNumber} n={n} mode={mode} i={i} />)}
-          <p className="text-sm text-[#a1a1aa] mt-2">Want an AI to pick up instead? <Link to={cp('/app/ai-agents?use=inbound')} className="text-[var(--c-accent)] underline underline-offset-2" data-testid="answer-ai-link">Set up an AI receptionist</Link></p>
+          <p className="text-sm text-[#a1a1aa] mt-2 pb-20 lg:pb-0">Want an AI to pick up instead? <Link to={cp('/app/ai-agents?use=inbound')} className="text-[var(--c-accent)] underline underline-offset-2" data-testid="answer-ai-link">Set up an AI receptionist</Link></p>
         </div>
       )}
     </div>

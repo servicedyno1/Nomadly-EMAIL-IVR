@@ -66,7 +66,7 @@ export default function MobileNav({ onPhone }) {
     <>
       {open && <button type="button" aria-label="Close menu" className="lg:hidden fixed inset-0 z-40 bg-black/60" onClick={() => setOpen(false)} data-testid="mobile-more-backdrop" />}
       {open && (
-        <div className="lg:hidden fixed inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 civr-card civr-side p-2 civr-rise max-h-[calc(100dvh-9rem)] overflow-y-auto overscroll-contain" data-testid="mobile-more-menu">
+        <div className="lg:hidden fixed inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 civr-card p-2 civr-rise max-h-[calc(100dvh-9rem)] overflow-y-auto overscroll-contain" data-testid="mobile-more-menu">
           {MORE_GROUPS.map(([gid, glabel, items]) => (
             <div key={gid} className="mb-1" data-testid={`mobile-group-${gid}`}>
               <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[#a1a1aa]">{glabel}</div>

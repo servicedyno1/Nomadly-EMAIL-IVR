@@ -1,0 +1,38 @@
+{
+  "summary": "Frontend-only test of the CloudIVR signed-in redesign (job-based menu, guided home, Answer calls hub, number detail groups, breadcrumbs, palette, light/dark, phone nav). Most of it works. Desktop: all 7 nav groups and 22 nav items go to the right URL, and only one item has aria-current=page each time (AI receptionist and AI calling agents are told apart by ?use=inbound). nav-browser-phone opens the softphone without navigating. All 21 old URLs and all 15 old ?tab= ids render with no crash card and no page errors. The answer/ivr and answer/forwarding hubs show the right rows ('Answered by: AI agent' / 'Rings normally'), and their tab links, Get a number button and AI link work. Number detail: breadcrumbs (with tab name; crumb links work), 5 groups, the 'AI agent' badge, 9 Answering sub-tabs, and quick actions assign-ai→tab=ai, add-extra→/app/buy?extra=…, renew→tab=billing (add-extra is correctly hidden on the extra number). AutoCrumbs show on campaigns/new and on the agent page. Page header labels and titles are correct. On the inbound AI view, switching Agents/Call history/Do-not-call tabs keeps use=inbound and the sidebar highlight. Ctrl+K palette finds pages (with group subtitle), actions, the Sales AI agent and the number; Enter/click navigates; the theme action toggles data-civr-theme light<->dark. Home: 6 task cards, steps link correctly, only one card open at a time, 'Test it' opens the phone, checklist shows '2 of 4 done' with per-step data-done, dismiss persists after reload, stat links are correct. A newly registered account gets task-card-number first, expanded, with the Suggested badge; its Answer page shows the empty state. Phone 390x844: bottom nav, grouped More sheet, browser-phone item (opens phone, closes sheet) and the section-tabs strips work; no horizontal overflow; strips are hidden on desktop. Regression: buy-add-to-plan-card, number-card-0-add-extra and agent-numbers-card are all present. Found 1 contrast bug (More sheet in light mode), 1 state bug on the guided home, and a few minor layout points.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "MobileNav More sheet (light theme)", "issue": "Dark text on a dark background. The sheet keeps the graphite sidebar background rgb(19,23,28) because of the civr-side class, but theme-clean.css lines 178-180 set the links to #334155 (contrast about 1.9:1). Group headings use text-[#a1a1aa], which the light-theme override makes #475569 (contrast about 2.6:1). The menu is almost unreadable in light mode. Dark mode is fine.", "selector": "[data-testid=mobile-more-menu] .civr-nav-link, [data-testid^=mobile-group-] > div", "priority": "HIGH"},
+      {"component": "GuidedHome TaskCards", "issue": "The initially open card is picked too early. useState(next) runs while /numbers (nums) is still loading, so answered=false and next='answer'. When nums loads, next becomes null and the badge goes away, but the 'Answer my calls' card stays open on every home visit for an account whose calls are already answered (the test account, number answered by an AI agent). Expected: no card open, or the open card follows the final suggestion.", "selector": "[data-testid=task-card-answer] / [data-testid=task-answer-steps]", "priority": "MEDIUM"},
+      {"component": "Answer calls hub (phone)", "issue": "At 390px the floating support-chat button covers the end of the 'Set up an AI receptionist' link at the bottom of the list (y≈706).", "selector": "[data-testid=answer-ai-link]", "priority": "LOW"},
+      {"component": "My numbers card footer (desktop)", "issue": "On card 0 the 'Renews Dec 11, 2026' text is cut to 'Renews D…' because the Add number button, two icon buttons and the Open button share the row.", "selector": "[data-testid=number-card-0-add-extra]", "priority": "LOW"},
+      {"component": "AnswerCalls unknown mode", "issue": "/app/answer/<anything> shows the Keypad menus content, but no sidebar item is highlighted. Consider <Navigate to answer/ivr replace>.", "selector": "[data-testid=answer-page-ivr]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Phone More sheet, light mode", "issues": ["See the HIGH ui_bug: text contrast is too low."]},
+      {"screen": "Page headers", "issues": ["Quick call header label is 'Make calls · IVR', but its sidebar item has no IVR chip (Bulk campaigns has one). Small inconsistency."]},
+      {"screen": "Phone section tabs", "issues": ["The Connect devices group shows no tab strip on SIP, because only one non-phone item exists. Acceptable, noted for awareness."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix the light-mode contrast in the phone More sheet. Either remove 'civr-side' from the sheet className in MobileNav.js line 69 (so the sheet follows the page theme, which is what the CSS on lines 177-180 assumes), or keep it graphite and delete the light overrides on theme-clean.css lines 178-180 and give the group headings the civr-side-label class.",
+    "GuidedHome TaskCards: wait until nums has loaded before choosing the initially open card (for example, render nothing or keep open=null while nums===undefined, then set it once with a useEffect that does not override a user toggle).",
+    "Optional: leave bottom padding or move the chat FAB so it does not cover answer-ai-link on phones; stop the 'Renews' text being cut on the My numbers card; redirect unknown /app/answer/:mode to answer/ivr."
+  ],
+  "critical_code_review_comments": [
+    "GuidedHome.js:66 useState(next) is derived from async props; this is a stale initial state (see bug).",
+    "MobileNav.js:86 calls isSideActive(item, pathname) without search. That is fine for the current bottom-bar items, but pass search for consistency.",
+    "MobileNav.js:69 'civr-side' on the More sheet conflicts with the light-mode overrides at theme-clean.css:177-180.",
+    "Palette 'Private mode on' action label reads like a status. 'Turn on private mode' would be clearer."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (not requested)", "frontend": "~95% (1 high contrast bug, 1 medium state bug, 3 low)"},
+  "seed_data_creation": "Registered fresh account test_uxnew1794412506@example.com / TestPass#2026 (name TEST_New) to check the adaptive home; left in place as allowed. Test account civr.uxtest: localStorage civr.theme was changed in the test browser only; civr.setupDone was reset. No server data changed.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login: click the Sign in button with get_by_role('button', name='Sign in') (it is not type=submit); cookie-allow-all first; 'Skip for now' may appear. Theme is set via localStorage civr.theme=light|dark, and html[data-civr-theme] shows the active one. Retest: the light-mode More sheet contrast (mobile-more-menu link color vs background) and that the home on civr.uxtest has no task card open by default. Everything else in the review_request passed.",
+  "rca of the issue": "More sheet: MobileNav.js line 69 gives the sheet className 'civr-card civr-side', so the graphite --c-side background from theme-clean.css:64 applies. In light theme, theme-clean.css:179 sets [data-testid=mobile-more-menu] .civr-nav-link to #334155 (it has higher specificity than the .civr-side rule), and theme-light.css:112 maps text-[#a1a1aa] to #475569. Result: dark text on a graphite background. TaskCards: Dashboard passes nums from useApi('/numbers'), which is undefined on the first render, while summary is already loaded (active=2). So nextTask returns 'answer', which useState stores; later renders do not update it."
+}

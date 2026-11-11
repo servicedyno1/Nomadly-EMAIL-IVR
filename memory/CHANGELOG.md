@@ -1,3 +1,13 @@
+## 2026-06 — CloudIVR web app: job-based navigation + guided home + redesign (Phase 1) — CODE DONE & TESTED (preview; user deploys)
+- Menu (`cloudivr/nav.js`, Shell `NavRow`/`SideNav`): 7 job groups — Home · Phone numbers · Answer calls · Make calls · Contacts & media · Connect devices · Account; plain labels ("Get a number"), tech terms as chips (IVR, SIP). `#phone` item opens the browser phone. Paths unchanged → all old URLs/?tab= ids still work. AI receptionist = `/app/ai-agents?use=inbound`, AI calling agents = `/app/ai-agents` (same agents, different header; `isSideActive(item, pathname, search)`).
+- New `pages/AnswerCalls.js` at `/app/answer/ivr|forwarding` (unknown mode → redirect to ivr): every number with "Answered by …" + one-tap links into its tab.
+- Guided home (`pages/dashboard/GuidedHome.js`): 6 task cards with numbered step links, adaptive "Suggested next" (waits for /numbers), "Your setup" checklist (dismiss in localStorage `civr.setupDone`), "At a glance" stats (wallet, active numbers, calling now, unread, minutes).
+- Number settings tabs regrouped: Overview · Answering · Texting · Recordings · Billing (tab ids unchanged), breadcrumbs, Overview quick actions (assign AI, add extra number, renew). `Crumbs`/`AutoCrumbs` in `SectionTabs.js`; phone/tablet group tab strip (lg:hidden). Mobile More sheet grouped by headings.
+- ⌘K palette: pages with group subtitle, numbers, AI agents, campaigns, contact lists, actions (get number, answer setup, quick call, campaign, agent, funds, phone, theme toggle).
+- Redesign CSS block at end of `theme-clean.css` (focus ring, nav chips, task cards, steps, progress, graphite skeletons); page header labels renamed to group names. FR/ES: 118 new strings translated (extract → `civr_i18n_fill_missing.py`; note extractor process hangs after writing — kill it).
+- Tested: testing agent iteration_249 (~95%, all 5 findings fixed and re-verified: light More-sheet contrast, task-card open state, FAB overlap, card footer wrap, unknown answer mode).
+
+
 ## 2026-06 — CloudIVR: assign a dedicated number to an AI agent from the agent page — CODE DONE & TESTED (preview; user deploys)
 - Request: buy/assign a number per AI agent so each AI answers incoming calls independently ("separate AI for separate jobs on one platform"). Capability existed (number → AI agent routing) but could only be set from the number's settings, not the agent.
 - New: `pages/ai/AgentNumbers.js` "Dedicated numbers" card on the AI agent edit page (right column, existing agents only, wired in `AiAgents.js` AiAgentEdit). Lists numbers answering with this agent, lets you assign/unassign any eligible number, and links "Get a number for this agent" → `/app/buy?plan=business`.
