@@ -1,11 +1,13 @@
 import React from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Bot, Plus, ArrowLeft, ChevronRight, Lock } from 'lucide-react';
-import { useApi } from '../api';
+import { useApi, enc } from '../api';
 import { PageHeader, SkeletonRows, SkeletonPage, Empty, ErrorNote, TabStrip } from '../ui';
 import { cp } from '../paths';
 import { usePrivacy } from '../privacy';
 import { AgentForm, EMPTY_AGENT } from './ai/AgentForm';
+
+const RECEPTIONIST = { ...EMPTY_AGENT, name: 'Receptionist', goal: 'Answer callers’ questions, take a message with their name and number, and offer to have someone call them back.' };
 import { TestTalk } from './ai/TestTalk';
 import { AiCalls } from './ai/AiCalls';
 import AgentNumbers from './ai/AgentNumbers';
@@ -74,15 +76,18 @@ export function AiAgentEdit() {
   const isNew = id === undefined;
   const { data: list } = useApi('/ai-agents');
   const { data, loading, error, setData } = useApi(isNew ? null : `/ai-agents/${id}`);
-  const agent = isNew ? EMPTY_AGENT : data?.agent;
+  const [params] = useSearchParams();
+  const prepFor = isNew && params.get('prep') ? params.get('number') : null;
+  const agent = isNew ? (prepFor ? RECEPTIONIST : EMPTY_AGENT) : data?.agent;
   return (
     <div data-testid="ai-agent-edit-page">
       <Link to={cp('/app/ai-agents')} className="inline-flex items-center gap-2 min-h-[44px] text-sm text-[#a1a1aa] hover:text-[#818cf8] mb-3" data-testid="ai-agent-back-link"><ArrowLeft className="w-4 h-4" />All agents</Link>
       <PageHeader label="AI agent" title={isNew ? 'New agent' : agent?.name || 'Agent'} testid="ai-agent-edit-header" />
       <ErrorNote error={error} />
+      {prepFor && <div className="civr-card p-4 mb-4 text-sm" data-testid="ai-agent-prep-note">{`We started an AI receptionist for ${prepFor}. Add your business name and answers, then save. It only answers calls once you switch it on in the number’s AI agent tab.`}</div>}
       {!isNew && loading && !agent ? <SkeletonPage header={false} cards={2} rows={0} /> : agent && (
         <div className="grid lg:grid-cols-5 gap-4 items-start">
-          <div className="lg:col-span-3"><AgentForm key={agent.id || 'new'} initial={agent} voices={list?.voices} recordRate={list?.recordRate} recordingDays={list?.recordingDays} onSaved={(a) => (isNew ? nav(cp(`/app/ai-agents/${a.id}`), { replace: true }) : setData({ agent: a }))} onDeleted={() => nav(cp('/app/ai-agents'))} /></div>
+          <div className="lg:col-span-3"><AgentForm key={agent.id || 'new'} initial={agent} voices={list?.voices} recordRate={list?.recordRate} recordingDays={list?.recordingDays} onSaved={(a) => (prepFor ? nav(cp(`/app/numbers/${enc(prepFor)}?tab=ai`)) : isNew ? nav(cp(`/app/ai-agents/${a.id}`), { replace: true }) : setData({ agent: a }))} onDeleted={() => nav(cp('/app/ai-agents'))} /></div>
           <div className="lg:col-span-2 space-y-4">{isNew ? <div className="civr-card p-6 text-sm text-[#a1a1aa]" data-testid="ai-agent-save-first-note">Save the agent, then talk to it here in your browser before it takes real calls.</div> : <><TestTalk agent={agent} /><AgentNumbers agent={agent} agents={list?.agents || []} /><AiCalls agentId={agent.id} /></>}</div>
         </div>
       )}

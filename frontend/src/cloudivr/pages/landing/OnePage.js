@@ -11,6 +11,7 @@ import { PaymentMethods } from './Payments';
 import { HeroDecor, Squiggle } from './Doodles';
 import { HeroCard } from './HeroCard';
 import { NumbersPreview } from './NumbersPreview';
+import { LandingPlanHelper } from './PlanHelper';
 
 const WORDS = ['business calls', 'IVR campaigns', 'two-way texts', 'a USA eSIM'];
 export const PICKS = [
@@ -55,18 +56,21 @@ export function AllPlans({ catalog, tab, setTab, esimPrice, offer }) {
   const plans = (catalog?.plans || []).filter(p => p.available !== false);
   const hasRec = plans.some(p => p.recommended);
   const r = catalog?.rates;
+  const [hotId, setHotId] = useState(null);
+  const isHot = (p, i) => (hotId ? p.id === hotId : hasRec ? p.recommended : i === 1);
   return (
     <section id="pricing" className="civr-l-cream scroll-mt-16 border-t civr-l-rule" data-testid="pricing-section">
       <span id="coverage" className="block -mt-16 pt-16" aria-hidden="true" />
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-20">
         <Reveal><h2 className="civr-l-h text-3xl sm:text-4xl text-slate-950">All plans, side by side</h2><p className="text-slate-600 mt-3 max-w-2xl">One monthly price, no contract. Switch tabs to compare.</p></Reveal>
+        <LandingPlanHelper plans={plans} onPlan={(id) => { setHotId(id); setTimeout(() => document.querySelector(`[data-testid="civr-plan-card-${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120); }} setTab={setTab} />
         <div role="tablist" className="inline-flex flex-wrap gap-2 mt-8 rounded-2xl bg-white border civr-l-rule p-1.5" data-testid="plans-tabs">
           {PICKS.map(([id, I, t]) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`civr-plan-tab inline-flex items-center gap-2 rounded-xl px-4 h-11 text-sm font-semibold ${tab === id ? 'bg-slate-950 text-white' : 'text-slate-700 hover:bg-slate-100'}`} data-testid={`plans-tab-${id}`}><I className="w-4 h-4" />{t}</button>)}
         </div>
         <div key={tab} className="civr-tab-panel mt-8" data-testid={`plans-panel-${tab}`}>
           {tab === 'ivr' && (
             <>
-              <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">{plans.map((p, i) => <PlanCard key={p.id} p={p} plans={plans} hot={hasRec ? p.recommended : i === 1} start={start} delay={i * 80} />)}{catalog?.texting && <TextingCard t={catalog.texting} start={start} delay={plans.length * 80} />}</div>
+              <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">{plans.map((p, i) => <PlanCard key={p.id} p={p} plans={plans} hot={isHot(p, i)} start={start} delay={i * 80} />)}{catalog?.texting && <TextingCard t={catalog.texting} start={start} delay={plans.length * 80} />}</div>
               {r && <p className="text-sm text-slate-500 mt-6 max-w-3xl" data-testid="pricing-extra-usage">{'Outgoing calls and forwarding are paid from your wallet. Business can show any caller ID on every call.'}</p>}
             </>
           )}

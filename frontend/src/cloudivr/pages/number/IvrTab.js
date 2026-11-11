@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Trash2, BarChart3 } from 'lucide-react';
 import { useApi, enc } from '../../api';
 import { InstantToggle, AudioSelect } from '../../ui';
@@ -119,6 +120,7 @@ const locOpts = (opts) => Object.fromEntries(Object.entries(opts || {}).map(([d,
 export default function IvrTab({ num, reload }) {
   const { lang } = useLang();
   const langName = (LANGS.find(([c]) => c === lang) || LANGS[0])[1];
+  const [params] = useSearchParams();
   const ivr = num.features.ivr || {};
   const { data, reload: reloadAudio } = useApi('/audio');
   const audios = data?.audios;
@@ -135,6 +137,7 @@ export default function IvrTab({ num, reload }) {
   const u = useUnsaved({ g, list });
   const current = () => ({ greeting: g.greeting, greetingAudioUrl: g.greetingAudioUrl || null, options: toObj(list) });
   const submit = async () => { if (await save({ enabled, ...current(), language: lang }, 'PUT', (r) => (r?.aiAgentTurnedOff ? 'Saved. The AI voice agent is now off on this number.' : enabled ? 'Saved' : 'Saved — flip the switch above to turn the menu on'))) u.reset(); };
+  const prep = params.get('prep') === 'menu' && !enabled && !Object.keys(ivr.options || {}).length;
   const apply = (c) => { setG({ greeting: tr(c.greeting || ''), greetingAudioUrl: c.greetingAudioUrl || null }); setList(toList(locOpts(c.options))); };
   return (
     <div className="grid lg:grid-cols-3 gap-4" {...u.bind}>
@@ -143,6 +146,7 @@ export default function IvrTab({ num, reload }) {
           <div><div className="font-display text-2xl font-bold">Keypad menu (IVR)</div><p className="text-sm text-[#a1a1aa]">For people who call this number: they hear your greeting, then press a key to reach the right place.</p></div>
           <InstantToggle num={num} feature="ivr" label="Keypad menu" checked={enabled} reload={reload} testid="ivr-enabled-toggle" />
         </div>
+        {prep && <div className="rounded-xl border border-[#818cf8]/30 bg-[#818cf8]/5 p-3 text-sm" data-testid="ivr-prep-note">We prepared a “press 1 for sales” menu below. Add the phone numbers it should forward to, Save, then switch the menu on.</div>}
         {num.features.aiAgent?.enabled && <OneAnswerNote testid="ivr-ai-agent-note">Your AI voice agent answers this number now. Turning the keypad menu on switches the AI voice agent off — a number uses one or the other.</OneAnswerNote>}
         <Greeting g={g} set={(p) => setG({ ...g, ...p })} audios={audios} prefix="ivr" onAudio={reloadAudio} />
         <p className="text-xs text-[#a1a1aa] -mt-3" data-testid="ivr-language-note">{`Callers hear typed text in ${langName}, the app's language. Change the app language to change it.`}</p>
@@ -150,7 +154,7 @@ export default function IvrTab({ num, reload }) {
           render={(o, i, u, ch, rm) => <TopRow key={i} o={o} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`ivr-option-${i}`} onAudio={reloadAudio} />} />
         <SaveRow dirty={u.dirty} testid="ivr-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="ivr-save-button">Save keypad menu</button></SaveRow>
       </div>
-      <div className="space-y-4"><IvrTemplates current={current} onApply={apply} /><Analytics num={num} /></div>
+      <div className="space-y-4"><IvrTemplates current={current} onApply={apply} auto={prep} /><Analytics num={num} /></div>
     </div>
   );
 }

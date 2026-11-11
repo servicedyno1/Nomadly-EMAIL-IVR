@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { LayoutTemplate, Save, Trash2 } from 'lucide-react';
 import { api, useApi } from '../../api';
 import { undoable } from '../../undo';
 
 // Start from a built-in business menu or one of your saved menus; save the current menu as a template.
-export function IvrTemplates({ current, onApply }) {
+export function IvrTemplates({ current, onApply, auto = false }) {
   const { data, reload, setData } = useApi('/ivr/templates');
+  const autoDone = useRef(false);
+  // Plan helper "call menu" answer: load the first business menu once, unsaved, for the customer to review.
+  useEffect(() => { const t = data?.builtin?.[0]; if (auto && t && !autoDone.current) { autoDone.current = true; onApply(t.config); } }, [auto, data, onApply]);
   const [name, setName] = useState('');
   const save = async () => {
     try { await api('/ivr/templates', { method: 'POST', body: { name, ivr: current() } }); toast.success('Saved to My templates'); setName(''); reload(); } catch (e) { toast.error(e.message); }

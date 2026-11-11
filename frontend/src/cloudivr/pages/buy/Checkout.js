@@ -4,6 +4,7 @@ import { api, money, useApi } from '../../api';
 import { useOffer } from '../../offers';
 import { Field, Toggle } from '../../ui';
 import { CoinSelect } from '../../Pickers';
+import { TextingAddOn } from './TextingAddOn';
 
 function Option({ on, onClick, icon: Icon, title, sub, testid }) {
   return (
@@ -55,8 +56,12 @@ export function CouponField({ total, coupon, setCoupon, initialCode }) {
 }
 
 // Pay for the picked number from the wallet or with crypto; auto-renew starts switched on.
-export default function Checkout({ pick, planObj, total, balance, coins, busy, onPay, onTopUp, coupon, setCoupon, initialCode, cryptoOk = true, cryptoMin = 0, label, autoRenewDefault = true }) {
-  const due = coupon ? Math.round(total * (1 - coupon.discount / 100) * 100) / 100 : total;
+export default function Checkout({ pick, planObj, total, balance, coins, busy, onPay, onTopUp, coupon, setCoupon, initialCode, cryptoOk = true, cryptoMin = 0, label, autoRenewDefault = true, textingOffer = null }) {
+  const [tx, setTx] = useState({ on: false, zip: '' });
+  const addOn = textingOffer?.available && tx.on ? textingOffer.bundlePrice : 0;
+  const lineDue = coupon ? Math.round(total * (1 - coupon.discount / 100) * 100) / 100 : total;
+  const due = Math.round((lineDue + addOn) * 100) / 100;
+  const txBad = !!addOn && !/^\d{5}$/.test(tx.zip);
   const short = Math.max(0, Math.round((due - (balance || 0)) * 100) / 100);
   const [method, setMethod] = useState(short > 0 && cryptoOk ? 'crypto' : 'wallet');
   useEffect(() => { if (short > 0 && cryptoOk && method === 'wallet') setMethod('crypto'); }, [short, cryptoOk, method]);
@@ -67,7 +72,7 @@ export default function Checkout({ pick, planObj, total, balance, coins, busy, o
     <div className="civr-card p-6 mt-6" data-testid="buy-summary">
       <div className="flex flex-col md:flex-row md:items-center gap-4">
         <div className="flex-1"><div className="font-mono text-xl" data-testid="buy-summary-number">{pick.phoneNumber}</div><div className="text-sm text-[#a1a1aa]">{label || `${planObj?.name} plan · monthly`}{!label && <button type="button" onClick={() => document.querySelector('[data-testid="buy-plan-picker"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="ml-2 underline underline-offset-2 hover:text-[#818cf8]" data-testid="buy-change-plan">Change plan</button>}</div></div>
-        <div className="text-right">{coupon && <div className="font-mono text-sm text-[#a1a1aa] line-through" data-testid="buy-total-before">{money(total)}</div>}<div className="font-mono text-3xl" data-testid="buy-total">{money(due)}</div>{coupon && <div className="text-xs text-[#a1a1aa]">first month · then {money(total)}/month</div>}</div>
+        <div className="text-right">{coupon && <div className="font-mono text-sm text-[#a1a1aa] line-through" data-testid="buy-total-before">{money(total + addOn)}</div>}<div className="font-mono text-3xl" data-testid="buy-total">{money(due)}</div>{addOn > 0 && <div className="text-xs text-[var(--c-muted)]" data-testid="buy-total-texting">{`Includes Texting Number ${money(addOn)}`}</div>}{coupon && <div className="text-xs text-[#a1a1aa]">first month · then {money(total)}/month</div>}</div>
       </div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-6">
         {short > 0 && cryptoOk
@@ -77,6 +82,7 @@ export default function Checkout({ pick, planObj, total, balance, coins, busy, o
           : <div className="civr-card p-4 text-xs text-[#a1a1aa] flex gap-3"><Bitcoin className="w-5 h-5 shrink-0 text-[#a1a1aa]" />Crypto isn’t available for this payment. Pay from your wallet — short? Add funds with crypto first.</div>}
         <CardComingSoon testid="civr-checkout-card-option" />
       </div>
+      <TextingAddOn offer={textingOffer} value={tx} onChange={setTx} />
       {setCoupon && <CouponField total={total} coupon={coupon} setCoupon={setCoupon} initialCode={initialCode} />}
       {method === 'crypto' && (
         <div className="mt-4 max-w-xs"><Field label="Coin"><CoinSelect coins={coins} value={coin} onChange={setCoin} amountUsd={Math.max(due, cryptoMin)} testid="civr-checkout-coin-select" /></Field></div>
@@ -90,7 +96,7 @@ export default function Checkout({ pick, planObj, total, balance, coins, busy, o
       <div className="mt-6 flex justify-end">
         {walletShort
           ? <button type="button" onClick={() => onTopUp(short)} className="civr-btn civr-btn-primary" data-testid="buy-topup-link"><WalletIcon className="w-4 h-4" />Add {money(short)} to wallet</button>
-          : <button type="button" className="civr-btn civr-btn-primary" disabled={busy || (method === 'crypto' && !coin)} onClick={() => onPay({ method, coin, autoRenew })} data-testid="civr-checkout-pay-now-btn">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{method === 'crypto' ? `Pay ${money(due)} with ${coin || 'crypto'}` : `Pay ${money(due)} & activate`}</button>}
+          : <button type="button" className="civr-btn civr-btn-primary" disabled={busy || txBad || (method === 'crypto' && !coin)} onClick={() => onPay({ method, coin, autoRenew, ...(addOn ? { texting: { zipcode: tx.zip } } : {}) })} data-testid="civr-checkout-pay-now-btn">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{method === 'crypto' ? `Pay ${money(due)} with ${coin || 'crypto'}` : `Pay ${money(due)} & activate`}</button>}
       </div>
     </div>
   );

@@ -24,8 +24,8 @@ import { ShowAsSelect } from '../CallerIdPick';
 
 // Active numbers allowed to place outbound IVR calls for `feature`.
 export function useCallerNumbers(feature) {
-  const { data, loading } = useApi('/numbers');
-  return { loading, all: data?.numbers || [], numbers: (data?.numbers || []).filter(n => n.status === 'active' && n.access[feature]) };
+  const { data, loading, reload } = useApi('/numbers');
+  return { loading, reload, all: data?.numbers || [], numbers: (data?.numbers || []).filter(n => n.status === 'active' && n.access[feature]) };
 }
 
 const EMPTY = { callerId: '', showAs: '', targets: '', source: 'script', script: { templateKey: '', text: '', values: {} }, audioId: '', voice: '', mode: 'transfer', transferTo: '', transferBackups: '', activeKeys: ['1'], otp: { length: 6, confirmMsg: '', rejectMsg: '' }, menu: [], holdMusic: false, scheduleAt: '' };

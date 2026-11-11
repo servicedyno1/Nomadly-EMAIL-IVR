@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
+import { SetupIntentBanner } from './buy/setupIntent';
 import { ArrowLeft, Lock, Bot, Plus, RefreshCw } from 'lucide-react';
 import { useApi, enc, day } from '../api';
 import { Spinner, ErrorNote, Locked, statusPill, TabStrip } from '../ui';
@@ -67,6 +68,7 @@ export default function NumberDetail() {
   return (
     <div data-testid="number-detail-page">
       <Crumbs testid="number-breadcrumbs" items={[['Phone numbers'], ['My numbers', cp('/app/numbers')], [pv.phone(n.phoneNumber), tab !== 'overview' ? cp(`/app/numbers/${enc(n.phoneNumber)}`) : undefined], ...(tab !== 'overview' ? [[TAB_LABEL[tab] || label]] : [])]} />
+      {n.status === 'active' && params.get('prep') !== 'menu' && <SetupIntentBanner phone={n.phoneNumber} />}
       <div className="flex flex-col md:flex-row md:items-start gap-4 justify-between mb-8 civr-rise">
         <div>
           <div className="civr-label">{n.countryName || n.country} · {n.type?.replace('_', '-')} · {n.planName}</div>

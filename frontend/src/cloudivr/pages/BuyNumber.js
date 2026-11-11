@@ -12,6 +12,7 @@ import { usePrivacy } from '../privacy';
 import { Flag, IconSelect } from '../Pickers';
 import { TextingNumberCta } from './buy/TextingNumberCta';
 import { PlanHelper } from './buy/PlanHelper';
+import { saveIntent, setupPath, USE_PLAN, rememberedUse } from './buy/setupIntent';
 
 // The chosen number + plan survive the wallet top-up detour (Wallet links back with ?resume=1).
 const RESUME_KEY = 'civr.buyResume';
@@ -144,7 +145,7 @@ export default function BuyNumber() {
   const [q, setQ] = useState(saved?.q || { country: 'US', type: 'local', areaCode: '' });
   const [res, setRes] = useState(saved?.res || null);
   const [pick, setPick] = useState(saved?.pick || null);
-  const [plan, setPlan] = useState(saved?.plan || params.get('plan') || null);
+  const [plan, setPlan] = useState(saved?.plan || params.get('plan') || USE_PLAN[rememberedUse()] || null);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState(null);
   const [coupon, setCoupon] = useState(saved?.coupon || null);
@@ -153,6 +154,8 @@ export default function BuyNumber() {
   const { data: myNums } = useApi('/numbers');
   const pv = usePrivacy();
   const { data: open } = useApi('/numbers/orders?open=1');
+  const { data: textingOffer } = useApi(extraOf ? null : '/mobile-numbers');
+  const [use, setUse] = useState(rememberedUse);
   useEffect(() => { refreshSummary(); }, [refreshSummary]);
   if (!catalog) return <Spinner />;
   // Active main numbers the caller can hang an extra number off of.
@@ -172,21 +175,24 @@ export default function BuyNumber() {
     sessionStorage.setItem(RESUME_KEY, JSON.stringify({ q, res, pick, plan: planObj?.id, coupon }));
     nav(cp(`/app/wallet?need=${shortBy}&for=${enc(pick.phoneNumber)}${extraOf ? `&extra=${enc(extraOf)}` : ''}`));
   };
-  const buy = async ({ method, coin, autoRenew }) => {
+  const buy = async ({ method, coin, autoRenew, texting }) => {
     setBusy('buy'); setError(null);
     try {
       const d = extraOf
         ? method === 'crypto'
           ? await api(`/numbers/${enc(extraOf)}/extra-checkout`, { method: 'POST', body: { phoneNumber: pick.phoneNumber, coin, coupon: coupon?.code, autoRenew } })
           : await api(`/numbers/${enc(extraOf)}/extra`, { method: 'POST', body: { phoneNumber: pick.phoneNumber, coupon: coupon?.code, autoRenew } })
-        : await api('/numbers/checkout', { method: 'POST', body: { phoneNumber: pick.phoneNumber, plan: planObj.id, method, coin, autoRenew, coupon: coupon?.code } });
+        : await api('/numbers/checkout', { method: 'POST', body: { phoneNumber: pick.phoneNumber, plan: planObj.id, method, coin, autoRenew, coupon: coupon?.code, texting } });
       sessionStorage.removeItem(RESUME_KEY);
       refreshSummary();
+      const useNow = use && !extraOf && USE_PLAN[use] === planObj?.id ? use : null;
+      if (!extraOf) saveIntent(useNow, d.number?.phoneNumber || null);
+      if (d.texting) d.texting.error ? toast.error(d.texting.error) : toast.success('Texting Number ordered — we’ll tell you when it’s ready');
       if (d.order) { nav(cp(`/app/orders/${enc(d.order.id)}`)); return; }
       if (d.verification) { toast.success('Paid — one last step for this number'); nav(cp('/app/verification')); return; }
       if (d.substitutedFrom) toast.info(`${d.substitutedFrom} was just taken, so you got ${d.number.phoneNumber} instead — same price.`);
       else toast.success(`${d.number.phoneNumber} is yours`);
-      nav(cp(`/app/numbers/${enc(d.number.phoneNumber)}`));
+      nav(cp(setupPath(useNow, d.number.phoneNumber)));
     } catch (err) { setError(err); } finally { setBusy(''); }
   };
 
@@ -197,7 +203,7 @@ export default function BuyNumber() {
       {extraOf
         ? <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-extra-back"><Link to={cp('/app/buy')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-extra-back-button">Buy a brand-new number with its own plan instead</Link></p>
         : <>
-          <PlanHelper plans={catalog.plans} current={planObj?.id} onPlan={setPlan} />
+          <PlanHelper plans={catalog.plans} current={planObj?.id} onPlan={setPlan} onUse={setUse} />
           <TextingNumberCta testid="buy-texting-number-cta" className="mb-6" />
           {eligible.length > 0 && <ExistingPlanChooser nums={eligible} price={catalog.extraNumber?.price || 25} pv={pv} />}
           <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-texting-link">Already have a number elsewhere? <Link to={cp('/app/texting?add=1')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-texting-link-button">Add texting to it</Link></p>
@@ -219,7 +225,7 @@ export default function BuyNumber() {
           <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} surcharge={pick.surcharge} />
           </>}
           <Checkout key={`${pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}
-            coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `Extra number on ${pv.phone(extraOf)} · monthly` : null} autoRenewDefault={extraOf ? (parent ? parent.autoRenew !== false : true) : true} />
+            textingOffer={extraOf ? null : textingOffer} coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `Extra number on ${pv.phone(extraOf)} · monthly` : null} autoRenewDefault={extraOf ? (parent ? parent.autoRenew !== false : true) : true} />
         </div>
       )}
     </div>

@@ -13,13 +13,23 @@ const MAX_AGE_MS = 7 * 86400000
 const OPEN = ['awaiting_payment', 'underpaid']
 const { PAY_WINDOW_MS } = require('./wallet')
 const bad = (res, status, error, message) => res.status(status).json({ error, message })
+const ES = () => require('../spenza.js')
+// Texting Number bought with the Business Line in one checkout (first month at the bundle price).
+async function textingAddOn(body) {
+  if (!body.texting) return null
+  const zip = String(body.texting.zipcode || '').trim()
+  if (!/^\d{5}$/.test(zip)) return { error: 'Enter a 5-digit USA ZIP code for the Texting Number.' }
+  const offer = await ES().mobileOffer()
+  if (!offer.available) return { error: 'Texting Numbers are temporarily unavailable. Buy the Business Line on its own and add one later.' }
+  return { zipcode: zip, charge: offer.bundlePrice }
+}
 
 // USD the wallet must hold to finish the order (extras/upgrades may deposit more than they cost: crypto minimum).
 const needOf = (o) => (o.kind === 'extra' || o.kind === 'upgrade') ? (o.charge || o.price) : o.price
 
 const publicOrder = (o) => ({
   id: o._id, kind: o.kind || 'number', charge: o.charge || o.price, phoneNumber: o.phoneNumber, plan: o.planKey, planName: phoneConfig.plans[o.planKey]?.name || o.planKey, price: o.price,
-  parentNumber: o.parentNumber || null,
+  parentNumber: o.parentNumber || null, texting: o.texting ? { charge: o.texting.charge, line: o.textingLine || null } : null,
   coin: o.coin, address: o.address, amountCrypto: o.amountCrypto || null, autoRenew: o.autoRenew !== false, status: o.status,
   paidUsd: o.paidUsd || 0, assignedNumber: o.assignedNumber || null, substitutedFrom: o.substitutedFrom || null,
   message: o.message || null, dryRun: !!o.dryRun, preview: o.provider === 'preview', createdAt: o.createdAt, updatedAt: o.updatedAt,
@@ -124,13 +134,16 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
         const swapped = assigned !== o.phoneNumber
         const status = r.status === 202 ? 'verification' : 'active'
         const charged = extra ? round2(o.charge) : round2(phoneConfig.plans[o.planKey].price + (hit.surcharge || 0))
-        const priceNote = charged < o.price ? `it costs $${charged.toFixed(2)}, so the $${round2(o.price - charged).toFixed(2)} difference stays in your wallet` : 'same price'
+        const linePaid = round2(o.price - (o.texting?.charge || 0))
+        const priceNote = charged < linePaid ? `it costs $${charged.toFixed(2)}, so the $${round2(linePaid - charged).toFixed(2)} difference stays in your wallet` : 'same price'
         const leftover = extra && o.price > charged ? ` The $${round2(o.price - charged).toFixed(2)} left over stays in your wallet.` : ''
         const message = swapped
           ? `The number you picked (${o.phoneNumber}) was taken while your payment was confirming, so we gave you ${assigned} instead — same country${o.areaCode ? ' and area code' : ''}, ${extra ? `same price.${leftover}` : priceNote}${extra ? '' : '.'}`
           : extra ? `Payment confirmed — ${assigned} is now an extra number on ${sub.parentNumber}.${leftover}` : `Payment confirmed — ${assigned} is yours.`
-        await save(o._id, { status, assignedNumber: assigned, substitutedFrom: swapped ? o.phoneNumber : null, chargedUsd: charged, message })
-        tell(o, `${message}${status === 'verification' ? ' Open Verification to send the details the carrier needs.' : ''}`, swapped ? `Your new CloudIVR number: ${assigned}` : null)
+        const tx = o.texting ? await ES().buyMobile(o.chatId, { zipcode: o.texting.zipcode, autoRenew: o.autoRenew, charge: o.texting.charge }).catch(e => ({ error: e.message })) : null
+        const txNote = !tx ? '' : tx.error ? ` Your Texting Number couldn’t be ordered: ${tx.error}` : ' Your Texting Number is being set up — we’ll tell you when it’s ready.'
+        await save(o._id, { status, assignedNumber: assigned, substitutedFrom: swapped ? o.phoneNumber : null, chargedUsd: round2(charged + (tx && !tx.error ? o.texting.charge : 0)), message: message + txNote, ...(tx ? { textingLine: tx.item?.id || null } : {}) })
+        tell(o, `${message}${txNote}${status === 'verification' ? ' Open Verification to send the details the carrier needs.' : ''}`, swapped ? `Your new CloudIVR number: ${assigned}` : null)
         if (swapped) notifyAdmin(`🌐 CloudIVR web: crypto order ${o._id} — ${o.phoneNumber} was taken, assigned ${assigned}\nweb account: ${o.chatId} (${o.email})`)
         return
       }
@@ -174,13 +187,21 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
       coupon = await numbersApi.checkCoupon(chatId, req.body.coupon)
       if (coupon.error) return bad(res, 400, 'invalid_coupon', coupon.message)
     }
+    const texting = await textingAddOn(req.body)
+    if (texting?.error) return bad(res, 400, 'texting_unavailable', texting.error)
+    const linePrice = round2((plan.price + (picked.hit.surcharge || 0)) * (1 - (coupon ? coupon.discount : 0) / 100))
     if (req.body.method !== 'crypto') {
+      if (texting) {
+        const bal = await w.balance(chatId), need = round2(linePrice + texting.charge)
+        if (bal < need) return bad(res, 402, 'insufficient_balance', `Your wallet needs $${need.toFixed(2)} for the Business Line and the Texting Number. Top up $${round2(need - bal).toFixed(2)} first.`)
+      }
       const r = await numbersApi.purchase({ chatId, email: req.webUser.email, phone: picked.hit.phoneNumber, planKey, autoRenew, coupon, ...picked })
+      if (texting && (r.status === 201 || r.status === 202)) r.body.texting = await ES().buyMobile(chatId, { zipcode: texting.zipcode, autoRenew, charge: texting.charge }).catch(e => ({ error: e.message }))
       return res.status(r.status).json(r.body)
     }
     const coin = String(req.body.coin || '')
     if (!coins.includes(coin)) return bad(res, 400, 'invalid_coin', `Pick one of: ${coins.join(', ')}.`)
-    const price = round2((plan.price + (picked.hit.surcharge || 0)) * (1 - (coupon ? coupon.discount : 0) / 100))
+    const price = round2(linePrice + (texting ? texting.charge : 0))
     const dep = !livePayments()
       ? { ref: `dry-${crypto.randomUUID().slice(0, 12)}`, address: 'PREVIEW-MODE-DO-NOT-SEND-FUNDS', amountCrypto: null, provider: 'preview' }
       : await createCryptoDeposit(chatId, price, coin)
@@ -188,7 +209,7 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     const now = new Date()
     const doc = {
       _id: dep.ref, chatId, email: req.webUser.email, phoneNumber: picked.hit.phoneNumber, hit: picked.hit, country: picked.country, type: picked.type,
-      areaCode: picked.areaCode, planKey, price, autoRenew, coupon, coin, address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider,
+      areaCode: picked.areaCode, planKey, price, autoRenew, coupon, coin, ...(texting ? { texting } : {}), address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider,
       status: 'awaiting_payment', dryRun: dryRun(), createdAt: now, updatedAt: now,
     }
     await orders.insertOne(doc)
