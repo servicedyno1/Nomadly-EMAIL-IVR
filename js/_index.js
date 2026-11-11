@@ -12221,9 +12221,10 @@ Enter new value:`), bc)
       // we suggest depositing first to avoid wasted steps.
       try {
         const { usdBal: _bal } = await getBalance(walletOf, chatId)
-        const bar = _bal >= 20
-          ? `💳 <b>Wallet:</b> $${view(_bal)} — ready to buy`
-          : `💳 <b>Wallet:</b> $${view(_bal)} — plans start at <b>$20</b>; top up first to skip the deposit step at checkout.`
+        const _need = view(Math.max(0, 20 - _bal))
+        const _W = { en: [`ready to buy`, `plans start at <b>$20</b> — add <b>$${_need}</b> to your wallet, or pay the full price with crypto at checkout.`], fr: [`prêt à acheter`, `les offres commencent à <b>20 $</b> — ajoutez <b>${_need} $</b> au portefeuille, ou payez le prix complet en crypto au paiement.`], zh: [`可以购买`, `套餐起价 <b>$20</b> — 钱包再充值 <b>$${_need}</b>，或在结账时用加密货币支付全额。`], hi: [`खरीदने के लिए तैयार`, `प्लान <b>$20</b> से शुरू — वॉलेट में <b>$${_need}</b> और जोड़ें, या चेकआउट पर पूरी कीमत क्रिप्टो से दें।`], fa: [`آماده خرید`, `پلن‌ها از <b>$20</b> شروع می‌شوند — <b>$${_need}</b> به کیف پول اضافه کنید، یا هنگام پرداخت کل مبلغ را با کریپتو بپردازید.`] }[info?.userLanguage] || null
+        const _w = _W || [`ready to buy`, `plans start at <b>$20</b> — add <b>$${_need}</b> to your wallet, or pay the full price with crypto at checkout.`]
+        const bar = `💳 <b>Wallet:</b> $${view(_bal)} — ${_bal >= 20 ? _w[0] : _w[1]}`
         send(chatId, bar, { parse_mode: 'HTML' })
       } catch { /* non-fatal */ }
       // Build 2-per-row keyboard for targets
@@ -13994,7 +13995,7 @@ Enter new value:`), bc)
         // already re-attaches the main menu, and a bare "$X.XX" balance line
         // was redundant/confusing right after the credentials.)
         setTimeout(() => {
-          send(chatId, trans('t.vps_5d', isRDPplan), k.of([[user.smsAppMain], [user.cloudPhone], [user.domainNames], ['↩️ Back']]))
+          send(chatId, trans('t.vps_5d', isRDPplan), k.of([[user.bulkSmsNew], [user.cloudPhone], [user.domainNames], ['↩️ Back']]))
         }, 2000)
         
       } catch (error) {
@@ -15797,7 +15798,9 @@ All verified numbers generated during sourcing.`))
     // a human, we skip AI entirely, acknowledge, and escalate hard.
     const _humanRequestPatterns = /\b(human\s*(agent|support|person)?|real\s*(human|person|agent)|live\s*(agent|person|support)|speak\s*to\s*(someone|a\s*person|a\s*human|an\s*agent)|talk\s*to\s*(someone|a\s*person|a\s*human|an\s*agent))\b/i
     const _humanRequestPatternsLocal = /(agent\s*humain|personne\s*réelle|parler\s*à\s*quelqu['\u2019]?un|人工|真人|找人|किसी\s*से\s*बात|इंसान|असली\s*व्यक्ति|मानव\s*एजेंट)/i
-    if (_humanRequestPatterns.test(message) || _humanRequestPatternsLocal.test(message)) {
+    // Users chasing an earlier ticket ("never got a reply", "ref VcWXH", "toujours pas de réponse") go straight to a human too.
+    const _chasePattern = /\b(never\s*(got|get|received)\s*(a\s*)?(reply|response|answer)|no\s*(one\s*)?(reply|response|answer)|still\s*waiting|waiting\s*for\s*(a\s*)?(reply|response)|\bref\b\s*[:#.]?\s*[A-Za-z0-9]{5,8})\b|pas\s*(de|eu\s*de)\s*r[ée]ponse|toujours\s*pas|没有回复|没人回复|जवाब\s*नहीं|پاسخ\s*نگرفتم/i
+    if (_humanRequestPatterns.test(message) || _humanRequestPatternsLocal.test(message) || _chasePattern.test(message)) {
       log(`[Support] ${chatId} explicitly requested a HUMAN — suppressing AI auto-reply`)
       // Tell user help is coming
       const humanAckMsg = {
@@ -36758,6 +36761,8 @@ Select a category:`), k.of(catBtns))
   }
 
   if (message === user.freeTrialAvailable || message === user.smsAppMain || (typeof message === 'string' && (message.startsWith('📧') || message.startsWith('📱')) && (message.includes('BulkSMS') || message.includes('SMS en masse')))) {
+    // 2026-11: the old Android-app BulkSMS (100 free SMS trial) is retired — every old button/keyboard opens the simless BulkSMS.
+    if (process.env.SMS_APP_LEGACY !== 'true') { await set(state, chatId, 'action', 'bse-home'); return bulkEsimBot.showHome(send, chatId, info?.userLanguage || 'en') }
     // Show BulkSMS sub-menu with dynamic status
     await set(state, chatId, 'action', a.submenu7)  // Set BulkSMS action state
     const sub = smsSubStatus

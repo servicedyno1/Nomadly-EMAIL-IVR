@@ -1042,9 +1042,13 @@ function extractPhoneNumbers(text, cc) {
   return { phones, diff: lenBefore - lenAfter }
 }
 
+// Chats Telegram says are gone (not found / blocked / deactivated) are skipped for 6 h instead of failing loudly on every send.
+const _goneChats = new Map(), GONE_MS = 6 * 3600 * 1000
+const _isGone = (d) => /chat not found|bot was blocked|user is deactivated|bot was kicked|have no rights to send|group chat was upgraded/i.test(d?.description || '')
 const sendMessage = async (chatId, message, reply_markup) => {
+  const goneAt = _goneChats.get(String(chatId))
+  if (goneAt && Date.now() - goneAt < GONE_MS) return
   try {
-    console.log({ message, chatId })
     const opts = reply_markup || {}
     // Auto-detect HTML and inject parse_mode so tags like <b>, <i>, <code>, <a>, <pre>, <u>, <s>
     // render correctly instead of being shown as literal text. Mirrors the
@@ -1058,7 +1062,13 @@ const sendMessage = async (chatId, message, reply_markup) => {
       ...opts,
     })
   } catch (error) {
-    console.error('Error sending message:', { code: error?.message, data: error?.response?.data, chatId, message })
+    const data = error?.response?.data
+    if (_isGone(data)) {
+      if (!_goneChats.has(String(chatId))) console.warn(`[sendMessage] ${chatId} unreachable (${data.description}) — skipping it for 6 h`)
+      _goneChats.set(String(chatId), Date.now())
+      return
+    }
+    console.error('Error sending message:', { code: error?.message, data, chatId })
   }
 }
 

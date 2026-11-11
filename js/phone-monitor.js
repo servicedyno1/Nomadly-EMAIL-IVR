@@ -566,6 +566,11 @@ async function handleReactivation(
  * @param {Object} db - MongoDB database instance
  */
 function initPhoneMonitor(bot, db) {
+  // Twilio number monitoring is off — we're on Telnyx now. Flip PHONE_MONITOR_ENABLED=true to re-enable.
+  if (process.env.PHONE_MONITOR_ENABLED !== 'true') {
+    console.log('[PhoneMonitor] Disabled (PHONE_MONITOR_ENABLED != true) — skipping Twilio number checks');
+    return;
+  }
   console.log('[PhoneMonitor] Initialized — checking every 30 minutes');
 
   // Run immediately on startup

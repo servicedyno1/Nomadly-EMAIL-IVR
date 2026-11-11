@@ -22,11 +22,11 @@ const tg = async (text, wait = 1800) => { await axios.post('http://localhost:500
   // Run 1: text only, no opt-out, 161 refused / 160 ok, keep text, replies yes, send now → $71
   await walk('run1', [['🛰 eSIM BulkSMS (USA/Canada)', 'bse-home'], ['📤 New campaign', 'bse-contacts'], [contacts(4000), 'bse-consent', 2500], ['✅ Yes, they all agreed', 'bse-content'], ['✖️ Remove opt-out line (160 chars)', 'bse-content'],
     ['a'.repeat(161), 'bse-content'], ['a'.repeat(160), 'bse-review'], ['✅ Send this one message', 'bse-test', 2500],
-    ['➡️ Continue: choose when', 'bse-when'], ['💬 Add replies (+$20)', 'bse-when'], ['🚀 Send now', 'bse-pay']])
+    ['➡️ Continue: choose when', 'bse-when'], ['💬 Add replies (+$20)', 'bse-when'], ['🚀 Send now', 'digital-product-pay']])
   const s1 = await st(), b1 = await db.collection('bsBookings').findOne({ _id: s1.bseBookingId }), cp1 = await db.collection('bsCampaigns').findOne({ _id: s1.bseCampaign })
   ok('run1 campaign optOut=false replies=true content 160 chars', cp1?.optOut === false && cp1.replies === true && cp1.content[0].length === 160, JSON.stringify([cp1?.optOut, cp1?.replies]))
   ok('run1 booking mode now, replyFee 20, price 71, no discount', b1?.mode === 'now' && b1.replyFee === 20 && b1.price === 71 && b1.discountPct === 0 && b1.hour === new Date().getUTCHours(), JSON.stringify(b1 && [b1.mode, b1.replyFee, b1.price, b1.discountPct, b1.hour]))
-  await walk('run1 pay', [['💰 Pay from wallet', 'bse-home', 3000]])
+  await walk('run1 pay', [[`👛 Pay $${Number(b1?.price).toFixed(2)} from Wallet`, 'bse-home', 3500]])
   const w1 = await db.collection('walletOf').findOne({ _id: String(CHAT) }), b1b = await db.collection('bsBookings').findOne({ _id: b1?._id })
   ok('run1 wallet debited 71, booking scheduled/paid', w1.usdOut === 71 && b1b?.paymentStatus === 'paid', JSON.stringify([w1.usdOut, b1b?.status, b1b?.paymentStatus]))
   const q1 = await db.collection('bsMessages').findOne({ bookingId: b1?._id })
@@ -42,7 +42,7 @@ const tg = async (text, wait = 1800) => { await axios.post('http://localhost:500
   const av = await db.collection('bsAiVariants').findOne({ cid }, { sort: { at: -1 } })
   ok('run2 bsAiVariants logged with model claude-opus-5-5', av?.model === 'claude-opus-5-5' && av.variants.length >= 1, JSON.stringify([av?.model, av?.variants?.length, av?.raw?.length]))
   await walk('run2b', [['➡️ Continue: choose when', 'bse-when'], ['📅 Schedule (cheaper)', 'bse-day'], [d2, 'bse-hour', 2500]])
-  await walk('run2c', [['12:00 · x free', 'bse-pay', 2500]])
+  await walk('run2c', [['12:00 · x free', 'digital-product-pay', 2500]])
   const s2 = await st(), b2 = await db.collection('bsBookings').findOne({ _id: s2.bseBookingId })
   ok('run2 booking scheduled, 10% off: price 45.9, list 51, unit 0.09, replyFee 0', b2?.mode === 'scheduled' && b2.price === 45.9 && b2.listPrice === 51 && b2.unitPrice === 0.09 && b2.replyFee === 0 && b2.discountPct === 10, JSON.stringify(b2 && [b2.mode, b2.price, b2.listPrice, b2.unitPrice, b2.replyFee, b2.discountPct]))
   await tg('🛰 eSIM BulkSMS (USA/Canada)')

@@ -7,6 +7,11 @@ const MIN_DOMAIN_PRICE = Number(process.env.MIN_DOMAIN_PRICE || 30)
 
 // Function to test domain availability
 async function checkDomainPriceOnline(domainName) {
+  // ConnectReseller is not in use right now (no valid key) — skip the call quietly so we don't
+  // spam 401s and so domain pricing falls through to OpenProvider. Flip CONNECTRESELLER_ENABLED=true to re-enable.
+  if (process.env.CONNECTRESELLER_ENABLED !== 'true' || !API_KEY) {
+    return { available: false, message: 'ConnectReseller disabled' }
+  }
   const apiUrl = `https://api.connectreseller.com/ConnectReseller/ESHOP/checkDomainPrice?APIKey=${API_KEY}&websiteName=${domainName}`
 
   let response

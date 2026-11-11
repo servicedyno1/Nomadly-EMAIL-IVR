@@ -13,7 +13,7 @@ const day = (t) => (t ? new Date(t).toISOString().slice(0, 10) : '—')
 
 const T = {
   en: {
-    home: (p, inc) => `📱 <b>USA T-Mobile eSIM — $${p}/month</b>\n\n${inc ? `📦 Each month: ${inc}\n\n` : ''}• A USA phone number on the T-Mobile network\n• Two-way SMS: send and receive texts on your phone\n• Calls and USA data\n• Scan a QR code to install (iPhone and Android with eSIM)\n• Renews monthly from your wallet; turn auto-renew off any time\n\nPay first; you send your phone's IMEI (dial *#06#) right after.`,
+    home: (p, inc) => `📱 <b>USA T-Mobile eSIM — $${p}/month</b>\n\n${inc ? `📦 Each month: ${inc}\n\n` : ''}• A USA phone number on the T-Mobile network\n• Two-way SMS: send and receive texts on your phone\n• Calls and USA data\n• Scan a QR code to install (iPhone and Android with eSIM)\n• Renews monthly from your wallet; turn auto-renew off any time\n\n⚡ Instant delivery — your QR code is ready right after payment.`,
     buy: (p) => `🛒 Buy eSIM — $${p}/month`, mine: '📋 My eSIMs', skip: '⏭ Skip',
     askImei: '📟 Send your phone’s <b>15-digit IMEI</b>.\n\nDial <b>*#06#</b> on the phone that will use the eSIM to see it.',
     badImei: '❌ That isn’t a valid IMEI. It has 15 digits — dial *#06# to see it.',
@@ -47,7 +47,7 @@ const T = {
     renewed: '✅ Renewed. Your eSIM is active again.',
   },
   fr: {
-    home: (p, inc) => `📱 <b>eSIM USA T-Mobile — ${p} $/mois</b>\n\n${inc ? `📦 Chaque mois : ${inc}\n\n` : ''}• Un numéro américain sur le réseau T-Mobile\n• SMS dans les deux sens : envoyez et recevez des textos sur votre téléphone\n• Appels et données aux USA\n• Installation en scannant un QR code (iPhone et Android compatibles eSIM)\n• Renouvellement mensuel depuis votre portefeuille ; désactivable à tout moment\n\nPayez d’abord ; vous envoyez ensuite l’IMEI de votre téléphone (composez *#06#).`,
+    home: (p, inc) => `📱 <b>eSIM USA T-Mobile — ${p} $/mois</b>\n\n${inc ? `📦 Chaque mois : ${inc}\n\n` : ''}• Un numéro américain sur le réseau T-Mobile\n• SMS dans les deux sens : envoyez et recevez des textos sur votre téléphone\n• Appels et données aux USA\n• Installation en scannant un QR code (iPhone et Android compatibles eSIM)\n• Renouvellement mensuel depuis votre portefeuille ; désactivable à tout moment\n\n⚡ Livraison instantanée — votre QR code est prêt juste après le paiement.`,
     buy: (p) => `🛒 Acheter l’eSIM — ${p} $/mois`, mine: '📋 Mes eSIM', skip: '⏭ Passer',
     askImei: '📟 Envoyez l’<b>IMEI à 15 chiffres</b> de votre téléphone.\n\nComposez <b>*#06#</b> sur le téléphone qui utilisera l’eSIM pour le voir.',
     badImei: '❌ Cet IMEI n’est pas valide. Il a 15 chiffres — composez *#06# pour le voir.',
@@ -81,7 +81,7 @@ const T = {
     renewed: '✅ Renouvelée. Votre eSIM est de nouveau active.',
   },
   hi: {
-    home: (p, inc) => `📱 <b>USA T-Mobile eSIM — $${p}/माह</b>\n\n${inc ? `📦 हर महीने: ${inc}\n\n` : ''}• T-Mobile नेटवर्क पर एक USA फ़ोन नंबर\n• दो-तरफ़ा SMS: अपने फ़ोन पर टेक्स्ट भेजें और पाएं\n• कॉल और USA डेटा\n• QR कोड स्कैन करके इंस्टॉल करें (eSIM वाले iPhone और Android)\n• हर महीने वॉलेट से रिन्यू; ऑटो-रिन्यू कभी भी बंद करें\n\nपहले भुगतान करें; उसके बाद अपने फ़ोन का IMEI भेजें (*#06# डायल करें)।`,
+    home: (p, inc) => `📱 <b>USA T-Mobile eSIM — $${p}/माह</b>\n\n${inc ? `📦 हर महीने: ${inc}\n\n` : ''}• T-Mobile नेटवर्क पर एक USA फ़ोन नंबर\n• दो-तरफ़ा SMS: अपने फ़ोन पर टेक्स्ट भेजें और पाएं\n• कॉल और USA डेटा\n• QR कोड स्कैन करके इंस्टॉल करें (eSIM वाले iPhone और Android)\n• हर महीने वॉलेट से रिन्यू; ऑटो-रिन्यू कभी भी बंद करें\n\n⚡ तुरंत डिलीवरी — भुगतान के तुरंत बाद आपका QR कोड तैयार।`,
     buy: (p) => `🛒 eSIM खरीदें — $${p}/माह`, mine: '📋 मेरे eSIM', skip: '⏭ छोड़ें',
     askImei: '📟 अपने फ़ोन का <b>15 अंकों का IMEI</b> भेजें।\n\nजिस फ़ोन में eSIM लगेगा उस पर <b>*#06#</b> डायल करें।',
     badImei: '❌ यह मान्य IMEI नहीं है। इसमें 15 अंक होते हैं — *#06# डायल करें।',
@@ -115,7 +115,7 @@ const T = {
     renewed: '✅ रिन्यू हो गया। आपका eSIM फिर से सक्रिय है।',
   },
   zh: {
-    home: (p, inc) => `📱 <b>美国 T-Mobile eSIM — $${p}/月</b>\n\n${inc ? `📦 每月：${inc}\n\n` : ''}• T-Mobile 网络上的美国电话号码\n• 双向短信：在手机上收发短信\n• 通话和美国流量\n• 扫描二维码安装（支持 eSIM 的 iPhone 和安卓）\n• 每月从钱包自动续费；可随时关闭\n\n先付款，然后再发送手机的 IMEI（拨打 *#06#）。`,
+    home: (p, inc) => `📱 <b>美国 T-Mobile eSIM — $${p}/月</b>\n\n${inc ? `📦 每月：${inc}\n\n` : ''}• T-Mobile 网络上的美国电话号码\n• 双向短信：在手机上收发短信\n• 通话和美国流量\n• 扫描二维码安装（支持 eSIM 的 iPhone 和安卓）\n• 每月从钱包自动续费；可随时关闭\n\n⚡ 即时交付 — 付款后立即生成您的二维码。`,
     buy: (p) => `🛒 购买 eSIM — $${p}/月`, mine: '📋 我的 eSIM', skip: '⏭ 跳过',
     askImei: '📟 请发送手机的 <b>15 位 IMEI</b>。\n\n在将使用 eSIM 的手机上拨打 <b>*#06#</b> 查看。',
     badImei: '❌ IMEI 无效。IMEI 为 15 位数字 — 拨打 *#06# 查看。',
