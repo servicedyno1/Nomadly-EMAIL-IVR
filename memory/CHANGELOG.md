@@ -2579,3 +2579,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Fix: emails blocked by a switch now record `webEmailLog {ok:'off'}` so switching back ON never sends old ones (hidden from Recent emails).
 - Fix: bot Bulk IVR country picker fully localized (en/fr/zh/hi/fa text + buttons); depositNudge sample data for previews.
 - Tests: emails 41/0, i18n 6/0, engagement 11/0, paste 13/0, splits 17/17/23, throughput (19.1 avg live), cid skip 8/0, auto-resume 6/0, backend pytest test_cloudivr_engagement_email.py 10/10; testing agent iteration_252.
+
+## 2026-11-12 — "USA mobile number" renamed to "Texting Number" + easy ordering
+- New page /app/texting-number (sidebar Phone numbers → Texting Number) with plain explanation + order card; "eSIM & mobile" nav → "USA eSIM".
+- Order shortcut card (TextingNumberCta, hidden once the user has one) on Home, Messages, top of Get a number (all countries) and USA eSIM page; Home "Send texts" task starts with ordering it; Messages empty state has "Order a Texting Number".
+- Per-text ($0.05) and per-minute browser-call prices removed from all customer-facing Texting Number copy (order card, line card, composer, reply box, website FAQ); AI support knowledge now carries these prices so it can answer.
+- Backend notices/statement/offers wording renamed; fr ("Numéro SMS") / es ("Número SMS") translations added, stale priced entries removed. Copy sweep script: /app/scripts/texting_number_copy.js.
+- Note: preview pod lacks carrier keys at runtime, so the offer shows "temporarily unavailable" here; verified UI with a mocked availability response (all 5 entry points present, no price leaks, French OK). Testing agent run was cut short (credits) — no iteration_253 report.

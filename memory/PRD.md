@@ -2614,3 +2614,5 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 ## Status 2026-11-12
 - DONE (agent-tested): live campaign engagement end-to-end + campaign summary email respecting in-app "Campaign reports" switch (see CHANGELOG 2026-11-12).
 - Backlog: preview simulator (campaign-sim.js) doesn't emit hot-lead/digest notifications (real engine does); label "Re-call N unanswered" counts busy too; SMS DLR reconciliation; compliance/abuse controls.
+- DONE 2026-11-12 (self-verified via screenshots): Texting Number rename + order entry points + price copy removed (see CHANGELOG).
+- Open question: IvrSms.js still shows "$0.05 from your wallet for each text" for landline/IVR SMS (different product) — kept pending user decision.
