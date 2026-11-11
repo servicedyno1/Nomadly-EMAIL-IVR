@@ -550,8 +550,11 @@ const PhoneTestPage = () => {
         }
       `}</style>
       <div className="max-w-[480px] mx-auto px-4 py-6">
-        {/* Logo */}
+        {/* Logo — this bot brand's wordmark (each brand's call page serves its own via /api/store/config) */}
         <div className="text-center mb-8">
+          {brand.loaded && brand.logoUrl && (
+            <img src={brand.logoUrl} alt={brand.brandName} className="h-12 w-auto max-w-[260px] mx-auto mb-3 object-contain" data-testid="call-page-brand-logo" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          )}
           <h1 className="text-2xl font-bold text-white" data-testid="page-title">
             <span className="text-green-500">{PHONE_NAME}</span> Cloud Phone
           </h1>

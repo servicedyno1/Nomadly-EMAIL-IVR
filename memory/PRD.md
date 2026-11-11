@@ -1,5 +1,12 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-11 — BulkSMS 6am–9pm window, single texts immediate + 2 free w/ opt-out choice, hosting Renew buttons, brand logo on call page
+- Prod incident @Hostbay_support (Nomadly:5168006768): single text to +1302… queued at 04:22 ET by recipient quiet hours (not a line fault; no admin alert by design). Sent 09:41 UTC on tester ESIM-0002; 7 other queued single texts cancelled (`cleared_by_admin`, incl. 2 "Truist Alert" phishing).
+- core.js: quiet hours only for campaign texts (`m.campaignId && !m.test && !m.sessionId`); DEFAULTS quietStart 6 (window 6am–9pm, mainland → 14:00–02:00 UTC in Nov); `sendWindow()`; whenOptions: no "send now"/"earliest today" outside window, createBooking(now) refused; notice QN (5 langs) on BulkSMS home + step 4. Single texts: `freeOneSends: 2` lifetime (oneLeft), opt-out line optional (bse-one-opt step, buttons one_opt_yes/no), "Send one SMS" hidden when used up, err_one_used / one_left texts.
+- Hosting renew: plan details show 🔄 Renew Now from 14 days before expiry until deleted; My Hosting Plans adds "🔄 Renew <domain>" rows; reminders (3-day, 24h, auto-renew failed, suspended, and new no-auto-renew/weekly expiry notice) carry a "🔄 Renew <domain>" button; global handler maps that button and `/start renew_<base64url domain>` to the renew screen. Panel: expiry banner from 14 days, Renew quick action only ≤14 days, deep link per domain.
+- Call page (/call, /phone/test): shows the deployment's own bot-brand wordmark from /api/store/config.
+- Tests: test_bulk_esim_quiet_window 5/5, test_bulk_esim_one_free 8/8, test_hosting_renew_button 4/4, back_fixes 10/10, bot_flow_i18n 5/5, engine 40/40, wizard 31/31. test_bulk_esim_accounts: 3 old failures on rate/ceiling expectations (30/min vs 28) unrelated.
+
 ## 2026-11-11 — CloudIVR.net owner: Dynotech Innovations
 - Footer copyright "© YEAR CloudIVR — a Dynotech Innovations product" (landing/PricingFaq.js Footer, used on landing/Terms/Sip); footer links Privacy (/terms#privacy) + Legal notice (/terms#legal-notice). Terms (pages/terms/content.js, updated 11 Nov 2026): agreement is with Dynotech Innovations; "Your data" names it as responsible for personal data; new "Legal notice" section; intro line on Terms.js. Hash links scroll to the section. FR/ES filled. No address/registration/email given yet (only company name). Verified by screenshot.
 

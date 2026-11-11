@@ -146,6 +146,9 @@ function initScheduler(deps) {
   /**
    * Send Telegram notification
    */
+  // One-tap renew from reminders: the bot maps "🔄 <Renew> <domain>" to that plan's renew screen.
+  const RENEW_WORD = { en: 'Renew', fr: 'Renouveler', zh: '续费', hi: 'नवीनीकरण', fa: 'تمدید' }
+  const renewKb = (lang, domain, shortfall = 0) => ({ reply_markup: { keyboard: [[`🔄 ${RENEW_WORD[lang] || RENEW_WORD.en} ${domain}`], ...(shortfall > 0 ? [[`💵 Deposit $${topup.depositAmount(shortfall)}`]] : []), ['🏠 Main Menu']], resize_keyboard: true } })
   function notify(chatId, message, extra = {}) {
     if (!bot) return
     bot.sendMessage(chatId, message, { parse_mode: 'HTML', disable_web_page_preview: true, ...extra }).catch(err => {
@@ -283,7 +286,7 @@ function initScheduler(deps) {
             + tt('schedRenewTextWalletHint') + '\n'
             + tt('schedRenewTextToggleHint', domain)
             + (short3 ? topup.topUpLine(price - bal3) : ''),
-            short3 ? { reply_markup: topup.depositKeyboard(price - bal3) } : {}
+            renewKb(lang, domain, short3 ? price - bal3 : 0)
           )
           await cpanelAccounts.updateOne({ _id: account._id }, { $set: { expiry3dNotifiedFor: expiry.toISOString() } })
           notified++
@@ -307,7 +310,7 @@ function initScheduler(deps) {
             + tt('schedRenewTextWalletHint') + '\n'
             + tt('schedRenewTextToggleHint', domain)
             + (short1 ? topup.topUpLine(price - bal1) : ''),
-            short1 ? { reply_markup: topup.depositKeyboard(price - bal1) } : {}
+            renewKb(lang, domain, short1 ? price - bal1 : 0)
           )
 
           await cpanelAccounts.updateOne(
@@ -445,7 +448,8 @@ function initScheduler(deps) {
                     domain,
                     price,
                     (usdBal || 0).toFixed(2),
-                    GRACE_PERIOD_HOURS)
+                    GRACE_PERIOD_HOURS),
+                  renewKb(langB, domain, price - (usdBal || 0))
                 )
                 log(`[HostingScheduler] Auto-renew failed (low funds) for ${domain} — USD: $${(usdBal || 0).toFixed(2)}, needed: $${price}`)
               }
@@ -465,6 +469,13 @@ function initScheduler(deps) {
 
             suspended++
             log(`[HostingScheduler] SUSPENDED ${domain} (${plan}) for ${chatId} — plan expired, immediate suspension`)
+            // Plans without auto-renew used to get no message here — tell them and give the one-tap renew.
+            if (!(isAutoRenew && price > 0)) {
+              const langX = await getUserLang(chatId), ttX = (key, ...args) => translation(`t.${key}`, langX, ...args)
+              notify(chatId, isWeeklyPlan(plan)
+                ? ttX('schedWeeklyExpiredTitle') + '\n\n' + ttX('schedWeeklyExpiredBody', plan, domain, GRACE_PERIOD_HOURS)
+                : ttX('schedSuspendedTitle') + '\n\n' + ttX('schedSuspendedBody', domain, plan, 0, GRACE_PERIOD_HOURS), renewKb(langX, domain))
+            }
 
             // Reseller webhook: plan expired → suspended and the 48h grace countdown begins.
             const _deleteAt = new Date(expiry.getTime() + GRACE_PERIOD_HOURS * 3600000)
@@ -634,7 +645,8 @@ function initScheduler(deps) {
           const ttE = (key, ...args) => translation(`t.${key}`, langE, ...args)
           notify(chatId,
             ttE('schedSuspendedTitle') + '\n\n'
-            + ttE('schedSuspendedBody', domain, plan, hoursExpired, GRACE_PERIOD_HOURS)
+            + ttE('schedSuspendedBody', domain, plan, hoursExpired, GRACE_PERIOD_HOURS),
+            renewKb(langE, domain)
           )
 
           enforcedSuspend++

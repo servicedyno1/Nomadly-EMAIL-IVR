@@ -10631,6 +10631,17 @@ bot?.on('message', msg => {
     evConfirmPay: 'evConfirmPay',
     evAdminIps: 'evAdminIps',
   }
+  // "🔄 Renew <domain>" from an expiry reminder → that plan's renew screen, from any state.
+  // Also "/start renew_<base64url domain>" from the hosting panel's Renew button.
+  const _renewDeep = typeof message === 'string' && message.match(/^\/start renew_([A-Za-z0-9_-]+)$/)
+  const _renewDomain = (_renewDeep ? Buffer.from(_renewDeep[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8') : (typeof message === 'string' && message.match(/^🔄 (?:Renew|Renouveler|续费|नवीनीकरण|تمدید) ([a-z0-9.-]+\.[a-z]{2,})$/i) || [])[1] || '').toLowerCase()
+  if (_renewDomain && await cpanelAccounts.findOne({ chatId: String(chatId), domain: _renewDomain, deleted: { $ne: true } })) {
+    await saveInfo('selectedHostingDomain', _renewDomain)
+    info = { ...info, selectedHostingDomain: _renewDomain }
+    await set(state, chatId, 'action', a.viewHostingPlan)
+    action = a.viewHostingPlan
+    message = user.renewHostingPlan
+  }
 
   // ── Hosting checkout UX (2026-06) closure helpers ──────────────────────
   // Resolve the plan the user is buying from info.plan so Back/fallbacks never
@@ -12875,6 +12886,7 @@ Enter new value:`), bc)
 
         text += row + '\n\n'
         planButtons.push([`🔍 ${p.domain}`])
+        if (p.expiryDate && new Date(p.expiryDate).getTime() - Date.now() <= 14 * 86400000) planButtons.push([`🔄 ${({ fr: 'Renouveler', zh: '续费', hi: 'नवीनीकरण', fa: 'تمدید' })[info?.userLanguage] || 'Renew'} ${p.domain}`])
       }
       const buttons = [...planButtons, ['↩️ Back']]
       send(chatId, text, k.of(buttons))
@@ -12949,7 +12961,9 @@ Enter new value:`), bc)
         text += `\n\n` + trans('t.planViewMultiHostUpsell')
       }
 
-      const buttons = [[user.revealCredentials]]
+      // Renew is offered from 14 days before expiry until the plan is deleted (grace period included).
+      const renewOpen = !!plan.expiryDate && new Date(plan.expiryDate).getTime() - Date.now() <= 14 * 86400000
+      const buttons = renewOpen ? [[user.renewHostingPlan], [user.revealCredentials]] : [[user.revealCredentials]]
       const planLowercase = (plan.plan || '').toLowerCase()
       const hasUpgradePath = planLowercase.includes('week') || (planLowercase.includes('premium') && !planLowercase.includes('week'))
       if (hasUpgradePath) buttons.push([user.upgradeHostingPlan])

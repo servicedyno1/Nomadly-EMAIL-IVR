@@ -6,12 +6,12 @@ const axios = require('axios')
 const B = require('./core')
 const { walletOps } = require('../cloudivr-web/wallet')
 const { saveUpload } = require('./storage')
-const { t, btn, allLabels } = require('./i18n')
+const { t, btn, allLabels, QN } = require('./i18n')
 
 const PRODUCT_KEY = 'bulk-esim-sms'
 const BTN = btn('en')
 const kb = (rows) => ({ parse_mode: 'HTML', reply_markup: { keyboard: rows, resize_keyboard: true } })
-const homeKb = (L, r = { one: true }) => kb([[L.newc], r.one ? [L.one, L.convs] : [L.convs], [L.usage, L.bookings], [L.progress, L.help], [L.back]])
+const homeKb = (L, r = { one: true }) => kb([[L.newc], r.one && r.oneLeft !== 0 ? [L.one, L.convs] : [L.convs], [L.usage, L.bookings], [L.progress, L.help], [L.back]])
 const brand = () => (process.env.CHAT_BOT_BRAND || 'Nomadly').replace(/[^A-Za-z0-9]/g, '')
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const per500 = (x) => Math.round(x * 500 * 100) / 100
@@ -25,7 +25,7 @@ async function homeArgs(cid) {
   const c = await B.cfg(), u = await B.usage(cid)
   return { min: c.minVolume, max: c.maxVolume, plain: per500(c.pricePlain), link: per500(c.priceLink), pct: c.scheduleDiscountPct, minHours: c.scheduleMinHours, fee: c.replyFee, perDay: c.testsPerDay, used: u.used, limit: u.limit, from: c.quietStart, to: c.quietEnd }
 }
-const home = async (send, chatId, lang) => { B.warmUp({ roles: 'tester' }).catch(() => {}); const r = await B.ready(); return send(chatId, t(lang, 'home', await homeArgs(B.cidOf(brand(), chatId))) + (r.one ? '' : `\n\n${t(lang, 'off_one')}`), homeKb(btn(lang), r)) }
+const home = async (send, chatId, lang) => { B.warmUp({ roles: 'tester' }).catch(() => {}); const r = { ...(await B.ready()), oneLeft: await B.oneLeft(B.cidOf(brand(), chatId)) }, win = await B.sendWindow(); return send(chatId, t(lang, 'home', await homeArgs(B.cidOf(brand(), chatId))) + (r.one ? '' : `\n\n${t(lang, 'off_one')}`) + (win.open ? '' : `\n\n${(QN[lang] || QN.en)(win)}`), homeKb(btn(lang), r)) }
 const days = () => Array.from({ length: 7 }, (_, i) => new Date(Date.now() + i * 86400000).toISOString().slice(0, 10))
 
 // Returns true when the message was handled here (anything but an explicit false).
@@ -40,11 +40,11 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     await home(send, chatId, lang); return true
   }
   if (!action.startsWith('bse-')) return false
-  const RD = await B.ready(), HK = homeKb(L, RD)
+  const RD = { ...(await B.ready()), oneLeft: await B.oneLeft(cid) }, HK = homeKb(L, RD)
   if (message === L.back || /^(↩️ |🔙 |⬅️ )?(Back|Retour|返回|वापस|بازگشت)$/.test(String(message || '').trim())) { if (action === 'bse-home') { await go('none'); return goto.submenu7 ? (await goto.submenu7(), true) : false } await go('bse-home'); await home(send, chatId, lang); return true }
   if (action === 'bse-home') {
     if (message === L.newc) { const c = await B.cfg(); await go('bse-contacts'); return send(chatId, say('contacts_q', { min: c.minVolume, max: c.maxVolume }), kb([[L.back]])) }
-    if (message === L.one) { if (!RD.one) return send(chatId, say('off_one'), HK); await go('bse-one-to'); return send(chatId, say('one_to_q'), kb([[L.back]])) }
+    if (message === L.one) { if (!RD.one) return send(chatId, say('off_one'), HK); if (!RD.oneLeft) return send(chatId, `⚠️ ${say('err_one_used', (await B.cfg()).freeOneSends ?? 2)}`, HK); await go('bse-one-to'); return send(chatId, say('one_to_q'), kb([[L.back]])) }
     if (message === L.usage) { const u = await B.usage(cid); return send(chatId, say('usage', { ...u, reset: u.resetAt.toISOString().slice(0, 16).replace('T', ' ') }), HK) }
     if (message === L.help) return send(chatId, say('help', await homeArgs(cid)), HK)
     if (message === L.convs) {
@@ -188,7 +188,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     const w = await B.whenOptions(cid, info.bseCampaign); if (w.error) return send(chatId, `⚠️ ${errText(lang, w)}`)
     const c = await B.cfg(); await go('bse-when')
     const hh = (h) => `${String(h).padStart(2, '0')}:00`, rows = [...(w.now ? [[L.now]] : w.later ? [[`${L.later} ${hh(w.later.hour)}`]] : []), [L.sched], [w.replyFee ? L.replies_off : L.replies_add(c.replyFee)], [L.back]]
-    return send(chatId, say('when_q', { parts: w.parts, replyFee: w.replyFee, fee: c.replyFee, nowPrice: w.now?.price, later: w.later ? hh(w.later.hour) : null, laterPrice: w.later?.price, quiet: w.quiet, lines: w.lines, pct: w.schedule.pct, schedPrice: w.schedule.price, list: w.schedule.list, minHours: w.schedule.minHours }) + (w.off ? `\n\n${say('off_now')}` : ''), kb(rows))
+    return send(chatId, say('when_q', { parts: w.parts, replyFee: w.replyFee, fee: c.replyFee, nowPrice: w.now?.price, later: w.later ? hh(w.later.hour) : null, laterPrice: w.later?.price, quiet: w.quiet, win: w.window && !w.window.open ? w.window : null, lines: w.lines, pct: w.schedule.pct, schedPrice: w.schedule.price, list: w.schedule.list, minHours: w.schedule.minHours }) + (w.off ? `\n\n${say('off_now')}` : ''), kb(rows))
   }
   async function showBooking(b) {
     const c = await B.cfg()
@@ -240,12 +240,16 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     if (message === L.other) { await put('dpProductKey', PRODUCT_KEY); await put('dpProductName', `eSIM BulkSMS ${b.volume} SMS`); await put('dpPrice', b.price); await go('none'); await goto['digital-product-pay'](); return true }
     return false
   }
-  if (action === 'bse-one-to') { if (!/^(\+|00)?1\d{10}$/.test(String(message).replace(/[\s().-]/g, ''))) return send(chatId, say('err_number'), { parse_mode: 'HTML' }); await put('bseTo', message); await go('bse-one-text'); return send(chatId, say('one_text_q'), kb([[L.back]])) }
+  if (action === 'bse-one-to') { if (!/^(\+|00)?1\d{10}$/.test(String(message).replace(/[\s().-]/g, ''))) return send(chatId, say('err_number'), { parse_mode: 'HTML' }); await put('bseTo', message); await go('bse-one-opt'); return send(chatId, say('one_opt_q'), kb([[L.one_opt_yes, L.one_opt_no], [L.back]])) }
+  if (action === 'bse-one-opt') {
+    if (message !== L.one_opt_yes && message !== L.one_opt_no) return send(chatId, say('pick_option'), kb([[L.one_opt_yes, L.one_opt_no], [L.back]]))
+    const opt = message === L.one_opt_yes; await put('bseOneOpt', opt); await go('bse-one-text'); return send(chatId, say(opt ? 'one_text_q' : 'one_text_q_plain'), kb([[L.back]]))
+  }
   if (action === 'bse-one-text' || action === 'bse-reply') {
-    const r = await B.sendOne(cid, info.bseTo, message, action === 'bse-reply' ? info.bseSession : null)
+    const r = await B.sendOne(cid, info.bseTo, message, action === 'bse-reply' ? info.bseSession : null, { optOut: info.bseOneOpt !== false })
     if (r.error) return send(chatId, `⚠️ ${errText(lang, r)}`)
     if (action === 'bse-one-text') await go('bse-home')
-    return send(chatId, say('queued', r.segments, action === 'bse-reply'), action === 'bse-reply' ? kb([[L.back]]) : HK)
+    return send(chatId, say('queued', r.segments, action === 'bse-reply') + (r.left != null ? `\n${say('one_left', r.left)}` : ''), action === 'bse-reply' ? kb([[L.back]]) : homeKb(L, { ...RD, oneLeft: r.left }))
   }
   if (action === 'bse-conv') {
     const to = String(message).replace(/^💬\s*/, ''), s = await B.db().collection('bsSessions').findOne({ cid, to })
