@@ -27,6 +27,12 @@ async function step(col, id) {
     await col.updateOne({ id, status: 'running' }, { $set: { status: 'completed', completedAt: new Date() } })
     active.delete(id)
     log(`[CampaignSim] ${id} completed (preview, nothing dialed)`)
+    // Split list (parts of 500): hand over to the next part — started by itself, or left for the customer to start.
+    if (c.splitId) {
+      const n = await col.findOneAndUpdate({ splitId: c.splitId, part: c.part + 1, status: 'series_waiting' }, { $set: { status: c.autoNext ? 'created' : 'series_ready', readyAt: new Date() } }, { returnDocument: 'after' })
+      const d = n?.value !== undefined ? n.value : n
+      if (d && c.autoNext) run(col, d.id)
+    }
     return
   }
   const o = outcomeFor(c, lead), p = `leads.${lead.index}`, now = new Date()

@@ -179,7 +179,7 @@ const numberIssue = (raw, country) => {
   if (c === false) return `${String(raw || '').trim()} doesn’t look like a ${countryName(country)} number. Check it, or type it with its own country code (e.g. +44…).`
   const n = toPlus(raw); if (n === NO_CC) return ccIssue(raw); return /^\+\d{8,15}$/.test(n) ? dialIssue(n) : null
 }
-const ccIssue = (raw) => { const d = String(raw || '').replace(/\D/g, ''); return `${String(raw || '').trim()} has no country code. Add it in front, e.g. ${d.length === 10 ? `+1${d}` : '+14155550100'} (USA/Canada) or +44… (UK).` }
+const ccIssue = (raw) => { const d = String(raw || '').replace(/\D/g, ''); return `${String(raw || '').trim()} has no country code. Add it in front, e.g. ${d.length === 10 && d[0] !== '0' ? `+1${d}` : '+14155550100'} (USA/Canada) or +44… (UK).` }
 
 // Owner choice (2026-06, web only): the customer picks ONE country for the numbers in a list that have no country code.
 // It is applied only when the number really fits that country (libphonenumber); numbers already carrying a code stay as typed.
