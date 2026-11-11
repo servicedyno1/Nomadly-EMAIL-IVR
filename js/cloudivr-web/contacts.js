@@ -51,6 +51,9 @@ function cleanContact(b, partial) {
   return out
 }
 
+// Most numbers without a code are 10 digits → suggest USA/Canada; otherwise no guess (the customer picks).
+const suggest = (raws) => (raws.length && raws.filter(r => String(r).replace(/\D/g, '').length === 10).length / raws.length >= 0.8 ? 'US' : null)
+
 function routes(router, { db, h, upload }) {
   contactsCol(db).createIndex({ chatId: 1, phone: 1 }, { unique: true }).catch(() => {})
   contactsCol(db).createIndex({ chatId: 1, listIds: 1 }).catch(() => {})
@@ -140,9 +143,10 @@ function routes(router, { db, h, upload }) {
     const hasHeader = !!req.body.hasHeader
     const head = imp.rows[0] || []
     const columns = roles.map((role, i) => ({ index: i, role, header: (hasHeader && head[i]) || `Column ${i + 1}` }))
-    const { records, invalid, dupes } = ci.toRecords(imp.rows, { hasHeader, columns })
+    const country = ci.validCountry(req.body.country)
+    const { records, invalid, dupes, noCode, fixed } = ci.toRecords(imp.rows, { hasHeader, columns }, { country })
     const existing = records.length ? await contactsCol(db).find({ chatId: req.webChatId, phone: { $in: records.map(r => r.phone) } }).toArray() : []
-    return { imp, records, invalid, dupes, existing: new Map(existing.map(c => [c.phone, c])) }
+    return { imp, records, invalid, dupes, noCode, fixed, country, existing: new Map(existing.map(c => [c.phone, c])) }
   }
 
   router.post('/contacts/import/check', h(async (req, res) => {
@@ -150,6 +154,7 @@ function routes(router, { db, h, upload }) {
     if (p.err) return bad(res, ...p.err)
     res.json({
       valid: p.records.length, newCount: p.records.length - p.existing.size, existingCount: p.existing.size, invalid: p.invalid.length, dupesInFile: p.dupes,
+      noCode: p.noCode.length, fixed: p.fixed, country: p.country, suggestCountry: suggest(p.noCode.map(x => x.raw)),
       invalidSample: p.invalid.slice(0, 5), existingSample: [...p.existing.values()].slice(0, 5).map(c => ({ phone: c.phone, name: c.name || '' })),
     })
   }))
@@ -192,7 +197,7 @@ function routes(router, { db, h, upload }) {
     const count = await contactsCol(db).countDocuments({ chatId, listIds: list._id })
     res.status(201).json({
       list: publicList(list, count), created: fresh.length - failed, updated: duplicates === 'update' ? p.existing.size : 0,
-      skipped: duplicates === 'skip' ? p.existing.size : 0, invalid: p.invalid.length, dupesInFile: p.dupes,
+      skipped: duplicates === 'skip' ? p.existing.size : 0, invalid: p.invalid.length, dupesInFile: p.dupes, fixed: p.fixed,
     })
   }))
 
@@ -201,8 +206,22 @@ function routes(router, { db, h, upload }) {
     if (!req.file) return bad(res, 400, 'no_file', 'Pick a file to upload.')
     const r = require('../bulk-call-service').parseLeadsFile(req.file.buffer, req.file.originalname)
     if (r.binary) return bad(res, 400, 'unsupported_file', r.errors[0])
-    const text = r.leads.map(l => (l.name ? `${l.number},${l.name.replace(/[,;"]/g, ' ').trim()}` : l.number)).join('\n')
-    res.json({ text, count: r.leads.length, errors: r.errors.slice(0, 20), columns: r.columns })
+    // Numbers without a country code stay in the box as typed, so the customer can pick their country and fix them in place.
+    const line = (n, name) => (name ? `${n},${String(name).replace(/[,;"]/g, ' ').trim()}` : n)
+    const text = [...r.leads.map(l => line(l.number, l.name)), ...r.noCode.map(x => line(x.raw, x.name))].join('\n')
+    r.errors = r.errors.filter(e => !/has no country code/.test(e))
+    res.json({ text, count: r.leads.length, noCode: r.noCode.length, suggestCountry: suggest(r.noCode.map(x => x.raw)), errors: r.errors.slice(0, 20), columns: r.columns })
+  }))
+
+  // Country picker for numbers typed without a country code (every country libphonenumber knows).
+  router.get('/phone-countries', h(async (req, res) => { res.json({ countries: ci.phoneCountries() }) }))
+  // Adds the chosen country's code to every number in pasted text that has none — only where the number fits that country.
+  router.post('/contacts/fix-country', h(async (req, res) => {
+    const country = ci.validCountry(req.body.country)
+    if (!country) return bad(res, 400, 'invalid_country', 'Pick a country.')
+    const text = String(req.body.text || '')
+    if (text.length > 200000) return bad(res, 400, 'too_big', 'That list is too long.')
+    res.json({ ...ci.fixCountry(text, country), country, countryName: ci.countryName(country) })
   }))
 
   // ── contacts ──

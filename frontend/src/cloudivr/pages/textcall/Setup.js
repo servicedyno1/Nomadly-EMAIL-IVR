@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Captions, Loader2, PhoneCall } from 'lucide-react';
 import { api, money } from '../../api';
+import { TextCountryFix } from '../../CountryFix';
 import { useBalance, ShortNote } from '../../WalletPay';
 import { Field, SkeletonCard, Empty, Locked, Toggle, ErrorNote } from '../../ui';
 import { cp } from '../../paths';
@@ -55,7 +56,7 @@ export function Setup({ info, onStarted }) {
       <div className="grid md:grid-cols-2 gap-5">
         <Field label="Call from"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="text-call-caller-select">{active.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{numbers.includes(n) ? n.phoneNumber : `${n.phoneNumber} · ${need} plan`}</option>)}</select>
           {locked && <div className="mt-2"><LockedNote text={`Text calls are on the ${need} plan.`} feature="Text calls" need={need} phone={callerId} testid="text-call-caller-lock" /></div>}</Field>
-        <Field label="Number to call" hint="With country code, e.g. +14155550100."><input className="civr-input font-mono text-lg" required inputMode="tel" value={f.to} onChange={set('to')} placeholder="+14155550100" data-testid="text-call-to-input" /></Field>
+        <Field label="Number to call" hint="With country code, e.g. +14155550100."><input className="civr-input font-mono text-lg" required inputMode="tel" value={f.to} onChange={set('to')} placeholder="+14155550100" data-testid="text-call-to-input" /><TextCountryFix text={f.to} onChange={(v) => set('to')({ target: { value: v } })} testid="text-call-nocc" /></Field>
       </div>
       <Field label="They speak"><div data-no-translate><Choice value={f.lang} options={LANGS} onChange={set('lang')} testid="text-call-lang" /></div></Field>
       <Field label="Voice that reads your messages"><Choice value={f.voice} options={[['female', 'Female'], ['male', 'Male']]} onChange={set('voice')} testid="text-call-voice" /></Field>

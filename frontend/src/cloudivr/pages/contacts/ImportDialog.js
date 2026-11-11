@@ -61,6 +61,7 @@ export function ImportDialog({ lists, listId, onClose, onDone }) {
   const [hasHeader, setHasHeader] = useState(true);
   const [dest, setDest] = useState({ mode: listId && listId !== 'all' ? 'existing' : 'new', name: '', listId: listId !== 'all' ? listId : '' });
   const [check, setCheck] = useState(null);
+  const [country, setCountry] = useState('');
   const [dup, setDup] = useState('skip');
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -69,15 +70,16 @@ export function ImportDialog({ lists, listId, onClose, onDone }) {
   const got = (d) => { setParsed(d); setRoles(d.columns.map(c => c.role)); setHasHeader(d.hasHeader); setDest(x => ({ ...x, name: x.name || d.fileName.replace(/\.[a-z0-9]+$/i, '').slice(0, 60) })); setStep('match'); };
   const onFile = (file) => run(async () => { const form = new FormData(); form.append('file', file); got(await api('/contacts/import/parse', { method: 'POST', form })); });
   const onPaste = (text) => run(async () => got(await api('/contacts/import/parse', { method: 'POST', body: { text, fileName: 'Pasted list' } })));
-  const base = () => ({ importId: parsed.importId, roles, hasHeader });
+  const base = (cc = country) => ({ importId: parsed.importId, roles, hasHeader, ...(cc ? { country: cc } : {}) });
   const target = () => (dest.mode === 'existing' && lists.length ? { listId: dest.listId || lists[0].id } : { listName: dest.name });
-  const doCheck = () => run(async () => { setCheck(await api('/contacts/import/check', { method: 'POST', body: base() })); setStep('review'); });
+  const doCheck = (cc = country) => run(async () => { setCheck(await api('/contacts/import/check', { method: 'POST', body: base(cc) })); setStep('review'); });
+  const applyCountry = (cc) => { setCountry(cc); doCheck(cc); };
   const doImport = () => run(async () => { const d = await api('/contacts/import', { method: 'POST', body: { ...base(), ...target(), duplicates: dup } }); setResult(d); setStep('done'); onDone(d.list, false); });
   const phoneOk = roles.filter(r => r === 'phone').length === 1;
   const nameOk = dest.mode === 'existing' ? lists.length > 0 : !!dest.name.trim();
   const footer = step === 'match' ? <>
     <button type="button" className="civr-btn civr-btn-ghost" onClick={() => setStep('pick')} data-testid="contacts-import-back">Back</button>
-    <button type="button" className="civr-btn civr-btn-primary" disabled={busy || !phoneOk || !nameOk} onClick={doCheck} data-testid="contacts-import-check-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Check contacts</button>
+    <button type="button" className="civr-btn civr-btn-primary" disabled={busy || !phoneOk || !nameOk} onClick={() => doCheck()} data-testid="contacts-import-check-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Check contacts</button>
   </> : step === 'review' ? <>
     <button type="button" className="civr-btn civr-btn-ghost" onClick={() => setStep('match')} data-testid="contacts-import-back">Back</button>
     <button type="button" className="civr-btn civr-btn-primary" disabled={busy || !check.valid} onClick={doImport} data-testid="contacts-import-submit-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{`Import ${check.valid.toLocaleString()} contacts`}</button>
@@ -86,7 +88,7 @@ export function ImportDialog({ lists, listId, onClose, onDone }) {
     <Modal wide title={STEPS[step]} sub={step === 'match' ? 'We guessed what each column holds — change anything that looks wrong.' : null} onClose={onClose} footer={footer} testid="contacts-import-dialog">
       {step === 'pick' && <PickFile busy={busy} onFile={onFile} onPaste={onPaste} />}
       {step === 'match' && <MatchColumns parsed={parsed} roles={roles} setRoles={setRoles} hasHeader={hasHeader} setHasHeader={setHasHeader} dest={dest} setDest={setDest} lists={lists} />}
-      {step === 'review' && <Review check={check} dup={dup} setDup={setDup} pv={pv} />}
+      {step === 'review' && <Review check={check} dup={dup} setDup={setDup} pv={pv} onCountry={applyCountry} busy={busy} />}
       {step === 'done' && <Done result={result} onView={() => { onDone(result.list, true); onClose(); }} onClose={onClose} />}
       <ErrorNote error={error} testid="contacts-import-error" className="mt-4" />
     </Modal>

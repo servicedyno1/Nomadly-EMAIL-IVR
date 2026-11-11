@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Megaphone, Plus, Loader2, Calculator, FileUp, ChevronRight, Pause, Play, Contact, Repeat, Radio } from 'lucide-react';
+import { TextCountryFix } from '../CountryFix';
 import { api, useApi, when, money } from '../api';
 import { PageHeader, Field, SkeletonRows, SkeletonPage, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, statusPill, BackupsField } from '../ui';
 import { useCallerNumbers } from './QuickCall';
@@ -111,10 +112,10 @@ function LoadFile({ onChange }) {
     try {
       const form = new FormData(); form.append('file', file);
       const d = await api('/contacts/leads-file', { method: 'POST', form });
-      if (!d.count) { toast.error(d.errors[0] || 'No phone numbers found in that file.'); return; }
+      if (!d.count && !d.noCode) { toast.error(d.errors[0] || 'No phone numbers found in that file.'); return; }
       onChange(d.text);
       const cols = d.columns?.phone ? ` · phone from “${d.columns.phone}”${d.columns.name ? `, names from “${d.columns.name}”` : ''}` : '';
-      setNote(`${d.count} numbers loaded${cols}${d.errors.length === 1 ? ' · 1 row without a valid number skipped' : d.errors.length ? ` · ${d.errors.length} rows without a valid number skipped` : ''}`);
+      setNote(`${d.count} numbers loaded${cols}${d.noCode ? ` · ${d.noCode} without a country code (pick their country below)` : ''}${d.errors.length === 1 ? ' · 1 row without a valid number skipped' : d.errors.length ? ` · ${d.errors.length} rows without a valid number skipped` : ''}`);
     } catch (err) { toast.error(err.message); } finally { setBusy(false); }
   };
   return (
@@ -161,13 +162,12 @@ function VoicemailChoice({ mode, onMode, children }) {
 }
 
 const MAX_LEADS = 500;
-function LeadCount({ text }) {
+function LeadCount({ text, onChange }) {
   const n = text.split('\n').filter(l => /\d{7,}/.test(l.replace(/\D/g, ''))).length;
   if (!n) return null;
-  const noCc = text.split('\n').map(l => (l.split(/[,;\t]/)[0] || '').trim()).filter(t => t && !/^(\+|00)/.test(t) && !/^1\d{10}$/.test(t.replace(/\D/g, '')) && /\d{7,}/.test(t.replace(/\D/g, ''))).length;
   return (<>
     <div className={`text-xs mt-1 ${n > MAX_LEADS ? 'text-[#f87171]' : 'text-[#a1a1aa]'}`} data-testid="campaign-leads-count">{n > MAX_LEADS ? `${n} numbers — campaigns can call up to ${MAX_LEADS}. Split the list into smaller campaigns.` : `${n} of ${MAX_LEADS} numbers`}</div>
-    {noCc > 0 && <div className="text-xs mt-1 text-[#fbbf24]" data-testid="campaign-leads-nocc">{noCc === 1 ? '1 number has no country code. Add it in front (e.g. +14155550100) before starting.' : `${noCc} numbers have no country code. Add it in front (e.g. +14155550100) before starting.`}</div>}
+    <TextCountryFix text={text} onChange={onChange} testid="campaign-leads-nocc" />
   </>);
 }
 
@@ -184,7 +184,7 @@ function LeadsField({ value, onChange, source, onSource, listId, onList }) {
           <Field label="Numbers to call" hint="Up to 500 numbers per campaign, one per line with country code. Optional name after a comma: +14155550100,Jane. Or load an Excel (.xlsx), .csv or .txt file — we find the phone and name columns.">
             <textarea rows={7} className="civr-input font-mono text-xs" value={value} onChange={e => onChange(e.target.value)} placeholder={'+14155550100,Jane\n+14155550101'} data-testid="campaign-leads-input" />
           </Field>
-          <LeadCount text={value} />
+          <LeadCount text={value} onChange={onChange} />
           <LoadFile onChange={onChange} />
         </div>
       )}

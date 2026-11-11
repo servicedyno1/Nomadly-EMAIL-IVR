@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { PhoneOutgoing, Loader2, Lock, Phone } from 'lucide-react';
 import { api, useApi, playUrl } from '../api';
+import { TextCountryFix } from '../CountryFix';
 import { useBalance, ShortNote } from '../WalletPay';
 import { useShell } from '../Shell';
 import { PageHeader, Field, SkeletonPage, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, BackupsField } from '../ui';
@@ -150,6 +151,7 @@ export default function QuickCall() {
               <ShowAsSelect value={f.showAs} onChange={(v) => set({ showAs: v })} from={caller?.phoneNumber} testid="quick-call-show-as-select" />
               <Field label="Number(s) to call" hint="With country code. Up to 10, separated by commas.">
                 <input className="civr-input font-mono" required value={f.targets} onChange={e => set({ targets: e.target.value })} placeholder="+14155550100, +14155550101" data-testid="quick-call-to-input" />
+                <TextCountryFix text={f.targets} onChange={(v) => set({ targets: v })} testid="quick-call-nocc" />
                 <Recent onPick={(n) => set({ targets: f.targets.includes(n) ? f.targets : [f.targets, n].filter(Boolean).join(', ') })} />
                 <OwnerName targets={f.targets} onUse={(name) => { set({ script: { ...f.script, values: { ...(f.script.values || {}), Name: name } } }); toast.success(String(f.script.text || '').includes('[Name]') ? `[Name] set to ${name}` : `Saved — type [Name] in your message and the call will say “${name}”`); }} />
               </Field>

@@ -165,13 +165,55 @@ const { dialIssue } = require('./dial-check')
 // Owner rule (2026-11): every number needs its country code. A bare 10-digit number or a national 0… number is rejected
 // with how to fix it (no more silent +1), so nobody dials the wrong country.
 const NO_CC = 'no country code'
-function normalizeNumber(raw) {
+function normalizeNumber(raw, country) {
+  const c = withCountry(raw, country)
+  if (c) return dialIssue(c) ? null : c
+  if (c === false) return null
   const n = toPlus(raw)
   return n !== NO_CC && /^\+\d{8,15}$/.test(n) && !dialIssue(n) ? n : null
 }
 // Why a typed number can't be dialled (null when it can).
-const numberIssue = (raw) => { const n = toPlus(raw); if (n === NO_CC) return ccIssue(raw); return /^\+\d{8,15}$/.test(n) ? dialIssue(n) : null }
+const numberIssue = (raw, country) => {
+  const c = withCountry(raw, country)
+  if (c) return dialIssue(c)
+  if (c === false) return `${String(raw || '').trim()} doesn’t look like a ${countryName(country)} number. Check it, or type it with its own country code (e.g. +44…).`
+  const n = toPlus(raw); if (n === NO_CC) return ccIssue(raw); return /^\+\d{8,15}$/.test(n) ? dialIssue(n) : null
+}
 const ccIssue = (raw) => { const d = String(raw || '').replace(/\D/g, ''); return `${String(raw || '').trim()} has no country code. Add it in front, e.g. ${d.length === 10 ? `+1${d}` : '+14155550100'} (USA/Canada) or +44… (UK).` }
+
+// Owner choice (2026-06, web only): the customer picks ONE country for the numbers in a list that have no country code.
+// It is applied only when the number really fits that country (libphonenumber); numbers already carrying a code stay as typed.
+// → E.164 string when applied · false when it doesn't fit · null when no country was picked or the number already has a code.
+const LPN = require('libphonenumber-js/max')
+const COUNTRIES = new Set(LPN.getCountries())
+const regionNames = new Intl.DisplayNames(['en'], { type: 'region' })
+const countryName = (iso) => { try { return regionNames.of(iso) || iso } catch (_) { return iso } }
+const validCountry = (c) => (typeof c === 'string' && COUNTRIES.has(c.toUpperCase()) ? c.toUpperCase() : null)
+function withCountry(raw, country) {
+  const cc = validCountry(country), s = String(raw || '').trim()
+  if (!cc || !s || /^(\+|00)/.test(s.replace(/["'\s]/g, ''))) return null
+  const n = toPlus(raw)
+  if (n !== NO_CC && LPN.parsePhoneNumberFromString(n)?.isValid()) return null
+  const p = LPN.parsePhoneNumberFromString(s.replace(/\D/g, ''), cc)
+  return p?.isValid() ? p.number : false
+}
+const lacksCode = (raw) => { const s = String(raw || '').replace(/["'\s]/g, ''); return !!s && !/^(\+|00)/.test(s) && toPlus(raw) === NO_CC }
+// Pasted / typed text (campaign numbers box, Quick call): adds the country code to every phone-looking token without one.
+function fixCountry(text, country) {
+  const cc = validCountry(country)
+  if (!cc) return { text: String(text || ''), fixed: 0, notFit: [] }
+  let fixed = 0; const notFit = []
+  const out = String(text || '').split(/([,;\t\n])/).map(tok => {
+    const t = tok.trim()
+    if (!/^[\d\s().\-]+$/.test(t) || t.replace(/\D/g, '').length < 7) return tok
+    const c = withCountry(t, cc)
+    if (c) { fixed++; return tok.replace(t, c) }
+    if (c === false) notFit.push(t)
+    return tok
+  }).join('')
+  return { text: out, fixed, notFit: notFit.slice(0, 50), notFitCount: notFit.length }
+}
+const phoneCountries = () => [...COUNTRIES].map(iso => ({ iso, name: countryName(iso), code: `+${LPN.getCountryCallingCode(iso)}` })).sort((a, b) => a.name.localeCompare(b.name))
 function toPlus(raw) {
   let number = String(raw || '').replace(/["'\s]/g, '').replace(/[^\d+]/g, '')
   if (number.startsWith('00')) number = '+' + number.slice(2)
@@ -251,21 +293,28 @@ function detectColumns(rows) {
 const clip = (v, n) => String(v || '').replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n)
 
 // Rows + column roles → contacts. Rows without a valid phone are reported in `invalid`; repeats of a number keep the first.
-function toRecords(rows, { hasHeader, columns }) {
+// opts.country: the customer's chosen country for numbers typed without a code (see withCountry).
+function toRecords(rows, { hasHeader, columns }, { country } = {}) {
   const roleOf = (role) => columns.find(c => c.role === role)?.index
   const at = { phone: roleOf('phone'), name: roleOf('name'), first: roleOf('first_name'), last: roleOf('last_name'), email: roleOf('email'), company: roleOf('company'), notes: roleOf('notes') }
   const keep = columns.filter(c => c.role === 'keep').slice(0, 20)
-  const records = [], invalid = [], seen = new Set()
-  let dupes = 0
+  const records = [], invalid = [], seen = new Set(), noCode = []
+  let dupes = 0, fixed = 0
   rows.forEach((r, i) => {
     if (hasHeader && i === 0) return
     if (!r.some(Boolean)) return
     const raw = at.phone != null ? r[at.phone] || '' : ''
-    const phone = at.phone != null ? normalizeNumber(raw) : null
-    if (!phone) { invalid.push({ row: i + 1, value: clip(raw || r.filter(Boolean).join(', '), 30).replace(/[<>&]/g, ''), reason: raw ? numberIssue(raw) : null }); return }
+    const phone = at.phone != null ? normalizeNumber(raw, country) : null
+    const name = at.name != null ? r[at.name] : [r[at.first], r[at.last]].filter(Boolean).join(' ')
+    if (!phone) {
+      const missing = !validCountry(country) && lacksCode(raw)
+      if (missing) noCode.push({ row: i + 1, raw: clip(raw, 30), name: clip(name, 80) })
+      invalid.push({ row: i + 1, value: clip(raw || r.filter(Boolean).join(', '), 30).replace(/[<>&]/g, ''), reason: raw ? numberIssue(raw, country) : null, noCode: missing })
+      return
+    }
     if (seen.has(phone)) { dupes++; return }
     seen.add(phone)
-    const name = at.name != null ? r[at.name] : [r[at.first], r[at.last]].filter(Boolean).join(' ')
+    if (validCountry(country) && withCountry(raw, country)) fixed++
     const email = clip(r[at.email], 120)
     records.push({
       row: i + 1, phone, name: clip(name, 80), email: looksEmail(email) ? email : '', company: clip(r[at.company], 120),
@@ -273,21 +322,22 @@ function toRecords(rows, { hasHeader, columns }) {
       fields: keep.map(c => ({ label: clip(c.header, 40), value: clip(r[c.index], 200) })).filter(f => f.label && f.value),
     })
   })
-  return { records, invalid, dupes }
+  return { records, invalid, dupes, noCode, fixed }
 }
 
-// Bulk IVR leads from any file/text: { leads: [{ number, name }], errors, columns: { phone, name } | null }.
-function parseLeads(input, fileName) {
+// Bulk IVR leads from any file/text: { leads: [{ number, name }], errors, columns: { phone, name } | null, noCode }.
+function parseLeads(input, fileName, opts = {}) {
   const rows = readTable(input, fileName)
   const det = detectColumns(rows)
-  const { records, invalid } = toRecords(rows, det)
+  const { records, invalid, noCode, fixed } = toRecords(rows, det, opts)
   const head = (role) => det.columns.find(c => c.role === role)?.header || null
   const nameCol = head('name') || [head('first_name'), head('last_name')].filter(Boolean).join(' + ') || null
   return {
     leads: records.map(r => ({ number: r.phone, name: r.name.replace(/[^\x20-\x7E\u00A0-\uFFFC]/g, '').slice(0, 60) || null })),
     errors: det.columns.some(c => c.role === 'phone') ? invalid.map(x => `Line ${x.row}: ${x.reason || `Invalid number "${x.value}"`}`) : ['No phone number column found. Add a column called Phone with numbers in it.'],
     columns: det.hasHeader ? { phone: head('phone'), name: nameCol } : null,
+    noCode, fixed,
   }
 }
 
-module.exports = { readTable, detectColumns, toRecords, parseLeads, normalizeNumber, numberIssue, looksBinary, ROLES, MAX_ROWS }
+module.exports = { readTable, detectColumns, toRecords, parseLeads, normalizeNumber, numberIssue, looksBinary, ROLES, MAX_ROWS, withCountry, fixCountry, phoneCountries, validCountry, countryName, lacksCode }

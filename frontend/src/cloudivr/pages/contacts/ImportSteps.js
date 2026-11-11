@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, CheckCircle2, UserPlus, Copy, RefreshCw } from 'lucide-react';
 import { Field } from '../../ui';
+import { CountryFix } from '../../CountryFix';
 
 export const ROLE_LABELS = {
   phone: 'Phone number', name: 'Full name', first_name: 'First name', last_name: 'Last name', email: 'Email', company: 'Company',
@@ -69,9 +70,11 @@ const Stat = ({ icon: Icon, n, label, tone, testid }) => (
 );
 
 // Step 3: what will happen, and the skip / update choice when numbers are already saved.
-export function Review({ check, dup, setDup, pv }) {
+export function Review({ check, dup, setDup, pv, onCountry, busy }) {
   return (
     <div className="space-y-6" data-testid="contacts-import-review">
+      <CountryFix count={check.noCode} suggest={check.suggestCountry} onApply={onCountry} busy={busy} testid="contacts-import-nocc" />
+      {check.fixed > 0 && <div className="text-sm text-[#34d399]" data-testid="contacts-import-fixed">{`Country code added to ${check.fixed.toLocaleString()} ${check.fixed === 1 ? 'number' : 'numbers'} — they are counted in New contacts.`}</div>}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat icon={UserPlus} n={check.newCount} label="New contacts" tone="text-[#818cf8]" testid="contacts-import-stat-new" />
         <Stat icon={RefreshCw} n={check.existingCount} label="Already saved" tone="text-[#fbbf24]" testid="contacts-import-stat-existing" />

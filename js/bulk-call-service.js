@@ -638,9 +638,9 @@ async function sweepStuckLeads() {
 // headers (Phone, Mobile, Name, First name…) or the cell contents; see contacts-import.js.
 // 2026-10-01 (@jameswalker3646): unreadable binary uploads (pdf/audio/old .xls) return { binary: true } so the bot
 // answers with a clear message instead of garbage "leads".
-function parseLeadsFile(content, fileName) {
+function parseLeadsFile(content, fileName, opts) {
   try {
-    return contactsImport.parseLeads(Buffer.isBuffer(content) ? content : String(content || ''), fileName)
+    return contactsImport.parseLeads(Buffer.isBuffer(content) ? content : String(content || ''), fileName, opts)
   } catch (e) {
     if (!e.code) throw e
     return { leads: [], errors: [e.message], binary: true, columns: null }
