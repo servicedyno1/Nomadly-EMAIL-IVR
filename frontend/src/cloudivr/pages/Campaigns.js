@@ -329,7 +329,7 @@ export function CampaignNew() {
           {f.mode === 'transfer' && <BackupsField value={f.transferBackups} onChange={set('transferBackups')} testid="campaign-backups-input" />}
           {f.mode === 'menu' ? <MenuBuilder value={f.menu} onChange={set('menu')} testid="campaign-menu" /> : <Field label="Keys that count"><KeyPicker value={f.activeKeys} onChange={set('activeKeys')} testid="campaign-keys" /></Field>}
           </>}
-          {f.callerIds?.length ? null : <Field label="Calls at the same time" hint="1 to 20 calls at once. Need more? Rotate caller IDs — one call per caller ID, up to 50 at once."><input type="number" min={1} max={20} className="civr-input" value={f.concurrency} onChange={set('concurrency')} data-testid="campaign-concurrency-input" /></Field>}
+          <ConcurrencyField ids={f.callerIds?.length ? f.callerIds.length + 1 : 0} value={f.concurrency} onChange={set('concurrency')} />
           <Field label="Schedule (optional)" hint={f.repeat ? 'First run. Leave empty to start it yourself — the next runs follow at the same time. You’re notified in Inbox when each run starts and when it finishes.' : 'Leave empty to start manually. Scheduled campaigns start by themselves — you’re notified in Inbox when calling starts and when it finishes.'}><DateTimePicker value={f.scheduledFor} onChange={set("scheduledFor")} minMinutes={2} testid="campaign-schedule" /></Field>
           <RunPlanFields f={f} set={set} />
           {!isAi && f.mode !== 'report_only' && <div className="flex items-center justify-between"><span className="text-sm">Hold music during transfer</span><Toggle checked={f.holdMusic} onChange={set('holdMusic')} testid="campaign-hold-music-toggle" label="Hold music during transfer" /></div>}
@@ -340,4 +340,12 @@ export function CampaignNew() {
       </form>
     </div>
   );
+}
+
+// Calls at once: 1–20; with rotation they are shared across the caller IDs (up to one per ID past 20, max 50).
+function ConcurrencyField({ ids, value, onChange }) {
+  const max = ids ? Math.min(50, Math.max(20, ids)) : 20;
+  const each = ids ? Math.ceil((parseInt(value, 10) || 1) / ids) : 0;
+  const hint = ids ? `1 to ${max} calls at once, shared across your ${ids} caller IDs — about ${each} at a time on each.` : '1 to 20 calls at once. Rotating caller IDs spreads them across several numbers.';
+  return <Field label="Calls at the same time" hint={hint}><input type="number" min={1} max={max} className="civr-input" value={value} onChange={onChange} data-testid="campaign-concurrency-input" /></Field>;
 }

@@ -683,7 +683,13 @@ async function createCampaign(params) {
     menu: menu || null,
     activeKeys: activeKeys || ['1'],
     concurrency: Math.min(concurrency || 10, 20),
-    ...(poolOf(params.callerPool, callerId, showAs) ? { callerPool: poolOf(params.callerPool, callerId, showAs), concurrency: poolOf(params.callerPool, callerId, showAs).length } : {}),
+    // Rotation: bots = one call per caller ID (calls at once = pool size); web (poolShare) = the customer's
+    // calls-at-once shared across the IDs (1–20, or up to one per ID when they rotate more than 20, max 50).
+    ...(poolOf(params.callerPool, callerId, showAs) ? (() => {
+      const pool = poolOf(params.callerPool, callerId, showAs)
+      if (!params.poolShare) return { callerPool: pool, concurrency: pool.length }
+      return { callerPool: pool, poolShare: true, concurrency: Math.max(1, Math.min(parseInt(concurrency, 10) || 10, Math.max(20, pool.length), MAX_CALLER_POOL)) }
+    })() : {}),
     holdMusic: holdMusic || false,
     provider: provider || (twilioSubAccountSid ? 'twilio' : 'telnyx'),
     voicemailAudioUrl: voicemailAudioUrl || null,
@@ -1002,11 +1008,16 @@ function cidSummary(campaign) {
 function poolPicker(campaign) {
   const pool = Array.isArray(campaign.callerPool) && campaign.callerPool.length > 1 ? campaign.callerPool : null
   if (!pool) return null
-  const used = {}, busy = new Set()
+  const used = {}, busy = new Set(), live = {}
   for (const l of campaign.leads) {
     if (!l.callerId) continue
     const k = `${l.callerId}|${l.shownAs || ''}`; used[k] = (used[k] || 0) + 1
-    if (['calling', 'ringing', 'answered', 'in-progress'].includes(l.status)) busy.add(k)
+    if (['calling', 'ringing', 'answered', 'in-progress'].includes(l.status)) { busy.add(k); live[k] = (live[k] || 0) + 1 }
+  }
+  // Shared pool (web): several calls per ID at once — take the ID with the fewest calls in progress, then fewest dialed.
+  if (campaign.poolShare) return {
+    next() { const e = [...pool].sort((a, b) => ((live[poolKey(a)] || 0) - (live[poolKey(b)] || 0)) || ((used[poolKey(a)] || 0) - (used[poolKey(b)] || 0)))[0]; live[poolKey(e)] = (live[poolKey(e)] || 0) + 1; used[poolKey(e)] = (used[poolKey(e)] || 0) + 1; return e },
+    free(e) { live[poolKey(e)] = Math.max(0, (live[poolKey(e)] || 0) - 1) },
   }
   return {
     next() { const e = pool.filter(x => !busy.has(poolKey(x))).sort((a, b) => (used[poolKey(a)] || 0) - (used[poolKey(b)] || 0))[0]; if (e) { busy.add(poolKey(e)); used[poolKey(e)] = (used[poolKey(e)] || 0) + 1 } return e || null },

@@ -1,3 +1,11 @@
+## 2026-06 — Bulk IVR caller-ID rotation: calls at once shared across IDs (WEB ONLY) — CODE DONE & TESTED (preview; user deploys)
+- Complaint: 3 rotating caller IDs + "20 at once" only dialed 3 at a time. Cause: `createCampaign` forced `concurrency = pool.length` and `poolPicker` allowed one live call per ID.
+- Fix: web passes `poolShare: true` (`cloudivr-web/calls.js` IVR + AI campaign create); engine keeps the customer's calls-at-once (1–20, or up to pool size when >20 IDs, max 50) and the shared picker takes the ID with the fewest live calls (then fewest dialed). Bots unchanged (no poolShare → one call per ID).
+- Web form: "Calls at the same time" now shown while rotating (`ConcurrencyField` in `pages/Campaigns.js`, "about N at a time on each"); rotation hint in `CallerIdPick.js` updated; FR/ES translated.
+- Tests: new `js/tests/test_bulkcall_rotation_shared.js` 8/8 (20 live split 7/7/6, refills balanced, caps, bot unchanged); existing `test_bulkcall_rotation.js` 8/8.
+- Prod note (same day): VoodooLand:1880419838 draft BulkSMS campaign, 1,541 contacts, sweepstakes "Claim Your Winnings" + Typeform link (scam-pattern); 935/1675 Telnyx lookups failed transiently (probe now OK; Telnyx balance $14.96 low). Not booked/paid.
+
+
 ## 2026-06 — CloudIVR web app: job-based navigation + guided home + redesign (Phase 1) — CODE DONE & TESTED (preview; user deploys)
 - Menu (`cloudivr/nav.js`, Shell `NavRow`/`SideNav`): 7 job groups — Home · Phone numbers · Answer calls · Make calls · Contacts & media · Connect devices · Account; plain labels ("Get a number"), tech terms as chips (IVR, SIP). `#phone` item opens the browser phone. Paths unchanged → all old URLs/?tab= ids still work. AI receptionist = `/app/ai-agents?use=inbound`, AI calling agents = `/app/ai-agents` (same agents, different header; `isSideActive(item, pathname, search)`).
 - New `pages/AnswerCalls.js` at `/app/answer/ivr|forwarding` (unknown mode → redirect to ivr): every number with "Answered by …" + one-tap links into its tab.

@@ -74,7 +74,7 @@ export function RotateCallerIds({ numbers = [], primary, value = [], onChange, t
   const toggle = (n) => { const s = new Set(pick); s.has(n) ? s.delete(n) : s.add(n); onChange([...s]); };
   if (!all.length) return null;
   return (
-    <Field label="Rotate caller IDs (optional)" hint={pick.size ? `${pick.size + 1} caller IDs · ${pick.size + 1} calls at the same time, one per caller ID. The list is spread evenly so no single number takes all the volume.` : 'Pick more caller IDs to dial this list from several numbers at once.'}>
+    <Field label="Rotate caller IDs (optional)" hint={pick.size ? `${pick.size + 1} caller IDs. Your calls at the same time are shared across them, so no single number takes all the volume.` : 'Pick more caller IDs to dial this list from several numbers at once.'}>
       <div className="flex flex-wrap gap-2" data-testid={testid}>
         {all.map(({ n, kind }) => (
           <button key={n} type="button" title={kind} onClick={() => toggle(n)} data-testid={`${testid}-${n.replace(/\D/g, '')}`}
