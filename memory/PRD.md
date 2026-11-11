@@ -1,5 +1,9 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-11 — @CloudIVRhelp (Nomadly:7738405621) review + /start fix
+- 10:57 text to +1302514… refused correctly (Hostbay_support's open conversation on the only line, ESIM-0002). 10:59 text to +1646255… sent; reply "Fine thanks and you?" forwarded 10:59:26. His "Good" was typed on the BulkSMS home (no Reply) and single-text conversations can't be replied to (campaign-only rule) → nothing sent.
+- Fixes: /start from any BulkSMS step goes to the main menu (bot.js flow returns false after resetting action); busy number caught at the number step; route/limit errors return to BulkSMS home with its keyboard; inbound notice shows the Reply button only when a reply is allowed (`canReply`: campaign with replies on). Test: test_bulk_esim_start_exits 6/6; one_free 8/8; reply_routing 10/10.
+
 ## 2026-11-11 — Reply routing rules
 - Recipient replies route by (our line, sender number) → the one customer with an open session; 2+ owners → held for review + admin alert with text and both customers.
 - New single texts never share a line with another customer's open session to that number (`takenLines`); if every line is taken → `err_number_busy` (5 langs). Campaigns prefer a free line, fall back to a shared one rather than stall.
