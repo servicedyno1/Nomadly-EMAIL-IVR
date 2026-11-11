@@ -1696,6 +1696,7 @@ async function removeNotInService(campaignId, chatId) {
 async function sendFinalReport(campaignId) {
   const campaign = await _collection.findOne({ id: campaignId })
   if (!campaign) return
+  if (campaign.splitId) advanceSeries(campaign).catch(e => log(`[BulkCall] series advance error: ${e.message}`))
 
   const { stats, leads } = campaign
   const duration = campaign.completedAt && campaign.startedAt
@@ -1796,6 +1797,65 @@ async function hangupUntransferred(c) {
  * hung up (they bill only the time already used); calls already transferred to the customer keep going.
  * Pending leads are marked not called. Sends the report once in-flight calls settle.
  */
+// ── Series (owner choice 2026-06): a list over 500 runs as back-to-back parts of 500, in file order. ──
+// The wallet must cover the estimate for ALL parts at launch (money is still taken per minute). Only one
+// part calls at a time; the next one starts by itself (autoNext) or waits for the customer to start it.
+const MAX_SERIES_PARTS = parseInt(process.env.BULK_CALL_MAX_SERIES_PARTS || '10', 10)
+const MAX_SERIES_LEADS = MAX_BULK_LEADS * MAX_SERIES_PARTS
+const splitLeads = (leads) => { const out = []; for (let i = 0; i < leads.length; i += MAX_BULK_LEADS) out.push(leads.slice(i, i + MAX_BULK_LEADS)); return out }
+
+async function createSeries(params, { autoNext = true } = {}) {
+  const leads = params.leads || []
+  if (leads.length <= MAX_BULK_LEADS) return createCampaign(params)
+  if (leads.length > MAX_SERIES_LEADS) return { error: `Up to ${MAX_SERIES_LEADS.toLocaleString()} numbers (${MAX_SERIES_PARTS} parts of ${MAX_BULK_LEADS}). You uploaded ${leads.length.toLocaleString()}.` }
+  const chunks = splitLeads(leads), est = estimateLeadsCost(leads)
+  const funds = await smartWalletCheck(_walletOf, params.chatId, est.total)
+  if (!funds.sufficient) {
+    const bal = Number(funds.usdBal ?? funds.balance ?? (await getBalance(_walletOf, params.chatId).catch(() => ({})))?.usdBal ?? 0)
+    return { error: `Your wallet must cover all ${chunks.length} parts before launch: about $${est.total.toFixed(2)} for ${leads.length.toLocaleString()} numbers (wallet: $${bal.toFixed(2)}). Add $${Math.max(0.01, est.total - bal).toFixed(2)} and try again.`, code: 'series_funds', needed: est.total }
+  }
+  const splitId = crypto.randomUUID(), ids = []
+  for (let i = 0; i < chunks.length; i++) {
+    const c = await createCampaign({ ...params, leads: chunks[i], ...(i ? { scheduledFor: null } : {}) })
+    if (c.error) { await _collection.deleteMany({ id: { $in: ids } }); return c }
+    ids.push(c.id)
+    await _collection.updateOne({ id: c.id }, { $set: { splitId, part: i + 1, parts: chunks.length, autoNext: !!autoNext, seriesTotal: leads.length, ...(i ? { status: 'series_waiting' } : {}) } })
+  }
+  return { ...(await _collection.findOne({ id: ids[0] })), splitId, parts: chunks.length, partIds: ids }
+}
+
+// A part finished (or was stopped): start / offer the next one, or stop the rest.
+async function advanceSeries(c) {
+  if (c.status === 'cancelled') {
+    const r = await _collection.updateMany({ splitId: c.splitId, part: { $gt: c.part }, status: { $in: ['series_waiting', 'series_ready'] } }, { $set: { status: 'cancelled', completedAt: new Date(), cancelReason: `Part ${c.part} was stopped` } })
+    if (r.modifiedCount) _bot?.sendMessage(c.chatId, `⏹ Series stopped — the remaining ${r.modifiedCount} part${r.modifiedCount === 1 ? '' : 's'} will not run.`).catch(() => {})
+    return
+  }
+  if (c.status !== 'completed') return
+  const next = await _collection.findOneAndUpdate({ splitId: c.splitId, part: c.part + 1, status: 'series_waiting' }, { $set: { status: c.autoNext ? 'created' : 'series_ready', readyAt: new Date() } }, { returnDocument: 'after' })
+  const doc = next?.value !== undefined ? next.value : next
+  if (!doc) { if (c.part === c.parts) _bot?.sendMessage(c.chatId, `🏁 <b>Series finished</b> — all ${c.parts} parts (${(c.seriesTotal || 0).toLocaleString()} numbers) are done.`, { parse_mode: 'HTML' }).catch(() => {}); return }
+  const label = `Part ${doc.part} of ${doc.parts} (${doc.leads.length} numbers)`
+  if (!c.autoNext) {
+    const web = require('./cloudivr-web/notify').isWebChatId(c.chatId)
+    _bot?.sendMessage(c.chatId, `✅ Part ${c.part} of ${c.parts} done.\n\n▶️ ${label} is ready.${web ? ' Open Campaigns to start it.' : ''}`, web ? {} : { reply_markup: { inline_keyboard: [[{ text: `▶️ Start part ${doc.part} of ${doc.parts}`, callback_data: `bcnext:${doc.id}` }]] } }).catch(() => {})
+    return
+  }
+  _bot?.sendMessage(c.chatId, `✅ Part ${c.part} of ${c.parts} done — ▶️ ${label} starting now.`).catch(() => {})
+  const r = await startCampaign(doc.id)
+  if (r?.error) { await _collection.updateOne({ id: doc.id }, { $set: { status: 'series_ready' } }); _bot?.sendMessage(c.chatId, `⏸ ${label} couldn't start: ${r.error}`, require('./cloudivr-web/notify').isWebChatId(c.chatId) ? {} : { reply_markup: { inline_keyboard: [[{ text: `▶️ Try part ${doc.part} again`, callback_data: `bcnext:${doc.id}` }]] } }).catch(() => {}) }
+}
+
+// The customer starts a waiting part ("Ask me before each part", or a retry after an error).
+async function startSeriesPart(campaignId, chatId) {
+  const c = await _collection.findOneAndUpdate({ id: campaignId, chatId, status: 'series_ready' }, { $set: { status: 'created' } }, { returnDocument: 'after' })
+  const doc = c?.value !== undefined ? c.value : c
+  if (!doc) return { error: 'This part is not ready to start.' }
+  const r = await startCampaign(doc.id)
+  if (r?.error) await _collection.updateOne({ id: doc.id }, { $set: { status: 'series_ready' } })
+  return r
+}
+
 async function cancelCampaign(campaignId, reason = 'Cancelled by user', { sendReport = true } = {}) {
   const state = activeCampaigns[campaignId]
   if (state) state.paused = true
@@ -1810,6 +1870,7 @@ async function cancelCampaign(campaignId, reason = 'Cancelled by user', { sendRe
     { arrayFilters: [{ 'p.status': 'pending' }] }
   )
   if (r.modifiedCount !== 1) return { error: 'Campaign already finished or cancelled.' }
+  if (before?.splitId) advanceSeries({ ...before, status: 'cancelled' }).catch(e => log(`[BulkCall] series stop error: ${e.message}`))
 
   log(`[BulkCall] Campaign ${campaignId} cancelled (${reason})`)
   await recalcStats(campaignId)
@@ -1924,6 +1985,10 @@ module.exports = {
   recoverRunningCampaigns,
   parseLeadsFile,
   createCampaign,
+  createSeries,
+  startSeriesPart,
+  MAX_SERIES_LEADS,
+  MAX_SERIES_PARTS,
   startCampaign,
   launchDueScheduledCampaigns,
   sendFinalReport,

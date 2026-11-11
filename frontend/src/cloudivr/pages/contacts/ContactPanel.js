@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2, Trash2, X, Mail, Building2 } from 'lucide-react';
 import { api, enc, day } from '../../api';
@@ -7,18 +7,20 @@ import { ask } from '../../confirm';
 import { usePrivacy } from '../../privacy';
 import { Modal, Avatar } from './Modal';
 import { CallActions } from './CallActions';
+import { PhoneCountry } from '../../CountryFix';
 
 export const EMPTY_CONTACT = { phone: '', name: '', email: '', company: '', notes: '', listIds: [], fields: [] };
 
 // Name, phone, email, company, notes and list membership (shared by "Add contact" and the contact panel).
 export function ContactFields({ f, set, lists, testid = 'contact' }) {
   const pv = usePrivacy();
+  const setCountry = useCallback((country) => set({ country }), [set]);
   const toggleList = (id) => set({ listIds: f.listIds.includes(id) ? f.listIds.filter(x => x !== id) : [...f.listIds, id] });
   return (
     <div className="space-y-4">
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label="Name"><input className="civr-input" maxLength={80} value={f.name} onChange={e => set({ name: e.target.value })} placeholder="Jane Doe" data-testid={`${testid}-name-input`} /></Field>
-        <Field label="Phone number" hint="With country code."><input className={`civr-input font-mono ${pv.input}`} inputMode="tel" required value={f.phone} onChange={e => set({ phone: e.target.value })} placeholder="+14155550100" data-testid={`${testid}-phone-input`} /></Field>
+        <Field label="Phone number" hint="With country code."><input className={`civr-input font-mono ${pv.input}`} inputMode="tel" required value={f.phone} onChange={e => set({ phone: e.target.value })} placeholder="+14155550100" data-testid={`${testid}-phone-input`} /><PhoneCountry phone={f.phone} value={f.country} onChange={setCountry} testid={`${testid}-phone-country`} /></Field>
         <Field label="Email"><input className="civr-input" type="email" maxLength={120} value={f.email} onChange={e => set({ email: e.target.value })} placeholder="jane@example.com" data-testid={`${testid}-email-input`} /></Field>
         <Field label="Company"><input className="civr-input" maxLength={120} value={f.company} onChange={e => set({ company: e.target.value })} placeholder="Acme Inc." data-testid={`${testid}-company-input`} /></Field>
       </div>
@@ -50,7 +52,7 @@ export function AddContact({ lists, listId, onClose, onSaved }) {
   const [f, setF] = useState({ ...EMPTY_CONTACT, listIds: listId && listId !== 'all' ? [listId] : [] });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-  const set = (p) => setF(x => ({ ...x, ...p }));
+  const set = useCallback((p) => setF(x => ({ ...x, ...p })), []);
   const save = async (e) => {
     e?.preventDefault(); setBusy(true); setError(null);
     try { const d = await api('/contacts', { method: 'POST', body: f }); toast.success('Contact saved'); onSaved(d.contact); } catch (err) { setError(err); } finally { setBusy(false); }
@@ -75,8 +77,8 @@ export function ContactPanel({ id, lists, onClose, onChanged }) {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => { api(`/contacts/${enc(id)}`).then(d => { setC(d.contact); setF(pick(d.contact)); }).catch(setError); }, [id]);
-  const set = (p) => setF(x => ({ ...x, ...p }));
-  const dirty = c && f && JSON.stringify(pick(c)) !== JSON.stringify(f);
+  const set = useCallback((p) => setF(x => ({ ...x, ...p })), []);
+  const dirty = c && f && JSON.stringify(pick(c)) !== JSON.stringify(pick(f));
   const save = async () => {
     setBusy(true); setError(null);
     try { const d = await api(`/contacts/${enc(id)}`, { method: 'PATCH', body: f }); setC(d.contact); setF(pick(d.contact)); toast.success('Contact updated'); onChanged(); } catch (err) { setError(err); } finally { setBusy(false); }

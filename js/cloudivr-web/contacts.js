@@ -36,8 +36,8 @@ async function listLeads(db, chatId, listId) {
 function cleanContact(b, partial) {
   const out = {}
   if (!partial || b.phone !== undefined) {
-    const phone = ci.normalizeNumber(b.phone)
-    if (!phone) throw new Error(ci.numberIssue(b.phone) || 'Enter the phone number with country code, e.g. +14155550100.')
+    const phone = ci.normalizeNumber(b.phone, b.country)
+    if (!phone) throw new Error(ci.numberIssue(b.phone, b.country) || 'Enter the phone number with country code, e.g. +14155550100.')
     out.phone = phone
   }
   for (const [k, n] of [['name', 80], ['company', 120], ['notes', 2000]]) if (b[k] !== undefined) out[k] = str(b[k], n)
@@ -53,6 +53,10 @@ function cleanContact(b, partial) {
 
 // Most numbers without a code are 10 digits → suggest USA/Canada; otherwise no guess (the customer picks).
 const suggest = (raws) => (raws.length && raws.filter(r => String(r).replace(/\D/g, '').length === 10).length / raws.length >= 0.8 ? 'US' : null)
+
+// Owner choice: the last country a customer picked for numbers without a code is remembered on their account.
+const rememberCountry = (db, chatId, country) => { const cc = ci.validCountry(country); if (cc && /^\d+$/.test(String(chatId))) db.collection('webAccounts').updateOne({ _id: Number(chatId) }, { $set: { phoneCountry: cc } }).catch(() => {}) }
+const lastCountry = async (db, chatId) => (/^\d+$/.test(String(chatId)) ? (await db.collection('webAccounts').findOne({ _id: Number(chatId) }, { projection: { phoneCountry: 1 } }))?.phoneCountry || null : null)
 
 function routes(router, { db, h, upload }) {
   contactsCol(db).createIndex({ chatId: 1, phone: 1 }, { unique: true }).catch(() => {})
@@ -145,6 +149,7 @@ function routes(router, { db, h, upload }) {
     const columns = roles.map((role, i) => ({ index: i, role, header: (hasHeader && head[i]) || `Column ${i + 1}` }))
     const country = ci.validCountry(req.body.country)
     const { records, invalid, dupes, noCode, fixed } = ci.toRecords(imp.rows, { hasHeader, columns }, { country })
+    if (country && fixed) rememberCountry(db, req.webChatId, country)
     const existing = records.length ? await contactsCol(db).find({ chatId: req.webChatId, phone: { $in: records.map(r => r.phone) } }).toArray() : []
     return { imp, records, invalid, dupes, noCode, fixed, country, existing: new Map(existing.map(c => [c.phone, c])) }
   }
@@ -214,14 +219,16 @@ function routes(router, { db, h, upload }) {
   }))
 
   // Country picker for numbers typed without a country code (every country libphonenumber knows).
-  router.get('/phone-countries', h(async (req, res) => { res.json({ countries: ci.phoneCountries() }) }))
+  router.get('/phone-countries', h(async (req, res) => { res.json({ countries: ci.phoneCountries(), last: await lastCountry(db, req.webChatId) }) }))
   // Adds the chosen country's code to every number in pasted text that has none — only where the number fits that country.
   router.post('/contacts/fix-country', h(async (req, res) => {
     const country = ci.validCountry(req.body.country)
     if (!country) return bad(res, 400, 'invalid_country', 'Pick a country.')
     const text = String(req.body.text || '')
     if (text.length > 200000) return bad(res, 400, 'too_big', 'That list is too long.')
-    res.json({ ...ci.fixCountry(text, country), country, countryName: ci.countryName(country) })
+    const out = ci.fixCountry(text, country)
+    if (out.fixed) rememberCountry(db, req.webChatId, country)
+    res.json({ ...out, country, countryName: ci.countryName(country) })
   }))
 
   // ── contacts ──
@@ -248,6 +255,7 @@ function routes(router, { db, h, upload }) {
     const chatId = req.webChatId
     let fields
     try { fields = cleanContact(req.body, false) } catch (e) { return bad(res, 400, 'invalid_contact', e.message) }
+    if (ci.withCountry(req.body.phone, req.body.country)) rememberCountry(db, req.webChatId, req.body.country)
     const dupe = await contactsCol(db).findOne({ chatId, phone: fields.phone })
     if (dupe) return res.status(409).json({ error: 'contact_exists', message: `${fields.phone} is already saved as ${dupe.name || 'a contact'}.`, id: dupe._id })
     if (await contactsCol(db).countDocuments({ chatId }) >= MAX_CONTACTS) return bad(res, 400, 'too_many_contacts', `You can save up to ${MAX_CONTACTS.toLocaleString('en-US')} contacts.`)
@@ -267,6 +275,7 @@ function routes(router, { db, h, upload }) {
     const chatId = req.webChatId, id = String(req.params.id)
     let set
     try { set = cleanContact(req.body, true) } catch (e) { return bad(res, 400, 'invalid_contact', e.message) }
+    if (ci.withCountry(req.body.phone, req.body.country)) rememberCountry(db, req.webChatId, req.body.country)
     if (req.body.listIds !== undefined) set.listIds = await ownLists(chatId, req.body.listIds)
     if (set.phone) {
       const dupe = await contactsCol(db).findOne({ chatId, phone: set.phone, _id: { $ne: id } })

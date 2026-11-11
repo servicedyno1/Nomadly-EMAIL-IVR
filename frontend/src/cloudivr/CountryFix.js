@@ -11,15 +11,41 @@ export const noCodeCount = (text) => String(text || '').split(/[,;\t\n]/).map(t 
 // Mostly bare 10-digit numbers → pre-pick USA/Canada (the customer can change it).
 const suggestOf = (text) => { const t = String(text || '').split(/[,;\t\n]/).map(x => x.trim()).filter(x => !/^(\+|00)/.test(x.replace(/\s/g, ''))).map(x => x.replace(/\D/g, '')).filter(d => d.length >= 7 && !/^1\d{10}$/.test(d)); return t.length && t.filter(d => d.length === 10).length / t.length >= 0.8 ? 'US' : null; };
 
+// { countries, last } — `last` is the country this account picked last time (remembered on the account).
 let cache = null;
-const loadCountries = () => (cache ||= api('/phone-countries').then(d => d.countries).catch((e) => { cache = null; throw e; }));
+const loadCountries = () => (cache ||= api('/phone-countries').catch((e) => { cache = null; throw e; }));
+const remember = (cc) => { if (cache) cache = cache.then(d => ({ ...d, last: cc })); };
+// Last-used country first, then A–Z.
+const ordered = (d) => (d.last ? [...d.countries.filter(c => c.iso === d.last), ...d.countries.filter(c => c.iso !== d.last)] : d.countries);
+
+function useCountries(suggest, initial) {
+  const [d, setD] = useState({ countries: [], last: null });
+  const [cc, setCc] = useState(initial || '');
+  useEffect(() => { loadCountries().then(x => { setD(x); setCc(c => c || x.last || suggest || ''); }).catch(() => {}); }, [suggest]);
+  return { list: ordered(d), last: d.last, cc, setCc };
+}
+
+// A single number (add / edit contact): only shown when the number has no country code.
+export function PhoneCountry({ phone, value, onChange, testid = 'phone-country' }) {
+  const n = noCodeCount(phone);
+  const { list, last, cc, setCc } = useCountries(suggestOf(phone), value);
+  useEffect(() => { if (n && cc && cc !== value) onChange(cc); }, [n, cc, value, onChange]);
+  if (!n) return null;
+  return (
+    <div className="mt-2 rounded-lg border border-[#fbbf24]/40 bg-[#fbbf24]/10 p-2.5" data-testid={testid}>
+      <div className="text-xs mb-1.5 flex items-center gap-1.5"><Globe2 className="w-3.5 h-3.5 text-[#fbbf24]" />No country code — which country is this number in?</div>
+      <select className="civr-input !h-10" value={cc} onChange={e => { setCc(e.target.value); onChange(e.target.value); }} aria-label="Country of this number" data-testid={`${testid}-select`}>
+        <option value="">Choose the country…</option>
+        {list.map(c => <option key={c.iso} value={c.iso}>{`${c.name} (${c.code})${c.iso === last ? ' · last used' : ''}`}</option>)}
+      </select>
+      <div className="text-xs text-[#a1a1aa] mt-1.5">We add the code when you save, after checking the number fits that country.</div>
+    </div>
+  );
+}
 
 // One country for the whole list: "12 numbers have no country code — [United Kingdom (+44)] [Add country code]".
 export function CountryFix({ count, suggest, onApply, busy, testid = 'country-fix', note }) {
-  const [list, setList] = useState([]);
-  const [cc, setCc] = useState(suggest || '');
-  useEffect(() => { loadCountries().then(setList).catch(() => {}); }, []);
-  useEffect(() => { if (suggest) setCc(c => c || suggest); }, [suggest]);
+  const { list, last, cc, setCc } = useCountries(suggest);
   if (!count) return null;
   return (
     <div className="mt-2 rounded-xl border border-[#fbbf24]/40 bg-[#fbbf24]/10 p-3" data-testid={testid}>
@@ -30,9 +56,9 @@ export function CountryFix({ count, suggest, onApply, busy, testid = 'country-fi
       <div className="flex flex-col sm:flex-row gap-2 mt-2.5">
         <select className="civr-input !h-10 flex-1" value={cc} onChange={e => setCc(e.target.value)} aria-label="Country of these numbers" data-testid={`${testid}-select`}>
           <option value="">Choose the country…</option>
-          {list.map(c => <option key={c.iso} value={c.iso}>{`${c.name} (${c.code})`}</option>)}
+          {list.map(c => <option key={c.iso} value={c.iso}>{`${c.name} (${c.code})${c.iso === last ? ' · last used' : ''}`}</option>)}
         </select>
-        <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={!cc || busy} onClick={() => onApply(cc)} data-testid={`${testid}-apply`}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Add country code</button>
+        <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={!cc || busy} onClick={() => { remember(cc); onApply(cc); }} data-testid={`${testid}-apply`}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Add country code</button>
       </div>
       {note && <div className="text-xs text-[#a1a1aa] mt-2" data-testid={`${testid}-note`}>{note}</div>}
     </div>

@@ -24,6 +24,7 @@ const publicCampaign = (c, withLeads = false) => ({
   agentId: c.agentId || null, agentName: c.agentName || null, waitingForHours: !!c.waitingForHours,
   waitingForLine: (c.leads || []).some(l => l.status === 'pending' && l.waitingForLine),
   repeat: c.repeat || null, runNumber: c.runNumber || null, seriesId: c.seriesId || null, autoRun: !!c.autoRun, nextRunId: c.nextRunId || null,
+  splitId: c.splitId || null, part: c.part || null, parts: c.parts || null, autoNext: c.splitId ? !!c.autoNext : null, splitTotal: c.seriesTotal || null,
   dailyLimit: c.dailyLimit || null, callsToday: c.dailyLimit ? sched.callsToday(c) : null, waitingForDailyLimit: !!c.waitingForDailyLimit,
   voicemailAudioName: c.voicemailAudioUrl ? (c.voicemailAudioName || 'Voicemail message') : null,
   notInService: notInService(c).length, badNumbersCleanedAt: c.badNumbersCleanedAt || null, badNumbersRemoved: c.badNumbersRemoved ?? null,
@@ -132,7 +133,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
 
   router.post('/campaigns/estimate', h(async (req, res) => {
     const { leads, errors, badCount } = await leadsOf(req.webChatId, req.body)
-    res.json({ count: leads.length, errors: errors.slice(0, 20), badCount: badCount ?? errors.length, fromList: !!req.body.listId, max: bulkCallService.MAX_BULK_LEADS, minWallet: bulkCallService.BULK_CALL_MIN_WALLET, estimate: bulkCallService.estimateLeadsCost(leads) })
+    res.json({ count: leads.length, errors: errors.slice(0, 20), badCount: badCount ?? errors.length, fromList: !!req.body.listId, max: bulkCallService.MAX_BULK_LEADS, maxSplit: bulkCallService.MAX_SERIES_LEADS, minWallet: bulkCallService.BULK_CALL_MIN_WALLET, estimate: bulkCallService.estimateLeadsCost(leads) })
   }))
 
   router.get('/campaigns', h(async (req, res) => {
@@ -157,7 +158,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const { leads, errors, badCount } = await leadsOf(chatId, b)
     if (!leads.length) return bad(res, 400, 'no_leads', (!b.listId && !String(b.leads || '').trim() ? '' : errors[0]) || 'Add at least one number to call (one per line, optional ",name").')
     if (!b.listId && errors.length) return bad(res, 400, 'invalid_leads', `${errors.length === 1 ? '1 number needs' : `${errors.length} numbers need`} fixing before the campaign can start. ${errors.slice(0, 3).join(' · ')}`)
-    if (leads.length > bulkCallService.MAX_BULK_LEADS) return bad(res, 400, 'too_many_leads', `Maximum ${bulkCallService.MAX_BULK_LEADS} numbers per campaign.`)
+    if (leads.length > bulkCallService.MAX_SERIES_LEADS) return bad(res, 400, 'too_many_leads', `Up to ${bulkCallService.MAX_SERIES_LEADS.toLocaleString()} numbers — they run as parts of ${bulkCallService.MAX_BULK_LEADS}, one after another.`)
     // 'menu' = route each key (forward / message / sub-menu); the engine runs it as a transfer campaign.
     const mode = ['transfer', 'menu'].includes(b.mode) ? 'transfer' : 'report_only'
     let transferNumber = null, menu = null, activeKeys = keysOf(b)
@@ -176,13 +177,17 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const plan = runPlan(b)
     if (plan.err) return bad(res, ...plan.err)
     if (b.validateOnly) return res.json({ ok: true })
-    const campaign = await bulkCallService.createCampaign({
+    const params = {
       chatId, callerId: c.n.phoneNumber, showAs, callerPool: rot.pool, audioUrl: audio.audioUrl, audioName: audio.name, name: b.name, mode, transferNumber, transferBackups: bk.list, menu,
       activeKeys, concurrency: Math.max(1, parseInt(b.concurrency, 10) || 5), poolShare: true, holdMusic: !!b.holdMusic,
       leads, scheduledFor: plan.scheduledFor, repeat: plan.repeat, dailyLimit: plan.dailyLimit, tz: plan.tz, provider: 'telnyx', voicemailAudioUrl: vm?.audioUrl || null, voicemailAudioName: vm?.name || null,
-    })
-    if (campaign.error) return bad(res, 400, 'create_failed', campaign.error)
-    if (dryRun() || showAs) await db.collection('bulkCallCampaigns').updateOne({ id: campaign.id }, { $set: { ...(dryRun() ? { dryRun: true } : {}), ...(showAs ? { showAs } : {}) } })
+    }
+    // Over 500 numbers → parts of 500 run one after another (no repeat for split lists).
+    const split = leads.length > bulkCallService.MAX_BULK_LEADS
+    if (split && plan.repeat) return bad(res, 400, 'split_no_repeat', `Repeat isn’t available for lists over ${bulkCallService.MAX_BULK_LEADS} numbers. Turn off repeat, or use a smaller list.`)
+    const campaign = split ? await bulkCallService.createSeries(params, { autoNext: b.autoNext !== false }) : await bulkCallService.createCampaign(params)
+    if (campaign.error) return bad(res, campaign.code === 'series_funds' ? 402 : 400, campaign.code || 'create_failed', campaign.error)
+    if (dryRun() || showAs) await db.collection('bulkCallCampaigns').updateMany(split ? { splitId: campaign.splitId } : { id: campaign.id }, { $set: { ...(dryRun() ? { dryRun: true } : {}), ...(showAs ? { showAs } : {}) } })
     callerIds.rememberLast(chatId, c.n.phoneNumber, showAs)
     res.status(201).json({ campaign: publicCampaign({ ...campaign, showAs, dryRun: dryRun() }), skipped: badCount ?? errors.length, doNotCall: await dncCount(chatId, leads) })
   }))
@@ -257,10 +262,11 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const c = await caller(req.webChatId, req.campaign.callerId, ai ? 'aiAgent' : 'bulkCall', ai ? 'AI agent campaigns' : 'Bulk IVR campaigns')
     if (c.err) return bad(res, ...c.err)
     if (req.campaign.dryRun || dryRun()) {
+      if (req.campaign.status === 'series_ready') await db.collection('bulkCallCampaigns').updateOne({ id: req.campaign.id, status: 'series_ready' }, { $set: { status: 'created' } })
       if (!req.campaign.dryRun || !(await sim.run(db.collection('bulkCallCampaigns'), req.campaign.id))) return bad(res, 400, 'start_failed', 'This campaign is not waiting to start.')
       return res.status(202).json({ dryRun: true, message: 'Preview mode: simulating the calls with made-up results. Nobody is dialed.' })
     }
-    const r = await bulkCallService.startCampaign(req.campaign.id)
+    const r = req.campaign.status === 'series_ready' ? await bulkCallService.startSeriesPart(req.campaign.id, req.webChatId) : await bulkCallService.startCampaign(req.campaign.id)
     if (r?.error) return bad(res, r.lowBalance ? 402 : 400, 'start_failed', String(r.error).replace(/<[^>]+>/g, ''))
     res.json({ started: true })
   }))

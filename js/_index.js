@@ -1022,6 +1022,20 @@ function _bulkClipLabels(audios) {
   })
 }
 
+// Over 500 numbers the list runs as parts of 500 (one after another); the customer picks how the next part starts.
+const BULK_SPLIT_AUTO = '🚀 Launch — start each part automatically'
+const BULK_SPLIT_ASK = '🚀 Launch — ask me before each part'
+function _bulkLaunchRows(bulkData) {
+  const split = (bulkData?.leads?.length || 0) > (bulkCallService.MAX_BULK_LEADS || 500)
+  return split ? [[BULK_SPLIT_AUTO], [BULK_SPLIT_ASK], ['⏰ Schedule for later'], ['↩️ Back']] : [['🚀 Launch Campaign'], ['⏰ Schedule for later'], ['↩️ Back']]
+}
+function _bulkSplitLine(n) {
+  const max = bulkCallService.MAX_BULK_LEADS || 500
+  if (n <= max) return ''
+  const parts = Math.ceil(n / max)
+  return `\n📦 <b>${n.toLocaleString()} numbers → ${parts} parts</b> of up to ${max}, called one after another (same message and settings). Your wallet must cover all parts before launch.`
+}
+
 function _bulkPreviewText(bulkData, lang) {
   const leads = bulkData.leads || []
   const est = bulkCallService.estimateLeadsCost(leads)
@@ -1029,7 +1043,7 @@ function _bulkPreviewText(bulkData, lang) {
     `📋 <b>Campaign Preview</b>`,
     ``,
     `📱 Caller ID: <b>${bulkData.showAs || bulkData.callerId}</b>${bulkData.callerPool?.length ? _bulkRot(lang).more(bulkData.callerPool.length, bulkData.callerPool.length + 1) : ''}`,
-    `📞 Leads: <b>${leads.length}</b> (max ${bulkCallService.MAX_BULK_LEADS || 500})${est.intl ? ` — ${est.domestic} US/CA · ${est.intl} international` : ''}`,
+    `📞 Leads: <b>${leads.length}</b> (max ${bulkCallService.MAX_BULK_LEADS || 500}${leads.length > (bulkCallService.MAX_BULK_LEADS || 500) ? ' per part' : ''})${est.intl ? ` — ${est.domestic} US/CA · ${est.intl} international` : ''}`,
     est.blockedLine || null,
     `🎵 Audio: <b>${_bulkEsc(bulkData.audioName || 'Selected')}</b>`,
     `📊 Mode: <b>${bulkData.mode === 'transfer' ? '🔗 Transfer + Report' : '📊 Report Only'}</b>`,
@@ -6596,6 +6610,13 @@ bot?.on('callback_query', async (query) => {
     //   pv:* → after VPS deployment      (domain / hosting / phone)
     //   pp:* → after phone activation    (sms / domain / vps)
     // 🧹 Bulk report: drop the campaign's not-in-service numbers and hand back a clean list to reuse.
+    if (data.startsWith('bcnext:')) {
+      try { await bot.answerCallbackQuery(query.id) } catch { /* noop */ }
+      const r = await bulkCallService.startSeriesPart(data.slice(7), chatId).catch(e => ({ error: e.message }))
+      if (r?.error) return send(chatId, `⚠️ ${sanitizeProviderError(String(r.error).replace(/<[^>]+>/g, ''), 'voice')}`)
+      try { await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message.message_id }) } catch { /* noop */ }
+      return send(chatId, '▶️ Next part started — you’ll get live updates as before.')
+    }
     if (data.startsWith('bcclean:')) {
       try { await bot.answerCallbackQuery(query.id) } catch { /* noop */ }
       const r = await bulkCallService.removeNotInService(data.slice(8), chatId).catch(e => { log(`[BulkCall] cleanup error: ${e.message}`); return null })
@@ -28666,7 +28687,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
 
     // ━━━ Enforce max lead limit ━━━
-    const maxLeads = bulkCallService.MAX_BULK_LEADS || 500
+    const maxLeads = bulkCallService.MAX_SERIES_LEADS || 5000
     if (leads.length > maxLeads) {
       return send(chatId, trans('t.cp_137', maxLeads, leads.length), k.of([['↩️ Back']]))
     }
@@ -28683,7 +28704,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const errNote = (columns?.phone ? `\n${trans('t.cp_138cols', escHtml(columns.phone), columns.name ? escHtml(columns.name) : '')}` : '') +
       (errors.length > 0 ? `\n${_leadErrSummary(lang, errors)}` : '') +
       (leadsEst.intl ? `\n🌍 ${leadsEst.intl} international lead${leadsEst.intl === 1 ? '' : 's'} — ${leadsEst.rateLine}` : '') +
-      (leadsEst.blockedLine ? `\n${leadsEst.blockedLine}` : '')
+      (leadsEst.blockedLine ? `\n${leadsEst.blockedLine}` : '') + _bulkSplitLine(leads.length)
 
     await set(state, chatId, 'action', a.bulkSelectAudio)
     const audios = await audioLibraryService.listAudios(chatId)
@@ -29383,7 +29404,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return send(chatId, vm.text, k.of(vm.rows))
     }
     await set(state, chatId, 'action', a.bulkConfirm)
-    return send(chatId, _bulkPreviewText(bulkData, lang), k.of([['🚀 Launch Campaign'], ['⏰ Schedule for later'], ['↩️ Back']]))
+    return send(chatId, _bulkPreviewText(bulkData, lang) + _bulkSplitLine(bulkData.leads?.length || 0), k.of(_bulkLaunchRows(bulkData)))
   }
 
   if (action === a.bulkSelectVoicemail) {
@@ -29410,7 +29431,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
     await saveInfo('bulkData', bulkData)
     await set(state, chatId, 'action', a.bulkConfirm)
-    return send(chatId, _bulkPreviewText(bulkData, lang), k.of([['🚀 Launch Campaign'], ['⏰ Schedule for later'], ['↩️ Back']]))
+    return send(chatId, _bulkPreviewText(bulkData, lang) + _bulkSplitLine(bulkData.leads?.length || 0), k.of(_bulkLaunchRows(bulkData)))
   }
 
   if (action === a.bulkConfirm) {
@@ -29423,14 +29444,15 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.bulkSetConcurrency)
       return send(chatId, trans('t.cp_216'), k.of([['5'], ['10'], ['15'], ['20'], ['↩️ Back']]))
     }
-    if (message === '🚀 Launch Campaign') {
+    if (message === '🚀 Launch Campaign' || message === BULK_SPLIT_AUTO || message === BULK_SPLIT_ASK) {
       const bulkData = info?.bulkData || {}
       if (!bulkData.leads?.length || !bulkData.callerId || !bulkData.audioUrl) {
         return send(chatId, trans('t.cp_217'))
       }
       try {
         send(chatId, trans('t.cp_218'))
-        const campaign = await bulkCallService.createCampaign({
+        const split = bulkData.leads.length > (bulkCallService.MAX_BULK_LEADS || 500)
+        const campaign = await bulkCallService[split ? 'createSeries' : 'createCampaign']({
           chatId,
           callerId: bulkData.callerId,
           showAs: bulkData.showAs || null,
@@ -29450,7 +29472,9 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           voicemailAudioName: bulkData.voicemailAudioName || null,
           twilioSubAccountSid: bulkData.twilioSubAccountSid || null,
           twilioSubAccountToken: bulkData.twilioSubAccountToken || null,
-        })
+        }, { autoNext: message !== BULK_SPLIT_ASK })
+        if (campaign.error) return send(chatId, `⚠️ ${campaign.error}`, k.of(_bulkLaunchRows(bulkData)))
+        if (split) send(chatId, `📦 Split into <b>${campaign.parts} parts</b>. Part 1 of ${campaign.parts} (${campaign.leads.length} numbers) starts now. ${message === BULK_SPLIT_ASK ? 'I’ll ask you before each next part.' : 'Each next part starts by itself when the one before finishes.'}`, { parse_mode: 'HTML' })
         await saveInfo('activeCampaignId', campaign.id)
         await set(state, chatId, 'action', a.bulkRunning)
         const startResult = await bulkCallService.startCampaign(campaign.id)
@@ -29480,7 +29504,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (isCancelPress(message)) return goto.submenu5()
     if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkConfirm)
-      return send(chatId, `Tap <b>🚀 Launch Campaign</b> to start now, or <b>⏰ Schedule for later</b>.`, { parse_mode: 'HTML', reply_markup: { keyboard: [['🚀 Launch Campaign'], ['⏰ Schedule for later'], ['↩️ Back']], resize_keyboard: true } })
+      return send(chatId, `Tap <b>🚀 Launch</b> to start now, or <b>⏰ Schedule for later</b>.`, { parse_mode: 'HTML', reply_markup: { keyboard: _bulkLaunchRows(info?.bulkData), resize_keyboard: true } })
     }
     let hours = _bulkSchedHours(message)
     if (hours === undefined) {
@@ -29496,7 +29520,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
     const scheduledFor = new Date(Date.now() + hours * 60 * 60 * 1000)
     try {
-      const campaign = await bulkCallService.createCampaign({
+      const campaign = await bulkCallService[(bulkData.leads?.length || 0) > (bulkCallService.MAX_BULK_LEADS || 500) ? 'createSeries' : 'createCampaign']({
         chatId,
         callerId: bulkData.callerId,
         showAs: bulkData.showAs || null,

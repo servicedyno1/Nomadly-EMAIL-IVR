@@ -29,18 +29,18 @@ const pct = (c) => (c.stats?.total ? Math.round(((c.stats.completed || 0) / c.st
 // Pause / Resume right on the row (Cancel stays on the detail page — it needs a confirmation).
 function RowAction({ c, i, onChange }) {
   const [busy, setBusy] = useState(false);
-  const action = c.status === 'running' ? 'pause' : c.status === 'paused' ? 'resume' : null;
+  const action = c.status === 'running' ? 'pause' : c.status === 'paused' ? 'resume' : c.status === 'series_ready' ? 'start' : null;
   if (!action) return null;
   const run = async (e) => {
     e.preventDefault(); e.stopPropagation(); setBusy(true);
     try {
       const d = await api(`/campaigns/${c.id}/${action}`, { method: 'POST' });
-      if (d.dryRun) toast.message(d.message); else toast.success(action === 'pause' ? 'Campaign paused' : 'Campaign resumed');
-      if (d.campaign) onChange(d.campaign);
+      if (d.dryRun) toast.message(d.message); else toast.success(action === 'pause' ? 'Campaign paused' : action === 'start' ? `Part ${c.part} started` : 'Campaign resumed');
+      if (d.campaign) onChange(d.campaign); else if (action === 'start') onChange({ ...c, status: 'running' });
     } catch (err) { toast.error(err.message); } finally { setBusy(false); }
   };
   const Icon = action === 'pause' ? Pause : Play;
-  return <button type="button" className={`civr-btn civr-btn-sm relative z-10 ${action === 'resume' ? 'civr-btn-primary' : 'civr-btn-ghost'}`} disabled={busy} onClick={run} data-testid={`campaign-row-${i}-${action}`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Icon className="w-4 h-4" />}{action === 'pause' ? 'Pause' : 'Resume'}</button>;
+  return <button type="button" className={`civr-btn civr-btn-sm relative z-10 ${action === 'resume' ? 'civr-btn-primary' : 'civr-btn-ghost'}`} disabled={busy} onClick={run} data-testid={`campaign-row-${i}-${action}`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Icon className="w-4 h-4" />}{action === 'pause' ? 'Pause' : action === 'start' ? `Start part ${c.part}` : 'Resume'}</button>;
 }
 
 function CampaignRow({ c, i, pv, onChange }) {
@@ -54,7 +54,8 @@ function CampaignRow({ c, i, pv, onChange }) {
         {c.voicemailAudioName && c.startedAt && <span className={`civr-pill ${c.stats?.voicemailLeft ? '!bg-[#22c55e]/15 civr-vm-green !border-[#22c55e]/40' : ''}`} data-testid={`campaign-row-${i}-voicemail-left`}>{c.stats?.voicemailLeft === 1 ? '📩 1 voicemail left' : `📩 ${c.stats?.voicemailLeft || 0} voicemails left`}</span>}
         {c.repeat && <span className="civr-pill civr-pill-on" data-testid={`campaign-row-${i}-repeat`}><Repeat className="w-3 h-3" />{c.repeat === 'weekly' ? 'weekly' : 'daily'}{c.runNumber > 1 ? ` · run ${c.runNumber}` : ''}</span>}
         {c.waitingForDailyLimit && c.status === 'running' && <span className="civr-pill civr-pill-warn" data-testid={`campaign-row-${i}-daily-limit`}>daily limit reached</span>}
-        <span className={statusPill(c.status)} data-testid={`campaign-row-${i}-status`}>{c.status}</span>
+        {c.splitId && <span className="civr-pill" data-testid={`campaign-row-${i}-part`}>{`Part ${c.part} of ${c.parts}`}</span>}
+        <span className={statusPill(c.status)} data-testid={`campaign-row-${i}-status`}>{c.status === 'series_waiting' ? `waits for part ${c.part - 1}` : c.status === 'series_ready' ? 'ready to start' : c.status}</span>
         {c.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}
         <RowAction c={c} i={i} onChange={onChange} />
         <ChevronRight className="w-4 h-4 text-[#a1a1aa] hidden md:block" />
@@ -162,11 +163,27 @@ function VoicemailChoice({ mode, onMode, children }) {
 }
 
 const MAX_LEADS = 500;
+const MAX_SPLIT = 5000;
+// Over 500 numbers: the list runs as parts of 500, one after another — the customer picks whether the next part starts by itself.
+function SplitNote({ n, auto, onAuto }) {
+  if (!n || n <= MAX_LEADS || n > MAX_SPLIT) return null;
+  const parts = Math.ceil(n / MAX_LEADS), last = n - (parts - 1) * MAX_LEADS;
+  return (
+    <div className="civr-card p-4 !border-[var(--c-accent)]/40" data-testid="campaign-split-note">
+      <div className="font-semibold text-sm" data-testid="campaign-split-summary">{`${n.toLocaleString()} numbers → ${parts} parts, called one after another`}</div>
+      <div className="text-xs text-[#a1a1aa] mt-1">{`${parts - 1 === 1 ? 'Part 1' : `Parts 1–${parts - 1}`}: 500 numbers each · Part ${parts}: ${last}. Only one part calls at a time, with the same message and settings. Your wallet must cover all parts before launch.`}</div>
+      <div className="flex flex-col sm:flex-row gap-2 mt-3" role="radiogroup" aria-label="When a part finishes">
+        <button type="button" role="radio" aria-checked={auto} onClick={() => onAuto(true)} className={`civr-btn civr-btn-sm ${auto ? 'civr-btn-primary' : 'civr-btn-ghost'}`} data-testid="campaign-split-auto">Start each part automatically</button>
+        <button type="button" role="radio" aria-checked={!auto} onClick={() => onAuto(false)} className={`civr-btn civr-btn-sm ${!auto ? 'civr-btn-primary' : 'civr-btn-ghost'}`} data-testid="campaign-split-ask">Ask me before each part</button>
+      </div>
+    </div>
+  );
+}
 function LeadCount({ text, onChange }) {
   const n = text.split('\n').filter(l => /\d{7,}/.test(l.replace(/\D/g, ''))).length;
   if (!n) return null;
   return (<>
-    <div className={`text-xs mt-1 ${n > MAX_LEADS ? 'text-[#f87171]' : 'text-[#a1a1aa]'}`} data-testid="campaign-leads-count">{n > MAX_LEADS ? `${n} numbers — campaigns can call up to ${MAX_LEADS}. Split the list into smaller campaigns.` : `${n} of ${MAX_LEADS} numbers`}</div>
+    <div className={`text-xs mt-1 ${n > MAX_SPLIT ? 'text-[#f87171]' : 'text-[#a1a1aa]'}`} data-testid="campaign-leads-count">{n > MAX_SPLIT ? `${n.toLocaleString()} numbers — up to ${MAX_SPLIT.toLocaleString()} (${MAX_SPLIT / MAX_LEADS} parts of ${MAX_LEADS}). Use a smaller list.` : n > MAX_LEADS ? `${n.toLocaleString()} numbers` : `${n} of ${MAX_LEADS} numbers`}</div>
     <TextCountryFix text={text} onChange={onChange} testid="campaign-leads-nocc" />
   </>);
 }
@@ -181,7 +198,7 @@ function LeadsField({ value, onChange, source, onSource, listId, onList }) {
       </div>
       {source === 'list' ? <SavedList value={listId} onChange={onList} /> : (
         <div>
-          <Field label="Numbers to call" hint="Up to 500 numbers per campaign, one per line with country code. Optional name after a comma: +14155550100,Jane. Or load an Excel (.xlsx), .csv or .txt file — we find the phone and name columns.">
+          <Field label="Numbers to call" hint="One per line with country code. Optional name after a comma: +14155550100,Jane. Lists over 500 run as parts of 500, one after another (up to 5,000). Or load an Excel (.xlsx), .csv or .txt file — we find the phone and name columns.">
             <textarea rows={7} className="civr-input font-mono text-xs" value={value} onChange={e => onChange(e.target.value)} placeholder={'+14155550100,Jane\n+14155550101'} data-testid="campaign-leads-input" />
           </Field>
           <LeadCount text={value} onChange={onChange} />
@@ -315,6 +332,7 @@ export function CampaignNew() {
           </VoicemailChoice>
           </>}
           <LeadsField value={f.leads} onChange={(v) => { set('leads')(v); setEst(null); }} source={f.source} onSource={(v) => { setF(x => ({ ...x, source: v })); setEst(null); }} listId={f.listId} onList={(v) => { setF(x => ({ ...x, listId: v })); setEst(null); }} />
+          {!isAi && <SplitNote n={fromList ? est?.count : f.leads.split('\n').filter(l => /\d{7,}/.test(l.replace(/\D/g, ''))).length} auto={f.autoNext !== false} onAuto={(v) => setF(x => ({ ...x, autoNext: v }))} />}
           {fromList ? (f.listId && <LeadCheck source={{ listId: f.listId }} testid="campaign-lead-check" />)
             : <LeadCheck numbers={f.leads} onClean={(keep, dead) => { const gone = new Set(dead.map(r => r.phone.replace(/\D/g, '').slice(-10))); set('leads')(f.leads.split('\n').filter(line => { const d = (line.split(/[,;\t]/)[0] || '').replace(/\D/g, ''); return !d || !gone.has(d.slice(-10)); }).join('\n')); setEst(null); toast.success(`${dead.length} dead number${dead.length === 1 ? '' : 's'} removed from this campaign`); }} testid="campaign-lead-check" />}
           <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" disabled={(fromList ? !f.listId : !f.leads.trim()) || busy === 'est'} onClick={estimate} data-testid="campaign-estimate-button">{busy === 'est' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}Check numbers &amp; cost</button>
