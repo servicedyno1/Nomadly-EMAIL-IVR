@@ -1,5 +1,9 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-11 — Forwarded calls show the real caller
+- Complaint: callbacks to toll-free numbers forwarded to the customer's phone showed our toll-free number. voice-service `playHoldMusicAndTransfer` now takes `presentFrom` (caller for inbound forwards / no-answer / off-hours / IVR-menu forward / ring-group fallback / SIP-unanswered→forward; the lead for outbound IVR press-1 transfers unless the flow set an explicit transferCallerId, e.g. web "call me first"). Tries the caller's number first; if Telnyx refuses (transfer error or bridge-leg dial error) retries once with our number. Browser/SIP rings already showed the caller.
+- Test: test_offhours_forward_2026-10 15/15 (sandbox mongod :27999) incl. F03 caller shown + F14 refused→fallback; voicemail suites pass. IVR lead-number transfer is code-reviewed only.
+
 ## 2026-11-11 — @CloudIVRhelp (Nomadly:7738405621) review + /start fix
 - 10:57 text to +1302514… refused correctly (Hostbay_support's open conversation on the only line, ESIM-0002). 10:59 text to +1646255… sent; reply "Fine thanks and you?" forwarded 10:59:26. His "Good" was typed on the BulkSMS home (no Reply) and single-text conversations can't be replied to (campaign-only rule) → nothing sent.
 - Fixes: /start from any BulkSMS step goes to the main menu (bot.js flow returns false after resetting action); busy number caught at the number step; route/limit errors return to BulkSMS home with its keyboard; inbound notice shows the Reply button only when a reply is allowed (`canReply`: campaign with replies on). Test: test_bulk_esim_start_exits 6/6; one_free 8/8; reply_routing 10/10.

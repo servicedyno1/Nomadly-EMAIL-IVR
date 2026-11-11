@@ -20,9 +20,9 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 const waitFor = async (fn, ms = 9000) => { const t = Date.now(); while (Date.now() - t < ms) { if (await fn()) return true; await sleep(50) } return false }
 
 const calls = []
-let seq = 0
+let seq = 0, refuseFrom = null
 const telnyxStub = new Proxy({
-  async createOutboundCall(from, to) { const id = `v3:leg-${++seq}`; calls.push(['dial', from, to, id]); return { callControlId: id } },
+  async createOutboundCall(from, to) { if (refuseFrom && from === refuseFrom) { calls.push(['refused', from, to]); throw new Error('caller id not allowed') } const id = `v3:leg-${++seq}`; calls.push(['dial', from, to, id]); return { callControlId: id } },
   async answerCall(id) { calls.push(['answer', id]); return {} },
   async hangupCall(id) { calls.push(['hangup', id]); return {} },
   async speakOnCall(id, text) { calls.push(['speak', id, text]); return {} },
@@ -67,7 +67,7 @@ const closedWeek = () => {
   ok('F02', 'owner told the call is being forwarded', sent.some(m => m.chatId === chat && /Forwarding to your backup numbers/.test(m.x)))
   await hook('call.speak.ended', { call_control_id: cc })
   await waitFor(() => dials().length >= 1)
-  ok('F03', 'first backup dialed from the number', dials()[0]?.[2] === B[0] && dials()[0]?.[1] === num, JSON.stringify(dials()))
+  ok('F03', 'first backup dialed showing the caller (not our number)', dials()[0]?.[2] === B[0] && dials()[0]?.[1] === caller, JSON.stringify(dials()))
   await hook('call.hangup', { call_control_id: dials()[0][3], hangup_cause: 'timeout' })
   await waitFor(() => dials().length >= 2)
   ok('F04', 'no answer → second backup', dials()[1]?.[2] === B[1], JSON.stringify(dials().map(d => d[2])))
@@ -118,6 +118,18 @@ const closedWeek = () => {
   // ── 4. Hours validation keeps offForward for the route; defaults include it ──
   ok('F12', 'forward is a valid off action', hours.validateHours({ enabled: true, days: closedWeek(), offAction: 'forward' }).offAction === 'forward')
   ok('F13', 'default hours have Mon–Fri on and an empty backup list', ['mon', 'fri'].every(d => hours.defaultHours().days[d].on) && Array.isArray(hours.defaultHours().offForward))
+
+  // ── 5. Carrier refuses the caller's number → retried once with our number ──
+  refuseFrom = caller; const before = dials().length
+  await walletOf.updateOne({ _id: chat }, { $set: { usdOut: 0 } })
+  await setHours({ enabled: true, timezone: 'UTC', days: closedWeek(), offAction: 'forward', offForward: B, offMessage: '' })
+  const cc5 = 'v3:offhours-5'; await call(cc5)
+  await waitFor(() => voice.activeCalls?.[cc5]?.phase === 'forwarding')
+  await hook('call.speak.ended', { call_control_id: cc5 })
+  await waitFor(() => dials().length > before)
+  ok('F14', 'caller number refused → same backup dialed again from our number', calls.some(c => c[0] === 'refused' && c[1] === caller) && dials()[before]?.[1] === num && dials()[before]?.[2] === B[0], JSON.stringify(calls.filter(c => c[0] === 'refused' || c[0] === 'dial').slice(-3)))
+  refuseFrom = null
+  await hook('call.hangup', { call_control_id: cc5, hangup_cause: 'normal_clearing', duration_secs: 5 })
 
   await client.close()
   const failed = results.filter(r => !r.pass)

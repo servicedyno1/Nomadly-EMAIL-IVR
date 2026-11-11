@@ -1735,13 +1735,16 @@ async function playHoldMusicAndTransfer(callControlId, forwardTo, fromNumber, co
   const backups = (Array.isArray(config?.backups) ? config.backups : []).filter(b => b && b !== forwardTo).slice(0, 4)
   if (session && backups.length && !session.transferBackups) session.transferBackups = backups
   const useHoldMusic = config?.holdMusic === true || !!session?.transferBackups?.length
+  // Show the caller (callbacks) or the lead (IVR transfers) to the person answering; our number is the fallback if refused.
+  const shownRaw = String(config?.presentFrom || '').replace(/[^+\d]/g, '')
+  const presentFrom = /^\+\d{8,15}$/.test(shownRaw) && shownRaw !== String(fromNumber || '').replace(/[^+\d]/g, '') ? shownRaw : null
 
   if (useHoldMusic) {
     // Two-phase approach:
     // Phase 1: Speak TTS announcement
     // Phase 2 (on speak.ended): Start hold music + create outbound call to destination
     // Phase 3 (on destination answered): Bridge the two calls (stops music automatically)
-    pendingHoldTransfers[callControlId] = { forwardTo, fromNumber, createdAt: new Date() }
+    pendingHoldTransfers[callControlId] = { forwardTo, fromNumber, presentFrom, createdAt: new Date() }
     // Safety: clean up if speak.ended never fires (10s timeout — TTS is ~3-4s)
     setTimeout(() => {
       if (pendingHoldTransfers[callControlId]) {
@@ -1770,6 +1773,9 @@ async function playHoldMusicAndTransfer(callControlId, forwardTo, fromNumber, co
     }, 35000)
     pendingNativeTransfers[callControlId]._timeout = transferTimeout
 
+    if (presentFrom) {
+      try { await _telnyxApi.transferCall(callControlId, forwardTo, presentFrom); return } catch (e) { log(`[Voice] Transfer showing caller ${presentFrom} refused (${e.message}) — retrying with ${fromNumber}`) }
+    }
     await _telnyxApi.transferCall(callControlId, forwardTo, fromNumber)
   }
 }
@@ -1909,7 +1915,7 @@ async function noAnswerFallback(originalCcid, t, hangupCause) {
     origSession.forwardingRate = CALL_FORWARDING_RATE_MIN
     const modeLabel = fwd.mode === 'busy' ? `${via} busy` : `${via} no answer`
     log(`[Voice] ${modeLabel} → forwarding to ${fwd.forwardTo}`)
-    await playHoldMusicAndTransfer(originalCcid, fwd.forwardTo, t.fromNumber, fwd)
+    await playHoldMusicAndTransfer(originalCcid, fwd.forwardTo, activeCalls[originalCcid]?.to || t.fromNumber, { ...fwd, presentFrom: activeCalls[originalCcid]?.from })
   }
   // Try voicemail (if configured and plan allows)
   else if (vm?.enabled && canAccessFeature(t.num.plan, 'voicemail')) {
@@ -3922,7 +3928,7 @@ async function routeOffHours(callControlId, session) {
   session.forwardingRate = CALL_FORWARDING_RATE_MIN
   session.offHoursFallback = true // nobody answers → offHoursEnd (see handleBridgeTransferHangup)
   session.bridgeRingSecs = OFF_HOURS_RING_SECS
-  await playHoldMusicAndTransfer(callControlId, fwd[0], to, { holdMusic: true, backups: fwd.slice(1) })
+  await playHoldMusicAndTransfer(callControlId, fwd[0], to, { holdMusic: true, backups: fwd.slice(1), presentFrom: activeCalls[callControlId]?.from })
 }
 
 // Voicemail or the closed message (also after none of the off-hours backup numbers answered).
@@ -4068,7 +4074,7 @@ async function handleCallAnswered(payload) {
     const rate = getCallRate(fwdConfig.forwardTo)
     const ivrSkipped = ivrConfig?.enabled && canAccessFeature(num.plan, 'ivr') && ivrConfig.options && Object.keys(ivrConfig.options).length > 0
     log(`[Voice] Forwarding call to ${fwdConfig.forwardTo} from ${to} (rate: $${rate}/min ${isUSCanada(fwdConfig.forwardTo) ? 'US/CA' : 'Intl'})${ivrSkipped ? ' — IVR skipped (always-forward overrides)' : ''}`)
-    await playHoldMusicAndTransfer(callControlId, fwdConfig.forwardTo, to, fwdConfig)
+    await playHoldMusicAndTransfer(callControlId, fwdConfig.forwardTo, to, { ...fwdConfig, presentFrom: activeCalls[callControlId]?.from })
     return
   }
 
@@ -4116,7 +4122,7 @@ async function handleCallAnswered(payload) {
       if (isNumberBusy) {
         const rate = getCallRate(fwdConfig.forwardTo)
         log(`[Voice] Number ${to} is BUSY (concurrent call detected) — forwarding to ${fwdConfig.forwardTo} (rate: $${rate}/min)`)
-        await playHoldMusicAndTransfer(callControlId, fwdConfig.forwardTo, to, fwdConfig)
+        await playHoldMusicAndTransfer(callControlId, fwdConfig.forwardTo, to, { ...fwdConfig, presentFrom: activeCalls[callControlId]?.from })
         const lang = await _getUserLang(chatId)
         const msg = _trans('vs.forwardedBusy', lang, formatPhone(from), formatPhone(fwdConfig.forwardTo))
         if (msg) _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
@@ -4142,7 +4148,7 @@ async function handleCallAnswered(payload) {
           const rate = getCallRate(fwdConfig.forwardTo)
           log(`[Voice] No answer after ${fwdConfig.ringTimeout}s, forwarding to ${fwdConfig.forwardTo} from ${to} (rate: $${rate}/min ${isUSCanada(fwdConfig.forwardTo) ? 'US/CA' : 'Intl'})`)
           current.phase = 'forwarding'
-          await playHoldMusicAndTransfer(callControlId, fwdConfig.forwardTo, to, fwdConfig)
+          await playHoldMusicAndTransfer(callControlId, fwdConfig.forwardTo, to, { ...fwdConfig, presentFrom: activeCalls[callControlId]?.from })
         }
       }, ringTime)
       return
@@ -4339,7 +4345,7 @@ async function handleGatherEnded(payload) {
       }
       session.phase = 'ivr_forward'
       log(`[Voice] IVR: forwarding to ${option.forwardTo} from ${session.to} (rate: $${ivrFwdRate}/min ${isUSCanada(option.forwardTo) ? 'US/CA' : 'Intl'})`)
-      await playHoldMusicAndTransfer(callControlId, option.forwardTo, session.to, num.features?.callForwarding || {})
+      await playHoldMusicAndTransfer(callControlId, option.forwardTo, session.to, { ...(num.features?.callForwarding || {}), presentFrom: session.from })
       notifyUser(chatId, num, 'ivr_forward', session, { digit: digits, forwardTo: option.forwardTo })
       break
     }
@@ -4434,7 +4440,7 @@ async function handleSpeakEnded(payload) {
     await new Promise(resolve => setTimeout(resolve, 5000))
 
     // Phase 2b: Create new outbound call to the transfer destination
-    if (await dialBridgeLeg(callControlId, pending.forwardTo, pending.fromNumber)) {
+    if ((pending.presentFrom && await dialBridgeLeg(callControlId, pending.forwardTo, pending.presentFrom).catch(e => { log(`[Voice] Bridge leg showing caller ${pending.presentFrom} refused (${e.message}) — retrying with ${pending.fromNumber}`); return false })) || await dialBridgeLeg(callControlId, pending.forwardTo, pending.fromNumber)) {
       // dialed — answered → bridged; busy / no answer → handleBridgeTransferHangup (backup numbers, then hang up)
     } else {
       // Failed to create outbound call — fall back to regular transfer with tracking
@@ -5392,7 +5398,7 @@ async function handleOutboundMenuDigit(callControlId, session, digits) {
     }
     session._pendingTransferTo = opt.forwardTo
     session._pendingTransferFrom = legFrom(session)
-    await playHoldMusicAndTransfer(callControlId, opt.forwardTo, legFrom(session), { holdMusic: session.holdMusic })
+    await playHoldMusicAndTransfer(callControlId, opt.forwardTo, legFrom(session), { holdMusic: session.holdMusic, presentFrom: session.transferCallerId ? null : session.targetNumber })
     log(`[OutboundIVR] Menu forward: key=${session.digitPressed} → ${opt.forwardTo}`)
     return true
   }
@@ -5589,7 +5595,7 @@ async function handleOutboundIvrGatherEnded(payload) {
     session._pendingTransferFrom = legFrom(session)
 
     // Transfer to IVR number — use session's holdMusic flag
-    await playHoldMusicAndTransfer(callControlId, session.ivrNumber, legFrom(session), { holdMusic: session.holdMusic })
+    await playHoldMusicAndTransfer(callControlId, session.ivrNumber, legFrom(session), { holdMusic: session.holdMusic, presentFrom: session.transferCallerId ? null : session.targetNumber })
     log(`[OutboundIVR] Transferring to ${session.ivrNumber}${session.holdMusic ? ' (with hold music)' : ''}`)
   } else if (!session.ivrRetried) {
     // No valid key — replay audio once
@@ -6064,7 +6070,7 @@ async function ringGroupFallback(callControlId) {
   log(`[Voice] Ring group for ${s.to}: nobody answered → ${rg.fallback || 'message'}`)
   if (rg.fallback === 'forward' && rg.fallbackTo) {
     s.phase = 'forwarding'
-    return playHoldMusicAndTransfer(callControlId, rg.fallbackTo, s.to, { holdMusic: true })
+    return playHoldMusicAndTransfer(callControlId, rg.fallbackTo, s.to, { holdMusic: true, presentFrom: s.from })
   }
   if (rg.fallback === 'voicemail' && canAccessFeature(num.plan, 'voicemail')) {
     s.phase = 'voicemail_greeting'
