@@ -222,7 +222,7 @@ async function mobileImei() {
   return imei
 }
 async function mobileOffer() {
-  const plan = (await forSale().catch(() => [])).find(p => p.simId)
+  const plan = (await forSale().catch((e) => { S.log(`[mobile] offer check failed: ${e.message}`); return [] })).find(p => p.simId)
   return { available: !!plan && (await mobileImei()).length === 15, price: MOBILE_PRICE }
 }
 async function buyMobile(chatId, { zipcode, autoRenew }) {
@@ -230,7 +230,7 @@ async function buyMobile(chatId, { zipcode, autoRenew }) {
   if (!/^\d{5}$/.test(zip)) return { error: 'Enter a 5-digit USA ZIP code so we can ask for a number near it.' }
   const im = await mobileImei()
   const plan = (await forSale()).find(p => p.simId)
-  if (!plan || im.length !== 15) return { error: 'USA mobile numbers are temporarily unavailable. Try again later.' }
+  if (!plan || im.length !== 15) return { error: 'Texting Numbers are temporarily unavailable. Try again later.' }
   if (!(await S.w.debit(chatId, MOBILE_PRICE))) return { error: `Your wallet needs $${MOBILE_PRICE} for this number. Top up first.`, code: 'insufficient_balance' }
   const _id = 'mn_' + crypto.randomBytes(6).toString('hex')
   const doc = { _id, kind: 'mobile', chatId: String(chatId), planId: plan.planId, price: MOBILE_PRICE, imei: im, zipcode: zip, simId: plan.simId, autoRenew: autoRenew !== false, status: 'provisioning', callsTo: 'device', createdAt: new Date(), updatedAt: new Date() }
@@ -256,7 +256,7 @@ async function buyMobile(chatId, { zipcode, autoRenew }) {
 const CID = () => require('./cloudivr-web/caller-ids')
 async function ready(d, phone) {
   if (d.kind !== 'mobile') return
-  await say(d.chatId, `📱 Your USA mobile number is ready: ${phone || ''}. It has two-way SMS: send and receive texts in Messages.`, { kind: 'billing', meta: { mobile: d._id } })
+  await say(d.chatId, `📱 Your Texting Number is ready: ${phone || ''}. Send and receive texts in Messages.`, { kind: 'billing', meta: { mobile: d._id } })
   if (!phone) return
   const r = await CID().autoVerify(S.db, d.chatId, phone).catch(e => { S.log(`[mobile] caller ID ${d._id}: ${e.message}`); return null })
   if (r === 'verified') await say(d.chatId, `✅ ${phone} is now one of your caller IDs, free. Pick it as “Show as” on calls and campaigns.`, { kind: 'system', meta: { mobile: d._id } })
@@ -301,7 +301,7 @@ async function pollOne(d) {
     await S.w.credit(d.chatId, d.price); await txn(d.chatId, 'esim-refund', d.price, { lineId: d._id })
     orderRefunded(d._id)
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'failed', note: 'The eSIM couldn’t be created. Your payment was refunded.', providerError: r?.error?.message || (st ? null : 'timed out after 24 h'), updatedAt: new Date() } })
-    say(d.chatId, bt(d, 'failed', d.price) || (d.kind === 'mobile' ? `⚠️ Your USA mobile number couldn’t be set up. $${d.price} was refunded to your wallet.` : `⚠️ Your eSIM couldn’t be created. $${d.price} was refunded to your wallet.`), { kind: 'billing', meta: d.kind === 'mobile' ? { mobile: d._id } : { esim: d._id } })
+    say(d.chatId, bt(d, 'failed', d.price) || (d.kind === 'mobile' ? `⚠️ Your Texting Number couldn’t be set up. $${d.price} was refunded to your wallet.` : `⚠️ Your eSIM couldn’t be created. $${d.price} was refunded to your wallet.`), { kind: 'billing', meta: d.kind === 'mobile' ? { mobile: d._id } : { esim: d._id } })
   }
 }
 
@@ -375,13 +375,13 @@ async function setService(d, on) {
   if (!real(d)) return
   await call('patch', `/api/v1.1/sims/${encodeURIComponent(d.iccid)}/service-state`, { voice: on, sms: on, data: on }).catch(e => S.log(`[Spenza] service-state ${d.iccid}: ${e.message}`))
 }
-const label = (d) => d.kind === 'mobile' ? `USA mobile number ${d.phoneNumber || ''}` : `eSIM ${d.phoneNumber || ''}`
+const label = (d) => d.kind === 'mobile' ? `Texting Number ${d.phoneNumber || ''}` : `eSIM ${d.phoneNumber || ''}`
 const day = (t) => new Date(t).toISOString().slice(0, 10)
 // Short email receipt after a wallet renewal (accounts with an email).
 async function receipt(d, until) {
   const acc = await S.db.collection('webAccounts').findOne({ _id: { $in: [String(d.chatId), Number(d.chatId)] } }, { projection: { email: 1 } })
   const to = acc?.email || botEmailOf(d)
-  const bal = round2(await S.w.balance(d.chatId)).toFixed(2), what = d.kind === 'mobile' ? 'USA mobile number' : 'USA eSIM'
+  const bal = round2(await S.w.balance(d.chatId)).toFixed(2), what = d.kind === 'mobile' ? 'Texting Number' : 'USA eSIM'
   if (isBot(d.chatId)) await say(d.chatId, bt(d, 'receipt', d.phoneNumber, Number(d.price).toFixed(2), day(until), bal))
   if (!to) return false
   const row = (k, v) => `<tr><td style="padding:4px 16px 4px 0;color:#64748b">${k}</td><td style="padding:4px 0"><b>${v}</b></td></tr>`
@@ -398,7 +398,7 @@ async function receiptsOf(chatId, id) {
   const d = await mine(chatId, id)
   if (!d) return { error: 'Line not found.' }
   const rows = await S.db.collection('transactions').find({ chatId: String(chatId), 'metadata.lineId': d._id, type: { $in: Object.keys(RECEIPT_KIND) } }).sort({ createdAt: -1 }).limit(100).toArray()
-  return { receipts: rows.map(t => ({ id: String(t._id), kind: RECEIPT_KIND[t.type], refund: /refund/.test(t.type), amount: t.amount, at: t.createdAt, line: d.kind === 'mobile' ? 'USA mobile number' : 'USA eSIM', phoneNumber: d.phoneNumber || null, ...(t.metadata?.oldNumber ? { oldNumber: t.metadata.oldNumber } : {}) })) }
+  return { receipts: rows.map(t => ({ id: String(t._id), kind: RECEIPT_KIND[t.type], refund: /refund/.test(t.type), amount: t.amount, at: t.createdAt, line: d.kind === 'mobile' ? 'Texting Number' : 'USA eSIM', phoneNumber: d.phoneNumber || null, ...(t.metadata?.oldNumber ? { oldNumber: t.metadata.oldNumber } : {}) })) }
 }
 async function billOne(d) {
   if (!d.price || d.autoRenew === false) return false
@@ -558,7 +558,7 @@ async function onWebhook(raw, headers, body) {
   const dup = await S.db.collection('phoneLogs').findOne(mid ? { esim: d._id, providerId: mid } : { esim: d._id, from, body: text, direction: 'inbound', timestamp: { $gt: new Date(Date.now() - 10 * 60000) } })
   if (dup) return { status: 200 }
   await S.db.collection('phoneLogs').insertOne({ chatId: d.chatId, phoneNumber: d.phoneNumber, from, to: d.phoneNumber, type: 'sms', direction: 'inbound', body: text, esim: d._id, providerId: mid, charge: 0, timestamp: new Date() })
-  await say(d.chatId, `💬 Text to your ${d.kind === 'mobile' ? 'mobile number' : 'eSIM'} ${d.phoneNumber} from ${from}: ${text}`, { kind: 'sms', meta: { from, to: d.phoneNumber, esim: d._id } })
+  await say(d.chatId, `💬 Text to your ${d.kind === 'mobile' ? 'Texting Number' : 'eSIM'} ${d.phoneNumber} from ${from}: ${text}`, { kind: 'sms', meta: { from, to: d.phoneNumber, esim: d._id } })
   return { status: 200 }
 }
 async function registerWebhook(baseUrl) {
