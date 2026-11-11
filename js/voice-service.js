@@ -6169,6 +6169,7 @@ module.exports = {
   getOutboundIvrPhase: (callControlId) => outboundIvrCalls[callControlId]?.phase || null,
   // Bulk recovery: hang up an orphaned Telnyx leg before re-dialling its lead
   hangupOutboundLeg: (callControlId) => Promise.resolve(_telnyxApi?.hangupCall(callControlId)).catch(() => null),
+  rehydrateSession: (callControlId) => callSessionStore.rehydrate(callControlId, _callSessionStores).catch(() => null),
   incrementSmsUsed,
   isSmsLimitReached,
   isMinuteLimitReached,

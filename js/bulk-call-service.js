@@ -81,8 +81,16 @@ async function initBulkCallService(db, bot, twilioService, walletOf, app) {
   }
 
   // ━━━ CAMPAIGN RECOVERY: Resume campaigns that were running before deployment ━━━
-  // Delay recovery to let all services fully initialize (Twilio, webhooks, etc.)
-  setTimeout(() => recoverRunningCampaigns().catch(e => log(`[BulkCall] Recovery error: ${e.message}`)), 15000)
+  // Only the server holding the dialer lease dials. Under PM2 (blue/green slots) a new slot waits for the old one to
+  // hand over (it stops dialing, lets live calls finish, exits) and then recovers; elsewhere recovery runs after 15 s.
+  _leaseCol = db.collection('bulkDialerLease')
+  if (LEASE_ON) startLeaseLoop()
+  else setTimeout(() => recoverRunningCampaigns().catch(e => log(`[BulkCall] Recovery error: ${e.message}`)), 15000)
+
+  if (!_lowLinesTimer) {
+    _lowLinesTimer = setInterval(() => checkLowLines().catch(e => log(`[BulkCall] Low-lines check error: ${e.message}`)), LOW_LINES_EVERY_MS)
+    if (_lowLinesTimer.unref) _lowLinesTimer.unref()
+  }
 
   if (!_stuckSweepTimer) {
     _stuckSweepTimer = setInterval(() => sweepStuckLeads().catch(e => log(`[BulkCall] Stuck-lead sweep error: ${e.message}`)), 2 * 60 * 1000)
@@ -92,12 +100,154 @@ async function initBulkCallService(db, bot, twilioService, walletOf, app) {
 
 let _routesRegistered = false
 let _stuckSweepTimer = null
+let _lowLinesTimer = null
+
+// ━━━ DIALER LEASE: one dialing server per app ━━━
+// Mongo doc { _id, owner, expiresAt, draining }. The holder renews it; a server without it never places a call.
+// Deploy handover: the old slot gets POST /internal/bulk-dialer/stop → stops dialing but KEEPS the lease (so the new
+// slot, which isn't receiving webhooks yet, can't dial) → live calls finish → nginx flips → old slot exits and
+// releases the lease → the new slot takes over and resumes. A crashed holder's lease expires after LEASE_TTL_MS.
+const LEASE_ON = process.env.BULK_DIALER_LEASE === 'on' || (process.env.BULK_DIALER_LEASE !== 'off' && process.env.pm_id !== undefined)
+const LEASE_TTL_MS = parseInt(process.env.BULK_DIALER_LEASE_TTL_MS || '30000', 10)
+const LEASE_TICK_MS = parseInt(process.env.BULK_DIALER_LEASE_TICK_MS || '3000', 10)
+const LEASE_ID = `bulkDialer:${String(process.env.BULK_DIALER_APP || process.env.name || 'app').replace(/-[ab]$/, '')}`
+const LEASE_OWNER = `${require('os').hostname()}:${process.pid}:${Date.now()}`
+let _leaseCol = null, _isDialer = false, _draining = false, _leaseTimer = null
+const canDial = () => !_draining && (!LEASE_ON || _isDialer)
+
+async function tryLease() {
+  if (!_leaseCol) return false
+  const now = new Date()
+  try {
+    await _leaseCol.updateOne(
+      { _id: LEASE_ID, $or: [{ owner: LEASE_OWNER }, { expiresAt: { $lt: now } }] },
+      { $set: { owner: LEASE_OWNER, expiresAt: new Date(now.getTime() + LEASE_TTL_MS), renewedAt: now, draining: _draining } },
+      { upsert: true })
+    return true
+  } catch (e) {
+    if (e.code !== 11000) log(`[BulkCall] Dialer lease error: ${e.message}`)
+    return false // held by another live server
+  }
+}
+
+async function leaseTick() {
+  const had = _isDialer
+  _isDialer = await tryLease()
+  if (_isDialer && !had && !_draining) {
+    log(`[BulkCall] Dialer lease acquired (${LEASE_ID}) — this server dials now`)
+    await recoverRunningCampaigns().catch(e => log(`[BulkCall] Recovery error: ${e.message}`))
+    // Campaigns started on this server while it was waiting for the lease
+    for (const id of Object.keys(activeCampaigns)) fireNextBatch(id).catch(e => log(`[BulkCall] takeover batch ${id}: ${e.message}`))
+  } else if (!_isDialer && had) log(`[BulkCall] Dialer lease lost (${LEASE_ID}) — dialing stopped on this server`)
+}
+
+function startLeaseLoop() {
+  if (_leaseTimer) return
+  log(`[BulkCall] Waiting for dialer lease ${LEASE_ID} (owner ${LEASE_OWNER})`)
+  const tick = () => leaseTick().catch(e => log(`[BulkCall] lease tick: ${e.message}`))
+  setTimeout(tick, Math.min(5000, LEASE_TICK_MS))
+  _leaseTimer = setInterval(tick, LEASE_TICK_MS)
+  if (_leaseTimer.unref) _leaseTimer.unref()
+}
+
+// Deploy step 1 (old slot): stop placing new calls; live calls run to the end. The lease stays held.
+async function stopDialing(reason = 'deploy') {
+  if (_draining) return dialerStatus()
+  _draining = true
+  log(`[BulkCall] Dialing stopped (${reason}) — live calls finish here; the next server resumes the campaigns`)
+  if (_isDialer) await tryLease()
+  return dialerStatus()
+}
+
+function resumeDialing() {
+  if (!_draining) return dialerStatus()
+  _draining = false
+  log('[BulkCall] Dialing resumed on this server (handover cancelled)')
+  for (const id of Object.keys(activeCampaigns)) fireNextBatch(id).catch(e => log(`[BulkCall] resume batch ${id}: ${e.message}`))
+  return dialerStatus()
+}
+
+// Deploy step 2 (old slot exiting): hand the lease over.
+async function releaseDialer() {
+  _draining = true
+  if (_leaseTimer) { clearInterval(_leaseTimer); _leaseTimer = null }
+  if (!_leaseCol || !_isDialer) return
+  _isDialer = false
+  await _leaseCol.deleteOne({ _id: LEASE_ID, owner: LEASE_OWNER }).catch(() => {})
+  log(`[BulkCall] Dialer lease released (${LEASE_ID})`)
+}
+
+function dialerStatus() {
+  return { lease: LEASE_ON, holder: _isDialer, draining: _draining, campaigns: Object.keys(activeCampaigns).length }
+}
+
+// ━━━ LOW-LINES ALERT (admin only) ━━━
+// A running campaign that keeps fewer than half its lines busy for LOW_LINES_SAMPLES minutes in a row (while enough
+// numbers are still waiting, and not waiting for calling hours / the daily limit) → one admin Telegram alert, then
+// at most one per campaign per hour.
+const LOW_LINES_EVERY_MS = parseInt(process.env.BULK_LOW_LINES_EVERY_MS || '60000', 10)
+const LOW_LINES_SAMPLES = parseInt(process.env.BULK_LOW_LINES_SAMPLES || '10', 10)
+const LOW_LINES_REALERT_MS = 60 * 60 * 1000
+
+async function checkLowLines() {
+  const admin = process.env.TELEGRAM_ADMIN_CHAT_ID
+  if (!_collection || !canDial() || !admin) return
+  for (const [id, st] of Object.entries(activeCampaigns)) {
+    if (st.paused) { st.lineSamples = []; continue }
+    const c = await _collection.findOne({ id }, { projection: { name: 1, chatId: 1, status: 1, dryRun: 1, concurrency: 1, callerId: 1, callerPool: 1, waitingForHours: 1, waitingForDailyLimit: 1, lineLimitAt: 1, 'leads.status': 1, 'leads.startedAt': 1, 'leads.completedAt': 1, 'leads.hangupCause': 1 } })
+    if (!c || c.status !== 'running' || c.dryRun) { st.lineSamples = []; continue }
+    const live = c.leads.filter(l => INFLIGHT_STATUSES.includes(l.status)).length
+    const pending = c.leads.filter(l => l.status === 'pending').length
+    const want = Math.min(c.concurrency || 1, pending + live)
+    st.lineSamples = [...(st.lineSamples || []), { live, want, waiting: !!(c.waitingForHours || c.waitingForDailyLimit) }].slice(-LOW_LINES_SAMPLES)
+    const s = st.lineSamples
+    if (s.length < LOW_LINES_SAMPLES || s.some(x => x.waiting || x.want < 2 || x.live * 2 >= x.want)) continue
+    if (st.lowAlertAt && Date.now() - st.lowAlertAt < LOW_LINES_REALERT_MS) continue
+    st.lowAlertAt = Date.now()
+    const since = Date.now() - LOW_LINES_SAMPLES * LOW_LINES_EVERY_MS
+    const recent = c.leads.filter(l => l.completedAt && new Date(l.completedAt).getTime() >= since)
+    const started = c.leads.filter(l => l.startedAt && new Date(l.startedAt).getTime() >= since).length
+    const failed = recent.filter(l => l.status === 'failed')
+    const causes = {}; for (const l of failed) { const k = String(l.hangupCause || 'unknown').slice(0, 60); causes[k] = (causes[k] || 0) + 1 }
+    const topCauses = Object.entries(causes).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${escHtml(k)} ×${n}`).join(', ')
+    const avg = s.reduce((a, x) => a + x.live, 0) / s.length
+    const reason = c.lineLimitAt && Date.now() - new Date(c.lineLimitAt).getTime() < LOW_LINES_SAMPLES * LOW_LINES_EVERY_MS ? 'Telnyx said all account lines are busy (line limit) — check the Telnyx channel limit / other campaigns.'
+      : recent.length && failed.length / recent.length >= 0.3 ? `Many calls fail before ringing (${failed.length} of ${recent.length}): ${topCauses}.`
+      : started === 0 ? 'No calls were started at all — the dialer looks stuck. Check the server logs for this campaign.'
+      : 'Free lines are not being refilled — check the server logs for this campaign.'
+    log(`[BulkCall] LOW LINES campaign=${id} avg ${avg.toFixed(1)}/${c.concurrency} — ${reason}`)
+    _bot?.sendMessage(admin,
+      `⚠️ <b>Bulk IVR using few lines</b>\n\n` +
+      `Campaign: <b>${escHtml(c.name || id)}</b>\n<code>${id}</code>\nCustomer chatId: <code>${c.chatId}</code>\n` +
+      `Lines busy: <b>${avg.toFixed(1)}</b> of <b>${c.concurrency}</b> on average for ${LOW_LINES_SAMPLES} min\n` +
+      `Calls started in that time: <b>${started}</b> · numbers waiting: <b>${pending}</b>\n` +
+      `Caller ID: ${escHtml(cidSummary({ ...c, leads: [] }))}\n\n` +
+      `Likely reason: ${reason}`,
+      { parse_mode: 'HTML' }).catch(() => {})
+  }
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Twilio Webhook Routes — registered AFTER initBulkCallService completes
 // so we never serve a request while _collection is still null.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function registerRoutes(app) {
+  // Deploy handover (localhost only + a per-process token file the deploy script reads; see scripts/droplet_deploy.sh).
+  const tokenFile = path.join(require('os').tmpdir(), `bulk-dialer-${process.env.PORT || 'app'}.token`)
+  const token = crypto.randomBytes(24).toString('hex')
+  try { fs.writeFileSync(tokenFile, token, { mode: 0o600 }) } catch (e) { log(`[BulkCall] handover token write failed: ${e.message}`) }
+  const local = (req) => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket?.remoteAddress) && !req.headers['x-forwarded-for'] && !req.headers['x-real-ip'] &&
+    String(req.headers['x-dialer-token'] || '').length === token.length && crypto.timingSafeEqual(Buffer.from(String(req.headers['x-dialer-token'])), Buffer.from(token))
+  app.post('/internal/bulk-dialer/stop', async (req, res) => {
+    if (!local(req)) return res.sendStatus(403)
+    res.json(await stopDialing('deploy handover'))
+  })
+  // Deploy aborted after the stop (nginx switch failed) → this slot keeps serving and dials again.
+  app.post('/internal/bulk-dialer/start', async (req, res) => {
+    if (!local(req)) return res.sendStatus(403)
+    res.json(resumeDialing())
+  })
+  app.get('/internal/bulk-dialer', (req, res) => (local(req) ? res.json(dialerStatus()) : res.sendStatus(403)))
   const VoiceResponse = require('twilio').twiml.VoiceResponse
 
   // TwiML for the outbound call — plays the campaign audio + gathers DTMF
@@ -594,6 +744,8 @@ async function resetInflightLeads(campaignId, leads, provider = 'twilio') {
     if (leads[i].status === 'calling' || leads[i].status === 'ringing') {
       const sid = leads[i].callSid
       if (provider === 'telnyx' && sid) {
+        // A call the previous server placed after this one warm-loaded sessions → read it from the session store.
+        if (!_voiceService?.outboundIvrCalls?.[sid]) await _voiceService?.rehydrateSession?.(sid)
         if (_voiceService?.outboundIvrCalls?.[sid]) { kept++; continue }
         await _voiceService?.hangupOutboundLeg?.(sid)
       }
@@ -1126,6 +1278,7 @@ async function fireNextBatch(campaignId) {
 }
 
 async function fireBatchOnce(campaignId) {
+  if (!canDial()) return
   const state = activeCampaigns[campaignId]
   if (!state || state.paused) return
 
@@ -2043,6 +2196,11 @@ module.exports = {
   
   registerRoutes,
   recoverRunningCampaigns,
+  stopDialing,
+  resumeDialing,
+  releaseDialer,
+  dialerStatus,
+  checkLowLines,
   parseLeadsFile,
   createCampaign,
   createSeries,

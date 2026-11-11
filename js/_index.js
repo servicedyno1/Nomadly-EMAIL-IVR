@@ -52075,6 +52075,7 @@ const setupTelegramWebhook = async (retryCount = 0) => {
 // Register on both SIGTERM and SIGINT — npm (PID 1) may forward either signal
 async function handleShutdown(signal) {
   log(`[Shutdown] ${signal} received — flushing active lead jobs...`)
+  await bulkCallService.releaseDialer().catch(e => log(`[Shutdown] dialer release error: ${e.message}`))
   try {
     await flushAllJobs()
     log('[Shutdown] Lead jobs flushed. Exiting...')
