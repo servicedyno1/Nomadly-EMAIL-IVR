@@ -1053,6 +1053,8 @@ async function tick() {
     if (st.reasons?.length || c.emergencyStop || platformToday >= c.platformDailyLimit) return
     if (await paceByHeaders(c)) return
     c = await cfg(); let pinned = 0
+    // Single texts never wait for quiet hours: release any long deferral (e.g. set by an older worker during a rolling deploy).
+    await C('bsMessages').updateMany({ status: 'queued', direction: 'out', campaignId: null, sessionId: null, system: { $ne: true }, nextAt: { $gt: new Date(Date.now() + 10 * MIN) } }, { $set: { nextAt: new Date() } })
     while (openAccounts(c).length) {
       const r = await C('bsMessages').findOneAndUpdate({ status: 'queued', direction: 'out', nextAt: { $lte: new Date() } }, { $set: { status: 'processing' } }, { sort: { priority: -1, nextAt: 1 }, returnDocument: 'after' })
       const m = r?.value !== undefined ? r.value : r; if (!m) break
