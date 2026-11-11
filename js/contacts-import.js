@@ -3,7 +3,8 @@
 // the phone, name, email… (shared by the Telegram bot's Bulk IVR upload and the CloudIVR web Contacts tab).
 const zlib = require('zlib')
 
-const MAX_ROWS = 10000
+const MAX_ROWS = 50000 // Bulk IVR lists read up to 50,000 rows (first-500-only); contact imports stay at CONTACT_MAX_ROWS
+const CONTACT_MAX_ROWS = 10000
 const MAX_COLS = 40
 const ROLES = ['phone', 'name', 'first_name', 'last_name', 'email', 'company', 'notes', 'keep', 'skip']
 
@@ -340,4 +341,4 @@ function parseLeads(input, fileName, opts = {}) {
   }
 }
 
-module.exports = { readTable, detectColumns, toRecords, parseLeads, normalizeNumber, numberIssue, looksBinary, ROLES, MAX_ROWS, withCountry, fixCountry, phoneCountries, validCountry, countryName, lacksCode }
+module.exports = { readTable, detectColumns, toRecords, parseLeads, normalizeNumber, numberIssue, looksBinary, ROLES, MAX_ROWS, CONTACT_MAX_ROWS, withCountry, fixCountry, phoneCountries, validCountry, countryName, lacksCode }

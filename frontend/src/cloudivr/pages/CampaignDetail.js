@@ -71,7 +71,7 @@ function SeriesNote({ c }) {
   const how = c.payPerPart ? 'Pay per part: each next part waits for you to start it, and your wallet is checked for that part only.' : c.autoNext ? 'Each next part starts by itself when the one before finishes.' : 'Each next part waits for you to start it.';
   const dropped = c.status === 'cancelled' && !c.startedAt;
   const text = c.trimmedFrom ? `Only the first 500 of your ${c.trimmedFrom.toLocaleString()} numbers are in this campaign. The rest were dropped.`
-    : `Part ${c.part} of ${c.parts} · ${(c.splitTotal || 0).toLocaleString()} numbers in total. ${dropped ? 'This part was dropped — its numbers were not called or charged.' : how}${c.status === 'series_waiting' ? ` This part waits for part ${c.part - 1} to finish.` : ''}`;
+    : `Part ${c.part} of ${c.parts} · ${(c.splitTotal || 0).toLocaleString()} numbers in total${c.seriesDropped ? ` (the last ${c.seriesDropped.toLocaleString()} of your list were dropped)` : ''}. ${dropped ? 'This part was dropped — its numbers were not called or charged.' : how}${c.status === 'series_waiting' ? ` This part waits for part ${c.part - 1} to finish.` : ''}`;
   return <div className="text-sm text-[#a1a1aa] mt-1" data-testid="campaign-series-note">{text}</div>;
 }
 

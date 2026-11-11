@@ -31,7 +31,7 @@ const msgs = []
   ok('only part 1 ready; parts 2–3 wait', parts[0].status === 'created' && parts.slice(1).every(p => p.status === 'series_waiting'), parts.map(p => p.status).join(','))
   ok('small list → normal campaign (no split)', !(await B.createSeries({ ...base, leads: leads.slice(0, 300) })).splitId)
   const big = await B.createSeries({ ...base, leads: Array.from({ length: 5001 }, (_, i) => ({ number: `+1212558${String(i % 10000).padStart(4, '0')}` })) })
-  ok('over 5,000 → clear error', /Up to 5,000 numbers/.test(big.error || ''), big.error)
+  ok('over 5,000 → only first-500 / pay-per-part allowed', big.code === 'series_too_big', big.error)
   const poor = await B.createSeries({ ...base, chatId: '902', leads })
   ok('wallet must cover all parts at launch', poor.code === 'series_funds' && /all 3 parts/.test(poor.error) && !(await col.countDocuments({ chatId: '902' })), poor.error)
 

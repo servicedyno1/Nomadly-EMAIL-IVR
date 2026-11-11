@@ -130,7 +130,7 @@ function routes(router, { db, h, upload }) {
     rows = rows.map(r => r.map(c => c.slice(0, 2000)))
     const filled = rows.filter(r => r.some(Boolean)).length
     if (!filled) return bad(res, 400, 'empty_file', 'We couldn’t find anything in that file.')
-    if (filled > ci.MAX_ROWS + 1) return bad(res, 400, 'too_many_rows', `Upload up to ${ci.MAX_ROWS.toLocaleString('en-US')} contacts at a time — split the file and upload the rest after.`)
+    if (filled > ci.CONTACT_MAX_ROWS + 1) return bad(res, 400, 'too_many_rows', `Upload up to ${ci.CONTACT_MAX_ROWS.toLocaleString('en-US')} contacts at a time — split the file and upload the rest after.`)
     if (Buffer.byteLength(JSON.stringify(rows)) > MAX_IMPORT_BYTES) return bad(res, 400, 'too_big', 'That file has too much text to import. Remove columns you don’t need, then try again.')
     const det = ci.detectColumns(rows)
     const doc = { _id: crypto.randomUUID(), chatId, fileName, rows, createdAt: new Date() }

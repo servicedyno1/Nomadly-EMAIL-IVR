@@ -2609,4 +2609,4 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 
 ## 2026-06 — Bulk IVR lists >500: four launch choices (web + 4 bots)
 - All parts, auto-start · All parts, ask before each (wallet covers all parts) · First 500 now, keep the rest for later (pay per part, Start/Drop each next part) · Only the first 500, drop the rest (wallet covers 500). First 500 = list order after cleaning. Details in CHANGELOG.
-- Known limits: bot "Schedule for later" on split lists = all parts auto; lists >5,000 rejected even for first-500-only.
+- Scheduling (bot) offers the same 4 choices. Lists 5,001–50,000: only "first 500" or "first 500 now, keep the rest" (first 5,000 kept, rest dropped).

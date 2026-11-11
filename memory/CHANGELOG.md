@@ -2525,3 +2525,9 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Bot: 4 launch buttons + `bcdrop:` callback; part-ready message shows part cost + "Drop the remaining parts". Scheduling a split list still runs all parts automatically.
 - Web: 4-option split card (unique-number count), row pills "pay per part" / "first 500 of N", detail SeriesNote + Start & pay / Drop buttons. fr/es translated.
 - Tests: test_bulkcall_split_partial.js 17/17, split_series 17/17, bot split 11/11, voicemail 6/6, backend/tests/test_cloudivr_split_first_part.py 16/16, testing agent iteration_251 (all flows pass; minor findings fixed).
+
+## 2026-06 — Bulk IVR: schedule choices + lists up to 50,000
+- Bot "Schedule for later" on a list >500: after the time, the same 4 choices (⏰ All parts auto / ask / First 500 keep rest / Only first 500); new action `bulkScheduleMode`; low-wallet error keeps the choices; "Cancel scheduled launch" also cancels the later parts (`cancelSeriesAfter`).
+- Lists 5,001–50,000 (`MAX_UPLOAD_LEADS`, env BULK_CALL_MAX_UPLOAD_LEADS): only `first` (500) and `part` (first 5,000 kept as 10 parts, `seriesDropped` noted); auto/ask → `series_too_big`. Bot upload cap and web cap raised to 50,000; web split card shows only the 2 allowed choices.
+- contacts-import MAX_ROWS 10,000 → 50,000 (it silently cut lists at 10,001); contact imports keep their 10,000 limit via CONTACT_MAX_ROWS.
+- Tests: split_partial 23/23, bot split 17/17, split_series 17/17, pytest split 17/17 + country 15/15, voicemail 6/6, errs/sched 6/6, rotation 8/8 + 8/8.

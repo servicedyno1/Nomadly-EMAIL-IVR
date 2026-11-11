@@ -24,7 +24,7 @@ const publicCampaign = (c, withLeads = false) => ({
   agentId: c.agentId || null, agentName: c.agentName || null, waitingForHours: !!c.waitingForHours,
   waitingForLine: (c.leads || []).some(l => l.status === 'pending' && l.waitingForLine),
   repeat: c.repeat || null, runNumber: c.runNumber || null, seriesId: c.seriesId || null, autoRun: !!c.autoRun, nextRunId: c.nextRunId || null,
-  splitId: c.splitId || null, part: c.part || null, parts: c.parts || null, autoNext: c.splitId ? !!c.autoNext : null, splitTotal: c.seriesTotal || null, payPerPart: !!c.payPerPart, trimmedFrom: c.trimmedFrom || null,
+  splitId: c.splitId || null, part: c.part || null, parts: c.parts || null, autoNext: c.splitId ? !!c.autoNext : null, splitTotal: c.seriesTotal || null, payPerPart: !!c.payPerPart, trimmedFrom: c.trimmedFrom || null, seriesDropped: c.seriesDropped || null,
   dailyLimit: c.dailyLimit || null, callsToday: c.dailyLimit ? sched.callsToday(c) : null, waitingForDailyLimit: !!c.waitingForDailyLimit,
   voicemailAudioName: c.voicemailAudioUrl ? (c.voicemailAudioName || 'Voicemail message') : null,
   notInService: notInService(c).length, badNumbersCleanedAt: c.badNumbersCleanedAt || null, badNumbersRemoved: c.badNumbersRemoved ?? null,
@@ -133,7 +133,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
 
   router.post('/campaigns/estimate', h(async (req, res) => {
     const { leads, errors, badCount } = await leadsOf(req.webChatId, req.body)
-    res.json({ count: leads.length, errors: errors.slice(0, 20), badCount: badCount ?? errors.length, fromList: !!req.body.listId, max: bulkCallService.MAX_BULK_LEADS, maxSplit: bulkCallService.MAX_SERIES_LEADS, minWallet: bulkCallService.BULK_CALL_MIN_WALLET, estimate: bulkCallService.estimateLeadsCost(leads) })
+    res.json({ count: leads.length, errors: errors.slice(0, 20), badCount: badCount ?? errors.length, fromList: !!req.body.listId, max: bulkCallService.MAX_BULK_LEADS, maxSplit: bulkCallService.MAX_SERIES_LEADS, maxUpload: bulkCallService.MAX_UPLOAD_LEADS, minWallet: bulkCallService.BULK_CALL_MIN_WALLET, estimate: bulkCallService.estimateLeadsCost(leads) })
   }))
 
   router.get('/campaigns', h(async (req, res) => {
@@ -158,7 +158,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const { leads, errors, badCount } = await leadsOf(chatId, b)
     if (!leads.length) return bad(res, 400, 'no_leads', (!b.listId && !String(b.leads || '').trim() ? '' : errors[0]) || 'Add at least one number to call (one per line, optional ",name").')
     if (!b.listId && errors.length) return bad(res, 400, 'invalid_leads', `${errors.length === 1 ? '1 number needs' : `${errors.length} numbers need`} fixing before the campaign can start. ${errors.slice(0, 3).join(' · ')}`)
-    if (leads.length > bulkCallService.MAX_SERIES_LEADS) return bad(res, 400, 'too_many_leads', `Up to ${bulkCallService.MAX_SERIES_LEADS.toLocaleString()} numbers — they run as parts of ${bulkCallService.MAX_BULK_LEADS}, one after another.`)
+    if (leads.length > bulkCallService.MAX_UPLOAD_LEADS) return bad(res, 400, 'too_many_leads', `Up to ${bulkCallService.MAX_UPLOAD_LEADS.toLocaleString()} numbers per list.`)
     // 'menu' = route each key (forward / message / sub-menu); the engine runs it as a transfer campaign.
     const mode = ['transfer', 'menu'].includes(b.mode) ? 'transfer' : 'report_only'
     let transferNumber = null, menu = null, activeKeys = keysOf(b)

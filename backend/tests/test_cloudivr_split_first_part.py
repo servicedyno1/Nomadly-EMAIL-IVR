@@ -177,8 +177,20 @@ def test_auto_and_ask_create(s):
         assert c["payPerPart"] is False and c["autoNext"] is (m == "auto")
 
 
-def test_over_5000_rejected(s):
+def test_over_5000_choices(s):
     r = make(s, 5001, "first")
+    assert r.status_code == 201 and r.json()["campaign"]["trimmedFrom"] == 5001
+    r = make(s, 5001, "auto")
+    assert r.status_code == 400 and "series_too_big" in r.text
+    r = make(s, 6000, "part")
+    assert r.status_code == 201, r.text
+    c = r.json()["campaign"]
+    assert c["parts"] == 10 and c["seriesDropped"] == 1000 and c["payPerPart"]
+    db.bulkCallCampaigns.delete_many({"splitId": c["splitId"]})
+
+
+def test_over_50000_rejected(s):
+    r = make(s, 50001, "first")
     assert r.status_code == 400 and "too_many_leads" in r.text
 
 
