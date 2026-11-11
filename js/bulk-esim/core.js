@@ -10,7 +10,7 @@ const U = require('./url-check')
 const { validUsCa, quietWait, hourOpen } = require('./tz')
 
 const DEFAULTS = {
-  defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 6, quietEnd: 21, freeOneSends: 2,
+  defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 6, quietEnd: 21, freeOneSends: 2, swapUndelivered: 5, swapUndeliveredTo: 3,
   platformPerMin: 30, rateMargin: 2, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
   minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testsPerDay: 4, testsPerWeek: 10, freeTestsPerDay: 0, numberCheck: true, lookupCost: 0.0025, lookupDays: 30,
   minEsims: 2, monitorEsims: 0, testerEsims: 1, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
@@ -1136,12 +1136,25 @@ async function onStatus(raw, headers, body) {
   if (!m) { await C('bsDlr').updateOne({ _id: dupKey }, { $set: { matched: false } }); return { status: 200 } }
   await C('bsDlr').updateOne({ _id: dupKey }, { $set: { matched: m._id } })
   if (m.deliveryStatus === x.state) return { status: 200 }
+  if (x.state === 'delivered' && m.esimId) await C('bsEsims').updateOne({ _id: m.esimId }, { $set: { undeliveredStreak: 0, undeliveredTo: [] } })
   await C('bsMessages').updateOne({ _id: m._id }, { $set: { deliveryStatus: x.state, deliveryAt: new Date(), deliveryRaw: x.raw, ...(x.error ? { deliveryError: String(x.error).slice(0, 200) } : {}), ...(x.state === 'delivered' ? { status: 'delivered' } : {}) }, $push: { history: { s: `dlr_${x.state}`, at: new Date() } } })
   if (x.state === 'failed' && !m.system && !m.test) {
-    if (m.esimId) await C('bsEsims').updateOne({ _id: m.esimId }, { $inc: { 'stats.undelivered': 1 } })
+    if (m.esimId) await undeliveredSwap(m)
     alert(`📵 Text ${m._id} to ${m.to} was not delivered by the carrier (${x.raw}${x.error ? `: ${x.error}` : ''}) — line ${m.esimId || '?'}`)
   }
   return { status: 200 }
+}
+// N texts in a row undelivered to M+ different numbers → swap the line: new number on the same eSIM first, new line if that fails.
+async function undeliveredSwap(m) {
+  const c = await cfg()
+  const r = await C('bsEsims').findOneAndUpdate({ _id: m.esimId }, { $inc: { 'stats.undelivered': 1, undeliveredStreak: 1 }, $addToSet: { undeliveredTo: m.to } }, { returnDocument: 'after' })
+  const e = r?.value !== undefined ? r.value : r
+  if (!e || e.status === 'replaced' || e.replacedBy || (e.undeliveredStreak || 0) < c.swapUndelivered || (e.undeliveredTo || []).length < c.swapUndeliveredTo) return
+  if (!(await once(`undelivswap:${e._id}`))) return
+  alert(`🔁 ${e._id} ${e.msisdn || ''}${roleTag(e)}: ${e.undeliveredStreak} texts in a row undelivered to ${e.undeliveredTo.length} different numbers — taking it out of use and asking Spenza for a new number on the same eSIM.`)
+  const out = await replaceEsim(e._id, `${e.undeliveredStreak} texts in a row undelivered`, 'system')
+  if (out.ok) alert(`✅ ${e._id} got a new number (${out.newEsimId}) — it rejoins the pool after its delivery check.`)
+  return out
 }
 // Texts with no delivery report 10 min after sending → one admin alert per run (only once Spenza has sent us any report).
 async function dlrWatch() {
@@ -1288,4 +1301,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+module.exports = { warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }

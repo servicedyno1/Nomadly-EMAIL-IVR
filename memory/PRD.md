@@ -1,5 +1,8 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-11 — Auto-swap lines on undelivered texts
+- core `undeliveredSwap`: each failed delivery report bumps the line's `undeliveredStreak` and `undeliveredTo` set; a delivered report resets both. At `swapUndelivered` 5 in a row to ≥ `swapUndeliveredTo` 3 different numbers (once per line) → admin alert → `replaceEsim`: Spenza number change on the same eSIM first, new line ordered only if that fails (existing flow). Test/system texts excluded. test_bulk_esim_dlr 16/16, engine 40/40.
+
 ## 2026-11-11 — Spenza delivery reports (DLR)
 - provider-spenza: webhook registration adds `callbackMessageUrl` = SELF_URL/api/bulk-esim/webhook-status; sendSms keeps Spenza's response (providerId + first raw responses in `sendResp` until the first report arrives); `parseStatus` reads common field names (schema unpublished).
 - core: `onStatus` (signature-verified, raw payload saved in bsDlr, dedup by body hash, match by providerId else to/from oldest unreported in 3 days) → deliveryStatus delivered/failed (+status 'delivered'); failed → admin alert only (customers never told; `one_failed` text unused); `dlrWatch` (every minute) → admin alert for texts with no report after 10 min (first a one-time "no reports yet" note until any report has matched); `ensureStatusWebhook` on startup re-registers accounts lacking statusUrl (once-lock so only one bot does it). Route POST /api/bulk-esim/webhook-status (500 on error so Spenza retries).
