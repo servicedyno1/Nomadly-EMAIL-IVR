@@ -38,7 +38,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   ok('credit watched per account; combined forecast in state ($1000)', accts.length === 2 && accts.every(a => a.credit === 500 && a.forecast && a.low === false) && (await B.state()).forecast.credit === 1000 && (await B.state()).forecast.accounts === 2, JSON.stringify(accts.map(a => [a._id, a.credit, a.low])))
 
   // ---- lines spread across accounts; per-account ceiling ----
-  await B.setConfig({ quietStart: 0, quietEnd: 24, reserveBooking: false, monitorEsims: 0 }, 'test')
+  await B.setConfig({ quietStart: 0, quietEnd: 24, freeOneSends: 1000, reserveBooking: false, monitorEsims: 0 }, 'test')
   const r6 = await B.provisionMany(6, 'test', 'test')
   const byAcct = async () => ({ a1: await E.countDocuments({ account: 'spenza1', role: 'service', status: { $nin: ['failed', 'retired', 'replaced', 'expired'] } }), a2: await E.countDocuments({ account: 'spenza2', role: 'service', status: { $nin: ['failed', 'retired', 'replaced', 'expired'] } }) })
   let ba = await byAcct()

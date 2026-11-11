@@ -13,7 +13,7 @@ function daysLeft(iso) {
 
 function ExpiryBanner({ days, autoRenew, renewUrl }) {
   const { t } = useTranslation();
-  if (days === null || days > 3) return null;
+  if (days === null || days > 14) return null;
   const expired = days < 0;
   const title = expired ? t('dashboard.ov.expBannerExpired') : days === 0 ? t('dashboard.ov.expBannerToday') : t('dashboard.ov.expBannerSoon', { count: days });
   const body = expired ? t('dashboard.ov.expExpiredBody') : autoRenew ? t('dashboard.ov.expAutoOn') : t('dashboard.ov.expAutoOff');
@@ -74,7 +74,10 @@ export default function PanelOverview({ onNavigate }) {
     try { return new Date(iso).toLocaleDateString(i18n.language, opts); } catch { return new Date(iso).toLocaleDateString(undefined, opts); }
   };
   const bot = (brand.botUsername || '').replace(/^@/, '');
-  const renewUrl = bot ? `https://t.me/${bot}?start=renew` : '';
+  // Deep link straight to this plan's renew screen (domain base64url-encoded: start payloads allow no dots).
+  const renewKey = user?.domain ? btoa(user.domain).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_') : '';
+  const renewUrl = bot ? `https://t.me/${bot}?start=${renewKey ? `renew_${renewKey}` : 'renew'}` : '';
+  const renewOpen = days !== null && days <= 14;
   const loading = status === null;
 
   return (
@@ -110,7 +113,7 @@ export default function PanelOverview({ onNavigate }) {
           <QuickAction icon={Globe} testId="panel-qa-domain" title={t('dashboard.ov.qaDomain')} desc={t('dashboard.ov.qaDomainD')} onClick={() => onNavigate('domains')} />
           <QuickAction icon={ExternalLink} testId="panel-qa-open" title={t('dashboard.ov.qaOpen')} desc={t('dashboard.ov.qaOpenD')} href={`https://${user?.domain}`} />
           <QuickAction icon={Mail} testId="panel-qa-email" title={t('dashboard.ov.qaEmail')} desc={t('dashboard.ov.qaEmailD')} onClick={() => onNavigate('email')} />
-          {renewUrl && <QuickAction icon={RefreshCw} testId="panel-qa-renew" title={t('dashboard.ov.qaRenew')} desc={t('dashboard.ov.qaRenewD')} href={renewUrl} />}
+          {renewUrl && renewOpen && <QuickAction icon={RefreshCw} testId="panel-qa-renew" title={t('dashboard.ov.qaRenew')} desc={t('dashboard.ov.qaRenewD')} href={renewUrl} />}
           <QuickAction icon={ShoppingCart} testId="panel-qa-buy" title={t('dashboard.ov.qaBuy')} desc={t('dashboard.ov.qaBuyD')} href="/store" />
         </div>
       </section>

@@ -10,7 +10,7 @@ const U = require('./url-check')
 const { validUsCa, quietWait, hourOpen } = require('./tz')
 
 const DEFAULTS = {
-  defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 8, quietEnd: 21,
+  defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 6, quietEnd: 21, freeOneSends: 2,
   platformPerMin: 30, rateMargin: 2, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
   minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testsPerDay: 4, testsPerWeek: 10, freeTestsPerDay: 0, numberCheck: true, lookupCost: 0.0025, lookupDays: 30,
   minEsims: 2, monitorEsims: 0, testerEsims: 1, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
@@ -573,11 +573,18 @@ async function lineReady(esimId) {
 }
 async function whenOptions(cid, campaignId) {
   const c = await cfg(), cp = await C('bsCampaigns').findOne({ _id: campaignId, cid }); if (!cp) return E('err_campaign')
+  const win = await sendWindow()
   const unit = cp.withLinks ? c.priceLink : c.pricePlain, t = today(), h = nowSlot()?.hour ?? 24, { slots, dayFree, capacity: cap } = await availability(t), live = (await ready()).send
-  const fits = (from) => !!allocate(slots, from, cp.parts, dayFree), nowOk = live && cap > 0 && h < 24 && slots[h].free > 0 && fits(h)
-  const later = live && cap > 0 && !nowOk ? slots.find(s => s.hour > h && s.free > 0 && fits(s.hour)) : null
+  const fits = (from) => !!allocate(slots, from, cp.parts, dayFree), nowOk = win.open && live && cap > 0 && h < 24 && slots[h].free > 0 && fits(h)
+  // Outside the 8am–9pm window "send now / earliest today" is off; only scheduling into open hours is offered.
+  const later = win.open && live && cap > 0 && !nowOk ? slots.find(s => s.hour > h && s.free > 0 && fits(s.hour)) : null
   const fee = cp.replies ? c.replyFee : 0, r2 = (x) => Math.round((x + fee) * 100) / 100, full = priced(c, cp.parts, unit, new Date()), disc = priced(c, cp.parts, unit, new Date(Date.now() + c.scheduleMinHours * HOUR + MIN))
-  return { parts: cp.parts, replyFee: fee, now: nowOk ? { hour: h, price: r2(full.price) } : null, later: later ? { hour: later.hour, price: r2(full.price) } : null, lines: cap > 0, off: cap > 0 && !live, quiet: live && cap > 0 && !nowOk && !later && slots.slice(h).every(s => s.quiet || s.free === 0), schedule: { pct: disc.pct, price: r2(disc.price), list: r2(disc.list), minHours: c.scheduleMinHours } }
+  return { parts: cp.parts, replyFee: fee, now: nowOk ? { hour: h, price: r2(full.price) } : null, later: later ? { hour: later.hour, price: r2(full.price) } : null, lines: cap > 0, off: cap > 0 && !live, quiet: !win.open || (live && cap > 0 && !nowOk && !later && slots.slice(h).every(s => s.quiet || s.free === 0)), window: win, schedule: { pct: disc.pct, price: r2(disc.price), list: r2(disc.list), minHours: c.scheduleMinHours } }
+}
+// Today's BulkSMS campaign window in UTC (8am–9pm in every mainland US zone) and whether it is open now.
+async function sendWindow() {
+  const c = await cfg(), d = today(), open = Array.from({ length: 24 }, (_, h) => hourOpen(d, h, c.quietStart, c.quietEnd))
+  return { open: open[new Date().getUTCHours()], from: open.findIndex((o, h) => o && !open[(h + 23) % 24]), to: open.findIndex((o, h) => !o && open[(h + 23) % 24]) }
 }
 function allocate(slots, from, volume, dayFree = Infinity) {
   if (volume > dayFree) return null
@@ -593,7 +600,7 @@ const unlock = (key) => C('bsLocks').deleteOne({ _id: key })
 // Holds capacity for `holdMinutes` while the customer pays. type: 'paid' | 'free'.
 // Volume = SMS parts. Price = parts × (link/phone or plain rate). The day's allowance must have room for the whole booking.
 async function createBooking(cid, { date, hour, volume, type = 'paid', campaignId, now = false }) {
-  if (now) { if (!(await ready()).send) return E('off_now'); const ns = nowSlot(); if (!ns) return E('err_slot'); date = ns.date; hour = ns.hour }
+  if (now) { if (!(await ready()).send) return E('off_now'); if (!(await sendWindow()).open) return E('err_slot'); const ns = nowSlot(); if (!ns) return E('err_slot'); date = ns.date; hour = ns.hour }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || isNaN(Date.parse(date)) || !(Number.isInteger(Number(hour)) && hour !== null && hour !== '' && Number(hour) >= 0 && Number(hour) < 24)) return E('err_slot')
   const c = await cfg(), cu = await C('bsCustomers').findOne({ _id: cid }), cp = campaignId ? await C('bsCampaigns').findOne({ _id: campaignId, cid }) : null
   const v = Math.round(Number(cp ? cp.parts : volume)), listUnit = cp?.withLinks ? c.priceLink : c.pricePlain, limit = cu?.dailyLimit ?? c.defaultDailyLimit
@@ -892,19 +899,25 @@ async function queueCampaign(campaignId, b) {
   await C('bsCampaigns').updateOne({ _id: campaignId }, { $set: { status: 'scheduled', bookingId: b._id, scheduledAt: b.startAt, 'stats.queued': docs.length } })
 }
 // One text in an existing conversation (or a new one). Same queue, same quota.
-async function sendOne(cid, to, text, sessionId) {
+// Free single texts ("Send one SMS") per customer, lifetime; replies inside a conversation don't count.
+async function oneLeft(cid) {
+  const c = await cfg(), used = await C('bsMessages').countDocuments({ cid, campaignId: null, sessionId: null, system: { $ne: true }, test: { $ne: true }, direction: 'out', status: { $nin: ['rejected', 'cancelled', 'blocked'] } })
+  return Math.max(0, (c.freeOneSends ?? 2) - used)
+}
+async function sendOne(cid, to, text, sessionId, { optOut = true } = {}) {
   const cu = await C('bsCustomers').findOne({ _id: cid }), p = normPhone(to), body = String(text || '').trim()
   if (cu?.status !== 'active') return E('err_suspended')
+  if (!sessionId && !(await oneLeft(cid))) return E('err_one_used', (await cfg()).freeOneSends ?? 2)
   if (!validUsCa(p)) return E('err_number')
   if (!body) return E('err_add_text')
   if (sessionId) { const ss = await C('bsSessions').findOne({ _id: sessionId, cid }); if (!ss || !(await lineReady(ss.esimId))) return E('off_reply') } else if (!(await ready()).one) return E('off_one')
-  const full = sessionId ? body : body + OPT
+  const full = sessionId || !optOut ? body : body + OPT
   if (segs(full) > 3) return E('err_too_long')
   if (hasLinkOrPhone(body)) { const sc = await screenContent(cid, [body], 'one-off text'); if (sc.error) return sc }
   if ((await usage(cid)).remaining < segs(full)) return E('err_quota_used')
   if (await C('bsSuppression').findOne({ $or: [{ cid }, { cid: '*' }], phone: p })) return E('err_opted')
   const m = msgDoc({ cid, to: p, body: full, sessionId: sessionId || null, priority: 1 }); await C('bsMessages').insertOne(m)
-  return { ok: true, messageId: m._id, segments: m.segments }
+  return { ok: true, messageId: m._id, segments: m.segments, left: sessionId ? null : await oneLeft(cid) }
 }
 
 // ---------- send worker (leader only) ----------
@@ -943,7 +956,8 @@ async function processOne(m, c) {
     if (cu?.status !== 'active') return drop('rejected', 'customer_suspended')
     if (await C('bsSuppression').findOne({ $or: [{ cid: m.cid }, { cid: '*' }], phone: m.to })) return drop('rejected', 'opted_out')
     if (m.expireAt && new Date(m.expireAt) < new Date()) return drop('expired', 'too_late')
-    if (!m.test && !m.sessionId) { const w = quietWait(m.to, c.quietStart, c.quietEnd); if (w) return later(w) }
+    // Quiet hours apply to campaigns only; single texts, replies and tests go out immediately.
+    if (m.campaignId && !m.test && !m.sessionId) { const w = quietWait(m.to, c.quietStart, c.quietEnd); if (w) return later(w) }
   }
   const e = await pickEsim(m, c); if (!e) { await later(15000); return m.esimId || m.sessionId ? 'starved_pinned' : 'starved' }
   const n = c.countSegments ? m.segments : 1, day = m.system ? null : m.quotaDay || await reserve(m.cid, n, c)
@@ -1240,4 +1254,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+module.exports = { warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }

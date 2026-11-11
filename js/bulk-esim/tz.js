@@ -33,13 +33,13 @@ const zones = (p) => NPA[String(p).slice(2, 5)] || UNKNOWN
 const hourIn = (z, t) => { const s = new Intl.DateTimeFormat('en-US', { timeZone: z, hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).format(t); const [h, m] = s.split(':').map(Number); return h + m / 60 }
 const open = (zs, t, from, to) => zs.every(z => { const h = hourIn(z, t); return h >= from && h < to })
 // 0 when the recipient may get a text now, else ms until their window opens.
-function quietWait(p, from = 8, to = 21, now = Date.now()) {
+function quietWait(p, from = 6, to = 21, now = Date.now()) {
   const zs = zones(p)
   if (open(zs, new Date(now), from, to)) return 0
   for (let m = 5; m <= 26 * 60; m += 5) if (open(zs, new Date(now + m * 60000), from, to)) return m * 60000
   return 3600000
 }
 // A booking hour (UTC) is offered only when every mainland zone is inside the window for the whole hour.
-const hourOpen = (date, h, from = 8, to = 21) => { const t = new Date(`${date}T${String(h).padStart(2, '0')}:00:00Z`).getTime(); return open(MAINLAND, new Date(t), from, to) && open(MAINLAND, new Date(t + 59 * 60000), from, to) }
+const hourOpen = (date, h, from = 6, to = 21) => { const t = new Date(`${date}T${String(h).padStart(2, '0')}:00:00Z`).getTime(); return open(MAINLAND, new Date(t), from, to) && open(MAINLAND, new Date(t + 59 * 60000), from, to) }
 
 module.exports = { validUsCa, quietWait, hourOpen, zones }
