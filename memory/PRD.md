@@ -1,5 +1,11 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-11 — Spenza delivery reports (DLR)
+- provider-spenza: webhook registration adds `callbackMessageUrl` = SELF_URL/api/bulk-esim/webhook-status; sendSms keeps Spenza's response (providerId + first raw responses in `sendResp` until the first report arrives); `parseStatus` reads common field names (schema unpublished).
+- core: `onStatus` (signature-verified, raw payload saved in bsDlr, dedup by body hash, match by providerId else to/from oldest unreported in 3 days) → deliveryStatus delivered/failed (+status 'delivered'); failed single text → customer notice `one_failed` (5 langs) + admin alert; `dlrWatch` (every minute) → admin alert for texts with no report after 10 min (first a one-time "no reports yet" note until any report has matched); `ensureStatusWebhook` on startup re-registers accounts lacking statusUrl (once-lock so only one bot does it). Route POST /api/bulk-esim/webhook-status (500 on error so Spenza retries).
+- Test: test_bulk_esim_dlr 10/10; engine 40/40, quiet_window 6/6, spenza_failures 16/16.
+- After deploy: confirm the status webhook registration, then send one test text and read bsDlr to confirm the real payload shape (parser may need a tweak).
+
 ## 2026-11-11 — Delayed single texts during rolling deploy (fixed)
 - @Hostbay_support's 10:05/10:07 UTC texts (and one VoodooLand text) were deferred to 13:00 UTC by a not-yet-updated bot holding the BulkSMS worker lock during the rolling deploy (old 8 AM quiet rule). Spenza was not the cause: once released at 10:09 each was accepted in ~4 s (tester ESIM-0002). Released on prod (3 texts).
 - Fix: tick() releases any single text (no campaign/session) deferred >10 min ahead → old deferrals can't strand single texts. test_bulk_esim_quiet_window 6/6, engine 40/40.

@@ -39770,6 +39770,9 @@ const authDyno = async (req, res, next) => {
 
 // Use the early app that's already listening
 const app = earlyApp
+app.post('/api/bulk-esim/webhook-status', async (req, res) => {
+  try { const x = await require('./bulk-esim/core').onStatus(req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body || {}), req.headers, req.body); res.status(x.status).json({ ok: x.status === 200 }) } catch (e) { log(`[BulkESIM] status webhook: ${e.message}`); res.status(500).json({ ok: false }) }
+})
 app.post('/api/bulk-esim/webhook', async (req, res) => {
   try { const x = await require('./bulk-esim/core').onWebhook(req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body || {}), req.headers, req.body); res.status(x.status).json({ ok: x.status === 200 }) } catch (e) { log(`[BulkESIM] webhook: ${e.message}`); res.status(500).json({ ok: false }) }
 })
