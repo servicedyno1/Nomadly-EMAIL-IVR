@@ -2561,3 +2561,8 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - BulkSMS (bulk-esim): `parseContacts(cid, raw, { plusOne })`; bot asks "🇺🇸 Add +1 (USA/Canada)" / "➡️ Continue without them" (5 languages, i18n PLUS1); +1 only kept when the result is a valid US/CA number; "Added +1 to N" note. Pending list in state `bseRaw`.
 - `phoneIn()` reads the number inside "Name 5619298395" / "Person 3 2125551000" lines (shared by both).
 - Tests: test_bot_bulkivr_paste.js 13/13, test_bulk_esim_plus1.js 6/6, bot split 17/17, back fixes 10/10, contacts import 9/9, pytest country 15/15. test_bulk_esim_bot_flow.js fails at the test-SMS/pay steps due to stale QA data ("number already received a free test", hour label) — unrelated to this change.
+
+## 2026-11-11 21:20 UTC — Prod verified + businessintelusa campaigns resumed
+- GitHub Actions: cfad601 runs stuck "queued" (never ran); later pushes 1758e15 + f276dec deployed OK (Deploy app-main + whitelabel success). All 4 apps live with speed fix, lease, auto-resume, country fixer, BulkSMS +1. GITHUB_TOKEN now in backend env (repo servicedyno1/Nomadly-EMAIL-IVR) for checking runs.
+- Resumed d331db9a (MD PRAY WEALTH) + db9af2e4 (MISSISSIPPI LAVAR) by setting status=running → adoptOrphans picked them up within a minute. Before: 1–2 calls/min, 0–2 lines. After: ~55–60 calls/min combined, 17 of 20 lines busy each, steady for 4+ min.
+- Still open: D51 retries (unverified "show as" caller IDs) visible in logs.
