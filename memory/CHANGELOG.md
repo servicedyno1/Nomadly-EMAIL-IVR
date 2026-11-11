@@ -2531,3 +2531,9 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Lists 5,001–50,000 (`MAX_UPLOAD_LEADS`, env BULK_CALL_MAX_UPLOAD_LEADS): only `first` (500) and `part` (first 5,000 kept as 10 parts, `seriesDropped` noted); auto/ask → `series_too_big`. Bot upload cap and web cap raised to 50,000; web split card shows only the 2 allowed choices.
 - contacts-import MAX_ROWS 10,000 → 50,000 (it silently cut lists at 10,001); contact imports keep their 10,000 limit via CONTACT_MAX_ROWS.
 - Tests: split_partial 23/23, bot split 17/17, split_series 17/17, pytest split 17/17 + country 15/15, voicemail 6/6, errs/sched 6/6, rotation 8/8 + 8/8.
+
+## 2026-11-11 — PROD BUG: Bulk IVR dialing collapsed to ~1 call/min (customer businessintelusa@gmail.com, chatId 5000000000000143)
+- Evidence (prod, read-only): campaigns d331db9a… (MD PRAY WEALTH) and db9af2e4… (MISSISSIPPI LAVAR), concurrency 20 each: ~38 dials in the first 2 min, then 1–2 dials/min for hours; DB showed only 1–2 leads in flight. No errors, no line limits, wallet fine ($368).
+- Root cause: `fireNextBatch` ran once per finishing call, concurrently. Every batch walked the same pending-lead snapshot and reserved a global Telnyx dial slot (1 s) BEFORE claiming a lead; leads already claimed by another batch still burned a slot → O(n²) empty slots queued → starvation.
+- Fix: single-flight per campaign (`st.firing` / `st.refire`, loop in `fireNextBatch`, body moved to `fireBatchOnce`). New test js/tests/test_bulkcall_throughput.js: steady 19.7 of 20 lines (was 1.3). All 11 bulk suites pass.
+- Also seen (not fixed): 39/47 dials first tried an unverified "show as" caller ID → Telnyx D51 → retried from the owned toll-free number (customer's rotating show-as numbers never display). Blue-green deploy at 20:07 had old+new process both running the campaigns for ~3 min.

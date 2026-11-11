@@ -1111,9 +1111,21 @@ async function requeueForLines(campaignId, leadIndex, extra = {}) {
 }
 
 /**
- * Fire the next batch of calls up to concurrency limit via Twilio
+ * Fill free lines. One batch per campaign at a time: a finishing call while a batch runs only asks for one more pass.
+ * (Concurrent batches walked the same lead list and spent a global Telnyx dial slot on every lead another batch had
+ * already claimed — with 20 lines that queued minutes of empty slots and dialing fell to ~1 call/min.)
  */
 async function fireNextBatch(campaignId) {
+  const st = activeCampaigns[campaignId]
+  if (!st) return
+  if (st.firing) { st.refire = true; return }
+  st.firing = true
+  try {
+    do { st.refire = false; await fireBatchOnce(campaignId) } while (st.refire && activeCampaigns[campaignId] === st && !st.paused)
+  } finally { st.firing = false }
+}
+
+async function fireBatchOnce(campaignId) {
   const state = activeCampaigns[campaignId]
   if (!state || state.paused) return
 
