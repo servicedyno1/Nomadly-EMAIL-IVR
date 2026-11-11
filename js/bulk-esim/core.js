@@ -1139,7 +1139,6 @@ async function onStatus(raw, headers, body) {
   await C('bsMessages').updateOne({ _id: m._id }, { $set: { deliveryStatus: x.state, deliveryAt: new Date(), deliveryRaw: x.raw, ...(x.error ? { deliveryError: String(x.error).slice(0, 200) } : {}), ...(x.state === 'delivered' ? { status: 'delivered' } : {}) }, $push: { history: { s: `dlr_${x.state}`, at: new Date() } } })
   if (x.state === 'failed' && !m.system && !m.test) {
     if (m.esimId) await C('bsEsims').updateOne({ _id: m.esimId }, { $inc: { 'stats.undelivered': 1 } })
-    if (!m.campaignId && !m.sessionId) await notify(m.cid, 'one_failed', 'one_failed', [m.to])
     alert(`📵 Text ${m._id} to ${m.to} was not delivered by the carrier (${x.raw}${x.error ? `: ${x.error}` : ''}) — line ${m.esimId || '?'}`)
   }
   return { status: 200 }

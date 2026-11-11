@@ -1,5 +1,5 @@
 // Spenza delivery-status callbacks: stored raw, matched to our text (provider id or to/from), delivered/failed recorded,
-// failed single text → customer + admin notice; no report after 10 min → admin alert (only once reports exist).
+// failed text → admin alert only (customers are never told); no report after 10 min → admin alert (only once reports exist).
 require('dotenv').config({ path: require('path').join(__dirname, '../../backend/.env') })
 process.env.WEB_CLOUDIVR_DRY_RUN = 'true'; process.env.BULK_ESIM_WORKER = 'false'
 const { MongoClient } = require('mongodb')
@@ -23,10 +23,10 @@ const post = (body) => B.onStatus(JSON.stringify(body), {}, body)
   await post({ data: { to: '+14155550102', from: '+13025550001', status: 'failed', errorMessage: 'unreachable' } })
   const m2 = await M.findOne({ _id: 'm2' })
   ok('report matched by numbers → failed, error kept', m2.deliveryStatus === 'failed' && m2.deliveryError === 'unreachable')
-  ok('failed single text → customer notice', (await db.collection('bsNotify').countDocuments({ chatId: '1', key: 'one_failed' })) === 1)
+  ok('failed single text → no customer notice (admin only)', (await db.collection('bsNotify').countDocuments({ chatId: '1' })) === 0)
   ok('failed text → admin alert', nA(/not delivered by the carrier/) === 1)
   await post({ data: { to: '+14155550102', from: '+13025550001', status: 'failed', errorMessage: 'unreachable' } })
-  ok('duplicate report ignored', (await db.collection('bsNotify').countDocuments({ chatId: '1', key: 'one_failed' })) === 1)
+  ok('duplicate report ignored', nA(/not delivered by the carrier/) === 1)
   ok('every payload stored raw', (await db.collection('bsDlr').countDocuments()) === 2)
   await M.updateOne({ _id: 'm3' }, { $unset: { dlrLate: 1 } })
   await B.dlrWatch()
