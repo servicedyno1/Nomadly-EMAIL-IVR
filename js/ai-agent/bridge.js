@@ -74,7 +74,9 @@ function tools(agent, ctx = {}) {
   return t
 }
 
-const vad = (interrupt, respond = true) => ({ type: 'semantic_vad', eagerness: 'high', create_response: respond, interrupt_response: interrupt })
+// 'low' eagerness = most patient turn detection (waits for a natural pause, up to ~8 s) so callers can think
+// and pause after a question without being talked over. Barge-in (interrupt) and the idle check-in are unchanged.
+const vad = (interrupt, respond = true) => ({ type: 'semantic_vad', eagerness: 'low', create_response: respond, interrupt_response: interrupt })
 // Silence after the agent's turn before we check the person is still there, and again before we give up.
 const IDLE_MS = () => parseInt(process.env.AI_AGENT_IDLE_MS || '7000', 10)
 
