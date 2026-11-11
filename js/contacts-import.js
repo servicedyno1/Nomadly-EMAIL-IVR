@@ -132,7 +132,15 @@ function textRows(text) {
   const s = String(text || '').replace(/^\uFEFF/, '')
   const sample = s.split(/\r\n|\n|\r/).filter(l => l.trim() && !l.trim().startsWith('#')).slice(0, 50)
   const [delim, hits] = [',', ';', '\t', '|'].map(d => [d, sample.filter(l => l.includes(d)).length]).sort((a, b) => b[1] - a[1])[0]
-  return hits ? csvRows(s, delim) : s.split(/\r\n|\n|\r/).slice(0, MAX_ROWS + 1).map(l => [l.trim()])
+  return hits ? csvRows(s, delim) : s.split(/\r\n|\n|\r/).slice(0, MAX_ROWS + 1).map(splitNameLine)
+}
+// No delimiter: "Lynn Melso 5619298395" / "15713310731 - Rosemarie Magsalin" → [number, name]. Plain lines stay one cell.
+const PHONE_IN_LINE = /(?:\+|\(|\b)\d[\d\s().-]{5,}\d\b/
+function splitNameLine(line) {
+  const l = line.trim(), m = l.match(PHONE_IN_LINE)
+  if (!m || !/[a-z]/i.test(l) || m[0].replace(/\D/g, '').length < 7) return [l]
+  const name = (l.slice(0, m.index) + ' ' + l.slice(m.index + m[0].length)).replace(/^[\s:–—-]+|[\s:–—-]+$/g, '').replace(/\s+[–—-]\s+/g, ' ').replace(/\s{2,}/g, ' ').trim()
+  return [m[0].trim(), name]
 }
 
 // Any input → rows of trimmed strings (comment lines starting with # dropped).

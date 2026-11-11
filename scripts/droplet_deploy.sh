@@ -236,12 +236,17 @@ activate_release() {
     pm2 delete "$new_name" >/dev/null 2>&1 || true
     echo "$P active release untouched (still serving on :${active:-?})"; return 1
   fi
-  # Call-aware drain: hold the nginx flip until the old slot's in-flight calls finish (30-min cap).
+  # Call-aware drain: the old slot first stops placing NEW bulk calls (it keeps the dialer lease, so the new slot
+  # can't dial before nginx sends it the webhooks), then its live calls finish, then nginx flips. When the old slot
+  # exits it releases the lease and the new slot resumes the campaigns. No overlap, no cut calls.
   if [ "${2:-}" = "drain" ] && [ -n "$active" ] && [ "$active" != "$new_port" ]; then
+    curl -sf -m 10 -X POST -H "x-dialer-token: $(cat "/tmp/bulk-dialer-$active.token" 2>/dev/null)" "http://127.0.0.1:$active/internal/bulk-dialer/stop" >/dev/null 2>&1 \
+      && echo "$P old slot :$active stopped placing new bulk calls" || echo "$P old slot :$active has no dialer handover (older release) — continuing"
     drain_calls "$active"
   fi
   if ! set_upstream "$new_port"; then
     pm2 delete "$new_name" >/dev/null 2>&1 || true
+    [ -n "$active" ] && curl -s -m 10 -X POST -H "x-dialer-token: $(cat "/tmp/bulk-dialer-$active.token" 2>/dev/null)" "http://127.0.0.1:$active/internal/bulk-dialer/start" >/dev/null 2>&1 || true
     echo "$P ERROR: nginx switch failed — active release untouched (still serving on :${active:-?})"; return 1
   fi
   ln -sfn "$rel" "$CURRENT"
