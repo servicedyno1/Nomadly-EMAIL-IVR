@@ -45,6 +45,24 @@ const CID_REJECTED = {
   fa: (n, own) => `⚠️ <b>اپراتورهای تلفن شماره نمایشی ${n} را رد کردند.</b>\nتماس شما از شماره خودتان ${own} برقرار شد. شماره نمایشی دیگری امتحان کنید.`,
 }
 const _cidRejectedSent = new Map()
+// "Show as" numbers the network refused as unverified (D51): skipped for 24 h, then tried once again.
+// Shared across servers/restarts via Mongo (cidRefused: { _id: number, at, error }).
+const CID_UNVERIFIED = /D51|not been verified|unverified origination/i
+const CID_SKIP_MS = 24 * 60 * 60 * 1000
+const _cidRefused = new Map()
+let _cidRefusedCol = null
+async function cidRefusedRecently(n) {
+  const now = Date.now(), hit = _cidRefused.get(n)
+  if (hit !== undefined && now - hit.checked < 60000) return now - hit.at < CID_SKIP_MS
+  const doc = await _cidRefusedCol?.findOne({ _id: n }).catch(() => null)
+  const at = doc?.at ? new Date(doc.at).getTime() : 0
+  _cidRefused.set(n, { at, checked: now })
+  return now - at < CID_SKIP_MS
+}
+async function markCidRefused(n, error) {
+  _cidRefused.set(n, { at: Date.now(), checked: Date.now() })
+  await _cidRefusedCol?.updateOne({ _id: n }, { $set: { at: new Date(), error: String(error || '').slice(0, 200) } }, { upsert: true }).catch(() => {})
+}
 function _notifyCidRejected(chatId, n, own, meta = {}) {
   if (chatId) require('./cloudivr-web/caller-ids').logDecline(chatId, n, meta.via || 'sip', meta.to, meta.how || 'telnyx', meta.code)
   if (!_bot || !chatId) return
@@ -1345,6 +1363,7 @@ function initVoiceService(deps) {
   // FIX #9: Load persisted notification history from MongoDB to prevent mass-warning on deploy
   if (deps.db) {
     _db = deps.db
+    _cidRefusedCol = deps.db.collection('cidRefused')
     _loadBalanceNotifyHistory(deps.db).catch(e => log(`[VoiceService] Failed to load balance history: ${e.message}`))
     // Call-session persistence — survive blue/green cutovers & crashes (see call-session-store.js).
     callSessionStore.init(deps.db).then(ok => {
@@ -5188,12 +5207,20 @@ async function initiateOutboundIvrCall(params) {
   const webhookUrl = `${_selfUrl}/telnyx/voice-webhook`
   // Voicemail drop needs the end of the mailbox greeting (call.machine.greeting.ended) so the message records cleanly.
   const amdOpts = voicemailAudioUrl ? { answering_machine_detection: VM_AMD_MODE } : {}
-  let result = await _telnyxApi.createOutboundCall(displayCallerId || callerId, targetNumber, webhookUrl, undefined, amdOpts)
+  // A "show as" number refused as unverified in the last 24 h is skipped: dial straight from the customer's own number.
+  const skipCid = displayCallerId && await cidRefusedRecently(displayCallerId)
+  let result = await _telnyxApi.createOutboundCall(skipCid ? callerId : (displayCallerId || callerId), targetNumber, webhookUrl, undefined, amdOpts)
   const badDest = (r) => r?.error && (/D50|valid LRN|destination number is invalid|unallocated|D35\b/i.test(String(r.error)) || /^D(50|35)$/.test(String(r.code || '')))
-  if (displayCallerId && result.error && !badDest(result) && !_telnyxApi.isLineLimitError?.(result)) {
+  if (skipCid) {
+    if (!result.error) result.callerIdRejected = true
+    if (!bulkMode) _notifyCidRejected(chatId, displayCallerId, callerId, { via: 'ivr', to: targetNumber, how: 'telnyx', skipped: true })
+  } else if (displayCallerId && result.error && !badDest(result) && !_telnyxApi.isLineLimitError?.(result)) {
     // Carrier refused the custom caller ID — place the call from the user's own number instead.
     log(`[OutboundIVR] custom caller ID ${displayCallerId} refused (${result.error}) — retrying from ${callerId}`)
-    _notifyCidRejected(chatId, displayCallerId, callerId, { via: bulkMode ? 'bulk' : 'ivr', to: targetNumber, how: 'telnyx' })
+    if (CID_UNVERIFIED.test(String(result.error)) || String(result.code || '') === 'D51') await markCidRefused(displayCallerId, result.error)
+    // Bulk campaigns: no message while the campaign runs — the final report lists refused caller IDs.
+    if (bulkMode) require('./cloudivr-web/caller-ids').logDecline(chatId, displayCallerId, 'bulk', targetNumber, 'telnyx')
+    else _notifyCidRejected(chatId, displayCallerId, callerId, { via: 'ivr', to: targetNumber, how: 'telnyx' })
     result = await _telnyxApi.createOutboundCall(callerId, targetNumber, webhookUrl, undefined, amdOpts)
     if (!result.error) result.callerIdRejected = true
   } else if (displayCallerId) require('./cloudivr-web/caller-ids').logUse(chatId, displayCallerId, bulkMode ? 'bulk' : 'ivr', targetNumber)
@@ -5253,7 +5280,7 @@ async function initiateOutboundIvrCall(params) {
   }
 
   log(`[OutboundIVR] Call initiated: ${callerId} → ${targetNumber} (chatId: ${chatId}, template: ${templateName})`)
-  return { callControlId: result.callControlId, callerIdRejected: !!result.callerIdRejected }
+  return { callControlId: result.callControlId, callerIdRejected: !!result.callerIdRejected, ...(result.callerIdRejected && displayCallerId ? { refusedCid: displayCallerId } : {}) }
 }
 
 /**

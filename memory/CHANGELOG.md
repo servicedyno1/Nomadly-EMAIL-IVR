@@ -2566,3 +2566,8 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - GitHub Actions: cfad601 runs stuck "queued" (never ran); later pushes 1758e15 + f276dec deployed OK (Deploy app-main + whitelabel success). All 4 apps live with speed fix, lease, auto-resume, country fixer, BulkSMS +1. GITHUB_TOKEN now in backend env (repo servicedyno1/Nomadly-EMAIL-IVR) for checking runs.
 - Resumed d331db9a (MD PRAY WEALTH) + db9af2e4 (MISSISSIPPI LAVAR) by setting status=running → adoptOrphans picked them up within a minute. Before: 1–2 calls/min, 0–2 lines. After: ~55–60 calls/min combined, 17 of 20 lines busy each, steady for 4+ min.
 - Still open: D51 retries (unverified "show as" caller IDs) visible in logs.
+
+## 2026-11-11 — Skip unverified "show as" caller IDs (network D51)
+- voice-service: a show-as number refused as unverified (D51 / "not been verified") is stored in Mongo `cidRefused` {_id, at, error} (+ 60 s in-memory cache) and skipped for 24 h — the call dials straight from the customer's own number (one request, no doomed attempt); after 24 h it's tried once again. Result carries `refusedCid`.
+- Bulk campaigns: no customer message while running (only `callerIdDeclines` log); campaign stores `$addToSet refusedCids`; final report adds "⚠️ Network carriers refused caller IDs … Those calls showed your own number …" (5 languages, never names the provider). Single IVR calls keep the existing hourly "Phone carriers rejected" notice.
+- Tests: test_cid_refused_skip.js 8/8; caller_id_reject_retry 5 PASS; presets 18/18; attest 23/23; bulk throughput/split/voicemail/rotation pass.
