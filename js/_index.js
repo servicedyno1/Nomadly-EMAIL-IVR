@@ -977,7 +977,7 @@ const _CC_MISSING = {
 }
 // Bulk IVR upload: rejected lines summed up in the user's language (the parser's reasons are English).
 const contactsImport = require('./contacts-import.js')
-const _BULK_ADD_US = '🇺🇸 Add +1 (USA/Canada)'
+const _BULK_OTHER_CC = '🌍 Other country'
 const _BULK_SKIP_NOCC = '➡️ Continue without them'
 const _pasteJoin = new Map()
 const PASTE_JOIN_MS = parseInt(process.env.PASTE_JOIN_MS || '1500', 10)
@@ -28719,36 +28719,51 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     } else if (message) {
       content = message
     }
+    // Numbers sent without a country code → the customer picks the country (never added silently); it's applied only
+    // to numbers that really fit that country. The last country picked is remembered per bot user.
     let parseOpts
     const pend = info?.bulkData?.pendingLeads
-    if (message === _BULK_ADD_US && pend) { // "Add +1" on numbers sent without a country code
-      parseOpts = { country: 'US' }
-      if (pend.fileId) {
-        try {
-          const response = await require('axios').get(await bot.getFileLink(pend.fileId), { responseType: 'arraybuffer', timeout: 15000, maxContentLength: 10 * 1024 * 1024 })
-          content = Buffer.from(response.data); fileName = pend.fileName || ''
-        } catch (e) { return send(chatId, trans('t.cp_134', e.message), k.of([['↩️ Back']])) }
-      } else content = pend.text
-    } else if (message === _BULK_SKIP_NOCC && pend) content = pend.fileId ? null : pend.text
-    if (content === null) { // "continue without them" on a file → re-read it
+    const refetch = async () => {
+      if (!pend.fileId) { content = pend.text; return true }
       try {
         const response = await require('axios').get(await bot.getFileLink(pend.fileId), { responseType: 'arraybuffer', timeout: 15000, maxContentLength: 10 * 1024 * 1024 })
         content = Buffer.from(response.data); fileName = pend.fileName || ''
-      } catch (e) { return send(chatId, trans('t.cp_134', e.message), k.of([['↩️ Back']])) }
+        return true
+      } catch (e) { await send(chatId, trans('t.cp_134', e.message), k.of([['↩️ Back']])); return false }
+    }
+    if (pend && !msg.document) {
+      let iso = pend.choices?.[message]
+      if (!iso && message === _BULK_OTHER_CC) {
+        pend.askCountry = true
+        await saveInfo('bulkData', info.bulkData)
+        return send(chatId, '🌍 Type the country of these numbers — its name, 2-letter code or dialing code.\nExamples: <code>Germany</code>, <code>DE</code>, <code>+49</code>', { parse_mode: 'HTML', ...k.of([['↩️ Back']]) })
+      }
+      if (!iso && pend.askCountry && message !== _BULK_SKIP_NOCC && message.length < 60 && !/\n/.test(message) && message.replace(/\D/g, '').length < 7) {
+        iso = contactsImport.resolveCountry(message, pend.sample || [])
+        if (!iso) return send(chatId, `⚠️ I couldn't find a country called “${escHtml(message)}”. Type its name, 2-letter code or dialing code, e.g. <code>Germany</code>, <code>DE</code> or <code>+49</code>.`, { parse_mode: 'HTML', ...k.of([['↩️ Back']]) })
+      }
+      if (iso) {
+        parseOpts = { country: iso }
+        if (!(await refetch())) return
+        await saveInfo('lastBulkCountry', iso)
+      } else if (message === _BULK_SKIP_NOCC) { if (!(await refetch())) return }
     }
 
     if (!(Buffer.isBuffer(content) ? content.length : content.trim())) return send(chatId, trans('t.cp_135'), k.of([['↩️ Back']]))
 
     const { leads, errors, binary, columns, noCode } = bulkCallService.parseLeadsFile(content, fileName, parseOpts)
     if (binary) return send(chatId, trans('t.cp_134b', escHtml(msg.document?.file_name || 'file')), k.of([['↩️ Back']]))
-    // Numbers without a country code that are valid USA/Canada numbers → offer to add +1 (never added silently).
-    const usFit = !parseOpts && message !== _BULK_SKIP_NOCC ? (noCode || []).filter(x => contactsImport.withCountry(x.raw, 'US')).length : 0
-    if (usFit && usFit >= (noCode || []).length * 0.8) {
+    if (noCode?.length && !parseOpts && message !== _BULK_SKIP_NOCC) {
+      const raws = noCode.map(x => x.raw), last = info?.lastBulkCountry
+      const top = contactsImport.likelyCountries(raws, last).slice(0, 3)
+      const label = (c) => `${contactsImport.flagOf(c.iso)} ${contactsImport.countryName(c.iso)}${c.iso === 'US' ? '/Canada' : ''} (+${require('libphonenumber-js/max').getCountryCallingCode(c.iso)})`
+      const choices = Object.fromEntries(top.map(c => [label(c), c.iso]))
       const bd = info?.bulkData || {}
-      bd.pendingLeads = msg.document ? { fileId: msg.document.file_id, fileName: msg.document.file_name || '' } : { text: String(content) }
+      bd.pendingLeads = { ...(msg.document ? { fileId: msg.document.file_id, fileName: msg.document.file_name || '' } : { text: String(content) }), choices, sample: raws.slice(0, 200) }
       await saveInfo('bulkData', bd)
-      const ex = noCode[0].raw, rows = [[_BULK_ADD_US], ...(leads.length ? [[_BULK_SKIP_NOCC]] : []), ['↩️ Back']]
-      return send(chatId, `📞 <b>${usFit.toLocaleString()}</b> number${usFit === 1 ? ' has' : 's have'} no country code (e.g. <code>${escHtml(ex)}</code>). They look like USA/Canada numbers.\n\nAdd <b>+1</b> to them?${leads.length ? `\n\n${leads.length.toLocaleString()} other number${leads.length === 1 ? ' is' : 's are'} fine already.` : ''}`, { parse_mode: 'HTML', ...k.of(rows) })
+      const n = noCode.length, rows = [...Object.keys(choices).map(l => [l]), [_BULK_OTHER_CC], ...(leads.length ? [[_BULK_SKIP_NOCC]] : []), ['↩️ Back']]
+      const best = top[0] ? `\nMost look like <b>${escHtml(contactsImport.countryName(top[0].iso))}</b> numbers (${top[0].fit} of ${Math.min(n, 200)} checked fit).` : ''
+      return send(chatId, `📞 <b>${n.toLocaleString()}</b> number${n === 1 ? ' has' : 's have'} no country code (e.g. <code>${escHtml(raws[0])}</code>). Bulk IVR needs it to dial.${best}\n\nWhich country are they from? I'll add its code only to numbers that really fit that country.${leads.length ? `\n\n${leads.length.toLocaleString()} other number${leads.length === 1 ? ' is' : 's are'} fine already.` : ''}`, { parse_mode: 'HTML', ...k.of(rows) })
     }
     if (info?.bulkData?.pendingLeads) { const bd = info.bulkData; delete bd.pendingLeads; await saveInfo('bulkData', bd) }
     if (leads.length === 0) {

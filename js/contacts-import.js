@@ -136,11 +136,23 @@ function textRows(text) {
 }
 // No delimiter: "Lynn Melso 5619298395" / "15713310731 - Rosemarie Magsalin" → [number, name]. Plain lines stay one cell.
 const PHONE_IN_LINE = /(?:\+|\(|\b)\d[\d\s().-]{5,}\d\b/
+// The number inside a line with text; a short number before it ("Person 3 2125551000") belongs to the name.
+function phoneIn(line) {
+  const m = String(line || '').match(PHONE_IN_LINE)
+  if (!m) return null
+  let num = m[0], index = m.index
+  while (!num.startsWith('+')) {
+    const g = num.match(/^(\d{1,3})[\s.-]+(?=\d)/)
+    if (!g || num.slice(g[0].length).replace(/\D/g, '').length < 7) break
+    num = num.slice(g[0].length); index += g[0].length
+  }
+  return { num, index }
+}
 function splitNameLine(line) {
-  const l = line.trim(), m = l.match(PHONE_IN_LINE)
-  if (!m || !/[a-z]/i.test(l) || m[0].replace(/\D/g, '').length < 7) return [l]
-  const name = (l.slice(0, m.index) + ' ' + l.slice(m.index + m[0].length)).replace(/^[\s:–—-]+|[\s:–—-]+$/g, '').replace(/\s+[–—-]\s+/g, ' ').replace(/\s{2,}/g, ' ').trim()
-  return [m[0].trim(), name]
+  const l = line.trim(), m = phoneIn(l)
+  if (!m || !/[a-z]/i.test(l) || m.num.replace(/\D/g, '').length < 7) return [l]
+  const name = (l.slice(0, m.index) + ' ' + l.slice(m.index + m.num.length)).replace(/^[\s:–—-]+|[\s:–—-]+$/g, '').replace(/\s+[–—-]\s+/g, ' ').replace(/\s{2,}/g, ' ').trim()
+  return [m.num.trim(), name]
 }
 
 // Any input → rows of trimmed strings (comment lines starting with # dropped).
@@ -203,9 +215,42 @@ function withCountry(raw, country) {
   if (!cc || !s || /^(\+|00)/.test(s.replace(/["'\s]/g, ''))) return null
   const n = toPlus(raw)
   if (n !== NO_CC && LPN.parsePhoneNumberFromString(n)?.isValid()) return null
-  const p = LPN.parsePhoneNumberFromString(s.replace(/\D/g, ''), cc)
-  return p?.isValid() ? p.number : false
+  const d = s.replace(/\D/g, '')
+  // USA and Canada share +1: picking either accepts numbers from both.
+  for (const c of cc === 'US' ? ['US', 'CA'] : cc === 'CA' ? ['CA', 'US'] : [cc]) {
+    const p = LPN.parsePhoneNumberFromString(d, c)
+    if (p?.isValid()) return p.number
+  }
+  return false
 }
+// Countries that best fit numbers typed without a country code (bot country buttons). → [{ iso, fit }] best first.
+const LIKELY = ['US', 'GB', 'FR', 'DE', 'ES', 'IT', 'NL', 'BE', 'CH', 'IE', 'PT', 'NG', 'GH', 'KE', 'ZA', 'IN', 'PK', 'PH', 'AU', 'NZ', 'MX', 'BR', 'CO', 'AR']
+const rank = (iso) => { const i = LIKELY.indexOf(iso); return i < 0 ? 99 : i }
+const ALIAS = { usa: 'US', us: 'US', america: 'US', 'united states of america': 'US', uk: 'GB', england: 'GB', britain: 'GB', 'great britain': 'GB', uae: 'AE', canada: 'CA' }
+function likelyCountries(raws, prefer) {
+  const sample = raws.slice(0, 200), first = validCountry(prefer)
+  return [...new Set([first, ...LIKELY].filter(Boolean))]
+    .map(iso => ({ iso, fit: sample.filter(r => withCountry(r, iso)).length }))
+    .filter(x => x.fit > 0)
+    .sort((a, b) => b.fit - a.fit || (b.iso === first) - (a.iso === first) || rank(a.iso) - rank(b.iso))
+}
+// "Germany" / "de" / "+49" → ISO code (for +49-style codes shared by several countries, the one fitting most numbers).
+function resolveCountry(text, raws = []) {
+  const t = String(text || '').trim(), alias = ALIAS[t.toLowerCase().replace(/[^\p{L}\s]/gu, '').trim()]
+  if (alias) return alias
+  const iso = validCountry(t.replace(/^[^\w+]+/u, '').trim())
+  if (iso) return iso
+  const code = t.replace(/[^\d]/g, '')
+  const all = phoneCountries()
+  if (/^\+?\d{1,4}$/.test(t.replace(/\s/g, '')) && code) {
+    const hits = all.filter(c => c.code === `+${code}`)
+    return hits.map(c => ({ iso: c.iso, fit: raws.slice(0, 200).filter(r => withCountry(r, c.iso)).length })).sort((a, b) => b.fit - a.fit || rank(a.iso) - rank(b.iso))[0]?.iso || null
+  }
+  const q = t.toLowerCase().replace(/[^\p{L}\s]/gu, '').trim()
+  if (!q) return null
+  return (all.find(c => c.name.toLowerCase() === q) || all.find(c => c.name.toLowerCase().startsWith(q)) || (q === 'usa' || q === 'america' ? { iso: 'US' } : q === 'uk' || q === 'england' ? { iso: 'GB' } : null))?.iso || null
+}
+const flagOf = (iso) => String(iso || '').toUpperCase().replace(/./g, ch => String.fromCodePoint(127397 + ch.charCodeAt(0)))
 const lacksCode = (raw) => { const s = String(raw || '').replace(/["'\s]/g, ''); return !!s && !/^(\+|00)/.test(s) && toPlus(raw) === NO_CC }
 // Pasted / typed text (campaign numbers box, Quick call): adds the country code to every phone-looking token without one.
 function fixCountry(text, country) {
@@ -349,4 +394,4 @@ function parseLeads(input, fileName, opts = {}) {
   }
 }
 
-module.exports = { readTable, detectColumns, toRecords, parseLeads, normalizeNumber, numberIssue, looksBinary, ROLES, MAX_ROWS, CONTACT_MAX_ROWS, withCountry, fixCountry, phoneCountries, validCountry, countryName, lacksCode }
+module.exports = { readTable, detectColumns, toRecords, parseLeads, normalizeNumber, numberIssue, looksBinary, ROLES, MAX_ROWS, CONTACT_MAX_ROWS, withCountry, fixCountry, phoneCountries, validCountry, countryName, lacksCode, likelyCountries, resolveCountry, flagOf, phoneIn }
