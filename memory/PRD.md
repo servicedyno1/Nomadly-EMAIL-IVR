@@ -1,5 +1,10 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-11 — Incident: inbound texts rejected (401) after delivery-status webhook registration
+- Cause (our bug): `ensureStatusWebhook` re-registered with `update: true`; Spenza's update response has NO signingSecret → we stored null → every inbound text (customer replies + line checks) failed signature check 10:26–10:39 UTC. 12 events lost; redelivery impossible after the webhook was recreated (old registration deleted).
+- Prod repair: deleted wh_u9TjyT8H, created wh_yi0FqFyr (both URLs) and stored its secret; Spenza test event → 200. Customer's session s_48c97d… is active until 14 Nov, so a new reply will reach the bot.
+- Code: provider.registerWebhook recreates the registration when an update returns no secret (throws if still none); core.registerWebhook never overwrites a stored secret with null; signature failures alert admin (once per hour).
+
 ## 2026-11-11 — Auto-swap lines on undelivered texts
 - core `undeliveredSwap`: each failed delivery report bumps the line's `undeliveredStreak` and `undeliveredTo` set; a delivered report resets both. At `swapUndelivered` 5 in a row to ≥ `swapUndeliveredTo` 3 different numbers (once per line) → admin alert → `replaceEsim`: Spenza number change on the same eSIM first, new line ordered only if that fails (existing flow). Test/system texts excluded. test_bulk_esim_dlr 16/16, engine 40/40.
 
