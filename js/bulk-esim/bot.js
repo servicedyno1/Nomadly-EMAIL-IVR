@@ -81,8 +81,16 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
       try { const link = await bot.getFileLink(msg.document.file_id); raw = String((await axios.get(link, { timeout: 20000, responseType: 'text', maxContentLength: 2e6 })).data) } catch (_) { return send(chatId, say('file_bad')) }
       fileName = name
     }
-    const r = await B.parseContacts(cid, raw), c = await B.cfg()
-    const ccNote = r.noCode ? `\n\n${say('nocode', r.noCode)}` : ''
+    let plusOne = false
+    if ((message === L.plus1_add || message === L.plus1_skip) && info.bseRaw) { plusOne = message === L.plus1_add; raw = info.bseRaw.raw; fileName = info.bseRaw.fileName || null }
+    else if (!msg?.document && !String(raw || '').trim()) return send(chatId, say('pick_option'))
+    const r = await B.parseContacts(cid, raw, { plusOne }), c = await B.cfg()
+    if (r.noCode && !plusOne && message !== L.plus1_skip) { // no country code → ask before adding +1 (never silently)
+      await put('bseRaw', { raw, fileName })
+      return send(chatId, say('plus1_q', r.noCode, r.contacts.length), kb([[L.plus1_add], ...(r.contacts.length ? [[L.plus1_skip]] : []), [L.back]]))
+    }
+    if (info.bseRaw) await put('bseRaw', null)
+    const ccNote = r.fixed ? `\n\n${say('plus1_fixed', r.fixed)}` : r.noCode ? `\n\n${say('nocode', r.noCode)}` : ''
     if (r.contacts.length < c.minVolume) return send(chatId, say('contacts_few', { ...r, n: r.contacts.length, parts: r.contacts.length }, c.minVolume) + ccNote, { parse_mode: 'HTML' })
     const list = r.contacts.slice(0, c.maxVolume)
     await send(chatId, say('checking', list.length))

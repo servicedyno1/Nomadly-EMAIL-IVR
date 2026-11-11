@@ -690,11 +690,24 @@ function msgDoc({ cid, to, body, campaignId = null, bookingId = null, sessionId 
   return { _id: id('m'), cid, brand: cid.split(':')[0], campaignId, bookingId, sessionId, esimId, to, from: null, body, segments: segs(body), direction: 'out', status: 'queued', history: [{ s: 'queued', at: new Date() }], attempts: 0, priority, nextAt: notBefore || new Date(), test, system, prepaid, quotaDay, expireAt, createdAt: new Date() }
 }
 // contacts: raw text (one per line / comma separated, CSV ok). Keeps valid USA/Canada numbers, drops duplicates and opted-out ones.
-async function parseContacts(cid, raw) {
-  const seen = new Set(); let bad = 0, dup = 0, noCode = 0
-  for (const tok of String(raw || '').split(/[\n,;\t]+/)) { const t = tok.trim(); if (!t) continue; const p = normPhone(t); if (p && validUsCa(p)) { if (seen.has(p)) dup++; seen.add(p) } else if (noCountryCode(t)) noCode++; else if (/\d{7,}/.test(t)) bad++ }
+// plusOne: the customer chose "Add +1" for numbers typed without a country code — applied only when the result is a
+// valid USA/Canada number (never silently). Lines like "Lynn Melso 5619298395" are read by their number part.
+async function parseContacts(cid, raw, { plusOne = false } = {}) {
+  const seen = new Set(); let bad = 0, dup = 0, noCode = 0, fixed = 0
+  for (const tok of String(raw || '').split(/[\n,;\t]+/)) {
+    const line = tok.trim(); if (!line) continue
+    const t = /[a-z]/i.test(line) ? (require('../contacts-import.js').phoneIn(line)?.num || line) : line
+    let p = normPhone(t)
+    if (!(p && validUsCa(p)) && noCountryCode(t)) {
+      if (!plusOne) { noCode++; continue }
+      p = `+1${t.replace(/\D/g, '')}`
+      if (!validUsCa(p)) { bad++; continue }
+      fixed++
+    }
+    if (p && validUsCa(p)) { if (seen.has(p)) dup++; seen.add(p) } else if (/\d{7,}/.test(t)) bad++
+  }
   const list = [...seen], sup = new Set((await C('bsSuppression').find({ $or: [{ cid }, { cid: '*' }], phone: { $in: list } }).toArray()).map(s => s.phone))
-  return { contacts: list.filter(p => !sup.has(p)), invalid: bad, optedOut: sup.size, duplicates: dup, noCode }
+  return { contacts: list.filter(p => !sup.has(p)), invalid: bad, optedOut: sup.size, duplicates: dup, noCode, fixed }
 }
 // Content rules: each version + the opt-out line (when kept) must fit ONE SMS (160 GSM / 70 unicode chars); the declared link/phone
 // choice is checked on every version (text-only may contain none; the choice is re-checked at booking, so it can't be gamed).

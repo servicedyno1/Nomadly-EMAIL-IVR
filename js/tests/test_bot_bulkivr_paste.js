@@ -33,13 +33,31 @@ const names = ['Lynn Melso', 'Carol Wood', 'Lucretia Durden', 'Nenita Quiros', '
   n0 = outs().length
   await post(names.map((nm, i) => `${nm} ${['5619298395', '9893975355', '2162782261', '9518509442', '7178777097', '9544789273'][i]}`).join('\n')); await wait(3000)
   o = outs().slice(n0).join('\n')
-  ok(/look like USA\/Canada numbers/.test(o) && o.includes('Add +1 (USA/Canada)'), 'no country code → offers "Add +1"', o.slice(0, 200))
+  ok(/Which country are they from/.test(o) && o.includes('United States/Canada (+1)') && o.includes('Other country'), 'no country code → country buttons (USA/Canada first) + Other country', o.slice(0, 300))
   ok(!/No valid phone numbers found/.test(o), 'no "no phone column" error any more')
   n0 = outs().length
-  await post('🇺🇸 Add +1 (USA/Canada)'); await wait(3000)
+  await post('🇺🇸 United States/Canada (+1)'); await wait(3000)
   const s2 = await st()
   ok(s2.action === 'bulkSelectAudio' && s2.bulkData.leads.length === 6 && s2.bulkData.leads[0].number === '+15619298395' && s2.bulkData.leads[0].name === 'Lynn Melso', 'after "Add +1" all 6 numbers are read with names', JSON.stringify(s2.bulkData?.leads?.[0]))
-  ok(!s2.bulkData.pendingLeads, 'pending paste cleared')
+  ok(!s2.bulkData.pendingLeads && s2.lastBulkCountry === 'US', 'pending paste cleared, country remembered')
+
+  // 2b) "Other country" typed by name; UK numbers; remembered country shown first next time
+  await reset()
+  await post('Ann 07911123456\nBob 07911123457\nCy 07700900123'); await wait(3000)
+  n0 = outs().length
+  await post('🌍 Other country'); await wait(2000)
+  ok(/Type the country/.test(outs().slice(n0).join('\n')), '"Other country" asks to type it')
+  await post('United Kingdom'); await wait(3000)
+  const s4 = await st()
+  ok(s4.action === 'bulkSelectAudio' && s4.bulkData.leads.length >= 2 && s4.bulkData.leads[0].number === '+447911123456' && s4.lastBulkCountry === 'GB', 'typed "United Kingdom" → +44 added, remembered', `${s4.action} ${JSON.stringify(s4.bulkData?.leads?.[0])}`)
+  await reset()
+  n0 = outs().length
+  await post('Dee 07911123458\nEd 07911123459'); await wait(3000)
+  const kb = outs().slice(n0).join('\n')
+  ok(kb.indexOf('United Kingdom (+44)') > -1 && kb.indexOf('United Kingdom (+44)') < (kb.indexOf('Other country') + 1 || 1e9), 'remembered country offered', kb.slice(-300))
+  n0 = outs().length
+  await post('🇺🇸 United States/Canada (+1)'); await wait(3000)
+  ok(/No valid phone numbers|doesn’t look like a United States number/.test(outs().slice(n0).join('\n')) || (await st()).action === 'bulkUploadLeads', 'numbers that don’t fit the picked country are not changed')
 
   // 3) mixed: some with +1, some without → can continue without them
   await reset()
@@ -54,7 +72,7 @@ const names = ['Lynn Melso', 'Carol Wood', 'Lucretia Durden', 'Nenita Quiros', '
   n0 = outs().length
   await post('Ann 07911123456\nBob 07911123457'); await wait(3000)
   o = outs().slice(n0).join('\n')
-  ok(!o.includes('Add +1') && /no country code/.test(o), 'UK-style numbers → no +1 offer, explains the missing country code')
+  ok(o.includes('United Kingdom (+44)') && !o.includes('United States/Canada'), 'UK-style numbers → UK offered, not USA', o.slice(-300))
 
   await db.collection('state').deleteOne({ _id: String(CHAT) }); await cl.close()
   console.log(`${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0)

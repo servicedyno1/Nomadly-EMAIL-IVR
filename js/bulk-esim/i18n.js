@@ -755,6 +755,15 @@ for (const [l, d] of Object.entries(CC)) {
   const P = LANGS[l], q = P.contacts_q, tq = P.test_to_q, oq = P.one_to_q
   Object.assign(P, { err_number: d.err_number, nocode: d.nocode, contacts_q: (o) => `${q(o)}\n📞 ${d.cc}`, test_to_q: (free) => `${tq(free)}\n${d.cc}`, one_to_q: `${oq}\n${d.cc}` })
 }
+// Numbers sent without a country code → offer to add +1 (BulkSMS is USA/Canada only).
+const PLUS1 = {
+  en: { q: (n, ok) => `📞 <b>${n}</b> number(s) have no country code (e.g. <code>5619298395</code>). BulkSMS sends to the USA/Canada only — add <b>+1</b> in front of them?\nNumbers that still aren’t valid USA/Canada numbers are left out.${ok ? `\n\n${ok} other number(s) are fine already.` : ''}`, add: '🇺🇸 Add +1 (USA/Canada)', skip: '➡️ Continue without them', fixed: (n) => `✅ Added +1 to ${n} number(s).` },
+  fr: { q: (n, ok) => `📞 <b>${n}</b> numéro(s) sans indicatif pays (ex. <code>5619298395</code>). Le BulkSMS n’envoie qu’aux USA/Canada — ajouter <b>+1</b> devant ?\nLes numéros qui restent invalides pour les USA/Canada sont écartés.${ok ? `\n\n${ok} autre(s) numéro(s) sont déjà bons.` : ''}`, add: '🇺🇸 Ajouter +1 (USA/Canada)', skip: '➡️ Continuer sans eux', fixed: (n) => `✅ +1 ajouté à ${n} numéro(s).` },
+  zh: { q: (n, ok) => `📞 <b>${n}</b> 个号码缺少国家代码（如 <code>5619298395</code>）。群发短信仅发送到美国/加拿大 — 要在前面加 <b>+1</b> 吗？\n加上后仍不是有效美国/加拿大号码的将被排除。${ok ? `\n\n另有 ${ok} 个号码已正确。` : ''}`, add: '🇺🇸 加 +1（美国/加拿大）', skip: '➡️ 不含这些继续', fixed: (n) => `✅ 已为 ${n} 个号码加上 +1。` },
+  hi: { q: (n, ok) => `📞 <b>${n}</b> नंबरों में देश कोड नहीं है (जैसे <code>5619298395</code>)। BulkSMS सिर्फ़ USA/कनाडा भेजता है — इनके आगे <b>+1</b> जोड़ें?\nजो फिर भी मान्य USA/कनाडा नंबर नहीं हैं, वे छोड़ दिए जाएँगे।${ok ? `\n\n${ok} अन्य नंबर पहले से सही हैं।` : ''}`, add: '🇺🇸 +1 जोड़ें (USA/कनाडा)', skip: '➡️ इनके बिना आगे बढ़ें', fixed: (n) => `✅ ${n} नंबरों में +1 जोड़ा गया।` },
+  fa: { q: (n, ok) => `📞 <b>${n}</b> شماره کد کشور ندارد (مثلاً <code>5619298395</code>). پیامک انبوه فقط به آمریکا/کانادا ارسال می‌شود — <b>+1</b> جلوی آن‌ها اضافه شود؟\nشماره‌هایی که باز هم شماره معتبر آمریکا/کانادا نباشند کنار گذاشته می‌شوند.${ok ? `\n\n${ok} شماره دیگر درست است.` : ''}`, add: '🇺🇸 افزودن +1 (آمریکا/کانادا)', skip: '➡️ ادامه بدون آن‌ها', fixed: (n) => `✅ به ${n} شماره +1 اضافه شد.` },
+}
+for (const [l, d] of Object.entries(PLUS1)) { Object.assign(LANGS[l], { plus1_q: d.q, plus1_fixed: d.fixed }); Object.assign(LANGS[l].btn, { plus1_add: d.add, plus1_skip: d.skip }) }
 // Customers are told before paying that start + finish are messaged automatically (no need to watch the bot).
 const BELL = {
   en: '🔔 We’ll message you here automatically when sending starts and when it finishes.',
