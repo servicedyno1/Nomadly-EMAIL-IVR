@@ -9,7 +9,7 @@ export const noCodeCount = (text) => String(text || '').split(/[,;\t\n]/).map(t 
     && (/^\d{10}$/.test(t.replace(/\D/g, '')) || /^0\d{6,}$/.test(t.replace(/\D/g, '')))).length;
 
 // Mostly bare 10-digit numbers → pre-pick USA/Canada (the customer can change it).
-const suggestOf = (text) => { const t = String(text || '').split(/[,;\t\n]/).map(x => x.replace(/\D/g, '')).filter(d => d.length >= 7 && !/^1\d{10}$/.test(d)); return t.length && t.filter(d => d.length === 10).length / t.length >= 0.8 ? 'US' : null; };
+const suggestOf = (text) => { const t = String(text || '').split(/[,;\t\n]/).map(x => x.trim()).filter(x => !/^(\+|00)/.test(x.replace(/\s/g, ''))).map(x => x.replace(/\D/g, '')).filter(d => d.length >= 7 && !/^1\d{10}$/.test(d)); return t.length && t.filter(d => d.length === 10).length / t.length >= 0.8 ? 'US' : null; };
 
 let cache = null;
 const loadCountries = () => (cache ||= api('/phone-countries').then(d => d.countries).catch((e) => { cache = null; throw e; }));
@@ -42,17 +42,18 @@ export function CountryFix({ count, suggest, onApply, busy, testid = 'country-fi
 // Text boxes (campaign numbers, Quick call, Text-to-voice call): rewrites the text in place via the server check.
 export function TextCountryFix({ text, onChange, testid }) {
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState('');
+  const [noteOf, setNoteOf] = useState({ text: null, note: '' });
+  const note = noteOf.text === text ? noteOf.note : '';
   const n = noCodeCount(text);
   const apply = async (country) => {
     setBusy(true);
     try {
       const d = await api('/contacts/fix-country', { method: 'POST', body: { text, country } });
       onChange(d.text);
-      const left = d.notFitCount ? ` ${d.notFitCount === 1 ? '1 number doesn’t' : `${d.notFitCount} numbers don’t`} look like ${d.countryName} numbers — check ${d.notFitCount === 1 ? 'it' : 'them'}: ${d.notFit.slice(0, 5).join(', ')}${d.notFitCount > 5 ? '…' : ''}` : '';
-      setNote(left.trim());
+      const left = d.notFitCount ? ` ${d.notFitCount === 1 ? `1 number doesn’t look like a ${d.countryName} number — check it` : `${d.notFitCount} numbers don’t look like ${d.countryName} numbers — check them`}: ${d.notFit.slice(0, 5).join(', ')}${d.notFitCount > 5 ? '…' : ''}` : '';
+      setNoteOf({ text: d.text, note: left.trim() });
       if (d.fixed) toast.success(`Added the ${d.countryName} code to ${d.fixed === 1 ? '1 number' : `${d.fixed} numbers`}.${left}`);
-      else toast.error(`None of these numbers look like ${d.countryName} numbers.`);
+      else toast.error(n === 1 ? `This number doesn’t look like a ${d.countryName} number.` : `None of these numbers look like ${d.countryName} numbers.`);
     } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   if (!n && !note) return null;

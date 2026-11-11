@@ -1,3 +1,10 @@
+## 2026-06 — CloudIVR web: pick a country for numbers typed without a country code — CODE DONE & TESTED (preview; user deploys)
+- Owner choices: Contacts import (file + paste), New campaign numbers box + its file loader, Quick call, Text-to-voice call; ONE country per list; fixed numbers used in-app only; CAREFUL — applied only when the number fits that country (libphonenumber-js/max), numbers already carrying a code (+/00, or digits that already start with a valid code) untouched, non-fitting ones listed. Bots unchanged; with no country chosen the old reject rule is unchanged.
+- Backend `js/contacts-import.js`: `withCountry`, `normalizeNumber(raw, country)`, `numberIssue(raw, country)`, `fixCountry(text, country)`, `phoneCountries()`, `toRecords(..., {country})` → `noCode`/`fixed`, `parseLeads(..., opts)` → `noCode`/`fixed`/`rows`. `cloudivr-web/contacts.js`: import check/import accept `country` (check returns `noCode`, `fixed`, `suggestCountry`), `/contacts/leads-file` keeps no-code numbers in the box (file order kept), `GET /phone-countries`, `POST /contacts/fix-country`.
+- Frontend `cloudivr/CountryFix.js` (`CountryFix`, `TextCountryFix`, `noCodeCount`; pre-picks USA when ≥80% of no-code numbers are 10 digits) wired into Campaigns LeadCount, QuickCall, textcall/Setup, contacts ImportSteps Review + ImportDialog. FR/ES translated.
+- Tested: iteration_250 — backend 15/15, UI all flows; fixed findings (US pre-pick on mixed lists, stale notes, singular wording, file order).
+
+
 ## 2026-06 — Bulk IVR caller-ID rotation: calls at once shared across IDs (WEB ONLY) — CODE DONE & TESTED (preview; user deploys)
 - Complaint: 3 rotating caller IDs + "20 at once" only dialed 3 at a time. Cause: `createCampaign` forced `concurrency = pool.length` and `poolPicker` allowed one live call per ID.
 - Fix: web passes `poolShare: true` (`cloudivr-web/calls.js` IVR + AI campaign create); engine keeps the customer's calls-at-once (1–20, or up to pool size when >20 IDs, max 50) and the shared picker takes the ID with the fewest live calls (then fewest dialed). Bots unchanged (no poolShare → one call per ID).

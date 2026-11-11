@@ -115,7 +115,7 @@ function LoadFile({ onChange }) {
       if (!d.count && !d.noCode) { toast.error(d.errors[0] || 'No phone numbers found in that file.'); return; }
       onChange(d.text);
       const cols = d.columns?.phone ? ` · phone from “${d.columns.phone}”${d.columns.name ? `, names from “${d.columns.name}”` : ''}` : '';
-      setNote(`${d.count} numbers loaded${cols}${d.noCode ? ` · ${d.noCode} without a country code (pick their country below)` : ''}${d.errors.length === 1 ? ' · 1 row without a valid number skipped' : d.errors.length ? ` · ${d.errors.length} rows without a valid number skipped` : ''}`);
+      setNote(`${d.count === 1 ? '1 number' : `${d.count} numbers`} loaded${cols}${d.noCode ? ` · ${d.noCode} without a country code` : ''}${d.errors.length === 1 ? ' · 1 row without a valid number skipped' : d.errors.length ? ` · ${d.errors.length} rows without a valid number skipped` : ''}`);
     } catch (err) { toast.error(err.message); } finally { setBusy(false); }
   };
   return (

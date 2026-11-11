@@ -1,0 +1,37 @@
+{
+  "summary": "Tested the 'pick a country for numbers without a code' feature in CloudIVR web. Backend: 15 of 15 pytest tests passed (phone-countries, fix-country for GB/US/FR/IT/XX and already-coded numbers, contacts import parse/check/import with and without a country, leads-file noCode and suggestCountry, old no-code rejection unchanged). UI (Playwright): the Contacts paste-import review box (nocc box, apply button disabled until a country is picked, stats refresh, 'Country code added to 2 numbers', import saved +14155550141 / +12125550142 / +447911123499); New campaign box (US pre-picked for an all-10-digit list, text rewritten in place, toast, number that doesn't fit listed in the note, second pass with GB clears the box); Quick call '4155550100, 2125550123' becomes '+14155550100, +12125550123'; Text call '07911123456' becomes '+447911123456', and the not-fit case shows an error toast and a note; dark theme desktop and light theme 390px mobile (select and button stack, no horizontal scroll); campaign-concurrency-input is still there. One real bug: when a campaign file or list mixes numbers with a code and numbers without one, United States is not pre-picked.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/contacts/leads-file", "issue": "Number order changes: numbers with a code come first and numbers without one go to the end, so the file's order is lost in the box. Low impact."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CountryFix.js suggestOf (New campaign / Load Excel)", "issue": "United States is not pre-picked when the list mixes numbers that already have a code (+44...) with bare 10-digit numbers. suggestOf counts every token that has 7+ digits, including +-prefixed and 00 ones. Example: file 'Phone,Name\\n4155550100,Ann\\n2125550123,Bob\\n+447911123456,Cat' gives server suggestCountry='US' (2/2 no-code numbers are 10 digits), but the frontend ratio is 2/3 = 67%, so nothing is pre-picked. LoadFile also ignores d.suggestCountry from /contacts/leads-file. Fix: skip tokens starting with + or 00 in suggestOf (only count numbers without a code), and/or pass d.suggestCountry through.", "selector": "[data-testid='campaign-leads-nocc-select']", "priority": "MEDIUM"},
+      {"component": "CountryFix.js noCodeCount", "issue": "Only 10-digit or 0-prefixed numbers are counted. A national number like FR '612345678' (9 digits) never shows the box, but the server can fix it with fix-country FR. Edge case.", "selector": "[data-testid$='-nocc']", "priority": "LOW"},
+      {"component": "TextCountryFix note / LoadFile note", "issue": "The notes go stale. The not-fit note ('1 number doesn't look like ... — check it: X') is only reset by a new Apply, so it stays after the user edits the number. The campaign-leads-file-note keeps saying '(pick their country below)' after all numbers are fixed.", "selector": "[data-testid='campaign-leads-nocc-note'], [data-testid='campaign-leads-file-note']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Toasts and notes", "issues": ["Grammar: '1 number doesn’t look like United States numbers' should be 'a United States number' for the singular", "Grammar: '1 numbers loaded' in the campaign file note"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_country_fix.py", "/app/test_reports/pytest/pytest_country_fix.xml"],
+  "action_items": [
+    "CountryFix.js suggestOf: leave out tokens that already have a code (+ or 00) so mixed lists pre-pick US like the server does; also consider using d.suggestCountry from /contacts/leads-file in LoadFile",
+    "Optional: clear the TextCountryFix note when the text changes; update or clear the campaign-leads-file-note once no numbers without a code are left",
+    "Optional: fix the singular/plural wording in the toast and the file note"
+  ],
+  "critical_code_review_comments": [
+    "The client noCodeCount and suggestOf only roughly copy the server's lacksCode and suggest logic. Consider returning noCode and suggest from one server call, or sharing the rule, so they don't drift apart",
+    "withCountry treats any number that is valid after toPlus as already having a code (e.g. 447911123456 stays as typed). This is correct for this feature, but a local number that happens to be a valid number of another country stays as typed and won't be listed",
+    "Backend responses are correct, validation is done (invalid_country 400, 200k length limit), and no _id is leaked"
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_country_fix.py"],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "~92% (all flows work; US not pre-picked for mixed lists)"},
+  "seed_data_creation": "None left behind. During the first backend run the cleanup deleted the pre-existing 'CC test' contacts Ann/Bob/Cat, because my import linked those already-saved numbers to my test list. I recreated them right away in 'CC test' (same names/phones, new ids) and fixed the test so it only deletes contacts that belong to its own list. The UI-test 'Pasted list' and TESTUiA/B/C were deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "User civr.uxtest@example.com. Run: REACT_APP_BACKEND_URL=... pytest /app/backend/tests/test_cloudivr_country_fix.py -p no:xdist -o addopts=''. Theme: localStorage 'civr.theme' = light/dark. The amber box testids are <prefix>-nocc, -nocc-count, -nocc-select, -nocc-apply, -nocc-note, with prefixes contacts-import, campaign-leads, quick-call, text-call. The country list loads lazily, so wait about 1 s before reading the select value."
+}

@@ -208,7 +208,7 @@ function routes(router, { db, h, upload }) {
     if (r.binary) return bad(res, 400, 'unsupported_file', r.errors[0])
     // Numbers without a country code stay in the box as typed, so the customer can pick their country and fix them in place.
     const line = (n, name) => (name ? `${n},${String(name).replace(/[,;"]/g, ' ').trim()}` : n)
-    const text = [...r.leads.map(l => line(l.number, l.name)), ...r.noCode.map(x => line(x.raw, x.name))].join('\n')
+    const text = [...r.leads.map((l, i) => [r.rows[i], line(l.number, l.name)]), ...r.noCode.map(x => [x.row, line(x.raw, x.name)])].sort((a, b) => a[0] - b[0]).map(x => x[1]).join('\n')
     r.errors = r.errors.filter(e => !/has no country code/.test(e))
     res.json({ text, count: r.leads.length, noCode: r.noCode.length, suggestCountry: suggest(r.noCode.map(x => x.raw)), errors: r.errors.slice(0, 20), columns: r.columns })
   }))

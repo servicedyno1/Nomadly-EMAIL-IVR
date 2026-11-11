@@ -336,7 +336,7 @@ function parseLeads(input, fileName, opts = {}) {
     leads: records.map(r => ({ number: r.phone, name: r.name.replace(/[^\x20-\x7E\u00A0-\uFFFC]/g, '').slice(0, 60) || null })),
     errors: det.columns.some(c => c.role === 'phone') ? invalid.map(x => `Line ${x.row}: ${x.reason || `Invalid number "${x.value}"`}`) : ['No phone number column found. Add a column called Phone with numbers in it.'],
     columns: det.hasHeader ? { phone: head('phone'), name: nameCol } : null,
-    noCode, fixed,
+    noCode, fixed, rows: records.map(r => r.row),
   }
 }
 
