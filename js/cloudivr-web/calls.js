@@ -24,7 +24,7 @@ const publicCampaign = (c, withLeads = false) => ({
   agentId: c.agentId || null, agentName: c.agentName || null, waitingForHours: !!c.waitingForHours,
   waitingForLine: (c.leads || []).some(l => l.status === 'pending' && l.waitingForLine),
   repeat: c.repeat || null, runNumber: c.runNumber || null, seriesId: c.seriesId || null, autoRun: !!c.autoRun, nextRunId: c.nextRunId || null,
-  splitId: c.splitId || null, part: c.part || null, parts: c.parts || null, autoNext: c.splitId ? !!c.autoNext : null, splitTotal: c.seriesTotal || null,
+  splitId: c.splitId || null, part: c.part || null, parts: c.parts || null, autoNext: c.splitId ? !!c.autoNext : null, splitTotal: c.seriesTotal || null, payPerPart: !!c.payPerPart, trimmedFrom: c.trimmedFrom || null,
   dailyLimit: c.dailyLimit || null, callsToday: c.dailyLimit ? sched.callsToday(c) : null, waitingForDailyLimit: !!c.waitingForDailyLimit,
   voicemailAudioName: c.voicemailAudioUrl ? (c.voicemailAudioName || 'Voicemail message') : null,
   notInService: notInService(c).length, badNumbersCleanedAt: c.badNumbersCleanedAt || null, badNumbersRemoved: c.badNumbersRemoved ?? null,
@@ -183,9 +183,10 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       leads, scheduledFor: plan.scheduledFor, repeat: plan.repeat, dailyLimit: plan.dailyLimit, tz: plan.tz, provider: 'telnyx', voicemailAudioUrl: vm?.audioUrl || null, voicemailAudioName: vm?.name || null,
     }
     // Over 500 numbers → parts of 500 run one after another (no repeat for split lists).
-    const split = leads.length > bulkCallService.MAX_BULK_LEADS
+    const splitMode = ['auto', 'ask', 'part', 'first'].includes(b.splitMode) ? b.splitMode : (b.autoNext === false ? 'ask' : 'auto')
+    const big = leads.length > bulkCallService.MAX_BULK_LEADS, split = big && splitMode !== 'first'
     if (split && plan.repeat) return bad(res, 400, 'split_no_repeat', `Repeat isn’t available for lists over ${bulkCallService.MAX_BULK_LEADS} numbers. Turn off repeat, or use a smaller list.`)
-    const campaign = split ? await bulkCallService.createSeries(params, { autoNext: b.autoNext !== false }) : await bulkCallService.createCampaign(params)
+    const campaign = big ? await bulkCallService.createSeries(params, { mode: splitMode }) : await bulkCallService.createCampaign(params)
     if (campaign.error) return bad(res, campaign.code === 'series_funds' ? 402 : 400, campaign.code || 'create_failed', campaign.error)
     if (dryRun() || showAs) await db.collection('bulkCallCampaigns').updateMany(split ? { splitId: campaign.splitId } : { id: campaign.id }, { $set: { ...(dryRun() ? { dryRun: true } : {}), ...(showAs ? { showAs } : {}) } })
     callerIds.rememberLast(chatId, c.n.phoneNumber, showAs)
@@ -277,7 +278,8 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
         if (req.campaign.dryRun) await sim.run(db.collection('bulkCallCampaigns'), req.campaign.id)
         return res.status(202).json({ dryRun: true, message: 'Preview mode: simulating the rest of the calls. Nobody is dialed.' })
       }
-      const r = await bulkCallService[fn](req.campaign.id, ...(action === 'cancel' ? ['Cancelled by user'] : []))
+      const waiting = action === 'cancel' && ['series_waiting', 'series_ready'].includes(req.campaign.status)
+      const r = waiting ? await bulkCallService.dropSeriesRest(req.campaign.id, req.webChatId) : await bulkCallService[fn](req.campaign.id, ...(action === 'cancel' ? ['Cancelled by user'] : []))
       if (r?.error) return bad(res, r.lowBalance ? 402 : 400, `${action}_failed`, String(r.error).replace(/<[^>]+>/g, ''))
       res.json({ ok: true, campaign: publicCampaign(await bulkCallService.getCampaign(req.campaign.id)) })
     }))

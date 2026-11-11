@@ -40,7 +40,7 @@ function RowAction({ c, i, onChange }) {
     } catch (err) { toast.error(err.message); } finally { setBusy(false); }
   };
   const Icon = action === 'pause' ? Pause : Play;
-  return <button type="button" className={`civr-btn civr-btn-sm relative z-10 ${action === 'resume' ? 'civr-btn-primary' : 'civr-btn-ghost'}`} disabled={busy} onClick={run} data-testid={`campaign-row-${i}-${action}`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Icon className="w-4 h-4" />}{action === 'pause' ? 'Pause' : action === 'start' ? `Start part ${c.part}` : 'Resume'}</button>;
+  return <button type="button" className={`civr-btn civr-btn-sm relative z-10 ${action === 'resume' ? 'civr-btn-primary' : 'civr-btn-ghost'}`} disabled={busy} onClick={run} data-testid={`campaign-row-${i}-${action}`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Icon className="w-4 h-4" />}{action === 'pause' ? 'Pause' : action === 'start' ? (c.payPerPart ? `Start & pay part ${c.part}` : `Start part ${c.part}`) : 'Resume'}</button>;
 }
 
 function CampaignRow({ c, i, pv, onChange }) {
@@ -54,7 +54,8 @@ function CampaignRow({ c, i, pv, onChange }) {
         {c.voicemailAudioName && c.startedAt && <span className={`civr-pill ${c.stats?.voicemailLeft ? '!bg-[#22c55e]/15 civr-vm-green !border-[#22c55e]/40' : ''}`} data-testid={`campaign-row-${i}-voicemail-left`}>{c.stats?.voicemailLeft === 1 ? '📩 1 voicemail left' : `📩 ${c.stats?.voicemailLeft || 0} voicemails left`}</span>}
         {c.repeat && <span className="civr-pill civr-pill-on" data-testid={`campaign-row-${i}-repeat`}><Repeat className="w-3 h-3" />{c.repeat === 'weekly' ? 'weekly' : 'daily'}{c.runNumber > 1 ? ` · run ${c.runNumber}` : ''}</span>}
         {c.waitingForDailyLimit && c.status === 'running' && <span className="civr-pill civr-pill-warn" data-testid={`campaign-row-${i}-daily-limit`}>daily limit reached</span>}
-        {c.splitId && <span className="civr-pill" data-testid={`campaign-row-${i}-part`}>{`Part ${c.part} of ${c.parts}`}</span>}
+        {c.splitId && <span className="civr-pill" data-testid={`campaign-row-${i}-part`}>{`Part ${c.part} of ${c.parts}${c.payPerPart ? ' · pay per part' : ''}`}</span>}
+        {c.trimmedFrom && <span className="civr-pill" data-testid={`campaign-row-${i}-trimmed`}>{`first 500 of ${c.trimmedFrom.toLocaleString()}`}</span>}
         <span className={statusPill(c.status)} data-testid={`campaign-row-${i}-status`}>{c.status === 'series_waiting' ? `waits for part ${c.part - 1}` : c.status === 'series_ready' ? 'ready to start' : c.status}</span>
         {c.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}
         <RowAction c={c} i={i} onChange={onChange} />
@@ -164,17 +165,26 @@ function VoicemailChoice({ mode, onMode, children }) {
 
 const MAX_LEADS = 500;
 const MAX_SPLIT = 5000;
-// Over 500 numbers: the list runs as parts of 500, one after another — the customer picks whether the next part starts by itself.
-function SplitNote({ n, auto, onAuto }) {
+// Over 500 numbers: all parts (auto or ask), pay per part, or the first 500 only.
+const SPLIT_MODES = [
+  ['auto', 'All parts — start each one automatically', 'Wallet must cover every part now.'],
+  ['ask', 'All parts — ask me before each one', 'Wallet must cover every part now.'],
+  ['part', 'First 500 now, keep the rest for later', 'Wallet covers part 1 only. You start (and pay for) each next part yourself, or drop it.'],
+  ['first', 'Only the first 500 — drop the rest', 'Wallet covers 500 numbers. The other numbers are not saved or called.'],
+];
+function SplitNote({ n, mode, onMode }) {
   if (!n || n <= MAX_LEADS || n > MAX_SPLIT) return null;
   const parts = Math.ceil(n / MAX_LEADS), last = n - (parts - 1) * MAX_LEADS;
   return (
     <div className="civr-card p-4 !border-[var(--c-accent)]/40" data-testid="campaign-split-note">
-      <div className="font-semibold text-sm" data-testid="campaign-split-summary">{`${n.toLocaleString()} numbers → ${parts} parts, called one after another`}</div>
-      <div className="text-xs text-[#a1a1aa] mt-1">{`${parts - 1 === 1 ? 'Part 1' : `Parts 1–${parts - 1}`}: 500 numbers each · Part ${parts}: ${last}. Only one part calls at a time, with the same message and settings. Your wallet must cover all parts before launch.`}</div>
-      <div className="flex flex-col sm:flex-row gap-2 mt-3" role="radiogroup" aria-label="When a part finishes">
-        <button type="button" role="radio" aria-checked={auto} onClick={() => onAuto(true)} className={`civr-btn civr-btn-sm ${auto ? 'civr-btn-primary' : 'civr-btn-ghost'}`} data-testid="campaign-split-auto">Start each part automatically</button>
-        <button type="button" role="radio" aria-checked={!auto} onClick={() => onAuto(false)} className={`civr-btn civr-btn-sm ${!auto ? 'civr-btn-primary' : 'civr-btn-ghost'}`} data-testid="campaign-split-ask">Ask me before each part</button>
+      <div className="font-semibold text-sm" data-testid="campaign-split-summary">{mode === 'first' ? `${n.toLocaleString()} numbers → only the first 500 are called` : `${n.toLocaleString()} numbers → ${parts} parts, called one after another`}</div>
+      <div className="text-xs text-[#a1a1aa] mt-1">{mode === 'first' ? `The first 500 in your list order are called. The other ${(n - MAX_LEADS).toLocaleString()} are dropped.` : `${parts - 1 === 1 ? 'Part 1' : `Parts 1–${parts - 1}`}: 500 numbers each · Part ${parts}: ${last}. Only one part calls at a time, with the same message and settings.`}</div>
+      <div className="grid sm:grid-cols-2 gap-2 mt-3" role="radiogroup" aria-label="How to run this list">
+        {SPLIT_MODES.map(([k, label, sub]) => (
+          <button key={k} type="button" role="radio" aria-checked={mode === k} onClick={() => onMode(k)} className={`text-left rounded-xl border p-3 transition-colors ${mode === k ? 'border-[var(--c-accent)] bg-[var(--c-accent)]/10' : 'border-[#3f3f46] hover:border-[#71717a]'}`} data-testid={`campaign-split-${k}`}>
+            <div className="text-sm font-medium">{label}</div><div className="text-xs text-[#a1a1aa] mt-0.5">{sub}</div>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -332,7 +342,7 @@ export function CampaignNew() {
           </VoicemailChoice>
           </>}
           <LeadsField value={f.leads} onChange={(v) => { set('leads')(v); setEst(null); }} source={f.source} onSource={(v) => { setF(x => ({ ...x, source: v })); setEst(null); }} listId={f.listId} onList={(v) => { setF(x => ({ ...x, listId: v })); setEst(null); }} />
-          {!isAi && <SplitNote n={fromList ? est?.count : f.leads.split('\n').filter(l => /\d{7,}/.test(l.replace(/\D/g, ''))).length} auto={f.autoNext !== false} onAuto={(v) => setF(x => ({ ...x, autoNext: v }))} />}
+          {!isAi && <SplitNote n={fromList ? est?.count : f.leads.split('\n').filter(l => /\d{7,}/.test(l.replace(/\D/g, ''))).length} mode={f.splitMode || 'auto'} onMode={(v) => setF(x => ({ ...x, splitMode: v }))} />}
           {fromList ? (f.listId && <LeadCheck source={{ listId: f.listId }} testid="campaign-lead-check" />)
             : <LeadCheck numbers={f.leads} onClean={(keep, dead) => { const gone = new Set(dead.map(r => r.phone.replace(/\D/g, '').slice(-10))); set('leads')(f.leads.split('\n').filter(line => { const d = (line.split(/[,;\t]/)[0] || '').replace(/\D/g, ''); return !d || !gone.has(d.slice(-10)); }).join('\n')); setEst(null); toast.success(`${dead.length} dead number${dead.length === 1 ? '' : 's'} removed from this campaign`); }} testid="campaign-lead-check" />}
           <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" disabled={(fromList ? !f.listId : !f.leads.trim()) || busy === 'est'} onClick={estimate} data-testid="campaign-estimate-button">{busy === 'est' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}Check numbers &amp; cost</button>

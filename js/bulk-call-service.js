@@ -1804,12 +1804,30 @@ const MAX_SERIES_PARTS = parseInt(process.env.BULK_CALL_MAX_SERIES_PARTS || '10'
 const MAX_SERIES_LEADS = MAX_BULK_LEADS * MAX_SERIES_PARTS
 const splitLeads = (leads) => { const out = []; for (let i = 0; i < leads.length; i += MAX_BULK_LEADS) out.push(leads.slice(i, i + MAX_BULK_LEADS)); return out }
 
-async function createSeries(params, { autoNext = true } = {}) {
+// mode: 'auto' | 'ask' (wallet covers all parts) · 'part' (pay per part: first 500 now, the rest wait unpaid for
+// the customer to start) · 'first' (call only the first 500, the rest are dropped).
+async function createSeries(params, { autoNext = true, mode } = {}) {
+  mode = mode || (autoNext ? 'auto' : 'ask')
   const leads = params.leads || []
   if (leads.length <= MAX_BULK_LEADS) return createCampaign(params)
   if (leads.length > MAX_SERIES_LEADS) return { error: `Up to ${MAX_SERIES_LEADS.toLocaleString()} numbers (${MAX_SERIES_PARTS} parts of ${MAX_BULK_LEADS}). You uploaded ${leads.length.toLocaleString()}.` }
-  const chunks = splitLeads(leads), est = estimateLeadsCost(leads)
+  if (mode === 'first') {
+    const need = estimateLeadsCost(leads.slice(0, MAX_BULK_LEADS)).total, w = await smartWalletCheck(_walletOf, params.chatId, need)
+    if (!w.sufficient) return { error: `Your wallet must cover the first ${MAX_BULK_LEADS} numbers: about $${need.toFixed(2)} (wallet: $${Number(w.usdBal ?? 0).toFixed(2)}). Add $${Math.max(0.01, need - Number(w.usdBal ?? 0)).toFixed(2)} and try again.`, code: 'series_funds', needed: need }
+    const c = await createCampaign({ ...params, leads: leads.slice(0, MAX_BULK_LEADS) })
+    if (c.error) return c
+    await _collection.updateOne({ id: c.id }, { $set: { trimmedFrom: leads.length } })
+    return { ...c, trimmedFrom: leads.length }
+  }
+  const payPerPart = mode === 'part'
+  if (payPerPart) autoNext = false
+  else autoNext = mode !== 'ask'
+  const chunks = splitLeads(leads), est = estimateLeadsCost(payPerPart ? chunks[0] : leads)
   const funds = await smartWalletCheck(_walletOf, params.chatId, est.total)
+  if (!funds.sufficient && payPerPart) {
+    const bal = Number(funds.usdBal ?? funds.balance ?? (await getBalance(_walletOf, params.chatId).catch(() => ({})))?.usdBal ?? 0)
+    return { error: `Your wallet must cover part 1 before launch: about $${est.total.toFixed(2)} for ${chunks[0].length} numbers (wallet: $${bal.toFixed(2)}). Add $${Math.max(0.01, est.total - bal).toFixed(2)} and try again.`, code: 'series_funds', needed: est.total }
+  }
   if (!funds.sufficient) {
     const bal = Number(funds.usdBal ?? funds.balance ?? (await getBalance(_walletOf, params.chatId).catch(() => ({})))?.usdBal ?? 0)
     return { error: `Your wallet must cover all ${chunks.length} parts before launch: about $${est.total.toFixed(2)} for ${leads.length.toLocaleString()} numbers (wallet: $${bal.toFixed(2)}). Add $${Math.max(0.01, est.total - bal).toFixed(2)} and try again.`, code: 'series_funds', needed: est.total }
@@ -1819,7 +1837,7 @@ async function createSeries(params, { autoNext = true } = {}) {
     const c = await createCampaign({ ...params, leads: chunks[i], ...(i ? { scheduledFor: null } : {}) })
     if (c.error) { await _collection.deleteMany({ id: { $in: ids } }); return c }
     ids.push(c.id)
-    await _collection.updateOne({ id: c.id }, { $set: { splitId, part: i + 1, parts: chunks.length, autoNext: !!autoNext, seriesTotal: leads.length, ...(i ? { status: 'series_waiting' } : {}) } })
+    await _collection.updateOne({ id: c.id }, { $set: { splitId, part: i + 1, parts: chunks.length, autoNext: !!autoNext, payPerPart, seriesTotal: leads.length, ...(i ? { status: 'series_waiting' } : {}) } })
   }
   return { ...(await _collection.findOne({ id: ids[0] })), splitId, parts: chunks.length, partIds: ids }
 }
@@ -1838,7 +1856,8 @@ async function advanceSeries(c) {
   const label = `Part ${doc.part} of ${doc.parts} (${doc.leads.length} numbers)`
   if (!c.autoNext) {
     const web = require('./cloudivr-web/notify').isWebChatId(c.chatId)
-    _bot?.sendMessage(c.chatId, `✅ Part ${c.part} of ${c.parts} done.\n\n▶️ ${label} is ready.${web ? ' Open Campaigns to start it.' : ''}`, web ? {} : { reply_markup: { inline_keyboard: [[{ text: `▶️ Start part ${doc.part} of ${doc.parts}`, callback_data: `bcnext:${doc.id}` }]] } }).catch(() => {})
+    const left = c.parts - c.part, pay = c.payPerPart ? `\n💳 About $${estimateLeadsCost(doc.leads).total.toFixed(2)} — your wallet must cover this part when you start it.` : ''
+    _bot?.sendMessage(c.chatId, `✅ Part ${c.part} of ${c.parts} done.\n\n▶️ ${label} is ready.${pay}${web ? ` Open Campaigns to start it, or drop the remaining ${left === 1 ? 'part' : `${left} parts`}.` : ''}`, web ? {} : { reply_markup: { inline_keyboard: [[{ text: `▶️ Start part ${doc.part} of ${doc.parts}`, callback_data: `bcnext:${doc.id}` }], [{ text: `🗑 Drop the remaining ${left === 1 ? 'part' : `${left} parts`}`, callback_data: `bcdrop:${doc.id}` }]] } }).catch(() => {})
     return
   }
   _bot?.sendMessage(c.chatId, `✅ Part ${c.part} of ${c.parts} done — ▶️ ${label} starting now.`).catch(() => {})
@@ -1851,9 +1870,25 @@ async function startSeriesPart(campaignId, chatId) {
   const c = await _collection.findOneAndUpdate({ id: campaignId, chatId, status: 'series_ready' }, { $set: { status: 'created' } }, { returnDocument: 'after' })
   const doc = c?.value !== undefined ? c.value : c
   if (!doc) return { error: 'This part is not ready to start.' }
+  if (doc.payPerPart) {
+    const need = estimateLeadsCost(doc.leads).total, w = await smartWalletCheck(_walletOf, chatId, need)
+    if (!w.sufficient) {
+      await _collection.updateOne({ id: doc.id }, { $set: { status: 'series_ready' } })
+      const bal = Number(w.usdBal ?? 0)
+      return { error: `Your wallet must cover part ${doc.part}: about $${need.toFixed(2)} for ${doc.leads.length} numbers (wallet: $${bal.toFixed(2)}). Add $${Math.max(0.01, need - bal).toFixed(2)} and start it again.`, lowBalance: true }
+    }
+  }
   const r = await startCampaign(doc.id)
   if (r?.error) await _collection.updateOne({ id: doc.id }, { $set: { status: 'series_ready' } })
   return r
+}
+
+// The customer drops the parts that haven't started yet (this one and every later part).
+async function dropSeriesRest(campaignId, chatId) {
+  const c = await _collection.findOne({ id: campaignId, chatId, splitId: { $exists: true }, status: { $in: ['series_waiting', 'series_ready'] } })
+  if (!c) return { error: 'There are no waiting parts to drop.' }
+  const r = await _collection.updateMany({ splitId: c.splitId, chatId, part: { $gte: c.part }, status: { $in: ['series_waiting', 'series_ready'] } }, { $set: { status: 'cancelled', completedAt: new Date(), cancelReason: 'Remaining parts dropped by customer' } })
+  return { dropped: r.modifiedCount }
 }
 
 async function cancelCampaign(campaignId, reason = 'Cancelled by user', { sendReport = true } = {}) {
@@ -1987,6 +2022,7 @@ module.exports = {
   createCampaign,
   createSeries,
   startSeriesPart,
+  dropSeriesRest,
   MAX_SERIES_LEADS,
   MAX_SERIES_PARTS,
   startCampaign,

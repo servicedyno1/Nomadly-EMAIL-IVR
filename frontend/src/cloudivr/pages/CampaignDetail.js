@@ -66,6 +66,14 @@ function Waiting({ c }) {
 
 // Same minimum the server enforces before a campaign starts (bulk-call-service BULK_CALL_MIN_WALLET).
 const CAMPAIGN_MIN_WALLET = 20;
+function SeriesNote({ c }) {
+  if (!c.splitId && !c.trimmedFrom) return null;
+  const how = c.payPerPart ? 'Pay per part: each next part waits for you to start it, and your wallet is checked for that part only.' : c.autoNext ? 'Each next part starts by itself when the one before finishes.' : 'Each next part waits for you to start it.';
+  const text = c.trimmedFrom ? `Only the first 500 of your ${c.trimmedFrom.toLocaleString()} numbers are in this campaign. The rest were dropped.`
+    : `Part ${c.part} of ${c.parts} · ${(c.splitTotal || 0).toLocaleString()} numbers in total. ${how}${c.status === 'series_waiting' ? ` This part waits for part ${c.part - 1} to finish.` : ''}`;
+  return <div className="text-sm text-[#a1a1aa] mt-1" data-testid="campaign-series-note">{text}</div>;
+}
+
 function Controls({ c, act, busy }) {
   const funds = useBalance(['created', 'paused'].includes(c.status) ? CAMPAIGN_MIN_WALLET : 0);
   const btn = (action, label, Icon, cls = 'civr-btn-ghost') => <button className={`civr-btn ${cls} civr-btn-sm`} disabled={busy || (['start', 'resume'].includes(action) && !funds.enough)} onClick={() => act(action)} data-testid={`campaign-${action}-button`}><Icon className="w-4 h-4" />{label}</button>;
@@ -76,6 +84,8 @@ function Controls({ c, act, busy }) {
       {c.status === 'running' && btn('pause', 'Pause', Pause)}
       {c.status === 'paused' && btn('resume', 'Resume', RotateCcw, 'civr-btn-primary')}
       {['created', 'running', 'paused', 'scheduled'].includes(c.status) && btn('cancel', 'Cancel', XCircle, 'civr-btn-danger')}
+      {c.status === 'series_ready' && btn('start', c.payPerPart ? `Start & pay part ${c.part}` : `Start part ${c.part}`, Play, 'civr-btn-primary')}
+      {['series_ready', 'series_waiting'].includes(c.status) && btn('drop', c.part === c.parts ? 'Drop this part' : `Drop parts ${c.part}–${c.parts}`, XCircle, 'civr-btn-danger')}
     </div>
   );
 }
@@ -183,6 +193,12 @@ export default function CampaignDetail() {
 
   const act = async (action) => {
     const started = !['created', 'scheduled'].includes(c.status);
+    if (action === 'drop') {
+      if (!(await ask(`Drop ${c.part === c.parts ? 'this part' : `parts ${c.part}–${c.parts}`}? These numbers will not be called and nothing is charged for them.`, { danger: true, ok: 'Drop', cancel: 'Keep them' }))) return;
+      setBusy(true);
+      try { await api(`/campaigns/${id}/cancel`, { method: 'POST' }); toast.success('Remaining parts dropped'); reload(); refreshSummary(); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
+      return;
+    }
     if (action === 'cancel' && !(await ask(started ? 'Cancel this campaign? No more numbers are dialed. Calls still ringing or playing the message end now; calls already transferred to you keep going.' : 'Cancel this campaign? It will never dial anyone.', { danger: true, ok: 'Cancel campaign', cancel: started ? 'Keep it running' : 'Keep it' }))) return;
     setBusy(true);
     try {
@@ -209,9 +225,10 @@ export default function CampaignDetail() {
           <CampaignName c={c} onSaved={(name) => setData(p => ({ campaign: { ...p.campaign, name } }))} />
           <div className="text-sm text-[#a1a1aa] font-mono mt-1">from {pv.phone(c.callerId)} · created {when(c.createdAt)}{c.scheduledFor ? ` · scheduled ${when(c.scheduledFor)}` : ''}</div>
           {c.voicemailAudioName && <div className="text-sm text-[#a1a1aa] mt-1" data-testid="campaign-voicemail-drop">{`Voicemail drop: ${c.voicemailAudioName}`}</div>}
+          <SeriesNote c={c} />
           <RunPlan c={c} onChanged={reload} />
         </div>
-        <div className="flex items-center gap-2"><span className={statusPill(c.status)} data-testid="campaign-status">{c.status}</span>{c.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}</div>
+        <div className="flex items-center gap-2"><span className={statusPill(c.status)} data-testid="campaign-status">{c.status === 'series_waiting' ? `waits for part ${c.part - 1}` : c.status === 'series_ready' ? 'ready to start' : c.status}</span>{c.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}</div>
       </div>
       <div className="civr-card p-6 mb-4">
         <div className="flex items-center justify-between mb-3"><span className="text-sm text-[#d4d4d8]">Progress</span><span className="font-mono text-sm" data-testid="campaign-progress">{pct}%</span></div>

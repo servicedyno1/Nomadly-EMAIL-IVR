@@ -1025,15 +1025,18 @@ function _bulkClipLabels(audios) {
 // Over 500 numbers the list runs as parts of 500 (one after another); the customer picks how the next part starts.
 const BULK_SPLIT_AUTO = '🚀 Launch — start each part automatically'
 const BULK_SPLIT_ASK = '🚀 Launch — ask me before each part'
+const BULK_SPLIT_PART = '💳 First 500 now — keep the rest for later'
+const BULK_SPLIT_FIRST = '✂️ Only the first 500 — drop the rest'
+const BULK_SPLIT_MODES = { [BULK_SPLIT_AUTO]: 'auto', [BULK_SPLIT_ASK]: 'ask', [BULK_SPLIT_PART]: 'part', [BULK_SPLIT_FIRST]: 'first' }
 function _bulkLaunchRows(bulkData) {
   const split = (bulkData?.leads?.length || 0) > (bulkCallService.MAX_BULK_LEADS || 500)
-  return split ? [[BULK_SPLIT_AUTO], [BULK_SPLIT_ASK], ['⏰ Schedule for later'], ['↩️ Back']] : [['🚀 Launch Campaign'], ['⏰ Schedule for later'], ['↩️ Back']]
+  return split ? [[BULK_SPLIT_AUTO], [BULK_SPLIT_ASK], [BULK_SPLIT_PART], [BULK_SPLIT_FIRST], ['⏰ Schedule for later'], ['↩️ Back']] : [['🚀 Launch Campaign'], ['⏰ Schedule for later'], ['↩️ Back']]
 }
 function _bulkSplitLine(n) {
   const max = bulkCallService.MAX_BULK_LEADS || 500
   if (n <= max) return ''
   const parts = Math.ceil(n / max)
-  return `\n📦 <b>${n.toLocaleString()} numbers → ${parts} parts</b> of up to ${max}, called one after another (same message and settings). Your wallet must cover all parts before launch.`
+  return `\n📦 <b>${n.toLocaleString()} numbers → ${parts} parts</b> of up to ${max}, called one after another (same message and settings), in your list order.\n\nChoose how to run it:\n• <b>Start each part automatically</b> / <b>Ask me before each part</b> — your wallet must cover all ${parts} parts now.\n• <b>First 500 now, keep the rest</b> — wallet covers part 1 only; you start and pay for each next part yourself, or drop it.\n• <b>Only the first 500</b> — wallet covers 500 numbers; the other ${(n - max).toLocaleString()} are dropped.\n⏰ Scheduling runs all parts automatically.`
 }
 
 function _bulkPreviewText(bulkData, lang) {
@@ -6616,6 +6619,13 @@ bot?.on('callback_query', async (query) => {
       if (r?.error) return send(chatId, `⚠️ ${sanitizeProviderError(String(r.error).replace(/<[^>]+>/g, ''), 'voice')}`)
       try { await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message.message_id }) } catch { /* noop */ }
       return send(chatId, '▶️ Next part started — you’ll get live updates as before.')
+    }
+    if (data.startsWith('bcdrop:')) {
+      try { await bot.answerCallbackQuery(query.id) } catch { /* noop */ }
+      const r = await bulkCallService.dropSeriesRest(data.slice(7), chatId).catch(e => ({ error: e.message }))
+      if (r?.error) return send(chatId, `⚠️ ${r.error}`)
+      try { await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message.message_id }) } catch { /* noop */ }
+      return send(chatId, `🗑 Dropped ${r.dropped === 1 ? 'the remaining part' : `the remaining ${r.dropped} parts`} — those numbers won’t be called or charged.`)
     }
     if (data.startsWith('bcclean:')) {
       try { await bot.answerCallbackQuery(query.id) } catch { /* noop */ }
@@ -29444,7 +29454,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.bulkSetConcurrency)
       return send(chatId, trans('t.cp_216'), k.of([['5'], ['10'], ['15'], ['20'], ['↩️ Back']]))
     }
-    if (message === '🚀 Launch Campaign' || message === BULK_SPLIT_AUTO || message === BULK_SPLIT_ASK) {
+    if (message === '🚀 Launch Campaign' || BULK_SPLIT_MODES[message]) {
       const bulkData = info?.bulkData || {}
       if (!bulkData.leads?.length || !bulkData.callerId || !bulkData.audioUrl) {
         return send(chatId, trans('t.cp_217'))
@@ -29472,9 +29482,11 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           voicemailAudioName: bulkData.voicemailAudioName || null,
           twilioSubAccountSid: bulkData.twilioSubAccountSid || null,
           twilioSubAccountToken: bulkData.twilioSubAccountToken || null,
-        }, { autoNext: message !== BULK_SPLIT_ASK })
+        }, { mode: BULK_SPLIT_MODES[message] || 'auto' })
         if (campaign.error) return send(chatId, `⚠️ ${campaign.error}`, k.of(_bulkLaunchRows(bulkData)))
-        if (split) send(chatId, `📦 Split into <b>${campaign.parts} parts</b>. Part 1 of ${campaign.parts} (${campaign.leads.length} numbers) starts now. ${message === BULK_SPLIT_ASK ? 'I’ll ask you before each next part.' : 'Each next part starts by itself when the one before finishes.'}`, { parse_mode: 'HTML' })
+        const sm = BULK_SPLIT_MODES[message]
+        if (split && sm === 'first') send(chatId, `✂️ Calling only the <b>first ${campaign.leads.length}</b> of your ${bulkData.leads.length.toLocaleString()} numbers. The other ${(bulkData.leads.length - campaign.leads.length).toLocaleString()} are dropped.`, { parse_mode: 'HTML' })
+        else if (split) send(chatId, `📦 Split into <b>${campaign.parts} parts</b>. Part 1 of ${campaign.parts} (${campaign.leads.length} numbers) starts now. ${sm === 'part' ? 'The other parts wait — when a part finishes I’ll ask if you want to start (and pay for) the next one or drop the rest.' : sm === 'ask' ? 'I’ll ask you before each next part.' : 'Each next part starts by itself when the one before finishes.'}`, { parse_mode: 'HTML' })
         await saveInfo('activeCampaignId', campaign.id)
         await set(state, chatId, 'action', a.bulkRunning)
         const startResult = await bulkCallService.startCampaign(campaign.id)

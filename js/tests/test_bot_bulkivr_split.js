@@ -26,6 +26,16 @@ const outs = () => fs.readFileSync(LOG, 'utf8').split('\n').filter(l => l.includ
   await tg('🚀 Launch — ask me before each part'); await wait(1500)
   const o2 = outs().slice(n1).join('\n')
   ok(/must cover all 3 parts/.test(o2), 'low wallet → "must cover all 3 parts" and nothing created')
+  ok(o.includes('First 500 now — keep the rest for later') && o.includes('Only the first 500 — drop the rest'), 'confirm also offers pay-per-part and first-500-only')
+  const nf = outs().length
+  await tg('✂️ Only the first 500 — drop the rest'); await wait(1500)
+  ok(/must cover the first 500/.test(outs().slice(nf).join('\n')), 'first-500-only with low wallet → asks to cover 500 only')
+  const np = outs().length
+  await tg('💳 First 500 now — keep the rest for later'); await wait(1500)
+  ok(/must cover part 1/.test(outs().slice(np).join('\n')), 'pay-per-part with low wallet → asks to cover part 1 only')
+  const nd = outs().length
+  await cb('bcdrop:not-a-real-part')
+  ok(outs().slice(nd).join('\n').includes('no waiting parts'), '"Drop" on an unknown part → refused')
   ok(!(await db.collection('bulkCallCampaigns').countDocuments({ chatId: String(CHAT) })) && !(await db.collection('bulkCallCampaigns').countDocuments({ chatId: CHAT })), 'no campaign created')
   const n2 = outs().length
   await cb('bcnext:not-a-real-part')
