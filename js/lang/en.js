@@ -3432,7 +3432,7 @@ ${list
  .join('\n')}
 `,
  noVPSfound: 'You have no server yet. Create a 🐧 Linux VPS or a 🪟 Windows RDP below.',
- selectCorrectOption: 'Please select a option from the list',
+ selectCorrectOption: 'Please pick one of the buttons below.',
  selectedVpsData: data => {
    const isRDP = !!(data.isRDP || data.osType === 'Windows')
    const port = isRDP ? 3389 : 22

@@ -41,7 +41,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   }
   if (!action.startsWith('bse-')) return false
   const RD = await B.ready(), HK = homeKb(L, RD)
-  if (message === L.back) { if (action === 'bse-home') { await go('none'); return goto.submenu7 ? (await goto.submenu7(), true) : false } await go('bse-home'); await home(send, chatId, lang); return true }
+  if (message === L.back || /^(↩️ |🔙 |⬅️ )?(Back|Retour|返回|वापस|بازگشت)$/.test(String(message || '').trim())) { if (action === 'bse-home') { await go('none'); return goto.submenu7 ? (await goto.submenu7(), true) : false } await go('bse-home'); await home(send, chatId, lang); return true }
   if (action === 'bse-home') {
     if (message === L.newc) { const c = await B.cfg(); await go('bse-contacts'); return send(chatId, say('contacts_q', { min: c.minVolume, max: c.maxVolume }), kb([[L.back]])) }
     if (message === L.one) { if (!RD.one) return send(chatId, say('off_one'), HK); await go('bse-one-to'); return send(chatId, say('one_to_q'), kb([[L.back]])) }

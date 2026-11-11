@@ -99,7 +99,7 @@ async function linkSim(iccid, email, kind) {
 }
 
 // ---------- customer lines ----------
-const pub = (d) => ({ numberChange: d.numberChange ? { status: d.numberChange.status, at: d.numberChange.at, oldNumber: d.numberChange.oldNumber, newNumber: d.numberChange.newNumber || null } : null, formerNumbers: (d.formerNumbers || []).map(f => f.phone), autoRenew: d.autoRenew !== false, id: d._id, iccid: d.iccid || null, phoneNumber: d.phoneNumber || null, planId: d.planId, price: d.price, status: d.status, note: d.note || null, callsTo: d.callsTo || 'device', ivrNumber: d.ivrNumber || null, nextBillAt: d.nextBillAt || null, expiresAt: d.expiresAt || null, createdAt: d.createdAt, linked: !!d.linked, kind: d.kind || 'esim', zipcode: d.zipcode || null, hasQr: d.kind !== 'mobile' && !!(d.qrCode || d.iccid), qrEmail: d.qrEmail || null, qrEmailedAt: d.qrEmailedAt || null })
+const pub = (d) => ({ numberChange: d.numberChange ? { status: d.numberChange.status, at: d.numberChange.at, oldNumber: d.numberChange.oldNumber, newNumber: d.numberChange.newNumber || null } : null, formerNumbers: (d.formerNumbers || []).map(f => f.phone), autoRenew: d.autoRenew !== false, id: d._id, iccid: d.iccid || null, phoneNumber: d.phoneNumber || null, planId: d.planId, price: d.price, status: d.status, note: d.note || null, callsTo: d.callsTo || 'device', ivrNumber: d.ivrNumber || null, nextBillAt: d.nextBillAt || null, expiresAt: d.expiresAt || null, createdAt: d.createdAt, linked: !!d.linked, kind: d.kind || 'esim', zipcode: d.zipcode || null, hasQr: d.kind !== 'mobile' && !!(d.qrCode || d.iccid), qrEmail: d.qrEmail || null, qrEmailedAt: d.qrEmailedAt || null, imeiDueAt: d.status === 'awaiting_imei' ? new Date(new Date(d.createdAt).getTime() + IMEI_WAIT_MS) : null })
 const luhn = (s) => { let sum = 0; for (let i = 0; i < s.length; i++) { let n = +s[s.length - 1 - i]; if (i % 2) { n *= 2; if (n > 9) n -= 9 } sum += n } return sum % 10 === 0 }
 const txn = (chatId, type, amount, meta) => S.db.collection('transactions').insertOne({ chatId: String(chatId), type, amount: round2(amount), currency: 'USD', status: 'completed', metadata: { ...meta, channel: 'esim' }, createdAt: new Date(), updatedAt: new Date() })
 
@@ -136,8 +136,8 @@ async function buy(chatId, { planId, imei, zipcode, email, autoRenew, source, la
   const qrEmail = String(email || '').trim().toLowerCase()
   if ((!bot || qrEmail) && !EMAIL_RE.test(qrEmail)) return { error: 'Enter the email address where we should send your eSIM QR code.' }
   const im = String(imei || '').replace(/\D/g, '')
-  // Telegram buyers may pay first and send the IMEI afterwards (the line waits in 'awaiting_imei').
-  const later = bot && !im
+  // Buyers pay first and send the IMEI afterwards (the line waits in 'awaiting_imei').
+  const later = !im
   if (!later && (im.length !== 15 || !luhn(im))) return { error: 'Enter your phone’s 15-digit IMEI (dial *#06# to see it).' }
   const zip = String(zipcode || '').trim()
   if (zip && !/^\d{5}$/.test(zip)) return { error: 'Enter a 5-digit USA ZIP code, or leave it empty.' }
@@ -198,7 +198,7 @@ async function imeiChase() {
   for (const d of await S.col.find({ status: 'awaiting_imei', createdAt: { $lte: new Date(now - DAY_MS) }, imeiRemindedAt: { $not: { $gt: new Date(now - DAY_MS) } } }).limit(50).toArray()) {
     await S.col.updateOne({ _id: d._id }, { $set: { imeiRemindedAt: new Date() } })
     const left = Math.max(1, Math.ceil((new Date(d.createdAt).getTime() + IMEI_WAIT_MS - now) / DAY_MS))
-    say(d.chatId, bt(d, 'imeiRemind', left, d.price) || `📟 Your paid eSIM is waiting for your phone’s IMEI. Type /imei or open 📋 My eSIMs to send it. If it isn’t sent within ${left} day(s), $${d.price} goes back to your wallet.`)
+    say(d.chatId, bt(d, 'imeiRemind', left, d.price) || `📟 Your paid eSIM is waiting for your phone’s IMEI. Open USA eSIM in CloudIVR and enter it to create your eSIM. If it isn’t sent within ${left} day(s), $${d.price} goes back to your wallet.`)
   }
 }
 
