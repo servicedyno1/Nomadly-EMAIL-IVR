@@ -968,8 +968,8 @@ async function processOne(m, c) {
   await C('bsEsims').updateOne({ _id: e._id }, { $inc: { 'stats.submitted': 1 } })
   if (!m.system) await lineLog(e, c, { n: m.sessionId ? 0 : 1, out: 1, session: m.sessionId ? 1 : 0 })
   try {
-    await P.sendSms({ from: e.msisdn, to: m.to, text: m.body, key: m._id, account: acctId })
-    await mark(m, 'sent', { sentAt: new Date() }); await C('bsEsims').updateOne({ _id: e._id }, { $inc: { 'stats.sent': 1 } }); if (!m.system) await lineLog(e, c, { sent: 1 })
+    const sr = await P.sendSms({ from: e.msisdn, to: m.to, text: m.body, key: m._id, account: acctId })
+    await mark(m, 'sent', { sentAt: new Date(), providerId: sr?.providerId || null, ...((await C('bsDlr').countDocuments({}, { limit: 1 })) ? {} : { sendResp: sr?.resp || null }) }); await C('bsEsims').updateOne({ _id: e._id }, { $inc: { 'stats.sent': 1 } }); if (!m.system) await lineLog(e, c, { sent: 1 })
     if (day) await countDay(m.cid, day, 'sent')
     if (!m.system) await C('bsSessions').updateOne({ cid: m.cid, esimId: e._id, to: m.to }, { $set: { status: 'active', lastActivityAt: new Date(), expiresAt: new Date(Date.now() + c.sessionHours * HOUR) }, $setOnInsert: { _id: id('s'), from: e.msisdn, startedAt: new Date() } }, { upsert: true })
     if (m.campaignId) await C('bsCampaigns').updateOne({ _id: m.campaignId }, { $inc: { 'stats.sent': 1 } })
@@ -1125,6 +1125,37 @@ async function optOutWatch(cid) {
   if (n === 25 || n === 100) { alert(`🚩 ${cid}: ${n} opt-outs in 24 h. Review the customer.`); incident('excessive_opt_outs', { cid, n }) }
 }
 // One webhook URL for every account (each account signs with its own secret; the handler tries them all).
+// Spenza delivery-status callback: store every payload (schema unpublished), match it to our text, record delivered/failed.
+async function onStatus(raw, headers, body) {
+  if (!P.dry()) { const secrets = [...(await C('bsAccounts').find({ 'webhook.signingSecret': { $ne: null } }).toArray()).map(a => a.webhook.signingSecret), (await C('bsConfig').findOne({ _id: 'webhook' }))?.signingSecret].filter(Boolean); if (!secrets.some(s => P.verify(raw, headers['x-spenza-signature'], headers['x-spenza-timestamp'], s))) return { status: 401 } }
+  const x = P.parseStatus(body), dupKey = crypto.createHash('sha1').update(String(raw)).digest('hex')
+  try { await C('bsDlr').insertOne({ _id: dupKey, payload: body, parsed: x, at: new Date() }) } catch (e) { if (e.code === 11000) return { status: 200 }; throw e }
+  if (x.test || !x.state) return { status: 200 }
+  const recent = { direction: 'out', status: { $in: ['sent', 'delivered'] }, sentAt: { $gt: new Date(Date.now() - 3 * 86400000) } }
+  const m = (x.providerId && await C('bsMessages').findOne({ providerId: x.providerId })) || (x.to && await C('bsMessages').findOne({ ...recent, to: x.to, ...(x.from ? { from: x.from } : {}), deliveryStatus: null }, { sort: { sentAt: 1 } }))
+  if (!m) { await C('bsDlr').updateOne({ _id: dupKey }, { $set: { matched: false } }); return { status: 200 } }
+  await C('bsDlr').updateOne({ _id: dupKey }, { $set: { matched: m._id } })
+  if (m.deliveryStatus === x.state) return { status: 200 }
+  await C('bsMessages').updateOne({ _id: m._id }, { $set: { deliveryStatus: x.state, deliveryAt: new Date(), deliveryRaw: x.raw, ...(x.error ? { deliveryError: String(x.error).slice(0, 200) } : {}), ...(x.state === 'delivered' ? { status: 'delivered' } : {}) }, $push: { history: { s: `dlr_${x.state}`, at: new Date() } } })
+  if (x.state === 'failed' && !m.system && !m.test) {
+    if (m.esimId) await C('bsEsims').updateOne({ _id: m.esimId }, { $inc: { 'stats.undelivered': 1 } })
+    alert(`📵 Text ${m._id} to ${m.to} was not delivered by the carrier (${x.raw}${x.error ? `: ${x.error}` : ''}) — line ${m.esimId || '?'}`)
+  }
+  return { status: 200 }
+}
+// Texts with no delivery report 10 min after sending → one admin alert per run (only once Spenza has sent us any report).
+async function dlrWatch() {
+  const q = { direction: 'out', status: 'sent', system: { $ne: true }, deliveryStatus: null, dlrLate: { $ne: true }, sentAt: { $lt: new Date(Date.now() - 10 * MIN), $gt: new Date(Date.now() - 6 * HOUR) } }
+  const late = await C('bsMessages').find(q).project({ to: 1, esimId: 1 }).limit(50).toArray(); if (!late.length) return
+  await C('bsMessages').updateMany({ _id: { $in: late.map(m => m._id) } }, { $set: { dlrLate: true } })
+  if (!(await C('bsDlr').countDocuments({ matched: { $exists: true } }, { limit: 1 }))) { if (await once('dlr:none-yet')) alert('📭 No delivery reports received from Spenza yet — texts show "sent" until the first report arrives.'); return }
+  alert(`⏱ ${late.length} text(s) have no delivery report 10+ min after sending (lines: ${[...new Set(late.map(m => m.esimId))].join(', ')}).`)
+}
+// Older registrations had no status URL → add it once on startup.
+async function ensureStatusWebhook() {
+  if (!process.env.SELF_URL || P.dry()) return
+  for (const a of (await cfg()).accounts) { const d = await C('bsAccounts').findOne({ _id: a.id }); if (!d?.webhook?.statusUrl && await once(`statuswh:${a.id}`)) await registerWebhook(process.env.SELF_URL, a.id).then(() => S.log(`[BulkESIM] delivery-status webhook added for ${a.id}`)).catch(e => { C('bsConfig').deleteOne({ _id: `statuswh:${a.id}` }).catch(() => {}); alert(`⚠️ Could not add the delivery-status webhook for ${acctLabel(a.id)}: ${e.message}`) }) }
+}
 async function registerWebhook(baseUrl, onlyAccount) {
   const url = `${String(baseUrl || '').replace(/\/$/, '')}/api/bulk-esim/webhook`, out = []
   for (const a of (await cfg()).accounts) { if (onlyAccount && a.id !== onlyAccount) continue; const r = await P.registerWebhook(url, a.id); await setAccount(a.id, { webhook: { ...r, at: new Date() } }); out.push({ account: a.id, ...r }) }
@@ -1246,8 +1277,9 @@ function init({ db, log = console.log, notifyAdmin }) {
     if (!configured()) { log('[BulkESIM] needs SPENZA_BULK_API_KEY/SECRET and BULK_ESIM_MONGO_URL (shared DB) — engine idle'); return }
     const every = (ms, fn, name) => setInterval(async () => { try { if (await leader()) await fn() } catch (e) { log(`[BulkESIM] ${name}: ${e.message}`) } }, ms)
     bootstrap().catch(e => log(`[BulkESIM] bootstrap: ${e.message}`))
+    ensureStatusWebhook().catch(e => log(`[BulkESIM] status webhook: ${e.message}`))
     setInterval(tick, 2000)
-    every(2 * MIN, creditWatch, 'credit'); every(5 * MIN, syncInventory, 'sync'); every(MIN, async () => { await finishCampaigns(); await expireHolds(); const c = await cfg(); await checkTimeouts(c); await volumeChecks(c); await warmBookings(c) }, 'campaigns')
+    every(2 * MIN, creditWatch, 'credit'); every(5 * MIN, syncInventory, 'sync'); every(MIN, async () => { await finishCampaigns(); await expireHolds(); const c = await cfg(); await checkTimeouts(c); await dlrWatch(); await volumeChecks(c); await warmBookings(c) }, 'campaigns')
     every(10 * MIN, healthCheck, 'health'); every(30 * MIN, autoscale, 'autoscale'); every(HOUR, async () => cancelDead(await cfg()), 'cancelDead'); every(10 * MIN, linkSweep, 'linkSweep')
     log(`[BulkESIM] engine ready (${P.dry() ? 'simulated provider' : 'live Spenza'}${url ? ', shared DB' : ''})`)
   })
@@ -1256,4 +1288,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+module.exports = { warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }

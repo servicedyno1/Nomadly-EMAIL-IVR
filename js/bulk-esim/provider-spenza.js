@@ -49,8 +49,9 @@ const items = (r) => (Array.isArray(r?.data) ? r.data : r?.data?.items || [])
 
 const sendSms = async ({ from, to, text, key, account }) => {
   if (dry()) { if (/^\+1555/.test(to)) { const e = new Error('Invalid destination'); e.kind = 'permanent'; e.status = 400; throw e } return { ok: true, simulated: true } }
-  await call('post', '/api/v1.1/sms', { fromNumber: from, toNumber: to, text }, { 'Idempotency-Key': key }, account)
-  return { ok: true }
+  const r = await call('post', '/api/v1.1/sms', { fromNumber: from, toNumber: to, text }, { 'Idempotency-Key': key }, account)
+  const d = r?.data || r || {}
+  return { ok: true, providerId: d.messageId || d.id || d.Message_ID || d.sid || null, resp: JSON.stringify(r || null).slice(0, 600) }
 }
 const listSims = async (account) => (dry() ? (process.env.BULK_ESIM_FAKE_SYNC_FAIL ? Promise.reject(Object.assign(new Error('Spenza unavailable (simulated 503)'), { kind: 'temporary', status: 503 })) : null) : items(await call('get', '/api/v1.1/sims?page=1&pageSize=100', undefined, {}, account)))
 const brokenFake = (iccid) => { if (String(process.env.BULK_ESIM_FAKE_BROKEN || '').split(',').includes(iccid)) { const e = new Error('SIM not found (simulated)'); e.kind = 'permanent'; throw e } }
@@ -85,9 +86,9 @@ const cancelSubscription = async (iccid, account) => (dry() ? { ok: true, simula
 const replaceNumber = async (iccid, account) => (dry() ? (String(process.env.BULK_ESIM_FAKE_RENEW_FAIL || '').split(',').includes(iccid) ? Promise.reject(Object.assign(new Error('Number change not supported by the operator (simulated 501)'), { kind: 'permanent' })) : { ok: true, simulated: true }) : call('post', `/api/v1.1/sims/${encodeURIComponent(iccid)}/renew-number`, {}, {}, account))
 const setSms = async (iccid, on, account) => (dry() ? { ok: true } : call('patch', `/api/v1.1/sims/${encodeURIComponent(iccid)}/service-state`, { sms: !!on }, {}, account))
 async function registerWebhook(url, account) {
-  if (dry()) return { url, signingSecret: 'whsec_preview', simulated: true }
-  const r = await call('post', '/api/v1.1/webhooks', { operator: 'SpenzaJ', network: 'SpenzaJ', eventType: 'sms', webhookUrls: { messageUrl: url }, authentication: { type: 'none' }, update: true }, {}, account)
-  return { url, id: r?.data?.id || null, signingSecret: r?.data?.signingSecret || null }
+  if (dry()) return { url, statusUrl: url.replace(/\/webhook$/, '/webhook-status'), signingSecret: 'whsec_preview', simulated: true }
+  const r = await call('post', '/api/v1.1/webhooks', { operator: 'SpenzaJ', network: 'SpenzaJ', eventType: 'sms', webhookUrls: { messageUrl: url, callbackMessageUrl: url.replace(/\/webhook$/, '/webhook-status') }, authentication: { type: 'none' }, update: true }, {}, account)
+  return { url, statusUrl: url.replace(/\/webhook$/, '/webhook-status'), id: r?.data?.id || null, signingSecret: r?.data?.signingSecret || null }
 }
 function verify(raw, sig, ts, secret) {
   if (!secret || !sig || !ts || Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false
@@ -96,10 +97,17 @@ function verify(raw, sig, ts, secret) {
   return got.length === exp.length && crypto.timingSafeEqual(Buffer.from(exp), Buffer.from(got))
 }
 const norm = (n) => { const x = String(n || '').replace(/[^\d+]/g, ''); return x.startsWith('+') ? x : x.length === 10 ? '+1' + x : x ? '+' + x : '' }
+// Delivery-status callback → { providerId, state: delivered|failed|null, raw status, to, from, error }. Schema unpublished: read every common name.
+function parseStatus(body) {
+  const b = body?.data || body || {}, first = (v) => (Array.isArray(v) ? v[0] : v)
+  const raw = String(b.status || b.Status || b.deliveryStatus || b.Delivery_Status || b.messageStatus || b.Message_Status || b.state || b.event || b.eventType || body?.eventType || '').toLowerCase()
+  const state = /undeliver|fail|reject|error|expire|blocked|invalid/.test(raw) ? 'failed' : /deliver/.test(raw) ? 'delivered' : null
+  return { providerId: b.messageId || b.Message_ID || b.id || b.sid || b.messageSid || null, state, raw, to: norm(first(b.To) || b.to || b.toNumber || b.destination), from: norm(b.From || b.from || b.fromNumber || b.Owner || b.mdn), error: b.errorMessage || b.error || b.reason || b.Error_Message || null, test: (b.eventType || body?.eventType) === 'webhook.test' }
+}
 // Inbound SMS → { from, to, text, providerId, direction }.
 function parseInbound(body) {
   const b = body?.data || body || {}, first = (v) => (Array.isArray(v) ? v[0] : v)
   return { event: b.eventType || body?.eventType || null, from: norm(b.From || b.from || b.fromNumber), to: norm(b.Owner || first(b.To) || b.to || b.toNumber || b.mdn), text: String(b.Message_Body || b.text || b.message || b.body || '').slice(0, 2000), providerId: b.Message_ID || b.id || null, direction: String(b.Direction || 'inbound').toLowerCase() }
 }
 
-module.exports = { resetFakeFails, name: 'spenza', MAX_ACCOUNTS, dry, configured, accounts, smsRate, sendSms, listSims, getSim, serviceState, subscription, cancelSubscription, credit, plan, provision, replaceNumber, setSms, registerWebhook, verify, parseInbound, norm }
+module.exports = { parseStatus, resetFakeFails, name: 'spenza', MAX_ACCOUNTS, dry, configured, accounts, smsRate, sendSms, listSims, getSim, serviceState, subscription, cancelSubscription, credit, plan, provision, replaceNumber, setSms, registerWebhook, verify, parseInbound, norm }
