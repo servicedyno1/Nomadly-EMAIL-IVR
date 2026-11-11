@@ -1,5 +1,11 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-11 — Reply routing rules
+- Recipient replies route by (our line, sender number) → the one customer with an open session; 2+ owners → held for review + admin alert with text and both customers.
+- New single texts never share a line with another customer's open session to that number (`takenLines`); if every line is taken → `err_number_busy` (5 langs). Campaigns prefer a free line, fall back to a shared one rather than stall.
+- Customer replies (`replyRoute`): only inside a campaign with replies on (`reply_campaign_only`), only on the session's original line (pickEsim pins sessionId messages, never moves them); line replaced/retired → `reply_route_changed`; queued reply whose line dies → failed `route_changed`. Bot conversation view + inline Reply show the reason.
+- Tests: test_bulk_esim_reply_routing 10/10; engine 40/40, dlr 16/16, autoscale 74/74 (ceiling expectation updated for 6am window: 12 h → 17,280/day → 54 lines), reply_edge OK, one_free 8/8, bot_flow_i18n 5/5.
+
 ## 2026-11-11 — Incident: inbound texts rejected (401) after delivery-status webhook registration
 - Cause (our bug): `ensureStatusWebhook` re-registered with `update: true`; Spenza's update response has NO signingSecret → we stored null → every inbound text (customer replies + line checks) failed signature check 10:26–10:39 UTC. 12 events lost; redelivery impossible after the webhook was recreated (old registration deleted).
 - Prod repair: deleted wh_u9TjyT8H, created wh_yi0FqFyr (both URLs) and stored its secret; Spenza test event → 200. Customer's session s_48c97d… is active until 14 Nov, so a new reply will reach the bot.

@@ -20,9 +20,9 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   const c = await B.cfg()
   ok('defaults: 400/line/day, no warm-up, 1 lead day, dynamic ceilings, reserve one booking, auto-replace on, auto-buy ON, 1 monitor + 2 service', c.esimDailyLimit === 400 && c.warmupDays === 0 && c.leadDays === 1 && c.maxEsims === 0 && c.provisionBudget === 0 && c.reserveBooking === true && c.demandDays === 14 && c.autoReplace === true && c.autoProvision === true && c.manualApproval === false && c.minEsims === 2 && c.monitorEsims === 1 && c.testerEsims === 1)
   await B.setConfig({ autoProvision: false, manualApproval: true, minEsims: 1 }, 'test')
-  ok('line ceiling derived from Spenza rate × open hours (10 h → 14,400/day → 45 lines)', B.dayCeiling(d(3), c) === 14400 && B.maxLines(c, d(3)) === 45 && B.maxLines({ ...c, maxEsims: 7 }) === 7)
+  ok('line ceiling derived from Spenza rate × open hours (12 h → 17,280/day → 54 lines)', B.dayCeiling(d(3), c) === 17280 && B.maxLines(c, d(3)) === 54 && B.maxLines({ ...c, maxEsims: 7 }) === 7)
   ok('no ramp: full cap from day 1 (ramp available via warmupDays)', [1, 2, 9].map(a => B.lineCap(c, a)).join() === '400,400,400' && [1, 3, 5].map(a => B.lineCap({ ...c, warmupDays: 5 }, a)).join() === '80,240,400')
-  await B.setConfig({ quietStart: 0, quietEnd: 24, reserveBooking: false }, 'test')
+  await B.setConfig({ quietStart: 0, quietEnd: 24, reserveBooking: false, freeOneSends: 1000 }, 'test')
   const cust = await B.customer('Nomadly', '501'), cid = cust._id
 
   // ---- no lines, auto-buy off: refused + demand remembered + daily nudge ----

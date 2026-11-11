@@ -567,6 +567,17 @@ async function ready() {
   const send = await has(SERVICE), tester = await has({ role: 'tester' }), testerBusy = !tester && !!(await C('bsEsims').countDocuments({ role: 'tester', status: { $in: TESTER_BUSY } }, { limit: 1 }))
   return { paused, send, one: send || tester, test: tester || (send && !testerBusy) }
 }
+// A customer reply must go out on the line that carried the campaign text; if that line is gone the route has changed.
+const DEAD = ['replaced', 'retired', 'failed', 'cancelled']
+async function replyRoute(cid, sessionId) {
+  const ss = await C('bsSessions').findOne({ _id: sessionId, cid }); if (!ss) return E('reply_route_changed')
+  const e = await C('bsEsims').findOne({ _id: ss.esimId }, { projection: { status: 1, replacedBy: 1 } })
+  if (!e || DEAD.includes(e.status) || e.replacedBy || ss.status !== 'active') return E('reply_route_changed')
+  const last = await C('bsMessages').findOne({ cid, to: ss.to, esimId: ss.esimId, direction: 'out', system: { $ne: true }, campaignId: { $ne: null } }, { sort: { createdAt: -1 }, projection: { campaignId: 1 } })
+  const cp = last?.campaignId && await C('bsCampaigns').findOne({ _id: last.campaignId }, { projection: { replies: 1 } })
+  if (!cp || cp.replies !== true) return E('reply_campaign_only')
+  return (await lineReady(ss.esimId)) ? { ok: true, session: ss } : E('off_reply')
+}
 async function lineReady(esimId) {
   const c = await cfg(), st = await state()
   return !st.reasons?.length && !c.emergencyStop && !!(await C('bsEsims').countDocuments({ _id: esimId, ...lineQ(c) }, { limit: 1 }))
@@ -899,6 +910,18 @@ async function queueCampaign(campaignId, b) {
   await C('bsCampaigns').updateOne({ _id: campaignId }, { $set: { status: 'scheduled', bookingId: b._id, scheduledAt: b.startAt, 'stats.queued': docs.length } })
 }
 // One text in an existing conversation (or a new one). Same queue, same quota.
+async function takenLines(cid, to) {
+  return new Set((await C('bsSessions').find({ to, cid: { $ne: cid }, status: 'active', expiresAt: { $gt: new Date() } }).project({ esimId: 1 }).toArray()).map(x => x.esimId))
+}
+// A new single text needs a line with no other customer's open conversation with that number.
+async function numberBusy(cid, to) {
+  if (await C('bsSessions').findOne({ cid, to, status: 'active', expiresAt: { $gt: new Date() } })) return false
+  const taken = await takenLines(cid, to); if (!taken.size) return false
+  const live = { status: { $in: USABLE }, health: { $in: GOOD_HEALTH }, msisdn: { $ne: null } }
+  const pool = await C('bsEsims').find({ ...SERVICE, ...live }).project({ _id: 1 }).toArray()
+  const lines = pool.length ? pool : await C('bsEsims').find({ role: 'tester', ...live }).project({ _id: 1 }).toArray()
+  return lines.every(e => taken.has(e._id))
+}
 // Free single texts ("Send one SMS") per customer, lifetime; replies inside a conversation don't count.
 async function oneLeft(cid) {
   const c = await cfg(), used = await C('bsMessages').countDocuments({ cid, campaignId: null, sessionId: null, system: { $ne: true }, test: { $ne: true }, direction: 'out', status: { $nin: ['rejected', 'cancelled', 'blocked'] } })
@@ -908,9 +931,10 @@ async function sendOne(cid, to, text, sessionId, { optOut = true } = {}) {
   const cu = await C('bsCustomers').findOne({ _id: cid }), p = normPhone(to), body = String(text || '').trim()
   if (cu?.status !== 'active') return E('err_suspended')
   if (!sessionId && !(await oneLeft(cid))) return E('err_one_used', (await cfg()).freeOneSends ?? 2)
+  if (!sessionId && p && await numberBusy(cid, p)) return E('err_number_busy', (await cfg()).sessionHours)
   if (!validUsCa(p)) return E('err_number')
   if (!body) return E('err_add_text')
-  if (sessionId) { const ss = await C('bsSessions').findOne({ _id: sessionId, cid }); if (!ss || !(await lineReady(ss.esimId))) return E('off_reply') } else if (!(await ready()).one) return E('off_one')
+  if (sessionId) { const rr = await replyRoute(cid, sessionId); if (rr.error) return rr } else if (!(await ready()).one) return E('off_one')
   const full = sessionId || !optOut ? body : body + OPT
   if (segs(full) > 3) return E('err_too_long')
   if (hasLinkOrPhone(body)) { const sc = await screenContent(cid, [body], 'one-off text'); if (sc.error) return sc }
@@ -936,13 +960,19 @@ async function pickEsim(m, c) {
   const open = openAccounts(c), onOpen = (e) => e && open.includes(e.account || firstAccount(c))
   if (m.esimId) { const e = await C('bsEsims').findOne({ _id: m.esimId, msisdn: { $ne: null } }); return onOpen(e) ? e : null }
   if (m.test) { const t = await C('bsEsims').findOne({ role: 'tester', status: { $in: USABLE }, health: { $in: GOOD_HEALTH }, msisdn: { $ne: null } }); if (t) return onOpen(t) && roomIn(win.esim[t._id] ||= [], c.esimPerMin) ? t : null }
+  // A customer reply is pinned to its session's line — never moved to another line.
+  if (m.sessionId) { const ss = await C('bsSessions').findOne({ _id: m.sessionId }), e = ss && await C('bsEsims').findOne({ _id: ss.esimId, msisdn: { $ne: null } }); return e && USABLE.includes(e.status) && GOOD_HEALTH.includes(e.health) && onOpen(e) && roomIn(win.esim[e._id] ||= [], c.esimPerMin) ? e : null }
   const s = await C('bsSessions').findOne({ cid: m.cid, to: m.to, status: 'active' }, { sort: { lastActivityAt: -1 } })
-  const ok = (e) => e && USABLE.includes(e.status) && GOOD_HEALTH.includes(e.health) && onOpen(e) && roomIn(win.esim[e._id] ||= [], c.esimPerMin)
+  // Lines where another customer already has an open conversation with this number: a reply there couldn't be routed.
+  const taken = s ? new Set() : await takenLines(m.cid, m.to)
+  const ok = (e) => e && !taken.has(e._id) && USABLE.includes(e.status) && GOOD_HEALTH.includes(e.health) && onOpen(e) && roomIn(win.esim[e._id] ||= [], c.esimPerMin)
   if (s) { const e = await C('bsEsims').findOne({ _id: s.esimId }); if (ok(e)) return e; if (e && USABLE.includes(e.status) && GOOD_HEALTH.includes(e.health)) return null }
   // New conversations respect each line's daily cap (warm-up); replies inside a session stay on their line regardless.
   const pool = await C('bsEsims').find({ ...SERVICE, status: { $in: USABLE }, health: { $in: GOOD_HEALTH }, msisdn: { $ne: null } }).sort({ 'stats.submitted': 1 }).toArray(), d = dayKey(Date.now(), c)
   const used = Object.fromEntries((await C('bsEsimDaily').find({ _id: { $in: pool.map(e => `${e._id}:${d}`) } }).toArray()).map(x => [x._id, x.n]))
-  const hit = pool.find(e => ok(e) && (used[`${e._id}:${d}`] || 0) < lineCap(c, lineAge(e.activationDate || e.createdAt, d)))
+  const fits = (e) => (used[`${e._id}:${d}`] || 0) < lineCap(c, lineAge(e.activationDate || e.createdAt, d))
+  // Campaigns fall back to a shared line rather than stall (an ambiguous reply is held for admin review).
+  const hit = pool.find(e => ok(e) && fits(e)) || (m.campaignId && taken.size ? pool.find(e => taken.has(e._id) && USABLE.includes(e.status) && GOOD_HEALTH.includes(e.health) && onOpen(e) && roomIn(win.esim[e._id] ||= [], c.esimPerMin) && fits(e)) : null)
   if (hit || m.campaignId || pool.length) return hit || null
   // No service line yet: a single text goes out on the tester line.
   const t = await C('bsEsims').findOne({ role: 'tester', status: { $in: USABLE }, health: { $in: GOOD_HEALTH }, msisdn: { $ne: null } })
@@ -955,6 +985,7 @@ async function processOne(m, c) {
     const drop = async (status, why) => { if (m.prepaid && m.quotaDay) await unreserve(m.cid, m.quotaDay, c.countSegments ? m.segments : 1); return mark(m, status, { failureReason: why }) }
     if (cu?.status !== 'active') return drop('rejected', 'customer_suspended')
     if (await C('bsSuppression').findOne({ $or: [{ cid: m.cid }, { cid: '*' }], phone: m.to })) return drop('rejected', 'opted_out')
+    if (m.sessionId) { const ss = await C('bsSessions').findOne({ _id: m.sessionId }), e = ss && await C('bsEsims').findOne({ _id: ss.esimId }, { projection: { status: 1, replacedBy: 1 } }); if (!e || DEAD.includes(e.status) || e.replacedBy) return drop('failed', 'route_changed') }
     if (m.expireAt && new Date(m.expireAt) < new Date()) return drop('expired', 'too_late')
     // Quiet hours apply to campaigns only; single texts, replies and tests go out immediately.
     if (m.campaignId && !m.test && !m.sessionId) { const w = quietWait(m.to, c.quietStart, c.quietEnd); if (w) return later(w) }
@@ -1102,7 +1133,7 @@ async function onWebhook(raw, headers, body) {
   } else if (helpOnce) await C('bsMessages').insertOne(msgDoc({ cid: 'system:compliance', to: x.from, body: 'Business text messages sent via CloudIVR. Reply STOP to opt out. Msg & data rates may apply.', esimId: e._id, priority: 2, system: true }))
   const sess = await C('bsSessions').find({ esimId: e._id, to: x.from, status: 'active', expiresAt: { $gt: new Date() } }).sort({ lastActivityAt: -1 }).toArray()
   const owners = [...new Set(sess.map(s => s.cid))]
-  if (owners.length !== 1) { await C('bsMessages').insertOne({ _id: id('m'), cid: null, esimId: e._id, from: x.from, to: x.to, body: x.text, direction: 'in', status: owners.length ? 'review' : 'unrouted', providerMessageId: x.providerId, createdAt: new Date() }); if (owners.length) { incident('ambiguous_inbound', { esimId: e._id, from: x.from, owners }); alert(`❓ Reply from ${x.from} to ${e._id} matches ${owners.length} customers — held for review.`) } await C('bsWebhooks').updateOne({ _id: key }, { $set: { status: owners.length ? 'review' : 'unrouted' } }); return { status: 200 } }
+  if (owners.length !== 1) { await C('bsMessages').insertOne({ _id: id('m'), cid: null, esimId: e._id, from: x.from, to: x.to, body: x.text, direction: 'in', status: owners.length ? 'review' : 'unrouted', providerMessageId: x.providerId, createdAt: new Date() }); if (owners.length) { incident('ambiguous_inbound', { esimId: e._id, from: x.from, owners }); alert(`❓ Reply from ${x.from} to ${e._id} ${e.msisdn || ''} matches ${owners.length} customers (${owners.join(', ')}) — held for review, not forwarded.\nText: “${String(x.text || '').slice(0, 300)}”`) } await C('bsWebhooks').updateOne({ _id: key }, { $set: { status: owners.length ? 'review' : 'unrouted' } }); return { status: 200 } }
   const s = sess[0], cid = s.cid
   await lineLog(e, await cfg(), { in: 1, stops: isStop ? 1 : 0 })
   await C('bsSessions').updateOne({ _id: s._id }, { $set: { lastActivityAt: new Date() } })
@@ -1301,4 +1332,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+module.exports = { warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }

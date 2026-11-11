@@ -255,8 +255,8 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     const to = String(message).replace(/^💬\s*/, ''), s = await B.db().collection('bsSessions').findOne({ cid, to })
     if (!s) return send(chatId, say('pick_option'))
     const ms = await B.db().collection('bsMessages').find({ cid, $or: [{ to }, { from: to }] }).sort({ createdAt: -1 }).limit(10).toArray()
-    const live = await B.lineReady(s.esimId); if (live) { await put('bseTo', to); await put('bseSession', s._id); await go('bse-reply') }
-    return send(chatId, `💬 <b>${to}</b>\n${ms.reverse().map(m => `${m.direction === 'in' ? '⬅️' : '➡️'} ${esc(m.body).slice(0, 300)}${m.direction === 'out' ? ` <i>(${say(`st_${m.status}`)})</i>` : ''}`).join('\n')}\n\n${say(live ? 'reply_q' : 'off_reply')}`, kb([[L.back]]))
+    const rr = await B.replyRoute(cid, s._id), live = !rr.error; if (live) { await put('bseTo', to); await put('bseSession', s._id); await go('bse-reply') }
+    return send(chatId, `💬 <b>${to}</b>\n${ms.reverse().map(m => `${m.direction === 'in' ? '⬅️' : '➡️'} ${esc(m.body).slice(0, 300)}${m.direction === 'out' ? ` <i>(${say(`st_${m.status}`)})</i>` : ''}`).join('\n')}\n\n${say(live ? 'reply_q' : rr.error)}`, kb([[L.back]]))
   }
   return false
 }
@@ -329,6 +329,7 @@ function startNotices(bot, db) {
 async function onCallback(q, { set, state, saveInfo, send, lang = 'en' }) {
   const sid = String(q.data || '').split(':')[1], chatId = q.message?.chat?.id
   const s = sid && await B.db().collection('bsSessions').findOne({ _id: sid, cid: B.cidOf(brand(), chatId) }); if (!s) return false
+  const rr = await B.replyRoute(s.cid, s._id); if (rr.error) { await send(chatId, t(lang, rr.error)); return true }
   await saveInfo('bseTo', s.to); await saveInfo('bseSession', s._id); await set(state, chatId, 'action', 'bse-reply')
   await send(chatId, t(lang, 'replying', s.to), kb([[btn(lang).back]])); return true
 }
