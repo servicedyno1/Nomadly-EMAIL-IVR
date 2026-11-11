@@ -2,14 +2,14 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUp, ChevronDown, MessageCircle, Send, MessageSquareText, Check } from 'lucide-react';
 import { SocialLinks } from './Social';
-import { usd, money, startPrice } from '../../api';
+import { usd, startPrice } from '../../api';
 import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
 import { Wordmark } from '../../Brand';
 import { SectionHead, Slide, coinList, andList, Reveal } from './kit';
 import { PlanFeatures, RecommendedBadge } from '../../PlanFeatures';
 import { PaymentMethods } from './Payments';
-import { PlanCompare, UsageRates } from './PlanTable';
+import { PlanCompare } from './PlanTable';
 import { openCookieSettings } from '../../consent';
 import { PRODUCTS, USE_CASES, goTo, hrefOf } from './menu';
 
@@ -21,7 +21,6 @@ export function PlanCard({ p, plans, hot, start, delay }) {
     <Reveal delay={delay} className={`civr-l-card-cream p-8 flex flex-col ${hot ? '!border-slate-900 ring-1 ring-slate-900 shadow-[0_24px_48px_-28px_rgba(15,23,42,.35)]' : ''}`} data-testid={`civr-plan-card-${p.id}`}>
       <div className="flex items-center justify-between gap-2"><div className="text-lg font-semibold text-slate-900">{p.name}</div>{p.recommended && <RecommendedBadge tone="landing" testid={`pricing-recommended-${p.id}`} />}</div>
       <div className="civr-l-h text-5xl text-slate-900 mt-6" data-testid={`pricing-price-${p.id}`}>{usd(p.price)}<span className="text-base font-medium tracking-normal text-slate-500">/mo</span></div>
-      <div className="text-sm text-slate-500 mt-2" data-testid={`pricing-allowance-${p.id}`}>{`${p.minutes} incoming minutes · ${p.sms} SMS included each month`}</div>
       <div className="mt-6 pt-6 border-t civr-l-rule flex-1"><PlanFeatures plan={p} plans={plans} tone="cream" testid={`pricing-feature-${p.id}`} /></div>
       <Link to={start(p.id)} className={`civr-l-btn mt-8 w-full ${hot ? '' : 'civr-l-btn-ghost'}`} data-testid={`pricing-choose-${p.id}`}><Slide>Choose {p.name}</Slide></Link>
     </Reveal>
@@ -56,11 +55,10 @@ export function Pricing({ catalog }) {
         <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 mt-12 items-stretch">{plans.map((p, i) => <PlanCard key={p.id} p={p} plans={plans} hot={hasRec ? p.recommended : i === 1} start={start} delay={i * 120} />)}{catalog?.texting && <TextingCard t={catalog.texting} start={start} delay={plans.length * 120} />}</div>
         {r && (
           <p className="text-sm text-slate-500 mt-8 max-w-3xl" data-testid="pricing-extra-usage">
-            {`Extra usage is paid from your wallet: incoming minutes over your plan ${money(r.overagePerMin)}/min, SMS over your plan ${money(r.overagePerSms)} each, calls forwarded to a phone ${money(r.forwardingPerMin)}/min. Outgoing calls — browser phone, softphone, IVR and AI agent calls — are billed per minute from your wallet and show their price before you start. Extra numbers cost from ${usd(catalog?.extraNumber?.price || 25)}/month each and share the plan's minutes and SMS.`}
+            {`Outgoing calls, forwarding and AI agent calls are paid from your wallet. Extra numbers cost from ${usd(catalog?.extraNumber?.price || 25)}/month each and share the plan's features.`}
           </p>
         )}
         <PlanCompare catalog={catalog} start={start} />
-        <UsageRates catalog={catalog} />
         <PaymentMethods catalog={catalog} className="mt-12 pt-8 border-t civr-l-rule" testid="pricing-payment-methods" />
       </div>
     </section>
@@ -70,7 +68,6 @@ export function Pricing({ catalog }) {
 // Also used by the in-app Help centre.
 export function faqItems(c) {
   const from = startPrice(c);
-  const r = c?.rates;
   const on = (k, d) => andList((c?.plans || []).filter(p => p.access?.[k]).map(p => p.name)) || d;
   const ivr = on('ivr', 'Pro and Business'), out = on('ivrOutbound', 'Pro and Business');
   const ex = c?.extraNumber;
@@ -88,10 +85,10 @@ export function faqItems(c) {
     ['How do I pay?', `With crypto (${coinList(c) || 'BTC, ETH, USDT and more'}) or from your CloudIVR wallet (top-ups from ${usd(c?.minTopup || 10)}). Renewals and calls are paid from the wallet. Card payments are coming soon — until they are switched on, cards show as “coming soon” here and at checkout.`],
     ['What does each plan include?', `Starter gives you a number with call forwarding, the SMS inbox and the browser phone — make and take calls in any browser tab. Pro adds the keypad menu, voicemail, SIP logins for desk phones and softphone apps, call recording, ring groups, Quick IVR calls, Bulk IVR campaigns and code collection. Business adds showing any caller ID on every call (softphone, browser, Quick IVR and campaigns), AI voice agents, text calls, Text Triggers, Quick IVR scheduling and saved presets, redial, your own accept / decline messages for codes, one saved voice for every call and priority support.`],
     ['What’s the difference between the keypad menu and Quick or Bulk IVR?', `They work in opposite directions. The keypad menu answers people who call your number: they hear your greeting and press a key to reach the right person, a message or voicemail (${ivr}). Quick IVR and Bulk IVR call people for you: they hear your message, then press a key to reach you, type a code or pick an option — Quick IVR for up to 10 numbers at once, Bulk IVR campaigns for a whole list (${out}).`],
-    ['What’s the difference between the keypad menu and an AI voice agent?', `The keypad menu plays your greeting and callers press a key to reach the right person, message or voicemail — it uses your plan minutes. An AI voice agent talks with callers instead: it answers questions, books appointments and takes messages, billed ${money(r?.aiAgentPerMin ?? 0.3)}/min from your wallet. Each number uses one or the other.`],
-    ['What if I go over my minutes or SMS?', r ? `Extra incoming minutes cost ${money(r.overagePerMin)} each and extra SMS ${money(r.overagePerSms)} each, paid from your wallet.` : 'Extra usage is paid from your wallet at a small per-minute and per-SMS rate.'],
-    ['Are outgoing calls included in my minutes?', 'No. Plan minutes cover incoming calls you answer. Outgoing calls — browser phone, softphone, Quick IVR, campaigns and AI agent calls — and forwarded calls are billed per minute from your wallet, and the price shows before you call.'],
-    ...(ex ? [['Can I put several numbers on one plan?', `Yes. Add extra numbers to a main number from ${usd(ex.price)}/month each — up to ${ex.limits.starter} on Starter, ${ex.limits.pro} on Pro and ${ex.limits.business} on Business. They share its minutes and SMS and get the same features.`]] : []),
+    ['What’s the difference between the keypad menu and an AI voice agent?', `The keypad menu plays your greeting and callers press a key to reach the right person, message or voicemail — it uses your plan minutes. An AI voice agent talks with callers instead: it answers questions, books appointments and takes messages, paid from your wallet. Each number uses one or the other.`],
+    ['What if I go over my minutes or SMS?', 'Extra usage is paid from your wallet at a small rate. Our support chat can tell you the exact rates any time.'],
+    ['Are outgoing calls included in my minutes?', 'No. Plan minutes cover incoming calls you answer. Outgoing calls — browser phone, softphone, Quick IVR, campaigns and AI agent calls — and forwarded calls are billed per minute from your wallet.'],
+    ...(ex ? [['Can I put several numbers on one plan?', `Yes. Add extra numbers to a main number from ${usd(ex.price)}/month each — up to ${ex.limits.starter} on Starter, ${ex.limits.pro} on Pro and ${ex.limits.business} on Business. They share its plan and get the same features.`]] : []),
     ['Can I cancel?', 'Yes. Plans are month to month. Auto-renew is on by default so your number never lapses — turn it off in the number’s Billing tab and it simply won’t renew, or delete the number any time.'],
     ['What happens if the AI agent can’t help?', 'It never pretends to be human and never asks for card numbers, passwords or one-time codes. When a caller wants a person, the agent transfers the call to the number you set — or, if you haven’t set one, offers to take a message with a name, callback number and the message, which lands in your inbox. On a keypad menu, callers can always reach voicemail. Anyone who asks not to be called again is removed from the list and the call ends politely.'],
     ['Do you scrub numbers or enforce quiet hours?', 'Your do-not-call list is enforced on every campaign — Bulk IVR and AI agent, web and Telegram bot: numbers on it are never dialed and never billed. We don’t check public Do-Not-Call registries for you and we don’t enforce quiet hours automatically: you schedule each campaign, set a daily call limit and repeat it daily or weekly, and you’re responsible for calling only people who have agreed to hear from you, at reasonable hours where they live.'],

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Check, ChevronDown, Plus, X } from 'lucide-react';
-import { usd, money } from '../../api';
+import { usd } from '../../api';
 import { SectionHead, Slide, Reveal } from '../landing/kit';
 import { faqItems, useStart } from '../landing/PricingFaq';
 import { PaymentMethods } from '../landing/Payments';
@@ -30,7 +30,6 @@ function PlanCard({ p, hot, start, extra, delay }) {
         {hot && <span className="text-xs font-semibold px-2.5 py-1 rounded-full border border-indigo-200 bg-indigo-50 text-[#4338ca]" data-testid={`sip-plan-best-${p.id}`}>Best for SIP</span>}
       </div>
       <div className="civr-l-h text-5xl text-slate-900 mt-6" data-testid={`sip-plan-price-${p.id}`}>{usd(p.price)}<span className="text-base font-medium tracking-normal text-slate-500">/mo</span></div>
-      <div className="text-sm text-slate-500 mt-2" data-testid={`sip-plan-allowance-${p.id}`}>{`${p.minutes} incoming minutes · ${p.sms} SMS included each month`}</div>
       <div className={`mt-6 rounded-xl px-4 py-3 flex items-start gap-3 text-sm font-semibold ${sip ? 'bg-indigo-50 text-[#3730a3] border border-indigo-100' : 'bg-slate-50 text-slate-500 border border-slate-200'}`} data-testid={`sip-plan-sip-${p.id}`} data-included={sip ? 'true' : 'false'}>
         <Tick on={sip} className="w-5 h-5 mt-px" />
         <span>{sip ? 'SIP logins for softphones and desk phones' : 'No SIP logins — browser phone only'}</span>
@@ -50,7 +49,7 @@ function PlanCard({ p, hot, start, extra, delay }) {
 function CompareTable({ plans }) {
   const keys = (plans[0]?.webFeatures || []).map(f => [f.key, f.label]);
   const has = (p, k) => !!(p.webFeatures || []).find(f => f.key === k)?.included;
-  const top = [['Monthly price', p => <span className="font-semibold text-slate-900" data-no-translate>{usd(p.price)}</span>], ['Incoming minutes', p => <span data-no-translate>{p.minutes}</span>], ['SMS included', p => <span data-no-translate>{p.sms}</span>]];
+  const top = [['Monthly price', p => <span className="font-semibold text-slate-900" data-no-translate>{usd(p.price)}</span>]];
   return (
     <details className="group mt-10 civr-l-card-cream overflow-hidden" data-testid="sip-compare">
       <summary className="flex items-center justify-between gap-4 cursor-pointer px-6 py-5 min-h-[56px] font-semibold text-slate-900 hover:text-[#4f46e5] transition-colors" data-testid="sip-compare-toggle">
@@ -100,7 +99,7 @@ export function SipPlans({ catalog }) {
         {plans.length > 0 && <CompareTable plans={plans} />}
         {r && (
           <p className="text-sm text-slate-500 mt-8 max-w-3xl" data-testid="sip-plans-usage">
-            {`Incoming minutes over your plan cost ${money(r.overagePerMin)} each and extra SMS ${money(r.overagePerSms)} each. Outgoing calls from a softphone are billed per minute from your wallet. Extra numbers cost from ${usd(ex?.price || 25)}/month each.`}
+            {`Outgoing calls from a softphone are paid from your wallet. Extra numbers cost from ${usd(ex?.price || 25)}/month each.`}
           </p>
         )}
         <PaymentMethods catalog={catalog} className="mt-10 pt-8 border-t civr-l-rule" testid="sip-payment-methods" />
@@ -114,7 +113,6 @@ export function sipFaqItems(c) {
   const sp = sipPlans(c);
   const pick = sipPick(c);
   const starter = byPrice(c?.plans).find(p => !p.access?.sipCredentials);
-  const r = c?.rates;
   const general = Object.fromEntries(faqItems(c));
   return [
     [`Why doesn’t ${domain} open in my browser?`, `Because it isn’t a website. ${domain} is the server address your phone app connects to, so a browser has nothing to show there. Type it into your softphone or desk phone as the SIP server or domain.`],
@@ -122,7 +120,7 @@ export function sipFaqItems(c) {
     ['Which apps and phones work?', 'Any softphone or desk phone that takes a standard SIP account. Zoiper, MicroSIP and Linphone are free and take a minute to set up.'],
     ['What do I enter in my app?', `Server or domain: ${domain}. Port 5060 over UDP or TCP, or 5061 for TLS. Your username and password are on the number’s SIP tab in your dashboard.`],
     ['Can I still use the browser phone?', 'Yes. Every plan includes the browser phone, so you can also make and take calls from any browser tab.'],
-    ['What do calls cost?', `Incoming calls use your plan minutes${pick ? ` (${pick.minutes} a month on ${pick.name})` : ''}${r ? `; extra incoming minutes cost ${money(r.overagePerMin)} each` : ''}. Outgoing calls from a softphone are billed per minute from your wallet.`],
+    ['What do calls cost?', 'Incoming calls are covered by your plan. Outgoing calls from a softphone are paid from your wallet. Ask our support chat any time for exact rates.'],
     ['Can I try before I pay?', 'Yes. Creating an account is free, and the home page has a free test call you can take before you buy a number.'],
     ...['How do I pay?', 'Can I cancel?'].filter(q => general[q]).map(q => [q, general[q]]),
   ];

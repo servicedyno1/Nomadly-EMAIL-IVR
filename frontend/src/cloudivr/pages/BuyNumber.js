@@ -76,7 +76,6 @@ function PlanPicker({ plans, value, onChange, surcharge }) {
             <span className="flex items-center gap-2">{p.recommended && <RecommendedBadge testid={`buy-plan-${p.id}-recommended`} />}{value === p.id && <Check className="w-5 h-5 text-[#818cf8]" />}</span>
           </div>
           <div className="font-mono text-2xl mt-2">{money(p.price + (surcharge || 0))}<span className="text-xs text-[#a1a1aa]"> /month</span></div>
-          <div className="text-xs text-[#a1a1aa] mt-1">{p.minutes} min · {p.sms} SMS included</div>
           <div className="mt-4"><PlanFeatures plan={p} plans={plans} compact testid={`buy-plan-${p.id}-feature`} /></div>
         </button>
       ))}
@@ -124,7 +123,7 @@ function ExistingPlanChooser({ nums, price, pv }) {
       <div className="w-11 h-11 rounded-xl bg-[#38bdf8]/15 flex items-center justify-center shrink-0"><Layers className="w-5 h-5 text-[#38bdf8]" /></div>
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-base">Already have a plan? Add a number to it</div>
-        <div className="text-sm text-[#a1a1aa] mt-1">Skip picking a plan — a new number on one you already pay for is {money(price)}/month and shares its minutes, SMS and features.</div>
+        <div className="text-sm text-[#a1a1aa] mt-1">Skip picking a plan — a new number on one you already pay for is {money(price)}/month and shares its plan features.</div>
       </div>
       <div className="flex flex-col sm:flex-row gap-2 shrink-0">
         <select className="civr-input !h-10 sm:w-48" value={sel} onChange={e => setSel(e.target.value)} data-testid="buy-add-to-plan-select">
@@ -192,14 +191,14 @@ export default function BuyNumber() {
 
   return (
     <div data-testid="buy-page">
-      {extraOf ? <PageHeader label="Phone numbers · Extra number" title="Add an extra number" sub={`Shares the plan of ${pv.phone(extraOf)} — ${money(extra?.price || 25)}/month, same features, and uses its minutes and SMS. Pay from your wallet or with crypto.${extra ? ` ${extra.used} of ${extra.limit} used.` : ''}`} testid="buy-header" />
-        : <PageHeader label="Phone numbers" title="Get a number" sub={`Internet-based (VoIP) business phone numbers in ${catalog.countries.length} countries. Call and text from your browser on every plan; Pro and up add keypad menus (IVR), campaigns and logins for your own phone apps (SIP). Pay with crypto or your wallet, renews monthly.`} testid="buy-header" />}
+      {extraOf ? <PageHeader label="Phone numbers · Extra number" title="Add an extra number" sub={`Shares the plan of ${pv.phone(extraOf)} — ${money(extra?.price || 25)}/month, same features. Pay from your wallet or with crypto.${extra ? ` ${extra.used} of ${extra.limit} used.` : ''}`} testid="buy-header" />
+        : <PageHeader label="Phone numbers" title="Get a Business Line" sub={`A business phone number for calls in ${catalog.countries.length} countries. Answer in your browser or forward to any phone; bigger plans add call menus, campaigns and AI. Month to month, paid from your wallet or with crypto.`} testid="buy-header" />}
       {extraOf
         ? <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-extra-back"><Link to={cp('/app/buy')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-extra-back-button">Buy a brand-new number with its own plan instead</Link></p>
         : <>
           <TextingNumberCta testid="buy-texting-number-cta" className="mb-6" />
           {eligible.length > 0 && <ExistingPlanChooser nums={eligible} price={catalog.extraNumber?.price || 25} pv={pv} />}
-          <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-texting-link">Already have a business number? <Link to={cp('/app/texting?add=1')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-texting-link-button">Add texting to it</Link></p>
+          <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-texting-link">Already have a number elsewhere? <Link to={cp('/app/texting?add=1')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-texting-link-button">Add texting to it</Link></p>
         </>}
       {open?.orders?.[0] && <OpenOrder order={open.orders[0]} />}
       {saved?.pick && <div className="civr-card p-4 mb-4 text-sm flex items-center gap-2" data-testid="buy-resume-note"><Check className="w-4 h-4 text-[#818cf8]" />Welcome back — {saved.pick.phoneNumber} and the {planObj?.name} plan are still selected below.</div>}
@@ -214,7 +213,7 @@ export default function BuyNumber() {
         <div className="mt-8 civr-rise">
           {!extraOf && <>
           <Label>3 · Pick a plan and pay</Label>
-          <p className="text-xs text-[#a1a1aa] -mt-1 mb-3" data-testid="buy-plan-help">Each plan includes everything in the one before it. You can upgrade a number later from its Billing tab.</p>
+          <p className="text-xs text-[#a1a1aa] -mt-1 mb-3" data-testid="buy-plan-help">Each plan includes everything in the one before it. You can upgrade your Business Line later from its Billing tab.</p>
           <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} surcharge={pick.surcharge} />
           </>}
           <Checkout key={`${pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}

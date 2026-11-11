@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Check, Minus, PhoneCall, Smartphone, MessageSquareText } from 'lucide-react';
 import { Reveal, Slide, reducedMotion } from './kit';
-import { usd, money } from '../../api';
+import { usd } from '../../api';
 import { PlanCard, TextingCard, useStart } from './PricingFaq';
 import { Card, Waitlist, ESIM_POINTS, MOBILE_POINTS } from './ProductHero';
 import { openEsimCheckout } from './EsimCheckout';
@@ -67,7 +67,7 @@ export function AllPlans({ catalog, tab, setTab, esimPrice, offer }) {
           {tab === 'ivr' && (
             <>
               <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">{plans.map((p, i) => <PlanCard key={p.id} p={p} plans={plans} hot={hasRec ? p.recommended : i === 1} start={start} delay={i * 80} />)}{catalog?.texting && <TextingCard t={catalog.texting} start={start} delay={plans.length * 80} />}</div>
-              {r && <p className="text-sm text-slate-500 mt-6 max-w-3xl" data-testid="pricing-extra-usage">{`Plan minutes cover incoming calls. Outgoing calls and forwarding are paid from your wallet (forwarding ${money(r.forwardingPerMin)}/min; extra incoming minutes ${money(r.overagePerMin)}, extra SMS ${money(r.overagePerSms)}). Business can show any caller ID on every call.`}</p>}
+              {r && <p className="text-sm text-slate-500 mt-6 max-w-3xl" data-testid="pricing-extra-usage">{'Outgoing calls and forwarding are paid from your wallet. Business can show any caller ID on every call.'}</p>}
             </>
           )}
           {tab !== 'ivr' && (

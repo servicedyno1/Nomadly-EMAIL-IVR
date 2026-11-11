@@ -2586,3 +2586,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Per-text ($0.05) and per-minute browser-call prices removed from all customer-facing Texting Number copy (order card, line card, composer, reply box, website FAQ); AI support knowledge now carries these prices so it can answer.
 - Backend notices/statement/offers wording renamed; fr ("Numéro SMS") / es ("Número SMS") translations added, stale priced entries removed. Copy sweep script: /app/scripts/texting_number_copy.js.
 - Note: preview pod lacks carrier keys at runtime, so the offer shows "temporarily unavailable" here; verified UI with a mocked availability response (all 5 entry points present, no price leaks, French OK). Testing agent run was cut short (credits) — no iteration_253 report.
+
+## 2026-11-12 — Get a number → "Get a Business Line"; usage prices + allowances removed from plans
+- BuyNumber header now "Get a Business Line" with a plain-words intro (no VoIP/SIP jargon); "Already have a number elsewhere? Add texting to it".
+- Plan feature labels (js/cloudivr-web/numbers.js WEB_FEATURES + landing catalogSnapshot) no longer carry per-use prices (AI summaries, text calls, AI agent, fax $2/page / 50 free pages).
+- Included minutes/SMS lines removed from plan cards everywhere: Get a number, SIP plans page (card + compare table), website pricing cards + compare table, upgrade preview, extra-number copy.
+- Website: per-use "Usage rates" table removed (UsageRates deleted), extra-usage paragraphs and FAQ answers rewritten without rates (support chat gives exact rates).
+- fr/es translations added. Self-verified via screenshots (no $/min, $/page, "N min", "N SMS" on plan pickers or landing).

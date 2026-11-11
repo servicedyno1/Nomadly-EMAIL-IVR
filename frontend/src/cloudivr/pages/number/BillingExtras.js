@@ -30,7 +30,7 @@ export function Downgrade({ num, plans, reload, refreshSummary }) {
       <Field label="Switch to"><select className="civr-input" value={plan} onChange={e => { setPlan(e.target.value); setPreview(null); }} data-testid="billing-downgrade-plan-select">{lower.map(p => <option key={p.id} value={p.id}>{`${p.name} · ${money(p.price)}/month`}</option>)}</select></Field>
       {preview && (
         <div className="text-sm space-y-2" data-testid="billing-downgrade-preview">
-          <div>New price <span className="font-mono">{money(preview.newPrice)}</span>/month from your next renewal · {preview.minutes[1]} min · {preview.sms[1]} SMS.</div>
+          <div>New price <span className="font-mono">{money(preview.newPrice)}</span>/month from your next renewal.</div>
           {preview.lost.length > 0 && <div className="text-[#fbbf24]" data-testid="billing-downgrade-lost">Turns off now: {preview.lost.join(', ')}.</div>}
           {preview.sipSignOut && <div className="text-[#fbbf24]" data-testid="billing-downgrade-sip-note">Desk phones and softphone apps signed in to this number are signed out. The browser phone keeps working.</div>}
           {preview.extras > preview.extraLimit && <div className="text-[#fbbf24]">You have {preview.extras} extra numbers; the new plan allows {preview.extraLimit}. They keep working but you can’t add more.</div>}
@@ -59,7 +59,7 @@ export function ExtraNumbers({ num }) {
   return (
     <div className="civr-card p-6 space-y-4" data-testid="billing-extra-card">
       <div className="flex items-center gap-2 font-display text-2xl font-bold"><Layers className="w-5 h-5 text-[#38bdf8]" />Extra numbers</div>
-      <p className="text-sm text-[#a1a1aa]">{`Add more numbers to this plan for ${money(data.price)}/month each. They get the same ${num.planName} features and share its minutes and SMS.`}</p>
+      <p className="text-sm text-[#a1a1aa]">{`Add more numbers to this plan for ${money(data.price)}/month each. They get the same ${num.planName} features.`}</p>
       <div className="text-sm font-mono" data-testid="billing-extra-usage">{`${data.used} of ${data.limit} used`}</div>
       {data.numbers.map((x, i) => <Link key={x.phoneNumber} to={cp(`/app/numbers/${enc(x.phoneNumber)}`)} className="flex items-center min-h-[40px] font-mono text-sm text-[#f4f4f5] hover:text-[#818cf8]" data-testid={`billing-extra-row-${i}`}>{pv.phone(x.phoneNumber)} · {x.status}</Link>)}
       {full ? <div className="text-xs text-[#fbbf24]">Limit reached — upgrade this number to add more.</div>
