@@ -1,5 +1,9 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-11 — Delayed single texts during rolling deploy (fixed)
+- @Hostbay_support's 10:05/10:07 UTC texts (and one VoodooLand text) were deferred to 13:00 UTC by a not-yet-updated bot holding the BulkSMS worker lock during the rolling deploy (old 8 AM quiet rule). Spenza was not the cause: once released at 10:09 each was accepted in ~4 s (tester ESIM-0002). Released on prod (3 texts).
+- Fix: tick() releases any single text (no campaign/session) deferred >10 min ahead → old deferrals can't strand single texts. test_bulk_esim_quiet_window 6/6, engine 40/40.
+
 ## 2026-11-11 — BulkSMS 6am–9pm window, single texts immediate + 2 free w/ opt-out choice, hosting Renew buttons, brand logo on call page
 - Prod incident @Hostbay_support (Nomadly:5168006768): single text to +1302… queued at 04:22 ET by recipient quiet hours (not a line fault; no admin alert by design). Sent 09:41 UTC on tester ESIM-0002; 7 other queued single texts cancelled (`cleared_by_admin`, incl. 2 "Truist Alert" phishing).
 - core.js: quiet hours only for campaign texts (`m.campaignId && !m.test && !m.sessionId`); DEFAULTS quietStart 6 (window 6am–9pm, mainland → 14:00–02:00 UTC in Nov); `sendWindow()`; whenOptions: no "send now"/"earliest today" outside window, createBooking(now) refused; notice QN (5 langs) on BulkSMS home + step 4. Single texts: `freeOneSends: 2` lifetime (oneLeft), opt-out line optional (bse-one-opt step, buttons one_opt_yes/no), "Send one SMS" hidden when used up, err_one_used / one_left texts.
