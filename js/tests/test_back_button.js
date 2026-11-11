@@ -25,7 +25,7 @@ function isBackPress(message) {
   const m = message.trim()
   if (m === '↩️ Back' || m === '🔙 Back' || m === '⬅️ Back') return true
   const stripped = m.replace(/^[\p{Extended_Pictographic}\u200d\ufe0f\s↩🔙]+/u, '').trim()
-  const knownBacks = new Set(['Back', 'Retour', '返回', 'वापस'])
+  const knownBacks = new Set(['Back', 'Retour', '返回', 'वापस', 'بازگشت'])
   return knownBacks.has(stripped)
 }
 
@@ -73,6 +73,7 @@ ok('"↩️ Retour" matches', isBackPress('↩️ Retour') === true)
 // ─── Plain locale words (must all return true) ────────────────────────
 ok('"Back" matches (en t.back)', isBackPress('Back') === true)
 ok('"Retour" matches (fr t.back)', isBackPress('Retour') === true)
+ok('"↩️ بازگشت" matches (fa)', isBackPress('↩️ بازگشت') === true)
 ok('"返回" matches (zh t.back)', isBackPress('返回') === true)
 ok('"वापस" matches (hi t.back)', isBackPress('वापस') === true)
 

@@ -1,0 +1,21 @@
+{
+  "at": "2026-11-11T07:11:25.571Z",
+  "total": 507,
+  "flagged": [
+    {
+      "action": "addUserLanguage",
+      "why": "STAYED",
+      "text": "Veuillez choisir une langue valide :"
+    },
+    {
+      "action": "confirm-dns-record-id-to-delete",
+      "why": "STAYED",
+      "text": "Aucun enregistrement supprimable trouvé. Les enregistrements NS ne peuvent être que mis à jour."
+    },
+    {
+      "action": "anti-red-toggle",
+      "why": "STAYED",
+      "text": "Aucun domaine sélectionné."
+    }
+  ]
+}

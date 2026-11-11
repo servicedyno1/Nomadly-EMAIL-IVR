@@ -2186,6 +2186,7 @@ function isBackPress(message) {
     'Retour',   // fr
     '返回',     // zh
     'वापस',    // hi
+    'بازگشت',  // fa
   ])
   return knownBacks.has(stripped)
 }
@@ -8195,10 +8196,18 @@ const RESET_COOLDOWN_MS = 5000     // Only send 1 menu reset per 5 seconds
 const HINT_ESCALATE_MAX = 3         // After this many gentle hints in HINT_ESCALATE_WINDOW_MS → full main-menu reset
 const HINT_ESCALATE_WINDOW_MS = 60000 // 60-second sliding window
 
-function _enqueue(chatId, fn) {
+const BACK_RESCUE = { en: '↩️ Taking you back to the main menu.', fr: '↩️ Retour au menu principal.', zh: '↩️ 正在返回主菜单。', hi: '↩️ मुख्य मेनू पर वापस ले जा रहे हैं।', fa: '↩️ بازگشت به منوی اصلی.' }
+function _enqueue(chatId, fn, text) {
   const prev = _userMsgQueue.get(chatId) || Promise.resolve()
-  const next = prev.then(() => fn()).catch(err => {
+  const next = prev.then(() => fn()).catch(async err => {
     log(`[Queue] Error processing message for ${chatId}:`, err?.message || err)
+    // A Back press must never end in silence: if its screen crashed (lost flow data), land on the main menu.
+    if (!isBackPress(text)) return
+    try {
+      const lang = (await state.findOne({ _id: String(chatId) }, { projection: { userLanguage: 1 } }))?.userLanguage || 'en'
+      await state.updateOne({ _id: String(chatId) }, { $set: { action: 'none' } })
+      await bot?.sendMessage(chatId, BACK_RESCUE[lang] || BACK_RESCUE.en, translation('o', lang))
+    } catch (e) { log(`[Queue] Back rescue failed for ${chatId}: ${e.message}`) }
   })
   _userMsgQueue.set(chatId, next)
   next.finally(() => { if (_userMsgQueue.get(chatId) === next) _userMsgQueue.delete(chatId) })
@@ -15023,8 +15032,7 @@ All verified numbers generated during sourcing.`))
       goto[lastStep]()
     } else {
       log(`[goBack] Invalid goto lastStep: ${lastStep} for chatId ${chatId}, returning to main menu`)
-      const greeting = `Please choose an option:`
-      send(chatId, greeting, trans('o'))
+      return goto.displayMainMenuButtons()
     }
   }
 
@@ -15577,7 +15585,7 @@ All verified numbers generated during sourcing.`))
   }
 
   // /done — exit support chat (only if in support chat mode)
-  if (message === '/done' && action === a.supportChat) {
+  if ((message === '/done' || isBackPress(message)) && action === a.supportChat) {
     reactToMessage(chatId, msg?.message_id, '🙏') // UX #3: thank-you on session close
     await set(supportSessions, chatId, 0)
     await set(state, chatId, 'action', 'none')
@@ -16085,7 +16093,7 @@ All verified numbers generated during sourcing.`))
     ]))
   }
   //
-  if (isCancelPress(message) || isMainMenuPress(message) || (firstSteps.includes(action) && isBackPress(message))) {
+  if (isCancelPress(message) || isMainMenuPress(message) || ((firstSteps.includes(action) || action === a.cpEnterAddress) && isBackPress(message))) {
     // ━━━ HELD-PAYMENT REFUND on cancel from address-collection state ━━━
     // When user paid via Wallet then enters cpEnterAddress, the wallet is
     // already debited and `cpPendingPriceUsd` is set. The bot tells them
@@ -16325,6 +16333,7 @@ All verified numbers generated during sourcing.`))
   if (action === a.joinEmail) {
     const _l = info?.userLanguage || 'en'
     const typed = String(message || '').trim()
+    if (isBackPress(message)) { await set(state, chatId, 'action', 'none'); return showFirstSessionIntent(_l) }
     if (isValidEmail(typed)) {
       await set(state, chatId, 'accountEmail', typed)
       await set(state, chatId, 'lastOrderEmail', typed)
@@ -16390,6 +16399,7 @@ All verified numbers generated during sourcing.`))
     }
   }
   if (action === a.updateUserLanguage) {
+    if (isBackPress(message)) return goto.displayMainMenuButtons()
     const language = message
     const supportedLanguages = trans('supportedLanguages')
     const validLanguage = supportedLanguages[language]
@@ -16437,7 +16447,7 @@ All verified numbers generated during sourcing.`))
   }
 
   if (action === a.getPlanNow) {
-    if (message === user.backToFreeTrial) return goto.freeTrial()
+    if (message === user.backToFreeTrial || isBackPress(message)) return goto.freeTrial()
 
     if (!message.endsWith('.sbs') && message) {
        return send(chatId, t.trialPlanGetNowInvalidDomain, k.of([[user.backToFreeTrial]]))
@@ -16817,7 +16827,7 @@ All verified numbers generated during sourcing.`))
       }
     }
 
-    if (message === user.backToBillingMenu) return goto.billingMenu()
+    if (message === user.backToBillingMenu || isBackPress(message)) return goto.billingMenu()
   }
 
   // My Hosting Plans — select a plan to view
@@ -16843,7 +16853,7 @@ All verified numbers generated during sourcing.`))
 
   // View Hosting Plan — actions
   if (action === a.viewHostingPlan) {
-    if (message === user.backToMyHostingPlans) return goto.myHostingPlans()
+    if (message === user.backToMyHostingPlans || isBackPress(message)) return goto.myHostingPlans()
     if (message === user.revealCredentials) return goto.revealHostingCredentials()
     // One-tap "Upgrade to Gold" deep-link — triggers the existing upgrade flow
     if (typeof message === 'string' && message.startsWith('⬆️ Upgrade to Gold (')) {
@@ -17298,9 +17308,9 @@ All verified numbers generated during sourcing.`))
 
   // ── Site Offline — choose mode ──
   if (action === a.chooseSiteOfflineMode) {
-    if (message === user.cancelGoBackBtn) return goto.viewHostingPlanDetails(info?.selectedHostingDomain)
+    if (message === user.cancelGoBackBtn || isBackPress(message)) return goto.viewHostingPlanDetails(info?.selectedHostingDomain)
     if (message !== user.siteOfflineModeMaintenance && message !== user.siteOfflineModeSuspend) {
-      return send(chatId, trans('t.selectCorrectOption'), k.of([
+      return send(chatId, vp.selectCorrectOption, k.of([
         [user.siteOfflineModeMaintenance],
         [user.siteOfflineModeSuspend],
         [user.cancelGoBackBtn],
@@ -17316,9 +17326,9 @@ All verified numbers generated during sourcing.`))
 
   // ── Site Offline — confirm + execute ──
   if (action === a.confirmSiteOfflineMode) {
-    if (message === user.cancelGoBackBtn) return goto.viewHostingPlanDetails(info?.selectedHostingDomain)
+    if (message === user.cancelGoBackBtn || isBackPress(message)) return goto.viewHostingPlanDetails(info?.selectedHostingDomain)
     if (message !== user.confirmTakeOfflineBtn) {
-      return send(chatId, trans('t.selectCorrectOption'), k.of([[user.confirmTakeOfflineBtn], [user.cancelGoBackBtn]]))
+      return send(chatId, vp.selectCorrectOption, k.of([[user.confirmTakeOfflineBtn], [user.cancelGoBackBtn]]))
     }
     const domain = info?.selectedHostingDomain
     const mode = info?.siteOfflineMode === 'suspended' ? 'suspended' : 'maintenance'
@@ -17376,9 +17386,9 @@ All verified numbers generated during sourcing.`))
 
   // ── Site Online — confirm + execute ──
   if (action === a.confirmBringSiteOnline) {
-    if (message === user.cancelGoBackBtn) return goto.viewHostingPlanDetails(info?.selectedHostingDomain)
+    if (message === user.cancelGoBackBtn || isBackPress(message)) return goto.viewHostingPlanDetails(info?.selectedHostingDomain)
     if (message !== user.confirmBringOnlineBtn) {
-      return send(chatId, trans('t.selectCorrectOption'), k.of([[user.confirmBringOnlineBtn], [user.cancelGoBackBtn]]))
+      return send(chatId, vp.selectCorrectOption, k.of([[user.confirmBringOnlineBtn], [user.cancelGoBackBtn]]))
     }
     const domain = info?.selectedHostingDomain
     if (!domain) return goto.myHostingPlans()
@@ -17443,7 +17453,7 @@ All verified numbers generated during sourcing.`))
 
   // ── Unlink Addon Domain — pick domain ──
   if (action === a.selectDomainToUnlink) {
-    if (message === user.backToMyHostingPlans) return goto.viewHostingPlanDetails(info?.selectedHostingDomain)
+    if (message === user.backToMyHostingPlans || isBackPress(message)) return goto.viewHostingPlanDetails(info?.selectedHostingDomain)
     const domain = info?.selectedHostingDomain
     if (!domain) return goto.myHostingPlans()
     const plan = await cpanelAccounts.findOne({ chatId: String(chatId), domain, deleted: { $ne: true } })
@@ -17462,11 +17472,11 @@ All verified numbers generated during sourcing.`))
 
   // ── Unlink Addon Domain — confirm & execute ──
   if (action === a.confirmUnlinkAddonDomain) {
-    if (message === user.cancelGoBackBtn || message === user.backToMyHostingPlans) {
+    if (message === user.cancelGoBackBtn || (message === user.backToMyHostingPlans || isBackPress(message))) {
       return goto.viewHostingPlanDetails(info?.selectedHostingDomain)
     }
     if (message !== user.confirmUnlinkBtn) {
-      return send(chatId, trans('t.selectCorrectOption'), k.of([[user.confirmUnlinkBtn], [user.cancelGoBackBtn]]))
+      return send(chatId, vp.selectCorrectOption, k.of([[user.confirmUnlinkBtn], [user.cancelGoBackBtn]]))
     }
 
     const domain = info?.selectedHostingDomain
@@ -17605,11 +17615,11 @@ All verified numbers generated during sourcing.`))
 
   // ── Attach Addon Domain — confirm & execute ──
   if (action === a.confirmAttachAddonDomain) {
-    if (message === user.cancelGoBackBtn || message === user.backToMyHostingPlans || isBackPress(message)) {
+    if (message === user.cancelGoBackBtn || (message === user.backToMyHostingPlans || isBackPress(message)) || isBackPress(message)) {
       return goto.viewHostingPlanDetails(info?.selectedHostingDomain)
     }
     if (message !== user.confirmAttachBtn) {
-      return send(chatId, trans('t.selectCorrectOption'), k.of([[user.confirmAttachBtn], [user.cancelGoBackBtn]]))
+      return send(chatId, vp.selectCorrectOption, k.of([[user.confirmAttachBtn], [user.cancelGoBackBtn]]))
     }
 
     const domain = info?.selectedHostingDomain
@@ -17749,12 +17759,12 @@ All verified numbers generated during sourcing.`))
 
   // ── Change Primary Domain — confirm & execute ──
   if (action === a.confirmChangePrimaryDomain) {
-    if (message === user.cancelGoBackBtn || message === user.backToMyHostingPlans || isBackPress(message)) {
+    if (message === user.cancelGoBackBtn || (message === user.backToMyHostingPlans || isBackPress(message)) || isBackPress(message)) {
       saveInfo('makePrimaryDomain', null)
       return goto.viewHostingPlanDetails(info?.selectedHostingDomain)
     }
     if (message !== user.confirmChangePrimaryBtn) {
-      return send(chatId, trans('t.selectCorrectOption'), k.of([[user.confirmChangePrimaryBtn], [user.cancelGoBackBtn]]))
+      return send(chatId, vp.selectCorrectOption, k.of([[user.confirmChangePrimaryBtn], [user.cancelGoBackBtn]]))
     }
 
     const oldDomain = info?.selectedHostingDomain
@@ -17885,7 +17895,7 @@ All verified numbers generated during sourcing.`))
 
   // ── Cancel Hosting Plan — confirm & execute ──
   if (action === a.confirmCancelHostingPlan) {
-    if (message === user.cancelGoBackBtn || message === user.backToMyHostingPlans) {
+    if (message === user.cancelGoBackBtn || (message === user.backToMyHostingPlans || isBackPress(message))) {
       // Clear any migration hints from earlier prompt
       saveInfo('cancelPlanAddonsToMigrate', null)
       saveInfo('cancelPlanMigrateTargetCpUser', null)
@@ -17906,7 +17916,7 @@ All verified numbers generated during sourcing.`))
       const targetCpUser = info?.cancelPlanMigrateTargetCpUser
       const targetDomain = info?.cancelPlanMigrateTargetDomain
       if (!addons.length || !targetCpUser) {
-        return send(chatId, trans('t.selectCorrectOption'), k.of([[user.backToMyHostingPlans]]))
+        return send(chatId, vp.selectCorrectOption, k.of([[user.backToMyHostingPlans]]))
       }
       await send(chatId, `↪️ Moving ${addons.length} addon(s) to <b>${targetDomain}</b>…`, { parse_mode: 'HTML' })
 
@@ -17984,7 +17994,7 @@ All verified numbers generated during sourcing.`))
     }
 
     if (message !== user.confirmCancelHostingBtn) {
-      return send(chatId, trans('t.selectCorrectOption'), k.of([[user.confirmCancelHostingBtn], [user.cancelGoBackBtn]]))
+      return send(chatId, vp.selectCorrectOption, k.of([[user.confirmCancelHostingBtn], [user.cancelGoBackBtn]]))
     }
 
     const domain = info?.selectedHostingDomain
@@ -18279,7 +18289,7 @@ All verified numbers generated during sourcing.`))
 
   // Confirm Hosting Plan Upgrade — currency selection + wallet deduction + WHM package change
   if (action === a.confirmUpgradeHosting) {
-    if (message === user.backToMyHostingPlans) return goto.myHostingPlans()
+    if (message === user.backToMyHostingPlans || isBackPress(message)) return goto.myHostingPlans()
 
     const upgradeOptions = info?.upgradeOptions || []
     const selected = upgradeOptions.find(opt => {
@@ -18333,7 +18343,7 @@ All verified numbers generated during sourcing.`))
 
   // Confirm Hosting Upgrade — pay with USD
   if (action === a.confirmUpgradeHostingPay) {
-    if (message === user.backToMyHostingPlans) return goto.myHostingPlans()
+    if (message === user.backToMyHostingPlans || isBackPress(message)) return goto.myHostingPlans()
 
     const isPayUsd = message.startsWith('💵')
 
@@ -19456,7 +19466,7 @@ All verified numbers generated during sourcing.`))
 
   // Enter Subject
   if (action === a.ebEnterSubject) {
-    if (message === (trans('t.ebCancelBtn')) || isCancelPress(message)) return goto.displayMainMenuButtons()
+    if (message === (trans('t.ebCancelBtn')) || isCancelPress(message) || isBackPress(message)) return goto.displayMainMenuButtons()
     await saveInfo('ebSubject', message)
     await set(state, chatId, 'action', a.ebEnterFromName)
     const subjectConfirmMsg = { en: `✅ Subject: <b>${message}</b>\n\n👤 Now enter the <b>From Name</b> (sender name recipients will see):`, fr: `✅ Objet : <b>${message}</b>\n\n👤 Entrez le <b>Nom de l'expéditeur</b> :`, zh: `✅ 主题：<b>${message}</b>\n\n👤 请输入<b>发件人名称</b>（收件人将看到的名称）：`, hi: `✅ विषय: <b>${message}</b>\n\n👤 अब <b>प्रेषक नाम</b> दर्ज करें:` }
@@ -19467,7 +19477,7 @@ All verified numbers generated during sourcing.`))
 
   // Enter From Name
   if (action === a.ebEnterFromName) {
-    if (message === (trans('t.ebCancelBtn')) || isCancelPress(message)) return goto.displayMainMenuButtons()
+    if (message === (trans('t.ebCancelBtn')) || isCancelPress(message) || isBackPress(message)) return goto.displayMainMenuButtons()
     await saveInfo('ebFromName', message)
     await set(state, chatId, 'action', a.ebSelectContentType)
     const fromConfirmMsg = { en: `✅ From: <b>${message}</b>\n\n📝 <b>How would you like to provide your email content?</b>\n\nChoose an option:`, fr: `✅ De : <b>${message}</b>\n\n📝 <b>Comment souhaitez-vous fournir le contenu ?</b>\n\nChoisissez :`, zh: `✅ 发件人：<b>${message}</b>\n\n📝 <b>您想如何提供邮件内容？</b>\n\n请选择：`, hi: `✅ प्रेषक: <b>${message}</b>\n\n📝 <b>आप ईमेल सामग्री कैसे प्रदान करना चाहेंगे?</b>\n\nविकल्प चुनें:` }
@@ -19482,7 +19492,7 @@ All verified numbers generated during sourcing.`))
 
   // Select Content Type
   if (action === a.ebSelectContentType) {
-    if (message === (trans('t.ebCancelBtn')) || isCancelPress(message)) return goto.displayMainMenuButtons()
+    if (message === (trans('t.ebCancelBtn')) || isCancelPress(message) || isBackPress(message)) return goto.displayMainMenuButtons()
 
     if (message === (trans('t.ebTypeText')) || message === '📝 Type Plain Text') {
       await saveInfo('ebContentType', 'text')
@@ -19507,7 +19517,7 @@ All verified numbers generated during sourcing.`))
 
   // Enter Email Content
   if (action === a.ebEnterContent) {
-    if (isCancelPress(message)) return goto.displayMainMenuButtons()
+    if (isCancelPress(message) || isBackPress(message)) return goto.displayMainMenuButtons()
 
     let htmlContent = ''
     let textContent = ''
@@ -19580,7 +19590,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // Campaign Preview — Confirm/Edit/Cancel/Test
   if (action === a.ebPreview) {
-    if (message === (trans('t.ebCancelBtn')) || isCancelPress(message)) return goto.displayMainMenuButtons()
+    if (message === (trans('t.ebCancelBtn')) || isCancelPress(message) || isBackPress(message)) return goto.displayMainMenuButtons()
 
     if (message === '✏️ Edit') {
       await set(state, chatId, 'action', a.ebEnterSubject)
@@ -19643,7 +19653,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // Payment Handler
   if (action === a.ebPayment) {
-    if (message === (trans('t.ebCancelBtn')) || isCancelPress(message)) {
+    if (message === (trans('t.ebCancelBtn')) || isCancelPress(message) || isBackPress(message)) {
       if (info.ebCampaignId) await emailBlastService.cancelCampaign(info.ebCampaignId)
       return goto.displayMainMenuButtons()
     }
@@ -19840,7 +19850,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // Test Email Result — user decides to continue, edit, or resend
   if (action === a.ebTestEmailSent) {
-    if (isCancelPress(message)) return goto.displayMainMenuButtons()
+    if (isCancelPress(message) || isBackPress(message)) return goto.displayMainMenuButtons()
 
     if (message === '✅ Looks Good — Continue to Payment' || message === '✅ Continue to Payment Anyway') {
       // Go to payment step — reuse the preview's "Pay & Send" logic
@@ -21488,7 +21498,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ━━ VPS Step 1: VPS or RDP? ━━
   if (action === a.vpsChooseType) {
-    if (message === vp.back) return goto.submenu4()
+    if (isBackPress(message)) return goto.submenu4()
     let vpsDetails = info?.vpsDetails || {}
     if (message === vp.vpsRdpBtn) {
       vpsDetails.isRDP = true
@@ -21505,7 +21515,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ━━ VPS Step 2: Region (auto-skip DC/zone) ━━
   if (action === a.askCountryForVPS) {
-    if (message === vp.back) return goto.createNewVpsFlow()
+    if (isBackPress(message)) return goto.createNewVpsFlow()
     const areaList = info?.vpsAreaList
     if (!areaList.includes(message)) return send(chatId, vp.chooseValidCountry, vp.of(areaList))
     let vpsDetails = info?.vpsDetails || {}
@@ -21541,7 +21551,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.askVpsDiskType) {
-    if (message === vp.back) return goto.askRegionForVps()
+    if (isBackPress(message)) return goto.askRegionForVps()
     const options = info?.vpsDiskTypes
     const diskList = options?.map((item) => item?.label) || [];
     if (!diskList || !diskList.length) return send(chatId, vp.failedFetchingData, trans('o'))
@@ -21552,7 +21562,7 @@ ${message.replace(/\n/g, '<br>')}
     // save vps configs
   if (action === a.askVpsConfig) {
     // The disk step is auto-skipped when the provider has a single storage type — Back goes to the region then.
-    if (message === vp.back) return (info?.vpsDiskTypes || []).length > 1 ? goto.askVpsDiskType() : goto.askRegionForVps()
+    if (isBackPress(message)) return (info?.vpsDiskTypes || []).length > 1 ? goto.askVpsDiskType() : goto.askRegionForVps()
     const vpsConfigurations = info?.vpsConfigTypes
     // Match by button text "Cloud VPS 1 — $8.18/mo" OR by plain name "Cloud VPS 1".
     // The cheapest plan button now ships with a "🌟 " prefix (see goto.askVpsConfig)
@@ -21604,7 +21614,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // RDP: prepaid duration → <tier>-<N>m product + total for the whole period
   if (action === a.askRdpDuration) {
-    if (message === vp.back) return goto.askVpsConfig()
+    if (isBackPress(message)) return goto.askVpsConfig()
     let vpsDetails = info?.vpsDetails || {}
     const cycles = (vpsDetails.config?.billingCycles || []).filter(c => c && c.price != null)
     const cycle = cycles.find(c => vp.rdpDurationBtn(c) === message)
@@ -21624,7 +21634,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // RDP: Windows edition — ⚡ golden image ready in this region (~3 min) or ⏳ full install (~45 min)
   if (action === a.askRdpEdition) {
-    if (message === vp.back) return goto.askCouponForVPSPlan()
+    if (isBackPress(message)) return goto.askCouponForVPSPlan()
     let vpsDetails = info?.vpsDetails || {}
     const options = info?.rdpEditionOptions || []
     const picked = options.find(o => vp.rdpEditionBtn(o) === message)
@@ -21640,7 +21650,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // save vps plan (legacy — Contabo is Monthly only, kept for backward compat)
   if (action === a.askUserVpsPlan) {
-    if (message === vp.back) return goto.askVpsConfig()
+    if (isBackPress(message)) return goto.askVpsConfig()
     let vpsDetails = info?.vpsDetails
     vpsDetails.plan = 'Monthly'
     vpsDetails.plantotalPrice = vpsDetails.config.billingCycles?.[0]?.price || vpsDetails.config.monthlyPrice
@@ -21653,7 +21663,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.askCouponForVPSPlan) {
-    if (message === vp.back) {
+    if (isBackPress(message)) {
       const vd = info?.vpsDetails || {}
       return (vd.isRDP && (vd.config?.billingCycles || []).length > 1) ? goto.askRdpDuration() : goto.askVpsConfig()
     }
@@ -21715,7 +21725,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // Legacy: skipCouponVps (redirect to flow)
   if (action === a.skipCouponVps) {
-    if (message === t.goBackToCoupon || message === vp.back) return goto.askCouponForVPSPlan()
+    if (message === t.goBackToCoupon || isBackPress(message)) return goto.askCouponForVPSPlan()
     const vpsDetails = info?.vpsDetails
     vpsDetails.autoRenewalPlan = true
     info.vpsDetails = vpsDetails
@@ -21726,7 +21736,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // Legacy: askVPSPlanAutoRenewal (redirect — auto-renewal now defaults to ON)
   if (action === a.askVPSPlanAutoRenewal) {
-    if (message === vp.back) return goto.askCouponForVPSPlan()
+    if (isBackPress(message)) return goto.askCouponForVPSPlan()
     let vpsDetails = info.vpsDetails
     vpsDetails.autoRenewalPlan = true
     info.vpsDetails = vpsDetails
@@ -21737,7 +21747,7 @@ ${message.replace(/\n/g, '<br>')}
 
   if (action === a.askVpsCpanel) {
     let vpsDetails = info?.vpsDetails
-    if (message === vp.back) return goto.askVPSPlanAutoRenewal()
+    if (isBackPress(message)) return goto.askVPSPlanAutoRenewal()
     const cpanels = trans('vpsCpanelOptional')
     if (!cpanels.includes(message)) return send (chatId, vp.validCpanel, vp.cpanelMenu)
     vpsDetails.panel = message === vp.noControlPanel ? null : {
@@ -21755,7 +21765,7 @@ ${message.replace(/\n/g, '<br>')}
 
   if (action === a.askVpsCpanelLicense) {
     let vpsDetails = info?.vpsDetails
-    if (message === vp.back) return goto.askVpsCpanel()
+    if (isBackPress(message)) return goto.askVpsCpanel()
     const options = info.vpsSelectedPanelOptions
     const list = options.map((item) => item.name)
     if (!list.includes(message)) return send(chatId, vp.askCpanelOtions(vpsDetails.panel.name, options), vp.of(list))
@@ -21776,7 +21786,7 @@ ${message.replace(/\n/g, '<br>')}
 
   if (action === a.askVpsOS) {
     let vpsDetails = info?.vpsDetails
-    if (message === vp.back) return goto.askCouponForVPSPlan()
+    if (isBackPress(message)) return goto.askCouponForVPSPlan()
     const osData = info?.vpsOSList
     // Filter out RDP from OS list — RDP users never reach this step
     const linuxOnly = osData.filter(o => !o.isRDP)
@@ -21805,7 +21815,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.vpsAskSSHKey) {
-    if (message === vp.back) return goto.askVpsOS()
+    if (isBackPress(message)) return goto.askVpsOS()
     const vpsDetails = info.vpsDetails
     if (message === vp.skipSSHKeyBtn) return goto.askSkipSSHkeyconfirmation()
     if (message === vp.generateSSHKeyBtn) {
@@ -21827,7 +21837,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.askSkipSSHkeyconfirmation) {
-    if (message === vp.back || message === vp.setUpSSHBtn) return goto.vpsAskSSHKey()
+    if (isBackPress(message) || message === vp.setUpSSHBtn) return goto.vpsAskSSHKey()
     let vpsDetails = info.vpsDetails
     if (message === vp.confirmSkipSSHBtn) {
       vpsDetails.sshKeyName = null
@@ -21840,7 +21850,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.vpsLinkSSHKey) {
-    if (message === vp.back) return goto.vpsAskSSHKey()
+    if (isBackPress(message)) return goto.vpsAskSSHKey()
     let vpsDetails = info.vpsDetails
     if (message === vp.cancel) {
       vpsDetails.sshKeyName = null
@@ -21870,7 +21880,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.askUploadSSHPublicKey) {
-    if (message === vp.back) return goto.vpsLinkSSHKey()
+    if (isBackPress(message)) return goto.vpsLinkSSHKey()
     let vpsDetails = info.vpsDetails
     let newSShKey;
     if (msg.document) {
@@ -21899,7 +21909,7 @@ ${message.replace(/\n/g, '<br>')}
   }
   
   if (action === a.proceedWithVpsPayment) {
-    if (message === vp.back) {
+    if (isBackPress(message)) {
       // Route back to the user's IMMEDIATELY previous step (see notes on
       // `vpsAskPaymentConfirmation` for why). Falls back to the legacy
       // behavior (vpsAskSSHKey) when no breadcrumb is set.
@@ -21926,7 +21936,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.getUserAllVmIntances) {
-    if (message === vp.back) return goto.submenu4()
+    if (isBackPress(message)) return goto.submenu4()
     if (message === user.buyVpsPlan) return goto.createNewVpsFlow()
     const vpsList = Array.isArray(info?.userVPSDetails) ? info.userVPSDetails : []
     const list = vpsList.map((item) => item?.name).filter(Boolean);
@@ -21938,7 +21948,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.getVPSDetails) {
-    if (message === vp.back) return goto.getUserAllVmIntances()
+    if (isBackPress(message)) return goto.getUserAllVmIntances()
     const userVPSDetails = info.userVPSDetails
     if (message === vp.stopVpsBtn) return goto.confirmStopVps()
     if (message === vp.deleteVpsBtn) return goto.confirmDeleteVps()
@@ -21993,7 +22003,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.confirmStopVps) {
-    if (message === vp.back) return goto.getVPSDetails()
+    if (isBackPress(message)) return goto.getVPSDetails()
     if (message === vp.cancel) return goto.getUserAllVmIntances()
     if (message === vp.confirmChangeBtn) {
       const userVPSDetails = info.userVPSDetails
@@ -22014,7 +22024,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.confirmDeleteVps) {
-    if (message === vp.back) return goto.getVPSDetails()
+    if (isBackPress(message)) return goto.getVPSDetails()
     if (message === vp.cancel) return goto.getUserAllVmIntances()
     if (message === vp.confirmChangeBtn) {
       const userVPSDetails = info.userVPSDetails
@@ -22035,7 +22045,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ━━━ Reset VPS/RDP Password ━━━
   if (action === a.confirmResetPassword) {
-    if (message === vp.back || message === vp.cancel) return goto.getVPSDetails()
+    if (isBackPress(message) || message === vp.cancel) return goto.getVPSDetails()
     // "Just view it instead" — jump straight to the reveal flow from the confirm screen.
     if (message === vp.revealPasswordBtn) return goto.revealVpsPassword()
     if (message === vp.confirmChangeBtn) {
@@ -22132,7 +22142,7 @@ ${message.replace(/\n/g, '<br>')}
   // ━━━ Reinstall Windows ━━━
   // DigitalOcean RDP reinstall: edition picked → confirmation screen naming that edition
   if (action === a.askReinstallEdition) {
-    if (message === vp.back || message === vp.cancel) return goto.getVPSDetails()
+    if (isBackPress(message) || message === vp.cancel) return goto.getVPSDetails()
     const options = info?.reinstallEditionOptions || []
     const picked = options.find(o => vp.rdpEditionBtn(o) === message)
     if (!picked) return send(chatId, vp.askReinstallEdition(info.userVPSDetails?.name, options), vp.of([...options.map(o => vp.rdpEditionBtn(o)), vp.cancel]))
@@ -22142,7 +22152,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.askReinstallLinuxOs) {
-    if (message === vp.back || message === vp.cancel) return goto.getVPSDetails()
+    if (isBackPress(message) || message === vp.cancel) return goto.getVPSDetails()
     const options = info?.reinstallLinuxOptions || []
     const picked = options.find(o => vp.linuxOsBtn(o) === message)
     if (!picked) return send(chatId, vp.askReinstallLinuxOs(info.userVPSDetails?.name, options), vp.of(linuxOsRows(options, vp)))
@@ -22152,7 +22162,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.confirmReinstallLinux) {
-    if (message === vp.back || message === vp.cancel) return goto.getVPSDetails()
+    if (isBackPress(message) || message === vp.cancel) return goto.getVPSDetails()
     if (message !== vp.confirmChangeBtn) return send(chatId, vp.selectCorrectOption, vp.of([vp.confirmChangeBtn, vp.cancel]))
     const d = info.userVPSDetails
     const picked = info.reinstallLinuxOs
@@ -22179,7 +22189,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.confirmReinstallWindows) {
-    if (message === vp.back || message === vp.cancel) return goto.getVPSDetails()
+    if (isBackPress(message) || message === vp.cancel) return goto.getVPSDetails()
     if (message === vp.confirmChangeBtn) {
       const userVPSDetails = info.userVPSDetails
       const instanceId = userVPSDetails.contaboInstanceId || userVPSDetails._id
@@ -22292,7 +22302,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.upgradeVpsInstance) {
-    if (message === vp.back) return goto.getVPSDetails()
+    if (isBackPress(message)) return goto.getVPSDetails()
     if (message !== vp.upgradeVpsDiskBtn && message !== vp.upgradeVpsPlanBtn) {
       return send(chatId, vp.selectCorrectOption, vp.of([ vp.upgradeVpsPlanBtn, vp.upgradeVpsDiskBtn ]))
     }
@@ -22308,7 +22318,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.upgradeVpsPlan) {
-    if (message === vp.back) return goto.upgradeVpsInstance()
+    if (isBackPress(message)) return goto.upgradeVpsInstance()
     if (message === vp.cancel) return goto.getVPSDetails()
     const vpsDetails = info.vpsDetails
     const upgradeOptions = info.VPSUpgradeOptions
@@ -22328,7 +22338,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.askVpsUpgradePayment) {
-    if (message === vp.back) return goto.upgradeVpsInstance()
+    if (isBackPress(message)) return goto.upgradeVpsInstance()
     if (message === vp.no) {
       await set(state, chatId, 'action', 'none')
       return goto.getVPSDetails()
@@ -22403,7 +22413,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.vpsSubscription) {
-    if (message === vp.back) return goto.getVPSDetails()
+    if (isBackPress(message)) return goto.getVPSDetails()
     if (message !== vp.manageVpsSubBtn && message !== vp.manageVpsPanelBtn) {
       const availableOptions = info.userVPSDetails.cPanel ? [vp.manageVpsSubBtn, vp.manageVpsPanelBtn] : [vp.manageVpsSubBtn]
       return send(chatId, vp.selectCorrectOption, vp.of(availableOptions))
@@ -22413,7 +22423,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.manageVpsSub) {
-    if (message === vp.back) return goto.vpsSubscription()
+    if (isBackPress(message)) return goto.vpsSubscription()
     if (message === vp.vpsDisableRenewalBtn || message === vp.vpsEnableRenewalBtn) {
       let vpsDetails = info.userVPSDetails
       const changeAutoRenewal = await changeVpsAutoRenewal(chatId, vpsDetails)
@@ -22452,7 +22462,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.manageVpsPanel) {
-    if (message === vp.back) return goto.vpsSubscription()
+    if (isBackPress(message)) return goto.vpsSubscription()
     if (message === vp.vpsPlanRenewBtn) {
       let vpsDetails = info.vpsDetails
       vpsDetails.upgradeType = 'vps-cPanel-renew'
@@ -22467,13 +22477,13 @@ ${message.replace(/\n/g, '<br>')}
 
   if (action === a.confirmVPSRenewDetails) {
     let vpsDetails = info.vpsDetails
-    if (message === vp.back) return vpsDetails.upgradeType === 'vps-renew' ? goto.manageVpsSub() : goto.manageVpsPanel()
+    if (isBackPress(message)) return vpsDetails.upgradeType === 'vps-renew' ? goto.manageVpsSub() : goto.manageVpsPanel()
     if (message === vp.payNowBtn) return goto['vps-upgrade-plan-pay']()
     return send(chatId, vp.selectCorrectOption)
   }
 
   if (action === a.vpsLinkedSSHkeys) {
-    if (message === vp.back) return goto.getVPSDetails()
+    if (isBackPress(message)) return goto.getVPSDetails()
     if (message === vp.unlinkSSHKeyBtn) return goto.vpsUnlinkSSHKey()
     if (message === vp.linkVpsSSHKeyBtn) return goto.vpslinkNewSSHKey()
     if (message === vp.downloadSSHKeyBtn) return goto.downloadSSHKey()
@@ -22481,7 +22491,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.vpsUnlinkSSHKey) {
-    if (message === vp.back) return goto.vpsLinkedSSHkeys()
+    if (isBackPress(message)) return goto.vpsLinkedSSHkeys()
     let vpsDetails = info.vpsDetails
     const linkedSSHKeys = vpsDetails.linkedSSHKeys
     if (message === vp.cancel) return goto.getVPSDetails()
@@ -22493,7 +22503,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.confirmVpsUnlinkSSHKey) {
-    if (message === vp.back) return goto.vpsUnlinkSSHKey()
+    if (isBackPress(message)) return goto.vpsUnlinkSSHKey()
     if (message === vp.cancel) return goto.vpsLinkedSSHkeys()
     if (message === vp.confirmUnlinkBtn) {
       const vpsDetails = info.vpsDetails
@@ -22509,7 +22519,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.vpslinkNewSSHKey) {
-    if (message === vp.back) return goto.vpsLinkedSSHkeys()
+    if (isBackPress(message)) return goto.vpsLinkedSSHkeys()
     if (message === vp.cancel) return goto.getVPSDetails()
     if (message === vp.uploadNewKeyBtn) return goto.uploadSShKeyToAttach()
     let vpsDetails = info.vpsDetails
@@ -22531,7 +22541,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.uploadSShKeyToAttach) {
-    if (message === vp.back) return goto.vpslinkNewSSHKey()
+    if (isBackPress(message)) return goto.vpslinkNewSSHKey()
     let vpsDetails = info.vpsDetails
     let newSShKey;
     if (msg.document) {
@@ -22567,7 +22577,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.downloadSSHKey) {
-    if (message === vp.back) return goto.vpsLinkedSSHkeys()
+    if (isBackPress(message)) return goto.vpsLinkedSSHkeys()
     if (message === vp.cancel) return goto.getVPSDetails()
     let vpsDetails = info.vpsDetails
     let linkedSSHKeys = vpsDetails.linkedSSHKeys
@@ -25854,33 +25864,18 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   //
   //
   if (action === a.walletSelectCurrency) {
-    if (isBackPress(message)) return goto[info?.lastStep]()
+    if (isBackPress(message)) return (goto[info?.lastStep] || goto.displayMainMenuButtons)()
     // USD-only wallet — auto-set coin and route to confirm
     await saveInfo('coin', u.usd)
     return goto.walletSelectCurrencyConfirm()
   }
   if (action === a.walletSelectCurrencyConfirm) {
-    if (isBackPress(message)) {
-      // Go back to payment method selection based on lastStep
+    // Back / No → the payment picker this confirm came from (re-showing the confirm itself trapped users here)
+    if (isBackPress(message) || isNoPress(message)) {
       const lastStep = info?.lastStep
-      if (lastStep === 'phone-pay') {
-        return goto['phone-pay']()
-      } else if (lastStep === 'domain-pay') {
-        return goto['domain-pay']()
-      } else if (lastStep === 'hosting-pay') {
-        return goto['hosting-pay']()
-      } else if (lastStep === 'vps-plan-pay') {
-        return goto['vps-plan-pay']()
-      } else if (lastStep === 'digital-product-pay') {
-        return goto['digital-product-pay']()
-      } else if (lastStep === 'virtual-card-pay') {
-        return goto['virtual-card-pay']()
-      } else {
-        // Default fallback
-        return goto[a.walletSelectCurrency]()
-      }
+      if (lastStep && lastStep !== a.walletSelectCurrency && lastStep !== a.walletSelectCurrencyConfirm && typeof goto[lastStep] === 'function') return goto[lastStep]()
+      return goto.displayMainMenuButtons()
     }
-    if (isNoPress(message)) return goto[a.walletSelectCurrency]()
 
     if (!isYesPress(message)) return send(chatId, t.what)
 
@@ -26066,7 +26061,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   if (action === a.submenu5) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
     const buyLabel = pc.buyPhoneNumber
-    if (isBackPress(message) || message === pc.back || isCancelPress(message) || message === pc.cancel) return send(chatId, t.userPressedBtn(message), trans('o'))
+    if (isBackPress(message) || isCancelPress(message) || message === pc.cancel) return send(chatId, t.userPressedBtn(message), trans('o'))
     if (phoneConfig.btnKeyOf(message) === 'buyPhoneNumber') {
       // Step 1: Select Plan FIRST — reset stale phone purchase state
       saveInfo('cpIsSubNumber', false)
@@ -28244,7 +28239,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
   // ── Save Preset Name handler (#1) ──
   if (action === a.ivrObPresetName || action === 'ivrObPresetName') {
-    if (message === 'Cancel' || isCancelPress(message)) return goto.submenu5()
+    if (message === 'Cancel' || isCancelPress(message) || isBackPress(message)) return goto.submenu5()
     const ivrObData = info?.ivrObData || {}
     const presetName = message.trim().substring(0, 50)
     let presets = info?.ivrPresets || []
@@ -29569,7 +29564,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // ── BUY FLOW: Select Country ──
   if (action === a.cpSelectCountry) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       // Go back to plan selection
       await set(state, chatId, 'action', a.cpSelectPlan)
       const availablePlanBtns = []
@@ -29610,7 +29605,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // ── BUY FLOW: Select Type ──
   if (action === a.cpSelectType) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpSelectCountry)
       const countryBtns = phoneConfig.allCountries.map(c => c.name)
       const rows = []
@@ -29683,7 +29678,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // ── BUY FLOW: Select Area ──
   if (action === a.cpSelectArea) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpSelectType)
       return send(chatId, cpTxt.selectType(info?.cpCountryName || ''), k.of([[pc.localNumber], [pc.tollFreeNumber]]))
     }
@@ -29732,7 +29727,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // ── BUY FLOW: Enter Area Code ──
   if (action === a.cpEnterAreaCode) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpSelectArea)
       const areaBtns = phoneConfig.usAreaCodes.map(a => `${a.city} (${a.code})`)
       const rows = []
@@ -29781,7 +29776,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // ── BUY FLOW: Select Number ──
   if (action === a.cpSelectNumber) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       const cc = info?.cpCountryCode || 'US'
       if (cc === 'US' && info?.cpNumberType === 'local') {
         await set(state, chatId, 'action', a.cpSelectArea)
@@ -29881,7 +29876,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // ── BUY FLOW: Select Plan (FIRST STEP) ──
   if (action === a.cpSelectPlan) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message) || message === pc.back) return goto.submenu5()
+    if (isBackPress(message)) return goto.submenu5()
 
     const planKey = phoneConfig.planByButton[message]
     if (!planKey) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectPlan)
@@ -29912,7 +29907,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   //    orders land directly on 'phone-pay' which shows summary + payment) ──
   if (action === a.cpOrderSummary) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpSelectPlan)
       const availBtns2 = []
       if (phoneConfig.isPlanAvailable('starter')) availBtns2.push([pc.starterPlan])
@@ -29953,7 +29948,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // ── PHONE PAY ──
   if (action === 'phone-pay') {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       // Back → plan re-selection (same as the old Order Summary's Back)
       await set(state, chatId, 'action', a.cpSelectPlan)
       const availBtns2 = []
@@ -30155,6 +30150,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
   // ── BUNDLE REJECTED: user chooses to re-upload, cancel, or start fresh ──
   if (action === 'bundleRejectedAction') {
+    if (isBackPress(message)) return goto.displayMainMenuButtons()
     const lang = info?.userLanguage ?? 'en'
     const reuploadBtn = { en: '📄 Re-upload Documents', fr: '📄 Re-soumettre', zh: '📄 重新上传文件', hi: '📄 दस्तावेज़ पुनः अपलोड करें' }[lang] || '📄 Re-upload Documents'
     const refundBtn = { en: '💰 Cancel & Get Refund', fr: '💰 Annuler et rembourser', zh: '💰 取消并退款', hi: '💰 रद्द करें और धनवापसी प्राप्त करें' }[lang] || '💰 Cancel & Get Refund'
@@ -31044,7 +31040,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
   if (action === a.cpMyNumbers) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message) || message === pc.back) return goto.submenu5()
+    if (isBackPress(message)) return goto.submenu5()
     if (message === pc.buyAnother || phoneConfig.btnKeyOf(message) === 'buyPhoneNumber') {
       // Check if user already has active primary numbers → route to sub-number (discounted) flow
       const userData = await get(phoneNumbersOf, chatId)
@@ -31171,7 +31167,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const pb = info?.cpActivePendingBundle
     if (!pb) return goto.submenu5()
 
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       // Go back to My Numbers (with pending)
       const userData = await get(phoneNumbersOf, chatId)
       const numbers = (userData?.numbers || []).filter(n => n.status === 'active' || n.status === 'suspended' || n.status === 'inactive_released')
@@ -31294,7 +31290,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       // Go back to my numbers list
       const userData = await get(phoneNumbersOf, chatId)
       const numbers = (userData?.numbers || []).filter(n => n.status === 'active' || n.status === 'suspended' || n.status === 'inactive_released')
@@ -31605,7 +31601,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // ━━━ BUY ANOTHER: Select Parent Plan (multi-plan users) ━━━
   if (action === a.cpSelectParentForBuyAnother) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message) || message === pc.back || isCancelPress(message) || message === pc.cancel) {
+    if (isBackPress(message) || isCancelPress(message) || message === pc.cancel) {
       return goto.submenu5()
     }
     const primaries = info?.cpBuyAnotherPrimaries || []
@@ -31636,7 +31632,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // ━━━ SUB-NUMBER: Select Country ━━━
   if (action === a.cpSubAddCountry) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpManageNumber)
       const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
@@ -31674,7 +31670,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // ━━━ SUB-NUMBER: Select Type ━━━
   if (action === a.cpSubAddType) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpSubAddCountry)
       const countryBtns = phoneConfig.allCountries.map(c => c.name)
       const rows = []
@@ -31730,7 +31726,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // ━━━ SUB-NUMBER: Select Area (US local) ━━━
   if (action === a.cpSubAddArea) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpSubAddType)
       return send(chatId, cpTxt.selectType(info?.cpCountryName || ''), k.of([[pc.localNumber], [pc.tollFreeNumber]]))
     }
@@ -31776,7 +31772,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // ━━━ SUB-NUMBER: Enter Area Code ━━━
   if (action === a.cpSubAddEnterArea) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpSubAddArea)
       const areaBtns = phoneConfig.usAreaCodes.map(ab => `${ab.city} (${ab.code})`)
       const rows = []
@@ -31822,7 +31818,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // ━━━ SUB-NUMBER: Select Number ━━━
   if (action === a.cpSubAddNumber) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpSubAddCountry)
       const countryBtns = phoneConfig.allCountries.map(c => c.name)
       const rows = []
@@ -31900,7 +31896,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // ━━━ SUB-NUMBER: Confirm & Pay ━━━
   if (action === a.cpSubAddConfirm) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message) || message === pc.back || message === pc.cancel) {
+    if (isBackPress(message) || message === pc.cancel) {
       await set(state, chatId, 'action', a.cpManageNumber)
       const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
@@ -31935,7 +31931,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer]]
       return send(chatId, `${prefix ? prefix + '\n\n' : ''}${cpTxt.forwardingStatus(num.phoneNumber, f, walletBal)}`, k.of(btns))
     }
-    if (isBackPress(message) || message === pc.back) return showFwdMenu()
+    if (isBackPress(message)) return showFwdMenu()
     if (!fwd.enabled || !fwd.forwardTo) {
       await set(state, chatId, 'action', a.cpManageNumber)
       send(chatId, backupNums.needsForwarding(_bl))
@@ -31960,7 +31956,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpManageNumber)
       return showManageScreen(chatId, num)
     }
@@ -32030,7 +32026,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpCallForwarding)
       const fwd = num.features?.callForwarding || {}
       let walletBal = 0
@@ -32099,7 +32095,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     let walletBal = 0
     try { const { usdBal } = await getBalance(walletOf, chatId); walletBal = usdBal } catch (e) { /* noop */ }
     // Back → return to the forwarding menu without enabling
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpCallForwarding)
       const fwd = num.features?.callForwarding || {}
       const holdLabel = fwd.holdMusic ? pc.holdMusicOn : pc.holdMusicOff
@@ -32270,7 +32266,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpManageNumber)
       return showManageScreen(chatId, num)
     }
@@ -32326,7 +32322,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpSmsSettings)
       const smsConf = num.features?.smsForwarding || {}
       const tgLabel = `📲 SMS to Telegram ${smsConf.toTelegram !== false ? '✅ ON' : '❌ OFF'}`
@@ -32348,7 +32344,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpSmsSettings)
       const smsConf = num.features?.smsForwarding || {}
       const tgLabel = `📲 SMS to Telegram ${smsConf.toTelegram !== false ? '✅ ON' : '❌ OFF'}`
@@ -32374,7 +32370,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpManageNumber)
       return showManageScreen(chatId, num)
     }
@@ -32402,7 +32398,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const snap = info?.cpActiveNumber
     if (!snap) return goto.submenu5()
     const num = (await faxService.findMine(String(chatId), snap.phoneNumber)) || snap
-    const back = isBackPress(message) || message === pc.back
+    const back = isBackPress(message)
     if (action === a.cpFax) {
       if (back) { await set(state, chatId, 'action', a.cpManageNumber); return showManageScreen(chatId, num) }
       if (message === fx.btnSend) { await saveInfo('cpFaxBulk', null); await set(state, chatId, 'action', a.cpFaxTo); return send(chatId, fx.askTo, k.of([])) }
@@ -32515,7 +32511,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpManageNumber)
       return showManageScreen(chatId, num)
     }
@@ -32540,7 +32536,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpManageNumber)
       return showManageScreen(chatId, num)
     }
@@ -32605,7 +32601,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       await set(state, chatId, 'action', a.cpVoicemail)
       const vm = num.features?.voicemail || {}
       const btns = vm.enabled
@@ -32650,7 +32646,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       await set(state, chatId, 'action', a.cpVmGreeting)
       return send(chatId, cpTxt.vmGreetingMenu(num.phoneNumber, num.features?.voicemail || {}), k.of([
         [pc.vmCustomGreeting], [pc.vmDefaultGreeting],
@@ -32709,7 +32705,7 @@ Professional templates for voicemail, customer support, financial institutions, 
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       await set(state, chatId, 'action', a.cpVmAudioUpload)
       return send(chatId, trans('t.cp_269'), k.of([[btn.useTemplate], [btn.typeText], [btn.uploadAudio]]))
     }
@@ -32745,7 +32741,7 @@ Professional templates for voicemail, customer support, financial institutions, 
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       const draft = info?.cpTtsDraft || {}
       draft.templateCategory = null
       draft.templateKey = null
@@ -32785,7 +32781,7 @@ Professional templates for voicemail, customer support, financial institutions, 
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       await set(state, chatId, 'action', a.cpVmAudioUpload)
       return send(chatId, trans('t.cp_275'), k.of([[btn.useTemplate], [btn.typeText], [btn.uploadAudio]]))
     }
@@ -32868,7 +32864,7 @@ Professional templates for voicemail, customer support, financial institutions, 
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       await set(state, chatId, 'action', a.cpVmGreeting)
       return send(chatId, cpTxt.vmGreetingMenu(num.phoneNumber, num.features?.voicemail || {}), k.of([
         [pc.vmCustomGreeting], [pc.vmDefaultGreeting],
@@ -32999,7 +32995,7 @@ Professional templates for voicemail, customer support, financial institutions, 
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpManageNumber)
       return showManageScreen(chatId, num)
     }
@@ -33030,7 +33026,7 @@ Professional templates for voicemail, customer support, financial institutions, 
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpManageNumber)
       return showManageScreen(chatId, num)
     }
@@ -33192,7 +33188,7 @@ Professional templates for voicemail, customer support, financial institutions, 
     // that sub-menu's greeting (not the root greeting). Back returns to the
     // sub-menu manager instead of the root IVR menu.
     const _subParentKey = info?.cpIvrDraft?.parentKey || null
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       if (_subParentKey) {
         await set(state, chatId, 'action', a.cpIvrSubMenuManage)
         return _renderSubMenuOverview(chatId, num, _subParentKey)
@@ -33277,7 +33273,7 @@ Professional templates for voicemail, customer support, financial institutions, 
     // `cpIvrDraft.parentKey` is set — back/save nav routes to the sub-menu manager
     // and the pick writes to `options[parentKey].subMenu.*` (not root).
     const _subParentKey = info?.cpIvrDraft?.parentKey || null
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       await set(state, chatId, 'action', a.cpIvrGreeting)
       const _c = await audioLibraryService.listAudios(chatId).then(a => a.length).catch(() => 0)
       const _r = []
@@ -33395,7 +33391,7 @@ Professional templates for voicemail, customer support, financial institutions, 
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       await set(state, chatId, 'action', a.cpIvrGreeting)
       const _c = await audioLibraryService.listAudios(chatId).then(a => a.length).catch(() => 0)
       const _r = []
@@ -33435,7 +33431,7 @@ Professional templates for voicemail, customer support, financial institutions, 
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       const draft = info?.cpTtsDraft || {}
       draft.templateCategory = null
       draft.templateKey = null
@@ -33475,7 +33471,7 @@ Professional templates for voicemail, customer support, financial institutions, 
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       await set(state, chatId, 'action', a.cpIvrGreeting)
       return send(chatId, trans('t.cp_305'), k.of([[btn.useTemplate], [btn.typeText], [btn.uploadAudio]]))
     }
@@ -33568,7 +33564,7 @@ Professional templates for voicemail, customer support, financial institutions, 
     // sub-menu greeting, route back/save to the sub-menu manager and write to
     // options[parentKey].subMenu.* + a sub-menu-scoped ivrAudioStore key.
     const _subParentKey = info?.cpIvrDraft?.parentKey || null
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       if (_subParentKey) {
         await set(state, chatId, 'action', a.cpIvrSubMenuManage)
         return _renderSubMenuOverview(chatId, num, _subParentKey)
@@ -33748,7 +33744,7 @@ Professional templates for voicemail, customer support, financial institutions, 
       const enabled = num.features?.ivr?.enabled
       return send(chatId, cpTxt.ivrMenu(num.phoneNumber, num.features?.ivr || {}), k.of(enabled ? [..._ivrRootMenuRows(num.features?.ivr, pc)] : [[pc.enableIvr], [pc.ivrUseTemplate]]))
     }
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) return backToIvr()
+    if (isBackPress(message) || isCancelPress(message)) return backToIvr()
     const saved = Array.isArray(info?.savedIvrTemplates) ? info.savedIvrTemplates : []
     if (message === MY_TPL) {
       if (!saved.length) return send(chatId, ({ en: `You have no saved templates yet.`, fr: `Vous n'avez pas encore de modèles.`, zh: `您还没有保存的模板。`, hi: `आपके पास अभी कोई सेव किया टेम्पलेट नहीं है।` }[lang] || `You have no saved templates yet.`), k.of([['↩️ Back']]))
@@ -33772,7 +33768,7 @@ Professional templates for voicemail, customer support, financial institutions, 
     if (!num) return goto.submenu5()
     const ivrTpl = require('./ivr-templates.js')
     const draft = info?.cpIvrTplDraft || {}
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       await set(state, chatId, 'action', a.cpIvrTplCat)
       const catBtns = ivrTpl.getCategoryButtons(lang).map(b => [b])
       const saved = Array.isArray(info?.savedIvrTemplates) ? info.savedIvrTemplates : []
@@ -33826,7 +33822,7 @@ Professional templates for voicemail, customer support, financial institutions, 
       return send(chatId, ({ en: `⚠️ Session expired — please pick the template again.`, fr: `⚠️ Session expirée — reprenez le modèle.`, zh: `⚠️ 会话已过期，请重新选择模板。`, hi: `⚠️ सत्र समाप्त — टेम्पलेट फिर चुनें।` }[lang] || `⚠️ Session expired — please pick the template again.`))
     }
     if (isCancelPress(message)) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpIvrTplCat)
       const catBtns = ivrTpl.getCategoryButtons(lang).map(b => [b])
       const saved = Array.isArray(info?.savedIvrTemplates) ? info.savedIvrTemplates : []
@@ -33889,7 +33885,7 @@ Professional templates for voicemail, customer support, financial institutions, 
       return send(chatId, ({ en: `⚠️ Template expired — please pick it again.`, fr: `⚠️ Modèle expiré — reprenez.`, zh: `⚠️ 模板已过期，请重新选择。`, hi: `⚠️ टेम्पलेट समाप्त — फिर चुनें।` }[lang] || `⚠️ Template expired — please pick it again.`), k.of(num.features?.ivr?.enabled ? [..._ivrRootMenuRows(num.features?.ivr, pc)] : [[pc.enableIvr], [pc.ivrUseTemplate]]))
     }
     if (isCancelPress(message)) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpIvrTplCat)
       const catBtns = ivrTpl.getCategoryButtons(lang).map(b => [b])
       const saved = Array.isArray(info?.savedIvrTemplates) ? info.savedIvrTemplates : []
@@ -33938,7 +33934,7 @@ Professional templates for voicemail, customer support, financial institutions, 
       return send(chatId, ({ en: `⚠️ Template expired — please pick it again.`, fr: `⚠️ Modèle expiré — reprenez.`, zh: `⚠️ 模板已过期，请重新选择。`, hi: `⚠️ टेम्पलेट समाप्त — फिर चुनें।` }[lang] || `⚠️ Template expired — please pick it again.`), k.of(num.features?.ivr?.enabled ? [..._ivrRootMenuRows(num.features?.ivr, pc)] : [[pc.enableIvr], [pc.ivrUseTemplate]]))
     }
     if (isCancelPress(message)) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpIvrTplVoice)
       return send(chatId, _ivrVoicePrompt(lang), { parse_mode: 'HTML', reply_markup: { keyboard: _ivrVoiceKeyboard(lang), resize_keyboard: true } })
     }
@@ -33992,7 +33988,7 @@ Professional templates for voicemail, customer support, financial institutions, 
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
     const ivrTpl = require('./ivr-templates.js')
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       await set(state, chatId, 'action', a.cpIvrTplCat)
       const catBtns = ivrTpl.getCategoryButtons(lang).map(b => [b])
       const saved = Array.isArray(info?.savedIvrTemplates) ? info.savedIvrTemplates : []
@@ -34077,7 +34073,7 @@ Professional templates for voicemail, customer support, financial institutions, 
       const nk = fill.keys[nextIdx]
       return send(chatId, ({ en: `📞 <b>Key ${nk}</b> — enter the forward number, or tap Skip:`, fr: `📞 <b>Touche ${nk}</b> — entrez le numéro, ou Passer :`, zh: `📞 <b>按键 ${nk}</b> — 输入转接号码，或跳过：`, hi: `📞 <b>कुंजी ${nk}</b> — फ़ॉरवर्ड नंबर डालें, या Skip:` }[lang] || `📞 <b>Key ${nk}</b> — enter the forward number, or tap Skip:`), { parse_mode: 'HTML', reply_markup: { keyboard: [[SKIP], [FINISH]], resize_keyboard: true } })
     }
-    if (message === FINISH || isBackPress(message) || message === pc.back) return backToMenu()
+    if (message === FINISH || isBackPress(message)) return backToMenu()
     const curKey = fill.keys[fill.idx]
     if (curKey == null) return backToMenu()
     if (message === SKIP) return askNext(fill.idx + 1)
@@ -34107,7 +34103,7 @@ Professional templates for voicemail, customer support, financial institutions, 
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       await set(state, chatId, 'action', a.cpIvr)
       return send(chatId, cpTxt.ivrMenu(num.phoneNumber, num.features?.ivr || {}), k.of([..._ivrRootMenuRows(num.features?.ivr, pc)]))
     }
@@ -34132,7 +34128,7 @@ Professional templates for voicemail, customer support, financial institutions, 
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       await set(state, chatId, 'action', a.cpIvr)
       const ivrConf = num.features?.ivr || {}
       return send(chatId, cpTxt.ivrMenu(num.phoneNumber, ivrConf), k.of([
@@ -34200,7 +34196,7 @@ What should happen when a caller presses <b>${key}</b>?`), k.of([[btn.forwardCal
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       await set(state, chatId, 'action', a.cpIvrOptionKey)
       const ivrConf = num.features?.ivr || {}
       const usedKeys = Object.keys(ivrConf.options || {}).join(', ') || 'none'
@@ -34329,7 +34325,7 @@ How do you want to create the message?`), k.of([[btn.useTemplate], [btn.typeText
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       await set(state, chatId, 'action', a.cpIvrOptionAction)
       return send(chatId, trans('t.cp_328', (info?.cpIvrDraft || {}).key), k.of([[btn.forwardCall], [btn.playMessage], [btn.sendToVoicemail], [btn.openSubMenu]]))
     }
@@ -34484,7 +34480,7 @@ Select a category:`), k.of(catBtns))
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       const draft = info?.cpIvrDraft || {}
       draft.lang = null; draft.voice = null; draft.audioPath = null; draft.ttsProvider = null
       await saveInfo('cpIvrDraft', draft)
@@ -34564,7 +34560,7 @@ Select a category:`), k.of(catBtns))
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       await set(state, chatId, 'action', a.cpIvr)
       const ivrConf = num.features?.ivr || {}
       return send(chatId, cpTxt.ivrMenu(num.phoneNumber, ivrConf), k.of([
@@ -34822,7 +34818,7 @@ Select a category:`), k.of(catBtns))
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
     const num = info?.cpActiveNumber
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpIvr)
       const ivrConf = num.features?.ivr || {}
       return send(chatId, cpTxt.ivrMenu(num.phoneNumber, ivrConf), k.of([
@@ -34990,7 +34986,7 @@ Select a category:`), k.of(catBtns))
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpIvr)
       const ivrConf = num.features?.ivr || {}
       return send(chatId, cpTxt.ivrMenu(num.phoneNumber, ivrConf), k.of([
@@ -35035,7 +35031,7 @@ Select a category:`), k.of(catBtns))
         ..._ivrRootMenuRows(num.features?.ivr, pc)
       ]))
     }
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) return backToIvr()
+    if (isBackPress(message) || isCancelPress(message)) return backToIvr()
     if (!/^🗑/.test(String(message || ''))) {
       const YES = ({ en: '🗑 Yes, remove', fr: '🗑 Oui, supprimer', zh: '🗑 是，删除', hi: '🗑 हाँ, हटाएँ' }[lang] || '🗑 Yes, remove')
       return send(chatId, ({ en: `Tap 🗑 to remove, or ↩️ Back to keep it.`, fr: `Appuyez sur 🗑 pour supprimer, ou ↩️ Retour pour conserver.`, zh: `点击 🗑 删除，或 ↩️ 返回保留。`, hi: `हटाने के लिए 🗑 दबाएँ, या ↩️ वापस।` }[lang] || `Tap 🗑 to remove, or ↩️ Back to keep it.`), { reply_markup: { keyboard: [[YES], ['↩️ Back']], resize_keyboard: true } })
@@ -35072,7 +35068,7 @@ Select a category:`), k.of(catBtns))
       const ivrConf = num.features?.ivr || {}
       return send(chatId, cpTxt.ivrMenu(num.phoneNumber, ivrConf), k.of(ivrConf.enabled ? [..._ivrRootMenuRows(num.features?.ivr, pc)] : [[pc.enableIvr], [pc.ivrUseTemplate]]))
     }
-    if (isBackPress(message) || message === pc.back || isCancelPress(message)) return backToIvr()
+    if (isBackPress(message) || isCancelPress(message)) return backToIvr()
     if (!/^✅/.test(String(message || ''))) {
       const YES = ({ en: '✅ Yes, disable', fr: '✅ Oui, désactiver', zh: '✅ 是，停用', hi: '✅ हाँ, बंद करें' }[lang] || '✅ Yes, disable')
       return send(chatId, ({ en: `Tap ✅ to disable, or ↩️ Back to keep it on.`, fr: `Appuyez sur ✅ pour désactiver, ou ↩️ Retour pour garder actif.`, zh: `点击 ✅ 停用，或 ↩️ 返回保留。`, hi: `बंद करने के लिए ✅ दबाएँ, या ↩️ वापस।` }[lang] || `Tap ✅ to disable, or ↩️ Back to keep it on.`), { reply_markup: { keyboard: [[YES], ['↩️ Back']], resize_keyboard: true } })
@@ -35092,7 +35088,7 @@ Select a category:`), k.of(catBtns))
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpManageNumber)
       return showManageScreen(chatId, num)
     }
@@ -35177,7 +35173,7 @@ Select a category:`), k.of(catBtns))
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpManageNumber)
       return showManageScreen(chatId, num)
     }
@@ -35255,7 +35251,7 @@ Select a category:`), k.of(catBtns))
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpRenewPlan)
       const plan = phoneConfig.plans[num.plan] || { name: num.plan, price: num.planPrice }
       return send(chatId, cpTxt.renewMenu(num.phoneNumber, plan.name, num.planPrice, num.expiresAt, num.autoRenew), k.of([
@@ -35497,7 +35493,7 @@ Select a category:`), k.of(catBtns))
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === pc.back) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpReleaseConfirm)
       return send(chatId, cpTxt.releaseConfirm(num.phoneNumber), k.of([[pc.yesRelease, pc.noKeep]]))
     }
@@ -35713,7 +35709,7 @@ Select a category:`), k.of(catBtns))
     return goto.buyLeadsSelectAmount()
   }
   if (action === a.buyLeadsSelectAmount) {
-    if (isBackPress(message)) return goto?.[info?.cameFrom]()
+    if (isBackPress(message)) return (goto[info?.cameFrom] || goto.displayMainMenuButtons)()
 
     const amount = Number(message)
     if (chatId === 6687923716) {
@@ -36431,7 +36427,7 @@ Select a category:`), k.of(catBtns))
   // domain back out, validate it against the list we saved, set
   // `domainToManage`, then forward to the existing anti-red-toggle action.
   if (action === 'captcha-pick-domain') {
-    if (isBackPress(message) || message === user.backToMyHostingPlans) {
+    if (isBackPress(message) || (message === user.backToMyHostingPlans || isBackPress(message))) {
       await saveInfo('captchaFromPlan', false)
       if (info?.selectedHostingDomain) return goto.viewHostingPlanDetails(info.selectedHostingDomain)
       return goto.myHostingPlans()
@@ -36587,7 +36583,7 @@ Select a category:`), k.of(catBtns))
 
   // ── 🍯 Honeypot Traps: multi-domain picker (Monthly plans with addons) ──
   if (action === 'honeypot-pick-domain') {
-    if (isBackPress(message) || message === user.backToMyHostingPlans) {
+    if (isBackPress(message) || (message === user.backToMyHostingPlans || isBackPress(message))) {
       await saveInfo('honeypotFromPlan', false)
       if (info?.selectedHostingDomain) return goto.viewHostingPlanDetails(info.selectedHostingDomain)
       return goto.myHostingPlans()
@@ -36668,7 +36664,7 @@ Select a category:`), k.of(catBtns))
       // User confirmed — proceed to DNS management
       return goto['choose-dns-action']()
     }
-    if (message === cancelBtn) {
+    if (message === cancelBtn || isBackPress(message)) {
       // User canceled — return to domain actions menu
       const domain = info?.domainToManage
       await set(state, chatId, 'action', 'view-domain-actions')
@@ -37485,6 +37481,7 @@ Tap a button below to change. Changes sync to your phone on next app open.`
   }
 
   if (action === 'listen_reset_login') {
+    await set(state, chatId, 'action', 'none')
     if (isYesPress(message)) {
       await set(loginCountOf, String(chatId), { devices: [], loginCount: 0, canLogin: true, lastLoginAt: Date.now() })
       send(chatId, t.resetLoginAdmit, trans('o'))
@@ -37933,7 +37930,7 @@ Tap a button below to change. Changes sync to your phone on next app open.`
     _resetHintCount.delete(chatId) // reset the counter so next time starts fresh
   }
   return send(chatId, t.what + '\n' + t.welcome, isAdmin(chatId) ? aO : trans('o'))
-  }) // end _enqueue async callback
+  }, msgText) // end _enqueue async callback
 }) // end bot.on('message')
 
 // ━━━ Email Blast Helper: Process uploaded email list ━━━
