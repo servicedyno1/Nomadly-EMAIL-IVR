@@ -1,7 +1,7 @@
 # Test / Setup Credentials
 
 ## CloudIVR web QA (this fork, local preview DB)
-- `civr.uxtest@example.com` / `UxTest#2026` — has a dry-run Business number `+13341112222` and one extra/sub-number `+13343334444` (seeded for the "add number to existing plan" UX test). App mounts under `/cloudivr` on preview; login path `/cloudivr/login`, dismiss cookie banner (`Allow all`) first.
+- `civr.uxtest@example.com` / `UxTest#2026` — has a dry-run Business number `+13341112222` and one extra/sub-number `+13343334444` (seeded for the "add number to existing plan" UX test). Also has AI agent "Sales AI" (`b0059c9f-cca0-4cd2-aaee-79d77f223f3b`) with +13341112222 assigned as its dedicated number. App mounts under `/cloudivr` on preview; login path `/cloudivr/login`, dismiss cookie banner (`Allow all`) first.
 
 
 ## Secrets Vault (Nomadly)

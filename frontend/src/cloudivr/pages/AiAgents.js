@@ -8,6 +8,7 @@ import { usePrivacy } from '../privacy';
 import { AgentForm, EMPTY_AGENT } from './ai/AgentForm';
 import { TestTalk } from './ai/TestTalk';
 import { AiCalls } from './ai/AiCalls';
+import AgentNumbers from './ai/AgentNumbers';
 import { DncList } from './ai/DncList';
 import { useSearch, SearchBox, NoMatches } from '../search';
 import { showUpgrade } from '../Upgrade';
@@ -79,7 +80,7 @@ export function AiAgentEdit() {
       {!isNew && loading && !agent ? <SkeletonPage header={false} cards={2} rows={0} /> : agent && (
         <div className="grid lg:grid-cols-5 gap-4 items-start">
           <div className="lg:col-span-3"><AgentForm key={agent.id || 'new'} initial={agent} voices={list?.voices} recordRate={list?.recordRate} recordingDays={list?.recordingDays} onSaved={(a) => (isNew ? nav(cp(`/app/ai-agents/${a.id}`), { replace: true }) : setData({ agent: a }))} onDeleted={() => nav(cp('/app/ai-agents'))} /></div>
-          <div className="lg:col-span-2 space-y-4">{isNew ? <div className="civr-card p-6 text-sm text-[#a1a1aa]" data-testid="ai-agent-save-first-note">Save the agent, then talk to it here in your browser before it takes real calls.</div> : <><TestTalk agent={agent} /><AiCalls agentId={agent.id} /></>}</div>
+          <div className="lg:col-span-2 space-y-4">{isNew ? <div className="civr-card p-6 text-sm text-[#a1a1aa]" data-testid="ai-agent-save-first-note">Save the agent, then talk to it here in your browser before it takes real calls.</div> : <><TestTalk agent={agent} /><AgentNumbers agent={agent} agents={list?.agents || []} /><AiCalls agentId={agent.id} /></>}</div>
         </div>
       )}
     </div>
