@@ -8,14 +8,14 @@ const lastOut = () => fs.readFileSync(LOG, 'utf8').split('\n').filter(l => l.inc
 ;(async () => {
   const cl = await MongoClient.connect(process.env.MONGO_URL), db = cl.db(process.env.DB_NAME)
   const set = (o) => db.collection('state').updateOne({ _id: String(CHAT) }, { $set: o }, { upsert: true })
-  for (const [lang, word, sched] of [['en', 'no country code', 'automatically when it starts'], ['fr', 'sans indicatif pays', 'automatiquement un message']]) {
+  for (const [lang, word, sched] of [['en', 'Which country are they from', 'automatically when it starts'], ['fr', 'De quel pays viennent-ils', 'automatiquement un message']]) {
     await set({ action: 'bulkUploadLeads', userLanguage: lang, bulkData: { callerId: '+13346972125', provider: 'telnyx', callerType: 'owned' } })
     await tg('+14155550100\n4155550101\n4155550102')
     const out = lastOut()
-    ok(out.includes(word) && out.includes('+14155550101'), `${lang}: skipped lines explained in ${lang} with the fix (${word})`)
+    ok(out.includes(word) && out.includes('4155550101') && (lang === 'en' || out.includes('Autre pays')), `${lang}: numbers without country code → country picker in ${lang}`)
     await set({ action: 'bulkUploadLeads', userLanguage: lang, bulkData: { callerId: '+13346972125' } })
     await tg('4155550101')
-    ok(lastOut().includes(word), `${lang}: all-invalid list explained in ${lang}`)
+    ok(lastOut().includes(word), `${lang}: all-countryless list → country picker in ${lang}`)
     await set({ action: 'bulkConfirm', userLanguage: lang, bulkData: { callerId: '+13346972125', audioUrl: 'https://x/a.mp3', leads: [{ number: '+14155550100' }] } })
     await tg('⏰ Schedule for later')
     ok((await db.collection('state').findOne({ _id: String(CHAT) })).action === 'bulkScheduleTime' && lastOut().includes(sched), `${lang}: schedule prompt says start/finish are messaged automatically`)

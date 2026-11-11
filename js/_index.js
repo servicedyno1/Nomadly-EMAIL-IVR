@@ -977,8 +977,16 @@ const _CC_MISSING = {
 }
 // Bulk IVR upload: rejected lines summed up in the user's language (the parser's reasons are English).
 const contactsImport = require('./contacts-import.js')
-const _BULK_OTHER_CC = '🌍 Other country'
-const _BULK_SKIP_NOCC = '➡️ Continue without them'
+const _CC_PICK = {
+  en: { other: '🌍 Other country', skip: '➡️ Continue without them', ask: (n, ex) => `📞 <b>${n}</b> number${n === '1' ? ' has' : 's have'} no country code (e.g. <code>${ex}</code>). Bulk IVR needs it to dial.`, best: (c, f, of) => `\nMost look like <b>${c}</b> numbers (${f} of ${of} checked fit).`, which: 'Which country are they from? I\'ll add its code only to numbers that really fit that country.', fine: (m) => `${m} other number${m === '1' ? ' is' : 's are'} fine already.`, type: '🌍 Type the country of these numbers — its name, 2-letter code or dialing code.\nExamples: <code>Germany</code>, <code>DE</code>, <code>+49</code>', none: (m) => `⚠️ I couldn't find a country called “${m}”. Type its name, 2-letter code or dialing code, e.g. <code>Germany</code>, <code>DE</code> or <code>+49</code>.` },
+  fr: { other: '🌍 Autre pays', skip: '➡️ Continuer sans eux', ask: (n, ex) => `📞 <b>${n}</b> numéro(s) sans indicatif pays (ex. <code>${ex}</code>). Le Bulk IVR en a besoin pour appeler.`, best: (c, f, of) => `\nLa plupart ressemblent à des numéros <b>${c}</b> (${f} sur ${of} vérifiés correspondent).`, which: 'De quel pays viennent-ils ? J’ajouterai son indicatif uniquement aux numéros qui correspondent vraiment à ce pays.', fine: (m) => `${m} autre(s) numéro(s) déjà correct(s).`, type: '🌍 Tapez le pays de ces numéros — son nom, son code à 2 lettres ou son indicatif.\nExemples : <code>Germany</code>, <code>DE</code>, <code>+49</code>', none: (m) => `⚠️ Pays « ${m} » introuvable. Tapez son nom, son code à 2 lettres ou son indicatif, ex. <code>Germany</code>, <code>DE</code> ou <code>+49</code>.` },
+  zh: { other: '🌍 其他国家', skip: '➡️ 跳过这些号码继续', ask: (n, ex) => `📞 <b>${n}</b> 个号码缺少国家代码（如 <code>${ex}</code>）。批量IVR拨号需要它。`, best: (c, f, of) => `\n大多数看起来是 <b>${c}</b> 号码（已检查 ${of} 个，${f} 个符合）。`, which: '这些号码来自哪个国家？我只会给真正符合该国格式的号码加上代码。', fine: (m) => `另有 ${m} 个号码已经正确。`, type: '🌍 请输入这些号码的国家 — 名称、2位字母代码或拨号代码。\n例如：<code>Germany</code>、<code>DE</code>、<code>+49</code>', none: (m) => `⚠️ 找不到名为“${m}”的国家。请输入名称、2位字母代码或拨号代码，如 <code>Germany</code>、<code>DE</code> 或 <code>+49</code>。` },
+  hi: { other: '🌍 दूसरा देश', skip: '➡️ इनके बिना आगे बढ़ें', ask: (n, ex) => `📞 <b>${n}</b> नंबरों में देश कोड नहीं है (जैसे <code>${ex}</code>)। Bulk IVR को डायल करने के लिए इसकी ज़रूरत है।`, best: (c, f, of) => `\nज़्यादातर <b>${c}</b> के नंबर लगते हैं (${of} में से ${f} मेल खाते हैं)।`, which: 'ये किस देश के हैं? मैं उसका कोड सिर्फ़ उन्हीं नंबरों में जोड़ूँगा जो सच में उस देश के हैं।', fine: (m) => `${m} अन्य नंबर पहले से सही हैं।`, type: '🌍 इन नंबरों का देश लिखें — नाम, 2-अक्षर कोड या डायलिंग कोड।\nउदाहरण: <code>Germany</code>, <code>DE</code>, <code>+49</code>', none: (m) => `⚠️ “${m}” नाम का देश नहीं मिला। नाम, 2-अक्षर कोड या डायलिंग कोड लिखें, जैसे <code>Germany</code>, <code>DE</code> या <code>+49</code>।` },
+  fa: { other: '🌍 کشور دیگر', skip: '➡️ ادامه بدون آن‌ها', ask: (n, ex) => `📞 <b>${n}</b> شماره کد کشور ندارد (مثلاً <code>${ex}</code>). Bulk IVR برای تماس به آن نیاز دارد.`, best: (c, f, of) => `\nبیشترشان شبیه شماره‌های <b>${c}</b> هستند (${f} از ${of} بررسی‌شده مطابق‌اند).`, which: 'این شماره‌ها از کدام کشورند؟ کد آن را فقط به شماره‌هایی اضافه می‌کنم که واقعاً با آن کشور جورند.', fine: (m) => `${m} شماره دیگر از قبل درست است.`, type: '🌍 کشور این شماره‌ها را بنویسید — نام، کد ۲ حرفی یا پیش‌شماره.\nمثال: <code>Germany</code>، <code>DE</code>، <code>+49</code>', none: (m) => `⚠️ کشوری به نام «${m}» پیدا نشد. نام، کد ۲ حرفی یا پیش‌شماره را بنویسید، مثلاً <code>Germany</code>، <code>DE</code> یا <code>+49</code>.` },
+}
+const _ccPick = (lang) => _CC_PICK[lang] || _CC_PICK.en
+const _CC_OTHER_SET = new Set(Object.values(_CC_PICK).map(t => t.other))
+const _CC_SKIP_SET = new Set(Object.values(_CC_PICK).map(t => t.skip))
 const _pasteJoin = new Map()
 const PASTE_JOIN_MS = parseInt(process.env.PASTE_JOIN_MS || '1500', 10)
 const PASTE_SPLIT_MIN = 3000
@@ -6644,6 +6652,15 @@ bot?.on('callback_query', async (query) => {
       if (r?.error) return send(chatId, `⚠️ ${r.error}`)
       try { await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message.message_id }) } catch { /* noop */ }
       return send(chatId, `🗑 Dropped ${r.dropped === 1 ? 'the remaining part' : `the remaining ${r.dropped} parts`} — those numbers won’t be called or charged.`)
+    }
+    if (data.startsWith('bcfu:')) { // follow-up campaign from the final report: u = unanswered now, l = listeners, t = unanswered tomorrow at best hour
+      try { await bot.answerCallbackQuery(query.id) } catch { /* noop */ }
+      const [, k, id] = data.split(':')
+      const r = await bulkCallService.createFollowup(id, chatId, k === 'l' ? 'listeners' : 'unanswered', { at: k === 't' ? 'best' : null, start: k !== 't' }).catch(e => ({ error: e.message }))
+      if (r?.error) return send(chatId, `⚠️ ${r.error}`)
+      try { await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message.message_id }) } catch { /* noop */ }
+      if (r.startError) return send(chatId, `📋 Follow-up ready (${r.leadsCount} numbers) but it couldn't start: ${r.startError}`)
+      return send(chatId, r.scheduledFor ? `⏰ Follow-up scheduled — ${r.leadsCount} numbers, tomorrow ${r.scheduledFor.toISOString().replace('T', ' ').slice(0, 16)} UTC (your best hour).` : `🚀 Follow-up started — calling ${r.leadsCount} numbers with the same message.`)
     }
     if (data.startsWith('bcclean:')) {
       try { await bot.answerCallbackQuery(query.id) } catch { /* noop */ }
@@ -28733,27 +28750,28 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
     if (pend && !msg.document) {
       let iso = pend.choices?.[message]
-      if (!iso && message === _BULK_OTHER_CC) {
+      if (!iso && _CC_OTHER_SET.has(message)) {
         pend.askCountry = true
         await saveInfo('bulkData', info.bulkData)
-        return send(chatId, '🌍 Type the country of these numbers — its name, 2-letter code or dialing code.\nExamples: <code>Germany</code>, <code>DE</code>, <code>+49</code>', { parse_mode: 'HTML', ...k.of([['↩️ Back']]) })
+        return send(chatId, _ccPick(lang).type, { parse_mode: 'HTML', ...k.of([['↩️ Back']]) })
       }
-      if (!iso && pend.askCountry && message !== _BULK_SKIP_NOCC && message.length < 60 && !/\n/.test(message) && message.replace(/\D/g, '').length < 7) {
+      if (!iso && pend.askCountry && !_CC_SKIP_SET.has(message) && message.length < 60 && !/\n/.test(message) && message.replace(/\D/g, '').length < 7) {
         iso = contactsImport.resolveCountry(message, pend.sample || [])
-        if (!iso) return send(chatId, `⚠️ I couldn't find a country called “${escHtml(message)}”. Type its name, 2-letter code or dialing code, e.g. <code>Germany</code>, <code>DE</code> or <code>+49</code>.`, { parse_mode: 'HTML', ...k.of([['↩️ Back']]) })
+        if (!iso) return send(chatId, _ccPick(lang).none(escHtml(message)), { parse_mode: 'HTML', ...k.of([['↩️ Back']]) })
       }
       if (iso) {
         parseOpts = { country: iso }
         if (!(await refetch())) return
         await saveInfo('lastBulkCountry', iso)
-      } else if (message === _BULK_SKIP_NOCC) { if (!(await refetch())) return }
+      } else if (_CC_SKIP_SET.has(message)) { if (!(await refetch())) return }
     }
 
     if (!(Buffer.isBuffer(content) ? content.length : content.trim())) return send(chatId, trans('t.cp_135'), k.of([['↩️ Back']]))
 
     const { leads, errors, binary, columns, noCode } = bulkCallService.parseLeadsFile(content, fileName, parseOpts)
     if (binary) return send(chatId, trans('t.cp_134b', escHtml(msg.document?.file_name || 'file')), k.of([['↩️ Back']]))
-    if (noCode?.length && !parseOpts && message !== _BULK_SKIP_NOCC) {
+    if (noCode?.length && !parseOpts && !_CC_SKIP_SET.has(message)) {
+      const C = _ccPick(lang)
       const raws = noCode.map(x => x.raw), last = info?.lastBulkCountry
       const top = contactsImport.likelyCountries(raws, last).slice(0, 3)
       const label = (c) => `${contactsImport.flagOf(c.iso)} ${contactsImport.countryName(c.iso)}${c.iso === 'US' ? '/Canada' : ''} (+${require('libphonenumber-js/max').getCountryCallingCode(c.iso)})`
@@ -28761,9 +28779,9 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const bd = info?.bulkData || {}
       bd.pendingLeads = { ...(msg.document ? { fileId: msg.document.file_id, fileName: msg.document.file_name || '' } : { text: String(content) }), choices, sample: raws.slice(0, 200) }
       await saveInfo('bulkData', bd)
-      const n = noCode.length, rows = [...Object.keys(choices).map(l => [l]), [_BULK_OTHER_CC], ...(leads.length ? [[_BULK_SKIP_NOCC]] : []), ['↩️ Back']]
-      const best = top[0] ? `\nMost look like <b>${escHtml(contactsImport.countryName(top[0].iso))}</b> numbers (${top[0].fit} of ${Math.min(n, 200)} checked fit).` : ''
-      return send(chatId, `📞 <b>${n.toLocaleString()}</b> number${n === 1 ? ' has' : 's have'} no country code (e.g. <code>${escHtml(raws[0])}</code>). Bulk IVR needs it to dial.${best}\n\nWhich country are they from? I'll add its code only to numbers that really fit that country.${leads.length ? `\n\n${leads.length.toLocaleString()} other number${leads.length === 1 ? ' is' : 's are'} fine already.` : ''}`, { parse_mode: 'HTML', ...k.of(rows) })
+      const n = noCode.length, rows = [...Object.keys(choices).map(l => [l]), [C.other], ...(leads.length ? [[C.skip]] : []), ['↩️ Back']]
+      const best = top[0] ? C.best(escHtml(contactsImport.countryName(top[0].iso)), top[0].fit, Math.min(n, 200)) : ''
+      return send(chatId, `${C.ask(n.toLocaleString(), escHtml(raws[0]))}${best}\n\n${C.which}${leads.length ? `\n\n${C.fine(leads.length.toLocaleString())}` : ''}`, { parse_mode: 'HTML', ...k.of(rows) })
     }
     if (info?.bulkData?.pendingLeads) { const bd = info.bulkData; delete bd.pendingLeads; await saveInfo('bulkData', bd) }
     if (leads.length === 0) {

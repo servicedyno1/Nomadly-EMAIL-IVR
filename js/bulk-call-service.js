@@ -27,6 +27,7 @@ const STUCK_LEAD_MAX_MIN   = parseInt(process.env.BULK_STUCK_LEAD_MAX_MIN || '20
 // Legacy campaigns (pre-Telnyx) carry no provider field — they are Twilio campaigns.
 const campaignProvider = (c) => (c && c.provider) || 'twilio'
 const INFLIGHT_STATUSES = ['calling', 'ringing', 'answered']
+const ENG = require('./bulk-engagement')
 const TELNYX_NO_ANSWER_CAUSES = ['timeout', 'no_answer', 'originator_cancel', 'normal_clearing', 'recovery_on_timer_expire']
 const TELNYX_BUSY_CAUSES = ['busy', 'user_busy', 'call_rejected']
 // Line limit: Telnyx refused the dial because every line is in use → the lead waits and is redialed (never failed).
@@ -1832,7 +1833,43 @@ async function sendProgressUpdate(campaignId, leadIndex, result) {
     `🔘${stats.keyPressed} 📵${stats.noAnswer + stats.hungUp} ❌${stats.failed}` +
     (stats.voicemail ? ` 📭${stats.voicemail}` : '')
 
-  _bot?.sendMessage(campaign.chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
+  // Only hot leads (key pressed / transferred) are sent per call; everything else goes into a digest at 25/50/75%
+  // and every 15 minutes, so the wins aren't buried under "no answer" notices.
+  if (ENG.isHot({ ...lead, ...result })) {
+    _bot?.sendMessage(campaign.chatId, ENG.hotText(campaign, lead, result), { parse_mode: 'HTML' }).catch(() => {})
+  } else if (process.env.BULK_PER_CALL_NOTICES === 'on') _bot?.sendMessage(campaign.chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
+  await maybeDigest(campaign).catch(e => log(`[BulkCall] digest error: ${e.message}`))
+}
+
+const DIGEST_EVERY_MS = parseInt(process.env.BULK_DIGEST_EVERY_MS || String(15 * 60000), 10)
+async function maybeDigest(campaign) {
+  const e = ENG.engagementOf(campaign)
+  if (!e.total || e.called >= e.total) return // the final report covers 100%
+  const pct = Math.floor(((e.called / e.total) * 100) / 25) * 25
+  const prevPct = campaign.digestPct || 0, prevAt = campaign.digestAt ? new Date(campaign.digestAt).getTime() : new Date(campaign.startedAt || Date.now()).getTime()
+  const due = (pct > prevPct && pct > 0) || (Date.now() - prevAt >= DIGEST_EVERY_MS && e.called > (campaign.digestCalled || 0))
+  if (!due) return
+  // one sender per digest even with many calls finishing at once
+  const r = await _collection.updateOne({ id: campaign.id, digestAt: campaign.digestAt ?? { $exists: false } }, { $set: { digestPct: Math.max(pct, prevPct), digestAt: new Date(), digestCalled: e.called } })
+  if (!r.modifiedCount) return
+  _bot?.sendMessage(campaign.chatId, ENG.digestText(campaign, e), { parse_mode: 'HTML' }).catch(() => {})
+}
+
+// Follow-up campaign from a finished one: same message and settings, chosen numbers. at: 'best' = tomorrow at the best hour.
+async function createFollowup(campaignId, chatId, kind, { at = null, start = false } = {}) {
+  const c = await _collection.findOne({ id: campaignId, chatId })
+  if (!c) return { error: 'Campaign not found.' }
+  const leads = ENG.followupLeads(c, kind)
+  if (!leads.length) return { error: kind === 'listeners' ? 'No one listened 30s+ without pressing a key.' : 'Every number answered — nothing to re-call.' }
+  const e = ENG.engagementOf(c), when = at === 'best' ? ENG.bestTimeTomorrow(e) : null
+  const keep = ['chatId', 'callerId', 'showAs', 'callerPool', 'poolShare', 'audioUrl', 'audioName', 'mode', 'transferNumber', 'transferBackups', 'menu', 'activeKeys', 'concurrency', 'holdMusic', 'twilioSubAccountSid', 'twilioSubAccountToken', 'provider', 'voicemailAudioUrl', 'voicemailAudioName', 'agentId', 'agentName', 'tz', 'dryRun']
+  const params = Object.fromEntries(keep.filter(k => c[k] !== undefined).map(k => [k, c[k]]))
+  const label = kind === 'listeners' ? 'listeners' : 'unanswered'
+  const nc = await createCampaign({ ...params, callerPool: c.callerPool?.length ? c.callerPool : undefined, name: `${(c.name || 'Campaign').slice(0, 60)} — ${label}`, leads: leads.slice(0, MAX_BULK_LEADS), ...(when ? { scheduledFor: when } : {}) })
+  if (nc.error) return nc
+  await _collection.updateOne({ id: nc.id }, { $set: { followupOf: c.id, followupKind: kind, ...(c.dryRun ? { dryRun: true } : {}) } })
+  if (start && !when) { const r = await startCampaign(nc.id); if (r?.error) return { ...nc, startError: r.error } }
+  return { ...nc, leadsCount: Math.min(leads.length, MAX_BULK_LEADS), scheduledFor: when }
 }
 
 /**
@@ -1904,6 +1941,11 @@ function refusedNote(c, lang) {
   return (REFUSED_NOTE[lang] || REFUSED_NOTE.en)(list.map(n => `<code>${n}</code>`).concat(c.refusedCids.length > 10 ? [`+${c.refusedCids.length - 10} more`] : []), c.callerId)
 }
 
+async function campaignEngagement(c) {
+  const agg = _db ? await _db.collection('phoneLogs').aggregate([{ $match: { campaignId: c.id, type: 'BulkIVR' } }, { $group: { _id: null, amt: { $sum: '$charge' } } }]).toArray() : []
+  return ENG.engagementOf(c, agg[0] ? +agg[0].amt : null)
+}
+
 async function sendFinalReport(campaignId) {
   const campaign = await _collection.findOne({ id: campaignId })
   if (!campaign) return
@@ -1918,6 +1960,7 @@ async function sendFinalReport(campaignId) {
 
   const lang = await getUserLang(campaign.chatId)
   const tt = (key, ...args) => translation(`t.${key}`, lang, ...args)
+  const eng = await campaignEngagement(campaign).catch(() => null)
 
   // Summary message
   const summary = [
@@ -1941,12 +1984,16 @@ async function sendFinalReport(campaignId) {
     (() => { const bad = notInService(campaign); return bad.length ? `⏭ Not in service (skipped, not charged): <b>${bad.length}</b>${bad.length <= 5 ? '\n' + bad.map(n => `   • <code>${n}</code>`).join('\n') : ''}` : null })(),
     campaign.status === 'cancelled' && (leads || []).some(l => l.notCalled) ? `⏭ ${tt('bulkCallReportNotDialed')} <b>${leads.filter(l => l.notCalled).length}</b>` : null,
     refusedNote(campaign, lang),
+    eng ? ENG.finalBlock(campaign, eng) : null,
   ].filter(Boolean).join('\n')
 
-  const badCount = notInService(campaign).length
-  const cleanBtn = badCount && !require('./cloudivr-web/notify').isWebChatId(campaign.chatId)
-    ? { reply_markup: { inline_keyboard: [[{ text: `🧹 Remove ${badCount} not-in-service number${badCount === 1 ? '' : 's'}`, callback_data: `bcclean:${campaign.id}` }]] } } : {}
-  _bot?.sendMessage(campaign.chatId, summary, { parse_mode: 'HTML', ...cleanBtn }).catch(() => {})
+  const badCount = notInService(campaign).length, web = require('./cloudivr-web/notify').isWebChatId(campaign.chatId)
+  const rows = []
+  if (badCount && !web) rows.push([{ text: `🧹 Remove ${badCount} not-in-service number${badCount === 1 ? '' : 's'}`, callback_data: `bcclean:${campaign.id}` }])
+  if (!web && eng?.unanswered) rows.push([{ text: `📞 Re-call ${eng.unanswered} unanswered`, callback_data: `bcfu:u:${campaign.id}` }])
+  if (!web && eng?.listenersNoKey) rows.push([{ text: `🎧 Call ${eng.listenersNoKey} listeners again`, callback_data: `bcfu:l:${campaign.id}` }])
+  if (!web && eng?.bestHour && eng.unanswered) rows.push([{ text: `⏰ Re-call unanswered tomorrow at the best hour`, callback_data: `bcfu:t:${campaign.id}` }])
+  _bot?.sendMessage(campaign.chatId, summary + (web && (eng?.unanswered || eng?.listenersNoKey) ? '\n\n➡️ Open the campaign to re-call unanswered numbers or call your listeners again in one tap.' : ''), { parse_mode: 'HTML', ...(rows.length ? { reply_markup: { inline_keyboard: rows } } : {}) }).catch(() => {})
 
   // Generate detailed report file
   try {
@@ -2249,6 +2296,8 @@ module.exports = {
   dialerStatus,
   checkLowLines,
   refusedNote,
+  createFollowup,
+  campaignEngagement,
   parseLeadsFile,
   createCampaign,
   createSeries,
