@@ -3,7 +3,6 @@ import { useSearchParams } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import { enc, useApi } from '../../api';
 import { Toggle, SkeletonRows } from '../../ui';
-import { useShell } from '../../Shell';
 import { useSave } from './SettingsTabs';
 import { LogTable, labelOf } from '../../LogTable';
 import { RING_ENDED } from '../../Incoming';
@@ -15,15 +14,13 @@ const KINDS = [['all', 'All'], ['calls', 'Calls'], ['sms', 'SMS'], ['voicemail',
 
 // Auto summaries for new voicemails / recorded calls (Pro and up).
 function AiSummaryBar({ num, reload }) {
-  const { catalog } = useShell() || {};
   const [save, busy] = useSave(num, 'ai-summary', reload);
-  const rate = Number(catalog?.rates?.aiSummaryPerMin ?? 0.1).toFixed(2);
   if (!num.access?.aiSummary) return <div className="mb-4"><LockedNote text="AI summaries and caller mood for voicemails and recorded calls are on the Pro plan and up." feature="AI summaries" need="pro" phone={num.phoneNumber} testid="ai-summary-locked" /></div>;
   return (
     <div className="flex items-start justify-between gap-4 rounded-xl border border-[#818cf8]/25 bg-[#818cf8]/5 p-4 mb-4" data-testid="ai-summary-bar">
       <div>
         <div className="text-sm font-medium flex items-center gap-2"><Sparkles className="w-4 h-4 text-[#818cf8]" />AI summaries & caller mood</div>
-        <div className="text-xs text-[#a1a1aa] mt-1">{`Summarise new voicemails and recorded calls automatically — $${rate}/min from your wallet (per started minute). Or tap Summarize on any one below.`}</div>
+        <div className="text-xs text-[#a1a1aa] mt-1">Summarise new voicemails and recorded calls automatically, paid from your wallet. Or tap Summarize on any one below.</div>
       </div>
       <Toggle checked={!!num.features.aiSummary?.enabled} disabled={busy} onChange={v => save({ enabled: v }, 'PATCH', v ? 'Auto summaries on' : 'Auto summaries off')} testid="ai-summary-auto-toggle" label="AI summaries & caller mood" />
     </div>

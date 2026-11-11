@@ -54,7 +54,7 @@ function Editor({ num, data, reload, onDirty }) {
           {ACTIONS.map(([k, label]) => <button key={k} type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => add(k)} data-testid={`triggers-add-${k}`}><Plus className="w-4 h-4" />{label}</button>)}
         </div>
       )}
-      <p className="text-xs text-[#a1a1aa]" data-testid="triggers-cost-note">{`Calls bill from your wallet: about $${Number(data.rates.call).toFixed(2)}/min per call leg (Auto Callback uses two legs), AI agent calls $${Number(data.rates.ai).toFixed(2)}/min. Nothing runs if your wallet is below $1.`}</p>
+      <p className="text-xs text-[#a1a1aa]" data-testid="triggers-cost-note">Calls are paid from your wallet. Nothing runs if your wallet is below $1.</p>
       <SaveRow dirty={u.dirty} testid="triggers-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={save} data-testid="triggers-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save Text Triggers</button></SaveRow>
     </div>
   );

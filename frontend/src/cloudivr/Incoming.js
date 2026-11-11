@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Keyboard, Loader2, MessageSquareReply, Phone, PhoneIncoming, PhoneOff } from 'lucide-react';
-import { api, money } from './api';
+import { api } from './api';
 import { cp } from './paths';
 import { usePrivacy } from './privacy';
 import { useRtc } from './rtc';
@@ -101,7 +101,7 @@ function Footer({ c, remember, setRemember, auto, cancelAuto, note, onMessage })
   return (
     <div className="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[#a1a1aa]">
       {!c.rtcOnly && <label className="inline-flex items-center gap-2 cursor-pointer text-[#e4e4e7]"><input type="checkbox" className="accent-[#818cf8] w-4 h-4" checked={remember} onChange={e => setRemember(e.target.checked)} data-testid="incoming-remember-checkbox" />Remember for this number</label>}
-      {c.canText && !c.rtcOnly && <span data-testid="incoming-text-rate">{`Text answer: ${money(c.textRate)}/min from your wallet`}</span>}
+      {c.canText && !c.rtcOnly && <span data-testid="incoming-text-rate">Text answer available</span>}
       {!c.canText && !c.rtcOnly && <span data-testid="incoming-text-locked">Answering as text is on the Business plan.</span>}
       {voiceHint && <span data-testid="incoming-voice-hint">{voiceHint}</span>}
       {!c.rtcOnly && <button type="button" onClick={onMessage} className="inline-flex items-center gap-1.5 underline text-[#e4e4e7] hover:text-white" data-testid="incoming-decline-message-button"><MessageSquareReply className="w-3.5 h-3.5" />Decline with a text message</button>}

@@ -11,6 +11,7 @@ import { PlanFeatures, RecommendedBadge, availablePlans } from '../PlanFeatures'
 import { usePrivacy } from '../privacy';
 import { Flag, IconSelect } from '../Pickers';
 import { TextingNumberCta } from './buy/TextingNumberCta';
+import { PlanHelper } from './buy/PlanHelper';
 
 // The chosen number + plan survive the wallet top-up detour (Wallet links back with ?resume=1).
 const RESUME_KEY = 'civr.buyResume';
@@ -196,6 +197,7 @@ export default function BuyNumber() {
       {extraOf
         ? <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-extra-back"><Link to={cp('/app/buy')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-extra-back-button">Buy a brand-new number with its own plan instead</Link></p>
         : <>
+          <PlanHelper plans={catalog.plans} onPlan={setPlan} />
           <TextingNumberCta testid="buy-texting-number-cta" className="mb-6" />
           {eligible.length > 0 && <ExistingPlanChooser nums={eligible} price={catalog.extraNumber?.price || 25} pv={pv} />}
           <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-texting-link">Already have a number elsewhere? <Link to={cp('/app/texting?add=1')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-texting-link-button">Add texting to it</Link></p>

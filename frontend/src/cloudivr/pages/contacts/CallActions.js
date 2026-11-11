@@ -36,7 +36,7 @@ export function CallActions({ contact }) {
     setBusy(true); setInfo(null);
     try {
       const d = await api('/calls/callback', { method: 'POST', body: { callerId: caller, myPhone: me, to: contact.phone } });
-      setInfo({ ok: true, text: d.dryRun ? d.message : `Ringing your phone now — answer and press 1 to be connected to ${who}. Both calls bill about $${Number(d.rate).toFixed(2)}/min.` });
+      setInfo({ ok: true, text: d.dryRun ? d.message : `Ringing your phone now — answer and press 1 to be connected to ${who}.` });
       toast.success(d.dryRun ? 'Validated (preview — not dialed)' : 'Calling your phone…');
     } catch (e) { setInfo({ ok: false, text: e.message }); } finally { setBusy(false); }
   };

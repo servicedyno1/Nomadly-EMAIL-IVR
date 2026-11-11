@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Captions, Loader2, PhoneCall } from 'lucide-react';
-import { api, money } from '../../api';
+import { api } from '../../api';
 import { TextCountryFix } from '../../CountryFix';
 import { useBalance, ShortNote } from '../../WalletPay';
 import { Field, SkeletonCard, Empty, Locked, Toggle, ErrorNote } from '../../ui';
@@ -68,7 +68,7 @@ export function Setup({ info, onStarted }) {
       {!funds.enough && <ShortNote balance={funds.balance} short={funds.short} testid="text-call-short" />}
       <div className="flex flex-wrap items-center gap-4">
         <button className="civr-btn civr-btn-primary h-12 px-6 text-base" disabled={busy || locked || !funds.enough} data-testid="text-call-start-button">{busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <PhoneCall className="w-5 h-5" />}Start text call</button>
-        {info && <span className="text-xs text-[#a1a1aa]" data-testid="text-call-rate-hint">{`From ${money(info.usRate + info.relayRate)}/min, billed per started minute.`}</span>}
+        {info && <span className="text-xs text-[#a1a1aa]" data-testid="text-call-rate-hint">Paid from your wallet.</span>}
       </div>
     </form>
   );

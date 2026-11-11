@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Check, X } from 'lucide-react';
 
 const byPrice = (plans) => [...(plans || [])].sort((a, b) => a.price - b.price);
@@ -19,10 +19,19 @@ export const availablePlans = (plans) => byPrice(plans).filter(p => p.available)
 
 // What a plan includes (✓) and leaves out (✗). With `plans`, a plan card lists only what it adds over the next cheaper
 // plan ("Everything in Starter, plus:"). `tone`: 'app' (dark app UI), 'dark' / 'cream' (landing cards).
+// The 3 biggest reasons to pick each plan, shown first; the rest stay behind "See all".
+const TOP = { starter: ['browserPhone', 'forwarding', 'inbox'], pro: ['ivr', 'bulk', 'voicemail'], business: ['aiAgent', 'anyCallerId', 'textTriggers'] };
+
 export function PlanFeatures({ plan, plans, tone = 'app', compact = false, testid }) {
+  const [all, setAll] = useState(false);
   const ladder = plans ? byPrice(plans.filter(p => p.available !== false)) : null;
   const prev = ladder ? ladder[ladder.findIndex(p => p.id === plan?.id) - 1] : null;
-  const list = prev ? unlocks(plans, prev.id, plan.id) : (plan?.webFeatures || []).filter(f => !ladder || f.included);
+  const full = prev ? unlocks(plans, prev.id, plan.id) : (plan?.webFeatures || []).filter(f => !ladder || f.included);
+  const top = TOP[plan?.id] || [];
+  const sorted = [...full.filter(f => top.includes(f.key)).sort((a, b) => top.indexOf(a.key) - top.indexOf(b.key)), ...full.filter(f => !top.includes(f.key))];
+  const short = ladder && sorted.length > 4 && top.some(k => full.some(f => f.key === k));
+  const list = short && !all ? sorted.slice(0, 3) : sorted;
+  const toggle = (e) => { e.preventDefault(); e.stopPropagation(); setAll(a => !a); };
   const on = { app: 'text-[#818cf8]', dark: 'text-[#6366f1]', cream: 'text-slate-900' }[tone];
   const offText = { app: 'text-[#a1a1aa]', dark: 'text-white/35', cream: 'text-slate-400' }[tone];
   const onText = { app: 'text-[#d4d4d8]', dark: '', cream: 'text-slate-700' }[tone];
@@ -33,9 +42,10 @@ export function PlanFeatures({ plan, plans, tone = 'app', compact = false, testi
       {list.map(f => (
         <li key={f.key} className={`flex gap-2 ${f.included ? onText : `${offText} line-through decoration-1`}`} data-testid={`${testid}-${f.key}`} data-included={f.included ? 'true' : 'false'}>
           {f.included ? <Check className={`w-4 h-4 mt-0.5 shrink-0 ${on}`} /> : <X className="w-4 h-4 mt-0.5 shrink-0 opacity-60" />}
-          <span>{f.label}</span>
+          <span className={short && top.includes(f.key) ? `font-semibold ${head}` : ''}>{f.label}</span>
         </li>
       ))}
+      {short && <li><span role="button" tabIndex={0} onClick={toggle} onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && toggle(e)} className={`underline underline-offset-2 cursor-pointer ${on}`} data-testid={`${testid}-more`}>{all ? 'Show fewer' : `See all ${sorted.length} features`}</span></li>}
     </ul>
   );
 }

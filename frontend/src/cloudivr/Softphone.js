@@ -50,7 +50,7 @@ export default function Softphone({ open, onClose }) {
     setBusy(true); setInfo(null);
     try {
       const d = await api('/calls/callback', { method: 'POST', body: { callerId: sel, myPhone, to: dest, showAs: showAs || undefined } });
-      setInfo({ ok: true, text: d.dryRun ? d.message : `Ringing your mobile now — answer and press 1 to connect. Both calls bill about $${Number(d.rate).toFixed(2)}/min from your wallet.` });
+      setInfo({ ok: true, text: d.dryRun ? d.message : `Ringing your mobile now — answer and press 1 to connect.` });
       toast.success(d.dryRun ? 'Validated (preview — not dialed)' : 'Calling your mobile…');
       setLast({ peer: dest, direction: 'outbound' });
     } catch (e) { setInfo({ ok: false, text: e.message }); toast.error(e.message); } finally { setBusy(false); }

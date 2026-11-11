@@ -3,11 +3,11 @@ import { TrendingUp, LifeBuoy, CalendarCheck, MessageSquareText, Captions, Spark
 // Onboarding purposes → what the app puts first for them ([label, app path]).
 export const PURPOSES = [
   ['sales', TrendingUp, 'Sales & lead calling', 'Call lists, connect the hot leads', [['Start a Bulk IVR campaign', '/app/campaigns/new'], ['Quick IVR call', '/app/quick-call'], ['Import contacts', '/app/contacts']]],
-  ['support', LifeBuoy, 'Customer support line', 'Menus, forwarding, voicemail', [['Get a number', '/app/buy'], ['Watch calls live', '/app/live'], ['Read your messages', '/app/messages']]],
-  ['bookings', CalendarCheck, 'Appointments & bookings', 'An AI agent answers 24/7', [['Set up an AI voice agent', '/app/ai-agents'], ['Get a number', '/app/buy'], ['Read your messages', '/app/messages']]],
-  ['texting', MessageSquareText, 'Business texting', 'Text from your number or landline', [['Landline to Texting', '/app/texting'], ['Read your messages', '/app/messages'], ['Get a number', '/app/buy']]],
-  ['accessible', Captions, 'Type-to-talk calls', 'Type; a voice speaks for you', [['Make a text-to-voice call', '/app/text-call'], ['Get a number', '/app/buy'], ['Contacts', '/app/contacts']]],
-  ['other', Sparkles, 'Something else', 'Explore everything', [['Get a number', '/app/buy'], ['Watch calls live', '/app/live'], ['Help center', '/app/help']]],
+  ['support', LifeBuoy, 'Customer support line', 'Menus, forwarding, voicemail', [['Get a Business Line', '/app/buy'], ['Watch calls live', '/app/live'], ['Read your messages', '/app/messages']]],
+  ['bookings', CalendarCheck, 'Appointments & bookings', 'An AI agent answers 24/7', [['Set up an AI voice agent', '/app/ai-agents'], ['Get a Business Line', '/app/buy'], ['Read your messages', '/app/messages']]],
+  ['texting', MessageSquareText, 'Business texting', 'Send and receive texts in CloudIVR', [['Order a Texting Number', '/app/texting-number'], ['Add texting to your landline', '/app/texting'], ['Read your messages', '/app/messages']]],
+  ['accessible', Captions, 'Type-to-talk calls', 'Type; a voice speaks for you', [['Make a text-to-voice call', '/app/text-call'], ['Get a Business Line', '/app/buy'], ['Contacts', '/app/contacts']]],
+  ['other', Sparkles, 'Something else', 'Explore everything', [['Get a Business Line', '/app/buy'], ['Watch calls live', '/app/live'], ['Help center', '/app/help']]],
 ];
 
 // Up to 3 unique suggestions, taking turns across the picked purposes.

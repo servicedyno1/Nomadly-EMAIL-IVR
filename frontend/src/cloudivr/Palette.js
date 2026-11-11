@@ -57,7 +57,7 @@ export function Palette({ openPhone }) {
     const pages = [...NAV.flatMap(([, g, its]) => its.filter(i => i[0] !== '#phone').map(i => [...i.slice(0, 4), g])), ['inbox', 'Notifications', Bell, 'nav-notifications', 'Home']]
       .map(([to, label, Icon, id, g]) => ({ id: `page-${id}`, group: 'Pages', label, sub: g, Icon, run: () => nav(appPath(to)) }));
     const actions = [
-      ['buy', 'Get a number', PlusCircle, () => nav(cp('/app/buy'))],
+      ['buy', 'Get a Business Line', PlusCircle, () => nav(cp('/app/buy'))],
       ['answer', 'Set up how my calls are answered', Workflow, () => nav(cp('/app/answer/ivr'))],
       ['quick-call', 'Place a quick call', PhoneOutgoing, () => nav(cp('/app/quick-call'))],
       ['campaign', 'Start a campaign', Megaphone, () => nav(cp('/app/campaigns/new'))],

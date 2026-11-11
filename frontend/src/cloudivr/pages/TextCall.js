@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Ear, Keyboard, PhoneCall } from 'lucide-react';
-import { useApi, money } from '../api';
+import { useApi } from '../api';
 import { PageHeader } from '../ui';
 import { Setup } from './textcall/Setup';
 import { LiveCall } from './textcall/Live';
@@ -22,10 +22,7 @@ function HowItWorks({ info }) {
           <div><div className="font-semibold text-sm">{i + 1}. {t}</div><div className="text-xs text-[#a1a1aa] mt-0.5">{s}</div></div></div>
       ))}
       {info && <div className="border-t border-[#1f1f1f] pt-4 text-xs text-[#a1a1aa] space-y-1" data-testid="text-call-pricing">
-        <div>{`USA & Canada: ${money(info.usRate + info.relayRate)}/min`}</div>
-        <div>{`International: ${money(info.intlRate + info.relayRate)}/min`}</div>
-        <div>{`Includes ${money(info.relayRate)}/min for the text relay.`}</div>
-        <div>Included on Business numbers. Transcripts are kept 90 days.</div>
+        <div>Included on Business numbers, paid from your wallet. Transcripts are kept 90 days.</div>
       </div>}
     </aside>
   );
