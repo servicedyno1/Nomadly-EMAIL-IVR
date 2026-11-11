@@ -5,7 +5,7 @@ import { Repeat, Gauge, Loader2, CircleStop } from 'lucide-react';
 import { api, when } from '../../api';
 import { ask } from '../../i18n';
 import { cp } from '../../paths';
-import { Pipeline, RunStats, CallFeed, TopAreas, repeatLabel } from './LiveParts';
+import { Pipeline, RunStats, CallFeed, TopAreas, repeatLabel, ReachStats, useHotLeadAlert } from './LiveParts';
 
 // Repeat + daily call limit of this campaign, with "Stop repeating".
 export function RunPlan({ c, onChanged }) {
@@ -35,12 +35,14 @@ export function LiveNow({ c }) {
     <div className="grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-6 mt-6 items-center" data-testid="campaign-live-now">
       <Pipeline p={c.live.pipeline} testid="campaign-pipeline" />
       <RunStats c={c} testid="campaign-run-stats" />
+      <div className="mt-3"><ReachStats l={c.live} testid="campaign-reach" /></div>
     </div>
   );
 }
 
 // Live call feed + top areas, once dialing has started.
 export function FeedAndAreas({ c, isAi }) {
+  useHotLeadAlert(c.feed);
   if (!c.startedAt && !c.feed?.length) return null;
   const live = c.status === 'running';
   return (

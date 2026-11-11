@@ -240,7 +240,16 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   router.get('/campaigns/:id', withCampaign(async (req, res) => {
     const c = req.campaign
     const nextRun = c.nextRunId ? await db.collection('bulkCallCampaigns').findOne({ id: c.nextRunId, chatId: c.chatId }, { projection: { _id: 0, id: 1, scheduledFor: 1, status: 1 } }) : null
-    res.json({ campaign: { ...publicCampaign(c, true), live: live.liveView(c, voiceService), feed: live.feedOf([c], voiceService, 25), areas: live.areasOf(c), nextRun } })
+    const engagement = await bulkCallService.campaignEngagement(c).catch(() => null)
+    res.json({ campaign: { ...publicCampaign(c, true), live: live.liveView(c, voiceService), feed: live.feedOf([c], voiceService, 25), areas: live.areasOf(c), nextRun, engagement } })
+  }))
+
+  // One tap follow-up: kind = unanswered | listeners; when = now | best (tomorrow at the best hour).
+  router.post('/campaigns/:id/followup', withCampaign(async (req, res) => {
+    const kind = req.body?.kind === 'listeners' ? 'listeners' : 'unanswered', best = req.body?.when === 'best'
+    const r = await bulkCallService.createFollowup(req.campaign.id, req.webChatId, kind, { at: best ? 'best' : null })
+    if (r.error) return bad(res, 400, 'followup_failed', r.error)
+    res.status(201).json({ campaign: publicCampaign(r), leadsCount: r.leadsCount, scheduledFor: r.scheduledFor || null })
   }))
 
   // One tap: delete the numbers the carrier said aren't in service from the saved contacts.

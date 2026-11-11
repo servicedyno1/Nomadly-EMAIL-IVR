@@ -127,6 +127,12 @@ async function main() {
     try { const r = e.render(type, await e.sample(type, a), { acc: { _id: A, email: 'alice@example.com', name: 'Alice' }, lang, email: {} }); if (!r.subject || !r.html.includes(`lang="${lang}"`) || /undefined|NaN|\[object/.test(r.subject + r.html)) bad.push(`${type}/${lang}`) } catch (err) { bad.push(`${type}/${lang}: ${err.message}`) }
   }
   it(`all ${T.TYPES.length} emails render in en/fr/es without undefined/NaN`, !bad.length, bad.join(', '))
+  { const s = await e.sample('campaignDone', a), ctx = (lang) => ({ acc: { _id: A, email: 'alice@example.com', name: 'Alice' }, lang, email: {} })
+    const withHot = e.render('campaignDone', s, ctx('en')).html
+    const noHot = e.render('campaignDone', { ...s, stats: { ...s.stats, keyPressed: 0 }, engagement: { ...s.engagement, hot: 0, perHot: null } }, ctx('fr')).html
+    it('campaign email shows reach, hot leads and the re-call tip', /People reached/.test(withHot) && /Hot leads/.test(withHot) && /didn’t answer/.test(withHot))
+    it('campaign email with no hot leads hides the hot-lead line, keeps reach + follow-up', !/Prospects chauds/.test(noHot) && /Personnes touchées/.test(noHot) && /n’ont pas répondu/.test(noHot)) }
+
   it('no scanner errors logged', !logs.some(l => /failed/.test(l)), logs.filter(l => /failed/.test(l)).join(' | '))
 
   await db.dropDatabase()

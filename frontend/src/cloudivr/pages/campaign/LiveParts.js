@@ -1,5 +1,6 @@
-import React from 'react';
-import { Clock, PhoneCall, AudioLines, CheckCircle2, MapPin } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { toast } from 'sonner';
+import { Clock, PhoneCall, AudioLines, CheckCircle2, MapPin, Flame, Headphones, Voicemail, Users } from 'lucide-react';
 import { secs } from '../../api';
 import { useIsPhone } from '../../ui';
 import { usePrivacy } from '../../privacy';
@@ -56,11 +57,55 @@ export function RunStats({ c, testid }) {
   );
 }
 
+// Who your message reached: people (live + voicemail), listened 30s+, hot leads.
+export function ReachStats({ l, testid }) {
+  if (!l) return null;
+  const items = [
+    ['people', Users, 'People reached', `${l.people || 0}`, `${l.reached || 0} live · ${l.voicemails || 0} voicemails left`],
+    ['listened', Headphones, 'Listened 30s+', `${l.listened || 0}`, l.reached ? `${l.listenPct || 0}% of live answers` : 'of live answers'],
+    ['voicemails', Voicemail, 'Voicemails left', `${l.voicemails || 0}`, 'your message, delivered'],
+    ['hot', Flame, 'Hot leads', `${l.hot || 0}`, 'pressed a key or connected'],
+  ];
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid={testid}>
+      {items.map(([k, Icon, label, v, sub]) => (
+        <div key={k} className={`rounded-xl border px-4 py-3 min-w-0 ${k === 'hot' && l.hot ? 'border-[#f59e0b]/60 bg-[#f59e0b]/10' : 'border-[#1f1f1f] bg-[#0d0d0d]'}`}>
+          <div className="flex items-center gap-2 text-xs text-[#a1a1aa]"><Icon className={`w-3.5 h-3.5 ${k === 'hot' && l.hot ? 'text-[#f59e0b]' : ''}`} />{label}</div>
+          <div className="font-mono text-xl mt-1 truncate" data-testid={`${testid}-${k}`}>{v}</div>
+          <div className="text-[11px] text-[#71717a] mt-0.5 truncate">{sub}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const isHotCall = (f) => !!(f.digitPressed || f.transferred);
+// A short chime + toast the moment a new hot lead shows up in the feed (not for the ones already there on load).
+export function useHotLeadAlert(feed) {
+  const seen = useRef(null);
+  useEffect(() => {
+    const hot = (feed || []).filter(isHotCall), keys = hot.map(f => `${f.campaignId}|${f.number}`);
+    if (seen.current === null) { seen.current = new Set(keys); return; }
+    const fresh = hot.filter(f => !seen.current.has(`${f.campaignId}|${f.number}`));
+    keys.forEach(k => seen.current.add(k));
+    if (!fresh.length) return;
+    fresh.forEach(f => toast.success(`Hot lead: ${f.number} ${f.transferred ? 'was connected to you' : `pressed ${f.digitPressed}`}`, { description: f.campaignName, duration: 10000 }));
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)(), o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(880, ctx.currentTime); o.frequency.setValueAtTime(1320, ctx.currentTime + 0.12);
+      g.gain.setValueAtTime(0.08, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+      o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.4);
+    } catch (_) { /* sound is optional */ }
+  }, [feed]);
+}
+
 // → [label, tone] for one call in the feed.
 export function callResult(f) {
   if (f.phase === 'talking') return ['Talking', 'live'];
   if (f.phase === 'ringing') return ['Ringing', 'warn'];
   if (f.status === 'skipped') return ['Do-not-call', 'muted'];
+  if (f.transferred) return ['Transferred', 'ok'];
+  if (f.digitPressed) return [`Pressed ${f.digitPressed}`, 'ok'];
   if (f.outcome) return [outcomeLabel(f.outcome), 'ok'];
   if (f.status === 'voicemail') return [f.voicemailDropped ? 'Message left' : 'Voicemail', 'muted'];
   if (f.status === 'no_answer') return ['No answer', 'muted'];
@@ -78,13 +123,13 @@ function FeedRow({ f, i, showCampaign, testid }) {
   const pv = usePrivacy();
   const [label, tone] = callResult(f);
   return (
-    <tr data-testid={`${testid}-row-${i}`}>
+    <tr data-testid={`${testid}-row-${i}`} className={isHotCall(f) ? 'bg-[#f59e0b]/10' : undefined}>
       <td className="font-mono text-xs text-[#a1a1aa] whitespace-nowrap">{clock(f.at)}</td>
       <td className="font-mono text-xs whitespace-nowrap">{pv.phone(f.number)}</td>
       <td className="text-xs text-[#d4d4d8]" data-testid={`${testid}-row-${i}-area`}>{f.area}</td>
       {showCampaign && <td className="text-xs text-[#a1a1aa] max-w-[12rem] truncate">{f.campaignName}</td>}
       <td className="font-mono text-xs">{f.duration ? secs(f.duration) : '—'}</td>
-      <td className="whitespace-nowrap"><span className={`inline-flex items-center gap-2 text-xs ${TEXT[tone]}`} data-testid={`${testid}-row-${i}-result`}><span className={`w-2 h-2 rounded-full ${DOT[tone]}`} />{label}</span></td>
+      <td className="whitespace-nowrap"><span className={`inline-flex items-center gap-2 text-xs ${TEXT[tone]}`} data-testid={`${testid}-row-${i}-result`}><span className={`w-2 h-2 rounded-full ${DOT[tone]}`} />{label}{isHotCall(f) && <Flame className="w-3.5 h-3.5 text-[#f59e0b]" data-testid={`${testid}-row-${i}-hot`} />}</span></td>
     </tr>
   );
 }

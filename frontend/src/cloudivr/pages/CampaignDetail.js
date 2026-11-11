@@ -10,6 +10,7 @@ import { cp } from '../paths';
 import { usePrivacy } from '../privacy';
 import { outcomeLabel } from './ai/AiCalls';
 import { RunPlan, LiveNow, FeedAndAreas } from './campaign/DetailLive';
+import { Results } from './campaign/Results';
 import { useBalance, ShortNote } from '../WalletPay';
 
 const STATS = [['total', 'Numbers'], ['completed', 'Called'], ['answered', 'Answered'], ['keyPressed', 'Pressed a key'], ['transferred', 'Transferred'], ['noAnswer', 'No answer']];
@@ -231,6 +232,7 @@ export default function CampaignDetail() {
         </div>
         <div className="flex items-center gap-2"><span className={statusPill(c.status)} data-testid="campaign-status">{c.status === 'series_waiting' ? `waits for part ${c.part - 1}` : c.status === 'series_ready' ? 'ready to start' : c.status}</span>{c.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}</div>
       </div>
+      <Results c={c} />
       <div className="civr-card p-6 mb-4">
         <div className="flex items-center justify-between mb-3"><span className="text-sm text-[#d4d4d8]">Progress</span><span className="font-mono text-sm" data-testid="campaign-progress">{pct}%</span></div>
         <div className="h-2 rounded-full bg-[#262626] overflow-hidden"><div className={`h-full bg-[#818cf8] transition-[width] duration-700 ${c.status === 'running' ? 'civr-pulse' : ''}`} style={{ width: `${pct}%` }} /></div>

@@ -131,7 +131,14 @@ function createEmails(db, { log = console.log } = {}) {
       id, name: c.name || c.agentName || c.audioName || 'Campaign', callerId: c.callerId, cancelled: c.status === 'cancelled', mode: c.mode,
       duration: c.startedAt && c.completedAt ? Math.round((new Date(c.completedAt) - new Date(c.startedAt)) / 1000) : 0,
       stats: s, rate: s.total ? Math.round(((s.answered || 0) / s.total) * 100) : 0, notDialed: (c.leads || []).filter(l => l.notCalled).length,
+      engagement: await engagementOf(c),
     }
+  }
+  async function engagementOf(c) {
+    try {
+      const agg = await db.collection('phoneLogs').aggregate([{ $match: { campaignId: c.id, type: 'BulkIVR' } }, { $group: { _id: null, amt: { $sum: '$charge' } } }]).toArray()
+      return require('../bulk-engagement').engagementOf(c, agg[0] ? +agg[0].amt : null)
+    } catch (_) { return null }
   }
 
   // New records since the last look → jobs { chatId, type, key, data() } (missed calls: { items } grouped per number).
@@ -367,7 +374,8 @@ function createEmails(db, { log = console.log } = {}) {
       case 'topup': return { amount: 50, balance: Math.max(balance, 50) }
       case 'lowBalance': return { balance: 6.4, threshold: (await profile(chatId)).email.lowBalanceAt, next: { phone, expiresAt: n.expiresAt, price } }
       case 'walletEmpty': return { balance: 0.12 }
-      case 'campaignDone': return { id: 'sample', name: 'Spring offer', callerId: phone, cancelled: false, mode: 'transfer', duration: 1460, rate: 47, notDialed: 0, stats: { total: 250, answered: 118, keyPressed: 64, transferred: 21, noAnswer: 96, hungUp: 12, voicemail: 9, voicemailLeft: 7, busy: 6, failed: 9 } }
+      case 'depositNudge': return { amount: 50, coin: 'USDT', phone: null, link: '/app/wallet', stage: 1 }
+      case 'campaignDone': return { id: 'sample', name: 'Spring offer', callerId: phone, cancelled: false, mode: 'transfer', duration: 1460, rate: 47, notDialed: 0, stats: { total: 250, answered: 118, keyPressed: 64, transferred: 21, noAnswer: 96, hungUp: 12, voicemail: 9, voicemailLeft: 7, busy: 6, failed: 9 }, engagement: { called: 250, total: 250, reached: 118, listened: 71, voicemails: 7, hot: 64, people: 125, listenPct: 60, unanswered: 102, spent: 37.5, perPerson: 0.3, perHot: 0.59, bestHour: { hour: 11, reached: 34 }, bestArea: { area: '415', pct: 58 } } }
       case 'voicemail': return { from: '+14155550122', to: phone, duration: 38, transcript: 'Hi, it’s Dana from Lakeside Realty — calling about the listing on Elm Street. Call me back when you get a minute.' }
       case 'missed': return { to: phone, calls: [{ from: '+14155550122', at: at(-20 * 60000) }, { from: '+447700900123', at: at(-5 * 60000) }] }
       case 'weekly': return weeklyFor(chatId, list.length ? list : [n])

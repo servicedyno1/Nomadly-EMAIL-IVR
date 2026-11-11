@@ -7,7 +7,7 @@ import { ask } from '../i18n';
 import { PageHeader, SkeletonPage, Empty, ErrorNote, statusPill } from '../ui';
 import { cp } from '../paths';
 import { useShell } from '../Shell';
-import { Pipeline, RunStats, CallFeed, repeatLabel } from './campaign/LiveParts';
+import { Pipeline, RunStats, CallFeed, repeatLabel, ReachStats, useHotLeadAlert } from './campaign/LiveParts';
 import { LiveMap } from './campaign/LiveMap';
 
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
@@ -82,6 +82,7 @@ function LiveCampaign({ c, i, onDone }) {
         <Pipeline p={c.live?.pipeline} testid={`live-campaign-${i}-pipeline`} />
         <RunStats c={c} testid={`live-campaign-${i}-stats`} />
       </div>
+      <div className="mt-4"><ReachStats l={c.live} testid={`live-campaign-${i}-reach`} /></div>
       {note && <div className="text-xs text-[#fbbf24] mt-4" data-testid={`live-campaign-${i}-note`}>{note}</div>}
     </div>
   );
@@ -115,6 +116,7 @@ export default function Live() {
   const running = data?.summary?.running || 0;
   useEffect(() => { if (data && (running > 0) !== ((summary?.liveCampaigns || 0) > 0)) refreshSummary(); }, [data, running, summary, refreshSummary]);
   const onDone = () => { reload(); refreshSummary(); };
+  useHotLeadAlert(data?.feed);
   const header = (
     <PageHeader label="Home" title="Live activity" sub="Every campaign that is calling right now: who is ringing, who is talking, how fast it goes and what is coming up. Updates every few seconds." testid="live-header">
       <Link to={cp('/app/campaigns/new')} className="civr-btn civr-btn-primary" data-testid="live-new-campaign-button"><Plus className="w-4 h-4" />New campaign</Link>
