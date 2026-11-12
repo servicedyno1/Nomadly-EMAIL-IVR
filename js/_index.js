@@ -7885,7 +7885,8 @@ bot?.on('callback_query', async (query) => {
     // silently returned before their handlers ran (no callback ack, no
     // visible feedback). Extend the gate to accept the escalation
     // prefixes explicitly.
-    const isAdminCallback = /^a[A-Z]/.test(data) || /^e(Ack|Resolve):/.test(data) || data === 'aCANCEL' || data === 'aCONF'
+    // amcSend/amcCancel (media-reply confirm) start lowercase — they were dropped here silently (button just spun).
+    const isAdminCallback = /^a[A-Z]/.test(data) || /^amc(Send|Cancel)/.test(data) || /^e(Ack|Resolve):/.test(data) || data === 'aCANCEL' || data === 'aCONF'
     if (!data || !isAdminCallback) return
     if (fromId !== String(TELEGRAM_ADMIN_CHAT_ID)) {
       try { await bot.answerCallbackQuery(query.id, { text: '⛔ Admin only.', show_alert: true }) } catch { /* noop */ }
