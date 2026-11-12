@@ -50,34 +50,37 @@ async function refreshOwned(force = false) {
 const ownsNumber = (e164) => owned.has(String(e164 || ''))
 const isSwSearched = (e164) => searched.has(String(e164 || ''))
 
+// US area code → state / CA area code → province, so an out-of-stock area code falls back to in-state numbers.
+const AREA_REGION = { 212: 'NY', 315: 'NY', 347: 'NY', 516: 'NY', 518: 'NY', 585: 'NY', 607: 'NY', 631: 'NY', 646: 'NY', 716: 'NY', 718: 'NY', 845: 'NY', 914: 'NY', 917: 'NY', 305: 'FL', 321: 'FL', 352: 'FL', 386: 'FL', 407: 'FL', 561: 'FL', 727: 'FL', 754: 'FL', 772: 'FL', 786: 'FL', 813: 'FL', 850: 'FL', 863: 'FL', 904: 'FL', 941: 'FL', 954: 'FL', 310: 'CA', 213: 'CA', 323: 'CA', 408: 'CA', 415: 'CA', 510: 'CA', 530: 'CA', 559: 'CA', 562: 'CA', 619: 'CA', 626: 'CA', 650: 'CA', 657: 'CA', 707: 'CA', 714: 'CA', 760: 'CA', 805: 'CA', 818: 'CA', 858: 'CA', 909: 'CA', 916: 'CA', 925: 'CA', 949: 'CA', 951: 'CA', 312: 'IL', 773: 'IL', 847: 'IL', 630: 'IL', 708: 'IL', 713: 'TX', 214: 'TX', 281: 'TX', 469: 'TX', 512: 'TX', 682: 'TX', 713: 'TX', 737: 'TX', 817: 'TX', 832: 'TX', 972: 'TX', 206: 'WA', 253: 'WA', 360: 'WA', 425: 'WA', 509: 'WA', 202: 'DC', 404: 'GA', 678: 'GA', 770: 'GA', 617: 'MA', 857: 'MA', 781: 'MA', 215: 'PA', 267: 'PA', 412: 'PA', 702: 'NV', 725: 'NV', 303: 'CO', 720: 'CO', 602: 'AZ', 480: 'AZ', 623: 'AZ', 503: 'OR', 971: 'OR', 615: 'TN', 901: 'TN', 313: 'MI', 248: 'MI', 216: 'OH', 614: 'OH', 513: 'OH', 704: 'NC', 919: 'NC', 980: 'NC', 980: 'NC', 201: 'NJ', 551: 'NJ', 609: 'NJ', 732: 'NJ', 862: 'NJ', 973: 'NJ', 416: 'ON', 647: 'ON', 437: 'ON', 613: 'ON', 905: 'ON', 289: 'ON', 604: 'BC', 778: 'BC', 236: 'BC', 514: 'QC', 438: 'QC', 403: 'AB', 587: 'AB', 780: 'AB', 825: 'AB' }
+
 async function searchNumbers(countryCode, numberType, areaCode, limit = 5) {
-  if (!enabled() || !['US', 'CA'].includes(String(countryCode || 'US').toUpperCase())) return []
-  const params = { max_results: limit, number_type: numberType === 'toll_free' || numberType === 'toll-free' ? 'toll-free' : 'local' }
-  if (areaCode) params.areacode = areaCode
-  try {
-    const list = (await http().get('/api/relay/rest/phone_numbers/search', { params })).data?.data || []
-    return list
-      .filter(n => (n.country_code === String(countryCode || 'US').toUpperCase() || !n.country_code) && !owned.has(n.e164))
-      .map(n => {
-        // SignalWire lists local/toll-free numbers as voice+fax; texting switches on once the number joins a 10DLC / toll-free campaign.
+  const cc = String(countryCode || 'US').toUpperCase()
+  if (!enabled() || !['US', 'CA'].includes(cc)) return []
+  const type = numberType === 'toll_free' || numberType === 'toll-free' ? 'toll-free' : 'local'
+  const run = async (extra) => {
+    try {
+      const list = (await http().get('/api/relay/rest/phone_numbers/search', { params: { max_results: limit, number_type: type, ...extra } })).data?.data || []
+      return list.filter(n => (n.country_code === cc || !n.country_code) && !owned.has(n.e164)).map(n => {
         const caps = [...new Set([...(n.capabilities || []), 'sms', 'mms'])]
         searched.add(n.e164)
-        return {
-          record_type: 'available_phone_number',
-          phone_number: n.e164,
-          features: caps.map(name => ({ name })),
-          region_information: [
-            ...(n.region ? [{ region_type: 'state', region_name: n.region }] : []),
-            ...(n.rate_center ? [{ region_type: 'rate_center', region_name: n.rate_center }] : []),
-            { region_type: 'country_code', region_name: n.country_code || 'US' },
-          ],
+        return { record_type: 'available_phone_number', phone_number: n.e164, features: caps.map(name => ({ name })),
+          region_information: [...(n.region ? [{ region_type: 'state', region_name: n.region }] : []), ...(n.rate_center ? [{ region_type: 'rate_center', region_name: n.rate_center }] : []), { region_type: 'country_code', region_name: n.country_code || 'US' }],
           cost_information: { currency: 'USD', monthly_cost: '0', upfront_cost: '0' },
-          _capabilities: { voice: caps.includes('voice'), sms: caps.includes('sms'), mms: caps.includes('mms'), fax: caps.includes('fax') },
-          _provider: 'signalwire',
-        }
-      })
-      .filter(n => n._capabilities.voice)
-  } catch (e) { log('search:', errOf(e)); return [] }
+          _capabilities: { voice: caps.includes('voice'), sms: caps.includes('sms'), mms: caps.includes('mms'), fax: caps.includes('fax') }, _provider: 'signalwire' }
+      }).filter(n => n._capabilities.voice)
+    } catch (e) { log('search:', errOf(e)); return [] }
+  }
+  // Exact area code first; if empty, offer other numbers in the same state; finally any available US/CA number.
+  if (areaCode) {
+    const exact = await run({ areacode: areaCode })
+    if (exact.length) return exact
+    const region = AREA_REGION[Number(areaCode)]
+    const inState = region ? await run({ region }) : []
+    const rows = inState.length ? inState : await run({})
+    rows.forEach(r => { r._areaFallback = true; r._requestedAreaCode = String(areaCode); r._fallbackRegion = inState.length ? region : null })
+    return rows
+  }
+  return run({})
 }
 
 const handlerBody = () => ({

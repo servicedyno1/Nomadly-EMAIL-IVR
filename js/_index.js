@@ -30013,7 +30013,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
     if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
-    const numberLines = results.map((r, i) => {
+    const fbNote = results.some(r => r._areaFallback) ? `ℹ️ Area code ${areaCode} has no numbers available right now — here are other numbers${results.find(r => r._fallbackRegion) ? ` in ${results.find(r => r._fallbackRegion)._fallbackRegion}` : ''} you can use instantly:\n\n` : ''
+    const numberLines = fbNote + results.map((r, i) => {
       const tag = numCapTag(r)
       return `${i + 1}. <code>${r.phone_number}</code>${tag}`
     }).join('\n')
@@ -30062,7 +30063,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
     if (!results.length) return send(chatId, cpTxt.noSearchResults + '\nTry a different area code.', k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
-    const numberLines = results.map((r, i) => {
+    const fbNote2 = results.some(r => r._areaFallback) ? `ℹ️ Area code ${areaCode} has no numbers available right now — here are other numbers${results.find(r => r._fallbackRegion) ? ` in ${results.find(r => r._fallbackRegion)._fallbackRegion}` : ''} you can use instantly:\n\n` : ''
+    const numberLines = fbNote2 + results.map((r, i) => {
       const tag = numCapTag(r)
       return `${i + 1}. <code>${r.phone_number}</code>${tag}`
     }).join('\n')
