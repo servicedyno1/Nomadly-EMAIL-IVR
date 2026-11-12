@@ -26538,6 +26538,9 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
     // ── Bulk Call Campaign ──
     if (message === pc.bulkCallCampaign) {
+      if (phoneConfig.bulkIvrMaintenance()) {
+        return send(chatId, phoneConfig.bulkMaintenanceMsg(info?.userLanguage), k.of([]))
+      }
       // Bulk Call Campaign — requires Pro or Business plan
       const userData = await get(phoneNumbersOf, chatId)
       const userNumbers = (userData?.numbers || []).filter(n => n.status === 'active')
