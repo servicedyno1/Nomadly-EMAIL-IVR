@@ -2787,3 +2787,11 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - js/bulk-esim/core.js: whenOptions nowOk = live && h<24 (dropped window + same-day fit); createBooking "now" skips the allocate() fit → empty allocation = all messages due immediately (queueCampaign blasts), estimatedCompletion guarded; removed sendWindow() block in now-path; confirmBooking hold-expiry re-check skipped for mode 'now'. Daily allowance cap stays 2000 (defaultDailyLimit); confirmBooking already auto-provisions lines (provisionFor/linesShort). Sender still paces per line (safe) and messages have 2-day expireAt.
 - Tests: test_bulk_esim_engine 42/0 (added Send-now-exceeds-capacity + blast-booking cases), numbercheck 24/0.
 - NOT deployed — Save to GitHub. (Combined with the earlier tz.js no-time-gate change, Send now works any hour and any size up to 2000.)
+
+## 2026-11-12 — Fix: number search returned zero for popular area codes [@hostbay_support / @nomadlybot]
+- Report: user picked New York (212) then Miami (305) → "No numbers available". Not a code bug: SignalWire US local inventory is sparse (only area code 207 + region-level, e.g. NY→315); it stocks NO 212/305. Infobip also none; Bird has them but needs ownership paperwork/review (not instant).
+- User decision: offer nearest IN-STATE SignalWire number instantly, telling the customer the exact code wasn't available.
+- js/signalwire/rest.js: searchNumbers now tries exact areacode → same-state (AREA_REGION map, ~130 US/CA codes, SignalWire `region` param) → any US/CA. Fallback rows flagged _areaFallback/_requestedAreaCode/_fallbackRegion; still added to `searched` so buyNumber routes to SignalWire. Live: 212→NY 315, 305→FL 239, 207→exact.
+- _index.js: both CloudIVR number-list renders (cpSelectArea, cpEnterAreaCode) prepend "ℹ️ Area code X has no numbers right now — here are other numbers in <state> you can use instantly".
+- Router (signalwire/index.js) returns SW results when present before Infobip/Bird/Telnyx — unchanged.
+- Tests: test_signalwire_adapter 26/0; _index.js syntax OK; modules load. NOT deployed — Save to GitHub.
