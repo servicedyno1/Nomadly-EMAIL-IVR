@@ -2772,3 +2772,11 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - NOTE: this also disables recipient night-time (TCPA-style) quiet-hours deferral — per explicit user request ("send/book anytime, don't gate time anymore").
 - Tests: test_bulk_esim_engine 40/0 (updated the 2 gating asserts to cover default-off + re-enabled), numbercheck 24/0.
 - NOT deployed — Save to GitHub.
+
+## 2026-11-12 — BulkSMS data collection prep (pre-campaign) + Spenza readiness
+- Live Spenza check: 1 account; after cleanup 4 eSIM lines AVAILABLE (+16317901824/790 0834/569 6825/310 2401, exp Dec 10–12), 2 TESTING (warming, +16316900316/687 0635), removed dead ESIM-0001 (failed, no msisdn). Sending works.
+- FINDING (unchanged): Spenza returns no messageId and sends NO delivery receipts → deliveryStatus null for all 146 msgs, bsDlr empty. User chose SKIP Spenza DLR for now. "sent" = accepted by Spenza only, not carrier delivery.
+- Data capture added (js/bulk-esim/core.js): failed sends now store failureKind/failureStatus + bsReputation.providerKind/providerStatus/campaignId; rate-limit deferrals increment campaign stats.throttled; STOP suppression tags campaignId (last outbound) → per-campaign opt-outs.
+- report(campaignId) now returns optOuts, cost (sum paid bookings), costPerReply, throttled, errorsByReason {rate|credit|auth|invalid|rejected}.
+- Admin dashboard: new /bulkcampaigns command (bot.js) — recent 8 campaigns with sent/success%, failed, replies, opt-outs, cost, $/reply, throttling, error breakdown. Existing /bulk, /bulklines, /bulkaccounts, /bulkplan, /bulkreport unchanged.
+- Tests: test_bulk_esim_engine 40/0; modules load. NOT deployed (Save to GitHub); droplet still on old build.
