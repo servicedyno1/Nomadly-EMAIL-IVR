@@ -1011,5 +1011,18 @@
     "resetDone": "New password generated — save it now.",
     "resetDryRun": "Preview mode: the password was not changed.",
     "dryRunBody": "Checked and recorded — no files were installed (preview mode)."
+  },
+  "fdb": {
+    "title": "{{domain}} is flagged and blocked by our nameserver provider (Cloudflare)",
+    "body": "Your hosting plan is active — only this domain can't be used, because Cloudflare won't give it DNS. Link a new main domain below; it's free.",
+    "pick": "Choose one of your domains…",
+    "other": "A domain from elsewhere…",
+    "link": "Link as main domain",
+    "linking": "Linking…",
+    "buy": "Register a new domain",
+    "buyHint": "Register it in the bot under 🌐 Bulletproof Domains, then come back here — it will be in the list.",
+    "done": "{{domain}} is now your main domain.",
+    "setNs": "One step left: at your domain registrar, set the nameservers to:",
+    "auto": "DNS and protection are set up automatically — your site goes live within a few minutes."
   }
 }

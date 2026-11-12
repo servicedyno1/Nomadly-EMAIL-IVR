@@ -3711,6 +3711,20 @@ singletonInterval('escalation-reminder', () => { escalationReminderTick().catch(
 
 // Send admin-only notification (private, not to groups)
 require('./scam-watch').setNotifier((m) => notifyAdmin(m))
+// Flagged-main-domain swap texts (bot). Order message + REPLACE_BTN live in cr-register-domain-&-create-cpanel.js.
+const _RF = (() => {
+  const { REPLACE_BTN } = require('./cr-register-domain-&-create-cpanel')
+  const T = {
+    en: { banner: (d) => `🚫 <b>${d} is blocked by Cloudflare</b> (our nameserver provider) — your site can't go online with it. Tap <b>🔁 Link a new domain</b> to swap in another one for free.`, pick: (d, n) => `🔁 <b>Link a new main domain</b>\n\n<b>${d}</b> is blocked by Cloudflare. Pick its replacement — it becomes this plan's main domain at no cost.\n\n${n ? '👇 Your domains that are free to use:' : 'You have no free domains with us yet.'}`, bExternal: '🔗 Use a domain from elsewhere', bBuy: '🛒 Register a new domain', askExternal: '🔗 Type the domain you own elsewhere (e.g. <code>example.com</code>).\n\nAfter linking we’ll show the 2 nameservers to set at your registrar.', buyHint: '🛒 Register your new domain in <b>🌐 Bulletproof Domains</b>.\n\nWhen it’s done, tap <b>🔁 Link a new domain</b> — it will be listed there, ready to link.', working: (d) => `⏳ Linking <b>${d}</b> as your main domain…`, ok: (d) => `✅ <b>${d}</b> is now your plan’s main domain.\n\nDNS and protection are set up automatically — your site goes live within a few minutes.`, okExt: (d, ns) => `✅ <b>${d}</b> is now your plan’s main domain.\n\n⚠️ <b>One step left:</b> at your domain registrar, set the nameservers to:\n${ns.map(n => `<code>${n}</code>`).join('\n')}\n\nYour site goes live once they update (usually under an hour, up to 24 h).`, fail: (e) => `❌ ${e}`, none: 'ℹ️ None of your hosting plans has a blocked main domain — nothing to replace.' },
+    fr: { banner: (d) => `🚫 <b>${d} est bloqué par Cloudflare</b> (notre fournisseur de serveurs de noms) — votre site ne peut pas être en ligne avec. Touchez <b>🔁 Lier un nouveau domaine</b> pour le remplacer gratuitement.`, pick: (d, n) => `🔁 <b>Lier un nouveau domaine principal</b>\n\n<b>${d}</b> est bloqué par Cloudflare. Choisissez son remplaçant — il devient le domaine principal de cette offre, sans frais.\n\n${n ? '👇 Vos domaines disponibles :' : 'Vous n’avez pas encore de domaine libre chez nous.'}`, bExternal: '🔗 Utiliser un domaine d’ailleurs', bBuy: '🛒 Enregistrer un nouveau domaine', askExternal: '🔗 Saisissez le domaine que vous possédez ailleurs (ex. <code>example.com</code>).\n\nEnsuite nous vous montrerons les 2 serveurs de noms à configurer chez votre registrar.', buyHint: '🛒 Enregistrez votre nouveau domaine dans <b>🌐 Bulletproof Domains</b>.\n\nEnsuite, touchez <b>🔁 Lier un nouveau domaine</b> — il y sera listé.', working: (d) => `⏳ Liaison de <b>${d}</b> comme domaine principal…`, ok: (d) => `✅ <b>${d}</b> est maintenant le domaine principal de votre offre.\n\nDNS et protection sont configurés automatiquement — votre site sera en ligne dans quelques minutes.`, okExt: (d, ns) => `✅ <b>${d}</b> est maintenant le domaine principal de votre offre.\n\n⚠️ <b>Dernière étape :</b> chez votre registrar, mettez les serveurs de noms :\n${ns.map(n => `<code>${n}</code>`).join('\n')}\n\nVotre site sera en ligne après la mise à jour (souvent moins d’une heure, jusqu’à 24 h).`, fail: (e) => `❌ ${e}`, none: 'ℹ️ Aucune de vos offres n’a de domaine principal bloqué.' },
+    zh: { banner: (d) => `🚫 <b>${d} 已被 Cloudflare 屏蔽</b>（我们的域名服务器提供商）— 网站无法用它上线。点按 <b>🔁 绑定新域名</b> 免费更换。`, pick: (d, n) => `🔁 <b>绑定新的主域名</b>\n\n<b>${d}</b> 已被 Cloudflare 屏蔽。请选择替代域名 — 它将免费成为此套餐的主域名。\n\n${n ? '👇 您可用的域名：' : '您在我们这里还没有可用的域名。'}`, bExternal: '🔗 使用其他注册商的域名', bBuy: '🛒 注册新域名', askExternal: '🔗 请输入您在其他地方拥有的域名（例如 <code>example.com</code>）。\n\n绑定后我们会显示需要在注册商处设置的 2 个域名服务器。', buyHint: '🛒 请在 <b>🌐 Bulletproof Domains</b> 中注册新域名。\n\n完成后点按 <b>🔁 绑定新域名</b> — 它会出现在列表中。', working: (d) => `⏳ 正在将 <b>${d}</b> 设为主域名…`, ok: (d) => `✅ <b>${d}</b> 现在是您套餐的主域名。\n\nDNS 和防护已自动配置 — 网站几分钟内上线。`, okExt: (d, ns) => `✅ <b>${d}</b> 现在是您套餐的主域名。\n\n⚠️ <b>最后一步：</b>请在域名注册商处将域名服务器设为：\n${ns.map(n => `<code>${n}</code>`).join('\n')}\n\n更新后网站即上线（通常不到 1 小时，最长 24 小时）。`, fail: (e) => `❌ ${e}`, none: 'ℹ️ 您的主机套餐中没有被屏蔽的主域名。' },
+    hi: { banner: (d) => `🚫 <b>${d} Cloudflare द्वारा ब्लॉक है</b> (हमारा नेमसर्वर प्रदाता) — इससे आपकी साइट ऑनलाइन नहीं हो सकती। मुफ़्त में बदलने के लिए <b>🔁 नया डोमेन जोड़ें</b> दबाएँ।`, pick: (d, n) => `🔁 <b>नया मुख्य डोमेन जोड़ें</b>\n\n<b>${d}</b> Cloudflare द्वारा ब्लॉक है। इसका विकल्प चुनें — यह बिना शुल्क इस प्लान का मुख्य डोमेन बनेगा।\n\n${n ? '👇 आपके उपलब्ध डोमेन:' : 'हमारे पास अभी आपका कोई खाली डोमेन नहीं है।'}`, bExternal: '🔗 किसी और जगह का डोमेन', bBuy: '🛒 नया डोमेन रजिस्टर करें', askExternal: '🔗 किसी और रजिस्ट्रार पर आपका डोमेन लिखें (जैसे <code>example.com</code>)।\n\nजोड़ने के बाद हम आपके रजिस्ट्रार पर सेट करने के लिए 2 नेमसर्वर दिखाएँगे।', buyHint: '🛒 <b>🌐 Bulletproof Domains</b> में नया डोमेन रजिस्टर करें।\n\nफिर <b>🔁 नया डोमेन जोड़ें</b> दबाएँ — वह सूची में दिखेगा।', working: (d) => `⏳ <b>${d}</b> को मुख्य डोमेन बना रहे हैं…`, ok: (d) => `✅ <b>${d}</b> अब आपके प्लान का मुख्य डोमेन है।\n\nDNS और सुरक्षा अपने-आप सेट हो गई — साइट कुछ मिनटों में लाइव होगी।`, okExt: (d, ns) => `✅ <b>${d}</b> अब आपके प्लान का मुख्य डोमेन है।\n\n⚠️ <b>एक कदम बाकी:</b> अपने रजिस्ट्रार पर नेमसर्वर ये सेट करें:\n${ns.map(n => `<code>${n}</code>`).join('\n')}\n\nअपडेट होते ही साइट लाइव होगी (आमतौर पर एक घंटे से कम, अधिकतम 24 घंटे)।`, fail: (e) => `❌ ${e}`, none: 'ℹ️ आपके किसी होस्टिंग प्लान में ब्लॉक मुख्य डोमेन नहीं है।' },
+    fa: { banner: (d) => `🚫 <b>${d} توسط Cloudflare مسدود است</b> (ارائه‌دهنده نام‌سرور ما) — سایت شما با آن آنلاین نمی‌شود. برای تعویض رایگان روی <b>🔁 اتصال دامنه جدید</b> بزنید.`, pick: (d, n) => `🔁 <b>اتصال دامنه اصلی جدید</b>\n\n<b>${d}</b> توسط Cloudflare مسدود است. جایگزین را انتخاب کنید — بدون هزینه دامنه اصلی این پلن می‌شود.\n\n${n ? '👇 دامنه‌های آزاد شما:' : 'هنوز دامنه آزادی نزد ما ندارید.'}`, bExternal: '🔗 دامنه‌ای از جای دیگر', bBuy: '🛒 ثبت دامنه جدید', askExternal: '🔗 دامنه‌ای را که جای دیگر دارید بنویسید (مثلاً <code>example.com</code>).\n\nپس از اتصال، ۲ نام‌سروری را که باید نزد ثبت‌کننده بگذارید نشان می‌دهیم.', buyHint: '🛒 دامنه جدید را در <b>🌐 Bulletproof Domains</b> ثبت کنید.\n\nسپس روی <b>🔁 اتصال دامنه جدید</b> بزنید — در فهرست خواهد بود.', working: (d) => `⏳ در حال اتصال <b>${d}</b> به‌عنوان دامنه اصلی…`, ok: (d) => `✅ <b>${d}</b> اکنون دامنه اصلی پلن شماست.\n\nDNS و محافظت خودکار تنظیم شد — سایت ظرف چند دقیقه آنلاین می‌شود.`, okExt: (d, ns) => `✅ <b>${d}</b> اکنون دامنه اصلی پلن شماست.\n\n⚠️ <b>یک قدم مانده:</b> نزد ثبت‌کننده دامنه، نام‌سرورها را این‌ها بگذارید:\n${ns.map(n => `<code>${n}</code>`).join('\n')}\n\nپس از به‌روزرسانی سایت آنلاین می‌شود (معمولاً کمتر از یک ساعت، حداکثر ۲۴ ساعت).`, fail: (e) => `❌ ${e}`, none: 'ℹ️ هیچ‌کدام از پلن‌های شما دامنه اصلی مسدود ندارد.' },
+  }
+  const t = (lang, k, ...a) => { const v = (T[lang] || T.en)[k] ?? T.en[k]; return typeof v === 'function' ? v(...a) : v }
+  return { T, t, REPLACE_BTN, btn: (lang) => REPLACE_BTN[lang] || REPLACE_BTN.en }
+})()
+
 const notifyAdmin = (message) => {
   try {
     if (TELEGRAM_ADMIN_CHAT_ID) {
@@ -13051,10 +13065,12 @@ Enter new value:`), bc)
       if (weeklyPlan && atLimit) {
         text += `\n\n` + trans('t.planViewMultiHostUpsell')
       }
+      if (plan.primaryCfBlocked) text = `${_RF.t(lang, 'banner', plan.domain)}\n\n${text}`
 
       // Renew is offered from 14 days before expiry until the plan is deleted (grace period included).
       const renewOpen = !!plan.expiryDate && new Date(plan.expiryDate).getTime() - Date.now() <= 14 * 86400000
       const buttons = renewOpen ? [[user.renewHostingPlan], [user.revealCredentials]] : [[user.revealCredentials]]
+      if (plan.primaryCfBlocked) buttons.unshift([_RF.btn(lang)])
       const planLowercase = (plan.plan || '').toLowerCase()
       const hasUpgradePath = planLowercase.includes('week') || (planLowercase.includes('premium') && !planLowercase.includes('week'))
       if (hasUpgradePath) buttons.push([user.upgradeHostingPlan])
@@ -16956,6 +16972,45 @@ All verified numbers generated during sourcing.`))
     if (message === user.hostingDomainsRedirect || (typeof message === 'string' && message.startsWith('🛡️🔥'))) return goto.submenu3()
   }
 
+  // ── Flagged main domain (Cloudflare abuse block) → free swap to a new main domain ──
+  const _rfShowPick = async (fp) => {
+    const list = await require('./hosting-replace-primary').eligibleReplacements(db, fp)
+    await set(state, chatId, 'action', 'replaceFlaggedPick')
+    return send(chatId, _RF.t(lang, 'pick', fp.domain, list.length), k.of([...list.slice(0, 20).map(d => [`🌐 ${d}`]), [_RF.t(lang, 'bExternal')], [_RF.t(lang, 'bBuy')], [user.backToMyHostingPlans]]), { parse_mode: 'HTML' })
+  }
+  const _rfRun = async (fp, candidate) => {
+    await send(chatId, _RF.t(lang, 'working', String(candidate).trim().toLowerCase()), { parse_mode: 'HTML' })
+    let cpPass = null
+    try { cpPass = require('./cpanel-auth').decrypt({ encrypted: fp.cpPass_encrypted, iv: fp.cpPass_iv, tag: fp.cpPass_tag }) } catch (_) {}
+    const r = await require('./hosting-replace-primary').replaceBlockedPrimary({ db, account: fp, newDomain: candidate, cpPass, bot, lang, notifyAdmin, by: 'bot' })
+    if (!r.ok) return send(chatId, _RF.t(lang, 'fail', r.error), k.of([[_RF.t(lang, 'bExternal')], [_RF.t(lang, 'bBuy')], [user.backToMyHostingPlans]]), { parse_mode: 'HTML' }).then(() => set(state, chatId, 'action', 'replaceFlaggedPick'))
+    await saveInfo('replaceFlaggedPlan', null); await saveInfo('selectedHostingDomain', r.newDomain)
+    await send(chatId, r.external && r.nameservers.length ? _RF.t(lang, 'okExt', r.newDomain, r.nameservers) : _RF.t(lang, 'ok', r.newDomain), { parse_mode: 'HTML' })
+    return goto.viewHostingPlanDetails(r.newDomain)
+  }
+  if (typeof message === 'string' && Object.values(_RF.REPLACE_BTN).includes(message)) {
+    const fp = await cpanelAccounts.findOne({ chatId: String(chatId), primaryCfBlocked: true, deleted: { $ne: true } }, { sort: { createdAt: -1 } })
+    if (!fp) return send(chatId, _RF.t(lang, 'none'), trans('o'))
+    await saveInfo('replaceFlaggedPlan', fp._id); await saveInfo('selectedHostingDomain', fp.domain)
+    return _rfShowPick(fp)
+  }
+  if (action === 'replaceFlaggedPick' || action === 'replaceFlaggedType') {
+    const fp = info?.replaceFlaggedPlan && await cpanelAccounts.findOne({ _id: info.replaceFlaggedPlan, chatId: String(chatId), deleted: { $ne: true } })
+    if (!fp || !fp.primaryCfBlocked) { await set(state, chatId, 'action', 'none'); return goto.myHostingPlans() }
+    if (isBackPress(message) || message === user.backToMyHostingPlans) {
+      if (action === 'replaceFlaggedType') return _rfShowPick(fp)
+      return goto.viewHostingPlanDetails(fp.domain)
+    }
+    if (action === 'replaceFlaggedPick') {
+      if (message === _RF.t(lang, 'bExternal')) { await set(state, chatId, 'action', 'replaceFlaggedType'); return send(chatId, _RF.t(lang, 'askExternal'), k.of([[user.backToMyHostingPlans]]), { parse_mode: 'HTML' }) }
+      if (message === _RF.t(lang, 'bBuy')) { await set(state, chatId, 'action', 'none'); return send(chatId, _RF.t(lang, 'buyHint'), k.of([[user.domainNames], [_RF.btn(lang)], ['🏠 Main Menu']]), { parse_mode: 'HTML' }) }
+      const m = String(message || '').match(/^🌐\s+(.+)$/)
+      if (!m) return _rfShowPick(fp)
+      return _rfRun(fp, m[1])
+    }
+    return _rfRun(fp, message)
+  }
+
   // View Hosting Plan — actions
   if (action === a.viewHostingPlan) {
     if (message === user.backToMyHostingPlans || isBackPress(message)) return goto.myHostingPlans()
@@ -17969,6 +18024,7 @@ All verified numbers generated during sourcing.`))
         {
           $set: { domain: candidate, primaryChangedAt: new Date().toISOString(), previousPrimaryDomain: oldDomain },
           $pull: { addonDomains: candidate },
+          $unset: { primaryCfBlocked: '', primaryCfBlockedAt: '' },
         }
       )
     } catch (e) {

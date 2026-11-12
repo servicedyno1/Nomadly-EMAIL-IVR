@@ -2629,3 +2629,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 
 ## 2026-11-12 — Hosting: Cloudflare-blocked domains refused up front (@smsbeast_real RCA)
 - See memory/SMSBEAST_ADDON_CF_BLOCK_RCA_2026-11-12.md. Test js/tests/test_cf_blocked_domain.js 18/18; test_addon_from_bot 94/94.
+
+## 2026-11-12 — Hosting ordered with a Cloudflare-blocked domain → free main-domain swap
+- Provisioning (cr-register-domain-&-create-cpanel.js): CF 1097 on createZone → plan still created, cpanelAccounts.primaryCfBlocked=true, user told after payment + "🔁 Link a new domain" keyboard (5 langs), admin alert, no misleading NS message, result.primaryCfBlocked.
+- js/hosting-replace-primary.js: replaceBlockedPrimary (validate, other-plan/blocklist/CF pre-flight, WHM swap, clear flag, DNS+protection, admin alert) + eligibleReplacements.
+- Bot: 🔁 from any screen → own domains / external (NS shown after) / register new (→ Bulletproof Domains, then back); plan details banner + button. Change-primary also clears flag.
+- Web panel: GET /domains/flagged-primary, POST /domains/replace-flagged-primary (new token); FlaggedDomainBanner on every tab (fdb.* i18n en/fr/zh/hi).
+- Test js/tests/test_flagged_primary_swap.js 32/32 (logic w/ stubs + source guards). Panel banner not browser-tested (needs a flagged account + WHM).

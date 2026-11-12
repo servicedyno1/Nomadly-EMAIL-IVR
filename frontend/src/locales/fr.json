@@ -1011,5 +1011,18 @@
     "resetDone": "Nouveau mot de passe généré — enregistrez-le maintenant.",
     "resetDryRun": "Mode aperçu : le mot de passe n’a pas été modifié.",
     "dryRunBody": "Vérifié et enregistré — aucun fichier n’a été installé (mode aperçu)."
+  },
+  "fdb": {
+    "title": "{{domain}} est signalé et bloqué par notre fournisseur de serveurs de noms (Cloudflare)",
+    "body": "Votre hébergement est actif — seul ce domaine est inutilisable, car Cloudflare ne lui donne pas de DNS. Liez un nouveau domaine principal ci-dessous ; c’est gratuit.",
+    "pick": "Choisissez un de vos domaines…",
+    "other": "Un domaine d’ailleurs…",
+    "link": "Lier comme domaine principal",
+    "linking": "Liaison…",
+    "buy": "Enregistrer un nouveau domaine",
+    "buyHint": "Enregistrez-le dans le bot sous 🌐 Bulletproof Domains, puis revenez ici — il sera dans la liste.",
+    "done": "{{domain}} est maintenant votre domaine principal.",
+    "setNs": "Dernière étape : chez votre registrar, mettez les serveurs de noms :",
+    "auto": "DNS et protection sont configurés automatiquement — votre site sera en ligne dans quelques minutes."
   }
 }

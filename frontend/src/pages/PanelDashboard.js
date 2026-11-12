@@ -12,6 +12,7 @@ import SecurityPanel from '../components/panel/SecurityPanel';
 import AccountSettings from '../components/panel/AccountSettings';
 import SiteStatusCard from '../components/panel/SiteStatusCard';
 import PanelOverview from '../components/panel/PanelOverview';
+import FlaggedDomainBanner from '../components/panel/FlaggedDomainBanner';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import useTheme from '../components/panel/useTheme';
 import { useBrand, BrandMark } from '../hooks/useBrand';
@@ -141,6 +142,7 @@ export default function PanelDashboard() {
       </div>
 
       <main className="panel-main" data-testid="panel-main">
+        <FlaggedDomainBanner />
         {activeTab === 'overview' && <PanelOverview onNavigate={setActiveTab} />}
         {activeTab !== 'overview' && (
           <div className="panel-page-head" data-testid="panel-page-head">
