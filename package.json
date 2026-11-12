@@ -16,6 +16,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-pinpoint": "^3.1167.0",
     "@blockbee/api": "^1.1.0",
     "@signalwire/realtime-api": "^4.2.2",
     "axios": "^1.5.0",

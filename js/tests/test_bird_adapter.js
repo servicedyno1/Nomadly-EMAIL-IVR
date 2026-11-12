@@ -1,6 +1,6 @@
 // Bird adapter: lookup mapping, paperwork-free number search, buy → route to trunk, caller-ID code flow, router order.
 // Run: cd /app && node js/tests/test_bird_adapter.js
-process.env.BIRD_API_KEY = 'bk_us1_test'; process.env.SIGNALWIRE_PROJECT_ID = ''; process.env.INFOBIP_API_KEY = ''
+process.env.BIRD_API_KEY = 'bk_us1_test'; process.env.SIGNALWIRE_PROJECT_ID = ''; process.env.INFOBIP_API_KEY = ''; process.env.AWS_LOOKUP_ENABLED = 'false'
 const bird = require('/app/js/bird')
 let pass = 0, fail = 0
 const ok = (n, c, x = '') => { c ? pass++ : fail++; console.log(`${c ? '✅' : '❌'} ${n}${x ? ` — ${x}` : ''}`) }

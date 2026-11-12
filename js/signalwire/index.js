@@ -5,6 +5,7 @@ const voice = require('./voice')
 const ib = require('../infobip')
 const ce = require('../callengine')
 const bird = require('../bird')
+const aws = require('../aws')
 
 const log = (...a) => console.log('[SignalWire]', ...a)
 const telnyxBackup = () => String(process.env.TELNYX_FALLBACK || 'true').toLowerCase() !== 'false'
@@ -94,7 +95,7 @@ function wrap(t) {
 
   w.validateForwardingDestination = async (toNumber) => {
     if (swOn() && /^\+1/.test(String(toNumber))) { const r = await rest.lookup(toNumber); if (r) return r }
-    const r = (await bird.lookup(toNumber)) || (await ib.lookup(toNumber))
+    const r = (await bird.lookup(toNumber)) || (await aws.lookup(toNumber)) || (await ib.lookup(toNumber))
     if (r) return r
     return t.validateForwardingDestination(toNumber)
   }
@@ -106,8 +107,8 @@ function wrap(t) {
   return w
 }
 
-// Number lookup for list screening: SignalWire → Bird → Infobip → { type, carrier } | null
-const lookup = async (e164) => (swOn() ? await rest.lookup(e164) : null) || (await bird.lookup(e164)) || ib.lookup(e164)
+// Number lookup for list screening: SignalWire → Bird → AWS → Infobip → { type, carrier } | null
+const lookup = async (e164) => (swOn() ? await rest.lookup(e164) : null) || (await bird.lookup(e164)) || (await aws.lookup(e164)) || ib.lookup(e164)
 
 // Texts: SignalWire when it owns the sending number, else null (caller keeps its Telnyx path).
 async function sendSms(from, to, text, mediaUrls = []) {
