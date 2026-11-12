@@ -125,6 +125,16 @@ function hostingTxnRecord(info, domain, cpUser) {
   }
 }
 
+// Main domain refused by Cloudflare (abuse block): plan is created, user swaps in a new main domain for free.
+const REPLACE_BTN = { en: '🔁 Link a new domain', fr: '🔁 Lier un nouveau domaine', zh: '🔁 绑定新域名', hi: '🔁 नया डोमेन जोड़ें', fa: '🔁 اتصال دامنه جدید' }
+const cfBlockedOrderMsg = (lang, d) => ({
+  en: `🚫 <b>${d} is flagged and blocked by our nameserver provider (Cloudflare)</b>\n\nYour hosting plan is active and paid — only this domain can't be used: Cloudflare won't give it DNS, so it would never load.\n\n👉 Tap <b>🔁 Link a new domain</b> to swap in another main domain for free — one you own with us, one from another registrar, or a new one you register.`,
+  fr: `🚫 <b>${d} est signalé et bloqué par notre fournisseur de serveurs de noms (Cloudflare)</b>\n\nVotre hébergement est actif et payé — seul ce domaine est inutilisable : Cloudflare ne lui donne pas de DNS, il ne s’afficherait jamais.\n\n👉 Touchez <b>🔁 Lier un nouveau domaine</b> pour le remplacer gratuitement — un domaine chez nous, d’un autre registrar, ou un nouveau.`,
+  zh: `🚫 <b>${d} 已被我们的域名服务器提供商（Cloudflare）标记并屏蔽</b>\n\n您的主机套餐已付款并激活 — 只是这个域名无法使用：Cloudflare 不为其提供 DNS，网站永远无法打开。\n\n👉 点按 <b>🔁 绑定新域名</b> 免费换一个主域名 — 可以是您在我们这里的域名、其他注册商的域名，或新注册的域名。`,
+  hi: `🚫 <b>${d} को हमारे नेमसर्वर प्रदाता (Cloudflare) ने फ़्लैग करके ब्लॉक किया है</b>\n\nआपका होस्टिंग प्लान सक्रिय और भुगतान किया हुआ है — सिर्फ़ यह डोमेन इस्तेमाल नहीं हो सकता: Cloudflare इसे DNS नहीं देता, इसलिए साइट कभी नहीं खुलेगी।\n\n👉 मुफ़्त में दूसरा मुख्य डोमेन लगाने के लिए <b>🔁 नया डोमेन जोड़ें</b> दबाएँ — हमारे पास का, किसी और रजिस्ट्रार का, या नया रजिस्टर किया हुआ।`,
+  fa: `🚫 <b>${d} توسط ارائه‌دهنده نام‌سرور ما (Cloudflare) علامت‌گذاری و مسدود شده است</b>\n\nپلن هاست شما فعال و پرداخت‌شده است — فقط این دامنه قابل استفاده نیست: Cloudflare به آن DNS نمی‌دهد و سایت هرگز باز نمی‌شود.\n\n👉 روی <b>🔁 اتصال دامنه جدید</b> بزنید تا رایگان دامنه اصلی دیگری بگذارید — دامنه‌ای نزد ما، از ثبت‌کننده دیگر، یا یک دامنه جدید.`,
+}[lang] || null) || cfBlockedOrderMsg('en', d)
+
 async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state, bot = null) {
   const lang = info?.userLanguage ?? 'en'
   const chatId = info._id
@@ -673,6 +683,7 @@ async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state,
     // P0 FIX: Save cPanel username for cleanup if subsequent steps fail
     const cpanelUsername = result.username
     let dnsSetupSuccess = false
+    let cfBlocked = false
 
     // ── Step 4: Cloudflare DNS setup ──
     // For new domains: reuse CF zone from registration (no double createZone)
@@ -686,6 +697,9 @@ async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state,
             cfZoneId = zone.zoneId
             cfNameservers = zone.nameservers || []
             log(`[Hosting] CF zone created for existing/external domain ${domain}: ${cfZoneId}`)
+          } else if (zone.blocked) {
+            cfBlocked = true
+            log(`[Hosting] ${domain} is BLOCKED by Cloudflare (1097) — plan stays active, user offered a free main-domain swap`)
           }
         }
 
@@ -820,7 +834,10 @@ async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state,
     }
 
     // DNS status message — conditional based on actual success
-    if (dnsSetupSuccess) {
+    if (cfBlocked) {
+      send(chatId, cfBlockedOrderMsg(lang, domain), { parse_mode: 'HTML', reply_markup: { keyboard: [[REPLACE_BTN[lang] || REPLACE_BTN.en], ['🏠 Main Menu']], resize_keyboard: true } })
+      try { if (process.env.TELEGRAM_ADMIN_CHAT_ID) send(process.env.TELEGRAM_ADMIN_CHAT_ID, `⚠️ <b>Hosting ordered with a Cloudflare-blocked domain</b>\nUser: ${chatId}\nDomain: <b>${domain}</b>\ncPanel: <code>${result.username}</code>\nPlan created; user offered a free main-domain swap.`, { parse_mode: 'HTML' }) } catch (_) {}
+    } else if (dnsSetupSuccess) {
       send(chatId, { en: '✅ Domain configured · DNS auto-set via Cloudflare', fr: '✅ Domaine configuré · DNS auto-configuré via Cloudflare', zh: '✅ 域名已配置 · DNS已通过Cloudflare自动设置', hi: '✅ डोमेन कॉन्फ़िगर · DNS Cloudflare द्वारा स्वतः सेट' }[lang] || '✅ Domain configured · DNS auto-set via Cloudflare', rem)
     } else {
       send(chatId, { en: '⚠️ Domain created, but DNS setup needs attention. Your hosting is active — DNS records may need manual configuration via DNS Management.', fr: '⚠️ Domaine créé, mais la configuration DNS nécessite votre attention. Votre hébergement est actif — les enregistrements DNS peuvent nécessiter une configuration manuelle via Gestion DNS.', zh: '⚠️ 域名已创建，但DNS设置需要注意。您的主机已激活 — DNS记录可能需要通过DNS管理手动配置。', hi: '⚠️ डोमेन बनाया गया, लेकिन DNS सेटअप पर ध्यान देने की ज़रूरत। आपकी होस्टिंग सक्रिय है — DNS रिकॉर्ड DNS प्रबंधन के माध्यम से मैन्युअल कॉन्फ़िगरेशन की आवश्यकता हो सकती है।' }[lang] || '⚠️ Domain created, but DNS setup needs attention. Your hosting is active — DNS records may need manual configuration via DNS Management.', rem)
@@ -828,7 +845,7 @@ async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state,
     }
 
     // Issue 10 Fix: For external domains, user must manually update NS at their registrar
-    if (isExternal && cfNameservers.length >= 2) {
+    if (isExternal && !cfBlocked && cfNameservers.length >= 2) {
       const nsMessages = {
         en: `⚠️ <b>Action Required for External Domain</b>
 
@@ -977,6 +994,7 @@ NS2: <code>${cfNameservers[1]}</code>
         priceUsd: typeof info.hostingPrice === 'number' ? info.hostingPrice : undefined,
       })
       pin = stored.pin
+      if (cfBlocked) await cpanelAccountsCol.updateOne({ _id: String(result.username).toLowerCase() }, { $set: { primaryCfBlocked: true, primaryCfBlockedAt: new Date() } })
 
       await client.close()
       log(`[Hosting] Panel credentials stored for ${result.username} (PIN generated)`)
@@ -1034,10 +1052,14 @@ NS2: <code>${cfNameservers[1]}</code>
       // and will message the user the moment delegation goes live. Replace
       // the "live!" headline with a calmer "almost ready" one so the user
       // doesn't open the URL and see a parking page.
-      const dnsHeadline = info._delegationDeferred
+      const dnsHeadline = cfBlocked
+        ? `✅ <b>Your hosting plan is ready</b> — link a new main domain to put it online (tap 🔁 Link a new domain).`
+        : info._delegationDeferred
         ? `⏳ <b>Your hosting is almost ready!</b>\n\nWe're waiting on the domain registry to publish your DNS — usually within 30–60 min. You'll get a confirmation here automatically when <b>${domain}</b> goes live.`
         : `🎉 <b>Your hosting is live!</b>`
-      const dnsLine = info._delegationDeferred
+      const dnsLine = cfBlocked
+        ? `⚠️ ${domain} is blocked by Cloudflare — not online.`
+        : info._delegationDeferred
         ? `DNS being configured at the registry — we'll auto-retry.`
         : `DNS auto-configured via Cloudflare.`
 
@@ -1054,7 +1076,7 @@ Login: ${panelUrl}
 <b>Transaction ID:</b> <code>${txnId}</code>
 
 <i>Quote this ID when contacting support</i>`
-      send(chatId, credentialsMsg, keyboardButtons)
+      send(chatId, credentialsMsg, cfBlocked ? { parse_mode: 'HTML', reply_markup: { keyboard: [[REPLACE_BTN[lang] || REPLACE_BTN.en], ['🏠 Main Menu']], resize_keyboard: true } } : keyboardButtons)
     }
 
     assignPackageToUser(state, chatId, info.plan)
@@ -1103,7 +1125,7 @@ Login: ${panelUrl}
       'planName',
       'duration',
     ])
-    return { success: true, username: result.username, password: result.password, whmHost: process.env.WHM_HOST || null, pin, url: result.url, nameservers: Array.isArray(cfNameservers) ? cfNameservers : [], domainRegistered: true }
+    return { success: true, username: result.username, password: result.password, whmHost: process.env.WHM_HOST || null, pin, url: result.url, nameservers: Array.isArray(cfNameservers) ? cfNameservers : [], domainRegistered: true, primaryCfBlocked: cfBlocked }
   } catch (err) {
     log('err registerDomain&CreateCPanel via WHM', err.message)
     send(chatId, `❌ Setup failed. Tap 💬 Get Support for help.\n\nError: ${err.message}`, keyboardButtons)
@@ -1111,4 +1133,4 @@ Login: ${panelUrl}
   }
 }
 
-module.exports = { registerDomainAndCreateCpanel, _domainFailMsg, hostingTxnRecord }
+module.exports = { registerDomainAndCreateCpanel, _domainFailMsg, hostingTxnRecord, REPLACE_BTN, cfBlockedOrderMsg }

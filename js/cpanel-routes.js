@@ -1795,6 +1795,25 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
   // (re)deployed for the new primary in the background, and the old primary's
   // CF records/worker routes are cleaned up. Returns a fresh session token
   // carrying the new primary domain.
+  // ─── Flagged main domain (Cloudflare abuse block) → free swap ─────
+  router.get('/domains/flagged-primary', ...auth, async (req, res) => {
+    const col = getCpanelCol(); if (!col) return res.status(503).json({ error: 'Service starting up, try again shortly.' })
+    const account = await col.findOne({ _id: req.cpUser.toLowerCase() })
+    if (!account?.primaryCfBlocked) return res.json({ blocked: false })
+    const eligible = await require('./hosting-replace-primary').eligibleReplacements(col.s.db, account).catch(() => [])
+    return res.json({ blocked: true, domain: account.domain, eligible })
+  })
+  router.post('/domains/replace-flagged-primary', ...auth, async (req, res) => {
+    const col = getCpanelCol(); if (!col) return res.status(503).json({ error: 'Service starting up, try again shortly.' })
+    const account = await col.findOne({ _id: req.cpUser.toLowerCase() })
+    if (!account) return res.status(404).json({ error: 'Account not found' })
+    const lang = await getUserLang(account).catch(() => 'en')
+    const r = await require('./hosting-replace-primary').replaceBlockedPrimary({ db: col.s.db, account, newDomain: req.body?.domain, cpPass: req.cpPass, bot: require('./_index')?._bot || null, lang, notifyAdmin: notifier, by: 'panel' })
+    if (!r.ok) return res.status(r.kind === 'whm_failed' ? 502 : 422).json({ error: r.error, kind: r.kind })
+    const token = cpAuth.createToken({ cpUser: req.cpUser, domain: r.newDomain, chatId: req.cpChatId })
+    return res.json({ success: true, ...r, token, domain: r.newDomain })
+  })
+
   router.post('/domains/set-primary', ...auth, async (req, res) => {
     const { domain } = req.body || {}
     if (!domain) return res.status(400).json({ error: 'domain is required' })
@@ -1879,7 +1898,7 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
         {
           $set: { domain: newDomain },
           $pull: { addonDomains: newDomain },
-          $unset: { [`docrootModes.${newDomain}`]: '', [`docrootModes.${oldDomain}`]: '' },
+          $unset: { [`docrootModes.${newDomain}`]: '', [`docrootModes.${oldDomain}`]: '', primaryCfBlocked: '', primaryCfBlockedAt: '' },
         }
       )
     } catch (dbErr) {
