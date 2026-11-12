@@ -2626,3 +2626,4 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Pending user actions: SignalWire raise call-rate limit; Resend plan upgrade (smadavhost.com, voodoohost.xyz, proshophost.xyz); Infobip enable Calls API + Number Lookup.
 - Customer number migration (20 numbers / 15 customers): user said DON'T move yet.
 - Deploy needs: prod env SIGNALWIRE_* RESEND_API_KEY MAIL_PROVIDER=resend SIP_SERVER_SECRET; WL apps need overlay (WhiteLabel branch); brand sip.* DNS → 188.166.34.29.
+- Bird (2026-11-12, preview): backup for calls (Bird lines → own Asterisk call engine), number checks, numbers, caller IDs. Backup order to be decided by user after capability check. Blocked on Bird organization verification (E16000) for buying numbers; outbound needs a Bird number or verified caller ID. See CHANGELOG.

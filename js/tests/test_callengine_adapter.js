@@ -1,5 +1,5 @@
 // Own call engine (Asterisk ARI) → Telnyx events. Run: cd /app && node js/tests/test_callengine_adapter.js
-process.env.ASTERISK_ARI_URL = 'https://x:8089'; process.env.ASTERISK_ARI_PASSWORD = 'p'; delete process.env.OPENAI_API_KEY
+process.env.ASTERISK_ARI_URL = 'https://x:8089'; process.env.ASTERISK_ARI_PASSWORD = 'p'; delete process.env.OPENAI_API_KEY; delete process.env.BIRD_API_KEY; delete process.env.CALL_ENGINE_TRUNK
 const ce = require('/app/js/callengine')
 let pass = 0, fail = 0
 const ok = (n, c) => { c ? pass++ : fail++; console.log(`${c ? '✅' : '❌'} ${n}`) }

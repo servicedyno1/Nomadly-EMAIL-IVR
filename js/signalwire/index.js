@@ -4,6 +4,7 @@ const rest = require('./rest')
 const voice = require('./voice')
 const ib = require('../infobip')
 const ce = require('../callengine')
+const bird = require('../bird')
 
 const log = (...a) => console.log('[SignalWire]', ...a)
 const telnyxBackup = () => String(process.env.TELNYX_FALLBACK || 'true').toLowerCase() !== 'false'
@@ -16,7 +17,7 @@ function wrap(t) {
   for (const fn of CALL_FNS) w[fn] = (id, ...a) => (voice.isSw(id) ? voice[fn](id, ...a) : ib.isIb(id) ? ib.voice[fn](id, ...a) : ce.isAe(id) ? ce[fn](id, ...a) : t[fn](id, ...a))
   w.bridgeCalls = (a, b) => (voice.isSw(a) || voice.isSw(b) ? voice.bridgeCalls(a, b) : ib.isIb(a) || ib.isIb(b) ? ib.voice.bridgeCalls(a, b) : ce.isAe(a) || ce.isAe(b) ? ce.bridgeCalls(a, b) : t.bridgeCalls(a, b))
 
-  // US/Canada: SignalWire → Infobip → own call engine (DIDWW) → Telnyx. Other countries: Infobip → call engine → Telnyx.
+  // US/Canada: SignalWire → Infobip → own call engine (Bird/DIDWW lines) → Telnyx. Other countries: Infobip → call engine → Telnyx.
   w.createOutboundCall = async (from, to, webhookUrl, connectionId, options = {}) => {
     const nanp = /^\+1\d{10}$/.test(String(to)) || /^sip:/i.test(String(to))
     const tries = []
@@ -42,12 +43,15 @@ function wrap(t) {
       const r = await rest.searchNumbers(countryCode, numberType, areaCode, limit)
       if (r.length) return r
     }
-    if (ib.enabled()) { const r = await ib.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length || !telnyxBackup()) return r }
+    if (ib.enabled()) { const r = await ib.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
+    if (bird.enabled()) { const r = await bird.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
+    if (!telnyxBackup()) return []
     return t.searchNumbers(countryCode, numberType, areaCode, limit)
   }
 
   w.buyNumber = async (phoneNumber, connectionId, messagingProfileId, retrySearch = null) => {
     if (ib.isIbSearched(phoneNumber)) return ib.buyNumber(phoneNumber)
+    if (bird.isBirdSearched(phoneNumber)) return bird.buyNumber(phoneNumber)
     if (swOn() && rest.isSwSearched(phoneNumber)) {
       const r = await rest.buyNumber(phoneNumber)
       if (r) return r
@@ -65,7 +69,7 @@ function wrap(t) {
     return t.getNumberCapabilities(phoneNumber)
   }
   w.updateNumber = (id, updates) => (voice.isSw(id) ? rest.configureNumber(String(id).slice(3)) : t.updateNumber(id, updates))
-  w.releaseNumber = (id) => (voice.isSw(id) ? rest.releaseById(id) : ib.isIb(id) ? ib.releaseNumber(id) : t.releaseNumber(id))
+  w.releaseNumber = (id) => (voice.isSw(id) ? rest.releaseById(id) : ib.isIb(id) ? ib.releaseNumber(id) : bird.isBird(id) ? bird.releaseNumber(id) : t.releaseNumber(id))
   w.releaseByPhoneNumber = async (phoneNumber) => {
     if (swOn()) { const r = await rest.releaseByPhoneNumber(String(phoneNumber).replace(/[^+\d]/g, '')); if (r !== null) return r }
     return t.releaseByPhoneNumber(phoneNumber)
@@ -90,7 +94,7 @@ function wrap(t) {
 
   w.validateForwardingDestination = async (toNumber) => {
     if (swOn() && /^\+1/.test(String(toNumber))) { const r = await rest.lookup(toNumber); if (r) return r }
-    const r = await ib.lookup(toNumber)
+    const r = (await bird.lookup(toNumber)) || (await ib.lookup(toNumber))
     if (r) return r
     return t.validateForwardingDestination(toNumber)
   }
@@ -102,8 +106,8 @@ function wrap(t) {
   return w
 }
 
-// Number lookup for list screening → { type, carrier } | null
-const lookup = async (e164) => (swOn() ? await rest.lookup(e164) : null) || ib.lookup(e164)
+// Number lookup for list screening: SignalWire → Bird → Infobip → { type, carrier } | null
+const lookup = async (e164) => (swOn() ? await rest.lookup(e164) : null) || (await bird.lookup(e164)) || ib.lookup(e164)
 
 // Texts: SignalWire when it owns the sending number, else null (caller keeps its Telnyx path).
 async function sendSms(from, to, text, mediaUrls = []) {

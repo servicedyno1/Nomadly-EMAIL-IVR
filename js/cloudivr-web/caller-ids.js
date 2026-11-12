@@ -3,6 +3,7 @@
 const axios = require('axios')
 const crypto = require('crypto')
 const { walletOps } = require('./wallet')
+const bird = require('../bird')
 
 const PRICE = Number(process.env.RATE_CALLER_ID_VERIFY || 25)
 const MAX_SENDS_PER_DAY = 25
@@ -32,8 +33,7 @@ async function resolve(chatId, showAs) {
 }
 const isVerified = (chatId, n) => resolve(chatId, n).then(() => true, () => false)
 
-async function requestCode(n, method) {
-  if (dry()) return
+async function telnyxRequestCode(n, method) {
   const body = { phone_number: n, verification_method: method }
   try { await tx('post', '', body) } catch (e) {
     // Left verified on the Telnyx account (an earlier owner removed it here): clear it so a fresh code proves ownership.
@@ -42,8 +42,21 @@ async function requestCode(n, method) {
     await tx('post', '', body).catch(e2 => { throw new Error(txErr(e2)) })
   }
 }
-const checkCode = async (n, code) => {
+// Telnyx first; when it refuses, Bird places a code call instead → { birdId } so the code is checked with Bird.
+async function requestCode(n, method) {
+  if (dry()) return {}
+  try { await telnyxRequestCode(n, method); return {} } catch (e) {
+    if (method === 'dtmf' || !bird.enabled()) throw e
+    const old = await col?.findOne({ _id: n })
+    if (old?.birdId) await bird.deleteCallerId(old.birdId)
+    const r = await bird.startCallerIdVerification(n)
+    if (r.error) throw e
+    return { birdId: r.id }
+  }
+}
+const checkCode = async (n, code, doc) => {
   if (dry()) return code === DRY_CODE
+  if (doc?.birdId) return (await bird.submitCallerIdCode(doc.birdId, code)).status === 'verified'
   return tx('post', `/${encodeURIComponent(n)}/actions/verify`, { verification_code: code }).then(() => true, () => false)
 }
 // Press-1 call: no code — Telnyx marks the number verified once they press 1.
@@ -58,8 +71,8 @@ async function autoVerify(db, chatId, n) {
   const cur = await c.findOne({ _id: n })
   if (cur?.status === 'verified' && cur.chatId === String(chatId)) return 'verified'
   if (dry()) { await c.replaceOne({ _id: n }, { _id: n, chatId: String(chatId), status: 'verified', method: 'auto', charged: 0, createdAt: Date.now(), verifiedAt: new Date() }, { upsert: true }); return 'verified' }
-  await requestCode(n, 'sms')
-  await c.replaceOne({ _id: n }, { _id: n, chatId: String(chatId), status: 'pending', method: 'auto', auto: true, tries: 0, createdAt: Date.now() }, { upsert: true })
+  const via = await requestCode(n, 'sms')
+  await c.replaceOne({ _id: n }, { _id: n, chatId: String(chatId), status: 'pending', method: 'auto', auto: true, tries: 0, createdAt: Date.now(), ...via }, { upsert: true })
   return 'pending'
 }
 async function autoCode(db, n, text) {
@@ -68,7 +81,7 @@ async function autoCode(db, n, text) {
   if (!d || Date.now() - d.createdAt > PENDING_MS || d.tries >= MAX_TRIES) return null
   const code = (String(text).match(/\b(\d{4,8})\b/) || [])[1]
   if (!code) return null
-  if (!(await checkCode(n, code))) { await c.updateOne({ _id: n }, { $inc: { tries: 1 } }); return 'wrong' }
+  if (!(await checkCode(n, code, d))) { await c.updateOne({ _id: n }, { $inc: { tries: 1 } }); return 'wrong' }
   await c.updateOne({ _id: n }, { $set: { status: 'verified', verifiedAt: new Date(), charged: 0 } })
   return 'verified'
 }
@@ -123,7 +136,7 @@ function routes(router, { db, h, numbersApi }) {
     if (list.length === 1 && !sent.length) return bad(res, results[0].status, results[0].error, results[0].message)
     res.status(sent.length ? 201 : 400).json({
       number: sent[0]?.number, method, dryRun: dry(), results,
-      message: method === 'dtmf' ? `We’re calling ${sent.length > 1 ? 'those numbers' : 'that number'} now — answer and press 1, then tap “I pressed 1”.` : dry() ? `Preview mode: no code was sent. Enter ${DRY_CODE}.` : sent.length > 1 ? `Codes sent to ${sent.length} numbers.` : method === 'call' ? 'We’re calling that number now — listen for the code.' : 'We texted a code to that number.',
+      message: method === 'dtmf' ? `We’re calling ${sent.length > 1 ? 'those numbers' : 'that number'} now — answer and press 1, then tap “I pressed 1”.` : dry() ? `Preview mode: no code was sent. Enter ${DRY_CODE}.` : sent.some(r => r.byCall) ? 'We’re calling that number now — listen for the 6-digit code.' : sent.length > 1 ? `Codes sent to ${sent.length} numbers.` : method === 'call' ? 'We’re calling that number now — listen for the code.' : 'We texted a code to that number.',
     })
   }))
 
@@ -135,10 +148,11 @@ function routes(router, { db, h, numbersApi }) {
     if (cur?.chatId === chatId && cur.status === 'verified') return no(400, 'already_verified', 'This number is already verified on your account.')
     if (cur && cur.chatId !== chatId && (cur.status === 'verified' || Date.now() - cur.createdAt < PENDING_MS)) return no(409, 'number_taken', 'This number is in use on another account. Contact support if it is yours.')
     if (await sends.countDocuments({ chatId }) >= MAX_SENDS_PER_DAY) return no(429, 'too_many_codes', 'Too many codes sent today. Try again tomorrow.')
-    try { await requestCode(n, method) } catch (e) { return no(424, 'send_failed', `We couldn’t send the code: ${e.message}`) }
+    let via
+    try { via = await requestCode(n, method) } catch (e) { return no(424, 'send_failed', `We couldn’t send the code: ${e.message}`) }
     await sends.insertOne({ chatId, number: n, at: new Date() })
-    await col.replaceOne({ _id: n }, { _id: n, chatId, status: 'pending', method, tries: 0, createdAt: Date.now() }, { upsert: true })
-    return { ok: true }
+    await col.replaceOne({ _id: n }, { _id: n, chatId, status: 'pending', method, tries: 0, createdAt: Date.now(), ...via }, { upsert: true })
+    return { ok: true, ...(via.birdId ? { byCall: true } : {}) }
   }
 
   router.post('/caller-ids/verify', h(async (req, res) => {
@@ -149,7 +163,7 @@ function routes(router, { db, h, numbersApi }) {
     const press = doc?.method === 'dtmf'
     if (!press && !code) return bad(res, 400, 'invalid_code', 'Enter the code you received.')
     if (!(await w.debit(chatId, PRICE))) return bad(res, 402, 'insufficient_balance', `Verifying a caller ID costs $${PRICE.toFixed(2)}. Top up your wallet first.`)
-    if (!(await (press ? checkPressed(n) : checkCode(n, code)))) {
+    if (!(await (press ? checkPressed(n) : checkCode(n, code, doc)))) {
       await w.credit(chatId, PRICE)
       await col.updateOne({ _id: n }, { $inc: { tries: 1 } })
       return bad(res, 400, press ? 'not_pressed' : 'wrong_code', press ? 'We haven’t seen the 1 press yet. Answer our call and press 1, then try again — or send a new call.' : 'That code didn’t match. Check it and try again.')
@@ -165,6 +179,7 @@ function routes(router, { db, h, numbersApi }) {
     if (!doc) return bad(res, 404, 'not_found', 'That caller ID isn’t on your account.')
     if (doc.status === 'review' && doc.charged) await w.credit(chatId, doc.charged) // cancelled before review → refund
     if (!dry() && doc.status !== 'review') await tx('delete', `/${encodeURIComponent(n)}`).catch(() => {})
+    if (!dry() && doc.birdId) await bird.deleteCallerId(doc.birdId)
     await col.deleteOne({ _id: n })
     await db.collection('bulkCallCampaigns').updateMany({ chatId, showAs: n }, { $unset: { showAs: '' } }).catch(() => {})
     await db.collection('callerIdDefaults').deleteMany({ chatId, showAs: n }).catch(() => {})

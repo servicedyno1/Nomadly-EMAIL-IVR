@@ -2716,3 +2716,12 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
   Live: softphone *99 call → engine answered, spoke, recorded (saved after hangup), hung up; engine rang the softphone (INVITE reached phone; my test UA's
   200 OK not completed → real softphone test still needed). js/tests/test_callengine_adapter.js 13/0.
   DIDWW NOT connected: user skipped DIDWW_API_KEY. Template ops/sip-server/asterisk/pjsip_didww.conf.example. Configs mirrored in ops/sip-server/asterisk/.
+
+## 2026-11-12 — Bird (bird.com) as Telnyx backup (calls via own call engine, lookup, numbers, caller IDs)
+- js/bird/index.js: lookup, paperwork-free number search, buy (→ routes number to trunk), release, SIP trunk ensure (trunk cloudivr-callengine, ACL 188.166.34.29/32, gateway sip:188.166.34.29:5080, workspace default route → trunk), voice destinations (US, CA enabled), caller-ID verification (code call).
+- Router (js/signalwire/index.js): lookup SignalWire → Bird → Infobip; number search SW → Infobip → Bird → Telnyx; bd: ids release via Bird. Call engine default trunk = bird when BIRD_API_KEY set.
+- caller-ids.js: Telnyx code send fails → Bird code call (birdId stored, code checked with Bird).
+- SIP server: /etc/asterisk/pjsip_bird.conf (endpoint bird, Bird us1 IPs), [from-bird] context. Repo copies in ops/sip-server/asterisk.
+- Live: lookup works (charged); outbound INVITE reached Bird, rejected only caller_id_not_verified (trunk/ACL OK).
+- BLOCKED: number purchase → E16000 TrustGateUnmet (Bird organization verification incomplete — dashboard). API marks US local numbers ownership_registration_required=true. Key lacks trust:read / org:settings:read scopes.
+- Tests: js/tests/test_bird_adapter.js 20/0; callengine 13/0, signalwire 26/0, infobip 18/0, cid 8/0, numbercheck 24/0.

@@ -188,7 +188,7 @@ const stopRecording = async (id) => { const l = legs.get(id); return l?.recName 
 // Destination → Asterisk endpoint: softphones via Kamailio (it rings the registered phone), numbers via DIDWW
 function endpointFor(to) {
   if (/^sip:/i.test(String(to))) return { endpoint: `PJSIP/kamailio/sip:${String(to).replace(/^sip:/i, '').split('@')[0]}@188.166.34.29:5060`, variables: { 'PJSIP_HEADER(add,X-Nomadly-Key)': process.env.SIP_SERVER_SECRET || '', 'PJSIP_HEADER(add,X-Nomadly-User)': String(to).replace(/^sip:/i, '').split('@')[0] } }
-  return { endpoint: `PJSIP/${String(to).replace(/[^\d]/g, '')}@${process.env.CALL_ENGINE_TRUNK || 'didww'}`, variables: {} }
+  return { endpoint: `PJSIP/${String(to).replace(/[^\d]/g, '')}@${process.env.CALL_ENGINE_TRUNK || (process.env.BIRD_API_KEY ? 'bird' : 'didww')}`, variables: {} }
 }
 async function originate(meta, from, to, timeout = 30) {
   const { endpoint, variables } = endpointFor(to)
