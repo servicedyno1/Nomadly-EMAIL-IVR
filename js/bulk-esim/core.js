@@ -608,9 +608,10 @@ async function whenOptions(cid, campaignId) {
   const c = await cfg(), cp = await C('bsCampaigns').findOne({ _id: campaignId, cid }); if (!cp) return E('err_campaign')
   const win = await sendWindow()
   const unit = cp.withLinks ? c.priceLink : c.pricePlain, t = today(), h = nowSlot()?.hour ?? 24, { slots, dayFree, capacity: cap } = await availability(t), live = (await ready()).send
-  const fits = (from) => !!allocate(slots, from, cp.parts, dayFree), nowOk = win.open && live && cap > 0 && h < 24 && slots[h].free > 0 && fits(h)
-  // Outside the 8am–9pm window "send now / earliest today" is off; only scheduling into open hours is offered.
-  const later = win.open && live && cap > 0 && !nowOk ? slots.find(s => s.hour > h && s.free > 0 && fits(s.hour)) : null
+  const fits = (from) => !!allocate(slots, from, cp.parts, dayFree), nowOk = live && h < 24
+  // "Send now" is offered whenever a line is live. A batch bigger than today's capacity blasts immediately and the
+  // engine auto-orders more lines while sending (up to maxVolume). "Earliest today" still hints the cheaper scheduled rate.
+  const later = live && cap > 0 && !nowOk ? slots.find(s => s.hour > h && s.free > 0 && fits(s.hour)) : null
   const fee = cp.replies ? c.replyFee : 0, r2 = (x) => Math.round((x + fee) * 100) / 100, full = priced(c, cp.parts, unit, new Date()), disc = priced(c, cp.parts, unit, new Date(Date.now() + c.scheduleMinHours * HOUR + MIN))
   return { parts: cp.parts, replyFee: fee, now: nowOk ? { hour: h, price: r2(full.price) } : null, later: later ? { hour: later.hour, price: r2(full.price) } : null, lines: cap > 0, off: cap > 0 && !live, quiet: !win.open || (live && cap > 0 && !nowOk && !later && slots.slice(h).every(s => s.quiet || s.free === 0)), window: win, schedule: { pct: disc.pct, price: r2(disc.price), list: r2(disc.list), minHours: c.scheduleMinHours } }
 }
@@ -633,7 +634,7 @@ const unlock = (key) => C('bsLocks').deleteOne({ _id: key })
 // Holds capacity for `holdMinutes` while the customer pays. type: 'paid' | 'free'.
 // Volume = SMS parts. Price = parts × (link/phone or plain rate). The day's allowance must have room for the whole booking.
 async function createBooking(cid, { date, hour, volume, type = 'paid', campaignId, now = false }) {
-  if (now) { if (!(await ready()).send) return E('off_now'); if (!(await sendWindow()).open) return E('err_slot'); const ns = nowSlot(); if (!ns) return E('err_slot'); date = ns.date; hour = ns.hour }
+  if (now) { if (!(await ready()).send) return E('off_now'); const ns = nowSlot() || { date: today(), hour: new Date().getUTCHours() }; date = ns.date; hour = ns.hour }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || isNaN(Date.parse(date)) || !(Number.isInteger(Number(hour)) && hour !== null && hour !== '' && Number(hour) >= 0 && Number(hour) < 24)) return E('err_slot')
   const c = await cfg(), cu = await C('bsCustomers').findOne({ _id: cid }), cp = campaignId ? await C('bsCampaigns').findOne({ _id: campaignId, cid }) : null
   const v = Math.round(Number(cp ? cp.parts : volume)), listUnit = cp?.withLinks ? c.priceLink : c.pricePlain, limit = cu?.dailyLimit ?? c.defaultDailyLimit
@@ -649,10 +650,13 @@ async function createBooking(cid, { date, hour, volume, type = 'paid', campaignI
   if (used + v > limit) return E('err_allowance_day', Math.max(0, limit - used), dayKey(startAt, c))
   if (!(await lock(`book:${date}`))) return E('err_busy')
   try {
-    const { slots, dayFree } = await availability(date), alloc = allocate(slots, Number(hour), v, dayFree)
-    if (!alloc) { if (v > dayFree) await unmet(cid, date, v); return E('err_slot') }
+    const { slots, dayFree } = await availability(date)
+    // Scheduled bookings must fit the day's open capacity; "send now" blasts immediately (empty allocation = all due now)
+    // and the engine auto-orders lines while it sends, so a batch bigger than today's capacity is never refused.
+    const alloc = now ? (allocate(slots, Number(hour), v, dayFree) || {}) : allocate(slots, Number(hour), v, dayFree)
+    if (!now && !alloc) { if (v > dayFree) await unmet(cid, date, v); return E('err_slot') }
     const pr = priced(c, v, listUnit, startAt)
-    const b = { _id: id('bk'), cid, campaignId: campaignId || null, type, mode: now ? 'now' : 'scheduled', date, hour: Number(hour), startAt, estimatedCompletion: new Date(`${Object.keys(alloc).pop()}:59:59Z`), volume: v, unitPrice: pr.unit, listUnit, discountPct: pr.pct, listPrice: Math.round((pr.list + fee) * 100) / 100, replyFee: fee, allocation: alloc, price: type === 'free' ? 0 : Math.round((pr.price + fee) * 100) / 100, status: 'awaiting_payment', paymentStatus: type === 'free' ? 'free' : 'unpaid', holdUntil: new Date(Date.now() + c.holdMinutes * MIN), history: [{ status: 'awaiting_payment', at: new Date() }], createdAt: new Date() }
+    const b = { _id: id('bk'), cid, campaignId: campaignId || null, type, mode: now ? 'now' : 'scheduled', date, hour: Number(hour), startAt, estimatedCompletion: Object.keys(alloc).length ? new Date(`${Object.keys(alloc).pop()}:59:59Z`) : new Date(startAt.getTime() + 6 * HOUR), volume: v, unitPrice: pr.unit, listUnit, discountPct: pr.pct, listPrice: Math.round((pr.list + fee) * 100) / 100, replyFee: fee, allocation: alloc, price: type === 'free' ? 0 : Math.round((pr.price + fee) * 100) / 100, status: 'awaiting_payment', paymentStatus: type === 'free' ? 'free' : 'unpaid', holdUntil: new Date(Date.now() + c.holdMinutes * MIN), history: [{ status: 'awaiting_payment', at: new Date() }], createdAt: new Date() }
     await C('bsBookings').insertOne(b); await C('bsDemand').deleteOne({ _id: `${cid}:${date}` }).catch(() => {}); return { booking: b }
   } finally { await unlock(`book:${date}`) }
 }
@@ -661,7 +665,7 @@ const setBooking = (bid, status, extra = {}) => C('bsBookings').updateOne({ _id:
 async function confirmBooking(bid, { method, amount, ref } = {}) {
   const b = await C('bsBookings').findOne({ _id: bid }); if (!b) return E('err_not_found')
   if (!['pending', 'awaiting_payment'].includes(b.status)) return { ...E('err_not_waiting'), refund: b.price }
-  if (b.holdUntil < new Date()) { const { slots, dayFree } = await availability(b.date); if (!allocate(slots, b.hour, b.volume, dayFree)) { await setBooking(bid, 'failed', { note: 'Hold expired and the slot filled up' }); return { ...E('err_hold_full'), refund: b.price } } }
+  if (b.holdUntil < new Date() && b.mode !== 'now') { const { slots, dayFree } = await availability(b.date); if (!allocate(slots, b.hour, b.volume, dayFree)) { await setBooking(bid, 'failed', { note: 'Hold expired and the slot filled up' }); return { ...E('err_hold_full'), refund: b.price } } }
   const c0 = await cfg(), quotaDay = await reserve(b.cid, b.volume, c0, dayKey(b.startAt, c0))
   if (!quotaDay) { await setBooking(bid, 'failed', { note: 'daily allowance full' }); return { ...E('err_allowance_day', 0, dayKey(b.startAt, c0)), refund: b.price } }
   await C('bsBookings').updateOne({ _id: bid }, { $set: { quotaDay } }); b.quotaDay = quotaDay

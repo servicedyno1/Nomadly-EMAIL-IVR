@@ -2780,3 +2780,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - report(campaignId) now returns optOuts, cost (sum paid bookings), costPerReply, throttled, errorsByReason {rate|credit|auth|invalid|rejected}.
 - Admin dashboard: new /bulkcampaigns command (bot.js) — recent 8 campaigns with sent/success%, failed, replies, opt-outs, cost, $/reply, throttling, error breakdown. Existing /bulk, /bulklines, /bulkaccounts, /bulkplan, /bulkreport unchanged.
 - Tests: test_bulk_esim_engine 40/0; modules load. NOT deployed (Save to GitHub); droplet still on old build.
+
+## 2026-11-12 — BulkSMS: "Send now" always available (blast + auto-order lines)
+- Complaint (screenshot): 992-SMS batch → "Today is full — schedule instead", no Send now. Cause: nowOk required the whole batch to fit today's OPEN-hour line capacity (4×400=1600, narrowed further by the old 6–21 window).
+- User decision: always offer Send now; blast immediately up to maxVolume (2000); auto-order eSIM lines while sending.
+- js/bulk-esim/core.js: whenOptions nowOk = live && h<24 (dropped window + same-day fit); createBooking "now" skips the allocate() fit → empty allocation = all messages due immediately (queueCampaign blasts), estimatedCompletion guarded; removed sendWindow() block in now-path; confirmBooking hold-expiry re-check skipped for mode 'now'. Daily allowance cap stays 2000 (defaultDailyLimit); confirmBooking already auto-provisions lines (provisionFor/linesShort). Sender still paces per line (safe) and messages have 2-day expireAt.
+- Tests: test_bulk_esim_engine 42/0 (added Send-now-exceeds-capacity + blast-booking cases), numbercheck 24/0.
+- NOT deployed — Save to GitHub. (Combined with the earlier tz.js no-time-gate change, Send now works any hour and any size up to 2000.)
