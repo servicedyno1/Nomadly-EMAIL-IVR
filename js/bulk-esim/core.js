@@ -940,10 +940,10 @@ async function oneLeft(cid) {
   const c = await cfg(), used = await C('bsMessages').countDocuments({ cid, campaignId: null, sessionId: null, system: { $ne: true }, test: { $ne: true }, direction: 'out', status: { $nin: ['rejected', 'cancelled', 'blocked'] } })
   return Math.max(0, (c.freeOneSends ?? 2) - used)
 }
-async function sendOne(cid, to, text, sessionId, { optOut = true } = {}) {
+async function sendOne(cid, to, text, sessionId, { optOut = true, unlimited = false } = {}) {
   const cu = await C('bsCustomers').findOne({ _id: cid }), p = normPhone(to), body = String(text || '').trim()
   if (cu?.status !== 'active') return E('err_suspended')
-  if (!sessionId && !(await oneLeft(cid))) return E('err_one_used', (await cfg()).freeOneSends ?? 2)
+  if (!sessionId && !unlimited && !(await oneLeft(cid))) return E('err_one_used', (await cfg()).freeOneSends ?? 2)
   if (!sessionId && p && await numberBusy(cid, p)) return E('err_number_busy', (await cfg()).sessionHours)
   if (!validUsCa(p)) return E('err_number')
   if (!body) return E('err_add_text')
@@ -951,10 +951,10 @@ async function sendOne(cid, to, text, sessionId, { optOut = true } = {}) {
   const full = sessionId || !optOut ? body : body + OPT
   if (segs(full) > 3) return E('err_too_long')
   if (hasLinkOrPhone(body)) { const sc = await screenContent(cid, [body], 'one-off text'); if (sc.error) return sc }
-  if ((await usage(cid)).remaining < segs(full)) return E('err_quota_used')
+  if (!unlimited && (await usage(cid)).remaining < segs(full)) return E('err_quota_used')
   if (await C('bsSuppression').findOne({ $or: [{ cid }, { cid: '*' }], phone: p })) return E('err_opted')
-  const m = msgDoc({ cid, to: p, body: full, sessionId: sessionId || null, priority: 1 }); await C('bsMessages').insertOne(m)
-  return { ok: true, messageId: m._id, segments: m.segments, left: sessionId ? null : await oneLeft(cid) }
+  const m = msgDoc({ cid, to: p, body: full, sessionId: sessionId || null, priority: 1 }); if (unlimited && !sessionId) m.unlimited = true; await C('bsMessages').insertOne(m)
+  return { ok: true, messageId: m._id, segments: m.segments, left: sessionId || unlimited ? null : await oneLeft(cid) }
 }
 
 // ---------- send worker (leader only) ----------
@@ -1004,8 +1004,8 @@ async function processOne(m, c) {
     if (m.campaignId && !m.test && !m.sessionId) { const w = quietWait(m.to, c.quietStart, c.quietEnd); if (w) return later(w) }
   }
   const e = await pickEsim(m, c); if (!e) { await later(15000); return m.esimId || m.sessionId ? 'starved_pinned' : 'starved' }
-  const n = c.countSegments ? m.segments : 1, day = m.system ? null : m.quotaDay || await reserve(m.cid, n, c)
-  if (!m.system && !day) { await mark(m, 'rejected', { failureReason: 'daily_allowance' }); return notifyQuotaOnce(m.cid, c) }
+  const n = c.countSegments ? m.segments : 1, day = m.system || m.unlimited ? null : m.quotaDay || await reserve(m.cid, n, c)
+  if (!m.system && !m.unlimited && !day) { await mark(m, 'rejected', { failureReason: 'daily_allowance' }); return notifyQuotaOnce(m.cid, c) }
   const acctId = e.account || firstAccount(c)
   win.acct[acctId] ||= []; win.acct[acctId].push(Date.now()); (win.esim[e._id] ||= []).push(Date.now())
   await mark(m, 'submitted', { esimId: e._id, account: acctId, from: e.msisdn, quotaDay: day, submittedAt: new Date() })

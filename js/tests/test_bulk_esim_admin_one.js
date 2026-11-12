@@ -1,0 +1,56 @@
+// Nomadly admin: unlimited free single texts + main-menu shortcut; customers keep the 2-text limit.
+// Run from /app: node js/tests/test_bulk_esim_admin_one.js
+require('dotenv').config({ path: require('path').join(__dirname, '../../backend/.env') })
+process.env.WEB_CLOUDIVR_DRY_RUN = 'true'; process.env.BULK_ESIM_WORKER = 'false'; process.env.BULK_ESIM_FAKE_CREDIT = '200'
+process.env.CHAT_BOT_BRAND = 'Nomadly'; process.env.TELEGRAM_ADMIN_CHAT_ID = '770077'
+delete process.env.SPENZA_BULK_API_KEY; delete process.env.SPENZA_BULK_API_SECRET; delete process.env.BULK_ESIM_FAKE_ACCOUNTS; delete process.env.BULK_ESIM_FAKE_PROVISION_FAIL
+const { MongoClient } = require('mongodb')
+const B = require('../bulk-esim/core'), bot = require('../bulk-esim/bot'), { btn } = require('../bulk-esim/i18n')
+const COLS = ['bsConfig', 'bsAccounts', 'bsEsims', 'bsEsimDaily', 'bsDemand', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation', 'bsFreeTests', 'bsDrafts']
+let pass = 0, fail = 0
+const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${cond ? '✅' : '❌'} ${name}${extra ? ` — ${extra}` : ''}`) }
+;(async () => {
+  const cl = await MongoClient.connect(process.env.MONGO_URL), db = cl.db(process.env.DB_NAME)
+  for (const c of COLS) await db.collection(c).deleteMany({})
+  await B.init({ db, log: () => {}, notifyAdmin: () => {} })
+  await B.setConfig({ quietStart: 0, quietEnd: 24 }, 'test'); await B.bootstrap(); await B.healthCheck()
+  const L = btn('en'), ADMIN = 770077, USER = 880022
+  const mk = (chatId) => { const st = { action: 'none', userLanguage: 'en' }; let last = null
+    const send = async (_, text, o) => { last = { text, keys: (o?.reply_markup?.keyboard || []).flat() }; return true }
+    return { st, say: async (message) => { await bot.handle({ chatId, message, info: { ...st }, set: async (_s, _c, k, v) => { st[k] = v }, state: {}, send, saveInfo: async (k, v) => { st[k] = v }, goto: {}, bot: {} }); return last } } }
+  const sendVia = async (u, to, text, fromMenu) => { await u.say(fromMenu ? L.one : '/esimsms'); if (!fromMenu) await u.say(L.one); await u.say(to); await u.say(L.one_opt_no); return u.say(text) }
+
+  delete require.cache[require.resolve('../lang/en.js')]
+  const en = require('../lang/en.js'), adminKeys = JSON.stringify(en.en?.aO || en.aO || '')
+  ok('admin main keyboard has the "Send one SMS" shortcut on Nomadly', adminKeys.includes(L.one), adminKeys.slice(0, 80))
+
+  const a = mk(ADMIN)
+  let m = await a.say(L.one)
+  ok('main-menu shortcut opens the number step for the admin', a.st.action === 'bse-one-to', m?.text)
+  for (let i = 0; i < 5; i++) {
+    m = i === 0 ? (await a.say('+12125550100'), await a.say(L.one_opt_no), await a.say('admin text 0')) : await sendVia(a, `+1212555010${i}`, `admin text ${i}`, i % 2 === 0)
+    ok(`admin single text #${i + 1} queued`, /queued|Queued|sent|on its way/i.test(m.text) && !/⚠️/.test(m.text), m.text.slice(0, 80))
+  }
+  ok('admin home always shows "Send one SMS"', (await a.say('/esimsms')).keys.includes(L.one))
+  const msgs = await db.collection('bsMessages').find({ cid: B.cidOf('Nomadly', ADMIN) }).toArray()
+  ok('5 admin texts stored, marked unlimited', msgs.length === 5 && msgs.every(x => x.unlimited), String(msgs.length))
+  await B.setCustomer?.(B.cidOf('Nomadly', ADMIN), { dailyLimit: 1 }, 'test').catch?.(() => {})
+  await db.collection('bsCustomers').updateOne({ _id: B.cidOf('Nomadly', ADMIN) }, { $set: { dailyLimit: 1 } })
+  ok('daily allowance does not block the admin', !(await B.sendOne(B.cidOf('Nomadly', ADMIN), '+12125550199', 'over limit', null, { unlimited: true })).error)
+  await B.claimWorker(); for (let i = 0; i < 6; i++) await B.tick()
+  const rej = await db.collection('bsMessages').countDocuments({ cid: B.cidOf('Nomadly', ADMIN), status: 'rejected' })
+  ok('worker does not reject admin texts for daily allowance', rej === 0, String(rej))
+  const wallet = await db.collection('bsPayments').countDocuments({ cid: B.cidOf('Nomadly', ADMIN) })
+  ok('no charge recorded for admin texts', wallet === 0)
+
+  const u = mk(USER)
+  for (let i = 0; i < 2; i++) m = await sendVia(u, `+1212555020${i}`, `user text ${i}`)
+  m = await u.say('/esimsms')
+  ok('customer: "Send one SMS" hidden after 2 free texts', !m.keys.includes(L.one))
+  ok('customer: core still refuses a 3rd text', (await B.sendOne(B.cidOf('Nomadly', USER), '+12125550299', 'third')).error === 'err_one_used')
+  const u2 = mk(USER); m = await u2.say(L.one)
+  ok('customer: shortcut label from main menu is not unlimited', u2.st.action !== 'bse-one-to')
+
+  for (const c of COLS) await db.collection(c).deleteMany({})
+  console.log(`\n${pass} passed, ${fail} failed`); await cl.close(); process.exit(fail ? 1 : 0)
+})().catch(e => { console.error(e); process.exit(1) })

@@ -94,6 +94,7 @@ const admin = {
  resetDead: '🗑️ Reset Dead Users',
  gift5all: '🎁 Gift $5 All Users',
  ...(process.env.RESELLER_PAYOUT_BOTS ? { resellerPayouts: '💸 分销商结算' } : {}),
+ ...(process.env.CHAT_BOT_BRAND === 'Nomadly' ? { bulkOneSms: '✉️ 发送单条短信' } : {}),
 }
 const user = {
  // main keyboards

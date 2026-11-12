@@ -13,6 +13,9 @@ const BTN = btn('en')
 const kb = (rows) => ({ parse_mode: 'HTML', reply_markup: { keyboard: rows, resize_keyboard: true } })
 const homeKb = (L, r = { one: true }) => kb([[L.newc], r.one && r.oneLeft !== 0 ? [L.one, L.convs] : [L.convs], [L.usage, L.bookings], [L.progress, L.help], [L.back]])
 const brand = () => (process.env.CHAT_BOT_BRAND || 'Nomadly').replace(/[^A-Za-z0-9]/g, '')
+// Nomadly's admin sends single texts free and without the 2-text or daily limit.
+const unlimitedOne = (chatId) => brand() === 'Nomadly' && !!process.env.TELEGRAM_ADMIN_CHAT_ID && String(chatId) === String(process.env.TELEGRAM_ADMIN_CHAT_ID)
+const oneLeftFor = async (chatId) => unlimitedOne(chatId) ? Infinity : B.oneLeft(B.cidOf(brand(), chatId))
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const per500 = (x) => Math.round(x * 500 * 100) / 100
 const errText = (lang, r) => t(lang, r.error, ...(r.args || []))
@@ -25,7 +28,7 @@ async function homeArgs(cid) {
   const c = await B.cfg(), u = await B.usage(cid)
   return { min: c.minVolume, max: c.maxVolume, plain: per500(c.pricePlain), link: per500(c.priceLink), pct: c.scheduleDiscountPct, minHours: c.scheduleMinHours, fee: c.replyFee, perDay: c.testsPerDay, used: u.used, limit: u.limit, from: c.quietStart, to: c.quietEnd }
 }
-const home = async (send, chatId, lang) => { B.warmUp({ roles: 'tester' }).catch(() => {}); const r = { ...(await B.ready()), oneLeft: await B.oneLeft(B.cidOf(brand(), chatId)) }, win = await B.sendWindow(); return send(chatId, t(lang, 'home', await homeArgs(B.cidOf(brand(), chatId))) + (r.one ? '' : `\n\n${t(lang, 'off_one')}`) + (win.open ? '' : `\n\n${(QN[lang] || QN.en)(win)}`), homeKb(btn(lang), r)) }
+const home = async (send, chatId, lang) => { B.warmUp({ roles: 'tester' }).catch(() => {}); const r = { ...(await B.ready()), oneLeft: await oneLeftFor(chatId) }, win = await B.sendWindow(); return send(chatId, t(lang, 'home', await homeArgs(B.cidOf(brand(), chatId))) + (r.one ? '' : `\n\n${t(lang, 'off_one')}`) + (win.open ? '' : `\n\n${(QN[lang] || QN.en)(win)}`), homeKb(btn(lang), r)) }
 const days = () => Array.from({ length: 7 }, (_, i) => new Date(Date.now() + i * 86400000).toISOString().slice(0, 10))
 
 // Returns true when the message was handled here (anything but an explicit false).
@@ -41,8 +44,13 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     if (!info?.bseIntroAt) await put('bseIntroAt', new Date().toISOString()) // the start screen now carries the intro
     await home(send, chatId, lang); return true
   }
+  if (unlimitedOne(chatId) && allLabels('one').includes(message) && !action.startsWith('bse-')) {
+    if (!B.configured()) { await send(chatId, say('soon')); return true }
+    await B.customer(brand(), chatId); if (!(await B.ready()).one) return send(chatId, say('off_one'))
+    await go('bse-one-to'); return send(chatId, say('one_to_q'), kb([[L.back]]))
+  }
   if (!action.startsWith('bse-')) return false
-  const RD = { ...(await B.ready()), oneLeft: await B.oneLeft(cid) }, HK = homeKb(L, RD)
+  const RD = { ...(await B.ready()), oneLeft: await oneLeftFor(chatId) }, HK = homeKb(L, RD)
   if (message === L.back || /^(↩️ |🔙 |⬅️ )?(Back|Retour|返回|वापस|بازگشت)$/.test(String(message || '').trim())) { if (action === 'bse-home') { await go('none'); return goto.submenu7 ? (await goto.submenu7(), true) : false } await go('bse-home'); await home(send, chatId, lang); return true }
   if (action === 'bse-home') {
     if (message === L.newc) { const c = await B.cfg(); await go('bse-contacts'); return send(chatId, say('contacts_q', { min: c.minVolume, max: c.maxVolume }), kb([[L.back]])) }
@@ -256,7 +264,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     const opt = message === L.one_opt_yes; await put('bseOneOpt', opt); await go('bse-one-text'); return send(chatId, say(opt ? 'one_text_q' : 'one_text_q_plain'), kb([[L.back]]))
   }
   if (action === 'bse-one-text' || action === 'bse-reply') {
-    const r = await B.sendOne(cid, info.bseTo, message, action === 'bse-reply' ? info.bseSession : null, { optOut: info.bseOneOpt !== false })
+    const r = await B.sendOne(cid, info.bseTo, message, action === 'bse-reply' ? info.bseSession : null, { optOut: info.bseOneOpt !== false, unlimited: action === 'bse-one-text' && unlimitedOne(chatId) })
     if (['err_number_busy', 'err_one_used', 'reply_route_changed', 'reply_campaign_only'].includes(r.error)) { await go('bse-home'); return send(chatId, `⚠️ ${errText(lang, r)}`, HK) }
     if (r.error) return send(chatId, `⚠️ ${errText(lang, r)}`)
     if (action === 'bse-one-text') await go('bse-home')
