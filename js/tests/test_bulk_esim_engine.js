@@ -23,8 +23,13 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms))
   // Phone rules + quiet hours (fixed times).
   ok('Caribbean / territories / toll-free refused, US + CA accepted', !TZ.validUsCa('+18765551234') && !TZ.validUsCa('+17875550123') && !TZ.validUsCa('+18005550123') && TZ.validUsCa('+14165550123') && TZ.validUsCa('+12125550123'))
   const noonNY = Date.parse('2026-06-20T16:00:00Z'), lateNY = Date.parse('2026-06-21T02:00:00Z')
-  ok('quiet hours follow the area code', TZ.quietWait('+12125550123', 8, 21, noonNY) === 0 && TZ.quietWait('+12125550123', 8, 21, lateNY) > 0 && TZ.quietWait('+13105550123', 8, 21, lateNY) === 0)
-  ok('booking hours limited to mainland daytime', !TZ.hourOpen('2026-06-20', 3) && TZ.hourOpen('2026-06-20', 18))
+  // Time gating OFF by default — users can send/book any hour; quiet-hours deferral is disabled.
+  ok('no time gate by default: any hour sends, any hour bookable', TZ.quietWait('+12125550123', 8, 21, lateNY) === 0 && TZ.hourOpen('2026-06-20', 3) && TZ.hourOpen('2026-06-20', 18))
+  // The gate still works when explicitly re-enabled (BULKSMS_NO_TIME_GATE=false).
+  process.env.BULKSMS_NO_TIME_GATE = 'false'; delete require.cache[require.resolve('../bulk-esim/tz')]
+  const TZgate = require('../bulk-esim/tz')
+  ok('quiet hours follow the area code when gate re-enabled', TZgate.quietWait('+12125550123', 8, 21, noonNY) === 0 && TZgate.quietWait('+12125550123', 8, 21, lateNY) > 0 && TZgate.quietWait('+13105550123', 8, 21, lateNY) === 0 && !TZgate.hourOpen('2026-06-20', 3) && TZgate.hourOpen('2026-06-20', 18))
+  delete process.env.BULKSMS_NO_TIME_GATE; delete require.cache[require.resolve('../bulk-esim/tz')]
   ok('every language has every text', Object.entries(LANGS).every(([, p]) => Object.keys(LANGS.en).every(k => p[k] != null)) && t('fr', 'err_volume', 500, 2000).includes('500'))
   await B.setConfig({ quietStart: 0, quietEnd: 24 }, 'test')
   const cust = await B.customer('Nomadly', '111'), cid = cust._id
