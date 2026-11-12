@@ -1047,7 +1047,7 @@ async function listPhoneNumbers() {
   }
 }
 
-module.exports = {
+module.exports = require('./signalwire').wrap({
   searchNumbers,
   getNumberCapabilities,
   buyNumber,
@@ -1089,4 +1089,4 @@ module.exports = {
   migrateNumbersToCallControlApp,
   updateAniOverride,
   listPhoneNumbers,
-}
+})

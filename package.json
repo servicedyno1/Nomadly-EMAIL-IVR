@@ -17,6 +17,7 @@
   "license": "ISC",
   "dependencies": {
     "@blockbee/api": "^1.1.0",
+    "@signalwire/realtime-api": "^4.2.2",
     "axios": "^1.5.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",

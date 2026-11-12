@@ -738,15 +738,21 @@ function checkContent(content, withLinks, optOut = true) {
   if (withLinks === false && linked) return E('err_has_link')
   return { parts, segs: parts.map(p => segs(p + optLine(optOut))), optOut: optOut !== false, withLinks: withLinks === undefined ? linked : !!withLinks }
 }
-// Number check before sending (Telnyx carrier lookup, cached cfg.lookupDays): only mobile numbers get texts; landlines, internet
+// Number check before sending (SignalWire carrier lookup, Telnyx backup, cached cfg.lookupDays): only mobile numbers get texts; landlines, internet
 // (VoIP) and invalid numbers are skipped. Free for the customer (cost logged for the admin). A failed lookup never blocks a number.
 const SENDABLE = ['mobile', 'fixed line or mobile', 'unknown']
 let lookupHook = null
 const setLookup = (fn) => { lookupHook = fn }
-const lookupLive = () => !!process.env.TELNYX_API_KEY && (!P.dry() || process.env.BULK_ESIM_LOOKUP_LIVE === 'true')
+const swLookup = () => require('../signalwire')
+const lookupLive = () => (swLookup().enabled() || !!process.env.TELNYX_API_KEY) && (!P.dry() || process.env.BULK_ESIM_LOOKUP_LIVE === 'true')
+// SignalWire lookup first, Telnyx as backup.
 async function lookupOne(p) {
   if (lookupHook) return lookupHook(p)
   if (!lookupLive()) { const n = Number(p.slice(-4)); return { type: n >= 9900 && n < 9950 ? 'fixed line' : n >= 9950 ? 'voip' : 'mobile', simulated: true } }
+  const sw = await swLookup().lookup(p)
+  if (sw) return { type: sw.valid === false ? 'invalid' : sw.type, carrier: sw.carrier && sw.carrier !== 'unknown' ? sw.carrier : null }
+  // (swLookup().lookup already falls back to Infobip)
+  if (!process.env.TELNYX_API_KEY) throw new Error('number lookup unavailable')
   const r = await axios.get(`https://api.telnyx.com/v2/number_lookup/${encodeURIComponent(p)}`, { params: { type: 'carrier' }, headers: { Authorization: `Bearer ${process.env.TELNYX_API_KEY}` }, timeout: 15000 })
   const d = r.data?.data || {}
   return { type: d.valid_number === false ? 'invalid' : String(d.carrier?.type || 'unknown').toLowerCase(), carrier: d.carrier?.normalized_carrier || d.carrier?.name || null }
@@ -761,7 +767,7 @@ async function checkNumbers(cid, list) {
       try { const r = await lookupOne(p), doc = { _id: p, type: r.type, carrier: r.carrier || null, at: new Date() }; res.set(p, doc); if (!r.simulated) { looked++; await C('bsLookups').replaceOne({ _id: p }, doc, { upsert: true }) } } catch (e) { failed++; why ||= `${e.response?.status || e.code || ''} ${e.response?.data?.errors?.[0]?.detail || e.message}`.trim() }
     }))
   }
-  if (failed && await once(`lookupdown:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Number check: ${failed} of ${todo.length} Telnyx lookups failed — those numbers were kept (not skipped).${why ? `\nTelnyx said: <code>${String(why).slice(0, 160).replace(/[<>&]/g, '')}</code>` : ''}\nCheck the Telnyx account / balance / API key.`)
+  if (failed && await once(`lookupdown:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Number check: ${failed} of ${todo.length} number lookups failed — those numbers were kept (not skipped).${why ? `\nProvider said: <code>${String(why).slice(0, 160).replace(/[<>&]/g, '')}</code>` : ''}\nCheck the SignalWire (and Telnyx backup) account / balance / API key.`)
   const kind = (t) => (t === 'fixed line' ? 'landline' : t === 'voip' ? 'voip' : t === 'invalid' ? 'invalid' : 'other')
   const skip = list.filter(p => res.has(p) && !SENDABLE.includes(res.get(p).type)), counts = { landline: 0, voip: 0, invalid: 0, other: 0 }
   for (const p of skip) counts[kind(res.get(p).type)]++

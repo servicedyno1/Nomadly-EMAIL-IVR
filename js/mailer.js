@@ -6,6 +6,7 @@
 //   MAIL_PROVIDER=brevo           → never MailerSend (rollback switch).
 //   MAIL_PROVIDER=zoho            → always Zoho CPaaS (ZOHO_CPAAS_API_KEY + ZOHO_CPAAS_EMAIL_URL), no fallback.
 //   MAIL_PROVIDER=telnyx          → always Telnyx Email (TELNYX_API_KEY), no fallback.
+//   MAIL_PROVIDER=resend          → always Resend (RESEND_API_KEY); Brevo only as fallback when MAIL_FALLBACK allows.
 // MAIL_FALLBACK=brevo (default) | off — when MailerSend refuses or fails a message, send it through Brevo instead.
 // Customer mailboxes / cPanel SMTP tests and the bulk email-blast servers are NOT handled here.
 const axios = require('axios')
@@ -22,6 +23,7 @@ const msToken = () => process.env.MAILERSEND_API_TOKEN
 const brevoKey = () => process.env.BREVO_API_KEY
 const zohoOn = () => provider() === 'zoho'
 const telnyxOn = () => provider() === 'telnyx'
+const resendOn = () => provider() === 'resend'
 
 // ── address helpers ──
 // '"Name" <a@b.c>' | 'a@b.c' | { name, address|email } → { email, name }
@@ -220,6 +222,42 @@ async function sendTelnyx(m) {
   }
 }
 
+// ── Resend (API) ──
+const fmtAddr = (a) => (a.name ? `${String(a.name).replace(/[<>"]/g, '')} <${a.email}>` : a.email)
+function resendPayload(m) {
+  const headers = {}
+  for (const [name, value] of Object.entries(m.headers || {})) if (/^[A-Za-z0-9-]+$/.test(name)) headers[name] = String(value)
+  const body = {
+    from: fmtAddr(m.from),
+    to: m.to.map(a => a.email),
+    subject: m.subject,
+    ...(m.html ? { html: m.html } : {}),
+    ...(m.text ? { text: m.text } : {}),
+    ...(m.cc?.length ? { cc: m.cc.map(a => a.email) } : {}),
+    ...(m.bcc?.length ? { bcc: m.bcc.map(a => a.email) } : {}),
+    ...(m.replyTo ? { reply_to: m.replyTo.email } : {}),
+    ...(m.attachments?.length ? { attachments: m.attachments.map(a => ({ filename: a.filename, content: a.content })) } : {}),
+    ...(Object.keys(headers).length ? { headers } : {}),
+  }
+  if (!body.html && !body.text) body.text = ' '
+  return body
+}
+async function sendResend(m) {
+  if (!process.env.RESEND_API_KEY) throw new MailError('resend', 0, 'RESEND_API_KEY is not set')
+  const body = resendPayload(m)
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const r = await axios.post('https://api.resend.com/emails', body, { headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' }, timeout: 20000 })
+      return { ok: true, provider: 'resend', id: r.data?.id || null }
+    } catch (e) {
+      const status = e.response?.status
+      if ((status === 429 || (status >= 500 && status < 600)) && attempt < 3) { await sleep(Math.min(10000, (Number(e.response?.headers?.['retry-after']) || 2 ** attempt) * 1000)); continue }
+      const d = e.response?.data
+      throw new MailError('resend', status || 0, d?.message || e.message, d?.name || null)
+    }
+  }
+}
+
 // ── Brevo (API) ──
 async function sendBrevo(m) {
   if (!brevoKey()) throw new MailError('brevo', 0, 'BREVO_API_KEY is not set')
@@ -247,6 +285,15 @@ async function sendBrevo(m) {
 // Normalised message → { ok, provider, id }. Throws MailError when every provider failed.
 // opts.smtpFallback(original) — used by the SMTP shim to keep the old SMTP relay as the Brevo route.
 async function deliver(m, opts = {}) {
+  if (resendOn()) {
+    try { return await sendResend(m) } catch (e) {
+      log(`Resend refused "${m.subject}" → ${m.to.map(a => a.email).join(',')}: ${e.status} ${e.message}`)
+      if (!fallbackOn() || !brevoKey()) throw e
+      const r = await sendBrevo(m)
+      log(`sent through Brevo instead (${e.code || e.status})`)
+      return r
+    }
+  }
   if (telnyxOn()) {
     try { return await sendTelnyx(m) } catch (e) { log(`Telnyx refused "${m.subject}" → ${m.to.map(a => a.email).join(',')}: ${e.status} ${e.message}`); throw e }
   }
@@ -298,8 +345,8 @@ function transport(smtpOptions) {
       } catch (e) { if (cb) return cb(e); throw e }
     },
     // MailerSend: the token answers; otherwise the real SMTP check.
-    verify: async () => (telnyxOn() ? !!process.env.TELNYX_API_KEY : zohoOn() ? !!process.env.ZOHO_CPAAS_API_KEY : msToken() && provider() !== 'brevo' ? (await axios.get(`${MS_API}/api-quota`, { headers: { Authorization: `Bearer ${msToken()}` }, timeout: 10000 }), true) : smtpT().verify()),
+    verify: async () => (resendOn() ? !!process.env.RESEND_API_KEY : telnyxOn() ? !!process.env.TELNYX_API_KEY : zohoOn() ? !!process.env.ZOHO_CPAAS_API_KEY : msToken() && provider() !== 'brevo' ? (await axios.get(`${MS_API}/api-quota`, { headers: { Authorization: `Bearer ${msToken()}` }, timeout: 10000 }), true) : smtpT().verify()),
   }
 }
 
-module.exports = { send, transport, deliver, normalise, msPayload, zohoPayload, telnyxPayload, parseAddress, parseList, verifiedDomains, resetDomainCache, MailError }
+module.exports = { send, transport, deliver, normalise, msPayload, zohoPayload, telnyxPayload, resendPayload, parseAddress, parseList, verifiedDomains, resetDomainCache, MailError }

@@ -1346,6 +1346,20 @@ function initVoiceService(deps) {
   _phoneNumbersOf = deps.phoneNumbersOf
   _phoneLogs = deps.phoneLogs
   _telnyxApi = deps.telnyxApi
+  // SignalWire RELAY calls arrive as Telnyx-shaped events on the same handler.
+  require('./signalwire').voice.start((evt) => {
+    const p = evt.data.payload
+    log(`📞 SignalWire voice event: ${evt.data.event_type} | from=${p.from} | to=${p.to}`)
+    return handleVoiceWebhook({ body: evt }, { sendStatus() {}, status() { return this }, send() {}, json() {} })
+  }).catch((e) => log(`[Voice] SignalWire voice start failed: ${e.message}`))
+  require('./callengine').start((evt) => {
+    log(`📞 CallEngine voice event: ${evt.data.event_type} | from=${evt.data.payload.from} | to=${evt.data.payload.to}`)
+    return handleVoiceWebhook({ body: evt }, { sendStatus() {}, status() { return this }, send() {}, json() {} })
+  }).catch((e) => log(`[Voice] CallEngine start failed: ${e.message}`))
+  require('./infobip').voice.setSink((evt) => {
+    log(`📞 Infobip voice event: ${evt.data.event_type} | from=${evt.data.payload.from} | to=${evt.data.payload.to}`)
+    return handleVoiceWebhook({ body: evt }, { sendStatus() {}, status() { return this }, send() {}, json() {} })
+  })
   _telnyxResources = deps.telnyxResources
   _translation = deps.translation
   _ivrAnalytics = deps.ivrAnalytics

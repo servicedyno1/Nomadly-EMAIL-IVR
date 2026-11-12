@@ -1,0 +1,26 @@
+; Bird SIP trunk for the call engine (trunk created by js/bird ensureTrunk; outbound admitted by this server's IP).
+; Outbound: PJSIP/<number>@bird → sip:<number>@__BIRD_TRUNK_DOMAIN__ ; Inbound: Bird gateway → sip:+<DID>@188.166.34.29:5080
+[bird]
+type=endpoint
+context=from-bird
+disallow=all
+allow=ulaw,alaw
+direct_media=no
+rtp_symmetric=yes
+force_rport=yes
+rewrite_contact=yes
+dtmf_mode=rfc4733
+send_pai=yes
+aors=bird
+[bird]
+type=aor
+contact=sip:__BIRD_TRUNK_DOMAIN__:5060
+qualify_frequency=0
+[bird]
+type=identify
+endpoint=bird
+; Bird us1 trunk edge + inbound edge signalling addresses
+match=34.214.231.219
+match=52.38.96.162
+match=35.163.113.80
+match=54.148.250.26
