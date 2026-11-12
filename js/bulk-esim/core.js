@@ -999,9 +999,15 @@ async function sendOne(cid, to, text, sessionId, { optOut = true, unlimited = fa
 }
 // Delivery review after a customer's 1st and 2nd single text: asked ~3 min after sending (30 s after a delivery report, if one comes).
 const REVIEW_AFTER = 3 * MIN
+// "12 min" / "1 h 5 min" / null when under a minute — used in campaign progress ETAs.
+const fmtEta = (min) => min < 1 ? null : min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${min % 60} min`
 async function dueReviews(brand) {
   const out = []
   for (const r of await C('bsReviews').find({ status: 'waiting', cid: new RegExp(`^${brand}:`), at: { $lt: new Date(Date.now() - 30000) } }).limit(20).toArray()) {
+    if (r.kind === 'campaign') {
+      if ((await C('bsReviews').updateOne({ _id: r._id, status: 'waiting' }, { $set: { status: 'asked', askedAt: new Date() } })).modifiedCount) out.push({ ...r, chatId: r.cid.split(':').slice(1).join(':') })
+      continue
+    }
     const m = await C('bsMessages').findOne({ _id: r._id })
     if (!m || ['rejected', 'cancelled', 'blocked', 'failed'].includes(m.status) || Date.now() - r.at > 2 * HOUR) { await C('bsReviews').updateOne({ _id: r._id }, { $set: { status: 'skipped', msgStatus: m?.status || null } }); continue }
     if (m.status !== 'delivered' && (!['submitted', 'sent'].includes(m.status) || r.dueAt > new Date())) continue
@@ -1013,6 +1019,11 @@ async function dueReviews(brand) {
 // the usual suspect → retire → replace / new-line process.
 async function reviewAnswer(id, cid, field, value) {
   const r = await C('bsReviews').findOne({ _id: id, cid }); if (!r) return null
+  if (r.kind === 'campaign') {
+    const set = field === 'stars' ? { stars: Math.min(5, Math.max(1, Number(value) || 0)), status: 'done', doneAt: new Date() } : { comment: String(value || '').slice(0, 1000) }
+    await C('bsReviews').updateOne({ _id: id }, { $set: set })
+    return { ...r, ...set }
+  }
   const m = await C('bsMessages').findOne({ _id: id }), e = m?.esimId ? await C('bsEsims').findOne({ _id: m.esimId }) : null
   const set = field === 'arrived' ? { arrived: { y: 'yes', n: 'no', u: 'not_sure' }[value] || 'not_sure', arrivedAt: new Date() } : field === 'stars' ? { stars: Math.min(5, Math.max(1, Number(value) || 0)), status: 'done', doneAt: new Date() } : { comment: String(value || '').slice(0, 1000) }
   await C('bsReviews').updateOne({ _id: id }, { $set: { ...set, esimId: e?._id || null, from: m?.from || e?.msisdn || null, msgStatus: m?.status || null } })
@@ -1146,7 +1157,22 @@ async function finishCampaigns() {
     const started = await C('bsMessages').countDocuments({ campaignId: cp._id, test: false, status: { $ne: 'queued' } })
     if (cp.status === 'scheduled' && started) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'running', startedAt: new Date() } }); await setBooking(cp.bookingId, 'processing'); await notify(cp.cid, 'campaign', 'n_started', [cp.name], { campaignId: cp._id }) }
     if (open && !cp.lateNotified && cp.scheduledAt && Date.now() - new Date(cp.scheduledAt).getTime() > 2 * HOUR && started < (cp.stats?.queued || 0) / 2) { const r = await C('bsCampaigns').updateOne({ _id: cp._id, lateNotified: { $ne: true } }, { $set: { lateNotified: true } }); if (r.modifiedCount) alert(`⏳ ${cp.cid} “${cp.name}” is running behind: ${cp.stats?.sent || 0} of ${cp.stats?.queued || 0} texts out 2 h after its start. Check lines / balance (/bulk).`) }
-    if (started && !open) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'completed', completedAt: new Date() } }); await setBooking(cp.bookingId, 'completed'); const refunded = await refundUnsent(cp), r = await report(cp._id); await notify(cp.cid, 'campaign', 'n_done', [cp.name, r.sent, r.failed, r.rejected + (r.blocked || 0), r.replies, r.skipped, refunded || 0], { campaignId: cp._id }) }
+    // Progress milestones to the customer at 25/50/75% with an ETA (once each; completion is handled below).
+    if (started && open) {
+      const total = await C('bsMessages').countDocuments({ campaignId: cp._id, test: false, direction: 'out' })
+      const sentN = await C('bsMessages').countDocuments({ campaignId: cp._id, test: false, direction: 'out', status: { $in: ['sent', 'delivered'] } })
+      if (total > 0) {
+        const pct = Math.floor((sentN / total) * 100)
+        const hit = [25, 50, 75].filter(m => pct >= m && !(cp.progressNotified || []).includes(m))
+        if (hit.length && (await C('bsCampaigns').updateOne({ _id: cp._id }, { $addToSet: { progressNotified: { $each: hit } } })).modifiedCount) {
+          const elapsedMin = cp.startedAt ? (Date.now() - new Date(cp.startedAt).getTime()) / MIN : 0
+          const rate = elapsedMin > 0 ? sentN / elapsedMin : 0
+          const eta = rate > 0 ? fmtEta(Math.ceil((total - sentN) / rate)) : null
+          await notify(cp.cid, 'campaign', 'n_progress', [cp.name, Math.max(...hit), sentN, total, eta], { campaignId: cp._id })
+        }
+      }
+    }
+    if (started && !open) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'completed', completedAt: new Date() } }); await setBooking(cp.bookingId, 'completed'); const refunded = await refundUnsent(cp), r = await report(cp._id); await notify(cp.cid, 'campaign', 'n_done', [cp.name, r.sent, r.failed, r.rejected + (r.blocked || 0), r.replies, r.skipped, refunded || 0], { campaignId: cp._id }); await C('bsReviews').insertOne({ _id: `cpr_${cp._id}`, kind: 'campaign', cid: cp.cid, campaignId: cp._id, name: cp.name, status: 'waiting', at: new Date(), dueAt: new Date() }).catch(() => {}) }
   }
 }
 // Spenza tells each account's real SMS limit in X-RateLimit-* headers: adopt a changed limit as that account's rate (so capacity,
@@ -1208,6 +1234,15 @@ async function onWebhook(raw, headers, body) {
       const t = await C('bsTests').findOneAndUpdate({ type: 'check', code, esimId: e._id, result: 'pending' }, { $set: { 'legs.back': true, result: 'passed', at2: new Date() } })
       if (t) await C('bsEsims').updateOne({ _id: e._id }, { $set: { recvMiss: 0, sendMiss: 0, lastCheckOkAt: new Date(), checkedSubmitted: e.stats?.submitted || 0 } })
       if (t && e.health === 'suspect') { await C('bsEsims').updateOne({ _id: e._id, health: 'suspect' }, { $set: { health: 'healthy' }, $unset: { suspectAt: '' } }); alert(`✅ ${e._id} ${e.msisdn}: re-check passed — back to sending.`) }
+      // A new / replaced line that just proved both legs joins the pool immediately, instead of waiting for the next health check.
+      if (t) {
+        const fresh = await C('bsEsims').findOne({ _id: e._id })
+        if (fresh?.status === 'testing' && fresh.msisdn && await C('bsTests').findOne({ esimId: e._id, type: 'check', kind: 'pre_use', result: 'passed' })) {
+          await setEsim(e._id, 'available', { health: 'healthy', lastOkAt: new Date() })
+          alert(`✅ ${e._id} ${fresh.msisdn}${AUX.includes(fresh.role) ? ` (${fresh.role} line)` : ''} passed its delivery check and joined the pool${fresh.role === 'tester' ? ' — customer test buttons are back on' : ''}.`)
+          incident('line_joined', { esimId: e._id, via: 'instant_preuse' })
+        }
+      }
     } else if (code) { // line → monitor arrived: answer so the line proves it can receive too
       const t = await C('bsTests').findOneAndUpdate({ type: 'check', code, esimId: peer._id, result: 'pending' }, { $set: { 'legs.out': true } })
       if (t) await C('bsMessages').insertOne(msgDoc({ cid: 'system:health', to: peer.msisdn, body: `CloudIVR line check ${code} ok`, priority: 2, esimId: e._id, system: true }))

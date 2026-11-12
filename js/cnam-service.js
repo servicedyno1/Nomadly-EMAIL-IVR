@@ -10,7 +10,12 @@ const { log } = require('console')
 const TELNYX_API_KEY = process.env.TELNYX_API_KEY
 const MULTITEL_USERNAME = process.env.MULTITEL_USERNAME
 const MULTITEL_PASSWORD = process.env.MULTITEL_PASSWORD
-const TOKEN_SIGNALWIRE = process.env.TOKEN_SIGNALWIRE
+// SignalWire is the live CNAM provider: build Basic auth from the current project/token and use the current space URL.
+const SW_HOST = String(process.env.SIGNALWIRE_SPACE_URL || '').replace(/^https?:\/\//, '').replace(/\/+$/, '')
+const SW_AUTH = (process.env.SIGNALWIRE_PROJECT_ID && process.env.SIGNALWIRE_API_TOKEN)
+  ? Buffer.from(`${process.env.SIGNALWIRE_PROJECT_ID}:${process.env.SIGNALWIRE_API_TOKEN}`).toString('base64')
+  : (process.env.TOKEN_SIGNALWIRE || null)
+const SIGNALWIRE_ON = !!(SW_HOST && SW_AUTH)
 
 let _cnamCache = null // MongoDB collection
 
@@ -138,9 +143,9 @@ function getCircuitStatus() {
 function initCnamService(deps) {
   _cnamCache = deps.cnamCache
   const providers = []
+  if (SIGNALWIRE_ON) providers.push('SignalWire')
   if (TELNYX_API_KEY) providers.push('Telnyx')
   if (MULTITEL_USERNAME) providers.push('Multitel')
-  if (TOKEN_SIGNALWIRE) providers.push('SignalWire')
   log(`[CnamService] Initialized — priority: ${providers.join(' → ')} + MongoDB cache + circuit breaker`)
 }
 
@@ -177,15 +182,15 @@ async function lookupMultitel(phone) {
   return res?.data?.response?.name || null
 }
 
-// ── SignalWire CNAM lookup (last resort) ──
+// ── SignalWire CNAM lookup (primary — live provider) ──
 async function lookupSignalwire(phone) {
   const clean = phone.replace(/[^0-9]/g, '')
   const res = await axios({
     method: 'get',
-    url: `https://greetline-llc.signalwire.com/api/relay/rest/lookup/phone_number/%2B${clean}?include=carrier,cnam`,
+    url: `https://${SW_HOST}/api/relay/rest/lookup/phone_number/%2B${clean}?include=carrier,cnam`,
     headers: {
       Accept: 'application/json',
-      Authorization: `Basic ${TOKEN_SIGNALWIRE}`,
+      Authorization: `Basic ${SW_AUTH}`,
     },
     timeout: 8000,
   })
@@ -216,8 +221,19 @@ async function lookupCnam(phoneNumber) {
 
   let name = null
 
-  // 1. Try Telnyx first (cheapest, primary)
-  if (TELNYX_API_KEY && circuitAllows('telnyx')) {
+  // 1. SignalWire first (live provider; returns caller_id owner name)
+  if (SIGNALWIRE_ON && circuitAllows('signalwire')) {
+    try {
+      name = await lookupSignalwire(clean)
+      circuitSuccess('signalwire')
+    } catch (e) {
+      circuitFailure('signalwire', e)
+      log(`[CNAM] SignalWire failed for ${clean}: ${e.message}`)
+    }
+  }
+
+  // 2. Telnyx (automatic backup if the account recovers)
+  if (!name && TELNYX_API_KEY && circuitAllows('telnyx')) {
     try {
       name = await lookupTelnyx(clean)
       circuitSuccess('telnyx')
@@ -229,7 +245,7 @@ async function lookupCnam(phoneNumber) {
     }
   }
 
-  // 2. Fallback to Multitel
+  // 3. Multitel (last resort)
   if (!name && MULTITEL_USERNAME && MULTITEL_PASSWORD && circuitAllows('multitel')) {
     try {
       name = await lookupMultitel(clean)
@@ -237,17 +253,6 @@ async function lookupCnam(phoneNumber) {
     } catch (e) {
       circuitFailure('multitel', e)
       log(`[CNAM] Multitel failed for ${clean}: ${e.message}`)
-    }
-  }
-
-  // 3. Last resort: SignalWire
-  if (!name && TOKEN_SIGNALWIRE && circuitAllows('signalwire')) {
-    try {
-      name = await lookupSignalwire(clean)
-      circuitSuccess('signalwire')
-    } catch (e) {
-      circuitFailure('signalwire', e)
-      log(`[CNAM] SignalWire failed for ${clean}: ${e.message}`)
     }
   }
 

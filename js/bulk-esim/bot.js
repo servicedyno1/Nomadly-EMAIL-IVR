@@ -46,7 +46,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   }
   if (info?.bseReviewPrompt && msg?.reply_to_message?.message_id === info.bseReviewPrompt && message && !String(message).startsWith('/')) {
     const r = await B.reviewAnswer(info.bseReviewId, cid, 'comment', message); await put('bseReviewPrompt', null)
-    if (r) await rvAlert(`💬 <b>Single-text review comment</b> (${ARR[r.arrived] || '—'}${r.stars ? ` · ${r.stars}/5` : ''})\n${rvLine(r)}\n“${esc(String(message).slice(0, 500))}”`)
+    if (r) await rvAlert(`💬 <b>${r.kind === 'campaign' ? 'Campaign' : 'Single-text'} review comment</b> (${ARR[r.arrived] || '—'}${r.stars ? ` · ${r.stars}/5` : ''})\n${rvLine(r)}\n“${esc(String(message).slice(0, 500))}”`)
     await send(chatId, say('rv_comment_ok')); return true
   }
   if (unlimitedOne(chatId) && allLabels('one').includes(message) && !action.startsWith('bse-')) {
@@ -365,14 +365,21 @@ const langOf = async (db, chatId) => (await db.collection('state').findOne({ _id
 async function askReviews(bot, db) {
   BOT = bot
   for (const r of await B.dueReviews(brand())) {
-    const lang = await langOf(db, r.chatId), L = { yes: t(lang, 'rv_yes'), no: t(lang, 'rv_no'), u: t(lang, 'rv_unsure') }
+    const lang = await langOf(db, r.chatId)
+    if (r.kind === 'campaign') {
+      await bot.sendMessage(r.chatId, t(lang, 'rv_cp_q', r.name), { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[1, 2, 3, 4, 5].map(n => ({ text: `${n}⭐`, callback_data: `bse-rv:${r._id}:s:${n}` }))] } }).catch(() => {})
+      continue
+    }
+    const L = { yes: t(lang, 'rv_yes'), no: t(lang, 'rv_no'), u: t(lang, 'rv_unsure') }
     await bot.sendMessage(r.chatId, t(lang, 'rv_q', r.to, r.seq), { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: L.yes, callback_data: `bse-rv:${r._id}:a:y` }, { text: L.no, callback_data: `bse-rv:${r._id}:a:n` }], [{ text: L.u, callback_data: `bse-rv:${r._id}:a:u` }]] } }).catch(() => {})
   }
 }
 const ARR = { yes: '✅ arrived', no: '❌ did NOT arrive', not_sure: '🤷 not sure' }
 // Review results always go to the @Nomadlybot admin only, whichever of the 4 bots the customer used.
 const rvAlert = (text) => B.adminAlert(text)
-const rvLine = (r) => `🤖 ${r.cid.split(':')[0]} bot · ${r.cid} · single text #${r.seq} to ${r.to}${r.from ? ` from ${r.from}` : ''}${r.esimId ? ` (${r.esimId})` : ''} · status ${r.msgStatus || '?'}`
+const rvLine = (r) => r.kind === 'campaign'
+  ? `🤖 ${r.cid.split(':')[0]} bot · ${r.cid} · campaign “${r.name}”${r.campaignId ? ` (${r.campaignId})` : ''}`
+  : `🤖 ${r.cid.split(':')[0]} bot · ${r.cid} · single text #${r.seq} to ${r.to}${r.from ? ` from ${r.from}` : ''}${r.esimId ? ` (${r.esimId})` : ''} · status ${r.msgStatus || '?'}`
 async function onReview(q, { saveInfo, send, lang }) {
   const [, id, field, value] = String(q.data).split(':'), chatId = q.message?.chat?.id, mid = q.message?.message_id, cid = B.cidOf(brand(), chatId)
   const edit = (text, kbd) => BOT?.editMessageText(text, { chat_id: chatId, message_id: mid, parse_mode: 'HTML', ...(kbd ? { reply_markup: { inline_keyboard: kbd } } : {}) }).catch(() => {})
@@ -388,7 +395,9 @@ async function onReview(q, { saveInfo, send, lang }) {
   if (field === 's') {
     const r = await B.reviewAnswer(id, cid, 'stars', value); if (!r) return true
     await BOT?.editMessageReplyMarkup({ inline_keyboard: [[{ text: `${'⭐'.repeat(r.stars)} ${t(lang, 'rv_thanks')}`, callback_data: 'noop' }]] }, { chat_id: chatId, message_id: mid }).catch(() => {})
-    await rvAlert(`${r.arrived === 'no' ? '👎' : '📝'} <b>Single-text review</b>: ${ARR[r.arrived] || '— no answer'} · ${'⭐'.repeat(r.stars)} (${r.stars}/5)\n${rvLine(r)}`)
+    await rvAlert(r.kind === 'campaign'
+      ? `📣 <b>Campaign review</b>: ${'⭐'.repeat(r.stars)} (${r.stars}/5)\n${rvLine(r)}`
+      : `${r.arrived === 'no' ? '👎' : '📝'} <b>Single-text review</b>: ${ARR[r.arrived] || '— no answer'} · ${'⭐'.repeat(r.stars)} (${r.stars}/5)\n${rvLine(r)}`)
     const p = await send(chatId, t(lang, 'rv_comment_q'), { reply_markup: { force_reply: true, selective: true } }).catch(() => null)
     if (p?.message_id) { await saveInfo('bseReviewPrompt', p.message_id); await saveInfo('bseReviewId', id) }
     return true

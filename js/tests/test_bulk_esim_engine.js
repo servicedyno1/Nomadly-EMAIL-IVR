@@ -124,6 +124,39 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms))
   const rp = await B.replaceEsim('ESIM-0002', 'test defect', 'test'), old = await db.collection('bsEsims').findOne({ _id: 'ESIM-0002' })
   ok('replacement links new eSIM, keeps history', old.status === 'replaced' && old.replacedBy === rp.newEsimId && (await db.collection('bsMessages').countDocuments({ esimId: 'ESIM-0002' })) > 0)
   if (process.env.EMERGENT_LLM_KEY) { const st = require('../bulk-esim/storage'); const up = await st.saveUpload(db, cid, { name: 'list.csv', data: '+12125550100\n' }); ok('uploaded contact file stored and readable', up && (await st.get(up.storagePath)).toString().includes('2125550100')) }
+  // ── Campaign completion review (stars + comment) ──
+  const CPR = `cpr_${cr.campaign._id}`
+  ok('completed campaign creates a star-review request', !!(await db.collection('bsReviews').findOne({ _id: CPR, kind: 'campaign', status: 'waiting' })))
+  await db.collection('bsReviews').updateOne({ _id: CPR }, { $set: { at: new Date(Date.now() - 60000) } })
+  const due = await B.dueReviews('Nomadly')
+  ok('campaign review is due to ask (no message lookup needed)', due.some(r => r._id === CPR && r.kind === 'campaign'))
+  const ra = await B.reviewAnswer(CPR, cr.campaign.cid, 'stars', 5)
+  await B.reviewAnswer(CPR, cr.campaign.cid, 'comment', 'great service')
+  const rvDoc = await db.collection('bsReviews').findOne({ _id: CPR })
+  ok('campaign review stores stars + comment', ra?.stars === 5 && ra.status === 'done' && rvDoc?.comment === 'great service')
+  // ── Progress milestones (25/50/75%) with ETA, once each ──
+  await db.collection('bsNotify').deleteMany({ key: 'n_progress' })
+  await db.collection('bsCampaigns').insertOne({ _id: 'cp_prog', cid: cr.campaign.cid, name: 'Prog', status: 'running', startedAt: new Date(Date.now() - 10 * 60000), bookingId: null, progressNotified: [] })
+  await db.collection('bsMessages').insertMany([
+    { _id: 'pg1', campaignId: 'cp_prog', direction: 'out', status: 'sent', test: false },
+    { _id: 'pg2', campaignId: 'cp_prog', direction: 'out', status: 'queued', test: false },
+    { _id: 'pg3', campaignId: 'cp_prog', direction: 'out', status: 'queued', test: false },
+    { _id: 'pg4', campaignId: 'cp_prog', direction: 'out', status: 'queued', test: false },
+  ])
+  await B.finishCampaigns()
+  const pn = await db.collection('bsNotify').findOne({ key: 'n_progress', campaignId: 'cp_prog' })
+  ok('progress milestone notice at 25% with sent/total/eta', !!pn && pn.args[1] === 25 && pn.args[2] === 1 && pn.args[3] === 4 && !!pn.args[4])
+  await B.finishCampaigns()
+  // ── Instant join: a new line that proves both delivery legs joins the pool at once (no wait for the next health check) ──
+  await db.collection('bsEsims').insertOne({ _id: 'ESIM-JOIN', role: 'service', status: 'testing', health: 'activating', msisdn: '+13330001111', iccid: 'icc-join', createdAt: new Date(), stats: {} })
+  await db.collection('bsEsims').updateOne({ _id: 'ESIM-0003' }, { $set: { role: 'monitor', status: 'available', health: 'healthy', msisdn: '+13330002222' } }, { upsert: false })
+  if (!(await db.collection('bsEsims').findOne({ _id: 'ESIM-0003' }))) await db.collection('bsEsims').insertOne({ _id: 'ESIM-0003', role: 'monitor', status: 'available', health: 'healthy', msisdn: '+13330002222', stats: {} })
+  await db.collection('bsTests').insertOne({ esimId: 'ESIM-JOIN', peer: 'ESIM-0003', type: 'check', kind: 'pre_use', code: 'abc123', result: 'pending', legs: { out: true, back: false }, at: new Date() })
+  await B.onWebhook('', {}, { data: { From: '+13330002222', Owner: '+13330001111', Message_Body: 'CloudIVR line check abc123 ok', Message_ID: 'chk-join' } })
+  ok('new line joins the pool instantly when its delivery check passes', (await db.collection('bsEsims').findOne({ _id: 'ESIM-JOIN' }))?.status === 'available')
+
+  ok('progress milestone not repeated on the next tick', (await db.collection('bsNotify').countDocuments({ key: 'n_progress', campaignId: 'cp_prog' })) === 1)
+
   console.log(`\n${pass} passed, ${fail} failed`)
   for (const c of COLS) await db.collection(c).deleteMany({})
   await cl.close(); process.exit(fail ? 1 : 0)
