@@ -21,7 +21,7 @@ const per500 = (x) => Math.round(x * 500 * 100) / 100
 const errText = (lang, r) => t(lang, r.error, ...(r.args || []))
 const OLD_HOME = ['🛰 eSIM BulkSMS (USA/Canada)', '🛰 eSIM SMS en masse (USA/Canada)', '🛰 eSIM 群发短信（美国/加拿大）', '🛰 eSIM बल्क SMS (USA/कनाडा)', '🛰 پیامک انبوه eSIM (آمریکا/کانادا)'] // labels still on older keyboards
 const isHome = (m) => m === '/esimsms' || allLabels('home').includes(m) || OLD_HOME.includes(m)
-let T = null
+let T = null, BOT = null
 const drafts = () => B.db().collection('bsDrafts')
 
 async function homeArgs(cid) {
@@ -43,6 +43,11 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     await B.customer(brand(), chatId); await go('bse-home')
     if (!info?.bseIntroAt) await put('bseIntroAt', new Date().toISOString()) // the start screen now carries the intro
     await home(send, chatId, lang); return true
+  }
+  if (info?.bseReviewPrompt && msg?.reply_to_message?.message_id === info.bseReviewPrompt && message && !String(message).startsWith('/')) {
+    const r = await B.reviewAnswer(info.bseReviewId, cid, 'comment', message); await put('bseReviewPrompt', null)
+    if (r) await T?.notifyAdmin?.(`💬 <b>Single-text review comment</b> (${ARR[r.arrived] || '—'}${r.stars ? ` · ${r.stars}/5` : ''})\n${rvLine(r)}\n“${esc(String(message).slice(0, 500))}”`)
+    await send(chatId, say('rv_comment_ok')); return true
   }
   if (unlimitedOne(chatId) && allLabels('one').includes(message) && !action.startsWith('bse-')) {
     if (!B.configured()) { await send(chatId, say('soon')); return true }
@@ -328,7 +333,8 @@ async function admin(chatId, message, say) {
 
 // Deliver this bot's notices (and refunds) from the shared queue, in each user's language.
 function startNotices(bot, db) {
-  const col = () => B.db().collection('bsNotify')
+  const col = () => B.db().collection('bsNotify'); BOT = bot
+  setInterval(() => askReviews(bot, db).catch(() => {}), 15000)
   setInterval(async () => {
     try {
       for (let i = 0; i < 20; i++) {
@@ -344,8 +350,41 @@ function startNotices(bot, db) {
     } catch (_) { /* next round */ }
   }, 3000)
 }
+const langOf = async (db, chatId) => (await db.collection('state').findOne({ _id: String(chatId) }, { projection: { userLanguage: 1 } }).catch(() => null))?.userLanguage || 'en'
+async function askReviews(bot, db) {
+  BOT = bot
+  for (const r of await B.dueReviews(brand())) {
+    const lang = await langOf(db, r.chatId), L = { yes: t(lang, 'rv_yes'), no: t(lang, 'rv_no'), u: t(lang, 'rv_unsure') }
+    await bot.sendMessage(r.chatId, t(lang, 'rv_q', r.to, r.seq), { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: L.yes, callback_data: `bse-rv:${r._id}:a:y` }, { text: L.no, callback_data: `bse-rv:${r._id}:a:n` }], [{ text: L.u, callback_data: `bse-rv:${r._id}:a:u` }]] } }).catch(() => {})
+  }
+}
+const ARR = { yes: '✅ arrived', no: '❌ did NOT arrive', not_sure: '🤷 not sure' }
+const rvLine = (r) => `${r.cid} · single text #${r.seq} to ${r.to}${r.from ? ` from ${r.from}` : ''}${r.esimId ? ` (${r.esimId})` : ''} · status ${r.msgStatus || '?'}`
+async function onReview(q, { saveInfo, send, lang }) {
+  const [, id, field, value] = String(q.data).split(':'), chatId = q.message?.chat?.id, mid = q.message?.message_id, cid = B.cidOf(brand(), chatId)
+  const edit = (text, kbd) => BOT?.editMessageText(text, { chat_id: chatId, message_id: mid, parse_mode: 'HTML', ...(kbd ? { reply_markup: { inline_keyboard: kbd } } : {}) }).catch(() => {})
+  if (field === 'a') {
+    const r = await B.reviewAnswer(id, cid, 'arrived', value); if (!r) return true
+    await edit(`${q.message?.text ? esc(q.message.text) + '\n' : ''}<b>${t(lang, { yes: 'rv_yes', no: 'rv_no', not_sure: 'rv_unsure' }[r.arrived])}</b>\n\n${t(lang, 'rv_stars')}`, [[1, 2, 3, 4, 5].map(n => ({ text: `${n}⭐`, callback_data: `bse-rv:${id}:s:${n}` }))])
+    if (r.arrived === 'no') {
+      await send(chatId, t(lang, 'rv_no_note'))
+      await T?.notifyAdmin?.(`📭 <b>Customer says a single text did NOT arrive</b>\n${rvLine(r)}\n${r.check === 'passed' || r.check === 'pending' ? '🔁 Line check started both ways — a failed check alerts you and runs the replace / new-line process.' : r.check === 'no_peer' ? '⚠️ No other line to check against.' : '⚠️ Sending line unknown or not in service — no check run.'}`)
+    }
+    return true
+  }
+  if (field === 's') {
+    const r = await B.reviewAnswer(id, cid, 'stars', value); if (!r) return true
+    await BOT?.editMessageReplyMarkup({ inline_keyboard: [[{ text: `${'⭐'.repeat(r.stars)} ${t(lang, 'rv_thanks')}`, callback_data: 'noop' }]] }, { chat_id: chatId, message_id: mid }).catch(() => {})
+    await T?.notifyAdmin?.(`${r.arrived === 'no' ? '👎' : '📝'} <b>Single-text review</b>: ${ARR[r.arrived] || '— no answer'} · ${'⭐'.repeat(r.stars)} (${r.stars}/5)\n${rvLine(r)}`)
+    const p = await send(chatId, t(lang, 'rv_comment_q'), { reply_markup: { force_reply: true, selective: true } }).catch(() => null)
+    if (p?.message_id) { await saveInfo('bseReviewPrompt', p.message_id); await saveInfo('bseReviewId', id) }
+    return true
+  }
+  return true
+}
 // Inline "Reply" under an incoming text → reply mode.
 async function onCallback(q, { set, state, saveInfo, send, lang = 'en' }) {
+  if (String(q.data || '').startsWith('bse-rv:')) return onReview(q, { saveInfo, send, lang })
   const sid = String(q.data || '').split(':')[1], chatId = q.message?.chat?.id
   const s = sid && await B.db().collection('bsSessions').findOne({ _id: sid, cid: B.cidOf(brand(), chatId) }); if (!s) return false
   const rr = await B.replyRoute(s.cid, s._id); if (rr.error) { await send(chatId, t(lang, rr.error)); return true }
@@ -354,4 +393,4 @@ async function onCallback(q, { set, state, saveInfo, send, lang = 'en' }) {
 }
 const homeBtn = (lang) => btn(lang || 'en').home
 
-module.exports = { PRODUCT_KEY, BTN, homeBtn, handle, paid, paidFromWallet, showHome: (send, chatId, lang) => home(send, chatId, lang), admin, startNotices, onCallback, brand, init: (o) => { T = o; return B.init(o) } }
+module.exports = { askReviews, PRODUCT_KEY, BTN, homeBtn, handle, paid, paidFromWallet, showHome: (send, chatId, lang) => home(send, chatId, lang), admin, startNotices, onCallback, brand, init: (o) => { T = o; return B.init(o) } }

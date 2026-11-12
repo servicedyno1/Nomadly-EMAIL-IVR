@@ -2618,3 +2618,9 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Nomadly admin (TELEGRAM_ADMIN_CHAT_ID on CHAT_BOT_BRAND=Nomadly) sends single BulkSMS texts free, no 2-text cap, no daily allowance (msg flag `unlimited`, worker skips reserve).
 - "✉️ Send one SMS" always visible in admin's BulkSMS menu + shortcut on admin main keyboard (lang/*.js admin.bulkOneSms, Nomadly only).
 - Test: js/tests/test_bulk_esim_admin_one.js (15/15). Pre-existing 3 failures in test_bulk_esim_ready_gate.js (reply pause section) unchanged.
+
+## 2026-06 — Delivery review after 1st & 2nd single SMS
+- bsReviews: queued in core.sendOne for customer free single text #1/#2 (not admin unlimited). Asked ~3 min after send (30 s after DLR "delivered"); skipped if text rejected/failed/missing or >2 h.
+- Bot (askReviews every 15 s, per brand): support-style inline Yes / No / Not sure → 1–5⭐ → "Thank you" button + optional force-reply comment. Admin Telegram alert per review + per comment.
+- "No" → startCheck(line,'customer_report') (two-way check); failure follows existing suspect → retire → replace/new-line flow. Admin alerted immediately.
+- Callback prefix `bse-rv:` routed in _index.js. Test: js/tests/test_bulk_esim_review.js (18/18).

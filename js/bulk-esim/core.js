@@ -954,7 +954,36 @@ async function sendOne(cid, to, text, sessionId, { optOut = true, unlimited = fa
   if (!unlimited && (await usage(cid)).remaining < segs(full)) return E('err_quota_used')
   if (await C('bsSuppression').findOne({ $or: [{ cid }, { cid: '*' }], phone: p })) return E('err_opted')
   const m = msgDoc({ cid, to: p, body: full, sessionId: sessionId || null, priority: 1 }); if (unlimited && !sessionId) m.unlimited = true; await C('bsMessages').insertOne(m)
-  return { ok: true, messageId: m._id, segments: m.segments, left: sessionId || unlimited ? null : await oneLeft(cid) }
+  const left = sessionId || unlimited ? null : await oneLeft(cid)
+  if (left != null) { const seq = ((await cfg()).freeOneSends ?? 2) - left; if (seq >= 1 && seq <= 2) await C('bsReviews').insertOne({ _id: m._id, cid, to: p, seq, status: 'waiting', at: new Date(), dueAt: new Date(Date.now() + REVIEW_AFTER) }).catch(() => {}) }
+  return { ok: true, messageId: m._id, segments: m.segments, left }
+}
+// Delivery review after a customer's 1st and 2nd single text: asked ~3 min after sending (30 s after a delivery report, if one comes).
+const REVIEW_AFTER = 3 * MIN
+async function dueReviews(brand) {
+  const out = []
+  for (const r of await C('bsReviews').find({ status: 'waiting', cid: new RegExp(`^${brand}:`), at: { $lt: new Date(Date.now() - 30000) } }).limit(20).toArray()) {
+    const m = await C('bsMessages').findOne({ _id: r._id })
+    if (!m || ['rejected', 'cancelled', 'blocked', 'failed'].includes(m.status) || Date.now() - r.at > 2 * HOUR) { await C('bsReviews').updateOne({ _id: r._id }, { $set: { status: 'skipped', msgStatus: m?.status || null } }); continue }
+    if (m.status !== 'delivered' && (!['submitted', 'sent'].includes(m.status) || r.dueAt > new Date())) continue
+    if ((await C('bsReviews').updateOne({ _id: r._id, status: 'waiting' }, { $set: { status: 'asked', askedAt: new Date() } })).modifiedCount) out.push({ ...r, chatId: r.cid.split(':').slice(1).join(':') })
+  }
+  return out
+}
+// Customer answer: arrived (y/n/u), stars (1-5) or comment. "No" re-checks the sending line both ways at once; a failed check runs
+// the usual suspect → retire → replace / new-line process.
+async function reviewAnswer(id, cid, field, value) {
+  const r = await C('bsReviews').findOne({ _id: id, cid }); if (!r) return null
+  const m = await C('bsMessages').findOne({ _id: id }), e = m?.esimId ? await C('bsEsims').findOne({ _id: m.esimId }) : null
+  const set = field === 'arrived' ? { arrived: { y: 'yes', n: 'no', u: 'not_sure' }[value] || 'not_sure', arrivedAt: new Date() } : field === 'stars' ? { stars: Math.min(5, Math.max(1, Number(value) || 0)), status: 'done', doneAt: new Date() } : { comment: String(value || '').slice(0, 1000) }
+  await C('bsReviews').updateOne({ _id: id }, { $set: { ...set, esimId: e?._id || null, from: m?.from || e?.msisdn || null, msgStatus: m?.status || null } })
+  let check = null
+  if (field === 'arrived' && set.arrived === 'no' && !r.arrived) {
+    incident('customer_not_arrived', { esimId: e?._id, cid, to: r.to, messageId: id })
+    check = e && USABLE.includes(e.status) && e.msisdn ? await startCheck(e, 'customer_report') : 'no_line'
+    await C('bsReviews').updateOne({ _id: id }, { $set: { check } })
+  }
+  return { ...r, ...set, esimId: e?._id || null, from: m?.from || e?.msisdn || null, msgStatus: m?.status || null, check }
 }
 
 // ---------- send worker (leader only) ----------
@@ -1345,4 +1374,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+module.exports = { dueReviews, reviewAnswer, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
