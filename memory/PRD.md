@@ -1,5 +1,11 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-11-12 — Quick IVR: SignalWire REST fallback when Telnyx is blocked — CODE DONE & TESTED (preview; production deploy needed)
+- Meechchop6@gmail.com Quick IVR calls were failing because Telnyx account is blocked and RELAY was offline. Fixed system-wide: `outbound.js` gates accept both telnyx/signalwire providers, wrapper has SignalWire REST/LaML fallback, voice.start() has auto-retry. RELAY offline → REST uses pool caller + TwiML-compatible webhooks. Tests: 30/30 adapter, 18/0 infobip, 20/0 bird.
+- Pending: Production deploy. After deploy, verify Meechchop6 can complete a Quick IVR call. The called party will see a SignalWire pool number (+12074892004 or +12074891859) instead of the Telnyx toll-free.
+
+
+
 ## 2026-11-11 — CloudIVR web: AI agent patience fix · easier "add a number to my plan" · dedicated number per AI agent · job-based menu + guided home redesign (Phase 1) — TESTED in preview, NOT YET DEPLOYED
 - Details in CHANGELOG.md (top 4 entries). Backlog: Phase 2 (first-visit tour/"What's new" of moved items, inline hints/how-to videos, menu favorites), Phase 3 (measure stuck points, customizable home, role views, usability test); per-agent conversation pace; buy-to-agent auto-assign.
 

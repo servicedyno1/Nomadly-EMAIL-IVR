@@ -101,13 +101,34 @@ async function start(onEvent) {
   sink = onEvent
   if (client) return true
   log(`RELAY connecting (topic ${rest.topic()})`)
-  const { SignalWire, Voice: V } = require('@signalwire/realtime-api')
-  Voice = V
-  client = await SignalWire({ project: process.env.SIGNALWIRE_PROJECT_ID, token: process.env.SIGNALWIRE_API_TOKEN })
-  await client.voice.listen({ topics: [rest.topic()], onCallReceived: (call) => onInbound(call).catch(e => log(`inbound error: ${e.message}`)) })
-  await Promise.all([rest.loadSipUsers(), rest.refreshOwned(true), rest.sipDomain()])
-  log(`RELAY listening on topic "${rest.topic()}"`)
-  return true
+  try {
+    const { SignalWire, Voice: V } = require('@signalwire/realtime-api')
+    Voice = V
+    client = await SignalWire({ project: process.env.SIGNALWIRE_PROJECT_ID, token: process.env.SIGNALWIRE_API_TOKEN })
+    await client.voice.listen({ topics: [rest.topic()], onCallReceived: (call) => onInbound(call).catch(e => log(`inbound error: ${e.message}`)) })
+    await Promise.all([rest.loadSipUsers(), rest.refreshOwned(true), rest.sipDomain()])
+    log(`RELAY listening on topic "${rest.topic()}"`)
+    return true
+  } catch (e) {
+    log(`RELAY initial connect failed: ${e.message} — scheduling retry in 30s`)
+    client = null
+    // Auto-retry: attempt reconnection every 30 seconds (up to 10 retries)
+    let retries = 0
+    const retryInterval = setInterval(async () => {
+      if (client || retries >= 10) { clearInterval(retryInterval); return }
+      retries++
+      try {
+        const { SignalWire, Voice: V } = require('@signalwire/realtime-api')
+        Voice = V
+        client = await SignalWire({ project: process.env.SIGNALWIRE_PROJECT_ID, token: process.env.SIGNALWIRE_API_TOKEN })
+        await client.voice.listen({ topics: [rest.topic()], onCallReceived: (call) => onInbound(call).catch(e2 => log(`inbound error: ${e2.message}`)) })
+        await Promise.all([rest.loadSipUsers(), rest.refreshOwned(true), rest.sipDomain()])
+        log(`RELAY connected on retry #${retries}`)
+        clearInterval(retryInterval)
+      } catch (e2) { log(`RELAY retry #${retries} failed: ${e2.message}`) }
+    }, 30000)
+    return false
+  }
 }
 
 async function onInbound(call) {

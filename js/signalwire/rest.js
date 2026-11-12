@@ -222,9 +222,29 @@ function validSignature(req) {
   return candidates.some(u => crypto.createHmac('sha1', key).update(u + params).digest('base64') === sig)
 }
 
+// ── Outbound call via LaML Compatibility API (REST fallback when RELAY is offline) ──
+// Returns { sid } on success or { error, code, status } on failure.
+async function createRestCall(from, to, url, statusCallbackUrl) {
+  if (!enabled()) return { error: 'SignalWire REST not enabled', status: 503 }
+  const form = new URLSearchParams({ From: from, To: to, Url: url, Method: 'POST' })
+  if (statusCallbackUrl) {
+    form.append('StatusCallback', statusCallbackUrl)
+    form.append('StatusCallbackEvent', 'initiated ringing answered completed')
+    form.append('StatusCallbackMethod', 'POST')
+  }
+  try {
+    const r = (await http().post(`/api/laml/2010-04-01/Accounts/${process.env.SIGNALWIRE_PROJECT_ID}/Calls.json`, form.toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })).data
+    log(`REST call created: ${r.sid} from=${from} to=${to}`)
+    return { sid: r.sid, _provider: 'signalwire-rest' }
+  } catch (e) {
+    log(`REST call failed: ${errOf(e)}`)
+    return { error: errOf(e), code: e.response?.data?.code || null, status: e.response?.status || null }
+  }
+}
+
 module.exports = {
   enabled, host, topic, brandSlug, sipDomain, http, errOf,
-  searchNumbers, buyNumber, assignNumber, releaseById, releaseByPhoneNumber, listNumbers, refreshOwned, ownsNumber, isSwSearched, configureNumber,
+  searchNumbers, buyNumber, assignNumber, releaseById, releaseByPhoneNumber, listNumbers, refreshOwned, ownsNumber, ownedNumbers: () => [...owned.keys()], isSwSearched, configureNumber,
   lookup, loadSipUsers, isSipUser, createSipEndpoint, deleteSipEndpoint,
-  sendSms, inboundToTelnyx, validSignature,
+  sendSms, inboundToTelnyx, validSignature, createRestCall,
 }

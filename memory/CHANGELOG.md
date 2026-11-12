@@ -1,3 +1,15 @@
+## 2026-11-12 — Quick IVR: fix Telnyx-blocked calls → SignalWire REST fallback + system-wide provider gate — CODE DONE & TESTED (preview; production deploy needed)
+- Root cause: User Meechchop6@gmail.com's only caller ID is `+18664980785` (Telnyx toll-free). Quick IVR code in `outbound.js` only allowed `provider: 'telnyx'` numbers, and `engineParams()` hardcoded `provider: 'telnyx'`. The wrapped `createOutboundCall` tried SignalWire RELAY first for NANP, but RELAY was not connected → only Telnyx was attempted → Telnyx account blocked → calls failed with "This user has been marked as blocked."
+- Fix (system-wide, per user approval):
+  1. `outbound.js`: Caller-ID gates now allow both `telnyx` and `signalwire` provider numbers for Quick IVR (trial check + buildCall + scheduled callerProvider).
+  2. `signalwire/rest.js`: Added `createRestCall(from, to, url, statusUrl)` — outbound call via SignalWire's LaML Compatibility API (same format as SMS already used for messages).
+  3. `signalwire/index.js`: Wrapper now has a `SignalWire-REST` fallback when RELAY is offline but REST is enabled and LaML callback URLs are provided. Uses `poolCaller()` to swap the caller ID to a SignalWire-owned number.
+  4. `voice-service.js`: The Telnyx path now pre-creates a TwiML session and passes LaML callback URLs via `options._swRestCallbackUrl`/`_swRestStatusUrl`. If the wrapper returns `_provider === 'signalwire-rest'`, the session is finalized (callSid, swapped caller); otherwise the session is cleaned up. LaML callbacks hit the existing `/twilio/single-ivr` TwiML endpoints (LaML is Twilio-compatible).
+  5. `signalwire/voice.js`: Added auto-retry for RELAY connection (up to 10 retries, 30s interval) when initial `start()` fails.
+- Call chain after fix: SignalWire RELAY (if connected) → SignalWire REST/LaML (if REST enabled, RELAY offline, pool numbers available) → Infobip → CallEngine → Telnyx (blocked → error). For Meechchop6: Telnyx toll-free swapped to SignalWire pool number `+12074892004` → REST call → LaML callback → TwiML IVR flow.
+- Tests: `test_signalwire_adapter.js` **30/30** (was 26, +4 new: REST fallback used, caller swap, pool error, RELAY disconnect). All other adapters: infobip 18/0, bird 20/0.
+
+
 ## 2026-06 — Bulk IVR lists over 500 → split into parts (web + 4 bots) · country memory · single-contact country picker — CODE DONE & TESTED (preview; user deploys)
 - Owner choices: full parts of 500 in file order (max 10 parts = 5,000, env `BULK_CALL_MAX_SERIES_PARTS`); customer picks "start each part automatically" or "ask me before each part"; wallet must cover the estimate for ALL parts at launch (still billed per minute); Bulk IVR only (AI campaigns keep 500).
 - Engine `bulk-call-service.js`: `createSeries` (splitId/part/parts/autoNext/seriesTotal; parts 2+ status `series_waiting`), `advanceSeries` (hooked in `sendFinalReport` + `cancelCampaign`: auto → next part `created`+start; ask → `series_ready` + bot inline `bcnext:<id>` / web "open Campaigns"; stop → remaining cancelled; last → "Series finished"), `startSeriesPart(id, chatId)`. NOTE field is `splitId` — `seriesId` already = repeat-runs feature.

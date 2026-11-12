@@ -4167,6 +4167,8 @@ const loadData = async () => {
   vpsTransactions = db.collection('vpsTransactions')
   notifyGroupsCol = db.collection('notifyGroups')
   phoneNumbersOf = db.collection('phoneNumbersOf')
+  // Customers' own SignalWire numbers are never lent out as a stand-in caller ID.
+  { let cache = { at: 0, set: new Set() }; require('./signalwire').setReservedCallers(async () => { if (Date.now() - cache.at < 5 * 60000) return cache.set; cache = { at: Date.now(), set: new Set(await phoneNumbersOf.distinct('val.numbers.phoneNumber', { 'val.numbers.provider': 'signalwire' })) }; return cache.set }) }
   phoneTransactions = db.collection('phoneTransactions')
   phoneLogs = db.collection('phoneLogs')
   ivrAnalytics = db.collection('ivrAnalytics')

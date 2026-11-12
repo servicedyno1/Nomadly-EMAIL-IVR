@@ -13,6 +13,20 @@ const swOn = () => rest.enabled()
 
 const CALL_FNS = ['answerCall', 'rejectCall', 'hangupCall', 'isCallAlive', 'speakOnCall', 'playbackStart', 'playbackStop', 'gatherDTMF', 'gatherDTMFWithSpeak', 'gatherDTMFWithAudio', 'gatherStop', 'startRecording', 'stopRecording', 'transferCall']
 
+// SignalWire only presents numbers it owns or has verified. Calls from a Telnyx-hosted or custom caller ID go out from one of
+// our own SignalWire numbers (same area code when we have one), never one that belongs to a customer.
+let reservedCallers = async () => new Set()
+const setReservedCallers = (fn) => { reservedCallers = fn }
+async function poolCaller(from) {
+  await rest.refreshOwned()
+  if (rest.ownsNumber(from)) return from
+  const taken = await reservedCallers().catch(() => new Set())
+  const pool = rest.ownedNumbers().filter(n => !taken.has(n))
+  if (!pool.length) return null
+  const ac = String(from).replace(/\D/g, '').replace(/^1/, '').slice(0, 3)
+  return pool.find(n => n.slice(2, 5) === ac) || pool[Math.floor(Math.random() * pool.length)]
+}
+
 function wrap(t) {
   const w = { ...t }
   for (const fn of CALL_FNS) w[fn] = (id, ...a) => (voice.isSw(id) ? voice[fn](id, ...a) : ib.isIb(id) ? ib.voice[fn](id, ...a) : ce.isAe(id) ? ce[fn](id, ...a) : t[fn](id, ...a))
@@ -22,7 +36,22 @@ function wrap(t) {
   w.createOutboundCall = async (from, to, webhookUrl, connectionId, options = {}) => {
     const nanp = /^\+1\d{10}$/.test(String(to)) || /^sip:/i.test(String(to))
     const tries = []
-    if (nanp && swOn() && voice.connected()) tries.push(['SignalWire', () => voice.createOutboundCall(from, to, webhookUrl, connectionId, options)])
+    if (nanp && swOn() && voice.connected()) tries.push(['SignalWire', async () => {
+      const use = /^\+1\d{10}$/.test(String(from)) ? (await poolCaller(from)) || from : from
+      const r = await voice.createOutboundCall(use, to, webhookUrl, connectionId, options)
+      if (!r.error && use !== from) { r.callerSwapped = { requested: from, used: use }; log(`caller ID ${from} isn't on SignalWire — called ${to} from ${use}`) }
+      return r
+    }])
+    // REST fallback: RELAY is offline but SignalWire REST & LaML callback URLs are available
+    if (nanp && swOn() && !voice.connected() && options._swRestCallbackUrl) tries.push(['SignalWire-REST', async () => {
+      const use = /^\+1\d{10}$/.test(String(from)) ? (await poolCaller(from)) || from : from
+      if (!use || (use === from && !rest.ownsNumber(from))) return { error: 'No SignalWire pool number available for REST call', status: 422 }
+      const r = await rest.createRestCall(use, to, options._swRestCallbackUrl, options._swRestStatusUrl)
+      if (r.error) return r
+      r.callControlId = `sw:rest:${r.sid}`; r.callLegId = r.sid; r.callSessionId = r.sid
+      if (use !== from) { r.callerSwapped = { requested: from, used: use }; log(`caller ID ${from} isn't on SignalWire — REST called ${to} from ${use}`) }
+      return r
+    }])
     if (ib.enabled() && !/^sip:/i.test(String(to))) tries.push(['Infobip', () => ib.voice.createOutboundCall(from, to, webhookUrl, connectionId, options)])
     if (ce.enabled() && ce.connected()) tries.push(['CallEngine', () => ce.createOutboundCall(from, to, webhookUrl, connectionId, options)])
     if (telnyxBackup() || !tries.length) tries.push(['Telnyx', () => t.createOutboundCall(from, to, webhookUrl, connectionId, options)])
@@ -119,4 +148,4 @@ async function sendSms(from, to, text, mediaUrls = []) {
   return rest.sendSms(from, to, text, mediaUrls)
 }
 
-module.exports = { wrap, rest, voice, lookup, sendSms, enabled: swOn }
+module.exports = { wrap, rest, voice, lookup, sendSms, enabled: swOn, poolCaller, setReservedCallers }

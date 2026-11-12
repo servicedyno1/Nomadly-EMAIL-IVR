@@ -128,6 +128,7 @@ export default function QuickCall() {
       const d = await api('/calls/quick', { method: 'POST', body: toBody({ ...f, scheduleAt }, caller.phoneNumber) });
       setResult(d); setStamp(s => s + 1); draft.clear();
       toast.success(d.scheduled ? 'Call scheduled' : d.dryRun ? 'Validated (preview — not dialed)' : 'Calling now');
+      if (d.notice) toast.info(d.notice, { duration: 10000 });
       refreshSummary();
     } catch (err) { setError(err); } finally { setBusy(false); }
   };
