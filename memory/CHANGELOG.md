@@ -2624,3 +2624,5 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Bot (askReviews every 15 s, per brand): support-style inline Yes / No / Not sure → 1–5⭐ → "Thank you" button + optional force-reply comment. Admin Telegram alert per review + per comment.
 - "No" → startCheck(line,'customer_report') (two-way check); failure follows existing suspect → retire → replace/new-line flow. Admin alerted immediately.
 - Callback prefix `bse-rv:` routed in _index.js. Test: js/tests/test_bulk_esim_review.js (18/18).
+
+- 2026-06: Review alerts (result, comment, "did NOT arrive") from all 4 bots go only to the @Nomadlybot admin via shared bsNotify queue (core.adminAlert). Test 20/20.
