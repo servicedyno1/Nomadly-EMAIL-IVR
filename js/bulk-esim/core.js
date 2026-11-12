@@ -359,9 +359,10 @@ async function healthCheck() {
   for (const e of await C('bsEsims').find({ status: { $in: [...USABLE, 'testing', 'degraded', 'suspended'] }, iccid: { $ne: null }, replacedBy: null }).toArray()) {
     if (!P.dry()) await new Promise(r => setTimeout(r, 600))
     let health = 'healthy', err = null, expires = e.expirationDate || null
-    try { const sim = await P.getSim(e.iccid, e.account), sv = await P.serviceState(e.iccid, e.account), sub = await P.subscription(e.iccid, e.account).catch(() => null); const st = String(sim?.status || '').toUpperCase()
+    try { const sim = await P.getSim(e.iccid, e.account), sub = await P.subscription(e.iccid, e.account).catch(() => null), pending = /PENDING/i.test(String(sub?.status || ''))
+      const sv = pending ? null : await P.serviceState(e.iccid, e.account), st = String(sim?.status || '').toUpperCase()
       if (sub?.endDate && !isNaN(Date.parse(sub.endDate))) expires = new Date(sub.endDate)
-      if (expires && expires < new Date()) health = 'expired'; else if (/SUSPEND|BLOCK/.test(st)) health = 'suspended'; else if (sv && sv.sms === false) health = 'provider_restricted'; else if (st && st !== 'ACTIVE') health = 'temporarily_unavailable'
+      if (pending) health = 'activating'; else if (expires && expires < new Date()) health = 'expired'; else if (/SUSPEND|BLOCK/.test(st)) health = 'suspended'; else if (sv && sv.sms === false) health = 'provider_restricted'; else if (st && st !== 'ACTIVE') health = 'temporarily_unavailable'
     } catch (x) { err = x; health = x.kind === 'temporary' || x.kind === 'rate' ? 'temporarily_unavailable' : 'technically_failed' }
     const apiFails = health === 'technically_failed' ? (e.apiFails || 0) + 1 : 0
     const recent = await C('bsMessages').find({ esimId: e._id, direction: 'out', submittedAt: { $gt: new Date(Date.now() - DAY) } }, { projection: { status: 1 } }).toArray()
@@ -370,6 +371,19 @@ async function healthCheck() {
     const score = Math.max(0, Math.round(100 - rate * 100 - (e.recvMiss || 0) * 5 - (health === 'healthy' ? 0 : 30)))
     await C('bsTests').insertOne({ esimId: e._id, type: 'status', result: health, providerResponse: err?.message || null, errorCode: err?.code || null, at: new Date() })
     const set = { health, healthScore: score, lastTestAt: new Date(), expirationDate: expires, apiFails, ...(health === 'healthy' ? { lastOkAt: new Date() } : {}) }
+    // Spenza took the order but never activated the plan (subscription PENDING, SIM INACTIVE): wait, tell the admin at 2 h,
+    // retire (cancel the pending plan) and buy a replacement at 24 h — same rhythm as a number that never arrives.
+    if (health === 'activating') {
+      await C('bsEsims').updateOne({ _id: e._id }, { $set: set })
+      const age = Date.now() - new Date(e.createdAt || e.updatedAt).getTime()
+      if (age > DAY && e.status === 'testing') {
+        await P.cancelSubscription(e.iccid, e.account).catch(() => null)
+        await setEsim(e._id, 'failed', { note: 'Spenza never activated the plan in 24 h' }); incident('never_activated', { esimId: e._id })
+        alert(`❌ ${e._id} ${e.msisdn || ''}: Spenza never activated its plan in 24 h (subscription still PENDING) — retired and its pending plan cancelled.${c.autoProvision && !c.manualApproval ? ' Buying a replacement.' : ''} Ask Spenza to refund it if it was billed.`)
+        if (c.autoProvision && !c.manualApproval) await provisionOne(`${e._id} never activated`, 'system', e.role || 'service')
+      } else if (age > 2 * HOUR && await once(`activating:${e._id}`)) alert(`⏳ ${e._id} ${e.msisdn || ''}: Spenza has not activated its plan after ${Math.round(age / HOUR)} h (subscription PENDING, SIM INACTIVE). Check the Spenza balance or ask Spenza. It is retired and replaced automatically at 24 h.`)
+      continue
+    }
     if (health === 'expired') { await setEsim(e._id, 'expired', { ...set, note: 'plan ended' }); alert(`⌛ ${e._id} ${e.msisdn || ''}: plan ended (not renewed by Spenza — check the account credit). It left the pool.`); incident('esim_expired', { esimId: e._id }); continue }
     if (e.status === 'testing' && health === 'healthy' && e.msisdn) {
       const v = await preUse(e, c); if (v !== 'passed') { await C('bsEsims').updateOne({ _id: e._id }, { $set: set }); continue }
