@@ -3,6 +3,7 @@
 const rest = require('./rest')
 const voice = require('./voice')
 const ib = require('../infobip')
+const ce = require('../callengine')
 
 const log = (...a) => console.log('[SignalWire]', ...a)
 const telnyxBackup = () => String(process.env.TELNYX_FALLBACK || 'true').toLowerCase() !== 'false'
@@ -12,15 +13,16 @@ const CALL_FNS = ['answerCall', 'rejectCall', 'hangupCall', 'isCallAlive', 'spea
 
 function wrap(t) {
   const w = { ...t }
-  for (const fn of CALL_FNS) w[fn] = (id, ...a) => (voice.isSw(id) ? voice[fn](id, ...a) : ib.isIb(id) ? ib.voice[fn](id, ...a) : t[fn](id, ...a))
-  w.bridgeCalls = (a, b) => (voice.isSw(a) || voice.isSw(b) ? voice.bridgeCalls(a, b) : ib.isIb(a) || ib.isIb(b) ? ib.voice.bridgeCalls(a, b) : t.bridgeCalls(a, b))
+  for (const fn of CALL_FNS) w[fn] = (id, ...a) => (voice.isSw(id) ? voice[fn](id, ...a) : ib.isIb(id) ? ib.voice[fn](id, ...a) : ce.isAe(id) ? ce[fn](id, ...a) : t[fn](id, ...a))
+  w.bridgeCalls = (a, b) => (voice.isSw(a) || voice.isSw(b) ? voice.bridgeCalls(a, b) : ib.isIb(a) || ib.isIb(b) ? ib.voice.bridgeCalls(a, b) : ce.isAe(a) || ce.isAe(b) ? ce.bridgeCalls(a, b) : t.bridgeCalls(a, b))
 
-  // US/Canada: SignalWire → Infobip → Telnyx. Other countries: Infobip → Telnyx.
+  // US/Canada: SignalWire → Infobip → own call engine (DIDWW) → Telnyx. Other countries: Infobip → call engine → Telnyx.
   w.createOutboundCall = async (from, to, webhookUrl, connectionId, options = {}) => {
     const nanp = /^\+1\d{10}$/.test(String(to)) || /^sip:/i.test(String(to))
     const tries = []
     if (nanp && swOn() && voice.connected()) tries.push(['SignalWire', () => voice.createOutboundCall(from, to, webhookUrl, connectionId, options)])
     if (ib.enabled() && !/^sip:/i.test(String(to))) tries.push(['Infobip', () => ib.voice.createOutboundCall(from, to, webhookUrl, connectionId, options)])
+    if (ce.enabled() && ce.connected()) tries.push(['CallEngine', () => ce.createOutboundCall(from, to, webhookUrl, connectionId, options)])
     if (telnyxBackup() || !tries.length) tries.push(['Telnyx', () => t.createOutboundCall(from, to, webhookUrl, connectionId, options)])
     let first = null
     for (const [name, dial] of tries) {
@@ -33,7 +35,7 @@ function wrap(t) {
   }
 
   // SignalWire rate limits re-queue the lead, like Telnyx's line limit.
-  w.isLineLimitError = (r) => (r?._provider === 'signalwire' ? r.status === 429 : !!t.isLineLimitError?.(r))
+  w.isLineLimitError = (r) => (['signalwire', 'infobip', 'callengine'].includes(r?._provider) ? r.status === 429 || r.status === 503 : !!t.isLineLimitError?.(r))
 
   w.searchNumbers = async (countryCode, numberType, areaCode, limit = 5) => {
     if (swOn()) {

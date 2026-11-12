@@ -49647,6 +49647,23 @@ app.get('/infobip/recording/:fileId', async (req, res) => {
   } catch (e) { res.sendStatus(e.response?.status || 502) }
 })
 
+// Call engine media: spoken text (OpenAI voice) and stored recordings, both behind signed links
+app.get('/callengine/tts.mp3', async (req, res) => {
+  const ce = require('./callengine')
+  const q = `t=${req.query.t}&g=${req.query.g}`
+  if (String(req.query.k || '') !== ce.sign(q) || !process.env.OPENAI_API_KEY) return res.sendStatus(403)
+  try {
+    const text = Buffer.from(String(req.query.t), 'base64url').toString().slice(0, 4000)
+    const r = await require('axios').post('https://api.openai.com/v1/audio/speech', { model: 'gpt-4o-mini-tts', voice: req.query.g === 'm' ? 'onyx' : 'nova', input: text, response_format: 'mp3' }, { headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }, responseType: 'arraybuffer', timeout: 30000 })
+    res.set('Content-Type', 'audio/mpeg').set('Cache-Control', 'public, max-age=86400').send(Buffer.from(r.data))
+  } catch (e) { res.sendStatus(502) }
+})
+app.get('/callengine/recording/:name', async (req, res) => {
+  const ce = require('./callengine')
+  if (String(req.query.k || '') !== ce.sign(req.params.name)) return res.sendStatus(403)
+  try { const r = await ce.ari().get(`/recordings/stored/${encodeURIComponent(req.params.name)}/file`, { responseType: 'stream', timeout: 60000 }); res.set('Content-Type', 'audio/wav'); r.data.pipe(res) } catch (e) { res.sendStatus(e.response?.status || 502) }
+})
+
 // Own SIP server (Kamailio) asks for a softphone's password here before letting it register or call.
 app.get('/sip-auth/:user', async (req, res) => {
   const key = process.env.SIP_SERVER_SECRET
@@ -52945,7 +52962,7 @@ if (fs.existsSync(frontendBuildPath)) {
   // those later-registered handlers. Without this, /phone/reviews etc. get index.html on Railway.
   app.get('/{*splat}', (req, res, next) => {
     // Known Express API paths registered asynchronously — let them pass through to actual handlers
-    const apiPrefixes = ['/phone/', '/honeypot/', '/telegram/', '/telnyx/', '/signalwire/', '/sip-auth/', '/twilio/', '/panel/', '/dynopay/', '/fincra/', '/blockbee/', '/sms-app/', '/brand/']
+    const apiPrefixes = ['/phone/', '/honeypot/', '/telegram/', '/telnyx/', '/signalwire/', '/sip-auth/', '/callengine/', '/infobip/', '/twilio/', '/panel/', '/dynopay/', '/fincra/', '/blockbee/', '/sms-app/', '/brand/']
     if (apiPrefixes.some(p => req.path.startsWith(p))) {
       return next()
     }

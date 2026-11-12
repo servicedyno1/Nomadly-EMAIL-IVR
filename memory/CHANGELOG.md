@@ -2704,3 +2704,15 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
   Recording proxy GET /infobip/recording/:fileId?k=<hmac>. js/tests/test_infobip_adapter.js 18/0.
   Infobip subscriptions need ~10 min to propagate (then POST /calls/1/calls accepted). Live outbound → CALL_FAILED 10309 SERVICE_UNAVAILABLE:
   account is a FREE TRIAL (freeMessages voice 15) → only the verified signup phone can be called; Number Lookup "route not available".
+- 2026-11-12 Own call engine (user choice: "our own call engine + DIDWW lines"; DIDWW = numbers + SIP trunks only, no call control/TTS/lookup/SMS):
+  Asterisk 20.6 on SIP server 188.166.34.29: PJSIP udp 5080, ARI over TLS 8089 (self-signed; ufw allows only 146.190.238.190 + preview pod 35.184.53.215),
+  user cloudivr (ASTERISK_ARI_URL/USER/PASSWORD in preview backend/.env), dialplan from-sip (X-Ari-App → Stasis app) / from-didww (DIDAPP_<digits> global).
+  Media helper systemd callengine-media (127.0.0.1:8090, ops/sip-server/media_helper.py): /c.wav?u= converts any URL to 8 kHz wav; /tts.wav espeak fallback.
+  Gotcha fixed: /var/cache/asterisk and /var/spool/asterisk/recording were missing (media cache "Failed to create temporary storage", record 500).
+  js/callengine/index.js (ae: ids): answer/hangup/reject, speak (OpenAI TTS via GET /callengine/tts.mp3 signed when OPENAI_API_KEY, else espeak),
+  play/loop, gather (initial timer after prompt, inter-digit, terminator, barge-in), record via snoop channel → GET /callengine/recording/:name signed,
+  transfer (originate + mixing bridge), bridge, outbound (PJSIP/<digits>@didww or PJSIP/kamailio/sip:user@… with X-Nomadly-Key/User). AMD → not_sure.
+  Router: +1 SignalWire → Infobip → CallEngine → Telnyx; others Infobip → CallEngine → Telnyx. Kamailio: *99<number> → engine; SignalWire 4xx/5xx → engine.
+  Live: softphone *99 call → engine answered, spoke, recorded (saved after hangup), hung up; engine rang the softphone (INVITE reached phone; my test UA's
+  200 OK not completed → real softphone test still needed). js/tests/test_callengine_adapter.js 13/0.
+  DIDWW NOT connected: user skipped DIDWW_API_KEY. Template ops/sip-server/asterisk/pjsip_didww.conf.example. Configs mirrored in ops/sip-server/asterisk/.

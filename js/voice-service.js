@@ -1352,6 +1352,10 @@ function initVoiceService(deps) {
     log(`📞 SignalWire voice event: ${evt.data.event_type} | from=${p.from} | to=${p.to}`)
     return handleVoiceWebhook({ body: evt }, { sendStatus() {}, status() { return this }, send() {}, json() {} })
   }).catch((e) => log(`[Voice] SignalWire voice start failed: ${e.message}`))
+  require('./callengine').start((evt) => {
+    log(`📞 CallEngine voice event: ${evt.data.event_type} | from=${evt.data.payload.from} | to=${evt.data.payload.to}`)
+    return handleVoiceWebhook({ body: evt }, { sendStatus() {}, status() { return this }, send() {}, json() {} })
+  }).catch((e) => log(`[Voice] CallEngine start failed: ${e.message}`))
   require('./infobip').voice.setSink((evt) => {
     log(`📞 Infobip voice event: ${evt.data.event_type} | from=${evt.data.payload.from} | to=${evt.data.payload.to}`)
     return handleVoiceWebhook({ body: evt }, { sendStatus() {}, status() { return this }, send() {}, json() {} })

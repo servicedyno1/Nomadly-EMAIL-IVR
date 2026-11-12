@@ -1,0 +1,25 @@
+; DIDWW lines for the call engine — filled in once the DIDWW API key is added (trunks are created through the DIDWW API).
+; Inbound: DIDWW "Voice In" SIP trunk → sip:{DID}@188.166.34.29:5080 ; Outbound: DIDWW "Voice Out" trunk (credentials).
+[didww]
+type=endpoint
+context=from-didww
+disallow=all
+allow=ulaw,alaw,g722
+direct_media=no
+rtp_symmetric=yes
+outbound_auth=didww-auth
+aors=didww
+from_user=__DIDWW_OUT_USERNAME__
+[didww-auth]
+type=auth
+auth_type=userpass
+username=__DIDWW_OUT_USERNAME__
+password=__DIDWW_OUT_PASSWORD__
+[didww]
+type=aor
+contact=sip:__DIDWW_OUT_HOST__
+[didww]
+type=identify
+endpoint=didww
+; DIDWW signalling IPs (from the DIDWW dashboard)
+match=__DIDWW_IN_IPS__
