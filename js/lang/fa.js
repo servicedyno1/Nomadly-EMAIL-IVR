@@ -2443,6 +2443,7 @@ vs_ivrCall: (to, from, digit, time) => `📞 <b>تماس IVR</b>\n\n📞 به: \
  attachDomainFailed: (addonDomain, errorReason) => `❌ اتصال <b>${addonDomain}</b> امکان‌پذیر نبود.\n\n<i>دلیل:</i> ${errorReason || 'خطای ناشناخته'}\n\nلطفاً دوباره امتحان کنید، یا در صورت ادامه مشکل روی 💬 پشتیبانی ضربه بزنید.`,
  attachDomainAlreadyOnPlan: addonDomain => `⚠️ <b>${addonDomain}</b> قبلاً روی یک پلن هاستینگ است. یک دامنه فقط می‌تواند به یک پلن در هر زمان متصل باشد.\n\nاگر می‌خواهید آن را به این پلن منتقل کنید، ابتدا از 🗑️ جداسازی دامنه در پلن دیگر استفاده کنید.`,
  attachDomainLimitReached: (limit, planLabel) => `⚠️ <b>به سقف دامنه رسیدید</b>\n\nپلن فعلی شما (<b>${planLabel}</b>) حداکثر ${limit} addon domain${limit !== 1 ? '' : ''} را مجاز می‌داند.\n\nبرای addon domain های نامحدود به Golden Anti-Red HostPanel ارتقا دهید، یا یک addon موجود را جدا کنید تا یک جایگاه آزاد شود.`,
+ domainCfBlocked: (d) => `🚫 <b>${d}</b> را نمی‌توان به هاست وصل کرد.\n\nCloudflare (شبکه DNS و محافظت ما) این دامنه را به دلیل سوءاستفاده علامت‌گذاری کرده و آن را نمی‌پذیرد، پس DNS نمی‌گیرد و سایت هرگز باز نمی‌شود.\n\n✅ هیچ تغییری در پلن شما ایجاد نشد — لطفاً از دامنه دیگری استفاده کنید.\nبرای اعتراض به <b>abusereply@cloudflare.com</b> ایمیل بزنید.`,
  attachDomainBlocked: addonDomain => `🚫 <b>${addonDomain}</b> قابل اتصال نیست.\n\nاین دامنه به دلیل نقض سیاست‌های استفاده پرچم‌گذاری شده و به طور دائمی از هاستینگ ما مسدود شده است.`,
  attachDomainAlreadyAttached: addonDomain => `ℹ️ <b>${addonDomain}</b> قبلاً به این پلن هاستینگ متصل است — کاری برای انجام وجود ندارد.`,
 

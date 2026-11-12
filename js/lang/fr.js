@@ -2255,6 +2255,7 @@ host_4: (safeHtml) => `${safeHtml}`,
  attachDomainFailed: (addonDomain, errorReason) => `❌ Impossible d'attacher <b>${addonDomain}</b>.\n\n<i>Raison :</i> ${errorReason || 'erreur inconnue'}\n\nRéessayez, ou touchez 💬 Obtenir de l'aide si le problème persiste.`,
  attachDomainAlreadyOnPlan: addonDomain => `⚠️ <b>${addonDomain}</b> est déjà sur un plan d'hébergement. Un domaine ne peut être attaché qu'à un seul plan à la fois.\n\nPour le déplacer ici, utilisez d'abord 🗑️ Détacher un Domaine sur l'autre plan.`,
  attachDomainLimitReached: (limit, planLabel) => `⚠️ <b>Limite de domaines atteinte</b>\n\nVotre plan actuel (<b>${planLabel}</b>) permet jusqu'à ${limit} domaine${limit !== 1 ? 's' : ''} additionnel${limit !== 1 ? 's' : ''}.\n\nPassez à Golden Anti-Red HostPanel pour des domaines additionnels illimités, ou détachez un domaine existant pour libérer une place.`,
+ domainCfBlocked: (d) => `🚫 <b>${d}</b> ne peut pas être connecté à l’hébergement.\n\nCloudflare (notre réseau DNS et de protection) a signalé ce domaine pour abus et refuse de l’accepter : il n’aurait aucun DNS et ne s’afficherait jamais.\n\n✅ Rien n’a été modifié sur votre offre — utilisez un autre domaine.\nPour contester, écrivez à <b>abusereply@cloudflare.com</b>.`,
  attachDomainBlocked: addonDomain => `🚫 <b>${addonDomain}</b> ne peut pas être attaché.\n\nCe domaine a été signalé pour violation de la politique d'usage et est définitivement bloqué.`,
  attachDomainAlreadyAttached: addonDomain => `ℹ️ <b>${addonDomain}</b> est déjà attaché à ce plan — rien à faire.`,
 

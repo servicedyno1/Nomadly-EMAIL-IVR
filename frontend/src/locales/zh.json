@@ -777,7 +777,8 @@
     "nsRecheckNow": "立即重新检查",
     "nsExternalUpdate": "在您的域名注册商处更新您的名称服务器：",
     "nsExternalNote": "传播可能需要24-48小时。",
-    "nsExternalNoteTail": "(如果NS处于活动状态，还会触发SSL签发)"
+    "nsExternalNoteTail": "(如果NS处于活动状态，还会触发SSL签发)",
+    "upgradePlan": "升级套餐"
   },
   "an": {
     "title": "访客分析",

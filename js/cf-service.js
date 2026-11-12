@@ -38,6 +38,7 @@ const cfHeaders = () => ({
 //   81057 = "Record already exists"
 //   81058 = "An A, AAAA record with that host already exists"
 const CF_ALREADY_EXISTS_CODES = [81053, 81057, 81058]
+const CF_BLOCKED_CODES = [1097]
 // Zone is unusable by our token (different CF account or stale/invalid zone id).
 const CF_OUT_OF_ACCOUNT_CODES = [10000, 9109, 7003, 1003]
 
@@ -147,12 +148,29 @@ const createZone = async (domainName) => {
       }
     }
 
-    return { success: false, errors }
+    return { success: false, errors, blocked: errors.some(e => CF_BLOCKED_CODES.includes(e.code)) }
   } catch (err) {
-    log('CF createZone error:', err.message)
-    return { success: false, errors: [{ message: err.message }] }
+    // CF answers 4xx with its error codes in the body — keep them (1061 = zone exists, 1097 = blocked by CF abuse).
+    const errors = err.response?.data?.errors || [{ message: err.message }]
+    if (errors.some(e => e.code === 1061)) {
+      const existing2 = await getZoneByName(domainName).catch(() => null)
+      if (existing2) return { success: true, zoneId: existing2.id, nameservers: existing2.name_servers || [], status: existing2.status }
+    }
+    log(`CF createZone error for ${domainName}: ${err.message} ${JSON.stringify(errors.map(e => ({ code: e.code, message: String(e.message || '').slice(0, 120) })))}`)
+    return { success: false, errors, blocked: errors.some(e => CF_BLOCKED_CODES.includes(e.code)) }
   }
 }
+
+// Pre-flight before hosting a domain: its zone exists on our Cloudflare or can be created now.
+// { ok, zoneId, nameservers } | { ok: false, blocked, error }
+const ensureZoneReady = async (domainName) => {
+  const z = await createZone(domainName)
+  if (z.success) return { ok: true, zoneId: z.zoneId, nameservers: z.nameservers || [] }
+  return { ok: false, blocked: !!z.blocked, error: (z.errors || []).map(e => e.message).filter(Boolean).join('; ') || 'zone could not be created' }
+}
+const zoneNotReadyText = (domain, r) => r.blocked
+  ? `Cloudflare has flagged ${domain} for abuse and will not accept it, so it can't be connected to hosting. Nothing on your plan was changed — please use a different domain. To appeal, email abusereply@cloudflare.com.`
+  : `We couldn't set up DNS for ${domain} right now. Nothing on your plan was changed — please try again in a few minutes.`
 
 /**
  * Apply the HTTPS-baseline settings to a freshly created (or re-discovered)
@@ -1644,6 +1662,8 @@ const getZoneVisitsRange = async (zoneId, sinceDate, untilDate) => {
 }
 
 module.exports = {
+  ensureZoneReady,
+  zoneNotReadyText,
   testConnection,
   getAccountNameservers,
   createZone,

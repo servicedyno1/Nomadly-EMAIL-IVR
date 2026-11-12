@@ -2237,6 +2237,7 @@ host_4: (safeHtml) => `${safeHtml}`,
  attachDomainFailed: (addonDomain, errorReason) => `❌ 无法附加 <b>${addonDomain}</b>。\n\n<i>原因：</i> ${errorReason || '未知错误'}\n\n请重试，如问题仍存在，请点击 💬 获取支持。`,
  attachDomainAlreadyOnPlan: addonDomain => `⚠️ <b>${addonDomain}</b> 已关联到主机方案。一个域名同一时间只能关联到一个方案。\n\n如需移到此方案，请先在另一方案上使用 🗑️ 解除域名绑定。`,
  attachDomainLimitReached: (limit, planLabel) => `⚠️ <b>已达域名上限</b>\n\n您当前方案 (<b>${planLabel}</b>) 最多允许 ${limit} 个附加域名。\n\n升级到 Golden Anti-Red HostPanel 享无限附加域名，或解除现有附加域名以腾出位置。`,
+ domainCfBlocked: (d) => `🚫 <b>${d}</b> 无法连接到主机。\n\nCloudflare（我们的 DNS 与防护网络）已将该域名标记为滥用并拒绝接入，因此它不会有 DNS，网站也无法打开。\n\n✅ 您的套餐未做任何更改 — 请使用其他域名。\n如需申诉，请发邮件至 <b>abusereply@cloudflare.com</b>。`,
  attachDomainBlocked: addonDomain => `🚫 <b>${addonDomain}</b> 无法附加。\n\n此域名因违反滥用政策已被永久封禁。`,
  attachDomainAlreadyAttached: addonDomain => `ℹ️ <b>${addonDomain}</b> 已附加到此方案 — 无需操作。`,
 

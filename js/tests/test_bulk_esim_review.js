@@ -76,6 +76,20 @@ const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${
   await B.sendOne(B.cidOf('Nomadly', 770077), '+12125550398', 'admin', null, { unlimited: true })
   ok('admin unlimited texts get no review', !(await db.collection('bsReviews').findOne({ cid: B.cidOf('Nomadly', 770077) })))
 
+  // Another bot (VoodooLand): review results go to the Nomadly admin queue only, never to that bot's own admin.
+  process.env.CHAT_BOT_BRAND = 'VoodooLand'
+  const vcid = B.cidOf('VoodooLand', 990044)
+  await db.collection('bsMessages').insertOne({ _id: 'm_vl', cid: vcid, to: '+12125550401', direction: 'out', status: 'sent', esimId: line._id, from: line.msisdn, at: new Date() })
+  await db.collection('bsReviews').insertOne({ _id: 'm_vl', cid: vcid, to: '+12125550401', seq: 1, status: 'asked', at: new Date(), dueAt: new Date() })
+  await db.collection('bsNotify').deleteMany({}); const nA = alerts.length
+  process.env.WEB_CLOUDIVR_DRY_RUN = 'false'
+  const vtap = (data) => bot.onCallback({ data, message: { chat: { id: 990044 }, message_id: 1, text: 'q' } }, { set: async () => {}, state: {}, saveInfo: async () => {}, send: ctxSend, lang: 'en' })
+  await vtap('bse-rv:m_vl:a:n'); await vtap('bse-rv:m_vl:s:2')
+  process.env.WEB_CLOUDIVR_DRY_RUN = 'true'; process.env.CHAT_BOT_BRAND = 'Nomadly'
+  const q = await db.collection('bsNotify').find({ type: 'admin' }).toArray()
+  ok('VoodooLand review → queued for the Nomadly admin', q.length >= 2 && q.every(n => n.brand === 'Nomadly') && q.some(n => /VoodooLand bot/.test(n.text) && /did NOT arrive/.test(n.text)) && q.some(n => /Single-text review/.test(n.text) && /2\/5/.test(n.text)), String(q.length))
+  ok('VoodooLand bot\'s own admin not alerted', alerts.length === nA)
+
   for (const c of [...COLS, 'bsWebhooks']) await db.collection(c).deleteMany({})
   console.log(`\n${pass} passed, ${fail} failed`); await cl.close(); process.exit(fail ? 1 : 0)
 })().catch(e => { console.error(e); process.exit(1) })

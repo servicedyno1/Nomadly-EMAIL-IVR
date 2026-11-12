@@ -10716,6 +10716,16 @@ bot?.on('message', msg => {
   // Also "/start renew_<base64url domain>" from the hosting panel's Renew button.
   const _renewDeep = typeof message === 'string' && message.match(/^\/start renew_([A-Za-z0-9_-]+)$/)
   const _renewDomain = (_renewDeep ? Buffer.from(_renewDeep[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8') : (typeof message === 'string' && message.match(/^🔄 (?:Renew|Renouveler|续费|नवीनीकरण|تمدید) ([a-z0-9.-]+\.[a-z]{2,})$/i) || [])[1] || '').toLowerCase()
+  // "/start upgrade_<base64url domain>" from the hosting panel's "Upgrade plan" button (domain limit reached).
+  const _upDeep = typeof message === 'string' && message.match(/^\/start upgrade_([A-Za-z0-9_-]+)$/)
+  const _upDomain = _upDeep ? Buffer.from(_upDeep[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8') : null
+  if (_upDomain && await cpanelAccounts.findOne({ chatId: String(chatId), domain: _upDomain, deleted: { $ne: true } })) {
+    await saveInfo('selectedHostingDomain', _upDomain)
+    info = { ...info, selectedHostingDomain: _upDomain }
+    await set(state, chatId, 'action', a.viewHostingPlan)
+    action = a.viewHostingPlan
+    message = user.upgradeHostingPlan
+  }
   if (_renewDomain && await cpanelAccounts.findOne({ chatId: String(chatId), domain: _renewDomain, deleted: { $ne: true } })) {
     await saveInfo('selectedHostingDomain', _renewDomain)
     info = { ...info, selectedHostingDomain: _renewDomain }
@@ -17258,7 +17268,7 @@ All verified numbers generated during sourcing.`))
       const limit = getAddonLimit(plan.plan)
       const currentAddons = (plan.addonDomains || []).length
       if (limit !== -1 && currentAddons >= limit) {
-        return send(chatId, t.attachDomainLimitReached(limit, plan.plan || 'Hosting'), k.of([[user.backToMyHostingPlans]]), { parse_mode: 'HTML' })
+        return send(chatId, t.attachDomainLimitReached(limit, plan.plan || 'Hosting'), k.of([[user.upgradeHostingPlan], [user.backToMyHostingPlans]]), { parse_mode: 'HTML' })
       }
 
       // Build eligible-domains list: owned & not on any plan
@@ -17811,6 +17821,9 @@ All verified numbers generated during sourcing.`))
         await send(chatId, t.attachDomainAlreadyOnPlan(candidate), { parse_mode: 'HTML' })
       } else if (result.errorKind === 'blocked') {
         await send(chatId, t.attachDomainBlocked(candidate), { parse_mode: 'HTML' })
+      } else if (result.errorKind === 'cf_blocked') {
+        await send(chatId, t.domainCfBlocked(candidate), { parse_mode: 'HTML' })
+        try { notifyAdmin(`⚠️ <b>Addon domain refused</b> — Cloudflare abuse block (1097)\nUser: ${chatId}\nPlan: <code>${plan.plan}</code>\nDomain: <b>${candidate}</b>`) } catch { /* noop */ }
       } else {
         await send(chatId, t.attachDomainFailed(candidate, result.error || 'unknown error'), { parse_mode: 'HTML' })
       }
@@ -17867,6 +17880,16 @@ All verified numbers generated during sourcing.`))
     if (!oldDomain || !candidate) return goto.myHostingPlans()
     const plan = await cpanelAccounts.findOne({ chatId: String(chatId), domain: oldDomain, deleted: { $ne: true } })
     if (!plan) return send(chatId, trans('t.planNotFound'), k.of([[user.backToMyHostingPlans]]))
+
+    // DNS pre-flight: never swap to a domain Cloudflare won't host — the working primary would be torn down for nothing.
+    const _zr = await require('./cf-service').ensureZoneReady(candidate)
+    if (!_zr.ok) {
+      log(`[ChangePrimary] REFUSED ${plan.cpUser} → ${candidate} (blocked=${_zr.blocked}): ${_zr.error}`)
+      if (_zr.blocked) { try { notifyAdmin(`⚠️ <b>Primary domain change refused</b> — Cloudflare abuse block (1097)\nUser: ${chatId}\ncPanel: <code>${plan.cpUser}</code>\nDomain: <b>${candidate}</b>`) } catch { /* noop */ } }
+      saveInfo('makePrimaryDomain', null)
+      await send(chatId, _zr.blocked ? t.domainCfBlocked(candidate) : t.changePrimaryDomainFailed(candidate, 'DNS setup is temporarily unavailable — try again in a few minutes'), { parse_mode: 'HTML' })
+      return goto.viewHostingPlanDetails(oldDomain)
+    }
 
     await send(chatId, t.changingPrimaryDomain(candidate), { parse_mode: 'HTML' })
 

@@ -1400,6 +1400,7 @@ function registerHostingMgmtRoutes(deps) {
     try { const db = getDb(); if (db) { const blocked = await db.collection('blockedDomains').findOne({ domain: newDomain }); if (blocked) return res.status(403).json({ error: 'blocked_domain', message: `${newDomain} is blocked and cannot be used.` }) } } catch (_) {}
     if (!isLive()) return dryRun(res, acct, 'domain.set-primary', { from: oldDomain, to: newDomain })
     const creds = withCreds(res, acct); if (!creds) return
+    { const zr = await require('./cf-service').ensureZoneReady(newDomain); if (!zr.ok) return res.status(422).json({ error: zr.blocked ? 'cf_blocked' : 'dns_not_ready', message: require('./cf-service').zoneNotReadyText(newDomain, zr) }) }
     // 1. Detach the target from addons (a domain can't be both addon + primary).
     let removedAddon = false
     try { const rm = await cpProxy.removeAddonDomain(creds.cpUser, creds.cpPass, newDomain, undefined, oldDomain, creds.whmHost); if (rm.code === 'CPANEL_DOWN') return res.status(503).json({ error: 'cpanel_down', message: 'WHM control plane unreachable. Retry shortly.' }); removedAddon = rm.status === 1 } catch (_) {}
@@ -1448,6 +1449,7 @@ function registerHostingMgmtRoutes(deps) {
       }
     } catch (_) { /* guard best-effort */ }
     if (!isLive()) return dryRun(res, acct, 'domain.change-primary', { from: oldDomain, to: newDomain })
+    { const zr = await require('./cf-service').ensureZoneReady(newDomain); if (!zr.ok) return res.status(422).json({ error: zr.blocked ? 'cf_blocked' : 'dns_not_ready', message: require('./cf-service').zoneNotReadyText(newDomain, zr) }) }
 
     const whmHost = acct.whmHost || process.env.WHM_HOST
     const cpUser = acct.cpUser || acct._id

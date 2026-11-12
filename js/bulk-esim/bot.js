@@ -46,7 +46,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   }
   if (info?.bseReviewPrompt && msg?.reply_to_message?.message_id === info.bseReviewPrompt && message && !String(message).startsWith('/')) {
     const r = await B.reviewAnswer(info.bseReviewId, cid, 'comment', message); await put('bseReviewPrompt', null)
-    if (r) await T?.notifyAdmin?.(`💬 <b>Single-text review comment</b> (${ARR[r.arrived] || '—'}${r.stars ? ` · ${r.stars}/5` : ''})\n${rvLine(r)}\n“${esc(String(message).slice(0, 500))}”`)
+    if (r) await rvAlert(`💬 <b>Single-text review comment</b> (${ARR[r.arrived] || '—'}${r.stars ? ` · ${r.stars}/5` : ''})\n${rvLine(r)}\n“${esc(String(message).slice(0, 500))}”`)
     await send(chatId, say('rv_comment_ok')); return true
   }
   if (unlimitedOne(chatId) && allLabels('one').includes(message) && !action.startsWith('bse-')) {
@@ -359,7 +359,9 @@ async function askReviews(bot, db) {
   }
 }
 const ARR = { yes: '✅ arrived', no: '❌ did NOT arrive', not_sure: '🤷 not sure' }
-const rvLine = (r) => `${r.cid} · single text #${r.seq} to ${r.to}${r.from ? ` from ${r.from}` : ''}${r.esimId ? ` (${r.esimId})` : ''} · status ${r.msgStatus || '?'}`
+// Review results always go to the @Nomadlybot admin only, whichever of the 4 bots the customer used.
+const rvAlert = (text) => B.adminAlert(text)
+const rvLine = (r) => `🤖 ${r.cid.split(':')[0]} bot · ${r.cid} · single text #${r.seq} to ${r.to}${r.from ? ` from ${r.from}` : ''}${r.esimId ? ` (${r.esimId})` : ''} · status ${r.msgStatus || '?'}`
 async function onReview(q, { saveInfo, send, lang }) {
   const [, id, field, value] = String(q.data).split(':'), chatId = q.message?.chat?.id, mid = q.message?.message_id, cid = B.cidOf(brand(), chatId)
   const edit = (text, kbd) => BOT?.editMessageText(text, { chat_id: chatId, message_id: mid, parse_mode: 'HTML', ...(kbd ? { reply_markup: { inline_keyboard: kbd } } : {}) }).catch(() => {})
@@ -368,14 +370,14 @@ async function onReview(q, { saveInfo, send, lang }) {
     await edit(`${q.message?.text ? esc(q.message.text) + '\n' : ''}<b>${t(lang, { yes: 'rv_yes', no: 'rv_no', not_sure: 'rv_unsure' }[r.arrived])}</b>\n\n${t(lang, 'rv_stars')}`, [[1, 2, 3, 4, 5].map(n => ({ text: `${n}⭐`, callback_data: `bse-rv:${id}:s:${n}` }))])
     if (r.arrived === 'no') {
       await send(chatId, t(lang, 'rv_no_note'))
-      await T?.notifyAdmin?.(`📭 <b>Customer says a single text did NOT arrive</b>\n${rvLine(r)}\n${r.check === 'passed' || r.check === 'pending' ? '🔁 Line check started both ways — a failed check alerts you and runs the replace / new-line process.' : r.check === 'no_peer' ? '⚠️ No other line to check against.' : '⚠️ Sending line unknown or not in service — no check run.'}`)
+      await rvAlert(`📭 <b>Customer says a single text did NOT arrive</b>\n${rvLine(r)}\n${r.check === 'passed' || r.check === 'pending' ? '🔁 Line check started both ways — a failed check alerts you and runs the replace / new-line process.' : r.check === 'no_peer' ? '⚠️ No other line to check against.' : '⚠️ Sending line unknown or not in service — no check run.'}`)
     }
     return true
   }
   if (field === 's') {
     const r = await B.reviewAnswer(id, cid, 'stars', value); if (!r) return true
     await BOT?.editMessageReplyMarkup({ inline_keyboard: [[{ text: `${'⭐'.repeat(r.stars)} ${t(lang, 'rv_thanks')}`, callback_data: 'noop' }]] }, { chat_id: chatId, message_id: mid }).catch(() => {})
-    await T?.notifyAdmin?.(`${r.arrived === 'no' ? '👎' : '📝'} <b>Single-text review</b>: ${ARR[r.arrived] || '— no answer'} · ${'⭐'.repeat(r.stars)} (${r.stars}/5)\n${rvLine(r)}`)
+    await rvAlert(`${r.arrived === 'no' ? '👎' : '📝'} <b>Single-text review</b>: ${ARR[r.arrived] || '— no answer'} · ${'⭐'.repeat(r.stars)} (${r.stars}/5)\n${rvLine(r)}`)
     const p = await send(chatId, t(lang, 'rv_comment_q'), { reply_markup: { force_reply: true, selective: true } }).catch(() => null)
     if (p?.message_id) { await saveInfo('bseReviewPrompt', p.message_id); await saveInfo('bseReviewId', id) }
     return true
