@@ -94,6 +94,7 @@ const admin = {
  resetDead: '🗑️ حذف کاربران غیرفعال',
  gift5all: '🎁 هدیه $5 به همه کاربران',
  ...(process.env.RESELLER_PAYOUT_BOTS ? { resellerPayouts: '💸 پرداخت‌های نمایندگان' } : {}),
+ ...(process.env.CHAT_BOT_BRAND === 'Nomadly' ? { bulkOneSms: '✉️ ارسال یک پیامک' } : {}),
 }
 const user = {
  // main keyboards

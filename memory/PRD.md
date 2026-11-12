@@ -2617,3 +2617,5 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - DONE 2026-11-12 (self-verified via screenshots): Texting Number rename + order entry points + price copy removed (see CHANGELOG).
 - Open question: IvrSms.js still shows "$0.05 from your wallet for each text" for landline/IVR SMS (different product) — kept pending user decision.
 - DONE 2026-11-12: Get a Business Line copy + no usage prices / allowances on any plan display (see CHANGELOG). Feature screens (AI summary, Text Triggers, LogsTab) still show their own per-minute notes — not plan cards.
+
+- 2026-06: Nomadly admin can send unlimited free single SMS (BulkSMS menu + main-menu shortcut). See CHANGELOG.

@@ -2613,3 +2613,8 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Ran platform round-trip line check both ways (scripts/prod_bulksms_pair_check.js --check, run on droplet release dir with its backend/.env): ESIM-0002 +16317901824 (tester) ⇄ ESIM-0003 +16317900834 (monitor) — both PASSED (out + back legs). ESIM-0001 is retired (failed).
 - Last 18h: 1 customer free test text (VoodooLand:1880419838 → +17862546301, sent, no reply); 2 replies received on +16317901824 (from +16462556424 to Nomadly:7738405621; from +16463595573 to VoodooLand:1454198900), both answering single texts.
 - RISK: content is fraud-like (fake Bank of America wire, sweepstakes winnings, Social Security deposit with form link). No abuse controls yet.
+
+## 2026-06 — Nomadly admin unlimited single SMS
+- Nomadly admin (TELEGRAM_ADMIN_CHAT_ID on CHAT_BOT_BRAND=Nomadly) sends single BulkSMS texts free, no 2-text cap, no daily allowance (msg flag `unlimited`, worker skips reserve).
+- "✉️ Send one SMS" always visible in admin's BulkSMS menu + shortcut on admin main keyboard (lang/*.js admin.bulkOneSms, Nomadly only).
+- Test: js/tests/test_bulk_esim_admin_one.js (15/15). Pre-existing 3 failures in test_bulk_esim_ready_gate.js (reply pause section) unchanged.
