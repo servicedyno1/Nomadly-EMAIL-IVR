@@ -534,6 +534,7 @@ const STALE_CAMPAIGN_HOURS = 24  // Campaigns with no progress for 24h are consi
 
 async function recoverRunningCampaigns(extra = {}) {
   if (!_collection) return
+  if (require('./phone-config').bulkIvrMaintenance()) { log('[BulkCall] Recovery skipped — Bulk IVR maintenance mode'); return }
   const runningCampaigns = await _collection.find({ status: 'running', dryRun: { $ne: true }, ...extra }).toArray()
   if (runningCampaigns.length === 0) {
     log('[BulkCall] Recovery: No running campaigns to recover')
@@ -836,6 +837,7 @@ function parseLeadsFile(content, fileName, opts) {
  * Create a new campaign
  */
 async function createCampaign(params) {
+  if (require('./phone-config').bulkIvrMaintenance()) return { error: 'maintenance', maintenance: true }
   require('./scam-watch').watch({ chatId: params.chatId, where: 'Call campaign', data: { name: params.name, audioName: params.audioName, agentName: params.agentName, menu: params.menu, voicemailAudioName: params.voicemailAudioName } })
   const { chatId, callerId, showAs, audioUrl, audioName, mode, transferNumber, transferBackups, menu, activeKeys, concurrency, holdMusic, leads, twilioSubAccountSid, twilioSubAccountToken, scheduledFor, provider, voicemailAudioUrl, voicemailAudioName, agentId, agentName, repeat, dailyLimit, tz } = params
 
@@ -1020,6 +1022,7 @@ async function endCampaignProviderSuspended(campaignId, leadNumber) {
 }
 
 async function startCampaign(campaignId) {
+  if (require('./phone-config').bulkIvrMaintenance()) return { error: 'Bulk IVR is temporarily under maintenance. Please try again later.', maintenance: true }
   const campaign = await _collection.findOne({ id: campaignId })
   if (!campaign) return { error: 'Campaign not found' }
   if (campaign.status === 'running') return { error: 'Campaign already running' }
@@ -2068,6 +2071,7 @@ const splitLeads = (leads) => { const out = []; for (let i = 0; i < leads.length
 // mode: 'auto' | 'ask' (wallet covers all parts) · 'part' (pay per part: first 500 now, the rest wait unpaid for
 // the customer to start) · 'first' (call only the first 500, the rest are dropped).
 async function createSeries(params, { autoNext = true, mode } = {}) {
+  if (require('./phone-config').bulkIvrMaintenance()) return { error: 'maintenance', maintenance: true }
   mode = mode || (autoNext ? 'auto' : 'ask')
   let leads = params.leads || [], seriesDropped = 0
   if (leads.length <= MAX_BULK_LEADS) return createCampaign(params)

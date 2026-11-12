@@ -45,10 +45,10 @@ function parseBackups(raw, exclude = [], max = 4) {
 // Saved hours, or the default Mon–Fri schedule (closed message instead of voicemail on plans without voicemail).
 const hoursOf = (n) => n.features?.hours || { ...numberHours.defaultHours(), offAction: phoneConfig.canAccessFeature(n.plan, 'voicemail') ? 'voicemail' : 'message' }
 
-// Same Telnyx catalogue the bot shows (US/CA + international, incl. countries that need ID checks).
+// US/CA only while NUMBER_SEARCH_US_CA_ONLY is on (SignalWire sells only these); otherwise the full catalogue.
 function countries() {
-  const intl = phoneConfig.isTelnyxIntlEnabled() ? [...phoneConfig.telnyxIntlCountries, ...phoneConfig.telnyxIntlMore] : []
-  return [...phoneConfig.countries, ...intl].filter(c => c.provider === 'telnyx').map(c => {
+  const intl = (!phoneConfig.numberSearchUsCaOnly() && phoneConfig.isTelnyxIntlEnabled()) ? [...phoneConfig.telnyxIntlCountries, ...phoneConfig.telnyxIntlMore] : []
+  return [...phoneConfig.countries, ...intl].map(c => {
     const i = c.name.indexOf(' ')
     return { code: c.code, flag: c.name.slice(0, i), name: c.name.slice(i + 1), types: c.types || ['local', 'toll_free'] }
   })

@@ -187,6 +187,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const big = leads.length > bulkCallService.MAX_BULK_LEADS, split = big && splitMode !== 'first'
     if (split && plan.repeat) return bad(res, 400, 'split_no_repeat', `Repeat isn’t available for lists over ${bulkCallService.MAX_BULK_LEADS} numbers. Turn off repeat, or use a smaller list.`)
     const campaign = big ? await bulkCallService.createSeries(params, { mode: splitMode }) : await bulkCallService.createCampaign(params)
+    if (campaign.maintenance) return bad(res, 503, 'bulk_maintenance', 'Bulk IVR is temporarily under maintenance. Quick IVR and test calls still work — please try bulk campaigns again later.')
     if (campaign.error) return bad(res, campaign.code === 'series_funds' ? 402 : 400, campaign.code || 'create_failed', campaign.error)
     if (dryRun() || showAs) await db.collection('bulkCallCampaigns').updateMany(split ? { splitId: campaign.splitId } : { id: campaign.id }, { $set: { ...(dryRun() ? { dryRun: true } : {}), ...(showAs ? { showAs } : {}) } })
     callerIds.rememberLast(chatId, c.n.phoneNumber, showAs)
@@ -217,6 +218,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       chatId, callerId: c.n.phoneNumber, showAs, callerPool: rot.pool, audioUrl: null, audioName: `AI agent: ${agent.name}`, name: b.name, mode: 'ai', agentId: agent.id, agentName: agent.name,
       concurrency: Math.max(1, parseInt(b.concurrency, 10) || 5), poolShare: true, leads, scheduledFor: plan.scheduledFor, repeat: plan.repeat, dailyLimit: plan.dailyLimit, tz: plan.tz, provider: 'telnyx',
     })
+    if (campaign.maintenance) return bad(res, 503, 'bulk_maintenance', 'Bulk IVR is temporarily under maintenance. Quick IVR and test calls still work — please try bulk campaigns again later.')
     if (campaign.error) return bad(res, 400, 'create_failed', campaign.error)
     await db.collection('bulkCallCampaigns').updateOne({ id: campaign.id }, { $set: { aiRecord: agent.record !== false, ...(showAs ? { showAs } : {}), ...(dryRun() ? { dryRun: true } : {}) } })
     callerIds.rememberLast(chatId, c.n.phoneNumber, showAs)
@@ -279,6 +281,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       return res.status(202).json({ dryRun: true, message: 'Preview mode: simulating the calls with made-up results. Nobody is dialed.' })
     }
     const r = req.campaign.status === 'series_ready' ? await bulkCallService.startSeriesPart(req.campaign.id, req.webChatId) : await bulkCallService.startCampaign(req.campaign.id)
+    if (r?.maintenance) return bad(res, 503, 'bulk_maintenance', 'Bulk IVR is temporarily under maintenance — please try again later.')
     if (r?.error) return bad(res, r.lowBalance ? 402 : 400, 'start_failed', String(r.error).replace(/<[^>]+>/g, ''))
     res.json({ started: true })
   }))

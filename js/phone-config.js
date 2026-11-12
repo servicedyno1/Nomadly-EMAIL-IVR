@@ -359,10 +359,14 @@ const _telnyxIntlMore = [
   { code: 'ZA', name: '🇿🇦 South Africa', provider: 'telnyx', types: ['local'], verify: true },
 ]
 const _telnyxIntlOn = !isTwilioEnabled() && isTelnyxIntlEnabled()
+// Number search restricted to US & Canada (env NUMBER_SEARCH_US_CA_ONLY=false to lift). SignalWire (the live voice
+// provider) only sells US/CA numbers, so the picker offers only those; other countries would fail at search.
+const NUMBER_SEARCH_US_CA_ONLY = String(process.env.NUMBER_SEARCH_US_CA_ONLY ?? 'true').toLowerCase() !== 'false'
+const numberSearchUsCaOnly = () => String(process.env.NUMBER_SEARCH_US_CA_ONLY ?? 'true').toLowerCase() !== 'false'
 
 // Combined list for user selection — Twilio countries drop out when TWILIO_ENABLED=false
 // (replaced by the Telnyx international catalog).
-const allCountries = isTwilioEnabled() ? [...countries, ...twilioCountries] : [...countries, ...(_telnyxIntlOn ? telnyxIntlCountries : [])]
+const allCountries = NUMBER_SEARCH_US_CA_ONLY ? [...countries] : (isTwilioEnabled() ? [...countries, ...twilioCountries] : [...countries, ...(_telnyxIntlOn ? telnyxIntlCountries : [])])
 
 // Additional countries (shown after "More Countries" button) — Twilio's list while Twilio
 // is on; the Telnyx international extras while it is off (empty → button auto-hides).
@@ -384,7 +388,7 @@ const _twilioMoreCountries = [
   { code: 'ZA', name: '🇿🇦 South Africa', provider: 'twilio', types: ['local'] },
   { code: 'TH', name: '🇹🇭 Thailand', provider: 'twilio', types: ['toll_free', 'mobile'] },
 ]
-const moreCountries = isTwilioEnabled() ? _twilioMoreCountries : (_telnyxIntlOn ? _telnyxIntlMore : [])
+const moreCountries = NUMBER_SEARCH_US_CA_ONLY ? [] : (isTwilioEnabled() ? _twilioMoreCountries : (_telnyxIntlOn ? _telnyxIntlMore : []))
 // Countries the bot actually sells numbers in (used in the hub / welcome copy instead of a fixed "30+").
 const CLOUD_COUNTRY_COUNT = new Set([...allCountries, ...moreCountries].map(c => c.code)).size
 
@@ -526,6 +530,18 @@ const planFeatureAccess = {
 const canAccessFeature = (planKey, feature) => {
   return planFeatureAccess[planKey]?.[feature] === true
 }
+
+// ── Bulk IVR maintenance switch (env BULK_IVR_MAINTENANCE=true) ──
+// When on, no Bulk IVR campaign can be created or launched on any bot or the web panel,
+// and no bulk calls go out over SIP. Quick IVR, the test-call page and number search stay live.
+const bulkIvrMaintenance = () => String(process.env.BULK_IVR_MAINTENANCE ?? 'true').toLowerCase() !== 'false'
+const bulkMaintenanceMsg = (lang) => ({
+  en: '🛠️ <b>Bulk IVR is temporarily under maintenance</b>\n\nWe\'re upgrading the calling network. Quick IVR, test calls and buying numbers still work. Bulk campaigns will be back shortly — thanks for your patience.',
+  fr: '🛠️ <b>Le Bulk IVR est en maintenance</b>\n\nNous améliorons le réseau d\'appels. L\'IVR rapide, les appels de test et l\'achat de numéros fonctionnent toujours. Les campagnes de masse reviendront bientôt — merci de votre patience.',
+  zh: '🛠️ <b>批量 IVR 正在维护中</b>\n\n我们正在升级呼叫网络。快速 IVR、测试呼叫和购买号码仍可使用。批量活动很快恢复，感谢耐心等待。',
+  hi: '🛠️ <b>बल्क IVR अस्थायी रूप से रखरखाव में है</b>\n\nहम कॉलिंग नेटवर्क अपग्रेड कर रहे हैं। क्विक IVR, टेस्ट कॉल और नंबर खरीदना अब भी चालू है। बल्क अभियान जल्द लौटेंगे — धन्यवाद।',
+  fa: '🛠️ <b>Bulk IVR موقتاً در حال نگهداری است</b>\n\nدر حال ارتقای شبکه تماس هستیم. IVR سریع، تماس آزمایشی و خرید شماره همچنان کار می‌کند. کمپین‌های انبوه به‌زودی بازمی‌گردند — ممنون از صبر شما.',
+}[lang] || null) || '🛠️ Bulk IVR is temporarily under maintenance. Quick IVR, test calls and buying numbers still work. Bulk campaigns will be back shortly.'
 
 const upgradeMessage = (feature, currentPlan, lang) => {
   const needed = canAccessFeature('pro', feature) ? 'Pro' : 'Business'
@@ -4191,6 +4207,9 @@ module.exports = {
   planByButton,
   planFeatureAccess,
   canAccessFeature,
+  bulkIvrMaintenance,
+  bulkMaintenanceMsg,
+  numberSearchUsCaOnly,
   upgradeMessage,
   isPlanAvailable,
   comingSoonText,

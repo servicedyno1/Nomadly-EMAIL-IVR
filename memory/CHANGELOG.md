@@ -2753,3 +2753,15 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - cloudivr-web/sms-limit.js: smsTooLong unicode branch now names the special character (same homoglyph map) for consistency across web/bots.
 - Tests: js/tests/test_sms_special_char.js 8/0; bulk_esim_engine 40/0, numbercheck 24/0, bulkcall_handover 9/0.
 - NOT yet live on bots — needs Save to GitHub (CI deploys main → auto-sync to WhiteLabel).
+
+## 2026-11-12 — SignalWire for test-call/quick-IVR/number-search; Bulk IVR maintenance; US/CA-only numbers
+- phone-config.js: bulkIvrMaintenance() (env BULK_IVR_MAINTENANCE, DEFAULT ON) + bulkMaintenanceMsg (en/fr/zh/hi/fa); numberSearchUsCaOnly() (env NUMBER_SEARCH_US_CA_ONLY, DEFAULT ON) → allCountries=[US,CA], moreCountries=[].
+- bulk-call-service.js hard stops when maintenance: createCampaign/createSeries/startCampaign return {maintenance:true}; recoverRunningCampaigns skipped. launchDueScheduledCampaigns→startCampaign also gated. Guarantees NO bulk calls (incl. via SIP).
+- _index.js: Bulk Call menu entry shows maintenance message. cloudivr-web/calls.js: create + start endpoints return 503 bulk_maintenance.
+- cloudivr-web/numbers.js: country list US/CA only when restriction on.
+- Routing already SignalWire via telnyx-service.js = signalwire.wrap(...): searchNumbers, createSIPCredential (SW endpoint when SW owns the number), validateForwardingDestination, lookup. Live: outbound PSTN from SW-owned number OK (LaML, no throttle); SIP REGISTER to SW domain 200 OK.
+- Tests: test_bulk_maintenance_uscaonly 10/0; bulkcall_handover 9/0; signalwire_adapter 26/0.
+
+### SIP DOMAIN STATUS (brand domains) — NOT yet working on SignalWire
+- All 5 brand domains (sip.speechcue/smadavspeech/voodooivr/proshopivr/cloudivr) → 192.76.120.10 = Telnyx edge (account BLOCKED). SignalWire is on its own domain (cloudivr-c1a967cf872c.sip.signalwire.com) and does NOT host custom domains.
+- User chose: keep brand domains via our own Asterisk (188.166.34.29) bridging to SignalWire. REQUIRES: (1) repoint each brand domain DNS → 188.166.34.29; (2) Asterisk↔SignalWire trunk; (3) PROVE Asterisk→SignalWire→PSTN (earlier "No valid devices"). Not done — needs explicit per-domain DNS go-ahead + live bridge proof. NUMBERS not deployed (Save to GitHub).
