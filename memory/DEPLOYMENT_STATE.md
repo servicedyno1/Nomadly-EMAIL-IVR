@@ -430,3 +430,6 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 ## 2026-11-09 11:18Z USA mobile numbers counted as numbers (main c9408b9c, app-main-b healthy)
 - numbers.js exports mobileLines(db, chatId) and LIVE_MOBILE. Used by /dashboard numbers.total/active/expiringSoon (+mobile), support AI context, admin overview count and admin user detail. Frontend: Overview "Your numbers" lists mobile lines; My numbers hides the "No numbers yet" empty state when the account has mobile lines.
 - Note: the platform auto-pushed the JujuCloud landing refresh to main at 09:15Z (c8747271), so it is LIVE on cloudivr.net.
+
+## 2026-11-12 — Old BulkSMS Android app hidden on all 4 bots (user request)
+- HIDE_SMS_APP=true in /opt/nomadly/shared/{app-main,app-wl,app-voodoo,app-proshop}/backend.env (backups backend.env.bak.hidesmsapp.<ts>), pm2 reload app-main-a app-wl-b app-voodoo-a app-proshop-b --update-env one at a time (activeCalls=0), all healthy. New 📲 BulkSMS 🇺🇸🇨🇦 unaffected. Rollback: restore backup + reload.

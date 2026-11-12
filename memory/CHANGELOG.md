@@ -2643,3 +2643,5 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - 1,000 Ontario mobile (mixed carriers, all 9 Ontario area codes), $150 debited ($156.83→$6.83), start msg sent, 1,003 delivered as leads.txt on @smadavv_bot (+admin copy). Script: scripts/prod_admin_lead_order.js (idempotent adminLeadOrders marker; job parked admin_running so restart-resume cannot double-run). Order id copilot777-ontario-1000-20261112.
 
 - 2026-11-12: Fixed admin media-reply "✅ Send to @user"/Cancel (amcSend/amcCancel) silently dropped by admin callback gate regex /^a[A-Z]/ (spinner, no send). Test js/tests/test_amc_callback_gate.js.
+
+- 2026-11-12: AI support prompt: payments follow HIDE_BANK_PAYMENT (no NGN/bank when hidden, explicit Wallet+Crypto rule); old BulkSMS app/trial sections stripped when HIDE_SMS_APP=true; BulkSMS 🇺🇸🇨🇦 stated as pay-per-use, never subscription. Test js/tests/test_ai_prompt_offer_rules.js 7/7. Prod HIDE_SMS_APP=true on 4 bots.
