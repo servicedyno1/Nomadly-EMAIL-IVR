@@ -2663,3 +2663,37 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Telnyx: prod TELNYX_API_KEY → 401 code 10009 "This user has been marked as blocked" (first seen 12:07Z; listPhoneNumbers, ANI override, number_lookup all fail). Owner must contact Telnyx. Number-check alert now includes Telnyx error text.
 
 - 2026-11-12: Spenza "2 deactivated": ESIM-0004 (+16316900316) and ESIM-0005 (+16316870635) were never activated by Spenza (subscription PENDING, SIM INACTIVE/UNASSIGNED) — we did not cancel or replace them (no audit). Our health check marked them technically_failed and, being status testing, they were never replaced. Fix: PENDING → health activating, admin alert at 2 h, at 24 h cancel pending plan + retire + rebuy. Test test_bulk_esim_never_activated.js 3/3. Spenza credit read 22.64.
+
+## 2026-11-12 — Telnyx blocked → SignalWire primary (Telnyx backup) + Resend email (PREVIEW ONLY, not deployed)
+- js/signalwire/{rest,voice,index}.js: RELAY v4 adapter speaks Telnyx Call Control (sw: ids, Telnyx-shaped events → handleVoiceWebhook).
+  telnyx-service exports wrapped by signalwire.wrap(): sw: ids → SignalWire; dial/search/buy/lookup SignalWire first, Telnyx fallback (TELNYX_FALLBACK).
+  RELAY topic = <brand>[-dev]; numbers bought get call_handler relay_topic + LaML SMS webhook /signalwire/sms-webhook.
+- Live preview check (scripts/sw_live_check.js, 2 SW numbers +12074891859/+12074892004 on topic nomadly-dev): dial, inbound, answer, gather DTMF,
+  TTS, record (URL public), transfer+bridge+hangup cascade all OK. js/tests/test_signalwire_adapter.js 26/0.
+- BulkSMS number check: SignalWire lookup first (bulk-esim/core.js). CloudIVR web SMS replies: SignalWire when it owns the sender.
+- Mailer: MAIL_PROVIDER=resend (+Brevo fallback). Resend verified: cloudivr.net, hostbay.io, jujucloud.com (DNS via scripts/resend_domains_setup.js).
+  BLOCKED: smadavhost.com / voodoohost.xyz / proshophost.xyz (Resend plan domain limit); Brevo key returns 401 "API Key is not enabled".
+- BLOCKERS: SignalWire space in trial ("To must send to a verified caller id") → SMS/calls to outside numbers; 10DLC needed for texting.
+  SignalWire rejects custom SIP domains → user chose own SIP server for brand SIP addresses (not built yet).
+  Preview supervisor app has no SIGNALWIRE_*/RESEND env (secrets only in tool shells) → app-level e2e not possible in preview.
+- Prod facts: 4 apps on droplet (app-main main branch; app-wl/voodoo/proshop = WhiteLabel branch → overlay only, never deploy main to WL).
+  Prod MAIL_PROVIDER=telnyx on all 4. Migration plan (scripts/sw_migration_plan.js on prod): 20 numbers / 15 customers, all with matching stock.
+- 2026-11-12 (cont.) Own SIP server: DO droplet nomadly-sip-1 (id 618532976, 188.166.34.29, ams3, $6) — Kamailio 5.7 + rtpengine.
+  Config: ops/sip-server/kamailio.cfg (placeholders __MY_IP__/__SIP_KEY__/__TEST_API__). Brand by From domain → bot /sip-auth (X-Sip-Key = SIP_SERVER_SECRET)
+  and SignalWire domain app cloudivr-<topic>.dapp.signalwire.com (ip_auth = SIP server IP). SignalWire can't dial outside SIP URIs, so Kamailio
+  registers as SignalWire endpoint "sipbridge" (uac_reg, /etc/kamailio/dbtext/uacreg, auth_proxy pinned to 138.68.125.160) and the adapter dials
+  sip:sipbridge@<space sip domain> with X-Nomadly-Key + X-Nomadly-User → Kamailio rings that softphone.
+  Verified live: softphone REGISTER (digest via preview /sip-auth), softphone → PSTN call answered in RELAY with from sip:cvtest2345@sip-test.cloudivr.net,
+  SignalWire → sipbridge → Kamailio → INVITE forked to the softphone's registered address (last hop untested: pod NAT, then SignalWire rate limit).
+  DNS: sip-test.cloudivr.net A 188.166.34.29 (test only). Prod brand sip.* DNS NOT changed yet. Preview test record phoneNumbersOf _id 'sip-e2e-test'.
+- SignalWire account now rate-limits call attempts ("temporarily rate limited due to recent activity") → user must ask SignalWire to raise limits
+  before Bulk IVR. Adapter returns status 429 + _provider signalwire; wrap.isLineLimitError → bulk re-queues the lead.
+- User: SignalWire is for VOICE only (no SMS). Infobip requested as international backup (not built).
+- 2026-11-12 Infobip (backup for everything except email) — EXPLORED, NOT WIRED:
+  key works on api.infobip.com (base URL in backend/.env INFOBIP_BASE_URL), balance €10. Bought test CA number +16479457172 (numberKey in Infobip),
+  voice setup FORWARD_TO_SUBSCRIPTION → calls config "nomadly-dev" (also auto config 5d4b4b68-…); subscription nomadly-dev-voice / profile nomadly-dev-voice2
+  (webhook {SELF_URL}/infobip/voice-webhook, BASIC auth user infobip). POST /calls/1/calls still says "Subscription/Calls configuration does not exist"
+  → Calls API likely not enabled on the account. Number Lookup: REJECTED_ROUTE_NOT_AVAILABLE ("contact account manager").
+  No-paperwork voice numbers (scripts/infobip_country_scan.js): CA, FR, ES, AT, PL, RO, HR, LT, UA, MY, MX, AR, CL, PR (US: none without setup).
+  Route /infobip/voice-webhook exists (logs to infobipEvents when INFOBIP_EVENT_LOG=true); js/infobip/index.js is a stub.
+- Last SIP ring test still blocked by SignalWire rate limit (15:09). Deploy waits for: SignalWire limit raised + ring test pass.

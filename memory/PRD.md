@@ -2619,3 +2619,10 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - DONE 2026-11-12: Get a Business Line copy + no usage prices / allowances on any plan display (see CHANGELOG). Feature screens (AI summary, Text Triggers, LogsTab) still show their own per-minute notes — not plan cards.
 
 - 2026-06: Nomadly admin can send unlimited free single SMS (BulkSMS menu + main-menu shortcut). See CHANGELOG.
+
+## Voice/SIP/email providers (2026-11-12, preview only — not deployed)
+- Telnyx is blocked. Order: SignalWire (voice only, US/CA) → Telnyx backup; Infobip planned as full backup + international (needs Calls API + Lookup enabled).
+- Brand SIP addresses kept via own Kamailio server 188.166.34.29 (ops/sip-server/kamailio.cfg). Email: Resend (+Brevo fallback, Brevo key currently disabled).
+- Pending user actions: SignalWire raise call-rate limit; Resend plan upgrade (smadavhost.com, voodoohost.xyz, proshophost.xyz); Infobip enable Calls API + Number Lookup.
+- Customer number migration (20 numbers / 15 customers): user said DON'T move yet.
+- Deploy needs: prod env SIGNALWIRE_* RESEND_API_KEY MAIL_PROVIDER=resend SIP_SERVER_SECRET; WL apps need overlay (WhiteLabel branch); brand sip.* DNS → 188.166.34.29.

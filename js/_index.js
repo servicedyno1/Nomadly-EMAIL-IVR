@@ -49626,6 +49626,48 @@ app.post('/telnyx/sms-webhook', telnyxSigned, async (req, res) => {
   }
 })
 
+// Infobip Calls webhook — events are replayed in Telnyx shape by the Infobip adapter
+app.post('/infobip/voice-webhook', express.json({ limit: '1mb' }), async (req, res) => {
+  res.sendStatus(200)
+  try {
+    const ev = req.body || {}
+    log(`📞 Infobip voice event: ${ev.type} call=${ev.callId || ev.dialogId || ''}`)
+    if (String(process.env.INFOBIP_EVENT_LOG || '').toLowerCase() === 'true') db?.collection('infobipEvents').insertOne({ at: new Date(), ev }).catch(() => {})
+    await require('./infobip').voice.ingest(ev)
+  } catch (error) { log('Infobip voice webhook error:', error.message) }
+})
+
+// Own SIP server (Kamailio) asks for a softphone's password here before letting it register or call.
+app.get('/sip-auth/:user', async (req, res) => {
+  const key = process.env.SIP_SERVER_SECRET
+  const given = String(req.get('X-Sip-Key') || '')
+  if (!key || given.length !== key.length || !require('crypto').timingSafeEqual(Buffer.from(given), Buffer.from(key))) return res.sendStatus(403)
+  try {
+    const u = String(req.params.user || '')
+    const doc = await phoneNumbersOf.findOne({ $or: [{ 'val.numbers.telnyxSipUsername': u }, { 'val.numbers.sipUsername': u }] }, { projection: { 'val.numbers': 1 } })
+    const n = (doc?.val?.numbers || []).find(x => (x.telnyxSipUsername === u || x.sipUsername === u) && x.status === 'active')
+    const pw = n && (n.telnyxSipUsername === u ? (n.telnyxSipPassword || n.sipPassword) : n.sipPassword)
+    if (!pw) return res.sendStatus(404)
+    res.type('text/plain').send(String(pw))
+  } catch (e) { log('sip-auth error:', e.message); res.sendStatus(500) }
+})
+
+// SignalWire SMS webhook (LaML form post) — inbound texts to SignalWire numbers, replayed in Telnyx shape
+app.post('/signalwire/sms-webhook', express.urlencoded({ extended: false }), async (req, res) => {
+  const swRest = require('./signalwire').rest
+  if (!swRest.validSignature(req)) { log('📩 SignalWire SMS webhook: bad signature — ignored'); return res.sendStatus(403) }
+  res.type('text/xml').send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>')
+  try {
+    log(`📩 SignalWire SMS webhook received: ${req.body?.From} → ${req.body?.To}`)
+    await handleInboundSms(swRest.inboundToTelnyx(req.body), bot, phoneNumbersOf, phoneLogs)
+  } catch (error) { log('SignalWire SMS webhook error:', error.message) }
+})
+app.post('/signalwire/sms-status', express.urlencoded({ extended: false }), (req, res) => {
+  res.sendStatus(200)
+  const st = String(req.body?.MessageStatus || '')
+  if (/failed|undelivered/i.test(st)) log(`📩 SignalWire SMS ${req.body?.MessageSid} ${st} (${req.body?.ErrorCode || ''})`)
+})
+
 // Telnyx Voice Webhook — receives call events
 app.post('/telnyx/voice-webhook', telnyxSigned, async (req, res) => {
   try {
@@ -52893,7 +52935,7 @@ if (fs.existsSync(frontendBuildPath)) {
   // those later-registered handlers. Without this, /phone/reviews etc. get index.html on Railway.
   app.get('/{*splat}', (req, res, next) => {
     // Known Express API paths registered asynchronously — let them pass through to actual handlers
-    const apiPrefixes = ['/phone/', '/honeypot/', '/telegram/', '/telnyx/', '/twilio/', '/panel/', '/dynopay/', '/fincra/', '/blockbee/', '/sms-app/', '/brand/']
+    const apiPrefixes = ['/phone/', '/honeypot/', '/telegram/', '/telnyx/', '/signalwire/', '/sip-auth/', '/twilio/', '/panel/', '/dynopay/', '/fincra/', '/blockbee/', '/sms-app/', '/brand/']
     if (apiPrefixes.some(p => req.path.startsWith(p))) {
       return next()
     }

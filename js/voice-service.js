@@ -1346,6 +1346,12 @@ function initVoiceService(deps) {
   _phoneNumbersOf = deps.phoneNumbersOf
   _phoneLogs = deps.phoneLogs
   _telnyxApi = deps.telnyxApi
+  // SignalWire RELAY calls arrive as Telnyx-shaped events on the same handler.
+  require('./signalwire').voice.start((evt) => {
+    const p = evt.data.payload
+    log(`📞 SignalWire voice event: ${evt.data.event_type} | from=${p.from} | to=${p.to}`)
+    return handleVoiceWebhook({ body: evt }, { sendStatus() {}, status() { return this }, send() {}, json() {} })
+  }).catch((e) => log(`[Voice] SignalWire voice start failed: ${e.message}`))
   _telnyxResources = deps.telnyxResources
   _translation = deps.translation
   _ivrAnalytics = deps.ivrAnalytics

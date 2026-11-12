@@ -109,6 +109,9 @@ function createSmsReply({ db, voiceService, log = console.log }) {
   const w = walletOps(db)
 
   async function deliver(from, to, text, mediaUrls = []) {
+    const sw = await require('../signalwire').sendSms(from, to, text, mediaUrls).catch(() => null)
+    if (sw && !sw.error) return { id: sw.id }
+    if (sw?.error) log(`[SmsReply] SignalWire ${from} → ${to} failed: ${sw.error} — trying Telnyx`)
     try {
       const r = await axios.post('https://api.telnyx.com/v2/messages', { from, to, ...(text ? { text } : {}), ...(mediaUrls.length ? { media_urls: mediaUrls, type: 'MMS' } : {}), ...(process.env.TELNYX_MESSAGING_PROFILE_ID ? { messaging_profile_id: process.env.TELNYX_MESSAGING_PROFILE_ID } : {}) },
         { headers: { Authorization: `Bearer ${process.env.TELNYX_API_KEY}`, 'Content-Type': 'application/json' }, timeout: 15000 })
