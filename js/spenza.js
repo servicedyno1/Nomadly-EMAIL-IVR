@@ -204,6 +204,9 @@ async function imeiChase() {
 
 // ---------- USA mobile number for texting ($75/month): an eSIM line held by CloudIVR, number shown once assigned ----------
 const MOBILE_PRICE = 75
+// Off the first month of a Texting Number bought together with a Business Line.
+const BUNDLE_PCT = 10
+const bundlePrice = () => Math.round(MOBILE_PRICE * (100 - BUNDLE_PCT)) / 100
 // No customer phone for a virtual number: use the IMEI of the owner's own line (env override → the owner's prelinked line on Spenza).
 // Never a customer's device. A miss is cached for 10 minutes so the public offer endpoint doesn't hit Spenza each time.
 let imeiMiss = 0
@@ -223,21 +226,22 @@ async function mobileImei() {
 }
 async function mobileOffer() {
   const plan = (await forSale().catch((e) => { S.log(`[mobile] offer check failed: ${e.message}`); return [] })).find(p => p.simId)
-  return { available: !!plan && (await mobileImei()).length === 15, price: MOBILE_PRICE }
+  return { available: !!plan && (await mobileImei()).length === 15, price: MOBILE_PRICE, bundlePrice: bundlePrice(), bundlePct: BUNDLE_PCT }
 }
-async function buyMobile(chatId, { zipcode, autoRenew }) {
+// `charge` lets a bundle (Business Line + Texting Number) bill a discounted first month; renewals stay at MOBILE_PRICE.
+async function buyMobile(chatId, { zipcode, autoRenew, charge = MOBILE_PRICE }) {
   const zip = String(zipcode || '').trim()
   if (!/^\d{5}$/.test(zip)) return { error: 'Enter a 5-digit USA ZIP code so we can ask for a number near it.' }
   const im = await mobileImei()
   const plan = (await forSale()).find(p => p.simId)
   if (!plan || im.length !== 15) return { error: 'Texting Numbers are temporarily unavailable. Try again later.' }
-  if (!(await S.w.debit(chatId, MOBILE_PRICE))) return { error: `Your wallet needs $${MOBILE_PRICE} for this number. Top up first.`, code: 'insufficient_balance' }
+  if (!(await S.w.debit(chatId, charge))) return { error: `Your wallet needs $${charge.toFixed(2)} for this number. Top up first.`, code: 'insufficient_balance' }
   const _id = 'mn_' + crypto.randomBytes(6).toString('hex')
   const doc = { _id, kind: 'mobile', chatId: String(chatId), planId: plan.planId, price: MOBILE_PRICE, imei: im, zipcode: zip, simId: plan.simId, autoRenew: autoRenew !== false, status: 'provisioning', callsTo: 'device', createdAt: new Date(), updatedAt: new Date() }
   await S.col.insertOne(doc)
-  await txn(chatId, 'mobile-number-purchase', MOBILE_PRICE, { lineId: _id, zipcode: zip })
+  await txn(chatId, 'mobile-number-purchase', charge, { lineId: _id, zipcode: zip, ...(charge !== MOBILE_PRICE ? { bundle: true } : {}) })
   // A USA mobile number is a number: a referred friend's first purchase pays the referral like a calling number does.
-  const referral = () => isBot(chatId) ? null : require('./cloudivr-web/referrals').onPurchase(S.db, chatId, MOBILE_PRICE, S.log).catch(e => S.log(`[mobile] referral payout ${_id}: ${e.message}`))
+  const referral = () => isBot(chatId) ? null : require('./cloudivr-web/referrals').onPurchase(S.db, chatId, charge, S.log).catch(e => S.log(`[mobile] referral payout ${_id}: ${e.message}`))
   if (dry()) { await S.col.updateOne({ _id }, { $set: { transactionId: 'preview-' + _id, simulated: true } }); await referral(); return { item: pub(doc) } }
   try {
     const u = await spenzaUser(chatId)
@@ -246,11 +250,11 @@ async function buyMobile(chatId, { zipcode, autoRenew }) {
     await referral()
     return { item: pub(doc) }
   } catch (e) {
-    await S.w.credit(chatId, MOBILE_PRICE); await txn(chatId, 'mobile-number-refund', MOBILE_PRICE, { lineId: _id })
+    await S.w.credit(chatId, charge); await txn(chatId, 'mobile-number-refund', charge, { lineId: _id })
     S.log(`[mobile] create ${_id}: ${e.message}`)
     if (/imei/i.test(e.message)) await S.db.collection('spenzaConfig').deleteOne({ _id: 'mobileImei' })
     await S.col.updateOne({ _id }, { $set: { status: 'failed', note: 'The number couldn’t be set up. Your payment was refunded.', providerError: e.message, updatedAt: new Date() } })
-    return { error: `We couldn’t set up the number right now. Your $${MOBILE_PRICE} was refunded to your wallet.`, code: 'mobile_failed' }
+    return { error: `We couldn’t set up the Texting Number right now. Your $${charge.toFixed(2)} was refunded to your wallet.`, code: 'mobile_failed' }
   }
 }
 const CID = () => require('./cloudivr-web/caller-ids')
@@ -667,5 +671,5 @@ function init({ db, log = console.log, tell }) {
   return api
 }
 
-const api = { init, setBot, sendBotQr, tick, syncUser, linkUser, receiptsOf, MOBILE_PRICE, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, submitImei, imeiChase, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
+const api = { init, setBot, sendBotQr, tick, syncUser, linkUser, receiptsOf, MOBILE_PRICE, bundlePrice, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, submitImei, imeiChase, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
 module.exports = api

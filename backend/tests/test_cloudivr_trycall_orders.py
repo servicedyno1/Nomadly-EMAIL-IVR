@@ -179,7 +179,8 @@ def test_crypto_cancel(bob):
     r = bob.post(f"{API}/numbers/orders/{o['id']}/cancel"); assert r.status_code == 200 and r.json()["order"]["status"] == "cancelled"
     assert bob.post(f"{API}/numbers/orders/{o['id']}/simulate-payment", json={}).status_code == 400
 
-def test_underpaid_then_finish(bob):
+def test_underpaid_returns_to_wallet(bob):
+    # Short crypto payment: nothing is bought and everything stays in the wallet (user's rule, 2026-11).
     cid = chat_id("civr.bob@example.com")
     w = mdb.walletOf.find_one({"_id": cid}); bal = (w.get("usdIn", 0) - w.get("usdOut", 0))
     mdb.walletOf.update_one({"_id": cid}, {"$inc": {"usdOut": bal}})  # wallet → 0
@@ -187,12 +188,8 @@ def test_underpaid_then_finish(bob):
         p = search(bob)[0]["phoneNumber"]
         o = bob.post(f"{API}/numbers/checkout", json={"phoneNumber": p, "plan": "starter", "method": "crypto", "coin": "BTC"}).json()["order"]
         d = bob.post(f"{API}/numbers/orders/{o['id']}/simulate-payment", json={"amountUsd": 20}).json()["order"]
-        assert d["status"] == "underpaid" and d["paidUsd"] == 20, d
-        r = bob.post(f"{API}/numbers/orders/{o['id']}/finish"); assert r.status_code == 402
-        mdb.walletOf.update_one({"_id": cid}, {"$inc": {"usdIn": 40}})
-        r = bob.post(f"{API}/numbers/orders/{o['id']}/finish"); assert r.status_code == 200, r.text
-        assert r.json()["order"]["status"] == "active" and r.json()["order"]["assignedNumber"] == p
-        release(cid, p)
+        assert d["status"] == "failed" and d["paidUsd"] == 20 and "everything is in your wallet" in d["message"], d
+        w = mdb.walletOf.find_one({"_id": cid}); assert round(w.get("usdIn", 0) - w.get("usdOut", 0), 2) == 20
     finally:
         w = mdb.walletOf.find_one({"_id": cid}); cur = w.get("usdIn", 0) - w.get("usdOut", 0)
         mdb.walletOf.update_one({"_id": cid}, {"$inc": {"usdIn": bal - cur}})
