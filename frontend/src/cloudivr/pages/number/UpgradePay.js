@@ -13,7 +13,7 @@ export function UpgradePay({ num, plan, quote, coins = [], busy, onWallet }) {
   const [sending, setSending] = useState(false);
   const crypto = async () => {
     setSending(true);
-    try { const d = await api(`/numbers/${enc(num.phoneNumber)}/upgrade-checkout`, { method: 'POST', body: { plan, coin, useWallet: true } }); nav(cp(`/app/orders/${enc(d.order.id)}`)); } catch (e) { toast.error(e.message); } finally { setSending(false); }
+    try { const d = await api(`/numbers/${enc(num.phoneNumber)}/upgrade-checkout`, { method: 'POST', body: { plan, coin, useWallet: !enough && balance > 0 } }); nav(cp(`/app/orders/${enc(d.order.id)}`)); } catch (e) { toast.error(e.message); } finally { setSending(false); }
   };
   const { balance, short, enough } = useBalance(quote.charge);
   return (

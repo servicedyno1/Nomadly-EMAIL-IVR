@@ -5351,7 +5351,7 @@
 "Your {0} wallet balance is used first — crypto covers only the rest (at least $10; anything over stays in your wallet).": "Tu saldo de {0} se usa primero — la cripto cubre solo el resto (al menos $10; lo que sobre se queda en tu billetera).",
 "Your wallet has {0} — {1} short.": "Tu billetera tiene {0} — faltan {1}.",
 "Top up instead": "Recargar en su lugar",
-" Includes {0} credit for the rest of this month.": " Incluye {0} de crédito por el resto del mes.",
-" Then {0}/month.": " Luego {0}/mes.",
-"{0} · {1} total: {2} from your wallet + {3} in crypto": "{0} · {1} en total: {2} de tu billetera + {3} en cripto"
+"{0} · {1} total: {2} from your wallet + {3} in crypto": "{0} · {1} en total: {2} de tu billetera + {3} en cripto",
+"Includes {0} credit for the rest of this month.": "Incluye {0} de crédito por el resto del mes.",
+"Then {0}/month.": "Luego {0}/mes."
 }

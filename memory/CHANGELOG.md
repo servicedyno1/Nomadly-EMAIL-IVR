@@ -2600,3 +2600,11 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Sidebar/palette/help/CTAs: "Get a number" → "Get a Business Line".
 - Per-minute notes removed: AI summaries (bar + Summarize button), Text Triggers, AI agent tab/page, AI campaign option, text calls, browser ring, call-me-first toasts + 402 error, Quick IVR result, SEO/llms pricing text. Campaign/Quick IVR pre-launch estimates kept.
 - Testing agent iteration_253: all checks pass; its UI notes (contrast, alignment, stale result, CTAs, FR subtitle) fixed and re-verified by screenshot.
+
+## 2026-11-12 — Texting bundle, setup from helper answer, upgrade nudge, website helper, wallet + crypto split
+- Checkout add-on "Add a Texting Number" (wallet + crypto): first month $67.50 (10% off), then $75/month (spenza.js bundlePrice/BUNDLE_PCT, buyMobile `charge`; orders.js textingAddOn).
+- Helper answer → setup after purchase (pages/buy/setupIntent.js): menu → IVR tab with a prepared, unsaved "press 1 for sales" menu; ai → draft "Receptionist" agent for the number; campaigns → new campaign with that caller ID; banner on the number until opened/dismissed. Website helper answer is remembered into Get a Business Line.
+- "Your campaign needs Pro" one-tap upgrade card on /app/campaigns/new (campaign/UpgradeNudge.js).
+- Website pricing: LandingPlanHelper highlights the right plan / switches to eSIM or Texting Number tab.
+- Short wallet: Business Line, extra number and plan upgrade checkouts use the wallet first and ask crypto only for the rest (orders.js split(), `useWallet`); all ShortNote screens add "Pay the $X rest with crypto"; Top up stays available. Short crypto payment → order failed, nothing bought, everything stays in the wallet (no more underpaid/Finish).
+- Tests: js/tests/test_texting_bundle_checkout.js 12/12; testing agent iterations 254 + 255 (all issues fixed: nudge stuck on direct load, FR note, upgrade useWallet only when short, rest label shows real minimum).

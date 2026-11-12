@@ -13,7 +13,8 @@ export function CampaignUpgradeNudge({ numbers, need, feature, onDone }) {
   const { catalog, refreshSummary } = useShell() || {};
   const order = (catalog?.plans || []).map(p => p.id);
   const cands = numbers.filter(n => n.status === 'active' && !n.isSubNumber && order.indexOf(n.plan) < order.indexOf(need));
-  const [phone, setPhone] = useState(cands[0]?.phoneNumber || '');
+  const [picked, setPhone] = useState('');
+  const phone = picked || cands[0]?.phoneNumber || '';
   const [quote, setQuote] = useState(null);
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -48,7 +49,7 @@ export function CampaignUpgradeNudge({ numbers, need, feature, onDone }) {
           {quote ? `Upgrade ${phone} to ${plan.name} · ${money(quote.charge)} now` : 'Checking the price…'}
         </button>
       )}
-      {quote && <p className="text-xs text-[var(--c-muted)] mt-2" data-testid="campaign-upgrade-note"><span>Paid from your wallet.</span>{quote.credit > 0 && <span>{` Includes ${money(quote.credit)} credit for the rest of this month.`}</span>}<span>{` Then ${money(quote.newPrice)}/month.`}</span></p>}
+      {quote && <p className="text-xs text-[var(--c-muted)] mt-2" data-testid="campaign-upgrade-note"><span>Paid from your wallet.</span>{quote.credit > 0 && <>{' '}<span>{`Includes ${money(quote.credit)} credit for the rest of this month.`}</span></>}{' '}<span>{`Then ${money(quote.newPrice)}/month.`}</span></p>}
     </div>
   );
 }
