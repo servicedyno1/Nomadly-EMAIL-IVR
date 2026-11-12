@@ -2608,3 +2608,8 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Website pricing: LandingPlanHelper highlights the right plan / switches to eSIM or Texting Number tab.
 - Short wallet: Business Line, extra number and plan upgrade checkouts use the wallet first and ask crypto only for the rest (orders.js split(), `useWallet`); all ShortNote screens add "Pay the $X rest with crypto"; Top up stays available. Short crypto payment → order failed, nothing bought, everything stays in the wallet (no more underpaid/Finish).
 - Tests: js/tests/test_texting_bundle_checkout.js 12/12; testing agent iterations 254 + 255 (all issues fixed: nudge stuck on direct load, FR note, upgrade useWallet only when short, rest label shows real minimum).
+
+## 2026-11-12 — Production BulkSMS line check + 18h test/reply report (read-only except 2 check texts)
+- Ran platform round-trip line check both ways (scripts/prod_bulksms_pair_check.js --check, run on droplet release dir with its backend/.env): ESIM-0002 +16317901824 (tester) ⇄ ESIM-0003 +16317900834 (monitor) — both PASSED (out + back legs). ESIM-0001 is retired (failed).
+- Last 18h: 1 customer free test text (VoodooLand:1880419838 → +17862546301, sent, no reply); 2 replies received on +16317901824 (from +16462556424 to Nomadly:7738405621; from +16463595573 to VoodooLand:1454198900), both answering single texts.
+- RISK: content is fraud-like (fake Bank of America wire, sweepstakes winnings, Social Security deposit with form link). No abuse controls yet.
