@@ -786,6 +786,16 @@ const FAQ = {
 }
 for (const [l, f] of Object.entries(FAQ)) { const P = LANGS[l], h = P.home; if (typeof h === 'function') P.home = (o) => `${h(o)}\n\n${f(o)}` }
 
+// Delivery review after the 1st and 2nd single text (support-style inline buttons).
+const REVIEW = {
+  en: { rv_q: (to, n) => `📬 <b>Quick check on your ${n === 1 ? 'first' : 'second'} text</b> to ${to}\nDid it arrive on their phone?`, rv_stars: '⭐ How would you rate the service? (1 = poor, 5 = great)', rv_thanks: '✅ Feedback recorded — Thank you!', rv_comment_q: '💬 Anything to add? Reply to this message (optional).', rv_comment_ok: '🙏 Thanks — your comment was saved.', rv_no_note: '🔍 Sorry about that — we are re-checking the sending line right now.', rv_yes: '✅ Yes, it arrived', rv_no: '❌ No', rv_unsure: '🤷 Not sure' },
+  fr: { rv_q: (to, n) => `📬 <b>Petite vérification de votre ${n === 1 ? 'premier' : 'deuxième'} SMS</b> vers ${to}\nEst-il bien arrivé sur leur téléphone ?`, rv_stars: '⭐ Comment notez-vous le service ? (1 = mauvais, 5 = excellent)', rv_thanks: '✅ Avis enregistré — Merci !', rv_comment_q: '💬 Un commentaire ? Répondez à ce message (facultatif).', rv_comment_ok: '🙏 Merci — votre commentaire est enregistré.', rv_no_note: '🔍 Désolé — nous revérifions la ligne d’envoi immédiatement.', rv_yes: '✅ Oui, reçu', rv_no: '❌ Non', rv_unsure: '🤷 Je ne sais pas' },
+  zh: { rv_q: (to, n) => `📬 <b>快速确认您的第${n === 1 ? '一' : '二'}条短信</b>（发往 ${to}）\n对方手机收到了吗？`, rv_stars: '⭐ 您给服务打几分？（1 = 差，5 = 很好）', rv_thanks: '✅ 反馈已记录 — 谢谢！', rv_comment_q: '💬 还有补充吗？回复此消息即可（可选）。', rv_comment_ok: '🙏 谢谢 — 您的评论已保存。', rv_no_note: '🔍 抱歉 — 我们正在立即重新检查发送线路。', rv_yes: '✅ 收到了', rv_no: '❌ 没收到', rv_unsure: '🤷 不确定' },
+  hi: { rv_q: (to, n) => `📬 <b>आपके ${n === 1 ? 'पहले' : 'दूसरे'} SMS की जाँच</b> (${to} को)\nक्या यह उनके फ़ोन पर पहुँचा?`, rv_stars: '⭐ सेवा को कितने स्टार देंगे? (1 = खराब, 5 = बढ़िया)', rv_thanks: '✅ फ़ीडबैक दर्ज — धन्यवाद!', rv_comment_q: '💬 कुछ और कहना है? इस संदेश का जवाब दें (वैकल्पिक)।', rv_comment_ok: '🙏 धन्यवाद — आपकी टिप्पणी सेव हो गई।', rv_no_note: '🔍 माफ़ कीजिए — हम भेजने वाली लाइन की अभी दोबारा जाँच कर रहे हैं।', rv_yes: '✅ हाँ, पहुँचा', rv_no: '❌ नहीं', rv_unsure: '🤷 पता नहीं' },
+  fa: { rv_q: (to, n) => `📬 <b>بررسی سریع پیامک ${n === 1 ? 'اول' : 'دوم'} شما</b> به ${to}\nآیا به گوشی‌شان رسید؟`, rv_stars: '⭐ به سرویس چه امتیازی می‌دهید؟ (۱ = بد، ۵ = عالی)', rv_thanks: '✅ نظر ثبت شد — متشکریم!', rv_comment_q: '💬 توضیحی دارید؟ به همین پیام پاسخ دهید (اختیاری).', rv_comment_ok: '🙏 متشکریم — نظر شما ذخیره شد.', rv_no_note: '🔍 متأسفیم — همین حالا خط ارسال را دوباره بررسی می‌کنیم.', rv_yes: '✅ بله، رسید', rv_no: '❌ نه', rv_unsure: '🤷 مطمئن نیستم' },
+}
+for (const [l, d] of Object.entries(REVIEW)) Object.assign(LANGS[l], d)
+
 const pack = (lang) => LANGS[lang] || en
 function t(lang, key, ...args) {
   const p = pack(lang)

@@ -6582,7 +6582,7 @@ bot?.on('callback_query', async (query) => {
   try {
     const data = query?.data || ''
     const chatId = String(query?.message?.chat?.id) // Always convert to string for DB consistency
-    if (data.startsWith('bse-reply:')) { bot.answerCallbackQuery(query.id).catch(() => {}); await bulkEsimBot.onCallback(query, { set, state, saveInfo: (k, v) => set(state, chatId, k, v), send: (id, t, o) => bot.sendMessage(id, t, o), lang: (await get(state, chatId))?.userLanguage || 'en' }); return }
+    if (data.startsWith('bse-reply:') || data.startsWith('bse-rv:')) { bot.answerCallbackQuery(query.id).catch(() => {}); await bulkEsimBot.onCallback(query, { set, state, saveInfo: (k, v) => set(state, chatId, k, v), send: (id, t, o) => bot.sendMessage(id, t, o), lang: (await get(state, chatId))?.userLanguage || 'en' }); return }
     try { setChatLang(chatId, (await get(state, chatId))?.userLanguage || 'en') } catch { /* non-fatal */ }
 
     // ── 💼 Reseller application: service toggles, Continue, admin Approve/Reject ──
