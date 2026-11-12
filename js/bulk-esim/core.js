@@ -46,7 +46,14 @@ let S = null
 const C = (n) => S.db.collection(n)
 const id = (p) => `${p}_${crypto.randomBytes(6).toString('hex')}`
 const cidOf = (brand, chatId) => `${brand}:${chatId}`
-const segs = (t) => { const s = String(t || ''); const gsm = /^[\x20-\x7E\n\r£¥èéùìòÇØøÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ¡ÄÖÑÜ§¿äöñüà€]*$/.test(s); const one = gsm ? 160 : 70, many = gsm ? 153 : 67; return s.length <= one ? 1 : Math.ceil(s.length / many) }
+const GSM_CHAR = /[\x20-\x7E\n\r£¥èéùìòÇØøÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ¡ÄÖÑÜ§¿äöñüà€]/
+const isGsm = (t) => [...String(t || '')].every(c => GSM_CHAR.test(c))
+const segs = (t) => { const s = String(t || ''); const gsm = isGsm(s); const one = gsm ? 160 : 70, many = gsm ? 153 : 67; return s.length <= one ? 1 : Math.ceil(s.length / many) }
+// Non-GSM characters force UCS-2 (70-char SMS instead of 160). Homoglyphs like a Cyrillic "А" hide in pasted text, so
+// list the offenders (deduped, with their names) to tell the user exactly what to replace.
+const NAMES = { '\u0410': 'Cyrillic А', '\u0430': 'Cyrillic а', '\u0415': 'Cyrillic Е', '\u0435': 'Cyrillic е', '\u041E': 'Cyrillic О', '\u043E': 'Cyrillic о', '\u0421': 'Cyrillic С', '\u0441': 'Cyrillic с', '\u0420': 'Cyrillic Р', '\u0440': 'Cyrillic р', '\u2019': 'curly quote', '\u2018': 'curly quote', '\u201C': 'curly quote', '\u201D': 'curly quote', '\u2013': 'en-dash', '\u2014': 'em-dash', '\u2026': 'ellipsis', '\u00A0': 'non-breaking space' }
+const badChars = (t) => [...new Set([...String(t || '')].filter(c => !GSM_CHAR.test(c)))]
+const showBad = (chars) => chars.map(c => NAMES[c] ? `“${c}” (${NAMES[c]})` : c === ' ' ? 'space' : `“${c}”`).join(', ')
 // Country code required: +1XXXXXXXXXX / 1XXXXXXXXXX / 001XXXXXXXXXX. A bare 10-digit number is rejected (customer is told to add +1).
 const normPhone = (p) => { const d = String(p || '').trim().replace(/^00/, '').replace(/[^\d]/g, ''); return d.length === 11 && d[0] === '1' ? `+${d}` : '' }
 const noCountryCode = (t) => !/^\s*(\+|00)/.test(String(t)) && String(t).replace(/\D/g, '').length === 10
@@ -733,7 +740,14 @@ const bodyOf = (cp, i) => cp.content[i % cp.content.length] + optLine(cp.optOut)
 function checkContent(content, withLinks, optOut = true) {
   const parts = (Array.isArray(content) ? content : String(content || '').split(/\n?---\n?/)).map(x => x.trim()).filter(Boolean)
   if (!parts.length) return E('err_add_text')
-  if (parts.some(p => segs(p + optLine(optOut)) > MAX_PARTS)) return E('err_too_long', optOut === false ? 160 : 160 - OPT.length)
+  const limit = optOut === false ? 160 : 160 - OPT.length
+  const over = parts.find(p => segs(p + optLine(optOut)) > MAX_PARTS)
+  if (over) {
+    const line = over + optLine(optOut), bad = badChars(line)
+    // Fits as a normal (GSM-7) SMS and only fails because of special characters → name them instead of "too long".
+    if (bad.length && line.length <= limit) return E('err_special_char', showBad(bad))
+    return E('err_too_long', bad.length ? 70 - optLine(optOut).length : limit)
+  }
   const linked = parts.some(hasLinkOrPhone)
   if (withLinks === false && linked) return E('err_has_link')
   return { parts, segs: parts.map(p => segs(p + optLine(optOut))), optOut: optOut !== false, withLinks: withLinks === undefined ? linked : !!withLinks }
@@ -970,7 +984,7 @@ async function sendOne(cid, to, text, sessionId, { optOut = true, unlimited = fa
   if (!body) return E('err_add_text')
   if (sessionId) { const rr = await replyRoute(cid, sessionId); if (rr.error) return rr } else if (!(await ready()).one) return E('off_one')
   const full = sessionId || !optOut ? body : body + OPT
-  if (segs(full) > 3) return E('err_too_long')
+  if (segs(full) > 3) { const bad = badChars(full); return bad.length && full.length <= 3 * 160 ? E('err_special_char', showBad(bad)) : E('err_too_long', 160) }
   if (hasLinkOrPhone(body)) { const sc = await screenContent(cid, [body], 'one-off text'); if (sc.error) return sc }
   if (!unlimited && (await usage(cid)).remaining < segs(full)) return E('err_quota_used')
   if (await C('bsSuppression').findOne({ $or: [{ cid }, { cid: '*' }], phone: p })) return E('err_opted')

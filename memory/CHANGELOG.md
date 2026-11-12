@@ -2745,3 +2745,11 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Chime SDK Voice: every phone/voice-connector call → AccessDenied "Service is restricted for AWSAccountId" (new-account PSTN restriction; needs AWS Support console case, Basic plan can't use Support API).
 - WORKING: number validation (Pinpoint PhoneNumberValidate) → js/aws/index.js, wired into router lookup SignalWire → Bird → AWS → Infobip (list screening + forwarding check). Tests: test_aws_lookup 6/0; bird 20/0; signalwire 26/0. Dep: @aws-sdk/client-pinpoint (root package.json).
 - Prod: bots' droplet env (/opt/nomadly/shared/app-*/backend.env) needs AWS_ACCESS_KEY_ID/SECRET when deployed.
+
+## 2026-11-12 — Fix misleading "over 160" SMS error (homoglyph forces UCS-2) [@rickyy22x / @nomadlybot]
+- Root cause: one Cyrillic "А" (U+0410) in "CRА…" (113 chars) forced UCS-2 → real limit 70, but error said "max 160 characters". User saw <160 Latin-looking chars and was stuck.
+- bulk-esim/core.js: extracted GSM_CHAR/isGsm; checkContent + sendOne now detect when text fits as GSM-7 but fails only due to non-GSM chars → new err_special_char naming the offender(s) (homoglyph map). Genuinely-long text still → err_too_long.
+- bulk-esim/i18n.js: err_special_char in en/fr/zh/hi/fa.
+- cloudivr-web/sms-limit.js: smsTooLong unicode branch now names the special character (same homoglyph map) for consistency across web/bots.
+- Tests: js/tests/test_sms_special_char.js 8/0; bulk_esim_engine 40/0, numbercheck 24/0, bulkcall_handover 9/0.
+- NOT yet live on bots — needs Save to GitHub (CI deploys main → auto-sync to WhiteLabel).
