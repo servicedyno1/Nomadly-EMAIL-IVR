@@ -433,3 +433,10 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 
 ## 2026-11-12 — Old BulkSMS Android app hidden on all 4 bots (user request)
 - HIDE_SMS_APP=true in /opt/nomadly/shared/{app-main,app-wl,app-voodoo,app-proshop}/backend.env (backups backend.env.bak.hidesmsapp.<ts>), pm2 reload app-main-a app-wl-b app-voodoo-a app-proshop-b --update-env one at a time (activeCalls=0), all healthy. New 📲 BulkSMS 🇺🇸🇨🇦 unaffected. Rollback: restore backup + reload.
+
+## 2026-11-12 20:15Z — SignalWire keys added to production
+- Root cause of "No numbers available" on prod: SIGNALWIRE_* keys existed only in preview; prod shared envs had none → router skipped SignalWire → blocked Telnyx → empty.
+- Added SIGNALWIRE_PROJECT_ID/API_TOKEN/SPACE_URL/SIGNING_KEY to /opt/nomadly/shared/{app-main,app-wl,app-voodoo,app-proshop}/backend.env (backups backend.env.bak.signalwire.<ts>), pm2 reload one at a time, all healthy, RELAY topics nomadly/smadav/voodooland/proshop listening.
+- CloudIVR web runs inside app-main (nginx cloudivr → app_main) → covered.
+- Verified in prod env: 212→315 NY, 305→239 FL, 214→254 TX via SignalWire fallback.
+- Lesson: any new provider key added in preview must also be added to the 4 shared prod envs.
