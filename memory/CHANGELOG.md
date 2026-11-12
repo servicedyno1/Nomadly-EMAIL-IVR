@@ -2650,3 +2650,9 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Prod RCA @dreamchaserusdt (8400227616) 11:53–11:56Z: non-text messages (empty text) went to AI → "I don't see a question". Support branch now copies the original to admin (copyMessage) and asks user to type; AI skipped. All 4 bots share the code (only Nomadly hit it today).
 - translation-service + ai-support marketplace moderation used deprecated gpt-4.1-nano (404 on every support msg, all bots) → gpt-4.1-mini. Test js/tests/test_support_empty_message.js 5/5.
 - CloudIVR: "Dynotech Innovations" removed from site footer, Terms (all sections) and added email footer "© <year> CloudIVR. All rights reserved." (en/fr/es). Switch back: REACT_APP_CLOUDIVR_COMPANY_NAME (frontend/.env, rebuild) + CLOUDIVR_COMPANY_NAME (backend/.env). Files: frontend/src/cloudivr/company.js, email-layout.js.
+
+## 2026-11-12 — AI support extras
+- js/bulk-ivr-quote.js: live Bulk IVR pricing block + computed quote (count/country parsed; rate via getIvrCallRate on example mobile; avg billed min from phoneLogs 30d, fallback 1.2) → likely range (×0.9…×avg) + max (2-min message).
+- Shared contact/location/venue/poll in support → "[Shared …]" text to AI + admin (SHARED_RULE in prompt).
+- Missed-question catch: admin close sets state.supportClosedAt; typed question (≥12 chars or "?", not a menu label/command) within 10 min auto-reopens support + admin alert.
+- Test js/tests/test_ai_support_extras.js 12/12; live AI check in preview OK.
