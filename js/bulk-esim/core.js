@@ -1234,6 +1234,15 @@ async function onWebhook(raw, headers, body) {
       const t = await C('bsTests').findOneAndUpdate({ type: 'check', code, esimId: e._id, result: 'pending' }, { $set: { 'legs.back': true, result: 'passed', at2: new Date() } })
       if (t) await C('bsEsims').updateOne({ _id: e._id }, { $set: { recvMiss: 0, sendMiss: 0, lastCheckOkAt: new Date(), checkedSubmitted: e.stats?.submitted || 0 } })
       if (t && e.health === 'suspect') { await C('bsEsims').updateOne({ _id: e._id, health: 'suspect' }, { $set: { health: 'healthy' }, $unset: { suspectAt: '' } }); alert(`✅ ${e._id} ${e.msisdn}: re-check passed — back to sending.`) }
+      // A new / replaced line that just proved both legs joins the pool immediately, instead of waiting for the next health check.
+      if (t) {
+        const fresh = await C('bsEsims').findOne({ _id: e._id })
+        if (fresh?.status === 'testing' && fresh.msisdn && await C('bsTests').findOne({ esimId: e._id, type: 'check', kind: 'pre_use', result: 'passed' })) {
+          await setEsim(e._id, 'available', { health: 'healthy', lastOkAt: new Date() })
+          alert(`✅ ${e._id} ${fresh.msisdn}${AUX.includes(fresh.role) ? ` (${fresh.role} line)` : ''} passed its delivery check and joined the pool${fresh.role === 'tester' ? ' — customer test buttons are back on' : ''}.`)
+          incident('line_joined', { esimId: e._id, via: 'instant_preuse' })
+        }
+      }
     } else if (code) { // line → monitor arrived: answer so the line proves it can receive too
       const t = await C('bsTests').findOneAndUpdate({ type: 'check', code, esimId: peer._id, result: 'pending' }, { $set: { 'legs.out': true } })
       if (t) await C('bsMessages').insertOne(msgDoc({ cid: 'system:health', to: peer.msisdn, body: `CloudIVR line check ${code} ok`, priority: 2, esimId: e._id, system: true }))

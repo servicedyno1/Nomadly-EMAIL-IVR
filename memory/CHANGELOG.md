@@ -2811,3 +2811,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Prod ops (operator-approved): stuck pending lines ESIM-0004/0005 (8h activating at Spenza) backdated >24h so the running engine retired them + auto-ordered replacements ESIM-0008/0009 (now healthy, verifying). Campaign cp_d93159e873ae (rickyy22x, 992) cleared past 734 sent, 0 failed.
 - Tests: test_bulk_esim_engine.js 47/0 (added campaign review + progress milestone cases); numbercheck 24/0; special char 8/0.
 - DEPLOY: CNAM + progress + review are code → need Save to GitHub to reach the 4 bots. SignalWire env keys already in prod shared envs.
+
+## 2026-11-12 (cont.) — Instant line join after delivery check
+- js/bulk-esim/core.js onWebhook: when a new/replaced 'testing' line proves BOTH delivery legs (its pre_use check passes via the monitor→line confirmation), it now joins the pool immediately (setEsim 'available' + alert + incident 'line_joined'), instead of waiting up to ~10 min for the next healthCheck cycle. Only fires for status='testing' lines with a passed pre_use check; periodic/volume re-checks on live lines are unaffected.
+- Root cause of earlier "why are new lines waiting": promotion only happened on the 10-min healthCheck pass after the async check completed. Now instant.
+- Test: test_bulk_esim_engine.js 48/0 (added "new line joins the pool instantly when its delivery check passes").
+- Live outcome: campaign cp_d93159e873ae reached 991 sent / 0 queued / 0 failed; replacements ESIM-0008/0009 joined and each sent 100.
+- DEPLOY: code change → Save to GitHub to reach the 4 bots.

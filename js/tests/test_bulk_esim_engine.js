@@ -147,6 +147,14 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms))
   const pn = await db.collection('bsNotify').findOne({ key: 'n_progress', campaignId: 'cp_prog' })
   ok('progress milestone notice at 25% with sent/total/eta', !!pn && pn.args[1] === 25 && pn.args[2] === 1 && pn.args[3] === 4 && !!pn.args[4])
   await B.finishCampaigns()
+  // ── Instant join: a new line that proves both delivery legs joins the pool at once (no wait for the next health check) ──
+  await db.collection('bsEsims').insertOne({ _id: 'ESIM-JOIN', role: 'service', status: 'testing', health: 'activating', msisdn: '+13330001111', iccid: 'icc-join', createdAt: new Date(), stats: {} })
+  await db.collection('bsEsims').updateOne({ _id: 'ESIM-0003' }, { $set: { role: 'monitor', status: 'available', health: 'healthy', msisdn: '+13330002222' } }, { upsert: false })
+  if (!(await db.collection('bsEsims').findOne({ _id: 'ESIM-0003' }))) await db.collection('bsEsims').insertOne({ _id: 'ESIM-0003', role: 'monitor', status: 'available', health: 'healthy', msisdn: '+13330002222', stats: {} })
+  await db.collection('bsTests').insertOne({ esimId: 'ESIM-JOIN', peer: 'ESIM-0003', type: 'check', kind: 'pre_use', code: 'abc123', result: 'pending', legs: { out: true, back: false }, at: new Date() })
+  await B.onWebhook('', {}, { data: { From: '+13330002222', Owner: '+13330001111', Message_Body: 'CloudIVR line check abc123 ok', Message_ID: 'chk-join' } })
+  ok('new line joins the pool instantly when its delivery check passes', (await db.collection('bsEsims').findOne({ _id: 'ESIM-JOIN' }))?.status === 'available')
+
   ok('progress milestone not repeated on the next tick', (await db.collection('bsNotify').countDocuments({ key: 'n_progress', campaignId: 'cp_prog' })) === 1)
 
   console.log(`\n${pass} passed, ${fail} failed`)
