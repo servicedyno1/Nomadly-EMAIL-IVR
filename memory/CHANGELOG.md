@@ -2636,3 +2636,5 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Bot: 🔁 from any screen → own domains / external (NS shown after) / register new (→ Bulletproof Domains, then back); plan details banner + button. Change-primary also clears flag.
 - Web panel: GET /domains/flagged-primary, POST /domains/replace-flagged-primary (new token); FlaggedDomainBanner on every tab (fdb.* i18n en/fr/zh/hi).
 - Test js/tests/test_flagged_primary_swap.js 32/32 (logic w/ stubs + source guards). Panel banner not browser-tested (needs a flagged account + WHM).
+
+- 2026-11-12: Nomadly admin single SMS no longer refused when the number is in another customer's conversation — sends on that line, no admin session (replies stay with the customer). Also fixed admin test so the worker really runs (20/20).

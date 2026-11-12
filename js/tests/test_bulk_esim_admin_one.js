@@ -37,11 +37,27 @@ const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${
   await B.setCustomer?.(B.cidOf('Nomadly', ADMIN), { dailyLimit: 1 }, 'test').catch?.(() => {})
   await db.collection('bsCustomers').updateOne({ _id: B.cidOf('Nomadly', ADMIN) }, { $set: { dailyLimit: 1 } })
   ok('daily allowance does not block the admin', !(await B.sendOne(B.cidOf('Nomadly', ADMIN), '+12125550199', 'over limit', null, { unlimited: true })).error)
-  await B.claimWorker(); for (let i = 0; i < 6; i++) await B.tick()
+  process.env.BULK_ESIM_WORKER = ''; await B.creditWatch()
+  for (let i = 0; i < 10; i++) { await B.claimWorker(); await B.tick(); await new Promise(r => setTimeout(r, 50)) }
   const rej = await db.collection('bsMessages').countDocuments({ cid: B.cidOf('Nomadly', ADMIN), status: 'rejected' })
   ok('worker does not reject admin texts for daily allowance', rej === 0, String(rej))
+  ok('admin texts actually sent despite a daily allowance of 1', (await db.collection('bsMessages').countDocuments({ cid: B.cidOf('Nomadly', ADMIN), status: { $in: ['sent', 'submitted', 'delivered'] } })) >= 6)
   const wallet = await db.collection('bsPayments').countDocuments({ cid: B.cidOf('Nomadly', ADMIN) })
   ok('no charge recorded for admin texts', wallet === 0)
+
+  // Number already in another customer's conversation on every line: admin still sends; replies stay with that customer.
+  const busyTo = '+12125550777', other = B.cidOf('Nomadly', 990099)
+  await db.collection('bsCustomers').updateOne({ _id: B.cidOf('Nomadly', ADMIN) }, { $unset: { dailyLimit: 1 } })
+  const lines = await db.collection('bsEsims').find({ msisdn: { $ne: null } }).toArray()
+  for (const e of lines) await db.collection('bsSessions').insertOne({ _id: `s_qa_${e._id}`, cid: other, to: busyTo, esimId: e._id, status: 'active', expiresAt: new Date(Date.now() + 3600e3), lastActivityAt: new Date() })
+  ok('customer would be refused (number busy)', !!(await B.numberBusy(B.cidOf('Nomadly', USER), busyTo)))
+  m = await sendVia(a, busyTo, 'admin to busy number', true)
+  ok('admin: busy number accepted + queued', /On its way/.test(m.text) && !/already in a conversation/.test(m.text), m.text.slice(0, 80))
+  await db.collection('bsMessages').updateMany({}, { $set: { nextAt: new Date(0) } }); await B.creditWatch()
+  for (let i = 0; i < 10; i++) { await B.claimWorker(); await B.tick(); await new Promise(r => setTimeout(r, 50)) }
+  const bm = await db.collection('bsMessages').findOne({ cid: B.cidOf('Nomadly', ADMIN), to: busyTo })
+  ok('admin text to busy number is sent', ['sent', 'submitted', 'delivered'].includes(bm?.status), bm?.status)
+  ok('no admin session opened → replies stay with the other customer', !(await db.collection('bsSessions').findOne({ cid: B.cidOf('Nomadly', ADMIN), to: busyTo })) && (await db.collection('bsSessions').countDocuments({ cid: other, to: busyTo, status: 'active' })) === lines.length)
 
   const u = mk(USER)
   for (let i = 0; i < 2; i++) m = await sendVia(u, `+1212555020${i}`, `user text ${i}`)
