@@ -6,6 +6,7 @@ import { cp } from '../paths';
 import { Wordmark } from '../Brand';
 import { Footer } from './landing/PricingFaq';
 import { TERMS, UPDATED } from './terms/content';
+import { COMPANY } from '../company';
 import { useSiteLook, SiteThemeButton } from './landing/kit';
 import { LangSwitcher } from '../i18n';
 
@@ -59,7 +60,7 @@ export default function Terms() {
           <div className="civr-l-eyebrow text-[#4f46e5]">Legal</div>
           <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-6xl text-slate-900 mt-4" data-testid="terms-title">Terms of Service</h1>
           <p className="text-base text-slate-500 mt-4" data-testid="terms-updated">Last updated {UPDATED}</p>
-          <p className="text-base md:text-lg text-slate-600 mt-6">CloudIVR is owned and operated by Dynotech Innovations. These terms explain what you can expect from CloudIVR and what we expect from you. Please read them before you create an account, buy a number or place a call.</p>
+          <p className="text-base md:text-lg text-slate-600 mt-6">{COMPANY ? `CloudIVR is owned and operated by ${COMPANY}. ` : ''}These terms explain what you can expect from CloudIVR and what we expect from you. Please read them before you create an account, buy a number or place a call.</p>
         </div>
         <div className="grid lg:grid-cols-12 gap-12 mt-16">
           <aside className="lg:col-span-4 order-2 lg:order-1 hidden lg:block"><Contents /></aside>

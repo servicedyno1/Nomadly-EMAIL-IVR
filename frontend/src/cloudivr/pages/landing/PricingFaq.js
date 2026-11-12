@@ -1,4 +1,5 @@
 import React from 'react';
+import { COPYRIGHT } from '../../company';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUp, ChevronDown, MessageCircle, Send, MessageSquareText, Check } from 'lucide-react';
 import { SocialLinks } from './Social';
@@ -182,7 +183,7 @@ export function Footer({ catalog }) {
         <div className="mt-14 pt-8 border-t border-slate-200 flex flex-col md:flex-row md:items-end gap-6 justify-between">
           <PaymentMethods catalog={catalog} label="We accept" testid="footer-payment-methods" />
           <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-semibold text-slate-900 hover:text-[color:var(--np-blue)] min-h-[44px] md:order-last" data-testid="footer-back-to-top"><ArrowUp className="w-4 h-4" />Back to top</button>
-          <div className="text-xs text-slate-500 md:whitespace-nowrap" data-testid="footer-copyright">© {new Date().getFullYear()} CloudIVR — a Dynotech Innovations product</div>
+          <div className="text-xs text-slate-500 md:whitespace-nowrap" data-testid="footer-copyright">{COPYRIGHT()}</div>
         </div>
       </div>
     </footer>

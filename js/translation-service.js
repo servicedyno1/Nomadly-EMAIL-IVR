@@ -49,7 +49,7 @@ async function detectLanguage(text) {
   try {
     const ai = new OpenAI({ apiKey: process.env.APP_OPEN_API_KEY })
     const res = await ai.chat.completions.create({
-      model: 'gpt-4.1-nano',
+      model: 'gpt-4.1-mini',
       messages: [
         { 
           role: 'system', 

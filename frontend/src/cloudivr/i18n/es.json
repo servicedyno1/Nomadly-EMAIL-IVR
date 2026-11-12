@@ -5353,5 +5353,11 @@
 "Top up instead": "Recargar en su lugar",
 "{0} · {1} total: {2} from your wallet + {3} in crypto": "{0} · {1} en total: {2} de tu billetera + {3} en cripto",
 "Includes {0} credit for the rest of this month.": "Incluye {0} de crédito por el resto del mes.",
-"Then {0}/month.": "Luego {0}/mes."
+"Then {0}/month.": "Luego {0}/mes.",
+"CloudIVR is responsible for the personal data used to run the service. We keep your account details, numbers, call and message logs, recordings and transcripts to run the service, bill you, prevent abuse and meet legal duties. We share them only with the carriers and providers that make calls, texts, payments and AI features work, or when the law requires it. We do not sell your data.": "CloudIVR es responsable de los datos personales usados para operar el servicio. Guardamos los detalles de tu cuenta, números, registros de llamadas y mensajes, grabaciones y transcripciones para operar el servicio, facturarte, prevenir abusos y cumplir con obligaciones legales. Los compartimos solo con los operadores y proveedores que hacen funcionar las llamadas, mensajes, pagos y funciones de IA, o cuando la ley lo exige. No vendemos tus datos.",
+"These Terms of Service are an agreement between you and CloudIVR (\"CloudIVR\", \"we\", \"us\") for the cloudivr.net website, the CloudIVR web app and every phone number, call, text message and AI feature we provide (the \"service\").": "Estos Términos de Servicio son un acuerdo entre tú y CloudIVR (\"CloudIVR\", \"nosotros\"), para el sitio web cloudivr.net, la app web CloudIVR y cada número telefónico, llamada, mensaje de texto y función de IA que ofrecemos (el \"servicio\").",
+"These terms explain what you can expect from CloudIVR and what we expect from you. Please read them before you create an account, buy a number or place a call.": "Estos términos explican qué puedes esperar de CloudIVR y qué esperamos de ti. Por favor, léelos antes de crear una cuenta, comprar un número o realizar una llamada.",
+"The CloudIVR name, logo and the cloudivr.net website content belong to CloudIVR. All rights reserved.": "El nombre CloudIVR, el logotipo y el contenido del sitio web cloudivr.net pertenecen a CloudIVR. Todos los derechos reservados.",
+"Questions about these terms? Use the help assistant in the app or message our support team.": "¿Preguntas sobre estos términos? Usa el asistente de ayuda en la app o escribe a nuestro equipo de soporte.",
+"© {0} CloudIVR. All rights reserved.": "© {0} CloudIVR. Todos los derechos reservados."
 }

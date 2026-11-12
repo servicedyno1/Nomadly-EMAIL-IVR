@@ -2645,3 +2645,8 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - 2026-11-12: Fixed admin media-reply "✅ Send to @user"/Cancel (amcSend/amcCancel) silently dropped by admin callback gate regex /^a[A-Z]/ (spinner, no send). Test js/tests/test_amc_callback_gate.js.
 
 - 2026-11-12: AI support prompt: payments follow HIDE_BANK_PAYMENT (no NGN/bank when hidden, explicit Wallet+Crypto rule); old BulkSMS app/trial sections stripped when HIDE_SMS_APP=true; BulkSMS 🇺🇸🇨🇦 stated as pay-per-use, never subscription. Test js/tests/test_ai_prompt_offer_rules.js 7/7. Prod HIDE_SMS_APP=true on 4 bots.
+
+## 2026-11-12 — AI support empty-message + deprecated model fix; CloudIVR company name hidden
+- Prod RCA @dreamchaserusdt (8400227616) 11:53–11:56Z: non-text messages (empty text) went to AI → "I don't see a question". Support branch now copies the original to admin (copyMessage) and asks user to type; AI skipped. All 4 bots share the code (only Nomadly hit it today).
+- translation-service + ai-support marketplace moderation used deprecated gpt-4.1-nano (404 on every support msg, all bots) → gpt-4.1-mini. Test js/tests/test_support_empty_message.js 5/5.
+- CloudIVR: "Dynotech Innovations" removed from site footer, Terms (all sections) and added email footer "© <year> CloudIVR. All rights reserved." (en/fr/es). Switch back: REACT_APP_CLOUDIVR_COMPANY_NAME (frontend/.env, rebuild) + CLOUDIVR_COMPANY_NAME (backend/.env). Files: frontend/src/cloudivr/company.js, email-layout.js.
