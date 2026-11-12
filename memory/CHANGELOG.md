@@ -2739,3 +2739,9 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - HLR lookup works (€0.006, mobile network only). Outbound US €0.01/min, CA €0.005/min.
 - Not tested: real call (no number/caller ID, balance too low). Bulk IVR scale limited by SIP lines; confirm autodialer policy with Zadarma.
 - DIDLogic evaluated from docs only (no key): API covers numbers, SIP accounts, SMS, HLR, CDR/recording webhooks; CLI passthrough needs Plus plan.
+
+## 2026-11-12 — AWS (Chime SDK Voice + number validation)
+- IAM user cloudivr-voice (acct 278451796839) keys set; AWS_REGION secret = "global" (invalid) → code falls back to us-east-1.
+- Chime SDK Voice: every phone/voice-connector call → AccessDenied "Service is restricted for AWSAccountId" (new-account PSTN restriction; needs AWS Support console case, Basic plan can't use Support API).
+- WORKING: number validation (Pinpoint PhoneNumberValidate) → js/aws/index.js, wired into router lookup SignalWire → Bird → AWS → Infobip (list screening + forwarding check). Tests: test_aws_lookup 6/0; bird 20/0; signalwire 26/0. Dep: @aws-sdk/client-pinpoint (root package.json).
+- Prod: bots' droplet env (/opt/nomadly/shared/app-*/backend.env) needs AWS_ACCESS_KEY_ID/SECRET when deployed.
