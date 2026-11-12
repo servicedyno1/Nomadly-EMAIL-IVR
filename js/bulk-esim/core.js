@@ -503,8 +503,8 @@ async function capacity(date, c) {
   return { lines: n, projected: extra, perHour: Math.floor(Math.min(ratePerMin(c), n * c.esimPerMin) * 60 * c.slotUtilization), perDay: Math.floor(dayCap * c.slotUtilization) }
 }
 // Lines still missing to carry everything booked for `date` (plus `extra` unmet demand); lines on their way count, unbought ones don't.
-async function linesShort(date, c, { floor = 0, pendingToo = true } = {}) {
-  const res = await reservedBySlot([date]), dayRes = Math.max(Object.values(res).reduce((a, v) => a + v, 0), floor), hourMax = Math.max(0, ...Object.values(res))
+async function linesShort(date, c, { floor = 0, pendingToo = true, paidOnly = false } = {}) {
+  const res = await reservedBySlot([date], { paidOnly }), dayRes = Math.max(Object.values(res).reduce((a, v) => a + v, 0), floor), hourMax = Math.max(0, ...Object.values(res))
   const lines = await fleet(date, c, pendingToo), dayCap = lines.reduce((a, l) => a + l.cap, 0) * c.slotUtilization, hourCap = Math.min(ratePerMin(c), lines.length * c.esimPerMin) * 60 * c.slotUtilization
   const per = lineCap(c, daysAhead(date) + 1) * c.slotUtilization, perHour = c.esimPerMin * 60 * c.slotUtilization
   return Math.max(0, Math.ceil((dayRes - dayCap) / per), Math.ceil((Math.min(hourMax, ratePerMin(c) * 60 * c.slotUtilization) - hourCap) / perHour))
@@ -534,10 +534,11 @@ async function nextFreeDay(parts, fromDate = today()) {
 const unmet = (cid, date, volume) => { const a = daysAhead(date); return a >= 0 && a <= 7 ? C('bsDemand').updateOne({ _id: `${cid}:${date}` }, { $max: { volume }, $set: { at: new Date(), date } }, { upsert: true }).catch(() => {}) : null }
 async function unmetDemand() { const [g] = await C('bsDemand').aggregate([{ $match: { at: { $gt: new Date(Date.now() - DAY) } } }, { $group: { _id: null, v: { $sum: '$volume' } } }]).toArray(); return g?.v || 0 }
 const slotKey = (date, h) => `${date}T${String(h).padStart(2, '0')}`
-async function reservedBySlot(dates) {
+// paidOnly: unpaid holds (pending / awaiting_payment) still reserve slot capacity, but never make us buy lines.
+async function reservedBySlot(dates, { paidOnly = false } = {}) {
   const now = new Date(), out = {}
   for (const b of await C('bsBookings').find({ date: { $in: dates }, status: { $in: LIVE_BOOKING } }).toArray()) {
-    if (['pending', 'awaiting_payment'].includes(b.status) && b.holdUntil < now) continue
+    if (['pending', 'awaiting_payment'].includes(b.status) && (paidOnly || b.holdUntil < now)) continue
     for (const [k, v] of Object.entries(b.allocation || {})) out[k] = (out[k] || 0) + v
   }
   return out
@@ -737,16 +738,16 @@ async function lookupOne(p) {
   return { type: d.valid_number === false ? 'invalid' : String(d.carrier?.type || 'unknown').toLowerCase(), carrier: d.carrier?.normalized_carrier || d.carrier?.name || null }
 }
 async function checkNumbers(cid, list) {
-  const c = await cfg(), res = new Map(); let looked = 0, failed = 0
+  const c = await cfg(), res = new Map(); let looked = 0, failed = 0, why = ''
   if (!c.numberCheck || !list.length) return { skip: [], counts: { landline: 0, voip: 0, invalid: 0, other: 0 }, sendable: list.length, looked: 0, cost: 0 }
   for (const x of await C('bsLookups').find({ _id: { $in: list }, at: { $gt: new Date(Date.now() - c.lookupDays * DAY) } }).toArray()) res.set(x._id, x)
   const todo = list.filter(p => !res.has(p))
   for (let i = 0; i < todo.length; i += 20) {
     await Promise.all(todo.slice(i, i + 20).map(async (p) => {
-      try { const r = await lookupOne(p), doc = { _id: p, type: r.type, carrier: r.carrier || null, at: new Date() }; res.set(p, doc); if (!r.simulated) { looked++; await C('bsLookups').replaceOne({ _id: p }, doc, { upsert: true }) } } catch (_) { failed++ }
+      try { const r = await lookupOne(p), doc = { _id: p, type: r.type, carrier: r.carrier || null, at: new Date() }; res.set(p, doc); if (!r.simulated) { looked++; await C('bsLookups').replaceOne({ _id: p }, doc, { upsert: true }) } } catch (e) { failed++; why ||= `${e.response?.status || e.code || ''} ${e.response?.data?.errors?.[0]?.detail || e.message}`.trim() }
     }))
   }
-  if (failed && await once(`lookupdown:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Number check: ${failed} of ${todo.length} Telnyx lookups failed — those numbers were kept (not skipped). Check the Telnyx balance / API key.`)
+  if (failed && await once(`lookupdown:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Number check: ${failed} of ${todo.length} Telnyx lookups failed — those numbers were kept (not skipped).${why ? `\nTelnyx said: <code>${String(why).slice(0, 160).replace(/[<>&]/g, '')}</code>` : ''}\nCheck the Telnyx account / balance / API key.`)
   const kind = (t) => (t === 'fixed line' ? 'landline' : t === 'voip' ? 'voip' : t === 'invalid' ? 'invalid' : 'other')
   const skip = list.filter(p => res.has(p) && !SENDABLE.includes(res.get(p).type)), counts = { landline: 0, voip: 0, invalid: 0, other: 0 }
   for (const p of skip) counts[kind(res.get(p).type)]++
@@ -1291,9 +1292,9 @@ async function setCustomer(cid, { dailyLimit, status }, by) {
 async function plan(c) {
   const dm = await demandModel(c), rows = []
   for (let i = 0; i < 7; i++) {
-    const date = new Date(Date.now() + i * DAY).toISOString().slice(0, 10), booked = Object.values(await reservedBySlot([date])).reduce((a, v) => a + v, 0)
+    const date = new Date(Date.now() + i * DAY).toISOString().slice(0, 10), booked = Object.values(await reservedBySlot([date], { paidOnly: true })).reduce((a, v) => a + v, 0)
     const have = (await fleet(date, c, true)).reduce((a, l) => a + l.cap, 0) * c.slotUtilization, target = i >= 1 ? dm.target(date) : booked
-    rows.push({ date, booked, target, want: i >= 1 ? dm.raw(date) : booked, have: Math.floor(have), ceiling: dayCeiling(date, c), short: await linesShort(date, c, { floor: target }) })
+    rows.push({ date, booked, target, want: i >= 1 ? dm.raw(date) : booked, have: Math.floor(have), ceiling: dayCeiling(date, c), short: await linesShort(date, c, { floor: target, paidOnly: true }) })
   }
   return { peak: dm.peak, lines: await liveCount(), maxLines: maxLines(c), rows }
 }
@@ -1308,12 +1309,12 @@ async function autoscale() {
   const { p, n: need } = await needOf()
   const wanted = Math.max(0, ...p.rows.map(r => r.want))
   if (!need) { await adviseAccounts(c, { lines: p.lines, target: wanted }); return }
-  const why = total < c.minEsims ? 'below minimum inventory' : `demand: peak ${p.peak} SMS/day, next-7-day target up to ${wanted} SMS`
+  const why = (started || backlog) && total < c.minEsims ? 'below minimum inventory' : `paid bookings / demand: peak ${p.peak} SMS/day, next-7-day target up to ${wanted} SMS`
   const healthy = await C('bsEsims').countDocuments({ status: { $in: USABLE }, health: { $in: GOOD_HEALTH } })
   if (c.autoProvision && !c.manualApproval) {
     // Growth notice: tell the admin what the extra lines cost against the balance, so top-ups follow the business (no floor kept).
     const st = await state(), cost = await planCost(firstAccount(c)), bal = st.forecast?.credit, needUsd = Math.round(need * cost * 100) / 100
-    if (bal != null && bal < needUsd + 1 && await once(`growth:${today()}:${need}`)) alert(`📈 Bookings need ${need} more line(s) (≈ $${needUsd}) — Spenza balance $${bal}. Top up about $${Math.round((needUsd - bal + 1) * 100) / 100}; whatever can't be bought now is ordered automatically after the top-up.`)
+    if (bal != null && bal < needUsd + 1 && await once(`growth:${today()}:${need}`)) alert(`📈 Paid bookings need ${need} more line(s) (≈ $${needUsd}) — Spenza balance $${bal}. Top up about $${Math.round((needUsd - bal + 1) * 100) / 100}; whatever can't be bought now is ordered automatically after the top-up.`)
     const r = await provisionFor(why, async () => (await needOf()).n)
     if (r.ok) alert(`📈 Bought ${r.ok} eSIM(s) (${why}; ${healthy} healthy, ${total} total before).`); if (r.ok < r.need && await once(`scale:${today()}`)) alert(`📈 ${r.need - r.ok} more line(s) needed but not bought: ${r.error || `line ceiling ${p.maxLines} reached`}.`)
     await adviseAccounts(c, { lines: await liveCount(), target: wanted })

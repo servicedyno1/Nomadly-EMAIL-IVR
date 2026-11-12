@@ -2656,3 +2656,8 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Shared contact/location/venue/poll in support → "[Shared …]" text to AI + admin (SHARED_RULE in prompt).
 - Missed-question catch: admin close sets state.supportClosedAt; typed question (≥12 chars or "?", not a menu label/command) within 10 min auto-reopens support + admin alert.
 - Test js/tests/test_ai_support_extras.js 12/12; live AI check in preview OK.
+
+## 2026-11-12 — BulkSMS unpaid holds bought eSIMs; Telnyx account BLOCKED
+- Prod: Nomadly:5438168382 created 2 bookings (1,001 SMS each, $135.14/$150.15) left awaiting_payment/unpaid (holds expired 12:48/12:56Z). No payment. At 12:37Z autoscaler bought ESIM-0004..0007 (4×$10 spenza1) because linesShort counted unpaid holds; label said "below minimum inventory".
+- Fix: reservedBySlot/linesShort paidOnly; plan() (provisioning + /bulkplan) uses paid-only; holds still reserve slot capacity. Alert wording "Paid bookings need". Test js/tests/test_bulk_esim_unpaid_holds.js 4/4; autoscale 74/74.
+- Telnyx: prod TELNYX_API_KEY → 401 code 10009 "This user has been marked as blocked" (first seen 12:07Z; listPhoneNumbers, ANI override, number_lookup all fail). Owner must contact Telnyx. Number-check alert now includes Telnyx error text.
