@@ -725,8 +725,9 @@ const TG_CHANNEL = process.env.TG_CHANNEL || '@nomadly'
 function numCapTag(r) {
   const c = r?._capabilities || {}
   const tags = []
+  if (c.voice) tags.push('📞 Voice')
   if (c.sms) tags.push('📱 Texts')
-  if ((r?._provider || 'telnyx') === 'telnyx' && c.fax) tags.push('📠 Fax (Business plan)')
+  if ((r?._provider || 'telnyx') === 'telnyx' && !r?._signalwire && c.fax) tags.push('📠 Fax (Business plan)')
   return tags.length ? `\n     ${tags.join(' · ')}` : ''
 }
 

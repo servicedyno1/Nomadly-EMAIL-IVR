@@ -46,7 +46,8 @@ function wrap(t) {
     }
     if (ib.enabled()) { const r = await ib.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
     if (bird.enabled()) { const r = await bird.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
-    if (!telnyxBackup()) return []
+    // Skip Telnyx while its account can't sell numbers (US/CA-only mode); international searches still try it.
+    if (!telnyxBackup() || (['US', 'CA'].includes(String(countryCode || 'US').toUpperCase()) && require('../phone-config').numberSearchUsCaOnly())) return []
     return t.searchNumbers(countryCode, numberType, areaCode, limit)
   }
 

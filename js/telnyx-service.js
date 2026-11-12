@@ -13,6 +13,15 @@ const headers = () => ({
   'Content-Type': 'application/json'
 })
 
+// Tells phone-config whether Telnyx can sell numbers, so international countries show only while it can.
+const numbersOk = (ok) => { try { require('./phone-config').setTelnyxNumbersOk(ok) } catch (_) {} }
+async function probeNumbers() {
+  if (!TELNYX_API_KEY) return numbersOk(false)
+  try { await axios.get(`${BASE}/available_phone_numbers`, { headers: headers(), params: { 'filter[country_code]': 'GB', 'filter[limit]': 1 }, timeout: 15000 }); numbersOk(true) }
+  catch (e) { if (e.response) numbersOk(e.response.status < 400 || ![401, 403].includes(e.response.status)) }
+}
+if (process.env.NODE_ENV !== 'test') { probeNumbers(); setInterval(probeNumbers, 15 * 60000).unref() }
+
 // ── Search available phone numbers ──
 async function searchNumbers(countryCode, numberType, areaCode, limit = 5) {
   const params = {
@@ -28,6 +37,7 @@ async function searchNumbers(countryCode, numberType, areaCode, limit = 5) {
   try {
     const res = await axios.get(`${BASE}/available_phone_numbers`, { headers: headers(), params })
     const numbers = res.data?.data || []
+    numbersOk(true)
     // Enrich each result with parsed capabilities + filter for voice+sms
     return numbers
       .map(n => ({
@@ -44,6 +54,7 @@ async function searchNumbers(countryCode, numberType, areaCode, limit = 5) {
       .filter(n => n._capabilities.voice && (['US', 'CA'].includes(String(countryCode || 'US').toUpperCase()) ? n._capabilities.sms : true))
   } catch (e) {
     log('Telnyx searchNumbers error:', e.response?.data || e.message)
+    if ([401, 403].includes(e.response?.status)) numbersOk(false)
     return []
   }
 }

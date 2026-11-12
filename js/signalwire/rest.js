@@ -60,15 +60,21 @@ async function searchNumbers(countryCode, numberType, areaCode, limit = 5) {
   const run = async (extra) => {
     try {
       const list = (await http().get('/api/relay/rest/phone_numbers/search', { params: { max_results: limit, number_type: type, ...extra } })).data?.data || []
-      return list.filter(n => (n.country_code === cc || !n.country_code) && !owned.has(n.e164)).map(n => {
+      return list.filter(n => (type === 'toll-free' || n.country_code === cc || !n.country_code) && !owned.has(n.e164)).map(n => {
         const caps = [...new Set([...(n.capabilities || []), 'sms', 'mms'])]
         searched.add(n.e164)
         return { record_type: 'available_phone_number', phone_number: n.e164, features: caps.map(name => ({ name })),
-          region_information: [...(n.region ? [{ region_type: 'state', region_name: n.region }] : []), ...(n.rate_center ? [{ region_type: 'rate_center', region_name: n.rate_center }] : []), { region_type: 'country_code', region_name: n.country_code || 'US' }],
+          region_information: [...(n.region ? [{ region_type: 'state', region_name: n.region }] : []), ...(n.rate_center ? [{ region_type: 'rate_center', region_name: n.rate_center }] : []), { region_type: 'country_code', region_name: type === 'toll-free' ? cc : (n.country_code || cc) }],
           cost_information: { currency: 'USD', monthly_cost: '0', upfront_cost: '0' },
-          _capabilities: { voice: caps.includes('voice'), sms: caps.includes('sms'), mms: caps.includes('mms'), fax: caps.includes('fax') }, _provider: 'signalwire' }
+          _capabilities: { voice: caps.includes('voice'), sms: caps.includes('sms'), mms: caps.includes('mms'), fax: caps.includes('fax') }, _provider: 'signalwire', _signalwire: true }
       }).filter(n => n._capabilities.voice)
     } catch (e) { log('search:', errOf(e)); return [] }
+  }
+  // A plain search returns US numbers only, so Canada is searched province by province.
+  const anyIn = async () => {
+    if (cc !== 'CA' || type === 'toll-free') return run({})
+    for (const region of ['ON', 'QC', 'BC', 'AB']) { const r = await run({ region }); if (r.length) return r }
+    return []
   }
   // Exact area code first; if empty, offer other numbers in the same state; finally any available US/CA number.
   if (areaCode) {
@@ -76,11 +82,11 @@ async function searchNumbers(countryCode, numberType, areaCode, limit = 5) {
     if (exact.length) return exact
     const region = AREA_REGION[Number(areaCode)]
     const inState = region ? await run({ region }) : []
-    const rows = inState.length ? inState : await run({})
+    const rows = inState.length ? inState : await anyIn()
     rows.forEach(r => { r._areaFallback = true; r._requestedAreaCode = String(areaCode); r._fallbackRegion = inState.length ? region : null })
     return rows
   }
-  return run({})
+  return anyIn()
 }
 
 const handlerBody = () => ({

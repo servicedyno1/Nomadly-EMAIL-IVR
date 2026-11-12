@@ -359,14 +359,15 @@ const _telnyxIntlMore = [
   { code: 'ZA', name: '🇿🇦 South Africa', provider: 'telnyx', types: ['local'], verify: true },
 ]
 const _telnyxIntlOn = !isTwilioEnabled() && isTelnyxIntlEnabled()
-// Number search restricted to US & Canada (env NUMBER_SEARCH_US_CA_ONLY=false to lift). SignalWire (the live voice
-// provider) only sells US/CA numbers, so the picker offers only those; other countries would fail at search.
-const NUMBER_SEARCH_US_CA_ONLY = String(process.env.NUMBER_SEARCH_US_CA_ONLY ?? 'true').toLowerCase() !== 'false'
-const numberSearchUsCaOnly = () => String(process.env.NUMBER_SEARCH_US_CA_ONLY ?? 'true').toLowerCase() !== 'false'
-
-// Combined list for user selection — Twilio countries drop out when TWILIO_ENABLED=false
-// (replaced by the Telnyx international catalog).
-const allCountries = NUMBER_SEARCH_US_CA_ONLY ? [...countries] : (isTwilioEnabled() ? [...countries, ...twilioCountries] : [...countries, ...(_telnyxIntlOn ? telnyxIntlCountries : [])])
+// Countries follow the providers that can sell numbers right now: SignalWire → US/CA; international only while
+// Telnyx answers number searches (checked live by telnyx-service). NUMBER_SEARCH_US_CA_ONLY=true/false forces either way.
+let _telnyxNumbersOk = false
+const setTelnyxNumbersOk = (ok) => { _telnyxNumbersOk = !!ok }
+const numberSearchUsCaOnly = () => {
+  const forced = String(process.env.NUMBER_SEARCH_US_CA_ONLY || '').toLowerCase()
+  return forced === 'true' ? true : forced === 'false' ? false : !_telnyxNumbersOk
+}
+const getAllCountries = () => numberSearchUsCaOnly() ? [...countries] : (isTwilioEnabled() ? [...countries, ...twilioCountries] : [...countries, ...(_telnyxIntlOn ? telnyxIntlCountries : [])])
 
 // Additional countries (shown after "More Countries" button) — Twilio's list while Twilio
 // is on; the Telnyx international extras while it is off (empty → button auto-hides).
@@ -388,9 +389,9 @@ const _twilioMoreCountries = [
   { code: 'ZA', name: '🇿🇦 South Africa', provider: 'twilio', types: ['local'] },
   { code: 'TH', name: '🇹🇭 Thailand', provider: 'twilio', types: ['toll_free', 'mobile'] },
 ]
-const moreCountries = NUMBER_SEARCH_US_CA_ONLY ? [] : (isTwilioEnabled() ? _twilioMoreCountries : (_telnyxIntlOn ? _telnyxIntlMore : []))
+const getMoreCountries = () => numberSearchUsCaOnly() ? [] : (isTwilioEnabled() ? _twilioMoreCountries : (_telnyxIntlOn ? _telnyxIntlMore : []))
 // Countries the bot actually sells numbers in (used in the hub / welcome copy instead of a fixed "30+").
-const CLOUD_COUNTRY_COUNT = new Set([...allCountries, ...moreCountries].map(c => c.code)).size
+const CLOUD_COUNTRY_COUNT = new Set([...getAllCountries(), ...getMoreCountries()].map(c => c.code)).size
 
 // US popular area codes
 const usAreaCodes = [
@@ -405,7 +406,7 @@ const usAreaCodes = [
 ]
 
 const countryByName = {}
-;[...allCountries, ...moreCountries].forEach(c => { countryByName[c.name] = c.code })
+;[...countries, ...twilioCountries, ...telnyxIntlCountries, ..._twilioMoreCountries, ..._telnyxIntlMore].forEach(c => { countryByName[c.name] = c.code })
 
 const areaByLabel = {}
 usAreaCodes.forEach(a => { areaByLabel[`${a.city} (${a.code})`] = a.code })
@@ -4210,6 +4211,7 @@ module.exports = {
   bulkIvrMaintenance,
   bulkMaintenanceMsg,
   numberSearchUsCaOnly,
+  setTelnyxNumbersOk,
   upgradeMessage,
   isPlanAvailable,
   comingSoonText,
@@ -4223,8 +4225,8 @@ module.exports = {
   twilioUpgradeHoldMsg,
   countries,
   twilioCountries,
-  allCountries,
-  moreCountries,
+  get allCountries() { return getAllCountries() },
+  get moreCountries() { return getMoreCountries() },
   countryByName,
   usAreaCodes,
   areaByLabel,
