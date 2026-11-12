@@ -1087,8 +1087,9 @@ async function processOne(m, c) {
     if (m.campaignId) await C('bsCampaigns').updateOne({ _id: m.campaignId }, { $inc: { 'stats.sent': 1 } })
   } catch (err) {
     const retryable = ['rate', 'credit', 'auth'].includes(err.kind) || (err.kind === 'temporary' && m.attempts < 3)
+    if (err.kind === 'rate' && m.campaignId) await C('bsCampaigns').updateOne({ _id: m.campaignId }, { $inc: { 'stats.throttled': 1 } }).catch(() => {})
     if (retryable) { if (day && !m.prepaid) await unreserve(m.cid, day, n); await later(err.kind === 'rate' ? (err.retryAfter || 30) * 1000 : err.kind === 'temporary' ? 30000 * 2 ** m.attempts : 60000, { quotaDay: m.prepaid ? day : null, attempts: m.attempts + (err.kind === 'temporary' ? 1 : 0), lastError: err.message }) }
-    else { await mark(m, 'failed', { failureReason: err.message }); await C('bsEsims').updateOne({ _id: e._id }, { $inc: { 'stats.failed': 1 } }); if (!m.system) await lineLog(e, c, { failed: 1 }); if (day) { if (c.refundFailed) await unreserve(m.cid, day, n, 'failed'); else await countDay(m.cid, day, 'failed') } if (m.campaignId) await C('bsCampaigns').updateOne({ _id: m.campaignId }, { $inc: { 'stats.failed': 1 } }); await C('bsReputation').insertOne({ esimId: e._id, cid: m.cid, deliveryStatus: 'failed', providerError: err.message, incidentType: err.status === 400 ? 'invalid_recipient' : 'provider_rejection', at: new Date() }) }
+    else { await mark(m, 'failed', { failureReason: err.message, failureKind: err.kind || 'unknown', failureStatus: err.status || null }); await C('bsEsims').updateOne({ _id: e._id }, { $inc: { 'stats.failed': 1 } }); if (!m.system) await lineLog(e, c, { failed: 1 }); if (day) { if (c.refundFailed) await unreserve(m.cid, day, n, 'failed'); else await countDay(m.cid, day, 'failed') } if (m.campaignId) await C('bsCampaigns').updateOne({ _id: m.campaignId }, { $inc: { 'stats.failed': 1 } }); await C('bsReputation').insertOne({ esimId: e._id, cid: m.cid, campaignId: m.campaignId || null, deliveryStatus: 'failed', providerError: err.message, providerKind: err.kind || 'unknown', providerStatus: err.status || null, incidentType: err.status === 400 ? 'invalid_recipient' : 'provider_rejection', at: new Date() }) }
     if (err.kind === 'credit') { await setAccount(acctId, { low: true }); await creditWatch() }
     if (err.kind === 'auth') { if (c.accounts.length > 1) { await setAccount(acctId, { low: true, authFailed: err.message }); if (await once(`authfail:${acctId}:${today()}`)) alert(`🔑 Spenza ${acctLabel(acctId)} rejected our credentials (${err.message}) — its lines sit out, the other account(s) keep sending. Check SPENZA_BULK_API_KEY${acctId.endsWith('1') ? '' : `_${acctId.replace(/\D/g, '')}`}.`) } else await pause('provider_auth', err.message) }
   }
@@ -1186,7 +1187,8 @@ async function onWebhook(raw, headers, body) {
   try { await C('bsWebhooks').insertOne({ _id: key, eventType: 'incoming-sms', providerMessageId: x.providerId, payload: body, status: 'received', at: new Date() }) } catch (e) { if (e.code === 11000) return { status: 200 }; throw e }
   const isStop = STOP.test(kw(x.text)), isHelp = HELP.test(kw(x.text))
   // STOP blocks the number for every customer, even when the line or the reply can't be matched.
-  const newStop = isStop && (await C('bsSuppression').updateOne({ cid: '*', phone: x.from }, { $setOnInsert: { reason: 'STOP', source: 'inbound', line: x.to, at: new Date() } }, { upsert: true })).upsertedCount
+  const lastOut = isStop ? await C('bsMessages').findOne({ to: x.from, direction: 'out', campaignId: { $ne: null } }, { sort: { sentAt: -1 }, projection: { campaignId: 1 } }) : null
+  const newStop = isStop && (await C('bsSuppression').updateOne({ cid: '*', phone: x.from }, { $setOnInsert: { reason: 'STOP', source: 'inbound', line: x.to, campaignId: lastOut?.campaignId || null, at: new Date() } }, { upsert: true })).upsertedCount
   if (isStop) {
     for (const q of await C('bsMessages').find({ to: x.from, direction: 'out', status: 'queued', system: { $ne: true } }).toArray()) {
       const r = await C('bsMessages').updateOne({ _id: q._id, status: 'queued' }, { $set: { status: 'rejected', failureReason: 'opted_out' } })
@@ -1292,8 +1294,15 @@ async function report(campaignId) {
   const rows = await C('bsMessages').aggregate([{ $match: { campaignId, test: { $ne: true } } }, { $group: { _id: { d: '$direction', s: '$status' }, n: { $sum: 1 } } }]).toArray()
   const g = (d, s) => rows.filter(r => r._id.d === d && (!s || s.includes(r._id.s))).reduce((a, r) => a + r.n, 0)
   const sent = g('out', ['sent', 'delivered']), failed = g('out', ['failed']), total = g('out')
-  const cp = await C('bsCampaigns').findOne({ _id: campaignId }, { projection: { 'stats.skipped': 1 } })
-  return { skipped: cp?.stats?.skipped || 0, blocked: g('out', ['blocked']), total, sent, failed, rejected: g('out', ['rejected', 'expired']), queued: g('out', ['queued', 'processing', 'submitted']), replies: g('in', ['received']), kept: g('in', ['kept']), successPct: total ? Math.round((sent / total) * 1000) / 10 : 0 }
+  const cp = await C('bsCampaigns').findOne({ _id: campaignId }, { projection: { 'stats.skipped': 1, 'stats.throttled': 1, cid: 1 } })
+  const replies = g('in', ['received'])
+  // Send errors grouped by Spenza's reason (rate / credit / auth / invalid recipient / rejection).
+  const errRows = await C('bsReputation').aggregate([{ $match: { campaignId, deliveryStatus: 'failed' } }, { $group: { _id: { k: '$providerKind', t: '$incidentType' }, n: { $sum: 1 } } }]).toArray()
+  const errorsByReason = errRows.reduce((a, r) => { const key = r._id.t === 'invalid_recipient' ? 'invalid' : (r._id.k && r._id.k !== 'unknown' ? r._id.k : 'rejected'); a[key] = (a[key] || 0) + r.n; return a }, {})
+  // Opt-outs (STOP) and spend for this campaign.
+  const optOuts = await C('bsSuppression').countDocuments({ source: 'inbound', campaignId }).catch(() => 0)
+  const spend = (await C('bsBookings').aggregate([{ $match: { campaignId, paymentStatus: { $ne: 'unpaid' } } }, { $group: { _id: null, usd: { $sum: '$price' } } }]).toArray())[0]?.usd || 0
+  return { skipped: cp?.stats?.skipped || 0, blocked: g('out', ['blocked']), total, sent, failed, rejected: g('out', ['rejected', 'expired']), queued: g('out', ['queued', 'processing', 'submitted']), replies, kept: g('in', ['kept']), optOuts, throttled: cp?.stats?.throttled || 0, cost: Math.round(spend * 100) / 100, costPerReply: replies ? Math.round((spend / replies) * 100) / 100 : null, errorsByReason, successPct: total ? Math.round((sent / total) * 1000) / 10 : 0 }
 }
 async function overview() {
   const d = dayKey(Date.now(), await cfg())
