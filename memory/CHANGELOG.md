@@ -2765,3 +2765,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 ### SIP DOMAIN STATUS (brand domains) — NOT yet working on SignalWire
 - All 5 brand domains (sip.speechcue/smadavspeech/voodooivr/proshopivr/cloudivr) → 192.76.120.10 = Telnyx edge (account BLOCKED). SignalWire is on its own domain (cloudivr-c1a967cf872c.sip.signalwire.com) and does NOT host custom domains.
 - User chose: keep brand domains via our own Asterisk (188.166.34.29) bridging to SignalWire. REQUIRES: (1) repoint each brand domain DNS → 188.166.34.29; (2) Asterisk↔SignalWire trunk; (3) PROVE Asterisk→SignalWire→PSTN (earlier "No valid devices"). Not done — needs explicit per-domain DNS go-ahead + live bridge proof. NUMBERS not deployed (Save to GitHub).
+
+## 2026-11-12 — BulkSMS: remove time gating (send/book anytime) [@rickyy22x / @nomadlybot]
+- Complaint: user couldn't book SMS. Cause: quietStart:6/quietEnd:21 → hourOpen() only opened the narrow UTC band where NY..LA all fall in 6am–9pm, so most hours (and "send now") were blocked; quietWait() also deferred per-recipient at night.
+- js/bulk-esim/tz.js: NO_TIME_GATE (env BULKSMS_NO_TIME_GATE, DEFAULT ON). hourOpen()→true all 24h; quietWait()→0. Booking day/hour picker, "send now", and whenOptions now open any time. Reversible with BULKSMS_NO_TIME_GATE=false.
+- NOTE: this also disables recipient night-time (TCPA-style) quiet-hours deferral — per explicit user request ("send/book anytime, don't gate time anymore").
+- Tests: test_bulk_esim_engine 40/0 (updated the 2 gating asserts to cover default-off + re-enabled), numbercheck 24/0.
+- NOT deployed — Save to GitHub.

@@ -1,6 +1,9 @@
 'use strict'
 // USA/Canada recipient checks: valid mobile-capable US/CA number (no Caribbean/territories/toll-free) + local quiet hours by area code.
+// Time gating (sender booking window + recipient quiet hours) is OFF by default so users can send/book anytime.
+// Set BULKSMS_NO_TIME_GATE=false to restore the 6am–9pm quiet-hour behaviour.
 const { parsePhoneNumberFromString } = require('libphonenumber-js/max')
+const NO_TIME_GATE = String(process.env.BULKSMS_NO_TIME_GATE ?? 'true').toLowerCase() !== 'false'
 
 const Z = {
   'America/New_York': '201 202 203 207 212 215 216 220 223 226 227 229 231 234 239 240 248 249 252 260 263 267 269 272 276 283 289 301 302 304 305 313 315 317 321 324 326 329 330 332 336 339 343 347 351 352 354 363 365 367 380 382 386 401 404 407 410 412 413 416 418 419 423 434 436 437 438 440 443 445 448 450 463 468 470 472 475 478 484 502 508 513 514 516 517 518 519 540 548 551 561 567 570 571 574 579 581 582 585 586 603 606 607 609 610 613 614 616 617 624 631 640 645 646 647 656 667 678 679 680 681 683 686 689 703 704 705 706 716 717 718 724 727 728 732 734 740 742 743 753 754 757 762 765 770 772 774 781 786 802 803 804 810 813 814 819 826 828 835 838 839 843 845 848 854 856 857 859 860 862 863 864 865 873 878 904 905 908 910 912 914 917 919 929 934 937 941 942 943 947 948 954 959 973 978 980 984 989',
@@ -34,12 +37,13 @@ const hourIn = (z, t) => { const s = new Intl.DateTimeFormat('en-US', { timeZone
 const open = (zs, t, from, to) => zs.every(z => { const h = hourIn(z, t); return h >= from && h < to })
 // 0 when the recipient may get a text now, else ms until their window opens.
 function quietWait(p, from = 6, to = 21, now = Date.now()) {
+  if (NO_TIME_GATE) return 0
   const zs = zones(p)
   if (open(zs, new Date(now), from, to)) return 0
   for (let m = 5; m <= 26 * 60; m += 5) if (open(zs, new Date(now + m * 60000), from, to)) return m * 60000
   return 3600000
 }
 // A booking hour (UTC) is offered only when every mainland zone is inside the window for the whole hour.
-const hourOpen = (date, h, from = 6, to = 21) => { const t = new Date(`${date}T${String(h).padStart(2, '0')}:00:00Z`).getTime(); return open(MAINLAND, new Date(t), from, to) && open(MAINLAND, new Date(t + 59 * 60000), from, to) }
+const hourOpen = (date, h, from = 6, to = 21) => { if (NO_TIME_GATE) return true; const t = new Date(`${date}T${String(h).padStart(2, '0')}:00:00Z`).getTime(); return open(MAINLAND, new Date(t), from, to) && open(MAINLAND, new Date(t + 59 * 60000), from, to) }
 
 module.exports = { validUsCa, quietWait, hourOpen, zones }
