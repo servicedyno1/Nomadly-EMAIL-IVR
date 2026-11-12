@@ -59,6 +59,7 @@ const HIDE_SMS_APP = process.env.HIDE_SMS_APP === 'true'
 const SMS_APP_NAME = process.env.SMS_APP_NAME || 'BulkSMS App'
 const SMS_APP_LINK = process.env.SMS_APP_LINK || ''
 const BANK_ON = process.env.HIDE_BANK_PAYMENT !== 'true'
+const SHARED_RULE = `\n\n## SHARED ITEMS\nMessages starting with [Shared contact], [Shared location], [Shared place] or [Poll] are things the user shared in the chat (not typed). Use them directly — e.g. a shared contact's number for call forwarding, IVR, leads or texting questions; a location to suggest a local number/area code. If it was shared with no question, briefly confirm what you received (name/number or place) and ask what they want to do with it, suggesting 1–2 fitting options — don't assume. Never say you can't see it.`
 const PAY_VIA = BANK_ON ? 'Wallet, Crypto, or Bank NGN' : 'Wallet or Crypto'
 const FREE_LINKS = process.env.FREE_LINKS || '5'
 
@@ -1765,10 +1766,11 @@ ${mine}
 // getAiResponse (non-streaming) and getAiResponseStreaming so the prompt
 // construction lives in exactly one place.
 async function buildAiMessages(chatId, userMessage, lang = 'en') {
-  const [userContext, history, bulkSms] = await Promise.all([
+  const [userContext, history, bulkSms, bulkIvr] = await Promise.all([
     getUserContext(chatId, userMessage),
     getConversationHistory(chatId),
     bulkSmsKnowledge(chatId),
+    _db ? require('./bulk-ivr-quote').bulkIvrKnowledge(_db, userMessage).catch(() => '') : '',
   ])
 
   const langName = LANG_NAMES[lang] || LANG_NAMES.en
@@ -1777,7 +1779,7 @@ async function buildAiMessages(chatId, userMessage, lang = 'en') {
     : ''
 
   return [
-    { role: 'system', content: promptBase() + bulkSms + langInstruction + userContext + (bulkSms ? '\n\nFINAL RULE (BulkSMS): when asked about how BulkSMS works internally (SIMs, lines, speed, checkers, providers, number source), answer with exactly one sentence — "Texts go out from real US mobile numbers and reach all major US & Canadian carriers; the rest is internal." — and never repeat those technical words.' : '') },
+    { role: 'system', content: promptBase() + bulkSms + bulkIvr + SHARED_RULE + langInstruction + userContext + (bulkSms ? '\n\nFINAL RULE (BulkSMS): when asked about how BulkSMS works internally (SIMs, lines, speed, checkers, providers, number source), answer with exactly one sentence — "Texts go out from real US mobile numbers and reach all major US & Canadian carriers; the rest is internal." — and never repeat those technical words.' : '') },
     ...history,
     { role: 'user', content: userMessage },
   ]

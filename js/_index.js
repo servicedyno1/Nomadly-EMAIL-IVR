@@ -8123,6 +8123,7 @@ bot?.on('callback_query', async (query) => {
         clearAiHistory(target)
         _resetSupportFallbackNoise(target)
         await set(state, target, 'adminTakeover', false)
+        await set(state, target, 'supportClosedAt', Date.now())
         // Auto-resolve any open/acknowledged escalations for this chat —
         // session close == ticket closed (added 2026-05-25 to fix the
         // "every escalation still has resolvedAt=null" metric bug).
@@ -9043,6 +9044,7 @@ bot?.on('message', msg => {
     _resetSupportFallbackNoise(targetChatId)
     // Clear admin takeover flag on session close
     await set(state, targetChatId, 'adminTakeover', false)
+    await set(state, targetChatId, 'supportClosedAt', Date.now())
     // Auto-resolve open/acknowledged escalations for this chat — see
     // resolveOpenEscalationsForChat() comment for context.
     await resolveOpenEscalationsForChat(targetChatId, chatId)
@@ -15746,6 +15748,19 @@ All verified numbers generated during sourcing.`))
   // Support chat mode — AI auto-responds + admin sees everything
   // When admin has taken over (via /reply), AI stays silent
   // ═══════════════════════════════════════════════════
+  // Missed-question catch: a typed question within 10 min of an admin closing the chat reopens support (AI answers).
+  if (action !== a.supportChat && !isAdmin(chatId) && info?.supportClosedAt && Date.now() - info.supportClosedAt < 10 * 60e3
+      && typeof message === 'string' && !message.startsWith('/') && !Object.values(user).includes(message)
+      && (message.trim().length >= 12 || message.includes('?'))) {
+    await set(state, chatId, 'supportClosedAt', null)
+    await set(supportSessions, chatId, Date.now())
+    await set(state, chatId, 'action', a.supportChat)
+    action = a.supportChat
+    const _rn = await get(nameOf, chatId)
+    send(TELEGRAM_ADMIN_CHAT_ID, `🔁 <b>Support reopened automatically</b> — @${_rn || chatId} (${chatId}) asked a question within 10 min of the chat being closed. AI will answer.`, adminMsgOpts({ chatId, supportSession: true }))
+    log(`[Support] Auto-reopened for ${chatId} — question after close: ${message.slice(0, 80)}`)
+  }
+
   if (action === a.supportChat) {
     // Bug fix: main-menu buttons should AUTO-EXIT the support session
     // instead of being forwarded verbatim to the admin. Without this, a user
@@ -15862,6 +15877,12 @@ All verified numbers generated during sourcing.`))
 
     // Non-text message (contact, location, poll, dice, story, checklist…) arrives with empty text — never feed "" to the AI.
     // Copy the original to admin so nothing is lost, and ask the user to type.
+    const _shared = msg?.contact ? `[Shared contact] ${[msg.contact.first_name, msg.contact.last_name].filter(Boolean).join(' ') || 'No name'} — ${msg.contact.phone_number || 'no number'}`
+      : msg?.venue ? `[Shared place] ${msg.venue.title || ''}${msg.venue.address ? `, ${msg.venue.address}` : ''} (${msg.venue.location?.latitude}, ${msg.venue.location?.longitude})`
+      : msg?.location ? `[Shared location] ${msg.location.latitude}, ${msg.location.longitude}`
+      : msg?.poll ? `[Poll] ${msg.poll.question} — options: ${(msg.poll.options || []).map(o => o.text).join(' / ')}`
+      : msg?.dice ? `[Dice ${msg.dice.emoji} ${msg.dice.value}]` : ''
+    if (!String(message || '').trim() && _shared) { message = _shared; log(`[Support] ${chatId} shared ${_shared.slice(0, 60)} — passed to AI as text`) }
     if (!String(message || '').trim()) {
       const kinds = Object.keys(msg || {}).filter(k => !['message_id', 'from', 'chat', 'date', 'text', 'entities', 'reply_to_message', 'message_thread_id', 'is_topic_message', 'link_preview_options'].includes(k))
       log(`[Support] ${chatId} sent a non-text message (${kinds.join(',') || 'unknown'}) — copied to admin, AI skipped`)
