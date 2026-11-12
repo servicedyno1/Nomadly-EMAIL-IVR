@@ -100,6 +100,56 @@ function fakeCall(over = {}) {
   await w.hangupCall('v3:abc'); ok('non-sw id goes to Telnyx', telnyxCalled === 1)
   ok('lookup type mapping exists', typeof sw.lookup === 'function')
 
+  // ── REST fallback: when RELAY is offline but REST is enabled, tries REST call ──
+  // Disconnect RELAY to simulate offline state
+  voice._setClient(null, null)
+  ok('RELAY disconnected for REST test', !voice.connected())
+
+  // Mock rest.createRestCall to simulate success
+  const origCreateRestCall = sw.rest.createRestCall
+  sw.rest.createRestCall = async (from, to, url, statusUrl) => ({ sid: 'REST_SID_123', _provider: 'signalwire-rest' })
+
+  // Mock owned numbers so poolCaller can find a number
+  const origRefreshOwned = sw.rest.refreshOwned
+  const origOwnsNumber = sw.rest.ownsNumber
+  const origOwnedNumbers = sw.rest.ownedNumbers
+  // Inject owned numbers into the internal state by mocking refreshOwned to no-op
+  sw.rest.refreshOwned = async () => {}
+  // Simulate that +12074892004 is owned
+  const mockOwned = new Set(['+12074892004', '+12074891859'])
+  sw.rest.ownsNumber = (n) => mockOwned.has(String(n || ''))
+  sw.rest.ownedNumbers = () => [...mockOwned]
+
+  // Wrapper should try REST when RELAY is offline and _swRestCallbackUrl is provided
+  const wRest = sw.wrap({ createOutboundCall: async () => ({ error: 'telnyx blocked' }) })
+  const restResult = await wRest.createOutboundCall('+12074892004', '+15551234567', 'http://x/webhook', null, {
+    _swRestCallbackUrl: 'http://x/twilio/single-ivr?sessionId=test',
+    _swRestStatusUrl: 'http://x/twilio/single-ivr-status?sessionId=test',
+  })
+  ok('REST fallback used when RELAY offline', restResult.callControlId === 'sw:rest:REST_SID_123' && restResult._provider === 'signalwire-rest')
+
+  // When from number is NOT owned, poolCaller picks one from pool and swaps caller
+  const restSwapped = await wRest.createOutboundCall('+18664980785', '+15551234567', 'http://x/webhook', null, {
+    _swRestCallbackUrl: 'http://x/twilio/single-ivr?sessionId=test3',
+    _swRestStatusUrl: 'http://x/twilio/single-ivr-status?sessionId=test3',
+  })
+  ok('REST fallback swaps to pool number for non-owned caller', restSwapped.callControlId === 'sw:rest:REST_SID_123' && restSwapped.callerSwapped)
+
+  // If pool has no owned numbers, REST fallback should fail gracefully
+  sw.rest.ownedNumbers = () => []
+  mockOwned.clear()
+  const restNoPool = await wRest.createOutboundCall('+18664980785', '+15551234567', 'http://x/webhook', null, {
+    _swRestCallbackUrl: 'http://x/twilio/single-ivr?sessionId=test2',
+    _swRestStatusUrl: 'http://x/twilio/single-ivr-status?sessionId=test2',
+  })
+  ok('REST fallback returns pool error when no owned numbers', restNoPool.error && /pool/i.test(restNoPool.error))
+
+  // Restore mocks
+  sw.rest.createRestCall = origCreateRestCall
+  sw.rest.refreshOwned = origRefreshOwned
+  sw.rest.ownsNumber = origOwnsNumber
+  sw.rest.ownedNumbers = origOwnedNumbers
+
   console.log(`\n${pass} passed, ${fail} failed`)
   process.exit(fail ? 1 : 0)
 })().catch(e => { console.log('ERR', e.stack); process.exit(1) })

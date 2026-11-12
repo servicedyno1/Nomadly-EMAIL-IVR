@@ -5218,12 +5218,44 @@ async function initiateOutboundIvrCall(params) {
   }
 
   // ── TELNYX PATH (default): Use Telnyx Call Control API ──
+  // Pass LaML callback URLs to the wrapped API for SignalWire REST fallback when RELAY is offline.
+  const swRestSessionId = require('crypto').randomUUID()
   const webhookUrl = `${_selfUrl}/telnyx/voice-webhook`
   // Voicemail drop needs the end of the mailbox greeting (call.machine.greeting.ended) so the message records cleanly.
   const amdOpts = voicemailAudioUrl ? { answering_machine_detection: VM_AMD_MODE } : {}
+  // Provide LaML callback URLs for the SignalWire REST fallback in the wrapper
+  amdOpts._swRestCallbackUrl = `${_selfUrl}/twilio/single-ivr?sessionId=${encodeURIComponent(swRestSessionId)}`
+  amdOpts._swRestStatusUrl = `${_selfUrl}/twilio/single-ivr-status?sessionId=${encodeURIComponent(swRestSessionId)}`
+  // Pre-create the TwiML session in case SignalWire REST is used (cleaned up if unused)
+  twilioIvrSessions[swRestSessionId] = {
+    chatId, callerId, targetNumber, ivrNumber,
+    audioUrl, activeKeys: activeKeys || ['1'], menu: menu || null,
+    obPath: null, templateName: templateName || 'Custom',
+    placeholderValues: placeholderValues || {}, voiceName: voiceName || 'Rachel',
+    isTrial: isTrial || false, holdMusic: holdMusic || false,
+    bulkMode: bulkMode || null, campaignId: campaignId || null,
+    leadIndex: leadIndex != null ? leadIndex : null,
+    phase: 'initiated', digitPressed: null, startTime: Date.now(),
+    ivrMode: ivrMode || 'transfer', otpLength: otpLength || 6,
+    otpMaxAttempts: otpMaxAttempts || 3, otpAttempt: 0,
+    otpDigits: null, otpStatus: null, otpHoldStartedAt: null,
+    otpConfirmMsg: params.otpConfirmMsg || null, otpRejectMsg: params.otpRejectMsg || null,
+    answeredBy: null,
+  }
   // A "show as" number refused as unverified in the last 24 h is skipped: dial straight from the customer's own number.
   const skipCid = displayCallerId && await cidRefusedRecently(displayCallerId)
   let result = await _telnyxApi.createOutboundCall(skipCid ? callerId : (displayCallerId || callerId), targetNumber, webhookUrl, undefined, amdOpts)
+  // If the call went through SignalWire REST, finalize the pre-created session
+  if (!result.error && result._provider === 'signalwire-rest') {
+    twilioIvrSessions[swRestSessionId].callSid = result.sid || result.callControlId
+    if (result.callerSwapped) twilioIvrSessions[swRestSessionId].callerId = result.callerSwapped.used
+    log(`[OutboundIVR] SignalWire REST call initiated: ${result.sid || result.callControlId} ${callerId} → ${targetNumber} (sessionId: ${swRestSessionId})`)
+    return { callControlId: result.callControlId, sessionId: swRestSessionId, provider: 'signalwire-rest', callerUsed: result.callerSwapped?.used || undefined }
+  }
+  // Not used by SignalWire REST — clean up pre-created session and REST callback URLs
+  delete twilioIvrSessions[swRestSessionId]
+  delete amdOpts._swRestCallbackUrl
+  delete amdOpts._swRestStatusUrl
   const badDest = (r) => r?.error && (/D50|valid LRN|destination number is invalid|unallocated|D35\b/i.test(String(r.error)) || /^D(50|35)$/.test(String(r.code || '')))
   if (skipCid) {
     if (!result.error) result.callerIdRejected = true
@@ -5294,7 +5326,7 @@ async function initiateOutboundIvrCall(params) {
   }
 
   log(`[OutboundIVR] Call initiated: ${callerId} → ${targetNumber} (chatId: ${chatId}, template: ${templateName})`)
-  return { callControlId: result.callControlId, callerIdRejected: !!result.callerIdRejected, ...(result.callerIdRejected && displayCallerId ? { refusedCid: displayCallerId } : {}) }
+  return { callControlId: result.callControlId, callerIdRejected: !!result.callerIdRejected, ...(result.callerIdRejected && displayCallerId ? { refusedCid: displayCallerId } : {}), ...(result.callerSwapped ? { callerUsed: result.callerSwapped.used, callerRequested: result.callerSwapped.requested } : {}) }
 }
 
 /**
