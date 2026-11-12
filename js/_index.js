@@ -15860,6 +15860,18 @@ All verified numbers generated during sourcing.`))
       // Do NOT return — let the message fall through to normal menu handlers below
     } else {
 
+    // Non-text message (contact, location, poll, dice, story, checklist…) arrives with empty text — never feed "" to the AI.
+    // Copy the original to admin so nothing is lost, and ask the user to type.
+    if (!String(message || '').trim()) {
+      const kinds = Object.keys(msg || {}).filter(k => !['message_id', 'from', 'chat', 'date', 'text', 'entities', 'reply_to_message', 'message_thread_id', 'is_topic_message', 'link_preview_options'].includes(k))
+      log(`[Support] ${chatId} sent a non-text message (${kinds.join(',') || 'unknown'}) — copied to admin, AI skipped`)
+      const _nm = await get(nameOf, chatId)
+      try { await bot.copyMessage(TELEGRAM_ADMIN_CHAT_ID, chatId, msg.message_id) } catch (e) { log(`[Support] copyMessage failed: ${e.message}`) }
+      send(TELEGRAM_ADMIN_CHAT_ID, `💬 <b>@${_nm || chatId}</b> (${chatId}) sent a <b>${kinds[0] || 'non-text'}</b> message in support (shown above). AI did not reply.`, adminMsgOpts({ chatId, supportSession: true }))
+      const _ul = (await get(state, chatId))?.userLanguage || 'en'
+      return send(chatId, ({ fr: '✍️ Je ne peux lire que du texte, des photos, des fichiers et des notes vocales. Merci d’écrire votre question.', zh: '✍️ 我只能读取文字、图片、文件和语音。请直接输入您的问题。', hi: '✍️ मैं केवल टेक्स्ट, फ़ोटो, फ़ाइलें और वॉइस नोट पढ़ सकता हूँ। कृपया अपना सवाल टाइप करें।', fa: '✍️ فقط متن، عکس، فایل و پیام صوتی را می‌توانم بخوانم. لطفاً سؤال خود را تایپ کنید.' })[_ul] || '✍️ I can only read text, photos, files and voice notes. Please type your question.')
+    }
+
     const name = await get(nameOf, chatId)
     const displayName = name ? `@${name}` : (msg?.from?.username ? `@${msg.from.username}` : chatId)
 

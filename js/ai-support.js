@@ -1970,7 +1970,7 @@ async function moderateMarketplaceChat(message) {
   if (!openai) return { flagged: false }
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4.1-nano',
+      model: 'gpt-4.1-mini',
       messages: [
         { role: 'system', content: MP_MODERATION_PROMPT },
         { role: 'user', content: message },
