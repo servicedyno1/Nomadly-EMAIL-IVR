@@ -92,7 +92,7 @@ function SoftphoneMock({ domain }) {
 function StatStrip({ catalog }) {
   const pick = sipPick(catalog);
   const stats = [
-    [catalog?.countries?.length || 17, 'Countries', true],
+    [catalog?.countries?.length || 2, 'Countries', true],
     ['5060', 'SIP port · 5061 for TLS', false],
     [pick ? usd(pick.price) : '$75', 'SIP from / month', true],
     ['24/7', 'Calls ring your apps', false],
@@ -113,7 +113,7 @@ function StatStrip({ catalog }) {
 
 export function SipHero({ catalog }) {
   const t = TITLE[useLang().lang] || TITLE.en;
-  const n = catalog?.countries?.length || 17;
+  const n = catalog?.countries?.length || 2;
   const pick = sipPick(catalog);
   const trust = ['Works with free apps', 'UDP, TCP & TLS', 'No contracts', 'Crypto & wallet payments'];
   return (

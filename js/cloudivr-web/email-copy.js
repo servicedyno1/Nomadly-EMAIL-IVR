@@ -22,7 +22,7 @@ const en = {
     eyebrow: 'Welcome aboard', title: () => 'Your phone line just got a brain.',
     intro: () => 'Thanks for joining CloudIVR. You’re three quick steps away from a number that answers every call, routes callers with a keypad menu or an AI voice agent, and calls your whole list for you.',
     steps: [
-      { title: 'Pick your number', text: 'Local, mobile or toll-free in 17 countries. Most go live in minutes.' },
+      { title: 'Pick your number', text: 'Local or toll-free numbers in the US and Canada. Most go live in minutes.' },
       { title: 'Top up your wallet', text: 'Top up in seconds. Your wallet covers renewals and calls.' },
       { title: 'Switch on the magic', text: 'Voicemail with transcripts, a keypad menu, Quick IVR calls and campaigns — all from one screen.' },
     ],

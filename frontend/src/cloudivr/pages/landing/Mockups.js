@@ -6,7 +6,7 @@ import { useInView, useStep, CountUp } from './kit';
 // Coded product shots: the real app's dark styling with sample data, sharp at any size.
 const NAV = [['Numbers', [[Gauge, 'Overview', true], [Hash, 'My numbers'], [ShoppingCart, 'Buy a number']]], ['Calling', [[PhoneOutgoing, 'Quick IVR call'], [Megaphone, 'Campaigns'], [Bot, 'AI voice agents']]], ['Account', [[Inbox, 'Inbox'], [Wallet, 'Wallet']]]];
 const STATS = [['Wallet', '$128.40'], ['Numbers', '3'], ['Minutes', '142'], ['SMS', '36']];
-const NUMS = [['+1 415 555 0182', 'United States · Pro', 'Active'], ['+44 20 7946 0958', 'United Kingdom · Business', 'Active'], ['+33 1 84 88 01 12', 'France · Starter', 'Renews 12 Nov']];
+const NUMS = [['+1 415 555 0182', 'United States · Pro', 'Active'], ['+1 416 555 0137', 'Canada · Business', 'Active'], ['+1 212 555 0164', 'United States · Starter', 'Renews 12 Nov']];
 const ACT = [[PhoneIncoming, 'Pressed 1 → Sales', '2m 14s', '09:41'], [Voicemail, 'New voicemail', '0m 42s', '09:12'], [MessageSquare, 'SMS received', 'Inbox', '08:57']];
 
 export const Pill = ({ ok, children }) => <span className={`shrink-0 h-5 px-2 rounded-full border text-xs font-medium inline-flex items-center gap-1 ${ok ? 'border-[#34d399]/40 bg-[#34d399]/10 text-[#34d399]' : 'border-[#3a3a3a] text-[#a1a1aa]'}`}>{ok && <span className="w-1.5 h-1.5 rounded-full bg-[#34d399]" />}{children}</span>;

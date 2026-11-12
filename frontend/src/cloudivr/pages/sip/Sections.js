@@ -5,7 +5,7 @@ import { SectionHead, Reveal, Slide } from '../landing/kit';
 import { SIP_APPS, sipDomain } from './shared';
 
 export function Benefits({ catalog }) {
-  const n = catalog?.countries?.length || 17;
+  const n = catalog?.countries?.length || 2;
   const items = [
     [Headphones, 'Use the app you already like', 'Zoiper, MicroSIP, Linphone or the desk phone on your desk. Enter three details and you’re registered.'],
     [Globe, `Local numbers in ${n} countries`, 'Local, mobile and toll-free numbers your customers recognise — and pick up.'],

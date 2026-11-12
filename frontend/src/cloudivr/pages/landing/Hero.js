@@ -15,7 +15,7 @@ const TITLE = { en: ['Every call ', 'answered', '. Every lead called.'], fr: ['C
 export function Hero({ catalog }) {
   const { account } = useCivrAuth();
   const from = startPrice(catalog);
-  const n = catalog?.countries?.length || 17;
+  const n = catalog?.countries?.length || 2;
   const t = TITLE[useLang().lang] || TITLE.en;
   const trust = ['Live in minutes', 'Browser phone on every plan', 'No contracts', 'Crypto & wallet payments'];
   return (

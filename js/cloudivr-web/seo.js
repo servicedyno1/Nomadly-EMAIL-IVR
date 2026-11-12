@@ -69,7 +69,7 @@ function objectionFaqs() {
 
 // ── Marketing facts (single source for head, noscript, llms.txt) ─────────────
 const FEATURES = [
-  ['Virtual phone numbers', 'Local, mobile and toll-free numbers across the US, Canada and many international countries.'],
+  ['Virtual phone numbers', 'Local and toll-free numbers across the US and Canada, with more countries as they come online.'],
   ['Keypad menus (IVR) for incoming calls', 'Callers hear your greeting and press a key to reach the right person, hear a message or leave voicemail, with key-press stats.'],
   ['AI voice agents', 'A natural-sounding agent that answers calls, qualifies callers, answers questions, books appointments and takes messages — in 20 languages, switching when the caller does.'],
   ['Call forwarding', 'Ring any phone number, with backup destinations and hold music.'],

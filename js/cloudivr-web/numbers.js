@@ -302,12 +302,13 @@ function routes(router, deps) {
     const results = found.map(n => ({
       phoneNumber: n.phone_number,
       region: (n.region_information || []).map(r => r.region_name).filter(Boolean).join(', '),
-      capabilities: n._capabilities || { voice: true, sms: false, fax: false },
+      capabilities: { ...(n._capabilities || { voice: true, sms: false, fax: false }), ...(n._signalwire ? { fax: false } : {}) },
       surcharge: round2(numberSurcharge(country, type, n)),
       cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
     }))
+    const fb = found.find(n => n._areaFallback)
     await searchCache.updateOne({ _id: req.webChatId }, { $set: { country, type, areaCode, results, at: new Date() } }, { upsert: true })
-    res.json({ numbers: results.map(({ cost, ...r }) => r) })
+    res.json({ numbers: results.map(({ cost, ...r }) => r), fallback: fb ? { areaCode: fb._requestedAreaCode, region: fb._fallbackRegion } : null })
   }))
 
   router.get('/numbers', h(async (req, res) => res.json({ numbers: (await myNumbers(req.webChatId)).map((n, _, all) => publicNumber(n, all)) })))

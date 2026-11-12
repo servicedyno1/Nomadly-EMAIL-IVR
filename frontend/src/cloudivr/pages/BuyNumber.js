@@ -50,7 +50,8 @@ const place = (r) => { const p = [...new Set(String(r || '').split(',').map(x =>
 
 function Results({ res, pick, setPick }) {
   if (!res.numbers.length) return <div className="civr-card p-6 text-sm text-[#a1a1aa]" data-testid="buy-no-results">No numbers available for that search. Try another area code or type.</div>;
-  return (
+  return (<>
+    {res.fallback && <div className="civr-card p-4 mb-4 text-sm text-[#a1a1aa]" data-testid="buy-area-fallback-note">Area code {res.fallback.areaCode} has no numbers right now — here are other numbers{res.fallback.region ? ` in ${res.fallback.region}` : ''} you can use instantly.</div>}
     <div className="grid sm:grid-cols-2 lg:grid-cols-3 min-[1800px]:grid-cols-4 gap-4" data-testid="buy-results">
       {res.numbers.map((n, i) => (
         <button key={n.phoneNumber} type="button" onClick={() => { setPick(n); setTimeout(() => document.querySelector('[data-testid="buy-plan-picker"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150); }} data-testid={`buy-result-${i}`}
@@ -64,7 +65,7 @@ function Results({ res, pick, setPick }) {
         </button>
       ))}
     </div>
-  );
+  </>);
 }
 
 function PlanPicker({ plans, value, onChange, surcharge }) {
