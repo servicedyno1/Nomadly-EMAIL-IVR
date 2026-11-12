@@ -2731,3 +2731,11 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - NEW js/hosting-dns-watch.js (started in _index.js after NS Auto-Retry; SKIP_WEBHOOK_SYNC gate; per-account DB lock): every 5 min for hosting plans < 7 days without dnsWatch.liveAt — CF zone status + registry NS via RDAP; wrong/typo NS on external domains → user message (repeat only on change or after 6h); correct NS → CF activation_check hourly; zone active + site <500 → "✅ is live" message (older already-live plans marked quietly).
 - ai-support.js: roster line per primary plan includes live DNS status (describe()); KB fixed — external-domain hosting needs the two per-domain nameservers (old KB wrongly said "set A records, don't change nameservers").
 - Tests: js/tests/test_hosting_dns_watch.js 11/0. NOT deployed — needs Save to GitHub (CI deploys main; auto-sync → WhiteLabel).
+
+## 2026-11-12 — Zadarma evaluation (read-only + 1 lookup)
+- js/zadarma/index.js: signed REST client (HMAC-SHA1 hex→base64) + webhook signature check. Keys ZADARMA_API_KEY/SECRET set.
+- Live: auth OK; balance €0.40 (Standard plan, inactive); 1 SIP (211483, 3 lines), 0 numbers; webhook URL not set.
+- US local numbers: 1130 areas, €3.20/mo, address only (no documents), SMS receive. CA local €4/mo address only; toll-free needs ID.
+- HLR lookup works (€0.006, mobile network only). Outbound US €0.01/min, CA €0.005/min.
+- Not tested: real call (no number/caller ID, balance too low). Bulk IVR scale limited by SIP lines; confirm autodialer policy with Zadarma.
+- DIDLogic evaluated from docs only (no key): API covers numbers, SIP accounts, SMS, HLR, CDR/recording webhooks; CLI passthrough needs Plus plan.
