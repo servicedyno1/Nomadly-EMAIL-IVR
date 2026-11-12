@@ -49637,6 +49637,16 @@ app.post('/infobip/voice-webhook', express.json({ limit: '1mb' }), async (req, r
   } catch (error) { log('Infobip voice webhook error:', error.message) }
 })
 
+// Infobip recordings need our API key, so customers get them through this signed link
+app.get('/infobip/recording/:fileId', async (req, res) => {
+  const ib = require('./infobip')
+  if (String(req.query.k || '') !== ib.recordingToken(req.params.fileId)) return res.sendStatus(403)
+  try {
+    const r = await ib.http().get(`/calls/1/recordings/files/${encodeURIComponent(req.params.fileId)}`, { responseType: 'stream', timeout: 60000 })
+    res.set('Content-Type', r.headers['content-type'] || 'audio/wav'); r.data.pipe(res)
+  } catch (e) { res.sendStatus(e.response?.status || 502) }
+})
+
 // Own SIP server (Kamailio) asks for a softphone's password here before letting it register or call.
 app.get('/sip-auth/:user', async (req, res) => {
   const key = process.env.SIP_SERVER_SECRET

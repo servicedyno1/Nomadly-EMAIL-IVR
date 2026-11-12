@@ -2697,3 +2697,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
   No-paperwork voice numbers (scripts/infobip_country_scan.js): CA, FR, ES, AT, PL, RO, HR, LT, UA, MY, MX, AR, CL, PR (US: none without setup).
   Route /infobip/voice-webhook exists (logs to infobipEvents when INFOBIP_EVENT_LOG=true); js/infobip/index.js is a stub.
 - Last SIP ring test still blocked by SignalWire rate limit (15:09). Deploy waits for: SignalWire limit raised + ring test pass.
+- 2026-11-12 Resend upgraded by user → scripts/resend_domains_setup.js added smadavhost.com, voodoohost.xyz, proshophost.xyz (DNS in Cloudflare).
+  All 6 verified; live test send OK from hosting@hostbay.io, hi@cloudivr.net, hosting@smadavhost.com, hosting@voodoohost.xyz, hosting@proshophost.xyz.
+- Infobip adapter built: js/infobip/index.js (ib: ids, webhook ingest → Telnyx events, numbers search/buy + voice setup, HLR lookup, SMS),
+  router order: +1 → SignalWire → Infobip → Telnyx; other countries → Infobip → Telnyx; lookups SignalWire → Infobip → Telnyx.
+  Recording proxy GET /infobip/recording/:fileId?k=<hmac>. js/tests/test_infobip_adapter.js 18/0.
+  Infobip subscriptions need ~10 min to propagate (then POST /calls/1/calls accepted). Live outbound → CALL_FAILED 10309 SERVICE_UNAVAILABLE:
+  account is a FREE TRIAL (freeMessages voice 15) → only the verified signup phone can be called; Number Lookup "route not available".

@@ -751,6 +751,7 @@ async function lookupOne(p) {
   if (!lookupLive()) { const n = Number(p.slice(-4)); return { type: n >= 9900 && n < 9950 ? 'fixed line' : n >= 9950 ? 'voip' : 'mobile', simulated: true } }
   const sw = await swLookup().lookup(p)
   if (sw) return { type: sw.valid === false ? 'invalid' : sw.type, carrier: sw.carrier && sw.carrier !== 'unknown' ? sw.carrier : null }
+  // (swLookup().lookup already falls back to Infobip)
   if (!process.env.TELNYX_API_KEY) throw new Error('number lookup unavailable')
   const r = await axios.get(`https://api.telnyx.com/v2/number_lookup/${encodeURIComponent(p)}`, { params: { type: 'carrier' }, headers: { Authorization: `Bearer ${process.env.TELNYX_API_KEY}` }, timeout: 15000 })
   const d = r.data?.data || {}
