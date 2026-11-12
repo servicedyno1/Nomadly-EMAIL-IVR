@@ -2638,3 +2638,6 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Test js/tests/test_flagged_primary_swap.js 32/32 (logic w/ stubs + source guards). Panel banner not browser-tested (needs a flagged account + WHM).
 
 - 2026-11-12: Nomadly admin single SMS no longer refused when the number is in another customer's conversation — sends on that line, no admin session (replies stay with the customer). Also fixed admin test so the worker really runs (20/20).
+
+## 2026-11-12 — Admin leads order @copilot777 (SMADAV)
+- 1,000 Ontario mobile (mixed carriers, all 9 Ontario area codes), $150 debited ($156.83→$6.83), start msg sent, 1,003 delivered as leads.txt on @smadavv_bot (+admin copy). Script: scripts/prod_admin_lead_order.js (idempotent adminLeadOrders marker; job parked admin_running so restart-resume cannot double-run). Order id copilot777-ontario-1000-20261112.
