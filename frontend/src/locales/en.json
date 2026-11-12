@@ -691,7 +691,8 @@
     "nsRecheckNow": "Re-check now",
     "nsExternalUpdate": "Update your nameservers at your domain registrar:",
     "nsExternalNote": "Propagation can take up to 24-48 hours.",
-    "nsExternalNoteTail": "(also triggers SSL issuance if NS active)"
+    "nsExternalNoteTail": "(also triggers SSL issuance if NS active)",
+    "upgradePlan": "Upgrade plan"
   },
   "an": {
     "title": "Visitor Analytics",

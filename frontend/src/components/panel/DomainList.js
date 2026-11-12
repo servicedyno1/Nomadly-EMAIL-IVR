@@ -42,6 +42,7 @@ export default function DomainList({ onNavigateToFileManager }) {
   const [domains, setDomains] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [limitHit, setLimitHit] = useState(false);
   const [errorRaw, setErrorRaw] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [newDomain, setNewDomain] = useState('');
@@ -298,6 +299,7 @@ export default function DomainList({ onNavigateToFileManager }) {
     if (!newDomain.trim()) return;
     setAdding(true);
     setError('');
+    setLimitHit(false);
     setAddResult(null);
     try {
       const res = await api('/domains/add-enhanced', {
@@ -321,10 +323,13 @@ export default function DomainList({ onNavigateToFileManager }) {
       }
     } catch (err) {
       setError(err.message);
+      setLimitHit(/^Domain limit reached/.test(err.message || ''));
     } finally {
       setAdding(false);
     }
   };
+  const upgradeKey = user?.domain ? btoa(user.domain).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_') : '';
+  const upgradeUrl = brand.botUsername ? `https://t.me/${String(brand.botUsername).replace(/^@/, '')}?start=${upgradeKey ? `upgrade_${upgradeKey}` : 'upgrade'}` : '';
 
   const handleRemove = async (domain) => {
     if (!window.confirm(t('dl.removeAddonConfirm', { domain }))) return;
@@ -680,6 +685,11 @@ export default function DomainList({ onNavigateToFileManager }) {
       {error && (
         <div className="fm-error" data-testid="dl-error">
           <span>{error}</span>
+          {limitHit && upgradeUrl && (
+            <a className="fm-btn fm-btn--primary" href={upgradeUrl} target="_blank" rel="noreferrer" data-testid="dl-upgrade-plan-btn" style={{ marginLeft: '0.75rem' }}>
+              {t('dl.upgradePlan', { defaultValue: 'Upgrade plan' })}
+            </a>
+          )}
           {!loading && !domains && isTransientError(errorRaw) && (
             <button
               type="button"

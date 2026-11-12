@@ -2626,3 +2626,6 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Callback prefix `bse-rv:` routed in _index.js. Test: js/tests/test_bulk_esim_review.js (18/18).
 
 - 2026-06: Review alerts (result, comment, "did NOT arrive") from all 4 bots go only to the @Nomadlybot admin via shared bsNotify queue (core.adminAlert). Test 20/20.
+
+## 2026-11-12 — Hosting: Cloudflare-blocked domains refused up front (@smsbeast_real RCA)
+- See memory/SMSBEAST_ADDON_CF_BLOCK_RCA_2026-11-12.md. Test js/tests/test_cf_blocked_domain.js 18/18; test_addon_from_bot 94/94.

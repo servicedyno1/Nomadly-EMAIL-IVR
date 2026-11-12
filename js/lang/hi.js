@@ -2238,6 +2238,7 @@ host_4: (safeHtml) => `${safeHtml}`,
  attachDomainFailed: (addonDomain, errorReason) => `❌ <b>${addonDomain}</b> को जोड़ नहीं सके।\n\n<i>कारण:</i> ${errorReason || 'अज्ञात त्रुटि'}\n\nपुनः प्रयास करें, या समस्या बनी रहे तो 💬 सहायता लें।`,
  attachDomainAlreadyOnPlan: addonDomain => `⚠️ <b>${addonDomain}</b> पहले से किसी होस्टिंग प्लान पर है। एक डोमेन एक समय में केवल एक प्लान से जुड़ सकता है।\n\nइसे यहाँ लाने के लिए, पहले दूसरे प्लान पर 🗑️ डोमेन अनलिंक करें।`,
  attachDomainLimitReached: (limit, planLabel) => `⚠️ <b>डोमेन सीमा पूरी</b>\n\nआपका वर्तमान प्लान (<b>${planLabel}</b>) ${limit} ऐडऑन डोमेन तक की अनुमति देता है।\n\nअसीमित ऐडऑन डोमेन के लिए Golden Anti-Red HostPanel पर अपग्रेड करें, या जगह बनाने के लिए मौजूदा ऐडऑन को अनलिंक करें।`,
+ domainCfBlocked: (d) => `🚫 <b>${d}</b> को होस्टिंग से नहीं जोड़ा जा सकता।\n\nCloudflare (हमारा DNS और सुरक्षा नेटवर्क) ने इस डोमेन को दुरुपयोग के लिए फ़्लैग किया है और इसे स्वीकार नहीं करता, इसलिए इसका DNS नहीं बनेगा और साइट कभी नहीं खुलेगी।\n\n✅ आपके प्लान में कुछ नहीं बदला — कृपया दूसरा डोमेन इस्तेमाल करें।\nअपील के लिए <b>abusereply@cloudflare.com</b> पर ईमेल करें।`,
  attachDomainBlocked: addonDomain => `🚫 <b>${addonDomain}</b> को नहीं जोड़ा जा सकता।\n\nयह डोमेन दुरुपयोग नीति के उल्लंघन के कारण स्थायी रूप से अवरुद्ध है।`,
  attachDomainAlreadyAttached: addonDomain => `ℹ️ <b>${addonDomain}</b> पहले से ही इस प्लान से जुड़ा है — कुछ करने की ज़रूरत नहीं।`,
 

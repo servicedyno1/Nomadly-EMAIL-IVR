@@ -777,7 +777,8 @@
     "nsRecheckNow": "Re-vérifier maintenant",
     "nsExternalUpdate": "Mettre à jour vos serveurs de noms chez votre registraire de domaine :",
     "nsExternalNote": "La propagation peut prendre jusqu'à 24-48 heures.",
-    "nsExternalNoteTail": "(déclenche également l'émission SSL si NS actif)"
+    "nsExternalNoteTail": "(déclenche également l'émission SSL si NS actif)",
+    "upgradePlan": "Mettre à niveau"
   },
   "an": {
     "title": "Analyse des Visiteurs",

@@ -1,0 +1,6 @@
+# @smsbeast_real (5976060042) — "can't add domain / no nameservers" RCA (2026-11-12)
+Account dvde3a02 · Premium Anti-Red (1-Week) · 1 addon allowed · expires 2026-11-13 04:27Z. User never exceeded 1 addon → plan qualified; NOT a plan-limit issue.
+Root cause: cunetsballs.com + furrycitadel.com are blocked by Cloudflare abuse (POST /zones → 400 code 1097). No zone in our CF → registrar NS (anderson/leanna) → SERVFAIL, no NS shown.
+Our bugs: (1) cf-service.createZone read only err.message on 4xx → 1097 hidden, 1061 branch dead; (2) panel/bot set-primary swapped first, DNS later → swapped to a dead domain and tore down working arcanelords.com records; (3) add-enhanced stored addon with no DNS; (4) no clear message; limit screen had no Upgrade.
+Fix: cf-service.ensureZoneReady + zoneNotReadyText; pre-flight in panel set-primary/add-enhanced, bot change-primary + addon flow (errorKind cf_blocked → t.domainCfBlocked), reseller set-primary/change-primary; admin alerts; bot limit screen Upgrade button; panel "Upgrade plan" → /start upgrade_<b64 domain>. Test js/tests/test_cf_blocked_domain.js 18/18.
+State left for owner decision: primary cunetsballs.com (down). arcanelords.com CF zone active + NS correct but not on the account (records removed 05:51Z). vigilwatches.com NS moved by user to registrar-servers (parked).

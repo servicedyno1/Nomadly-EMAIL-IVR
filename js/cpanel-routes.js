@@ -1835,6 +1835,14 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
 
     log(`[Panel] set-primary request — cpUser=${req.cpUser}, ${oldDomain} → ${newDomain}`)
 
+    // DNS pre-flight: never swap to a domain Cloudflare won't host — the old (working) primary would be torn down for nothing.
+    const zr = await cfService.ensureZoneReady(newDomain)
+    if (!zr.ok) {
+      log(`[Panel] set-primary REFUSED — ${newDomain} zone not ready (blocked=${zr.blocked}): ${zr.error}`)
+      try { notifier(`⚠️ <b>Primary domain change refused</b> (web HostPanel)\nUser: ${account.chatId}\ncPanel: <code>${req.cpUser}</code>\nDomain: <b>${newDomain}</b>\nReason: ${zr.blocked ? 'Cloudflare abuse block (1097)' : zr.error}`) } catch {}
+      return res.status(422).json({ error: cfService.zoneNotReadyText(newDomain, zr), cfBlocked: zr.blocked })
+    }
+
     // 1. Remove the new domain as an addon (a domain can't be both addon + primary).
     let removedAddon = false
     try {
@@ -2678,14 +2686,21 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
             if (limit !== -1 && currentAddons >= limit) {
               const isWeekly = (account.plan || '').toLowerCase().includes('week')
               const upgradeMsg = isWeekly
-                ? `Domain limit reached (${limit} addon${limit !== 1 ? 's' : ''}). Upgrade to a monthly plan for more domains — use the Upgrade Plan button in your hosting details on the bot.`
-                : `Domain limit reached (${limit} addon domains). Upgrade to Golden Anti-Red for unlimited domains.`
+                ? `Domain limit reached — your weekly plan includes ${limit} extra domain${limit !== 1 ? 's' : ''} and ${limit !== 1 ? 'they are' : 'it is'} already in use. Remove that domain to free the slot, or upgrade to a monthly plan for more domains (Golden = unlimited).`
+                : `Domain limit reached — your plan includes ${limit} extra domains and all are in use. Remove one to free a slot, or upgrade to Golden Anti-Red for unlimited domains.`
               return res.status(403).json({ error: upgradeMsg, limitReached: true, currentAddons, limit })
             }
           }
         }
       } catch (limitErr) {
         log(`[Panel] add-enhanced: limit check error (non-blocking): ${limitErr.message}`)
+      }
+      // DNS pre-flight: a domain Cloudflare refuses (abuse block) would be added with no DNS / nameservers at all.
+      const zr = await cfService.ensureZoneReady(String(domain).toLowerCase())
+      if (!zr.ok && zr.blocked) {
+        log(`[Panel] add-enhanced REFUSED — ${domain} blocked by Cloudflare: ${zr.error}`)
+        try { notifier(`⚠️ <b>Addon domain refused</b> (web HostPanel)\ncPanel: <code>${req.cpUser}</code>\nDomain: <b>${domain}</b>\nReason: Cloudflare abuse block (1097)`) } catch {}
+        return res.status(422).json({ error: cfService.zoneNotReadyText(domain, zr), cfBlocked: true })
       }
       // 1. Add addon domain in cPanel
       const cpResult = await cpProxy.addAddonDomain(req.cpUser, req.cpPass, domain, subDomain, effectiveDir, req.whmHost)

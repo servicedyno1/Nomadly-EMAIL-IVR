@@ -120,6 +120,17 @@ async function attachAddonDomain(opts) {
     log(`[AddonFlow] limit check warning (non-blocking): ${e.message}`)
   }
 
+  // ── DNS pre-flight: Cloudflare abuse-blocked domains can't be hosted (no zone → no nameservers, site never resolves) ──
+  try {
+    const zr = await cfService.ensureZoneReady(domain)
+    if (!zr.ok && zr.blocked) {
+      log(`[AddonFlow] ${domain} refused — blocked by Cloudflare: ${zr.error}`)
+      return { ok: false, errorKind: 'cf_blocked', error: cfService.zoneNotReadyText(domain, zr) }
+    }
+  } catch (e) {
+    log(`[AddonFlow] zone pre-flight warning: ${e.message}`)
+  }
+
   // ── Duplicate check across all hosting accounts ──
   try {
     const dupe = await cpanelAccountsCol.findOne({

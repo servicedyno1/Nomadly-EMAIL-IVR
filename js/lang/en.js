@@ -2443,6 +2443,7 @@ host_4: (safeHtml) => `${safeHtml}`,
  attachDomainFailed: (addonDomain, errorReason) => `❌ Could not attach <b>${addonDomain}</b>.\n\n<i>Reason:</i> ${errorReason || 'unknown error'}\n\nPlease try again, or tap 💬 Support if the problem persists.`,
  attachDomainAlreadyOnPlan: addonDomain => `⚠️ <b>${addonDomain}</b> is already on a hosting plan. A domain can only be attached to one plan at a time.\n\nIf you want to move it to this plan, use 🗑️ Unlink a Domain on the other plan first.`,
  attachDomainLimitReached: (limit, planLabel) => `⚠️ <b>Domain limit reached</b>\n\nYour current plan (<b>${planLabel}</b>) allows up to ${limit} addon domain${limit !== 1 ? 's' : ''}.\n\nUpgrade to Golden Anti-Red HostPanel for unlimited addon domains, or unlink an existing addon to free up a slot.`,
+ domainCfBlocked: (d) => `🚫 <b>${d}</b> can't be connected to hosting.\n\nCloudflare (our DNS & protection network) has flagged this domain for abuse and refuses to accept it, so it would get no DNS and never load.\n\n✅ Nothing on your plan was changed — please use a different domain.\nTo appeal, email <b>abusereply@cloudflare.com</b>.`,
  attachDomainBlocked: addonDomain => `🚫 <b>${addonDomain}</b> cannot be attached.\n\nThis domain has been flagged for abuse policy violations and is permanently blocked from our hosting.`,
  attachDomainAlreadyAttached: addonDomain => `ℹ️ <b>${addonDomain}</b> is already attached to this hosting plan — nothing to do.`,
 
