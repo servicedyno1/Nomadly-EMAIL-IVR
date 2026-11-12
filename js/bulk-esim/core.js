@@ -944,7 +944,7 @@ async function sendOne(cid, to, text, sessionId, { optOut = true, unlimited = fa
   const cu = await C('bsCustomers').findOne({ _id: cid }), p = normPhone(to), body = String(text || '').trim()
   if (cu?.status !== 'active') return E('err_suspended')
   if (!sessionId && !unlimited && !(await oneLeft(cid))) return E('err_one_used', (await cfg()).freeOneSends ?? 2)
-  if (!sessionId && p && await numberBusy(cid, p)) return E('err_number_busy', (await cfg()).sessionHours)
+  if (!sessionId && !unlimited && p && await numberBusy(cid, p)) return E('err_number_busy', (await cfg()).sessionHours)
   if (!validUsCa(p)) return E('err_number')
   if (!body) return E('err_add_text')
   if (sessionId) { const rr = await replyRoute(cid, sessionId); if (rr.error) return rr } else if (!(await ready()).one) return E('off_one')
@@ -1015,9 +1015,13 @@ async function pickEsim(m, c) {
   const fits = (e) => (used[`${e._id}:${d}`] || 0) < lineCap(c, lineAge(e.activationDate || e.createdAt, d))
   // Campaigns fall back to a shared line rather than stall (an ambiguous reply is held for admin review).
   const hit = pool.find(e => ok(e) && fits(e)) || (m.campaignId && taken.size ? pool.find(e => taken.has(e._id) && USABLE.includes(e.status) && GOOD_HEALTH.includes(e.health) && onOpen(e) && roomIn(win.esim[e._id] ||= [], c.esimPerMin) && fits(e)) : null)
+  // Admin unlimited text to a number another customer is talking to: share their line; no session, so replies stay with them.
+  const shareOk = (e) => e && taken.has(e._id) && USABLE.includes(e.status) && GOOD_HEALTH.includes(e.health) && onOpen(e) && roomIn(win.esim[e._id] ||= [], c.esimPerMin)
+  if (!hit && m.unlimited && taken.size) { const sh = pool.find(e => shareOk(e) && fits(e)); if (sh) { m._shared = true; return sh } }
   if (hit || m.campaignId || pool.length) return hit || null
   // No service line yet: a single text goes out on the tester line.
   const t = await C('bsEsims').findOne({ role: 'tester', status: { $in: USABLE }, health: { $in: GOOD_HEALTH }, msisdn: { $ne: null } })
+  if (!ok(t) && m.unlimited && shareOk(t)) { m._shared = true; return t }
   return ok(t) ? t : null
 }
 async function processOne(m, c) {
@@ -1044,7 +1048,7 @@ async function processOne(m, c) {
     const sr = await P.sendSms({ from: e.msisdn, to: m.to, text: m.body, key: m._id, account: acctId })
     await mark(m, 'sent', { sentAt: new Date(), providerId: sr?.providerId || null, ...((await C('bsDlr').countDocuments({}, { limit: 1 })) ? {} : { sendResp: sr?.resp || null }) }); await C('bsEsims').updateOne({ _id: e._id }, { $inc: { 'stats.sent': 1 } }); if (!m.system) await lineLog(e, c, { sent: 1 })
     if (day) await countDay(m.cid, day, 'sent')
-    if (!m.system) await C('bsSessions').updateOne({ cid: m.cid, esimId: e._id, to: m.to }, { $set: { status: 'active', lastActivityAt: new Date(), expiresAt: new Date(Date.now() + c.sessionHours * HOUR) }, $setOnInsert: { _id: id('s'), from: e.msisdn, startedAt: new Date() } }, { upsert: true })
+    if (!m.system && !m._shared) await C('bsSessions').updateOne({ cid: m.cid, esimId: e._id, to: m.to }, { $set: { status: 'active', lastActivityAt: new Date(), expiresAt: new Date(Date.now() + c.sessionHours * HOUR) }, $setOnInsert: { _id: id('s'), from: e.msisdn, startedAt: new Date() } }, { upsert: true })
     if (m.campaignId) await C('bsCampaigns').updateOne({ _id: m.campaignId }, { $inc: { 'stats.sent': 1 } })
   } catch (err) {
     const retryable = ['rate', 'credit', 'auth'].includes(err.kind) || (err.kind === 'temporary' && m.attempts < 3)

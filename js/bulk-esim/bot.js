@@ -263,7 +263,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     if (message === L.other) { await put('dpProductKey', PRODUCT_KEY); await put('dpProductName', `eSIM BulkSMS ${b.volume} SMS`); await put('dpPrice', b.price); await go('none'); await goto['digital-product-pay'](); return true }
     return false
   }
-  if (action === 'bse-one-to') { if (!/^(\+|00)?1\d{10}$/.test(String(message).replace(/[\s().-]/g, ''))) return send(chatId, say('err_number'), { parse_mode: 'HTML' }); if (await B.numberBusy(cid, B.normPhone(String(message).replace(/[\s().-]/g, '')) || message)) { await go('bse-home'); return send(chatId, `⚠️ ${say('err_number_busy', (await B.cfg()).sessionHours)}`, HK) } await put('bseTo', message); await go('bse-one-opt'); return send(chatId, say('one_opt_q'), kb([[L.one_opt_yes, L.one_opt_no], [L.back]])) }
+  if (action === 'bse-one-to') { if (!/^(\+|00)?1\d{10}$/.test(String(message).replace(/[\s().-]/g, ''))) return send(chatId, say('err_number'), { parse_mode: 'HTML' }); if (!unlimitedOne(chatId) && await B.numberBusy(cid, B.normPhone(String(message).replace(/[\s().-]/g, '')) || message)) { await go('bse-home'); return send(chatId, `⚠️ ${say('err_number_busy', (await B.cfg()).sessionHours)}`, HK) } await put('bseTo', message); await go('bse-one-opt'); return send(chatId, say('one_opt_q'), kb([[L.one_opt_yes, L.one_opt_no], [L.back]])) }
   if (action === 'bse-one-opt') {
     if (message !== L.one_opt_yes && message !== L.one_opt_no) return send(chatId, say('pick_option'), kb([[L.one_opt_yes, L.one_opt_no], [L.back]]))
     const opt = message === L.one_opt_yes; await put('bseOneOpt', opt); await go('bse-one-text'); return send(chatId, say(opt ? 'one_text_q' : 'one_text_q_plain'), kb([[L.back]]))
