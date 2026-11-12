@@ -415,23 +415,22 @@ Sub-menu:
 
 <b>Option A — Connect external domain to Anti-Red Hosting:</b>
 1. Buy hosting first: <b>🛡️🔥 Anti-Red Hosting</b> → pick a plan → in the domain step choose <b>🔗 Connect External Domain</b> → enter your domain (e.g. <code>mydomain.com</code>).
-2. You'll receive an <b>A record IP address</b> (your cPanel server's shared IP).
-3. Log in to your external registrar's DNS dashboard and create:
-   • <b>A</b> record: <code>@</code> → that IP
-   • <b>A</b> record: <code>www</code> → that IP
-4. Wait 5-60 minutes for DNS propagation. Cloudflare protection auto-activates once we detect the A record.
-<b>Do NOT change the registrar's nameservers</b> — leave them as your registrar's defaults (e.g. <code>ns1.dynadot.com</code>). We do NOT publish public nameservers for external domains.
+2. After setup the bot (and the welcome email) shows <b>two nameservers</b> for that domain (e.g. <code>anderson.ns.cloudflare.com</code>). They are unique per domain — always quote the exact pair from the user's DOMAIN ROSTER "Must be exactly" line when present.
+3. At the external registrar (Namecheap, GoDaddy, Dynadot…) → Nameservers → <b>Custom DNS</b> → replace the existing nameservers with exactly those two. Spelling must be exact (a common typo is "claudflare" instead of "cloudflare").
+4. Wait 5–60 minutes (max 24h). The bot checks automatically every few minutes, warns the user if the nameservers are wrong, and messages them as soon as the site is live.
+For hosting, nameservers ARE required — do not tell the user to add A records instead (the site is protected behind our edge and has no public IP to point to).
 
 <b>Option B — Connect external domain to URL Shortener (custom branded short links):</b>
 1. <b>🔗✂️ URL Shortener — Unlimited</b> → <b>✂️🌐 Custom Domain Shortener</b> → enter your domain.
 2. Create a single <b>A</b> record at your registrar: <code>@</code> → IP shown on screen (or CNAME to <code>shortit.${BRAND.toLowerCase()}.app</code> if displayed).
 
-<b>If user mentions ns1.hostbay.io / hostbay.io / ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} nameservers:</b> These are <b>internal</b> nameservers for domains <b>registered through ${BRAND}</b> only — they do <b>not</b> work for external domains. Tell the user to ignore those and follow Option A (DNS A records) above.
+<b>If user mentions ns1.hostbay.io / hostbay.io / ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} nameservers:</b> These are <b>internal</b> nameservers for domains <b>registered through ${BRAND}</b> only — they do <b>not</b> work for external domains. For hosting use the two per-domain nameservers from Option A; for the shortener use the A record from Option B.
 
 <b>Common confused questions and the correct answer:</b>
-- "What nameservers should I set?" → Don't change nameservers. Set DNS A records at your registrar.
+- "What nameservers should I set?" → Hosting: the exact two nameservers shown after the hosting order (see the roster's DNS line). Shortener: none — add the A record instead.
+- "My site/link isn't working after buying hosting" → read the roster's DNS line: wrong nameservers → tell them exactly what to change; propagating → reassure (5–60 min) and say the bot will message them when it's live; live → troubleshoot the site itself.
 - "Should I use ns1.hostbay.io?" → No, that's only for ${BRAND}-registered domains.
-- "Where do I add nameservers in ${BRAND}?" → You don't. External-domain DNS is managed at your registrar.
+- "Where do I add nameservers in ${BRAND}?" → You don't — nameservers for an external domain are changed at the registrar where it was bought.
 
 ### 🛡️🔥 Anti-Red Hosting
 From main menu → tap <b>🛡️🔥 Anti-Red Hosting</b>
@@ -1468,7 +1467,7 @@ async function getUserContext(chatId, userMessage = '') {
 
       const allHostingPlans = await _db.collection('cpanelAccounts')
         .find({ chatId: chatIdStr })
-        .project({ domain: 1, plan: 1, expiryDate: 1, suspended: 1, deleted: 1, addonDomains: 1, terminatedOnWhm: 1 })
+        .project({ domain: 1, plan: 1, expiryDate: 1, suspended: 1, deleted: 1, addonDomains: 1, terminatedOnWhm: 1, dnsWatch: 1 })
         .toArray()
       const primaryToPlan = new Map()
       const addonToPrimary = new Map()
@@ -1527,6 +1526,8 @@ async function getUserContext(chatId, userMessage = '') {
             const expiry = primaryPlan.expiryDate ? fmtDate(primaryPlan.expiryDate) : '—'
             const status = primaryPlan.deleted ? 'cancelled' : primaryPlan.suspended ? 'suspended' : 'active'
             parts.push(`PRIMARY hosting plan (${primaryPlan.plan || '?'}, ${status}, expires ${expiry})`)
+            const dnsLine = require('./hosting-dns-watch').describe(primaryPlan.dnsWatch, d)
+            if (dnsLine) parts.push(dnsLine)
           } else if (addonPlan) {
             const expiry = addonPlan.expiryDate ? fmtDate(addonPlan.expiryDate) : '—'
             const status = addonPlan.deleted ? 'cancelled' : addonPlan.suspended ? 'suspended' : 'active'

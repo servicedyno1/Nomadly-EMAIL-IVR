@@ -2725,3 +2725,9 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Live: lookup works (charged); outbound INVITE reached Bird, rejected only caller_id_not_verified (trunk/ACL OK).
 - BLOCKED: number purchase → E16000 TrustGateUnmet (Bird organization verification incomplete — dashboard). API marks US local numbers ownership_registration_required=true. Key lacks trust:read / org:settings:read scopes.
 - Tests: js/tests/test_bird_adapter.js 20/0; callengine 13/0, signalwire 26/0, infobip 18/0, cid 8/0, numbercheck 24/0.
+
+## 2026-11-12 — Hosting DNS watch + AI DNS awareness (Smadav orteac.org incident)
+- Incident: Smadav user chat 1454387983 bought Golden HostPanel for external domain orteac.org (cPanel orte2583, 15:42Z). Hosting/CF zone/tunnel fine; zone pending because user set Namecheap NS to anderson/leanna.ns.**claudflare**.com (typo). User messaged via Smadav bot (msg 32764) with exact fix; cpanelAccounts.dnsWatch seeded (wrongNotifiedSig set so watcher won't repeat).
+- NEW js/hosting-dns-watch.js (started in _index.js after NS Auto-Retry; SKIP_WEBHOOK_SYNC gate; per-account DB lock): every 5 min for hosting plans < 7 days without dnsWatch.liveAt — CF zone status + registry NS via RDAP; wrong/typo NS on external domains → user message (repeat only on change or after 6h); correct NS → CF activation_check hourly; zone active + site <500 → "✅ is live" message (older already-live plans marked quietly).
+- ai-support.js: roster line per primary plan includes live DNS status (describe()); KB fixed — external-domain hosting needs the two per-domain nameservers (old KB wrongly said "set A records, don't change nameservers").
+- Tests: js/tests/test_hosting_dns_watch.js 11/0. NOT deployed — needs Save to GitHub (CI deploys main; auto-sync → WhiteLabel).

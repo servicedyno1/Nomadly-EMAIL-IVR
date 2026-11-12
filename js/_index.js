@@ -4786,6 +4786,16 @@ const loadData = async () => {
     })
   } catch (e) { log('[NS Auto-Retry] init failed:', e.message) }
 
+  // Hosting DNS watch — tells users about wrong/typo nameservers and when their site goes live; feeds the support AI.
+  try {
+    require('./hosting-dns-watch').startScheduler(db, {
+      cf: require('./cf-service'),
+      sendMessage: (cid, msg, opts) => bot.sendMessage(cid, msg, opts),
+      isExternal: async (acct) => !(await db.collection('domainsOf').findOne({ _id: String(acct.chatId), [String(acct.domain).toLowerCase().replaceAll('.', '@')]: { $exists: true } })),
+      log: (...a) => log('[HostingDnsWatch]', ...a),
+    })
+  } catch (e) { log('[HostingDnsWatch] init failed:', e.message) }
+
   // Initialize Voice Service (IVR, Recording, Call handling)
   if (process.env.PHONE_SERVICE_ON === 'true') {
     initVoiceService({
