@@ -2795,3 +2795,11 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - _index.js: both CloudIVR number-list renders (cpSelectArea, cpEnterAreaCode) prepend "ℹ️ Area code X has no numbers right now — here are other numbers in <state> you can use instantly".
 - Router (signalwire/index.js) returns SW results when present before Infobip/Bird/Telnyx — unchanged.
 - Tests: test_signalwire_adapter 26/0; _index.js syntax OK; modules load. NOT deployed — Save to GitHub.
+
+## 2026-11-12 — Prod number search fix + Canada + provider-driven countries
+- ROOT CAUSE prod "No numbers available": SIGNALWIRE_* keys missing in droplet shared envs → added to all 4 (backups), reloaded; verified 212/305/214 return SignalWire in-state numbers.
+- Bot number list: added "📞 Voice" tag; fax tag hidden for SignalWire numbers (`_signalwire` flag) — fax is Telnyx-only.
+- Canada: SignalWire plain search returns US only → CA now searched by province (ON→QC→BC→AB); CA toll-free accepted (NANP); CA area-code fallback too.
+- Countries follow providers: phone-config `allCountries`/`moreCountries` are live getters; `numberSearchUsCaOnly()` = !telnyxNumbersOk (telnyx-service probes every 15 min + on each search) unless NUMBER_SEARCH_US_CA_ONLY forces it. Telnyx skipped for US/CA searches while it can't sell.
+- CloudIVR web: search returns `fallback` → BuyNumber shows `buy-area-fallback-note`; fax pill hidden on SignalWire numbers; landing snapshot/“17 countries” fallbacks → US/CA; hero mock numbers US/CA; email/SEO copy updated.
+- Tests: signalwire adapter 26/0, maintenance/US-CA 10/0; iteration_256: catalog/dropdown/landing PASS; web search e2e blocked in PREVIEW only because supervisor nodejs lacks SIGNALWIRE_* env (prod has them).

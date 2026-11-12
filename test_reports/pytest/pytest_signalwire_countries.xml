@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="4" skipped="0" tests="7" time="1.878" timestamp="2026-11-12T20:27:26.380526+00:00" hostname="agent-env-c4ea8f4e-6caa-4734-adf8-0f01a828b5c7"><testcase classname="tests.test_cloudivr_signalwire_countries" name="test_public_catalog_us_ca_only" time="0.355" /><testcase classname="tests.test_cloudivr_signalwire_countries" name="test_auth_catalog_us_ca_only" time="0.607" /><testcase classname="tests.test_cloudivr_signalwire_countries" name="test_search_gb_rejected" time="0.094" /><testcase classname="tests.test_cloudivr_signalwire_countries" name="test_search_ca_local" time="0.237"><failure message="assert 0 &gt; 0&#10; +  where 0 = len([])">tests/test_cloudivr_signalwire_countries.py:49: in test_search_ca_local
+    assert len(nums) &gt; 0
+E   assert 0 &gt; 0
+E    +  where 0 = len([])</failure></testcase><testcase classname="tests.test_cloudivr_signalwire_countries" name="test_search_ca_tollfree" time="0.162"><failure message="assert 0 &gt; 0&#10; +  where 0 = len([])">tests/test_cloudivr_signalwire_countries.py:61: in test_search_ca_tollfree
+    assert len(nums) &gt; 0
+E   assert 0 &gt; 0
+E    +  where 0 = len([])</failure></testcase><testcase classname="tests.test_cloudivr_signalwire_countries" name="test_search_us_212_fallback" time="0.131"><failure message="assert 0 &gt; 0&#10; +  where 0 = len([])">tests/test_cloudivr_signalwire_countries.py:72: in test_search_us_212_fallback
+    assert len(d["numbers"]) &gt; 0
+E   assert 0 &gt; 0
+E    +  where 0 = len([])</failure></testcase><testcase classname="tests.test_cloudivr_signalwire_countries" name="test_search_us_tollfree" time="0.135"><failure message="assert 0 &gt; 0&#10; +  where 0 = len([])">tests/test_cloudivr_signalwire_countries.py:83: in test_search_us_tollfree
+    assert len(r.json()["numbers"]) &gt; 0
+E   assert 0 &gt; 0
+E    +  where 0 = len([])</failure></testcase></testsuite></testsuites>

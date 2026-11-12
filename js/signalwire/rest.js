@@ -64,7 +64,7 @@ async function searchNumbers(countryCode, numberType, areaCode, limit = 5) {
         const caps = [...new Set([...(n.capabilities || []), 'sms', 'mms'])]
         searched.add(n.e164)
         return { record_type: 'available_phone_number', phone_number: n.e164, features: caps.map(name => ({ name })),
-          region_information: [...(n.region ? [{ region_type: 'state', region_name: n.region }] : []), ...(n.rate_center ? [{ region_type: 'rate_center', region_name: n.rate_center }] : []), { region_type: 'country_code', region_name: n.country_code || 'US' }],
+          region_information: [...(n.region ? [{ region_type: 'state', region_name: n.region }] : []), ...(n.rate_center ? [{ region_type: 'rate_center', region_name: n.rate_center }] : []), { region_type: 'country_code', region_name: type === 'toll-free' ? cc : (n.country_code || cc) }],
           cost_information: { currency: 'USD', monthly_cost: '0', upfront_cost: '0' },
           _capabilities: { voice: caps.includes('voice'), sms: caps.includes('sms'), mms: caps.includes('mms'), fax: caps.includes('fax') }, _provider: 'signalwire', _signalwire: true }
       }).filter(n => n._capabilities.voice)

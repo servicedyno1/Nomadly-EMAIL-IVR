@@ -1,0 +1,40 @@
+{
+  "summary": "Tested the SignalWire US/CA-only changes. Catalog (public + authed), Buy page dropdown (United States, Canada only), header 'in 2 countries' and the landing page (no '17 countries', no UK/France numbers in hero mock) all PASS. BLOCKER: every live number search through the running app (/api/cloudivr-web/numbers/search for CA local, CA toll-free, US 212, US toll-free) returns [] and the Buy page shows 'No numbers available for that search'. Root cause: the supervisor 'nodejs' process has no SIGNALWIRE_PROJECT_ID / SIGNALWIRE_API_TOKEN / SIGNALWIRE_SPACE_URL (they exist only in the tool shell env; backend/.env only has the old API_SIGNALWIRE/TOKEN_SIGNALWIRE). rest.enabled() is false in the app, so the router falls through to the blocked Telnyx (log: 'Telnyx searchNumbers error ... 10009 This user has been marked as blocked'). The new search code itself is correct: run from the shell with the SignalWire env (tests/sw_search_probe.js), CA local -> +1226639xxxx (ON), CA toll-free -> +1844..., US 212 -> +1315... with _areaFallback=true region NY, CA 416 -> ON fallback, US toll-free OK, and every result has _signalwire=true so the web hides fax. The UI fallback note and the result cards / no-fax pill could not be checked end-to-end because the app returned no results.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/cloudivr-web/numbers/search", "issue": "Always returns numbers=[] in preview: the nodejs supervisor process has no SIGNALWIRE_* env vars, so it uses the blocked Telnyx. Add SIGNALWIRE_PROJECT_ID, SIGNALWIRE_API_TOKEN, SIGNALWIRE_SPACE_URL (and SIGNALWIRE_SIGNING_KEY) to backend/.env (from vault or the shell env), restart nodejs and retest. The bot's number search has the same problem in preview.", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "js/signalwire/rest.js", "issue": "Canada toll-free results show region 'US' (country_code region_information comes from SW); AREA_REGION has duplicate keys 713 and 980 (harmless)."},
+      {"endpoint": "js/signalwire/index.js w.searchNumbers", "issue": "When SignalWire is off or returns nothing, it silently falls back to Telnyx (TELNYX_FALLBACK defaults to true) even though Telnyx is blocked, which wastes calls and spams logs. Consider skipping Telnyx when phone-config telnyxNumbersOk is false."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Buy a number search (CA local / CA TF / US 212)", "issue": "Shows buy-no-results because the backend returns []. This is the env problem above, not a frontend bug. Fallback note and result cards are still to be verified.", "affected_selectors": ["[data-testid=buy-no-results]", "[data-testid=buy-area-fallback-note]", "[data-testid^=buy-result-]"]}
+    ],
+    "design_issues": [
+      {"screen": "Buy page country dropdown", "issues": ["The unselected 'Canada' option shows an empty white box instead of the CA flag (the flag shows once Canada is selected)."]},
+      {"screen": "Landing /cloudivr", "issues": ["The Coverage section (Sections.js Coverage, data-testid coverage-section) and landing/Hero.js are not rendered anywhere (dead code). The current landing uses OnePage OneHero. Footer/menu '#coverage' links jump to an empty anchor span. No country-count text appears on the landing page."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_signalwire_countries.py", "/app/tests/sw_search_probe.js", "/app/test_reports/pytest/pytest_signalwire_countries.xml"],
+  "action_items": [
+    "Add the SIGNALWIRE_* env vars to backend/.env so the supervisor nodejs process sees them, restart nodejs, then rerun backend/tests/test_cloudivr_signalwire_countries.py (4 search tests currently fail)",
+    "After that, retest the Buy page UI: CA local results, CA toll-free, US 212 fallback note, and no buy-fax-pill",
+    "Optional: remove or mount the dead Coverage/Hero landing components and fix the '#coverage' anchor links; fix the Canada flag missing in the dropdown option"
+  ],
+  "critical_code_review_comments": [
+    "numbers.js /numbers/search correctly forces fax:false for _signalwire results and returns a fallback {areaCode, region}",
+    "countries() and phone-config getAllCountries/getMoreCountries correctly gate international countries behind numberSearchUsCaOnly",
+    "The Telnyx backup in the provider router is still called while Telnyx is blocked"
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_signalwire_countries.py", "/app/tests/sw_search_probe.js"],
+  "success_rate": {"backend": "43% (3/7 via the app; the search logic passes 6/6 run directly from the shell)", "frontend": "75% (dropdown, header, landing pass; search results blocked by backend env)"},
+  "seed_data_creation": "None. No purchases made.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login civr.uxtest@example.com / UxTest#2026 at /cloudivr/login (cookie-allow-all first), Buy page at /cloudivr/app/buy. The country select is the first button in buy-search-form, with options role=option. To check whether the nodejs process has SignalWire env, list /proc/<pid of js/start-bot.js>/environ key names only.",
+  "rca of the issue": "Reproduced: GET /numbers/search?country=CA&type=local returns []. nodejs log shows Telnyx 10009 blocked. /proc environ of start-bot.js has no SIGNALWIRE_* keys, while the tool shell has them. config-setup.js loads only <cwd>/.env and backend/.env, and neither holds SIGNALWIRE_*. Fix: put the keys in backend/.env and restart."
+}
