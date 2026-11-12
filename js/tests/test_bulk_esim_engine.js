@@ -154,6 +154,16 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms))
   await db.collection('bsTests').insertOne({ esimId: 'ESIM-JOIN', peer: 'ESIM-0003', type: 'check', kind: 'pre_use', code: 'abc123', result: 'pending', legs: { out: true, back: false }, at: new Date() })
   await B.onWebhook('', {}, { data: { From: '+13330002222', Owner: '+13330001111', Message_Body: 'CloudIVR line check abc123 ok', Message_ID: 'chk-join' } })
   ok('new line joins the pool instantly when its delivery check passes', (await db.collection('bsEsims').findOne({ _id: 'ESIM-JOIN' }))?.status === 'available')
+  // ── Dead line whose Spenza plan never activated: no "cancel it yourself" alert, retried daily, admin told once ──
+  const PS = require('../bulk-esim/provider-spenza'), origCancel = PS.cancelSubscription, origSub = PS.subscription
+  PS.cancelSubscription = async () => { throw Object.assign(new Error("This SIM doesn't have a subscription to cancel."), { status: 404, code: 'SUBSCRIPTION_NOT_FOUND' }) }
+  PS.subscription = async () => ({ status: 'PENDING' })
+  await db.collection('bsEsims').insertOne({ _id: 'ESIM-PEND', role: 'service', status: 'failed', iccid: 'icc-pend', msisdn: '+13330003333', cancelledAt: null, updatedAt: new Date(Date.now() - 2 * 3600000), stats: {} })
+  await db.collection('bsConfig').deleteMany({ _id: /^(cancelpending|cancelfail):/ })
+  await B.cancelDead(await B.cfg()); await B.cancelDead(await B.cfg())
+  const pend = await db.collection('bsEsims').findOne({ _id: 'ESIM-PEND' })
+  ok('pending-plan cancel is recorded as blocked (not cancelled) and alerted once, not daily', pend.cancelBlocked?.reason === 'plan_not_active' && pend.cancelBlocked.subStatus === 'PENDING' && !pend.cancelledAt && (await db.collection('bsConfig').countDocuments({ _id: /^cancelpending:ESIM-PEND/ })) === 1 && (await db.collection('bsConfig').countDocuments({ _id: /^cancelfail:.*ESIM-PEND/ })) === 0)
+  PS.cancelSubscription = origCancel; PS.subscription = origSub
 
   ok('progress milestone not repeated on the next tick', (await db.collection('bsNotify').countDocuments({ key: 'n_progress', campaignId: 'cp_prog' })) === 1)
 

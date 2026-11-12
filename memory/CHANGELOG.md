@@ -2818,3 +2818,8 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Test: test_bulk_esim_engine.js 48/0 (added "new line joins the pool instantly when its delivery check passes").
 - Live outcome: campaign cp_d93159e873ae reached 991 sent / 0 queued / 0 failed; replacements ESIM-0008/0009 joined and each sent 100.
 - DEPLOY: code change → Save to GitHub to reach the 4 bots.
+
+## 2026-11-12 (cont.) — Spenza "could not cancel" alerts for ESIM-0004/0005
+- Cause: cancelDead (hourly) tries to cancel failed lines. 0004/0005 never activated: Spenza getSim INACTIVE/UNASSIGNED, subscription PENDING (autoTopUp true, ordered 12:37 for $10 each). Spenza cancel API returns 404 SUBSCRIPTION_NOT_FOUND for plans without billing linkage → misleading "cancel at web.spenza.com" alert, repeated daily.
+- Fix (core.js cancelDead): 404/SUBSCRIPTION_NOT_FOUND → store cancelBlocked {reason:'plan_not_active', subStatus, at}, retry once a day (cancels if the plan ever activates), single admin note (once key cancelpending:<id>) asking Spenza support to void the ICCID for a refund. Other errors keep the old alert.
+- Test 49/0 (added pending-plan cancel case). Needs Save to GitHub. Manual: ask Spenza support to void ICCIDs 8901240397146384806 (+16316900316) and 8901240397145878758 (+16316870635) and refund.
