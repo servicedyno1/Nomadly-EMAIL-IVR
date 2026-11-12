@@ -702,8 +702,16 @@ async function cancelDead(c) {
   const dead = await C('bsEsims').find({ iccid: { $ne: null }, cancelledAt: null, $or: [{ status: 'failed', updatedAt: { $lt: new Date(Date.now() - HOUR) } }, { status: 'suspended', updatedAt: { $lt: cut } }] }).limit(20).toArray()
   for (const e of dead) {
     if (await C('bsEsims').findOne({ _id: { $ne: e._id }, iccid: e.iccid, $or: [{ status: { $nin: GONE } }, { cancelledAt: { $ne: null } }] })) { await C('bsEsims').updateOne({ _id: e._id }, { $set: { cancelledAt: new Date(), note: 'eSIM lives on in its replacement or was already cancelled' } }); continue }
+    if (e.cancelBlocked?.at && Date.now() - new Date(e.cancelBlocked.at).getTime() < DAY) continue
     try { await P.cancelSubscription(e.iccid, e.account); await C('bsEsims').updateOne({ _id: e._id }, { $set: { cancelledAt: new Date(), status: e.status === 'suspended' ? 'failed' : e.status } }); alert(`🗑 ${e._id} ${e.msisdn || ''} (${e.status}) cancelled with Spenza — no more monthly billing for this eSIM.`); audit('cancel_line', { esimId: e._id, iccid: e.iccid, was: e.status }) }
-    catch (err) { if (await once(`cancelfail:${today()}:${e._id}`)) alert(`⚠️ Could not cancel ${e._id} with Spenza: ${err.message}. Cancel it at web.spenza.com to stop the billing.`) }
+    catch (err) {
+      // A plan that never activated (PENDING) has no billing linkage yet, so Spenza can't cancel it: retry daily, tell the admin once.
+      if (err.status === 404 || /SUBSCRIPTION_NOT_FOUND|doesn.t have a subscription/i.test(err.message)) {
+        const sub = await P.subscription(e.iccid, e.account).catch(() => null)
+        await C('bsEsims').updateOne({ _id: e._id }, { $set: { cancelBlocked: { reason: 'plan_not_active', subStatus: sub?.status || null, at: new Date() } } })
+        if (await once(`cancelpending:${e._id}`)) alert(`ℹ️ ${e._id} ${e.msisdn || ''}: Spenza can't cancel this plan because it never activated (plan ${sub?.status || 'not started'}). I'll retry daily and cancel it if it ever activates. To get the order cost back, ask Spenza support to void ICCID ${e.iccid}.`)
+      } else if (await once(`cancelfail:${today()}:${e._id}`)) alert(`⚠️ Could not cancel ${e._id} with Spenza: ${err.message}. Cancel it at web.spenza.com to stop the billing.`)
+    }
   }
 }
 async function expireHolds() {
