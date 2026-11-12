@@ -77,6 +77,7 @@ const en = {
   n_refund_unsent: (name, parts, a) => `↩️ Campaign “${name}”: ${parts} SMS failed or couldn’t be sent. ${money(a)} refunded to your wallet.`,
   n_quota: (t) => `⛔ Your daily SMS allowance is used up. Texts over the allowance were not sent. It resets at ${t} UTC.`,
   n_started: (name) => `🚀 Campaign “${name}” started sending.`,
+  n_progress: (name, pct, s, tot, eta) => `📈 Campaign “${name}” — ${pct}% done (${s}/${tot} sent).${eta ? ` About ${eta} left.` : ''}`,
   n_late: (name, sent, total) => `⏳ Campaign “${name}” is running behind: ${sent} of ${total} texts out so far. Sending continues automatically; anything not delivered within 2 days of the start is refunded.`,
   n_inbound: (from, text) => `💬 Reply from ${from}:\n${text}`,
   n_inbound_stop: (from, text) => `💬 Reply from ${from} (opted out — blocked for all future campaigns):\n${text}`,
@@ -157,6 +158,7 @@ const fr = {
   n_refund_unsent: (name, parts, a) => `↩️ Campagne « ${name} » : ${parts} SMS en échec ou non envoyés. ${money(a)} remboursés sur votre portefeuille.`,
   n_quota: (t) => `⛔ Votre quota SMS du jour est épuisé. Les SMS au-delà n’ont pas été envoyés. Remise à zéro à ${t} UTC.`,
   n_started: (name) => `🚀 La campagne « ${name} » a commencé l’envoi.`,
+  n_progress: (name, pct, s, tot, eta) => `📈 Campagne « ${name} » — ${pct}% effectué (${s}/${tot} envoyés).${eta ? ` Encore environ ${eta}.` : ''}`,
   n_late: (name, sent, total) => `⏳ La campagne « ${name} » a du retard : ${sent} sur ${total} textos envoyés. L’envoi continue automatiquement ; tout ce qui n’est pas livré dans les 2 jours est remboursé.`,
   n_inbound: (from, text) => `💬 Réponse de ${from} :\n${text}`,
   n_inbound_stop: (from, text) => `💬 Réponse de ${from} (désinscrit — bloqué pour toutes les futures campagnes) :\n${text}`,
@@ -237,6 +239,7 @@ const zh = {
   n_refund_unsent: (name, parts, a) => `↩️ 活动“${name}”：${parts} 条短信失败或未能发出，${money(a)} 已退回您的钱包。`,
   n_quota: (t) => `⛔ 今日短信额度已用完，超出部分未发送。将于 ${t} UTC 重置。`,
   n_started: (name) => `🚀 活动“${name}”已开始发送。`,
+  n_progress: (name, pct, s, tot, eta) => `📈 活动“${name}” — 已完成 ${pct}%（已发送 ${s}/${tot}）。${eta ? ` 预计还需约 ${eta}。` : ''}`,
   n_late: (name, sent, total) => `⏳ 活动“${name}”进度滞后：已发送 ${sent}/${total} 条。发送会自动继续；开始后 2 天内未送达的部分将退款。`,
   n_inbound: (from, text) => `💬 来自 ${from} 的回复：\n${text}`,
   n_inbound_stop: (from, text) => `💬 来自 ${from} 的回复（已退订 — 所有后续活动均已屏蔽）：\n${text}`,
@@ -317,6 +320,7 @@ const hi = {
   n_refund_unsent: (name, parts, a) => `↩️ अभियान “${name}”: ${parts} SMS विफल रहे या भेजे नहीं जा सके। ${money(a)} आपके वॉलेट में लौटाए गए।`,
   n_quota: (t) => `⛔ आज की SMS सीमा खत्म हो गई। सीमा से ऊपर के SMS नहीं भेजे गए। ${t} UTC पर रीसेट होगा।`,
   n_started: (name) => `🚀 अभियान “${name}” भेजना शुरू हुआ।`,
+  n_progress: (name, pct, s, tot, eta) => `📈 अभियान “${name}” — ${pct}% पूरा (${s}/${tot} भेजे गए)।${eta ? ` लगभग ${eta} शेष।` : ''}`,
   n_late: (name, sent, total) => `⏳ अभियान “${name}” देर से चल रहा है: अब तक ${total} में से ${sent} संदेश भेजे गए। भेजना अपने-आप जारी रहेगा; शुरू होने के 2 दिन में न पहुँचे संदेश रिफंड होंगे।`,
   n_inbound: (from, text) => `💬 ${from} से जवाब:\n${text}`,
   n_inbound_stop: (from, text) => `💬 ${from} से जवाब (ऑप्ट-आउट — सभी भविष्य के अभियानों के लिए ब्लॉक):\n${text}`,
@@ -397,6 +401,7 @@ const fa = {
   n_refund_unsent: (name, parts, a) => `↩️ کمپین «${name}»: ${parts} پیامک ناموفق بود یا ارسال نشد. ${money(a)} به کیف پول شما بازگشت.`,
   n_quota: (t) => `⛔ سهمیه پیامک امروز تمام شد. پیامک‌های بیش از سهمیه ارسال نشدند. بازنشانی ساعت ${t} UTC.`,
   n_started: (name) => `🚀 ارسال کمپین «${name}» شروع شد.`,
+  n_progress: (name, pct, s, tot, eta) => `📈 کمپین «${name}» — ${pct}٪ انجام شد (${s}/${tot} ارسال‌شده).${eta ? ` حدود ${eta} باقی مانده.` : ''}`,
   n_late: (name, sent, total) => `⏳ کمپین «${name}» عقب است: تاکنون ${sent} از ${total} پیامک ارسال شده. ارسال خودکار ادامه دارد؛ هرچه تا ۲ روز پس از شروع تحویل نشود بازپرداخت می‌شود.`,
   n_inbound: (from, text) => `💬 پاسخ از ${from}:\n${text}`,
   n_inbound_stop: (from, text) => `💬 پاسخ از ${from} (لغو اشتراک — برای همه کمپین‌های آینده مسدود شد):\n${text}`,
@@ -793,11 +798,11 @@ for (const [l, f] of Object.entries(FAQ)) { const P = LANGS[l], h = P.home; if (
 
 // Delivery review after the 1st and 2nd single text (support-style inline buttons).
 const REVIEW = {
-  en: { rv_q: (to, n) => `📬 <b>Quick check on your ${n === 1 ? 'first' : 'second'} text</b> to ${to}\nDid it arrive on their phone?`, rv_stars: '⭐ How would you rate the service? (1 = poor, 5 = great)', rv_thanks: '✅ Feedback recorded — Thank you!', rv_comment_q: '💬 Anything to add? Reply to this message (optional).', rv_comment_ok: '🙏 Thanks — your comment was saved.', rv_no_note: '🔍 Sorry about that — we are re-checking the sending line right now.', rv_yes: '✅ Yes, it arrived', rv_no: '❌ No', rv_unsure: '🤷 Not sure' },
-  fr: { rv_q: (to, n) => `📬 <b>Petite vérification de votre ${n === 1 ? 'premier' : 'deuxième'} SMS</b> vers ${to}\nEst-il bien arrivé sur leur téléphone ?`, rv_stars: '⭐ Comment notez-vous le service ? (1 = mauvais, 5 = excellent)', rv_thanks: '✅ Avis enregistré — Merci !', rv_comment_q: '💬 Un commentaire ? Répondez à ce message (facultatif).', rv_comment_ok: '🙏 Merci — votre commentaire est enregistré.', rv_no_note: '🔍 Désolé — nous revérifions la ligne d’envoi immédiatement.', rv_yes: '✅ Oui, reçu', rv_no: '❌ Non', rv_unsure: '🤷 Je ne sais pas' },
-  zh: { rv_q: (to, n) => `📬 <b>快速确认您的第${n === 1 ? '一' : '二'}条短信</b>（发往 ${to}）\n对方手机收到了吗？`, rv_stars: '⭐ 您给服务打几分？（1 = 差，5 = 很好）', rv_thanks: '✅ 反馈已记录 — 谢谢！', rv_comment_q: '💬 还有补充吗？回复此消息即可（可选）。', rv_comment_ok: '🙏 谢谢 — 您的评论已保存。', rv_no_note: '🔍 抱歉 — 我们正在立即重新检查发送线路。', rv_yes: '✅ 收到了', rv_no: '❌ 没收到', rv_unsure: '🤷 不确定' },
-  hi: { rv_q: (to, n) => `📬 <b>आपके ${n === 1 ? 'पहले' : 'दूसरे'} SMS की जाँच</b> (${to} को)\nक्या यह उनके फ़ोन पर पहुँचा?`, rv_stars: '⭐ सेवा को कितने स्टार देंगे? (1 = खराब, 5 = बढ़िया)', rv_thanks: '✅ फ़ीडबैक दर्ज — धन्यवाद!', rv_comment_q: '💬 कुछ और कहना है? इस संदेश का जवाब दें (वैकल्पिक)।', rv_comment_ok: '🙏 धन्यवाद — आपकी टिप्पणी सेव हो गई।', rv_no_note: '🔍 माफ़ कीजिए — हम भेजने वाली लाइन की अभी दोबारा जाँच कर रहे हैं।', rv_yes: '✅ हाँ, पहुँचा', rv_no: '❌ नहीं', rv_unsure: '🤷 पता नहीं' },
-  fa: { rv_q: (to, n) => `📬 <b>بررسی سریع پیامک ${n === 1 ? 'اول' : 'دوم'} شما</b> به ${to}\nآیا به گوشی‌شان رسید؟`, rv_stars: '⭐ به سرویس چه امتیازی می‌دهید؟ (۱ = بد، ۵ = عالی)', rv_thanks: '✅ نظر ثبت شد — متشکریم!', rv_comment_q: '💬 توضیحی دارید؟ به همین پیام پاسخ دهید (اختیاری).', rv_comment_ok: '🙏 متشکریم — نظر شما ذخیره شد.', rv_no_note: '🔍 متأسفیم — همین حالا خط ارسال را دوباره بررسی می‌کنیم.', rv_yes: '✅ بله، رسید', rv_no: '❌ نه', rv_unsure: '🤷 مطمئن نیستم' },
+  en: { rv_q: (to, n) => `📬 <b>Quick check on your ${n === 1 ? 'first' : 'second'} text</b> to ${to}\nDid it arrive on their phone?`, rv_stars: '⭐ How would you rate the service? (1 = poor, 5 = great)', rv_thanks: '✅ Feedback recorded — Thank you!', rv_comment_q: '💬 Anything to add? Reply to this message (optional).', rv_comment_ok: '🙏 Thanks — your comment was saved.', rv_no_note: '🔍 Sorry about that — we are re-checking the sending line right now.', rv_yes: '✅ Yes, it arrived', rv_no: '❌ No', rv_unsure: '🤷 Not sure', rv_cp_q: (name) => `🎉 <b>Your campaign “${name}” is complete!</b>\n⭐ How would you rate the service? (1 = poor, 5 = great)` },
+  fr: { rv_q: (to, n) => `📬 <b>Petite vérification de votre ${n === 1 ? 'premier' : 'deuxième'} SMS</b> vers ${to}\nEst-il bien arrivé sur leur téléphone ?`, rv_stars: '⭐ Comment notez-vous le service ? (1 = mauvais, 5 = excellent)', rv_thanks: '✅ Avis enregistré — Merci !', rv_comment_q: '💬 Un commentaire ? Répondez à ce message (facultatif).', rv_comment_ok: '🙏 Merci — votre commentaire est enregistré.', rv_no_note: '🔍 Désolé — nous revérifions la ligne d’envoi immédiatement.', rv_yes: '✅ Oui, reçu', rv_no: '❌ Non', rv_unsure: '🤷 Je ne sais pas', rv_cp_q: (name) => `🎉 <b>Votre campagne « ${name} » est terminée !</b>\n⭐ Comment notez-vous le service ? (1 = mauvais, 5 = excellent)` },
+  zh: { rv_q: (to, n) => `📬 <b>快速确认您的第${n === 1 ? '一' : '二'}条短信</b>（发往 ${to}）\n对方手机收到了吗？`, rv_stars: '⭐ 您给服务打几分？（1 = 差，5 = 很好）', rv_thanks: '✅ 反馈已记录 — 谢谢！', rv_comment_q: '💬 还有补充吗？回复此消息即可（可选）。', rv_comment_ok: '🙏 谢谢 — 您的评论已保存。', rv_no_note: '🔍 抱歉 — 我们正在立即重新检查发送线路。', rv_yes: '✅ 收到了', rv_no: '❌ 没收到', rv_unsure: '🤷 不确定', rv_cp_q: (name) => `🎉 <b>您的活动“${name}”已完成！</b>\n⭐ 您给服务打几分？（1 = 差，5 = 很好）` },
+  hi: { rv_q: (to, n) => `📬 <b>आपके ${n === 1 ? 'पहले' : 'दूसरे'} SMS की जाँच</b> (${to} को)\nक्या यह उनके फ़ोन पर पहुँचा?`, rv_stars: '⭐ सेवा को कितने स्टार देंगे? (1 = खराब, 5 = बढ़िया)', rv_thanks: '✅ फ़ीडबैक दर्ज — धन्यवाद!', rv_comment_q: '💬 कुछ और कहना है? इस संदेश का जवाब दें (वैकल्पिक)।', rv_comment_ok: '🙏 धन्यवाद — आपकी टिप्पणी सेव हो गई।', rv_no_note: '🔍 माफ़ कीजिए — हम भेजने वाली लाइन की अभी दोबारा जाँच कर रहे हैं।', rv_yes: '✅ हाँ, पहुँचा', rv_no: '❌ नहीं', rv_unsure: '🤷 पता नहीं', rv_cp_q: (name) => `🎉 <b>आपका अभियान “${name}” पूरा हुआ!</b>\n⭐ सेवा को कितने स्टार देंगे? (1 = खराब, 5 = बढ़िया)` },
+  fa: { rv_q: (to, n) => `📬 <b>بررسی سریع پیامک ${n === 1 ? 'اول' : 'دوم'} شما</b> به ${to}\nآیا به گوشی‌شان رسید؟`, rv_stars: '⭐ به سرویس چه امتیازی می‌دهید؟ (۱ = بد، ۵ = عالی)', rv_thanks: '✅ نظر ثبت شد — متشکریم!', rv_comment_q: '💬 توضیحی دارید؟ به همین پیام پاسخ دهید (اختیاری).', rv_comment_ok: '🙏 متشکریم — نظر شما ذخیره شد.', rv_no_note: '🔍 متأسفیم — همین حالا خط ارسال را دوباره بررسی می‌کنیم.', rv_yes: '✅ بله، رسید', rv_no: '❌ نه', rv_unsure: '🤷 مطمئن نیستم', rv_cp_q: (name) => `🎉 <b>کمپین شما «${name}» کامل شد!</b>\n⭐ به سرویس چه امتیازی می‌دهید؟ (۱ = بد، ۵ = عالی)` },
 }
 for (const [l, d] of Object.entries(REVIEW)) Object.assign(LANGS[l], d)
 
