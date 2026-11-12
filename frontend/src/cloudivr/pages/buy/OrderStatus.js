@@ -129,8 +129,9 @@ export default function OrderStatus() {
   return (
     <div data-testid="order-page">
       <PageHeader label="Checkout" title={o.kind === 'upgrade' ? 'Your plan upgrade' : o.kind === 'extra' ? 'Your extra number order' : 'Your number order'}
-        sub={o.kind === 'upgrade' ? `${o.phoneNumber} → ${o.planName} plan · ${money(o.price)}`
-          : o.kind === 'extra' ? `${o.phoneNumber} · extra number on ${o.parentNumber} (${o.planName} plan) · ${money(o.charge)}${o.price > o.charge ? ` · deposit ${money(o.price)}, the rest stays in your wallet` : ''} · auto-renew ${o.autoRenew ? 'on' : 'off'}`
+        sub={o.walletPart > 0 ? `${o.phoneNumber} · ${money(o.total)} total: ${money(o.walletPart)} from your wallet + ${money(o.price)} in crypto`
+          : o.kind === 'upgrade' ? `${o.phoneNumber} → ${o.planName} plan · ${money(o.price)}`
+          : o.kind === 'extra' ? `${o.phoneNumber} · extra number on ${o.parentNumber} (${o.planName} plan) · ${money(o.charge)}${o.price > o.charge && !o.walletPart ? ` · deposit ${money(o.price)}, the rest stays in your wallet` : ''} · auto-renew ${o.autoRenew ? 'on' : 'off'}`
           : `${o.phoneNumber} · ${o.planName} plan · ${money(o.price)} · auto-renew ${o.autoRenew ? 'on' : 'off'}`} testid="order-header" />
       <Steps status={status} upgrade={o.kind === 'upgrade'} />
       <div className="mb-4"><ErrorNote error={err} testid="order-error" /></div>

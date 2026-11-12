@@ -30,13 +30,18 @@ export function RenewWarning({ price, date, on = true, testid }) {
   );
 }
 
-export function ShortNote({ balance, short, testid }) {
+// crypto: also offer "pay just the missing part in crypto" right here (off where the screen has its own crypto button).
+export function ShortNote({ balance, short, testid, crypto = true }) {
+  const shell = useShell();
   if (balance == null) return null;
   return (
-    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-[var(--c-muted)]" data-testid={testid}>
-      <Wallet className="w-4 h-4" />{`Wallet ${money(balance)} · ${money(short)} short`}
-      <Link to={cp('/app/wallet')} className="underline font-semibold text-[var(--c-accent)]" data-testid={`${testid}-topup`}>Top up</Link>
-    </p>
+    <div className="space-y-2" data-testid={`${testid}-wrap`}>
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-[var(--c-muted)]" data-testid={testid}>
+        <Wallet className="w-4 h-4" />{`Wallet ${money(balance)} · ${money(short)} short`}
+        <Link to={cp(`/app/wallet?need=${short}`)} className="underline font-semibold text-[var(--c-accent)]" data-testid={`${testid}-topup`}>Top up</Link>
+      </p>
+      {crypto && <CryptoPay price={Math.round((balance + short) * 100) / 100} onReady={() => shell?.refreshSummary?.()} testid={`${testid}-crypto`} />}
+    </div>
   );
 }
 
@@ -50,7 +55,7 @@ export function WalletPay({ price, onWallet, onCrypto, label, busy, disabled, cr
         {enough && <button type="button" onClick={onWallet} disabled={busy || disabled} className={`civr-btn civr-btn-primary ${sm}`} data-testid={walletTestid || `${testid}-wallet`}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}{label || `Pay ${money(price)} from wallet`}</button>}
         {children}
       </div>
-      {!enough && <ShortNote balance={balance} short={short} testid={`${testid}-short`} />}
+      {!enough && <ShortNote balance={balance} short={short} testid={`${testid}-short`} crypto={false} />}
       {crypto && !disabled && <CryptoPay price={price} onReady={onCrypto || onWallet} primary={!enough} testid={cryptoTestid || `${testid}-crypto`} />}
     </div>
   );

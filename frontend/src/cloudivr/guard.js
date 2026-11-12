@@ -32,7 +32,7 @@ export function useUnsaved(value) {
     if (base.current === null) { base.current = JSON.stringify(cur.current ?? null); setTouched(true); }
   }, []);
   const reset = useCallback(() => { base.current = null; setTouched(false); dirty.set(id.current, false); }, []);
-  return { dirty: isDirty, reset, bind: { onChangeCapture: touch, onClickCapture: touch, onKeyDownCapture: touch } };
+  return { dirty: isDirty, reset, touch, bind: { onChangeCapture: touch, onClickCapture: touch, onKeyDownCapture: touch } };
 }
 
 export const UnsavedPill = ({ show, testid = 'unsaved-changes-pill' }) => (show ? <span className="civr-pill civr-pill-warn self-center" role="status" data-testid={testid}>Unsaved changes</span> : null);

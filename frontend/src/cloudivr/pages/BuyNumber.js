@@ -175,14 +175,14 @@ export default function BuyNumber() {
     sessionStorage.setItem(RESUME_KEY, JSON.stringify({ q, res, pick, plan: planObj?.id, coupon }));
     nav(cp(`/app/wallet?need=${shortBy}&for=${enc(pick.phoneNumber)}${extraOf ? `&extra=${enc(extraOf)}` : ''}`));
   };
-  const buy = async ({ method, coin, autoRenew, texting }) => {
+  const buy = async ({ method, coin, autoRenew, texting, useWallet }) => {
     setBusy('buy'); setError(null);
     try {
       const d = extraOf
         ? method === 'crypto'
-          ? await api(`/numbers/${enc(extraOf)}/extra-checkout`, { method: 'POST', body: { phoneNumber: pick.phoneNumber, coin, coupon: coupon?.code, autoRenew } })
+          ? await api(`/numbers/${enc(extraOf)}/extra-checkout`, { method: 'POST', body: { phoneNumber: pick.phoneNumber, coin, coupon: coupon?.code, autoRenew, useWallet } })
           : await api(`/numbers/${enc(extraOf)}/extra`, { method: 'POST', body: { phoneNumber: pick.phoneNumber, coupon: coupon?.code, autoRenew } })
-        : await api('/numbers/checkout', { method: 'POST', body: { phoneNumber: pick.phoneNumber, plan: planObj.id, method, coin, autoRenew, coupon: coupon?.code, texting } });
+        : await api('/numbers/checkout', { method: 'POST', body: { phoneNumber: pick.phoneNumber, plan: planObj.id, method, coin, autoRenew, coupon: coupon?.code, texting, useWallet } });
       sessionStorage.removeItem(RESUME_KEY);
       refreshSummary();
       const useNow = use && !extraOf && USE_PLAN[use] === planObj?.id ? use : null;
@@ -193,7 +193,7 @@ export default function BuyNumber() {
       if (d.substitutedFrom) toast.info(`${d.substitutedFrom} was just taken, so you got ${d.number.phoneNumber} instead — same price.`);
       else toast.success(`${d.number.phoneNumber} is yours`);
       nav(cp(setupPath(useNow, d.number.phoneNumber)));
-    } catch (err) { setError(err); } finally { setBusy(''); }
+    } catch (err) { setError(err); toast.error(err.message); } finally { setBusy(''); }
   };
 
   return (

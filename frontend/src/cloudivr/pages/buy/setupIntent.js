@@ -13,7 +13,7 @@ const STEPS = {
   campaigns: ['Your first calling campaign is ready to set up with this number.', 'Start a campaign'],
 };
 
-export const saveIntent = (use, phone) => { try { localStorage.removeItem('civr.helperUse'); if (STEPS[use]) localStorage.setItem(KEY, JSON.stringify({ use, phone, at: Date.now() })); } catch (_) { /* ignore */ } };
+export const saveIntent = (use, phone) => { try { localStorage.removeItem('civr.helperUse'); localStorage.removeItem(KEY); if (STEPS[use]) localStorage.setItem(KEY, JSON.stringify({ use, phone, at: Date.now() })); } catch (_) { /* ignore */ } };
 // Helper answer picked on the website before signing up, so Get a Business Line starts with it.
 const USE_KEY = 'civr.helperUse';
 export const rememberUse = (use) => { try { localStorage.setItem(USE_KEY, JSON.stringify({ use, at: Date.now() })); } catch (_) { /* ignore */ } };

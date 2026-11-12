@@ -25,13 +25,13 @@ async function textingAddOn(body) {
 }
 
 // USD the wallet must hold to finish the order (extras/upgrades may deposit more than they cost: crypto minimum).
-const needOf = (o) => (o.kind === 'extra' || o.kind === 'upgrade') ? (o.charge || o.price) : o.price
+const needOf = (o) => o.need != null ? o.need : (o.kind === 'extra' || o.kind === 'upgrade') ? (o.charge || o.price) : o.price
 
 const publicOrder = (o) => ({
   id: o._id, kind: o.kind || 'number', charge: o.charge || o.price, phoneNumber: o.phoneNumber, plan: o.planKey, planName: phoneConfig.plans[o.planKey]?.name || o.planKey, price: o.price,
   parentNumber: o.parentNumber || null, texting: o.texting ? { charge: o.texting.charge, line: o.textingLine || null } : null,
   coin: o.coin, address: o.address, amountCrypto: o.amountCrypto || null, autoRenew: o.autoRenew !== false, status: o.status,
-  paidUsd: o.paidUsd || 0, assignedNumber: o.assignedNumber || null, substitutedFrom: o.substitutedFrom || null,
+  paidUsd: o.paidUsd || 0, walletPart: o.walletPart || 0, total: needOf(o), assignedNumber: o.assignedNumber || null, substitutedFrom: o.substitutedFrom || null,
   message: o.message || null, dryRun: !!o.dryRun, preview: o.provider === 'preview', createdAt: o.createdAt, updatedAt: o.updatedAt,
   // Still awaiting_payment in the DB so a late payment is picked up (see tick); shown as expired after the window.
   expiresAt: new Date(new Date(o.createdAt).getTime() + PAY_WINDOW_MS), expired: o.status === 'awaiting_payment' && Date.now() > new Date(o.createdAt).getTime() + PAY_WINDOW_MS,
@@ -76,15 +76,15 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     const r = await numbersApi.upgradeNumber(o.chatId, n, o.planKey, o._id, o.offerPct || 0)
     if (r.status === 200 && o.offerId && offers) await offers.markUsed(o.offerId).catch(() => {})
     if (r.status === 200) {
-      const message = `Payment confirmed — ${o.phoneNumber} is now on the ${planName} plan.${o.price > r.body.charged ? ` The $${round2(o.price - r.body.charged).toFixed(2)} left over stays in your wallet.` : ''}`
+      const message = `Payment confirmed — ${o.phoneNumber} is now on the ${planName} plan.${o.price + (o.walletPart || 0) > r.body.charged ? ` The $${round2(o.price + (o.walletPart || 0) - r.body.charged).toFixed(2)} left over stays in your wallet.` : ''}`
       await save(o._id, { status: 'active', assignedNumber: o.phoneNumber, chargedUsd: r.body.charged, message })
       tell(o, message, `${o.phoneNumber} upgraded to ${planName}`)
       return
     }
     if (r.status === 402) {
-      const message = `${r.body.message} Your payment is in your wallet — add the rest, then press Finish.`
-      await save(o._id, { status: 'underpaid', message })
-      tell(o, `Your upgrade payment for ${o.phoneNumber} came in short. ${message}`)
+      const message = `${r.body.message} Nothing was charged — everything is in your wallet. Start the upgrade again any time.`
+      await save(o._id, { status: 'failed', message })
+      tell(o, `Your upgrade payment for ${o.phoneNumber} came in short. ${message}`, 'Your CloudIVR payment is in your wallet')
       return
     }
     await save(o._id, { status: 'failed', message: `${r.body.message} Your payment is in your wallet.` })
@@ -118,10 +118,9 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     }
     const need = needOf(o)
     if ((await w.balance(o.chatId)) < need) {
-      const short = round2(need - (await w.balance(o.chatId)))
-      const message = `We received $${(o.paidUsd || 0).toFixed(2)} of $${need.toFixed(2)}. It is in your wallet — add $${short.toFixed(2)} more, then press Finish.`
-      await save(o._id, { status: 'underpaid', message })
-      tell(o, `Your payment for ${o.phoneNumber} came in short. ${message}`)
+      const message = `We received $${(o.paidUsd || 0).toFixed(2)} but ${o.phoneNumber} needs $${need.toFixed(2)}${o.walletPart ? ` (with $${o.walletPart.toFixed(2)} from your wallet)` : ''}. Nothing was bought — everything is in your wallet. Start the purchase again any time.`
+      await save(o._id, { status: 'failed', message })
+      tell(o, `Your payment for ${o.phoneNumber} came in short. ${message}`, 'Your CloudIVR payment is in your wallet')
       return
     }
     const list = [o.hit]
@@ -134,9 +133,9 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
         const swapped = assigned !== o.phoneNumber
         const status = r.status === 202 ? 'verification' : 'active'
         const charged = extra ? round2(o.charge) : round2(phoneConfig.plans[o.planKey].price + (hit.surcharge || 0))
-        const linePaid = round2(o.price - (o.texting?.charge || 0))
+        const linePaid = round2(needOf(o) - (o.texting?.charge || 0))
         const priceNote = charged < linePaid ? `it costs $${charged.toFixed(2)}, so the $${round2(linePaid - charged).toFixed(2)} difference stays in your wallet` : 'same price'
-        const leftover = extra && o.price > charged ? ` The $${round2(o.price - charged).toFixed(2)} left over stays in your wallet.` : ''
+        const leftover = extra && o.price + (o.walletPart || 0) > charged ? ` The $${round2(o.price + (o.walletPart || 0) - charged).toFixed(2)} left over stays in your wallet.` : ''
         const message = swapped
           ? `The number you picked (${o.phoneNumber}) was taken while your payment was confirming, so we gave you ${assigned} instead — same country${o.areaCode ? ' and area code' : ''}, ${extra ? `same price.${leftover}` : priceNote}${extra ? '' : '.'}`
           : extra ? `Payment confirmed — ${assigned} is now an extra number on ${sub.parentNumber}.${leftover}` : `Payment confirmed — ${assigned} is yours.`
@@ -174,6 +173,12 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
   }
 
   const mine = (req) => orders.findOne({ _id: String(req.params.id), chatId: req.webChatId })
+  // useWallet: what's in the wallet now pays part of `total`; crypto covers the rest (at least the minimum top-up).
+  const split = async (chatId, total, useWallet) => {
+    const bal = useWallet ? Math.max(0, await w.balance(chatId)) : 0
+    const walletPart = round2(Math.min(bal, total))
+    return { walletPart, deposit: round2(Math.max(total - walletPart, MIN_TOPUP_USD)) }
+  }
 
   router.post('/numbers/checkout', h(async (req, res) => {
     const chatId = req.webChatId
@@ -201,7 +206,8 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     }
     const coin = String(req.body.coin || '')
     if (!coins.includes(coin)) return bad(res, 400, 'invalid_coin', `Pick one of: ${coins.join(', ')}.`)
-    const price = round2(linePrice + (texting ? texting.charge : 0))
+    const total = round2(linePrice + (texting ? texting.charge : 0))
+    const { walletPart, deposit: price } = await split(chatId, total, req.body.useWallet === true)
     const dep = !livePayments()
       ? { ref: `dry-${crypto.randomUUID().slice(0, 12)}`, address: 'PREVIEW-MODE-DO-NOT-SEND-FUNDS', amountCrypto: null, provider: 'preview' }
       : await createCryptoDeposit(chatId, price, coin)
@@ -209,7 +215,7 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     const now = new Date()
     const doc = {
       _id: dep.ref, chatId, email: req.webUser.email, phoneNumber: picked.hit.phoneNumber, hit: picked.hit, country: picked.country, type: picked.type,
-      areaCode: picked.areaCode, planKey, price, autoRenew, coupon, coin, ...(texting ? { texting } : {}), address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider,
+      areaCode: picked.areaCode, planKey, price, need: total, walletPart, autoRenew, coupon, coin, ...(texting ? { texting } : {}), address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider,
       status: 'awaiting_payment', dryRun: dryRun(), createdAt: now, updatedAt: now,
     }
     await orders.insertOne(doc)
@@ -229,13 +235,13 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     if (q.error) return bad(res, q.error.status, q.error.error, q.error.message)
     const coin = String(req.body.coin || '')
     if (!coins.includes(coin)) return bad(res, 400, 'invalid_coin', `Pick one of: ${coins.join(', ')}.`)
-    const price = round2(Math.max(q.charge, MIN_TOPUP_USD))
+    const { walletPart, deposit: price } = await split(chatId, q.charge, req.body.useWallet === true)
     const dep = !livePayments()
       ? { ref: `dry-${crypto.randomUUID().slice(0, 12)}`, address: 'PREVIEW-MODE-DO-NOT-SEND-FUNDS', amountCrypto: null, provider: 'preview' }
       : await createCryptoDeposit(chatId, price, coin)
     if (!dep || !dep.address) return bad(res, 424, 'deposit_unavailable', 'The crypto payment service did not return an address. Try again or pick another coin.')
     const now = new Date()
-    const doc = { _id: dep.ref, kind: 'upgrade', chatId, email: req.webUser.email, phoneNumber: n.phoneNumber, planKey, price, charge: q.charge, offerPct: offer?.discount || 0, offerId: offer?._id || null, autoRenew: n.autoRenew !== false, coin, address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider, status: 'awaiting_payment', dryRun: dryRun(), createdAt: now, updatedAt: now }
+    const doc = { _id: dep.ref, kind: 'upgrade', chatId, email: req.webUser.email, phoneNumber: n.phoneNumber, planKey, price, charge: q.charge, walletPart, offerPct: offer?.discount || 0, offerId: offer?._id || null, autoRenew: n.autoRenew !== false, coin, address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider, status: 'awaiting_payment', dryRun: dryRun(), createdAt: now, updatedAt: now }
     await orders.insertOne(doc)
     await db.collection('webDeposits').insertOne({ chatId, ref: dep.ref, amountUsd: price, coin, address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider, forNumber: n.phoneNumber, forUpgrade: planKey, createdAt: now })
     log(`[CloudIVR-Web] crypto upgrade ${dep.ref} ${n.phoneNumber} → ${planKey} $${price} ${coin} for ${chatId}`)
@@ -263,7 +269,7 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     const coin = String(req.body.coin || '')
     if (!coins.includes(coin)) return bad(res, 400, 'invalid_coin', `Pick one of: ${coins.join(', ')}.`)
     const charge = round2(phoneConfig.SUB_NUMBER_BASE_PRICE * (1 - (coupon ? coupon.discount : 0) / 100))
-    const price = round2(Math.max(charge, MIN_TOPUP_USD))
+    const { walletPart, deposit: price } = await split(chatId, charge, req.body.useWallet === true)
     const dep = !livePayments()
       ? { ref: `dry-${crypto.randomUUID().slice(0, 12)}`, address: 'PREVIEW-MODE-DO-NOT-SEND-FUNDS', amountCrypto: null, provider: 'preview' }
       : await createCryptoDeposit(chatId, price, coin)
@@ -271,7 +277,7 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     const now = new Date()
     const doc = {
       _id: dep.ref, kind: 'extra', chatId, email: req.webUser.email, phoneNumber: picked.hit.phoneNumber, parentNumber: n.phoneNumber, hit: picked.hit,
-      country: picked.country, type: picked.type, areaCode: picked.areaCode, planKey: n.plan, price, charge, autoRenew: req.body.autoRenew !== false, coupon, coin,
+      country: picked.country, type: picked.type, areaCode: picked.areaCode, planKey: n.plan, price, charge, walletPart, autoRenew: req.body.autoRenew !== false, coupon, coin,
       address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider, status: 'awaiting_payment', dryRun: dryRun(), createdAt: now, updatedAt: now,
     }
     await orders.insertOne(doc)

@@ -1,0 +1,39 @@
+{
+  "summary": "Tested all 4 features end to end (backend + UI). Texting Number bundle checkout: with the mocked GET /mobile-numbers the add-on shows, the ZIP check and totals are right (Pro $75 -> $142.50, Starter $117.50, Business $187.50, 'Includes Texting Number $67.50'), and the crypto and wallet pay labels are right. Without the mock the add-on is hidden. A real wallet purchase with the add-on returns 400 'Texting Numbers are temporarily unavailable…' and nothing is bought, but the message shows at the top of the page, not near the Pay button, and there is no toast. Plan-helper answers carried into setup: menu -> IVR tab ?prep=menu with the prep note and 2 prepared forward options, nothing saved, banner open/dismiss works. ai + Business -> /ai-agents/new?prep=1 with the note and the name 'Receptionist'; saving goes to the number's AI tab with the switch still off. campaigns -> /campaigns/new with the caller ID preselected. Changing the plan away from the helper's pick -> plain number page, no prep. Upgrade nudge on a Starter-only account: card, button 'Upgrade +1… to Pro · $62.50 now', the note, the wallet-too-low error with 'Add funds', a successful one-tap upgrade that then shows the campaign form, and 'See what you get' all work. Website helper: all 6 answers work (dark ring on the right card, scroll, result text, Texting Number and eSIM tabs). An answer picked on the website carries into /app/buy (helper answer + Business plan). French mostly translated. Node test 9/9 pass and the new pytest file 6/6 pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "campaign/UpgradeNudge.js campaign-upgrade-note", "issue": "Only half translated in French: 'Payé depuis votre portefeuille, with $12.50 credit for the rest of this month. Then $75.00/month.' The whole sentence is one template literal, so only the 'Paid from your wallet' part matches a fr.json key.", "selector": "[data-testid='campaign-upgrade-note']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Checkout with Texting add-on -> 400 texting_unavailable (also any other checkout error)", "issue": "The error only goes to ErrorNote buy-error, which sits under the search form at the top of the page, far above the Pay button. After pressing Pay the customer sees nothing change near the button and gets no toast. The 'shown clearly' requirement is not met. Fix: toast the error and/or show an error next to the pay button, or scroll to buy-error.", "affected_selectors": ["[data-testid='buy-error']", "[data-testid='civr-checkout-pay-now-btn']"]},
+      {"flow": "IVR prep=menu", "issue": "The prepared menu is loaded by code, but useUnsaved only turns dirty after the user touches the form. So the 'unsaved' pill (ivr-unsaved-pill) does not show and there is no leave-page warning. The customer can leave and lose the prepared menu silently (they can still come back through the setup-intent banner).", "affected_selectors": ["[data-testid='ivr-unsaved-pill']"]},
+      {"flow": "Upgrade nudge wallet too low", "issue": "The 'Add funds' link uses ?need=<full charge> (62.5) instead of the amount still missing (62.50 - $5 balance = 57.50).", "affected_selectors": ["[data-testid='campaign-upgrade-error'] a"]}
+    ],
+    "design_issues": [
+      {"screen": "Checkout (FR)", "issues": ["The wallet-short line says '$145.00 court', an awkward word-for-word translation of 'short' (older text, not new). Better: 'il manque $145.00'."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_texting_bundle_upgrade_api.py", "/app/js/tests/test_texting_bundle_checkout.js", "/app/test_reports/pytest/pytest_results_254.xml"],
+  "action_items": [
+    "Show checkout errors (for example the 400 'Texting Numbers are temporarily unavailable') near the Pay button or as a toast, not only in buy-error at the top of BuyNumber.js",
+    "Mark the auto-applied prepared IVR menu as unsaved (call u.touch()/set a base before apply), so the unsaved pill and the leave-page warning work",
+    "UpgradeNudge: link 'Add funds' with need = charge - balance; translate the whole campaign-upgrade-note in French (split it into translatable parts)",
+    "Optional: saveIntent(null, phone) should also clear an older civr.setupIntent so a stale intent does not stay behind"
+  ],
+  "critical_code_review_comments": [
+    "setupIntent.saveIntent: when useNow is null the old civr.setupIntent is kept, not cleared. It is tied to a phone number, so the harm is small.",
+    "UpgradeNudge: if the quote request fails, the button stays disabled with 'Checking the price…' next to the error text. There is no retry, and the text is misleading.",
+    "AI prep: the saved Receptionist is not linked to the number on the backend (features.aiAgent.agentId stays null). The AI tab only preselects it because the agents list is sorted newest first. That is as designed (nothing goes live), but it relies on the sort order.",
+    "orders.js wallet path: buyMobile runs after the line is bought. If it fails, the customer keeps the line and gets d.texting.error as a toast. That works, but the success toast '… is yours' also fires, so the customer sees 2 toasts."
+  ],
+  "updated_files": ["/app/backend/tests/test_texting_bundle_upgrade_api.py"],
+  "success_rate": {"backend": "100%", "frontend": "92%"},
+  "seed_data_creation": "Created TEST accounts test_civr_bundle1794441270@example.com / TestPass#2026 (wallet funded +$600 through walletOf in the 'test' DB; owns dry-run numbers +17859719857 Pro, +17859719861 Business, +17859719864 Pro, +12136191092 Starter) and test_civr_nudge1794441465@example.com / TestPass#2026 (wallet +$155; +17859719865 upgraded Starter->Pro). The TEST Receptionist AI agent was deleted. There is no account-delete endpoint, so the accounts are left in place. The civr.uxtest account was not changed (its texting purchase was rejected with 400; wallet still $1000).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "New accounts see an onboarding modal; click [data-testid=onboarding-skip] first. Mock GET **/api/cloudivr-web/mobile-numbers to see checkout-texting-addon. To fund a TEST account, $inc usdIn on db 'test'.walletOf {_id: webAccounts._id}. The plan helper buy flow lands on the expected URLs (prep=menu, /ai-agents/new?number=..&prep=1, /campaigns/new?callerId=..)."
+}
