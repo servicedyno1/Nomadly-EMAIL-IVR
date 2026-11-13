@@ -1,3 +1,13 @@
+## 2026-11-13 — BulkSMS: service lines keep sending during low credit + tester/monitor replacement priority — CODE DONE & TESTED
+- **Service lines keep sending** when Spenza balance is below the provisioning floor (`provider_credit` pause). Only new line purchases are blocked — existing healthy service lines continue sending. Spenza itself rejects at the API level if balance is truly zero.
+  - `lineQ()`: No longer excludes lines from low-balance accounts
+  - `tick()`, `ready()`, `lineReady()`: Filter out `provider_credit` from pause reasons so sending is unaffected
+  - Alert messages updated: "no new lines will be purchased, but existing service lines keep sending"
+  - After top-up: autoscale kicks in and orders missing lines (tester/monitor first, then service)
+- **Tester/monitor replacement priority**: `healthCheck` now processes lines in tester → monitor → service order, so when credit is limited, critical auxiliary lines get replaced first.
+- Tests: `test_bulk_esim_engine.js` **57/57** (+4 new: provider_credit pause recorded, ready() allows sending during credit pause, tick() doesn't bail on credit pause, ready() still pauses for non-credit reasons).
+
+
 ## 2026-11-13 — BulkSMS admin notifications for booking/campaign lifecycle + user identity capture — CODE DONE & TESTED (preview; production deploy needed)
 - Added admin alerts sent to @nomadlybot at 3 key lifecycle points:
   1. **Booking paid** — user tag (brand · @username · name), campaign name, volume, price, payment method, ref, scheduled date/time

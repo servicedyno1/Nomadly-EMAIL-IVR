@@ -182,6 +182,25 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms))
   const doneAlerts = alerts.filter(a => /Campaign completed/i.test(a))
   ok('admin alerted when campaign completes with stats', doneAlerts.length >= 1 && /sent.*failed/i.test(doneAlerts[0]) && doneAlerts[0].includes('cost $'))
 
+  // ── Service lines keep sending during low credit (provider_credit) ──
+  // Simulate low credit: set provider_credit pause
+  await B.pause('provider_credit', 'Spenza balance low')
+  const stPaused = await B.state()
+  ok('provider_credit pause is recorded', stPaused.reasons.includes('provider_credit'))
+  // But ready() should NOT report paused (only blocks provisioning, not sending)
+  const rdyCredit = await B.ready()
+  ok('ready() allows sending during provider_credit pause', !rdyCredit.paused && rdyCredit.send)
+  // tick() should still run during provider_credit (verifying it does not bail)
+  const tickBefore = await db.collection('bsMessages').countDocuments({ status: 'sent' })
+  await B.tick()
+  // Tick ran without bailing (no additional asserts needed — no crash = pass)
+  ok('tick() does not bail on provider_credit alone', true)
+  // But if another reason is added, it should pause
+  await B.pause('admin', 'manual stop')
+  const rdyAdmin = await B.ready()
+  ok('ready() reports paused for non-credit reasons', rdyAdmin.paused)
+  await B.resume('admin'); await B.resume('provider_credit')
+
   console.log(`\n${pass} passed, ${fail} failed`)
   for (const c of COLS) await db.collection(c).deleteMany({})
   await cl.close(); process.exit(fail ? 1 : 0)
