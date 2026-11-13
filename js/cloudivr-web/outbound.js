@@ -186,7 +186,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       if (!['telnyx', 'signalwire'].includes(caller.provider)) return { err: [400, 'invalid_caller', 'This number cannot place outbound IVR calls.'] }
       if (!phoneConfig.canAccessFeature(caller.plan, 'ivrOutbound')) return { err: [403, 'plan_upgrade_required', 'Quick IVR calls need the Pro plan or higher on the caller number.'] }
     }
-    const callerId = trial ? ivrOb.TRIAL_CALLER_ID : caller.phoneNumber
+    const callerId = trial ? (await ivrOb.getTrialCaller()).callerId : caller.phoneNumber
     let showAs = null
     if (!trial) try { showAs = await callerIds.resolve(chatId, b.showAs) } catch (e) { return { err: [400, 'invalid_show_as', e.message] } }
     const targets = parseTargets(b)

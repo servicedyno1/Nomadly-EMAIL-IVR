@@ -1791,6 +1791,15 @@ async function getAiResponse(chatId, userMessage, lang = 'en') {
     return { response: null, escalate: needsEscalation(userMessage, lang, null, chatId), error: 'OpenAI not initialized' }
   }
 
+  // Guard: empty/whitespace-only content should never reach the LLM — it causes
+  // a confusing "I can't see a question" loop (production bug 2026-11, user 8400227616).
+  if (!String(userMessage || '').trim()) {
+    const mediaHint = { fr: '✍️ Je ne peux traiter que du texte pour le moment. Veuillez taper votre question ou ajouter une légende à votre fichier.', zh: '✍️ 我目前只能处理文字。请输入您的问题或在文件中添加说明。', hi: '✍️ मैं फ़िलहाल सिर्फ़ टेक्स्ट पढ़ सकता हूँ। कृपया अपना सवाल टाइप करें या फ़ाइल में कैप्शन जोड़ें।' }
+    const resp = mediaHint[lang] || '✍️ I can only process text right now. Please type your question or add a caption to your file.'
+    log(`[AI Support] Empty content guard triggered for ${chatId} — returning text-only hint`)
+    return { response: resp, escalate: false, error: null }
+  }
+
   try {
     // Build messages array (system + context + history + user message)
     const messages = await buildAiMessages(chatId, userMessage, lang)
@@ -1871,6 +1880,15 @@ async function getAiResponse(chatId, userMessage, lang = 'en') {
 async function getAiResponseStreaming(chatId, userMessage, lang = 'en', onDelta = null) {
   if (!openai) {
     return { response: null, escalate: needsEscalation(userMessage, lang, null, chatId), error: 'OpenAI not initialized' }
+  }
+
+  // Guard: empty/whitespace-only content — same as getAiResponse above.
+  if (!String(userMessage || '').trim()) {
+    const mediaHint = { fr: '✍️ Je ne peux traiter que du texte pour le moment. Veuillez taper votre question ou ajouter une légende à votre fichier.', zh: '✍️ 我目前只能处理文字。请输入您的问题或在文件中添加说明。', hi: '✍️ मैं फ़िलहाल सिर्फ़ टेक्स्ट पढ़ सकता हूँ। कृपया अपना सवाल टाइप करें या फ़ाइल में कैप्शन जोड़ें।' }
+    const resp = mediaHint[lang] || '✍️ I can only process text right now. Please type your question or add a caption to your file.'
+    log(`[AI Support] Empty content guard (stream) triggered for ${chatId} — returning text-only hint`)
+    if (typeof onDelta === 'function') try { await onDelta(resp) } catch { /* ok */ }
+    return { response: resp, escalate: false, error: null }
   }
 
   try {

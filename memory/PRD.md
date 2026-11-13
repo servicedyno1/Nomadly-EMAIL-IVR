@@ -2635,3 +2635,11 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Bird (2026-11-12, preview): backup for calls (Bird lines → own Asterisk call engine), number checks, numbers, caller IDs. Backup order to be decided by user after capability check. Blocked on Bird organization verification (E16000) for buying numbers; outbound needs a Bird number or verified caller ID. See CHANGELOG.
 - SignalWire voice rollout (2026-11-12, preview; code defaults ON, deploy via Save to GitHub): test-call page, quick IVR, number search (US/CA only) route to SignalWire. Bulk IVR under maintenance on all 4 bots + CloudIVR web (BULK_IVR_MAINTENANCE, default on). Number picker US/CA only (NUMBER_SEARCH_US_CA_ONLY, default on). OPEN: brand SIP domains still point to blocked Telnyx; keeping them needs DNS repoint to our Asterisk + proven SignalWire SIP bridge (see CHANGELOG).
 - BulkSMS data collection (2026-11-12, preview): capture per-campaign replies/opt-outs/cost/$-per-reply/throttling + send-errors grouped by Spenza reason; surfaced via /bulkcampaigns admin command. Spenza DLR deferred by user (no carrier delivery data available). 4 lines ready, 2 warming.
+
+
+## 2026-11-14 — Production audit fixes (#1, #2, #4, #5) — CODE DONE & TESTED
+- Trial Quick IVR: `getTrialCaller()` in `ivr-outbound.js` dynamically resolves SignalWire pool caller. Bot + CloudIVR web trial paths updated.
+- AI support: empty content guard in `getAiResponse`/`getAiResponseStreaming` (ai-support.js). Media relay seeds AI history via `addSupportContext`.
+- eSIM complaint suspect: `reviewAnswer()` auto-suspects lines with >=2 customer complaints in 48h.
+- Identity backfill: `backfillIdentity()` in core.js + `/bulkbackfill` admin command in bot.js.
+- Backlog remaining: #3 refund escalation (@rickyy22x), AI "bulletproof RDP" language, broader BulkSMS preview feature deployment.

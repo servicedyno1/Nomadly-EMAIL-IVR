@@ -8901,6 +8901,18 @@ bot?.on('message', msg => {
           })
 
           log(`[Support] Media relayed ${chatId} → admin: ${mediaKind}${fileName ? ` (${fileName})` : ''}${fileSize ? ` ${(fileSize/1024/1024).toFixed(2)}MB` : ''} caption="${captionRaw.substring(0, 60)}"`)
+
+          // Seed AI conversation history with media context so the AI knows what the
+          // user sent if they follow up with a text question. Without this, the AI has
+          // no record of the media and replies "I didn't get a question" (bug 2026-11).
+          try {
+            const { addSupportContext } = require('./ai-support')
+            const mediaNote = captionRaw
+              ? `[The user sent a ${mediaKind}${fileName ? ` "${fileName}"` : ''} with caption: "${captionRaw.substring(0, 300)}". The file was forwarded to human support for review.]`
+              : `[The user sent a ${mediaKind}${fileName ? ` "${fileName}"` : ''} with no caption. The file was forwarded to human support. I cannot view media files — if the user asks about it, remind them to describe the issue in text.]`
+            addSupportContext(String(chatId), mediaNote)
+          } catch (e) { log(`[Support] AI history seed after media relay failed: ${e.message}`) }
+
           return
         }
       }
@@ -26383,10 +26395,11 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         if (trialUsed) {
           return send(chatId, trans('t.cp_9', buyLabel), k.of([[buyLabel]]))
         }
-        // Trial path — auto-assign caller ID (Twilio number on main account)
-        await saveInfo('ivrObData', { callerId: ivrOb.TRIAL_CALLER_ID, isTrial: true, callerProvider: 'telnyx' })
+        // Trial path — auto-assign caller ID (prefer SignalWire pool number; Telnyx blocked)
+        const _trialCaller = await ivrOb.getTrialCaller()
+        await saveInfo('ivrObData', { callerId: _trialCaller.callerId, isTrial: true, callerProvider: _trialCaller.callerProvider })
         await set(state, chatId, 'action', a.ivrObEnterTarget)
-        return send(chatId, trans('t.cp_10', ivrOb.TRIAL_CALLER_ID), k.of([[ccid.t(lang).btn]]))
+        return send(chatId, trans('t.cp_10', _trialCaller.callerId), k.of([[ccid.t(lang).btn]]))
       }
 
       // Has numbers but no eligible plan

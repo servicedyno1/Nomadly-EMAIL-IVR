@@ -1,3 +1,38 @@
+## 2026-11-14 — Production audit fixes (user approved #1, #2, #4, #5) — CODE DONE & TESTED
+
+### 1. Trial Quick IVR → SignalWire (no more blocked Telnyx)
+- Root cause: `TRIAL_CALLER_ID` defaulted to a Telnyx number (`+18889020132`), and `callerProvider: 'telnyx'` was hardcoded in both the bot trial path (`_index.js`) and CloudIVR web trial path (`outbound.js`). Since Telnyx account is blocked, all trial calls failed with "This user has been marked as blocked."
+- Fix: Added `getTrialCaller()` async function in `ivr-outbound.js` that dynamically resolves a SignalWire pool number when SignalWire is enabled, falling back to the static TRIAL_CALLER_ID when unavailable.
+- Both bot path (`_index.js ~26400`) and CloudIVR web path (`outbound.js ~189`) now call `getTrialCaller()` instead of using the hardcoded Telnyx trial caller.
+- `callerProvider` remains `'telnyx'` (wrapper routing path) — the wrapper tries SignalWire first automatically for NANP numbers.
+- Tested: getTrialCaller returns SignalWire pool caller when SW enabled, falls back correctly when not.
+
+### 2. AI support empty/media-message loop fix
+- Root cause: When users sent media (photos, voice, stickers) to AI support, the AI received `content: ""` and repeatedly responded "I can't see a question" — frustrating users (production user 8400227616).
+- Fix A: Added empty content guard in both `getAiResponse()` and `getAiResponseStreaming()` in `ai-support.js`. If content is empty/whitespace-only, returns a localized "type your question" hint (en/fr/zh/hi) without sending to LLM. Does NOT escalate.
+- Fix B: After media relay in support session (`_index.js ~8903`), now seeds AI conversation history via `addSupportContext()` with a description of what the user sent (media type, filename, caption). This gives the AI context for follow-up text questions.
+- The existing non-text handler at line 15891 was already correct for contacts/venues/polls/dice.
+
+### 4. eSIM-0008/0009 customer complaint-driven suspect mechanism
+- Root cause: ESIM-0006/0007 delivered reliably (5-star reviews), but ESIM-0008/0009 had delivery failures (1-star reviews). Internal health checks passed because they test between owned lines, not customer delivery.
+- Fix: `reviewAnswer()` in `core.js` now counts `customer_not_arrived` complaints per line in a rolling 48h window. When >=2 complaints, auto-marks line as `suspect` (out of send pool) with `suspectReason: 'customer_complaints'`, logs `customer_suspect` incident, and sends admin alert.
+- Gated: only suspects lines that are currently USABLE + GOOD_HEALTH (won't re-suspect already-suspect lines).
+- Admin can investigate and clear suspect status manually.
+
+### 5. BulkSMS customer identity backfill
+- Root cause: Pre-capture `bsCustomers` records had `username=unknown` or null because identity capture was only added recently.
+- Fix: Added `backfillIdentity(nameOfCollection)` in `core.js`. Takes the main bot's `nameOf` collection, finds bsCustomers with missing/null/unknown username, fills from nameOf. Idempotent — only fills empty fields, never overwrites known data. Marks records with `backfilledAt` timestamp.
+- Added `/bulkbackfill` admin command in bot.js wired to the engine function.
+- Returns `{ok, total, updated, notFound}` for transparency.
+
+### Tests
+- `test_production_fixes_2026_11.js`: **17/17** (focused tests for all 4 fixes)
+- `test_signalwire_adapter.js`: **30/30** (regression)
+- `test_bulk_esim_engine.js`: **57/57** (regression)
+- Testing agent iteration_257: **104/104**, 0 critical, 0 minor issues
+
+
+
 ## 2026-11-13 — BulkSMS: service lines keep sending during low credit + tester/monitor replacement priority — CODE DONE & TESTED
 - **Service lines keep sending** when Spenza balance is below the provisioning floor (`provider_credit` pause). Only new line purchases are blocked — existing healthy service lines continue sending. Spenza itself rejects at the API level if balance is truly zero.
   - `lineQ()`: No longer excludes lines from low-balance accounts
