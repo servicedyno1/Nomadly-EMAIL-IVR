@@ -2,6 +2,7 @@
 // refund on failed order, fax-only send eligibility, no voice switch, renewal / past-due / release, lookup key. Run from /app.
 require('dotenv').config({ path: '/app/backend/.env' })
 process.env.TELNYX_FAX_API_KEY = 'KEY_fax_stub'
+process.env.FAX_PROVIDER = 'telnyx'
 process.env.WEB_CLOUDIVR_DRY_RUN = 'false'
 process.env.SKIP_WEBHOOK_SYNC = 'true'
 const Module = require('module')

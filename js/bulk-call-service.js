@@ -227,7 +227,7 @@ async function checkLowLines() {
   if (!_collection || !canDial() || !admin) return
   for (const [id, st] of Object.entries(activeCampaigns)) {
     if (st.paused) { st.lineSamples = []; continue }
-    const c = await _collection.findOne({ id }, { projection: { name: 1, chatId: 1, status: 1, dryRun: 1, concurrency: 1, callerId: 1, callerPool: 1, waitingForHours: 1, waitingForDailyLimit: 1, lineLimitAt: 1, 'leads.status': 1, 'leads.startedAt': 1, 'leads.completedAt': 1, 'leads.hangupCause': 1 } })
+    const c = await _collection.findOne({ id }, { projection: { name: 1, chatId: 1, status: 1, dryRun: 1, concurrency: 1, callerId: 1, callerPool: 1, waitingForHours: 1, waitingForDailyLimit: 1, lineLimitAt: 1, lineWaitReason: 1, 'leads.status': 1, 'leads.startedAt': 1, 'leads.completedAt': 1, 'leads.hangupCause': 1 } })
     if (!c || c.status !== 'running' || c.dryRun) { st.lineSamples = []; continue }
     const live = c.leads.filter(l => INFLIGHT_STATUSES.includes(l.status)).length
     const pending = c.leads.filter(l => l.status === 'pending').length
@@ -244,7 +244,7 @@ async function checkLowLines() {
     const causes = {}; for (const l of failed) { const k = String(l.hangupCause || 'unknown').slice(0, 60); causes[k] = (causes[k] || 0) + 1 }
     const topCauses = Object.entries(causes).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${escHtml(k)} ×${n}`).join(', ')
     const avg = s.reduce((a, x) => a + x.live, 0) / s.length
-    const reason = c.lineLimitAt && Date.now() - new Date(c.lineLimitAt).getTime() < LOW_LINES_SAMPLES * LOW_LINES_EVERY_MS ? 'Telnyx said all account lines are busy (line limit) — check the Telnyx channel limit / other campaigns.'
+    const reason = c.lineLimitAt && Date.now() - new Date(c.lineLimitAt).getTime() < LOW_LINES_SAMPLES * LOW_LINES_EVERY_MS ? `Calls are waiting for a free line: ${escHtml(c.lineWaitReason || 'all lines busy (line limit)')} — check the Bird line limit / other campaigns.`
       : recent.length && failed.length / recent.length >= 0.3 ? `Many calls fail before ringing (${failed.length} of ${recent.length}): ${topCauses}.`
       : started === 0 ? 'No calls were started at all — the dialer looks stuck. Check the server logs for this campaign.'
       : 'Free lines are not being refilled — check the server logs for this campaign.'
@@ -1394,7 +1394,7 @@ async function fireBatchOnce(campaignId) {
         // Every line is in use (account concurrent-call limit) → lead goes back in the queue, retried shortly.
         state.activeCalls--
         log(`[BulkCall] Line limit reached — ${lead.number} re-queued (campaign ${campaignId}): ${result.error}`)
-        await requeueForLines(campaignId, lead.index)
+        await requeueForLines(campaignId, lead.index, { lineWaitReason: String(result.error).slice(0, 120) })
         break
       }
       if (result.error) {

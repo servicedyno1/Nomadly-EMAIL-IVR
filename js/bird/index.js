@@ -123,9 +123,29 @@ async function canPresent(number) {
   return owned.some(x => (x.number || x.phone_number) === n && x.status === 'active') || cids.some(c => c.phone_number === n && c.status === 'verified' && c.outbound_enabled)
 }
 
+// Cached readiness for the dialer: caller IDs Bird will present (5 min) and today's spend left (2 min).
+const cache = { cids: null, cidsAt: 0, spend: null, spendAt: 0 }
+async function presentable(number) {
+  if (!cache.cids || Date.now() - cache.cidsAt > 5 * 60000) {
+    try {
+      const [owned, cids] = await Promise.all([listNumbers(), listCallerIds()])
+      cache.cids = new Set([...owned.filter(x => x.status === 'active').map(x => x.number || x.phone_number), ...cids.filter(c => c.outbound_enabled).map(c => c.phone_number)])
+      cache.cidsAt = Date.now()
+    } catch (e) { log('caller IDs:', errOf(e)); if (!cache.cids) return false }
+  }
+  return cache.cids.has(e164(number))
+}
+async function spendLeft() {
+  if (cache.spend === null || Date.now() - cache.spendAt > 2 * 60000) {
+    try { cache.spend = Number((await req('get', '/voice/settings')).daily_spend_limit?.remaining?.amount ?? 0); cache.spendAt = Date.now() } catch (e) { log('spend:', errOf(e)); return cache.spend ?? 0 }
+  }
+  return cache.spend
+}
+const forgetCallerIds = () => { cache.cids = null }
+
 const M = module.exports = {
   enabled, isBird, host, http: makeHttp, errOf, trunkName,
   lookup, searchNumbers, isBirdSearched, buyNumber, releaseNumber, listNumbers, numberStatus,
   getTrunk, ensureTrunk, routeToTrunk, enableDestinations, listDestinations,
-  listCallerIds, deleteCallerId, startCallerIdVerification, submitCallerIdCode, canPresent,
+  listCallerIds, deleteCallerId, startCallerIdVerification, submitCallerIdCode, canPresent, presentable, spendLeft, forgetCallerIds,
 }

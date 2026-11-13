@@ -2,7 +2,11 @@
 // Fax-only numbers for CloudIVR web (USA/Canada, Telnyx fax account): search, buy from the wallet, monthly renewal, release.
 // They sit on the Fax Application, so they send and receive faxes only — no calls, no texts, no SIP.
 const crypto = require('crypto')
-const acct = require('./telnyx-fax-account')
+const telnyxAcct = require('./telnyx-fax-account')
+const swFax = require('./signalwire/fax')
+// New fax numbers come from SignalWire; numbers bought earlier on the Telnyx fax account stay there.
+const acct = { enabled: () => swFax.enabled() || telnyxAcct.enabled(), searchFax: (...a) => (swFax.enabled() ? swFax : telnyxAcct).searchFax(...a) }
+const releaseFor = (n) => (n.provider === 'signalwire_fax' ? swFax.releaseFax(n.phoneNumber) : telnyxAcct.releaseFax(n.phoneNumber))
 const fax = require('./fax-service')
 const { walletOps, round2 } = require('./cloudivr-web/wallet')
 
@@ -59,20 +63,21 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
       let orderId
       try {
         if (dry()) orderId = `dryrun-${crypto.randomUUID().slice(0, 8)}`
+        else if (swFax.enabled()) orderId = (await swFax.orderFax(phoneNumber))?.id
         else {
           const appId = await fax.ensureApp()
           if (!appId) throw new Error('fax application unavailable')
-          orderId = (await acct.orderFax(phoneNumber, appId))?.id
-          if (!orderId) throw new Error('no order id')
+          orderId = (await telnyxAcct.orderFax(phoneNumber, appId))?.id
         }
+        if (!orderId) throw new Error('no order id')
       } catch (e) {
         await w.credit(chatId, price)
-        log(`[FaxNumbers] order ${phoneNumber} for ${chatId} failed: ${e.response?.data?.errors?.[0]?.detail || e.message} — refunded $${price}`)
+        log(`[FaxNumbers] order ${phoneNumber} for ${chatId} failed: ${e.response?.data?.errors?.[0]?.detail || e.response?.data?.message || e.message} — refunded $${price}`)
         throw new FaxNumberError(424, 'purchase_failed', `This fax number could not be activated. You were refunded $${price.toFixed(2)}. Pick another number.`)
       }
-      const doc = { _id: phoneNumber, phoneNumber, chatId, country: c.country, status: 'active', faxOnly: true, plan: 'fax', price, autoRenew: autoRenew !== false, telnyxOrderId: orderId, provider: 'telnyx_fax', expiresAt: nextMonth(), createdAt: new Date(), ...(dry() ? { dryRun: true } : {}) }
+      const doc = { _id: phoneNumber, phoneNumber, chatId, country: c.country, status: 'active', faxOnly: true, plan: 'fax', price, autoRenew: autoRenew !== false, ...(String(orderId).startsWith('sw:') ? { swNumberId: orderId, provider: 'signalwire_fax' } : { telnyxOrderId: orderId, provider: 'telnyx_fax' }), expiresAt: nextMonth(), createdAt: new Date(), ...(dry() ? { dryRun: true } : {}) }
       await nums.replaceOne({ _id: phoneNumber }, doc, { upsert: true })
-      await db.collection('transactions').insertOne({ chatId, type: 'fax-number', amount: price, currency: 'USD', status: 'completed', metadata: { phoneNumber, channel: 'web', provider: 'telnyx_fax' }, createdAt: new Date(), updatedAt: new Date() }).catch(() => {})
+      await db.collection('transactions').insertOne({ chatId, type: 'fax-number', amount: price, currency: 'USD', status: 'completed', metadata: { phoneNumber, channel: 'web', provider: swFax.enabled() && !dry() ? 'signalwire_fax' : 'telnyx_fax' }, createdAt: new Date(), updatedAt: new Date() }).catch(() => {})
       await cache.deleteOne({ _id: chatId }); await seen.deleteOne({ _id: phoneNumber }).catch(() => {})
       notifyAdmin(`📠 CloudIVR web fax number${dry() ? ' (DRY RUN)' : ''}\nweb account: ${chatId}${email ? ` (${email})` : ''}\nnumber: ${phoneNumber} (${c.country}) · $${price}/month`)
       return { number: pub(doc), balance: await w.balance(chatId) }
@@ -86,7 +91,7 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
   }
 
   async function release(n, why) {
-    try { if (!n.dryRun && acct.enabled()) await acct.releaseFax(n.phoneNumber) } catch (e) { log(`[FaxNumbers] release ${n.phoneNumber} failed: ${e.message}`); return }
+    try { if (!n.dryRun) await releaseFor(n) } catch (e) { log(`[FaxNumbers] release ${n.phoneNumber} failed: ${e.message}`); return }
     await nums.updateOne({ _id: n._id }, { $set: { status: 'released', releasedAt: new Date(), releaseReason: why } })
     await push(n.chatId, `Fax number ${n.phoneNumber} was released${why === 'unpaid' ? ' because the monthly fee could not be paid from your wallet' : ''}.`)
   }

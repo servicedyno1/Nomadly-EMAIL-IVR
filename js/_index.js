@@ -4170,6 +4170,7 @@ const loadData = async () => {
   phoneNumbersOf = db.collection('phoneNumbersOf')
   // Customers' own SignalWire numbers are never lent out as a stand-in caller ID.
   { let cache = { at: 0, set: new Set() }; require('./signalwire').setReservedCallers(async () => { if (Date.now() - cache.at < 5 * 60000) return cache.set; cache = { at: Date.now(), set: new Set((await phoneNumbersOf.aggregate([{ $match: { 'val.numbers.provider': 'signalwire' } }, { $unwind: '$val.numbers' }, { $match: { 'val.numbers.provider': 'signalwire' } }, { $group: { _id: '$val.numbers.phoneNumber' } }]).toArray()).map(r => r._id).filter(Boolean)) }; return cache.set }) }
+  { let fc = { at: 0, set: new Set() }; require('./signalwire').setNeverCallers(async () => { if (Date.now() - fc.at < 5 * 60000) return fc.set; fc = { at: Date.now(), set: new Set((await db.collection('faxNumbers').find({ provider: 'signalwire_fax', status: { $ne: 'released' } }, { projection: { _id: 1 } }).toArray()).map(d => d._id)) }; return fc.set }) }
   phoneTransactions = db.collection('phoneTransactions')
   phoneLogs = db.collection('phoneLogs')
   ivrAnalytics = db.collection('ivrAnalytics')
@@ -49740,6 +49741,26 @@ app.post('/signalwire/sms-status', express.urlencoded({ extended: false }), (req
   const st = String(req.body?.MessageStatus || '')
   if (/failed|undelivered/i.test(st)) log(`📩 SignalWire SMS ${req.body?.MessageSid} ${st} (${req.body?.ErrorCode || ''})`)
 })
+
+// SignalWire fax: inbound call on a fax number → <Receive>; received fax / send status → fax-service (Telnyx-shaped events)
+{
+  const swFax = require('./signalwire/fax')
+  const swSigned = (req, res, next) => (require('./signalwire').rest.validSignature(req) ? next() : (log(`📠 SignalWire fax webhook ${req.path}: bad signature — ignored`), res.sendStatus(403)))
+  app.post('/signalwire/fax-inbound', express.urlencoded({ extended: false }), swSigned, (req, res) => res.type('text/xml').send(swFax.receiveLaml()))
+  app.post('/signalwire/fax-received', express.urlencoded({ extended: false }), swSigned, (req, res) => {
+    res.sendStatus(200)
+    log(`📠 SignalWire fax received ${req.body?.FaxSid}: ${req.body?.From} → ${req.body?.To} (${req.body?.FaxStatus})`)
+    faxService.handleEvent(swFax.receivedEvent(req.body)).catch(e => log(`📠 SignalWire fax received error: ${e.message}`))
+  })
+  app.post('/signalwire/fax-status', express.urlencoded({ extended: false }), swSigned, (req, res) => {
+    res.sendStatus(200)
+    faxService.handleEvent(swFax.statusEvent(req.body)).catch(e => log(`📠 SignalWire fax status error: ${e.message}`))
+  })
+  app.get('/signalwire/fax-media/:fileId', async (req, res) => {
+    if (!/^[a-f0-9]{24}$/i.test(req.params.fileId) || !swFax.mediaOk(req.params.fileId, req.query.e, req.query.k)) return res.sendStatus(404)
+    try { res.type('application/pdf').send(await faxService.readFile(req.params.fileId)) } catch (_) { res.sendStatus(404) }
+  })
+}
 
 // Telnyx Voice Webhook — receives call events
 app.post('/telnyx/voice-webhook', telnyxSigned, async (req, res) => {

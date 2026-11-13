@@ -24,6 +24,8 @@ function createBirdVerify({ bird, transcribe, db, log = console.log, maxAttempts
   async function arm(number, { name } = {}) {
     if (!bird.enabled()) return { error: 'Bird is not enabled (BIRD_API_KEY not loaded).' }
     const n = e164(number)
+    // A pending/failed registration can't get a fresh call — drop it so registering again places a new one.
+    for (const v of await bird.listCallerIds().catch(() => [])) if (e164(v.phone_number) === n && !v.outbound_enabled && bird.deleteCallerId) await bird.deleteCallerId(v.id)
     const r = await bird.startCallerIdVerification(n, name)
     if (r.error) return { error: `Bird couldn't start verification: ${r.error}` }
     await col().updateOne({ _id: n }, { $set: { _id: n, verifiedNumberId: r.id, status: 'calling', attempts: 0, armedAt: new Date(), expiresAt: new Date(Date.now() + 10 * 60000), lastCode: null, error: null } }, { upsert: true })
@@ -50,6 +52,7 @@ function createBirdVerify({ bird, transcribe, db, log = console.log, maxAttempts
     const ok = !r.error && (r.outbound_enabled || r.status === 'verified')
     await col().updateOne({ _id: n }, { $set: { attempts, lastCode: code, status: ok ? 'verified' : (attempts >= maxAttempts ? 'failed' : 'calling'), verifiedAt: ok ? new Date() : null, outboundEnabled: !!r.outbound_enabled, error: r.error || null } })
     log(`[BirdVerify] ${n}: submitted ${code} → ${ok ? 'VERIFIED' : `not yet (${r.error || r.status})`}`)
+    if (ok) bird.forgetCallerIds?.()
     return { handled: true, code, status: ok ? 'verified' : 'retry', outbound_enabled: !!r.outbound_enabled }
   }
 
@@ -59,7 +62,27 @@ function createBirdVerify({ bird, transcribe, db, log = console.log, maxAttempts
     return (await bird.listCallerIds().catch(() => [])).filter(x => x.outbound_enabled).map(x => e164(x.phone_number))
   }
 
-  return { arm, isArmed, captureFromRecording, verifiedPresenters, extractCode }
+  // One number at a time: arm the next customer SignalWire number that Bird can't present yet.
+  // A number that didn't verify is retried after 6 h, at most 3 rounds.
+  async function autoLinkTick({ numbers }) {
+    if (!bird.enabled() || !numbers.length) return { skipped: 'nothing to link' }
+    const now = new Date()
+    if (await col().findOne({ status: 'calling', expiresAt: { $gt: now } })) return { skipped: 'verification in progress' }
+    await col().updateMany({ status: 'calling', expiresAt: { $lte: now } }, { $set: { status: 'failed', error: 'no code captured before expiry' } })
+    const ready = new Set(await verifiedPresenters())
+    const docs = new Map((await col().find({ _id: { $in: numbers.map(e164) } }).toArray()).map(d => [d._id, d]))
+    for (const n of numbers.map(e164)) {
+      if (ready.has(n)) { if (docs.get(n)?.status !== 'verified') await col().updateOne({ _id: n }, { $set: { status: 'verified', verifiedAt: now } }, { upsert: true }); continue }
+      const d = docs.get(n)
+      if (d && ((d.rounds || 0) >= 3 || d.armedAt > new Date(now - 6 * 3600000))) continue
+      const r = await arm(n)
+      await col().updateOne({ _id: n }, { $inc: { rounds: 1 }, ...(r.error ? { $set: { status: 'failed', armedAt: now, error: r.error } } : {}) }, { upsert: true })
+      return r.error ? { number: n, error: r.error } : { armed: n }
+    }
+    return { skipped: 'all linked' }
+  }
+
+  return { arm, isArmed, captureFromRecording, verifiedPresenters, extractCode, autoLinkTick }
 }
 
 module.exports = { createBirdVerify, extractCode }

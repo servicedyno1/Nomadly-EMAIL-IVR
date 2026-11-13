@@ -1390,6 +1390,8 @@ function initVoiceService(deps) {
         if (_callSessionSnapshotTimer.unref) _callSessionSnapshotTimer.unref()
       }
     }).catch(e => log(`[VoiceService] call-session-store init failed: ${e.message}`))
+    // Every customer SignalWire number gets linked to Bird so Bird can place its outbound calls.
+    require('./active-slot').singletonInterval('bird-autolink', () => birdAutoLinkTick().catch(e => log(`[BirdVerify] auto-link: ${e.message}`)), 3 * 60000)
   }
 
   // PRE-DIAL: Load blocklist from DB + run initial scan after a delay
@@ -2509,6 +2511,7 @@ async function handleCallInitiated(payload) {
         await _db.collection('birdProofCalls').insertOne({ to, from, at: new Date() })
         log(`[Voice] Bird proof call arrived on ${to} showing ${from}`)
         await _telnyxApi.rejectCall(callControlId).catch(() => {})
+        delete activeCalls[callControlId]
         return
       }
       if (await birdVerify().isArmed(to)) {
@@ -4035,6 +4038,20 @@ function birdVerify() {
   _birdVerify = createBirdVerify({ bird: require('./bird'), transcribe, db: _db, log })
   return _birdVerify
 }
+async function birdAutoLinkTick() {
+  if (!_db || !require('./bird').enabled()) return
+  const rest = require('./signalwire/rest')
+  if (!rest.enabled()) return
+  await rest.refreshOwned()
+  const sw = new Set(rest.ownedNumbers())
+  const numbers = new Set()
+  for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1 } }).toArray())
+    for (const n of d.val?.numbers || []) if (sw.has(n.phoneNumber) && !/released|expired|cancel/i.test(String(n.status || ''))) numbers.add(n.phoneNumber)
+  const wanted = [...require('./signalwire').birdWanted].filter(n => sw.has(n))
+  const r = await birdVerify().autoLinkTick({ numbers: [...new Set([...wanted, ...numbers])] })
+  if (r.armed || r.error) log(`[BirdVerify] auto-link: ${JSON.stringify(r)}`)
+  if (r.armed) require('./bird').forgetCallerIds()
+}
 
 async function handleCallAnswered(payload) {
   const callControlId = payload.call_control_id
@@ -5281,6 +5298,7 @@ async function initiateOutboundIvrCall(params) {
   // Voicemail drop needs the end of the mailbox greeting (call.machine.greeting.ended) so the message records cleanly.
   const amdOpts = voicemailAudioUrl ? { answering_machine_detection: VM_AMD_MODE } : {}
   // Provide LaML callback URLs for the SignalWire REST fallback in the wrapper
+  amdOpts._campaign = !!campaignId
   amdOpts._swRestCallbackUrl = `${_selfUrl}/twilio/single-ivr?sessionId=${encodeURIComponent(swRestSessionId)}`
   amdOpts._swRestStatusUrl = `${_selfUrl}/twilio/single-ivr-status?sessionId=${encodeURIComponent(swRestSessionId)}`
   // Pre-create the TwiML session in case SignalWire REST is used (cleaned up if unused)

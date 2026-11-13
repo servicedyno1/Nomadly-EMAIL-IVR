@@ -25,6 +25,7 @@ let sink = null, ws = null, connected = false
 
 function emit(type, leg, extra = {}) {
   if (!sink || !leg) return
+  if (leg.held) { leg.held.push([type, extra]); return }
   const occurred_at = new Date().toISOString()
   const payload = { call_control_id: leg.id, call_leg_id: leg.id, call_session_id: leg.session, connection_id: leg.connection, from: leg.from, to: leg.to, direction: leg.direction, state: leg.state, client_state: leg.clientState, start_time: leg.startedAt, occurred_at, ...(leg.fromSipUri ? { from_sip_uri: leg.fromSipUri } : {}), _provider: 'callengine', ...extra }
   setImmediate(() => Promise.resolve(sink({ data: { event_type: type, id: crypto.randomUUID(), occurred_at, payload } })).catch(e => log(`${type} handler error: ${e.message}`)))
@@ -37,6 +38,7 @@ const CAUSE = { 16: ['normal_clearing', '16'], 17: ['user_busy', '486'], 18: ['t
 function finish(l, cause) {
   if (!l || l.ended) return
   l.ended = true; l.state = 'hangup'; l.loop = null
+  if (cause != null) l.cause = cause
   clearTimeout(l.gTimer)
   const [c, sip] = CAUSE[cause] || (l.answered ? CAUSE[16] : ['originator_cancel', '487'])
   emit('call.hangup', l, { hangup_cause: c, sip_hangup_cause: sip, hangup_source: l.hungUpByUs ? 'callee' : 'caller', end_time: new Date().toISOString() })
@@ -80,7 +82,7 @@ function onEvent(e) {
       emit('call.initiated', l)
       break
     }
-    case 'ChannelStateChange': if (l && ch.state === 'Up') onUp(l); break
+    case 'ChannelStateChange': if (l && ch.state === 'Up') onUp(l); else if (l && /^Ring/.test(ch.state)) l.ringing = true; break
     case 'ChannelHangupRequest': if (l && e.cause) l.cause = e.cause; break
     case 'ChannelDestroyed': if (l) finish(l, e.cause || l.cause); break
     case 'StasisEnd': if (l) setTimeout(() => finish(l, l.cause), 300); break
@@ -193,7 +195,7 @@ function endpointFor(to) {
 async function originate(meta, from, to, timeout = 30) {
   const { endpoint, variables } = endpointFor(to)
   const chId = crypto.randomUUID()
-  const l = track({ id: `ae:${chId}`, from, to, direction: 'outgoing', ...meta })
+  const l = track({ id: `ae:${chId}`, from, to, direction: 'outgoing', bird: /@bird$/.test(endpoint), ...meta })
   try {
     await M.ari().post(`/channels/${chId}`, { variables }, { params: { endpoint, app: app(), appArgs: 'out', callerId: String(from || '').replace(/^\+/, ''), timeout } })
     return l
@@ -217,16 +219,29 @@ async function bridgeCalls(aId, bId) {
   emit('call.bridged', legs.get(aId)); emit('call.bridged', legs.get(bId))
   return { success: true }
 }
+// Hang-up causes that are the destination's real answer (busy, bad number) — not the carrier refusing us.
+const DEST_RESULT = new Set([1, 17, 28])
+const activeBird = () => [...legs.values()].filter(l => l.bird && !l.ended).length
+// Holds the call's events for a few seconds: if the trunk refuses it before it rings, the caller can retry elsewhere.
 async function createOutboundCall(from, to, webhookUrl, connectionId, options = {}) {
   if (!connected) return { error: 'call engine offline', status: 503, _provider: 'callengine' }
+  let l
   try {
-    const l = await originate({ connection: connectionId || process.env.TELNYX_CALL_CONTROL_APP_ID || 'callengine-app', clientState: options.client_state, amd: !!options.answering_machine_detection }, from, to, options.timeout_secs || 30)
-    emit('call.initiated', l)
-    return { callControlId: l.id, callLegId: l.id, callSessionId: l.session }
+    l = await originate({ connection: connectionId || process.env.TELNYX_CALL_CONTROL_APP_ID || 'callengine-app', clientState: options.client_state, amd: !!options.answering_machine_detection, held: [] }, from, to, options.timeout_secs || 30)
   } catch (e) { return { error: e.message, status: /allocate|not found|no such/i.test(e.message) ? 422 : 503, _provider: 'callengine' } }
+  const until = Date.now() + Number(options.earlyMs ?? process.env.CALL_ENGINE_EARLY_MS ?? 6000)
+  while (!l.ended && !l.ringing && !l.answered && Date.now() < until) await new Promise(r => setTimeout(r, 100))
+  const held = l.held; l.held = null
+  if (l.ended && !l.answered && !DEST_RESULT.has(Number(l.cause))) {
+    log(`${l.bird ? 'Bird' : 'trunk'} refused ${from} → ${to} before ringing (cause ${l.cause ?? '?'})`)
+    return { error: `trunk refused the call (cause ${l.cause ?? 'unknown'})`, status: 503, refused: true, _provider: 'callengine' }
+  }
+  emit('call.initiated', l)
+  for (const [type, extra] of held) emit(type, l, extra)
+  return { callControlId: l.id, callLegId: l.id, callSessionId: l.session }
 }
 
 const M = module.exports = {
   enabled, isAe, connected: () => connected, app, sign, ari: makeAri, _legs: legs, _onEvent: onEvent, _setSink: (fn) => { sink = fn }, _setConnected: (v) => { connected = v },
-  start, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall,
+  activeBird, start, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall,
 }
