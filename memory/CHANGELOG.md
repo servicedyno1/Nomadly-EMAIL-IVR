@@ -2933,3 +2933,11 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Cause: cancelDead (hourly) tries to cancel failed lines. 0004/0005 never activated: Spenza getSim INACTIVE/UNASSIGNED, subscription PENDING (autoTopUp true, ordered 12:37 for $10 each). Spenza cancel API returns 404 SUBSCRIPTION_NOT_FOUND for plans without billing linkage → misleading "cancel at web.spenza.com" alert, repeated daily.
 - Fix (core.js cancelDead): 404/SUBSCRIPTION_NOT_FOUND → store cancelBlocked {reason:'plan_not_active', subStatus, at}, retry once a day (cancels if the plan ever activates), single admin note (once key cancelpending:<id>) asking Spenza support to void the ICCID for a refund. Other errors keep the old alert.
 - Test 49/0 (added pending-plan cancel case). Needs Save to GitHub. Manual: ask Spenza support to void ICCIDs 8901240397146384806 (+16316900316) and 8901240397145878758 (+16316870635) and refund.
+
+## 2026-06 — Single-text abuse guard (unlimited "Send one SMS")
+- `freeOneSends` 0 = unlimited free single texts (default still 2, so nothing changes until `/bulkset freeOneSends 0`).
+- `oneGuard` in `js/bulk-esim/core.js` runs only in unlimited mode. Signals per Telegram user (all brands), last 24 h: new numbers that never replied, near-identical text (word overlap ≥ 70%, names/digits ignored), same text from other accounts (`fp` on bsMessages), 5+ new numbers in 10 min. Numbers that replied and repeat texts to the same number are never counted.
+- Ladder: >10 numbers or >5 similar → 1 new number per 10 min (`err_one_slow`); >20 / >10 → refused for 24 h, pointed to a campaign (`err_one_bulk`); second day at that level → blocked (`err_one_blocked`). Admin alert at each step.
+- Settings: `oneGuardNumbers`, `oneGuardSimilar`, `oneGuardSlowMin`. Admin: `/bulkguard` (list), `/bulkguard <cid> clear|trust`.
+- Tests: `js/tests/test_bulk_esim_one_guard.js` 20/0; engine 57/0, admin_one 20/0, review 20/0, reply_routing 10/0. `test_bulk_esim_ready_gate.js` has 3 failures that predate this change (off_reply expectations).
+- Status: agent-tested in preview only; not deployed, not user-confirmed. Known gap: a ring of fresh accounts is alerted at 6 identical texts but only refused past 10.

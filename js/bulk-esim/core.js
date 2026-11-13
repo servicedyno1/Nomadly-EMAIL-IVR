@@ -10,7 +10,7 @@ const U = require('./url-check')
 const { validUsCa, quietWait, hourOpen } = require('./tz')
 
 const DEFAULTS = {
-  defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 6, quietEnd: 21, freeOneSends: 2, swapUndelivered: 5, swapUndeliveredTo: 3,
+  defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 6, quietEnd: 21, freeOneSends: 2, oneGuardNumbers: 10, oneGuardSimilar: 5, oneGuardSlowMin: 10, swapUndelivered: 5, swapUndeliveredTo: 3,
   platformPerMin: 30, rateMargin: 2, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
   minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.15, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 2, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testsPerDay: 4, testsPerWeek: 10, freeTestsPerDay: 0, numberCheck: true, lookupCost: 0.0025, lookupDays: 30,
   minEsims: 2, monitorEsims: 0, testerEsims: 1, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
@@ -1017,16 +1017,61 @@ async function numberBusy(cid, to) {
   const lines = pool.length ? pool : await C('bsEsims').find({ role: 'tester', ...live }).project({ _id: 1 }).toArray()
   return lines.every(e => taken.has(e._id))
 }
-// Free single texts ("Send one SMS") per customer, lifetime; replies inside a conversation don't count.
+// Free single texts ("Send one SMS") per customer, lifetime; replies inside a conversation don't count. freeOneSends 0 = no limit (oneGuard watches instead).
+const ONE_OUT = { campaignId: null, sessionId: null, system: { $ne: true }, test: { $ne: true }, direction: 'out', status: { $nin: ['rejected', 'cancelled', 'blocked'] } }
+const oneUsed = (cid) => C('bsMessages').countDocuments({ cid, ...ONE_OUT })
 async function oneLeft(cid) {
-  const c = await cfg(), used = await C('bsMessages').countDocuments({ cid, campaignId: null, sessionId: null, system: { $ne: true }, test: { $ne: true }, direction: 'out', status: { $nin: ['rejected', 'cancelled', 'blocked'] } })
-  return Math.max(0, (c.freeOneSends ?? 2) - used)
+  const lim = (await cfg()).freeOneSends ?? 2
+  return lim ? Math.max(0, lim - await oneUsed(cid)) : Infinity
+}
+// ---------- single-text abuse guard (only when single texts are unlimited) ----------
+// A person texts a few people and gets answers; a bulk sender texts many new numbers the same thing and gets none.
+const oneWords = (t) => String(t || '').toLowerCase().replace(/https?:\/\/\S+|www\.\S+/g, ' link ').replace(/[^\p{L}\s]/gu, ' ').split(/\s+/).filter(Boolean)
+const oneFp = (t) => crypto.createHash('sha1').update(oneWords(t).join(' ')).digest('hex').slice(0, 16)
+const oneSimilar = (a, b) => { const A = new Set(a), B2 = new Set(b); if (A.size < 3 || B2.size < 3) return false; let n = 0; for (const w of A) if (B2.has(w)) n++; return n / (A.size + B2.size - n) >= 0.7 }
+async function oneGuard(cid, p, body, c) {
+  const who = sameUser(cid), tg = String(cid).split(':').pop(), mine = new RegExp(`:${tg.replace(/\D/g, '')}$`)
+  const flagged = await C('bsCustomers').find({ _id: who, oneGuard: { $exists: true } }).project({ oneGuard: 1 }).toArray()
+  if (flagged.some(x => x.oneGuard.trusted)) return null
+  if (flagged.some(x => x.oneGuard.blocked)) return E('err_one_blocked')
+  if (await C('bsMessages').findOne({ cid: who, direction: 'in', from: p }, { projection: { _id: 1 } })) return null // they answered: a conversation
+  const since = new Date(Date.now() - DAY), recent = await C('bsMessages').find({ cid: who, ...ONE_OUT, createdAt: { $gt: since } }).project({ to: 1, body: 1, createdAt: 1 }).toArray()
+  if (recent.some(m => m.to === p)) return null // same person again, not a new number
+  const tos = [...new Set(recent.map(m => m.to))], replied = new Set(tos.length ? await C('bsMessages').distinct('from', { cid: who, direction: 'in', from: { $in: tos } }) : [])
+  const fresh = recent.filter(m => !replied.has(m.to)), w = oneWords(body)
+  const numbers = new Set(fresh.map(m => m.to)).size + 1
+  const others = await C('bsMessages').distinct('to', { fp: oneFp(body), cid: { $not: mine }, ...ONE_OUT, createdAt: { $gt: since } })
+  const similar = new Set(fresh.filter(m => oneSimilar(w, oneWords(String(m.body).replace(OPT, '')))).map(m => m.to)).size + others.length + 1
+  const burst = new Set(fresh.filter(m => m.createdAt > new Date(Date.now() - 10 * MIN)).map(m => m.to)).size + 1
+  const N = c.oneGuardNumbers, S2 = c.oneGuardSimilar
+  const level = numbers > 2 * N || similar > 2 * S2 ? 2 : numbers > N || similar > S2 || burst > 5 ? 1 : 0
+  if (!level) return null
+  const facts = `${await userTag(cid)} (${cid})\nLast 24 h: ${numbers} new numbers · ${similar} with near-identical text${others.length ? ` (${others.length} from other accounts)` : ''} · ${burst} in 10 min · ${replied.size} replied\nText: “${esc(String(body).slice(0, 200))}”`
+  if (level === 1) {
+    if (await once(`oneguard:1:${tg}:${today()}`)) { await C('bsCustomers').updateOne({ _id: cid }, { $set: { 'oneGuard.level': 1, 'oneGuard.at': new Date() } }); incident('one_guard', { cid, level: 1, numbers, similar, burst }); alert(`🕵️ Single texts look like bulk — slowed down (1 new number every ${c.oneGuardSlowMin} min)\n${facts}\nTrust this sender: /bulkguard ${cid} trust`) }
+    const last = Math.max(0, ...fresh.map(m => +m.createdAt)), wait = Math.ceil((last + c.oneGuardSlowMin * MIN - Date.now()) / MIN)
+    return wait > 0 ? E('err_one_slow', wait) : null
+  }
+  if (await once(`oneguard:2:${tg}:${today()}`)) {
+    const cu = await C('bsCustomers').findOneAndUpdate({ _id: cid }, { $inc: { 'oneGuard.strikes': 1 }, $set: { 'oneGuard.level': 2, 'oneGuard.at': new Date() } }, { returnDocument: 'after' }), strikes = (cu?.value || cu)?.oneGuard?.strikes || 1
+    if (strikes >= 2) await C('bsCustomers').updateOne({ _id: cid }, { $set: { 'oneGuard.blocked': true, 'oneGuard.level': 3 } })
+    incident('one_guard', { cid, level: strikes >= 2 ? 3 : 2, numbers, similar, burst })
+    alert(strikes >= 2 ? `⛔ Single texts BLOCKED — used as BulkSMS on ${strikes} days\n${facts}\nUnblock: /bulkguard ${cid} clear` : `🚧 Single texts used as BulkSMS — new numbers refused for 24 h, sender pointed to a paid campaign (next time: blocked)\n${facts}\nTrust this sender: /bulkguard ${cid} trust`)
+    if (strikes >= 2) return E('err_one_blocked')
+  }
+  return E('err_one_bulk')
+}
+const oneGuardList = () => C('bsCustomers').find({ oneGuard: { $exists: true } }).project({ oneGuard: 1, username: 1, firstName: 1 }).sort({ 'oneGuard.at': -1 }).limit(30).toArray()
+async function oneGuardSet(cid, what, by) {
+  const op = what === 'trust' ? { $set: { oneGuard: { trusted: true, at: new Date() } } } : what === 'clear' ? { $unset: { oneGuard: 1 } } : null
+  if (!op) return { error: 'Use: /bulkguard <customer> clear | trust' }
+  const r = await C('bsCustomers').updateOne({ _id: cid }, op); audit('one_guard', { cid, what, by }); return r.matchedCount ? { ok: true } : { error: 'Customer not found.' }
 }
 async function sendOne(cid, to, text, sessionId, { optOut = true, unlimited = false } = {}) {
-  const cu = await C('bsCustomers').findOne({ _id: cid }), p = normPhone(to), body = String(text || '').trim()
+  const cu = await C('bsCustomers').findOne({ _id: cid }), p = normPhone(to), body = String(text || '').trim(), c = await cfg(), lim = c.freeOneSends ?? 2, counted = !sessionId && !unlimited
   if (cu?.status !== 'active') return E('err_suspended')
-  if (!sessionId && !unlimited && !(await oneLeft(cid))) return E('err_one_used', (await cfg()).freeOneSends ?? 2)
-  if (!sessionId && !unlimited && p && await numberBusy(cid, p)) return E('err_number_busy', (await cfg()).sessionHours)
+  if (counted && !(await oneLeft(cid))) return E('err_one_used', lim)
+  if (counted && p && await numberBusy(cid, p)) return E('err_number_busy', c.sessionHours)
   if (!validUsCa(p)) return E('err_number')
   if (!body) return E('err_add_text')
   if (sessionId) { const rr = await replyRoute(cid, sessionId); if (rr.error) return rr } else if (!(await ready()).one) return E('off_one')
@@ -1035,12 +1080,12 @@ async function sendOne(cid, to, text, sessionId, { optOut = true, unlimited = fa
   if (hasLinkOrPhone(body)) { const sc = await screenContent(cid, [body], 'one-off text'); if (sc.error) return sc }
   if (!unlimited && (await usage(cid)).remaining < segs(full)) return E('err_quota_used')
   if (await C('bsSuppression').findOne({ $or: [{ cid }, { cid: '*' }], phone: p })) return E('err_opted')
-  const m = msgDoc({ cid, to: p, body: full, sessionId: sessionId || null, priority: 1 }); if (unlimited && !sessionId) m.unlimited = true; await C('bsMessages').insertOne(m)
-  const left = sessionId || unlimited ? null : await oneLeft(cid)
-  if (left != null) { const seq = ((await cfg()).freeOneSends ?? 2) - left; if (seq >= 1 && seq <= 2) await C('bsReviews').insertOne({ _id: m._id, cid, to: p, seq, status: 'waiting', at: new Date(), dueAt: new Date(Date.now() + REVIEW_AFTER) }).catch(() => {}) }
-  return { ok: true, messageId: m._id, segments: m.segments, left }
+  if (counted && !lim) { const g = await oneGuard(cid, p, body, c); if (g) return g }
+  const m = msgDoc({ cid, to: p, body: full, sessionId: sessionId || null, priority: 1 }); if (unlimited && !sessionId) m.unlimited = true; if (!sessionId) m.fp = oneFp(body); await C('bsMessages').insertOne(m)
+  const seq = counted ? await oneUsed(cid) : 0
+  if (seq >= 1 && seq <= 2) await C('bsReviews').insertOne({ _id: m._id, cid, to: p, seq, status: 'waiting', at: new Date(), dueAt: new Date(Date.now() + REVIEW_AFTER) }).catch(() => {})
+  return { ok: true, messageId: m._id, segments: m.segments, left: counted && lim ? Math.max(0, lim - seq) : null }
 }
-// Delivery review after a customer's 1st and 2nd single text: asked ~3 min after sending (30 s after a delivery report, if one comes).
 const REVIEW_AFTER = 3 * MIN
 // "12 min" / "1 h 5 min" / null when under a minute — used in campaign progress ETAs.
 const fmtEta = (min) => min < 1 ? null : min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${min % 60} min`
@@ -1522,7 +1567,7 @@ function init({ db, log = console.log, notifyAdmin }) {
   S = { db: own, log, notifyAdmin }
   const ready = url ? MongoClient.connect(url).then(cl => { S.db = cl.db(process.env.BULK_ESIM_DB || 'bulkesim') }) : Promise.resolve()
   return ready.then(() => {
-    C('bsMessages').createIndex({ status: 1, priority: -1, nextAt: 1 }).catch(() => {}); C('bsMessages').createIndex({ campaignId: 1, status: 1 }).catch(() => {}); C('bsMessages').createIndex({ cid: 1, createdAt: -1 }).catch(() => {})
+    C('bsMessages').createIndex({ status: 1, priority: -1, nextAt: 1 }).catch(() => {}); C('bsMessages').createIndex({ campaignId: 1, status: 1 }).catch(() => {}); C('bsMessages').createIndex({ cid: 1, createdAt: -1 }).catch(() => {}); C('bsMessages').createIndex({ fp: 1, createdAt: -1 }, { sparse: true }).catch(() => {})
     C('bsSessions').createIndex({ esimId: 1, to: 1, status: 1 }).catch(() => {}); C('bsSuppression').createIndex({ cid: 1, phone: 1 }, { unique: true }).catch(() => {}); C('bsNotify').createIndex({ brand: 1, sent: 1 }).catch(() => {}); C('bsEsims').createIndex({ msisdn: 1 }).catch(() => {}); C('bsEsimDaily').createIndex({ day: 1 }).catch(() => {}); C('bsTests').createIndex({ esimId: 1, type: 1, result: 1 }).catch(() => {})
     if (process.env.BULK_ESIM_WORKER === 'false') return
     if (!configured()) { log('[BulkESIM] needs SPENZA_BULK_API_KEY/SECRET and BULK_ESIM_MONGO_URL (shared DB) — engine idle'); return }
@@ -1539,4 +1584,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { adminAlert: alert, dueReviews, reviewAnswer, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone, backfillIdentity }
+module.exports = { oneGuardList, oneGuardSet, adminAlert: alert, dueReviews, reviewAnswer, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone, backfillIdentity }

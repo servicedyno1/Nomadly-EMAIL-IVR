@@ -2643,3 +2643,4 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - eSIM complaint suspect: `reviewAnswer()` auto-suspects lines with >=2 customer complaints in 48h.
 - Identity backfill: `backfillIdentity()` in core.js + `/bulkbackfill` admin command in bot.js.
 - Backlog remaining: #3 refund escalation (@rickyy22x), AI "bulletproof RDP" language, broader BulkSMS preview feature deployment.
+- Single-text abuse guard (2026-06): `oneGuard` in bulk-esim/core.js; active only when `freeOneSends` is 0 (unlimited). Slow down → refuse 24 h → block, with admin alerts; `/bulkguard` to list/clear/trust. Default cap of 2 unchanged until the owner runs `/bulkset freeOneSends 0`. Preview-tested only. See CHANGELOG.
