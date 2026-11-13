@@ -49743,7 +49743,7 @@ app.post('/telnyx/voice-webhook', telnyxSigned, async (req, res) => {
 })
 
 // Telnyx Fax Webhook — receives inbound fax events
-app.post('/telnyx/fax-webhook', telnyxSigned, async (req, res) => {
+app.post('/telnyx/fax-webhook', require('./telnyx-webhook-verify').middleware(log, 'TELNYX_FAX_PUBLIC_KEY'), async (req, res) => {
   res.sendStatus(200)
   try {
     const cpTxt = phoneConfig.getTxt('en') // fax webhooks default to English

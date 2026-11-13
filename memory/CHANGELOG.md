@@ -2988,3 +2988,9 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Daily test renumber refused → keepOnFail: current number kept, admin alert, nothing ordered.
 - replaceEsim now picks up Spenza's "number assigned soon" number within ~20 s (getSim poll); syncInventory (5 min) adopts numbers changed outside the engine (alert + prevMsisdn) and stores hasDevice (getSim has no device field → fixes false "never activated" risk).
 - Tests: spam_rotation 19/0, spenza_failures 16/0, number_sync 4/0, all 45 bulk suites 0 failed.
+
+## 2026-06 — Fax-only Telnyx account + purpose-based ordering (web)
+- New `TELNYX_FAX_API_KEY` (+ optional `TELNYX_FAX_PUBLIC_KEY` for fax webhook signatures) used ONLY by `js/telnyx-fax-account.js`: fax numbers, fax send/receive (`fax-service.js`), number lookup (bulk-esim backup + shared lookup chain tail). Never wired to calls; old `TELNYX_API_KEY` untouched.
+- `js/fax-numbers.js`: USA/Canada fax-only numbers (collection `faxNumbers`), ordered onto the Fax Application, $15/mo (`FAX_NUMBER_PRICE`), wallet renewals, 3-day past-due then release. Routes `/fax-numbers*` in `cloudivr-web/fax.js`.
+- Web Buy page: purpose picker Voice / SIP / SMS / Fax (multi). Voice+SIP → existing SignalWire Business Line; SMS → Spenza Texting Number; Fax → fax-only number. Bot unchanged.
+- Test: `js/tests/test_fax_numbers.js` 16/16 (stubbed Telnyx). Fax regressions 52/52, 31/31, 5/5.

@@ -854,7 +854,7 @@ const SENDABLE = ['mobile', 'fixed line or mobile', 'unknown']
 let lookupHook = null
 const setLookup = (fn) => { lookupHook = fn }
 const swLookup = () => require('../signalwire')
-const lookupLive = () => (swLookup().enabled() || !!process.env.TELNYX_API_KEY) && (!P.dry() || process.env.BULK_ESIM_LOOKUP_LIVE === 'true')
+const lookupLive = () => (swLookup().enabled() || require('../telnyx-fax-account').enabled()) && (!P.dry() || process.env.BULK_ESIM_LOOKUP_LIVE === 'true')
 // SignalWire lookup first, Telnyx as backup.
 async function lookupOne(p) {
   if (lookupHook) return lookupHook(p)
@@ -862,8 +862,9 @@ async function lookupOne(p) {
   const sw = await swLookup().lookup(p)
   if (sw) return { type: sw.valid === false ? 'invalid' : sw.type, carrier: sw.carrier && sw.carrier !== 'unknown' ? sw.carrier : null }
   // (swLookup().lookup already falls back to Infobip)
-  if (!process.env.TELNYX_API_KEY) throw new Error('number lookup unavailable')
-  const r = await axios.get(`https://api.telnyx.com/v2/number_lookup/${encodeURIComponent(p)}`, { params: { type: 'carrier' }, headers: { Authorization: `Bearer ${process.env.TELNYX_API_KEY}` }, timeout: 15000 })
+  const acct = require('../telnyx-fax-account')
+  if (!acct.enabled()) throw new Error('number lookup unavailable')
+  const r = await axios.get(`${acct.BASE}/number_lookup/${encodeURIComponent(p)}`, { params: { type: 'carrier' }, headers: acct.headers(), timeout: 15000 })
   const d = r.data?.data || {}
   return { type: d.valid_number === false ? 'invalid' : String(d.carrier?.type || 'unknown').toLowerCase(), carrier: d.carrier?.normalized_carrier || d.carrier?.name || null }
 }

@@ -20,7 +20,8 @@ const MAX_BYTES = 10 * 1024 * 1024
 const E164 = /^\+[1-9]\d{7,14}$/
 const brand = () => String(process.env.CHAT_BOT_BRAND || 'Nomadly').trim() || 'Nomadly'
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
-const hdrs = () => ({ Authorization: `Bearer ${process.env.TELNYX_API_KEY}` })
+const faxAcct = require('./telnyx-fax-account')
+const hdrs = () => faxAcct.headers()
 const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const fmt = (p) => phoneConfig.formatPhone(p)
 
@@ -296,8 +297,8 @@ function init({ db, bot, walletOf, log, callControlAppId }) {
   }
 }
 
-const eligible = (num) => !!num && phoneConfig.canAccessFeature(num.plan, 'fax') && (num.provider || 'telnyx') === 'telnyx' && num.status === 'active'
-const lineOn = (num) => num?.features?.faxLine?.enabled === true
+const eligible = (num) => !!num && num.faxOnly ? num.status === 'active' : !!num && phoneConfig.canAccessFeature(num.plan, 'fax') && (num.provider || 'telnyx') === 'telnyx' && num.status === 'active'
+const lineOn = (num) => !!num?.faxOnly || num?.features?.faxLine?.enabled === true
 // What voice routing is set on this number (so we can warn it'll stop when the fax line is turned on). Returns a label or null.
 function voiceRouting(num) {
   const f = num?.features || {}
@@ -312,15 +313,17 @@ function voiceRouting(num) {
 async function ensureApp({ create = process.env.SKIP_WEBHOOK_SYNC !== 'true' } = {}) {
   if (_appId) return _appId
   const name = `${brand()} Fax`
-  const saved = await col('faxConfig').findOne({ _id: name })
+  const key = `${name}|fax-account`
+  const saved = await col('faxConfig').findOne({ _id: key })
   if (saved?.appId) return (_appId = saved.appId)
-  if (dryRun()) return null
+  if (dryRun() || !faxAcct.enabled()) return null
   const list = await axios.get(`${BASE}/fax_applications`, { headers: hdrs(), params: { 'filter[application_name][contains]': name, 'page[size]': 50 } })
   let app = (list.data?.data || []).find(a => a.application_name === name)
   const webhook = `${process.env.SELF_URL}/telnyx/fax-webhook`
   if (!app && create) {
     const profiles = await axios.get(`${BASE}/outbound_voice_profiles`, { headers: hdrs() }).catch(() => null)
-    const ovp = (profiles?.data?.data || []).find(p => p.enabled)
+    let ovp = (profiles?.data?.data || []).find(p => p.enabled)
+    if (!ovp) ovp = (await axios.post(`${BASE}/outbound_voice_profiles`, { name: `${name} outbound`, enabled: true }, { headers: hdrs() }).catch(e => { _log(`[Fax] outbound profile create failed: ${e.response?.data?.errors?.[0]?.detail || e.message}`); return null }))?.data?.data
     const r = await axios.post(`${BASE}/fax_applications`, { application_name: name, webhook_event_url: webhook, active: true, ...(ovp ? { outbound: { outbound_voice_profile_id: ovp.id } } : {}) }, { headers: hdrs() })
     app = r.data?.data
     _log(`[Fax] Created Telnyx Fax Application ${app?.id} (${name}) → ${webhook}`)
@@ -329,7 +332,7 @@ async function ensureApp({ create = process.env.SKIP_WEBHOOK_SYNC !== 'true' } =
     _log(`[Fax] Fax Application webhook → ${webhook}`)
   }
   if (!app?.id) return null
-  await col('faxConfig').updateOne({ _id: name }, { $set: { appId: app.id, updatedAt: new Date() } }, { upsert: true })
+  await col('faxConfig').updateOne({ _id: key }, { $set: { appId: app.id, updatedAt: new Date() } }, { upsert: true })
   return (_appId = app.id)
 }
 
@@ -337,11 +340,13 @@ async function ensureApp({ create = process.env.SKIP_WEBHOOK_SYNC !== 'true' } =
 async function findOwner(phone) {
   const doc = await col('phoneNumbersOf').findOne({ 'val.numbers': { $elemMatch: { phoneNumber: phone, status: { $ne: 'released' } } } })
   const num = (doc?.val?.numbers || []).find(n => n.phoneNumber === phone && n.status !== 'released')
-  return num ? { chatId: String(doc._id), num } : null
+  if (num) return { chatId: String(doc._id), num }
+  const f = await col('faxNumbers').findOne({ _id: phone, status: { $ne: 'released' } })
+  return f ? { chatId: String(f.chatId), num: f } : null
 }
 async function findMine(chatId, phone) {
   const doc = await col('phoneNumbersOf').findOne({ _id: chatId })
-  return (doc?.val?.numbers || []).find(n => n.phoneNumber === phone && n.status !== 'released') || null
+  return (doc?.val?.numbers || []).find(n => n.phoneNumber === phone && n.status !== 'released') || (await col('faxNumbers').findOne({ _id: phone, chatId: String(chatId), status: { $ne: 'released' } })) || null
 }
 
 // ── Free-page allowance: 50 pages per number per plan month (the month ending at expiresAt) ──
@@ -703,6 +708,7 @@ async function reapplyLine(chatId, num) {
   return true
 }
 async function setLine({ chatId, num, enabled, force = false }) {
+  if (num?.faxOnly) throw new FaxError('fax_only', 'This is a fax-only number. It always receives faxes and never takes calls.')
   if (!force && !eligible(num)) throw new FaxError('plan_upgrade_required', 'Fax is on the Business plan. Upgrade this number to use it.')
   if (!dryRun()) {
     const target = enabled ? await ensureApp() : _ccApp()
@@ -799,6 +805,7 @@ async function onReceived(p) {
 
 // Fax line forced back to voice (plan no longer Business, number expired) and the owner told.
 async function switchOff(chatId, num) {
+  if (num?.faxOnly) return
   await setLine({ chatId, num, enabled: false, force: true })
   await tell(chatId, t(await langOf(chatId)).lineAutoOff(num.phoneNumber), { phone: num.phoneNumber })
 }

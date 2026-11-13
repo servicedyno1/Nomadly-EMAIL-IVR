@@ -13,6 +13,8 @@ import { Flag, IconSelect } from '../Pickers';
 import { TextingNumberCta } from './buy/TextingNumberCta';
 import { PlanHelper } from './buy/PlanHelper';
 import { saveIntent, setupPath, USE_PLAN, rememberedUse } from './buy/setupIntent';
+import { PurposePicker, SmsPurposeCard } from './buy/PurposePicker';
+import { FaxNumberBuy } from './buy/FaxNumberBuy';
 
 // The chosen number + plan survive the wallet top-up detour (Wallet links back with ?resume=1).
 const RESUME_KEY = 'civr.buyResume';
@@ -157,6 +159,8 @@ export default function BuyNumber() {
   const { data: open } = useApi('/numbers/orders?open=1');
   const { data: textingOffer } = useApi(extraOf ? null : '/mobile-numbers');
   const [use, setUse] = useState(rememberedUse);
+  const [purposes, setPurposes] = useState(() => (params.get('purpose') ? params.get('purpose').split(',') : ['voice']));
+  const line = !!extraOf || purposes.includes('voice') || purposes.includes('sip');
   useEffect(() => { refreshSummary(); }, [refreshSummary]);
   if (!catalog) return <Spinner />;
   // Active main numbers the caller can hang an extra number off of.
@@ -200,15 +204,23 @@ export default function BuyNumber() {
   return (
     <div data-testid="buy-page">
       {extraOf ? <PageHeader label="Phone numbers · Extra number" title="Add an extra number" sub={`Shares the plan of ${pv.phone(extraOf)} — ${money(extra?.price || 25)}/month, same features. Pay from your wallet or with crypto.${extra ? ` ${extra.used} of ${extra.limit} used.` : ''}`} testid="buy-header" />
-        : <PageHeader label="Phone numbers" title="Get a Business Line" sub={`A business phone number for calls in ${catalog.countries.length} countries. Answer in your browser or forward to any phone; bigger plans add call menus, campaigns and AI. Month to month, paid from your wallet or with crypto.`} testid="buy-header" />}
+        : <PageHeader label="Phone numbers" title={line ? "Get a Business Line" : "Get a number"} sub={`A business phone number for calls in ${catalog.countries.length} countries. Answer in your browser or forward to any phone; bigger plans add call menus, campaigns and AI. Month to month, paid from your wallet or with crypto.`} testid="buy-header" />}
       {extraOf
         ? <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-extra-back"><Link to={cp('/app/buy')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-extra-back-button">Buy a brand-new number with its own plan instead</Link></p>
         : <>
+          <PurposePicker value={purposes} onChange={setPurposes} />
+          {purposes.includes('sms') && <SmsPurposeCard />}
+          {purposes.includes('fax') && <FaxNumberBuy balance={summary?.balance} onBought={refreshSummary} />}
+          {!purposes.length && <div className="civr-card p-5 mb-6 text-sm text-[#a1a1aa]" data-testid="buy-purpose-empty">Pick at least one use above to see the numbers for it.</div>}
+          {line && <>
+          {purposes.length > 1 && <div className="font-semibold mb-3" data-testid="buy-line-heading">Voice & SIP · Business Line</div>}
           <PlanHelper plans={catalog.plans} current={planObj?.id} onPlan={setPlan} onUse={setUse} />
-          <TextingNumberCta testid="buy-texting-number-cta" className="mb-6" />
+          {!purposes.includes('sms') && <TextingNumberCta testid="buy-texting-number-cta" className="mb-6" />}
           {eligible.length > 0 && <ExistingPlanChooser nums={eligible} price={catalog.extraNumber?.price || 25} pv={pv} />}
           <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-texting-link">Already have a number elsewhere? <Link to={cp('/app/texting?add=1')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-texting-link-button">Add texting to it</Link></p>
+          </>}
         </>}
+      {line && <>
       {open?.orders?.[0] && <OpenOrder order={open.orders[0]} />}
       {saved?.pick && <div className="civr-card p-4 mb-4 text-sm flex items-center gap-2" data-testid="buy-resume-note"><Check className="w-4 h-4 text-[#818cf8]" />Welcome back — {saved.pick.phoneNumber} and the {planObj?.name} plan are still selected below.</div>}
       {fromParam && <div className="text-sm text-[#818cf8] mb-4 flex items-center gap-2" data-testid="buy-plan-hint"><Check className="w-4 h-4" />{planObj.name} plan picked — search for a number below.</div>}
@@ -229,6 +241,7 @@ export default function BuyNumber() {
             textingOffer={extraOf ? null : textingOffer} coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `Extra number on ${pv.phone(extraOf)} · monthly` : null} autoRenewDefault={extraOf ? (parent ? parent.autoRenew !== false : true) : true} />
         </div>
       )}
+      </>}
     </div>
   );
 }

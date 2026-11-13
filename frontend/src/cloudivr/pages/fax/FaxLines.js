@@ -29,10 +29,10 @@ function LineRow({ n, reload }) {
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
           <div className="font-medium tabular-nums">{n.phoneNumber}</div>
-          <div className="text-xs text-[#a1a1aa] mt-1" data-testid={`fax-line-status-${id}`}>{n.faxLine ? 'Receiving faxes · voice calls paused' : 'Voice line · not receiving faxes'}</div>
+          <div className="text-xs text-[#a1a1aa] mt-1" data-testid={`fax-line-status-${id}`}>{n.faxOnly ? 'Fax-only number · always receiving faxes' : n.faxLine ? 'Receiving faxes · voice calls paused' : 'Voice line · not receiving faxes'}</div>
           {!n.faxLine && n.voiceRouting && <div className="text-xs text-[#a1a1aa] mt-0.5">Takes calls with your {n.voiceRouting}</div>}
         </div>
-        <Toggle checked={!!n.faxLine} onChange={flip} disabled={busy} label={`Fax line for ${n.phoneNumber}`} testid={`fax-line-toggle-${id}`} />
+        {n.faxOnly ? <span className="civr-pill" data-testid={`fax-only-pill-${id}`}>Fax only</span> : <Toggle checked={!!n.faxLine} onChange={flip} disabled={busy} label={`Fax line for ${n.phoneNumber}`} testid={`fax-line-toggle-${id}`} />}
       </div>
       <div className="mt-3">
         <div className="h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#34d399] transition-[width] duration-500" style={{ width: `${(u.left / u.free) * 100}%` }} /></div>
