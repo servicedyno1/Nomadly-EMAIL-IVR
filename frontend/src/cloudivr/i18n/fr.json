@@ -5359,5 +5359,9 @@
 "These terms explain what you can expect from CloudIVR and what we expect from you. Please read them before you create an account, buy a number or place a call.": "Ces conditions expliquent ce que vous pouvez attendre de CloudIVR et ce que nous attendons de vous. Veuillez les lire avant de créer un compte, d’acheter un numéro ou de passer un appel.",
 "The CloudIVR name, logo and the cloudivr.net website content belong to CloudIVR. All rights reserved.": "Le nom CloudIVR, le logo et le contenu du site cloudivr.net appartiennent à CloudIVR. Tous droits réservés.",
 "Questions about these terms? Use the help assistant in the app or message our support team.": "Des questions sur ces conditions ? Utilisez l’assistant d’aide dans l’app ou écrivez à notre équipe support.",
-"© {0} CloudIVR. All rights reserved.": "© {0} CloudIVR. Tous droits réservés."
+"© {0} CloudIVR. All rights reserved.": "© {0} CloudIVR. Tous droits réservés.",
+"Required": "Obligatoire",
+"Fill in the fields marked Required above.": "Remplissez les champs marqués Obligatoire ci-dessus.",
+"Type the account holder’s full name exactly as above to sign.": "Tapez le nom complet du titulaire exactement comme ci-dessus pour signer.",
+"Tick the box to sign the letter.": "Cochez la case pour signer la lettre."
 }

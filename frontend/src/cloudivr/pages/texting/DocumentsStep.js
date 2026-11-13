@@ -16,8 +16,11 @@ export function LoaStep({ item, onChange }) {
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(null);
   const [err, setErr] = useState(null);
-  const sigOk = sig.trim() && sig.trim().toLowerCase() === h.name.trim().toLowerCase();
-  const ready = REQUIRED.every(k => h[k].trim()) && sigOk && consent;
+  const [tried, setTried] = useState(false);
+  const norm = (v) => v.replace(/\s+/g, ' ').trim().toLowerCase();
+  const sigOk = !!norm(sig) && norm(sig) === norm(h.name);
+  const missing = REQUIRED.filter(k => !h[k].trim());
+  const problem = missing.length ? 'Fill in the fields marked Required above.' : !sigOk ? 'Type the account holder’s full name exactly as above to sign.' : !consent ? 'Tick the box to sign the letter.' : null;
   const preview = async () => {
     setBusy('preview'); setErr(null);
     try {
@@ -29,13 +32,15 @@ export function LoaStep({ item, onChange }) {
     } catch (e) { setErr(e); } finally { setBusy(null); }
   };
   const sign = async () => {
+    setTried(true);
+    if (problem) { document.querySelector(`[data-testid="texting-holder-${missing[0]}"]`)?.focus(); return; }
     setBusy('sign'); setErr(null);
     try { await api(`/hosted-sms/${item.id}/loa`, { method: 'POST', body: { holder: h, signature: sig, consent: true } }); toast.success('Letter signed. Last step: your phone bill'); onChange(); } catch (e) { setErr(e); } finally { setBusy(null); }
   };
   return (
     <div className="space-y-5" data-testid="texting-loa">
       <p className="text-sm text-[#d4d4d8] flex gap-2"><FileSignature className="w-5 h-5 text-[#818cf8] shrink-0" />Enter the details exactly as on your phone bill. We fill in the Letter of Authorization (LOA) and you sign it below.</p>
-      <div className="grid sm:grid-cols-2 gap-4">{FIELDS.map(([k, label, hint]) => <Field key={k} label={label} hint={hint}><input className="civr-input" value={h[k]} onChange={e => setH({ ...h, [k]: e.target.value })} data-testid={`texting-holder-${k}`} /></Field>)}</div>
+      <div className="grid sm:grid-cols-2 gap-4">{FIELDS.map(([k, label, hint]) => <Field key={k} label={label} hint={tried && missing.includes(k) ? 'Required' : hint}><input className="civr-input" style={tried && missing.includes(k) ? { borderColor: '#f87171' } : undefined} aria-invalid={tried && missing.includes(k)} value={h[k]} onChange={e => setH({ ...h, [k]: e.target.value })} data-testid={`texting-holder-${k}`} /></Field>)}</div>
       <Field label="Sign: type the account holder’s full name" hint={sig && !sigOk ? 'Must match the account holder’s name above' : 'This is your electronic signature on the letter'}>
         <input className="civr-input text-xl italic" style={{ fontFamily: 'Georgia, serif' }} value={sig} onChange={e => setSig(e.target.value)} placeholder={h.name || 'Full name'} data-testid="texting-loa-signature" />
       </Field>
@@ -44,9 +49,10 @@ export function LoaStep({ item, onChange }) {
         <span>I am the account holder (or authorized by them) and I sign this Letter of Authorization electronically.</span>
       </label>
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={sign} disabled={!ready || !!busy} className="civr-btn civr-btn-primary" data-testid="texting-loa-submit">{busy === 'sign' && <Loader2 className="w-4 h-4 animate-spin" />}Sign the letter</button>
+        <button type="button" onClick={sign} disabled={!!busy} className="civr-btn civr-btn-primary" data-testid="texting-loa-submit">{busy === 'sign' && <Loader2 className="w-4 h-4 animate-spin" />}Sign the letter</button>
         <button type="button" onClick={preview} disabled={!!busy || !h.name.trim()} className="civr-btn civr-btn-ghost" data-testid="texting-loa-preview">{busy === 'preview' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}Preview the letter</button>
       </div>
+      {tried && problem && <p className="text-sm text-[#f87171]" role="alert" data-testid="texting-loa-missing">{problem}</p>}
       <ErrorNote error={err} testid="texting-loa-error" />
     </div>
   );
