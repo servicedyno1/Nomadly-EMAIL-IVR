@@ -167,6 +167,21 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 
   ok('progress milestone not repeated on the next tick', (await db.collection('bsNotify').countDocuments({ key: 'n_progress', campaignId: 'cp_prog' })) === 1)
 
+  // ── Admin notifications include user info, payment, and campaign lifecycle ──
+  // customer() now stores Telegram user info
+  await B.customer('Nomadly', '111', { username: 'testuser', firstName: 'Jane', lastName: 'Doe' })
+  const cu = await db.collection('bsCustomers').findOne({ _id: 'Nomadly:111' })
+  ok('customer stores Telegram user info', cu.username === 'testuser' && cu.firstName === 'Jane' && cu.lastName === 'Doe' && cu.lastSeen instanceof Date)
+  // Booking-paid alert includes user tag, price and method
+  const paidAlerts = alerts.filter(a => /Booking paid/i.test(a))
+  ok('admin alerted when booking is paid with price and method', paidAlerts.length >= 1 && paidAlerts[0].includes('$') && /wallet|crypto|bank/i.test(paidAlerts[0]))
+  // Campaign-started alert
+  const startAlerts = alerts.filter(a => /Campaign started/i.test(a))
+  ok('admin alerted when campaign starts sending', startAlerts.length >= 1 && startAlerts[0].includes('SMS'))
+  // Campaign-completed alert
+  const doneAlerts = alerts.filter(a => /Campaign completed/i.test(a))
+  ok('admin alerted when campaign completes with stats', doneAlerts.length >= 1 && /sent.*failed/i.test(doneAlerts[0]) && doneAlerts[0].includes('cost $'))
+
   console.log(`\n${pass} passed, ${fail} failed`)
   for (const c of COLS) await db.collection(c).deleteMany({})
   await cl.close(); process.exit(fail ? 1 : 0)

@@ -88,10 +88,23 @@ const alert = (text) => {
 const notify = (cid, type, key, args = [], extra = {}) => { const [brand, chatId] = cid.split(':'); return C('bsNotify').insertOne({ brand, chatId, type, key, args, ...extra, sent: false, at: new Date() }) }
 
 // ---------- customers + quota ----------
-async function customer(brand, chatId) {
+async function customer(brand, chatId, userInfo) {
   const cid = cidOf(brand, chatId)
-  await C('bsCustomers').updateOne({ _id: cid }, { $setOnInsert: { brand, chatId: String(chatId), status: 'active', dailyLimit: null, createdAt: new Date() } }, { upsert: true })
+  const op = { $setOnInsert: { brand, chatId: String(chatId), status: 'active', dailyLimit: null, createdAt: new Date() } }
+  if (userInfo && (userInfo.username || userInfo.firstName)) {
+    op.$set = { lastSeen: new Date() }
+    if (userInfo.username) op.$set.username = userInfo.username
+    if (userInfo.firstName) op.$set.firstName = userInfo.firstName
+    if (userInfo.lastName) op.$set.lastName = userInfo.lastName
+  }
+  await C('bsCustomers').updateOne({ _id: cid }, op, { upsert: true })
   return C('bsCustomers').findOne({ _id: cid })
+}
+async function userTag(cid) {
+  const cu = await C('bsCustomers').findOne({ _id: cid })
+  if (!cu) return cid
+  const name = [cu.firstName, cu.lastName].filter(Boolean).join(' ')
+  return [cu.brand, cu.username ? `@${cu.username}` : '', name].filter(Boolean).join(' · ') || cid
 }
 async function usage(cid) {
   const c = await cfg(), cu = await C('bsCustomers').findOne({ _id: cid }), limit = cu?.dailyLimit ?? c.defaultDailyLimit
@@ -680,6 +693,8 @@ async function confirmBooking(bid, { method, amount, ref } = {}) {
   }
   if (b.campaignId) { await queueCampaign(b.campaignId, b); await refundTestCharges(b.campaignId, b.type === 'paid') }
   await notify(b.cid, 'booking', 'n_booking', [b.volume, b.date, String(b.hour).padStart(2, '0')], { bookingId: bid })
+  const cpName = b.campaignId ? (await C('bsCampaigns').findOne({ _id: b.campaignId }))?.name : null
+  alert(`💰 <b>Booking paid</b>\n👤 ${await userTag(b.cid)} (${b.cid})\n📋 ${cpName || bid}\n📊 ${b.volume} SMS · $${amount ?? b.price} via ${method || 'wallet'}${ref ? ` (ref: ${ref})` : ''}\n📅 ${b.date} ${String(b.hour).padStart(2, '0')}:00 UTC${b.mode === 'now' ? ' (send now)' : ''}`)
   audit('booking_confirm', { bookingId: bid, method }); return { ok: true }
 }
 async function cancelBooking(bid, { by = 'customer', cid } = {}) {
@@ -1163,7 +1178,7 @@ async function finishCampaigns() {
   for (const cp of await C('bsCampaigns').find({ status: { $in: ['scheduled', 'running'] } }).toArray()) {
     const open = await C('bsMessages').countDocuments({ campaignId: cp._id, test: false, status: { $in: ['queued', 'processing', 'submitted'] } })
     const started = await C('bsMessages').countDocuments({ campaignId: cp._id, test: false, status: { $ne: 'queued' } })
-    if (cp.status === 'scheduled' && started) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'running', startedAt: new Date() } }); await setBooking(cp.bookingId, 'processing'); await notify(cp.cid, 'campaign', 'n_started', [cp.name], { campaignId: cp._id }) }
+    if (cp.status === 'scheduled' && started) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'running', startedAt: new Date() } }); await setBooking(cp.bookingId, 'processing'); await notify(cp.cid, 'campaign', 'n_started', [cp.name], { campaignId: cp._id }); alert(`📣 <b>Campaign started</b>\n👤 ${await userTag(cp.cid)} (${cp.cid})\n📋 ${cp.name}\n📊 ${cp.total || cp.parts || '?'} SMS`) }
     if (open && !cp.lateNotified && cp.scheduledAt && Date.now() - new Date(cp.scheduledAt).getTime() > 2 * HOUR && started < (cp.stats?.queued || 0) / 2) { const r = await C('bsCampaigns').updateOne({ _id: cp._id, lateNotified: { $ne: true } }, { $set: { lateNotified: true } }); if (r.modifiedCount) alert(`⏳ ${cp.cid} “${cp.name}” is running behind: ${cp.stats?.sent || 0} of ${cp.stats?.queued || 0} texts out 2 h after its start. Check lines / balance (/bulk).`) }
     // Progress milestones to the customer at 25/50/75% with an ETA (once each; completion is handled below).
     if (started && open) {
@@ -1180,7 +1195,7 @@ async function finishCampaigns() {
         }
       }
     }
-    if (started && !open) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'completed', completedAt: new Date() } }); await setBooking(cp.bookingId, 'completed'); const refunded = await refundUnsent(cp), r = await report(cp._id); await notify(cp.cid, 'campaign', 'n_done', [cp.name, r.sent, r.failed, r.rejected + (r.blocked || 0), r.replies, r.skipped, refunded || 0], { campaignId: cp._id }); await C('bsReviews').insertOne({ _id: `cpr_${cp._id}`, kind: 'campaign', cid: cp.cid, campaignId: cp._id, name: cp.name, status: 'waiting', at: new Date(), dueAt: new Date() }).catch(() => {}) }
+    if (started && !open) { await C('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'completed', completedAt: new Date() } }); await setBooking(cp.bookingId, 'completed'); const refunded = await refundUnsent(cp), r = await report(cp._id); await notify(cp.cid, 'campaign', 'n_done', [cp.name, r.sent, r.failed, r.rejected + (r.blocked || 0), r.replies, r.skipped, refunded || 0], { campaignId: cp._id }); alert(`✅ <b>Campaign completed</b>\n👤 ${await userTag(cp.cid)} (${cp.cid})\n📋 ${cp.name}\n📊 ${r.sent} sent · ${r.failed} failed · ${r.replies} replies · ⛔ ${r.optOuts} opt-outs\n💵 cost $${r.cost}${r.costPerReply != null ? ` · $${r.costPerReply}/reply` : ''}${refunded ? `\n↩️ $${refunded} refunded` : ''}`); await C('bsReviews').insertOne({ _id: `cpr_${cp._id}`, kind: 'campaign', cid: cp.cid, campaignId: cp._id, name: cp.name, status: 'waiting', at: new Date(), dueAt: new Date() }).catch(() => {}) }
   }
 }
 // Spenza tells each account's real SMS limit in X-RateLimit-* headers: adopt a changed limit as that account's rate (so capacity,
