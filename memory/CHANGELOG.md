@@ -3020,3 +3020,8 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Prod RCA (read-only, last 24h): Nomadly web Quick IVR 12 calls — 10 failed with SignalWire "must be a purchased or verified phone number or match the parent call" because poolCaller() returned no SignalWire number (none free/owned at the time) and it fell back to the unowned From; 2 later succeeded via SignalWire with owned caller IDs. Bots (Smadav/Voodoo/ProShop): no Quick IVR in 24h. OTP collection: none in 24h. "how=telnyx" in callerIdDeclines is a legacy label; calls route via SignalWire.
 - Fix (js/signalwire/index.js): SW_CID_REJECT detects that rejection on both RELAY and REST origination and retries once from a guaranteed owned SignalWire number; poolCaller(from,{force:true}) ignores reservations so a call never fails just because every owned number is busy. If zero SignalWire numbers are owned, it falls through to the next provider as before.
 - Test: js/tests/test_signalwire_caller_retry.js 6/6; regressions test_signalwire_adapter 30/30, caller_id_reject_retry_iter217 PASS. Preview only — deploy to take effect on prod.
+
+## 2026-11-13 — Bird calling enabled on live (all brands) + numbers always connect to live
+- Call-server (ARI) settings saved permanently in all 4 prod brand envs (+ Bird key for wl/voodoo/proshop); all connected; Bird test call passed using saved settings only.
+- Audit: no customer SignalWire numbers pointed at preview (account owns only the 2 test numbers, already live).
+- Code (publish needed): numbers/SIP endpoints bought anywhere point at the live app (rest.js liveTopic/liveUrl, SIGNALWIRE_LIVE_URL); stale proof-call entry fix. Tests: sw_live_routing 5/5, adapter 30/30, caller_retry 6/6.

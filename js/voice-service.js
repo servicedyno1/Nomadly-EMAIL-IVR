@@ -2509,6 +2509,7 @@ async function handleCallInitiated(payload) {
         await _db.collection('birdProofCalls').insertOne({ to, from, at: new Date() })
         log(`[Voice] Bird proof call arrived on ${to} showing ${from}`)
         await _telnyxApi.rejectCall(callControlId).catch(() => {})
+        delete activeCalls[callControlId]
         return
       }
       if (await birdVerify().isArmed(to)) {

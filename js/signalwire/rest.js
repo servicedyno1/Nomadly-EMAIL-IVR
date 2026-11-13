@@ -16,7 +16,10 @@ const errOf = (e) => {
 const brandSlug = () => String(process.env.CHAT_BOT_BRAND || 'nomadly').toLowerCase().replace(/[^a-z0-9]/g, '') || 'nomadly'
 const topic = () => process.env.SIGNALWIRE_TOPIC || `${brandSlug()}${process.env.BOT_ENVIRONMENT === 'production' ? '' : '-dev'}`
 const selfUrl = () => String(process.env.SELF_URL || '').replace(/\/+$/, '')
-const smsWebhook = () => `${selfUrl()}/signalwire/sms-webhook`
+// Numbers and SIP endpoints always point at the live app, even when bought from preview.
+const liveTopic = () => process.env.SIGNALWIRE_NUMBER_TOPIC || brandSlug()
+const liveUrl = () => String(process.env.SIGNALWIRE_LIVE_URL || process.env.SELF_URL || '').replace(/\/+$/, '')
+const smsWebhook = () => `${liveUrl()}/signalwire/sms-webhook`
 
 let _sipDomain = null
 async function sipDomain() {
@@ -90,7 +93,7 @@ async function searchNumbers(countryCode, numberType, areaCode, limit = 5) {
 }
 
 const handlerBody = () => ({
-  call_handler: 'relay_topic', call_relay_topic: topic(),
+  call_handler: 'relay_topic', call_relay_topic: liveTopic(),
   message_handler: 'laml_webhooks', message_request_url: smsWebhook(), message_request_method: 'POST',
 })
 
@@ -105,7 +108,7 @@ async function buyNumber(phoneNumber) {
     searched.delete(phoneNumber)
     owned.set(n.number || phoneNumber, n.id)
     await configureNumber(n.id)
-    log(`Bought ${phoneNumber} (${n.id}) → topic ${topic()}`)
+    log(`Bought ${phoneNumber} (${n.id}) → topic ${liveTopic()}`)
     return { id: 'sw:' + n.id, status: 'success', requirements_met: true, phone_numbers: [{ id: 'sw:' + n.id, phone_number: n.number || phoneNumber, status: 'success', requirements_status: 'requirements-met' }], _provider: 'signalwire' }
   } catch (e) { log(`buy ${phoneNumber}:`, errOf(e)); return null }
 }
@@ -171,7 +174,7 @@ async function createSipEndpoint(username, password, phoneNumber) {
     const s = (await http().post('/api/relay/rest/endpoints/sip', {
       username, password, ...(phoneNumber ? { send_as: phoneNumber, caller_id: phoneNumber } : {}),
       encryption: 'optional', codecs: ['PCMU', 'PCMA', 'OPUS', 'G722'],
-      call_handler: 'relay_topic', call_relay_topic: topic(),
+      call_handler: 'relay_topic', call_relay_topic: liveTopic(),
     })).data
     sipUsers.add(s.username || username)
     return { id: 'sw:' + s.id, sip_username: s.username || username, sip_password: password, kind: 'signalwire', sip_domain: await sipDomain() }
@@ -243,7 +246,7 @@ async function createRestCall(from, to, url, statusCallbackUrl) {
 }
 
 module.exports = {
-  enabled, host, topic, brandSlug, sipDomain, http, errOf,
+  enabled, host, topic, liveTopic, liveUrl, handlerBody, brandSlug, sipDomain, http, errOf,
   searchNumbers, buyNumber, assignNumber, releaseById, releaseByPhoneNumber, listNumbers, refreshOwned, ownsNumber, ownedNumbers: () => [...owned.keys()], isSwSearched, configureNumber,
   lookup, loadSipUsers, isSipUser, createSipEndpoint, deleteSipEndpoint,
   sendSms, inboundToTelnyx, validSignature, createRestCall,
