@@ -2514,6 +2514,7 @@ async function handleCallInitiated(payload) {
         delete activeCalls[callControlId]
         return
       }
+      // Only Bird's verification line is intercepted — real callers to an armed customer number are handled normally.
       if (await birdVerify().isArmed(to)) {
         log(`[Voice] Bird verification call ${from} → ${to}: answering and recording the code`)
         activeCalls[callControlId] = { chatId: null, from, to, startedAt: new Date(), phase: 'bird_verify', direction: 'incoming' }
@@ -4061,6 +4062,7 @@ async function handleCallAnswered(payload) {
     return
   }
 
+  if (session.phase === 'bird_verify') return
   const { num, chatId, to, from } = session
   // Browser-ring fallback routes the call itself (noAnswerFallback) — only start recording here.
   if (session._fallbackRouting) {

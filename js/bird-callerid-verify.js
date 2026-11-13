@@ -44,13 +44,13 @@ function createBirdVerify({ bird, transcribe, db, log = console.log, maxAttempts
     const code = extractCode(t?.text)
     const attempts = (d.attempts || 0) + 1
     if (!code) {
-      await col().updateOne({ _id: n }, { $set: { attempts, status: attempts >= maxAttempts ? 'failed' : 'calling', error: `couldn't read code from "${(t?.text || '').slice(0, 60)}"` } })
+      await col().updateOne({ _id: n, status: { $ne: 'verified' } }, { $set: { attempts, status: attempts >= maxAttempts ? 'failed' : 'calling', error: `couldn't read code from "${(t?.text || '').slice(0, 60)}"` } })
       log(`[BirdVerify] ${n}: no code in transcript (attempt ${attempts}/${maxAttempts})`)
       return { handled: true, code: null, status: attempts >= maxAttempts ? 'failed' : 'retry' }
     }
     const r = await bird.submitCallerIdCode(d.verifiedNumberId, code)
     const ok = !r.error && (r.outbound_enabled || r.status === 'verified')
-    await col().updateOne({ _id: n }, { $set: { attempts, lastCode: code, status: ok ? 'verified' : (attempts >= maxAttempts ? 'failed' : 'calling'), verifiedAt: ok ? new Date() : null, outboundEnabled: !!r.outbound_enabled, error: r.error || null } })
+    await col().updateOne({ _id: n, status: { $ne: 'verified' } }, { $set: { attempts, lastCode: code, status: ok ? 'verified' : (attempts >= maxAttempts ? 'failed' : 'calling'), verifiedAt: ok ? new Date() : null, outboundEnabled: !!r.outbound_enabled, error: r.error || null } })
     log(`[BirdVerify] ${n}: submitted ${code} → ${ok ? 'VERIFIED' : `not yet (${r.error || r.status})`}`)
     if (ok) bird.forgetCallerIds?.()
     return { handled: true, code, status: ok ? 'verified' : 'retry', outbound_enabled: !!r.outbound_enabled }

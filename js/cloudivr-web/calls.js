@@ -37,11 +37,11 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   // Campaign audience: a saved contact list, or the pasted / uploaded numbers.
   const leadsOf = (chatId, b) => (b.listId ? listLeads(db, chatId, b.listId) : bulkCallService.parseLeadsFile(String(b.leads || '')))
 
-  // Caller ID must be one of the account's active Telnyx numbers on a plan with the feature.
+  // Caller ID must be one of the account's active numbers (SignalWire, or legacy Telnyx) on a plan with the feature.
   async function caller(chatId, phone, feature, label) {
     const n = await numbersApi.findMine(chatId, phone)
     if (!n || n.status !== 'active') return { err: [400, 'invalid_caller', 'Pick one of your active numbers as caller ID.'] }
-    if (n.provider !== 'telnyx') return { err: [400, 'invalid_caller', 'This number cannot place outbound IVR calls.'] }
+    if (!['telnyx', 'signalwire'].includes(n.provider) || n.provider === 'signalwire_fax') return { err: [400, 'invalid_caller', 'This number cannot place outbound IVR calls.'] }
     if (!phoneConfig.canAccessFeature(n.plan, feature)) return { err: [403, 'plan_upgrade_required', phoneConfig.canAccessFeature('pro', feature) ? `${label} needs the Pro plan or higher on the caller number.` : `${label} need the Business plan on the caller number.`] }
     return { n }
   }

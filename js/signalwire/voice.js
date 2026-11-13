@@ -92,7 +92,7 @@ async function sipTarget(uri) {
   if (rest.isSipUser(user) || !process.env.SIP_SERVER_SECRET) return { to: rest.isSipUser(user) ? `sip:${user}@${await rest.sipDomain()}` : String(uri) }
   return {
     to: `sip:${process.env.SIP_BRIDGE_USER || 'sipbridge'}@${await rest.sipDomain()}`,
-    headers: [{ name: 'X-Nomadly-Key', value: process.env.SIP_SERVER_SECRET }, { name: 'X-Nomadly-User', value: user }],
+    headers: [{ name: 'X-Nomadly-Key', value: process.env.SIP_SERVER_SECRET }, { name: 'X-Nomadly-User', value: user }, ...(process.env.SIP_DOMAIN ? [{ name: 'X-Nomadly-Domain', value: process.env.SIP_DOMAIN }] : [])],
   }
 }
 
