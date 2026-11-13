@@ -3066,3 +3066,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - SIP brand domain: Kamailio now rewrites From/To to the brand address on SignalWire→softphone INVITEs (uac_replace_from/to, X-Nomadly-Domain header from the bot) so softphones never see the carrier host. LIVE on the SIP server.
 - Note: SignalWire outbound rate-limit ("temporarily rate limited") hit during back-to-back SIP incoming tests — transient; first run passed. Watch for it under load; raise SignalWire limit.
 - Tests: bird_routing 19/19, bird_callerid_verify 11/11, signalwire_adapter 30/30.
+
+## 2026-11-13 22:03Z — Deployment verified via classic GitHub PAT (all brands + both branches)
+- Checked GitHub Actions (GITHUB_TOKEN_CLASSIC). main deploy 21:52 → app-main (Nomadly) success; lint + "Sync main → WhiteLabel" success.
+- FOUND: sync_whitelabel.py WEB_ONLY_PATTERNS treats js/cloudivr-web/* as Nomadly-only, so the Bulk IVR caller fix (calls.js) and QuickIVR fax-exclusion (outbound.js) were NOT carried to the WhiteLabel branch → Smadav/Voodoo/ProShop web Bulk IVR still rejected SignalWire callers after their deploy.
+- FIX: committed both files' fixes directly to the WhiteLabel branch (commits 0558d33de7, ee1287ea31), then workflow_dispatch "Deploy to Droplet" app=whitelabel (ref main) → app-wl + app-voodoo + app-proshop all success. (Note: a plain push to WhiteLabel only auto-deploys app-wl, not voodoo/proshop — must dispatch app=whitelabel for the full chain.)
+- VERIFIED live: /opt/nomadly/current/{app-main,app-wl,app-voodoo,app-proshop}/js/cloudivr-web/calls.js line 44 all show the telnyx+signalwire check; health: app-main(:5000) app-wl app-voodoo app-proshop all 200.
+- WITH-WEBIVR branch exists but no brand deploys from it (brands run main or WhiteLabel).
