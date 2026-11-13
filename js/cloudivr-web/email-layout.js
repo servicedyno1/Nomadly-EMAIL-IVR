@@ -75,9 +75,9 @@ const quote = (text) => `<div style="margin:16px 0;padding:18px 20px;background:
 
 // Whole email (light card). `base` = site origin (logo), `brand` = { name, logo, href } for white-label senders,
 // `foot` = { why, settings: [label, href] | null, off: [label, href] | null, support: [label, href] | null }
-// Legal company name is hidden unless CLOUDIVR_COMPANY_NAME is set in backend/.env.
+// Legal company name on CloudIVR emails: Dynotech Innovations unless CLOUDIVR_COMPANY_NAME overrides ("none" hides it).
 const RIGHTS = { en: 'All rights reserved.', fr: 'Tous droits réservés.', es: 'Todos los derechos reservados.' }
-const copyright = (brand, lang) => { const n = brand?.name || 'CloudIVR', co = !brand && (process.env.CLOUDIVR_COMPANY_NAME || '').trim(); return `© ${new Date().getFullYear()} ${n}${co ? ` — ${co}` : ''}. ${RIGHTS[lang] || RIGHTS.en}` }
+const copyright = (brand, lang) => { const n = brand?.name || 'CloudIVR', co = !brand && ((c) => (c.toLowerCase() === 'none' ? '' : c))((process.env.CLOUDIVR_COMPANY_NAME || 'Dynotech Innovations').trim()); return `© ${new Date().getFullYear()} ${n}${co ? ` — ${co}` : ''}. ${RIGHTS[lang] || RIGHTS.en}` }
 function layout({ lang = 'en', preheader = '', eyebrow, title, t = 'brand', body, base = '', brand, foot }) {
   const c = tone(t)
   const mark = brand
