@@ -13,7 +13,7 @@ const startPrice = (catalog, pick) => {
 export function usePurposeCards(catalog, myNums) {
   const { data: texting } = useApi('/mobile-numbers');
   const { data: fax } = useApi('/fax-numbers');
-  const lines = (myNums?.numbers || []).filter(n => n.status === 'active');
+  const lines = (myNums?.numbers || []).filter(n => n.status === 'active' && !n.isSubNumber);
   const sipLines = lines.filter(n => n.access?.sipCredentials || /pro|business/i.test(n.plan || ''));
   const texts = (texting?.items || []).filter(x => !['failed', 'cancelled', 'released'].includes(x.status));
   const faxes = (fax?.numbers || []).filter(x => x.status !== 'released');

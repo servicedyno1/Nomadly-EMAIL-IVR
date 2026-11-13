@@ -217,15 +217,15 @@ export default function BuyNumber() {
       {saved?.pick && <div className="civr-card p-4 mb-4 text-sm flex items-center gap-2" data-testid="buy-resume-note"><Check className="w-4 h-4 text-[#818cf8]" />Welcome back — {saved.pick.phoneNumber} and the {planObj?.name} plan are still selected below.</div>}
       {fromParam && <div className="text-sm text-[#818cf8] mb-4 flex items-center gap-2" data-testid="buy-plan-hint"><Check className="w-4 h-4" />{planObj.name} plan picked — search for a number below.</div>}
       <Steps current={pick ? (extraOf ? 2 : 3) : res ? 2 : 1} extra={!!extraOf} />
-      <Label>1 · Find a number</Label>
+      <Label>Find a number</Label>
       <SearchForm catalog={catalog} q={q} setQ={setQ} onSearch={search} busy={busy === 'search'} />
 
       <div className="mt-4"><ErrorNote error={error} testid="buy-error" /></div>
-      {res && <div className="mt-8"><Label>2 · Pick a number</Label><Results res={res} pick={pick} setPick={setPick} /></div>}
+      {res && <div className="mt-8"><Label>Pick a number</Label><Results res={res} pick={pick} setPick={setPick} /></div>}
       {pick && (
         <div className="mt-8 civr-rise">
           {!extraOf && <>
-          <Label>3 · Pick a plan and pay</Label>
+          <Label>Pick a plan and pay</Label>
           <p className="text-xs text-[#a1a1aa] -mt-1 mb-3" data-testid="buy-plan-help">Each plan includes everything in the one before it. You can upgrade your Business Line later from its Billing tab.</p>
           <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} surcharge={pick.surcharge} />
           </>}

@@ -1,0 +1,40 @@
+{
+  "summary": "Frontend E2E (Playwright, desktop 1920 + mobile 390) of the redesigned 'Get a number' page and related clean-ups for existing account civr.uxtest@example.com. Every requested item passed: Add-to-plan card shows first, the 4 purpose cards show prices and 'You have' notes, numbered sections appear for the chosen purposes, URL params preselect the right card, header labels and links are correct, Home has no texting upsell, My numbers has a Fax numbers section (after a DRY RUN fax buy), the Wallet note text is right, and the Texting restart works with no wallet charge. Found only minor UX issues.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "FaxNumberBuy price line", "issue": "Shows '$0.00/month' for a moment until /fax-numbers loads (price = offer?.price || 0). The SMS purpose card price is also blank while loading, so the layout shifts.", "selector": "[data-testid='fax-buy-price']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/app/buy Voice section", "issues": ["The numbering is nested and confusing: a '1' section badge ('Voice · Business Line'), then the 1/2/3 checkout stepper, then the label '1 · FIND A NUMBER'. Three '1's in a row. Consider dropping the '1 ·/2 ·/3 ·' labels inside the section or the stepper."]},
+      {"screen": "/app/buy purpose cards", "issues": ["Voice says 'You have 2 Business Lines' and SIP says 'You have 2 lines with SIP' because the count includes the extra/sub-number +13343334444, which hangs off +13341112222. Consider counting only main lines (!isSubNumber)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Low) Exclude sub-numbers from the Voice/SIP 'You have N' counts in usePurposeCards",
+    "(Low) Hide the fax price, or show a placeholder, until /fax-numbers has loaded",
+    "(Low) Simplify the nested step numbering inside the Voice section"
+  ],
+  "critical_code_review_comments": [
+    "BuyNumber.js: textingOffer (/mobile-numbers) is fetched here and again in usePurposeCards and SmsPurposeCard. That is 3 identical requests; share one.",
+    "hosted-sms start(): the carried-over record is matched only by chatId+phone, so this is fine. The new record's 'Cancel & refund $200' refunds the carried amount (intended?) — double-check that the old-account payment was not already refunded elsewhere."
+  ],
+  "verified": [
+    "Header 'Get a number'; buy-add-to-plan-card (y=263) is above buy-purpose-picker (y=377); CTA is 156x44 on desktop and full width on mobile; it opens ?extra=%2B13341112222 (Add an extra number, 1 of 30 used)",
+    "Cards: voice from $50 / sip from $75 / sms from $75 / fax from $15; each has 2 bullets and Choose->Selected; owned notes show; buy-purpose-empty shows by default with no search form; no 'What will you use it for' text",
+    "Voice -> '1 · Voice · Business Line' + buy-search-form; Voice+SIP -> 'Voice & SIP · Business Line'; SMS -> buy-sms-section #2 with buy-sms-card, buy-sms-order and 'Add texting to it'; Fax -> buy-fax-section #3 with fax-buy-card; after deselecting Voice/SIP the sections renumber to 1,2",
+    "?plan=pro -> voice + Pro hint; ?purpose=fax -> fax; ?purpose=voice -> voice; ?purpose=sms -> sms",
+    "Answer calls pages: 'Get a Business Line' -> /app/buy?purpose=voice with Voice preselected. The Quick call/Campaigns/SIP buttons only show for accounts without a line, so they were not visible here; the code confirms they link to ?purpose=voice",
+    "Home: dashboard-buy-number-button 'Get a number'; dashboard-texting-number-cta absent. My numbers: numbers-buy-button 'Get a number'. Wallet: note text present; the empty-history link is in code (testid wallet-history-empty-buy-link) but was not shown because the account has history",
+    "DRY RUN fax buy of +14133530256 ($15): toast, then redirect to /app/fax; My numbers fax-lines shows fax-number-line-14133530256 -> /app/fax; Fax card shows 'You have 1 fax number'",
+    "Texting: the inserted restart record shows 'Needs to start again · setup carries over' plus the note; texting-restart -> toast 'Started again — no charge'; status is now Step 2 · Ownership code; balance stayed $895; after reload the restart entry is gone (carriedTo set)"
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "seed_data_creation": "Inserted hostedSms hs_TEST_restart01 for chatId 5000000000000077 (db 'test'); restart created hs_ce651ef3a66e. Both deleted. Fax number +14133530256 set to status released, and the $15 wallet debit was restored (walletOf.usdOut 105 -> 90, balance $910).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "civr.uxtest chatId=5000000000000077, Mongo db 'test' (mongosh localhost). Wallet $910. Has main +13341112222 and sub +13343334444."
+}
