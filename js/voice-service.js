@@ -1390,6 +1390,8 @@ function initVoiceService(deps) {
         if (_callSessionSnapshotTimer.unref) _callSessionSnapshotTimer.unref()
       }
     }).catch(e => log(`[VoiceService] call-session-store init failed: ${e.message}`))
+    // Every customer SignalWire number gets linked to Bird so Bird can place its outbound calls.
+    require('./active-slot').singletonInterval('bird-autolink', () => birdAutoLinkTick().catch(e => log(`[BirdVerify] auto-link: ${e.message}`)), 3 * 60000)
   }
 
   // PRE-DIAL: Load blocklist from DB + run initial scan after a delay
@@ -4035,6 +4037,19 @@ function birdVerify() {
   const { transcribe } = require('./voicemail-transcribe.js')
   _birdVerify = createBirdVerify({ bird: require('./bird'), transcribe, db: _db, log })
   return _birdVerify
+}
+async function birdAutoLinkTick() {
+  if (!_db || !require('./bird').enabled()) return
+  const rest = require('./signalwire/rest')
+  if (!rest.enabled()) return
+  await rest.refreshOwned()
+  const sw = new Set(rest.ownedNumbers())
+  const numbers = new Set()
+  for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1 } }).toArray())
+    for (const n of d.val?.numbers || []) if (sw.has(n.phoneNumber) && !/released|expired|cancel/i.test(String(n.status || ''))) numbers.add(n.phoneNumber)
+  const r = await birdVerify().autoLinkTick({ numbers: [...numbers] })
+  if (r.armed || r.error) log(`[BirdVerify] auto-link: ${JSON.stringify(r)}`)
+  if (r.armed) require('./bird').forgetCallerIds()
 }
 
 async function handleCallAnswered(payload) {

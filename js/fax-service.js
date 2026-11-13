@@ -21,6 +21,7 @@ const E164 = /^\+[1-9]\d{7,14}$/
 const brand = () => String(process.env.CHAT_BOT_BRAND || 'Nomadly').trim() || 'Nomadly'
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const faxAcct = require('./telnyx-fax-account')
+const swFax = require('./signalwire/fax')
 const hdrs = () => faxAcct.headers()
 const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const fmt = (p) => phoneConfig.formatPhone(p)
@@ -554,11 +555,17 @@ const claimStage = async (st) => {
   if (!(await col('faxStaged').findOneAndDelete({ _id: st._id }, { includeResultMetadata: false }))) throw new FaxError('expired', 'That upload expired. Please upload the document again.')
 }
 
-// Sends one fax through Telnyx (or simulates it in preview) → fax record.
+// Sends one fax through SignalWire (SignalWire fax numbers) or Telnyx (older numbers), or simulates it in preview → fax record.
 async function dispatch({ chatId, num, fileId, pages, to, batchId = null }) {
   let faxId
   if (dryRun()) faxId = `dry_${crypto.randomUUID()}`
-  else {
+  else if (num.provider === 'signalwire_fax') {
+    try { faxId = await swFax.sendFax({ from: num.phoneNumber, to, fileId }) } catch (e) {
+      _log(`[Fax] SignalWire send ${num.phoneNumber} → ${to} failed: ${e.response?.data?.message || e.message}`)
+      throw new FaxError('send_failed', 'The fax could not be sent. Check the number and try again.')
+    }
+    if (!faxId) throw new FaxError('send_failed', 'The fax could not be sent. Check the number and try again.')
+  } else {
     const appId = await ensureApp()
     if (!appId) throw new FaxError('unavailable', 'Fax is not available right now. Please try again later.')
     const form = new FormData()
@@ -748,6 +755,7 @@ async function emailCopy(chatId, fax, pdf) {
   } catch (e) { _log(`[Fax] email copy to ${to} failed: ${e.message}`); return false }
 }
 async function download(url) {
+  if (swFax.isSwMedia(url)) return swFax.download(url)
   try { return Buffer.from((await axios.get(url, { responseType: 'arraybuffer', timeout: 30000 })).data) } catch (_) {
     return Buffer.from((await axios.get(url, { responseType: 'arraybuffer', timeout: 30000, headers: hdrs() })).data)
   }
@@ -777,6 +785,7 @@ async function settleAndDeliver(fax, num, pdf) {
 
 async function fetchMedia(faxId, mediaUrl) {
   let media = mediaUrl
+  if (!media && swFax.isSwFax(faxId)) media = (await swFax.getFax(faxId).catch(() => null))?.media_url
   if (!media) media = (await axios.get(`${BASE}/faxes/${faxId}`, { headers: hdrs() }).catch(() => null))?.data?.data?.media_url
   if (!media) return null
   try { return await download(media) } catch (e) { _log(`[Fax] media download failed for ${faxId}: ${e.message}`); return null }
@@ -947,4 +956,4 @@ const reportCsv = (rows) => ['fax_number,status,reason,pages,cost_usd', ...rows.
 
 const isReady = () => !!_db
 
-module.exports = { voiceRouting, voiceOnFaxNudge, reasonText, reapplyLine, parseCoverText, addCover, cleanCover, coverPdf, announce, batchReport, reportCsv, emailOf, maintain, BULK_MAX, parseRecipients, bulkQuote, sendBulk, cancelBatch, resumeBatches, listBatches, init, isReady, t, TXT, FREE_PAGES, PAGE_PRICE, FaxError, eligible, lineOn, ensureApp, usage, quote, stage, sendStaged, setLine, handleEvent, list, fileOf, toPdf, checkTo, findMine }
+module.exports = { readFile, voiceRouting, voiceOnFaxNudge, reasonText, reapplyLine, parseCoverText, addCover, cleanCover, coverPdf, announce, batchReport, reportCsv, emailOf, maintain, BULK_MAX, parseRecipients, bulkQuote, sendBulk, cancelBatch, resumeBatches, listBatches, init, isReady, t, TXT, FREE_PAGES, PAGE_PRICE, FaxError, eligible, lineOn, ensureApp, usage, quote, stage, sendStaged, setLine, handleEvent, list, fileOf, toPdf, checkTo, findMine }

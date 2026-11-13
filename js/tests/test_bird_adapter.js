@@ -57,7 +57,7 @@ const avail = (n, paper, amt = '0.5') => ({ number: n, country_code: 'US', capab
   let telnyx = 0
   const w = sw.wrap({ searchNumbers: async () => { telnyx++; return [] }, releaseNumber: async () => { telnyx++ }, validateForwardingDestination: async () => { telnyx++ } })
   const r = await w.searchNumbers('US', 'local', '337', 5)
-  ok('router number search: Bird before Telnyx', r[0]?._provider === 'bird' && telnyx === 0)
+  ok('router number search: no Bird or Telnyx (numbers are bought on SignalWire)', !r.some(n => n._provider === 'bird') && telnyx === 0)
   ok('router forwarding check uses Bird', (await w.validateForwardingDestination('+12025550123'))?.type === 'voip' && telnyx === 0)
   await w.releaseNumber('bd:num1'); ok('router: bd: release → Bird', telnyx === 0 && calls.at(-1)[1] === '/numbers/num1/release')
 

@@ -8,7 +8,15 @@ const bird = require('../bird')
 const aws = require('../aws')
 
 const log = (...a) => console.log('[SignalWire]', ...a)
-const telnyxBackup = () => String(process.env.TELNYX_FALLBACK || 'true').toLowerCase() !== 'false'
+// Telnyx is off for calls and number buying unless TELNYX_FALLBACK=true.
+const telnyxBackup = () => String(process.env.TELNYX_FALLBACK || 'false').toLowerCase() === 'true'
+// Bird goes first for US/Canada numbers when it can present the caller ID, has spend left and a free line.
+async function birdReady(from, to) {
+  if (!/^\+1\d{10}$/.test(String(to)) || !bird.enabled() || !ce.enabled() || !ce.connected()) return false
+  if (ce.activeBird() >= Number(process.env.BIRD_MAX_CONCURRENT || 10)) return false
+  if (!(await bird.presentable(from))) return false
+  return (await bird.spendLeft()) >= Number(process.env.BIRD_MIN_SPEND_LEFT || 1)
+}
 const swOn = () => rest.enabled()
 
 const CALL_FNS = ['answerCall', 'rejectCall', 'hangupCall', 'isCallAlive', 'speakOnCall', 'playbackStart', 'playbackStop', 'gatherDTMF', 'gatherDTMFWithSpeak', 'gatherDTMFWithAudio', 'gatherStop', 'startRecording', 'stopRecording', 'transferCall']
@@ -17,12 +25,16 @@ const CALL_FNS = ['answerCall', 'rejectCall', 'hangupCall', 'isCallAlive', 'spea
 // our own SignalWire numbers (same area code when we have one), never one that belongs to a customer.
 let reservedCallers = async () => new Set()
 const setReservedCallers = (fn) => { reservedCallers = fn }
+// Fax-only numbers never place calls, even when every other number is busy.
+let neverCallers = async () => new Set()
+const setNeverCallers = (fn) => { neverCallers = fn }
 // SignalWire refuses to originate from a number it doesn't own/verify. force=true ignores reservations so a call never
 // fails just because every owned number is busy — delivery matters more than avoiding a shared caller ID.
 async function poolCaller(from, { force = false } = {}) {
   await rest.refreshOwned()
   if (rest.ownsNumber(from)) return from
-  const all = rest.ownedNumbers()
+  const never = await neverCallers().catch(() => new Set())
+  const all = rest.ownedNumbers().filter(n => !never.has(n))
   if (!all.length) return null
   const taken = force ? new Set() : await reservedCallers().catch(() => new Set())
   const free = all.filter(n => !taken.has(n))
@@ -39,10 +51,13 @@ function wrap(t) {
   for (const fn of CALL_FNS) w[fn] = (id, ...a) => (voice.isSw(id) ? voice[fn](id, ...a) : ib.isIb(id) ? ib.voice[fn](id, ...a) : ce.isAe(id) ? ce[fn](id, ...a) : t[fn](id, ...a))
   w.bridgeCalls = (a, b) => (voice.isSw(a) || voice.isSw(b) ? voice.bridgeCalls(a, b) : ib.isIb(a) || ib.isIb(b) ? ib.voice.bridgeCalls(a, b) : ce.isAe(a) || ce.isAe(b) ? ce.bridgeCalls(a, b) : t.bridgeCalls(a, b))
 
-  // US/Canada: SignalWire → Infobip → own call engine (Bird/DIDWW lines) → Telnyx. Other countries: Infobip → call engine → Telnyx.
+  // US/Canada: Bird (own call engine) → SignalWire → Infobip → Telnyx (only if TELNYX_FALLBACK=true).
   w.createOutboundCall = async (from, to, webhookUrl, connectionId, options = {}) => {
     const nanp = /^\+1\d{10}$/.test(String(to)) || /^sip:/i.test(String(to))
     const tries = []
+    // Voicemail drop needs real answering-machine detection, which the call engine doesn't have → SignalWire.
+    const viaBird = !options.answering_machine_detection && await birdReady(from, to).catch(() => false)
+    if (viaBird) tries.push(['Bird', () => ce.createOutboundCall(from, to, webhookUrl, connectionId, options)])
     if (nanp && swOn() && voice.connected()) tries.push(['SignalWire', async () => {
       const nanpFrom = /^\+1\d{10}$/.test(String(from))
       let use = nanpFrom ? (await poolCaller(from)) || from : from
@@ -80,7 +95,7 @@ function wrap(t) {
       return r
     }])
     if (ib.enabled() && !/^sip:/i.test(String(to))) tries.push(['Infobip', () => ib.voice.createOutboundCall(from, to, webhookUrl, connectionId, options)])
-    if (ce.enabled() && ce.connected()) tries.push(['CallEngine', () => ce.createOutboundCall(from, to, webhookUrl, connectionId, options)])
+    if (!viaBird && !nanp && ce.enabled() && ce.connected()) tries.push(['CallEngine', () => ce.createOutboundCall(from, to, webhookUrl, connectionId, options)])
     if (telnyxBackup() || !tries.length) tries.push(['Telnyx', () => t.createOutboundCall(from, to, webhookUrl, connectionId, options)])
     let first = null
     for (const [name, dial] of tries) {
@@ -101,7 +116,6 @@ function wrap(t) {
       if (r.length) return r
     }
     if (ib.enabled()) { const r = await ib.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
-    if (bird.enabled()) { const r = await bird.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
     // Skip Telnyx while its account can't sell numbers (US/CA-only mode); international searches still try it.
     if (!telnyxBackup() || (['US', 'CA'].includes(String(countryCode || 'US').toUpperCase()) && require('../phone-config').numberSearchUsCaOnly())) return []
     return t.searchNumbers(countryCode, numberType, areaCode, limit)
@@ -119,7 +133,7 @@ function wrap(t) {
       }
       return null
     }
-    return t.buyNumber(phoneNumber, connectionId, messagingProfileId, retrySearch)
+    return telnyxBackup() ? t.buyNumber(phoneNumber, connectionId, messagingProfileId, retrySearch) : null
   }
 
   w.getNumberCapabilities = async (phoneNumber) => {
@@ -175,4 +189,4 @@ async function sendSms(from, to, text, mediaUrls = []) {
   return rest.sendSms(from, to, text, mediaUrls)
 }
 
-module.exports = { wrap, rest, voice, lookup, sendSms, enabled: swOn, poolCaller, setReservedCallers }
+module.exports = { wrap, rest, voice, lookup, sendSms, enabled: swOn, poolCaller, setReservedCallers, setNeverCallers }

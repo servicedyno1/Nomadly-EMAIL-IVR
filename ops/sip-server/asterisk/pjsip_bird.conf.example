@@ -1,7 +1,25 @@
 ; Bird SIP trunk for the call engine (trunk created by js/bird ensureTrunk; outbound admitted by this server's IP).
-; Outbound: PJSIP/<number>@bird → sip:<number>@__BIRD_TRUNK_DOMAIN__ ; Inbound: Bird gateway → sip:+<DID>@188.166.34.29:5080
+; Signalling over TLS 5061 (Bird's public-CA cert verified), audio SRTP (SDES) mandatory — no plain-RTP fallback.
+; Outbound: PJSIP/<number>@bird → sip:<number>@__BIRD_TRUNK_DOMAIN__:5061;transport=tls
+; Inbound: Bird gateway sip:sip-tls.cloudivr.net:5061;transport=tls (Let's Encrypt via certbot dns-cloudflare,
+; deploy hook /etc/letsencrypt/renewal-hooks/deploy/asterisk-tls.sh copies it to /etc/asterisk/keys/sip-tls.*).
+; Bird trunk media.encryption = required. ufw: 5061/tcp only from the Bird IPs below.
+[transport-tls]
+type=transport
+protocol=tls
+bind=0.0.0.0:5061
+cert_file=/etc/asterisk/keys/sip-tls.crt
+priv_key_file=/etc/asterisk/keys/sip-tls.key
+ca_list_file=/etc/ssl/certs/ca-certificates.crt
+method=tlsv1_2
+verify_server=yes
+external_media_address=188.166.34.29
+external_signaling_address=188.166.34.29
+local_net=10.0.0.0/8
+
 [bird]
 type=endpoint
+transport=transport-tls
 context=from-bird
 disallow=all
 allow=ulaw,alaw
@@ -11,10 +29,14 @@ force_rport=yes
 rewrite_contact=yes
 dtmf_mode=rfc4733
 send_pai=yes
+media_encryption=sdes
+media_encryption_optimistic=no
+; PJSIP doesn't match Bird's *.trunk wildcard cert — connect via the exact-name edge; Request-URI keeps the trunk domain.
+outbound_proxy=sip:trunk.us1.sip.bird.com:5061\;transport=tls\;lr
 aors=bird
 [bird]
 type=aor
-contact=sip:__BIRD_TRUNK_DOMAIN__:5060
+contact=sip:__BIRD_TRUNK_DOMAIN__:5061;transport=tls
 qualify_frequency=0
 [bird]
 type=identify
