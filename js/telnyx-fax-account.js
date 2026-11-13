@@ -1,5 +1,5 @@
 'use strict'
-// The fax-only Telnyx account (TELNYX_FAX_API_KEY): fax numbers, fax send/receive and number lookup. Never used for calls.
+// The new Telnyx account (TELNYX_FAX_API_KEY): fax numbers, fax send/receive, number lookup and Landline to Texting. Never used for calls.
 const axios = require('axios')
 
 const BASE = 'https://api.telnyx.com/v2'
@@ -52,4 +52,17 @@ async function releaseFax(phoneNumber) {
   return !!found
 }
 
-module.exports = { BASE, enabled, headers, lookup, searchFax, orderFax, releaseFax }
+// Messaging profile for Landline to Texting on this account (found by name or created once, cached in faxConfig).
+async function messagingProfile(db, brand = 'CloudIVR') {
+  const name = `${brand} Texting`, key = `${name}|fax-account`
+  const saved = await db.collection('faxConfig').findOne({ _id: key })
+  if (saved?.profileId) return saved.profileId
+  const hook = process.env.SELF_URL ? `${process.env.SELF_URL}/telnyx/sms-webhook` : undefined
+  let p = ((await api('get', '/messaging_profiles', { params: { 'filter[name]': name, 'page[size]': 5 } }))?.data || []).find(x => x.name === name)
+  if (!p) p = (await api('post', '/messaging_profiles', { data: { name, enabled: true, webhook_url: hook, whitelisted_destinations: ['US', 'CA'] } }))?.data
+  if (!p?.id) throw new Error('messaging profile unavailable')
+  await db.collection('faxConfig').updateOne({ _id: key }, { $set: { profileId: p.id, at: new Date() } }, { upsert: true })
+  return p.id
+}
+
+module.exports = { BASE, enabled, headers, lookup, searchFax, orderFax, releaseFax, messagingProfile }

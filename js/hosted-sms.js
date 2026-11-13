@@ -38,7 +38,10 @@ const REASON = {
 const dry = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 // Real Telnyx calls unless preview; realOrder lets a preview record drive a real Telnyx order.
 const real = (d) => !dry() || !!d?.realOrder
-const hdr = () => ({ Authorization: `Bearer ${process.env.TELNYX_API_KEY}` })
+const acct = require('./telnyx-fax-account')
+const hdr = () => acct.headers()
+const ACCOUNT = 'telnyx2' // orders opened on the new Telnyx account; older ones were on the blocked account
+const profile = async () => ({ messaging_profile_id: await acct.messagingProfile(S.db, typeof S.brand === 'function' ? S.brand() : S.brand || 'CloudIVR') })
 const normPhone = (p) => { const d = String(p || '').replace(/[^\d+]/g, ''); return d.startsWith('+') ? d : d.length === 10 ? `+1${d}` : d.length === 11 && d.startsWith('1') ? `+${d}` : `+${d}` }
 const errText = (e) => { const x = e.response?.data?.errors?.[0]; return x ? `${x.title || ''} ${x.detail || ''}`.trim() : e.message }
 
@@ -51,11 +54,22 @@ function init({ db, log = console.log, tell, brand, notifyAdmin, mailSupport }) 
   col.createIndex({ phoneNumber: 1, status: 1 }).catch(() => {})
   col.createIndex({ phoneNumber: 1 }, { unique: true, partialFilterExpression: { live: true }, name: 'one_live_per_number' }).catch(() => {})
   S = { db, col, w: walletOps(db), log, tell, brand, notifyAdmin, mailSupport }
-  col.updateMany({ status: { $in: ['verify', 'loa', 'documents', 'admin_docs', 'review', 'active', 'paused'] }, live: { $exists: false } }, { $set: { live: true } }).catch(() => {})
+  col.updateMany({ status: { $in: ['verify', 'loa', 'documents', 'admin_docs', 'review', 'active', 'paused'] }, live: { $exists: false } }, { $set: { live: true } }).then(() => moveOldOrders()).catch(() => {})
   const t = setInterval(() => tick().catch(e => log(`[HostedSMS] tick: ${e.message}`)), dry() ? 30000 : 10 * 60000)
   t.unref?.()
   setTimeout(() => tick().catch(() => {}), 15000).unref?.()
   return api
+}
+
+// Unfinished setups from the blocked Telnyx account can't continue: customer starts again (setup already paid carries over), admin told.
+async function moveOldOrders() {
+  if (dry()) return
+  for (const d of await S.col.find({ status: { $in: ['verify', 'loa', 'documents', 'admin_docs', 'review', 'active', 'paused'] }, account: { $ne: ACCOUNT }, realOrder: { $ne: true } }).limit(200).toArray()) {
+    const r = await S.col.updateOne({ _id: d._id, account: { $ne: ACCOUNT }, status: d.status }, { $set: { status: 'restart', prevStatus: d.status, carriedTo: null, note: 'Our texting provider changed, so this setup has to start again. Your setup payment carries over — you won’t pay twice.', updatedAt: new Date() }, $unset: { live: '' } })
+    if (!r.modifiedCount) continue
+    S.tell(d.chatId, `🔁 Landline to Texting for ${d.phoneNumber} needs to start again because our texting provider changed. Open Texting and add the number again — the setup you paid carries over, so you won’t be charged twice.`, { kind: 'billing', meta: { hosted: d._id } })
+    S.notifyAdmin?.(`🔁 Landline to Texting moved to the new Telnyx account: ${d.phoneNumber} (web ${d.chatId}, was "${d.prevStatus || d.status}", paid $${d.paid}) asked to start again — setup carries over.`)
+  }
 }
 
 const txn = (chatId, type, amount, meta) => S.db.collection('transactions').insertOne({ chatId: String(chatId), type, amount: round2(amount), currency: 'USD', status: 'completed', metadata: { ...meta, channel: 'hosted-sms' }, createdAt: new Date(), updatedAt: new Date() })
@@ -81,7 +95,7 @@ async function plansFor(chatId) {
   return out
 }
 const mine = (chatId, id) => S.col.findOne({ _id: String(id), chatId: String(chatId) })
-const list = async (chatId) => (await S.col.find({ chatId: String(chatId), status: { $nin: ['cancelled', 'starting'] } }).sort({ createdAt: -1 }).toArray()).map(pub)
+const list = async (chatId) => (await S.col.find({ chatId: String(chatId), status: { $nin: ['cancelled', 'starting'] }, $nor: [{ status: 'restart', carriedTo: { $ne: null } }] }).sort({ createdAt: -1 }).toArray()).map(pub)
 
 async function check(phone) {
   const p = normPhone(phone)
@@ -103,28 +117,30 @@ async function start(chatId, phone, planNumber) {
   const parent = { phoneNumber: null, plan: 'texting', limit: null, price: TEXTING.setup }
   const el = await check(phone)
   if (!el.eligible) return { error: el.detail || 'This number can’t be text-enabled.' }
-  const price = parent.price
+  const carried = await S.col.findOne({ chatId: String(chatId), phoneNumber: el.phoneNumber, status: 'restart', carriedTo: null })
+  const price = carried ? 0 : parent.price
   const _id = `hs_${crypto.randomBytes(6).toString('hex')}`
   // Claim the number first (unique while live) so two clicks can't pay twice.
   try { await S.col.insertOne({ _id, chatId: String(chatId), phoneNumber: el.phoneNumber, mode: null, planNumber: parent.phoneNumber, plan: parent.plan, status: 'starting', live: true, paid: 0, createdAt: new Date(), updatedAt: new Date() }) } catch (e) { if (e.code === 11000) return { error: 'This number is already being text-enabled.' }; throw e }
   // Re-count after claiming so parallel setups can't go over the plan's limit.
   if (parent.limit != null && (await S.col.countDocuments({ chatId: String(chatId), planNumber: parent.phoneNumber, live: true })) > parent.limit) { await S.col.deleteOne({ _id }); return { error: `Your ${parent.plan} plan on ${parent.phoneNumber} already has ${parent.limit} texting numbers.`, code: 'plan_limit' } }
-  if (!(await S.w.debit(chatId, price))) { await S.col.deleteOne({ _id }); return { error: `Your wallet needs $${price} for this setup. Top up first.`, code: 'insufficient_balance' } }
+  if (price > 0 && !(await S.w.debit(chatId, price))) { await S.col.deleteOne({ _id }); return { error: `Your wallet needs $${price} for this setup. Top up first.`, code: 'insufficient_balance' } }
   let orderId = `preview-${_id}`
   if (!dry()) {
     try {
-      const r = await axios.post(`${API}/messaging_hosted_number_orders`, { phone_numbers: [el.phoneNumber], ...(process.env.TELNYX_MESSAGING_PROFILE_ID ? { messaging_profile_id: process.env.TELNYX_MESSAGING_PROFILE_ID } : {}) }, { headers: hdr(), timeout: 20000 })
+      const r = await axios.post(`${API}/messaging_hosted_number_orders`, { phone_numbers: [el.phoneNumber], ...(await profile()) }, { headers: hdr(), timeout: 20000 })
       orderId = r.data?.data?.id
     } catch (e) {
-      await S.w.credit(chatId, price)
+      if (price > 0) await S.w.credit(chatId, price)
       await S.col.deleteOne({ _id })
       S.log(`[HostedSMS] order failed for ${el.phoneNumber}: ${errText(e)}`)
       return { error: `Telnyx couldn’t open the order: ${errText(e)}. You weren’t charged.` }
     }
   }
-  const doc = { _id, chatId: String(chatId), phoneNumber: el.phoneNumber, mode: null, planNumber: parent.phoneNumber, plan: parent.plan, status: 'verify', live: true, telnyxOrderId: orderId, paid: price, createdAt: new Date(), updatedAt: new Date() }
-  await S.col.updateOne({ _id }, { $set: { status: doc.status, telnyxOrderId: orderId, paid: price, updatedAt: new Date() } })
-  await txn(chatId, 'hosted-sms-setup', price, { phoneNumber: el.phoneNumber, hostedId: _id, planNumber: parent.phoneNumber, plan: parent.plan })
+  const doc = { _id, chatId: String(chatId), phoneNumber: el.phoneNumber, mode: null, planNumber: parent.phoneNumber, plan: parent.plan, status: 'verify', live: true, telnyxOrderId: orderId, paid: carried ? carried.paid : price, account: ACCOUNT, createdAt: new Date(), updatedAt: new Date() }
+  await S.col.updateOne({ _id }, { $set: { status: doc.status, telnyxOrderId: orderId, paid: doc.paid, account: ACCOUNT, updatedAt: new Date() } })
+  if (carried) await S.col.updateOne({ _id: carried._id }, { $set: { carriedTo: _id } })
+  if (price > 0) await txn(chatId, 'hosted-sms-setup', price, { phoneNumber: el.phoneNumber, hostedId: _id, planNumber: parent.phoneNumber, plan: parent.plan })
   S.log(`[HostedSMS] ${chatId} started ${el.phoneNumber} ($${price})`)
   return { item: pub(doc) }
 }
@@ -447,7 +463,7 @@ async function sendText(chatId, id, to, text) {
   let mid = `preview-${crypto.randomUUID()}`
   if (!dry()) {
     try {
-      const r = await axios.post(`${API}/messages`, { from: rule.from || d.phoneNumber, to: dest, text: body, ...(process.env.TELNYX_MESSAGING_PROFILE_ID ? { messaging_profile_id: process.env.TELNYX_MESSAGING_PROFILE_ID } : {}) }, { headers: { ...hdr(), 'Content-Type': 'application/json' }, timeout: 15000 })
+      const r = await axios.post(`${API}/messages`, { from: rule.from || d.phoneNumber, to: dest, text: body, ...(await profile()) }, { headers: { ...hdr(), 'Content-Type': 'application/json' }, timeout: 15000 })
       mid = r.data?.data?.id
     } catch (e) { await S.w.credit(chatId, price); return { error: `The text couldn’t be sent: ${errText(e)}` } }
   }

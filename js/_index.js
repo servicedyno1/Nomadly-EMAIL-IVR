@@ -49658,7 +49658,7 @@ app.get('/:id', async (req, res) => {
 function registerTelnyxRoutes() {
 const telnyxSigned = require('./telnyx-webhook-verify').middleware(log)
 // Telnyx SMS Webhook — receives inbound SMS
-app.post('/telnyx/sms-webhook', telnyxSigned, async (req, res) => {
+app.post('/telnyx/sms-webhook', require('./telnyx-webhook-verify').middleware(log, 'TELNYX_FAX_PUBLIC_KEY'), async (req, res) => {
   try {
     const smsEvent = req.body?.data?.event_type
     log(`📩 Telnyx SMS webhook received${smsEvent ? `: ${smsEvent}` : ''}`)
