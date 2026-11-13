@@ -386,6 +386,13 @@ async function healthCheck() {
     let health = 'healthy', err = null, expires = e.expirationDate || null
     try { const sim = await P.getSim(e.iccid, e.account), sub = await P.subscription(e.iccid, e.account).catch(() => null), pending = /PENDING/i.test(String(sub?.status || ''))
       const noDevice = !sim?.device?.imei // SIM was never bound to a device — it will never activate
+      // Number changed at Spenza (renew-number done outside the engine, e.g. by hand): adopt it and re-check delivery.
+      const live = P.norm(sim?.mdn || sim?.phoneNumber || sim?.msisdn || '')
+      if (live && e.msisdn && live !== e.msisdn) {
+        await C('bsEsims').updateOne({ _id: e._id }, { $set: { msisdn: live, prevMsisdn: e.msisdn, numberChangedAt: new Date(), recvMiss: 0, sendMiss: 0 } })
+        alert(`🔢 ${e._id}${e.role === 'tester' ? ' (test line)' : ''}: Spenza now reports ${live} (was ${e.msisdn}). Number updated; sending continues from the new number.`)
+        incident('number_synced', { esimId: e._id, from: e.msisdn, to: live }); e.msisdn = live
+      }
       const sv = pending ? null : await P.serviceState(e.iccid, e.account), st = String(sim?.status || '').toUpperCase()
       if (sub?.endDate && !isNaN(Date.parse(sub.endDate))) expires = new Date(sub.endDate)
       if (pending && noDevice) health = 'never_activated'; else if (pending) health = 'activating'; else if (expires && expires < new Date()) health = 'expired'; else if (/SUSPEND|BLOCK/.test(st)) health = 'suspended'; else if (sv && sv.sms === false) health = 'provider_restricted'; else if (st && st !== 'ACTIVE') health = 'temporarily_unavailable'

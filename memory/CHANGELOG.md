@@ -2977,3 +2977,7 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - BLOCKER for preview checkout: Mollie rejects redirectUrl "doesn't match your profile URL or registered domains" — preview domain is not on the Mollie website profile. Production domain must be registered on the profile. Admin alert (max 1/h) now explains it.
 - One live probe payment tr_3SMfscshvivZRNT7MRWZJ ($10, open, unpaid → expires) + one failed attempt during testing.
 - UI polish after iteration_259: currency dropdown, method chips validated per currency, 'error' status shown as failed, return banner copy, inline picker Cancel, balance card no longer stretches, card wording on wallet.
+
+## 2026-06 — REAL test-line renumber done from preview (owner approved)
+- Spenza spenza1, ICCID 8901240397145742442 (assumed tester ESIM-0002, oldest line): +16317901824 → +17062464661 via renew-number. New number in <15 s, SIM ACTIVE, credit unchanged $2.64 (free). Send new→monitor accepted (no DLR; receipt not proven).
+- Deployed code does NOT know the new number → prod test sends from that line fail until publish. Added healthCheck number sync (adopts Spenza number, prevMsisdn, admin alert) — number_sync 4/0.
