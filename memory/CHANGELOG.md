@@ -3001,3 +3001,8 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Wording: kicker, cycling word "online fax", pricing intro, coverage line, compare row, "Which one do I need?" fax link, plan helper fax option, sticky CTA "Get your number", app nav "Get a number". FAQ: 4 fax questions (landing shows 14).
 - Empty area-code fax search falls back to same-country numbers flagged nearby.
 - Tested: iteration_262 (all flows pass) + fixes self-verified.
+
+## 2026-06 — Mollie in-app checkout (Checkout Sessions + Mollie Components v2, beta)
+- `POST /wallet/mollie/session` creates a Mollie Checkout Session (one digital line, metadata.ref, payment.webhookUrl); frontend loads js.mollie.com/v2 and mounts express-component (Apple/Google Pay, PayPal) + methods-component (card with embedded 3DS, others may redirect to bank). Webhook maps tr_ → deposit via payment metadata.ref; poll finds payment from completed session via /payments list. Credit-once unchanged.
+- If session start fails (e.g. domain not on Mollie website profile → 422) the deposit is dropped, admin alerted, UI falls back to the hosted "Continue to secure checkout". Mollie domain approval cannot be bypassed — owner must add the live domain under Dashboard → Settings → Website profiles.
+- Tests: test_cloudivr_mollie_inapp.js 8/8, test_cloudivr_mollie.js 12/12. Live in-app payment NOT verified (domain not yet approved).

@@ -74,8 +74,23 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
     return { status: 'paid' }
   }
 
+  // In-app checkouts (Checkout Sessions) learn their payment id from the webhook, or from recent payments by metadata.ref.
+  async function findSessionPayment(dep) {
+    const s = await mollie('get', `/sessions/${dep.mollieSessionId}`)
+    if (s.status === 'expired') { await deposits.updateOne({ _id: dep._id, molliePaid: { $ne: true } }, { $set: { mollieStatus: 'expired' } }); return null }
+    if (s.status !== 'completed') return null
+    const list = (await mollie('get', '/payments?limit=50'))?._embedded?.payments || []
+    const p = list.find(x => x.metadata?.ref === dep.ref)
+    if (p) await deposits.updateOne({ _id: dep._id }, { $set: { molliePaymentId: p.id } })
+    return p || null
+  }
   async function sync(dep) {
-    if (!dep?.molliePaymentId || dep.molliePaid) return { status: dep?.molliePaid ? 'paid' : dep?.mollieStatus || 'open' }
+    if (dep?.molliePaid) return { status: 'paid' }
+    if (!dep?.molliePaymentId && dep?.mollieSessionId) {
+      const p = await findSessionPayment(dep)
+      return p ? settle(dep, p) : { status: (await deposits.findOne({ _id: dep._id }))?.mollieStatus || 'open' }
+    }
+    if (!dep?.molliePaymentId) return { status: dep?.mollieStatus || 'open' }
     return settle(dep, await mollie('get', `/payments/${dep.molliePaymentId}`))
   }
 
@@ -84,7 +99,12 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
     router.post('/mollie/webhook', h(async (req, res) => {
       const id = String(req.body?.id || '')
       if (!/^tr_[A-Za-z0-9]+$/.test(id) || !enabled()) return res.status(200).send('ok')
-      const dep = await deposits.findOne({ molliePaymentId: id })
+      let dep = await deposits.findOne({ molliePaymentId: id })
+      if (!dep) {
+        const p = await mollie('get', `/payments/${id}`).catch(() => null)
+        const d = p?.metadata?.ref && await deposits.findOne({ ref: String(p.metadata.ref), provider: 'mollie', mollieSessionId: { $exists: true } })
+        if (d) { await deposits.updateOne({ _id: d._id }, { $set: { molliePaymentId: id } }); dep = { ...d, molliePaymentId: id } }
+      }
       if (dep) await sync(dep).catch(e => { log(`[Mollie] webhook ${id}: ${e.message}`); throw e })
       res.status(200).send('ok')
     }))
@@ -123,6 +143,36 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
       }
       await deposits.updateOne({ _id: insertedId }, { $set: { molliePaymentId: p.id, mollieStatus: p.status } })
       res.status(201).json({ ref, checkoutUrl: p._links?.checkout?.href, amountUsd, currency, amount: opt.amount, mode: mode() })
+    }))
+    // In-app checkout: a Checkout Session whose client token mounts Mollie's card / express / methods components on our page.
+    router.post('/wallet/mollie/session', h(async (req, res) => {
+      if (!enabled()) return res.status(424).json({ error: 'mollie_off', message: 'Card payments are not available right now.' })
+      const amountUsd = round2(req.body.amountUsd), currency = String(req.body.currency || 'USD').toUpperCase()
+      if (!(amountUsd >= MIN_TOPUP_USD) || amountUsd > 10000) return res.status(400).json({ error: 'invalid_amount', message: `Top up between $${MIN_TOPUP_USD} and $10,000.` })
+      const opt = (await options(amountUsd)).currencies.find(c => c.currency === currency)
+      if (!opt) return res.status(400).json({ error: 'invalid_currency', message: 'That currency is not available. Pick another one.' })
+      const back = String(req.body.returnUrl || ''), origin = String(req.get('origin') || '')
+      if (!origin || !back.startsWith(`${origin}/`)) return res.status(400).json({ error: 'invalid_return', message: 'Open the payment from the CloudIVR app.' })
+      const ref = `mol_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+      const offers = getOffers?.(), bonus = offers ? await offers.topupBonusFor(req.webChatId).catch(() => null) : null
+      const money = { currency, value: opt.amount }, description = `CloudIVR wallet top-up $${amountUsd.toFixed(2)}`
+      const dep = { chatId: req.webChatId, ref, amountUsd, coin: 'Card / PayPal', provider: 'mollie', mode: mode(), currency, amountCharged: opt.amount, method: null, inApp: true, bonus, bonusPaidAt: null, createdAt: new Date() }
+      const { insertedId } = await deposits.insertOne(dep)
+      let s
+      try {
+        s = await mollie('post', '/sessions', {
+          amount: money, description, lines: [{ type: 'digital', description: 'CloudIVR wallet credit', quantity: 1, unitPrice: money, totalAmount: money }],
+          redirectUrl: `${back}${back.includes('?') ? '&' : '?'}mollie=${ref}`, payment: { webhookUrl: `${process.env.SELF_URL}/cloudivr-web/mollie/webhook` }, metadata: { ref, chatId: String(req.webChatId) },
+        }, `cloudivr-sess-${ref}`)
+      } catch (e) {
+        const why = String(e.response?.data?.detail || e.message)
+        await deposits.deleteOne({ _id: insertedId })
+        log(`[Mollie] session failed ${ref}: ${why}`)
+        if (Date.now() - lastFailAlert > 3600000) { lastFailAlert = Date.now(); notifyAdmin?.(`⚠️ <b>Mollie in-app checkout could not start</b> for web account ${req.webChatId}: ${why.replace(/</g, '&lt;')}${/redirect URL/i.test(why) ? '\nAdd this site’s domain to your Mollie website profile (Dashboard → Settings → Website profiles).' : ''}`) }
+        return res.status(424).json({ error: 'mollie_error', message: 'Paying inside the app isn’t available right now. Use Mollie’s secure payment page below.', fallback: true })
+      }
+      await deposits.updateOne({ _id: insertedId }, { $set: { mollieSessionId: s.id, mollieStatus: 'open' } })
+      res.status(201).json({ ref, clientAccessToken: s.clientAccessToken, amountUsd, currency, amount: opt.amount, mode: mode() })
     }))
     router.get('/wallet/mollie/:ref', h(async (req, res) => {
       const dep = await deposits.findOne({ ref: String(req.params.ref), chatId: req.webChatId, provider: 'mollie' })
