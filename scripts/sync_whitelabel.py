@@ -386,7 +386,9 @@ def main():
             # Files this code needs: carry any that WhiteLabel lacks or that main changed but were skipped.
             for cands in deps_of(p, blob(s[1])):
                 hit = next((c for c in cands if c in S), None)
-                if hit and hit not in seen and (hit not in T or hit in changed_set):
+                # A carried web-only file drags its web-only deps along whenever WhiteLabel's stale copy differs from main.
+                web_dep = forced and matches(p, WEB_ONLY_PATTERNS) and hit is not None and matches(hit, WEB_ONLY_PATTERNS) and T.get(hit) != S.get(hit)
+                if hit and hit not in seen and (hit not in T or hit in changed_set or web_dep):
                     queue.append('\0' + hit)
                     if matches(hit, WEB_ONLY_PATTERNS) or hit not in changed_set:
                         pulled_in.append(f'{hit}  (needed by {p})')
@@ -396,7 +398,8 @@ def main():
         if t == s:
             in_sync.append(p)
             continue
-        if t == b or (forced and t is None):  # WhiteLabel never edited it (or lacks a needed file) -> take main's version
+        # WhiteLabel never edited it, lacks a needed file, or holds only a stale bot-synced copy of a web-only file -> take main's version
+        if t == b or (forced and t is None) or (forced and matches(p, WEB_ONLY_PATTERNS)):
             ops.append((p, s))
             taken.append(('D ' if s is None else ('A ' if b is None else 'M ')) + p)
             continue
