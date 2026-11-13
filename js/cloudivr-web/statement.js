@@ -1,4 +1,5 @@
 'use strict'
+const { distinctValues } = require('../db')
 // Monthly statement: on the 1st (UTC) every account with activity last month gets one email listing its line
 // payments and the texts it sent. Opt out in Settings (webPrefs.statementOff). Each month is sent once (webStatements).
 const LINE_TYPES = /purchase|renewal|replace|refund|^phone-number$|^hosted-sms-setup$/
@@ -28,7 +29,7 @@ async function runOnce(db, { log, now = new Date(), force = false } = {}) {
   if (!force && now.getUTCDate() !== 1) return 0
   const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)), from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1))
   const ym = from.toISOString().slice(0, 7), sent = db.collection('webStatements')
-  const active = new Set([...await db.collection('transactions').distinct('chatId', { createdAt: { $gte: from, $lt: to }, type: LINE_TYPES }), ...await db.collection('phoneLogs').distinct('chatId', { ...SENT, timestamp: { $gte: from, $lt: to } })].map(String))
+  const active = new Set([...await distinctValues(db.collection('transactions'), 'chatId', { createdAt: { $gte: from, $lt: to }, type: LINE_TYPES }), ...await distinctValues(db.collection('phoneLogs'), 'chatId', { ...SENT, timestamp: { $gte: from, $lt: to } })].map(String))
   const { sendMail } = require('./auth'), { appUrl } = require('./emails')
   let n = 0
   for (const chatId of active) {

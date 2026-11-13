@@ -83,7 +83,9 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     return home(send, chatId, lang)
   }
   if (action === 'bse-cancel') { const b = await B.db().collection('bsBookings').findOne({ cid, _id: new RegExp(`${String(message).trim().replace(/\W/g, '')}$`) }); const r = b ? await B.cancelBooking(b._id, { cid }) : { error: 'err_not_found' }; await go('bse-home'); return send(chatId, r.error ? `⚠️ ${errText(lang, r)}` : say('cancelled', r.refunded), HK) }
-  const testKb = (barred) => kb([...(RD.test && !barred ? [[L.test]] : []), [L.cont], [L.back]])
+  const testKb = (barred) => kb([...(RD.test && !barred ? [[L.test], [L.test_skip]] : [[L.cont]]), [L.back]])
+  const arrivedKb = () => kb([[L.arrived_yes], [L.arrived_no], [L.back]])
+  const askTestTo = async (free) => { await go('bse-test-to'); return send(chatId, say('test_to_q', free), kb([...(info.bseTestTo ? [[info.bseTestTo]] : []), [L.back]])) }
   const unitOf = (c, links) => (links ? c.priceLink : c.pricePlain)
   const contentAsk = async (key = 'content_q') => { const c = await B.cfg(), optOut = info.bseOptOut !== false; return send(chatId, say(key, { max: optOut ? 160 - B.OPT.length : 160, optOut, plain: per500(c.pricePlain), link: per500(c.priceLink) }), kb([[optOut ? L.optout_no : L.optout_yes], [L.back]])) }
   // Step 1 — numbers: parsed, capped at maxVolume, checked (Telnyx carrier lookup, free); every kept number is billed, only mobiles are texted.
@@ -193,20 +195,36 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
         const cp = await B.db().collection('bsCampaigns').findOne({ _id: info.bseCampaign, cid }), need = cp ? await price(cp) : 0, bal = await walletOps(T.db).balance(chatId).catch(() => 0)
         if (bal < need) return send(chatId, say('test_locked', need, Number(bal).toFixed(2), { firstTime: o.firstTime, perDay: c.testsPerDay }), kb([[L.cont], [L.back]]))
       }
-      await go('bse-test-to'); return send(chatId, say('test_to_q', o.free), kb([[L.back]]))
+      return askTestTo(o.free)
     }
-    if (message === L.cont) return askWhen()
+    if (message === L.cont || message === L.test_skip) return askWhen()
     return false
   }
   if (action === 'bse-test-to') {
     const k = await B.testCheck(cid, info.bseCampaign, message); if (k.error) return send(chatId, `⚠️ ${errText(lang, k)}`, kb([[L.cont], [L.back]]))
-    const w = walletOps(T.db), c = await B.cfg()
+    const w = walletOps(T.db)
     if (k.charge && !(await w.debit(chatId, k.charge))) { await go('bse-test'); return send(chatId, say('wallet_low', k.charge), kb([[L.cont], [L.back]])) }
     const r = await B.testSend(cid, info.bseCampaign, message, { charge: k.charge }); await go('bse-test')
     if (r.error) { if (k.charge) await w.credit(chatId, k.charge); return send(chatId, `⚠️ ${errText(lang, r)}`, testKb(r.error === 'err_test_guard')) }
-    if (r.open) return send(chatId, say('test_ok_open'), testKb())
-    if (r.free) return send(chatId, say('test_ok_free', c.testsPerDay), kb([[L.cont], ...(RD.test ? [[L.test]] : []), [L.back]]))
-    return send(chatId, say('test_ok', r.left, k.charge), kb([...(r.left && RD.test ? [[L.test]] : []), [L.cont], [L.back]]))
+    await put('bseTestMsg', r.messageId); await put('bseTestTo', k.to); await go('bse-test-check')
+    return send(chatId, say('test_sent_q', k.to), arrivedKb())
+  }
+  // Guided: "Did it arrive?" → yes: choose when · no: tips, change the text, test again or continue anyway.
+  if (action === 'bse-test-check') {
+    if (message === L.arrived_yes || message === L.arrived_no) {
+      const f = await B.testFeedback(cid, info.bseTestMsg, message === L.arrived_yes)
+      if (f.wait) return send(chatId, say('test_wait'), arrivedKb())
+      if (message === L.arrived_yes) { await send(chatId, say('test_yes')); return askWhen() }
+      return send(chatId, say('test_no'), kb([[L.edit], ...(RD.test ? [[L.test_again]] : []), [L.send_anyway], [L.back]]))
+    }
+    if (message === L.test_again) { if (await B.testBarred(cid)) return send(chatId, `⚠️ ${say('err_test_guard')}`, kb([[L.cont], [L.back]])); return askTestTo((await B.testOffer(cid)).free) }
+    if (message === L.edit) {
+      const cp = await B.db().collection('bsCampaigns').findOne({ _id: info.bseCampaign, cid }); if (!cp) return send(chatId, say('err_not_found'), HK)
+      await drafts().updateOne({ _id: cid }, { $set: { contacts: [...cp.contacts, ...(cp.skipped || [])], skip: cp.skipped || [], file: null, at: new Date() } }, { upsert: true })
+      await go('bse-content'); return contentAsk()
+    }
+    if (message === L.send_anyway || message === L.cont) return askWhen()
+    return send(chatId, say('pick_option'), arrivedKb())
   }
   // Step 4 — one screen: send now (this hour, full price) or schedule (24 h+ ahead → cheaper), with the paid-replies toggle.
   // Only campaigns that pay the reply fee get replies forwarded; otherwise replies stay with the platform (STOP/HELP always honoured).
