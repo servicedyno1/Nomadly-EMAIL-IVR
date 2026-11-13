@@ -5,6 +5,7 @@ import { money } from './api';
 import { cp } from './paths';
 import { useShell } from './Shell';
 import { CryptoPay } from './CryptoPay';
+import { MolliePay } from './MolliePay';
 
 // Live wallet balance; while something on screen needs more money it re-checks every 15 s so a top-up shows up by itself.
 export function useBalance(need = 0, poll = true) {
@@ -41,6 +42,7 @@ export function ShortNote({ balance, short, testid, crypto = true }) {
         <Link to={cp(`/app/wallet?need=${short}`)} className="underline font-semibold text-[var(--c-accent)]" data-testid={`${testid}-topup`}>Top up</Link>
       </p>
       {crypto && <CryptoPay price={Math.round((balance + short) * 100) / 100} onReady={() => shell?.refreshSummary?.()} testid={`${testid}-crypto`} />}
+      <MolliePay price={Math.round((balance + short) * 100) / 100} onReady={() => shell?.refreshSummary?.()} testid={`${testid}-card`} />
     </div>
   );
 }
@@ -57,6 +59,7 @@ export function WalletPay({ price, onWallet, onCrypto, label, busy, disabled, cr
       </div>
       {!enough && <ShortNote balance={balance} short={short} testid={`${testid}-short`} crypto={false} />}
       {crypto && !disabled && <CryptoPay price={price} onReady={onCrypto || onWallet} primary={!enough} testid={cryptoTestid || `${testid}-crypto`} />}
+      {!disabled && <MolliePay price={price} onReady={onCrypto || onWallet} primary={!enough && !crypto} testid={`${testid}-card`} />}
     </div>
   );
 }

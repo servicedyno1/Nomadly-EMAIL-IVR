@@ -77,6 +77,9 @@ function createCloudIvrWeb(deps) {
     require('./admin').createAdmin(db, { log, bulkCallService: deps.bulkCallService, adminAuth }).routes(r, h)
     require('./esim').publicRoutes(r, { db, h, log, A: adminAuth.require })
     require('./media').publicRoutes(r, { db, h })
+    let offersRef = null
+    const mollie = require('./mollie').createMollie(db, { log, notifyAdmin: deps.notifyAdmin, getOffers: () => offersRef, push: (id, text) => notify.push(id, text, null, { kind: 'payment' }) })
+    mollie.publicRoutes(r, { h })
     r.use(auth.requireUser)
     // Admin alert when web content is named after a bank / FDIC / IRS (alert only).
     r.use((req, _res, next) => {
@@ -87,6 +90,8 @@ function createCloudIvrWeb(deps) {
     require('./esim').routes(r, { h })
     const offers = createOffers(db, { log })
     offers.routes(r, { h })
+    offersRef = offers
+    mollie.routes(r, { h })
     wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit, offers, cryptoPerUsd: deps.cryptoPerUsd })
     // Orders go first so /numbers/orders is not caught by /numbers/:phone; numbersApi is filled in right after.
     const numbersApi = {}

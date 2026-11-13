@@ -5,6 +5,7 @@ import { useOffer } from '../../offers';
 import { Field, Toggle } from '../../ui';
 import { CoinSelect } from '../../Pickers';
 import { TextingAddOn } from './TextingAddOn';
+import { MolliePay, useMollie } from '../../MolliePay';
 
 function Option({ on, onClick, icon: Icon, title, sub, testid }) {
   return (
@@ -68,6 +69,8 @@ export default function Checkout({ pick, planObj, total, balance, coins, busy, o
   const [coin, setCoin] = useState(coins[0] || '');
   const [autoRenew, setAutoRenew] = useState(autoRenewDefault);
   const walletShort = method === 'wallet' && short > 0;
+  const mol = useMollie(due > 0 ? Math.max(10, Math.ceil(short || due)) : 0), cardOk = !!mol?.enabled && mol.currencies.length > 0;
+  const extra = { autoRenew, ...(addOn ? { texting: { zipcode: tx.zip } } : {}) };
   // Short wallet: its balance pays part, crypto only the rest (never below the crypto minimum).
   const part = short > 0 && (balance || 0) > 0 ? Math.round(balance * 100) / 100 : 0;
   const cryptoDue = part ? Math.max(short, cryptoMin) : Math.max(due, cryptoMin);
@@ -83,7 +86,7 @@ export default function Checkout({ pick, planObj, total, balance, coins, busy, o
           : <Option on={method === 'wallet'} onClick={() => setMethod('wallet')} icon={WalletIcon} title="Pay from wallet" sub={`Balance ${money(balance)}${short > 0 ? ` · ${money(short)} short` : ' · activates instantly'}`} testid="civr-checkout-wallet-option" />}
         {cryptoOk ? <Option on={method === 'crypto'} onClick={() => setMethod('crypto')} icon={Bitcoin} title={part ? 'Wallet + crypto for the rest' : 'Pay with crypto'} sub={part ? `Uses your ${money(part)} wallet balance — send just ${money(cryptoDue)} in crypto.` : 'Send the exact price — the number activates once the network confirms.'} testid="civr-checkout-crypto-option" />
           : <div className="civr-card p-4 text-xs text-[#a1a1aa] flex gap-3"><Bitcoin className="w-5 h-5 shrink-0 text-[#a1a1aa]" />Crypto isn’t available for this payment. Pay from your wallet — short? Add funds with crypto first.</div>}
-        <CardComingSoon testid="civr-checkout-card-option" />
+        {cardOk ? <Option on={method === 'card'} onClick={() => setMethod('card')} icon={CreditCard} title={part ? 'Wallet + card for the rest' : 'Card, PayPal & more'} sub={`${mol.currencies.map(c => c.currency).slice(0, 4).join(', ')} · secure checkout by Mollie${mol.mode === 'test' ? ' (test mode)' : ''}`} testid="civr-checkout-card-option" /> : <CardComingSoon testid="civr-checkout-card-option" />}
       </div>
       <TextingAddOn offer={textingOffer} value={tx} onChange={setTx} />
       {setCoupon && <CouponField total={total} coupon={coupon} setCoupon={setCoupon} initialCode={initialCode} />}
@@ -97,7 +100,8 @@ export default function Checkout({ pick, planObj, total, balance, coins, busy, o
         <Toggle checked={autoRenew} onChange={setAutoRenew} testid="civr-checkout-auto-renew-toggle" label="Auto-renew monthly" />
       </div>
       {walletShort && <div className="text-sm text-[#fbbf24] mt-4" data-testid="buy-shortfall-note">You need {money(short)} more in your wallet. Add funds — we keep this number and plan selected{cryptoOk ? ' — or pay with crypto instead' : ''}.</div>}
-      <div className="mt-6 flex justify-end">
+      {method === 'card' && cardOk && <div className="mt-4" data-testid="civr-checkout-card-pay"><MolliePay price={due} startOpen onReady={() => onPay({ method: 'wallet', ...extra })} testid="civr-checkout-mollie" /></div>}
+      <div className={`mt-6 flex justify-end ${method === 'card' ? 'hidden' : ''}`}>
         {walletShort
           ? <button type="button" onClick={() => onTopUp(short)} className="civr-btn civr-btn-primary" data-testid="buy-topup-link"><WalletIcon className="w-4 h-4" />Add {money(short)} to wallet</button>
           : <button type="button" className="civr-btn civr-btn-primary" disabled={busy || txBad || (method === 'crypto' && !coin)} onClick={() => onPay({ method, coin, autoRenew, useWallet: method === 'crypto' && part > 0, ...(addOn ? { texting: { zipcode: tx.zip } } : {}) })} data-testid="civr-checkout-pay-now-btn">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{method === 'crypto' ? `Pay ${money(part ? cryptoDue : due)} with ${coin || 'crypto'}` : `Pay ${money(due)} & activate`}</button>}

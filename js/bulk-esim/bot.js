@@ -84,7 +84,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   }
   if (action === 'bse-cancel') { const b = await B.db().collection('bsBookings').findOne({ cid, _id: new RegExp(`${String(message).trim().replace(/\W/g, '')}$`) }); const r = b ? await B.cancelBooking(b._id, { cid }) : { error: 'err_not_found' }; await go('bse-home'); return send(chatId, r.error ? `⚠️ ${errText(lang, r)}` : say('cancelled', r.refunded), HK) }
   const testKb = (barred) => kb([...(RD.test && !barred ? [[L.test], [L.test_skip]] : [[L.cont]]), [L.back]])
-  const arrivedKb = () => kb([[L.arrived_yes], [L.arrived_no], [L.back]])
+  const arrivedKb = () => kb([[L.arrived_yes], [L.arrived_spam], [L.arrived_no], [L.back]])
   const askTestTo = async (free) => { await go('bse-test-to'); return send(chatId, say('test_to_q', free), kb([...(info.bseTestTo ? [[info.bseTestTo]] : []), [L.test_skip], [L.back]])) }
   const unitOf = (c, links) => (links ? c.priceLink : c.pricePlain)
   const contentAsk = async (key = 'content_q') => { const c = await B.cfg(), optOut = info.bseOptOut !== false; return send(chatId, say(key, { max: optOut ? 160 - B.OPT.length : 160, optOut, plain: per500(c.pricePlain), link: per500(c.priceLink) }), kb([[optOut ? L.optout_no : L.optout_yes], [L.back]])) }
@@ -205,13 +205,21 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     const k = await B.testCheck(cid, info.bseCampaign, message); if (k.error) return send(chatId, `⚠️ ${errText(lang, k)}`, kb([[L.cont], [L.back]]))
     const w = walletOps(T.db)
     if (k.charge && !(await w.debit(chatId, k.charge))) { await go('bse-test'); return send(chatId, say('wallet_low', k.charge), kb([[L.cont], [L.back]])) }
-    const r = await B.testSend(cid, info.bseCampaign, message, { charge: k.charge }); await go('bse-test')
+    const r = await B.testSend(cid, info.bseCampaign, message, { charge: k.charge, altFrom: info.bseAltFrom || null }); await go('bse-test'); if (info.bseAltFrom) await put('bseAltFrom', null)
     if (r.error) { if (k.charge) await w.credit(chatId, k.charge); return send(chatId, `⚠️ ${errText(lang, r)}`, testKb(r.error === 'err_test_guard')) }
     await put('bseTestMsg', r.messageId); await put('bseTestTo', k.to); await go('bse-test-check')
     return send(chatId, say('test_sent_q', k.to), arrivedKb())
   }
   // Guided: "Did it arrive?" → yes: choose when · no: tips, change the text, test again or continue anyway.
   if (action === 'bse-test-check') {
+    if (message === L.arrived_spam) {
+      const f = await B.testFeedback(cid, info.bseTestMsg, 'spam'); await put('bseAltFrom', f.esimId || null)
+      await send(chatId, say('tips_checking'))
+      const tp = await B.aiTips(cid, info.bseCampaign); await put('bseRewrite', tp.rewrite || null)
+      const words = (tp.risky || []).map(x => `• <b>${esc(x.word)}</b> — ${esc(x.why)}`).join('\n')
+      return send(chatId, `${say('test_spam')}${words ? `\n\n⚠️ <b>${say('spam_words')}</b>\n${words}` : ''}${tp.rewrite ? `\n\n✨ <b>${say('spam_safer')}</b>\n<i>${esc(tp.rewrite)}</i>` : ''}`, kb([...(RD.test ? [[L.test_other_line]] : []), ...(tp.rewrite ? [[L.use_rewrite]] : []), [L.edit], [L.send_anyway], [L.back]]))
+    }
+    if (message === L.test_other_line) { if (await B.testBarred(cid)) return send(chatId, `⚠️ ${say('err_test_guard')}`, kb([[L.cont], [L.back]])); return askTestTo((await B.testOffer(cid)).free) }
     if (message === L.arrived_yes || message === L.arrived_no) {
       const f = await B.testFeedback(cid, info.bseTestMsg, message === L.arrived_yes)
       if (f.wait) return send(chatId, say('test_wait'), arrivedKb())
@@ -404,11 +412,11 @@ async function askReviews(bot, db) {
       await bot.sendMessage(r.chatId, t(lang, 'rv_cp_q', r.name), { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[1, 2, 3, 4, 5].map(n => ({ text: `${n}⭐`, callback_data: `bse-rv:${r._id}:s:${n}` }))] } }).catch(() => {})
       continue
     }
-    const L = { yes: t(lang, 'rv_yes'), no: t(lang, 'rv_no'), u: t(lang, 'rv_unsure') }
-    await bot.sendMessage(r.chatId, t(lang, 'rv_q', r.to, r.seq), { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: L.yes, callback_data: `bse-rv:${r._id}:a:y` }, { text: L.no, callback_data: `bse-rv:${r._id}:a:n` }], [{ text: L.u, callback_data: `bse-rv:${r._id}:a:u` }]] } }).catch(() => {})
+    const L = { yes: t(lang, 'rv_yes'), spam: t(lang, 'rv_spam'), no: t(lang, 'rv_no'), u: t(lang, 'rv_unsure') }
+    await bot.sendMessage(r.chatId, t(lang, 'rv_q', r.to, r.seq), { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: L.yes, callback_data: `bse-rv:${r._id}:a:y` }, { text: L.spam, callback_data: `bse-rv:${r._id}:a:s` }], [{ text: L.no, callback_data: `bse-rv:${r._id}:a:n` }, { text: L.u, callback_data: `bse-rv:${r._id}:a:u` }]] } }).catch(() => {})
   }
 }
-const ARR = { yes: '✅ arrived', no: '❌ did NOT arrive', not_sure: '🤷 not sure' }
+const ARR = { yes: '✅ arrived', spam: '📥 arrived in SPAM', no: '❌ did NOT arrive', not_sure: '🤷 not sure' }
 // Review results always go to the @Nomadlybot admin only, whichever of the 4 bots the customer used.
 const rvAlert = (text) => B.adminAlert(text)
 const rvLine = (r) => r.kind === 'campaign'
@@ -419,7 +427,7 @@ async function onReview(q, { saveInfo, send, lang }) {
   const edit = (text, kbd) => BOT?.editMessageText(text, { chat_id: chatId, message_id: mid, parse_mode: 'HTML', ...(kbd ? { reply_markup: { inline_keyboard: kbd } } : {}) }).catch(() => {})
   if (field === 'a') {
     const r = await B.reviewAnswer(id, cid, 'arrived', value); if (!r) return true
-    await edit(`${q.message?.text ? esc(q.message.text) + '\n' : ''}<b>${t(lang, { yes: 'rv_yes', no: 'rv_no', not_sure: 'rv_unsure' }[r.arrived])}</b>\n\n${t(lang, 'rv_stars')}`, [[1, 2, 3, 4, 5].map(n => ({ text: `${n}⭐`, callback_data: `bse-rv:${id}:s:${n}` }))])
+    await edit(`${q.message?.text ? esc(q.message.text) + '\n' : ''}<b>${t(lang, { yes: 'rv_yes', spam: 'rv_spam', no: 'rv_no', not_sure: 'rv_unsure' }[r.arrived])}</b>\n\n${t(lang, 'rv_stars')}`, [[1, 2, 3, 4, 5].map(n => ({ text: `${n}⭐`, callback_data: `bse-rv:${id}:s:${n}` }))])
     if (r.arrived === 'no') {
       await send(chatId, t(lang, 'rv_no_note'))
       await rvAlert(`📭 <b>Customer says a single text did NOT arrive</b>\n${rvLine(r)}\n${r.check === 'passed' || r.check === 'pending' ? '🔁 Line check started both ways — a failed check alerts you and runs the replace / new-line process.' : r.check === 'no_peer' ? '⚠️ No other line to check against.' : '⚠️ Sending line unknown or not in service — no check run.'}`)

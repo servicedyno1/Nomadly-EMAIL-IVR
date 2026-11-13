@@ -13,7 +13,7 @@ const DEFAULTS = {
   defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 6, quietEnd: 21, freeOneSends: 0, oneGuardNumbers: 10, oneGuardSimilar: 5, oneGuardSlowMin: 10, oneGuardDailyFree: 300, oneGuardNewDays: 3, swapUndelivered: 5, swapUndeliveredTo: 3,
   platformPerMin: 30, rateMargin: 2, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
   minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.10, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 0, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testsPerDay: 4, testsPerWeek: 10, freeTestsPerDay: 0, numberCheck: true, lookupCost: 0.0025, lookupDays: 30,
-  minEsims: 2, monitorEsims: 0, testerEsims: 1, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
+  minEsims: 2, monitorEsims: 0, testerEsims: 1, testerRenumberDaily: true, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
   minCredit: 0, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
   esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: false, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3, cancelDeadAfterDays: 3, checkEveryTexts: 50, warmStaleMin: 60, warmLeadMin: 15, apiFailsToReplace: 3, platformPerMinAuto: true,
 }
@@ -1002,13 +1002,15 @@ async function refundTestCharges(campaignId, paid) {
   await notify(cp.cid, 'refund', 'n_test_refund', [cp.name, cp.testCharges], { amount: cp.testCharges, campaignId, silent: true })
 }
 // Up to cfg.testSends test texts per campaign during setup (after testCheck passed and the wallet was debited `charge`).
-async function testSend(cid, campaignId, to, { charge = 0 } = {}) {
+async function testSend(cid, campaignId, to, { charge = 0, altFrom = null } = {}) {
   const k = await testCheck(cid, campaignId, to); if (k.error) return k
   const c = await cfg(), cp = await C('bsCampaigns').findOne({ _id: campaignId, cid })
   if (k.open) {
     await C('bsCampaigns').updateOne({ _id: campaignId }, { $inc: { testsUsed: 1 }, $set: { testedHash: contentHash(cp), testedAt: new Date() } })
     const m = msgDoc({ cid, to: k.to, body: bodyOf(cp, 0), campaignId, priority: 1, test: true }); m.fp = oneFp(m.body); m.cta = oneCta(m.body)
-    await C('bsMessages').insertOne(m); return { ok: true, free: true, open: true, left: null, charge: 0, messageId: m._id }
+    // Retry after "landed in spam": send from a different healthy line.
+    const alt = altFrom ? await altLine([altFrom]) : null; if (alt) Object.assign(m, { esimId: alt._id, altFor: altFrom })
+    await C('bsMessages').insertOne(m); return { ok: true, free: true, open: true, left: null, charge: 0, messageId: m._id, altLine: alt?._id || null }
   }
   if (k.free) {
     if (charge || !(await C('bsCustomers').updateOne({ _id: cid, freeTestAt: null }, { $set: { freeTestAt: new Date() } })).modifiedCount) return E('err_free_used')
@@ -1145,12 +1147,51 @@ async function sendOne(cid, to, text, sessionId, { optOut = true, unlimited = fa
   return { ok: true, messageId: m._id, segments: m.segments, left: counted && lim ? Math.max(0, lim - seq) : null }
 }
 // Guided test: the customer says whether the test arrived. "No" too early → still on its way; otherwise it counts as a complaint on that line.
-async function testFeedback(cid, messageId, yes) {
+// answer: 'yes' (inbox) · 'spam' (arrived in the spam / junk folder) · 'no'. Booleans still work (true = yes).
+async function testFeedback(cid, messageId, answer) {
+  const a = answer === true ? 'yes' : answer === false ? 'no' : String(answer)
   const m = await C('bsMessages').findOne({ _id: messageId, cid, test: true }); if (!m) return E('err_not_found')
-  if (!yes && ['queued', 'submitted', 'sending'].includes(m.status) && Date.now() - m.createdAt < 2 * MIN) return { ok: true, wait: true }
+  if (a === 'no' && ['queued', 'submitted', 'sending'].includes(m.status) && Date.now() - m.createdAt < 2 * MIN) return { ok: true, wait: true }
   await C('bsReviews').updateOne({ _id: m._id }, { $setOnInsert: { cid, to: m.to, kind: 'test', seq: 0, status: 'asked', at: new Date() } }, { upsert: true })
-  await C('bsCampaigns').updateOne({ _id: m.campaignId }, { $set: { testArrived: !!yes, testAnsweredAt: new Date() } })
-  return { ok: true, ...(await reviewAnswer(m._id, cid, 'arrived', yes ? 'y' : 'n')) }
+  await C('bsCampaigns').updateOne({ _id: m.campaignId }, { $set: { testArrived: a === 'yes', testInbox: a, testAnsweredAt: new Date() } })
+  const r = await reviewAnswer(m._id, cid, 'arrived', { yes: 'y', spam: 's', no: 'n' }[a] || 'n')
+  // The retry from another line landed in the inbox: that line becomes the test line, the flagged one gets a new number.
+  const promoted = a === 'yes' && m.altFor ? await promoteTester(m.esimId, m.altFor, cid) : null
+  return { ok: true, ...r, promoted }
+}
+// A healthy service line other than the one(s) that just landed in spam, least recently flagged first.
+async function altLine(exclude = []) {
+  const c = await cfg(), open = openAccounts(c)
+  const pool = await C('bsEsims').find({ ...SERVICE, _id: { $nin: exclude }, status: { $in: USABLE }, health: { $in: GOOD_HEALTH }, msisdn: { $ne: null } }).sort({ lastSpamAt: 1, 'stats.submitted': 1 }).toArray()
+  return pool.find(e => open.includes(e.account || firstAccount(c))) || null
+}
+async function promoteTester(newId, oldId, cid) {
+  const [nw, old] = await Promise.all([C('bsEsims').findOne({ _id: newId }), C('bsEsims').findOne({ _id: oldId })])
+  if (!nw || !old || old.role !== 'tester' || nw.role === 'tester' || !USABLE.includes(nw.status)) return null
+  if (!(await once(`promote:${oldId}`))) return null
+  await C('bsEsims').updateOne({ _id: newId }, { $set: { role: 'tester', promotedAt: new Date(), promotedFrom: oldId } })
+  await C('bsEsims').updateOne({ _id: oldId }, { $set: { role: 'service' } })
+  alert(`🔁 Test line switched: ${old._id} ${old.msisdn || ''} landed in spam for ${cid}; the retry from ${nw._id} ${nw.msisdn || ''} reached the inbox, so ${nw._id} is now the test line. ${old._id} gets a new number and rejoins the sending pool after its delivery check.`)
+  incident('tester_promoted', { from: oldId, to: newId, cid })
+  const rp = await replaceEsim(oldId, 'test line landed in spam', 'spam-report').catch(e => ({ error: e.message }))
+  return { tester: newId, renumbered: oldId, replace: rp }
+}
+// Per-day sends from a line (14 days) — attached to spam / renumber alerts to see when it got flagged.
+async function lineUsage(eid, days = 14) {
+  const rows = await C('bsMessages').aggregate([{ $match: { esimId: eid, direction: 'out', createdAt: { $gt: new Date(Date.now() - days * DAY) } } }, { $group: { _id: { $dateToString: { format: '%m-%d', date: '$createdAt' } }, n: { $sum: 1 }, t: { $sum: { $cond: ['$test', 1, 0] } }, to: { $addToSet: '$to' }, cids: { $addToSet: '$cid' } } }, { $sort: { _id: 1 } }]).toArray()
+  return rows.map(r => `${r._id}: ${r.n} sent (${r.t} tests) · ${r.to.length} numbers · ${r.cids.length} customers`).join('\n') || 'no sends'
+}
+// Midnight UTC: the test line gets a fresh number on the same eSIM (Spenza renew-number); runs once per day,
+// and right after a deploy if today's has not run yet.
+async function dailyTesterRenumber() {
+  const c = await cfg(); if (c.testerRenumberDaily === false) return null
+  const t = await C('bsEsims').findOne({ role: 'tester', status: { $in: USABLE }, msisdn: { $ne: null }, iccid: { $ne: null } }); if (!t) return null
+  if (!(await once(`tester-renumber:${new Date().toISOString().slice(0, 10)}`))) return null
+  const usage = await lineUsage(t._id).catch(() => '')
+  const r = await replaceEsim(t._id, 'daily fresh test number', 'daily')
+  const n = r.newEsimId && await C('bsEsims').findOne({ _id: r.newEsimId })
+  alert(`🔄 Daily test-line renumber: ${t._id} ${t.msisdn} → ${r.ok ? `${n?._id} ${n?.msisdn || '(number pending)'} — joins after its delivery check` : `failed${r.bought ? `, new line ${r.bought} ordered instead` : ''}`}.\n📊 Old number, last 14 days:\n${usage}`)
+  return r
 }
 const REVIEW_AFTER = 3 * MIN
 // "12 min" / "1 h 5 min" / null when under a minute — used in campaign progress ETAs.
@@ -1179,9 +1220,20 @@ async function reviewAnswer(id, cid, field, value) {
     return { ...r, ...set }
   }
   const m = await C('bsMessages').findOne({ _id: id }), e = m?.esimId ? await C('bsEsims').findOne({ _id: m.esimId }) : null
-  const set = field === 'arrived' ? { arrived: { y: 'yes', n: 'no', u: 'not_sure' }[value] || 'not_sure', arrivedAt: new Date() } : field === 'stars' ? { stars: Math.min(5, Math.max(1, Number(value) || 0)), status: 'done', doneAt: new Date() } : { comment: String(value || '').slice(0, 1000) }
+  const set = field === 'arrived' ? { arrived: { y: 'yes', s: 'spam', n: 'no', u: 'not_sure' }[value] || 'not_sure', arrivedAt: new Date() } : field === 'stars' ? { stars: Math.min(5, Math.max(1, Number(value) || 0)), status: 'done', doneAt: new Date() } : { comment: String(value || '').slice(0, 1000) }
   await C('bsReviews').updateOne({ _id: id }, { $set: { ...set, esimId: e?._id || null, from: m?.from || e?.msisdn || null, msgStatus: m?.status || null } })
   let check = null
+  if (field === 'arrived' && set.arrived === 'spam' && !r.arrived && e?._id) {
+    await C('bsEsims').updateOne({ _id: e._id }, { $set: { lastSpamAt: new Date() }, $inc: { spamReports: 1 } })
+    incident('customer_spam', { esimId: e._id, cid, to: r.to, messageId: id, test: !!m?.test })
+    const reports = await C('bsReviews').find({ esimId: e._id, arrived: 'spam', arrivedAt: { $gt: new Date(Date.now() - 2 * DAY) } }).project({ cid: 1 }).toArray(), who = new Set(reports.map(x => x.cid)).size
+    alert(`📥 ${cid} says a ${m?.test ? 'test ' : ''}text from ${e._id} ${e.msisdn || ''}${e.role === 'tester' ? ' (test line)' : ''} landed in SPAM (${reports.length} spam report(s) from ${who} customer(s) in 48 h).${m?.altFor ? ' This was already the retry from another line — the message content is the likely cause.' : ''}\n📊 Last 14 days:\n${await lineUsage(e._id).catch(() => '')}`)
+    // Spam reports from 2+ customers on a line: it is flagged by carriers — renumber it (test line) or take it out of the pool.
+    if (who >= 2 && USABLE.includes(e.status) && (await once(`spam-flag:${e._id}`))) {
+      if (e.role === 'tester') await replaceEsim(e._id, 'spam reports from 2+ customers', 'spam-report').catch(() => {})
+      else { await C('bsEsims').updateOne({ _id: e._id }, { $set: { health: 'suspect', suspectAt: new Date(), suspectReason: 'customer_spam' } }); alert(`🚨 ${e._id} ${e.msisdn || ''}: spam reports from ${who} customers in 48 h — marked suspect (out of send pool).`) }
+    }
+  }
   if (field === 'arrived' && set.arrived === 'no' && !r.arrived) {
     incident('customer_not_arrived', { esimId: e?._id, cid, to: r.to, messageId: id })
     check = e && USABLE.includes(e.status) && e.msisdn ? await startCheck(e, 'customer_report') : 'no_line'
@@ -1642,7 +1694,7 @@ function init({ db, log = console.log, notifyAdmin }) {
     ensureStatusWebhook().catch(e => log(`[BulkESIM] status webhook: ${e.message}`))
     setInterval(tick, 2000)
     every(2 * MIN, creditWatch, 'credit'); every(5 * MIN, syncInventory, 'sync'); every(MIN, async () => { await finishCampaigns(); await expireHolds(); const c = await cfg(); await checkTimeouts(c); await dlrWatch(); await volumeChecks(c); await warmBookings(c) }, 'campaigns')
-    every(10 * MIN, healthCheck, 'health'); every(30 * MIN, autoscale, 'autoscale'); every(HOUR, async () => cancelDead(await cfg()), 'cancelDead'); every(10 * MIN, linkSweep, 'linkSweep')
+    every(10 * MIN, healthCheck, 'health'); every(5 * MIN, dailyTesterRenumber, 'testerRenumber'); every(30 * MIN, autoscale, 'autoscale'); every(HOUR, async () => cancelDead(await cfg()), 'cancelDead'); every(10 * MIN, linkSweep, 'linkSweep')
     log(`[BulkESIM] engine ready (${P.dry() ? 'simulated provider' : 'live Spenza'}${url ? ', shared DB' : ''})`)
   })
 }
@@ -1650,4 +1702,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { aiTips, testFeedback, testBarred, oneGuardList, oneGuardSet, adminAlert: alert, dueReviews, reviewAnswer, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone, backfillIdentity }
+module.exports = { altLine, promoteTester, lineUsage, dailyTesterRenumber, aiTips, testFeedback, testBarred, oneGuardList, oneGuardSet, adminAlert: alert, dueReviews, reviewAnswer, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone, backfillIdentity }

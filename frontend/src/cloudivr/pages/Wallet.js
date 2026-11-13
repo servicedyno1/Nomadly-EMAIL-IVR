@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import QRCode from 'react-qr-code';
-import { Wallet as WalletIcon, Copy, Loader2, RefreshCw, AlertTriangle, Info, Coins, Receipt, Plus, Check, Gift } from 'lucide-react';
+import { Wallet as WalletIcon, Copy, Loader2, RefreshCw, AlertTriangle, Info, Coins, Receipt, Plus, Check, Gift, CreditCard } from 'lucide-react';
 import { CardComingSoon } from './buy/Checkout';
 import { api, useApi, money, when } from '../api';
 import { useShell } from '../Shell';
@@ -10,6 +10,7 @@ import { PageHeader, Field, SkeletonCard, SkeletonRows, Empty, ErrorNote, status
 import { cp } from '../paths';
 import { useOffer } from '../offers';
 import { Coin, CoinIcon, CoinSelect, PayWindow } from '../Pickers';
+import { MollieForm, MollieWaiting, useMollie, useMollieStatus, fmtCur } from '../MolliePay';
 
 const copy = (v) => navigator.clipboard?.writeText(v).then(() => toast.success('Copied'));
 const PRESETS = [25, 50, 100, 250];
@@ -73,8 +74,11 @@ function TopUp({ coins, min, initial, onCreated }) {
   const [coin, setCoin] = useState(coins[0] || '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [pay, setPay] = useState('crypto');
+  const n0 = Number(amount), mol = useMollie(n0 >= min && n0 <= 10000 ? Math.round(n0) : 0), cardOk = !!mol?.enabled && mol.currencies.length > 0;
   const go = async (e) => {
     e.preventDefault(); setError(null);
+    if (pay === 'card') return;
     const n = Number(amount);
     if (!(n >= min) || n > 10000) { setError(new Error(`Enter an amount between $${min} and $10,000.`)); return; }
     setBusy(true);
@@ -84,22 +88,23 @@ function TopUp({ coins, min, initial, onCreated }) {
     <form onSubmit={go} noValidate className="civr-card p-6 space-y-6" data-testid="wallet-topup-form">
       <div className="font-display text-2xl font-bold">Add funds</div>
       <div className="grid sm:grid-cols-2 gap-3" data-testid="wallet-pay-methods">
-        <div className="civr-card civr-trace p-4 flex gap-4 items-start" data-testid="wallet-method-crypto"><Coins className="w-5 h-5 mt-0.5 shrink-0 text-[#818cf8]" /><div className="flex-1"><div className="font-semibold">Crypto</div><div className="text-xs text-[#a1a1aa] mt-1">{`${coins.map(c => c.replace(/\s*\(.*\)/, '')).filter((c, i, a) => a.indexOf(c) === i).slice(0, 4).join(', ')} and more`}</div></div><Check className="w-4 h-4 text-[#818cf8] shrink-0" /></div>
-        <CardComingSoon testid="wallet-method-card" />
+        <button type="button" onClick={() => setPay('crypto')} aria-pressed={pay === 'crypto'} className={`civr-card text-left p-4 flex gap-4 items-start ${pay === 'crypto' ? 'civr-trace' : ''}`} data-testid="wallet-method-crypto"><Coins className="w-5 h-5 mt-0.5 shrink-0 text-[#818cf8]" /><div className="flex-1"><div className="font-semibold">Crypto</div><div className="text-xs text-[#a1a1aa] mt-1">{`${coins.map(c => c.replace(/\s*\(.*\)/, '')).filter((c, i, a) => a.indexOf(c) === i).slice(0, 4).join(', ')} and more`}</div></div>{pay === 'crypto' && <Check className="w-4 h-4 text-[#818cf8] shrink-0" />}</button>
+        {cardOk || pay === 'card' ? <button type="button" onClick={() => setPay('card')} aria-pressed={pay === 'card'} className={`civr-card text-left p-4 flex gap-4 items-start ${pay === 'card' ? 'civr-trace' : ''}`} data-testid="wallet-method-card"><CreditCard className={`w-5 h-5 mt-0.5 shrink-0 ${pay === 'card' ? 'text-[#818cf8]' : 'text-[#a1a1aa]'}`} /><div className="flex-1"><div className="font-semibold">Card, PayPal & more</div><div className="text-xs text-[#a1a1aa] mt-1">{cardOk ? `${mol.currencies.map(c => c.currency).slice(0, 5).join(', ')} · secure checkout by Mollie` : 'Checking what’s available for this amount…'}</div></div>{pay === 'card' && <Check className="w-4 h-4 text-[#818cf8] shrink-0" />}</button> : <CardComingSoon testid="wallet-method-card" />}
       </div>
       <OfferNote offer={offer} amount={amount} setAmount={setAmount} />
       <div className="flex flex-wrap gap-2">{PRESETS.map(p => <button type="button" key={p} onClick={() => setAmount(p)} className={`civr-pill civr-preset cursor-pointer ${Number(amount) === p ? 'civr-pill-on' : ''}`} data-testid={`wallet-preset-${p}`}>${p}</button>)}</div>
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label={`Amount (USD, min $${min})`}><input type="number" min={min} max={10000} step="1" className="civr-input font-mono" value={amount} onChange={e => setAmount(e.target.value)} data-testid="wallet-amount-input" /></Field>
-        <Field label="Coin"><CoinSelect coins={coins} value={coin} onChange={setCoin} amountUsd={amount} testid="wallet-coin-select" /></Field>
+        {pay === 'crypto' && <Field label="Coin"><CoinSelect coins={coins} value={coin} onChange={setCoin} amountUsd={amount} testid="wallet-coin-select" /></Field>}
       </div>
       <ErrorNote error={error} testid="wallet-topup-error" />
-      <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="wallet-topup-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Get payment address</button>
+      {pay === 'card' ? (cardOk ? <MollieForm key={Math.round(n0)} opts={mol} amountUsd={Math.round(n0)} sameTab testid="wallet-mollie" /> : <p className="text-sm text-[var(--c-muted)]" data-testid="wallet-mollie-unavailable">{`Enter an amount between $${min} and $10,000 to see card options.`}</p>)
+        : <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="wallet-topup-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Get payment address</button>}
     </form>
   );
 }
 
-const DEP_LABEL = { waiting: 'Waiting for payment', paid: 'Paid', credited: 'Paid', paid_late: 'Paid (late)', expired: 'Expired', test: 'Test only' };
+const DEP_LABEL = { canceled: 'Canceled', failed: 'Failed', waiting: 'Waiting for payment', paid: 'Paid', credited: 'Paid', paid_late: 'Paid (late)', expired: 'Expired', test: 'Test only' };
 const depStatus = (d) => DEP_LABEL[d.status] || d.status;
 const DepStatus = ({ d }) => <span className={`${statusPill(d.status)} shrink-0 whitespace-nowrap`} title={d.status === 'expired' ? 'Not paid within 6 hours. If you already sent it, it is still credited when it arrives.' : d.status === 'test' ? 'Preview mode: no real payment was created.' : d.status === 'waiting' && d.expiresAt ? `Expires ${when(d.expiresAt)}` : undefined}>{depStatus(d)}</span>;
 const signed = (h) => `${h.amount > 0 ? '+' : '−'}${money(Math.abs(h.amount))}`;
@@ -110,14 +115,14 @@ function Deposits({ list }) {
   if (phone) return (
     <ul className="divide-y divide-[#1f1f1f]" data-testid="wallet-deposits-table">{list.map((d, i) => (
       <li key={d.ref} className={CARD_ROW} data-testid={`wallet-deposit-${i}`}>
-        <div className="min-w-0"><div className="font-mono">{money(d.amountUsd)} <span className="text-xs text-[#a1a1aa] inline-flex items-center gap-1 align-middle"><CoinIcon coin={d.coin} size={14} />{d.coin}</span></div><div className="text-xs text-[#a1a1aa] mt-0.5">{when(d.createdAt)}</div></div>
+        <div className="min-w-0"><div className="font-mono">{money(d.amountUsd)} <span className="text-xs text-[#a1a1aa] inline-flex items-center gap-1 align-middle">{d.provider === 'mollie' ? `Card · ${fmtCur(d.currency, d.amountCharged)}` : <><CoinIcon coin={d.coin} size={14} />{d.coin}</>}</span></div><div className="text-xs text-[#a1a1aa] mt-0.5">{when(d.createdAt)}</div></div>
         <DepStatus d={d} />
       </li>
     ))}</ul>
   );
   return (
     <div className="overflow-x-auto -mx-1 px-1" tabIndex={0} role="region" aria-label="Deposits"><table className="civr-table" data-testid="wallet-deposits-table"><thead><tr><th>Amount</th><th>Coin</th><th>Status</th><th>When</th></tr></thead>
-      <tbody>{list.map((d, i) => <tr key={d.ref} data-testid={`wallet-deposit-${i}`}><td className="font-mono">{money(d.amountUsd)}</td><td><Coin coin={d.coin} size={16} /></td><td><DepStatus d={d} /></td><td className="text-xs text-[#a1a1aa] whitespace-nowrap">{when(d.createdAt)}</td></tr>)}</tbody></table></div>
+      <tbody>{list.map((d, i) => <tr key={d.ref} data-testid={`wallet-deposit-${i}`}><td className="font-mono">{money(d.amountUsd)}</td><td>{d.provider === 'mollie' ? <span className="text-xs" data-testid={`wallet-deposit-${i}-card`}>{`Card · ${fmtCur(d.currency, d.amountCharged)}`}</span> : <Coin coin={d.coin} size={16} />}</td><td><DepStatus d={d} /></td><td className="text-xs text-[#a1a1aa] whitespace-nowrap">{when(d.createdAt)}</td></tr>)}</tbody></table></div>
   );
 }
 
@@ -160,6 +165,12 @@ function Tables({ data }) {
   );
 }
 
+// Back from Mollie's checkout: show the result (the backend re-checks the payment with Mollie).
+function MollieReturn({ ref_, onPaid }) {
+  const status = useMollieStatus(ref_, onPaid);
+  return <div className="civr-card p-4 mb-4" data-testid="wallet-mollie-return"><MollieWaiting status={status} onRetry={() => document.querySelector('[data-testid="wallet-method-card"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} testid="wallet-mollie-return" />{status === 'paid' && <p className="text-xs text-[var(--c-muted)] mt-1">If you came here from another tab, you can close this one.</p>}</div>;
+}
+
 export default function Wallet() {
   const { refreshSummary } = useShell();
   const [params] = useSearchParams();
@@ -188,6 +199,7 @@ export default function Wallet() {
   return (
     <div data-testid="wallet-page">
       {header}
+      {params.get('mollie') && <MollieReturn ref_={params.get('mollie')} onPaid={refresh} />}
       {need > 0 && <NeedBanner need={need} forNum={forNum} />}
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="civr-card p-6 flex flex-col justify-between" data-testid="wallet-balance-card">

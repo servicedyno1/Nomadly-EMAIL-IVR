@@ -7,6 +7,7 @@ import { cp } from '../../paths';
 import { useShell } from '../../Shell';
 import { useBalance } from '../../WalletPay';
 import { CryptoPay } from '../../CryptoPay';
+import { MolliePay } from '../../MolliePay';
 
 // One-tap "Your campaign needs Pro" upgrade for a number that can't run this kind of campaign yet.
 export function CampaignUpgradeNudge({ numbers, need, feature, onDone }) {
@@ -43,6 +44,7 @@ export function CampaignUpgradeNudge({ numbers, need, feature, onDone }) {
         <div className="mt-4 space-y-3" data-testid="campaign-upgrade-short">
           <p className="text-sm">{`Your wallet has ${money(balance)} — ${money(short)} short.`} <Link to={cp(`/app/wallet?need=${short}`)} className="underline font-semibold text-[var(--c-accent)]" data-testid="campaign-upgrade-topup">Top up instead</Link></p>
           <CryptoPay price={quote.charge} onReady={go} primary testid="campaign-upgrade-crypto" />
+          <MolliePay price={quote.charge} onReady={go} testid="campaign-upgrade-card" />
         </div>
       ) : (
         <button type="button" className="civr-btn civr-btn-primary mt-4 w-full" disabled={busy || !quote} onClick={go} data-testid="campaign-upgrade-button">
