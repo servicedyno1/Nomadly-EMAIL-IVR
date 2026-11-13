@@ -61,7 +61,7 @@ export function Coverage({ catalog }) {
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-24">
         <div className="grid lg:grid-cols-12 gap-8 items-end">
           <div className="lg:col-span-8"><SectionHead label="Coverage" title={`Local presence in ${list.length || 2} countries.`} sub="Local, mobile and toll-free numbers your customers recognise — and pick up." /></div>
-          <p className="lg:col-span-4 text-sm civr-l-muted lg:text-right">Voice and SIP on every number · SMS on most</p>
+          <p className="lg:col-span-4 text-sm civr-l-muted lg:text-right">Voice & SIP on a Business Line · SMS on a Texting Number · Fax on a fax-only number</p>
         </div>
         <div className="mt-12 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4" data-testid="coverage-grid">
           {list.map((c, i) => (

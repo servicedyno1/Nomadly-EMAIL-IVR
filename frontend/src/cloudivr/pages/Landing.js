@@ -23,6 +23,7 @@ export default function Landing() {
   const { data } = useApi('/public/catalog');
   const { data: esim } = useApi('/public/esim-plans');
   const { data: offer } = useApi('/public/mobile-offer');
+  const { data: fax } = useApi('/public/fax-offer');
   const catalog = data || CATALOG_SNAPSHOT;
   const [tab, setTab] = useState('ivr');
   useSiteLook();
@@ -30,9 +31,9 @@ export default function Landing() {
     <div className="civr-l civr-np" data-testid="landing-page" data-catalog={data ? 'live' : 'snapshot'}>
       <LandingNav catalog={catalog} />
       <main>
-        <OneHero setTab={setTab} from={startPrice(catalog)} esimPrice={esim?.plans?.[0]?.price} offer={offer} />
+        <OneHero setTab={setTab} from={startPrice(catalog)} esimPrice={esim?.plans?.[0]?.price} offer={offer} fax={fax} catalog={catalog} />
         <PromiseStrip />
-        <AllPlans catalog={catalog} tab={tab} setTab={setTab} esimPrice={esim?.plans?.[0]?.price} offer={offer} />
+        <AllPlans catalog={catalog} tab={tab} setTab={setTab} esimPrice={esim?.plans?.[0]?.price} offer={offer} fax={fax} />
         <CompareTable catalog={catalog} />
         <FeaturePills />
         <Platform catalog={catalog} />

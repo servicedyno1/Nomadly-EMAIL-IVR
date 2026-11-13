@@ -27,7 +27,9 @@ export function FaxNumberBuy({ balance, onBought }) {
   const nav = useNavigate();
   const [q, setQ] = useState({ country: 'US', areaCode: '' });
   const [res, setRes] = useState(null);
-  const [pick, setPick] = useState(null);
+  const [pick, setPick] = useState(() => {
+    try { const p = JSON.parse(sessionStorage.getItem('civr.faxPick') || 'null'); return p && Date.now() - p.at < 2 * 3600000 ? p : null; } catch (_) { return null; }
+  });
   const [autoRenew, setAutoRenew] = useState(true);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState(null);
@@ -41,6 +43,7 @@ export function FaxNumberBuy({ balance, onBought }) {
     setBusy('buy'); setError(null);
     try {
       const d = await api('/fax-numbers', { method: 'POST', body: { phoneNumber: pick.phoneNumber, autoRenew } });
+      sessionStorage.removeItem('civr.faxPick');
       toast.success(`${d.number.phoneNumber} is your fax number`);
       onBought?.(); nav(cp('/app/fax'));
     } catch (err) { setError(err); toast.error(err.message); } finally { setBusy(''); }
@@ -63,6 +66,7 @@ export function FaxNumberBuy({ balance, onBought }) {
       </form>
       <div className="mt-4"><ErrorNote error={error} testid="fax-buy-error" /></div>
       {res?.nearbyOnly && <div className="text-sm text-[#a1a1aa] mt-4" data-testid="fax-buy-nearby-note">{`No fax numbers in area code ${res.areaCode} right now — these are nearby numbers.`}</div>}
+      {pick && !res && <div className="civr-card p-4 mt-4 text-sm flex items-center gap-2" data-testid="fax-buy-picked-note"><Check className="w-4 h-4 text-[#818cf8]" />{`${pick.phoneNumber} from your search is selected.`}</div>}
       {res && <FaxResults numbers={res.numbers} pick={pick} setPick={setPick} />}
       {pick && (
         <div className="mt-5 flex flex-wrap items-center gap-4 civr-rise" data-testid="fax-buy-checkout">

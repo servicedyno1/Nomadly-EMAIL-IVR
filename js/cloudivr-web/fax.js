@@ -90,4 +90,19 @@ function routes(router, { db, h, upload, numbersApi, notifyAdmin }) {
   }))
 }
 
-module.exports = { routes, formatPhone: phoneConfig.formatPhone }
+// Landing page (no account): fax offer + fax number search, 30 searches an hour per visitor.
+function publicRoutes(router, { db, h }) {
+  const faxNums = require('../fax-numbers').create(db, { sweep: false })
+  const hits = new Map()
+  router.get('/public/fax-offer', h(async (req, res) => res.json(faxNums.offer())))
+  router.get('/public/fax-numbers/search', h(async (req, res) => {
+    const ip = String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim(), hour = Math.floor(Date.now() / 3600000)
+    const k = `${ip}|${hour}`, n = (hits.get(k) || 0) + 1
+    if (hits.size > 5000) hits.clear()
+    hits.set(k, n)
+    if (n > 30) return bad(res, 429, 'too_many', 'Too many searches. Try again in a little while.')
+    try { res.json(await faxNums.search(null, req.query.country, req.query.areaCode)) } catch (e) { return e.status ? bad(res, e.status, e.code, e.message) : Promise.reject(e) }
+  }))
+}
+
+module.exports = { routes, publicRoutes, formatPhone: phoneConfig.formatPhone }

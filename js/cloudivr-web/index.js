@@ -77,6 +77,7 @@ function createCloudIvrWeb(deps) {
     require('./admin').createAdmin(db, { log, bulkCallService: deps.bulkCallService, adminAuth }).routes(r, h)
     require('./esim').publicRoutes(r, { db, h, log, A: adminAuth.require })
     require('./media').publicRoutes(r, { db, h })
+    require('./fax').publicRoutes(r, { db, h })
     let offersRef = null
     const mollie = require('./mollie').createMollie(db, { log, notifyAdmin: deps.notifyAdmin, getOffers: () => offersRef, push: (id, text) => notify.push(id, text, null, { kind: 'payment' }) })
     mollie.publicRoutes(r, { h })

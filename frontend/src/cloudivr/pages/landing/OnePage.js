@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Check, Minus, PhoneCall, Smartphone, MessageSquareText } from 'lucide-react';
+import { ArrowRight, Check, Minus, PhoneCall, Smartphone, MessageSquareText, Printer } from 'lucide-react';
 import { Reveal, Slide, reducedMotion } from './kit';
 import { usd } from '../../api';
 import { PlanCard, TextingCard, useStart } from './PricingFaq';
@@ -9,15 +9,17 @@ import { openEsimCheckout } from './EsimCheckout';
 import { openMobileCheckout } from './MobileCheckout';
 import { PaymentMethods } from './Payments';
 import { HeroDecor, Squiggle } from './Doodles';
-import { HeroCard } from './HeroCard';
+import { PurposeCards } from './PurposeCards';
+import { FaxLanding } from './FaxLanding';
 import { NumbersPreview } from './NumbersPreview';
 import { LandingPlanHelper } from './PlanHelper';
 
-const WORDS = ['business calls', 'IVR campaigns', 'two-way texts', 'a USA eSIM'];
+const WORDS = ['business calls', 'IVR campaigns', 'two-way texts', 'online fax', 'a USA eSIM'];
 export const PICKS = [
   ['ivr', PhoneCall, 'A business phone line', 'Calls, IVR, SIP and campaigns'],
   ['esim', Smartphone, 'A USA eSIM', 'A real line on your phone'],
   ['mobile', MessageSquareText, 'A Texting Number', 'Send and receive texts in your browser'],
+  ['fax', Printer, 'A fax number', 'Send and receive faxes online'],
 ];
 
 function CyclingWord() {
@@ -33,17 +35,17 @@ function CyclingWord() {
 const goPlans = (id, setTab) => { setTab(id); document.getElementById('pricing')?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' }); };
 
 // Hero: centred headline with a hand-drawn underline, floating telecom drawings, a tabbed card and a sample dashboard.
-export function OneHero({ setTab, from, esimPrice, offer }) {
+export function OneHero({ setTab, from, esimPrice, offer, fax, catalog }) {
   return (
     <section className="relative overflow-hidden bg-white pt-28 md:pt-32 pb-14 md:pb-16" data-testid="product-hero">
       <HeroDecor />
       <div className="relative max-w-7xl mx-auto px-6 md:px-8 text-center">
         <div className="mx-auto max-w-3xl">
-          <div className="civr-l-kicker civr-rise"><span className="civr-l-dot" />Cloud phone, IVR and texting</div>
+          <div className="civr-l-kicker civr-rise"><span className="civr-l-dot" />Cloud phone, IVR, texting and fax</div>
           <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-6xl mt-5 text-slate-950 font-extrabold tracking-tight civr-rise civr-d1" data-testid="hero-title">One place for <span className="relative inline-block"><CyclingWord /><Squiggle /></span></h1>
           <p className="mx-auto max-w-2xl text-base md:text-lg text-slate-600 mt-5 leading-relaxed civr-rise civr-d2" data-testid="hero-subtitle">Pick what you need, pay with crypto or your wallet, and you are live in minutes. Month to month, no contract{from ? ` · from ${from}/month` : ''}.</p>
         </div>
-        <HeroCard from={from} esimPrice={esimPrice} offer={offer} goPlans={(id) => goPlans(id, setTab)} />
+        <PurposeCards catalog={catalog} from={from} offer={offer} fax={fax} esimPrice={esimPrice} goPlans={(id) => goPlans(id, setTab)} />
         <NumbersPreview />
       </div>
     </section>
@@ -51,7 +53,7 @@ export function OneHero({ setTab, from, esimPrice, offer }) {
 }
 
 // Every plan in one place: tabs for Cloud IVR, USA eSIM and USA mobile number.
-export function AllPlans({ catalog, tab, setTab, esimPrice, offer }) {
+export function AllPlans({ catalog, tab, setTab, esimPrice, offer, fax }) {
   const start = useStart();
   const plans = (catalog?.plans || []).filter(p => p.available !== false);
   const hasRec = plans.some(p => p.recommended);
@@ -62,7 +64,7 @@ export function AllPlans({ catalog, tab, setTab, esimPrice, offer }) {
     <section id="pricing" className="civr-l-cream scroll-mt-16 border-t civr-l-rule" data-testid="pricing-section">
       <span id="coverage" className="block -mt-16 pt-16" aria-hidden="true" />
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-20">
-        <Reveal><h2 className="civr-l-h text-3xl sm:text-4xl text-slate-950">All plans, side by side</h2><p className="text-slate-600 mt-3 max-w-2xl">One monthly price, no contract. Switch tabs to compare.</p></Reveal>
+        <Reveal><h2 className="civr-l-h text-3xl sm:text-4xl text-slate-950">All plans, side by side</h2><p className="text-slate-600 mt-3 max-w-2xl">Each number does one job: a Business Line for voice and SIP, a Texting Number for SMS, a fax-only number for fax. One monthly price each, no contract.</p></Reveal>
         <LandingPlanHelper plans={plans} onPlan={(id) => { setHotId(id); setTimeout(() => document.querySelector(`[data-testid="civr-plan-card-${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120); }} setTab={setTab} />
         <div role="tablist" className="inline-flex flex-wrap gap-2 mt-8 rounded-2xl bg-white border civr-l-rule p-1.5" data-testid="plans-tabs">
           {PICKS.map(([id, I, t]) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`civr-plan-tab inline-flex items-center gap-2 rounded-xl px-4 h-11 text-sm font-semibold ${tab === id ? 'bg-slate-950 text-white' : 'text-slate-700 hover:bg-slate-100'}`} data-testid={`plans-tab-${id}`}><I className="w-4 h-4" />{t}</button>)}
@@ -74,7 +76,8 @@ export function AllPlans({ catalog, tab, setTab, esimPrice, offer }) {
               {r && <p className="text-sm text-slate-500 mt-6 max-w-3xl" data-testid="pricing-extra-usage">{'Outgoing calls and forwarding are paid from your wallet. Business can show any caller ID on every call.'}</p>}
             </>
           )}
-          {tab !== 'ivr' && (
+          {tab === 'fax' && <FaxLanding fax={fax} />}
+          {tab !== 'ivr' && tab !== 'fax' && (
             <div className="grid md:grid-cols-2 gap-5 max-w-5xl">
               {tab === 'esim'
                 ? <Card id="esim-card" icon={Smartphone} badge="On your phone" title="USA eSIM" kind="Downloadable eSIM on a real USA carrier" price={esimPrice || 75} points={ESIM_POINTS} note="QR code usually ready within minutes of payment."><button type="button" onClick={() => openEsimCheckout()} className="civr-l-btn mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-esim">Order eSIM<ArrowRight className="w-4 h-4" /></button></Card>
@@ -83,6 +86,7 @@ export function AllPlans({ catalog, tab, setTab, esimPrice, offer }) {
                 <p className="font-semibold text-slate-950">Which one do I need?</p>
                 <p>Want the line on your phone? <b>USA eSIM</b>.</p>
                 <p>Want to text from your browser? <b>Texting Number</b>.</p>
+                <p>Need to send and receive faxes? <button type="button" className="font-semibold underline" onClick={() => setTab('fax')} data-testid="which-one-fax">Fax number</button>.</p>
                 <p>Need IVR, campaigns, SIP or any caller ID? <button type="button" className="font-semibold underline" onClick={() => setTab('ivr')} data-testid="which-one-ivr">Cloud IVR plans</button>.</p>
               </div>
             </div>
@@ -101,6 +105,7 @@ const ROWS = [
   ['Keypad menu, Quick IVR and Bulk IVR campaigns', true, false, false],
   ['Browser phone and SIP softphone logins', true, false, 'Some'],
   ['AI voice agent and call recording', true, false, 'Some'],
+  ['Fax-only numbers, USA and Canada', true, false, false],
   ['Pay with crypto', true, false, false],
 ];
 const Cell = ({ v }) => (v === true ? <Check className="w-5 h-5 text-emerald-600 mx-auto" aria-label="Yes" /> : v === false ? <Minus className="w-5 h-5 text-slate-300 mx-auto" aria-label="No" /> : <span className="text-xs text-slate-500">{v}</span>);

@@ -14,8 +14,9 @@ const nextMonth = (from = new Date()) => { const d = new Date(from); d.setMonth(
 
 class FaxNumberError extends Error { constructor(status, code, message) { super(message); this.status = status; this.code = code } }
 
-function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {} } = {}) {
-  const nums = db.collection('faxNumbers'), cache = db.collection('faxNumberSearch'), locks = db.collection('webNumberLocks')
+function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}, sweep = true } = {}) {
+  const nums = db.collection('faxNumbers'), cache = db.collection('faxNumberSearch'), locks = db.collection('webNumberLocks'), seen = db.collection('faxNumberSeen')
+  seen.createIndex({ at: 1 }, { expireAfterSeconds: 2 * 3600 }).catch(() => {})
   const w = walletOps(db)
   nums.createIndex({ chatId: 1 }).catch(() => {})
 
@@ -35,14 +36,17 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
     }
     const held = new Set((await nums.find({ _id: { $in: found.map(n => n.phoneNumber) }, status: { $ne: 'released' } }, { projection: { _id: 1 } }).toArray()).map(d => d._id))
     const results = found.filter(n => !held.has(n.phoneNumber)).map(({ phoneNumber, region, nearby }) => ({ phoneNumber, region, nearby, capabilities: { voice: false, sms: false, fax: true } }))
-    await cache.updateOne({ _id: String(chatId) }, { $set: { country: cc, results, at: new Date() } }, { upsert: true })
+    // Visitor searches (no account yet) are remembered per number for 2 hours, so the pick survives sign-up.
+    if (chatId) await cache.updateOne({ _id: String(chatId) }, { $set: { country: cc, results, at: new Date() } }, { upsert: true })
+    else if (results.length) await seen.bulkWrite(results.map(r => ({ updateOne: { filter: { _id: r.phoneNumber }, update: { $set: { country: cc, region: r.region, at: new Date() } }, upsert: true } }))).catch(() => {})
     return { numbers: results, price: PRICE(), areaCode: ac, nearbyOnly: !!ac && results.length > 0 && results.every(n => n.nearby) }
   }
 
   async function buy(chatId, { phoneNumber, autoRenew = true, email = '' }) {
     chatId = String(chatId)
-    const c = await cache.findOne({ _id: chatId })
-    const hit = c?.results?.find(r => r.phoneNumber === phoneNumber)
+    let c = await cache.findOne({ _id: chatId })
+    let hit = c?.results?.find(r => r.phoneNumber === phoneNumber)
+    if (!hit) { const v = await seen.findOne({ _id: phoneNumber }); if (v) { c = { country: v.country }; hit = { phoneNumber } } }
     if (!hit) throw new FaxNumberError(400, 'search_again', 'That number is no longer in your search results. Search again and pick a number.')
     try { await locks.insertOne({ _id: phoneNumber, chatId, at: new Date() }) } catch (e) {
       if (e.code === 11000) throw new FaxNumberError(409, 'number_taken', 'Someone is buying that number right now. Pick another one.')
@@ -69,7 +73,7 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
       const doc = { _id: phoneNumber, phoneNumber, chatId, country: c.country, status: 'active', faxOnly: true, plan: 'fax', price, autoRenew: autoRenew !== false, telnyxOrderId: orderId, provider: 'telnyx_fax', expiresAt: nextMonth(), createdAt: new Date(), ...(dry() ? { dryRun: true } : {}) }
       await nums.replaceOne({ _id: phoneNumber }, doc, { upsert: true })
       await db.collection('transactions').insertOne({ chatId, type: 'fax-number', amount: price, currency: 'USD', status: 'completed', metadata: { phoneNumber, channel: 'web', provider: 'telnyx_fax' }, createdAt: new Date(), updatedAt: new Date() }).catch(() => {})
-      await cache.deleteOne({ _id: chatId })
+      await cache.deleteOne({ _id: chatId }); await seen.deleteOne({ _id: phoneNumber }).catch(() => {})
       notifyAdmin(`📠 CloudIVR web fax number${dry() ? ' (DRY RUN)' : ''}\nweb account: ${chatId}${email ? ` (${email})` : ''}\nnumber: ${phoneNumber} (${c.country}) · $${price}/month`)
       return { number: pub(doc), balance: await w.balance(chatId) }
     } finally { await locks.deleteOne({ _id: phoneNumber }).catch(() => {}) }
@@ -104,8 +108,7 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
       } else if (now - new Date(n.pastDueAt) >= GRACE_MS) await release(n, 'unpaid')
     }
   }
-  const t = setInterval(() => renewDue().catch(e => log(`[FaxNumbers] renewal sweep failed: ${e.message}`)), 30 * 60000)
-  t.unref?.()
+  if (sweep) setInterval(() => renewDue().catch(e => log(`[FaxNumbers] renewal sweep failed: ${e.message}`)), 30 * 60000).unref?.()
 
   return { offer, search, buy, list, setAutoRenew, renewDue, FaxNumberError }
 }
