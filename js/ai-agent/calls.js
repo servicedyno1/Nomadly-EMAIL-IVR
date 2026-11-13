@@ -1,5 +1,6 @@
 'use strict'
-// AI agent phone calls on Telnyx (inbound receptionist + outbound campaign leads) and free browser test talks.
+// AI agent phone calls (inbound receptionist + outbound campaign leads) and free browser test talks.
+// Calls run on our own call engine (Bird for outbound, SignalWire hands inbound calls over by SIP); audio is RTP (./rtp).
 const crypto = require('crypto')
 const axios = require('axios')
 const store = require('./store')
@@ -9,6 +10,9 @@ const booking = require('./booking')
 const { SAMPLE_LEAD } = require('./opening')
 const phoneConfig = require('../phone-config')
 const telnyxApi = require('../telnyx-service')
+const ce = require('../callengine')
+const bird = require('../bird')
+const rtp = require('./rtp')
 const { getBalance, smartWalletDeduct } = require('../utils.js')
 
 const RATE = () => parseFloat(process.env.AI_AGENT_RATE_PER_MIN || '0.30')
@@ -20,6 +24,7 @@ let deps = {}
 const sessions = new Map() // call_control_id → live call
 const streamTokens = new Map() // stream token → call_control_id
 const testTokens = new Map() // test token → { chatId, agentId, as, exp }
+const carriers = new Set() // SignalWire inbound calls handed to the call engine (the agent runs on the SIP leg)
 
 const log = (...a) => (deps.log || console.log)(...a)
 const newToken = () => crypto.randomBytes(18).toString('base64url')
@@ -32,10 +37,41 @@ const records = (agent) => agent?.record !== false
 const recRate = (agent) => (records(agent) ? recorder.RECORD_RATE() : 0)
 const leadRate = (number, recorded = false) => Math.max(RATE(), deps.voiceService?.getIvrCallRate?.(number) || 0) + (recorded ? recorder.RECORD_RATE() : 0)
 const esc = (s) => String(s ?? '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))
-const hangup = (ccid) => tx(`/calls/${ccid}/actions/hangup`, {}).catch(() => {})
+const hangup = (ccid) => Promise.resolve(ce.isAe(ccid) ? ce.hangupCall(ccid) : tx(`/calls/${ccid}/actions/hangup`, {})).catch(() => {})
+const birdMax = () => Number(process.env.BIRD_MAX_CONCURRENT || 20)
+const engineUp = () => ce.enabled() && ce.connected() && bird.enabled()
 
-function init(d) { deps = d }
-const owns = (ccid, payload) => sessions.has(ccid) || payload?.client_state === CLIENT_STATE
+function init(d) {
+  deps = d
+  ce.setAiHook((token, legId) => onAiLeg(token, legId).catch(e => { log(`[AIAgent] inbound leg error: ${e.message}`); hangup(legId) }))
+}
+
+// Starts the call's audio to the AI (externalMedia on the call engine → RTP to this server).
+async function startMedia(s) {
+  if (s.mediaStarted) return
+  s.mediaStarted = true
+  const r = await ce.startExternalMedia(s.ccid, rtp.host())
+  if (!r?.port) { log(`[AIAgent] no audio link for ${s.ccid} — hanging up`); return hangup(s.ccid) }
+  onStream(s.token, rtp.open(r.port, r.address))
+}
+
+// The SIP leg SignalWire opened to our call engine for an inbound AI call: the agent now runs on that leg.
+async function onAiLeg(token, legId) {
+  const s = [...sessions.values()].find(x => x.token === token && x.awaitingLeg)
+  if (!s) return hangup(legId)
+  sessions.delete(s.ccid)
+  s.awaitingLeg = false
+  s.carrierId = s.ccid
+  carriers.add(s.ccid)
+  s.ccid = legId
+  sessions.set(legId, s)
+  streamTokens.set(s.token, legId)
+  await ce.answerCall(legId)
+  if (!s.answeredAt) s.answeredAt = Date.now()
+  watchWallet(s)
+  await startMedia(s)
+}
+const owns = (ccid, payload) => sessions.has(ccid) || carriers.has(ccid) || payload?.client_state === CLIENT_STATE
 const activeCount = () => sessions.size
 
 function track(ccid, s) {
@@ -43,7 +79,7 @@ function track(ccid, s) {
   streamTokens.set(s.token, ccid)
   return sessions.get(ccid)
 }
-function forget(s) { sessions.delete(s.ccid); streamTokens.delete(s.token); clearInterval(s.walletTimer) }
+function forget(s) { sessions.delete(s.ccid); streamTokens.delete(s.token); clearInterval(s.walletTimer); s.rtpMedia?.close() }
 
 // Inbound: the number's AI agent answers (Business, wallet covers a minute). false → route the call normally.
 async function tryInbound({ payload, chatId, num }) {
@@ -58,9 +94,23 @@ async function tryInbound({ payload, chatId, num }) {
   const calendar = await booking.forCall(chatId, agent, other).catch(() => null)
   const s = track(payload.call_control_id, { kind: 'inbound', rate, baseRate: RATE(), recRate: recRate(agent), calendar, token: newToken(), chatId: String(chatId), agent, number: num.phoneNumber, other })
   try {
-    await tx(`/calls/${s.ccid}/actions/answer`, streamParams(s.token))
-    s.answeredAt = Date.now()
-    watchWallet(s)
+    if (ce.isAe(s.ccid)) {
+      await ce.answerCall(s.ccid)
+      s.answeredAt = Date.now()
+      watchWallet(s)
+      await startMedia(s)
+    } else if (String(s.ccid).startsWith('sw:')) {
+      // SignalWire number: hand the call to our call engine by SIP, where the agent picks it up (onAiLeg).
+      if (!engineUp()) throw new Error('call engine offline')
+      s.awaitingLeg = true
+      const ok = await require('../signalwire/voice').transferCall(s.ccid, `sip:ai.${ce.app()}.${s.token}@${process.env.SIP_DOMAIN || 'sip.cloudivr.net'}`, num.phoneNumber, { timeoutSecs: 15 })
+      if (!ok) throw new Error('handover to the call engine failed')
+      setTimeout(() => { if (s.awaitingLeg) { log(`[AIAgent] ${s.ccid}: SIP handover never arrived — hanging up`); forget(s); hangup(s.ccid) } }, 25000).unref?.()
+    } else {
+      await tx(`/calls/${s.ccid}/actions/answer`, streamParams(s.token))
+      s.answeredAt = Date.now()
+      watchWallet(s)
+    }
     log(`[AIAgent] Inbound ${s.other} → ${s.number} answered by "${agent.name}"`)
     return true
   } catch (e) {
@@ -75,14 +125,20 @@ async function dialLead(campaign, lead) {
   const agent = await store.getAgent(campaign.agentId, campaign.chatId)
   if (!agent) return { error: 'The AI agent for this campaign was deleted.' }
   if (agent.disabled) return { error: 'This AI agent was stopped by CloudIVR. Contact support.' }
+  if (!/^\+1\d{10}$/.test(String(lead.number))) return { error: 'AI agent calls reach US and Canada numbers only.' }
+  // Outbound AI calls go through Bird; while Bird can't take the call the lead waits in the queue (lineLimit).
+  if (!engineUp()) return { error: 'AI calling line is offline — waiting', lineLimit: true }
+  const showAs = require('../cloudivr-web/caller-ids').enabled() && campaign.showAs
+  const from = showAs && await bird.presentable(showAs) ? showAs : campaign.callerId
+  if (!(await bird.presentable(from))) return { error: `caller ID ${from} not linked on Bird yet — waiting`, lineLimit: true }
+  if ((await bird.spendLeft()) < Number(process.env.BIRD_MIN_SPEND_LEFT || 1)) return { error: 'Bird daily spend cap reached — waiting', lineLimit: true }
+  if (ce.activeBird() >= birdMax()) return { error: `all ${birdMax()} Bird lines busy — waiting for a free line`, lineLimit: true }
   const token = newToken()
   const calendar = await booking.forCall(campaign.chatId, agent, lead.number).catch(() => null)
   try {
-    const r = await tx('/calls', {
-      connection_id: process.env.TELNYX_CALL_CONTROL_APP_ID, to: lead.number, from: (require('../cloudivr-web/caller-ids').enabled() && campaign.showAs) || campaign.callerId, webhook_url: `${deps.selfUrl}/telnyx/voice-webhook`,
-      client_state: CLIENT_STATE, answering_machine_detection: 'premium', timeout_secs: 30, ...streamParams(token),
-    })
-    const ccid = r.data?.data?.call_control_id
+    const r = await ce.createOutboundCall(from, lead.number, null, null, { client_state: CLIENT_STATE, timeout_secs: 30 })
+    if (r.error) return { error: r.error, lineLimit: !!r.refused || r.status === 503 }
+    const ccid = r.callControlId
     track(ccid, { kind: 'outbound', rate: leadRate(lead.number, records(agent)), baseRate: leadRate(lead.number), recRate: recRate(agent), calendar, token, chatId: String(campaign.chatId), agent, number: campaign.callerId, other: lead.number, leadName: lead.name || null, campaignId: campaign.id, leadIndex: lead.index, reason: lead.reason || null })
     return { callControlId: ccid }
   } catch (e) {
@@ -103,6 +159,7 @@ function committed(chatId) {
 
 // Says goodbye and hangs up once the wallet can't pay for the next minute (all live AI calls of the account count).
 function watchWallet(s) {
+  if (s.walletTimer) return
   s.walletTimer = setInterval(async () => {
     try {
       const { usdBal } = await getBalance(deps.walletOf, s.chatId)
@@ -117,9 +174,10 @@ function watchWallet(s) {
 }
 
 async function onWebhook(eventType, payload) {
+  if (carriers.has(payload.call_control_id)) { if (eventType === 'call.hangup') { carriers.delete(payload.call_control_id); const s = [...sessions.values()].find(x => x.carrierId === payload.call_control_id); if (s) hangup(s.ccid) } return }
   const s = sessions.get(payload.call_control_id)
   if (!s) return
-  if (eventType === 'call.answered' && !s.answeredAt) { s.answeredAt = Date.now(); watchWallet(s); signal(s, 'answered') }
+  if (eventType === 'call.answered' && !s.answeredAt) { s.answeredAt = Date.now(); watchWallet(s); if (ce.isAe(s.ccid)) startMedia(s).catch(e => log(`[AIAgent] media error: ${e.message}`)); signal(s, 'answered') }
   else if (eventType === 'call.machine.detection.ended' || eventType === 'call.machine.premium.detection.ended') {
     const r = payload.result || null
     s.answeredBy = /^human/.test(r || '') ? 'human' : r
@@ -141,6 +199,7 @@ function signal(s, what) {
 function onStream(token, ws) {
   const s = sessions.get(streamTokens.get(token))
   if (!s || s.bridge) return ws.close()
+  if (ws instanceof rtp.RtpMedia) s.rtpMedia = ws
   s.bridge = new Bridge({
     agent: s.agent, ctx: { direction: s.kind, leadName: s.leadName, callerNumber: s.other, calendar: s.calendar, record: records(s.agent), reason: s.reason || null }, media: ws, log,
     actions: { hangup: (why) => { log(`[AIAgent] hangup ${s.ccid}: ${why}`); hangup(s.ccid) }, transfer: (to) => transfer(s, to) },
@@ -156,6 +215,13 @@ async function transfer(s, to) {
   s.transferAt = Date.now()
   s.transferredTo = to
   s.bridge?.stop()
+  if (ce.isAe(s.ccid)) {
+    s.rtpMedia?.close()
+    await ce.stopExternalMedia(s.ccid)
+    const ok = await ce.transferCall(s.ccid, to, s.number, { targetLegClientState: 'nomadly_pstn_leg', timeoutSecs: 30 })
+    if (!ok) { log(`[AIAgent] transfer to ${to} failed — hanging up ${s.ccid}`); hangup(s.ccid) }
+    return
+  }
   await tx(`/calls/${s.ccid}/actions/streaming_stop`, {}).catch(() => {})
   const ok = await telnyxApi.transferCall(s.ccid, to, s.number, { targetLegClientState: 'nomadly_pstn_leg', timeoutSecs: 30 }).catch(() => null)
   if (!ok) { log(`[AIAgent] transfer to ${to} failed — hanging up ${s.ccid}`); hangup(s.ccid) }
