@@ -157,8 +157,8 @@ async function creditWatch() {
     const f = await forecast(c, bal, a.id), low = c.minCredit > 0 ? bal < c.minCredit : bal <= 0; seen++
     for (const k of ['credit', 'committed', 'available', 'daily', 'renewals']) sum[k] += f[k]; sum.lineCost = Math.max(sum.lineCost, f.lineCost)
     await setAccount(a.id, { credit: bal, creditAt: new Date(), forecast: f, low })
-    if (low) { lows++; lowNotes.push(`${acctLabel(a.id)} $${bal}`); if (!a.low) { alert(`💳 Spenza ${acctLabel(a.id)} balance $${bal} is below the $${c.minCredit} floor — its lines sit out${c.accounts.length > 1 ? ' while the other account(s) keep sending' : ''}. Add credit at web.spenza.com`); incident('account_low', { account: a.id, credit: bal }) } }
-    else if (a.low) { alert(`💳 Spenza ${acctLabel(a.id)} topped up ($${bal}) — its lines are back in the pool; ordering any lines still missing.`); toppedUp = true }
+    if (low) { lows++; lowNotes.push(`${acctLabel(a.id)} $${bal}`); if (!a.low) { alert(`💳 Spenza ${acctLabel(a.id)} balance $${bal} is below the $${c.minCredit} floor — no new lines will be purchased, but existing service lines keep sending. Add credit at web.spenza.com`); incident('account_low', { account: a.id, credit: bal }) } }
+    else if (a.low) { alert(`💳 Spenza ${acctLabel(a.id)} topped up ($${bal}) — ordering any missing lines now (tester/monitor first, then service).`); toppedUp = true }
     else if (a.orderBlockedBal != null && bal > a.orderBlockedBal) { await setAccount(a.id, { orderBlockedBal: null, orderBlockedAt: null }); alert(`💳 Spenza ${acctLabel(a.id)} topped up ($${bal}) — ordering the missing line(s) now.`); toppedUp = true }
     else if ((f.available < 0 || (f.runway != null && f.runway < c.creditWarnDays)) && await once(`creditwarn:${a.id}:${today()}`)) alert(`⚠️ Spenza ${acctLabel(a.id)} credit is getting low: $${bal} on the account, $${f.committed} already promised (${f.renewals} renewal(s) due within ${c.renewalWindowDays} days), ~$${f.daily}/day lately → ${f.available < 0 ? 'new bookings are on hold' : `about ${f.runway} day(s) left`}. Add credit at web.spenza.com`)
   }
@@ -168,8 +168,8 @@ async function creditWatch() {
   const r2 = (x) => Math.round(x * 100) / 100, f = { ...sum, credit: r2(sum.credit), committed: r2(sum.committed), available: r2(sum.available), daily: r2(sum.daily), runway: sum.daily > 0 ? Math.round((sum.available / sum.daily) * 10) / 10 : null, accounts: seen, low: lows, at: new Date() }
   await C('bsConfig').updateOne({ _id: 'state' }, { $set: { credit: f.credit, creditAt: new Date(), forecast: f } }, { upsert: true }).catch(() => {})
   if (lows === seen) {
-    await pause('provider_credit', `Spenza balance ${lowNotes.join(', ')} is below $${c.minCredit}. Add credit at web.spenza.com`)
-    const st = await state(); if (Date.now() - (st.creditNagAt || 0) > HOUR) { await C('bsConfig').updateOne({ _id: 'state' }, { $set: { creditNagAt: Date.now() } }); if (st.creditNagAt) alert(`⏸ Still paused: Spenza balance ${lowNotes.join(', ')} (floor $${c.minCredit}). ${f.committed ? `$${f.committed} of texts are waiting. ` : ''}Add credit at web.spenza.com`) }
+    await pause('provider_credit', `Spenza balance ${lowNotes.join(', ')} is below $${c.minCredit}. Existing lines keep sending — no new lines purchased until topped up. Add credit at web.spenza.com`)
+    const st = await state(); if (Date.now() - (st.creditNagAt || 0) > HOUR) { await C('bsConfig').updateOne({ _id: 'state' }, { $set: { creditNagAt: Date.now() } }); if (st.creditNagAt) alert(`⏸ Low balance: Spenza ${lowNotes.join(', ')} (floor $${c.minCredit}). Service lines keep sending. ${f.committed ? `$${f.committed} of texts are waiting. ` : ''}Add credit at web.spenza.com to buy more lines.`) }
   } else { const was = (await state()).reasons?.includes('provider_credit'); await resume('provider_credit'); if (was) toppedUp = true }
   if (toppedUp && !creditWatch.busy) { creditWatch.busy = true; try { await autoscale() } finally { creditWatch.busy = false } }
 }
@@ -376,7 +376,10 @@ async function replaceEsim(eid, reason, by) {
 async function healthCheck() {
   const c = await cfg()
   await stuckLines(c)
-  for (const e of await C('bsEsims').find({ status: { $in: [...USABLE, 'testing', 'degraded', 'suspended'] }, iccid: { $ne: null }, replacedBy: null }).toArray()) {
+  // Process tester → monitor → service so critical lines get replaced/checked first when credit is limited
+  const rolePrio = { tester: 0, monitor: 1, service: 2 }
+  const esims = (await C('bsEsims').find({ status: { $in: [...USABLE, 'testing', 'degraded', 'suspended'] }, iccid: { $ne: null }, replacedBy: null }).toArray()).sort((a, b) => (rolePrio[a.role] ?? 2) - (rolePrio[b.role] ?? 2))
+  for (const e of esims) {
     if (!P.dry()) await new Promise(r => setTimeout(r, 600))
     let health = 'healthy', err = null, expires = e.expirationDate || null
     try { const sim = await P.getSim(e.iccid, e.account), sub = await P.subscription(e.iccid, e.account).catch(() => null), pending = /PENDING/i.test(String(sub?.status || ''))
@@ -594,9 +597,14 @@ const priced = (c, parts, unit, startAt) => { const pct = discountFor(c, startAt
 const nowSlot = () => { const d = new Date(), h = d.getUTCHours(), left = 60 - d.getUTCMinutes(); if (left > 5) return { date: today(), hour: h }; return h === 23 ? null : { date: today(), hour: h + 1 } }
 // What can go out right now: send = a working service line (single texts, "send now"), test = tester or service line.
 // Working = usable, healthy, has a number, on an account with credit, and sending not paused.
-const lineQ = (c) => ({ status: { $in: USABLE }, health: { $in: GOOD_HEALTH }, msisdn: { $ne: null }, account: { $in: [...c.accounts.filter(a => !a.low).map(a => a.id), ...(c.accounts[0] && !c.accounts[0].low ? [null] : [])] } })
+// Service lines keep sending even when an account is below the provisioning floor (low) — Spenza
+// will reject at the API level if the balance is truly zero.  Only provisioning is blocked.
+const lineQ = (c) => ({ status: { $in: USABLE }, health: { $in: GOOD_HEALTH }, msisdn: { $ne: null }, account: { $in: [...c.accounts.map(a => a.id), ...(c.accounts[0] ? [null] : [])] } })
 async function ready() {
-  const c = await cfg(), st = await state(), paused = !!st.reasons?.length || !!c.emergencyStop
+  const c = await cfg(), st = await state()
+  // provider_credit only blocks provisioning, not sending from existing lines
+  const sendReasons = (st.reasons || []).filter(r => r !== 'provider_credit')
+  const paused = !!sendReasons.length || !!c.emergencyStop
   const has = async (f) => !paused && !!(await C('bsEsims').countDocuments({ ...lineQ(c), ...f }, { limit: 1 }))
   // While the tester line is being bought, replaced or re-checked, tests stay off (they would not use the tester line).
   const send = await has(SERVICE), tester = await has({ role: 'tester' }), testerBusy = !tester && !!(await C('bsEsims').countDocuments({ role: 'tester', status: { $in: TESTER_BUSY } }, { limit: 1 }))
@@ -615,7 +623,8 @@ async function replyRoute(cid, sessionId) {
 }
 async function lineReady(esimId) {
   const c = await cfg(), st = await state()
-  return !st.reasons?.length && !c.emergencyStop && !!(await C('bsEsims').countDocuments({ _id: esimId, ...lineQ(c) }, { limit: 1 }))
+  const sendReasons = (st.reasons || []).filter(r => r !== 'provider_credit')
+  return !sendReasons.length && !c.emergencyStop && !!(await C('bsEsims').countDocuments({ _id: esimId, ...lineQ(c) }, { limit: 1 }))
 }
 async function whenOptions(cid, campaignId) {
   const c = await cfg(), cp = await C('bsCampaigns').findOne({ _id: campaignId, cid }); if (!cp) return E('err_campaign')
@@ -1216,7 +1225,9 @@ async function tick() {
   busy = true
   try {
     let c = await cfg(); const st = await state(), platformToday = await C('bsMessages').countDocuments({ direction: 'out', submittedAt: { $gte: new Date(new Date().toISOString().slice(0, 10)) } })
-    if (st.reasons?.length || c.emergencyStop || platformToday >= c.platformDailyLimit) return
+    // provider_credit only blocks provisioning — existing service lines keep sending
+    const sendReasons = (st.reasons || []).filter(r => r !== 'provider_credit')
+    if (sendReasons.length || c.emergencyStop || platformToday >= c.platformDailyLimit) return
     if (await paceByHeaders(c)) return
     c = await cfg(); let pinned = 0
     // Single texts never wait for quiet hours: release any long deferral (e.g. set by an older worker during a rolling deploy).
