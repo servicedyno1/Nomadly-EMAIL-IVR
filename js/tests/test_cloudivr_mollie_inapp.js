@@ -34,7 +34,7 @@ const ok = (n, c, x = '') => { c ? pass++ : fail++; console.log(`${c ? '✅' : '
   await clean()
   try {
     let r = await ax('post', '/wallet/mollie/session', { amountUsd: 20, currency: 'USD', returnUrl: `${O}/cloudivr/app/wallet` })
-    const sent = calls.find(c => c.url.endsWith('/sessions'))
+    const sent = calls.find(c => c.url.endsWith('/sessions') && c.data?.metadata)
     ok('session started, client token returned', r.status === 201 && r.data.clientAccessToken === 'tok_abc' && r.data.ref)
     ok('session has one digital line equal to amount', sent.data.lines.length === 1 && sent.data.lines[0].totalAmount.value === '20.00' && sent.data.amount.value === '20.00')
     ok('webhook + ref in metadata', sent.data.payment.webhookUrl.endsWith('/cloudivr-web/mollie/webhook') && sent.data.metadata.ref === r.data.ref && sent.data.redirectUrl.includes(`mollie=${r.data.ref}`))
@@ -52,11 +52,25 @@ const ok = (n, c, x = '') => { c ? pass++ : fail++; console.log(`${c ? '✅' : '
     pay.tr_10 = { id: 'tr_10', status: 'paid', method: 'applepay', amount: { currency: 'USD', value: '15.00' }, metadata: { ref: ref2 } }
     r = await ax('get', `/wallet/mollie/${ref2}`)
     ok('status poll finds payment of completed session', r.data.status === 'paid' && await bal() === 35)
+    r = await ax('post', '/wallet/mollie/session', { amountUsd: 10, currency: 'USD', returnUrl: 'https://evil.example/x' })
+    ok('foreign return URL refused', r.status === 400)
     failSession = true
     r = await ax('post', '/wallet/mollie/session', { amountUsd: 10, currency: 'USD', returnUrl: `${O}/cloudivr/app/wallet` })
     ok('domain not approved → 424 with fallback + admin told', r.status === 424 && r.data.fallback === true && alerts.some(a => a.includes('Website profiles')))
-    r = await ax('post', '/wallet/mollie/session', { amountUsd: 10, currency: 'USD', returnUrl: 'https://evil.example/x' })
-    ok('foreign return URL refused', r.status === 400)
+    r = await ax('get', '/wallet/mollie/options?amountUsd=20')
+    ok('then card shows coming soon', r.data.enabled === false && r.data.comingSoon === true)
+    r = await ax('post', '/wallet/mollie/pay', { amountUsd: 10, currency: 'USD', returnUrl: `${O}/cloudivr/app/wallet` })
+    ok('hosted pay also blocked', r.status === 424 && r.data.error === 'mollie_off')
+    // fresh unapproved site: probe says no → coming soon from the start
+    const m2 = createMollie(db, { log: () => {} }), a2 = express(); a2.use(express.json()); a2.use((req, _r, n) => { req.webChatId = CHAT; n() }); m2.routes(a2, { h })
+    const s2 = a2.listen(0)
+    r = await realAxios.get(`http://127.0.0.1:${s2.address().port}/wallet/mollie/options?amountUsd=20`)
+    ok('unapproved domain → coming soon on first visit', r.data.enabled === false && r.data.comingSoon === true)
+    failSession = false
+    m2.sites.clear()
+    r = await realAxios.get(`http://127.0.0.1:${s2.address().port}/wallet/mollie/options?amountUsd=20`)
+    ok('approved domain → card options shown', r.data.enabled === true && r.data.currencies.length > 0)
+    s2.close()
   } finally {
     await clean(); srv.close(); await cl.close()
     console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0)

@@ -39,8 +39,35 @@ async function methodsFor(currency, value) {
 
 function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = {}) {
   const deposits = db.collection('webDeposits'), txns = db.collection('transactions'), w = walletOps(db)
-  const enabled = () => !!mode()
+  const keyed = () => !!mode()
   let lastFailAlert = 0
+  // Card stays "coming soon" on a site until Mollie accepts its domain (website profile). Probed per site with a throwaway Checkout Session, re-checked every 30 min.
+  const sites = new Map()
+  const notApproved = (why) => /redirect url|profile url|registered domain|website profile/i.test(String(why || ''))
+  const siteOf = (req) => `https://${String(req.get('x-forwarded-host') || req.get('host') || '').split(',')[0].trim()}`
+  const markSite = (origin, ok, why = '') => {
+    const was = sites.get(origin)?.ok
+    sites.set(origin, { ok, why, at: Date.now() })
+    if (was !== undefined && was !== ok) log(`[Mollie] ${origin} card payments ${ok ? 'ON — domain approved' : `OFF — ${why}`}`)
+    if (ok && was === false) notifyAdmin?.(`✅ <b>Mollie approved ${origin.replace(/^https:\/\//, '')}</b> — card payments are now live there.`)
+  }
+  async function checkDomain(origin) {
+    if (!keyed() || !/^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(origin)) return false
+    const hit = sites.get(origin)
+    if (hit && Date.now() - hit.at < 30 * 60000) return hit.ok
+    if (sites.size > 50) sites.clear()
+    const money = { currency: 'EUR', value: '10.00' }
+    try {
+      await mollie('post', '/sessions', { amount: money, description: 'Domain check', lines: [{ type: 'digital', description: 'Domain check', quantity: 1, unitPrice: money, totalAmount: money }], redirectUrl: `${origin}/cloudivr/app/wallet` })
+      markSite(origin, true)
+    } catch (e) {
+      const why = String(e.response?.data?.detail || e.message)
+      if (notApproved(why) || e.response?.status === 401) markSite(origin, false, why)
+      else { log(`[Mollie] domain check inconclusive for ${origin}: ${why}`); return hit?.ok || false }
+    }
+    return sites.get(origin).ok
+  }
+  const enabled = () => keyed()
 
   async function options(amountUsd) {
     const usd = round2(Math.max(MIN_TOPUP_USD, Number(amountUsd) || MIN_TOPUP_USD)), fxr = await rates()
@@ -98,7 +125,7 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
     // Mollie only sends the payment id; we fetch the payment ourselves, so a forged call can't credit anything.
     router.post('/mollie/webhook', h(async (req, res) => {
       const id = String(req.body?.id || '')
-      if (!/^tr_[A-Za-z0-9]+$/.test(id) || !enabled()) return res.status(200).send('ok')
+      if (!/^tr_[A-Za-z0-9]+$/.test(id) || !keyed()) return res.status(200).send('ok')
       let dep = await deposits.findOne({ molliePaymentId: id })
       if (!dep) {
         const p = await mollie('get', `/payments/${id}`).catch(() => null)
@@ -112,11 +139,11 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
 
   function routes(router, { h }) {
     router.get('/wallet/mollie/options', h(async (req, res) => {
-      if (!enabled()) return res.json({ enabled: false, currencies: [] })
+      if (!enabled() || !(await checkDomain(siteOf(req)))) return res.json({ enabled: false, currencies: [], comingSoon: true })
       res.json(await options(req.query.amountUsd))
     }))
     router.post('/wallet/mollie/pay', h(async (req, res) => {
-      if (!enabled()) return res.status(424).json({ error: 'mollie_off', message: 'Card payments are not available right now.' })
+      if (!enabled() || !(await checkDomain(siteOf(req)))) return res.status(424).json({ error: 'mollie_off', message: 'Card payments are coming soon.' })
       const amountUsd = round2(req.body.amountUsd), currency = String(req.body.currency || 'USD').toUpperCase(), method = req.body.method ? String(req.body.method) : null
       if (!(amountUsd >= MIN_TOPUP_USD) || amountUsd > 10000) return res.status(400).json({ error: 'invalid_amount', message: `Top up between $${MIN_TOPUP_USD} and $10,000.` })
       const opt = (await options(amountUsd)).currencies.find(c => c.currency === currency)
@@ -138,6 +165,7 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
       } catch (e) {
         await deposits.updateOne({ _id: insertedId }, { $set: { mollieStatus: 'error', mollieError: String(e.response?.data?.detail || e.message).slice(0, 300) } })
         log(`[Mollie] create failed ${ref}: ${e.response?.data?.detail || e.message}`)
+        if (notApproved(e.response?.data?.detail)) markSite(siteOf(req), false, String(e.response.data.detail))
         if (Date.now() - lastFailAlert > 3600000) { lastFailAlert = Date.now(); notifyAdmin?.(`⚠️ <b>Mollie checkout could not start</b> for web account ${req.webChatId}: ${String(e.response?.data?.detail || e.message).replace(/</g, '&lt;')}${/redirect URL/i.test(e.response?.data?.detail || '') ? '\nAdd this site’s domain to your Mollie website profile (Dashboard → Settings → Website profiles).' : ''}`) }
         return res.status(424).json({ error: 'mollie_error', message: 'The card payment service did not answer. Try again or pick another method.' })
       }
@@ -146,7 +174,7 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
     }))
     // In-app checkout: a Checkout Session whose client token mounts Mollie's card / express / methods components on our page.
     router.post('/wallet/mollie/session', h(async (req, res) => {
-      if (!enabled()) return res.status(424).json({ error: 'mollie_off', message: 'Card payments are not available right now.' })
+      if (!enabled() || !(await checkDomain(siteOf(req)))) return res.status(424).json({ error: 'mollie_off', message: 'Card payments are coming soon.' })
       const amountUsd = round2(req.body.amountUsd), currency = String(req.body.currency || 'USD').toUpperCase()
       if (!(amountUsd >= MIN_TOPUP_USD) || amountUsd > 10000) return res.status(400).json({ error: 'invalid_amount', message: `Top up between $${MIN_TOPUP_USD} and $10,000.` })
       const opt = (await options(amountUsd)).currencies.find(c => c.currency === currency)
@@ -168,6 +196,7 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
         const why = String(e.response?.data?.detail || e.message)
         await deposits.deleteOne({ _id: insertedId })
         log(`[Mollie] session failed ${ref}: ${why}`)
+        if (notApproved(why)) markSite(siteOf(req), false, why)
         if (Date.now() - lastFailAlert > 3600000) { lastFailAlert = Date.now(); notifyAdmin?.(`⚠️ <b>Mollie in-app checkout could not start</b> for web account ${req.webChatId}: ${why.replace(/</g, '&lt;')}${/redirect URL/i.test(why) ? '\nAdd this site’s domain to your Mollie website profile (Dashboard → Settings → Website profiles).' : ''}`) }
         return res.status(424).json({ error: 'mollie_error', message: 'Paying inside the app isn’t available right now. Use Mollie’s secure payment page below.', fallback: true })
       }
@@ -182,7 +211,7 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
     }))
   }
 
-  return { enabled, options, sync, settle, routes, publicRoutes }
+  return { enabled, options, sync, settle, routes, publicRoutes, checkDomain, sites }
 }
 
 module.exports = { createMollie, CURRENCIES, mode }
