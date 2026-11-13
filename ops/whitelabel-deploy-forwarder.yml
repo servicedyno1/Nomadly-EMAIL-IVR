@@ -1,0 +1,32 @@
+name: Deploy to Droplet
+
+# WhiteLabel branch: all deploy logic lives in main's deploy.yml (workflow files are never synced, so a full
+# copy here goes stale — it once deployed only app-wl and left Voodoo Land / ProShop on old code).
+# A push here just starts main's "Deploy to Droplet" for every WhiteLabel bot (app-wl → app-voodoo → app-proshop),
+# which also runs the post-deploy verify + Telegram report.
+on:
+  push:
+    branches: [WhiteLabel]
+    paths-ignore:
+      - 'memory/**'
+      - '.emergent/**'
+      - 'test_reports/**'
+      - 'investigations/**'
+      - '**.md'
+      - '.github/**'
+      - '.whitelabel-sync'
+
+permissions:
+  actions: write
+
+jobs:
+  forward:
+    name: Start main's deploy for app-wl + app-voodoo + app-proshop
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main -f app=whitelabel
+          echo "### 🚢 Started \"Deploy to Droplet\" (main) for app-wl + app-voodoo + app-proshop" >> "$GITHUB_STEP_SUMMARY"

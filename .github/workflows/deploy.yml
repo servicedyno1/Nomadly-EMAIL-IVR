@@ -203,3 +203,41 @@ jobs:
               -o ServerAliveCountMax=6 \
               "$DROPLET_USER@$DROPLET_HOST" \
               'bash /opt/nomadly/deploy.sh app-proshop'
+
+  # After every deploy: each bot that was meant to update must be on the newest commit of its branch and healthy.
+  # Behind/unhealthy → deploy.sh once more → re-check. One Telegram message to the admin per run.
+  verify:
+    name: Verify every deployed bot is current + healthy (retry once, Telegram report)
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    needs: [deploy-main, deploy-wl, deploy-voodoo, deploy-proshop]
+    if: >-
+      !cancelled() && (needs.deploy-main.result != 'skipped' || needs.deploy-wl.result != 'skipped' ||
+      needs.deploy-voodoo.result != 'skipped' || needs.deploy-proshop.result != 'skipped')
+    env:
+      DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+      DROPLET_USER: ${{ secrets.DROPLET_USER }}
+      APPS: >-
+        ${{ needs.deploy-main.result != 'skipped' && 'app-main' || '' }}
+        ${{ needs.deploy-wl.result != 'skipped' && 'app-wl' || '' }}
+        ${{ needs.deploy-voodoo.result != 'skipped' && 'app-voodoo' || '' }}
+        ${{ needs.deploy-proshop.result != 'skipped' && 'app-proshop' || '' }}
+      TITLE: ${{ github.event_name == 'workflow_dispatch' && format('Deploy {0}', inputs.app) || format('Deploy from {0} ({1})', github.ref_name, github.sha) }}
+    steps:
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.DROPLET_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DROPLET_SSH_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Verify + retry + report
+        run: |
+          ssh -i ~/.ssh/deploy_key -o UserKnownHostsFile=~/.ssh/known_hosts -o StrictHostKeyChecking=yes \
+              -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=10 \
+              "$DROPLET_USER@$DROPLET_HOST" \
+              "bash /opt/nomadly/current/app-main/scripts/deploy_verify.sh '${TITLE:0:60}' $(echo $APPS)"
