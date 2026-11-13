@@ -59,6 +59,7 @@ const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${
   ok('admin text to busy number is sent', ['sent', 'submitted', 'delivered'].includes(bm?.status), bm?.status)
   ok('no admin session opened → replies stay with the other customer', !(await db.collection('bsSessions').findOne({ cid: B.cidOf('Nomadly', ADMIN), to: busyTo })) && (await db.collection('bsSessions').countDocuments({ cid: other, to: busyTo, status: 'active' })) === lines.length)
 
+  await B.setConfig({ freeOneSends: 2 }, 'test') // legacy 2-free cap (default is now unlimited + abuse guard)
   const u = mk(USER)
   for (let i = 0; i < 2; i++) m = await sendVia(u, `+1212555020${i}`, `user text ${i}`)
   m = await u.say('/esimsms')

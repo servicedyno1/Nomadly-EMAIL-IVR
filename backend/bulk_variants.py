@@ -76,3 +76,47 @@ async def variants(body: VariantsIn, request: Request):
         arr = []
     out = [str(x).strip() for x in arr if isinstance(x, (str, int, float)) and str(x).strip()]
     return {"variants": out[:n], "model": used[1], "provider": used[0], "fallback": used is FALLBACK, "primary_error": primary_error}
+
+
+TIPS_SYSTEM = (
+    "You are a US/Canada SMS deliverability expert. A customer's test text did not arrive, most likely carrier spam filtering. "
+    "Find the words or patterns in the text that carriers commonly filter (spam trigger words, ALL CAPS, excessive punctuation or symbols, "
+    "link shorteners, money/prize/urgency claims, loan/crypto wording, look-alike brand impersonation). Then write ONE safer version with the same "
+    "meaning, offer and call to action, keeping every URL and phone number EXACTLY as written and adding none. Plain GSM-7 text only. "
+    'Answer with JSON only: {"risky": [{"word": "...", "why": "max 6 words"}], "rewrite": "..."}'
+)
+
+
+class TipsIn(BaseModel):
+    text: str
+    limit: int = 160
+
+
+@router.post("/api/internal/bulk-esim/tips")
+async def tips(body: TipsIn, request: Request):
+    if not _local(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    key = os.environ.get("EMERGENT_LLM_KEY")
+    if not key:
+        return JSONResponse({"error": "EMERGENT_LLM_KEY not set"}, status_code=503)
+    prompt = f"Text that did not arrive:\n\"\"\"{body.text}\"\"\"\n\nList at most 5 risky words. The rewrite must be at most {body.limit} characters. JSON only."
+    used, primary_error, text = PRIMARY, None, ""
+    for prov in (PRIMARY, FALLBACK):
+        try:
+            used = prov
+            from emergentintegrations.llm.chat import LlmChat, UserMessage
+            k = key if prov is PRIMARY else (os.environ.get("OPENAI_API_KEY") or key)
+            chat = LlmChat(api_key=k, session_id=f"bulk-tips-{uuid.uuid4()}", system_message=TIPS_SYSTEM).with_model(*prov)
+            text = str(await chat.send_message(UserMessage(text=prompt)) or "")
+            break
+        except Exception as e:
+            if prov is FALLBACK:
+                return JSONResponse({"error": f"claude: {primary_error} | openai: {str(e)[:300]}"}, status_code=502)
+            primary_error = str(e)[:300]
+    m = re.search(r"\{[\s\S]*\}", text)
+    try:
+        data = json.loads(m.group(0)) if m else {}
+    except Exception:
+        data = {}
+    risky = [{"word": str(r.get("word", ""))[:40], "why": str(r.get("why", ""))[:60]} for r in (data.get("risky") or []) if isinstance(r, dict) and r.get("word")][:5]
+    return {"risky": risky, "rewrite": str(data.get("rewrite") or "").strip(), "model": used[1], "fallback": used is FALLBACK, "primary_error": primary_error}

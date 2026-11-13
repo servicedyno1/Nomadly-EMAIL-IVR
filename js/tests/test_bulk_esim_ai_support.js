@@ -17,7 +17,7 @@ const BANNED = /spenza|telnyx|twilio|web risk|safe browsing|openai|gpt|claude|an
   await db.collection('bsCampaigns').updateOne({ _id: cp._id }, { $set: { status: 'scheduled' } })
   const ask = async (q) => { await AI.clearHistory(CHAT).catch(() => {}); const r = await AI.getAiResponse(CHAT, q, 'en'); return String(r?.response || r?.error || '') }
   const qs = [
-    ['How much does BulkSMS cost?', (a) => /\$50/.test(a) && /\$75/.test(a), 'quotes $50 / $75 per 500'],
+    ['How much does BulkSMS cost?', (a) => /\$50/.test(a) && !/\$75/.test(a), 'quotes one $50 / 500 price (no $75)'],
     ['Is there a discount if I schedule?', (a) => /10\s?%/.test(a) && /24/.test(a), '10% for 24 h+ ahead'],
     ['How much are replies and how many numbers can I send to?', (a) => /\$20/.test(a) && /500/.test(a) && /2,?000/.test(a), 'replies $20, 500–2000'],
     ['Which company sends the SMS? Who is your provider and where do the numbers come from?', (a) => /real US mobile numbers/i.test(a), 'one short general answer'],

@@ -126,7 +126,7 @@ const countDay = (cid, day, field) => C('bsDaily').updateOne({ _id: `${cid}:${da
 const state = async () => ({ reasons: [], ...((await C('bsConfig').findOne({ _id: 'state' })) || {}) })
 async function pause(reason, note) {
   const r = await C('bsConfig').updateOne({ _id: 'state', reasons: { $ne: reason } }, { $addToSet: { reasons: reason }, $set: { [`notes.${reason}`]: note || null, pausedAt: new Date() } }, { upsert: true }).catch(e => (e.code === 11000 ? { modifiedCount: 0 } : Promise.reject(e)))
-  if (r.modifiedCount || r.upsertedCount) { alert(`⏸ Sending PAUSED — ${reason}${note ? `: ${note}` : ''}. Queued texts wait and continue automatically when it clears.`); incident('paused', { reason, note }) }
+  if (r.modifiedCount || r.upsertedCount) { alert(reason === 'provider_credit' ? `⏸ New line buying PAUSED — ${note || reason}` : `⏸ Sending PAUSED — ${reason}${note ? `: ${note}` : ''}. Queued texts wait and continue automatically when it clears.`); incident('paused', { reason, note }) }
 }
 async function resume(reason) {
   const r = await C('bsConfig').updateOne({ _id: 'state', reasons: reason }, { $pull: { reasons: reason } })
@@ -224,7 +224,7 @@ async function adviseAccounts(c, { lines, target } = {}) {
   const n = c.accounts.length, max = maxLines(c), ceiling = dayCeiling(today(), c), near = lines != null && max && lines >= Math.ceil(max * 0.8), over = target != null && target > ceiling
   if ((!near && !over) || c.maxEsims || n >= P.MAX_ACCOUNTS) return false
   if (!(await once(`acctadvice:${n}:${today()}`))) return true
-  alert(`📣 Capacity is near the Spenza limit: ${lines ?? '?'} of ${max} line(s) across ${n} account(s)${over ? `, and the demand model wants ${target} SMS/day against a ceiling of ${ceiling}` : ''}. Spenza caps each account at ${c.accounts.map(a => `${a.perMin}`).join('/')} SMS/min, so more lines on the same account add nothing. To grow further, add another Spenza account (account #${n + 1}) and redeploy — the engine connects it automatically.`)
+  alert(`📣 Capacity is near the Spenza limit: ${lines ?? '?'} of ${max} line(s) across ${n} account(s)${over ? `, and the demand model wants ${target} SMS/day against a ceiling of ${ceiling}` : ''}. Spenza caps each account at ${c.accounts.map(a => `${a.perMin}`).join('/')} SMS/min, so more lines on the same account add nothing. To grow further, add Spenza account #${n + 1}: set SPENZA_BULK_API_KEY_${n + 1} and SPENZA_BULK_API_SECRET_${n + 1}, then redeploy — the engine connects it automatically.`)
   incident('account_advice', { lines, max, target, ceiling, accounts: n }); return true
 }
 async function provisionOne(reason, by, role = 'service', account = null, { want } = {}) {
@@ -668,7 +668,7 @@ const unlock = (key) => C('bsLocks').deleteOne({ _id: key })
 // Holds capacity for `holdMinutes` while the customer pays. type: 'paid' | 'free'.
 // Volume = SMS parts. Price = parts × (link/phone or plain rate). The day's allowance must have room for the whole booking.
 async function createBooking(cid, { date, hour, volume, type = 'paid', campaignId, now = false }) {
-  if (now) { if (!(await ready()).send) return E('off_now'); const ns = nowSlot() || { date: today(), hour: new Date().getUTCHours() }; date = ns.date; hour = ns.hour }
+  if (now) { if (!(await ready()).send) return E('off_now'); if (!(await sendWindow()).open) return E('err_slot'); const ns = nowSlot() || { date: today(), hour: new Date().getUTCHours() }; date = ns.date; hour = ns.hour }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date)) || isNaN(Date.parse(date)) || !(Number.isInteger(Number(hour)) && hour !== null && hour !== '' && Number(hour) >= 0 && Number(hour) < 24)) return E('err_slot')
   const c = await cfg(), cu = await C('bsCustomers').findOne({ _id: cid }), cp = campaignId ? await C('bsCampaigns').findOne({ _id: campaignId, cid }) : null
   const v = Math.round(Number(cp ? cp.parts : volume)), listUnit = cp?.withLinks ? c.priceLink : c.pricePlain, limit = cu?.dailyLimit ?? c.defaultDailyLimit
@@ -885,6 +885,30 @@ async function aiVariants(cid, { text, withLinks, optOut = true, avoid = [], swa
   for (const v0 of raw) { const v = alts.length ? swapIn(String(v0 || ''), src, alts[out.length % alts.length]) : v0; const t = v && valid(v); if (t && !out.some(x => x.toLowerCase() === t.toLowerCase())) out.push(t); if (out.length === want) break }
   await C('bsAiVariants').insertOne({ _id: id('av'), cid, text: src, withLinks, optOut, model, raw, variants: out, at: new Date() })
   return out.length ? { variants: out, dropped: raw.length - out.length } : E('err_ai')
+}
+// Test didn't arrive → which words carriers likely filter + one safer rewrite (same AI chain as the rotation versions).
+// A word list always runs too, so the customer gets tips even when the AI is down.
+const TRIGGERS = [[/\bfree\b/i, 'spam trigger word'], [/\b(win|winner|won|prize|congrat\w*)\b/i, 'prize wording gets filtered'], [/\b(cash|\$\$+|money)\b/i, 'money claims get filtered'], [/\b(urgent|act now|limited time|hurry|last chance)\b/i, 'urgency wording'], [/\b(click here|claim)\b/i, 'classic spam phrase'], [/\b(loan|credit|debt|bitcoin|crypto)\b/i, 'high-risk topic'], [/\b(verify|suspended|account locked)\b/i, 'looks like phishing'], [/\b(bit\.ly|tinyurl\.com|goo\.gl|t\.co|is\.gd|cutt\.ly)\b/i, 'link shorteners are blocked — use the full link'], [/!{2,}|\?{2,}/, 'repeated punctuation']]
+const ruleTips = (t) => { const out = []; for (const [re, why] of TRIGGERS) { const m = String(t).match(re); if (m) out.push({ word: m[0], why }) } for (const w of String(t).replace(/https?:\/\/\S+|www\.\S+/g, '').match(/\b[A-Z]{4,}\b/g) || []) if (out.length < 6 && !out.some(x => x.word === w)) out.push({ word: w, why: 'ALL CAPS looks like spam' }); return out.slice(0, 5) }
+async function aiTips(cid, campaignId) {
+  const cp = await C('bsCampaigns').findOne({ _id: campaignId, cid }); if (!cp) return E('err_campaign')
+  const src = cp.content[0], limit = 160 - optLine(cp.optOut).length, rules = ruleTips(src)
+  let ai = { risky: [], rewrite: '' }, model = 'rules'
+  try {
+    if (!process.env.EMERGENT_LLM_KEY && process.env.OPENAI_API_KEY && !P.dry()) {
+      const r = await axios.post('https://api.openai.com/v1/chat/completions', { model: OPENAI_MODEL(), response_format: { type: 'json_object' }, temperature: 0.4, messages: [{ role: 'system', content: 'You are a US/Canada SMS deliverability expert. The text did not arrive (likely carrier spam filtering). Return JSON {"risky":[{"word":"...","why":"max 6 words"}],"rewrite":"..."}: at most 5 risky words, and ONE safer version with the same meaning and call to action, keeping every URL and phone number exactly, adding none, plain text.' }, { role: 'user', content: `Text:\n${src}\nRewrite at most ${limit} characters.` }] }, { headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }, timeout: 60000 })
+      ai = JSON.parse(r.data?.choices?.[0]?.message?.content || '{}'); model = OPENAI_MODEL()
+    } else if (!(P.dry() && !process.env.EMERGENT_LLM_KEY)) {
+      const r = await axios.post(`http://127.0.0.1:${process.env.BACKEND_PORT || 8001}/api/internal/bulk-esim/tips`, { text: src, limit }, { timeout: 90000 }); ai = r.data || ai; model = r.data?.model || 'ai'
+    }
+  } catch (err) { audit('ai_tips_error', { cid, error: err.response?.data?.error || err.message }) }
+  const risky = [...(Array.isArray(ai.risky) ? ai.risky : [])].filter(x => x && x.word && src.toLowerCase().includes(String(x.word).toLowerCase()))
+  for (const r of rules) if (risky.length < 5 && !risky.some(x => x.word.toLowerCase() === r.word.toLowerCase())) risky.push(r)
+  // The rewrite must still be one SMS and carry exactly the same links / phone numbers.
+  const rw = String(ai.rewrite || '').trim(), same = (a, b) => a.size === b.size && [...a].every(x => b.has(x))
+  const rewrite = rw && rw.toLowerCase() !== src.toLowerCase() && !checkContent(rw, cp.withLinks, cp.optOut).error && same(urlsAndPhones(rw), urlsAndPhones(src)) ? rw : null
+  await C('bsAiTips').insertOne({ _id: id('at'), cid, campaignId, text: src, model, risky, rewrite, raw: ai, at: new Date() }).catch(() => {})
+  return { risky: risky.slice(0, 5), rewrite }
 }
 // Link safety (Google): at the message step a flagged link rejects the text; if Google can't answer the text goes through marked
 // linksUnchecked and the 10-minute sweep checks it again. Flagged links found later stop the versions that carry them (no refund).
@@ -1542,7 +1566,7 @@ async function autoscale() {
     const st = await state(), cost = await planCost(firstAccount(c)), bal = st.forecast?.credit, needUsd = Math.round(need * cost * 100) / 100
     if (bal != null && bal < needUsd + 1 && await once(`growth:${today()}:${need}`)) alert(`📈 Paid bookings need ${need} more line(s) (≈ $${needUsd}) — Spenza balance $${bal}. Top up about $${Math.round((needUsd - bal + 1) * 100) / 100}; whatever can't be bought now is ordered automatically after the top-up.`)
     const r = await provisionFor(why, async () => (await needOf()).n)
-    if (r.ok) alert(`📈 Bought ${r.ok} eSIM(s) (${why}; ${healthy} healthy, ${total} total before).`); if (r.ok < r.need && await once(`scale:${today()}`)) alert(`📈 ${r.need - r.ok} more line(s) needed but not bought: ${r.error || `line ceiling ${p.maxLines} reached`}.`)
+    if (r.ok) alert(`📈 Bought ${r.ok} eSIM(s) (${why}; ${healthy} healthy, ${total} total before).`); if (r.ok < r.need && await once(`scale:${today()}`)) alert(`📈 ${r.need - r.ok} more line(s) needed but not bought: ${String(r.error || `line ceiling ${p.maxLines} reached`).replace(/\.$/, '')}.`)
     await adviseAccounts(c, { lines: await liveCount(), target: wanted })
   }
   else if (await once(`scale:${today()}`)) alert(`📈 Capacity: ${healthy} healthy eSIM(s), ${total} total (min ${c.minEsims}); ${need} more line(s) needed for the next 7 days (${why}). Provisioning needs approval: /bulkprovision, or /bulkset autoProvision true + /bulkset manualApproval false.`)
@@ -1626,4 +1650,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { testFeedback, testBarred, oneGuardList, oneGuardSet, adminAlert: alert, dueReviews, reviewAnswer, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone, backfillIdentity }
+module.exports = { aiTips, testFeedback, testBarred, oneGuardList, oneGuardSet, adminAlert: alert, dueReviews, reviewAnswer, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone, backfillIdentity }

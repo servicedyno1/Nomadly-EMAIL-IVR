@@ -1,6 +1,7 @@
 // eSIM BulkSMS automation check: per-line daily cap + warm-up, projected bookings that buy lines, credit forecast gate,
 // auto-replace with delivery test, plan expiry. Simulated provider. Run from /app: node js/tests/test_bulk_esim_autoscale.js
 require('dotenv').config({ path: require('path').join(__dirname, '../../backend/.env') })
+process.env.BULKSMS_NO_TIME_GATE = 'false' // this suite covers the quiet-hour window (off by default in production)
 process.env.WEB_CLOUDIVR_DRY_RUN = 'true'; process.env.BULK_ESIM_WORKER = 'false'; process.env.BULK_ESIM_FAKE_CREDIT = '200'
 const { MongoClient } = require('mongodb')
 const B = require('../bulk-esim/core')
@@ -68,7 +69,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   if (pr.ok) await db.collection('bsEsims').deleteOne({ _id: pr.esimId })
   process.env.BULK_ESIM_FAKE_CREDIT = '2'; alerts.length = 0; await B.creditWatch()
   await db.collection('bsConfig').updateOne({ _id: 'state' }, { $set: { creditNagAt: Date.now() - 2 * 3600000 } }); await B.creditWatch()
-  ok('below the floor: paused, then reminded again after an hour', (await B.state()).reasons.includes('provider_credit') && alerts.some(a => /PAUSED/.test(a)) && alerts.some(a => /Still paused/.test(a)))
+  ok('below the floor: line buying paused (lines keep sending), then reminded again after an hour', (await B.state()).reasons.includes('provider_credit') && alerts.some(a => /New line buying PAUSED/.test(a)) && alerts.some(a => /Low balance/.test(a)), JSON.stringify([(await B.state()).reasons, alerts.map(a => a.slice(0, 160))]))
   process.env.BULK_ESIM_FAKE_CREDIT = '500'; await B.creditWatch()
   ok('top-up → resumes and bookings open again', !(await B.state()).reasons.length && !!(await B.createBooking(cid, { date: d(4), hour: 12, volume: 600 })).booking)
 

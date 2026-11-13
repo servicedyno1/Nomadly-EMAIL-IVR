@@ -1,6 +1,7 @@
 // Quiet hours (8am–9pm US) apply to BulkSMS campaigns only: single texts and tests go out at once; outside the window
 // "send now / earliest today" is off and BulkSMS shows a notice with today's UTC window.
 require('dotenv').config({ path: require('path').join(__dirname, '../../backend/.env') })
+process.env.BULKSMS_NO_TIME_GATE = 'false' // this suite covers the quiet-hour window (off by default in production)
 process.env.WEB_CLOUDIVR_DRY_RUN = 'true'; process.env.BULK_ESIM_WORKER = 'false'
 const { MongoClient } = require('mongodb')
 const B = require('../bulk-esim/core')

@@ -2955,3 +2955,8 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Home shows the path: Numbers → message → free test → send now or later (5 languages).
 - PROD BUG FIXED: Mongo strict Stable API rejects distinct() — removed from bulk-esim oneGuard (broke single texts/tests on the live bots), SignalWire reserved callers (_index.js), monthly statements (cloudivr-web/statement.js).
 - Campaign checks repaired: bot_flow (rewritten, polls state), bot_flow_i18n, iter243_journey 154/0, ready_gate 24/0, plus new guided_test_screens 26/0, strict_api_no_distinct 5/0. Report: test_reports/iteration_258.json.
+
+## 2026-06 — AI text tips + every BulkSMS check green (preview only, NOT deployed)
+- "No, it didn't" now runs core.aiTips(): same AI chain as rotation versions (backend /api/internal/bulk-esim/tips → Claude, OpenAI fallback; direct OpenAI in prod without Emergent key) + built-in word list fallback. Shows risky words (only ones really in the text) + one safer rewrite (must stay 1 SMS, keep exactly the same links/phones) with "✨ Use safer version" → rebuilds campaign with same numbers, back to the test step. Logged in bsAiTips. 5 languages.
+- Fixes found while repairing checks: "send now" booking refused server-side when the quiet window is closed (gate on); low-credit alert now says "New line buying PAUSED" (lines keep sending); double period in line-shortfall alert; admin "add account" alert names SPENZA_BULK_API_KEY_n/SECRET_n; dry-run SIM now reports a device (BULK_ESIM_FAKE_NODEVICE to simulate none).
+- All 42 test_bulk_esim_* suites pass (accounts 33/0, ai_tips 9/0, journey 154/0 needs ~6 min). autoscale & review each failed once in a full sequential run, passed on 3 reruns (timing flake).

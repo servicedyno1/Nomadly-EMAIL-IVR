@@ -2,6 +2,7 @@
 // expiry) + bug probes for double-buy / stale forecast / stuck bookings. Simulated provider. Run from /app with nodejs STOPPED:
 //   node js/tests/test_bulk_esim_autoscale_iter241.js
 require('dotenv').config({ path: require('path').join(__dirname, '../../backend/.env') })
+process.env.BULKSMS_NO_TIME_GATE = 'false' // this suite covers the quiet-hour window (off by default in production)
 process.env.WEB_CLOUDIVR_DRY_RUN = 'true'; process.env.BULK_ESIM_WORKER = 'false'; process.env.BULK_ESIM_FAKE_CREDIT = '500'
 const { MongoClient } = require('mongodb')
 const B = require('../bulk-esim/core')
@@ -47,7 +48,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
     ok('(c) exactly leadDays (1) ahead is accepted', !!rc2.booking, rc2.error || '')
 
     // (d) per-line daily cap in the send loop
-    cid = await fresh(AUTO)
+    cid = await fresh(AUTO); await B.oneGuardSet(cid, 'trust', 'test') // 20 texts to new numbers would trip the single-text abuse guard; this probe is about the per-line cap
     const pre = await B.createBooking(cid, { date: d(3), hour: 12, volume: 1000 }); await B.confirmBooking(pre.booking._id, {}); await B.healthCheck()
     const lines = await X('bsEsims').countDocuments({ status: 'available' })
     await B.setConfig({ esimDailyLimit: 3, warmupDays: 1, platformPerMin: 10000, esimPerMin: 10000 }, 'test')
@@ -67,9 +68,9 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
     const pe = await B.provisionOne('test'); ok('(e) order is tried (Spenza decides) instead of refused by forecast', !!pe.ok, pe.error)
     process.env.BULK_ESIM_FAKE_CREDIT = '2'; alerts.length = 0; await B.creditWatch()
     ok('(e) credit 2 → paused', (await B.state()).reasons.includes('provider_credit') && alerts.some(a => /PAUSED/.test(a)))
-    await B.creditWatch(); ok('(e) no nag within the hour', !alerts.some(a => /Still paused/.test(a)))
+    await B.creditWatch(); ok('(e) no nag within the hour', !alerts.some(a => /Low balance/.test(a)))
     await X('bsConfig').updateOne({ _id: 'state' }, { $set: { creditNagAt: Date.now() - 2 * 3600000 } }); await B.creditWatch()
-    ok('(e) creditNagAt 2h back → "Still paused" alert', alerts.some(a => /Still paused/.test(a)))
+    ok('(e) creditNagAt 2h back → "Low balance" reminder', alerts.some(a => /Low balance/.test(a)))
     process.env.BULK_ESIM_FAKE_CREDIT = '500'; await B.creditWatch()
     ok('(e) credit 500 → resumed + booking accepted', !(await B.state()).reasons.length && !!(await B.createBooking(cid, { date: d(4), hour: 12, volume: 600 })).booking, `f0.committed=${f0.committed}`)
 
@@ -107,12 +108,13 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
     const need2 = Math.ceil(2000 / (B.lineCap(await B.cfg(), 4) * 0.8))
     probe(`P2 concurrent confirms buy no more than needed (${need2})`, provCalls > need2, `bought=${provCalls}`)
 
-    // P3: stale forecast inside a batch — reserve fits 1 line, batch of 4 requested
+    // P3: no reserve floor any more (owner's choice: Spenza decides) — a batch of 4 is tried even when the forecast fits 1.
+    // A probe only flags a bug if NOTHING is bought while credit is positive.
     cid = await fresh(AUTO)
     process.env.BULK_ESIM_FAKE_CREDIT = '25'; await B.creditWatch()
     const fP3 = (await B.state()).forecast
     const pm = await B.provisionMany(4, 'probe')
-    probe(`P3 provisionMany respects reserve (available $${fP3.available}, line $10)`, pm.ok > Math.floor(fP3.available / 10), `bought=${pm.ok}`)
+    probe(`P3 provisionMany tries the batch, Spenza decides (available $${fP3.available}, line $10)`, !(pm.ok >= 1), `bought=${pm.ok}`)
 
     // P4: booking day arrives while bought lines are still not active → autoscale buys again each run
     cid = await fresh(AUTO)

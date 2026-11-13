@@ -1,6 +1,7 @@
 // eSIM BulkSMS lean start: 3 eSIMs (tester + 2 service, no monitor), no balance floor; an order refused for credit alerts the admin
 // with the top-up needed and is retried automatically after the top-up. Run from /app: node js/tests/test_bulk_esim_lean_start.js
 require('dotenv').config({ path: require('path').join(__dirname, '../../backend/.env') })
+process.env.BULKSMS_NO_TIME_GATE = 'false' // this suite covers the quiet-hour window (off by default in production)
 process.env.WEB_CLOUDIVR_DRY_RUN = 'true'; process.env.BULK_ESIM_WORKER = 'false'; process.env.BULK_ESIM_FAKE_CREDIT = '30'
 delete process.env.SPENZA_BULK_API_KEY; delete process.env.SPENZA_BULK_API_SECRET; delete process.env.BULK_ESIM_FAKE_ACCOUNTS; delete process.env.BULK_ESIM_FAKE_PROVISION_FAIL
 const { MongoClient } = require('mongodb')
@@ -49,7 +50,7 @@ const nums = (n, from = 1000) => Array.from({ length: n }, (_, i) => `+1212555${
   const bk2 = await B.createBooking(cid2, { campaignId: cp2._id, date: new Date(Date.now() + 86400000).toISOString().slice(0, 10), hour: 17 })
   if (bk2.booking) await B.confirmBooking(bk2.booking._id, { method: 'wallet' })
   const before = await live(); n0 = alerts.length; await B.autoscale()
-  ok('bookings grow → admin told how much to top up for the extra lines', /Bookings need \d+ more line\(s\)/.test(since(n0)) && /Top up about/.test(since(n0)) && (await live()) === before, since(n0).slice(0, 300))
+  ok('bookings grow → admin told how much to top up for the extra lines', /[Bb]ookings need \d+ more line\(s\)/.test(since(n0)) && /Top up about/.test(since(n0)) && (await live()) === before, since(n0).slice(0, 300))
   process.env.BULK_ESIM_FAKE_CREDIT = '200'; n0 = alerts.length; await B.creditWatch()
   ok('top-up → missing lines ordered automatically', /topped up \(\$200\) — ordering the missing line/.test(since(n0)) && (await live()) > before && /Bought \d+ eSIM/.test(since(n0)), since(n0).slice(0, 300))
 
