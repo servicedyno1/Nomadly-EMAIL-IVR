@@ -29,6 +29,26 @@ function BulkBar({ numbers, onDone }) {
   );
 }
 
+// One switch for every customer: off hides custom caller IDs in the bot and web, and calls show their own number.
+function Switch({ on, onDone }) {
+  const [busy, setBusy] = useState(false);
+  const flip = async () => {
+    if (!window.confirm(on ? 'Turn custom caller IDs off? Options are hidden for all customers and their calls show their own number.' : 'Turn custom caller IDs on for all customers?')) return;
+    setBusy(true);
+    try { await api('/admin/caller-ids/switch', { method: 'PUT', body: { enabled: !on } }); toast.success(on ? 'Custom caller IDs are off' : 'Custom caller IDs are on'); onDone(); }
+    catch (e) { toast.error(e.message); } finally { setBusy(false); }
+  };
+  return (
+    <div className="civr-card p-4 flex flex-wrap items-center gap-3" data-testid="admin-caller-ids-switch">
+      <div className="flex-1 min-w-[14rem]">
+        <b>Custom caller IDs for customers</b> <Pill tone={on ? 'ok' : 'warn'}>{on ? 'on' : 'off'}</Pill>
+        <p className="text-xs text-[#a1a1aa] mt-1">{on ? 'Customers can add caller IDs and show them on calls (bot and web).' : 'Hidden in the bot and web. Calls show the customer’s own number. Saved caller IDs are kept for when you turn it back on.'}</p>
+      </div>
+      <button type="button" className={`civr-btn civr-btn-sm ${on ? 'civr-btn-danger' : 'civr-btn-primary'}`} disabled={busy} onClick={flip} data-testid="admin-caller-ids-switch-toggle">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{on ? 'Turn off' : 'Turn on'}</button>
+    </div>
+  );
+}
+
 export default function CallerIdsAdmin() {
   const [sel, setSel] = useState([]);
   const toggle = (n) => setSel(s => (s.includes(n) ? s.filter(x => x !== n) : [...s, n]));
@@ -42,6 +62,7 @@ export default function CallerIdsAdmin() {
         const allOn = review.length > 0 && selected.length === review.length;
         return (
           <div className="space-y-6" data-testid="admin-caller-ids-list">
+            <Switch on={!!d.enabled} onDone={reload} />
             <div>
               <div className="flex flex-wrap items-center gap-3 mb-2">
                 <h3 className="text-sm uppercase tracking-widest text-[#a1a1aa]">Waiting for approval</h3>

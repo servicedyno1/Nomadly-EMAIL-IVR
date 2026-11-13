@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+process.env.CUSTOM_CALLER_ID_ON = 'true'
 // iter223: hand order (pos wins over last-used), 30-day usage counts, last caller ID per VoIP number. Local Mongo, no network.
 require('dotenv').config({ path: require('path').join(__dirname, '../../backend/.env') })
 process.env.WEB_CLOUDIVR_DRY_RUN = 'true'

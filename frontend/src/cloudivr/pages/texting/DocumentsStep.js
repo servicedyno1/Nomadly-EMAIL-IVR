@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Loader2, FileSignature, Upload, Eye, LifeBuoy, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, apiUrl } from '../../api';
 import { Field, ErrorNote } from '../../ui';
 import { openHelpChat } from '../../shortcuts';
+import { LetterPreview } from './LetterPreview';
 
 const FIELDS = [['name', 'Account holder’s full name', 'As on the phone bill'], ['business', 'Business name (optional)', ''], ['address', 'Street address', 'Service address on the bill'], ['city', 'City', ''], ['state', 'State / province', ''], ['zip', 'ZIP / postal code', ''], ['carrier', 'Current phone provider', 'e.g. AT&T, Comcast, RingCentral'], ['account', 'Account number (optional)', 'From the bill']];
 const REQUIRED = ['name', 'address', 'city', 'state', 'zip', 'carrier'];
@@ -11,7 +12,16 @@ const OK_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 
 // Step 3: details for the Letter of Authorization, signed by typing the holder's name.
 export function LoaStep({ item, onChange }) {
-  const [h, setH] = useState(() => Object.fromEntries(FIELDS.map(([k]) => [k, item.holder?.[k] || ''])));
+  const [h, setH] = useState(() => Object.fromEntries(FIELDS.map(([k]) => [k, item.holder?.[k] || item.draft?.[k] || ''])));
+  const [saved, setSaved] = useState(!!item.draft);
+  const first = useRef(true);
+  // Save the details as they type (on their account), so leaving the page or switching device keeps them.
+  useEffect(() => {
+    if (first.current) { first.current = false; return undefined; }
+    setSaved(false);
+    const t = setTimeout(() => api(`/hosted-sms/${item.id}/draft`, { method: 'PUT', body: { holder: h } }).then(() => setSaved(true), () => {}), 800);
+    return () => clearTimeout(t);
+  }, [h, item.id]);
   const [sig, setSig] = useState('');
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(null);
@@ -40,10 +50,13 @@ export function LoaStep({ item, onChange }) {
   return (
     <div className="space-y-5" data-testid="texting-loa">
       <p className="text-sm text-[#d4d4d8] flex gap-2"><FileSignature className="w-5 h-5 text-[#818cf8] shrink-0" />Enter the details exactly as on your phone bill. We fill in the Letter of Authorization (LOA) and you sign it below.</p>
+      <div className="grid lg:grid-cols-2 gap-6 items-start">
+      <div className="space-y-5">
       <div className="grid sm:grid-cols-2 gap-4">{FIELDS.map(([k, label, hint]) => <Field key={k} label={label} hint={tried && missing.includes(k) ? 'Required' : hint}><input className="civr-input" style={tried && missing.includes(k) ? { borderColor: '#f87171' } : undefined} aria-invalid={tried && missing.includes(k)} value={h[k]} onChange={e => setH({ ...h, [k]: e.target.value })} data-testid={`texting-holder-${k}`} /></Field>)}</div>
       <Field label="Sign: type the account holder’s full name" hint={sig && !sigOk ? 'Must match the account holder’s name above' : 'This is your electronic signature on the letter'}>
         <input className="civr-input text-xl italic" style={{ fontFamily: 'Georgia, serif' }} value={sig} onChange={e => setSig(e.target.value)} placeholder={h.name || 'Full name'} data-testid="texting-loa-signature" />
       </Field>
+      {saved && <p className="text-xs text-[#a1a1aa]" data-testid="texting-loa-saved">Details saved. You can come back to finish later.</p>}
       <label className="flex items-start gap-3 text-sm cursor-pointer" data-testid="texting-consent">
         <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-1 accent-[#818cf8]" data-testid="texting-consent-checkbox" />
         <span>I am the account holder (or authorized by them) and I sign this Letter of Authorization electronically.</span>
@@ -54,6 +67,12 @@ export function LoaStep({ item, onChange }) {
       </div>
       {tried && problem && <p className="text-sm text-[#f87171]" role="alert" data-testid="texting-loa-missing">{problem}</p>}
       <ErrorNote error={err} testid="texting-loa-error" />
+      </div>
+      <div className="lg:sticky lg:top-20 space-y-2">
+        <p className="text-xs uppercase tracking-widest text-[#a1a1aa]">Your letter, live</p>
+        <LetterPreview phone={item.phoneNumber} h={h} sig={sig} sigOk={sigOk} />
+      </div>
+      </div>
     </div>
   );
 }

@@ -192,7 +192,7 @@ function routes(router, deps) {
     let value
     try { value = validate(req.body, req.num, (await agentsOf(req.webChatId)).map(a => a.id)) } catch (e) { return bad(res, 400, 'invalid_triggers', e.message) }
     for (const [i, r] of value.rules.entries()) {
-      if (r.showAs && !(await callerIds.isVerified(req.webChatId, r.showAs))) return bad(res, 400, 'invalid_show_as', `Trigger ${i + 1}: verify ${r.showAs} under My numbers → Your own caller IDs first.`)
+      if (callerIds.enabled() && r.showAs && !(await callerIds.isVerified(req.webChatId, r.showAs))) return bad(res, 400, 'invalid_show_as', `Trigger ${i + 1}: verify ${r.showAs} under My numbers → Your own caller IDs first.`)
     }
     await numbersApi.setField(req.webChatId, req.num.phoneNumber, 'features.textTriggers', value)
     if (value.myPhone) await prefs.updateOne({ _id: req.webChatId }, { $set: { callbackPhone: value.myPhone, updatedAt: new Date() } }, { upsert: true })

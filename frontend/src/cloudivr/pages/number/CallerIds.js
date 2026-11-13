@@ -252,7 +252,9 @@ export function CallerIdManager({ onVerified }) {
 
 export function CallerIds() {
   const { hash } = useLocation();
+  const { data } = useApi('/caller-ids/presets');
   useEffect(() => { if (hash === '#caller-ids') setTimeout(() => document.getElementById('caller-ids')?.scrollIntoView({ behavior: 'smooth' }), 300); }, [hash]);
+  if (!data?.enabled) return null;
   return (
     <section id="caller-ids" className="civr-card p-6 mt-8 scroll-mt-24" data-testid="caller-ids-card">
       <div className="flex items-center gap-2 font-display text-xl font-bold mb-2"><ShieldCheck className="w-5 h-5 text-[#818cf8]" />Your own caller IDs</div>

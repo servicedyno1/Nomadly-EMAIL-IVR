@@ -3566,7 +3566,7 @@ async function handleOutboundSipCall(payload) {
     // Softphones can't add headers, so the number's saved default caller ID is used when no header is sent.
     const _cid = require('./cloudivr-web/caller-ids')
     const showAsHdr = (payload.custom_headers || []).find(x => String(x?.name || '').toLowerCase() === 'x-civr-show-as')?.value || await _cid.defaultFor(chatId, num.phoneNumber).catch(() => null)
-    const outFrom = lookupResult?.isTestCall && lookupResult.testShowAs ? String(lookupResult.testShowAs)
+    const outFrom = !_cid.enabled() ? num.phoneNumber : lookupResult?.isTestCall && lookupResult.testShowAs ? String(lookupResult.testShowAs)
       : showAsHdr && await _cid.isVerified(chatId, showAsHdr).catch(() => false) ? String(showAsHdr) : num.phoneNumber
     if (outFrom !== num.phoneNumber) _cid.logUse(chatId, outFrom, lookupResult?.isTestCall ? 'sip_test_call' : 'sip', destination)
     if ((payload.custom_headers || []).some(x => String(x?.name || '').toLowerCase() === 'x-civr-show-as')) _cid.rememberLast(chatId, num.phoneNumber, outFrom !== num.phoneNumber ? outFrom : null)
@@ -5109,7 +5109,8 @@ const legFrom = (s) => s.transferCallerId || s.callerId
 
 async function initiateOutboundIvrCall(params) {
   if (!params.campaignId) require('./scam-watch').watch({ chatId: params.chatId, where: params.isTrial ? 'Free trial IVR call' : 'Quick IVR call', data: { greetingText: params.greetingText, templateName: params.templateName, placeholderValues: params.placeholderValues, menu: params.menu, otpConfirmMsg: params.otpConfirmMsg, otpRejectMsg: params.otpRejectMsg } })
-  const { chatId, callerId, displayCallerId, transferCallerId, targetNumber, ivrNumber, menu, audioUrl, greetingText, activeKeys, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg, voicemailAudioUrl } = params
+  const { chatId, callerId, displayCallerId: _askedCid, transferCallerId, targetNumber, ivrNumber, menu, audioUrl, greetingText, activeKeys, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg, voicemailAudioUrl } = params
+  const displayCallerId = require('./cloudivr-web/caller-ids').enabled() ? _askedCid : null
   // Backup transfer numbers, tried in order when the transfer number is busy or doesn't answer.
   const transferBackups = ivrNumber ? [...new Set((params.transferBackups || []).map(n => String(n || '').replace(/[^+\d]/g, '')))]
     .filter(n => /^\+[1-9]\d{7,14}$/.test(n) && n !== ivrNumber && !dialGuard.classifyDial(n).blocked).slice(0, 4) : []

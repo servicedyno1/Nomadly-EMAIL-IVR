@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+process.env.CUSTOM_CALLER_ID_ON = 'true'
 // iter218: caller-ids resolve()/isVerified reject attested numbers after Business→Pro downgrade; SIP default falls back to own number.
 require('dotenv').config({ path: require('path').join(__dirname, '../../backend/.env') })
 process.env.WEB_CLOUDIVR_DRY_RUN = 'true'

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+process.env.CUSTOM_CALLER_ID_ON = 'true'
 // iter217: unit checks for js/cloudivr-web/caller-ids.js attest / setDefault / defaultFor / logUse against local Mongo (no network).
 require('dotenv').config({ path: require('path').join(__dirname, '../../backend/.env') })
 process.env.WEB_CLOUDIVR_DRY_RUN = 'true'

@@ -271,7 +271,14 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
         : `<p>We couldn’t approve <b>${number}</b> as your caller ID, so the $${(d.charged || 0).toFixed(2)} was refunded to your wallet.</p><p><b>Reason:</b> ${String(reason).replace(/[<>]/g, '')}</p><p>If this number is yours, reply with proof and we’ll take another look.</p>`).catch(() => {})
       return true
     }
-    r.get('/admin/caller-ids', A, h(async (req, res) => res.json({ items: await callerIdsAdmin.list() })))
+    const cidSwitch = require('./caller-ids')
+    r.get('/admin/caller-ids', A, h(async (req, res) => res.json({ enabled: await cidSwitch.loadSwitch(), items: await callerIdsAdmin.list() })))
+    r.put('/admin/caller-ids/switch', A, h(async (req, res) => {
+      const on = req.body?.enabled === true
+      await cidSwitch.setEnabled(on, req.admin.email)
+      await log1(req, on ? 'caller_id_switch_on' : 'caller_id_switch_off', 'customCallerId', on ? 'Custom caller IDs turned on' : 'Custom caller IDs turned off', {})
+      res.json({ enabled: on })
+    }))
     r.post('/admin/caller-ids/bulk', A, h(async (req, res) => {
       const reason = need(req, res); if (!reason) return
       const approve = req.body?.action === 'approve'

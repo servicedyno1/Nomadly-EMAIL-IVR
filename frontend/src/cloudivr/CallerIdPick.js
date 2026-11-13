@@ -30,6 +30,7 @@ export function ShowAsSelect({ value, onChange, testid, compact = false, from })
   const [open, setOpen] = useState(false);
   const list = data?.items || [];
   const cur = list.some(i => i.number === value) ? value : '';
+  if (!data?.enabled) return null;
   const onVerified = (n) => { reload(); if (n) { onChange(n); setOpen(false); } };
   const addBtn = <button type="button" className="text-[#818cf8] hover:underline inline-flex items-center gap-1 min-h-[44px]" onClick={() => setOpen(true)} data-testid={`${testid}-add-button`}><Plus className="w-3.5 h-3.5" />{list.length ? 'Add a caller ID' : 'Show a different caller ID'}</button>;
   const dialog = (

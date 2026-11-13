@@ -77,6 +77,7 @@ export function CallerIdUpsellCard() {
   const { catalog, refreshSummary } = useShell();
   const { account } = useCivrAuth();
   const { data } = useApi('/numbers');
+  const { data: cid } = useApi('/caller-ids/presets');
   const [closed, setClosed] = useState(false);
   const [busy, setBusy] = useState(false);
   const KEY = `civr.cidUpsell.${account?.id || 'me'}`;
@@ -88,7 +89,7 @@ export function CallerIdUpsellCard() {
   const biz = plans.find(p => p.id === 'business')?.price;
   const base = plans.find(p => p.id === target?.plan)?.price;
   const gap = Number.isFinite(biz) && Number.isFinite(base) ? Math.max(0, biz - base) : null;
-  if (closed || !data || hasBiz || !target || recall(KEY) === '1') return null;
+  if (closed || !data || !cid?.enabled || hasBiz || !target || recall(KEY) === '1') return null;
   const close = () => { remember('preferences', KEY, '1'); setClosed(true); };
   const upgrade = async () => {
     setBusy(true);
