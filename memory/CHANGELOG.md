@@ -1,3 +1,25 @@
+## 2026-11-14 — eSIM line audit + never-activated SIM handling
+
+### Live Spenza audit results
+- **6 active lines**: All 6 pass inter-pool send test (greeting messages accepted between all pairs)
+- **2 dead SIMs**: +16316870635, +16316900316 — SIM=INACTIVE, Sub=PENDING, NO device IMEI. Never bound to a device by Spenza. Structurally stuck.
+- **Credit: $2.64** — critically low for 6 active lines (~$60 needed for next renewal)
+- **All 8 SIMs share one IMEI** (356973390853149) — carrier flagging risk for A2P
+- **All lines 1-3 days old** — zero sender reputation, explains delivery complaints
+
+### Engine fix: never-activated SIM immediate retirement
+- Added `never_activated` health state in `healthCheck()` when SIM has PENDING subscription + no device IMEI
+- These are retired to `failed` immediately (not the usual 24h wait) — they will structurally never activate
+- Admin alert explains the issue and suggests voiding with Spenza
+- Auto-provisions replacement if configured
+- `cancelDead` already handles SUBSCRIPTION_NOT_FOUND gracefully for these
+
+### Tests
+- `test_production_fixes_2026_11.js`: **24/24** (added 2 never-activated tests)
+- `test_bulk_esim_engine.js`: **57/57** (regression)
+
+
+
 ## 2026-11-14 — Admin notification audit & HTML safety hardening
 
 ### Findings & Fixes
