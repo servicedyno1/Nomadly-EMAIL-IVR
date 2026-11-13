@@ -2651,3 +2651,10 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Single texts: unlimited & free, guarded (slow → refuse 24h + tests removed → block on 2nd day). Replies to people who answered are always unlimited.
 - Campaign tests: free & unlimited until misuse; then removed, campaign submission only.
 - Backlog: fix stale webhook wizard tests (bot_flow, bot_flow_i18n), accounts/ready_gate pre-existing failures; deploy + user validation.
+
+## CloudIVR web payments (2026-06)
+- Mollie (live) for wallet top-ups + every checkout (tops up the missing part, then pays from wallet). Currencies = those with enabled methods on the Mollie profile (USD, EUR, GBP, CAD, AUD, CHF, SEK, NOK, DKK, PLN, CZK), converted from USD at the day rate; wallet credited in USD.
+- Backlog: register the site domain(s) on the Mollie website profile; refunds/chargebacks alerting; test with a real small payment on production.
+
+## BulkSMS spam rotation (2026-06)
+- 'Did it arrive?' inbox / spam / no; spam → retry from another line → promote the good line to test line, renumber the flagged one. Test line renumbered daily at 00:00 UTC (and on first start after publish).

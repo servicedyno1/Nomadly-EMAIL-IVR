@@ -1,0 +1,47 @@
+{
+  "summary": "Frontend test of the Mollie payment options in CloudIVR web (LIVE key). All of the Mollie picker UI works: the wallet method cards, the 11 currency chips with converted prices, method chips that change with the currency, the note, preset updates, the Business Line checkout card option and the eSIM inline 'Pay by card / PayPal' button. The crypto flow still works. The core flow is blocked: the single live checkout attempt ($10 → €9.05 EUR) returned 424 mollie_error, so there was no redirect to mollie.com. RCA from the nodejs log: '[Mollie] create failed mol_mwf55xilq5e7az: The redirect URL doesn't match your profile URL or any of your registered domains'. The live Mollie profile does not have the preview domain registered. Following the at-most-one-checkout rule, I did not retry.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/cloudivr-web/wallet/mollie/pay", "issue": "Live Mollie rejects the payment: the redirectUrl domain (vault-setup-30--5ddhk04r.preview.emergentagent.com) is not registered on the Mollie website profile. Returns 424 with the generic message 'The card payment service did not answer', so the user can't pay by card at all from this domain. Add the domain under Mollie Dashboard → Settings → Website profiles, or test on the production domain that is registered. Also check that webhookUrl (SELF_URL) can be reached publicly.", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "POST /wallet/mollie/pay", "issue": "When Mollie fails, a webDeposits row is still saved (mollieStatus 'error'), so every failed attempt shows as a 'Failed' Card deposit in the user's Deposits table. Consider deleting it or hiding error rows."},
+      {"endpoint": "POST /wallet/mollie/pay", "issue": "The error message is misleading for config errors (it says 'did not answer' when Mollie actually rejected the request). Map 422 errors from Mollie to a clearer message."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "MollieReturn / MollieWaiting", "issue": "On /app/wallet?mollie=<ref> for a deposit with mollieStatus 'error', the banner spins forever on 'Finish the payment in the new tab…', while the Deposits table shows 'Failed'. The 'error' status is not in the BAD list (MolliePay.js line 9), and GET /wallet/mollie/:ref returns status 'error' because there is no molliePaymentId. Add 'error' to BAD.", "selector": "[data-testid='wallet-mollie-return-waiting']", "priority": "MEDIUM"},
+      {"component": "MollieReturn copy", "issue": "The wallet top-up opens the checkout in the same tab, but the return banner says 'Finish the payment in the new tab — this continues by itself.' The wording is wrong for this case.", "selector": "[data-testid='wallet-mollie-return']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Wallet → Card → Continue to secure checkout", "issue": "Blocked by the Mollie redirect-domain error (see backend critical). The error note is shown correctly (wallet-mollie-error) and there was no redirect.", "affected_selectors": ["[data-testid='wallet-mollie-continue']"]}
+    ],
+    "design_issues": [
+      {"screen": "Wallet (1920)", "issues": ["The balance card stretches to the full height of the tall Add funds card (about 600px of empty space, with the $1000 figure floating in the middle) once the 11 currency chips and method chips render.", "Changing the amount preset resets the selected currency back to USD (MollieForm is keyed by amount), so the user loses their EUR choice.", "The balance subtext 'credited once the network confirms your deposit' and the empty-deposits text 'Your crypto top-ups' are crypto-only wording."]},
+      {"screen": "Inline MolliePay (eSIM/checkout)", "issues": ["Once 'Pay by card / PayPal' is opened, there is no way to close or collapse the picker.", "11 currency chips plus methods make a long block; consider a currency dropdown."]},
+      {"screen": "Wallet mobile 390", "issues": ["No horizontal overflow (scrollWidth 390). The floating support button covers the status pill of the deposit rows (existing minor issue)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "CRITICAL: Register the app domain(s) (the preview domain and/or production) on the live Mollie website profile, or tell the user that card checkout only works on registered domains. Then re-test one checkout.",
+    "Add 'error' to the BAD statuses in MolliePay.js so the return banner shows 'failed / Try again' instead of spinning forever.",
+    "Fix the return-banner copy for same-tab returns ('new tab' wording).",
+    "Map Mollie 422 errors to a clearer message, and avoid saving 'Failed' deposit rows for payments that were never created.",
+    "Optional: keep the selected currency when the amount changes, and fix the stretched balance card on the wallet page."
+  ],
+  "critical_code_review_comments": [
+    "MolliePay.js: BAD = ['canceled','expired','failed'] is missing 'error' (the backend saves mollieStatus 'error' and returns it from GET /wallet/mollie/:ref).",
+    "Wallet.js TopUp: useMollie runs again on every keystroke in the amount input (no debounce). Each new amount calls /methods 11 times on the backend when the cache misses.",
+    "Checkout.js: when the wallet already covers the price, card still tops up the full price and then pays from the wallet. That's acceptable, but the label could say so.",
+    "mollie.js: the bonus offer applies to Mollie deposits (bonus saved on the deposit and paid by payBonuses via the txn metadata.ref). The 'once the payment confirms' offer note is consistent with this."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend only)", "frontend": "~80% (all picker UI and integration points work; the live checkout redirect fails because of the Mollie profile config)"},
+  "seed_data_creation": "One live Mollie create attempt was made, and Mollie rejected it, so no real payment exists. It left a webDeposits row ref mol_mwf55xilq5e7az ($10, EUR €9.05, mollieStatus 'error', shown as Failed) for civr.uxtest@example.com. One preview crypto deposit ($100 BTC, 'Test only') was created by the crypto regression check.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login civr.uxtest@example.com / UxTest#2026 at /cloudivr/login (click cookie-allow-all first). Wallet testids: wallet-method-card / wallet-method-crypto, wallet-mollie-currency-*, wallet-mollie-method-*, wallet-mollie-note, wallet-mollie-continue, wallet-mollie-error. Business Line checkout: /app/buy → buy-search-button → buy-result-0 → civr-checkout-card-option → civr-checkout-mollie. eSIM: esim-plan-buy-* → esim-pay-card-open. Do not retry the live checkout until the user confirms the domain is registered on Mollie, and then at most once.",
+  "rca of the issue": "Repro: Wallet → Card, PayPal & more → $10 → EUR → Continue. POST /wallet/mollie/pay returns 424. The nodejs log shows '[Mollie] create failed mol_mwf55xilq5e7az: The redirect URL doesn't match your profile URL or any of your registered domains'. Cause: live Mollie website profiles only accept redirectUrl on registered domains, and the preview pod domain is not registered. Fix: add the domain in the Mollie dashboard (Website profile → domains) or use the registered production domain."
+}

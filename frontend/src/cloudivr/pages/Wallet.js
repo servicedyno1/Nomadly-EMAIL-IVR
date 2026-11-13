@@ -98,7 +98,7 @@ function TopUp({ coins, min, initial, onCreated }) {
         {pay === 'crypto' && <Field label="Coin"><CoinSelect coins={coins} value={coin} onChange={setCoin} amountUsd={amount} testid="wallet-coin-select" /></Field>}
       </div>
       <ErrorNote error={error} testid="wallet-topup-error" />
-      {pay === 'card' ? (cardOk ? <MollieForm key={Math.round(n0)} opts={mol} amountUsd={Math.round(n0)} sameTab testid="wallet-mollie" /> : <p className="text-sm text-[var(--c-muted)]" data-testid="wallet-mollie-unavailable">{`Enter an amount between $${min} and $10,000 to see card options.`}</p>)
+      {pay === 'card' ? (cardOk ? <MollieForm opts={mol} amountUsd={Math.round(n0)} sameTab testid="wallet-mollie" /> : <p className="text-sm text-[var(--c-muted)]" data-testid="wallet-mollie-unavailable">{`Enter an amount between $${min} and $10,000 to see card options.`}</p>)
         : <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="wallet-topup-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Get payment address</button>}
     </form>
   );
@@ -148,7 +148,7 @@ function Tables({ data }) {
       <div className="civr-card p-5 sm:p-6 overflow-x-auto">
         <div className="font-display text-2xl font-bold mb-4">Deposits</div>
         {!data.deposits.length ? (
-          <Empty bare icon={Coins} title="No deposits yet" sub="Your crypto top-ups and their status show up here." testid="wallet-deposits-empty">
+          <Empty bare icon={Coins} title="No deposits yet" sub="Your card and crypto top-ups and their status show up here." testid="wallet-deposits-empty">
             <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => { const el = document.querySelector('[data-testid="wallet-amount-input"]'); el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); el?.focus({ preventScroll: true }); }} data-testid="wallet-deposits-empty-add-button"><Plus className="w-4 h-4" />Add funds</button>
           </Empty>
         ) : <Deposits list={data.deposits} />}
@@ -168,7 +168,7 @@ function Tables({ data }) {
 // Back from Mollie's checkout: show the result (the backend re-checks the payment with Mollie).
 function MollieReturn({ ref_, onPaid }) {
   const status = useMollieStatus(ref_, onPaid);
-  return <div className="civr-card p-4 mb-4" data-testid="wallet-mollie-return"><MollieWaiting status={status} onRetry={() => document.querySelector('[data-testid="wallet-method-card"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} testid="wallet-mollie-return" />{status === 'paid' && <p className="text-xs text-[var(--c-muted)] mt-1">If you came here from another tab, you can close this one.</p>}</div>;
+  return <div className="civr-card p-4 mb-4" data-testid="wallet-mollie-return"><MollieWaiting status={status} onRetry={() => document.querySelector('[data-testid="wallet-method-card"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} testid="wallet-mollie-return" newTab={false} />{status === 'paid' && <p className="text-xs text-[var(--c-muted)] mt-1">If you came here from another tab, you can close this one.</p>}</div>;
 }
 
 export default function Wallet() {
@@ -202,10 +202,10 @@ export default function Wallet() {
       {params.get('mollie') && <MollieReturn ref_={params.get('mollie')} onPaid={refresh} />}
       {need > 0 && <NeedBanner need={need} forNum={forNum} />}
       <div className="grid lg:grid-cols-3 gap-4">
-        <div className="civr-card p-6 flex flex-col justify-between" data-testid="wallet-balance-card">
+        <div className="civr-card p-6 flex flex-col justify-between lg:self-start lg:min-h-[280px]" data-testid="wallet-balance-card">
           <div className="flex items-center justify-between"><span className="civr-label">Balance</span><WalletIcon className="w-5 h-5 text-[#818cf8]" /></div>
           <div className="font-mono text-4xl xl:text-5xl whitespace-nowrap mt-6" data-testid="wallet-balance">{money(data.balance)}</div>
-          <div className="text-xs text-[#a1a1aa] mt-2">USD · credited once the network confirms your deposit</div>
+          <div className="text-xs text-[#a1a1aa] mt-2">USD · card payments arrive in seconds, crypto once the network confirms</div>
         </div>
         <div className="lg:col-span-2"><TopUp coins={data.coins} min={data.minTopup} initial={need ? Math.max(data.minTopup, Math.ceil(need)) : Number(params.get('amount')) || 50} onCreated={(d) => { setDep(d); reload(); }} /></div>
       </div>

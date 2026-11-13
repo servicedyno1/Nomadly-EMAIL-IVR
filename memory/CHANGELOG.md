@@ -2970,3 +2970,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - "Did it arrive?" → ✅ Yes, in my inbox / 📥 Yes, but in spam / ❌ No; single-text review also has "📥 In spam". Spam → line lastSpamAt/spamReports, admin alert, AI word check, "🔁 Test from another line" (testSend altFrom → altLine). Inbox on the retry → promoteTester: that line becomes tester, old tester role→service + replaceEsim (renumber on same eSIM). Spam from 2+ customers in 48 h: tester → renumber, service line → suspect.
 - dailyTesterRenumber(): every 5 min check, once per UTC day (bsConfig once-key tester-renumber:YYYY-MM-DD) → runs at midnight UTC and on the first start after publish. Config testerRenumberDaily (default true).
 - Tests: spam_rotation 14/0; all 43 test_bulk_esim_* suites 0 failed; test_cloudivr_mollie 12/0 (Mollie API stubbed).
+
+## 2026-06 — Mollie live on CloudIVR web (preview; NOT deployed)
+- MOLLIE_API_KEY = LIVE organization access token (access_…, profile-restricted) → mode 'live'. Real money. Owner chose live (skipped test key).
+- Preview: nodejs supervisor command now wrapped with /etc/supervisor/emergent-env-exec so platform secrets (MOLLIE_API_KEY) reach node (secret is not written to backend/.env).
+- BLOCKER for preview checkout: Mollie rejects redirectUrl "doesn't match your profile URL or registered domains" — preview domain is not on the Mollie website profile. Production domain must be registered on the profile. Admin alert (max 1/h) now explains it.
+- One live probe payment tr_3SMfscshvivZRNT7MRWZJ ($10, open, unpaid → expires) + one failed attempt during testing.
+- UI polish after iteration_259: currency dropdown, method chips validated per currency, 'error' status shown as failed, return banner copy, inline picker Cancel, balance card no longer stretches, card wording on wallet.

@@ -40,6 +40,7 @@ async function methodsFor(currency, value) {
 function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = {}) {
   const deposits = db.collection('webDeposits'), txns = db.collection('transactions'), w = walletOps(db)
   const enabled = () => !!mode()
+  let lastFailAlert = 0
 
   async function options(amountUsd) {
     const usd = round2(Math.max(MIN_TOPUP_USD, Number(amountUsd) || MIN_TOPUP_USD)), fxr = await rates()
@@ -117,6 +118,7 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
       } catch (e) {
         await deposits.updateOne({ _id: insertedId }, { $set: { mollieStatus: 'error', mollieError: String(e.response?.data?.detail || e.message).slice(0, 300) } })
         log(`[Mollie] create failed ${ref}: ${e.response?.data?.detail || e.message}`)
+        if (Date.now() - lastFailAlert > 3600000) { lastFailAlert = Date.now(); notifyAdmin?.(`⚠️ <b>Mollie checkout could not start</b> for web account ${req.webChatId}: ${String(e.response?.data?.detail || e.message).replace(/</g, '&lt;')}${/redirect URL/i.test(e.response?.data?.detail || '') ? '\nAdd this site’s domain to your Mollie website profile (Dashboard → Settings → Website profiles).' : ''}`) }
         return res.status(424).json({ error: 'mollie_error', message: 'The card payment service did not answer. Try again or pick another method.' })
       }
       await deposits.updateOne({ _id: insertedId }, { $set: { molliePaymentId: p.id, mollieStatus: p.status } })
