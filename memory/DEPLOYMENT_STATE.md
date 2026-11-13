@@ -440,3 +440,18 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - CloudIVR web runs inside app-main (nginx cloudivr → app_main) → covered.
 - Verified in prod env: 212→315 NY, 305→239 FL, 214→254 TX via SignalWire fallback.
 - Lesson: any new provider key added in preview must also be added to the 4 shared prod envs.
+
+## 2026-11-13 — Bird outbound test readiness (investigation)
+- SIP server `nomadly-sip-1` (188.166.34.29, DO) is LIVE: Asterisk 20.6 + Kamailio active; ARI on :8089 (TLS), SIP :5080/:5060. ARI/SIP ports are firewalled from the preview pod (SSH key /root/.ssh/droplet works; prod app pods reach ARI).
+- Bird SIP trunk IS configured on Asterisk: endpoint `bird` (AOR contact sip:...trunk., identify by ip/username), inbound context `from-bird`. Outbound path = callengine ARI originate `PJSIP/<digits>@bird`, callerId=from (js/callengine endpointFor: trunk 'bird' when BIRD_API_KEY set, else 'didww').
+- GAP: BIRD_API_KEY is saved in the secret store (updated 2026-11-12) but NOT present in the running prod app-main backend.env nor preview /app/backend/.env → bird.enabled()=false in the running apps, so outbound currently defaults to the didww trunk and caller-ID verification can't run. Needs the key loaded (publish) to activate.
+- To present a SignalWire number as caller ID on Bird it must be a Bird *verified caller ID* (js/bird startCallerIdVerification → code arrives on SignalWire → submitCallerIdCode); otherwise Bird drops/replaces it. Bird destinations + balance must also be enabled.
+- Tool added: scripts/bird_outbound_test.js (run on prod pod / SIP box): --verify / --code to verify a caller ID; readiness report; --confirm to place a real billable call via ARI. Not yet run (needs key loaded + a destination number + spend approval).
+
+## 2026-11-13 — Automated Bird caller-ID verification (built; live run pending prod)
+- Fact: Bird verifies a caller ID by CALLING the number and reading a 6-digit code aloud — NO SMS option (confirmed via Bird docs + /v1/voice/verified-numbers). So automation must transcribe the spoken code.
+- New js/bird-callerid-verify.js: arm(number)=bird.startCallerIdVerification + store collection birdCallerIdVerify {verifiedNumberId,status,attempts,expiresAt}; captureFromRecording(number,buf)=Whisper transcribe → extractCode (spoken words/homophones + numeric) → bird.submitCallerIdCode; verifiedPresenters(); extractCode().
+- Hook in js/voice-service.js handleRecordingSaved voicemail_recording branch: if Bird enabled AND number isArmed, download the recording, captureFromRecording, return (skips voicemail). Zero behaviour change for non-armed numbers. UNVERIFIED in preview (no SignalWire/Bird creds here; inbound lands on prod).
+- scripts/bird_outbound_test.js: --verify (arm), --status, --code, readiness report, --confirm to place the billable outbound call via ARI PJSIP/<to>@bird.
+- Tests: js/tests/test_bird_callerid_verify.js 11/11 (stubbed Bird+Whisper).
+- BLOCKERS for live run: (1) BIRD_API_KEY saved in secret store but NOT in running prod/preview env → bird.enabled()=false; must be loaded (publish). (2) Needs a SignalWire number with voicemail enabled pointing at this app to receive+record Bird's call. (3) Bird destinations enabled + balance. Accuracy risk: Bird may read the code before the voicemail beep; Bird supports re-call retry.

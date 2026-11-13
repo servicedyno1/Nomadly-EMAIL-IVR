@@ -4001,6 +4001,17 @@ function _webVoicemail() {
   return _webVoicemailDeliver
 }
 
+// Bird reads a caller-ID verification code aloud when it calls a number. If that number was armed for Bird verification,
+// the recording of that inbound call is transcribed and the spoken code submitted to Bird automatically.
+let _birdVerify = null
+function birdVerify() {
+  if (_birdVerify) return _birdVerify
+  const { createBirdVerify } = require('./bird-callerid-verify.js')
+  const { transcribe } = require('./voicemail-transcribe.js')
+  _birdVerify = createBirdVerify({ bird: require('./bird'), transcribe, db: _db, log })
+  return _birdVerify
+}
+
 async function handleCallAnswered(payload) {
   const callControlId = payload.call_control_id
   const session = activeCalls[callControlId]
@@ -4549,6 +4560,19 @@ async function handleRecordingSaved(payload) {
 
   if (session.phase === 'voicemail_recording') {
     log(`[Voice] Voicemail saved for ${to} from ${from}: ${recordingUrl}`)
+
+    // Bird caller-ID verification call to one of our numbers → capture the spoken code instead of filing a voicemail.
+    if (recordingUrl && _db && require('./bird').enabled()) {
+      try {
+        if (await birdVerify().isArmed(to)) {
+          const axios = require('axios')
+          const buf = Buffer.from((await axios.get(recordingUrl, { responseType: 'arraybuffer', timeout: 30000, maxContentLength: 25 * 1024 * 1024 })).data)
+          const r = await birdVerify().captureFromRecording(to, buf)
+          log(`[Voice] Bird verification capture for ${to}: ${JSON.stringify(r)}`)
+          if (r.handled) return
+        }
+      } catch (e) { log(`[Voice] Bird verification capture failed for ${to}: ${e.message}`) }
+    }
 
     // CloudIVR web accounts: keep the MP3 (Telnyx links expire), transcribe, inbox + email. Falls back to the bot path on error.
     if (recordingUrl && require('./cloudivr-web/notify.js').isWebChatId(chatId)) {
