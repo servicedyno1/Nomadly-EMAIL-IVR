@@ -22,6 +22,7 @@ const sign = (s) => crypto.createHmac('sha256', String(process.env.ASTERISK_ARI_
 const legs = new Map()
 const playbacks = new Map() // playback id → { leg, kind }
 let sink = null, ws = null, connected = false
+let aiHook = null // (token, legId) for SIP legs that carry an inbound call to an AI agent
 
 function emit(type, leg, extra = {}) {
   if (!sink || !leg) return
@@ -40,6 +41,7 @@ function finish(l, cause) {
   l.ended = true; l.state = 'hangup'; l.loop = null
   if (cause != null) l.cause = cause
   clearTimeout(l.gTimer)
+  if (l.em) stopExternalMedia(l.id)
   const [c, sip] = CAUSE[cause] || (l.answered ? CAUSE[16] : ['originator_cancel', '487'])
   emit('call.hangup', l, { hangup_cause: c, sip_hangup_cause: sip, hangup_source: l.hungUpByUs ? 'callee' : 'caller', end_time: new Date().toISOString() })
   if (l.transferOf) { const a = legs.get(l.transferOf); if (a && !a.ended && a.peer === l.id && l.answered) hangupCall(a.id) }
@@ -73,7 +75,14 @@ function onEvent(e) {
   switch (e.type) {
     case 'StasisStart': {
       if (l) { if (ch.state === 'Up') onUp(l); break }
-      if (e.args?.[0] === 'out') break
+      if (e.args?.[0] === 'out' || /^UnicastRTP\//.test(ch.name || '')) break
+      // SignalWire handing an inbound call to an AI agent: sip:ai.<app>.<token> — no call events, the agent owns the leg.
+      if (e.args?.[0] === 'sip' && /^ai\./.test(e.args?.[1] || '')) {
+        const t = String(e.args[1]).split('.').slice(2).join('.')
+        const al = track({ id, direction: 'incoming', from: ch.caller?.number || null, to: e.args[1], connection: 'callengine-ai', initiatedSent: true, ai: true })
+        if (aiHook) aiHook(t, al.id); else hangupCall(al.id)
+        break
+      }
       const sip = e.args?.[0] === 'sip'
       const exten = e.args?.[1] || ch.dialplan?.exten || ''
       const num = (n) => (n && /^\d{10,15}$/.test(n) ? `+${n}` : n)
@@ -156,6 +165,27 @@ const answerCall = async (id) => (live(id) ? call('post', `/channels/${raw(id)}/
 async function hangupCall(id) { const l = live(id); if (!l) return null; l.hungUpByUs = true; await call('delete', `/channels/${raw(id)}`, { reason: 'normal' }); return null }
 async function rejectCall(id, cause) { const l = live(id); if (!l) return null; await call('delete', `/channels/${raw(id)}`, { reason: cause === 'USER_BUSY' ? 'busy' : 'normal' }); return null }
 const isCallAlive = async (id) => !!live(id)
+// Live audio of a call to/from host:port as RTP (μ-law) → { port } of Asterisk's side, or null.
+async function startExternalMedia(id, host) {
+  const l = live(id); if (!l || l.em) return null
+  const ch = crypto.randomUUID()
+  const em = await call('post', '/channels/externalMedia', { channelId: ch, app: app(), external_host: host, format: 'ulaw', encapsulation: 'rtp', transport: 'udp', connection_type: 'client', direction: 'both' })
+  if (!em) return null
+  const br = await call('post', '/bridges', { type: 'mixing' })
+  if (!br || !(await call('post', `/bridges/${br.id}/addChannel`, { channel: `${raw(id)},${ch}` }))) { call('delete', `/channels/${ch}`); if (br) call('delete', `/bridges/${br.id}`); return null }
+  l.em = { ch, br: br.id }
+  // Where Asterisk listens: its reported address unless that is unroutable from here, then the SIP server's own host.
+  const a = String(em.channelvars?.UNICASTRTP_LOCAL_ADDRESS || '')
+  const address = !a || /^(0\.|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(a) ? new URL(url()).hostname : a
+  return { port: Number(em.channelvars?.UNICASTRTP_LOCAL_PORT) || null, address }
+}
+async function stopExternalMedia(id) {
+  const l = legs.get(id); const em = l?.em
+  if (!em) return
+  l.em = null
+  await call('delete', `/channels/${em.ch}`)
+  await call('delete', `/bridges/${em.br}`)
+}
 async function speakOnCall(id, text, voice, language) { const l = live(id); if (!l) return null; return (await play(l, ttsMedia(text, voice, language), 'speak')) ? { result: 'ok' } : null }
 async function playbackStart(id, audioUrl, options = {}) {
   const l = live(id); if (!l) return null
@@ -243,5 +273,5 @@ async function createOutboundCall(from, to, webhookUrl, connectionId, options = 
 
 const M = module.exports = {
   enabled, isAe, connected: () => connected, app, sign, ari: makeAri, _legs: legs, _onEvent: onEvent, _setSink: (fn) => { sink = fn }, _setConnected: (v) => { connected = v },
-  activeBird, start, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall,
+  activeBird, start, startExternalMedia, stopExternalMedia, setAiHook: (fn) => { aiHook = fn }, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall,
 }
