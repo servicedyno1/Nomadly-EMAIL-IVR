@@ -20,7 +20,7 @@ export default function Fax() {
     const t = setInterval(reload, 5000);
     return () => clearInterval(t);
   }, [live, reload]);
-  const head = <PageHeader label="Phone numbers" title="Fax" sub="Send and receive faxes on a fax-only number or your Business plan numbers. 50 free pages a month per number (sent + received), then $2 a page from your wallet." testid="fax-header"><Link to={cp('/app/help?topic=fax')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="fax-help-link"><HelpCircle className="w-4 h-4" />Fax guide</Link></PageHeader>;
+  const head = <PageHeader label="Phone numbers" title="Fax" sub="Send and receive faxes on your fax-only numbers (USA and Canada). 50 free pages a month per number (sent + received), then $2 a page from your wallet." testid="fax-header"><Link to={cp('/app/help?topic=fax')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="fax-help-link"><HelpCircle className="w-4 h-4" />Fax guide</Link></PageHeader>;
   if (loading && !data) return <div data-testid="fax-page">{head}<SkeletonPage header={false} cards={2} rows={3} /></div>;
   if (error && !data) return <div data-testid="fax-page">{head}<ErrorNote error={error} onRetry={reload} /></div>;
   const nums = data?.numbers || [];
@@ -29,7 +29,7 @@ export default function Fax() {
     <div data-testid="fax-page">
       {head}
       {!nums.length && (
-        <Empty icon={Printer} title="No fax numbers yet" sub="Get a fax-only number for the USA or Canada, or a Business plan line." testid="fax-empty">
+        <Empty icon={Printer} title="No fax numbers yet" sub="Get a fax-only number for the USA or Canada to send and receive faxes." testid="fax-empty">
           <Link to={cp('/app/buy?purpose=fax')} className="civr-btn civr-btn-primary" data-testid="fax-buy-link">Get a fax number</Link>
         </Empty>
       )}

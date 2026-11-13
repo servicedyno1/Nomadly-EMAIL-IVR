@@ -1,0 +1,40 @@
+{
+  "summary": "Tested the fax-only number feature (Telnyx fax account, US/CA) end to end. Backend: 11 of 12 pytest cases pass. Covered: the offer, real Telnyx search for US and CA (with and without area code), GB -> 400 invalid_country, a number not in the last search -> 400 search_again, dry-run buy that debits $15 and clears the search cache, the bought number listed in /fax-numbers and /fax (faxOnly, eligible, faxLine true), the owned number left out of later searches, PATCH autoRenew false (persisted; unknown number -> 404), and PATCH /fax/line -> 409 fax_only. Frontend: all requested flows pass. The purpose picker defaults to Voice with the Business Line flow. Multi-select works. SMS shows buy-sms-card linking to /cloudivr/app/texting-number and hides buy-texting-number-cta. With nothing selected, buy-purpose-empty shows and the Business Line flow is hidden. ?purpose=fax preselects Fax only. The fax card shows the $15/month price. CA 416 and US searches each return 12 numbers, all with the 'Fax only' pill. Pick, then Pay $15.00 from wallet: the header balance drops by $15 and the app goes to /cloudivr/app/fax. On the Fax page the number has the fax-only pill, no toggle, the status 'Fax-only number · always receiving faxes', and is listed in the fax-from-select sender list. One functional gap: the fax-number charge never appears in wallet history.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/cloudivr-web/wallet", "issue": "The $15 fax-number purchase and renewal debits (transactions type 'fax-number' / 'fax-number-renewal') are not in wallet history. HOSTED and LABEL in js/cloudivr-web/wallet.js do not map these types, so the user sees their balance drop with no history line. Verified: test_wallet_history_shows_fax_debit fails."},
+      {"endpoint": "js/fax-service.js hdrs()", "issue": "All fax-service Telnyx calls now use the fax-account key, including setLine/reapplyLine for legacy Business-plan numbers with provider 'telnyx' on the main account. GET /phone_numbers for those numbers returns nothing on the fax account, so the fax-line toggle would fail with 'could not be switched' (and so would switching back to voice through _ccApp, a main-account connection). It cannot happen in DRY RUN. The main Telnyx account key now returns 401 'user has been marked as blocked', so the impact may only be on paper. Still, the Fax page offers toggles for provider 'telnyx' Business numbers: hide or guard them, or say that Business-number fax is not supported any more."},
+      {"endpoint": "GET /api/cloudivr-web/fax-numbers/search", "issue": "Telnyx best_effort returns numbers from nearby area codes (areaCode 415 -> +1628…, 305 -> +1645…), and US 212 sometimes returns 0 or 1 numbers. Nothing tells the user that the results are not from the area code they asked for."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Manage fax-only number", "issue": "No UI to turn off auto-renew or cancel a fax-only number, or to see its price or renewal date. PATCH /fax-numbers/:phone exists but no frontend code calls it (grep finds no 'fax-numbers' outside FaxNumberBuy.js). Fax-only numbers also do not show on My numbers.", "affected_selectors": ["[data-testid^=fax-line-row-]"]}
+    ],
+    "design_issues": [
+      {"screen": "/cloudivr/app/buy (Fax only or no purpose)", "issues": ["The header becomes 'Get a number', but the subtitle still says 'A business phone number for calls in 2 countries… bigger plans add call menus, campaigns and AI', which is misleading when only Fax or SMS is picked."]},
+      {"screen": "/cloudivr/app/fax", "issues": ["The fax-only row says '50 of 50 free pages left this plan month', but a fax-only number has no plan. Also, the Receive faxes card text 'A number can take voice calls or faxes, not both' is confusing for fax-only rows."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_fax_numbers.py", "/app/test_reports/pytest/pytest_fax_numbers.xml"],
+  "action_items": [
+    "Add 'fax-number' and 'fax-number-renewal' to the wallet history mapping (js/cloudivr-web/wallet.js HOSTED), e.g. 'Fax number monthly · <phone>'.",
+    "Add management for fax-only numbers (auto-renew toggle, renewal date and price, cancel) on the Fax page or My numbers, using PATCH /fax-numbers/:phone.",
+    "Decide how legacy Telnyx Business numbers get fax: fax-service hdrs() now always uses the fax account, so setLine/reapplyLine/send for main-account numbers will fail live. Hide their toggle or say it is unsupported.",
+    "Make the buy-page subtitle depend on the purpose (Fax/SMS-only copy), and optionally note that search results may be from nearby area codes."
+  ],
+  "critical_code_review_comments": [
+    "fax-numbers.js buy(): the lock, debit, then refund-on-failure flow is sound. The search cache is cleared after a buy, so a double buy returns search_again.",
+    "fax-service eligible(): `!!num && num.faxOnly ? a : b` relies on operator precedence. It is correct but hard to read; add parentheses.",
+    "GET /fax lists past_due fax-only numbers. eligible() is false for them while lineOn() is true, so inbound faxes during past_due are dropped by onReceived (the switchOff no-op is right). Check that this 'paused' behaviour is intended and that the user is told.",
+    "The renewal sweep's setInterval in fax-numbers.create() runs on every create() call. It is only created once per routes() call today; keep it that way."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_fax_numbers.py"],
+  "success_rate": {"backend": "92% (11/12)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "Bought 3 dry-run fax numbers on civr.uxtest (+13124507251 via API, +14133195234 via UI, plus one in the second pytest run). All set to status 'released' by _id (dryRun:true filter). The wallet was debited $45 total ($1000 -> ~$955) and was not refunded.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run with `pytest tests/test_cloudivr_fax_numbers.py -p no:xdist -o addopts=''` from /app/backend. Each run buys one dry-run fax number ($15 from the civr.uxtest wallet), and the module teardown releases it. Search hits the real Telnyx fax account; area code 312 is reliable, 212 is flaky. The main TELNYX_API_KEY account returns 401 'blocked'."
+}

@@ -29,6 +29,7 @@ async function searchFax(country, areaCode, limit = 12) {
   }
   return list.filter(hasFax).map(n => ({
     phoneNumber: n.phone_number,
+    nearby: !!areaCode && String(n.phone_number).slice(2, 5) !== areaCode,
     region: (n.region_information || []).map(r => r.region_name).filter(Boolean).join(', '),
     monthlyCost: parseFloat(n.cost_information?.monthly_cost) || 0,
   }))

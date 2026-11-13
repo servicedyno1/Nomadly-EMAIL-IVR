@@ -11,7 +11,7 @@ function routes(router, { db, h, upload, numbersApi, notifyAdmin }) {
   if (!fax.isReady()) fax.init({ db })
   const faxNums = require('../fax-numbers').create(db, { notifyAdmin, push: (id, text) => require('./notify').push(id, text, null, { kind: 'fax' }) })
   const faxOnly = (chatId) => db.collection('faxNumbers').find({ chatId: String(chatId), status: { $ne: 'released' } }).toArray()
-  const mine = async (req, phone) => (await numbersApi.myNumbers(req.webChatId)).find(n => n.phoneNumber === phone) || (await faxOnly(req.webChatId)).find(n => n.phoneNumber === phone) || null
+  const mine = async (req, phone) => (await faxOnly(req.webChatId)).find(n => n.phoneNumber === phone) || null
   const out = (res, fn) => fn().then(r => res.json(r), e => (e.status && e.code ? bad(res, e.status, e.code, e.message) : Promise.reject(e)))
 
   router.get('/fax-numbers', h(async (req, res) => res.json({ ...faxNums.offer(), numbers: await faxNums.list(req.webChatId) })))
@@ -20,9 +20,10 @@ function routes(router, { db, h, upload, numbersApi, notifyAdmin }) {
   router.patch('/fax-numbers/:phone', h((req, res) => out(res, async () => ({ number: await faxNums.setAutoRenew(req.webChatId, req.params.phone, !!req.body?.autoRenew) }))))
 
   router.get('/fax', h(async (req, res) => {
-    const nums = [...(await faxOnly(req.webChatId)), ...(await numbersApi.myNumbers(req.webChatId)).filter(n => n.status === 'active' && (n.provider || 'telnyx') === 'telnyx')]
+    // Web fax runs on the fax-only account, so only fax-only numbers are listed.
+    const nums = await faxOnly(req.webChatId)
     const numbers = await Promise.all(nums.map(async n => ({
-      phoneNumber: n.phoneNumber, plan: n.plan, faxOnly: !!n.faxOnly, status: n.status, eligible: fax.eligible(n), faxLine: fax.lineOn(n), voiceRouting: fax.voiceRouting(n), usage: fax.eligible(n) ? await fax.usage(n) : null,
+      phoneNumber: n.phoneNumber, plan: n.plan, faxOnly: !!n.faxOnly, status: n.status, price: n.price, autoRenew: n.autoRenew !== false, expiresAt: n.expiresAt, eligible: fax.eligible(n), faxLine: fax.lineOn(n), voiceRouting: fax.voiceRouting(n), usage: fax.eligible(n) ? await fax.usage(n) : null,
     })))
     res.json({ numbers, faxes: await fax.list(req.webChatId), batches: await fax.listBatches(req.webChatId), pricing: { freePages: fax.FREE_PAGES, pagePrice: fax.PAGE_PRICE, bulkMax: fax.BULK_MAX } })
   }))

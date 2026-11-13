@@ -34,9 +34,9 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
       throw new FaxNumberError(503, 'unavailable', 'Fax numbers could not be searched right now. Please try again in a minute.')
     }
     const held = new Set((await nums.find({ _id: { $in: found.map(n => n.phoneNumber) }, status: { $ne: 'released' } }, { projection: { _id: 1 } }).toArray()).map(d => d._id))
-    const results = found.filter(n => !held.has(n.phoneNumber)).map(({ phoneNumber, region }) => ({ phoneNumber, region, capabilities: { voice: false, sms: false, fax: true } }))
+    const results = found.filter(n => !held.has(n.phoneNumber)).map(({ phoneNumber, region, nearby }) => ({ phoneNumber, region, nearby, capabilities: { voice: false, sms: false, fax: true } }))
     await cache.updateOne({ _id: String(chatId) }, { $set: { country: cc, results, at: new Date() } }, { upsert: true })
-    return { numbers: results, price: PRICE() }
+    return { numbers: results, price: PRICE(), areaCode: ac, nearbyOnly: !!ac && results.length > 0 && results.every(n => n.nearby) }
   }
 
   async function buy(chatId, { phoneNumber, autoRenew = true, email = '' }) {

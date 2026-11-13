@@ -62,6 +62,7 @@ export function FaxNumberBuy({ balance, onBought }) {
         <button className="civr-btn civr-btn-primary" disabled={busy === 'search'} data-testid="fax-buy-search-button">{busy === 'search' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}Search fax numbers</button>
       </form>
       <div className="mt-4"><ErrorNote error={error} testid="fax-buy-error" /></div>
+      {res?.nearbyOnly && <div className="text-sm text-[#a1a1aa] mt-4" data-testid="fax-buy-nearby-note">{`No fax numbers in area code ${res.areaCode} right now — these are nearby numbers.`}</div>}
       {res && <FaxResults numbers={res.numbers} pick={pick} setPick={setPick} />}
       {pick && (
         <div className="mt-5 flex flex-wrap items-center gap-4 civr-rise" data-testid="fax-buy-checkout">
