@@ -248,3 +248,5 @@
 
 ## Note 2026-11-12
 - In the current pod DB, Alice/Bob accounts were NOT present (testing agent iteration_252). Use `civr.uxtest@example.com` / `UxTest#2026` (chatId 5000000000000077, number +13341112222, audio aud-split-test) for CloudIVR web tests.
+
+- Testing agent (iteration 262, fax landing signup): `qa.fax1794590207@example.com` / `QaTest#2026x` ($0 wallet, no numbers).

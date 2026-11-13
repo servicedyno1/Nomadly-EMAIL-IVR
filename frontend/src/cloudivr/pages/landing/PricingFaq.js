@@ -76,6 +76,10 @@ export function faqItems(c) {
     ['Is the Texting Number or the USA eSIM VoIP?', 'No. Both are real mobile numbers on a USA carrier, not VoIP, and both have two-way SMS: they send and receive texts instantly. The eSIM runs on your phone; the Texting Number lives in CloudIVR and you read and send its texts in Messages in any browser.'],
     ['Can I receive texts, not just send them?', 'Yes. Both have two-way SMS, inbound and outbound. The eSIM sends and receives texts on your phone. The Texting Number sends and receives them in CloudIVR Messages, including verification codes.'],
     ['Does it work with my bank?', 'It’s a real carrier number, and most banks and apps accept it for sign-ups and verification codes. Each service sets its own rules, so we can’t promise every one will.'],
+    ['What is a fax number?', 'A USA or Canada number that only sends and receives faxes, online. It never takes calls or texts. Use a Business Line for calls and SIP, and a Texting Number for SMS.'],
+    ['How much does fax cost?', 'A fax number is $15 a month and includes 50 free pages a month (sent and received). After that, each page is $2 from your wallet, charged only when a fax is delivered or received.'],
+    ['Can I pick my fax number before I sign up?', 'Yes. Search by country and area code on this page, pick your number, then create your free account and pay from your wallet. If an area code has no fax numbers, we show nearby ones.'],
+    ['How do I send and receive faxes?', 'Upload a PDF or photo in CloudIVR and send it to one number or up to 500 at once, with an optional cover page. Faxes sent to your number arrive as PDFs in CloudIVR and by email.'],
     ['Can I choose the number?', 'You pick a USA ZIP code and we ask the carrier for a number near it. It’s a preference: the area code and the exact number can’t be chosen.'],
     ['When do I get it?', 'After your payment is confirmed. It’s usually ready within minutes, and sometimes takes longer. The eSIM QR code is shown in the app and emailed to the address you enter; the Texting Number appears under Texting Number in the app.'],
     ['Can the Texting Number make calls?', 'Yes, outgoing calls from the browser phone, paid from your wallet. The number is also a free verified caller ID for your other CloudIVR calls.'],
@@ -93,10 +97,6 @@ export function faqItems(c) {
     ['Can I cancel?', 'Yes. Plans are month to month. Auto-renew is on by default so your number never lapses — turn it off in the number’s Billing tab and it simply won’t renew, or delete the number any time.'],
     ['What happens if the AI agent can’t help?', 'It never pretends to be human and never asks for card numbers, passwords or one-time codes. When a caller wants a person, the agent transfers the call to the number you set — or, if you haven’t set one, offers to take a message with a name, callback number and the message, which lands in your inbox. On a keypad menu, callers can always reach voicemail. Anyone who asks not to be called again is removed from the list and the call ends politely.'],
     ['Do you scrub numbers or enforce quiet hours?', 'Your do-not-call list is enforced on every campaign — Bulk IVR and AI agent, web and Telegram bot: numbers on it are never dialed and never billed. We don’t check public Do-Not-Call registries for you and we don’t enforce quiet hours automatically: you schedule each campaign, set a daily call limit and repeat it daily or weekly, and you’re responsible for calling only people who have agreed to hear from you, at reasonable hours where they live.'],
-    ['What is a fax number?', 'A USA or Canada number that only sends and receives faxes, online. It never takes calls or texts. Use a Business Line for calls and SIP, and a Texting Number for SMS.'],
-    ['How much does fax cost?', 'A fax number is $15 a month and includes 50 free pages a month (sent and received). After that, each page is $2 from your wallet, charged only when a fax is delivered or received.'],
-    ['Can I pick my fax number before I sign up?', 'Yes. Search by country and area code on this page, pick your number, then create your free account and pay from your wallet. If an area code has no fax numbers, we show nearby ones.'],
-    ['How do I send and receive faxes?', 'Upload a PDF or photo in CloudIVR and send it to one number or up to 500 at once, with an optional cover page. Faxes sent to your number arrive as PDFs in CloudIVR and by email.'],
     ['Is this the same account as the Telegram bot?', 'No. CloudIVR web accounts are separate from Telegram bot accounts, so sign up here with your email.'],
   ];
 }
@@ -107,7 +107,7 @@ export function Faq({ catalog }) {
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-24">
         <Reveal className="mx-auto max-w-2xl text-center"><div className="civr-l-eyebrow">FAQ</div><h2 className="civr-l-h text-3xl sm:text-4xl text-slate-950 mt-3">Got questions? Good.</h2><p className="text-slate-600 mt-4">Plain answers about numbers, IVR, SIP and payments.</p></Reveal>
         <div className="mx-auto mt-12 max-w-3xl space-y-3" data-testid="faq-list">
-          {faqItems(catalog).slice(0, 10).map(([q, a], i) => (
+          {faqItems(catalog).slice(0, 14).map(([q, a], i) => (
             <Reveal as="details" key={q} delay={Math.min(i, 6) * 60} className="civr-faq-item overflow-hidden rounded-2xl border border-slate-200 bg-white" data-testid={`faq-item-${i}`}>
               <summary className="flex items-center justify-between gap-4 cursor-pointer px-5 sm:px-6 py-5 min-h-[56px] text-base font-semibold text-slate-950" data-testid={`faq-question-${i}`}>{q}<span className="civr-faq-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 text-[#1d6fd8]"><ChevronDown className="w-4 h-4" /></span></summary>
               <p className="px-5 sm:px-6 pb-5 text-base leading-relaxed text-slate-600" data-testid={`faq-answer-${i}`}>{a}</p>

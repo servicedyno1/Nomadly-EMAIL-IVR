@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Printer } from 'lucide-react';
 import { USES } from '../buy/PlanHelper';
 import { rememberUse } from '../buy/setupIntent';
 
@@ -24,7 +24,12 @@ export function LandingPlanHelper({ plans, onPlan, setTab }) {
             <Icon className="w-4 h-4 shrink-0 text-slate-500" /><span className="flex-1">{label}</span>{picked === key && <Check className="w-4 h-4" />}
           </button>
         ))}
+        <button type="button" onClick={() => { setPicked('fax'); setTab('fax'); }} aria-pressed={picked === 'fax'} data-testid="landing-plan-helper-fax"
+          className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm text-left text-slate-800 transition-colors ${picked === 'fax' ? 'border-slate-900 bg-slate-50 font-semibold' : 'civr-l-rule hover:bg-slate-50'}`}>
+          <Printer className="w-4 h-4 shrink-0 text-slate-500" /><span className="flex-1">Send and receive faxes</span>{picked === 'fax' && <Check className="w-4 h-4" />}
+        </button>
       </div>
+      {picked === 'fax' && <p className="text-sm text-slate-700 mt-3" data-testid="landing-plan-helper-result">A fax number fits best — find yours below.</p>}
       {hit && <p className="text-sm text-slate-700 mt-3" data-testid="landing-plan-helper-result">{hit[3].plan ? `${nameOf(hit[3].plan)} fits best — it’s highlighted below.` : hit[3].to === '/app/esim' ? 'A USA eSIM fits best — see it below.' : 'A Texting Number fits best — see it below.'}</p>}
     </div>
   );

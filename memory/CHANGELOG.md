@@ -2994,3 +2994,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - `js/fax-numbers.js`: USA/Canada fax-only numbers (collection `faxNumbers`), ordered onto the Fax Application, $15/mo (`FAX_NUMBER_PRICE`), wallet renewals, 3-day past-due then release. Routes `/fax-numbers*` in `cloudivr-web/fax.js`.
 - Web Buy page: purpose picker Voice / SIP / SMS / Fax (multi). Voice+SIP → existing SignalWire Business Line; SMS → Spenza Texting Number; Fax → fax-only number. Bot unchanged.
 - Test: `js/tests/test_fax_numbers.js` 16/16 (stubbed Telnyx). Fax regressions 52/52, 31/31, 5/5.
+
+## 2026-06 — Landing page matches the new number arrangement
+- Hero leads with "What do you need the number for?" (PurposeCards: Voice/SIP/SMS/Fax with prices), eSIM + free-call links kept. HeroCard no longer used.
+- Pricing: 4th tab "A fax number" (FaxLanding) with public fax search before sign-up (`/public/fax-offer`, `/public/fax-numbers/search`, 30/h per real client IP; results remembered 2h in `faxNumberSeen`, so the pick survives sign-up → `/signup?plan=fax` → `/app/buy?purpose=fax` with pick preselected, no onboarding modal).
+- Wording: kicker, cycling word "online fax", pricing intro, coverage line, compare row, "Which one do I need?" fax link, plan helper fax option, sticky CTA "Get your number", app nav "Get a number". FAQ: 4 fax questions (landing shows 14).
+- Empty area-code fax search falls back to same-country numbers flagged nearby.
+- Tested: iteration_262 (all flows pass) + fixes self-verified.

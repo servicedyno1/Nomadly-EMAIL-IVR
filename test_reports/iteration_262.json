@@ -1,0 +1,39 @@
+{
+  "summary": "Tested the CloudIVR landing fax/number rework (API + UI). Hero purpose cards (Voice/SIP/SMS/Fax with price and CTAs), eSIM/try links, Pricing fax tab (product-card-fax $15, search US/CA, nearby note, pick -> continue), the visitor flow (pick -> signup?plan=fax -> buy?purpose=fax with only Fax selected, no onboarding modal, pick preselected, top-up because the wallet is $0), and the funded flow (signed-in pick -> 'Get +1...' -> pay in DRY RUN without searching again -> /app/fax) all work. Public APIs all pass (offer, search with nearby flags, GB 400, 429 on call 31). One real bug: the 4 new fax FAQ questions are in faqItems but the landing FAQ never shows them, because it renders faqItems(...).slice(0,10) and the fax items are at index ~19-22.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/cloudivr-web/public/fax-numbers/search", "issue": "The per-IP rate limit uses the FIRST X-Forwarded-For value, which the client controls. A spoofed XFF got its own budget of 30 (429 came at call 31 under a random fake IP), so anyone can get around the limit by changing the header. Use the last trusted proxy hop (or req.ip with trust proxy set) instead."},
+      {"endpoint": "GET /api/cloudivr-web/public/fax-numbers/search?areaCode=212", "issue": "Telnyx is not consistent for 212. curl returned 1 nearby number twice, but one UI search seconds later returned 0 (fax-landing-none shown). This is upstream sparsity, not a code bug. Consider widening nearby/best-effort results when the list is empty."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Landing FAQ (PricingFaq.js Faq)", "issue": "The fax FAQs ('What is a fax number?', 'How much does fax cost?', 'Can I pick my fax number before I sign up?', 'How do I send and receive faxes?') do NOT show on /cloudivr. Faq renders faqItems(catalog).slice(0, 10) and the fax entries come after index 10. Only the first 10 (eSIM/texting/trial/pay) appear. They do show on Help (slice(2)). Fix: move the fax items into the first 10 or render a fax-specific subset.", "selector": "[data-testid^='faq-question-']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Pricing 'What will you use it for?' chooser", "issues": ["Has 6 options (calls, menu/desk phones, campaigns, AI, texts, USA line on phone) but no fax option, which doesn't match the new 4-purpose arrangement."]},
+      {"screen": "Mobile sticky CTA", "issues": ["Bottom bar says 'Order eSIM or number'. Fax/Business Line wording is not reflected (minor)."]},
+      {"screen": "In-app /app/buy?purpose=fax", "issues": ["Sidebar highlights 'Get a Business Line' while the user is buying a fax number (minor)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_fax_landing_public.py", "/app/test_reports/pytest/fax_landing_public.xml"],
+  "action_items": [
+    "Make the 4 fax FAQ items visible in the landing FAQ (they are cut off by slice(0,10) in PricingFaq.js Faq)",
+    "Rate-limit the public fax search by the trusted client IP, not the first spoofable X-Forwarded-For value",
+    "Optional: add a fax option to the 'What will you use it for?' chooser on the Pricing section"
+  ],
+  "critical_code_review_comments": [
+    "PricingFaq.js: the landing FAQ uses faqItems(...).slice(0,10), so any item added past index 10 never shows on the landing page.",
+    "fax.js publicRoutes: the hits Map is cleared completely once it passes 5000 keys, which resets every visitor's limit; the XFF first-hop is spoofable.",
+    "fax-numbers.js buy(): any number in faxNumberSeen (searched by any visitor within 2h) can be bought by any account. Acceptable by design, but note it.",
+    "FaxNumberBuy: the preselected pick from sessionStorage doesn't keep or show the country/region. The buy uses the seen-doc country, so it is functionally fine."
+  ],
+  "updated_files": ["/app/backend/tests/test_fax_landing_public.py", "/app/memory/test_credentials.md"],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "~93% (all flows pass; fax FAQ wording requirement fails)"},
+  "seed_data_creation": "New account qa.fax1794590207@example.com / QaTest#2026x (recorded in test_credentials.md). civr.uxtest bought dry-run fax number +18076960264 ($15 debited from preview wallet), then marked 'released' in Mongo faxNumbers.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Public fax search is rate limited to 30/hour per first-XFF IP. The pytest uses a random spoofed XFF for the 429 test so it doesn't burn the real IP's budget. 212 is sparse at Telnyx; use 305 (nearby-only results) or CA for reliable results. Retest: faq-question-* on /cloudivr should include the 4 fax questions."
+}

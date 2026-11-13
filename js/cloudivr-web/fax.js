@@ -96,7 +96,7 @@ function publicRoutes(router, { db, h }) {
   const hits = new Map()
   router.get('/public/fax-offer', h(async (req, res) => res.json(faxNums.offer())))
   router.get('/public/fax-numbers/search', h(async (req, res) => {
-    const ip = String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim(), hour = Math.floor(Date.now() / 3600000)
+    const ip = require('./auth').clientIp(req), hour = Math.floor(Date.now() / 3600000)
     const k = `${ip}|${hour}`, n = (hits.get(k) || 0) + 1
     if (hits.size > 5000) hits.clear()
     hits.set(k, n)

@@ -19,6 +19,11 @@ async function lookup(e164) {
 const hasFax = (n) => (n.features || []).some(f => f.name === 'fax')
 // Fax-capable local numbers in the USA or Canada.
 async function searchFax(country, areaCode, limit = 12) {
+  const found = await searchOnce(country, areaCode, limit)
+  // An area code with no fax numbers → numbers elsewhere in the same country (flagged nearby).
+  return found.length || !areaCode ? found : (await searchOnce(country, null, limit)).map(n => ({ ...n, nearby: true }))
+}
+async function searchOnce(country, areaCode, limit) {
   const params = { 'filter[country_code]': country, 'filter[phone_number_type]': 'local', 'filter[features][]': 'fax', 'filter[limit]': limit, 'filter[best_effort]': true }
   if (areaCode) params['filter[national_destination_code]'] = areaCode
   let list
