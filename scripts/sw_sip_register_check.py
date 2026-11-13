@@ -1,7 +1,7 @@
 import socket, hashlib, re, sys, random, string, time
 
 domain, user, pw = sys.argv[1], sys.argv[2], sys.argv[3]
-host = domain
+host = sys.argv[4] if len(sys.argv) > 4 else domain
 port = 5060
 addr = (socket.gethostbyname(host), port)
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
