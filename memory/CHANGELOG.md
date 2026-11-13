@@ -2981,3 +2981,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 ## 2026-06 — REAL test-line renumber done from preview (owner approved)
 - Spenza spenza1, ICCID 8901240397145742442 (assumed tester ESIM-0002, oldest line): +16317901824 → +17062464661 via renew-number. New number in <15 s, SIM ACTIVE, credit unchanged $2.64 (free). Send new→monitor accepted (no DLR; receipt not proven).
 - Deployed code does NOT know the new number → prod test sends from that line fail until publish. Added healthCheck number sync (adopts Spenza number, prevMsisdn, admin alert) — number_sync 4/0.
+
+## 2026-06 — Line order queue + renumber on every spam report (preview only, NOT deployed)
+- orderOrQueue()/processLineQueue() (bsLineQueue): a line order blocked by Spenza credit / ceiling / budget is queued (admin "Line order QUEUED"), retried every 2 min and right when creditWatch sees a top-up; "Queued line order went through" alert; new line joins only after its delivery check. Used by: renumber failures, daily-limit autoReplace, never-activated, failed pre-use check.
+- Spam report on a line → renumber at once (once per line; not for the retry from another line = content issue). Renumber refused → admin alert → order new line → queued if no credit. promoteTester handles the already-renumbered test line (its successor becomes a service line).
+- Daily test renumber refused → keepOnFail: current number kept, admin alert, nothing ordered.
+- replaceEsim now picks up Spenza's "number assigned soon" number within ~20 s (getSim poll); syncInventory (5 min) adopts numbers changed outside the engine (alert + prevMsisdn) and stores hasDevice (getSim has no device field → fixes false "never activated" risk).
+- Tests: spam_rotation 19/0, spenza_failures 16/0, number_sync 4/0, all 45 bulk suites 0 failed.

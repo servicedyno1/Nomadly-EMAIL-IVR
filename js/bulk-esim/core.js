@@ -173,7 +173,7 @@ async function creditWatch() {
     await pause('provider_credit', `Spenza balance ${lowNotes.join(', ')} is below $${c.minCredit}. Existing lines keep sending — no new lines purchased until topped up. Add credit at web.spenza.com`)
     const st = await state(); if (Date.now() - (st.creditNagAt || 0) > HOUR) { await C('bsConfig').updateOne({ _id: 'state' }, { $set: { creditNagAt: Date.now() } }); if (st.creditNagAt) alert(`⏸ Low balance: Spenza ${lowNotes.join(', ')} (floor $${c.minCredit}). Service lines keep sending. ${f.committed ? `$${f.committed} of texts are waiting. ` : ''}Add credit at web.spenza.com to buy more lines.`) }
   } else { const was = (await state()).reasons?.includes('provider_credit'); await resume('provider_credit'); if (was) toppedUp = true }
-  if (toppedUp && !creditWatch.busy) { creditWatch.busy = true; try { await autoscale() } finally { creditWatch.busy = false } }
+  if (toppedUp && !creditWatch.busy) { creditWatch.busy = true; try { await processLineQueue(); await autoscale() } finally { creditWatch.busy = false } }
 }
 // Bookings stop while the balance can't cover what is already promised plus this one (no forecast yet → allowed).
 async function creditShort() { return !!(await state()).reasons?.includes('provider_credit') } // no floor: only a balance that is actually gone stops new bookings
@@ -260,7 +260,7 @@ async function provisionOne(reason, by, role = 'service', account = null, { want
       await setAccount(pick.id, { orderBlockedBal: bal, orderBlockedAt: new Date() })
       if (await once(`ordertopup:${pick.id}:${today()}`)) alert(`💳 Top up Spenza ${acctLabel(pick.id)} to buy lines: balance $${bal}, one line ≈ $${cost}. Sending on the existing lines continues; the missing line(s) are ordered automatically as soon as the balance goes up.`)
     }
-    return { error: err.message }
+    return { error: err.message, kind: err.kind || null }
   }
 }
 async function provisionMany(n, reason, by, role = 'service') {
@@ -305,7 +305,7 @@ async function autoReplace(e, why, c) {
     // (still bounded by the line ceiling, the Spenza credit forecast and the monthly budget inside provisionOne).
     if (!(await once(`replimit:${today()}:${e._id}`))) return
     await C('bsEsims').updateOne({ _id: e._id }, { $set: { replacedBy: 'pending-new-line' } })
-    const nb = await provisionOne(`${e._id} ${why} (daily number-change limit reached)`, 'system', e.role || 'service', e.account)
+    const nb = await orderOrQueue(`${e._id} ${why} (daily number-change limit reached)`, 'system', e.role || 'service', e.account, e._id)
     if (nb.ok) await C('bsEsims').updateOne({ _id: e._id }, { $set: { replacedBy: nb.esimId } }); else await C('bsEsims').updateOne({ _id: e._id }, { $unset: { replacedBy: 1 } })
     alert(nb.ok ? `⚠️ ${e._id} ${e.msisdn || ''}${roleTag(e)}: ${why} — today's number-change limit (${c.maxReplacesPerDay}) is reached, so a new line ${nb.esimId} was ordered on ${acctLabel(nb.account)} instead. It joins the pool after its delivery check.` : `⚠️ ${e._id} ${e.msisdn || ''}: ${why} — today's number-change limit (${c.maxReplacesPerDay}) is reached and ordering a new line failed: ${nb.error}. The pool is one line short.`)
     return
@@ -328,8 +328,14 @@ async function syncAccount(sims, account, c0) {
     let e = await C('bsEsims').findOne({ iccid, status: { $ne: 'replaced' } })
     if (!e) e = await C('bsEsims').findOne({ status: 'provisioning', iccid: null, account })
     if (!e) { await addEsim({ iccid, msisdn, imsi: s.imsi || null, account, role: (await roleCount('tester')) < c0.testerEsims ? 'tester' : (await monitorCount()) < c0.monitorEsims ? 'monitor' : 'service' }); continue }
-    const set = { iccid, providerEsimId: iccid, imsi: s.imsi || e.imsi || null, account }
+    const set = { iccid, providerEsimId: iccid, imsi: s.imsi || e.imsi || null, account, hasDevice: !!s.device?.imei }
     if (msisdn && msisdn !== e.msisdn) Object.assign(set, { msisdn, activationDate: new Date() })
+    // Number changed at Spenza on a line already in use (renew-number done by hand / outside the engine): adopt it, tell the admin.
+    if (msisdn && e.msisdn && msisdn !== e.msisdn && e.status !== 'provisioning') {
+      Object.assign(set, { prevMsisdn: e.msisdn, numberChangedAt: new Date(), recvMiss: 0, sendMiss: 0 })
+      alert(`🔢 ${e._id}${e.role === 'tester' ? ' (test line)' : ''}: Spenza now reports ${msisdn} (was ${e.msisdn}). Number updated; sending continues from the new number.`)
+      incident('number_synced', { esimId: e._id, from: e.msisdn, to: msisdn })
+    }
     const st = String(s.status || '').toUpperCase()
     if (/SUSPEND|DEACTIV|BLOCK/.test(st) && e.status !== 'suspended') { await setEsim(e._id, 'suspended', { ...set, note: `provider ${st}` }); alert(`⚠️ ${e._id} ${e.msisdn || ''} suspended by provider (${st}).`); await autoReplace({ ...e, ...set }, `suspended by provider (${st})`, await cfg()); continue }
     await C('bsEsims').updateOne({ _id: e._id }, { $set: set })
@@ -349,7 +355,33 @@ async function replyImpact(e, reason) {
   if (hit.length) { alert(`📵 ${e._id} ${e.msisdn || ''} lost its number (${reason}) — paid replies affected (reply window ${c.sessionHours} h):\n${hit.map(h => `• ${h.cid} — “${h.name}” (${h.status}): ${h.sentFromLine} text(s) went out from this line, ${h.replies} repl${h.replies === 1 ? 'y' : 'ies'} so far, reply fee $${h.replyFee}`).join('\n')}`); incident('paid_replies_affected', { esimId: e._id, reason, campaigns: hit }) }
   return hit
 }
-async function replaceEsim(eid, reason, by) {
+// Order a line; when Spenza credit / the line ceiling / the budget blocks it, queue the order and retry it every 2 min
+// until it goes through (admin told both times). The new line joins the pool only after its delivery check.
+const ROOM = /credit|ceiling|budget|balance|insufficient|fund/i
+async function orderOrQueue(reason, by, role = 'service', account = null, replaces = null) {
+  const r = await provisionOne(reason, by, role, account)
+  if (r.ok || !(r.kind === 'credit' || ROOM.test(r.error || ''))) return r
+  const q = await C('bsLineQueue').findOneAndUpdate({ status: 'waiting', role, replaces }, { $setOnInsert: { _id: id('lq'), reason, by: by || 'system', role, account, replaces, status: 'waiting', at: new Date(), tries: 0 }, $set: { lastError: r.error } }, { upsert: true, returnDocument: 'after' })
+  const qid = (q?.value || q)?._id
+  if (await once(`lq-alert:${qid}`)) alert(`⏳ Line order QUEUED (${role}${replaces ? ` to replace ${replaces}` : ''}): ${r.error} It is ordered automatically as soon as the Spenza balance allows.`)
+  return { ...r, queued: qid }
+}
+async function processLineQueue() {
+  for (const q of await C('bsLineQueue').find({ status: 'waiting' }).sort({ at: 1 }).toArray()) {
+    if (q.replaces) { const old = await C('bsEsims').findOne({ _id: q.replaces }); if (old && USABLE.includes(old.status)) { await C('bsLineQueue').updateOne({ _id: q._id }, { $set: { status: 'dropped', note: 'line came back', doneAt: new Date() } }); continue } }
+    const r = await provisionOne(`queued: ${q.reason}`, q.by || 'system', q.role, q.account)
+    if (!r.ok) {
+      const room = r.kind === 'credit' || ROOM.test(r.error || '')
+      await C('bsLineQueue').updateOne({ _id: q._id }, { $inc: { tries: 1 }, $set: { lastError: r.error, lastTryAt: new Date(), ...(room ? {} : { status: 'dropped', doneAt: new Date() }) } })
+      if (!room) { alert(`⚠️ Queued line order ${q._id} (${q.role}) dropped: ${r.error}`); continue }
+      break // still no room — the rest waits too
+    }
+    await C('bsLineQueue').updateOne({ _id: q._id }, { $set: { status: 'ordered', esimId: r.esimId, doneAt: new Date() } })
+    if (q.replaces) await C('bsEsims').updateOne({ _id: q.replaces }, { $set: { replacedBy: r.esimId } })
+    alert(`🆕 Queued line order went through: ${r.esimId} (${q.role}) ordered on ${acctLabel(r.account)}${q.replaces ? ` to replace ${q.replaces}` : ''} — it joins the pool after its delivery check.`)
+  }
+}
+async function replaceEsim(eid, reason, by, { keepOnFail = false } = {}) {
   const e = await C('bsEsims').findOne({ _id: eid }); if (!e || e.status === 'replaced') return { error: 'Not found' }
   await replyImpact(e, reason).catch(() => {})
   await setEsim(eid, 'replaced', { note: reason })
@@ -362,12 +394,28 @@ async function replaceEsim(eid, reason, by) {
     const r = await P.replaceNumber(e.iccid, e.account), num = P.norm(r?.data?.phoneNumber || r?.phoneNumber || '')
     if (r?.simulated) await setEsim(n._id, 'testing', { msisdn: `+1201555${String(Math.floor(1000 + Math.random() * 8999))}`, activationDate: new Date() })
     else if (num) await setEsim(n._id, 'testing', { msisdn: num, activationDate: new Date() })
+    else {
+      // Spenza answers "a new number will be assigned soon" (seen live: < 15 s). Pick it up now; the 5-min SIM sync is the fallback.
+      for (let i = 0; i < 4; i++) {
+        await new Promise(res => setTimeout(res, 5000))
+        const sim = await P.getSim(e.iccid, e.account).catch(() => null), got = P.norm(sim?.phoneNumber || sim?.msisdn || '')
+        if (got && got !== e.msisdn) { await setEsim(n._id, 'testing', { msisdn: got, prevMsisdn: e.msisdn, activationDate: new Date() }); break }
+      }
+    }
   } catch (err) {
     st = 'failed'; await setEsim(n._id, 'failed', { note: err.message })
+    if (keepOnFail) {
+      // Daily renumber refused (e.g. Spenza's number-change limit): keep the current number working, nothing is ordered.
+      await setEsim(eid, e.status, { note: `renumber refused, kept: ${err.message}` }); await C('bsEsims').updateOne({ _id: eid }, { $set: { replacedBy: null } })
+      alert(`⚠️ Spenza refused a new number for ${eid} ${e.msisdn || ''}${roleTag(e)} (${reason}): ${esc(err.message)}${err.status ? ` [HTTP ${err.status}]` : ''}. Keeping the current number.`)
+      incident('replace_failed', { esimId: eid, error: err.message, status: err.status || null, kept: true })
+      await C('bsReplacements').insertOne({ oldEsimId: eid, newEsimId: n._id, reason, providerRef: e.iccid, status: 'refused_kept', by: by || 'system', at: new Date() })
+      return { ok: false, kept: true, error: err.message }
+    }
     alert(`❌ Spenza could not replace the number of ${eid} ${e.msisdn || ''}${roleTag(e)} (${acctLabel(e.account || firstAccount(await cfg()))}): ${esc(err.message)}${err.status ? ` [HTTP ${err.status}]` : ''}. Ordering a new line instead…`)
     incident('replace_failed', { esimId: eid, error: err.message, status: err.status || null })
-    bought = await provisionOne(`replacement of ${eid} failed`, by || 'system', e.role || 'service', e.account)
-    alert(bought.ok ? `🆕 New ${e.role === 'tester' ? 'tester ' : ''}line ${bought.esimId} ordered on ${acctLabel(bought.account)} to replace ${eid} — it joins the pool after its delivery check.` : `❌ Ordering a new ${e.role === 'tester' ? 'tester ' : ''}line to replace ${eid} also failed: ${bought.error} — ${e.role === 'tester' ? 'customer test buttons stay hidden' : 'the pool is one line short'}. Fix the cause, then /bulkprovision.`)
+    bought = await orderOrQueue(`replacement of ${eid} failed`, by || 'system', e.role || 'service', e.account, eid)
+    if (!bought.queued) alert(bought.ok ? `🆕 New ${e.role === 'tester' ? 'tester ' : ''}line ${bought.esimId} ordered on ${acctLabel(bought.account)} to replace ${eid} — it joins the pool after its delivery check.` : `❌ Ordering a new ${e.role === 'tester' ? 'tester ' : ''}line to replace ${eid} also failed: ${bought.error} — ${e.role === 'tester' ? 'customer test buttons stay hidden' : 'the pool is one line short'}. Fix the cause, then /bulkprovision.`)
   }
   await C('bsReplacements').insertOne({ oldEsimId: eid, newEsimId: n._id, reason, providerRef: e.iccid, status: st, boughtEsimId: bought?.esimId || null, by: by || 'system', at: new Date() })
   await C('bsSessions').updateMany({ esimId: eid, status: 'active' }, { $set: { status: 'reassign' } })
@@ -385,14 +433,7 @@ async function healthCheck() {
     if (!P.dry()) await new Promise(r => setTimeout(r, 600))
     let health = 'healthy', err = null, expires = e.expirationDate || null
     try { const sim = await P.getSim(e.iccid, e.account), sub = await P.subscription(e.iccid, e.account).catch(() => null), pending = /PENDING/i.test(String(sub?.status || ''))
-      const noDevice = !sim?.device?.imei // SIM was never bound to a device — it will never activate
-      // Number changed at Spenza (renew-number done outside the engine, e.g. by hand): adopt it and re-check delivery.
-      const live = P.norm(sim?.mdn || sim?.phoneNumber || sim?.msisdn || '')
-      if (live && e.msisdn && live !== e.msisdn) {
-        await C('bsEsims').updateOne({ _id: e._id }, { $set: { msisdn: live, prevMsisdn: e.msisdn, numberChangedAt: new Date(), recvMiss: 0, sendMiss: 0 } })
-        alert(`🔢 ${e._id}${e.role === 'tester' ? ' (test line)' : ''}: Spenza now reports ${live} (was ${e.msisdn}). Number updated; sending continues from the new number.`)
-        incident('number_synced', { esimId: e._id, from: e.msisdn, to: live }); e.msisdn = live
-      }
+      const noDevice = !(sim?.device?.imei || e.hasDevice) // never bound to a device (getSim has no device field; the SIM list does → hasDevice)
       const sv = pending ? null : await P.serviceState(e.iccid, e.account), st = String(sim?.status || '').toUpperCase()
       if (sub?.endDate && !isNaN(Date.parse(sub.endDate))) expires = new Date(sub.endDate)
       if (pending && noDevice) health = 'never_activated'; else if (pending) health = 'activating'; else if (expires && expires < new Date()) health = 'expired'; else if (/SUSPEND|BLOCK/.test(st)) health = 'suspended'; else if (sv && sv.sms === false) health = 'provider_restricted'; else if (st && st !== 'ACTIVE') health = 'temporarily_unavailable'
@@ -410,7 +451,7 @@ async function healthCheck() {
       await setEsim(e._id, 'failed', { ...set, note: 'Never activated — SIM has no device bound (subscription PENDING, no IMEI)' })
       incident('never_activated', { esimId: e._id, reason: 'no_device' })
       alert(`💀 ${e._id} ${e.msisdn || ''}: never activated — Spenza assigned this SIM but never bound it to a device (no IMEI, subscription still PENDING). Retired immediately. Ask Spenza to void or refund ICCID ${e.iccid}.${c.autoProvision && !c.manualApproval ? ' Buying a replacement.' : ''}`)
-      if (c.autoProvision && !c.manualApproval) await provisionOne(`${e._id} never activated (no device)`, 'system', e.role || 'service')
+      if (c.autoProvision && !c.manualApproval) await orderOrQueue(`${e._id} never activated (no device)`, 'system', e.role || 'service', null, e._id)
       continue
     }
     // Spenza took the order but never activated the plan (subscription PENDING, SIM INACTIVE): wait, tell the admin at 2 h,
@@ -422,7 +463,7 @@ async function healthCheck() {
         await P.cancelSubscription(e.iccid, e.account).catch(() => null)
         await setEsim(e._id, 'failed', { note: 'Spenza never activated the plan in 24 h' }); incident('never_activated', { esimId: e._id })
         alert(`❌ ${e._id} ${e.msisdn || ''}: Spenza never activated its plan in 24 h (subscription still PENDING) — retired and its pending plan cancelled.${c.autoProvision && !c.manualApproval ? ' Buying a replacement.' : ''} Ask Spenza to refund it if it was billed.`)
-        if (c.autoProvision && !c.manualApproval) await provisionOne(`${e._id} never activated`, 'system', e.role || 'service')
+        if (c.autoProvision && !c.manualApproval) await orderOrQueue(`${e._id} never activated`, 'system', e.role || 'service', null, e._id)
       } else if (age > 2 * HOUR && await once(`activating:${e._id}`)) alert(`⏳ ${e._id} ${e.msisdn || ''}: Spenza has not activated its plan after ${Math.round(age / HOUR)} h (subscription PENDING, SIM INACTIVE). Check the Spenza balance or ask Spenza. It is retired and replaced automatically at 24 h.`)
       continue
     }
@@ -472,7 +513,7 @@ async function preUse(e, c) {
   if (await C('bsTests').findOne({ esimId: e._id, type: 'check', kind: 'pre_use', result: 'passed' })) return 'passed'
   if ((await C('bsTests').countDocuments({ esimId: e._id, type: 'check', kind: 'pre_use', result: { $in: ['no_delivery', 'no_return'] } })) >= 2) {
     await setEsim(e._id, 'failed', { note: 'pre-use check failed twice' }); alert(`❌ ${e._id} ${e.msisdn}: the new ${e.role === 'monitor' ? 'monitor ' : e.role === 'tester' ? 'tester ' : ''}line does not pass the delivery check — retired.${c.autoProvision && !c.manualApproval ? ' Buying a new eSIM.' : ' Use /bulkprovision for a new eSIM.'}`); incident('verify_failed', { esimId: e._id })
-    if (c.autoProvision && !c.manualApproval) await provisionOne(`${e._id} failed its pre-use check`, 'system', e.role || 'service')
+    if (c.autoProvision && !c.manualApproval) await orderOrQueue(`${e._id} failed its pre-use check`, 'system', e.role || 'service', null, e._id)
     return 'failed'
   }
   const r = await startCheck(e, 'pre_use')
@@ -980,10 +1021,11 @@ async function testQuota(cid, c) {
   return { day, week, dayLeft: Math.max(0, c.testsPerDay - day), weekLeft: Math.max(0, c.testsPerWeek - week) }
 }
 // What a test costs right now and whether the customer may send one: verified number, campaign tests left, account quota.
-async function testCheck(cid, campaignId, to) {
+async function testCheck(cid, campaignId, to, { altFrom = null } = {}) {
   const c = await cfg(), cp = await C('bsCampaigns').findOne({ _id: campaignId, cid }), p = normPhone(to)
   if (!cp) return E('err_campaign')
-  if (!(await ready()).test) return E('off_test')
+  // A retry after "in spam" goes from another healthy line, so it works while the test line gets its new number.
+  if (!(await ready()).test && !(altFrom && (await altLine([altFrom])))) return E('off_test')
   if (!validUsCa(p)) return E('err_number')
   if (await C('bsSuppression').findOne({ $or: [{ cid }, { cid: '*' }], phone: p })) return E('err_opted')
   if ((cp.blockedVersions || []).includes(0)) return E('err_link_flagged_all')
@@ -1010,7 +1052,7 @@ async function refundTestCharges(campaignId, paid) {
 }
 // Up to cfg.testSends test texts per campaign during setup (after testCheck passed and the wallet was debited `charge`).
 async function testSend(cid, campaignId, to, { charge = 0, altFrom = null } = {}) {
-  const k = await testCheck(cid, campaignId, to); if (k.error) return k
+  const k = await testCheck(cid, campaignId, to, { altFrom }); if (k.error) return k
   const c = await cfg(), cp = await C('bsCampaigns').findOne({ _id: campaignId, cid })
   if (k.open) {
     await C('bsCampaigns').updateOne({ _id: campaignId }, { $inc: { testsUsed: 1 }, $set: { testedHash: contentHash(cp), testedAt: new Date() } })
@@ -1176,11 +1218,15 @@ async function promoteTester(newId, oldId, cid) {
   const [nw, old] = await Promise.all([C('bsEsims').findOne({ _id: newId }), C('bsEsims').findOne({ _id: oldId })])
   if (!nw || !old || old.role !== 'tester' || nw.role === 'tester' || !USABLE.includes(nw.status)) return null
   if (!(await once(`promote:${oldId}`))) return null
+  // The spam report usually renumbered the old test line already: its successor holds the tester role → it becomes a service line.
+  const succ = old.replacedBy && old.replacedBy !== 'pending-new-line' ? await C('bsEsims').findOne({ _id: old.replacedBy, role: 'tester' }) : null
   await C('bsEsims').updateOne({ _id: newId }, { $set: { role: 'tester', promotedAt: new Date(), promotedFrom: oldId } })
   await C('bsEsims').updateOne({ _id: oldId }, { $set: { role: 'service' } })
-  alert(`🔁 Test line switched: ${old._id} ${old.msisdn || ''} landed in spam for ${cid}; the retry from ${nw._id} ${nw.msisdn || ''} reached the inbox, so ${nw._id} is now the test line. ${old._id} gets a new number and rejoins the sending pool after its delivery check.`)
+  if (succ) await C('bsEsims').updateOne({ _id: succ._id }, { $set: { role: 'service' } })
+  await C('bsLineQueue').updateMany({ status: 'waiting', replaces: oldId, role: 'tester' }, { $set: { role: 'service' } })
+  alert(`🔁 Test line switched: ${old._id} ${old.msisdn || ''} landed in spam for ${cid}; the retry from ${nw._id} ${nw.msisdn || ''} reached the inbox, so ${nw._id} is now the test line. ${succ ? `${succ._id} (its new number)` : old._id} rejoins the sending pool as a normal line after its delivery check.`)
   incident('tester_promoted', { from: oldId, to: newId, cid })
-  const rp = await replaceEsim(oldId, 'test line landed in spam', 'spam-report').catch(e => ({ error: e.message }))
+  const rp = old.status === 'replaced' ? { ok: true, already: old.replacedBy } : await replaceEsim(oldId, 'test line landed in spam', 'spam-report').catch(e => ({ error: e.message }))
   return { tester: newId, renumbered: oldId, replace: rp }
 }
 // Per-day sends from a line (14 days) — attached to spam / renumber alerts to see when it got flagged.
@@ -1195,9 +1241,9 @@ async function dailyTesterRenumber() {
   const t = await C('bsEsims').findOne({ role: 'tester', status: { $in: USABLE }, msisdn: { $ne: null }, iccid: { $ne: null } }); if (!t) return null
   if (!(await once(`tester-renumber:${new Date().toISOString().slice(0, 10)}`))) return null
   const usage = await lineUsage(t._id).catch(() => '')
-  const r = await replaceEsim(t._id, 'daily fresh test number', 'daily')
+  const r = await replaceEsim(t._id, 'daily fresh test number', 'daily', { keepOnFail: true })
   const n = r.newEsimId && await C('bsEsims').findOne({ _id: r.newEsimId })
-  alert(`🔄 Daily test-line renumber: ${t._id} ${t.msisdn} → ${r.ok ? `${n?._id} ${n?.msisdn || '(number pending)'} — joins after its delivery check` : `failed${r.bought ? `, new line ${r.bought} ordered instead` : ''}`}.\n📊 Old number, last 14 days:\n${usage}`)
+  alert(`🔄 Daily test-line renumber: ${t._id} ${t.msisdn} → ${r.ok ? `${n?._id} ${n?.msisdn || '(new number arrives within minutes)'} — joins after its delivery check` : `refused by Spenza (${r.error}) — current number kept`}.\n📊 Old number, last 14 days:\n${usage}`)
   return r
 }
 const REVIEW_AFTER = 3 * MIN
@@ -1235,10 +1281,12 @@ async function reviewAnswer(id, cid, field, value) {
     incident('customer_spam', { esimId: e._id, cid, to: r.to, messageId: id, test: !!m?.test })
     const reports = await C('bsReviews').find({ esimId: e._id, arrived: 'spam', arrivedAt: { $gt: new Date(Date.now() - 2 * DAY) } }).project({ cid: 1 }).toArray(), who = new Set(reports.map(x => x.cid)).size
     alert(`📥 ${cid} says a ${m?.test ? 'test ' : ''}text from ${e._id} ${e.msisdn || ''}${e.role === 'tester' ? ' (test line)' : ''} landed in SPAM (${reports.length} spam report(s) from ${who} customer(s) in 48 h).${m?.altFor ? ' This was already the retry from another line — the message content is the likely cause.' : ''}\n📊 Last 14 days:\n${await lineUsage(e._id).catch(() => '')}`)
-    // Spam reports from 2+ customers on a line: it is flagged by carriers — renumber it (test line) or take it out of the pool.
-    if (who >= 2 && USABLE.includes(e.status) && (await once(`spam-flag:${e._id}`))) {
-      if (e.role === 'tester') await replaceEsim(e._id, 'spam reports from 2+ customers', 'spam-report').catch(() => {})
-      else { await C('bsEsims').updateOne({ _id: e._id }, { $set: { health: 'suspect', suspectAt: new Date(), suspectReason: 'customer_spam' } }); alert(`🚨 ${e._id} ${e.msisdn || ''}: spam reports from ${who} customers in 48 h — marked suspect (out of send pool).`) }
+    // A spam report → that number is filtered by carriers: ask Spenza for a new number right away (the customer's retry goes
+    // from another line). Refused (e.g. number-change limit) → admin alert + a new line is ordered (queued if credit is short).
+    // Not when this was already the retry from another line: then the content is the cause, not the number.
+    if (!m?.altFor && USABLE.includes(e.status) && !e.replacedBy && (await once(`spam-renum:${e._id}`))) {
+      const x = await replaceEsim(e._id, 'customer reported spam', 'spam-report').catch(err => ({ error: err.message }))
+      if (x.ok) alert(`🔁 ${e._id}${e.role === 'tester' ? ' (test line)' : ''}: new number requested after the spam report (${x.newEsimId}); it rejoins after its delivery check.`)
     }
   }
   if (field === 'arrived' && set.arrived === 'no' && !r.arrived) {
@@ -1701,7 +1749,7 @@ function init({ db, log = console.log, notifyAdmin }) {
     ensureStatusWebhook().catch(e => log(`[BulkESIM] status webhook: ${e.message}`))
     setInterval(tick, 2000)
     every(2 * MIN, creditWatch, 'credit'); every(5 * MIN, syncInventory, 'sync'); every(MIN, async () => { await finishCampaigns(); await expireHolds(); const c = await cfg(); await checkTimeouts(c); await dlrWatch(); await volumeChecks(c); await warmBookings(c) }, 'campaigns')
-    every(10 * MIN, healthCheck, 'health'); every(5 * MIN, dailyTesterRenumber, 'testerRenumber'); every(30 * MIN, autoscale, 'autoscale'); every(HOUR, async () => cancelDead(await cfg()), 'cancelDead'); every(10 * MIN, linkSweep, 'linkSweep')
+    every(10 * MIN, healthCheck, 'health'); every(5 * MIN, dailyTesterRenumber, 'testerRenumber'); every(2 * MIN, processLineQueue, 'lineQueue'); every(30 * MIN, autoscale, 'autoscale'); every(HOUR, async () => cancelDead(await cfg()), 'cancelDead'); every(10 * MIN, linkSweep, 'linkSweep')
     log(`[BulkESIM] engine ready (${P.dry() ? 'simulated provider' : 'live Spenza'}${url ? ', shared DB' : ''})`)
   })
 }
@@ -1709,4 +1757,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { altLine, promoteTester, lineUsage, dailyTesterRenumber, aiTips, testFeedback, testBarred, oneGuardList, oneGuardSet, adminAlert: alert, dueReviews, reviewAnswer, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone, backfillIdentity }
+module.exports = { orderOrQueue, processLineQueue, replaceEsim, altLine, promoteTester, lineUsage, dailyTesterRenumber, aiTips, testFeedback, testBarred, oneGuardList, oneGuardSet, adminAlert: alert, dueReviews, reviewAnswer, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone, backfillIdentity }

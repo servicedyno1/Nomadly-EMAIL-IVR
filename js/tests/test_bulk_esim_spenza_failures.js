@@ -5,7 +5,7 @@ process.env.WEB_CLOUDIVR_DRY_RUN = 'true'; process.env.BULK_ESIM_WORKER = 'false
 delete process.env.SPENZA_BULK_API_KEY; delete process.env.SPENZA_BULK_API_SECRET; delete process.env.BULK_ESIM_FAKE_ACCOUNTS
 const { MongoClient } = require('mongodb')
 const B = require('../bulk-esim/core'), P = require('../bulk-esim/provider-spenza'), BOT = require('../bulk-esim/bot')
-const COLS = ['bsConfig', 'bsAccounts', 'bsEsims', 'bsEsimDaily', 'bsDemand', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation', 'bsFreeTests']
+const COLS = ['bsLineQueue', 'bsConfig', 'bsAccounts', 'bsEsims', 'bsEsimDaily', 'bsDemand', 'bsMessages', 'bsSessions', 'bsDaily', 'bsTests', 'bsReplacements', 'bsBookings', 'bsCampaigns', 'bsWebhooks', 'bsSuppression', 'bsIncidents', 'bsAudit', 'bsNotify', 'bsLocks', 'bsCustomers', 'bsPayments', 'bsReputation', 'bsFreeTests']
 let pass = 0, fail = 0
 const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${cond ? '✅' : '❌'} ${name}${extra ? ` — ${extra}` : ''}`) }
 ;(async () => {
@@ -32,10 +32,10 @@ const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${
   // ---- replacement fails AND ordering fails (no credit) ----
   const b = await E.findOne({ status: 'available' }); process.env.BULK_ESIM_FAKE_RENEW_FAIL = b.iccid; process.env.BULK_ESIM_FAKE_PROVISION_FAIL = 'credit'; P.resetFakeFails()
   n0 = alerts.length; const r2 = await B.replaceEsim(b._id, 'test', 'system')
-  ok('both fail → admin told the pool is one line short', r2.ok === false && !r2.bought && /also failed/.test(since(n0)) && /one line short/.test(since(n0)) && /Spenza could not order a new line/.test(since(n0)), since(n0))
+  ok('both fail → order QUEUED until the balance allows, admin told', r2.ok === false && !r2.bought && /Line order QUEUED/.test(since(n0)) && /Spenza could not order a new line/.test(since(n0)) && !!(await db.collection('bsLineQueue').findOne({ replaces: b._id, status: 'waiting' })), since(n0))
   ok('credit refusal → admin told to top up; account parked for orders only', /Top up Spenza/.test(since(n0)) && (await db.collection('bsAccounts').findOne({ _id: 'spenza1' })).orderBlockedBal === 500)
-  process.env.BULK_ESIM_FAKE_CREDIT = '600'; n0 = alerts.length; await B.creditWatch()
-  ok('balance goes up → orders unparked + missing lines ordered', /ordering the missing line/.test(since(n0)) && (await db.collection('bsAccounts').findOne({ _id: 'spenza1' })).orderBlockedBal === null)
+  delete process.env.BULK_ESIM_FAKE_PROVISION_FAIL; process.env.BULK_ESIM_FAKE_CREDIT = '600'; n0 = alerts.length; await B.creditWatch()
+  ok('balance goes up → orders unparked + queued replacement ordered', /ordering the missing line/.test(since(n0)) && (await db.collection('bsAccounts').findOne({ _id: 'spenza1' })).orderBlockedBal === null && (await db.collection('bsLineQueue').findOne({ replaces: b._id }))?.status === 'ordered', since(n0).slice(0, 600))
   process.env.BULK_ESIM_FAKE_CREDIT = '500'; await db.collection('bsAccounts').updateMany({}, { $set: { orderBlockedBal: null } })
   delete process.env.BULK_ESIM_FAKE_PROVISION_FAIL
 

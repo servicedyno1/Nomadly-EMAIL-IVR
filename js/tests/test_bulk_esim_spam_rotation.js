@@ -19,6 +19,9 @@ const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${
   const since = (n) => alerts.slice(n).join('\n---\n')
   try {
     // Shared preview DB: make sure there is a test line plus at least one other healthy line to retry from.
+    // Lines pile up across runs (each run renumbers / buys some): retire all but a few so the per-account line ceiling is not hit.
+    const keep = (await E.find({ role: 'service', status: { $in: ['available', 'active', 'in_use'] }, health: 'healthy' }).sort({ createdAt: -1 }).limit(4).toArray()).map(x => x._id)
+    await E.updateMany({ role: 'service', _id: { $nin: keep }, status: { $nin: ['failed', 'replaced', 'retired', 'cancelled'] } }, { $set: { status: 'retired' } })
     if (!(await E.findOne({ role: 'tester', status: { $in: ['available', 'active', 'in_use'] }, msisdn: { $ne: null } }))) await E.updateOne({ role: { $ne: 'tester' }, status: 'available', msisdn: { $ne: null } }, { $set: { role: 'tester' } })
     if ((await E.countDocuments({ role: { $nin: ['tester', 'monitor'] }, status: 'available', health: 'healthy' })) < 2) { for (let i = 0; i < 2; i++) await B.provisionOne('qa'); for (let i = 0; i < 3; i++) await B.healthCheck() }
     const tester = await E.findOne({ role: 'tester', status: { $in: ['available', 'active', 'in_use'] }, msisdn: { $ne: null } })
@@ -51,17 +54,50 @@ const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${
     ok('daily renumber runs once per day (2nd call skipped)', !!d1 && d2 === null, JSON.stringify(d1).slice(0, 120))
     ok('daily renumber alert shows old → new number + 14-day usage', /Daily test-line renumber/.test(since(n0)) && /last 14 days/.test(since(n0)), since(n0).slice(0, 220))
     ok('renumbered test line keeps the tester role', (await E.findOne({ _id: d1.newEsimId }))?.role === 'tester')
-    // 4) spam reports from 2 customers on a service line → suspect
-    const svc = await E.findOne({ role: { $ne: 'tester' }, status: { $in: ['available', 'active', 'in_use'] }, health: { $in: ['healthy', 'ok'] }, msisdn: { $ne: null } })
-    for (const [k, c2] of ['qa:spam1', 'qa:spam2'].entries()) {
-      const m = { _id: `m_spam_${k}`, cid: c2, to: `+1310456${7000 + k}`, esimId: svc._id, direction: 'out', status: 'sent', test: false, createdAt: new Date() }
+    // 4) a spam report on a service line → new number requested right away (no waiting for a 2nd report)
+    const spamOn = async (line, c2, k) => {
+      const m = { _id: `m_spam_${k}_${Date.now()}`, cid: c2, to: `+1310456${7000 + k}`, esimId: line._id, direction: 'out', status: 'sent', test: false, createdAt: new Date() }
       await M.insertOne(m); await db.collection('bsReviews').insertOne({ _id: m._id, cid: c2, to: m.to, kind: 'one', seq: 1, status: 'asked', at: new Date() })
-      await B.reviewAnswer(m._id, c2, 'arrived', 's')
+      return B.reviewAnswer(m._id, c2, 'arrived', 's')
     }
-    ok('2 customers report spam on a service line → suspect (out of pool)', (await E.findOne({ _id: svc._id }))?.health === 'suspect')
+    const pick0 = () => E.findOne({ role: 'service', status: { $in: ['available', 'active', 'in_use'] }, health: 'healthy', msisdn: { $ne: null }, replacedBy: null })
+    const pick = async () => (await pick0()) || (await B.provisionOne('qa', 'qa'), await B.healthCheck(), await B.healthCheck(), pick0())
+    let svc = await pick(); n0 = alerts.length
+    await spamOn(svc, 'qa:spam1', 1)
+    let sv = await E.findOne({ _id: svc._id })
+    ok('1st spam report on a sending line → new number requested at once', sv.status === 'replaced' && !!sv.replacedBy && /new number requested after the spam report/.test(since(n0)), `${sv.status} ${since(n0).slice(0, 160)}`)
+    // 5) Spenza refuses the new number → admin alert + new line ordered
+    svc = await pick(); process.env.BULK_ESIM_FAKE_RENEW_FAIL = svc.iccid; n0 = alerts.length
+    await spamOn(svc, 'qa:spam2', 2)
+    sv = await E.findOne({ _id: svc._id })
+    ok('renumber refused → admin alerted + new line ordered', /could not replace the number/.test(since(n0)) && /New line .* ordered/.test(since(n0)), since(n0).slice(0, 300))
+    // 6) refused AND no Spenza credit → order queued; credit back → ordered automatically
+    svc = await pick(); process.env.BULK_ESIM_FAKE_RENEW_FAIL = svc.iccid; process.env.BULK_ESIM_FAKE_PROVISION_FAIL = 'credit'; n0 = alerts.length
+    await spamOn(svc, 'qa:spam3', 3)
+    const q = await db.collection('bsLineQueue').findOne({ replaces: svc._id, status: 'waiting' })
+    ok('no credit → line order QUEUED + admin told', !!q && /Line order QUEUED/.test(since(n0)), since(n0).replace(/\n/g, ' ').slice(0, 1500))
+    await B.processLineQueue()
+    ok('still no credit → stays queued', (await db.collection('bsLineQueue').findOne({ _id: q?._id }))?.status === 'waiting')
+    delete process.env.BULK_ESIM_FAKE_PROVISION_FAIL; const cr0 = process.env.BULK_ESIM_FAKE_CREDIT; process.env.BULK_ESIM_FAKE_CREDIT = '900'; n0 = alerts.length
+    await B.creditWatch() // top-up seen → queued orders run first
+    process.env.BULK_ESIM_FAKE_CREDIT = cr0 || ''; if (!cr0) delete process.env.BULK_ESIM_FAKE_CREDIT
+    const q2 = await db.collection('bsLineQueue').findOne({ _id: q?._id }), bought = q2?.esimId && await E.findOne({ _id: q2.esimId })
+    ok('credit back → queued order goes through, new line checked before joining', q2?.status === 'ordered' && !!bought && /Queued line order went through/.test(since(n0)) && (await E.findOne({ _id: svc._id }))?.replacedBy === q2.esimId, `${q2?.status} ${bought?.status} ${q2?.lastError}`)
+    delete process.env.BULK_ESIM_FAKE_RENEW_FAIL
+    // 7) daily renumber refused → current number kept, nothing ordered
+    await db.collection('bsConfig').deleteMany({ _id: /^tester-renumber:/ })
+    const t2 = await E.findOne({ role: 'tester', status: { $in: ['available', 'active', 'in_use', 'testing'] }, msisdn: { $ne: null }, replacedBy: null })
+    if (t2) {
+      await E.updateOne({ _id: t2._id }, { $set: { status: 'available' } })
+      process.env.BULK_ESIM_FAKE_RENEW_FAIL = t2.iccid; n0 = alerts.length
+      const before = await E.countDocuments({}); const dr = await B.dailyTesterRenumber(); delete process.env.BULK_ESIM_FAKE_RENEW_FAIL
+      const t3 = await E.findOne({ _id: t2._id })
+      ok('daily renumber refused → number kept, test line still usable, admin told', dr?.kept && t3.status === 'available' && !t3.replacedBy && /refused by Spenza/.test(since(n0)) && (await E.countDocuments({})) === before + 1, `${t3.status} ${since(n0).slice(0, 200)}`)
+    }
     ok('review buttons offer "In spam" in every language', ['en', 'fr', 'zh', 'hi', 'fa'].every(l => !!I.t(l, 'rv_spam') && !!I.btn(l).arrived_spam && !!I.btn(l).test_other_line))
   } finally {
     for (const c of ['bsMessages', 'bsCampaigns', 'bsReviews', 'bsAiTips', 'bsDrafts', 'bsBookings']) await db.collection(c).deleteMany({ $or: [{ cid }, { _id: cid }, { cid: /^qa:spam/ }] })
+    await db.collection('bsLineQueue').deleteMany({})
     await db.collection('bsCustomers').deleteOne({ _id: cid }); await db.collection('walletOf').deleteOne({ _id: String(CHAT) })
   }
   console.log(`\n${pass} passed, ${fail} failed`); await cl.close(); process.exit(fail ? 1 : 0)
