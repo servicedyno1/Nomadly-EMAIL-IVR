@@ -22,7 +22,13 @@ const ok = (n, c, x = '') => { c ? pass++ : fail++; console.log(`${c ? '✅' : '
   await B.healthCheck()
   e = await db.collection('bsEsims').findOne({ _id: 'ESIM-0904' })
   ok('24 h → retired (failed) + replacement bought', e.status === 'failed' && (await db.collection('bsEsims').countDocuments({ role: 'service' })) === before + 1 && alerts.some(a => /never activated its plan in 24 h/.test(a)), e.status)
-  delete process.env.BULK_ESIM_FAKE_PENDING
+  // PENDING and never bound to a device → will never activate: retired at once, replacement bought.
+  const ic2 = '89012400000000004807'; process.env.BULK_ESIM_FAKE_PENDING = `${iccid},${ic2}`; process.env.BULK_ESIM_FAKE_NODEVICE = ic2
+  await db.collection('bsEsims').insertOne({ _id: 'ESIM-0905', role: 'service', status: 'testing', health: 'unknown', msisdn: '+16316870635', iccid: ic2, account: 'spenza1', createdAt: new Date(), updatedAt: new Date() })
+  const before2 = await db.collection('bsEsims').countDocuments({ role: 'service' }); await B.healthCheck()
+  e = await db.collection('bsEsims').findOne({ _id: 'ESIM-0905' })
+  ok('PENDING + no device → retired immediately (never_activated) + replacement', e.status === 'failed' && e.health === 'never_activated' && (await db.collection('bsEsims').countDocuments({ role: 'service' })) === before2 + 1 && alerts.some(a => /never activated — Spenza assigned this SIM/.test(a)), `${e.health}/${e.status}`)
+  delete process.env.BULK_ESIM_FAKE_PENDING; delete process.env.BULK_ESIM_FAKE_NODEVICE
   await db.dropDatabase(); await cl.close()
   console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0)
 })().catch(e => { console.error(e); process.exit(1) })

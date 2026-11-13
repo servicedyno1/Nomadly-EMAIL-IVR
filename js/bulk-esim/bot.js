@@ -216,13 +216,17 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
       const f = await B.testFeedback(cid, info.bseTestMsg, message === L.arrived_yes)
       if (f.wait) return send(chatId, say('test_wait'), arrivedKb())
       if (message === L.arrived_yes) { await send(chatId, say('test_yes')); return askWhen() }
-      return send(chatId, say('test_no'), kb([[L.edit], ...(RD.test ? [[L.test_again]] : []), [L.send_anyway], [L.back]]))
+      await send(chatId, say('tips_checking'))
+      const tp = await B.aiTips(cid, info.bseCampaign); await put('bseRewrite', tp.rewrite || null)
+      const words = (tp.risky || []).map(x => `• <b>${esc(x.word)}</b> — ${esc(x.why)}`).join('\n')
+      return send(chatId, tp.error ? say('test_no') : say('tips', { words, rewrite: tp.rewrite ? esc(tp.rewrite) : null }), kb([...(tp.rewrite ? [[L.use_rewrite]] : []), [L.edit], ...(RD.test ? [[L.test_again]] : []), [L.send_anyway], [L.back]]))
     }
     if (message === L.test_again) { if (await B.testBarred(cid)) return send(chatId, `⚠️ ${say('err_test_guard')}`, kb([[L.cont], [L.back]])); return askTestTo((await B.testOffer(cid)).free) }
-    if (message === L.edit) {
+    if (message === L.edit || (message === L.use_rewrite && info.bseRewrite)) {
       const cp = await B.db().collection('bsCampaigns').findOne({ _id: info.bseCampaign, cid }); if (!cp) return send(chatId, say('err_not_found'), HK)
       await drafts().updateOne({ _id: cid }, { $set: { contacts: [...cp.contacts, ...(cp.skipped || [])], skip: cp.skipped || [], file: null, at: new Date() } }, { upsert: true })
       await B.db().collection('bsCampaigns').deleteOne({ _id: cp._id, cid, status: 'draft' }) // a new campaign is made from the edited text
+      if (message === L.use_rewrite) { info.bseContent = [info.bseRewrite]; await put('bseContent', info.bseContent); info.bseOptOut = cp.optOut !== false; await put('bseOptOut', info.bseOptOut); await put('bseRewrite', null); return finalize([]) }
       await go('bse-content'); return contentAsk()
     }
     if (message === L.send_anyway || message === L.cont) return askWhen()

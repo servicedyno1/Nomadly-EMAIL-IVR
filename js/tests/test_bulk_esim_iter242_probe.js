@@ -1,6 +1,7 @@
 // iter242 probe: multi-account (rate/credit/ceiling/bootstrap/advice), send-now vs schedule discount, one-SMS rule, AI variants
 // (simulated), paid replies routing, replyImpact alert. Run from /app: node js/tests/test_bulk_esim_iter242_probe.js
 require('dotenv').config({ path: require('path').join(__dirname, '../../backend/.env') })
+process.env.BULKSMS_NO_TIME_GATE = 'false' // this suite covers the quiet-hour window (off by default in production)
 process.env.WEB_CLOUDIVR_DRY_RUN = 'true'; process.env.BULK_ESIM_WORKER = 'false'; process.env.BULK_ESIM_FAKE_CREDIT = '500'
 for (const k of ['SPENZA_BULK_API_KEY', 'SPENZA_BULK_API_SECRET', 'EMERGENT_LLM_KEY', 'BULK_ESIM_FAKE_RATE', 'BULK_ESIM_FAKE_RATE_2', 'BULK_ESIM_FAKE_CREDIT_2']) delete process.env[k]
 process.env.BULK_ESIM_FAKE_ACCOUNTS = '3'
@@ -15,7 +16,7 @@ const nums = (n, from) => Array.from({ length: n }, (_, i) => `+1212555${String(
   for (const c of COLS) await db.collection(c).deleteMany({})
   const alerts = []
   await B.init({ db, log: () => {}, notifyAdmin: (t) => alerts.push(t) })
-  await B.setConfig({ minCredit: 10, reserveBooking: true, monitorEsims: 1, rateMargin: 0 }, 'test') // LEGACY_DEFAULTS: this suite covers the floor / spare-reserve / monitor paths
+  await B.setConfig({ minCredit: 10, reserveBooking: true, monitorEsims: 1, rateMargin: 0, quietStart: 8, quietEnd: 21 }, 'test') // 8am–9pm window = 10 open UTC hours · LEGACY_DEFAULTS: this suite covers the floor / spare-reserve / monitor paths
   process.env.BULK_ESIM_WORKER = ''
   await B.claimWorker()
   const M = db.collection('bsMessages'), A = db.collection('bsAccounts'), Es = db.collection('bsEsims')
@@ -35,7 +36,7 @@ const nums = (n, from) => Array.from({ length: n }, (_, i) => `+1212555${String(
   process.env.BULK_ESIM_FAKE_CREDIT_2 = '1'; alerts.length = 0
   await B.creditWatch()
   ok('(a) account #2 low, no global pause', (await A.findOne({ _id: 'spenza2' })).low === true && !(await B.state()).reasons.includes('provider_credit'))
-  ok('(a) admin told #2 sits out while others keep sending', alerts.some(a => /account #2 balance \$1/.test(a) && /other account/.test(a)))
+  ok('(a) admin told #2 sits out while others keep sending', alerts.some(a => /account #2 balance \$1/.test(a) && /keep sending/.test(a)))
   await B.provisionMany(2, 'probe', 'probe'); dist = await per()
   ok('(a) new lines skip low account #2', dist.spenza2 === 2 && dist.spenza1 + dist.spenza3 === 6, JSON.stringify(dist))
   await B.healthCheck()
@@ -112,7 +113,7 @@ const nums = (n, from) => Array.from({ length: n }, (_, i) => `+1212555${String(
   const cpL = (await B.createCampaign(cid, { name: 'TEST_Link', content: 'See www.example.com today', withLinks: true, contacts: nums(500, 8000), consent: true })).campaign
   await B.setReplies(cid, cpL._id, true)
   const bL = await B.createBooking(cid, { campaignId: cpL._id, date: d2, hour: 15 })
-  ok('(e) link + replies 2 days ahead: unit 0.135, price 67.5+20=87.5, replyFee not discounted', bL.booking?.unitPrice === 0.135 && bL.booking.price === 87.5 && bL.booking.replyFee === 20 && bL.booking.listPrice === 95, JSON.stringify(bL.error || [bL.booking.unitPrice, bL.booking.price, bL.booking.listPrice]))
+  ok('(e) link + replies 2 days ahead: same unit as plain 0.09, price 45+20=65, replyFee not discounted', bL.booking?.unitPrice === 0.09 && bL.booking.price === 65 && bL.booking.replyFee === 20 && bL.booking.listPrice === 70, JSON.stringify(bL.error || [bL.booking.unitPrice, bL.booking.price, bL.booking.listPrice]))
   const bE = await B.createBooking(cid, { campaignId: cpS._id, date: new Date(Date.now() + 3600000 * 30).toISOString().slice(0, 10), hour: new Date(Date.now() + 3600000 * 20).getUTCHours() })
   ok('(e) booking <24h ahead gets no discount', !bE.booking || bE.booking.startAt - Date.now() >= 24 * 3600000 || bE.booking.discountPct === 0, JSON.stringify(bE.error || [bE.booking.startAt, bE.booking.discountPct]))
   await B.confirmBooking(bS.booking._id, { method: 'wallet' })
@@ -126,7 +127,7 @@ const nums = (n, from) => Array.from({ length: n }, (_, i) => `+1212555${String(
   // (f) content
   ok('(f) 138/139 with opt-out, err args [138]', !B.checkContent('a'.repeat(138), false).error && JSON.stringify(B.checkContent('a'.repeat(139), false)) === JSON.stringify({ error: 'err_too_long', args: [138] }))
   ok('(f) 160/161 without opt-out, args [160]', !B.checkContent('a'.repeat(160), false, false).error && B.checkContent('a'.repeat(161), false, false).args[0] === 160)
-  ok('(f) unicode 70 ok / 71 refused (no opt-out)', !B.checkContent('é漢'.repeat(35), false, false).error && B.checkContent('漢'.repeat(71), false, false).error === 'err_too_long')
+  ok('(f) unicode 70 ok / 71 refused (no opt-out)', !B.checkContent('é漢'.repeat(35), false, false).error && B.checkContent('漢'.repeat(71), false, false).error === 'err_special_char')
   ok('(f) multi-version: one too-long version refuses all', B.checkContent(`short one\n---\n${'b'.repeat(139)}`, false).error === 'err_too_long')
   ok('(f) multi-version link in v2: text-only refused, link type ok', B.checkContent('Hi\n---\nGo to nomadly.com', false).error === 'err_has_link' && !B.checkContent('Hi\n---\nGo to nomadly.com', true).error)
   const cpG = (await B.createCampaign(cid, { name: 'TEST_Guard', content: 'g'.repeat(160), optOut: false, contacts: nums(500, 9000), consent: true })).campaign

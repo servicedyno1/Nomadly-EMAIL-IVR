@@ -865,4 +865,13 @@ for (const [l, d] of Object.entries(GUIDE)) { const { btn: b, ...rest } = d; Obj
 // Home shows the path to a successful send in one line.
 const PATH = { en: '🧭 Numbers → message → free test → send now or later', fr: '🧭 Numéros → message → test gratuit → envoi maintenant ou plus tard', zh: '🧭 号码 → 短信 → 免费测试 → 立即或稍后发送', hi: '🧭 नंबर → मैसेज → मुफ़्त टेस्ट → अभी या बाद में भेजें', fa: '🧭 شماره‌ها ← پیام ← تست رایگان ← ارسال حالا یا بعداً' }
 for (const [l, line] of Object.entries(PATH)) { const h = LANGS[l].home; LANGS[l].home = (o) => h(o).replace('\n\n', `\n${line}\n\n`) }
+// AI tips after a "No": risky words + one safer version.
+const TIPS = {
+  en: { tips_checking: '🔎 Checking your text…', tips: (o) => `😕 Sorry it didn’t arrive — we’re checking the line too.\n\n${o.words ? `⚠️ <b>Words carriers may block</b>\n${o.words}` : '✅ Your words look fine. Wait 2 more minutes, or rotate 2–3 versions.'}${o.rewrite ? `\n\n✨ <b>Safer version</b>\n<i>${o.rewrite}</i>` : ''}`, btn: { use_rewrite: '✨ Use safer version' } },
+  fr: { tips_checking: '🔎 Vérification de votre texte…', tips: (o) => `😕 Désolé, il n’est pas arrivé — nous vérifions aussi la ligne.\n\n${o.words ? `⚠️ <b>Mots que les opérateurs peuvent bloquer</b>\n${o.words}` : '✅ Vos mots semblent corrects. Attendez 2 minutes, ou alternez 2–3 versions.'}${o.rewrite ? `\n\n✨ <b>Version plus sûre</b>\n<i>${o.rewrite}</i>` : ''}`, btn: { use_rewrite: '✨ Utiliser la version sûre' } },
+  zh: { tips_checking: '🔎 正在检查您的短信…', tips: (o) => `😕 抱歉没有送达 — 我们也在检查线路。\n\n${o.words ? `⚠️ <b>运营商可能拦截的词</b>\n${o.words}` : '✅ 用词没有问题。请再等 2 分钟，或轮换 2–3 个版本。'}${o.rewrite ? `\n\n✨ <b>更安全的版本</b>\n<i>${o.rewrite}</i>` : ''}`, btn: { use_rewrite: '✨ 使用更安全的版本' } },
+  hi: { tips_checking: '🔎 आपका टेक्स्ट जाँचा जा रहा है…', tips: (o) => `😕 माफ़ कीजिए, यह नहीं पहुँचा — हम लाइन भी जाँच रहे हैं।\n\n${o.words ? `⚠️ <b>शब्द जिन्हें कैरियर रोक सकते हैं</b>\n${o.words}` : '✅ आपके शब्द ठीक लगते हैं। 2 मिनट और रुकें, या 2–3 वर्ज़न बदल-बदलकर भेजें।'}${o.rewrite ? `\n\n✨ <b>सुरक्षित वर्ज़न</b>\n<i>${o.rewrite}</i>` : ''}`, btn: { use_rewrite: '✨ सुरक्षित वर्ज़न इस्तेमाल करें' } },
+  fa: { tips_checking: '🔎 در حال بررسی متن شما…', tips: (o) => `😕 متأسفیم که نرسید — خط را هم بررسی می‌کنیم.\n\n${o.words ? `⚠️ <b>کلماتی که اپراتورها ممکن است مسدود کنند</b>\n${o.words}` : '✅ کلمات شما مشکلی ندارند. ۲ دقیقه دیگر صبر کنید یا ۲ تا ۳ نسخه چرخشی بسازید.'}${o.rewrite ? `\n\n✨ <b>نسخه امن‌تر</b>\n<i>${o.rewrite}</i>` : ''}`, btn: { use_rewrite: '✨ استفاده از نسخه امن‌تر' } },
+}
+for (const [l, d] of Object.entries(TIPS)) { const { btn: b, ...rest } = d; Object.assign(LANGS[l], rest); Object.assign(LANGS[l].btn, b) }
 module.exports = { t, btn, allLabels, LANGS, QN }

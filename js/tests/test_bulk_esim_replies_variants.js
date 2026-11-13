@@ -21,7 +21,7 @@ const nums = (n, from = 1000) => Array.from({ length: n }, (_, i) => `+1212555${
   // ---- content rules ----
   ok('one SMS incl. opt-out line: 138 chars ok, 139 refused', !B.checkContent('a'.repeat(138), false).error && B.checkContent('a'.repeat(139), false).error === 'err_too_long')
   ok('no opt-out line: 160 ok, 161 refused', !B.checkContent('a'.repeat(160), false, false).error && B.checkContent('a'.repeat(161), false, false).error === 'err_too_long')
-  ok('unicode text: 70 chars is one SMS, 71 is not (no opt-out line)', !B.checkContent('ب'.repeat(70), false, false).error && B.checkContent('ب'.repeat(71), false, false).error === 'err_too_long')
+  ok('unicode text: 70 chars is one SMS, 71 is refused naming the character that forces unicode', !B.checkContent('ب'.repeat(70), false, false).error && B.checkContent('ب'.repeat(71), false, false).error === 'err_special_char' && /ب/.test(B.checkContent('ب'.repeat(71), false, false).args[0]))
   ok('text-only refuses links/phones in ANY version', B.checkContent('Hi\n---\nCall 212-555-1234', false).error === 'err_has_link')
   ok('MAX_PARTS is 1', B.MAX_PARTS === 1)
 

@@ -4,6 +4,7 @@
 // link/phone check, pricing, translations). Simulated provider only. Run with nodejs stopped:
 //   sudo supervisorctl stop nodejs && node js/tests/test_bulk_esim_stop_upload_iter239.js; sudo supervisorctl start nodejs
 require('dotenv').config({ path: require('path').join(__dirname, '../../backend/.env') })
+process.env.BULKSMS_NO_TIME_GATE = 'false' // this suite covers the quiet-hour window (off by default in production)
 process.env.WEB_CLOUDIVR_DRY_RUN = 'true'; process.env.BULK_ESIM_WORKER = 'false'
 const http = require('http')
 const { MongoClient } = require('mongodb')
@@ -44,7 +45,7 @@ const openHour = async (date, need = 1) => (await B.availability(date)).slots.fi
   // ---- defaults / no auto provisioning ----
   await B.setConfig({ autoProvision: false, manualApproval: true, minEsims: 1 }, 'qa')
   const c0 = await B.cfg()
-  ok('defaults: lean start 2 service + 0 monitor, no floor, auto-buy on; price .10/.15 (this suite runs with auto-buy off)', B.DEFAULTS.minEsims === 2 && B.DEFAULTS.monitorEsims === 0 && B.DEFAULTS.minCredit === 0 && B.DEFAULTS.autoProvision === true && c0.autoProvision === false && c0.pricePlain === 0.1 && c0.priceLink === 0.15)
+  ok('defaults: lean start 2 service + 0 monitor, no floor, auto-buy on; one price .10 for any content (this suite runs with auto-buy off)', B.DEFAULTS.minEsims === 2 && B.DEFAULTS.monitorEsims === 0 && B.DEFAULTS.minCredit === 0 && B.DEFAULTS.autoProvision === true && c0.autoProvision === false && c0.pricePlain === 0.1 && c0.priceLink === 0.1)
   let provCalls = 0; const realProv = P.provision; P.provision = async (...a) => { provCalls++; return realProv(...a) }
   await B.autoscale()
   ok('autoscale with 0 eSIMs does NOT provision (alerts instead)', provCalls === 0 && (await db.collection('bsEsims').countDocuments()) === 0 && alerts.some(a => /Provisioning needs approval/.test(a)))
@@ -92,7 +93,7 @@ const openHour = async (date, need = 1) => (await B.availability(date)).slots.fi
   ok('createCampaign without consent → err_consent', (await B.createCampaign(cA, { name: 'x', content: 'Hi', contacts: nums(500) })).error === 'err_consent')
   const lc = (await B.createCampaign(cA, { name: 'TEST_link', content: 'Visit www.qa.com', contacts: nums(500, 4000), withLinks: true, consent: true })).campaign
   const lb = await B.createBooking(cA, { date: day, hour: H, campaignId: lc._id })
-  ok('link campaign priced $0.15/part ($75 per 500)', lb.booking?.price === 75 && lb.booking?.unitPrice === 0.15, JSON.stringify(lb.error || lb.booking?.price))
+  ok('link campaign priced like plain text: $0.10/part ($50 per 500)', lb.booking?.price === 50 && lb.booking?.unitPrice === 0.1, JSON.stringify(lb.error || lb.booking?.price))
   const mp = await B.createCampaign(cA, { name: 'TEST_2part', content: 'b'.repeat(200), contacts: nums(300, 5000), consent: true })
   ok('a 200-char text is refused (every text is one SMS)', mp.error === 'err_too_long', JSON.stringify(mp.error))
   await B.cancelBooking(lb.booking._id, { by: 'admin' })
@@ -165,16 +166,17 @@ const openHour = async (date, need = 1) => (await B.availability(date)).slots.fi
   if (qp) {
     const q = await B.sendOne(cA, qp, 'quiet test'), sess = { _id: 's_q', cid: cA, esimId: e1._id, to: qp, status: 'active', lastActivityAt: new Date(), expiresAt: exp }
     await db.collection('bsSessions').insertOne(sess)
+    await db.collection('bsCampaigns').insertOne({ _id: 'cp_q_r', cid: cA, replies: true, status: 'completed' }); await db.collection('bsMessages').insertOne({ _id: 'm_q_r', cid: cA, to: qp, esimId: e1._id, direction: 'out', campaignId: 'cp_q_r', status: 'delivered', createdAt: new Date() }) // replies need a campaign that paid for them
     const rp = await B.sendOne(cA, qp, 'conversation reply', 's_q')
     const cpq = (await B.createCampaign(cA, { name: 'TEST_q', content: 'Hello', contacts: nums(500, 6000), consent: true })).campaign
     await db.collection('bsCustomers').updateOne({ _id: cA }, { $set: { testNumbers: [{ phone: qp, verifiedAt: new Date() }] } })
     const tq = await B.testSend(cA, cpq._id, qp)
     for (let i = 0; i < 4; i++) await B.claimWorker(); await B.tick()
     const [mq, mr, mt] = await Promise.all([q.messageId, rp.messageId, tq.messageId].map(x => db.collection('bsMessages').findOne({ _id: x })))
-    ok(`one-off to ${qp} at local quiet time is delayed, not dropped`, mq.status === 'queued' && mq.nextAt > new Date(), `${mq.status} next ${mq.nextAt?.toISOString()}`)
+    ok(`one-off to ${qp} at local quiet time goes out right away (quiet hours apply to campaigns only)`, ['sent', 'submitted', 'delivered'].includes(mq.status), `${mq.status} next ${mq.nextAt?.toISOString()}`)
     ok('conversation reply skips quiet hours + has NO opt-out line', mr.status === 'sent' && !mr.body.includes('Reply STOP'), mr.status)
     ok('test text skips quiet hours + has opt-out line', mt.status === 'sent' && mt.body.endsWith(B.OPT), mt.status)
-    ok('delayed one-off did not consume allowance yet', (await db.collection('bsMessages').findOne({ _id: q.messageId })).quotaDay == null)
+    ok('one-off sent right away counts against the daily allowance', (await db.collection('bsMessages').findOne({ _id: q.messageId })).quotaDay != null)
   } else console.log('ℹ️  every candidate area code is inside 8-21 right now — quiet-hours worker test skipped')
   if (op) { const q = await B.sendOne(cA, op, 'open test'); for (let i = 0; i < 3; i++) await B.claimWorker(); await B.tick(); ok(`one-off to ${op} (local daytime) sent`, (await db.collection('bsMessages').findOne({ _id: q.messageId })).status === 'sent') }
 
@@ -214,8 +216,8 @@ const openHour = async (date, need = 1) => (await B.availability(date)).slots.fi
   await B.setConfig({ quietStart: 0, quietEnd: 24 }, 'qa')
   process.env.BULK_ESIM_FAKE_CREDIT = '3'; await B.creditWatch()
   const qL = await B.sendOne(cA, '+14155559991', 'credit test'); await B.claimWorker(); await B.tick()
-  // Readiness gate (owner rule): while sending is paused a single text is refused up front (off_one), never queued to fail.
-  ok('low credit pauses + single text refused up front (off_one) + admin alert', (await B.state()).reasons.includes('provider_credit') && qL.error === 'off_one' && alerts.some(a => /PAUSED/.test(a)), JSON.stringify(qL))
+  // Low Spenza credit only stops buying new lines (owner rule): existing lines keep sending.
+  ok('low credit: line buying paused, existing lines still send single texts + admin alert', (await B.state()).reasons.includes('provider_credit') && qL.ok && alerts.some(a => /New line buying PAUSED/.test(a)), JSON.stringify(qL))
   process.env.BULK_ESIM_FAKE_CREDIT = '80'; await B.creditWatch(); for (let i = 0; i < 3; i++) await B.claimWorker(); await B.tick()
   const qL2 = await B.sendOne(cA, '+14155559991', 'credit test')
   ok('top-up → auto resume + single text accepted again', !(await B.state()).reasons.length && alerts.some(a => /resumed/i.test(a)) && !!qL2.messageId, JSON.stringify(qL2))

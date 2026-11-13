@@ -62,7 +62,7 @@ const ok = (name, cond, extra = '') => { cond ? pass++ : fail++; console.log(`${
 
   // ---- copy ----
   const L = I.btn('en'), h = I.t('en', 'home', { min: 500, max: 2000, plain: 50, link: 75, pct: 10, minHours: 24, fee: 20, used: 0, limit: 2000, from: 8, to: 21 })
-  ok('home says it reaches every US & Canadian carrier (short copy)', /every US & Canadian carrier/.test(h) && /First test SMS free/.test(h))
+  ok('home says it reaches every US & Canadian carrier (short copy)', /every US & Canadian carrier/.test(h) && /Test SMS free/.test(h))
   const lo = I.t('en', 'list_ok', { n: 500, send: 480, skipped: 20, counts: { landline: 12, voip: 8, invalid: 0, other: 0 }, max: 2000 })
   ok('list summary tells who gets the text and that all are billed', /480<\/b> will get your text/.test(lo) && /12 landline, 8 VoIP/.test(lo) && /Billed for all 500/.test(lo), lo)
   let allLangs = true

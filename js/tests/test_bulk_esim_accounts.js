@@ -2,6 +2,7 @@
 // to add an account) + "send now" vs "schedule (−10%)". Simulated provider. Run from /app: node js/tests/test_bulk_esim_accounts.js
 require('dotenv').config({ path: require('path').join(__dirname, '../../backend/.env') })
 process.env.WEB_CLOUDIVR_DRY_RUN = 'true'; process.env.BULK_ESIM_WORKER = 'false'; process.env.BULK_ESIM_FAKE_CREDIT = '500'
+process.env.BULKSMS_NO_TIME_GATE = 'false' // ceilings below assume an 8am–9pm quiet-hour window (10 open UTC hours) (off by default in production)
 delete process.env.SPENZA_BULK_API_KEY; delete process.env.SPENZA_BULK_API_SECRET
 const { MongoClient } = require('mongodb')
 const B = require('../bulk-esim/core')
@@ -15,7 +16,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   for (const c of COLS) await db.collection(c).deleteMany({})
   const alerts = []
   await B.init({ db, log: () => {}, notifyAdmin: (t) => alerts.push(t) })
-  await B.setConfig({ minCredit: 10, reserveBooking: true, monitorEsims: 1, rateMargin: 0 }, 'test') // LEGACY_DEFAULTS: this suite covers the floor / spare-reserve / monitor paths
+  await B.setConfig({ minCredit: 10, reserveBooking: true, monitorEsims: 1, rateMargin: 0, quietStart: 8, quietEnd: 21 }, 'test') // LEGACY_DEFAULTS: this suite covers the floor / spare-reserve / monitor paths
   process.env.BULK_ESIM_WORKER = ''
   const E = db.collection('bsEsims')
 

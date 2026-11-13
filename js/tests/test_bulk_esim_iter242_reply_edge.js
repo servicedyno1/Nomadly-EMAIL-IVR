@@ -27,5 +27,5 @@ const nums = (n, from) => Array.from({ length: n }, (_, i) => `+1212555${String(
   const bug = inb.status === 'kept' || inb.campaignId !== cpB._id
   console.log(bug ? '❌ BUG' : '✅ OK', 'reply attributed to', inb.campaignId === cpB._id ? 'PAID' : 'FREE (queued, never sent)', '| status', inb.status, '| forwarded', inb.forwarded)
   for (const c of COLS) await db.collection(c).deleteMany({})
-  await cl.close(); process.exit(bug ? 1 : 0)
+  console.log(`\n${bug ? 0 : 1} passed, ${bug ? 1 : 0} failed`); await cl.close(); process.exit(bug ? 1 : 0)
 })().catch(e => { console.error(e); process.exit(1) })
