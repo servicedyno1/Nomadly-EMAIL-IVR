@@ -3042,3 +3042,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Campaign "low lines" admin note now shows the wait reason (lineWaitReason) instead of the Telnyx text.
 - Owner kept Bird daily spend cap at $100.
 - Tests: bird_routing 17/17, signalwire_adapter 30/30, caller_retry 6/6, bird_adapter 20/20, sw_fax 18/18. test_bulkcall_low_lines + test_bulk_line_limit_ai_2026-10 fail identically before and after (pre-existing).
+
+## 2026-11-13 20:30Z — Telnyx-blocked customers moved to SignalWire + linked to Bird (LIVE, owner approved)
+- Affected (old Telnyx account 401 blocked): Nomadly 19 active numbers / 15 customers (+1 suspended, skipped), Voodoo Land 3 / 3. Smadav, ProShop: none. All US/CA, mostly toll-free.
+- js/ops/migrate_telnyx_to_signalwire_2026-11.js (run on droplet from /root/mig with brand env): same area code else same state (toll-free → toll-free), free swap (plan, planPrice, expiry, autoRenew, features, usage, sub-number links, IVR audio), old entry released (_releasedReason migrated_to_signalwire, migratedTo). New SignalWire SIP login per SIP user, proven by a real REGISTER 200 OK before saving (_sipCheckOk). 22/22 swapped, 22/22 SIP verified, 0 misrouted (topic + SMS webhook checked), 0 Telnyx active left.
+- Customers messaged (--notify, only SIP-verified lines): 22/22 sent (Telegram; web accounts → web inbox), new number + SIP server/username/password, en/fr (others en). Messages never name a carrier except the SIP server address.
+- Bird linking: /root/mig/link.js arms one number at a time (live app answers Bird's code call), ~47 s each; log /root/mig/link.log.
+- 20:54Z: Bird linking done — 22/22 new numbers outbound-enabled on Bird (one needed a second round after a misheard code). New release 20261113T2019xx (Bird routing + auto-link + SignalWire fax) was deployed on all 4 brands by the owner during this run.
