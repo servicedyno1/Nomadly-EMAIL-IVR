@@ -24,6 +24,8 @@ function createBirdVerify({ bird, transcribe, db, log = console.log, maxAttempts
   async function arm(number, { name } = {}) {
     if (!bird.enabled()) return { error: 'Bird is not enabled (BIRD_API_KEY not loaded).' }
     const n = e164(number)
+    // A pending/failed registration can't get a fresh call — drop it so registering again places a new one.
+    for (const v of await bird.listCallerIds().catch(() => [])) if (e164(v.phone_number) === n && !v.outbound_enabled && bird.deleteCallerId) await bird.deleteCallerId(v.id)
     const r = await bird.startCallerIdVerification(n, name)
     if (r.error) return { error: `Bird couldn't start verification: ${r.error}` }
     await col().updateOne({ _id: n }, { $set: { _id: n, verifiedNumberId: r.id, status: 'calling', attempts: 0, armedAt: new Date(), expiresAt: new Date(Date.now() + 10 * 60000), lastCode: null, error: null } }, { upsert: true })

@@ -33,6 +33,8 @@ const digits = (n) => String(n).replace(/\D/g, '')
     const X = arg('--from') || free[0], Y = arg('--to') || free.find(n => n !== X)
     if (!X || !Y) throw new Error('Need two free SignalWire numbers (buy one more, or pass --from/--to)')
     console.log(`Verify X=${X}; proof call lands on Y=${Y}`)
+    for (const n of [X, Y]) { const id = (await rest.http().get('/api/relay/rest/phone_numbers', { params: { filter_number: digits(n).slice(1) } })).data.data?.[0]?.id; if (id) await rest.configureNumber(id) }
+    console.log('Pointed X and Y at this server')
 
     const already = (await bird.listCallerIds()).find(v => v.phone_number === X && v.outbound_enabled)
     if (!already) {
@@ -47,7 +49,7 @@ const digits = (n) => String(n).replace(/\D/g, '')
         st = await db.collection('birdCallerIdVerify').findOne({ _id: X })
         process.stdout.write(`  ${st?.status} attempts=${st?.attempts || 0}${st?.lastCode ? ` code=${st.lastCode}` : ''}${st?.error ? ` (${st.error})` : ''}\n`)
         if (st?.status === 'verified' || st?.status === 'failed') break
-        if (st?.status === 'calling' && st.attempts > 0 && i % 6 === 5) { await bird.startCallerIdVerification(X).catch(() => {}); console.log('  asked Bird to call again') }
+        if (st?.status === 'calling' && st.attempts > 0 && i % 6 === 5) { await V.arm(X); console.log('  asked Bird to call again') }
       }
       if (st?.status !== 'verified') throw new Error(`X not verified (status ${st?.status})`)
     } else console.log('X already verified on Bird.')
