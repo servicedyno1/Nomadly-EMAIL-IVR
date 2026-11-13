@@ -183,7 +183,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (!trial) {
       caller = await numbersApi.findMine(chatId, b.callerId)
       if (!caller || caller.status !== 'active') return { err: [400, 'invalid_caller', 'Pick one of your active numbers as caller ID.'] }
-      if (!['telnyx', 'signalwire'].includes(caller.provider)) return { err: [400, 'invalid_caller', 'This number cannot place outbound IVR calls.'] }
+      if (!['telnyx', 'signalwire'].includes(caller.provider) || caller.provider === 'signalwire_fax') return { err: [400, 'invalid_caller', 'This number cannot place outbound IVR calls.'] }
       if (!phoneConfig.canAccessFeature(caller.plan, 'ivrOutbound')) return { err: [403, 'plan_upgrade_required', 'Quick IVR calls need the Pro plan or higher on the caller number.'] }
     }
     const callerId = trial ? (await ivrOb.getTrialCaller()).callerId : caller.phoneNumber
