@@ -384,9 +384,10 @@ async function healthCheck() {
     if (!P.dry()) await new Promise(r => setTimeout(r, 600))
     let health = 'healthy', err = null, expires = e.expirationDate || null
     try { const sim = await P.getSim(e.iccid, e.account), sub = await P.subscription(e.iccid, e.account).catch(() => null), pending = /PENDING/i.test(String(sub?.status || ''))
+      const noDevice = !sim?.device?.imei // SIM was never bound to a device — it will never activate
       const sv = pending ? null : await P.serviceState(e.iccid, e.account), st = String(sim?.status || '').toUpperCase()
       if (sub?.endDate && !isNaN(Date.parse(sub.endDate))) expires = new Date(sub.endDate)
-      if (pending) health = 'activating'; else if (expires && expires < new Date()) health = 'expired'; else if (/SUSPEND|BLOCK/.test(st)) health = 'suspended'; else if (sv && sv.sms === false) health = 'provider_restricted'; else if (st && st !== 'ACTIVE') health = 'temporarily_unavailable'
+      if (pending && noDevice) health = 'never_activated'; else if (pending) health = 'activating'; else if (expires && expires < new Date()) health = 'expired'; else if (/SUSPEND|BLOCK/.test(st)) health = 'suspended'; else if (sv && sv.sms === false) health = 'provider_restricted'; else if (st && st !== 'ACTIVE') health = 'temporarily_unavailable'
     } catch (x) { err = x; health = x.kind === 'temporary' || x.kind === 'rate' ? 'temporarily_unavailable' : 'technically_failed' }
     const apiFails = health === 'technically_failed' ? (e.apiFails || 0) + 1 : 0
     const recent = await C('bsMessages').find({ esimId: e._id, direction: 'out', submittedAt: { $gt: new Date(Date.now() - DAY) } }, { projection: { status: 1 } }).toArray()
@@ -395,6 +396,15 @@ async function healthCheck() {
     const score = Math.max(0, Math.round(100 - rate * 100 - (e.recvMiss || 0) * 5 - (health === 'healthy' ? 0 : 30)))
     await C('bsTests').insertOne({ esimId: e._id, type: 'status', result: health, providerResponse: err?.message || null, errorCode: err?.code || null, at: new Date() })
     const set = { health, healthScore: score, lastTestAt: new Date(), expirationDate: expires, apiFails, ...(health === 'healthy' ? { lastOkAt: new Date() } : {}) }
+    // SIM was never bound to a device (PENDING sub + no device IMEI) → structurally stuck, will never
+    // activate. Retire immediately — don't wait 24 h. Don't try to cancel (Spenza can't cancel PENDING).
+    if (health === 'never_activated') {
+      await setEsim(e._id, 'failed', { ...set, note: 'Never activated — SIM has no device bound (subscription PENDING, no IMEI)' })
+      incident('never_activated', { esimId: e._id, reason: 'no_device' })
+      alert(`💀 ${e._id} ${e.msisdn || ''}: never activated — Spenza assigned this SIM but never bound it to a device (no IMEI, subscription still PENDING). Retired immediately. Ask Spenza to void or refund ICCID ${e.iccid}.${c.autoProvision && !c.manualApproval ? ' Buying a replacement.' : ''}`)
+      if (c.autoProvision && !c.manualApproval) await provisionOne(`${e._id} never activated (no device)`, 'system', e.role || 'service')
+      continue
+    }
     // Spenza took the order but never activated the plan (subscription PENDING, SIM INACTIVE): wait, tell the admin at 2 h,
     // retire (cancel the pending plan) and buy a replacement at 24 h — same rhythm as a number that never arrives.
     if (health === 'activating') {

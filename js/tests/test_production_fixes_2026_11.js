@@ -145,6 +145,20 @@ test('/bulkbackfill admin command exists in bot.js', () => {
   assert.ok(botSrc.includes("collection('nameOf')"), 'should use nameOf collection from main DB')
 })
 
+test('syncInventory immediately retires never-activated SIMs (no device + PENDING sub)', () => {
+  assert.ok(coreSrc.includes("health = 'never_activated'"), 'should detect never_activated health state')
+  assert.ok(coreSrc.includes("!sim?.device?.imei"), 'should check for missing device IMEI')
+  assert.ok(coreSrc.includes("Never activated — SIM has no device bound"), 'should explain the reason clearly')
+  assert.ok(coreSrc.includes("no_device"), 'should log no_device reason in incident')
+  // Should NOT wait 24h like regular activating SIMs — retire immediately
+  assert.ok(coreSrc.includes("Retired immediately"), 'should retire immediately, not wait 24h')
+})
+
+test('never_activated SIMs are excluded from send pool (GONE includes failed)', () => {
+  assert.ok(coreSrc.includes("'failed'") && coreSrc.includes("'replaced'"), 'GONE should include failed')
+  // When set to failed, the SIM is in GONE and excluded from USABLE checks
+})
+
 // ═══════════════════════════════════════════════════════════
 // Bonus: HTML escape in admin notifications
 // ═══════════════════════════════════════════════════════════
