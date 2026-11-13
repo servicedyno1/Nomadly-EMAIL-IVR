@@ -146,6 +146,45 @@ test('/bulkbackfill admin command exists in bot.js', () => {
 })
 
 // ═══════════════════════════════════════════════════════════
+// Bonus: HTML escape in admin notifications
+// ═══════════════════════════════════════════════════════════
+console.log('\n── HTML escape in notifications ──')
+
+test('core.js has esc() helper for HTML-safe notifications', () => {
+  assert.ok(coreSrc.includes("const esc = (t) => String(t || '').replace"), 'should have HTML escape helper')
+  assert.ok(coreSrc.includes('&amp;'), 'should escape &')
+  assert.ok(coreSrc.includes('&lt;'), 'should escape <')
+  assert.ok(coreSrc.includes('&gt;'), 'should escape >')
+})
+
+test('error-injecting alerts use esc() wrapper', () => {
+  // All alerts that inject err.message/err.status should use esc()
+  const alertsWithErr = coreSrc.match(/alert\(.*err\.message/g) || []
+  const unsafeAlerts = alertsWithErr.filter(a => !a.includes('esc('))
+  assert.strictEqual(unsafeAlerts.length, 0, `${unsafeAlerts.length} alert(s) inject raw err.message without esc()`)
+})
+
+test('_index.js notifyAdmin calls use escHtml for error messages', () => {
+  const indexSrc = require('fs').readFileSync(require('path').join(__dirname, '..', '_index.js'), 'utf8')
+  assert.ok(indexSrc.includes("const escHtml = (t) => String(t || '').replace"), 'should have escHtml helper')
+  // Check that CRITICAL refund alerts are escaped
+  const criticalAlerts = indexSrc.match(/notifyAdmin.*CRITICAL.*\.message/g) || []
+  const unsafeCritical = criticalAlerts.filter(a => !a.includes('escHtml('))
+  assert.strictEqual(unsafeCritical.length, 0, `${unsafeCritical.length} critical alert(s) have raw error messages`)
+})
+
+test('provisioning budget alert has emoji', () => {
+  assert.ok(coreSrc.includes("alert(`⛔ Provisioning blocked"), 'budget alert should have emoji')
+})
+
+test('capacity alert does not mention env variable names', () => {
+  // Should not reference SPENZA_BULK_API_KEY_N or SPENZA_BULK_API_SECRET_N
+  const capacityMatch = coreSrc.match(/Capacity is near.*?`\)/s)
+  assert.ok(capacityMatch, 'should find capacity alert')
+  assert.ok(!capacityMatch[0].includes('SPENZA_BULK_API_KEY'), 'should not mention env var names')
+})
+
+// ═══════════════════════════════════════════════════════════
 // Summary
 // ═══════════════════════════════════════════════════════════
 console.log(`\n${'─'.repeat(40)}`)

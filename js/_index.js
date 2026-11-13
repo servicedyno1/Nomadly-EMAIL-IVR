@@ -1502,7 +1502,7 @@ async function refundTelnyxVerification(chatId, refund, lang) {
   const cur = refund?.currency === 'ngn' ? 'ngn' : 'usd'
   const amt = Number(refund?.amount) || 0
   try { if (amt > 0) await addFundsTo(walletOf, chatId, cur, amt, lang || 'en') } catch (e) {
-    notifyAdmin(`🚨 CRITICAL [NumberVerify] refund failed\nchatId: ${chatId}\namount: ${amt} ${cur}\nerror: ${e.message}`)
+    notifyAdmin(`🚨 CRITICAL [NumberVerify] refund failed\nchatId: ${chatId}\namount: ${amt} ${cur}\nerror: ${escHtml(e.message)}`)
   }
 }
 
@@ -1554,7 +1554,7 @@ async function submitTelnyxVerification(session) {
       await refundTelnyxVerification(session.chatId, session.payment?.refund, session.lang)
       send(session.chatId, txReg.T(session.lang).orderFailed(txReg.fmtAmount(session.payment?.refund)), translation('o', session.lang || 'en'))
     }
-    notifyAdmin(`🚨 [NumberVerify] submit crashed (${s?.status || 'unknown'})\nchatId: ${session.chatId}\nnumber: ${session.selectedNumber}\nerror: ${e.message}`)
+    notifyAdmin(`🚨 [NumberVerify] submit crashed (${s?.status || 'unknown'})\nchatId: ${session.chatId}\nnumber: ${session.selectedNumber}\nerror: ${escHtml(e.message)}`)
   }
 }
 async function _submitTelnyxVerification(session) {
@@ -1601,7 +1601,7 @@ async function _submitTelnyxVerification(session) {
     await telnyxPendingOrders.insertOne(doc)
   } catch (e) {
     await txReg.setStatus(session._id, 'ordered_untracked', { trackError: e.message })
-    notifyAdmin(`🚨 [NumberVerify] Order ${r.order.id} placed but NOT tracked (${e.message}) — check manually\nchatId: ${chatId}\nnumber: ${session.selectedNumber}`)
+    notifyAdmin(`🚨 [NumberVerify] Order ${r.order.id} placed but NOT tracked (${escHtml(e.message)}) — check manually\nchatId: ${chatId}\nnumber: ${session.selectedNumber}`)
     return
   }
   if (r.state === 'active') { await activateTelnyxReviewedOrder(doc); return }
@@ -1739,7 +1739,7 @@ async function activateTelnyxReviewedOrder(doc) {
   } catch (e) {
     log(`[TelnyxReview] activation error for ${doc.phoneNumber}: ${e.message}`)
     await telnyxPendingOrders.updateOne({ _id: doc._id }, { $set: { status: 'activation_error', lastError: e.message } })
-    notifyAdmin(`🚨 [NumberReview] Number APPROVED by carrier but activation failed — fix manually\nchatId: ${chatId}\nnumber: ${doc.phoneNumber}\norder: ${doc.orderId}\nerror: ${e.message}`)
+    notifyAdmin(`🚨 [NumberReview] Number APPROVED by carrier but activation failed — fix manually\nchatId: ${chatId}\nnumber: ${doc.phoneNumber}\norder: ${doc.orderId}\nerror: ${escHtml(e.message)}`)
     return false
   }
 }
@@ -1766,7 +1766,7 @@ async function refundTelnyxPending(doc, reason) {
   const cur = doc.refund?.currency === 'ngn' ? 'ngn' : 'usd'
   const amt = Number(doc.refund?.amount) || 0
   try { if (amt > 0) await addFundsTo(walletOf, doc.chatId, cur, amt, doc.lang || 'en') } catch (e) {
-    notifyAdmin(`🚨 CRITICAL [NumberReview] refund failed\nchatId: ${doc.chatId}\namount: ${amt} ${cur}\nerror: ${e.message}`)
+    notifyAdmin(`🚨 CRITICAL [NumberReview] refund failed\nchatId: ${doc.chatId}\namount: ${amt} ${cur}\nerror: ${escHtml(e.message)}`)
   }
   const shown = cur === 'ngn' ? `${amt} NGN` : `$${amt.toFixed(2)}`
   sendMessage(doc.chatId, txReg.T(doc.lang).rejected(doc.phoneNumber, shown))
@@ -3726,6 +3726,7 @@ const _RF = (() => {
   return { T, t, REPLACE_BTN, btn: (lang) => REPLACE_BTN[lang] || REPLACE_BTN.en }
 })()
 
+const escHtml = (t) => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const notifyAdmin = (message) => {
   try {
     if (TELEGRAM_ADMIN_CHAT_ID) {
@@ -5675,7 +5676,7 @@ async function checkPendingBundles() {
               await atomicIncrement(walletOf, pb.chatId, 'usdIn', pb.priceUsd || pb.price)
             } catch (refundErr) {
               log(`[BundleChecker] CRITICAL: Refund failed: ${refundErr.message}`)
-              notifyAdmin(`🚨 CRITICAL [BundleChecker] Refund failed\nchatId: ${pb.chatId}\nprice: $${pb.price}\nerror: ${refundErr.message}`)
+              notifyAdmin(`🚨 CRITICAL [BundleChecker] Refund failed\nchatId: ${pb.chatId}\nprice: $${pb.price}\nerror: ${escHtml(refundErr.message)}`)
             }
             await pendingBundles.updateOne({ _id: pb._id }, { $set: { status: 'purchase_failed', error: purchaseErr.message, updatedAt: new Date() } })
             send(pb.chatId, ({
@@ -5684,7 +5685,7 @@ async function checkPendingBundles() {
               zh: `❌ 监管批准后号码购买失败。您的钱包已退款。请联系客服。`,
               hi: `❌ नियामक अनुमोदन के बाद नंबर खरीद विफल। आपके वॉलेट को रिफंड कर दिया गया है। कृपया सहायता से संपर्क करें।`,
             }[(pb.lang || 'en')]) || `❌ Number purchase failed after regulatory approval. Your wallet has been refunded. Please contact support.`)
-            notifyAdmin(`⚠️ [BundleChecker] Purchase exception\nchatId: ${pb.chatId}\nerror: ${purchaseErr.message}`)
+            notifyAdmin(`⚠️ [BundleChecker] Purchase exception\nchatId: ${pb.chatId}\nerror: ${escHtml(purchaseErr.message)}`)
           }
         }
 
@@ -14514,7 +14515,7 @@ Enter new value:`), bc)
                   await saveInfo('cpPendingPriceNgn', null)
                 } catch (refundErr) {
                   log(`[CloudPhone] CRITICAL: Refund failed after bundle error: ${refundErr.message}`)
-                  notifyAdmin(`🚨 CRITICAL [Bundle] Refund failed\nchatId: ${chatId}\nprice: $${priceUsd}\nerror: ${refundErr.message}`)
+                  notifyAdmin(`🚨 CRITICAL [Bundle] Refund failed\nchatId: ${chatId}\nprice: $${priceUsd}\nerror: ${escHtml(refundErr.message)}`)
                 }
                 const { usdBal: refUsd } = await getBalance(walletOf, chatId)
 
@@ -14543,7 +14544,7 @@ Enter new value:`), bc)
                   await set(state, chatId, 'action', 'none')
                   send(chatId, trans('t.dom_6', t.showWallet(refUsd)), { parse_mode: 'HTML', reply_markup: { remove_keyboard: true } })
                 }
-                return notifyAdmin(`⚠️ [Bundle] Exception (cached addr)\nchatId: ${chatId}\ncountry: ${countryCode}\nstaleAddr: ${isStaleAddr}\nerror: ${bundleErr.message}`)
+                return notifyAdmin(`⚠️ [Bundle] Exception (cached addr)\nchatId: ${chatId}\ncountry: ${countryCode}\nstaleAddr: ${isStaleAddr}\nerror: ${escHtml(bundleErr.message)}`)
               }
             }
           }
@@ -30512,7 +30513,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           await atomicIncrement(walletOf, chatId, 'usdIn', rejectedBundle.priceUsd || rejectedBundle.price)
       } catch (refundErr) {
         log(`[BundleRejected] Refund error: ${refundErr.message}`)
-        notifyAdmin(`🚨 [BundleRejected] Refund failed\nchatId: ${chatId}\nbundle: ${rejectedBundle.bundleSid}\nerror: ${refundErr.message}`)
+        notifyAdmin(`🚨 [BundleRejected] Refund failed\nchatId: ${chatId}\nbundle: ${rejectedBundle.bundleSid}\nerror: ${escHtml(refundErr.message)}`)
       }
       await pendingBundles.updateOne({ _id: rejectedBundle._id }, { $set: { status: 'cancelled-refunded', refundedAt: new Date(), updatedAt: new Date() } })
       await set(state, chatId, 'action', 'none')
@@ -30548,7 +30549,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
             if (refundAmt > 0) { await atomicIncrement(walletOf, chatId, 'usdIn', refundAmt); totalRefunded += refundAmt }
           } catch (refErr) {
             log(`[StartFresh] Refund error for bundle ${rb.bundleSid}: ${refErr.message}`)
-            notifyAdmin(`🚨 [StartFresh] Refund failed\nchatId: ${chatId}\nbundle: ${rb.bundleSid}\nerror: ${refErr.message}`)
+            notifyAdmin(`🚨 [StartFresh] Refund failed\nchatId: ${chatId}\nbundle: ${rb.bundleSid}\nerror: ${escHtml(refErr.message)}`)
           }
           await pendingBundles.updateOne({ _id: rb._id }, { $set: { status: 'start-fresh-refunded', refundedAt: new Date(), updatedAt: new Date() } })
           totalCleaned++
@@ -30939,7 +30940,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           }
         } catch (refundErr) {
           log(`[CloudPhone] CRITICAL: Refund failed after bundle error: ${refundErr.message}`)
-          notifyAdmin(`🚨 CRITICAL [Bundle] Refund failed\nchatId: ${chatId}\nprice: $${priceUsd || price}\nerror: ${refundErr.message}`)
+          notifyAdmin(`🚨 CRITICAL [Bundle] Refund failed\nchatId: ${chatId}\nprice: $${priceUsd || price}\nerror: ${escHtml(refundErr.message)}`)
         }
         // Record error so AI Support has context
         try {
@@ -30949,7 +30950,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         const { usdBal: refUsd } = await getBalance(walletOf, chatId)
         await set(state, chatId, 'action', 'none')
         send(chatId, trans('t.cp_248', t.showWallet(refUsd)), { parse_mode: 'HTML', reply_markup: { remove_keyboard: true } })
-        return notifyAdmin(`⚠️ [Bundle] Exception\nchatId: ${chatId}\ncountry: ${countryCode}\nerror: ${bundleErr.message}`)
+        return notifyAdmin(`⚠️ [Bundle] Exception\nchatId: ${chatId}\ncountry: ${countryCode}\nerror: ${escHtml(bundleErr.message)}`)
       }
     }
 
