@@ -2673,3 +2673,8 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Custom caller IDs: admin on/off switch (default OFF) stored in `appSettings._id=customCallerId`. Web admin → Caller IDs tab switch; bot admin `/callerid on|off` (per brand DB). OFF = hidden in bot + web, write routes 403 `caller_id_off`, and all dial paths (voice-service IVR/bulk/SIP, AI agent) use the customer's own number. Saved caller IDs are kept. Env `CUSTOM_CALLER_ID_ON=true` only applies when no DB value (used by tests).
 - Tests: js/tests/test_caller_id_switch_and_loa_draft.js 13/13; testing agent iteration_264 all pass.
 - TODO after deploy: confirm WhiteLabel brands received js/cloudivr-web/caller-ids.js (web-only sync pattern); push directly if missing.
+
+## 2026-11-13 — SIP registration 403 fix (all brands, own Kamailio server)
+- Bug: Kamailio rejected REGISTER with `403 Use your own login` whenever the softphone's To user ≠ auth username (many apps put the account label, e.g. "ben", or the caller ID there). Credentials were correct (sip-auth lookup 200). Since the Nov 12 restart only 3 registrations had ever been accepted and 0 phones were registered.
+- Fix: removed the To check; REGISTER is now saved under the authenticated login (`save("location","0x00","sip:$au@$fd")`), so nobody can register someone else's line. Applied to `ops/sip-server/kamailio.cfg` and live `/etc/kamailio/kamailio.cfg` (backup `.bak-<ts>`), restarted with 0 active calls.
+- Verified live with `scripts/sip_register_to_probe.py`: To=own/“ben”/caller ID → 200, AoR stored as cv5shdaatb; wrong password → 401.
