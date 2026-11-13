@@ -1,3 +1,4 @@
+process.env.CUSTOM_CALLER_ID_ON = 'true'
 // iter217: carrier rejects custom caller ID → retry from own number + user told "Phone carriers rejected caller ID X" (no "Telnyx"). No network.
 process.env.TWILIO_ENABLED = 'false'
 const vs = require('../../js/voice-service')

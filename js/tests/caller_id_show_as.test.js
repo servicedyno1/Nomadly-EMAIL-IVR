@@ -1,3 +1,4 @@
+process.env.CUSTOM_CALLER_ID_ON = 'true'
 // Unit check (no network): a verified "Show as" number becomes the Telnyx `from`; the CloudIVR number stays the session caller.
 process.env.TWILIO_ENABLED = 'false'
 const vs = require('../../js/voice-service')

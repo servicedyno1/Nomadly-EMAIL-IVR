@@ -76,7 +76,7 @@ const txn = (chatId, type, amount, meta) => S.db.collection('transactions').inse
 const pub = (d) => ({
   id: d._id, phoneNumber: d.phoneNumber, mode: d.mode, status: d.status, note: d.note || null, paid: d.paid,
   planNumber: d.planNumber || null, plan: d.plan || null,
-  nextBillAt: d.nextBillAt || null, createdAt: d.createdAt, activatedAt: d.activatedAt || null, holder: d.holder || null,
+  nextBillAt: d.nextBillAt || null, createdAt: d.createdAt, activatedAt: d.activatedAt || null, holder: d.holder || null, draft: d.draft || null,
   monthly: monthlyOf(d),
   noBill: !!d.noBill, signedAt: d.signedAt || null, docsAt: d.docsAt || null, expectedBy: d.docsAt ? addBusinessDays(d.docsAt, 3) : null,
 })
@@ -242,6 +242,14 @@ async function buildLoa(d, holder, { ip, signature, signedAt } = {}) {
   line(`via ${S.brand?.() || 'CloudIVR'} — order ${d._id}. The signer confirmed the details and consented to an electronic signature.`, { size: 8, gap: 11 })
   pdf.setTitle(`LOA ${d.phoneNumber}`)
   return Buffer.from(await pdf.save())
+}
+
+// Letter details saved as the customer types, so they come back on any device until it's signed.
+async function saveDraft(chatId, id, raw = {}) {
+  const draft = {}
+  for (const k of HOLDER_FIELDS) draft[k] = String(raw[k] || '').slice(0, 120)
+  const r = await S.col.updateOne({ _id: String(id), chatId: String(chatId), status: { $in: ['loa', 'documents'] }, holder: null }, { $set: { draft, draftAt: new Date() } })
+  return r.matchedCount ? { ok: true } : { error: 'This letter is already signed.' }
 }
 
 // Step 3: the customer types their name to sign the letter; it's stored and sent with the bill.
@@ -483,5 +491,5 @@ async function recent(chatId, limit = 10) {
   return S.db.collection('phoneLogs').find({ chatId: String(chatId), hosted: true, direction: 'inbound' }).sort({ timestamp: -1 }).limit(Math.min(50, limit)).toArray()
 }
 
-const api = { init, check, start, recent, renew, sendCode, submitCode, skipCode, signLoa, submitDocs, requestHelp, cancel, adminSubmitDocs, adminMessage, adminReject, addBusinessDays, REVIEW_DAYS, list, mine, pub, onInbound, sendText, messages, tick, buildLoa, normPhone, PRICE, MONTHLY, TEXT_PRICE, MAX_TEXT, PLAN_PRICE, PLAN_LIMIT, TEXTING, plansFor }
+const api = { init, check, start, recent, renew, sendCode, submitCode, skipCode, signLoa, saveDraft, submitDocs, requestHelp, cancel, adminSubmitDocs, adminMessage, adminReject, addBusinessDays, REVIEW_DAYS, list, mine, pub, onInbound, sendText, messages, tick, buildLoa, normPhone, PRICE, MONTHLY, TEXT_PRICE, MAX_TEXT, PLAN_PRICE, PLAN_LIMIT, TEXTING, plansFor }
 module.exports = api

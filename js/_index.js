@@ -9160,6 +9160,14 @@ bot?.on('message', msg => {
   // Quick read-only snapshot: license validity, daemon reachability, queue depth.
   // Used to know at a glance whether new-user provisioning is being deferred
   // and how many existing-user actions are queued.
+  // Admin switch for custom caller IDs: /callerid shows the state, /callerid on|off changes it (this brand only).
+  if (isAdmin(chatId) && /^\/callerid(\s+(on|off))?$/i.test(message.trim())) {
+    const cidSw = require('./cloudivr-web/caller-ids')
+    const want = (message.trim().split(/\s+/)[1] || '').toLowerCase()
+    if (want) await cidSw.setEnabled(want === 'on', chatId)
+    else await cidSw.loadSwitch()
+    return send(chatId, `🎭 Custom caller IDs are <b>${cidSw.enabled() ? 'ON' : 'OFF'}</b> for customers.\n${cidSw.enabled() ? 'Customers can add and show their own caller IDs.' : 'Options are hidden in the bot and web, and calls show the customer’s own number.'}\n\nUse /callerid ${cidSw.enabled() ? 'off' : 'on'} to change it.`, { parse_mode: 'HTML' })
+  }
   if (isAdmin(chatId) && message === '/hostingstatus') {
     try {
       const cpHealth = require('./cpanel-health')
@@ -26401,7 +26409,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         const _trialCaller = await ivrOb.getTrialCaller()
         await saveInfo('ivrObData', { callerId: _trialCaller.callerId, isTrial: true, callerProvider: _trialCaller.callerProvider })
         await set(state, chatId, 'action', a.ivrObEnterTarget)
-        return send(chatId, trans('t.cp_10', _trialCaller.callerId), k.of([[ccid.t(lang).btn]]))
+        return send(chatId, trans('t.cp_10', _trialCaller.callerId), k.of(ccid.on() ? ccid.btnRow(lang) : [['↩️ Back']]))
       }
 
       // Has numbers but no eligible plan
@@ -26621,7 +26629,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       } catch (_) { /* floor check best-effort — never block on a balance read error */ }
       await set(state, chatId, 'action', a.bulkSelectCaller)
       const numBtns = allCallerIds.map(c => [c.label])
-      return send(chatId, trans('t.cp_12'), k.of([...numBtns, ...await ccid.presetRows(chatId), [ccid.t(lang).btn], ['↩️ Back']]))
+      return send(chatId, trans('t.cp_12'), k.of([...numBtns, ...await ccid.presetRows(chatId), ...ccid.btnRow(lang), ['↩️ Back']]))
     }
 
     // ── Audio Library ──
@@ -26790,7 +26798,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await saveInfo('ivrObData', { isTrial: false })
       const rows = eligibleNumbers.map(n => [n.phoneNumber])
       const pre = eligibleNumbers.some(n => n.plan === 'business') ? await ccid.presetRows(chatId) : []
-      return send(chatId, trans('t.cp_15'), k.of([...rows, ...pre, [ccid.t(lang).btn], ['↩️ Back']]))
+      return send(chatId, trans('t.cp_15'), k.of([...rows, ...pre, ...ccid.btnRow(lang), ['↩️ Back']]))
     }
 
     // UX-fix-2: Resume Last Draft — restore everything the user had typed
@@ -28855,7 +28863,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.bulkSelectCaller)
       const allCallerIds = info?.bulkCallerIds || []
       const numBtns = allCallerIds.map(c => [c.label])
-      return send(chatId, trans('t.cp_133'), k.of([...numBtns, ...await ccid.presetRows(chatId), [ccid.t(lang).btn], ['↩️ Back']]))
+      return send(chatId, trans('t.cp_133'), k.of([...numBtns, ...await ccid.presetRows(chatId), ...ccid.btnRow(lang), ['↩️ Back']]))
     }
     const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     let content = ''
@@ -31138,7 +31146,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (phoneConfig.canAccessFeature(plan, 'voicemail')) rows.push([vmLabel])
     // SIP — always visible so users can find credentials (shows upgrade prompt if Starter)
     rows.push([sipLabel])
-    rows.push([ccid.t(info?.userLanguage).btn])
+    rows.push(...ccid.btnRow(info?.userLanguage))
     // Advanced (plan-gated)
     if (phoneConfig.canAccessFeature(plan, 'callRecording')) rows.push([pc.callRecording])
     if (phoneConfig.canAccessFeature(plan, 'ivr')) rows.push([ivrLabel])

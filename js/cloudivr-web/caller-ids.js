@@ -21,17 +21,31 @@ const txErr = (e) => e.response?.data?.errors?.[0]?.detail || e.message
 
 let col = null
 let dbRef = null
+// Admin on/off switch for custom caller IDs (off = hidden everywhere and calls show the customer's own number).
+let ON = process.env.CUSTOM_CALLER_ID_ON === 'true'
+let switchTimer = null
+const enabled = () => ON
+async function loadSwitch() {
+  const d = await dbRef?.collection('appSettings').findOne({ _id: 'customCallerId' }).catch(() => null)
+  ON = d ? d.enabled === true : process.env.CUSTOM_CALLER_ID_ON === 'true'
+  return ON
+}
+async function setEnabled(v, by) {
+  ON = !!v
+  await dbRef.collection('appSettings').updateOne({ _id: 'customCallerId' }, { $set: { enabled: ON, by: by ? String(by) : null, at: new Date() } }, { upsert: true })
+  return ON
+}
 
 // The verified number this account may show, or null for "use the CloudIVR number". Throws on a number they haven't verified.
 async function resolve(chatId, showAs) {
-  if (!showAs) return null
+  if (!showAs || !ON) return null
   const n = clean(showAs)
   const doc = col && await col.findOne({ _id: n, chatId: String(chatId), status: 'verified' })
   if (!doc) { const e = new Error('Add that number under My numbers → Your own caller IDs before calling from it.'); e.code = 'invalid_show_as'; throw e }
   if (doc.method === 'attested' && !(await hasPaidPlan(chatId))) { const e = new Error('Showing any caller ID is a Business plan feature.'); e.code = 'invalid_show_as'; throw e }
   return n
 }
-const isVerified = (chatId, n) => resolve(chatId, n).then(() => true, () => false)
+const isVerified = (chatId, n) => (ON ? resolve(chatId, n).then(() => true, () => false) : Promise.resolve(false))
 
 async function telnyxRequestCode(n, method) {
   const body = { phone_number: n, verification_method: method }
@@ -90,6 +104,8 @@ async function autoCode(db, n, text) {
 function init(db) {
   col = db.collection('webCallerIds')
   dbRef = db
+  loadSwitch()
+  if (!switchTimer) switchTimer = setInterval(loadSwitch, 30000).unref?.() || true
 }
 
 function routes(router, { db, h, numbersApi }) {
@@ -99,17 +115,19 @@ function routes(router, { db, h, numbersApi }) {
   col.createIndex({ chatId: 1 }).catch(() => {})
   const w = walletOps(db)
   const bad = (res, status, error, message) => res.status(status).json({ error, message })
+  const off = (res) => bad(res, 403, 'caller_id_off', 'Custom caller IDs aren’t available right now. Calls show your CloudIVR number.')
   const view = (d) => ({ number: d._id, status: d.status, method: d.method, note: d.note || null, label: d.label || null, verifiedAt: d.verifiedAt || null })
 
   router.get('/caller-ids', h(async (req, res) => {
     const items = (await col.find({ chatId: req.webChatId }).toArray()).sort(byOrder)
     const used = await usage30(req.webChatId)
-    res.json({ price: PRICE, dryRun: dry(), items: items.filter(d => d.status === 'verified' || d.status === 'review' || Date.now() - d.createdAt < PENDING_MS).map(d => ({ ...view(d), uses30: used[d._id]?.n || 0, lastUsedAt: used[d._id]?.last || null })) })
+    res.json({ enabled: ON, price: PRICE, dryRun: dry(), items: items.filter(d => d.status === 'verified' || d.status === 'review' || Date.now() - d.createdAt < PENDING_MS).map(d => ({ ...view(d), uses30: used[d._id]?.n || 0, lastUsedAt: used[d._id]?.last || null })) })
   }))
 
   // Admin-review path: show a number the customer owns but can't receive a code on (main line, toll-free, call center).
   // No code; the customer attests they are authorized and an admin approves. Telnyx still filters the actual call.
   router.post('/caller-ids/request', h(async (req, res) => {
+    if (!ON) return off(res)
     const chatId = req.webChatId, n = clean(req.body.number)
     if (!E164.test(n)) return bad(res, 400, 'invalid_number', 'Enter the number with country code, e.g. +14155550100.')
     if (req.body.authorized !== true) return bad(res, 400, 'not_authorized', 'Confirm you are authorized to use this number as your caller ID.')
@@ -123,6 +141,7 @@ function routes(router, { db, h, numbersApi }) {
   }))
 
   router.post('/caller-ids', h(async (req, res) => {
+    if (!ON) return off(res)
     const chatId = req.webChatId
     const method = ['call', 'dtmf'].includes(req.body.method) ? req.body.method : 'sms'
     const list = [...new Set((Array.isArray(req.body.numbers) ? req.body.numbers : [req.body.number]).map(clean))].filter(n => n !== '+')
@@ -156,6 +175,7 @@ function routes(router, { db, h, numbersApi }) {
   }
 
   router.post('/caller-ids/verify', h(async (req, res) => {
+    if (!ON) return off(res)
     const chatId = req.webChatId, n = clean(req.body.number), code = String(req.body.code || '').replace(/\D/g, '')
     const doc = await col.findOne({ _id: n, chatId, status: 'pending' })
     if (!doc || Date.now() - doc.createdAt > PENDING_MS) return bad(res, 400, 'no_pending', 'That code expired. Send a new one.')
@@ -189,6 +209,7 @@ function routes(router, { db, h, numbersApi }) {
 
   // Business users can show any number they state they have the right to use (no code). Admin alert.
   router.post('/caller-ids/attest', h(async (req, res) => {
+    if (!ON) return off(res)
     if (req.body.authorized !== true) return bad(res, 400, 'not_authorized', 'Confirm you have the right to use this number as your caller ID.')
     const r = await attest(req.webChatId, req.body.number, { who: req.webUser?.email || '', channel: 'web', label: req.body.label })
     if (!r.ok) return bad(res, r.status, r.error, r.message)
@@ -196,6 +217,7 @@ function routes(router, { db, h, numbersApi }) {
   }))
   // Rename a saved caller ID (max 24 chars; empty clears it).
   router.put('/caller-ids/:number/label', h(async (req, res) => {
+    if (!ON) return off(res)
     const n = clean(req.params.number)
     const label = String(req.body.label || '').trim().slice(0, 24)
     const d = await col.findOne({ _id: n, chatId: req.webChatId, status: 'verified' })
@@ -216,9 +238,10 @@ function routes(router, { db, h, numbersApi }) {
     const r = await numbersApi.upgradeNumber(req.webChatId, n, 'business', null, 0, true)
     res.status(r.status).json({ number: n.phoneNumber, ...r.body })
   }))
-  router.get('/caller-ids/presets', h(async (req, res) => res.json({ items: await presets(req.webChatId), max: MAX_PRESETS, last: req.query?.from ? await lastFor(req.webChatId, clean(req.query.from)) : null })))
+  router.get('/caller-ids/presets', h(async (req, res) => res.json({ enabled: ON, items: await presets(req.webChatId), max: MAX_PRESETS, last: req.query?.from ? await lastFor(req.webChatId, clean(req.query.from)) : null })))
   // Hand order for saved caller IDs: numbers in the order the user wants them.
   router.put('/caller-ids/order', h(async (req, res) => {
+    if (!ON) return off(res)
     const list = (Array.isArray(req.body.numbers) ? req.body.numbers : []).map(clean)
     const mine = new Set((await col.find({ chatId: req.webChatId, status: 'verified' }).toArray()).map(d => d._id))
     if (!list.length || list.some(n => !mine.has(n))) return bad(res, 400, 'invalid_order', 'Send the numbers of your saved caller IDs in the order you want.')
@@ -231,6 +254,7 @@ function routes(router, { db, h, numbersApi }) {
     res.json({ items: items.map(d => ({ number: d._id, showAs: d.showAs })) })
   }))
   router.put('/caller-ids/default', h(async (req, res) => {
+    if (!ON) return off(res)
     const own = clean(req.body.number)
     if (!(await numbersApi.findMine(req.webChatId, own))) return bad(res, 404, 'not_found', 'That isn’t one of your CloudIVR numbers.')
     try { await setDefault(req.webChatId, own, req.body.showAs || null) } catch (e) { return bad(res, 400, 'invalid_show_as', e.message) }
@@ -238,7 +262,7 @@ function routes(router, { db, h, numbersApi }) {
   }))
 }
 
-module.exports = { init, routes, resolve, isVerified, autoVerify, autoCode, PRICE, DRY_CODE }
+module.exports = { init, routes, resolve, isVerified, enabled, setEnabled, loadSwitch, autoVerify, autoCode, PRICE, DRY_CODE }
 
 // ── Attested caller IDs: a paid-plan user states they have the right to use a number (no code). Logged + admin alert. ──
 const EMERGENCY = new Set(['911', '112', '999', '000', '110', '119', '933', '1911', '1112', '1999'])
@@ -267,7 +291,7 @@ async function attest(chatId, raw, { who = '', channel = 'web', label = '' } = {
   return { ok: true, number: n }
 }
 
-const defaultFor = async (chatId, ownNumber) => (await dbRef?.collection('callerIdDefaults').findOne({ _id: String(ownNumber), chatId: String(chatId) }))?.showAs || null
+const defaultFor = async (chatId, ownNumber) => ON && (await dbRef?.collection('callerIdDefaults').findOne({ _id: String(ownNumber), chatId: String(chatId) }))?.showAs || null
 async function setDefault(chatId, ownNumber, showAs) {
   const c = dbRef.collection('callerIdDefaults')
   if (!showAs) return c.deleteOne({ _id: String(ownNumber), chatId: String(chatId) })
@@ -295,6 +319,7 @@ const byOrder = (a, b) => (a.pos ?? Infinity) - (b.pos ?? Infinity) || recent(b)
 const touch = (chatId, number) => { col?.updateOne({ _id: clean(number), chatId: String(chatId) }, { $set: { lastUsedAt: new Date() } }).catch(() => {}) }
 // Saved caller IDs this account can pick with one tap right now (no-code ones only while on Business). Most recently used first.
 async function presets(chatId) {
+  if (!ON) return []
   if (!col) return []
   const docs = await col.find({ chatId: String(chatId), status: 'verified' }).toArray()
   const biz = docs.some(d => d.method === 'attested') && await hasPaidPlan(chatId)
