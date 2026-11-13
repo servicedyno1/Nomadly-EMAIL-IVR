@@ -328,6 +328,12 @@ async function admin(chatId, message, say) {
     case '/bulkplan': { const p = await B.plan(await B.cfg()); return say(`📐 <b>Capacity plan</b> · ${p.lines} line(s), ceiling ${p.maxLines} · busiest day in the window: ${p.peak} SMS\nday · booked → target · have · ceiling · lines to buy\n${p.rows.map(r => `${r.date} · ${r.booked} → ${r.target} · ${r.have} · ${r.ceiling} · ${r.short ? `+${r.short}` : 'ok'}`).join('\n')}\nTarget = booked + room for one more full booking, never below the busiest recent day; capped by the Spenza rate × open hours.`) }
     case '/bulklines': { const L = await B.lineHistory(14); return say(L.length ? `📒 <b>Line history (14 days)</b> · n = new conversations · in = replies · ⛔ = STOPs\n${L.map(x => `\n<b>${x.id}</b> ${x.msisdn || '—'} · ${x.status}/${x.health} · age ${x.age}d · lifetime ${x.stats?.sent || 0} sent / ${x.stats?.failed || 0} failed${x.incidents.length ? `\n  ⚠️ ${x.incidents.map(i => `${i.type}${i.why ? ` (${i.why})` : ''} at age ${i.age ?? '?'}d`).join(', ')}` : ''}${x.days.map(d => `\n  ${d.day} age ${d.age}d: ${d.n} new · ${d.out} out · ${d.sent} sent · ${d.failed} failed · ${d.in} in · ⛔${d.stops}`).join('')}`).join('\n')}` : 'No lines yet.') }
     case '/bulkreport': { const rows = await B.db().collection('bsMessages').aggregate([{ $match: { direction: 'out', createdAt: { $gt: new Date(Date.now() - 7 * 86400000) } } }, { $group: { _id: { d: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, s: '$status' }, n: { $sum: 1 } } }, { $sort: { '_id.d': 1 } }]).toArray(); return say(`📊 Last 7 days\n${rows.map(r => `${r._id.d} ${r._id.s}: ${r.n}`).join('\n') || 'No traffic.'}`) }
+    case '/bulkbackfill': {
+      const nameOfCol = T?.db?.collection('nameOf')
+      if (!nameOfCol) return say('⚠️ Main DB nameOf collection not available.')
+      const r = await B.backfillIdentity(nameOfCol)
+      return say(r.ok ? `✅ Backfill done: ${r.updated} updated, ${r.notFound} not found (${r.total} missing total).` : `⚠️ ${r.error}`)
+    }
     case '/bulkcampaigns': {
       const cps = await B.db().collection('bsCampaigns').find({ status: { $ne: 'draft' } }).sort({ createdAt: -1 }).limit(8).toArray()
       if (!cps.length) return say('No campaigns yet.')

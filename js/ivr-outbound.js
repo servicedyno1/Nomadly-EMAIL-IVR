@@ -10,6 +10,20 @@ const BRAND = process.env.CHAT_BOT_BRAND || 'Nomadly'
 // ── Trial Caller ID (must be a Telnyx number on the Call Control App) ──
 const TRIAL_CALLER_ID = process.env.TELNYX_TRIAL_CALLER_ID || '+18889020132'
 
+// Dynamically resolve trial caller — prefer a SignalWire pool number (Telnyx account
+// is blocked), falling back to the static TRIAL_CALLER_ID only when SignalWire is
+// unavailable or has no pool numbers.
+async function getTrialCaller() {
+  try {
+    const sw = require('./signalwire')
+    if (sw.enabled()) {
+      const pool = await sw.poolCaller(TRIAL_CALLER_ID)
+      if (pool) return { callerId: pool, callerProvider: 'telnyx' } // 'telnyx' = wrapper path (tries SW first)
+    }
+  } catch (e) { /* fall back to default */ }
+  return { callerId: TRIAL_CALLER_ID, callerProvider: 'telnyx' }
+}
+
 // ── Outbound IVR Template Categories ──
 const OUTBOUND_CATEGORIES = [
   { key: 'payment', name: 'Payment Alerts', icon: '💳' },
@@ -472,6 +486,7 @@ function formatCallNotification(type, data) {
 
 module.exports = {
   TRIAL_CALLER_ID,
+  getTrialCaller,
   OUTBOUND_CATEGORIES,
   OUTBOUND_TEMPLATES,
   SMART_PLACEHOLDERS,

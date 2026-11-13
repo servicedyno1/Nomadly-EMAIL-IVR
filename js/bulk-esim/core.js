@@ -1064,6 +1064,18 @@ async function reviewAnswer(id, cid, field, value) {
     incident('customer_not_arrived', { esimId: e?._id, cid, to: r.to, messageId: id })
     check = e && USABLE.includes(e.status) && e.msisdn ? await startCheck(e, 'customer_report') : 'no_line'
     await C('bsReviews').updateOne({ _id: id }, { $set: { check } })
+    // Auto-suspect: ≥2 customer "not arrived" complaints on the same line in 48 h means
+    // carrier-level delivery issues that internal health checks cannot detect (bug 2026-11,
+    // ESIM-0008/0009 vs reliable ESIM-0006/0007). Mark the line suspect so it leaves the
+    // send pool until admin investigates.
+    if (e?._id) {
+      const complaints48h = await C('bsReviews').countDocuments({ esimId: e._id, arrived: 'no', arrivedAt: { $gt: new Date(Date.now() - 2 * DAY) } })
+      if (complaints48h >= 2 && USABLE.includes(e.status) && GOOD_HEALTH.includes(e.health)) {
+        await C('bsEsims').updateOne({ _id: e._id }, { $set: { health: 'suspect', suspectAt: new Date(), suspectReason: 'customer_complaints' } })
+        alert(`🚨 ${e._id} ${e.msisdn || ''}: ${complaints48h} customer "not arrived" complaints in 48 h — marked suspect (out of send pool). Internal health checks may still pass. Investigate carrier-level filtering or replace the line.`)
+        incident('customer_suspect', { esimId: e._id, complaints: complaints48h })
+      }
+    }
   }
   return { ...r, ...set, esimId: e?._id || null, from: m?.from || e?.msisdn || null, msgStatus: m?.status || null, check }
 }
@@ -1473,6 +1485,27 @@ async function bootstrapRun() {
   alert(`🔑 Account${o.accounts > 1 ? 's' : ''} ready: ${o.testers}/${c.testerEsims} tester line for customers' test texts · ${o.lines} service line(s) · ${o.accounts} Spenza account(s), line ceiling ${maxLines(c)} · credit $${st.credit ?? '?'}${st.forecast ? ` · free $${st.forecast.available}` : ''}. ${c.autoProvision && !c.manualApproval ? `The monitor line + ${c.minEsims} starter lines are bought at the first paid booking.` : 'Auto-buy is OFF.'}`)
   audit('bootstrap', { retired, added, changed, ...o }); return { ok: true, retired, added, changed, ...o }
 }
+// Backfill missing customer identity: look up chatIds in the main bot's `nameOf` collection
+// to fill username for bsCustomers records that still show "unknown" or null.
+// Safe to run repeatedly (idempotent — only fills empty fields, never overwrites known data).
+async function backfillIdentity(nameOfCollection) {
+  if (!nameOfCollection) return { ok: false, error: 'nameOf collection not provided' }
+  const missing = await C('bsCustomers').find({ $or: [{ username: null }, { username: { $exists: false } }, { username: 'unknown' }] }).toArray()
+  let updated = 0, notFound = 0
+  for (const cu of missing) {
+    const chatId = cu.chatId || cu._id.split(':').slice(1).join(':')
+    if (!chatId) { notFound++; continue }
+    const nameDoc = await nameOfCollection.findOne({ _id: String(chatId) })
+    const username = nameDoc?.val || null
+    if (username && typeof username === 'string' && username !== 'unknown') {
+      const set = { username, backfilledAt: new Date() }
+      await C('bsCustomers').updateOne({ _id: cu._id }, { $set: set })
+      updated++
+    } else { notFound++ }
+  }
+  return { ok: true, total: missing.length, updated, notFound }
+}
+
 function init({ db, log = console.log, notifyAdmin }) {
   const own = db, url = process.env.BULK_ESIM_MONGO_URL
   S = { db: own, log, notifyAdmin }
@@ -1495,4 +1528,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { adminAlert: alert, dueReviews, reviewAnswer, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone }
+module.exports = { adminAlert: alert, dueReviews, reviewAnswer, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone, backfillIdentity }
