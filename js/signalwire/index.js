@@ -17,15 +17,22 @@ const CALL_FNS = ['answerCall', 'rejectCall', 'hangupCall', 'isCallAlive', 'spea
 // our own SignalWire numbers (same area code when we have one), never one that belongs to a customer.
 let reservedCallers = async () => new Set()
 const setReservedCallers = (fn) => { reservedCallers = fn }
-async function poolCaller(from) {
+// SignalWire refuses to originate from a number it doesn't own/verify. force=true ignores reservations so a call never
+// fails just because every owned number is busy — delivery matters more than avoiding a shared caller ID.
+async function poolCaller(from, { force = false } = {}) {
   await rest.refreshOwned()
   if (rest.ownsNumber(from)) return from
-  const taken = await reservedCallers().catch(() => new Set())
-  const pool = rest.ownedNumbers().filter(n => !taken.has(n))
+  const all = rest.ownedNumbers()
+  if (!all.length) return null
+  const taken = force ? new Set() : await reservedCallers().catch(() => new Set())
+  const free = all.filter(n => !taken.has(n))
+  const pool = free.length ? free : (force ? all : [])
   if (!pool.length) return null
   const ac = String(from).replace(/\D/g, '').replace(/^1/, '').slice(0, 3)
   return pool.find(n => n.slice(2, 5) === ac) || pool[Math.floor(Math.random() * pool.length)]
 }
+// SignalWire's "the From number isn't one you own/verified" rejection — retry from a valid owned number.
+const SW_CID_REJECT = /purchased or verified|match the parent call|not a valid.*(from|caller)|caller ?id.*not.*(valid|verified|allowed)/i
 
 function wrap(t) {
   const w = { ...t }
@@ -37,16 +44,36 @@ function wrap(t) {
     const nanp = /^\+1\d{10}$/.test(String(to)) || /^sip:/i.test(String(to))
     const tries = []
     if (nanp && swOn() && voice.connected()) tries.push(['SignalWire', async () => {
-      const use = /^\+1\d{10}$/.test(String(from)) ? (await poolCaller(from)) || from : from
-      const r = await voice.createOutboundCall(use, to, webhookUrl, connectionId, options)
+      const nanpFrom = /^\+1\d{10}$/.test(String(from))
+      let use = nanpFrom ? (await poolCaller(from)) || from : from
+      let r = await voice.createOutboundCall(use, to, webhookUrl, connectionId, options)
+      // SignalWire refused the caller ID → retry once from a guaranteed owned number.
+      if (r.error && nanpFrom && SW_CID_REJECT.test(String(r.error))) {
+        const forced = await poolCaller(from, { force: true })
+        if (forced && forced !== use) {
+          log(`caller ID ${use} refused by SignalWire (${r.error}) — retrying from owned number ${forced}`)
+          use = forced
+          r = await voice.createOutboundCall(use, to, webhookUrl, connectionId, options)
+        }
+      }
       if (!r.error && use !== from) { r.callerSwapped = { requested: from, used: use }; log(`caller ID ${from} isn't on SignalWire — called ${to} from ${use}`) }
       return r
     }])
     // REST fallback: RELAY is offline but SignalWire REST & LaML callback URLs are available
     if (nanp && swOn() && !voice.connected() && options._swRestCallbackUrl) tries.push(['SignalWire-REST', async () => {
-      const use = /^\+1\d{10}$/.test(String(from)) ? (await poolCaller(from)) || from : from
-      if (!use || (use === from && !rest.ownsNumber(from))) return { error: 'No SignalWire pool number available for REST call', status: 422 }
-      const r = await rest.createRestCall(use, to, options._swRestCallbackUrl, options._swRestStatusUrl)
+      const nanpFrom = /^\+1\d{10}$/.test(String(from))
+      let use = nanpFrom ? (await poolCaller(from)) || from : from
+      if (!use || (use === from && !rest.ownsNumber(from))) use = await poolCaller(from, { force: true })
+      if (!use) return { error: 'No SignalWire pool number available for REST call', status: 422 }
+      let r = await rest.createRestCall(use, to, options._swRestCallbackUrl, options._swRestStatusUrl)
+      if (r.error && nanpFrom && SW_CID_REJECT.test(String(r.error))) {
+        const forced = await poolCaller(from, { force: true })
+        if (forced && forced !== use) {
+          log(`caller ID ${use} refused by SignalWire REST (${r.error}) — retrying from owned number ${forced}`)
+          use = forced
+          r = await rest.createRestCall(use, to, options._swRestCallbackUrl, options._swRestStatusUrl)
+        }
+      }
       if (r.error) return r
       r.callControlId = `sw:rest:${r.sid}`; r.callLegId = r.sid; r.callSessionId = r.sid
       if (use !== from) { r.callerSwapped = { requested: from, used: use }; log(`caller ID ${from} isn't on SignalWire — REST called ${to} from ${use}`) }
