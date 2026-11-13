@@ -67,7 +67,7 @@ export default function Dashboard() {
   return (
     <div data-testid="dashboard-page">
       <PageHeader label="Home" title={`Hi ${account?.name?.split(' ')[0] || 'there'}`} sub={textingOnly ? 'Your texting numbers and the latest texts from your customers.' : 'Pick what you want to do — we walk you through it, step by step.'} testid="dashboard-header">
-        {s && !fresh && <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="dashboard-buy-number-button"><PlusCircle className="w-4 h-4" />Get a Business Line</Link>}
+        {s && !fresh && <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="dashboard-buy-number-button"><PlusCircle className="w-4 h-4" />Get a number</Link>}
         {textingOnly && <Link to={cp('/app/texting?add=1')} className="civr-btn civr-btn-primary" data-testid="dashboard-add-texting-button">Add a number</Link>}
       </PageHeader>
       {s?.pendingVerification > 0 && (
@@ -80,7 +80,6 @@ export default function Dashboard() {
       {!s || (fresh && !hosted) ? <SkeletonPage header={false} cards={3} rows={3} /> : textingOnly ? <TextingHome items={hosted.items} balance={s.balance} /> : fresh ? <>{promos}<Guided nums={[]} /><TextingNumberCta testid="dashboard-texting-number-cta" className="mt-6" /><div className="mt-8"><GetStarted balance={s.balance} /></div></> : (
         <>
           <Guided nums={nums?.numbers} />
-          <TextingNumberCta testid="dashboard-texting-number-cta" className="mt-6" />
           <h2 className="font-display text-xl font-bold mt-10 mb-4">At a glance</h2>
           <Stats s={s} />
           <div className="mt-6"><ForYou /></div>

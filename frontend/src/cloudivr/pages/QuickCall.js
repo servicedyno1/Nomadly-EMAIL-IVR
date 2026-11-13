@@ -141,7 +141,7 @@ export default function QuickCall() {
       {!numbers.length ? (trial?.available || trialShown ? <TrialCall status={trial} onUsed={() => { setTrialShown(true); reloadTrial(); refreshSummary(); }} /> : (
         <Empty icon={PhoneOutgoing} title="No number can place IVR calls yet" sub={all.length ? 'Quick IVR calls need an active number on the Pro plan or higher. Upgrade one in its Billing tab.' : 'Buy a number on the Pro plan or higher to place IVR calls.'} testid="quick-call-empty">
           {all.length ? <button type="button" onClick={() => showUpgrade({ feature: 'Quick IVR calls', need: planFor(catalog?.plans, 'ivrOutbound')?.id || 'pro' })} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">See what you get</button>
-            : <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">Get a Business Line</Link>}
+            : <Link to={cp('/app/buy?purpose=voice')} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">Get a Business Line</Link>}
         </Empty>
       )) : (
         <div className="grid xl:grid-cols-3 gap-4 items-start">

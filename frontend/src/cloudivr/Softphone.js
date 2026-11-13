@@ -64,7 +64,7 @@ export default function Softphone({ open, onClose }) {
       ) : !nums.length ? (
         <div data-testid="softphone-no-numbers">
           <p className="text-sm text-[#a1a1aa]">Calling from the browser needs an active number. Every plan includes the browser phone.</p>
-          <Link to={cp('/app/buy')} onClick={onClose} className="civr-btn civr-btn-ghost civr-btn-sm mt-4" data-testid="softphone-upgrade-link">Get a Business Line</Link>
+          <Link to={cp('/app/buy?purpose=voice')} onClick={onClose} className="civr-btn civr-btn-ghost civr-btn-sm mt-4" data-testid="softphone-upgrade-link">Get a Business Line</Link>
         </div>
       ) : (
         <>

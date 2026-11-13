@@ -18,6 +18,7 @@ export const STATUS = {
   active: { label: 'Active for texting', tone: 'text-[#34d399]' },
   paused: { label: 'Paused', tone: 'text-[#fb7185]' },
   rejected: { label: 'Not approved · refunded', tone: 'text-[#fb7185]' },
+  restart: { label: 'Needs to start again · setup carries over', tone: 'text-[#fbbf24]' },
 };
 
 export function NumberPanel({ item, meta, onChange }) {
@@ -36,6 +37,7 @@ export function NumberPanel({ item, meta, onChange }) {
       {item.status === 'review' && <Info icon={Hourglass} text={`${item.mode === 'code' ? 'Ownership confirmed with the code. Your number is' : 'Your documents are'} with the carrier for approval. This usually takes 1–3 business days, expected by ${String(item.expectedBy || '').slice(0, 10) || 'soon'}. We’ll message you the moment texting is on.`} testid="texting-review" />}
       {item.status === 'paused' && <Info icon={PauseCircle} text={item.planNumber ? `Texting is paused because the plan on ${item.planNumber} isn’t active. Renew that plan and texting turns back on by itself.` : `Texting is paused because the $${item.monthly} monthly fee couldn’t be paid. Top up your wallet and it turns back on within a day.`} testid="texting-paused" />}
       {item.status === 'paused' && !item.planNumber && <RenewPaused item={item} onChange={onChange} />}
+      {item.status === 'restart' && <RestartStep item={item} onChange={onChange} />}
       {item.status === 'rejected' && <Info icon={XCircle} text={`This number couldn’t be text-enabled. $${item.paid} was refunded to your wallet.`} testid="texting-rejected" />}
       {item.status === 'active' && <p className="text-xs text-[#a1a1aa]" data-testid="texting-billing">{item.planNumber ? `Texting add-on · renews with your ${item.plan[0].toUpperCase() + item.plan.slice(1)} plan on ${item.planNumber}, no monthly fee` : `Texting plan · next $${item.monthly} on ${String(item.nextBillAt || '').slice(0, 10)} · incoming texts are free`}</p>}
       {item.status === 'active' && !item.planNumber && <RenewWarning price={item.monthly} date={item.nextBillAt} testid="texting-renew-warning" />}
@@ -43,6 +45,13 @@ export function NumberPanel({ item, meta, onChange }) {
       {['verify', 'loa', 'documents', 'admin_docs'].includes(item.status) && <CancelButton item={item} onChange={onChange} />}
     </div>
   );
+}
+
+// Setup from the old texting provider: start again on the new one, setup already paid carries over.
+function RestartStep({ item, onChange }) {
+  const [busy, setBusy] = useState(false);
+  const go = async () => { setBusy(true); try { await api('/hosted-sms', { method: 'POST', body: { phone: item.phoneNumber } }); toast.success('Started again — no charge'); onChange(); } catch (e) { toast.error(e.message); } finally { setBusy(false); } };
+  return <button type="button" className="civr-btn civr-btn-primary" disabled={busy} onClick={go} data-testid="texting-restart">{busy ? 'Starting…' : 'Start again · no charge'}</button>;
 }
 
 // Paused standalone plan: renew now from the wallet, or send crypto and it renews once confirmed.

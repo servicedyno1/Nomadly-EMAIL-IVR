@@ -50,9 +50,8 @@ export function FaxNumberBuy({ balance, onBought }) {
   };
   const short = balance != null && balance < price;
   return (
-    <div className="civr-card p-6 mb-6" data-testid="fax-buy-card">
-      <div className="flex items-center gap-3"><Printer className="w-6 h-6 text-[#818cf8]" /><div className="font-semibold">Fax · Fax-only number</div></div>
-      <p className="text-sm text-[#a1a1aa] mt-2" data-testid="fax-buy-price">{`USA or Canada. Sends and receives faxes only — it can't take calls or texts. ${money(price)}/month, ${offer?.freePages ?? 50} free pages a month, then ${money(offer?.pagePrice ?? 2)} a page.`}</p>
+    <div className="civr-card p-6" data-testid="fax-buy-card">
+      <p className="text-sm text-[#a1a1aa] flex gap-2" data-testid="fax-buy-price"><Printer className="w-4 h-4 mt-0.5 shrink-0 text-[#818cf8]" />{`USA or Canada. Sends and receives faxes only — it can't take calls or texts. ${money(price)}/month, ${offer?.freePages ?? 50} free pages a month, then ${money(offer?.pagePrice ?? 2)} a page.`}</p>
       <form onSubmit={search} className="grid sm:grid-cols-3 gap-4 items-end mt-4" data-testid="fax-buy-search-form">
         <Field label="Country">
           <select className="civr-input" value={q.country} onChange={e => setQ({ ...q, country: e.target.value })} data-testid="fax-buy-country-select">

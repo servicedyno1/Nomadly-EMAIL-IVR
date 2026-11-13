@@ -1,329 +1,100 @@
 {
-  "project_name": "CloudIVR Web App Redesign System",
-  "app_type": "B2B SaaS Telephony Dashboard",
-  "brand_identity": {
-    "archetype": "The Performance Pro & High-Contrast Swiss Calm",
-    "inspiration": "Stripe, Linear, and Intercom helpdesk UX — calm, clean, professional, friction-free",
-    "tone": "Trustworthy, precise, non-intimidating for non-technical small business owners",
-    "theme_mode": "Dual theme (Light & Dark mode full parity, default to 'Match my device')",
-    "forbid_ai_slop": true
-  },
-  "color_system": {
-    "primary_accent": {
-      "light": "#1f6fd6",
-      "dark": "#64acff",
-      "hover_light": "#185bb3",
-      "hover_dark": "#2563c4",
-      "strong": "#2f74d8",
-      "soft_light": "rgba(31, 111, 214, 0.08)",
-      "soft_dark": "rgba(100, 172, 255, 0.12)"
-    },
-    "css_variable_tokens": {
-      "light_mode": {
-        "--c-bg": "#ffffff",
-        "--c-card": "#ffffff",
-        "--c-card-hover": "#f7f9fc",
-        "--c-border": "#e3e7ee",
-        "--c-border-hover": "#c9d1dd",
-        "--c-text": "#13171c",
-        "--c-text-2": "#334155",
-        "--c-muted": "#556070",
-        "--c-accent": "#1f6fd6",
-        "--c-emerald": "#1f6fd6",
-        "--c-accent-strong": "#1f6fd6",
-        "--c-accent-hover": "#185bb3",
-        "--c-accent-soft": "rgba(31, 111, 214, 0.08)",
-        "--c-side": "#13171c",
-        "--c-side-2": "#23272d",
-        "--c-lime": "#daff7c",
-        "--shadow-card": "none",
-        "--shadow-card-hover": "0 8px 24px -16px rgba(19, 23, 28, 0.22)",
-        "--shadow-pop": "0 18px 44px -16px rgba(15, 23, 42, 0.25)"
-      },
-      "dark_mode": {
-        "--c-bg": "#1b1e22",
-        "--c-card": "#23272d",
-        "--c-card-hover": "#2a2f36",
-        "--c-border": "#343a42",
-        "--c-border-hover": "#4a525d",
-        "--c-text": "#ffffff",
-        "--c-text-2": "#d5dce6",
-        "--c-muted": "#b4bfce",
-        "--c-accent": "#64acff",
-        "--c-emerald": "#64acff",
-        "--c-accent-strong": "#2f74d8",
-        "--c-accent-hover": "#2563c4",
-        "--c-accent-soft": "rgba(100, 172, 255, 0.12)",
-        "--c-side": "#13171c",
-        "--c-side-2": "#23272d",
-        "--c-lime": "#daff7c",
-        "--shadow-card": "none",
-        "--shadow-card-hover": "0 14px 34px -20px rgba(0, 0, 0, 0.8)",
-        "--shadow-pop": "0 12px 40px -12px rgba(0, 0, 0, 0.8)"
-      }
-    },
-    "semantic_status_colors": {
-      "success": {
-        "light": "#047857",
-        "dark": "#34d399",
-        "bg_light": "rgba(16, 185, 129, 0.08)",
-        "bg_dark": "rgba(52, 211, 153, 0.08)",
-        "border_light": "rgba(4, 120, 87, 0.3)",
-        "border_dark": "rgba(52, 211, 153, 0.4)"
-      },
-      "warning": {
-        "light": "#b45309",
-        "dark": "#fbbf24",
-        "bg_light": "rgba(251, 191, 36, 0.08)",
-        "bg_dark": "rgba(251, 191, 36, 0.08)",
-        "border_light": "rgba(180, 83, 9, 0.35)",
-        "border_dark": "rgba(251, 191, 36, 0.4)"
-      },
-      "danger": {
-        "light": "#be123c",
-        "dark": "#fb7185",
-        "bg_light": "rgba(251, 113, 133, 0.08)",
-        "bg_dark": "rgba(251, 113, 133, 0.08)",
-        "border_light": "rgba(190, 18, 60, 0.35)",
-        "border_dark": "rgba(251, 113, 133, 0.4)"
-      },
-      "info": {
-        "light": "#0369a1",
-        "dark": "#38bdf8",
-        "bg_light": "rgba(56, 189, 248, 0.08)",
-        "bg_dark": "rgba(56, 189, 248, 0.08)",
-        "border_light": "rgba(3, 105, 161, 0.35)",
-        "border_dark": "rgba(56, 189, 248, 0.4)"
-      }
-    },
-    "accessibility_rules": {
-      "min_contrast_body": "4.5:1 (WCAG AA / APCA compliant)",
-      "min_contrast_heading": "3.0:1 (WCAG AA)",
-      "focus_ring": "2px solid var(--c-accent) with 2px offset",
-      "no_transparent_overlays": true
-    }
+  "project": "CloudIVR Web Redesign Guidelines",
+  "app_type": "saas_app_dashboard",
+  "theme": "Dark Sidebar, Light Content Surface",
+  "colors": {
+    "accent_primary": "#1d6fd8",
+    "accent_hover": "#1e40af",
+    "accent_subtle": "#818cf8",
+    "bg_content": "#f8fafc",
+    "bg_card": "#ffffff",
+    "border_subtle": "#e2e8f0",
+    "border_active": "#1d6fd8",
+    "text_primary": "#0f172a",
+    "text_secondary": "#64748b",
+    "badge_bg": "#eff6ff",
+    "badge_text": "#1d4ed8"
   },
   "typography": {
-    "font_families": {
-      "body": "'Source Sans 3', 'DM Sans', system-ui, sans-serif",
-      "heading": "'Source Sans 3', 'DM Sans', sans-serif",
-      "mono": "'JetBrains Mono', monospace"
-    },
-    "scale": {
-      "h1": {
-        "fontSize": "text-2xl sm:text-3xl lg:text-4xl",
-        "fontWeight": "font-bold",
-        "letterSpacing": "tracking-tight",
-        "lineHeight": "leading-tight"
-      },
-      "h2": {
-        "fontSize": "text-xl sm:text-2xl",
-        "fontWeight": "font-semibold",
-        "letterSpacing": "tracking-tight"
-      },
-      "h3": {
-        "fontSize": "text-lg sm:text-xl",
-        "fontWeight": "font-medium"
-      },
-      "body_regular": {
-        "fontSize": "text-base (15px/16px)",
-        "fontWeight": "font-normal",
-        "lineHeight": "leading-relaxed"
-      },
-      "body_small": {
-        "fontSize": "text-sm (13px/14px)",
-        "fontWeight": "font-normal"
-      },
-      "label": {
-        "fontSize": "text-xs (11px/12px)",
-        "fontWeight": "font-semibold",
-        "letterSpacing": "tracking-wider",
-        "textTransform": "uppercase"
-      }
+    "heading_font": "Outfit, sans-serif",
+    "body_font": "Inter, sans-serif",
+    "sizes": {
+      "page_title": "text-2xl sm:text-3xl font-bold tracking-tight text-slate-900",
+      "card_title": "text-lg font-semibold text-slate-900",
+      "card_price": "text-xl font-bold text-indigo-600",
+      "card_subtitle": "text-xs font-medium text-slate-500 uppercase tracking-wider",
+      "body_text": "text-sm text-slate-600"
     }
   },
-  "spacing_and_layout": {
-    "philosophy": "Generous Spacing (2x-3x typical B2B density for high clarity)",
-    "container_padding": "p-4 sm:p-6 lg:p-8",
-    "touch_targets": "Minimum 44px on all viewport touch targets & mobile buttons",
-    "bento_grid_mode": "High Density Data Grid for Analytics & Job Overview cards (gap-4 to gap-6)",
-    "responsive_breakpoints": {
-      "mobile": "grid-cols-1",
-      "tablet": "md:grid-cols-2",
-      "desktop": "lg:grid-cols-3 xl:grid-cols-4"
-    }
+  "existing_account_banner": {
+    "placement": "Top prominent section on 'Get a number' page before purpose selection",
+    "copy": "Add a number to your current plan ($25/mo)",
+    "description": "Fast-track option for existing account holders to assign a new line directly to their existing active subscription without re-configuring voice/SIP features.",
+    "cta_button": "Quick Add to Active Plan"
   },
-  "navigation_structure": {
-    "desktop_sidebar": "Left fixed sidebar (`civr-side`), graphite surface (#13171c), active indicator bar with accent glow, group labels with subtitle/count badges",
-    "mobile_navigation": "Bottom bar + More sheet with touch targets >= 44px",
-    "job_groups": [
+  "purpose_cards_layout": {
+    "grid_structure": "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6",
+    "card_options": [
       {
-        "group": "Home",
-        "items": [
-          { "title": "Guided home", "path": "/dashboard", "icon": "Home" },
-          { "title": "Messages", "path": "/messages", "icon": "MessageSquare", "badge": "unread" },
-          { "title": "Live", "path": "/live", "icon": "Radio" }
-        ]
+        "id": "voice",
+        "title": "Voice Line",
+        "price": "From $25/mo",
+        "existing_note": "You already have: Business Line active",
+        "features": ["IVR Auto-Attendant", "Call Forwarding", "Voicemail"]
       },
       {
-        "group": "Phone numbers",
-        "items": [
-          { "title": "My numbers", "path": "/numbers", "icon": "Phone" },
-          { "title": "Get a number", "path": "/buy", "icon": "PlusCircle" },
-          { "title": "eSIM & mobile", "path": "/esim", "icon": "Smartphone" },
-          { "title": "Add texting to landline", "path": "/texting-landline", "icon": "MessageCircle" },
-          { "title": "Fax", "path": "/fax", "icon": "Printer" }
-        ]
+        "id": "sip",
+        "title": "SIP Trunk",
+        "price": "From $25/mo (Shares Business Line)",
+        "existing_note": "Shares Business Line plan",
+        "features": ["IP PBX Connect", "Credentials", "Unlimited SIP Legs"]
       },
       {
-        "group": "Answer calls",
-        "items": [
-          { "title": "Keypad menus / IVR", "path": "/ivr-menus", "icon": "Grid" },
-          { "title": "Call forwarding & voicemail", "path": "/forwarding", "icon": "PhoneForwarded" },
-          { "title": "AI receptionist", "path": "/ai-receptionist", "icon": "Bot" }
-        ]
+        "id": "sms",
+        "title": "SMS / Texting",
+        "price": "$75/mo",
+        "existing_note": "Dedicated Texting Number",
+        "features": ["10DLC Verified", "High Volume", "Broadcast & API"]
       },
       {
-        "group": "Make calls",
-        "items": [
-          { "title": "Quick call", "path": "/quick-call", "icon": "Zap" },
-          { "title": "Text-to-voice call", "path": "/text-call", "icon": "Volume2" },
-          { "title": "Bulk campaigns", "path": "/campaigns", "icon": "Send" },
-          { "title": "AI calling agents", "path": "/ai-agents", "icon": "Cpu" },
-          { "title": "Do-not-call list", "path": "/dnc", "icon": "Slash" }
-        ]
-      },
-      {
-        "group": "Contacts & media",
-        "items": [
-          { "title": "Contacts", "path": "/contacts", "icon": "Users" },
-          { "title": "Audio library", "path": "/audio-library", "icon": "Music" }
-        ]
-      },
-      {
-        "group": "Connect devices",
-        "items": [
-          { "title": "SIP / softphone logins", "path": "/sip", "icon": "Server" },
-          { "title": "Browser phone", "path": "/browser-phone", "icon": "Headphones" }
-        ]
-      },
-      {
-        "group": "Account",
-        "items": [
-          { "title": "Wallet & billing", "path": "/wallet", "icon": "Wallet" },
-          { "title": "Settings", "path": "/settings", "icon": "Sliders" },
-          { "title": "Help", "path": "/help", "icon": "HelpCircle" }
-        ]
-      }
-    ]
-  },
-  "guided_home_spec": {
-    "header_question": "What do you want to do?",
-    "task_cards": [
-      {
-        "id": "setup-answering",
-        "title": "Set up call answering",
-        "description": "Create keypress menus, business hours, and automated call routing",
-        "badge": "3 min setup",
-        "cta": "Start setup"
-      },
-      {
-        "id": "get-number",
-        "title": "Get a local or toll-free number",
-        "description": "Instant activation in 50+ countries with call & text support",
-        "badge": "Instant",
-        "cta": "Browse numbers"
-      },
-      {
-        "id": "outbound-campaign",
-        "title": "Launch outbound voice/text campaign",
-        "description": "Broadcast recorded voice or SMS updates to contact groups",
-        "badge": "Popular",
-        "cta": "Create campaign"
-      },
-      {
-        "id": "ai-agent",
-        "title": "Deploy AI Phone Agent",
-        "description": "Have AI answer questions, collect info, and take bookings 24/7",
-        "badge": "AI Powered",
-        "cta": "Configure agent"
+        "id": "fax",
+        "title": "Fax Line",
+        "price": "$15/mo",
+        "existing_note": "Fax-only Number",
+        "features": ["Inbound/Outbound PDF", "Email-to-Fax", "HIPAA Compliant"]
       }
     ],
-    "setup_checklist": {
-      "title": "Your setup progress",
-      "steps": [
-        "Purchase business line",
-        "Configure call forwarding / IVR",
-        "Test inbound call",
-        "Add contacts"
-      ]
-    },
-    "compact_overview_metrics": [
-      "Wallet balance ($)",
-      "Active phone numbers count",
-      "Live calls count",
-      "Unread messages count",
-      "Recent call/text activity list"
-    ]
+    "content_hierarchy": "1. Big Icon & Title -> 2. Starting Price (bold) -> 3. 'You already have' status note -> 4. Bullet feature points -> 5. Select CTA"
   },
-  "page_layout_specs": {
-    "page_header": {
-      "structure": "Title + one-line description on the left; primary action CTA button on the top-right",
-      "sub_sections": "Under-header horizontal tab strip (`civr-tabstrip`) with active indicator line",
-      "breadcrumbs": "Displayed on sub-pages (e.g. Home / Numbers / Details / Answering)"
-    },
-    "command_palette": {
-      "shortcut": "⌘K (Cmd+K / Ctrl+K)",
-      "capabilities": [
-        "Search all pages and sub-settings",
-        "Quick call initiation",
-        "Buy new number shortcut",
-        "Toggle theme (Light / Dark / Auto)",
-        "Search contacts and call logs"
-      ]
-    },
-    "empty_states": {
-      "pattern": "Dashed bounding card (`civr-empty-art`), clear message, single action button ('Get started' or 'Create new')"
-    },
-    "skeleton_loaders": {
-      "pattern": "Shimmer skeletons (`civr-skel`) instead of raw spinners for all data loading states"
+  "selected_state_styling": {
+    "container": "border-2 border-indigo-600 bg-indigo-50/40 shadow-md ring-2 ring-indigo-500/20 scale-[1.02] transition-all duration-200",
+    "badge": "Absolute top-right corner checkmark icon in indigo pill badge",
+    "cta": "bg-indigo-600 text-white font-medium shadow-sm"
+  },
+  "step_section_introduction": {
+    "behavior": "Sequential dynamic step rendering below cards once selection is made",
+    "headings": {
+      "voice_sip": "Step 2: Choose Number & Configure Voice Options",
+      "sms": "Step 2: Search & Claim 10DLC Texting Line",
+      "fax": "Step 2: Pick Fax Number & Confirm $15/mo Plan"
     }
   },
-  "component_specs": {
-    "civr-card": "Background `var(--c-card)`, border `1px solid var(--c-border)`, radius `var(--radius-card)` (12px), transition border & shadow on hover",
-    "civr-btn": "Min height 44px on mobile / 42px desktop, radius 12px / pill 999px, font weight 600, micro-animation scale down 0.98 on click",
-    "civr-btn-primary": "Background `var(--c-accent-strong)`, text #fff, hover glow shadow",
-    "civr-input": "Height 44px, background `var(--c-bg)`/card tint, 1px border `var(--c-border)`, focus outline 3px soft accent ring",
-    "civr-pill": "Height 28px-36px, rounded 999px, status indicators (pill-ok, pill-warn, pill-bad, pill-on)",
-    "civr-table": "Clean tabular alignment, header uppercase 12px font, hover state row background tint `#171717` (dark) / `#f8fafc` (light)"
-  },
-  "media_and_assets": {
-    "image_urls": [
-      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBidXNpbmVzcyUyMG93bmVyJTIwcGhvbmUlMjBWb0lQJTIwZGFzaGJvYXJkfGVufDB8fHx8MTc9NDQxMDcwMXww&ixlib=rb-4.1.0&q=85",
-      "https://images.unsplash.com/photo-1763718528755-4bca23f82ac3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHwzfHxtb2Rlcm4lMjBidXNpbmVzcyUyMG93bmVyJTIwcGhvbmUlMjBWb0lQJTIwZGFzaGJvYXJkfGVufDB8fHx8MTc9NDQxMDcwMXww&ixlib=rb-4.1.0&q=85",
-      "https://images.unsplash.com/photo-1771922748624-b205cf5d002d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHw0fHxtb2Rlcm4lMjBidXNpbmVzcyUyMG93bmVyJTIwcGhvbmUlMjBWb0lQJTIwZGFzaGJvYXJkfGVufDB8fHx8MTc9NDQxMDcwMXww&ixlib=rb-4.1.0&q=85",
-      "https://images.unsplash.com/photo-1537511446984-935f663eb1f4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBidXNpbmVzcyUyMG93bmVyJTIwcGhvbmUlMjBWb0lQJTIwZGFzaGJvYXJkfGVufDB8fHx8MTc9NDQxMDcwMXww&ixlib=rb-4.1.0&q=85"
-    ]
-  },
-  "testing_requirements": {
-    "data_testid_rule": "ALL interactive buttons, links, inputs, cards, tabs, and status badges MUST carry a `data-testid` attribute in kebab-case (e.g., `data-testid='nav-home-link'`, `data-testid='quick-call-button'`)."
-  },
+  "other_pages_cleanup": [
+    "Home: Consolidate duplicate Texting Number upsell banners into a single non-intrusive contextual card.",
+    "My Numbers: Include fax-only numbers in the main numbers list with clear 'Fax' badge identification.",
+    "Header: Change fixed header CTA 'Get a Business Line' to dynamically context-aware label or 'Get a Number'.",
+    "Wallet: Clean up stacked balance prompts and ensure primary payment action button is wide and uncluttered.",
+    "Fax: Ensure dedicated Fax purchase flow routes directly to Fax-only search without Voice/SIP questions.",
+    "Messages & Texting Number: Remove redundant inline SMS upsell banners when user already owns a texting number."
+  ],
   "instructions_to_main_agent": [
-    "Ensure CSS variables for light and dark modes are properly mounted under html[data-civr-theme='light'] and html[data-civr-theme='dark'] in `cloudivr.css` / `theme-clean.css` / `theme-light.css`.",
-    "Maintain complete visual and functional parity between Light and Dark mode.",
-    "Do not break existing civr- standard class names so legacy pages smoothly adopt the redesign.",
-    "Implement the job-grouped left sidebar menu and touch-friendly mobile navigation with min 44px touch targets.",
-    "Implement the guided task-based home screen with setup cards, setup progress checklist, and compact overview.",
-    "Enforce standard PageHeader with title, subtitle, primary action, and TabStrip on sub-pages.",
-    "Add keyboard navigation and ⌘K Command Palette.",
-    "Ensure all interactive components have `data-testid` attributes."
+    "Use existing utility classes: civr-card, civr-btn, civr-btn-primary, civr-pill.",
+    "Avoid multi-level nested redundant questions; show 4 big purpose cards upfront.",
+    "Ensure every interactive element includes data-testid attribute in kebab-case format."
   ],
   "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
-    "Avoid generic AI slop: do not center-everything, use Inter everywhere for headings, or add gratuitous gradients.",
-    "Respect contrast ratios: minimum 4.5:1 for body text, 3:1 for large text and interactive buttons.",
-    "Always set explicit text color on hover states.",
-    "Use 2-3x more spacing than default cramming.",
-    "Respect prefers-reduced-motion for all micro-animations and skeletons.",
-    "Never use raw transparent backgrounds on headers or dropdown popovers."
+    "Include data-testid on buttons, cards, inputs, and tabs.",
+    "Ensure high contrast compliance and avoid transparent overlays over content.",
+    "Keep mobile layouts responsive with flex-col or single column grids on small screens."
   ]
 }

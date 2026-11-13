@@ -56,12 +56,12 @@ export default function AnswerCalls() {
   return (
     <div data-testid={`answer-page-${m}`}>
       <PageHeader label={mode.label} title={mode.title} sub={mode.sub} testid="answer-header">
-        <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="answer-get-number-button"><PlusCircle className="w-4 h-4" />Get a Business Line</Link>
+        <Link to={cp('/app/buy?purpose=voice')} className="civr-btn civr-btn-primary" data-testid="answer-get-number-button"><PlusCircle className="w-4 h-4" />Get a Business Line</Link>
       </PageHeader>
       <ErrorNote error={error} onRetry={reload} className="mb-4" />
       {loading && !data ? <SkeletonRows rows={3} /> : !nums.length ? (
         <Empty icon={mode.Icon} title="No phone number yet" sub="Calls are answered on a number. Get one first, then come back here to choose how it answers." testid="answer-empty">
-          <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="answer-empty-get-number"><PlusCircle className="w-4 h-4" />Get a Business Line</Link>
+          <Link to={cp('/app/buy?purpose=voice')} className="civr-btn civr-btn-primary" data-testid="answer-empty-get-number"><PlusCircle className="w-4 h-4" />Get a Business Line</Link>
         </Empty>
       ) : (
         <div className="flex flex-col gap-3" data-testid="answer-list">

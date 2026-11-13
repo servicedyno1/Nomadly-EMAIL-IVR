@@ -10,10 +10,8 @@ import Checkout from './buy/Checkout';
 import { PlanFeatures, RecommendedBadge, availablePlans } from '../PlanFeatures';
 import { usePrivacy } from '../privacy';
 import { Flag, IconSelect } from '../Pickers';
-import { TextingNumberCta } from './buy/TextingNumberCta';
-import { PlanHelper } from './buy/PlanHelper';
 import { saveIntent, setupPath, USE_PLAN, rememberedUse } from './buy/setupIntent';
-import { PurposePicker, SmsPurposeCard } from './buy/PurposePicker';
+import { PurposePicker, PurposeSection, SmsPurposeCard, usePurposeCards } from './buy/PurposePicker';
 import { FaxNumberBuy } from './buy/FaxNumberBuy';
 
 // The chosen number + plan survive the wallet top-up detour (Wallet links back with ?resume=1).
@@ -127,14 +125,14 @@ function ExistingPlanChooser({ nums, price, pv }) {
     <div className="civr-card civr-rise p-5 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 !border-[#38bdf8]/40 bg-gradient-to-r from-[#38bdf8]/10 to-transparent" data-testid="buy-add-to-plan-card">
       <div className="w-11 h-11 rounded-xl bg-[#38bdf8]/15 flex items-center justify-center shrink-0"><Layers className="w-5 h-5 text-[#38bdf8]" /></div>
       <div className="flex-1 min-w-0">
-        <div className="font-semibold text-base">Already have a plan? Add a number to it</div>
-        <div className="text-sm text-[#a1a1aa] mt-1">{`Skip picking a plan — a new number on one you already pay for is ${money(price)}/month and shares its plan features.`}</div>
+        <div className="font-semibold text-base">Add a number to your current plan</div>
+        <div className="text-sm text-[#a1a1aa] mt-1">{`${money(price)}/month. It shares the plan, features and SIP logins of the line you pick. No new plan needed.`}</div>
       </div>
-      <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-        <select className="civr-input !h-10 sm:w-48" value={sel} onChange={e => setSel(e.target.value)} data-testid="buy-add-to-plan-select">
+      <div className="flex flex-col sm:flex-row gap-3 shrink-0 w-full sm:w-auto">
+        <select className="civr-input !h-11 sm:w-60" value={sel} onChange={e => setSel(e.target.value)} data-testid="buy-add-to-plan-select">
           {nums.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{`${pv.phone(n.phoneNumber)} · ${n.planName}`}</option>)}
         </select>
-        <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={!sel} onClick={() => nav(cp(`/app/buy?extra=${enc(sel)}`))} data-testid="buy-add-to-plan-cta"><Plus className="w-4 h-4" />Add to this plan</button>
+        <button type="button" className="civr-btn civr-btn-primary whitespace-nowrap !h-11 px-5" disabled={!sel} onClick={() => nav(cp(`/app/buy?extra=${enc(sel)}`))} data-testid="buy-add-to-plan-cta"><Plus className="w-4 h-4" />Add to this plan</button>
       </div>
     </div>
   );
@@ -158,8 +156,9 @@ export default function BuyNumber() {
   const pv = usePrivacy();
   const { data: open } = useApi('/numbers/orders?open=1');
   const { data: textingOffer } = useApi(extraOf ? null : '/mobile-numbers');
-  const [use, setUse] = useState(rememberedUse);
-  const [purposes, setPurposes] = useState(() => (params.get('purpose') ? params.get('purpose').split(',') : ['voice']));
+  const [use] = useState(rememberedUse);
+  const [purposes, setPurposes] = useState(() => (params.get('purpose') ? params.get('purpose').split(',') : saved || params.get('plan') || params.get('coupon') ? ['voice'] : []));
+  const cards = usePurposeCards(catalog, myNums);
   const line = !!extraOf || purposes.includes('voice') || purposes.includes('sip');
   useEffect(() => { refreshSummary(); }, [refreshSummary]);
   if (!catalog) return <Spinner />;
@@ -204,22 +203,15 @@ export default function BuyNumber() {
   return (
     <div data-testid="buy-page">
       {extraOf ? <PageHeader label="Phone numbers · Extra number" title="Add an extra number" sub={`Shares the plan of ${pv.phone(extraOf)} — ${money(extra?.price || 25)}/month, same features. Pay from your wallet or with crypto.${extra ? ` ${extra.used} of ${extra.limit} used.` : ''}`} testid="buy-header" />
-        : <PageHeader label="Phone numbers" title={line ? "Get a Business Line" : "Get a number"} sub={!line ? "Pick what you need below: a Texting Number for SMS, a fax-only number for faxes, or a Business Line for calls and SIP." : `A business phone number for calls in ${catalog.countries.length} countries. Answer in your browser or forward to any phone; bigger plans add call menus, campaigns and AI. Month to month, paid from your wallet or with crypto.`} testid="buy-header" />}
+        : <PageHeader label="Phone numbers" title="Get a number" sub="Choose what the number is for. Everything is month to month and paid from your wallet." testid="buy-header" />}
       {extraOf
         ? <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-extra-back"><Link to={cp('/app/buy')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-extra-back-button">Buy a brand-new number with its own plan instead</Link></p>
         : <>
-          <PurposePicker value={purposes} onChange={setPurposes} />
-          {purposes.includes('sms') && <SmsPurposeCard />}
-          {purposes.includes('fax') && <FaxNumberBuy balance={summary?.balance} onBought={refreshSummary} />}
-          {!purposes.length && <div className="civr-card p-5 mb-6 text-sm text-[#a1a1aa]" data-testid="buy-purpose-empty">Pick at least one use above to see the numbers for it.</div>}
-          {line && <>
-          {purposes.length > 1 && <div className="font-semibold mb-3" data-testid="buy-line-heading">Voice & SIP · Business Line</div>}
-          <PlanHelper plans={catalog.plans} current={planObj?.id} onPlan={setPlan} onUse={setUse} />
-          {!purposes.includes('sms') && <TextingNumberCta testid="buy-texting-number-cta" className="mb-6" />}
           {eligible.length > 0 && <ExistingPlanChooser nums={eligible} price={catalog.extraNumber?.price || 25} pv={pv} />}
-          <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-texting-link">Already have a number elsewhere? <Link to={cp('/app/texting?add=1')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-texting-link-button">Add texting to it</Link></p>
-          </>}
+          <PurposePicker cards={cards} value={purposes} onChange={setPurposes} />
+          {!purposes.length && <div className="civr-card p-5 mb-6 text-sm text-[#a1a1aa]" data-testid="buy-purpose-empty">Choose a card above. Its steps appear here.</div>}
         </>}
+      {line && !extraOf && <PurposeSection n={1} title={`${[purposes.includes('voice') && 'Voice', purposes.includes('sip') && 'SIP'].filter(Boolean).join(' & ') || 'Voice'} · Business Line`} sub={purposes.includes('sip') ? 'Find a number, then pick Pro or Business: those plans include SIP logins.' : 'Find a number, pick a plan and pay.'} testid="buy-line-section" />}
       {line && <>
       {open?.orders?.[0] && <OpenOrder order={open.orders[0]} />}
       {saved?.pick && <div className="civr-card p-4 mb-4 text-sm flex items-center gap-2" data-testid="buy-resume-note"><Check className="w-4 h-4 text-[#818cf8]" />Welcome back — {saved.pick.phoneNumber} and the {planObj?.name} plan are still selected below.</div>}
@@ -242,6 +234,8 @@ export default function BuyNumber() {
         </div>
       )}
       </>}
+      {!extraOf && purposes.includes('sms') && <PurposeSection n={line ? 2 : 1} title="SMS · Texting Number" sub="A separate number made for texting." testid="buy-sms-section"><SmsPurposeCard /></PurposeSection>}
+      {!extraOf && purposes.includes('fax') && <PurposeSection n={1 + (line ? 1 : 0) + (purposes.includes('sms') ? 1 : 0)} title="Fax · Fax-only number" sub="Search, pick your number and pay from your wallet." testid="buy-fax-section"><FaxNumberBuy balance={summary?.balance} onBought={refreshSummary} /></PurposeSection>}
     </div>
   );
 }

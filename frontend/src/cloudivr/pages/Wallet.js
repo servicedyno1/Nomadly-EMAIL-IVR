@@ -157,7 +157,7 @@ function Tables({ data }) {
         <div className="font-display text-2xl font-bold mb-4">History</div>
         {!data.history.length ? (
           <Empty bare icon={Receipt} title="No transactions yet" sub="Number purchases, renewals and call charges show up here." testid="wallet-history-empty">
-            <Link to={cp('/app/buy')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="wallet-history-empty-buy-link">Get a Business Line</Link>
+            <Link to={cp('/app/buy')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="wallet-history-empty-buy-link">Get a number</Link>
           </Empty>
         ) : <History list={data.history} />}
       </div>
@@ -205,7 +205,7 @@ export default function Wallet() {
         <div className="civr-card p-6 flex flex-col justify-between lg:self-start lg:min-h-[280px]" data-testid="wallet-balance-card">
           <div className="flex items-center justify-between"><span className="civr-label">Balance</span><WalletIcon className="w-5 h-5 text-[#818cf8]" /></div>
           <div className="font-mono text-4xl xl:text-5xl whitespace-nowrap mt-6" data-testid="wallet-balance">{money(data.balance)}</div>
-          <div className="text-xs text-[#a1a1aa] mt-2">USD · card payments arrive in seconds, crypto once the network confirms</div>
+          <div className="text-xs text-[#a1a1aa] mt-2">USD · top-ups appear once the payment is confirmed</div>
         </div>
         <div className="lg:col-span-2"><TopUp coins={data.coins} min={data.minTopup} initial={need ? Math.max(data.minTopup, Math.ceil(need)) : Number(params.get('amount')) || 50} onCreated={(d) => { setDep(d); reload(); }} /></div>
       </div>
