@@ -874,4 +874,13 @@ const TIPS = {
   fa: { tips_checking: '🔎 در حال بررسی متن شما…', tips: (o) => `😕 متأسفیم که نرسید — خط را هم بررسی می‌کنیم.\n\n${o.words ? `⚠️ <b>کلماتی که اپراتورها ممکن است مسدود کنند</b>\n${o.words}` : '✅ کلمات شما مشکلی ندارند. ۲ دقیقه دیگر صبر کنید یا ۲ تا ۳ نسخه چرخشی بسازید.'}${o.rewrite ? `\n\n✨ <b>نسخه امن‌تر</b>\n<i>${o.rewrite}</i>` : ''}`, btn: { use_rewrite: '✨ استفاده از نسخه امن‌تر' } },
 }
 for (const [l, d] of Object.entries(TIPS)) { const { btn: b, ...rest } = d; Object.assign(LANGS[l], rest); Object.assign(LANGS[l].btn, b) }
+// Spam folder answer: "Yes, but in spam" → retry from another line (+ AI word check).
+const SPAM = {
+  en: { test_spam: '📥 Thanks — that tells us the line is being filtered. Your next test goes from a <b>different line</b>.', spam_words: 'Words that can trigger spam filters', spam_safer: 'Safer version', rv_spam: '📥 In spam', btn: { arrived_yes: '✅ Yes, in my inbox', arrived_spam: '📥 Yes, but in spam', test_other_line: '🔁 Test from another line' } },
+  fr: { test_spam: '📥 Merci — la ligne est filtrée. Votre prochain test part d’une <b>autre ligne</b>.', spam_words: 'Mots qui déclenchent les filtres anti-spam', spam_safer: 'Version plus sûre', rv_spam: '📥 Dans les spams', btn: { arrived_yes: '✅ Oui, dans ma boîte', arrived_spam: '📥 Oui, mais en spam', test_other_line: '🔁 Tester depuis une autre ligne' } },
+  zh: { test_spam: '📥 谢谢 — 说明该线路被过滤了。下一条测试将从<b>另一条线路</b>发送。', spam_words: '可能触发垃圾过滤的词', spam_safer: '更安全的版本', rv_spam: '📥 在垃圾箱', btn: { arrived_yes: '✅ 收到了，在收件箱', arrived_spam: '📥 收到了，但在垃圾箱', test_other_line: '🔁 用另一条线路测试' } },
+  hi: { test_spam: '📥 धन्यवाद — इसका मतलब लाइन फ़िल्टर हो रही है। आपका अगला टेस्ट <b>दूसरी लाइन</b> से जाएगा।', spam_words: 'शब्द जो स्पैम फ़िल्टर चालू कर सकते हैं', spam_safer: 'सुरक्षित वर्ज़न', rv_spam: '📥 स्पैम में', btn: { arrived_yes: '✅ हाँ, इनबॉक्स में', arrived_spam: '📥 हाँ, पर स्पैम में', test_other_line: '🔁 दूसरी लाइन से टेस्ट करें' } },
+  fa: { test_spam: '📥 ممنون — یعنی این خط فیلتر می‌شود. تست بعدی از <b>خط دیگری</b> ارسال می‌شود.', spam_words: 'کلماتی که فیلتر اسپم را فعال می‌کنند', spam_safer: 'نسخه امن‌تر', rv_spam: '📥 در اسپم', btn: { arrived_yes: '✅ بله، در صندوق ورودی', arrived_spam: '📥 بله، ولی در اسپم', test_other_line: '🔁 تست از خط دیگر' } },
+}
+for (const [l, d] of Object.entries(SPAM)) { const { btn: b, ...rest } = d; Object.assign(LANGS[l], rest); Object.assign(LANGS[l].btn, b) }
 module.exports = { t, btn, allLabels, LANGS, QN }
