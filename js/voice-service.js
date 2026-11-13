@@ -2501,6 +2501,30 @@ async function handleCallInitiated(payload) {
 
   log(`[Voice] handleCallInitiated: ${direction || '?'} from=${from} to=${to} conn=${connectionId} cc=${callControlId}`)
 
+  // Bird is calling one of our numbers armed for caller-ID verification: answer, record its spoken code, hang up.
+  if (direction === 'incoming' && _db && require('./bird').enabled()) {
+    try {
+      // Proof call for the Bird caller-ID test: note which caller ID arrived, then decline.
+      if (await _db.collection('birdProofWatch').findOne({ _id: to, until: { $gt: new Date() } })) {
+        await _db.collection('birdProofCalls').insertOne({ to, from, at: new Date() })
+        log(`[Voice] Bird proof call arrived on ${to} showing ${from}`)
+        await _telnyxApi.rejectCall(callControlId).catch(() => {})
+        return
+      }
+      if (await birdVerify().isArmed(to)) {
+        log(`[Voice] Bird verification call ${from} → ${to}: answering and recording the code`)
+        activeCalls[callControlId] = { chatId: null, from, to, startedAt: new Date(), phase: 'bird_verify', direction: 'incoming' }
+        await _telnyxApi.answerCall(callControlId)
+        await _telnyxApi.startRecording(callControlId, 'single', 'mp3')
+        setTimeout(async () => {
+          await _telnyxApi.stopRecording(callControlId).catch(() => {})
+          setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), 3000)
+        }, 40000)
+        return
+      }
+    } catch (e) { log(`[Voice] Bird verification answer failed for ${to}: ${e.message}`) }
+  }
+
   // ── SKIP: our own outbound PSTN leg created by an auto-routed transfer ──
   // Telnyx fires call.initiated for the NEW leg we created via `transfer` (direction=outgoing,
   // from=<our ANI>, no SIP credential). It's already tracked/billed on the A-leg. Re-processing it
@@ -4557,6 +4581,15 @@ async function handleRecordingSaved(payload) {
   const duration = payload.duration_secs || 0
   const { chatId, num, from, to } = session
   const time = new Date().toLocaleString()
+
+  if (session.phase === 'bird_verify') {
+    try {
+      const axios = require('axios')
+      const buf = Buffer.from((await axios.get(recordingUrl, { responseType: 'arraybuffer', timeout: 30000, maxContentLength: 25 * 1024 * 1024 })).data)
+      log(`[Voice] Bird verification capture for ${to}: ${JSON.stringify(await birdVerify().captureFromRecording(to, buf))}`)
+    } catch (e) { log(`[Voice] Bird verification capture failed for ${to}: ${e.message}`) }
+    return
+  }
 
   if (session.phase === 'voicemail_recording') {
     log(`[Voice] Voicemail saved for ${to} from ${from}: ${recordingUrl}`)
