@@ -12,6 +12,7 @@ const nums = (n, f) => Array.from({ length: n }, (_, i) => `+1212555${f + i}`)
   const cl = await MongoClient.connect(process.env.MONGO_URL), db = cl.db(process.env.DB_NAME)
   for (const c of COLS) await db.collection(c).deleteMany({})
   await B.init({ db, log: () => {}, notifyAdmin: () => {} }); await B.bootstrap(); await B.healthCheck()
+  await B.setConfig({ testSends: 2 }, 'test') // legacy one-free-test mode (default is now unlimited free tests)
   ok('default: no daily free-test cap', (await B.cfg()).freeTestsPerDay === 0)
   const a = (await B.customer('Nomadly', '4242'))._id, cp = (await B.createCampaign(a, { content: 'Hello there friends', contacts: nums(500, 1000), consent: true })).campaign
   const r1 = await B.testSend(a, cp._id, '+13105550301')

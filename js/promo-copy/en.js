@@ -104,7 +104,7 @@ module.exports = {
   bulksms_esim: {
     hooks: ["BulkSMS to USA & Canada — no SIM, no phone", "Text thousands of US & Canadian mobiles in minutes"],
     cross: ["Got leads? Text them today — no SIM needed", "Turn your US leads into replies by SMS"],
-    lines: () => ["Upload numbers, write once, send in minutes", "Real US numbers, every major carrier", "First test SMS free · replies right here"],
+    lines: () => ["Upload numbers, write once, send in minutes", "Real US numbers, every major carrier", "Free test SMS · replies right here"],
     price: () => "$50 / 500 SMS · −10% booked a day ahead",
     button: "Open BulkSMS",
   },

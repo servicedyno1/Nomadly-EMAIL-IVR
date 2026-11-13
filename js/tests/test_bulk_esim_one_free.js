@@ -10,6 +10,8 @@ let pass = 0, fail = 0; const ok = (c, m, x = '') => { c ? pass++ : fail++; cons
   const bdb = cl.db(process.env.BULK_ESIM_DB || process.env.DB_NAME), M = bdb.collection('bsMessages')
   const cid = `Nomadly:${CHAT}`
   await M.deleteMany({ cid })
+  const CF = bdb.collection('bsConfig'), prevFree = (await CF.findOne({ _id: 'settings' }))?.values?.freeOneSends
+  await CF.updateOne({ _id: 'settings' }, { $set: { 'values.freeOneSends': 2 } }, { upsert: true }) // legacy 2-free mode (default is now unlimited + abuse guard)
   const E = bdb.collection('bsEsims'), seeded = !(await E.findOne({ role: 'tester', status: 'available', health: 'healthy' }))
   if (seeded) await E.insertOne({ _id: 'ESIM-QA-ONE', role: 'tester', status: 'available', health: 'healthy', msisdn: '+15550001234', account: null, stats: {}, createdAt: new Date() })
   await db.collection('state').replaceOne({ _id: CHAT }, { _id: CHAT, action: 'bse-home', userLanguage: 'en', history: [] }, { upsert: true })
@@ -29,6 +31,7 @@ let pass = 0, fail = 0; const ok = (c, m, x = '') => { c ? pass++ : fail++; cons
   ok(!r2.c.kb.includes(L.one), '"Send one SMS" disappears after 2', JSON.stringify(r2.c.kb))
   const r3 = await say(L.one)
   ok(/used your 2 free single texts/.test(r3.out), 'a third try is refused with a clear message', r3.out.slice(0, 90))
-  await bdb.collection('bsCustomers').deleteOne({ _id: cid }); await M.deleteMany({ cid }); if (seeded) await E.deleteOne({ _id: 'ESIM-QA-ONE' }); await db.collection('state').deleteOne({ _id: CHAT }); await cl.close()
+  await bdb.collection('bsCustomers').deleteOne({ _id: cid }); await M.deleteMany({ cid }); if (seeded) await E.deleteOne({ _id: 'ESIM-QA-ONE' }); await db.collection('state').deleteOne({ _id: CHAT })
+  await CF.updateOne({ _id: 'settings' }, prevFree === undefined ? { $unset: { 'values.freeOneSends': 1 } } : { $set: { 'values.freeOneSends': prevFree } }); await cl.close()
   console.log(`${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0)
 })().catch(e => { console.error(e.message); process.exit(1) })

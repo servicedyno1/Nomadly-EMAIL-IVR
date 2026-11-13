@@ -2644,3 +2644,10 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Identity backfill: `backfillIdentity()` in core.js + `/bulkbackfill` admin command in bot.js.
 - Backlog remaining: #3 refund escalation (@rickyy22x), AI "bulletproof RDP" language, broader BulkSMS preview feature deployment.
 - Single-text abuse guard (2026-06): `oneGuard` in bulk-esim/core.js; active only when `freeOneSends` is 0 (unlimited). Slow down → refuse 24 h → block, with admin alerts; `/bulkguard` to list/clear/trust. Default cap of 2 unchanged until the owner runs `/bulkset freeOneSends 0`. Preview-tested only. See CHANGELOG.
+
+
+## BulkSMS pricing & abuse policy (2026-06, preview only)
+- Campaigns: any content, $50 / 500 SMS flat; schedule 24h+ ahead −10%; replies +$20.
+- Single texts: unlimited & free, guarded (slow → refuse 24h + tests removed → block on 2nd day). Replies to people who answered are always unlimited.
+- Campaign tests: free & unlimited until misuse; then removed, campaign submission only.
+- Backlog: fix stale webhook wizard tests (bot_flow, bot_flow_i18n), accounts/ready_gate pre-existing failures; deploy + user validation.

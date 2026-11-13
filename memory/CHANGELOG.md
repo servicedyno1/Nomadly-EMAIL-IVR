@@ -2941,3 +2941,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Settings: `oneGuardNumbers`, `oneGuardSimilar`, `oneGuardSlowMin`. Admin: `/bulkguard` (list), `/bulkguard <cid> clear|trust`.
 - Tests: `js/tests/test_bulk_esim_one_guard.js` 20/0; engine 57/0, admin_one 20/0, review 20/0, reply_routing 10/0. `test_bulk_esim_ready_gate.js` has 3 failures that predate this change (off_reply expectations).
 - Status: agent-tested in preview only; not deployed, not user-confirmed. Known gap: a ring of fresh accounts is alerted at 6 identical texts but only refused past 10.
+
+## 2026-06 — BulkSMS: one price, any content, guard gaps closed (preview only, NOT deployed)
+- One price for any campaign content: $50 / 500 SMS (priceLink forced = pricePlain 0.10); no link/phone surcharge; $75 removed from copy/tests. Unsafe-link screening (Google Safe Browsing) still applies.
+- Campaign tests: unlimited + free (testSends 0) until the guard trips, then tests are removed for that person (all 4 bots) → campaign submission only. Admin: /bulkguard <cid> clear|trust.
+- Guard gap fixes in core.js oneGuard(): brand-new never-paid accounts (< oneGuardNewDays=3) get half thresholds; same text/link from ≥2 other accounts past the similar threshold → refused immediately (alert + refusal at the same message); content-blind signals added: ≥5 recipients in one number block (NPA-NXX), ≥3 recipients also texted by other accounts; 3+ signals → refused.
+- Tests: one_guard 41/0, test_abuse 18/0, one_free 8/0, linkcheck 25/0, engine 57/0, freetest_identity 6/0, reply_routing 10/0, review 20/0, direct_checkout 4/0. Legacy-mode suites now set testSends:2 / freeOneSends:2 explicitly.
+- Pre-existing (unchanged vs baseline commit 052abb8f): bot_flow & bot_flow_i18n webhook scripts (stale step expectations), accounts 4 fails, ready_gate 3 fails, replies_variants 1 fail (unicode).

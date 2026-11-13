@@ -14,7 +14,7 @@ const nums = (n, from = 1000) => Array.from({ length: n }, (_, i) => `+1212555${
   for (const c of COLS) await db.collection(c).deleteMany({})
   const alerts = [], since = (n) => alerts.slice(n).join('\n')
   await B.init({ db, log: () => {}, notifyAdmin: (t) => alerts.push(t) })
-  await B.setConfig({ quietStart: 0, quietEnd: 24, monitorEsims: 0, testerEsims: 0, platformPerMin: 10000, esimPerMin: 10000 }, 'test')
+  await B.setConfig({ quietStart: 0, quietEnd: 24, monitorEsims: 0, testerEsims: 0, platformPerMin: 10000, esimPerMin: 10000, testSends: 2 }, 'test') // legacy one-free-test mode
   await B.provisionMany(3, 'test', 'test'); await B.healthCheck()
   const cid = (await B.customer('Nomadly', '931'))._id, M = db.collection('bsMessages')
 
