@@ -3035,3 +3035,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Load test (SIP box 1 vCPU/1 GB, SRTP loop calls, playback + recording, 2 legs per test call on the box): 25 → 42% CPU, 50 → 88%, 75 → overloaded (load 28). Estimate ≈ 35–40 real Bird calls at once safely; Bird plan default cap set to 10.
 - Tests: bird_routing 13/13, sw_fax 18/18, bird_adapter 20/20, signalwire_adapter 30/30, caller_retry 6/6, sw_live_routing 5/5, fax_numbers 16/16, fax_service 52/52, fax_cover_report 31/31, fax_resume 5/5, callengine_adapter 13/13, bird_callerid_verify 11/11. Preview only — needs Save to GitHub/deploy for prod (SIP-server + Bird trunk changes are already live).
 - NOT done: end-to-end encrypted softphone-to-softphone calls (softphones are SignalWire SIP endpoints today).
+
+## 2026-11-13 — Bird line queue (20 lines) — campaigns stay on Bird
+- BIRD_MAX_CONCURRENT default 20. Campaign calls (_campaign flag from initiateOutboundIvrCall campaignId): Bird full or caller ID not linked yet → 429 line-limit → bulk-call-service re-queues the lead (5 s→60 s backoff), never SignalWire; unlinked campaign caller IDs we own are linked first by the auto-link job (signalwire.birdWanted). Bird spend cap reached → campaigns continue on SignalWire. Bird refusal before ringing on a campaign → 503 line-limit → re-queued.
+- Single calls (Quick IVR, forwarding): wait FIFO for a free Bird line up to BIRD_WAIT_MS (120 s), then SignalWire. Unlinked caller ID / spend cap → SignalWire.
+- Campaign "low lines" admin note now shows the wait reason (lineWaitReason) instead of the Telnyx text.
+- Owner kept Bird daily spend cap at $100.
+- Tests: bird_routing 17/17, signalwire_adapter 30/30, caller_retry 6/6, bird_adapter 20/20, sw_fax 18/18. test_bulkcall_low_lines + test_bulk_line_limit_ai_2026-10 fail identically before and after (pre-existing).

@@ -4047,7 +4047,8 @@ async function birdAutoLinkTick() {
   const numbers = new Set()
   for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1 } }).toArray())
     for (const n of d.val?.numbers || []) if (sw.has(n.phoneNumber) && !/released|expired|cancel/i.test(String(n.status || ''))) numbers.add(n.phoneNumber)
-  const r = await birdVerify().autoLinkTick({ numbers: [...numbers] })
+  const wanted = [...require('./signalwire').birdWanted].filter(n => sw.has(n))
+  const r = await birdVerify().autoLinkTick({ numbers: [...new Set([...wanted, ...numbers])] })
   if (r.armed || r.error) log(`[BirdVerify] auto-link: ${JSON.stringify(r)}`)
   if (r.armed) require('./bird').forgetCallerIds()
 }
@@ -5297,6 +5298,7 @@ async function initiateOutboundIvrCall(params) {
   // Voicemail drop needs the end of the mailbox greeting (call.machine.greeting.ended) so the message records cleanly.
   const amdOpts = voicemailAudioUrl ? { answering_machine_detection: VM_AMD_MODE } : {}
   // Provide LaML callback URLs for the SignalWire REST fallback in the wrapper
+  amdOpts._campaign = !!campaignId
   amdOpts._swRestCallbackUrl = `${_selfUrl}/twilio/single-ivr?sessionId=${encodeURIComponent(swRestSessionId)}`
   amdOpts._swRestStatusUrl = `${_selfUrl}/twilio/single-ivr-status?sessionId=${encodeURIComponent(swRestSessionId)}`
   // Pre-create the TwiML session in case SignalWire REST is used (cleaned up if unused)

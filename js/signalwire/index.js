@@ -10,13 +10,32 @@ const aws = require('../aws')
 const log = (...a) => console.log('[SignalWire]', ...a)
 // Telnyx is off for calls and number buying unless TELNYX_FALLBACK=true.
 const telnyxBackup = () => String(process.env.TELNYX_FALLBACK || 'false').toLowerCase() === 'true'
-// Bird goes first for US/Canada numbers when it can present the caller ID, has spend left and a free line.
-async function birdReady(from, to) {
-  if (!/^\+1\d{10}$/.test(String(to)) || !bird.enabled() || !ce.enabled() || !ce.connected()) return false
-  if (ce.activeBird() >= Number(process.env.BIRD_MAX_CONCURRENT || 10)) return false
-  if (!(await bird.presentable(from))) return false
-  return (await bird.spendLeft()) >= Number(process.env.BIRD_MIN_SPEND_LEFT || 1)
+// Bird goes first for US/Canada numbers. Returns 'bird', or why not: 'off' | 'unlinked' | 'spend' | 'full'.
+const birdMax = () => Number(process.env.BIRD_MAX_CONCURRENT || 20)
+async function birdState(from, to) {
+  if (!/^\+1\d{10}$/.test(String(to)) || !bird.enabled() || !ce.enabled() || !ce.connected()) return 'off'
+  if (!(await bird.presentable(from))) return 'unlinked'
+  if ((await bird.spendLeft()) < Number(process.env.BIRD_MIN_SPEND_LEFT || 1)) return 'spend'
+  return ce.activeBird() >= birdMax() ? 'full' : 'bird'
 }
+// Single calls wait (first come, first served) for a free Bird line, up to BIRD_WAIT_MS, then go via SignalWire.
+const birdWaiters = []
+// Campaign caller IDs waiting for Bird — the auto-link job links the ones we own first.
+const birdWanted = new Set()
+async function waitForBirdLine(from, to) {
+  const until = Date.now() + Number(process.env.BIRD_WAIT_MS || 120000)
+  const me = {}; birdWaiters.push(me)
+  try {
+    for (;;) {
+      const st = await birdState(from, to).catch(() => 'off')
+      if (st !== 'full' && birdWaiters[0] === me) return st
+      if (st !== 'full' && st !== 'bird') return st
+      if (Date.now() > until) return 'full'
+      await new Promise(r => setTimeout(r, 500))
+    }
+  } finally { birdWaiters.splice(birdWaiters.indexOf(me), 1) }
+}
+
 const swOn = () => rest.enabled()
 
 const CALL_FNS = ['answerCall', 'rejectCall', 'hangupCall', 'isCallAlive', 'speakOnCall', 'playbackStart', 'playbackStop', 'gatherDTMF', 'gatherDTMFWithSpeak', 'gatherDTMFWithAudio', 'gatherStop', 'startRecording', 'stopRecording', 'transferCall']
@@ -56,7 +75,14 @@ function wrap(t) {
     const nanp = /^\+1\d{10}$/.test(String(to)) || /^sip:/i.test(String(to))
     const tries = []
     // Voicemail drop needs real answering-machine detection, which the call engine doesn't have → SignalWire.
-    const viaBird = !options.answering_machine_detection && await birdReady(from, to).catch(() => false)
+    let st = options.answering_machine_detection ? 'off' : await birdState(from, to).catch(() => 'off')
+    // Campaign calls only go through Bird: a full Bird or a caller ID not linked yet puts the lead back in the queue.
+    if (options._campaign && (st === 'full' || st === 'unlinked')) {
+      if (st === 'unlinked') birdWanted.add(from)
+      return { error: st === 'full' ? `all ${birdMax()} Bird lines busy — waiting for a free line` : `caller ID ${from} not linked on Bird yet — waiting`, status: 429, _provider: 'callengine', birdWait: st }
+    }
+    if (st === 'full' || (st === 'bird' && birdWaiters.length)) st = await waitForBirdLine(from, to)
+    const viaBird = st === 'bird'
     if (viaBird) tries.push(['Bird', () => ce.createOutboundCall(from, to, webhookUrl, connectionId, options)])
     if (nanp && swOn() && voice.connected()) tries.push(['SignalWire', async () => {
       const nanpFrom = /^\+1\d{10}$/.test(String(from))
@@ -189,4 +215,4 @@ async function sendSms(from, to, text, mediaUrls = []) {
   return rest.sendSms(from, to, text, mediaUrls)
 }
 
-module.exports = { wrap, rest, voice, lookup, sendSms, enabled: swOn, poolCaller, setReservedCallers, setNeverCallers }
+module.exports = { wrap, rest, voice, lookup, sendSms, enabled: swOn, poolCaller, setReservedCallers, setNeverCallers, birdWanted }

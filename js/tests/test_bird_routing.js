@@ -32,9 +32,28 @@ const FROM = '+12074892004', TO = '+12074891859'
   await w.createOutboundCall(FROM, TO, 'u', 'c', {})
   ok('daily spend used up → SignalWire', used.join() === `SignalWire:${FROM}`, used.join())
 
-  used.length = 0; state.spend = 50; state.active = 10
-  await w.createOutboundCall(FROM, TO, 'u', 'c', {})
-  ok('Bird lines full (10) → SignalWire', used.join() === `SignalWire:${FROM}`, used.join())
+  used.length = 0; state.spend = 50; state.active = 20
+  setTimeout(() => { state.active = 19 }, 700)
+  r = await w.createOutboundCall(FROM, TO, 'u', 'c', {})
+  ok('single call waits for a free Bird line (20 busy) then uses Bird', r.callControlId === 'ae:1' && used.join() === 'Bird', used.join())
+
+  used.length = 0; state.active = 20; process.env.BIRD_WAIT_MS = '800'
+  r = await w.createOutboundCall(FROM, TO, 'u', 'c', {})
+  ok('single call: no line within the wait → SignalWire', used.join() === `SignalWire:${FROM}`, used.join())
+  delete process.env.BIRD_WAIT_MS
+
+  used.length = 0
+  r = await w.createOutboundCall(FROM, TO, 'u', 'c', { _campaign: true })
+  ok('campaign call with Bird full → line-limit error (lead re-queued), no SignalWire', r.status === 429 && w.isLineLimitError(r) && used.length === 0, JSON.stringify(r))
+
+  used.length = 0; state.active = 0; state.presentable = false
+  r = await w.createOutboundCall(FROM, TO, 'u', 'c', { _campaign: true })
+  ok('campaign caller ID not linked → waits (re-queued) and is queued for linking', r.status === 429 && used.length === 0 && sw.birdWanted.has(FROM), JSON.stringify(r))
+
+  used.length = 0; state.presentable = true; state.spend = 0
+  await w.createOutboundCall(FROM, TO, 'u', 'c', { _campaign: true })
+  ok('campaign with Bird spend used up → continues on SignalWire', used.join() === `SignalWire:${FROM}`, used.join())
+  state.spend = 50
 
   used.length = 0; state.active = 0
   await w.createOutboundCall(FROM, TO, 'u', 'c', { answering_machine_detection: 'premium' })
