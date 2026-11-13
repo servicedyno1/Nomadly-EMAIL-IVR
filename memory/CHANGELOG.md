@@ -2948,3 +2948,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Guard gap fixes in core.js oneGuard(): brand-new never-paid accounts (< oneGuardNewDays=3) get half thresholds; same text/link from ≥2 other accounts past the similar threshold → refused immediately (alert + refusal at the same message); content-blind signals added: ≥5 recipients in one number block (NPA-NXX), ≥3 recipients also texted by other accounts; 3+ signals → refused.
 - Tests: one_guard 41/0, test_abuse 18/0, one_free 8/0, linkcheck 25/0, engine 57/0, freetest_identity 6/0, reply_routing 10/0, review 20/0, direct_checkout 4/0. Legacy-mode suites now set testSends:2 / freeOneSends:2 explicitly.
 - Pre-existing (unchanged vs baseline commit 052abb8f): bot_flow & bot_flow_i18n webhook scripts (stale step expectations), accounts 4 fails, ready_gate 3 fails, replies_variants 1 fail (unicode).
+
+## 2026-06 — Guided test step + campaign checks repaired (preview only, NOT deployed)
+- Step 3 now: "Test it first" (free) with ⏭ Skip test; after a test: "Did it arrive?" ✅/❌. Yes → choose send now / later. No (<2 min & still queued) → "still on its way"; otherwise tips + Change the text / Test again / Continue anyway, and the answer is logged as a not-arrived report (line re-check + 2-in-48h suspect rule) via core.testFeedback().
+- Change the text restores the same numbers and drops the old draft campaign; test prompt offers the last test number + Skip.
+- Home shows the path: Numbers → message → free test → send now or later (5 languages).
+- PROD BUG FIXED: Mongo strict Stable API rejects distinct() — removed from bulk-esim oneGuard (broke single texts/tests on the live bots), SignalWire reserved callers (_index.js), monthly statements (cloudivr-web/statement.js).
+- Campaign checks repaired: bot_flow (rewritten, polls state), bot_flow_i18n, iter243_journey 154/0, ready_gate 24/0, plus new guided_test_screens 26/0, strict_api_no_distinct 5/0. Report: test_reports/iteration_258.json.

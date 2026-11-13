@@ -85,7 +85,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   if (action === 'bse-cancel') { const b = await B.db().collection('bsBookings').findOne({ cid, _id: new RegExp(`${String(message).trim().replace(/\W/g, '')}$`) }); const r = b ? await B.cancelBooking(b._id, { cid }) : { error: 'err_not_found' }; await go('bse-home'); return send(chatId, r.error ? `⚠️ ${errText(lang, r)}` : say('cancelled', r.refunded), HK) }
   const testKb = (barred) => kb([...(RD.test && !barred ? [[L.test], [L.test_skip]] : [[L.cont]]), [L.back]])
   const arrivedKb = () => kb([[L.arrived_yes], [L.arrived_no], [L.back]])
-  const askTestTo = async (free) => { await go('bse-test-to'); return send(chatId, say('test_to_q', free), kb([...(info.bseTestTo ? [[info.bseTestTo]] : []), [L.back]])) }
+  const askTestTo = async (free) => { await go('bse-test-to'); return send(chatId, say('test_to_q', free), kb([...(info.bseTestTo ? [[info.bseTestTo]] : []), [L.test_skip], [L.back]])) }
   const unitOf = (c, links) => (links ? c.priceLink : c.pricePlain)
   const contentAsk = async (key = 'content_q') => { const c = await B.cfg(), optOut = info.bseOptOut !== false; return send(chatId, say(key, { max: optOut ? 160 - B.OPT.length : 160, optOut, plain: per500(c.pricePlain), link: per500(c.priceLink) }), kb([[optOut ? L.optout_no : L.optout_yes], [L.back]])) }
   // Step 1 — numbers: parsed, capped at maxVolume, checked (Telnyx carrier lookup, free); every kept number is billed, only mobiles are texted.
@@ -201,6 +201,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     return false
   }
   if (action === 'bse-test-to') {
+    if (message === L.cont || message === L.test_skip || message === L.send_anyway) return askWhen()
     const k = await B.testCheck(cid, info.bseCampaign, message); if (k.error) return send(chatId, `⚠️ ${errText(lang, k)}`, kb([[L.cont], [L.back]]))
     const w = walletOps(T.db)
     if (k.charge && !(await w.debit(chatId, k.charge))) { await go('bse-test'); return send(chatId, say('wallet_low', k.charge), kb([[L.cont], [L.back]])) }
@@ -221,6 +222,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     if (message === L.edit) {
       const cp = await B.db().collection('bsCampaigns').findOne({ _id: info.bseCampaign, cid }); if (!cp) return send(chatId, say('err_not_found'), HK)
       await drafts().updateOne({ _id: cid }, { $set: { contacts: [...cp.contacts, ...(cp.skipped || [])], skip: cp.skipped || [], file: null, at: new Date() } }, { upsert: true })
+      await B.db().collection('bsCampaigns').deleteOne({ _id: cp._id, cid, status: 'draft' }) // a new campaign is made from the edited text
       await go('bse-content'); return contentAsk()
     }
     if (message === L.send_anyway || message === L.cont) return askWhen()

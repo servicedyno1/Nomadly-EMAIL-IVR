@@ -1,0 +1,30 @@
+{
+  "summary": "Backend-only test of the guided eSIM BulkSMS test step (Telegram bot) and the strict-API distinct() fix. Ran all 13 requested suites one at a time against the live webhook: all green. bot_flow 24/0, bot_flow_i18n 5/0, ready_gate 24/0, one_guard 41/0, test_abuse 18/0, one_free 8/0, review 20/0, reply_routing 10/0, iter242_wizard 31/0, direct_checkout 4/0, engine 57/0, linkcheck 25/0, iter243_journey 154/0 (the updated 45.9 / 97.9 checks pass). Added a new screen-level suite that captures the bot's texts and keyboards in-process: 25/26 pass. It found 1 bug: when the test-number prompt shows an error, its Continue button does not work. Added a strict serverApi suite: 5/5. It reproduces the production distinct() rejection, and distinctValues, statement.build, the SignalWire aggregate and oneGuard/testCheck all work on a strict client. There are no new apiStrict errors in nodejs.out.log since the restart; the last one is from before it.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "bot.js bse-test-to (lines ~203-208)", "issue": "Stuck screen (confirmed): when testCheck fails (bad or fictional number, free-number-used, guard, etc.), the bot replies with the keyboard [➡️ Continue: choose when][Back], but the state stays bse-test-to. The bse-test-to handler does not check for L.cont, so pressing Continue is treated as a phone number and the same error comes back every time. The only way out is Back, which goes to the BulkSMS home and leaves the wizard. Repro: ready → Send a test SMS → type 'abc' → press Continue → same error, state still bse-test-to."},
+      {"endpoint": "bot.js bse-test-check 'Change the text' (line ~221-224)", "issue": "The earlier campaign is left behind as a 'draft' bsCampaigns doc each time the user changes the text and finalizes again (confirmed). Draft-status rows build up; consider deleting it or reusing it."},
+      {"endpoint": "bot.js askTestTo", "issue": "UX: the test-number prompt only has [last number][Back]. There is no Skip/Continue, so a user who opens the test and changes their mind must press Back, which drops the whole wizard to home."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/js/tests/test_bulk_esim_guided_test_screens.js", "/app/js/tests/test_strict_api_no_distinct.js", "/app/js/tests/test_bulk_esim_bot_flow.js", "/app/js/tests/test_bulk_esim_iter243_journey.js"],
+  "action_items": [
+    "In the bse-test-to handler, add `if (message === L.cont || message === L.test_skip) return askWhen()` before calling B.testCheck. Optionally add [L.test_skip] to the askTestTo keyboard.",
+    "After 'Change the text', delete (or reuse) the previous draft campaign (info.bseCampaign) when the new one is finalized.",
+    "UX copy (en): test_no is the longest guided string. Suggest: '😕 Not arrived — we’re checking the sending line.\\n\\nTips: wait 2 min · no bit.ly / ALL CAPS · rotate 2–3 versions.' The final sentence 'Change the text, test again, or continue.' repeats the buttons and can be dropped. The ready line 'Send a free test to your own phone and see exactly what people get.' could be 'Send a free test to your phone to see what people get.' The other en strings (test_sent_q, test_wait, test_yes, path line) are short and clear."
+  ],
+  "critical_code_review_comments": [
+    "bse-test-to error keyboards offer L.cont, but that state never handles it (see minor issue 1).",
+    "testFeedback returns err_not_found when bseTestMsg is missing. The bse-test-check handler ignores f.error and carries on: Yes → when screen, No → tips. This is harmless, but No then does not record a review.",
+    "No .distinct( calls remain in non-test js code; all callers use db.distinctValues (aggregate+$group) or aggregate+$unwind. Verified on a strict v1 client.",
+    "bot.js is 447 lines, i18n.js 869 lines and core.js 1629 lines. core.js and i18n.js are over the 700-line guideline (this was already the case)."
+  ],
+  "updated_files": ["/app/js/tests/test_bulk_esim_guided_test_screens.js (new)", "/app/js/tests/test_strict_api_no_distinct.js (new)"],
+  "success_rate": {"backend": "99% (436/437 assertions; 1 confirmed bug in the bse-test-to Continue button)", "frontend": "N/A (skipped as requested)"},
+  "seed_data_creation": "None kept. The new tests use chat ids 990000777 / 990000778 and delete only their own cid records afterwards (bsMessages, bsCampaigns, bsReviews, bsDrafts, bsCustomers, walletOf, state).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run suites SEQUENTIALLY (shared Mongo). /tmp/run_all.sh runs all 13 in order, about 12 minutes in total; iter243 alone takes about 5 minutes. The new test_bulk_esim_guided_test_screens.js calls BOT.handle in-process with a capturing send() so it can check texts and keyboards. Its 'pressing that Continue → bse-when' check fails until the bse-test-to fix lands. test_strict_api_no_distinct.js connects with serverApi strict:true to mimic production."
+}
