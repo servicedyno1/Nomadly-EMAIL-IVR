@@ -2658,3 +2658,8 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 
 ## BulkSMS spam rotation (2026-06)
 - 'Did it arrive?' inbox / spam / no; spam → retry from another line → promote the good line to test line, renumber the flagged one. Test line renumbered daily at 00:00 UTC (and on first start after publish).
+
+## 2026-06 Fax-only Telnyx account (see CHANGELOG)
+- New Telnyx account (TELNYX_FAX_API_KEY / TELNYX_FAX_PUBLIC_KEY) = fax + number lookup only, never calls. Web /fax lists only fax-only numbers (collection faxNumbers, $15/mo FAX_NUMBER_PRICE, US/CA).
+- Web Buy page purpose picker: Voice/SIP → SignalWire Business Line, SMS → Spenza Texting Number, Fax → fax-only number. Bot unchanged.
+- Backlog: first live fax-number order in production (creates "<brand> Fax" Fax Application + outbound profile on the new account; account balance $10 at setup); bot fax still references old blocked account.

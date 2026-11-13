@@ -118,3 +118,49 @@ class TestFaxNumbers:
         pn = STATE.get('pn') or pytest.skip('no buy')
         hist = s.get(f'{API}/wallet').json()['history']
         assert any(pn in (h.get('description') or '') for h in hist), 'fax number $15 debit not visible in wallet history'
+
+    # Iteration 261 retest: wallet label, /fax fields, fax-only listing, nearby flag
+    def test_wallet_label_format(self, s):
+        pn = STATE.get('pn') or pytest.skip('no buy')
+        hist = s.get(f'{API}/wallet').json()['history']
+        row = next(h for h in hist if pn in (h.get('description') or ''))
+        assert row['description'] == f'Fax number · {pn}' and row['type'] == 'fax-number' and row['amount'] == -15
+
+    def test_fax_row_fields(self, s):
+        pn = STATE.get('pn') or pytest.skip('no buy')
+        fx = s.get(f'{API}/fax').json()['numbers']
+        row = next(n for n in fx if n['phoneNumber'] == pn)
+        assert row['price'] == 15 and row['autoRenew'] is False and row['expiresAt']
+        s.patch(f'{API}/fax-numbers/{pn}', json={'autoRenew': True})
+        row = next(n for n in s.get(f'{API}/fax').json()['numbers'] if n['phoneNumber'] == pn)
+        assert row['autoRenew'] is True
+
+    def test_fax_lists_only_fax_only(self, s):
+        fx = s.get(f'{API}/fax').json()['numbers']
+        assert all(n['faxOnly'] for n in fx), [n['phoneNumber'] for n in fx]
+        assert '+13341112222' not in [n['phoneNumber'] for n in fx]
+
+    def test_legacy_line_toggle_rejected(self, s):
+        r = s.patch(f'{API}/fax/line', json={'phone': '+13341112222', 'enabled': True, 'confirm': True})
+        print('legacy toggle', r.status_code, r.text[:200])
+        assert r.status_code in (400, 404, 409)
+
+    def test_search_nearby_flag(self, s):
+        found = None
+        for ac in ['415', '305', '212', '907']:
+            r = s.get(f'{API}/fax-numbers/search', params={'country': 'US', 'areaCode': ac})
+            assert r.status_code == 200, r.text
+            d = r.json()
+            nums = d['numbers']
+            print(ac, d.get('nearbyOnly'), [(n['phoneNumber'], n['nearby']) for n in nums[:4]])
+            assert d['areaCode'] == ac
+            for n in nums:
+                assert n['nearby'] == (n['phoneNumber'][2:5] != ac)
+            assert d['nearbyOnly'] == (len(nums) > 0 and all(n['nearby'] for n in nums))
+            if d['nearbyOnly']:
+                found = ac
+        print('nearbyOnly area code:', found)
+
+    def test_search_no_area_not_nearby(self, s):
+        d = s.get(f'{API}/fax-numbers/search', params={'country': 'US'}).json()
+        assert d['nearbyOnly'] is False and all(n['nearby'] is False for n in d['numbers'])

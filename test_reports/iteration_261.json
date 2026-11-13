@@ -1,0 +1,32 @@
+{
+  "summary": "Retest of the 5 fixes from iteration 260 plus a regression check. All pass. Backend: 18 of 18 pytest cases pass (6 new). The wallet history shows 'Fax number · +1…' (type fax-number, -$15). A renewal transaction I inserted and then deleted showed as 'Fax number monthly · <phone>'. GET /fax returns price, autoRenew and expiresAt, and lists only fax-only numbers: Business +13341112222 is not listed, and PATCH /fax/line on it returns 404. Search results carry a nearby flag: 415 and 305 give nearbyOnly:true, 907 gives false, and a search with no area code gives false. Frontend: the Fax empty state shows 'Get a fax number', which links to /cloudivr/app/buy?purpose=fax with only Fax selected. With Voice and SIP unselected, the subtitle reads 'Pick what you need below: …'. Area code 305 shows fax-buy-nearby-note; 907 does not. A dry-run buy of +19075602331 went to /fax. That row shows fax-only-renewal '$15.00/month · renews 2026-12-13', the fax-only-autorenew toggle, '50 of 50 free pages left this month', and the card intro 'Your fax numbers always receive faxes.' Turning the toggle off showed the toast 'Auto-renew off — +19075602331 is released on 2026-12-13'; the text changed to 'released' and stayed after a reload. Regression: the Voice default, multi-select, the SMS card (links to /texting-number, hides the texting CTA), the empty state and the subtitle with SIP selected all work.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/cloudivr-web/wallet", "issue": "Found while testing, not from iteration 260: phoneTransactions action 'purchase_sub' is missing from LABEL in wallet.js, so the history shows the raw 'purchase_sub · +1785…'. Suggest a label such as 'Extra number purchase'."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/cloudivr/app/buy", "issues": ["Minor: the sidebar item still says 'Get a Business Line' while the page title changes to 'Get a number' for Fax/SMS-only picks."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_fax_numbers.py", "/app/test_reports/pytest/pytest_fax_numbers.xml"],
+  "action_items": [
+    "Optional: add 'purchase_sub' to LABEL in js/cloudivr-web/wallet.js.",
+    "Optional: rename the sidebar 'Get a Business Line' item, or keep it in step with the purpose picker."
+  ],
+  "critical_code_review_comments": [
+    "telnyx-fax-account nearby uses phone_number.slice(2,5) !== areaCode. This is correct for +1 NANP (US/CA only), but it would break if non-+1 countries were added.",
+    "The auto-renew-off toast uses the expiresAt already shown on the row (fine). The renew toggle has no confirm step: one click turns off auto-renew. It is easy to turn back on, so this is acceptable.",
+    "fax.js mine() now only finds fax-only numbers, so sending from a Business number on web returns 404. This matches the new scope."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_fax_numbers.py"],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "Bought 2 dry-run fax numbers on civr.uxtest: one in pytest (released by the fixture) and +19075602331 in the UI. Both set to status 'released' by _id with the dryRun:true filter; the user has 0 active fax numbers. Wallet debited $30 (now about $925). A test renewal transaction (TEST_ phone, $0.01) was inserted and then deleted by _id.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login: click the 'Sign in' button by role; it is not type=submit. Dismiss cookie-allow-all first. Area codes 415 and 305 return nearby-only results; 907 returns in-area results; 212 returns 0. Run pytest with -p no:xdist (tests depend on module STATE)."
+}
