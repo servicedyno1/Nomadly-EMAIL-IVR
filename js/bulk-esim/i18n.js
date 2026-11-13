@@ -826,4 +826,43 @@ const GUARD = {
   fa: { err_test_guard: '🚫 تست برای بررسی پیام روی گوشی خودتان است. از آن برای ارسال به شماره‌های مختلف زیادی استفاده شده، پس برای حساب شما غیرفعال شد — برای ارسال کمپین ادامه دهید.', test_ok_open: '🧪 تست ارسال شد — حدود یک دقیقه دیگر می‌رسد. دوباره تست کنید یا ادامه دهید.', err_free_busy: '⏳ پیامک‌های رایگان الان شلوغ است. بعداً دوباره امتحان کنید یا 📤 کمپین جدید بسازید.', err_one_slow: (m) => `⏳ شما به شماره‌های جدید زیادی پیام می‌دهید. شماره جدید بعدی تا ${m} دقیقه دیگر — پاسخ به کسانی که جواب داده‌اند محدود نیست. برای فهرست از 📤 کمپین جدید استفاده کنید.`, err_one_bulk: '🚧 پیامک تکی برای پیام‌های یک‌به‌یک است. به سقف امروز برای شماره‌های جدید رسیده‌اید — برای ارسال به فهرست، 📤 کمپین جدید بسازید. به کسانی که جواب داده‌اند همچنان می‌توانید پیام دهید.', err_one_blocked: '⛔ پیامک تکی برای حساب شما غیرفعال شد چون برای ارسال انبوه استفاده شده است. از 📤 کمپین جدید استفاده کنید یا با پشتیبانی تماس بگیرید.' },
 }
 for (const [l, d] of Object.entries(GUARD)) Object.assign(LANGS[l], d)
+
+// Guided test step: test first → "Did it arrive?" → choose when. Short on purpose.
+const rdy = (head, line, nums, first, off, cost) => (o) => `✅ <b>${head}</b> · ${o.n} ${nums} · <b>$${o.price}</b>\n\n🧪 <b>3/4 · ${first}</b>\n${o.barred ? off : !o.open && !o.free ? cost(money(o.unit)) : line}`
+const GUIDE = {
+  en: { ready: rdy('Campaign ready', 'Send a free test to your own phone and see exactly what people get.', 'numbers', 'Test it first', '🚫 Tests are off for your account — continue to choose when.', (u) => `Send a test to your own phone (${u}, refunded when you book).`),
+    test_sent_q: (to) => `🧪 Test sent to ${to} — it should arrive within a minute.\n\n<b>Did it arrive?</b>`,
+    test_wait: '⏳ Still on its way. Give it a minute, then tell us.',
+    test_yes: '🎉 Great — your message works. Now choose when to send.',
+    test_no: '😕 Sorry. We’re checking the line that sent it.\n\nTry:\n• wait 2 more minutes\n• no link shorteners (bit.ly) or ALL CAPS\n• rotate 2–3 versions\n\nChange the text, test again, or continue.',
+    btn: { test_skip: '⏭ Skip test', arrived_yes: '✅ Yes, it arrived', arrived_no: '❌ No, it didn’t', test_again: '🔁 Test again', send_anyway: '➡️ Continue anyway' } },
+  fr: { ready: rdy('Campagne prête', 'Envoyez un test gratuit sur votre téléphone pour voir exactement ce que les gens reçoivent.', 'numéros', 'Testez d’abord', '🚫 Les tests sont désactivés pour votre compte — continuez pour choisir quand.', (u) => `Envoyez un test sur votre téléphone (${u}, remboursé à la réservation).`),
+    test_sent_q: (to) => `🧪 Test envoyé à ${to} — il devrait arriver en moins d’une minute.\n\n<b>Est-il arrivé ?</b>`,
+    test_wait: '⏳ Toujours en route. Attendez une minute, puis dites-le-nous.',
+    test_yes: '🎉 Parfait — votre message fonctionne. Choisissez maintenant quand l’envoyer.',
+    test_no: '😕 Désolé. Nous vérifions la ligne qui l’a envoyé.\n\nEssayez :\n• attendre encore 2 minutes\n• pas de raccourcisseur (bit.ly) ni de MAJUSCULES\n• alterner 2–3 versions\n\nModifiez le texte, testez à nouveau ou continuez.',
+    btn: { test_skip: '⏭ Passer le test', arrived_yes: '✅ Oui, reçu', arrived_no: '❌ Non, pas reçu', test_again: '🔁 Tester à nouveau', send_anyway: '➡️ Continuer quand même' } },
+  zh: { ready: rdy('活动已就绪', '先免费发一条测试到您自己的手机，看看对方收到的样子。', '个号码', '先测试', '🚫 您的账户已关闭测试 — 请继续选择发送时间。', (u) => `发一条测试到您自己的手机（${u}，预订后退还）。`),
+    test_sent_q: (to) => `🧪 测试已发到 ${to} — 一分钟内应送达。\n\n<b>收到了吗？</b>`,
+    test_wait: '⏳ 仍在路上。请等一分钟再告诉我们。',
+    test_yes: '🎉 很好 — 您的短信可以送达。现在选择发送时间。',
+    test_no: '😕 抱歉。我们正在检查发送这条短信的线路。\n\n可以试试：\n• 再等 2 分钟\n• 不用短链接（bit.ly）或全大写\n• 轮换 2–3 个版本\n\n修改文字、再测一次，或继续。',
+    btn: { test_skip: '⏭ 跳过测试', arrived_yes: '✅ 收到了', arrived_no: '❌ 没收到', test_again: '🔁 再测一次', send_anyway: '➡️ 仍然继续' } },
+  hi: { ready: rdy('कैंपेन तैयार', 'अपने फ़ोन पर एक मुफ़्त टेस्ट भेजें और देखें लोगों को क्या मिलेगा।', 'नंबर', 'पहले टेस्ट करें', '🚫 आपके खाते पर टेस्ट बंद हैं — समय चुनने के लिए आगे बढ़ें।', (u) => `अपने फ़ोन पर टेस्ट भेजें (${u}, बुकिंग पर वापस)।`),
+    test_sent_q: (to) => `🧪 टेस्ट ${to} पर भेजा — एक मिनट में पहुँचना चाहिए।\n\n<b>क्या यह पहुँचा?</b>`,
+    test_wait: '⏳ अभी रास्ते में है। एक मिनट रुकें, फिर बताएँ।',
+    test_yes: '🎉 बढ़िया — आपका मैसेज काम करता है। अब भेजने का समय चुनें।',
+    test_no: '😕 माफ़ कीजिए। हम भेजने वाली लाइन जाँच रहे हैं।\n\nआज़माएँ:\n• 2 मिनट और रुकें\n• लिंक शॉर्टनर (bit.ly) या पूरे CAPITAL न लिखें\n• 2–3 वर्ज़न बदल-बदलकर भेजें\n\nटेक्स्ट बदलें, फिर टेस्ट करें, या आगे बढ़ें।',
+    btn: { test_skip: '⏭ टेस्ट छोड़ें', arrived_yes: '✅ हाँ, पहुँचा', arrived_no: '❌ नहीं पहुँचा', test_again: '🔁 फिर टेस्ट करें', send_anyway: '➡️ फिर भी आगे बढ़ें' } },
+  fa: { ready: rdy('کمپین آماده است', 'یک تست رایگان به گوشی خودتان بفرستید و دقیقاً ببینید مردم چه می‌گیرند.', 'شماره', 'اول تست کنید', '🚫 تست برای حساب شما خاموش است — برای انتخاب زمان ادامه دهید.', (u) => `یک تست به گوشی خودتان بفرستید (${u}، هنگام رزرو بازپرداخت می‌شود).`),
+    test_sent_q: (to) => `🧪 تست به ${to} ارسال شد — باید تا یک دقیقه برسد.\n\n<b>رسید؟</b>`,
+    test_wait: '⏳ هنوز در راه است. یک دقیقه صبر کنید، بعد به ما بگویید.',
+    test_yes: '🎉 عالی — پیام شما کار می‌کند. حالا زمان ارسال را انتخاب کنید.',
+    test_no: '😕 متأسفیم. خطی که آن را فرستاد را بررسی می‌کنیم.\n\nامتحان کنید:\n• ۲ دقیقه دیگر صبر کنید\n• بدون کوتاه‌کننده لینک (bit.ly) یا حروف بزرگ\n• ۲ تا ۳ نسخه چرخشی\n\nمتن را تغییر دهید، دوباره تست کنید، یا ادامه دهید.',
+    btn: { test_skip: '⏭ رد شدن از تست', arrived_yes: '✅ بله، رسید', arrived_no: '❌ نه، نرسید', test_again: '🔁 تست دوباره', send_anyway: '➡️ به هر حال ادامه' } },
+}
+for (const [l, d] of Object.entries(GUIDE)) { const { btn: b, ...rest } = d; Object.assign(LANGS[l], rest); Object.assign(LANGS[l].btn, b) }
+// Home shows the path to a successful send in one line.
+const PATH = { en: '🧭 Numbers → message → free test → send now or later', fr: '🧭 Numéros → message → test gratuit → envoi maintenant ou plus tard', zh: '🧭 号码 → 短信 → 免费测试 → 立即或稍后发送', hi: '🧭 नंबर → मैसेज → मुफ़्त टेस्ट → अभी या बाद में भेजें', fa: '🧭 شماره‌ها ← پیام ← تست رایگان ← ارسال حالا یا بعداً' }
+for (const [l, line] of Object.entries(PATH)) { const h = LANGS[l].home; LANGS[l].home = (o) => h(o).replace('\n\n', `\n${line}\n\n`) }
 module.exports = { t, btn, allLabels, LANGS, QN }

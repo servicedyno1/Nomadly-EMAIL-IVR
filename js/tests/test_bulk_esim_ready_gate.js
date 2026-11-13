@@ -78,6 +78,8 @@ const nums = (n, from = 1000) => Array.from({ length: n }, (_, i) => `+1212555${
   ok('when screen: no "Send now" key + reason shown', !m.keys.includes(L.now) && m.text.includes(t('en', 'off_now')), m.keys.join('|'))
   const line = await E.findOne({ role: { $nin: ['tester', 'monitor'] }, status: 'available' })
   await db.collection('bsSessions').insertOne({ _id: 'ses_qa', cid, to: '+12125550177', esimId: line._id, status: 'active', lastActivityAt: new Date() })
+  // replies are only open for a campaign that paid for them: the session's last campaign text has replies on
+  await db.collection('bsCampaigns').insertOne({ _id: 'cp_qa_r', cid, replies: true, status: 'completed' }); await db.collection('bsMessages').insertOne({ _id: 'm_qa_r', cid, to: '+12125550177', esimId: line._id, direction: 'out', campaignId: 'cp_qa_r', status: 'delivered', createdAt: new Date() })
   st.action = 'bse-conv'; m = await say('💬 +12125550177')
   ok('conversation opens read-only with reason while paused', st.action === 'bse-conv' && m.text.includes(t('en', 'off_reply')))
   ok('core refuses the reply', (await B.sendOne(cid, '+12125550177', 'yo', 'ses_qa')).error === 'off_reply')
