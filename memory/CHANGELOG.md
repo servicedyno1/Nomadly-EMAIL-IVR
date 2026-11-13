@@ -3049,3 +3049,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Customers messaged (--notify, only SIP-verified lines): 22/22 sent (Telegram; web accounts → web inbox), new number + SIP server/username/password, en/fr (others en). Messages never name a carrier except the SIP server address.
 - Bird linking: /root/mig/link.js arms one number at a time (live app answers Bird's code call), ~47 s each; log /root/mig/link.log.
 - 20:54Z: Bird linking done — 22/22 new numbers outbound-enabled on Bird (one needed a second round after a misheard code). New release 20261113T2019xx (Bird routing + auto-link + SignalWire fax) was deployed on all 4 brands by the owner during this run.
+
+## 2026-11-13 21:10Z — Brand SIP addresses on our own SIP server (owner correction: customers only ever see the brand domain)
+- Cloudflare: sip.speechcue.com, sip.cloudivr.net (was CNAME sip.telnyx.com), sip.smadavspeech.com, sip.voodooivr.xyz, sip.proshopivr.xyz → A 188.166.34.29 (DNS only, TTL 300). Old: A 192.76.120.10 (Telnyx).
+- 20 moved customers' SIP logins (same user/password): SignalWire endpoints deleted, sipDomain = brand (Telegram → SIP_DOMAIN per brand, web → sip.cloudivr.net), telnyxCredentialId kam:<user>; each proven by REGISTER 200 through Kamailio (/sip-auth); corrected message sent 20/20 (js/ops/fix_sip_brand_2026-11.js).
+- Code (needs deploy): signalwire wrap createSIPCredential → own SIP server login (kam:<user>, caller's username/password) whenever SIP_SERVER_SECRET is set; deleteSIPCredential kam: → no-op. Never creates SignalWire SIP endpoints for customers any more.
+- Bug fixed (needs deploy): Bird code calls left stale activeCalls (+ persisted callSessions) → /health showed 18 phantom calls; cleared live (20 docs removed, app-main-a + app-voodoo-b restarted → 0). voice-service now drops the session after the recording / 2 min after hang-up.
+- Tests: bird_routing 19/19, signalwire_adapter 30/30.

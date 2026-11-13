@@ -177,8 +177,11 @@ function wrap(t) {
     if (swOn()) { await rest.refreshOwned(); if (rest.ownsNumber(phoneNumber)) return rest.assignNumber(phoneNumber) }
     return t.assignNumberToCallControlApp(phoneNumber, appId)
   }
-  w.deleteSIPCredential = (id) => (voice.isSw(id) ? rest.deleteSipEndpoint(id) : t.deleteSIPCredential(id))
+  // SIP logins live on our own SIP server (brand address, password checked against the bot via /sip-auth).
+  const ownSip = () => !!process.env.SIP_SERVER_SECRET
+  w.deleteSIPCredential = (id) => (String(id || '').startsWith('kam:') ? Promise.resolve(true) : voice.isSw(id) ? rest.deleteSipEndpoint(id) : t.deleteSIPCredential(id))
   w.createSIPCredential = async (connectionId, username, password, phoneNumber) => {
+    if (ownSip() && username && password) return { id: `kam:${username}`, sip_username: username, sip_password: password, kind: 'sipserver' }
     if (swOn() && phoneNumber) {
       await rest.refreshOwned()
       if (rest.ownsNumber(phoneNumber)) {

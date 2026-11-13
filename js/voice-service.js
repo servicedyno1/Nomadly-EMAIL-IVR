@@ -4605,6 +4605,7 @@ async function handleRecordingSaved(payload) {
       const buf = Buffer.from((await axios.get(recordingUrl, { responseType: 'arraybuffer', timeout: 30000, maxContentLength: 25 * 1024 * 1024 })).data)
       log(`[Voice] Bird verification capture for ${to}: ${JSON.stringify(await birdVerify().captureFromRecording(to, buf))}`)
     } catch (e) { log(`[Voice] Bird verification capture failed for ${to}: ${e.message}`) }
+    delete activeCalls[payload.call_control_id]
     return
   }
 
@@ -4693,6 +4694,8 @@ async function handleCallHangup(payload) {
   markCallEnded(callControlId)
 
   const session = activeCalls[callControlId]
+  // Bird code call: nothing to bill; keep the session briefly for the recording that arrives after hang-up.
+  if (session?.phase === 'bird_verify') { setTimeout(() => { delete activeCalls[callControlId] }, 120000); return }
   if (!session) {
     // ── Fix #5 FALLBACK: Deferred billing for auto-routed calls that bypassed real-time billing ──
     // This only fires if handleAutoRoutedRealTimeBilling failed to create a session (e.g., user lookup failed).

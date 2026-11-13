@@ -71,6 +71,11 @@ const FROM = '+12074892004', TO = '+12074891859'
   r = await w.buyNumber('+15550001111', 'c', 'm')
   ok('number buying never falls back to Telnyx by default', r === null && !used.includes('TelnyxBuy'))
 
+  process.env.SIP_SERVER_SECRET = process.env.SIP_SERVER_SECRET || 'k'
+  r = await w.createSIPCredential('conn', 'cvtestuser1', 'Pw12345678', FROM)
+  ok('SIP login made on our own SIP server (brand address), not SignalWire', r.id === 'kam:cvtestuser1' && r.sip_username === 'cvtestuser1' && r.sip_password === 'Pw12345678' && !('sip_domain' in r))
+  ok('removing an own-server SIP login needs no carrier call', (await w.deleteSIPCredential('kam:cvtestuser1')) === true)
+
   // ── call engine early-refusal window (real module, ARI stubbed) ──
   delete require.cache[require.resolve('../callengine')]
   const CE = require('../callengine')
