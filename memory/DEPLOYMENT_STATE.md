@@ -455,3 +455,10 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - scripts/bird_outbound_test.js: --verify (arm), --status, --code, readiness report, --confirm to place the billable outbound call via ARI PJSIP/<to>@bird.
 - Tests: js/tests/test_bird_callerid_verify.js 11/11 (stubbed Bird+Whisper).
 - BLOCKERS for live run: (1) BIRD_API_KEY saved in secret store but NOT in running prod/preview env → bird.enabled()=false; must be loaded (publish). (2) Needs a SignalWire number with voicemail enabled pointing at this app to receive+record Bird's call. (3) Bird destinations enabled + balance. Accuracy risk: Bird may read the code before the voicemail beep; Bird supports re-call retry.
+
+## 2026-11-13 19:00Z — Keys copied to prod app-main (user approved, Nomadly only)
+- Prod droplet backend.env is managed on the server; Emergent saved secrets DO NOT reach it. Appended BIRD_API_KEY, MOLLIE_API_KEY, TELNYX_FAX_API_KEY, TELNYX_FAX_PUBLIC_KEY to /opt/nomadly/shared/app-main/backend.env (backup backend.env.bak.keys.20261113T185952Z), `pm2 restart app-main-a --update-env` → online, health 200.
+- Startup: fax webhook signatures enforced (TELNYX_FAX_PUBLIC_KEY); "[Fax] Created Telnyx Fax Application 3092467113269397006 (Nomadly Fax)" on the new account.
+- Bird on prod: enabled, US+CA destinations on, trunk spt_01m788vwejebvrbvhrdz644q2q ok, 0 verified caller IDs. Bird verification test not yet armed (needs a SignalWire number we own with voicemail on).
+- Other brands (wl/voodoo/proshop) intentionally NOT given these keys.
+- 2026-11-13: Auto-link Bird test built. voice-service handleCallInitiated: incoming call to a number armed in birdCallerIdVerify → answer + record 40s (phase bird_verify) → handleRecordingSaved transcribes & submits code; incoming call to a number in birdProofWatch → log {to,from} to birdProofCalls and reject. scripts/bird_autolink_test.js (run on prod pod after deploy): picks 2 free owned SignalWire numbers X/Y, arms X, waits verified (re-asks Bird every minute), then ARI originates PJSIP/Y@bird with callerId X and checks Y saw caller ID X. Needs deploy of these changes before running.
