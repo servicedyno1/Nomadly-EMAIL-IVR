@@ -14,6 +14,7 @@ const P = (text) => L.p(L.esc(text))
 function fmt(lang) {
   const loc = LOCALE[lang] || LOCALE.en
   return {
+    lang,
     usd: (n) => new Intl.NumberFormat(loc, { style: 'currency', currency: 'USD', currencyDisplay: 'narrowSymbol' }).format(Math.round(Number(n || 0) * 100) / 100),
     date: (x) => new Date(x).toLocaleDateString(loc, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }),
     short: (x) => new Date(x).toLocaleDateString(loc, { day: 'numeric', month: 'short', timeZone: 'UTC' }),
@@ -40,6 +41,8 @@ const B = {
 
   tryNudge: (d, c, f, x) => ({ ...head(c.tryNudge, d, f), t: 'brand',
     body: P(c.tryNudge.intro(d, f)) + L.steps(c.tryNudge.steps) + L.button(c.tryNudge.cta(d), x.app('/app/quick-call')) + L.small(c.tryNudge.ps) }),
+  depositNudge: (d, c, f, x) => ({ ...head(c.depositNudge, d, f), t: 'brand',
+    body: P(c.depositNudge.intro(d, f)) + L.button(c.depositNudge.cta(d), x.app(d.link)) + L.small(c.depositNudge.ps) }),
 
   tryFollowup: (d, c, f, x) => ({ ...head(c.tryFollowup, d, f), t: 'brand',
     body: P(d.noAnswer ? c.tryFollowup.missed : c.tryFollowup.intro(d, f)) + L.h2(c.tryFollowup.nextTitle) + L.bullets(c.tryFollowup.next, 'ok')
@@ -98,7 +101,7 @@ const B = {
         + L.stats([
           { label: c.labels.calls, value: s.total },
           { label: c.labels.answered, value: s.answered, sub: `${d.rate}%`, t: 'ok' },
-          { label: c.labels.pressed, value: s.keyPressed || 0, t: 'brand' },
+          s.keyPressed ? { label: c.labels.pressed, value: s.keyPressed, t: 'brand' } : null,
           d.mode === 'transfer' && { label: c.labels.transferred, value: s.transferred || 0 },
           s.voicemail ? { label: c.labels.voicemail, value: s.voicemail } : null,
           s.voicemailLeft ? { label: c.labels.messagesLeft, value: s.voicemailLeft, t: 'ok' } : null,
@@ -106,8 +109,10 @@ const B = {
           { label: c.labels.failed, value: (s.failed || 0) + (s.busy || 0) },
         ], 3)
         + (d.notDialed ? L.p(L.esc(k.notDialed(d.notDialed))) : '')
+        + reachRows(d.engagement, f)
         + L.callout(L.esc(low ? k.tipLow : k.tipHigh), low ? 'warn' : 'ok')
-        + L.button(k.cta(d), x.app(`/app/campaigns/${enc(d.id)}`)) }
+        + L.button(k.cta(d), x.app(`/app/campaigns/${enc(d.id)}`))
+        + (d.engagement?.unanswered ? L.p(L.esc(REACH[f.lang || 'en']?.follow?.(d.engagement.unanswered) || REACH.en.follow(d.engagement.unanswered)), 'color:#64748b') : '') }
   },
 
   voicemail: (d, c, f, x) => ({ ...head(c.voicemail, d, f), t: 'brand',
@@ -134,6 +139,14 @@ const B = {
         + L.button(k.cta(d), x.app(d.quiet ? '/app/quick-call' : '/app'))
         + (NEXT[d.plan] ? upsell(c, d.plan, x) : L.callout(`${L.esc(c.refer.text)}<br>${L.link(c.refer.cta, x.app('/app/settings'))}`, 'brand')) }
   },
+  // Landline to Texting setup: one email per step forward (d.step = verify | loa | documents | admin_docs | review | active | failed).
+  textingStep: (d, c, f, x) => {
+    const k = c.textingStep, st = k.steps[d.step] || k.steps.review, t = d.step === 'active' ? 'ok' : d.step === 'failed' ? 'bad' : ['review', 'admin_docs'].includes(d.step) ? 'brand' : 'warn'
+    return { subject: st.subject(d, f), preheader: st.title(d, f), eyebrow: st.eyebrow, title: st.title(d, f), t,
+      body: P(st.intro(d, f)) + (d.note ? L.callout(L.esc(k.note(d.note)), 'warn') : '')
+        + L.rows([{ k: c.labels.number, v: L.mono(d.phone), html: true }, { k: k.labels.status, v: st.status }, d.step === 'review' && d.expectedBy && { k: k.labels.expected, v: f.date(d.expectedBy) }, d.step === 'active' && d.nextBillAt && { k: k.labels.bill, v: `${f.usd(d.monthly)} · ${f.date(d.nextBillAt)}` }, d.step === 'failed' && d.refund && { k: k.labels.refund, v: f.usd(d.refund) }])
+        + L.button(k.cta, x.app(`/app/texting?id=${enc(d.id)}`), t === 'bad' ? 'bad' : 'brand') }
+  },
 }
 
 const TYPES = Object.keys(B)
@@ -158,6 +171,25 @@ function offPage(lang, group, state, ctx) {
   const body = state === 'ask' ? P(c.ask.body(what)) + form + L.p(L.link(c.back, ctx.app('/app/settings#emails')))
     : (state === 'done' ? P(c.body(what)) : '') + L.button(c.back, ctx.app('/app/settings#emails'))
   return L.layout({ lang, title: state === 'ask' ? c.ask.title : state === 'done' ? c.title : c.bad, t: state === 'bad' ? 'bad' : 'brand', base: ctx.base, body, foot: { why: '' } })
+}
+
+// Who the message reached, what each result cost, best hour / area (campaign summary email).
+const REACH = {
+  en: { people: 'People reached', peopleV: (e) => `${e.people} (${e.reached} live · ${e.voicemails} voicemails left)`, listened: 'Listened 30s or more', hot: 'Hot leads', cost: 'Cost', costV: (e) => `$${e.spent.toFixed(2)} · $${e.perPerson.toFixed(2)} per person reached${e.perHot != null ? ` · $${e.perHot.toFixed(2)} per hot lead` : ''}`, hour: 'Best hour', area: 'Best area', follow: (n) => `Next step: ${n} numbers didn’t answer — re-call them in one tap from the campaign page.` },
+  fr: { people: 'Personnes touchées', peopleV: (e) => `${e.people} (${e.reached} en direct · ${e.voicemails} messages laissés)`, listened: 'Écouté 30 s ou plus', hot: 'Prospects chauds', cost: 'Coût', costV: (e) => `$${e.spent.toFixed(2)} · $${e.perPerson.toFixed(2)} par personne touchée${e.perHot != null ? ` · $${e.perHot.toFixed(2)} par prospect chaud` : ''}`, hour: 'Meilleure heure', area: 'Meilleure zone', follow: (n) => `Étape suivante : ${n} numéros n’ont pas répondu — rappelez-les en un clic depuis la page de la campagne.` },
+  es: { people: 'Personas alcanzadas', peopleV: (e) => `${e.people} (${e.reached} en vivo · ${e.voicemails} mensajes dejados)`, listened: 'Escucharon 30 s o más', hot: 'Clientes interesados', cost: 'Costo', costV: (e) => `$${e.spent.toFixed(2)} · $${e.perPerson.toFixed(2)} por persona alcanzada${e.perHot != null ? ` · $${e.perHot.toFixed(2)} por cliente interesado` : ''}`, hour: 'Mejor hora', area: 'Mejor zona', follow: (n) => `Siguiente paso: ${n} números no contestaron — vuelve a llamarlos con un toque desde la página de la campaña.` },
+}
+function reachRows(e, f) {
+  if (!e || !e.called) return ''
+  const R = REACH[f.lang] || REACH.en, h = (n) => new Date(2000, 0, 1, n).toLocaleTimeString('en-US', { hour: 'numeric' })
+  return L.rows([
+    { k: R.people, v: R.peopleV(e) },
+    { k: R.listened, v: `${e.listened}${e.reached ? ` (${e.listenPct}%)` : ''}` },
+    e.hot ? { k: R.hot, v: String(e.hot) } : null,
+    e.perPerson != null ? { k: R.cost, v: R.costV(e) } : null,
+    e.bestHour ? { k: R.hour, v: `${h(e.bestHour.hour)} (${e.bestHour.reached})` } : null,
+    e.bestArea ? { k: R.area, v: `${e.bestArea.area} (${e.bestArea.pct}%)` } : null,
+  ].filter(Boolean))
 }
 
 module.exports = { render, offPage, TYPES, planName, fmt }

@@ -188,7 +188,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   const price = async (cp) => { const c = await B.cfg(); return Math.round((cp.parts * unitOf(c, cp.withLinks) + (cp.replies ? c.replyFee : 0)) * 100) / 100 }
   if (action === 'bse-test') {
     if (message === L.test) {
-      if (!RD.test) return send(chatId, say('off_test'), testKb())
+      if (!RD.test && !info.bseAltFrom) return send(chatId, say('off_test'), testKb())
       const o = await B.testOffer(cid), c = await B.cfg()
       if (o.barred) return send(chatId, `⚠️ ${say('err_test_guard')}`, kb([[L.cont], [L.back]]))
       if (!o.free) {
@@ -202,7 +202,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   }
   if (action === 'bse-test-to') {
     if (message === L.cont || message === L.test_skip || message === L.send_anyway) return askWhen()
-    const k = await B.testCheck(cid, info.bseCampaign, message); if (k.error) return send(chatId, `⚠️ ${errText(lang, k)}`, kb([[L.cont], [L.back]]))
+    const k = await B.testCheck(cid, info.bseCampaign, message, { altFrom: info.bseAltFrom || null }); if (k.error) return send(chatId, `⚠️ ${errText(lang, k)}`, kb([[L.cont], [L.back]]))
     const w = walletOps(T.db)
     if (k.charge && !(await w.debit(chatId, k.charge))) { await go('bse-test'); return send(chatId, say('wallet_low', k.charge), kb([[L.cont], [L.back]])) }
     const r = await B.testSend(cid, info.bseCampaign, message, { charge: k.charge, altFrom: info.bseAltFrom || null }); await go('bse-test'); if (info.bseAltFrom) await put('bseAltFrom', null)
@@ -217,7 +217,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
       await send(chatId, say('tips_checking'))
       const tp = await B.aiTips(cid, info.bseCampaign); await put('bseRewrite', tp.rewrite || null)
       const words = (tp.risky || []).map(x => `• <b>${esc(x.word)}</b> — ${esc(x.why)}`).join('\n')
-      return send(chatId, `${say('test_spam')}${words ? `\n\n⚠️ <b>${say('spam_words')}</b>\n${words}` : ''}${tp.rewrite ? `\n\n✨ <b>${say('spam_safer')}</b>\n<i>${esc(tp.rewrite)}</i>` : ''}`, kb([...(RD.test ? [[L.test_other_line]] : []), ...(tp.rewrite ? [[L.use_rewrite]] : []), [L.edit], [L.send_anyway], [L.back]]))
+      return send(chatId, `${say('test_spam')}${words ? `\n\n⚠️ <b>${say('spam_words')}</b>\n${words}` : ''}${tp.rewrite ? `\n\n✨ <b>${say('spam_safer')}</b>\n<i>${esc(tp.rewrite)}</i>` : ''}`, kb([...(RD.test || f.esimId ? [[L.test_other_line]] : []), ...(tp.rewrite ? [[L.use_rewrite]] : []), [L.edit], [L.send_anyway], [L.back]]))
     }
     if (message === L.test_other_line) { if (await B.testBarred(cid)) return send(chatId, `⚠️ ${say('err_test_guard')}`, kb([[L.cont], [L.back]])); return askTestTo((await B.testOffer(cid)).free) }
     if (message === L.arrived_yes || message === L.arrived_no) {

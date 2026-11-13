@@ -7,6 +7,7 @@ const { walletOps } = require('./wallet')
 const HS = require('../hosted-sms.js')
 const aiStore = require('../ai-agent/store')
 const notify = require('./notify')
+const { mobileLines, LIVE_MOBILE, LIVE_TEXTING } = require('./numbers')
 
 const DAY = 864e5
 const esc = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -32,17 +33,18 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
     const A = adminAuth.require
     r.get('/admin/overview', A, h(async (req, res) => {
       const now = Date.now(), d30 = new Date(now - 30 * DAY), d1 = new Date(now - DAY)
-      const [byType, today, series, botUsers, webUsers, newWeb, numbers, running, hosted, agents] = await Promise.all([
+      const [byType, today, series, botUsers, webUsers, newWeb, numbers, running, hosted, agents, mobileCount] = await Promise.all([
         sumTx(db, d30),
         sumTx(db, d1, ['wallet-topup']),
         db.collection('transactions').aggregate([{ $match: { type: 'wallet-topup', createdAt: { $gt: new Date(now - 14 * DAY) } } }, { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, usd: { $sum: '$amount' }, n: { $sum: 1 } } }, { $sort: { _id: 1 } }]).toArray(),
         db.collection('nameOf').estimatedDocumentCount(),
         db.collection('webAccounts').estimatedDocumentCount(),
         db.collection('webAccounts').countDocuments({ createdAt: { $gt: new Date(now - 7 * DAY) } }),
-        db.collection('phoneNumbersOf').aggregate([{ $project: { n: { $size: { $ifNull: ['$val.numbers', []] } } } }, { $group: { _id: null, n: { $sum: '$n' } } }]).toArray(),
+        db.collection('phoneNumbersOf').aggregate([{ $project: { n: { $size: { $filter: { input: { $ifNull: ['$val.numbers', []] }, cond: { $ne: ['$$this.status', 'released'] } } } } } }, { $group: { _id: null, n: { $sum: '$n' } } }]).toArray(),
         db.collection('bulkCallCampaigns').countDocuments({ status: 'running' }),
         db.collection('hostedSms').aggregate([{ $group: { _id: '$status', n: { $sum: 1 } } }]).toArray(),
         db.collection('aiAgents').find({}, { projection: { name: 1, goal: 1, firstMessage: 1, greeting: 1, knowledge: 1 } }).toArray(),
+        db.collection('esimLines').countDocuments({ kind: 'mobile', status: { $in: LIVE_MOBILE } }),
       ])
       const deposits = byType.find(x => x._id === 'wallet-topup')
       const sales = byType.filter(x => !/topup|bonus|credit|refund|overpayment/.test(x._id))
@@ -50,7 +52,7 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
       res.json({
         deposits30: num(deposits?.usd), depositCount30: deposits?.n || 0, depositsToday: num(today[0]?.usd), sales30: num(sales.reduce((a, x) => a + x.usd, 0)), refunds30: num(refunds), netSales30: num(sales.reduce((a, x) => a + x.usd, 0) - refunds),
         byType: byType.map(x => ({ type: x._id, n: x.n, usd: num(x.usd) })), series: series.map(x => ({ day: x._id, usd: num(x.usd), n: x.n })),
-        botUsers, webUsers, newWeb7: newWeb, numbers: numbers[0]?.n || 0, runningCampaigns: running,
+        botUsers, webUsers, newWeb7: newWeb, numbers: (numbers[0]?.n || 0) + mobileCount + hosted.filter(x => LIVE_TEXTING.includes(x._id)).reduce((a, x) => a + x.n, 0), runningCampaigns: running,
         hosted: Object.fromEntries(hosted.map(x => [x._id, x.n])), flaggedAgents: agents.filter(a => aiStore.flagOf(a)).length,
       })
     }))
@@ -85,9 +87,26 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
 
     // Users: web accounts + bot users (nameOf). q = chat id, email or name.
     r.get('/admin/users', A, h(async (req, res) => {
-      const q = String(req.query.q || '').trim()
+      const q = String(req.query.q || '').trim(), kind = ['web', 'bot'].includes(req.query.kind) ? req.query.kind : 'all', withPlan = req.query.plan === '1'
+      const P = { projection: { passwordHash: 0, twoFactor: 0 } }
       let web = [], bot = []
-      if (!q) { web = await db.collection('webAccounts').find({}, { projection: { passwordHash: 0, twoFactor: 0 } }).sort({ createdAt: -1 }).limit(25).toArray() }
+      if (!q && withPlan) {
+        // "Has a plan": accounts that own at least one number/plan. Web ids are matched directly (a sorted owner list would be all bot ids).
+        const has = { 'val.numbers.0': { $exists: true } }
+        const wids = (await db.collection('webAccounts').find({}, { projection: { _id: 1 } }).sort({ createdAt: -1 }).limit(5000).toArray()).map(x => String(x._id))
+        if (kind !== 'bot') {
+          const own = (await db.collection('phoneNumbersOf').find({ ...has, _id: { $in: wids } }, { projection: { _id: 1 } }).toArray()).map(o => Number(o._id))
+          web = await db.collection('webAccounts').find({ _id: { $in: own } }, P).sort({ createdAt: -1 }).limit(50).toArray()
+        }
+        if (kind !== 'web') {
+          const own = (await db.collection('phoneNumbersOf').find({ ...has, _id: { $nin: wids } }, { projection: { _id: 1 } }).limit(50).toArray()).map(o => String(o._id))
+          bot = await db.collection('nameOf').find({ _id: { $in: own } }).toArray()
+          const named = new Set(bot.map(b => String(b._id))); bot.push(...own.filter(id => !named.has(id)).map(id => ({ _id: id, val: '' })))
+        }
+      } else if (!q) {
+        if (kind !== 'bot') web = await db.collection('webAccounts').find({}, P).sort({ createdAt: -1 }).limit(50).toArray()
+        if (kind === 'bot') bot = await db.collection('nameOf').find({}).sort({ $natural: -1 }).limit(50).toArray()
+      }
       else if (/^\d{5,}$/.test(q)) {
         web = await db.collection('webAccounts').find({ _id: Number(q) }, { projection: { passwordHash: 0, twoFactor: 0 } }).toArray()
         bot = await db.collection('nameOf').find({ _id: q }).toArray()
@@ -96,16 +115,18 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
         web = await db.collection('webAccounts').find({ $or: [{ email: rx }, { name: rx }] }, { projection: { passwordHash: 0, twoFactor: 0 } }).limit(25).toArray()
         bot = await db.collection('nameOf').find({ val: rx }).limit(25).toArray()
       }
+      if (kind === 'web') bot = []; if (kind === 'bot') web = []
       const ids = [...web.map(x => String(x._id)), ...bot.map(x => String(x._id))]
-      const [bal, blocked] = await Promise.all([balanceOf(ids), blockedOf(ids)])
+      const [bal, blocked, owned] = await Promise.all([balanceOf(ids), blockedOf(ids), db.collection('phoneNumbersOf').find({ _id: { $in: ids } }, { projection: { 'val.numbers.plan': 1, 'val.numbers.status': 1, 'val.numbers.expiresAt': 1 } }).toArray()])
+      const plans = Object.fromEntries(owned.map(o => [String(o._id), (o.val?.numbers || []).map(n => ({ plan: n.plan || 'number', status: n.status || 'active', expiresAt: n.expiresAt || null }))]))
       res.json({ items: [
-        ...web.map(a => ({ chatId: String(a._id), kind: 'web', name: a.name || '', email: a.email, createdAt: a.createdAt, lastLoginAt: a.lastLoginAt, balance: bal[String(a._id)] || 0, suspended: !!a.disabled })),
-        ...bot.filter(b => !web.some(x => String(x._id) === String(b._id))).map(b => ({ chatId: String(b._id), kind: 'bot', name: b.val || '', email: null, balance: bal[String(b._id)] || 0, suspended: blocked.has(String(b._id)) })),
+        ...web.map(a => ({ chatId: String(a._id), kind: 'web', name: a.name || '', email: a.email, createdAt: a.createdAt, lastLoginAt: a.lastLoginAt, balance: bal[String(a._id)] || 0, suspended: !!a.disabled, plans: plans[String(a._id)] || [] })),
+        ...bot.filter(b => !web.some(x => String(x._id) === String(b._id))).map(b => ({ chatId: String(b._id), kind: 'bot', name: b.val || '', email: null, balance: bal[String(b._id)] || 0, suspended: blocked.has(String(b._id)), plans: plans[String(b._id)] || [] })),
       ] })
     }))
     r.get('/admin/users/:chatId', A, h(async (req, res) => {
       const id = String(req.params.chatId)
-      const [acct, name, wal, tx, nums, camps, hosted, agents, blocked] = await Promise.all([
+      const [acct, name, wal, tx, nums, camps, hosted, agents, blocked, mobile] = await Promise.all([
         /^\d+$/.test(id) ? db.collection('webAccounts').findOne({ _id: Number(id) }, { projection: { passwordHash: 0, twoFactor: 0 } }) : null,
         db.collection('nameOf').findOne({ _id: id }),
         db.collection('walletOf').findOne({ _id: id }),
@@ -115,13 +136,16 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
         db.collection('hostedSms').find({ chatId: id }).sort({ createdAt: -1 }).toArray(),
         db.collection('aiAgents').find({ chatId: id }).toArray(),
         db.collection('chatIdBlocked').findOne({ _id: id, val: true }),
+        mobileLines(db, id),
       ])
       if (!acct && !name && !wal) return bad(res, 404, 'not_found', 'No user with that id.')
       res.json({
         chatId: id, kind: acct ? 'web' : 'bot', name: acct?.name || name?.val || '', email: acct?.email || null, createdAt: acct?.createdAt || null, lastLoginAt: acct?.lastLoginAt || null,
         suspended: acct ? !!acct.disabled : !!blocked, balance: num((wal?.usdIn || 0) - (wal?.usdOut || 0)), totalIn: num(wal?.usdIn), totalOut: num(wal?.usdOut),
         transactions: tx.map(t => ({ id: String(t._id), type: t.type, amount: num(t.amount), at: t.createdAt, meta: t.metadata || null })),
-        numbers: (nums?.val?.numbers || []).map(n => ({ phoneNumber: n.phoneNumber, plan: n.plan, status: n.status || 'active', expiresAt: n.expiresAt, country: n.country })),
+        numbers: [...(nums?.val?.numbers || []).map(n => ({ phoneNumber: n.phoneNumber, plan: n.plan, status: n.status || 'active', expiresAt: n.expiresAt, country: n.country })),
+          ...mobile.map(d => ({ phoneNumber: d.phoneNumber || 'Assigning…', plan: 'mobile', status: d.status, expiresAt: d.expiresAt || null, country: 'US' })),
+          ...hosted.filter(d => LIVE_TEXTING.includes(d.status)).map(d => ({ phoneNumber: d.phoneNumber, plan: 'texting', status: d.status, expiresAt: d.planNumber ? null : d.nextBillAt || null, country: d.phoneNumber?.startsWith('+1') ? 'US' : null }))],
         campaigns: camps.map(c => ({ id: c.id, name: c.name || c.audioName, mode: c.mode, status: c.status, createdAt: c.createdAt, stats: c.stats || null })),
         hosted: hosted.map(HS.pub), agents: agents.map(a => ({ id: a.id, name: a.name, disabled: !!a.disabled, flag: aiStore.flagOf(a) })),
       })

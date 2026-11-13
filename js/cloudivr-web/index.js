@@ -77,6 +77,10 @@ function createCloudIvrWeb(deps) {
     require('./admin').createAdmin(db, { log, bulkCallService: deps.bulkCallService, adminAuth }).routes(r, h)
     require('./esim').publicRoutes(r, { db, h, log, A: adminAuth.require })
     require('./media').publicRoutes(r, { db, h })
+    require('./fax').publicRoutes(r, { db, h })
+    let offersRef = null
+    const mollie = require('./mollie').createMollie(db, { log, notifyAdmin: deps.notifyAdmin, getOffers: () => offersRef, push: (id, text) => notify.push(id, text, null, { kind: 'payment' }) })
+    mollie.publicRoutes(r, { h })
     r.use(auth.requireUser)
     // Admin alert when web content is named after a bank / FDIC / IRS (alert only).
     r.use((req, _res, next) => {
@@ -87,6 +91,8 @@ function createCloudIvrWeb(deps) {
     require('./esim').routes(r, { h })
     const offers = createOffers(db, { log })
     offers.routes(r, { h })
+    offersRef = offers
+    mollie.routes(r, { h })
     wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit, offers, cryptoPerUsd: deps.cryptoPerUsd })
     // Orders go first so /numbers/orders is not caught by /numbers/:phone; numbersApi is filled in right after.
     const numbersApi = {}
@@ -117,13 +123,14 @@ function createCloudIvrWeb(deps) {
     incoming.routes(r, { ...deps, db, h, numbersApi, smsReply })
     textTriggers.routes(r, { ...deps, db, h, numbersApi })
     ringGroup.routes(r, { h, numbersApi })
-    require('./fax').routes(r, { db, h, upload, numbersApi })
+    require('./fax').routes(r, { db, h, upload, numbersApi, notifyAdmin: deps.notifyAdmin })
     webhooks.routes(r, { db, h, log })
     aiSummary.routes(r, { ...deps, db, h, numbersApi })
     emails.routes(r, { h })
     r.get('/dashboard', h(async (req, res) => {
       const id = req.webChatId
-      const nums = await numbersApi.myNumbers(id)
+      const [nums, mobile, texting] = await Promise.all([numbersApi.myNumbers(id), numbers.mobileLines(db, id), numbers.textingLines(db, id)])
+      const all = [...nums, ...mobile, ...texting], now = Date.now()
       const [balance, unread, campaigns, pendingVerification, trial, liveCampaigns, messagesUnread, textsThisMonth] = await Promise.all([
         wallet.walletOps(db).balance(id),
         db.collection('webNotifications').countDocuments({ chatId: id, read: false }),
@@ -134,10 +141,10 @@ function createCloudIvrWeb(deps) {
         messages.unreadCount(id).catch(() => 0),
         messages.textCount(id, new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1))).catch(() => null),
       ])
-      const soon = Date.now() + 7 * 86400000
+      const soon = now + 7 * 86400000
       res.json({
         balance, unread, messagesUnread, activeCampaigns: campaigns, liveCampaigns, pendingVerification, ivrTrial: !!trial.available,
-        numbers: { total: nums.length, active: nums.filter(n => n.status === 'active').length, expiringSoon: nums.filter(n => n.expiresAt && new Date(n.expiresAt).getTime() < soon).length },
+        numbers: { total: all.length, active: all.filter(n => n.status === 'active').length, expiringSoon: all.filter(n => { const t = n.expiresAt ? new Date(n.expiresAt).getTime() : NaN; return n.status === 'active' && t > now && t < soon }).length, mobile: mobile.length, texting: texting.length },
         minutesUsed: nums.reduce((s, n) => s + (n.minutesUsed || 0), 0), smsUsed: nums.reduce((s, n) => s + (n.smsUsed || 0), 0), textsThisMonth,
       })
     }))

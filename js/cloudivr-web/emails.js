@@ -7,18 +7,20 @@
 const crypto = require('crypto')
 const schedule = require('node-schedule')
 const { isWebChatId } = require('./notify')
+const notify = require('./notify')
 const { secret, sendMail, isAdmin } = require('./auth')
 const { appPathPrefix, parseDomain } = require('./domain-guard')
 const { walletOps, round2 } = require('./wallet')
 const { supportLink } = require('./support')
 const T = require('./email-templates')
-const { LIVE_MOBILE } = require('./numbers')
+const { LIVE_MOBILE, LIVE_TEXTING } = require('./numbers')
 
 const GROUPS = { weekly: 'weekly', campaignDone: 'campaigns', voicemail: 'voicemail', missed: 'missed' }
 const OPTIONAL = Object.values(GROUPS)
 const DEFAULTS = { weekly: true, campaigns: true, voicemail: true, missed: true, lowBalanceAt: 10 }
 const LANGS = ['en', 'fr', 'es']
 const EMPTY_AT = 0.5
+const TEXTING_STEPS = ['verify', 'loa', 'documents', 'admin_docs', 'review', 'active', 'rejected', 'failed']
 const RANK = { ok: 0, low: 1, empty: 2 }
 const DAY = 86400000
 const LOOKBACK = 6 * 3600000
@@ -68,7 +70,7 @@ function createEmails(db, { log = console.log } = {}) {
     if (!pr.acc && email) pr = { acc: { _id: chatId, email, name: '' }, lang: 'en', email: { ...DEFAULTS } } // landing test-call visitor without an account
     if (!pr.acc?.email || pr.acc.disabled) return false
     const group = GROUPS[type]
-    if (!force && group && pr.email[group] === false) return false
+    if (!force && group && pr.email[group] === false) { await sent.insertOne({ _id: key, chatId: String(chatId), type, at: new Date(), ok: 'off' }).catch(() => {}); return false }
     if (!force && type === 'voicemail' && String(data.forwardedTo || '').toLowerCase() === pr.acc.email.toLowerCase()) return false // already gets the MP3 email
     try { await sent.insertOne({ _id: key, chatId: String(chatId), type, at: new Date() }) } catch (e) { if (e.code === 11000) return false; throw e }
     const { subject, html } = build(type, data, pr)
@@ -86,9 +88,10 @@ function createEmails(db, { log = console.log } = {}) {
   async function webNumbers() {
     const accs = await accounts.find({ disabled: { $ne: true } }, { projection: { _id: 1, createdAt: 1 } }).toArray()
     const ids = accs.map(a => String(a._id))
-    const [docs, lines] = await Promise.all([
+    const [docs, lines, texting] = await Promise.all([
       db.collection('phoneNumbersOf').find({ _id: { $in: ids } }).toArray(),
       db.collection('esimLines').find({ chatId: { $in: ids }, kind: 'mobile', status: { $in: LIVE_MOBILE } }).toArray(),
+      db.collection('hostedSms').find({ chatId: { $in: ids }, status: { $in: LIVE_TEXTING } }).toArray(),
     ])
     const created = new Map(accs.map(a => [String(a._id), a.createdAt]))
     const byChat = new Map(), byPhone = new Map()
@@ -99,6 +102,8 @@ function createEmails(db, { log = console.log } = {}) {
       for (const n of numbers) byPhone.set(n.phoneNumber, { chatId: String(d._id), num: n })
     }
     for (const d of lines) entry(String(d.chatId)).mobile.push({ phoneNumber: d.phoneNumber || null, plan: 'mobile', planPrice: Number(d.price) || 0, status: d.status, expiresAt: d.expiresAt || null, autoRenew: d.autoRenew !== false, mobile: true })
+    // Landline to Texting numbers ride in `mobile` too (platform numbers; their billing notices come from hosted-sms).
+    for (const d of texting) entry(String(d.chatId)).mobile.push({ phoneNumber: d.phoneNumber, plan: 'texting', planPrice: require('../hosted-sms.js').pub(d).monthly, status: d.status, expiresAt: d.planNumber ? null : d.nextBillAt || null, autoRenew: true, texting: true })
     return { byChat, byPhone }
   }
 
@@ -126,7 +131,14 @@ function createEmails(db, { log = console.log } = {}) {
       id, name: c.name || c.agentName || c.audioName || 'Campaign', callerId: c.callerId, cancelled: c.status === 'cancelled', mode: c.mode,
       duration: c.startedAt && c.completedAt ? Math.round((new Date(c.completedAt) - new Date(c.startedAt)) / 1000) : 0,
       stats: s, rate: s.total ? Math.round(((s.answered || 0) / s.total) * 100) : 0, notDialed: (c.leads || []).filter(l => l.notCalled).length,
+      engagement: await engagementOf(c),
     }
+  }
+  async function engagementOf(c) {
+    try {
+      const agg = await db.collection('phoneLogs').aggregate([{ $match: { campaignId: c.id, type: 'BulkIVR' } }, { $group: { _id: null, amt: { $sum: '$charge' } } }]).toArray()
+      return require('../bulk-engagement').engagementOf(c, agg[0] ? +agg[0].amt : null)
+    } catch (_) { return null }
   }
 
   // New records since the last look → jobs { chatId, type, key, data() } (missed calls: { items } grouped per number).
@@ -182,6 +194,32 @@ function createEmails(db, { log = console.log } = {}) {
     return n ? { phone: n.phoneNumber, expiresAt: n.expiresAt, price: Number(n.planPrice) || 0 } : null
   }
 
+  // Abandoned web deposits: one reminder ~1 h after, one ~24 h after; stops once paid, cancelled or paid another way.
+  async function depositNudges() {
+    const now = Date.now(), jobs = []
+    const deps = await db.collection('webDeposits').find({ createdAt: { $gte: new Date(now - 48 * 3600e3), $lt: new Date(now - 3600e3) } }).toArray()
+    for (const d of deps) {
+      if (!isWebChatId(d.chatId)) continue
+      const paid = await db.collection('transactions').findOne({ chatId: String(d.chatId), type: 'wallet-topup', $or: [{ 'metadata.ref': d.ref }, { createdAt: { $gte: d.createdAt } }] })
+      if (paid) continue
+      let link = '/app/wallet', order = null
+      if (d.forNumber) {
+        order = await db.collection('webNumberOrders').findOne({ chatId: d.chatId, phoneNumber: d.forNumber }, { sort: { createdAt: -1 } })
+        if (!order || !['awaiting_payment', 'underpaid'].includes(order.status)) continue
+        link = `/app/orders/${encodeURIComponent(order._id)}`
+      }
+      const stage = now - d.createdAt.getTime() >= DAY ? '24h' : '1h'
+      const key = `depnudge:${d.ref}:${stage}`
+      jobs.push({ chatId: String(d.chatId), type: 'depositNudge', key, data: async () => {
+        if (!(await db.collection('webNotifications').findOne({ chatId: String(d.chatId), 'meta.nudge': key }))) {
+          await notify.push(d.chatId, `💳 Your $${d.amountUsd} ${d.coin || 'crypto'} deposit is still waiting${d.forNumber ? ` — it finishes your ${d.forNumber} order` : ''}. Tap to finish paying.`, null, { kind: 'wallet', meta: { link, nudge: key } }).catch(() => {})
+        }
+        return { amount: d.amountUsd, coin: d.coin || 'crypto', phone: d.forNumber || null, link, stage }
+      } })
+    }
+    return jobs
+  }
+
   // Renewal reminders, failed renewals and paused numbers.
   function numberStates(nums) {
     const now = Date.now(), jobs = []
@@ -196,7 +234,9 @@ function createEmails(db, { log = console.log } = {}) {
         if (n._graceUntil && new Date(n._graceUntil).getTime() > now) {
           jobs.push({ chatId, type: 'renewFailed', key: `grace:${phone}:${n._graceUntil}`, data: async () => { const balance = await w.balance(chatId); return { phone, price, balance, shortfall: round2(Math.max(0, price - balance)), graceUntil: n._graceUntil } } })
         } else if (exp > now && exp - now <= 3 * DAY) {
-          jobs.push({ chatId, type: 'renewSoon', key: `renewsoon:${phone}:${n.expiresAt}`, data: async () => { const balance = await w.balance(chatId); return { phone, planName, price, expiresAt: n.expiresAt, autoRenew: !!n.autoRenew, balance, shortfall: round2(Math.max(0, price - balance)) } } })
+          const soon = async () => { const balance = await w.balance(chatId); return { phone, planName, price, expiresAt: n.expiresAt, autoRenew: !!n.autoRenew, balance, shortfall: round2(Math.max(0, price - balance)) } }
+          if (exp - now > DAY) jobs.push({ chatId, type: 'renewSoon', key: `renewsoon:${phone}:${n.expiresAt}`, data: soon })
+          else jobs.push({ chatId, type: 'renewSoon', key: `renewsoon1:${phone}:${n.expiresAt}`, data: soon })
         }
       }
     }
@@ -222,6 +262,20 @@ function createEmails(db, { log = console.log } = {}) {
       const prev = stored ?? (createdAt && createdAt >= since ? 'ok' : null)
       if (!prev || RANK[level] <= RANK[prev]) continue
       jobs.push({ chatId, type: level === 'empty' ? 'walletEmpty' : 'lowBalance', key: `wallet:${chatId}:${level}:${Date.now()}`, data: async () => ({ balance, threshold: at, next: nextRenewal(numbers) }) })
+    }
+    return jobs
+  }
+
+  // Landline to Texting setup steps: one email each time a setup moves to a new step (doc.emailedStatus = last step emailed).
+  // Changes older than LOOKBACK (deploy day, old records) are only marked, never emailed.
+  async function textingSteps() {
+    const hs = db.collection('hostedSms'), jobs = []
+    for (const d of await hs.find({ status: { $in: TEXTING_STEPS }, $expr: { $ne: ['$emailedStatus', '$status'] } }).limit(200).toArray()) {
+      const r = await hs.updateOne({ _id: d._id, status: d.status, emailedStatus: d.emailedStatus ?? null }, { $set: { emailedStatus: d.status } })
+      if (!r.modifiedCount || !isWebChatId(d.chatId) || new Date(d.updatedAt).getTime() < Date.now() - LOOKBACK) continue
+      const p = require('../hosted-sms.js').pub(d), step = ['rejected', 'failed'].includes(d.status) ? 'failed' : d.status
+      jobs.push({ chatId: String(d.chatId), type: 'textingStep', key: `texting:${d._id}:${d.status}:${new Date(d.updatedAt).getTime()}`,
+        data: async () => ({ id: String(d._id), step, phone: d.phoneNumber, expectedBy: p.expectedBy, monthly: p.monthly, nextBillAt: d.planNumber ? null : d.nextBillAt || null, note: d.note || null, refund: step === 'failed' ? Number(d.paid) || 0 : 0 }) })
     }
     return jobs
   }
@@ -252,7 +306,8 @@ function createEmails(db, { log = console.log } = {}) {
       const from = await cursor()
       const nums = await webNumbers()
       const jobs = await events(from, nums)
-      if (ticks++ % 5 === 0) jobs.push(...numberStates(nums), ...(await walletLevels(nums)))
+      jobs.push(...(await textingSteps()))
+      if (ticks++ % 5 === 0) jobs.push(...numberStates(nums), ...(await walletLevels(nums)), ...(await depositNudges()))
       return await run(jobs)
     } catch (e) { log(`[CloudIVR-Email] scan failed: ${e.message}`); return 0 } finally { busy = false }
   }
@@ -319,10 +374,12 @@ function createEmails(db, { log = console.log } = {}) {
       case 'topup': return { amount: 50, balance: Math.max(balance, 50) }
       case 'lowBalance': return { balance: 6.4, threshold: (await profile(chatId)).email.lowBalanceAt, next: { phone, expiresAt: n.expiresAt, price } }
       case 'walletEmpty': return { balance: 0.12 }
-      case 'campaignDone': return { id: 'sample', name: 'Spring offer', callerId: phone, cancelled: false, mode: 'transfer', duration: 1460, rate: 47, notDialed: 0, stats: { total: 250, answered: 118, keyPressed: 64, transferred: 21, noAnswer: 96, hungUp: 12, voicemail: 9, voicemailLeft: 7, busy: 6, failed: 9 } }
+      case 'depositNudge': return { amount: 50, coin: 'USDT', phone: null, link: '/app/wallet', stage: 1 }
+      case 'campaignDone': return { id: 'sample', name: 'Spring offer', callerId: phone, cancelled: false, mode: 'transfer', duration: 1460, rate: 47, notDialed: 0, stats: { total: 250, answered: 118, keyPressed: 64, transferred: 21, noAnswer: 96, hungUp: 12, voicemail: 9, voicemailLeft: 7, busy: 6, failed: 9 }, engagement: { called: 250, total: 250, reached: 118, listened: 71, voicemails: 7, hot: 64, people: 125, listenPct: 60, unanswered: 102, spent: 37.5, perPerson: 0.3, perHot: 0.59, bestHour: { hour: 11, reached: 34 }, bestArea: { area: '415', pct: 58 } } }
       case 'voicemail': return { from: '+14155550122', to: phone, duration: 38, transcript: 'Hi, it’s Dana from Lakeside Realty — calling about the listing on Elm Street. Call me back when you get a minute.' }
       case 'missed': return { to: phone, calls: [{ from: '+14155550122', at: at(-20 * 60000) }, { from: '+447700900123', at: at(-5 * 60000) }] }
       case 'weekly': return weeklyFor(chatId, list.length ? list : [n])
+      case 'textingStep': return { id: 'sample', step: 'review', phone: '+12125550123', expectedBy: at(3 * DAY), monthly: 50, nextBillAt: at(30 * DAY), note: null, refund: 0 }
       default: return {}
     }
   }
@@ -383,7 +440,7 @@ function createEmails(db, { log = console.log } = {}) {
       res.json({ sent: row?.ok === true, preview: row?.ok === 'preview', to: row?.to || null, subject: row?.subject || null })
     }))
     router.get('/emails/log', h(async (req, res) => {
-      const rows = await sent.find({ chatId: req.webChatId, type: { $ne: 'missed-grouped' } }, { projection: { html: 0 } }).sort({ at: -1 }).limit(20).toArray()
+      const rows = await sent.find({ chatId: req.webChatId, type: { $ne: 'missed-grouped' }, ok: { $ne: 'off' } }, { projection: { html: 0 } }).sort({ at: -1 }).limit(20).toArray()
       res.json({ emails: rows.map(r => ({ id: r._id, type: r.type, subject: r.subject || null, at: r.at, status: r.ok === true ? 'sent' : r.ok === 'preview' ? 'preview' : 'failed', test: String(r._id).startsWith('test:') })) })
     }))
     router.post('/admin/emails/weekly', h(async (req, res) => {
@@ -404,7 +461,7 @@ function createEmails(db, { log = console.log } = {}) {
     log('[CloudIVR-Email] scanner on (every minute) · weekly summary Mondays 08:00 UTC')
   }
 
-  return { send, tick, runWeekly, weeklyFor, sample, render: build, routes, publicRoutes, start }
+  return { send, tick, runWeekly, weeklyFor, webNumbers, textingSteps, sample, render: build, routes, publicRoutes, start }
 }
 
 module.exports = { createEmails, DEFAULTS, GROUPS, appUrl }

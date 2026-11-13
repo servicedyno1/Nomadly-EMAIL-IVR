@@ -9,6 +9,7 @@ const fake = async (o) => {
   if (o.method === 'get' && o.url.includes('/methods')) { const cur = /currency(?:%5D|\])=(\w+)/.exec(o.url)?.[1]; return { data: { _embedded: { methods: cur === 'USD' ? [{ id: 'creditcard', description: 'Card' }, { id: 'paypal', description: 'PayPal' }] : cur === 'EUR' ? [{ id: 'creditcard', description: 'Card' }, { id: 'ideal', description: 'iDEAL' }] : [] } } } }
   if (o.method === 'post' && o.url.endsWith('/payments')) { const p = { id: `tr_${Object.keys(pay).length + 1}x`, status: 'open', amount: o.data.amount, _links: { checkout: { href: 'https://www.mollie.com/checkout/test' } } }; pay[p.id] = p; return { data: p } }
   if (o.method === 'get' && o.url.includes('/payments/')) return { data: pay[o.url.split('/payments/')[1]] }
+  if (o.method === 'post' && o.url.endsWith('/sessions')) return { data: { id: 'sess_probe' } }
   throw new Error(`unexpected ${o.method} ${o.url}`)
 }
 fake.get = async (url) => (url.includes('frankfurter') ? { data: { rates: { EUR: 0.9, GBP: 0.8 } } } : realAxios.get(url))
@@ -33,7 +34,7 @@ const ok = (n, c, x = '') => { c ? pass++ : fail++; console.log(`${c ? '✅' : '
     ok('options: only currencies with enabled methods (USD, EUR), test mode', r.data.enabled && r.data.mode === 'test' && curs.join() === 'USD,EUR', JSON.stringify(curs))
     ok('EUR price converted at the day rate ($20 × 0.9 = 18.00)', r.data.currencies.find(c => c.currency === 'EUR').amount === '18.00')
     r = await ax('post', '/wallet/mollie/pay', { amountUsd: 20, currency: 'EUR', method: 'ideal', returnUrl: 'https://app.example.com/app/wallet' }, { Origin: 'https://app.example.com' })
-    const create = calls.find(c => c.method === 'post')
+    const create = calls.find(c => c.method === 'post' && c.url.endsWith('/payments'))
     ok('pay → hosted checkout URL, EUR 18.00, idempotency key, webhook + return URLs', r.status === 201 && r.data.checkoutUrl && create.data.amount.value === '18.00' && create.headers['Idempotency-Key'] && /\/cloudivr-web\/mollie\/webhook$/.test(create.data.webhookUrl) && create.data.redirectUrl.includes(`mollie=${r.data.ref}`), JSON.stringify(r.data))
     ok('return URL from another site is refused', (await ax('post', '/wallet/mollie/pay', { amountUsd: 20, currency: 'USD', returnUrl: 'https://evil.example/x' }, { Origin: 'https://app.example.com' })).status === 400)
     ok('method not on for that currency is refused', (await ax('post', '/wallet/mollie/pay', { amountUsd: 20, currency: 'USD', method: 'ideal', returnUrl: 'https://app.example.com/app/wallet' }, { Origin: 'https://app.example.com' })).status === 400)

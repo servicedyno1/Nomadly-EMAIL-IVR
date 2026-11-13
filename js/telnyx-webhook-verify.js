@@ -30,13 +30,14 @@ function verify({ headers = {}, rawBody }, key, nowMs = Date.now()) {
 
 // Express middleware. Passes everything (and says so once at boot) without TELNYX_PUBLIC_KEY (brands not set up yet) or in
 // dry-run previews, where no real Telnyx traffic arrives and the test suites post simulated events.
-function middleware(log = console.log) {
-  if (!process.env.TELNYX_PUBLIC_KEY || process.env.WEB_CLOUDIVR_DRY_RUN === 'true') {
-    log(`[TelnyxSig] ⚠️ Telnyx webhooks are NOT signature-checked (${process.env.TELNYX_PUBLIC_KEY ? 'dry-run preview' : 'TELNYX_PUBLIC_KEY not set'})`)
+// envName picks the account key (TELNYX_FAX_PUBLIC_KEY for the fax-only account).
+function middleware(log = console.log, envName = 'TELNYX_PUBLIC_KEY') {
+  if (!process.env[envName] || process.env.WEB_CLOUDIVR_DRY_RUN === 'true') {
+    log(`[TelnyxSig] ⚠️ Telnyx webhooks are NOT signature-checked (${process.env[envName] ? 'dry-run preview' : `${envName} not set`})`)
     return (req, res, next) => next()
   }
-  const key = keyFrom(process.env.TELNYX_PUBLIC_KEY)
-  log('[TelnyxSig] Telnyx webhook signatures enforced')
+  const key = keyFrom(process.env[envName])
+  log(`[TelnyxSig] Telnyx webhook signatures enforced (${envName})`)
   return (req, res, next) => {
     if (verify(req, key)) return next()
     log(`[TelnyxSig] refused ${req.path}: missing, stale or invalid Telnyx signature`)

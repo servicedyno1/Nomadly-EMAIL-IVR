@@ -6,6 +6,10 @@ const EXT = new Set('^{}\\[~]|€')
 // Phones insert smart punctuation; swap it for the plain GSM version so the text still fits 160.
 const SMART = { '‘': "'", '’': "'", '‚': "'", '′': "'", '“': '"', '”': '"', '„': '"', '″': '"', '–': '-', '—': '-', '−': '-', '…': '...', '\u00a0': ' ', '\u2009': ' ', '\u200b': '' }
 const gsmText = (t) => String(t || '').replace(/[‘’‚′“”„″–—−…\u00a0\u2009\u200b]/g, (c) => SMART[c])
+// Non-GSM characters force the 70-char limit. Homoglyphs (a Cyrillic "А" in "CRА") hide in pasted text, so name them.
+const NAMES = { '\u0410': 'Cyrillic А', '\u0430': 'Cyrillic а', '\u0415': 'Cyrillic Е', '\u0435': 'Cyrillic е', '\u041E': 'Cyrillic О', '\u043E': 'Cyrillic о', '\u0421': 'Cyrillic С', '\u0441': 'Cyrillic с', '\u0420': 'Cyrillic Р', '\u0440': 'Cyrillic р' }
+const badChars = (text) => { const s = gsmText(text); return [...new Set([...s].filter(ch => !GSM.has(ch) && !EXT.has(ch) && ch.codePointAt(0) <= 0x24FF))] }
+const showBad = (chars) => chars.map(c => `“${c}”${NAMES[c] ? ` (${NAMES[c]})` : ''}`).join(', ')
 
 function smsInfo(text) {
   const s = gsmText(text)
@@ -26,7 +30,12 @@ function smsTooLong(text, maxParts = MAX_PARTS) {
   const i = smsInfo(text)
   const cap = maxParts === 1 ? i.limit : (i.unicode ? 67 : 153) * maxParts
   if (i.used <= cap) return null
-  return i.unicode ? `Keep it to ${cap} characters: with emoji or special characters a text fits ${cap} in ${maxParts === 1 ? 'one message' : `${maxParts} parts`} (this has ${i.used}).` : `Keep it to ${cap} characters${maxParts === 1 ? ', one text' : ` (${maxParts} joined texts)`} (this has ${i.used}).`
+  if (i.unicode) {
+    const bad = badChars(text)
+    if (bad.length) return `A special character is forcing a shorter limit (70 instead of 160). Replace it with a normal letter: ${showBad(bad)}. This often happens when text is pasted from elsewhere.`
+    return `Keep it to ${cap} characters: with emoji or special characters a text fits ${cap} in ${maxParts === 1 ? 'one message' : `${maxParts} parts`} (this has ${i.used}).`
+  }
+  return `Keep it to ${cap} characters${maxParts === 1 ? ', one text' : ` (${maxParts} joined texts)`} (this has ${i.used}).`
 }
 // Cut to one text (used for AI-suggested replies).
 function fitSms(text) {

@@ -137,8 +137,8 @@ function wrap(t) {
   return w
 }
 
-// Number lookup for list screening: SignalWire → Bird → AWS → Infobip → { type, carrier } | null
-const lookup = async (e164) => (swOn() ? await rest.lookup(e164) : null) || (await bird.lookup(e164)) || (await aws.lookup(e164)) || ib.lookup(e164)
+// Number lookup for list screening: SignalWire → Bird → AWS → Infobip → Telnyx fax account → { type, carrier } | null
+const lookup = async (e164) => (swOn() ? await rest.lookup(e164) : null) || (await bird.lookup(e164)) || (await aws.lookup(e164)) || (await ib.lookup(e164)) || require('../telnyx-fax-account').lookup(e164)
 
 // Texts: SignalWire when it owns the sending number, else null (caller keeps its Telnyx path).
 async function sendSms(from, to, text, mediaUrls = []) {

@@ -27,13 +27,16 @@ function phaseOf(l, voiceService) {
 function liveView(c, voiceService, now = Date.now()) {
   const leads = c.leads || []
   let waiting = 0, ringing = 0, talking = 0, done = 0, recent = 0
+  // Average over the time actually spent calling (since start / resume), up to 5 min — a fresh campaign isn't shown slow.
+  const since = Math.max(ms(c.startedAt), ms(c.resumedAt))
+  const windowMs = Math.max(30000, Math.min(RATE_WINDOW_MS, since ? now - since : RATE_WINDOW_MS))
   for (const l of leads) {
     if (l.status === 'pending') waiting++
     else if (INFLIGHT.includes(l.status)) { if (phaseOf(l, voiceService).phase === 'talking') talking++; else ringing++ }
-    else { done++; if (l.status !== 'skipped' && now - ms(l.completedAt) <= RATE_WINDOW_MS) recent++ }
+    else { done++; if (l.status !== 'skipped' && now - ms(l.completedAt) <= windowMs) recent++ }
   }
   const running = c.status === 'running'
-  const ratePerMin = running ? Math.round((recent / (RATE_WINDOW_MS / 60000)) * 10) / 10 : 0
+  const ratePerMin = running ? Math.round((recent / (windowMs / 60000)) * 10) / 10 : 0
   const remaining = waiting + ringing + talking
   const blocked = c.waitingForHours || c.waitingForDailyLimit
   return {
@@ -42,6 +45,7 @@ function liveView(c, voiceService, now = Date.now()) {
     etaSec: running && !blocked && ratePerMin > 0 && remaining ? Math.round((remaining / ratePerMin) * 60) : null,
     elapsedSec: c.startedAt ? Math.max(0, Math.round(((c.completedAt ? ms(c.completedAt) : now) - ms(c.startedAt)) / 1000)) : 0,
     linesInUse: ringing + talking,
+    ...(() => { const e = require('../bulk-engagement').engagementOf(c); return { people: e.people, reached: e.reached, voicemails: e.voicemails, listened: e.listened, listenPct: e.listenPct, hot: e.hot } })(),
   }
 }
 

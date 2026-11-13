@@ -75,6 +75,9 @@ const quote = (text) => `<div style="margin:16px 0;padding:18px 20px;background:
 
 // Whole email (light card). `base` = site origin (logo), `brand` = { name, logo, href } for white-label senders,
 // `foot` = { why, settings: [label, href] | null, off: [label, href] | null, support: [label, href] | null }
+// Legal company name on CloudIVR emails: Dynotech Innovations unless CLOUDIVR_COMPANY_NAME overrides ("none" hides it).
+const RIGHTS = { en: 'All rights reserved.', fr: 'Tous droits réservés.', es: 'Todos los derechos reservados.' }
+const copyright = (brand, lang) => { const n = brand?.name || 'CloudIVR', co = !brand && ((c) => (c.toLowerCase() === 'none' ? '' : c))((process.env.CLOUDIVR_COMPANY_NAME || 'Dynotech Innovations').trim()); return `© ${new Date().getFullYear()} ${n}${co ? ` — ${co}` : ''}. ${RIGHTS[lang] || RIGHTS.en}` }
 function layout({ lang = 'en', preheader = '', eyebrow, title, t = 'brand', body, base = '', brand, foot }) {
   const c = tone(t)
   const mark = brand
@@ -101,7 +104,7 @@ function layout({ lang = 'en', preheader = '', eyebrow, title, t = 'brand', body
     // footer
     + `<tr><td style="padding:28px 24px 0;text-align:center;font:12px/1.7 ${FONT};color:${C.muted}">`
     + footMark
-    + `<div>${esc(foot.why)}</div>${links ? `<div style="margin-top:6px">${links}</div>` : ''}</td></tr>`
+    + `<div>${esc(foot.why)}</div>${links ? `<div style="margin-top:6px">${links}</div>` : ''}<div style="margin-top:10px">${esc(copyright(brand, lang))}</div></td></tr>`
     + '</table></td></tr></table></body></html>'
 }
 

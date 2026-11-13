@@ -113,7 +113,7 @@ function create({ db, numbersApi, smsReply }) {
     if (t.blocked) return { error: [400, 'blocked', 'You blocked this contact. Unblock them to text.'] }
     if (!t.replyFrom) return { error: [400, 'receive_only', t.number.kind === 'texting' ? 'This number receives texts only.' : t.number.kind === 'esim' && !t.number.mobile ? 'Texts on a QR eSIM are on your phone. Older texts stay here to read.' : 'This number can’t send texts right now.'] }
     if (!t.canText) return { error: [400, 'invalid_number', 'Enter the number in international format, like +14155550123.'] }
-    if (!E164.test(contact)) return { error: [400, 'invalid_number', 'This contact’s number can’t receive texts.'] }
+    if (!E164.test(contact)) return { error: [400, 'invalid_number', 'Enter the number with country code, e.g. +14155550100.'] }
     const from = nums => nums.find(n => n.phone === t.replyFrom)
     const biz = from(await numbers(chatId))
     const ids = (Array.isArray(media) ? media : []).slice(0, 5).map(String)

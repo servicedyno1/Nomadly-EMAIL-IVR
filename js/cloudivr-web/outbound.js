@@ -75,7 +75,7 @@ function firstForward(menu) {
 
 function parseTargets(b) {
   const raw = Array.isArray(b.targets) ? b.targets : String(b.targets || b.to || '').split(/[,;\s]+/)
-  const list = [...new Set(raw.map(x => { let d = String(x || '').replace(/[^\d+]/g, ''); if (/^\d{10}$/.test(d)) d = `+1${d}`; return normPhone(d) }).filter(Boolean))]
+  const list = [...new Set(raw.map(x => normPhone(x) || String(x || '').trim()).filter(Boolean))] // no country code → kept raw so the E164 check rejects it with the fix
   return list
 }
 
@@ -159,7 +159,7 @@ async function trialStatus(db, numbersApi, chatId) {
     db.collection('state').findOne({ _id: `ivrTrialUsed_${chatId}` }),
     numbersApi.myNumbers(chatId),
   ])
-  const hasCaller = nums.some(n => n.status === 'active' && n.provider === 'telnyx' && phoneConfig.canAccessFeature(n.plan, 'ivrOutbound'))
+  const hasCaller = nums.some(n => n.status === 'active' && ['telnyx', 'signalwire'].includes(n.provider) && phoneConfig.canAccessFeature(n.plan, 'ivrOutbound'))
   const used = !!p?.ivrTrialUsed || st?.val === true
   const heldUntil = p?.ivrTrialPendingAt ? new Date(p.ivrTrialPendingAt).getTime() + TRIAL_HOLD_MS : 0
   const inProgress = !used && heldUntil > Date.now()
@@ -183,10 +183,10 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (!trial) {
       caller = await numbersApi.findMine(chatId, b.callerId)
       if (!caller || caller.status !== 'active') return { err: [400, 'invalid_caller', 'Pick one of your active numbers as caller ID.'] }
-      if (caller.provider !== 'telnyx') return { err: [400, 'invalid_caller', 'This number cannot place outbound IVR calls.'] }
+      if (!['telnyx', 'signalwire'].includes(caller.provider)) return { err: [400, 'invalid_caller', 'This number cannot place outbound IVR calls.'] }
       if (!phoneConfig.canAccessFeature(caller.plan, 'ivrOutbound')) return { err: [403, 'plan_upgrade_required', 'Quick IVR calls need the Pro plan or higher on the caller number.'] }
     }
-    const callerId = trial ? ivrOb.TRIAL_CALLER_ID : caller.phoneNumber
+    const callerId = trial ? (await ivrOb.getTrialCaller()).callerId : caller.phoneNumber
     let showAs = null
     if (!trial) try { showAs = await callerIds.resolve(chatId, b.showAs) } catch (e) { return { err: [400, 'invalid_show_as', e.message] } }
     const targets = parseTargets(b)
@@ -268,6 +268,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       if (bal < Math.max(MIN_WALLET, rate)) return { status: 402, body: { error: 'insufficient_balance', message: `Quick IVR calls bill about $${rate.toFixed(2)}/min from your wallet. Your balance is $${bal.toFixed(2)} — top up first.` } }
     }
     const doc = { _id: uid(), chatId, at: new Date(), body: { ...body, scheduleAt: undefined }, cfg, trial, dryRun: dryRun() }
+    if (!trial && dryRun()) callerIds.rememberLast(chatId, cfg.callerId, cfg.showAs)
     if (dryRun()) {
       doc.results = cfg.targets.map(to => ({ to, ok: true, preview: true, callControlId: cfg.mode === 'otp' ? otpSim.start(chatId, to, cfg) : null }))
       await history.insertOne(doc)
@@ -277,14 +278,15 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const results = []
     for (const to of cfg.targets) {
       const r = await voiceService.initiateOutboundIvrCall(engineParams(chatId, cfg, to, trial)).catch(e => ({ error: e.message }))
-      results.push({ to, ok: !r?.error, error: r?.error ? strip(r.error) : null, callControlId: r?.callControlId || null })
+      results.push({ to, ok: !r?.error, error: r?.error ? strip(r.error) : null, callControlId: r?.callControlId || null, ...(r?.callerUsed ? { callerUsed: r.callerUsed } : {}) })
     }
     doc.results = results
     await history.insertOne(doc)
     log(`[CloudIVR-Web] quick IVR ${cfg.callerId} → ${cfg.targets.join(',')} (${cfg.mode}${cfg.menu ? '+menu' : ''}) by ${chatId}`)
     const ok = results.filter(r => r.ok).length
     if (!ok) return { status: 424, body: { error: 'call_failed', message: results[0]?.error || 'The call could not be started.', results } }
-    return { status: 201, body: { started: ok, results, rate, callId: doc._id, mode: cfg.mode } }
+    const swapped = results.find(r => r.callerUsed)
+    return { status: 201, body: { started: ok, results, rate, callId: doc._id, mode: cfg.mode, ...(swapped ? { callerUsed: swapped.callerUsed, notice: `Your number ${cfg.showAs || cfg.callerId} can't be shown as caller ID right now, so this call went out from ${swapped.callerUsed}.` } : {}) } }
   }
 
   router.get('/outbound/templates', (req, res) => res.json(templates()))
@@ -303,7 +305,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       if (isNaN(at.getTime()) || at.getTime() < Date.now() + 4 * 60000 || at.getTime() > Date.now() + 86400000) return bad(res, 400, 'invalid_schedule', 'Schedule between 5 minutes and 24 hours from now.')
       const docs = cfg.targets.map(to => ({
         _id: uid(), chatId, web: true, scheduledAt: at, createdAt: new Date(), status: dryRun() ? 'preview' : 'pending',
-        ivrObData: { ...engineParams(chatId, cfg, to, false), targetNumber: to, callerProvider: 'telnyx' },
+        ivrObData: { ...engineParams(chatId, cfg, to, false), targetNumber: to, callerProvider: caller?.provider || 'telnyx' },
       }))
       await scheduled.insertMany(docs)
       return res.status(201).json({ scheduled: docs.length, scheduledFor: at, dryRun: dryRun(), message: dryRun() ? 'Preview mode: saved to your schedule but it will not dial.' : null })

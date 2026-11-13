@@ -20,7 +20,8 @@ const E164 = /^\+[1-9]\d{7,14}$/
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const webText = (s) => String(s).replace(/Telegram/g, 'your inbox')
 
-const normPhone = (p) => { const d = String(p || '').replace(/[^\d+]/g, ''); return d ? (d.startsWith('+') ? d : `+${d}`) : '' }
+// Country code required (owner rule 2026-11): 4155550100 / 07911… are rejected instead of guessed.
+const normPhone = (p) => { const d = String(p || '').replace(/[^\d+]/g, '').replace(/^00/, '+'); if (!d) return ''; if (d.startsWith('+')) return d; return /^1\d{10}$/.test(d) || (d.length > 11 && !d.startsWith('0')) ? `+${d}` : '' }
 // Numbers typed to dial (forward-to, backups, IVR forward keys): the bot's auto-correct (10-digit US → +1).
 const dialNorm = require('../backup-numbers').norm
 const { dialIssue } = require('../dial-check')
@@ -44,10 +45,10 @@ function parseBackups(raw, exclude = [], max = 4) {
 // Saved hours, or the default Mon–Fri schedule (closed message instead of voicemail on plans without voicemail).
 const hoursOf = (n) => n.features?.hours || { ...numberHours.defaultHours(), offAction: phoneConfig.canAccessFeature(n.plan, 'voicemail') ? 'voicemail' : 'message' }
 
-// Same Telnyx catalogue the bot shows (US/CA + international, incl. countries that need ID checks).
+// US/CA only while NUMBER_SEARCH_US_CA_ONLY is on (SignalWire sells only these); otherwise the full catalogue.
 function countries() {
-  const intl = phoneConfig.isTelnyxIntlEnabled() ? [...phoneConfig.telnyxIntlCountries, ...phoneConfig.telnyxIntlMore] : []
-  return [...phoneConfig.countries, ...intl].filter(c => c.provider === 'telnyx').map(c => {
+  const intl = (!phoneConfig.numberSearchUsCaOnly() && phoneConfig.isTelnyxIntlEnabled()) ? [...phoneConfig.telnyxIntlCountries, ...phoneConfig.telnyxIntlMore] : []
+  return [...phoneConfig.countries, ...intl].map(c => {
     const i = c.name.indexOf(' ')
     return { code: c.code, flag: c.name.slice(0, i), name: c.name.slice(i + 1), types: c.types || ['local', 'toll_free'] }
   })
@@ -72,15 +73,15 @@ const WEB_FEATURES = [
   ['otp', 'Code collection (OTP) with Accept / Decline', 'otpCollection'],
   ['recording', 'Call recording', 'callRecording'],
   ['ringGroup', 'Ring groups — ring several phones at once', 'ringGroup'],
-  ['aiSummary', () => `AI summaries & caller mood for voicemails and recorded calls ($${Number(require('./ai-summary').RATE()).toFixed(2)}/min)`, 'aiSummary'],
+  ['aiSummary', 'AI summaries & caller mood for voicemails and recorded calls', 'aiSummary'],
   ['anyCallerId', 'Show any caller ID on your calls — softphone, browser, Quick IVR and campaigns', (plan) => plan === 'business'],
   ['redial', 'Redial and your own accept / decline messages for codes', 'ivrRedial'],
   ['schedulePresets', 'Quick IVR scheduling and saved call presets', 'ivrSchedule'],
   ['defaultVoice', 'One saved AI voice for all your calls', 'consistentVoice'],
-  ['textRelay', () => `Text calls for deaf & hard-of-hearing users (+$${Number(require('../relay-call').RELAY_RATE()).toFixed(2)}/min)`, 'textRelay'],
+  ['textRelay', 'Text calls for deaf & hard-of-hearing users', 'textRelay'],
   ['textTriggers', 'Text Triggers — a text starts a callback, a spoken reply or an AI call', 'textTriggers'],
-  ['aiAgent', () => `AI voice agent — talks with callers, books and takes messages ($${Number(require('../ai-agent').RATE()).toFixed(2)}/min)`, 'aiAgent'],
-  ['fax', 'Fax — send and receive, 50 free pages a month then $2/page', 'fax'],
+  ['aiAgent', 'AI voice agent — talks with callers, books and takes messages', 'aiAgent'],
+  ['fax', 'Fax — send and receive', 'fax'],
   ['priority', 'Priority support', (plan) => plan === 'business'],
 ]
 const webFeatures = (plan) => WEB_FEATURES.map(([key, label, gate]) => ({
@@ -155,7 +156,7 @@ function publicNumber(n, numbers) {
       voicemail: publicVoicemail(f.voicemail),
       hours: hoursOf(n),
       smsForwarding: f.smsForwarding || { toTelegram: true, toEmail: null, webhookUrl: null },
-      fax: { toInbox: f.faxForwarding?.toTelegram !== false },
+      fax: { toInbox: f.faxForwarding?.toTelegram !== false, line: f.faxLine?.enabled === true },
       recording: !!f.recording,
       ivr: f.ivr || { enabled: false, options: {} },
       aiAgent: f.aiAgent || { enabled: false, agentId: null },
@@ -301,12 +302,13 @@ function routes(router, deps) {
     const results = found.map(n => ({
       phoneNumber: n.phone_number,
       region: (n.region_information || []).map(r => r.region_name).filter(Boolean).join(', '),
-      capabilities: n._capabilities || { voice: true, sms: false, fax: false },
+      capabilities: { ...(n._capabilities || { voice: true, sms: false, fax: false }), ...(n._signalwire ? { fax: false } : {}) },
       surcharge: round2(numberSurcharge(country, type, n)),
       cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
     }))
+    const fb = found.find(n => n._areaFallback)
     await searchCache.updateOne({ _id: req.webChatId }, { $set: { country, type, areaCode, results, at: new Date() } }, { upsert: true })
-    res.json({ numbers: results.map(({ cost, ...r }) => r) })
+    res.json({ numbers: results.map(({ cost, ...r }) => r), fallback: fb ? { areaCode: fb._requestedAreaCode, region: fb._fallbackRegion } : null })
   }))
 
   router.get('/numbers', h(async (req, res) => res.json({ numbers: (await myNumbers(req.webChatId)).map((n, _, all) => publicNumber(n, all)) })))
@@ -626,8 +628,8 @@ function routes(router, deps) {
 
   // Calling numbers + USA mobile numbers. Mobile texts store timestamp as a Date, calling numbers as ISO text: sort on $toDate.
   router.get('/activity', h(async (req, res) => {
-    const [mine, mobile] = await Promise.all([myNumbers(req.webChatId), mobileLines(deps.db, req.webChatId)])
-    const phones = [...mine.map(n => n.phoneNumber), ...mobile.map(d => d.phoneNumber).filter(Boolean)]
+    const [mine, mobile, texting] = await Promise.all([myNumbers(req.webChatId), mobileLines(deps.db, req.webChatId), textingLines(deps.db, req.webChatId)])
+    const phones = [...mine.map(n => n.phoneNumber), ...mobile.map(d => d.phoneNumber).filter(Boolean), ...texting.map(d => d.phoneNumber)]
     const limit = Math.min(100, parseInt(req.query.limit, 10) || 30)
     const logs = phones.length ? await phoneLogs.aggregate([{ $match: { phoneNumber: { $in: phones } } }, { $addFields: { _at: { $convert: { input: '$timestamp', to: 'date', onError: null } } } }, { $sort: { _at: -1 } }, { $limit: limit }, { $project: { _at: 0 } }]).toArray() : []
     res.json({ logs: logs.map(publicLog) })
@@ -827,4 +829,9 @@ function routes(router, deps) {
 const LIVE_MOBILE = ['provisioning', 'awaiting_imei', 'active', 'suspended']
 const mobileLines = (db, chatId) => db.collection('esimLines').find({ chatId: String(chatId), kind: 'mobile', status: { $in: LIVE_MOBILE } }).toArray()
 
-module.exports = { mobileLines, LIVE_MOBILE, parseBackups, routes, catalog, routeSummary, publicNumber, publicVoicemail, validateIvr, normPhone, countries, E164, webFeatures, recommendedPlan, WEB_FEATURES }
+// Landline to Texting numbers past checkout (setup underway, live or paused); expiresAt = next monthly bill (plan-attached ones have none).
+const LIVE_TEXTING = ['verify', 'loa', 'documents', 'admin_docs', 'review', 'active', 'paused']
+const textingLines = async (db, chatId) => (await db.collection('hostedSms').find({ chatId: String(chatId), status: { $in: LIVE_TEXTING } }).toArray())
+  .map(d => ({ ...d, plan: 'texting', expiresAt: d.planNumber ? null : d.nextBillAt || null, texting: true }))
+
+module.exports = { textingLines, LIVE_TEXTING, mobileLines, LIVE_MOBILE, parseBackups, routes, catalog, routeSummary, publicNumber, publicVoicemail, validateIvr, normPhone, countries, E164, webFeatures, recommendedPlan, WEB_FEATURES }
