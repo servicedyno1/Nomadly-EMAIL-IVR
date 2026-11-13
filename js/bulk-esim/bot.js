@@ -40,7 +40,8 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   if (/^\/start\b/.test(String(message || '')) && action.startsWith('bse-')) { await go('none'); if (info) info.action = 'none'; return false }
   if (isHome(message) && !B.configured()) { await send(chatId, say('soon')); return true }
   if (isHome(message)) {
-    await B.customer(brand(), chatId); await go('bse-home')
+    const from = msg?.from || {}
+    await B.customer(brand(), chatId, { username: from.username, firstName: from.first_name, lastName: from.last_name }); await go('bse-home')
     if (!info?.bseIntroAt) await put('bseIntroAt', new Date().toISOString()) // the start screen now carries the intro
     await home(send, chatId, lang); return true
   }
@@ -51,7 +52,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   }
   if (unlimitedOne(chatId) && allLabels('one').includes(message) && !action.startsWith('bse-')) {
     if (!B.configured()) { await send(chatId, say('soon')); return true }
-    await B.customer(brand(), chatId); if (!(await B.ready()).one) return send(chatId, say('off_one'))
+    await B.customer(brand(), chatId, { username: msg?.from?.username, firstName: msg?.from?.first_name, lastName: msg?.from?.last_name }); if (!(await B.ready()).one) return send(chatId, say('off_one'))
     await go('bse-one-to'); return send(chatId, say('one_to_q'), kb([[L.back]]))
   }
   if (!action.startsWith('bse-')) return false

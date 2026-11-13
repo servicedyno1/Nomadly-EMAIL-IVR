@@ -1,3 +1,14 @@
+## 2026-11-13 — BulkSMS admin notifications for booking/campaign lifecycle + user identity capture — CODE DONE & TESTED (preview; production deploy needed)
+- Added admin alerts sent to @nomadlybot at 3 key lifecycle points:
+  1. **Booking paid** — user tag (brand · @username · name), campaign name, volume, price, payment method, ref, scheduled date/time
+  2. **Campaign started** — user tag, campaign name, total SMS
+  3. **Campaign completed** — user tag, campaign name, sent/failed/replies/opt-outs, cost, refund if any
+- `customer()` now captures Telegram user info (username, firstName, lastName, lastSeen) from `msg.from` on every bot interaction. Stored in `bsCustomers` collection.
+- `userTag(cid)` helper formats user identity as `Brand · @username · Name (cid)` for admin alerts.
+- Also fixed stuck campaign `cp_d93159e873ae` — 1 stale `submitted` message resolved, campaign marked `completed` (992/992 sent, 100%).
+- Tests: `test_bulk_esim_engine.js` **53/53** (+4 new: user info storage, booking-paid alert, campaign-started alert, campaign-completed alert).
+
+
 ## 2026-11-12 — Quick IVR: fix Telnyx-blocked calls → SignalWire REST fallback + system-wide provider gate — CODE DONE & TESTED (preview; production deploy needed)
 - Root cause: User Meechchop6@gmail.com's only caller ID is `+18664980785` (Telnyx toll-free). Quick IVR code in `outbound.js` only allowed `provider: 'telnyx'` numbers, and `engineParams()` hardcoded `provider: 'telnyx'`. The wrapped `createOutboundCall` tried SignalWire RELAY first for NANP, but RELAY was not connected → only Telnyx was attempted → Telnyx account blocked → calls failed with "This user has been marked as blocked."
 - Fix (system-wide, per user approval):
