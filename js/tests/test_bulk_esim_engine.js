@@ -31,7 +31,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms))
   ok('quiet hours follow the area code when gate re-enabled', TZgate.quietWait('+12125550123', 8, 21, noonNY) === 0 && TZgate.quietWait('+12125550123', 8, 21, lateNY) > 0 && TZgate.quietWait('+13105550123', 8, 21, lateNY) === 0 && !TZgate.hourOpen('2026-06-20', 3) && TZgate.hourOpen('2026-06-20', 18))
   delete process.env.BULKSMS_NO_TIME_GATE; delete require.cache[require.resolve('../bulk-esim/tz')]
   ok('every language has every text', Object.entries(LANGS).every(([, p]) => Object.keys(LANGS.en).every(k => p[k] != null)) && t('fr', 'err_volume', 500, 2000).includes('500'))
-  await B.setConfig({ quietStart: 0, quietEnd: 24 }, 'test')
+  await B.setConfig({ quietStart: 0, quietEnd: 24, testSends: 2 }, 'test') // legacy paid-test mode
   const cust = await B.customer('Nomadly', '111'), cid = cust._id
   const day = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
   const noLine = await B.createBooking(cid, { date: day, hour: 18, volume: 600 })
@@ -54,7 +54,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms))
   const crL = await B.createCampaign(cid, { name: 'Long', content: `${'x'.repeat(100)} see www.a.com`, contacts: [...pc.contacts, ...Array.from({ length: 1600 }, (_, i) => `+1312555${1000 + i}`)], withLinks: true, consent: true })
   ok('link campaign: 1 part each, capped at 2,000 SMS', crL.campaign?.parts === 2000 && crL.campaign.volume === 2000 && crL.campaign.dropped === 120, `${crL.campaign?.parts} parts / ${crL.campaign?.volume}`)
   const bL = await B.createBooking(cid, { date: day, hour: 18, campaignId: crL.campaign._id })
-  ok('link price $75 per 500 SMS, charged per part', bL.booking?.price === 300 && bL.booking.unitPrice === 0.15, `$${bL.booking?.price}`)
+  ok('link costs the same $50 per 500 SMS, charged per part', bL.booking?.price === 200 && bL.booking.unitPrice === 0.1, `$${bL.booking?.price}`)
   await db.collection('bsBookings').deleteOne({ _id: bL.booking._id })
   await db.collection('bsCustomers').updateOne({ _id: cid }, { $set: { freeTestAt: new Date() } }) // free first test already used → regular 2-per-campaign rule
   const t1 = await B.testSend(cid, cr.campaign._id, '+12125550999'), t2 = await B.testSend(cid, cr.campaign._id, '+12125550998'), t3 = await B.testSend(cid, cr.campaign._id, '+12125550997')

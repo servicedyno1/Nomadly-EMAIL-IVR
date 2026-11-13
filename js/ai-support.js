@@ -1730,8 +1730,7 @@ This is the ${HIDE_SMS_APP ? 'only' : 'main'} BulkSMS product. It is pay-per-use
 Open: main menu → <b>${L.home}</b>. Inside: <b>${L.newc}</b>, <b>${L.one}</b>, <b>${L.convs}</b>, <b>${L.usage}</b>, <b>${L.bookings}</b>, <b>${L.progress}</b>, <b>${L.help}</b>.
 
 <b>Prices</b>
-- Text only: $${per500(c.pricePlain)} per 500 SMS ($${c.pricePlain} each).
-- With a link or phone number in the text: $${per500(c.priceLink)} per 500 SMS ($${c.priceLink} each). Anything that looks like a link or phone number counts.
+- $${per500(c.pricePlain)} per 500 SMS ($${c.pricePlain} each) for any content — plain text, links and phone numbers all cost the same. There is no higher price for links.
 - Schedule ${c.scheduleMinHours} h or more ahead: ${c.scheduleDiscountPct}% off. Send now = full price.
 - Replies forwarded to you in the bot: +$${c.replyFee} per campaign (answers arrive for ${c.sessionHours} h). Without it, replies stay with us; STOP/HELP are always handled.
 - The number check is free, but every uploaded number is billed, including ones skipped as landline, internet/VoIP or invalid.
@@ -1746,7 +1745,8 @@ Open: main menu → <b>${L.home}</b>. Inside: <b>${L.newc}</b>, <b>${L.one}</b>,
 <b>Steps (${L.newc})</b>
 1. Numbers: paste them or upload .txt/.csv. They are checked for free; only active mobiles get the text.
 2. Message: one text, or rotate versions. The customer can write their own, separated by a line with only ---, or let AI suggest 5 to pick from. Each version may use its own link or number. Unsafe links are refused. If a link is later found unsafe during sending, only the versions with that link stop, and those are not refunded.
-3. Test (optional): the first campaign ever gets 1 free test to any USA/Canada number. After that, tests unlock when the wallet covers the campaign: up to ${c.testSends} per campaign, ${c.testsPerDay} a day, ${c.testsPerWeek} a week. Each costs the SMS price and is refunded when the campaign is booked. Changing the text after a test needs a new test. Using tests to send real traffic gets the account suspended.
+3. Test (optional): ${c.testSends ? `the first campaign ever gets 1 free test to any USA/Canada number. After that, tests unlock when the wallet covers the campaign: up to ${c.testSends} per campaign, ${c.testsPerDay} a day, ${c.testsPerWeek} a week. Each costs the SMS price and is refunded when the campaign is booked.` : 'tests are free and not limited — they are for checking the message on the customer\'s own phone(s).'} Changing the text after a test needs a new test. Tests used to reach many different numbers are removed from the account (the campaign can still be sent); never explain how this is detected.
+- <b>${L.one}</b>: ${c.freeOneSends ? `${c.freeOneSends} free single texts per customer.` : 'free single texts for one-to-one messages. People who answer can always be texted. Texting many new numbers the same thing is slowed down, then refused, then turned off — for a list the customer must use a campaign. Never explain how this is detected.'}
 4. When: send now or schedule (−${c.scheduleDiscountPct}%), optionally add replies, then pay.
 - The customer gets a message when the campaign starts and when it finishes (with sent/failed/replies). Texts that fail or never go out are refunded to the wallet automatically. Skipped numbers are not refunded.
 - Cancel from <b>${L.bookings}</b> up to 30 min before the start for a full refund.

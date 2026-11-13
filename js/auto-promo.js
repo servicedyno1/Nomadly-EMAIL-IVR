@@ -67,7 +67,7 @@ const SERVICE_CONTEXT = {
   },
   bulksms_esim: {
     services: 'BulkSMS to USA & Canada mobiles — no SIM or phone needed, managed right in the bot',
-    details: ['Upload numbers, write once, send in minutes', 'Real US numbers reaching every major US & Canadian carrier', 'First test SMS free, replies forwarded in the bot', '$50 per 500 SMS, 10% off when booked a day ahead'],
+    details: ['Upload numbers, write once, send in minutes', 'Real US numbers reaching every major US & Canadian carrier', 'Free test SMS, replies forwarded in the bot', '$50 per 500 SMS, 10% off when booked a day ahead'],
   },
   email_blast: {
     services: 'Email Blast — email campaigns from Telegram',

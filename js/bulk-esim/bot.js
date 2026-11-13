@@ -83,7 +83,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     return home(send, chatId, lang)
   }
   if (action === 'bse-cancel') { const b = await B.db().collection('bsBookings').findOne({ cid, _id: new RegExp(`${String(message).trim().replace(/\W/g, '')}$`) }); const r = b ? await B.cancelBooking(b._id, { cid }) : { error: 'err_not_found' }; await go('bse-home'); return send(chatId, r.error ? `⚠️ ${errText(lang, r)}` : say('cancelled', r.refunded), HK) }
-  const testKb = () => kb([...(RD.test ? [[L.test]] : []), [L.cont], [L.back]])
+  const testKb = (barred) => kb([...(RD.test && !barred ? [[L.test]] : []), [L.cont], [L.back]])
   const unitOf = (c, links) => (links ? c.priceLink : c.pricePlain)
   const contentAsk = async (key = 'content_q') => { const c = await B.cfg(), optOut = info.bseOptOut !== false; return send(chatId, say(key, { max: optOut ? 160 - B.OPT.length : 160, optOut, plain: per500(c.pricePlain), link: per500(c.priceLink) }), kb([[optOut ? L.optout_no : L.optout_yes], [L.back]])) }
   // Step 1 — numbers: parsed, capped at maxVolume, checked (Telnyx carrier lookup, free); every kept number is billed, only mobiles are texted.
@@ -179,7 +179,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     const cp = cr.campaign, c = await B.cfg(), unit = unitOf(c, cp.withLinks)
     await put('bseCampaign', cp._id); await drafts().deleteOne({ _id: cid }); await go('bse-test')
     const o = await B.testOffer(cid)
-    return send(chatId, say('ready', { n: cp.volume, v: cp.content.length, price: Math.round(cp.parts * unit * 100) / 100, unit, tests: c.testSends, free: o.free, perDay: c.testsPerDay }) + (RD.test ? '' : `\n\n${say('off_test')}`), testKb())
+    return send(chatId, say('ready', { n: cp.volume, v: cp.content.length, price: Math.round(cp.parts * unit * 100) / 100, unit, tests: c.testSends, free: o.free, open: o.open, barred: o.barred, perDay: c.testsPerDay }) + (RD.test ? '' : `\n\n${say('off_test')}`), testKb(o.barred))
   }
   // Tests go to any USA/Canada number. Never paid for a campaign → one free test, no wallet needed. Otherwise the wallet must cover
   // the campaign (so tests mean "about to buy"), each test is charged at the unit price (refunded when the campaign is paid), quota applies.
@@ -188,6 +188,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     if (message === L.test) {
       if (!RD.test) return send(chatId, say('off_test'), testKb())
       const o = await B.testOffer(cid), c = await B.cfg()
+      if (o.barred) return send(chatId, `⚠️ ${say('err_test_guard')}`, kb([[L.cont], [L.back]]))
       if (!o.free) {
         const cp = await B.db().collection('bsCampaigns').findOne({ _id: info.bseCampaign, cid }), need = cp ? await price(cp) : 0, bal = await walletOps(T.db).balance(chatId).catch(() => 0)
         if (bal < need) return send(chatId, say('test_locked', need, Number(bal).toFixed(2), { firstTime: o.firstTime, perDay: c.testsPerDay }), kb([[L.cont], [L.back]]))
@@ -202,7 +203,8 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     const w = walletOps(T.db), c = await B.cfg()
     if (k.charge && !(await w.debit(chatId, k.charge))) { await go('bse-test'); return send(chatId, say('wallet_low', k.charge), kb([[L.cont], [L.back]])) }
     const r = await B.testSend(cid, info.bseCampaign, message, { charge: k.charge }); await go('bse-test')
-    if (r.error) { if (k.charge) await w.credit(chatId, k.charge); return send(chatId, `⚠️ ${errText(lang, r)}`, testKb()) }
+    if (r.error) { if (k.charge) await w.credit(chatId, k.charge); return send(chatId, `⚠️ ${errText(lang, r)}`, testKb(r.error === 'err_test_guard')) }
+    if (r.open) return send(chatId, say('test_ok_open'), testKb())
     if (r.free) return send(chatId, say('test_ok_free', c.testsPerDay), kb([[L.cont], ...(RD.test ? [[L.test]] : []), [L.back]]))
     return send(chatId, say('test_ok', r.left, k.charge), kb([...(r.left && RD.test ? [[L.test]] : []), [L.cont], [L.back]]))
   }
@@ -271,7 +273,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   }
   if (action === 'bse-one-text' || action === 'bse-reply') {
     const r = await B.sendOne(cid, info.bseTo, message, action === 'bse-reply' ? info.bseSession : null, { optOut: info.bseOneOpt !== false, unlimited: action === 'bse-one-text' && unlimitedOne(chatId) })
-    if (['err_number_busy', 'err_one_used', 'reply_route_changed', 'reply_campaign_only'].includes(r.error)) { await go('bse-home'); return send(chatId, `⚠️ ${errText(lang, r)}`, HK) }
+    if (['err_number_busy', 'err_one_used', 'err_one_slow', 'err_one_bulk', 'err_one_blocked', 'reply_route_changed', 'reply_campaign_only'].includes(r.error)) { await go('bse-home'); return send(chatId, `⚠️ ${errText(lang, r)}`, HK) }
     if (r.error) return send(chatId, `⚠️ ${errText(lang, r)}`)
     if (action === 'bse-one-text') await go('bse-home')
     return send(chatId, say('queued', r.segments, action === 'bse-reply') + (r.left != null ? `\n${say('one_left', r.left)}` : ''), action === 'bse-reply' ? kb([[L.back]]) : homeKb(L, { ...RD, oneLeft: r.left }))
@@ -328,6 +330,7 @@ async function admin(chatId, message, say) {
     case '/bulkplan': { const p = await B.plan(await B.cfg()); return say(`📐 <b>Capacity plan</b> · ${p.lines} line(s), ceiling ${p.maxLines} · busiest day in the window: ${p.peak} SMS\nday · booked → target · have · ceiling · lines to buy\n${p.rows.map(r => `${r.date} · ${r.booked} → ${r.target} · ${r.have} · ${r.ceiling} · ${r.short ? `+${r.short}` : 'ok'}`).join('\n')}\nTarget = booked + room for one more full booking, never below the busiest recent day; capped by the Spenza rate × open hours.`) }
     case '/bulklines': { const L = await B.lineHistory(14); return say(L.length ? `📒 <b>Line history (14 days)</b> · n = new conversations · in = replies · ⛔ = STOPs\n${L.map(x => `\n<b>${x.id}</b> ${x.msisdn || '—'} · ${x.status}/${x.health} · age ${x.age}d · lifetime ${x.stats?.sent || 0} sent / ${x.stats?.failed || 0} failed${x.incidents.length ? `\n  ⚠️ ${x.incidents.map(i => `${i.type}${i.why ? ` (${i.why})` : ''} at age ${i.age ?? '?'}d`).join(', ')}` : ''}${x.days.map(d => `\n  ${d.day} age ${d.age}d: ${d.n} new · ${d.out} out · ${d.sent} sent · ${d.failed} failed · ${d.in} in · ⛔${d.stops}`).join('')}`).join('\n')}` : 'No lines yet.') }
     case '/bulkreport': { const rows = await B.db().collection('bsMessages').aggregate([{ $match: { direction: 'out', createdAt: { $gt: new Date(Date.now() - 7 * 86400000) } } }, { $group: { _id: { d: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, s: '$status' }, n: { $sum: 1 } } }, { $sort: { '_id.d': 1 } }]).toArray(); return say(`📊 Last 7 days\n${rows.map(r => `${r._id.d} ${r._id.s}: ${r.n}`).join('\n') || 'No traffic.'}`) }
+    case '/bulkguard': { if (a1) return ok(await B.oneGuardSet(a1, rest[0], by)); const g = await B.oneGuardList(); return say(g.length ? `🕵️ <b>Single-text guard</b>\n${g.map(x => `${x._id}${x.username ? ` @${x.username}` : ''} · ${x.oneGuard.trusted ? 'trusted' : x.oneGuard.blocked ? '⛔ blocked' : x.oneGuard.testOff && !x.oneGuard.strikes ? '🧪 tests removed' : x.oneGuard.level === 2 ? '🚧 refused for 24 h' : 'slowed'}${x.oneGuard.strikes ? ` · ${x.oneGuard.strikes} strike(s)` : ''}`).join('\n')}\n\n/bulkguard &lt;customer&gt; clear | trust` : 'Nobody flagged. Single texts are unlimited only when /bulkset freeOneSends 0.') }
     case '/bulkbackfill': {
       const nameOfCol = T?.db?.collection('nameOf')
       if (!nameOfCol) return say('⚠️ Main DB nameOf collection not available.')

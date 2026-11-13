@@ -14,7 +14,7 @@ const nums = (n, from = 1000) => Array.from({ length: n }, (_, i) => `+1212555${
   for (const c of COLS) await db.collection(c).deleteMany({})
   await B.init({ db, log: () => {}, notifyAdmin: () => {} })
   process.env.BULK_ESIM_WORKER = ''
-  await B.setConfig({ quietStart: 0, quietEnd: 24, platformPerMin: 10000, esimPerMin: 10000, monitorEsims: 0, scheduleDiscountPct: 0 }, 'test')
+  await B.setConfig({ quietStart: 0, quietEnd: 24, platformPerMin: 10000, esimPerMin: 10000, monitorEsims: 0, scheduleDiscountPct: 0, testSends: 2 }, 'test') // legacy paid-test mode (default is now unlimited free tests)
   const M = db.collection('bsMessages'), CU = db.collection('bsCustomers')
   await B.provisionMany(2, 'test', 'test'); await B.provisionOne('test', 'test', 'tester'); await B.healthCheck()
   ok('2 service lines + tester ready', (await db.collection('bsEsims').countDocuments({ status: 'available', role: 'service' })) === 2 && (await db.collection('bsEsims').countDocuments({ status: 'available', role: 'tester' })) === 1)
@@ -44,7 +44,7 @@ const nums = (n, from = 1000) => Array.from({ length: n }, (_, i) => `+1212555${
   ok('account quota: 4th test of the day (free one counts) ok, 5th refused across drafts', t3.ok && (await B.testSend(cid, cp2._id, own)).error === 'err_test_quota', JSON.stringify(await B.testQuota(cid, await B.cfg())))
   const lcp = (await B.createCampaign(cid, { name: 'Link', content: 'See www.nomadly.com', contacts: nums(500, 4000), consent: true })).campaign
   await B.setConfig({ testsPerDay: 10 }, 'test')
-  ok('link campaign test costs the link unit ($0.15)', (await B.testCheck(cid, lcp._id, own)).charge === 0.15)
+  ok('link campaign test costs the same unit as plain text ($0.10)', (await B.testCheck(cid, lcp._id, own)).charge === 0.1)
 
   // ---- frozen text + refund on booking ----
   await db.collection('bsCampaigns').updateOne({ _id: cp._id }, { $set: { content: ['Hello there friend'] } })
