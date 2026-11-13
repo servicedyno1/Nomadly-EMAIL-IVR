@@ -2666,3 +2666,10 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - New Telnyx account (TELNYX_FAX_API_KEY / TELNYX_FAX_PUBLIC_KEY) = fax + number lookup only, never calls. Web /fax lists only fax-only numbers (collection faxNumbers, $15/mo FAX_NUMBER_PRICE, US/CA).
 - Web Buy page purpose picker: Voice/SIP → SignalWire Business Line, SMS → Spenza Texting Number, Fax → fax-only number. Bot unchanged.
 - Backlog: first live fax-number order in production (creates "<brand> Fax" Fax Application + outbound profile on the new account; account balance $10 at setup); bot fax still references old blocked account.
+
+## 2026-11-13 — Landline-to-Texting letter fixes + custom caller ID switch
+- Root cause (prod order hs_096d6f06ce9a, $200, status loa): Sign button stayed disabled with no reason because a required field was empty; sign request never reached the server (only 2 previews in nginx log).
+- LOA step: Sign always clickable → names/highlights missing fields; whitespace-insensitive name match; details auto-saved to the order (`PUT /hosted-sms/:id/draft`, `draft` in order) and restored on any device; live letter (LetterPreview.js) beside the form with red blanks.
+- Custom caller IDs: admin on/off switch (default OFF) stored in `appSettings._id=customCallerId`. Web admin → Caller IDs tab switch; bot admin `/callerid on|off` (per brand DB). OFF = hidden in bot + web, write routes 403 `caller_id_off`, and all dial paths (voice-service IVR/bulk/SIP, AI agent) use the customer's own number. Saved caller IDs are kept. Env `CUSTOM_CALLER_ID_ON=true` only applies when no DB value (used by tests).
+- Tests: js/tests/test_caller_id_switch_and_loa_draft.js 13/13; testing agent iteration_264 all pass.
+- TODO after deploy: confirm WhiteLabel brands received js/cloudivr-web/caller-ids.js (web-only sync pattern); push directly if missing.

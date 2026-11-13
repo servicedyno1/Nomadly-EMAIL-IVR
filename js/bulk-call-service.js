@@ -1177,7 +1177,7 @@ async function telnyxDialSlot() {
 async function claimLead(campaignId, leadIndex, cid = null) {
   const r = await _collection.updateOne(
     { id: campaignId, status: 'running', [`leads.${leadIndex}.status`]: 'pending' },
-    { $set: { [`leads.${leadIndex}.status`]: 'calling', [`leads.${leadIndex}.startedAt`]: new Date(), ...(cid ? { [`leads.${leadIndex}.callerId`]: cid.callerId, [`leads.${leadIndex}.shownAs`]: cid.showAs || null } : {}) } }
+    { $set: { [`leads.${leadIndex}.status`]: 'calling', [`leads.${leadIndex}.startedAt`]: new Date(), ...(cid ? { [`leads.${leadIndex}.callerId`]: cid.callerId, [`leads.${leadIndex}.shownAs`]: (require('./cloudivr-web/caller-ids').enabled() && cid.showAs) || null } : {}) } }
   )
   return r.modifiedCount === 1
 }

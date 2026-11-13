@@ -52,7 +52,7 @@ export function LoaStep({ item, onChange }) {
       <p className="text-sm text-[#d4d4d8] flex gap-2"><FileSignature className="w-5 h-5 text-[#818cf8] shrink-0" />Enter the details exactly as on your phone bill. We fill in the Letter of Authorization (LOA) and you sign it below.</p>
       <div className="grid lg:grid-cols-2 gap-6 items-start">
       <div className="space-y-5">
-      <div className="grid sm:grid-cols-2 gap-4">{FIELDS.map(([k, label, hint]) => <Field key={k} label={label} hint={tried && missing.includes(k) ? 'Required' : hint}><input className="civr-input" style={tried && missing.includes(k) ? { borderColor: '#f87171' } : undefined} aria-invalid={tried && missing.includes(k)} value={h[k]} onChange={e => setH({ ...h, [k]: e.target.value })} data-testid={`texting-holder-${k}`} /></Field>)}</div>
+      <div className="grid sm:grid-cols-2 gap-4">{FIELDS.map(([k, label, hint]) => <Field key={k} label={label} hint={tried && missing.includes(k) ? <span className="text-[#f87171]">Required</span> : hint}><input className="civr-input" style={tried && missing.includes(k) ? { borderColor: '#f87171' } : undefined} aria-invalid={tried && missing.includes(k)} value={h[k]} onChange={e => setH({ ...h, [k]: e.target.value })} data-testid={`texting-holder-${k}`} /></Field>)}</div>
       <Field label="Sign: type the account holder’s full name" hint={sig && !sigOk ? 'Must match the account holder’s name above' : 'This is your electronic signature on the letter'}>
         <input className="civr-input text-xl italic" style={{ fontFamily: 'Georgia, serif' }} value={sig} onChange={e => setSig(e.target.value)} placeholder={h.name || 'Full name'} data-testid="texting-loa-signature" />
       </Field>

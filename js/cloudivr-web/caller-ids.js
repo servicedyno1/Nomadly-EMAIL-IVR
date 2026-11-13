@@ -27,7 +27,7 @@ let switchTimer = null
 const enabled = () => ON
 async function loadSwitch() {
   const d = await dbRef?.collection('appSettings').findOne({ _id: 'customCallerId' }).catch(() => null)
-  ON = d?.enabled === true || process.env.CUSTOM_CALLER_ID_ON === 'true'
+  ON = d ? d.enabled === true : process.env.CUSTOM_CALLER_ID_ON === 'true'
   return ON
 }
 async function setEnabled(v, by) {

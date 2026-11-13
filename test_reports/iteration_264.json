@@ -1,0 +1,35 @@
+{
+  "summary": "Tested the LOA sign-button fix, the live letter, LOA draft saving, and the custom caller ID admin switch (default OFF) on the backend and frontend. Backend: 16 of 17 pytest checks passed. 1 was skipped because the second customer test account (Alice/Bob) can't log in on this DB. That case is covered by the Node unit test instead. The Node unit test passed 13/13. Frontend: every requested flow works. Sign button is clickable when fields are empty; it shows the missing-fields message, 'Required' hints and red borders, puts focus on the first missing field (name), and sends no /loa request. The live letter sits to the right of the form (form x=645, letter x=1252), shows 6 red blanks, and updates as you type. The signature line turns blue when it matches and red when it doesn't. 'Details saved' appears and a PUT /draft is sent; after reload the name and city come back. Mismatch and consent messages show correctly. Signing with '  test   JANE doe ' matched 'TEST Jane Doe' and moved to the phone bill step with a toast. Caller ID OFF: no 'Show as' on Quick call, Campaigns new, or softphone, and no caller-ids-card on My numbers. Presets return enabled:false with items []. All 7 write routes return 403 caller_id_off. Admin: devCode pre-filled, the switch card shows 'off', and the toggle with its confirm dialog sets it to 'on'. The customer then sees presets enabled:true, the caller-ids-card, and 'Show as' on Quick call, Campaigns and softphone. Turned back OFF at the end and confirmed enabled:false. In the backend, the voice-service, bulk and AI-agent call paths and text-triggers all check the switch.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "caller-ids.js loadSwitch", "issue": "ON = db.enabled === true || env CUSTOM_CALLER_ID_ON === 'true'. If that env var is ever set, admin 'Turn off' gets undone within 30s and GET /admin/caller-ids reports on right away. The DB value should win when set."},
+      {"endpoint": "bulk-call-service.js lead shownAs / callerPool", "issue": "While the switch is OFF, campaign leads still record shownAs = campaign/pool showAs, but voice-service actually shows the customer's own number. Reports can name a caller ID that was never shown."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Texting LOA step", "issues": ["The 'Required' hint under empty fields is grey (text-[#a1a1aa]); only the border is red. Make the hint red too.", "Live letter placeholder says '[Type your name below to sign]', but on desktop the signature box is to the left of the letter, not below it.", "LetterPreview builds the date with new Date().toISOString() (UTC), so US evening users can see tomorrow's date."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_caller_id_switch_loa_draft_iter264.py", "/app/test_reports/pytest/iter264.xml"],
+  "action_items": [
+    "Optional: let the DB switch value override env CUSTOM_CALLER_ID_ON in loadSwitch.",
+    "Optional: when the switch is OFF, record shownAs = null on bulk leads and pool rotation.",
+    "Optional: make the 'Required' hint red, use the local date in LetterPreview, and fix the 'below' wording."
+  ],
+  "critical_code_review_comments": [
+    "DocumentsStep draft autosave fails silently (.then(ok, () => {})): if the PUT fails, 'Details saved' just disappears with no error shown.",
+    "'Details saved' shows on mount whenever a draft exists. In dev StrictMode the first-run guard ref lets a redundant PUT /draft fire on mount. Harmless.",
+    "GET /caller-ids still returns the saved items while OFF. The frontend hides the card, so this is fine, and DELETE is still allowed while OFF so customers can remove numbers."
+  ],
+  "updated_files": ["/app/backend/tests/test_caller_id_switch_loa_draft_iter264.py"],
+  "success_rate": {"backend": "100% (16/16 run, 1 skipped)", "frontend": "100%"},
+  "seed_data_creation": "Attested a temporary caller ID +14155559264 (label TEST_iter264) on civr.uxtest while ON and deleted it afterwards. Seeded order hs_qa_loa was signed (holder 'TEST Jane Doe', Toronto) and is now at the phone bill step (Step 4); it needs reseeding to retest the LOA step. The caller ID switch was left OFF (appSettings.customCallerId.enabled=false, by moxxcompany@gmail.com).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "customer civr.uxtest@example.com / UxTest#2026; admin moxxcompany@gmail.com / Katiekendra123@ (devCode returned by /admin/login in preview). civr.alice@example.com returns 401 on this DB.",
+  "context_for_next_testing_agent": "The ShowAsSelect test id with an empty list is '<testid>-empty' or '<testid>-add-button' (non-compact) and '<testid>-compact' (softphone); the bare testid only renders when there are saved IDs. Admin switch over the API: POST /api/cloudivr-web/admin/login -> devCode -> POST /admin/verify -> PUT /admin/caller-ids/switch {enabled}. Always set it back to OFF."
+}
