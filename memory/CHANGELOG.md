@@ -1,3 +1,23 @@
+## 2026-11-14 — Admin notification audit & HTML safety hardening
+
+### Findings & Fixes
+1. **HTML injection risk (FIXED)**: All admin notifications go through Telegram `parse_mode: 'HTML'`. ~15 alerts in `core.js` and ~8 in `_index.js` injected raw `err.message` which could contain `<`, `>`, `&` — breaking message rendering or truncating the alert silently.
+   - Added `esc()` helper in `core.js` and `escHtml()` in `_index.js`
+   - All error-injecting alerts now wrap messages through the escape helper
+2. **Missing emoji (FIXED)**: `Provisioning blocked: monthly budget…` alert had no emoji while every other alert did. Added ⛔ prefix.
+3. **Overly technical capacity alert (FIXED)**: Removed env variable names (`SPENZA_BULK_API_KEY_2`, `SPENZA_BULK_API_SECRET_2`) from the Spenza capacity alert. Simplified to plain-language instructions.
+4. **Auth failure alert (FIXED)**: Removed env var reference, replaced with "Check the API key/secret for this account."
+
+### eSIM-0008/0009 delivery analysis
+Most likely causes: (a) newer MVNO numbers with no carrier sender reputation, (b) different underlying MNO routing vs working ESIM-0006/0007, (c) no DLR means "sent" only proves Spenza accepted — not handset delivery. The auto-suspect mechanism (≥2 customer complaints in 48h) now catches this pattern proactively.
+
+### Tests
+- `test_production_fixes_2026_11.js`: **22/22** (added 5 HTML safety tests)
+- `test_signalwire_adapter.js`: **30/30** (regression)
+- `test_bulk_esim_engine.js`: **57/57** (regression)
+
+
+
 ## 2026-11-14 — Production audit fixes (user approved #1, #2, #4, #5) — CODE DONE & TESTED
 
 ### 1. Trial Quick IVR → SignalWire (no more blocked Telnyx)

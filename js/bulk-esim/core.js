@@ -79,6 +79,7 @@ const audit = (action, d = {}) => C('bsAudit').insertOne({ action, ...d, at: new
 const incident = (type, d = {}) => C('bsIncidents').insertOne({ type, ...d, at: new Date() }).catch(() => {})
 // Admin alerts: live, all 4 bots queue them in the shared DB and only the @Nomadlybot process delivers them (bot.js startNotices).
 const ADMIN_BRAND = 'Nomadly'
+const esc = (t) => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') // HTML-safe for Telegram parse_mode:'HTML'
 const alert = (text) => {
   const msg = `🛰 <b>eSIM BulkSMS</b>\n${text}`
   if (P.dry() || !S?.db) { try { S?.notifyAdmin?.(msg) } catch (_) { /* best effort */ } return }
@@ -153,7 +154,7 @@ const once = async (key) => (await C('bsConfig').updateOne({ _id: key }, { $setO
 async function creditWatch() {
   const c = await cfg(), sum = { credit: 0, committed: 0, available: 0, daily: 0, renewals: 0, lineCost: 0 }; let seen = 0, lows = 0, lowNotes = [], toppedUp = false
   for (const a of c.accounts) {
-    let bal; try { bal = await P.credit(a.id) } catch (err) { if (await once(`creditfail:${a.id}:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Could not read the Spenza ${acctLabel(a.id)} balance: ${err.message}${err.status ? ` [HTTP ${err.status}]` : ''}. Credit checks for it are paused until it answers.`); continue }
+    let bal; try { bal = await P.credit(a.id) } catch (err) { if (await once(`creditfail:${a.id}:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Could not read the Spenza ${acctLabel(a.id)} balance: ${esc(err.message)}${err.status ? ` [HTTP ${err.status}]` : ''}. Credit checks for it are paused until it answers.`); continue }
     const f = await forecast(c, bal, a.id), low = c.minCredit > 0 ? bal < c.minCredit : bal <= 0; seen++
     for (const k of ['credit', 'committed', 'available', 'daily', 'renewals']) sum[k] += f[k]; sum.lineCost = Math.max(sum.lineCost, f.lineCost)
     await setAccount(a.id, { credit: bal, creditAt: new Date(), forecast: f, low })
@@ -222,7 +223,7 @@ async function adviseAccounts(c, { lines, target } = {}) {
   const n = c.accounts.length, max = maxLines(c), ceiling = dayCeiling(today(), c), near = lines != null && max && lines >= Math.ceil(max * 0.8), over = target != null && target > ceiling
   if ((!near && !over) || c.maxEsims || n >= P.MAX_ACCOUNTS) return false
   if (!(await once(`acctadvice:${n}:${today()}`))) return true
-  alert(`📣 Capacity is near the Spenza limit: ${lines ?? '?'} of ${max} line(s) across ${n} account(s)${over ? `, and the demand model wants ${target} SMS/day against a ceiling of ${ceiling}` : ''}. Spenza caps each account at ${c.accounts.map(a => `${a.perMin}`).join('/')} SMS/min, so more lines on the same account add nothing. To grow further add Spenza account #${n + 1}: set SPENZA_BULK_API_KEY_${n + 1} and SPENZA_BULK_API_SECRET_${n + 1} (plus SPENZA_BULK_IMEI_${n + 1} if its handset differs) and redeploy — the engine connects it, syncs its SIMs and starts buying lines on it automatically.`)
+  alert(`📣 Capacity is near the Spenza limit: ${lines ?? '?'} of ${max} line(s) across ${n} account(s)${over ? `, and the demand model wants ${target} SMS/day against a ceiling of ${ceiling}` : ''}. Spenza caps each account at ${c.accounts.map(a => `${a.perMin}`).join('/')} SMS/min, so more lines on the same account add nothing. To grow further, add another Spenza account (account #${n + 1}) and redeploy — the engine connects it automatically.`)
   incident('account_advice', { lines, max, target, ceiling, accounts: n }); return true
 }
 async function provisionOne(reason, by, role = 'service', account = null, { want } = {}) {
@@ -232,7 +233,7 @@ async function provisionOne(reason, by, role = 'service', account = null, { want
   if (!AUX.includes(role) && live >= maxLines(c)) { await adviseAccounts(c, { lines: live }); return { error: `Inventory is at the line ceiling (${maxLines(c)}${c.maxEsims ? '' : ` — set by the Spenza sending rate of ${c.accounts.length} account(s)`}).` } }
   const rooms = await acctRoom(c, role), pick = (account && rooms.find(r => r.id === account)) || rooms[0]
   const cost = pick ? pick.cost : await planCost(account || firstAccount(c))
-  if (c.provisionBudget && spent + cost > c.provisionBudget) { alert(`Provisioning blocked: monthly budget $${c.provisionBudget} (spent $${spent}).`); return { error: 'Monthly provisioning budget reached.' } }
+  if (c.provisionBudget && spent + cost > c.provisionBudget) { alert(`⛔ Provisioning blocked: monthly budget $${c.provisionBudget} (spent $${spent}).`); return { error: 'Monthly provisioning budget reached.' } }
   if (!pick) {
     const lowAll = c.accounts.length && c.accounts.every(a => a.low), f = (await state()).forecast
     if (await once(`provcredit:${today()}`)) alert(lowAll || !f || f.available - cost < 0 ? `Provisioning blocked: Spenza credit $${f?.credit ?? '?'} across ${c.accounts.length} account(s) must keep $${f?.committed ?? '?'} for promised texts/renewals plus the $${c.minCredit} floor each — a new line costs $${cost}. Add credit at web.spenza.com` : `Provisioning blocked: every Spenza account is at its own line ceiling.`)
@@ -252,7 +253,7 @@ async function provisionOne(reason, by, role = 'service', account = null, { want
     await C('bsAccounts').updateOne({ _id: pick.id, forecast: { $ne: null } }, { $inc: { 'forecast.available': -cost } }).catch(() => {})
     audit('provision', { esimId: e._id, reason, by, cost, role, account: pick.id }); return { ok: true, esimId: e._id, account: pick.id }
   } catch (err) {
-    await setEsim(e._id, 'failed', { note: err.message }); alert(`❌ Spenza could not order a new line (${e._id}, ${role}, ${acctLabel(pick.id)}, reason: ${reason}): ${err.message}${err.status ? ` [HTTP ${err.status}]` : ''}.${err.kind === 'credit' ? ' Add credit at web.spenza.com.' : err.kind === 'auth' ? ' Check the API key/secret.' : err.kind === 'temporary' || err.kind === 'rate' ? ' Spenza is not answering — it is retried with the next booking / autoscale run, or /bulkprovision.' : ' /bulkprovision to try again once fixed.'}`); incident('provision_failed', { esimId: e._id, account: pick.id, role, reason, error: err.message, kind: err.kind || null })
+    await setEsim(e._id, 'failed', { note: err.message }); alert(`❌ Spenza could not order a new line (${e._id}, ${role}, ${acctLabel(pick.id)}, reason: ${reason}): ${esc(err.message)}${err.status ? ` [HTTP ${err.status}]` : ''}.${err.kind === 'credit' ? ' Add credit at web.spenza.com.' : err.kind === 'auth' ? ' Check the API key/secret.' : err.kind === 'temporary' || err.kind === 'rate' ? ' Spenza is not answering — it is retried with the next booking / autoscale run, or /bulkprovision.' : ' /bulkprovision to try again once fixed.'}`); incident('provision_failed', { esimId: e._id, account: pick.id, role, reason, error: err.message, kind: err.kind || null })
     if (err.kind === 'credit') {
       const bal = await P.credit(pick.id).catch(() => pick.credit ?? 0)
       await setAccount(pick.id, { orderBlockedBal: bal, orderBlockedAt: new Date() })
@@ -316,7 +317,7 @@ async function syncInventory(onlyAccount) {
   const c0 = await cfg()
   for (const a of c0.accounts) {
     if (onlyAccount && a.id !== onlyAccount) continue
-    let sims; try { sims = await P.listSims(a.id) } catch (err) { if (onlyAccount) throw err; if (await once(`syncfail:${a.id}:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Could not list the SIMs of Spenza ${acctLabel(a.id)}: ${err.message}${err.status ? ` [HTTP ${err.status}]` : ''}. New numbers and provider suspensions are not picked up until it answers.`); continue }
+    let sims; try { sims = await P.listSims(a.id) } catch (err) { if (onlyAccount) throw err; if (await once(`syncfail:${a.id}:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Could not list the SIMs of Spenza ${acctLabel(a.id)}: ${esc(err.message)}${err.status ? ` [HTTP ${err.status}]` : ''}. New numbers and provider suspensions are not picked up until it answers.`); continue }
     if (sims) await syncAccount(sims, a.id, c0)
   }
 }
@@ -362,7 +363,7 @@ async function replaceEsim(eid, reason, by) {
     else if (num) await setEsim(n._id, 'testing', { msisdn: num, activationDate: new Date() })
   } catch (err) {
     st = 'failed'; await setEsim(n._id, 'failed', { note: err.message })
-    alert(`❌ Spenza could not replace the number of ${eid} ${e.msisdn || ''}${roleTag(e)} (${acctLabel(e.account || firstAccount(await cfg()))}): ${err.message}${err.status ? ` [HTTP ${err.status}]` : ''}. Ordering a new line instead…`)
+    alert(`❌ Spenza could not replace the number of ${eid} ${e.msisdn || ''}${roleTag(e)} (${acctLabel(e.account || firstAccount(await cfg()))}): ${esc(err.message)}${err.status ? ` [HTTP ${err.status}]` : ''}. Ordering a new line instead…`)
     incident('replace_failed', { esimId: eid, error: err.message, status: err.status || null })
     bought = await provisionOne(`replacement of ${eid} failed`, by || 'system', e.role || 'service', e.account)
     alert(bought.ok ? `🆕 New ${e.role === 'tester' ? 'tester ' : ''}line ${bought.esimId} ordered on ${acctLabel(bought.account)} to replace ${eid} — it joins the pool after its delivery check.` : `❌ Ordering a new ${e.role === 'tester' ? 'tester ' : ''}line to replace ${eid} also failed: ${bought.error} — ${e.role === 'tester' ? 'customer test buttons stay hidden' : 'the pool is one line short'}. Fix the cause, then /bulkprovision.`)
@@ -413,7 +414,7 @@ async function healthCheck() {
       await setEsim(e._id, 'available', set); alert(`✅ ${e._id} ${e.msisdn}${AUX.includes(e.role) ? ` (${e.role} line)` : ''} passed checks and joined the pool.${e.role === 'tester' ? ' Customer test buttons are back on.' : ''}`); continue
     }
     if (USABLE.includes(e.status) && health === 'healthy') await dueCheck(e, c)
-    if (['suspended', 'technically_failed', 'sending_failure', 'provider_restricted'].includes(health) && e.health !== health) { alert(`⚠️ ${e._id} ${e.msisdn || ''}${e.role === 'tester' ? ' (tester line — customer test buttons are hidden)' : ''}: ${health.replace(/_/g, ' ')}${err ? ` (${err.message})` : ''}. New sends avoid it.`); incident('esim_health', { esimId: e._id, health }) }
+    if (['suspended', 'technically_failed', 'sending_failure', 'provider_restricted'].includes(health) && e.health !== health) { alert(`⚠️ ${e._id} ${e.msisdn || ''}${e.role === 'tester' ? ' (tester line — customer test buttons are hidden)' : ''}: ${health.replace(/_/g, ' ')}${err ? ` (${esc(err.message)})` : ''}. New sends avoid it.`); incident('esim_health', { esimId: e._id, health }) }
     await C('bsEsims').updateOne({ _id: e._id }, { $set: set })
     if ((['suspended', 'provider_restricted', 'sending_failure'].includes(health) || (health === 'technically_failed' && apiFails >= c.apiFailsToReplace)) && [...USABLE, 'suspended'].includes(e.status)) { if (e.status !== 'suspended') await setEsim(e._id, 'suspended', { note: health }); await autoReplace({ ...e, ...set }, health.replace(/_/g, ' '), c) }
     else if (e.status === 'suspended' && health === 'healthy' && !e.replacedBy) { await setEsim(e._id, 'available', { note: 'provider lifted the suspension' }); alert(`✅ ${e._id} ${e.msisdn || ''}: suspension lifted by the provider — back in the pool.`) }
@@ -734,7 +735,7 @@ async function cancelDead(c) {
         const sub = await P.subscription(e.iccid, e.account).catch(() => null)
         await C('bsEsims').updateOne({ _id: e._id }, { $set: { cancelBlocked: { reason: 'plan_not_active', subStatus: sub?.status || null, at: new Date() } } })
         if (await once(`cancelpending:${e._id}`)) alert(`ℹ️ ${e._id} ${e.msisdn || ''}: Spenza can't cancel this plan because it never activated (plan ${sub?.status || 'not started'}). I'll retry daily and cancel it if it ever activates. To get the order cost back, ask Spenza support to void ICCID ${e.iccid}.`)
-      } else if (await once(`cancelfail:${today()}:${e._id}`)) alert(`⚠️ Could not cancel ${e._id} with Spenza: ${err.message}. Cancel it at web.spenza.com to stop the billing.`)
+      } else if (await once(`cancelfail:${today()}:${e._id}`)) alert(`⚠️ Could not cancel ${e._id} with Spenza: ${esc(err.message)}. Cancel it at web.spenza.com to stop the billing.`)
     }
   }
 }
@@ -817,7 +818,7 @@ async function checkNumbers(cid, list) {
       try { const r = await lookupOne(p), doc = { _id: p, type: r.type, carrier: r.carrier || null, at: new Date() }; res.set(p, doc); if (!r.simulated) { looked++; await C('bsLookups').replaceOne({ _id: p }, doc, { upsert: true }) } } catch (e) { failed++; why ||= `${e.response?.status || e.code || ''} ${e.response?.data?.errors?.[0]?.detail || e.message}`.trim() }
     }))
   }
-  if (failed && await once(`lookupdown:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Number check: ${failed} of ${todo.length} number lookups failed — those numbers were kept (not skipped).${why ? `\nProvider said: <code>${String(why).slice(0, 160).replace(/[<>&]/g, '')}</code>` : ''}\nCheck the SignalWire (and Telnyx backup) account / balance / API key.`)
+  if (failed && await once(`lookupdown:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Number check: ${failed} of ${todo.length} number lookups failed — those numbers were kept (not skipped).${why ? `\nProvider said: <code>${esc(String(why).slice(0, 160))}</code>` : ''}\nCheck the SignalWire (and Telnyx backup) account / balance / API key.`)
   const kind = (t) => (t === 'fixed line' ? 'landline' : t === 'voip' ? 'voip' : t === 'invalid' ? 'invalid' : 'other')
   const skip = list.filter(p => res.has(p) && !SENDABLE.includes(res.get(p).type)), counts = { landline: 0, voip: 0, invalid: 0, other: 0 }
   for (const p of skip) counts[kind(res.get(p).type)]++
@@ -862,10 +863,10 @@ async function aiVariants(cid, { text, withLinks, optOut = true, avoid = [], swa
   else {
     try {
       const r = await axios.post(`http://127.0.0.1:${process.env.BACKEND_PORT || 8001}/api/internal/bulk-esim/variants`, { text: src, limit, n: want + 2, with_links: withLinks, avoid: avoid.slice(-30) }, { timeout: 90000 }); raw = r.data?.variants || []; model = r.data?.model || model
-      if (r.data?.fallback) { audit('ai_fallback', { cid, model, primaryError: r.data.primary_error }); if (await once(`aifallback:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Claude is not answering (${r.data.primary_error}) — AI variants are being served by OpenAI ${model} meanwhile. If the Universal Key balance is low, top it up: Profile → Manage plan → Universal Key → Add Balance.`) }
+      if (r.data?.fallback) { audit('ai_fallback', { cid, model, primaryError: r.data.primary_error }); if (await once(`aifallback:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Claude is not answering (${esc(r.data.primary_error)}) — AI variants are being served by OpenAI ${model} meanwhile. If the Universal Key balance is low, top it up: Profile → Manage plan → Universal Key → Add Balance.`) }
     } catch (err) {
       const d = err.response?.data || {}; audit('ai_variants_error', { cid, error: d.error || err.message })
-      if (await once(`aidown:${new Date().toISOString().slice(0, 13)}`)) alert(`❌ AI variants unavailable — Claude and the OpenAI fallback both failed (${d.error || err.message}). Customers see "try again or keep your text". Check the Universal Key balance (Profile → Manage plan → Universal Key → Add Balance) or set OPENAI_API_KEY for an independent fallback.`)
+      if (await once(`aidown:${new Date().toISOString().slice(0, 13)}`)) alert(`❌ AI variants unavailable — Claude and the OpenAI fallback both failed (${esc(d.error || err.message)}). Customers see "try again or keep your text". Check the Universal Key balance (Profile → Manage plan → Universal Key → Add Balance) or set OPENAI_API_KEY for an independent fallback.`)
       return E('err_ai')
     }
   }
@@ -1150,7 +1151,7 @@ async function processOne(m, c) {
     if (retryable) { if (day && !m.prepaid) await unreserve(m.cid, day, n); await later(err.kind === 'rate' ? (err.retryAfter || 30) * 1000 : err.kind === 'temporary' ? 30000 * 2 ** m.attempts : 60000, { quotaDay: m.prepaid ? day : null, attempts: m.attempts + (err.kind === 'temporary' ? 1 : 0), lastError: err.message }) }
     else { await mark(m, 'failed', { failureReason: err.message, failureKind: err.kind || 'unknown', failureStatus: err.status || null }); await C('bsEsims').updateOne({ _id: e._id }, { $inc: { 'stats.failed': 1 } }); if (!m.system) await lineLog(e, c, { failed: 1 }); if (day) { if (c.refundFailed) await unreserve(m.cid, day, n, 'failed'); else await countDay(m.cid, day, 'failed') } if (m.campaignId) await C('bsCampaigns').updateOne({ _id: m.campaignId }, { $inc: { 'stats.failed': 1 } }); await C('bsReputation').insertOne({ esimId: e._id, cid: m.cid, campaignId: m.campaignId || null, deliveryStatus: 'failed', providerError: err.message, providerKind: err.kind || 'unknown', providerStatus: err.status || null, incidentType: err.status === 400 ? 'invalid_recipient' : 'provider_rejection', at: new Date() }) }
     if (err.kind === 'credit') { await setAccount(acctId, { low: true }); await creditWatch() }
-    if (err.kind === 'auth') { if (c.accounts.length > 1) { await setAccount(acctId, { low: true, authFailed: err.message }); if (await once(`authfail:${acctId}:${today()}`)) alert(`🔑 Spenza ${acctLabel(acctId)} rejected our credentials (${err.message}) — its lines sit out, the other account(s) keep sending. Check SPENZA_BULK_API_KEY${acctId.endsWith('1') ? '' : `_${acctId.replace(/\D/g, '')}`}.`) } else await pause('provider_auth', err.message) }
+    if (err.kind === 'auth') { if (c.accounts.length > 1) { await setAccount(acctId, { low: true, authFailed: err.message }); if (await once(`authfail:${acctId}:${today()}`)) alert(`🔑 Spenza ${acctLabel(acctId)} rejected our credentials (${esc(err.message)}) — its lines sit out, the other account(s) keep sending. Check the API key/secret for this account.`) } else await pause('provider_auth', err.message) }
   }
 }
 async function notifyQuotaOnce(cid, c) {
