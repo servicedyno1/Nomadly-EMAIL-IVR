@@ -84,7 +84,7 @@ export function NavRow({ item, active, onPhone, testid, className = '', tone }) 
   const [to, label, Icon, id, sub] = item;
   const body = <>
     {tone ? <span className={`civr-chip civr-chip-${tone}`} aria-hidden><Icon className="w-3.5 h-3.5" /></span> : <Icon className="w-4 h-4" />}
-    <span className="min-w-0 flex-1 truncate">{label}{sub && <span className="civr-nav-sub" data-testid={`${testid || id}-sub`}>{sub}</span>}</span>
+    <span className="min-w-0 flex-1 leading-snug break-words">{label}{sub && <span className="civr-nav-sub" data-testid={`${testid || id}-sub`}>{sub}</span>}</span>
     {id === 'nav-calls' && <FreeBadge />}{id === 'nav-live' && <LiveDot />}{id === 'nav-messages' && <MsgBadge />}
   </>;
   if (to === '#phone') return <button type="button" onClick={onPhone} className={`civr-nav-link w-full text-left ${className}`} data-testid={testid || id}>{body}</button>;

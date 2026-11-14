@@ -6,6 +6,7 @@ import { Printer, Search, Loader2, Check } from 'lucide-react';
 import { api, money, useApi } from '../../api';
 import { cp } from '../../paths';
 import { Field, ErrorNote } from '../../ui';
+import { WalletPay } from '../../WalletPay';
 
 function FaxResults({ numbers, pick, setPick }) {
   if (!numbers.length) return <div className="text-sm text-[#a1a1aa] mt-4" data-testid="fax-buy-no-results">No fax numbers for that search. Try another area code.</div>;
@@ -14,7 +15,7 @@ function FaxResults({ numbers, pick, setPick }) {
       {numbers.map((n, i) => (
         <button key={n.phoneNumber} type="button" onClick={() => setPick(n)} data-testid={`fax-buy-result-${i}`} className={`civr-card text-left p-4 ${pick?.phoneNumber === n.phoneNumber ? 'civr-trace' : ''}`}>
           <div className="flex items-center justify-between"><span className="font-mono text-lg">{n.phoneNumber}</span>{pick?.phoneNumber === n.phoneNumber && <Check className="w-4 h-4 text-[#818cf8]" />}</div>
-          <div className="text-xs text-[#a1a1aa] mt-1 truncate">{n.region || 'Any region'}</div>
+          <div className="text-xs text-[#a1a1aa] mt-1 break-words">{n.region || 'Any region'}</div>
           <div className="flex gap-2 mt-3"><span className="civr-pill">Fax only</span></div>
         </button>
       ))}
@@ -72,9 +73,7 @@ export function FaxNumberBuy({ balance, onBought }) {
         <div className="mt-5 flex flex-wrap items-center gap-4 civr-rise" data-testid="fax-buy-checkout">
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={autoRenew} onChange={e => setAutoRenew(e.target.checked)} data-testid="fax-buy-autorenew" />Renew monthly from my wallet</label>
           <div className="flex-1" />
-          {short
-            ? <Link to={cp(`/app/wallet?need=${(price - balance).toFixed(2)}`)} className="civr-btn civr-btn-primary" data-testid="fax-buy-topup">{`Top up ${money(price - balance)} to buy`}</Link>
-            : <button type="button" className="civr-btn civr-btn-primary" disabled={busy === 'buy'} onClick={buy} data-testid="fax-buy-pay">{busy === 'buy' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{`Pay ${money(price)} from wallet`}</button>}
+          <div className="basis-full"><WalletPay price={price} onWallet={buy} busy={busy === 'buy'} testid="fax-buy-paybox" walletTestid="fax-buy-pay" /></div>
         </div>
       )}
     </div>

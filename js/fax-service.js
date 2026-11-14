@@ -22,6 +22,7 @@ const brand = () => String(process.env.CHAT_BOT_BRAND || 'Nomadly').trim() || 'N
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const faxAcct = require('./telnyx-fax-account')
 const swFax = require('./signalwire/fax')
+const mtFax = require('./multitel/fax')
 const hdrs = () => faxAcct.headers()
 const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const fmt = (p) => phoneConfig.formatPhone(p)
@@ -559,7 +560,12 @@ const claimStage = async (st) => {
 async function dispatch({ chatId, num, fileId, pages, to, batchId = null }) {
   let faxId
   if (dryRun()) faxId = `dry_${crypto.randomUUID()}`
-  else if (num.provider === 'signalwire_fax') {
+  else if (num.provider === 'multitel_fax') {
+    try { faxId = await mtFax.sendFax({ from: num.phoneNumber, to, pdf: await readFile(fileId) }) } catch (e) {
+      _log(`[Fax] MultiTEL send ${num.phoneNumber} → ${to} failed: ${e.message}`)
+      throw new FaxError('send_failed', 'The fax could not be sent. Check the number and try again.')
+    }
+  } else if (num.provider === 'signalwire_fax') {
     try { faxId = await swFax.sendFax({ from: num.phoneNumber, to, fileId }) } catch (e) {
       _log(`[Fax] SignalWire send ${num.phoneNumber} → ${to} failed: ${e.response?.data?.message || e.message}`)
       throw new FaxError('send_failed', 'The fax could not be sent. Check the number and try again.')
@@ -801,7 +807,7 @@ async function onReceived(p) {
     _log(`[Fax] ${p.to} is no longer on Business — fax line switched back to voice, fax dropped`)
     return switchOff(chatId, num).catch(e => _log(`[Fax] restore voice failed: ${e.message}`))
   }
-  const pdf = await fetchMedia(faxId, p.media_url)
+  const pdf = p.pdf || await fetchMedia(faxId, p.media_url)
   let pages = Number(p.page_count) || 0
   if (!pages && pdf) pages = await PDFDocument.load(pdf, { ignoreEncryption: true }).then(d => d.getPageCount()).catch(() => 1)
   pages = pages || 1
@@ -843,6 +849,12 @@ async function announce() {
 let _maintRuns = 0
 async function maintain() {
   _maintRuns++
+  // MultiTEL fax numbers: pick up received faxes and delivery results.
+  if (mtFax.enabled() && !dryRun() && await col('faxNumbers').findOne({ provider: 'multitel_fax', status: { $ne: 'released' } })) {
+    await mtFax.pollInbox((ev) => handleEvent(ev), async (id) => !!(await col('faxes').findOne({ _id: id }, { projection: { _id: 1 } }))).catch(e => _log(`[Fax] MultiTEL inbox poll failed: ${e.message}`))
+    const pending = await col('faxes').find({ _id: { $regex: '^mtfax:' }, status: { $in: ['queued', 'sending'] } }).limit(100).toArray()
+    await mtFax.pollOutbox(pending, (ev) => handleEvent(ev)).catch(e => _log(`[Fax] MultiTEL outbox poll failed: ${e.message}`))
+  }
   if (_maintRuns % 30 === 1) announce().catch(e => _log(`[Fax] announce failed: ${e.message}`))
   for (const f of await col('faxes').find({ held: true }).limit(100).toArray()) {
     const { usdBal } = await getBalance(_walletOf, f.chatId)

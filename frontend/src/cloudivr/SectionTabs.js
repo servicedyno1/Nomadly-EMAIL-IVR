@@ -35,7 +35,7 @@ export function Crumbs({ items, testid = 'breadcrumbs' }) {
         <React.Fragment key={`${label}-${i}`}>
           {i > 0 && <ChevronRight className="w-3.5 h-3.5 opacity-60 shrink-0" aria-hidden="true" />}
           {to ? <Link to={to} className="inline-flex items-center min-h-[32px] hover:text-[var(--c-accent)] transition-colors" data-testid={`${testid}-${i}`}>{label}</Link>
-            : <span aria-current={i === items.length - 1 ? 'page' : undefined} className="text-[var(--c-text)] font-medium truncate max-w-[60vw]" data-testid={`${testid}-${i}`}>{label}</span>}
+            : <span aria-current={i === items.length - 1 ? 'page' : undefined} className="text-[var(--c-text)] font-medium break-words max-w-[60vw]" data-testid={`${testid}-${i}`}>{label}</span>}
         </React.Fragment>
       ))}
     </nav>

@@ -12,7 +12,7 @@ export function ForwardingMock() {
   const node = (Icon, label, state, testid) => (
     <div className="flex flex-col items-center gap-1.5 min-w-0" data-testid={testid}>
       <span className={`w-9 h-9 rounded-xl border grid place-items-center transition-colors duration-300 ${state === 'ring' ? 'border-[#818cf8] bg-[#818cf8]/15 text-[#818cf8]' : state === 'ok' ? 'border-[#34d399] bg-[#34d399]/15 text-[#34d399]' : state === 'miss' ? 'border-[#3a3a3a] text-[#71717a]' : 'border-[#3a3a3a] text-[#a1a1aa]'}`}><Icon className={`w-4 h-4 ${state === 'ring' ? 'civr-ringing' : ''}`} /></span>
-      <span className="text-xs text-[#a1a1aa] truncate">{label}</span>
+      <span className="text-xs text-[#a1a1aa] leading-snug">{label}</span>
     </div>
   );
   const arrow = (lit) => <span className={`flex-1 h-px border-t border-dashed transition-colors duration-300 mb-5 ${lit ? 'border-[#818cf8]' : 'border-[#3a3a3a]'}`} />;
@@ -164,7 +164,7 @@ export function TextCallMock() {
           <div className="hidden sm:block"><TheirPhone phase={phase} /></div>
         </div>
         <div className={`sm:hidden mt-3 flex items-center gap-2 rounded-lg border border-[#262626] bg-[#141414] px-3 py-2 text-xs ${toThem ? 'text-[#818cf8]' : toYou ? 'text-[#34d399]' : 'text-[#a1a1aa]'}`} data-testid="textcall-their-phone-compact">
-          <Smartphone className="w-3.5 h-3.5 shrink-0" /><span className="truncate">{toThem ? 'Their phone: hears your words as a voice' : toYou ? 'Their phone: they answer out loud' : 'Their phone: a normal call'}</span>
+          <Smartphone className="w-3.5 h-3.5 shrink-0" /><span className="leading-snug">{toThem ? 'Their phone: hears your words as a voice' : toYou ? 'Their phone: they answer out loud' : 'Their phone: a normal call'}</span>
           <Wave on={toThem || toYou} bars={8} className="w-12 ml-auto shrink-0" />
         </div>
         <div className="mt-3 flex items-center justify-between gap-2 text-xs font-mono text-[#a1a1aa]">

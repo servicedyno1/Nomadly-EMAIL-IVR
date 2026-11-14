@@ -4,6 +4,7 @@ import { Clock, Loader2, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { api, money, useApi } from '../../api';
 import { useShell } from '../../Shell';
 import { ErrorNote } from '../../ui';
+import { WalletPay } from '../../WalletPay';
 
 const DETAILS = {
   none: 'No paperwork needed.',
@@ -34,8 +35,8 @@ export function RequestOrder({ request, plan, onDone }) {
       <p className="text-sm flex gap-2" data-testid="request-order-details"><ShieldCheck className="w-4 h-4 mt-0.5 shrink-0 text-[#818cf8]" />{DETAILS[request.details]}</p>
       {request.localOnly && <p className="text-xs text-[#fbbf24] flex gap-2" data-testid="request-order-local-note"><AlertTriangle className="w-4 h-4 shrink-0" />The carrier offers these numbers to businesses based in {request.name}; a request from elsewhere may be declined (and refunded).</p>}
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" className="civr-btn civr-btn-primary" onClick={go} disabled={busy || !plan} data-testid="request-order-pay-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Order for {money(plan?.price || 0)} from wallet</button>
-        <span className="text-xs text-[var(--c-muted)]">{plan?.name} plan · per month</span>
+        <span className="text-xs text-[var(--c-muted)] basis-full">{plan?.name} plan · {money(plan?.price || 0)} per month</span>
+        <WalletPay price={plan?.price || 0} onWallet={go} busy={busy} disabled={!plan} label={`Order for ${money(plan?.price || 0)} from wallet`} testid="request-order-paybox" walletTestid="request-order-pay-button" />
       </div>
       <ErrorNote error={err} testid="request-order-error" />
     </div>

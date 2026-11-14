@@ -108,7 +108,7 @@ export function Palette({ openPhone }) {
                   className={`w-full flex items-center gap-3 px-4 min-h-[44px] text-left text-sm transition-colors ${i === sel ? 'bg-[#818cf8]/12 text-[#f3f4f6]' : 'text-[#d4d4d8]'}`}>
                   <it.Icon className={`w-4 h-4 shrink-0 ${i === sel ? 'text-[#818cf8]' : 'text-[#71717a]'}`} />
                   <span className={`truncate ${it.group === 'Numbers' ? 'font-mono' : ''}`}>{it.label}</span>
-                  {it.sub && <span className="truncate text-xs text-[#a1a1aa]">{it.sub}</span>}
+                  {it.sub && <span className="text-xs text-[#a1a1aa] leading-snug">{it.sub}</span>}
                   {i === sel && <CornerDownLeft className="w-3.5 h-3.5 ml-auto shrink-0 text-[#71717a]" aria-hidden="true" />}
                 </button>
               </React.Fragment>

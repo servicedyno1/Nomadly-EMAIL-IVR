@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useSavedAddress } from '../../profile/useSavedAddress';
+
 import { Loader2, FileSignature, Upload, Eye, LifeBuoy, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, apiUrl } from '../../api';
@@ -14,6 +16,9 @@ const OK_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 export function LoaStep({ item, onChange }) {
   const [h, setH] = useState(() => Object.fromEntries(FIELDS.map(([k]) => [k, item.holder?.[k] || item.draft?.[k] || ''])));
   const [saved, setSaved] = useState(!!item.draft);
+  // Empty fields start from the saved profile (name, business, address).
+  const { holder } = useSavedAddress(!item.holder && !item.draft);
+  useEffect(() => { if (holder) setH(v => Object.fromEntries(Object.entries(v).map(([k, x]) => [k, x || holder[k] || '']))); }, [holder]);
   const first = useRef(true);
   // Save the details as they type (on their account), so leaving the page or switching device keeps them.
   useEffect(() => {

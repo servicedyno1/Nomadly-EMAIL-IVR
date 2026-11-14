@@ -57,7 +57,7 @@ export function IconSelect({ value, onChange, options, testid, label, placeholde
       <SelectContent className="civr !min-h-0 z-[100] max-h-[23rem] rounded-xl border !border-[var(--c-border)] !bg-[var(--c-card)] !text-[var(--c-text)] shadow-xl" data-testid={`${testid}-menu`}>
         {options.map(o => (
           <SelectItem key={o.value} value={o.value} className="min-h-[40px] rounded-lg pr-8 cursor-pointer text-sm focus:!bg-[var(--c-accent-soft)] focus:!text-[var(--c-text)]" data-testid={`${testid}-option-${slug(o.value)}`}>
-            <span className="flex items-center gap-2.5 min-w-0">{o.icon}<span className="truncate">{o.label}</span>{o.hint && <span className="text-xs text-[var(--c-muted)] shrink-0">{o.hint}</span>}</span>
+            <span className="flex items-center gap-2.5 min-w-0">{o.icon}<span className="leading-snug break-words">{o.label}</span>{o.hint && <span className="text-xs text-[var(--c-muted)] shrink-0">{o.hint}</span>}</span>
           </SelectItem>
         ))}
       </SelectContent>

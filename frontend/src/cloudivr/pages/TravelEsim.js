@@ -81,7 +81,7 @@ export default function TravelEsim() {
                 <div className="font-mono text-lg mt-3">{money(o.price)}</div>
               </button>
             ))}</div>
-            {pick && <div className="civr-card p-5 space-y-3" data-testid="travel-esim-checkout"><div className="font-semibold">{`${zone.zone} · ${pick.gb} GB for ${pick.days} days`}</div><WalletPay price={pick.price} onWallet={buy} busy={busy} crypto={false} testid="travel-esim-pay" walletTestid="travel-esim-pay-button" /></div>}
+            {pick && <div className="civr-card p-5 space-y-3" data-testid="travel-esim-checkout"><div className="font-semibold">{`${zone.zone} · ${pick.gb} GB for ${pick.days} days`}</div><WalletPay price={pick.price} onWallet={buy} busy={busy} testid="travel-esim-pay" walletTestid="travel-esim-pay-button" /></div>}
           </div>
         )}
       </div>

@@ -66,7 +66,7 @@ function Row({ icon: I, label, value, hint, testid, canAdd, kind }) {
     <div className="py-3 border-b border-[#1f1f1f] last:border-0">
       <div className="flex items-center gap-3">
         <I className="w-4 h-4 text-[#a1a1aa] shrink-0" />
-        <div className="flex-1 min-w-0"><div className="text-sm font-semibold">{label}</div><div className="text-sm text-[#a1a1aa] truncate" data-testid={testid}>{value || 'Not added'}</div>{hint && <div className="text-xs text-[#a1a1aa] mt-0.5">{hint}</div>}</div>
+        <div className="flex-1 min-w-0"><div className="text-sm font-semibold">{label}</div><div className="text-sm text-[#a1a1aa] break-all" data-testid={testid}>{value || 'Not added'}</div>{hint && <div className="text-xs text-[#a1a1aa] mt-0.5">{hint}</div>}</div>
         {canAdd && !open && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => setOpen(true)} data-testid={`${testid}-add`}>{value ? 'Change' : 'Add'}</button>}
       </div>
       {open && <AddContact kind={kind} account={account} onDone={done} onCancel={() => setOpen(false)} />}

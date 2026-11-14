@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useSavedAddress } from '../../profile/useSavedAddress';
+
 import { Wallet as WalletIcon, Bitcoin, Loader2, Check, Ticket, X, CreditCard } from 'lucide-react';
 import { api, money, useApi } from '../../api';
 import { useOffer } from '../../offers';
@@ -59,6 +61,8 @@ export function CouponField({ total, coupon, setCoupon, initialCode }) {
 // Pay for the picked number from the wallet or with crypto; auto-renew starts switched on.
 export default function Checkout({ pick, planObj, total, balance, coins, busy, onPay, onTopUp, coupon, setCoupon, initialCode, cryptoOk = true, cryptoMin = 0, label, autoRenewDefault = true, textingOffer = null }) {
   const [tx, setTx] = useState({ on: false, zip: '' });
+  const { usZip } = useSavedAddress(!!textingOffer?.available);
+  useEffect(() => { if (usZip) setTx(v => (v.zip ? v : { ...v, zip: usZip })); }, [usZip]);
   const addOn = textingOffer?.available && tx.on ? textingOffer.bundlePrice : 0;
   const lineDue = coupon ? Math.round(total * (1 - coupon.discount / 100) * 100) / 100 : total;
   const due = Math.round((lineDue + addOn) * 100) / 100;

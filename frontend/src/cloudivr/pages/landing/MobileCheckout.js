@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useSavedAddress } from '../../profile/useSavedAddress';
+
 import { Link, useNavigate } from 'react-router-dom';
 import { X, Check, ArrowRight, MessageSquareText, Lock } from 'lucide-react';
 import { api } from '../../api';
@@ -42,6 +44,8 @@ function Checkout({ price, onClose }) {
   const nav = useNavigate();
   const [step, setStep] = useState('details');
   const [zip, setZip] = useState('');
+  const { usZip } = useSavedAddress(!!account);
+  useEffect(() => { if (usZip) setZip(z => z || usZip); }, [usZip]);
   const [autoRenew, setAutoRenew] = useState(true);
   const box = useRef(null);
   useEffect(() => { const k = (e) => e.key === 'Escape' && onClose(); window.addEventListener('keydown', k); box.current?.querySelector('input,select')?.focus(); return () => window.removeEventListener('keydown', k); }, [onClose, step]);

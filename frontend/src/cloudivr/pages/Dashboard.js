@@ -19,7 +19,7 @@ import { TaskCards, SetupChecklist } from './dashboard/GuidedHome';
 function Stat({ icon: Icon, label, value, to, testid, delay, title }) {
   const body = (
     <div className={`civr-card ${to ? 'civr-card-link' : ''} p-6 h-full civr-rise ${delay}`} data-testid={testid} title={title}>
-      <div className="flex items-start justify-between gap-2"><span className="civr-label !text-[var(--c-muted)] !tracking-[.12em] whitespace-nowrap truncate">{label}</span><Icon className="w-4 h-4 shrink-0 text-[var(--c-accent)]" /></div>
+      <div className="flex items-start justify-between gap-2"><span className="civr-label !text-[var(--c-muted)] !tracking-[.12em] leading-snug min-w-0 break-words">{label}</span><Icon className="w-4 h-4 shrink-0 text-[var(--c-accent)]" /></div>
       <div className="font-mono text-3xl mt-4" data-testid={`${testid}-value`}>{value}</div>
       {title && <div className="text-xs text-[var(--c-muted)] mt-1">This month</div>}
     </div>

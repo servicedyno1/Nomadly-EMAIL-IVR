@@ -68,7 +68,7 @@ function Results({ res, pick, setPick, planTexting }) {
         <button key={n.phoneNumber} type="button" onClick={() => { setPick(n); setTimeout(() => document.querySelector('[data-testid="buy-plan-picker"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150); }} data-testid={`buy-result-${i}`}
           className={`civr-card text-left p-4 ${pick?.phoneNumber === n.phoneNumber ? 'civr-trace' : ''}`}>
           <div className="flex items-center justify-between"><span className="font-mono text-lg">{n.phoneNumber}</span>{pick?.phoneNumber === n.phoneNumber && <Check className="w-4 h-4 text-[#818cf8]" />}</div>
-          <div className="text-xs text-[#a1a1aa] mt-1 truncate">{place(n.region)}</div>
+          <div className="text-xs text-[#a1a1aa] mt-1 break-words">{place(n.region)}</div>
           <div className="flex gap-2 mt-4">
             {n.capabilities.voice && <span className="civr-pill">Calls</span>}{n.capabilities.sms && planTexting && <span className="civr-pill">Texts</span>}{n.capabilities.fax && <span className="civr-pill" title="Send and receive faxes on the Business plan" data-testid={`buy-fax-pill-${i}`}>Fax</span>}
             {n.surcharge > 0 && <span className="civr-pill civr-pill-warn">+{money(n.surcharge)}/mo</span>}
@@ -119,7 +119,7 @@ function Steps({ current, extra }) {
         return (
           <li key={label} className="flex items-center gap-2 sm:gap-3 min-w-0" aria-current={state === 'current' ? 'step' : undefined} data-state={state} data-testid={`buy-step-${k}`}>
             <span className={`w-7 h-7 shrink-0 rounded-full grid place-items-center text-xs font-bold transition-colors ${state === 'done' ? 'bg-[#34d399] text-[#052e1f]' : state === 'current' ? 'bg-[var(--c-accent-strong,#6366f1)] text-white' : 'border border-[var(--c-border-hover,#2a2a2a)] text-[#a1a1aa]'}`} aria-hidden="true">{state === 'done' ? <Check className="w-4 h-4" /> : k}</span>
-            <span className={`text-sm truncate ${state === 'current' ? 'font-semibold' : 'text-[#a1a1aa]'} ${state === 'todo' ? 'hidden sm:inline' : ''}`}>{label}</span>
+            <span className={`text-sm leading-snug ${state === 'current' ? 'font-semibold' : 'text-[#a1a1aa]'} ${state === 'todo' ? 'hidden sm:inline' : ''}`}>{label}</span>
             {i < steps.length - 1 && <span aria-hidden="true" className={`h-px w-6 sm:w-10 shrink-0 ${state === 'done' ? 'bg-[#34d399]' : 'bg-[var(--c-border-hover,#2a2a2a)]'}`} />}
           </li>
         );

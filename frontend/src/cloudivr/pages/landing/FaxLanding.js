@@ -45,7 +45,7 @@ export function FaxLanding({ fax }) {
               {res.numbers.map((n, i) => (
                 <button key={n.phoneNumber} type="button" onClick={() => setPick(n)} data-testid={`fax-landing-result-${i}`} className={`rounded-xl border px-4 py-3 text-left transition-colors ${pick?.phoneNumber === n.phoneNumber ? 'border-[#1d6fd8] bg-[#edf4ff]' : 'border-slate-200 bg-white hover:border-[#1d6fd8]/40'}`}>
                   <div className="flex items-center justify-between font-mono text-slate-950">{n.phoneNumber}{pick?.phoneNumber === n.phoneNumber && <Check className="w-4 h-4 text-[#1d6fd8]" />}</div>
-                  <div className="text-xs text-slate-500 truncate">{n.region || 'Any region'}</div>
+                  <div className="text-xs text-slate-500 break-words">{n.region || 'Any region'}</div>
                 </button>
               ))}
             </div>

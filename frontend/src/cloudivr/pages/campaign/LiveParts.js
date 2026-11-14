@@ -26,7 +26,7 @@ export function Pipeline({ p, testid }) {
             {i > 0 && <span aria-hidden="true" className={`absolute top-5 right-1/2 w-full h-px ${n > 0 ? 'bg-[#3f3f46]' : 'bg-[#1f1f1f]'}`} />}
             <span className={`relative w-10 h-10 rounded-full border flex items-center justify-center transition-colors ${STEP_TONE[k]} ${busy ? 'civr-live-ring' : ''}`}><Icon className="w-4 h-4" /></span>
             <span className="font-mono text-lg mt-2 leading-none" data-testid={`${testid}-${k}`}>{n}</span>
-            <span className="text-xs text-[#a1a1aa] mt-1 truncate max-w-full">{label}</span>
+            <span className="text-xs text-[#a1a1aa] mt-1 leading-snug max-w-full break-words">{label}</span>
           </li>
         );
       })}
@@ -72,7 +72,7 @@ export function ReachStats({ l, testid }) {
         <div key={k} className={`rounded-xl border px-4 py-3 min-w-0 ${k === 'hot' && l.hot ? 'border-[#f59e0b]/60 bg-[#f59e0b]/10' : 'border-[#1f1f1f] bg-[#0d0d0d]'}`}>
           <div className="flex items-center gap-2 text-xs text-[#a1a1aa]"><Icon className={`w-3.5 h-3.5 ${k === 'hot' && l.hot ? 'text-[#f59e0b]' : ''}`} />{label}</div>
           <div className="font-mono text-xl mt-1 truncate" data-testid={`${testid}-${k}`}>{v}</div>
-          <div className="text-[11px] text-[#71717a] mt-0.5 truncate">{sub}</div>
+          <div className="text-[11px] text-[#71717a] mt-0.5 break-words">{sub}</div>
         </div>
       ))}
     </div>

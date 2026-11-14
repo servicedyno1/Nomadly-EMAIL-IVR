@@ -83,7 +83,7 @@ export function HearIt({ className = '' }) {
             <span className="font-semibold text-slate-900 text-sm md:text-base" data-testid="hear-it-title">{playing ? 'Playing a sample call' : state === 'ended' ? 'That was 30 seconds of CloudIVR' : 'Hear a 30-second call'}</span>
             <Wave on={playing} className="text-slate-900 hidden sm:inline-flex" />
           </div>
-          <p className="text-xs md:text-sm text-slate-500 mt-0.5 truncate" data-testid="hear-it-sub">Keypad menu · key press · AI agent books a slot · handover to a person. Made with CloudIVR’s own voices.</p>
+          <p className="text-xs md:text-sm text-slate-500 mt-0.5" data-testid="hear-it-sub">Keypad menu · key press · AI agent books a slot · handover to a person. Made with CloudIVR’s own voices.</p>
           <div className="mt-3 flex items-center gap-3">
             <div className="civr-l-progress flex-1" style={{ '--p': `${Math.min(100, (t / SAMPLE_DURATION) * 100)}%` }} onClick={seek} onKeyDown={nudge} role="slider" aria-label="Sample call position" aria-valuemin={0} aria-valuemax={Math.round(SAMPLE_DURATION)} aria-valuenow={Math.round(t)} tabIndex={0} data-testid="hear-it-progress"><i /></div>
             <span className="font-mono text-xs text-slate-500 tabular-nums w-[5.5rem] text-right" data-no-translate data-testid="hear-it-time">{mmss(t)} / {mmss(SAMPLE_DURATION)}</span>

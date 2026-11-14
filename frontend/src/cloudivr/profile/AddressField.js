@@ -31,7 +31,7 @@ function Suggestions({ list, active, onPick }) {
         <li key={s.id} role="option" aria-selected={i === active}>
           <button type="button" onMouseDown={(e) => { e.preventDefault(); onPick(s); }} className={`w-full text-left flex items-start gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${i === active ? 'bg-white/5' : 'hover:bg-white/5'}`} data-testid={`address-suggestion-${i}`}>
             <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-[#818cf8]" />
-            <span className="min-w-0"><span className="block text-sm font-medium truncate">{s.main}</span><span className="block text-xs text-[#a1a1aa] truncate">{s.secondary}</span></span>
+            <span className="min-w-0"><span className="block text-sm font-medium break-words">{s.main}</span><span className="block text-xs text-[#a1a1aa] break-words">{s.secondary}</span></span>
           </button>
         </li>
       ))}

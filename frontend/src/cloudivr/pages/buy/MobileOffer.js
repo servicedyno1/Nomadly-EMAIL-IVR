@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSavedAddress } from '../../profile/useSavedAddress';
+
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { MessageSquare, Lock } from 'lucide-react';
@@ -15,6 +17,8 @@ export function MobileOffer({ onBought, open: startOpen = false }) {
   const { refreshSummary } = useShell();
   const [open, setOpen] = useState(startOpen);
   const [zip, setZip] = useState('');
+  const { usZip } = useSavedAddress();
+  useEffect(() => { if (usZip) setZip(z => z || usZip); }, [usZip]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [autoRenew, setAutoRenew] = useState(true);

@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useSavedAddress } from '../../profile/useSavedAddress';
+
 import { Link, useNavigate } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import { X, Loader2, Smartphone, Check, Copy, AlertTriangle, ArrowRight } from 'lucide-react';
@@ -169,6 +171,8 @@ function Checkout({ plans, first, onClose }) {
   const [step, setStep] = useState('details');
   const [d, setD] = useState({ planId: first || plans[0].planId, imei: '', zip: '', email: account?.email || '', autoRenew: true });
   const set = (x) => setD(v => ({ ...v, ...x }));
+  const { usZip } = useSavedAddress(!!account);
+  useEffect(() => { if (usZip) setD(v => (v.zip ? v : { ...v, zip: usZip })); }, [usZip]);
   const plan = plans.find(p => p.planId === d.planId) || plans[0];
   const box = useRef(null);
   useEffect(() => { const k = (e) => e.key === 'Escape' && onClose(); window.addEventListener('keydown', k); box.current?.querySelector('input,select')?.focus(); return () => window.removeEventListener('keydown', k); }, [onClose, step]);

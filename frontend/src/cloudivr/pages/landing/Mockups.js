@@ -142,7 +142,7 @@ function CampaignBody({ inView }) {
   return (
     <div data-testid="outbound-bulk-view">
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0"><div className="text-xs font-semibold truncate">Spring renewals</div><div className="text-xs text-[#a1a1aa]">1,820 leads · recorded message</div></div><Pill ok>Running</Pill>
+        <div className="min-w-0"><div className="text-xs font-semibold">Spring renewals</div><div className="text-xs text-[#a1a1aa]">1,820 leads · recorded message</div></div><Pill ok>Running</Pill>
       </div>
       <div className="mt-3 h-1.5 rounded-full bg-[#262626] overflow-hidden"><div className="h-full rounded-full bg-[#6366f1] transition-[width] [transition-duration:1400ms] ease-out" style={{ width: inView ? '68%' : '0%' }} /></div>
       <div className="flex justify-between text-xs text-[#a1a1aa] mt-1.5 font-mono"><span>{inView ? '68' : '0'}% done</span><span>Pause · Cancel</span></div>
@@ -161,7 +161,7 @@ function QuickBody({ step }) {
   const done = (i) => step > i;
   return (
     <div data-testid="outbound-quick-view">
-      <div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold truncate">Quick IVR call · 1 number</span><span className="shrink-0 h-5 px-2 rounded-full bg-[#6366f1] text-white text-xs font-semibold inline-flex items-center">1st call free</span></div>
+      <div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold">Quick IVR call · 1 number</span><span className="shrink-0 h-5 px-2 rounded-full bg-[#6366f1] text-white text-xs font-semibold inline-flex items-center">1st call free</span></div>
       <div className={`mt-3 rounded-lg border p-3 flex gap-3 transition-colors duration-500 ${step === 2 ? 'border-[#818cf8]/60 bg-[#818cf8]/[.1]' : 'border-[#818cf8]/25 bg-[#818cf8]/[.04]'}`}>
         <span className="w-7 h-7 rounded-md bg-[#6366f1] text-white grid place-items-center shrink-0">{step === 2 ? <Eq on /> : <Play className="w-3.5 h-3.5" />}</span>
         <div className="min-w-0"><div className="text-xs uppercase tracking-widest text-[#818cf8]">Your script · AI voice</div><div className="text-[12px] mt-1 text-[#e4e4e7] leading-snug">“Hi, this is Acme Dental. Press 1 to confirm Tuesday’s visit and talk to us.”</div></div>

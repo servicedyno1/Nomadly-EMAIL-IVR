@@ -79,7 +79,7 @@ export default function InternationalTexting() {
       {pick && (
         <div className="civr-card p-6 space-y-4" data-testid="intl-texting-checkout">
           <div className="flex flex-wrap items-center gap-3"><div className="flex-1"><div className="font-mono text-xl" data-testid="intl-texting-picked">{pick.phoneNumber}</div><div className="text-sm text-[var(--c-muted)]">{`Basic plan · ${money(country.textPrice)} per text sent · receiving free`}</div></div><div className="font-mono text-xl" data-testid="intl-texting-price">{money(data.price)}<span className="text-xs text-[var(--c-muted)]"> /month</span></div></div>
-          <WalletPay price={data.price} onWallet={buy} busy={busy === 'buy'} crypto={false} testid="intl-texting-pay" walletTestid="intl-texting-pay-button" />
+          <WalletPay price={data.price} onWallet={buy} busy={busy === 'buy'} testid="intl-texting-pay" walletTestid="intl-texting-pay-button" />
         </div>
       )}
     </div>

@@ -20,7 +20,7 @@ function Pipeline({ step }) {
           return (
             <li key={t} className="flex min-w-0 flex-col sm:flex-row items-center gap-1 sm:gap-2 text-center sm:text-left" data-testid={`preview-step-${k}`} data-state={done ? 'done' : 'todo'}>
               <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors duration-300 ${done ? 'border-emerald-500/30 bg-emerald-50 text-emerald-600' : 'border-slate-200 bg-slate-50 text-slate-400'}`}>{done ? <Check className="w-4 h-4" /> : <I className="w-4 h-4" />}</span>
-              <span className="min-w-0"><span className="block text-xs sm:text-sm font-semibold text-slate-950">{t}</span><span className="hidden sm:block truncate text-[11px] text-slate-500">{s}</span></span>
+              <span className="min-w-0"><span className="block text-xs sm:text-sm font-semibold text-slate-950">{t}</span><span className="hidden sm:block text-[11px] leading-snug text-slate-500">{s}</span></span>
             </li>
           );
         })}
