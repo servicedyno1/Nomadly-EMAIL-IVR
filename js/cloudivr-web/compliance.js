@@ -22,9 +22,9 @@ function createCompliance({ db, h, adminRequire, notifyAdmin = () => {}, notify,
 
   // Stripe session → our identity status (idempotent; used by refresh, return page and webhook).
   async function applySession(s) {
-    const chatId = Number(s.metadata?.chatId)
+    const chatId = String(s.metadata?.chatId || '')
     if (!chatId) return null
-    const status = IDENTITY_MAP[s.status] || 'pending'
+    const status = s.status === 'requires_input' && !s.last_error ? 'none' : (IDENTITY_MAP[s.status] || 'pending')
     const vo = s.verified_outputs
     const set = { 'identity.status': status, 'identity.sessionId': s.id, 'identity.updatedAt': new Date(),
       ...(status === 'verified' ? { 'identity.verifiedAt': new Date(), 'identity.name': [vo?.first_name, vo?.last_name].filter(Boolean).join(' ') || null, 'identity.reason': null } : {}),
@@ -42,7 +42,7 @@ function createCompliance({ db, h, adminRequire, notifyAdmin = () => {}, notify,
 
     r.post('/compliance/policy', h(async (req, res) => {
       if (req.body?.accept !== true) return res.status(400).json({ error: 'not_accepted', message: 'Tick the box to accept the usage policy.' })
-      await col.updateOne({ _id: req.webChatId }, { $set: { policy: { version: POLICY_VERSION, acceptedAt: new Date(), ip: req.ip } } }, { upsert: true })
+      await acceptPolicy(req.webChatId, req.ip)
       res.json(await state(req.webChatId))
     }))
 
@@ -50,7 +50,7 @@ function createCompliance({ db, h, adminRequire, notifyAdmin = () => {}, notify,
       const cur = await of(req.webChatId)
       if (cur.identity?.status === 'verified') return res.json({ status: 'verified' })
       const origin = String(req.headers.origin || process.env.SELF_URL || '').replace(/\/+$/, '')
-      const acc = await accounts.findOne({ _id: req.webChatId }, { projection: { email: 1 } })
+      const acc = await accounts.findOne({ _id: Number(req.webChatId) }, { projection: { email: 1 } })
       const s = await stripe().identity.verificationSessions.create({
         type: 'document',
         options: { document: { require_matching_selfie: true, require_live_capture: true, allowed_types: ['passport', 'driving_license', 'id_card'] } },
@@ -104,17 +104,17 @@ function createCompliance({ db, h, adminRequire, notifyAdmin = () => {}, notify,
     r.get('/admin/compliance', A, h(async (req, res) => {
       const status = ['submitted', 'approved', 'rejected'].includes(req.query.status) ? req.query.status : 'submitted'
       const docs = await col.find({ 'company.status': status }).sort({ 'company.submittedAt': -1 }).limit(100).toArray()
-      const accs = new Map((await accounts.find({ _id: { $in: docs.map(d => d._id) } }, { projection: { email: 1, legalProfile: 1 } }).toArray()).map(a => [a._id, a]))
-      res.json({ items: docs.map(d => { const lp = accs.get(d._id)?.legalProfile; return { chatId: d._id, email: accs.get(d._id)?.email || null, business: lp?.companyName || null, registrationNumber: lp?.registrationNumber || null, country: lp?.address?.countryCode || null, ...pub(d) } }) })
+      const accs = new Map((await accounts.find({ _id: { $in: docs.map(d => Number(d._id)).filter(Boolean) } }, { projection: { email: 1, legalProfile: 1 } }).toArray()).map(a => [String(a._id), a]))
+      res.json({ items: docs.map(d => { const lp = accs.get(String(d._id))?.legalProfile; return { chatId: d._id, email: accs.get(String(d._id))?.email || null, business: lp?.companyName || null, registrationNumber: lp?.registrationNumber || null, country: lp?.address?.countryCode || null, ...pub(d) } }) })
     }))
     r.get('/admin/compliance/:chatId/file/:id', A, h(async (req, res) => {
-      const d = await of(Number(req.params.chatId))
+      const d = await of(String(req.params.chatId))
       const f = (d.company?.files || []).find(x => x.id === req.params.id)
       if (!f) return res.status(404).json({ error: 'not_found', message: 'File not found.' })
       res.set('Content-Type', f.type).set('Content-Disposition', `inline; filename="${f.name.replace(/"/g, '')}"`).send(await get(f.path))
     }))
     r.post('/admin/compliance/:chatId/company', A, h(async (req, res) => {
-      const chatId = Number(req.params.chatId)
+      const chatId = String(req.params.chatId)
       const approve = req.body?.decision === 'approve'
       const note = String(req.body?.note || '').slice(0, 500) || null
       if (!approve && !note) return res.status(400).json({ error: 'note_needed', message: 'Say why the papers were rejected.' })
@@ -141,9 +141,10 @@ function createCompliance({ db, h, adminRequire, notifyAdmin = () => {}, notify,
     if (isBusiness && d.company?.status !== 'approved') return d.company?.status === 'submitted' ? 'Your company papers are still being reviewed. You can buy this number once they are approved.' : 'This country needs approved company papers. Upload them in Settings → Compliance.'
     return null
   }
+  const acceptPolicy = (chatId, ip) => col.updateOne({ _id: String(chatId) }, { $set: { policy: { version: POLICY_VERSION, acceptedAt: new Date(), ip } } }, { upsert: true })
   const policyAccepted = async (chatId) => (await of(chatId)).policy?.version === POLICY_VERSION
 
-  return { routes, adminRoutes, webhook, state, idIssue, policyAccepted, POLICY_VERSION }
+  return { routes, adminRoutes, webhook, state, idIssue, policyAccepted, acceptPolicy, POLICY_VERSION }
 }
 
 module.exports = { createCompliance, POLICY_VERSION }

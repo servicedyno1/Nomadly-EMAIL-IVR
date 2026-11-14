@@ -175,7 +175,8 @@ export default function BuyNumber() {
   const avail = (id) => catalog.plans.find(p => p.id === id && p.available);
   const planObj = avail(plan) || avail(catalog.recommendedPlan) || catalog.plans.find(p => p.available);
   const total = extraOf ? (extra?.price || 0) : planObj ? planObj.price + (pick?.surcharge || 0) : 0;
-  const docsMissing = res?.paperwork?.level === 2 && !res.paperwork.documents?.ready;
+  const pc = res?.paperwork?.compliance;
+  const docsMissing = res?.paperwork?.level === 2 && (!res.paperwork.documents?.ready || (pc && (pc.identity?.status !== 'verified' || (pc.business && pc.company?.status !== 'approved'))));
   const fromParam = !saved && params.get('plan') && planObj?.id === params.get('plan');
 
   const search = async (e) => {
@@ -242,7 +243,7 @@ export default function BuyNumber() {
           <p className="text-xs text-[#a1a1aa] -mt-1 mb-3" data-testid="buy-plan-help">Each plan includes everything in the one before it. You can upgrade your Business Line later from its Billing tab.</p>
           <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} surcharge={pick.surcharge} />
           </>}
-          {needsProfile ? <BuyProfileGate /> : docsMissing ? <div className="civr-card p-5 text-sm text-[#fbbf24]" data-testid="buy-documents-required">Upload your documents above to buy this number.</div> : <Checkout key={`${pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}
+          {needsProfile ? <BuyProfileGate /> : docsMissing ? <div className="civr-card p-5 text-sm text-[#fbbf24]" data-testid="buy-documents-required">Finish the steps above (documents, ID check{pc?.business ? ', company papers' : ''}) to buy this number.</div> : <Checkout key={`${pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}
             textingOffer={extraOf ? null : textingOffer} coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `Extra number on ${pv.phone(extraOf)} · monthly` : null} autoRenewDefault={extraOf ? (parent ? parent.autoRenew !== false : true) : true} />}
         </div>
       )}

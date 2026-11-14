@@ -1,0 +1,44 @@
+{
+  "summary": "Tested the CloudIVR compliance module end to end (backend pytest with 18 tests, plus browser checks). Two CRITICAL bugs came from a chatId type mismatch in js/cloudivr-web/compliance.js. The customer routes store compliance docs with a String _id (req.webChatId = String(acc._id)), but adminRoutes and applySession used Number(chatId). (1) Admin approve and reject always returned 409 not_pending, opening a file returned 404, and the admin list had no email or business name. (2) The Stripe Identity result (refresh, return page and webhook) was written to a new doc with a Number _id, so the customer's ID check never changed to Verified. I fixed both (6 small edits, listed in updated_files) and restarted nodejs. After the fix all 18 backend tests pass. In the browser these all work: the policy gate, the sign-up checkbox, the Stripe TEST flow (changes to Verified after ?identity=done), company papers upload and submit, the admin Compliance tab (list, open file, reject needs a reason, approve, Approved filter), the Germany → National paperwork card with steps, document upload and remove, and the STOP opt-out error in Messages. One open logic bug: Stripe status requires_input is mapped to 'failed'.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/cloudivr-web/admin/compliance/:chatId/company and GET /admin/compliance/:chatId/file/:id", "issue": "FIXED BY TESTER: Number(req.params.chatId) did not match the String _id of compliance docs, so approve and reject always returned 409 and opening a file returned 404. The admin list also looked up accounts with String ids while webAccounts._id is a Number, so email and company were empty.", "priority": "CRITICAL"},
+      {"endpoint": "applySession (POST /compliance/identity/refresh, /stripe/webhook)", "issue": "FIXED BY TESTER: Number(metadata.chatId) upserted a separate doc with a Number _id, so the customer's identity status never changed to verified. Stale docs with Number _id remain in compliance: 5000000000000077 (uxtest, created by main agent's earlier curl). I left it in place and it does no harm.", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "applySession IDENTITY_MAP", "issue": "requires_input is mapped to 'failed'. Stripe creates every VerificationSession with status requires_input, so if the customer leaves Stripe early or a refresh runs right after creation, the status shows 'Not passed' with 'The check could not be completed.' even though nothing failed. Reproduced: refresh 300 ms after POST /compliance/identity gave status=failed. Map requires_input to failed only when s.last_error is set; otherwise use 'none' or 'pending'."},
+      {"endpoint": "POST /compliance/identity", "issue": "accounts.findOne({_id: req.webChatId}) used a String id against the Number _id, so provided_details.email was never sent to Stripe. Fixed by tester with Number(req.webChatId)."},
+      {"endpoint": "POST /auth/register", "issue": "The policy is accepted from the client after register (AuthPages calls /compliance/policy with .catch(() => {})). If that call fails, nothing is recorded; the PolicyGate does catch it later. Google and phone sign-ups have no checkbox and rely on the gate. Consider recording acceptance on the server inside the register handler (pass policyAccepted in the body)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PolicyGate modal", "issue": "The blocking modal shows an X close button that does nothing (onClose is a no-op). Escape also does nothing, which is correct. Hide the X for this blocking modal.", "selector": "[data-testid=policy-gate]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Buy level-2 number", "issue": "docsMissing in BuyNumber.js only looks at uploaded documents. Once documents are uploaded, Checkout appears even when the ID check is not verified or company papers are not approved, and the backend then rejects the purchase with paperwork_needed. Consider also hiding or disabling Checkout until paperwork.compliance is complete. Not checked end to end because Multitel search returns no numbers (known egress blocker).", "affected_selectors": ["[data-testid=buy-documents-required]"]},
+      {"flow": "Messages to an opted-out contact", "issue": "Works: the send fails with the 'replied STOP' message as a toast and inline. But the thread gives no warning beforehand and the composer stays enabled. Consider exposing optedOut in thread() and showing a banner.", "affected_selectors": ["[data-testid=composer-send]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_compliance_iter268.py", "/app/backend/tests/compliance_ui_helper.py", "/app/test_reports/pytest/iter268_compliance.xml"],
+  "action_items": [
+    "Review and keep the tester's chatId type fixes in js/cloudivr-web/compliance.js (String ids for compliance docs; Number only for webAccounts lookups)",
+    "Fix IDENTITY_MAP: map requires_input to 'failed' only when last_error is set",
+    "Optional: record policy acceptance on the server during register; hide the X on PolicyGate; gate Checkout on the compliance steps; show an opted-out banner in the Messages thread",
+    "Credentials file: civr.alice@example.com / AliceTest#2026 does not exist in the current DB (login fails with 'Wrong email or password'). Update /app/memory/test_credentials.md"
+  ],
+  "critical_code_review_comments": [
+    "compliance.js mixes chatId types. Keep a single rule: compliance and other collections use String(chatId); webAccounts uses Number(_id).",
+    "ComplianceAdmin openFile: the blob URL is never revoked (small memory leak). Call URL.revokeObjectURL after the window opens.",
+    "Webhook: res.json() is sent before applySession runs, which is fine. A signed Stripe webhook was not tested (no secret-signed payload); the refresh path was tested and works."
+  ],
+  "updated_files": ["/app/js/cloudivr-web/compliance.js", "/app/backend/tests/test_cloudivr_compliance_iter268.py", "/app/backend/tests/compliance_ui_helper.py"],
+  "success_rate": {"backend": "100% after tester fix (15/18 before fix)", "frontend": "100% of tested flows after fix"},
+  "test_credentials": "Created TEST users: test_gate1794672851@example.com / TestGate#2026 (chatId 5000000000000098: business DE profile, policy accepted, ID Verified through Stripe TEST, company papers Approved; kept for reuse). test_signup1794673141@example.com / TestSign#2026 (UI sign-up). Pytest creates test_comp<ts>@example.com / TestComp#2026 on each run. civr.alice credentials are invalid in the current DB.",
+  "seed_data_creation": "TEST accounts listed above. I removed the compliance docs and smsOptOuts entries I created for 5000000000000096 and 5000000000000097. Compliance doc 5000000000000098 is kept.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_cloudivr_compliance_iter268.py -p no:xdist. Each run registers a new user (register is limited to 15 per IP per 15 min). Restart the nodejs supervisor program after editing js/ (no hot reload). Stripe TEST verify page: click the 'Submit' button (Verification success preselected) and it redirects back to /cloudivr/app/settings?identity=done. Buy page: click buy-purpose-voice first; buy-type-select is a native <select>; buy-country-select is a Radix select (option testid buy-country-select-option-de). Multitel search returns empty (known), so buy-documents-required cannot be tested without a pick.",
+  "rca of the issue": "web auth sets req.webChatId = String(acc._id), so compliance docs get String _ids. compliance.js adminRoutes and applySession converted chatId with Number(), so the update and find filters never matched the customer doc. Reproduce (before fix): submit papers, then admin approve returns 409 not_pending; finish Stripe, then refresh and the status stays pending, while a doc with a Number _id appears. Mitigation applied: String() for compliance _id and Number() only for webAccounts queries."
+}

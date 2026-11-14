@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 
 // Dialog: centered (`side` = right-hand drawer from sm up), bottom sheet on phones. Esc or the backdrop closes it.
-export function Modal({ title, sub, onClose, children, footer, wide = false, side = false, testid }) {
+export function Modal({ title, sub, onClose, children, footer, wide = false, side = false, testid, hideClose = false }) {
   const box = useRef(null);
   const close = useRef(onClose);
   close.current = onClose;
@@ -26,7 +26,7 @@ export function Modal({ title, sub, onClose, children, footer, wide = false, sid
             <div className="font-display text-xl sm:text-2xl font-bold truncate" data-testid={`${testid}-title`}>{title}</div>
             {sub && <div className="text-sm text-[#a1a1aa] mt-1">{sub}</div>}
           </div>
-          <button type="button" onClick={() => close.current()} className="w-11 h-11 -mr-3 -mt-2 shrink-0 flex items-center justify-center rounded-full text-[#a1a1aa] hover:text-white hover:bg-white/5 transition-colors" aria-label="Close" data-testid={`${testid}-close-button`}><X className="w-5 h-5" /></button>
+          {!hideClose && <button type="button" onClick={() => close.current()} className="w-11 h-11 -mr-3 -mt-2 shrink-0 flex items-center justify-center rounded-full text-[#a1a1aa] hover:text-white hover:bg-white/5 transition-colors" aria-label="Close" data-testid={`${testid}-close-button`}><X className="w-5 h-5" /></button>}
         </div>
         <div className="overflow-y-auto overscroll-contain px-5 sm:px-6 py-5 flex-1">{children}</div>
         {footer && <div className="px-5 sm:px-6 py-4 border-t border-[#1f1f1f] flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pb-[max(1rem,env(safe-area-inset-bottom))]">{footer}</div>}

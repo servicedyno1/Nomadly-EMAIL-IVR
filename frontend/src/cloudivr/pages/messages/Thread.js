@@ -63,6 +63,7 @@ function Header({ t, onBack, reload, onNotes }) {
 
 function Footer({ t, onSent, seed, reload }) {
   if (t.blocked) return <ReceiveOnly text="You blocked this contact. Unblock them to text." />;
+  if (t.optedOut) return <ReceiveOnly text="This person replied STOP, so you can’t text them. They can reply START to get your texts again." />;
   if (t.number.kind === 'texting') return <ReceiveOnly text="This number receives texts only" />;
   if (t.number.kind === 'esim' && !t.number.mobile && !t.replyFrom) return <ReceiveOnly text="A QR eSIM sends and receives texts on your phone. Older texts stay here to read." />;
   if (!t.replyFrom) return <ReceiveOnly text="This number can’t send texts right now." />;

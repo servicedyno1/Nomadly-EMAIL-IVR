@@ -112,8 +112,7 @@ export function AuthPage({ mode }) {
   const submit = async (e) => {
     e.preventDefault(); setBusy(true); setError(null);
     try {
-      const d = await api(signup ? '/auth/register' : '/auth/login', { method: 'POST', body: { ...f, remember, ...(signup && refCode ? { ref: refCode } : {}) } });
-      if (signup) await api('/compliance/policy', { method: 'POST', body: { accept: true } }).catch(() => {});
+      const d = await api(signup ? '/auth/register' : '/auth/login', { method: 'POST', body: { ...f, remember, ...(signup ? { acceptPolicy: policy } : {}), ...(signup && refCode ? { ref: refCode } : {}) } });
       if (d.twoFactor) setMfa(d.twoFactor); else done(d);
     } catch (err) { setError(err); } finally { setBusy(false); }
   };

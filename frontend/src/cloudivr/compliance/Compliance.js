@@ -34,7 +34,7 @@ export function PolicyGate({ ready = true }) {
   if (!ready || account?.profileDue || !state || state.policy?.accepted) return null;
   const accept = async () => { setBusy(true); setErr(null); try { setState(await api('/compliance/policy', { method: 'POST', body: { accept: true } })); } catch (e) { setErr(e); } finally { setBusy(false); } };
   return (
-    <Modal title="CloudIVR usage policy" sub="Carriers hold us to these rules for every call and text. Please read and accept them to keep using CloudIVR." onClose={() => {}} testid="policy-gate">
+    <Modal title="CloudIVR usage policy" sub="Carriers hold us to these rules for every call and text. Please read and accept them to keep using CloudIVR." onClose={() => {}} hideClose testid="policy-gate">
       <PolicyList />
       <label className="flex items-start gap-3 mt-5 text-sm cursor-pointer">
         <input type="checkbox" checked={ok} onChange={e => setOk(e.target.checked)} className="mt-1" data-testid="policy-gate-checkbox" />
