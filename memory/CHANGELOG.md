@@ -3087,3 +3087,18 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - LIVE SIP server 188.166.34.29: added [multitel-out] endpoint (backup /root/pjsip_multitel.conf.bak-*), res_pjsip reloaded with 0 active calls.
   Test call to +18648308599 → Multitel 403 "Source IP address is not authorized: 862". IP not yet in Multitel Termination IPs.
   CALL_ENGINE_BACKUP_TRUNK still unset → Bird→Multitel backup inactive.
+
+## 2026-11-14 (later) — flags, insights, SIP caller choice, system caller rotation, provider tests (iter 276/277 pass)
+- Flags (flag-icons, not emoji): Travel eSIM zones/plans/orders (zone codes from Bird /zones), Intl Texting, My numbers, number page, Messages, call logs, lookup result + history, address/CountryFix/fax country selects (FlagSelect).
+- Admin → Signup insights tab (GET /admin/signup-insights?days=7|30|90): sources, campaigns, devices, needs, funnel, exits.
+- PROD: GOOGLE_MAPS_API_KEY was missing in /opt/nomadly/shared/app-main/backend.env → added (backup .bak.gmaps.*), app-main-a restarted at 0 calls; Places autocomplete verified.
+- PROD: Bird travel eSIM (esm_01m7ajppa1f809sj43gq9v45rp, NL +3197033451822) imported for onarrival21@gmail.com (travelEsims tes_bird_eor01m7ajpn, price 0). Visible after Travel eSIM is published.
+- Bought MultiTEL NL mobile +3197010278502 ($1.11/mo): on PROD onarrival21 (calls) + preview uxtest copy (sms_uri → preview). Prod release lacks js/multitel → texts need publish.
+- MultiTEL outbound SMS: 403 "Messaging API access has not been approved" (user requested approval). api() no longer 6h-blocks on NOT_APPROVED 403; customer sees "Texting from this number isn't switched on yet".
+- MultiTEL termination: 403 "Source IP address is not authorized" → add 188.166.34.29 at https://my.multi.tel/trunks/authorized-ips. Docs host sbc-us.multitel.net.
+- Bought Infobip GB SMS-only +447860089499 (€2.71/mo). Test text to +316844448264 → REJECTED_ROUTE_NOT_AVAILABLE / EC_ACCOUNT_NOT_PROVISIONED_FOR_CHANNEL (Infobip SMS channel not enabled). New /infobip/sms-dlr/:key → status + auto refund (verified $0.28 refunded). buyNumber skips voice on SMS-only numbers.
+- System caller rotation SYSTEM_CALLER_IDS (default +18648308599,+16479457172) for web/bot Quick IVR trial + landing test call; picks logged in systemCallerPicks (only after validation). Infobip-owned caller IDs dial via Infobip before SignalWire.
+- SIP "Calls from": GET/PUT /numbers/:phone/sip/caller-id (main sipCallerId, extra login callerId); voice-service findNumberBySipUser resolves to chosen number (its plan/minutes/rates).
+- Extra SIP finding: outbound from extra logins billed same as main (same number record). Inbound calls ring only the main login (extras don't ring) — open item.
+- IMEI: Bird has no device API; Spenza /devices/{imei} only for account devices, validate-imei 401, site checker is by model. Needs TAC DB (IMEI.info ~$0.02/check or HiCellTek).
+- Fax: Infobip has no fax. MultiTEL supports T.38 + FaxDetect/FaxEmail + fax APIs; our Asterisk has res_fax_spandsp (T.38 receive/send). Not wired yet.

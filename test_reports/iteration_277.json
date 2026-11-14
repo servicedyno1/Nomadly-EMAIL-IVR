@@ -1,0 +1,52 @@
+{
+  "summary": "Iteration 277: tested system caller rotation + systemCallerPicks logging, SIP 'calls from' caller-id API + UI (main + extra logins), Infobip SMS DLR webhook (bad key / UNDELIVERABLE refund / idempotency / DELIVERED), Travel eSIM zone codes + flags, admin signup insights, regressions (home/numbers/travel/admin, no console errors). All requested features work. Only minor issues found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/calls/trial (outbound.js buildCall L189)", "issue": "getTrialCaller() runs BEFORE target validation, so a rejected request (e.g. to='12' → 400 invalid_number) still inserts a systemCallerPicks doc and advances the rotation. Verified: invalid request logged '+18648308599 chat=5000000000000901 to=12'. Move the pick after parseTargets/E164/dialIssue checks (or after the trial claim)."},
+      {"endpoint": "POST /api/cloudivr-web/public/try/call-me (trycall.js L111)", "issue": "Same: pick is logged before showAs validation; invalid showAs → 400 but a landing_test_call pick is logged."},
+      {"endpoint": "bot Quick IVR trial (_index.js ~L26416)", "issue": "Pick logged when the user merely opens the trial flow (before entering a target); abandoned flows pollute systemCallerPicks and the bot shows a caller ID that may not be the one actually used if another pick happens in between? (callerId saved in state, so OK) — logging-only concern."},
+      {"endpoint": "GET /api/cloudivr-web/calls/trial", "issue": "trialStatus.callerId always returns SYSTEM_CALLERS()[0] (+18648308599) while the actual trial call may use +16479457172 — UI can show the wrong caller ID."},
+      {"endpoint": "PUT /api/cloudivr-web/numbers/:phone/sip/caller-id", "issue": "Unknown loginId returns 200 {ok:true} with no change (should be 404). PUT validation doesn't check capabilities.voice !== false while GET options do — an SMS-only number of the owner can be set via API."},
+      {"endpoint": "js/voice-service.js findNumberBySipUser via()", "issue": "Code review: via() is fine (alt must be same owner + status active). Note a login on a SUSPENDED number with sipCallerId pointing to an active number still resolves (pre-existing suspended match) and will call/bill via the other number — confirm this is intended."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SIP tab credentials", "issue": "Username row is blank for +13341112222 (API sipUsername null on this seed number); show '—' or a 'Generate credentials' hint instead of empty value. Likely seed-data, pre-existing.", "selector": "SIP credentials card", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Number detail SIP tab", "issues": ["'Main SIP login' card title is smaller/plainer (font-semibold, no icon) than sibling cards' headings (SIP credentials, Extra SIP logins) — visually inconsistent"]},
+      {"screen": "Admin signup insights", "issues": ["Funnel bar for 0 value ('Signed up (tracked visits)' = 0) still renders a small filled stub; funnel is non-monotonic (Added money 10% > Signed up 0%) which may confuse even with the new label"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_sip_caller_id.py",
+    "/app/backend/tests/infobip_dlr_and_caller_test.js",
+    "/app/backend/tests/trial_caller_pick_test.js",
+    "/app/backend/tests/admin_insights_check.py",
+    "/app/test_reports/pytest/pytest_results_277.xml"
+  ],
+  "action_items": [
+    "Move getTrialCaller() calls after input validation in outbound.js buildCall and trycall.js call-me (and ideally bot trial: after target entered) so systemCallerPicks only records real picks",
+    "Make trialStatus callerId reflect the actual caller (or say 'one of our numbers')",
+    "PUT /sip/caller-id: 404 for unknown loginId; apply same voice-capability filter as GET"
+  ],
+  "critical_code_review_comments": [
+    "Rotation counter `rot` is in-process memory; multiple node instances will each alternate independently (fine for preview, note for prod).",
+    "DLR route maps REJECTED/UNDELIVERABLE/EXPIRED → delivery_failed → 'failed' + refund; PENDING groups ignored — correct. Idempotent via status $in ['sent','unconfirmed'] filter + deterministic smsref-<id> _id.",
+    "Infobip buyNumber skips voice forwarding only when capabilities array exists without VOICE — OK."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_sip_caller_id.py",
+    "/app/backend/tests/infobip_dlr_and_caller_test.js",
+    "/app/backend/tests/trial_caller_pick_test.js",
+    "/app/backend/tests/admin_insights_check.py"
+  ],
+  "success_rate": {"backend": "100% (11/11 DLR+rotation node checks, 7/7 caller-id/eSIM pytest incl. extra-login create/set/delete, insights OK)", "frontend": "100%"},
+  "seed_data_creation": "None persisted. Temporary: 2 fake phoneLogs (test-dlr-1/2) + smsref tx deleted, wallet 5000000000000077 usdIn reversed by 0.1; TEST_ extra SIP logins created & deleted on +13341112222; main/extra caller IDs restored to default (main=null); one dry-run webTryCalls doc deleted; test systemCallerPicks (TEST_rot and my landing/trial picks) deleted. Bob's Quick IVR trial NOT consumed (only invalid request sent).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login via API returns cookie (no token) for /auth/login; admin /admin/login returns devCode in preview, /admin/verify. Landing try-call can be tested by signing a JWT {email,k:'try'} with sha256('try:'+auth.secret()) (see trial_caller_pick_test.js). uxtest numbers: +13341112222, +13343334444, +12024595976 (all in caller-id options). Logs show a real Infobip DLR (REJECTED EC_ACCOUNT_NOT_PROVISIONED_FOR_CHANNEL) for a text from +447860089499 → +316844448264 earlier — not from this tester."
+}

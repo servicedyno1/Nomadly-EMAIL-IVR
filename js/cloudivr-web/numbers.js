@@ -753,7 +753,8 @@ function routes(router, deps) {
     const pick = req.body?.callerId ? String(req.body.callerId) : null, loginId = req.body?.loginId ? String(req.body.loginId) : null
     const doc = await phoneNumbersOf.findOne({ _id: req.webChatId })
     const all = doc?.val?.numbers || []
-    if (pick && pick !== req.num.phoneNumber && !all.some(x => x.phoneNumber === pick && x.status === 'active' && x.provider !== 'signalwire_fax')) return bad(res, 400, 'invalid_caller', 'Pick one of your active numbers.')
+    if (pick && pick !== req.num.phoneNumber && !all.some(x => x.phoneNumber === pick && x.status === 'active' && x.provider !== 'signalwire_fax' && x.capabilities?.voice !== false)) return bad(res, 400, 'invalid_caller', 'Pick one of your active numbers that can make calls.')
+    if (loginId && !(req.num.extraSip || []).some(e => e.id === loginId)) return bad(res, 404, 'not_found', 'SIP login not found on this number.')
     const value = pick === req.num.phoneNumber ? null : pick
     const nums = all.map(x => (x.phoneNumber !== req.num.phoneNumber ? x : loginId ? { ...x, extraSip: (x.extraSip || []).map(e => (e.id === loginId ? { ...e, callerId: value } : e)) } : { ...x, sipCallerId: value }))
     await phoneNumbersOf.updateOne({ _id: req.webChatId }, { $set: { 'val.numbers': nums } })

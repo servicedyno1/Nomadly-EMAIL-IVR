@@ -24,5 +24,5 @@ export function CallsFrom({ num, loginId = null, value, testid, card = false }) 
     </label>
   );
   if (!card) return row;
-  return <div className="lg:col-span-3 civr-card p-5" data-testid={`${testid}-card`}><div className="font-semibold mb-2">Main SIP login</div>{row}<p className="text-xs text-[var(--c-muted)] mt-2">Outgoing calls use the chosen number’s plan, minutes and rates.</p></div>;
+  return <div className="lg:col-span-3 civr-card p-5" data-testid={`${testid}-card`}><div className="flex items-center gap-2 mb-3"><PhoneOutgoing className="w-5 h-5 text-[#818cf8]" /><div className="font-display text-xl font-bold">Main SIP login</div></div>{row}<p className="text-xs text-[var(--c-muted)] mt-2">Outgoing calls use the chosen number’s plan, minutes and rates.</p></div>;
 }

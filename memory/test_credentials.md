@@ -263,3 +263,8 @@
 - civr.alice@example.com / AliceTest#2026 — chatId 5000000000000900, wallet $380, numbers: +13346970100 (Business, dry-run), +13346970101 (Starter/standard, dry-run)
 - civr.bob@example.com / BobTest#2026 — chatId 5000000000000901, wallet $500, no numbers
 - civr.uxtest@example.com / UxTest#2026 still works
+
+## Real provider test numbers (2026-11-14) — never release without owner OK
+- MultiTEL NL mobile +3197010278502 — PROD on onarrival21@gmail.com (chat 5000000000000002); preview copy on civr.uxtest (5000000000000077).
+- Infobip GB SMS-only +447860089499 — preview civr.uxtest. Infobip CA +16479457172 + MultiTEL US +18648308599 = system caller rotation.
+- Owner's test phone for texts: +316844448264 (as given; looks 1 digit long for NL).
