@@ -30,11 +30,19 @@ function publicRoutes(r, { db, h, log, A }) {
   r.post('/admin/esim/webhook', A, h(async (req, res) => out(res, await ES.registerWebhook(process.env.SELF_URL_PROD || process.env.SELF_URL))))
 }
 
-function routes(r, { h }) {
+function routes(r, { h, legalProfile }) {
   r.get('/esim', h(async (req, res) => res.json({ plans: await ES.plansForCustomers().catch(() => []), items: await ES.list(req.webChatId), textPrice: ES.TEXT_PRICE, replacePrice: ES.REPLACE_PRICE })))
   r.get('/mobile-numbers', h(async (req, res) => res.json({ ...(await ES.mobileOffer()), items: await ES.list(req.webChatId, 'mobile') })))
-  r.post('/mobile-numbers', h(async (req, res) => out(res, await ES.buyMobile(req.webChatId, req.body || {}))))
-  r.post('/esim', h(async (req, res) => out(res, await ES.buy(req.webChatId, { ...(req.body || {}), source: 'web' }))))
+  r.post('/mobile-numbers', h(async (req, res) => {
+    const x = await ES.buyMobile(req.webChatId, req.body || {})
+    if (!x?.error) await legalProfile?.recordResale({ chatId: req.webChatId, phoneNumber: x?.item?.phoneNumber || null, provider: 'spenza-mobile', country: 'US', lineId: x?.item?.id })
+    out(res, x)
+  }))
+  r.post('/esim', h(async (req, res) => {
+    const x = await ES.buy(req.webChatId, { ...(req.body || {}), source: 'web' })
+    if (!x?.error) await legalProfile?.recordResale({ chatId: req.webChatId, phoneNumber: x?.item?.phoneNumber || null, provider: 'spenza-esim', country: 'US', lineId: x?.item?.id })
+    out(res, x)
+  }))
   r.post('/esim/:id/imei', h(async (req, res) => out(res, await ES.submitImei(req.webChatId, req.params.id, req.body?.imei))))
   r.get('/esim/:id/qr', h(async (req, res) => out(res, await ES.qr(req.webChatId, req.params.id))))
   r.get('/esim/:id/usage', h(async (req, res) => out(res, await ES.lineUsage(req.webChatId, req.params.id))))

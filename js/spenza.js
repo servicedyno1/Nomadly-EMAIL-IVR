@@ -112,9 +112,14 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 const privateEmail = (chatId) => `u${chatId}@users.${String(process.env.CLOUDIVR_WEB_DOMAIN || '').trim().toLowerCase() || 'cloudivr.net'}`
 // Bot buyers have no web account: the email they gave at checkout (if any) is their Spenza user email.
 async function spenzaUser(chatId, botEmail) {
-  const acc = await S.db.collection('webAccounts').findOne({ _id: { $in: [String(chatId), Number(chatId)] } }, { projection: { email: 1, name: 1, phone: 1 } })
+  const acc = await S.db.collection('webAccounts').findOne({ _id: { $in: [String(chatId), Number(chatId)] } }, { projection: { email: 1, name: 1, phone: 1, legalProfile: 1 } })
   const email = acc?.email || botEmail || privateEmail(chatId)
-  return { email, name: String(acc?.name || '').trim() || 'CloudIVR customer', private: !acc?.email && !botEmail, ...(acc?.phone ? { phoneNumber: acc.phone.replace(/^\+1/, '').replace(/\D/g, '') } : {}) }
+  // Legal holder from the customer's profile (business name or full legal name); US street address when it is in the USA.
+  const lp = acc?.legalProfile?.completedAt ? acc.legalProfile : null
+  const holder = lp ? String(lp.type === 'business' ? lp.companyName : lp.fullName || '').trim() : ''
+  const a = lp?.address?.countryCode === 'US' ? lp.address : null
+  const addr = a ? { address: [a.line1, a.line2].filter(Boolean).join(', '), city: a.city, ...(a.region ? { state: a.region } : {}) } : {}
+  return { email, name: holder || String(acc?.name || '').trim() || 'CloudIVR customer', private: !acc?.email && !botEmail, ...(acc?.phone ? { phoneNumber: acc.phone.replace(/^\+1/, '').replace(/\D/g, '') } : {}), addr }
 }
 const botEmailOf = (d) => d.source === 'telegram' ? d.qrEmail || null : null
 // Assign one line's SIM to its owner's Spenza user (creates the user if new). Recorded on the line and the account.
@@ -128,6 +133,18 @@ async function linkUser(d) {
   return true
 }
 // Account email added/changed: move every line to the Spenza user for the new email.
+// The carrier assigned the number: fill it into the line's resale record.
+const resaleNumber = (lineId, phone) => { if (phone) S.db.collection('numberResaleRecords').updateMany({ lineId, phoneNumber: null }, { $set: { phoneNumber: phone } }).catch(() => {}) }
+// Customer saved / changed their legal details: update their Spenza user (only if they already have one).
+async function syncProfile(chatId) {
+  const acc = await S.db.collection('webAccounts').findOne({ _id: { $in: [String(chatId), Number(chatId)] } }, { projection: { spenzaUser: 1 } })
+  const email = acc?.spenzaUser?.email
+  if (!email || dry()) return false
+  const u = await spenzaUser(chatId)
+  await call('put', `/api/v1.1/users/${encodeURIComponent(email)}`, { name: u.name, ...u.addr })
+  S.log(`[Spenza] profile synced for ${chatId}`)
+  return true
+}
 async function syncUser(chatId) {
   for (const d of await S.col.find({ chatId: String(chatId), status: { $in: ['active', 'suspended'] }, iccid: { $ne: null } }).toArray()) await linkUser(d).catch(e => S.log(`[Spenza] user sync ${d._id}: ${e.message}`))
 }
@@ -161,7 +178,7 @@ async function provision(doc) {
   if (dry()) { await S.col.updateOne({ _id }, { $set: { transactionId: 'preview-' + _id, simulated: true } }); return { item: pub(doc) } }
   try {
     const u = await spenzaUser(chatId, doc.source === 'telegram' ? doc.qrEmail || null : null)
-    const r = await call('post', '/api/v1.1/esim', { imei: im, simId, planId, activateNow: true, email: u.email, user: { name: u.name, email: u.email, ...(u.phoneNumber ? { phoneNumber: u.phoneNumber } : {}), ...(zip ? { zipcode: zip } : {}) }, ...(zip ? { zipcode: zip } : {}) }, { 'Idempotency-Key': _id })
+    const r = await call('post', '/api/v1.1/esim', { imei: im, simId, planId, activateNow: true, email: u.email, user: { name: u.name, email: u.email, ...(u.phoneNumber ? { phoneNumber: u.phoneNumber } : {}), ...u.addr, ...(zip ? { zipcode: zip } : {}) }, ...(zip ? { zipcode: zip } : {}) }, { 'Idempotency-Key': _id })
     await S.col.updateOne({ _id }, { $set: { transactionId: r?.data?.transactionId || r?.transactionId, spenzaUser: { email: u.email, private: u.private } } })
     return { item: pub(doc) }
   } catch (e) {
@@ -245,7 +262,7 @@ async function buyMobile(chatId, { zipcode, autoRenew, charge = MOBILE_PRICE }) 
   if (dry()) { await S.col.updateOne({ _id }, { $set: { transactionId: 'preview-' + _id, simulated: true } }); await referral(); return { item: pub(doc) } }
   try {
     const u = await spenzaUser(chatId)
-    const r = await call('post', '/api/v1.1/esim', { imei: im, simId: plan.simId, planId: plan.planId, activateNow: true, zipcode: zip, email: u.email, user: { name: u.name, email: u.email, zipcode: zip, ...(u.phoneNumber ? { phoneNumber: u.phoneNumber } : {}) } }, { 'Idempotency-Key': _id })
+    const r = await call('post', '/api/v1.1/esim', { imei: im, simId: plan.simId, planId: plan.planId, activateNow: true, zipcode: zip, email: u.email, user: { name: u.name, email: u.email, ...u.addr, zipcode: zip, ...(u.phoneNumber ? { phoneNumber: u.phoneNumber } : {}) } }, { 'Idempotency-Key': _id })
     await S.col.updateOne({ _id }, { $set: { transactionId: r?.data?.transactionId || r?.transactionId, spenzaUser: { email: u.email, private: u.private } } })
     await referral()
     return { item: pub(doc) }
@@ -290,6 +307,7 @@ async function pollOne(d) {
     const iccid = '8901' + String(Date.now()).slice(-15)
     const phone = '+1555' + String(Date.now()).slice(-7)
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', iccid, phoneNumber: phone, qrCode: `LPA:1$preview.spenza.test$${d._id}`, ...period(new Date(Date.now() + MONTH_MS)), updatedAt: new Date() } })
+    resaleNumber(d._id, phone)
     return d.kind === 'mobile' ? ready(d, phone) : isBot(d.chatId) ? botReady({ ...d, phoneNumber: phone }) : emailQr({ ...d, phoneNumber: phone })
   }
   const r = await axios.get(`${API}/api/v3/transactions/${encodeURIComponent(d.transactionId)}`, { timeout: 15000 }).then(x => x.data?.data).catch(() => null)
@@ -297,6 +315,7 @@ async function pollOne(d) {
   if (['completed', 'succeeded', 'success'].includes(st)) {
     const x = r.result || {}
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', iccid: x.iccid || null, phoneNumber: x.mdn ? (String(x.mdn).startsWith('+') ? x.mdn : '+1' + String(x.mdn).replace(/\D/g, '').slice(-10)) : null, qrCode: x.qrCode || null, orderId: x.orderId || null, providerResult: x, ...period((x.iccid && await subEnd(x.iccid, d._id)) || new Date(Date.now() + MONTH_MS)), updatedAt: new Date() } })
+    resaleNumber(d._id, x.mdn ? (String(x.mdn).startsWith('+') ? x.mdn : '+1' + String(x.mdn).replace(/\D/g, '').slice(-10)) : null)
     if (d.kind === 'mobile') return ready(d, x.mdn ? '+1' + String(x.mdn).replace(/\D/g, '').slice(-10) : null)
     if (isBot(d.chatId)) return botReady({ ...d, phoneNumber: x.mdn ? '+1' + String(x.mdn).replace(/\D/g, '').slice(-10) : null })
     const sent = await emailQr({ ...d, phoneNumber: x.mdn || null })
@@ -671,5 +690,5 @@ function init({ db, log = console.log, tell }) {
   return api
 }
 
-const api = { init, setBot, sendBotQr, tick, syncUser, linkUser, receiptsOf, MOBILE_PRICE, bundlePrice, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, submitImei, imeiChase, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
+const api = { init, setBot, sendBotQr, tick, syncUser, syncProfile, linkUser, receiptsOf, MOBILE_PRICE, bundlePrice, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, submitImei, imeiChase, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
 module.exports = api

@@ -71,10 +71,13 @@ function createCloudIvrWeb(deps) {
     emails.publicRoutes(r, { h })
     emails.start()
     ai.publicRoutes(r, { h })
+    // Resend inbound email webhook (no auth — Resend calls this)
+    const inboundEmail = require('./inbound-email').createInboundEmail(db)
     // Owner admin dashboard (own sign-in, before the customer session check).
     const adminAuth = require('./admin-auth').createAdminAuth(db, { log })
     adminAuth.routes(r, h)
     require('./admin').createAdmin(db, { log, bulkCallService: deps.bulkCallService, adminAuth }).routes(r, h)
+    inboundEmail.routes(r, h, adminAuth.require)
     require('./esim').publicRoutes(r, { db, h, log, A: adminAuth.require })
     require('./media').publicRoutes(r, { db, h })
     require('./fax').publicRoutes(r, { db, h })
@@ -88,7 +91,11 @@ function createCloudIvrWeb(deps) {
         require('../scam-watch').watch({ chatId: req.webChatId, who: req.webUser?.email, where: `CloudIVR web ${req.method} ${req.path}`, data: req.body })
       next()
     })
-    require('./esim').routes(r, { h })
+    // Personal / business details: required before any number checkout.
+    const legalProfile = require('./legal-profile').createLegalProfile(db, { log })
+    legalProfile.routes(r, h)
+    r.post(['/numbers/buy', '/numbers/checkout', '/numbers/:phone/extra-checkout', '/numbers/:phone/extra', '/numbers/:phone/replace', '/fax-numbers', '/mobile-numbers', '/esim', '/numbers/request'], legalProfile.gate)
+    require('./esim').routes(r, { h, legalProfile })
     const offers = createOffers(db, { log })
     offers.routes(r, { h })
     offersRef = offers
@@ -96,8 +103,12 @@ function createCloudIvrWeb(deps) {
     wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit, offers, cryptoPerUsd: deps.cryptoPerUsd })
     // Orders go first so /numbers/orders is not caught by /numbers/:phone; numbersApi is filled in right after.
     const numbersApi = {}
+    // Infobip request-based countries (pay now, number assigned after Infobip approves; refund if declined).
+    const numberRequests = require('./number-requests').createNumberRequests({ db, h, phoneConfig: require('../phone-config'), numbersApi, walletOps: require('./wallet').walletOps, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, log, dryRun: () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true' })
+    numberRequests.routes(r)
+    require('../active-slot').singletonInterval('cloudivr-number-requests', () => numberRequests.tick().catch(e => log(`[NumberRequest] tick: ${e.message}`)), process.env.WEB_CLOUDIVR_DRY_RUN === 'true' ? 60000 : 10 * 60000)
     orders.routes(r, { ...deps, db, h, numbersApi, sendMail, offers })
-    Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h, offers }))
+    Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h, offers, legalProfile }))
     verification.routes(r, { ...deps, db, h, upload })
     audio.routes(r, { ...deps, db, h, upload })
     outbound.routes(r, { ...deps, db, h, numbersApi })
@@ -123,7 +134,7 @@ function createCloudIvrWeb(deps) {
     incoming.routes(r, { ...deps, db, h, numbersApi, smsReply })
     textTriggers.routes(r, { ...deps, db, h, numbersApi })
     ringGroup.routes(r, { h, numbersApi })
-    require('./fax').routes(r, { db, h, upload, numbersApi, notifyAdmin: deps.notifyAdmin })
+    require('./fax').routes(r, { db, h, upload, numbersApi, notifyAdmin: deps.notifyAdmin, legalProfile })
     webhooks.routes(r, { db, h, log })
     aiSummary.routes(r, { ...deps, db, h, numbersApi })
     emails.routes(r, { h })

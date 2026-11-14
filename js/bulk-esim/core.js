@@ -857,18 +857,13 @@ let lookupHook = null
 const setLookup = (fn) => { lookupHook = fn }
 const swLookup = () => require('../signalwire')
 const lookupLive = () => (swLookup().enabled() || require('../telnyx-fax-account').enabled()) && (!P.dry() || process.env.BULK_ESIM_LOOKUP_LIVE === 'true')
-// SignalWire lookup first, Telnyx as backup.
+// Bird lookup first (then SignalWire / AWS / Infobip) — Telnyx removed.
 async function lookupOne(p) {
   if (lookupHook) return lookupHook(p)
   if (!lookupLive()) { const n = Number(p.slice(-4)); return { type: n >= 9900 && n < 9950 ? 'fixed line' : n >= 9950 ? 'voip' : 'mobile', simulated: true } }
   const sw = await swLookup().lookup(p)
   if (sw) return { type: sw.valid === false ? 'invalid' : sw.type, carrier: sw.carrier && sw.carrier !== 'unknown' ? sw.carrier : null }
-  // (swLookup().lookup already falls back to Infobip)
-  const acct = require('../telnyx-fax-account')
-  if (!acct.enabled()) throw new Error('number lookup unavailable')
-  const r = await axios.get(`${acct.BASE}/number_lookup/${encodeURIComponent(p)}`, { params: { type: 'carrier' }, headers: acct.headers(), timeout: 15000 })
-  const d = r.data?.data || {}
-  return { type: d.valid_number === false ? 'invalid' : String(d.carrier?.type || 'unknown').toLowerCase(), carrier: d.carrier?.normalized_carrier || d.carrier?.name || null }
+  throw new Error('number lookup unavailable')
 }
 async function checkNumbers(cid, list) {
   const c = await cfg(), res = new Map(); let looked = 0, failed = 0, why = ''

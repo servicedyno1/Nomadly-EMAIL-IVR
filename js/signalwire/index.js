@@ -137,8 +137,9 @@ function wrap(t) {
   // SignalWire rate limits re-queue the lead, like Telnyx's line limit.
   w.isLineLimitError = (r) => (['signalwire', 'infobip', 'callengine'].includes(r?._provider) ? r.status === 429 || r.status === 503 : !!t.isLineLimitError?.(r))
 
-  // New numbers: Telnyx (calls come in by SIP trunk to our SIP server) → SignalWire → Infobip → Telnyx old account.
+  // New numbers: Infobip (default for local numbers) → Telnyx SIP → SignalWire → Infobip → Telnyx old account.
   w.searchNumbers = async (countryCode, numberType, areaCode, limit = 5) => {
+    if (ib.enabled() && (!numberType || numberType === 'local')) { const r = await ib.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
     if (txs.enabled()) {
       const r = await txs.searchNumbers(countryCode, numberType, areaCode, limit, rest.AREA_REGION[Number(areaCode)] || null)
       if (r.length) return r
@@ -191,6 +192,7 @@ function wrap(t) {
   }
   w.listNumbers = async () => [...(swOn() ? await rest.listNumbers() : []), ...((await t.listNumbers().catch(() => [])) || [])]
   w.assignNumberToCallControlApp = async (phoneNumber, appId) => {
+    if (ib.enabled() && (await ib.refreshOwned()).includes(phoneNumber)) return true // routed to our calls config when bought
     if (txs.enabled()) { await txs.refreshOwned(); if (txs.ownsNumber(phoneNumber)) { ce.setDidApps([phoneNumber]); return true } }
     if (swOn()) { await rest.refreshOwned(); if (rest.ownsNumber(phoneNumber)) return rest.assignNumber(phoneNumber) }
     return t.assignNumberToCallControlApp(phoneNumber, appId)
@@ -212,10 +214,9 @@ function wrap(t) {
   }
 
   w.validateForwardingDestination = async (toNumber) => {
-    if (swOn() && /^\+1/.test(String(toNumber))) { const r = await rest.lookup(toNumber); if (r) return r }
-    const r = (await bird.lookup(toNumber)) || (await aws.lookup(toNumber)) || (await ib.lookup(toNumber))
-    if (r) return r
-    return t.validateForwardingDestination(toNumber)
+    const r = (await bird.lookup(toNumber)) || (swOn() && /^\+1/.test(String(toNumber)) ? await rest.lookup(toNumber) : null) || (await aws.lookup(toNumber)) || (await ib.lookup(toNumber))
+    // No lookup answered: don't block the customer (Telnyx lookup removed — account blocked).
+    return r || { valid: true, country: 'unknown', carrier: 'unknown', type: 'unknown' }
   }
 
   w.initializeTelnyxResources = async (...a) => {
@@ -226,7 +227,7 @@ function wrap(t) {
 }
 
 // Number lookup for list screening: SignalWire → Bird → AWS → Infobip → Telnyx fax account → { type, carrier } | null
-const lookup = async (e164) => (swOn() ? await rest.lookup(e164) : null) || (await bird.lookup(e164)) || (await aws.lookup(e164)) || (await ib.lookup(e164)) || require('../telnyx-fax-account').lookup(e164)
+const lookup = async (e164) => (await bird.lookup(e164)) || (swOn() ? await rest.lookup(e164) : null) || (await aws.lookup(e164)) || (await ib.lookup(e164))
 
 // Texts: SignalWire when it owns the sending number, else null (caller keeps its Telnyx path).
 async function sendSms(from, to, text, mediaUrls = []) {

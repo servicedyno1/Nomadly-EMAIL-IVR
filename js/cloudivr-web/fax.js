@@ -4,10 +4,10 @@ const fax = require('../fax-service')
 const phoneConfig = require('../phone-config')
 
 const bad = (res, status, error, message, extra = {}) => res.status(status).json({ error, message, ...extra })
-const STATUS = { plan_upgrade_required: 403, insufficient_balance: 402, expired: 410, unavailable: 503, send_failed: 502, not_running: 409, not_found: 404, fax_only: 409 }
+const STATUS = { plan_upgrade_required: 403, insufficient_balance: 402, expired: 410, unavailable: 503, send_failed: 503, not_running: 409, not_found: 404, fax_only: 409 }
 const fail = (res, e) => (e instanceof fax.FaxError ? bad(res, STATUS[e.code] || 400, e.code, e.message) : Promise.reject(e))
 
-function routes(router, { db, h, upload, numbersApi, notifyAdmin }) {
+function routes(router, { db, h, upload, numbersApi, notifyAdmin, legalProfile }) {
   if (!fax.isReady()) fax.init({ db })
   const faxNums = require('../fax-numbers').create(db, { notifyAdmin, push: (id, text) => require('./notify').push(id, text, null, { kind: 'fax' }) })
   const faxOnly = (chatId) => db.collection('faxNumbers').find({ chatId: String(chatId), status: { $ne: 'released' } }).toArray()
@@ -16,7 +16,12 @@ function routes(router, { db, h, upload, numbersApi, notifyAdmin }) {
 
   router.get('/fax-numbers', h(async (req, res) => res.json({ ...faxNums.offer(), numbers: await faxNums.list(req.webChatId) })))
   router.get('/fax-numbers/search', h((req, res) => out(res, () => faxNums.search(req.webChatId, req.query.country, req.query.areaCode))))
-  router.post('/fax-numbers', h((req, res) => out(res, () => faxNums.buy(req.webChatId, { phoneNumber: String(req.body?.phoneNumber || ''), autoRenew: req.body?.autoRenew !== false, email: req.webUser?.email }))))
+  router.post('/fax-numbers', h((req, res) => out(res, async () => {
+    const phoneNumber = String(req.body?.phoneNumber || '')
+    const r = await faxNums.buy(req.webChatId, { phoneNumber, autoRenew: req.body?.autoRenew !== false, email: req.webUser?.email })
+    await legalProfile?.recordResale({ chatId: req.webChatId, phoneNumber: r?.number?.phoneNumber || phoneNumber, provider: 'fax', country: r?.number?.country || null })
+    return r
+  })))
   router.patch('/fax-numbers/:phone', h((req, res) => out(res, async () => ({ number: await faxNums.setAutoRenew(req.webChatId, req.params.phone, !!req.body?.autoRenew) }))))
 
   router.get('/fax', h(async (req, res) => {
