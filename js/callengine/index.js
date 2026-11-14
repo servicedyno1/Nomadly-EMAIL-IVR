@@ -34,7 +34,31 @@ function emit(type, leg, extra = {}) {
 const track = (meta) => { const l = { session: crypto.randomUUID(), startedAt: new Date().toISOString(), state: 'parked', ...meta }; legs.set(l.id, l); return l }
 const live = (id) => { const l = legs.get(id); return l && !l.ended ? l : null }
 const call = async (method, path, params, data) => { try { return (await M.ari().request({ method, url: path, params, data })).data || {} } catch (e) { log(`${method} ${path}: ${e.response?.status || ''} ${e.response?.data?.message || e.message}`); return null } }
-function markAnswered(l) { if (l.answered) return; l.answered = true; l.state = 'answered'; emit('call.answered', l); if (l.amd) emit('call.machine.detection.ended', l, { result: 'not_sure' }) }
+// With machine detection the app hears call.answered only once the verdict is in (the leg is busy in dialplan until then).
+function markAnswered(l) { if (l.answered) return; l.answered = true; l.state = 'answered'; if (l.amd) runAmd(l); else emit('call.answered', l) }
+// Answering-machine detection on the call itself: the leg visits dialplan [ce-amd] (Asterisk AMD(), then the end of the
+// greeting) and comes back into Stasis with the verdict. Emits the same events Telnyx did:
+// call.machine.detection.ended { result: human | machine | not_sure } and, for machines, call.machine.greeting.ended.
+async function dialplanTrip(l, extension) {
+  l.inDialplan = extension
+  clearTimeout(l.amdTimer)
+  l.amdTimer = setTimeout(() => { if (l.inDialplan === extension && !l.ended) { l.inDialplan = null; amdResult(l, extension, 'NOTSURE', 'TIMEOUT') } }, 40000)
+  const ok = await call('post', `/applications/${app()}/subscription`, { eventSource: `channel:${raw(l.id)}` }) &&
+    await call('post', `/channels/${raw(l.id)}/variable`, { variable: 'CE_APP', value: app() }) &&
+    await call('post', `/channels/${raw(l.id)}/continue`, { context: 'ce-amd', extension, priority: 1 })
+  if (!ok) { l.inDialplan = null; clearTimeout(l.amdTimer); amdResult(l, extension, 'NOTSURE', 'ERROR') }
+}
+const runAmd = (l) => dialplanTrip(l, 'detect')
+function amdResult(l, step, status, cause) {
+  clearTimeout(l.amdTimer)
+  if (l.ended) return
+  if (step === 'greeting') return emit('call.machine.greeting.ended', l, { result: 'ended' })
+  const result = status === 'MACHINE' ? 'machine' : status === 'HUMAN' ? 'human' : 'not_sure'
+  log(`AMD ${l.to}: ${status} (${cause || ''})`)
+  emit('call.answered', l)
+  emit('call.machine.detection.ended', l, { result })
+  if (result === 'machine') setTimeout(() => { if (!l.ended) dialplanTrip(l, 'greeting') }, 400)
+}
 const CAUSE = { 16: ['normal_clearing', '16'], 17: ['user_busy', '486'], 18: ['timeout', '480'], 19: ['timeout', '480'], 21: ['call_rejected', '603'], 1: ['unallocated_number', '404'], 34: ['normal_temporary_failure', '503'] }
 function finish(l, cause) {
   if (!l || l.ended) return
@@ -74,6 +98,7 @@ function onEvent(e) {
   let l = id && legs.get(id)
   switch (e.type) {
     case 'StasisStart': {
+      if (l && e.args?.[0] === 'amd') { const step = l.inDialplan; l.inDialplan = null; if (step) amdResult(l, step, e.args[1], e.args[2]); break }
       if (l) { if (ch.state === 'Up') onUp(l); break }
       if (e.args?.[0] === 'out' || /^UnicastRTP\//.test(ch.name || '')) break
       // SignalWire handing an inbound call to an AI agent: sip:ai.<app>.<token> — no call events, the agent owns the leg.
@@ -94,7 +119,7 @@ function onEvent(e) {
     case 'ChannelStateChange': if (l && ch.state === 'Up') onUp(l); else if (l && /^Ring/.test(ch.state)) l.ringing = true; break
     case 'ChannelHangupRequest': if (l && e.cause) l.cause = e.cause; break
     case 'ChannelDestroyed': if (l) finish(l, e.cause || l.cause); break
-    case 'StasisEnd': if (l) setTimeout(() => finish(l, l.cause), 300); break
+    case 'StasisEnd': if (l && !l.inDialplan) setTimeout(() => { if (!l.inDialplan) finish(l, l.cause) }, 300); break
     case 'PlaybackFinished': {
       const p = playbacks.get(e.playback?.id); playbacks.delete(e.playback?.id)
       if (e.playback?.state === 'failed') log(`playback failed: ${String(e.playback.media_uri).slice(0, 80)}`)
@@ -151,7 +176,7 @@ async function start(onEvent_) {
   const open = () => {
     const auth = `${process.env.ASTERISK_ARI_USER || 'cloudivr'}:${process.env.ASTERISK_ARI_PASSWORD}`
     ws = new WebSocket(`${url().replace(/^http/, 'ws')}/ari/events?app=${encodeURIComponent(app())}&api_key=${encodeURIComponent(auth)}&subscribeAll=false`, { agent })
-    ws.on('open', () => { connected = true; log(`connected (app ${app()})`) })
+    ws.on('open', () => { connected = true; log(`connected (app ${app()})`); onConnectHook?.() })
     ws.on('message', (m) => { try { onEvent(JSON.parse(m)) } catch (e) { log('event error', e.message) } })
     ws.on('close', () => { connected = false; setTimeout(open, 5000) })
     ws.on('error', (e) => log('ws', e.message))
@@ -271,7 +296,17 @@ async function createOutboundCall(from, to, webhookUrl, connectionId, options = 
   return { callControlId: l.id, callLegId: l.id, callSessionId: l.session }
 }
 
+// Inbound PSTN calls (Telnyx/Bird trunks) reach the brand that owns the number: global DIDAPP_<digits> = this ARI app.
+let onConnectHook = null
+async function setDidApps(numbers) {
+  if (!enabled()) return 0
+  let n = 0
+  for (const p of numbers) if (await call('post', '/asterisk/variable', { variable: `DIDAPP_${String(p).replace(/\D/g, '')}`, value: app() })) n++
+  return n
+}
+
 const M = module.exports = {
   enabled, isAe, connected: () => connected, app, sign, ari: makeAri, _legs: legs, _onEvent: onEvent, _setSink: (fn) => { sink = fn }, _setConnected: (v) => { connected = v },
+  setDidApps, onConnect: (fn) => { onConnectHook = fn },
   activeBird, start, startExternalMedia, stopExternalMedia, setAiHook: (fn) => { aiHook = fn }, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall,
 }

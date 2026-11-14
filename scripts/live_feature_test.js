@@ -24,9 +24,9 @@ const features = (k) => ({
 async function setFeatures(db, k) {
   await db.collection('phoneNumbersOf').updateOne({ _id: CHAT }, { $set: { 'val.numbers.0.features': features(k) } })
 }
-async function birdCall(holdSecs) {
+async function birdCall(holdSecs, ext = 'hold') {
   const id = `qa-${Date.now()}`
-  await ari.post(`/channels/${id}`, { variables: {} }, { params: { endpoint: `PJSIP/${digits(Y)}@bird`, context: 'qa-hold', extension: 'hold', priority: 1, callerId: digits(X), timeout: 30 } })
+  await ari.post(`/channels/${id}`, { variables: {} }, { params: { endpoint: `PJSIP/${digits(Y)}@bird`, context: 'qa-hold', extension: ext, priority: 1, callerId: digits(X), timeout: 30 } })
   let up = false
   for (let i = 0; i < holdSecs * 2; i++) { const st = await ari.get(`/channels/${id}`).then(r => r.data.state).catch(() => 'gone'); if (st === 'Up') up = true; if (st === 'gone') break; await sleep(500) }
   await ari.delete(`/channels/${id}`).catch(() => {})
@@ -38,7 +38,7 @@ const show = (lines, re) => { const hit = lines.filter(l => re.test(l)); for (co
   const cl = await MongoClient.connect(process.env.MONGO_URL), db = cl.db(process.env.DB_NAME)
   try {
     if (STEP === 'setup') {
-      await db.collection('phoneNumbersOf').updateOne({ _id: CHAT }, { $set: { val: { numbers: [{ phoneNumber: Y, provider: 'signalwire', status: 'active', country: 'US', type: 'local', plan: 'pro', planPrice: 0, expiresAt: new Date(Date.now() + 86400000).toISOString(), autoRenew: false, sipUsername: SIPU, sipPassword: SIPP, telnyxCredentialId: `kam:${SIPU}`, sipDomain: DOMAIN, features: features('voicemail'), qaTest: true }] } } }, { upsert: true })
+      await db.collection('phoneNumbersOf').updateOne({ _id: CHAT }, { $set: { val: { numbers: [{ phoneNumber: Y, provider: process.env.QA_PROVIDER || 'signalwire', status: 'active', country: 'US', type: 'local', plan: 'pro', planPrice: 0, expiresAt: new Date(Date.now() + 86400000).toISOString(), autoRenew: false, sipUsername: SIPU, sipPassword: SIPP, telnyxCredentialId: `kam:${SIPU}`, sipDomain: DOMAIN, features: features('voicemail'), qaTest: true }] } } }, { upsert: true })
       await db.collection('walletOf').updateOne({ _id: String(CHAT) }, { $set: { usdIn: 5, usdOut: 0, qaTest: true } }, { upsert: true })
       console.log(`setup: test account ${CHAT}, number ${Y}, SIP ${SIPU}@${DOMAIN}`)
     } else if (STEP === 'voicemail' || STEP === 'forward') {
@@ -81,7 +81,7 @@ const show = (lines, re) => { const hit = lines.filter(l => re.test(l)); for (co
       const connected = L.some(l => /answered|gather|speak|bridged|Up/i.test(l) && /207489/.test(l))
       await db.collection('scheduledCalls').deleteOne({ _id: id })
       console.log(`RESULT quickivr: ${st === 'completed' && placed ? '✅ placed' : '❌ (' + st + ')'}${connected ? ' + reached the destination' : ''}`)
-    } else if (STEP === 'bulk') {
+    } else if (STEP === 'bulk' || STEP === 'vmdrop') {
       // Bulk IVR end-to-end through the real web API: seed a web account + audio, create a 1-lead report-only campaign.
       const jwt = require(path.join(process.cwd(), 'node_modules/jsonwebtoken'))
       const crypto = require('crypto')
@@ -99,22 +99,86 @@ const show = (lines, re) => { const hit = lines.filter(l => re.test(l)); for (co
       const token = jwt.sign({ sub: CHAT, v: 0 }, sec, { expiresIn: '20m' })
       const base = (process.env.SELF_URL || 'https://2.speechcue.com').replace(/\/api$/, '')
       const t = new Date(Date.now() - 1000)
-      const r = await axios.post(`${base}/cloudivr-web/campaigns`, { callerId: Y, mode: 'report_only', audioId, leads: `${X},QA Lead`, name: 'QA Bulk Test' }, { headers: { Cookie: `civr_session=${token}`, 'Content-Type': 'application/json' }, validateStatus: () => true })
+      // vmdrop: call Y itself — Y's voicemail answers like a machine; machine detection must drop the message after the greeting.
+      const VM = STEP === 'vmdrop'
+      if (VM) await db.collection('ivrAudioFiles').updateOne({ id: 'qa-audio-vm' }, { $set: { id: 'qa-audio-vm', chatId: String(CHAT), filename: 'vm.mp3', audioUrl: AUDIO, duration: 8, name: 'QA Voicemail', createdAt: new Date() } }, { upsert: true })
+      const r = await axios.post(`${base}/cloudivr-web/campaigns`, { callerId: Y, mode: 'report_only', audioId, leads: `${VM ? Y : X},QA Lead`, name: VM ? 'QA VM Drop Test' : 'QA Bulk Test', ...(VM ? { voicemailAudioId: 'qa-audio-vm' } : {}) }, { headers: { Cookie: `civr_session=${token}`, 'Content-Type': 'application/json' }, validateStatus: () => true })
       console.log(`bulk: create campaign HTTP ${r.status} ${JSON.stringify(r.data).slice(0, 220)}`)
       const cid = r.data?.campaign?.id || r.data?.id
       if (cid) { await axios.post(`${base}/cloudivr-web/campaigns/${cid}/start`, {}, { headers: { Cookie: `civr_session=${token}` }, validateStatus: () => true }).then(x => console.log(`bulk: start HTTP ${x.status}`)).catch(() => {}) }
-      for (let i = 0; i < 12; i++) { await sleep(3000); const c = await db.collection('bulkCallCampaigns').findOne({ id: cid }); if (c && ['completed', 'running', 'failed'].includes(c.status) && (c.stats?.called || c.leads?.some(l => l.status && l.status !== 'pending'))) break }
+      for (let i = 0; i < (VM ? 30 : 12); i++) { await sleep(3000); const c = await db.collection('bulkCallCampaigns').findOne({ id: cid }); if (c && (VM ? c.status === 'completed' : ['completed', 'running', 'failed'].includes(c.status) && (c.stats?.called || c.leads?.some(l => l.status && l.status !== 'pending')))) break }
       const camp = await db.collection('bulkCallCampaigns').findOne({ id: cid })
       const L = logsSince(t)
-      show(L, /BulkCall|CallEngine|Bird|dial.*2074892004|campaign/i)
+      show(L, VM ? /AMD|voicemail|Voicemail|BulkCall.*(lead|complete)|machine|greeting/i : /BulkCall|CallEngine|Bird|dial.*2074892004|campaign/i)
       const lead0 = camp?.leads?.[0]
       console.log(`bulk: campaign status=${camp?.status} lead=${lead0?.status} provider seen in logs`)
       const placed = L.some(l => /CallEngine voice event|OutboundIVR\] Call initiated.*2074892004|dial.*2074892004/i.test(l))
+      if (VM) {
+        const amd = L.find(l => /AMD .*: (MACHINE|HUMAN|NOTSURE)/.test(l)), dropped = !!lead0?.voicemailDropped || L.some(l => /voicemail drop|Voicemail drop|playVoicemailDrop|dropping voicemail/i.test(l))
+        console.log(`RESULT vmdrop: ${/MACHINE/.test(amd || '') && dropped ? '✅ machine detected on the call, message dropped' : /MACHINE/.test(amd || '') ? '⚠️ machine detected, no drop seen' : '❌ ' + (amd || 'no AMD verdict')}`)
+        await db.collection('ivrAudioFiles').deleteOne({ id: 'qa-audio-vm' })
+      }
       await db.collection('bulkCallCampaigns').deleteOne({ id: cid })
       await db.collection('ivrAudioFiles').deleteOne({ id: audioId })
       await db.collection('webAccounts').deleteOne({ _id: CHAT })
       await db.collection('phoneNumbersOf').deleteOne({ _id: String(CHAT) })
-      console.log(`RESULT bulk: ${r.status === 201 && cid && placed ? '✅ campaign placed a call (Bird)' : r.status === 201 && cid ? '⚠️ created but no dial seen' : '❌ HTTP ' + r.status}`)
+      if (!VM) console.log(`RESULT bulk: ${r.status === 201 && cid && placed ? '✅ campaign placed a call (Bird)' : r.status === 201 && cid ? '⚠️ created but no dial seen' : '❌ HTTP ' + r.status}`)
+    } else if (STEP === 'ai') {
+      // AI agent end-to-end: a 1-lead AI campaign from Y to Y. Outbound leg goes via Bird; Y's own AI agent answers the
+      // inbound side through the SignalWire → SIP handover. Two agents talk; both calls must be logged with transcripts.
+      const jwt = require(path.join(process.cwd(), 'node_modules/jsonwebtoken'))
+      const crypto = require('crypto')
+      const sec = crypto.createHash('sha256').update(`cloudivr-web:${process.env.WEB_SESSION_SECRET || process.env.SESSION_SECRET}`).digest('hex')
+      const AG = 'qa-ai-agent'
+      const agent = { id: AG, chatId: String(CHAT), name: 'QA Ava', businessName: 'QA Dental', goal: 'You are a short, friendly receptionist test. Greet, ask one question, then say goodbye and end the call.', greeting: '', knowledge: '', language: 'en', voice: 'alloy', transferTo: null, takeMessages: false, maxMinutes: 1, record: false, booking: { enabled: false }, firstMessage: '', waitForHello: false, createdAt: new Date(), updatedAt: new Date() }
+      await db.collection('aiAgents').updateOne({ id: AG }, { $set: agent }, { upsert: true })
+      await db.collection('webAccounts').updateOne({ _id: CHAT }, { $set: { _id: CHAT, email: 'qa+ai@cloudivr.net', name: 'QA AI', tokenVersion: 0, plan: 'business', createdAt: new Date() } }, { upsert: true })
+      await db.collection('state').updateOne({ _id: String(CHAT) }, { $set: { webAccount: true, userLanguage: 'en' } }, { upsert: true })
+      await db.collection('walletOf').updateOne({ _id: String(CHAT) }, { $set: { usdIn: 20, usdOut: 0, qaTest: true } }, { upsert: true })
+      await db.collection('phoneNumbersOf').updateOne({ _id: CHAT }, { $set: { 'val.numbers.0.plan': 'business', 'val.numbers.0.features': { voice: true, sms: true, bulkIvr: true, aiAgent: { enabled: true, agentId: AG } } } })
+      const numDoc = (await db.collection('phoneNumbersOf').findOne({ _id: CHAT }))?.val
+      await db.collection('phoneNumbersOf').updateOne({ _id: String(CHAT) }, { $set: { val: numDoc } }, { upsert: true })
+      const token = jwt.sign({ sub: CHAT, v: 0 }, sec, { expiresIn: '20m' })
+      const base = (process.env.SELF_URL || 'https://2.speechcue.com').replace(/\/api$/, '')
+      const t = new Date(Date.now() - 1000)
+      const r = await axios.post(`${base}/cloudivr-web/campaigns`, { callerId: Y, mode: 'ai', agentId: AG, leads: `${Y},QA Lead`, name: 'QA AI Test', concurrency: 1 }, { headers: { Cookie: `civr_session=${token}`, 'Content-Type': 'application/json' }, validateStatus: () => true })
+      console.log(`ai: create campaign HTTP ${r.status} ${JSON.stringify(r.data).slice(0, 200)}`)
+      const cid = r.data?.campaign?.id
+      if (cid) await axios.post(`${base}/cloudivr-web/campaigns/${cid}/start`, {}, { headers: { Cookie: `civr_session=${token}` }, validateStatus: () => true }).then(x => console.log(`ai: start HTTP ${x.status}`)).catch(() => {})
+      let camp
+      for (let i = 0; i < 40; i++) { await sleep(3000); camp = await db.collection('bulkCallCampaigns').findOne({ id: cid }); if (camp?.leads?.[0] && !['pending', 'calling'].includes(camp.leads[0].status)) break }
+      await sleep(8000)
+      const L = logsSince(t)
+      show(L, /AIAgent|BulkCall.*QA|CallEngine.*(refused|ws)/i)
+      const ai = await db.collection('aiCalls').find({ chatId: String(CHAT), startedAt: { $gte: t } }).toArray()
+      for (const c of ai) console.log(`ai: logged ${c.direction} call ${c.duration}s outcome=${c.outcome} transcript=${(c.transcript || []).length} lines: ${(c.transcript || []).slice(0, 4).map(x => `${x.role}: ${String(x.text).slice(0, 70)}`).join(' | ')}`)
+      console.log(`ai: lead status=${camp?.leads?.[0]?.status} cause=${camp?.leads?.[0]?.hangupCause || ''} ai=${JSON.stringify(camp?.leads?.[0]?.ai || null).slice(0, 160)}`)
+      const out = ai.find(c => c.direction === 'outbound'), inn = ai.find(c => c.direction === 'inbound')
+      const talked = (c) => c && c.duration > 3 && (c.transcript || []).some(x => x.role !== 'caller') && (c.transcript || []).some(x => x.role === 'caller')
+      await db.collection('bulkCallCampaigns').deleteOne({ id: cid })
+      await db.collection('aiCalls').deleteMany({ chatId: String(CHAT) })
+      await db.collection('aiAgents').deleteOne({ id: AG })
+      await db.collection('webAccounts').deleteOne({ _id: CHAT })
+      await db.collection('phoneNumbersOf').deleteOne({ _id: String(CHAT) })
+      console.log(`RESULT ai outbound (Bird): ${talked(out) ? '✅ conversation + logged' : out ? '⚠️ logged, no two-way talk' : '❌ no call logged'}`)
+      console.log(`RESULT ai inbound (SignalWire → SIP handover): ${talked(inn) ? '✅ conversation + logged' : inn ? '⚠️ logged, no two-way talk' : '❌ no call logged'}`)
+    } else if (STEP === 'aiin') {
+      // Inbound AI: a Bird call from X into Y (says "hello world" twice); Y's AI agent answers via the SignalWire → SIP handover.
+      const AG = 'qa-ai-agent'
+      await db.collection('aiAgents').updateOne({ id: AG }, { $set: { id: AG, chatId: String(CHAT), name: 'QA Ava', businessName: 'QA Dental', goal: 'Short receptionist test: greet, answer briefly, say goodbye.', greeting: '', knowledge: '', language: 'en', voice: 'alloy', transferTo: null, takeMessages: false, maxMinutes: 1, record: false, booking: { enabled: false }, firstMessage: '', waitForHello: false, createdAt: new Date(), updatedAt: new Date() } }, { upsert: true })
+      await db.collection('walletOf').updateOne({ _id: String(CHAT) }, { $set: { usdIn: 20, usdOut: 0, qaTest: true } }, { upsert: true })
+      await db.collection('phoneNumbersOf').updateOne({ _id: CHAT }, { $set: { 'val.numbers.0.plan': 'business', 'val.numbers.0.features': { voice: true, sms: true, aiAgent: { enabled: true, agentId: AG } } } })
+      const t = new Date(Date.now() - 1000)
+      const up = await birdCall(30, 'talk')
+      await sleep(8000)
+      const L = logsSince(t)
+      show(L, /AIAgent|sip:ai\.|Transferring/i)
+      const c = await db.collection('aiCalls').findOne({ chatId: String(CHAT), direction: 'inbound', startedAt: { $gte: t } })
+      if (c) console.log(`aiin: logged ${c.duration}s outcome=${c.outcome}: ${(c.transcript || []).slice(0, 5).map(x => `${x.role}: ${String(x.text).slice(0, 60)}`).join(' | ')}`)
+      await db.collection('aiCalls').deleteMany({ chatId: String(CHAT) })
+      await db.collection('aiAgents').deleteOne({ id: AG })
+      const two = c && (c.transcript || []).some(x => x.role === 'caller') && (c.transcript || []).some(x => x.role !== 'caller')
+      console.log(`RESULT ai inbound (SignalWire → SIP handover): ${two ? '✅ conversation + logged' : c ? '⚠️ logged, one-way' : up ? '❌ answered but no AI call logged' : '❌ not answered'}`)
     } else if (STEP === 'cleanup') {
       await db.collection('phoneNumbersOf').deleteOne({ _id: CHAT, 'val.numbers.qaTest': true })
       await db.collection('walletOf').deleteOne({ _id: String(CHAT), qaTest: true })

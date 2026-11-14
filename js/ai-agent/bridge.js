@@ -5,6 +5,7 @@ const WebSocket = require('ws')
 const { LANG_NAMES, LANGUAGES: OPENING } = require('./languages')
 const { Recorder } = require('./recorder')
 const { opening, prepare } = require('./opening')
+const { createAmd } = require('./amd')
 
 const MODEL = () => process.env.AI_AGENT_MODEL || 'gpt-realtime'
 // Call screeners (Google Voice, iPhone "Screen Unknown Callers", carrier screening) and voicemail greetings.
@@ -99,6 +100,11 @@ class Bridge {
     this.machine = false // answering machine / voicemail reached
     this.nudged = 0 // "Are you still there?" prompts sent this silence
     this.opened = false
+    // Machine detection from the far end's own audio (long recorded greeting, then the beep).
+    this.amd = ctx.direction === 'outbound' && !ctx.test ? createAmd({
+      onMachine: ({ greetingMs }) => { this.log(`[AIAgent] answering machine detected on the call (greeting ${greetingMs} ms)`); this.onMachine() },
+      onBeep: (hz) => { this.log(`[AIAgent] voicemail beep heard (${hz} Hz)`); this.beep() },
+    }) : null
   }
 
   start() {
@@ -215,7 +221,11 @@ class Bridge {
 
   // Phone side → OpenAI.
   onMedia(msg) {
-    if (msg.event === 'media' && msg.media?.payload && msg.media.track !== 'outbound') { this.rec?.addCaller(msg.media.payload); this.send({ type: 'input_audio_buffer.append', audio: msg.media.payload }) }
+    if (msg.event === 'media' && msg.media?.payload && msg.media.track !== 'outbound') {
+      this.rec?.addCaller(msg.media.payload)
+      if (this.amd && this.callLive && !this.result.voicemail) this.amd.feed(Buffer.from(msg.media.payload, 'base64'))
+      this.send({ type: 'input_audio_buffer.append', audio: msg.media.payload })
+    }
     else if (msg.event === 'mark') this.onMark(msg.mark?.name)
     else if (msg.event === 'stop') this.stop()
   }

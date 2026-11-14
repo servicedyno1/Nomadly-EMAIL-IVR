@@ -186,6 +186,25 @@ function dialerStatus() {
 // A running campaign that keeps fewer than half its lines busy for LOW_LINES_SAMPLES minutes in a row (while enough
 // numbers are still waiting, and not waiting for calling hours / the daily limit) → one admin Telegram alert, then
 // at most one per campaign per hour.
+// Early failure alert (admin): most (≥6) of the first 10 calls since the campaign (re)started failed → one Telegram note.
+const EARLY_FAIL_FIRST = parseInt(process.env.BULK_EARLY_FAIL_FIRST || '10', 10)
+const EARLY_FAIL_MIN = parseInt(process.env.BULK_EARLY_FAIL_MIN || '6', 10)
+async function earlyFailAlert(id, st, c, admin) {
+  const since = new Date(c.resumedAt || c.startedAt || 0)
+  if (st.failAlerted || (c.earlyFailAlertedAt && new Date(c.earlyFailAlertedAt) >= since)) return
+  const first = c.leads.filter(l => l.completedAt && new Date(l.completedAt) >= since).sort((a, b) => new Date(a.completedAt) - new Date(b.completedAt)).slice(0, EARLY_FAIL_FIRST)
+  const failed = first.filter(l => l.status === 'failed')
+  if (first.length < EARLY_FAIL_FIRST || failed.length < EARLY_FAIL_MIN) return
+  st.failAlerted = true
+  await _collection.updateOne({ id }, { $set: { earlyFailAlertedAt: new Date() } }).catch(() => {})
+  const causes = {}; for (const l of failed) { const k = String(l.hangupCause || 'unknown').slice(0, 70); causes[k] = (causes[k] || 0) + 1 }
+  const top = Object.entries(causes).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${escHtml(k)} ×${n}`).join('\n• ')
+  log(`[BulkCall] EARLY FAILURES campaign=${id}: ${failed.length}/${first.length} of the first calls failed`)
+  await _bot?.sendMessage(admin,
+    `🚨 <b>Campaign calls are failing</b>\n\nCampaign: <b>${escHtml(c.name || id)}</b>\n<code>${id}</code>\nCustomer chatId: <code>${c.chatId}</code>\n` +
+    `Failed: <b>${failed.length} of the first ${first.length}</b> calls\nCaller ID: ${escHtml(cidSummary({ ...c, leads: [] }))}\n\nTop reasons:\n• ${top}`,
+    { parse_mode: 'HTML' }).catch(() => {})
+}
 const LOW_LINES_EVERY_MS = parseInt(process.env.BULK_LOW_LINES_EVERY_MS || '60000', 10)
 const LOW_LINES_SAMPLES = parseInt(process.env.BULK_LOW_LINES_SAMPLES || '10', 10)
 const LOW_LINES_REALERT_MS = 60 * 60 * 1000
@@ -227,8 +246,9 @@ async function checkLowLines() {
   if (!_collection || !canDial() || !admin) return
   for (const [id, st] of Object.entries(activeCampaigns)) {
     if (st.paused) { st.lineSamples = []; continue }
-    const c = await _collection.findOne({ id }, { projection: { name: 1, chatId: 1, status: 1, dryRun: 1, concurrency: 1, callerId: 1, callerPool: 1, waitingForHours: 1, waitingForDailyLimit: 1, lineLimitAt: 1, lineWaitReason: 1, 'leads.status': 1, 'leads.startedAt': 1, 'leads.completedAt': 1, 'leads.hangupCause': 1 } })
+    const c = await _collection.findOne({ id }, { projection: { name: 1, chatId: 1, status: 1, dryRun: 1, startedAt: 1, resumedAt: 1, earlyFailAlertedAt: 1, concurrency: 1, callerId: 1, callerPool: 1, waitingForHours: 1, waitingForDailyLimit: 1, lineLimitAt: 1, lineWaitReason: 1, 'leads.status': 1, 'leads.startedAt': 1, 'leads.completedAt': 1, 'leads.hangupCause': 1 } })
     if (!c || c.status !== 'running' || c.dryRun) { st.lineSamples = []; continue }
+    await earlyFailAlert(id, st, c, admin).catch(e => log(`[BulkCall] early-fail alert error: ${e.message}`))
     const live = c.leads.filter(l => INFLIGHT_STATUSES.includes(l.status)).length
     const pending = c.leads.filter(l => l.status === 'pending').length
     const want = Math.min(c.concurrency || 1, pending + live)
@@ -1391,8 +1411,16 @@ async function fireBatchOnce(campaignId) {
       if (result.error && cid) picker.free(cid)
 
       if (result.error && isTelnyx && result.lineLimit) {
-        // Every line is in use (account concurrent-call limit) → lead goes back in the queue, retried shortly.
         state.activeCalls--
+        // Bird keeps refusing this one destination (e.g. cause 38) while other calls go through → fail just this lead.
+        const othersConnect = (campaign.leads || []).some(l => l.index !== lead.index && ['completed', 'voicemail', 'no_answer', 'busy', 'answered'].includes(l.status) && l.completedAt && Date.now() - new Date(l.completedAt).getTime() < 15 * 60000)
+        if (/refused the call/i.test(String(result.error)) && (lead.lineRetries || 0) >= 2 && othersConnect) {
+          log(`[BulkCall] ${lead.number} refused ${(lead.lineRetries || 0) + 1}× by the carrier — marked failed (campaign ${campaignId})`)
+          await updateLeadResult(campaignId, lead.index, { status: 'failed', hangupCause: `Carrier refused this number: ${String(result.error).slice(0, 80)}`, completedAt: new Date(), waitingForLine: false })
+          await sched.refundDailySlot(_collection, campaignId)
+          continue
+        }
+        // Every line is in use (account concurrent-call limit) → lead goes back in the queue, retried shortly.
         log(`[BulkCall] Line limit reached — ${lead.number} re-queued (campaign ${campaignId}): ${result.error}`)
         await requeueForLines(campaignId, lead.index, { lineWaitReason: String(result.error).slice(0, 120) })
         break
@@ -2288,6 +2316,8 @@ function getCampaignMapping(callSid) {
 module.exports = {
   MAX_CALLER_POOL,
   initBulkCallService,
+  _earlyFailAlert: earlyFailAlert,
+  _setForTest: (col, bot) => { _collection = col; _bot = bot },
   generateReportFile,
   notInService,
   removeNotInService,

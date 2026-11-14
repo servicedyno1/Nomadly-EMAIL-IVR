@@ -6,6 +6,7 @@ const ib = require('../infobip')
 const ce = require('../callengine')
 const bird = require('../bird')
 const aws = require('../aws')
+const txs = require('../telnyx-sip')
 
 const log = (...a) => console.log('[SignalWire]', ...a)
 // Telnyx is off for calls and number buying unless TELNYX_FALLBACK=true.
@@ -74,8 +75,8 @@ function wrap(t) {
   w.createOutboundCall = async (from, to, webhookUrl, connectionId, options = {}) => {
     const nanp = /^\+1\d{10}$/.test(String(to)) || /^sip:/i.test(String(to))
     const tries = []
-    // Voicemail drop needs real answering-machine detection, which the call engine doesn't have → SignalWire.
-    let st = options.answering_machine_detection ? 'off' : await birdState(from, to).catch(() => 'off')
+    // Voicemail drop: the call engine detects answering machines on the call itself (Asterisk AMD), so Bird handles it too.
+    let st = await birdState(from, to).catch(() => 'off')
     // Campaign calls only go through Bird: a full Bird or a caller ID not linked yet puts the lead back in the queue.
     if (options._campaign && (st === 'full' || st === 'unlinked')) {
       if (st === 'unlinked') birdWanted.add(from)
@@ -136,7 +137,12 @@ function wrap(t) {
   // SignalWire rate limits re-queue the lead, like Telnyx's line limit.
   w.isLineLimitError = (r) => (['signalwire', 'infobip', 'callengine'].includes(r?._provider) ? r.status === 429 || r.status === 503 : !!t.isLineLimitError?.(r))
 
+  // New numbers: Telnyx (calls come in by SIP trunk to our SIP server) → SignalWire → Infobip → Telnyx old account.
   w.searchNumbers = async (countryCode, numberType, areaCode, limit = 5) => {
+    if (txs.enabled()) {
+      const r = await txs.searchNumbers(countryCode, numberType, areaCode, limit, rest.AREA_REGION[Number(areaCode)] || null)
+      if (r.length) return r
+    }
     if (swOn()) {
       const r = await rest.searchNumbers(countryCode, numberType, areaCode, limit)
       if (r.length) return r
@@ -148,6 +154,15 @@ function wrap(t) {
   }
 
   w.buyNumber = async (phoneNumber, connectionId, messagingProfileId, retrySearch = null) => {
+    if (txs.isTxSearched(phoneNumber)) {
+      let r = await txs.buyNumber(phoneNumber)
+      if (!r && retrySearch) {
+        const fresh = await txs.searchNumbers(retrySearch.countryCode || 'US', retrySearch.numberType || 'local', retrySearch.areaCode || null, 3)
+        if (fresh[0]) { r = await txs.buyNumber(fresh[0].phone_number); if (r) r._retriedNumber = fresh[0].phone_number }
+      }
+      if (r) ce.setDidApps([r._retriedNumber || phoneNumber])
+      return r
+    }
     if (ib.isIbSearched(phoneNumber)) return ib.buyNumber(phoneNumber)
     if (bird.isBirdSearched(phoneNumber)) return bird.buyNumber(phoneNumber)
     if (swOn() && rest.isSwSearched(phoneNumber)) {
@@ -163,17 +178,20 @@ function wrap(t) {
   }
 
   w.getNumberCapabilities = async (phoneNumber) => {
+    if (txs.enabled()) { await txs.refreshOwned(); if (txs.ownsNumber(phoneNumber)) return { voice: true, sms: false, mms: false, fax: false } }
     if (swOn()) { await rest.refreshOwned(); if (rest.ownsNumber(phoneNumber)) return { voice: true, sms: true, mms: true, fax: false } }
     return t.getNumberCapabilities(phoneNumber)
   }
-  w.updateNumber = (id, updates) => (voice.isSw(id) ? rest.configureNumber(String(id).slice(3)) : t.updateNumber(id, updates))
-  w.releaseNumber = (id) => (voice.isSw(id) ? rest.releaseById(id) : ib.isIb(id) ? ib.releaseNumber(id) : bird.isBird(id) ? bird.releaseNumber(id) : t.releaseNumber(id))
+  w.updateNumber = (id, updates) => (txs.isTx(id) ? Promise.resolve(true) : voice.isSw(id) ? rest.configureNumber(String(id).slice(3)) : t.updateNumber(id, updates))
+  w.releaseNumber = (id) => (txs.isTx(id) ? txs.releaseNumber(id) : voice.isSw(id) ? rest.releaseById(id) : ib.isIb(id) ? ib.releaseNumber(id) : bird.isBird(id) ? bird.releaseNumber(id) : t.releaseNumber(id))
   w.releaseByPhoneNumber = async (phoneNumber) => {
+    if (txs.enabled() && await txs.releaseByPhoneNumber(String(phoneNumber).replace(/[^+\d]/g, '')).catch(() => false)) return true
     if (swOn()) { const r = await rest.releaseByPhoneNumber(String(phoneNumber).replace(/[^+\d]/g, '')); if (r !== null) return r }
     return t.releaseByPhoneNumber(phoneNumber)
   }
   w.listNumbers = async () => [...(swOn() ? await rest.listNumbers() : []), ...((await t.listNumbers().catch(() => [])) || [])]
   w.assignNumberToCallControlApp = async (phoneNumber, appId) => {
+    if (txs.enabled()) { await txs.refreshOwned(); if (txs.ownsNumber(phoneNumber)) { ce.setDidApps([phoneNumber]); return true } }
     if (swOn()) { await rest.refreshOwned(); if (rest.ownsNumber(phoneNumber)) return rest.assignNumber(phoneNumber) }
     return t.assignNumberToCallControlApp(phoneNumber, appId)
   }
