@@ -71,10 +71,13 @@ function createCloudIvrWeb(deps) {
     emails.publicRoutes(r, { h })
     emails.start()
     ai.publicRoutes(r, { h })
+    // Resend inbound email webhook (no auth — Resend calls this)
+    const inboundEmail = require('./inbound-email').createInboundEmail(db)
     // Owner admin dashboard (own sign-in, before the customer session check).
     const adminAuth = require('./admin-auth').createAdminAuth(db, { log })
     adminAuth.routes(r, h)
     require('./admin').createAdmin(db, { log, bulkCallService: deps.bulkCallService, adminAuth }).routes(r, h)
+    inboundEmail.routes(r, h, adminAuth.require)
     require('./esim').publicRoutes(r, { db, h, log, A: adminAuth.require })
     require('./media').publicRoutes(r, { db, h })
     require('./fax').publicRoutes(r, { db, h })
