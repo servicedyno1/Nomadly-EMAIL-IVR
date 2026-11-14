@@ -8,7 +8,7 @@ import { cp } from '../../paths';
 // Numbers that text with no approval (no ID, no US registration), sold at the Texting plan price.
 export function ReadyToText() {
   const { data } = useApi('/texting/ready');
-  if (!data?.items?.length) return null;
+  if (!data?.items?.length || !data.available) return null;
   return (
     <div className="civr-card p-6 space-y-4" data-testid="ready-to-text">
       <div><div className="font-display text-xl font-bold">Ready-to-text numbers</div>

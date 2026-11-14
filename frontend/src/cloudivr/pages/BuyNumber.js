@@ -25,24 +25,31 @@ const readResume = (params) => {
   try { return JSON.parse(sessionStorage.getItem(RESUME_KEY) || 'null'); } catch (_) { return null; }
 };
 
-function SearchForm({ catalog, q, setQ, onSearch, busy }) {
-  const country = catalog.countries.find(c => c.code === q.country) || catalog.countries[0];
-  const setCountry = (code) => { const c = catalog.countries.find(x => x.code === code); setQ({ country: code, type: c.types[0], areaCode: '' }); };
+// A plan's own number: instant no-ID numbers from USA/Canada/UK (Business also NL/FR/ES). Extra numbers: any country/type.
+const planCountries = (catalog, extra) => (extra ? catalog.countries : catalog.countries.filter(c => c.included).map(c => ({ ...c, types: c.types.filter(t => c.offers?.[t]?.included !== false) })).filter(c => c.types.length));
+
+function SearchForm({ catalog, q, setQ, onSearch, busy, extra }) {
+  const list = planCountries(catalog, extra);
+  const country = list.find(c => c.code === q.country) || list[0];
+  const setCountry = (code) => { const c = list.find(x => x.code === code); setQ({ country: code, type: c.types[0], areaCode: '' }); };
+  const off = country && (country.code !== q.country || !country.types.includes(q.type));
+  useEffect(() => { if (off) setQ({ country: country.code, type: country.types.includes(q.type) && country.code === q.country ? q.type : country.types[0], areaCode: '' }); }, [off]); // eslint-disable-line react-hooks/exhaustive-deps
   const local = ['US', 'CA'].includes(q.country) && q.type === 'local';
   return (
     <form onSubmit={onSearch} className="civr-card p-6 grid sm:grid-cols-2 xl:grid-cols-4 gap-4 items-end" data-testid="buy-search-form">
       <Field label="Country">
         <IconSelect value={q.country} onChange={setCountry} label="Country" testid="buy-country-select"
-          options={catalog.countries.map(c => ({ value: c.code, label: c.name, icon: <Flag code={c.code} /> }))} />
+          options={list.map(c => ({ value: c.code, label: !extra && c.included === 'business' ? `${c.name} · Business plan` : c.name, icon: <Flag code={c.code} /> }))} />
       </Field>
       <Field label="Number type">
-        <select className="civr-input" value={q.type} onChange={e => setQ({ ...q, type: e.target.value })} data-testid="buy-type-select">
+        <select className="civr-input" value={country.types.includes(q.type) ? q.type : country.types[0]} onChange={e => setQ({ ...q, country: country.code, type: e.target.value })} data-testid="buy-type-select">
           {country.types.map(t => <option key={t} value={t}>{catalog.typeNames[t] || t}</option>)}
         </select>
       </Field>
       <Field label="Area code (optional)">
         <input className="civr-input font-mono" disabled={!local} maxLength={3} value={q.areaCode} onChange={e => setQ({ ...q, areaCode: e.target.value.replace(/\D/g, '') })} placeholder={local ? 'Any (e.g. 415)' : 'USA/CA local only'} data-testid="buy-area-code-input" />
       </Field>
+      {!extra && <p className="sm:col-span-2 xl:col-span-4 text-xs text-[#a1a1aa] -mt-1 order-last" data-testid="buy-included-note">Your plan includes one instant number from the USA, Canada or UK. Business can also pick the Netherlands, France or Spain. Other countries, and numbers that need an address or documents, can be added as an extra number once you have a plan.</p>}
       <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="buy-search-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}Search numbers</button>
     </form>
   );
@@ -52,7 +59,7 @@ const cap = (w) => w.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 // 'CA, US, SHAFTER, SHAFTER' → 'Shafter, CA'
 const place = (r) => { const p = [...new Set(String(r || '').split(',').map(x => x.trim()).filter(Boolean))]; if (!p.length) return 'Any region'; const st = p.find(x => /^[A-Z]{2}$/.test(x) && x !== 'US'); const city = p.find(x => x.length > 2 && x !== 'US'); return city ? `${cap(city)}${st ? `, ${st}` : ''}` : p.join(', '); };
 
-function Results({ res, pick, setPick }) {
+function Results({ res, pick, setPick, planTexting }) {
   if (!res.numbers.length) return <div className="civr-card p-6 text-sm text-[#a1a1aa]" data-testid="buy-no-results">No numbers available for that search. Try another area code or type.</div>;
   return (<>
     {res.fallback && <div className="civr-card p-4 mb-4 text-sm text-[#a1a1aa]" data-testid="buy-area-fallback-note">Area code {res.fallback.areaCode} has no numbers right now — here are other numbers{res.fallback.region ? ` in ${res.fallback.region}` : ''} you can use instantly.</div>}
@@ -63,7 +70,7 @@ function Results({ res, pick, setPick }) {
           <div className="flex items-center justify-between"><span className="font-mono text-lg">{n.phoneNumber}</span>{pick?.phoneNumber === n.phoneNumber && <Check className="w-4 h-4 text-[#818cf8]" />}</div>
           <div className="text-xs text-[#a1a1aa] mt-1 truncate">{place(n.region)}</div>
           <div className="flex gap-2 mt-4">
-            {n.capabilities.voice && <span className="civr-pill">Calls</span>}{n.capabilities.sms && <span className="civr-pill">Texts</span>}{n.capabilities.fax && <span className="civr-pill" title="Send and receive faxes on the Business plan" data-testid={`buy-fax-pill-${i}`}>Fax</span>}
+            {n.capabilities.voice && <span className="civr-pill">Calls</span>}{n.capabilities.sms && planTexting && <span className="civr-pill">Texts</span>}{n.capabilities.fax && <span className="civr-pill" title="Send and receive faxes on the Business plan" data-testid={`buy-fax-pill-${i}`}>Fax</span>}
             {n.surcharge > 0 && <span className="civr-pill civr-pill-warn">+{money(n.surcharge)}/mo</span>}
           </div>
         </button>
@@ -72,12 +79,13 @@ function Results({ res, pick, setPick }) {
   </>);
 }
 
-function PlanPicker({ plans, value, onChange, surcharge }) {
+function PlanPicker({ plans, value, onChange, surcharge, businessOnly }) {
   return (
     <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4" data-testid="buy-plan-picker">
-      {availablePlans(plans).map(p => (
-        <button key={p.id} type="button" onClick={() => onChange(p.id)} aria-pressed={value === p.id} data-testid={`buy-plan-${p.id}`} data-selected={value === p.id ? 'true' : 'false'}
-          className={`civr-card text-left p-6 flex flex-col ${value === p.id ? 'civr-trace' : ''}`}>
+      {availablePlans(plans).map(p => { const locked = businessOnly && p.id !== 'business'; return (
+        <button key={p.id} type="button" disabled={locked} onClick={() => onChange(p.id)} aria-pressed={value === p.id} data-testid={`buy-plan-${p.id}`} data-selected={value === p.id ? 'true' : 'false'} title={locked ? 'Numbers from this country come with the Business plan' : undefined}
+          className={`civr-card text-left p-6 flex flex-col ${value === p.id ? 'civr-trace' : ''} ${locked ? 'opacity-45 cursor-not-allowed' : ''}`}>
+          {locked && <span className="text-[11px] uppercase tracking-wider text-[#fbbf24] mb-2" data-testid={`buy-plan-${p.id}-locked`}>Business plan only for this country</span>}
           <div className="flex items-center justify-between gap-2 min-h-[28px]">
             <span className="font-display text-2xl font-bold">{p.name}</span>
             <span className="flex items-center gap-2">{p.recommended && <RecommendedBadge testid={`buy-plan-${p.id}-recommended`} />}{value === p.id && <Check className="w-5 h-5 text-[#818cf8]" />}</span>
@@ -85,7 +93,7 @@ function PlanPicker({ plans, value, onChange, surcharge }) {
           <div className="font-mono text-2xl mt-2">{money(p.price + (surcharge || 0))}<span className="text-xs text-[#a1a1aa]"> /month</span></div>
           <div className="mt-4"><PlanFeatures plan={p} plans={plans} compact testid={`buy-plan-${p.id}-feature`} /></div>
         </button>
-      ))}
+      ); })}
     </div>
   );
 }
@@ -173,7 +181,8 @@ export default function BuyNumber() {
   const parent = extraOf ? (myNums?.numbers || []).find(n => n.phoneNumber === extraOf) : null;
   // Picked plan → the recommended plan (Pro) → the first plan on sale.
   const avail = (id) => catalog.plans.find(p => p.id === id && p.available);
-  const planObj = avail(plan) || avail(catalog.recommendedPlan) || catalog.plans.find(p => p.available);
+  const businessOnly = !extraOf && catalog.countries.find(c => c.code === q.country)?.included === 'business';
+  const planObj = businessOnly ? avail('business') : avail(plan) || avail(catalog.recommendedPlan) || catalog.plans.find(p => p.available);
   const total = extraOf ? (pick?.extraPrice ?? extra?.price ?? 0) : planObj ? planObj.price + (pick?.surcharge || 0) : 0;
   const pc = res?.paperwork?.compliance;
   const docsMissing = res?.paperwork?.level === 2 && (!res.paperwork.documents?.ready || (pc && (pc.identity?.status !== 'verified' || (pc.business && pc.company?.status !== 'approved'))));
@@ -227,7 +236,7 @@ export default function BuyNumber() {
       {fromParam && <div className="text-sm text-[#818cf8] mb-4 flex items-center gap-2" data-testid="buy-plan-hint"><Check className="w-4 h-4" />{planObj.name} plan picked — search for a number below.</div>}
       <Steps current={pick ? (extraOf ? 2 : 3) : res ? 2 : 1} extra={!!extraOf} />
       <Label>Find a number</Label>
-      <SearchForm catalog={catalog} q={q} setQ={setQ} onSearch={search} busy={busy === 'search'} />
+      <SearchForm catalog={catalog} q={q} setQ={setQ} onSearch={search} busy={busy === 'search'} extra={!!extraOf} />
 
       <div className="mt-4"><ErrorNote error={error} testid="buy-error" /></div>
       {res?.request ? <div className="mt-8"><Label>Pick a plan and order</Label>
@@ -235,13 +244,13 @@ export default function BuyNumber() {
         <div className="mt-6">{needsProfile ? <BuyProfileGate /> : <RequestOrder request={res.request} plan={planObj} onDone={() => { setRes(null); setReqTick(t => t + 1); }} />}</div></div>
         : res && <div className="mt-8"><Label>Pick a number</Label>
           <PaperworkNote paperwork={res.paperwork} country={q.country} countryName={catalog.countries.find(c => c.code === q.country)?.name || q.country} onChange={(documents) => setRes(r => ({ ...r, paperwork: { ...r.paperwork, documents } }))} />
-          <Results res={res} pick={pick} setPick={setPick} /></div>}
+          <Results res={res} pick={pick} setPick={setPick} planTexting={catalog.planTexting} /></div>}
       {pick && (
         <div className="mt-8 civr-rise">
           {!extraOf && <>
           <Label>Pick a plan and pay</Label>
           <p className="text-xs text-[#a1a1aa] -mt-1 mb-3" data-testid="buy-plan-help">Each plan includes everything in the one before it. You can upgrade your Business Line later from its Billing tab.</p>
-          <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} surcharge={pick.surcharge} />
+          <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} surcharge={pick.surcharge} businessOnly={businessOnly} />
           </>}
           {needsProfile ? <BuyProfileGate /> : docsMissing ? <div className="civr-card p-5 text-sm text-[#fbbf24]" data-testid="buy-documents-required">Finish the steps above (documents, ID check{pc?.business ? ', company papers' : ''}) to buy this number.</div> : <Checkout key={`${pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}
             textingOffer={extraOf ? null : textingOffer} coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `Extra number on ${pv.phone(extraOf)} · monthly` : null} autoRenewDefault={extraOf ? (parent ? parent.autoRenew !== false : true) : true} />}

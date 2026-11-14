@@ -17,7 +17,7 @@ function Others() {
   return (
     <div className="grid sm:grid-cols-3 gap-3" data-testid="texting-number-others">
       <Link to={cp('/app/international-texting')} className="civr-card p-4 flex items-start gap-3" data-testid="texting-number-other-intl">
-        <Globe className="w-5 h-5 text-[var(--c-muted)] mt-0.5" /><span><span className="block font-semibold text-sm">Texting outside the USA?</span><span className="block text-xs text-[var(--c-muted)] mt-1">Pick a number in the UK, Canada, Netherlands and more.</span></span>
+        <Globe className="w-5 h-5 text-[var(--c-muted)] mt-0.5" /><span><span className="block font-semibold text-sm">Texting outside the USA?</span><span className="block text-xs text-[var(--c-muted)] mt-1">International Texting is coming soon.</span></span>
       </Link>
       <Link to={cp('/app/esim')} className="civr-card p-4 flex items-start gap-3" data-testid="texting-number-other-esim">
         <Smartphone className="w-5 h-5 text-[var(--c-muted)] mt-0.5" /><span><span className="block font-semibold text-sm">Want the texts on your own phone?</span><span className="block text-xs text-[var(--c-muted)] mt-1">Get a USA eSIM instead.</span></span>

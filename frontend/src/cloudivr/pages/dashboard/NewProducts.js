@@ -5,7 +5,7 @@ import { cp } from '../../paths';
 import { openWhatsNew } from '../../WhatsNew';
 
 const ITEMS = [
-  ['intl-texting', Globe, 'International Texting', '/app/international-texting'],
+  ['intl-texting', Globe, 'International Texting (soon)', '/app/international-texting'],
   ['lookup', ScanSearch, 'Number lookup', '/app/lookup'],
   ['text-call', Captions, 'Text-to-voice calls', '/app/text-call'],
   ['fax', Printer, 'Fax', '/app/fax'],

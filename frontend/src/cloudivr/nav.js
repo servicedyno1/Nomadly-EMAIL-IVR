@@ -11,7 +11,7 @@ export const NAV = [
     ['fax', 'Fax', Printer, 'nav-fax'], ['lookup', 'Number lookup', ScanSearch, 'nav-lookup'],
   ]],
   ['messaging', 'Messaging', [
-    ['messages', 'Messages', MessagesSquare, 'nav-messages'], ['texting-number', 'USA Texting Number', MessageSquare, 'nav-texting-number'], ['international-texting', 'International Texting', Globe, 'nav-international-texting'],
+    ['messages', 'Messages', MessagesSquare, 'nav-messages'], ['texting-number', 'USA Texting Number', MessageSquare, 'nav-texting-number'], ['international-texting', 'International Texting', Globe, 'nav-international-texting', 'Soon'],
     ['texting', 'Landline texting', MessageSquareText, 'nav-texting', 'Soon'],
   ]],
   ['calls', 'Calls & AI', [

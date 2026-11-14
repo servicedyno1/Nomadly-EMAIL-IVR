@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Flag } from '../Pickers';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { MessageSquare, Phone, PhoneOff, Search, Check, Globe } from 'lucide-react';
+import { MessageSquare, Phone, PhoneOff, Search, Check, Globe , Clock } from 'lucide-react';
 import { api, money, useApi } from '../api';
 import { cp } from '../paths';
 import { PageHeader, Spinner, ErrorNote, Label } from '../ui';
@@ -13,12 +13,12 @@ const Badge = ({ on, Icon, OffIcon, label, testid }) => (
   <span className={`civr-pill ${on ? 'civr-pill-ok' : ''} inline-flex items-center gap-1`} data-testid={testid}>{on ? <Icon className="w-3 h-3" /> : <OffIcon className="w-3 h-3" />}{on ? label : `No ${label.toLowerCase()}`}</span>
 );
 
-function CountryList({ items, value, onPick }) {
+function CountryList({ items, value, onPick, soon }) {
   return (
     <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3" data-testid="intl-texting-countries">
       {items.map(it => (
-        <button key={it.country} type="button" onClick={() => onPick(it)} aria-pressed={value?.country === it.country} data-testid={`intl-texting-country-${it.country}`}
-          className={`civr-card p-4 text-left transition-[border-color,transform] duration-200 hover:-translate-y-0.5 ${value?.country === it.country ? '!border-[var(--c-accent)]' : ''}`}>
+        <button key={it.country} type="button" disabled={soon} onClick={() => onPick(it)} aria-pressed={value?.country === it.country} data-testid={`intl-texting-country-${it.country}`}
+          className={`civr-card p-4 text-left transition-[border-color,transform] duration-200 ${soon ? 'opacity-60 cursor-not-allowed' : 'hover:-translate-y-0.5'} ${value?.country === it.country ? '!border-[var(--c-accent)]' : ''}`}>
           <div className="flex items-center gap-2 font-semibold"><Flag code={it.country} className="!w-6 !h-[18px]" />{it.name}<span className="text-xs text-[var(--c-muted)] font-normal">· Mobile</span>{value?.country === it.country && <Check className="w-4 h-4 ml-auto text-[var(--c-accent)]" />}</div>
           <div className="flex flex-wrap gap-1.5 mt-2"><Badge on Icon={MessageSquare} OffIcon={MessageSquare} label="SMS" testid={`intl-texting-country-${it.country}-sms`} /><Badge on={it.caps.voice} Icon={Phone} OffIcon={PhoneOff} label="Calls" testid={`intl-texting-country-${it.country}-voice`} /></div>
           <div className="text-xs text-[var(--c-muted)] mt-2" data-testid={`intl-texting-country-${it.country}-text-price`}>{`${money(it.textPrice)} per text sent · receiving is free`}</div>
@@ -70,8 +70,9 @@ export default function InternationalTexting() {
   };
   return (
     <div className="space-y-8" data-testid="intl-texting-page">
-      <PageHeader label="Phone numbers" title="International Texting" sub={`Two-way texting numbers in ${data.items.length} countries. No ID needed, live the day you buy. ${data.price ? `${money(data.price)}/month on the Basic plan.` : ''}`} testid="intl-texting-header" />
-      <div><Label>1 · Pick a country</Label><CountryList items={data.items} value={country} onPick={choose} /></div>
+      <PageHeader label="Phone numbers" title="International Texting" sub={data.available ? `Two-way texting numbers in ${data.items.length} countries. No ID needed, live the day you buy. ${data.price ? `${money(data.price)}/month on the Basic plan.` : ''}` : `Two-way texting numbers in ${data.items.length} countries — coming soon.`} testid="intl-texting-header" />
+      {!data.available && <div className="civr-card p-5 flex items-start gap-3 !border-[#fbbf24]/40" data-testid="intl-texting-coming-soon"><Clock className="w-5 h-5 text-[#fbbf24] shrink-0 mt-0.5" /><div><div className="font-semibold">Coming soon</div><p className="text-sm text-[var(--c-muted)] mt-1">Our carriers are switching on two-way texting for these countries. You’ll be able to buy here as soon as it’s live.</p></div></div>}
+      <div><Label>{data.available ? '1 · Pick a country' : 'Countries coming soon'}</Label><CountryList items={data.items} value={country} onPick={choose} soon={!data.available} /></div>
       <p className="text-sm text-[var(--c-muted)] flex items-center gap-2" data-testid="intl-texting-usa-note"><Globe className="w-4 h-4" />Need a USA number? <Link to={cp('/app/texting-number')} className="underline" data-testid="intl-texting-usa-link">USA Texting Number</Link> — unlimited texts, assigned near your ZIP code.</p>
       <ErrorNote error={err} testid="intl-texting-error" />
       {country && <div><Label>{`2 · Pick your ${country.name} number`}</Label>{busy === 'search' ? <Spinner label="Finding numbers…" testid="intl-texting-searching" /> : res && <Results list={res} pick={pick} setPick={setPick} />}</div>}

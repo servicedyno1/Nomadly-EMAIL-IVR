@@ -29904,16 +29904,18 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       if (phoneConfig.isPlanAvailable('business')) availablePlanBtns.push([pc.businessPlan])
       return send(chatId, trans('t.cp_225'), k.of(availablePlanBtns))
     }
-    // Handle "More Countries" button
+    // Handle "More Countries" button — a plan's own number: USA/Canada/UK, Business also Netherlands/France/Spain (instant, no ID).
+    const planCountries = phoneConfig.BOT_CATALOG() ? phoneConfig.botPlanCountries(info?.cpPlanKey) : phoneConfig.moreCountries
     if (message === pc.moreCountries) {
-      const allBtns = [...phoneConfig.allCountries, ...phoneConfig.moreCountries].map(c => c.name)
+      const allBtns = [...phoneConfig.allCountries, ...planCountries].map(c => c.name)
       const rows = []
       for (let i = 0; i < allBtns.length; i += 2) rows.push(allBtns.slice(i, i + 2))
       return send(chatId, trans('t.cp_226'), k.of(rows))
     }
     const countryCode = phoneConfig.countryByName[message]
     if (!countryCode) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectValidCountry)
-    const countryEntry = phoneConfig.allCountries.find(c => c.name === message) || phoneConfig.moreCountries.find(c => c.name === message)
+    const countryEntry = phoneConfig.allCountries.find(c => c.name === message) || planCountries.find(c => c.name === message)
+    if (!countryEntry && phoneConfig.BOT_CATALOG()) return send(chatId, phoneConfig.includedIssue(info?.cpPlanKey, countryCode, 'local') || phoneConfig.getMsg(info?.userLanguage).selectValidCountry)
     // Store native provider for this country (used for single-provider countries)
     const nativeProvider = countryEntry?.provider || 'telnyx'
     await saveInfo('cpCountryCode', countryCode)

@@ -60,14 +60,15 @@ function countries() {
   }
   // offers[type] = who sells it and the paperwork it needs (absent = the US/CA provider chain).
   for (const c of list) {
+    c.included = phoneConfig.includedTier(c.code)
     c.offers = {}
     for (const t of c.types) {
       const b = numberCatalog.best(c.code, t)
       // caps: what the number can do; smsNeedsApproval: US local texting needs 10DLC, US/CA toll-free needs verification.
       const sms = b ? !!b.sms : ['US', 'CA'].includes(c.code)
       const caps = { voice: true, sms, fax: ['US', 'CA'].includes(c.code) && t !== 'mobile', smsNeedsApproval: sms && c.code === 'US' }
-      if (!b) c.offers[t] = { provider: null, level: 0, caps }
-      if (b) c.offers[t] = { caps, provider: b.provider, level: b.level, ...(b.businessOnly ? { businessOnly: true } : {}), ...(b.level && b.address ? { address: b.address } : {}), ...(b.request ? { request: b.request } : {}) }
+      if (!b) c.offers[t] = { provider: null, level: 0, caps, included: phoneConfig.instantNoId(c.code, t) }
+      if (b) c.offers[t] = { caps, included: phoneConfig.instantNoId(c.code, t), provider: b.provider, level: b.level, ...(b.businessOnly ? { businessOnly: true } : {}), ...(b.level && b.address ? { address: b.address } : {}), ...(b.request ? { request: b.request } : {}) }
     }
   }
   return list.sort((a, b) => (['US', 'CA'].indexOf(b.code) - ['US', 'CA'].indexOf(a.code)) || a.name.localeCompare(b.name))
@@ -109,7 +110,8 @@ const WEB_FEATURES = [
   ['fax', 'Fax — send and receive', 'fax'],
   ['priority', 'Priority support', (plan) => plan === 'business'],
 ]
-const webFeatures = (plan) => WEB_FEATURES.map(([key, label, gate]) => ({
+const TEXTING_KEYS = ['inbox', 'smsEmail', 'textTriggers']
+const webFeatures = (plan) => WEB_FEATURES.filter(([key]) => phoneConfig.PLAN_TEXTING() || !TEXTING_KEYS.includes(key)).map(([key, label, gate]) => ({
   key, label: typeof label === 'function' ? label() : label, included: gate === null ? true : typeof gate === 'function' ? gate(plan) : !!phoneConfig.canAccessFeature(plan, gate),
 }))
 
@@ -130,7 +132,7 @@ const catalog = () => {
     voicemailLanguages: vmGreeting.publicLangs(),
     countries: countries(), typeNames: TYPE_NAMES,
     rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS, aiAgentPerMin: require('../ai-agent').RATE(), aiSummaryPerMin: require('./ai-summary').RATE(), outboundPerMinUsCa: outboundRate(), outboundPerMinIntl: phoneConfig.CALL_FORWARDING_RATE_MIN },
-    sipDomain: phoneConfig.WEB_SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(),
+    sipDomain: phoneConfig.WEB_SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(), planTexting: phoneConfig.PLAN_TEXTING(),
     // Cards show as "coming soon" on the site until this is true (the checkout's card option is still disabled too).
     cardPayments: String(process.env.CLOUDIVR_CARD_PAYMENTS || '').toLowerCase() === 'true',
     texting: { ...require('../hosted-sms.js').TEXTING, available: require('../hosted-sms.js').AVAILABLE, numberPrice: phoneConfig.plans?.starter?.price ?? null },
@@ -395,6 +397,9 @@ function routes(router, deps) {
     if (sub) planKey = sub.plan
     const plan = phoneConfig.plans[planKey]
     if (!plan || !phoneConfig.isPlanAvailable(planKey)) return { status: 400, body: { error: 'invalid_plan', message: 'That plan is not available.' } }
+    // A plan's own number must be an instant no-ID number from the plan's countries (already-paid crypto orders were checked at checkout).
+    const incl = !sub && !viaOrder && !presetOrder ? phoneConfig.includedIssue(planKey, country, type) : null
+    if (incl) return { status: 400, body: { error: 'extra_number_only', message: incl } }
     const holder = await holderOf(phone)
     if (holder !== null) {
       return { status: 409, body: String(holder) === String(chatId)
@@ -736,7 +741,7 @@ function routes(router, deps) {
   router.get('/texting/ready', h(async (req, res) => {
     const sold = countries()
     const items = texting.list().filter(o => sold.find(c => c.code === o.iso)?.types.includes(o.type)).map(o => ({ country: o.iso, name: o.name, flag: o.flag, type: o.type, typeName: 'Mobile', caps: { sms: true, voice: o.voice }, textPrice: o.textPrice, extraPrice: o.extraPrice }))
-    res.json({ items, plan: 'starter', price: phoneConfig.plans?.starter?.price ?? null, usa: { caps: { sms: true, voice: false }, assigned: true } })
+    res.json({ items, available: phoneConfig.PLAN_TEXTING(), plan: 'starter', price: phoneConfig.plans?.starter?.price ?? null, usa: { caps: { sms: true, voice: false }, assigned: true } })
   }))
 
   // Extra SIP logins: free ones come with Pro (2) and Business (5); more on any plan with SIP cost $5/month each.

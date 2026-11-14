@@ -186,6 +186,8 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     if (!picked) return bad(res, 400, 'search_again', 'That number is no longer in your search results. Search again and pick a number.')
     const planKey = String(req.body.plan || ''), plan = phoneConfig.plans[planKey]
     if (!plan || !phoneConfig.isPlanAvailable(planKey)) return bad(res, 400, 'invalid_plan', 'That plan is not available.')
+    const incl = phoneConfig.includedIssue(planKey, picked.country, picked.type)
+    if (incl) return bad(res, 400, 'extra_number_only', incl)
     const autoRenew = req.body.autoRenew !== false
     let coupon = null
     if (req.body.coupon) {
