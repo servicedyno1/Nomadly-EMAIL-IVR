@@ -26,7 +26,7 @@ export function MobileOffer({ onBought, open: startOpen = false }) {
         <MessageSquare className="w-5 h-5 text-[#818cf8] mt-1" />
         <div className="flex-1 min-w-[200px]">
           <div className="font-semibold">Order a Texting Number</div>
-          <p className="text-sm text-[var(--c-muted)] mt-1">A USA number for sending and receiving texts right here in Messages, including verification codes. Works in your browser: no phone or SIM needed.</p>
+          <p className="text-sm text-[var(--c-muted)] mt-1">A USA number with unlimited texts right here in Messages, including verification codes. Works in your browser: no phone or SIM needed.</p>
         </div>
         <div className="font-mono text-xl" data-testid="mobile-offer-price">{`${money(data.price)}`}<span className="text-xs text-[var(--c-muted)]"> /month</span></div>
       </div>

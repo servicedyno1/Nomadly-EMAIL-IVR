@@ -145,10 +145,11 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     if (await require('../sms-optout').isOptedOut(chatId, to)) return { error: [403, 'opted_out', 'This person replied STOP, so you can’t text them. They can reply START to receive texts again.'] }
     const preview = simulated || dryRun() || !!num.dryRun
     const senderName = (await db.collection('webPrefs').findOne({ _id: chatId }, { projection: { senderName: 1 } }))?.senderName || null
-    const rule = await smsRules.check(num.phoneNumber, to, senderName)
+    const intl = require('../texting-countries').rateFor(num, to)
+    const rule = intl || await smsRules.check(num.phoneNumber, to, senderName)
     if (!rule.ok) return { error: [400, 'sms_blocked', rule.why] }
     // US/Canada: plan texts, then the extra-text rate. Other countries: that country's price from the wallet.
-    const home = rule.iso === 'US' || rule.iso === 'CA'
+    const home = !intl && (rule.iso === 'US' || rule.iso === 'CA')
     const ownerNumbers = (await db.collection('phoneNumbersOf').findOne({ _id: chatId }))?.val?.numbers || [num]
     const parts = require('./sms-limit').smsParts(body)
     // Each part uses one plan text; parts beyond what's left in the plan cost the extra-text rate.

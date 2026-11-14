@@ -174,7 +174,7 @@ export default function BuyNumber() {
   // Picked plan → the recommended plan (Pro) → the first plan on sale.
   const avail = (id) => catalog.plans.find(p => p.id === id && p.available);
   const planObj = avail(plan) || avail(catalog.recommendedPlan) || catalog.plans.find(p => p.available);
-  const total = extraOf ? (extra?.price || 0) : planObj ? planObj.price + (pick?.surcharge || 0) : 0;
+  const total = extraOf ? (pick?.extraPrice ?? extra?.price ?? 0) : planObj ? planObj.price + (pick?.surcharge || 0) : 0;
   const pc = res?.paperwork?.compliance;
   const docsMissing = res?.paperwork?.level === 2 && (!res.paperwork.documents?.ready || (pc && (pc.identity?.status !== 'verified' || (pc.business && pc.company?.status !== 'approved'))));
   const fromParam = !saved && params.get('plan') && planObj?.id === params.get('plan');

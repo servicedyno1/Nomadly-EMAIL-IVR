@@ -21,7 +21,7 @@ export function usePurposeCards(catalog, myNums) {
   return [
     { id: 'voice', Icon: Phone, title: 'Voice', price: startPrice(catalog, () => true), what: 'A Business Line', points: ['Answer in your browser or forward to your phone', 'Keypad menus, voicemail and AI agents on bigger plans'], owned: own(lines.length, 'Business Line', 'Business Lines') },
     { id: 'sip', Icon: Server, title: 'SIP', price: startPrice(catalog, p => p.access?.sipCredentials), what: 'On a Business Line', points: ['Logins for desk phones and softphone apps', 'Comes with the Starter, Pro and Business plans'], owned: own(sipLines.length, 'line with SIP', 'lines with SIP') },
-    { id: 'sms', Icon: MessageSquare, title: 'SMS', price: texting?.price || null, what: 'A Texting Number', points: ['A USA carrier number for texts and codes', 'Read and reply in Messages'], owned: own(texts.length, 'Texting Number', 'Texting Numbers'), off: texting && !texting.available && !texts.length },
+    { id: 'sms', Icon: MessageSquare, title: 'SMS', price: texting?.price || null, what: 'A Texting Number', points: ['USA number with unlimited texts', 'Or pick a number in 11 more countries'], owned: own(texts.length, 'Texting Number', 'Texting Numbers'), off: texting && !texting.available && !texts.length },
     { id: 'fax', Icon: Printer, title: 'Fax', price: fax?.price || null, what: 'A fax-only number', points: ['USA or Canada, sends and receives faxes', `${fax?.freePages ?? 50} free pages a month`], owned: own(faxes.length, 'fax number', 'fax numbers'), off: fax && !fax.available && !faxes.length },
   ];
 }
@@ -75,7 +75,8 @@ export function SmsPurposeCard() {
     <div className="civr-card p-5 flex flex-wrap items-center gap-4" data-testid="buy-sms-card">
       <div className="flex-1 min-w-[240px]">
         <div className="font-semibold">{has ? 'Get another Texting Number' : 'Order a Texting Number'}</div>
-        <div className="text-sm text-[#a1a1aa] mt-0.5">{`You enter a USA ZIP code, pay${data?.price ? ` ${money(data.price)}/month` : ''} from your wallet, and the number is usually ready within minutes.`}</div>
+        <div className="text-sm text-[#a1a1aa] mt-0.5">{`Unlimited texts. You enter a USA ZIP code, pay${data?.price ? ` ${money(data.price)}/month` : ''} from your wallet, and the number is usually ready within minutes.`}</div>
+        <div className="text-sm text-[#a1a1aa] mt-2" data-testid="buy-intl-texting-link">Texting outside the USA? <Link to={cp('/app/international-texting')} className="text-[#1d6fd8] underline underline-offset-2" data-testid="buy-intl-texting-link-button">Pick a number in another country</Link></div>
         <div className="text-sm text-[#a1a1aa] mt-2" data-testid="buy-texting-link">Have a landline or office number elsewhere? <Link to={cp('/app/texting?add=1')} className="text-[#1d6fd8] underline underline-offset-2" data-testid="buy-texting-link-button">Add texting to it</Link></div>
       </div>
       {data && !data.available && !has

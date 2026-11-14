@@ -1,29 +1,24 @@
-# Two-way texting — instant, no-ID numbers (Multitel file 2026-11-14 + Infobip scan)
+# Instant, no-ID two-way texting — costs and customer prices (updated 2026-11-14)
 
-Source: `multitel-sms-rates-20261114.csv` (cost per outbound segment) + `memory/multitel_classified.json` (stock/paperwork scan) + `memory/infobip_full_report.csv`.
-Full table: `memory/texting_pricing_2026-06.csv`. Receiving texts stays free. NOTHING here is live — prices await owner approval.
+Sources: MultiTEL SMS rate file (2026-11-14) + MultiTEL scan; Infobip live number search (capabilities=SMS) + Infobip public SMS prices (max network, USD).
+Rules (owner): 3x our cost. Sent text >= $0.05, extra number on a plan >= $25, receiving free. New number = Basic plan $50/mo.
+USA = Spenza USA Texting Number, $50/mo, unlimited texts (no per-text charge), number assigned after payment near the ZIP.
+Live in code: js/texting-countries.js.
 
-Suggested price per sent text = max($0.05, cost x 1.6, rounded up to the cent).
+| Country | Provider used | Number type | Calls too? | Our number cost /mo | Our setup | Our cost per sent text | Customer per text | Extra number on a plan /mo |
+|---|---|---|---|---|---|---|---|---|
+| Brazil | MultiTEL | Mobile | Yes | $9.81 | $0 | $0.0892 | $0.27 | $29.43 |
+| Canada | MultiTEL | Local | Yes | $0.60 | $0 | $0.0164 | $0.05 | $25 |
+| Colombia | MultiTEL | Mobile | Yes | $15.91 | $0 | $0.0679 | $0.21 | $47.73 |
+| Denmark | MultiTEL | Mobile | Yes | $9.81 | $0 | $0.0889 | $0.27 | $29.43 |
+| Lithuania | Infobip | Local | No (SMS only) | $9.76 | $9.76 | $0.047 | $0.15 | $29.28 |
+| Netherlands | MultiTEL | Mobile | Yes | $1.11 | $0 | $0.0794 | $0.24 | $25 |
+| Peru | MultiTEL | Mobile | Yes | $24.98 | $0 | $0.4807 | $1.45 | $74.94 |
+| Poland | Infobip | Local | No (SMS only) | $19.52 | $19.52 | $0.036 | $0.11 | $58.56 |
+| Puerto Rico | Infobip | Local | Yes | $0.98 | $0.98 | $0.037 | $0.12 | $25 |
+| Spain | Infobip | Local | No (SMS only) | $39.03 | $9.76 | $0.071 | $0.22 | $117.09 |
+| United Kingdom | MultiTEL | Mobile | Yes | $0.70 | $0 | $0.0587 | $0.18 | $25 |
 
-| Country | Type | Multitel number cost/mo | Multitel cost per sent text | Loses money at $0.05? | Suggested price per text | Infobip (SMS paperwork / delivery) |
-|---|---|---|---|---|---|---|
-| United States | Local | $0.60 | $0.0164 (incl. carrier fee max) | No | $0.05 | No paperwork, instant (10DLC still needed to send) |
-| United States | Toll-free | $1.00 (+$0.78 setup) | $0.0164 | No | $0.05 | No paperwork, instant (toll-free verification needed to send) |
-| Canada | Local | n/a in scan | $0.0164 | No | $0.05 | No paperwork, instant |
-| United Kingdom | Local | $0.70 | $0.0587 | Yes | $0.10 | No paperwork, on request |
-| United Kingdom | Mobile | $0.70 | $0.0587 | Yes | $0.10 | No paperwork, on request |
-| Netherlands | Mobile | $1.11 | $0.0794 | Yes | $0.13 | No paperwork, on request |
-| Colombia | Mobile | $15.91 | $0.0678 | Yes | $0.11 | not offered for SMS |
-| Brazil | Mobile | $9.81 | $0.0892 | Yes | $0.15 | not offered |
-| Denmark | Mobile | $9.81 | $0.0889 | Yes | $0.15 | Name + address, on request |
-| Peru | Mobile | $24.98 | $0.4807 | Yes | $0.77 | not offered for SMS |
-| Israel | Mobile | n/a in scan | $0.6255 | Yes | $1.01 | Documents, on request |
-
-## Infobip — instant + no paperwork + SMS
-Canada, Lithuania, Poland, Puerto Rico, Spain, United States (instant stock at scan time).
-No paperwork but "on request" (Infobip assigns after order, not instant): Austria, Estonia, Guernsey, Hong Kong, Hungary, Italy, Latvia, Malta, Netherlands, Norway, Portugal, Slovakia, United Kingdom.
-Infobip per-text cost is not in our data (their API doesn't return SMS rates) — check the Infobip portal price list before pricing those.
-
-## Notes
-- Costs are Multitel's rate to text a number in that same country; texting abroad costs the destination rate.
-- Stock is point-in-time; resale rights not confirmed by either API.
+Also available but not used (more expensive): Canada via Infobip $0.98/mo, $0.0093/text. Israel mobile (MultiTEL, no ID) has no monthly price in the scan, so it isn't sold.
+Margin on a $50 Basic number: Spain is the thinnest at about $11/mo before texts; Peru ~$25; everything else is $30-49.
+Bird travel eSIM: 748 active data offers in 187 single-country zones (no regional or global packs, no phone numbers). Full list with 3x prices: memory/bird_esim_offers_2026-11.csv.

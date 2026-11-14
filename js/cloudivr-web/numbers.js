@@ -74,6 +74,7 @@ function countries() {
 }
 const ibCountries = require('../infobip/countries')
 const numberCatalog = require('../number-catalog')
+const texting = require('../texting-countries')
 // US/CA keep the provider chain (area codes, toll-free) — it now tries the cheapest no-paperwork provider first.
 const ownProvider = (c, type) => (['US', 'CA'].includes(c?.code) ? null : c?.offers?.[type]?.provider || null)
 
@@ -327,7 +328,7 @@ function routes(router, deps) {
     if (verification.error) return bad(res, 424, 'lookup_failed', verification.error)
     if (verification.required && !verification.supported) return bad(res, 400, 'unsupported', `${c.name} ${TYPE_NAMES[type] || type} numbers can't be ordered online right now. Pick another country or type.`)
     // Infobip / MultiTEL countries search that provider directly; US/CA go through the provider chain.
-    const found = await unheld(own === 'infobip' ? await require('../infobip').searchNumbers(country, type, areaCode, 12)
+    const found = await unheld(own === 'infobip' ? await require('../infobip').searchNumbers(country, type, areaCode, 12, { sms: req.query.texting === '1' && !!texting.offerOf(country, type) })
       : own === 'multitel' ? await require('../multitel').searchNumbers(country, type, areaCode, 12)
         : await telnyxApi.searchNumbers(country, type, areaCode, 12))
     const results = found.map(n => ({
@@ -336,6 +337,7 @@ function routes(router, deps) {
       capabilities: { ...(n._capabilities || { voice: true, sms: false, fax: false }), ...(n._signalwire ? { fax: false } : {}) },
       surcharge: ['infobip', 'multitel'].includes(n._provider) ? require('../number-addons').get(country, type) : round2(numberSurcharge(country, type, n)),
       provider: n._provider || null,
+      ...(texting.offerOf(country, type) ? { extraPrice: texting.offerOf(country, type).extraPrice, textPrice: texting.offerOf(country, type).textPrice } : {}),
       cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
     }))
     const fb = found.find(n => n._areaFallback)
@@ -407,7 +409,7 @@ function routes(router, deps) {
       const why = await paperworkIssue(chatId, country, c.name, offer)
       if (why) return { status: 400, body: { error: 'paperwork_needed', message: why } }
     }
-    const base = sub ? phoneConfig.SUB_NUMBER_BASE_PRICE : plan.price + (hit.surcharge || 0)
+    const base = sub ? (texting.offerOf(country, type)?.extraPrice ?? phoneConfig.SUB_NUMBER_BASE_PRICE) : plan.price + (hit.surcharge || 0)
     const price = prepaid ? prepaid.amount : round2(base * (1 - (Number(coupon?.discount) || 0) / 100))
     if (!prepaid && !(await w.debit(chatId, price))) return { status: 402, body: { error: 'insufficient_balance', message: `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(chatId)).toFixed(2)} — top up first.` } }
 
@@ -728,7 +730,12 @@ function routes(router, deps) {
   }
 
   // Numbers that can send and receive texts with no carrier approval (no ID, no 10DLC) — sold on the Texting Number page.
-  router.get('/texting/ready', h(async (req, res) => res.json({ items: countries().flatMap(c => Object.entries(c.offers || {}).filter(([, o]) => o.caps?.sms && !o.caps.smsNeedsApproval && o.level === 0).map(([type, o]) => ({ country: c.code, name: c.name, flag: c.flag, type, typeName: TYPE_NAMES[type] || type, caps: o.caps }))), plan: 'starter', price: phoneConfig.plans?.starter?.price ?? null })))
+  // Instant no-ID two-way texting countries, sold on the Basic plan; the USA is the Spenza Texting Number (assigned after payment).
+  router.get('/texting/ready', h(async (req, res) => {
+    const sold = countries()
+    const items = texting.list().filter(o => sold.find(c => c.code === o.iso)?.types.includes(o.type)).map(o => ({ country: o.iso, name: o.name, flag: o.flag, type: o.type, typeName: 'Mobile', caps: { sms: true, voice: o.voice }, textPrice: o.textPrice, extraPrice: o.extraPrice }))
+    res.json({ items, plan: 'starter', price: phoneConfig.plans?.starter?.price ?? null, usa: { caps: { sms: true, voice: false }, assigned: true } })
+  }))
 
   // Extra SIP logins (Business plan, up to 5 per number) — each device/person gets its own revocable login on our SIP server.
   const EXTRA_SIP = { pro: 2, business: 5 }

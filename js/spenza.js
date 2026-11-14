@@ -9,6 +9,7 @@ const { walletOps, round2 } = require('./cloudivr-web/wallet')
 const API = 'https://api.spenza.com'
 const MONTH_MS = 30 * 86400000
 const TEXT_PRICE = 0.05
+const MOBILE_TEXT_PRICE = 0
 const dry = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 let S = null
 let tok = { value: null, exp: 0 }
@@ -542,12 +543,13 @@ async function sendSms(chatId, id, to, text) {
   if (long) return { error: long }
   if (!/^\+1[2-9]\d{2}[2-9]\d{6}$/.test(dest)) return { error: 'Texts can go to USA numbers: enter +1 and the 10-digit number.' }
   if (!body) return { error: 'Type a message.' }
-  const parts = require('./cloudivr-web/sms-limit').smsParts(body), cost = round2(TEXT_PRICE * parts)
-  if (!(await S.w.debit(chatId, cost))) return { error: `Your wallet needs $${cost.toFixed(2)} to send this text${parts > 1 ? ` (${parts} parts)` : ''}.` }
+  // USA Texting Numbers: unlimited texts, no per-text charge (2026-11).
+  const parts = require('./cloudivr-web/sms-limit').smsParts(body), cost = round2(MOBILE_TEXT_PRICE * parts)
+  if (cost && !(await S.w.debit(chatId, cost))) return { error: `Your wallet needs $${cost.toFixed(2)} to send this text${parts > 1 ? ` (${parts} parts)` : ''}.` }
   if (!d.simulated) {
     try { await call('post', '/api/v1.1/sms', { fromNumber: d.phoneNumber, toNumber: dest, text: body }) } catch (e) { await S.w.credit(chatId, cost); S.log(`[eSIM] sms ${d._id}: ${e.message}`); return { error: e.code === 'FORBIDDEN' || e.status === 401 || e.status === 403 ? 'Texts from this eSIM aren’t switched on yet. We’ve let support know. You weren’t charged.' : 'The text couldn’t be sent. You weren’t charged. Try again in a minute.' } }
   }
-  await txn(chatId, 'esim-sms', cost, { lineId: d._id, to: dest, parts })
+  if (cost) await txn(chatId, 'esim-sms', cost, { lineId: d._id, to: dest, parts })
   const log = { chatId: String(chatId), phoneNumber: d.phoneNumber, from: d.phoneNumber, to: dest, type: 'sms', direction: 'outbound', body, esim: d._id, charge: cost, status: d.simulated ? 'preview' : 'sent', timestamp: new Date() }
   await S.db.collection('phoneLogs').insertOne(log)
   return { log }
@@ -690,5 +692,5 @@ function init({ db, log = console.log, tell }) {
   return api
 }
 
-const api = { init, setBot, sendBotQr, tick, syncUser, syncProfile, linkUser, receiptsOf, MOBILE_PRICE, bundlePrice, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, submitImei, imeiChase, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
+const api = { init, setBot, sendBotQr, tick, syncUser, syncProfile, linkUser, receiptsOf, MOBILE_PRICE, bundlePrice, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, submitImei, imeiChase, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE, MOBILE_TEXT_PRICE }
 module.exports = api
