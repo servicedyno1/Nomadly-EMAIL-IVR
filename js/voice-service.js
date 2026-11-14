@@ -4052,17 +4052,31 @@ async function telnyxSipNumbers() {
     for (const n of d.val?.numbers || []) if (on.has(n.phoneNumber) && !/released|expired|cancel/i.test(String(n.status || ''))) out.add(n.phoneNumber)
   return [...out]
 }
+// This brand's active numbers on Zadarma (SIP URI forwarded to our server).
+async function zadarmaNumbers() {
+  const zd = require('./zadarma/provider')
+  if (!_db || !require('./zadarma').enabled()) return []
+  await zd.refreshOwned()
+  const zdSet = new Set(zd.ownedNumbers())
+  const out = new Set()
+  for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1 } }).toArray())
+    for (const n of d.val?.numbers || []) if (zdSet.has(n.phoneNumber) && !/released|expired|cancel/i.test(String(n.status || ''))) out.add(n.phoneNumber)
+  return [...out]
+}
 async function telnyxDidSync() {
   const nums = await telnyxSipNumbers()
-  if (nums.length) await require('./callengine').setDidApps(nums)
+  const zdNums = await zadarmaNumbers()
+  const all = [...nums, ...zdNums]
+  if (all.length) await require('./callengine').setDidApps(all)
 }
 async function birdAutoLinkTick() {
   if (!_db || !require('./bird').enabled()) return
   const tx = await telnyxSipNumbers()
+  const zd = await zadarmaNumbers()
   const rest = require('./signalwire/rest')
-  if (!rest.enabled() && !tx.length) return
+  if (!rest.enabled() && !tx.length && !zd.length) return
   if (rest.enabled()) await rest.refreshOwned()
-  const sw = new Set([...(rest.enabled() ? rest.ownedNumbers() : []), ...tx])
+  const sw = new Set([...(rest.enabled() ? rest.ownedNumbers() : []), ...tx, ...zd])
   const numbers = new Set()
   for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1 } }).toArray())
     for (const n of d.val?.numbers || []) if (sw.has(n.phoneNumber) && !/released|expired|cancel/i.test(String(n.status || ''))) numbers.add(n.phoneNumber)
