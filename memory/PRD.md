@@ -127,3 +127,7 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - w.assignNumberToCallControlApp returns true for Infobip-owned numbers (no Telnyx call).
 - Lookups: Bird first everywhere (signalwire lookup(), validateForwardingDestination, bulk-esim lookupOne); Telnyx lookups removed. Caller NAME: Bird + Infobip don't return names (Bird docs; Infobip lookup "route not available") → CNAM = SignalWire → Multitel (Telnyx removed).
 - Self-tested: US no-area → 10 Infobip; 631 → 2 Infobip; 212 → SignalWire; CA → Infobip; toll-free → SignalWire; Bird lookup US/GB ok; Multitel CNAM ok.
+
+## 2026-11-14 — Bird caller IDs trimmed to Infobip only
+- User chose: removed all 27 non-Infobip caller IDs from Bird (20 were active customers' Telnyx numbers). Bird now: +16479457172 only.
+- Code: birdAutoLinkTick links ONLY Infobip-owned numbers. Production still runs old code (re-arms Telnyx/SignalWire numbers every 3 min) until Save to GitHub → deploy; re-run cleanup after deploy if any came back.

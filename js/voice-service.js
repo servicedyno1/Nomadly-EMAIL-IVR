@@ -4071,14 +4071,11 @@ async function telnyxDidSync() {
 }
 async function birdAutoLinkTick() {
   if (!_db || !require('./bird').enabled()) return
-  const tx = await telnyxSipNumbers()
-  const zd = await zadarmaNumbers()
-  const rest = require('./signalwire/rest')
+  // Only Infobip numbers are linked to Bird now (Telnyx / SignalWire / Zadarma caller IDs were removed on request).
   const ib = require('./infobip')
   const ibNums = ib.enabled() ? await ib.refreshOwned() : []
-  if (!rest.enabled() && !tx.length && !zd.length && !ibNums.length) return
-  if (rest.enabled()) await rest.refreshOwned()
-  const sw = new Set([...(rest.enabled() ? rest.ownedNumbers() : []), ...tx, ...zd, ...ibNums])
+  if (!ibNums.length) return
+  const sw = new Set(ibNums)
   const numbers = new Set()
   for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1 } }).toArray())
     for (const n of d.val?.numbers || []) if (sw.has(n.phoneNumber) && !/released|expired|cancel/i.test(String(n.status || ''))) numbers.add(n.phoneNumber)
