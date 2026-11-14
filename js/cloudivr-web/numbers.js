@@ -48,11 +48,19 @@ const hoursOf = (n) => n.features?.hours || { ...numberHours.defaultHours(), off
 // US/CA only while NUMBER_SEARCH_US_CA_ONLY is on (SignalWire sells only these); otherwise the full catalogue.
 function countries() {
   const intl = (!phoneConfig.numberSearchUsCaOnly() && phoneConfig.isTelnyxIntlEnabled()) ? [...phoneConfig.telnyxIntlCountries, ...phoneConfig.telnyxIntlMore] : []
-  return [...phoneConfig.countries, ...intl].map(c => {
+  const list = [...phoneConfig.countries, ...intl].map(c => {
     const i = c.name.indexOf(' ')
-    return { code: c.code, flag: c.name.slice(0, i), name: c.name.slice(i + 1), types: c.types || ['local', 'toll_free'] }
+    const ib = ibCountries.isInstant(c.code) && ibOn()
+    return { code: c.code, flag: c.name.slice(0, i), name: c.name.slice(i + 1), types: ib ? ['local'] : c.types || ['local', 'toll_free'], ...(ib ? { provider: 'infobip' } : {}) }
   })
+  if (!ibOn()) return list
+  const have = new Set(list.map(c => c.code))
+  for (const [code, name] of Object.entries(ibCountries.INSTANT)) if (!have.has(code)) list.push({ code, flag: ibCountries.FLAG(code), name, types: ['local'], provider: 'infobip' })
+  for (const [code, r] of Object.entries(ibCountries.REQUEST)) if (!have.has(code)) list.push({ code, flag: ibCountries.FLAG(code), name: r.name, types: ['local'], provider: 'infobip', request: { details: r.keys.length ? (r.keys.includes('companyAddress') ? 'name_address' : 'name') : 'none', localOnly: r.clientType === 'LOCAL' } })
+  return list
 }
+const ibCountries = require('../infobip/countries')
+const ibOn = () => require('../infobip').enabled()
 
 // What each plan gets IN THE WEB APP. The bot's plan copy lists Telegram-only extras (redial button, presets,
 // sub-numbers…), so plan cards use this list instead. `gate` is the engine feature check; null = every plan.
@@ -295,15 +303,16 @@ function routes(router, deps) {
     const type = String(req.query.type || c.types[0])
     if (!c.types.includes(type)) return bad(res, 400, 'invalid_type', `${c.name} offers: ${c.types.map(t => TYPE_NAMES[t] || t).join(', ')}.`)
     const areaCode = ['US', 'CA'].includes(country) && type === 'local' && /^\d{3}$/.test(String(req.query.areaCode || '')) ? String(req.query.areaCode) : null
-    const verification = await verificationInfo(country, type, `${c.flag} ${c.name}`)
+    if (c.request) return res.json({ numbers: [], request: { ...c.request, country: c.code, name: c.name, flag: c.flag } })
+    const verification = c.provider === 'infobip' ? { required: false } : await verificationInfo(country, type, `${c.flag} ${c.name}`)
     if (verification.error) return bad(res, 424, 'lookup_failed', verification.error)
     if (verification.required && !verification.supported) return bad(res, 400, 'unsupported', `${c.name} ${TYPE_NAMES[type] || type} numbers can't be ordered online right now. Pick another country or type.`)
-    const found = await unheld(await telnyxApi.searchNumbers(country, type, areaCode, 12))
+    const found = await unheld(c.provider === 'infobip' ? await require('../infobip').searchNumbers(country, type, areaCode, 12) : await telnyxApi.searchNumbers(country, type, areaCode, 12))
     const results = found.map(n => ({
       phoneNumber: n.phone_number,
       region: (n.region_information || []).map(r => r.region_name).filter(Boolean).join(', '),
       capabilities: { ...(n._capabilities || { voice: true, sms: false, fax: false }), ...(n._signalwire ? { fax: false } : {}) },
-      surcharge: round2(numberSurcharge(country, type, n)),
+      surcharge: c.provider === 'infobip' ? 0 : round2(numberSurcharge(country, type, n)),
       cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
     }))
     const fb = found.find(n => n._areaFallback)
@@ -343,7 +352,7 @@ function routes(router, deps) {
   // Debits the wallet and activates the number → { status, body } (HTTP-style; refunds on failure).
   // `sub` = { parentNumber, plan } adds the number to an existing plan (flat extra-number price, parent's plan features).
   // `coupon` = { code, type, discount } from deps.resolveCoupon (percent off; redeemed only after success).
-  async function purchaseLocked({ chatId, email, phone, planKey, hit, country, type, areaCode, autoRenew = true, viaOrder = null, sub = null, coupon = null }) {
+  async function purchaseLocked({ chatId, email, phone, planKey, hit, country, type, areaCode, autoRenew = true, viaOrder = null, sub = null, coupon = null, prepaid = null, presetOrder = null }) {
     if (sub) planKey = sub.plan
     const plan = phoneConfig.plans[planKey]
     if (!plan || !phoneConfig.isPlanAvailable(planKey)) return { status: 400, body: { error: 'invalid_plan', message: 'That plan is not available.' } }
@@ -354,11 +363,12 @@ function routes(router, deps) {
         : { error: 'number_taken', message: 'Someone just took that number. Pick another one.' } }
     }
     const c = countries().find(x => x.code === country)
-    const ver = await verificationInfo(country, type, `${c.flag} ${c.name}`)
+    // Infobip countries are paperwork-free (or details sent with the request), so Telnyx's paperwork check is skipped.
+    const ver = c?.provider === 'infobip' ? { required: false } : await verificationInfo(country, type, `${c.flag} ${c.name}`)
     if (ver.error) return { status: 424, body: { error: 'lookup_failed', message: ver.error } }
     const base = sub ? phoneConfig.SUB_NUMBER_BASE_PRICE : plan.price + (hit.surcharge || 0)
-    const price = round2(base * (1 - (Number(coupon?.discount) || 0) / 100))
-    if (!(await w.debit(chatId, price))) return { status: 402, body: { error: 'insufficient_balance', message: `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(chatId)).toFixed(2)} — top up first.` } }
+    const price = prepaid ? prepaid.amount : round2(base * (1 - (Number(coupon?.discount) || 0) / 100))
+    if (!prepaid && !(await w.debit(chatId, price))) return { status: 402, body: { error: 'insufficient_balance', message: `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(chatId)).toFixed(2)} — top up first.` } }
 
     let selected = phone
     try {
@@ -368,7 +378,8 @@ function routes(router, deps) {
       const eu = await deps.legalProfile?.endUserOf(chatId)
       if (eu) require('../infobip').setResaleNote(phone, require('./legal-profile').resaleNote(eu))
       let order
-      if (!ver.required && dryRun()) order = { id: `dryrun-${crypto.randomUUID().slice(0, 8)}` }
+      if (presetOrder) order = presetOrder
+      else if (!ver.required && dryRun()) order = { id: `dryrun-${crypto.randomUUID().slice(0, 8)}`, ...(c?.provider === 'infobip' ? { _provider: 'infobip' } : {}) }
       else order = await paidCheckout(chatId, phone, ctx)
       if (order?._verification) {
         await phoneTransactions.insertOne({ chatId, phoneNumber: phone, action: 'purchase_verification', plan: planKey, amount: price, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
@@ -377,18 +388,19 @@ function routes(router, deps) {
       }
       if (!order) throw new Error('The number could not be reserved — it may have just been taken. Pick another one.')
       if (order._retriedNumber) selected = order._retriedNumber
-      if (!dryRun() && tr.callControlAppId) await telnyxApi.assignNumberToCallControlApp(selected, tr.callControlAppId)
+      const viaInfobip = order._provider === 'infobip' || String(order.id || '').startsWith('ib:')
+      if (!dryRun() && !viaInfobip && tr.callControlAppId) await telnyxApi.assignNumberToCallControlApp(selected, tr.callControlAppId)
 
       let sipUsername = phoneConfig.generateSipUsername(), sipPassword = phoneConfig.generateSipPassword()
       let tUser = null, tPass = null, tCredId = null
-      if (!dryRun() && tr.sipConnectionId) {
+      if (!dryRun() && !viaInfobip && tr.sipConnectionId) {
         const cred = await telnyxApi.createSIPCredential(tr.sipConnectionId, sipUsername, sipPassword, selected)
         if (cred?.sip_username) { tUser = sipUsername = cred.sip_username; tPass = sipPassword = cred.sip_password || sipPassword; tCredId = cred.id || null }
       }
       const caps = { voice: true, sms: !!hit.capabilities.sms, mms: !!hit.capabilities.mms, fax: !!hit.capabilities.fax }
       const expiresAt = new Date(); expiresAt.setMonth(expiresAt.getMonth() + 1)
       const doc = {
-        phoneNumber: selected, telnyxOrderId: order.id, provider: 'telnyx', country, countryName: c.name,
+        phoneNumber: selected, telnyxOrderId: order.id, provider: viaInfobip ? 'infobip' : 'telnyx', country, countryName: c.name,
         type, plan: planKey, planPrice: round2(base), ...(!sub && hit.surcharge ? { numberSurcharge: round2(hit.surcharge) } : {}), purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(), autoRenew: autoRenew !== false, status: 'active',
         sipUsername, sipPassword, telnyxSipUsername: tUser, telnyxSipPassword: tPass, telnyxCredentialId: tCredId, sipDomain: phoneConfig.WEB_SIP_DOMAIN,
         messagingProfileId: caps.sms ? tr.messagingProfileId || null : null, connectionId: tr.sipConnectionId || null, smsUsed: 0, minutesUsed: 0,
@@ -402,19 +414,20 @@ function routes(router, deps) {
         },
       }
       await phoneNumbersOf.updateOne({ _id: chatId }, { $push: { 'val.numbers': doc } }, { upsert: true })
-      await deps.legalProfile?.recordResale({ chatId, phoneNumber: selected, provider: order._provider || (String(order.id || '').startsWith('ib:') ? 'infobip' : 'telnyx'), country })
+      await deps.legalProfile?.recordResale({ chatId, phoneNumber: selected, provider: viaInfobip ? 'infobip' : 'telnyx', country })
       await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: sub ? 'purchase_sub' : 'purchase', plan: planKey, amount: price, paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), ...(sub ? { parentNumber: sub.parentNumber } : {}), ...(coupon ? { coupon: coupon.code, discountPct: coupon.discount } : {}), channel: 'web', timestamp: new Date().toISOString() })
       if (coupon?.code) {
         if (coupon.type === 'web-offer') await deps.offers?.markCodeUsed(chatId, coupon.code).catch(() => {})
         else if (deps.redeemCoupon) await Promise.resolve(deps.redeemCoupon(chatId, coupon.code, coupon.type)).catch(() => {})
         await notify.push(chatId, `Coupon ${coupon.code} applied: ${coupon.discount}% off ${selected}. You saved $${round2(base - price).toFixed(2)}.`, null, { kind: 'coupon', meta: { coupon: coupon.code, discount: coupon.discount, used: true } }).catch(() => {})
       }
-      await txn(chatId, 'phone-number', price, { phoneNumber: selected, plan: planKey, provider: 'telnyx', country })
+      await txn(chatId, 'phone-number', price, { phoneNumber: selected, plan: planKey, provider: viaInfobip ? 'infobip' : 'telnyx', country })
       if (!sub) await referrals.onPurchase(db, chatId, price, log).catch(e => log(`[CloudIVR-Web] referral payout failed: ${e.message}`))
       notifyAdmin(`🌐 CloudIVR web purchase${dryRun() ? ' (DRY RUN)' : ''}${viaOrder ? ' · crypto checkout' : ''}\nweb account: ${chatId} (${email})\nnumber: ${selected} (${country})${sub ? `\nextra number on ${sub.parentNumber}` : ''}\nplan: ${plan.name} $${price}${coupon ? ` (coupon ${coupon.code} −${coupon.discount}%)` : ''}`)
       await searchCache.deleteOne({ _id: chatId })
       return { status: 201, body: { number: publicNumber(doc), substitutedFrom: selected !== phone ? phone : null, balance: await w.balance(chatId) } }
     } catch (e) {
+      if (prepaid) { log(`[CloudIVR-Web] activating requested number ${phone} for ${chatId} failed: ${e.message}`); return { status: 424, body: { error: 'purchase_failed', message: e.message } } }
       await w.credit(chatId, price)
       log(`[CloudIVR-Web] purchase failed for ${chatId} ${phone}: ${e.message} — refunded $${price}`)
       return { status: 424, body: { error: 'purchase_failed', message: `${e.message && e.message.length < 160 ? e.message : 'The number could not be activated.'} You were refunded $${price.toFixed(2)}.` } }

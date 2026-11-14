@@ -94,7 +94,7 @@ function createCloudIvrWeb(deps) {
     // Personal / business details: required before any number checkout.
     const legalProfile = require('./legal-profile').createLegalProfile(db, { log })
     legalProfile.routes(r, h)
-    r.post(['/numbers/buy', '/numbers/checkout', '/numbers/:phone/extra-checkout', '/numbers/:phone/extra', '/numbers/:phone/replace', '/fax-numbers', '/mobile-numbers', '/esim'], legalProfile.gate)
+    r.post(['/numbers/buy', '/numbers/checkout', '/numbers/:phone/extra-checkout', '/numbers/:phone/extra', '/numbers/:phone/replace', '/fax-numbers', '/mobile-numbers', '/esim', '/numbers/request'], legalProfile.gate)
     require('./esim').routes(r, { h, legalProfile })
     const offers = createOffers(db, { log })
     offers.routes(r, { h })
@@ -103,6 +103,10 @@ function createCloudIvrWeb(deps) {
     wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit, offers, cryptoPerUsd: deps.cryptoPerUsd })
     // Orders go first so /numbers/orders is not caught by /numbers/:phone; numbersApi is filled in right after.
     const numbersApi = {}
+    // Infobip request-based countries (pay now, number assigned after Infobip approves; refund if declined).
+    const numberRequests = require('./number-requests').createNumberRequests({ db, h, phoneConfig: require('../phone-config'), numbersApi, walletOps: require('./wallet').walletOps, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, log, dryRun: () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true' })
+    numberRequests.routes(r)
+    require('../active-slot').singletonInterval('cloudivr-number-requests', () => numberRequests.tick().catch(e => log(`[NumberRequest] tick: ${e.message}`)), process.env.WEB_CLOUDIVR_DRY_RUN === 'true' ? 60000 : 10 * 60000)
     orders.routes(r, { ...deps, db, h, numbersApi, sendMail, offers })
     Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h, offers, legalProfile }))
     verification.routes(r, { ...deps, db, h, upload })

@@ -49678,6 +49678,17 @@ app.post('/infobip/voice-webhook', express.json({ limit: '1mb' }), async (req, r
   } catch (error) { log('Infobip voice webhook error:', error.message) }
 })
 
+// Infobip inbound texts (number SMS action HTTP_FORWARD) → same handler as Telnyx texts.
+// The path carries a key derived from our Infobip API key, so only Infobip (configured by us) can post here.
+app.post('/infobip/sms-webhook/:k', express.json({ limit: '1mb' }), async (req, res) => {
+  res.sendStatus(200)
+  if (req.params.k !== require('./infobip').smsHookKey()) return log('Infobip SMS webhook: bad key')
+  for (const m of req.body?.results || []) {
+    const e = (n) => (String(n || '').startsWith('+') ? String(n) : `+${n}`)
+    try { await handleInboundSms({ data: { payload: { from: { phone_number: e(m.from) }, to: [{ phone_number: e(m.to) }], text: m.cleanText || m.text || m.message?.text || '' } } }, bot, phoneNumbersOf, phoneLogs) } catch (err) { log('Infobip SMS webhook error:', err.message) }
+  }
+})
+
 // Infobip recordings need our API key, so customers get them through this signed link
 app.get('/infobip/recording/:fileId', async (req, res) => {
   const ib = require('./infobip')

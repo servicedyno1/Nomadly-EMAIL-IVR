@@ -98,6 +98,18 @@ async function ingest(ev) {
       break
   }
 }
+const smsHookKey = () => crypto.createHmac('sha256', String(process.env.INFOBIP_API_KEY || '')).update('sms-hook').digest('hex').slice(0, 24)
+// Texts to this number are posted to our SMS webhook.
+async function routeSms(numberKey) {
+  const url = `${String(process.env.SELF_URL || '').replace(/\/+$/, '')}/infobip/sms-webhook/${smsHookKey()}`
+  const body = { action: { type: 'HTTP_FORWARD', httpMethod: 'POST', url, contentType: 'JSON' } }
+  try {
+    const cur = (await M.http().get(`/numbers/2/numbers/${numberKey}/sms`)).data?.configurations?.[0]
+    if (cur?.key) await M.http().delete(`/numbers/1/numbers/${numberKey}/configurations/${cur.key}`) // one SMS action per number: replace it
+    await M.http().post(`/numbers/2/numbers/${numberKey}/sms`, body)
+    return true
+  } catch (e) { log(`sms route ${numberKey}:`, errOf(e)); return false }
+}
 const recordingToken = (fileId) => crypto.createHmac('sha256', String(process.env.INFOBIP_API_KEY || '')).update(String(fileId)).digest('hex').slice(0, 24)
 
 // ── Call control (telnyx-service names) ──
@@ -184,6 +196,7 @@ async function buyNumber(phoneNumber) {
   try {
     const n = (await M.http().post('/numbers/1/numbers', { numberKey: key })).data
     await M.http().post(`/numbers/2/numbers/${n.numberKey || key}/voice`, { action: { type: 'FORWARD_TO_SUBSCRIPTION', callsConfigurationId: configId() } })
+    if ((n.capabilities || []).includes('SMS')) await routeSms(n.numberKey || key)
     searched.delete(phoneNumber)
     log(`Bought ${phoneNumber} → calls config ${configId()}`)
     const note = notes.get(phoneNumber); notes.delete(phoneNumber)
@@ -217,7 +230,7 @@ async function sendSms(from, to, text) {
 }
 
 const M = module.exports = {
-  enabled, isIb, configId, http: makeHttp, errOf, recordingToken,
+  enabled, isIb, configId, http: makeHttp, errOf, recordingToken, smsHookKey, routeSms,
   voice: { ingest, setSink, _legs: legs, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall },
   searchNumbers, isIbSearched, buyNumber, releaseNumber, refreshOwned, ownedNumbers, lookup, sendSms, setResaleNote,
 }
