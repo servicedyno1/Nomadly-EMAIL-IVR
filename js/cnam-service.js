@@ -178,7 +178,10 @@ async function lookupMultitel(phone) {
   if (res?.data?.status?.code !== 200) {
     throw new Error(res?.data?.status?.msg || 'Multitel lookup failed')
   }
-  return res?.data?.response?.name || null
+  const name = (res?.data?.response?.name || '').trim()
+  // Multitel echoes the number back when it has no caller name
+  if (!name || /^[+\d\s()-]+$/.test(name)) return null
+  return name
 }
 
 // ── SignalWire CNAM lookup (primary — live provider) ──

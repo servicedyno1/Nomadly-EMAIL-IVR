@@ -139,3 +139,9 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 ## 2026-11-14 — Caller-name (CNAM) lookups: Multitel first
 - cnam-service.js order now Multitel → SignalWire (Telnyx removed). Used by bot quick-call name suggestion (_index.js ~27019), CloudIVR leads /cnam, validatePhoneBulk, phone-test-routes.
 - BLOCKERS: (1) Production droplet 146.190.238.190 gets HTTP 403 firewall page from api.multitel.net (and www) → Multitel must allow that IP. (2) Preview creds (test slot, updated 04:21) → 401 from IP 35.193.209.116. SignalWire fallback still returns names (e.g. "SEATTLE WA").
+
+## 2026-11-14 — Multitel caller-name lookup (preview verified)
+- New Multitel API credentials saved (test + live). Allow-listed IPs: preview 35.193.209.116 (can change), prod 146.190.238.190 (+ IPv6 2a03:b0c0:2:f0:0:2:875:c001).
+- js/cnam-service.js: Multitel → SignalWire. Multitel echoes the number when no name → now treated as "no name" so SignalWire fallback runs.
+- Preview tested: GOOGLE INC (Multitel), COMMENT&MESSAGE (Multitel), fallback to SignalWire works. NOT published to production yet.
+- Note: Multitel blocks IPs after repeated failed logins — never auto-retry on 401.
