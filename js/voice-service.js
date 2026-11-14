@@ -1392,6 +1392,9 @@ function initVoiceService(deps) {
     }).catch(e => log(`[VoiceService] call-session-store init failed: ${e.message}`))
     // Every customer SignalWire number gets linked to Bird so Bird can place its outbound calls.
     require('./active-slot').singletonInterval('bird-autolink', () => birdAutoLinkTick().catch(e => log(`[BirdVerify] auto-link: ${e.message}`)), 3 * 60000)
+    // Telnyx SIP-trunk numbers: tell the SIP server which brand answers each one (re-sent after every reconnect).
+    require('./callengine').onConnect(() => telnyxDidSync().catch(e => log(`[TelnyxSIP] DID sync: ${e.message}`)))
+    require('./active-slot').singletonInterval('telnyx-did-sync', () => telnyxDidSync().catch(e => log(`[TelnyxSIP] DID sync: ${e.message}`)), 5 * 60000)
   }
 
   // PRE-DIAL: Load blocklist from DB + run initial scan after a delay
@@ -4039,12 +4042,27 @@ function birdVerify() {
   _birdVerify = createBirdVerify({ bird: require('./bird'), transcribe, db: _db, log })
   return _birdVerify
 }
+// This brand's active numbers that sit on the Telnyx SIP trunk.
+async function telnyxSipNumbers() {
+  const txs = require('./telnyx-sip')
+  if (!_db || !txs.enabled()) return []
+  const on = await txs.refreshOwned()
+  const out = new Set()
+  for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1 } }).toArray())
+    for (const n of d.val?.numbers || []) if (on.has(n.phoneNumber) && !/released|expired|cancel/i.test(String(n.status || ''))) out.add(n.phoneNumber)
+  return [...out]
+}
+async function telnyxDidSync() {
+  const nums = await telnyxSipNumbers()
+  if (nums.length) await require('./callengine').setDidApps(nums)
+}
 async function birdAutoLinkTick() {
   if (!_db || !require('./bird').enabled()) return
+  const tx = await telnyxSipNumbers()
   const rest = require('./signalwire/rest')
-  if (!rest.enabled()) return
-  await rest.refreshOwned()
-  const sw = new Set(rest.ownedNumbers())
+  if (!rest.enabled() && !tx.length) return
+  if (rest.enabled()) await rest.refreshOwned()
+  const sw = new Set([...(rest.enabled() ? rest.ownedNumbers() : []), ...tx])
   const numbers = new Set()
   for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1 } }).toArray())
     for (const n of d.val?.numbers || []) if (sw.has(n.phoneNumber) && !/released|expired|cancel/i.test(String(n.status || ''))) numbers.add(n.phoneNumber)

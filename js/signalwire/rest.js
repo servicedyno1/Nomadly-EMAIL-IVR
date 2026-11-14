@@ -246,7 +246,7 @@ async function createRestCall(from, to, url, statusCallbackUrl) {
 }
 
 module.exports = {
-  enabled, host, topic, liveTopic, liveUrl, handlerBody, brandSlug, sipDomain, http, errOf,
+  enabled, host, topic, liveTopic, liveUrl, handlerBody, brandSlug, sipDomain, http, errOf, AREA_REGION,
   searchNumbers, buyNumber, assignNumber, releaseById, releaseByPhoneNumber, listNumbers, refreshOwned, ownsNumber, ownedNumbers: () => [...owned.keys()], isSwSearched, configureNumber,
   lookup, loadSipUsers, isSipUser, createSipEndpoint, deleteSipEndpoint,
   sendSms, inboundToTelnyx, validSignature, createRestCall,

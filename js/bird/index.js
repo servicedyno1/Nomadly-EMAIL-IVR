@@ -17,7 +17,16 @@ const trunkName = () => process.env.BIRD_TRUNK_NAME || 'cloudivr-callengine'
 const sipServerIp = () => process.env.SIP_SERVER_IP || '188.166.34.29'
 
 const req = async (method, url, data, headers) => (await M.http().request({ method, url, data, headers })).data
-const all = async (url) => { const out = []; let cursor = null; do { const d = await req('get', `${url}${cursor ? `${url.includes('?') ? '&' : '?'}cursor=${cursor}` : ''}`); out.push(...(d.data || [])); cursor = d.next_cursor } while (cursor); return out }
+// Pages via next_cursor; some lists (verified-numbers) take it as `starting_after` and reject `cursor` (E01029).
+const all = async (url) => {
+  const out = []; let cursor = null, param = 'cursor'
+  do {
+    const page = (p) => req('get', `${url}${cursor ? `${url.includes('?') ? '&' : '?'}${p}=${encodeURIComponent(cursor)}` : ''}`)
+    const d = await page(param).catch(e => { if (cursor && e.response?.data?.error?.code === 'E01029' && param === 'cursor') { param = 'starting_after'; return page(param) } throw e })
+    out.push(...(d.data || [])); cursor = d.next_cursor
+  } while (cursor && out.length < 5000)
+  return out
+}
 
 // ── Lookup → { valid, type, carrier, country } | null when unavailable ──
 const LINE = { mobile: 'mobile', fixed_line: 'landline', voip: 'voip', toll_free: 'toll_free' }

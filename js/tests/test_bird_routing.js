@@ -57,7 +57,7 @@ const FROM = '+12074892004', TO = '+12074891859'
 
   used.length = 0; state.active = 0
   await w.createOutboundCall(FROM, TO, 'u', 'c', { answering_machine_detection: 'premium' })
-  ok('voicemail drop (needs machine detection) → SignalWire', used.join() === `SignalWire:${FROM}`, used.join())
+  ok('voicemail drop → Bird too (machine detection runs on the call engine)', used.join() === 'Bird', used.join())
 
   used.length = 0; state.active = 0
   await w.createOutboundCall(FROM, 'sip:user1@sip.example', 'u', 'c', {})
