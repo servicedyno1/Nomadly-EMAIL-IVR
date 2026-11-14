@@ -1,0 +1,48 @@
+{
+  "summary": "Tested the 5-plan ladder (Basic $50 / Starter $75 / Pro $100 / Business $120 / Enterprise $399). Backend: 10/10 pytest pass and 46/46 node checks pass (bot config, cp_8 in 5 languages, renewalPrice and priceOnPlan). Public catalog order, prices, minutes, recommended=pro, enterprise.price=399, extraNumber.limits.standard=8 and the Starter webFeatures set are all correct. Upgrade quotes work: Basic->Starter newPrice 75, Basic->Pro newPrice 100; locked Pro $75 -> Business newPrice 120 with charge 95 and no negative surcharge. Confirming Basic->Starter saved plan=standard and planPrice=75. Lower plan gives 400 invalid_plan. The price-lock mark exists and all 4 existing pro mains carry the {pro,75} lock with one shared timestamp, so it was not re-applied. Frontend: the landing page shows 5 cards and the 'Enterprise · $399/month' card; no button text is cut off at 1920 and there is no overflow on mobile. The landing helper 'voicemail' option highlights Starter. The buy-page plan picker lists Basic, Starter, Pro and Business, and Starter can be selected. My numbers, the number page, Billing and Wallet load for the Business user. Two gaps: data-testid plan-helper-voicemail does not exist on /app/buy (the buy PlanHelper component is not rendered anywhere), and the civr.alice and civr.bob accounts do not exist in the preview DB.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/numbers/:phone/upgrade (phone-config.computeUpgradeQuote)", "issue": "The 25% upgrade credit uses the plan's list price (plans.pro.price=100), not the locked price. A price-locked $75 Pro customer gets a $25 credit instead of $18.75 (charge 95 instead of 101.25). Use lifecycle.listPrice(num) or num.planPrice for oldPrice."},
+      {"endpoint": "plan-lifecycle.listPrice / priceLock", "issue": "priceLock is never cleared when the plan changes. A locked Pro number that upgrades to Business and later downgrades back to Pro renews at $75 again, because lock.plan==='pro' still matches. If the lock should only apply while the customer stays on Pro, remove priceLock on upgrade or downgrade."},
+      {"endpoint": "js/cloudivr-web/offers.js:14", "issue": "NEXT_PLAN is still { starter: 'pro', pro: 'business' }, so upgrade offers send Basic users to Pro and skip Starter. phone-config.js already uses starter->standard->pro->business."},
+      {"endpoint": "Stale plan copy in error messages", "issue": "extras.js:117 says 'SIP needs the Pro plan or higher.' and numbers.js:232 / ring-group.js:32 say 'Voicemail needs the Pro plan or higher.' Starter now includes both."},
+      {"endpoint": "js/_index.js ~42464/42575/42618 dev checks", "issue": "The dev-only plan-gate and env checks still loop over ['starter','pro','business'] and skip 'standard'."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Buy page PlanHelper", "issue": "frontend/src/cloudivr/pages/buy/PlanHelper.js exports PlanHelper, which has the plan-helper-voicemail button, but nothing renders <PlanHelper>. Only USES is imported (by the landing helper). So data-testid plan-helper-voicemail never appears on /cloudivr/app/buy. The landing helper (landing-plan-helper-voicemail) works and picks Starter.", "selector": "[data-testid='plan-helper-voicemail']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/app/buy step 3 plan picker", "issues": ["buy-plan-picker uses md:grid-cols-3 with 4 plans, so Business sits alone on a second row. Use a 4-column grid (xl:grid-cols-4) or 2x2."]},
+      {"screen": "/app/buy purpose picker SIP card", "issues": ["PurposePicker.js line 23 says 'Comes with the Pro and Business plans'. SIP now starts on Starter ($75), and the card's own price already shows $75."]},
+      {"screen": "In-app lock copy", "issues": ["Sip.js:40 says 'SIP needs the Pro plan or higher'. Starter now includes SIP, so this should say Starter."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_plan_ladder_iter272.py", "/app/backend/tests/plan_ladder_iter272.js", "/app/test_reports/pytest/pytest_iter272.xml"],
+  "action_items": [
+    "Render the buy-page PlanHelper on /app/buy (plan-helper-voicemail -> standard) or update the spec. Right now it is dead code.",
+    "Use the locked price for the upgrade credit in computeUpgradeQuote.",
+    "Decide whether priceLock is dropped when a customer leaves Pro, and clear it on plan change if so.",
+    "Update offers.js NEXT_PLAN to starter->standard->pro->business.",
+    "Fix the stale 'Pro plan or higher' copy for SIP and voicemail (extras.js, numbers.js:232, ring-group.js:32, Sip.js:40) and the 'Comes with the Pro and Business plans' text in PurposePicker.",
+    "Change the buy plan-picker grid to fit 4 plans.",
+    "Recreate the civr.alice and civr.bob preview accounts, or update /app/memory/test_credentials.md. They are missing from the DB, so login gives 401 invalid_credentials."
+  ],
+  "critical_code_review_comments": [
+    "computeUpgradeQuote ignores priceLock: oldPrice = plans[old].price || num.planPrice gives price-locked customers too much credit.",
+    "Only the standard and business plans have no extra SIP logins: EXTRA_SIP = { pro: 2, business: 5 } in numbers.js:734. Starter has no extra SIP logins, only the main one. Confirm this is intended.",
+    "hosted-sms PLAN_PRICE/PLAN_LIMIT include standard (150/5), the same as starter. OK.",
+    "backend/tests/test_cloudivr_pricing_iter271.py::TestCatalog asserts pro price 75. That test is now out of date (pro=100) and will fail on regression runs."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_plan_ladder_iter272.py", "/app/backend/tests/plan_ladder_iter272.js"],
+  "success_rate": {"backend": "100% (10/10 pytest, 46/46 node checks; 5 minor issues found by code review)", "frontend": "~90% (everything except the missing buy-page plan-helper-voicemail)"},
+  "test_credentials": "civr.uxtest@example.com / UxTest#2026 works. civr.alice@example.com and civr.bob@example.com do NOT exist in the preview DB (webAccounts has only uxtest plus qa./test_ accounts), so the Business-user regression used uxtest.",
+  "seed_data_creation": "One TEST_P272 web account (test_p272<ts>@example.com) with 2 temporary TEST numbers (+15125550381 starter, +15125550382 locked pro) and a $500 wallet. The phoneNumbersOf and walletOf docs were deleted afterwards. One phone-upgrade transaction and the webAccount for this TEST user remain. No real numbers were bought; Telnyx search was read-only.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_cloudivr_plan_ladder_iter272.py -p no:xdist (it runs the node script plan_ladder_iter272.js too). Buy flow: buy-purpose-voice -> buy-search-button -> buy-result-0 -> buy-plan-picker (buy-plan-starter|standard|pro|business). Checkout needs identity details for uxtest. The landing helper uses data-testid landing-plan-helper-<key>. Upgrade quote: POST /api/cloudivr-web/numbers/:phone/upgrade {plan} returns {quote}; add confirm:true to apply it.",
+  "rca of the issue": "plan-helper-voicemail missing: the PlanHelper component in pages/buy/PlanHelper.js has no consumer; BuyNumber.js does not import or render it. Upgrade over-credit: computeUpgradeQuote (phone-config.js:674) prefers plans[oldPlanKey].price over the locked num.planPrice."
+}

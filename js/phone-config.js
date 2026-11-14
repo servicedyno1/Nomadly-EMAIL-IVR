@@ -671,7 +671,8 @@ function computeUpgradeQuote(num, newPlanKey) {
   const oldPlanObj = plans[oldPlanKey]
   const newPlanObj = plans[newPlanKey]
   if (!oldPlanObj || !newPlanObj) return null
-  const oldPrice = Number(oldPlanObj.price) || Number(num.planPrice) || 0
+  const lock = num.priceLock && num.priceLock.plan === oldPlanKey ? Number(num.priceLock.price) : 0
+  const oldPrice = lock || Number(oldPlanObj.price) || Number(num.planPrice) || 0
   const newPrice = Number(newPlanObj.price) || 0
 
   const purchaseDate = num.purchaseDate ? new Date(num.purchaseDate) : null

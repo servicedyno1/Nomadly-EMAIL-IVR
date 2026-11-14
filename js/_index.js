@@ -35668,6 +35668,8 @@ Select a category:`), k.of(catBtns))
 
       await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'plan', newPlan)
       await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'planPrice', newPrice)
+      await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': num.phoneNumber }, { $unset: { 'val.numbers.$.priceLock': '' } })
+      delete num.priceLock
       await planLifecycle.syncExtrasPlan(phoneNumbersOf, chatId, num.phoneNumber, newPlan)
       num.plan = newPlan
       num.planPrice = newPrice
@@ -39786,6 +39788,8 @@ async function applyPhonePlanUpgrade(chatId, num, newPlan, newPrice, lang, payme
   newPrice = planLifecycle.priceOnPlan(num, newPlan) ?? newPrice
   await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'plan', newPlan)
   await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'planPrice', newPrice)
+  await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': num.phoneNumber }, { $unset: { 'val.numbers.$.priceLock': '' } })
+  delete num.priceLock
   await planLifecycle.syncExtrasPlan(phoneNumbersOf, chatId, num.phoneNumber, newPlan)
   num.plan = newPlan
   num.planPrice = newPrice
@@ -42461,7 +42465,7 @@ app.get('/dev/otp-plan-gate-check', (req, res) => {
   if ((process.env.BOT_ENVIRONMENT || '').toLowerCase() === 'production') {
     return res.status(404).json({ error: 'not found' })
   }
-  const plans = ['starter', 'pro', 'business']
+  const plans = ['starter', 'standard', 'pro', 'business']
   const matrix = {}
   for (const p of plans) {
     matrix[p] = {
@@ -42572,7 +42576,7 @@ app.get('/dev/ux-fixes-audit', (req, res) => {
     return false
   }
   const mismatches = []
-  for (const plan of ['starter', 'pro', 'business']) {
+  for (const plan of ['starter', 'standard', 'pro', 'business']) {
     for (const key of Object.keys(featureKeywords)) {
       const adv = advertised(plan, key)
       const acc = phoneConfig.canAccessFeature(plan, key)
@@ -42615,7 +42619,7 @@ app.get('/dev/plan-quota-audit', (req, res) => {
     business: { minutes: envNum('BUSINESS_MINUTES', 600), sms: envNum('BUSINESS_SMS', 300) },
   }
   const cloudIvrMismatches = []
-  for (const p of ['starter', 'pro', 'business']) {
+  for (const p of ['starter', 'standard', 'pro', 'business']) {
     if (cloudIvr[p].minutes !== envExpected[p].minutes) cloudIvrMismatches.push({ plan: p, field: 'minutes', resolved: cloudIvr[p].minutes, env: envExpected[p].minutes })
     if (cloudIvr[p].sms !== envExpected[p].sms) cloudIvrMismatches.push({ plan: p, field: 'sms', resolved: cloudIvr[p].sms, env: envExpected[p].sms })
   }

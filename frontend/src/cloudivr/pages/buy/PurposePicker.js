@@ -20,7 +20,7 @@ export function usePurposeCards(catalog, myNums) {
   const own = (n, one, many) => (n ? `You have ${n} ${n === 1 ? one : many}` : null);
   return [
     { id: 'voice', Icon: Phone, title: 'Voice', price: startPrice(catalog, () => true), what: 'A Business Line', points: ['Answer in your browser or forward to your phone', 'Keypad menus, voicemail and AI agents on bigger plans'], owned: own(lines.length, 'Business Line', 'Business Lines') },
-    { id: 'sip', Icon: Server, title: 'SIP', price: startPrice(catalog, p => p.access?.sipCredentials), what: 'On a Business Line', points: ['Logins for desk phones and softphone apps', 'Comes with the Pro and Business plans'], owned: own(sipLines.length, 'line with SIP', 'lines with SIP') },
+    { id: 'sip', Icon: Server, title: 'SIP', price: startPrice(catalog, p => p.access?.sipCredentials), what: 'On a Business Line', points: ['Logins for desk phones and softphone apps', 'Comes with the Starter, Pro and Business plans'], owned: own(sipLines.length, 'line with SIP', 'lines with SIP') },
     { id: 'sms', Icon: MessageSquare, title: 'SMS', price: texting?.price || null, what: 'A Texting Number', points: ['A USA carrier number for texts and codes', 'Read and reply in Messages'], owned: own(texts.length, 'Texting Number', 'Texting Numbers'), off: texting && !texting.available && !texts.length },
     { id: 'fax', Icon: Printer, title: 'Fax', price: fax?.price || null, what: 'A fax-only number', points: ['USA or Canada, sends and receives faxes', `${fax?.freePages ?? 50} free pages a month`], owned: own(faxes.length, 'fax number', 'fax numbers'), off: fax && !fax.available && !faxes.length },
   ];

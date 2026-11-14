@@ -114,7 +114,7 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
     res.status(201).json({ started: true, to, message: `Ringing ${where} now — pick up and press 1. The result shows here within a minute.` })
   }))
   router.post('/numbers/:phone/test-sip', withNumber(async (req, res) => {
-    if (!phoneConfig.canAccessFeature(req.num.plan, 'sipCredentials')) return bad(res, 403, 'plan_upgrade_required', 'SIP needs the Pro plan or higher.')
+    if (!phoneConfig.canAccessFeature(req.num.plan, 'sipCredentials')) return bad(res, 403, 'plan_upgrade_required', 'SIP needs the Starter plan or higher.')
     if (dryRun() || req.num.dryRun) return res.status(202).json({ dryRun: true, message: 'Preview mode: within 90 seconds you would dial any number from your softphone; we would catch the call, hang it up for free and report the result in your Inbox.' })
     const r = await startTestOutboundSip(req.webChatId, req.num, 'en')
     if (!r?.ok) return bad(res, 400, 'test_failed', html(r?.message || 'The test could not start.'))

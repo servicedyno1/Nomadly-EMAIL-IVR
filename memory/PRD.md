@@ -178,3 +178,12 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Catalog offers[type].caps {voice,sms,fax,smsNeedsApproval}; /texting/ready → Texting Number page "Ready-to-text numbers" (Starter $50 = Texting price).
 - Terms (frontend/src/cloudivr/pages/terms/content.js) updated 14 Nov 2026: identity & records (≥4 yrs), texting/opt-out/10DLC, carriers & partners (MultiTEL, Infobip, Bird).
 - Tests: iteration_268/269/270 (all fixed). Prod needs: publish, Stripe keys on prod droplet env, Multitel IP unblock, MultiTEL provider approval (Reseller Schedule §1), Bird resale/partner agreement.
+
+## 2026-11-14 — 5-plan ladder + texting price research
+- Plans (internal key → name): starter→Basic $50/100 min · standard→Starter $75/250 min (Basic + voicemail, SIP, recording; 8 extra numbers) · pro→Pro $100/400 min · business→Business $120/600 min · Enterprise $399/mo (talk to sales, `PHONE_ENTERPRISE_PRICE`).
+- Existing Pro customers keep $75 + all Pro features through `priceLock {plan:'pro',price:75}` (one-time migration `lockLegacyPrices`, marker `migrationMarks/priceLock:pro75-2026-06`). The lock is dropped on any plan change. Upgrade credit uses the locked price.
+- Env: PHONE_PRO_PRICE=100, PHONE_STANDARD_PRICE=75, PHONE_STANDARD_ON, STANDARD_MINUTES=250, PHONE_ENTERPRISE_PRICE=399. PRODUCTION env must get the same keys before deploy, or else production Pro stays at $75.
+- Bot: Starter button in 5 languages, the Change Plan menu now uses Basic/Starter/Pro/Business, cp_8 shows Starter and drops the "0 SMS" copy.
+- Texting research: memory/TEXTING_PRICING_2026-06.md + texting_pricing_2026-06.csv (suggested prices only, not live).
+- Tested: iteration_272 (backend 100%, frontend ~90%); follow-up fixes self-verified.
+- Backlog: per-country text pricing once approved; buy-page PlanHelper component isn't rendered anywhere (dead code); finish the iteration-271 copy fixes; Multitel SMS end-to-end test; production rollout.

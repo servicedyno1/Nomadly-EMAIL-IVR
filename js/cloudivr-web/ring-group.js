@@ -29,7 +29,7 @@ function validate(body = {}, num) {
   const ringTimeout = rawTimeout === undefined || rawTimeout === null || rawTimeout === '' ? 25 : Number(rawTimeout)
   if (!Number.isInteger(ringTimeout) || ringTimeout < 10 || ringTimeout > 60) throw new Error('Ring time must be a whole number between 10 and 60 seconds.')
   let fallback = FALLBACKS.includes(body.fallback) ? body.fallback : 'voicemail'
-  if (fallback === 'voicemail' && !phoneConfig.canAccessFeature(num.plan, 'voicemail')) throw new Error('Voicemail needs the Pro plan or higher.')
+  if (fallback === 'voicemail' && !phoneConfig.canAccessFeature(num.plan, 'voicemail')) throw new Error('Voicemail needs the Starter plan or higher.')
   let fallbackTo = null
   if (fallback === 'forward') {
     fallbackTo = dialNorm(String(body.fallbackTo || '').trim())

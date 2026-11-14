@@ -74,7 +74,7 @@ function Results({ res, pick, setPick }) {
 
 function PlanPicker({ plans, value, onChange, surcharge }) {
   return (
-    <div className="grid md:grid-cols-3 gap-4" data-testid="buy-plan-picker">
+    <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4" data-testid="buy-plan-picker">
       {availablePlans(plans).map(p => (
         <button key={p.id} type="button" onClick={() => onChange(p.id)} aria-pressed={value === p.id} data-testid={`buy-plan-${p.id}`} data-selected={value === p.id ? 'true' : 'false'}
           className={`civr-card text-left p-6 flex flex-col ${value === p.id ? 'civr-trace' : ''}`}>

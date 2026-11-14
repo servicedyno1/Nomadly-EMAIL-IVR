@@ -229,7 +229,7 @@ function validateIvr(body, plan, audioOk = () => true) {
         if (long) throw new Error(`Key ${digit}: ${long}`)
         out[digit] = { action, smsFrom, smsText, message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label }
       } else if (action === 'voicemail') {
-        if (!phoneConfig.canAccessFeature(plan, 'voicemail')) throw new Error('Voicemail needs the Pro plan or higher.')
+        if (!phoneConfig.canAccessFeature(plan, 'voicemail')) throw new Error('Voicemail needs the Starter plan or higher.')
         out[digit] = { action, label }
       } else if (action === 'submenu') {
         if (depth > 0) throw new Error('Sub-menus can only be one level deep.')
@@ -807,7 +807,7 @@ function routes(router, deps) {
     if (!(await w.debit(chatId, q.charge))) return { status: 402, body: { error: 'insufficient_balance', message: `The upgrade costs $${q.charge.toFixed(2)}. Top up your wallet first.` } }
     // Switch back on what a downgrade turned off, when the new plan includes it.
     const set = lifecycle.numberSet({ plan: newPlan, planPrice: q.newPrice, ...lifecycle.upgradePatch(n, newPlan) })
-    await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: set })
+    await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: set, $unset: { 'val.numbers.$.priceLock': '' } })
     await phoneNumbersOf.updateOne({ _id: chatId }, { $set: { 'val.numbers.$[s].plan': newPlan } }, { arrayFilters: [{ 's.isSubNumber': true, 's.parentNumber': n.phoneNumber }] }).catch(() => {})
     await phoneTransactions.insertOne({ chatId, phoneNumber: n.phoneNumber, action: 'upgrade', oldPlan: n.plan, newPlan, oldPrice: n.planPrice, newPrice: q.newPrice, amount: q.charge.toFixed(2), credit: q.credit.toFixed(2), paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), channel: 'web', timestamp: new Date().toISOString() })
     await txn(chatId, 'phone-upgrade', q.charge, { phoneNumber: n.phoneNumber, plan: newPlan })

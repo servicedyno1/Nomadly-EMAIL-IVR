@@ -5365,5 +5365,9 @@
 "Type the account holder’s full name exactly as above to sign.": "Escribe el nombre completo del titular exactamente como arriba para firmar.",
 "Tick the box to sign the letter.": "Marca la casilla para firmar la carta.",
 "Details saved. You can come back to finish later.": "Datos guardados. Puedes volver más tarde para terminar.",
-"Your letter, live": "Tu carta, en vivo"
+"Your letter, live": "Tu carta, en vivo",
+"SIP needs the Starter plan or higher": "SIP requiere el plan Starter o superior",
+"Buy a number on the Starter plan or higher to get SIP credentials.": "Compra un número en el plan Starter o superior para obtener credenciales SIP.",
+"SIP needs the Starter plan or higher.": "SIP requiere el plan Starter o superior.",
+"Voicemail needs the Starter plan or higher.": "El buzón de voz necesita el plan Starter o superior."
 }
