@@ -1,17 +1,22 @@
-import { Hash, Workflow, Bot, Megaphone, Headphones, Inbox, TrendingUp, LifeBuoy, CalendarCheck, Globe2, Captions, MessageSquareText, Smartphone } from 'lucide-react';
+import { Hash, Workflow, Bot, Megaphone, Headphones, Inbox, TrendingUp, LifeBuoy, CalendarCheck, Globe2, Captions, MessageSquareText, Smartphone, ShieldCheck, Printer, Plane, ScanSearch } from 'lucide-react';
 
 // Top menu + footer: [id, Icon, title, description, target]. Target = platform tab id, or '#anchor'.
 export const PRODUCTS = [
-  ['numbers', Hash, 'Virtual numbers', 'Local, mobile and toll-free numbers your customers recognise — and pick up.', '#coverage'],
+  ['numbers', Hash, 'Business numbers', 'USA, Canada or UK included with every plan; more countries as extras.', '#coverage'],
   ['ivr', Workflow, 'Keypad menu (IVR)', 'Press 1 for sales, 2 for support — every caller routed in under a second.', 'ivr'],
-  ['ai', Bot, 'AI voice agents', 'Talks with callers in 20 languages, books visits and calls your leads.', 'ai'],
+  ['ai', Bot, 'AI receptionist & agents', 'Answers calls 24/7, books visits and calls your leads. $0.10 a minute.', 'ai'],
   ['campaigns', Megaphone, 'Quick & Bulk IVR campaigns', 'Call a whole list, watch it live and connect everyone who presses 1.', 'campaigns'],
   ['phone', Headphones, 'Browser phone & SIP', 'Call from any browser tab, or sign in from a softphone or desk phone.', 'phone'],
   ['text', Captions, 'Text-to-voice calls', 'Type and a natural voice speaks for you; read their reply live.', 'text'],
+  ['inbox', Inbox, 'Voicemail inbox', 'Every voicemail transcribed, in the app and in your email.', 'voicemail'],
+  ['mobile', MessageSquareText, 'USA Texting Number', 'Unlimited texts on a real USA carrier number, $50 a month.', '#product-usa-texting'],
+  ['tendlc', ShieldCheck, 'USA 10DLC registration', 'Register your brand to text USA customers. $49 once.', '#product-ten-dlc'],
+  ['intl', Globe2, 'International texting (soon)', 'Texting on numbers outside the USA — coming soon.', '#product-intl-texting'],
   ['hosted', MessageSquareText, 'Landline to Texting (soon)', 'Texts on the landline number you already have — coming soon.', 'hosted'],
-  ['inbox', Inbox, 'SMS & voicemail inbox', 'Every text and transcribed voicemail in one inbox.', 'sms'],
-  ['esim', Smartphone, 'USA eSIM', 'A downloadable USA line on T-Mobile for your phone, installed with a QR code.', '#esim-card'],
-  ['mobile', Smartphone, 'Texting Number', 'Send and receive texts in your browser, on a real USA carrier number.', '#mobile'],
+  ['fax', Printer, 'Fax number', 'Send and receive faxes online, $9 a month.', '#product-fax'],
+  ['esim', Smartphone, 'USA eSIM', 'A downloadable USA line on your own phone, installed with a QR code.', '#esim-card'],
+  ['travel', Plane, 'Travel eSIM', 'Mobile data in 187 countries.', '#product-travel-esim'],
+  ['lookup', ScanSearch, 'Number lookup', 'Carrier, line type and country of any number. $0.015 each.', '#product-lookup'],
 ];
 
 export const USE_CASES = [

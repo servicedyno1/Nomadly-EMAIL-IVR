@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { ThemeRoot } from './theme';
 import { Navigate, Route, Routes, Link, useLocation } from 'react-router-dom';
-import { Bell, Phone, Plus, LifeBuoy, Send, Lightbulb, HelpCircle, Search } from 'lucide-react';
+import { Bell, Phone, Plus, LifeBuoy, Send, Lightbulb, HelpCircle, Search, ChevronDown } from 'lucide-react';
 import { api, money } from './api';
 import { useCivrAuth } from './AuthContext';
 import { PreviewBanner } from './ui';
@@ -78,10 +78,12 @@ export function LiveDot({ testid = 'nav-live-dot' }) {
 }
 
 // One menu row: a page link, or (for "Browser phone") a button that opens the phone panel.
-export function NavRow({ item, active, onPhone, testid, className = '' }) {
+// Each menu group has its own icon colour (Bird-style product chips).
+const TONE = { home: 'slate', numbers: 'blue', calls: 'amber', ai: 'violet', messaging: 'green', more: 'teal', tools: 'slate', account: 'slate' };
+export function NavRow({ item, active, onPhone, testid, className = '', tone }) {
   const [to, label, Icon, id, sub] = item;
   const body = <>
-    <Icon className="w-4 h-4" />
+    {tone ? <span className={`civr-chip civr-chip-${tone}`} aria-hidden><Icon className="w-3.5 h-3.5" /></span> : <Icon className="w-4 h-4" />}
     <span className="min-w-0 flex-1 truncate">{label}{sub && <span className="civr-nav-sub" data-testid={`${testid || id}-sub`}>{sub}</span>}</span>
     {id === 'nav-calls' && <FreeBadge />}{id === 'nav-live' && <LiveDot />}{id === 'nav-messages' && <MsgBadge />}
   </>;
@@ -91,16 +93,22 @@ export function NavRow({ item, active, onPhone, testid, className = '' }) {
 
 function SideNav({ onPhone }) {
   const { pathname, search } = useLocation();
+  const [shut, setShut] = useState(() => { try { return JSON.parse(localStorage.getItem('civr.navShut') || '{}'); } catch (_) { return {}; } });
+  const toggle = (gid) => setShut(s => { const n = { ...s, [gid]: !s[gid] }; try { localStorage.setItem('civr.navShut', JSON.stringify(n)); } catch (_) {} return n; });
   return (
-    <nav className="flex flex-col gap-4" data-testid="nav-header">
-      {NAV.map(([gid, group, items]) => (
-        <div key={gid} data-testid={`nav-group-${gid}`}>
-          {group && <div className="civr-side-label px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-[#a1a1aa]">{group}</div>}
-          <div className="flex flex-col gap-0.5">
-            {items.map((item) => <NavRow key={item[3]} item={item} active={isSideActive(item, pathname, search)} onPhone={onPhone} />)}
+    <nav className="flex flex-col gap-3" data-testid="nav-header">
+      <button type="button" onClick={openPalette} className="civr-side-search" data-testid="sidebar-search"><Search className="w-4 h-4" /><span className="flex-1 text-left">Search</span><kbd>⌘ K</kbd></button>
+      {NAV.map(([gid, group, items]) => {
+        const open = !shut[gid] || items.some(it => isSideActive(it, pathname, search));
+        return (
+          <div key={gid} data-testid={`nav-group-${gid}`}>
+            {group && <button type="button" onClick={() => toggle(gid)} aria-expanded={open} className="civr-side-label civr-side-group w-full px-3 mb-1 flex items-center gap-1 text-[12px] font-medium text-[#a1a1aa]" data-testid={`nav-group-${gid}-toggle`}>{group}<ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? '' : '-rotate-90'}`} /></button>}
+            {open && <div className="flex flex-col gap-0.5">
+              {items.map((item) => <NavRow key={item[3]} item={item} tone={TONE[gid]} active={isSideActive(item, pathname, search)} onPhone={onPhone} />)}
+            </div>}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </nav>
   );
 }

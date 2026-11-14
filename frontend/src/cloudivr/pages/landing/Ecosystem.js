@@ -32,7 +32,7 @@ export function Ecosystem() {
           ))}
         </ol>
         <div className="mt-8 flex flex-wrap items-center gap-3 text-sm text-slate-600" data-testid="landing-ecosystem-esim">
-          <Smartphone className="w-4 h-4 text-blue-600" />Want texts and calls on your own phone in the USA? <a href="#plans" className="underline underline-offset-2 text-slate-900">See the USA eSIM</a>
+          <Smartphone className="w-4 h-4 text-blue-600" />Want texts and calls on your own phone in the USA? <a href="#esim-card" className="underline underline-offset-2 text-slate-900" data-testid="landing-ecosystem-esim-link">See the USA eSIM</a>
         </div>
       </div>
     </section>

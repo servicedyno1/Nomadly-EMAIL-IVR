@@ -79,13 +79,13 @@ function wrap(t) {
     const nanp = /^\+1\d{10}$/.test(String(to)) || /^sip:/i.test(String(to))
     const tries = []
     // Voicemail drop: the call engine detects answering machines on the call itself (Asterisk AMD), so Bird handles it too.
-    let st = await birdState(from, to).catch(() => 'off')
     // Bird only (default): a caller ID not verified on Bird is swapped for a system caller ID (logged); any failure alerts the admin.
     if (BIRD_ONLY() && !/^sip:/i.test(String(to))) {
       const { birdAlert } = require('../bird-alert')
-      st = await birdState(from, to, true).catch(() => 'off')
+      let st = await birdState(from, to, true).catch(() => 'off')
       if (st === 'unlinked') {
-        const sys = (await require('../ivr-outbound').getTrialCaller({ purpose: 'unverified_caller_swap', to, chatId: options.chatId })).callerId
+        const sys = await require('../ivr-outbound').getTrialCaller({ purpose: 'unverified_caller_swap', to, chatId: options.chatId }).then(r => r?.callerId).catch(() => null)
+        if (!sys) { birdAlert('no-system-caller', `No system caller ID available to replace unverified ${from}. Call → ${to} was not placed.`); return { error: 'No verified caller ID available', status: 503, _provider: 'callengine' } }
         log(`caller ID ${from} isn't verified on Bird — calling from system number ${sys}`)
         from = sys; st = await birdState(from, to, true).catch(() => 'off')
       }
@@ -96,10 +96,12 @@ function wrap(t) {
         birdAlert(`state-${st}`, `${why}. Call ${from} → ${to} was not placed.`)
         return { error: why, status: 503, _provider: 'callengine' }
       }
-      const r = await ce.createOutboundCall(from, to, webhookUrl, connectionId, options)
+      const r = await ce.createOutboundCall(from, to, webhookUrl, connectionId, options).catch(e => ({ error: e.message || String(e) }))
       if (r?.error) birdAlert(`dial-${String(r.error).slice(0, 40)}`, `Bird refused the call ${from} → ${to}: ${r.error}`)
+      if (r?.error && !r.status) r.status = 503
       return r
     }
+    let st = await birdState(from, to).catch(() => 'off')
     // Campaign calls only go through Bird: a full Bird or a caller ID not linked yet puts the lead back in the queue.
     if (options._campaign && (st === 'full' || st === 'unlinked')) {
       if (st === 'unlinked') birdWanted.add(from)

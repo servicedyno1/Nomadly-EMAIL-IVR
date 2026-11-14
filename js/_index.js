@@ -26743,39 +26743,19 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       send(chatId, L.resetSip(cc.line), { parse_mode: 'HTML' })
       return backTo()
     }
-    if (action === 'customCidEnter') {
-      const cid = require('./cloudivr-web/caller-ids')
-      const pre = ccid.presetOf(message)
-      if (pre && cc.ctx !== 'trial' && (await cid.presets(chatId)).some(p => p.number === pre)) return applyCustomCid(cc, pre)
-      if (cid.isEmergency(message)) return send(chatId, L.emergency)
-      const n = String(message || '').replace(/[^\d+]/g, '')
-      const e164 = n.startsWith('+') ? n : n.length === 10 ? `+1${n}` : `+${n}`
-      if (!/^\+[1-9]\d{7,14}$/.test(e164)) return send(chatId, L.ask, k.of([['↩️ Back']]))
-      await saveInfo('customCid', { ...cc, number: e164 })
-      await set(state, chatId, 'action', 'customCidConfirm')
-      return send(chatId, L.confirm(e164), k.of([[L.yes], ['↩️ Back']]))
-    }
-    if (!ccid.isYes(message)) return send(chatId, L.confirm(cc.number), k.of([[L.yes], ['↩️ Back']]))
+    // Only caller IDs verified with a Bird code call (in the CloudIVR app) can be shown; typed numbers are never accepted.
     const cid = require('./cloudivr-web/caller-ids')
+    const VERIFY_MSG = '🔒 Only your own numbers verified with a Bird code call can be shown as caller ID. Verify one in the CloudIVR app: My numbers → Your own caller IDs → Verify. Then pick it here.'
     if (cc.ctx === 'trial') {
-      // Unverified caller IDs were removed: the free trial always shows a CloudIVR system number.
       await saveInfo('customCid', null)
       await set(state, chatId, 'action', a.ivrObEnterTarget)
       return send(chatId, '📞 The free trial call shows a CloudIVR number. Custom caller IDs must be your own numbers, verified by a Bird code call in the CloudIVR app.', k.of([]))
     }
-    if (false) {
-      await saveInfo('customCid', null)
-      cid.logUse(chatId, cc.number, 'ivr_trial', '')
-      require('./scam-watch').alert(`🎭 <b>Free Quick IVR trial — custom caller ID</b>\n👤 ${username ? '@' + username : ''} (${chatId})\n📞 ${cc.number}${cid.HOTLINES[cc.number] ? ` — 🚩 matches <b>${cid.HOTLINES[cc.number]}</b> hotline` : ''}`)
-      const ivrObData = { ...(info?.ivrObData || {}), displayCallerId: cc.number }
-      await saveInfo('ivrObData', ivrObData)
-      await set(state, chatId, 'action', a.ivrObEnterTarget)
-      return send(chatId, L.trialSet(cc.number), k.of([]))
-    }
-    const r = await cid.attest(chatId, cc.number, { who: username ? `@${username}` : '', channel: 'bot' })
-    if (!r.ok && r.error === 'plan_required') { await saveInfo('customCid', null); return cidUpsell(cc.line) }
-    if (!r.ok) { await set(state, chatId, 'action', 'customCidEnter'); return send(chatId, ({ number_taken: L.taken, emergency_number: L.emergency, too_many_presets: L.full })[r.error] || L.ask, k.of([...await ccid.presetRows(chatId), ['↩️ Back']])) }
-    return applyCustomCid(cc, r.number)
+    if (cid.isEmergency(message)) return send(chatId, L.emergency)
+    const pre = ccid.presetOf(message) || (() => { const n = String(message || '').replace(/[^\d+]/g, ''); return n.startsWith('+') ? n : n.length === 10 ? `+1${n}` : `+${n}` })()
+    if ((await cid.presets(chatId)).some(p => p.number === pre)) return applyCustomCid(cc, pre)
+    await set(state, chatId, 'action', 'customCidEnter')
+    return send(chatId, VERIFY_MSG, k.of([...await ccid.presetRows(chatId), ['↩️ Back']]))
   }
 
   if (action === a.ivrObSelectCallerId) {

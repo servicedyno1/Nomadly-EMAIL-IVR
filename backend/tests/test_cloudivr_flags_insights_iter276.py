@@ -88,7 +88,7 @@ class TestInsightsData:
             assert isinstance(d[k], int)
         for k in ('bySource', 'byCampaign', 'byDevice', 'purposes', 'visitorExits', 'userExits'):
             assert isinstance(d[k], list)
-        assert len(d['funnel']) == 5 and d['funnel'][2][1] == d['signups']
+        assert len(d['funnel']) == 5 and 0 <= d['funnel'][2][1] <= max(d['signups'], d['funnel'][1][1])  # iter279: step 3 now = tracked-visit sign-ups
 
     def test_bad_days_defaults_30(self, admin):
         r = admin.get(f"{API}/admin/signup-insights", params={'days': 999})

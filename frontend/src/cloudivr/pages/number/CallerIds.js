@@ -11,7 +11,6 @@ const split = (s) => String(s || '').split(/[\n,;]+/).map(x => x.trim()).filter(
 
 function AddForm({ price, onSent, onSaved }) {
   const [text, setText] = useState('');
-  const [method, setMethod] = useState('sms');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [fails, setFails] = useState([]);
@@ -19,7 +18,7 @@ function AddForm({ price, onSent, onSaved }) {
   const send = async () => {
     setBusy(true); setError(null); setFails([]);
     try {
-      const d = await api('/caller-ids', { method: 'POST', body: { numbers: split(text), method } });
+      const d = await api('/caller-ids', { method: 'POST', body: { numbers: split(text), method: 'call' } });
       const bad = (d.results || []).filter(r => !r.ok);
       setFails(bad); setText(bad.map(r => r.number).join('\n'));
       toast.success(d.message); onSent();
@@ -29,12 +28,11 @@ function AddForm({ price, onSent, onSaved }) {
     <div className="space-y-3" data-testid="caller-ids-add-form">
       <Field label="Numbers you own" hint="One per line, with country code. Up to 10 at a time — each gets its own code."><textarea className="civr-input font-mono !h-24 py-2" value={text} onChange={e => setText(e.target.value)} placeholder={'+14155550100\n+14155550101'} data-testid="caller-ids-number-input" /></Field>
       <div className="flex flex-wrap items-center gap-2">
-        <select className="civr-input !w-auto !h-9 text-sm" value={method} onChange={e => setMethod(e.target.value)} aria-label="How to verify" data-testid="caller-ids-method-select"><option value="sms">Text the code</option><option value="call">Call with the code</option><option value="dtmf">Call me — I’ll press 1</option></select>
+        <span className="text-sm text-[var(--c-muted)] flex-1 min-w-[200px]" data-testid="caller-ids-method-note">Bird calls each number and reads out a code. Type it in below.</span>
         <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || !n} onClick={send} data-testid="caller-ids-send-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{n > 1 ? `Send ${n} codes` : 'Send code'}</button>
       </div>
       {fails.length > 0 && <ul className="text-xs text-[#fb7185] space-y-1" data-testid="caller-ids-send-failures">{fails.map(f => <li key={f.number}><span className="font-mono">{f.number}</span>: {f.message}</li>)}</ul>}
       <ErrorNote error={fails.length ? null : error} testid="caller-ids-error" />
-      <ReviewForm price={price} onDone={onSent} />
     </div>
   );
 }
@@ -65,35 +63,6 @@ function SipDefaults({ ids }) {
   );
 }
 
-// For numbers that can't receive a code (main line, toll-free, call center): customer attests, an admin approves.
-function ReviewForm({ price, onDone }) {
-  const [open, setOpen] = useState(false);
-  const [number, setNumber] = useState('');
-  const [note, setNote] = useState('');
-  const [authorized, setAuthorized] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-  const submit = async () => {
-    setBusy(true); setError(null);
-    try { const d = await api('/caller-ids/request', { method: 'POST', body: { number, note, authorized } }); toast.success(d.message); setOpen(false); setNumber(''); setNote(''); setAuthorized(false); onDone(); }
-    catch (e) { setError(e); } finally { setBusy(false); }
-  };
-  if (!open) return <button type="button" className="text-sm text-[#818cf8] hover:underline" onClick={() => setOpen(true)} data-testid="caller-ids-review-open">Can’t receive a code? Request a number for review →</button>;
-  return (
-    <div className="border-t border-[#262626] pt-4 space-y-3" data-testid="caller-ids-review-form">
-      <p className="text-sm text-[#a1a1aa]">For a main line, toll-free or call-center number you can’t get a code on, we review it by hand. {money(price)}, refunded if we can’t approve it. Usually takes a business day.</p>
-      <Field label="Number"><input className="civr-input font-mono" inputMode="tel" value={number} onChange={e => setNumber(e.target.value)} placeholder="+18005550100" data-testid="caller-ids-review-number" /></Field>
-      <Field label="Why it’s yours (optional)" hint="e.g. our main office line / toll-free number"><input className="civr-input" value={note} onChange={e => setNote(e.target.value)} maxLength={300} data-testid="caller-ids-review-note" /></Field>
-      <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={authorized} onChange={e => setAuthorized(e.target.checked)} data-testid="caller-ids-review-authorized" /><span>I’m authorized to use this number as my caller ID.</span></label>
-      <div className="flex items-center gap-2">
-        <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || !number.trim() || !authorized} onClick={submit} data-testid="caller-ids-review-submit">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Submit for review · {money(price)}</button>
-        <button type="button" className="text-xs text-[#a1a1aa] hover:underline" onClick={() => setOpen(false)} data-testid="caller-ids-review-cancel">Cancel</button>
-      </div>
-      <ErrorNote error={error} testid="caller-ids-review-error" />
-    </div>
-  );
-}
-
 function Pending({ item, price, i, onDone }) {
   const pv = usePrivacy();
   const [code, setCode] = useState('');
@@ -105,8 +74,8 @@ function Pending({ item, price, i, onDone }) {
   };
   const press = item.method === 'dtmf';
   return (
-    <div className="flex flex-wrap items-center gap-2 border border-dashed border-[#3f3f46] rounded-xl px-4 py-2" data-testid={`caller-ids-pending-${i}`}>
-      <span className="font-mono flex-1 min-w-[140px]">{pv.phone(item.number)}{press && <span className="block font-sans text-xs text-[#a1a1aa]">Answer our call and press 1</span>}</span>
+    <div className="flex flex-wrap items-center gap-2 border border-dashed border-[var(--c-border-hover)] rounded-xl px-4 py-2" data-testid={`caller-ids-pending-${i}`}>
+      <span className="font-mono flex-1 min-w-[140px]">{pv.phone(item.number)}{press && <span className="block font-sans text-xs text-[var(--c-muted)]">Answer our call and press 1</span>}</span>
       {!press && <input className="civr-input font-mono !w-28 !h-9" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={e => setCode(e.target.value)} placeholder="Code" data-testid={`caller-ids-code-input-${i}`} />}
       <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || (!press && !code.trim())} onClick={verify} data-testid={`caller-ids-verify-button-${i}`}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}{press ? 'I pressed 1' : 'Verify'} · {money(price)}</button>
     </div>
@@ -121,12 +90,12 @@ function SavedRow({ i, k, last, dragging, onDragStart, onDrop, onMove, onRemove,
   const save = async () => {
     try { await api(`/caller-ids/${enc(i.number)}/label`, { method: 'PUT', body: { label } }); toast.success('Name saved'); setEdit(false); onSaved(); } catch (e) { toast.error(e.message); }
   };
-  const btn = 'w-8 h-8 flex items-center justify-center rounded-lg text-[#a1a1aa] hover:bg-[#1f1f1f] disabled:opacity-30';
+  const btn = 'w-8 h-8 flex items-center justify-center rounded-lg text-[var(--c-muted)] hover:bg-[var(--c-card-hover)] disabled:opacity-30';
   return (
     <div draggable={!edit} onDragStart={onDragStart} onDragOver={e => e.preventDefault()} onDrop={onDrop}
-      className={`flex flex-wrap sm:flex-nowrap items-center gap-2 border rounded-xl px-3 py-2 transition-colors ${dragging ? 'border-[#818cf8] bg-[#818cf8]/10' : 'border-[#262626]'}`} data-testid={`caller-ids-item-${k}`}>
-      <GripVertical className="w-4 h-4 text-[#52525b] cursor-grab shrink-0" aria-hidden />
-      <BadgeCheck className="w-4 h-4 text-[#818cf8] shrink-0" />
+      className={`flex flex-wrap sm:flex-nowrap items-center gap-2 border rounded-xl px-3 py-2 transition-colors ${dragging ? 'border-[var(--c-accent)] bg-[var(--c-accent)]/10' : 'border-[var(--c-border)]'}`} data-testid={`caller-ids-item-${k}`}>
+      <GripVertical className="w-4 h-4 text-[var(--c-muted)] cursor-grab shrink-0" aria-hidden />
+      <BadgeCheck className="w-4 h-4 text-[var(--c-accent)] shrink-0" />
       <div className="flex-1 min-w-0">
         {edit ? (
           <div className="flex items-center gap-2">
@@ -137,11 +106,10 @@ function SavedRow({ i, k, last, dragging, onDragStart, onDrop, onMove, onRemove,
         ) : (
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             {i.label && <span className="truncate max-w-[8rem]" data-testid={`caller-ids-item-label-${k}`}>{i.label}</span>}
-            <span className="font-mono text-[#a1a1aa] truncate min-w-0">{pv.phone(i.number)}</span>
-            {i.method === 'attested' && <span className="civr-pill shrink-0">no code</span>}
+            <span className="font-mono text-[var(--c-muted)] truncate min-w-0">{pv.phone(i.number)}</span>
           </div>
         )}
-        <div className="text-xs text-[#71717a] mt-0.5" data-testid={`caller-ids-item-usage-${k}`}>{`${i.uses30 || 0} call${i.uses30 === 1 ? '' : 's'} · 30 days · ${i.lastUsedAt ? `last ${day(i.lastUsedAt)}` : 'not used yet'}`}</div>
+        <div className="text-xs text-[var(--c-muted)] mt-0.5" data-testid={`caller-ids-item-usage-${k}`}>{`${i.uses30 || 0} call${i.uses30 === 1 ? '' : 's'} · 30 days · ${i.lastUsedAt ? `last ${day(i.lastUsedAt)}` : 'not used yet'}`}</div>
       </div>
       {!edit && <span className="flex items-center shrink-0 ml-auto">
         <button type="button" className={btn} disabled={k === 0} onClick={() => onMove(-1)} aria-label="Move up" data-testid={`caller-ids-up-${k}`}><ChevronUp className="w-4 h-4" /></button>
@@ -182,15 +150,15 @@ export function CallerIdManager({ onVerified }) {
         <div className="space-y-2" data-testid="caller-ids-list">
           {pending.map((p, k) => <Pending key={p.number} item={p} price={price} i={k} onDone={afterVerify} />)}
           {review.map((r, k) => (
-            <div key={r.number} className="flex items-center justify-between border border-[#262626] rounded-xl px-4 py-2" data-testid={`caller-ids-review-${k}`}>
-              <span className="font-mono flex items-center gap-2 text-[#a1a1aa]"><Clock className="w-4 h-4" />{pv.phone(r.number)}<span className="civr-pill civr-pill-warn">awaiting approval</span></span>
-              <button type="button" onClick={() => remove(r.number)} className="w-9 h-9 flex items-center justify-center rounded-lg text-[#a1a1aa] hover:text-[#fb7185] hover:bg-[#1f1f1f]" aria-label="Cancel" data-testid={`caller-ids-review-cancel-${k}`}><Trash2 className="w-4 h-4" /></button>
+            <div key={r.number} className="flex items-center justify-between border border-[var(--c-border)] rounded-xl px-4 py-2" data-testid={`caller-ids-review-${k}`}>
+              <span className="font-mono flex items-center gap-2 text-[var(--c-muted)]"><Clock className="w-4 h-4" />{pv.phone(r.number)}<span className="civr-pill civr-pill-warn">not usable · verify with a code</span></span>
+              <button type="button" onClick={() => remove(r.number)} className="w-9 h-9 flex items-center justify-center rounded-lg text-[var(--c-muted)] hover:text-[#fb7185] hover:bg-[var(--c-card-hover)]" aria-label="Cancel" data-testid={`caller-ids-review-cancel-${k}`}><Trash2 className="w-4 h-4" /></button>
             </div>
           ))}
-          {data && !items.length && !pending.length && !review.length && <p className="text-sm text-[#a1a1aa]" data-testid="caller-ids-empty">No verified numbers yet.</p>}
+          {data && !items.length && !pending.length && !review.length && <p className="text-sm text-[var(--c-muted)]" data-testid="caller-ids-empty">No verified numbers yet.</p>}
           {items.map((i, k) => <SavedRow key={i.number} i={i} k={k} last={k === items.length - 1} dragging={drag === k} onDragStart={() => setDrag(k)} onDrop={() => drop(k)} onMove={(d) => move(k, d)} onRemove={() => remove(i.number)} onSaved={() => { reload(); onVerified?.(); }} />)}
         </div>
-        {data?.dryRun && <p className="text-xs text-[#a1a1aa] mt-3">Preview mode: no code is sent — use 123456.</p>}
+        {data?.dryRun && <p className="text-xs text-[var(--c-muted)] mt-3">Preview mode: no code is sent — use 123456.</p>}
         <SipDefaults ids={items} />
       </div>
       <AddForm price={price} onSent={reload} onSaved={afterVerify} />
@@ -205,8 +173,8 @@ export function CallerIds() {
   if (!data?.enabled) return null;
   return (
     <section id="caller-ids" className="civr-card p-6 mt-8 scroll-mt-24" data-testid="caller-ids-card">
-      <div className="flex items-center gap-2 font-display text-xl font-bold mb-2"><ShieldCheck className="w-5 h-5 text-[#818cf8]" />Your own caller IDs</div>
-      <p className="text-sm text-[#a1a1aa] mb-6 max-w-2xl">Show a number you own, such as your mobile or office line, on Quick IVR calls, Call me first, campaigns, AI agent calls, text triggers and the browser phone. Verify it with a code ($25, charged only when the code is accepted), or, on Business, save up to 10 numbers you have the right to use and pick one with a tap on each call. Calls are still billed from your CloudIVR number.</p>
+      <div className="flex items-center gap-2 font-display text-xl font-bold mb-2"><ShieldCheck className="w-5 h-5 text-[var(--c-accent)]" />Your own caller IDs</div>
+      <p className="text-sm text-[var(--c-muted)] mb-6 max-w-2xl">Show a number you own, such as your mobile or office line, on Quick IVR calls, Call me first, campaigns, AI agent calls, text triggers and the browser phone. Verify it with a code ($25, charged only when the code is accepted), or, on Business, save up to 10 numbers you have the right to use and pick one with a tap on each call. Calls are still billed from your CloudIVR number.</p>
       <CallerIdManager />
     </section>
   );

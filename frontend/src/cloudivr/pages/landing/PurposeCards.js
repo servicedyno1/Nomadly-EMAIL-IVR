@@ -35,7 +35,7 @@ export function PurposeCards({ catalog, from, offer, fax, esimPrice, goPlans }) 
       </div>
       <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
         <button type="button" onClick={() => openEsimCheckout()} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-900 hover:border-[#1d6fd8]/40 hover:bg-[#edf4ff] transition-colors" data-testid="hero-esim-link"><Smartphone className="w-4 h-4 text-[#1d6fd8]" />Want the line on your phone? USA eSIM{esimPrice ? `, ${usd(esimPrice)}/month` : ''}</button>
-        <a href="#try" className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-900 hover:border-[#1d6fd8]/40 hover:bg-[#edf4ff] transition-colors" data-testid="hero-try-link"><PhoneCall className="w-4 h-4 text-[#1d6fd8]" />Try a free call first, with your verified caller IDs</a>
+        <a href="#try" className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-900 hover:border-[#1d6fd8]/40 hover:bg-[#edf4ff] transition-colors" data-testid="hero-try-link"><PhoneCall className="w-4 h-4 text-[#1d6fd8]" />Try a free call first</a>
       </div>
       <ul className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2" data-testid="hero-trust">
         {TRUST.map(([I, t], i) => <li key={t} className="flex items-center gap-2 text-sm font-medium text-slate-600" data-testid={`hero-trust-${i}`}><I className="w-4 h-4 text-emerald-600" />{t}</li>)}

@@ -44,15 +44,17 @@ const cheapest = (prices) => [...(prices || [])].sort((a, b) => (+a.channels - +
 async function searchNumbers(countryCode, numberType = 'local', areaCode = null, limit = 5) {
   if (!enabled()) return []
   const cc = String(countryCode || 'US').toUpperCase()
-  if (areaCode && ['US', 'CA'].includes(cc)) return [] // area codes are searched on the other providers
+  // US/CA area code: search the cities in that area code's state and prefer prefixes that start with it.
+  const state = areaCode && ['US', 'CA'].includes(cc) ? require('../signalwire/rest').AREA_REGION?.[Number(areaCode)] : null
+  if (areaCode && ['US', 'CA'].includes(cc) && !state) return []
   const re = TYPES[numberType] || TYPES.local
   try {
-    const pool = (await areas(cc)).filter(a => re.test(a.number_type || a.area_type || '') && +a.available > 0).sort((a, b) => +b.available - +a.available).slice(0, 8)
+    const pool = (await areas(cc)).filter(a => re.test(a.number_type || a.area_type || '') && +a.available > 0 && (!state || a.state_iso === state)).sort((a, b) => +b.available - +a.available).slice(0, 8)
     const out = []
     for (const a of pool.sort(() => Math.random() - 0.5).slice(0, 3)) {
       if (out.length >= limit) break
       const pre = (await api('get', `getprefixes/${a.uuid}`)).response
-      const p = Array.isArray(pre) ? pre.find(x => +x.available > 0) || pre[0] : null
+      const p = Array.isArray(pre) ? (state && pre.find(x => +x.available > 0 && String(x.prefix || x.name || '').replace(/\D/g, '').replace(/^1/, '').startsWith(String(areaCode)))) || pre.find(x => +x.available > 0) || pre[0] : null
       if (!p) continue
       const nums = (await api('get', `getnumbers/${p.uuid}/${Math.min(limit - out.length, 6)}`)).response
       for (const n of Array.isArray(nums) ? nums : []) {

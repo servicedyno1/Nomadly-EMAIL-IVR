@@ -43,7 +43,7 @@ async function resolve(chatId, showAs) {
   const doc = col && await col.findOne({ _id: n, chatId: String(chatId), status: 'verified', attested: { $ne: true } })
   if (!doc) { const e = new Error('Add that number under My numbers → Your own caller IDs before calling from it.'); e.code = 'invalid_show_as'; throw e }
   // Only numbers proven by a code (SMS / call) may be shown — self-declared ("attested") caller IDs are spoofing and were retired 2026-11.
-  if (doc.method === 'attested') { const e = new Error('Verify this number with a code first: My numbers → Your own caller IDs → Verify.'); e.code = 'invalid_show_as'; throw e }
+  if (doc.method === 'attested' || doc.method === 'review') { const e = new Error('Verify this number with a code first: My numbers → Your own caller IDs → Verify.'); e.code = 'invalid_show_as'; throw e }
   return n
 }
 const isVerified = (chatId, n) => (ON ? resolve(chatId, n).then(() => true, () => false) : Promise.resolve(false))
@@ -57,7 +57,7 @@ async function telnyxRequestCode(n, method) {
     await tx('post', '', body).catch(e2 => { throw new Error(txErr(e2)) })
   }
 }
-// Telnyx first; when it refuses, Bird places a code call instead → { birdId } so the code is checked with Bird.
+// Bird first: Bird places the code call → { birdId } so the code is checked with Bird.
 async function requestCode(n, method) {
   if (dry()) return {}
   // Bird verifies by calling the number and reading a code aloud (the only verification used now).
@@ -133,21 +133,8 @@ function routes(router, { db, h, numbersApi }) {
     res.json({ enabled: ON, price: PRICE, dryRun: dry(), items: items.filter(d => d.status === 'verified' || d.status === 'review' || Date.now() - d.createdAt < PENDING_MS).map(d => ({ ...view(d), uses30: used[d._id]?.n || 0, lastUsedAt: used[d._id]?.last || null })) })
   }))
 
-  // Admin-review path: show a number the customer owns but can't receive a code on (main line, toll-free, call center).
-  // No code; the customer attests they are authorized and an admin approves. Telnyx still filters the actual call.
-  router.post('/caller-ids/request', h(async (req, res) => {
-    if (!ON) return off(res)
-    const chatId = req.webChatId, n = clean(req.body.number)
-    if (!E164.test(n)) return bad(res, 400, 'invalid_number', 'Enter the number with country code, e.g. +14155550100.')
-    if (req.body.authorized !== true) return bad(res, 400, 'not_authorized', 'Confirm you are authorized to use this number as your caller ID.')
-    if (await numbersApi.findMine(chatId, n)) return bad(res, 400, 'own_number', 'That is already one of your CloudIVR numbers — pick it as “Call from” instead.')
-    const cur = await col.findOne({ _id: n })
-    if (cur?.chatId === chatId && (cur.status === 'verified' || cur.status === 'review')) return bad(res, 400, 'already_added', cur.status === 'review' ? 'This number is already waiting for approval.' : 'This number is already on your account.')
-    if (cur && cur.chatId !== chatId && (cur.status === 'verified' || cur.status === 'review' || Date.now() - cur.createdAt < PENDING_MS)) return bad(res, 409, 'number_taken', 'This number is in use on another account. Contact support if it is yours.')
-    if (!(await w.debit(chatId, PRICE))) return bad(res, 402, 'insufficient_balance', `Adding a caller ID for review costs $${PRICE.toFixed(2)}, refunded if we can’t approve it. Top up your wallet first.`)
-    await col.replaceOne({ _id: n }, { _id: n, chatId, status: 'review', method: 'review', charged: PRICE, note: String(req.body.note || '').slice(0, 300), createdAt: Date.now() }, { upsert: true })
-    res.status(201).json({ number: n, status: 'review', charged: PRICE, message: 'Thanks — we’ll review this number and email you. It usually takes a business day.' })
-  }))
+  // Manual review was retired: only numbers verified with a Bird code call can be shown.
+  router.post('/caller-ids/request', h(async (req, res) => bad(res, 410, 'verification_required', 'Manual review was retired. Add the number and verify it with the code Bird reads out in a call.')))
 
   router.post('/caller-ids', h(async (req, res) => {
     if (!ON) return off(res)
@@ -218,8 +205,6 @@ function routes(router, { db, h, numbersApi }) {
 
   // Business users can show any number they state they have the right to use (no code). Admin alert.
   router.post('/caller-ids/attest', h(async (req, res) => {
-    if (!ON) return off(res)
-    if (req.body.authorized !== true) return bad(res, 400, 'not_authorized', 'Confirm you have the right to use this number as your caller ID.')
     const r = await attest(req.webChatId, req.body.number, { who: req.webUser?.email || '', channel: 'web', label: req.body.label })
     if (!r.ok) return bad(res, r.status, r.error, r.message)
     res.status(201).json({ number: r.number, status: 'verified', method: 'attested' })
@@ -287,19 +272,6 @@ async function attest(chatId, raw, { who = '', channel = 'web', label = '' } = {
   chatId = String(chatId)
   // Unverified (self-declared) caller IDs are no longer accepted anywhere: verify with Bird's code call first.
   return { ok: false, status: 400, error: 'verification_required', message: 'Caller IDs must be numbers you own. Add the number and verify it with the code Bird reads out in a call.' }
-  if (isEmergency(raw)) return { ok: false, status: 400, error: 'emergency_number', message: 'Emergency numbers can’t be used as a caller ID.' }
-  const n = clean(raw)
-  const lbl = String(label || '').trim().slice(0, 24)
-  if (!E164.test(n)) return { ok: false, status: 400, error: 'invalid_number', message: 'Enter the full number with country code, e.g. +14155550100.' }
-  if (!(await hasPaidPlan(chatId))) return { ok: false, status: 403, error: 'plan_required', message: 'Showing any caller ID is a Business plan feature. Upgrade to Business to use it.' }
-  const cur = await col.findOne({ _id: n })
-  if (cur?.chatId === chatId && cur.status === 'verified') { if (lbl) await col.updateOne({ _id: n }, { $set: { label: lbl } }); return { ok: true, number: n } }
-  if (cur && cur.chatId !== chatId && (cur.status === 'verified' || cur.status === 'review')) return { ok: false, status: 409, error: 'number_taken', message: 'This number is in use on another account. Contact support if it is yours.' }
-  if (await col.countDocuments({ chatId, status: 'verified' }) >= MAX_PRESETS) return { ok: false, status: 400, error: 'too_many_presets', message: `You can save up to ${MAX_PRESETS} caller IDs. Remove one to add another.` }
-  await col.replaceOne({ _id: n }, { _id: n, chatId, status: 'verified', method: 'attested', attested: true, attestedAt: new Date(), channel, charged: 0, ...(lbl ? { label: lbl } : {}), createdAt: Date.now(), verifiedAt: new Date() }, { upsert: true })
-  const flag = HOTLINES[n]
-  require('../scam-watch').alert(`${flag ? '🚩' : '🎭'} <b>Custom caller ID added</b>${flag ? ` — matches <b>${flag}</b> hotline` : ''}\n👤 ${String(who || chatId).replace(/[<>&]/g, '')} (${chatId})\n📞 ${n} · via ${channel}\n<i>User attested they have the right to use it. Alert only.</i>`)
-  return { ok: true, number: n }
 }
 
 const defaultFor = async (chatId, ownNumber) => ON && (await dbRef?.collection('callerIdDefaults').findOne({ _id: String(ownNumber), chatId: String(chatId) }))?.showAs || null
@@ -333,8 +305,7 @@ async function presets(chatId) {
   if (!ON) return []
   if (!col) return []
   const docs = await col.find({ chatId: String(chatId), status: 'verified' }).toArray()
-  const biz = docs.some(d => d.method === 'attested') && await hasPaidPlan(chatId)
-  return docs.filter(d => d.method !== 'attested' || biz)
+  return docs.filter(d => d.method !== 'attested' && d.method !== 'review' && !d.attested)
     .sort(byOrder).slice(0, MAX_PRESETS).map(d => ({ number: d._id, label: d.label || null, lastUsedAt: d.lastUsedAt || null }))
 }
 
@@ -347,10 +318,8 @@ function adminApi(db) {
   const list = async () => (await c.find({ status: { $in: ['review', 'verified'] } }).sort({ createdAt: -1 }).limit(200).toArray())
     .map(d => ({ number: d._id, chatId: d.chatId, status: d.status, method: d.method || null, note: d.note || null, charged: d.charged || 0, adminApproved: !!d.adminApproved, at: new Date(d.createdAt || d.verifiedAt || Date.now()).toISOString() }))
   const approve = async (number) => {
-    const d = await c.findOne({ _id: number, status: 'review' })
-    if (!d) return null
-    await c.updateOne({ _id: number }, { $set: { status: 'verified', adminApproved: true, verifiedAt: new Date() } })
-    return d
+    // Retired: only Bird code-verified caller IDs can be used, so nothing is approved by hand.
+    return null
   }
   const reject = async (number) => {
     const d = await c.findOne({ _id: number, status: 'review' })

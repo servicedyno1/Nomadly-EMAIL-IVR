@@ -1,0 +1,62 @@
+{
+  "summary": "Tested: Bird-only outbound routing (node unit test with every dependency stubbed, so no real calls or emails), bird-alert throttling/Telegram/email, removal of unverified caller IDs (pytest against the public URL), landing redesign and in-app light theme (Playwright at 1920x1080), plus regression suites from iterations 273-278. The core features work: Bird-only routing, the swap to a system number logged with purpose unverified_caller_swap, 503 plus admin alert for off/spend/full/unlinked, alert on a Bird dial error, attest always refused, resolve() ignoring attested docs, try calls and the phone test refusing showAs, the new ecosystem section and hero copy, light theme as the default and the dark toggle. Issues found: (1) GET /caller-ids/presets still offers attested (unverified) caller IDs to Business users; (2) POST /caller-ids/request lets an admin approve an unverified number, which then passes resolve(); (3) the 'Get a USA texting number' CTA is clipped at 1920; (4) the landing copy still claims an SMS inbox in plans and offers 'free call ... with your verified caller IDs'; (5) the admin dashboard is still dark-only; (6) two edge cases in createOutboundCall throw instead of alerting the admin.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/cloudivr-web/caller-ids/presets (caller-ids.js presets())", "issue": "presets() still returns method:'attested' docs when the account has a paid plan (docs.filter(d => d.method !== 'attested' || biz)). Unverified caller IDs are still offered as one-tap presets in the web app and the bot (ccid.presetRows), and picking one then fails with invalid_show_as. Reproduced: an attested doc plus a code-verified doc for Alice (Business) → both returned. Fix: filter out d.attested / method==='attested' unconditionally.", "priority": "HIGH"},
+      {"endpoint": "POST /api/cloudivr-web/caller-ids/request + admin approve (caller-ids.js L138-150, adminApi.approve)", "issue": "The 'Can't receive a code? Request a number for review' path is still live (in the UI: caller-ids-review-open / caller-ids-review-form in pages/number/CallerIds.js). An admin approval sets status:'verified', method:'review' with no code verification and no attested flag, so resolve() accepts it. This is still a way to show a caller ID that was not verified with a Bird code call, which conflicts with requirement 2. Retire it or require Bird verification.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/caller-ids/attest", "issue": "Without authorized:true it returns 400 'not_authorized' rather than 'verification_required' (the authorized check runs before attest()). With authorized:true it correctly returns 400 verification_required and nothing is written."},
+      {"endpoint": "js/signalwire/index.js wrap.createOutboundCall (Bird-only branch)", "issue": "(a) If ivr-outbound.getTrialCaller throws (or returns no callerId), the error propagates out of createOutboundCall: no 503 and no birdAlert. (b) If ce.createOutboundCall throws (rather than returning {error}), no birdAlert is sent. Wrap both in try/catch → birdAlert + {error, status:503}. Also birdState(from,to) is called twice when Bird-only applies (the first result is discarded)."},
+      {"endpoint": "Bot customCid flow (js/_index.js ~L26745-26778)", "issue": "The trial path now replies correctly. The non-trial path still lets the user type and confirm a number, then calls cid.attest(), which always returns verification_required. That error is not in the error map, so the user just sees the generic L.ask prompt again with no explanation. Map verification_required to a message pointing to Bird verification in the app, or remove the 'enter any number' step. Dead `if (false) {...}` blocks are left in _index.js and trycall.js, and dead code after `return` in attest()."},
+      {"endpoint": "GET /api/cloudivr-web/admin/signup-insights", "issue": "Funnel step 3 changed this cycle to 'Signed up (tracked visits)' = seen.done.size. The preview now shows 0 while steps 4/5 show 1 and 2, so the funnel is not monotonic and reads oddly. The iter276 test was updated to the new definition."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Landing pricing – Texting plan card", "issue": "The CTA is visibly clipped at 1920x1080 ('Get a USA texti'). Inner span .civr-l-slide has scrollWidth 195 > clientWidth 114.", "selector": "[data-testid='pricing-choose-texting']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing copy", "issues": [
+        "PricingFaq.js L108: 'Basic gives you a number with call forwarding, the SMS inbox and the browser phone' still claims an SMS inbox in plans. It also says 'Pro adds ... voicemail, SIP logins', but per the catalog Starter already includes voicemail and SIP.",
+        "Platform.js 'sms' card: 'SMS inbox — Read and reply to every text in one inbox. Push them to email ... webhooks on Pro and up' implies plan texting. The 'phone' card says SIP is 'On Pro and up' (Starter has SIP).",
+        "HeroCard.js L46 and PurposeCards.js L38 hero chip: 'Try a free call first, with your verified caller IDs'. Free test calls no longer allow any custom caller ID (API returns invalid_show_as), so this is misleading."
+      ]},
+      {"screen": "Admin dashboard /cloudivr/admin", "issues": ["Still renders dark only (html data-civr-theme not set; ThemeRoot only covers the app shell). The request asked for admin pages to read well in light.", "The top nav wraps to two rows at 1920 and the first row is cut at the top edge (the 'Overview' pill is clipped)."]},
+      {"screen": "In-app light theme", "issues": ["Looks fine: Home, Get a number, number page, My numbers, Messages, Wallet, Settings and Travel eSIM render readable in light, and an automated contrast scan found no text below 2.5:1. The sidebar stays dark in light mode (intentional?). number/CallerIds.js still hard-codes dark colours (#262626, #a1a1aa, #818cf8); not visible now because the caller-ID switch is off in preview."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/bird_only_outbound_unit_test.js",
+    "/app/backend/tests/test_cloudivr_unverified_cid_removed_iter279.py",
+    "/app/test_reports/pytest/pytest_results_279.xml"
+  ],
+  "action_items": [
+    "caller-ids.js presets(): never return attested docs (remove the `|| biz` exception)",
+    "Retire or Bird-verify the admin-review caller ID path (POST /caller-ids/request, adminApi.approve, CallerIds.js review form)",
+    "Bot non-trial customCid: map verification_required to a clear message, or drop the free-entry step",
+    "signalwire wrap.createOutboundCall: try/catch around getTrialCaller and ce.createOutboundCall → birdAlert + 503",
+    "Fix the clipped 'Get a USA texting number' CTA (pricing-choose-texting)",
+    "Remove the 'SMS inbox' plan claims (PricingFaq L108, Platform.js sms card) and the 'free call ... with your verified caller IDs' chip (HeroCard, PurposeCards); fix the plan/feature mismatch in the FAQ (Starter has voicemail+SIP)",
+    "Admin dashboard: apply the light theme, fix the wrapped/clipped top nav",
+    "Optional: return verification_required from /caller-ids/attest even without authorized:true; remove dead `if (false)` blocks and the unused showAs state in TryCall.js / TestCallerId in PhoneTestPage.js"
+  ],
+  "critical_code_review_comments": [
+    "js/_index.js and trycall.js keep large `if (false) {}` blocks; attest() has unreachable code after `return`. Delete them.",
+    "The requestCode comment says 'Telnyx first', but the code now does Bird first. Update the comment.",
+    "OUTBOUND_BIRD_ONLY: the unverified-caller swap is silent to the customer. Consider returning callerSwapped:{requested,used} like the SignalWire path so the UI and logs can show it.",
+    "With an empty pool, getTrialCaller falls back to TRIAL_CALLER_ID or the SignalWire pool, which may not be Bird-presentable → 'unlinked' 503 + alert (this case is covered and passes in the unit test)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/bird_only_outbound_unit_test.js (new)",
+    "/app/backend/tests/test_cloudivr_unverified_cid_removed_iter279.py (new)",
+    "/app/backend/tests/test_cloudivr_flags_insights_iter276.py (funnel step 3 assertion updated to the new tracked-visit definition)"
+  ],
+  "success_rate": {"backend": "Unit test 16/18 (2 edge-case failures: uncaught throws); API 9/11 (presets include attested; attest without authorized → not_authorized); regression 16/16 iter278 + 15/15 iter273 + 34/37 iter274-276 (the 3 failures were outdated funnel assertions, fixed)", "frontend": "~85% (landing ecosystem and hero OK, no caller ID input, light default and dark toggle OK; CTA clipped, copy claims, admin still dark)"},
+  "seed_data_creation": "None kept. During the test, webCallerIds docs +14155559901 (attested) and +14155559902 (code-verified) were created for Alice and appSettings.customCallerId was temporarily enabled. All were restored or removed in teardown; callerIdDefaults for +13346970100 was restored.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run the node unit test with: node backend/tests/bird_only_outbound_unit_test.js. It stubs ../bird/index.js, ../callengine/index.js, ../bird-alert.js, ../ivr-outbound.js, ./rest.js, ./voice.js, ../infobip/index.js, ../multitel/index.js, ../aws/index.js, ../telnyx-sip.js and ../mailer.js through require.cache. Run the pytest with: REACT_APP_BACKEND_URL=... pytest tests/test_cloudivr_unverified_cid_removed_iter279.py -p no:xdist. The caller-ID feature switch (appSettings.customCallerId.enabled) is false in preview; the fixture flips it to true for 32 s (loadSwitch polls every 30 s) and then restores it. Alice's active numbers are now +13346970100/+13346970101. Admin login is at /cloudivr/admin (devCode pre-filled in preview); the web /auth/login rejects the admin credentials, which is expected.",
+  "rca of the issue": "presets(): the Business exception `d.method !== 'attested' || biz` was kept when resolve() was hardened, so the list and the resolver disagree. Admin-review path: the approve() flow was not part of the cleanup that removed attestation. Clipped CTA: the .civr-l-slide wrapper has a fixed or limited width with overflow hidden, and the longer label does not fit in the 162px button."
+}

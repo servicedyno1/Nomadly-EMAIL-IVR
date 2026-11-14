@@ -1,0 +1,32 @@
+import { Hash, Workflow, Megaphone, Bot, KeyRound, MessageSquare, Globe, ShieldCheck, Printer, ScanSearch, Captions, Plane, Smartphone, PlusCircle } from 'lucide-react';
+
+// Everything we sell, grouped. Group → [id, title, tone, items]; item → [id, Icon, title, text, price, appPath, soon?].
+// Used by the landing "Everything we offer" section and the in-app Home product grid.
+export const PRODUCT_GROUPS = [
+  ['calling', 'Calling plans', 'blue', [
+    ['plan', Hash, 'Business number + plan', 'One number included with every plan: USA, Canada or UK. Business can also pick the Netherlands, France or Spain.', 'From $50/mo', 'buy'],
+    ['ivr', Workflow, 'Keypad menu (IVR)', 'Callers press 1 for sales, 2 for support or 3 for voicemail. On Pro and Business.', 'In Pro and up', 'answer/ivr'],
+    ['campaigns', Megaphone, 'Quick & Bulk IVR calls', 'Call a list, play your message and connect everyone who presses 1. On Pro and Business.', 'In Pro and up', 'campaigns'],
+    ['extra-number', PlusCircle, 'Extra numbers', 'Add numbers in more countries for calls. We only ask for an address or ID when the country needs it.', 'From $25/mo', 'buy'],
+  ]],
+  ['ai', 'AI', 'violet', [
+    ['receptionist', Bot, 'AI receptionist', 'Answers your calls 24/7, books visits and takes messages in 20 languages.', '$0.10/min', 'ai-agents?use=inbound'],
+    ['text-call', Captions, 'Text-to-voice calls', 'You type, a natural voice speaks, and you read their reply live. On Business.', 'In Business', 'text-call'],
+  ]],
+  ['texting', 'Texting', 'green', [
+    ['usa-texting', MessageSquare, 'USA Texting Number', 'A real USA carrier number with unlimited texts, read and answered in your browser.', '$50/mo, unlimited texts', 'texting-number'],
+    ['ten-dlc', ShieldCheck, 'USA 10DLC registration', 'Register your brand to text USA customers at scale. Refunded if it is rejected.', '$49 once + carrier fees', 'texting-number'],
+    ['intl-texting', Globe, 'International texting', 'Texting on numbers outside the USA.', 'Coming soon', 'international-texting', true],
+  ]],
+  ['fax', 'Fax', 'rose', [
+    ['fax', Printer, 'Fax number', 'Send and receive faxes online. Business includes fax with 50 free pages a month.', '$9/mo', 'fax'],
+  ]],
+  ['connect', 'Phones, data & tools', 'teal', [
+    ['sip', KeyRound, 'Softphone logins (SIP)', 'Use desk phones and softphone apps from Starter. Pro gets 2 logins free, Business 5.', '$5/mo per extra login', 'sip'],
+    ['travel-esim', Plane, 'Travel eSIM', 'Mobile data in 187 countries, installed with a QR code.', 'Priced per country', 'travel-esim'],
+    ['usa-esim', Smartphone, 'USA eSIM', 'A downloadable USA line on a real carrier for your own phone.', 'Monthly', 'esim'],
+    ['lookup', ScanSearch, 'Number lookup', 'See the carrier, line type and country of any number before you call.', '$0.015/lookup', 'lookup'],
+  ]],
+];
+
+export const ALL_PRODUCTS = PRODUCT_GROUPS.flatMap(([gid, , tone, items]) => items.map(it => [...it, gid, tone]));

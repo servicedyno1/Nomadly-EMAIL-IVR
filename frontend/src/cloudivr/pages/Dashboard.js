@@ -9,18 +9,17 @@ import { LogTable } from '../LogTable';
 import { cp } from '../paths';
 import { GetStarted, YourNumbers } from './dashboard/Widgets';
 import { TopBanner, TrialCard, CallerIdUpsellCard } from './dashboard/Banners';
-import { NewProducts } from './dashboard/NewProducts';
+import { ProductGrid } from './dashboard/ProductGrid';
 import { FaxCard } from './dashboard/FaxCard';
 import { ForYou, ReviewPrompt } from './dashboard/ForYou';
 import { PurposeHome } from './dashboard/PurposeHome';
 import { TextingHome } from './dashboard/TextingHome';
 import { TaskCards, SetupChecklist } from './dashboard/GuidedHome';
-import { TextingNumberCta } from './buy/TextingNumberCta';
 
 function Stat({ icon: Icon, label, value, to, testid, delay, title }) {
   const body = (
     <div className={`civr-card ${to ? 'civr-card-link' : ''} p-6 h-full civr-rise ${delay}`} data-testid={testid} title={title}>
-      <div className="flex items-start justify-between gap-2"><span className="civr-label !text-[#a1a1aa] !tracking-[.12em] whitespace-nowrap truncate">{label}</span><Icon className="w-4 h-4 shrink-0 text-[#818cf8]" /></div>
+      <div className="flex items-start justify-between gap-2"><span className="civr-label !text-[var(--c-muted)] !tracking-[.12em] whitespace-nowrap truncate">{label}</span><Icon className="w-4 h-4 shrink-0 text-[var(--c-accent)]" /></div>
       <div className="font-mono text-3xl mt-4" data-testid={`${testid}-value`}>{value}</div>
       {title && <div className="text-xs text-[var(--c-muted)] mt-1">This month</div>}
     </div>
@@ -67,7 +66,7 @@ export default function Dashboard() {
   );
   return (
     <div data-testid="dashboard-page">
-      <PageHeader label="Home" title={`Hi ${account?.name?.split(' ')[0] || 'there'}`} sub={textingOnly ? 'Your texting numbers and the latest texts from your customers.' : 'Your services, calls and wallet at a glance. Add what you need next, one step at a time.'} testid="dashboard-header">
+      <PageHeader label="Home" title={`Hi ${account?.name?.split(' ')[0] || 'there'}`} sub={textingOnly ? 'Your texting numbers and the latest texts from your customers.' : 'Your numbers, calls and wallet at a glance, and every product you can add.'} testid="dashboard-header">
         {s && !fresh && <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="dashboard-buy-number-button"><PlusCircle className="w-4 h-4" />Get a number</Link>}
         {textingOnly && <Link to={cp('/app/texting?add=1')} className="civr-btn civr-btn-primary" data-testid="dashboard-add-texting-button">Add a number</Link>}
       </PageHeader>
@@ -78,16 +77,15 @@ export default function Dashboard() {
           <ArrowRight className="w-4 h-4" />
         </Link>
       )}
-      {!s || (fresh && !hosted) ? <SkeletonPage header={false} cards={3} rows={3} /> : textingOnly ? <TextingHome items={hosted.items} balance={s.balance} /> : fresh ? <><PurposeHome />{promos}<Guided nums={[]} /><TextingNumberCta testid="dashboard-texting-number-cta" className="mt-6" /><div className="mt-8"><GetStarted balance={s.balance} /></div></> : (
+      {!s || (fresh && !hosted) ? <SkeletonPage header={false} cards={3} rows={3} /> : textingOnly ? <TextingHome items={hosted.items} balance={s.balance} /> : fresh ? <><PurposeHome />{promos}<Guided nums={[]} /><ProductGrid /><div className="mt-8"><GetStarted balance={s.balance} /></div></> : (
         <>
-          <PurposeHome />
-          <Guided nums={nums?.numbers} />
-          <h2 className="font-display text-xl font-bold mt-10 mb-4">At a glance</h2>
           <Stats s={s} />
+          <div className="mt-8"><PurposeHome /></div>
+          <Guided nums={nums?.numbers} />
           <div className="mt-6"><ForYou /></div>
           {promos}
           <YourNumbers nums={nums?.numbers} balance={s.balance} />
-          <NewProducts />
+          <ProductGrid />
           <ReviewPrompt />
           <div className="civr-card p-6 mt-6">
             <div className="font-display text-2xl font-bold mb-4">Recent activity</div>

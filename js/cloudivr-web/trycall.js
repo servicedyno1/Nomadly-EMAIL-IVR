@@ -108,17 +108,9 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     if (d.err) return bad(res, 400, 'invalid_number', d.err)
     const lim = await limit(req, email, d.to)
     if (lim) return bad(res, ...lim)
-    // Optional: the visitor can show any caller ID on their free test call (not emergency numbers; logged).
     const cidSvc = require('./caller-ids')
-    let showAs = null
-    // Unverified caller IDs were removed: the free test call always shows a CloudIVR number.
+    const showAs = null
     if (req.body.showAs) return bad(res, 400, 'invalid_show_as', 'Custom caller IDs aren’t available on the free test call.')
-    if (false) {
-      if (cidSvc.isEmergency(req.body.showAs)) return bad(res, 400, 'invalid_show_as', 'Emergency numbers can’t be used as a caller ID.')
-      const s = String(req.body.showAs).replace(/[^\d+]/g, '')
-      showAs = s.startsWith('+') ? s : s.length === 10 ? `+1${s}` : `+${s}`
-      if (!/^\+[1-9]\d{7,14}$/.test(showAs)) return bad(res, 400, 'invalid_show_as', 'Enter the caller ID with country code, e.g. +14155550100.')
-    }
     const callerId = (await require('../ivr-outbound').getTrialCaller({ purpose: 'landing_test_call', to: d.to })).callerId || process.env.TELNYX_DEFAULT_ANI
     if (!dryRun() && !callerId) return bad(res, 503, 'unavailable', 'Free test calls are paused right now. Try again later.')
     const doc = await record(req, email, 'call_me', d.to, { chatId: await nextChatId() })
