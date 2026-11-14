@@ -10,7 +10,7 @@ const releaseFor = (n) => (n.provider === 'signalwire_fax' ? swFax.releaseFax(n.
 const fax = require('./fax-service')
 const { walletOps, round2 } = require('./cloudivr-web/wallet')
 
-const PRICE = () => round2(Number(process.env.FAX_NUMBER_PRICE) || 15)
+const PRICE = () => round2(Number(process.env.FAX_NUMBER_PRICE) || 9)
 const COUNTRIES = [{ code: 'US', name: 'United States' }, { code: 'CA', name: 'Canada' }]
 const GRACE_MS = 3 * 86400000
 const dry = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'

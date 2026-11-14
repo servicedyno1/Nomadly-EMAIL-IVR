@@ -9,7 +9,7 @@ const TABS = [
   ['callme', 'We call your phone', PhoneCall, 'Enter your number. We ring you with a live demo menu — press 1, 2 or 3 and watch each key light up here.', 'civr-callme', 'Call me'],
   ['browser', 'Call from this browser', Laptop, 'Call any phone from this tab using your microphone — no app needed. Try calling your own mobile.', 'civr-browser', 'Browser'],
 ];
-const POINTS = [[MailCheck, 'Confirm your email with a 6-digit code'], [Timer, 'One free call per email, up to 60 seconds'], [ShieldCheck, 'Show any caller ID — no account, no card']];
+const POINTS = [[MailCheck, 'Confirm your email with a 6-digit code'], [Timer, 'One free call per email, up to 60 seconds'], [ShieldCheck, 'Show your verified caller ID — no account, no card']];
 const E164 = /^\+[1-9]\d{7,14}$/;
 
 function TryForm({ tab, to, setTo, showAs, setShowAs, busy, onSubmit }) {

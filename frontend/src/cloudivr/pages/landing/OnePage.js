@@ -73,7 +73,8 @@ export function AllPlans({ catalog, tab, setTab, esimPrice, offer, fax }) {
           {tab === 'ivr' && (
             <>
               <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">{plans.map((p, i) => <PlanCard key={p.id} p={p} plans={plans} hot={isHot(p, i)} start={start} delay={i * 80} />)}{catalog?.texting && <TextingCard t={catalog.texting} start={start} delay={plans.length * 80} />}</div>
-              {r && <p className="text-sm text-slate-500 mt-6 max-w-3xl" data-testid="pricing-extra-usage">{'Outgoing calls and forwarding are paid from your wallet. Business can show any caller ID on every call.'}</p>}
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white/70 p-5 flex flex-wrap items-center gap-4" data-testid="pricing-enterprise"><div className="flex-1 min-w-[240px]"><div className="font-semibold text-slate-900">Enterprise · from $299/month</div><p className="text-sm text-slate-500 mt-1">Custom minutes and limits, API access, a dedicated SIP trunk and white-label for resellers.</p></div><a href="mailto:sales@cloudivr.net?subject=CloudIVR%20Enterprise" className="rounded-full bg-slate-900 text-white px-5 py-2 text-sm font-semibold" data-testid="pricing-enterprise-contact">Talk to sales</a></div>
+              {r && <p className="text-sm text-slate-500 mt-6 max-w-3xl" data-testid="pricing-extra-usage">{'Outgoing calls and forwarding are paid from your wallet. Business can show your verified caller ID on every call.'}</p>}
             </>
           )}
           {tab === 'fax' && <FaxLanding fax={fax} />}
@@ -87,7 +88,7 @@ export function AllPlans({ catalog, tab, setTab, esimPrice, offer, fax }) {
                 <p>Want the line on your phone? <b>USA eSIM</b>.</p>
                 <p>Want to text from your browser? <b>Texting Number</b>.</p>
                 <p>Need to send and receive faxes? <button type="button" className="font-semibold underline" onClick={() => setTab('fax')} data-testid="which-one-fax">Fax number</button>.</p>
-                <p>Need IVR, campaigns, SIP or any caller ID? <button type="button" className="font-semibold underline" onClick={() => setTab('ivr')} data-testid="which-one-ivr">Cloud IVR plans</button>.</p>
+                <p>Need IVR, campaigns, SIP or your verified caller IDs? <button type="button" className="font-semibold underline" onClick={() => setTab('ivr')} data-testid="which-one-ivr">Cloud IVR plans</button>.</p>
               </div>
             </div>
           )}
@@ -101,7 +102,7 @@ export function AllPlans({ catalog, tab, setTab, esimPrice, offer, fax }) {
 const ROWS = [
   ['Month to month, no contract', true, false, true],
   ['Real USA carrier mobile number', true, true, false],
-  ['Show any caller ID (Business)', true, false, false],
+  ['Show your verified caller ID (Business)', true, false, false],
   ['Keypad menu, Quick IVR and Bulk IVR campaigns', true, false, false],
   ['Browser phone and SIP softphone logins', true, false, 'Some'],
   ['AI voice agent and call recording', true, false, 'Some'],

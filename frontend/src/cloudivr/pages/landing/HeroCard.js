@@ -6,7 +6,7 @@ import { openEsimCheckout } from './EsimCheckout';
 import { openMobileCheckout } from './MobileCheckout';
 
 const PITCH = {
-  ivr: 'Calls, keypad menus, SIP logins and campaigns. Business shows any caller ID.',
+  ivr: 'Calls, keypad menus, SIP logins and campaigns. Business shows your verified caller IDs.',
   esim: 'A real USA carrier line that lives on your phone. QR code in minutes.',
   mobile: 'A real USA carrier number you use in your browser, for calls and texts.',
 };
@@ -43,7 +43,7 @@ export function HeroCard({ from, esimPrice, offer, goPlans }) {
           <button type="button" onClick={go} className="civr-l-btn civr-l-btn-hero inline-flex items-center justify-center gap-2 h-14 px-7 shrink-0" data-testid={`hero-card-cta-${tab}`}>{label}<ArrowRight className="w-4 h-4" /></button>
         </div>
       </div>
-      <a href="#try" className="mt-4 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-900 backdrop-blur hover:border-[#1d6fd8]/40 hover:bg-[#edf4ff] transition-colors" data-testid="hero-try-link"><PhoneCall className="w-4 h-4 text-[#1d6fd8]" />Try a free call first, with any caller ID</a>
+      <a href="#try" className="mt-4 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-900 backdrop-blur hover:border-[#1d6fd8]/40 hover:bg-[#edf4ff] transition-colors" data-testid="hero-try-link"><PhoneCall className="w-4 h-4 text-[#1d6fd8]" />Try a free call first, with your verified caller IDs</a>
       <ul className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2" data-testid="hero-trust">
         {TRUST.map(([I, t], i) => <li key={t} className="flex items-center gap-2 text-sm font-medium text-slate-600" data-testid={`hero-trust-${i}`}><I className="w-4 h-4 text-emerald-600" />{t}</li>)}
       </ul>

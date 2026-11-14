@@ -333,7 +333,7 @@ function routes(router, deps) {
       phoneNumber: n.phone_number,
       region: (n.region_information || []).map(r => r.region_name).filter(Boolean).join(', '),
       capabilities: { ...(n._capabilities || { voice: true, sms: false, fax: false }), ...(n._signalwire ? { fax: false } : {}) },
-      surcharge: ['infobip', 'multitel'].includes(n._provider) ? 0 : round2(numberSurcharge(country, type, n)),
+      surcharge: ['infobip', 'multitel'].includes(n._provider) ? require('../number-addons').get(country, type) : round2(numberSurcharge(country, type, n)),
       provider: n._provider || null,
       cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
     }))
@@ -354,7 +354,7 @@ function routes(router, deps) {
   }
   const searchSimilar = async (country, type, areaCode) => (await unheld(await telnyxApi.searchNumbers(country, type, areaCode, 6))).map(n => ({
     phoneNumber: n.phone_number, capabilities: n._capabilities || { voice: true, sms: false, fax: false },
-    surcharge: round2(numberSurcharge(country, type, n)), cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
+    surcharge: ['infobip', 'multitel'].includes(n._provider) ? require('../number-addons').get(country, type) : round2(numberSurcharge(country, type, n)), cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
   }))
 
   // Account currently holding this number (anyone, including the buyer), or null.
@@ -730,13 +730,14 @@ function routes(router, deps) {
   router.get('/texting/ready', h(async (req, res) => res.json({ items: countries().flatMap(c => Object.entries(c.offers || {}).filter(([, o]) => o.caps?.sms && !o.caps.smsNeedsApproval && o.level === 0).map(([type, o]) => ({ country: c.code, name: c.name, flag: c.flag, type, typeName: TYPE_NAMES[type] || type, caps: o.caps }))), plan: 'starter', price: phoneConfig.plans?.starter?.price ?? null })))
 
   // Extra SIP logins (Business plan, up to 5 per number) — each device/person gets its own revocable login on our SIP server.
-  const EXTRA_SIP_MAX = 5
-  const extraOk = (n) => n.plan === 'business'
+  const EXTRA_SIP = { pro: 2, business: 5 }
+  const extraOk = (n) => !!EXTRA_SIP[n.plan]
   const pubExtra = (n) => (n.extraSip || []).map(x => ({ id: x.id, label: x.label, username: x.username, createdAt: x.createdAt }))
-  router.get('/numbers/:phone/sip/extra', withNumber(async (req, res) => res.json({ allowed: extraOk(req.num), max: EXTRA_SIP_MAX, logins: pubExtra(req.num), domain: phoneConfig.WEB_SIP_DOMAIN })))
+  router.get('/numbers/:phone/sip/extra', withNumber(async (req, res) => res.json({ allowed: extraOk(req.num), max: EXTRA_SIP[req.num.plan] || EXTRA_SIP.business, logins: pubExtra(req.num), domain: phoneConfig.WEB_SIP_DOMAIN })))
   router.post('/numbers/:phone/sip/extra', withNumber(async (req, res) => {
     const n = req.num
-    if (!extraOk(n)) return bad(res, 403, 'plan_required', 'Extra SIP logins come with the Business plan. Upgrade this number to add them.')
+    if (!extraOk(n)) return bad(res, 403, 'plan_required', 'Extra SIP logins come with the Pro (2) and Business (5) plans. Upgrade this number to add them.')
+    const EXTRA_SIP_MAX = EXTRA_SIP[n.plan]
     if ((n.extraSip || []).length >= EXTRA_SIP_MAX) return bad(res, 400, 'limit_reached', `This number already has ${EXTRA_SIP_MAX} extra SIP logins. Remove one to add another.`)
     const label = String(req.body?.label || '').trim().slice(0, 40) || `Device ${(n.extraSip || []).length + 1}`
     const login = { id: crypto.randomUUID().slice(0, 8), label, username: phoneConfig.generateSipUsername(), password: phoneConfig.generateSipPassword(), createdAt: new Date().toISOString() }

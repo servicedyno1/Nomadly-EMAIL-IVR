@@ -220,7 +220,7 @@ async function imeiChase() {
 }
 
 // ---------- USA mobile number for texting ($75/month): an eSIM line held by CloudIVR, number shown once assigned ----------
-const MOBILE_PRICE = 75
+const MOBILE_PRICE = 50
 // Off the first month of a Texting Number bought together with a Business Line.
 const BUNDLE_PCT = 10
 const bundlePrice = () => Math.round(MOBILE_PRICE * (100 - BUNDLE_PCT)) / 100

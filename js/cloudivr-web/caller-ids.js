@@ -42,7 +42,8 @@ async function resolve(chatId, showAs) {
   const n = clean(showAs)
   const doc = col && await col.findOne({ _id: n, chatId: String(chatId), status: 'verified' })
   if (!doc) { const e = new Error('Add that number under My numbers → Your own caller IDs before calling from it.'); e.code = 'invalid_show_as'; throw e }
-  if (doc.method === 'attested' && !(await hasPaidPlan(chatId))) { const e = new Error('Showing any caller ID is a Business plan feature.'); e.code = 'invalid_show_as'; throw e }
+  // Only numbers proven by a code (SMS / call) may be shown — self-declared ("attested") caller IDs are spoofing and were retired 2026-11.
+  if (doc.method === 'attested') { const e = new Error('Verify this number with a code first: My numbers → Your own caller IDs → Verify.'); e.code = 'invalid_show_as'; throw e }
   return n
 }
 const isVerified = (chatId, n) => (ON ? resolve(chatId, n).then(() => true, () => false) : Promise.resolve(false))
@@ -276,6 +277,7 @@ const hasPaidPlan = async (chatId) => {
 // Returns { ok, number } or { ok:false, status, error, message }.
 async function attest(chatId, raw, { who = '', channel = 'web', label = '' } = {}) {
   chatId = String(chatId)
+  if (process.env.ALLOW_ATTESTED_CALLER_ID !== 'true') return { ok: false, status: 400, error: 'verification_required', message: 'Caller IDs must be numbers you own. Verify the number with a code sent by text or call first.' }
   if (isEmergency(raw)) return { ok: false, status: 400, error: 'emergency_number', message: 'Emergency numbers can’t be used as a caller ID.' }
   const n = clean(raw)
   const lbl = String(label || '').trim().slice(0, 24)

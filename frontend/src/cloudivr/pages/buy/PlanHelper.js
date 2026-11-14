@@ -9,7 +9,7 @@ export const USES = [
   ['calls', PhoneCall, 'Answer calls in my browser or forward them to my phone', { plan: 'starter' }],
   ['menu', ListTree, 'A call menu, voicemail or desk phones', { plan: 'pro' }],
   ['campaigns', Megaphone, 'Calling campaigns to a list of people', { plan: 'pro' }],
-  ['ai', Bot, 'An AI receptionist, or showing any caller ID', { plan: 'business' }],
+  ['ai', Bot, 'An AI receptionist, or showing your own verified caller ID', { plan: 'business' }],
   ['texts', MessageSquare, 'Send and receive texts in CloudIVR', { to: '/app/texting-number' }],
   ['phone', Smartphone, 'A USA line on my own phone', { to: '/app/esim' }],
 ];

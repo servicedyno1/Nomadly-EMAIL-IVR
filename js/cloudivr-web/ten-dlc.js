@@ -25,7 +25,9 @@ function validate(b = {}) {
   return { brand, campaign }
 }
 
-function createTenDlc({ db, h, adminRequire, notify, notifyAdmin = () => {}, log = console.log }) {
+const FEE = Number(process.env.TENDLC_SERVICE_FEE || 49)
+function createTenDlc({ db, h, adminRequire, notify, notifyAdmin = () => {}, walletOps, log = console.log }) {
+  const w = walletOps(db)
   const col = db.collection('tenDlc')
   const nums = db.collection('phoneNumbersOf')
   const usNumbers = async (chatId) => ((await nums.findOne({ _id: chatId }))?.val?.numbers || []).filter(n => needs10dlc(n) && !/released|expired/.test(n.status || '')).map(n => ({ phoneNumber: n.phoneNumber, provider: n.provider }))
@@ -79,13 +81,16 @@ function createTenDlc({ db, h, adminRequire, notify, notifyAdmin = () => {}, log
   }
 
   function routes(r) {
-    r.get('/tendlc', h(async (req, res) => res.json({ ...pub(await col.findOne({ _id: req.webChatId })), usNumbers: await usNumbers(req.webChatId), useCases: USE_CASES, entityTypes: ENTITY })))
+    r.get('/tendlc', h(async (req, res) => res.json({ ...pub(await col.findOne({ _id: req.webChatId })), usNumbers: await usNumbers(req.webChatId), useCases: USE_CASES, entityTypes: ENTITY, fee: FEE })))
     r.put('/tendlc', h(async (req, res) => {
       const cur = await col.findOne({ _id: req.webChatId })
       if (['submitted', 'approved', 'filed', 'active'].includes(cur?.status)) return res.status(409).json({ error: 'locked', message: 'Your registration is already being processed.' })
       const v = validate(req.body)
       if (v.error) return res.status(400).json({ error: 'invalid', message: v.error })
-      await col.updateOne({ _id: req.webChatId }, { $set: { ...v, status: 'submitted', submittedAt: new Date(), note: null } }, { upsert: true })
+      // One-off $49 service fee (refunded if we reject it); carrier fees are separate.
+      if (!cur?.feePaid && FEE > 0 && !(await w.debit(req.webChatId, FEE))) return res.status(402).json({ error: 'insufficient_balance', message: `The registration service costs $${FEE}. Top up your wallet first.` })
+      if (!cur?.feePaid && FEE > 0) await db.collection('transactions').insertOne({ _id: `tendlc-${req.webChatId}-${Date.now()}`, chatId: String(req.webChatId), type: 'tendlc-service', amount: FEE, currency: 'USD', status: 'completed', createdAt: new Date() })
+      await col.updateOne({ _id: req.webChatId }, { $set: { ...v, status: 'submitted', submittedAt: new Date(), note: null, feePaid: cur?.feePaid || FEE > 0 } }, { upsert: true })
       notifyAdmin(`📝 New 10DLC registration from web account ${req.webChatId} (${v.brand.companyName || v.brand.lastName}). Admin → Compliance → 10DLC.`)
       res.json(pub(await col.findOne({ _id: req.webChatId })))
     }))
@@ -104,7 +109,9 @@ function createTenDlc({ db, h, adminRequire, notify, notifyAdmin = () => {}, log
       const note = s(req.body?.note, 500) || null
       if (d === 'reject') {
         if (!note) return res.status(400).json({ error: 'note_needed', message: 'Say why it was rejected.' })
-        await col.updateOne({ _id: chatId }, { $set: { status: 'rejected', note } })
+        const cur = await col.findOne({ _id: chatId })
+        if (cur?.feePaid && !['filed', 'active'].includes(cur.status)) await w.credit(chatId, FEE)
+        await col.updateOne({ _id: chatId }, { $set: { status: 'rejected', note, feePaid: false } })
         notify?.push(chatId, `Your US texting registration needs changes: ${note}`, null, { kind: 'billing' }).catch(() => {})
         return res.json({ status: 'rejected' })
       }
@@ -136,7 +143,7 @@ function createTenDlc({ db, h, adminRequire, notify, notifyAdmin = () => {}, log
     }
   }
 
-  return { routes, adminRoutes, isActive, tick, needs10dlc }
+  return { routes, adminRoutes, isActive, tick, needs10dlc, FEE }
 }
 
 module.exports = { createTenDlc, needs10dlc, validate }

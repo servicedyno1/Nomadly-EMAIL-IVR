@@ -26,7 +26,7 @@ export function TenDlcCard() {
   return (
     <div className="civr-card p-6 space-y-4 lg:col-span-2" id="settings-tendlc" data-testid="settings-tendlc">
       <div className="flex flex-wrap items-center gap-2"><MessageSquareText className="w-5 h-5 text-[#818cf8]" /><div className="font-display text-xl font-bold">US texting registration (10DLC)</div><StatusPill status={MAP[d.status] || d.status} testid="tendlc-status" /></div>
-      <p className="text-sm text-[var(--c-muted)]">US carriers require every business that texts from a local number to register. Until it is approved, your US numbers can receive texts but not send them. We review it, then file it with the carrier for you (carrier fees may apply, usually a few dollars).</p>
+      <p className="text-sm text-[var(--c-muted)]">US carriers require every business that texts from a local number to register. Until it is approved, your US numbers can receive texts but not send them. We review it, then file it with the carrier for you. Service fee {`$${d.fee ?? 49}`}, charged when you send it and refunded if we can’t accept it; carrier fees may apply.</p>
       {d.note && <p className="text-xs text-[#f87171]" data-testid="tendlc-note">{d.note}</p>}
       {!!d.usNumbers?.length && <p className="text-xs text-[var(--c-muted)]" data-testid="tendlc-numbers">Covers: {d.usNumbers.map(n => n.phoneNumber).join(', ')}</p>}
       <div className="grid sm:grid-cols-2 gap-3">
@@ -42,7 +42,7 @@ export function TenDlcCard() {
       <div className="grid sm:grid-cols-2 gap-3">{area('sample1', 'Sample message 1', 'Hi Sam, your appointment is tomorrow at 3pm. Reply STOP to opt out.')}{area('sample2', 'Sample message 2', 'Thanks for your order! It ships today. Reply STOP to opt out.')}</div>
       {area('messageFlow', 'How do people agree to get your texts?', 'e.g. Customers tick an unticked “Text me updates” box on our booking form at example.com/book.')}
       <ErrorNote error={err} testid="tendlc-error" />
-      {!locked && <button className="civr-btn civr-btn-primary" onClick={save} disabled={busy} data-testid="tendlc-submit-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Send for review</button>}
+      {!locked && <button className="civr-btn civr-btn-primary" onClick={save} disabled={busy} data-testid="tendlc-submit-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{`Send for review · $${d.fee ?? 49}`}</button>}
     </div>
   );
 }

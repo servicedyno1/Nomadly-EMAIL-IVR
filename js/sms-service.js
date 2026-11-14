@@ -155,8 +155,8 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
       return log(`handleInboundSms: number ${cleanTo} is ${numberConfig.status}, skipping`)
     }
 
-    // ── CHECK: Inbound SMS limit reached? → Try overage billing ──
-    if (_isSmsLimitReached && _isSmsLimitReached(numberConfig, ownerNumbers)) {
+    // Receiving texts is free (2026-11 pricing: only sent texts are billed, per message) — no inbound limit or charge.
+    if (false && _isSmsLimitReached && _isSmsLimitReached(numberConfig, ownerNumbers)) {
       let overageAllowed = false
       if (_walletOf) {
         try {

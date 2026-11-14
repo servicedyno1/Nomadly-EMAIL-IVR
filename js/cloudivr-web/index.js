@@ -79,10 +79,22 @@ function createCloudIvrWeb(deps) {
     require('./admin').createAdmin(db, { log, bulkCallService: deps.bulkCallService, adminAuth }).routes(r, h)
     inboundEmail.routes(r, h, adminAuth.require)
     require('../sms-optout').init(db)
+    require('../number-addons').init(db)
     const compliance = require('./compliance').createCompliance({ db, h, adminRequire: adminAuth.require, notifyAdmin: deps.notifyAdmin, notify: require('./notify'), log })
     compliance.adminRoutes(r)
-    const tenDlc = require('./ten-dlc').createTenDlc({ db, h, adminRequire: adminAuth.require, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, log })
+    const tenDlc = require('./ten-dlc').createTenDlc({ db, h, adminRequire: adminAuth.require, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, walletOps: require('./wallet').walletOps, log })
     tenDlc.adminRoutes(r)
+    // Country add-ons: our monthly cost per country/type (cheapest provider) next to the add-on the admin charges.
+    r.get('/admin/number-addons', adminAuth.require, h(async (req, res) => {
+      const cat = require('../number-catalog'), add = require('../number-addons')
+      const items = Object.entries(cat.sold()).flatMap(([cc, types]) => types.map(t => { const b = cat.best(cc, t); return b && b.cost < 99 ? { country: cc, name: cat.nameOf(cc), type: t, provider: b.provider, cost: b.cost, level: b.level, addon: add.get(cc, t) } : null }).filter(Boolean))
+      res.json({ items: items.sort((a, b) => b.cost - a.cost) })
+    }))
+    r.put('/admin/number-addons', adminAuth.require, h(async (req, res) => {
+      const { country, type, amount } = req.body || {}
+      if (!/^[A-Z]{2}$/i.test(country || '') || !['local', 'mobile', 'national', 'toll_free'].includes(type)) return res.status(400).json({ error: 'invalid', message: 'Pick a country and number type.' })
+      res.json({ addon: await require('../number-addons').set(country, type, amount) })
+    }))
     require('../active-slot').singletonInterval('cloudivr-10dlc', () => tenDlc.tick().catch(e => log(`[10DLC] tick: ${e.message}`)), 60 * 60000)
     module.exports.stripeWebhook = compliance.webhook
     require('./esim').publicRoutes(r, { db, h, log, A: adminAuth.require })

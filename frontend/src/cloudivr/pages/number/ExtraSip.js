@@ -23,7 +23,7 @@ export function ExtraSipLogins({ num }) {
   return (
     <div className="civr-card p-6 space-y-4 lg:col-span-3" data-testid="extra-sip-card">
       <div className="flex items-center gap-2"><KeyRound className="w-5 h-5 text-[#818cf8]" /><div className="font-display text-xl font-bold">Extra SIP logins</div><span className="civr-pill" data-testid="extra-sip-count">{d.logins.length}/{d.max}</span></div>
-      {!d.allowed ? <p className="text-sm text-[var(--c-muted)]" data-testid="extra-sip-upgrade">Give each desk phone or teammate its own login. Included with the Business plan (up to {d.max} per number).</p> : <>
+      {!d.allowed ? <p className="text-sm text-[var(--c-muted)]" data-testid="extra-sip-upgrade">Give each desk phone or teammate its own login. Included with Pro (2 per number) and Business (5 per number).</p> : <>
         <p className="text-sm text-[var(--c-muted)]">Each login rings and calls out as {num.phoneNumber}. Remove one to cut off that device without touching the others.</p>
         {d.logins.map(x => (
           <div key={x.id} className="flex items-center gap-3 text-sm" data-testid={`extra-sip-${x.id}`}>

@@ -63,7 +63,7 @@ export function OverviewTab({ num, reload }) {
       <div className="civr-card p-6 lg:col-span-2 space-y-6">
         <div className="font-display text-2xl font-bold">This month</div>
         <Meter label="Inbound minutes" used={num.usage.minutesUsed} total={num.usage.minutesIncluded} testid="overview-minutes-meter" />
-        <Meter label="SMS" used={num.usage.smsUsed} total={num.usage.smsIncluded} testid="overview-sms-meter" />
+        {num.usage.smsIncluded ? <Meter label="SMS" used={num.usage.smsUsed} total={num.usage.smsIncluded} testid="overview-sms-meter" /> : <div className="text-sm" data-testid="overview-sms-meter">Texts sent this month: <b>{num.usage.smsUsed || 0}</b> <span className="text-[var(--c-muted)]">· $0.05 per text sent, receiving is free</span></div>}
         {num.usage.shared && <div className="text-xs text-[#a1a1aa]" data-testid="overview-usage-shared-note">Shared allowance — totals include your main number and all its extra numbers.</div>}
       </div>
       <div className="civr-card p-6 space-y-3 text-sm" data-testid="overview-capabilities">

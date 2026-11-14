@@ -18,7 +18,7 @@ export function unlocks(plans, fromId, toId) {
 export const availablePlans = (plans) => byPrice(plans).filter(p => p.available);
 
 // What a plan includes (✓) and leaves out (✗). With `plans`, a plan card lists only what it adds over the next cheaper
-// plan ("Everything in Starter, plus:"). `tone`: 'app' (dark app UI), 'dark' / 'cream' (landing cards).
+// plan ("Everything in Basic, plus:"). `tone`: 'app' (dark app UI), 'dark' / 'cream' (landing cards).
 // The 3 biggest reasons to pick each plan, shown first; the rest stay behind "See all".
 const TOP = { starter: ['browserPhone', 'forwarding', 'inbox'], pro: ['ivr', 'bulk', 'voicemail'], business: ['aiAgent', 'anyCallerId', 'textTriggers'] };
 

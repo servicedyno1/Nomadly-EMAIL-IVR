@@ -49736,7 +49736,7 @@ app.get('/sip-auth/:user', async (req, res) => {
     const u = String(req.params.user || '')
     const doc = await phoneNumbersOf.findOne({ $or: [{ 'val.numbers.telnyxSipUsername': u }, { 'val.numbers.sipUsername': u }, { 'val.numbers.extraSip.username': u }] }, { projection: { 'val.numbers': 1 } })
     const n = (doc?.val?.numbers || []).find(x => (x.telnyxSipUsername === u || x.sipUsername === u || (x.extraSip || []).some(e => e.username === u)) && x.status === 'active')
-    const extra = n && n.plan === 'business' && (n.extraSip || []).find(e => e.username === u)
+    const extra = n && ['pro', 'business'].includes(n.plan) && (n.extraSip || []).find(e => e.username === u)
     if (n && !extra && n.telnyxSipUsername !== u && n.sipUsername !== u) return res.sendStatus(404)
     const pw = n && (extra ? extra.password : n.telnyxSipUsername === u ? (n.telnyxSipPassword || n.sipPassword) : n.sipPassword)
     if (!pw) return res.sendStatus(404)
