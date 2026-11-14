@@ -56,6 +56,7 @@ async function ingest(ev) {
   let leg = legs.get(id) || [...legs.values()].find(l => l.ibCallId === ev.callId)
   if (ev.type === 'CALL_RECEIVED' && !leg) {
     leg = track({ id, from: e164(call.from || p.from), to: e164(call.to || p.to || call.endpoint?.phoneNumber), direction: 'incoming', connection: process.env.TELNYX_CALL_CONTROL_APP_ID || 'infobip-app' })
+    leg.initiatedSent = true
     return emit('call.initiated', leg)
   }
   if (!leg) return
@@ -122,7 +123,7 @@ const gatherDTMF = (id, payload, o = {}) => gather(id, { ...o, text: payload, va
 const gatherDTMFWithSpeak = (id, text, voice, o = {}) => gather(id, { ...o, text, voice })
 const gatherDTMFWithAudio = (id, audioUrl, o = {}) => gather(id, { ...o, audioUrl })
 async function gatherStop(id) { const l = live(id); if (!l) return null; l.stopped = true; return post(`/calls/1/calls/${raw(id)}/stop-play`, {}) }
-const startRecording = async (id, channels, format, { playBeep = false } = {}) => (live(id) ? post(`/calls/1/calls/${raw(id)}/start-recording`, { recordingType: 'AUDIO', beep: !!playBeep }) : null)
+const startRecording = async (id, channels, format, { playBeep = false } = {}) => (live(id) ? post(`/calls/1/calls/${raw(id)}/start-recording`, { recording: { recordingType: 'AUDIO', beep: !!playBeep } }) : null)
 const stopRecording = async (id) => (legs.get(id) ? post(`/calls/1/calls/${raw(id)}/stop-recording`, {}) : null)
 
 async function transferCall(id, toNumber, fromNumber, options = {}) {
@@ -190,6 +191,14 @@ async function buyNumber(phoneNumber) {
     return { id: `ib:${n.numberKey || key}`, status: 'success', requirements_met: true, phone_numbers: [{ id: `ib:${n.numberKey || key}`, phone_number: phoneNumber, status: 'success', requirements_status: 'requirements-met' }], _provider: 'infobip' }
   } catch (e) { log(`buy ${phoneNumber}:`, errOf(e)); return null }
 }
+// Numbers this Infobip account owns (E.164), refreshed by the Bird auto-link tick.
+let owned = []
+async function refreshOwned() {
+  if (!enabled()) return owned
+  try { owned = ((await M.http().get('/numbers/1/numbers', { params: { limit: 1000 } })).data?.numbers || []).map(n => e164(n.number)) } catch (e) { log('owned numbers:', errOf(e)) }
+  return owned
+}
+const ownedNumbers = () => owned
 async function releaseNumber(id) { try { await M.http().delete(`/numbers/1/numbers/${raw(id)}`); return true } catch (e) { log('release:', errOf(e)); return false } }
 
 // Number lookup (HLR) → { valid, type, carrier } | null when unavailable
@@ -210,5 +219,5 @@ async function sendSms(from, to, text) {
 const M = module.exports = {
   enabled, isIb, configId, http: makeHttp, errOf, recordingToken,
   voice: { ingest, setSink, _legs: legs, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall },
-  searchNumbers, isIbSearched, buyNumber, releaseNumber, lookup, sendSms, setResaleNote,
+  searchNumbers, isIbSearched, buyNumber, releaseNumber, refreshOwned, ownedNumbers, lookup, sendSms, setResaleNote,
 }

@@ -40,7 +40,8 @@ function createBirdVerify({ bird, transcribe, db, log = console.log, maxAttempts
     const n = e164(number)
     const d = await col().findOne({ _id: n })
     if (!d || d.status === 'verified' || d.expiresAt <= new Date()) return { handled: false }
-    const t = await transcribe(audioBuffer, { filename: 'bird-code.mp3', mimeType: 'audio/mpeg' })
+    const wav = audioBuffer.slice(0, 4).toString('latin1') === 'RIFF' // Infobip recordings are WAV
+    const t = await transcribe(audioBuffer, wav ? { filename: 'bird-code.wav', mimeType: 'audio/wav' } : { filename: 'bird-code.mp3', mimeType: 'audio/mpeg' })
     const code = extractCode(t?.text)
     const attempts = (d.attempts || 0) + 1
     if (!code) {

@@ -4074,9 +4074,11 @@ async function birdAutoLinkTick() {
   const tx = await telnyxSipNumbers()
   const zd = await zadarmaNumbers()
   const rest = require('./signalwire/rest')
-  if (!rest.enabled() && !tx.length && !zd.length) return
+  const ib = require('./infobip')
+  const ibNums = ib.enabled() ? await ib.refreshOwned() : []
+  if (!rest.enabled() && !tx.length && !zd.length && !ibNums.length) return
   if (rest.enabled()) await rest.refreshOwned()
-  const sw = new Set([...(rest.enabled() ? rest.ownedNumbers() : []), ...tx, ...zd])
+  const sw = new Set([...(rest.enabled() ? rest.ownedNumbers() : []), ...tx, ...zd, ...ibNums])
   const numbers = new Set()
   for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1 } }).toArray())
     for (const n of d.val?.numbers || []) if (sw.has(n.phoneNumber) && !/released|expired|cancel/i.test(String(n.status || ''))) numbers.add(n.phoneNumber)

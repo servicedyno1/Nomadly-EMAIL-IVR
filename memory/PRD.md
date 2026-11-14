@@ -105,3 +105,9 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Frontend: api.js intercepts 428 profile_required → ProfileAskHost dialog (mounted in CloudIvrApp) → re-sends the same order after save (covers app + landing checkouts).
 - Fixed pre-existing: Texting Number page left the pay form open after a successful order (double-pay risk) → form closes + list reloads.
 - Tests: iteration_266 (summary only; backend 5/5 + 22 regression, frontend 6/6). Spenza live sync not testable in preview (dry-run).
+
+## 2026-11-14 — Infobip as Telnyx replacement: inbound + Bird auto-verify TEST PASSED (preview)
+- Test number: Infobip-owned CA +16479457172 (no purchase). Bird armed → Bird called → Infobip CALL_RECEIVED → our webhook → answered + recorded → Whisper → code 010461 submitted → Bird VERIFIED, outbound_enabled true.
+- Fixes: infobip start-recording body must be { recording: { recordingType:'AUDIO' } }; CALL_PRE_ESTABLISHED no longer replays a 2nd call.initiated; Bird capture detects WAV (Infobip) vs MP3; Infobip owned numbers now included in Bird auto-link (ib.refreshOwned/ownedNumbers).
+- Preview config: SELF_URL updated to current preview; Infobip webhook profile nomadly-dev-voice2 notifyUrl → current preview /api/infobip/voice-webhook (was a dead old preview URL).
+- PRODUCTION: no INFOBIP_* env on droplet yet → needs API key, base URL, a prod calls configuration + subscription/profile pointing at https://<prod>/api/infobip/voice-webhook, before enabling.
