@@ -14,7 +14,7 @@ export function PurposeCards({ catalog, from, offer, fax, esimPrice, goPlans }) 
   const cards = [
     ['voice', PhoneCall, 'Voice', 'A Business Line for calls, keypad menus, voicemail, campaigns and AI agents.', from, 'See phone plans', () => goPlans('ivr')],
     ['sip', Server, 'SIP', 'Logins for desk phones and softphone apps, on a Business Line.', sipPlan ? usd(sipPlan.price) : null, 'SIP & softphones', null, cp('/sip')],
-    ['sms', MessageSquareText, 'SMS', 'A Texting Number on a real USA carrier. Send and receive texts in your browser.', usd(offer?.price || 75), offer?.available ? 'Order number' : 'See details', () => (offer?.available ? openMobileCheckout() : goPlans('mobile'))],
+    ['sms', MessageSquareText, 'SMS', 'A USA Texting Number with unlimited texts, or a number in 11 more countries. Read and reply in your browser.', usd(offer?.price || 75), offer?.available ? 'Order number' : 'See details', () => (offer?.available ? openMobileCheckout() : goPlans('mobile'))],
     ['fax', Printer, 'Fax', 'A fax-only number for the USA or Canada. Send and receive faxes online.', fax?.price ? usd(fax.price) : null, 'Find a fax number', () => goPlans('fax')],
   ];
   return (

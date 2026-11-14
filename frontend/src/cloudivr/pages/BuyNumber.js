@@ -219,7 +219,7 @@ export default function BuyNumber() {
           <PurposePicker cards={cards} value={purposes} onChange={setPurposes} />
           {!purposes.length && <div className="civr-card p-5 mb-6 text-sm text-[#a1a1aa]" data-testid="buy-purpose-empty">Choose a card above. Its steps appear here.</div>}
         </>}
-      {line && !extraOf && <PurposeSection n={1} title={`${[purposes.includes('voice') && 'Voice', purposes.includes('sip') && 'SIP'].filter(Boolean).join(' & ') || 'Voice'} · Business Line`} sub={purposes.includes('sip') ? 'Find a number, then pick Pro or Business: those plans include SIP logins.' : 'Find a number, pick a plan and pay.'} testid="buy-line-section" />}
+      {line && !extraOf && <PurposeSection n={1} title={`${[purposes.includes('voice') && 'Voice', purposes.includes('sip') && 'SIP'].filter(Boolean).join(' & ') || 'Voice'} · Business Line`} sub={purposes.includes('sip') ? 'Find a number, then pick Starter, Pro or Business: those plans include SIP logins.' : 'Find a number, pick a plan and pay.'} testid="buy-line-section" />}
       {line && <>
       {open?.orders?.[0] && <OpenOrder order={open.orders[0]} />}
       <PendingRequests refresh={reqTick} />

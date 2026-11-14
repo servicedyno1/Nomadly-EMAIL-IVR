@@ -62,7 +62,7 @@ export function Platform({ catalog }) {
               <p className="text-sm md:text-base text-slate-600 mt-3 max-w-2xl">{text}</p>
               <div className="mt-8"><Mock /></div>
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link to={start(sel === 'hosted' ? 'texting' : undefined)} className="civr-l-btn civr-l-btn-sm" data-testid="platform-panel-cta"><Slide>{sel === 'hosted' ? 'Start texting' : 'Get your number'}</Slide><ArrowRight className="w-4 h-4" /></Link>
+                {sel === 'hosted' ? <span className="civr-l-btn civr-l-btn-sm opacity-60 cursor-default" data-testid="platform-panel-cta">Coming soon</span> : <Link to={start()} className="civr-l-btn civr-l-btn-sm" data-testid="platform-panel-cta"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>}
                 <a href="#try" className="civr-l-btn civr-l-btn-sm civr-l-btn-ghost" data-testid="platform-panel-try"><PhoneCall className="w-4 h-4" /><Slide>Try a free call</Slide></a>
               </div>
             </div>

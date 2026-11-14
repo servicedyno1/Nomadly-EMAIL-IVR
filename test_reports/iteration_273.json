@@ -1,0 +1,47 @@
+{
+  "summary": "Iter273: tested International Texting, USA Texting Number, hosted SMS off, Bird number lookup, paid extra SIP logins, AI receptionist on any plan, the 10DLC no-US-numbers guard, and the plan ladder regression. Backend: 24 pytest checks (2 files), 22 passed. Two real problems: (1) Infobip PL/LT/ES numbers are saved with capabilities.voice=true after purchase. (2) MultiTEL login is refused (401), so GB/BR/CA/CO/DK/NL/PE searches come back empty with no error. Frontend: every requested page and flow works, but the landing page still sells 'Landline to Texting' ($99 to start, 'Start texting' button) even though hosted SMS is turned off.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/cloudivr-web/numbers/checkout (and /numbers/:phone/extra)", "issue": "The saved number always gets capabilities.voice=true. js/cloudivr-web/numbers.js ~line 445 hard-codes `const caps = { voice: true, sms: ..., mms: ..., fax: ... }` and ignores hit.capabilities.voice. A dry-run PL Infobip purchase (search said voice:false) was stored with {voice:true,sms:true}, so SMS-only LT/PL/ES numbers claim they take calls. The same hard-coding is in the replace-number path at ~line 887. Fix: voice: hit.capabilities.voice !== false.", "priority": "HIGH"},
+      {"endpoint": "GET /api/cloudivr-web/numbers/search?country=GB&type=mobile&texting=1 (all MultiTEL countries)", "issue": "MultiTEL refuses the login ('[Multitel] search GB mobile: MultiTEL login was rejected — check the API username/password and IP allow-list'; '[Multitel] inventory: MultiTEL auth refused (401)'). The route returns 200 with numbers:[] and the UI says 'No numbers free right now', which hides the real cause. So BR/CA/CO/DK/NL/PE/GB can't be bought in preview. The background inventory job has also logged 27 rejected logins. That risks the MultiTEL blocklist the user warned about; add a backoff / circuit breaker after an auth failure.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "PUT /api/cloudivr-web/tendlc", "issue": "The review request says POST, but the route is PUT. Tested with PUT: Bob gets 400 no_us_numbers and his wallet is not debited."},
+      {"endpoint": "DELETE /numbers/:phone/sip/extra/:id", "issue": "Removing a paid login gives no refund or pro-rating, and adding it back charges $5 again. This may be intended, but the remove dialog doesn't say the $5 is lost."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Landing page (PricingFaq TextingCard, Platform 'hosted' panel, products menu, UseCases 'New · Landline to Texting')", "issue": "The landing page still sells Landline to Texting ($99 to start, then $29/month, 'Start texting' button visible on the business-line pricing tab), but hosted SMS is unavailable (available:false, POST refused).", "selector": "[data-testid='civr-plan-card-texting'], [data-testid='pricing-choose-texting'], [data-testid='platform-panel-cta']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "International Texting -> pick a MultiTEL country (GB)", "issue": "Because the MultiTEL login fails, the page shows 'No numbers free right now. Try again in a few minutes.' instead of a provider error.", "affected_selectors": ["intl-texting-no-results", "intl-texting-country-GB"]}
+    ],
+    "design_issues": [
+      {"screen": "Sidebar nav", "issues": ["nav-texting label 'Add texting to a landline…' is cut off, so its 'Soon' pill can't be seen (inner text has 'Soon', but it's hidden by the ellipsis)."]},
+      {"screen": "Get a number -> Voice/SIP section", "issues": ["The buy-line-section subtitle says 'pick Pro or Business: those plans include SIP logins', but Starter ($75) now includes SIP too (the SIP purpose card says 'Comes with the Starter, Pro and Business plans')."]},
+      {"screen": "Landing 'A Texting Number' tab", "issues": ["It doesn't mention unlimited texts or the 11 international texting countries, unlike the in-app Texting Number page and the SMS purpose card."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_texting_lookup_sip_iter273.py", "/app/backend/tests/test_cloudivr_intl_texting_iter273.py", "/app/test_reports/pytest/pytest_iter273.xml"],
+  "action_items": [
+    "numbers.js checkout/extra (~line 445) and replace (~line 887): use the provider's voice capability instead of hard-coded voice:true, so LT/PL/ES numbers are saved as SMS-only",
+    "MultiTEL: fix the credentials / IP allow-list in preview, and stop the inventory job retrying after a 401 (blocklist risk); search should return an error (e.g. 424 provider_unavailable) instead of an empty list",
+    "Landing: remove or mark 'coming soon' the Landline to Texting card, the Platform 'hosted' panel, the menu item and the use case (no 'Start texting' button while HS.AVAILABLE is false)",
+    "Sidebar: make the 'Soon' pill on nav-texting visible (shorten the label or stop the pill truncating)",
+    "BuyNumber buy-line-section subtitle: say Starter, Pro or Business include SIP"
+  ],
+  "critical_code_review_comments": [
+    "numbers.js /texting/ready returns plan:'starter' with price from plans.starter (internal key for Basic, $50). Correct, but easy to confuse with the 'Starter' display name ($75 = key 'standard').",
+    "lookup.js: the 'number-lookup' transaction id is `lookup-${chatId}-${Date.now()}`. Two parallel lookups in the same ms would hit a duplicate key after the debit, so the wallet is debited but the request fails with 500 and no refund. Use a uuid.",
+    "lookup.js charges even when Bird returns valid:false. That seems fine as a 'successful lookup', but say so in the UI copy.",
+    "numbers.js is 937 lines; consider splitting out the texting / extra-SIP routes."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "92% (22/24; the 2 failures are real bugs)", "frontend": "~90% (all requested flows work; the landing hosted-SMS copy is inconsistent)"},
+  "seed_data_creation": "The intl-texting test file registers a fresh test_it273*@example.com TEST account, makes a dry-run PL purchase, then deletes its phoneNumbersOf/walletOf (the webAccount row stays). On Alice: accepted the policy gate in the UI; 2 real Bird lookups (+14155552671); 2 paid extra SIP logins added on +13346970101 and then removed ($5 each debited, not refunded; Alice's wallet is now ~$359.97). Added Business free logins and removed them again.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use ?tab=sip on /cloudivr/app/numbers/<enc phone> to reach the extra-sip-card. Alice has no legal profile ('Add details' banner), so real purchases from her account return 428; the PL purchase test uses a fresh TEST account. MultiTEL auth is failing in preview, so don't retry GB searches repeatedly. Bird lookups used this run: 2.",
+  "rca of the issue": "PL voice=true: in numbers.js checkout, `const caps = { voice: true, sms: !!hit.capabilities.sms, ... }` overrides the searched capabilities, where Infobip PL has voice:false. Reproduce: search PL local texting=1, check out from a fresh account, then read phoneNumbersOf ... capabilities.voice = true. GB empty: MultiTEL returns 401 for the login, multitel.searchNumbers logs it and returns [], and the route returns numbers:[]."
+}

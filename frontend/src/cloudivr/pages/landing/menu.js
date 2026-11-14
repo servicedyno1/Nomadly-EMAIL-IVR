@@ -8,7 +8,7 @@ export const PRODUCTS = [
   ['campaigns', Megaphone, 'Quick & Bulk IVR campaigns', 'Call a whole list, watch it live and connect everyone who presses 1.', 'campaigns'],
   ['phone', Headphones, 'Browser phone & SIP', 'Call from any browser tab, or sign in from a softphone or desk phone.', 'phone'],
   ['text', Captions, 'Text-to-voice calls', 'Type and a natural voice speaks for you; read their reply live.', 'text'],
-  ['hosted', MessageSquareText, 'Landline to Texting', 'Get texts on the landline number you already have.', 'hosted'],
+  ['hosted', MessageSquareText, 'Landline to Texting (soon)', 'Texts on the landline number you already have — coming soon.', 'hosted'],
   ['inbox', Inbox, 'SMS & voicemail inbox', 'Every text and transcribed voicemail in one inbox.', 'sms'],
   ['esim', Smartphone, 'USA eSIM', 'A downloadable USA line on T-Mobile for your phone, installed with a QR code.', '#esim-card'],
   ['mobile', Smartphone, 'Texting Number', 'Send and receive texts in your browser, on a real USA carrier number.', '#mobile'],

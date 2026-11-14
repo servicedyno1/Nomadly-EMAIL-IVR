@@ -187,3 +187,16 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Texting research: memory/TEXTING_PRICING_2026-06.md + texting_pricing_2026-06.csv (suggested prices only, not live).
 - Tested: iteration_272 (backend 100%, frontend ~90%); follow-up fixes self-verified.
 - Backlog: per-country text pricing once approved; buy-page PlanHelper component isn't rendered anywhere (dead code); finish the iteration-271 copy fixes; Multitel SMS end-to-end test; production rollout.
+
+## 2026-11-14 (b) — Texting countries, lookups, add-ons (step 1 of 4 done)
+- International Texting page (/app/international-texting): 11 instant no-ID countries (js/texting-countries.js), all shown as "Mobile" with SMS/Calls badges, pick a number, Basic $50/mo. Text = 3x cost (min $0.05), extra number on a plan = 3x monthly cost (min $25).
+- USA Texting Number (Spenza): $50/mo, unlimited texts (MOBILE_TEXT_PRICE=0).
+- Landline texting (hosted SMS) paused: HOSTED_SMS_AVAILABLE=false, and the landing card now sells the Texting Number.
+- Number lookup (/app/lookup, Bird): $0.015 each (3x $0.005), refunded on failure.
+- AI receptionist: every plan, $0.10/min (AI_RECEPTIONIST_RATE_PER_MIN). Outgoing AI campaigns use the new `aiCampaigns` feature (Business only).
+- Extra SIP logins: Pro 2 / Business 5 free; then $5/mo each (EXTRA_SIP_PRICE) on Starter+; added to renewalPrice.
+- 10DLC: refused with no US numbers; a rejection refund now logs a tendlc-refund transaction.
+- MultiTEL auth breaker is now persisted for 6h in a tmp file (it had logged 27 rejected logins across restarts). Search returns 503 provider_unavailable while blocked.
+- Tests: iteration_273 (backend 22/24, frontend ~90%); all its findings fixed and self-verified.
+- NEXT (user-approved order): 2) Multitel⇄Infobip failover + routing + Bird→Multitel call backup + edge cases (retry on the other provider at the same price, then refund; 5-min health check that hides a down provider's stock; Telegram alerts for provider down / low balance; failed text: no charge + notice + 3 retries; failed forwarding → voicemail). 3) Bot: same plans as web (no Enterprise), only instant no-ID and address-only numbers, address asked at checkout only, no ID/business info. 4) Onboarding/dashboard redesign: show the design plan to the user first. Also collect marketing/performance data (signup source, purpose, funnel events).
+- Multitel preview blocked: allow-list the preview IPs 35.193.209.116 and 34.170.12.145, then delete /tmp/multitel-auth-block.

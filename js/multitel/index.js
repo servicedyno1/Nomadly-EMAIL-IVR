@@ -13,12 +13,16 @@ const e164 = (n) => `+${digits(n)}`
 const isMt = (id) => String(id || '').startsWith('mt:')
 const TYPES = { local: /^(local|geographic)$/i, toll_free: /^(toll-free|tollfree)$/i, mobile: /^mobile$/i, national: /^national$/i }
 
-let blocked = false
+// The pause survives restarts (file), so a bad login or IP is tried at most once every 6 hours.
+const BLOCK_FILE = require('path').join(require('os').tmpdir(), 'multitel-auth-block')
+const BLOCK_MS = 6 * 3600000
+const isBlocked = () => { try { return Date.now() < Number(require('fs').readFileSync(BLOCK_FILE, 'utf8')) } catch { return false } }
+const block = () => { try { require('fs').writeFileSync(BLOCK_FILE, String(Date.now() + BLOCK_MS)) } catch {} }
 async function api(method, path, form) {
-  if (blocked) throw new Error('MultiTEL login was rejected — check the API username/password and IP allow-list')
+  if (isBlocked()) throw new Error('MultiTEL login was rejected — check the API username/password and IP allow-list')
   const r = await axios({ method, url: `https://api.multitel.net/v3/${path}`, auth: { username: process.env.MULTITEL_USERNAME, password: process.env.MULTITEL_PASSWORD },
     headers: { Accept: 'application/json', ...(form ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}) }, data: form ? qs.stringify(form) : undefined, timeout: 60000, validateStatus: () => true })
-  if (r.status === 401 || r.status === 403) { blocked = true; setTimeout(() => { blocked = false }, 30 * 60000).unref?.(); throw new Error(`MultiTEL auth refused (${r.status})`) }
+  if (r.status === 401 || r.status === 403) { block(); throw new Error(`MultiTEL auth refused (${r.status})`) }
   return r.data || {}
 }
 const ok = (d) => String(d?.status?.code) === '200'
@@ -117,4 +121,4 @@ async function sendSms(from, to, text) {
 }
 const ownsNumber = (n) => owned.includes(n)
 
-module.exports = { api, enabled, sendSms, ownsNumber, smsHookKey, isMt, searchNumbers, isMtSearched, buyNumber, releaseNumber, refreshOwned, ownedNumbers, registrationStatus, route }
+module.exports = { isBlocked, api, enabled, sendSms, ownsNumber, smsHookKey, isMt, searchNumbers, isMtSearched, buyNumber, releaseNumber, refreshOwned, ownedNumbers, registrationStatus, route }

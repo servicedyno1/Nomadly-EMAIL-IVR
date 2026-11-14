@@ -18,7 +18,7 @@ const WORDS = ['business calls', 'IVR campaigns', 'two-way texts', 'online fax',
 export const PICKS = [
   ['ivr', PhoneCall, 'A business phone line', 'Calls, IVR, SIP and campaigns'],
   ['esim', Smartphone, 'A USA eSIM', 'A real line on your phone'],
-  ['mobile', MessageSquareText, 'A Texting Number', 'Send and receive texts in your browser'],
+  ['mobile', MessageSquareText, 'A Texting Number', 'USA with unlimited texts, or 11 more countries'],
   ['fax', Printer, 'A fax number', 'Send and receive faxes online'],
 ];
 

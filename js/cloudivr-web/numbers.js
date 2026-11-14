@@ -133,7 +133,7 @@ const catalog = () => {
     sipDomain: phoneConfig.WEB_SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(),
     // Cards show as "coming soon" on the site until this is true (the checkout's card option is still disabled too).
     cardPayments: String(process.env.CLOUDIVR_CARD_PAYMENTS || '').toLowerCase() === 'true',
-    texting: require('../hosted-sms.js').TEXTING,
+    texting: { ...require('../hosted-sms.js').TEXTING, available: require('../hosted-sms.js').AVAILABLE, numberPrice: phoneConfig.plans?.starter?.price ?? null },
     enterprise: { price: phoneConfig.ENTERPRISE_PRICE },
     extraNumber: { price: phoneConfig.SUB_NUMBER_BASE_PRICE, limits: Object.fromEntries(Object.keys(phoneConfig.plans).map(id => [id, phoneConfig.getSubNumberLimit(id)])) },
   }
@@ -332,6 +332,7 @@ function routes(router, deps) {
     const found = await unheld(own === 'infobip' ? await require('../infobip').searchNumbers(country, type, areaCode, 12, { sms: req.query.texting === '1' && !!texting.offerOf(country, type) })
       : own === 'multitel' ? await require('../multitel').searchNumbers(country, type, areaCode, 12)
         : await telnyxApi.searchNumbers(country, type, areaCode, 12))
+    if (own === 'multitel' && !found.length && require('../multitel').isBlocked()) return bad(res, 503, 'provider_unavailable', 'Numbers in this country are temporarily unavailable. Please try again later.')
     const results = found.map(n => ({
       phoneNumber: n.phone_number,
       region: (n.region_information || []).map(r => r.region_name).filter(Boolean).join(', '),
@@ -442,7 +443,7 @@ function routes(router, deps) {
         const cred = await telnyxApi.createSIPCredential(tr.sipConnectionId, sipUsername, sipPassword, selected)
         if (cred?.sip_username) { tUser = sipUsername = cred.sip_username; tPass = sipPassword = cred.sip_password || sipPassword; tCredId = cred.id || null }
       }
-      const caps = { voice: true, sms: !!hit.capabilities.sms, mms: !!hit.capabilities.mms, fax: !!hit.capabilities.fax }
+      const caps = { voice: hit.capabilities.voice !== false, sms: !!hit.capabilities.sms, mms: !!hit.capabilities.mms, fax: !!hit.capabilities.fax }
       const expiresAt = new Date(); expiresAt.setMonth(expiresAt.getMonth() + 1)
       const doc = {
         phoneNumber: selected, telnyxOrderId: order.id, provider: viaMultitel ? 'multitel' : viaInfobip ? 'infobip' : 'telnyx', country, countryName: c.name,
@@ -884,7 +885,7 @@ function routes(router, deps) {
           const cred = await telnyxApi.createSIPCredential(tr.sipConnectionId, old.sipUsername, old.sipPassword, selected)
           if (cred?.sip_username) sip = { telnyxSipUsername: cred.sip_username, telnyxSipPassword: cred.sip_password || old.sipPassword, telnyxCredentialId: cred.id || null }
         }
-        const caps = { voice: true, sms: !!picked.hit.capabilities.sms, mms: !!picked.hit.capabilities.mms, fax: !!picked.hit.capabilities.fax }
+        const caps = { voice: picked.hit.capabilities.voice !== false, sms: !!picked.hit.capabilities.sms, mms: !!picked.hit.capabilities.mms, fax: !!picked.hit.capabilities.fax }
         const { _reminder3Sent, _reminder1Sent, ...keep } = old
         const doc = { ...keep, ...sip, phoneNumber: selected, telnyxOrderId: order.id, capabilities: caps, purchaseDate: new Date().toISOString(), replaces: old.phoneNumber, messagingProfileId: caps.sms ? tr.messagingProfileId || old.messagingProfileId || null : null, features: { ...(old.features || {}), sms: caps.sms }, ...(live ? {} : { dryRun: true }) }
         const releaseAt = new Date(Date.now() + OVERLAP_DAYS * 86400000).toISOString()

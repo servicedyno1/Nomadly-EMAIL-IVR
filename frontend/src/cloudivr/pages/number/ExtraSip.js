@@ -23,7 +23,7 @@ export function ExtraSipLogins({ num }) {
     if (paid && !(await ask(`No free extra logins left on this plan. This one costs $${d.price}/month, charged from your wallet now and with each renewal of ${num.phoneNumber}.`, { ok: `Add for $${d.price}/mo`, title: 'Add a paid SIP login?' }))) return;
     setBusy(true); setErr(null); try { setFresh(await api(path, { method: 'POST', body: { label, confirmPaid: paid } })); setLabel(''); load(); } catch (e) { setErr(e); } finally { setBusy(false); }
   };
-  const remove = async (x) => { if (!(await ask(`Remove the SIP login “${x.label}”? Devices using it stop working right away.`, { danger: true, ok: 'Remove', title: 'Remove SIP login?' }))) return; try { await api(`${path}/${enc(x.id)}`, { method: 'DELETE' }); load(); } catch (e) { setErr(e); } };
+  const remove = async (x) => { if (!(await ask(`Remove the SIP login “${x.label}”? Devices using it stop working right away.${x.paid ? ` Its $${d.price}/month charge stops at the next renewal; this month isn’t refunded.` : ''}`, { danger: true, ok: 'Remove', title: 'Remove SIP login?' }))) return; try { await api(`${path}/${enc(x.id)}`, { method: 'DELETE' }); load(); } catch (e) { setErr(e); } };
   return (
     <div className="civr-card p-6 space-y-4 lg:col-span-3" data-testid="extra-sip-card">
       <div className="flex items-center gap-2"><KeyRound className="w-5 h-5 text-[#818cf8]" /><div className="font-display text-xl font-bold">Extra SIP logins</div><span className="civr-pill" data-testid="extra-sip-count">{d.logins.length}/{d.max}</span></div>

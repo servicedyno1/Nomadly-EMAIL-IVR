@@ -15,7 +15,7 @@ import { openCookieSettings } from '../../consent';
 import { PRODUCTS, USE_CASES, goTo, hrefOf } from './menu';
 
 // Plan button target: signed-in → Buy with the plan picked, otherwise sign-up keeps it (?plan=pro). Also used by the SIP page.
-export const useStart = () => { const { account } = useCivrAuth(); return (plan) => (plan === 'esim' && account ? cp('/app/esim') : plan === 'texting' && account ? cp('/app/texting?start=texting') : account ? cp(`/app/buy${plan ? `?plan=${plan}` : ''}`) : cp(`/signup${plan ? `?plan=${plan}` : ''}`)); };
+export const useStart = () => { const { account } = useCivrAuth(); return (plan) => (plan === 'esim' && account ? cp('/app/esim') : plan === 'textnum' && account ? cp('/app/texting-number') : plan === 'texting' && account ? cp('/app/texting?start=texting') : account ? cp(`/app/buy${plan ? `?plan=${plan}` : ''}`) : cp(`/signup${plan ? `?plan=${plan}` : ''}`)); };
 
 export function PlanCard({ p, plans, hot, start, delay }) {
   return (
@@ -28,8 +28,24 @@ export function PlanCard({ p, plans, hot, start, delay }) {
   );
 }
 
+// While landline texting is paused, the card sells the Texting Number (USA unlimited + 11 countries).
+function TextingNumberCard({ t, start, delay }) {
+  const pts = ['Unlimited texts on a USA number', 'Or pick a number in 11 more countries', 'Read and reply to every text in the app', 'No ID needed'];
+  return (
+    <Reveal delay={delay} className="civr-l-card-cream p-8 flex flex-col" data-testid="civr-plan-card-texting">
+      <div className="text-xs font-semibold uppercase tracking-[.14em] text-slate-500" data-testid="pricing-texting-eyebrow">Texting Number</div>
+      <div className="flex items-center justify-between gap-2 mt-1"><div className="text-lg font-semibold text-slate-900">Texting plan</div><span className="w-9 h-9 rounded-xl bg-slate-100 text-slate-900 grid place-items-center"><MessageSquareText className="w-4 h-4" /></span></div>
+      <div className="civr-l-h text-5xl text-slate-900 mt-6" data-testid="pricing-price-texting">{usd(t.numberPrice ?? 50)}<span className="text-base font-medium tracking-normal text-slate-500">/month</span></div>
+      <div className="text-sm text-slate-500 mt-2" data-testid="pricing-allowance-texting">USA: unlimited texts · other countries: pay per text sent, receiving free</div>
+      <ul className="mt-6 pt-6 border-t civr-l-rule flex-1 space-y-2.5 text-sm text-slate-700">{pts.map(x => <li key={x} className="flex gap-2"><Check className="w-4 h-4 mt-0.5 text-emerald-600 shrink-0" />{x}</li>)}</ul>
+      <Link to={start('textnum')} className="civr-l-btn civr-l-btn-ghost mt-8 w-full" data-testid="pricing-choose-texting"><Slide>Get a texting number</Slide></Link>
+    </Reveal>
+  );
+}
+
 // The 4th plan: texting on a number the customer already has (calls stay with their carrier).
 export function TextingCard({ t, start, delay }) {
+  if (t && t.available === false) return <TextingNumberCard t={t} start={start} delay={delay} />;
   const pts = ['Incoming texts are free', 'Keep your number and your calls', 'Read every text in the app', 'USA & Canada landline or toll-free'];
   return (
     <Reveal delay={delay} className="civr-l-card-cream p-8 flex flex-col" data-testid="civr-plan-card-texting">
