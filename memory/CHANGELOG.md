@@ -3102,3 +3102,4 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Extra SIP finding: outbound from extra logins billed same as main (same number record). Inbound calls ring only the main login (extras don't ring) — open item.
 - IMEI: Bird has no device API; Spenza /devices/{imei} only for account devices, validate-imei 401, site checker is by model. Needs TAC DB (IMEI.info ~$0.02/check or HiCellTek).
 - Fax: Infobip has no fax. MultiTEL supports T.38 + FaxDetect/FaxEmail + fax APIs; our Asterisk has res_fax_spandsp (T.38 receive/send). Not wired yet.
+- 2026-11-14: Bird caller IDs limited to SYSTEM_CALLER_IDS (+18648308599, +16479457172; both verified). birdAutoLinkTick now only links those; removed pending Bird entries for +447860089499 and +3197010278502; removed birdWanted.add on unlinked. Infobip-first is only a backup when Bird is busy/over budget. Prod still runs old auto-link until publish.

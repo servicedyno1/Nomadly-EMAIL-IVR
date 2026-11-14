@@ -4096,12 +4096,13 @@ async function birdAutoLinkTick() {
   if (!_db || !require('./bird').enabled()) return
   // Only Infobip and MultiTEL numbers are linked to Bird (Telnyx / SignalWire / Zadarma caller IDs were removed on request).
   const ib = require('./infobip'), mt = require('./multitel')
-  const ibNums = [...(ib.enabled() ? await ib.refreshOwned() : []), ...(mt.enabled() ? await mt.refreshOwned() : [])]
+  // Only the system caller IDs (USA MultiTEL + Canada Infobip) are kept on Bird, on request.
+  const only = new Set(require('./ivr-outbound').SYSTEM_CALLERS())
+  const ibNums = [...(ib.enabled() ? await ib.refreshOwned() : []), ...(mt.enabled() ? await mt.refreshOwned() : [])].filter(n => only.has(n))
   if (!ibNums.length) return
   const sw = new Set(ibNums)
   const numbers = new Set()
-  for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1 } }).toArray())
-    for (const n of d.val?.numbers || []) if (sw.has(n.phoneNumber) && !/released|expired|cancel/i.test(String(n.status || ''))) numbers.add(n.phoneNumber)
+  for (const n of ibNums) numbers.add(n)
   const wanted = [...require('./signalwire').birdWanted].filter(n => sw.has(n))
   const r = await birdVerify().autoLinkTick({ numbers: [...new Set([...wanted, ...numbers])] })
   if (r.armed || r.error) log(`[BirdVerify] auto-link: ${JSON.stringify(r)}`)

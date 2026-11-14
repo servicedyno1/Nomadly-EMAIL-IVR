@@ -85,9 +85,8 @@ function wrap(t) {
     }
     if (st === 'full' || (st === 'bird' && birdWaiters.length)) st = await waitForBirdLine(from, to)
     const viaBird = st === 'bird'
-    if (st === 'unlinked') birdWanted.add(from)
     if (viaBird) tries.push(['Bird', () => ce.createOutboundCall(from, to, webhookUrl, connectionId, options)])
-    // An Infobip-owned caller ID calls through Infobip before SignalWire (SignalWire would swap it for a pool number).
+    // Backup only (Bird busy/over budget): an Infobip-owned caller ID calls through Infobip before SignalWire, which would swap it for a pool number.
     const ibFirst = !viaBird && ib.enabled() && !/^sip:/i.test(String(to)) && (await ib.refreshOwned().catch(() => [])).includes(from)
     if (ibFirst) tries.push(['Infobip', () => ib.voice.createOutboundCall(from, to, webhookUrl, connectionId, options)])
     if (nanp && swOn() && voice.connected()) tries.push(['SignalWire', async () => {
