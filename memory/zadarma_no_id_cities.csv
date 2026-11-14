@@ -1,0 +1,1186 @@
+country,state,city,area_code,monthly_eur
+CA,,Barrie,705,4
+CA,,Bolton,289,4
+CA,,Brampton,289,4
+CA,,Brantford,226,4
+CA,,Burlington,289,4
+CA,,Calgary,587,4
+CA,,Chatham,226,4
+CA,,Delta,613,4
+CA,,Edmonton,587,4
+CA,,Edmonton,780,3.2
+CA,,Gatineau,819,4
+CA,,Guelph,226,4
+CA,,Halifax,902,4
+CA,,Hamilton,289,4
+CA,,Ile-Perrot,514,4
+CA,,Kelowna,778,4
+CA,,Kitchener-Waterloo,226,4
+CA,,Kitchener-Waterloo,519,3.2
+CA,,Langley,778,4
+CA,,Laval-Est,450,4
+CA,,Laval-Ouest,450,4
+CA,,Levis,581,4
+CA,,London,226,4
+CA,,Longueuil,450,4
+CA,,Markham,289,4
+CA,,Mobile,204,4.5
+CA,,Mobile,431,4.5
+CA,,Montreal,438,4
+CA,,Montreal,514,3.2
+CA,,Nanaimo,778,4
+CA,,Niagara Falls,289,4
+CA,,North Vancouver,236,3.2
+CA,,North Vancouver,604,4
+CA,,Oakville,289,4
+CA,,Oshawa,289,4
+CA,,Ottawa,343,4
+CA,,Ottawa,613,4
+CA,,Port Coquitlam,778,4
+CA,,Quebec,418,4
+CA,,Quebec,581,3.2
+CA,,Regina,306,4
+CA,,Richmond Hill,289,4
+CA,,Saskatoon,306,4
+CA,,Sherbrooke,819,4
+CA,,South Kamloops,778,4
+CA,,South Pickering,289,4
+CA,,St Catharines,289,4
+CA,,St Johns,506,4
+CA,,St Johns,709,3.2
+CA,,Sudbury,705,4
+CA,,Terrebonne,450,4
+CA,,Thunder Bay,807,4
+CA,,Toronto,437,4
+CA,,Toronto,647,3.2
+CA,,Trois-Rivieres,819,4
+CA,,Vancouver,778,4
+CA,,Victoria,778,4
+CA,,Whitby,289,4
+CA,,Windsor,226,4
+CA,,Winnipeg,204,4
+US,,Mobile - silver,,6
+US,AL,Alabaster,205,3.2
+US,AL,Albertville,256,3.2
+US,AL,Anniston,256,3.2
+US,AL,Athens,256,3.2
+US,AL,Auburn,334,3.2
+US,AL,Birmingham,205,3.2
+US,AL,Decatur,256,3.2
+US,AL,Florence (burlington),256,3.2
+US,AL,Gadsden,256,3.2
+US,AL,Huntsville,256,3.2
+US,AL,Madison,256,3.2
+US,AL,Montgomery,334,3.2
+US,AL,Opelika,334,3.2
+US,AL,Phenix City,334,3.2
+US,AL,Prattville,334,3.2
+US,AR,Benton,501,3.2
+US,AR,Conway,501,3.2
+US,AR,Hot Springs,501,3.2
+US,AR,Little Rock,501,3.2
+US,AR,Searcy,501,3.2
+US,AR,Spring Lake,501,3.2
+US,AZ,Casagrande,520,3.2
+US,AZ,Flagstaff,928,3.2
+US,AZ,Phoenix,480,3.2
+US,AZ,Phoenix,602,3.2
+US,AZ,Prescott,928,3.2
+US,AZ,Tucson,520,3.2
+US,AZ,Yuma,928,3.2
+US,CA,Agoura,747,3.2
+US,CA,Agoura,818,3.2
+US,CA,Alamitos,562,3.2
+US,CA,Alhambra,626,3.2
+US,CA,Anaheim,657,3.2
+US,CA,Annapolis,707,3.2
+US,CA,Antioch,925,3.2
+US,CA,Arcadia,626,3.2
+US,CA,Arlington,951,3.2
+US,CA,Atascadero,805,3.2
+US,CA,Atwater,209,3.2
+US,CA,Azusa-Glendora,626,3.2
+US,CA,Bakersfield,661,3.2
+US,CA,Banning,951,3.2
+US,CA,Barstow,760,3.2
+US,CA,Benicia,707,3.2
+US,CA,Beverly Hills,424,3.2
+US,CA,Big Butte,661,3.2
+US,CA,Brawley,760,3.2
+US,CA,Brea,714,3.2
+US,CA,Bridgeville,707,3.2
+US,CA,Buena Park,714,3.2
+US,CA,Burrel,559,3.2
+US,CA,Calexico,760,3.2
+US,CA,Camarillo,805,3.2
+US,CA,Campbell,408,3.2
+US,CA,Canoga Park,818,3.2
+US,CA,Chico,530,3.2
+US,CA,Chino,909,3.2
+US,CA,Chula Vista,619,3.2
+US,CA,Claremont,909,3.2
+US,CA,Clovis,559,3.2
+US,CA,Colton,909,3.2
+US,CA,Compton,424,3.2
+US,CA,Concord,925,3.2
+US,CA,Corona,951,3.2
+US,CA,Coronado,619,3.2
+US,CA,Corte Madera,628,3.2
+US,CA,Covina-Baldwin Park,626,3.2
+US,CA,Culver City,424,3.2
+US,CA,Cypress,657,3.2
+US,CA,Danville (highland),925,3.2
+US,CA,Davis,530,3.2
+US,CA,Delano,661,3.2
+US,CA,Desert Hot Springs,760,3.2
+US,CA,Diamond Bar,909,3.2
+US,CA,Dinuba,559,3.2
+US,CA,Downey,562,3.2
+US,CA,Dublin-San Ramon,925,3.2
+US,CA,El Cajon,619,3.2
+US,CA,El Centro,760,3.2
+US,CA,El Monte,626,3.2
+US,CA,Elk,707,3.2
+US,CA,Encinitas,760,3.2
+US,CA,Escondido,760,3.2
+US,CA,Eureka diamond Valley,707,3.2
+US,CA,Fair Oaks (sacramento),916,3.2
+US,CA,Fairfield-Suisun,707,3.2
+US,CA,Fallbrook,442,3.2
+US,CA,Folsom,916,3.2
+US,CA,Fontana,909,3.2
+US,CA,Fremont-Newark,510,3.2
+US,CA,Fresno,559,3.2
+US,CA,Fullerton,657,3.2
+US,CA,Galt,209,3.2
+US,CA,Garden Grove,657,3.2
+US,CA,Gilroy,408,3.2
+US,CA,Glendale,818,3.2
+US,CA,Hanford,559,3.2
+US,CA,Hawthorne,424,3.2
+US,CA,Hayward,510,3.2
+US,CA,Hemet,951,3.2
+US,CA,Hemet:sage Da,951,3.2
+US,CA,Hercules-Rodeo,510,3.2
+US,CA,Highland,909,3.2
+US,CA,Hollister,831,3.2
+US,CA,Huntington Beach,657,3.2
+US,CA,Ignacio,628,3.2
+US,CA,Imperial,760,3.2
+US,CA,Indio,760,3.2
+US,CA,Inglewood,424,3.2
+US,CA,Irvine,949,3.2
+US,CA,La Habra,562,3.2
+US,CA,La Jolla,858,3.2
+US,CA,La Mesa,619,3.2
+US,CA,La Puente,626,3.2
+US,CA,Lafayette,925,3.2
+US,CA,Laguna Beach,949,3.2
+US,CA,Lakewood,562,3.2
+US,CA,Lancaster,661,3.2
+US,CA,Lemoore,559,3.2
+US,CA,Lincoln,916,3.2
+US,CA,Livermore,925,3.2
+US,CA,Lodi,209,3.2
+US,CA,Lomita,424,3.2
+US,CA,Long Beach,562,3.2
+US,CA,Los Altos,650,3.2
+US,CA,Los Angeles,213,3.2
+US,CA,Los Angeles,323,3.2
+US,CA,Los Angeles,323,3.2
+US,CA,Los Angeles,424,3.2
+US,CA,Los Banos,209,3.2
+US,CA,Los Gatos,408,3.2
+US,CA,Madera,559,3.2
+US,CA,Martinez,925,3.2
+US,CA,Merced,209,3.2
+US,CA,Millbrae,650,3.2
+US,CA,Modesto,209,3.2
+US,CA,Monrovia,626,3.2
+US,CA,Montebello,323,3.2
+US,CA,Monterey,831,3.2
+US,CA,Moorpark,805,3.2
+US,CA,Moreno,951,3.2
+US,CA,Morgan Hill,408,3.2
+US,CA,Mountain Pass,760,3.2
+US,CA,Murrieta,951,3.2
+US,CA,Napa,707,3.2
+US,CA,National City,619,3.2
+US,CA,Newport Beach,949,3.2
+US,CA,North Hollywood,818,3.2
+US,CA,North Yuba,530,3.2
+US,CA,Norwalk,562,3.2
+US,CA,Novato,415,3.2
+US,CA,Oakdale (allegheny),209,3.2
+US,CA,Oakland,510,3.2
+US,CA,Oceanside Oceanside Da,442,3.2
+US,CA,Oceanside Pendleton Da,760,3.2
+US,CA,Ontario,909,3.2
+US,CA,Orange,657,3.2
+US,CA,Oxnard,805,3.2
+US,CA,Pacifica,650,3.2
+US,CA,Palm Desert,442,3.2
+US,CA,Palm Desert,760,3.2
+US,CA,Palm Springs,760,3.2
+US,CA,Palmdale,661,3.2
+US,CA,Palo Alto,650,3.2
+US,CA,Pasadena: La Canada,818,3.2
+US,CA,Pasadena: Pasadena Da,626,3.2
+US,CA,Perris,951,3.2
+US,CA,Petaluma: Swift Da,707,3.2
+US,CA,Pico Rivera,562,3.2
+US,CA,Pittsburg West,925,3.2
+US,CA,Placentia,657,3.2
+US,CA,Placentia,714,3.2
+US,CA,Pleasant Grove,916,3.2
+US,CA,Pleasanton,925,3.2
+US,CA,Pomona,909,3.2
+US,CA,Porterville,559,3.2
+US,CA,Poway,858,3.2
+US,CA,Ramona,760,3.2
+US,CA,Rancho Penasquitos,858,3.2
+US,CA,Rancho Viejo,949,3.2
+US,CA,Redding,530,3.2
+US,CA,Redlands,909,3.2
+US,CA,Redondo,424,3.2
+US,CA,Redwood City,650,3.2
+US,CA,Reseda,818,3.2
+US,CA,Rialto,909,3.2
+US,CA,Richmond,510,3.2
+US,CA,Ridgecrest,760,3.2
+US,CA,Rio Linda,279,3.2
+US,CA,Riverbank,209,3.2
+US,CA,Riverside,951,3.2
+US,CA,Sacramento,916,3.2
+US,CA,Saddleback Valley,949,3.2
+US,CA,Salinas,831,3.2
+US,CA,San Bernardino,909,3.2
+US,CA,San Carlos-Belmont,650,3.2
+US,CA,San Diego,619,3.2
+US,CA,San Diego,858,3.2
+US,CA,San Fernando: San Fernando Da,747,3.2
+US,CA,San Fernando:sepulveda Da,818,3.2
+US,CA,San Francisco,415,3.2
+US,CA,San Francisco,628,3.2
+US,CA,San Francisco,650,3.2
+US,CA,San Jose,669,3.2
+US,CA,San Juan,831,3.2
+US,CA,San Luis Obispo,805,3.2
+US,CA,San Marcos,760,3.2
+US,CA,San Mateo,650,3.2
+US,CA,San Pedro,424,3.2
+US,CA,San Rafael,415,3.2
+US,CA,Santa Ana,657,3.2
+US,CA,Santa Clarita,661,3.2
+US,CA,Santa Clarita: Saugus Cnyn-Cntry Da,661,3.2
+US,CA,Santa Cruz,831,3.2
+US,CA,Santa Monica: Santa Monica Da,424,3.2
+US,CA,Santa Paula,805,3.2
+US,CA,Santa Rosa,707,3.2
+US,CA,Santa Ynez,805,3.2
+US,CA,Saratoga,408,3.2
+US,CA,Selma,559,3.2
+US,CA,Simi Valley,805,3.2
+US,CA,Soledad,831,3.2
+US,CA,Somis,805,3.2
+US,CA,Stockton,209,3.2
+US,CA,Sun City,951,3.2
+US,CA,Sunnyvale,408,3.2
+US,CA,Sunnyvale,669,3.2
+US,CA,Temecula,951,3.2
+US,CA,Temescal Canyon,951,3.2
+US,CA,Thousand Oaks,805,3.2
+US,CA,Torrance,424,3.2
+US,CA,Trabuco,949,3.2
+US,CA,Tracy,209,3.2
+US,CA,Tulare,559,3.2
+US,CA,Turlock,209,3.2
+US,CA,Twentynine Palms,760,3.2
+US,CA,Upland,909,3.2
+US,CA,Vacaville,707,3.2
+US,CA,Vallejo,707,3.2
+US,CA,Van Nuys,818,3.2
+US,CA,Ventura Central,805,3.2
+US,CA,Ventura East,805,3.2
+US,CA,Victorville,442,3.2
+US,CA,Victorville,760,3.2
+US,CA,Victorville apple Valley,760,3.2
+US,CA,Visalia,559,3.2
+US,CA,Vista,760,3.2
+US,CA,Walnut Creek,925,3.2
+US,CA,Wasco,661,3.2
+US,CA,Watsonville,831,3.2
+US,CA,Westminster,657,3.2
+US,CA,Whittier,562,3.2
+US,CA,Windsor,707,3.2
+US,CA,Woodland,530,3.2
+US,CA,Yorba Linda,657,3.2
+US,CA,Yucca Valley,760,3.2
+US,CO,Allens Park Lyons,720,3.2
+US,CO,Aurora,720,3.2
+US,CO,Brighton,720,3.2
+US,CO,Colorado Springs,719,3.2
+US,CO,Denver,720,3.2
+US,CO,Fort Collins,970,3.2
+US,CO,Grand Junction,970,3.2
+US,CO,Greeley,970,3.2
+US,CO,Loveland,970,3.2
+US,CO,Pueblo,719,3.2
+US,CO,South Laramie,970,3.2
+US,CO,Windsor,970,3.2
+US,CT,Branford,203,3.2
+US,CT,Bridgeport,475,3.2
+US,CT,Bristol,860,3.2
+US,CT,Enfield,860,3.2
+US,CT,Fairfield,203,3.2
+US,CT,Farmington,860,3.2
+US,CT,Glastonbury,860,3.2
+US,CT,Hartford,860,3.2
+US,CT,Huntington,475,3.2
+US,CT,Manchester (york),860,3.2
+US,CT,Middletown (henry),860,3.2
+US,CT,Naugatuck,203,3.2
+US,CT,New Britain,860,3.2
+US,CT,New Haven,203,3.2
+US,CT,New London,860,3.2
+US,CT,Norwalk,203,3.2
+US,CT,Norwich,860,3.2
+US,CT,Simsbury,860,3.2
+US,CT,Southington,860,3.2
+US,CT,Stamford,475,3.2
+US,CT,Torrington,860,3.2
+US,CT,Trumbull,203,3.2
+US,CT,Waterbury,203,3.2
+US,CT,Windsor,860,3.2
+US,DC,Washington  DC,202,3.2
+US,DE,Dover,302,3.2
+US,DE,Newark,302,3.2
+US,DE,Wilmington,302,3.2
+US,FL,Boca Raton,561,3.2
+US,FL,Boynton Beach,561,3.2
+US,FL,Bradenton,941,3.2
+US,FL,Cape Coral,239,3.2
+US,FL,Clearwater,727,3.2
+US,FL,Coral Springs,954,3.2
+US,FL,Deerfield Beach,754,3.2
+US,FL,Delray Beach,561,3.2
+US,FL,Fort Lauderdale,754,3.2
+US,FL,Fort Lauderdale,954,3.2
+US,FL,Gainesville,352,3.2
+US,FL,Haines City,863,3.2
+US,FL,Hollywood,754,3.2
+US,FL,Homestead,786,3.2
+US,FL,Jacksonville,904,3.2
+US,FL,Jacksonville Beach,904,3.2
+US,FL,Kissimmee,321,3.2
+US,FL,Kissimmee,407,3.2
+US,FL,Melbourne,321,3.2
+US,FL,Miami,305,3.2
+US,FL,Miami,786,3.2
+US,FL,North Dade,305,3.2
+US,FL,North Port,941,3.2
+US,FL,Orlando,321,3.2
+US,FL,Orlando,407,3.2
+US,FL,Orlando,689,3.2
+US,FL,Oviedo,321,3.2
+US,FL,Palmetto,941,3.2
+US,FL,Pensacola,850,3.2
+US,FL,Plant City,813,3.2
+US,FL,Pompano Beach,754,3.2
+US,FL,Pompano Beach,954,3.2
+US,FL,Port St Lucie,772,3.2
+US,FL,Sanford,321,3.2
+US,FL,Sebastian,772,3.2
+US,FL,St Johns,904,3.2
+US,FL,St Petersburg,727,3.2
+US,FL,Tallahassee,850,3.2
+US,FL,Tampa,813,3.2
+US,FL,Tarpon Springs,727,3.2
+US,FL,Titusville,321,3.2
+US,FL,Venice,941,3.2
+US,FL,West Palm Beach,561,3.2
+US,FL,Winter Haven,863,3.2
+US,GA,Athens,706,3.2
+US,GA,Atlanta,470,3.2
+US,GA,Augusta,706,3.2
+US,GA,Augusta,762,3.2
+US,GA,Carrollton,678,3.2
+US,GA,"Columbus, Georgia",762,3.2
+US,GA,Gainesville,470,3.2
+US,GA,Griffin,470,3.2
+US,GA,Lagrange,706,3.2
+US,GA,Macon,478,3.2
+US,GA,Newnan,470,3.2
+US,GA,Pooler,912,3.2
+US,GA,Savannah,912,3.2
+US,GA,Warnerrbns,478,3.2
+US,IA,Ames,515,3.2
+US,IA,Ankeny,515,3.2
+US,IA,Burlington,319,3.2
+US,IA,Cedar Falls,319,3.2
+US,IA,Cedar Rapids,319,3.2
+US,IA,Clinton,563,3.2
+US,IA,Council Bluffs,712,3.2
+US,IA,Davenport,563,3.2
+US,IA,Des Moines,515,3.2
+US,IA,Dubuque,563,3.2
+US,IA,Iowa City,319,3.2
+US,IA,Marshalltown,641,3.2
+US,IA,Muscatine,563,3.2
+US,IA,Ottumwa,641,3.2
+US,IA,Waterloo,319,3.2
+US,ID,Boise,208,3.2
+US,ID,Caldwell,208,3.2
+US,ID,Coeur D Alene,208,3.2
+US,ID,Idaho Falls,208,3.2
+US,ID,Lewiston,208,3.2
+US,ID,Nampa,208,3.2
+US,ID,Pocatello,208,3.2
+US,ID,Setters,208,3.2
+US,ID,Twin Falls,208,3.2
+US,IL,Algonquin,224,3.2
+US,IL,Arlington Heights,224,3.2
+US,IL,Aurora,331,3.2
+US,IL,Bartlett,224,3.2
+US,IL,Bartlett,630,3.2
+US,IL,Batavia,630,3.2
+US,IL,Berwyn,708,3.2
+US,IL,Blue Island,708,3.2
+US,IL,Calumet City,708,3.2
+US,IL,Chicago,312,3.2
+US,IL,Chicago,773,3.2
+US,IL,Chicago,872,3.2
+US,IL,Chicago Heights,708,3.2
+US,IL,Chicago Zone 05,872,3.2
+US,IL,Chicago Zone 06,872,3.2
+US,IL,Chicago Zone 07,872,3.2
+US,IL,Cicero,708,3.2
+US,IL,Crystal Lake,779,3.2
+US,IL,Crystal Lake,815,3.2
+US,IL,Deerfield,224,3.2
+US,IL,Des Plaines,224,3.2
+US,IL,Downers Grove,630,3.2
+US,IL,Dundee,224,3.2
+US,IL,Elgin,224,3.2
+US,IL,Elk Grove,224,3.2
+US,IL,Elmhurst,331,3.2
+US,IL,Evanston,224,3.2
+US,IL,Evanston,847,3.2
+US,IL,Geneva,331,3.2
+US,IL,Glen Ellyn,630,3.2
+US,IL,Glenview,847,3.2
+US,IL,Harvey,708,3.2
+US,IL,Highland Park,224,3.2
+US,IL,Huntley,224,3.2
+US,IL,Joliet,779,3.2
+US,IL,Kankakee,815,3.2
+US,IL,Lansing,708,3.2
+US,IL,Lockport,815,3.2
+US,IL,Lombard,331,3.2
+US,IL,Maywood,708,3.2
+US,IL,McHenry,815,3.2
+US,IL,Mundelein,224,3.2
+US,IL,Naperville,331,3.2
+US,IL,Naperville,630,3.2
+US,IL,New Lenox,815,3.2
+US,IL,Northbrook,224,3.2
+US,IL,Oak Forest South,708,3.2
+US,IL,Oak Lawn,708,3.2
+US,IL,Oak Park,708,3.2
+US,IL,Orland,708,3.2
+US,IL,Oswego,331,3.2
+US,IL,Palatine,224,3.2
+US,IL,Palatine,847,3.2
+US,IL,Park Ridge,224,3.2
+US,IL,Peoria,309,3.2
+US,IL,Plainfield,815,3.2
+US,IL,Roselle,847,3.2
+US,IL,Skokie,224,3.2
+US,IL,St Charles,331,3.2
+US,IL,Tinley Park,708,3.2
+US,IL,Waukegan,224,3.2
+US,IL,Wheaton,630,3.2
+US,IL,Wheeling,224,3.2
+US,IL,Wilmette,847,3.2
+US,IL,Zion,224,3.2
+US,IN,Acton,317,3.2
+US,IN,Bloomington,309,3.2
+US,IN,Brownsburg,317,3.2
+US,IN,Carmel,317,3.2
+US,IN,Columbus,812,3.2
+US,IN,Crown Point,219,3.2
+US,IN,East Chicago,219,3.2
+US,IN,Evansville,812,3.2
+US,IN,Fishers,317,3.2
+US,IN,Fort Wayne,260,3.2
+US,IN,Franklin,317,3.2
+US,IN,Gary,219,3.2
+US,IN,Greenwood,317,3.2
+US,IN,Indianapolis,317,3.2
+US,IN,Kokomo,765,3.2
+US,IN,Merrillville,219,3.2
+US,IN,Muncie,765,3.2
+US,IN,Noblesville,317,3.2
+US,IN,Plainfield,317,3.2
+US,IN,South Bend,574,3.2
+US,IN,St Joseph,812,3.2
+US,IN,St Philip,812,3.2
+US,IN,Uniondale,260,3.2
+US,IN,Wabash,260,3.2
+US,IN,Washington,812,3.2
+US,IN,Waynetown,765,3.2
+US,IN,Westfield,317,3.2
+US,IN,Zionsville,317,3.2
+US,KS,Kansas City,913,3.2
+US,KS,Leavenworth,913,3.2
+US,KS,Olathe,913,3.2
+US,KS,Wichita,316,3.2
+US,KY,Covington,859,3.2
+US,KY,Frankfort,502,3.2
+US,KY,Independence (cuyahoga),859,3.2
+US,KY,Lexington,859,3.2
+US,KY,Louisville,502,3.2
+US,LA,Alexandria,318,3.2
+US,LA,Baton Rouge,225,3.2
+US,LA,Houma,985,3.2
+US,LA,Keithville,318,3.2
+US,LA,Kenner,504,3.2
+US,LA,Lafayette,337,3.2
+US,LA,Lake Charles,337,3.2
+US,LA,Laplace,985,3.2
+US,LA,Monroe,318,3.2
+US,LA,New Iberia,337,3.2
+US,LA,New Orleans,504,3.2
+US,LA,Ruston,318,3.2
+US,LA,Shreveport,318,3.2
+US,LA,Slidell,985,3.2
+US,LA,St Landry,318,3.2
+US,MA,Acton,978,3.2
+US,MA,Andover,978,3.2
+US,MA,Arlington,339,3.2
+US,MA,Barnstable,774,3.2
+US,MA,Belmont,617,3.2
+US,MA,Beverly,978,3.2
+US,MA,Billerica,978,3.2
+US,MA,Boston,617,3.2
+US,MA,Boston,857,3.2
+US,MA,Braintree,781,3.2
+US,MA,Brockton,774,3.2
+US,MA,Brookline,617,3.2
+US,MA,Burlington,339,3.2
+US,MA,Burlington,781,3.2
+US,MA,Cambridge,617,3.2
+US,MA,Cambridge,857,3.2
+US,MA,Canton,339,3.2
+US,MA,Chelsea,617,3.2
+US,MA,Chicopee,413,3.2
+US,MA,Danvers,978,3.2
+US,MA,Dedham,339,3.2
+US,MA,Dedham,781,3.2
+US,MA,Easton,508,3.2
+US,MA,Everett,617,3.2
+US,MA,Fall River,508,3.2
+US,MA,Fall River,774,3.2
+US,MA,Fitchburg,978,3.2
+US,MA,Framingham,508,3.2
+US,MA,Franklin,508,3.2
+US,MA,Gloucester,978,3.2
+US,MA,Haverhill,978,3.2
+US,MA,Holyoke,413,3.2
+US,MA,Hyannis,508,3.2
+US,MA,Jamaica Plain,857,3.2
+US,MA,Lawrence,978,3.2
+US,MA,Leominster,978,3.2
+US,MA,Lexington,339,3.2
+US,MA,Lexington,781,3.2
+US,MA,Lowell,978,3.2
+US,MA,Ludlow,413,3.2
+US,MA,Lynn,781,3.2
+US,MA,Malden,781,3.2
+US,MA,Mansfield,508,3.2
+US,MA,Medford,339,3.2
+US,MA,Melrose,781,3.2
+US,MA,Middleboro,774,3.2
+US,MA,Milford,508,3.2
+US,MA,Milton,617,3.2
+US,MA,Natick,508,3.2
+US,MA,Needham,781,3.2
+US,MA,New Bedford,774,3.2
+US,MA,Newton,857,3.2
+US,MA,North Attleboro,774,3.2
+US,MA,Northampton,413,3.2
+US,MA,Norwood,781,3.2
+US,MA,Peabody,978,3.2
+US,MA,Pittsfield,413,3.2
+US,MA,Quincy,617,3.2
+US,MA,Quincy,857,3.2
+US,MA,Randolph,781,3.2
+US,MA,Reading,781,3.2
+US,MA,Revere,339,3.2
+US,MA,Salem,978,3.2
+US,MA,Saugus,781,3.2
+US,MA,Shrewsbury,774,3.2
+US,MA,Somerville,617,3.2
+US,MA,Springfield,413,3.2
+US,MA,Stoneham,781,3.2
+US,MA,Stoughton,781,3.2
+US,MA,Taunton,774,3.2
+US,MA,Wakefield,781,3.2
+US,MA,Waltham,781,3.2
+US,MA,Wareham,774,3.2
+US,MA,Watertown,857,3.2
+US,MA,Wellesley,781,3.2
+US,MA,Westboro,774,3.2
+US,MA,Westfield,413,3.2
+US,MA,Westford,978,3.2
+US,MA,Weymouth,339,3.2
+US,MA,Wilmington,978,3.2
+US,MA,Winchester,781,3.2
+US,MA,Woburn,781,3.2
+US,MA,Worcester,508,3.2
+US,MA,Worcester,774,3.2
+US,MD,Baltimore,410,3.2
+US,MD,Baltimore,667,3.2
+US,MD,Catonsville,443,3.2
+US,MD,Columbia,443,3.2
+US,MD,Crofton,443,3.2
+US,MD,Edgewood,443,3.2
+US,MD,Ellicott City,443,3.2
+US,MD,Essex,443,3.2
+US,MD,Frederick,240,3.2
+US,MD,Gaithersburg,240,3.2
+US,MD,Glen Burnie,443,3.2
+US,MD,Hagerstown,240,3.2
+US,MD,Laurel 238,240,3.2
+US,MD,Odenton,443,3.2
+US,MD,Parkville,443,3.2
+US,MD,Pikesville,443,3.2
+US,MD,Randallstown,443,3.2
+US,MD,Reisterstown,443,3.2
+US,MD,Severn,410,3.2
+US,MD,Severna Park,443,3.2
+US,MD,Sparrows Point,443,3.2
+US,MD,Towson,443,3.2
+US,MD,Waldorf,240,3.2
+US,MD,Waterlo,410,3.2
+US,MD,Waterloo 236,410,3.2
+US,MD,Worthington,443,3.2
+US,ME,"Portland, ME",207,3.2
+US,MI,Auburn,989,3.2
+US,MI,Auburn Heights,248,3.2
+US,MI,Battle Creek,269,3.2
+US,MI,Birmingham,248,3.2
+US,MI,Commerce,248,3.2
+US,MI,Detroit,313,3.2
+US,MI,Farmington,248,3.2
+US,MI,Flint,810,3.2
+US,MI,Grand Rapids,616,3.2
+US,MI,Gregory,734,3.2
+US,MI,Kalamazoo,269,3.2
+US,MI,Pontiac,248,3.2
+US,MI,Rochester,248,3.2
+US,MI,Romulus,734,3.2
+US,MI,Roseville,586,3.2
+US,MI,Saginaw,989,3.2
+US,MI,West Bloomfield,248,3.2
+US,MI,Wyandotte,734,3.2
+US,MN,"Austin, Minnesota",507,3.2
+US,MN,Faribault,507,3.2
+US,MN,Hastings,651,3.2
+US,MN,Rochester,507,3.2
+US,MN,St Cloud,320,3.2
+US,MN,Twin Cities,612,3.2
+US,MN,Twin Cities,763,3.2
+US,MN,Winona,507,3.2
+US,MO,Adrian,816,3.2
+US,MO,Belton,816,3.2
+US,MO,Blue Springs,816,3.2
+US,MO,Cape Girardeau,573,3.2
+US,MO,Chesterfield,636,3.2
+US,MO,Joplin,417,3.2
+US,MO,Kansas City,816,3.2
+US,MO,Kirkwood,314,3.2
+US,MO,Lees Summit,816,3.2
+US,MO,Liberty,816,3.2
+US,MO,Mehlville,314,3.2
+US,MO,Oakville,314,3.2
+US,MO,Sedalia,660,3.2
+US,MO,Springfield,417,3.2
+US,MO,St Charles,636,3.2
+US,MO,St Louis,314,3.2
+US,MS,Clinton,601,3.2
+US,MS,Columbus,662,3.2
+US,MS,Greenville (greene),662,3.2
+US,MS,Hattiesburg,601,3.2
+US,MS,Jackson,601,3.2
+US,MS,Jackson,769,3.2
+US,MS,Madison,601,3.2
+US,MS,Meridian,601,3.2
+US,MS,Starkville,662,3.2
+US,MS,Tupelo,662,3.2
+US,MS,Vicksburg,601,3.2
+US,MT,Billings,406,3.2
+US,MT,Bozeman,406,3.2
+US,MT,Butte,406,3.2
+US,MT,Great Falls,406,3.2
+US,MT,Helena,406,3.2
+US,MT,Kalispell,406,3.2
+US,MT,Missoula,406,3.2
+US,MT,Wolf Creek,406,3.2
+US,NC,Acme,910,3.2
+US,NC,Anderson,336,3.2
+US,NC,Apex,919,3.2
+US,NC,Asheville,828,3.2
+US,NC,Burlington,336,3.2
+US,NC,Cary-Research Triangle Park,919,3.2
+US,NC,Chapel Hill,984,3.2
+US,NC,Durham,919,3.2
+US,NC,Fayetteville,910,3.2
+US,NC,Gastonia,980,3.2
+US,NC,Goldsboro,984,3.2
+US,NC,Greensboro,336,3.2
+US,NC,Greenville (greene),252,3.2
+US,NC,Havelock,252,3.2
+US,NC,Huntersville,980,3.2
+US,NC,Jacksonville,910,3.2
+US,NC,Kernersville,336,3.2
+US,NC,Kimesville,336,3.2
+US,NC,Kinston,252,3.2
+US,NC,Lumberton,910,3.2
+US,NC,Monroe,980,3.2
+US,NC,New Bern,252,3.2
+US,NC,Raleigh,919,3.2
+US,NC,Rocky Mount,252,3.2
+US,NC,Salisbury,980,3.2
+US,NC,Statesville,980,3.2
+US,NC,Wake Forest,919,3.2
+US,NC,Wilmington,910,3.2
+US,NC,Wilson,252,3.2
+US,NC,Winston-Salem,336,3.2
+US,ND,Bismarck,701,3.2
+US,ND,Dickinson,701,3.2
+US,ND,Fargo,701,3.2
+US,NE,Fremont,402,3.2
+US,NE,Hastings,402,3.2
+US,NE,Lincoln,402,3.2
+US,NE,Norfolk,402,3.2
+US,NE,Omaha,402,3.2
+US,NJ,Atlantic City,609,3.2
+US,NJ,Bayonne,201,3.2
+US,NJ,Belleville,862,3.2
+US,NJ,Bloomfield,862,3.2
+US,NJ,Bridgeton,856,3.2
+US,NJ,Camden,856,3.2
+US,NJ,Carteret,848,3.2
+US,NJ,Cliffside,201,3.2
+US,NJ,Cranford,908,3.2
+US,NJ,Elizabeth,908,3.2
+US,NJ,Englewood,201,3.2
+US,NJ,Ewing,609,3.2
+US,NJ,Fair Lawn,551,3.2
+US,NJ,Franklin Park,732,3.2
+US,NJ,Franklinville,856,3.2
+US,NJ,Hackensack,201,3.2
+US,NJ,Hackensack,551,3.2
+US,NJ,Jersey City,201,3.2
+US,NJ,Kearny,551,3.2
+US,NJ,Lakewood,732,3.2
+US,NJ,Linden,908,3.2
+US,NJ,Livingston (sumter),862,3.2
+US,NJ,Long Branch,732,3.2
+US,NJ,Medford,609,3.2
+US,NJ,Middletown (henry),732,3.2
+US,NJ,Millville,856,3.2
+US,NJ,New Brunswick,732,3.2
+US,NJ,New Brunswick,848,3.2
+US,NJ,Newark,862,3.2
+US,NJ,Nutley,862,3.2
+US,NJ,Orange,862,3.2
+US,NJ,Passaic,862,3.2
+US,NJ,Paterson,862,3.2
+US,NJ,Perth Amboy,732,3.2
+US,NJ,Plainfield,908,3.2
+US,NJ,Plainsboro,609,3.2
+US,NJ,Rahway,732,3.2
+US,NJ,Ridgewood,201,3.2
+US,NJ,South Orange,862,3.2
+US,NJ,South Orange,973,3.2
+US,NJ,Summit,908,3.2
+US,NJ,Teaneck,201,3.2
+US,NJ,Toms River,732,3.2
+US,NJ,Trenton,609,3.2
+US,NJ,Vineland,856,3.2
+US,NJ,Washington,908,3.2
+US,NJ,West Milford,862,3.2
+US,NJ,Westfield,908,3.2
+US,NJ,Whippany,862,3.2
+US,NM,Alamogordo,575,3.2
+US,NM,Albuquerque,505,3.2
+US,NM,Clovis,575,3.2
+US,NM,Farmington,505,3.2
+US,NM,Gallup,505,3.2
+US,NM,Las Cruces,575,3.2
+US,NM,Roswell,575,3.2
+US,NM,Santa Fe,505,3.2
+US,NV,Carson Plains,775,3.2
+US,NV,Las Vegas,702,3.2
+US,NV,Las Vegas,725,3.2
+US,NV,Lathrop Wells,775,3.2
+US,NV,Pahrump,775,3.2
+US,NV,Reno,775,3.2
+US,NY,Albany,518,3.2
+US,NY,Auburn,315,3.2
+US,NY,Babylon,631,3.2
+US,NY,Bay Shore,631,3.2
+US,NY,Birchwood,914,3.2
+US,NY,Brentwood,631,3.2
+US,NY,Buffalo,716,3.2
+US,NY,Carmel,845,3.2
+US,NY,Cicero,315,3.2
+US,NY,Grand Island,716,3.2
+US,NY,Henrietta,585,3.2
+US,NY,Huntington,631,3.2
+US,NY,Islip,631,3.2
+US,NY,Lindenhurst,631,3.2
+US,NY,Mobile,585,6
+US,NY,Mobile,929,6
+US,NY,Mount Vernon,914,3.2
+US,NY,New City,845,3.2
+US,NY,New York,332,3.2
+US,NY,New York,347,3.2
+US,NY,New York,646,3.2
+US,NY,New York,646,3.2
+US,NY,New York,929,3.2
+US,NY,New York,929,3.2
+US,NY,Newburgh,845,3.2
+US,NY,Niagara Falls,716,3.2
+US,NY,Ossining,914,3.2
+US,NY,Patchogue,631,3.2
+US,NY,Peekskill,845,3.2
+US,NY,Poughkepsi,845,3.2
+US,NY,Rochester,585,3.2
+US,NY,Saratoga Springs,518,3.2
+US,NY,Schenectady,518,3.2
+US,NY,Smithtown,631,3.2
+US,NY,Spring Valley,845,3.2
+US,NY,Syracuse,315,3.2
+US,NY,Tonawanda,716,3.2
+US,NY,Troy,518,3.2
+US,NY,Utica,315,3.2
+US,NY,West Commack,631,3.2
+US,NY,West Seneca,716,3.2
+US,NY,Westchester,914,3.2
+US,NY,White Lake,845,3.2
+US,OH,Akron,234,3.2
+US,OH,Akron,330,3.2
+US,OH,Alliance,330,3.2
+US,OH,Beavercreek,937,3.2
+US,OH,Cincinnati,513,3.2
+US,OH,Cleveland,216,3.2
+US,OH,Columbus,614,3.2
+US,OH,Dayton,937,3.2
+US,OH,Fairborn,937,3.2
+US,OH,Findlay,567,3.2
+US,OH,Gahanna,614,3.2
+US,OH,Greensburg,330,3.2
+US,OH,Hamilton,513,3.2
+US,OH,Harrison,513,3.2
+US,OH,Hilliard,614,3.2
+US,OH,Jackson,740,3.2
+US,OH,Kent,330,3.2
+US,OH,Lancaster,740,3.2
+US,OH,Mansfield,419,3.2
+US,OH,Marysville,937,3.2
+US,OH,Massillon,330,3.2
+US,OH,Mentor,440,3.2
+US,OH,Middletown,513,3.2
+US,OH,North Lima,330,3.2
+US,OH,North Royalton,440,3.2
+US,OH,Piqua,937,3.2
+US,OH,Plain City,614,3.2
+US,OH,Reynoldsburg,614,3.2
+US,OH,Shandon,513,3.2
+US,OH,Somerton,740,3.2
+US,OH,Springfield,937,3.2
+US,OH,Strongsville,440,3.2
+US,OH,Toledo,567,3.2
+US,OH,Trotwood,937,3.2
+US,OH,Uniontown,330,3.2
+US,OH,West Liberty,937,3.2
+US,OH,Westerville,614,3.2
+US,OH,Willoughby,440,3.2
+US,OH,Youngstown,234,3.2
+US,OH,Zanesville,740,3.2
+US,OK,Britton,405,3.2
+US,OK,Edmond,405,3.2
+US,OK,Miami,918,3.2
+US,OK,Midwest City,405,3.2
+US,OK,Moore,405,3.2
+US,OK,Muskogee,918,3.2
+US,OK,Norman,405,3.2
+US,OK,Oklahoma City,405,3.2
+US,OK,Owasso,918,3.2
+US,OK,Ponca City,580,3.2
+US,OK,Shawnee,405,3.2
+US,OK,Stillwater,405,3.2
+US,OK,Tulsa,539,3.2
+US,OK,Yukon,405,3.2
+US,OR,Ashland (schuylkill),541,3.2
+US,OR,Beaverton,971,3.2
+US,OR,Bend,541,3.2
+US,OR,Blue River,541,3.2
+US,OR,Corvallis,541,3.2
+US,OR,Dallas Oregon,503,3.2
+US,OR,Eugene,458,3.2
+US,OR,Eugene,541,3.2
+US,OR,Grants Pass,541,3.2
+US,OR,Gresham,503,3.2
+US,OR,Klamath Falls,541,3.2
+US,OR,Leaburg,541,3.2
+US,OR,Mcminnville,503,3.2
+US,OR,Medford,541,3.2
+US,OR,Newberg,971,3.2
+US,OR,Portland,971,3.2
+US,OR,Redmond,541,3.2
+US,OR,Salem,503,3.2
+US,OR,Salem,971,3.2
+US,OR,Woodburn,971,3.2
+US,PA,Airville,717,3.2
+US,PA,Allentown,484,3.2
+US,PA,Altoona,814,3.2
+US,PA,Bethlehem,484,3.2
+US,PA,Brogue,717,3.2
+US,PA,Easton,484,3.2
+US,PA,Erie,814,3.2
+US,PA,Harrisburg City Zone-2,717,3.2
+US,PA,Hazleton,570,3.2
+US,PA,Landenberg,484,3.2
+US,PA,Middletown (henry),717,3.2
+US,PA,Mobile,484,6
+US,PA,Mobile,610,6
+US,PA,Mobile,814,6
+US,PA,Philadelphia,215,3.2
+US,PA,Philadelphia,267,3.2
+US,PA,Pittsburgh,412,3.2
+US,PA,Pittsburgh,724,3.2
+US,PA,Pottstown,484,3.2
+US,PA,Scranton,570,3.2
+US,PA,Springtown,484,3.2
+US,PA,Statecollg,814,3.2
+US,PA,Williamsport,570,3.2
+US,PA,Winburne,814,3.2
+US,PA,York,717,3.2
+US,RI,Bristol,401,3.2
+US,RI,Coventry,401,3.2
+US,RI,No Kingstn,401,3.2
+US,RI,Pawtucket,401,3.2
+US,RI,Providence,401,3.2
+US,RI,W Warwick,401,3.2
+US,RI,Warwick,401,3.2
+US,RI,Woonsocket,401,3.2
+US,SC,Aiken,803,3.2
+US,SC,Anderson,864,3.2
+US,SC,Blue Ridge (collin),864,3.2
+US,SC,Charleston,843,3.2
+US,SC,Columbia,803,3.2
+US,SC,Greenville (greene),864,3.2
+US,SC,Greer,864,3.2
+US,SC,Mount Pleasant (westmoreland),843,3.2
+US,SC,North Augusta,803,3.2
+US,SC,Spartanburg,864,3.2
+US,SC,Summerville,843,3.2
+US,SC,Sumter,803,3.2
+US,SD,Pierre,605,3.2
+US,SD,Rapid City,605,3.2
+US,SD,Sioux Falls,605,3.2
+US,SD,Watertown,605,3.2
+US,TN,Bent Creek,865,3.2
+US,TN,Bristol,423,3.2
+US,TN,Chattanooga,423,3.2
+US,TN,Clarksville,931,3.2
+US,TN,Cleveland,423,3.2
+US,TN,Collierville,901,3.2
+US,TN,Columbia,931,3.2
+US,TN,Franklin,615,3.2
+US,TN,Gallatin,615,3.2
+US,TN,Hendersonville,615,3.2
+US,TN,Jackson,731,3.2
+US,TN,Johnson City,423,3.2
+US,TN,Kingsport,423,3.2
+US,TN,Knoxville,865,3.2
+US,TN,Lebanon,615,3.2
+US,TN,Maryville,865,3.2
+US,TN,Memphis,901,3.2
+US,TN,Morristown,423,3.2
+US,TN,Murfreesboro,615,3.2
+US,TN,Nashville,615,3.2
+US,TN,Oak Ridge,865,3.2
+US,TN,Shelbyville,931,3.2
+US,TN,Smyrna,615,3.2
+US,TX,Abilene,325,3.2
+US,TX,Allen,469,3.2
+US,TX,Alvin,832,3.2
+US,TX,Amarillo,806,3.2
+US,TX,Arlington,682,3.2
+US,TX,Atlas,682,3.2
+US,TX,Austin,512,3.2
+US,TX,Austin,737,3.2
+US,TX,Barker,832,3.2
+US,TX,Batson,936,3.2
+US,TX,Beaumont,409,3.2
+US,TX,Brownsville,956,3.2
+US,TX,Canyon,806,3.2
+US,TX,Carrollton,469,3.2
+US,TX,Carrollton,972,3.2
+US,TX,Cedar Hill,469,3.2
+US,TX,Cleburne,682,3.2
+US,TX,Cleburne,817,3.2
+US,TX,Corpus Christi,361,3.2
+US,TX,Dallas,469,3.2
+US,TX,Dallas,972,3.2
+US,TX,Dallas Fort Worth Airport,469,3.2
+US,TX,De Soto,469,3.2
+US,TX,Del Rio,830,3.2
+US,TX,Denton,940,3.2
+US,TX,Edinburg,956,3.2
+US,TX,El Paso,915,3.2
+US,TX,Euless,682,3.2
+US,TX,Euless,817,3.2
+US,TX,Fort Worth,682,3.2
+US,TX,Fort Worth,817,3.2
+US,TX,Frisco,469,3.2
+US,TX,Georgetown,512,3.2
+US,TX,Grand Prairie,469,3.2
+US,TX,Grapevine,817,3.2
+US,TX,Greenville,903,3.2
+US,TX,Harlingen,956,3.2
+US,TX,Houston,346,3.2
+US,TX,Houston,713,3.2
+US,TX,Houston,832,3.2
+US,TX,Irving,469,3.2
+US,TX,Irving,972,3.2
+US,TX,Keller,682,3.2
+US,TX,Kyle,512,3.2
+US,TX,La Belle,409,3.2
+US,TX,La Porte,832,3.2
+US,TX,Langham Creek,832,3.2
+US,TX,Laredo,956,3.2
+US,TX,Leander,512,3.2
+US,TX,Lewisville,469,3.2
+US,TX,Longview,430,3.2
+US,TX,Longview,903,3.2
+US,TX,Lubbock,806,3.2
+US,TX,Mansfield,682,3.2
+US,TX,Marshall,903,3.2
+US,TX,McAllen,956,3.2
+US,TX,Mckinney,469,3.2
+US,TX,Midland,432,3.2
+US,TX,Mission,956,3.2
+US,TX,Nacogdochs,936,3.2
+US,TX,North Richland Hills,682,3.2
+US,TX,Odessa,432,3.2
+US,TX,Pharr,956,3.2
+US,TX,Plano,469,3.2
+US,TX,Port Arthur,409,3.2
+US,TX,Rockwall,469,3.2
+US,TX,San Antonio,210,3.2
+US,TX,Shirley,903,3.2
+US,TX,Spring,346,3.2
+US,TX,Sugar Land,832,1.8
+US,TX,Sutherland Springs,830,3.2
+US,TX,Terminal,432,3.2
+US,TX,Texas City,409,3.2
+US,TX,Waco,254,3.2
+US,TX,Waxahachie,469,3.2
+US,TX,Weatherford,682,3.2
+US,TX,Weslaco,956,3.2
+US,TX,West,254,3.2
+US,TX,Westfield,832,3.2
+US,TX,Wichitafls,940,3.2
+US,UT,Bountiful,385,3.2
+US,UT,Bountiful,801,3.2
+US,UT,Cedar City,435,3.2
+US,UT,Clearfield,385,3.2
+US,UT,Kaysville,385,3.2
+US,UT,Lehi,385,3.2
+US,UT,Logan,435,3.2
+US,UT,Midvale,385,3.6
+US,UT,Murray,385,3.6
+US,UT,Ogden,385,3.2
+US,UT,Provo,385,3.2
+US,UT,Salt Lake City,385,3.2
+US,UT,Spanish Fork,385,3.2
+US,UT,St George,435,3.2
+US,UT,Tooele,435,3.2
+US,UT,Wasatch,435,3.2
+US,VA,Blacksburg,540,3.2
+US,VA,Braddock,571,3.2
+US,VA,Charlotsvl,434,3.2
+US,VA,Chester,804,3.2
+US,VA,Christiansburg,540,3.2
+US,VA,Dale City,571,3.2
+US,VA,Engleside,571,3.2
+US,VA,Fredecksbg,540,3.2
+US,VA,Harrisonbg,540,3.2
+US,VA,Herndon,571,3.2
+US,VA,Holland,757,3.2
+US,VA,Hopewell,804,3.2
+US,VA,Ladysmith,804,3.2
+US,VA,Leesburg,571,3.2
+US,VA,Lynchburg,434,3.2
+US,VA,Mechanicsville,804,3.2
+US,VA,Newport News Zone 4,757,3.2
+US,VA,Norfolk,757,3.2
+US,VA,Petersburg,804,3.2
+US,VA,Richmond,804,3.2
+US,VA,Roanoke,540,3.2
+US,VA,Salem,540,3.2
+US,VA,Staunton,540,3.2
+US,VA,Suffolk,757,3.2
+US,VT,Brandon,802,3.2
+US,VT,Burlington,802,3.2
+US,VT,Montpelier,802,3.2
+US,WA,Auburn,253,3.2
+US,WA,Bainbridge Island,206,3.2
+US,WA,Bellevue,425,3.2
+US,WA,Bremerton,360,3.2
+US,WA,Camas,360,3.2
+US,WA,Des Moines,206,3.2
+US,WA,Everett,425,3.2
+US,WA,Graham,253,3.2
+US,WA,Issaquah,425,3.2
+US,WA,Kennewick,509,3.2
+US,WA,Kent,253,3.2
+US,WA,Kirkland,425,3.2
+US,WA,Longview,360,3.2
+US,WA,Maple Valley,425,3.2
+US,WA,Marysville,360,3.2
+US,WA,Oak Harbor,360,3.2
+US,WA,Olympia,360,3.2
+US,WA,Pasco,509,3.2
+US,WA,Puyallup,253,3.2
+US,WA,Renton,425,3.2
+US,WA,Richland,509,3.2
+US,WA,Seattle,206,3.2
+US,WA,Spokane,509,3.2
+US,WA,Tacoma,253,3.2
+US,WA,Tacoma Waverly,253,3.2
+US,WA,Vancouver,360,3.2
+US,WA,Wenatchee,509,3.2
+US,WA,Yakima,509,3.2
+US,WI,Appleton,920,3.2
+US,WI,De Pere,920,3.2
+US,WI,Kenosha,262,3.2
+US,WI,Madison,608,3.2
+US,WI,Menomonee Falls,262,3.2
+US,WI,Milwaukee,262,3.2
+US,WI,Milwaukee,414,3.2
+US,WI,Muskego,262,3.2
+US,WI,Racine,262,3.2
+US,WI,Stevens Point,715,3.2
+US,WV,Charleston Zone 01,681,3.2
+US,WY,Casper,307,3.2
+US,WY,Cheyenne,307,3.2
+US,WY,Gillette,307,3.2
+US,WY,Laramie,307,3.2
+US,WY,Rock Springs,307,3.2
