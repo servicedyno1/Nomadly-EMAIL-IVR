@@ -131,3 +131,7 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 ## 2026-11-14 — Bird caller IDs trimmed to Infobip only
 - User chose: removed all 27 non-Infobip caller IDs from Bird (20 were active customers' Telnyx numbers). Bird now: +16479457172 only.
 - Code: birdAutoLinkTick links ONLY Infobip-owned numbers. Production still runs old code (re-arms Telnyx/SignalWire numbers every 3 min) until Save to GitHub → deploy; re-run cleanup after deploy if any came back.
+
+## 2026-11-14 — SMADAV support: orteac.org "not connected" (@Feezy95, chatId 1454387983)
+- Our side OK: WHM orte2583 on 68.183.77.106 (Golden Anti-Red 1-Month, $100 wallet, 12 Nov), CF zone 50f4ac… ACTIVE, apex+www CNAME → tunnel (proxied), Origin CA cert installed. Through CF edge the site answers (302 decoy redirect to Wikipedia for datacenter/curl traffic = anti-red/customer content).
+- Root cause: Namecheap put the domain on **clientHold** (+addPeriod = newly registered) → .org registry NXDOMAIN; nothing resolves anywhere. Customer must clear it at Namecheap (registrant email verification or Namecheap support/abuse). No code change.
