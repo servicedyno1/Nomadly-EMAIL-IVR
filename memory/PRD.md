@@ -149,3 +149,10 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 ## 2026-11-14 — Multitel country/paperwork scan (read-only)
 - Raw: memory/multitel_scan.json (150 listed countries; 90 with stock). Classified: memory/multitel_classified.json (184 country+type offers: 50 No ID, 47 details-only, 86 documents, 1 unclear ES Local). Script: memory/multitel_classify.py.
 - Source: v3 getareas + get-prefix (needs_registration + restrictions text) + getregistration. Compared to memory/infobip_full_report.csv.
+
+## 2026-11-14 — Multitel ↔ Bird link PROVEN (production)
+- Bought Multitel US local +18648308599 ($0.60/mo, no ID), routed uri 18648308599@188.166.34.29:5080 (ringtype 1).
+- SIP server 188.166.34.29: added /etc/asterisk/pjsip_multitel.conf (endpoint multitel, udp 5080, identify = Multitel origination IPs) + [from-multitel] dialplan (X-DID or EXTEN → DIDAPP_<digits> → Stasis pstn). Backups *.bak.<ts>. Repo copies: ops/sip-server/asterisk/pjsip_multitel.conf + extensions.conf.
+- Armed via prod app-main bird-callerid-verify → Bird called, call engine answered/recorded, Whisper read 698335 → Bird VERIFIED, outbound_enabled true.
+- Prod already runs Infobip-only Bird auto-link (release 20261114T134632Z) — Multitel numbers must be added to birdAutoLinkTick + telnyxDidSync(DIDAPP) when the Multitel seller is built.
+- NEXT (user-approved): Multitel provider adapter + combined Infobip/Multitel catalog (least paperwork, then cheapest), all three paperwork groups incl. document upload, auto Bird link for Multitel numbers.
