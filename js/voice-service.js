@@ -2125,6 +2125,15 @@ async function handleBridgeTransferHangup(payload) {
       delete activeBridgeTransfers[callControlId]
       return true
     }
+    // Forwarding failed and nobody answered: voicemail (if the number has it) instead of dropping the caller.
+    const inS = activeCalls[transfer.originalCallControlId]
+    if (inS?.num && !inS._vmAfterForward && !isCallEnded(transfer.originalCallControlId) && inS.num.features?.voicemail?.enabled && canAccessFeature(inS.num.plan, 'voicemail')) {
+      inS._vmAfterForward = true
+      log(`[Voice] Forward to ${transfer.forwardTo} failed (${hangupCause}) → voicemail`)
+      await noAnswerFallback(transfer.originalCallControlId, { vmConfig: inS.num.features.voicemail, fwdConfig: null, num: inS.num, chatId: inS.chatId, fromNumber: inS.to, unanswered: false, type: 'forward_failed' }, hangupCause).catch(e => log(`[Voice] Voicemail after failed forward: ${e.message}`))
+      delete activeBridgeTransfers[callControlId]
+      return true
+    }
     // Regular bridge transfer failure — hang up original leg and notify user
     await _telnyxApi.hangupCall(transfer.originalCallControlId).catch(() => {})
     const parentSession = outboundIvrCalls[transfer.originalCallControlId] || activeCalls[transfer.originalCallControlId]

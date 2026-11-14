@@ -3,8 +3,9 @@
 // then the cheaper monthly cost. Infobip local numbers (instant or request-based) vs MultiTEL (any type).
 const ibc = require('./infobip/countries')
 const mtc = require('./multitel/countries')
-const ibOn = () => require('./infobip').enabled()
-const mtOn = () => require('./multitel').enabled()
+const health = () => require('./provider-health')
+const ibOn = () => require('./infobip').enabled() && !health().isDown('infobip')
+const mtOn = () => require('./multitel').enabled() && !health().isDown('multitel')
 
 function options(cc, type) {
   const out = []

@@ -381,7 +381,23 @@ const numberSearchUsCaOnly = () => {
   const forced = String(process.env.NUMBER_SEARCH_US_CA_ONLY || '').toLowerCase()
   return forced === 'true' ? true : forced === 'false' ? false : !_telnyxNumbersOk
 }
-const getAllCountries = () => numberSearchUsCaOnly() ? [...countries] : (isTwilioEnabled() ? [...countries, ...twilioCountries] : [...countries, ...(_telnyxIntlOn ? telnyxIntlCountries : [])])
+// Bot: only numbers that need no ID — instant (no paperwork) or address-only, never business-only or order-and-wait.
+const BOT_CATALOG = () => (process.env.BOT_NUMBER_CATALOG || 'true').toLowerCase() === 'true'
+const FLAG = (cc) => String.fromCodePoint(...[...cc].map(c => 0x1f1e6 + c.charCodeAt(0) - 65))
+const botOffer = (cc, t) => { const b = require('./number-catalog').best(cc, t); return b && b.level <= 1 && !b.businessOnly && !b.request ? b : null }
+const botNeedsAddress = (cc, t) => BOT_CATALOG() && !['US', 'CA'].includes(cc) && botOffer(cc, t)?.level === 1
+function botCatalogCountries() {
+  const cat = require('./number-catalog'), out = []
+  for (const [cc, types] of Object.entries(cat.sold())) {
+    if (cc === 'US' || cc === 'CA') continue
+    const ok = types.filter(t => botOffer(cc, t))
+    if (ok.length) out.push({ code: cc, name: `${FLAG(cc)} ${cat.nameOf(cc)}`, provider: botOffer(cc, ok[0]).provider, types: ok })
+  }
+  out.sort((a, b) => a.name.slice(5).localeCompare(b.name.slice(5)))
+  try { for (const c of out) countryByName[c.name] = c.code } catch {} // not defined yet during module load (country count)
+  return out
+}
+const getAllCountries = () => BOT_CATALOG() ? [...countries] : numberSearchUsCaOnly() ? [...countries] : (isTwilioEnabled() ? [...countries, ...twilioCountries] : [...countries, ...(_telnyxIntlOn ? telnyxIntlCountries : [])])
 
 // Additional countries (shown after "More Countries" button) — Twilio's list while Twilio
 // is on; the Telnyx international extras while it is off (empty → button auto-hides).
@@ -403,7 +419,7 @@ const _twilioMoreCountries = [
   { code: 'ZA', name: '🇿🇦 South Africa', provider: 'twilio', types: ['local'] },
   { code: 'TH', name: '🇹🇭 Thailand', provider: 'twilio', types: ['toll_free', 'mobile'] },
 ]
-const getMoreCountries = () => numberSearchUsCaOnly() ? [] : (isTwilioEnabled() ? _twilioMoreCountries : (_telnyxIntlOn ? _telnyxIntlMore : []))
+const getMoreCountries = () => BOT_CATALOG() ? botCatalogCountries() : numberSearchUsCaOnly() ? [] : (isTwilioEnabled() ? _twilioMoreCountries : (_telnyxIntlOn ? _telnyxIntlMore : []))
 // Countries the bot actually sells numbers in (used in the hub / welcome copy instead of a fixed "30+").
 const CLOUD_COUNTRY_COUNT = new Set([...getAllCountries(), ...getMoreCountries()].map(c => c.code)).size
 
@@ -4297,6 +4313,7 @@ module.exports = {
   get allCountries() { return getAllCountries() },
   get moreCountries() { return getMoreCountries() },
   countryByName,
+  botNeedsAddress,
   usAreaCodes,
   areaByLabel,
   formatPhone,

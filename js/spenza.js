@@ -69,6 +69,7 @@ async function forSale() { return (await catalog()).filter(p => p.enabled && p.p
 async function plansForCustomers() { return (await forSale()).map(custPlan) }
 
 // ---------- admin fleet ----------
+const creditBalance = async () => { const c = await call('get', '/api/v1.1/credit-balance'); return Number((c?.data?.creditBalance || []).find(x => x.currency === 'USD')?.amount ?? c?.data?.creditBalance?.[0]?.amount) }
 async function fleet() {
   const [sims, credit, prods, lines] = await Promise.all([
     call('get', '/api/v1.1/sims?page=1&pageSize=100'), call('get', '/api/v1.1/credit-balance'),
@@ -692,5 +693,5 @@ function init({ db, log = console.log, tell }) {
   return api
 }
 
-const api = { init, setBot, sendBotQr, tick, syncUser, syncProfile, linkUser, receiptsOf, MOBILE_PRICE, bundlePrice, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, submitImei, imeiChase, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE, MOBILE_TEXT_PRICE }
+const api = { init, setBot, sendBotQr, tick, syncUser, syncProfile, linkUser, receiptsOf, MOBILE_PRICE, bundlePrice, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, submitImei, imeiChase, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE, MOBILE_TEXT_PRICE, creditBalance }
 module.exports = api

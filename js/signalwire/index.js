@@ -168,8 +168,8 @@ function wrap(t) {
       if (r) ce.setDidApps([r._retriedNumber || phoneNumber])
       return r
     }
-    if (ib.isIbSearched(phoneNumber)) return ib.buyNumber(phoneNumber)
-    if (mt.isMtSearched(phoneNumber)) return mt.buyNumber(phoneNumber)
+    if (ib.isIbSearched(phoneNumber)) return require('../provider-health').buyWithBackup('infobip', phoneNumber, retrySearch)
+    if (mt.isMtSearched(phoneNumber)) return require('../provider-health').buyWithBackup('multitel', phoneNumber, retrySearch)
     if (bird.isBirdSearched(phoneNumber)) return bird.buyNumber(phoneNumber)
     if (swOn() && rest.isSwSearched(phoneNumber)) {
       const r = await rest.buyNumber(phoneNumber)

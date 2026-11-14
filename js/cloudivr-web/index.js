@@ -133,6 +133,7 @@ function createCloudIvrWeb(deps) {
     compliance.routes(r)
     tenDlc.routes(r)
     require('./lookup').createLookup({ db, h, walletOps: require('./wallet').walletOps, log }).routes(r)
+    require('./travel-esim').createTravelEsim({ db, h, walletOps: require('./wallet').walletOps, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, log }).routes(r)
     require('../active-slot').singletonInterval('cloudivr-number-docs', () => numberDocs.tick().catch(e => log(`[NumberDocs] tick: ${e.message}`)), 30 * 60000)
     Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h, offers, legalProfile, numberDocs, compliance }))
     verification.routes(r, { ...deps, db, h, upload })

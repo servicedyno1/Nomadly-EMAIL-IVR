@@ -157,8 +157,14 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     const extra = home ? Math.max(0, parts - Math.max(0, (pool.smsLimit || 0) - (pool.smsUsed || 0))) : parts
     const overage = Math.round((home ? phoneConfig.OVERAGE_RATE_SMS : rule.price) * extra * 100) / 100
     if (overage && !(await w.debit(chatId, overage))) return { error: [402, 'insufficient_balance', home ? `This text costs $${overage.toFixed(2)} ($${phoneConfig.OVERAGE_RATE_SMS} per part). Top up your wallet first.` : `A text to ${rule.country} costs $${overage.toFixed(2)}. Top up first.`] }
-    const out = preview ? { id: `preview-${crypto.randomUUID()}` } : await deliver(rule.from || num.phoneNumber, to, body, media.map(m => require('./media').publicUrl(m.id)))
-    if (out.error) { if (overage) await w.credit(chatId, overage); return { error: [424, 'sms_failed', out.error] } }
+    let out = { id: `preview-${crypto.randomUUID()}` }
+    // Up to 3 tries; a failed text is never charged and is logged for follow-up.
+    if (!preview) for (let i = 0; i < 3; i++) { out = await deliver(rule.from || num.phoneNumber, to, body, media.map(m => require('./media').publicUrl(m.id))); if (!out.error) break; if (i < 2) await new Promise(r => setTimeout(r, 1500 * (i + 1))) }
+    if (out.error) {
+      if (overage) await w.credit(chatId, overage)
+      await phoneLogs.insertOne({ chatId: String(chatId), phoneNumber: num.phoneNumber, from: rule.from || num.phoneNumber, to, country: rule.iso, type: 'sms_out', direction: 'outbound', body, status: 'failed', error: out.error, attempts: 3, provider: num.provider || null, webReply: true, timestamp: new Date().toISOString() })
+      return { error: [424, 'sms_failed', `${out.error} We tried 3 times. You weren’t charged.`] }
+    }
     if (home) for (let i = 0; i < parts; i++) await voiceService.incrementSmsUsed(chatId, num.phoneNumber)
     if (overage) await phoneTransactions.insertOne({ chatId, phoneNumber: num.phoneNumber, action: 'sms_reply', amount: overage, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
     const doc = { chatId: String(chatId), phoneNumber: num.phoneNumber, from: rule.from || num.phoneNumber, to, country: rule.iso, type: 'sms_out', direction: 'outbound', body, messageId: out.id, status: preview ? 'preview' : 'sent', webReply: true, ...(media.length ? { media } : {}), ...(overage ? { charge: overage } : {}), ...(replyTo ? { replyTo } : {}), ...(inboxId ? { inboxId: String(inboxId) } : {}), timestamp: new Date().toISOString() }
