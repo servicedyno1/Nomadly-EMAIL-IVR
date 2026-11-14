@@ -1,100 +1,307 @@
 {
-  "project": "CloudIVR Web Redesign Guidelines",
-  "app_type": "saas_app_dashboard",
-  "theme": "Dark Sidebar, Light Content Surface",
-  "colors": {
-    "accent_primary": "#1d6fd8",
-    "accent_hover": "#1e40af",
-    "accent_subtle": "#818cf8",
-    "bg_content": "#f8fafc",
-    "bg_card": "#ffffff",
-    "border_subtle": "#e2e8f0",
-    "border_active": "#1d6fd8",
-    "text_primary": "#0f172a",
-    "text_secondary": "#64748b",
-    "badge_bg": "#eff6ff",
-    "badge_text": "#1d4ed8"
+  "project_meta": {
+    "app_name": "CloudIVR",
+    "app_type": "saas_app / hybrid_fullstack",
+    "base_path": "/cloudivr",
+    "design_archetype": "THE PERFORMANCE PRO / SWISS HIGH-CONTRAST",
+    "emotional_tone": "Precise, Authoritative, Frictionless, High-Speed Telecommunications Command Center",
+    "theme_system": {
+      "app_shell": "Dark Theme (Deep Slate/Obsidian #0B0F17 with #111827 surfaces, 1px subtle borders, high legibility)",
+      "landing_page": "Light/Cream Theme (#FAF8F5 with warm amber/indigo accents, editorial typography)",
+      "toggle_supported": true
+    }
   },
   "typography": {
-    "heading_font": "Outfit, sans-serif",
-    "body_font": "Inter, sans-serif",
-    "sizes": {
-      "page_title": "text-2xl sm:text-3xl font-bold tracking-tight text-slate-900",
-      "card_title": "text-lg font-semibold text-slate-900",
-      "card_price": "text-xl font-bold text-indigo-600",
-      "card_subtitle": "text-xs font-medium text-slate-500 uppercase tracking-wider",
-      "body_text": "text-sm text-slate-600"
-    }
+    "tech_stack_note": "Project uses React with .js files (not .tsx)",
+    "pairing_strategy": "Display Sans / Geometric Sans + Clean Monospace for telecommunication logs",
+    "fonts": {
+      "headings": "Cabinet Grotesk, Outfit, or Clash Display",
+      "body": "Inter or DM Sans",
+      "mono_data": "JetBrains Mono or IBM Plex Mono"
+    },
+    "hierarchy": {
+      "h1_hero": "text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-none",
+      "h2_section": "text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight",
+      "h3_subsection": "text-xl sm:text-2xl font-medium",
+      "h4_card": "text-lg sm:text-xl font-medium",
+      "body": "text-base text-slate-300 leading-relaxed",
+      "small_label": "text-xs font-semibold uppercase tracking-widest text-slate-400"
+    },
+    "rules": [
+      "BANNED for Main Headings: Inter, Open Sans, Roboto. Use Cabinet Grotesk or Outfit for primary headings.",
+      "Headlines > 32px MUST use tracking-tight or tracking-tighter.",
+      "Never exceed text-6xl for H1 headlines on maximum viewports.",
+      "All text colors must achieve at least WCAG AA 4.5:1 contrast against dark/light backgrounds."
+    ]
   },
-  "existing_account_banner": {
-    "placement": "Top prominent section on 'Get a number' page before purpose selection",
-    "copy": "Add a number to your current plan ($25/mo)",
-    "description": "Fast-track option for existing account holders to assign a new line directly to their existing active subscription without re-configuring voice/SIP features.",
-    "cta_button": "Quick Add to Active Plan"
+  "colors": {
+    "dark_shell": {
+      "bg_primary": "#0B0F17",
+      "bg_surface": "#111827",
+      "bg_surface_hover": "#1F2937",
+      "border": "#1E293B",
+      "text_primary": "#F8FAFC",
+      "text_secondary": "#94A3B8",
+      "accent_primary": "#6366F1",
+      "accent_success": "#10B981",
+      "accent_warning": "#F59E0B",
+      "accent_danger": "#EF4444"
+    },
+    "landing_light": {
+      "bg_primary": "#FAF8F5",
+      "bg_surface": "#FFFFFF",
+      "border": "#E2E8F0",
+      "text_primary": "#0F172A",
+      "text_secondary": "#475569",
+      "accent_primary": "#4F46E5"
+    },
+    "rules": [
+      "No transparent dropdown or modal backgrounds under any circumstances (use bg-slate-900 or bg-white with backdrop-blur).",
+      "Forbidden colors for AI page: #7351B7. Forbidden font for dashboards: Space Grotesk.",
+      "Never use pure black #000000; use tinted dark slate #0B0F17."
+    ]
   },
-  "purpose_cards_layout": {
-    "grid_structure": "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6",
-    "card_options": [
-      {
-        "id": "voice",
-        "title": "Voice Line",
-        "price": "From $25/mo",
-        "existing_note": "You already have: Business Line active",
-        "features": ["IVR Auto-Attendant", "Call Forwarding", "Voicemail"]
+  "ux_blueprint": {
+    "phase_1_onboarding": {
+      "philosophy": "Ultra-low friction sign up followed by immediate intent discovery. Collect zero intrusive data up front.",
+      "step_1_signup": {
+        "fields_required": ["email", "password", "usage_policy_checkbox"],
+        "social_options": ["Google SSO"],
+        "bot_user_rule": "Bot users never collect ID or business details. Pure email verification only.",
+        "marketing_consent": "Explicit non-pre-checked opt-in for transactional updates and security alerts."
       },
-      {
-        "id": "sip",
-        "title": "SIP Trunk",
-        "price": "From $25/mo (Shares Business Line)",
-        "existing_note": "Shares Business Line plan",
-        "features": ["IP PBX Connect", "Credentials", "Unlimited SIP Legs"]
-      },
-      {
-        "id": "sms",
-        "title": "SMS / Texting",
-        "price": "$75/mo",
-        "existing_note": "Dedicated Texting Number",
-        "features": ["10DLC Verified", "High Volume", "Broadcast & API"]
-      },
-      {
-        "id": "fax",
-        "title": "Fax Line",
-        "price": "$15/mo",
-        "existing_note": "Fax-only Number",
-        "features": ["Inbound/Outbound PDF", "Email-to-Fax", "HIPAA Compliant"]
+      "step_2_intent_discovery": {
+        "title": "What do you need to accomplish today?",
+        "subtitle": "We will configure your workspace based on your primary objective.",
+        "options": [
+          {
+            "id": "business_line",
+            "title": "Business Phone Line",
+            "desc": "Inbound & outbound calls, IVR menus, web softphone, SMS inbox",
+            "icon": "PhoneCall",
+            "first_value_target": "Pick a country & local area code to browse available business numbers (Plans: Basic $50, Starter $75, Pro $100, Business $120)"
+          },
+          {
+            "id": "texting_customer",
+            "title": "Text Customers",
+            "desc": "USA Spenza or International SMS campaigns and automated texting",
+            "icon": "MessageSquare",
+            "first_value_target": "Select USA Unlimited Spenza ($50/mo) or International Texting (11 countries, $50/mo)"
+          },
+          {
+            "id": "travel_esim",
+            "title": "Travel Data & eSIM",
+            "desc": "Instant QR-code global cellular data across 187 countries",
+            "icon": "Wifi",
+            "first_value_target": "Search destination country and view high-speed eSIM data packages"
+          },
+          {
+            "id": "ai_receptionist",
+            "title": "AI Receptionist & AI Call Campaigns",
+            "desc": "24/7 intelligent voice assistant handling calls at $0.10/min",
+            "icon": "Bot",
+            "first_value_target": "Test-talk with AI Voice Agent in browser or build an automated campaign"
+          },
+          {
+            "id": "bulk_ivr",
+            "title": "Bulk IVR & Mass Outreach",
+            "desc": "High-volume call broadcasting, voice scripts, press-1 surveys",
+            "icon": "Megaphone",
+            "first_value_target": "Upload contact list or create your first voice campaign script"
+          },
+          {
+            "id": "fax_landline",
+            "title": "Fax & Virtual Office",
+            "desc": "Cloud faxing, document routing, virtual office reception",
+            "icon": "Printer",
+            "first_value_target": "Send a test fax or provision a cloud fax line"
+          }
+        ]
       }
-    ],
-    "content_hierarchy": "1. Big Icon & Title -> 2. Starting Price (bold) -> 3. 'You already have' status note -> 4. Bullet feature points -> 5. Select CTA"
-  },
-  "selected_state_styling": {
-    "container": "border-2 border-indigo-600 bg-indigo-50/40 shadow-md ring-2 ring-indigo-500/20 scale-[1.02] transition-all duration-200",
-    "badge": "Absolute top-right corner checkmark icon in indigo pill badge",
-    "cta": "bg-indigo-600 text-white font-medium shadow-sm"
-  },
-  "step_section_introduction": {
-    "behavior": "Sequential dynamic step rendering below cards once selection is made",
-    "headings": {
-      "voice_sip": "Step 2: Choose Number & Configure Voice Options",
-      "sms": "Step 2: Search & Claim 10DLC Texting Line",
-      "fax": "Step 2: Pick Fax Number & Confirm $15/mo Plan"
+    },
+    "phase_2_progressive_data_collection_map": {
+      "strategy": "Just-In-Time (JIT) compliance gates. Zero upfront friction; ask only at the exact moment a service requirement mandates it.",
+      "gates": [
+        {
+          "trigger": "User Sign Up",
+          "data_collected": ["Email address", "Password hash", "Terms & Usage Policy acceptance (v1.0)"],
+          "why": "Account creation, login authentication, legal consent",
+          "gated_until": "Always required"
+        },
+        {
+          "trigger": "Wallet Top-up / First Checkout",
+          "data_collected": ["Payment method (Stripe Credit Card or Crypto deposit)", "Billing ZIP/Postal Code", "Billing Country"],
+          "why": "Payment processing and tax location validation",
+          "gated_until": "First monetary transaction"
+        },
+        {
+          "trigger": "Purchasing Phone Number requiring KYC (DID regulation)",
+          "data_collected": ["Legal Profile: Full Name (Individual) OR Business Name", "Home Address OR Registered Business Address"],
+          "why": "Telecom regulatory compliance for local DID allocation",
+          "gated_until": "Selecting a regulated national/local number"
+        },
+        {
+          "trigger": "High-Risk or Restricted Country DID Purchase",
+          "data_collected": ["Passport / Government ID photo", "Live Liveness Selfie (Stripe Identity)"],
+          "why": "Strict anti-fraud telecom laws in specific international jurisdictions",
+          "gated_until": "Selecting a high-risk country number. Bypassed completely for Bot users & low-risk DIDs."
+        },
+        {
+          "trigger": "Business / Enterprise Plan Activation ($120 - $399/mo)",
+          "data_collected": ["Company Registration Paperwork", "Tax ID / EIN"],
+          "why": "Corporate billing verification and high-volume carrier throughput",
+          "gated_until": "Upgrading to Business/Enterprise plan or requesting custom trunks"
+        },
+        {
+          "trigger": "US 10DLC Campaign Registration (US Texting via Infobip/Multitel)",
+          "data_collected": ["Brand Legal Name & Tax ID", "Vertical/Industry", "US Messaging Use Case Details", "2 Sample Opt-in SMS Messages", "Opt-in / Privacy Policy URL"],
+          "why": "US Carrier 10DLC regulatory registration to prevent spam blockages",
+          "gated_until": "First US local outbound texting campaign dispatch"
+        }
+      ]
+    },
+    "phase_3_tailored_dashboards": {
+      "overview": "Dashboard dynamically morphs its primary hero, widgets, and actions based on the user's active primary service selection.",
+      "services": [
+        {
+          "service_id": "business_line",
+          "hero_widget": "Web Softphone & Call Status Bar (Dialer, Mic Test, Line selector)",
+          "key_metrics": ["Active Lines Count", "Inbound Minutes Used / Included", "Unread SMS Inbox", "Missed Calls Today"],
+          "next_best_action": {
+            "title": "Configure Inbound Ring Group",
+            "action": "Forward calls to your mobile or browser softphone in 1 click"
+          },
+          "empty_state": "No active business number yet. Pick a local or toll-free number from $50/mo."
+        },
+        {
+          "service_id": "texting_customer",
+          "hero_widget": "Live SMS Feed & Rapid Messenger Box",
+          "key_metrics": ["Texting Number Status", "Monthly Text Balance", "10DLC Brand Status", "Delivery Rate %"],
+          "next_best_action": {
+            "title": "Submit 10DLC Brand Profile",
+            "action": "Complete 3-min registration to enable high-speed US SMS deliverability"
+          },
+          "empty_state": "No texting line active. Provision USA Unlimited Spenza or International Texting."
+        },
+        {
+          "service_id": "travel_esim",
+          "hero_widget": "Active eSIM QR Code & Real-Time Data Meter",
+          "key_metrics": ["Active eSIM Profiles", "Data Remaining (GB)", "Expiration Date", "Connected Country/Carrier"],
+          "next_best_action": {
+            "title": "Install eSIM Profile",
+            "action": "Scan QR code or download iOS/Android profile directly"
+          },
+          "empty_state": "No active travel eSIM. Search 187 countries for high-speed local data."
+        },
+        {
+          "service_id": "ai_receptionist",
+          "hero_widget": "AI Receptionist Voice Studio & Live Call Simulator",
+          "key_metrics": ["AI Minutes Consumed", "Handled Inbound Calls", "Transferred Calls", "Avg Sentiment Score"],
+          "next_best_action": {
+            "title": "Test AI Agent Voice",
+            "action": "Launch interactive in-browser voice test with custom agent prompt"
+          },
+          "empty_state": "AI Receptionist not active on your line. Assign AI agent to answer inbound calls."
+        },
+        {
+          "service_id": "bulk_ivr",
+          "hero_widget": "Live Campaign Monitor & Broadcaster Console",
+          "key_metrics": ["Active Voice Campaigns", "Calls Dispatched Today", "Press-1 Conversions", "Answer Rate %"],
+          "next_best_action": {
+            "title": "Create Mass Voice Campaign",
+            "action": "Upload contact list (.csv) and select audio script"
+          },
+          "empty_state": "No broadcast campaigns created. Create your first automated voice campaign."
+        },
+        {
+          "service_id": "fax_landline",
+          "hero_widget": "Cloud Fax Dispatcher & Document Portal",
+          "key_metrics": ["Active Fax Line", "Pages Sent / Received", "Fax Success Rate %", "Pending Transmissions"],
+          "next_best_action": {
+            "title": "Send Digital Fax",
+            "action": "Upload PDF document and dial destination fax number"
+          },
+          "empty_state": "No fax lines provisioned. Get a virtual fax number in seconds."
+        }
+      ]
+    },
+    "phase_4_navigation_simplification": {
+      "current_issue": "25+ items in 6 navigation groups causing cognitive overload.",
+      "simplified_structure": [
+        {
+          "group": "Core Command",
+          "items": [
+            {"name": "Overview Dashboard", "path": "/cloudivr/dashboard", "icon": "LayoutDashboard"},
+            {"name": "Messages & Inbox", "path": "/cloudivr/inbox", "icon": "MessageSquare"},
+            {"name": "Live Activity & Logs", "path": "/cloudivr/live", "icon": "Activity"}
+          ]
+        },
+        {
+          "group": "Telephony & eSIM",
+          "items": [
+            {"name": "My Numbers & Lines", "path": "/cloudivr/numbers", "icon": "Phone"},
+            {"name": "Texting Studio (10DLC)", "path": "/cloudivr/texting", "icon": "Send"},
+            {"name": "Travel eSIM Shop", "path": "/cloudivr/esim", "icon": "Wifi"},
+            {"name": "Cloud Fax", "path": "/cloudivr/fax", "icon": "Printer"}
+          ]
+        },
+        {
+          "group": "Voice & AI Tools",
+          "items": [
+            {"name": "AI Receptionist & Agents", "path": "/cloudivr/ai-agents", "icon": "Bot"},
+            {"name": "Voice Campaigns & IVR", "path": "/cloudivr/campaigns", "icon": "Megaphone"},
+            {"name": "SIP Trunks & Softphone", "path": "/cloudivr/sip", "icon": "Radio"}
+          ]
+        },
+        {
+          "group": "Workspace & Billing",
+          "items": [
+            {"name": "Wallet & Top-up", "path": "/cloudivr/wallet", "icon": "Wallet"},
+            {"name": "Compliance & ID", "path": "/cloudivr/compliance", "icon": "ShieldCheck"},
+            {"name": "Settings & Webhooks", "path": "/cloudivr/settings", "icon": "Settings"},
+            {"name": "Help & Support", "path": "/cloudivr/help", "icon": "HelpCircle"}
+          ]
+        }
+      ]
+    },
+    "phase_5_analytics_and_marketing": {
+      "captured_profile_fields": [
+        "utm_source", "utm_medium", "utm_campaign", "referrer_url", "landing_path",
+        "device_type", "ip_country", "selected_primary_purpose", "active_plan_tier",
+        "compliance_gate_status", "telecom_provider_health"
+      ],
+      "telemetry_events": [
+        "signup_completed", "purpose_selected", "plan_card_viewed", "number_search_executed",
+        "compliance_gate_triggered", "compliance_gate_passed", "checkout_initiated",
+        "checkout_completed", "provider_error_encountered", "campaign_launched"
+      ],
+      "privacy_consent_notes": "All tracking respects GDPR/CCPA. Analytics events stored with pseudonymized user ID; no sensitive regulatory PII sent to third-party ad pixels."
+    },
+    "phased_roadmap": {
+      "phase_a": "Onboarding Intent Picker, Just-In-Time Compliance Gates, Wallet & Signup flow consolidation",
+      "phase_b": "Service-Tailored Dashboards, Streamlined 4-Group Navigation Sidebar, Softphone integration",
+      "phase_c": "AI Receptionist voice playground, Advanced telemetry & provider failover alerts"
     }
   },
-  "other_pages_cleanup": [
-    "Home: Consolidate duplicate Texting Number upsell banners into a single non-intrusive contextual card.",
-    "My Numbers: Include fax-only numbers in the main numbers list with clear 'Fax' badge identification.",
-    "Header: Change fixed header CTA 'Get a Business Line' to dynamically context-aware label or 'Get a Number'.",
-    "Wallet: Clean up stacked balance prompts and ensure primary payment action button is wide and uncluttered.",
-    "Fax: Ensure dedicated Fax purchase flow routes directly to Fax-only search without Voice/SIP questions.",
-    "Messages & Texting Number: Remove redundant inline SMS upsell banners when user already owns a texting number."
-  ],
-  "instructions_to_main_agent": [
-    "Use existing utility classes: civr-card, civr-btn, civr-btn-primary, civr-pill.",
-    "Avoid multi-level nested redundant questions; show 4 big purpose cards upfront.",
-    "Ensure every interactive element includes data-testid attribute in kebab-case format."
-  ],
-  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
-    "Include data-testid on buttons, cards, inputs, and tabs.",
-    "Ensure high contrast compliance and avoid transparent overlays over content.",
-    "Keep mobile layouts responsive with flex-col or single column grids on small screens."
-  ]
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-xl bg-slate-900/80 border border-slate-800/80 shadow-2xl",
+    "tracing_beam": "Subtle 1px glowing animated border for active primary CTA cards",
+    "bento_grid": "Asymmetric 12-column grid layout for metrics and quick actions",
+    "contrast_standards": "All text elements verified against APCA / WCAG 2 AA guidelines (min 4.5:1 ratio)"
+  },
+  "components": {
+    "component_usage_rules": [
+      "Use Shadcn primitives for Modals, Dropdowns, DatePickers, Sonner Toasts.",
+      "Never use native HTML select or native standard date input.",
+      "Explicitly specify background classes on all popovers/dropdowns (e.g., bg-slate-900 text-slate-100 border-slate-800).",
+      "All interactive buttons and navigation links MUST include data-testid attribute."
+    ]
+  },
+  "instructions_to_main_agent": "Ensure every UI route and modal adheres strictly to this JSON blueprint. Implement progressive compliance triggers at checkout/number purchase only. Keep navigation concise with 4 core groups.",
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": {
+    "data_testid_requirement": "All buttons, inputs, links, cards, tabs, and status indicators MUST carry kebab-case data-testid attributes.",
+    "spacing": "Maintain generous 2-3x spacing scale using Tailwind p-6, p-8, gap-6.",
+    "transitions": "Never use transition: all. Specify target properties such as transition-colors or transition-opacity.",
+    "toasts": "Use Sonner for toast notifications in frontend code."
+  }
 }

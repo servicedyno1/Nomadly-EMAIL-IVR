@@ -4,6 +4,7 @@ import { Check, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { api, useApi } from './api';
 import { cp } from './paths';
 import { PURPOSES, suggestionsFor } from './purpose';
+import { track } from './track';
 
 // Shared onboarding state (purposes + per-number setup plans).
 export function useOnboarding() { return useApi('/prefs/onboarding'); }
@@ -24,7 +25,7 @@ export function Onboarding({ data, setData }) {
   useEffect(() => { if (data && !data.onboarded && texting) api('/prefs/onboarding', { method: 'PUT', body: { purposes: ['texting'] } }).then(d => setData({ ...data, ...d, onboarded: true })).catch(() => {}); }, [data?.onboarded, texting]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!open) return null;
   const save = async (purposes) => {
-    setBusy(true);
+    setBusy(true); track(purposes.length ? 'purpose_picked' : 'purpose_skipped', { purposes: purposes.join(',') });
     try { const d = await api('/prefs/onboarding', { method: 'PUT', body: { purposes } }); if (!purposes.length) setData({ ...data, ...d }); else { setSaved(d); setStep(1); } } catch { setData({ ...data, onboarded: true }); } finally { setBusy(false); }
   };
   const finish = () => setData({ ...data, ...saved, onboarded: true });
@@ -36,8 +37,8 @@ export function Onboarding({ data, setData }) {
         <div className="flex items-center gap-2 mb-6" aria-hidden="true">{[0, 1].map(i => <span key={i} className={`h-1.5 rounded-full transition-all duration-500 ${i <= step ? 'w-10 bg-[#6366f1]' : 'w-5 bg-[#3f3f46]'}`} />)}</div>
         {step === 0 ? (
           <>
-            <h2 id="onb-title" className="civr-page-title text-3xl">What will you use CloudIVR for?</h2>
-            <p className="text-[#a1a1aa] mt-2">Pick all that fit — we’ll put the right tools first. You can change this anytime from your Overview.</p>
+            <h2 id="onb-title" className="civr-page-title text-3xl">What do you need?</h2>
+            <p className="text-[#a1a1aa] mt-2">Pick all that fit — your Home shows these first. No paperwork now: we only ask for details when something you buy needs them.</p>
             <div className="grid sm:grid-cols-2 gap-3 mt-7" data-testid="onboarding-purposes">
               {PURPOSES.map(([id, Icon, label, sub], i) => {
                 const on = pick.includes(id);

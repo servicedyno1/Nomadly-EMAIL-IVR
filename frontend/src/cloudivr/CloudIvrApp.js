@@ -1,3 +1,4 @@
+import { captureSource } from './track';
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { useTheme } from './theme';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
@@ -70,6 +71,7 @@ export default function CloudIvrApp() {
   useEffect(() => {
     const restoreHead = applyBrandHead();
     registerPwa();
+    captureSource();
     loadXPixel();
     return () => { document.title = prevTitle; restoreHead(); };
   }, [prevTitle]);

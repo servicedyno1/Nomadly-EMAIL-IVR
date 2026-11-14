@@ -17,7 +17,7 @@ const { LIVE_MOBILE, LIVE_TEXTING } = require('./numbers')
 
 const GROUPS = { weekly: 'weekly', campaignDone: 'campaigns', voicemail: 'voicemail', missed: 'missed' }
 const OPTIONAL = Object.values(GROUPS)
-const DEFAULTS = { weekly: true, campaigns: true, voicemail: true, missed: true, lowBalanceAt: 10 }
+const DEFAULTS = { weekly: true, campaigns: true, voicemail: true, missed: true, marketing: false, lowBalanceAt: 10 }
 const LANGS = ['en', 'fr', 'es']
 const EMPTY_AT = 0.5
 const TEXTING_STEPS = ['verify', 'loa', 'documents', 'admin_docs', 'review', 'active', 'rejected', 'failed']
@@ -406,7 +406,7 @@ function createEmails(db, { log = console.log } = {}) {
     }))
     router.put('/prefs/email', h(async (req, res) => {
       const b = req.body || {}, set = {}
-      for (const k of OPTIONAL) {
+      for (const k of [...OPTIONAL, 'marketing']) {
         if (!(k in b)) continue
         if (typeof b[k] !== 'boolean') return bad(res, 400, 'invalid_value', 'Turn it on or off.')
         set[`emailPrefs.${k}`] = b[k]
@@ -418,6 +418,7 @@ function createEmails(db, { log = console.log } = {}) {
         set['emailState.wallet'] = null // re-check the level against the new amount
       }
       if (!Object.keys(set).length) return bad(res, 400, 'nothing_to_save', 'Nothing to save.')
+      if ('marketing' in b) await accounts.updateOne({ _id: Number(req.webChatId) }, { $set: { marketingOptIn: b.marketing, [b.marketing ? 'marketingOptInAt' : 'marketingOptOutAt']: new Date() } })
       await prefs.updateOne({ _id: req.webChatId }, { $set: { ...set, updatedAt: new Date() } }, { upsert: true })
       res.json({ prefs: (await profile(req.webChatId)).email })
     }))

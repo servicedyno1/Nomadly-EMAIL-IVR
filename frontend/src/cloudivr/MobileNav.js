@@ -69,7 +69,7 @@ export default function MobileNav({ onPhone }) {
         <div className="lg:hidden fixed inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 civr-card p-2 civr-rise max-h-[calc(100dvh-9rem)] overflow-y-auto overscroll-contain" data-testid="mobile-more-menu">
           {MORE_GROUPS.map(([gid, glabel, items]) => (
             <div key={gid} className="mb-1" data-testid={`mobile-group-${gid}`}>
-              <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[#a1a1aa]">{glabel}</div>
+              {glabel && <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[#a1a1aa]">{glabel}</div>}
               {items.map((item) => <NavRow key={item[3]} item={item} active={isSideActive(item, pathname, search)} onPhone={() => { setOpen(false); onPhone?.(); }} testid={`mobile-${item[3]}`} />)}
             </div>
           ))}

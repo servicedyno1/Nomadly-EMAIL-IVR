@@ -12,6 +12,7 @@ import { TopBanner, TrialCard, CallerIdUpsellCard } from './dashboard/Banners';
 import { NewProducts } from './dashboard/NewProducts';
 import { FaxCard } from './dashboard/FaxCard';
 import { ForYou, ReviewPrompt } from './dashboard/ForYou';
+import { PurposeHome } from './dashboard/PurposeHome';
 import { TextingHome } from './dashboard/TextingHome';
 import { TaskCards, SetupChecklist } from './dashboard/GuidedHome';
 import { TextingNumberCta } from './buy/TextingNumberCta';
@@ -77,8 +78,9 @@ export default function Dashboard() {
           <ArrowRight className="w-4 h-4" />
         </Link>
       )}
-      {!s || (fresh && !hosted) ? <SkeletonPage header={false} cards={3} rows={3} /> : textingOnly ? <TextingHome items={hosted.items} balance={s.balance} /> : fresh ? <>{promos}<Guided nums={[]} /><TextingNumberCta testid="dashboard-texting-number-cta" className="mt-6" /><div className="mt-8"><GetStarted balance={s.balance} /></div></> : (
+      {!s || (fresh && !hosted) ? <SkeletonPage header={false} cards={3} rows={3} /> : textingOnly ? <TextingHome items={hosted.items} balance={s.balance} /> : fresh ? <><PurposeHome />{promos}<Guided nums={[]} /><TextingNumberCta testid="dashboard-texting-number-cta" className="mt-6" /><div className="mt-8"><GetStarted balance={s.balance} /></div></> : (
         <>
+          <PurposeHome />
           <Guided nums={nums?.numbers} />
           <h2 className="font-display text-xl font-bold mt-10 mb-4">At a glance</h2>
           <Stats s={s} />

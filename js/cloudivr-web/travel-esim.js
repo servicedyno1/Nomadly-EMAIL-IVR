@@ -70,7 +70,13 @@ function createTravelEsim({ db, h, walletOps, notify, notifyAdmin = () => {}, lo
       const rows = await col.find({ chatId: req.webChatId }).sort({ createdAt: -1 }).limit(50).toArray()
       res.json({ orders: (await Promise.all(rows.map(settle))).map(pub) })
     }))
+    const busy = new Set()
     r.post('/travel-esim/orders', h(async (req, res) => {
+      if (busy.has(req.webChatId)) return bad(res, 409, 'busy', 'Your last order is still going through. Wait a moment.')
+      busy.add(req.webChatId)
+      try { await order(req, res) } finally { busy.delete(req.webChatId) }
+    }))
+    async function order(req, res) {
       const offer = await findOffer(String(req.body?.offerId || ''))
       if (!offer) return bad(res, 404, 'offer_not_found', 'That plan isn’t available any more. Pick another one.')
       const quote = dryRun() ? { offer_revision: 0, price: { amount: String(offer.cost), currency_code: 'USD' } } : (await bird('get', `/offers/${offer.id}/checkout`)).one_time
@@ -100,7 +106,7 @@ function createTravelEsim({ db, h, walletOps, notify, notifyAdmin = () => {}, lo
         notifyAdmin(`🚨 [TravelESIM] order for ${offer.name} failed: ${e.response?.data?.error?.message || e.message} — refunded`)
         bad(res, 502, 'order_failed', 'The eSIM couldn’t be ordered right now. You weren’t charged.')
       }
-    }))
+    }
   }
   return { routes }
 }

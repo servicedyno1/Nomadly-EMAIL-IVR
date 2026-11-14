@@ -5,6 +5,7 @@ import { api, money, useApi } from '../api';
 import { PageHeader, Spinner, ErrorNote, Label } from '../ui';
 import { WalletPay } from '../WalletPay';
 import { useShell } from '../Shell';
+import { track } from '../track';
 
 const copy = (v) => navigator.clipboard?.writeText(v).then(() => toast.success('Copied'));
 
@@ -12,7 +13,7 @@ function Install({ o }) {
   const i = o.install || {};
   return (
     <div className="grid md:grid-cols-[160px_1fr] gap-4 mt-3" data-testid={`travel-esim-install-${o.id}`}>
-      {i.qr ? <img src={i.qr} alt={`QR code for ${o.name}`} className="w-40 h-40 rounded-lg bg-white p-2" data-testid={`travel-esim-qr-${o.id}`} /> : <div className="w-40 h-40 rounded-lg border border-dashed grid place-items-center text-xs text-[var(--c-muted)]">QR shows here</div>}
+      {i.qr ? <img src={i.qr} alt={`QR code for ${o.name}`} className="w-40 h-40 rounded-lg bg-white p-2" data-testid={`travel-esim-qr-${o.id}`} /> : <div className="w-40 h-40 rounded-lg border border-dashed grid place-items-center text-center p-3 text-xs text-[var(--c-muted)]" data-testid={`travel-esim-qr-missing-${o.id}`}>{o.dryRun ? 'Preview order — no real QR code' : 'QR code is on its way. Refresh in a minute.'}</div>}
       <div className="space-y-2 text-sm">
         <p>Scan the QR code with your phone camera, or use the install button on the phone you travel with.</p>
         <div className="flex flex-wrap gap-2">
@@ -32,7 +33,7 @@ function MyEsims({ orders }) {
     <div data-testid="travel-esim-orders"><Label>Your travel eSIMs</Label>
       <div className="space-y-3">{orders.map(o => (
         <div key={o.id} className="civr-card p-5" data-testid={`travel-esim-order-${o.id}`}>
-          <div className="flex flex-wrap items-center gap-3"><span className="font-semibold flex-1">{o.name}</span><span className={`civr-pill ${o.status === 'active' ? 'civr-pill-ok' : o.status === 'failed' ? 'civr-pill-bad' : 'civr-pill-warn'}`} data-testid={`travel-esim-status-${o.id}`}>{o.status === 'active' ? 'Ready to install' : o.status === 'failed' ? 'Failed · refunded' : 'Preparing…'}</span><span className="font-mono">{money(o.price)}</span></div>
+          <div className="flex flex-wrap items-center gap-3"><span className="flex-1"><span className="font-semibold">{o.name}</span><span className="block text-xs text-[var(--c-muted)]" data-testid={`travel-esim-date-${o.id}`}>{`Bought ${new Date(o.createdAt).toLocaleDateString()} · valid ${o.days} days after you first connect`}{o.dryRun ? ' · preview order (not real)' : ''}</span></span><span className={`civr-pill ${o.status === 'active' ? 'civr-pill-ok' : o.status === 'failed' ? 'civr-pill-bad' : 'civr-pill-warn'}`} data-testid={`travel-esim-status-${o.id}`}>{o.status === 'active' ? 'Ready to install' : o.status === 'failed' ? 'Failed · refunded' : 'Preparing…'}</span><span className="font-mono">{money(o.price)}</span></div>
           {o.status === 'active' && <Install o={o} />}
         </div>
       ))}</div>
@@ -46,6 +47,7 @@ export default function TravelEsim() {
   const { refreshSummary } = useShell();
   const [q, setQ] = useState('');
   const [zone, setZone] = useState(null);
+  const [all, setAll] = useState(false);
   const [pick, setPick] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -53,7 +55,7 @@ export default function TravelEsim() {
   if (!plans.data) return plans.error ? <ErrorNote error={plans.error} onRetry={plans.reload} /> : <Spinner />;
   const buy = async () => {
     setBusy(true); setErr(null);
-    try { const d = await api('/travel-esim/orders', { method: 'POST', body: { offerId: pick.id } }); toast.success(d.status === 'active' ? 'Your eSIM is ready' : 'Order placed — preparing your eSIM'); setPick(null); setZone(null); mine.reload(); refreshSummary(); } catch (e) { setErr(e); } finally { setBusy(false); }
+    try { const d = await api('/travel-esim/orders', { method: 'POST', body: { offerId: pick.id } }); toast.success(d.status === 'active' ? 'Your eSIM is ready' : 'Order placed — preparing your eSIM'); track('travel_esim_paid', { zone: zone?.zone, gb: pick.gb, days: pick.days, price: pick.price }); setPick(null); setZone(null); mine.reload(); refreshSummary(); } catch (e) { setErr(e); } finally { setBusy(false); }
   };
   return (
     <div className="space-y-8" data-testid="travel-esim-page">
@@ -62,9 +64,10 @@ export default function TravelEsim() {
       <div>
         <Label>Where are you going?</Label>
         <div className="relative max-w-md mb-4"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--c-muted)]" /><input className="civr-input w-full !pl-9" placeholder="Search a country" value={q} onChange={e => { setQ(e.target.value); setZone(null); setPick(null); }} data-testid="travel-esim-search-input" /></div>
-        {!zone && <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2" data-testid="travel-esim-zones">{zones.slice(0, 40).map(z => (
-          <button key={z.zone} type="button" onClick={() => setZone(z)} className="civr-card p-3 text-left flex items-center justify-between transition-transform duration-200 hover:-translate-y-0.5" data-testid={`travel-esim-zone-${z.zone.replace(/\W+/g, '-').toLowerCase()}`}><span className="font-medium">{z.zone}</span><span className="text-xs text-[var(--c-muted)]">from {money(z.from)}</span></button>
+        {!zone && <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2" data-testid="travel-esim-zones">{(all ? zones : zones.slice(0, 40)).map(z => (
+          <button key={z.zone} type="button" onClick={() => { setZone(z); track('travel_esim_zone', { zone: z.zone }); }} className="civr-card p-3 text-left flex items-center justify-between transition-transform duration-200 hover:-translate-y-0.5" data-testid={`travel-esim-zone-${z.zone.replace(/\W+/g, '-').toLowerCase()}`}><span className="font-medium">{z.zone}</span><span className="text-xs text-[var(--c-muted)]">from {money(z.from)}</span></button>
         ))}{!zones.length && <p className="text-sm text-[var(--c-muted)]" data-testid="travel-esim-no-match">No plans for that country yet.</p>}</div>}
+        {!zone && !all && zones.length > 40 && <p className="text-sm text-[var(--c-muted)] mt-3" data-testid="travel-esim-more-hint">{`Showing 40 of ${zones.length} countries. Type a country name above, or `}<button type="button" className="underline text-[var(--c-text)]" onClick={() => setAll(true)} data-testid="travel-esim-show-all">show all {zones.length}</button>.</p>}
         {zone && (
           <div className="space-y-4" data-testid="travel-esim-plans">
             <button type="button" className="text-sm underline" onClick={() => { setZone(null); setPick(null); }} data-testid="travel-esim-back">← All countries</button>

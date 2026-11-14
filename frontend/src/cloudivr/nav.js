@@ -5,24 +5,21 @@ import { cp } from './paths';
 // Paths are unchanged from the old menu so every bookmark and emailed link still works.
 // A path of '#phone' opens the browser phone instead of a page.
 export const NAV = [
-  ['home', 'Home', [
-    ['', 'Home', Home, 'nav-dashboard'], ['messages', 'Messages', MessagesSquare, 'nav-messages'], ['live', 'Live activity', Radio, 'nav-live'],
+  ['home', '', [['', 'Home', Home, 'nav-dashboard']]],
+  ['numbers', 'Numbers', [
+    ['numbers', 'My numbers', Hash, 'nav-numbers'], ['buy', 'Get a number', PlusCircle, 'nav-buy'], ['esim', 'USA eSIM', Smartphone, 'nav-esim'], ['travel-esim', 'Travel eSIM', Plane, 'nav-travel-esim'],
+    ['fax', 'Fax', Printer, 'nav-fax'], ['lookup', 'Number lookup', ScanSearch, 'nav-lookup'],
   ]],
-  ['numbers', 'Phone numbers', [
-    ['numbers', 'My numbers', Hash, 'nav-numbers'], ['buy', 'Get a number', PlusCircle, 'nav-buy'], ['texting-number', 'Texting Number', MessageSquare, 'nav-texting-number'], ['international-texting', 'International Texting', Globe, 'nav-international-texting'], ['esim', 'USA eSIM', Smartphone, 'nav-esim'], ['travel-esim', 'Travel eSIM', Plane, 'nav-travel-esim'],
-    ['texting', 'Landline texting', MessageSquareText, 'nav-texting', 'Soon'], ['lookup', 'Number lookup', ScanSearch, 'nav-lookup'], ['fax', 'Fax', Printer, 'nav-fax'],
+  ['messaging', 'Messaging', [
+    ['messages', 'Messages', MessagesSquare, 'nav-messages'], ['texting-number', 'USA Texting Number', MessageSquare, 'nav-texting-number'], ['international-texting', 'International Texting', Globe, 'nav-international-texting'],
+    ['texting', 'Landline texting', MessageSquareText, 'nav-texting', 'Soon'],
   ]],
-  ['answer', 'Answer calls', [
-    ['answer/ivr', 'Keypad menus', Workflow, 'nav-answer-ivr', 'IVR'], ['answer/forwarding', 'Call forwarding & voicemail', PhoneForwarded, 'nav-answer-forwarding'],
-    ['ai-agents?use=inbound', 'AI receptionist', BotMessageSquare, 'nav-ai-receptionist'],
+  ['calls', 'Calls & AI', [
+    ['live', 'Live activity', Radio, 'nav-live'], ['answer/forwarding', 'Call forwarding & voicemail', PhoneForwarded, 'nav-answer-forwarding'], ['answer/ivr', 'Keypad menus', Workflow, 'nav-answer-ivr', 'IVR'], ['ai-agents?use=inbound', 'AI receptionist', BotMessageSquare, 'nav-ai-receptionist'],
+    ['campaigns', 'Bulk campaigns', Megaphone, 'nav-campaigns', 'IVR'], ['ai-agents', 'AI calling agents', Bot, 'nav-ai-agents'], ['quick-call', 'Quick call', PhoneOutgoing, 'nav-calls'], ['text-call', 'Text-to-voice call', Captions, 'nav-text-call'],
+    ['contacts', 'Contacts', Contact, 'nav-contacts'], ['audio', 'Audio library', Music, 'nav-audio'], ['do-not-call', 'Do-not-call list', Ban, 'nav-dnc'],
   ]],
-  ['calls', 'Make calls', [
-    ['quick-call', 'Quick call', PhoneOutgoing, 'nav-calls'], ['text-call', 'Text-to-voice call', Captions, 'nav-text-call'],
-    ['campaigns', 'Bulk campaigns', Megaphone, 'nav-campaigns', 'IVR'], ['ai-agents', 'AI calling agents', Bot, 'nav-ai-agents'], ['do-not-call', 'Do-not-call list', Ban, 'nav-dnc'],
-  ]],
-  ['media', 'Contacts & media', [['contacts', 'Contacts', Contact, 'nav-contacts'], ['audio', 'Audio library', Music, 'nav-audio']]],
-  ['devices', 'Connect devices', [['sip', 'Softphone logins', KeyRound, 'nav-sip', 'SIP'], ['#phone', 'Browser phone', Headphones, 'nav-browser-phone']]],
-  ['account', 'Account', [['wallet', 'Wallet & billing', Wallet, 'nav-wallet'], ['settings', 'Settings', Settings, 'nav-settings'], ['help', 'Help center', BookOpen, 'nav-help']]],
+  ['account', 'Account', [['wallet', 'Wallet & billing', Wallet, 'nav-wallet'], ['sip', 'Softphone logins', KeyRound, 'nav-sip', 'SIP'], ['#phone', 'Browser phone', Headphones, 'nav-browser-phone'], ['settings', 'Settings', Settings, 'nav-settings'], ['help', 'Help center', BookOpen, 'nav-help']]],
 ];
 
 export const SIDE_ITEMS = NAV.flatMap(([, , items]) => items);

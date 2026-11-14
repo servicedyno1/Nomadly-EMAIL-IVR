@@ -200,6 +200,9 @@ function createAuth(db, { log = console.log, notifyAdmin = () => {} } = {}) {
       await recordFailure(ipKey, 15) // counts sign-ups per IP (15 per 15 min)
       const ip = clientIp(req)
       const acc = await createAccount({ email, name: req.body.name, passwordHash: await bcrypt.hash(password, 12), referredBy: await referrerFor(req.body.ref, ip), ip, country: countryOf(req) })
+      // Marketing: first-touch source, signup device, and an explicit (unticked by default) email opt-in.
+      await accounts.updateOne({ _id: acc._id }, { $set: { source: require('./journey').sourceOf(req.body.source), signupDevice: String(req.headers['user-agent'] || '').slice(0, 200), marketingOptIn: req.body.marketingOptIn === true, ...(req.body.marketingOptIn === true ? { marketingOptInAt: new Date() } : {}) } })
+      if (req.body.marketingOptIn === true) await db.collection('webPrefs').updateOne({ _id: String(acc._id) }, { $set: { 'emailPrefs.marketing': true, updatedAt: new Date() } }, { upsert: true })
       await require('./compliance').recordAcceptance(db, acc._id, req, 'signup')
       setSession(req, res, acc, req.body.remember ? 30 : SESSION_DAYS)
       res.status(201).json({ account: publicAccount(acc) })

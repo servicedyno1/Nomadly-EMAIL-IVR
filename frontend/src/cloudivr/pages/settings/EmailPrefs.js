@@ -11,6 +11,7 @@ const SWITCHES = [
   ['campaigns', 'Campaign reports', 'When a Bulk IVR campaign ends: who answered, pressed a key or was transferred.'],
   ['voicemail', 'New voicemail alerts', 'Who called, how long, and the transcript.'],
   ['missed', 'Missed call alerts', 'Call back while they’re still keen.'],
+  ['marketing', 'Offers and product news', 'Occasional deals and new services. Off unless you turn it on.'],
 ];
 const EXAMPLES = [['welcome', 'Welcome'], ['numberLive', 'Number live'], ['renewed', 'Renewal receipt'], ['upgraded', 'Plan upgrade'], ['renewSoon', 'Renewal reminder'], ['renewFailed', 'Renewal failed'], ['suspended', 'Number paused'], ['topup', 'Top-up received'], ['lowBalance', 'Low balance'], ['walletEmpty', 'Wallet empty'], ['campaignDone', 'Campaign report'], ['voicemail', 'New voicemail'], ['missed', 'Missed call'], ['weekly', 'Weekly summary']];
 const STATUS = { sent: 'civr-pill civr-pill-ok', preview: 'civr-pill civr-pill-warn', failed: 'civr-pill civr-pill-bad' };

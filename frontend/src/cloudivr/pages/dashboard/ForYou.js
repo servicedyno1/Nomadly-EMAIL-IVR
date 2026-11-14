@@ -5,7 +5,9 @@ import { toast } from 'sonner';
 import { api, useApi } from '../../api';
 import { cp } from '../../paths';
 import { useShell } from '../../Shell';
-import { suggestionsFor } from '../../purpose';
+import { PURPOSES, suggestionsFor } from '../../purpose';
+
+const PURPOSE_IDS = PURPOSES.map(p => p[0]).filter(id => id !== 'other');
 
 // Overview: one slim, dismissible line of next steps picked from the onboarding purposes. Bring it back in Settings.
 export function ForYou() {
@@ -13,6 +15,8 @@ export function ForYou() {
   const recs = suggestionsFor(onboarding?.purposes);
   const change = () => setOnboarding({ ...onboarding, onboarded: false });
   if (!onboarding || onboarding.suggestionsHidden) return null;
+  if ((onboarding.purposes || []).some(id => PURPOSE_IDS.includes(id))) return null; // the Your services cards show them
+
   const hide = () => {
     setOnboarding({ ...onboarding, suggestionsHidden: true });
     api('/prefs/suggestions', { method: 'PUT', body: { hidden: true } }).then(() => toast('Suggestions hidden. You can turn them back on in Settings.')).catch(e => { setOnboarding({ ...onboarding, suggestionsHidden: false }); toast.error(e.message); });

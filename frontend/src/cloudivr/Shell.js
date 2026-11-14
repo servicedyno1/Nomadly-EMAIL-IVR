@@ -51,7 +51,8 @@ import Help from './pages/Help';
 import { CrashGuard, CrashProbe, OfflineBanner } from './safety';
 import { UpdateBanner } from './update';
 import { WhatsNew } from './WhatsNew';
-import { ProfileBanner, ProfileSetupDialog } from './profile/ProfilePrompts';
+import { ProfileBanner } from './profile/ProfilePrompts';
+import { track } from './track';
 import { PolicyGate } from './compliance/Compliance';
 import { UnsavedGuard } from './guard';
 import { Shortcuts, helpFor } from './shortcuts';
@@ -94,7 +95,7 @@ function SideNav({ onPhone }) {
     <nav className="flex flex-col gap-4" data-testid="nav-header">
       {NAV.map(([gid, group, items]) => (
         <div key={gid} data-testid={`nav-group-${gid}`}>
-          <div className="civr-side-label px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-[#a1a1aa]">{group}</div>
+          {group && <div className="civr-side-label px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-[#a1a1aa]">{group}</div>}
           <div className="flex flex-col gap-0.5">
             {items.map((item) => <NavRow key={item[3]} item={item} active={isSideActive(item, pathname, search)} onPhone={onPhone} />)}
           </div>
@@ -156,6 +157,7 @@ export default function Shell() {
   const { pathname } = useLocation();
   const { lang } = useLang();
   const onb = useOnboarding();
+  useEffect(() => { track('page_view'); }, [pathname]);
   // Spoken IVR menus follow the app language (server swaps default greetings too).
   useEffect(() => { api('/prefs/lang', { method: 'PUT', body: { lang } }).catch(() => {}); }, [lang]);
   useEffect(() => {
@@ -176,7 +178,6 @@ export default function Shell() {
       <Shortcuts onEscape={closePhone} />
       <Palette openPhone={openPhone} />
       <Onboarding data={onb.data} setData={onb.setData} />
-      <ProfileSetupDialog ready={!!onb.data && (onb.data.onboarded || /[?&](start=texting|purpose=fax)\b/.test(window.location.search))} />
       <PolicyGate ready={!!onb.data && (onb.data.onboarded || /[?&](start=texting|purpose=fax)\b/.test(window.location.search))} />
       <div className="lg:flex">
         <Sidebar supportLink={catalog?.supportLink} channelLink={catalog?.channelLink} onPhone={openPhone} />

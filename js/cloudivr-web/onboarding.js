@@ -1,6 +1,6 @@
 'use strict'
 // Onboarding purpose, per-number setup plan, and customer reviews (asked after the first answered call).
-const PURPOSES = ['sales', 'support', 'bookings', 'texting', 'accessible', 'other']
+const PURPOSES = ['line', 'texting', 'travel', 'ai', 'bulk', 'fax', 'other', 'sales', 'support', 'bookings', 'accessible']
 const SETUP_KEYS = ['forwarding', 'browser', 'ivr', 'ai', 'voicemail', 'recording', 'hours', 'sms', 'sip']
 
 function routes(router, { db, h, numbersApi }) {

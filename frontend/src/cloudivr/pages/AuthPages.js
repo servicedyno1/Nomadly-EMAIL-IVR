@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { sourceOf, track } from '../track';
 import { LangSwitcher } from '../i18n';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -105,14 +106,16 @@ export function AuthPage({ mode }) {
   const [f, setF] = useState({ name: '', email: '', password: '' });
   const [remember, setRemember] = useState(false);
   const [policy, setPolicy] = useState(false);
+  const [optIn, setOptIn] = useState(false);
   const [mfa, setMfa] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-  const done = (d) => { if (signup) forget('civr.ref'); setAccount(d.account); nav(dest); };
+  useEffect(() => { if (signup) track('signup_started'); }, [signup]);
+  const done = (d) => { if (signup) { forget('civr.ref'); track('signup_done', { optIn }); } setAccount(d.account); nav(dest); };
   const submit = async (e) => {
     e.preventDefault(); setBusy(true); setError(null);
     try {
-      const d = await api(signup ? '/auth/register' : '/auth/login', { method: 'POST', body: { ...f, remember, ...(signup ? { acceptPolicy: policy } : {}), ...(signup && refCode ? { ref: refCode } : {}) } });
+      const d = await api(signup ? '/auth/register' : '/auth/login', { method: 'POST', body: { ...f, remember, ...(signup ? { acceptPolicy: policy, marketingOptIn: optIn, source: sourceOf() } : {}), ...(signup && refCode ? { ref: refCode } : {}) } });
       if (d.twoFactor) setMfa(d.twoFactor); else done(d);
     } catch (err) { setError(err); } finally { setBusy(false); }
   };
@@ -137,6 +140,7 @@ export function AuthPage({ mode }) {
         </Field>
         <RememberBox checked={remember} onChange={setRemember} />
         {signup && <label className="flex items-start gap-2 text-sm cursor-pointer" data-testid="auth-policy-label"><input type="checkbox" required checked={policy} onChange={e => setPolicy(e.target.checked)} className="mt-1" data-testid="auth-policy-checkbox" /><span>I agree to the <Link to={cp('/terms')} target="_blank" className="text-[#818cf8] underline underline-offset-2" data-testid="auth-policy-terms-link">Terms of Service</Link> and usage policy: no spam, fraud or spoofing, and I honor every STOP request.</span></label>}
+        {signup && <label className="flex items-start gap-2 text-sm cursor-pointer text-[var(--c-muted)]" data-testid="auth-marketing-label"><input type="checkbox" checked={optIn} onChange={e => setOptIn(e.target.checked)} className="mt-1" data-testid="auth-marketing-checkbox" /><span>Email me offers and product news (optional). You can stop any time in Settings.</span></label>}
         <ErrorNote error={error} testid="auth-error" />
         <button className="civr-btn civr-btn-primary w-full" disabled={busy} data-testid="auth-submit-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{signup ? 'Create free account' : 'Sign in'}</button>
       </form>}

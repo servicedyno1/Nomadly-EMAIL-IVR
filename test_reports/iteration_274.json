@@ -1,0 +1,37 @@
+{
+  "summary": "Iter274: tested provider backup buying, provider health hiding stock, bot country list and address-only numbers, the MultiTEL GB search, the Travel eSIM shop (API + UI) and regression pages. Backend: 12/12 pytest checks passed, plus node checks with fake Infobip/MultiTEL modules. Results: if the first provider fails and the other sells, the order comes back with _provider set to the other provider and _failover set; if both fail, null comes back. A retry on the same provider returns _retriedNumber. If the backup provider is down, it is never called. A provider is marked down after 2 failed health checks and number-catalog then drops it from options() and sold(). moreCountries has 52 entries, all multitel/infobip, every type has best() level <=1, none businessOnly or request. botNeedsAddress AU/local=true, GB/mobile=false, allCountries=[US,CA]. The GB mobile texting search returns 10 MultiTEL +44 numbers (1 MultiTEL search used). Travel eSIM: 187 zones, every price is exactly 3x cost, UK = 1/5/10/20 GB at $6/12/18/45. The dry-run order debits $6 and returns active with an LPA code. Orders are per user, an unknown or missing offerId returns 404, and Bob gets 402 on a too-expensive plan with his balance unchanged. UI: the japan search filter, the no-match message, the UK zone with 4 plan cards, checkout, paying, and the order showing 'Ready to install' with the install block all work, and the wallet dropped $6. International Texting, Texting Number, Number lookup and Get a number all load. Code review of the SMS 3-try logic, voicemail after a failed forward, dialWithBackup, and the telnyxPaidCheckout short-circuit with providerOfOrder found the logic as described.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "js/cloudivr-web/sms-reply.js send", "issue": "Permanent errors (invalid number, blocked destination) are also retried 3 times with 1.5s/3s waits, which adds about 4.5s before the customer sees the error. The 'attempts: 3' log entry and the 'We tried 3 times' message are also written even if an error is not retryable."},
+      {"endpoint": "js/_index.js telnyxPaidCheckout / signalwire buyNumber", "issue": "MultiTEL/Infobip detection uses isMtSearched/isIbSearched, which are in-memory 'searched' sets. If the process restarts, or another active slot handles the request between search and checkout, a MultiTEL/Infobip number falls through to the Telnyx path and its buy fails (refunded). This is an edge case."},
+      {"endpoint": "js/cloudivr-web/numbers.js replace flow (~L893)", "issue": "recordResale hardcodes provider 'telnyx', and the replacement doc keeps the old provider. Replacing a MultiTEL/Infobip number therefore records the wrong provider. This is not in this round's scope but is related to the 'save real provider' change."},
+      {"endpoint": "js/cloudivr-web/travel-esim.js", "issue": "The transactions chatId is String(req.webChatId) but the travelEsims chatId is the raw value, so the two can differ in type. There is also no per-user lock on POST /orders: a double submit makes 2 orders, though the UI disables the button while busy."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Travel eSIM", "issues": ["The zone grid shows only the first 40 of 187 countries with no 'type to see more' hint. Users may think only A-B countries exist.", "Orders show no purchase date or validity days left.", "Dry-run orders show an empty 'QR shows here' box with nothing to mark them as preview orders (the banner at the top does say simulated)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_travel_esim_failover_iter274.py", "/app/test_reports/pytest/pytest_iter274.xml"],
+  "action_items": [
+    "Optional: only retry SMS sends on transient errors (5xx or timeout), not on permanent ones like invalid or blocked numbers",
+    "Optional: store the provider of searched numbers in Mongo (or check the number's provider by country/type) so checkout survives a restart",
+    "Optional: Travel eSIM: add a hint when the list is truncated at 40, show order date and validity, and normalise the chatId type in the transactions doc"
+  ],
+  "critical_code_review_comments": [
+    "buyWithBackup only fails over to the other provider when its option is level 0 and not a request. Address-only (level 1) numbers therefore never fail over, which matches the 'no paperwork' rule.",
+    "moreCountries is a getter, so the bot list updates as provider health changes. With both providers down it correctly returns 0 entries.",
+    "The voicemail-after-failed-forward path is guarded by _vmAfterForward, the voicemail feature being enabled, and canAccessFeature. It is ordered after the off-hours fallback, which is correct.",
+    "dialWithBackup only retries when the leg is bird, CALL_ENGINE_BACKUP_TRUNK is set, the destination is not SIP, and the cause is not busy, unallocated or a number change. CALL_ENGINE_BACKUP_TRUNK is not set yet, so this path is currently inactive."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_travel_esim_failover_iter274.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None kept. I made 2 Travel eSIM dry-run orders for Alice (pytest + UI). Both orders and their transactions were deleted and the $6 each was credited back (Alice is at $353.97). The order tes_9dc2de19-a45 already existed (from E1) and was left alone.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "MultiTEL login works now; I used 1 GB mobile search. Bird: the catalog was fetched once (6h cache) and 0 lookups were used. The provider backup tests use fake modules loaded into Module._load from a temporary file in /app/js (the /tmp/fo_test.js pattern). Watch out: a fake multitel api() returning {} makes MultiTEL look down after 2 ticks. The nav testid for Number lookup is nav-lookup."
+}

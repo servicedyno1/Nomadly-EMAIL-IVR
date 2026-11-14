@@ -1,18 +1,26 @@
-import { TrendingUp, LifeBuoy, CalendarCheck, MessageSquareText, Captions, Sparkles } from 'lucide-react';
+import { TrendingUp, LifeBuoy, CalendarCheck, MessageSquareText, Captions, Sparkles, PhoneCall, Plane, Bot, Megaphone, Printer } from 'lucide-react';
 
-// Onboarding purposes → what the app puts first for them ([label, app path]).
+// Onboarding "What do you need?" → what the app puts first for them ([label, app path]).
 export const PURPOSES = [
-  ['sales', TrendingUp, 'Sales & lead calling', 'Call lists, connect the hot leads', [['Start a Bulk IVR campaign', '/app/campaigns/new'], ['Quick IVR call', '/app/quick-call'], ['Import contacts', '/app/contacts']]],
-  ['support', LifeBuoy, 'Customer support line', 'Menus, forwarding, voicemail', [['Get a Business Line', '/app/buy?purpose=voice'], ['Watch calls live', '/app/live'], ['Read your messages', '/app/messages']]],
-  ['bookings', CalendarCheck, 'Appointments & bookings', 'An AI agent answers 24/7', [['Set up an AI voice agent', '/app/ai-agents'], ['Get a Business Line', '/app/buy?purpose=voice'], ['Read your messages', '/app/messages']]],
-  ['texting', MessageSquareText, 'Business texting', 'Send and receive texts in CloudIVR', [['Order a Texting Number', '/app/texting-number'], ['Add texting to your landline', '/app/texting'], ['Read your messages', '/app/messages']]],
-  ['accessible', Captions, 'Type-to-talk calls', 'Type; a voice speaks for you', [['Make a text-to-voice call', '/app/text-call'], ['Get a Business Line', '/app/buy?purpose=voice'], ['Contacts', '/app/contacts']]],
+  ['line', PhoneCall, 'Business phone line', 'Calls, forwarding, voicemail, softphone', [['Get a Business Line', '/app/buy?purpose=voice'], ['Set up call forwarding', '/app/answer/forwarding'], ['Connect a softphone', '/app/sip']]],
+  ['texting', MessageSquareText, 'Text customers', 'USA unlimited, plus international numbers', [['USA Texting Number — unlimited texts', '/app/texting-number'], ['International Texting', '/app/international-texting'], ['Read your messages', '/app/messages']]],
+  ['travel', Plane, 'Travel eSIM', 'Mobile data in 187 countries', [['Find a travel eSIM', '/app/travel-esim'], ['USA eSIM', '/app/esim'], ['Help center', '/app/help']]],
+  ['ai', Bot, 'AI receptionist', 'Answers your calls 24/7, $0.10/min', [['Set up an AI receptionist', '/app/ai-agents?use=inbound'], ['Get a Business Line', '/app/buy?purpose=voice'], ['Read your messages', '/app/messages']]],
+  ['bulk', Megaphone, 'Bulk calls & campaigns', 'Call lists, press-1, voicemail drops', [['Start a Bulk IVR campaign', '/app/campaigns/new'], ['Quick IVR call', '/app/quick-call'], ['Import contacts', '/app/contacts']]],
+  ['fax', Printer, 'Fax', 'Send and receive faxes online', [['Send a fax', '/app/fax'], ['Get a Business Line', '/app/buy?purpose=voice'], ['Help center', '/app/help']]],
   ['other', Sparkles, 'Something else', 'Explore everything', [['Get a Business Line', '/app/buy?purpose=voice'], ['Watch calls live', '/app/live'], ['Help center', '/app/help']]],
+];
+// Older onboarding answers still map to suggestions.
+const LEGACY = [
+  ['sales', TrendingUp, '', '', [['Start a Bulk IVR campaign', '/app/campaigns/new'], ['Quick IVR call', '/app/quick-call'], ['Import contacts', '/app/contacts']]],
+  ['support', LifeBuoy, '', '', [['Get a Business Line', '/app/buy?purpose=voice'], ['Watch calls live', '/app/live'], ['Read your messages', '/app/messages']]],
+  ['bookings', CalendarCheck, '', '', [['Set up an AI voice agent', '/app/ai-agents'], ['Get a Business Line', '/app/buy?purpose=voice'], ['Read your messages', '/app/messages']]],
+  ['accessible', Captions, '', '', [['Make a text-to-voice call', '/app/text-call'], ['Get a Business Line', '/app/buy?purpose=voice'], ['Contacts', '/app/contacts']]],
 ];
 
 // Up to 3 unique suggestions, taking turns across the picked purposes.
 export function suggestionsFor(ids) {
-  const lists = PURPOSES.filter(p => (ids || []).includes(p[0])).map(p => p[4]);
+  const lists = [...PURPOSES, ...LEGACY].filter(p => (ids || []).includes(p[0])).map(p => p[4]);
   const seen = new Set();
   const out = [];
   for (let i = 0; i < 3; i += 1) lists.forEach(l => { if (l[i] && out.length < 3 && !seen.has(l[i][1])) { seen.add(l[i][1]); out.push(l[i]); } });
