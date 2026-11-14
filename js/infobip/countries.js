@@ -2,6 +2,7 @@
 // Infobip countries sold on CloudIVR (from the 14 Nov 2026 offer scan). instant = pick a number now;
 // request = Infobip assigns one after an order (needs: none | company name | name + address). Voice local numbers.
 const INSTANT = {
+  US: 'United States', CA: 'Canada',
   AR: 'Argentina', CL: 'Chile', ES: 'Spain', FR: 'France', HR: 'Croatia', LT: 'Lithuania', MX: 'Mexico',
   MY: 'Malaysia', PL: 'Poland', PR: 'Puerto Rico', RO: 'Romania', UA: 'Ukraine',
 }

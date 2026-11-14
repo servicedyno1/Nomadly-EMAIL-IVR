@@ -167,9 +167,11 @@ const searched = new Map() // e164 → numberKey
 async function searchNumbers(countryCode, numberType, areaCode, limit = 5) {
   if (!enabled()) return []
   try {
-    const params = { country: String(countryCode || 'US').toUpperCase(), limit: Math.max(limit, 10), capabilities: 'VOICE' }
-    if (areaCode) params.number = `${areaCode}`
-    const list = ((await M.http().get('/numbers/1/numbers/available', { params })).data?.numbers || []).filter(n => n.additionalSetupRequired === false).slice(0, limit)
+    const cc = String(countryCode || 'US').toUpperCase()
+    const params = { country: cc, limit: areaCode ? 100 : Math.max(limit, 10), capabilities: 'VOICE' }
+    // Infobip ignores area codes, so filter here (US/CA: 1 + area code; elsewhere: digits appear in the number).
+    const inArea = (num) => !areaCode || (['US', 'CA', 'PR'].includes(cc) ? String(num).startsWith(`1${areaCode}`) : String(num).includes(String(areaCode)))
+    const list = ((await M.http().get('/numbers/1/numbers/available', { params })).data?.numbers || []).filter(n => !n.additionalSetupRequired && inArea(n.number)).slice(0, limit)
     return list.map(n => {
       const num = e164(n.number); searched.set(num, n.numberKey)
       const caps = n.capabilities || []

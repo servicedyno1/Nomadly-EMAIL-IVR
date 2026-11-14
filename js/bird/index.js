@@ -152,7 +152,9 @@ async function spendLeft() {
 }
 const forgetCallerIds = () => { cache.cids = null }
 
+const rawLookup = (n) => req('post', '/lookup/phone-number', { phone_number: e164(n) })
 const M = module.exports = {
+  rawLookup,
   enabled, isBird, host, http: makeHttp, errOf, trunkName,
   lookup, searchNumbers, isBirdSearched, buyNumber, releaseNumber, listNumbers, numberStatus,
   getTrunk, ensureTrunk, routeToTrunk, enableDestinations, listDestinations,

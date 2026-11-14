@@ -51,7 +51,8 @@ function countries() {
   const list = [...phoneConfig.countries, ...intl].map(c => {
     const i = c.name.indexOf(' ')
     const ib = ibCountries.isInstant(c.code) && ibOn()
-    return { code: c.code, flag: c.name.slice(0, i), name: c.name.slice(i + 1), types: ib ? ['local'] : c.types || ['local', 'toll_free'], ...(ib ? { provider: 'infobip' } : {}) }
+    const keepTypes = ['US', 'CA'].includes(c.code)
+    return { code: c.code, flag: c.name.slice(0, i), name: c.name.slice(i + 1), types: ib && !keepTypes ? ['local'] : c.types || ['local', 'toll_free'], ...(ib ? { provider: 'infobip' } : {}) }
   })
   if (!ibOn()) return list
   const have = new Set(list.map(c => c.code))
@@ -307,12 +308,15 @@ function routes(router, deps) {
     const verification = c.provider === 'infobip' ? { required: false } : await verificationInfo(country, type, `${c.flag} ${c.name}`)
     if (verification.error) return bad(res, 424, 'lookup_failed', verification.error)
     if (verification.required && !verification.supported) return bad(res, 400, 'unsupported', `${c.name} ${TYPE_NAMES[type] || type} numbers can't be ordered online right now. Pick another country or type.`)
-    const found = await unheld(c.provider === 'infobip' ? await require('../infobip').searchNumbers(country, type, areaCode, 12) : await telnyxApi.searchNumbers(country, type, areaCode, 12))
+    // Infobip-only countries search Infobip directly; US/CA go through the provider chain (Infobip first, others if it has none).
+    const ibOnly = c.provider === 'infobip' && !['US', 'CA'].includes(c.code)
+    const found = await unheld(ibOnly ? await require('../infobip').searchNumbers(country, type, areaCode, 12) : await telnyxApi.searchNumbers(country, type, areaCode, 12))
     const results = found.map(n => ({
       phoneNumber: n.phone_number,
       region: (n.region_information || []).map(r => r.region_name).filter(Boolean).join(', '),
       capabilities: { ...(n._capabilities || { voice: true, sms: false, fax: false }), ...(n._signalwire ? { fax: false } : {}) },
-      surcharge: c.provider === 'infobip' ? 0 : round2(numberSurcharge(country, type, n)),
+      surcharge: n._provider === 'infobip' ? 0 : round2(numberSurcharge(country, type, n)),
+      provider: n._provider || null,
       cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
     }))
     const fb = found.find(n => n._areaFallback)
@@ -379,7 +383,7 @@ function routes(router, deps) {
       if (eu) require('../infobip').setResaleNote(phone, require('./legal-profile').resaleNote(eu))
       let order
       if (presetOrder) order = presetOrder
-      else if (!ver.required && dryRun()) order = { id: `dryrun-${crypto.randomUUID().slice(0, 8)}`, ...(c?.provider === 'infobip' ? { _provider: 'infobip' } : {}) }
+      else if (!ver.required && dryRun()) order = { id: `dryrun-${crypto.randomUUID().slice(0, 8)}`, ...(hit?.provider === 'infobip' || (c?.provider === 'infobip' && !['US', 'CA'].includes(country)) ? { _provider: 'infobip' } : {}) }
       else order = await paidCheckout(chatId, phone, ctx)
       if (order?._verification) {
         await phoneTransactions.insertOne({ chatId, phoneNumber: phone, action: 'purchase_verification', plan: planKey, amount: price, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })

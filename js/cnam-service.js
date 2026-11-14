@@ -1,6 +1,6 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CNAM Lookup Service — Resolve caller/sender names
-// Priority: Telnyx (primary) → Multitel (fallback) → SignalWire (last resort)
+// Priority: SignalWire → Multitel (Telnyx removed: account blocked; Bird/Infobip lookups have no caller name)
 // Results cached in MongoDB to avoid repeat lookups
 // Circuit breaker: auto-skips exhausted/down providers
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -144,7 +144,6 @@ function initCnamService(deps) {
   _cnamCache = deps.cnamCache
   const providers = []
   if (SIGNALWIRE_ON) providers.push('SignalWire')
-  if (TELNYX_API_KEY) providers.push('Telnyx')
   if (MULTITEL_USERNAME) providers.push('Multitel')
   log(`[CnamService] Initialized — priority: ${providers.join(' → ')} + MongoDB cache + circuit breaker`)
 }
@@ -232,20 +231,7 @@ async function lookupCnam(phoneNumber) {
     }
   }
 
-  // 2. Telnyx (automatic backup if the account recovers)
-  if (!name && TELNYX_API_KEY && circuitAllows('telnyx')) {
-    try {
-      name = await lookupTelnyx(clean)
-      circuitSuccess('telnyx')
-    } catch (e) {
-      circuitFailure('telnyx', e)
-      const status = e.response?.status
-      const detail = e.response?.data?.errors?.[0]?.detail || e.message
-      log(`[CNAM] Telnyx failed for ${clean} (${status || 'network'}): ${detail}`)
-    }
-  }
-
-  // 3. Multitel (last resort)
+  // 2. Multitel (caller names; Bird/Infobip lookups don't return names)
   if (!name && MULTITEL_USERNAME && MULTITEL_PASSWORD && circuitAllows('multitel')) {
     try {
       name = await lookupMultitel(clean)

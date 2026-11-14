@@ -120,3 +120,10 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Live call check (preview): Bird call +12074892004 → +16479457172 → Infobip → owner found → answered → IVR greeting spoken. DTMF/voicemail not exercised (test script hangs up on answer). Test number attached to preview user 5000000000000092 (liveTest).
 - PRODUCTION: Infobip calls config 'nomadly' + profile/subscription 'nomadly-prod-voice' → https://2.speechcue.com/infobip/voice-webhook created; INFOBIP_API_KEY/BASE_URL added to /opt/nomadly/shared/app-main/backend.env (backup taken). NOT restarted — goes live with next deploy (Save to GitHub). Other brands not enabled.
 - Tests: iteration_267 backend 11/11, frontend 90% → fixed pending list refresh, refund idempotency, atomic activation claim, gate for all request countries.
+
+## 2026-11-14 — Infobip default + Bird lookups
+- Provider chain (signalwire/index.js w.searchNumbers): Infobip FIRST for local numbers → Telnyx SIP → SignalWire → old Telnyx. Toll-free unchanged. Infobip search filters area code client-side (API ignores it) and accepts additionalSetupRequired null (US numbers lack the field).
+- US/CA added to infobip INSTANT; keep toll_free type; web search for US/CA goes through chain; surcharge 0 only when the hit is from Infobip (hit.provider).
+- w.assignNumberToCallControlApp returns true for Infobip-owned numbers (no Telnyx call).
+- Lookups: Bird first everywhere (signalwire lookup(), validateForwardingDestination, bulk-esim lookupOne); Telnyx lookups removed. Caller NAME: Bird + Infobip don't return names (Bird docs; Infobip lookup "route not available") → CNAM = SignalWire → Multitel (Telnyx removed).
+- Self-tested: US no-area → 10 Infobip; 631 → 2 Infobip; 212 → SignalWire; CA → Infobip; toll-free → SignalWire; Bird lookup US/GB ok; Multitel CNAM ok.
