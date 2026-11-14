@@ -743,7 +743,23 @@ function routes(router, deps) {
   const FREE = lifecycle.EXTRA_SIP_FREE
   const extraOk = (n) => phoneConfig.canAccessFeature(n.plan, 'sipCredentials')
   const freeLeft = (n) => Math.max(0, (FREE[n.plan] || 0) - (n.extraSip || []).filter(x => !x.paid).length)
-  const pubExtra = (n) => (n.extraSip || []).map(x => ({ id: x.id, label: x.label, username: x.username, createdAt: x.createdAt, paid: !!x.paid, active: lifecycle.sipLoginOk(n, x) }))
+  const pubExtra = (n) => (n.extraSip || []).map(x => ({ id: x.id, label: x.label, username: x.username, createdAt: x.createdAt, paid: !!x.paid, active: lifecycle.sipLoginOk(n, x), callerId: x.callerId || null }))
+  // Which of your numbers a SIP login calls from (and is billed to). Empty = the number the login belongs to.
+  router.get('/numbers/:phone/sip/caller-id', withNumber(async (req, res) => {
+    const all = (await phoneNumbersOf.findOne({ _id: req.webChatId }))?.val?.numbers || []
+    res.json({ main: req.num.sipCallerId || null, options: all.filter(x => x.status === 'active' && x.provider !== 'signalwire_fax' && x.capabilities?.voice !== false).map(x => x.phoneNumber) })
+  }))
+  router.put('/numbers/:phone/sip/caller-id', withNumber(async (req, res) => {
+    const pick = req.body?.callerId ? String(req.body.callerId) : null, loginId = req.body?.loginId ? String(req.body.loginId) : null
+    const doc = await phoneNumbersOf.findOne({ _id: req.webChatId })
+    const all = doc?.val?.numbers || []
+    if (pick && pick !== req.num.phoneNumber && !all.some(x => x.phoneNumber === pick && x.status === 'active' && x.provider !== 'signalwire_fax')) return bad(res, 400, 'invalid_caller', 'Pick one of your active numbers.')
+    const value = pick === req.num.phoneNumber ? null : pick
+    const nums = all.map(x => (x.phoneNumber !== req.num.phoneNumber ? x : loginId ? { ...x, extraSip: (x.extraSip || []).map(e => (e.id === loginId ? { ...e, callerId: value } : e)) } : { ...x, sipCallerId: value }))
+    await phoneNumbersOf.updateOne({ _id: req.webChatId }, { $set: { 'val.numbers': nums } })
+    log(`[CloudIVR-Web] ${req.webChatId} SIP login ${loginId || 'main'} on ${req.num.phoneNumber} now calls from ${value || req.num.phoneNumber}`)
+    res.json({ ok: true, callerId: value || req.num.phoneNumber })
+  }))
   router.get('/numbers/:phone/sip/extra', withNumber(async (req, res) => res.json({ allowed: extraOk(req.num), free: FREE[req.num.plan] || 0, freeLeft: freeLeft(req.num), price: lifecycle.EXTRA_SIP_PRICE(), max: lifecycle.EXTRA_SIP_MAX, logins: pubExtra(req.num), domain: phoneConfig.WEB_SIP_DOMAIN })))
   router.post('/numbers/:phone/sip/extra', withNumber(async (req, res) => {
     const n = req.num, MAX = lifecycle.EXTRA_SIP_MAX

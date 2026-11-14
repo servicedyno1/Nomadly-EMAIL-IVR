@@ -4,6 +4,7 @@ import { Copy, KeyRound, Loader2, Plus, Trash2 } from 'lucide-react';
 import { api, enc } from '../../api';
 import { ask } from '../../i18n';
 import { ErrorNote } from '../../ui';
+import { CallsFrom } from './SipCallerId';
 
 const copy = (v) => navigator.clipboard?.writeText(v).then(() => toast.success('Copied'));
 
@@ -28,12 +29,13 @@ export function ExtraSipLogins({ num }) {
     <div className="civr-card p-6 space-y-4 lg:col-span-3" data-testid="extra-sip-card">
       <div className="flex items-center gap-2"><KeyRound className="w-5 h-5 text-[#818cf8]" /><div className="font-display text-xl font-bold">Extra SIP logins</div><span className="civr-pill" data-testid="extra-sip-count">{d.logins.length}/{d.max}</span></div>
       {!d.allowed ? <p className="text-sm text-[var(--c-muted)]" data-testid="extra-sip-upgrade">Give each desk phone or teammate its own login. Needs a plan with SIP: Starter, Pro (2 free) or Business (5 free). More cost $5/month each.</p> : <>
-        <p className="text-sm text-[var(--c-muted)]">Each login rings and calls out as {num.phoneNumber}. Remove one to cut off that device without touching the others.</p>
+        <p className="text-sm text-[var(--c-muted)]">Each login rings for {num.phoneNumber} and can call out from any of your numbers. Remove one to cut off that device without touching the others.</p>
         <p className="text-sm" data-testid="extra-sip-pricing">{d.freeLeft > 0 ? `${d.freeLeft} free login${d.freeLeft === 1 ? '' : 's'} left on this plan, then $${d.price}/month each.` : `Extra logins cost $${d.price}/month each.`}</p>
         {d.logins.map(x => (
-          <div key={x.id} className="flex items-center gap-3 text-sm" data-testid={`extra-sip-${x.id}`}>
+          <div key={x.id} className="flex flex-wrap items-center gap-3 text-sm" data-testid={`extra-sip-${x.id}`}>
             <span className="font-semibold w-32 truncate">{x.label}</span>{x.paid && <span className="civr-pill" data-testid={`extra-sip-paid-${x.id}`}>${d.price}/mo</span>}{!x.active && <span className="civr-pill civr-pill-bad" data-testid={`extra-sip-inactive-${x.id}`}>Off on this plan</span>}<span className="font-mono flex-1 truncate" data-no-translate>{x.username}@{d.domain}</span>
             <button className="civr-btn civr-btn-ghost !px-2" onClick={() => remove(x)} aria-label={`Remove ${x.label}`} data-testid={`extra-sip-remove-${x.id}`}><Trash2 className="w-4 h-4" /></button>
+            <div className="basis-full"><CallsFrom num={num} loginId={x.id} value={x.callerId} testid={`extra-sip-calls-from-${x.id}`} /></div>
           </div>
         ))}
         {fresh && <div className="rounded-xl border border-[#818cf8]/40 p-3 text-sm space-y-1" data-testid="extra-sip-new">

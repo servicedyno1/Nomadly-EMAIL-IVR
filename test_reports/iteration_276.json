@@ -1,0 +1,46 @@
+{
+  "summary": "Tested country flags, admin Signup insights and the Travel eSIM QR / phone number. Backend: 8 of 9 pytest tests pass. Admin insights works: auth is checked, the response has the right shape, days=7/30/90 works, a bad value falls back to 30, and a new signup with a utm source, campaign and purpose is counted. Order fields come back correctly and cost/idemKey/chatId are hidden. FAILED: Travel eSIM zones have code=null for all 187 zones. Frontend: flags render as span.fi (no emoji) on International Texting, My numbers cards, number detail, Messages thread list and header (uxtest: +31 NL, +1416 CA), number Call log desktop table and phone cards (390 wide), dashboard activity, and Travel eSIM order cards. The eSIM order card shows a QR SVG plus 'eSIM number +3197000000000' for a temporary non-dryRun order (now deleted). Admin Signup insights UI shows every stat and bar list. The 7/30/90 buttons refetch (requests seen: days=7, days=90). A UI signup from /cloudivr/?utm_source=insighttest&utm_campaign=insightcamp that picked Fax appeared in sources, campaigns and purposes. Regression: the iter275 pytest suite passes 16 of 16. Onboarding and Home loaded during the UI signup. No console errors.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/cloudivr-web/travel-esim/plans", "issue": "Every zone has code=null, so there is no flag on the zone buttons, plan header or order cards for new orders. RCA: travel-esim.js catalog() reads o.zone?.countries, but Bird /v1/esim/offers returns only zone_id (offer keys: created_at,id,name,phone,pricing,product,revision,speed,stackable,status,zone_id). Countries are only on GET /v1/esim/zones (paginated; e.g. {id:'ezn_...', name:'South Africa', countries:['ZA'], type:'local'}). Fix: in catalog(), page through /zones (limit=100, next_cursor) and build a zone_id->countries map. Then set code = countries.length===1 ? countries[0] : null. After deploying, clear or restart the 6h in-memory cache.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "GET /admin/signup-insights", "issue": "webEvents are sorted at:1 and capped with limit(200000). Past 200k events the NEWEST ones are dropped, so the funnel and exits for recent days become wrong. Sort descending, or aggregate in Mongo."},
+      {"endpoint": "GET /admin/signup-insights", "issue": "Visitor exits include admin and test paths ('/cloudivr/admin' is the top row, '/x'). Exclude /admin paths, or skip page_view tracking on the admin app."},
+      {"endpoint": "GET /admin/signup-insights", "issue": "Funnel 'Signed up' shows 247% of 'Visited the site' (47 vs 19) because signups made before tracking started have no visit events. Count only signups whose anon id has a page_view, or label the row clearly."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "FlagSelect (Pickers.js)", "issue": "FIXED BY TESTER. The flag drew ABOVE the select (42px off-centre, its own line) instead of inside it. flag-icons CSS '.fi{position:relative}' loads after Tailwind and overrode 'absolute'. Changed it to '!absolute'. Verified that address-country-select (profile dialog) and quick-call-nocc-select (CountryFix) now centre the flag 12px from the left with padding-left 40px and no text overlap. fax-buy-country-select uses the same component (not reached in UI because the profile gate blocks it).", "selector": "[data-testid=address-country-select]", "priority": "HIGH"},
+      {"component": "ReadyToText (pages/buy/ReadyToText.js)", "issue": "The component is never imported or rendered anywhere in the frontend, now or in git history. The ready-to-text-<CC>-<type> buttons therefore never appear on Get a number, and the flag change there has no effect.", "selector": "[data-testid^=ready-to-text-]", "priority": "MEDIUM"},
+      {"component": "NumberLookup history", "issue": "The lookup result card has a flag (code review), but the 'Recent lookups' rows (lookup-history-<i>) have no flag. Live lookup not run because it is a real paid provider call and is not simulated in preview.", "selector": "[data-testid^=lookup-history-]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Travel eSIM flags", "issue": "Zone buttons and the plan header show no flag (Plane icon fallback). Order cards for real orders also show none, because the backend sends code=null (see backend critical).", "affected_selectors": ["[data-testid^=travel-esim-zone-]", "[data-testid^=travel-esim-plan-]", "[data-testid^=travel-esim-order-]"]}
+    ],
+    "design_issues": [
+      {"screen": "Number Call log, phone cards (390px)", "issues": ["A long unbroken SMS body (uxtest 'TEST xxxx…') overflows the card. Page scrollWidth was 1041 at 390 wide. Add break-words/break-all to the details text."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_flags_insights_iter276.py", "/app/test_reports/pytest/pytest_iter276.xml"],
+  "action_items": [
+    "travel-esim.js: map Bird offer.zone_id to countries via GET /v1/esim/zones (paginated) so zones and orders get an ISO code; the 6h cache must refresh",
+    "Render ReadyToText somewhere (Get a number / texting flow), or remove it",
+    "Signup insights: sort events descending (or aggregate), exclude /admin paths from visitor exits, and fix the >100% funnel row",
+    "Optional: flag in lookup history rows; wrap long SMS bodies in LogTable phone cards"
+  ],
+  "critical_code_review_comments": [
+    "Pickers.js FlagSelect: utility classes on .fi elements can lose to flag-icons CSS (position, display). Use ! (important) for any positioning on Flag",
+    "phoneCountry.js: +7 always maps to RU (Kazakhstan +76/+77 would show RU); acceptable but note",
+    "admin signup-insights loads up to 200k events into Node memory per request; consider a Mongo aggregation",
+    "Insights.js has a hard-coded 'tracking started on 14 Nov 2026' note"
+  ],
+  "updated_files": ["/app/frontend/src/cloudivr/Pickers.js (FlagSelect absolute -> !absolute)", "/app/backend/tests/test_cloudivr_flags_insights_iter276.py"],
+  "success_rate": {"backend": "89% (8/9)", "frontend": "85% (flags OK on 9 of 11 surfaces; Travel eSIM zones/plan header missing; ReadyToText not rendered)"},
+  "seed_data_creation": "Temporary travelEsims docs TEST_esim_ui276/TEST_esim_ui276b for Alice (chatId '5000000000000900' string) were deleted. Test accounts test_iter276_* (API + UI signup) were purged. Nothing left behind.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Alice's numbers are now +13346970100/+13346970101. The seeded message threads (+15125550199) belong to her old number +13346972125, so Alice has NO threads. Use civr.uxtest for Messages and logs flag checks (threads with +316844448264 NL, +14165550271 CA). travelEsims.chatId is a string. Admin login: the code input (admin-login-code) is prefilled with devCode in preview. The profile-banner dialog needs 'Individual' clicked before address-country-select appears. The Number lookup is a real paid call, so do not run it. The Netherlands eSIM zone is not in the first 40 zones; use search.",
+  "rca of the issue": "Travel eSIM codes: the Bird offer object has zone_id, not zone.countries, so code is always null. FlagSelect: the flag-icons .fi rule overrides Tailwind's .absolute because of CSS order, so the flag rendered in the normal flow above the select."
+}

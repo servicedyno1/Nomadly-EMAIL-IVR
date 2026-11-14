@@ -108,7 +108,7 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     if (d.err) return bad(res, 400, 'invalid_number', d.err)
     const lim = await limit(req, email, d.to)
     if (lim) return bad(res, ...lim)
-    const callerId = process.env.TELNYX_DEFAULT_ANI
+    const callerId = (await require('../ivr-outbound').getTrialCaller({ purpose: 'landing_test_call', to: d.to })).callerId || process.env.TELNYX_DEFAULT_ANI
     if (!dryRun() && !callerId) return bad(res, 503, 'unavailable', 'Free test calls are paused right now. Try again later.')
     // Optional: the visitor can show any caller ID on their free test call (not emergency numbers; logged).
     const cidSvc = require('./caller-ids')

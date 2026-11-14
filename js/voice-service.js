@@ -3874,19 +3874,21 @@ async function findNumberBySipUser(sipUsername, fromPhone, connectionPhoneNumber
     const ml = _db && sipUsername ? await _db.collection('esimLines').findOne({ 'sip.username': sipUsername, kind: 'mobile', status: 'active' }) : null
     if (ml) return { chatId: ml.chatId, num: { phoneNumber: ml.phoneNumber, provider: 'telnyx', status: 'active', plan: 'business', mobileLine: ml._id, features: {} } }
     const allUsers = await _phoneNumbersOf.find({}).toArray()
+    // A login set to call from another of the owner's active numbers uses (and bills) that number.
+    const via = (user, num, cid, extra) => { const alt = cid && (user.val?.numbers || []).find(x => x.phoneNumber === cid && x.status === 'active'); if (alt) log(`[Voice] SIP ${sipUsername} calls from ${alt.phoneNumber} (login on ${num.phoneNumber})`); return { chatId: user._id, num: alt || num, ...(extra || {}) } }
     for (const user of allUsers) {
       const numbers = user.val?.numbers || []
       for (const num of numbers) {
         if (num.status !== 'active' && num.status !== 'suspended') continue
         // Match by SIP username (Telnyx gencred or legacy)
         if (num.telnyxSipUsername && num.telnyxSipUsername === sipUsername) {
-          return { chatId: user._id, num }
+          return via(user, num, num.sipCallerId)
         }
         if (num.sipUsername && num.sipUsername === sipUsername) {
-          return { chatId: user._id, num }
+          return via(user, num, num.sipCallerId)
         }
         const extra = (num.extraSip || []).find(x => x.username === sipUsername)
-        if (extra && require('./plan-lifecycle').sipLoginOk(num, extra)) return { chatId: user._id, num, sipLogin: extra.label || extra.username }
+        if (extra && require('./plan-lifecycle').sipLoginOk(num, extra)) return via(user, num, extra.callerId, { sipLogin: extra.label || extra.username })
         // Match by phone number (in case 'from' is the phone number)
         // CRITICAL: Skip phone number matching if 'from' is the SIP connection's own number
         // because that number belongs to a different user — not the actual SIP caller

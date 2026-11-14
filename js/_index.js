@@ -26413,7 +26413,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           return send(chatId, trans('t.cp_9', buyLabel), k.of([[buyLabel]]))
         }
         // Trial path — auto-assign caller ID (prefer SignalWire pool number; Telnyx blocked)
-        const _trialCaller = await ivrOb.getTrialCaller()
+        const _trialCaller = await ivrOb.getTrialCaller({ purpose: 'bot_quick_ivr_trial', chatId })
         await saveInfo('ivrObData', { callerId: _trialCaller.callerId, isTrial: true, callerProvider: _trialCaller.callerProvider })
         await set(state, chatId, 'action', a.ivrObEnterTarget)
         return send(chatId, trans('t.cp_10', _trialCaller.callerId), k.of(ccid.on() ? ccid.btnRow(lang) : [['↩️ Back']]))
@@ -49716,6 +49716,17 @@ app.post('/infobip/voice-webhook', express.json({ limit: '1mb' }), async (req, r
 
 // Infobip inbound texts (number SMS action HTTP_FORWARD) → same handler as Telnyx texts.
 // The path carries a key derived from our Infobip API key, so only Infobip (configured by us) can post here.
+// Infobip delivery reports for texts sent from the web app → same status/refund path as Telnyx (failed = refunded).
+app.post('/infobip/sms-dlr/:k', express.json({ limit: '1mb' }), (req, res) => {
+  res.sendStatus(200)
+  if (req.params.k !== require('./infobip').smsHookKey()) return log('Infobip DLR: bad key')
+  for (const r of req.body?.results || []) {
+    const g = String(r.status?.groupName || '').toUpperCase()
+    const status = g === 'DELIVERED' ? 'delivered' : ['REJECTED', 'UNDELIVERABLE', 'EXPIRED'].includes(g) ? 'delivery_failed' : null
+    log(`Infobip DLR ${r.messageId} → ${r.to}: ${g} ${r.error?.name || ''}`)
+    if (status && cloudivrWeb?.smsDelivery) cloudivrWeb.smsDelivery(db, { id: r.messageId, to: [{ status }], errors: status === 'delivery_failed' ? [{ code: String(r.error?.id || r.status?.id || ''), title: r.status?.description || '', detail: r.error?.description || '' }] : [] }, log)
+  }
+})
 app.post('/infobip/sms-webhook/:k', express.json({ limit: '1mb' }), async (req, res) => {
   res.sendStatus(200)
   if (req.params.k !== require('./infobip').smsHookKey()) return log('Infobip SMS webhook: bad key')

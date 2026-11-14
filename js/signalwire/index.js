@@ -85,7 +85,11 @@ function wrap(t) {
     }
     if (st === 'full' || (st === 'bird' && birdWaiters.length)) st = await waitForBirdLine(from, to)
     const viaBird = st === 'bird'
+    if (st === 'unlinked') birdWanted.add(from)
     if (viaBird) tries.push(['Bird', () => ce.createOutboundCall(from, to, webhookUrl, connectionId, options)])
+    // An Infobip-owned caller ID calls through Infobip before SignalWire (SignalWire would swap it for a pool number).
+    const ibFirst = !viaBird && ib.enabled() && !/^sip:/i.test(String(to)) && (await ib.refreshOwned().catch(() => [])).includes(from)
+    if (ibFirst) tries.push(['Infobip', () => ib.voice.createOutboundCall(from, to, webhookUrl, connectionId, options)])
     if (nanp && swOn() && voice.connected()) tries.push(['SignalWire', async () => {
       const nanpFrom = /^\+1\d{10}$/.test(String(from))
       let use = nanpFrom ? (await poolCaller(from)) || from : from
@@ -122,7 +126,7 @@ function wrap(t) {
       if (use !== from) { r.callerSwapped = { requested: from, used: use }; log(`caller ID ${from} isn't on SignalWire — REST called ${to} from ${use}`) }
       return r
     }])
-    if (ib.enabled() && !/^sip:/i.test(String(to))) tries.push(['Infobip', () => ib.voice.createOutboundCall(from, to, webhookUrl, connectionId, options)])
+    if (!ibFirst && ib.enabled() && !/^sip:/i.test(String(to))) tries.push(['Infobip', () => ib.voice.createOutboundCall(from, to, webhookUrl, connectionId, options)])
     if (!viaBird && !nanp && ce.enabled() && ce.connected()) tries.push(['CallEngine', () => ce.createOutboundCall(from, to, webhookUrl, connectionId, options)])
     if (telnyxBackup() || !tries.length) tries.push(['Telnyx', () => t.createOutboundCall(from, to, webhookUrl, connectionId, options)])
     let first = null

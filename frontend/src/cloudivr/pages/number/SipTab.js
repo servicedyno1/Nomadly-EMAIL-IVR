@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CallsFrom } from './SipCallerId';
 import { Link } from 'react-router-dom';
 import { ask } from '../../i18n';
 import { toast } from 'sonner';
@@ -93,6 +94,7 @@ export default function SipTab({ num }) {
       <SipCredentials num={num} />
       <BrowserPhoneCard />
       <TestOutbound num={num} />
+      <CallsFrom num={num} card testid="sip-main-calls-from" />
       <ExtraSipLogins num={num} />
       <div className="lg:col-span-3 text-sm text-[#a1a1aa]">All your numbers’ SIP logins and a setup guide: <Link to={cp('/app/sip')} className="text-[#818cf8] hover:underline" data-testid="sip-tab-all-link">SIP & softphones</Link></div>
     </div>

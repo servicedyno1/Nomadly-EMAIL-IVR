@@ -20,7 +20,7 @@ export const Flag = ({ code, className = '' }) => (code
 export const PhoneFlag = ({ number, className = '' }) => <Flag code={countryOfPhone(number)} className={className} />;
 // Native country <select> with the chosen country's flag inside it.
 export function FlagSelect({ code, children }) {
-  return <div className="relative">{code && <Flag code={code} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-[1]" />}<div className={code ? '[&>select]:!pl-10' : ''}>{children}</div></div>;
+  return <div className="relative">{code && <Flag code={code} className="!absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-[1]" />}<div className={code ? '[&>select]:!pl-10' : ''}>{children}</div></div>;
 }
 
 const COIN = { BTC: btc, LTC: ltc, ETH: eth, USDT: usdt, DOGE: doge, BCH: bch, TRON: trx, TRX: trx };

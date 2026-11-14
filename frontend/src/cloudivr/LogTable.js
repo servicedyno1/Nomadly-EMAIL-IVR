@@ -41,7 +41,7 @@ function Details({ l, i, testid, notePhone, onNotesChange, r, rid, summarize }) 
   const pv = usePrivacy();
   return (
     <>
-      {l.body && <span className="block text-[#e4e4e7] break-words" data-testid={`${testid}-body-${i}`}>{pv.text(l.body, 'Message hidden')}</span>}
+      {l.body && <span className="block text-[#e4e4e7] break-words [overflow-wrap:anywhere]" data-testid={`${testid}-body-${i}`}>{pv.text(l.body, 'Message hidden')}</span>}
       {l.type === 'sms_out' && <SmsStatus status={l.smsStatus} reason={l.smsReason} testid={`${testid}-sms-status-${i}`} />}
       {l.digit && <span className="civr-pill civr-pill-on ml-1">key {l.digit}</span>}
       {l.recordingUrl && <audio controls preload="none" src={l.recordingUrl} className="h-8 mt-1 max-w-full" data-testid={`${testid}-recording-${i}`} />}
@@ -87,7 +87,7 @@ function LogCard({ l, i, showNumber, testid, notePhone, onNotesChange, summarize
         <span className="flex items-center gap-2 text-sm font-semibold text-[#f3f4f6]"><Icon className="w-4 h-4 shrink-0" style={{ color }} />{name}</span>
         <span className="text-xs text-[#a1a1aa] whitespace-nowrap pt-0.5">{when(l.timestamp)}</span>
       </div>
-      <div className="mt-2 grid grid-cols-[auto,1fr] gap-x-4 gap-y-1 text-xs">
+      <div className="mt-2 grid grid-cols-[auto,minmax(0,1fr)] gap-x-4 gap-y-1 text-xs">
         {showNumber && cell('Number', pv.phone(l.phoneNumber), `${testid}-number-${i}`)}
         {cell('From', <span className="inline-flex items-center gap-1.5"><PhoneFlag number={l.from} />{pv.phone(l.from) || '—'}</span>, `${testid}-from-${i}`)}
         {cell('To', <span className="inline-flex items-center gap-1.5"><PhoneFlag number={l.forwardTo || l.to} />{pv.phone(l.forwardTo || l.to) || '—'}</span>, `${testid}-to-${i}`)}

@@ -163,7 +163,7 @@ async function trialStatus(db, numbersApi, chatId) {
   const used = !!p?.ivrTrialUsed || st?.val === true
   const heldUntil = p?.ivrTrialPendingAt ? new Date(p.ivrTrialPendingAt).getTime() + TRIAL_HOLD_MS : 0
   const inProgress = !used && heldUntil > Date.now()
-  return { available: !used && !hasCaller, used, inProgress, retryAt: inProgress ? new Date(heldUntil) : null, callerId: ivrOb.TRIAL_CALLER_ID }
+  return { available: !used && !hasCaller, used, inProgress, retryAt: inProgress ? new Date(heldUntil) : null, callerId: ivrOb.SYSTEM_CALLERS()[0] || ivrOb.TRIAL_CALLER_ID }
 }
 
 function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, ttsService, log = console.log }) {
@@ -186,7 +186,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       if (!['telnyx', 'signalwire'].includes(caller.provider) || caller.provider === 'signalwire_fax') return { err: [400, 'invalid_caller', 'This number cannot place outbound IVR calls.'] }
       if (!phoneConfig.canAccessFeature(caller.plan, 'ivrOutbound')) return { err: [403, 'plan_upgrade_required', 'Quick IVR calls need the Pro plan or higher on the caller number.'] }
     }
-    const callerId = trial ? (await ivrOb.getTrialCaller()).callerId : caller.phoneNumber
+    const callerId = trial ? (await ivrOb.getTrialCaller({ purpose: 'web_quick_ivr_trial', chatId, to: (b.to || b.targets || '').toString().slice(0, 40) })).callerId : caller.phoneNumber
     let showAs = null
     if (!trial) try { showAs = await callerIds.resolve(chatId, b.showAs) } catch (e) { return { err: [400, 'invalid_show_as', e.message] } }
     const targets = parseTargets(b)

@@ -46,7 +46,7 @@ export default function NumberLookup() {
           <div className="civr-card divide-y divide-[var(--c-border,#1f1f1f)]">
             {data.history.map((h, i) => (
               <div key={i} className="flex flex-wrap items-center gap-3 p-3 text-sm" data-testid={`lookup-history-${i}`}>
-                <span className="font-mono w-44" data-no-translate>{h.number}</span><span className="w-28">{TYPE[h.type] || h.type}</span><span className="flex-1 truncate">{h.carrier}</span><span className="text-xs text-[var(--c-muted)]">{when(h.at)}</span>
+                <span className="font-mono w-48 inline-flex items-center gap-2" data-no-translate><Flag code={countryOfPhone(h.number)} />{h.number}</span><span className="w-28">{TYPE[h.type] || h.type}</span><span className="flex-1 truncate">{h.carrier}</span><span className="text-xs text-[var(--c-muted)]">{when(h.at)}</span>
               </div>
             ))}
           </div>

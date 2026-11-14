@@ -24,11 +24,19 @@ async function catalog() {
     if (!rows.length || !d.next_cursor) break
     cursor = d.next_cursor
   }
+  const zoneCountries = {}
+  cursor = null
+  for (let i = 0; i < 10; i++) {
+    const d = await bird('get', `/zones?limit=100${cursor ? `&starting_after=${cursor}` : ''}`).catch(() => ({}))
+    for (const z of d.data || []) zoneCountries[z.id] = z.countries || []
+    if (!(d.data || []).length || !d.next_cursor) break
+    cursor = d.next_cursor
+  }
   const zones = {}
   for (const o of all) {
     if (o.status !== 'active' || o.pricing?.type !== 'bundle') continue
     const z = zoneOf(o.name), cost = Number(o.pricing.price.amount)
-    ;(zones[z] = zones[z] || { zone: z, code: o.zone?.countries?.length === 1 ? o.zone.countries[0] : null, offers: [] }).offers.push({ id: o.id, name: o.name, gb: Math.round(o.pricing.data.amount_bytes / 1.024e8) / 10, days: o.pricing.validity.value, price: sell(cost), cost, speed: o.speed })
+    ;(zones[z] = zones[z] || { zone: z, code: (zoneCountries[o.zone_id] || o.zone?.countries || []).length === 1 ? (zoneCountries[o.zone_id] || o.zone.countries)[0] : null, offers: [] }).offers.push({ id: o.id, name: o.name, gb: Math.round(o.pricing.data.amount_bytes / 1.024e8) / 10, days: o.pricing.validity.value, price: sell(cost), cost, speed: o.speed })
   }
   const list = Object.values(zones).map(z => ({ ...z, offers: z.offers.sort((a, b) => a.price - b.price), from: Math.min(...z.offers.map(o => o.price)) })).sort((a, b) => a.zone.localeCompare(b.zone))
   cache = { at: Date.now(), zones: list }

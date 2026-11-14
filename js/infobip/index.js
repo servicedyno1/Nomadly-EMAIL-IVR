@@ -197,7 +197,7 @@ async function buyNumber(phoneNumber) {
   const key = searched.get(phoneNumber); if (!key) return null
   try {
     const n = (await M.http().post('/numbers/1/numbers', { numberKey: key })).data
-    await M.http().post(`/numbers/2/numbers/${n.numberKey || key}/voice`, { action: { type: 'FORWARD_TO_SUBSCRIPTION', callsConfigurationId: configId() } })
+    if (!n.capabilities || (n.capabilities || []).includes('VOICE')) await M.http().post(`/numbers/2/numbers/${n.numberKey || key}/voice`, { action: { type: 'FORWARD_TO_SUBSCRIPTION', callsConfigurationId: configId() } })
     if ((n.capabilities || []).includes('SMS')) await routeSms(n.numberKey || key)
     searched.delete(phoneNumber)
     log(`Bought ${phoneNumber} → calls config ${configId()}`)
@@ -228,7 +228,7 @@ async function lookup(e) {
 
 // Texts → { id } | { error }
 async function sendSms(from, to, text) {
-  try { const r = (await M.http().post('/sms/2/text/advanced', { messages: [{ from: digits(from), destinations: [{ to: digits(to) }], text }] })).data; return { id: r.messages?.[0]?.messageId || null } } catch (e) { return { error: errOf(e) } }
+  try { const r = (await M.http().post('/sms/2/text/advanced', { messages: [{ from: digits(from), destinations: [{ to: digits(to) }], text, ...(process.env.SELF_URL ? { notifyUrl: `${String(process.env.SELF_URL).replace(/\/+$/, '')}/infobip/sms-dlr/${smsHookKey()}`, notifyContentType: 'application/json' } : {}) }] })).data; return { id: r.messages?.[0]?.messageId || null } } catch (e) { return { error: errOf(e) } }
 }
 
 const M = module.exports = {
