@@ -48,9 +48,16 @@ export async function api(path, { method = 'GET', body, form } = {}) {
     });
   } catch (_) { throw networkError(); }
   const data = await res.json().catch(() => ({}));
+  // Number orders need the customer's details first: ask for them (form opens), then send the same order once more.
+  if (res.status === 428 && data?.error === 'profile_required' && profileAsker) {
+    if (await profileAsker().catch(() => false)) return api(path, { method, body, form });
+  }
   if (!res.ok) throw new ApiError(res.status, data);
   return data;
 }
+
+let profileAsker = null;
+export const setProfileAsker = (fn) => { profileAsker = fn; };
 
 export const enc = (s) => encodeURIComponent(s);
 export const apiUrl = (path) => `${BASE}${path}`;

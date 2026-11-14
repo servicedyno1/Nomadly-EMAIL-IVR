@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BadgeCheck, IdCard } from 'lucide-react';
-import { api } from '../api';
+import { api, setProfileAsker } from '../api';
 import { useCivrAuth } from '../AuthContext';
 import { Modal } from '../pages/contacts/Modal';
 import { LegalProfileForm } from './LegalProfileForm';
@@ -63,5 +63,22 @@ export function ProfileDetailsCard() {
       </div>
       <LegalProfileForm testid="settings-legal-form" />
     </div>
+  );
+}
+
+// Mounted once at the app root: when an order comes back "profile_required", opens the form and resolves
+// true after saving (the order is then sent again) or false when closed.
+export function ProfileAskHost() {
+  const [pending, setPending] = useState(null);
+  useEffect(() => {
+    setProfileAsker(() => new Promise((resolve) => setPending({ resolve })));
+    return () => setProfileAsker(null);
+  }, []);
+  if (!pending) return null;
+  const done = (ok) => { pending.resolve(ok); setPending(null); };
+  return (
+    <Modal title="Who is this number for?" sub="We register every number in your name with the carrier. Save this once — your order continues right after." onClose={() => done(false)} testid="profile-ask-dialog">
+      <LegalProfileForm onSaved={() => done(true)} submitLabel="Save and continue my order" testid="profile-ask-form" />
+    </Modal>
   );
 }

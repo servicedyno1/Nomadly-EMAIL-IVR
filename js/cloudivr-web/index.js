@@ -94,7 +94,7 @@ function createCloudIvrWeb(deps) {
     // Personal / business details: required before any number checkout.
     const legalProfile = require('./legal-profile').createLegalProfile(db, { log })
     legalProfile.routes(r, h)
-    r.post(['/numbers/buy', '/numbers/checkout', '/numbers/:phone/extra-checkout', '/numbers/:phone/extra', '/numbers/:phone/replace', '/fax-numbers', '/mobile-numbers'], legalProfile.gate)
+    r.post(['/numbers/buy', '/numbers/checkout', '/numbers/:phone/extra-checkout', '/numbers/:phone/extra', '/numbers/:phone/replace', '/fax-numbers', '/mobile-numbers', '/esim'], legalProfile.gate)
     require('./esim').routes(r, { h, legalProfile })
     const offers = createOffers(db, { log })
     offers.routes(r, { h })

@@ -38,7 +38,11 @@ function routes(r, { h, legalProfile }) {
     if (!x?.error) await legalProfile?.recordResale({ chatId: req.webChatId, phoneNumber: x?.item?.phoneNumber || null, provider: 'spenza-mobile', country: 'US' })
     out(res, x)
   }))
-  r.post('/esim', h(async (req, res) => out(res, await ES.buy(req.webChatId, { ...(req.body || {}), source: 'web' }))))
+  r.post('/esim', h(async (req, res) => {
+    const x = await ES.buy(req.webChatId, { ...(req.body || {}), source: 'web' })
+    if (!x?.error) await legalProfile?.recordResale({ chatId: req.webChatId, phoneNumber: x?.item?.phoneNumber || null, provider: 'spenza-esim', country: 'US' })
+    out(res, x)
+  }))
   r.post('/esim/:id/imei', h(async (req, res) => out(res, await ES.submitImei(req.webChatId, req.params.id, req.body?.imei))))
   r.get('/esim/:id/qr', h(async (req, res) => out(res, await ES.qr(req.webChatId, req.params.id))))
   r.get('/esim/:id/usage', h(async (req, res) => out(res, await ES.lineUsage(req.webChatId, req.params.id))))

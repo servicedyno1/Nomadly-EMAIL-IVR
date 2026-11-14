@@ -102,6 +102,7 @@ function createLegalProfile(db, { log = console.log } = {}) {
       const prev = req.webUser.legalProfile
       const profile = { ...v.profile, completedAt: prev?.completedAt || new Date(), updatedAt: new Date() }
       await accounts.updateOne({ _id: req.webUser._id }, { $set: { legalProfile: profile }, $unset: { profileDue: '' } })
+      require('../spenza').syncProfile(req.webUser._id).catch(e => log(`[CloudIVR-Web] Spenza profile sync failed for ${req.webUser._id}: ${e.message}`))
       log(`[CloudIVR-Web] legal profile ${prev ? 'updated' : 'added'} for ${req.webUser._id} (${profile.type}, ${profile.address.countryCode})`)
       res.json({ profile, complete: true })
     }))

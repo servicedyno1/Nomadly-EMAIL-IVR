@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import './cloudivr.css';
 import { CivrAuthProvider, useCivrAuth } from './AuthContext';
+import { ProfileAskHost } from './profile/ProfilePrompts';
 import { Spinner } from './ui';
 import Landing from './pages/Landing';
 const Terms = lazy(() => import('./pages/Terms'));
@@ -80,6 +81,7 @@ export default function CloudIvrApp() {
         {/* Above the round help button (desktop 24 px + 56 px, phones 88 px + 56 px above the bottom bar). */}
         <Toaster theme={toastTheme} position="bottom-right" offset={{ bottom: 92, right: 16 }} mobileOffset={{ bottom: 'calc(9.75rem + env(safe-area-inset-bottom))' }} richColors closeButton visibleToasts={3} />
         <ConfirmHost />
+        <ProfileAskHost />
         <UpdateWatcher />
         <CookieBanner />
         <XSignup />
