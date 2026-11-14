@@ -11,10 +11,10 @@ export function ReadyToText() {
   return (
     <div className="civr-card p-6 space-y-4" data-testid="ready-to-text">
       <div><div className="font-display text-xl font-bold">Ready-to-text numbers</div>
-        <p className="text-sm text-[var(--c-muted)] mt-1">Send and receive texts the day you buy — no ID check and no carrier registration. Calls work too. Same price as the Texting plan.</p></div>
+        <p className="text-sm text-[var(--c-muted)] mt-1">Send and receive texts the day you buy — no ID check and no carrier registration. Calls work too. {data.price ? `$${data.price}/month on the Starter plan.` : 'Starter plan.'}</p></div>
       <div className="flex flex-wrap gap-2">
         {data.items.map(it => (
-          <Link key={`${it.country}-${it.type}`} to={cp(`/app/buy?purpose=texting&country=${it.country}&type=${it.type}&plan=${data.plan}`)} className="civr-btn civr-btn-ghost" data-testid={`ready-to-text-${it.country}-${it.type}`}>
+          <Link key={`${it.country}-${it.type}`} to={cp(`/app/buy?purpose=voice&country=${it.country}&type=${it.type}&plan=${data.plan}`)} className="civr-btn civr-btn-ghost" data-testid={`ready-to-text-${it.country}-${it.type}`}>
             <span>{it.flag}</span>{it.name} · {it.typeName}<MessageSquareText className="w-3.5 h-3.5 text-[#34d399]" />{it.caps.voice && <Phone className="w-3.5 h-3.5 text-[#818cf8]" />}
           </Link>
         ))}

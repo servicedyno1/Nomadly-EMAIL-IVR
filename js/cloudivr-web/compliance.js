@@ -11,7 +11,7 @@ const LEGAL_DOCS = { terms: '2026-11-14', aup: POLICY_VERSION }
 const outstandingOf = (d) => Object.entries(LEGAL_DOCS).filter(([k, v]) => d?.legal?.[k] !== v).map(([k]) => k)
 // Append-only audit trail (one row per document accepted) + current versions on the compliance doc.
 async function recordAcceptance(db, chatId, req, method) {
-  const at = new Date(), ip = req?.ip || null, userAgent = String(req?.headers?.['user-agent'] || '').slice(0, 300)
+  const at = new Date(), ip = (req && require('./auth').clientIp(req)) || req?.ip || null, userAgent = String(req?.headers?.['user-agent'] || '').slice(0, 300)
   await db.collection('legalAcceptances').insertMany(Object.entries(LEGAL_DOCS).map(([doc, version]) => ({ chatId: String(chatId), doc, version, at, ip, userAgent, method })))
   await db.collection('compliance').updateOne({ _id: String(chatId) }, { $set: { legal: { ...LEGAL_DOCS, at }, policy: { version: POLICY_VERSION, acceptedAt: at, ip } } }, { upsert: true })
 }
@@ -25,7 +25,7 @@ function createCompliance({ db, h, adminRequire, notifyAdmin = () => {}, notify,
   const pub = (d) => ({
     identity: { status: d.identity?.status || 'none', verifiedAt: d.identity?.verifiedAt || null, name: d.identity?.name || null, reason: d.identity?.reason || null },
     company: { status: d.company?.status || 'none', files: (d.company?.files || []).map(f => ({ id: f.id, name: f.name, size: f.size, kind: f.kind })), note: d.company?.note || null, submittedAt: d.company?.submittedAt || null },
-    policy: { accepted: !outstandingOf(d).length, outstanding: outstandingOf(d), versions: LEGAL_DOCS, version: POLICY_VERSION, acceptedAt: d.legal?.at || null },
+    policy: { accepted: !outstandingOf(d).length, outstanding: outstandingOf(d), versions: LEGAL_DOCS, version: POLICY_VERSION, acceptedAt: d.legal?.at || d.policy?.acceptedAt || null },
   })
   const state = async (chatId) => pub(await of(chatId))
 

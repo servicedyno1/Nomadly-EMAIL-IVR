@@ -139,7 +139,8 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     if (num.status !== 'active') return { error: [409, 'not_active', 'This number is suspended. Renew it to send texts again.'] }
     if (require('./ten-dlc').needs10dlc(num) && !simulated) {
       const reg = await db.collection('tenDlc').findOne({ _id: String(chatId) }, { projection: { status: 1, numbers: 1 } })
-      if (!(reg?.status === 'active' && (reg.numbers || []).some(x => x.phoneNumber === num.phoneNumber))) return { error: [403, 'tendlc_needed', 'US numbers need a 10DLC texting registration before they can send texts. Fill it in under Settings → Compliance → US texting registration.'] }
+      if (reg?.status === 'active' && !(reg.numbers || []).some(x => x.phoneNumber === num.phoneNumber)) { log(`[10DLC] ${chatId} needs ${num.phoneNumber} added to its campaign`); return { error: [403, 'tendlc_adding', 'This number is being added to your US texting registration. You can text from it once the carrier confirms (usually within 1 business day).'] } }
+      if (reg?.status !== 'active') return { error: [403, 'tendlc_needed', 'US numbers need a 10DLC texting registration before they can send texts. Fill it in under Settings → Compliance → US texting registration.'] }
     }
     if (await require('../sms-optout').isOptedOut(chatId, to)) return { error: [403, 'opted_out', 'This person replied STOP, so you can’t text them. They can reply START to receive texts again.'] }
     const preview = simulated || dryRun() || !!num.dryRun

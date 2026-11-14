@@ -86,7 +86,9 @@ class TestIdentity:
     def test_gate_user_verified(self):
         s = login(GATE)
         d = s.get(f"{API}/compliance").json()
-        assert d['identity']['status'] == 'verified' and d['company']['status'] == 'approved' and d['policy']['accepted'] is True
+        assert d['identity']['status'] == 'verified' and d['company']['status'] == 'approved'
+        # iter270: policy.accepted now requires current terms+aup; older accounts may still have them outstanding
+        assert d['policy']['accepted'] is (not d['policy']['outstanding'])
 
 
 # ---- Company papers + admin review regression ----

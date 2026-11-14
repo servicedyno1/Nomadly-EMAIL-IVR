@@ -167,3 +167,14 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Verified: catalog (89 countries), document upload/list/validation, storage download + MultiTEL email composition, UI paperwork card (DE national).
 - BLOCKED: preview egress IP changed to 34.170.12.145 (Multitel 401 — not allow-listed); production 146.190.238.190 gets Multitel Cloudflare WAF 403 ("you have been blocked") — Multitel support must unblock. Search/buy e2e not yet tested.
 - Not done: Multitel inbound SMS (Multitel numbers sold as calls-only for now).
+
+## 2026-11-14 — Compliance module (preview, NOT published)
+- js/cloudivr-web/compliance.js: Stripe Identity (document + live selfie, claimable TEST sandbox keys STRIPE_* in backend/.env; webhook POST /api/stripe/webhook), company papers (object storage, admin approve/reject), legal ledger: LEGAL_DOCS {terms:'2026-11-14', aup:'2026-11'} → append-only `legalAcceptances` {chatId, doc, version, at, ip(clientIp), userAgent, method signup|prompt}; bump a version → everyone re-accepts (PolicyGate, blocking). Admin GET /admin/compliance/:chatId/acceptances.
+- Gate: level-2 (documents) countries need Stripe ID verified (+ approved company papers for business). All purchases need current terms accepted (policy_needed). Sign-up requires acceptPolicy:true.
+- js/sms-optout.js: STOP/START per account (`smsOptOuts`); sends blocked (403 opted_out); thread shows notice.
+- js/cloudivr-web/ten-dlc.js: customer form → admin "Approve and file" → Infobip (brands → register → campaigns → register) / MultiTEL (brand_nonBlocking → campaignBuilder_insert); preview dry-run simulates filing; hourly tick polls Infobip campaign; "Mark active" also re-snapshots numbers. US local Infobip/MultiTEL numbers can't send texts until active.
+- Extra SIP logins: Business plan, 5/number (val.numbers.extraSip), /sip-auth + voice-service accept only while plan=business.
+- Multitel SMS: sendsms + smsuri webhook /multitel/sms-webhook/<sha key>. Infobip numbers now send texts via Infobip in sms-reply.deliver.
+- Catalog offers[type].caps {voice,sms,fax,smsNeedsApproval}; /texting/ready → Texting Number page "Ready-to-text numbers" (Starter $50 = Texting price).
+- Terms (frontend/src/cloudivr/pages/terms/content.js) updated 14 Nov 2026: identity & records (≥4 yrs), texting/opt-out/10DLC, carriers & partners (MultiTEL, Infobip, Bird).
+- Tests: iteration_268/269/270 (all fixed). Prod needs: publish, Stripe keys on prod droplet env, Multitel IP unblock, MultiTEL provider approval (Reseller Schedule §1), Bird resale/partner agreement.

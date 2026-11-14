@@ -727,7 +727,7 @@ function routes(router, deps) {
   }
 
   // Numbers that can send and receive texts with no carrier approval (no ID, no 10DLC) — sold on the Texting Number page.
-  router.get('/texting/ready', h(async (req, res) => res.json({ items: countries().flatMap(c => Object.entries(c.offers || {}).filter(([, o]) => o.caps?.sms && !o.caps.smsNeedsApproval && o.level === 0).map(([type, o]) => ({ country: c.code, name: c.name, flag: c.flag, type, typeName: TYPE_NAMES[type] || type, caps: o.caps }))), plan: 'starter' })))
+  router.get('/texting/ready', h(async (req, res) => res.json({ items: countries().flatMap(c => Object.entries(c.offers || {}).filter(([, o]) => o.caps?.sms && !o.caps.smsNeedsApproval && o.level === 0).map(([type, o]) => ({ country: c.code, name: c.name, flag: c.flag, type, typeName: TYPE_NAMES[type] || type, caps: o.caps }))), plan: 'starter', price: phoneConfig.plans?.starter?.price ?? null })))
 
   // Extra SIP logins (Business plan, up to 5 per number) — each device/person gets its own revocable login on our SIP server.
   const EXTRA_SIP_MAX = 5
@@ -740,7 +740,8 @@ function routes(router, deps) {
     if ((n.extraSip || []).length >= EXTRA_SIP_MAX) return bad(res, 400, 'limit_reached', `This number already has ${EXTRA_SIP_MAX} extra SIP logins. Remove one to add another.`)
     const label = String(req.body?.label || '').trim().slice(0, 40) || `Device ${(n.extraSip || []).length + 1}`
     const login = { id: crypto.randomUUID().slice(0, 8), label, username: phoneConfig.generateSipUsername(), password: phoneConfig.generateSipPassword(), createdAt: new Date().toISOString() }
-    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $push: { 'val.numbers.$.extraSip': login } })
+    const u = await phoneNumbersOf.updateOne({ _id: req.webChatId, val: { $exists: true }, 'val.numbers': { $elemMatch: { phoneNumber: n.phoneNumber, [`extraSip.${EXTRA_SIP_MAX - 1}`]: { $exists: false } } } }, { $push: { 'val.numbers.$.extraSip': login } })
+    if (!u.modifiedCount) return bad(res, 400, 'limit_reached', `This number already has ${EXTRA_SIP_MAX} extra SIP logins. Remove one to add another.`)
     log(`[CloudIVR-Web] ${req.webChatId} added extra SIP login ${login.username} (${label}) to ${n.phoneNumber}`)
     res.json({ ...login, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP/TLS' })
   }))

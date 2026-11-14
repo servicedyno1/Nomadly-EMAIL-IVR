@@ -1,0 +1,45 @@
+{
+  "summary": "Tested the legal acceptance ledger, extra SIP logins, 10DLC submit/approve/activate and the texting gate, catalog caps, ready-to-text, the Terms page and the sign-up Terms link, in both the backend and the UI. Backend: new suite test_cloudivr_legal_sip_tendlc_iter270.py passes 13/14. The only failure is the audit IP (always 127.0.0.1). The iter268/269 suites pass 27/27 after one assertion was updated for the new policy semantics. UI: the PolicyGate for civr.uxtest works (it blocks, has no Escape or close, has the Terms link, Accept stays disabled until ticked, it writes 2 ledger rows with method 'prompt', and it does not come back after reload). The Terms page shows 'Last updated 14 November 2026' and the 3 new sections. The sign-up label has auth-policy-terms-link (/cloudivr/terms, new tab). The Extra SIP card works: 0/5 → add → one-time password panel → remove via the confirm dialog → 0/5. The Settings 10DLC card rejects a bad EIN, then submits and locks (status 'Waiting for review', inputs disabled). The admin US 10DLC tab works: a cancelled reject prompt does nothing, Approve and file gives 'preview: filed', Mark active moves the row to active, and the customer sees 'Approved'. The texting gate returns 403 tendlc_needed before activation and while 'filed', and the gate lifts after activation. BUG: the ready-to-text chips link to /app/buy?purpose=texting, which is not a valid purpose id, so the Get a number page opens with no purpose and no search form, and the country/type preselect never shows.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /compliance/policy, POST /auth/register (recordAcceptance)", "issue": "The audit ledger always records ip='127.0.0.1' because recordAcceptance uses req.ip behind the ingress (Express trust proxy is not set). auth.js already has clientIp(req), which reads x-forwarded-for / CF headers. Pass clientIp(req) into recordAcceptance. compliance.policy.ip has the same problem. The request asked for IP in the audit record, so today's rows have no useful IP."},
+      {"endpoint": "PUT /tendlc validate()", "issue": "state is cut to 2 characters before it is checked, so 'Texas' is accepted as 'TE'. Reject input longer than 2 characters, or check it against the US state list. The UI input has maxLength=2, so this only affects API callers."},
+      {"endpoint": "POST /admin/tendlc/:chatId/decision activate", "issue": "'activate' works from any status, including submitted, rejected or no doc at all. This skips approval and filing. Consider allowing it only from filed or approved."},
+      {"endpoint": "10DLC numbers snapshot", "issue": "The numbers on the registration are captured at approve/activate time. A US Infobip/MultiTEL local number bought after the registration is active is not covered (403 tendlc_needed), and the customer cannot resubmit because the form is locked while active. Add a way to attach new numbers, or re-check usNumbers when a number is bought."},
+      {"endpoint": "Extra SIP logins on plan downgrade", "issue": "/sip-auth and voice-service still accept extraSip logins after the number leaves the Business plan, because plan is not checked. Revoke them, or check the plan, on downgrade."},
+      {"endpoint": "POST /numbers/:phone/sip/extra", "issue": "The 5-login limit is checked with a read followed by $push, so two requests at the same time can create a 6th login. Use a conditional update such as 'val.numbers.$.extraSip.4': {$exists:false}."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ReadyToText.js chips → BuyNumber", "issue": "The link uses purpose=texting, but PurposePicker ids are voice/sip/sms/fax. BuyNumber sets purposes=['texting'], so line=false, no card is selected, no 'Choose a card' hint shows and there is no search form. The country=GB&type=mobile preselect is never visible. With purpose=voice the line section and the 'Starter plan picked' hint appear. Change the link to purpose=voice, or map 'texting' to it.", "selector": "[data-testid^='ready-to-text-']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "PolicyGate title", "issues": ["Existing users who accepted the old policy (civr.uxtest, test_gate) see 'CloudIVR terms and usage policy', not 'We updated our terms'. pub() sets acceptedAt from legal.at only, and old accounts only have policy.acceptedAt. Use d.legal?.at || d.policy?.acceptedAt for the title check."]},
+      {"screen": "Texting Number page", "issues": ["The ready-to-text subtitle says 'Same price as the Texting plan', but the US Texting Number above it is $75/month and these numbers go to the Starter plan ($50). The copy is confusing. Show the Starter price explicitly."]},
+      {"screen": "Admin → Compliance → US 10DLC row", "issues": ["The row has no account email/chatId and no list of covered numbers, so the admin cannot see who or which numbers they are approving.", "The admin top nav overflows at 1920px ('CloudIV' is cut off next to the admin email)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_legal_sip_tendlc_iter270.py", "/app/backend/tests/test_cloudivr_compliance_iter269.py", "/app/backend/tests/test_cloudivr_compliance_iter268.py", "/app/test_reports/pytest/iter270.xml"],
+  "action_items": [
+    "Fix the ReadyToText link: purpose=texting → purpose=voice, or map it in BuyNumber, so the country/type/plan=starter preselect shows",
+    "Record the real client IP in legalAcceptances and compliance.policy.ip (use clientIp(req) from auth.js)",
+    "PolicyGate title: treat policy.acceptedAt as previous acceptance so existing users see 'We updated our terms'",
+    "10DLC: allow activate only from filed/approved, check state strictly, and handle US numbers added after activation",
+    "Revoke or plan-check extra SIP logins when a number leaves the Business plan, and make the 5-login cap atomic"
+  ],
+  "critical_code_review_comments": [
+    "compliance.js recordAcceptance: req.ip is 127.0.0.1 behind the proxy, so the audit IP is useless.",
+    "ten-dlc.js isActive() is exported but sms-reply.js repeats the same query inline. Reuse it.",
+    "sms-reply.js: the 10DLC gate is skipped when simulated=true but still applies to dryRun numbers. That is correct for this test, but preview users with seeded multitel numbers cannot text until an admin activates them.",
+    "ten-dlc.js: the dry-run approve path writes a 'preview' filing and never calls providers. Verified: no Infobip/MultiTEL calls were made."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_legal_sip_tendlc_iter270.py", "/app/backend/tests/test_cloudivr_compliance_iter269.py"],
+  "success_rate": {"backend": "93% (13/14 new; 27/27 regression)", "frontend": "90% (ready-to-text preselect broken; everything else passes)"},
+  "seed_data_creation": "Pytest registered test_l270<ts>@example.com users, seeded a temporary multitel number into their own phoneNumbersOf doc and deleted it together with their tenDlc doc afterwards. For the UI 10DLC test, a temporary multitel US number (+15125550271, flagged TEST) was seeded for test_gate1794672851 (chatId 5000000000000098) and removed together with its tenDlc doc afterwards. civr.uxtest and test_gate accepted the new terms (legalAcceptances rows, method prompt). Extra SIP logins created on +13341112222 were all removed. No seeded or user data was otherwise changed.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_cloudivr_legal_sip_tendlc_iter270.py tests/test_cloudivr_compliance_iter269.py tests/test_cloudivr_compliance_iter268.py -p no:xdist. The sip-auth route is reachable at <BASE>/api/sip-auth/:user. webAccounts _id is stored as a float, so use str(int(_id)) for compliance/phoneNumbersOf lookups. civr.uxtest has a starter number +12024595976 (SIP tab locked, so the extra-sip-upgrade card never renders) and business numbers +13341112222 and +13343334444. Remove an extra SIP login via confirm-dialog-ok. Admin 10DLC reject uses window.prompt."
+}

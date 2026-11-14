@@ -17,7 +17,7 @@ function validate(b = {}) {
   if (!brand.entityType) return { error: 'Pick your business type.' }
   if (brand.entityType === 'SOLE_PROPRIETOR' ? !(brand.firstName && brand.lastName) : !(brand.companyName && /^\d{2}-?\d{7}$/.test(brand.ein))) return { error: brand.entityType === 'SOLE_PROPRIETOR' ? 'Enter your first and last name.' : 'Enter the legal company name and the 9-digit EIN (e.g. 12-3456789).' }
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(brand.email) || brand.phone.replace(/\D/g, '').length < 10) return { error: 'Enter a support email and phone number.' }
-  if (!(brand.street && brand.city && /^[A-Z]{2}$/.test(brand.state) && brand.postalCode)) return { error: 'Enter the full US business address (street, city, 2-letter state, ZIP).' }
+  if (!(brand.street && brand.city && /^[A-Za-z]{2}$/.test(String(b.brand?.state || '').trim()) && brand.postalCode)) return { error: 'Enter the full US business address (street, city, 2-letter state, ZIP).' }
   if (!campaign.useCase) return { error: 'Pick what the texts are for.' }
   if (campaign.description.length < 40) return { error: 'Describe the texts you will send (at least 40 characters).' }
   if (campaign.sample1.length < 20 || campaign.sample2.length < 20) return { error: 'Add two sample messages (at least 20 characters each).' }
@@ -95,7 +95,9 @@ function createTenDlc({ db, h, adminRequire, notify, notifyAdmin = () => {}, log
     const A = adminRequire
     r.get('/admin/tendlc', A, h(async (req, res) => {
       const st = String(req.query.status || 'submitted')
-      res.json({ items: (await col.find(st === 'all' ? {} : { status: st }).sort({ submittedAt: -1 }).limit(100).toArray()).map(d => ({ chatId: d._id, ...pub(d) })) })
+      const docs = await col.find(st === 'all' ? {} : { status: st }).sort({ submittedAt: -1 }).limit(100).toArray()
+      const accs = new Map((await db.collection('webAccounts').find({ _id: { $in: docs.map(d => Number(d._id)) } }, { projection: { email: 1 } }).toArray()).map(a => [String(a._id), a.email]))
+      res.json({ items: await Promise.all(docs.map(async d => ({ chatId: d._id, email: accs.get(String(d._id)) || null, ...pub(d), usNumbers: await usNumbers(d._id) }))) })
     }))
     r.post('/admin/tendlc/:chatId/decision', A, h(async (req, res) => {
       const chatId = String(req.params.chatId), d = String(req.body?.decision || '')
@@ -106,6 +108,7 @@ function createTenDlc({ db, h, adminRequire, notify, notifyAdmin = () => {}, log
         notify?.push(chatId, `Your US texting registration needs changes: ${note}`, null, { kind: 'billing' }).catch(() => {})
         return res.json({ status: 'rejected' })
       }
+      if (d === 'activate' && !['filed', 'approved', 'active'].includes((await col.findOne({ _id: chatId }))?.status)) return res.status(409).json({ error: 'not_filed', message: 'Approve and file it first. Use Mark active again later to add newly bought numbers.' })
       if (d === 'activate') { await col.updateOne({ _id: chatId }, { $set: { status: 'active', activatedAt: new Date(), numbers: await usNumbers(chatId) } }); notify?.push(chatId, 'Your US texting registration is approved. Your US numbers can now send texts.', null, { kind: 'billing' }).catch(() => {}); return res.json({ status: 'active' }) }
       if (d !== 'approve') return res.status(400).json({ error: 'bad_decision', message: 'Use approve, reject or activate.' })
       const cur = await col.findOne({ _id: chatId })

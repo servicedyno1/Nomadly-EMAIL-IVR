@@ -40,6 +40,7 @@ function TenDlcAdmin() {
       <ErrorNote error={err} testid="admin-tendlc-error" />
       {!items ? <Spinner /> : !items.length ? <p className="text-sm text-[var(--c-muted)]" data-testid="admin-tendlc-empty">Nothing here.</p> : items.map(it => (
         <div key={it.chatId} className="civr-card p-5 space-y-2 text-sm" data-testid={`admin-tendlc-row-${it.chatId}`}>
+          <div className="text-xs text-[var(--c-muted)]">{it.email || '—'} · account {it.chatId} · numbers: {(it.usNumbers || []).map(n => `${n.phoneNumber} (${n.provider})`).join(', ') || 'none yet'}</div>
           <div className="font-semibold">{it.brand?.companyName || `${it.brand?.firstName} ${it.brand?.lastName}`} <span className="text-[var(--c-muted)] font-normal">· {it.brand?.entityType} · EIN {it.brand?.ein || '—'} · {it.brand?.city}, {it.brand?.state}</span></div>
           <div><b>{it.campaign?.useCase}</b>: {it.campaign?.description}</div>
           <div className="text-[var(--c-muted)]">“{it.campaign?.sample1}” / “{it.campaign?.sample2}”</div>
