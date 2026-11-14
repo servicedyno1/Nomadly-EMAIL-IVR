@@ -4063,17 +4063,27 @@ async function zadarmaNumbers() {
     for (const n of d.val?.numbers || []) if (zdSet.has(n.phoneNumber) && !/released|expired|cancel/i.test(String(n.status || ''))) out.add(n.phoneNumber)
   return [...out]
 }
+// This brand's active MultiTEL numbers (SIP URI to our server).
+async function multitelNumbers() {
+  const mt = require('./multitel')
+  if (!_db || !mt.enabled()) return []
+  const owned = new Set(await mt.refreshOwned())
+  const out = new Set()
+  for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1 } }).toArray())
+    for (const n of d.val?.numbers || []) if (owned.has(n.phoneNumber) && !/released|expired|cancel/i.test(String(n.status || ''))) out.add(n.phoneNumber)
+  return [...out]
+}
 async function telnyxDidSync() {
   const nums = await telnyxSipNumbers()
   const zdNums = await zadarmaNumbers()
-  const all = [...nums, ...zdNums]
+  const all = [...nums, ...zdNums, ...await multitelNumbers()]
   if (all.length) await require('./callengine').setDidApps(all)
 }
 async function birdAutoLinkTick() {
   if (!_db || !require('./bird').enabled()) return
-  // Only Infobip numbers are linked to Bird now (Telnyx / SignalWire / Zadarma caller IDs were removed on request).
-  const ib = require('./infobip')
-  const ibNums = ib.enabled() ? await ib.refreshOwned() : []
+  // Only Infobip and MultiTEL numbers are linked to Bird (Telnyx / SignalWire / Zadarma caller IDs were removed on request).
+  const ib = require('./infobip'), mt = require('./multitel')
+  const ibNums = [...(ib.enabled() ? await ib.refreshOwned() : []), ...(mt.enabled() ? await mt.refreshOwned() : [])]
   if (!ibNums.length) return
   const sw = new Set(ibNums)
   const numbers = new Set()

@@ -108,7 +108,11 @@ function createCloudIvrWeb(deps) {
     numberRequests.routes(r)
     require('../active-slot').singletonInterval('cloudivr-number-requests', () => numberRequests.tick().catch(e => log(`[NumberRequest] tick: ${e.message}`)), process.env.WEB_CLOUDIVR_DRY_RUN === 'true' ? 60000 : 10 * 60000)
     orders.routes(r, { ...deps, db, h, numbersApi, sendMail, offers })
-    Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h, offers, legalProfile }))
+    // MultiTEL countries that need documents: upload before buying, emailed to MultiTEL after, approval watched.
+    const numberDocs = require('./number-docs').createNumberDocs({ db, h, sendMail, legalProfile, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, walletOps: require('./wallet').walletOps, log })
+    numberDocs.routes(r)
+    require('../active-slot').singletonInterval('cloudivr-number-docs', () => numberDocs.tick().catch(e => log(`[NumberDocs] tick: ${e.message}`)), 30 * 60000)
+    Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h, offers, legalProfile, numberDocs }))
     verification.routes(r, { ...deps, db, h, upload })
     audio.routes(r, { ...deps, db, h, upload })
     outbound.routes(r, { ...deps, db, h, numbersApi })

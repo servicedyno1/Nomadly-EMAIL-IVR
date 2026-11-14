@@ -156,3 +156,14 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Armed via prod app-main bird-callerid-verify → Bird called, call engine answered/recorded, Whisper read 698335 → Bird VERIFIED, outbound_enabled true.
 - Prod already runs Infobip-only Bird auto-link (release 20261114T134632Z) — Multitel numbers must be added to birdAutoLinkTick + telnyxDidSync(DIDAPP) when the Multitel seller is built.
 - NEXT (user-approved): Multitel provider adapter + combined Infobip/Multitel catalog (least paperwork, then cheapest), all three paperwork groups incl. document upload, auto Bird link for Multitel numbers.
+
+## 2026-11-14 — Multitel + Infobip combined selling (built in preview, NOT published)
+- New: js/multitel/index.js (search getareas→getprefixes→getnumbers, buy rentnumber + modifynumber uri <digits>@SIP_SERVER_IP:5080, release, inventory, registration_status; 401/403 → 30-min self-block, never retried),
+  js/multitel/countries.js (generated from memory/multitel_classified.json + Infobip EUR costs), js/number-catalog.js (best provider: least paperwork, then cheapest),
+  js/cloudivr-web/number-docs.js (upload PDF/JPG/PNG ≤4×10MB to Emergent object storage, email docs + end-user details to support@multitel.net (MULTITEL_DOCS_EMAIL override) after purchase, 30-min tick: approved → notify; rejected → release + refund planPrice),
+  frontend pages/buy/Paperwork.js (PaperworkNote + DocumentUpload), Numbers.js "Awaiting carrier approval" pill.
+- numbers.js: countries() now = phone-config + catalog.sold(); c.offers[type] = {provider, level, businessOnly, address, request}. Search uses own provider (non-US/CA); US/CA via chain (signalwire wrapper now tries Multitel first when it wins, Multitel also as fallback). purchaseLocked: paperworkIssue() (profile, business-only, address country, docs ready). doc.provider 'multitel', registration {status:'pending'} when number needs registration.
+- voice-service: Multitel numbers in DIDAPP sync + Bird auto-link (with Infobip).
+- Verified: catalog (89 countries), document upload/list/validation, storage download + MultiTEL email composition, UI paperwork card (DE national).
+- BLOCKED: preview egress IP changed to 34.170.12.145 (Multitel 401 — not allow-listed); production 146.190.238.190 gets Multitel Cloudflare WAF 403 ("you have been blocked") — Multitel support must unblock. Search/buy e2e not yet tested.
+- Not done: Multitel inbound SMS (Multitel numbers sold as calls-only for now).

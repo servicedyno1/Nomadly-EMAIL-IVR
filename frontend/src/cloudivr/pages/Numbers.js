@@ -80,6 +80,7 @@ function NumberCard({ n, i, pv, onSaved, reload }) {
         {n.features.recording && <span className="civr-pill civr-pill-on">Recording</span>}
         {n.isSubNumber && <span className="civr-pill" data-testid={`number-card-${i}-extra`}>Extra on {pv.phone(n.parentNumber)}</span>}
         {n.dryRun && <span className="civr-pill civr-pill-warn">Preview</span>}
+        {n.registration?.status === 'pending' && <span className="civr-pill civr-pill-warn" title="The carrier is checking your documents. The number goes live once they approve them." data-testid={`number-card-${i}-registration`}>Awaiting carrier approval</span>}
       </div>
       <div className="mt-5 pt-4 border-t border-[var(--c-border,#1f1f1f)]" data-testid={`number-card-${i}-switches`}>
         <div className="text-[11px] font-semibold uppercase tracking-wider text-[#a1a1aa] mb-2">Quick switches{switches ? '' : ' · none'}</div>
