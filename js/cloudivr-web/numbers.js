@@ -63,7 +63,11 @@ function countries() {
     c.offers = {}
     for (const t of c.types) {
       const b = numberCatalog.best(c.code, t)
-      if (b) c.offers[t] = { provider: b.provider, level: b.level, ...(b.businessOnly ? { businessOnly: true } : {}), ...(b.level && b.address ? { address: b.address } : {}), ...(b.request ? { request: b.request } : {}) }
+      // caps: what the number can do; smsNeedsApproval: US local texting needs 10DLC, US/CA toll-free needs verification.
+      const sms = b ? !!b.sms : ['US', 'CA'].includes(c.code)
+      const caps = { voice: true, sms, fax: ['US', 'CA'].includes(c.code) && t !== 'mobile', smsNeedsApproval: sms && c.code === 'US' }
+      if (!b) c.offers[t] = { provider: null, level: 0, caps }
+      if (b) c.offers[t] = { caps, provider: b.provider, level: b.level, ...(b.businessOnly ? { businessOnly: true } : {}), ...(b.level && b.address ? { address: b.address } : {}), ...(b.request ? { request: b.request } : {}) }
     }
   }
   return list.sort((a, b) => (['US', 'CA'].indexOf(b.code) - ['US', 'CA'].indexOf(a.code)) || a.name.localeCompare(b.name))
@@ -721,6 +725,29 @@ function routes(router, deps) {
     await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.sipUsername': user, 'val.numbers.$.sipPassword': pass, 'val.numbers.$.telnyxSipUsername': live ? user : n.telnyxSipUsername || null, 'val.numbers.$.telnyxSipPassword': live ? pass : n.telnyxSipPassword || null, 'val.numbers.$.telnyxCredentialId': credId || n.telnyxCredentialId || null } })
     return { username: user, password: pass }
   }
+
+  // Numbers that can send and receive texts with no carrier approval (no ID, no 10DLC) — sold on the Texting Number page.
+  router.get('/texting/ready', h(async (req, res) => res.json({ items: countries().flatMap(c => Object.entries(c.offers || {}).filter(([, o]) => o.caps?.sms && !o.caps.smsNeedsApproval && o.level === 0).map(([type, o]) => ({ country: c.code, name: c.name, flag: c.flag, type, typeName: TYPE_NAMES[type] || type, caps: o.caps }))), plan: 'starter' })))
+
+  // Extra SIP logins (Business plan, up to 5 per number) — each device/person gets its own revocable login on our SIP server.
+  const EXTRA_SIP_MAX = 5
+  const extraOk = (n) => n.plan === 'business'
+  const pubExtra = (n) => (n.extraSip || []).map(x => ({ id: x.id, label: x.label, username: x.username, createdAt: x.createdAt }))
+  router.get('/numbers/:phone/sip/extra', withNumber(async (req, res) => res.json({ allowed: extraOk(req.num), max: EXTRA_SIP_MAX, logins: pubExtra(req.num), domain: phoneConfig.WEB_SIP_DOMAIN })))
+  router.post('/numbers/:phone/sip/extra', withNumber(async (req, res) => {
+    const n = req.num
+    if (!extraOk(n)) return bad(res, 403, 'plan_required', 'Extra SIP logins come with the Business plan. Upgrade this number to add them.')
+    if ((n.extraSip || []).length >= EXTRA_SIP_MAX) return bad(res, 400, 'limit_reached', `This number already has ${EXTRA_SIP_MAX} extra SIP logins. Remove one to add another.`)
+    const label = String(req.body?.label || '').trim().slice(0, 40) || `Device ${(n.extraSip || []).length + 1}`
+    const login = { id: crypto.randomUUID().slice(0, 8), label, username: phoneConfig.generateSipUsername(), password: phoneConfig.generateSipPassword(), createdAt: new Date().toISOString() }
+    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $push: { 'val.numbers.$.extraSip': login } })
+    log(`[CloudIVR-Web] ${req.webChatId} added extra SIP login ${login.username} (${label}) to ${n.phoneNumber}`)
+    res.json({ ...login, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP/TLS' })
+  }))
+  router.delete('/numbers/:phone/sip/extra/:id', withNumber(async (req, res) => {
+    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': req.num.phoneNumber }, { $pull: { 'val.numbers.$.extraSip': { id: req.params.id } } })
+    res.json({ ok: true })
+  }))
 
   router.post('/numbers/:phone/sip/reset', withNumber(async (req, res) => {
     if (!gate(req, res, 'sipCredentials', 'SIP credentials')) return

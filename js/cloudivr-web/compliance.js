@@ -6,6 +6,15 @@ const crypto = require('crypto')
 const { put, get, MIME, upload } = require('./number-docs')
 
 const POLICY_VERSION = '2026-11'
+// Current legal documents; bump a version to make every user accept it again on their next visit.
+const LEGAL_DOCS = { terms: '2026-11-14', aup: POLICY_VERSION }
+const outstandingOf = (d) => Object.entries(LEGAL_DOCS).filter(([k, v]) => d?.legal?.[k] !== v).map(([k]) => k)
+// Append-only audit trail (one row per document accepted) + current versions on the compliance doc.
+async function recordAcceptance(db, chatId, req, method) {
+  const at = new Date(), ip = req?.ip || null, userAgent = String(req?.headers?.['user-agent'] || '').slice(0, 300)
+  await db.collection('legalAcceptances').insertMany(Object.entries(LEGAL_DOCS).map(([doc, version]) => ({ chatId: String(chatId), doc, version, at, ip, userAgent, method })))
+  await db.collection('compliance').updateOne({ _id: String(chatId) }, { $set: { legal: { ...LEGAL_DOCS, at }, policy: { version: POLICY_VERSION, acceptedAt: at, ip } } }, { upsert: true })
+}
 const stripe = () => new Stripe(process.env.STRIPE_SECRET_KEY)
 const IDENTITY_MAP = { verified: 'verified', processing: 'pending', requires_input: 'failed', canceled: 'none' }
 
@@ -16,7 +25,7 @@ function createCompliance({ db, h, adminRequire, notifyAdmin = () => {}, notify,
   const pub = (d) => ({
     identity: { status: d.identity?.status || 'none', verifiedAt: d.identity?.verifiedAt || null, name: d.identity?.name || null, reason: d.identity?.reason || null },
     company: { status: d.company?.status || 'none', files: (d.company?.files || []).map(f => ({ id: f.id, name: f.name, size: f.size, kind: f.kind })), note: d.company?.note || null, submittedAt: d.company?.submittedAt || null },
-    policy: { accepted: d.policy?.version === POLICY_VERSION, version: POLICY_VERSION, acceptedAt: d.policy?.acceptedAt || null },
+    policy: { accepted: !outstandingOf(d).length, outstanding: outstandingOf(d), versions: LEGAL_DOCS, version: POLICY_VERSION, acceptedAt: d.legal?.at || null },
   })
   const state = async (chatId) => pub(await of(chatId))
 
@@ -42,7 +51,7 @@ function createCompliance({ db, h, adminRequire, notifyAdmin = () => {}, notify,
 
     r.post('/compliance/policy', h(async (req, res) => {
       if (req.body?.accept !== true) return res.status(400).json({ error: 'not_accepted', message: 'Tick the box to accept the usage policy.' })
-      await acceptPolicy(req.webChatId, req.ip)
+      await recordAcceptance(db, req.webChatId, req, 'prompt')
       res.json(await state(req.webChatId))
     }))
 
@@ -113,6 +122,7 @@ function createCompliance({ db, h, adminRequire, notifyAdmin = () => {}, notify,
       if (!f) return res.status(404).json({ error: 'not_found', message: 'File not found.' })
       res.set('Content-Type', f.type).set('Content-Disposition', `inline; filename="${f.name.replace(/"/g, '')}"`).send(await get(f.path))
     }))
+    r.get('/admin/compliance/:chatId/acceptances', A, h(async (req, res) => res.json({ items: await db.collection('legalAcceptances').find({ chatId: String(req.params.chatId) }, { projection: { _id: 0 } }).sort({ at: -1 }).limit(200).toArray() })))
     r.post('/admin/compliance/:chatId/company', A, h(async (req, res) => {
       const chatId = String(req.params.chatId)
       const approve = req.body?.decision === 'approve'
@@ -141,10 +151,9 @@ function createCompliance({ db, h, adminRequire, notifyAdmin = () => {}, notify,
     if (isBusiness && d.company?.status !== 'approved') return d.company?.status === 'submitted' ? 'Your company papers are still being reviewed. You can buy this number once they are approved.' : 'This country needs approved company papers. Upload them in Settings → Compliance.'
     return null
   }
-  const acceptPolicy = (chatId, ip) => col.updateOne({ _id: String(chatId) }, { $set: { policy: { version: POLICY_VERSION, acceptedAt: new Date(), ip } } }, { upsert: true })
-  const policyAccepted = async (chatId) => (await of(chatId)).policy?.version === POLICY_VERSION
+  const policyAccepted = async (chatId) => !outstandingOf(await of(chatId)).length
 
-  return { routes, adminRoutes, webhook, state, idIssue, policyAccepted, acceptPolicy, POLICY_VERSION }
+  return { routes, adminRoutes, webhook, state, idIssue, policyAccepted, POLICY_VERSION }
 }
 
-module.exports = { createCompliance, POLICY_VERSION }
+module.exports = { createCompliance, POLICY_VERSION, LEGAL_DOCS, recordAcceptance }

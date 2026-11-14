@@ -149,7 +149,7 @@ export default function BuyNumber() {
   const nav = useNavigate();
   const [params] = useSearchParams();
   const [saved] = useState(() => readResume(params));
-  const [q, setQ] = useState(saved?.q || { country: 'US', type: 'local', areaCode: '' });
+  const [q, setQ] = useState(saved?.q || { country: (params.get('country') || 'US').toUpperCase(), type: params.get('type') || 'local', areaCode: '' });
   const [res, setRes] = useState(saved?.res || null);
   const [pick, setPick] = useState(saved?.pick || null);
   const [plan, setPlan] = useState(saved?.plan || params.get('plan') || USE_PLAN[rememberedUse()] || null);

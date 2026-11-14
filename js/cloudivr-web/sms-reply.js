@@ -137,6 +137,10 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     if (!E164.test(String(to || ''))) return { error: [400, 'invalid_number', 'This caller’s number can’t receive texts.'] }
     if (num.capabilities?.sms === false) return { error: [400, 'no_sms', 'This number can’t send texts.'] }
     if (num.status !== 'active') return { error: [409, 'not_active', 'This number is suspended. Renew it to send texts again.'] }
+    if (require('./ten-dlc').needs10dlc(num) && !simulated) {
+      const reg = await db.collection('tenDlc').findOne({ _id: String(chatId) }, { projection: { status: 1, numbers: 1 } })
+      if (!(reg?.status === 'active' && (reg.numbers || []).some(x => x.phoneNumber === num.phoneNumber))) return { error: [403, 'tendlc_needed', 'US numbers need a 10DLC texting registration before they can send texts. Fill it in under Settings → Compliance → US texting registration.'] }
+    }
     if (await require('../sms-optout').isOptedOut(chatId, to)) return { error: [403, 'opted_out', 'This person replied STOP, so you can’t text them. They can reply START to receive texts again.'] }
     const preview = simulated || dryRun() || !!num.dryRun
     const senderName = (await db.collection('webPrefs').findOne({ _id: chatId }, { projection: { senderName: 1 } }))?.senderName || null

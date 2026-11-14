@@ -81,6 +81,9 @@ function createCloudIvrWeb(deps) {
     require('../sms-optout').init(db)
     const compliance = require('./compliance').createCompliance({ db, h, adminRequire: adminAuth.require, notifyAdmin: deps.notifyAdmin, notify: require('./notify'), log })
     compliance.adminRoutes(r)
+    const tenDlc = require('./ten-dlc').createTenDlc({ db, h, adminRequire: adminAuth.require, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, log })
+    tenDlc.adminRoutes(r)
+    require('../active-slot').singletonInterval('cloudivr-10dlc', () => tenDlc.tick().catch(e => log(`[10DLC] tick: ${e.message}`)), 60 * 60000)
     module.exports.stripeWebhook = compliance.webhook
     require('./esim').publicRoutes(r, { db, h, log, A: adminAuth.require })
     require('./media').publicRoutes(r, { db, h })
@@ -116,6 +119,7 @@ function createCloudIvrWeb(deps) {
     const numberDocs = require('./number-docs').createNumberDocs({ db, h, sendMail, legalProfile, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, walletOps: require('./wallet').walletOps, log })
     numberDocs.routes(r)
     compliance.routes(r)
+    tenDlc.routes(r)
     require('../active-slot').singletonInterval('cloudivr-number-docs', () => numberDocs.tick().catch(e => log(`[NumberDocs] tick: ${e.message}`)), 30 * 60000)
     Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h, offers, legalProfile, numberDocs, compliance }))
     verification.routes(r, { ...deps, db, h, upload })

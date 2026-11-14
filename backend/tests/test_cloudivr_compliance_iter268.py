@@ -29,7 +29,7 @@ def login(creds):
 def register():
     s = requests.Session()
     email = f"test_comp{int(time.time()*1000)}@example.com"
-    r = s.post(f"{API}/auth/register", json={'email': email, 'password': 'TestComp#2026', 'name': 'TEST_Comp'})
+    r = s.post(f"{API}/auth/register", json={'email': email, 'password': 'TestComp#2026', 'name': 'TEST_Comp', 'acceptPolicy': True})
     assert r.status_code == 201, r.text
     s.chat_id = r.json()['account']['id']
     s.email = email
@@ -63,7 +63,7 @@ class TestPolicy:
         d = r.json()
         assert set(d) >= {'identity', 'company', 'policy'}
         assert d['identity']['status'] == 'none' and d['company']['status'] == 'none'
-        assert d['policy']['accepted'] is False and d['policy']['version'] == '2026-11'
+        assert d['policy']['accepted'] is True and d['policy']['version'] == '2026-11'  # accepted at register since iter269
 
     def test_purchase_blocked_policy_needed(self, fresh):
         pr = fresh.put(f"{API}/profile/legal", json={'type': 'business', 'fullName': 'TEST Owner', 'companyName': 'TEST_Co Ltd',
@@ -75,8 +75,7 @@ class TestPolicy:
         if not nums:
             pytest.skip('no US numbers returned')
         r = fresh.post(f"{API}/numbers/buy", json={'phoneNumber': nums[0]['phoneNumber'], 'plan': 'starter'})
-        assert r.status_code == 400, r.text
-        assert r.json()['error'] == 'policy_needed'
+        assert r.json().get('error') != 'policy_needed', r.text  # policy accepted at register since iter269
 
     def test_accept_false_400(self, fresh):
         r = fresh.post(f"{API}/compliance/policy", json={'accept': False})
@@ -107,7 +106,7 @@ class TestIdentity:
     def test_refresh(self, fresh):
         r = fresh.post(f"{API}/compliance/identity/refresh")
         assert r.status_code == 200, r.text
-        assert r.json()['identity']['status'] in ('pending', 'none', 'failed')
+        assert r.json()['identity']['status'] in ('pending', 'none')
 
     def test_webhook_bad_signature(self):
         r = requests.post(f"{BASE}/api/stripe/webhook", data='{"type":"x"}', headers={'Content-Type': 'application/json', 'Stripe-Signature': 't=1,v1=bad'})

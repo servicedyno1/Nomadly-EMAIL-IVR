@@ -7,6 +7,7 @@ import { api, enc } from '../../api';
 import { useShell } from '../../Shell';
 import { usePrivacy } from '../../privacy';
 import { cp } from '../../paths';
+import { ExtraSipLogins } from './ExtraSip';
 
 const copy = (v) => navigator.clipboard?.writeText(v).then(() => toast.success('Copied'));
 
@@ -92,6 +93,7 @@ export default function SipTab({ num }) {
       <SipCredentials num={num} />
       <BrowserPhoneCard />
       <TestOutbound num={num} />
+      <ExtraSipLogins num={num} />
       <div className="lg:col-span-3 text-sm text-[#a1a1aa]">All your numbers’ SIP logins and a setup guide: <Link to={cp('/app/sip')} className="text-[#818cf8] hover:underline" data-testid="sip-tab-all-link">SIP & softphones</Link></div>
     </div>
   );

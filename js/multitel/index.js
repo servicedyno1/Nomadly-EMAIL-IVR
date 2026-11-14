@@ -117,4 +117,4 @@ async function sendSms(from, to, text) {
 }
 const ownsNumber = (n) => owned.includes(n)
 
-module.exports = { enabled, sendSms, ownsNumber, smsHookKey, isMt, searchNumbers, isMtSearched, buyNumber, releaseNumber, refreshOwned, ownedNumbers, registrationStatus, route }
+module.exports = { api, enabled, sendSms, ownsNumber, smsHookKey, isMt, searchNumbers, isMtSearched, buyNumber, releaseNumber, refreshOwned, ownedNumbers, registrationStatus, route }

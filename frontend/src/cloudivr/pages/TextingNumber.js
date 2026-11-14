@@ -5,6 +5,7 @@ import { useApi } from '../api';
 import { cp } from '../paths';
 import { PageHeader, Spinner } from '../ui';
 import { MobileOffer } from './buy/MobileOffer';
+import { ReadyToText } from './buy/ReadyToText';
 import { MobileLines } from './number/MobileLines';
 
 const POINTS = [
@@ -40,6 +41,7 @@ export default function TextingNumber() {
       {has && <MobileLines noEmpty />}
       {data.available ? <MobileOffer open={!has} onBought={() => { reload(); nav(cp('/app/texting-number')); }} />
         : <p className="text-sm text-[#fbbf24]" data-testid="texting-number-unavailable">Texting Numbers are temporarily unavailable. Try again later.</p>}
+      <ReadyToText />
       <Others />
     </div>
   );

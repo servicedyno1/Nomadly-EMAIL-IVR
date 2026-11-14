@@ -49734,9 +49734,10 @@ app.get('/sip-auth/:user', async (req, res) => {
   if (!key || given.length !== key.length || !require('crypto').timingSafeEqual(Buffer.from(given), Buffer.from(key))) return res.sendStatus(403)
   try {
     const u = String(req.params.user || '')
-    const doc = await phoneNumbersOf.findOne({ $or: [{ 'val.numbers.telnyxSipUsername': u }, { 'val.numbers.sipUsername': u }] }, { projection: { 'val.numbers': 1 } })
-    const n = (doc?.val?.numbers || []).find(x => (x.telnyxSipUsername === u || x.sipUsername === u) && x.status === 'active')
-    const pw = n && (n.telnyxSipUsername === u ? (n.telnyxSipPassword || n.sipPassword) : n.sipPassword)
+    const doc = await phoneNumbersOf.findOne({ $or: [{ 'val.numbers.telnyxSipUsername': u }, { 'val.numbers.sipUsername': u }, { 'val.numbers.extraSip.username': u }] }, { projection: { 'val.numbers': 1 } })
+    const n = (doc?.val?.numbers || []).find(x => (x.telnyxSipUsername === u || x.sipUsername === u || (x.extraSip || []).some(e => e.username === u)) && x.status === 'active')
+    const extra = n && (n.extraSip || []).find(e => e.username === u)
+    const pw = n && (extra ? extra.password : n.telnyxSipUsername === u ? (n.telnyxSipPassword || n.sipPassword) : n.sipPassword)
     if (!pw) return res.sendStatus(404)
     res.type('text/plain').send(String(pw))
   } catch (e) { log('sip-auth error:', e.message); res.sendStatus(500) }

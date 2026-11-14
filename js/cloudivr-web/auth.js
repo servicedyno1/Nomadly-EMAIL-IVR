@@ -200,7 +200,7 @@ function createAuth(db, { log = console.log, notifyAdmin = () => {} } = {}) {
       await recordFailure(ipKey, 15) // counts sign-ups per IP (15 per 15 min)
       const ip = clientIp(req)
       const acc = await createAccount({ email, name: req.body.name, passwordHash: await bcrypt.hash(password, 12), referredBy: await referrerFor(req.body.ref, ip), ip, country: countryOf(req) })
-      await db.collection('compliance').updateOne({ _id: String(acc._id) }, { $set: { policy: { version: require('./compliance').POLICY_VERSION, acceptedAt: new Date(), ip } } }, { upsert: true })
+      await require('./compliance').recordAcceptance(db, acc._id, req, 'signup')
       setSession(req, res, acc, req.body.remember ? 30 : SESSION_DAYS)
       res.status(201).json({ account: publicAccount(acc) })
     }))

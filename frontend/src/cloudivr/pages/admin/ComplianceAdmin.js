@@ -16,6 +16,46 @@ async function openFile(chatId, id) {
 }
 
 export default function ComplianceAdmin() {
+  const [tab, setTab] = useState('papers');
+  return (<div className="space-y-4">
+    <div className="flex gap-2">{[['papers', 'Company papers'], ['tendlc', 'US 10DLC']].map(([k, l]) => <button key={k} className={`civr-btn ${tab === k ? 'civr-btn-primary' : 'civr-btn-ghost'}`} onClick={() => setTab(k)} data-testid={`admin-compliance-tab-${k}`}>{l}</button>)}</div>
+    {tab === 'papers' ? <Papers /> : <TenDlcAdmin />}
+  </div>);
+}
+
+function TenDlcAdmin() {
+  const [status, setStatus] = useState('submitted');
+  const [items, setItems] = useState(null);
+  const [err, setErr] = useState(null);
+  const load = useCallback(() => { setItems(null); api(`/admin/tendlc?status=${status}`).then(d => setItems(d.items)).catch(setErr); }, [status]);
+  useEffect(() => { load(); }, [load]);
+  const decide = async (chatId, decision) => {
+    const note = decision === 'reject' ? window.prompt('Why is it rejected?') : '';
+    if (decision === 'reject' && !note) return;
+    try { const r = await api(`/admin/tendlc/${chatId}/decision`, { method: 'POST', body: { decision, note } }); toast.success(`Status: ${r.status}`); load(); } catch (e) { setErr(e); }
+  };
+  return (
+    <div className="space-y-3" data-testid="admin-tendlc">
+      <div className="flex flex-wrap gap-2">{['submitted', 'filed', 'failed', 'active', 'rejected'].map(s => <button key={s} className={`civr-btn ${status === s ? 'civr-btn-primary' : 'civr-btn-ghost'}`} onClick={() => setStatus(s)} data-testid={`admin-tendlc-filter-${s}`}>{s}</button>)}</div>
+      <ErrorNote error={err} testid="admin-tendlc-error" />
+      {!items ? <Spinner /> : !items.length ? <p className="text-sm text-[var(--c-muted)]" data-testid="admin-tendlc-empty">Nothing here.</p> : items.map(it => (
+        <div key={it.chatId} className="civr-card p-5 space-y-2 text-sm" data-testid={`admin-tendlc-row-${it.chatId}`}>
+          <div className="font-semibold">{it.brand?.companyName || `${it.brand?.firstName} ${it.brand?.lastName}`} <span className="text-[var(--c-muted)] font-normal">· {it.brand?.entityType} · EIN {it.brand?.ein || '—'} · {it.brand?.city}, {it.brand?.state}</span></div>
+          <div><b>{it.campaign?.useCase}</b>: {it.campaign?.description}</div>
+          <div className="text-[var(--c-muted)]">“{it.campaign?.sample1}” / “{it.campaign?.sample2}”</div>
+          <div className="text-[var(--c-muted)]">Opt-in: {it.campaign?.messageFlow}</div>
+          {it.filings.map((f, i) => <div key={i} className="text-xs">{f.provider}: {f.status}{f.error ? ` — ${f.error}` : ''}</div>)}
+          <div className="flex gap-2">
+            {['submitted', 'failed'].includes(it.status) && <button className="civr-btn civr-btn-primary" onClick={() => decide(it.chatId, 'approve')} data-testid={`admin-tendlc-approve-${it.chatId}`}><Check className="w-4 h-4" />Approve and file</button>}
+            {it.status !== 'active' && <button className="civr-btn" onClick={() => decide(it.chatId, 'activate')} data-testid={`admin-tendlc-activate-${it.chatId}`}>Mark active</button>}
+            {it.status !== 'rejected' && <button className="civr-btn" onClick={() => decide(it.chatId, 'reject')} data-testid={`admin-tendlc-reject-${it.chatId}`}><X className="w-4 h-4" />Reject</button>}
+          </div>
+        </div>))}
+    </div>
+  );
+}
+
+function Papers() {
   const [status, setStatus] = useState('submitted');
   const [items, setItems] = useState(null);
   const [err, setErr] = useState(null);

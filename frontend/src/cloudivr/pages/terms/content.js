@@ -1,6 +1,7 @@
 import { COMPANY } from '../../company';
 // Terms of Service text. Plain data so it is easy to edit; sections render in this order.
-export const UPDATED = '11 November 2026';
+export const UPDATED = '14 November 2026';
+export const TERMS_VERSION = '2026-11-14';
 
 export const TERMS = [
   { id: 'about', title: 'About these terms', body: [
@@ -33,6 +34,17 @@ export const TERMS = [
     'send unsolicited bulk calls or texts, harass, threaten or abuse anyone, or share illegal content;',
     'spoof caller ID to mislead, generate artificial traffic, or call premium-rate or blocked destinations to make money from calls;',
     'resell the service without our written permission, or try to break, overload or get around our security and limits.',
+  ] },
+  { id: 'identity', title: 'Identity, verification and records', body: [
+    'Phone numbers are registered to a real person or business. You must give us your true legal name and address (and your company name, registration number and address if you are a business) and keep them current. Some countries also need an ID check (a photo ID and a live selfie, run by Stripe) and, for businesses, company papers we review. We send these details, and any documents you upload, to the carrier that provides the number.',
+    'We keep identity, verification, consent, opt-out, traffic, complaint and enforcement records for at least four years, or longer where the law requires, and share them with carriers and authorities when they are entitled to them. We may ask you for more information at any time and suspend numbers until you provide it.',
+  ] },
+  { id: 'messaging', title: 'Texting rules, opt-outs and US registration', body: [
+    'Only text people who agreed to hear from you. Identify yourself in your messages. When someone replies STOP (or a similar word) we stop all texts from your account to that person until they reply START — you may not try to get around this.',
+    'US local numbers need a 10DLC brand and campaign registration before they can send texts. You must describe your real business, use case, sample messages and how people opt in; we file it with the carrier for you. Registering under someone else’s identity, or sending traffic that does not match your approved campaign, is not allowed. Carrier registration and vetting fees may apply.',
+  ] },
+  { id: 'carriers', title: 'Carriers and partners', body: [
+    'We provide numbers, calls and texts through licensed carriers and partners (including MultiTEL, Infobip and Bird). Their acceptable-use, messaging and reseller rules apply to you as well as ours. They may filter, block or suspend traffic, numbers or logins straight away to stop fraud, spam, spoofing or other abuse, and we may have to do the same. Each SIP login is personal to you or your team; keep it secret and remove logins you no longer use.',
   ] },
   { id: 'recordings', title: 'Recordings, transcripts and AI', body: [
     'Some places require every person on a call to agree before it is recorded. If you turn on call recording, voicemail, transcripts or AI summaries, you are responsible for telling callers and getting any consent the law requires.',

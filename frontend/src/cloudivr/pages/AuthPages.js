@@ -136,7 +136,7 @@ export function AuthPage({ mode }) {
           <PasswordInput value={f.password} onChange={set('password')} minLength={signup ? 8 : 1} autoComplete={signup ? 'new-password' : 'current-password'} testid="auth-password-input" toggleTestid="auth-password-toggle" />
         </Field>
         <RememberBox checked={remember} onChange={setRemember} />
-        {signup && <label className="flex items-start gap-2 text-sm cursor-pointer" data-testid="auth-policy-label"><input type="checkbox" required checked={policy} onChange={e => setPolicy(e.target.checked)} className="mt-1" data-testid="auth-policy-checkbox" /><span>I agree to the CloudIVR usage policy: no spam, fraud or spoofing, and I honor every STOP request.</span></label>}
+        {signup && <label className="flex items-start gap-2 text-sm cursor-pointer" data-testid="auth-policy-label"><input type="checkbox" required checked={policy} onChange={e => setPolicy(e.target.checked)} className="mt-1" data-testid="auth-policy-checkbox" /><span>I agree to the <Link to={cp('/terms')} target="_blank" className="text-[#818cf8] underline underline-offset-2" data-testid="auth-policy-terms-link">Terms of Service</Link> and usage policy: no spam, fraud or spoofing, and I honor every STOP request.</span></label>}
         <ErrorNote error={error} testid="auth-error" />
         <button className="civr-btn civr-btn-primary w-full" disabled={busy} data-testid="auth-submit-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{signup ? 'Create free account' : 'Sign in'}</button>
       </form>}

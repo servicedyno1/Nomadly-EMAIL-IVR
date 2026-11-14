@@ -1,0 +1,33 @@
+{
+  "summary": "Retest of the CloudIVR compliance fixes from iteration_268. All 6 requested items pass. Backend: the new test_cloudivr_compliance_iter269.py passes 9/9. test_cloudivr_compliance_iter268.py was updated to send acceptPolicy:true and now expects the policy to be accepted at register; it passes 18/18. (1) Starting an ID check and refreshing right away now returns identity 'none', not 'failed'. In the UI, leaving Stripe early and coming back shows 'Not started', not 'Not passed'. (2) POST /auth/register without acceptPolicy:true, or with the string 'true', returns 400 policy_needed. With it, the response is 201 and GET /compliance shows policy.accepted=true with acceptedAt. In the UI the auth-policy-checkbox is required: the browser blocks submit with 'Please check this box' and no request is sent. The register body contains acceptPolicy:true, there is no separate /compliance/policy call, and no PolicyGate appears after sign-up. (3) PolicyGate shows no policy-gate-close-button and no aria-label=Close control. Escape does not close it, Accept stays disabled until the box is ticked, and accepting closes it. (4) Germany → National: Multitel returns no numbers in preview, so I injected one number into the /numbers/search response with Playwright. paperwork and compliance came from the real backend unless noted. Results: real docs not ready + verified + approved → buy-documents-required shown. Docs forced ready + verified + approved → Checkout shown (wallet and crypto). Docs ready + papers 'submitted' → required. Docs ready + ID 'pending' → required. (5) Messages: with an smsOptOuts doc {_id:'<chatId>:+15550001269'}, the thread API returns optedOut:true and canText:false, send returns 403 opted_out, and the UI shows the STOP notice (composer-receive-only) with no textarea. After removing the doc, optedOut is false. (6) Regression: the Settings Compliance card shows ID status and 'Usage policy accepted'. The Stripe TEST flow (Verify my ID → Stripe Submit → ?identity=done) changes to Verified. In the admin Compliance tab, a submitted row shows email and company, a file opens in a new tab, reject without a reason is blocked, reject with a reason moves the row to the Rejected filter with the reason shown, and approve and resubmit pass via the API.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /auth/register", "issue": "Policy acceptance is written by a separate updateOne after createAccount. If that write fails, the account exists without a policy record, but the PolicyGate still catches it later, so the risk is low. Google and phone sign-ups still rely on the PolicyGate (no server-side acceptance), which is by design."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Get a number → buy-documents-required", "issues": ["The message always lists every step ('documents, ID check, company papers'), even when only one is missing. For example, a business user with verified ID and approved papers but missing documents still sees all three. The request asked that the message mention the missing steps; consider building the list from the steps that are actually not done."]},
+      {"screen": "Get a number → Germany paperwork card", "issues": ["When pc (compliance) is null, docsMissing falls back to checking documents only, so Checkout can appear before compliance loads. The server-side paperworkIssue/idIssue still blocks the purchase, so this is cosmetic."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_compliance_iter269.py", "/app/backend/tests/test_cloudivr_compliance_iter268.py", "/app/backend/tests/compliance_ui_helper_iter269.py", "/app/test_reports/pytest/iter269_compliance.xml"],
+  "action_items": [
+    "Optional: make the buy-documents-required text list only the missing steps (documents / ID check / company papers)."
+  ],
+  "critical_code_review_comments": [
+    "compliance.js applySession: requires_input without last_error → 'none' is correct. The 'failed' reason is only set when last_error exists.",
+    "auth.js register: the acceptPolicy check is strict (=== true) and runs before the IP rate-limit counter, so sign-ups rejected for a missing policy tick do not use up the 15-per-15-min IP quota. Good.",
+    "Thread.js Footer: the order is blocked → optedOut → texting-only etc., so the STOP notice wins over other receive-only reasons. Correct.",
+    "BuyNumber.js docsMissing: needsProfile is checked before docsMissing, so users without a legal profile (e.g. civr.uxtest) see BuyProfileGate rather than the documents message. That is expected."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_compliance_iter268.py", "/app/backend/tests/test_cloudivr_compliance_iter269.py", "/app/backend/tests/compliance_ui_helper_iter269.py"],
+  "success_rate": {"backend": "100% (27/27 across iter268+iter269 suites)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "Created TEST users: test_comp<ts>@example.com (pytest, several), test_signup1794673487@example.com / TestSign#2026 (UI sign-up, now ID Verified via Stripe TEST), test_gate1794673453@example.com / TestGate#2026 (chatId 5000000000000103, business DE, policy accepted via gate, company papers rejected with 'TEST unreadable'). Temporary smsOptOuts docs were removed after the tests. No seeded or user data was changed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_cloudivr_compliance_iter269.py tests/test_cloudivr_compliance_iter268.py -p no:xdist. Register now requires acceptPolicy:true. To get a user without the policy for PolicyGate UI tests, run tests/compliance_ui_helper_iter269.py (it registers, then $unset policy on its own compliance doc). Multitel search returns empty in preview, so to test buy-documents-required, intercept **/numbers/search** with page.route and fetch the real response via page.context.request.get (route.fetch loses cookies). Inject numbers=[{phoneNumber, region, surcharge:0, capabilities:{voice:true}}], because capabilities is required or the page crashes. After login, new users get the onboarding dialog and the 'Who will use your numbers?' dialog; click 'Do this later' or PUT /prefs/onboarding."
+}
