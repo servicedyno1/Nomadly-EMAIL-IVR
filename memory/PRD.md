@@ -87,3 +87,5 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Fix: droplet shared envs (app-main/wl/voodoo/proshop) → MAIL_PROVIDER=resend + RESEND_API_KEY (backups backend.env.bak-20261114T102347). All 4 redeployed via deploy.sh (call drain). Real Resend send from prod verified.
 - Code (preview, needs Save to GitHub): app errors 502→503 in cloudivr-web admin-auth/ai/fax/leads/phone-auth so Cloudflare passes the real message.
 - Open: Telnyx account block (inbound Telnyx numbers/SIP list failing). User chose to handle email only for now.
+- 2026-11-14 follow-up: Inbox tab IS live in prod build (chunk 763, release 33f1d02). User's tab was loaded 10:08:45, before the 10:09 build swap → needs reload. inboundEmails in prod: 2 test mails, bodies backfilled from Resend (key was missing at receive time).
+- OPEN (security): /email-inbound/webhook does NOT verify Resend/Svix signature (unsigned POST returns 200). Needs signing-secret rotation (old one exposed) + verification.
