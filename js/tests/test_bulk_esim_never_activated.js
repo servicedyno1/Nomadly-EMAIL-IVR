@@ -17,13 +17,22 @@ const ok = (n, c, x = '') => { c ? pass++ : fail++; console.log(`${c ? '✅' : '
   let e = await db.collection('bsEsims').findOne({ _id: 'ESIM-0904' })
   ok('PENDING plan → health "activating", not technically failed, stays testing', e.health === 'activating' && e.status === 'testing' && !(e.apiFails > 0), `${e.health}/${e.status}`)
   ok('admin told after 2 h', alerts.some(a => /has not activated its plan after 3 h/.test(a)))
-  const before = await db.collection('bsEsims').countDocuments({ role: 'service' })
+  // Default (reorderProviderFails off): provider-side failure → retired + alert, but NO replacement bought.
+  let before = await db.collection('bsEsims').countDocuments({ role: 'service' })
   await db.collection('bsEsims').updateOne({ _id: 'ESIM-0904' }, { $set: { createdAt: new Date(Date.now() - 25 * 3600e3) } })
   await B.healthCheck()
   e = await db.collection('bsEsims').findOne({ _id: 'ESIM-0904' })
-  ok('24 h → retired (failed) + replacement bought', e.status === 'failed' && (await db.collection('bsEsims').countDocuments({ role: 'service' })) === before + 1 && alerts.some(a => /never activated its plan in 24 h/.test(a)), e.status)
-  // PENDING and never bound to a device → will never activate: retired at once, replacement bought.
-  const ic2 = '89012400000000004807'; process.env.BULK_ESIM_FAKE_PENDING = `${iccid},${ic2}`; process.env.BULK_ESIM_FAKE_NODEVICE = ic2
+  ok('24 h (default) → retired, NO replacement bought, admin alerted', e.status === 'failed' && (await db.collection('bsEsims').countDocuments({ role: 'service' })) === before && alerts.some(a => /never activated its plan in 24 h/.test(a) && /No replacement bought/.test(a)), e.status)
+  // With reorderProviderFails on: same failure now buys a replacement.
+  await B.setConfig({ reorderProviderFails: true }, 'test')
+  const ic3 = '89012400000000004808'; process.env.BULK_ESIM_FAKE_PENDING = ic3
+  await db.collection('bsEsims').insertOne({ _id: 'ESIM-0906', role: 'service', status: 'testing', health: 'unknown', msisdn: '+16316900317', iccid: ic3, account: 'spenza1', createdAt: new Date(Date.now() - 25 * 3600e3), updatedAt: new Date() })
+  before = await db.collection('bsEsims').countDocuments({ role: 'service' })
+  await B.healthCheck()
+  e = await db.collection('bsEsims').findOne({ _id: 'ESIM-0906' })
+  ok('24 h (reorder on) → retired + replacement bought', e.status === 'failed' && (await db.collection('bsEsims').countDocuments({ role: 'service' })) === before + 1, e.status)
+  // PENDING and never bound to a device → will never activate: retired at once, replacement bought (reorder on).
+  const ic2 = '89012400000000004807'; process.env.BULK_ESIM_FAKE_PENDING = `${ic3},${ic2}`; process.env.BULK_ESIM_FAKE_NODEVICE = ic2
   await db.collection('bsEsims').insertOne({ _id: 'ESIM-0905', role: 'service', status: 'testing', health: 'unknown', msisdn: '+16316870635', iccid: ic2, account: 'spenza1', createdAt: new Date(), updatedAt: new Date() })
   const before2 = await db.collection('bsEsims').countDocuments({ role: 'service' }); await B.healthCheck()
   e = await db.collection('bsEsims').findOne({ _id: 'ESIM-0905' })

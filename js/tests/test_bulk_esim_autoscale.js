@@ -15,7 +15,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   for (const c of COLS) await db.collection(c).deleteMany({})
   const alerts = []
   await B.init({ db, log: () => {}, notifyAdmin: (t) => alerts.push(t) })
-  await B.setConfig({ minCredit: 10, reserveBooking: true, monitorEsims: 1, rateMargin: 0 }, 'test') // LEGACY_DEFAULTS: this suite covers the floor / spare-reserve / monitor paths
+  await B.setConfig({ minCredit: 10, reserveBooking: true, monitorEsims: 1, rateMargin: 0, reorderProviderFails: true }, 'test') // LEGACY_DEFAULTS: this suite covers the floor / spare-reserve / monitor paths (incl. auto-rebuy of provider failures)
   process.env.BULK_ESIM_WORKER = ''
   let provCalls = 0; const realProv = P.provision; P.provision = async (...a) => { provCalls++; return realProv(...a) }
   const c = await B.cfg()
@@ -215,7 +215,7 @@ const DAY = 86400000, d = (n) => new Date(Date.now() + n * DAY).toISOString().sl
   // ---- replacement + dead detection for EVERY role (service, monitor, tester) ----
   for (const col of ['bsEsims', 'bsBookings', 'bsDemand', 'bsTests', 'bsMessages', 'bsIncidents']) await db.collection(col).deleteMany({})
   await db.collection('bsConfig').deleteMany({ _id: { $regex: /^(settings|replaces:|replimit:|stuck:|nopeer:)/ } })
-  await B.setConfig({ autoProvision: true, manualApproval: false, quietStart: 0, quietEnd: 24, monitorEsims: 1, minCredit: 10, reserveBooking: true, rateMargin: 0 }, 'test'); process.env.BULK_ESIM_FAKE_CREDIT = '500'; await B.creditWatch()
+  await B.setConfig({ autoProvision: true, manualApproval: false, quietStart: 0, quietEnd: 24, monitorEsims: 1, minCredit: 10, reserveBooking: true, rateMargin: 0, reorderProviderFails: true }, 'test'); process.env.BULK_ESIM_FAKE_CREDIT = '500'; await B.creditWatch()
   await B.ensureRoles(await B.cfg()); for (let i = 0; i < 2; i++) await B.provisionOne('role-test'); await B.healthCheck(); await B.healthCheck()
   const T = await db.collection('bsEsims').findOne({ role: 'tester' }), M = await B.monitorLine(), S = await db.collection('bsEsims').findOne({ role: 'service', status: 'available' })
   ok('fleet for the role test: tester + monitor + 2 service, all available', T?.status === 'available' && M?.status === 'available' && (await db.collection('bsEsims').countDocuments({ role: 'service', status: 'available' })) === 2)
