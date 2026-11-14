@@ -21,7 +21,7 @@ export function PlanCompare({ catalog, start }) {
     <Reveal className="mt-14" data-testid="plan-compare">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div><div className="civr-l-eyebrow">Compare plans</div><h3 className="civr-l-h text-2xl sm:text-3xl text-slate-900 mt-3">Everything each plan includes.</h3></div>
-        <p className="text-sm text-slate-500 max-w-sm">All plans: browser phone, SMS inbox, call forwarding, call notes and on/off hours. One monthly price per number.<span className="block md:hidden mt-1 text-xs text-slate-400">Swipe the table sideways to see every plan.</span></p>
+        <p className="text-sm text-slate-500 max-w-sm">All plans: browser phone, call forwarding, call notes and on/off hours, plus a free USA, Canada or UK number. One monthly price per number.<span className="block md:hidden mt-1 text-xs text-slate-400">Swipe the table sideways to see every plan.</span></p>
       </div>
       <div className="mt-6 overflow-x-auto rounded-2xl border civr-l-rule bg-white" tabIndex={0} role="region" aria-label="Plan comparison table" data-testid="plan-compare-scroll">
         <table className="civr-l-table" data-testid="plan-compare-table">

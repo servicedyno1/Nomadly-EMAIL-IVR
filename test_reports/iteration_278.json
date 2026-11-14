@@ -1,0 +1,47 @@
+{
+  "summary": "Tested the CloudIVR plan 'included number' rules, texting hidden from plans, and International Texting 'coming soon', in the backend and the UI. Backend: 16/16 pytest pass. GET /catalog: US/CA/GB have included='all'; NL/FR/ES have 'business'; DE and other countries have null. NL mobile included=true, NL local=false, planTexting=false, and no plan has an inbox/smsEmail/textTriggers webFeature. /texting/ready returns available=false. Enforcement uses an injected webSearchCache, so there were no live searches or purchases. /numbers/checkout returns 400 extra_number_only for: pro+NL mobile, business+NL local, business+DE local, starter+DE mobile, standard+FR local. /numbers/buy with pro+NL mobile also returns 400. These crypto checkouts were accepted (201 dry-run orders, cancelled and deleted after): business+NL mobile, starter+US local, standard+GB mobile, business+FR local. /numbers/request DE with business returns 400 extra_number_only. /numbers/:phone/extra-checkout with a DE local number was accepted (201). Checkout without login returns 401. Bot code checked with node: botPlanCountries for starter/standard/pro gives only GB besides US/CA; business gives FR[local], NL[mobile], ES[local], GB[all 4]. includedIssue gives the right messages. PLAN_TEXTING=false, and no plan feature array (EN or i18n) has an SMS line. UI with Alice: the buy page (purpose=voice) country list is exactly Canada, United States, France · Business plan, Netherlands · Business plan, Spain · Business plan, United Kingdom. Type lists: NL Mobile only, FR Local, ES Local, GB all 4, US/CA Local + Toll-free. buy-included-note shows and ready-to-text is not rendered. A live NL mobile search returned 10 results with no 'Texts' pill. After picking a result, Basic/Starter/Pro are disabled with buy-plan-*-locked labels and Business is selected. Plan cards have no SMS inbox / SMS to email / Text Triggers. The extra flow (?extra=+13346970100) lists 89 countries including Germany, with all types (NL: Local, Mobile, National, Toll-free) and no included note. International Texting page: banner shown, 'coming soon' in the header sub, all 11 country buttons disabled, nav shows 'Soon'. The USA Texting Number page link says 'International Texting is coming soon'. Landing plan cards and 'See all features' are clean. Regression: home, sip, travel-esim, numbers, buy, texting-number and help pages load with no page errors.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "phone-config instantNoId / includedIssue", "issue": "Included eligibility depends on live provider health (number-catalog best() returns null when MultiTEL/Infobip is down or disabled). For GB/NL/FR/ES that makes instantNoId false, so while a provider is flagged down every GB plan purchase returns extra_number_only with the misleading 'needs paperwork' message. Consider a separate 'provider temporarily unavailable' error."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Landing pricing 'Texting plan' card", "issue": "CTA label 'Get a texting number' is clipped ('Get a texting nu') at 1920px.", "selector": "landing pricing texting card button", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing (marketing copy still sells texting as part of plans / intl texting as live)", "issues": [
+        "pages/landing/catalogSnapshot.js CATALOG_SNAPSHOT still has webFeatures keys inbox/smsEmail/textTriggers for all 4 plans. Landing renders it before /public/catalog loads (and as a fallback if it fails), so the first paint can show texting features on plan cards. Regenerate the snapshot.",
+        "pages/landing/PlanTable.js:24 'All plans: browser phone, SMS inbox, call forwarding…' (PlanCompare).",
+        "pages/landing/PricingFaq.js:108 FAQ 'Basic gives you a number with call forwarding, the SMS inbox…'. This is also reused on the Help page and in SIP Plans via faqItems.",
+        "pages/sip/Sections.js:12 '…ring groups and an SMS inbox come with every SIP plan.'",
+        "Highlights pills and Platform section still list 'SMS inbox' and 'Text Triggers' as platform features (could be acceptable as product features, but they read as included).",
+        "Landing hero SMS purpose card ('…or a number in 11 more countries') and the pricing 'Texting plan' card ('Or pick a number in 11 more countries', 'other countries: pay per text sent') still sell International Texting, which is now 'coming soon'."
+      ]},
+      {"screen": "Buy page plan picker (NL/FR/ES)", "issues": ["The locked Pro card still shows the 'Recommended' badge, which is confusing when it can't be picked. The amber locked label at 45% opacity has low contrast."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_included_numbers_iter278.py", "/app/test_reports/pytest/pytest_results_278.xml"],
+  "action_items": [
+    "Regenerate frontend/src/cloudivr/pages/landing/catalogSnapshot.js so plans' webFeatures drop inbox/smsEmail/textTriggers (and planTexting false). Today the first paint / fallback still shows the texting features.",
+    "Remove 'SMS inbox' from plan copy: landing/PlanTable.js:24, landing/PricingFaq.js:108 (FAQ, also on Help and SIP Plans), sip/Sections.js:12.",
+    "Landing: mark the '11 more countries' texting copy (hero SMS card, pricing Texting plan card) as coming soon, or remove it.",
+    "Fix the clipped 'Get a texting number' button on the landing pricing Texting plan card.",
+    "Bot (js/_index.js cpSelectType ~L29949): the typed number type isn't checked against countryEntry.types, so a user could type 'Local Number' after picking NL (only Mobile is offered). The bot purchase path has no includedIssue re-check, so NL local (needs an address) could become a plan's free number through the bot. Check that numberType is in countryEntry.types, or call includedIssue(cpPlanKey, cc, numberType) when the type is picked or before payment (not for sub-numbers).",
+    "Optional: hide the 'Recommended' badge on locked plan cards."
+  ],
+  "critical_code_review_comments": [
+    "js/_index.js cpSelectType: the number type isn't re-validated against the plan-allowed types (see action items). The web path is fully enforced server-side (checkout, buy, purchaseLocked, request).",
+    "purchaseLocked skips includedIssue when viaOrder/presetOrder is set. That's correct for crypto orders checked at checkout, but if a plan's included countries change while an order is open, the old rules apply. That's acceptable.",
+    "number-requests.js checks includedIssue(planKey, country, 'local'). Every REQUEST country (AT, CR, DO, EC, PE, PY, SE, AU, DK, DE, CY) is outside the included lists, so it's always blocked. But if a request country is ever added to INCLUDED_*, instantNoId may pick a different provider's level-0 offer and let an on-request order through. It's cleaner to block /numbers/request outright, since request numbers are never instant."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_included_numbers_iter278.py"],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "95% (all requested checks pass; landing copy/snapshot leftovers outside the requested selectors)"},
+  "seed_data_creation": "None kept. The test temporarily sets Alice's legalProfile.completedAt, injects webSearchCache with fake numbers, and creates dry-run crypto orders. Teardown restores everything: legalProfile unset again, orders and deposits deleted, search cache restored. Verified: 0 leftover orders/deposits, Alice wallet unchanged (usdIn 380 / usdOut 26.03).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "test_credentials": "civr.alice@example.com / AliceTest#2026 (webAccounts _id is a double 5000000000000900 — use str(int(_id)) for chatId '5000000000000900').",
+  "context_for_next_testing_agent": "The enforcement tests avoid live searches by writing webSearchCache {_id: chatId, country, type, results:[{phoneNumber,...}]} (TTL index on 'at', 2h). legalProfile.gate (profile_required, 428) runs before checkout, so the test sets legalProfile.completedAt temporarily. Run with: REACT_APP_BACKEND_URL=... pytest tests/test_cloudivr_included_numbers_iter278.py -p no:xdist. Only one live NL mobile search was done (UI)."
+}

@@ -6,7 +6,8 @@ import { Sun, Moon } from 'lucide-react';
 // In-app light/dark: 'system' (follow the device) | 'light' | 'dark', kept on this device like language.
 const KEY = 'civr.theme';
 const subs = new Set();
-const read = () => { try { return localStorage.getItem(KEY) || 'system'; } catch (_) { return 'system'; } };
+// Light is the default look (2026 redesign); dark stays one tap away in the account menu.
+const read = () => { try { return localStorage.getItem(KEY) || 'light'; } catch (_) { return 'light'; } };
 let pref = read();
 const mq = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
 const resolve = () => (pref === 'system' ? (mq?.matches ? 'light' : 'dark') : pref);

@@ -220,7 +220,7 @@ export default function BuyNumber() {
   return (
     <div data-testid="buy-page">
       {extraOf ? <PageHeader label="Phone numbers · Extra number" title="Add an extra number" sub={`Shares the plan of ${pv.phone(extraOf)} — ${money(extra?.price || 25)}/month, same features. Pay from your wallet or with crypto.${extra ? ` ${extra.used} of ${extra.limit} used.` : ''}`} testid="buy-header" />
-        : <PageHeader label="Phone numbers" title="Get a number" sub="Choose what the number is for. Everything is month to month and paid from your wallet." testid="buy-header" />}
+        : <PageHeader label="Phone numbers" title="Get a number" sub="Every plan comes with one instant number from the USA, Canada or UK. Business can also pick the Netherlands, France or Spain. Month to month, paid from your wallet." testid="buy-header" />}
       {extraOf
         ? <p className="text-sm text-[#a1a1aa] -mt-2 mb-6" data-testid="buy-extra-back"><Link to={cp('/app/buy')} className="inline-block py-2 text-[#818cf8] underline underline-offset-2" data-testid="buy-extra-back-button">Buy a brand-new number with its own plan instead</Link></p>
         : <>

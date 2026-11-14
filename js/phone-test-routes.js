@@ -222,6 +222,8 @@ function initPhoneTestRoutes(app, db, telnyxApi, sipConnectionId, bot) {
   app.post('/phone/test/caller-id', async (req, res) => {
     try {
       const { sipUsername, showAs } = req.body || {}
+      // Unverified caller IDs were removed: free SIP tests always show the CloudIVR test number.
+      if (showAs) return res.status(400).json({ error: 'Custom caller IDs aren’t available on free tests. Calls show a CloudIVR number.' })
       const cid = require('./cloudivr-web/caller-ids')
       const n = String(showAs || '').replace(/[^\d+]/g, '')
       const e164 = !n ? null : n.startsWith('+') ? n : n.length === 10 ? `+1${n}` : `+${n}`

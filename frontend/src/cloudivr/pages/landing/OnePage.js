@@ -14,11 +14,11 @@ import { FaxLanding } from './FaxLanding';
 import { NumbersPreview } from './NumbersPreview';
 import { LandingPlanHelper } from './PlanHelper';
 
-const WORDS = ['business calls', 'IVR campaigns', 'two-way texts', 'online fax', 'a USA eSIM'];
+const WORDS = ['business calls', 'an AI receptionist', 'IVR campaigns', 'USA texting', 'travel data'];
 export const PICKS = [
   ['ivr', PhoneCall, 'A business phone line', 'Calls, IVR, SIP and campaigns'],
   ['esim', Smartphone, 'A USA eSIM', 'A real line on your phone'],
-  ['mobile', MessageSquareText, 'A Texting Number', 'USA with unlimited texts, or 11 more countries'],
+  ['mobile', MessageSquareText, 'A Texting Number', 'USA with unlimited texts · international coming soon'],
   ['fax', Printer, 'A fax number', 'Send and receive faxes online'],
 ];
 
@@ -41,9 +41,9 @@ export function OneHero({ setTab, from, esimPrice, offer, fax, catalog }) {
       <HeroDecor />
       <div className="relative max-w-7xl mx-auto px-6 md:px-8 text-center">
         <div className="mx-auto max-w-3xl">
-          <div className="civr-l-kicker civr-rise"><span className="civr-l-dot" />Cloud phone, IVR, texting and fax</div>
+          <div className="civr-l-kicker civr-rise"><span className="civr-l-dot" />Business numbers · AI receptionist · IVR · travel data</div>
           <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-6xl mt-5 text-slate-950 font-extrabold tracking-tight civr-rise civr-d1" data-testid="hero-title">One place for <span className="relative inline-block"><CyclingWord /><Squiggle /></span></h1>
-          <p className="mx-auto max-w-2xl text-base md:text-lg text-slate-600 mt-5 leading-relaxed civr-rise civr-d2" data-testid="hero-subtitle">Pick what you need, pay with crypto or your wallet, and you are live in minutes. Month to month, no contract{from ? ` · from ${from}/month` : ''}.</p>
+          <p className="mx-auto max-w-2xl text-base md:text-lg text-slate-600 mt-5 leading-relaxed civr-rise civr-d2" data-testid="hero-subtitle">Get a USA, Canada or UK business number in minutes, with no ID. Answer in the browser, on any SIP app or your mobile, and let a menu or the AI receptionist take calls when you can’t. Month to month{from ? `, from ${from}/month` : ''}.</p>
         </div>
         <PurposeCards catalog={catalog} from={from} offer={offer} fax={fax} esimPrice={esimPrice} goPlans={(id) => goPlans(id, setTab)} />
         <NumbersPreview />

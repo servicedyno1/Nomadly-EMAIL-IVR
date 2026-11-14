@@ -397,6 +397,7 @@ function includedIssue(planKey, cc, t) {
   if (!includedCountries(planKey).includes(cc)) return includedTier(cc) === 'business'
     ? 'Netherlands, France and Spain numbers come free with the Business plan. Pick Business, or a USA, Canada or UK number.'
     : 'A plan comes with a USA, Canada or UK number (Business also: Netherlands, France, Spain). Add other countries as an extra number once you have a plan.'
+  if (!['US', 'CA'].includes(cc) && !require('./number-catalog').best(cc, t)) return 'Numbers from this country are temporarily unavailable. Try again shortly, or pick another country.'
   if (!instantNoId(cc, t)) return 'That number type needs paperwork, so it can only be added as an extra number on a plan. Pick another type for your plan’s free number.'
   return null
 }

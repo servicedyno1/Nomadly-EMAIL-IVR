@@ -702,7 +702,6 @@ const PhoneTestPage = () => {
                     {SIP_DOMAIN}
                   </div>
                 </div>
-                <TestCallerId sipUsername={testUsername} />
               </div>
             )}
           </div>

@@ -111,7 +111,9 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     // Optional: the visitor can show any caller ID on their free test call (not emergency numbers; logged).
     const cidSvc = require('./caller-ids')
     let showAs = null
-    if (req.body.showAs) {
+    // Unverified caller IDs were removed: the free test call always shows a CloudIVR number.
+    if (req.body.showAs) return bad(res, 400, 'invalid_show_as', 'Custom caller IDs aren’t available on the free test call.')
+    if (false) {
       if (cidSvc.isEmergency(req.body.showAs)) return bad(res, 400, 'invalid_show_as', 'Emergency numbers can’t be used as a caller ID.')
       const s = String(req.body.showAs).replace(/[^\d+]/g, '')
       showAs = s.startsWith('+') ? s : s.length === 10 ? `+1${s}` : `+${s}`
@@ -142,6 +144,7 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     if (!email) return bad(res, 401, 'verify_email', 'Confirm your email first.')
     const d = destination(req.body.to)
     if (d.err) return bad(res, 400, 'invalid_number', d.err)
+    if (req.body.showAs) return bad(res, 400, 'invalid_show_as', 'Custom caller IDs aren’t available on free tests.')
     if (req.body.showAs && _showAs(req.body.showAs) === undefined) return bad(res, 400, 'invalid_show_as', 'Enter the caller ID with country code (emergency numbers are not allowed).')
     const answer = (doc, c) => ({ id: doc._id, kind: 'browser', to: doc.to, maxSeconds: MAX_SECONDS, dryRun: !!doc.dryRun, ...(c ? { login: c.sipUsername, password: c.sipPassword, callerNumber: process.env.TELNYX_DEFAULT_ANI || null } : {}) })
     // Same email reconnecting (mic prompt, page reload): hand back its unused line instead of a new one.

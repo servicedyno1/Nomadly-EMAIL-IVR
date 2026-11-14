@@ -32,7 +32,7 @@ export function PromiseStrip() {
   );
 }
 
-const PILLS = ['Keypad menu (IVR)', 'Call forwarding', 'SIP softphone logins', 'Browser phone', 'SMS inbox', 'Voicemail + transcripts', 'Call recording', 'Bulk IVR campaigns', 'AI voice agent', 'Fax', 'Ring groups', 'Text Triggers', 'Live call map', 'Crypto payments'];
+const PILLS = ['Keypad menu (IVR)', 'Call forwarding', 'SIP softphone logins', 'Browser phone', 'Voicemail + transcripts', 'Call recording', 'Bulk IVR campaigns', 'AI voice agent', 'Fax', 'Ring groups', 'Text Triggers', 'Live call map', 'Crypto payments'];
 const LOOK = [
   'border-lime-400 bg-lime-300 text-lime-950',
   'border-pink-300 bg-pink-200 text-pink-950 -rotate-2',

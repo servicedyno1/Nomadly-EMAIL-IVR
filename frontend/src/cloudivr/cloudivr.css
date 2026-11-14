@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=DM+Sans:ital,opsz,wght@0,9..40,300..800;1,9..40,300..800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 .civr {
@@ -132,11 +133,11 @@
 .civr .civr-tabstrip.at-start::before { opacity: 0; }
 
 /* ── Landing (clean white product site: ink on paper, no tinted backgrounds) ── */
-.civr .civr-l { --l-ink: #0f172a; --l-ink-2: #1e293b; --l-cream: #f8fafc; --l-cream-2: #ffffff; --l-paper: #ffffff; --l-paper-2: #f8fafc; --l-accent: #0f172a; --l-accent-h: #020617; --l-live: #10b981; --l-line: #e2e8f0; background: var(--l-paper); color: var(--l-ink); font-family: 'DM Sans', sans-serif; overflow-x: clip; }
+.civr .civr-l { font-family: 'Plus Jakarta Sans', 'DM Sans', sans-serif; --l-ink: #0f172a; --l-ink-2: #1e293b; --l-cream: #f8fafc; --l-cream-2: #ffffff; --l-paper: #ffffff; --l-paper-2: #f8fafc; --l-accent: #0f172a; --l-accent-h: #020617; --l-live: #10b981; --l-line: #e2e8f0; background: var(--l-paper); color: var(--l-ink); font-family: 'DM Sans', sans-serif; overflow-x: clip; }
 .civr .civr-l-dark { background: var(--l-ink); color: #f1f5f9; }
 .civr .civr-l-cream { background: var(--l-paper); color: var(--l-ink); }
 .civr .civr-l-cream.civr-l-soft { background: #f8fafc; }
-.civr .civr-l-h { font-family: 'DM Sans', sans-serif; text-transform: none; font-weight: 700; letter-spacing: -0.035em; line-height: 1.06; }
+.civr .civr-l-h { font-family: 'Plus Jakarta Sans', 'DM Sans', sans-serif; text-transform: none; font-weight: 700; letter-spacing: -0.035em; line-height: 1.06; }
 .civr .civr-l-eyebrow { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 8px; }
 .civr .civr-l-dark .civr-l-eyebrow { color: #cbd5e1; }
 .civr .civr-l-cream .civr-l-eyebrow { color: #64748b; }

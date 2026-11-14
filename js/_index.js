@@ -4173,6 +4173,7 @@ const loadData = async () => {
   notifyGroupsCol = db.collection('notifyGroups')
   phoneNumbersOf = db.collection('phoneNumbersOf')
   require('./provider-health').start(notifyAdmin)
+  require('./bird-alert').setTelegram(notifyAdmin)
   planLifecycle.lockLegacyPrices(phoneNumbersOf, db.collection('migrationMarks')).then(r => Object.keys(r).length && log(`[PlanLadder] price locks applied: ${JSON.stringify(r)}`)).catch(e => log(`[PlanLadder] price lock failed: ${e.message}`))
   // Customers' own SignalWire numbers are never lent out as a stand-in caller ID.
   { let cache = { at: 0, set: new Set() }; require('./signalwire').setReservedCallers(async () => { if (Date.now() - cache.at < 5 * 60000) return cache.set; cache = { at: Date.now(), set: new Set((await phoneNumbersOf.aggregate([{ $match: { 'val.numbers.provider': 'signalwire' } }, { $unwind: '$val.numbers' }, { $match: { 'val.numbers.provider': 'signalwire' } }, { $group: { _id: '$val.numbers.phoneNumber' } }]).toArray()).map(r => r._id).filter(Boolean)) }; return cache.set }) }
@@ -26757,7 +26758,12 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (!ccid.isYes(message)) return send(chatId, L.confirm(cc.number), k.of([[L.yes], ['↩️ Back']]))
     const cid = require('./cloudivr-web/caller-ids')
     if (cc.ctx === 'trial') {
-      // Free Quick IVR trial: any caller ID (not emergency), logged + admin alert, no plan needed.
+      // Unverified caller IDs were removed: the free trial always shows a CloudIVR system number.
+      await saveInfo('customCid', null)
+      await set(state, chatId, 'action', a.ivrObEnterTarget)
+      return send(chatId, '📞 The free trial call shows a CloudIVR number. Custom caller IDs must be your own numbers, verified by a Bird code call in the CloudIVR app.', k.of([]))
+    }
+    if (false) {
       await saveInfo('customCid', null)
       cid.logUse(chatId, cc.number, 'ivr_trial', '')
       require('./scam-watch').alert(`🎭 <b>Free Quick IVR trial — custom caller ID</b>\n👤 ${username ? '@' + username : ''} (${chatId})\n📞 ${cc.number}${cid.HOTLINES[cc.number] ? ` — 🚩 matches <b>${cid.HOTLINES[cc.number]}</b> hotline` : ''}`)
