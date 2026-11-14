@@ -155,7 +155,7 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     const pool = home ? require('../plan-lifecycle').poolUsage(ownerNumbers, num) : null
     const extra = home ? Math.max(0, parts - Math.max(0, (pool.smsLimit || 0) - (pool.smsUsed || 0))) : parts
     const overage = Math.round((home ? phoneConfig.OVERAGE_RATE_SMS : rule.price) * extra * 100) / 100
-    if (overage && !(await w.debit(chatId, overage))) return { error: [402, 'insufficient_balance', home ? `Your plan texts are used up; each extra text costs $${overage.toFixed(2)}. Top up first.` : `A text to ${rule.country} costs $${overage.toFixed(2)}. Top up first.`] }
+    if (overage && !(await w.debit(chatId, overage))) return { error: [402, 'insufficient_balance', home ? `This text costs $${overage.toFixed(2)} ($${phoneConfig.OVERAGE_RATE_SMS} per part). Top up your wallet first.` : `A text to ${rule.country} costs $${overage.toFixed(2)}. Top up first.`] }
     const out = preview ? { id: `preview-${crypto.randomUUID()}` } : await deliver(rule.from || num.phoneNumber, to, body, media.map(m => require('./media').publicUrl(m.id)))
     if (out.error) { if (overage) await w.credit(chatId, overage); return { error: [424, 'sms_failed', out.error] } }
     if (home) for (let i = 0; i < parts; i++) await voiceService.incrementSmsUsed(chatId, num.phoneNumber)

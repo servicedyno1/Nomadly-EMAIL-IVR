@@ -1,0 +1,52 @@
+{
+  "summary": "Tested the 2026-11 CloudIVR pricing changes on the backend (13/13 pytest pass) and the frontend (Playwright: landing/pricing, Messages send, number Overview, Extra SIP, admin Country prices, 10DLC card). Everything requested works: the catalog shows Basic $50 / Pro $75 / Business $120 with 0 texts included, $0.05 per text and texting at $99 + $29. Sending a text charges $0.05 per part even with no earlier use, and an empty wallet gets 402. Inbound billing is turned off. Attest returns caller_id_off in preview. Extra SIP limits are Pro 2 / Business 5 / Basic 403. Admin add-ons save via PUT/GET and in the UI on blur. 10DLC charges $49 once, gives 402 when the wallet is short, adds a tendlc-service transaction, refunds on reject and charges again on resubmit. The pricing page shows the Enterprise card, Texting Number $50, fax $9 and texting $99/$29. Several places still have old copy: 'Any caller ID' / 'Show any caller ID', 'Uses a plan text' and bot text.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/messages/send (js/cloudivr-web/sms-reply.js:158)", "issue": "402 message says 'Your plan texts are used up; each extra text costs $0.05' but no plan includes texts now. It should say something like 'Each text costs $0.05. Top up first.'"},
+      {"endpoint": "js/sms-service.js:204 + js/voice-service.js:1688-1712 incrementSmsUsed", "issue": "Inbound texts still increment smsUsed, so 'Texts sent this month' on the Overview also counts received texts. Because smsLimit is now 0, the first text (inbound or outbound) also sends the bot/web notice 'Plan SMS Exhausted … Overage billing is now active … Service pauses if wallet is empty'. That notice is wrong for free inbound texts. Count only outbound texts and drop the exhausted alert when the limit is 0."},
+      {"endpoint": "PUT /api/cloudivr-web/tendlc (js/cloudivr-web/ten-dlc.js:85-93)", "issue": "The $49 fee is charged even when the account has no US local (infobip/multitel) numbers: usNumbers is empty for TEST accounts and test_gate, yet they still get charged. Also read-then-debit with no atomic guard: two PUTs at the same time could each debit $49. On admin reject the refund is credited but no refund transaction row is written (no audit trail)."},
+      {"endpoint": "GET /api/cloudivr-web/numbers/:phone/sip/extra (js/cloudivr-web/numbers.js:736)", "issue": "On Basic numbers, max falls back to EXTRA_SIP.business (5). Should be 0."},
+      {"endpoint": "js/cloudivr-web/numbers.js:100 webFeatures anyCallerId", "issue": "Business plan feature text is still 'Show any caller ID on your calls — softphone, browser, Quick IVR and campaigns'. The catalog sends it and the pricing page shows it."},
+      {"endpoint": "js/phone-config.js bot copy (lines 80/87/101/179-181/712-714/752-758/774, fr/hi/fa features, lang/en.js cp_8)", "issue": "Telegram bot copy still says 'Starter', 'OTP', '0 SMS' ('600 inbound minutes/mo + 0 SMS', step 4 '✅ … · 0 SMS'). 'Basic $X/mo … $0.05/SMS' is mixed with 'All Starter …'. Non-English features still say 'Collecte OTP' / 'Starter'."},
+      {"endpoint": "js/hosted-sms.js PLAN_PRICE {starter:150, pro:120, business:100}", "issue": "Plan-attached 'texting on your own number' prices are $100-$150, while the advertised standalone price is $99 + $29/mo. Check that these legacy prices are still meant to be used by plansFor()."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Messages Composer cost hint", "issue": "Shows 'Uses a plan text, then $0.05 from your wallet' / 'Uses N plan texts (1 per part), then …'. No texts are included any more, so it should read '$0.05 per text (N parts = $X)'.", "selector": "[data-testid='composer-cost']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing PromiseStrip (pages/landing/Highlights.js:7)", "issues": ["Still says 'Any caller ID — On Business: softphone, browser and campaigns'. Should say 'Verified caller ID'."]},
+      {"screen": "Landing pricing Business card", "issues": ["Shows 'Show any caller ID on your calls…' (from backend webFeatures)."]},
+      {"screen": "Landing TryCall (pages/landing/TryCall.js:25)", "issues": ["Caller ID field label says '(optional — any number)', which contradicts the 'Show your verified caller ID' point next to it."]},
+      {"screen": "Number Overview / SIP tab (+13341112222)", "issues": ["SIP Username row is blank (sipUsername null on the dry-run seeded number). Pre-existing data issue; the UI should show 'Not set up' or hide the row."]},
+      {"screen": "Admin top tab bar", "issues": ["At 1920px the tabs overflow and the last label is cut off ('CloudI…')."]},
+      {"screen": "10DLC card", "issues": ["The 402 'Top up your wallet first' error has no Add funds link/CTA. The card also shows (and charges) for accounts with no US numbers."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_pricing_iter271.py", "/app/backend/tests/test_cloudivr_legal_sip_tendlc_iter270.py", "/app/backend/tests/test_landing_products_iter193.py", "/app/test_reports/pytest/iter271.xml"],
+  "action_items": [
+    "Replace 'Any caller ID' / 'Show any caller ID' copy: frontend Highlights.js PromiseStrip, TryCall.js '(optional — any number)', backend numbers.js:100 webFeatures anyCallerId label",
+    "Fix the Composer cost hint (composer-cost) to show pay-per-text with no 'plan text' wording; fix the sms-reply.js 402 message wording",
+    "Stop counting inbound texts in smsUsed ('Texts sent this month') and stop the 'Plan SMS Exhausted / overage active' alert when smsLimit is 0",
+    "10DLC: don't charge when there are no US local numbers (or warn first); make the fee debit atomic or idempotent; record a refund transaction on reject",
+    "Extra SIP GET on Basic: return max 0 (not 5)",
+    "Update Telegram bot plan copy (Starter → Basic, OTP → 2FA code delivery, drop '+ 0 SMS' and '0 SMS' lines; fr/hi/fa variants)",
+    "Check whether hosted-sms PLAN_PRICE (150/120/100) is still meant to be used next to TEXTING $99 + $29"
+  ],
+  "critical_code_review_comments": [
+    "ten-dlc.js PUT: cur.feePaid is checked, then w.debit runs separately, so a race can double-charge. Use an atomic findOneAndUpdate on feePaid before the debit.",
+    "ten-dlc.js reject when status is filed/active: no refund (fine), but feePaid is reset to false, so a later resubmit charges again. Confirm this is intended.",
+    "number-addons.js caches per process and reloads every 5 minutes. With more than one backend worker, a PUT on one worker is up to 5 minutes stale on the others.",
+    "caller-ids.js: the admin-review path (/caller-ids/request, method 'review') still lets people add numbers without a code (admin approves). Make sure product agrees this counts as 'verified'.",
+    "test_cloudivr_iter203_sms_limit::test_unit_sms_limit and test_landing_products_iter193::test_new_account_mobile_402 fail for reasons unrelated to pricing (multi-part SMS now allowed; register now needs acceptPolicy). Left unchanged."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_pricing_iter271.py (new)", "/app/backend/tests/test_cloudivr_legal_sip_tendlc_iter270.py (fund TEST wallet before 10DLC submit because of the $49 fee)", "/app/backend/tests/test_landing_products_iter193.py (mobile-offer price 75 → 50)"],
+  "success_rate": {"backend": "100% (13/13 new; iter270 25/25 after fee update)", "frontend": "90% (all flows work; copy issues remain)"},
+  "seed_data_creation": "TEST_P271 web accounts (test_p271<ts>@example.com) with a temporary TEST phone number (+15125550272, deleted afterwards) and a $100 funded wallet. 10DLC docs deleted; tendlc-service transactions for these TEST accounts remain. civr.uxtest wallet went from $785.00 to $784.65 (7 preview texts to +1416555027x, $0.05 each). CO:local add-on was set to 10 and reset to 0. One extra SIP login (TEST_UI271) was added and removed on +13341112222.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && REACT_APP_BACKEND_URL=<url> python -m pytest tests/test_cloudivr_pricing_iter271.py tests/test_cloudivr_legal_sip_tendlc_iter270.py -p no:xdist. US→US texts from telnyx numbers return sms_blocked (10DLC) in preview, so send to a Canadian number (+1416…) to test the $0.05 charge. The wallet is walletOf {_id: str(chatId), usdIn, usdOut}. Caller IDs are globally off in preview (attest → 403 caller_id_off; the CallerIds section is not rendered on My numbers). Number SIP tab: /cloudivr/app/numbers/%2B13341112222?tab=sip. Admin Country prices: admin-tab-addons, addons-search, addon-input-CO-local (blur saves). 10DLC card is in Settings → Account (settings-tendlc, tendlc-submit-button). Login button: get_by_role('button', name='Sign in')."
+}

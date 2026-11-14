@@ -97,7 +97,7 @@ const WEB_FEATURES = [
   ['recording', 'Call recording', 'callRecording'],
   ['ringGroup', 'Ring groups — ring several phones at once', 'ringGroup'],
   ['aiSummary', 'AI summaries & caller mood for voicemails and recorded calls', 'aiSummary'],
-  ['anyCallerId', 'Show any caller ID on your calls — softphone, browser, Quick IVR and campaigns', (plan) => plan === 'business'],
+  ['anyCallerId', 'Show your verified caller IDs (numbers you own) on calls — softphone, browser, Quick IVR and campaigns', (plan) => plan === 'business'],
   ['redial', 'Redial and your own accept / decline messages for codes', 'ivrRedial'],
   ['schedulePresets', 'Quick IVR scheduling and saved call presets', 'ivrSchedule'],
   ['defaultVoice', 'One saved AI voice for all your calls', 'consistentVoice'],
@@ -733,7 +733,7 @@ function routes(router, deps) {
   const EXTRA_SIP = { pro: 2, business: 5 }
   const extraOk = (n) => !!EXTRA_SIP[n.plan]
   const pubExtra = (n) => (n.extraSip || []).map(x => ({ id: x.id, label: x.label, username: x.username, createdAt: x.createdAt }))
-  router.get('/numbers/:phone/sip/extra', withNumber(async (req, res) => res.json({ allowed: extraOk(req.num), max: EXTRA_SIP[req.num.plan] || EXTRA_SIP.business, logins: pubExtra(req.num), domain: phoneConfig.WEB_SIP_DOMAIN })))
+  router.get('/numbers/:phone/sip/extra', withNumber(async (req, res) => res.json({ allowed: extraOk(req.num), max: EXTRA_SIP[req.num.plan] || 0, logins: pubExtra(req.num), domain: phoneConfig.WEB_SIP_DOMAIN })))
   router.post('/numbers/:phone/sip/extra', withNumber(async (req, res) => {
     const n = req.num
     if (!extraOk(n)) return bad(res, 403, 'plan_required', 'Extra SIP logins come with the Pro (2) and Business (5) plans. Upgrade this number to add them.')

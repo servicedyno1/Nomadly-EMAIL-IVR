@@ -33,7 +33,7 @@ export default function AdminApp() {
       <header className="sticky top-0 z-40 border-b border-[#1f1f1f] bg-[#0a0a0a]/85 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 md:px-8 h-14 flex items-center gap-4">
           <b className="whitespace-nowrap">CloudIVR admin</b>
-          <nav className="flex gap-1 overflow-x-auto civr-no-scrollbar flex-1">{TABS.map(([k, l, Icon]) => (
+          <nav className="flex flex-wrap gap-1 flex-1 min-w-0">{TABS.map(([k, l, Icon]) => (
             <button key={k} type="button" onClick={() => setParams({ tab: k })} className={`flex items-center gap-2 px-3 h-9 rounded-full text-sm whitespace-nowrap transition-colors ${tab[0] === k ? 'bg-[#818cf8]/15 text-[#c7d2fe]' : 'text-[#a1a1aa] hover:text-white'}`} data-testid={`admin-tab-${k}`}><Icon className="w-4 h-4" />{l}</button>
           ))}</nav>
           <span className="hidden md:inline text-xs text-[#a1a1aa]">{me.email}</span>

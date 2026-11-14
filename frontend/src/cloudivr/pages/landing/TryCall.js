@@ -22,7 +22,7 @@ function TryForm({ tab, to, setTo, showAs, setShowAs, busy, onSubmit }) {
         <input className="civr-l-input" type="tel" inputMode="tel" placeholder="+14155550100" value={to} onChange={e => setTo(e.target.value)} data-testid={tab === 'callme' ? 'civr-callme-phone-input' : 'civr-browser-phone-input'} />
       </label>
       <label className="block mt-4">
-        <span className="block text-sm font-medium text-slate-700 mb-2">Caller ID to show <span className="civr-l-muted font-normal">(optional — any number)</span></span>
+        <span className="block text-sm font-medium text-slate-700 mb-2">Caller ID to show <span className="civr-l-muted font-normal">(optional — a number you own)</span></span>
         <input className="civr-l-input" type="tel" inputMode="tel" placeholder="Leave empty to use ours" value={showAs} onChange={e => setShowAs(e.target.value)} data-testid={tab === 'callme' ? 'civr-callme-showas-input' : 'civr-browser-showas-input'} />
       </label>
       <button className="civr-l-btn w-full mt-4" disabled={busy} data-testid={tab === 'callme' ? 'civr-callme-start-btn' : 'civr-browser-call-btn'}>

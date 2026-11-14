@@ -200,8 +200,8 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
       await forwardSmsToWebhook(smsConfig.webhookUrl, from, to, body)
     }
 
-    // ── REAL-TIME SMS USAGE TRACKING ──
-    if (_incrementSmsUsed) {
+    // ── REAL-TIME SMS USAGE TRACKING ── (received texts are free and only sent texts are counted, 2026-11)
+    if (false && _incrementSmsUsed) {
       await _incrementSmsUsed(ownerChatId, cleanTo)
     }
 

@@ -1703,7 +1703,7 @@ async function incrementSmsUsed(chatId, phoneNumber) {
     const pool = planLifecycle.poolUsage(numbers, num)
     const limit = pool.smsLimit
     const used = pool.smsUsed
-    if (used >= limit && !pool.main._smsLimitNotified) {
+    if (limit > 0 && used >= limit && !pool.main._smsLimitNotified) {
       await _phoneNumbersOf.updateOne(
         { _id: chatId, 'val.numbers.phoneNumber': pool.main.phoneNumber },
         { $set: { 'val.numbers.$._smsLimitNotified': true } }

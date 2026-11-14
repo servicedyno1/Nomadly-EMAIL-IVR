@@ -151,6 +151,8 @@ class TestTenDlc:
         assert r.status_code == 403 and r.json()['error'] == 'tendlc_needed', r.text
 
     def test_submit_locks(self, fresh):
+        # 2026-11 pricing: 10DLC submit debits a $49 service fee — fund the TEST account first
+        db().walletOf.update_one({'_id': fresh.chat_id}, {'$set': {'usdIn': 100, 'usdOut': 0}}, upsert=True)
         r = fresh.put(f"{API}/tendlc", json=GOOD)
         assert r.status_code == 200 and r.json()['status'] == 'submitted', r.text
         assert r.json()['brand']['state'] == 'TX'

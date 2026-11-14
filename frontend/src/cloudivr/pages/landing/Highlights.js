@@ -4,7 +4,7 @@ import { Sparkle, Circled } from './Doodles';
 
 const PROMISES = [
   ['Live in minutes', 'Numbers, IVR and SIP set up for you', 'text-lime-300'],
-  ['Any caller ID', 'On Business: softphone, browser and campaigns', 'text-pink-400'],
+  ['Verified caller ID', 'On Business: softphone, browser and campaigns', 'text-pink-400'],
   ['No contract', 'Month to month, pay with crypto or wallet', 'text-sky-400'],
   ['Real humans', 'Support on Telegram and live chat', 'text-[#64acff]'],
 ];
