@@ -3,6 +3,9 @@ import { toast } from 'sonner';
 import { FileText, Loader2, ShieldCheck, Trash2, Upload, AlertTriangle } from 'lucide-react';
 import { api, enc } from '../../api';
 import { ErrorNote } from '../../ui';
+import { Link } from 'react-router-dom';
+import { cp } from '../../paths';
+import { StatusPill } from '../../compliance/Compliance';
 
 const WHERE = { any: 'an address in any country', country: 'an address in this country', area: 'an address in this number’s area' };
 
@@ -22,6 +25,7 @@ export function PaperworkNote({ paperwork, country, countryName, onChange }) {
           </p>
         </div>
       </div>
+      {docs && paperwork.compliance && <ComplianceSteps c={paperwork.compliance} />}
       {docs && <DocumentUpload country={country} status={paperwork.documents} onChange={onChange} />}
     </div>
   );
@@ -58,6 +62,19 @@ function DocumentUpload({ country, status, onChange }) {
       </button>
       <p className="text-xs text-[var(--c-muted)]">PDF, JPG or PNG · up to 4 files · 10 MB each</p>
       <ErrorNote error={err} testid="buy-documents-error" />
+    </div>
+  );
+}
+
+// ID check (and company papers for businesses) must be done in Settings → Compliance before buying.
+function ComplianceSteps({ c }) {
+  const rows = [['ID check (photo ID + selfie)', c.identity.status, 'buy-compliance-identity']];
+  if (c.company.status !== 'none' || c.business) rows.push(['Company papers', c.company.status, 'buy-compliance-company']);
+  const done = c.identity.status === 'verified' && (rows.length === 1 || c.company.status === 'approved');
+  return (
+    <div className="rounded-xl border border-[var(--c-border,#2a2a2a)] p-3 space-y-2 text-sm" data-testid="buy-compliance-steps">
+      {rows.map(([label, st, id]) => <div key={id} className="flex items-center justify-between gap-2"><span>{label}</span><StatusPill status={st} testid={id} /></div>)}
+      {!done && <Link to={cp('/app/settings#settings-compliance')} className="text-[#818cf8] underline underline-offset-2 text-xs" data-testid="buy-compliance-link">Complete these in Settings → Compliance</Link>}
     </div>
   );
 }

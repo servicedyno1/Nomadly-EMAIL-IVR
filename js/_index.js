@@ -49689,6 +49689,17 @@ app.post('/infobip/sms-webhook/:k', express.json({ limit: '1mb' }), async (req, 
   }
 })
 
+// MultiTEL inbound texts (number smsuri, URL POST form data) → same handler as Telnyx texts. Keyed path like Infobip's.
+app.post('/multitel/sms-webhook/:k', express.urlencoded({ extended: true, limit: '1mb' }), async (req, res) => {
+  res.sendStatus(200)
+  if (req.params.k !== require('./multitel').smsHookKey()) return log('MultiTEL SMS webhook: bad key')
+  const b = req.body || {}, e = (n) => `+${String(n || '').replace(/\D/g, '')}`
+  try { await handleInboundSms({ data: { payload: { from: { phone_number: e(b.from) }, to: [{ phone_number: e(b.to) }], text: String(b.text || '') } } }, bot, phoneNumbersOf, phoneLogs) } catch (err) { log('MultiTEL SMS webhook error:', err.message) }
+})
+
+// Stripe Identity events for CloudIVR compliance (signature checked inside).
+app.post('/stripe/webhook', (req, res) => (cloudivrWeb.stripeWebhook ? cloudivrWeb.stripeWebhook(req, res) : res.sendStatus(503)))
+
 // Infobip recordings need our API key, so customers get them through this signed link
 app.get('/infobip/recording/:fileId', async (req, res) => {
   const ib = require('./infobip')

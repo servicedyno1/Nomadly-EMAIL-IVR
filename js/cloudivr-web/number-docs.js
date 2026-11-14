@@ -103,4 +103,4 @@ function createNumberDocs({ db, h, sendMail, legalProfile, notify, notifyAdmin =
   return { routes, status, submit, tick }
 }
 
-module.exports = { createNumberDocs }
+module.exports = { createNumberDocs, put, get, MIME, upload }

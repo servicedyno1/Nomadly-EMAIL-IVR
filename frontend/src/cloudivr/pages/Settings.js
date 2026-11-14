@@ -21,6 +21,7 @@ import { useUnsaved, SaveRow } from '../guard';
 import { SenderName } from './settings/SenderName';
 import { SignInMethods } from './settings/SignIn';
 import { ProfileDetailsCard } from '../profile/ProfilePrompts';
+import { ComplianceCard } from '../compliance/Compliance';
 
 function Profile({ account, setAccount }) {
   const [name, setName] = useState(account.name || '');
@@ -221,7 +222,7 @@ export default function Settings() {
       <div className="lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-10 max-w-6xl min-[1800px]:max-w-7xl">
         <SectionIndex active={active} pick={pick} />
         <div className="space-y-12">
-          <Section id="account"><Profile account={account} setAccount={setAccount} /><SignInMethods account={account} /><ProfileDetailsCard /><Password account={account} refresh={refresh} /><Security account={account} refresh={refresh} /></Section>
+          <Section id="account"><Profile account={account} setAccount={setAccount} /><SignInMethods account={account} /><ProfileDetailsCard /><ComplianceCard /><Password account={account} refresh={refresh} /><Security account={account} refresh={refresh} /></Section>
           <Section id="preferences"><Language /><Appearance /><DefaultVoice /><SenderName /><InstallApp /></Section>
           <Section id="notifications"><EmailPrefs /><Webhooks /></Section>
           <Section id="community"><Referral /><Suggest admin={account.admin} /><Community /></Section>

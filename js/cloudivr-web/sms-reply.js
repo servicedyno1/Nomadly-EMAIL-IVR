@@ -109,6 +109,10 @@ function createSmsReply({ db, voiceService, log = console.log }) {
   const w = walletOps(db)
 
   async function deliver(from, to, text, mediaUrls = []) {
+    // Infobip / MultiTEL numbers text through their own provider.
+    const ib = require('../infobip'), mt = require('../multitel')
+    if (!mediaUrls.length && ib.enabled() && (await ib.refreshOwned()).includes(from)) { const r = await ib.sendSms(from, to, text); return r.error ? { error: 'The text couldn’t be sent right now. Try again in a minute.' } : { id: r.id } }
+    if (!mediaUrls.length && mt.enabled() && (await mt.refreshOwned()).includes(from)) { const r = await mt.sendSms(from, to, text); if (r.error) log(`[SmsReply] MultiTEL ${from} → ${to} failed: ${r.error}`); return r.error ? { error: 'The text couldn’t be sent right now. Try again in a minute.' } : { id: r.id } }
     const sw = await require('../signalwire').sendSms(from, to, text, mediaUrls).catch(() => null)
     if (sw && !sw.error) return { id: sw.id }
     if (sw?.error) log(`[SmsReply] SignalWire ${from} → ${to} failed: ${sw.error} — trying Telnyx`)
@@ -133,6 +137,7 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     if (!E164.test(String(to || ''))) return { error: [400, 'invalid_number', 'This caller’s number can’t receive texts.'] }
     if (num.capabilities?.sms === false) return { error: [400, 'no_sms', 'This number can’t send texts.'] }
     if (num.status !== 'active') return { error: [409, 'not_active', 'This number is suspended. Renew it to send texts again.'] }
+    if (await require('../sms-optout').isOptedOut(chatId, to)) return { error: [403, 'opted_out', 'This person replied STOP, so you can’t text them. They can reply START to receive texts again.'] }
     const preview = simulated || dryRun() || !!num.dryRun
     const senderName = (await db.collection('webPrefs').findOne({ _id: chatId }, { projection: { senderName: 1 } }))?.senderName || null
     const rule = await smsRules.check(num.phoneNumber, to, senderName)

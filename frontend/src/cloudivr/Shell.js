@@ -49,6 +49,7 @@ import { CrashGuard, CrashProbe, OfflineBanner } from './safety';
 import { UpdateBanner } from './update';
 import { WhatsNew } from './WhatsNew';
 import { ProfileBanner, ProfileSetupDialog } from './profile/ProfilePrompts';
+import { PolicyGate } from './compliance/Compliance';
 import { UnsavedGuard } from './guard';
 import { Shortcuts, helpFor } from './shortcuts';
 import { Palette, openPalette, isMac } from './Palette';
@@ -173,6 +174,7 @@ export default function Shell() {
       <Palette openPhone={openPhone} />
       <Onboarding data={onb.data} setData={onb.setData} />
       <ProfileSetupDialog ready={!!onb.data && (onb.data.onboarded || /[?&](start=texting|purpose=fax)\b/.test(window.location.search))} />
+      <PolicyGate ready={!!onb.data && (onb.data.onboarded || /[?&](start=texting|purpose=fax)\b/.test(window.location.search))} />
       <div className="lg:flex">
         <Sidebar supportLink={catalog?.supportLink} channelLink={catalog?.channelLink} onPhone={openPhone} />
         <div className="flex-1 min-w-0">

@@ -146,6 +146,10 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
       return log(`handleInboundSms: no owner found for ${cleanTo}`)
     }
 
+    // STOP / START keywords: recorded per account so it can't text this person again (the text still reaches the inbox).
+    const optKw = await require('./sms-optout').onInbound(ownerChatId, cleanTo, from, body).catch(e => { log(`[OptOut] ${e.message}`); return null })
+    if (optKw) log(`[OptOut] ${from} replied ${optKw.toUpperCase()} to ${cleanTo} (account ${ownerChatId})`)
+
     // ── CHECK: Number suspended? Skip forwarding ──
     if (numberConfig.status !== 'active') {
       return log(`handleInboundSms: number ${cleanTo} is ${numberConfig.status}, skipping`)

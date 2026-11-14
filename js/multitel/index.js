@@ -3,6 +3,7 @@
 // Basic auth; never retried on 401/403 — MultiTEL blocks an address after repeated failed logins.
 const axios = require('axios')
 const qs = require('querystring')
+const crypto = require('crypto')
 
 const log = (...a) => console.log('[Multitel]', ...a)
 const enabled = () => !!(process.env.MULTITEL_USERNAME && process.env.MULTITEL_PASSWORD)
@@ -50,11 +51,12 @@ async function searchNumbers(countryCode, numberType = 'local', areaCode = null,
       const nums = (await api('get', `getnumbers/${p.uuid}/${Math.min(limit - out.length, 6)}`)).response
       for (const n of Array.isArray(nums) ? nums : []) {
         const price = cheapest(n.price); if (!price) continue
-        const num = e164(n.number), f = n.features || []
+        const num = e164(n.number), f = [].concat(n.features || []).map(String)
+        const sms = f.some(x => /sms/i.test(x)) || !!+a.sms_coverage
         searched.set(num, { priceId: price.uuid, features: f, needsReg: String(n.restrictions?.needs_registration) === '1', monthly: +price.monthly_price })
         out.push({ record_type: 'available_phone_number', phone_number: num, region_information: [{ region_type: 'location', region_name: [a.name, n.info?.state].filter(Boolean).join(', ') }],
           cost_information: { currency: 'USD', monthly_cost: String(price.monthly_price), upfront_cost: String(price.setup_price || 0) },
-          _capabilities: { voice: true, sms: false, mms: false, fax: false }, _provider: 'multitel', _needsRegistration: String(n.restrictions?.needs_registration) === '1' })
+          _capabilities: { voice: true, sms, mms: false, fax: false }, _provider: 'multitel', _needsRegistration: String(n.restrictions?.needs_registration) === '1' })
       }
     }
     return out.slice(0, limit)
@@ -62,9 +64,13 @@ async function searchNumbers(countryCode, numberType = 'local', areaCode = null,
 }
 const isMtSearched = (n) => searched.has(String(n || ''))
 
-// Points the number at our SIP server (the called number is the request-URI user).
+// Inbound texts come back to /multitel/sms-webhook/<key>; the key is derived from our MultiTEL password.
+const smsHookKey = () => crypto.createHash('sha256').update(`mt-sms:${process.env.MULTITEL_PASSWORD || ''}`).digest('hex').slice(0, 24)
+const smsUri = () => (process.env.SELF_URL ? `${String(process.env.SELF_URL).replace(/\/+$/, '')}/multitel/sms-webhook/${smsHookKey()}` : '')
+
+// Points the number at our SIP server (the called number is the request-URI user) and its texts at our webhook.
 async function route(num) {
-  const d = await api('post', `modifynumber/${digits(num)}`, { uri: `${digits(num)}@${sipTarget()}`, ringtype: '1', autorenew: '1', description: 'CloudIVR' })
+  const d = await api('post', `modifynumber/${digits(num)}`, { uri: `${digits(num)}@${sipTarget()}`, ringtype: '1', autorenew: '1', description: 'CloudIVR', ...(smsUri() ? { smsuri: smsUri() } : {}) })
   if (!ok(d)) throw new Error(d?.status?.msg || 'route failed')
 }
 async function buyNumber(phoneNumber) {
@@ -102,4 +108,13 @@ async function registrationStatus(num) {
   return { state: 'pending', raw: txt.slice(0, 200) }
 }
 
-module.exports = { enabled, isMt, searchNumbers, isMtSearched, buyNumber, releaseNumber, refreshOwned, ownedNumbers, registrationStatus, route }
+// Texts → { id } | { error }
+async function sendSms(from, to, text) {
+  try {
+    const d = await api('post', 'sendsms', { from: digits(from), to: digits(to), text })
+    return ok(d) ? { id: d.response?.uuid || d.response?.id || null } : { error: d?.status?.msg || 'MultiTEL refused the text' }
+  } catch (e) { return { error: e.message } }
+}
+const ownsNumber = (n) => owned.includes(n)
+
+module.exports = { enabled, sendSms, ownsNumber, smsHookKey, isMt, searchNumbers, isMtSearched, buyNumber, releaseNumber, refreshOwned, ownedNumbers, registrationStatus, route }

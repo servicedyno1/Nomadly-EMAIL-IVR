@@ -78,6 +78,10 @@ function createCloudIvrWeb(deps) {
     adminAuth.routes(r, h)
     require('./admin').createAdmin(db, { log, bulkCallService: deps.bulkCallService, adminAuth }).routes(r, h)
     inboundEmail.routes(r, h, adminAuth.require)
+    require('../sms-optout').init(db)
+    const compliance = require('./compliance').createCompliance({ db, h, adminRequire: adminAuth.require, notifyAdmin: deps.notifyAdmin, notify: require('./notify'), log })
+    compliance.adminRoutes(r)
+    module.exports.stripeWebhook = compliance.webhook
     require('./esim').publicRoutes(r, { db, h, log, A: adminAuth.require })
     require('./media').publicRoutes(r, { db, h })
     require('./fax').publicRoutes(r, { db, h })
@@ -111,8 +115,9 @@ function createCloudIvrWeb(deps) {
     // MultiTEL countries that need documents: upload before buying, emailed to MultiTEL after, approval watched.
     const numberDocs = require('./number-docs').createNumberDocs({ db, h, sendMail, legalProfile, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, walletOps: require('./wallet').walletOps, log })
     numberDocs.routes(r)
+    compliance.routes(r)
     require('../active-slot').singletonInterval('cloudivr-number-docs', () => numberDocs.tick().catch(e => log(`[NumberDocs] tick: ${e.message}`)), 30 * 60000)
-    Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h, offers, legalProfile, numberDocs }))
+    Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h, offers, legalProfile, numberDocs, compliance }))
     verification.routes(r, { ...deps, db, h, upload })
     audio.routes(r, { ...deps, db, h, upload })
     outbound.routes(r, { ...deps, db, h, numbersApi })

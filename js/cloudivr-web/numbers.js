@@ -335,7 +335,7 @@ function routes(router, deps) {
     }))
     const fb = found.find(n => n._areaFallback)
     await searchCache.updateOne({ _id: req.webChatId }, { $set: { country, type, areaCode, results, at: new Date() } }, { upsert: true })
-    const paperwork = own === 'multitel' && offer.level ? { level: offer.level, businessOnly: !!offer.businessOnly, address: offer.address || 'any', documents: offer.level === 2 ? await deps.numberDocs?.status(req.webChatId, country) : null } : null
+    const paperwork = own === 'multitel' && offer.level ? { level: offer.level, businessOnly: !!offer.businessOnly, address: offer.address || 'any', documents: offer.level === 2 ? await deps.numberDocs?.status(req.webChatId, country) : null, compliance: offer.level === 2 ? { ...await deps.compliance?.state(req.webChatId), business: req.webUser?.legalProfile?.type === 'business' } : null } : null
     res.json({ numbers: results.map(({ cost, ...r }) => r), fallback: fb ? { areaCode: fb._requestedAreaCode, region: fb._fallbackRegion } : null, paperwork })
   }))
 
@@ -366,6 +366,7 @@ function routes(router, deps) {
     if (!eu) return `${name} numbers need your name and address. Add them in Settings → Legal details first.`
     if (offer.businessOnly && eu.type !== 'business') return `${name} numbers of this type are sold to businesses only. Switch your legal details to a business to buy one.`
     if (offer.address !== 'any' && eu.countryCode !== country) return `${name} numbers of this type need an address in ${name}. Your saved address is in ${eu.countryCode}.`
+    if (offer.level === 2) { const why = await deps.compliance?.idIssue(chatId, eu.type === 'business'); if (why) return why }
     if (offer.level === 2 && !(await deps.numberDocs?.status(chatId, country))?.ready) return `${name} numbers need documents. Upload them on this page before you buy.`
     return null
   }
@@ -396,6 +397,7 @@ function routes(router, deps) {
     const offer = c?.offers?.[type] || null
     const ver = offer || hit?.provider === 'multitel' ? { required: false } : await verificationInfo(country, type, `${c.flag} ${c.name}`)
     if (ver.error) return { status: 424, body: { error: 'lookup_failed', message: ver.error } }
+    if (!presetOrder && deps.compliance && !(await deps.compliance.policyAccepted(chatId))) return { status: 400, body: { error: 'policy_needed', message: 'Accept the CloudIVR usage policy before buying a number.' } }
     if (hit?.provider === 'multitel' && offer?.level && !presetOrder) {
       const why = await paperworkIssue(chatId, country, c.name, offer)
       if (why) return { status: 400, body: { error: 'paperwork_needed', message: why } }

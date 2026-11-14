@@ -104,6 +104,7 @@ export function AuthPage({ mode }) {
   const refCode = useRefCode(params);
   const [f, setF] = useState({ name: '', email: '', password: '' });
   const [remember, setRemember] = useState(false);
+  const [policy, setPolicy] = useState(false);
   const [mfa, setMfa] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -112,6 +113,7 @@ export function AuthPage({ mode }) {
     e.preventDefault(); setBusy(true); setError(null);
     try {
       const d = await api(signup ? '/auth/register' : '/auth/login', { method: 'POST', body: { ...f, remember, ...(signup && refCode ? { ref: refCode } : {}) } });
+      if (signup) await api('/compliance/policy', { method: 'POST', body: { accept: true } }).catch(() => {});
       if (d.twoFactor) setMfa(d.twoFactor); else done(d);
     } catch (err) { setError(err); } finally { setBusy(false); }
   };
@@ -135,6 +137,7 @@ export function AuthPage({ mode }) {
           <PasswordInput value={f.password} onChange={set('password')} minLength={signup ? 8 : 1} autoComplete={signup ? 'new-password' : 'current-password'} testid="auth-password-input" toggleTestid="auth-password-toggle" />
         </Field>
         <RememberBox checked={remember} onChange={setRemember} />
+        {signup && <label className="flex items-start gap-2 text-sm cursor-pointer" data-testid="auth-policy-label"><input type="checkbox" required checked={policy} onChange={e => setPolicy(e.target.checked)} className="mt-1" data-testid="auth-policy-checkbox" /><span>I agree to the CloudIVR usage policy: no spam, fraud or spoofing, and I honor every STOP request.</span></label>}
         <ErrorNote error={error} testid="auth-error" />
         <button className="civr-btn civr-btn-primary w-full" disabled={busy} data-testid="auth-submit-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{signup ? 'Create free account' : 'Sign in'}</button>
       </form>}

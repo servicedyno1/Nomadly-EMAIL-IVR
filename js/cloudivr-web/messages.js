@@ -108,6 +108,7 @@ function create({ db, numbersApi, smsReply }) {
   }
 
   async function send(chatId, { number, contact, text, media = [] }) {
+    if (await require('../sms-optout').isOptedOut(chatId, contact)) return { error: [403, 'opted_out', 'This person replied STOP, so you can’t text them. They can reply START to receive texts again.'] }
     const t = await thread(chatId, number, contact)
     if (!t) return { error: [404, 'not_found', 'Conversation not found.'] }
     if (t.blocked) return { error: [400, 'blocked', 'You blocked this contact. Unblock them to text.'] }
