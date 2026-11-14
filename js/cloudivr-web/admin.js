@@ -139,7 +139,9 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
         mobileLines(db, id),
       ])
       if (!acct && !name && !wal) return bad(res, 404, 'not_found', 'No user with that id.')
+      const resale = await db.collection('numberResaleRecords').find({ chatId: id }).sort({ at: -1 }).limit(50).toArray()
       res.json({
+        legalProfile: acct?.legalProfile || null, resale: resale.map(x => ({ phoneNumber: x.phoneNumber, provider: x.provider, at: x.at, note: x.note })),
         chatId: id, kind: acct ? 'web' : 'bot', name: acct?.name || name?.val || '', email: acct?.email || null, createdAt: acct?.createdAt || null, lastLoginAt: acct?.lastLoginAt || null,
         suspended: acct ? !!acct.disabled : !!blocked, balance: num((wal?.usdIn || 0) - (wal?.usdOut || 0)), totalIn: num(wal?.usdIn), totalOut: num(wal?.usdOut),
         transactions: tx.map(t => ({ id: String(t._id), type: t.type, amount: num(t.amount), at: t.createdAt, meta: t.metadata || null })),

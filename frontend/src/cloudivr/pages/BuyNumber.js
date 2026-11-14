@@ -13,6 +13,8 @@ import { Flag, IconSelect } from '../Pickers';
 import { saveIntent, setupPath, USE_PLAN, rememberedUse } from './buy/setupIntent';
 import { PurposePicker, PurposeSection, SmsPurposeCard, usePurposeCards } from './buy/PurposePicker';
 import { FaxNumberBuy } from './buy/FaxNumberBuy';
+import { useCivrAuth } from '../AuthContext';
+import { BuyProfileGate } from '../profile/ProfilePrompts';
 
 // The chosen number + plan survive the wallet top-up detour (Wallet links back with ?resume=1).
 const RESUME_KEY = 'civr.buyResume';
@@ -140,6 +142,7 @@ function ExistingPlanChooser({ nums, price, pv }) {
 
 export default function BuyNumber() {
   const { catalog, summary, refreshSummary } = useShell();
+  const needsProfile = !useCivrAuth()?.account?.profileComplete;
   const nav = useNavigate();
   const [params] = useSearchParams();
   const [saved] = useState(() => readResume(params));
@@ -229,13 +232,13 @@ export default function BuyNumber() {
           <p className="text-xs text-[#a1a1aa] -mt-1 mb-3" data-testid="buy-plan-help">Each plan includes everything in the one before it. You can upgrade your Business Line later from its Billing tab.</p>
           <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} surcharge={pick.surcharge} />
           </>}
-          <Checkout key={`${pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}
-            textingOffer={extraOf ? null : textingOffer} coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `Extra number on ${pv.phone(extraOf)} · monthly` : null} autoRenewDefault={extraOf ? (parent ? parent.autoRenew !== false : true) : true} />
+          {needsProfile ? <BuyProfileGate /> : <Checkout key={`${pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}
+            textingOffer={extraOf ? null : textingOffer} coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `Extra number on ${pv.phone(extraOf)} · monthly` : null} autoRenewDefault={extraOf ? (parent ? parent.autoRenew !== false : true) : true} />}
         </div>
       )}
       </>}
       {!extraOf && purposes.includes('sms') && <PurposeSection n={line ? 2 : 1} title="SMS · Texting Number" sub="A separate number made for texting." testid="buy-sms-section"><SmsPurposeCard /></PurposeSection>}
-      {!extraOf && purposes.includes('fax') && <PurposeSection n={1 + (line ? 1 : 0) + (purposes.includes('sms') ? 1 : 0)} title="Fax · Fax-only number" sub="Search, pick your number and pay from your wallet." testid="buy-fax-section"><FaxNumberBuy balance={summary?.balance} onBought={refreshSummary} /></PurposeSection>}
+      {!extraOf && purposes.includes('fax') && <PurposeSection n={1 + (line ? 1 : 0) + (purposes.includes('sms') ? 1 : 0)} title="Fax · Fax-only number" sub="Search, pick your number and pay from your wallet." testid="buy-fax-section">{needsProfile ? <BuyProfileGate /> : <FaxNumberBuy balance={summary?.balance} onBought={refreshSummary} />}</PurposeSection>}
     </div>
   );
 }

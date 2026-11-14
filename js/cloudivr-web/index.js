@@ -97,10 +97,14 @@ function createCloudIvrWeb(deps) {
     offersRef = offers
     mollie.routes(r, { h })
     wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit, offers, cryptoPerUsd: deps.cryptoPerUsd })
+    // Personal / business details: required before any number checkout.
+    const legalProfile = require('./legal-profile').createLegalProfile(db, { log })
+    legalProfile.routes(r, h)
+    r.post(['/numbers/buy', '/numbers/checkout', '/numbers/:phone/extra-checkout', '/numbers/:phone/extra', '/fax-numbers'], legalProfile.gate)
     // Orders go first so /numbers/orders is not caught by /numbers/:phone; numbersApi is filled in right after.
     const numbersApi = {}
     orders.routes(r, { ...deps, db, h, numbersApi, sendMail, offers })
-    Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h, offers }))
+    Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h, offers, legalProfile }))
     verification.routes(r, { ...deps, db, h, upload })
     audio.routes(r, { ...deps, db, h, upload })
     outbound.routes(r, { ...deps, db, h, numbersApi })

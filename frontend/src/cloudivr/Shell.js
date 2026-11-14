@@ -48,6 +48,7 @@ import Help from './pages/Help';
 import { CrashGuard, CrashProbe, OfflineBanner } from './safety';
 import { UpdateBanner } from './update';
 import { WhatsNew } from './WhatsNew';
+import { ProfileBanner, ProfileSetupDialog } from './profile/ProfilePrompts';
 import { UnsavedGuard } from './guard';
 import { Shortcuts, helpFor } from './shortcuts';
 import { Palette, openPalette, isMac } from './Palette';
@@ -171,6 +172,7 @@ export default function Shell() {
       <Shortcuts onEscape={closePhone} />
       <Palette openPhone={openPhone} />
       <Onboarding data={onb.data} setData={onb.setData} />
+      <ProfileSetupDialog />
       <div className="lg:flex">
         <Sidebar supportLink={catalog?.supportLink} channelLink={catalog?.channelLink} onPhone={openPhone} />
         <div className="flex-1 min-w-0">
@@ -178,6 +180,7 @@ export default function Shell() {
           <OfflineBanner />
           <UpdateBanner />
           <TopBar summary={summary} onPhone={() => setPhoneOpen(o => !o)} />
+          <ProfileBanner />
           <PrivateBanner />
           <main className="px-4 md:px-8 min-[1800px]:px-12 pt-8 md:pt-10 pb-40 lg:pb-12 max-w-7xl min-[1600px]:max-w-[1440px] min-[1800px]:max-w-[1640px] min-[2300px]:max-w-[1880px] mx-auto" data-testid="app-main">
            <CrashGuard inApp resetKey={pathname} supportLink={catalog?.supportLink}>

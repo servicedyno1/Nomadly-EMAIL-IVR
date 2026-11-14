@@ -17,6 +17,23 @@ function Wallet({ u, reload }) {
   );
 }
 
+function LegalDetails({ p, resale }) {
+  const a = p?.address || {};
+  return (
+    <div className="text-sm" data-testid="admin-user-legal">
+      <div className="civr-label mb-2">Number holder details</div>
+      {!p ? <div className="text-[#a1a1aa]" data-testid="admin-user-legal-missing">Not added yet — this user can’t buy numbers until they add them.</div> : (
+        <div className="space-y-0.5" data-testid="admin-user-legal-details">
+          <div><Pill tone="ok">{p.type}</Pill> <span className="font-medium">{p.type === 'business' ? p.companyName : p.fullName}</span>{p.type === 'business' && <span className="text-[#a1a1aa]"> · contact {p.fullName}</span>}</div>
+          <div className="text-[#a1a1aa]">{[a.line1, a.line2, [a.postalCode, a.city].filter(Boolean).join(' '), a.region, a.countryCode].filter(Boolean).join(', ')}</div>
+          {(p.registrationNumber || p.vatNumber || p.website) && <div className="text-[#a1a1aa]">{[p.registrationNumber && `Reg ${p.registrationNumber}`, p.vatNumber && `VAT ${p.vatNumber}`, p.website].filter(Boolean).join(' · ')}</div>}
+        </div>
+      )}
+      {resale.length > 0 && <div className="mt-3 space-y-1" data-testid="admin-user-resale">{resale.map(r => <div key={`${r.phoneNumber}-${r.at}`} className="text-xs text-[#a1a1aa]"><span className="tabular-nums text-[var(--c-text,#f4f4f5)]">{r.phoneNumber}</span> · resold {dt(r.at)} · {r.provider || '—'}</div>)}</div>}
+    </div>
+  );
+}
+
 function Detail({ id, onClose }) {
   const { data: u, error, loading, reload } = useApi(`/admin/users/${enc(id)}`);
   return (
@@ -34,6 +51,7 @@ function Detail({ id, onClose }) {
               <span className="text-xs text-[#a1a1aa]">Joined {dt(u.createdAt)} · last sign-in {dt(u.lastLoginAt)}</span>
             </div>
             <Wallet u={u} reload={reload} />
+            <LegalDetails p={u.legalProfile} resale={u.resale || []} />
             {u.numbers.length > 0 && <div className="text-sm"><div className="civr-label mb-2">Numbers</div>{u.numbers.map(n => <div key={n.phoneNumber} className="flex gap-3"><span className="tabular-nums">{n.phoneNumber}</span><span className="text-[#a1a1aa]">{n.plan} · {n.status} · until {String(n.expiresAt || '').slice(0, 10)}</span></div>)}</div>}
             {u.agents.length > 0 && <div className="text-sm"><div className="civr-label mb-2">AI agents</div>{u.agents.map(a => <div key={a.id} className="flex flex-wrap gap-2 items-center">{a.name}{a.disabled && <Pill tone="bad">stopped</Pill>}{a.flag && <Pill tone="warn">{a.flag}</Pill>}</div>)}</div>}
             {u.hosted.length > 0 && <div className="text-sm"><div className="civr-label mb-2">Landline to Texting</div>{u.hosted.map(x => <div key={x.id}>{x.phoneNumber} · {x.status} · paid {fmt(x.paid)}</div>)}</div>}

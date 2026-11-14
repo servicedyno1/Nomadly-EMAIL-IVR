@@ -167,6 +167,17 @@ async function searchNumbers(countryCode, numberType, areaCode, limit = 5) {
   } catch (e) { log('search:', errOf(e)); return [] }
 }
 const isIbSearched = (n) => searched.has(String(n || ''))
+// Resale note (end user's name + address) put on the number right after it is bought.
+const notes = new Map()
+const setResaleNote = (phoneNumber, note) => { if (note) notes.set(phoneNumber, String(note).slice(0, 250)) }
+async function saveNote(numberKey, note) {
+  try {
+    const cur = (await M.http().get(`/numbers/1/numbers/${numberKey}`)).data
+    await M.http().put(`/numbers/1/numbers/${numberKey}`, { applicationId: cur.applicationId || 'default', note })
+    const kept = (await M.http().get(`/numbers/1/numbers/${numberKey}`)).data?.note === note
+    log(`resale note ${kept ? 'saved' : 'NOT kept by Infobip'} on ${numberKey}`)
+  } catch (e) { log(`resale note on ${numberKey}:`, errOf(e)) }
+}
 async function buyNumber(phoneNumber) {
   const key = searched.get(phoneNumber); if (!key) return null
   try {
@@ -174,6 +185,8 @@ async function buyNumber(phoneNumber) {
     await M.http().post(`/numbers/2/numbers/${n.numberKey || key}/voice`, { action: { type: 'FORWARD_TO_SUBSCRIPTION', callsConfigurationId: configId() } })
     searched.delete(phoneNumber)
     log(`Bought ${phoneNumber} → calls config ${configId()}`)
+    const note = notes.get(phoneNumber); notes.delete(phoneNumber)
+    if (note) await saveNote(n.numberKey || key, note)
     return { id: `ib:${n.numberKey || key}`, status: 'success', requirements_met: true, phone_numbers: [{ id: `ib:${n.numberKey || key}`, phone_number: phoneNumber, status: 'success', requirements_status: 'requirements-met' }], _provider: 'infobip' }
   } catch (e) { log(`buy ${phoneNumber}:`, errOf(e)); return null }
 }
@@ -197,5 +210,5 @@ async function sendSms(from, to, text) {
 const M = module.exports = {
   enabled, isIb, configId, http: makeHttp, errOf, recordingToken,
   voice: { ingest, setSink, _legs: legs, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall },
-  searchNumbers, isIbSearched, buyNumber, releaseNumber, lookup, sendSms,
+  searchNumbers, isIbSearched, buyNumber, releaseNumber, lookup, sendSms, setResaleNote,
 }

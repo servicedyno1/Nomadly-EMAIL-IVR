@@ -16,7 +16,12 @@ function routes(router, { db, h, upload, numbersApi, notifyAdmin }) {
 
   router.get('/fax-numbers', h(async (req, res) => res.json({ ...faxNums.offer(), numbers: await faxNums.list(req.webChatId) })))
   router.get('/fax-numbers/search', h((req, res) => out(res, () => faxNums.search(req.webChatId, req.query.country, req.query.areaCode))))
-  router.post('/fax-numbers', h((req, res) => out(res, () => faxNums.buy(req.webChatId, { phoneNumber: String(req.body?.phoneNumber || ''), autoRenew: req.body?.autoRenew !== false, email: req.webUser?.email }))))
+  router.post('/fax-numbers', h((req, res) => out(res, async () => {
+    const phoneNumber = String(req.body?.phoneNumber || '')
+    const r = await faxNums.buy(req.webChatId, { phoneNumber, autoRenew: req.body?.autoRenew !== false, email: req.webUser?.email })
+    await require('./legal-profile').createLegalProfile(db).recordResale({ chatId: req.webChatId, phoneNumber: r?.number?.phoneNumber || phoneNumber, provider: 'fax', country: r?.number?.country || null })
+    return r
+  })))
   router.patch('/fax-numbers/:phone', h((req, res) => out(res, async () => ({ number: await faxNums.setAutoRenew(req.webChatId, req.params.phone, !!req.body?.autoRenew) }))))
 
   router.get('/fax', h(async (req, res) => {
