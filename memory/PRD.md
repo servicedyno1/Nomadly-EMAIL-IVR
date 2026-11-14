@@ -145,3 +145,7 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - js/cnam-service.js: Multitel → SignalWire. Multitel echoes the number when no name → now treated as "no name" so SignalWire fallback runs.
 - Preview tested: GOOGLE INC (Multitel), COMMENT&MESSAGE (Multitel), fallback to SignalWire works. NOT published to production yet.
 - Note: Multitel blocks IPs after repeated failed logins — never auto-retry on 401.
+
+## 2026-11-14 — Multitel country/paperwork scan (read-only)
+- Raw: memory/multitel_scan.json (150 listed countries; 90 with stock). Classified: memory/multitel_classified.json (184 country+type offers: 50 No ID, 47 details-only, 86 documents, 1 unclear ES Local). Script: memory/multitel_classify.py.
+- Source: v3 getareas + get-prefix (needs_registration + restrictions text) + getregistration. Compared to memory/infobip_full_report.csv.
