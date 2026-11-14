@@ -1,6 +1,6 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CNAM Lookup Service — Resolve caller/sender names
-// Priority: SignalWire → Multitel (Telnyx removed: account blocked; Bird/Infobip lookups have no caller name)
+// Priority: Multitel → SignalWire (Telnyx removed: account blocked; Bird/Infobip lookups have no caller name)
 // Results cached in MongoDB to avoid repeat lookups
 // Circuit breaker: auto-skips exhausted/down providers
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -143,8 +143,8 @@ function getCircuitStatus() {
 function initCnamService(deps) {
   _cnamCache = deps.cnamCache
   const providers = []
-  if (SIGNALWIRE_ON) providers.push('SignalWire')
   if (MULTITEL_USERNAME) providers.push('Multitel')
+  if (SIGNALWIRE_ON) providers.push('SignalWire')
   log(`[CnamService] Initialized — priority: ${providers.join(' → ')} + MongoDB cache + circuit breaker`)
 }
 
@@ -220,18 +220,7 @@ async function lookupCnam(phoneNumber) {
 
   let name = null
 
-  // 1. SignalWire first (live provider; returns caller_id owner name)
-  if (SIGNALWIRE_ON && circuitAllows('signalwire')) {
-    try {
-      name = await lookupSignalwire(clean)
-      circuitSuccess('signalwire')
-    } catch (e) {
-      circuitFailure('signalwire', e)
-      log(`[CNAM] SignalWire failed for ${clean}: ${e.message}`)
-    }
-  }
-
-  // 2. Multitel (caller names; Bird/Infobip lookups don't return names)
+  // 1. Multitel first (takes Telnyx's old primary slot; Bird/Infobip lookups don't return names)
   if (!name && MULTITEL_USERNAME && MULTITEL_PASSWORD && circuitAllows('multitel')) {
     try {
       name = await lookupMultitel(clean)
@@ -239,6 +228,17 @@ async function lookupCnam(phoneNumber) {
     } catch (e) {
       circuitFailure('multitel', e)
       log(`[CNAM] Multitel failed for ${clean}: ${e.message}`)
+    }
+  }
+
+  // 2. SignalWire backup
+  if (!name && SIGNALWIRE_ON && circuitAllows('signalwire')) {
+    try {
+      name = await lookupSignalwire(clean)
+      circuitSuccess('signalwire')
+    } catch (e) {
+      circuitFailure('signalwire', e)
+      log(`[CNAM] SignalWire failed for ${clean}: ${e.message}`)
     }
   }
 

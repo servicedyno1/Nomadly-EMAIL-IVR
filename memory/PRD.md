@@ -135,3 +135,7 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 ## 2026-11-14 — SMADAV support: orteac.org "not connected" (@Feezy95, chatId 1454387983)
 - Our side OK: WHM orte2583 on 68.183.77.106 (Golden Anti-Red 1-Month, $100 wallet, 12 Nov), CF zone 50f4ac… ACTIVE, apex+www CNAME → tunnel (proxied), Origin CA cert installed. Through CF edge the site answers (302 decoy redirect to Wikipedia for datacenter/curl traffic = anti-red/customer content).
 - Root cause: Namecheap put the domain on **clientHold** (+addPeriod = newly registered) → .org registry NXDOMAIN; nothing resolves anywhere. Customer must clear it at Namecheap (registrant email verification or Namecheap support/abuse). No code change.
+
+## 2026-11-14 — Caller-name (CNAM) lookups: Multitel first
+- cnam-service.js order now Multitel → SignalWire (Telnyx removed). Used by bot quick-call name suggestion (_index.js ~27019), CloudIVR leads /cnam, validatePhoneBulk, phone-test-routes.
+- BLOCKERS: (1) Production droplet 146.190.238.190 gets HTTP 403 firewall page from api.multitel.net (and www) → Multitel must allow that IP. (2) Preview creds (test slot, updated 04:21) → 401 from IP 35.193.209.116. SignalWire fallback still returns names (e.g. "SEATTLE WA").
