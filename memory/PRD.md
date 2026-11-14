@@ -98,3 +98,10 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - UI: frontend/src/cloudivr/profile/* — sign-up dialog after onboarding (skippable, profileDue), banner for existing users, Buy page gate replaces Checkout, Settings card, admin Users drawer "Number holder details".
 - Tests: iteration_265 (backend 22/22, frontend all flows); fixed after: modal stacking, replace/mobile gates, fax shared instance.
 - Infobip full offer scan (2994 lookups, 249 countries): 58 countries with offers → memory/infobip_full_report.xlsx (+csv), preview link /reports/infobip-number-offers.xlsx. Resale terms are NOT in the API (portal offer cards only).
+
+## 2026-11-14 — Spenza gets customer details (eSIM + Texting/mobile numbers)
+- js/spenza.js spenzaUser(): user.name = legal holder (business name / full legal name); US addresses also send address/city/state (Spenza fields are US-format; non-US → name only). syncProfile(): PUT /api/v1.1/users/{email} when a customer with a Spenza user saves details (skipped in dry-run).
+- Gate also on POST /esim; resale records provider spenza-esim / spenza-mobile with lineId; phoneNumber filled when Spenza assigns it (resaleNumber()).
+- Frontend: api.js intercepts 428 profile_required → ProfileAskHost dialog (mounted in CloudIvrApp) → re-sends the same order after save (covers app + landing checkouts).
+- Fixed pre-existing: Texting Number page left the pay form open after a successful order (double-pay risk) → form closes + list reloads.
+- Tests: iteration_266 (summary only; backend 5/5 + 22 regression, frontend 6/6). Spenza live sync not testable in preview (dry-run).

@@ -19,7 +19,7 @@ export function MobileOffer({ onBought, open: startOpen = false }) {
   const [err, setErr] = useState(null);
   const [autoRenew, setAutoRenew] = useState(true);
   if (!data?.available) return null;
-  const go = async () => { setBusy(true); setErr(null); try { await api('/mobile-numbers', { method: 'POST', body: { zipcode: zip, autoRenew } }); toast.success(`Paid ${money(data.price)}. Your number is being assigned`); refreshSummary(); onBought?.(); } catch (e) { setErr(e); } finally { setBusy(false); } };
+  const go = async () => { setBusy(true); setErr(null); try { await api('/mobile-numbers', { method: 'POST', body: { zipcode: zip, autoRenew } }); toast.success(`Paid ${money(data.price)}. Your number is being assigned`); setOpen(false); setZip(''); refreshSummary(); onBought?.(); } catch (e) { setErr(e); } finally { setBusy(false); } };
   return (
     <div className="civr-card p-6 mt-6 space-y-4" data-testid="mobile-offer">
       <div className="flex flex-wrap items-start gap-3">

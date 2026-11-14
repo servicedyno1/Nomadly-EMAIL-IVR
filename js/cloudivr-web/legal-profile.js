@@ -84,10 +84,10 @@ function createLegalProfile(db, { log = console.log } = {}) {
   }
 
   // Kept for every number we sell (provider notes alone are not our record).
-  async function recordResale({ chatId, phoneNumber, provider, country }) {
+  async function recordResale({ chatId, phoneNumber, provider, country, lineId = null }) {
     const acc = await accounts.findOne({ _id: Number(chatId) })
     const eu = endUser(acc)
-    await resale.insertOne({ phoneNumber, chatId: String(chatId), provider: provider || null, country: country || null, resold: true, endUser: eu, note: eu ? resaleNote(eu) : null, at: new Date() })
+    await resale.insertOne({ phoneNumber, chatId: String(chatId), provider: provider || null, country: country || null, ...(lineId ? { lineId } : {}), resold: true, endUser: eu, note: eu ? resaleNote(eu) : null, at: new Date() })
       .catch(e => log(`[CloudIVR-Web] resale record failed for ${phoneNumber}: ${e.message}`))
     return eu
   }

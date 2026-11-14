@@ -133,6 +133,8 @@ async function linkUser(d) {
   return true
 }
 // Account email added/changed: move every line to the Spenza user for the new email.
+// The carrier assigned the number: fill it into the line's resale record.
+const resaleNumber = (lineId, phone) => { if (phone) S.db.collection('numberResaleRecords').updateMany({ lineId, phoneNumber: null }, { $set: { phoneNumber: phone } }).catch(() => {}) }
 // Customer saved / changed their legal details: update their Spenza user (only if they already have one).
 async function syncProfile(chatId) {
   const acc = await S.db.collection('webAccounts').findOne({ _id: { $in: [String(chatId), Number(chatId)] } }, { projection: { spenzaUser: 1 } })
@@ -305,6 +307,7 @@ async function pollOne(d) {
     const iccid = '8901' + String(Date.now()).slice(-15)
     const phone = '+1555' + String(Date.now()).slice(-7)
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', iccid, phoneNumber: phone, qrCode: `LPA:1$preview.spenza.test$${d._id}`, ...period(new Date(Date.now() + MONTH_MS)), updatedAt: new Date() } })
+    resaleNumber(d._id, phone)
     return d.kind === 'mobile' ? ready(d, phone) : isBot(d.chatId) ? botReady({ ...d, phoneNumber: phone }) : emailQr({ ...d, phoneNumber: phone })
   }
   const r = await axios.get(`${API}/api/v3/transactions/${encodeURIComponent(d.transactionId)}`, { timeout: 15000 }).then(x => x.data?.data).catch(() => null)
@@ -312,6 +315,7 @@ async function pollOne(d) {
   if (['completed', 'succeeded', 'success'].includes(st)) {
     const x = r.result || {}
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', iccid: x.iccid || null, phoneNumber: x.mdn ? (String(x.mdn).startsWith('+') ? x.mdn : '+1' + String(x.mdn).replace(/\D/g, '').slice(-10)) : null, qrCode: x.qrCode || null, orderId: x.orderId || null, providerResult: x, ...period((x.iccid && await subEnd(x.iccid, d._id)) || new Date(Date.now() + MONTH_MS)), updatedAt: new Date() } })
+    resaleNumber(d._id, x.mdn ? (String(x.mdn).startsWith('+') ? x.mdn : '+1' + String(x.mdn).replace(/\D/g, '').slice(-10)) : null)
     if (d.kind === 'mobile') return ready(d, x.mdn ? '+1' + String(x.mdn).replace(/\D/g, '').slice(-10) : null)
     if (isBot(d.chatId)) return botReady({ ...d, phoneNumber: x.mdn ? '+1' + String(x.mdn).replace(/\D/g, '').slice(-10) : null })
     const sent = await emailQr({ ...d, phoneNumber: x.mdn || null })

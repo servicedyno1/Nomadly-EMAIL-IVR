@@ -35,12 +35,12 @@ function routes(r, { h, legalProfile }) {
   r.get('/mobile-numbers', h(async (req, res) => res.json({ ...(await ES.mobileOffer()), items: await ES.list(req.webChatId, 'mobile') })))
   r.post('/mobile-numbers', h(async (req, res) => {
     const x = await ES.buyMobile(req.webChatId, req.body || {})
-    if (!x?.error) await legalProfile?.recordResale({ chatId: req.webChatId, phoneNumber: x?.item?.phoneNumber || null, provider: 'spenza-mobile', country: 'US' })
+    if (!x?.error) await legalProfile?.recordResale({ chatId: req.webChatId, phoneNumber: x?.item?.phoneNumber || null, provider: 'spenza-mobile', country: 'US', lineId: x?.item?.id })
     out(res, x)
   }))
   r.post('/esim', h(async (req, res) => {
     const x = await ES.buy(req.webChatId, { ...(req.body || {}), source: 'web' })
-    if (!x?.error) await legalProfile?.recordResale({ chatId: req.webChatId, phoneNumber: x?.item?.phoneNumber || null, provider: 'spenza-esim', country: 'US' })
+    if (!x?.error) await legalProfile?.recordResale({ chatId: req.webChatId, phoneNumber: x?.item?.phoneNumber || null, provider: 'spenza-esim', country: 'US', lineId: x?.item?.id })
     out(res, x)
   }))
   r.post('/esim/:id/imei', h(async (req, res) => out(res, await ES.submitImei(req.webChatId, req.params.id, req.body?.imei))))

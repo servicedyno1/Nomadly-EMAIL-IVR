@@ -27,7 +27,7 @@ function Others() {
 }
 
 export default function TextingNumber() {
-  const { data } = useApi('/mobile-numbers');
+  const { data, reload } = useApi('/mobile-numbers');
   const nav = useNavigate();
   if (!data) return <Spinner />;
   const has = !!data.items?.length;
@@ -38,7 +38,7 @@ export default function TextingNumber() {
         {POINTS.map(([Icon, title, sub]) => <div key={title} className="civr-card p-5"><Icon className="w-5 h-5 text-[#818cf8]" /><div className="font-semibold mt-3">{title}</div><div className="text-sm text-[var(--c-muted)] mt-1">{sub}</div></div>)}
       </div>
       {has && <MobileLines noEmpty />}
-      {data.available ? <MobileOffer open={!has} onBought={() => nav(cp('/app/texting-number'))} />
+      {data.available ? <MobileOffer open={!has} onBought={() => { reload(); nav(cp('/app/texting-number')); }} />
         : <p className="text-sm text-[#fbbf24]" data-testid="texting-number-unavailable">Texting Numbers are temporarily unavailable. Try again later.</p>}
       <Others />
     </div>

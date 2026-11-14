@@ -71,7 +71,7 @@ export function ProfileDetailsCard() {
 export function ProfileAskHost() {
   const [pending, setPending] = useState(null);
   useEffect(() => {
-    setProfileAsker(() => new Promise((resolve) => setPending({ resolve })));
+    setProfileAsker(() => new Promise((resolve) => setPending((prev) => { prev?.resolve(false); return { resolve }; })));
     return () => setProfileAsker(null);
   }, []);
   if (!pending) return null;
