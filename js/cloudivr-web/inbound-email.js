@@ -4,8 +4,26 @@
 const axios = require('axios')
 const log = (...a) => console.log('[InboundEmail]', ...a)
 
+const crypto = require('crypto')
+
 const RESEND_KEY = () => process.env.RESEND_API_KEY
 const COLLECTION = 'inboundEmails'
+const SIG_TOLERANCE_S = 300
+
+// Resend signs webhooks with Svix: base64(HMAC-SHA256(secret, `${id}.${timestamp}.${rawBody}`)), header "v1,<sig> v1,<sig2>".
+function verifySignature(req, secret = process.env.RESEND_WEBHOOK_SECRET, now = Date.now()) {
+  const id = req.headers['svix-id'], ts = req.headers['svix-timestamp'], sigs = req.headers['svix-signature']
+  if (!secret || !id || !ts || !sigs || !req.rawBody) return false
+  if (!/^\d+$/.test(String(ts)) || Math.abs(now / 1000 - Number(ts)) > SIG_TOLERANCE_S) return false
+  const key = Buffer.from(String(secret).replace(/^whsec_/, ''), 'base64')
+  const expected = crypto.createHmac('sha256', key).update(`${id}.${ts}.${req.rawBody.toString('utf8')}`).digest()
+  return String(sigs).split(' ').some(p => {
+    const [ver, sig] = p.split(',')
+    if (ver !== 'v1' || !sig) return false
+    const got = Buffer.from(sig, 'base64')
+    return got.length === expected.length && crypto.timingSafeEqual(got, expected)
+  })
+}
 
 function createInboundEmail(db) {
   const col = db.collection(COLLECTION)
@@ -45,6 +63,7 @@ function createInboundEmail(db) {
 
   // ── Webhook handler (POST /cloudivr-web/email-inbound/webhook) ──
   async function handleWebhook(req, res) {
+    if (!verifySignature(req)) { log('rejected unsigned/invalid webhook from', req.headers['cf-connecting-ip'] || req.ip); return res.status(401).json({ error: 'bad_signature' }) }
     // Acknowledge immediately (Resend expects fast response)
     res.status(200).json({ ok: true })
 
@@ -230,4 +249,4 @@ function createInboundEmail(db) {
   return { routes, handleWebhook }
 }
 
-module.exports = { createInboundEmail }
+module.exports = { createInboundEmail, verifySignature }

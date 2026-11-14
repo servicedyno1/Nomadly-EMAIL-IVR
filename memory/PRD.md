@@ -88,4 +88,4 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Code (preview, needs Save to GitHub): app errors 502→503 in cloudivr-web admin-auth/ai/fax/leads/phone-auth so Cloudflare passes the real message.
 - Open: Telnyx account block (inbound Telnyx numbers/SIP list failing). User chose to handle email only for now.
 - 2026-11-14 follow-up: Inbox tab IS live in prod build (chunk 763, release 33f1d02). User's tab was loaded 10:08:45, before the 10:09 build swap → needs reload. inboundEmails in prod: 2 test mails, bodies backfilled from Resend (key was missing at receive time).
-- OPEN (security): /email-inbound/webhook does NOT verify Resend/Svix signature (unsigned POST returns 200). Needs signing-secret rotation (old one exposed) + verification.
+- 2026-11-14: Webhook now verifies Resend/Svix signature (RESEND_WEBHOOK_SECRET, 5 min tolerance, fail-closed). Test: js/tests/test_inbound_email_signature.js (7/7). Rotated: old webhook 4036de39 deleted, new 0cfb7391 created; secret written only to droplet shared/app-main/backend.env. Code goes live after Save to GitHub → then verify with a real email.
