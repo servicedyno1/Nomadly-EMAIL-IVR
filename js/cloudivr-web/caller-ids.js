@@ -229,8 +229,8 @@ function routes(router, { db, h, numbersApi }) {
   // One-tap move to Business for the price gap only, so the user can show any caller ID.
   router.post('/caller-ids/upgrade', h(async (req, res) => {
     const mine = await numbersApi.myNumbers(req.webChatId)
-    const order = ['starter', 'pro', 'business']
-    const ok = mine.filter(x => x.status === 'active' && !x.isSubNumber && !x.replacedBy && [0, 1].includes(order.indexOf(x.plan))).sort((a, b) => order.indexOf(b.plan) - order.indexOf(a.plan))
+    const order = ['starter', 'standard', 'pro', 'business']
+    const ok = mine.filter(x => x.status === 'active' && !x.isSubNumber && !x.replacedBy && [0, 1, 2].includes(order.indexOf(x.plan))).sort((a, b) => order.indexOf(b.plan) - order.indexOf(a.plan))
     const n = req.body.number ? ok.find(x => x.phoneNumber === clean(req.body.number)) : ok[0]
     if (!n) return bad(res, 404, 'not_found', 'You have no number that can be upgraded to Business.')
     const q = numbersApi.upgradeQuote(n, 'business', 0, true)

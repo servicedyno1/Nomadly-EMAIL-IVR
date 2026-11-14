@@ -1,0 +1,12 @@
+country,iso,type,multitel_paperwork,multitel_number_usd_mo,multitel_stock,multitel_cost_per_sent_text_usd,current_price_per_text,loses_money_at_005,suggested_price_per_text,infobip_sms_paperwork,infobip_delivery
+Brazil,BR,Mobile,None (instant),9.81,87,0.0892,0.05,True,0.15,—,—
+Canada,CA,Local,None (instant),,47042,0.0164,0.05,False,0.05,No paperwork,Instant (pick a number)
+Colombia,CO,Mobile,None (instant),15.91,60,0.0678,0.05,True,0.11,—,On request (Infobip assigns after order)
+Denmark,DK,Mobile,None (instant),9.81,429,0.0889,0.05,True,0.15,Name + address only,On request (Infobip assigns after order)
+Israel,IL,Mobile,None (instant),,840,0.6255,0.05,True,1.01,Documents / extra info,On request (Infobip assigns after order)
+Netherlands,NL,Mobile,None (instant),1.11,1385,0.0794,0.05,True,0.13,No paperwork,On request (Infobip assigns after order)
+Peru,PE,Mobile,None (instant),24.98,36,0.4807,0.05,True,0.77,—,On request (Infobip assigns after order)
+United Kingdom,GB,Local,None (instant),0.7,77539,0.0587,0.05,True,0.1,No paperwork,On request (Infobip assigns after order)
+United Kingdom,GB,Mobile,None (instant),0.7,1374,0.0587,0.05,True,0.1,No paperwork,On request (Infobip assigns after order)
+United States,US,Local,None (instant),0.6,8059263,0.0164,0.05,False,0.05,No paperwork,Instant (pick a number)
+United States,US,Toll-free,None (instant),1.0,3835,0.0164,0.05,False,0.05,No paperwork,Instant (pick a number)

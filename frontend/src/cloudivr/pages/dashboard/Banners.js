@@ -83,7 +83,7 @@ export function CallerIdUpsellCard() {
   const KEY = `civr.cidUpsell.${account?.id || 'me'}`;
   const nums = data?.numbers || [];
   const hasBiz = nums.some(n => n.status === 'active' && n.plan === 'business');
-  const eligible = nums.filter(n => n.status === 'active' && !n.isSubNumber && !n.replacedBy && ['starter', 'pro'].includes(n.plan));
+  const eligible = nums.filter(n => n.status === 'active' && !n.isSubNumber && !n.replacedBy && ['starter', 'standard', 'pro'].includes(n.plan));
   const target = eligible.find(n => n.plan === 'pro') || eligible[0];
   const plans = catalog?.plans || [];
   const biz = plans.find(p => p.id === 'business')?.price;

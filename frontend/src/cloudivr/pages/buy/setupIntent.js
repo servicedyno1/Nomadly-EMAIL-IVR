@@ -6,7 +6,7 @@ import { cp } from '../../paths';
 
 // What the customer told the plan helper, carried into setting up the number they bought.
 const KEY = 'civr.setupIntent';
-export const USE_PLAN = { calls: 'starter', menu: 'pro', campaigns: 'pro', ai: 'business' };
+export const USE_PLAN = { calls: 'starter', voicemail: 'standard', menu: 'pro', campaigns: 'pro', ai: 'business' };
 const STEPS = {
   menu: ['We prepared a “press 1 for sales” call menu for this number.', 'Review the call menu'],
   ai: ['We started an AI receptionist for this number.', 'Review the AI receptionist'],

@@ -10,8 +10,8 @@ const { walletOps, round2 } = require('./cloudivr-web/wallet')
 const PRICE = { code: 300, nocode: 500 } // legacy standalone setups (before plan pricing); MONTHLY still bills them
 const MONTHLY = 50
 // Plan pricing: one-time setup per number, attached to one of the customer's plan numbers and renewed with that plan.
-const PLAN_PRICE = { starter: 150, pro: 120, business: 100 }
-const PLAN_LIMIT = { starter: 5, pro: 10, business: null }
+const PLAN_PRICE = { starter: 150, standard: 150, pro: 120, business: 100 }
+const PLAN_LIMIT = { starter: 5, standard: 5, pro: 10, business: null }
 // Texting plan: standalone, one business number per plan, incoming texts only and free.
 // $200 once (covers the first month), then $50/month.
 const TEXTING = { setup: 99, monthly: 29 }

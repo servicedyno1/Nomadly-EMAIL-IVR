@@ -4168,6 +4168,7 @@ const loadData = async () => {
   vpsTransactions = db.collection('vpsTransactions')
   notifyGroupsCol = db.collection('notifyGroups')
   phoneNumbersOf = db.collection('phoneNumbersOf')
+  planLifecycle.lockLegacyPrices(phoneNumbersOf, db.collection('migrationMarks')).then(r => Object.keys(r).length && log(`[PlanLadder] price locks applied: ${JSON.stringify(r)}`)).catch(e => log(`[PlanLadder] price lock failed: ${e.message}`))
   // Customers' own SignalWire numbers are never lent out as a stand-in caller ID.
   { let cache = { at: 0, set: new Set() }; require('./signalwire').setReservedCallers(async () => { if (Date.now() - cache.at < 5 * 60000) return cache.set; cache = { at: Date.now(), set: new Set((await phoneNumbersOf.aggregate([{ $match: { 'val.numbers.provider': 'signalwire' } }, { $unwind: '$val.numbers' }, { $match: { 'val.numbers.provider': 'signalwire' } }, { $group: { _id: '$val.numbers.phoneNumber' } }]).toArray()).map(r => r._id).filter(Boolean)) }; return cache.set }) }
   { let fc = { at: 0, set: new Set() }; require('./signalwire').setNeverCallers(async () => { if (Date.now() - fc.at < 5 * 60000) return fc.set; fc = { at: Date.now(), set: new Set((await db.collection('faxNumbers').find({ provider: 'signalwire_fax', status: { $ne: 'released' } }, { projection: { _id: 1 } }).toArray()).map(d => d._id)) }; return fc.set }) }
@@ -6086,7 +6087,7 @@ async function sendDay12UpgradeCreditNudges() {
         scanned++
         if (num.status !== 'active') continue
         if (num.isSubNumber) continue
-        if (num.plan !== 'starter' && num.plan !== 'pro') continue
+        if (!['starter', 'standard', 'pro'].includes(num.plan)) continue
         if (num._upgradeCreditNudgeSentAt) continue
         const purchasedTs = num.purchaseDate ? new Date(num.purchaseDate).getTime() : 0
         if (!purchasedTs || isNaN(purchasedTs)) continue
@@ -26321,10 +26322,11 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.cpSelectPlan)
       const availablePlanBtns = []
       if (phoneConfig.isPlanAvailable('starter')) availablePlanBtns.push([pc.starterPlan])
+      if (phoneConfig.isPlanAvailable('standard')) availablePlanBtns.push([pc.standardPlan])
       if (phoneConfig.isPlanAvailable('pro')) availablePlanBtns.push([pc.proPlan])
       if (phoneConfig.isPlanAvailable('business')) availablePlanBtns.push([pc.businessPlan])
       const pMsg = phoneConfig.getMsg(info?.userLanguage || 'en')
-      return send(chatId, trans('t.cp_8', pMsg.buyPlansHeader, phoneConfig.plans.starter.price, phoneConfig.plans.starter.minutes, phoneConfig.plans.starter.sms, phoneConfig.SUB_NUMBER_LIMITS.starter, phoneConfig.plans.pro.price, phoneConfig.plans.pro.minutes, phoneConfig.plans.pro.sms, phoneConfig.SUB_NUMBER_LIMITS.pro, phoneConfig.plans.business.price, phoneConfig.plans.business.minutes === 'Unlimited' ? 'Unlimited' : phoneConfig.plans.business.minutes, phoneConfig.plans.business.sms, phoneConfig.SUB_NUMBER_LIMITS.business), k.of(availablePlanBtns))
+      return send(chatId, trans('t.cp_8', pMsg.buyPlansHeader, phoneConfig.plans.starter.price, phoneConfig.plans.starter.minutes, phoneConfig.plans.starter.sms, phoneConfig.SUB_NUMBER_LIMITS.starter, phoneConfig.plans.pro.price, phoneConfig.plans.pro.minutes, phoneConfig.plans.pro.sms, phoneConfig.SUB_NUMBER_LIMITS.pro, phoneConfig.plans.business.price, phoneConfig.plans.business.minutes === 'Unlimited' ? 'Unlimited' : phoneConfig.plans.business.minutes, phoneConfig.plans.business.sms, phoneConfig.SUB_NUMBER_LIMITS.business, phoneConfig.plans.standard.price, phoneConfig.plans.standard.minutes, phoneConfig.SUB_NUMBER_LIMITS.standard), k.of(availablePlanBtns))
     }
     if (message === pc.myNumbers) {
       const userData = await get(phoneNumbersOf, chatId)
@@ -29892,6 +29894,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.cpSelectPlan)
       const availablePlanBtns = []
       if (phoneConfig.isPlanAvailable('starter')) availablePlanBtns.push([pc.starterPlan])
+      if (phoneConfig.isPlanAvailable('standard')) availablePlanBtns.push([pc.standardPlan])
       if (phoneConfig.isPlanAvailable('pro')) availablePlanBtns.push([pc.proPlan])
       if (phoneConfig.isPlanAvailable('business')) availablePlanBtns.push([pc.businessPlan])
       return send(chatId, trans('t.cp_225'), k.of(availablePlanBtns))
@@ -30210,6 +30213,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (!phoneConfig.isPlanAvailable(planKey)) {
       const availBtns = []
       if (phoneConfig.isPlanAvailable('starter')) availBtns.push([pc.starterPlan])
+      if (phoneConfig.isPlanAvailable('standard')) availBtns.push([pc.standardPlan])
       if (phoneConfig.isPlanAvailable('pro')) availBtns.push([pc.proPlan])
       if (phoneConfig.isPlanAvailable('business')) availBtns.push([pc.businessPlan])
       return send(chatId, trans('t.cp_231'), k.of(availBtns))
@@ -30236,6 +30240,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.cpSelectPlan)
       const availBtns2 = []
       if (phoneConfig.isPlanAvailable('starter')) availBtns2.push([pc.starterPlan])
+      if (phoneConfig.isPlanAvailable('standard')) availBtns2.push([pc.standardPlan])
       if (phoneConfig.isPlanAvailable('pro')) availBtns2.push([pc.proPlan])
       if (phoneConfig.isPlanAvailable('business')) availBtns2.push([pc.businessPlan])
       return send(chatId, cpTxt.selectPlan(info?.cpSelectedNumber), k.of(availBtns2))
@@ -30278,6 +30283,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.cpSelectPlan)
       const availBtns2 = []
       if (phoneConfig.isPlanAvailable('starter')) availBtns2.push([pc.starterPlan])
+      if (phoneConfig.isPlanAvailable('standard')) availBtns2.push([pc.standardPlan])
       if (phoneConfig.isPlanAvailable('pro')) availBtns2.push([pc.proPlan])
       if (phoneConfig.isPlanAvailable('business')) availBtns2.push([pc.businessPlan])
       return send(chatId, cpTxt.selectPlan(info?.cpSelectedNumber), k.of(availBtns2))
@@ -35561,9 +35567,13 @@ Select a category:`), k.of(catBtns))
       await set(state, chatId, 'action', a.cpChangePlan)
       const currentPlan = num.plan
       const btns = []
-      if (currentPlan !== 'starter' && phoneConfig.isPlanAvailable('starter')) btns.push([`💡 Downgrade to Starter — $${phoneConfig.PHONE_STARTER_PRICE}/mo`])
-      if (currentPlan !== 'starter' && !phoneConfig.isPlanAvailable('starter')) btns.push([`💡 Starter — Coming Soon 🔜`])
-      if (currentPlan !== 'pro' && phoneConfig.isPlanAvailable('pro')) btns.push([`⭐ ${currentPlan === 'starter' ? 'Upgrade' : 'Change'} to Pro — $${phoneConfig.PHONE_PRO_PRICE}/mo`])
+      const rank = Object.keys(phoneConfig.plans)
+      const verb = (k) => rank.indexOf(k) > rank.indexOf(currentPlan) ? 'Upgrade' : 'Downgrade'
+      if (currentPlan !== 'starter' && phoneConfig.isPlanAvailable('starter')) btns.push([`💡 Downgrade to Basic — $${phoneConfig.PHONE_STARTER_PRICE}/mo`])
+      if (currentPlan !== 'starter' && !phoneConfig.isPlanAvailable('starter')) btns.push([`💡 Basic — Coming Soon 🔜`])
+      if (currentPlan !== 'standard' && phoneConfig.isPlanAvailable('standard')) btns.push([`🧩 ${verb('standard')} to Starter — $${phoneConfig.PHONE_STANDARD_PRICE}/mo`])
+      if (currentPlan !== 'standard' && !phoneConfig.isPlanAvailable('standard')) btns.push([`🧩 Starter — Coming Soon 🔜`])
+      if (currentPlan !== 'pro' && phoneConfig.isPlanAvailable('pro')) btns.push([`⭐ ${verb('pro')} to Pro — $${phoneConfig.PHONE_PRO_PRICE}/mo`])
       if (currentPlan !== 'pro' && !phoneConfig.isPlanAvailable('pro')) btns.push([`⭐ Pro — Coming Soon 🔜`])
       if (currentPlan !== 'business' && phoneConfig.isPlanAvailable('business')) btns.push([`👑 Upgrade to Business — $${phoneConfig.PHONE_BUSINESS_PRICE}/mo`])
       if (currentPlan !== 'business' && !phoneConfig.isPlanAvailable('business')) btns.push([`👑 Business — Coming Soon 🔜`])
@@ -35591,7 +35601,7 @@ Select a category:`), k.of(catBtns))
 
     // Block "Coming Soon" plans
     if (message.includes('Coming Soon')) {
-      const comingPlan = message.includes('Starter') ? 'starter' : message.includes('Pro') ? 'pro' : message.includes('Business') ? 'business' : null
+      const comingPlan = message.includes('Basic') ? 'starter' : message.includes('Starter') ? 'standard' : message.includes('Pro') ? 'pro' : message.includes('Business') ? 'business' : null
       if (comingPlan) {
         return send(chatId, phoneConfig.comingSoonText(comingPlan), k.of([
           [pc.changePlan],
@@ -35690,7 +35700,8 @@ Select a category:`), k.of(catBtns))
     }
 
     let newPlan = null
-    if (message.includes('Starter')) newPlan = 'starter'
+    if (message.includes('Basic')) newPlan = 'starter'
+    if (message.includes('Starter')) newPlan = 'standard'
     if (message.includes('Pro')) newPlan = 'pro'
     if (message.includes('Business')) newPlan = 'business'
     if (!newPlan) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectValidPlan)

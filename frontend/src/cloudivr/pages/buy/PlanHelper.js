@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PhoneCall, ListTree, Megaphone, Bot, MessageSquare, Smartphone, Check } from 'lucide-react';
+import { PhoneCall, Voicemail, ListTree, Megaphone, Bot, MessageSquare, Smartphone, Check } from 'lucide-react';
 import { cp } from '../../paths';
 import { rememberUse, rememberedUse } from './setupIntent';
 
 // "What will you use it for?" — each answer picks a Business Line plan or sends the customer to the right product.
 export const USES = [
   ['calls', PhoneCall, 'Answer calls in my browser or forward them to my phone', { plan: 'starter' }],
-  ['menu', ListTree, 'A call menu, voicemail or desk phones', { plan: 'pro' }],
+  ['voicemail', Voicemail, 'Voicemail, a softphone app or call recording', { plan: 'standard' }],
+  ['menu', ListTree, 'A call menu — press 1 for sales, press 2 for support', { plan: 'pro' }],
   ['campaigns', Megaphone, 'Calling campaigns to a list of people', { plan: 'pro' }],
   ['ai', Bot, 'An AI receptionist, or showing your own verified caller ID', { plan: 'business' }],
   ['texts', MessageSquare, 'Send and receive texts in CloudIVR', { to: '/app/texting-number' }],

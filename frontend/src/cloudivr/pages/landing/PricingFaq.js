@@ -23,7 +23,7 @@ export function PlanCard({ p, plans, hot, start, delay }) {
       <div className="flex items-center justify-between gap-2"><div className="text-lg font-semibold text-slate-900">{p.name}</div>{p.recommended && <RecommendedBadge tone="landing" testid={`pricing-recommended-${p.id}`} />}</div>
       <div className="civr-l-h text-5xl text-slate-900 mt-6" data-testid={`pricing-price-${p.id}`}>{usd(p.price)}<span className="text-base font-medium tracking-normal text-slate-500">/mo</span></div>
       <div className="mt-6 pt-6 border-t civr-l-rule flex-1"><PlanFeatures plan={p} plans={plans} tone="cream" testid={`pricing-feature-${p.id}`} /></div>
-      <Link to={start(p.id)} className={`civr-l-btn mt-8 w-full ${hot ? '' : 'civr-l-btn-ghost'}`} data-testid={`pricing-choose-${p.id}`}><Slide>Choose {p.name}</Slide></Link>
+      <Link to={start(p.id)} className={`civr-l-btn mt-8 w-full !px-3 ${hot ? '' : 'civr-l-btn-ghost'}`} data-testid={`pricing-choose-${p.id}`}><Slide>Choose {p.name}</Slide></Link>
     </Reveal>
   );
 }

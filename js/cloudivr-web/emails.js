@@ -27,7 +27,7 @@ const LOOKBACK = 6 * 3600000
 const PTX = { purchase: 'numberLive', purchase_sub: 'numberLive', renew: 'renewed', restore: 'renewed', auto_renew: 'renewed', upgrade: 'upgraded' }
 const NOT_CALLS = new Set(['sms', 'sms_out', 'fax', 'connection_fee', 'overage_charge', 'sip_per_minute', 'twilio_bridge_per_minute', 'twilio_per_minute_overage', 'call_recording', 'ivr_transfer_leg'])
 const OUT = new Set(['outbound_ivr', 'outbound_ivr_bulk', 'outbound_sip', 'outbound_call'])
-const PLAN_RANK = { starter: 1, pro: 2, business: 3 }
+const PLAN_RANK = { starter: 1, standard: 2, pro: 3, business: 4 }
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const live = () => !dryRun() || process.env.WEB_EMAILS_LIVE === 'true'
 const bad = (res, status, error, message) => res.status(status).json({ error, message })

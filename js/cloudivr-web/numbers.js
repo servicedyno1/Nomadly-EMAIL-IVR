@@ -114,7 +114,7 @@ const webFeatures = (plan) => WEB_FEATURES.map(([key, label, gate]) => ({
 // Plan pre-selected on the buy page and badged "Recommended" (Pro unless switched off).
 function recommendedPlan() {
   const want = String(process.env.CLOUDIVR_RECOMMENDED_PLAN || 'pro')
-  return [want, 'pro', 'business', 'starter'].find(id => phoneConfig.plans[id] && phoneConfig.isPlanAvailable(id)) || null
+  return [want, 'pro', 'standard', 'business', 'starter'].find(id => phoneConfig.plans[id] && phoneConfig.isPlanAvailable(id)) || null
 }
 
 // US/Canada per-minute rate for outgoing calls (browser phone, softphone, Quick IVR, campaigns); other countries use the forwarding rate.
@@ -132,6 +132,7 @@ const catalog = () => {
     // Cards show as "coming soon" on the site until this is true (the checkout's card option is still disabled too).
     cardPayments: String(process.env.CLOUDIVR_CARD_PAYMENTS || '').toLowerCase() === 'true',
     texting: require('../hosted-sms.js').TEXTING,
+    enterprise: { price: phoneConfig.ENTERPRISE_PRICE },
     extraNumber: { price: phoneConfig.SUB_NUMBER_BASE_PRICE, limits: Object.fromEntries(Object.keys(phoneConfig.plans).map(id => [id, phoneConfig.getSubNumberLimit(id)])) },
   }
 }
@@ -791,7 +792,7 @@ function routes(router, deps) {
     if (!phoneConfig.plans[newPlan] || order.indexOf(newPlan) <= order.indexOf(n.plan)) return { error: { status: 400, error: 'invalid_plan', message: 'Pick a higher plan than the current one.' } }
     const q = diff && newPlan === 'business' ? phoneConfig.callerIdUpgradeQuote(n) : phoneConfig.computeUpgradeQuote(n, newPlan)
     // Keep the number's surcharge (e.g. international) on top of the new plan price, as downgrade does.
-    const surcharge = Math.max(0, round2((n.planPrice || phoneConfig.plans[n.plan].price) - phoneConfig.plans[n.plan].price))
+    const surcharge = Math.max(0, round2((n.planPrice || lifecycle.listPrice(n)) - lifecycle.listPrice(n)))
     const full = round2(q && Number.isFinite(q.chargeAmount) ? q.chargeAmount : phoneConfig.plans[newPlan].price)
     return { charge: round2(full * (1 - pct / 100)), fullCharge: full, discount: pct, credit: round2(q?.credit || 0), newPrice: round2(phoneConfig.plans[newPlan].price + surcharge) }
   }

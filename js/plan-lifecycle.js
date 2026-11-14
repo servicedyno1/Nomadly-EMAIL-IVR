@@ -12,8 +12,15 @@ const planName = (n) => phoneConfig.plans[n.plan]?.name || n.plan || ''
 const isInternalTest = (n) => n?.internalTest === true || n?.e2eTest === true
 
 // Plan price plus any per-number surcharge: what a main line costs per month.
+// A price lock (priceLock = { plan, price }) keeps a customer's old plan price while they stay on that plan.
+function listPrice(n) {
+  const lock = n?.priceLock
+  if (lock && lock.plan === n.plan && Number(lock.price) > 0) return Number(lock.price)
+  return phoneConfig.plans?.[String(n?.plan || '').toLowerCase()]?.price
+}
+
 function canonicalPrice(n) {
-  const p = phoneConfig.plans?.[String(n?.plan || '').toLowerCase()]?.price
+  const p = listPrice(n)
   return Number.isFinite(p) ? round2(p + (Number(n.numberSurcharge) || 0)) : null
 }
 
@@ -24,6 +31,21 @@ function renewalPrice(n) {
   if (n.isSubNumber) return round2(Math.max(Number.isFinite(stored) ? stored : 0, phoneConfig.SUB_NUMBER_BASE_PRICE))
   if (n.grandfathered === true && stored > 0) return round2(stored)
   return canonicalPrice(n) ?? (stored > 0 ? round2(stored) : null)
+}
+
+// One-time (per key): customers already on Pro keep paying $75 after Pro moved to $100 (2026-06 plan ladder).
+const LEGACY_LOCKS = [{ key: 'pro75-2026-06', plan: 'pro', price: 75 }]
+async function lockLegacyPrices(col, marks) {
+  const out = {}
+  for (const l of LEGACY_LOCKS) {
+    if (await marks.findOne({ _id: `priceLock:${l.key}` })) continue
+    const f = { 'n.plan': l.plan, 'n.isSubNumber': { $ne: true }, 'n.status': { $ne: 'released' }, 'n.priceLock': { $exists: false } }
+    const r = await col.updateMany({ 'val.numbers': { $elemMatch: { plan: l.plan, isSubNumber: { $ne: true }, status: { $ne: 'released' }, priceLock: { $exists: false } } } },
+      { $set: { 'val.numbers.$[n].priceLock': { plan: l.plan, price: l.price, key: l.key, at: new Date().toISOString() } } }, { arrayFilters: [f] })
+    await marks.insertOne({ _id: `priceLock:${l.key}`, accounts: r.modifiedCount, at: new Date() })
+    out[l.key] = r.modifiedCount
+  }
+  return out
 }
 
 const mainOf = (numbers, n) => (n.isSubNumber ? numbers.find(x => x.phoneNumber === n.parentNumber && live(x)) || null : null)
@@ -77,7 +99,7 @@ function usageResetPatches(numbers, main, now = new Date()) {
 function priceOnPlan(n, newPlan) {
   const cur = phoneConfig.plans[n.plan], next = phoneConfig.plans[newPlan]
   if (!next) return null
-  const surcharge = cur ? Math.max(0, round2((Number(n.planPrice) || cur.price) - cur.price)) : (Number(n.numberSurcharge) || 0)
+  const surcharge = cur ? Math.max(0, round2((Number(n.planPrice) || listPrice(n)) - listPrice(n))) : (Number(n.numberSurcharge) || 0)
   return round2(next.price + surcharge)
 }
 
@@ -262,7 +284,7 @@ function renewedMsg(n, r, lang) {
 }
 
 module.exports = {
-  HOLD_DAYS, isInternalTest, canonicalPrice, renewalPrice, mainOf, extrasOf, isOrphan, onHold, holdOver,
+  HOLD_DAYS, isInternalTest, listPrice, lockLegacyPrices, canonicalPrice, renewalPrice, mainOf, extrasOf, isOrphan, onHold, holdOver,
   lineGroup, planLimit, poolUsage, USAGE_RESET, usageResetPatches, priceOnPlan, syncExtrasPlan,
   downgradePatch, upgradePatch, numberSet, suspendPlan, orphanToMain, releasePatch, renewBlock, renewPatches, applyLocal, applyDb,
   planSuspendedMsg, orphanSuspendedMsg, releasedAfterHoldMsg, renewBlockMsg, holdNotice, renewedMsg,
