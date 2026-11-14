@@ -254,3 +254,7 @@
 ## Production live QA (scripts/live_feature_test.js, run ON the droplet from the app-main release dir)
 - QA chatId 990000111 (DB test, record flagged qaTest), number now Telnyx SIP trunk +12075037294 (Bird-verified caller ID). Run with `QA_Y=+12075037294 QA_PROVIDER=telnyx node /tmp/lft.js --env backend/.env --pm2 <app-main-a|b> <setup|voicemail|aiin|ai|vmdrop>`.
 - For bulk/vmdrop audio use a reachable URL (QA_AUDIO_URL); the old railway default 404s.
+
+## Legal profile QA (2026-11-14)
+- civr.uxtest@example.com / UxTest#2026 — legal profile may be filled by tests; clear with db.webAccounts.updateOne({email:"civr.uxtest@example.com"},{$unset:{legalProfile:"",profileDue:""}})
+- New sign-ups get profileDue:true (dialog after onboarding).

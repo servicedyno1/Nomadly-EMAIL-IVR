@@ -91,16 +91,16 @@ function createCloudIvrWeb(deps) {
         require('../scam-watch').watch({ chatId: req.webChatId, who: req.webUser?.email, where: `CloudIVR web ${req.method} ${req.path}`, data: req.body })
       next()
     })
-    require('./esim').routes(r, { h })
+    // Personal / business details: required before any number checkout.
+    const legalProfile = require('./legal-profile').createLegalProfile(db, { log })
+    legalProfile.routes(r, h)
+    r.post(['/numbers/buy', '/numbers/checkout', '/numbers/:phone/extra-checkout', '/numbers/:phone/extra', '/numbers/:phone/replace', '/fax-numbers', '/mobile-numbers'], legalProfile.gate)
+    require('./esim').routes(r, { h, legalProfile })
     const offers = createOffers(db, { log })
     offers.routes(r, { h })
     offersRef = offers
     mollie.routes(r, { h })
     wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit, offers, cryptoPerUsd: deps.cryptoPerUsd })
-    // Personal / business details: required before any number checkout.
-    const legalProfile = require('./legal-profile').createLegalProfile(db, { log })
-    legalProfile.routes(r, h)
-    r.post(['/numbers/buy', '/numbers/checkout', '/numbers/:phone/extra-checkout', '/numbers/:phone/extra', '/fax-numbers'], legalProfile.gate)
     // Orders go first so /numbers/orders is not caught by /numbers/:phone; numbersApi is filled in right after.
     const numbersApi = {}
     orders.routes(r, { ...deps, db, h, numbersApi, sendMail, offers })
@@ -130,7 +130,7 @@ function createCloudIvrWeb(deps) {
     incoming.routes(r, { ...deps, db, h, numbersApi, smsReply })
     textTriggers.routes(r, { ...deps, db, h, numbersApi })
     ringGroup.routes(r, { h, numbersApi })
-    require('./fax').routes(r, { db, h, upload, numbersApi, notifyAdmin: deps.notifyAdmin })
+    require('./fax').routes(r, { db, h, upload, numbersApi, notifyAdmin: deps.notifyAdmin, legalProfile })
     webhooks.routes(r, { db, h, log })
     aiSummary.routes(r, { ...deps, db, h, numbersApi })
     emails.routes(r, { h })

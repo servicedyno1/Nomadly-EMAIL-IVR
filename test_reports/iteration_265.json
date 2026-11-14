@@ -1,0 +1,38 @@
+{
+  "summary": "CloudIVR legal profile (individual/business + address) feature tested end-to-end. Backend: 22/22 pytest pass (GET/PUT /profile/legal + validation incl. no-postcode countries AE/HK/IE, /profile/legal/later, 428 profile_required gate on /numbers/buy, /numbers/checkout, /numbers/:phone/extra, /numbers/:phone/extra-checkout, /fax-numbers, Google address suggest/place proxy with real calls, 401 unauth, dry-run purchase -> numberResaleRecords {resold:true,endUser,note} + phoneNumbersOf number has resold:true + endUser, admin GET /admin/users/:chatId legalProfile + resale). Frontend: banner + dialog, Individual/Business cards, business fields, server validation error shown, Google suggestions (5) -> pick fills street/city/region/postal, list closes and stays closed (also in a fast type-then-pick race and with keyboard ArrowDown+Enter), manual toggle, 'Details saved' toast, banner disappears; Buy page gate replaces Checkout until saved then Checkout appears; Settings card pill Complete / Needed to buy numbers + prefilled editable form saves; new sign-up shows 'Who will use your numbers?' dialog, 'Do this later' closes it, not shown again on reload, banner shows instead; admin drawer 'Number holder details' with resale line. One UX issue: on new sign-up the onboarding modal (z-80) opens on top of the profile setup dialog (z-60), so two modals stack.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /numbers/:phone/replace", "issue": "Not gated by legalProfile.gate and does not call recordResale; a newly acquired replacement number gets no numberResaleRecords entry (it only inherits the old number's endUser via spread, which can be missing for numbers bought before this feature)."},
+      {"endpoint": "POST /mobile-numbers, POST /esim, hosted-sms texting number", "issue": "No profile gate or resale record. This may be intended (other providers), but the request said every number is recorded as resold."},
+      {"endpoint": "fax.js POST /fax-numbers", "issue": "Calls createLegalProfile(db) on every purchase, which runs createIndex each time. Should reuse the shared instance."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Shell: ProfileSetupDialog + Onboarding", "issue": "Right after sign-up both modals mount together. The profile dialog shows for a moment, then the onboarding 'What will you use CloudIVR for?' modal (z-[80]) covers it. The profile dialog (Modal z-[60]) can only be used after onboarding is skipped or finished. Fix: show ProfileSetupDialog only after onboarding is done (or the other way round).", "selector": "[data-testid=profile-setup-dialog], [data-testid=onboarding]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Buy page after saving details", "issues": ["The 'Details saved' toast (bottom-right) sits over the 'Pay' button for a few seconds."]},
+      {"screen": "Address autofill (UK)", "issues": ["For a Google result with a premise name (e.g. '221B Bakers, Bridge Street, Framlingham'), line2 gets the village name and the premise name is dropped. This is acceptable but worth checking."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_legal_profile_iter265.py", "/app/test_reports/pytest/pytest_iter265.xml"],
+  "action_items": [
+    "Sequence the post-sign-up dialogs so the onboarding modal and 'Who will use your numbers?' do not stack (e.g. render ProfileSetupDialog only when onboarding data shows onboarded).",
+    "Decide whether /numbers/:phone/replace (and mobile/eSIM/texting numbers) need the profile gate and recordResale; at minimum record a resale for replacement numbers.",
+    "Reuse the shared legalProfile instance in fax.js instead of creating one per request."
+  ],
+  "critical_code_review_comments": [
+    "legal-profile.js: the per-account rate limiter Map 'hits' never evicts entries (small memory growth).",
+    "AddressField: an in-flight suggest request is not cancelled when the user picks. No re-open was seen in tests, but an AbortController or a request id would make this safe.",
+    "PUT /profile/legal accepts an unknown countryCode such as 'ZZ' as long as it is 2 letters. Consider checking it against the country list."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_legal_profile_iter265.py"],
+  "success_rate": {"backend": "100% (22/22)", "frontend": "95% (all flows work; 1 modal-stacking UX issue)"},
+  "seed_data_creation": "Test accounts: test_iter265_<hex>@example.com (chatId 5000000000000086, wallet set to $200 via mongo, business profile 'TEST_ Acme Pty Ltd', dry-run number +12024595978 + resale record), test_iter265l_<hex>@example.com, and UI sign-up test_iter265ui1794657904@example.com / QaTest#2026x (no details, profileDue cleared). civr.uxtest: legalProfile was saved during the UI tests, then removed again ($unset) so it is back to 'existing user without details'. No number was bought for uxtest by this run (its +12024595976 resale record from 12:00 predates this run).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Regression: pytest /app/backend/tests/test_cloudivr_legal_profile_iter265.py (it registers new accounts and does 1 dry-run buy per run; real Google Places calls, 2 per run). To make uxtest an 'existing user without details' again: mongosh test --eval 'db.webAccounts.updateOne({_id:5000000000000077},{$unset:{legalProfile:\"\"}})'. On new sign-up, skip onboarding ([data-testid=onboarding-skip]) before you interact with profile-setup-dialog. Admin login works with devCode prefilled in preview."
+}

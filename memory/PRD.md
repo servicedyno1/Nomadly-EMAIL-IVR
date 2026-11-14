@@ -90,3 +90,11 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - 2026-11-14 follow-up: Inbox tab IS live in prod build (chunk 763, release 33f1d02). User's tab was loaded 10:08:45, before the 10:09 build swap → needs reload. inboundEmails in prod: 2 test mails, bodies backfilled from Resend (key was missing at receive time).
 - 2026-11-14: Webhook now verifies Resend/Svix signature (RESEND_WEBHOOK_SECRET, 5 min tolerance, fail-closed). Test: js/tests/test_inbound_email_signature.js (7/7). Rotated: old webhook 4036de39 deleted, new 0cfb7391 created; secret written only to droplet shared/app-main/backend.env. Code goes live after Save to GitHub → then verify with a real email.
 - 2026-11-14 Infobip number scan (read-only, 249 countries): balance €8.21, owns 1 CA number. In stock + no paperwork: CA, PR, US(10DLC), AR, FR, MX, PL, RO, UA, CL, LT, MY, HR, ES. Address-only (company name+address): AU, DK (no stock). Sweden company name only (no stock). Details: memory/infobip_number_requirements.csv. No purchase made.
+
+## 2026-11-14 — Customer legal profile (individual / business) for number resale
+- New: js/cloudivr-web/legal-profile.js (validate, 428 gate, Google Places (New) proxy /address/suggest + /address/place, numberResaleRecords). Key GOOGLE_MAPS_API_KEY (backend, server-side only).
+- Gate on: /numbers/buy, /numbers/checkout, /numbers/:phone/extra(-checkout), /numbers/:phone/replace, /fax-numbers, /mobile-numbers.
+- Every sale → numberResaleRecords {resold:true, endUser, note} + number doc resold/endUser. Infobip: resale note PUT best-effort — Infobip API does NOT keep `note` on this account (verified). infobipRequirements() ready for request-based countries (AU/DK companyName+companyAddress) — Resource Request ordering not built yet.
+- UI: frontend/src/cloudivr/profile/* — sign-up dialog after onboarding (skippable, profileDue), banner for existing users, Buy page gate replaces Checkout, Settings card, admin Users drawer "Number holder details".
+- Tests: iteration_265 (backend 22/22, frontend all flows); fixed after: modal stacking, replace/mobile gates, fax shared instance.
+- Infobip full offer scan (2994 lookups, 249 countries): 58 countries with offers → memory/infobip_full_report.xlsx (+csv), preview link /reports/infobip-number-offers.xlsx. Resale terms are NOT in the API (portal offer cards only).

@@ -6,10 +6,11 @@ import { Modal } from '../pages/contacts/Modal';
 import { LegalProfileForm } from './LegalProfileForm';
 
 // Right after sign-up (new accounts): one step to add personal or business details. "Later" is allowed.
-export function ProfileSetupDialog() {
+// Waits for the onboarding step (`ready`) so the two dialogs never stack.
+export function ProfileSetupDialog({ ready }) {
   const { account, setAccount } = useCivrAuth();
   const [open, setOpen] = useState(true);
-  if (!account?.profileDue || !open) return null;
+  if (!ready || !account?.profileDue || !open) return null;
   const later = () => { setOpen(false); api('/profile/legal/later', { method: 'POST' }).then(() => setAccount({ ...account, profileDue: false })).catch(() => {}); };
   return (
     <Modal title="Who will use your numbers?" sub="Carriers register every number to a person or business. Takes a minute — the address fills in as you type." onClose={later} testid="profile-setup-dialog">

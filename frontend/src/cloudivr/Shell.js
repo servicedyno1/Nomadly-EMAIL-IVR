@@ -172,7 +172,7 @@ export default function Shell() {
       <Shortcuts onEscape={closePhone} />
       <Palette openPhone={openPhone} />
       <Onboarding data={onb.data} setData={onb.setData} />
-      <ProfileSetupDialog />
+      <ProfileSetupDialog ready={!!onb.data && (onb.data.onboarded || /[?&](start=texting|purpose=fax)\b/.test(window.location.search))} />
       <div className="lg:flex">
         <Sidebar supportLink={catalog?.supportLink} channelLink={catalog?.channelLink} onPhone={openPhone} />
         <div className="flex-1 min-w-0">
