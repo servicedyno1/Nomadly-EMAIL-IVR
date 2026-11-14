@@ -22,6 +22,8 @@ async function api(method, path, form) {
   if (isBlocked()) throw new Error('MultiTEL login was rejected — check the API username/password and IP allow-list')
   const r = await axios({ method, url: `https://api.multitel.net/v3/${path}`, auth: { username: process.env.MULTITEL_USERNAME, password: process.env.MULTITEL_PASSWORD },
     headers: { Accept: 'application/json', ...(form ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}) }, data: form ? qs.stringify(form) : undefined, timeout: 60000, validateStatus: () => true })
+  // A 403 about a product not being enabled (e.g. Messaging API) is not a bad login — don't pause everything.
+  if (r.status === 403 && /NOT_APPROVED|not been approved/i.test(JSON.stringify(r.data || ''))) return r.data
   if (r.status === 401 || r.status === 403) { block(); throw new Error(`MultiTEL auth refused (${r.status})`) }
   return r.data || {}
 }

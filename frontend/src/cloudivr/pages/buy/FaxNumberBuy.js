@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { FlagSelect } from '../../Pickers';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Printer, Search, Loader2, Check } from 'lucide-react';
@@ -54,9 +55,9 @@ export function FaxNumberBuy({ balance, onBought }) {
       <p className="text-sm text-[#a1a1aa] flex gap-2" data-testid="fax-buy-price"><Printer className="w-4 h-4 mt-0.5 shrink-0 text-[#818cf8]" />{!offer ? 'Loading fax prices…' : `USA or Canada. Sends and receives faxes only — it can't take calls or texts. ${money(price)}/month, ${offer?.freePages ?? 50} free pages a month, then ${money(offer?.pagePrice ?? 2)} a page.`}</p>
       <form onSubmit={search} className="grid sm:grid-cols-3 gap-4 items-end mt-4" data-testid="fax-buy-search-form">
         <Field label="Country">
-          <select className="civr-input" value={q.country} onChange={e => setQ({ ...q, country: e.target.value })} data-testid="fax-buy-country-select">
+          <FlagSelect code={q.country}><select className="civr-input w-full" value={q.country} onChange={e => setQ({ ...q, country: e.target.value })} data-testid="fax-buy-country-select">
             {(offer?.countries || [{ code: 'US', name: 'United States' }, { code: 'CA', name: 'Canada' }]).map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
-          </select>
+          </select></FlagSelect>
         </Field>
         <Field label="Area code (optional)">
           <input className="civr-input font-mono" maxLength={3} value={q.areaCode} onChange={e => setQ({ ...q, areaCode: e.target.value.replace(/\D/g, '') })} placeholder="Any (e.g. 212)" data-testid="fax-buy-area-code-input" />

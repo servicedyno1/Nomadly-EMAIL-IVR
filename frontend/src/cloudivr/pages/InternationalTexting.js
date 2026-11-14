@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Flag } from '../Pickers';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { MessageSquare, Phone, PhoneOff, Search, Check, Globe } from 'lucide-react';
@@ -18,7 +19,7 @@ function CountryList({ items, value, onPick }) {
       {items.map(it => (
         <button key={it.country} type="button" onClick={() => onPick(it)} aria-pressed={value?.country === it.country} data-testid={`intl-texting-country-${it.country}`}
           className={`civr-card p-4 text-left transition-[border-color,transform] duration-200 hover:-translate-y-0.5 ${value?.country === it.country ? '!border-[var(--c-accent)]' : ''}`}>
-          <div className="flex items-center gap-2 font-semibold"><span className="text-xl">{it.flag}</span>{it.name}<span className="text-xs text-[var(--c-muted)] font-normal">· Mobile</span>{value?.country === it.country && <Check className="w-4 h-4 ml-auto text-[var(--c-accent)]" />}</div>
+          <div className="flex items-center gap-2 font-semibold"><Flag code={it.country} className="!w-6 !h-[18px]" />{it.name}<span className="text-xs text-[var(--c-muted)] font-normal">· Mobile</span>{value?.country === it.country && <Check className="w-4 h-4 ml-auto text-[var(--c-accent)]" />}</div>
           <div className="flex flex-wrap gap-1.5 mt-2"><Badge on Icon={MessageSquare} OffIcon={MessageSquare} label="SMS" testid={`intl-texting-country-${it.country}-sms`} /><Badge on={it.caps.voice} Icon={Phone} OffIcon={PhoneOff} label="Calls" testid={`intl-texting-country-${it.country}-voice`} /></div>
           <div className="text-xs text-[var(--c-muted)] mt-2" data-testid={`intl-texting-country-${it.country}-text-price`}>{`${money(it.textPrice)} per text sent · receiving is free`}</div>
         </button>

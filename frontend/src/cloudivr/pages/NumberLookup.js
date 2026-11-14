@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { Flag } from '../Pickers';
+import { countryOfPhone } from '../phoneCountry';
 import { ScanSearch, Loader2 } from 'lucide-react';
 import { api, money, useApi } from '../api';
 import { PageHeader, Spinner, ErrorNote } from '../ui';
@@ -11,7 +13,7 @@ function Result({ r, testid }) {
   const cells = [['Line type', TYPE[r.type] || r.type], ['Carrier', r.carrier], ['Country', r.country], ['Ported', r.ported ? 'Yes' : 'No']];
   return (
     <div className="civr-card p-5" data-testid={testid}>
-      <div className="flex items-center gap-3 mb-3"><span className="font-mono text-lg" data-no-translate>{r.number}</span><span className={`civr-pill ${r.valid ? 'civr-pill-ok' : 'civr-pill-bad'}`} data-testid={`${testid}-valid`}>{r.valid ? 'Valid' : 'Not valid'}</span></div>
+      <div className="flex items-center gap-3 mb-3"><Flag code={/^[A-Z]{2}$/.test(String(r.country || '')) ? r.country : countryOfPhone(r.number)} className="!w-6 !h-[18px]" /><span className="font-mono text-lg" data-no-translate>{r.number}</span><span className={`civr-pill ${r.valid ? 'civr-pill-ok' : 'civr-pill-bad'}`} data-testid={`${testid}-valid`}>{r.valid ? 'Valid' : 'Not valid'}</span></div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">{cells.map(([k, v]) => <div key={k}><div className="text-xs text-[var(--c-muted)]">{k}</div><div className="font-semibold" data-testid={`${testid}-${k.toLowerCase().replace(' ', '-')}`}>{v || 'unknown'}</div></div>)}</div>
     </div>
   );

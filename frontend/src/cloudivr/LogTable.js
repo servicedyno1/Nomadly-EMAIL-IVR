@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { PhoneFlag } from './Pickers';
 import { PhoneIncoming, PhoneOutgoing, PhoneMissed, Voicemail, MessageSquare, Mic, Printer, Clock, Activity } from 'lucide-react';
 import { when, secs } from './api';
 import { usePrivacy } from './privacy';
@@ -62,8 +63,8 @@ function LogRow({ l, i, cols, showNumber, testid, notePhone, onNotesChange, summ
       <tr data-testid={`${testid}-row-${i}`}>
         <td><span className="flex items-center gap-2"><Icon className="w-4 h-4" style={{ color }} />{name}</span></td>
         {showNumber && <td className="font-mono text-xs" data-testid={`${testid}-number-${i}`}>{pv.phone(l.phoneNumber)}</td>}
-        <td className="font-mono text-xs" data-testid={`${testid}-from-${i}`}>{pv.phone(l.from) || '—'}</td>
-        <td className="font-mono text-xs" data-testid={`${testid}-to-${i}`}>{pv.phone(l.forwardTo || l.to) || '—'}</td>
+        <td className="font-mono text-xs" data-testid={`${testid}-from-${i}`}><span className="inline-flex items-center gap-1.5"><PhoneFlag number={l.from} />{pv.phone(l.from) || '—'}</span></td>
+        <td className="font-mono text-xs" data-testid={`${testid}-to-${i}`}><span className="inline-flex items-center gap-1.5"><PhoneFlag number={l.forwardTo || l.to} />{pv.phone(l.forwardTo || l.to) || '—'}</span></td>
         <td className="font-mono text-xs">{l.duration ? secs(l.duration) : '—'}</td>
         <td className="text-xs max-w-xs"><Details l={l} i={i} testid={testid} notePhone={notePhone} onNotesChange={onNotesChange} r={r} rid={rid} summarize={summarize} /></td>
         <td className="text-xs text-[#a1a1aa] whitespace-nowrap">{when(l.timestamp)}</td>
@@ -88,8 +89,8 @@ function LogCard({ l, i, showNumber, testid, notePhone, onNotesChange, summarize
       </div>
       <div className="mt-2 grid grid-cols-[auto,1fr] gap-x-4 gap-y-1 text-xs">
         {showNumber && cell('Number', pv.phone(l.phoneNumber), `${testid}-number-${i}`)}
-        {cell('From', pv.phone(l.from) || '—', `${testid}-from-${i}`)}
-        {cell('To', pv.phone(l.forwardTo || l.to) || '—', `${testid}-to-${i}`)}
+        {cell('From', <span className="inline-flex items-center gap-1.5"><PhoneFlag number={l.from} />{pv.phone(l.from) || '—'}</span>, `${testid}-from-${i}`)}
+        {cell('To', <span className="inline-flex items-center gap-1.5"><PhoneFlag number={l.forwardTo || l.to} />{pv.phone(l.forwardTo || l.to) || '—'}</span>, `${testid}-to-${i}`)}
         {l.duration ? cell('Length', secs(l.duration)) : null}
       </div>
       <div className="text-xs mt-1.5 flex flex-col items-start gap-1"><Details l={l} i={i} testid={testid} notePhone={notePhone} onNotesChange={onNotesChange} r={r} rid={rid} summarize={summarize} /></div>

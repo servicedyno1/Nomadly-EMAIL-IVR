@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { PhoneFlag } from '../../Pickers';
 import { toast } from 'sonner';
 import { ArrowLeft, Phone, UserPlus, Ban, Loader2, StickyNote } from 'lucide-react';
 import { api, enc } from '../../api';
@@ -44,7 +45,7 @@ function Header({ t, onBack, reload, onNotes }) {
     <div className="flex flex-wrap items-center gap-3 border-b border-[var(--c-border)] px-3 sm:px-5 py-3" data-testid="thread-header">
       <button type="button" onClick={onBack} className="md:hidden w-11 h-11 -ml-2 grid place-items-center rounded-full" aria-label="Back to conversations" data-testid="thread-back"><ArrowLeft className="w-5 h-5" /></button>
       <div className="min-w-0 flex-1">
-        <div className="font-semibold truncate" data-testid="thread-title">{t.name || <span className="font-mono" data-no-translate>{t.contact}</span>}</div>
+        <div className="font-semibold truncate flex items-center gap-2" data-testid="thread-title"><PhoneFlag number={t.contact} />{t.name || <span className="font-mono" data-no-translate>{t.contact}</span>}</div>
         <div className="text-xs text-[var(--c-muted)] flex items-center gap-x-2 gap-y-1 overflow-x-auto sm:flex-wrap whitespace-nowrap">
           {t.name && <span className="font-mono" data-no-translate>{t.contact}</span>}
           <span>via your number <span className="font-mono" data-no-translate>{t.number.phone}</span><span className="hidden sm:inline"> · {t.number.mobile ? 'Texting Number' : KIND[t.number.kind]}</span></span><span className="hidden sm:inline-flex"><Caps n={t.number} /></span>

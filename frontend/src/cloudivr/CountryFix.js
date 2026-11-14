@@ -1,3 +1,4 @@
+import { FlagSelect } from './Pickers';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Globe2, Loader2 } from 'lucide-react';
@@ -34,10 +35,10 @@ export function PhoneCountry({ phone, value, onChange, testid = 'phone-country' 
   return (
     <div className="mt-2 rounded-lg border border-[#fbbf24]/40 bg-[#fbbf24]/10 p-2.5" data-testid={testid}>
       <div className="text-xs mb-1.5 flex items-center gap-1.5"><Globe2 className="w-3.5 h-3.5 text-[#fbbf24]" />No country code — which country is this number in?</div>
-      <select className="civr-input !h-10" value={cc} onChange={e => { setCc(e.target.value); onChange(e.target.value); }} aria-label="Country of this number" data-testid={`${testid}-select`}>
+      <FlagSelect code={cc}><select className="civr-input !h-10" value={cc} onChange={e => { setCc(e.target.value); onChange(e.target.value); }} aria-label="Country of this number" data-testid={`${testid}-select`}>
         <option value="">Choose the country…</option>
         {list.map(c => <option key={c.iso} value={c.iso}>{`${c.name} (${c.code})${c.iso === last ? ' · last used' : ''}`}</option>)}
-      </select>
+      </select></FlagSelect>
       <div className="text-xs text-[#a1a1aa] mt-1.5">We add the code when you save, after checking the number fits that country.</div>
     </div>
   );
@@ -54,10 +55,10 @@ export function CountryFix({ count, suggest, onApply, busy, testid = 'country-fi
         <span data-testid={`${testid}-count`}>{count === 1 ? '1 number has no country code.' : `${count.toLocaleString()} numbers have no country code.`} Pick their country and we’ll add it — each number is checked first.</span>
       </div>
       <div className="flex flex-col sm:flex-row gap-2 mt-2.5">
-        <select className="civr-input !h-10 flex-1" value={cc} onChange={e => setCc(e.target.value)} aria-label="Country of these numbers" data-testid={`${testid}-select`}>
+        <div className="flex-1"><FlagSelect code={cc}><select className="civr-input !h-10 w-full" value={cc} onChange={e => setCc(e.target.value)} aria-label="Country of these numbers" data-testid={`${testid}-select`}>
           <option value="">Choose the country…</option>
           {list.map(c => <option key={c.iso} value={c.iso}>{`${c.name} (${c.code})${c.iso === last ? ' · last used' : ''}`}</option>)}
-        </select>
+        </select></FlagSelect></div>
         <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={!cc || busy} onClick={() => { remember(cc); onApply(cc); }} data-testid={`${testid}-apply`}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Add country code</button>
       </div>
       {note && <div className="text-xs text-[#a1a1aa] mt-2" data-testid={`${testid}-note`}>{note}</div>}

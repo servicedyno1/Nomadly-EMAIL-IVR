@@ -1,4 +1,5 @@
 import React from 'react';
+import { PhoneFlag } from '../../Pickers';
 import { Search, PhoneMissed, Voicemail, PhoneOutgoing, PhoneIncoming, Image as ImageIcon } from 'lucide-react';
 import { timeOf, dayOf } from './Events';
 import { NewMessage } from './NewMessage';
@@ -36,7 +37,7 @@ export function ThreadList({ data, sel, onPick, filter, setFilter, q, setQ, mult
                 <span className={`mt-2 w-2.5 h-2.5 shrink-0 rounded-full ${t.unread ? 'bg-[var(--c-accent-strong)]' : 'bg-transparent'}`} aria-label={t.unread ? 'Unread' : undefined} data-testid={t.unread ? `thread-unread-${t.id}` : undefined} />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline gap-2">
-                    <span className={`truncate ${t.unread ? 'font-bold' : 'font-semibold'}`}>{t.name || <span className="font-mono" data-no-translate>{t.contact}</span>}</span>
+                    <PhoneFlag number={t.contact} /><span className={`truncate ${t.unread ? 'font-bold' : 'font-semibold'}`}>{t.name || <span className="font-mono" data-no-translate>{t.contact}</span>}</span>
                     <span className="ml-auto shrink-0 text-xs text-[var(--c-muted)]">{stamp(t.at)}</span>
                   </span>
                   <span className={`flex text-sm min-w-0 ${t.unread ? 'text-[var(--c-text)]' : 'text-[var(--c-muted)]'}`} data-testid={`thread-last-${t.id}`}><Last l={t.last} /></span>

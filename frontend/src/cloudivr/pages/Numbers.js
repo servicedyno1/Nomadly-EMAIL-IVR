@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Flag } from '../Pickers';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Hash, ShoppingCart, ChevronRight, Copy, PhoneOutgoing, Plus } from 'lucide-react';
@@ -70,7 +71,7 @@ function NumberCard({ n, i, pv, onSaved, reload }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <Link to={href} className="font-mono text-xl inline-flex items-center gap-1.5 min-h-[44px] -my-2 hover:text-[var(--c-accent,#818cf8)] transition-colors" data-testid={`number-card-${i}-phone`} aria-label={`Open ${n.phoneNumber}`}>{pv.phone(n.phoneNumber)}</Link>
-          <div className="text-xs text-[#a1a1aa] mt-1">{n.countryName || n.country} · {n.type?.replace('_', '-')}</div>
+          <div className="text-xs text-[#a1a1aa] mt-1 flex items-center gap-1.5" data-testid={`number-card-${i}-country`}><Flag code={n.country} />{n.countryName || n.country} · {n.type?.replace('_', '-')}</div>
         </div>
         <span className={statusPill(n.status)} data-testid={`number-card-${i}-status`}>{n.status}</span>
       </div>

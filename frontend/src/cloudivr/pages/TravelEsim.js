@@ -6,6 +6,8 @@ import { PageHeader, Spinner, ErrorNote, Label } from '../ui';
 import { WalletPay } from '../WalletPay';
 import { useShell } from '../Shell';
 import { track } from '../track';
+import { Flag } from '../Pickers';
+import { QRCodeSVG } from 'qrcode.react';
 
 const copy = (v) => navigator.clipboard?.writeText(v).then(() => toast.success('Copied'));
 
@@ -13,7 +15,7 @@ function Install({ o }) {
   const i = o.install || {};
   return (
     <div className="grid md:grid-cols-[160px_1fr] gap-4 mt-3" data-testid={`travel-esim-install-${o.id}`}>
-      {i.qr ? <img src={i.qr} alt={`QR code for ${o.name}`} className="w-40 h-40 rounded-lg bg-white p-2" data-testid={`travel-esim-qr-${o.id}`} /> : <div className="w-40 h-40 rounded-lg border border-dashed grid place-items-center text-center p-3 text-xs text-[var(--c-muted)]" data-testid={`travel-esim-qr-missing-${o.id}`}>{o.dryRun ? 'Preview order — no real QR code' : 'QR code is on its way. Refresh in a minute.'}</div>}
+      {!i.qr && i.activationCode && !o.dryRun ? <div className="w-40 h-40 rounded-lg bg-white p-2 grid place-items-center" data-testid={`travel-esim-qr-${o.id}`}><QRCodeSVG value={i.activationCode} size={144} aria-label={`QR code for ${o.name}`} /></div> : i.qr ? <img src={i.qr} alt={`QR code for ${o.name}`} className="w-40 h-40 rounded-lg bg-white p-2" data-testid={`travel-esim-qr-${o.id}`} /> : <div className="w-40 h-40 rounded-lg border border-dashed grid place-items-center text-center p-3 text-xs text-[var(--c-muted)]" data-testid={`travel-esim-qr-missing-${o.id}`}>{o.dryRun ? 'Preview order — no real QR code' : 'QR code is on its way. Refresh in a minute.'}</div>}
       <div className="space-y-2 text-sm">
         <p>Scan the QR code with your phone camera, or use the install button on the phone you travel with.</p>
         <div className="flex flex-wrap gap-2">
@@ -27,13 +29,13 @@ function Install({ o }) {
   );
 }
 
-function MyEsims({ orders }) {
+function MyEsims({ orders, codes }) {
   if (!orders.length) return null;
   return (
     <div data-testid="travel-esim-orders"><Label>Your travel eSIMs</Label>
       <div className="space-y-3">{orders.map(o => (
         <div key={o.id} className="civr-card p-5" data-testid={`travel-esim-order-${o.id}`}>
-          <div className="flex flex-wrap items-center gap-3"><span className="flex-1"><span className="font-semibold">{o.name}</span><span className="block text-xs text-[var(--c-muted)]" data-testid={`travel-esim-date-${o.id}`}>{`Bought ${new Date(o.createdAt).toLocaleDateString()} · valid ${o.days} days after you first connect`}{o.dryRun ? ' · preview order (not real)' : ''}</span></span><span className={`civr-pill ${o.status === 'active' ? 'civr-pill-ok' : o.status === 'failed' ? 'civr-pill-bad' : 'civr-pill-warn'}`} data-testid={`travel-esim-status-${o.id}`}>{o.status === 'active' ? 'Ready to install' : o.status === 'failed' ? 'Failed · refunded' : 'Preparing…'}</span><span className="font-mono">{money(o.price)}</span></div>
+          <div className="flex flex-wrap items-center gap-3"><span className="flex-1"><span className="font-semibold inline-flex items-center gap-2"><Flag code={o.code || codes[o.zone]} />{o.name}</span>{o.phoneNumber && <span className="block text-xs font-mono text-[var(--c-muted)]" data-no-translate data-testid={`travel-esim-phone-${o.id}`}>{`eSIM number ${o.phoneNumber}`}</span>}<span className="block text-xs text-[var(--c-muted)]" data-testid={`travel-esim-date-${o.id}`}>{`Bought ${new Date(o.createdAt).toLocaleDateString()} · valid ${o.days} days after you first connect`}{o.dryRun ? ' · preview order (not real)' : ''}</span></span><span className={`civr-pill ${o.status === 'active' ? 'civr-pill-ok' : o.status === 'failed' ? 'civr-pill-bad' : 'civr-pill-warn'}`} data-testid={`travel-esim-status-${o.id}`}>{o.status === 'active' ? 'Ready to install' : o.status === 'failed' ? 'Failed · refunded' : 'Preparing…'}</span><span className="font-mono">{money(o.price)}</span></div>
           {o.status === 'active' && <Install o={o} />}
         </div>
       ))}</div>
@@ -60,12 +62,12 @@ export default function TravelEsim() {
   return (
     <div className="space-y-8" data-testid="travel-esim-page">
       <PageHeader label="Phone numbers" title="Travel eSIM" sub={`Mobile data in ${plans.data.zones.length} countries. Buy before you fly, install with a QR code, and you're online when you land. Paid from your wallet.`} testid="travel-esim-header" />
-      <MyEsims orders={mine.data?.orders || []} />
+      <MyEsims orders={mine.data?.orders || []} codes={Object.fromEntries((plans.data?.zones || []).map(z => [z.zone, z.code]))} />
       <div>
         <Label>Where are you going?</Label>
         <div className="relative max-w-md mb-4"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--c-muted)]" /><input className="civr-input w-full !pl-9" placeholder="Search a country" value={q} onChange={e => { setQ(e.target.value); setZone(null); setPick(null); }} data-testid="travel-esim-search-input" /></div>
         {!zone && <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2" data-testid="travel-esim-zones">{(all ? zones : zones.slice(0, 40)).map(z => (
-          <button key={z.zone} type="button" onClick={() => { setZone(z); track('travel_esim_zone', { zone: z.zone }); }} className="civr-card p-3 text-left flex items-center justify-between transition-transform duration-200 hover:-translate-y-0.5" data-testid={`travel-esim-zone-${z.zone.replace(/\W+/g, '-').toLowerCase()}`}><span className="font-medium">{z.zone}</span><span className="text-xs text-[var(--c-muted)]">from {money(z.from)}</span></button>
+          <button key={z.zone} type="button" onClick={() => { setZone(z); track('travel_esim_zone', { zone: z.zone }); }} className="civr-card p-3 text-left flex items-center justify-between transition-transform duration-200 hover:-translate-y-0.5" data-testid={`travel-esim-zone-${z.zone.replace(/\W+/g, '-').toLowerCase()}`}><span className="font-medium flex items-center gap-2"><Flag code={z.code} />{z.zone}</span><span className="text-xs text-[var(--c-muted)]">from {money(z.from)}</span></button>
         ))}{!zones.length && <p className="text-sm text-[var(--c-muted)]" data-testid="travel-esim-no-match">No plans for that country yet.</p>}</div>}
         {!zone && !all && zones.length > 40 && <p className="text-sm text-[var(--c-muted)] mt-3" data-testid="travel-esim-more-hint">{`Showing 40 of ${zones.length} countries. Type a country name above, or `}<button type="button" className="underline text-[var(--c-text)]" onClick={() => setAll(true)} data-testid="travel-esim-show-all">show all {zones.length}</button>.</p>}
         {zone && (
@@ -73,7 +75,7 @@ export default function TravelEsim() {
             <button type="button" className="text-sm underline" onClick={() => { setZone(null); setPick(null); }} data-testid="travel-esim-back">← All countries</button>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">{zone.offers.map(o => (
               <button key={o.id} type="button" onClick={() => setPick(o)} aria-pressed={pick?.id === o.id} className={`civr-card p-5 text-left ${pick?.id === o.id ? '!border-[var(--c-accent)]' : ''}`} data-testid={`travel-esim-plan-${o.id}`}>
-                <div className="flex items-center gap-2 text-[var(--c-muted)] text-xs"><Plane className="w-3.5 h-3.5" />{zone.zone}</div>
+                <div className="flex items-center gap-2 text-[var(--c-muted)] text-xs">{zone.code ? <Flag code={zone.code} /> : <Plane className="w-3.5 h-3.5" />}{zone.zone}</div>
                 <div className="font-display text-2xl font-bold mt-2">{o.gb} GB</div>
                 <div className="text-sm text-[var(--c-muted)]">{o.days} days{o.speed === 'reduced' ? ' · reduced speed' : ''}</div>
                 <div className="font-mono text-lg mt-3">{money(o.price)}</div>

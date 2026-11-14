@@ -1,4 +1,5 @@
 import React from 'react';
+import { Flag } from '../Pickers';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { SetupIntentBanner } from './buy/setupIntent';
 import { ArrowLeft, Lock, Bot, Plus, RefreshCw } from 'lucide-react';
@@ -71,7 +72,7 @@ export default function NumberDetail() {
       {n.status === 'active' && params.get('prep') !== 'menu' && <SetupIntentBanner phone={n.phoneNumber} />}
       <div className="flex flex-col md:flex-row md:items-start gap-4 justify-between mb-8 civr-rise">
         <div>
-          <div className="civr-label">{n.countryName || n.country} · {n.type?.replace('_', '-')} · {n.planName}</div>
+          <div className="civr-label flex items-center gap-1.5" data-testid="number-detail-country"><Flag code={n.country} />{n.countryName || n.country} · {n.type?.replace('_', '-')} · {n.planName}</div>
           <h1 className="font-mono text-4xl sm:text-5xl mt-2" data-testid="number-detail-phone">{pv.phone(n.phoneNumber)}</h1>
           {n.capabilities?.sms !== false && <div className="mt-3"><ReachChip phone={n.phoneNumber} testid="number-sms-reach" /></div>}
         </div>

@@ -112,7 +112,7 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     // Infobip / MultiTEL numbers text through their own provider.
     const ib = require('../infobip'), mt = require('../multitel')
     if (!mediaUrls.length && ib.enabled() && (await ib.refreshOwned()).includes(from)) { const r = await ib.sendSms(from, to, text); return r.error ? { error: 'The text couldn’t be sent right now. Try again in a minute.' } : { id: r.id } }
-    if (!mediaUrls.length && mt.enabled() && (await mt.refreshOwned()).includes(from)) { const r = await mt.sendSms(from, to, text); if (r.error) log(`[SmsReply] MultiTEL ${from} → ${to} failed: ${r.error}`); return r.error ? { error: 'The text couldn’t be sent right now. Try again in a minute.' } : { id: r.id } }
+    if (!mediaUrls.length && mt.enabled() && (await mt.refreshOwned()).includes(from)) { const r = await mt.sendSms(from, to, text); if (r.error) log(`[SmsReply] MultiTEL ${from} → ${to} failed: ${r.error}`); return r.error ? { error: /not been approved/i.test(r.error) ? 'Texting from this number isn’t switched on yet. We’re on it.' : 'The text couldn’t be sent right now. Try again in a minute.' } : { id: r.id } }
     const sw = await require('../signalwire').sendSms(from, to, text, mediaUrls).catch(() => null)
     if (sw && !sw.error) return { id: sw.id }
     if (sw?.error) log(`[SmsReply] SignalWire ${from} → ${to} failed: ${sw.error} — trying Telnyx`)

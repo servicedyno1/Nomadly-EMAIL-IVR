@@ -1,4 +1,5 @@
 import React from 'react';
+import { countryOfPhone } from './phoneCountry';
 import 'flag-icons/css/flag-icons.min.css';
 import btc from 'cryptocurrency-icons/svg/color/btc.svg';
 import ltc from 'cryptocurrency-icons/svg/color/ltc.svg';
@@ -14,6 +15,13 @@ import { api } from './api';
 export const Flag = ({ code, className = '' }) => (code
   ? <span aria-hidden="true" className={`fi fi-${String(code).toLowerCase()} shrink-0 rounded-[2px] shadow-[0_0_0_1px_rgba(0,0,0,.12)] ${className}`} />
   : null);
+
+// Flag for a phone number's country (from its dialing code).
+export const PhoneFlag = ({ number, className = '' }) => <Flag code={countryOfPhone(number)} className={className} />;
+// Native country <select> with the chosen country's flag inside it.
+export function FlagSelect({ code, children }) {
+  return <div className="relative">{code && <Flag code={code} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-[1]" />}<div className={code ? '[&>select]:!pl-10' : ''}>{children}</div></div>;
+}
 
 const COIN = { BTC: btc, LTC: ltc, ETH: eth, USDT: usdt, DOGE: doge, BCH: bch, TRON: trx, TRX: trx };
 const NET = { TRC20: trx, ERC20: eth };

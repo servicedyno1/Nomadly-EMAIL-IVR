@@ -28,13 +28,13 @@ async function catalog() {
   for (const o of all) {
     if (o.status !== 'active' || o.pricing?.type !== 'bundle') continue
     const z = zoneOf(o.name), cost = Number(o.pricing.price.amount)
-    ;(zones[z] = zones[z] || { zone: z, offers: [] }).offers.push({ id: o.id, name: o.name, gb: Math.round(o.pricing.data.amount_bytes / 1.024e8) / 10, days: o.pricing.validity.value, price: sell(cost), cost, speed: o.speed })
+    ;(zones[z] = zones[z] || { zone: z, code: o.zone?.countries?.length === 1 ? o.zone.countries[0] : null, offers: [] }).offers.push({ id: o.id, name: o.name, gb: Math.round(o.pricing.data.amount_bytes / 1.024e8) / 10, days: o.pricing.validity.value, price: sell(cost), cost, speed: o.speed })
   }
   const list = Object.values(zones).map(z => ({ ...z, offers: z.offers.sort((a, b) => a.price - b.price), from: Math.min(...z.offers.map(o => o.price)) })).sort((a, b) => a.zone.localeCompare(b.zone))
   cache = { at: Date.now(), zones: list }
   return list
 }
-const findOffer = async (id) => { for (const z of await catalog()) { const o = z.offers.find(x => x.id === id); if (o) return { ...o, zone: z.zone } } return null }
+const findOffer = async (id) => { for (const z of await catalog()) { const o = z.offers.find(x => x.id === id); if (o) return { ...o, zone: z.zone, code: z.code } } return null }
 
 function createTravelEsim({ db, h, walletOps, notify, notifyAdmin = () => {}, log = console.log }) {
   const w = walletOps(db), col = db.collection('travelEsims')
@@ -84,7 +84,7 @@ function createTravelEsim({ db, h, walletOps, notify, notifyAdmin = () => {}, lo
       if (!(cost > 0)) return bad(res, 409, 'price_changed', 'This plan can’t be bought right now. Try another one.')
       if (!(await w.debit(req.webChatId, price))) return bad(res, 402, 'insufficient_balance', `This plan costs $${price}. Top up your wallet first.`)
       const id = `tes_${crypto.randomUUID().slice(0, 12)}`, idemKey = `cloudivr-${id}`
-      const doc = { _id: id, chatId: req.webChatId, offerId: offer.id, name: offer.name, zone: offer.zone, gb: offer.gb, days: offer.days, price, cost, idemKey, status: 'processing', createdAt: new Date(), ...(dryRun() ? { dryRun: true } : {}) }
+      const doc = { _id: id, chatId: req.webChatId, offerId: offer.id, name: offer.name, zone: offer.zone, code: offer.code || null, gb: offer.gb, days: offer.days, price, cost, idemKey, status: 'processing', createdAt: new Date(), ...(dryRun() ? { dryRun: true } : {}) }
       await col.insertOne(doc)
       await db.collection('transactions').insertOne({ _id: `travel-esim-${id}`, chatId: String(req.webChatId), type: 'travel-esim', amount: price, currency: 'USD', status: 'completed', ref: offer.name, createdAt: new Date() })
       if (dryRun()) {

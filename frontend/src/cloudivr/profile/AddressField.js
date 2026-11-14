@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, MapPin, Search, PencilLine } from 'lucide-react';
 import { api } from '../api';
 import { Field } from '../ui';
+import { FlagSelect } from '../Pickers';
 
 const newSession = () => (window.crypto?.randomUUID ? window.crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
 const qs = (o) => new URLSearchParams(Object.entries(o).filter(([, v]) => v)).toString();
@@ -72,10 +73,12 @@ function AddressSearch({ country, onFill }) {
 
 function CountrySelect({ value, onChange, countries }) {
   return (
-    <select className="civr-input" value={value || ''} onChange={e => onChange(e.target.value)} aria-label="Country" data-testid="address-country-select">
-      <option value="">Choose the country…</option>
-      {countries.map(c => <option key={c.iso} value={c.iso}>{c.name}</option>)}
-    </select>
+    <FlagSelect code={value}>
+      <select className="civr-input" value={value || ''} onChange={e => onChange(e.target.value)} aria-label="Country" data-testid="address-country-select">
+        <option value="">Choose the country…</option>
+        {countries.map(c => <option key={c.iso} value={c.iso}>{c.name}</option>)}
+      </select>
+    </FlagSelect>
   );
 }
 

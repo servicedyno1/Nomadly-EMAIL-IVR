@@ -1,4 +1,5 @@
 import React from 'react';
+import { Flag } from '../../Pickers';
 import { Link } from 'react-router-dom';
 import { MessageSquareText, Phone } from 'lucide-react';
 import { useApi } from '../../api';
@@ -15,7 +16,7 @@ export function ReadyToText() {
       <div className="flex flex-wrap gap-2">
         {data.items.map(it => (
           <Link key={`${it.country}-${it.type}`} to={cp(`/app/buy?purpose=voice&country=${it.country}&type=${it.type}&plan=${data.plan}`)} className="civr-btn civr-btn-ghost" data-testid={`ready-to-text-${it.country}-${it.type}`}>
-            <span>{it.flag}</span>{it.name} · {it.typeName}<MessageSquareText className="w-3.5 h-3.5 text-[#34d399]" />{it.caps.voice && <Phone className="w-3.5 h-3.5 text-[#818cf8]" />}
+            <Flag code={it.country} />{it.name} · {it.typeName}<MessageSquareText className="w-3.5 h-3.5 text-[#34d399]" />{it.caps.voice && <Phone className="w-3.5 h-3.5 text-[#818cf8]" />}
           </Link>
         ))}
       </div>
