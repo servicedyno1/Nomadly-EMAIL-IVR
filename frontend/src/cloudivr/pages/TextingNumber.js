@@ -23,7 +23,7 @@ function Others() {
         <Smartphone className="w-5 h-5 text-[var(--c-muted)] mt-0.5" /><span><span className="block font-semibold text-sm">Want the texts on your own phone?</span><span className="block text-xs text-[var(--c-muted)] mt-1">Get a USA eSIM instead.</span></span>
       </Link>
       <Link to={cp('/app/texting?add=1')} className="civr-card p-4 flex items-start gap-3" data-testid="texting-number-other-landline">
-        <MessageSquareText className="w-5 h-5 text-[var(--c-muted)] mt-0.5" /><span><span className="block font-semibold text-sm">Keep the number you already have?</span><span className="block text-xs text-[var(--c-muted)] mt-1">Add texting to your landline instead.</span></span>
+        <MessageSquareText className="w-5 h-5 text-[var(--c-muted)] mt-0.5" /><span><span className="block font-semibold text-sm">Keep the number you already have?</span><span className="block text-xs text-[var(--c-muted)] mt-1">Texting on your landline is coming soon.</span></span>
       </Link>
     </div>
   );

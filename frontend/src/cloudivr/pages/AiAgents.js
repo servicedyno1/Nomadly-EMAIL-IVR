@@ -18,12 +18,12 @@ import { AI_LANG_NAME as LANG_NAME } from './ai/languages';
 
 const TABS = [['agents', 'Agents'], ['calls', 'Call history'], ['dnc', 'Do-not-call list']];
 
-function PlanNote({ canUse, rate, recordRate }) {
-  if (canUse) return <div className="text-sm text-[#a1a1aa] mb-6" data-testid="ai-agents-rate-note">Real calls are paid from your wallet. Browser tests are free.</div>;
+function PlanNote({ canUse, rate, receptionRate, recordRate }) {
+  if (canUse) return <div className="text-sm text-[#a1a1aa] mb-6" data-testid="ai-agents-rate-note">{`AI receptionist (answering your calls): $${receptionRate ?? 0.1}/min on any plan. AI call campaigns: $${rate}/min on Business. Paid from your wallet; browser tests are free.`}</div>;
   return (
     <div className="civr-card p-6 mb-6 flex flex-col md:flex-row md:items-center gap-4" data-testid="ai-agents-plan-note">
       <Lock className="w-6 h-6 text-[#fbbf24]" />
-      <div className="flex-1"><div className="font-semibold">AI voice agents answer and call on the Business plan</div><div className="text-sm text-[#a1a1aa]">You can build and test agents now. To use one on real calls, put a number on the Business plan.</div></div>
+      <div className="flex-1"><div className="font-semibold">Get a number to use your AI receptionist</div><div className="text-sm text-[#a1a1aa]">{`You can build and test agents now. Any plan can let the agent answer calls for $${receptionRate ?? 0.1}/min. Outgoing AI call campaigns need Business.`}</div></div>
       <button type="button" onClick={() => showUpgrade({ feature: 'AI voice agents on real calls', need: 'business' })} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="ai-agents-upgrade-link">See what Business adds</button>
     </div>
   );
@@ -60,7 +60,7 @@ export function AiAgents() {
         sub={inbound ? 'An AI that picks up your numbers 24/7 — answers questions, takes messages and books appointments. Give each agent its own number.' : 'An AI that calls your leads, in 20 languages — with natural, fast conversation. The same agents can also answer your numbers.'} testid="ai-agents-header">
         <Link to={cp('/app/ai-agents/new')} className="civr-btn civr-btn-primary" data-testid="ai-agents-new-button"><Plus className="w-4 h-4" />New agent</Link>
       </PageHeader>
-      {data && <PlanNote canUse={data.canUse} rate={data.rate} recordRate={data.recordRate} />}
+      {data && <PlanNote canUse={data.canUse} rate={data.rate} receptionRate={data.receptionRate} recordRate={data.recordRate} />}
       <TabStrip active={tab} className="mb-6" testid="ai-tabstrip">
         {TABS.map(([id, name]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} data-testid={`ai-tab-${id}`} className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#818cf8] text-[#818cf8]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>)}
       </TabStrip>

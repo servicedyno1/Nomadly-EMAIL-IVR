@@ -87,6 +87,7 @@ function createTenDlc({ db, h, adminRequire, notify, notifyAdmin = () => {}, wal
       if (['submitted', 'approved', 'filed', 'active'].includes(cur?.status)) return res.status(409).json({ error: 'locked', message: 'Your registration is already being processed.' })
       const v = validate(req.body)
       if (v.error) return res.status(400).json({ error: 'invalid', message: v.error })
+      if (!(await usNumbers(req.webChatId)).length) return res.status(400).json({ error: 'no_us_numbers', message: 'US texting registration is only needed for US local numbers. Get one first, then register.' })
       // One-off $49 service fee (refunded if we reject it); carrier fees are separate.
       if (!cur?.feePaid && FEE > 0 && !(await w.debit(req.webChatId, FEE))) return res.status(402).json({ error: 'insufficient_balance', message: `The registration service costs $${FEE}. Top up your wallet first.` })
       if (!cur?.feePaid && FEE > 0) await db.collection('transactions').insertOne({ _id: `tendlc-${req.webChatId}-${Date.now()}`, chatId: String(req.webChatId), type: 'tendlc-service', amount: FEE, currency: 'USD', status: 'completed', createdAt: new Date() })
@@ -110,7 +111,10 @@ function createTenDlc({ db, h, adminRequire, notify, notifyAdmin = () => {}, wal
       if (d === 'reject') {
         if (!note) return res.status(400).json({ error: 'note_needed', message: 'Say why it was rejected.' })
         const cur = await col.findOne({ _id: chatId })
-        if (cur?.feePaid && !['filed', 'active'].includes(cur.status)) await w.credit(chatId, FEE)
+        if (cur?.feePaid && !['filed', 'active'].includes(cur.status)) {
+          await w.credit(chatId, FEE)
+          await db.collection('transactions').insertOne({ _id: `tendlc-refund-${chatId}-${Date.now()}`, chatId, type: 'tendlc-refund', amount: -FEE, currency: 'USD', status: 'completed', createdAt: new Date() })
+        }
         await col.updateOne({ _id: chatId }, { $set: { status: 'rejected', note, feePaid: false } })
         notify?.push(chatId, `Your US texting registration needs changes: ${note}`, null, { kind: 'billing' }).catch(() => {})
         return res.json({ status: 'rejected' })

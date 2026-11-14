@@ -258,3 +258,8 @@
 ## Legal profile QA (2026-11-14)
 - civr.uxtest@example.com / UxTest#2026 — legal profile may be filled by tests; clear with db.webAccounts.updateOne({email:"civr.uxtest@example.com"},{$unset:{legalProfile:"",profileDue:""}})
 - New sign-ups get profileDue:true (dialog after onboarding).
+
+## 2026-11-14 re-seed (preview)
+- civr.alice@example.com / AliceTest#2026 — chatId 5000000000000900, wallet $380, numbers: +13346970100 (Business, dry-run), +13346970101 (Starter/standard, dry-run)
+- civr.bob@example.com / BobTest#2026 — chatId 5000000000000901, wallet $500, no numbers
+- civr.uxtest@example.com / UxTest#2026 still works

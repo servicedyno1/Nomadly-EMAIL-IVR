@@ -28,6 +28,7 @@ import Contacts from './pages/Contacts';
 import Texting from './pages/Texting';
 import TextingNumber from './pages/TextingNumber';
 import InternationalTexting from './pages/InternationalTexting';
+import NumberLookup from './pages/NumberLookup';
 import Esim from './pages/Esim';
 import TextCall from './pages/TextCall';
 import { Campaigns, CampaignNew } from './pages/Campaigns';
@@ -205,6 +206,7 @@ export default function Shell() {
               <Route path="texting" element={<Texting />} />
               <Route path="texting-number" element={<TextingNumber />} />
               <Route path="international-texting" element={<InternationalTexting />} />
+              <Route path="lookup" element={<NumberLookup />} />
               <Route path="esim" element={<Esim />} />
               <Route path="quick-call" element={<QuickCall />} />
               <Route path="text-call" element={<TextCall />} />

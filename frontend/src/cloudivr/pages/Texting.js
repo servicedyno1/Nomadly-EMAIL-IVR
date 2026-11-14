@@ -19,12 +19,13 @@ export default function Texting() {
   return (
     <div data-testid="texting-page">
       <PageHeader label="Phone numbers · Add texting to a landline" title="Texts on your own number" sub="Keep your office, landline or toll-free number and its calls with your provider. Customers text it and you read every message here. USA & Canada numbers." testid="texting-header">
-        <button type="button" onClick={() => { setAdding(true); setSel(null); }} className="civr-btn civr-btn-primary" data-testid="texting-add-button"><Plus className="w-4 h-4" />Add a number</button>
+        {data?.available && <button type="button" onClick={() => { setAdding(true); setSel(null); }} className="civr-btn civr-btn-primary" data-testid="texting-add-button"><Plus className="w-4 h-4" />Add a number</button>}
       </PageHeader>
       <ErrorNote error={error} onRetry={reload} className="mb-6" />
-      {data && <Prices data={data} />}
-      {adding && data && <NewSetup data={data} onDone={done} onCancel={() => setAdding(false)} />}
-      {!adding && !items.length && <Empty icon={Landmark} title="No texting numbers yet" sub="Bring the number your customers already know. We check it in seconds." testid="texting-empty"><button type="button" onClick={() => setAdding(true)} className="civr-btn civr-btn-primary" data-testid="texting-empty-add">Add a number</button></Empty>}
+      {data && !data.available && <div className="civr-card p-5 mb-6 border-[#fbbf24]/40" data-testid="texting-unavailable"><div className="font-semibold">Not available yet</div><div className="text-sm text-[var(--c-muted)] mt-1">Texting on a landline or office number you already have is coming soon. Need texting today? Get a USA Texting Number or an International Texting number.</div></div>}
+      {data?.available && <Prices data={data} />}
+      {adding && data?.available && <NewSetup data={data} onDone={done} onCancel={() => setAdding(false)} />}
+      {!adding && !items.length && data?.available && <Empty icon={Landmark} title="No texting numbers yet" sub="Bring the number your customers already know. We check it in seconds." testid="texting-empty"><button type="button" onClick={() => setAdding(true)} className="civr-btn civr-btn-primary" data-testid="texting-empty-add">Add a number</button></Empty>}
       {!adding && items.length > 0 && (
         <div className="grid lg:grid-cols-[280px_1fr] gap-6">
           <div className="space-y-2" data-testid="texting-list">{items.map(x => <ListItem key={x.id} x={x} on={current?.id === x.id} onClick={() => setSel(x.id)} />)}</div>

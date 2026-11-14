@@ -16,6 +16,8 @@ const rtp = require('./rtp')
 const { getBalance, smartWalletDeduct } = require('../utils.js')
 
 const RATE = () => parseFloat(process.env.AI_AGENT_RATE_PER_MIN || '0.30')
+// AI receptionist (incoming calls the agent answers): its own per-minute price, on every plan.
+const RECEPTION_RATE = () => parseFloat(process.env.AI_RECEPTIONIST_RATE_PER_MIN || '0.10')
 const TEST_MAX_SECS = 180
 const TEST_DAILY_SECS = 15 * 60
 const CLIENT_STATE = Buffer.from('ai_agent').toString('base64')
@@ -87,12 +89,12 @@ async function tryInbound({ payload, chatId, num }) {
   if (!cfg?.enabled || !phoneConfig.canAccessFeature(num.plan, 'aiAgent')) return false
   const agent = await store.getAgent(cfg.agentId, chatId)
   if (!agent || agent.disabled || !process.env.APP_OPEN_API_KEY) return false
-  const rate = RATE() + recRate(agent)
+  const rate = RECEPTION_RATE() + recRate(agent)
   const { usdBal } = await getBalance(deps.walletOf, chatId)
   if (usdBal < rate + committed(chatId)) { log(`[AIAgent] ${num.phoneNumber}: wallet $${usdBal} < $${rate}/min — normal routing`); return false }
   const other = (payload.from || '').replace(/[^+\d]/g, '')
   const calendar = await booking.forCall(chatId, agent, other).catch(() => null)
-  const s = track(payload.call_control_id, { kind: 'inbound', rate, baseRate: RATE(), recRate: recRate(agent), calendar, token: newToken(), chatId: String(chatId), agent, number: num.phoneNumber, other })
+  const s = track(payload.call_control_id, { kind: 'inbound', rate, baseRate: RECEPTION_RATE(), recRate: recRate(agent), calendar, token: newToken(), chatId: String(chatId), agent, number: num.phoneNumber, other })
   try {
     if (ce.isAe(s.ccid)) {
       await ce.answerCall(s.ccid)
@@ -246,7 +248,7 @@ async function finish(s, payload) {
   const talked = (res.transcript || []).some(x => x.role === 'caller')
   const outcome = res.optedOut ? 'opted_out' : res.booking ? 'booked' : s.transferredTo ? 'transferred' : machine ? 'voicemail' : res.screened && !res.outcome && !sum?.outcome && (res.transcript || []).filter(x => x.role === 'caller').length <= 1 ? 'screened' : !duration ? 'no_answer' : !talked && !res.outcome ? 'no_conversation' : res.outcome || (res.message ? 'message' : sum?.outcome) || (duration ? 'other' : null)
   // The recording surcharge only applies when an MP3 was actually saved.
-  const baseRate = s.baseRate ?? (s.kind === 'inbound' ? RATE() : leadRate(s.other))
+  const baseRate = s.baseRate ?? (s.kind === 'inbound' ? RECEPTION_RATE() : leadRate(s.other))
   const recordingRate = recording ? (s.recRate ?? recorder.RECORD_RATE()) : 0
   const rate = +(baseRate + recordingRate).toFixed(4)
   const fwdRate = (s.transferredTo && deps.voiceService?.getIvrCallRate?.(s.transferredTo)) || 0.15
@@ -343,4 +345,4 @@ async function onTest(token, ws) {
   bridge.start()
 }
 
-module.exports = { init, committed, RATE, RECORD_RATE: recorder.RECORD_RATE, owns, activeCount, tryInbound, dialLead, onWebhook, onStream, createTest, onTest, leadRate, finish, track, sessions }
+module.exports = { init, committed, RATE, RECEPTION_RATE, RECORD_RATE: recorder.RECORD_RATE, owns, activeCount, tryInbound, dialLead, onWebhook, onStream, createTest, onTest, leadRate, finish, track, sessions }

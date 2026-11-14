@@ -25,7 +25,20 @@ function canonicalPrice(n) {
 }
 
 // What renewing or restoring this line charges (null = unknown, don't charge).
+// Extra SIP logins: Pro 2 and Business 5 come free; more (on any plan with SIP) cost EXTRA_SIP_PRICE a month each,
+// charged when added and again with each renewal of the number.
+const EXTRA_SIP_FREE = { pro: 2, business: 5 }
+const EXTRA_SIP_MAX = 20
+const EXTRA_SIP_PRICE = () => round2(Number(process.env.EXTRA_SIP_PRICE) || 5)
+const paidSip = (n) => (n?.extraSip || []).filter(x => x.paid).length
+const sipLoginOk = (n, login) => !!login && phoneConfig.canAccessFeature(n.plan, 'sipCredentials') &&
+  (login.paid || (n.extraSip || []).filter(x => !x.paid).indexOf(login) < (EXTRA_SIP_FREE[n.plan] || 0))
+
 function renewalPrice(n) {
+  const p = basePrice(n)
+  return p == null || isInternalTest(n) ? p : round2(p + paidSip(n) * EXTRA_SIP_PRICE())
+}
+function basePrice(n) {
   const stored = Number(n.planPrice)
   if (isInternalTest(n)) return 0
   if (n.isSubNumber) return round2(Math.max(Number.isFinite(stored) ? stored : 0, phoneConfig.SUB_NUMBER_BASE_PRICE))
@@ -284,7 +297,7 @@ function renewedMsg(n, r, lang) {
 }
 
 module.exports = {
-  HOLD_DAYS, isInternalTest, listPrice, lockLegacyPrices, canonicalPrice, renewalPrice, mainOf, extrasOf, isOrphan, onHold, holdOver,
+  HOLD_DAYS, isInternalTest, listPrice, EXTRA_SIP_FREE, EXTRA_SIP_MAX, EXTRA_SIP_PRICE, paidSip, sipLoginOk, lockLegacyPrices, canonicalPrice, renewalPrice, mainOf, extrasOf, isOrphan, onHold, holdOver,
   lineGroup, planLimit, poolUsage, USAGE_RESET, usageResetPatches, priceOnPlan, syncExtrasPlan,
   downgradePatch, upgradePatch, numberSet, suspendPlan, orphanToMain, releasePatch, renewBlock, renewPatches, applyLocal, applyDb,
   planSuspendedMsg, orphanSuspendedMsg, releasedAfterHoldMsg, renewBlockMsg, holdNotice, renewedMsg,

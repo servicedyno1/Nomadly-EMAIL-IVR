@@ -77,7 +77,7 @@ export function SmsPurposeCard() {
         <div className="font-semibold">{has ? 'Get another Texting Number' : 'Order a Texting Number'}</div>
         <div className="text-sm text-[#a1a1aa] mt-0.5">{`Unlimited texts. You enter a USA ZIP code, pay${data?.price ? ` ${money(data.price)}/month` : ''} from your wallet, and the number is usually ready within minutes.`}</div>
         <div className="text-sm text-[#a1a1aa] mt-2" data-testid="buy-intl-texting-link">Texting outside the USA? <Link to={cp('/app/international-texting')} className="text-[#1d6fd8] underline underline-offset-2" data-testid="buy-intl-texting-link-button">Pick a number in another country</Link></div>
-        <div className="text-sm text-[#a1a1aa] mt-2" data-testid="buy-texting-link">Have a landline or office number elsewhere? <Link to={cp('/app/texting?add=1')} className="text-[#1d6fd8] underline underline-offset-2" data-testid="buy-texting-link-button">Add texting to it</Link></div>
+        <div className="text-sm text-[#a1a1aa] mt-2" data-testid="buy-texting-link">Texting on a landline or office number you already have: <span className="civr-pill" data-testid="buy-texting-link-soon">coming soon</span></div>
       </div>
       {data && !data.available && !has
         ? <span className="text-sm text-[#a1a1aa]" data-testid="buy-sms-unavailable">Not available right now</span>

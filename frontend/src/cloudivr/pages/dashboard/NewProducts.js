@@ -1,11 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Captions, MessageSquareText, Printer, Sparkles } from 'lucide-react';
+import { ArrowRight, Captions, Globe, Printer, ScanSearch, Sparkles } from 'lucide-react';
 import { cp } from '../../paths';
 import { openWhatsNew } from '../../WhatsNew';
 
 const ITEMS = [
-  ['texting', MessageSquareText, 'Landline to Texting', '/app/texting'],
+  ['intl-texting', Globe, 'International Texting', '/app/international-texting'],
+  ['lookup', ScanSearch, 'Number lookup', '/app/lookup'],
   ['text-call', Captions, 'Text-to-voice calls', '/app/text-call'],
   ['fax', Printer, 'Fax', '/app/fax'],
 ];

@@ -104,7 +104,8 @@ const WEB_FEATURES = [
   ['defaultVoice', 'One saved AI voice for all your calls', 'consistentVoice'],
   ['textRelay', 'Text calls for deaf & hard-of-hearing users', 'textRelay'],
   ['textTriggers', 'Text Triggers — a text starts a callback, a spoken reply or an AI call', 'textTriggers'],
-  ['aiAgent', 'AI voice agent — talks with callers, books and takes messages', 'aiAgent'],
+  ['aiAgent', 'AI receptionist — answers callers, books and takes messages (per minute)', 'aiAgent'],
+  ['aiCampaigns', 'AI agent call campaigns', 'aiCampaigns'],
   ['fax', 'Fax — send and receive', 'fax'],
   ['priority', 'Priority support', (plan) => plan === 'business'],
 ]
@@ -737,21 +738,25 @@ function routes(router, deps) {
     res.json({ items, plan: 'starter', price: phoneConfig.plans?.starter?.price ?? null, usa: { caps: { sms: true, voice: false }, assigned: true } })
   }))
 
-  // Extra SIP logins (Business plan, up to 5 per number) — each device/person gets its own revocable login on our SIP server.
-  const EXTRA_SIP = { pro: 2, business: 5 }
-  const extraOk = (n) => !!EXTRA_SIP[n.plan]
-  const pubExtra = (n) => (n.extraSip || []).map(x => ({ id: x.id, label: x.label, username: x.username, createdAt: x.createdAt }))
-  router.get('/numbers/:phone/sip/extra', withNumber(async (req, res) => res.json({ allowed: extraOk(req.num), max: EXTRA_SIP[req.num.plan] || 0, logins: pubExtra(req.num), domain: phoneConfig.WEB_SIP_DOMAIN })))
+  // Extra SIP logins: free ones come with Pro (2) and Business (5); more on any plan with SIP cost $5/month each.
+  const FREE = lifecycle.EXTRA_SIP_FREE
+  const extraOk = (n) => phoneConfig.canAccessFeature(n.plan, 'sipCredentials')
+  const freeLeft = (n) => Math.max(0, (FREE[n.plan] || 0) - (n.extraSip || []).filter(x => !x.paid).length)
+  const pubExtra = (n) => (n.extraSip || []).map(x => ({ id: x.id, label: x.label, username: x.username, createdAt: x.createdAt, paid: !!x.paid, active: lifecycle.sipLoginOk(n, x) }))
+  router.get('/numbers/:phone/sip/extra', withNumber(async (req, res) => res.json({ allowed: extraOk(req.num), free: FREE[req.num.plan] || 0, freeLeft: freeLeft(req.num), price: lifecycle.EXTRA_SIP_PRICE(), max: lifecycle.EXTRA_SIP_MAX, logins: pubExtra(req.num), domain: phoneConfig.WEB_SIP_DOMAIN })))
   router.post('/numbers/:phone/sip/extra', withNumber(async (req, res) => {
-    const n = req.num
-    if (!extraOk(n)) return bad(res, 403, 'plan_required', 'Extra SIP logins come with the Pro (2) and Business (5) plans. Upgrade this number to add them.')
-    const EXTRA_SIP_MAX = EXTRA_SIP[n.plan]
-    if ((n.extraSip || []).length >= EXTRA_SIP_MAX) return bad(res, 400, 'limit_reached', `This number already has ${EXTRA_SIP_MAX} extra SIP logins. Remove one to add another.`)
+    const n = req.num, MAX = lifecycle.EXTRA_SIP_MAX
+    if (!extraOk(n)) return bad(res, 403, 'plan_required', 'Extra SIP logins need a plan with SIP (Starter, Pro or Business). Upgrade this number to add them.')
+    if ((n.extraSip || []).length >= MAX) return bad(res, 400, 'limit_reached', `This number already has ${MAX} extra SIP logins. Remove one to add another.`)
+    const paid = freeLeft(n) === 0, price = lifecycle.EXTRA_SIP_PRICE()
+    if (paid && req.body?.confirmPaid !== true) return bad(res, 402, 'confirm_paid', `No free extra logins left on this plan. Each extra one costs $${price}/month, charged now and with each renewal.`)
+    if (paid && !(await walletOps(db).debit(req.webChatId, price))) return bad(res, 402, 'insufficient_balance', `An extra SIP login costs $${price}/month. Top up your wallet first.`)
     const label = String(req.body?.label || '').trim().slice(0, 40) || `Device ${(n.extraSip || []).length + 1}`
-    const login = { id: crypto.randomUUID().slice(0, 8), label, username: phoneConfig.generateSipUsername(), password: phoneConfig.generateSipPassword(), createdAt: new Date().toISOString() }
-    const u = await phoneNumbersOf.updateOne({ _id: req.webChatId, val: { $exists: true }, 'val.numbers': { $elemMatch: { phoneNumber: n.phoneNumber, [`extraSip.${EXTRA_SIP_MAX - 1}`]: { $exists: false } } } }, { $push: { 'val.numbers.$.extraSip': login } })
-    if (!u.modifiedCount) return bad(res, 400, 'limit_reached', `This number already has ${EXTRA_SIP_MAX} extra SIP logins. Remove one to add another.`)
-    log(`[CloudIVR-Web] ${req.webChatId} added extra SIP login ${login.username} (${label}) to ${n.phoneNumber}`)
+    const login = { id: crypto.randomUUID().slice(0, 8), label, username: phoneConfig.generateSipUsername(), password: phoneConfig.generateSipPassword(), createdAt: new Date().toISOString(), ...(paid ? { paid: true, price } : {}) }
+    const u = await phoneNumbersOf.updateOne({ _id: req.webChatId, val: { $exists: true }, 'val.numbers': { $elemMatch: { phoneNumber: n.phoneNumber, [`extraSip.${MAX - 1}`]: { $exists: false } } } }, { $push: { 'val.numbers.$.extraSip': login } })
+    if (!u.modifiedCount) { if (paid) await walletOps(db).credit(req.webChatId, price); return bad(res, 400, 'limit_reached', `This number already has ${MAX} extra SIP logins. Remove one to add another.`) }
+    if (paid) await db.collection('transactions').insertOne({ _id: `sip-extra-${req.webChatId}-${login.id}`, chatId: String(req.webChatId), type: 'extra-sip-login', amount: price, currency: 'USD', status: 'completed', ref: n.phoneNumber, createdAt: new Date() })
+    log(`[CloudIVR-Web] ${req.webChatId} added ${paid ? 'paid' : 'free'} extra SIP login ${login.username} (${label}) to ${n.phoneNumber}`)
     res.json({ ...login, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP/TLS' })
   }))
   router.delete('/numbers/:phone/sip/extra/:id', withNumber(async (req, res) => {

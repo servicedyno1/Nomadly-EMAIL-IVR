@@ -1,4 +1,4 @@
-import { Home, Hash, PlusCircle, PhoneOutgoing, Megaphone, Music, Wallet, Settings, KeyRound, Bot, Captions, BookOpen, Contact, Radio, Ban, MessageSquareText, MessageSquare, Smartphone, MessagesSquare, Printer, Workflow, PhoneForwarded, Headphones, BotMessageSquare, Globe } from 'lucide-react';
+import { Home, Hash, PlusCircle, PhoneOutgoing, Megaphone, Music, Wallet, Settings, KeyRound, Bot, Captions, BookOpen, Contact, Radio, Ban, MessageSquareText, MessageSquare, Smartphone, MessagesSquare, Printer, Workflow, PhoneForwarded, Headphones, BotMessageSquare, Globe, ScanSearch } from 'lucide-react';
 import { cp } from './paths';
 
 // Job-based menu. Group → [id, label, items]; item → [path, label, Icon, testid, subtitle?].
@@ -10,7 +10,7 @@ export const NAV = [
   ]],
   ['numbers', 'Phone numbers', [
     ['numbers', 'My numbers', Hash, 'nav-numbers'], ['buy', 'Get a number', PlusCircle, 'nav-buy'], ['texting-number', 'Texting Number', MessageSquare, 'nav-texting-number'], ['international-texting', 'International Texting', Globe, 'nav-international-texting'], ['esim', 'USA eSIM', Smartphone, 'nav-esim'],
-    ['texting', 'Add texting to a landline', MessageSquareText, 'nav-texting'], ['fax', 'Fax', Printer, 'nav-fax'],
+    ['texting', 'Add texting to a landline', MessageSquareText, 'nav-texting', 'Soon'], ['lookup', 'Number lookup', ScanSearch, 'nav-lookup'], ['fax', 'Fax', Printer, 'nav-fax'],
   ]],
   ['answer', 'Answer calls', [
     ['answer/ivr', 'Keypad menus', Workflow, 'nav-answer-ivr', 'IVR'], ['answer/forwarding', 'Call forwarding & voicemail', PhoneForwarded, 'nav-answer-forwarding'],

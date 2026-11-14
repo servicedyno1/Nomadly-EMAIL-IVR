@@ -52,7 +52,7 @@ function validate(body = {}, num, agentIds = []) {
       if (!rule.message) throw new Error(`${where}: type the message we read to the person who texted.`)
     }
     if (action === 'ai') {
-      if (!phoneConfig.canAccessFeature(num.plan, 'aiAgent')) throw new Error(`${where}: AI agent call backs need the Business plan.`)
+      if (!phoneConfig.canAccessFeature(num.plan, 'aiCampaigns')) throw new Error(`${where}: AI agent call backs need the Business plan.`)
       if (!agentIds.includes(String(r.agentId || ''))) throw new Error(`${where}: pick one of your AI agents.`)
       rule.agentId = String(r.agentId)
     }
@@ -180,8 +180,8 @@ function routes(router, deps) {
     const vs = deps.voiceService
     res.json({
       textTriggers: req.num.features?.textTriggers || defaults(p?.callbackPhone || null),
-      agents: phoneConfig.canAccessFeature(req.num.plan, 'aiAgent') ? await agentsOf(req.webChatId) : [],
-      canAi: phoneConfig.canAccessFeature(req.num.plan, 'aiAgent'),
+      agents: phoneConfig.canAccessFeature(req.num.plan, 'aiCampaigns') ? await agentsOf(req.webChatId) : [],
+      canAi: phoneConfig.canAccessFeature(req.num.plan, 'aiCampaigns'),
       hours: { enabled: !!req.num.features?.hours?.enabled, openNow: numberHours.isOpen(req.num.features?.hours) },
       rates: { call: vs.getIvrCallRate(req.num.phoneNumber), ai: require('../ai-agent').RATE() },
       runs: (await runs().find({ phoneNumber: req.num.phoneNumber, chatId: req.webChatId, test: { $ne: true } }).sort({ at: -1 }).limit(20).toArray()).map(publicRun),

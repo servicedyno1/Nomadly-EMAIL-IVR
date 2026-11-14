@@ -3876,8 +3876,8 @@ async function findNumberBySipUser(sipUsername, fromPhone, connectionPhoneNumber
         if (num.sipUsername && num.sipUsername === sipUsername) {
           return { chatId: user._id, num }
         }
-        const extra = ['pro', 'business'].includes(num.plan) && (num.extraSip || []).find(x => x.username === sipUsername)
-        if (extra) return { chatId: user._id, num, sipLogin: extra.label || extra.username }
+        const extra = (num.extraSip || []).find(x => x.username === sipUsername)
+        if (extra && require('./plan-lifecycle').sipLoginOk(num, extra)) return { chatId: user._id, num, sipLogin: extra.label || extra.username }
         // Match by phone number (in case 'from' is the phone number)
         // CRITICAL: Skip phone number matching if 'from' is the SIP connection's own number
         // because that number belongs to a different user — not the actual SIP caller
