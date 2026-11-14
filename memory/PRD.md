@@ -111,3 +111,12 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Fixes: infobip start-recording body must be { recording: { recordingType:'AUDIO' } }; CALL_PRE_ESTABLISHED no longer replays a 2nd call.initiated; Bird capture detects WAV (Infobip) vs MP3; Infobip owned numbers now included in Bird auto-link (ib.refreshOwned/ownedNumbers).
 - Preview config: SELF_URL updated to current preview; Infobip webhook profile nomadly-dev-voice2 notifyUrl → current preview /api/infobip/voice-webhook (was a dead old preview URL).
 - PRODUCTION: no INFOBIP_* env on droplet yet → needs API key, base URL, a prod calls configuration + subscription/profile pointing at https://<prod>/api/infobip/voice-webhook, before enabling.
+
+## 2026-11-14 — Infobip countries + production setup
+- js/infobip/countries.js: INSTANT (AR CL ES FR HR LT MX MY PL PR RO UA) + REQUEST (AT CR DO EC PE PY SE AU DK DE CY; keys companyName/companyAddress/contactPerson; DE/CY clientType LOCAL).
+- numbers.js: countries() adds/marks provider 'infobip' (when INFOBIP enabled); search uses ib.searchNumbers directly, surcharge 0 (plan price only), skips Telnyx paperwork check; purchaseLocked prepaid/presetOrder + viaInfobip (no Telnyx call-control/SIP-cred calls, provider saved).
+- number-requests.js: POST /numbers/request (gate, debit plan price, Infobip POST /resources/1/requests), GET /numbers/requests, tick (10 min; 1 min dry-run) polls status → claim 'activating' → find unassigned owned number in country → voice+SMS routing → numbersApi.purchase(prepaid) ; declined → refund once.
+- Infobip SMS inbound: /infobip/sms-webhook/:key (HMAC of API key) → handleInboundSms; ib.routeSms on buy (deletes v1 config then POST v2 HTTP_FORWARD).
+- Live call check (preview): Bird call +12074892004 → +16479457172 → Infobip → owner found → answered → IVR greeting spoken. DTMF/voicemail not exercised (test script hangs up on answer). Test number attached to preview user 5000000000000092 (liveTest).
+- PRODUCTION: Infobip calls config 'nomadly' + profile/subscription 'nomadly-prod-voice' → https://2.speechcue.com/infobip/voice-webhook created; INFOBIP_API_KEY/BASE_URL added to /opt/nomadly/shared/app-main/backend.env (backup taken). NOT restarted — goes live with next deploy (Save to GitHub). Other brands not enabled.
+- Tests: iteration_267 backend 11/11, frontend 90% → fixed pending list refresh, refund idempotency, atomic activation claim, gate for all request countries.

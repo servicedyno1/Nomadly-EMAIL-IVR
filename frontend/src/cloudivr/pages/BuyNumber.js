@@ -144,6 +144,7 @@ function ExistingPlanChooser({ nums, price, pv }) {
 export default function BuyNumber() {
   const { catalog, summary, refreshSummary } = useShell();
   const needsProfile = !useCivrAuth()?.account?.profileComplete;
+  const [reqTick, setReqTick] = useState(0);
   const nav = useNavigate();
   const [params] = useSearchParams();
   const [saved] = useState(() => readResume(params));
@@ -218,7 +219,7 @@ export default function BuyNumber() {
       {line && !extraOf && <PurposeSection n={1} title={`${[purposes.includes('voice') && 'Voice', purposes.includes('sip') && 'SIP'].filter(Boolean).join(' & ') || 'Voice'} · Business Line`} sub={purposes.includes('sip') ? 'Find a number, then pick Pro or Business: those plans include SIP logins.' : 'Find a number, pick a plan and pay.'} testid="buy-line-section" />}
       {line && <>
       {open?.orders?.[0] && <OpenOrder order={open.orders[0]} />}
-      <PendingRequests />
+      <PendingRequests refresh={reqTick} />
       {saved?.pick && <div className="civr-card p-4 mb-4 text-sm flex items-center gap-2" data-testid="buy-resume-note"><Check className="w-4 h-4 text-[#818cf8]" />Welcome back — {saved.pick.phoneNumber} and the {planObj?.name} plan are still selected below.</div>}
       {fromParam && <div className="text-sm text-[#818cf8] mb-4 flex items-center gap-2" data-testid="buy-plan-hint"><Check className="w-4 h-4" />{planObj.name} plan picked — search for a number below.</div>}
       <Steps current={pick ? (extraOf ? 2 : 3) : res ? 2 : 1} extra={!!extraOf} />
@@ -228,7 +229,7 @@ export default function BuyNumber() {
       <div className="mt-4"><ErrorNote error={error} testid="buy-error" /></div>
       {res?.request ? <div className="mt-8"><Label>Pick a plan and order</Label>
         <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} surcharge={0} />
-        <div className="mt-6">{needsProfile && res.request.details !== 'none' ? <BuyProfileGate /> : <RequestOrder request={res.request} plan={planObj} onDone={() => setRes(null)} />}</div></div>
+        <div className="mt-6">{needsProfile ? <BuyProfileGate /> : <RequestOrder request={res.request} plan={planObj} onDone={() => { setRes(null); setReqTick(t => t + 1); }} />}</div></div>
         : res && <div className="mt-8"><Label>Pick a number</Label><Results res={res} pick={pick} setPick={setPick} /></div>}
       {pick && (
         <div className="mt-8 civr-rise">

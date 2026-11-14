@@ -54,7 +54,8 @@ function createNumberRequests({ db, h, phoneConfig, numbersApi, walletOps, notif
   }
 
   async function refund(r, why) {
-    await col.updateOne({ _id: r._id, status: { $nin: ['active', 'refunded'] } }, { $set: { status: 'refunded', note: why, updatedAt: new Date() } })
+    const u = await col.updateOne({ _id: r._id, status: { $nin: ['active', 'refunded', 'activating'] } }, { $set: { status: 'refunded', note: why, updatedAt: new Date() } })
+    if (u.modifiedCount !== 1) return
     await w.credit(r.chatId, r.price)
     await notify?.push(r.chatId, `Your ${r.countryName} number request was declined by the carrier (${why}). We refunded $${r.price.toFixed(2)} to your wallet.`, null, { kind: 'billing' }).catch(() => {})
     log(`[NumberRequest] ${r._id} refunded $${r.price}: ${why}`)
@@ -74,15 +75,19 @@ function createNumberRequests({ db, h, phoneConfig, numbersApi, walletOps, notif
   }
 
   async function activate(r) {
-    const a = await assignedNumber(r)
-    if (!a) return log(`[NumberRequest] ${r._id} approved but no new ${r.country} number found yet`)
+    // Claim it first so overlapping ticks / pods never activate the same request twice.
+    const claimed = await col.findOneAndUpdate({ _id: r._id, status: { $in: ['submitted', 'in_review', 'approved'] } }, { $set: { status: 'activating', updatedAt: new Date() } })
+    if (!(claimed?.value ?? claimed)) return
+    const release = () => col.updateOne({ _id: r._id, status: 'activating' }, { $set: { status: 'approved', updatedAt: new Date() } })
+    const a = await assignedNumber(r).catch(e => { log(`[NumberRequest] ${r._id} number lookup failed: ${e.message}`); return null })
+    if (!a) { await release(); return log(`[NumberRequest] ${r._id} approved but no new ${r.country} number found yet`) }
     const phone = typeof a === 'string' ? a : a.phone
     const caps = typeof a === 'string' ? ['VOICE'] : a.caps
     const acc = await accounts.findOne({ _id: r.chatId })
     const out = await numbersApi.purchase({ chatId: r.chatId, email: acc?.email || r.email, phone, planKey: r.plan, country: r.country, type: 'local', areaCode: null, autoRenew: r.autoRenew,
       hit: { capabilities: { voice: true, sms: caps.includes('SMS'), mms: caps.includes('MMS'), fax: false }, surcharge: 0, cost: null },
       prepaid: { amount: r.price }, presetOrder: { id: typeof a === 'string' ? `dryrun-${r._id}` : `ib:${a.key}`, _provider: 'infobip' } })
-    if (out.status >= 300) return log(`[NumberRequest] ${r._id} activation failed: ${out.body?.message}`)
+    if (out.status >= 300) { await release(); return log(`[NumberRequest] ${r._id} activation failed: ${out.body?.message}`) }
     await col.updateOne({ _id: r._id }, { $set: { status: 'active', phoneNumber: phone, updatedAt: new Date() } })
     await notify?.push(r.chatId, `Your ${r.countryName} number ${phone} is ready. Set up how it answers in My numbers.`, null, { kind: 'billing' }).catch(() => {})
     log(`[NumberRequest] ${r._id} → ${phone} active for ${r.chatId}`)

@@ -1,0 +1,36 @@
+{
+  "summary": "Tested the Infobip countries on CloudIVR web Get a number, backend and frontend, in preview dry-run. Backend: 11/11 pytest pass. The catalog lists all 12 instant and 11 request countries with the right provider, details and localOnly values. The FR search returns surcharge 0 and the FR buy charges the plan price only, with the number saved as provider infobip. The AU search returns the request object. POST /numbers/request returns 400 for GB, 400 for a bad plan, 428 without saved details, 402 with a low wallet and 202 'submitted' with one debit. The request was 'active' about 100s later with a phone number, the number shows in /numbers with provider infobip, and there was no second debit. US search and buy still work. Frontend: AU shows the plan picker and the request-order card. The pay button reads 'Order for $75.00' and changes to $50.00 when Starter is picked, and the details note is correct. DE and CY show the local note; AT, SE and DK do not and have the right details text. Ordering shows the toast and refreshes the wallet. France results checkout at $50.00 and go to the number page. The gate (buy-profile-gate) shows for the user without details on US and AU. One UI bug: the 'Numbers on order' list does not appear right after ordering, only after a page reload.",
+  "backend_issues": {"critical": [], "minor": [
+    {"endpoint": "number-requests.js refund()", "issue": "Refunds the wallet even when updateOne matched 0 docs (status already active/refunded), so a repeat or concurrent call could refund twice. Credit only when modifiedCount === 1."},
+    {"endpoint": "number-requests.js tick()/activate()", "issue": "No atomic claim of the request before activating it (e.g. findOneAndUpdate to status 'activating'). If a tick overlaps another tick, or a second pod runs, the same request could be activated twice. singletonInterval reduces this risk but does not remove it."},
+    {"endpoint": "number-requests.js assignedNumber() dry-run", "issue": "Dry-run numbers for non-AU countries use a fake '+99' prefix (not a valid country code). Preview only."}
+  ]},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PendingRequests (buy/RequestOrder.js)", "issue": "After a successful order, the 'Numbers on order' list (pending-requests) does not appear until the page is reloaded. useApi('/numbers/requests') is fetched only on mount and onDone only calls setRes(null). Fix: have onDone call PendingRequests' reload (lift the state up or use a key/refresh token).", "selector": "[data-testid=pending-requests]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Buy page, request countries with details 'none' (AT/CR/DO/EC/PE/PY)", "issues": ["For a user without saved details, the page shows the request-order card instead of buy-profile-gate, but the backend gate still returns 428. The global 'Who is this number for?' modal does appear, so it works, but it is inconsistent with AU/SE, which show the inline gate. Either show the gate for every country or exempt 'none' countries in the backend gate."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_infobip_countries.py", "/app/test_reports/pytest/infobip_countries.xml"],
+  "action_items": [
+    "Refresh PendingRequests after a request order (pass a reload callback or key) so 'Numbers on order' shows right away",
+    "Make the refund in number-requests.js conditional on modifiedCount === 1",
+    "Claim requests atomically in tick()/activate() to prevent a double activation",
+    "Optional: make the profile gate the same for 'none'-details request countries in the UI and backend"
+  ],
+  "critical_code_review_comments": [
+    "number-requests.js refund(): wallet credit is unconditional, so a double refund is possible",
+    "activate(): if numbersApi.purchase fails, the request stays 'submitted'/'approved' and is retried every tick with no limit, no customer notice and no refund. Consider a max-attempts setting followed by a refund.",
+    "PendingRequests is not refreshed after ordering"
+  ],
+  "updated_files": ["/app/backend/tests/test_infobip_countries.py"],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "90% (1 UI refresh bug)"},
+  "seed_data_creation": "On the QA account 5000000000000092 the tests bought +33939370082 (FR), +12078020780 (US) and +33939370084 (FR, via UI), and two AU requests became +61662068149 and +61662188152. All five numbers were released (DELETE) afterwards and the wallet was restored to $50 with wallet_helper.py. numberRequests docs nr_1e3d90e5-fe3 and nr_bf7d8cb3-852 remain (there is no delete API). The live number +16479457172 was not touched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "There is no /wallet/test-topup endpoint. Use python3 /app/backend/tests/wallet_helper.py <chatId> save|set N|restore. A dry-run request turns active within 60-120s (the tick runs every 60s). Use /cloudivr/app/buy?purpose=voice to skip the purpose cards. Country option testid: buy-country-select-option-<cc lowercase>. Wait about 2.5s after the search before reading the request-order card, or you will read the previous country's text.",
+  "test_credentials": "qa.iter266318ef6@example.com / QaTest#2026x (details saved), civr.uxtest@example.com / UxTest#2026 (no details)"
+}

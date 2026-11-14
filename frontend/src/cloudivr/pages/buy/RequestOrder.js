@@ -42,8 +42,9 @@ export function RequestOrder({ request, plan, onDone }) {
   );
 }
 
-export function PendingRequests() {
-  const { data } = useApi('/numbers/requests');
+export function PendingRequests({ refresh = 0 }) {
+  const { data, reload } = useApi('/numbers/requests');
+  React.useEffect(() => { if (refresh) reload(); }, [refresh]); // eslint-disable-line react-hooks/exhaustive-deps
   const list = (data?.requests || []).filter(r => r.status !== 'active');
   if (!list.length) return null;
   return (
