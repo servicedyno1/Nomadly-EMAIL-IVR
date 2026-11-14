@@ -20,7 +20,7 @@ function calBad(res, e) {
   if (['not_connected', 'revoked', 'bad_token'].includes(e.code)) return bad(res, 400, 'calendar_not_connected', 'Connect your Google Calendar again.')
   if (e.code === 'calendar_not_found') return bad(res, 400, 'calendar_not_found', 'That calendar was not found. Pick another one.')
   if (e.code === 'forbidden') return bad(res, 400, 'calendar_forbidden', 'CloudIVR is not allowed to use that calendar. Pick one you can edit.')
-  return bad(res, 502, 'calendar_error', 'Google Calendar did not answer. Try again in a minute.')
+  return bad(res, 503, 'calendar_error', 'Google Calendar did not answer. Try again in a minute.')
 }
 
 // Google sends the browser back here after consent (no session needed: the single-use state names the account).

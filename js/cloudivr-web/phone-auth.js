@@ -55,7 +55,7 @@ function createPhoneAuth(db, { accounts, createAccount, finishLogin, lockState, 
     let s
     try { s = await start(phone, channel) } catch (e) {
       log(`[CloudIVR-Web] Telesign ${channel} failed: ${e.response?.status || ''} ${JSON.stringify(e.response?.data?.status || e.message)}`)
-      return bad(res, 502, 'send_failed', channel === 'voice' ? 'We couldn’t place the call. Check the number and try again.' : 'We couldn’t send the text. Check the number, or ask for a call instead.')
+      return bad(res, 503, 'send_failed', channel === 'voice' ? 'We couldn’t place the call. Check the number and try again.' : 'We couldn’t send the text. Check the number, or ask for a call instead.')
     }
     const id = crypto.randomBytes(16).toString('hex')
     await challenges.insertOne({ _id: id, phone, channel, ref: s.ref, codeHash: s.codeHash, ...extra, tries: 0, used: false, expiresAt: new Date(Date.now() + TTL_MS), createdAt: new Date() })
@@ -77,7 +77,7 @@ function createPhoneAuth(db, { accounts, createAccount, finishLogin, lockState, 
   const previewEmail = (e) => process.env.WEB_CLOUDIVR_DRY_RUN === 'true' && /@example\.(com|org|net)$/.test(e)
   async function mailCode(req, res, email, subject, line, extra) {
     const code = String(crypto.randomInt(0, 1e6)).padStart(6, '0')
-    if (!previewEmail(email) && !(await sendMail(email, subject, `<p>${line} <b style="font-size:20px;letter-spacing:3px">${code}</b>.</p><p>It expires in 5 minutes. If you didn’t ask for it, ignore this email.</p>`).catch(() => false))) return bad(res, 502, 'send_failed', 'We couldn’t send the email right now. Try again in a few minutes.')
+    if (!previewEmail(email) && !(await sendMail(email, subject, `<p>${line} <b style="font-size:20px;letter-spacing:3px">${code}</b>.</p><p>It expires in 5 minutes. If you didn’t ask for it, ignore this email.</p>`).catch(() => false))) return bad(res, 503, 'send_failed', 'We couldn’t send the email right now. Try again in a few minutes.')
     const id = crypto.randomBytes(16).toString('hex')
     await challenges.insertOne({ _id: id, ...extra, codeHash: sha(code), tries: 0, used: false, expiresAt: new Date(Date.now() + TTL_MS), createdAt: new Date() })
     res.json({ challenge: id, expiresIn: TTL_MS / 1000, ...(previewEmail(email) ? { previewCode: code } : {}) })

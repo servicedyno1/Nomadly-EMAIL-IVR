@@ -47,7 +47,7 @@ function createAdminAuth(db, { log = console.log } = {}) {
       const challenge = crypto.randomBytes(18).toString('base64url')
       await codes.insertOne({ _id: sha(challenge), codeHash: sha(code), tries: 0, ip, expiresAt: new Date(Date.now() + CODE_MS) })
       const sent = await sendMail(adminEmail(), 'Your CloudIVR admin sign-in code', `<p>Your CloudIVR admin sign-in code is</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>It expires in 10 minutes. Requested from IP ${ip}. If this wasn’t you, change the admin password.</p>`).catch(e => { log(`[Admin] code email failed: ${e.message}`); return false })
-      if (sent === false && !dry()) return bad(res, 502, 'email_failed', 'We couldn’t email the sign-in code. Try again in a minute.')
+      if (sent === false && !dry()) return bad(res, 503, 'email_failed', 'We couldn’t email the sign-in code. Try again in a minute.')
       res.json({ challenge, sentTo: adminEmail().replace(/^(.).*(@.*)$/, '$1•••$2'), ...(dry() ? { devCode: code } : {}) })
     }))
     r.post('/admin/verify', h(async (req, res) => {

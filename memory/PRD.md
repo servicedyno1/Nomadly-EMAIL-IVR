@@ -81,3 +81,9 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - `/app/ops/sip-server/asterisk/extensions.conf` — Dialplan with from-zadarma context
 - `/app/memory/zadarma_no_id_cities.csv` — Zadarma US/CA cities (no ID required)
 - `/app/memory/zadarma_all_countries.csv` — Zadarma all-country availability
+
+## 2026-11-14 — Prod admin login "busy or restarting" (RESOLVED in prod config)
+- Root cause: Telnyx blocked both Telnyx accounts ("This user has been marked as blocked", since 2026-11-12 12:07 UTC). MAIL_PROVIDER=telnyx on all 4 brands → every app email failed (541+), incl. admin sign-in codes → /admin/login returned 502 → Cloudflare replaced it with its own page → UI showed generic "busy" text.
+- Fix: droplet shared envs (app-main/wl/voodoo/proshop) → MAIL_PROVIDER=resend + RESEND_API_KEY (backups backend.env.bak-20261114T102347). All 4 redeployed via deploy.sh (call drain). Real Resend send from prod verified.
+- Code (preview, needs Save to GitHub): app errors 502→503 in cloudivr-web admin-auth/ai/fax/leads/phone-auth so Cloudflare passes the real message.
+- Open: Telnyx account block (inbound Telnyx numbers/SIP list failing). User chose to handle email only for now.

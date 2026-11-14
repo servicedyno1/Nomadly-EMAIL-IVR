@@ -135,7 +135,7 @@ function routes(router, { db, h }) {
       let name
       try { name = await cnam(phone) } catch {
         await w.credit(chatId, CNAM_RATE)
-        return bad(res, 502, 'lookup_failed', 'We couldn’t look up this number right now. You were not charged — try again in a minute.')
+        return bad(res, 503, 'lookup_failed', 'We couldn’t look up this number right now. You were not charged — try again in a minute.')
       }
       await log(chatId, 'cnam-lookup', CNAM_RATE, { phoneNumber: phone })
       await cache.updateOne({ _id: key }, { $set: { name, at: new Date() } }, { upsert: true })
