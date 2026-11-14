@@ -6,10 +6,13 @@ const clean = (o) => Object.fromEntries(Object.entries(o && typeof o === 'object
 
 function createJourney({ db, h, accountOf }) {
   const col = db.collection('webEvents')
-  col.createIndex({ at: -1 }).catch(() => {})
+  col.createIndex({ at: 1 }, { expireAfterSeconds: 180 * 86400 }).catch(() => {}) // kept 180 days
+  const hits = new Map()
+  const limited = (ip) => { const now = Date.now(), x = hits.get(ip) || { at: now, n: 0 }; if (now - x.at > 60000) { x.at = now; x.n = 0 } x.n += 1; hits.set(ip, x); if (hits.size > 5000) hits.clear(); return x.n > 120 }
   col.createIndex({ chatId: 1, at: -1 }).catch(() => {})
   function routes(r) {
     r.post('/events', h(async (req, res) => {
+      if (limited(String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim())) return res.status(429).json({ error: 'rate_limited' })
       const name = String(req.body?.name || '')
       if (!NAMES.has(name)) return res.status(400).json({ error: 'unknown_event' })
       const chatId = (await accountOf(req).catch(() => null)) || null

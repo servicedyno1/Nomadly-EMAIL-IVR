@@ -1,4 +1,4 @@
-import { captureSource } from './track';
+import { captureSource, track } from './track';
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { useTheme } from './theme';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
@@ -42,6 +42,7 @@ function Guarded({ children }) {
 function PageFade({ children }) {
   const { pathname } = useLocation();
   const inApp = /(^|\/)app(\/|$)/.test(pathname);
+  useEffect(() => { if (!inApp) track('page_view'); }, [pathname, inApp]);
   return <div key={inApp ? 'app' : pathname} className={inApp ? undefined : 'civr-page'}>{children}</div>;
 }
 

@@ -20,7 +20,7 @@ function Install({ o }) {
           {i.ios && <a href={i.ios} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`travel-esim-ios-${o.id}`}><Smartphone className="w-4 h-4" />Install on iPhone</a>}
           {i.android && <a href={i.android} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`travel-esim-android-${o.id}`}><Smartphone className="w-4 h-4" />Install on Android</a>}
         </div>
-        {i.activationCode && <div className="flex items-center gap-2"><span className="text-[var(--c-muted)]">Manual code</span><span className="font-mono truncate flex-1" data-no-translate>{i.activationCode}</span><button className="civr-btn civr-btn-ghost !px-2" onClick={() => copy(i.activationCode)} aria-label="Copy activation code" data-testid={`travel-esim-copy-${o.id}`}><Copy className="w-4 h-4" /></button></div>}
+        {i.activationCode && <div className="flex items-center gap-2"><span className="text-[var(--c-muted)]">Manual code</span><span className="font-mono truncate min-w-0" data-no-translate>{i.activationCode}</span><button className="civr-btn civr-btn-ghost !px-2" onClick={() => copy(i.activationCode)} aria-label="Copy activation code" data-testid={`travel-esim-copy-${o.id}`}><Copy className="w-4 h-4" /></button></div>}
         {i.roaming && <p className="text-xs text-[var(--c-muted)]">Turn on data roaming for this eSIM when you arrive.</p>}
       </div>
     </div>

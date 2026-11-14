@@ -3073,3 +3073,17 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - FIX: committed both files' fixes directly to the WhiteLabel branch (commits 0558d33de7, ee1287ea31), then workflow_dispatch "Deploy to Droplet" app=whitelabel (ref main) → app-wl + app-voodoo + app-proshop all success. (Note: a plain push to WhiteLabel only auto-deploys app-wl, not voodoo/proshop — must dispatch app=whitelabel for the full chain.)
 - VERIFIED live: /opt/nomadly/current/{app-main,app-wl,app-voodoo,app-proshop}/js/cloudivr-web/calls.js line 44 all show the telnyx+signalwire check; health: app-main(:5000) app-wl app-voodoo app-proshop all 200.
 - WITH-WEBIVR branch exists but no brand deploys from it (brands run main or WhiteLabel).
+
+## 2026-11-14 — Onboarding redesign + Travel eSIM polish + Multitel outbound trunk (iteration_275: 100%/100%)
+- Signup: optional marketing opt-in (unticked), first-touch UTM/referrer source + signup device stored on webAccounts.
+- "What do you need?" picker with new purposes line/texting/travel/ai/bulk/fax/other (backend onboarding.js accepts them + legacy).
+- No legal-profile popup after signup; details asked at checkout only (BuyProfileGate).
+- Home: "Your services" cards per picked purpose (dashboard/PurposeHome.js); old Suggested strip hidden when they show.
+- Menu: Home + 4 groups — Numbers, Messaging, Calls & AI, Account (all old testids kept).
+- Journey events: POST /api/cloudivr-web/events (whitelist, 120/min/IP, 180-day TTL, deduped client-side), page_view on app + public pages.
+- Settings email prefs: "Offers and product news" toggle (syncs webAccounts.marketingOptIn).
+- Travel eSIM: show-all countries button, purchase date/validity, preview-QR placeholder, per-user order lock, chatId fix.
+- SMS retries only on retryable errors; replace-number keeps real provider.
+- LIVE SIP server 188.166.34.29: added [multitel-out] endpoint (backup /root/pjsip_multitel.conf.bak-*), res_pjsip reloaded with 0 active calls.
+  Test call to +18648308599 → Multitel 403 "Source IP address is not authorized: 862". IP not yet in Multitel Termination IPs.
+  CALL_ENGINE_BACKUP_TRUNK still unset → Bird→Multitel backup inactive.

@@ -200,3 +200,8 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Tests: iteration_273 (backend 22/24, frontend ~90%); all its findings fixed and self-verified.
 - NEXT (user-approved order): 2) Multitel⇄Infobip failover + routing + Bird→Multitel call backup + edge cases (retry on the other provider at the same price, then refund; 5-min health check that hides a down provider's stock; Telegram alerts for provider down / low balance; failed text: no charge + notice + 3 retries; failed forwarding → voicemail). 3) Bot: same plans as web (no Enterprise), only instant no-ID and address-only numbers, address asked at checkout only, no ID/business info. 4) Onboarding/dashboard redesign: show the design plan to the user first. Also collect marketing/performance data (signup source, purpose, funnel events).
 - Multitel preview blocked: allow-list the preview IPs 35.193.209.116 and 34.170.12.145, then delete /tmp/multitel-auth-block.
+
+## Status 2026-11-14
+- Onboarding redesign (purpose picker, purpose Home, 4-group menu, attribution, marketing opt-in, journey events) — built, tested (iter 275), preview only.
+- Multitel outbound trunk installed on live SIP; blocked by Multitel 403 (termination IP not authorised). Next: user adds 188.166.34.29 in Multitel portal → Termination IPs, retest, then set CALL_ENGINE_BACKUP_TRUNK=multitel-out.
+- Backlog: admin view of signup sources/funnel; live Multitel SMS end-to-end test; bot plan-parity regression; production deploy of all preview work.

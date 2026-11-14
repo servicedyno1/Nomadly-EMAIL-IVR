@@ -1,0 +1,36 @@
+{
+  "summary": "Tested the CloudIVR onboarding redesign from end to end, on the backend and in the browser at 1920 and 390 wide. Everything requested works. Backend: 16 of 16 pytest tests pass, covering journey events (whitelist, anonymous and signed-in, chatId stored), register source/marketing opt-in/signupDevice, PUT /prefs/email marketing, and PUT /prefs/onboarding with new and legacy ids. UI: I signed up a new account after landing with ?utm_source=testsrc&utm_campaign=c1. The marketing checkbox is unticked by default and the policy box is required (submit is blocked without it). The DB shows source {utm_source:testsrc, utm_campaign:c1, landing:/cloudivr/}. The onboarding dialog shows 'What do you need?' with all 7 purposes. Picking travel+texting -> Continue -> 'Go to my Overview' shows no profile-setup-dialog. Home has dashboard-purpose-home with the travel and texting cards, and their primary links go to /app/travel-esim and /app/texting-number. 'Change what I need' reopens the dialog with the old picks still selected. The dashboard-for-you strip is not shown. The desktop sidebar has the 5 groups (home has no heading), all 27 old nav testids exist, and the 12 I clicked route correctly with aria-current=page. The mobile More menu shows the Numbers/Messaging/Calls & AI/Account groups. Home is not a More group because it is in the bottom tabs. The Settings marketing toggle showed off after signup, flipped to on, and stayed on after reload; webAccounts.marketingOptIn was updated. Buying a number on the new account shows buy-profile-gate after picking a number and no Checkout. Travel eSIM: with no search 40 countries show plus the hint; show-all reveals 187. A dry-run UK 1GB $6 order showed the date text 'Bought 11/14/2026 · valid 2 days after you first connect · preview order (not real)' and the QR placeholder 'Preview order — no real QR code'. The travel_esim_paid event was stored. All test data was cleaned up.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/events", "issue": "This route is public and has no rate limit and no TTL/retention index, so anyone can flood the webEvents collection. Props are capped at 12 keys x 300 chars, but the number of requests is not."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "page_view tracking", "issue": "In preview, each route change logs page_view twice (e.g. /cloudivr/app twice right after signup). Cause: React.StrictMode in index.js runs the Shell useEffect twice in dev. Production builds are not affected, but preview analytics are inflated. page_view also only fires inside the app Shell, so the landing page and the signup page are not tracked (only signup_started).", "affected_selectors": []}
+    ],
+    "design_issues": [
+      {"screen": "Buy number (no details)", "issues": ["The buy-profile-gate card sits flush against the bottom of the plan cards, with almost no gap."]},
+      {"screen": "Travel eSIM order card", "issues": ["The copy button for the manual activation code is pushed to the far right edge, far from the code, because the code span is flex-1."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_onboarding_journey_iter275.py", "/app/test_reports/pytest/pytest_iter275.xml"],
+  "action_items": [
+    "Optional: add a per-IP rate limit and a TTL index (e.g. 180 days on 'at') for webEvents.",
+    "Optional: track page_view for public pages (landing/signup) if funnel analysis needs them. Duplicates in preview come from StrictMode; consider deduping by pathname in track.",
+    "Minor spacing: add a top margin above BuyProfileGate; put the travel eSIM copy button next to the code."
+  ],
+  "critical_code_review_comments": [
+    "EmailPrefs Toggle uses checked={prefs[k] !== false}. For 'marketing' this would show ON if the server ever omitted the key. It is safe today because the server merges DEFAULTS (marketing:false), but it is fragile for an opt-in field and should use === true for marketing.",
+    "auth.js register: marketingOptIn is accepted only when it is strictly true. Verified that 'yes' is stored as false. Good.",
+    "sourceOf whitelist correctly drops unknown keys and the client 'at' timestamp. Verified."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_onboarding_journey_iter275.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None kept. I created test_iter275_* accounts (pytest plus 1 UI signup, test_iter275_ui_1794686141@example.com) and purged them by id: webAccounts, webPrefs, walletOf, state, nameOf, compliance, legalAcceptances and their webEvents. I made 1 Travel eSIM dry-run order tes_70d02ab8-10c for civr.uxtest; I deleted it and its transaction travel-esim-tes_70d02ab8-10c and refunded $6 (wallet back to $784.65).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Web accounts live in the webAccounts collection (_id is stored as a double, e.g. 5000000000000077.0). Other collections use str(int(_id)). civr.uxtest chatId = 5000000000000077. Register is limited to 15 sign-ups per IP per 15 minutes; this run used about 12. The Travel eSIM zone testid is lowercase-hyphenated (travel-esim-zone-united-kingdom) and the pay button is travel-esim-pay-button. The pytest purge() helper in the iter275 test file cleans up a created account fully."
+}

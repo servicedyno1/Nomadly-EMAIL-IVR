@@ -20,6 +20,10 @@ export const sourceOf = () => { try { return JSON.parse(localStorage.getItem(KEY
 
 const anonId = () => { try { let a = localStorage.getItem(ANON); if (!a) { a = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem(ANON, a); } return a; } catch { return null; } };
 
+let last = '';
 export function track(name, props = {}) {
+  const key = `${name}|${window.location.pathname}|${JSON.stringify(props)}`;
+  if (key === last) return; // same event twice in a row (React dev double-run, re-renders)
+  last = key;
   api('/events', { method: 'POST', body: { name, props, anon: anonId(), path: window.location.pathname } }).catch(() => {});
 }

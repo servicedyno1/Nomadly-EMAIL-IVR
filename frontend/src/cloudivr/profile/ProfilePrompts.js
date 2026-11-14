@@ -40,7 +40,7 @@ export function ProfileBanner() {
 // Buy page: shown instead of payment until details are saved.
 export function BuyProfileGate() {
   return (
-    <div className="civr-card p-6 mb-6 civr-rise" data-testid="buy-profile-gate">
+    <div className="civr-card p-6 mt-6 mb-6 civr-rise" data-testid="buy-profile-gate">
       <div className="flex items-start gap-3 mb-6">
         <IdCard className="w-6 h-6 text-[#818cf8] shrink-0" />
         <div><div className="font-display text-xl font-bold">First, who is this number for?</div>
