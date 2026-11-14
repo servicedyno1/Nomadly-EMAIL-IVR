@@ -28,13 +28,32 @@ const all = async (url) => {
   return out
 }
 
+// Bird rate-limits lookups (429 / E01003): wait Retry-After (max 5s) and try again, up to 4 times.
+// Lookups share one Bird rate-limit group (policy "lookup";q=10;w=60 → 10 requests a minute).
+// Bulk runs use their own lane, one request every 6.5s, so single lookups keep some room; any 429 waits for
+// Retry-After (up to 65s) and tries again (single: 3 times, bulk: 10 times).
+const BULK_GAP_MS = 6500
+let nextBulk = 0
+const bulkSlot = () => { const t = Math.max(Date.now(), nextBulk); nextBulk = t + BULK_GAP_MS; return new Promise(r => setTimeout(r, t - Date.now())) }
+const waitOf = (e) => { const h = e.response?.headers || {}; const t = Number((String(h.ratelimit || '').match(/t=(\d+)/) || [])[1]) || Number(h['retry-after']) || 6; return Math.min(65, t) * 1000 + Math.random() * 500 }
+async function limited(fn, bulk = false) {
+  for (let i = 0; ; i++) {
+    if (bulk) await bulkSlot()
+    try { return await fn() } catch (e) {
+      const busy = e.response?.status === 429 || e.response?.data?.code === 'E01003' || e.response?.data?.error?.code === 'E01003'
+      if (!busy || i >= (bulk ? 10 : 3)) throw e
+      await new Promise(r => setTimeout(r, waitOf(e)))
+    }
+  }
+}
+
 // ── Lookup → { valid, type, carrier, country } | null when unavailable ──
 const LINE = { mobile: 'mobile', fixed_line: 'landline', voip: 'voip', toll_free: 'toll_free' }
-async function lookup(number) {
+async function lookup(number, { bulk = false } = {}) {
   if (!enabled()) return null
   const n = e164(number)
   try {
-    const r = await req('post', '/lookup/phone-number', { phone_number: n }, { 'Idempotency-Key': `lk-${n}-${new Date().toISOString().slice(0, 10)}` })
+    const r = await limited(() => req('post', '/lookup/phone-number', { phone_number: n }, { 'Idempotency-Key': `lk-${n}-${new Date().toISOString().slice(0, 10)}` }), bulk)
     return { valid: r.line_type !== 'unknown' || !!r.network_info?.carrier_name, country: r.country_code || 'unknown', carrier: r.network_info?.carrier_name || 'unknown', type: LINE[r.line_type] || r.line_type || 'unknown', ported: (r.flags || []).includes('ported'), _provider: 'bird' }
   } catch (e) {
     if (e.response?.data?.error?.code === 'E22000') return { valid: false, country: 'unknown', carrier: 'unknown', type: 'invalid', _provider: 'bird' }
@@ -46,9 +65,22 @@ async function lookup(number) {
 async function lookupEmail(email) {
   if (!enabled()) return null
   try {
-    const r = await req('post', '/lookup/email', { email }, { 'Idempotency-Key': `le-${email}-${new Date().toISOString().slice(0, 10)}` })
+    const r = await limited(() => req('post', '/lookup/email', { email }, { 'Idempotency-Key': `le-${email}-${new Date().toISOString().slice(0, 10)}` }))
     return { result: r.result || 'unknown', valid: !!r.valid, confidence: Number(r.delivery_confidence) || 0, flags: r.flags || [] }
   } catch (e) { log('lookupEmail:', errOf(e)); return null }
+}
+
+// Many emails at once (Bird batch, up to 1,000 per request) → array of results (null where Bird gave no answer), same order.
+async function lookupEmails(emails) {
+  if (!enabled()) return emails.map(() => null)
+  const out = []
+  for (let i = 0; i < emails.length; i += 1000) {
+    const part = emails.slice(i, i + 1000)
+    const r = await limited(() => req('post', '/lookup/email/batch', { emails: part }), true).catch(e => { log('lookupEmails:', errOf(e)); return null })
+    const by = new Map((r?.data || r?.results || []).map(x => [String(x.email).toLowerCase(), x]))
+    for (const e of part) { const x = by.get(e); out.push(x ? { result: x.result || 'unknown', valid: !!x.valid, confidence: Number(x.delivery_confidence) || 0, flags: x.flags || [] } : null) }
+  }
+  return out
 }
 
 // ── Numbers ──
@@ -165,7 +197,7 @@ const rawLookup = (n) => req('post', '/lookup/phone-number', { phone_number: e16
 const M = module.exports = {
   rawLookup,
   enabled, isBird, host, http: makeHttp, errOf, trunkName,
-  lookup, lookupEmail, searchNumbers, isBirdSearched, buyNumber, releaseNumber, listNumbers, numberStatus,
+  lookup, lookupEmail, lookupEmails, searchNumbers, isBirdSearched, buyNumber, releaseNumber, listNumbers, numberStatus,
   getTrunk, ensureTrunk, routeToTrunk, enableDestinations, listDestinations,
   listCallerIds, deleteCallerId, startCallerIdVerification, submitCallerIdCode, canPresent, presentable, spendLeft, forgetCallerIds,
 }

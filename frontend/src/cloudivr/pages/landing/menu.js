@@ -16,7 +16,7 @@ export const PRODUCTS = [
   ['fax', Printer, 'Fax number', 'Send and receive faxes online, $9 a month.', '#product-fax'],
   ['esim', Smartphone, 'USA eSIM', 'A downloadable USA line on your own phone, installed with a QR code.', '#esim-card'],
   ['travel', Plane, 'Travel eSIM', 'Mobile data in 187 countries.', '#product-travel-esim'],
-  ['lookup', ScanSearch, 'Number lookup', 'Carrier, line type and country of any number. $0.015 each.', '#product-lookup'],
+  ['lookup', ScanSearch, 'Number & email lookup', 'Check numbers ($0.015) and emails ($0.0015), one at a time or 1,000 at once.', '#product-lookup'],
 ];
 
 export const USE_CASES = [

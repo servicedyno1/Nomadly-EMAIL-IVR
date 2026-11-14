@@ -7,6 +7,7 @@
 require('../config-setup')
 const { MongoClient } = require('mongodb')
 const mt = require('../multitel')
+if (require('../multitel').isBlocked()) { console.error('MultiTEL login is refused from this server (check the IP allow-list / credentials) — nothing done.'); process.exit(1) }
 const telnyx = require('../telnyx-service')
 
 const APPLY = process.argv.includes('--apply')
@@ -14,14 +15,17 @@ const ONLY = (process.argv.find(a => a.startsWith('--only=')) || '').split('=')[
 const area = (p) => String(p).replace(/\D/g, '').slice(1, 4)
 
 const used = new Set()
+const TOLL_FREE = new Set(['800', '833', '844', '855', '866', '877', '888'])
 async function pickNear(old) {
   const cc = old.country === 'CA' ? 'CA' : 'US', ac = area(old.phoneNumber)
-  for (const a of [ac, null]) {
-    const r = (await mt.searchNumbers(cc, 'local', a, 6).catch(() => [])).filter(x => !used.has(x.phone_number))
+  // Toll-free stays toll-free (any toll-free prefix); local tries the same area code first.
+  const tf = TOLL_FREE.has(ac), type = tf ? 'toll_free' : 'local'
+  for (const a of tf ? [null] : [ac, null]) {
+    const r = (await mt.searchNumbers(cc, type, a, 6).catch(() => [])).filter(x => !used.has(x.phone_number))
     if (!r.length) continue
     const best = r.find(x => area(x.phone_number) === ac) || r[0]
     used.add(best.phone_number)
-    return { phone: best.phone_number, sameArea: area(best.phone_number) === ac, sameState: !!a, cc }
+    return { phone: best.phone_number, sameArea: area(best.phone_number) === ac, sameState: !!a, cc, tollFree: tf }
   }
   return null
 }
@@ -35,7 +39,7 @@ async function pickNear(old) {
     for (const old of (d.val?.numbers || []).filter(x => x.status === 'active' && (x.provider || 'telnyx') === 'telnyx')) {
       const pick = await pickNear(old)
       if (!pick) { console.log(`✗ ${d._id} ${old.phoneNumber}: no MultiTEL number found`); continue }
-      console.log(`${APPLY ? '→' : '[dry]'} ${d._id} ${old.phoneNumber} → ${pick.phone}${pick.sameArea ? ' (same area code)' : pick.sameState ? ' (same state/province)' : ' (same country)'}`)
+      console.log(`${APPLY ? '→' : '[dry]'} ${d._id} ${old.phoneNumber} → ${pick.phone}${pick.tollFree ? ' (toll-free → toll-free)' : pick.sameArea ? ' (same area code)' : pick.sameState ? ' (same state/province)' : ' (same country)'}`)
       n++
       if (!APPLY) continue
       const bought = await mt.buyNumber(pick.phone)

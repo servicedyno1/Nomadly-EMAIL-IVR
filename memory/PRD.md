@@ -206,3 +206,14 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Multitel outbound trunk installed on live SIP; blocked by Multitel 403 (termination IP not authorised). Next: user adds 188.166.34.29 in Multitel portal → Termination IPs, retest, then set CALL_ENGINE_BACKUP_TRUNK=multitel-out.
 - Backlog: admin view of signup sources/funnel; live Multitel SMS end-to-end test; bot plan-parity regression; production deploy of all preview work.
 - 2026-11-14 later: flags everywhere, Signup insights, SIP calls-from, system caller rotation, Infobip DLR refunds — tested iter 276/277. Blockers on provider side: MultiTEL Messaging API approval, MultiTEL termination IP (my.multi.tel/trunks/authorized-ips), Infobip SMS channel provisioning. Open: extras don't ring on inbound; auto IMEI check needs paid TAC provider; MultiTEL fax (T.38/FaxEmail) wiring; publish to prod.
+
+## 2026-11-14 (late) — Round: Bird-style UI, provider alerts, profile gate, bulk lookups, prod env
+- Sidebar regrouped (Home/Numbers/Calling/AI/Texting/Fax & eSIM/Tools/Account) with colour chips, light sidebar; Home product grid (`pages/dashboard/ProductGrid.js`) and landing "Everything we offer" (`pages/landing/Products.js`) share `src/cloudivr/products.js`.
+- Caller IDs: only Bird code-verified; review/attest paths retired; bot typed numbers refused.
+- Provider health (`js/provider-health.js`): warn < $20 (Multitel/Infobip), hide their numbers < $10 while the other is healthy; Bird 402 = wallet empty; alerts Telegram + email via `js/admin-mail.js` (moxxcompany@gmail.com). Bird has no balance API.
+- Profile required (428 profile_required) for all outgoing calls, Quick/Bulk IVR (send or schedule), browser phone; SIP outbound hangs up for web accounts without details.
+- Lookup page: number + email (Bird `/v1/lookup/email`, batch `/v1/lookup/email/batch`), single and bulk up to 1,000 (paste/CSV, background jobs `lookupBatches`, CSV download). Bird lookup rate limit = 10 requests/min → bulk numbers ≈ 6.5 s each.
+- Tests: iteration_280 / 281 (backend 100%, frontend 95%).
+- PROD (droplet 146.190.238.190): app-main deployed from workspace 2a6b1e4 (scripts/deploy_workspace_to_droplet.sh now disables GitHub catch-up). Env fixed: EMERGENT_LLM_KEY, CLOUDIVR_ADMIN_EMAILS=moxxcompany@gmail.com on all apps; Infobip, Google Maps, CLOUDIVR_MAIL_SENDER on wl/voodoo/proshop; Multitel creds updated to the working account (backups *.bak-envfix-*, *.bak-multitel-*). Restart needed after Multitel IP allow-list.
+- PROD blockers: Multitel API refuses the droplet IP 146.190.238.190 (403) → whitelist it in Multitel; Telnyx (account blocked, also mailer) and Twilio keys return 401.
+- Telnyx→Multitel migration: prod dry run found 22 numbers (19 app-main, 3 app-voodoo, mostly toll-free); script now maps toll-free→toll-free; NOT applied (waits for Multitel IP allow-list + user OK).

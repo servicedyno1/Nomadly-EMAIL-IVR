@@ -65,7 +65,7 @@ export default function NumberLookup() {
   const phone = tab === 'phone';
   return (
     <div className="space-y-8 max-w-4xl" data-testid="lookup-page">
-      <PageHeader label="Phone numbers" title="Number & email lookup" sub={`Check numbers before you call or text: mobile or landline, carrier, country and porting — ${price(data.price)} each. Check emails before you send: deliverable, risky or a typo — ${price(data.emailPrice)} each. No charge when a check fails.`} testid="lookup-header" />
+      <PageHeader label="Lookup" title="Number & email lookup" sub={`Check numbers before you call or text: mobile or landline, carrier, country and porting — ${price(data.price)} each. Check emails before you send: deliverable, risky or a typo — ${price(data.emailPrice)} each. No charge when a check fails.`} testid="lookup-header" />
       <div role="tablist" className="inline-flex gap-1 rounded-xl border border-[var(--c-border)] p-1" data-testid="lookup-tabs">
         {[['phone', 'Phone numbers'], ['email', 'Emails']].map(([id, l]) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`px-4 h-9 rounded-lg text-sm font-semibold ${tab === id ? 'bg-[var(--c-accent-soft)] text-[var(--c-text)]' : 'text-[var(--c-muted)]'}`} data-testid={`lookup-tab-${id}`}>{l}</button>)}
       </div>
@@ -73,8 +73,8 @@ export default function NumberLookup() {
         ? <Single path="/lookup" field="number" placeholder="+1 415 555 0100" label="Look up" unit={data.price} onDone={done} render={(r) => <Result r={r} testid="lookup-result" />} testid="lookup-single" inputTestid="lookup-number-input" submitTestid="lookup-submit-button" />
         : <Single path="/lookup/email" field="email" placeholder="name@example.com" label="Check email" unit={data.emailPrice} onDone={done} render={(r) => <EmailResult r={r} />} testid="email-single" inputTestid="email-input" submitTestid="email-submit-button" />}
       {phone
-        ? <BulkRun key="p" kind="number" unit={data.price} max={data.maxBulk} path="/lookup/bulk" field="numbers" cols={NUM_COLS} Row={NumRow} onDone={done} testid="lookup-bulk" />
-        : <BulkRun key="e" kind="email" unit={data.emailPrice} max={data.maxBulk} path="/lookup/email/bulk" field="emails" cols={MAIL_COLS} Row={MailRow} onDone={done} testid="email-bulk" />}
+        ? <BulkRun key="p" kind="number" unit={data.price} max={data.maxBulk} path="/lookup/bulk" field="numbers" cols={NUM_COLS} Row={NumRow} onDone={done} batches={data.batches} testid="lookup-bulk" />
+        : <BulkRun key="e" kind="email" unit={data.emailPrice} max={data.maxBulk} path="/lookup/email/bulk" field="emails" cols={MAIL_COLS} Row={MailRow} onDone={done} batches={data.batches} testid="email-bulk" />}
       {(phone ? data.history : data.emailHistory).length > 0 && (
         <div data-testid={phone ? 'lookup-history' : 'email-history'}>
           <div className="civr-label mb-3">Recent checks</div>

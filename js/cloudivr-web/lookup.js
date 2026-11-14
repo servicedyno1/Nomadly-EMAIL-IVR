@@ -24,32 +24,65 @@ function createLookup({ db, h, walletOps, bird = require('../bird'), log = conso
   const tx = db.collection('transactions')
   const bad = (res, s, error, message) => res.status(s).json({ error, message })
   const strip = ({ _id, chatId, ...x }) => x
-  const charge = (chatId, type, amount, ref) => tx.insertOne({ _id: `${type}-${chatId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, chatId: String(chatId), type, amount: round4(amount), currency: 'USD', status: 'completed', ref, createdAt: new Date() })
+  const charge = (chatId, type, amount, ref) => tx.insertOne({ _id: `${type}-${chatId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, chatId: String(chatId), type, amount: round4(amount), currency: 'USD', status: 'completed', ref, metadata: { phoneNumber: ref }, createdAt: new Date() })
   const numRow = (chatId, number, out, batchId) => ({ chatId, number, valid: out.valid, country: out.country, carrier: out.carrier, type: out.type, ported: !!out.ported, price: PRICE, ...(batchId ? { batchId } : {}), at: new Date() })
   const mailRow = (chatId, email, out, batchId) => ({ chatId, email, result: out.result, valid: !!out.valid, confidence: out.confidence, flags: out.flags || [], price: EMAIL_PRICE, ...(batchId ? { batchId } : {}), at: new Date() })
   // List from a paste or CSV text: split on commas, spaces, semicolons and new lines; dedupe.
   const listOf = (raw, isOk, clean) => {
     const all = (Array.isArray(raw) ? raw : String(raw || '').split(/[\s,;]+/)).map(x => String(x).trim()).filter(Boolean)
-    const good = [...new Set(all.map(clean).filter(isOk))]
-    return { good, skipped: all.length - good.length }
+    const valid = all.map(clean).filter(isOk)
+    const good = [...new Set(valid)]
+    return { good, skipped: all.length - valid.length, duplicates: valid.length - good.length }
   }
 
   // Charge for the whole list first, run it, refund the ones Bird couldn't answer.
-  async function bulk(req, res, { raw, isOk, clean, price, run, row, store, type, noun }) {
-    const { good, skipped } = listOf(raw, isOk, clean)
+  // Up to SYNC_MAX items answer right away; bigger runs continue in the background and are polled by batchId.
+  const SYNC_MAX = 100
+  const batches = db.collection('lookupBatches')
+  const pub = (rows, good, key) => good.map((x, k) => (rows[k] ? strip(rows[k]) : { [key]: x, failed: true }))
+  async function bulk(req, res, { raw, isOk, clean, price, run, runMany, row, store, type, noun }) {
+    const { good, skipped, duplicates } = listOf(raw, isOk, clean)
     if (!good.length) return bad(res, 400, 'nothing_to_check', `Paste or upload at least one ${noun}.`)
     if (good.length > MAX_BULK) return bad(res, 400, 'too_many', `Up to ${MAX_BULK} ${noun}s per run — you sent ${good.length}.`)
     const total = round4(good.length * price)
     if (!(await w.debit(req.webChatId, total))) return bad(res, 402, 'insufficient_balance', `Checking ${good.length} ${noun}s costs $${total.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')}. Top up your wallet first.`)
-    const batchId = `b${Date.now().toString(36)}`
-    const outs = await pool(good, 10, run)
-    const rows = good.map((x, k) => (outs[k] ? row(req.webChatId, x, outs[k], batchId) : null))
-    const done = rows.filter(Boolean)
-    const failed = good.length - done.length
-    if (failed) await w.credit(req.webChatId, round4(failed * price))
-    if (done.length) { await store.insertMany(done); await charge(req.webChatId, type, done.length * price, `bulk ${done.length}`) }
-    log(`[Lookup] ${req.webChatId} bulk ${type}: ${done.length} done, ${failed} refunded, ${skipped} skipped`)
-    res.json({ batchId, results: good.map((x, k) => (rows[k] ? strip(rows[k]) : { [noun === 'email' ? 'email' : 'number']: x, failed: true })), charged: round4(done.length * price), refunded: round4(failed * price), skipped })
+    const chatId = req.webChatId, batchId = `b${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, key = noun === 'email' ? 'email' : 'number'
+    await batches.insertOne({ _id: batchId, chatId, kind: key, total: good.length, done: 0, status: 'running', skipped, duplicates, price, at: new Date() })
+    const work = (async () => {
+      let n = 0
+      const outs = runMany ? await runMany(good) : await pool(good, 1, async (x) => { const o = await run(x); if (++n % 5 === 0) batches.updateOne({ _id: batchId }, { $set: { done: n } }).catch(() => {}); return o })
+      const rows = good.map((x, k) => (outs[k] ? row(chatId, x, outs[k], batchId) : null))
+      const ok = rows.filter(Boolean), failed = good.length - ok.length
+      if (failed) await w.credit(chatId, round4(failed * price))
+      if (ok.length) { await store.insertMany(ok); await charge(chatId, type, ok.length * price, `${ok.length} ${noun}${ok.length === 1 ? '' : 's'}`) }
+      const result = { results: pub(rows, good, key), charged: round4(ok.length * price), refunded: round4(failed * price), skipped, duplicates }
+      await batches.updateOne({ _id: batchId }, { $set: { status: 'done', done: good.length, charged: result.charged, refunded: result.refunded, failedItems: good.filter((_, k) => !rows[k]) } })
+      log(`[Lookup] ${chatId} bulk ${type}: ${ok.length} done, ${failed} refunded, ${skipped} skipped, ${duplicates} duplicates`)
+      return result
+    })().catch(async (e) => { log(`[Lookup] bulk ${batchId} failed: ${e.message}`); await batches.updateOne({ _id: batchId }, { $set: { status: 'failed' } }).catch(() => {}); return null })
+    if (good.length > (runMany ? SYNC_MAX : 3)) return res.status(202).json({ batchId, status: 'running', total: good.length, done: 0, skipped, duplicates, etaSeconds: runMany ? 15 : Math.ceil(good.length * 6.5) })
+    const r = await work
+    if (!r) return bad(res, 500, 'bulk_failed', 'Something went wrong during the check. Unchecked items were not charged.')
+    res.json({ batchId, status: 'done', ...r })
+  }
+
+  // A run cut short by a restart never finishes: after 3h, refund it in full (nothing was stored for it).
+  async function sweep() {
+    for (const b of await batches.find({ status: 'running', at: { $lt: new Date(Date.now() - 3 * 3600000) } }).toArray()) {
+      const r = await batches.updateOne({ _id: b._id, status: 'running' }, { $set: { status: 'failed', refunded: round4(b.total * (b.price || 0)) } })
+      if (r.modifiedCount && b.price) { await w.credit(b.chatId, round4(b.total * b.price)); log(`[Lookup] refunded interrupted bulk ${b._id} ($${round4(b.total * b.price)})`) }
+    }
+  }
+  setTimeout(() => sweep().catch(() => {}), 60000)
+  setInterval(() => sweep().catch(() => {}), 30 * 60000).unref?.()
+
+  async function batchView(req, res) {
+    const b = await batches.findOne({ _id: String(req.params.id), chatId: req.webChatId })
+    if (!b) return bad(res, 404, 'not_found', 'That check was not found.')
+    if (b.status !== 'done') return res.json({ batchId: b._id, status: b.status, total: b.total, done: b.done, skipped: b.skipped, duplicates: b.duplicates, etaSeconds: b.kind === 'email' ? 15 : Math.ceil((b.total - (b.done || 0)) * 6.5) })
+    const store = b.kind === 'email' ? ecol : col
+    const rows = (await store.find({ chatId: req.webChatId, batchId: b._id }).toArray()).map(strip)
+    res.json({ batchId: b._id, status: 'done', total: b.total, done: b.total, results: [...rows, ...(b.failedItems || []).map(x => ({ [b.kind]: x, failed: true }))], charged: b.charged, refunded: b.refunded, skipped: b.skipped, duplicates: b.duplicates })
   }
 
   const numberOf = (n) => bird.lookup(n)
@@ -59,6 +92,7 @@ function createLookup({ db, h, walletOps, bird = require('../bird'), log = conso
     r.get('/lookup', h(async (req, res) => res.json({
       price: PRICE, emailPrice: EMAIL_PRICE, maxBulk: MAX_BULK,
       history: (await col.find({ chatId: req.webChatId }).sort({ at: -1 }).limit(20).toArray()).map(strip),
+      batches: (await batches.find({ chatId: req.webChatId }).sort({ at: -1 }).limit(5).toArray()).map(b => ({ batchId: b._id, kind: b.kind, total: b.total, done: b.done, status: b.status, at: b.at })),
       emailHistory: (await ecol.find({ chatId: req.webChatId }).sort({ at: -1 }).limit(20).toArray()).map(strip),
     })))
     r.post('/lookup', h(async (req, res) => {
@@ -72,7 +106,8 @@ function createLookup({ db, h, walletOps, bird = require('../bird'), log = conso
       await charge(req.webChatId, 'number-lookup', PRICE, row.number)
       res.json(strip(row))
     }))
-    r.post('/lookup/bulk', h(async (req, res) => bulk(req, res, { raw: req.body?.numbers, isOk: (n) => E164.test(n), clean: cleanNum, price: PRICE, run: numberOf, row: numRow, store: col, type: 'number-lookup', noun: 'number' })))
+    r.get('/lookup/batches/:id', h(batchView))
+    r.post('/lookup/bulk', h(async (req, res) => bulk(req, res, { raw: req.body?.numbers, isOk: (n) => E164.test(n), clean: cleanNum, price: PRICE, run: (n) => bird.lookup(n, { bulk: true }), row: numRow, store: col, type: 'number-lookup', noun: 'number' })))
     r.post('/lookup/email', h(async (req, res) => {
       const email = String(req.body?.email || '').trim().toLowerCase()
       if (!EMAIL.test(email)) return bad(res, 400, 'invalid_email', 'Enter a full email address, e.g. name@example.com.')
@@ -84,7 +119,7 @@ function createLookup({ db, h, walletOps, bird = require('../bird'), log = conso
       await charge(req.webChatId, 'email-check', EMAIL_PRICE, email)
       res.json(strip(row))
     }))
-    r.post('/lookup/email/bulk', h(async (req, res) => bulk(req, res, { raw: req.body?.emails, isOk: (e) => EMAIL.test(e), clean: (e) => String(e).trim().toLowerCase(), price: EMAIL_PRICE, run: emailOf, row: mailRow, store: ecol, type: 'email-check', noun: 'email' })))
+    r.post('/lookup/email/bulk', h(async (req, res) => bulk(req, res, { raw: req.body?.emails, isOk: (e) => EMAIL.test(e), clean: (e) => String(e).trim().toLowerCase(), price: EMAIL_PRICE, run: emailOf, runMany: (list) => bird.lookupEmails(list), row: mailRow, store: ecol, type: 'email-check', noun: 'email' })))
   }
   return { routes, PRICE, EMAIL_PRICE }
 }

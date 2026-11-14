@@ -4,7 +4,9 @@ import { api } from '../../api';
 import { ErrorNote } from '../../ui';
 
 export const price = (p) => `$${Number(p).toFixed(4).replace(/0+$/, '').replace(/\.$/, '.00')}`;
-const itemsOf = (text) => [...new Set(String(text || '').split(/[\s,;]+/).map(x => x.trim()).filter(Boolean))];
+const OK = { email: (x) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(x), number: (x) => /^\+?[1-9]\d{6,14}$/.test(x.replace(/[\s().-]/g, '')) };
+const itemsOf = (text, kind) => [...new Set(String(text || '').split(/[\s,;]+/).map(x => x.trim()).filter(x => x && OK[kind](x)).map(x => (kind === 'email' ? x.toLowerCase() : x)))];
+const wait = (ms) => new Promise(r => setTimeout(r, ms));
 const toCsv = (cols, rows) => [cols.map(c => c[0]).join(','), ...rows.map(r => cols.map(([, f]) => `"${String(f(r) ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
 
 function download(name, text) {
@@ -14,18 +16,26 @@ function download(name, text) {
 }
 
 // Bulk run: paste a list or pick a CSV, see the total, run it, download the results.
-export function BulkRun({ kind, unit, max, path, field, cols, Row, onDone, testid }) {
+export function BulkRun({ kind, unit, max, path, field, cols, Row, onDone, testid, batches = [] }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [out, setOut] = useState(null);
   const file = useRef(null);
-  const list = itemsOf(text);
+  const [progress, setProgress] = useState(null);
+  const list = itemsOf(text, kind);
   const pick = async (e) => { const f = e.target.files?.[0]; if (f) setText(await f.text()); e.target.value = ''; };
   const run = async () => {
     setBusy(true); setErr(null); setOut(null);
-    try { setOut(await api(path, { method: 'POST', body: { [field]: list } })); onDone(); } catch (x) { setErr(x); } finally { setBusy(false); }
+    try {
+      let r = await api(path, { method: 'POST', body: { [field]: list } });
+      // Big lists keep running on the server: poll until they finish.
+      while (r.status === 'running') { setProgress(r); await wait(2500); r = await api(`/lookup/batches/${r.batchId}`); }
+      setOut(r); onDone();
+    } catch (x) { setErr(x); } finally { setBusy(false); setProgress(null); }
   };
+  const open = async (id) => { setErr(null); try { setOut(await api(`/lookup/batches/${id}`)); } catch (x) { setErr(x); } };
+  const mine = batches.filter(b => b.kind === kind);
   const ok = out?.results?.filter(r => !r.failed) || [];
   return (
     <div className="civr-card p-6 space-y-4" data-testid={testid}>
@@ -35,14 +45,16 @@ export function BulkRun({ kind, unit, max, path, field, cols, Row, onDone, testi
       <div className="flex flex-wrap items-center gap-2">
         <input ref={file} type="file" accept=".csv,.txt,text/csv,text/plain" className="hidden" onChange={pick} data-testid={`${testid}-file`} />
         <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => file.current?.click()} data-testid={`${testid}-upload`}><Upload className="w-4 h-4" />Upload CSV</button>
-        <span className="text-sm text-[var(--c-muted)] flex-1" data-testid={`${testid}-count`}>{list.length > max ? `${list.length} items — the limit is ${max}` : `${list.length} item${list.length === 1 ? '' : 's'} · up to ${price(list.length * unit)}`}</span>
-        <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || !list.length || list.length > max} onClick={run} data-testid={`${testid}-run`}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}{busy ? 'Checking…' : `Check ${list.length || ''}`}</button>
+        <span className="text-sm text-[var(--c-muted)] flex-1" data-testid={`${testid}-count`}>{list.length > max ? `${list.length} items — the limit is ${max}` : `${list.length} ${kind}${list.length === 1 ? '' : 's'} · up to ${price(list.length * unit)}`}</span>
+        <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || !list.length || list.length > max} onClick={run} data-testid={`${testid}-run`}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}{busy ? (progress ? `Checking ${progress.done || 0} of ${progress.total}…` : 'Checking…') : `Check ${list.length || ''}`}</button>
       </div>
+      {progress && <p className="text-sm text-[var(--c-muted)]" data-testid={`${testid}-progress`}>{`Checked ${progress.done || 0} of ${progress.total}${progress.etaSeconds > 60 ? ` · about ${Math.ceil(progress.etaSeconds / 60)} min left` : ''}. You can leave this page — the results are saved under Recent bulk checks.`}</p>}
       <ErrorNote error={err} testid={`${testid}-error`} />
-      {out && (
+      {mine.length > 0 && <div className="flex flex-wrap items-center gap-2 text-sm" data-testid={`${testid}-recent`}><span className="text-[var(--c-muted)]">Recent bulk checks:</span>{mine.map(b => <button key={b.batchId} type="button" className="civr-pill" onClick={() => open(b.batchId)} data-testid={`${testid}-recent-${b.batchId}`}>{`${new Date(b.at).toLocaleDateString()} · ${b.total} ${b.status === 'done' ? '' : '(running)'}`}</button>)}</div>}
+      {out && out.status !== 'running' && (
         <div className="space-y-3" data-testid={`${testid}-result`}>
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <span data-testid={`${testid}-summary`}>{`${ok.length} checked · ${price(out.charged)} charged${out.refunded ? ` · ${price(out.refunded)} refunded` : ''}${out.skipped ? ` · ${out.skipped} skipped (not a valid ${kind})` : ''}`}</span>
+            <span data-testid={`${testid}-summary`}>{`${ok.length} checked · ${price(out.charged)} charged${out.refunded ? ` · ${price(out.refunded)} refunded` : ''}${out.skipped ? ` · ${out.skipped} skipped (not a valid ${kind})` : ''}${out.duplicates ? ` · ${out.duplicates} duplicate${out.duplicates === 1 ? '' : 's'} removed` : ''}`}</span>
             <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm ml-auto" onClick={() => download(`${kind}-check-${out.batchId}.csv`, toCsv(cols, out.results))} data-testid={`${testid}-download`}><Download className="w-4 h-4" />Download CSV</button>
           </div>
           <div className="civr-card divide-y divide-[var(--c-border)] max-h-96 overflow-y-auto">{out.results.slice(0, 200).map((r, i) => <Row key={i} r={r} i={i} />)}</div>

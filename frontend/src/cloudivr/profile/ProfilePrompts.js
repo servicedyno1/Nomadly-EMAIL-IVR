@@ -30,7 +30,7 @@ export function ProfileBanner() {
         <span className="flex items-center gap-2"><IdCard className="w-4 h-4 text-[#818cf8]" />Add your personal or business details — needed before you make outgoing calls, Quick IVR or Bulk IVR calls, or buy a number.</span>
         <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" onClick={() => setOpen(true)} data-testid="profile-banner-button">Add details</button>
       </div>
-      {open && <Modal title="Your details for numbers" sub="Carriers register every number to a person or business." onClose={() => setOpen(false)} testid="profile-banner-dialog">
+      {open && <Modal title="Your personal or business details" sub="Needed for outgoing calls, Quick IVR and Bulk IVR, and to register numbers with carriers." onClose={() => setOpen(false)} testid="profile-banner-dialog">
         <LegalProfileForm onSaved={() => setOpen(false)} testid="profile-banner-form" />
       </Modal>}
     </>

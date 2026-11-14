@@ -1,0 +1,49 @@
+{
+  "summary": "Iter281 tested provider health / low-balance alerts, the profile gate, bulk number and email lookup, the Bird email check, and the iter280 fixes. Backend: new pytest file passes 25/25 and the iter279 regression passes 11/11. bird_only_outbound_unit_test.js passes 22/22. New provider_health_unit_test.js passes 19/19. Live check: Infobip is currently hidden. A US search returns only multitel numbers, and LT local (normally Infobip, level 0) falls back to multitel. UI works: lookup tabs; single number and email checks; bulk paste, CSV upload, summary and CSV download for numbers and emails; profile banner; the Quick call submit opens the 'First, add your details' dialog; landing card, home tile and FAQ order. No blocking bugs. Admin alert emails never reach moxxcompany@gmail.com in preview (see below).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "admin-mail.js (provider-health / balance-monitor alerts)", "issue": "A mail sender IS configured in preview, so the review note saying no sender is set is wrong. Every alert email fails: Resend returns 403 'domain is not verified', then the fallback returns 'API Key is not enabled'. Telegram alerts are delivered. No email has reached moxxcompany@gmail.com."},
+      {"endpoint": "GET /api/cloudivr-web/wallet history", "issue": "number-lookup and email-check transactions show the description 'Number lookup · ' / 'Email check · ', with an empty part after the separator. lookup.js charge() saves `ref`, but wallet.js reads metadata.phoneNumber or metadata.count. Save metadata:{phoneNumber} for single checks and metadata:{count} for bulk runs, or make wallet.js read ref."},
+      {"endpoint": "POST /lookup/bulk, /lookup/email/bulk", "issue": "skipped = all - unique valid, so duplicates are counted as 'skipped (not a valid number/email)'. Example: Support@Google.com next to support@google.com gives skipped=2 when only 1 item is invalid. Report duplicates separately."},
+      {"endpoint": "POST /lookup/bulk with 1000 items (risk, not tested)", "issue": "Runs synchronously with a pool of 10. 1000 Bird calls can take longer than the ingress or proxy timeout (~60-100s). The wallet is already charged and rows are stored, but the client gets no response, and only 20 history rows are shown. Consider a background job with polling, or a batch-results endpoint."},
+      {"endpoint": "balance-monitor.js sendAlert", "issue": "adminMail runs only after `await _bot.sendMessage` succeeds. If Telegram fails, no email is sent either. provider-health.alert() does this correctly."},
+      {"endpoint": "provider-health.js", "issue": "The WARN and STOP alerts share one lowAlertAt timestamp (12h throttle). A drop from $15 to under $10 within 12h sends no alert saying numbers are now hidden. State is kept in memory only, so every restart sends the alerts again (duplicates seen in logs)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "lookup Bulk count", "issue": "The client count includes CSV header cells and other invalid tokens. Example: '3 items · up to $0.045' for a header plus 2 numbers. The server then skips 1. The estimate is slightly high, but nothing is wrongly charged.", "selector": "[data-testid=lookup-bulk-count]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Browser phone dial gate", "issue": "Could not verify in preview. The softphone line never registers ('Not connected', simulated numbers), and dial() is only called once status is ready. Checked by code review only (rtc.js L77-78). The server-side SIP gate in voice-service L3389-3396 also exists.", "affected_selectors": ["softphone-call-button"]},
+      {"flow": "Campaign start gate (UI)", "issue": "The QA account has no campaign in a startable state, so this was not run in the UI. The API returns 428 for /campaigns and /campaigns/:id/start, and api.js handles every 428 the same way (the Quick call dialog was verified).", "affected_selectors": ["campaign-start-button"]}
+    ],
+    "design_issues": [
+      {"screen": "Lookup page / nav", "issues": ["Sidebar nav item (nav.js), dashboard NewProducts.js and landing menu.js still say 'Number lookup'. menu.js says '$0.015 each' and does not mention email.", "The page eyebrow 'PHONE NUMBERS' sits above the title 'Number & email lookup'."]},
+      {"screen": "Profile banner dialog", "issues": ["The dialog title 'Your details for numbers' / 'Carriers register every number...' is out of date now that details are also needed for calls."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter281_profile_gate_lookup.py", "/app/backend/tests/provider_health_unit_test.js", "/app/backend/tests/bird_only_outbound_unit_test.js", "/app/test_reports/pytest/iter281.xml"],
+  "action_items": [
+    "Fix admin email delivery: verify the Resend sender domain, or fix the fallback mail API key. Alerts currently never reach moxxcompany@gmail.com.",
+    "lookup.js charge(): store metadata.phoneNumber (single) / metadata.count (bulk) so wallet history descriptions are complete.",
+    "Count duplicates separately from invalid items in the bulk 'skipped' value, or dedupe without calling duplicates 'not valid'.",
+    "Consider an async or background flow for large bulk runs (1000 items) so ingress timeouts don't lose results after the wallet is charged.",
+    "balance-monitor sendAlert: send the admin email even when Telegram fails.",
+    "Update the 'Number lookup' labels in nav.js, NewProducts.js and landing menu.js to cover email, and fix the 'PHONE NUMBERS' eyebrow on the lookup page.",
+    "Optional: give provider-health a separate STOP-crossing alert and keep alert timestamps across restarts."
+  ],
+  "critical_code_review_comments": [
+    "provider-health isDown/isLow logic is correct. It never hides both providers, the EUR->USD conversion works, and Bird 402 is treated as balance 0.",
+    "callGate covers every listed POST route. Account check uses legalProfile.completedAt. GET routes are not gated.",
+    "api.js re-sends the request after the profile is saved. If the dialog is closed, a 428 ApiError is thrown and the page shows its error.",
+    "rtc.js dial returns null on cancel. The Softphone component does not tell the user why nothing happened (only the dialog closes)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter281_profile_gate_lookup.py", "/app/backend/tests/provider_health_unit_test.js"],
+  "success_rate": {"backend": "100% (25/25 pytest, 19/19 + 22/22 node unit, 11/11 iter279 regression)", "frontend": "95% (all tested flows pass; softphone and campaign-start gates not UI-verifiable in preview)"},
+  "seed_data_creation": "Created a TEST account test_iter281_d018fefb@example.com / QaTest#2026x with an individual legal profile, used for the 'with details' gate test. It was not deleted (no delete API). The QA account civr.uxtest was charged about $0.12 for real Bird lookups (about 7 numbers and 6 emails). No legal profile was added to the QA account.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: pytest backend/tests/test_iter281_profile_gate_lookup.py -p no:xdist. Run: node backend/tests/provider_health_unit_test.js (it stubs multitel/infobip/admin-mail/active-slot via require.cache). Live Infobip balance is about $3, so it is hidden: LT/US searches return multitel. Bird lookups are real and billable, so keep bulk runs small. Each new pytest run registers another TEST_ account."
+}

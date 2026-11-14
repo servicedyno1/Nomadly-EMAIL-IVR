@@ -9,6 +9,10 @@ const STOP = { multitel: 10, infobip: 10 }
 const EUR_USD = 1.08
 const state = {}
 let notify = () => {}
+// Alert timestamps survive restarts (file), so a redeploy doesn't repeat the same low-balance alert.
+const SEEN_FILE = require('path').join(require('os').tmpdir(), 'provider-health-alerts.json')
+const seen = (() => { try { return JSON.parse(require('fs').readFileSync(SEEN_FILE, 'utf8')) } catch { return {} } })()
+const once = (key, ms) => { if (Date.now() - (seen[key] || 0) < ms) return false; seen[key] = Date.now(); try { require('fs').writeFileSync(SEEN_FILE, JSON.stringify(seen)) } catch {} return true }
 const st = (p) => (state[p] = state[p] || { down: false, fails: 0, balance: null, lowAlertAt: 0, checkedAt: null, reason: null })
 
 const CHECKS = {
@@ -51,10 +55,12 @@ async function check(p) {
     s.fails = 0; s.checkedAt = new Date(); s.reason = null
     if (Number.isFinite(bal)) s.balance = bal
     if (s.down) { s.down = false; alert(`✅ [Providers] ${p} is back up${Number.isFinite(bal) ? ` — balance $${bal.toFixed(2)}` : ''}. Its numbers are on sale again.`) }
-    if (p === 'bird' && bal === 0 && Date.now() - s.lowAlertAt > 12 * 3600000) { s.lowAlertAt = Date.now(); alert(`🚨 [Providers] Bird wallet is empty (HTTP 402). Calls, lookups and eSIMs will fail — top up Bird now.`) }
-    if (Number.isFinite(bal) && LOW[p] != null && bal < LOW[p] && Date.now() - s.lowAlertAt > 12 * 3600000) {
+    if (p === 'bird' && bal === 0 && once('bird-empty', 12 * 3600000)) { s.lowAlertAt = Date.now(); alert(`🚨 [Providers] Bird wallet is empty (HTTP 402). Calls, lookups and eSIMs will fail — top up Bird now.`) }
+    // Separate throttles: "low" (under WARN) and "numbers hidden" (under STOP) each alert at most once per 12h.
+    const stop = Number.isFinite(bal) && STOP[p] != null && bal < STOP[p]
+    if (Number.isFinite(bal) && LOW[p] != null && bal < LOW[p] && once(`${p}-${stop ? 'stop' : 'low'}`, 12 * 3600000)) {
       s.lowAlertAt = Date.now()
-      alert(`⚠️ [Providers] ${p} balance is low: $${bal.toFixed(2)} (alert below $${LOW[p]}).${STOP[p] && bal < STOP[p] ? ` Under $${STOP[p]}: its numbers are hidden and new orders go to the other provider.` : ''} Top it up so orders, calls and texts keep working.`)
+      alert(`⚠️ [Providers] ${p} balance is low: $${bal.toFixed(2)} (alert below $${LOW[p]}).${stop ? ` Under $${STOP[p]}: its numbers are hidden and new orders go to the other provider while that one is healthy.` : ''} Top it up so orders, calls and texts keep working.`)
     }
   } catch (e) {
     s.fails++; s.checkedAt = new Date(); s.reason = e.response?.status ? `HTTP ${e.response.status}` : e.message
