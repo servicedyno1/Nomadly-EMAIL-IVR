@@ -1,9 +1,12 @@
 'use strict'
 // Provider health + backup. Every 5 min: MultiTEL, Infobip, Bird and Spenza are checked (balance where the API has one).
 // A provider that fails 2 checks in a row is "down": its stock is hidden (number-catalog) and buys go to the other one.
-// Admin gets one Telegram alert per change (down / back up) and one low-balance alert per 12h.
+// Admin gets one Telegram + email alert per change (down / back up) and one low-balance alert per 12h.
+// Balance under WARN → alert. Under STOP → that provider's numbers are hidden while the other number provider is healthy.
 const axios = require('axios')
-const LOW = { multitel: 10, infobip: 10, spenza: 25 }
+const LOW = { multitel: 20, infobip: 20, spenza: 25 }
+const STOP = { multitel: 10, infobip: 10 }
+const EUR_USD = 1.08
 const state = {}
 let notify = () => {}
 const st = (p) => (state[p] = state[p] || { down: false, fails: 0, balance: null, lowAlertAt: 0, checkedAt: null, reason: null })
@@ -21,11 +24,16 @@ const CHECKS = {
     const ib = require('./infobip')
     if (!ib.enabled()) return null
     const r = await ib.http().get('/account/1/balance')
-    return Number(r.data?.balance)
+    const b = Number(r.data?.balance)
+    return r.data?.currency === 'EUR' ? Math.round(b * EUR_USD * 100) / 100 : b
   },
   bird: async () => {
     if (!process.env.BIRD_API_KEY) return null
-    await axios.get('https://us1.platform.bird.com/v1/esim/offers?limit=1', { headers: { Authorization: `Bearer ${process.env.BIRD_API_KEY}` }, timeout: 15000 })
+    // Bird has no balance API: an empty wallet shows up as HTTP 402 / E03000 on any request.
+    try { await axios.get('https://us1.platform.bird.com/v1/esim/offers?limit=1', { headers: { Authorization: `Bearer ${process.env.BIRD_API_KEY}` }, timeout: 15000 }) } catch (e) {
+      if (e.response?.status === 402 || /E03000|InsufficientBalance/i.test(JSON.stringify(e.response?.data || ''))) return 0
+      throw e
+    }
     return NaN
   },
   spenza: async () => {
@@ -42,19 +50,34 @@ async function check(p) {
     if (bal === null) return
     s.fails = 0; s.checkedAt = new Date(); s.reason = null
     if (Number.isFinite(bal)) s.balance = bal
-    if (s.down) { s.down = false; notify(`✅ [Providers] ${p} is back up${Number.isFinite(bal) ? ` — balance $${bal.toFixed(2)}` : ''}. Its numbers are on sale again.`) }
+    if (s.down) { s.down = false; alert(`✅ [Providers] ${p} is back up${Number.isFinite(bal) ? ` — balance $${bal.toFixed(2)}` : ''}. Its numbers are on sale again.`) }
+    if (p === 'bird' && bal === 0 && Date.now() - s.lowAlertAt > 12 * 3600000) { s.lowAlertAt = Date.now(); alert(`🚨 [Providers] Bird wallet is empty (HTTP 402). Calls, lookups and eSIMs will fail — top up Bird now.`) }
     if (Number.isFinite(bal) && LOW[p] != null && bal < LOW[p] && Date.now() - s.lowAlertAt > 12 * 3600000) {
       s.lowAlertAt = Date.now()
-      notify(`⚠️ [Providers] ${p} balance is low: $${bal.toFixed(2)} (alert below $${LOW[p]}). Top it up so orders, calls and texts keep working.`)
+      alert(`⚠️ [Providers] ${p} balance is low: $${bal.toFixed(2)} (alert below $${LOW[p]}).${STOP[p] && bal < STOP[p] ? ` Under $${STOP[p]}: its numbers are hidden and new orders go to the other provider.` : ''} Top it up so orders, calls and texts keep working.`)
     }
   } catch (e) {
     s.fails++; s.checkedAt = new Date(); s.reason = e.response?.status ? `HTTP ${e.response.status}` : e.message
-    if (!s.down && s.fails >= 2) { s.down = true; notify(`🚨 [Providers] ${p} is DOWN (${s.reason}). Its stock is hidden and new orders go to the backup provider.`) }
+    if (!s.down && s.fails >= 2) { s.down = true; alert(`🚨 [Providers] ${p} is DOWN (${s.reason}). Its stock is hidden and new orders go to the backup provider.`) }
   }
 }
 
+// Telegram admin + email, for balance and up/down changes.
+function alert(text) {
+  try { notify(text) } catch (_) {}
+  require('./admin-mail').adminMail(`CloudIVR provider alert: ${String(text).replace(/^\W+\[Providers\]\s*/, '').slice(0, 70)}`, `<p>${String(text).replace(/</g, '&lt;')}</p>`)
+}
+
 const tick = () => Promise.all(Object.keys(CHECKS).map(check))
-const isDown = (p) => !!state[p]?.down || (p === 'multitel' && require('./multitel').isBlocked())
+const hardDown = (p) => !!state[p]?.down || (p === 'multitel' && require('./multitel').isBlocked())
+const isLow = (p) => STOP[p] != null && Number.isFinite(state[p]?.balance) && state[p].balance < STOP[p]
+// Low balance hides a number provider only while the other one can still sell (never hide both).
+const isDown = (p) => {
+  if (hardDown(p)) return true
+  if (!isLow(p)) return false
+  const other = p === 'multitel' ? 'infobip' : p === 'infobip' ? 'multitel' : null
+  return !!other && !hardDown(other) && !isLow(other)
+}
 const snapshot = () => Object.fromEntries(Object.keys(CHECKS).map(p => [p, { ...st(p) }]))
 function start(notifyAdmin) {
   if (notifyAdmin) notify = notifyAdmin
@@ -84,4 +107,4 @@ async function buyWithBackup(primary, phoneNumber, retry) {
   return null
 }
 
-module.exports = { start, tick, isDown, snapshot, buyWithBackup, LOW }
+module.exports = { start, tick, isDown, isLow, snapshot, buyWithBackup, alert, LOW, STOP }

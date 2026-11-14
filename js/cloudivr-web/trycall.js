@@ -108,23 +108,20 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     if (d.err) return bad(res, 400, 'invalid_number', d.err)
     const lim = await limit(req, email, d.to)
     if (lim) return bad(res, ...lim)
-    const cidSvc = require('./caller-ids')
-    const showAs = null
     if (req.body.showAs) return bad(res, 400, 'invalid_show_as', 'Custom caller IDs aren’t available on the free test call.')
     const callerId = (await require('../ivr-outbound').getTrialCaller({ purpose: 'landing_test_call', to: d.to })).callerId || process.env.TELNYX_DEFAULT_ANI
     if (!dryRun() && !callerId) return bad(res, 503, 'unavailable', 'Free test calls are paused right now. Try again later.')
     const doc = await record(req, email, 'call_me', d.to, { chatId: await nextChatId() })
     if (!doc) return bad(res, 409, 'already_used', 'This email has already had its free test call.')
     if (!dryRun()) {
-      const r = await voiceService.initiateOutboundIvrCall({ chatId: doc.chatId, callerId, displayCallerId: showAs, targetNumber: d.to, greetingText: GREETING, menu: MENU, activeKeys: Object.keys(MENU), isTrial: true, templateName: 'CloudIVR demo', provider: 'telnyx' })
+      const r = await voiceService.initiateOutboundIvrCall({ chatId: doc.chatId, callerId, displayCallerId: null, targetNumber: d.to, greetingText: GREETING, menu: MENU, activeKeys: Object.keys(MENU), isTrial: true, templateName: 'CloudIVR demo', provider: 'telnyx' })
       if (r?.error || !r?.callControlId) {
         await calls.deleteOne({ _id: doc._id })
         log(`[CloudIVR-Web] free test call to ${d.to} failed: ${r?.error || 'no call id'}`)
         if (r?.invalidNumber) return bad(res, 400, 'invalid_number', `${r.error.replace('Nothing was charged', 'Your free call is still unused')}`)
         return bad(res, 424, 'call_failed', 'We could not place the call right now. Try again in a minute.')
       }
-      if (showAs) require('../scam-watch').alert(`🎭 <b>Landing test call — custom caller ID</b>\n✉️ ${String(email).replace(/[<>&]/g, '')}\n📞 ${showAs} → ${d.to}${cidSvc.HOTLINES[showAs] ? ` — 🚩 matches <b>${cidSvc.HOTLINES[showAs]}</b> hotline` : ''}`)
-      await calls.updateOne({ _id: doc._id }, { $set: { callControlId: r.callControlId, showAs, callerIdRejected: !!r.callerIdRejected } })
+      await calls.updateOne({ _id: doc._id }, { $set: { callControlId: r.callControlId, callerIdRejected: !!r.callerIdRejected } })
       setTimeout(() => { Promise.resolve(telnyxApi.hangupCall(r.callControlId)).catch(() => {}) }, (RING_SECONDS + MAX_SECONDS) * 1000).unref?.()
     }
     log(`[CloudIVR-Web] free test call (we call you) → ${d.to} for ${email}${dryRun() ? ' (DRY RUN)' : ''}`)
@@ -137,7 +134,6 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     const d = destination(req.body.to)
     if (d.err) return bad(res, 400, 'invalid_number', d.err)
     if (req.body.showAs) return bad(res, 400, 'invalid_show_as', 'Custom caller IDs aren’t available on free tests.')
-    if (req.body.showAs && _showAs(req.body.showAs) === undefined) return bad(res, 400, 'invalid_show_as', 'Enter the caller ID with country code (emergency numbers are not allowed).')
     const answer = (doc, c) => ({ id: doc._id, kind: 'browser', to: doc.to, maxSeconds: MAX_SECONDS, dryRun: !!doc.dryRun, ...(c ? { login: c.sipUsername, password: c.sipPassword, callerNumber: process.env.TELNYX_DEFAULT_ANI || null } : {}) })
     // Same email reconnecting (mic prompt, page reload): hand back its unused line instead of a new one.
     const prev = await calls.findOne({ email, kind: 'browser', to: d.to, createdAt: { $gt: new Date(Date.now() - 30 * 60000) } })
@@ -155,7 +151,7 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     if (!dryRun()) {
       const made = await telnyxApi.createSIPCredential(tr.sipConnectionId, `try_${crypto.randomBytes(6).toString('hex')}`, crypto.randomBytes(16).toString('hex'))
       if (!made?.sip_username) return bad(res, 424, 'call_failed', 'We could not set up the browser line. Try again in a minute.')
-      cred = { chatId, sipUsername: made.sip_username, sipPassword: made.sip_password, credentialId: made.id || made.sip_username, callsMade: 0, maxCalls: 1, expired: false, webTest: true, allowedTo: d.to, showAs: _showAs(req.body.showAs), createdAt: new Date() }
+      cred = { chatId, sipUsername: made.sip_username, sipPassword: made.sip_password, credentialId: made.id || made.sip_username, callsMade: 0, maxCalls: 1, expired: false, webTest: true, allowedTo: d.to, createdAt: new Date() }
     }
     const doc = await record(req, email, 'browser', d.to, { chatId, sipUsername: cred?.sipUsername || null })
     if (!doc) return bad(res, 409, 'already_used', 'This email has already had its free test call.')
@@ -193,12 +189,5 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
 }
 
 // undefined = invalid, null = none
-function _showAs(raw) {
-  if (!raw) return null
-  if (require('./caller-ids').isEmergency(raw)) return undefined
-  const s = String(raw).replace(/[^\d+]/g, '')
-  const n = s.startsWith('+') ? s : s.length === 10 ? `+1${s}` : `+${s}`
-  return /^\+[1-9]\d{7,14}$/.test(n) ? n : undefined
-}
 
 module.exports = { routes, MENU, GREETING, TRY_ID_BASE, MAX_SECONDS }

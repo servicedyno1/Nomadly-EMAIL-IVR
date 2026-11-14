@@ -58,6 +58,7 @@ export async function api(path, { method = 'GET', body, form } = {}) {
 
 let profileAsker = null;
 export const setProfileAsker = (fn) => { profileAsker = fn; };
+export const askProfile = () => (profileAsker ? profileAsker().catch(() => false) : Promise.resolve(false));
 
 export const enc = (s) => encodeURIComponent(s);
 export const apiUrl = (path) => `${BASE}${path}`;

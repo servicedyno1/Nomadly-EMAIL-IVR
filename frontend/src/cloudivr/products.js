@@ -25,7 +25,7 @@ export const PRODUCT_GROUPS = [
     ['sip', KeyRound, 'Softphone logins (SIP)', 'Use desk phones and softphone apps from Starter. Pro gets 2 logins free, Business 5.', '$5/mo per extra login', 'sip'],
     ['travel-esim', Plane, 'Travel eSIM', 'Mobile data in 187 countries, installed with a QR code.', 'Priced per country', 'travel-esim'],
     ['usa-esim', Smartphone, 'USA eSIM', 'A downloadable USA line on a real carrier for your own phone.', 'Monthly', 'esim'],
-    ['lookup', ScanSearch, 'Number lookup', 'See the carrier, line type and country of any number before you call.', '$0.015/lookup', 'lookup'],
+    ['lookup', ScanSearch, 'Number & email lookup', 'Check numbers (carrier, line type, country) and emails (deliverable or risky), one at a time or 1,000 at once.', '$0.015 per number · $0.0015 per email', 'lookup'],
   ]],
 ];
 

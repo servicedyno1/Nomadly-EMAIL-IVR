@@ -27,7 +27,7 @@ export function ProfileBanner() {
   return (
     <>
       <div role="region" aria-label="Profile reminder" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm bg-[#818cf8]/10 border-b border-[#818cf8]/25 px-4 py-2" data-testid="profile-banner">
-        <span className="flex items-center gap-2"><IdCard className="w-4 h-4 text-[#818cf8]" />Add your personal or business details — needed before your next number.</span>
+        <span className="flex items-center gap-2"><IdCard className="w-4 h-4 text-[#818cf8]" />Add your personal or business details — needed before you make outgoing calls, Quick IVR or Bulk IVR calls, or buy a number.</span>
         <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" onClick={() => setOpen(true)} data-testid="profile-banner-button">Add details</button>
       </div>
       {open && <Modal title="Your details for numbers" sub="Carriers register every number to a person or business." onClose={() => setOpen(false)} testid="profile-banner-dialog">
@@ -59,7 +59,7 @@ export function ProfileDetailsCard() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="font-display text-2xl font-bold">Personal or business details</div>
         {account?.profileComplete ? <span className="civr-pill civr-pill-on inline-flex items-center gap-1" data-testid="settings-profile-complete"><BadgeCheck className="w-3.5 h-3.5" />Complete</span>
-          : <span className="civr-pill civr-pill-warn" data-testid="settings-profile-missing">Needed to buy numbers</span>}
+          : <span className="civr-pill civr-pill-warn" data-testid="settings-profile-missing">Needed for calls and numbers</span>}
       </div>
       <LegalProfileForm testid="settings-legal-form" />
     </div>
@@ -77,8 +77,8 @@ export function ProfileAskHost() {
   if (!pending) return null;
   const done = (ok) => { pending.resolve(ok); setPending(null); };
   return (
-    <Modal title="Who is this number for?" sub="We register every number in your name with the carrier. Save this once — your order continues right after." onClose={() => done(false)} testid="profile-ask-dialog">
-      <LegalProfileForm onSaved={() => done(true)} submitLabel="Save and continue my order" testid="profile-ask-form" />
+    <Modal title="First, add your details" sub="Carriers register every number and outgoing call to a person or business. Save this once — what you were doing continues right after." onClose={() => done(false)} testid="profile-ask-dialog">
+      <LegalProfileForm onSaved={() => done(true)} submitLabel="Save and continue" testid="profile-ask-form" />
     </Modal>
   );
 }

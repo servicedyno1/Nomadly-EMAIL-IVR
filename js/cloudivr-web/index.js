@@ -116,6 +116,7 @@ function createCloudIvrWeb(deps) {
     const legalProfile = require('./legal-profile').createLegalProfile(db, { log })
     legalProfile.routes(r, h)
     r.post(['/numbers/buy', '/numbers/checkout', '/numbers/:phone/extra-checkout', '/numbers/:phone/extra', '/numbers/:phone/replace', '/fax-numbers', '/mobile-numbers', '/esim', '/numbers/request'], legalProfile.gate)
+    r.post(['/calls/quick', '/calls/trial', '/calls/callback', '/calls/history/:id/redial', '/campaigns', '/campaigns/:id/start', '/campaigns/:id/followup', '/relay/calls', '/ai-agents/:id/test'], legalProfile.callGate)
     require('./esim').routes(r, { h, legalProfile })
     const offers = createOffers(db, { log })
     offers.routes(r, { h })

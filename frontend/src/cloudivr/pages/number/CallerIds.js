@@ -174,7 +174,7 @@ export function CallerIds() {
   return (
     <section id="caller-ids" className="civr-card p-6 mt-8 scroll-mt-24" data-testid="caller-ids-card">
       <div className="flex items-center gap-2 font-display text-xl font-bold mb-2"><ShieldCheck className="w-5 h-5 text-[var(--c-accent)]" />Your own caller IDs</div>
-      <p className="text-sm text-[var(--c-muted)] mb-6 max-w-2xl">Show a number you own, such as your mobile or office line, on Quick IVR calls, Call me first, campaigns, AI agent calls, text triggers and the browser phone. Verify it with a code ($25, charged only when the code is accepted), or, on Business, save up to 10 numbers you have the right to use and pick one with a tap on each call. Calls are still billed from your CloudIVR number.</p>
+      <p className="text-sm text-[var(--c-muted)] mb-6 max-w-2xl">Show a number you own, such as your mobile or office line, on Quick IVR calls, Call me first, campaigns, AI agent calls, text triggers and the browser phone. Bird calls the number and reads out a code; type it in to verify ($25, charged only when the code is accepted). Only verified numbers can be shown. Calls are still billed from your CloudIVR number.</p>
       <CallerIdManager />
     </section>
   );

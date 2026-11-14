@@ -3386,6 +3386,16 @@ async function handleOutboundSipCall(payload) {
     return
   }
 
+  // CloudIVR web accounts must add their personal / business details before any outgoing call.
+  if (!lookupResult.isTestCall && _db && Number.isFinite(Number(chatId))) {
+    const acc = await _db.collection('webAccounts').findOne({ _id: Number(chatId) }, { projection: { legalProfile: 1 } }).catch(() => null)
+    if (acc && !acc.legalProfile?.completedAt) {
+      log(`[Voice] Outbound SIP: ${chatId} has no personal/business details yet — call to ${destination} blocked`)
+      await _telnyxApi.hangupCall(callControlId).catch(() => {})
+      return
+    }
+  }
+
   // Wallet balance check — outbound calls charge directly from wallet (plan minutes are for inbound only)
   const sipRate = getCallRate(destination)
   const minRequired = sipRate + CALL_CONNECTION_FEE  // Per-minute rate + connection fee

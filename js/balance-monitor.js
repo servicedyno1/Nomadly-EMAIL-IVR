@@ -184,6 +184,8 @@ async function sendAlert(result) {
   try {
     await _bot.sendMessage(_adminChatId, msg, { parse_mode: 'HTML' })
     recordAlert(result.provider, level)
+    require('./admin-mail').adminMail(`CloudIVR: ${result.provider} balance ${tag.toLowerCase()} ($${result.balance.toFixed(2)})`, msg.replace(/
+/g, '<br>'))
     log(`[BalanceMonitor] ${tag} alert sent for ${result.provider} ($${result.balance.toFixed(2)})`)
   } catch (e) {
     log(`[BalanceMonitor] Failed to send alert: ${e.message}`)

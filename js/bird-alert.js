@@ -10,11 +10,7 @@ function birdAlert(key, text) {
   last.set(key, Date.now())
   log(text)
   try { telegram(`🚨 [Bird outbound] ${text}`) } catch (_) {}
-  const to = process.env.BIRD_ALERT_EMAIL || 'moxxcompany@gmail.com'
-  require('./mailer').send({
-    from: { name: process.env.MAIL_SENDER_NAME || 'CloudIVR', address: process.env.MAIL_SENDER }, to, subject: 'CloudIVR: outbound call failed on Bird',
-    html: `<p><b>An outbound call could not go through Bird.</b></p><p>${String(text).replace(/</g, '&lt;')}</p><p>Time: ${new Date().toISOString()}</p>`,
-  }).catch(e => log(`email failed: ${e.message}`))
+  require('./admin-mail').adminMail('CloudIVR: outbound call failed on Bird', `<p><b>An outbound call could not go through Bird.</b></p><p>${String(text).replace(/</g, '&lt;')}</p>`)
 }
 
 module.exports = { birdAlert, setTelegram }

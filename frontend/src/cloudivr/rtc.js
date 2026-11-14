@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
-import { api, enc } from './api';
+import { api, enc, askProfile } from './api';
 import { useMic } from './mic';
 
 // SDK errors can carry carrier wording — show our own text instead.
@@ -73,6 +73,9 @@ export function RtcProvider({ children }) {
     return true;
   };
   const dial = async (dest, from, showAs) => {
+    // Outgoing calls need the account's personal / business details first.
+    const prof = await api('/profile/legal').catch(() => null);
+    if (prof && !prof.complete && !(await askProfile())) return null;
     const m = await mic.ask();
     if (m !== 'granted') return null;
     if (key.current && Date.parse(key.current.expiresAt) - Date.now() < 3600000) {

@@ -42,6 +42,15 @@ async function lookup(number) {
   }
 }
 
+// ── Email lookup → { result, valid, confidence, flags } | null when unavailable ──
+async function lookupEmail(email) {
+  if (!enabled()) return null
+  try {
+    const r = await req('post', '/lookup/email', { email }, { 'Idempotency-Key': `le-${email}-${new Date().toISOString().slice(0, 10)}` })
+    return { result: r.result || 'unknown', valid: !!r.valid, confidence: Number(r.delivery_confidence) || 0, flags: r.flags || [] }
+  } catch (e) { log('lookupEmail:', errOf(e)); return null }
+}
+
 // ── Numbers ──
 const searched = new Map() // e164 → search row
 async function searchNumbers(countryCode, numberType, areaCode, limit = 5, { allowPaperwork = false } = {}) {
@@ -156,7 +165,7 @@ const rawLookup = (n) => req('post', '/lookup/phone-number', { phone_number: e16
 const M = module.exports = {
   rawLookup,
   enabled, isBird, host, http: makeHttp, errOf, trunkName,
-  lookup, searchNumbers, isBirdSearched, buyNumber, releaseNumber, listNumbers, numberStatus,
+  lookup, lookupEmail, searchNumbers, isBirdSearched, buyNumber, releaseNumber, listNumbers, numberStatus,
   getTrunk, ensureTrunk, routeToTrunk, enableDestinations, listDestinations,
   listCallerIds, deleteCallerId, startCallerIdVerification, submitCallerIdCode, canPresent, presentable, spendLeft, forgetCallerIds,
 }

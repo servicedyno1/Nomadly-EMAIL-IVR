@@ -38,7 +38,7 @@ export function ShowAsSelect({ value, onChange, testid, compact = false, from })
       <DialogContent className="civr !min-h-0 content-start max-w-4xl" onEscapeKeyDown={e => { if (e.target?.closest?.('[data-testid^="caller-ids-rename-input"]')) e.preventDefault(); }} data-testid={`${testid}-dialog`}>
         <DialogHeader>
           <DialogTitle>Your saved caller IDs</DialogTitle>
-          <DialogDescription>On Business, save up to 10 numbers you have the right to use, name them, and pick one with a tap on any call. Or verify a number you own with a code. Calls are still billed from your VoIP number.</DialogDescription>
+          <DialogDescription>Verify numbers you own with a Bird code call, name them, and pick one with a tap on any call. Only verified numbers can be shown. Calls are still billed from your VoIP number.</DialogDescription>
         </DialogHeader>
         <CallerIdManager onVerified={onVerified} />
       </DialogContent>

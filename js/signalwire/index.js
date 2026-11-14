@@ -84,7 +84,7 @@ function wrap(t) {
       const { birdAlert } = require('../bird-alert')
       let st = await birdState(from, to, true).catch(() => 'off')
       if (st === 'unlinked') {
-        const sys = await require('../ivr-outbound').getTrialCaller({ purpose: 'unverified_caller_swap', to, chatId: options.chatId }).then(r => r?.callerId).catch(() => null)
+        const sys = await Promise.resolve().then(() => require('../ivr-outbound').getTrialCaller({ purpose: 'unverified_caller_swap', to, chatId: options.chatId })).then(r => r?.callerId).catch(() => null)
         if (!sys) { birdAlert('no-system-caller', `No system caller ID available to replace unverified ${from}. Call → ${to} was not placed.`); return { error: 'No verified caller ID available', status: 503, _provider: 'callengine' } }
         log(`caller ID ${from} isn't verified on Bird — calling from system number ${sys}`)
         from = sys; st = await birdState(from, to, true).catch(() => 'off')
@@ -96,7 +96,7 @@ function wrap(t) {
         birdAlert(`state-${st}`, `${why}. Call ${from} → ${to} was not placed.`)
         return { error: why, status: 503, _provider: 'callengine' }
       }
-      const r = await ce.createOutboundCall(from, to, webhookUrl, connectionId, options).catch(e => ({ error: e.message || String(e) }))
+      const r = await Promise.resolve().then(() => ce.createOutboundCall(from, to, webhookUrl, connectionId, options)).catch(e => ({ error: e.message || String(e) }))
       if (r?.error) birdAlert(`dial-${String(r.error).slice(0, 40)}`, `Bird refused the call ${from} → ${to}: ${r.error}`)
       if (r?.error && !r.status) r.status = 503
       return r
@@ -169,7 +169,8 @@ function wrap(t) {
   w.searchNumbers = async (countryCode, numberType, areaCode, limit = 5) => {
     // Least paperwork, then cheapest (number-catalog): MultiTEL leads where it wins, e.g. US/CA without an area code.
     if (mt.enabled() && require('../number-catalog').best(String(countryCode || 'US').toUpperCase(), numberType || 'local')?.provider === 'multitel') { const r = await mt.searchNumbers(countryCode, numberType || 'local', areaCode, limit); if (r.length) return r }
-    if (ib.enabled() && (!numberType || numberType === 'local')) { const r = await ib.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
+    const up = (p) => !require('../provider-health').isDown(p)
+    if (ib.enabled() && up('infobip') && (!numberType || numberType === 'local')) { const r = await ib.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
     if (txs.enabled()) {
       const r = await txs.searchNumbers(countryCode, numberType, areaCode, limit, rest.AREA_REGION[Number(areaCode)] || null)
       if (r.length) return r
@@ -178,8 +179,8 @@ function wrap(t) {
       const r = await rest.searchNumbers(countryCode, numberType, areaCode, limit)
       if (r.length) return r
     }
-    if (ib.enabled()) { const r = await ib.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
-    if (mt.enabled()) { const r = await mt.searchNumbers(countryCode, numberType || 'local', areaCode, limit); if (r.length) return r }
+    if (ib.enabled() && up('infobip')) { const r = await ib.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
+    if (mt.enabled() && up('multitel')) { const r = await mt.searchNumbers(countryCode, numberType || 'local', areaCode, limit); if (r.length) return r }
     // Skip Telnyx while its account can't sell numbers (US/CA-only mode); international searches still try it.
     if (!telnyxBackup() || (['US', 'CA'].includes(String(countryCode || 'US').toUpperCase()) && require('../phone-config').numberSearchUsCaOnly())) return []
     return t.searchNumbers(countryCode, numberType, areaCode, limit)

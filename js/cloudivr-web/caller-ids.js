@@ -130,7 +130,7 @@ function routes(router, { db, h, numbersApi }) {
   router.get('/caller-ids', h(async (req, res) => {
     const items = (await col.find({ chatId: req.webChatId }).toArray()).sort(byOrder)
     const used = await usage30(req.webChatId)
-    res.json({ enabled: ON, price: PRICE, dryRun: dry(), items: items.filter(d => d.status === 'verified' || d.status === 'review' || Date.now() - d.createdAt < PENDING_MS).map(d => ({ ...view(d), uses30: used[d._id]?.n || 0, lastUsedAt: used[d._id]?.last || null })) })
+    res.json({ enabled: ON, price: PRICE, dryRun: dry(), items: items.filter(d => !d.attested && d.method !== 'attested' && d.method !== 'review' && d.status !== 'review').filter(d => d.status === 'verified' || d.status === 'review' || Date.now() - d.createdAt < PENDING_MS).map(d => ({ ...view(d), uses30: used[d._id]?.n || 0, lastUsedAt: used[d._id]?.last || null })) })
   }))
 
   // Manual review was retired: only numbers verified with a Bird code call can be shown.

@@ -82,6 +82,11 @@ function createLegalProfile(db, { log = console.log } = {}) {
     if (isComplete(req.webUser)) return next()
     return bad(res, 428, 'profile_required', 'Add your personal or business details before buying a number. We register every number in your name.')
   }
+  // Outgoing calls, Quick IVR and Bulk IVR (sending or scheduling) also need the details.
+  function callGate(req, res, next) {
+    if (isComplete(req.webUser)) return next()
+    return bad(res, 428, 'profile_required', 'Add your personal or business details before making outgoing calls, Quick IVR or Bulk IVR calls.')
+  }
 
   // Kept for every number we sell (provider notes alone are not our record).
   async function recordResale({ chatId, phoneNumber, provider, country, lineId = null }) {
@@ -144,7 +149,7 @@ function createLegalProfile(db, { log = console.log } = {}) {
     }))
   }
 
-  return { routes, gate, recordResale, endUserOf }
+  return { routes, gate, callGate, recordResale, endUserOf }
 }
 
 module.exports = { createLegalProfile, validate, isComplete, endUser, resaleNote, infobipRequirements, fromPlace }

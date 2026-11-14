@@ -1,0 +1,60 @@
+{
+  "summary": "Iter280: tested Bird-style sidebar, Home product grid, landing products section/mega menu/copy, caller-ID Bird-only backend + UI, and the Bird-only outbound unit test. Sidebar, Home grid, landing product cards, mega menu and pricing CTA all work and prices are correct. Found 3 real bugs: (1) GET /caller-ids still returns attested and method=review docs as status=verified, so the UI lists them as verified and offers them in the 'Softphone (SIP) calls show' selector; (2) the landing FAQ only renders the first 14 items, so the rewritten 'How does texting work?' and 'What does each plan include?' answers never show (same for SIP FAQ / Help, which use faqItems differently); (3) the visible FAQ 'How much does fax cost?' still says $15 a month (confirmed price and backend default are $9). There is also stale copy that contradicts Bird-only caller IDs.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/cloudivr-web/caller-ids", "issue": "The list filter (caller-ids.js L133) keeps every status=verified doc, including method=attested/attested:true and method=review (admin-approved legacy) docs, and returns them as status 'verified'. Presets exclude them correctly, but CallerIdManager (CallerIds.js L129 items = status==='verified') shows them as verified caller IDs with a check icon, and the SIP default <select> offers them. Picking one then fails because resolve() rejects it. Fix: add method/attested to view(), and filter or flag those docs (for example status 'needs_verification' with a Verify button), or exclude them from the list.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "js/signalwire/index.js wrap.createOutboundCall", "issue": "Async rejections from getTrialCaller and ce.createOutboundCall are now contained ({error,status:503} plus birdAlert). SYNCHRONOUS throws are not: `require('../ivr-outbound').getTrialCaller(...)` and `ce.createOutboundCall(...)` are called before `.catch`, so a non-async throw escapes. The real functions are async, so the risk is low. Hardening: wrap both in try or use `Promise.resolve().then(() => ...)`. New unit cases 15a/15b document this (2 FAIL)."},
+      {"endpoint": "js/cloudivr-web/trycall.js", "issue": "The if(false) blocks are gone, but some code can no longer run: L113 rejects any showAs, which makes `showAs = null` and the showAs scam-watch alert at L126 unreachable. L140 also can never run because L139 already returns on any showAs, and L158 `_showAs(req.body.showAs)` is always undefined."},
+      {"endpoint": "caller-ids.js adminApi.list / admin.js decide", "issue": "Admin approve now returns null, which is correct, but the admin list still shows review docs and the approve buttons and copy in admin.js (`notify`/`sendMail` approve texts) are dead. Consider removing the approve action from the admin UI."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Landing FAQ (PricingFaq.js L127)", "issue": "faqItems(catalog).slice(0, 14) only renders the first 14 questions. 'How does texting work?' and 'What does each plan include?' are at index ~17-18 and never appear on /cloudivr, so the copy fixes requested for this round are invisible. Fix: move them into the first 14, remove the slice, or add a 'Show all' control.", "selector": "[data-testid=faq-list]", "priority": "HIGH"},
+      {"component": "Landing FAQ 'How much does fax cost?' (PricingFaq.js L96, faq-question-4)", "issue": "Says 'A fax number is $15 a month'. The confirmed price is $9/mo, which matches the hero card, the product card and js/fax-numbers.js PRICE default of 9.", "selector": "[data-testid=faq-answer-4]", "priority": "HIGH"},
+      {"component": "Caller IDs manager list + SIP default select", "issue": "Attested caller IDs show as verified and can be picked (UI side of the GET /caller-ids backend bug).", "selector": "[data-testid=caller-ids-list], [data-testid=caller-ids-sip-defaults] select", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing Try-call section (TryCall.js L12)", "issues": ["Bullet says 'Show your verified caller ID — no account, no card', but the backend rejects showAs on free test calls (trycall.js L113/L139). Remove or replace this bullet."]},
+      {"screen": "Numbers page 'Your own caller IDs' card intro", "issues": ["Copy still reads '... or, on Business, save up to 10 numbers you have the right to use and pick one with a tap'. This is stale and implies no-code caller IDs. Reword it to say Bird code verification only."]},
+      {"screen": "Landing FAQ 'Can the Texting Number make calls?'", "issues": ["Says the Texting Number is 'also a free verified caller ID'. Check this is still true under Bird-only (method 'auto' docs are allowed by presets, so it is probably fine). Flagged for consistency."]},
+      {"screen": "Home (1920)", "issues": ["The 'What do you want to do?' guided-task grid uses only about 1090px of the 1260px content width, leaving an empty right column. Minor.", "The Home 'USA eSIM' tile price shows a vague 'Monthly', while the landing card shows $75/mo. Pass esimPrice to the Home grid too.", "The sidebar groups 'Fax & eSIM' together, but Home and landing put eSIM under 'Phones, data & tools'. Slight naming inconsistency, minor."]},
+      {"screen": "Travel eSIM page", "issues": ["No <h1> on /cloudivr/app/travel-esim, unlike every other page. Minor accessibility issue."]}
+    ]
+  },
+  "passed_checks": [
+    "Sidebar at 1920: groups in order home, numbers, calls, ai, messaging, more, tools, account (support last). Every item has a coloured civr-chip (slate, blue, amber, violet, green, teal). The sidebar background is white with link text rgb(51,65,85) and labels rgb(100,116,139). The active item is highlighted (#eef4ff). The sub-badges are IVR, IVR, SIP, Soon and Soon.",
+    "All 26 sidebar links navigate to the correct page with aria-current=page and no crash. Tools folds and unfolds. The active group stays open. Browser phone opens softphone-panel. section-tabs-numbers is present.",
+    "Home: stat-* row sits at the top, above home-products. All 5 groups and all 14 tiles have correct hrefs and prices. home-product-intl-texting-soon is present. dashboard-new-products is gone. Tiles navigate (fax, receptionist).",
+    "Landing #products: all 5 groups and 14 cards have correct prices (USA eSIM $75/mo from catalog). The plan CTA goes to #pricing. Other CTAs go to /cloudivr/signup when logged out. intl-texting shows Coming soon with no CTA.",
+    "Mega menu: nav-menu-group-calling, -mobile and -tools are present. fax, travel, lookup, mobile, tendlc and intl items link to the #product-* anchors.",
+    "Copy: no 'SMS inbox', no $0.05, hero chip reads 'Try a free call first', Landline to Texting is marked soon, the sms tab describes the USA Texting Number at $50/mo, the phone tab says 'From Starter up ... SIP'. pricing-choose-texting is not clipped at 1920.",
+    "Caller IDs backend: presets exclude attested, review and method=review-verified docs. POST /caller-ids/request returns 410 verification_required. POST /caller-ids/attest returns 400 with and without authorized. adminApi.approve returns null and the doc stays in review. resolve() rejects method=review and attested docs and accepts method=call.",
+    "Caller IDs UI: caller-ids-review-open and the method select are gone. caller-ids-method-note says Bird calls with a code.",
+    "Bot customCidEnter: typed numbers that are not presets get VERIFY_MSG pointing to app verification. The trial ctx explains that the CloudIVR number is shown.",
+    "Mobile 390: Home products and landing products have no horizontal overflow and the cards are readable."
+  ],
+  "test_report_links": ["/app/backend/tests/test_cloudivr_cid_bird_only_iter280.py", "/app/backend/tests/test_cloudivr_unverified_cid_removed_iter279.py", "/app/backend/tests/bird_only_outbound_unit_test.js", "/app/test_reports/pytest/pytest_iter280.xml"],
+  "action_items": [
+    "Fix GET /api/cloudivr-web/caller-ids so attested and method=review docs are not returned as verified. They must not appear as verified in CallerIdManager or in the SIP default select.",
+    "Landing FAQ: make 'How does texting work?' and 'What does each plan include?' visible. They are cut off by .slice(0, 14).",
+    "Landing FAQ 'How much does fax cost?': change $15 a month to $9 a month.",
+    "Remove the 'Show your verified caller ID — no account, no card' bullet from TryCall.js POINTS.",
+    "Reword the 'Your own caller IDs' card intro to drop the 'on Business, save numbers you have the right to use' wording.",
+    "Optional: wrap getTrialCaller and ce.createOutboundCall calls in try to contain synchronous throws, then re-run bird_only_outbound_unit_test.js (now 22 cases: 20 pass, 2 sync-throw fail). Remove the unreachable showAs code in trycall.js."
+  ],
+  "critical_code_review_comments": [
+    "caller-ids.js view() does not expose attested, and the list filter does not exclude non-code methods. The single source of truth for 'usable' should be presets(), and the list should mark everything else as not usable.",
+    "PricingFaq faqItems is also used by Help.js (slice(2)) and sip/Plans.js. The stale $15 fax copy spreads to the Help center as well.",
+    "signalwire/index.js Bird-only path: `.then(...).catch(...)` only contains async errors. Use try/await for both calls."
+  ],
+  "updated_files": ["/app/backend/tests/bird_only_outbound_unit_test.js (added iter280 cases 13-15)", "/app/backend/tests/test_cloudivr_cid_bird_only_iter280.py (new)"],
+  "success_rate": {"backend": "94% (16/17 pytest; node unit 20/22 - 2 fails are sync-throw hardening cases)", "frontend": "88% (sidebar/home/landing products/menu pass; FAQ visibility, fax FAQ price, caller-ID list fail)"},
+  "seed_data_creation": "Temporary TEST caller-ID docs (+14155558801..04) for civr.uxtest and the customCallerId switch turned on during tests. Everything was deleted and the switch restored to enabled:false (verified).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run REACT_APP_BACKEND_URL=<url> pytest backend/tests/test_cloudivr_cid_bird_only_iter280.py -p no:xdist -o addopts=''. The fixture turns on the customCallerId switch and sleeps 32 s because loadSwitch polls every 30 s. The QA chatId is 5000000000000077. The landing FAQ renders only 14 items. Caller-ID UI is only visible when appSettings.customCallerId.enabled=true. node backend/tests/bird_only_outbound_unit_test.js now has 22 cases."
+}

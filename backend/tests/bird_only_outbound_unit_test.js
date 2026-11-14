@@ -89,10 +89,27 @@ const reset = () => { S.enabled = true; S.connected = true; S.spend = 100; S.act
   reset()
   require.cache[require.resolve(J('callengine/index.js'))].exports.createOutboundCall = async () => { throw new Error('socket closed') }
   try { r = await w.createOutboundCall('+15550001111', '+12125550000', 'http://x', 'c', {}); ok(S.alerts.length === 1, 'Bird dial throw → alert') } catch (e) { ok(S.alerts.length === 1, `Bird dial throw propagates (${e.message}); alerts=${S.alerts.length}`) }
+  // 13 (iter280) strict: getTrialCaller rejects → resolved {error,status:503}, alert key no-system-caller, no fallback provider used
+  reset()
+  require.cache[require.resolve(J('ivr-outbound.js'))].exports.getTrialCaller = async () => { throw new Error('db down') }
+  try { r = await w.createOutboundCall('+19998887777', '+12125550000', 'http://x', 'c', {}); ok(r && r.status === 503 && typeof r.error === 'string' && S.alerts[0]?.[0] === 'no-system-caller' && S.swCalls + S.ibCalls + S.txCalls === 0 && S.ceCalls.length === 0, `iter280 getTrialCaller throw → {error,status:503} (${JSON.stringify(r)})`) } catch (e) { ok(false, `iter280 getTrialCaller throw propagated: ${e.message}`) }
+  // 14 (iter280) strict: ce.createOutboundCall rejects → resolved {error:'socket closed',status:503}, dial alert, no fallback
+  reset()
+  require.cache[require.resolve(J('callengine/index.js'))].exports.createOutboundCall = async () => { throw new Error('socket closed') }
+  try { r = await w.createOutboundCall('+15550001111', '+12125550000', 'http://x', 'c', {}); ok(r && r.status === 503 && /socket closed/.test(r.error) && S.alerts.length === 1 && /^dial-/.test(S.alerts[0][0]) && S.swCalls + S.ibCalls + S.txCalls === 0, `iter280 Bird dial throw → {error,status:503} (${JSON.stringify(r)})`) } catch (e) { ok(false, `iter280 Bird dial throw propagated: ${e.message}`) }
+  // 15 (iter280) synchronous (non-async) throws from both deps are also contained
+  reset()
+  require.cache[require.resolve(J('ivr-outbound.js'))].exports.getTrialCaller = () => { throw new Error('sync boom') }
+  try { r = await w.createOutboundCall('+19998887777', '+12125550000', 'http://x', 'c', {}); ok(r && r.status === 503 && S.alerts.length === 1, `iter280 getTrialCaller SYNC throw contained (${JSON.stringify(r)})`) } catch (e) { ok(false, `iter280 getTrialCaller SYNC throw propagated: ${e.message}`) }
+  reset()
+  require.cache[require.resolve(J('callengine/index.js'))].exports.createOutboundCall = () => { throw new Error('sync dial boom') }
+  try { r = await w.createOutboundCall('+15550001111', '+12125550000', 'http://x', 'c', {}); ok(r && r.status === 503 && S.alerts.length === 1, `iter280 Bird dial SYNC throw contained (${JSON.stringify(r)})`) } catch (e) { ok(false, `iter280 Bird dial SYNC throw propagated: ${e.message}`) }
+
 
   // ---- bird-alert real module with stubbed mailer + telegram
   delete require.cache[require.resolve(J('bird-alert.js'))]
   const mails = []
+  process.env.CLOUDIVR_MAIL_SENDER = process.env.CLOUDIVR_MAIL_SENDER || 'alerts@cloudivr.net'
   stub(J('mailer.js'), { send: async (m) => { mails.push(m); return true } })
   const ba = require(J('bird-alert.js'))
   const tg = []
