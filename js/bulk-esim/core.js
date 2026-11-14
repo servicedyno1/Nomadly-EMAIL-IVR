@@ -15,7 +15,7 @@ const DEFAULTS = {
   minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.10, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 0, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testsPerDay: 4, testsPerWeek: 10, freeTestsPerDay: 0, numberCheck: true, lookupCost: 0.0025, lookupDays: 30,
   minEsims: 2, monitorEsims: 0, testerEsims: 1, testerRenumberDaily: true, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,
   minCredit: 0, healthEveryMin: 10, testEveryHours: 6, sessionHours: 72, emergencyStop: false,
-  esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: false, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, maxReplacesPerDay: 3, cancelDeadAfterDays: 3, checkEveryTexts: 50, warmStaleMin: 60, warmLeadMin: 15, apiFailsToReplace: 3, platformPerMinAuto: true,
+  esimDailyLimit: 400, warmupDays: 0, warmupStart: 50, leadDays: 1, reserveBooking: false, demandDays: 14, providerSmsCost: 0.01, creditWarnDays: 3, renewalWindowDays: 30, autoReplace: true, reorderProviderFails: false, maxReplacesPerDay: 3, cancelDeadAfterDays: 3, checkEveryTexts: 50, warmStaleMin: 60, warmLeadMin: 15, apiFailsToReplace: 3, platformPerMinAuto: true,
 }
 const today = () => new Date().toISOString().slice(0, 10)
 const daysAhead = (date) => Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(today())) / 86400000)
@@ -450,8 +450,9 @@ async function healthCheck() {
     if (health === 'never_activated') {
       await setEsim(e._id, 'failed', { ...set, note: 'Never activated — SIM has no device bound (subscription PENDING, no IMEI)' })
       incident('never_activated', { esimId: e._id, reason: 'no_device' })
-      alert(`💀 ${e._id} ${e.msisdn || ''}: never activated — Spenza assigned this SIM but never bound it to a device (no IMEI, subscription still PENDING). Retired immediately. Ask Spenza to void or refund ICCID ${e.iccid}.${c.autoProvision && !c.manualApproval ? ' Buying a replacement.' : ''}`)
-      if (c.autoProvision && !c.manualApproval) await orderOrQueue(`${e._id} never activated (no device)`, 'system', e.role || 'service', null, e._id)
+      const reorder = c.reorderProviderFails && c.autoProvision && !c.manualApproval
+      alert(`💀 ${e._id} ${e.msisdn || ''}: never activated — Spenza assigned this SIM but never bound it to a device (no IMEI, subscription still PENDING). Retired immediately. Ask Spenza to void or refund ICCID ${e.iccid}.${reorder ? ' Buying a replacement.' : ' No replacement bought — /bulkprovision to buy one when you want.'}`)
+      if (reorder) await orderOrQueue(`${e._id} never activated (no device)`, 'system', e.role || 'service', null, e._id)
       continue
     }
     // Spenza took the order but never activated the plan (subscription PENDING, SIM INACTIVE): wait, tell the admin at 2 h,
@@ -462,9 +463,10 @@ async function healthCheck() {
       if (age > DAY && e.status === 'testing') {
         await P.cancelSubscription(e.iccid, e.account).catch(() => null)
         await setEsim(e._id, 'failed', { note: 'Spenza never activated the plan in 24 h' }); incident('never_activated', { esimId: e._id })
-        alert(`❌ ${e._id} ${e.msisdn || ''}: Spenza never activated its plan in 24 h (subscription still PENDING) — retired and its pending plan cancelled.${c.autoProvision && !c.manualApproval ? ' Buying a replacement.' : ''} Ask Spenza to refund it if it was billed.`)
-        if (c.autoProvision && !c.manualApproval) await orderOrQueue(`${e._id} never activated`, 'system', e.role || 'service', null, e._id)
-      } else if (age > 2 * HOUR && await once(`activating:${e._id}`)) alert(`⏳ ${e._id} ${e.msisdn || ''}: Spenza has not activated its plan after ${Math.round(age / HOUR)} h (subscription PENDING, SIM INACTIVE). Check the Spenza balance or ask Spenza. It is retired and replaced automatically at 24 h.`)
+        const reorder = c.reorderProviderFails && c.autoProvision && !c.manualApproval
+        alert(`❌ ${e._id} ${e.msisdn || ''}: Spenza never activated its plan in 24 h (subscription still PENDING) — retired and its pending plan cancelled.${reorder ? ' Buying a replacement.' : ' No replacement bought — /bulkprovision to buy one when you want.'} Ask Spenza to refund it if it was billed.`)
+        if (reorder) await orderOrQueue(`${e._id} never activated`, 'system', e.role || 'service', null, e._id)
+      } else if (age > 2 * HOUR && await once(`activating:${e._id}`)) alert(`⏳ ${e._id} ${e.msisdn || ''}: Spenza has not activated its plan after ${Math.round(age / HOUR)} h (subscription PENDING, SIM INACTIVE). Check the Spenza balance or ask Spenza.${c.reorderProviderFails ? ' It is retired and replaced automatically at 24 h.' : ' It is retired at 24 h; no replacement is bought automatically.'}`)
       continue
     }
     if (health === 'expired') { await setEsim(e._id, 'expired', { ...set, note: 'plan ended' }); alert(`⌛ ${e._id} ${e.msisdn || ''}: plan ended (not renewed by Spenza — check the account credit). It left the pool.`); incident('esim_expired', { esimId: e._id }); continue }
@@ -483,8 +485,8 @@ async function healthCheck() {
 async function stuckLines(c) {
   for (const e of await C('bsEsims').find({ status: { $in: ['provisioning', 'purchasing'] }, updatedAt: { $lt: new Date(Date.now() - 2 * HOUR) } }).toArray()) {
     const age = Date.now() - new Date(e.updatedAt || e.createdAt).getTime()
-    if (age > DAY) { await setEsim(e._id, 'failed', { note: 'no number after 24 h' }); alert(`❌ ${e._id} (${e.role}) never received a number in 24 h — retired.${c.autoProvision && !c.manualApproval ? ' Buying a replacement.' : ''}`); incident('stuck_line', { esimId: e._id, role: e.role }); if (c.autoProvision && !c.manualApproval) await provisionOne(`${e._id} never got a number`, 'system', e.role || 'service') }
-    else if (await once(`stuck:${e._id}`)) alert(`⏳ ${e._id} (${e.role}) has been waiting ${Math.round(age / HOUR)} h for its number from Spenza. It is retired and replaced automatically at 24 h.`)
+    if (age > DAY) { const reorder = c.reorderProviderFails && c.autoProvision && !c.manualApproval; await setEsim(e._id, 'failed', { note: 'no number after 24 h' }); alert(`❌ ${e._id} (${e.role}) never received a number in 24 h — retired.${reorder ? ' Buying a replacement.' : ' No replacement bought — /bulkprovision to buy one when you want.'}`); incident('stuck_line', { esimId: e._id, role: e.role }); if (reorder) await provisionOne(`${e._id} never got a number`, 'system', e.role || 'service') }
+    else if (await once(`stuck:${e._id}`)) alert(`⏳ ${e._id} (${e.role}) has been waiting ${Math.round(age / HOUR)} h for its number from Spenza.${c.reorderProviderFails ? ' It is retired and replaced automatically at 24 h.' : ' It is retired at 24 h; no replacement is bought automatically.'}`)
   }
 }
 // ---------- line checks (monitor eSIM) ----------
