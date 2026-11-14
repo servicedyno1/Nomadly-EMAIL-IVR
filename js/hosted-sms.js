@@ -10,11 +10,13 @@ const { walletOps, round2 } = require('./cloudivr-web/wallet')
 const PRICE = { code: 300, nocode: 500 } // legacy standalone setups (before plan pricing); MONTHLY still bills them
 const MONTHLY = 50
 // Plan pricing: one-time setup per number, attached to one of the customer's plan numbers and renewed with that plan.
-const PLAN_PRICE = { starter: 150, pro: 120, business: 100 }
-const PLAN_LIMIT = { starter: 5, pro: 10, business: null }
+const PLAN_PRICE = { starter: 150, standard: 150, pro: 120, business: 100 }
+const PLAN_LIMIT = { starter: 5, standard: 5, pro: 10, business: null }
 // Texting plan: standalone, one business number per plan, incoming texts only and free.
 // $200 once (covers the first month), then $50/month.
-const TEXTING = { setup: 200, monthly: 50 }
+const TEXTING = { setup: 99, monthly: 29 }
+// New setups are paused until a hosted-texting provider endpoint exists again; existing setups keep working.
+const AVAILABLE = (process.env.HOSTED_SMS_AVAILABLE || 'false') === 'true'
 const monthlyOf = (d) => (d.planNumber ? 0 : d.plan === 'texting' ? TEXTING.monthly : MONTHLY)
 const LIVE = ['starting', 'verify', 'loa', 'documents', 'admin_docs', 'review', 'active', 'paused']
 const REVIEW_DAYS = '1–3 business days' // Telnyx reviews Mon–Fri, 9am–5pm US Central
@@ -112,6 +114,7 @@ async function check(phone) {
 // Pays the setup and opens the Telnyx order.
 // planNumber 'new' = start a Texting plan with this number; otherwise the plan number it joins.
 async function start(chatId, phone, planNumber) {
+  if (!AVAILABLE) return { error: 'Texting on your own landline or office number isn’t available yet.' }
   if (!require('./cloudivr-web/notify.js').isWebChatId(chatId)) return { error: 'Business texting is available on cloudivr.net.' }
   // Standalone only: every number is its own Texting plan.
   const parent = { phoneNumber: null, plan: 'texting', limit: null, price: TEXTING.setup }
@@ -492,4 +495,5 @@ async function recent(chatId, limit = 10) {
 }
 
 const api = { init, check, start, recent, renew, sendCode, submitCode, skipCode, signLoa, saveDraft, submitDocs, requestHelp, cancel, adminSubmitDocs, adminMessage, adminReject, addBusinessDays, REVIEW_DAYS, list, mine, pub, onInbound, sendText, messages, tick, buildLoa, normPhone, PRICE, MONTHLY, TEXT_PRICE, MAX_TEXT, PLAN_PRICE, PLAN_LIMIT, TEXTING, plansFor }
+api.AVAILABLE = AVAILABLE
 module.exports = api

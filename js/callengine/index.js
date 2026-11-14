@@ -243,14 +243,14 @@ const stopRecording = async (id) => { const l = legs.get(id); return l?.recName 
 // when a call ends its snoop copy ends too, which finishes the recording
 
 // Destination → Asterisk endpoint: softphones via Kamailio (it rings the registered phone), numbers via DIDWW
-function endpointFor(to) {
+function endpointFor(to, trunk) {
   if (/^sip:/i.test(String(to))) return { endpoint: `PJSIP/kamailio/sip:${String(to).replace(/^sip:/i, '').split('@')[0]}@188.166.34.29:5060`, variables: { 'PJSIP_HEADER(add,X-Nomadly-Key)': process.env.SIP_SERVER_SECRET || '', 'PJSIP_HEADER(add,X-Nomadly-User)': String(to).replace(/^sip:/i, '').split('@')[0] } }
-  return { endpoint: `PJSIP/${String(to).replace(/[^\d]/g, '')}@${process.env.CALL_ENGINE_TRUNK || (process.env.BIRD_API_KEY ? 'bird' : 'didww')}`, variables: {} }
+  return { endpoint: `PJSIP/${String(to).replace(/[^\d]/g, '')}@${trunk || process.env.CALL_ENGINE_TRUNK || (process.env.BIRD_API_KEY ? 'bird' : 'didww')}`, variables: {} }
 }
-async function originate(meta, from, to, timeout = 30) {
-  const { endpoint, variables } = endpointFor(to)
+async function originate(meta, from, to, timeout = 30, trunk = null) {
+  const { endpoint, variables } = endpointFor(to, trunk)
   const chId = crypto.randomUUID()
-  const l = track({ id: `ae:${chId}`, from, to, direction: 'outgoing', bird: /@bird$/.test(endpoint), ...meta })
+  const l = track({ id: `ae:${chId}`, from, to, direction: 'outgoing', bird: /@bird$/.test(endpoint), trunk: endpoint.split('@').pop(), ...meta })
   try {
     await M.ari().post(`/channels/${chId}`, { variables }, { params: { endpoint, app: app(), appArgs: 'out', callerId: String(from || '').replace(/^\+/, ''), timeout } })
     return l
@@ -260,11 +260,13 @@ async function transferCall(id, toNumber, fromNumber, options = {}) {
   const a = live(id); if (!a) return null
   if (!a.answered) await answerCall(id)
   try {
-    const b = await originate({ connection: a.connection, clientState: b64(options.targetLegClientState), session: a.session, transferOf: a.id }, fromNumber || (a.direction === 'incoming' ? a.to : a.from), toNumber, options.timeoutSecs || 30)
-    a.peer = b.id
     if (!options.audioUrl) call('post', `/channels/${raw(a.id)}/ring`)
     else play(a, conv(options.audioUrl), 'ringback')
+    const b = await dialWithBackup({ connection: a.connection, clientState: b64(options.targetLegClientState), session: a.session, transferOf: a.id }, fromNumber || (a.direction === 'incoming' ? a.to : a.from), toNumber, options.timeoutSecs || 30)
+    a.peer = b.id
+    const held = b.held || []; b.held = null
     emit('call.initiated', b)
+    for (const [type, extra] of held) emit(type, b, extra)
     return { result: 'ok' }
   } catch (e) { log(`transfer ${id} → ${toNumber}: ${e.message}`); return null }
 }
@@ -276,19 +278,34 @@ async function bridgeCalls(aId, bId) {
 }
 // Hang-up causes that are the destination's real answer (busy, bad number) — not the carrier refusing us.
 const DEST_RESULT = new Set([1, 17, 28])
+// If Bird refuses a call before it rings, the same call goes out once through the backup trunk (MultiTEL termination).
+const BACKUP_TRUNK = () => process.env.CALL_ENGINE_BACKUP_TRUNK || null
+const refusedEarly = (l) => l.ended && !l.answered && !DEST_RESULT.has(Number(l.cause))
+async function early(l, ms) {
+  const until = Date.now() + Number(ms ?? process.env.CALL_ENGINE_EARLY_MS ?? 6000)
+  while (!l.ended && !l.ringing && !l.answered && Date.now() < until) await new Promise(r => setTimeout(r, 100))
+}
+async function dialWithBackup(meta, from, to, timeout, earlyMs) {
+  let l = await originate({ ...meta, held: [] }, from, to, timeout)
+  await early(l, earlyMs)
+  if (refusedEarly(l) && l.bird && BACKUP_TRUNK() && !/^sip:/i.test(String(to))) {
+    log(`Bird refused ${from} → ${to} (cause ${l.cause ?? '?'}) — retrying via ${BACKUP_TRUNK()}`)
+    const b = await originate({ ...meta, held: [], backupOf: l.id }, from, to, timeout, BACKUP_TRUNK()).catch(e => { log(`backup trunk: ${e.message}`); return null })
+    if (b) { legs.delete(l.id); l = b; await early(l, earlyMs) }
+  }
+  return l
+}
 const activeBird = () => [...legs.values()].filter(l => l.bird && !l.ended).length
 // Holds the call's events for a few seconds: if the trunk refuses it before it rings, the caller can retry elsewhere.
 async function createOutboundCall(from, to, webhookUrl, connectionId, options = {}) {
   if (!connected) return { error: 'call engine offline', status: 503, _provider: 'callengine' }
   let l
   try {
-    l = await originate({ connection: connectionId || process.env.TELNYX_CALL_CONTROL_APP_ID || 'callengine-app', clientState: options.client_state, amd: !!options.answering_machine_detection, held: [] }, from, to, options.timeout_secs || 30)
+    l = await dialWithBackup({ connection: connectionId || process.env.TELNYX_CALL_CONTROL_APP_ID || 'callengine-app', clientState: options.client_state, amd: !!options.answering_machine_detection }, from, to, options.timeout_secs || 30, options.earlyMs)
   } catch (e) { return { error: e.message, status: /allocate|not found|no such/i.test(e.message) ? 422 : 503, _provider: 'callengine' } }
-  const until = Date.now() + Number(options.earlyMs ?? process.env.CALL_ENGINE_EARLY_MS ?? 6000)
-  while (!l.ended && !l.ringing && !l.answered && Date.now() < until) await new Promise(r => setTimeout(r, 100))
   const held = l.held; l.held = null
   if (l.ended && !l.answered && !DEST_RESULT.has(Number(l.cause))) {
-    log(`${l.bird ? 'Bird' : 'trunk'} refused ${from} → ${to} before ringing (cause ${l.cause ?? '?'})`)
+    log(`${l.bird ? 'Bird' : l.trunk || 'trunk'} refused ${from} → ${to} before ringing (cause ${l.cause ?? '?'})`)
     return { error: `trunk refused the call (cause ${l.cause ?? 'unknown'})`, status: 503, refused: true, _provider: 'callengine' }
   }
   emit('call.initiated', l)

@@ -193,12 +193,17 @@ function createAuth(db, { log = console.log, notifyAdmin = () => {} } = {}) {
       const bad = await emailProblem(email)
       if (bad) return res.status(400).json({ error: 'invalid_email', message: bad })
       if (password.length < 8 || password.length > 128) return res.status(400).json({ error: 'weak_password', message: 'Password must be 8–128 characters.' })
+      if (req.body.acceptPolicy !== true) return res.status(400).json({ error: 'policy_needed', message: 'Tick the box to accept the CloudIVR usage policy.' })
       const ipKey = `reg|${clientIp(req)}`
       if (await lockState(ipKey)) return res.status(429).json({ error: 'too_many_attempts', message: 'Too many sign-ups from this network. Try again later.' })
       if (await accounts.findOne({ email })) return res.status(409).json({ error: 'email_taken', message: 'An account with this email already exists. Sign in instead.' })
       await recordFailure(ipKey, 15) // counts sign-ups per IP (15 per 15 min)
       const ip = clientIp(req)
       const acc = await createAccount({ email, name: req.body.name, passwordHash: await bcrypt.hash(password, 12), referredBy: await referrerFor(req.body.ref, ip), ip, country: countryOf(req) })
+      // Marketing: first-touch source, signup device, and an explicit (unticked by default) email opt-in.
+      await accounts.updateOne({ _id: acc._id }, { $set: { source: require('./journey').sourceOf(req.body.source), signupDevice: String(req.headers['user-agent'] || '').slice(0, 200), marketingOptIn: req.body.marketingOptIn === true, ...(req.body.marketingOptIn === true ? { marketingOptInAt: new Date() } : {}) } })
+      if (req.body.marketingOptIn === true) await db.collection('webPrefs').updateOne({ _id: String(acc._id) }, { $set: { 'emailPrefs.marketing': true, updatedAt: new Date() } }, { upsert: true })
+      await require('./compliance').recordAcceptance(db, acc._id, req, 'signup')
       setSession(req, res, acc, req.body.remember ? 30 : SESSION_DAYS)
       res.status(201).json({ account: publicAccount(acc) })
     }))

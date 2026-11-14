@@ -26,7 +26,7 @@ function create({ db, numbersApi, smsReply }) {
     const out = []
     for (const n of await numbersApi.myNumbers(chatId)) {
       const on = n.status === 'active', sms = n.capabilities?.sms !== false, cur = on && !n.replacedBy
-      out.push({ phone: n.phoneNumber, kind: 'calling', status: n.status, since: n.purchaseDate || null, caps: { send: cur && sms, receive: sms, pictures: cur && sms && canMms(n), calls: cur }, old: n.replacedBy ? { newNumber: n.replacedBy, until: n.releaseAt } : null })
+      out.push({ phone: n.phoneNumber, provider: n.provider || null, kind: 'calling', status: n.status, since: n.purchaseDate || null, caps: { send: cur && sms, receive: sms, pictures: cur && sms && canMms(n), calls: cur }, old: n.replacedBy ? { newNumber: n.replacedBy, until: n.releaseAt } : null })
     }
     for (const d of await db.collection('esimLines').find({ chatId: String(chatId), status: { $in: ['active', 'suspended', 'cancelled'] } }).toArray()) {
       if (d.phoneNumber && d.status !== 'cancelled') out.push({ phone: d.phoneNumber, kind: 'esim', mobile: d.kind === 'mobile', status: d.status, since: d.createdAt, lineId: d._id, caps: { send: d.kind === 'mobile' && d.status === 'active', receive: d.kind === 'mobile', pictures: false, calls: d.kind === 'mobile' && d.status === 'active' }, old: null })
@@ -98,9 +98,10 @@ function create({ db, numbersApi, smsReply }) {
     const isBlocked = !!(await blocked.findOne({ _id: `${chatId}|${contact}` }))
     // Replies go out from this number; if it can't text (old or receive-only), say which one would.
     const replyFrom = biz.caps.send ? biz.phone : (biz.old && nums.find(n => n.phone === biz.old.newNumber && n.caps.send)?.phone) || null
-    return { number: biz, contact, name, blocked: isBlocked, replyFrom, canText: !!replyFrom && !isBlocked && E164.test(contact), events: rows.reverse().map(event), cost: costOf(biz), maxLength: 459 }
+    const optedOut = await require('../sms-optout').isOptedOut(chatId, contact)
+    return { number: biz, contact, name, blocked: isBlocked, optedOut, replyFrom, canText: !optedOut && !!replyFrom && !isBlocked && E164.test(contact), events: rows.reverse().map(event), cost: costOf(biz), maxLength: 459 }
   }
-  const costOf = (n) => (n.kind === 'esim' ? { each: ES.TEXT_PRICE, note: 'wallet' } : { each: phoneConfig.OVERAGE_RATE_SMS, note: 'plan' })
+  const costOf = (n) => (n.kind === 'esim' ? (n.mobile ? { each: ES.MOBILE_TEXT_PRICE, note: 'unlimited' } : { each: ES.TEXT_PRICE, note: 'wallet' }) : { each: require('../texting-countries').localTextPrice(n) ?? phoneConfig.OVERAGE_RATE_SMS, note: 'plan' })
 
   async function markRead(chatId, number, contact) {
     if (!(await numbers(chatId)).some(n => n.phone === number)) return
@@ -108,6 +109,7 @@ function create({ db, numbersApi, smsReply }) {
   }
 
   async function send(chatId, { number, contact, text, media = [] }) {
+    if (await require('../sms-optout').isOptedOut(chatId, contact)) return { error: [403, 'opted_out', 'This person replied STOP, so you can’t text them. They can reply START to receive texts again.'] }
     const t = await thread(chatId, number, contact)
     if (!t) return { error: [404, 'not_found', 'Conversation not found.'] }
     if (t.blocked) return { error: [400, 'blocked', 'You blocked this contact. Unblock them to text.'] }

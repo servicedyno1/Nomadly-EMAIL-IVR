@@ -109,6 +109,10 @@ function createSmsReply({ db, voiceService, log = console.log }) {
   const w = walletOps(db)
 
   async function deliver(from, to, text, mediaUrls = []) {
+    // Infobip / MultiTEL numbers text through their own provider.
+    const ib = require('../infobip'), mt = require('../multitel')
+    if (!mediaUrls.length && ib.enabled() && (await ib.refreshOwned()).includes(from)) { const r = await ib.sendSms(from, to, text); return r.error ? { error: 'The text couldn’t be sent right now. Try again in a minute.' } : { id: r.id } }
+    if (!mediaUrls.length && mt.enabled() && (await mt.refreshOwned()).includes(from)) { const r = await mt.sendSms(from, to, text); if (r.error) log(`[SmsReply] MultiTEL ${from} → ${to} failed: ${r.error}`); return r.error ? { error: /not been approved/i.test(r.error) ? 'Texting from this number isn’t switched on yet. We’re on it.' : 'The text couldn’t be sent right now. Try again in a minute.' } : { id: r.id } }
     const sw = await require('../signalwire').sendSms(from, to, text, mediaUrls).catch(() => null)
     if (sw && !sw.error) return { id: sw.id }
     if (sw?.error) log(`[SmsReply] SignalWire ${from} → ${to} failed: ${sw.error} — trying Telnyx`)
@@ -133,21 +137,34 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     if (!E164.test(String(to || ''))) return { error: [400, 'invalid_number', 'This caller’s number can’t receive texts.'] }
     if (num.capabilities?.sms === false) return { error: [400, 'no_sms', 'This number can’t send texts.'] }
     if (num.status !== 'active') return { error: [409, 'not_active', 'This number is suspended. Renew it to send texts again.'] }
+    if (require('./ten-dlc').needs10dlc(num) && !simulated) {
+      const reg = await db.collection('tenDlc').findOne({ _id: String(chatId) }, { projection: { status: 1, numbers: 1 } })
+      if (reg?.status === 'active' && !(reg.numbers || []).some(x => x.phoneNumber === num.phoneNumber)) { log(`[10DLC] ${chatId} needs ${num.phoneNumber} added to its campaign`); return { error: [403, 'tendlc_adding', 'This number is being added to your US texting registration. You can text from it once the carrier confirms (usually within 1 business day).'] } }
+      if (reg?.status !== 'active') return { error: [403, 'tendlc_needed', 'US numbers need a 10DLC texting registration before they can send texts. Fill it in under Settings → Compliance → US texting registration.'] }
+    }
+    if (await require('../sms-optout').isOptedOut(chatId, to)) return { error: [403, 'opted_out', 'This person replied STOP, so you can’t text them. They can reply START to receive texts again.'] }
     const preview = simulated || dryRun() || !!num.dryRun
     const senderName = (await db.collection('webPrefs').findOne({ _id: chatId }, { projection: { senderName: 1 } }))?.senderName || null
-    const rule = await smsRules.check(num.phoneNumber, to, senderName)
+    const intl = require('../texting-countries').rateFor(num, to)
+    const rule = intl || await smsRules.check(num.phoneNumber, to, senderName)
     if (!rule.ok) return { error: [400, 'sms_blocked', rule.why] }
     // US/Canada: plan texts, then the extra-text rate. Other countries: that country's price from the wallet.
-    const home = rule.iso === 'US' || rule.iso === 'CA'
+    const home = !intl && (rule.iso === 'US' || rule.iso === 'CA')
     const ownerNumbers = (await db.collection('phoneNumbersOf').findOne({ _id: chatId }))?.val?.numbers || [num]
     const parts = require('./sms-limit').smsParts(body)
     // Each part uses one plan text; parts beyond what's left in the plan cost the extra-text rate.
     const pool = home ? require('../plan-lifecycle').poolUsage(ownerNumbers, num) : null
     const extra = home ? Math.max(0, parts - Math.max(0, (pool.smsLimit || 0) - (pool.smsUsed || 0))) : parts
     const overage = Math.round((home ? phoneConfig.OVERAGE_RATE_SMS : rule.price) * extra * 100) / 100
-    if (overage && !(await w.debit(chatId, overage))) return { error: [402, 'insufficient_balance', home ? `Your plan texts are used up; each extra text costs $${overage.toFixed(2)}. Top up first.` : `A text to ${rule.country} costs $${overage.toFixed(2)}. Top up first.`] }
-    const out = preview ? { id: `preview-${crypto.randomUUID()}` } : await deliver(rule.from || num.phoneNumber, to, body, media.map(m => require('./media').publicUrl(m.id)))
-    if (out.error) { if (overage) await w.credit(chatId, overage); return { error: [424, 'sms_failed', out.error] } }
+    if (overage && !(await w.debit(chatId, overage))) return { error: [402, 'insufficient_balance', home ? `This text costs $${overage.toFixed(2)} ($${phoneConfig.OVERAGE_RATE_SMS} per part). Top up your wallet first.` : `A text to ${rule.country} costs $${overage.toFixed(2)}. Top up first.`] }
+    let out = { id: `preview-${crypto.randomUUID()}` }, tries = 0
+    // Up to 3 tries; a failed text is never charged and is logged for follow-up.
+    if (!preview) for (let i = 0; i < 3; i++) { out = await deliver(rule.from || num.phoneNumber, to, body, media.map(m => require('./media').publicUrl(m.id))); if (!out.error) break; tries = i + 1; if (!/try again/i.test(out.error)) break; if (i < 2) await new Promise(r => setTimeout(r, 1500 * (i + 1))) }
+    if (out.error) {
+      if (overage) await w.credit(chatId, overage)
+      await phoneLogs.insertOne({ chatId: String(chatId), phoneNumber: num.phoneNumber, from: rule.from || num.phoneNumber, to, country: rule.iso, type: 'sms_out', direction: 'outbound', body, status: 'failed', error: out.error, attempts: tries, provider: num.provider || null, webReply: true, timestamp: new Date().toISOString() })
+      return { error: [424, 'sms_failed', `${out.error}${tries > 1 ? ` We tried ${tries} times.` : ''} You weren’t charged.`] }
+    }
     if (home) for (let i = 0; i < parts; i++) await voiceService.incrementSmsUsed(chatId, num.phoneNumber)
     if (overage) await phoneTransactions.insertOne({ chatId, phoneNumber: num.phoneNumber, action: 'sms_reply', amount: overage, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
     const doc = { chatId: String(chatId), phoneNumber: num.phoneNumber, from: rule.from || num.phoneNumber, to, country: rule.iso, type: 'sms_out', direction: 'outbound', body, messageId: out.id, status: preview ? 'preview' : 'sent', webReply: true, ...(media.length ? { media } : {}), ...(overage ? { charge: overage } : {}), ...(replyTo ? { replyTo } : {}), ...(inboxId ? { inboxId: String(inboxId) } : {}), timestamp: new Date().toISOString() }

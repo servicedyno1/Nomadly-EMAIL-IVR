@@ -85,6 +85,44 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
       })
     }))
 
+    // Signup insights: where sign-ups come from, what they need, where visitors and new users stop.
+    r.get('/admin/signup-insights', A, h(async (req, res) => {
+      const days = [7, 30, 90].includes(Number(req.query.days)) ? Number(req.query.days) : 30
+      const since = new Date(Date.now() - days * DAY)
+      const accs = await db.collection('webAccounts').find({ createdAt: { $gt: since } }, { projection: { _id: 1, source: 1, marketingOptIn: 1, signupDevice: 1 } }).toArray()
+      const ids = accs.map(a => String(a._id))
+      const [prefs, tops, events] = await Promise.all([
+        db.collection('webPrefs').find({ _id: { $in: ids } }, { projection: { purposes: 1, onboardedAt: 1 } }).toArray(),
+        db.collection('transactions').find({ type: 'wallet-topup', chatId: { $in: ids } }, { projection: { chatId: 1 } }).toArray(),
+        db.collection('webEvents').find({ at: { $gt: since } }, { projection: { name: 1, anon: 1, chatId: 1, path: 1, at: 1 } }).sort({ at: -1 }).limit(200000).toArray().then(l => l.reverse()),
+      ])
+      const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, '') } catch (_) { return null } }
+      const count = (list) => { const o = {}; for (const k of list) o[k] = (o[k] || 0) + 1; return Object.entries(o).map(([key, n]) => ({ key, n })).sort((a, b) => b.n - a.n) }
+      const src = (s) => s?.utm_source || (s?.gclid && 'google ads') || (s?.fbclid && 'facebook ads') || host(s?.referrer) || (s?.ref && 'referral') || 'Direct / unknown'
+      const paid = new Set(tops.map(t => String(t.chatId)))
+      const bySource = Object.values(accs.reduce((o, a) => { const k = src(a.source); const x = (o[k] = o[k] || { key: k, n: 0, paid: 0 }); x.n += 1; if (paid.has(String(a._id))) x.paid += 1; return o }, {})).sort((a, b) => b.n - a.n)
+      const answered = prefs.filter(p => p.onboardedAt)
+      const anonOf = {}, lastAnon = {}, lastUser = {}, seen = { visit: new Set(), started: new Set(), done: new Set() }
+      for (const e of events) {
+        if (e.anon && e.chatId) anonOf[e.anon] = e.chatId
+        if (/\/admin(\/|$)/.test(e.path || '')) continue
+        if (e.anon && e.name === 'page_view') { seen.visit.add(e.anon); if (!e.chatId) lastAnon[e.anon] = e.path }
+        if (e.anon && e.name === 'signup_started') seen.started.add(e.anon)
+        if (e.anon && e.name === 'signup_done') seen.done.add(e.anon)
+        if (e.chatId && e.name === 'page_view') lastUser[e.chatId] = e.path
+      }
+      const visitorExits = count(Object.entries(lastAnon).filter(([a]) => !anonOf[a] && !seen.done.has(a)).map(([, p]) => p || '/')).slice(0, 10)
+      const userExits = count(ids.filter(id => !paid.has(id) && lastUser[id]).map(id => lastUser[id])).slice(0, 10)
+      res.json({
+        days, signups: accs.length, optIn: accs.filter(a => a.marketingOptIn).length, paid: ids.filter(id => paid.has(id)).length,
+        bySource, byCampaign: count(accs.filter(a => a.source?.utm_campaign).map(a => a.source.utm_campaign)).slice(0, 10),
+        byDevice: count(accs.map(a => (/mobile|iphone|android/i.test(a.signupDevice || '') ? 'Phone' : a.signupDevice ? 'Computer' : 'Unknown'))),
+        purposes: count(answered.flatMap(p => p.purposes || [])), skipped: answered.filter(p => !(p.purposes || []).length).length, unanswered: accs.length - answered.length,
+        funnel: [['Visited the site', seen.visit.size], ['Opened sign-up', seen.started.size], ['Signed up (tracked visits)', seen.done.size], ['Said what they need', answered.filter(p => (p.purposes || []).length).length], ['Added money', ids.filter(id => paid.has(id)).length]],
+        visitorExits, userExits,
+      })
+    }))
+
     // Users: web accounts + bot users (nameOf). q = chat id, email or name.
     r.get('/admin/users', A, h(async (req, res) => {
       const q = String(req.query.q || '').trim(), kind = ['web', 'bot'].includes(req.query.kind) ? req.query.kind : 'all', withPlan = req.query.plan === '1'

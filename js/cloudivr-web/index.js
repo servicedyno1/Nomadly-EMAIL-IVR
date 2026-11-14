@@ -78,12 +78,33 @@ function createCloudIvrWeb(deps) {
     adminAuth.routes(r, h)
     require('./admin').createAdmin(db, { log, bulkCallService: deps.bulkCallService, adminAuth }).routes(r, h)
     inboundEmail.routes(r, h, adminAuth.require)
+    require('../sms-optout').init(db)
+    require('../number-addons').init(db)
+    const compliance = require('./compliance').createCompliance({ db, h, adminRequire: adminAuth.require, notifyAdmin: deps.notifyAdmin, notify: require('./notify'), log })
+    compliance.adminRoutes(r)
+    const tenDlc = require('./ten-dlc').createTenDlc({ db, h, adminRequire: adminAuth.require, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, walletOps: require('./wallet').walletOps, log })
+    tenDlc.adminRoutes(r)
+    // Country add-ons: our monthly cost per country/type (cheapest provider) next to the add-on the admin charges.
+    r.get('/admin/number-addons', adminAuth.require, h(async (req, res) => {
+      const cat = require('../number-catalog'), add = require('../number-addons')
+      const items = Object.entries(cat.sold()).flatMap(([cc, types]) => types.map(t => { const b = cat.best(cc, t); return b && b.cost < 99 ? { country: cc, name: cat.nameOf(cc), type: t, provider: b.provider, cost: b.cost, level: b.level, addon: add.get(cc, t) } : null }).filter(Boolean))
+      res.json({ items: items.sort((a, b) => b.cost - a.cost) })
+    }))
+    r.put('/admin/number-addons', adminAuth.require, h(async (req, res) => {
+      const { country, type, amount } = req.body || {}
+      if (!/^[A-Z]{2}$/i.test(country || '') || !['local', 'mobile', 'national', 'toll_free'].includes(type)) return res.status(400).json({ error: 'invalid', message: 'Pick a country and number type.' })
+      res.json({ addon: await require('../number-addons').set(country, type, amount) })
+    }))
+    require('../active-slot').singletonInterval('cloudivr-10dlc', () => tenDlc.tick().catch(e => log(`[10DLC] tick: ${e.message}`)), 60 * 60000)
+    module.exports.stripeWebhook = compliance.webhook
     require('./esim').publicRoutes(r, { db, h, log, A: adminAuth.require })
     require('./media').publicRoutes(r, { db, h })
     require('./fax').publicRoutes(r, { db, h })
+    require('../ivr-outbound').setPickLogDb(db)
     let offersRef = null
     const mollie = require('./mollie').createMollie(db, { log, notifyAdmin: deps.notifyAdmin, getOffers: () => offersRef, push: (id, text) => notify.push(id, text, null, { kind: 'payment' }) })
     mollie.publicRoutes(r, { h })
+    require('./journey').createJourney({ db, h, accountOf: (req) => new Promise(ok => auth.requireUser(req, { status: () => ({ json: () => ok(null) }) }, () => ok(req.webChatId))) }).routes(r)
     r.use(auth.requireUser)
     // Admin alert when web content is named after a bank / FDIC / IRS (alert only).
     r.use((req, _res, next) => {
@@ -108,7 +129,15 @@ function createCloudIvrWeb(deps) {
     numberRequests.routes(r)
     require('../active-slot').singletonInterval('cloudivr-number-requests', () => numberRequests.tick().catch(e => log(`[NumberRequest] tick: ${e.message}`)), process.env.WEB_CLOUDIVR_DRY_RUN === 'true' ? 60000 : 10 * 60000)
     orders.routes(r, { ...deps, db, h, numbersApi, sendMail, offers })
-    Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h, offers, legalProfile }))
+    // MultiTEL countries that need documents: upload before buying, emailed to MultiTEL after, approval watched.
+    const numberDocs = require('./number-docs').createNumberDocs({ db, h, sendMail, legalProfile, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, walletOps: require('./wallet').walletOps, log })
+    numberDocs.routes(r)
+    compliance.routes(r)
+    tenDlc.routes(r)
+    require('./lookup').createLookup({ db, h, walletOps: require('./wallet').walletOps, log }).routes(r)
+    require('./travel-esim').createTravelEsim({ db, h, walletOps: require('./wallet').walletOps, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, log }).routes(r)
+    require('../active-slot').singletonInterval('cloudivr-number-docs', () => numberDocs.tick().catch(e => log(`[NumberDocs] tick: ${e.message}`)), 30 * 60000)
+    Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h, offers, legalProfile, numberDocs, compliance }))
     verification.routes(r, { ...deps, db, h, upload })
     audio.routes(r, { ...deps, db, h, upload })
     outbound.routes(r, { ...deps, db, h, numbersApi })

@@ -164,11 +164,11 @@ async function createOutboundCall(from, to, webhookUrl, connectionId, options = 
 
 // ── Numbers ──
 const searched = new Map() // e164 → numberKey
-async function searchNumbers(countryCode, numberType, areaCode, limit = 5) {
+async function searchNumbers(countryCode, numberType, areaCode, limit = 5, { sms = false } = {}) {
   if (!enabled()) return []
   try {
     const cc = String(countryCode || 'US').toUpperCase()
-    const params = { country: cc, limit: areaCode ? 100 : Math.max(limit, 10), capabilities: 'VOICE' }
+    const params = { country: cc, limit: areaCode ? 100 : Math.max(limit, 10), capabilities: sms ? 'SMS' : 'VOICE' }
     // Infobip ignores area codes, so filter here (US/CA: 1 + area code; elsewhere: digits appear in the number).
     const inArea = (num) => !areaCode || (['US', 'CA', 'PR'].includes(cc) ? String(num).startsWith(`1${areaCode}`) : String(num).includes(String(areaCode)))
     const list = ((await M.http().get('/numbers/1/numbers/available', { params })).data?.numbers || []).filter(n => !n.additionalSetupRequired && inArea(n.number)).slice(0, limit)
@@ -197,7 +197,7 @@ async function buyNumber(phoneNumber) {
   const key = searched.get(phoneNumber); if (!key) return null
   try {
     const n = (await M.http().post('/numbers/1/numbers', { numberKey: key })).data
-    await M.http().post(`/numbers/2/numbers/${n.numberKey || key}/voice`, { action: { type: 'FORWARD_TO_SUBSCRIPTION', callsConfigurationId: configId() } })
+    if (!n.capabilities || (n.capabilities || []).includes('VOICE')) await M.http().post(`/numbers/2/numbers/${n.numberKey || key}/voice`, { action: { type: 'FORWARD_TO_SUBSCRIPTION', callsConfigurationId: configId() } })
     if ((n.capabilities || []).includes('SMS')) await routeSms(n.numberKey || key)
     searched.delete(phoneNumber)
     log(`Bought ${phoneNumber} → calls config ${configId()}`)
@@ -228,7 +228,7 @@ async function lookup(e) {
 
 // Texts → { id } | { error }
 async function sendSms(from, to, text) {
-  try { const r = (await M.http().post('/sms/2/text/advanced', { messages: [{ from: digits(from), destinations: [{ to: digits(to) }], text }] })).data; return { id: r.messages?.[0]?.messageId || null } } catch (e) { return { error: errOf(e) } }
+  try { const r = (await M.http().post('/sms/2/text/advanced', { messages: [{ from: digits(from), destinations: [{ to: digits(to) }], text, ...(process.env.SELF_URL ? { notifyUrl: `${String(process.env.SELF_URL).replace(/\/+$/, '')}/infobip/sms-dlr/${smsHookKey()}`, notifyContentType: 'application/json' } : {}) }] })).data; return { id: r.messages?.[0]?.messageId || null } } catch (e) { return { error: errOf(e) } }
 }
 
 const M = module.exports = {

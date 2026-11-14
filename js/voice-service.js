@@ -1703,7 +1703,7 @@ async function incrementSmsUsed(chatId, phoneNumber) {
     const pool = planLifecycle.poolUsage(numbers, num)
     const limit = pool.smsLimit
     const used = pool.smsUsed
-    if (used >= limit && !pool.main._smsLimitNotified) {
+    if (limit > 0 && used >= limit && !pool.main._smsLimitNotified) {
       await _phoneNumbersOf.updateOne(
         { _id: chatId, 'val.numbers.phoneNumber': pool.main.phoneNumber },
         { $set: { 'val.numbers.$._smsLimitNotified': true } }
@@ -2122,6 +2122,15 @@ async function handleBridgeTransferHangup(payload) {
       offS.offHoursTried = true
       offS.bridgeRingSecs = null
       await offHoursEnd(transfer.originalCallControlId, offS).catch(e => log(`[Voice] Off-hours fallback error: ${e.message}`))
+      delete activeBridgeTransfers[callControlId]
+      return true
+    }
+    // Forwarding failed and nobody answered: voicemail (if the number has it) instead of dropping the caller.
+    const inS = activeCalls[transfer.originalCallControlId]
+    if (inS?.num && !inS._vmAfterForward && !isCallEnded(transfer.originalCallControlId) && inS.num.features?.voicemail?.enabled && canAccessFeature(inS.num.plan, 'voicemail')) {
+      inS._vmAfterForward = true
+      log(`[Voice] Forward to ${transfer.forwardTo} failed (${hangupCause}) → voicemail`)
+      await noAnswerFallback(transfer.originalCallControlId, { vmConfig: inS.num.features.voicemail, fwdConfig: null, num: inS.num, chatId: inS.chatId, fromNumber: inS.to, unanswered: false, type: 'forward_failed' }, hangupCause).catch(e => log(`[Voice] Voicemail after failed forward: ${e.message}`))
       delete activeBridgeTransfers[callControlId]
       return true
     }
@@ -3865,17 +3874,21 @@ async function findNumberBySipUser(sipUsername, fromPhone, connectionPhoneNumber
     const ml = _db && sipUsername ? await _db.collection('esimLines').findOne({ 'sip.username': sipUsername, kind: 'mobile', status: 'active' }) : null
     if (ml) return { chatId: ml.chatId, num: { phoneNumber: ml.phoneNumber, provider: 'telnyx', status: 'active', plan: 'business', mobileLine: ml._id, features: {} } }
     const allUsers = await _phoneNumbersOf.find({}).toArray()
+    // A login set to call from another of the owner's active numbers uses (and bills) that number.
+    const via = (user, num, cid, extra) => { const alt = cid && (user.val?.numbers || []).find(x => x.phoneNumber === cid && x.status === 'active'); if (alt) log(`[Voice] SIP ${sipUsername} calls from ${alt.phoneNumber} (login on ${num.phoneNumber})`); return { chatId: user._id, num: alt || num, ...(extra || {}) } }
     for (const user of allUsers) {
       const numbers = user.val?.numbers || []
       for (const num of numbers) {
         if (num.status !== 'active' && num.status !== 'suspended') continue
         // Match by SIP username (Telnyx gencred or legacy)
         if (num.telnyxSipUsername && num.telnyxSipUsername === sipUsername) {
-          return { chatId: user._id, num }
+          return via(user, num, num.sipCallerId)
         }
         if (num.sipUsername && num.sipUsername === sipUsername) {
-          return { chatId: user._id, num }
+          return via(user, num, num.sipCallerId)
         }
+        const extra = (num.extraSip || []).find(x => x.username === sipUsername)
+        if (extra && require('./plan-lifecycle').sipLoginOk(num, extra)) return via(user, num, extra.callerId, { sipLogin: extra.label || extra.username })
         // Match by phone number (in case 'from' is the phone number)
         // CRITICAL: Skip phone number matching if 'from' is the SIP connection's own number
         // because that number belongs to a different user — not the actual SIP caller
@@ -4063,22 +4076,33 @@ async function zadarmaNumbers() {
     for (const n of d.val?.numbers || []) if (zdSet.has(n.phoneNumber) && !/released|expired|cancel/i.test(String(n.status || ''))) out.add(n.phoneNumber)
   return [...out]
 }
+// This brand's active MultiTEL numbers (SIP URI to our server).
+async function multitelNumbers() {
+  const mt = require('./multitel')
+  if (!_db || !mt.enabled()) return []
+  const owned = new Set(await mt.refreshOwned())
+  const out = new Set()
+  for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1 } }).toArray())
+    for (const n of d.val?.numbers || []) if (owned.has(n.phoneNumber) && !/released|expired|cancel/i.test(String(n.status || ''))) out.add(n.phoneNumber)
+  return [...out]
+}
 async function telnyxDidSync() {
   const nums = await telnyxSipNumbers()
   const zdNums = await zadarmaNumbers()
-  const all = [...nums, ...zdNums]
+  const all = [...nums, ...zdNums, ...await multitelNumbers()]
   if (all.length) await require('./callengine').setDidApps(all)
 }
 async function birdAutoLinkTick() {
   if (!_db || !require('./bird').enabled()) return
-  // Only Infobip numbers are linked to Bird now (Telnyx / SignalWire / Zadarma caller IDs were removed on request).
-  const ib = require('./infobip')
-  const ibNums = ib.enabled() ? await ib.refreshOwned() : []
+  // Only Infobip and MultiTEL numbers are linked to Bird (Telnyx / SignalWire / Zadarma caller IDs were removed on request).
+  const ib = require('./infobip'), mt = require('./multitel')
+  // Only the system caller IDs (USA MultiTEL + Canada Infobip) are kept on Bird, on request.
+  const only = new Set(require('./ivr-outbound').SYSTEM_CALLERS())
+  const ibNums = [...(ib.enabled() ? await ib.refreshOwned() : []), ...(mt.enabled() ? await mt.refreshOwned() : [])].filter(n => only.has(n))
   if (!ibNums.length) return
   const sw = new Set(ibNums)
   const numbers = new Set()
-  for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1 } }).toArray())
-    for (const n of d.val?.numbers || []) if (sw.has(n.phoneNumber) && !/released|expired|cancel/i.test(String(n.status || ''))) numbers.add(n.phoneNumber)
+  for (const n of ibNums) numbers.add(n)
   const wanted = [...require('./signalwire').birdWanted].filter(n => sw.has(n))
   const r = await birdVerify().autoLinkTick({ numbers: [...new Set([...wanted, ...numbers])] })
   if (r.armed || r.error) log(`[BirdVerify] auto-link: ${JSON.stringify(r)}`)

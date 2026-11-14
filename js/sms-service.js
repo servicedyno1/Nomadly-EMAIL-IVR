@@ -146,13 +146,17 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
       return log(`handleInboundSms: no owner found for ${cleanTo}`)
     }
 
+    // STOP / START keywords: recorded per account so it can't text this person again (the text still reaches the inbox).
+    const optKw = await require('./sms-optout').onInbound(ownerChatId, cleanTo, from, body).catch(e => { log(`[OptOut] ${e.message}`); return null })
+    if (optKw) log(`[OptOut] ${from} replied ${optKw.toUpperCase()} to ${cleanTo} (account ${ownerChatId})`)
+
     // ── CHECK: Number suspended? Skip forwarding ──
     if (numberConfig.status !== 'active') {
       return log(`handleInboundSms: number ${cleanTo} is ${numberConfig.status}, skipping`)
     }
 
-    // ── CHECK: Inbound SMS limit reached? → Try overage billing ──
-    if (_isSmsLimitReached && _isSmsLimitReached(numberConfig, ownerNumbers)) {
+    // Receiving texts is free (2026-11 pricing: only sent texts are billed, per message) — no inbound limit or charge.
+    if (false && _isSmsLimitReached && _isSmsLimitReached(numberConfig, ownerNumbers)) {
       let overageAllowed = false
       if (_walletOf) {
         try {
@@ -196,8 +200,8 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
       await forwardSmsToWebhook(smsConfig.webhookUrl, from, to, body)
     }
 
-    // ── REAL-TIME SMS USAGE TRACKING ──
-    if (_incrementSmsUsed) {
+    // ── REAL-TIME SMS USAGE TRACKING ── (received texts are free and only sent texts are counted, 2026-11)
+    if (false && _incrementSmsUsed) {
       await _incrementSmsUsed(ownerChatId, cleanTo)
     }
 

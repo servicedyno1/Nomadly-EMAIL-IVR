@@ -13,7 +13,18 @@ const TRIAL_CALLER_ID = process.env.TELNYX_TRIAL_CALLER_ID || '+18889020132'
 // Dynamically resolve trial caller — prefer a SignalWire pool number (Telnyx account
 // is blocked), falling back to the static TRIAL_CALLER_ID only when SignalWire is
 // unavailable or has no pool numbers.
-async function getTrialCaller() {
+// System caller IDs for free/test calls take turns (USA MultiTEL + Canada Infobip); every pick is logged.
+const SYSTEM_CALLERS = () => String(process.env.SYSTEM_CALLER_IDS || '+18648308599,+16479457172').split(',').map(s => s.trim()).filter(s => /^\+[1-9]\d{7,14}$/.test(s))
+let rot = 0, pickLog = null
+const setPickLogDb = (db) => { pickLog = db.collection('systemCallerPicks'); pickLog.createIndex({ at: -1 }).catch(() => {}) }
+async function getTrialCaller(meta = {}) {
+  const pool = SYSTEM_CALLERS()
+  if (pool.length) {
+    const callerId = pool[rot++ % pool.length]
+    pickLog?.insertOne({ at: new Date(), callerId, purpose: meta.purpose || 'trial', chatId: meta.chatId != null ? String(meta.chatId) : null, to: meta.to || null, bot: process.env.BOT_BRAND || process.env.CLOUDIVR_BRAND || null }).catch(() => {})
+    console.log(`[SystemCaller] ${meta.purpose || 'trial'} → ${callerId}${meta.chatId ? ` (chat ${meta.chatId})` : ''}`)
+    return { callerId, callerProvider: 'telnyx' }
+  }
   try {
     const sw = require('./signalwire')
     if (sw.enabled()) {
@@ -487,6 +498,8 @@ function formatCallNotification(type, data) {
 module.exports = {
   TRIAL_CALLER_ID,
   getTrialCaller,
+  setPickLogDb,
+  SYSTEM_CALLERS,
   OUTBOUND_CATEGORIES,
   OUTBOUND_TEMPLATES,
   SMART_PLACEHOLDERS,

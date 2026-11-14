@@ -1462,7 +1462,11 @@ const isTelnyxIntl = (provider, cc) => provider === 'telnyx' && !['US', 'CA'].in
  *    returns { _verification: true } → caller stops (no refund, no activation now).
  * Returns null on failure → caller refunds exactly as before.
  */
+// Which provider an order came from (MultiTEL ids 'mt:', Infobip 'ib:'); used so each number routes through its own provider.
+const providerOfOrder = (o) => o?._provider || (String(o?.id || '').startsWith('mt:') ? 'multitel' : String(o?.id || '').startsWith('ib:') ? 'infobip' : 'telnyx')
 async function telnyxPaidCheckout(chatId, selectedNumber, ctx = {}) {
+  // MultiTEL / Infobip numbers: their own instant buy (with provider backup), never the Telnyx paperwork flow.
+  if (require('./multitel').isMtSearched(selectedNumber) || require('./infobip').isIbSearched(selectedNumber)) return telnyxApi.buyNumber(selectedNumber, null, null, { countryCode: ctx.countryCode || 'US', numberType: ctx.numberType || 'local', areaCode: ctx.areaCode || null })
   const { countryCode = 'US', numberType = 'local', areaCode = null } = ctx
   const retry = { countryCode, numberType, areaCode }
   if (!isTelnyxIntl('telnyx', countryCode)) {
@@ -4168,6 +4172,8 @@ const loadData = async () => {
   vpsTransactions = db.collection('vpsTransactions')
   notifyGroupsCol = db.collection('notifyGroups')
   phoneNumbersOf = db.collection('phoneNumbersOf')
+  require('./provider-health').start(notifyAdmin)
+  planLifecycle.lockLegacyPrices(phoneNumbersOf, db.collection('migrationMarks')).then(r => Object.keys(r).length && log(`[PlanLadder] price locks applied: ${JSON.stringify(r)}`)).catch(e => log(`[PlanLadder] price lock failed: ${e.message}`))
   // Customers' own SignalWire numbers are never lent out as a stand-in caller ID.
   { let cache = { at: 0, set: new Set() }; require('./signalwire').setReservedCallers(async () => { if (Date.now() - cache.at < 5 * 60000) return cache.set; cache = { at: Date.now(), set: new Set((await phoneNumbersOf.aggregate([{ $match: { 'val.numbers.provider': 'signalwire' } }, { $unwind: '$val.numbers' }, { $match: { 'val.numbers.provider': 'signalwire' } }, { $group: { _id: '$val.numbers.phoneNumber' } }]).toArray()).map(r => r._id).filter(Boolean)) }; return cache.set }) }
   { let fc = { at: 0, set: new Set() }; require('./signalwire').setNeverCallers(async () => { if (Date.now() - fc.at < 5 * 60000) return fc.set; fc = { at: Date.now(), set: new Set((await db.collection('faxNumbers').find({ provider: 'signalwire_fax', status: { $ne: 'released' } }, { projection: { _id: 1 } }).toArray()).map(d => d._id)) }; return fc.set }) }
@@ -6086,7 +6092,7 @@ async function sendDay12UpgradeCreditNudges() {
         scanned++
         if (num.status !== 'active') continue
         if (num.isSubNumber) continue
-        if (num.plan !== 'starter' && num.plan !== 'pro') continue
+        if (!['starter', 'standard', 'pro'].includes(num.plan)) continue
         if (num._upgradeCreditNudgeSentAt) continue
         const purchasedTs = num.purchaseDate ? new Date(num.purchaseDate).getTime() : 0
         if (!purchasedTs || isNaN(purchasedTs)) continue
@@ -14662,7 +14668,7 @@ Enter new value:`), bc)
         const numberDoc = {
           phoneNumber: selectedNumber,
           telnyxOrderId: orderResult.id,
-          provider: 'telnyx',
+          provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}),
           country: countryCode,
           countryName: countryName,
           type: info?.cpNumberType || 'local',
@@ -26321,10 +26327,11 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.cpSelectPlan)
       const availablePlanBtns = []
       if (phoneConfig.isPlanAvailable('starter')) availablePlanBtns.push([pc.starterPlan])
+      if (phoneConfig.isPlanAvailable('standard')) availablePlanBtns.push([pc.standardPlan])
       if (phoneConfig.isPlanAvailable('pro')) availablePlanBtns.push([pc.proPlan])
       if (phoneConfig.isPlanAvailable('business')) availablePlanBtns.push([pc.businessPlan])
       const pMsg = phoneConfig.getMsg(info?.userLanguage || 'en')
-      return send(chatId, trans('t.cp_8', pMsg.buyPlansHeader, phoneConfig.plans.starter.price, phoneConfig.plans.starter.minutes, phoneConfig.plans.starter.sms, phoneConfig.SUB_NUMBER_LIMITS.starter, phoneConfig.plans.pro.price, phoneConfig.plans.pro.minutes, phoneConfig.plans.pro.sms, phoneConfig.SUB_NUMBER_LIMITS.pro, phoneConfig.plans.business.price, phoneConfig.plans.business.minutes === 'Unlimited' ? 'Unlimited' : phoneConfig.plans.business.minutes, phoneConfig.plans.business.sms, phoneConfig.SUB_NUMBER_LIMITS.business), k.of(availablePlanBtns))
+      return send(chatId, trans('t.cp_8', pMsg.buyPlansHeader, phoneConfig.plans.starter.price, phoneConfig.plans.starter.minutes, phoneConfig.plans.starter.sms, phoneConfig.SUB_NUMBER_LIMITS.starter, phoneConfig.plans.pro.price, phoneConfig.plans.pro.minutes, phoneConfig.plans.pro.sms, phoneConfig.SUB_NUMBER_LIMITS.pro, phoneConfig.plans.business.price, phoneConfig.plans.business.minutes === 'Unlimited' ? 'Unlimited' : phoneConfig.plans.business.minutes, phoneConfig.plans.business.sms, phoneConfig.SUB_NUMBER_LIMITS.business, phoneConfig.plans.standard.price, phoneConfig.plans.standard.minutes, phoneConfig.SUB_NUMBER_LIMITS.standard), k.of(availablePlanBtns))
     }
     if (message === pc.myNumbers) {
       const userData = await get(phoneNumbersOf, chatId)
@@ -26406,7 +26413,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           return send(chatId, trans('t.cp_9', buyLabel), k.of([[buyLabel]]))
         }
         // Trial path — auto-assign caller ID (prefer SignalWire pool number; Telnyx blocked)
-        const _trialCaller = await ivrOb.getTrialCaller()
+        const _trialCaller = await ivrOb.getTrialCaller({ purpose: 'bot_quick_ivr_trial', chatId })
         await saveInfo('ivrObData', { callerId: _trialCaller.callerId, isTrial: true, callerProvider: _trialCaller.callerProvider })
         await set(state, chatId, 'action', a.ivrObEnterTarget)
         return send(chatId, trans('t.cp_10', _trialCaller.callerId), k.of(ccid.on() ? ccid.btnRow(lang) : [['↩️ Back']]))
@@ -29892,6 +29899,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.cpSelectPlan)
       const availablePlanBtns = []
       if (phoneConfig.isPlanAvailable('starter')) availablePlanBtns.push([pc.starterPlan])
+      if (phoneConfig.isPlanAvailable('standard')) availablePlanBtns.push([pc.standardPlan])
       if (phoneConfig.isPlanAvailable('pro')) availablePlanBtns.push([pc.proPlan])
       if (phoneConfig.isPlanAvailable('business')) availablePlanBtns.push([pc.businessPlan])
       return send(chatId, trans('t.cp_225'), k.of(availablePlanBtns))
@@ -30194,7 +30202,23 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     await saveInfo('totalPrice', null) // Clear stale hosting totalPrice to prevent walletSelectCurrency from using wrong base
     await saveInfo('cpNumberSurcharge', surcharge)
 
+    // Address-only numbers: ask just the street address (no ID, no business details), then checkout.
+    await saveInfo('cpEndUserAddress', null)
+    if (phoneConfig.botNeedsAddress(countryCode, numberType)) {
+      await set(state, chatId, 'action', 'cpAddress')
+      return send(chatId, `📍 <b>${info?.cpCountryName || countryCode}</b> numbers need a street address in ${info?.cpCountryName || 'that country'} (the provider's rule). No ID or business details needed.\n\nType the full address in one message: street, city, postcode.`, { parse_mode: 'HTML', ...k.of([[pc.back]]) })
+    }
     // Checkout UX (2026-06): summary + payment options on one screen
+    return goto['phone-pay']()
+  }
+
+  if (action === 'cpAddress') {
+    const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
+    if (isBackPress(message)) return goto.submenu5()
+    const addr = String(message || '').trim().slice(0, 200)
+    if (addr.length < 10 || !/\d/.test(addr)) return send(chatId, '📍 Please type the full street address with the house number, city and postcode.', k.of([[pc.back]]))
+    await saveInfo('cpEndUserAddress', addr)
+    await db.collection('botNumberAddresses').insertOne({ chatId: String(chatId), number: info?.cpSelectedNumber, country: info?.cpCountryCode, type: info?.cpNumberType, address: addr, at: new Date() }).catch(() => {})
     return goto['phone-pay']()
   }
 
@@ -30210,6 +30234,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (!phoneConfig.isPlanAvailable(planKey)) {
       const availBtns = []
       if (phoneConfig.isPlanAvailable('starter')) availBtns.push([pc.starterPlan])
+      if (phoneConfig.isPlanAvailable('standard')) availBtns.push([pc.standardPlan])
       if (phoneConfig.isPlanAvailable('pro')) availBtns.push([pc.proPlan])
       if (phoneConfig.isPlanAvailable('business')) availBtns.push([pc.businessPlan])
       return send(chatId, trans('t.cp_231'), k.of(availBtns))
@@ -30224,7 +30249,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const rows = []
     for (let i = 0; i < countryBtns.length; i += 2) rows.push(countryBtns.slice(i, i + 2))
     if (phoneConfig.moreCountries.length > 0) rows.push([pc.moreCountries])
-    const planLabel = planKey === 'starter' ? '💡 Starter' : planKey === 'pro' ? '⭐ Pro' : '👑 Business'
+    const planLabel = planKey === 'starter' ? '💡 Basic' : planKey === 'standard' ? '🧩 Starter' : planKey === 'pro' ? '⭐ Pro' : '👑 Business'
     return send(chatId, trans('t.cp_232', planLabel), k.of(rows))
   }
 
@@ -30236,6 +30261,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.cpSelectPlan)
       const availBtns2 = []
       if (phoneConfig.isPlanAvailable('starter')) availBtns2.push([pc.starterPlan])
+      if (phoneConfig.isPlanAvailable('standard')) availBtns2.push([pc.standardPlan])
       if (phoneConfig.isPlanAvailable('pro')) availBtns2.push([pc.proPlan])
       if (phoneConfig.isPlanAvailable('business')) availBtns2.push([pc.businessPlan])
       return send(chatId, cpTxt.selectPlan(info?.cpSelectedNumber), k.of(availBtns2))
@@ -30278,6 +30304,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.cpSelectPlan)
       const availBtns2 = []
       if (phoneConfig.isPlanAvailable('starter')) availBtns2.push([pc.starterPlan])
+      if (phoneConfig.isPlanAvailable('standard')) availBtns2.push([pc.standardPlan])
       if (phoneConfig.isPlanAvailable('pro')) availBtns2.push([pc.proPlan])
       if (phoneConfig.isPlanAvailable('business')) availBtns2.push([pc.businessPlan])
       return send(chatId, cpTxt.selectPlan(info?.cpSelectedNumber), k.of(availBtns2))
@@ -35561,9 +35588,13 @@ Select a category:`), k.of(catBtns))
       await set(state, chatId, 'action', a.cpChangePlan)
       const currentPlan = num.plan
       const btns = []
-      if (currentPlan !== 'starter' && phoneConfig.isPlanAvailable('starter')) btns.push([`💡 Downgrade to Starter — $${phoneConfig.PHONE_STARTER_PRICE}/mo`])
-      if (currentPlan !== 'starter' && !phoneConfig.isPlanAvailable('starter')) btns.push([`💡 Starter — Coming Soon 🔜`])
-      if (currentPlan !== 'pro' && phoneConfig.isPlanAvailable('pro')) btns.push([`⭐ ${currentPlan === 'starter' ? 'Upgrade' : 'Change'} to Pro — $${phoneConfig.PHONE_PRO_PRICE}/mo`])
+      const rank = Object.keys(phoneConfig.plans)
+      const verb = (k) => rank.indexOf(k) > rank.indexOf(currentPlan) ? 'Upgrade' : 'Downgrade'
+      if (currentPlan !== 'starter' && phoneConfig.isPlanAvailable('starter')) btns.push([`💡 Downgrade to Basic — $${phoneConfig.PHONE_STARTER_PRICE}/mo`])
+      if (currentPlan !== 'starter' && !phoneConfig.isPlanAvailable('starter')) btns.push([`💡 Basic — Coming Soon 🔜`])
+      if (currentPlan !== 'standard' && phoneConfig.isPlanAvailable('standard')) btns.push([`🧩 ${verb('standard')} to Starter — $${phoneConfig.PHONE_STANDARD_PRICE}/mo`])
+      if (currentPlan !== 'standard' && !phoneConfig.isPlanAvailable('standard')) btns.push([`🧩 Starter — Coming Soon 🔜`])
+      if (currentPlan !== 'pro' && phoneConfig.isPlanAvailable('pro')) btns.push([`⭐ ${verb('pro')} to Pro — $${phoneConfig.PHONE_PRO_PRICE}/mo`])
       if (currentPlan !== 'pro' && !phoneConfig.isPlanAvailable('pro')) btns.push([`⭐ Pro — Coming Soon 🔜`])
       if (currentPlan !== 'business' && phoneConfig.isPlanAvailable('business')) btns.push([`👑 Upgrade to Business — $${phoneConfig.PHONE_BUSINESS_PRICE}/mo`])
       if (currentPlan !== 'business' && !phoneConfig.isPlanAvailable('business')) btns.push([`👑 Business — Coming Soon 🔜`])
@@ -35591,7 +35622,7 @@ Select a category:`), k.of(catBtns))
 
     // Block "Coming Soon" plans
     if (message.includes('Coming Soon')) {
-      const comingPlan = message.includes('Starter') ? 'starter' : message.includes('Pro') ? 'pro' : message.includes('Business') ? 'business' : null
+      const comingPlan = message.includes('Basic') ? 'starter' : message.includes('Starter') ? 'standard' : message.includes('Pro') ? 'pro' : message.includes('Business') ? 'business' : null
       if (comingPlan) {
         return send(chatId, phoneConfig.comingSoonText(comingPlan), k.of([
           [pc.changePlan],
@@ -35658,6 +35689,8 @@ Select a category:`), k.of(catBtns))
 
       await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'plan', newPlan)
       await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'planPrice', newPrice)
+      await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': num.phoneNumber }, { $unset: { 'val.numbers.$.priceLock': '' } })
+      delete num.priceLock
       await planLifecycle.syncExtrasPlan(phoneNumbersOf, chatId, num.phoneNumber, newPlan)
       num.plan = newPlan
       num.planPrice = newPrice
@@ -35690,7 +35723,8 @@ Select a category:`), k.of(catBtns))
     }
 
     let newPlan = null
-    if (message.includes('Starter')) newPlan = 'starter'
+    if (message.includes('Basic')) newPlan = 'starter'
+    if (message.includes('Starter')) newPlan = 'standard'
     if (message.includes('Pro')) newPlan = 'pro'
     if (message.includes('Business')) newPlan = 'business'
     if (!newPlan) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectValidPlan)
@@ -39775,6 +39809,8 @@ async function applyPhonePlanUpgrade(chatId, num, newPlan, newPrice, lang, payme
   newPrice = planLifecycle.priceOnPlan(num, newPlan) ?? newPrice
   await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'plan', newPlan)
   await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'planPrice', newPrice)
+  await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': num.phoneNumber }, { $unset: { 'val.numbers.$.priceLock': '' } })
+  delete num.priceLock
   await planLifecycle.syncExtrasPlan(phoneNumbersOf, chatId, num.phoneNumber, newPlan)
   num.plan = newPlan
   num.planPrice = newPrice
@@ -40872,7 +40908,7 @@ const bankApis = {
       type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
       purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
       autoRenew: true, status: 'active', sipUsername, sipPassword,
-      sipDomain: phoneConfig.SIP_DOMAIN, provider: 'telnyx',
+      sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}),
       messagingProfileId: telnyxResources.messagingProfileId,
       connectionId: telnyxResources.sipConnectionId, smsUsed: 0, minutesUsed: 0,
       features: { sms: true, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
@@ -41900,7 +41936,7 @@ app.get('/crypto-pay-phone', auth, async (req, res) => {
     type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
     purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
     autoRenew: true, status: 'active', sipUsername, sipPassword,
-    sipDomain: phoneConfig.SIP_DOMAIN, provider: 'telnyx',
+    sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}),
     messagingProfileId: telnyxResources.messagingProfileId, connectionId: telnyxResources.sipConnectionId,
     smsUsed: 0, minutesUsed: 0,
     features: { sms: true, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
@@ -42464,7 +42500,7 @@ app.get('/dev/otp-plan-gate-check', (req, res) => {
   if ((process.env.BOT_ENVIRONMENT || '').toLowerCase() === 'production') {
     return res.status(404).json({ error: 'not found' })
   }
-  const plans = ['starter', 'pro', 'business']
+  const plans = ['starter', 'standard', 'pro', 'business']
   const matrix = {}
   for (const p of plans) {
     matrix[p] = {
@@ -42575,7 +42611,7 @@ app.get('/dev/ux-fixes-audit', (req, res) => {
     return false
   }
   const mismatches = []
-  for (const plan of ['starter', 'pro', 'business']) {
+  for (const plan of ['starter', 'standard', 'pro', 'business']) {
     for (const key of Object.keys(featureKeywords)) {
       const adv = advertised(plan, key)
       const acc = phoneConfig.canAccessFeature(plan, key)
@@ -42618,7 +42654,7 @@ app.get('/dev/plan-quota-audit', (req, res) => {
     business: { minutes: envNum('BUSINESS_MINUTES', 600), sms: envNum('BUSINESS_SMS', 300) },
   }
   const cloudIvrMismatches = []
-  for (const p of ['starter', 'pro', 'business']) {
+  for (const p of ['starter', 'standard', 'pro', 'business']) {
     if (cloudIvr[p].minutes !== envExpected[p].minutes) cloudIvrMismatches.push({ plan: p, field: 'minutes', resolved: cloudIvr[p].minutes, env: envExpected[p].minutes })
     if (cloudIvr[p].sms !== envExpected[p].sms) cloudIvrMismatches.push({ plan: p, field: 'sms', resolved: cloudIvr[p].sms, env: envExpected[p].sms })
   }
@@ -47247,7 +47283,7 @@ app.post('/dynopay/crypto-pay-phone', authDyno, async (req, res) => {
     type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
     purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
     autoRenew: true, status: 'active', sipUsername, sipPassword,
-    sipDomain: phoneConfig.SIP_DOMAIN, provider: 'telnyx',
+    sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}),
     messagingProfileId: telnyxResources.messagingProfileId, connectionId: telnyxResources.sipConnectionId,
     smsUsed: 0, minutesUsed: 0,
     features: { sms: true, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
@@ -49694,6 +49730,17 @@ app.post('/infobip/voice-webhook', express.json({ limit: '1mb' }), async (req, r
 
 // Infobip inbound texts (number SMS action HTTP_FORWARD) → same handler as Telnyx texts.
 // The path carries a key derived from our Infobip API key, so only Infobip (configured by us) can post here.
+// Infobip delivery reports for texts sent from the web app → same status/refund path as Telnyx (failed = refunded).
+app.post('/infobip/sms-dlr/:k', express.json({ limit: '1mb' }), (req, res) => {
+  res.sendStatus(200)
+  if (req.params.k !== require('./infobip').smsHookKey()) return log('Infobip DLR: bad key')
+  for (const r of req.body?.results || []) {
+    const g = String(r.status?.groupName || '').toUpperCase()
+    const status = g === 'DELIVERED' ? 'delivered' : ['REJECTED', 'UNDELIVERABLE', 'EXPIRED'].includes(g) ? 'delivery_failed' : null
+    log(`Infobip DLR ${r.messageId} → ${r.to}: ${g} ${r.error?.name || ''}`)
+    if (status && cloudivrWeb?.smsDelivery) cloudivrWeb.smsDelivery(db, { id: r.messageId, to: [{ status }], errors: status === 'delivery_failed' ? [{ code: String(r.error?.id || r.status?.id || ''), title: r.status?.description || '', detail: r.error?.description || '' }] : [] }, log)
+  }
+})
 app.post('/infobip/sms-webhook/:k', express.json({ limit: '1mb' }), async (req, res) => {
   res.sendStatus(200)
   if (req.params.k !== require('./infobip').smsHookKey()) return log('Infobip SMS webhook: bad key')
@@ -49702,6 +49749,17 @@ app.post('/infobip/sms-webhook/:k', express.json({ limit: '1mb' }), async (req, 
     try { await handleInboundSms({ data: { payload: { from: { phone_number: e(m.from) }, to: [{ phone_number: e(m.to) }], text: m.cleanText || m.text || m.message?.text || '' } } }, bot, phoneNumbersOf, phoneLogs) } catch (err) { log('Infobip SMS webhook error:', err.message) }
   }
 })
+
+// MultiTEL inbound texts (number smsuri, URL POST form data) → same handler as Telnyx texts. Keyed path like Infobip's.
+app.post('/multitel/sms-webhook/:k', express.urlencoded({ extended: true, limit: '1mb' }), async (req, res) => {
+  res.sendStatus(200)
+  if (req.params.k !== require('./multitel').smsHookKey()) return log('MultiTEL SMS webhook: bad key')
+  const b = req.body || {}, e = (n) => `+${String(n || '').replace(/\D/g, '')}`
+  try { await handleInboundSms({ data: { payload: { from: { phone_number: e(b.from) }, to: [{ phone_number: e(b.to) }], text: String(b.text || '') } } }, bot, phoneNumbersOf, phoneLogs) } catch (err) { log('MultiTEL SMS webhook error:', err.message) }
+})
+
+// Stripe Identity events for CloudIVR compliance (signature checked inside).
+app.post('/stripe/webhook', (req, res) => (cloudivrWeb.stripeWebhook ? cloudivrWeb.stripeWebhook(req, res) : res.sendStatus(503)))
 
 // Infobip recordings need our API key, so customers get them through this signed link
 app.get('/infobip/recording/:fileId', async (req, res) => {
@@ -49737,9 +49795,11 @@ app.get('/sip-auth/:user', async (req, res) => {
   if (!key || given.length !== key.length || !require('crypto').timingSafeEqual(Buffer.from(given), Buffer.from(key))) return res.sendStatus(403)
   try {
     const u = String(req.params.user || '')
-    const doc = await phoneNumbersOf.findOne({ $or: [{ 'val.numbers.telnyxSipUsername': u }, { 'val.numbers.sipUsername': u }] }, { projection: { 'val.numbers': 1 } })
-    const n = (doc?.val?.numbers || []).find(x => (x.telnyxSipUsername === u || x.sipUsername === u) && x.status === 'active')
-    const pw = n && (n.telnyxSipUsername === u ? (n.telnyxSipPassword || n.sipPassword) : n.sipPassword)
+    const doc = await phoneNumbersOf.findOne({ $or: [{ 'val.numbers.telnyxSipUsername': u }, { 'val.numbers.sipUsername': u }, { 'val.numbers.extraSip.username': u }] }, { projection: { 'val.numbers': 1 } })
+    const n = (doc?.val?.numbers || []).find(x => (x.telnyxSipUsername === u || x.sipUsername === u || (x.extraSip || []).some(e => e.username === u)) && x.status === 'active')
+    const extra = n && planLifecycle.sipLoginOk(n, (n.extraSip || []).find(e => e.username === u)) && (n.extraSip || []).find(e => e.username === u)
+    if (n && !extra && n.telnyxSipUsername !== u && n.sipUsername !== u) return res.sendStatus(404)
+    const pw = n && (extra ? extra.password : n.telnyxSipUsername === u ? (n.telnyxSipPassword || n.sipPassword) : n.sipPassword)
     if (!pw) return res.sendStatus(404)
     res.type('text/plain').send(String(pw))
   } catch (e) { log('sip-auth error:', e.message); res.sendStatus(500) }

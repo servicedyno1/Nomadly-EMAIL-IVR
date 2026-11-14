@@ -4,7 +4,7 @@ const COPY = require('./email-copy')
 const L = require('./email-layout')
 
 const PLAN_NAMES = { starter: 'Starter', pro: 'Pro', business: 'Business' }
-const NEXT = { starter: 'pro', pro: 'business' }
+const NEXT = { starter: 'standard', standard: 'pro', pro: 'business' }
 const LOCALE = { en: 'en-US', fr: 'fr-FR', es: 'es-ES' }
 const RATE = { us: 0.15, intl: 0.5 }
 const enc = encodeURIComponent
@@ -61,7 +61,7 @@ const B = {
 
   upgraded: (d, c, f, x) => ({ ...head(c.upgraded, d, f), t: 'brand',
     body: P(c.upgraded.intro(d, f))
-      + L.bullets([...(d.from === 'starter' ? c.adds.pro : []), ...(d.to === 'business' ? c.adds.business : [])], 'ok')
+      + L.bullets([...(d.from === 'starter' ? c.adds.standard : []), ...(['starter', 'standard'].includes(d.from) && d.to !== 'standard' ? c.adds.pro : []), ...(d.to === 'business' ? c.adds.business : [])], 'ok')
       + L.rows([{ k: c.labels.number, v: L.mono(d.phone), html: true }, { k: c.labels.plan, v: d.toName }, d.amount != null && { k: c.labels.paid, v: f.usd(d.amount) }])
       + L.button(c.upgraded.cta(d), x.app(`/app/numbers/${enc(d.phone)}`)) + upsell(c, d.to, x) }),
 

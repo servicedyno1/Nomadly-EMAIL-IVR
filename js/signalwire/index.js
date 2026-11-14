@@ -3,6 +3,7 @@
 const rest = require('./rest')
 const voice = require('./voice')
 const ib = require('../infobip')
+const mt = require('../multitel')
 const ce = require('../callengine')
 const bird = require('../bird')
 const aws = require('../aws')
@@ -85,6 +86,9 @@ function wrap(t) {
     if (st === 'full' || (st === 'bird' && birdWaiters.length)) st = await waitForBirdLine(from, to)
     const viaBird = st === 'bird'
     if (viaBird) tries.push(['Bird', () => ce.createOutboundCall(from, to, webhookUrl, connectionId, options)])
+    // Backup only (Bird busy/over budget): an Infobip-owned caller ID calls through Infobip before SignalWire, which would swap it for a pool number.
+    const ibFirst = !viaBird && ib.enabled() && !/^sip:/i.test(String(to)) && (await ib.refreshOwned().catch(() => [])).includes(from)
+    if (ibFirst) tries.push(['Infobip', () => ib.voice.createOutboundCall(from, to, webhookUrl, connectionId, options)])
     if (nanp && swOn() && voice.connected()) tries.push(['SignalWire', async () => {
       const nanpFrom = /^\+1\d{10}$/.test(String(from))
       let use = nanpFrom ? (await poolCaller(from)) || from : from
@@ -121,7 +125,7 @@ function wrap(t) {
       if (use !== from) { r.callerSwapped = { requested: from, used: use }; log(`caller ID ${from} isn't on SignalWire — REST called ${to} from ${use}`) }
       return r
     }])
-    if (ib.enabled() && !/^sip:/i.test(String(to))) tries.push(['Infobip', () => ib.voice.createOutboundCall(from, to, webhookUrl, connectionId, options)])
+    if (!ibFirst && ib.enabled() && !/^sip:/i.test(String(to))) tries.push(['Infobip', () => ib.voice.createOutboundCall(from, to, webhookUrl, connectionId, options)])
     if (!viaBird && !nanp && ce.enabled() && ce.connected()) tries.push(['CallEngine', () => ce.createOutboundCall(from, to, webhookUrl, connectionId, options)])
     if (telnyxBackup() || !tries.length) tries.push(['Telnyx', () => t.createOutboundCall(from, to, webhookUrl, connectionId, options)])
     let first = null
@@ -139,6 +143,8 @@ function wrap(t) {
 
   // New numbers: Infobip (default for local numbers) → Telnyx SIP → SignalWire → Infobip → Telnyx old account.
   w.searchNumbers = async (countryCode, numberType, areaCode, limit = 5) => {
+    // Least paperwork, then cheapest (number-catalog): MultiTEL leads where it wins, e.g. US/CA without an area code.
+    if (mt.enabled() && require('../number-catalog').best(String(countryCode || 'US').toUpperCase(), numberType || 'local')?.provider === 'multitel') { const r = await mt.searchNumbers(countryCode, numberType || 'local', areaCode, limit); if (r.length) return r }
     if (ib.enabled() && (!numberType || numberType === 'local')) { const r = await ib.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
     if (txs.enabled()) {
       const r = await txs.searchNumbers(countryCode, numberType, areaCode, limit, rest.AREA_REGION[Number(areaCode)] || null)
@@ -149,6 +155,7 @@ function wrap(t) {
       if (r.length) return r
     }
     if (ib.enabled()) { const r = await ib.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
+    if (mt.enabled()) { const r = await mt.searchNumbers(countryCode, numberType || 'local', areaCode, limit); if (r.length) return r }
     // Skip Telnyx while its account can't sell numbers (US/CA-only mode); international searches still try it.
     if (!telnyxBackup() || (['US', 'CA'].includes(String(countryCode || 'US').toUpperCase()) && require('../phone-config').numberSearchUsCaOnly())) return []
     return t.searchNumbers(countryCode, numberType, areaCode, limit)
@@ -164,7 +171,8 @@ function wrap(t) {
       if (r) ce.setDidApps([r._retriedNumber || phoneNumber])
       return r
     }
-    if (ib.isIbSearched(phoneNumber)) return ib.buyNumber(phoneNumber)
+    if (ib.isIbSearched(phoneNumber)) return require('../provider-health').buyWithBackup('infobip', phoneNumber, retrySearch)
+    if (mt.isMtSearched(phoneNumber)) return require('../provider-health').buyWithBackup('multitel', phoneNumber, retrySearch)
     if (bird.isBirdSearched(phoneNumber)) return bird.buyNumber(phoneNumber)
     if (swOn() && rest.isSwSearched(phoneNumber)) {
       const r = await rest.buyNumber(phoneNumber)
@@ -184,7 +192,7 @@ function wrap(t) {
     return t.getNumberCapabilities(phoneNumber)
   }
   w.updateNumber = (id, updates) => (txs.isTx(id) ? Promise.resolve(true) : voice.isSw(id) ? rest.configureNumber(String(id).slice(3)) : t.updateNumber(id, updates))
-  w.releaseNumber = (id) => (txs.isTx(id) ? txs.releaseNumber(id) : voice.isSw(id) ? rest.releaseById(id) : ib.isIb(id) ? ib.releaseNumber(id) : bird.isBird(id) ? bird.releaseNumber(id) : t.releaseNumber(id))
+  w.releaseNumber = (id) => (txs.isTx(id) ? txs.releaseNumber(id) : voice.isSw(id) ? rest.releaseById(id) : ib.isIb(id) ? ib.releaseNumber(id) : mt.isMt(id) ? mt.releaseNumber(id) : bird.isBird(id) ? bird.releaseNumber(id) : t.releaseNumber(id))
   w.releaseByPhoneNumber = async (phoneNumber) => {
     if (txs.enabled() && await txs.releaseByPhoneNumber(String(phoneNumber).replace(/[^+\d]/g, '')).catch(() => false)) return true
     if (swOn()) { const r = await rest.releaseByPhoneNumber(String(phoneNumber).replace(/[^+\d]/g, '')); if (r !== null) return r }
@@ -193,6 +201,7 @@ function wrap(t) {
   w.listNumbers = async () => [...(swOn() ? await rest.listNumbers() : []), ...((await t.listNumbers().catch(() => [])) || [])]
   w.assignNumberToCallControlApp = async (phoneNumber, appId) => {
     if (ib.enabled() && (await ib.refreshOwned()).includes(phoneNumber)) return true // routed to our calls config when bought
+    if (mt.enabled() && (await mt.refreshOwned()).includes(phoneNumber)) { ce.setDidApps([phoneNumber]); return true } // SIP URI to our server
     if (txs.enabled()) { await txs.refreshOwned(); if (txs.ownsNumber(phoneNumber)) { ce.setDidApps([phoneNumber]); return true } }
     if (swOn()) { await rest.refreshOwned(); if (rest.ownsNumber(phoneNumber)) return rest.assignNumber(phoneNumber) }
     return t.assignNumberToCallControlApp(phoneNumber, appId)

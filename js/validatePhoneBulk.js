@@ -185,7 +185,7 @@ const validateNumber = async (carrier, countryCode, areaCode, cnam) => {
     }
   }
 
-  // Use unified CNAM service (Telnyx → Multitel → SignalWire + cache)
+  // Use unified CNAM service (Multitel → SignalWire + cache)
   // Falls back to legacy SignalWire-only lookup if cnam-service not initialized
   try {
     const name = await lookupCnam(phone)

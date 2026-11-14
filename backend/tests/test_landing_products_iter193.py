@@ -20,7 +20,7 @@ def test_mobile_offer_public():
     r = requests.get(f"{API}/public/mobile-offer")
     assert r.status_code == 200, r.text
     d = r.json()
-    assert d['available'] is True and d['price'] == 75
+    assert d['available'] is True and d['price'] == 50  # 2026-11: Spenza texting line $50
 
 
 def test_esim_plans_public():

@@ -54,7 +54,7 @@ function routes(router, { h, numbersApi }) {
     // Only lines whose plan has the AI voice agent (Business) — an old Pro line with the switch left on no longer uses it.
     const usedBy = (id) => nums.filter(n => n.features?.aiAgent?.enabled && n.features.aiAgent.agentId === id && phoneConfig.canAccessFeature(n.plan, 'aiAgent')).map(n => n.phoneNumber)
     res.json({
-      agents: list.map(a => ({ ...s.publicAgent(a), numbers: usedBy(a.id) })), rate: ai.RATE(), recordRate: ai.RECORD_RATE(), recordingDays: ai.recorder.RETENTION_DAYS(), voices: s.VOICES,
+      agents: list.map(a => ({ ...s.publicAgent(a), numbers: usedBy(a.id) })), rate: ai.RATE(), receptionRate: ai.RECEPTION_RATE(), recordRate: ai.RECORD_RATE(), recordingDays: ai.recorder.RETENTION_DAYS(), voices: s.VOICES,
       canUse: nums.some(n => n.status === 'active' && phoneConfig.canAccessFeature(n.plan, 'aiAgent')), testDailyMinutes: 15,
     })
   }))
@@ -75,7 +75,7 @@ function routes(router, { h, numbersApi }) {
     const noName = ai.opening.openingInfo(a, 'outbound', recorded, null)
     res.json({ inbound, outbound, outboundNoName: noName.text !== outbound.text ? noName.text : null, sampleLead: sample })
   }))
-  router.get('/ai-agents/:id', withAgent(async (req, res) => res.json({ agent: s.publicAgent(req.agent), rate: ai.RATE(), recordRate: ai.RECORD_RATE(), recordingDays: ai.recorder.RETENTION_DAYS(), voices: s.VOICES })))
+  router.get('/ai-agents/:id', withAgent(async (req, res) => res.json({ agent: s.publicAgent(req.agent), rate: ai.RATE(), receptionRate: ai.RECEPTION_RATE(), recordRate: ai.RECORD_RATE(), recordingDays: ai.recorder.RETENTION_DAYS(), voices: s.VOICES })))
   router.put('/ai-agents/:id', withAgent(async (req, res) => {
     if (await needCalendar(req, res)) return
     try { res.json({ agent: s.publicAgent(await s.updateAgent(req.webChatId, req.agent.id, req.body || {})) }) } catch (e) { bad(res, 400, 'invalid_agent', e.message) }
@@ -140,7 +140,7 @@ function routes(router, { h, numbersApi }) {
   router.put('/numbers/:phone/ai-agent', h(async (req, res) => {
     const num = await numbersApi.findMine(req.webChatId, req.params.phone)
     if (!num) return bad(res, 404, 'not_found', 'Number not found on your account.')
-    if (!phoneConfig.canAccessFeature(num.plan, 'aiAgent')) return bad(res, 403, 'plan_upgrade_required', 'The AI voice agent needs the Business plan on this number.')
+    if (!phoneConfig.canAccessFeature(num.plan, 'aiAgent')) return bad(res, 403, 'plan_upgrade_required', 'The AI receptionist isn’t available on this number.')
     const enabled = !!req.body?.enabled
     const agentId = req.body?.agentId ? String(req.body.agentId) : null
     if ((enabled || agentId) && !(await s.getAgent(agentId, req.webChatId))) return bad(res, 400, 'invalid_agent', 'Pick one of your AI agents.')
