@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { COPYRIGHT } from '../../company';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUp, ChevronDown, MessageCircle, Send, MessageSquareText, Check } from 'lucide-react';
@@ -12,7 +12,7 @@ import { PlanFeatures, RecommendedBadge } from '../../PlanFeatures';
 import { PaymentMethods } from './Payments';
 import { PlanCompare } from './PlanTable';
 import { openCookieSettings } from '../../consent';
-import { PRODUCTS, USE_CASES, goTo, hrefOf } from './menu';
+import { goTo } from './menu';
 
 // Plan button target: signed-in → Buy with the plan picked, otherwise sign-up keeps it (?plan=pro). Also used by the SIP page.
 export const useStart = () => { const { account } = useCivrAuth(); return (plan) => (plan === 'esim' && account ? cp('/app/esim') : plan === 'textnum' && account ? cp('/app/buy?purpose=texting&country=US') : plan === 'texting' && account ? cp('/app/texting?start=texting') : account ? cp(`/app/buy${plan ? `?plan=${plan}` : ''}`) : cp(`/signup${plan ? `?plan=${plan}` : ''}`)); };
@@ -91,16 +91,16 @@ export function faqItems(c) {
   return [
     ['What does each plan include?', `Basic gives you a number with call forwarding and the browser phone — make and take calls in any browser tab. Starter adds voicemail, SIP logins for desk phones and softphone apps and call recording. Pro adds the keypad menu, ring groups, Quick IVR calls, Bulk IVR campaigns and code collection. Business adds showing your own verified caller ID on every call (softphone, browser, Quick IVR and campaigns), AI voice agents, text calls, Text Triggers, Quick IVR scheduling and saved presets, redial, your own accept / decline messages for codes, one saved voice for every call and priority support.`],
     ['How does texting work?', 'We sell three kinds of number. A calling number is for calls, and texting can be switched on as an optional add-on where the number supports it. A calls + texting number does both: the USA one costs $50 a month with unlimited texts, and other countries charge per text sent. A fax number only sends and receives faxes.'],
-    ['Is the Texting Number or the USA eSIM VoIP?', 'No. Both are real mobile numbers on a USA carrier, not VoIP, and both have two-way SMS: they send and receive texts instantly. The eSIM runs on your phone; the Texting Number lives in CloudIVR and you read and send its texts in Messages in any browser.'],
-    ['Can I receive texts, not just send them?', 'Yes. Both have two-way SMS, inbound and outbound. The eSIM sends and receives texts on your phone. The Texting Number sends and receives them in CloudIVR Messages, including verification codes.'],
+    ['Is the USA calls + texting number or the eSIM VoIP?', 'No. Both are real mobile numbers on a USA carrier, not VoIP, with two-way texts. The eSIM runs on your phone; the calls + texting number lives in CloudIVR, and you read and send its texts in Messages in any browser.'],
+    ['Can I receive texts, not just send them?', 'Yes. Both have two-way SMS, inbound and outbound. The eSIM sends and receives texts on your phone. The calls + texting number sends and receives them in CloudIVR Messages, including verification codes.'],
     ['Does it work with my bank?', 'It’s a real carrier number, and most banks and apps accept it for sign-ups and verification codes. Each service sets its own rules, so we can’t promise every one will.'],
-    ['What is a fax number?', 'A number that only sends and receives faxes, online — in the USA, Canada, UK and 26 more countries. It never takes calls or texts. Use a Business Line for calls and SIP, and a Texting Number for SMS.'],
+    ['What is a fax number?', 'A number that only sends and receives faxes, online — in the USA, Canada, UK and 26 more countries. It never takes calls or texts. For calls pick a Calls number; for texts, a Calls + texting number.'],
     ['How much does fax cost?', 'A fax number is $50 a month and includes 25 free pages a month (sent and received). After that, each page is $0.05 from your wallet, charged only when a fax is delivered or received. Some countries need your name and address, others an ID or company document, plus a quick e-signature; the carrier approves those within a few days, with a full refund if it says no.'],
     ['Can I pick my fax number before I sign up?', 'Yes. Search by country and area code on this page, pick your number, then create your free account and pay from your wallet. If an area code has no fax numbers, we show nearby ones.'],
     ['How do I send and receive faxes?', 'Upload a PDF or photo in CloudIVR and send it to one number or up to 500 at once, with an optional cover page. Faxes sent to your number arrive as PDFs in CloudIVR and by email.'],
     ['Can I choose the number?', 'You pick a USA ZIP code and we ask the carrier for a number near it. It’s a preference: the area code and the exact number can’t be chosen.'],
-    ['When do I get it?', 'After your payment is confirmed. It’s usually ready within minutes, and sometimes takes longer. The eSIM QR code is shown in the app and emailed to the address you enter; the Texting Number appears under Texting Number in the app.'],
-    ['Can the Texting Number make calls?', 'Yes, outgoing calls from the browser phone, paid from your wallet. The number is also a free verified caller ID for your other CloudIVR calls.'],
+    ['When do I get it?', 'After your payment is confirmed. It’s usually ready within minutes, and sometimes takes longer. The eSIM QR code is shown in the app and emailed to the address you enter; the calls + texting number appears under My numbers.'],
+    ['Can the USA calls + texting number make calls?', 'Yes, outgoing calls from the browser phone, paid from your wallet. The number is also a free verified caller ID for your other CloudIVR calls.'],
     ['What happens if I don’t renew?', 'Both renew monthly at $50 from your wallet. If your wallet is short, the line pauses until you top up and tap Renew. If you turn auto-renew off, the line ends after the paid month. Cancelling ends it straight away with no refund for the current month, and the number can’t be recovered.'],
     ['Can I replace the number?', 'Yes, for $25. The carrier assigns the new number; you can’t choose it. If the carrier refuses, or doesn’t assign one within 24 hours, the $25 goes back to your wallet.'],
     ['Can I try it before I pay?', 'Yes, twice. Without an account: confirm your email with a 6-digit code and take one free test call of up to 60 seconds — we ring your phone with a demo menu, or you call from your browser. After you sign up: place one free Quick IVR call from our number — it plays your script to anyone you choose, then connects them to you when they press 1 or collects a code you accept or decline.'],
@@ -118,19 +118,26 @@ export function faqItems(c) {
   ];
 }
 
+const FAQ_FIRST = 6;
+// The landing page leads with what first-time visitors ask most; the Help centre keeps the full order.
+const FIRST_QS = ['How does texting work?', 'What does each plan include?', 'How much does fax cost?', 'Can I try it before I pay?', 'How do I pay?', 'Can I cancel?'];
+const byPriority = (items) => [...FIRST_QS.map(q => items.find(x => x[0] === q)).filter(Boolean), ...items.filter(x => !FIRST_QS.includes(x[0]))];
 export function Faq({ catalog }) {
+  const [all, setAll] = useState(false);
+  const items = byPriority(faqItems(catalog));
   return (
     <section id="faq" className="civr-l-cream civr-l-soft scroll-mt-16 border-t civr-l-rule" data-testid="faq-section">
-      <div className="max-w-7xl mx-auto px-6 md:px-8 py-24">
-        <Reveal className="mx-auto max-w-2xl text-center"><div className="civr-l-eyebrow">FAQ</div><h2 className="civr-l-h text-3xl sm:text-4xl text-slate-950 mt-3">Got questions? Good.</h2><p className="text-slate-600 mt-4">Plain answers about numbers, IVR, SIP and payments.</p></Reveal>
-        <div className="mx-auto mt-12 max-w-3xl space-y-3" data-testid="faq-list">
-          {faqItems(catalog).slice(0, 14).map(([q, a], i) => (
-            <Reveal as="details" key={q} delay={Math.min(i, 6) * 60} className="civr-faq-item overflow-hidden rounded-2xl border border-slate-200 bg-white" data-testid={`faq-item-${i}`}>
-              <summary className="flex items-center justify-between gap-4 cursor-pointer px-5 sm:px-6 py-5 min-h-[56px] text-base font-semibold text-slate-950" data-testid={`faq-question-${i}`}>{q}<span className="civr-faq-chevron flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 text-[#1d6fd8]"><ChevronDown className="w-4 h-4" /></span></summary>
-              <p className="px-5 sm:px-6 pb-5 text-base leading-relaxed text-slate-600" data-testid={`faq-answer-${i}`}>{a}</p>
-            </Reveal>
+      <div className="max-w-3xl mx-auto px-6 md:px-8 py-20 md:py-24">
+        <Reveal><div className="civr-l-eyebrow">FAQ</div><h2 className="civr-l-h text-3xl sm:text-4xl text-slate-950 mt-3">Questions, answered</h2></Reveal>
+        <div className="mt-10 divide-y civr-l-rule border-y civr-l-rule" data-testid="faq-list">
+          {items.slice(0, all ? items.length : FAQ_FIRST).map(([q, a], i) => (
+            <details key={q} className="civr-faq-item" data-testid={`faq-item-${i}`}>
+              <summary className="flex items-center justify-between gap-4 cursor-pointer py-5 min-h-[56px] text-base font-semibold text-slate-950" data-testid={`faq-question-${i}`}>{q}<ChevronDown className="civr-faq-chevron w-5 h-5 shrink-0 text-[#1d6fd8]" aria-hidden="true" /></summary>
+              <p className="pb-6 text-base leading-relaxed text-slate-600" data-testid={`faq-answer-${i}`}>{a}</p>
+            </details>
           ))}
         </div>
+        {items.length > FAQ_FIRST && <button type="button" onClick={() => setAll(v => !v)} aria-expanded={all} className="mt-6 inline-flex items-center gap-2 min-h-[44px] text-sm font-semibold text-[#1d6fd8]" data-testid="faq-show-all">{all ? 'Show fewer questions' : `Show all ${items.length} questions`}<ChevronDown className={`w-4 h-4 transition-transform ${all ? 'rotate-180' : ''}`} aria-hidden="true" /></button>}
       </div>
     </section>
   );
@@ -140,16 +147,12 @@ export function FinalCta({ catalog }) {
   const start = useStart();
   const from = startPrice(catalog);
   return (
-    <section className="civr-l-cream py-24" data-testid="final-cta">
+    <section className="civr-l-cream py-20 md:py-24" data-testid="final-cta">
       <div className="max-w-7xl mx-auto px-6 md:px-8">
         <Reveal className="civr-l-ondark relative overflow-hidden rounded-3xl bg-[#07060f] ring-1 ring-white/10 px-8 py-16 md:px-16 md:py-20 text-center">
-          <span aria-hidden="true" className="pointer-events-none absolute -left-20 -top-24 h-72 w-72 rounded-full bg-[#1d6fd8]/30 blur-3xl" />
-          <span aria-hidden="true" className="pointer-events-none absolute -bottom-24 -right-16 h-72 w-72 rounded-full bg-lime-300/20 blur-3xl" />
-          <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-0 h-px w-2/3 -translate-x-1/2 bg-gradient-to-r from-transparent via-sky-400/60 to-transparent" />
           <div className="relative">
-            <div className="civr-l-eyebrow !text-lime-300">Ready when you are</div>
-            <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl text-white max-w-3xl mx-auto mt-4">Stop missing calls. <span className="text-[#64acff]">Start closing them.</span></h2>
-            <p className="text-base mt-5 text-slate-300">Your number can be answering — and calling — in minutes. Free to sign up{from ? ` · Numbers from ${from}/month` : ''} · No contracts</p>
+            <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl text-white max-w-3xl mx-auto">Your business number, live in minutes.</h2>
+            <p className="text-base mt-5 text-slate-300">Free to sign up{from ? ` · from ${from}/month` : ''} · no contract</p>
             <div className="flex justify-center mt-9">
               <Link to={start()} className="civr-l-pill civr-l-pill-ink" data-testid="final-cta-button"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>
             </div>
@@ -160,6 +163,7 @@ export function FinalCta({ catalog }) {
   );
 }
 
+const FOOTER_KINDS = [['#pricing', 'Calls', 'calls'], ['#pricing', 'Calls + texting', 'texting'], ['#pricing', 'Fax only', 'fax'], ['#pricing', 'USA eSIM', 'esim']];
 const fLink = 'text-sm text-slate-600 hover:text-slate-950 transition-colors py-1.5 text-left';
 
 function FooterCol({ title, children, testid }) {
@@ -169,25 +173,25 @@ function FooterCol({ title, children, testid }) {
 // Mega footer (cm.com style). Product links open the matching platform tab; on other pages they go back to the landing page.
 export function Footer({ catalog }) {
   const base = cp();
-  const menuLinks = (items, id) => items.map(([k, , t, , target]) => <a key={k} href={hrefOf(base, target)} onClick={(e) => goTo(target, e)} className={fLink} data-testid={`footer-${id}-${k}`}>{t}</a>);
   return (
     <footer className="bg-slate-50 text-slate-900 border-t border-slate-200" data-testid="landing-footer">
       <div className="max-w-7xl mx-auto px-6 md:px-8 pt-16 pb-10">
         <div className="grid gap-12 lg:grid-cols-12">
           <div className="lg:col-span-4">
             <div className="font-display text-2xl font-extrabold flex items-center gap-2" data-testid="landing-footer-logo"><Wordmark accent="#059669" iconClass="w-8 h-8" /></div>
-            <p className="text-sm text-slate-600 mt-4 max-w-xs">Virtual numbers, inbound & outbound IVR, SIP and AI voice agents — run from your browser.</p>
+            <p className="text-sm text-slate-600 mt-4 max-w-xs">Business numbers for calls, texts and fax, with menus, SIP and an AI receptionist — all in your browser.</p>
             <div className="flex flex-wrap gap-3 mt-6">
               <Link to={cp('/signup')} className="civr-l-pill civr-l-pill-ink civr-l-pill-sm" data-testid="footer-cta-signup">Get your number</Link>
               <Link to={cp('/login')} className="civr-l-pill civr-l-pill-outline civr-l-pill-sm" data-testid="footer-link-signin">Sign in</Link>
             </div>
             <SocialLinks />
           </div>
-          <div className="lg:col-span-8 grid grid-cols-2 md:grid-cols-4 gap-8">
-            <FooterCol title="Product" testid="footer-col-product">{menuLinks(PRODUCTS, 'product')}</FooterCol>
-            <FooterCol title="Use cases" testid="footer-col-usecases">{menuLinks(USE_CASES, 'usecase')}</FooterCol>
+          <div className="lg:col-span-8 grid grid-cols-2 md:grid-cols-3 gap-8">
+            <FooterCol title="Numbers" testid="footer-col-product">
+              {FOOTER_KINDS.map(([h, l, id]) => <a key={id} href={`${base}${h}`} onClick={(e) => goTo(h, e)} className={fLink} data-testid={`footer-product-${id}`}>{l}</a>)}
+            </FooterCol>
             <FooterCol title="CloudIVR" testid="footer-col-company">
-              {[['#esim-card', 'CloudIVR eSIM', 'esim'], ['#mobile', 'Texting Number', 'mobile'], ['#coverage', 'Coverage', 'coverage'], ['#try', 'Free test call', 'try'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']].map(([h, l, id]) => <a key={id} href={`${base}${h}`} onClick={(e) => goTo(h, e)} className={fLink} data-testid={`footer-link-${id}`}>{l}</a>)}
+              {[['#how', 'How it works', 'how'], ['#try', 'Free test call', 'try'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']].map(([h, l, id]) => <a key={id} href={`${base}${h}`} onClick={(e) => goTo(h, e)} className={fLink} data-testid={`footer-link-${id}`}>{l}</a>)}
               <Link to={cp('/sip')} className={fLink} data-testid="footer-link-sip">SIP & softphones</Link>
             </FooterCol>
             <FooterCol title="Support & legal" testid="footer-col-support">

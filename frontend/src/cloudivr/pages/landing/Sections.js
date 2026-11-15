@@ -85,20 +85,20 @@ export function Badge({ plans, k }) {
 
 export function HowItWorks({ catalog }) {
   const steps = [
-    [UserPlus, 'Create your free account', 'Email or Google. No card, no contract, no setup fee.'],
-    [Hash, 'Pick a number and a plan', 'Choose a country and a local, mobile or toll-free number. Then decide what callers get: forwarding, voicemail, a keypad menu or an AI voice agent.'],
-    [Wallet, 'Pay and go live', `Crypto (${coinList(catalog) || 'BTC, ETH, USDT and more'}) or your CloudIVR wallet — cards are coming soon. Most numbers ring in about a minute.`],
+    [UserPlus, 'Say what it’s for', 'Calls, calls + texting, or fax only. Create a free account by email or Google, no card needed.'],
+    [Hash, 'Pick your number', 'Choose a country and a local, mobile or toll-free number. Add forwarding, voicemail, a keypad menu or an AI receptionist later.'],
+    [Wallet, 'Pay and go live', `Pay with crypto (${coinList(catalog) || 'BTC, ETH, USDT and more'}) or your wallet. Most numbers work within a minute.`],
   ];
   return (
     <section id="how" className="civr-l-cream civr-l-soft scroll-mt-16 border-t civr-l-rule" data-testid="how-section">
-      <div className="max-w-7xl mx-auto px-6 md:px-8 py-24">
-        <SectionHead label="How it works" title="From sign-up to ringing in minutes." />
-        <ol className="grid md:grid-cols-3 gap-4 mt-12">
+      <div className="max-w-7xl mx-auto px-6 md:px-8 py-20 md:py-24">
+        <SectionHead label="How it works" title="Three steps. About five minutes." />
+        <ol className="grid md:grid-cols-3 gap-10 md:gap-8 mt-12">
           {steps.map(([Icon, t, s], i) => (
-            <Reveal as="li" key={t} delay={i * 120} className="civr-l-card-cream p-6 md:p-8" data-testid={`how-step-${i + 1}`}>
-              <div className="flex items-center justify-between"><span className="w-8 h-8 rounded-full bg-slate-900 text-white text-sm font-semibold grid place-items-center">{i + 1}</span><Icon className="w-5 h-5 text-slate-400" /></div>
-              <div className="text-xl font-semibold text-slate-900 mt-6">{t}</div>
-              <p className="text-sm text-slate-600 mt-2">{s}</p>
+            <Reveal as="li" key={t} delay={i * 120} className="p-2 md:pr-8" data-testid={`how-step-${i + 1}`}>
+              <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-full bg-[#1d6fd8] text-white text-sm font-semibold grid place-items-center" aria-hidden="true">{i + 1}</span><Icon className="w-5 h-5 text-slate-500" aria-hidden="true" /></div>
+              <h3 className="text-xl font-semibold text-slate-900 mt-5">{t}</h3>
+              <p className="text-base text-slate-600 mt-2 leading-relaxed">{s}</p>
             </Reveal>
           ))}
         </ol>

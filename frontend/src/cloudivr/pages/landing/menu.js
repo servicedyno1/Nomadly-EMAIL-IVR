@@ -13,7 +13,7 @@ export const PRODUCTS = [
   ['tendlc', ShieldCheck, 'USA 10DLC registration', 'Register your brand to text USA customers. $49 once.', '#product-ten-dlc'],
   ['intl', Globe2, 'Texting in more countries', 'Two-way texts and calls on numbers outside the USA.', '#product-intl-texting'],
   ['hosted', MessageSquareText, 'Landline to Texting (soon)', 'Texts on the landline number you already have — coming soon.', 'hosted'],
-  ['fax', Printer, 'Fax number', 'Send and receive faxes online, $9 a month.', '#product-fax'],
+  ['fax', Printer, 'Fax number', 'Send and receive faxes online, $50 a month with 25 free pages.', '#product-fax'],
   ['esim', Smartphone, 'USA eSIM', 'A downloadable USA line on your own phone, installed with a QR code.', '#esim-card'],
   ['travel', Plane, 'Travel eSIM', 'Mobile data in 187 countries.', '#product-travel-esim'],
   ['lookup', ScanSearch, 'Number & email lookup', 'Check numbers ($0.015) and emails ($0.0015), one at a time or 1,000 at once.', '#product-lookup'],

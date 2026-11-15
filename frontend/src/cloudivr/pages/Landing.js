@@ -3,18 +3,14 @@ import { useSiteLook } from './landing/kit';
 import { useApi } from '../api';
 import { EsimCheckoutHost } from './landing/EsimCheckout';
 import { HowItWorks } from './landing/Sections';
-import { Platform } from './landing/Platform';
 import { TryCall } from './landing/TryCall';
-import { Products } from './landing/Products';
 import { Faq, FinalCta, Footer } from './landing/PricingFaq';
-import { OneHero, AllPlans, CompareTable } from './landing/OnePage';
-import { PromiseStrip } from './landing/Highlights';
+import { OneHero, AllPlans } from './landing/OnePage';
 import { startPrice } from '../api';
 import { LandingNav } from './landing/Nav';
 import { StickyCta } from './landing/StickyCta';
 import { CATALOG_SNAPSHOT } from './landing/catalogSnapshot';
 import SupportChat from '../SupportChat';
-import { Reviews } from './landing/HeroPhone';
 import { MobileCheckoutHost } from './landing/MobileCheckout';
 
 export { LANDING_LINKS } from './landing/Nav';
@@ -32,15 +28,10 @@ export default function Landing() {
     <div className="civr-l civr-np" data-testid="landing-page" data-catalog={data ? 'live' : 'snapshot'}>
       <LandingNav catalog={catalog} />
       <main>
-        <OneHero setTab={setTab} from={startPrice(catalog)} esimPrice={esim?.plans?.[0]?.price} offer={offer} fax={fax} catalog={catalog} />
-        <PromiseStrip />
-        <AllPlans catalog={catalog} tab={tab} setTab={setTab} esimPrice={esim?.plans?.[0]?.price} offer={offer} fax={fax} />
-        <Products esimPrice={esim?.plans?.[0]?.price} />
-        <CompareTable catalog={catalog} />
-        <Platform catalog={catalog} />
+        <OneHero setTab={setTab} from={startPrice(catalog)} offer={offer} fax={fax} />
         <HowItWorks catalog={catalog} />
+        <AllPlans catalog={catalog} tab={tab} setTab={setTab} esimPrice={esim?.plans?.[0]?.price} offer={offer} fax={fax} />
         <TryCall />
-        <Reviews />
         <Faq catalog={catalog} />
         <FinalCta catalog={catalog} />
       </main>
