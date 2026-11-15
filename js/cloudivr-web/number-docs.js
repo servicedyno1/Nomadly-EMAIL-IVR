@@ -62,6 +62,17 @@ function createNumberDocs({ db, h, sendMail, legalProfile, notify, notifyAdmin =
     const d = await col.findOne({ _id: `${chatId}:${country}` })
     const files = (d?.files || []).filter(f => !f.deleted)
     const eu = await legalProfile.endUserOf(chatId)
+    // Preferred: the customer's MultiTEL registration profile (created once, reused) attached to the number.
+    const person = require('../multitel/identity').personFromLegal(await db.collection('webAccounts').findOne({ _id: Number(chatId) }))
+    if (person?.signature) {
+      try {
+        const docs = []
+        for (const f of files) docs.push({ buffer: await get(f.path), name: f.name, type: f.type })
+        const r = await require('../multitel/identity').registerNumber(db, { chatId, phoneNumber, person: { ...person, email: person.email || email }, files: docs })
+        await nums.updateOne({ _id: chatId, 'val.numbers.phoneNumber': phoneNumber }, { $set: { 'val.numbers.$.registration.via': 'api', 'val.numbers.$.registration.profile': r.profile, 'val.numbers.$.registration.documentsSent': true, 'val.numbers.$.registration.sentAt': new Date().toISOString(), 'val.numbers.$.registration.files': files.length } })
+        return notifyAdmin(`📄 MultiTEL registration submitted via customer profile for ${phoneNumber} (${countryName}) — web account ${chatId}, ${files.length} file(s)`)
+      } catch (e) { log(`[NumberDocs] profile registration ${phoneNumber} failed, emailing instead: ${e.message}`) }
+    }
     const attachments = []
     for (const f of files) attachments.push({ filename: `${phoneNumber.replace(/\D/g, '')}-${f.name}`, content: (await get(f.path)).toString('base64') })
     const to = process.env.MULTITEL_DOCS_EMAIL || 'support@multitel.net'

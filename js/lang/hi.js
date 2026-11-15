@@ -1702,7 +1702,7 @@ ${numberLines}
  cp_77: '🔑 <b>OTP संग्रह मोड</b>\n\nकोड कितने अंकों का होना चाहिए?\n\n💡 कोड का प्रॉम्प्ट आपकी स्क्रिप्ट के बाद स्वतः जुड़ जाता है — इसे शामिल करने की ज़रूरत नहीं।\n\n<i>डिफ़ॉल्ट: 6 अंक</i>',
  cp_78: 'एक मोड चुनें:',
  cp_79: '📋 <b>कॉल मोड चुनें</b>\n\n🔗 <b>ट्रांसफर</b> — जब लक्ष्य कुंजी दबाए, उसे आपके नंबर से जोड़ दें\n🔑 <b>OTP संग्रह</b> — कुंजी दबाने के बाद लक्ष्य से स्वतः कोड माँगा जाता है — जो Telegram के ज़रिए आप तक पहुँचता है\n\nदोनों मोड पूरे परिणाम रिपोर्ट करते हैं।',
- cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business, sp, sm, sl) => `🛒 <b>चरण 1 / 4 · प्लान चुनें</b>\n\n💡 <b>Basic $${price}</b> · ${minutes} मिनट · फॉरवर्डिंग · ${starter} नंबर\n🧩 <b>Starter $${sp}</b> · ${sm} मिनट · + SIP, वॉइसमेल, रिकॉर्डिंग · ${sl} नंबर\n⭐ <b>Pro $${v5}</b> · ${v6} मिनट · + IVR, Bulk IVR, OTP, ब्राउज़र कॉल · ${pro} नंबर\n👑 <b>Business $${v9}</b> · ${v10} मिनट · + कोई भी कॉलर ID, AI एजेंट, फैक्स · ${business} नंबर\n\n<i>प्रति माह। आउटगोइंग कॉल व फॉरवर्डिंग वॉलेट से · SMS भेजना $0.05, पाना मुफ्त।</i>`,
+ cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business, sp, sm, sl) => `🛒 <b>चरण 1 / 4 · प्लान चुनें</b>\n\n💡 <b>Basic $${price}</b> · ${minutes} मिनट · फॉरवर्डिंग · ${starter} नंबर\n🧩 <b>Starter $${sp}</b> · ${sm} मिनट · + SIP, वॉइसमेल, रिकॉर्डिंग · ${sl} नंबर\n⭐ <b>Pro $${v5}</b> · ${v6} मिनट · + IVR, Bulk IVR, OTP, ब्राउज़र कॉल · ${pro} नंबर\n👑 <b>Business $${v9}</b> · ${v10} मिनट · + कोई भी कॉलर ID, AI एजेंट · ${business} नंबर\n\n<i>प्रति माह। आउटगोइंग कॉल व फॉरवर्डिंग वॉलेट से · SMS भेजना $0.05, पाना मुफ्त।</i>`,
  cp_80: 'अंकों की मान्य संख्या (1-10) दर्ज करें:',
  cp_81: (length) => `✅ OTP लंबाई: <b>${length} अंक</b> (अधिकतम 3 प्रयास)\n\n✍️ <b>कॉलर संदेश कस्टमाइज़ करें</b>\n\nक्या आप कस्टमाइज़ करना चाहेंगे कि सत्यापन के बाद कॉलर क्या सुनें?\n\n<b>डिफ़ॉल्ट पुष्टि:</b> <i>"आपका कोड सफलतापूर्वक सत्यापित हो गया है। धन्यवाद। अलविदा।"</i>\n<b>डिफ़ॉल्ट अस्वीकृति:</b> <i>"अधिकतम सत्यापन प्रयास पूरे हो गए। अलविदा।"</i>`,
  cp_82: (length) => `✅ OTP लंबाई: <b>${length} अंक</b> (अधिकतम 3 प्रयास)\n\n🎙 <b>वॉइस प्रोवाइडर चुनें</b>\n\nअपना TTS इंजन चुनें:`,
@@ -2478,6 +2478,7 @@ const userKeyboard = {
  // so grouping/order changes carry no routing risk.
  ...require('../web-access').webMenuRows('hi'), // 🌐 Hosting/RDP/VPS on Web (NomadlyBot only, WEBSITE_URL set)
  [user.cloudPhone, user.hostingDomainsRedirect],
+ ['📠 फैक्स नंबर'],
  ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
  [user.bulkSmsNew, user.leadsValidation],
  [user.digitalProducts, user.esimMain], // 2026-11: eSIM on the front menu; Marketplace moved under ➕ More

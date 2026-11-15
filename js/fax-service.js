@@ -13,8 +13,9 @@ const phoneConfig = require('./phone-config')
 const notify = require('./cloudivr-web/notify')
 
 const BASE = 'https://api.telnyx.com/v2'
-const FREE_PAGES = 50
-const PAGE_PRICE = 2
+const FREE_PAGES = 25
+const PAGE_PRICE = 0.05
+const cents = (x) => Math.round(x * 100) / 100
 const MAX_PAGES = 50
 const MAX_BYTES = 10 * 1024 * 1024
 const E164 = /^\+[1-9]\d{7,14}$/
@@ -299,7 +300,8 @@ function init({ db, bot, walletOf, log, callControlAppId }) {
   }
 }
 
-const eligible = (num) => !!num && num.faxOnly ? num.status === 'active' : !!num && phoneConfig.canAccessFeature(num.plan, 'fax') && (num.provider || 'telnyx') === 'telnyx' && num.status === 'active'
+// Fax runs on standalone fax numbers only (no longer part of the Business plan).
+const eligible = (num) => !!num && !!num.faxOnly && num.status === 'active'
 const lineOn = (num) => !!num?.faxOnly || num?.features?.faxLine?.enabled === true
 // What voice routing is set on this number (so we can warn it'll stop when the fax line is turned on). Returns a label or null.
 function voiceRouting(num) {
@@ -351,7 +353,7 @@ async function findMine(chatId, phone) {
   return (doc?.val?.numbers || []).find(n => n.phoneNumber === phone && n.status !== 'released') || (await col('faxNumbers').findOne({ _id: phone, chatId: String(chatId), status: { $ne: 'released' } })) || null
 }
 
-// ── Free-page allowance: 50 pages per number per plan month (the month ending at expiresAt) ──
+// ── Free-page allowance: 25 pages per number per plan month (the month ending at expiresAt) ──
 const usageKey = (num) => `${num.phoneNumber}|${String(num.expiresAt || new Date().toISOString().slice(0, 7)).slice(0, 10)}`
 async function usage(num) {
   const d = await col('faxUsage').findOne({ _id: usageKey(num) })
@@ -369,13 +371,13 @@ async function quote(num, pages) {
   const pending = await pendingPages(num)
   const freePages = Math.min(pages, Math.max(0, left - pending))
   const paidPages = pages - freePages
-  return { pages, freePages, paidPages, cost: paidPages * PAGE_PRICE, pendingCost: Math.max(0, pending - left) * PAGE_PRICE }
+  return { pages, freePages, paidPages, cost: cents(paidPages * PAGE_PRICE), pendingCost: cents(Math.max(0, pending - left) * PAGE_PRICE) }
 }
 async function consume(num, pages) {
   const after = await col('faxUsage').findOneAndUpdate({ _id: usageKey(num) }, { $inc: { pages }, $setOnInsert: { phoneNumber: num.phoneNumber, createdAt: new Date() } }, { upsert: true, returnDocument: 'after', includeResultMetadata: false })
   const before = (after?.pages || pages) - pages
   const freePages = Math.max(0, Math.min(pages, FREE_PAGES - before))
-  return { freePages, paidPages: pages - freePages, cost: (pages - freePages) * PAGE_PRICE }
+  return { freePages, paidPages: pages - freePages, cost: cents((pages - freePages) * PAGE_PRICE) }
 }
 
 // Charges a fax exactly once (webhook retries are no-ops) → { freePages, paidPages, cost }. With hold, a received fax

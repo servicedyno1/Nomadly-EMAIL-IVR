@@ -585,7 +585,7 @@ const { user: configUser } = require('./config.js')
 const { computeDepositCreditUsd } = require('./crypto-credit.js')
 const createShortBitly = require('./bitly.js')
 const { getBitlyClicks, isBitlyUrl } = require('./bitly.js')
-const { createShortUrlApi, analyticsCuttly } = require('./cuttly.js')
+const { createShortUrlApi, analyticsCuttly, SHORT_DOMAINS, aws3On } = require('./cuttly.js')
 const linklyUsageMonitor = require('./linkly-usage-monitor.js') // admin warning before Linkly plan limits (links/clicks)
 const { getAnalyticsCapability } = require('./shortener-analytics.js')
 const {
@@ -805,6 +805,7 @@ const { handleVoiceWebhook, initVoiceService, getIvrAnalytics, trackIvrAnalytics
 const { initCnamService, lookupCnam, batchLookupCnam, getCircuitStatus } = require('./cnam-service.js')
 const phoneConfig = require('./phone-config.js')
 const botRec = require('./bot-receptionist')
+const botFax = require('./bot-fax-numbers')
 const safeUrl = require('./safe-url')
 const planLifecycle = require('./plan-lifecycle.js')
 const ttsService = require('./tts-service.js')
@@ -4190,6 +4191,7 @@ const loadData = async () => {
   notifyGroupsCol = db.collection('notifyGroups')
   phoneNumbersOf = db.collection('phoneNumbersOf')
   require('./bird-spend').init(db)
+  botFax.init(db, { notifyAdmin: (t) => { try { notifyAdmin?.(t) } catch (_) {} }, push: (id, text) => (require('./cloudivr-web/notify').isWebChatId(id) ? require('./cloudivr-web/notify').push(id, text, null, { kind: 'fax' }) : bot?.sendMessage(id, text)).catch?.(() => {}) })
   require('./growth-nudges').start({ db, notifyAdmin, log, send: (id, text) => bot?.sendMessage(id, text, { parse_mode: 'HTML' }).catch(() => {}) })
   require('./provider-health').start(notifyAdmin)
   require('./pending-orders').init({
@@ -8714,6 +8716,18 @@ bot?.on('message', msg => {
       } catch (e) { log(`[Fax] bulk list file error for ${chatId}: ${e.message}`); return send(chatId, '⚠️ That file could not be read. Paste the numbers instead.') }
     }
     if (userInfo?.action === 'cpFaxBulkTo' && userInfo?.cpActiveNumber) return send(chatId, faxService.t(userInfo.userLanguage).askBulk, { parse_mode: 'HTML' })
+    if (userInfo?.action === 'fxnDocs' && userInfo?.fxnCountry) {
+      const t = botFax.T(userInfo.userLanguage)
+      try {
+        const f = msg.document || msg.photo[msg.photo.length - 1]
+        const mime = msg.document ? String(msg.document.mime_type || '') : 'image/jpeg'
+        if ((f.file_size || 0) > 10 * 1024 * 1024) return send(chatId, t.docBad)
+        const buffer = Buffer.from((await require('axios').get(await bot.getFileLink(f.file_id), { responseType: 'arraybuffer', timeout: 30000 })).data)
+        const n = await botFax.saveDoc(String(chatId), userInfo.fxnCountry, buffer, mime, msg.document?.file_name)
+        if (!n) return send(chatId, t.docBad)
+        return send(chatId, t.docSaved(n), kOuter.of([[t.docsDone]]))
+      } catch (e) { log(`[FaxNumbers] bot document upload ${chatId}: ${e.message}`); return send(chatId, t.docBad) }
+    }
     if (userInfo?.action === 'cpFaxDoc' && userInfo?.cpActiveNumber) {
       const fx = faxService.t(userInfo.userLanguage)
       try {
@@ -11156,7 +11170,7 @@ bot?.on('message', msg => {
         [pc.myNumbers, pc.usageBilling],
         [pc.bulkCallCampaign, pc.myCampaigns],
         [pc.audioLibrary, pc.sipSettings],
-        [pc.howItWorks],
+        [botFax.T(info?.userLanguage).menu, pc.howItWorks],
       ]))
       // One-time nudge: Pro/Starter users can show any caller ID on Business for the price gap only.
       try {
@@ -23086,6 +23100,14 @@ ${message.replace(/\n/g, '<br>')}
       return goto.redSelectRandomCustom()
     }
   }
+  // Random short link: the customer picks which public short-link domain to use (aws3.link / azr.link / goog.link).
+  if (action === 'redPickDomain') {
+    if (isBackPress(message)) return goto.redSelectRandomCustom()
+    const d = SHORT_DOMAINS.find(x => String(message).includes(x))
+    if (!d) return send(chatId, t.what)
+    await saveInfo('shortDomain', d); info.shortDomain = d
+    action = a.redSelectRandomCustom; message = trans('redSelectRandomCustom')[0]
+  }
   if (action === a.redSelectRandomCustom) {
     if (isBackPress(message)) return goto.redSelectUrl()
 
@@ -23109,6 +23131,11 @@ ${message.replace(/\n/g, '<br>')}
         return send(chatId, monetization.getUpsellMessage('linksExhausted', lang), k.of([[user.buyPlan], [user.serviceBundles]]))
       }
 
+      if (aws3On() && !info.shortDomain) {
+        await set(state, chatId, 'action', 'redPickDomain')
+        const pick = { en: '🌐 Pick the domain for your short link:', fr: '🌐 Choisissez le domaine de votre lien court :', zh: '🌐 选择短链接的域名：', hi: '🌐 अपने छोटे लिंक का डोमेन चुनें:', fa: '🌐 دامنه لینک کوتاه خود را انتخاب کنید:' }
+        return send(chatId, pick[lang] || pick.en, k.of(SHORT_DOMAINS.map(d => [`🔗 ${d}`])))
+      }
       try {
         const { url } = info
 
@@ -23135,8 +23162,9 @@ ${message.replace(/\n/g, '<br>')}
         const shortUrl = __shortUrl.replaceAll('.', '@').replace('https://', '')
         let _shortUrl
         try {
-          _shortUrl = await createShortUrlApi(url)
-          log(`[Shortener] Linkly success: ${_shortUrl}`)
+          _shortUrl = await createShortUrlApi(url, info.shortDomain)
+          saveInfo('shortDomain', null)
+          log(`[Shortener] ${aws3On() ? 'aws3.link' : 'Linkly'} success: ${_shortUrl}`)
           linklyUsageMonitor.notifyLinkCreated()
         } catch (error) {
           const errMsg = String(error?.message || error)
@@ -23148,7 +23176,7 @@ ${message.replace(/\n/g, '<br>')}
           // provider failures (401/403 plan limit, 5xx, 429, network, undefined).
           const isUserInputError = /\b400\b/.test(errMsg) && /invalid/i.test(errMsg)
           if (!isUserInputError) {
-            send(TELEGRAM_ADMIN_CHAT_ID, `⚠️ Linkly URL shortener failed:\n${errMsg}`)
+            send(TELEGRAM_ADMIN_CHAT_ID, `⚠️ URL shortener (${aws3On() ? 'aws3.link' : 'Linkly'}) failed:\n${errMsg}`)
           } else {
             log(`[Shortener] Suppressed admin ping for user-input 400 error: ${url}`)
           }
@@ -26252,6 +26280,10 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     return send(chatId, trans('t.cp_232', '⭐ Pro'), k.of(_rows))
   }
 
+  if (botFax.isMenu(message) || String(action || '').startsWith('fxn')) {
+    const r = await botFaxHandle(chatId, message, info, action)
+    if (r !== false) return r
+  }
   if (message === user.cloudPhone || message === phoneConfig.btn.cloudPhone || message === '📞☁️ Cloud IVR + SIP') {
     if (process.env.PHONE_SERVICE_ON !== 'true') {
       return send(chatId, trans('t.cp_4', process.env.SUPPORT_USERNAME || '@support'), trans('o'))
@@ -26270,7 +26302,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       [pc.myNumbers, pc.usageBilling],
       [pc.bulkCallCampaign, pc.myCampaigns],
       [pc.audioLibrary, pc.sipSettings],
-      [pc.howItWorks],
+      [botFax.T(info?.userLanguage).menu, pc.howItWorks],
     ]))
   }
 
@@ -30168,7 +30200,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
       await saveInfo('cpSearchResults', results)
       const location = info?.cpAreaName || info?.cpCountryName || 'US'
-      const numberLines = results.map((r, i) => {
+      const fbNote3 = results.some(r => r._areaFallback) ? `ℹ️ Area code ${info?.cpAreaCode} has no numbers available right now — here are other numbers${results.find(r => r._fallbackRegion) ? ` in ${results.find(r => r._fallbackRegion)._fallbackRegion}` : ''} you can use instantly:\n\n` : ''
+      const numberLines = fbNote3 + results.map((r, i) => {
         return numLine(r, i, info?.cpCountryCode, info?.cpNumberType)
       }).join('\n')
       const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
@@ -30178,7 +30211,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const _dg = String(message || '').replace(/\D/g, '')
     const _byNum = _dg.length > 1 ? results.findIndex(r => String(r.phone_number).replace(/\D/g, '') === _dg) : -1
     const idx = _byNum >= 0 ? _byNum : parseInt(message) - 1
-    if (isNaN(idx) || idx < 0 || idx >= results.length) return send(chatId, phoneConfig.getMsg(info?.userLanguage).tapNumberToSelect)
+    if (isNaN(idx) || idx < 0 || idx >= results.length) return send(chatId, phoneConfig.getMsg(info?.userLanguage).tapNumberToSelect, k.of([...results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)]), [phoneConfig.getBtn(info?.userLanguage || 'en').showMore]]))
     const selected = results[idx]
     await saveInfo('cpSelectedNumber', selected.phone_number)
     // Store the actual provider for this specific number (for routing)
@@ -31209,7 +31242,6 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (phoneConfig.canAccessFeature(plan, 'ivr')) rows.push([ivrLabel])
     if (hasVoice && phoneConfig.canAccessFeature(plan, 'aiAgent')) rows.push([botRec.BTN.menu])
     // Fax (Business plan; other plans see the upgrade prompt)
-    if ((num.provider || 'telnyx') === 'telnyx') rows.push([faxService.t(lang).btnFax])
     // Add Number to Plan (only for primary numbers, not sub-numbers)
     if (!num.isSubNumber && subLimit > 0 && subCount < subLimit) {
       rows.push([pc.addNumber])
@@ -31253,13 +31285,24 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   // Fax menu for a Business number (re-reads the record so the fax-line state is current).
+  // Standalone fax numbers (bot-fax-numbers.js): list / buy / open.
+  async function botFaxHandle(chatId, message, info, action) {
+    return botFax.handle({
+      chatId: String(chatId), message, action, info, lang: info?.userLanguage || 'en',
+      setAction: (v) => set(state, chatId, 'action', v), save: (key, v) => saveInfo(key, v),
+      send: (text, opts = {}) => send(chatId, text, { parse_mode: 'HTML', ...opts }),
+      kb: (rows) => k.of([...rows, ['Back']]), hub: () => goto.submenu5(),
+      wallet: () => require('./cloudivr-web/wallet').walletOps(db).balance(String(chatId)),
+      openFax: async (phone) => { const n = await faxService.findMine(String(chatId), phone); await saveInfo('cpActiveNumber', n); return showFaxMenu(chatId, n) },
+    })
+  }
   async function showFaxMenu(chatId, num) {
     const fx = faxService.t(info?.userLanguage)
     const fresh = (await faxService.findMine(String(chatId), num.phoneNumber)) || num
     await set(state, chatId, 'action', a.cpFax)
     const on = faxService.lineOn(fresh)
     const email = await faxService.emailOf(String(chatId))
-    return send(chatId, fx.menu(fresh.phoneNumber, await faxService.usage(fresh), on), k.of([[fx.btnSend], [fx.btnBulk], [on ? fx.btnLineOn : fx.btnLineOff], [fx.btnRecent], [fx.btnEmail(email)]]))
+    return send(chatId, fresh.faxOnly ? botFax.faxMenuText(fresh, await faxService.usage(fresh), info?.userLanguage) : fx.menu(fresh.phoneNumber, await faxService.usage(fresh), on), { parse_mode: 'HTML', ...k.of([[fx.btnSend], [fx.btnBulk], ...(fresh.faxOnly ? [] : [[on ? fx.btnLineOn : fx.btnLineOff]]), [fx.btnRecent], [fx.btnEmail(email)]]) })
   }
   // Bulk fax: pasted list or CSV/TXT text → saved recipients, then ask for the document.
   async function faxBulkList(chatId, num, text, lang) {
@@ -31846,8 +31889,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
     // Fax
     if (message === faxService.t(info?.userLanguage).btnFax) {
-      if (!phoneConfig.canAccessFeature(num.plan, 'fax')) return send(chatId, phoneConfig.upgradeMessage('fax', num.plan, info?.userLanguage), { parse_mode: 'HTML' })
-      return showFaxMenu(chatId, num)
+      return send(chatId, `📠 Fax is now a separate fax number. Open ${botFax.BTN.menu} in the Cloud IVR menu to get one.`)
     }
     if (message === '📠 Fax Settings') {
       await set(state, chatId, 'action', a.cpFaxSettings)
@@ -32246,7 +32288,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const _dg = String(message || '').replace(/\D/g, '')
     const _byNum = _dg.length > 1 ? results.findIndex(r => String(r.phone_number).replace(/\D/g, '') === _dg) : -1
     const idx = _byNum >= 0 ? _byNum : parseInt(message) - 1
-    if (isNaN(idx) || idx < 0 || idx >= results.length) return send(chatId, phoneConfig.getMsg(info?.userLanguage).tapNumberToSelect)
+    if (isNaN(idx) || idx < 0 || idx >= results.length) return send(chatId, phoneConfig.getMsg(info?.userLanguage).tapNumberToSelect, k.of([...results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)]), [phoneConfig.getBtn(info?.userLanguage || 'en').showMore]]))
     const selected = results[idx]
     await saveInfo('cpSelectedNumber', selected.phone_number)
     const selectedProvider = selected._provider || info?.cpProvider || 'telnyx'
@@ -32883,7 +32925,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const num = (await faxService.findMine(String(chatId), snap.phoneNumber)) || snap
     const back = isBackPress(message)
     if (action === a.cpFax) {
-      if (back) { await set(state, chatId, 'action', a.cpManageNumber); return showManageScreen(chatId, num) }
+      if (back) { if (num.faxOnly) return botFaxHandle(chatId, botFax.BTN.menu, info, botFax.BTN.menu); await set(state, chatId, 'action', a.cpManageNumber); return showManageScreen(chatId, num) }
       if (message === fx.btnSend) { await saveInfo('cpFaxBulk', null); await set(state, chatId, 'action', a.cpFaxTo); return send(chatId, fx.askTo, k.of([])) }
       if (message === fx.btnBulk) { await set(state, chatId, 'action', a.cpFaxBulkTo); return send(chatId, fx.askBulk, { parse_mode: 'HTML', ...k.of([]) }) }
       if (message === fx.btnLineOn || message === fx.btnLineOff) {

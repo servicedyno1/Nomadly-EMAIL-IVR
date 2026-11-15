@@ -1,5 +1,5 @@
 'use strict'
-// MultiTEL fax: fax-only numbers (USA/Canada). Bought like any MultiTEL DID, then fax detection is switched on so
+// MultiTEL fax: fax-only numbers (T.38 countries, see fax-numbers.js). Bought like any MultiTEL DID, then fax detection is switched on so
 // received faxes land in the MultiTEL fax inbox (polled every 2 min). Sending goes through POST /v3/send_fax;
 // delivery comes from the fax outbox (polled). Both are fed to fax-service as Telnyx-shaped events.
 const axios = require('axios')
@@ -14,9 +14,9 @@ const isMtFax = (id) => /^mtfax:|^mtin:/.test(String(id || ''))
 const auth = () => ({ username: process.env.MULTITEL_USERNAME, password: process.env.MULTITEL_PASSWORD })
 const day = (ms) => new Date(Date.now() - ms).toISOString().slice(0, 10)
 
-async function searchFax(country, areaCode, limit = 12) {
-  const rows = await mt.searchNumbers(country, 'local', areaCode, limit)
-  return rows.filter(n => !n._assigned).map(n => ({ phoneNumber: n.phone_number, nearby: !!areaCode && String(n.phone_number).slice(2, 5) !== areaCode, region: String(n.region_information?.[0]?.region_name || '').replace(/[,\s]+$/, '') }))
+async function searchFax(country, areaCode, limit = 12, type = 'local') {
+  const rows = await mt.searchNumbers(country, type, areaCode, limit)
+  return rows.filter(n => (mt.searchedMeta(n.phone_number)?.features || []).includes('t38')).map(n => ({ phoneNumber: n.phone_number, assigned: !!n._assigned, nearby: !!areaCode && String(n.phone_number).slice(2, 5) !== areaCode, region: String(n.region_information?.[0]?.region_name || '').replace(/[,\s]+$/, '') }))
 }
 
 // Fax inbox + webhook (MultiTEL type 16): received faxes are saved to the inbox and posted to us; replaces SIP routing.
@@ -27,10 +27,12 @@ const inboxMode = (phoneNumber) => mt.api('post', `modifynumber/${digits(phoneNu
 async function orderFax(phoneNumber) {
   const r = await mt.buyNumber(phoneNumber)
   if (!r) throw new Error('MultiTEL purchase failed')
-  const d = await inboxMode(phoneNumber)
-  if (String(d?.status?.code) !== '200') log(`fax inbox mode on ${phoneNumber}: ${JSON.stringify(d?.status || d).slice(0, 160)}`)
-  log(`bought fax number ${phoneNumber}`)
-  return { id: `mt:${digits(phoneNumber)}` }
+  // Order-only prefixes (e.g. UK): MultiTEL assigns the exact number at checkout.
+  const real = r._retriedNumber || phoneNumber
+  const d = await inboxMode(real)
+  if (String(d?.status?.code) !== '200') log(`fax inbox mode on ${real}: ${JSON.stringify(d?.status || d).slice(0, 160)}`)
+  log(`bought fax number ${real}`)
+  return { id: `mt:${digits(real)}`, phoneNumber: real, needsReg: !!r._needsRegistration }
 }
 const releaseFax = (phoneNumber) => mt.releaseNumber(`mt:${digits(phoneNumber)}`)
 

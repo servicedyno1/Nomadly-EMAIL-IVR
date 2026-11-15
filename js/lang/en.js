@@ -1790,7 +1790,7 @@ Make an automated call that plays your recorded message and captures a keypress 
  cp_77: '🔑 <b>OTP Collection Mode</b>\\n\\nHow many digits should the code be?\\n\\n💡 The code prompt is added automatically after your script — no need to include it.\\n\\n<i>Default: 6 digits</i>',
  cp_78: 'Select a mode:',
  cp_79: '📋 <b>Select Call Mode</b>\\n\\n🔗 <b>Transfer</b> — When target presses the key, bridge them to your number\\n🔑 <b>OTP Collection</b> — After the key press, target is auto-prompted for a code — delivered to you via Telegram\\n\\nBoth modes report full results.',
- cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business, sp, sm, sl) => `🛒 <b>Step 1 of 4 · Choose a plan</b>\n\n💡 <b>Basic $${price}</b> · ${minutes} min · forwarding · ${starter} numbers\n🧩 <b>Starter $${sp}</b> · ${sm} min · + SIP, voicemail, recording · ${sl} numbers\n⭐ <b>Pro $${v5}</b> · ${v6} min · + IVR, Bulk IVR, OTP, browser calls · ${pro} numbers\n👑 <b>Business $${v9}</b> · ${v10} min · + any caller ID, AI agent, fax · ${business} numbers\n\n<i>Per month. Outgoing calls & forwarding use your wallet · texts $0.05 out, free in.</i>`,
+ cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business, sp, sm, sl) => `🛒 <b>Step 1 of 4 · Choose a plan</b>\n\n💡 <b>Basic $${price}</b> · ${minutes} min · forwarding · ${starter} numbers\n🧩 <b>Starter $${sp}</b> · ${sm} min · + SIP, voicemail, recording · ${sl} numbers\n⭐ <b>Pro $${v5}</b> · ${v6} min · + IVR, Bulk IVR, OTP, browser calls · ${pro} numbers\n👑 <b>Business $${v9}</b> · ${v10} min · + any caller ID, AI agent · ${business} numbers\n\n<i>Per month. Outgoing calls & forwarding use your wallet · texts $0.05 out, free in.</i>`,
  cp_80: 'Enter a valid digit count (1-10):',
  cp_81: (length) => `✅ OTP length: <b>${length} digits</b> (max 3 attempts)\n\n✍️ <b>Customize Caller Messages</b>\n\nWould you like to customize what callers hear after verification?\n\n<b>Default Confirm:</b> <i>"Your code has been verified successfully. Thank you. Goodbye."</i>\n<b>Default Reject:</b> <i>"Maximum verification attempts reached. Goodbye."</i>`,
  cp_82: (length) => `✅ OTP length: <b>${length} digits</b> (max 3 attempts)\n\n🎙 <b>Select Voice Provider</b>\n\nChoose your TTS engine:`,
@@ -2649,6 +2649,7 @@ const userKeyboard = {
  // so grouping/order changes carry no routing risk.
  ...require('../web-access').webMenuRows('en'), // 🌐 Hosting/RDP/VPS on Web (NomadlyBot only, WEBSITE_URL set)
  [user.cloudPhone, user.hostingDomainsRedirect],
+ ['📠 Fax Numbers'],
  ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
  [user.bulkSmsNew, user.leadsValidation],
  [user.digitalProducts, user.esimMain], // 2026-11: eSIM on the front menu; Marketplace moved under ➕ More

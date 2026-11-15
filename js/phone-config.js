@@ -176,7 +176,7 @@ function isBlockedPrefix(phoneNumber) {
 
 // ── Button labels ──
 const btn = {
-  cloudPhone: '📞☁️ Cloud IVR — Speechcue',
+  cloudPhone: `📞☁️ Cloud IVR — ${process.env.BRAND_PHONE_NAME || 'Speechcue'}`,
   buyPhoneNumber: '🛒 Choose a Plan',
   myNumbers: '📋 My Plans',
   sipSettings: '📖 SIP Setup Guide',
@@ -471,7 +471,7 @@ const plans = {
   starter: { name: 'Basic', price: PHONE_STARTER_PRICE, minutes: STARTER_MINUTES, sms: STARTER_SMS, features: ['Call forwarding to any number', 'SMS forwarded to Telegram', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
   standard: { name: 'Starter', price: PHONE_STANDARD_PRICE, minutes: STANDARD_MINUTES, sms: 0, features: ['All Basic features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.standard} extra numbers`] },
   pro: { name: 'Pro', price: PHONE_PRO_PRICE, minutes: PRO_MINUTES, sms: PRO_SMS, features: ['All Starter features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign (start now or schedule)', '2FA Code Delivery', 'IVR Auto-Attendant', 'IVR Call Analytics', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
-  business: { name: 'Business', price: PHONE_BUSINESS_PRICE, minutes: BUSINESS_MINUTES, sms: BUSINESS_SMS, features: ['All Pro features', '📠 Fax send & receive (50 free pages/mo)', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Quick IVR Call Scheduling', 'Custom 2FA Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
+  business: { name: 'Business', price: PHONE_BUSINESS_PRICE, minutes: BUSINESS_MINUTES, sms: BUSINESS_SMS, features: ['All Pro features', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Quick IVR Call Scheduling', 'Custom 2FA Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
 }
 
 // Language-specific plan features
@@ -776,7 +776,7 @@ planByButton[btn.businessPlan] = 'business'
 
 // ── Text messages ──
 const txt = {
-  hubWelcome: `📞 <b>Cloud IVR</b> <i>by Speechcue</i>
+  hubWelcome: `📞 <b>Cloud IVR</b> <i>by ${process.env.BRAND_PHONE_NAME || 'Speechcue'}</i>
 
 Virtual numbers in ${CLOUD_COUNTRY_COUNT} countries · Most are live in minutes
 
@@ -1500,7 +1500,7 @@ const msg = {
     selectLocalOrTollFree: 'Please select Local or Toll-Free.',
     selectValidArea: 'Please select a valid area or use Search.',
     enterValidAreaCode: 'Enter a valid area code (e.g. 415).',
-    tapNumberToSelect: 'Tap a number (1-5) to select.',
+    tapNumberToSelect: 'Tap one of the numbers below to select it.',
     selectPlan: 'Please select a plan.',
     proceedOrBack: 'Please proceed to payment or go back.',
     selectByIndex: '💡 Tap one of the index numbers (1, 2, 3…) in the keyboard below — typed phone numbers won\'t work at this step.',
@@ -1542,7 +1542,7 @@ const msg = {
     selectLocalOrTollFree: 'Veuillez sélectionner Local ou Sans frais.',
     selectValidArea: 'Veuillez sélectionner une zone ou utiliser Recherche.',
     enterValidAreaCode: 'Entrez un indicatif régional valide (ex: 415).',
-    tapNumberToSelect: 'Tapez un numéro (1-5) pour sélectionner.',
+    tapNumberToSelect: 'Touchez un des numéros ci-dessous pour le choisir.',
     selectPlan: 'Veuillez sélectionner un forfait.',
     proceedOrBack: 'Procédez au paiement ou revenez en arrière.',
     selectByIndex: '💡 Touchez l\'un des indices (1, 2, 3…) dans le clavier ci-dessous — les numéros tapés ne fonctionnent pas à cette étape.',
@@ -1584,7 +1584,7 @@ const msg = {
     selectLocalOrTollFree: '请选择本地号码或免费号码。',
     selectValidArea: '请选择有效区域或使用搜索。',
     enterValidAreaCode: '输入有效的区号（如 415）。',
-    tapNumberToSelect: '点击号码（1-5）进行选择。',
+    tapNumberToSelect: '点击下方的号码进行选择。',
     selectPlan: '请选择一个套餐。',
     proceedOrBack: '请继续付款或返回。',
     selectByIndex: '💡 请点击下方键盘中的序号（1、2、3…）— 此步骤无法直接输入号码。',
@@ -1626,7 +1626,7 @@ const msg = {
     selectLocalOrTollFree: 'कृपया लोकल या टोल-फ्री चुनें।',
     selectValidArea: 'कृपया एक मान्य क्षेत्र चुनें या खोज का उपयोग करें।',
     enterValidAreaCode: 'एक मान्य एरिया कोड दर्ज करें (जैसे 415)।',
-    tapNumberToSelect: 'चुनने के लिए नंबर (1-5) टैप करें।',
+    tapNumberToSelect: 'चुनने के लिए नीचे दिए गए किसी नंबर पर टैप करें।',
     selectPlan: 'कृपया एक प्लान चुनें।',
     proceedOrBack: 'भुगतान जारी रखें या वापस जाएं।',
     selectByIndex: '💡 नीचे कीबोर्ड में किसी एक इंडेक्स (1, 2, 3…) को टैप करें — इस चरण में टाइप किए गए नंबर काम नहीं करेंगे।',
@@ -1668,7 +1668,7 @@ const msg = {
     selectLocalOrTollFree: 'لطفاً محلی یا رایگان را انتخاب کنید.',
     selectValidArea: 'لطفاً یک منطقه انتخاب کنید یا از جستجو استفاده کنید.',
     enterValidAreaCode: 'یک کد منطقه معتبر وارد کنید (مثال: 415).',
-    tapNumberToSelect: 'یک عدد (1-5) را برای انتخاب لمس کنید.',
+    tapNumberToSelect: 'برای انتخاب، یکی از شماره‌های زیر را لمس کنید.',
     selectPlan: 'لطفاً یک طرح انتخاب کنید.',
     proceedOrBack: 'به پرداخت ادامه دهید یا بازگردید.',
     selectByIndex: '💡 یکی از اندیس‌ها (1، 2، 3…) را در صفحه‌کلید زیر لمس کنید — اعداد تایپ‌شده در این مرحله کار نمی‌کنند.',
@@ -2108,7 +2108,7 @@ function btnKeyOf(message) {
 // ── Translated txt (user-facing message texts) ──
 const txtI18n = {
   fr: {
-    hubWelcome: `📞 <b>Cloud IVR</b> <i>by Speechcue</i>
+    hubWelcome: `📞 <b>Cloud IVR</b> <i>by ${process.env.BRAND_PHONE_NAME || 'Speechcue'}</i>
 
 Numéros virtuels dans ${CLOUD_COUNTRY_COUNT} pays · La plupart sont actifs en quelques minutes
 
@@ -2601,7 +2601,7 @@ Envoyez /testsip ici pour obtenir votre code test.
     },
   },
   zh: {
-    hubWelcome: `📞 <b>Cloud IVR</b> <i>by Speechcue</i>
+    hubWelcome: `📞 <b>Cloud IVR</b> <i>by ${process.env.BRAND_PHONE_NAME || 'Speechcue'}</i>
 
 ${CLOUD_COUNTRY_COUNT} 个国家的虚拟号码 · 大多数可在几分钟内启用
 
@@ -3094,7 +3094,7 @@ ${/starter/i.test(String(plan)) ? `
     },
   },
   hi: {
-    hubWelcome: `📞 <b>Cloud IVR</b> <i>by Speechcue</i>
+    hubWelcome: `📞 <b>Cloud IVR</b> <i>by ${process.env.BRAND_PHONE_NAME || 'Speechcue'}</i>
 
 ${CLOUD_COUNTRY_COUNT} देशों में वर्चुअल नंबर · अधिकांश मिनटों में सक्रिय हो जाते हैं
 
@@ -3587,7 +3587,7 @@ SIP क्रेडेंशियल को "user / extension" के रूप
     },
   },
   fa: {
-    hubWelcome: `📞 <b>Cloud IVR</b> <i>by Speechcue</i>
+    hubWelcome: `📞 <b>Cloud IVR</b> <i>by ${process.env.BRAND_PHONE_NAME || 'Speechcue'}</i>
 
 شماره‌های مجازی در ${CLOUD_COUNTRY_COUNT} کشور · اکثر در چند دقیقه فعال می‌شوند
 

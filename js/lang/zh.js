@@ -1701,7 +1701,7 @@ ${numberLines}
  cp_77: '🔑 <b>OTP 收集模式</b>\n\n验证码应为几位数？\n\n💡 验证码提示会自动添加在脚本之后 — 无需手动包含。\n\n<i>默认：6 位</i>',
  cp_78: '请选择一种模式：',
  cp_79: '📋 <b>选择呼叫模式</b>\n\n🔗 <b>转接</b> — 目标按键后，将其接通到您的号码\n🔑 <b>OTP 收集</b> — 按键后，系统自动提示目标输入验证码 — 并通过 Telegram 发送给您\n\n两种模式都会提供完整结果报告。',
- cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business, sp, sm, sl) => `🛒 <b>第 1 步，共 4 步 · 选择套餐</b>\n\n💡 <b>Basic $${price}</b> · ${minutes} 分钟 · 呼叫转移 · ${starter} 个号码\n🧩 <b>Starter $${sp}</b> · ${sm} 分钟 · + SIP、语音信箱、录音 · ${sl} 个号码\n⭐ <b>Pro $${v5}</b> · ${v6} 分钟 · + IVR、Bulk IVR、OTP、浏览器通话 · ${pro} 个号码\n👑 <b>Business $${v9}</b> · ${v10} 分钟 · + 任意来电显示、AI 助手、传真 · ${business} 个号码\n\n<i>按月计费。外呼和转移从钱包扣费 · 短信发送 $0.05，接收免费。</i>`,
+ cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business, sp, sm, sl) => `🛒 <b>第 1 步，共 4 步 · 选择套餐</b>\n\n💡 <b>Basic $${price}</b> · ${minutes} 分钟 · 呼叫转移 · ${starter} 个号码\n🧩 <b>Starter $${sp}</b> · ${sm} 分钟 · + SIP、语音信箱、录音 · ${sl} 个号码\n⭐ <b>Pro $${v5}</b> · ${v6} 分钟 · + IVR、Bulk IVR、OTP、浏览器通话 · ${pro} 个号码\n👑 <b>Business $${v9}</b> · ${v10} 分钟 · + 任意来电显示、AI 助手 · ${business} 个号码\n\n<i>按月计费。外呼和转移从钱包扣费 · 短信发送 $0.05，接收免费。</i>`,
  cp_80: '请输入有效的位数（1-10）：',
  cp_81: (length) => `✅ OTP 长度：<b>${length} 位</b>（最多 3 次尝试）\n\n✍️ <b>自定义来电者提示语</b>\n\n是否要自定义来电者在验证后听到的内容？\n\n<b>默认确认：</b><i>"您的验证码已成功验证。谢谢，再见。"</i>\n<b>默认拒绝：</b><i>"已达到最大验证尝试次数。再见。"</i>`,
  cp_82: (length) => `✅ OTP 长度：<b>${length} 位</b>（最多 3 次尝试）\n\n🎙 <b>选择语音提供商</b>\n\n请选择您的 TTS 引擎：`,
@@ -2470,6 +2470,7 @@ const userKeyboard = {
  // so grouping/order changes carry no routing risk.
  ...require('../web-access').webMenuRows('zh'), // 🌐 Hosting/RDP/VPS on Web (NomadlyBot only, WEBSITE_URL set)
  [user.cloudPhone, user.hostingDomainsRedirect],
+ ['📠 传真号码'],
  ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
  [user.bulkSmsNew, user.leadsValidation],
  [user.digitalProducts, user.esimMain], // 2026-11: eSIM on the front menu; Marketplace moved under ➕ More
