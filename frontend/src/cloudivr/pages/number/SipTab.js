@@ -73,7 +73,7 @@ export function SipCredentials({ num, prefix = 'sip', heading, className = 'lg:c
       <div className="flex flex-wrap items-start gap-2 mt-5">
         {!creds && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={reveal} data-testid={`${prefix}-reveal-button`}><Eye className="w-4 h-4" />Show password</button>}
         <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={reset} disabled={busy} data-testid={`${prefix}-reset-button`}><RefreshCw className="w-4 h-4" />New credentials</button>
-        <SipQr num={num} prefix={prefix} />
+        <SipQr key={creds?.username ? `${creds.username}:${creds.password}` : 'q'} num={num} prefix={prefix} />
       </div>
     </div>
   );

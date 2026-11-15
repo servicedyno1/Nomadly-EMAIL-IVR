@@ -301,3 +301,7 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 ## 2026-11-15 late — SIP 403 fix
 - Brand SIP SRV records repointed from Telnyx to our SIP server (root cause of 'Authentication failed 403' / not registering). Kamailio TLS runs in foreground mode; reset passwords apply immediately. Pay-first fax/number registration UI fixes (iteration_297, all pass) deployed.
 - Remaining: SIP connection status UI + 30-min offline alert; mobile polish (iteration_294); country pricing regression; eSIM/texting validation.
+
+## 2026-11-15 late — One-tap SIP QR + mobile polish (shipped, agent-tested)
+- QR setup on web SIP card + bot (Linphone auto-provision link, generic SIP URI). Mobile: bottom-sheet confirms, 44px switches, install banner clear of chat, auto-renew-off confirm.
+- Remaining: SIP connection status badges + 30-min offline alert; country pricing regression; eSIM/texting validation.

@@ -54,7 +54,7 @@ function FaxSwitch({ n, reload, testid }) {
   };
   return (
     <button type="button" role="switch" aria-checked={on} disabled={busy} onClick={flip} data-testid={testid}
-      title={`Fax ${on ? 'on' : 'off'} — tap to switch`} className={`civr-pill !min-h-[32px] !px-3 cursor-pointer relative z-10 transition-colors ${on ? 'civr-pill-on' : 'text-[#a1a1aa] hover:text-[#f3f4f6] hover:border-[#3f3f46]'}`}>
+      title={`Fax ${on ? 'on' : 'off'} — tap to switch`} className={`civr-pill !min-h-[44px] sm:!min-h-[36px] !px-4 cursor-pointer relative z-10 transition-colors ${on ? 'civr-pill-on' : 'text-[#a1a1aa] hover:text-[#f3f4f6] hover:border-[#3f3f46]'}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${on ? 'bg-[#818cf8]' : 'bg-[#3f3f46]'}`} />Fax
     </button>
   );

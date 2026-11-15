@@ -1,0 +1,61 @@
+{
+  "summary": "Tested one-tap SIP QR setup (API + UI on number SIP tab and the /app/sip page), the auto-renew OFF confirmation (Billing tab, Fax page), and mobile polish at 390x844 with an iOS user agent: bottom-sheet confirm, 44px quick switches, install banner vs support chat, tables. Also re-checked SIP reveal/reset. Almost everything passes. One mobile defect: the Fax quick switch on number cards is still 32px tall on phones. Mobile-line auto-renew could not be tested in the UI because the only mobile line is still waiting for its IMEI, so it shows no toggle; the code was reviewed instead. plan-compare-table is not rendered on any route: the Pricing component that contains it is never used.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /sip-provision/:token (without /api)", "issue": "Without the /api prefix the ingress sends this path to the SPA, which returns 200 HTML. Not a real problem: the minted links use SELF_URL, which already includes /api, and /api/sip-provision/badtoken correctly returns 404 text/plain."},
+      {"endpoint": "GET /api/sip-provision/:token", "issue": "The token can be reused any number of times for 15 minutes, and each fetch returns the plaintext password. Consider making it single-use, or limiting it to a few fetches."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Numbers.js FaxSwitch (number-card quick switches)", "issue": "On mobile (390px) number-card-*-switch-fax is 32px tall, while forwarding/IVR/hours are 44px. It uses '!min-h-[32px] !px-3' instead of '!min-h-[44px] sm:!min-h-[36px] !px-4'.", "selector": "[data-testid=number-card-0-switch-fax]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "SIP QR panel + New credentials", "issue": "If the QR panel is open and the user clicks 'New credentials', SipQr keeps its old `codes` state. The 'Other apps' QR then still holds the OLD password. The Linphone link is fine because it reads live data. Fix: clear or refetch the codes after a reset, e.g. pass a key/nonce from SipCredentials.", "affected_selectors": ["sip-qr-code", "sip-reset-button"]},
+      {"flow": "Auto-renew Undo", "issue": "useSwitch: after turning auto-renew ON, the toast 'Undo' calls flip(false, true), which skips askOff. Auto-renew is turned OFF with no confirmation, which breaks 'always asks first'. This is an edge case.", "affected_selectors": ["billing-auto-renew-toggle", "number-card-*-switch-*"]}
+    ],
+    "design_issues": [
+      {"screen": "Number SIP tab, mobile", "issues": ["The support-chat button covers the right end of the QR hint text (sip-qr-hint) when it is scrolled next to it. Minor: this is normal behaviour for a floating button."]}
+    ]
+  },
+  "passed_tests": [
+    "POST /api/cloudivr-web/numbers/%2B13341112222/sip/qr returns {linphone: https .../api/sip-provision/<token>, generic: sip:user:pass@sip.cloudivr.net:5060, expiresInMin: 15}. The generic code matches GET /sip creds. Each POST mints a new token. Returns 401 without a session and 403/404 for an unknown number.",
+    "The Linphone URL (no cookie) returns 200 application/xml with Cache-Control no-store, proxy_0 + auth_info_0 and the matching username. After a reset the new QR has the new credentials.",
+    "GET /api/sip-provision/badtoken returns 404 text/plain ('This setup code has expired...').",
+    "UI, number SIP tab: sip-qr-button opens sip-qr-panel with an SVG QR. Linphone is selected by default. Switching to sip-qr-tab-generic changes both the QR path and sip-qr-hint. sip-qr-close hides the panel and the button comes back.",
+    "/app/sip page: sip-page-N-qr-button opens a panel with an SVG (prefix sip-page-N).",
+    "Regression: sip-reveal-button reveals the password, and sip-reset-button with confirm changes it.",
+    "Billing auto-renew: switching OFF opens 'Turn off auto-renew'. 'Keep renewing' leaves it ON with 0 PATCH calls. Confirming sends PATCH {autoRenew,false}. Switching ON has no dialog and sends PATCH true. The state was restored to ON.",
+    "Fax page fax-only-autorenew-17167882007: same behaviour (cancel: no call; OK: PATCH false; ON: no confirm). Restored to ON.",
+    "Mobile 390x844: confirm-dialog is a bottom sheet (x=0, w=390, bottom=844, 20px top corners, 0px bottom corners, grab handle).",
+    "Quick switches forwarding/ivr/hours are 44px on mobile and 36px on desktop.",
+    "Install banner (iOS UA, after clearing localStorage, about 15 s) shows the Share hint. Its box (x12-310) does not overlap support-chat-toggle (x318-374).",
+    "The Numbers page renders at desktop and mobile with no horizontal overflow (scrollWidth 390). sip-compare-table stays display:table on mobile (560px inside a horizontal scroll wrapper, not turned into cards)."
+  ],
+  "not_tested": [
+    "mobile-autorenew-*: the only mobile line is pending IMEI, so no toggle is rendered. The askOff code path was reviewed and looks right.",
+    "plan-compare-table: the Pricing component is not used on any route.",
+    "Telegram bot QR."
+  ],
+  "test_report_links": ["/app/backend/tests/test_cloudivr_sip_qr_iter298.py", "/app/test_reports/pytest/pytest_iter298.xml"],
+  "action_items": [
+    "Make FaxSwitch 44px on phones (!min-h-[44px] sm:!min-h-[36px]).",
+    "Reset the SipQr codes after 'New credentials' so the 'Other apps' QR doesn't keep the old password.",
+    "Optional: ask for confirmation when the auto-renew Undo turns it off.",
+    "Optional: make the Linphone provisioning token single-use or limited-use."
+  ],
+  "critical_code_review_comments": [
+    "SipQr state is separate from the SipCredentials reset, so stale secrets stay in the generic QR.",
+    "useSwitch undo path skips askOff.",
+    "sip-provision render() looks up phoneNumbersOf twice (number vs string _id). Fine, but it is 2 DB hits on a miss.",
+    "PricingFaq.Pricing (which contains PlanCompare/plan-compare-table) is dead code: it is never rendered."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_sip_qr_iter298.py"],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "92% (1 failing item: fax quick-switch height)"},
+  "test_credentials": "civr.uxtest@example.com / UxTest#2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. Side effects: SIP credentials of +13341112222 were reset (dry run) twice, by the API test and the UI test. Auto-renew on +13341112222 and on fax-only +17167882007 was toggled and restored to ON. A few sipProvision tokens were minted; they expire through the TTL index.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: pytest backend/tests/test_cloudivr_sip_qr_iter298.py -p no:xdist. It never prints passwords. The install banner needs an iOS UA plus about 15 s on a phone viewport. The fax-only number for this account is +17167882007. Mobile lines on /app/esim are pending IMEI, so no auto-renew toggle shows."
+}

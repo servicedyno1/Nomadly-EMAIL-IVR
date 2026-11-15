@@ -1,6 +1,7 @@
 // One-tap softphone setup: a 15-minute link Linphone reads from a QR code, plus a plain SIP address for other apps.
 const crypto = require('crypto')
 const TTL_MS = 15 * 60 * 1000
+const MAX_USES = 3
 
 const xml = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const login = (n) => ({ user: n.telnyxSipUsername || n.sipUsername, pass: n.telnyxSipUsername ? (n.telnyxSipPassword || n.sipPassword) : n.sipPassword })
@@ -38,8 +39,10 @@ function linphoneXml(n, domain) {
 
 // Returns the XML for a live token, or null (unknown, expired, number gone).
 async function render(db, token) {
-  const t = await db.collection('sipProvision').findOne({ _id: String(token || '') })
-  if (!t || t.exp < new Date()) return null
+  // A few fetches only: Linphone may load it twice; a leaked code soon stops working.
+  const r = (await db.collection('sipProvision').findOneAndUpdate({ _id: String(token || ''), exp: { $gt: new Date() }, uses: { $not: { $gte: MAX_USES } } }, { $inc: { uses: 1 } }, { returnDocument: 'after' }))
+  const t = r && 'ok' in r && 'value' in r ? r.value : r
+  if (!t) return null
   const doc = await db.collection('phoneNumbersOf').findOne({ _id: /^\d+$/.test(t.chatId) ? Number(t.chatId) : t.chatId }) || await db.collection('phoneNumbersOf').findOne({ _id: t.chatId })
   const n = (doc?.val?.numbers || []).find(x => x.phoneNumber === t.phone && x.status === 'active')
   if (!n || !login(n).user || !login(n).pass) return null

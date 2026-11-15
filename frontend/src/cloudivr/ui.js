@@ -199,7 +199,7 @@ export function useSwitch({ num, feature, checked, label, reload, onSaved }) {
   const [busy, setBusy] = useState(false);
   useEffect(() => { setOpt(null); }, [checked]);
   const flip = async (v, undo) => {
-    if (!undo && feature === 'autoRenew' && !v && !(await askOff(num))) return;
+    if (feature === 'autoRenew' && !v && !(await askOff(num))) return;
     setOpt(v); setBusy(true);
     try {
       const d = await api(`/numbers/${enc(num.phoneNumber)}/switch`, { method: 'PATCH', body: { feature, enabled: v } });

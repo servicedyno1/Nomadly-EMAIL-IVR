@@ -606,3 +606,10 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Deployed: app-main workspace 7df0a85 (app-main-b :5100, WS_DEPLOY_EXIT=0; includes fax/number registration UI fixes iter 297). WL overlay r11 (_index.js + ai-support.js) on app-wl-a :5001, app-voodoo-b :5103, app-proshop-a :5004, healthy; backups deploy-backups/<slot>-r11-*.
 - NOT tested: an outbound SIP call (billable) for "Sip call is not going out" — same root cause (phone was talking to Telnyx).
 - ⚠️ Save to GitHub or CI rolls app-main back; WL overlay drops on next WL deploy unless synced.
+
+## 2026-11-15 ~21:35–21:50Z — One-tap SIP QR setup + mobile polish (all brands)
+- NOTE: CI deployed from GitHub at 21:34–21:37 (main 08ee233, WL 7884b48) — it already carried the SIP 403 fixes (r11 no longer needed as overlay).
+- QR: js/sip-provision.js (sipProvision tokens, 15 min TTL index, max 3 fetches) → GET /sip-provision/:token returns Linphone XML (added to SPA apiPrefixes allow-list or it serves index.html). Web POST /cloudivr-web/numbers/:phone/sip/qr → {linphone, generic sip:user:pass@domain:5060}; SipQr.js panel with Linphone / Other apps switch. Bot: 📲 QR Setup (5 langs) on SIP Credentials → two QR photos, auto-deleted after 2 min.
+- Mobile: confirm dialog = bottom sheet, quick switches 44px on phones, install banner right-20 (clear of chat FAB), auto-renew OFF always confirms (toggle, undo, fax, mobile lines), compare tables kept as tables, td overflow fix. Testing iteration_298 passed; its 4 items fixed.
+- Deployed: app-main workspace 7cd53ac (app-main-b, WS_DEPLOY_EXIT=0). WL overlay r12 (_index.js, phone-config.js, sip-provision.js) on app-wl-b :5101, app-voodoo-a :5003, app-proshop-b :5104 — healthy, /sip-provision/bad → 404. Backups deploy-backups/<slot>-r12-*.
+- ⚠️ Save to GitHub so CI keeps these.
