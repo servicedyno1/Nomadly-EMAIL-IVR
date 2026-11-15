@@ -36,6 +36,7 @@ export function FinishRegistration({ n, reload }) {
           <p className="text-xs text-[var(--c-muted)]">Your saved legal details are used. <Link to={cp('/app/settings')} className="text-[#818cf8] underline underline-offset-2" data-testid={`fax-finish-legal-link-${id}`}>Edit legal details</Link></p>
         </>
       )}
+      {!r.needsDetails && <p className="text-sm text-[var(--c-muted)]" data-testid={`fax-finish-waiting-${id}`}>Your details are with the carrier. We’ll let you know as soon as it’s live.</p>}
       <div className="flex flex-wrap gap-2">
         {r.needsDetails && <button type="button" className="civr-btn civr-btn-primary" onClick={send} disabled={!!busy} data-testid={`fax-finish-send-${id}`}>{busy === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}Send details</button>}
         <button type="button" className="civr-btn" onClick={cancel} disabled={!!busy} data-testid={`fax-finish-cancel-${id}`}>{busy === 'cancel' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}Cancel for a refund</button>

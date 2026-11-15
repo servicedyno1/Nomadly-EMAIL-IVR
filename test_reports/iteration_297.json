@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend retest of the iteration_296 fixes (pay first, details after). ALL 7 requested checks PASS. (1) Bought a France fax number through the UI (dry run, wallet). The toast said '+334 is paid and reserved — one quick step left to switch it on', the app went to /app/fax, and fax-waiting-334 rendered with fax-finish-334, fax-finish-send-334 and fax-finish-cancel-334. (2) A fresh TEST account whose ONLY fax number was pending showed the waiting card and NO fax-past-due. The 'Business' Locked card was not shown either. (3) The paperwork note reads 'France numbers need documents'. (4) buy-documents-missing reads 'Upload your documents.' and 'before you buy' does not appear in either card. (5) Send details gave the toast 'France fax numbers need ID or company documents. Upload them first.' Cancel opened the confirm dialog ('Cancel +334? It is released and $50.00 goes back to your wallet.' / 'Cancel and refund'), then the toast 'Cancelled — $50.00 refunded to your wallet'. The card disappeared and topbar-balance went $359.13 → $409.13 without a refresh. (6) For the seeded calling number +4930999000 (needs_details, level 2): Send gave the toast 'Germany numbers of this type need an address in Germany…'. Cancel → confirm → navigated to /cloudivr/app/numbers with the toast '$120.00 refunded'. topbar-balance went $409.13 → $529.13 immediately, and 'Number not available' did not appear. (7) Regression: on the calls buy page (DE national, FR, AU local) and the fax buy page (FR, DE), there is no paperwork/document text before or after picking a number, and buy-paperwork-note / buy-documents-required are absent.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "fax buy (dry run)", "issue": "Dry-run MultiTEL FR buys always store the number as '+334' (the assigned prefix). faxNumbers _id = phoneNumber, so a second account's FR dry-run buy reuses and overwrites the same doc. Here the uxtest account's released '+334' doc was overwritten by the TEST account's buy. Preview only, but two users holding pending '+334' at the same time would collide. Consider a synthetic full number in dry run."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Fax page waiting card (Fax.js)", "issues": ["The card shows only the bare number ('+334' in dry run), with no country name, flag or 'Fax only' label. Add the country (n.countryName) and a status pill such as 'Waiting for details'.", "When registration.needsDetails is false (details already sent, waiting for the carrier), FinishRegistration shows only a 'Cancel for a refund' button with no text. Add a line like 'Your details are with the carrier…', the way NumberRegistration does."]},
+      {"screen": "NumberDetail with needs_details registration", "issues": ["Still open from iteration_296: the 'active' pill, 'Set up this number in 3 quick questions' and the 'Free test ring' card still show while the carrier hasn't switched the number on."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/iter297_helper.py", "/app/backend/tests/test_iter296_pay_then_details.py"],
+  "action_items": [
+    "Optional: fax-past-due condition. Today it is `!ready.length && !waiting.length`, so an account with one past-due fax number AND one pending number never sees the paused message. Better: show past-due when nums.some(n => n.faxOnly && !n.eligible && !n.registration).",
+    "Optional UX: give the fax waiting card a country label and status pill, and add a 'details sent, waiting for the carrier' message when needsDetails is false.",
+    "Optional UX: hide or soften the 'active' pill, setup wizard and test ring on NumberDetail while registration.status is needs_details or pending."
+  ],
+  "critical_code_review_comments": [
+    "Fax.js: `waiting = nums.filter(n => n.faxOnly && n.registration)` can overlap with `ready` if a number is eligible AND still has a registration record. Then it would appear in both the waiting card and FaxLines. Not seen in this test, but worth guarding with `!n.eligible`.",
+    "FinishRegistration.js and NumberRegistration.js both call refreshSummary after cancel, so the header updates correctly (verified)."
+  ],
+  "updated_files": ["/app/backend/tests/iter297_helper.py (new helper: state / seed / unseed calling number, wallet snapshot restore)"],
+  "success_rate": {"backend": "not re-run (as requested)", "frontend": "100% (7/7 requested checks)"},
+  "seed_data_creation": "Seeded calling number +4930999000 (needs_details, level 2) in phoneNumbersOf for chatId 5000000000000077. After the UI cancel it was removed, and walletOf was restored to the pre-seed snapshot {usdIn:1201.348, usdOut:792.22} because the $120 refund was never really paid. Wallet ends at $409.128, the same as at the start. The UI FR fax buy on uxtest was cancelled through the UI with a full refund. Temp account qa.faxpend1794777221@example.com (TEST_FaxPending) got a copy of uxtest's legal profile and a $100 wallet. It bought FR fax '+334', which was cancelled. Its webAccounts and walletOf docs were then deleted. Leftover: faxNumbers doc '+334' (status released, written by the app) now has the deleted temp chatId.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login civr.uxtest@example.com / UxTest#2026 (chatId 5000000000000077, wallet $409.128, one active fax +17167882007). New accounts get an onboarding modal (data-testid=onboarding) that blocks clicks; use 'Skip for now'. Fresh accounts need a legalProfile before buying (428 profile_required). Note: webAccounts _id is stored as a float. Use helper: `REACT_APP_BACKEND_URL=... python /app/backend/tests/iter297_helper.py state|seed|unseed`. The calls buy page country picker is IconSelect: click [data-testid=buy-country-select] and then [data-testid=buy-country-select-option-<cc lowercase>].",
+  "rca of the issue": "All iteration_296 issues verified fixed: Fax.js now renders `waiting` numbers outside the eligible filter and hides past-due when there are waiting numbers; the backend adds countryName to GET /fax; Paperwork.js copy changed; NumberRegistration navigates to /app/numbers and calls refreshSummary."
+}

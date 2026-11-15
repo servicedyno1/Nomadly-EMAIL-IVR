@@ -595,3 +595,14 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Web: theme-2026.css (flatter cards, 8pt tokens, 44px controls, muted labels, table rhythm, reduced motion); Dashboard simplified (stats → promo → your numbers → guided → collapsed "More for you"). design_guidelines.json = audit/tokens/microcopy. Other screens got only the global layer — per-screen rebuilds (buy flow, landing, number settings) still to do.
 - app-main workspace deploy e6fdef5 (redesign + fixes) DONE.
 - Fax launch (scripts/fax_launch_announce.js, dedupe `announcements` id fax-launch-2026-11): Nomadly tg 1160 ok / 247 failed (blocked etc. → promoOptOut), web 168, email 1; Smadav 204/34; Voodoo 199/8; ProShop 63/10.
+
+## 2026-11-15 ~21:20–21:35Z — SIP "403 / not registering" root cause fixed (all brands)
+- Complaints: @iamthebestbusiness (chat 5828254066, +12029606313, cvztncffh9) and a linked user (chat 9013312785, +18774756817, cv5shdaatb, iPhone app showed "Authentication Failed (403)"). No REGISTER from either ever reached Kamailio.
+- ROOT CAUSE: Cloudflare SRV records _sip._udp/_sip._tcp/_sips._tcp for sip.speechcue.com, sip.smadavspeech.com, sip.voodooivr.xyz, sip.proshopivr.xyz still pointed to sip.telnyx.com → SRV-aware softphones signed in at Telnyx → 403. All 12 repointed to sip.<brand> (5060 / 5061 TLS), TTL 300 (scripts/fix_sip_srv_2026-11.py). sip.cloudivr.net had none.
+- Kamailio: on a wrong password the cached pw (5 min) is dropped, so a reset password works on the next try (repo + live).
+- Kamailio TLS crashes when daemonized (5.7.4 + OpenSSL 3, qm_free bad pointer in tls ser_free). Fix: systemd drop-in /etc/systemd/system/kamailio.service.d/foreground.conf (Type=simple, -DD) — copy in ops/sip-server/systemd/. Config must be root:kamailio 640. ~3 min SIP outage during the fix; backups /etc/kamailio/kamailio.cfg.bak-*.
+- Verified: both customers' real logins → 401 then 200 over UDP, TCP, TLS; wrong pw then right → 200.
+- AI support SIP guidance updated (reset works immediately, outbound proxy tip for 403, never claim TLS unsupported); bot checkout no longer shows Telnyx paperwork note before payment.
+- Deployed: app-main workspace 7df0a85 (app-main-b :5100, WS_DEPLOY_EXIT=0; includes fax/number registration UI fixes iter 297). WL overlay r11 (_index.js + ai-support.js) on app-wl-a :5001, app-voodoo-b :5103, app-proshop-a :5004, healthy; backups deploy-backups/<slot>-r11-*.
+- NOT tested: an outbound SIP call (billable) for "Sip call is not going out" — same root cause (phone was talking to Telnyx).
+- ⚠️ Save to GitHub or CI rolls app-main back; WL overlay drops on next WL deploy unless synced.

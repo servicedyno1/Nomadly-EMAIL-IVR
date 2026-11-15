@@ -100,11 +100,12 @@ export default function NumberDetail() {
   const badge = answering(n.features);
   const go = async (id) => { if (id !== tab && await confirmLeave()) { setParams({ tab: id }, { replace: true }); if (window.matchMedia?.('(max-width: 1023px)').matches) setTimeout(() => document.querySelector('[data-number-panel]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80); } };
   const caps = [...(n.features?.fax?.line ? ['fax'] : n.capabilities?.voice !== false ? ['calls'] : []), ...(n.capabilities?.sms && n.features?.texting?.enabled && n.features.texting.available ? ['texts'] : [])];
+  const regWait = ['needs_details', 'pending'].includes(n.registration?.status);
   const main = n.status === 'active' && !n.isSubNumber && !n.replacedBy;
   return (
     <div data-testid="number-detail-page">
       <Crumbs testid="number-breadcrumbs" items={[['Phone numbers'], ['My numbers', cp('/app/numbers')], [pv.phone(n.phoneNumber), tab !== 'overview' ? cp(`/app/numbers/${enc(n.phoneNumber)}`) : undefined], ...(tab !== 'overview' ? [[TAB_LABEL[tab] || label]] : [])]} />
-      {n.status === 'active' && params.get('prep') !== 'menu' && <SetupIntentBanner phone={n.phoneNumber} />}
+      {n.status === 'active' && !regWait && params.get('prep') !== 'menu' && <SetupIntentBanner phone={n.phoneNumber} />}
       <div className="flex flex-col md:flex-row md:items-start gap-4 justify-between mb-8 civr-rise">
         <div>
           <div className="civr-label flex items-center gap-1.5" data-testid="number-detail-country"><Flag code={n.country} />{n.countryName || n.country} · {n.type?.replace('_', '-')} · {n.planName}</div>
@@ -115,14 +116,15 @@ export default function NumberDetail() {
           {caps.includes('texts') && <div className="mt-3"><ReachChip phone={n.phoneNumber} testid="number-sms-reach" /></div>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className={statusPill(n.status)} data-testid="number-detail-status">{n.status}</span>
+          {regWait ? <span className="civr-pill civr-pill-warn" data-testid="number-detail-status">{n.registration.status === 'pending' ? 'waiting for carrier' : 'waiting for details'}</span>
+            : <span className={statusPill(n.status)} data-testid="number-detail-status">{n.status}</span>}
           <span className="civr-pill" data-testid="number-detail-expiry">{n.autoRenew ? 'renews' : 'expires'} {day(n.expiresAt)}</span>
           {n.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}
           {n.replacedBy ? <span className="civr-pill civr-pill-warn" data-testid="number-detail-old-pill">{`Old number · until ${day(n.releaseAt)}`}</span>
             : n.status === 'active' && <button type="button" onClick={async () => { if (await confirmLeave()) setParams({ tab: 'billing', replace: '1' }, { replace: true }); }} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="number-detail-replace">Replace number</button>}
         </div>
       </div>
-      <SetupGuide n={n} />
+      {!regWait && <SetupGuide n={n} />}
       <div className="civr-seg civr-scroll-x flex gap-1 overflow-x-auto mb-4" role="tablist" aria-label="Settings groups" data-testid="number-groups">
         {GROUPS.map(([id, name, tabs]) => {
           const first = (badge && badge[0] === id && tabs.some(t => t[0] === badge[2]) ? badge[2] : null) || tabs.filter(visible)[0]?.[0];

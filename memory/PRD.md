@@ -296,3 +296,8 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - 2026-11-15: Landing page cut down to essentials (hero, how it works, pricing, test call, FAQ, final CTA) after a 9-step UX audit; live on cloudivr.net.
 
 - 2026-11-15: SIP credential fix LIVE on all 4 brands — Kamailio stale-nonce lockout fixed, TLS copy removed (UDP/TCP 5060 only), self-healing SIP logins (web + bot), Basic plan includes SIP, quiet backfill verified 25/25 logins. Details: CHANGELOG 2026-11-15 20:40Z.
+
+
+## 2026-11-15 late — SIP 403 fix
+- Brand SIP SRV records repointed from Telnyx to our SIP server (root cause of 'Authentication failed 403' / not registering). Kamailio TLS runs in foreground mode; reset passwords apply immediately. Pay-first fax/number registration UI fixes (iteration_297, all pass) deployed.
+- Remaining: SIP connection status UI + 30-min offline alert; mobile polish (iteration_294); country pricing regression; eSIM/texting validation.

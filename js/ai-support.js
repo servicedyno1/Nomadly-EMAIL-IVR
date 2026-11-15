@@ -307,7 +307,7 @@ SIP connection details:
 - Codecs: G.711μ, G.711a, Opus
 - DTMF: RFC 2833
 
-NOTE: Every paid plan with a calling number includes SIP credentials. If a softphone won't connect: check the server is exactly the domain above, port 5060 with UDP or TCP (or 5061 with TLS), and copy the username + password again from 🔑 SIP Credentials (old logins from a replaced number stop working). Still stuck → 🔄 Reset Password for a fresh pair.
+NOTE: Every paid plan with a calling number includes SIP credentials. If a softphone won't connect: check the server is exactly the domain above, port 5060 with UDP or TCP (or 5061 with TLS), and copy the username + password again from 🔑 SIP Credentials (old logins from a replaced number stop working). Still stuck → 🔄 Reset Password for a fresh pair. A reset works right away; no waiting is needed. If the app shows "403 Forbidden" or "Authentication failed", fill <b>Outbound Proxy</b> with <code>${SIP_DOMAIN}:5060</code> (some apps look the server up differently) and make sure the username is in both User name and Auth username (or leave Auth username empty). If it still fails, offer to pass it to a human agent; never tell the customer TLS is unsupported.
 
 #### How to make calls via browser (no app needed):
 Visit ${CALL_PAGE_URL} — enter your SIP credentials and call directly from browser. No sign-up needed.

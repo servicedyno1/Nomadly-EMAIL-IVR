@@ -37,13 +37,17 @@ export default function Fax() {
       )}
       {waiting.map(n => (
         <div key={n.phoneNumber} className="civr-card p-5 mb-4" data-testid={`fax-waiting-${n.phoneNumber.replace(/\D/g, '')}`}>
-          <div className="font-medium tabular-nums">{n.phoneNumber}</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium tabular-nums">{n.phoneNumber}</span>
+            <span className="civr-label">{n.countryName || n.country} · Fax only</span>
+            <span className="civr-pill civr-pill-warn" data-testid={`fax-waiting-status-${n.phoneNumber.replace(/\D/g, '')}`}>{n.registration.needsDetails ? 'Waiting for details' : 'Waiting for carrier'}</span>
+          </div>
           <FinishRegistration n={n} reload={reload} />
         </div>
       ))}
-      {nums.length > 0 && !ready.length && !waiting.length && (nums.some(n => n.faxOnly)
+      {nums.length > 0 && !ready.length && (nums.some(n => n.faxOnly && !n.eligible && !n.registration)
         ? <div className="civr-card p-5 mb-4 text-sm" data-testid="fax-past-due">Your fax number is paused because its monthly fee couldn’t be paid. <Link to={cp('/app/wallet')} className="text-[#818cf8] underline">Top up your wallet</Link> to turn it back on.</div>
-        : <Locked feature="Fax" need="Business" phone={nums[0].phoneNumber} />)}
+        : !waiting.length && <Locked feature="Fax" need="Business" phone={nums[0].phoneNumber} />)}
       {ready.length > 0 && (
         <div className="grid lg:grid-cols-5 gap-4 mb-4">
           <div className="lg:col-span-3"><FaxSend numbers={ready} onSent={reload} bulkMax={data?.pricing?.bulkMax} /></div>
