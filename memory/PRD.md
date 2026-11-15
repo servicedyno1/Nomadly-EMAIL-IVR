@@ -293,3 +293,4 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Deployed: app-main workspace b17c384 (+uncommitted); WL/Voodoo/ProShop bot overlay r11. Production PLAN_TEXTING=false on all 4 → Calls + texting shows 'not available' and the add-on switch is hidden until the owner sets it true.
 - NEXT: owner decision on PLAN_TEXTING=true; Save to GitHub (else CI rolls app-main back / WL overlay drops); bot has no 'turn texting off' button yet.
 - 2026-11-15: Admin Fax sales tab has a daily summary since launch (per country + brand) and a daily admin email after 08:00 UTC (js/fax-sales.js, app-main only).
+- 2026-11-15: Landing page cut down to essentials (hero, how it works, pricing, test call, FAQ, final CTA) after a 9-step UX audit; live on cloudivr.net.

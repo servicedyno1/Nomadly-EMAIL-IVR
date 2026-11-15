@@ -195,7 +195,7 @@ export function Footer({ catalog }) {
               {FOOTER_KINDS.map(([tab, l, id]) => <a key={id} href={`${base}#pricing-${tab}`} onClick={(e) => openKind(tab, e)} className={fLink} data-testid={`footer-product-${id}`}>{l}</a>)}
             </FooterCol>
             <FooterCol title="CloudIVR" testid="footer-col-company">
-              {[['#how', 'How it works', 'how'], ['#try', 'Free test call', 'try'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']].map(([h, l, id]) => <a key={id} href={`${base}${h}`} onClick={(e) => goTo(h, e)} className={fLink} data-testid={`footer-link-${id}`}>{l}</a>)}
+              {[['#how', 'How it works', 'how'], ['#try', 'Free test call', 'try'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']].map(([h, l, id]) => <a key={id} href={`${base}${h}`} onClick={(e) => { if (document.querySelector('[data-testid="landing-page"]')) goTo(h, e); }} className={fLink} data-testid={`footer-link-${id}`}>{l}</a>)}
               <Link to={cp('/sip')} className={fLink} data-testid="footer-link-sip">SIP & softphones</Link>
             </FooterCol>
             <FooterCol title="Support & legal" testid="footer-col-support">

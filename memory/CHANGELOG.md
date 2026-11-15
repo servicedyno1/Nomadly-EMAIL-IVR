@@ -3183,3 +3183,12 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - js/fax-sales.js: report(db) (moved from admin.js /admin/fax-sales) now adds `days` = one row per UTC day since the fax launch announcement (total, by country, by brand; all brands via RESELLER_DBS). dailyTick: after 08:00 UTC emails yesterday's summary + since-launch table via admin-mail (BIRD_ALERT_EMAIL inbox), once per day (dedupe `adminReports` _id fax-sales-daily:<date>). Started from _index.js with singletonInterval every 15 min, only where RESELLER_DBS is set (app-main); FAX_SALES_EMAIL=false disables.
 - Web admin Fax sales tab: "Daily summary" table (admin-fax-daily-*).
 - Tests: local sim DB (report days/brands/dryRun excluded; tick sends once, skips before 08:00) ✅; preview admin screenshot ✅; prod report read-only: since 17:33Z, 4 brands, 0 sold. First email due 2026-11-16 after 08:00 UTC (not yet observed).
+
+## 2026-11-15 ~19:05Z — Landing page cut to essentials (9-step UX audit), live on cloudivr.net (app-main cfe1e25)
+- Owner: essentials only, keep colours cleaner, straight to live after testing.
+- Sections now: hero → how it works → pricing → free test call → FAQ → final CTA (+footer). Removed: PromiseStrip, Products, CompareTable, Platform, Reviews, hero cycling word/squiggle/decor/NumbersPreview, nav mega menus (Products/Use cases), footer Use cases column, Texting card on the Calls tab.
+- Hero: static h1 "A business number for calls, texts or fax.", one CTA, price list "Pick what your number is for" (shimmer while loading, "See plans" if the offer API fails).
+- Progressive disclosure: plan helper + Enterprise inside "Not sure which plan? Need more?"; FAQ shows 6 priority questions (FIRST_QS) + "Show all N questions".
+- Nav/footer: LANDING_LINKS = How it works / Pricing / Free test call / FAQ; footer "Numbers" column opens the matching pricing tab (civr-pricing-tab event, #pricing-<tab> deep link); Landing scrolls to location.hash after mount; footer account-aware; 44px touch targets.
+- Copy: How it works = Say what it's for / Pick your number / Pay and go live; FAQ texts renamed away from "Texting Number"/"Business Line"; menu.js fax price $9 → $50.
+- Tests: iteration_291 (92%, all findings fixed), iteration_292 (95%, SIP-footer link fix + mobile card fallback fixed, self-verified). Computed WCAG AA contrast: 0 failing text nodes. WL brand web frontends unchanged (WhiteLabel branch).

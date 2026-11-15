@@ -30,7 +30,7 @@ export default function Landing() {
     const on = (e) => open(e.detail);
     window.addEventListener('civr-pricing-tab', on);
     const h = window.location.hash.slice(1);
-    const t = setTimeout(() => { if (h.startsWith('pricing-')) open(h.slice(8)); else if (h) document.getElementById(h)?.scrollIntoView({ block: 'start' }); }, 150);
+    const t = setTimeout(() => { if (h.startsWith('pricing-')) open(h.slice(8)); else if (h) document.getElementById(h)?.scrollIntoView({ block: 'start' }); }, 450);
     return () => { window.removeEventListener('civr-pricing-tab', on); clearTimeout(t); };
   }, []);
   return (

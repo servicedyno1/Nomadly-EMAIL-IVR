@@ -1,0 +1,42 @@
+{
+  "summary": "Frontend-only retest of the iteration_291 fixes on the CloudIVR landing page (/cloudivr), at 1920 and 390 widths, logged out and logged in (civr.uxtest). Almost everything passed. One failure: on /cloudivr/sip, footer-link-how and footer-link-faq stay on the SIP page and scroll to the SIP page's own #how and #faq sections, so they never reach the landing page.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Footer (PricingFaq.js) on /cloudivr/sip", "issue": "footer-link-how and footer-link-faq don't go to the landing page. goTo() in menu.js finds document.getElementById('how'/'faq') on the SIP page itself (sip/Sections.js:106 section id=\"how\", sip/Plans.js:131 section id=\"faq\"), calls preventDefault and scrolls within /sip. footer-link-try and footer-link-pricing, and all footer-product-* links, work from /sip. Everything works from /terms.", "selector": "[data-testid=footer-link-how], [data-testid=footer-link-faq]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Pricing > Calls + texting tab when /public/mobile-offer fails", "issues": ["Card price falls back to $75 (offer?.price || 75) while the live offer is $50 and the hero shows 'See plans'. The order button area becomes an empty 52px box. Minor, only seen with a blocked API."]},
+      {"screen": "Deep link scroll", "issues": ["About 1 in 4 deep links (e.g. /cloudivr#pricing-ivr, #pricing-fax from /sip, #try from /sip) ended with the section top at 44px instead of 64px, 20px under the fixed nav. Most likely a layout shift after the 150ms scroll. The heading is still visible because of the section padding. Cosmetic."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Footer CloudIVR column links (how/try/pricing/faq) should always go to the landing page when the current page is not the landing page. For example, in Footer, only call goTo when document.querySelector('[data-testid=landing-page]') exists, or check the route. Otherwise let the href (/cloudivr#how, /cloudivr#faq) work. Today /sip has its own #how and #faq ids, so the click is captured there.",
+    "Optional: on the mobile tab card, use the same fallback as the hero ('See plans') instead of a hard-coded $75 when /public/mobile-offer fails"
+  ],
+  "critical_code_review_comments": [
+    "menu.js goTo() decides 'am I on the landing page' by whether an element with that id exists. That breaks on any page that reuses the ids (SIP uses how and faq). openKind() has the same pattern with 'pricing' (SIP has no #pricing today, so it works by luck). A shared isLanding check would be safer.",
+    "Landing.js hash scroll uses a fixed 150ms setTimeout. Late layout shifts can leave the section about 20px under the nav. A second scroll after fonts and catalog load, or ResizeObserver settling, would make it reliable."
+  ],
+  "passed": [
+    "Footer product links on the landing page: calls->plans-panel-ivr, texting->mobile, fax->fax, esim->esim. The tab gets aria-selected=true and #pricing ends at the top (64px).",
+    "Deep links /cloudivr#pricing, #faq, #how, #try scroll to the section. #pricing-fax opens the Fax tab and scrolls to pricing.",
+    "From /terms: all footer-product-* and footer-link-how/try/pricing/faq reach the landing page and the right section or tab. From /sip: footer-product-* and footer-link-try/pricing work.",
+    "Touch targets at 390px are all 44px tall or more: civr-nav-signup-btn, hero-try-link, footer-cta-signup, footer-link-signin, every footer-product-* and footer-link-*.",
+    "hero-try-link scrolls to #try (top=64), works again on a second click, and body overflow is not left locked.",
+    "Footer is account-aware. Logged out: footer-link-signin shows and the CTA goes to /cloudivr/signup. Logged in: footer-link-dashboard shows (/cloudivr/app), signin is hidden, and the CTA goes to /cloudivr/app/buy (followed and checked).",
+    "Fax tab: the note reads 'Search for your exact number...' with no 'below'. fax-landing-hint shows before searching and goes away after. Area code input and $50 price use Source Sans (not monospace). Logged-in search returned 12 results.",
+    "FAQ: the gap from faq-show-all to the final CTA card is about 80-90px. The three renamed questions are present. 'Both renew monthly at $50' is gone. Show all shows 26 questions and the toggle changes to 'Show fewer questions'.",
+    "Hero prices show $50 for ivr, mobile and fax. With fax-offer aborted and mobile-offer returning 500, those rows show 'See plans' and no shimmer is left.",
+    "Regression: section order is product-hero, how, pricing, try, faq, final-cta. Desktop nav links scroll correctly. The mobile menu link closes the menu and scrolls. Pricing tabs switch. pricing-more opens. sticky-cta-order is present. No horizontal overflow at 390 (scrollWidth=390)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "95%"},
+  "test_credentials": "civr.uxtest@example.com / UxTest#2026 (from /app/memory/test_credentials.md), login works",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Landing is /cloudivr. Dismiss the cookie banner with cookie-allow-all. The only open item is that footer-link-how and footer-link-faq on /cloudivr/sip stay on /sip. To retest: goto /cloudivr/sip, click footer-link-faq, expect the URL /cloudivr/#faq and [data-testid=landing-page] to be present. Route-block test: abort **/public/fax-offer* and expect hero-price-fax-amount to read 'See plans'."
+}
