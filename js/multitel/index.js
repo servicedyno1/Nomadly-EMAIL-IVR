@@ -81,7 +81,10 @@ async function searchNumbers(countryCode, numberType = 'local', areaCode = null,
           _capabilities: { voice: true, sms, mms: false, fax: false }, _provider: 'multitel', _needsRegistration: String(n.restrictions?.needs_registration) === '1' })
       }
     }
-    return out.filter(n => !require('../pending-orders').isHeld(n.phone_number)).slice(0, limit)
+    const res = out.filter(n => !require('../pending-orders').isHeld(n.phone_number)).slice(0, limit)
+    // None in the requested area code → flag them so callers can say "other numbers in <state>".
+    if (state && res.length && !res.some(n => String(n.phone_number).startsWith(`+1${areaCode}`))) res.forEach(n => Object.assign(n, { _areaFallback: true, _requestedAreaCode: String(areaCode), _fallbackRegion: state }))
+    return res
   } catch (e) { log(`search ${cc} ${numberType}: ${e.message}`); return [] }
 }
 // Placeholder result for an order-only prefix: phone_number is the bare prefix (e.g. +49241); buyNumber orders from it.

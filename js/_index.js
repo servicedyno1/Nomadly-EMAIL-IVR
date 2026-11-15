@@ -30168,7 +30168,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
       await saveInfo('cpSearchResults', results)
       const location = info?.cpAreaName || info?.cpCountryName || 'US'
-      const numberLines = results.map((r, i) => {
+      const fbNote3 = results.some(r => r._areaFallback) ? `ℹ️ Area code ${info?.cpAreaCode} has no numbers available right now — here are other numbers${results.find(r => r._fallbackRegion) ? ` in ${results.find(r => r._fallbackRegion)._fallbackRegion}` : ''} you can use instantly:\n\n` : ''
+      const numberLines = fbNote3 + results.map((r, i) => {
         return numLine(r, i, info?.cpCountryCode, info?.cpNumberType)
       }).join('\n')
       const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
@@ -30178,7 +30179,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const _dg = String(message || '').replace(/\D/g, '')
     const _byNum = _dg.length > 1 ? results.findIndex(r => String(r.phone_number).replace(/\D/g, '') === _dg) : -1
     const idx = _byNum >= 0 ? _byNum : parseInt(message) - 1
-    if (isNaN(idx) || idx < 0 || idx >= results.length) return send(chatId, phoneConfig.getMsg(info?.userLanguage).tapNumberToSelect)
+    if (isNaN(idx) || idx < 0 || idx >= results.length) return send(chatId, phoneConfig.getMsg(info?.userLanguage).tapNumberToSelect, k.of([...results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)]), [phoneConfig.getBtn(info?.userLanguage || 'en').showMore]]))
     const selected = results[idx]
     await saveInfo('cpSelectedNumber', selected.phone_number)
     // Store the actual provider for this specific number (for routing)
@@ -32246,7 +32247,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const _dg = String(message || '').replace(/\D/g, '')
     const _byNum = _dg.length > 1 ? results.findIndex(r => String(r.phone_number).replace(/\D/g, '') === _dg) : -1
     const idx = _byNum >= 0 ? _byNum : parseInt(message) - 1
-    if (isNaN(idx) || idx < 0 || idx >= results.length) return send(chatId, phoneConfig.getMsg(info?.userLanguage).tapNumberToSelect)
+    if (isNaN(idx) || idx < 0 || idx >= results.length) return send(chatId, phoneConfig.getMsg(info?.userLanguage).tapNumberToSelect, k.of([...results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)]), [phoneConfig.getBtn(info?.userLanguage || 'en').showMore]]))
     const selected = results[idx]
     await saveInfo('cpSelectedNumber', selected.phone_number)
     const selectedProvider = selected._provider || info?.cpProvider || 'telnyx'
