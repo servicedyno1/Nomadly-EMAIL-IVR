@@ -11,7 +11,7 @@ export const USES = [
   ['menu', ListTree, 'A call menu — press 1 for sales, press 2 for support', { plan: 'pro' }],
   ['campaigns', Megaphone, 'Calling campaigns to a list of people', { plan: 'pro' }],
   ['ai', Bot, 'An AI receptionist, or showing your own verified caller ID', { plan: 'business' }],
-  ['texts', MessageSquare, 'Send and receive texts in CloudIVR', { to: '/app/texting-number' }],
+  ['texts', MessageSquare, 'Send and receive texts in CloudIVR', { to: '/app/buy?purpose=texting&country=US' }],
   ['phone', Smartphone, 'A USA line on my own phone', { to: '/app/esim' }],
 ];
 

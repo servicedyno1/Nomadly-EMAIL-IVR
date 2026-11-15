@@ -131,7 +131,7 @@ function Line({ item, reload, fresh }) {
         <button type="button" onClick={() => setOpen(!open)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`esim-qr-toggle-${item.id}`}><QrCode className="w-4 h-4" />{open ? 'Hide install QR' : 'Show install QR'}</button>
         {open && <QrBlock id={item.id} />}
         <EmailQr item={item} reload={reload} />
-        <p className="text-sm text-[var(--c-muted)] flex items-center gap-2" data-testid={`esim-texts-in-messages-${item.id}`}><MessageSquare className="w-4 h-4" />This eSIM has two-way SMS on your phone: send and receive texts there. Need texting in CloudIVR? Get a <Link to={cp('/app/texting-number')} className="underline font-semibold text-[var(--c-accent)]">Texting Number</Link>.</p>
+        <p className="text-sm text-[var(--c-muted)] flex items-center gap-2" data-testid={`esim-texts-in-messages-${item.id}`}><MessageSquare className="w-4 h-4" />This eSIM has two-way SMS on your phone: send and receive texts there. Need texting in CloudIVR? Get a <Link to={cp('/app/buy?purpose=texting&country=US')} className="underline font-semibold text-[var(--c-accent)]">Texting Number</Link>.</p>
       </>}
       <div className="flex flex-wrap items-start gap-2">
         {item.status === 'suspended' && <WalletPay price={item.price} small onWallet={() => act('renew', 'Renewed')} label={`Renew $${item.price}`} testid={`esim-renew-pay-${item.id}`} walletTestid={`esim-renew-${item.id}`} cryptoTestid={`esim-renew-crypto-${item.id}`} />}
@@ -163,7 +163,7 @@ export default function Esim() {
       {data.items.length > 0 && !buying && <div className="flex flex-wrap items-center gap-2 -mt-2" data-testid="esim-add-line-bar">
         <span className="text-sm text-[var(--c-muted,#a1a1aa)] mr-1">Add a line:</span>
         {data.plans.length > 0 && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => document.querySelector('[data-testid="esim-plans"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} data-testid="esim-jump-esim">USA eSIM</button>}
-        <Link to={cp('/app/texting-number')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="esim-jump-mobile">Texting Number</Link>
+        <Link to={cp('/app/buy?purpose=texting&country=US')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="esim-jump-mobile">Texting Number</Link>
       </div>}
       {data.items.length > 0 && <div className="space-y-4">{data.items.map(x => <Line key={x.id} item={x} reload={reload} fresh={x.id === fresh} />)}</div>}
       {data.items.length > 0 && !buying && data.plans.length > 0 && <h2 className="font-display text-xl font-bold" data-testid="esim-add-another">Add another eSIM</h2>}

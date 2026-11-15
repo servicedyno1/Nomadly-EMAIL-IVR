@@ -1,4 +1,4 @@
-import { Home, Hash, PlusCircle, PhoneOutgoing, Megaphone, Music, Wallet, Settings, KeyRound, Bot, Captions, BookOpen, Contact, Radio, Ban, MessageSquareText, MessageSquare, Smartphone, MessagesSquare, Printer, Workflow, PhoneForwarded, Headphones, BotMessageSquare, Globe, ScanSearch, Plane } from 'lucide-react';
+import { Home, Hash, PlusCircle, PhoneOutgoing, Megaphone, Music, Wallet, Settings, KeyRound, Bot, Captions, BookOpen, Contact, Radio, Ban, MessageSquareText, Smartphone, MessagesSquare, Printer, Workflow, PhoneForwarded, Headphones, BotMessageSquare, ScanSearch, Plane } from 'lucide-react';
 import { cp } from './paths';
 
 // Job-based menu. Group → [id, label, items]; item → [path, label, Icon, testid, subtitle?].
@@ -6,16 +6,13 @@ import { cp } from './paths';
 // A path of '#phone' opens the browser phone instead of a page.
 export const NAV = [
   ['home', '', [['', 'Home', Home, 'nav-dashboard'], ['messages', 'Messages', MessagesSquare, 'nav-messages'], ['live', 'Live activity', Radio, 'nav-live']]],
-  ['numbers', 'Numbers', [['numbers', 'My numbers', Hash, 'nav-numbers'], ['buy', 'Get a number', PlusCircle, 'nav-buy'], ['lookup', 'Number & email lookup', ScanSearch, 'nav-lookup']]],
+  ['numbers', 'Numbers', [['numbers', 'My numbers', Hash, 'nav-numbers'], ['buy', 'Get a number', PlusCircle, 'nav-buy'], ['fax', 'Send & receive fax', Printer, 'nav-fax'], ['texting', 'Landline texting', MessageSquareText, 'nav-texting', 'Soon'], ['lookup', 'Number & email lookup', ScanSearch, 'nav-lookup']]],
   ['calls', 'Calling', [
     ['quick-call', 'Quick call', PhoneOutgoing, 'nav-calls'], ['answer/forwarding', 'Call forwarding & voicemail', PhoneForwarded, 'nav-answer-forwarding'], ['answer/ivr', 'Keypad menus', Workflow, 'nav-answer-ivr', 'IVR'],
     ['campaigns', 'Bulk campaigns', Megaphone, 'nav-campaigns', 'IVR'], ['text-call', 'Text-to-voice call', Captions, 'nav-text-call'], ['sip', 'Softphone logins', KeyRound, 'nav-sip', 'SIP'], ['#phone', 'Browser phone', Headphones, 'nav-browser-phone'],
   ]],
   ['ai', 'AI', [['receptionist', 'AI receptionist', BotMessageSquare, 'nav-ai-receptionist'], ['ai-agents', 'AI calling agents', Bot, 'nav-ai-agents']]],
-  ['messaging', 'Texting', [
-    ['texting-number', 'USA Texting Number', MessageSquare, 'nav-texting-number'], ['international-texting', 'International Texting', Globe, 'nav-international-texting', 'Soon'], ['texting', 'Landline texting', MessageSquareText, 'nav-texting', 'Soon'],
-  ]],
-  ['more', 'Fax & eSIM', [['fax', 'Fax', Printer, 'nav-fax'], ['travel-esim', 'Travel eSIM', Plane, 'nav-travel-esim'], ['esim', 'USA eSIM', Smartphone, 'nav-esim']]],
+  ['more', 'eSIM', [['travel-esim', 'Travel eSIM', Plane, 'nav-travel-esim'], ['esim', 'USA eSIM', Smartphone, 'nav-esim']]],
   ['tools', 'Tools', [['contacts', 'Contacts', Contact, 'nav-contacts'], ['audio', 'Audio library', Music, 'nav-audio'], ['do-not-call', 'Do-not-call list', Ban, 'nav-dnc']]],
   ['account', 'Account', [['wallet', 'Wallet & billing', Wallet, 'nav-wallet'], ['settings', 'Settings', Settings, 'nav-settings'], ['help', 'Help center', BookOpen, 'nav-help']]],
 ];
@@ -27,7 +24,7 @@ export const appPath = (to) => cp(to ? `/app/${to}` : '/app');
 
 const under = (pathname, p) => pathname === p || pathname.startsWith(`${p}/`);
 // Old pages that now live under a menu item (orders → Get a number, verification → My numbers).
-const ALSO = { buy: ['orders'], numbers: ['verification'] };
+const ALSO = { buy: ['orders', 'texting-number', 'international-texting'], numbers: ['verification'] };
 
 export function isSideActive(item, pathname, search = '') {
   const [to] = item;

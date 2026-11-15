@@ -15,7 +15,7 @@ import { openCookieSettings } from '../../consent';
 import { PRODUCTS, USE_CASES, goTo, hrefOf } from './menu';
 
 // Plan button target: signed-in → Buy with the plan picked, otherwise sign-up keeps it (?plan=pro). Also used by the SIP page.
-export const useStart = () => { const { account } = useCivrAuth(); return (plan) => (plan === 'esim' && account ? cp('/app/esim') : plan === 'textnum' && account ? cp('/app/texting-number') : plan === 'texting' && account ? cp('/app/texting?start=texting') : account ? cp(`/app/buy${plan ? `?plan=${plan}` : ''}`) : cp(`/signup${plan ? `?plan=${plan}` : ''}`)); };
+export const useStart = () => { const { account } = useCivrAuth(); return (plan) => (plan === 'esim' && account ? cp('/app/esim') : plan === 'textnum' && account ? cp('/app/buy?purpose=texting&country=US') : plan === 'texting' && account ? cp('/app/texting?start=texting') : account ? cp(`/app/buy${plan ? `?plan=${plan}` : ''}`) : cp(`/signup${plan ? `?plan=${plan}` : ''}`)); };
 
 export function PlanCard({ p, plans, hot, start, delay }) {
   return (
@@ -30,7 +30,7 @@ export function PlanCard({ p, plans, hot, start, delay }) {
 
 // While landline texting is paused, the card sells the USA Texting Number (international texting coming soon).
 function TextingNumberCard({ t, start, delay }) {
-  const pts = ['Unlimited texts on a USA number', 'Read and reply to every text in the app', 'No ID needed', 'International texting coming soon'];
+  const pts = ['Unlimited texts on a USA number', 'Read and reply to every text in the app', 'No ID needed', 'More countries in the app, pay per text'];
   return (
     <Reveal delay={delay} className="civr-l-card-cream p-8 flex flex-col" data-testid="civr-plan-card-texting">
       <div className="text-xs font-semibold uppercase tracking-[.14em] text-slate-500" data-testid="pricing-texting-eyebrow">Texting Number</div>
@@ -90,7 +90,7 @@ export function faqItems(c) {
   const ex = c?.extraNumber;
   return [
     ['What does each plan include?', `Basic gives you a number with call forwarding and the browser phone — make and take calls in any browser tab. Starter adds voicemail, SIP logins for desk phones and softphone apps and call recording. Pro adds the keypad menu, ring groups, Quick IVR calls, Bulk IVR campaigns and code collection. Business adds showing your own verified caller ID on every call (softphone, browser, Quick IVR and campaigns), AI voice agents, text calls, Text Triggers, Quick IVR scheduling and saved presets, redial, your own accept / decline messages for codes, one saved voice for every call and priority support.`],
-    ['How does texting work?', 'Texting is a separate product: a USA Texting Number costs $50 a month with unlimited texts. Calling plans are for calls. International texting is coming soon.'],
+    ['How does texting work?', 'We sell three kinds of number. A calling number is for calls, and texting can be switched on as an optional add-on where the number supports it. A calls + texting number does both: the USA one costs $50 a month with unlimited texts, and other countries charge per text sent. A fax number only sends and receives faxes.'],
     ['Is the Texting Number or the USA eSIM VoIP?', 'No. Both are real mobile numbers on a USA carrier, not VoIP, and both have two-way SMS: they send and receive texts instantly. The eSIM runs on your phone; the Texting Number lives in CloudIVR and you read and send its texts in Messages in any browser.'],
     ['Can I receive texts, not just send them?', 'Yes. Both have two-way SMS, inbound and outbound. The eSIM sends and receives texts on your phone. The Texting Number sends and receives them in CloudIVR Messages, including verification codes.'],
     ['Does it work with my bank?', 'It’s a real carrier number, and most banks and apps accept it for sign-ups and verification codes. Each service sets its own rules, so we can’t promise every one will.'],
@@ -150,9 +150,8 @@ export function FinalCta({ catalog }) {
             <div className="civr-l-eyebrow !text-lime-300">Ready when you are</div>
             <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl text-white max-w-3xl mx-auto mt-4">Stop missing calls. <span className="text-[#64acff]">Start closing them.</span></h2>
             <p className="text-base mt-5 text-slate-300">Your number can be answering — and calling — in minutes. Free to sign up{from ? ` · Numbers from ${from}/month` : ''} · No contracts</p>
-            <div className="flex flex-wrap justify-center gap-3 mt-9">
+            <div className="flex justify-center mt-9">
               <Link to={start()} className="civr-l-pill civr-l-pill-ink" data-testid="final-cta-button"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>
-              <a href="#try" className="civr-l-pill civr-l-pill-outline" data-testid="final-cta-try-button"><Slide>Try a free call</Slide></a>
             </div>
           </div>
         </Reveal>

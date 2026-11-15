@@ -5,6 +5,7 @@ import { useApi, day, money, enc } from '../../api';
 import { cp } from '../../paths';
 import { usePrivacy } from '../../privacy';
 import { STATUS } from '../texting/NumberPanel';
+import { CapBadges } from '../../kinds';
 
 export const LIVE_TEXTING = ['verify', 'loa', 'documents', 'admin_docs', 'review', 'active', 'paused'];
 
@@ -12,14 +13,14 @@ const billText = (t, pv) => (t.status !== 'active' && t.status !== 'paused' ? 'B
   : t.planNumber ? `Included with your plan on ${pv.phone(t.planNumber)} · no monthly fee`
   : t.nextBillAt ? `Next bill ${day(t.nextBillAt)} · ${money(t.monthly)}/month` : `${money(t.monthly)}/month`);
 
-function TextingLine({ t, pv }) {
+export function TextingLine({ t, pv }) {
   const s = STATUS[t.status] || { label: t.status };
   return (
     <Link to={cp(`/app/texting?id=${enc(t.id)}`)} className="civr-card p-5 flex items-center gap-4 hover:border-[#818cf8]/50 transition-colors" data-testid={`texting-line-${t.id}`}>
       <div className="flex-1 min-w-0 space-y-1">
         <div className="flex flex-wrap items-center gap-3">
           <span className="font-mono text-lg" data-no-translate data-testid={`texting-line-number-${t.id}`}>{pv.phone(t.phoneNumber)}</span>
-          <span className="civr-pill">Landline to Texting</span>
+          <CapBadges caps={['texts']} /><span className="civr-pill">Landline texting</span>
         </div>
         <div className={`text-sm ${s.tone || ''}`} data-testid={`texting-line-status-${t.id}`}>{s.label}</div>
         <div className="text-xs text-[var(--c-muted)]" data-testid={`texting-line-bill-${t.id}`}>{billText(t, pv)}</div>

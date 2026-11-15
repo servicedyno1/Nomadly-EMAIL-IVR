@@ -25,7 +25,7 @@ function FaxResults({ numbers, pick, setPick }) {
 }
 
 // Fax purpose: search fax-only numbers (15 countries) and pay monthly from the wallet.
-export function FaxNumberBuy({ balance, onBought }) {
+export function FaxNumberBuy({ balance, onBought, onStage }) {
   const { data: offer } = useApi('/fax-numbers');
   const nav = useNavigate();
   const [pick, setPick] = useState(() => {
@@ -37,6 +37,7 @@ export function FaxNumberBuy({ balance, onBought }) {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState(null);
   const [docs, setDocs] = useState(null);
+  useEffect(() => { onStage?.(pick ? 3 : 2); }, [pick, onStage]);
   const price = offer?.price || 0;
   const country = offer?.countries?.find(c => c.code === q.country);
   const types = country?.types || [];
@@ -58,7 +59,6 @@ export function FaxNumberBuy({ balance, onBought }) {
       onBought?.(); nav(cp('/app/fax'));
     } catch (err) { setError(err); toast.error(err.message); } finally { setBusy(''); }
   };
-  const short = balance != null && balance < price;
   return (
     <div className="civr-card p-6" data-testid="fax-buy-card">
       <p className="text-sm text-[#a1a1aa] flex gap-2" data-testid="fax-buy-price"><Printer className="w-4 h-4 mt-0.5 shrink-0 text-[#818cf8]" />{!offer ? 'Loading fax prices…' : `${offer.countries?.length || 15} countries. Sends and receives faxes only — it can't take calls or texts. ${money(price)}/month, ${offer.freePages} free pages a month, then ${money(offer.pagePrice)} a page.`}</p>

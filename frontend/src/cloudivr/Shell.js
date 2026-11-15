@@ -26,8 +26,6 @@ import AudioLibrary from './pages/AudioLibrary';
 import QuickCall from './pages/QuickCall';
 import Contacts from './pages/Contacts';
 import Texting from './pages/Texting';
-import TextingNumber from './pages/TextingNumber';
-import InternationalTexting from './pages/InternationalTexting';
 import NumberLookup from './pages/NumberLookup';
 import TravelEsim from './pages/TravelEsim';
 import Esim from './pages/Esim';
@@ -213,8 +211,8 @@ export default function Shell() {
               <Route path="audio" element={<AudioLibrary />} />
               <Route path="contacts" element={<Contacts />} />
               <Route path="texting" element={<Texting />} />
-              <Route path="texting-number" element={<TextingNumber />} />
-              <Route path="international-texting" element={<InternationalTexting />} />
+              <Route path="texting-number" element={<Navigate to={cp('/app/buy?purpose=texting&country=US')} replace />} />
+              <Route path="international-texting" element={<Navigate to={cp('/app/buy?purpose=texting')} replace />} />
               <Route path="lookup" element={<NumberLookup />} />
               <Route path="travel-esim" element={<TravelEsim />} />
               <Route path="esim" element={<Esim />} />

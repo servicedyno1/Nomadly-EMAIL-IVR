@@ -198,6 +198,7 @@ function _publicNumber(n, numbers) {
       textTriggers: { enabled: !!f.textTriggers?.enabled, count: (f.textTriggers?.rules || []).length },
       aiSummary: { enabled: !!f.aiSummary?.enabled },
       missedTextBack: f.missedTextBack || { enabled: false, text: null },
+      texting: { available: !!(n.capabilities || { sms: true }).sms && phoneConfig.PLAN_TEXTING(), enabled: !!(n.capabilities || { sms: true }).sms && f.sms !== false, textPrice: texting.localTextPrice(n) || texting.TEXT_MIN },
     },
     access: access(n.plan),
   }
@@ -412,7 +413,7 @@ function routes(router, deps) {
   // Debits the wallet and activates the number → { status, body } (HTTP-style; refunds on failure).
   // `sub` = { parentNumber, plan } adds the number to an existing plan (flat extra-number price, parent's plan features).
   // `coupon` = { code, type, discount } from deps.resolveCoupon (percent off; redeemed only after success).
-  async function purchaseLocked({ chatId, email, phone, planKey, hit, country, type, areaCode, autoRenew = true, viaOrder = null, sub = null, coupon = null, prepaid = null, presetOrder = null }) {
+  async function purchaseLocked({ chatId, email, phone, planKey, hit, country, type, areaCode, autoRenew = true, viaOrder = null, sub = null, coupon = null, prepaid = null, presetOrder = null, withTexting = false }) {
     if (sub) planKey = sub.plan
     const plan = phoneConfig.plans[planKey]
     if (!plan || !phoneConfig.isPlanAvailable(planKey)) return { status: 400, body: { error: 'invalid_plan', message: 'That plan is not available.' } }
@@ -477,7 +478,7 @@ function routes(router, deps) {
         messagingProfileId: caps.sms ? tr.messagingProfileId || null : null, connectionId: tr.sipConnectionId || null, smsUsed: 0, minutesUsed: 0,
         capabilities: caps, channel: 'web', resold: true, ...(eu ? { endUser: eu } : {}), ...(dryRun() ? { dryRun: true } : {}), ...(sub ? { isSubNumber: true, parentNumber: sub.parentNumber } : {}),
         features: {
-          sms: caps.sms,
+          sms: !!caps.sms && !!withTexting,
           callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25, holdMusic: false },
           voicemail: { enabled: false, greetingType: 'default', customGreetingUrl: null, forwardToTelegram: true, forwardToEmail: null, ringTimeout: 25 },
           smsForwarding: { toTelegram: true, toEmail: null, webhookUrl: null },
@@ -629,6 +630,7 @@ function routes(router, deps) {
     textTriggers: { gate: ['textTriggers', 'Text Triggers'], need: (f) => ((f.textTriggers?.rules || []).length ? null : 'Add a trigger in the Text Triggers tab first.') },
     aiAgent: { gate: ['aiAgent', 'The AI voice agent'], need: (f) => (f.aiAgent?.agentId ? null : 'Pick an AI agent in the AI voice agent tab first.') },
     autoRenew: {},
+    texting: {},
   }
   router.patch('/numbers/:phone/switch', withNumber(async (req, res) => {
     const feature = String(req.body?.feature || '')
@@ -642,7 +644,9 @@ function routes(router, deps) {
     if (why) return bad(res, 400, 'not_configured', why)
     const phone = req.num.phoneNumber, id = req.webChatId
     const extra = {}
+    if (feature === 'texting' && req.num.capabilities?.sms === false) return bad(res, 400, 'no_texting', 'This number can’t send or receive texts.')
     if (feature === 'autoRenew') await setField(id, phone, 'autoRenew', enabled)
+    else if (feature === 'texting') await setField(id, phone, 'features.sms', enabled)
     else if (feature === 'recording') await setField(id, phone, 'features.recording', enabled)
     else if (feature === 'transcribe') await setField(id, phone, 'features.voicemail', { ...(f.voicemail || {}), transcribe: enabled })
     else if (feature === 'hours') await setField(id, phone, 'features.hours', { ...numberHours.defaultHours(), ...(f.hours || {}), enabled })

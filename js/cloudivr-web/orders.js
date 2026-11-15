@@ -202,7 +202,7 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
         const bal = await w.balance(chatId), need = round2(linePrice + texting.charge)
         if (bal < need) return bad(res, 402, 'insufficient_balance', `Your wallet needs $${need.toFixed(2)} for the Business Line and the Texting Number. Top up $${round2(need - bal).toFixed(2)} first.`)
       }
-      const r = await numbersApi.purchase({ chatId, email: req.webUser.email, phone: picked.hit.phoneNumber, planKey, autoRenew, coupon, ...picked })
+      const r = await numbersApi.purchase({ chatId, email: req.webUser.email, phone: picked.hit.phoneNumber, planKey, autoRenew, coupon, withTexting: req.body.withTexting === true, ...picked })
       if (texting && (r.status === 201 || r.status === 202)) r.body.texting = await ES().buyMobile(chatId, { zipcode: texting.zipcode, autoRenew, charge: texting.charge }).catch(e => ({ error: e.message }))
       return res.status(r.status).json(r.body)
     }

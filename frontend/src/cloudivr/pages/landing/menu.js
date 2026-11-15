@@ -11,7 +11,7 @@ export const PRODUCTS = [
   ['inbox', Inbox, 'Voicemail inbox', 'Every voicemail transcribed, in the app and in your email.', 'voicemail'],
   ['mobile', MessageSquareText, 'USA Texting Number', 'Unlimited texts on a real USA carrier number, $50 a month.', '#product-usa-texting'],
   ['tendlc', ShieldCheck, 'USA 10DLC registration', 'Register your brand to text USA customers. $49 once.', '#product-ten-dlc'],
-  ['intl', Globe2, 'International texting (soon)', 'Texting on numbers outside the USA — coming soon.', '#product-intl-texting'],
+  ['intl', Globe2, 'Texting in more countries', 'Two-way texts and calls on numbers outside the USA.', '#product-intl-texting'],
   ['hosted', MessageSquareText, 'Landline to Texting (soon)', 'Texts on the landline number you already have — coming soon.', 'hosted'],
   ['fax', Printer, 'Fax number', 'Send and receive faxes online, $9 a month.', '#product-fax'],
   ['esim', Smartphone, 'USA eSIM', 'A downloadable USA line on your own phone, installed with a QR code.', '#esim-card'],

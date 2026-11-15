@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, PhoneCall } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
-import { goTo } from './menu';
 
 // Mobile only (CSS hides it from md up): "Get your number" stays one tap away once the hero has scrolled past,
 // and the bar steps aside when the test-call form, the final CTA or the footer is on screen.
@@ -32,8 +31,7 @@ export function StickyCta() {
   return (
     <div className={`civr-l-sticky ${show ? '' : 'hide'}`} aria-hidden={!show} data-testid="mobile-sticky-cta">
       <div className="flex items-center gap-2">
-        <a href="#product-hero" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} tabIndex={show ? 0 : -1} className="civr-l-btn flex-1 !h-12" data-testid="sticky-cta-order">Get your number<ArrowRight className="w-4 h-4" /></a>
-        <a href="#try" onClick={(e) => goTo('#try', e)} tabIndex={show ? 0 : -1} className="civr-l-btn civr-l-btn-ghost !h-12 !px-4" aria-label="Try a free call" data-testid="sticky-cta-try"><PhoneCall className="w-4 h-4" /><span className="max-[419px]:hidden">Try a call</span></a>
+        <Link to={account ? cp('/app/buy') : cp('/signup')} tabIndex={show ? 0 : -1} className="civr-l-btn flex-1 !h-12" data-testid="sticky-cta-order">Get your number<ArrowRight className="w-4 h-4" /></Link>
       </div>
     </div>
   );

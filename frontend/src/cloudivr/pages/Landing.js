@@ -5,11 +5,10 @@ import { EsimCheckoutHost } from './landing/EsimCheckout';
 import { HowItWorks } from './landing/Sections';
 import { Platform } from './landing/Platform';
 import { TryCall } from './landing/TryCall';
-import { Ecosystem } from './landing/Ecosystem';
 import { Products } from './landing/Products';
 import { Faq, FinalCta, Footer } from './landing/PricingFaq';
 import { OneHero, AllPlans, CompareTable } from './landing/OnePage';
-import { PromiseStrip, FeaturePills } from './landing/Highlights';
+import { PromiseStrip } from './landing/Highlights';
 import { startPrice } from '../api';
 import { LandingNav } from './landing/Nav';
 import { StickyCta } from './landing/StickyCta';
@@ -35,11 +34,9 @@ export default function Landing() {
       <main>
         <OneHero setTab={setTab} from={startPrice(catalog)} esimPrice={esim?.plans?.[0]?.price} offer={offer} fax={fax} catalog={catalog} />
         <PromiseStrip />
-        <Ecosystem />
-        <Products esimPrice={esim?.plans?.[0]?.price} />
         <AllPlans catalog={catalog} tab={tab} setTab={setTab} esimPrice={esim?.plans?.[0]?.price} offer={offer} fax={fax} />
+        <Products esimPrice={esim?.plans?.[0]?.price} />
         <CompareTable catalog={catalog} />
-        <FeaturePills />
         <Platform catalog={catalog} />
         <HowItWorks catalog={catalog} />
         <TryCall />

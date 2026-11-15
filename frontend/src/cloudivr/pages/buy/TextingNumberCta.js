@@ -15,7 +15,7 @@ export function TextingNumberCta({ testid = 'texting-number-cta', className = ''
         <div className="font-semibold">Send and receive texts in CloudIVR</div>
         <div className="text-sm text-[var(--c-muted)] mt-0.5">{`Get a Texting Number: a USA number for texts and verification codes, right in Messages. ${money(data.price)}/month.`}</div>
       </div>
-      <Link to={cp('/app/texting-number')} className="civr-btn civr-btn-primary" data-testid={`${testid}-order`}>Order a Texting Number<ArrowRight className="w-4 h-4" /></Link>
+      <Link to={cp('/app/buy?purpose=texting&country=US')} className="civr-btn civr-btn-primary" data-testid={`${testid}-order`}>Order a Texting Number<ArrowRight className="w-4 h-4" /></Link>
     </div>
   );
 }

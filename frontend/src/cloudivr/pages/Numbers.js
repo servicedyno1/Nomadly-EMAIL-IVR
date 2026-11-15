@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import { Capacity } from './number/Capacity';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Flag } from '../Pickers';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Hash, ShoppingCart, ChevronRight, Copy, PhoneOutgoing, Plus } from 'lucide-react';
 import { useApi, api, day, money, enc } from '../api';
@@ -13,9 +12,10 @@ import { useSearch, SearchBox, NoMatches } from '../search';
 import { useShell } from '../Shell';
 import { DIAL_FROM } from '../Softphone';
 import { CallerIds } from './number/CallerIds';
-import { MobileLines } from './number/MobileLines';
-import { TextingLines, LIVE_TEXTING } from './number/TextingLines';
-import { FaxLines } from './number/FaxLines';
+import { MobileLine } from './number/MobileLines';
+import { TextingLine, LIVE_TEXTING } from './number/TextingLines';
+import { FaxLine } from './number/FaxLines';
+import { CapBadges } from '../kinds';
 
 const on = (f) => !!f?.enabled;
 
@@ -60,7 +60,7 @@ function FaxSwitch({ n, reload, testid }) {
   );
 }
 
-function NumberCard({ n, i, pv, onSaved, reload }) {
+function NumberCard({ n, i, caps, pv, onSaved, reload }) {
   const { openPhone } = useShell();
   const copy = async () => { try { await navigator.clipboard.writeText(n.phoneNumber); toast.success('Number copied'); } catch (_) { toast.error('Couldn’t copy — long-press the number instead.'); } };
   const call = () => { window.dispatchEvent(new CustomEvent(DIAL_FROM, { detail: { from: n.phoneNumber } })); openPhone(); };
@@ -76,7 +76,7 @@ function NumberCard({ n, i, pv, onSaved, reload }) {
         </div>
         <span className={statusPill(n.status)} data-testid={`number-card-${i}-status`}>{n.status}</span>
       </div>
-      <div className="mt-4"><Capacity capacity={n.capacity} testid={`number-card-${i}-capacity`} /></div>
+      <div className="mt-3 flex flex-wrap items-center gap-1.5"><CapBadges caps={caps} testid={`number-card-${i}-caps`} />{n.capabilities?.sms && n.features?.texting?.available && !n.features.texting.enabled && <Link to={`${href}?tab=sms`} className="civr-pill relative z-10 hover:!border-[var(--c-accent)]" data-testid={`number-card-${i}-add-texting`}>+ Add texting</Link>}</div>
       <div className="flex flex-wrap gap-1.5 mt-5">
         <span className="civr-pill">{n.planName} · {money(n.planPrice)}</span>
         {on(n.features.voicemail) && <span className="civr-pill civr-pill-on">Voicemail</span>}
@@ -107,38 +107,65 @@ function NumberCard({ n, i, pv, onSaved, reload }) {
   );
 }
 
+// What a calling number can do right now.
+const lineCaps = (n) => [...(n.features?.fax?.line ? ['fax'] : n.capabilities?.voice !== false ? ['calls'] : []), ...(n.capabilities?.sms && n.features?.texting?.enabled && n.features.texting.available ? ['texts'] : [])];
+const FILTERS = [['all', 'All'], ['calls', 'Calls'], ['texts', 'Texts'], ['fax', 'Fax']];
+const BUY = { calls: 'calls', texts: 'texting', fax: 'fax' };
+
 export default function Numbers() {
   const { data, error, loading, setData, reload } = useApi('/numbers');
-  const { data: mob } = useApi('/mobile-numbers');
+  const { data: mob, reload: reloadMob } = useApi('/mobile-numbers');
   const { data: hs } = useApi('/hosted-sms');
   const { data: fx } = useApi('/fax-numbers');
+  const [params, setParams] = useSearchParams();
   const pv = usePrivacy();
   const nums = data?.numbers || [];
-  const s = useSearch(nums, n => [n.phoneNumber, n.countryName, n.country, n.planName, n.status, n.type?.replace('_', '-'), n.isSubNumber ? 'Extra' : '']);
+  const waiting = !!mob?.items?.some(x => x.status === 'provisioning');
+  useEffect(() => { if (!waiting) return undefined; const t = setInterval(reloadMob, 5000); return () => clearInterval(t); }, [waiting, reloadMob]);
+  // Every number the account owns in one list, whatever it was bought as.
+  const items = useMemo(() => [
+    ...(data?.numbers || []).map((n, i) => ({ key: n.phoneNumber, type: 'line', n, i, caps: lineCaps(n), words: [n.phoneNumber, n.countryName, n.country, n.planName, n.status, n.type?.replace('_', '-'), n.isSubNumber ? 'Extra' : ''] })),
+    ...(mob?.items || []).map(x => ({ key: `m-${x.id}`, type: 'mobile', x, caps: ['calls', 'texts'], words: [x.phoneNumber, 'USA texting', x.status] })),
+    ...(hs?.items || []).filter(t => LIVE_TEXTING.includes(t.status)).map(t => ({ key: `h-${t.id}`, type: 'hosted', t, caps: ['texts'], words: [t.phoneNumber, 'landline texting', t.status] })),
+    ...(fx?.numbers || []).filter(n => n.status !== 'released').map(n => ({ key: `f-${n.phoneNumber}`, type: 'fax', f: n, caps: ['fax'], words: [n.phoneNumber, 'fax', n.country, n.status] })),
+  ], [data, mob, hs, fx]);
+  const s = useSearch(items, it => it.words);
+  const show = FILTERS.some(f => f[0] === params.get('show')) ? params.get('show') : 'all';
+  const list = s.list.filter(it => show === 'all' || it.caps.includes(show));
+  const count = (id) => (id === 'all' ? items.length : items.filter(it => it.caps.includes(id)).length);
   // A switch reply carries the fresh number: swap it in without re-fetching the whole list.
   const onSaved = (d) => { if (d?.number) setData(x => ({ ...x, numbers: (x?.numbers || []).map(n => (n.phoneNumber === d.number.phoneNumber ? d.number : n)) })); };
   return (
     <div data-testid="numbers-page" className="pb-20 lg:pb-0">
-      <PageHeader label="Phone numbers" title="My numbers" sub="Every number you own, grouped by what it does. Open a Business Line to change forwarding, menus or hours." testid="numbers-header">
+      <PageHeader label="Phone numbers" title="My numbers" sub="Every number you own in one list. The badges show what each one does: calls, texts or fax." testid="numbers-header">
         <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="numbers-buy-button"><ShoppingCart className="w-4 h-4" />Get a number</Link>
       </PageHeader>
       <ErrorNote error={error} />
-      {loading ? <Spinner /> : !nums.length && (mob?.items?.length || fx?.numbers?.some(n => n.status !== 'released') || hs?.items?.some(t => LIVE_TEXTING.includes(t.status))) ? null : !nums.length ? (
-        <Empty icon={Hash} title="No numbers yet" sub="Pick a country, choose a number and a plan — most numbers are live in about a minute." testid="numbers-empty">
+      {loading ? <Spinner /> : !items.length ? (
+        <Empty icon={Hash} title="No numbers yet" sub="Say what it’s for (calls, calls + texting or fax), pick a number and pay. Most numbers are live in about a minute." testid="numbers-empty">
           <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="numbers-empty-buy-button">Get your first number</Link>
         </Empty>
       ) : (
         <>
-        <SearchBox s={s} placeholder="Search numbers" testid="numbers-search" className="mb-4 max-w-md" />
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <div className="civr-seg flex gap-1" role="tablist" aria-label="Show numbers that do" data-testid="numbers-filter">
+            {FILTERS.map(([id, label]) => (
+              <button key={id} type="button" role="tab" aria-selected={show === id} onClick={() => setParams(id === 'all' ? {} : { show: id }, { replace: true })} data-testid={`numbers-filter-${id}`}
+                className={`civr-seg-btn inline-flex items-center gap-2 min-h-[40px] px-4 rounded-full text-sm font-medium transition-colors ${show === id ? 'civr-seg-on' : 'text-[var(--c-muted)] hover:text-[var(--c-text)]'}`}>{label}<span className="text-xs opacity-70" data-testid={`numbers-filter-${id}-count`}>{count(id)}</span></button>
+            ))}
+          </div>
+          <SearchBox s={s} placeholder="Search numbers" testid="numbers-search" className="flex-1 min-w-[200px] max-w-md" />
+        </div>
         <NoMatches s={s} testid="numbers-no-matches" />
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 min-[1800px]:grid-cols-4 gap-4">
-          {s.list.map((n, i) => <NumberCard key={n.phoneNumber} n={n} i={i} pv={pv} onSaved={onSaved} reload={reload} />)}
+        {!list.length && !s.q && <div className="civr-card p-5 text-sm flex flex-wrap items-center gap-3" data-testid="numbers-filter-empty"><span className="flex-1 min-w-[200px] text-[var(--c-muted)]">{`None of your numbers ${show === 'fax' ? 'take faxes' : show === 'texts' ? 'can text' : 'take calls'} yet.`}</span><Link to={cp(`/app/buy?purpose=${BUY[show]}`)} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="numbers-filter-empty-buy">Get one</Link></div>}
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 min-[1800px]:grid-cols-4 gap-4 items-start" data-testid="numbers-list">
+          {list.map(it => (it.type === 'line' ? <NumberCard key={it.key} n={it.n} i={it.i} caps={it.caps} pv={pv} onSaved={onSaved} reload={reload} />
+            : it.type === 'mobile' ? <MobileLine key={it.key} item={it.x} reload={reloadMob} />
+            : it.type === 'hosted' ? <TextingLine key={it.key} t={it.t} pv={pv} />
+            : <FaxLine key={it.key} n={it.f} pv={pv} />))}
         </div>
         </>
       )}
-      <MobileLines />
-      <TextingLines />
-      <FaxLines />
       {nums.some(n => n.status === 'active') && <CallerIds />}
     </div>
   );

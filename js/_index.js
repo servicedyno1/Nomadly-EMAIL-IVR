@@ -806,6 +806,7 @@ const { initCnamService, lookupCnam, batchLookupCnam, getCircuitStatus } = requi
 const phoneConfig = require('./phone-config.js')
 const botRec = require('./bot-receptionist')
 const botFax = require('./bot-fax-numbers')
+const botKinds = require('./bot-number-kinds')
 const safeUrl = require('./safe-url')
 const planLifecycle = require('./plan-lifecycle.js')
 const ttsService = require('./tts-service.js')
@@ -26375,10 +26376,48 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     return goto.submenu5()
   }
 
+  // ── BUY FLOW: what is the number for? Calls → plans, Calls + texting → texting countries, Fax only → fax numbers.
+  let cpPurposeDone = false
+  if (action === 'cpPurpose' || action === 'cpTextCountry') {
+    const lang = info?.userLanguage || 'en', KN = botKinds.T(lang), pcK = phoneConfig.getBtn(lang)
+    const askPurpose = async () => { await set(state, chatId, 'action', 'cpPurpose'); return send(chatId, KN.ask, { parse_mode: 'HTML', ...k.of(botKinds.keyboard(lang)) }) }
+    const textCountries = botKinds.textingCountries(phoneConfig)
+    if (action === 'cpPurpose') {
+      if (isBackPress(message) || isCancelPress(message)) return goto.submenu5()
+      const kind = botKinds.kindOf(message)
+      if (kind === 'fax') return botFaxHandle(chatId, botFax.T(lang).menu, info, action)
+      if (kind === 'texting') {
+        if (!textCountries.length) return send(chatId, KN.none, k.of(botKinds.keyboard(lang)))
+        await saveInfo('cpPlanKey', 'starter')
+        await saveInfo('cpPlanBasePrice', phoneConfig.plans.starter.price)
+        await set(state, chatId, 'action', 'cpTextCountry')
+        const names = textCountries.map(c => c.name), rows = []
+        for (let i = 0; i < names.length; i += 2) rows.push(names.slice(i, i + 2))
+        return send(chatId, KN.pickCountry(phoneConfig.plans.starter.price), { parse_mode: 'HTML', ...k.of(rows) })
+      }
+      if (kind !== 'calls') return askPurpose()
+      action = a.submenu5; message = pcK.buyPhoneNumber; cpPurposeDone = true
+    } else {
+      if (isBackPress(message) || isCancelPress(message)) return askPurpose()
+      const c = textCountries.find(x => x.name === message)
+      if (!c) return send(chatId, phoneConfig.getMsg(lang).selectValidCountry)
+      for (const [key, v] of [['cpCountryCode', c.code], ['cpCountryName', c.name], ['cpProvider', c.provider || 'telnyx'], ['cpCanSearchBoth', false], ['cpTexting', true]]) { await saveInfo(key, v); if (info) info[key] = v }
+      // Texting numbers have one type per country: skip the type question and search straight away.
+      action = a.cpSelectType
+      message = { local: pcK.localNumber, mobile: pcK.mobileNumber || '📱 Mobile Number', national: pcK.nationalNumber || '🌐 National Number', toll_free: pcK.tollFreeNumber }[c.type]
+    }
+  }
+
   if (action === a.submenu5) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
     const buyLabel = pc.buyPhoneNumber
     if (isBackPress(message) || isCancelPress(message) || message === pc.cancel) return send(chatId, t.userPressedBtn(message), trans('o'))
+    if (phoneConfig.btnKeyOf(message) === 'buyPhoneNumber' && !cpPurposeDone) {
+      await set(state, chatId, 'action', 'cpPurpose')
+      await saveInfo('cpTexting', false)
+      const lang = info?.userLanguage || 'en'
+      return send(chatId, botKinds.T(lang).ask, { parse_mode: 'HTML', ...k.of(botKinds.keyboard(lang)) })
+    }
     if (phoneConfig.btnKeyOf(message) === 'buyPhoneNumber') {
       // Step 1: Select Plan FIRST — reset stale phone purchase state
       saveInfo('cpIsSubNumber', false)

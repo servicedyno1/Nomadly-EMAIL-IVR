@@ -177,7 +177,7 @@ function isBlockedPrefix(phoneNumber) {
 // ── Button labels ──
 const btn = {
   cloudPhone: `📞☁️ Cloud IVR — ${process.env.BRAND_PHONE_NAME || 'Speechcue'}`,
-  buyPhoneNumber: '🛒 Choose a Plan',
+  buyPhoneNumber: '🛒 Get a Number',
   myNumbers: '📋 My Plans',
   sipSettings: '📖 SIP Setup Guide',
   usageBilling: '📊 Usage & Billing',
@@ -784,7 +784,7 @@ Virtual numbers in ${CLOUD_COUNTRY_COUNT} countries · Most are live in minutes
 
 Plans from <b>$${PHONE_STARTER_PRICE}/mo</b> with incoming minutes and SMS included.
 
-👉 Tap <b>🛒 Choose a Plan</b> to get your number in 4 quick steps.`,
+👉 Tap <b>🛒 Get a Number</b> to get your number in 4 quick steps.`,
 
   howItWorks: `📞 <b>Cloud IVR — How It Works</b>
 
@@ -1709,7 +1709,7 @@ whichKeyRemove: 'کدام کلید را می‌خواهید حذف کنید؟',
 // ── Translated button labels (for multilingual keyboards) ──
 const btnI18n = {
   fr: {
-    buyPhoneNumber: '🛒 Choisir un Forfait',
+    buyPhoneNumber: '🛒 Obtenir un numéro',
     myNumbers: '📋 Mes Forfaits',
     sipSettings: '📖 Guide SIP',
     usageBilling: '📊 Utilisation & Facturation',
@@ -1796,7 +1796,7 @@ const btnI18n = {
     cancel: 'Annuler',
   },
   zh: {
-    buyPhoneNumber: '🛒 选择套餐',
+    buyPhoneNumber: '🛒 获取号码',
     myNumbers: '📋 我的套餐',
     sipSettings: '📖 SIP 设置指南',
     usageBilling: '📊 使用量与账单',
@@ -1883,7 +1883,7 @@ const btnI18n = {
     cancel: '取消',
   },
   hi: {
-    buyPhoneNumber: '🛒 प्लान चुनें',
+    buyPhoneNumber: '🛒 नंबर लें',
     myNumbers: '📋 मेरे प्लान',
     sipSettings: '📖 SIP सेटअप गाइड',
     usageBilling: '📊 उपयोग और बिलिंग',
@@ -1970,7 +1970,7 @@ const btnI18n = {
     cancel: 'रद्द करें',
   },
   fa: {
-    buyPhoneNumber: '🛒 انتخاب پلن',
+    buyPhoneNumber: '🛒 دریافت شماره',
     myNumbers: '📋 پلن‌های من',
     sipSettings: '📖 راهنمای SIP',
     usageBilling: '📊 مصرف و صورت‌حساب',
@@ -2064,6 +2064,8 @@ const _allBtnValueToKey = {}
 for (const [key, val] of Object.entries(btn)) {
   if (typeof val === 'string') _allBtnValueToKey[val] = key
 }
+// Older keyboards still say "Choose a Plan".
+for (const old of ['🛒 Choose a Plan', '🛒 Choisir un Forfait', '🛒 选择套餐', '🛒 प्लान चुनें', '🛒 انتخاب پلن']) _allBtnValueToKey[old] = 'buyPhoneNumber'
 // Add translated btn values
 for (const [lang, labels] of Object.entries(btnI18n)) {
   for (const [key, val] of Object.entries(labels)) {
@@ -2122,7 +2124,7 @@ Forfaits à partir de <b>$${PHONE_STARTER_PRICE}/mois</b> avec minutes entrantes
 Votre propre numéro virtuel dans ${CLOUD_COUNTRY_COUNT} pays. Recevez des appels et des SMS, créez des menus IVR — tout depuis Telegram.
 
 <b>🚀 Pour commencer :</b>
-1. Appuyez sur <b>🛒 Choisir un Forfait</b> → choisissez un pays → sélectionnez un numéro
+1. Appuyez sur <b>🛒 Obtenir un numéro</b> → choisissez un pays → sélectionnez un numéro
 2. Payez depuis votre portefeuille (crypto, banque ou carte)
 3. La plupart des numéros sont actifs immédiatement (certains pays demandent des informations d’identité)
 
@@ -2609,13 +2611,13 @@ ${CLOUD_COUNTRY_COUNT} 个国家的虚拟号码 · 大多数可在几分钟内�
 
 套餐起价 <b>$${PHONE_STARTER_PRICE}/月</b>，含来电分钟数和短信。
 
-👉 点击 <b>🛒 选择套餐</b>，通过 4 个简单步骤获取您的号码。`,
+👉 点击 <b>🛒 获取号码</b>，通过 4 个简单步骤获取您的号码。`,
     howItWorks: `📞 <b>Cloud IVR — 使用说明</b>
 
 在 ${CLOUD_COUNTRY_COUNT} 个国家拥有您的虚拟号码。接听电话和短信、创建IVR菜单 — 全部通过Telegram管理。
 
 <b>🚀 开始使用：</b>
-1. 点击 <b>🛒 选择套餐</b> → 选择国家 → 选择号码
+1. 点击 <b>🛒 获取号码</b> → 选择国家 → 选择号码
 2. 从钱包支付（加密货币、银行或卡）
 3. 大多数号码立即激活（部分国家需要先提交身份信息）
 
@@ -3102,13 +3104,13 @@ ${CLOUD_COUNTRY_COUNT} देशों में वर्चुअल नंब
 
 प्लान <b>$${PHONE_STARTER_PRICE}/mo</b> से शुरू, जिसमें इनकमिंग मिनट और SMS शामिल हैं।
 
-👉 <b>🛒 Choose a Plan</b> पर टैप करें और 4 आसान चरणों में अपना नंबर पाएं।`,
+👉 <b>🛒 Get a Number</b> पर टैप करें और 4 आसान चरणों में अपना नंबर पाएं।`,
     howItWorks: `📞 <b>Cloud IVR — कैसे काम करता है</b>
 
 ${CLOUD_COUNTRY_COUNT} देशों में अपना वर्चुअल फ़ोन नंबर। कॉल और SMS प्राप्त करें, IVR मेनू बनाएं — सब Telegram से।
 
 <b>🚀 शुरू करें:</b>
-1. <b>🛒 प्लान चुनें</b> दबाएं → देश चुनें → नंबर चुनें
+1. <b>🛒 नंबर लें</b> दबाएं → देश चुनें → नंबर चुनें
 2. वॉलेट से भुगतान करें (क्रिप्टो, बैंक या कार्ड)
 3. ज़्यादातर नंबर तुरंत सक्रिय (कुछ देशों में पहले पहचान विवरण चाहिए)
 
@@ -3595,13 +3597,13 @@ SIP क्रेडेंशियल को "user / extension" के रूप
 
 پلن‌ها از <b>$${PHONE_STARTER_PRICE}/ماه</b> با دقایق ورودی و SMS شامل.
 
-👉 روی <b>🛒 انتخاب پلن</b> ضربه بزنید تا شماره خود را در ۴ مرحله سریع دریافت کنید.`,
+👉 روی <b>🛒 دریافت شماره</b> ضربه بزنید تا شماره خود را در ۴ مرحله سریع دریافت کنید.`,
     howItWorks: `📞 <b>Cloud IVR — چطور کار می‌کند</b>
 
 شماره مجازی اختصاصی خودتان در ${CLOUD_COUNTRY_COUNT} کشور. تماس و پیامک دریافت کنید، منوهای IVR بسازید — همه از طریق Telegram.
 
 <b>🚀 برای شروع:</b>
-1. روی <b>🛒 انتخاب پلن</b> بزنید ← کشور را انتخاب کنید ← شماره را انتخاب کنید
+1. روی <b>🛒 دریافت شماره</b> بزنید ← کشور را انتخاب کنید ← شماره را انتخاب کنید
 2. از کیف پول خود پرداخت کنید (رمزارز، بانک یا کارت)
 3. اکثر شماره‌ها فوری فعال می‌شوند (برخی کشورها به اطلاعات هویتی نیاز دارند)
 

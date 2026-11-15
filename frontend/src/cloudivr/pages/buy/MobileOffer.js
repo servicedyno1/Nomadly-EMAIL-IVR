@@ -42,7 +42,7 @@ export function MobileOffer({ onBought, open: startOpen = false }) {
           <button type="button" onClick={() => setOpen(false)} className="civr-btn civr-btn-ghost" data-testid="mobile-offer-cancel">Cancel</button>
         </WalletPay>
         <ErrorNote error={err} testid="mobile-offer-error" />
-        <p className="text-xs text-[var(--c-muted)]">Manage it under <Link to={cp('/app/texting-number')} className="underline">Texting Number</Link>.</p>
+        <p className="text-xs text-[var(--c-muted)]">Manage it under <Link to={cp('/app/numbers')} className="underline">My numbers</Link>.</p>
       </>}
     </div>
   );
