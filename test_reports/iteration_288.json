@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend-only testing of standalone fax numbers (web, preview DRY RUN) with civr.uxtest@example.com. Checked: buy page fax price text, 15-country select (US first, '· name + address' labels), US area code vs GB/NL number-type select, US/GB/NL live searches, UK 'Exact number assigned when you buy' pill, NL Local paperwork + approval/refund note, NL Mobile without note, NL buy error, US dry-run purchase landing on /app/fax with the new number, Fax page header + empty state, Number detail without Fax tab (?tab=fax falls back to overview), Dashboard without the old fax banner, public landing FAQ + fax country select. All requested checks passed. One medium UX bug: a pick made on the landing page loses its country and paperwork context on the Buy page. Two minor landing issues.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "FaxNumberBuy (pick carried over from landing)", "issue": "When a visitor or logged-in user picks a Netherlands Local number on the landing Fax tab and clicks 'Get +31…', the Buy page shows 'from your search is selected', but the country select reads United States and the NL paperwork note and 'pay now / carrier approves / full refund' note are hidden. The user can pay without seeing the approval and refund terms. Cause: FaxNumberBuy starts q as {country:'US', type:'local'} and ignores pick.country from sessionStorage 'civr.faxPick'. The landing also does not save the type.", "selector": "[data-testid=fax-buy-picked-note], [data-testid=fax-buy-country-select]", "priority": "MEDIUM"},
+      {"component": "FaxLanding search form", "issue": "The Area code input stays visible for all 15 countries (e.g. United Kingdom) but only US/CA use it, so typing an area code for other countries is silently ignored. The landing also has no Number type select, so a visitor can only search Local (no UK National/Mobile, no NL Mobile, which needs no paperwork), and there is no '· name + address' hint in the landing country list.", "selector": "[data-testid=fax-landing-area], [data-testid=fax-landing-country]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Buy > Fax results (United Kingdom)", "issues": ["Assigned-number results show only a short prefix such as '+441256' or '+4420' in the big monospace number slot, which looks like a broken or truncated number. Consider '+44 1256 ••• •••' or a 'Basingstoke area' title."]},
+      {"screen": "Buy > Fax results (Netherlands)", "issues": ["The region line shows just 'NL' for every result. That is not useful; show the city or area, or hide it."]},
+      {"screen": "Buy > Fax purpose", "issues": ["The page heading still says 'Every plan comes with one instant number…' and the 'Add a number to your current plan ($25/month)' card stays visible when the Fax purpose is selected. Fax numbers cannot be added to a plan, so this may confuse users."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "FaxNumberBuy: build the starting q from the saved pick (pick.country, and pick.type saved by FaxLanding) so the right country, paperwork note and approval/refund note show for a landing pick.",
+    "FaxLanding: show the area code field only for US/CA, and add a number type select (or type labels) that matches the in-app buy form.",
+    "Optional: show UK assigned-number prefixes more clearly, and replace the bare 'NL' region text.",
+    "Optional cleanup: NumberDetail.js still has fax leftovers: the `visible` filter for t[0]==='fax' and answering() returning tab 'fax' when f.fax.line is set. Remove them or point them at /app/fax."
+  ],
+  "critical_code_review_comments": [
+    "FaxNumberBuy.js: the initial useState q ignores the sessionStorage pick's country and type (the bug above).",
+    "Profile gate: accounts with no legal details never reach the fax buy card. The buy-profile-gate form shows instead, and the backend returns 428 profile_required before paperworkIssue runs. So the message 'Netherlands fax numbers need your name and address' can never reach a web user. With a non-NL address the user gets 'Netherlands fax numbers need an address in Netherlands.' (verified). This is fine, but the PaperworkNote text 'They need an address in this number's area' could warn before the user clicks Pay when the saved address country is not NL.",
+    "NumberDetail.js: answering() can still return ['answering','Fax line on','fax'] for legacy numbers with features.fax.line. That tab no longer exists, so the badge link falls back to overview."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend only)", "frontend": "95% (all requested checks pass; 1 medium + 1 low issue found outside the listed checks)"},
+  "seed_data_creation": "On civr.uxtest@example.com: saved an Individual legal profile (name 'Ux Tester', 100 Main St, Montgomery AL 36104, US). It was needed because the buy page is blocked by the profile gate. Bought 1 dry-run US fax number +17167882007 (status active, autoRenew on); the wallet went from $784.13 to $734.13. The failed NL purchase attempt charged nothing. There is no release endpoint in the web routes, so the number was left in place.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login at /cloudivr/login; click cookie-allow-all first. No email code step was needed. The uxtest account now has a legal profile with a US address and a fax number +17167882007, so /app/fax shows the send UI and not the empty state. Buying NL Local with this US address returns 'Netherlands fax numbers need an address in Netherlands.' The wallet-shortfall pay box was NOT tested (balance is $734). MultiTEL searches take 3-10 s. Telegram was not tested."
+}

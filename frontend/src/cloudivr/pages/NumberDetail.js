@@ -42,7 +42,7 @@ const TABS = GROUPS.flatMap(([gid, , tabs]) => tabs.map(t => [...t, gid]));
 export const TAB_LABEL = Object.fromEntries(TABS.map(t => [t[0], t[1]]));
 
 // What answers this number right now → [group, label, tab].
-export const answering = (f = {}) => (f.fax?.line ? ['answering', 'Fax line on', 'fax'] : f.aiAgent?.enabled ? ['answering', 'AI agent', 'ai'] : f.ivr?.enabled ? ['answering', 'Keypad menu', 'ivr']
+export const answering = (f = {}) => (f.aiAgent?.enabled ? ['answering', 'AI agent', 'ai'] : f.ivr?.enabled ? ['answering', 'Keypad menu', 'ivr']
   : (f.ringGroup?.enabled && f.ringGroup?.members?.length) ? ['answering', 'Ring group', 'ringgroup'] : (f.callForwarding?.enabled && f.callForwarding?.forwardTo) ? ['answering', 'Forwarding', 'forwarding'] : null);
 
 export default function NumberDetail() {
@@ -63,7 +63,7 @@ export default function NumberDetail() {
     </div>
   );
   const [, label, gate, Comp, gid] = TABS.find(t => t[0] === tab) || TABS[0];
-  const visible = (t) => t[0] !== 'fax' || n.capabilities?.fax;
+  const visible = () => true;
   const subTabs = (GROUPS.find(g => g[0] === gid) || GROUPS[0])[2].filter(visible);
   const badge = answering(n.features);
   const go = async (id) => { if (id !== tab && await confirmLeave()) setParams({ tab: id }, { replace: true }); };

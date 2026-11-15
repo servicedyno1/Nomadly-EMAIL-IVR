@@ -20,10 +20,10 @@ export function FaxLanding({ fax }) {
   const [err, setErr] = useState('');
   const search = async (e) => {
     e.preventDefault(); setBusy(true); setErr(''); setPick(null);
-    try { setRes(await api(`/public/fax-numbers/search?country=${q.country}${q.areaCode && ['US', 'CA'].includes(q.country) ? `&areaCode=${q.areaCode}` : ''}`)); } catch (x) { setErr(x.message); setRes(null); } finally { setBusy(false); }
+    try { setRes(await api(`/public/fax-numbers/search?country=${q.country}${q.type ? `&type=${q.type}` : ''}${q.areaCode && ['US', 'CA'].includes(q.country) ? `&areaCode=${q.areaCode}` : ''}`)); } catch (x) { setErr(x.message); setRes(null); } finally { setBusy(false); }
   };
   const go = () => {
-    sessionStorage.setItem(FAX_PICK_KEY, JSON.stringify({ ...pick, country: q.country, at: Date.now() }));
+    sessionStorage.setItem(FAX_PICK_KEY, JSON.stringify({ ...pick, country: q.country, type: q.type || fax?.countries?.find(x => x.code === q.country)?.types?.[0]?.type || 'local', at: Date.now() }));
     nav(account ? cp('/app/buy?purpose=fax') : cp('/signup?plan=fax'));
   };
   return (
@@ -33,8 +33,8 @@ export function FaxLanding({ fax }) {
         <div className="font-semibold text-slate-950">Find your fax number</div>
         {fax && !fax.available ? <p className="text-sm text-slate-600 mt-3" data-testid="fax-landing-unavailable">Fax numbers are not available right now. Please check back soon.</p> : <>
           <form onSubmit={search} className="mt-4 grid sm:grid-cols-3 gap-3" data-testid="fax-landing-form">
-            <select value={q.country} onChange={e => setQ({ ...q, country: e.target.value })} aria-label="Country" className="rounded-xl border border-slate-300 bg-white px-3 h-12 text-slate-900" data-testid="fax-landing-country">{(fax?.countries || [{ code: 'US', name: 'United States' }]).map(c => <option key={c.code} value={c.code}>{c.name}</option>)}</select>
-            <input value={q.areaCode} maxLength={3} onChange={e => setQ({ ...q, areaCode: e.target.value.replace(/\D/g, '') })} placeholder="Area code (optional)" aria-label="Area code" className="rounded-xl border border-slate-300 bg-white px-3 h-12 text-slate-900 font-mono" data-testid="fax-landing-area" />
+            <select value={q.country} onChange={e => setQ({ country: e.target.value, type: '', areaCode: '' })} aria-label="Country" className="rounded-xl border border-slate-300 bg-white px-3 h-12 text-slate-900" data-testid="fax-landing-country">{(fax?.countries || [{ code: 'US', name: 'United States' }]).map(c => <option key={c.code} value={c.code}>{c.name}{c.types.every(t => t.paperwork !== 'none') ? ' · name + address' : ''}</option>)}</select>
+            {(() => { const c = fax?.countries?.find(x => x.code === q.country); return c?.types?.length > 1 ? <select value={q.type || c.types[0].type} onChange={e => setQ({ ...q, type: e.target.value })} aria-label="Number type" className="rounded-xl border border-slate-300 bg-white px-3 h-12 text-slate-900" data-testid="fax-landing-type">{c.types.map(t => <option key={t.type} value={t.type}>{t.label}{t.paperwork !== 'none' ? ' · name + address' : ''}</option>)}</select> : c?.areaCodes !== false ? <input value={q.areaCode} maxLength={3} onChange={e => setQ({ ...q, areaCode: e.target.value.replace(/\D/g, '') })} placeholder="Area code (optional)" aria-label="Area code" className="rounded-xl border border-slate-300 bg-white px-3 h-12 text-slate-900 font-mono" data-testid="fax-landing-area" /> : <div />; })()}
             <button className="civr-l-btn !h-12 inline-flex items-center justify-center gap-2" disabled={busy} data-testid="fax-landing-search-btn">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}Search</button>
           </form>
           {err && <p role="alert" className="text-sm text-rose-600 mt-3" data-testid="fax-landing-error">{err}</p>}

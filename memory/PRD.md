@@ -276,3 +276,4 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Forwarding no-answer: backup numbers already existed; owners now get a tip + weekly nudge to add one.
 - Deferred by owner: Mollie card checkout (needs cloudivr.net approved in Mollie profile).
 - Backlog: verify a real forward→backup failover call on Bird/MultiTEL legs (needs owner OK for a billable test); attribution confirmed on next real signup.
+- 2026-11-15: Standalone fax numbers in 15 countries (no-ID + name/address), $50/mo, 25 free pages then $0.05/page; fax removed from Business plan; web + all bots; carrier approval with full refund on rejection. Bot fax flow is English only (backlog: translate).
