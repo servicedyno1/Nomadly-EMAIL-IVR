@@ -341,10 +341,20 @@ async function runExpiryCheck() {
               log(`[PhoneScheduler] Auto-renew deferred for ${num.phoneNumber}: outcome=${outcome} — number NOT released`)
             }
           } else if (!num.isSubNumber) {
-            // No auto-renew — main line + extras suspended and held for a restore
-            await suspendMainLine(chatId, numbers, num, 'no auto-renew')
+            // Owner turned auto-renew off — release the main line and its extras with the carrier at expiry (no hold, no more billing).
+            for (const x of [num, ...lifecycle.extrasOf(numbers, num).filter(x => x.status === 'active')]) {
+              await releaseFromProvider(x, user.val, chatId)
+              lifecycle.applyLocal(numbers, [{ phoneNumber: x.phoneNumber, set: { ...lifecycle.releasePatch(x).set, _releasedAfterHold: false, _releasedNoAutoRenew: true } }])
+              suspended++
+            }
             modified = true
-            suspended++
+            sendToUser(chatId, buildSuspendedMsg(num, await _getUserLang(chatId)))
+            const name = await get(_nameOf, chatId).catch(() => null)
+            _notifyGroup?.(
+              `📤 <b>Expired + Released:</b> ${_maskName?.(name) || ''} ${maskPhone(num.phoneNumber)} (auto-renew off)`,
+              `📤 <b>Expired + Released:</b> ${_maskName?.(name) || ''} <code>${chatId}</code> ${formatPhone(num.phoneNumber)} (auto-renew off)`
+            )
+            log(`[PhoneScheduler] Expired, released (auto-renew off): ${chatId} ${num.phoneNumber}`)
           } else {
             // No auto-renew (extra line) — release from provider immediately
             numbers[i].status = 'released'
@@ -726,7 +736,7 @@ function buildReminderMsg(num, days, plan, balance) {
 
 Your Cloud Phone number ${formatPhone(num.phoneNumber)} (${plan.name} Plan) expires in <b>${days} days</b> (${shortDate(num.expiresAt)}).
 
-Auto-Renew: ${num.autoRenew ? '✅ ON' : '❌ OFF'}
+Auto-Renew: ${num.autoRenew ? '✅ ON' : '❌ OFF — it will be released on its end date'}
 Wallet Balance: $${balance.toFixed(2)}
 Renewal Cost: ${priceText}${lowBal ? `
 
@@ -738,6 +748,9 @@ ${num.isSubNumber ? 'If not renewed, your number will be <b>permanently deleted<
 
 function buildFinalWarningMsg(num, plan, balance) {
   const price = num.planPrice
+  if (!num.isSubNumber && !num.autoRenew) return `🚨 <b>Number ends tomorrow</b>
+
+Auto-renew is off, so ${formatPhone(num.phoneNumber)} and its extra lines are <b>released for good</b> on ${shortDate(num.expiresAt)}. Turn auto-renew back on (Wallet → Renewals) to keep them.`
   if (!num.isSubNumber) return `🚨 <b>FINAL Renewal Warning</b>
 
 Your number ${formatPhone(num.phoneNumber)} expires <b>TOMORROW</b> (${shortDate(num.expiresAt)}).

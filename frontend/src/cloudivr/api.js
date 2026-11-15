@@ -52,10 +52,16 @@ export async function api(path, { method = 'GET', body, form } = {}) {
   if (res.status === 428 && data?.error === 'profile_required' && profileAsker) {
     if (await profileAsker().catch(() => false)) return api(path, { method, body, form });
   }
+  // Calls to a list need "I have permission to call these numbers" (every campaign; once for Quick IVR).
+  if (res.status === 428 && data?.error === 'permission_required' && permissionAsker && body && !form) {
+    if (await permissionAsker(data).catch(() => false)) return api(path, { method, body: { ...body, permissionConfirmed: true }, form });
+  }
   if (!res.ok) throw new ApiError(res.status, data);
   return data;
 }
 
+let permissionAsker = null;
+export const setPermissionAsker = (fn) => { permissionAsker = fn; };
 let profileAsker = null;
 export const setProfileAsker = (fn) => { profileAsker = fn; };
 export const askProfile = () => (profileAsker ? profileAsker().catch(() => false) : Promise.resolve(false));

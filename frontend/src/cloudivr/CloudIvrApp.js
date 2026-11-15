@@ -6,6 +6,7 @@ import { Toaster, toast } from 'sonner';
 import './cloudivr.css';
 import { CivrAuthProvider, useCivrAuth } from './AuthContext';
 import { ProfileAskHost } from './profile/ProfilePrompts';
+import { PermissionAskHost } from './compliance/PermissionAsk';
 import { Spinner } from './ui';
 import Landing from './pages/Landing';
 const Terms = lazy(() => import('./pages/Terms'));
@@ -85,6 +86,7 @@ export default function CloudIvrApp() {
         <Toaster theme={toastTheme} position="bottom-right" offset={{ bottom: 92, right: 16 }} mobileOffset={{ bottom: 'calc(9.75rem + env(safe-area-inset-bottom))' }} richColors closeButton visibleToasts={3} />
         <ConfirmHost />
         <ProfileAskHost />
+        <PermissionAskHost />
         <UpdateWatcher />
         <CookieBanner />
         <XSignup />

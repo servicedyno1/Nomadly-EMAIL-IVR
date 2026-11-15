@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import { cp } from '../../paths';
 import React, { useState } from 'react';
 import { Loader2, PhoneCall, Hourglass, PauseCircle, XCircle, Check } from 'lucide-react';
 import { toast } from 'sonner';
@@ -41,6 +43,7 @@ export function NumberPanel({ item, meta, onChange }) {
       {item.status === 'rejected' && <Info icon={XCircle} text={`This number couldn’t be text-enabled. $${item.paid} was refunded to your wallet.`} testid="texting-rejected" />}
       {item.status === 'active' && <p className="text-xs text-[#a1a1aa]" data-testid="texting-billing">{item.planNumber ? `Texting add-on · renews with your ${item.plan[0].toUpperCase() + item.plan.slice(1)} plan on ${item.planNumber}, no monthly fee` : `Texting plan · next $${item.monthly} on ${String(item.nextBillAt || '').slice(0, 10)} · incoming texts are free`}</p>}
       {item.status === 'active' && !item.planNumber && <RenewWarning price={item.monthly} date={item.nextBillAt} testid="texting-renew-warning" />}
+      <Link to={cp('/app/wallet#renewals')} className="text-xs underline text-[var(--c-muted)]" data-testid="texting-manage-renewal">Manage auto-renew</Link>
       {['active', 'paused'].includes(item.status) && <Thread item={item} meta={meta} />}
       {['verify', 'loa', 'documents', 'admin_docs'].includes(item.status) && <CancelButton item={item} onChange={onChange} />}
     </div>

@@ -117,6 +117,19 @@ function createCloudIvrWeb(deps) {
     legalProfile.routes(r, h)
     r.post(['/numbers/buy', '/numbers/checkout', '/numbers/:phone/extra-checkout', '/numbers/:phone/extra', '/numbers/:phone/replace', '/fax-numbers', '/mobile-numbers', '/esim', '/numbers/request'], legalProfile.gate)
     r.post(['/calls/quick', '/calls/trial', '/calls/callback', '/calls/history/:id/redial', '/campaigns', '/campaigns/:id/start', '/campaigns/:id/followup', '/relay/calls', '/ai-agents/:id/test'], legalProfile.callGate)
+    // Permission to call: confirmed on every campaign, once per account for Quick IVR — each confirmation is logged.
+    const perms = db.collection('callPermissions')
+    const permission = (kind) => h(async (req, res, next) => {
+      const b = req.body || {}, acc = req.webUser
+      if (kind === 'quick' && acc?.quickIvrPermissionAt) return next()
+      if (b.permissionConfirmed !== true) return res.status(428).json({ error: 'permission_required', kind, message: kind === 'quick' ? 'Confirm you have permission to call the numbers you call with Quick IVR. We ask this once.' : 'Confirm you have permission to call every number in this campaign.' })
+      const at = new Date()
+      await perms.insertOne({ chatId: req.webChatId, kind, campaign: kind === 'campaign' ? { name: String(b.name || '').slice(0, 120), mode: b.mode || 'ivr', numbers: Array.isArray(b.numbers) ? b.numbers.length : (b.contactListId ? `list:${b.contactListId}` : null), scheduleAt: b.scheduleAt || null } : undefined, ip: req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip, userAgent: String(req.headers['user-agent'] || '').slice(0, 200), at })
+      if (kind === 'quick') await db.collection('webAccounts').updateOne({ _id: acc._id }, { $set: { quickIvrPermissionAt: at } })
+      next()
+    })
+    r.post('/campaigns', permission('campaign'))
+    r.post('/calls/quick', permission('quick'))
     require('./esim').routes(r, { h, legalProfile })
     const offers = createOffers(db, { log })
     offers.routes(r, { h })

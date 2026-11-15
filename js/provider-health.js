@@ -100,14 +100,14 @@ async function buyWithBackup(primary, phoneNumber, retry) {
   if (r || !retry) return r
   const cc = String(retry.countryCode || 'US').toUpperCase(), type = retry.numberType || 'local'
   const fresh = (await P.searchNumbers(cc, type, retry.areaCode || null, 3).catch(() => [])).filter(n => n.phone_number !== phoneNumber)
-  if (fresh[0]) { r = await P.buyNumber(fresh[0].phone_number).catch(() => null); if (r) { r._retriedNumber = fresh[0].phone_number; return r } }
+  if (fresh[0]) { r = await P.buyNumber(fresh[0].phone_number).catch(() => null); if (r) { r._retriedNumber = r._retriedNumber || fresh[0].phone_number; return r } }
   const altName = primary === 'infobip' ? 'multitel' : 'infobip', alt = altName === 'infobip' ? ib : mt
   const opt = require('./number-catalog').options(cc, type).find(o => o.provider === altName && o.level === 0 && !o.request)
   if (!opt || isDown(altName)) { notify(`🚨 [Providers] ${primary} couldn't sell ${phoneNumber} (${cc}/${type}) and no backup provider has it. The customer is refunded.`); return null }
   const other = await alt.searchNumbers(cc, type, retry.areaCode || null, 3).catch(() => [])
   for (const n of other) {
     r = await alt.buyNumber(n.phone_number).catch(() => null)
-    if (r) { r._retriedNumber = n.phone_number; r._provider = altName; r._failover = primary; notify(`🔁 [Providers] ${primary} couldn't sell ${phoneNumber}; sold ${n.phone_number} from ${altName} instead (${cc}/${type}).`); return r }
+    if (r) { r._retriedNumber = r._retriedNumber || n.phone_number; r._provider = altName; r._failover = primary; notify(`🔁 [Providers] ${primary} couldn't sell ${phoneNumber}; sold ${n.phone_number} from ${altName} instead (${cc}/${type}).`); return r }
   }
   notify(`🚨 [Providers] ${primary} and ${altName} both failed for ${cc}/${type} (${phoneNumber}). The customer is refunded.`)
   return null

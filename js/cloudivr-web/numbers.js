@@ -334,13 +334,21 @@ function routes(router, deps) {
     const found = await unheld(own === 'infobip' ? await require('../infobip').searchNumbers(country, type, areaCode, 12, { sms: req.query.texting === '1' && !!texting.offerOf(country, type) })
       : own === 'multitel' ? await require('../multitel').searchNumbers(country, type, areaCode, 12)
         : await telnyxApi.searchNumbers(country, type, areaCode, 12))
+    // Nothing listable from the main provider (e.g. MultiTEL Germany/France only assigns on order): try the other one.
+    if (['multitel', 'infobip'].includes(own) && !found.length && !areaCode) {
+      const other = own === 'multitel' ? 'infobip' : 'multitel'
+      const ok = require(`../${other}`).enabled() && !require('../provider-health').isDown(other)
+      if (ok) found.push(...await unheld(other === 'infobip' ? await require('../infobip').searchNumbers(country, type, null, 12).catch(() => []) : await require('../multitel').searchNumbers(country, type, null, 12).catch(() => [])))
+    }
     if (own === 'multitel' && !found.length && require('../multitel').isBlocked()) return bad(res, 503, 'provider_unavailable', 'Numbers in this country are temporarily unavailable. Please try again later.')
+    if (own && !found.length) return res.json({ numbers: [], fallback: null, unavailable: true, message: `No ${c.name} ${TYPE_NAMES[type] || type} numbers can be picked online right now. Try another type, or message support and we'll order one for you.` })
     const results = found.map(n => ({
       phoneNumber: n.phone_number,
       region: (n.region_information || []).map(r => r.region_name).filter(Boolean).join(', '),
       capabilities: { ...(n._capabilities || { voice: true, sms: false, fax: false }), ...(n._signalwire ? { fax: false } : {}) },
       surcharge: ['infobip', 'multitel'].includes(n._provider) ? require('../number-addons').get(country, type) : round2(numberSurcharge(country, type, n)),
       provider: n._provider || null,
+      ...(n._assigned ? { assigned: true } : {}),
       ...(texting.offerOf(country, type) ? { extraPrice: texting.offerOf(country, type).extraPrice, textPrice: texting.offerOf(country, type).textPrice } : {}),
       cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
     }))
@@ -411,7 +419,7 @@ function routes(router, deps) {
     const offer = c?.offers?.[type] || null
     const ver = offer || hit?.provider === 'multitel' ? { required: false } : await verificationInfo(country, type, `${c.flag} ${c.name}`)
     if (ver.error) return { status: 424, body: { error: 'lookup_failed', message: ver.error } }
-    if (!presetOrder && deps.compliance && !(await deps.compliance.policyAccepted(chatId))) return { status: 400, body: { error: 'policy_needed', message: 'Accept the CloudIVR usage policy before buying a number.' } }
+    // The usage rules are part of the Terms accepted at sign-up (no separate policy pop-up).
     if (hit?.provider === 'multitel' && offer?.level && !presetOrder) {
       const why = await paperworkIssue(chatId, country, c.name, offer)
       if (why) return { status: 400, body: { error: 'paperwork_needed', message: why } }
@@ -478,7 +486,7 @@ function routes(router, deps) {
       if (!sub) await referrals.onPurchase(db, chatId, price, log).catch(e => log(`[CloudIVR-Web] referral payout failed: ${e.message}`))
       notifyAdmin(`🌐 CloudIVR web purchase${dryRun() ? ' (DRY RUN)' : ''}${viaOrder ? ' · crypto checkout' : ''}\nweb account: ${chatId} (${email})\nnumber: ${selected} (${country})${sub ? `\nextra number on ${sub.parentNumber}` : ''}\nplan: ${plan.name} $${price}${coupon ? ` (coupon ${coupon.code} −${coupon.discount}%)` : ''}`)
       await searchCache.deleteOne({ _id: chatId })
-      return { status: 201, body: { number: publicNumber(doc), substitutedFrom: selected !== phone ? phone : null, balance: await w.balance(chatId) } }
+      return { status: 201, body: { number: publicNumber(doc), substitutedFrom: selected !== phone && !order._assigned ? phone : null, balance: await w.balance(chatId) } }
     } catch (e) {
       if (prepaid) { log(`[CloudIVR-Web] activating requested number ${phone} for ${chatId} failed: ${e.message}`); return { status: 424, body: { error: 'purchase_failed', message: e.message } } }
       await w.credit(chatId, price)

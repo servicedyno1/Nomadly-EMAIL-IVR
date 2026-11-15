@@ -9,6 +9,7 @@ import { useShell } from '../Shell';
 import { PageHeader, Field, SkeletonCard, SkeletonRows, Empty, ErrorNote, statusPill, useIsPhone } from '../ui';
 import { cp } from '../paths';
 import { useOffer } from '../offers';
+import { Renewals } from './wallet/Renewals';
 import { Coin, CoinIcon, CoinSelect, PayWindow } from '../Pickers';
 import { MollieForm, MollieWaiting, useMollie, useMollieStatus, fmtCur } from '../MolliePay';
 
@@ -210,6 +211,7 @@ export default function Wallet() {
         <div className="lg:col-span-2"><TopUp coins={data.coins} min={data.minTopup} initial={need ? Math.max(data.minTopup, Math.ceil(need)) : Number(params.get('amount')) || 50} onCreated={(d) => { setDep(d); reload(); }} /></div>
       </div>
       {dep && <div className="mt-4" ref={(el) => el && el.dataset.seen !== String(dep.address || dep.id) && (el.dataset.seen = String(dep.address || dep.id)) && el.scrollIntoView({ behavior: 'smooth', block: 'center' })}><DepositCard dep={dep} /></div>}
+      <div id="renewals"><Renewals /></div>
       <Tables data={data} />
     </div>
   );

@@ -14669,7 +14669,7 @@ Enter new value:`), bc)
         const numberDoc = {
           phoneNumber: selectedNumber,
           telnyxOrderId: orderResult.id,
-          provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}),
+          provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
           country: countryCode,
           countryName: countryName,
           type: info?.cpNumberType || 'local',
@@ -30192,6 +30192,12 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
     // Address-only numbers: ask just the street address (no ID, no business details), then checkout.
     await saveInfo('cpEndUserAddress', null)
+    await saveInfo('cpEndUserName', null)
+    // Name + address numbers that accept any address: our fixed end-user details, no question for the customer.
+    if (phoneConfig.botUsesFixedAddress(countryCode, numberType)) {
+      await saveInfo('cpEndUserAddress', phoneConfig.BOT_END_USER_ADDRESS)
+      await saveInfo('cpEndUserName', phoneConfig.botEndUserName() || (await get(nameOf, chatId).catch(() => null)) || null)
+    }
     if (phoneConfig.botNeedsAddress(countryCode, numberType)) {
       await set(state, chatId, 'action', 'cpAddress')
       return send(chatId, `📍 <b>${info?.cpCountryName || countryCode}</b> numbers need a street address in ${info?.cpCountryName || 'that country'} (the provider's rule). No ID or business details needed.\n\nType the full address in one message: street, city, postcode.`, { parse_mode: 'HTML', ...k.of([[pc.back]]) })
@@ -40882,7 +40888,7 @@ const bankApis = {
       type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
       purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
       autoRenew: true, status: 'active', sipUsername, sipPassword,
-      sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}),
+      sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
       messagingProfileId: telnyxResources.messagingProfileId,
       connectionId: telnyxResources.sipConnectionId, smsUsed: 0, minutesUsed: 0,
       features: { sms: true, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
@@ -41910,7 +41916,7 @@ app.get('/crypto-pay-phone', auth, async (req, res) => {
     type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
     purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
     autoRenew: true, status: 'active', sipUsername, sipPassword,
-    sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}),
+    sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
     messagingProfileId: telnyxResources.messagingProfileId, connectionId: telnyxResources.sipConnectionId,
     smsUsed: 0, minutesUsed: 0,
     features: { sms: true, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
@@ -47257,7 +47263,7 @@ app.post('/dynopay/crypto-pay-phone', authDyno, async (req, res) => {
     type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
     purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
     autoRenew: true, status: 'active', sipUsername, sipPassword,
-    sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}),
+    sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
     messagingProfileId: telnyxResources.messagingProfileId, connectionId: telnyxResources.sipConnectionId,
     smsUsed: 0, minutesUsed: 0,
     features: { sms: true, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },

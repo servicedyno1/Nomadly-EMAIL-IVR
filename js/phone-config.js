@@ -385,7 +385,11 @@ const numberSearchUsCaOnly = () => {
 const BOT_CATALOG = () => (process.env.BOT_NUMBER_CATALOG || 'true').toLowerCase() === 'true'
 const FLAG = (cc) => String.fromCodePoint(...[...cc].map(c => 0x1f1e6 + c.charCodeAt(0) - 65))
 const botOffer = (cc, t) => { const b = require('./number-catalog').best(cc, t); return b && b.level <= 1 && !b.businessOnly && !b.request ? b : null }
-const botNeedsAddress = (cc, t) => BOT_CATALOG() && !['US', 'CA'].includes(cc) && botOffer(cc, t)?.level === 1
+// Name + address numbers: the bot uses our fixed end-user address unless the provider wants an address in that country.
+const botNeedsAddress = (cc, t) => BOT_CATALOG() && !['US', 'CA'].includes(cc) && botOffer(cc, t)?.level === 1 && botOffer(cc, t).address !== 'any'
+const botUsesFixedAddress = (cc, t) => BOT_CATALOG() && !['US', 'CA'].includes(cc) && botOffer(cc, t)?.level === 1 && botOffer(cc, t).address === 'any'
+const BOT_END_USER_ADDRESS = 'İstiklal Caddesi No: 120, Hüseyinağa Mahallesi, Beyoğlu / İstanbul 34435, Türkiye'
+const botEndUserName = () => String(process.env.BOT_END_USER_NAME || '').trim() || null
 // The one number that comes with a plan: an instant no-ID number from these countries (Business adds NL, FR, ES).
 // Every other country/type is bought as an extra number on a plan.
 const INCLUDED_ALL = ['US', 'CA', 'GB'], INCLUDED_BUSINESS = ['NL', 'FR', 'ES']
@@ -4337,6 +4341,9 @@ module.exports = {
   includedCountries, includedTier, includedIssue, instantNoId, botPlanCountries, BOT_CATALOG, INCLUDED_ALL, INCLUDED_BUSINESS, PLAN_TEXTING,
   countryByName,
   botNeedsAddress,
+  botUsesFixedAddress,
+  BOT_END_USER_ADDRESS,
+  botEndUserName,
   usAreaCodes,
   areaByLabel,
   formatPhone,

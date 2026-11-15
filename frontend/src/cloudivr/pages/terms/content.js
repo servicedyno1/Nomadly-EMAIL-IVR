@@ -27,7 +27,7 @@ export const TERMS = [
     'Free calls are limited in length and number, are for trying the service only, and must follow the acceptable use rules below. We may change or end free offers, and refuse them to prevent abuse.',
   ] },
   { id: 'use', title: 'Acceptable use', body: [
-    'You must follow every law that applies to your calls and messages, including telemarketing, robocall, anti-spam, Do-Not-Call, consumer protection and privacy laws. Before automated, pre-recorded or AI calls and texts you must have the consent the law requires, and you must honour opt-outs. You may not use CloudIVR to:',
+    'You must follow every law that applies to your calls and messages, including telemarketing, robocall, anti-spam, Do-Not-Call, consumer protection and privacy laws. Before automated, pre-recorded or AI calls and texts you must have the consent the law requires, and you must honour opt-outs. Each time you start a campaign (and once for Quick IVR) you confirm that you have permission to call those numbers; we keep a record of every confirmation. You may not use CloudIVR to:',
   ], list: [
     'commit fraud, phishing or scams, or pretend to be a bank, government body, company or person you are not;',
     'collect one-time codes, passwords, card details or other account information from anyone who has not knowingly agreed to give them to you — code collection is only for verifying your own customers;',

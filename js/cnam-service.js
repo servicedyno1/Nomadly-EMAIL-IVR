@@ -172,6 +172,7 @@ async function lookupMultitel(phone) {
   const res = await axios({
     method: 'get',
     url: `https://api.multitel.net/v3/cnam/${clean}`,
+    httpsAgent: require('./multitel').ipv4,
     auth: { username: MULTITEL_USERNAME, password: MULTITEL_PASSWORD },
     timeout: 8000,
   })

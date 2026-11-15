@@ -87,9 +87,9 @@ async function integration() {
   await scheduler.runExpiryCheck()
   const doc = async (id) => (await col('phoneNumbersOf').findOne({ _id: id })).val.numbers
   const u1 = await doc(1001)
-  it('expired main line (no auto-renew) is suspended, not released', u1[0].status === 'suspended' && !!u1[0]._holdUntil && !released.includes('ord-+15550001000'))
-  it('its extra lines are suspended with it (even with paid time left)', u1[1].status === 'suspended' && u1[2].status === 'suspended' && u1[1]._suspendReason === 'main_line_expired')
-  it('owner gets one restore message listing the extras', sent.filter(s => s.chatId === 1001).length === 1 && /Renew for <b>\$75/.test(sent.find(s => s.chatId === 1001).text) && sent.find(s => s.chatId === 1001).text.includes('Extra lines also suspended'))
+  it('expired main line with auto-renew off is released with the carrier at expiry', u1[0].status === 'released' && released.includes('ord-+15550001000'))
+  it('its active extra lines are released with it', u1[1].status === 'released' && u1[2].status === 'released')
+  it('owner gets one release message', sent.filter(s => s.chatId === 1001).length === 1)
   const u2 = (await doc(1002))[0]
   it('migration-standalone $25 line is suspended and restorable as a $75 Pro main line', u2.status === 'suspended' && u2.planPrice === PRO && u2.isSubNumber === false && u2._orphanPriceFrom === 25)
   it('…and its owner is told how to restore it', sent.some(s => s.chatId === 1002 && s.text.includes('restore it as your main Pro line')))

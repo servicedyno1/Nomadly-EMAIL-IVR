@@ -16,7 +16,7 @@ const day = (ms) => new Date(Date.now() - ms).toISOString().slice(0, 10)
 
 async function searchFax(country, areaCode, limit = 12) {
   const rows = await mt.searchNumbers(country, 'local', areaCode, limit)
-  return rows.map(n => ({ phoneNumber: n.phone_number, nearby: !!areaCode && String(n.phone_number).slice(2, 5) !== areaCode, region: String(n.region_information?.[0]?.region_name || '').replace(/[,\s]+$/, '') }))
+  return rows.filter(n => !n._assigned).map(n => ({ phoneNumber: n.phone_number, nearby: !!areaCode && String(n.phone_number).slice(2, 5) !== areaCode, region: String(n.region_information?.[0]?.region_name || '').replace(/[,\s]+$/, '') }))
 }
 
 // Buy, then fax detection on (listens 4 s for fax tones; the line is fax-only, so every call is a fax).
@@ -35,14 +35,14 @@ async function sendFax({ from, to, pdf }) {
   form.append('from_number', e164(from))
   form.append('to_number', e164(to))
   form.append('fax_file', pdf, { filename: 'fax.pdf', contentType: 'application/pdf' })
-  const r = await axios.post('https://api.multitel.net/v3/send_fax', form, { auth: auth(), headers: form.getHeaders(), maxBodyLength: Infinity, timeout: 90000, validateStatus: () => true })
+  const r = await axios.post('https://api.multitel.net/v3/send_fax', form, { auth: auth(), httpsAgent: mt.ipv4, headers: form.getHeaders(), maxBodyLength: Infinity, timeout: 90000, validateStatus: () => true })
   const id = r.data?.response?.job_id
   if (String(r.data?.status?.code) !== '200' || !id) throw new Error(`send_fax ${r.status}: ${JSON.stringify(r.data?.status || r.data).slice(0, 200)}`)
   return `mtfax:${id}`
 }
 
 const list = async (box, q) => (await mt.api('get', `${box}?limit=100&date_from=${q}`))?.response?.faxes || []
-const file = async (type, id) => Buffer.from((await axios.get(`https://api.multitel.net/v3/fax_file/${type}/${id}`, { auth: auth(), responseType: 'arraybuffer', timeout: 60000 })).data)
+const file = async (type, id) => Buffer.from((await axios.get(`https://api.multitel.net/v3/fax_file/${type}/${id}`, { auth: auth(), httpsAgent: mt.ipv4, responseType: 'arraybuffer', timeout: 60000 })).data)
 
 // Received faxes → fax.received events (with the PDF). fax-service drops ones it already has.
 async function pollInbox(onEvent, known) {

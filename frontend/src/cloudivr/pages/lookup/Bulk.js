@@ -12,7 +12,8 @@ const toCsv = (cols, rows) => [cols.map(c => c[0]).join(','), ...rows.map(r => c
 function download(name, text) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));
-  a.download = name; a.click(); URL.revokeObjectURL(a.href);
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 // Bulk run: paste a list or pick a CSV, see the total, run it, download the results.
@@ -55,7 +56,10 @@ export function BulkRun({ kind, unit, max, path, field, cols, Row, onDone, testi
         <div className="space-y-3" data-testid={`${testid}-result`}>
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <span data-testid={`${testid}-summary`}>{`${ok.length} checked · ${price(out.charged)} charged${out.refunded ? ` · ${price(out.refunded)} refunded` : ''}${out.skipped ? ` · ${out.skipped} skipped (not a valid ${kind})` : ''}${out.duplicates ? ` · ${out.duplicates} duplicate${out.duplicates === 1 ? '' : 's'} removed` : ''}`}</span>
-            <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm ml-auto" onClick={() => download(`${kind}-check-${out.batchId}.csv`, toCsv(cols, out.results))} data-testid={`${testid}-download`}><Download className="w-4 h-4" />Download CSV</button>
+            <span className="ml-auto flex flex-wrap gap-2">
+              <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" disabled={!ok.some(r => r.valid)} onClick={() => download(`${kind}-check-${out.batchId}-valid.csv`, toCsv(cols, ok.filter(r => r.valid)))} data-testid={`${testid}-download-valid`}><Download className="w-4 h-4" />{`Valid only (${ok.filter(r => r.valid).length})`}</button>
+              <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => download(`${kind}-check-${out.batchId}-all.csv`, toCsv(cols, out.results))} data-testid={`${testid}-download`}><Download className="w-4 h-4" />{`All results (${out.results.length})`}</button>
+            </span>
           </div>
           <div className="civr-card divide-y divide-[var(--c-border)] max-h-96 overflow-y-auto">{out.results.slice(0, 200).map((r, i) => <Row key={i} r={r} i={i} />)}</div>
           {out.results.length > 200 && <p className="text-xs text-[var(--c-muted)]">Showing the first 200 — download the CSV for all {out.results.length}.</p>}
