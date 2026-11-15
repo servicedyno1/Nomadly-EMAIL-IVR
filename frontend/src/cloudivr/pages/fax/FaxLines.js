@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { api, money, enc } from '../../api';
 import { ask } from '../../confirm';
-import { Toggle } from '../../ui';
+import { Toggle, askOff } from '../../ui';
 
 // Free-page meter + "Fax line" switch (receiving moves the number off voice) for each Business number.
 function LineRow({ n, reload }) {
@@ -25,6 +25,7 @@ function LineRow({ n, reload }) {
     } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   const renew = async (on) => {
+    if (!on && !(await askOff(n))) return;
     setBusy(true);
     try { await api(`/fax-numbers/${enc(n.phoneNumber)}`, { method: 'PATCH', body: { autoRenew: on } }); toast.success(on ? 'Renews monthly from your wallet' : `Auto-renew off — ${n.phoneNumber} is released on ${String(n.expiresAt || '').slice(0, 10)}`); reload(); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };

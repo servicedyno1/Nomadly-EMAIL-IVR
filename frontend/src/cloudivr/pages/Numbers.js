@@ -24,7 +24,7 @@ function QuickSwitch({ num, feature, label, checked, onSaved, testid }) {
   const s = useSwitch({ num, feature, label, checked, onSaved });
   return (
     <button type="button" role="switch" aria-checked={s.value} disabled={s.busy} onClick={() => s.flip(!s.value)} data-testid={testid}
-      title={`${label} ${s.value ? 'on' : 'off'} — tap to switch`} className={`civr-pill !min-h-[32px] !px-3 cursor-pointer relative z-10 transition-colors ${s.value ? 'civr-pill-on' : 'text-[#a1a1aa] hover:text-[#f3f4f6] hover:border-[#3f3f46]'}`}>
+      title={`${label} ${s.value ? 'on' : 'off'} — tap to switch`} className={`civr-pill !min-h-[44px] sm:!min-h-[36px] !px-4 cursor-pointer relative z-10 transition-colors ${s.value ? 'civr-pill-on' : 'text-[#a1a1aa] hover:text-[#f3f4f6] hover:border-[#3f3f46]'}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${s.value ? 'bg-[#818cf8]' : 'bg-[#3f3f46]'}`} />{label}
     </button>
   );

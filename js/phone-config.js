@@ -234,6 +234,7 @@ const btn = {
 
   // SIP
   revealPassword: '👁️ Reveal Password',
+  sipQr: '📲 QR Setup',
   resetPassword: '🔄 Reset Password',
   softphoneGuide: '📖 SIP Setup Guide',
 
@@ -1754,6 +1755,7 @@ const btnI18n = {
     vmToEmail: '📧 Envoyer par Email',
     vmRingTime: '⏰ Temps de Sonnerie',
     revealPassword: '👁️ Révéler le Mot de Passe',
+    sipQr: '📲 Config. par QR',
     resetPassword: '🔄 Réinitialiser le Mot de Passe',
     softphoneGuide: '📖 Guide SIP',
     renewNow: '🔄 Renouveler Maintenant',
@@ -1841,6 +1843,7 @@ const btnI18n = {
     vmToEmail: '📧 发送到邮箱',
     vmRingTime: '⏰ 响铃时间',
     revealPassword: '👁️ 显示密码',
+    sipQr: '📲 扫码设置',
     resetPassword: '🔄 重置密码',
     softphoneGuide: '📖 SIP 设置指南',
     renewNow: '🔄 立即续费',
@@ -1928,6 +1931,7 @@ const btnI18n = {
     vmToEmail: '📧 ईमेल पर भेजें',
     vmRingTime: '⏰ रिंग टाइम',
     revealPassword: '👁️ पासवर्ड दिखाएं',
+    sipQr: '📲 QR सेटअप',
     resetPassword: '🔄 पासवर्ड रीसेट करें',
     softphoneGuide: '📖 SIP सेटअप गाइड',
     renewNow: '🔄 अभी नवीनीकरण करें',
@@ -2015,6 +2019,7 @@ const btnI18n = {
     vmToEmail: '📧 ارسال از طریق Email',
     vmRingTime: '⏰ زمان زنگ',
     revealPassword: '👁️ نمایش رمز عبور',
+    sipQr: '📲 تنظیم با QR',
     resetPassword: '🔄 بازنشانی رمز عبور',
     softphoneGuide: '📖 راهنمای SIP',
     renewNow: '🔄 تمدید الان',

@@ -9,6 +9,7 @@ import { useShell } from '../../Shell';
 import { usePrivacy } from '../../privacy';
 import { cp } from '../../paths';
 import { ExtraSipLogins } from './ExtraSip';
+import { SipQr } from './SipQr';
 
 const copy = (v) => navigator.clipboard?.writeText(v).then(() => toast.success('Copied'));
 
@@ -69,9 +70,10 @@ export function SipCredentials({ num, prefix = 'sip', heading, className = 'lg:c
         <Row k="Server (domain)" v={num.sipDomain} id={`${prefix}-domain`} />
         <Row k="Port" v="5060 (UDP/TCP) · 5061 (TLS)" id={`${prefix}-port`} secret />
       </div>
-      <div className="flex flex-wrap gap-2 mt-5">
+      <div className="flex flex-wrap items-start gap-2 mt-5">
         {!creds && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={reveal} data-testid={`${prefix}-reveal-button`}><Eye className="w-4 h-4" />Show password</button>}
         <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={reset} disabled={busy} data-testid={`${prefix}-reset-button`}><RefreshCw className="w-4 h-4" />New credentials</button>
+        <SipQr num={num} prefix={prefix} />
       </div>
     </div>
   );

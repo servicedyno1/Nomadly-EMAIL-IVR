@@ -24,7 +24,7 @@ export function PlanCompare({ catalog, start }) {
         <p className="text-sm text-slate-500 max-w-sm">All plans: browser phone, call forwarding, call notes and on/off hours, plus a free USA, Canada or UK number. One monthly price per number.<span className="block md:hidden mt-1 text-xs text-slate-400">Swipe the table sideways to see every plan.</span></p>
       </div>
       <div className="mt-6 overflow-x-auto rounded-2xl border civr-l-rule bg-white" tabIndex={0} role="region" aria-label="Plan comparison table" data-testid="plan-compare-scroll">
-        <table className="civr-l-table" data-testid="plan-compare-table">
+        <table className="civr-keep-table civr-l-table" data-testid="plan-compare-table">
           <thead>
             <tr>
               <th scope="col">Feature</th>

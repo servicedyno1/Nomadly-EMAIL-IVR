@@ -45,7 +45,7 @@ function InstallBanner() {
   const close = () => { localStorage.setItem(KEY, String(Date.now())); setShow(false); };
   const install = async () => { prompt.prompt(); await prompt.userChoice.catch(() => null); close(); };
   return (
-    <div role="region" aria-label="Install the app" className="md:hidden fixed inset-x-3 z-[60] bottom-[calc(5rem+env(safe-area-inset-bottom))] rounded-2xl bg-white text-slate-900 shadow-2xl ring-1 ring-black/10 p-4 flex items-center gap-3 civr-rise" data-testid="install-banner">
+    <div role="region" aria-label="Install the app" className="md:hidden fixed left-3 right-20 z-[60] bottom-[calc(5rem+env(safe-area-inset-bottom))] rounded-2xl bg-white text-slate-900 shadow-2xl ring-1 ring-black/10 p-4 flex items-center gap-3 civr-rise" data-testid="install-banner">
       <img src="/civr/brand/icon-192.png" alt="" className="w-11 h-11 rounded-xl shrink-0" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-sm">Get the CloudIVR app</div>

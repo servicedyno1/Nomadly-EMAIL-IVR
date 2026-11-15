@@ -753,6 +753,12 @@ function routes(router, deps) {
     res.json({ username: n.telnyxSipUsername || n.sipUsername, password: n.telnyxSipPassword || n.sipPassword, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP', live: !!n.telnyxSipUsername, browserOnly: !sip, browserKey: browserCallKey.mint(n.phoneNumber) })
   }))
 
+  router.post('/numbers/:phone/sip/qr', withNumber(async (req, res) => {
+    if (!phoneConfig.canAccessFeature(req.num.plan, 'sipCredentials')) return gate(req, res, 'sipCredentials', 'SIP credentials')
+    await require('../sip-logins').ensure(phoneNumbersOf, req.webChatId, req.num)
+    res.json(await require('../sip-provision').codes(db, req.webChatId, req.num, phoneConfig.WEB_SIP_DOMAIN))
+  }))
+
   // New SIP login for a number (devices on the old one stop working) → { username, password } or null if the network refused.
   async function rotateSip(chatId, n) {
     const tr = getTelnyxResources() || {}

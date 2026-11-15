@@ -6,6 +6,7 @@ import { useShell } from '../../Shell';
 import { DIAL_FROM } from '../../Softphone';
 import { api, money, useApi } from '../../api';
 import { ask } from '../../confirm';
+import { askOff } from '../../ui';
 import { cp } from '../../paths';
 import { WalletPay, RenewWarning } from '../../WalletPay';
 import { NewNumber } from '../esim/NewNumber';
@@ -42,7 +43,7 @@ export function MobileLine({ item, reload }) {
       </div>}
       <div className="flex flex-wrap items-start gap-2">
         {item.status === 'suspended' && <WalletPay price={item.price} small onWallet={() => act('renew', {}, 'Renewed')} label={`Renew ${money(item.price)}`} testid={`mobile-renew-pay-${item.id}`} walletTestid={`mobile-renew-${item.id}`} />}
-        {['active', 'suspended'].includes(item.status) && item.price > 0 && <button type="button" role="switch" aria-checked={item.autoRenew} disabled={busy} onClick={() => act('auto-renew', { on: !item.autoRenew }, item.autoRenew ? 'Auto-renew off' : 'Auto-renew on')} className="civr-btn civr-btn-ghost civr-btn-sm gap-2" data-testid={`mobile-autorenew-${item.id}`}><span className={`shrink-0 inline-block w-8 h-4 rounded-full relative overflow-hidden transition-colors ${item.autoRenew ? 'bg-[#818cf8]' : 'bg-[#3f3f46]'}`}><span className={`absolute left-0 top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${item.autoRenew ? 'translate-x-4' : 'translate-x-0.5'}`} /></span>{item.autoRenew ? 'Auto-renew on' : 'Auto-renew off'}</button>}
+        {['active', 'suspended'].includes(item.status) && item.price > 0 && <button type="button" role="switch" aria-checked={item.autoRenew} disabled={busy} onClick={async () => { if (item.autoRenew && !(await askOff({ phoneNumber: item.phoneNumber || item.label || 'this line', expiresAt: item.expiresAt }))) return; act('auto-renew', { on: !item.autoRenew }, item.autoRenew ? 'Auto-renew off' : 'Auto-renew on'); }} className="civr-btn civr-btn-ghost civr-btn-sm gap-2" data-testid={`mobile-autorenew-${item.id}`}><span className={`shrink-0 inline-block w-8 h-4 rounded-full relative overflow-hidden transition-colors ${item.autoRenew ? 'bg-[#818cf8]' : 'bg-[#3f3f46]'}`}><span className={`absolute left-0 top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${item.autoRenew ? 'translate-x-4' : 'translate-x-0.5'}`} /></span>{item.autoRenew ? 'Auto-renew on' : 'Auto-renew off'}</button>}
         <NewNumber item={item} reload={reload} />
         <Receipts item={item} />
         {['active', 'suspended'].includes(item.status) && <button type="button" onClick={cancel} disabled={busy} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`mobile-cancel-${item.id}`}>Cancel number</button>}

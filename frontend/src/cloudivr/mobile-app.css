@@ -12,14 +12,14 @@ body { overscroll-behavior-y: none; }
   .civr .civr-btn:active, .civr .civr-l-btn:active, .civr .civr-card:is(button, a):active { transform: scale(.98); transition: transform .08s ease; }
 
   /* Pop-ups become bottom sheets. */
-  .civr div:has(> [role="dialog"][aria-modal="true"]), .civr div:has(> div > [role="dialog"][aria-modal="true"]) { align-items: flex-end !important; padding: 0 !important; }
-  .civr [role="dialog"][aria-modal="true"], [role="dialog"][data-state][class*="translate"], [role="alertdialog"][data-state] {
+  .civr div:has(> [role="dialog"][aria-modal="true"]), .civr div:has(> div > [role="dialog"][aria-modal="true"]), .civr div:has(> [role="alertdialog"][aria-modal="true"]) { align-items: flex-end !important; padding: 0 !important; }
+  .civr [role="dialog"][aria-modal="true"], .civr [role="alertdialog"][aria-modal="true"], [role="dialog"][data-state][class*="translate"], [role="alertdialog"][data-state] {
     width: 100% !important; max-width: 100% !important; margin: 0 !important; border-radius: 20px 20px 0 0 !important;
     max-height: calc(100dvh - 2.5rem - env(safe-area-inset-top)); overflow-y: auto; overscroll-behavior: contain;
     padding-bottom: calc(1.25rem + env(safe-area-inset-bottom)) !important; animation: civr-sheet-up .24s cubic-bezier(.2, .8, .2, 1);
   }
   [role="dialog"][data-state][class*="translate"], [role="alertdialog"][data-state] { top: auto !important; bottom: 0 !important; left: 0 !important; transform: none !important; }
-  .civr [role="dialog"][aria-modal="true"]::before, [role="dialog"][data-state][class*="translate"]::before { content: ''; display: block; width: 40px; height: 4px; border-radius: 4px; background: currentColor; opacity: .2; margin: -4px auto 12px; }
+  .civr [role="dialog"][aria-modal="true"]::before, .civr [role="alertdialog"][aria-modal="true"]::before, [role="dialog"][data-state][class*="translate"]::before { content: ''; display: block; width: 40px; height: 4px; border-radius: 4px; background: currentColor; opacity: .2; margin: -4px auto 12px; }
 
   /* Tables read as cards (labels come from the header, set by useCardTables). */
   .civr table:not(.civr-keep-table) thead { display: none; }
@@ -28,6 +28,9 @@ body { overscroll-behavior-y: none; }
   .civr table:not(.civr-keep-table) td { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 6px 16px !important; text-align: right !important; border: 0 !important; }
   .civr table:not(.civr-keep-table) td[data-label]::before { content: attr(data-label); flex-shrink: 0; text-align: left; font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--c-muted, #64748b); }
   .civr table:not(.civr-keep-table) td:first-child { font-weight: 600; }
+  .civr table:not(.civr-keep-table) td > * { min-width: 0; overflow-wrap: anywhere; }
+  /* Grab handle on the confirm sheet sits inside its padding. */
+  .civr [role="alertdialog"][aria-modal="true"]::before { margin: -8px auto 16px; }
 }
 @keyframes civr-sheet-up { from { transform: translateY(32px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .civr [role="dialog"] { animation: none !important; } }

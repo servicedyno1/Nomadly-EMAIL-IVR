@@ -56,7 +56,7 @@ function CompareTable({ plans }) {
         Compare every feature<ChevronDown className="w-5 h-5 text-slate-400 transition-transform group-open:rotate-180" />
       </summary>
       <div className="overflow-x-auto border-t civr-l-rule">
-        <table className="w-full min-w-[560px] text-sm" data-testid="sip-compare-table">
+        <table className="civr-keep-table w-full min-w-[560px] text-sm" data-testid="sip-compare-table">
           <thead>
             <tr className="bg-slate-50 text-left">
               <th className="px-6 py-3 font-semibold text-slate-500">Feature</th>
