@@ -397,6 +397,9 @@ const includedCountries = (planKey) => (['business', 'enterprise'].includes(plan
 const includedTier = (cc) => (INCLUDED_ALL.includes(cc) ? 'all' : INCLUDED_BUSINESS.includes(cc) ? 'business' : null)
 // Instant + no ID: no paperwork level, not a request-based order. US/CA with no MultiTEL/Infobip offer use the Telnyx chain (instant).
 const instantNoId = (cc, t) => { const b = require('./number-catalog').best(cc, t); return b ? b.level === 0 && !b.request && !b.businessOnly : ['US', 'CA'].includes(cc) }
+// A plan's own number can come from any country; outside the plan's countries it costs the admin's country add-on, else the extra-number price.
+const planAddon = (planKey, cc, t, surcharge = 0) => (includedCountries(planKey).includes(cc) || surcharge > 0 ? surcharge : SUB_NUMBER_BASE_PRICE)
+const planNumberIssue = (cc, t) => (!['US', 'CA'].includes(cc) && !require('./number-catalog').best(cc, t) ? 'Numbers from this country are temporarily unavailable. Try again shortly, or pick another country.' : null)
 function includedIssue(planKey, cc, t) {
   if (!includedCountries(planKey).includes(cc)) return includedTier(cc) === 'business'
     ? 'Netherlands, France and Spain numbers come free with the Business plan. Pick Business, or a USA, Canada or UK number.'
@@ -4344,7 +4347,7 @@ module.exports = {
   twilioCountries,
   get allCountries() { return getAllCountries() },
   get moreCountries() { return getMoreCountries() },
-  includedCountries, includedTier, includedIssue, instantNoId, botPlanCountries, botExtraCountries, botExtraOrMore, BOT_CATALOG, INCLUDED_ALL, INCLUDED_BUSINESS, PLAN_TEXTING,
+  includedCountries, includedTier, includedIssue, planAddon, planNumberIssue, instantNoId, botPlanCountries, botExtraCountries, botExtraOrMore, BOT_CATALOG, INCLUDED_ALL, INCLUDED_BUSINESS, PLAN_TEXTING,
   countryByName,
   botNeedsAddress,
   botUsesFixedAddress,

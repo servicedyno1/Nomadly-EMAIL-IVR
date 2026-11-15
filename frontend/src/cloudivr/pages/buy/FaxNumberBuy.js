@@ -65,13 +65,13 @@ export function FaxNumberBuy({ balance, onBought, onStage }) {
       <form onSubmit={search} className="grid sm:grid-cols-3 gap-4 items-end mt-4" data-testid="fax-buy-search-form">
         <Field label="Country">
           <FlagSelect code={q.country}><select className="civr-input w-full" value={q.country} onChange={e => { setQ({ country: e.target.value, type: 'local', areaCode: '' }); setRes(null); setPick(null); }} data-testid="fax-buy-country-select">
-            {(offer?.countries || []).map(c => <option key={c.code} value={c.code}>{c.name}{c.types.every(x => x.paperwork === 'documents') ? ' · ID documents' : c.types.some(x => x.paperwork !== 'none') ? ' · name + address' : ''}</option>)}
+            {(offer?.countries || []).map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
           </select></FlagSelect>
         </Field>
         {types.length > 1 ? (
           <Field label="Number type">
             <select className="civr-input w-full" value={t?.type} onChange={e => { setQ({ ...q, type: e.target.value }); setRes(null); setPick(null); }} data-testid="fax-buy-type-select">
-              {types.map(x => <option key={x.type} value={x.type}>{x.label}{x.paperwork === 'documents' ? ' · ID documents' : x.paperwork !== 'none' ? ' · name + address' : ''}</option>)}
+              {types.map(x => <option key={x.type} value={x.type}>{x.label}</option>)}
             </select>
           </Field>
         ) : country?.areaCodes ? (

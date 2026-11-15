@@ -357,7 +357,7 @@ function routes(router, deps) {
       ...(n._assigned ? { assigned: true } : {}),
       ...(texting.offerOf(country, type) ? { extraPrice: texting.offerOf(country, type).extraPrice, textPrice: texting.offerOf(country, type).textPrice } : {}),
       cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
-    }))
+    })).map(r => ({ ...r, planAddons: Object.fromEntries(Object.keys(phoneConfig.plans).map(k => [k, phoneConfig.planAddon(k, country, type, r.surcharge)])) }))
     const fb = found.find(n => n._areaFallback)
     await searchCache.updateOne({ _id: req.webChatId }, { $set: { country, type, areaCode, results, at: new Date() } }, { upsert: true })
     const paperwork = own === 'multitel' && offer.level ? { level: offer.level, businessOnly: !!offer.businessOnly, address: offer.address || 'any', documents: offer.level === 2 ? await deps.numberDocs?.status(req.webChatId, country) : null, compliance: offer.level === 2 ? { ...await deps.compliance?.state(req.webChatId), business: req.webUser?.legalProfile?.type === 'business' } : null } : null
@@ -417,8 +417,8 @@ function routes(router, deps) {
     if (sub) planKey = sub.plan
     const plan = phoneConfig.plans[planKey]
     if (!plan || !phoneConfig.isPlanAvailable(planKey)) return { status: 400, body: { error: 'invalid_plan', message: 'That plan is not available.' } }
-    // A plan's own number must be an instant no-ID number from the plan's countries (already-paid crypto orders were checked at checkout).
-    const incl = !sub && !viaOrder && !presetOrder && !(withTexting && texting.offerOf(country, type)) ? phoneConfig.includedIssue(planKey, country, type) : null
+    // A plan's own number can come from any country (outside the plan it costs the country add-on); already-paid crypto orders were checked at checkout.
+    const incl = !sub && !viaOrder && !presetOrder ? phoneConfig.planNumberIssue(country, type) : null
     if (incl) return { status: 400, body: { error: 'extra_number_only', message: incl } }
     const holder = await holderOf(phone)
     if (holder !== null) {
@@ -436,7 +436,7 @@ function routes(router, deps) {
       const why = await paperworkIssue(chatId, country, c.name, offer)
       if (why) return { status: 400, body: { error: 'paperwork_needed', message: why } }
     }
-    const base = sub ? (texting.offerOf(country, type)?.extraPrice ?? phoneConfig.SUB_NUMBER_BASE_PRICE) : plan.price + (hit.surcharge || 0)
+    const base = sub ? (texting.offerOf(country, type)?.extraPrice ?? phoneConfig.SUB_NUMBER_BASE_PRICE) : plan.price + phoneConfig.planAddon(planKey, country, type, hit.surcharge || 0)
     const price = prepaid ? prepaid.amount : round2(base * (1 - (Number(coupon?.discount) || 0) / 100))
     if (!prepaid && !(await w.debit(chatId, price))) return { status: 402, body: { error: 'insufficient_balance', message: `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(chatId)).toFixed(2)} — top up first.` } }
 
@@ -473,7 +473,7 @@ function routes(router, deps) {
       const doc = {
         phoneNumber: selected, telnyxOrderId: order.id, provider: viaMultitel ? 'multitel' : viaInfobip ? 'infobip' : 'telnyx', country, countryName: c.name,
         ...(order._needsRegistration ? { registration: { status: 'pending', since: new Date().toISOString() } } : {}),
-        type, plan: planKey, planPrice: round2(base), ...(!sub && hit.surcharge ? { numberSurcharge: round2(hit.surcharge) } : {}), purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(), autoRenew: autoRenew !== false, status: order._pending ? 'provisioning' : 'active',
+        type, plan: planKey, planPrice: round2(base), ...(!sub && phoneConfig.planAddon(planKey, country, type, hit.surcharge || 0) ? { numberSurcharge: round2(phoneConfig.planAddon(planKey, country, type, hit.surcharge || 0)) } : {}), purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(), autoRenew: autoRenew !== false, status: order._pending ? 'provisioning' : 'active',
         sipUsername, sipPassword, telnyxSipUsername: tUser, telnyxSipPassword: tPass, telnyxCredentialId: tCredId, sipDomain: phoneConfig.WEB_SIP_DOMAIN,
         messagingProfileId: caps.sms ? tr.messagingProfileId || null : null, connectionId: tr.sipConnectionId || null, smsUsed: 0, minutesUsed: 0,
         capabilities: caps, channel: 'web', resold: true, ...(eu ? { endUser: eu } : {}), ...(dryRun() ? { dryRun: true } : {}), ...(sub ? { isSubNumber: true, parentNumber: sub.parentNumber } : {}),
@@ -772,7 +772,7 @@ function routes(router, deps) {
   // Instant no-ID two-way texting countries, sold on the Basic plan; the USA is the Spenza Texting Number (assigned after payment).
   router.get('/texting/ready', h(async (req, res) => {
     const sold = countries()
-    const items = texting.list().filter(o => sold.find(c => c.code === o.iso)?.types.includes(o.type)).map(o => ({ country: o.iso, name: o.name, flag: o.flag, type: o.type, typeName: 'Mobile', caps: { sms: true, voice: o.voice }, textPrice: o.textPrice, extraPrice: o.extraPrice }))
+    const items = texting.list().filter(o => sold.find(c => c.code === o.iso)?.types.includes(o.type)).map(o => ({ country: o.iso, name: o.name, flag: o.flag, type: o.type, typeName: o.type === 'local' ? 'Local' : 'Mobile', included: phoneConfig.includedCountries('starter').includes(o.iso), needs10dlc: o.iso === 'US', caps: { sms: true, voice: o.voice }, textPrice: o.textPrice, extraPrice: o.extraPrice }))
     res.json({ items, available: phoneConfig.PLAN_TEXTING(), plan: 'starter', price: phoneConfig.plans?.starter?.price ?? null, usa: { caps: { sms: true, voice: false }, assigned: true } })
   }))
 

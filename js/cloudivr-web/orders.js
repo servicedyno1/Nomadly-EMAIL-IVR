@@ -132,7 +132,7 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
         const assigned = r.status === 201 ? r.body.number.phoneNumber : hit.phoneNumber
         const swapped = assigned !== o.phoneNumber && String(o.phoneNumber).replace(/\D/g, '').length >= 9 // a short prefix = number assigned at order
         const status = r.status === 202 ? 'verification' : 'active'
-        const charged = extra ? round2(o.charge) : round2(phoneConfig.plans[o.planKey].price + (hit.surcharge || 0))
+        const charged = extra ? round2(o.charge) : round2(phoneConfig.plans[o.planKey].price + phoneConfig.planAddon(o.planKey, o.country, o.type, hit.surcharge || 0))
         const linePaid = round2(needOf(o) - (o.texting?.charge || 0))
         const priceNote = charged < linePaid ? `it costs $${charged.toFixed(2)}, so the $${round2(linePaid - charged).toFixed(2)} difference stays in your wallet` : 'same price'
         const leftover = extra && o.price + (o.walletPart || 0) > charged ? ` The $${round2(o.price + (o.walletPart || 0) - charged).toFixed(2)} left over stays in your wallet.` : ''
@@ -186,9 +186,8 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     if (!picked) return bad(res, 400, 'search_again', 'That number is no longer in your search results. Search again and pick a number.')
     const planKey = String(req.body.plan || ''), plan = phoneConfig.plans[planKey]
     if (!plan || !phoneConfig.isPlanAvailable(planKey)) return bad(res, 400, 'invalid_plan', 'That plan is not available.')
-    // Calls + texting numbers are sold in every instant texting country, not just the plan countries.
     const textOffer = req.body.withTexting === true && !!require('../texting-countries').offerOf(picked.country, picked.type)
-    const incl = textOffer ? null : phoneConfig.includedIssue(planKey, picked.country, picked.type)
+    const incl = phoneConfig.planNumberIssue(picked.country, picked.type)
     if (incl) return bad(res, 400, 'extra_number_only', incl)
     const autoRenew = req.body.autoRenew !== false
     let coupon = null
@@ -198,7 +197,7 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     }
     const texting = await textingAddOn(req.body)
     if (texting?.error) return bad(res, 400, 'texting_unavailable', texting.error)
-    const linePrice = round2((plan.price + (picked.hit.surcharge || 0)) * (1 - (coupon ? coupon.discount : 0) / 100))
+    const linePrice = round2((plan.price + phoneConfig.planAddon(planKey, picked.country, picked.type, picked.hit.surcharge || 0)) * (1 - (coupon ? coupon.discount : 0) / 100))
     if (req.body.method !== 'crypto') {
       if (texting) {
         const bal = await w.balance(chatId), need = round2(linePrice + texting.charge)

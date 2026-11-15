@@ -17,7 +17,7 @@ export const PICKS = [
   ['ivr', PhoneCall, 'Calls', 'A number for calls, menus, voicemail and AI'],
   ['mobile', MessageSquareText, 'Calls + texting', 'Two-way texts and calls on one number'],
   ['fax', Printer, 'Fax only', 'Send and receive faxes online'],
-  ['esim', Smartphone, 'USA eSIM', 'A real line on your phone'],
+  ['esim', Smartphone, 'USA eSIM', 'On your phone or in your browser'],
 ];
 
 const goPlans = (id, setTab) => { setTab(id); document.getElementById('pricing')?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' }); };
@@ -48,11 +48,11 @@ function PriceList({ rows, onDetails }) {
 }
 
 // Hero: one headline, one sign-up button, and the prices beside it.
-export function OneHero({ setTab, from, offer, fax, offerFailed, faxFailed }) {
+export function OneHero({ setTab, from, fax, faxFailed }) {
   const start = useStart();
   const rows = [
     ['ivr', PhoneCall, 'Calls', 'Answer, forward, menus, voicemail', from, 'texting optional'],
-    ['mobile', MessageSquareText, 'Calls + texting', 'Two-way texts and calls', offer?.price ? usd(offer.price) : offerFailed ? false : null, 'USA texts unlimited'],
+    ['mobile', MessageSquareText, 'Calls + texting', 'Two-way texts and calls', from, 'pay per text sent'],
     ['fax', Printer, 'Fax only', 'Send and receive faxes online', fax?.price ? usd(fax.price) : faxFailed ? false : null, `${fax?.freePages ?? 25} free pages a month`],
   ];
   return (
@@ -75,6 +75,19 @@ export function OneHero({ setTab, from, offer, fax, offerFailed, faxFailed }) {
         </div>
       </div>
     </section>
+  );
+}
+
+const startFrom = (c) => Math.min(...(c?.plans || []).filter(p => p.available !== false).map(p => p.price)) || null;
+const TEXTING_POINTS = ['Calls and two-way texts on one number', 'Free with your plan in the USA, Canada and UK', 'Other countries: plan + a country charge', 'Pay per text sent; receiving is free'];
+function WhichOne({ setTab }) {
+  return (
+    <div className="rounded-2xl border civr-l-rule bg-white p-6 text-sm text-slate-700 space-y-3" data-testid="which-one">
+      <p className="font-semibold text-slate-950">Which one do I need?</p>
+      <p>Calls and texts on a business number? <b>Calls + texting</b>.</p>
+      <p>A USA line on your own phone, or texting only in your browser? <button type="button" className="font-semibold underline min-h-[44px]" onClick={() => setTab('esim')} data-testid="which-one-esim">USA eSIM</button>.</p>
+      <p>Menus, campaigns or SIP? <button type="button" className="font-semibold underline min-h-[44px]" onClick={() => setTab('ivr')} data-testid="which-one-ivr">Calling plans</button>.</p>
+    </div>
   );
 }
 
@@ -109,18 +122,16 @@ export function AllPlans({ catalog, tab, setTab, esimPrice, offer, fax }) {
             </>
           )}
           {tab === 'fax' && <FaxLanding fax={fax} />}
-          {tab !== 'ivr' && tab !== 'fax' && (
-            <div className="grid md:grid-cols-2 gap-5 max-w-5xl">
-              {tab === 'esim'
-                ? <Card id="esim-card" icon={Smartphone} badge="On your phone" title="USA eSIM" kind="Downloadable eSIM on a real USA carrier" price={esimPrice || 75} points={ESIM_POINTS} note="QR code usually ready within minutes of payment."><button type="button" onClick={() => openEsimCheckout()} className="civr-l-btn mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-esim">Order eSIM<ArrowRight className="w-4 h-4" /></button></Card>
-                : <Card id="mobile" icon={MessageSquareText} badge="In your browser" title="Calls + texting number" kind="USA number on a real carrier · more countries in the app" price={offer?.price} points={MOBILE_POINTS} note="Pick a ZIP code; the exact number is shown after payment.">{offer?.available ? <button type="button" onClick={openMobileCheckout} className="civr-l-btn mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-mobile">Order number<ArrowRight className="w-4 h-4" /></button> : offer ? <Waitlist /> : <div className="mt-4 h-[52px]" />}</Card>}
-              <div className="rounded-2xl border civr-l-rule bg-white p-6 text-sm text-slate-700 space-y-3" data-testid="which-one">
-                <p className="font-semibold text-slate-950">Which one do I need?</p>
-                <p>Want the line on your phone? <b>USA eSIM</b>.</p>
-                <p>Want to text and call from your browser? <b>Calls + texting number</b>. Outside the USA you pay per text sent.</p>
-                <p>Need to send and receive faxes? <button type="button" className="font-semibold underline" onClick={() => setTab('fax')} data-testid="which-one-fax">Fax number</button>.</p>
-                <p>Need IVR, campaigns, SIP or your verified caller IDs? <button type="button" className="font-semibold underline" onClick={() => setTab('ivr')} data-testid="which-one-ivr">Calling plans</button>.</p>
-              </div>
+          {tab === 'mobile' && (
+            <div className="grid md:grid-cols-2 gap-5 max-w-5xl" data-testid="plans-mobile">
+              <Card id="mobile" icon={MessageSquareText} badge="Calls + texts" title="Calls + texting number" kind="USA, Canada, UK and more · calls and two-way texts" price={startFrom(catalog)} points={TEXTING_POINTS} note="USA texting starts once your business texting registration ($49 once) is approved; calls work right away."><Link to={start('textnum')} className="civr-l-btn mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-mobile">Get a texting number<ArrowRight className="w-4 h-4" aria-hidden="true" /></Link></Card>
+              <WhichOne setTab={setTab} />
+            </div>
+          )}
+          {tab === 'esim' && (
+            <div className="grid md:grid-cols-2 gap-5 max-w-5xl" data-testid="plans-esim">
+              <Card id="esim-card" icon={Smartphone} badge="On your phone" title="USA eSIM" kind="Downloadable eSIM · calls, texts and data on your phone" price={esimPrice || 75} points={ESIM_POINTS} note="QR code usually ready within minutes of payment."><button type="button" onClick={() => openEsimCheckout()} className="civr-l-btn mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-esim">Order eSIM<ArrowRight className="w-4 h-4" aria-hidden="true" /></button></Card>
+              <Card id="web-texting" icon={MessageSquareText} badge="In your browser" title="Web texting number" kind="USA carrier number · texts only, in CloudIVR Messages" price={offer?.price} points={MOBILE_POINTS} note="Pick a ZIP code; the exact number is shown after payment.">{offer?.available ? <button type="button" onClick={openMobileCheckout} className="civr-l-btn civr-l-btn-ghost mt-4 w-full inline-flex items-center justify-center gap-2 min-h-[52px]" data-testid="hero-order-web-texting">Order web texting number<ArrowRight className="w-4 h-4" aria-hidden="true" /></button> : offer ? <Waitlist /> : null}</Card>
             </div>
           )}
         </div>

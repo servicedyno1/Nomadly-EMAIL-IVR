@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Check } from 'lucide-react';
 import { api, money, useApi } from '../../api';
@@ -9,7 +9,6 @@ import { Spinner, ErrorNote, Label } from '../../ui';
 import { WalletPay } from '../../WalletPay';
 import { useShell } from '../../Shell';
 import { CapBadges } from '../../kinds';
-import { MobileOffer } from './MobileOffer';
 
 function CountryCard({ code, name, line, caps, on, disabled, soon, onPick }) {
   return (
@@ -39,19 +38,18 @@ function Results({ list, pick, setPick, onRetry }) {
 }
 
 // Calls + texting: the USA number (unlimited texts, assigned near a ZIP) or a two-way number in another country.
-export function TextingBuy({ onStage, startCountry }) {
+export function TextingBuy({ onStage }) {
   const { data } = useApi('/texting/ready');
-  const { data: usa } = useApi('/mobile-numbers');
   const { refreshSummary } = useShell();
   const nav = useNavigate();
-  const [country, setCountry] = useState(startCountry === 'US' ? 'US' : null);
+  const [country, setCountry] = useState(null);
   const [res, setRes] = useState(null);
   const [pick, setPick] = useState(null);
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState(null);
-  const stage = country === 'US' || pick ? 3 : 2;
+  const stage = pick ? 3 : 2;
   useEffect(() => { onStage?.(stage); }, [stage, onStage]);
-  if (!data || !usa) return <Spinner />;
+  if (!data) return <Spinner />;
   const choose = async (it) => {
     setCountry(it); setPick(null); setRes(null); setErr(null); setBusy('search');
     try { const d = await api(`/numbers/search?country=${it.country}&type=${it.type}&texting=1`); setRes((d.numbers || []).filter(n => n.capabilities?.sms)); } catch (e) { setErr(e); } finally { setBusy(''); }
@@ -66,26 +64,26 @@ export function TextingBuy({ onStage, startCountry }) {
       nav(cp(`/app/numbers/${encodeURIComponent(d.number?.phoneNumber || pick.phoneNumber)}`));
     } catch (e) { setErr(e); toast.error(e.message); } finally { setBusy(''); }
   };
-  const intl = country && country !== 'US' ? country : null;
+  const intl = country;
+  // Same rule as calling numbers: free with the plan in its countries, otherwise plan + country charge.
+  const addon = pick?.planAddons?.[data.plan] ?? 0, price = (data.price || 0) + addon;
   return (
     <div className="space-y-8" data-testid="texting-buy">
       <div>
         <Label>Pick a country</Label>
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3" data-testid="texting-buy-countries">
-          <CountryCard code="US" name="United States" caps={['calls', 'texts']} on={country === 'US'} disabled={!usa.available} onPick={() => { setCountry('US'); setPick(null); setRes(null); }}
-            line={usa.available ? `${money(usa.price)}/month · unlimited texts · number assigned near your ZIP code` : 'Not available right now'} />
           {data.items.map(it => <CountryCard key={it.country} code={it.country} name={it.name} caps={[...(it.caps.voice ? ['calls'] : []), 'texts']} on={intl?.country === it.country} disabled={!data.available} soon={!data.available} onPick={() => choose(it)}
-            line={`${data.price ? `${money(data.price)}/month · ` : ''}${money(it.textPrice)} per text sent · receiving is free`} />)}
+            line={`${data.price ? `${money(data.price)}/month${it.included ? '' : ' + country charge'} · ` : ''}${money(it.textPrice)} per text sent · receiving free${it.needs10dlc ? ' · texting after USA registration' : ''}`} />)}
         </div>
       </div>
       <ErrorNote error={err} testid="texting-buy-error" />
-      {country === 'US' && <div data-testid="texting-buy-usa"><Label>ZIP code and payment</Label><MobileOffer open onBought={() => nav(cp('/app/numbers?show=texts'))} /></div>}
       {intl && <div><Label>{`Pick your ${intl.name} number`}</Label>{busy === 'search' ? <Spinner label="Finding numbers…" testid="texting-buy-searching" /> : res && <Results list={res} pick={pick} setPick={setPick} onRetry={() => choose(intl)} />}</div>}
       {intl && pick && (
         <div className="civr-card p-6 space-y-4 civr-rise" data-testid="texting-buy-checkout">
           <Label>Pay</Label>
-          <div className="flex flex-wrap items-center gap-3"><div className="flex-1"><div className="font-mono text-xl" data-testid="texting-buy-picked">{pick.assigned ? `${pick.phoneNumber} … (assigned when you buy)` : pick.phoneNumber}</div><div className="text-sm text-[var(--c-muted)]">{`Calls + texting · ${money(intl.textPrice)} per text sent · receiving free · renews monthly`}</div></div><div className="font-mono text-xl" data-testid="texting-buy-price">{money(data.price)}<span className="text-xs text-[var(--c-muted)]"> /month</span></div></div>
-          <WalletPay price={data.price} onWallet={buy} busy={busy === 'buy'} testid="texting-buy-pay" walletTestid="texting-buy-pay-button" />
+          <div className="flex flex-wrap items-center gap-3"><div className="flex-1"><div className="font-mono text-xl" data-testid="texting-buy-picked">{pick.assigned ? `${pick.phoneNumber} … (assigned when you buy)` : pick.phoneNumber}</div><div className="text-sm text-[var(--c-muted)]">{`Calls + texting · ${money(intl.textPrice)} per text sent · receiving free · renews monthly`}</div><div className="text-xs text-[var(--c-muted)] mt-1" data-testid="texting-buy-breakdown">{addon > 0 ? `Plan ${money(data.price)} + country charge ${money(addon)}` : 'Number included free with the plan'}</div></div><div className="font-mono text-xl" data-testid="texting-buy-price">{money(price)}<span className="text-xs text-[var(--c-muted)]"> /month</span></div></div>
+          {intl.needs10dlc && <p className="text-sm civr-card p-4" data-testid="texting-buy-10dlc">Calls work as soon as you pay. USA carriers need your business registered before texts can be sent: fill in <Link to={cp('/app/settings#settings-tendlc')} className="underline text-[var(--c-accent)]" data-testid="texting-buy-10dlc-link">USA texting registration</Link> ($49 once). Texting turns on when it’s approved.</p>}
+          <WalletPay price={price} onWallet={buy} busy={busy === 'buy'} testid="texting-buy-pay" walletTestid="texting-buy-pay-button" />
         </div>
       )}
     </div>

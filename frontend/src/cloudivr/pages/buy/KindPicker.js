@@ -14,7 +14,7 @@ export function useKindFacts(catalog, myNums) {
   const low = plans.length ? Math.min(...plans) : null;
   return {
     calls: { price: low, owned: lines.length },
-    texting: { price: mobile?.price && low ? Math.min(mobile.price, low) : mobile?.price || low, owned: texts },
+    texting: { price: low, owned: texts },
     fax: { price: fax?.price || null, owned: faxes, extra: fax ? `${fax.freePages ?? 25} free pages a month, then ${money(fax.pagePrice ?? 0.05)} a page.` : null },
   };
 }

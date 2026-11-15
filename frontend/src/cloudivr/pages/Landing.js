@@ -8,6 +8,7 @@ import { Faq, FinalCta, Footer } from './landing/PricingFaq';
 import { OneHero, AllPlans } from './landing/OnePage';
 import { startPrice } from '../api';
 import { LandingNav } from './landing/Nav';
+import { QuotesStrip } from './landing/QuotesStrip';
 import { StickyCta } from './landing/StickyCta';
 import { CATALOG_SNAPSHOT } from './landing/catalogSnapshot';
 import SupportChat from '../SupportChat';
@@ -19,7 +20,7 @@ export default function Landing() {
   // The bundled snapshot paints pricing, coverage and facts at once; the live catalogue replaces it when it answers.
   const { data } = useApi('/public/catalog');
   const { data: esim } = useApi('/public/esim-plans');
-  const { data: offer, error: offerError } = useApi('/public/mobile-offer');
+  const { data: offer } = useApi('/public/mobile-offer');
   const { data: fax, error: faxError } = useApi('/public/fax-offer');
   const catalog = data || CATALOG_SNAPSHOT;
   const [tab, setTab] = useState('ivr');
@@ -37,7 +38,8 @@ export default function Landing() {
     <div className="civr-l civr-np" data-testid="landing-page" data-catalog={data ? 'live' : 'snapshot'}>
       <LandingNav catalog={catalog} />
       <main>
-        <OneHero setTab={setTab} from={startPrice(catalog)} offer={offer} fax={fax} offerFailed={!!offerError} faxFailed={!!faxError} />
+        <OneHero setTab={setTab} from={startPrice(catalog)} fax={fax} faxFailed={!!faxError} />
+        <QuotesStrip />
         <HowItWorks catalog={catalog} />
         <AllPlans catalog={catalog} tab={tab} setTab={setTab} esimPrice={esim?.plans?.[0]?.price} offer={offer} fax={fax} />
         <TryCall />

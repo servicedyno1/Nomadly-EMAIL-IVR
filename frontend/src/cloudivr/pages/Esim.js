@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Smartphone, QrCode, MessageSquare, Download } from 'lucide-react';
+import { Smartphone, QrCode, MessageSquare, Download, Globe2 } from 'lucide-react';
 import { toast } from 'sonner';
 import QRCode from 'react-qr-code';
 import { api, money, useApi } from '../api';
@@ -8,13 +8,13 @@ import { useShell } from '../Shell';
 import { ask } from '../confirm';
 import { DRAFT_KEY, EMAIL_OK } from './landing/EsimCheckout';
 import { useCivrAuth } from '../AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { cp } from '../paths';
 import { WalletPay, RenewWarning } from '../WalletPay';
 import { NewNumber } from './esim/NewNumber';
 import { EmailQr } from './esim/EmailQr';
 import { Receipts } from './esim/Receipts';
-import { TextingNumberCta } from './buy/TextingNumberCta';
+import { MobileOffer } from './buy/MobileOffer';
 import { RenewPick, renewText } from './esim/RenewPick';
 import { MobileLines } from './number/MobileLines';
 import { ImeiStep } from './esim/ImeiStep';
@@ -145,8 +145,27 @@ function Line({ item, reload, fresh }) {
   );
 }
 
+const WAYS = [
+  ['esim', Smartphone, 'On your phone', 'Downloadable eSIM · calls, texts and data on your own phone'],
+  ['web', Globe2, 'In your browser', 'Web texting number · send and receive texts in CloudIVR Messages'],
+];
+function WayPicker({ way, setWay }) {
+  return (
+    <div role="radiogroup" aria-label="How you’ll use the number" className="grid sm:grid-cols-2 gap-3" data-testid="esim-way-picker">
+      {WAYS.map(([id, I, t, sub]) => (
+        <button key={id} type="button" role="radio" aria-checked={way === id} onClick={() => setWay(id)} className={`civr-card p-5 text-left flex gap-4 items-start min-h-[44px] ${way === id ? 'civr-trace' : ''}`} data-testid={`esim-way-${id}`}>
+          <I className="w-6 h-6 text-[var(--c-accent)] shrink-0" aria-hidden="true" /><span><span className="block font-semibold">{t}</span><span className="block text-sm text-[var(--c-muted)] mt-1">{sub}</span></span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function Esim() {
   const { data, error, reload } = useApi('/esim');
+  const { data: web } = useApi('/mobile-numbers');
+  const nav = useNavigate();
+  const [way, setWay] = useState(() => (new URLSearchParams(window.location.search).get('way') === 'web' ? 'web' : 'esim'));
   const [buying, setBuying] = useState(null);
   const [fresh, setFresh] = useState(null);
   const { account } = useCivrAuth();
@@ -159,22 +178,15 @@ export default function Esim() {
   if (!data) return <Spinner />;
   return (
     <div className="space-y-8" data-testid="esim-page">
-      <PageHeader label="Phone numbers · USA eSIM" title="USA eSIM" sub="A real USA carrier line on your own phone, installed with a QR code: texts, calls and data happen on the phone. Want to send and receive texts inside CloudIVR instead? Get a Texting Number." testid="esim-header" />
-      {data.items.length > 0 && !buying && <div className="flex flex-wrap items-center gap-2 -mt-2" data-testid="esim-add-line-bar">
-        <span className="text-sm text-[var(--c-muted,#a1a1aa)] mr-1">Add a line:</span>
-        {data.plans.length > 0 && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => document.querySelector('[data-testid="esim-plans"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} data-testid="esim-jump-esim">USA eSIM</button>}
-        <Link to={cp('/app/buy?purpose=texting&country=US')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="esim-jump-mobile">Texting Number</Link>
-      </div>}
+      <PageHeader label="Phone numbers · USA eSIM" title="USA mobile number" sub="A real USA carrier number, two ways: download it to your phone as an eSIM, or use it in your browser for texting." testid="esim-header" />
       {data.items.length > 0 && <div className="space-y-4">{data.items.map(x => <Line key={x.id} item={x} reload={reload} fresh={x.id === fresh} />)}</div>}
-      {data.items.length > 0 && !buying && data.plans.length > 0 && <h2 className="font-display text-xl font-bold" data-testid="esim-add-another">Add another eSIM</h2>}
-      {buying ? <BuyForm plan={buying} draft={draft?.planId === buying.planId ? draft : null} onCancel={() => { dropDraft(); setBuying(null); }} onDone={(id) => { setFresh(id || null); setBuying(null); reload(); }} /> : (
-        data.plans.length ? <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="esim-plans">{data.plans.map(p => <PlanCard key={p.planId} p={p} onBuy={setBuying} />)}</div>
-          : <Empty icon={Smartphone} title="eSIM plans are coming soon" sub="We’re adding mobile plans. Check back shortly." testid="esim-empty" />
-      )}
-      {!buying && <div data-testid="esim-page-mobile">
-        <MobileLines noEmpty />
-        <TextingNumberCta testid="esim-texting-number-cta" className="mt-6" />
-      </div>}
+      <MobileLines noEmpty />
+      {buying ? <BuyForm plan={buying} draft={draft?.planId === buying.planId ? draft : null} onCancel={() => { dropDraft(); setBuying(null); }} onDone={(id) => { setFresh(id || null); setBuying(null); reload(); }} /> : <>
+        <WayPicker way={way} setWay={setWay} />
+        {way === 'esim' && (data.plans.length ? <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="esim-plans">{data.plans.map(p => <PlanCard key={p.planId} p={p} onBuy={setBuying} />)}</div>
+          : <Empty icon={Smartphone} title="eSIM plans are coming soon" sub="We’re adding mobile plans. Check back shortly." testid="esim-empty" />)}
+        {way === 'web' && <div data-testid="esim-web-number">{web?.available ? <MobileOffer open onBought={() => nav(cp('/app/numbers?show=texts'))} /> : web ? <p className="civr-card p-5 text-sm text-[var(--c-muted)]" data-testid="esim-web-unavailable">Web texting numbers are not available right now. Please try again later.</p> : <Spinner />}</div>}
+      </>}
     </div>
   );
 }
