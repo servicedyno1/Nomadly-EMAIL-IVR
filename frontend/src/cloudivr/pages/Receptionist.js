@@ -81,11 +81,11 @@ function MessageRow({ m, i, onMark }) {
   );
 }
 
-function Messages() {
+function Messages({ onChange }) {
   const [open, setOpen] = useState(true);
   const { data, loading, error, reload } = useApi(`/ai-receptionist/messages?open=${open ? 1 : 0}`);
   const mark = async (m, handled) => {
-    try { await api(`/ai-receptionist/messages/${enc(m.id)}`, { method: 'PUT', body: { handled } }); toast.success(handled ? 'Marked as done' : 'Reopened'); reload(); } catch (e) { toast.error(e.message); }
+    try { await api(`/ai-receptionist/messages/${enc(m.id)}`, { method: 'PUT', body: { handled } }); toast.success(handled ? 'Marked as done' : 'Reopened'); reload(); onChange?.(); } catch (e) { toast.error(e.message); }
   };
   const list = data?.messages || [];
   return (
@@ -106,7 +106,7 @@ export default function Receptionist() {
   const [params, setParams] = useSearchParams();
   const tab = params.get('tab') || 'receptionists';
   const { data, loading, error, reload } = useApi('/ai-agents');
-  const { data: msgs } = useApi('/ai-receptionist/messages?open=1&limit=1');
+  const { data: msgs, reload: reloadCount } = useApi('/ai-receptionist/messages?open=1&limit=1');
   return (
     <div data-testid="receptionist-page">
       <PageHeader label="Answer calls" title="AI receptionist" sub={`Picks up your number, answers questions, takes messages and books visits. $${data?.receptionRate ?? 0.1}/min from your wallet on any plan; browser tests are free.`} testid="receptionist-header">
@@ -117,7 +117,7 @@ export default function Receptionist() {
         {TABS.map(([id, name]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setParams({ tab: id }, { replace: true })} data-testid={`rec-tab-${id}`} className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#818cf8] text-[#818cf8]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}{id === 'messages' && msgs?.open ? <span className="ml-2 civr-pill civr-pill-warn" data-testid="rec-tab-messages-count">{msgs.open}</span> : null}</button>)}
       </TabStrip>
       <ErrorNote error={error} onRetry={reload} className="mb-4" />
-      {tab === 'messages' ? <Messages /> : tab === 'calls' ? <AiCalls direction="inbound" /> : loading && !data ? <SkeletonRows rows={2} /> : data && <List agents={data.agents} />}
+      {tab === 'messages' ? <Messages onChange={reloadCount} /> : tab === 'calls' ? <AiCalls direction="inbound" /> : loading && !data ? <SkeletonRows rows={2} /> : data && <List agents={data.agents} />}
     </div>
   );
 }

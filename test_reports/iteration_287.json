@@ -1,0 +1,42 @@
+{
+  "summary": "Tested AI Receptionist (separate web page, hours/after-hours, messages inbox, inbound call summaries) and the admin Bird balance estimate, through the API (13/13 pytest pass) and the UI with Playwright. All requested flows work. Found 1 minor functional bug (the Messages tab count pill does not update after Mark done) and a few UX/copy issues. I did not click 'I topped up Bird' because it resets the shared estimate; the invalid-amount path was checked through the API.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/cloudivr-web/ai-agents/:id", "issue": "cleanAgent rebuilds role and hours from the body. A PUT without role/hours (old client, API user, or a future bot path that doesn't spread the agent) silently resets role to 'agent' and hours to null. The web form and bot-receptionist.js send the full agent today, so this is a latent risk only."},
+      {"endpoint": "PUT /api/cloudivr-web/ai-receptionist/messages/:id", "issue": "setHandled matches any aiCalls id of the account, including outbound or test calls that are not messages, and returns 200. Should add MSG_Q to the filter so non-message ids return 404."},
+      {"endpoint": "js/cloudivr-web/emails.js GROUPS", "issue": "aiMessage is grouped under the 'voicemail' preference. Turning off 'New voicemail alerts' also stops AI receptionist message emails, and the email footer says 'Stop voicemail alerts'. Consider a separate preference or clearer copy."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Receptionist tab strip", "issue": "After 'Mark done' the To do filter shows (0), but the Messages tab pill rec-tab-messages-count still shows 1 until the page reloads. The page-level useApi('/ai-receptionist/messages?open=1&limit=1') is not reloaded or updated after mark/reopen.", "selector": "[data-testid='rec-tab-messages-count']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Receptionist edit/new (/app/receptionist/new)", "issues": ["The OpeningPreview still shows 'WHEN IT CALLS A LEAD (SAMPLE NAME \"ALEX\")' with an outbound line. In receptionist mode it should show only the inbound 'when it answers your number' line.", "Copy still says agent: the button reads 'Save agent', the toast says 'Agent saved', and delete asks 'Delete this agent?'. Use 'receptionist' in mode='receptionist'."]},
+      {"screen": "AI calling agents (/app/ai-agents)", "issues": ["The list still shows the 'Front Desk' receptionist (role=receptionist) as a calling agent. Consider filtering out role=receptionist, or adding a 'Receptionist' tag or link, so the two features feel separate."]},
+      {"screen": "Admin overview Bird card", "issues": ["The amount input admin-bird-topup-amount stretches the full card width even though it has w-28 (civr-input width wins), and it has no '$' prefix or label. The button wraps below it."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_ai_receptionist_bird_iter287.py", "/app/test_reports/pytest/iter287.xml"],
+  "action_items": [
+    "Reload or refresh the tab-level open count (msgs) in Receptionist.js after mark/reopen in Messages (e.g. pass an onChange callback, or use the 'open' value returned by the PUT).",
+    "Receptionist mode: hide the outbound opening preview and rename 'Save agent'/'Agent saved'/'Delete this agent' to receptionist wording.",
+    "Restrict setHandled to message-type inbound calls (MSG_Q) so other call ids return 404.",
+    "Optional: keep role/hours on PUT when they are missing from the body (merge with the existing agent).",
+    "Optional: give aiMessage emails their own preference, or rename the voicemail toggle and footer copy.",
+    "Optional: fix the Bird top-up amount input width and add a $ label."
+  ],
+  "critical_code_review_comments": [
+    "store.cleanAgent: role/hours are not partial-update safe (see backend minor).",
+    "bot-receptionist.js setAfter spreads a.hours. If hours is null, validateHours gets an object without timezone/days. Make sure this button only shows when hours exist (static review only).",
+    "bird-spend.check() and birdExtras need BIRD_API_KEY, so the 80% alert never fires when the key is missing (expected). The flush() catch re-adds pending, but the 5s timer is not re-armed after a failed flush, so the retry only happens on the next add()."
+  ],
+  "updated_files": ["/app/backend/tests/test_ai_receptionist_bird_iter287.py"],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "~93% (all requested flows pass; 1 stale count pill)"},
+  "seed_data_creation": "Created TEST_Rec, TEST_Caller (pytest) and TEST_UIRec (UI) agents, all deleted afterwards. seed-rec-msg-1 was marked done then reopened, so it is open again (open=1).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login civr.uxtest@example.com/UxTest#2026 at /cloudivr/login (cookie-allow-all first). Receptionist 'Front Desk' 06e3af06-... (hours Mon only, Europe/Lisbon, voicemail) shows 'Closed now · voicemail'. 'Sales AI' appears in the receptionist list because it answers numbers. Admin login moxxcompany@gmail.com with devCode pre-filled. Bird estimate shows $0 of $50. Topup was not clicked in the UI (it needs a reason and resets the shared state)."
+}

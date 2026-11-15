@@ -66,11 +66,11 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
     e.preventDefault(); setBusy(true); setError(null);
     try {
       const d = await api(f.id ? `/ai-agents/${f.id}` : '/ai-agents', { method: f.id ? 'PUT' : 'POST', body: f });
-      u.reset(); toast.success('Agent saved'); onSaved(d.agent);
+      u.reset(); toast.success(rec ? 'Receptionist saved' : 'Agent saved'); onSaved(d.agent);
     } catch (err) { setError(err); } finally { setBusy(false); }
   };
   const remove = async () => {
-    if (!(await ask('Delete this agent? Numbers using it go back to normal call handling.', { danger: true, ok: 'Delete agent' }))) return;
+    if (!(await ask(`Delete this ${rec ? 'receptionist' : 'agent'}? Numbers using it go back to normal call handling.`, { danger: true, ok: rec ? 'Delete receptionist' : 'Delete agent' }))) return;
     try { await api(`/ai-agents/${f.id}`, { method: 'DELETE' }); toast.success('Agent deleted'); u.reset(); onDeleted(); } catch (err) { toast.error(err.message); }
   };
   return (
@@ -81,7 +81,7 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
         <span className="text-sm">Wait for them to say hello<span className="block text-xs text-[#a1a1aa] mt-0.5">On calls to leads, the agent stays quiet until the person answers (“Hello?”), then speaks. If nobody says anything for 4 seconds, it starts anyway.</span></span>
         <Toggle checked={f.waitForHello !== false} onChange={v => set('waitForHello', v)} testid="ai-agent-wait-hello-toggle" label="Wait for them to say hello" />
       </div>}
-      <OpeningPreview f={f} />
+      <OpeningPreview f={f} inboundOnly={rec} />
       <Field label="Personality & script" hint="What the agent does after the first message, how it talks and what it should find out."><Text f={f} set={set} k="goal" rows={5} ph="Friendly receptionist. Answer questions, book cleanings and get the caller's name and preferred time." testid="ai-agent-goal-input" /></Field>
       <ScriptGuide />
       <Field label="FAQs & facts" hint="Prices, hours, policies — the agent only uses what is here."><Text f={f} set={set} k="knowledge" rows={6} ph={'Q: Are you open Saturday? A: No, Monday–Friday 9am–5pm.\nCleaning: $90.'} testid="ai-agent-knowledge-input" /></Field>
@@ -90,7 +90,7 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
       <BookingFields f={f} set={set} />
       <ErrorNote error={error} testid="ai-agent-form-error" />
       <div className="flex flex-wrap gap-2">
-        <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="ai-agent-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save agent</button>
+        <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="ai-agent-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{rec ? 'Save receptionist' : 'Save agent'}</button>
         {f.id && <button type="button" className="civr-btn civr-btn-danger" onClick={remove} data-testid="ai-agent-delete-button"><Trash2 className="w-4 h-4" />Delete</button>}
         <UnsavedPill show={u.dirty} testid="ai-agent-unsaved-pill" />
       </div>

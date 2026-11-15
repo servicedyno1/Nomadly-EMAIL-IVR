@@ -15,9 +15,9 @@ const { supportLink } = require('./support')
 const T = require('./email-templates')
 const { LIVE_MOBILE, LIVE_TEXTING } = require('./numbers')
 
-const GROUPS = { weekly: 'weekly', campaignDone: 'campaigns', voicemail: 'voicemail', aiMessage: 'voicemail', missed: 'missed' }
+const GROUPS = { weekly: 'weekly', campaignDone: 'campaigns', voicemail: 'voicemail', aiMessage: 'receptionist', missed: 'missed' }
 const OPTIONAL = Object.values(GROUPS)
-const DEFAULTS = { weekly: true, campaigns: true, voicemail: true, missed: true, marketing: false, lowBalanceAt: 10 }
+const DEFAULTS = { weekly: true, campaigns: true, voicemail: true, receptionist: true, missed: true, marketing: false, lowBalanceAt: 10 }
 const LANGS = ['en', 'fr', 'es']
 const EMPTY_AT = 0.5
 const TEXTING_STEPS = ['verify', 'loa', 'documents', 'admin_docs', 'review', 'active', 'rejected', 'failed']

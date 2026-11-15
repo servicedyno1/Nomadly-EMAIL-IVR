@@ -10,6 +10,7 @@ const SWITCHES = [
   ['weekly', 'Weekly summary', 'Monday morning: calls, texts, campaigns and what renews next.'],
   ['campaigns', 'Campaign reports', 'When a Bulk IVR campaign ends: who answered, pressed a key or was transferred.'],
   ['voicemail', 'New voicemail alerts', 'Who called, how long, and the transcript.'],
+  ['receptionist', 'AI receptionist messages', 'Messages and bookings your AI receptionist takes.'],
   ['missed', 'Missed call alerts', 'Call back while they’re still keen.'],
   ['marketing', 'Offers and product news', 'Occasional deals and new services. Off unless you turn it on.'],
 ];

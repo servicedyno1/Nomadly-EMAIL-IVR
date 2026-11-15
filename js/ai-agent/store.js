@@ -87,6 +87,9 @@ async function createAgent(chatId, body) {
 }
 async function updateAgent(chatId, id, body) {
   const clean = cleanAgent(body)
+  // A client that doesn't send role / hours keeps the saved ones.
+  if (body.role === undefined) delete clean.role
+  if (body.hours === undefined) delete clean.hours
   const r = await agents.findOneAndUpdate({ id: String(id), chatId: String(chatId) }, { $set: { ...clean, updatedAt: new Date() } }, { returnDocument: 'after' })
   screenScript({ ...clean, chatId: String(chatId) })
   return r?.value !== undefined ? r.value : r
@@ -106,7 +109,7 @@ function listCalls(chatId, { agentId, campaignId, direction, limit = 30 } = {}) 
 const MSG_Q = (chatId) => ({ chatId: String(chatId), direction: 'inbound', $or: [{ message: { $ne: null } }, { booking: { $ne: null } }, { outcome: { $in: ['message', 'callback'] } }] })
 const listMessages = (chatId, { open = false, limit = 50 } = {}) => calls.find({ ...MSG_Q(chatId), ...(open ? { handledAt: null } : {}) }, { projection: CALL_LIST }).sort({ startedAt: -1 }).limit(Math.min(100, limit)).toArray()
 const countOpenMessages = (chatId) => calls.countDocuments({ ...MSG_Q(chatId), handledAt: null })
-const setHandled = (chatId, id, on) => calls.updateOne({ chatId: String(chatId), id: String(id) }, { $set: { handledAt: on ? new Date() : null } })
+const setHandled = (chatId, id, on) => calls.updateOne({ ...MSG_Q(chatId), id: String(id) }, { $set: { handledAt: on ? new Date() : null } })
 const getCall = (chatId, id) => calls.findOne({ id: String(id), chatId: String(chatId) }, { projection: { _id: 0 } })
 async function testSecondsToday(chatId) {
   const since = new Date(); since.setUTCHours(0, 0, 0, 0)

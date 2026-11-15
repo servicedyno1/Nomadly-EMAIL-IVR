@@ -266,3 +266,7 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 ## Update 2026-11-15 13:30 UTC
 - Low provider balance no longer hides numbers; paid orders queue (pending-orders.js), auto-complete after top-up, refund if number gone or after 48 h; admin Telegram+email; numbers held from other buyers. Spenza eSIM create path covered (buyMobile not yet).
 - All plain CloudIVR transactional emails now use the shared light-card layout; voicemail email shortened.
+
+
+## 2026-11-15 update
+- DONE (preview): AI Receptionist own page/bot menu (hours, after-hours message/voicemail, messages inbox, emails), Bird spend-estimate + daily-limit alerts. NEXT: deploy app-main + port to WhiteLabel brands; then live receptionist call test.

@@ -16,7 +16,7 @@ function Line({ icon: Icon, label, o, testid, extra }) {
 }
 
 // Exactly what the agent says first, rendered by the server from the unsaved form values (debounced).
-export function OpeningPreview({ f }) {
+export function OpeningPreview({ f, inboundOnly }) {
   const [p, setP] = useState(null);
   const [failed, setFailed] = useState(false);
   const { name, businessName, language, firstMessage, greeting, record, discloseAi } = f;
@@ -34,8 +34,8 @@ export function OpeningPreview({ f }) {
   return (
     <div className="rounded-xl border border-[#2a2a2a] bg-[#111] p-4 space-y-3" data-testid="ai-opening-preview">
       <div className="text-xs font-semibold text-[#e4e4e7]">What the agent says first</div>
-      <Line icon={PhoneOutgoing} label={`When it calls a lead (sample name “${p?.sampleLead || 'Alex'}”)`} o={p?.outbound} testid="ai-opening-preview-outbound"
-        extra={p?.outboundNoName && <div className="text-xs text-[#a1a1aa] mt-1" data-testid="ai-opening-preview-noname"><span>Lead without a name:</span> <span data-no-translate>{`“${p.outboundNoName}”`}</span></div>} />
+      {!inboundOnly && <Line icon={PhoneOutgoing} label={`When it calls a lead (sample name “${p?.sampleLead || 'Alex'}”)`} o={p?.outbound} testid="ai-opening-preview-outbound"
+        extra={p?.outboundNoName && <div className="text-xs text-[#a1a1aa] mt-1" data-testid="ai-opening-preview-noname"><span>Lead without a name:</span> <span data-no-translate>{`“${p.outboundNoName}”`}</span></div>} />}
       <Line icon={PhoneIncoming} label="When it answers your number" o={p?.inbound} testid="ai-opening-preview-inbound" />
       {added && <div className="flex gap-2 text-xs text-[#a1a1aa]" data-testid="ai-opening-preview-added-note"><Sparkles className="w-3.5 h-3.5 shrink-0 text-[#fbbf24] mt-0.5" />The AI notice and, on recorded calls, the recording notice are added for you when your text leaves them out. They are required on every call.</div>}
     </div>
