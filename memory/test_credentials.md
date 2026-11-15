@@ -267,4 +267,4 @@
 ## Real provider test numbers (2026-11-14) — never release without owner OK
 - MultiTEL NL mobile +3197010278502 — PROD on onarrival21@gmail.com (chat 5000000000000002); preview copy on civr.uxtest (5000000000000077).
 - Infobip GB SMS-only +447860089499 — preview civr.uxtest. Infobip CA +16479457172 + MultiTEL US +18648308599 = system caller rotation.
-- Owner's test phone for texts: +316844448264 (as given; looks 1 digit long for NL).
+- Owner's test phone for texts: +31684448264 (corrected 2026-11-15; old +316844448264 was wrong) (as given; looks 1 digit long for NL).
