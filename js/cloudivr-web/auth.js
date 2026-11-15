@@ -80,7 +80,11 @@ let mailer = null
 // sender's domain is verified there, otherwise the Brevo API (and, without an own sender, the SMTP relay) as before.
 function sendMail(to, subject, html, attachments, extra) {
   const own = process.env.CLOUDIVR_MAIL_SENDER
-  const mail = { to, subject, html, ...(attachments ? { attachments } : {}), ...(extra || {}) }
+  // Test fixtures (e2e-*@…, @example.*) never get mail: their inboxes bounce or auto-reply into the support inbox.
+  if (/^e2e-|@example\.(com|org|net)$/i.test(String(to || ''))) return Promise.resolve(false)
+  // RFC 3834: tells helpdesks / out-of-office bots not to auto-reply to our automated mail.
+  const headers = { 'Auto-Submitted': 'auto-generated', ...(extra?.headers || {}) }
+  const mail = { to, subject, html, ...(attachments ? { attachments } : {}), ...(extra || {}), headers }
   if (own && process.env.BREVO_API_KEY) return require('../mailer').send({ ...mail, from: { name: 'CloudIVR', email: own } }).then(() => true)
   if (!process.env.MAIL_DOMAIN && !own) return Promise.resolve(false)
   if (!mailer) {
