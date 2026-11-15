@@ -2618,7 +2618,9 @@ async function handleCallInitiated(payload) {
   webEvents().emit(chatId, 'call.started', { number: to, from, direction: 'inbound', callId: callControlId })
 
   // ── AI agent answers (Business, billed per started minute from the wallet; plan minutes untouched) ──
-  if (num.features?.aiAgent?.enabled) {
+  // Forward-always wins over the AI agent: the owner asked for every call to ring their phone.
+  const _fwdAlways = num.features?.callForwarding?.enabled && num.features.callForwarding.mode === 'always' && num.features.callForwarding.forwardTo
+  if (num.features?.aiAgent?.enabled && !_fwdAlways) {
     try { if (await require('./ai-agent').tryInbound({ payload, chatId, num })) return } catch (e) { log(`[AIAgent] inbound error: ${e.message}`) }
   }
 

@@ -538,3 +538,11 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Emails: auth.sendMail wraps plain <p> HTML in email-layout.layout (logo, title=subject, lone link → button). Voicemail email shortened + "Listen in CloudIVR" button.
 - Unit test (stubbed providers, local Mongo): wait while low → complete one, refund the unavailable one ✅. Live low-balance order not exercised.
 - Prod balances 13:30: MultiTEL $11.28 (ok), Infobip 3.01 (low), Spenza 6.38 (low → eSIM orders will queue now).
+
+## 2026-11-15 ~13:50Z — 24 h call log review + fix
+- 54 inbound calls (13:00 Nov 14 → 13:00 Nov 15): most are Bird verification calls (+13614158360) + our tests. Customer traffic: MAZE (5000000000000143) only, plus 2 voicemails on +12029606313 (OK).
+- Pre-fix forward failures (503) all before 04:42 fix; no customer forward since. Post-fix tests connect.
+- NEW bug fixed: MAZE +18332690934 had AI agent ON + forward-always → AI answered ("no_conversation", $0.12 ×2) instead of forwarding. voice-service: forward-always now wins over the AI agent. Live test (AI+fwd-always on +16806811012) → forwarded ✅. Main 68f4bea; WL patched + restarted.
+- Bob's 3 campaigns on 14 Nov stalled ("caller ID +18339850490 not linked on Bird") — old number mid-migration; he cancelled; caller ID now +18883741279 (verified). No recurrence.
+- Noise: SignalWire "No valid devices" 400 on inbound SIP ring attempts (harmless). One "Bird engine offline" during a deploy at 01:42.
+- MAZE refunds pending owner OK: ~$1.80 failed forwards + $0.24 AI calls.
