@@ -154,7 +154,8 @@ function publicVoicemail(vm) {
 
 // What callers get right now, and which settings are skipped because another one answers first.
 function routeSummary(n) {
-  if (n.features?.aiAgent?.enabled && phoneConfig.canAccessFeature(n.plan, 'aiAgent')) return { primary: 'ai_agent', forwardTo: null, skipped: [], brokenIvr: false }
+  const _fa = n.features?.callForwarding
+  if (n.features?.aiAgent?.enabled && phoneConfig.canAccessFeature(n.plan, 'aiAgent') && !(_fa?.enabled && _fa.mode === 'always' && _fa.forwardTo)) return { primary: 'ai_agent', forwardTo: null, skipped: [], brokenIvr: false }
   const rg = n.features?.ringGroup
   if (rg?.enabled && rg.members?.length && phoneConfig.canAccessFeature(n.plan, 'ringGroup')) return { primary: 'ring_group', forwardTo: null, members: rg.members, skipped: [], brokenIvr: false }
   try {
@@ -165,6 +166,9 @@ function routeSummary(n) {
 
 // `numbers` = the owner's lines, so usage shows the shared allowance of the main line + its extra lines.
 function publicNumber(n, numbers) {
+  return { ..._publicNumber(n, numbers), callFlow: require('../call-flow').callFlow(n) }
+}
+function _publicNumber(n, numbers) {
   const plan = phoneConfig.plans[n.plan] || {}
   const pool = lifecycle.poolUsage(numbers || [n], n)
   const poolPlan = phoneConfig.plans[pool.main.plan] || plan
@@ -549,7 +553,11 @@ function routes(router, deps) {
     if (bk.error) return bad(res, 400, 'invalid_backup', bk.error)
     const value = { enabled: mode !== 'disabled', mode, forwardTo: to, ringTimeout, holdMusic: !!req.body.holdMusic, backups: bk.list, showCallerId: !!req.body.showCallerId }
     await setField(req.webChatId, req.num.phoneNumber, 'features.callForwarding', value)
-    res.json({ callForwarding: value })
+    // Only one answers: "forward every call" switches the AI agent off.
+    const ai = req.num.features?.aiAgent
+    const aiAgentTurnedOff = !!(value.enabled && mode === 'always' && ai?.enabled)
+    if (aiAgentTurnedOff) await setField(req.webChatId, req.num.phoneNumber, 'features.aiAgent', { ...ai, enabled: false })
+    res.json({ callForwarding: value, aiAgentTurnedOff })
   }))
 
   // "Ring me in the browser" (Pro+): inbound calls ring the open web app, which answers them by voice (browser phone)
@@ -640,12 +648,15 @@ function routes(router, deps) {
     else if (feature === 'callForwarding') {
       const cf = f.callForwarding || {}
       const live = cf.mode && cf.mode !== 'disabled' ? cf.mode : null
-      await setField(id, phone, 'features.callForwarding', enabled ? { ...cf, enabled: true, mode: live || cf.lastMode || 'always' } : { ...cf, enabled: false, mode: 'disabled', lastMode: live || cf.lastMode || 'always' })
+      const mode = live || cf.lastMode || 'always'
+      await setField(id, phone, 'features.callForwarding', enabled ? { ...cf, enabled: true, mode } : { ...cf, enabled: false, mode: 'disabled', lastMode: mode })
+      if (enabled && mode === 'always' && f.aiAgent?.enabled) { await setField(id, phone, 'features.aiAgent', { ...f.aiAgent, enabled: false }); extra.aiAgentTurnedOff = true }
     } else {
       await setField(id, phone, `features.${feature}`, { ...(f[feature] || {}), enabled })
       // One answers a number: the keypad menu and the AI voice agent are never both on.
       if (enabled && feature === 'ivr' && f.aiAgent?.enabled) { await setField(id, phone, 'features.aiAgent', { ...f.aiAgent, enabled: false }); extra.aiAgentTurnedOff = true }
       if (enabled && feature === 'aiAgent' && f.ivr?.enabled) { await setField(id, phone, 'features.ivr', { ...f.ivr, enabled: false }); extra.ivrTurnedOff = true }
+      if (enabled && feature === 'aiAgent' && f.callForwarding?.enabled && f.callForwarding.mode === 'always') { await setField(id, phone, 'features.callForwarding', { ...f.callForwarding, enabled: false, mode: 'disabled', lastMode: 'always' }); extra.forwardingTurnedOff = true }
     }
     const all = (await phoneNumbersOf.findOne({ _id: id }))?.val?.numbers || []
     res.json({ feature, enabled, ...extra, number: publicNumber(all.find(x => x.phoneNumber === phone) || req.num, all) })

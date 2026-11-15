@@ -193,7 +193,7 @@ export function useSwitch({ num, feature, checked, label, reload, onSaved }) {
     try {
       const d = await api(`/numbers/${enc(num.phoneNumber)}/switch`, { method: 'PATCH', body: { feature, enabled: v } });
       onSaved?.(d);
-      const extra = d.aiAgentTurnedOff ? ' · AI voice agent switched off' : d.ivrTurnedOff ? ' · keypad menu switched off' : '';
+      const extra = d.aiAgentTurnedOff ? ' · AI voice agent switched off' : d.ivrTurnedOff ? ' · keypad menu switched off' : d.forwardingTurnedOff ? ' · forward-every-call switched off' : '';
       toast.success(`${label} ${v ? 'on' : 'off'}${extra}`, { id: `switch:${num.phoneNumber}:${feature}`, ...(undo ? {} : { action: { label: 'Undo', onClick: () => flip(!v, true) } }) });
       reload?.();
     } catch (e) { setOpt(null); toast.error(e.message); } finally { setBusy(false); }

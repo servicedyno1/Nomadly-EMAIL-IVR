@@ -150,7 +150,11 @@ function routes(router, { h, numbersApi }) {
     const ivr = num.features?.ivr
     const ivrTurnedOff = !!(enabled && ivr?.enabled)
     if (ivrTurnedOff) await numbersApi.setField(req.webChatId, num.phoneNumber, 'features.ivr', { ...ivr, enabled: false })
-    res.json({ aiAgent: value, ivrTurnedOff })
+    // …and "forward every call" too: only one can answer.
+    const cf = num.features?.callForwarding
+    const forwardingTurnedOff = !!(enabled && cf?.enabled && cf.mode === 'always')
+    if (forwardingTurnedOff) await numbersApi.setField(req.webChatId, num.phoneNumber, 'features.callForwarding', { ...cf, enabled: false, mode: 'disabled', lastMode: 'always' })
+    res.json({ aiAgent: value, ivrTurnedOff, forwardingTurnedOff })
   }))
 }
 

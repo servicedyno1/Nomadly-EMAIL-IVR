@@ -546,3 +546,10 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Bob's 3 campaigns on 14 Nov stalled ("caller ID +18339850490 not linked on Bird") — old number mid-migration; he cancelled; caller ID now +18883741279 (verified). No recurrence.
 - Noise: SignalWire "No valid devices" 400 on inbound SIP ring attempts (harmless). One "Bird engine offline" during a deploy at 01:42.
 - MAZE refunds pending owner OK: ~$1.80 failed forwards + $0.24 AI calls.
+
+## 2026-11-15 ~14:10Z — AI agent ⟷ forward-always mutually exclusive + call-flow line + carrier note (all brands)
+- Web: PATCH /forwarding (mode always) and switch callForwarding on → AI agent off (aiAgentTurnedOff); PUT /ai-agent and switch aiAgent on → forward-always off (forwardingTurnedOff). Toasts in ui.js, AiAgentTab, AgentNumbers, forwarding Save. Route summary (numbers.js routeOf) no longer says AI answers when forward-always is on.
+- Bot: setting forward-always turns AI agent off + notice. Manage-number message ends with js/call-flow.js callFlow() ("When someone calls: …"). API numbers now include callFlow.
+- Caller-ID: web hint + bot message add "What the other phone displays can vary by its carrier."
+- Data fix: only MAZE +18332690934 had both on → aiAgent.enabled=false (prod main DB).
+- Preview API check: forwarding save returns showCallerId + callFlow ✅; AI-on path not exercised (test account has no AI agent).

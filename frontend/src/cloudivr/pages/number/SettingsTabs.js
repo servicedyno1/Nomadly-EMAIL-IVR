@@ -92,13 +92,13 @@ export function ForwardingTab({ num, reload }) {
         <Field label="Ring time before forwarding (seconds)"><input type="number" min={10} max={60} className="civr-input" value={f.ringTimeout} onChange={e => setF({ ...f, ringTimeout: e.target.value })} data-testid="forwarding-ring-timeout-input" /></Field>
         {f.mode !== 'disabled' && <BackupsField value={f.backups} onChange={v => setF({ ...f, backups: v })} testid="forwarding-backups-input" />}
         <div className="flex items-center justify-between"><span className="text-sm">Play hold music while connecting</span><Toggle checked={f.holdMusic} onChange={v => setF({ ...f, holdMusic: v })} testid="forwarding-hold-music-toggle" label="Play hold music while connecting" /></div>
-        <Field label="Caller ID on forwarded calls" hint={f.showCallerId ? "Shows who is calling on US numbers. Other countries, or if the carrier refuses, show your business number." : "The phone you forward to sees your CloudIVR number."}>
+        <Field label="Caller ID on forwarded calls" hint={(f.showCallerId ? "Shows who is calling on US numbers. Other countries, or if the carrier refuses, show your business number." : "The phone you forward to sees your CloudIVR number.") + " What the other phone displays can vary by its carrier."}>
           <select className="civr-input" value={f.showCallerId ? 'caller' : 'business'} onChange={e => setF({ ...f, showCallerId: e.target.value === 'caller' })} data-testid="forwarding-caller-id-select">
             <option value="business">My business number</option><option value="caller">The caller's number (US only)</option>
           </select>
         </Field>
       </>}
-      <SaveRow dirty={u.dirty} testid="forwarding-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={async () => { if (await save(f)) u.reset(); }} data-testid="forwarding-save-button">Save forwarding</button></SaveRow>
+      <SaveRow dirty={u.dirty} testid="forwarding-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={async () => { if (await save(f, 'PATCH', (r) => (r?.aiAgentTurnedOff ? 'Saved. The AI agent is now off — every call rings your phone.' : 'Saved'))) u.reset(); }} data-testid="forwarding-save-button">Save forwarding</button></SaveRow>
     </Card>
   );
 }

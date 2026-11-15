@@ -31,7 +31,7 @@ export default function AiAgentTab({ num, reload }) {
       {num.features?.ivr?.enabled && <OneAnswerNote testid="number-ai-ivr-note">Your keypad menu answers this number now. Turning the AI voice agent on switches the keypad menu off — a number uses one or the other.</OneAnswerNote>}
       <select className="civr-input" value={agentId} onChange={e => setAgentId(e.target.value)} data-testid="number-ai-agent-select">{agents.map(a => <option key={a.id} value={a.id}>{a.name}{a.businessName ? ` · ${a.businessName}` : ''}</option>)}</select>
       <div className="flex flex-wrap gap-2">
-        <button className="civr-btn civr-btn-primary" disabled={busy} onClick={async () => { if (await save({ enabled, agentId }, 'PUT', (r) => (r?.ivrTurnedOff ? 'Saved. The keypad menu is now off on this number.' : enabled ? 'Saved' : 'Agent saved — flip the switch above to let it answer'))) u.reset(); }} data-testid="number-ai-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save</button>
+        <button className="civr-btn civr-btn-primary" disabled={busy} onClick={async () => { if (await save({ enabled, agentId }, 'PUT', (r) => (r?.forwardingTurnedOff ? 'Saved. Forward-every-call is now off — the AI agent answers.' : r?.ivrTurnedOff ? 'Saved. The keypad menu is now off on this number.' : enabled ? 'Saved' : 'Agent saved — flip the switch above to let it answer'))) u.reset(); }} data-testid="number-ai-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save</button>
         <Link to={cp(`/app/ai-agents/${agentId}`)} className="civr-btn civr-btn-ghost" data-testid="number-ai-edit-agent-link">Edit or test the agent</Link>
         <UnsavedPill show={u.dirty} testid="number-ai-unsaved-pill" />
       </div>

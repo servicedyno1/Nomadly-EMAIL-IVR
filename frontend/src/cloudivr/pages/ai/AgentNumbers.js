@@ -23,7 +23,7 @@ export default function AgentNumbers({ agent, agents = [] }) {
 
   const put = async (phone, body, okMsg) => {
     setBusy(phone);
-    try { const r = await api(`/numbers/${enc(phone)}/ai-agent`, { method: 'PUT', body }); reload(); toast.success(r?.ivrTurnedOff ? `${okMsg} The keypad menu on that number is now off.` : okMsg); }
+    try { const r = await api(`/numbers/${enc(phone)}/ai-agent`, { method: 'PUT', body }); reload(); toast.success(r?.forwardingTurnedOff ? `${okMsg} Forward-every-call on that number is now off.` : r?.ivrTurnedOff ? `${okMsg} The keypad menu on that number is now off.` : okMsg); }
     catch (e) { toast.error(e.message); } finally { setBusy(''); }
   };
 

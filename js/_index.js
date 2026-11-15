@@ -31242,7 +31242,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const subCount = num.isSubNumber ? 0 : allNumbers.filter(n => n.isSubNumber && n.parentNumber === num.phoneNumber && (n.status === 'active' || n.status === 'suspended')).length
     const subLimit = num.isSubNumber ? 0 : phoneConfig.getSubNumberLimit(num.plan)
     const faxNote = faxService.lineOn(num) ? `\n\n${faxService.t(info?.userLanguage).lineOn(num.phoneNumber)}` : ''
-    return send(chatId, cpTxt.manageNumber(num, subCount, subLimit, allNumbers) + faxNote, k.of(buildManageMenu(num, subCount, subLimit)))
+    return send(chatId, cpTxt.manageNumber(num, subCount, subLimit, allNumbers) + `\n\n📞 <i>${require('./call-flow').callFlow(num)}</i>` + faxNote, k.of(buildManageMenu(num, subCount, subLimit)))
   }
 
   // Fax menu for a Business number (re-reads the record so the fax-line state is current).
@@ -32357,7 +32357,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       num.features.callForwarding = value
       await saveInfo('cpActiveNumber', num)
       const btns = [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [value.holdMusic ? pc.holdMusicOn : pc.holdMusicOff], [cidBtn(value)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
-      return send(chatId, value.showCallerId ? "🪪 Forwarded calls to US numbers now show the <b>caller's number</b>. Other countries (or if the carrier refuses) show your business number." : '🪪 Forwarded calls now show <b>your business number</b>.', { parse_mode: 'HTML', ...k.of(btns) })
+      return send(chatId, (value.showCallerId ? "🪪 Forwarded calls to US numbers now show the <b>caller's number</b>. Other countries (or if the carrier refuses) show your business number." : '🪪 Forwarded calls now show <b>your business number</b>.') + '\n<i>What the other phone displays can vary by its carrier.</i>', { parse_mode: 'HTML', ...k.of(btns) })
     }
     // ── Toggle Hold Music ──
     if (message === pc.holdMusicOn || message === pc.holdMusicOff) {
@@ -32517,8 +32517,12 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const existingFwd = num.features?.callForwarding || {}
     const keptBackups = (existingFwd.backups || []).filter(n => n !== forwardTo && n !== num.phoneNumber)
     await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'callForwarding', { enabled: true, mode, forwardTo, ringTimeout: 25, holdMusic: existingFwd.holdMusic || false, showCallerId: !!existingFwd.showCallerId, backups: keptBackups })
-    num.features.callForwarding = { enabled: true, mode, forwardTo, ringTimeout: 25, holdMusic: existingFwd.holdMusic || false, backups: keptBackups }
+    num.features.callForwarding = { enabled: true, mode, forwardTo, ringTimeout: 25, holdMusic: existingFwd.holdMusic || false, showCallerId: !!existingFwd.showCallerId, backups: keptBackups }
+    // Only one answers: "forward every call" switches the AI agent off.
+    let _aiOff = false
+    if (mode === 'always' && num.features?.aiAgent?.enabled) { await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'aiAgent', { ...num.features.aiAgent, enabled: false }); num.features.aiAgent.enabled = false; _aiOff = true }
     await saveInfo('cpActiveNumber', num)
+    if (_aiOff) send(chatId, '🤖 AI agent switched off on this number — every call now rings your phone.')
     const modeLabel = mode === 'always' ? 'Always Forward' : mode === 'busy' ? 'Forward When Busy' : 'Forward If No Answer'
     send(chatId, cpTxt.forwardingUpdated(num.phoneNumber, forwardTo, modeLabel, walletBal), { parse_mode: 'HTML' })
 
