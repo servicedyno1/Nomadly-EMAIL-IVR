@@ -516,3 +516,8 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - New env INFOBIP_SELL=false on all 4 shared envs. infobip.selling() gates searchNumbers/buyNumber; number-catalog ibOn uses selling(). Owned Infobip numbers keep inbound/SMS/voice working (enabled() unchanged).
 - Verified: catalog 174 entries, all multitel (main + voodoo); Infobip search returns 0. Main release b50e5f2; WL overlay patched + restarted. To re-enable Infobip sales: INFOBIP_SELL=true + restart.
 - Risk: MultiTEL balance $11.43 — under $10 provider-health hides MultiTEL → no instant numbers to sell anywhere.
+
+## 2026-11-15 12:53–12:57Z — Outside caller-ID tests (owner approved)
+- multitel-out → owner NL mobile +31684448264 with CLI +12074892004 AND with our own MultiTEL CLI +16806811012: both rejected by MultiTEL, Q.850 cause 21 CALL_REJECTED → MultiTEL termination currently allows US destinations only (not a caller-ID issue). Phone never rang.
+- multitel-out → our Bird-hosted +12074891859 (off-net US) with CLI +31684448264: ANSWERED 14s, but the call didn't reach our app logs, so the caller ID shown on arrival is unconfirmed.
+- On-net (MultiTEL→MultiTEL) passthrough confirmed earlier. Feature NOT built yet.
