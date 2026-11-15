@@ -1,0 +1,46 @@
+{
+  "summary": "Tested CloudIVR invoices & receipts (user API + Wallet UI + admin API/UI), the capacity labels on numbers, and the Home page with 'Recent activity' removed. Core flows work. The pytest file has 17 tests: 15 pass and 2 fail ($0.00 invoices, and numbering that does not follow the issue date). Backend: GET /billing/invoices returns 36 invoices for uxtest. Each has a CIVR-2026-NNNNNN number, the kind 'invoice', the correct seller block, billTo, items, total and paidWith, and no _id. GET /billing/invoices/:id returns 200 for the owner. For Alice it returns 404 not_found, and her list contains none of uxtest's invoices. /admin/invoices returns 401 with no session and with a user session. Signed in as admin (devCode), the list returns 76 invoices, and search by invoice number and by email filters correctly. A regex-like query such as '(.*' is escaped. The capacity object {callsIn, callsOut, texts, fax} is on the list and the detail endpoint. Frontend: the Wallet 'invoices' section shows 36 rows. The View button opens a popup titled 'Invoice CIVR-2026-000071' with the seller address and number, and the words bot/Telegram/chat appear in neither the text nor the HTML. This also works at 390px with no horizontal scroll. Admin tab admin-tab-invoices: the list, search by number (1 result), search by email (3 results) and the print popup all work. Numbers page: number-card-<i>-capacity-* labels are coloured, not truncated, and the page has no horizontal scroll at 390px. number-detail-capacity renders. Home: no dashboard-activity element and no 'Recent activity' text, and no page errors. Not covered: no receipt or credit_note documents exist in the preview DB (all 76 are 'invoice'), so the top-up receipt and refund credit-note paths are untested. The 'Calls out · setting up' (pending) state cannot be produced on dry-run preview numbers.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "invoices.js billTo() / BOT_BILL_TO", "issue": "When no webAccount exists for the chatId (bot users AND deleted/missing web accounts), every invoice is billed to a hard-coded fictitious person 'Zeynep Kaya, İstiklal Caddesi No: 120 ... İstanbul'. 4 live docs already have it (e.g. CIVR-2026-000034, chatId 5000000000000121, a web-range id). Issuing invoices to a made-up named customer is a legal/accounting problem. Confirm this was requested; otherwise use a neutral 'Customer #<id>' with no address.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "invoices.js sync()", "issue": "$0.00 invoices are created. The `!amount` check runs before round2, so charges like $0.004 (Email check · 1 email) become 'Total paid $0.00'. 6 exist for uxtest (CIVR-2026-000059/61/62/65/66/67). Skip the charge when round2(amount) <= 0."},
+      {"endpoint": "invoices.js nextNumber()", "issue": "Numbers are assigned in sync order, not issue-date order. For example, CIVR-2026-000047 (USA eSIM, 12:24) is dated after CIVR-2026-000030 (17:37), and 000016 is dated after 000038-44. Portuguese invoicing expects sequential numbering in date order. Consider issuing the number at charge time, or note it as a known limitation for backfilled docs."},
+      {"endpoint": "invoices.js sync() wallet-topup", "issue": "Reviewed in code only: the shared `transactions` collection is used for any 'wallet-topup' and only status 'failed' is skipped, so pending or expired top-ups (and possibly non-CloudIVR wallet top-ups from the shared bot) would get a 'Paid' receipt. Filter on a confirmed/success status and on CloudIVR scope."},
+      {"endpoint": "invoices vs wallet history", "issue": "Rounding mismatch: History shows '-$0.225' while the invoice shows $0.23 for the same Email check."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Numbers list / number detail (light theme)", "issues": ["The capacity label colours (#34d399, #60a5fa, #f472b6, #fbbf24) are tuned for dark backgrounds. On the white light-theme card the contrast is about 1.7-2.5:1 (Fax amber and Calls in green are hardest to read), which fails WCAG AA. Use darker shades, e.g. emerald-600, blue-600, pink-600, amber-600, when the light theme is on."]},
+      {"screen": "Wallet invoices at 390px", "issues": ["The amount and View button wrap onto a second line. The fixed w-24 right-aligned total leaves an odd indent (the amount starts around x=93). Consider putting the amount and button in a right-aligned row."]},
+      {"screen": "Print / invoice popup", "issues": ["When billTo.name falls back to the email, 'Billed to' shows the email twice."]},
+      {"screen": "Admin Invoices tab", "issues": ["The tab bar wraps ('Admin log' drops to a second line) and the active Invoices tab is pushed off the top edge at 1920px.", "The icon-only print button has no aria-label/title."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_civr_invoices_capacity.py", "/app/backend/tests/civr_admin_invoice_probe.py", "/app/test_reports/pytest/pytest_civr_invoices.xml"],
+  "action_items": [
+    "Decide on BOT_BILL_TO: replace the fictitious 'Zeynep Kaya' bill-to with a neutral customer reference (and handle deleted web accounts)",
+    "Skip invoices whose rounded total is $0.00, and clean up the 6 existing $0 docs",
+    "Make invoice numbering follow the issue date (or assign the number when the charge happens)",
+    "Only issue top-up receipts for confirmed, CloudIVR-scoped top-ups",
+    "Use darker capacity label colours on the light theme for contrast",
+    "Fix the admin tab bar wrapping and add an aria-label to the admin print button"
+  ],
+  "critical_code_review_comments": [
+    "invoices.js:65 the amount check runs before rounding, which creates $0.00 documents",
+    "invoices.js:6/38 a hard-coded fictitious customer identity is used as the default bill-to",
+    "invoices.js:43 the counter is incremented during sync, so the sequence does not follow issue dates; a failed insert after the increment leaves gaps",
+    "invoices.js:64 the transactions query uses createdAt as a Date only; string timestamps would be missed (phoneTransactions handles both)",
+    "invoices.js:85 every GET of the list runs a sync (bounded by `running`, fine); the first boot scans 400 days with a 5000 limit, so older history may be truncated silently"
+  ],
+  "updated_files": ["/app/backend/tests/test_civr_invoices_capacity.py", "/app/backend/tests/civr_admin_invoice_probe.py"],
+  "success_rate": {"backend": "88% (15/17)", "frontend": "100% of the requested flows work (design issues noted)"},
+  "seed_data_creation": "None. Only read-only GETs, plus an admin sign-in session.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Admin sign-in: POST /api/cloudivr-web/admin/login returns devCode on preview, then POST /admin/verify. Run the invoice tests with: cd /app/backend && REACT_APP_BACKEND_URL=... python -m pytest tests/test_civr_invoices_capacity.py -p no:xdist -o addopts=''. The preview DB has 76 invoices, all kind 'invoice'; no receipts or credit notes exist yet. uxtest chatId is 5000000000000077 and Alice's is 5000000000000900. The 'Calls out · setting up' state needs a non-dry-run multitel/infobip number, so it cannot be tested on preview."
+}

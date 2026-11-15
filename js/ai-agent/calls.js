@@ -89,6 +89,7 @@ async function tryInbound({ payload, chatId, num }) {
   if (!cfg?.enabled || !phoneConfig.canAccessFeature(num.plan, 'aiAgent')) return false
   const agent = await store.getAgent(cfg.agentId, chatId)
   if (!agent || agent.disabled || !process.env.APP_OPEN_API_KEY) return false
+  if (agent.answerWhen === 'outside_hours' && store.inOffice(agent.officeHours)) { log(`[AIAgent] ${num.phoneNumber}: office hours — normal routing`); return false }
   const rate = RECEPTION_RATE() + recRate(agent)
   const { usdBal } = await getBalance(deps.walletOf, chatId)
   if (usdBal < rate + committed(chatId)) { log(`[AIAgent] ${num.phoneNumber}: wallet $${usdBal} < $${rate}/min — normal routing`); return false }

@@ -61,8 +61,8 @@ function Row({ c, i }) {
 }
 
 // Every AI conversation: summary, outcome, cost and the full transcript.
-export function AiCalls({ agentId }) {
-  const { data, loading, error, reload } = useApi(`/ai-calls?limit=50${agentId ? `&agentId=${agentId}` : ''}`);
+export function AiCalls({ agentId, direction }) {
+  const { data, loading, error, reload } = useApi(`/ai-calls?limit=50${agentId ? `&agentId=${agentId}` : ''}${direction ? `&direction=${direction}` : ''}`);
   const list = data?.calls || [];
   const pv = usePrivacy();
   const s = useSearch(list, c => (pv.on

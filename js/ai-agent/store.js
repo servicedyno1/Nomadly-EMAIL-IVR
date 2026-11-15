@@ -2,7 +2,8 @@
 // AI agents (per account), their call records and the do-not-call list.
 const crypto = require('crypto')
 const axios = require('axios')
-const { cleanBooking } = require('./booking')
+const { cleanBooking, validZone } = require('./booking')
+const { DateTime } = require('luxon')
 const { LANGS, LANG_NAMES } = require('./languages')
 
 const VOICES = ['marin', 'cedar', 'alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse']
@@ -49,6 +50,20 @@ function init(db, opts = {}) {
 const str = (v, max) => String(v ?? '').trim().slice(0, max)
 const normPhone = (p) => { const d = String(p || '').replace(/[^\d+]/g, ''); return d ? (d.startsWith('+') ? d : `+${d}`) : '' }
 
+// Receptionist office hours: outside them (or always) the receptionist answers; inside, normal call handling.
+const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/
+const OFFICE = { days: [1, 2, 3, 4, 5], start: '09:00', end: '17:00', timeZone: 'America/New_York' }
+function cleanOffice(o) {
+  if (!o || typeof o !== 'object') return { ...OFFICE }
+  const start = HHMM.test(o.start) ? o.start : OFFICE.start, end = HHMM.test(o.end) ? o.end : OFFICE.end
+  const days = [...new Set((Array.isArray(o.days) ? o.days : OFFICE.days).map(Number).filter(d => d >= 1 && d <= 7))].sort()
+  return { days, start, end, timeZone: validZone(o.timeZone) ? o.timeZone : OFFICE.timeZone }
+}
+function inOffice(o, now = DateTime.now()) {
+  const h = cleanOffice(o), t = now.setZone(h.timeZone), hm = t.toFormat('HH:mm')
+  return h.days.includes(t.weekday) && hm >= h.start && hm < h.end
+}
+
 function cleanAgent(b) {
   const name = str(b.name, 40), goal = str(b.goal, 4000)
   if (!name) throw new Error('Give the agent a name.')
@@ -62,11 +77,12 @@ function cleanAgent(b) {
     transferTo: transferTo || null, takeMessages: b.takeMessages !== false,
     maxMinutes: Math.min(15, Math.max(1, parseInt(b.maxMinutes, 10) || 5)),
     record: b.record !== false, discloseAi: b.discloseAi !== false, booking: cleanBooking(b.booking),
+    role: b.role === 'receptionist' ? 'receptionist' : 'caller', answerWhen: b.answerWhen === 'outside_hours' ? 'outside_hours' : 'always', officeHours: cleanOffice(b.officeHours),
   }
 }
-const FIELDS = ['id', 'name', 'goal', 'businessName', 'greeting', 'firstMessage', 'waitForHello', 'knowledge', 'language', 'voice', 'transferTo', 'takeMessages', 'maxMinutes', 'record', 'discloseAi', 'booking', 'createdAt', 'updatedAt']
+const FIELDS = ['id', 'name', 'goal', 'businessName', 'greeting', 'firstMessage', 'waitForHello', 'knowledge', 'language', 'voice', 'transferTo', 'takeMessages', 'maxMinutes', 'record', 'discloseAi', 'booking', 'role', 'answerWhen', 'officeHours', 'createdAt', 'updatedAt']
 // Agents saved before recording/booking existed: recording on (owner default), booking off.
-const publicAgent = (a) => ({ ...Object.fromEntries(FIELDS.map(k => [k, a[k] ?? null])), firstMessage: a.firstMessage || '', waitForHello: a.waitForHello !== false, record: a.record !== false, discloseAi: a.discloseAi !== false, booking: cleanBooking(a.booking) })
+const publicAgent = (a) => ({ ...Object.fromEntries(FIELDS.map(k => [k, a[k] ?? null])), firstMessage: a.firstMessage || '', waitForHello: a.waitForHello !== false, record: a.record !== false, discloseAi: a.discloseAi !== false, booking: cleanBooking(a.booking), role: a.role || null, answerWhen: a.answerWhen || 'always', officeHours: cleanOffice(a.officeHours) })
 
 const listAgents = (chatId) => agents.find({ chatId: String(chatId) }).sort({ createdAt: -1 }).limit(50).toArray()
 const getAgent = (id, chatId) => (id ? agents.findOne({ id: String(id), chatId: String(chatId) }) : null)
@@ -86,11 +102,23 @@ const deleteAgent = (chatId, id) => agents.deleteOne({ id: String(id), chatId: S
 
 const saveCall = (doc) => calls.insertOne({ id: crypto.randomUUID(), ...doc })
 const CALL_LIST = { transcript: 0, _id: 0 }
-function listCalls(chatId, { agentId, campaignId, limit = 30 } = {}) {
+function listCalls(chatId, { agentId, campaignId, direction, limit = 30 } = {}) {
   const q = { chatId: String(chatId) }
+  if (['inbound', 'outbound', 'test'].includes(direction)) q.direction = direction
   if (agentId) q.agentId = String(agentId)
   if (campaignId) q.campaignId = String(campaignId)
   return calls.find(q, { projection: CALL_LIST }).sort({ startedAt: -1 }).limit(Math.min(100, limit)).toArray()
+}
+const setHandled = (chatId, id, on) => calls.updateOne({ id: String(id), chatId: String(chatId) }, on ? { $set: { handledAt: new Date() } } : { $unset: { handledAt: '' } })
+// Receptionist overview: last-30-day totals, open messages / callbacks, and upcoming bookings from answered calls.
+async function reception(chatId, now = new Date()) {
+  const since = new Date(now - 30 * 864e5), q = { chatId: String(chatId), direction: 'inbound' }
+  const [agg] = await calls.aggregate([{ $match: { ...q, startedAt: { $gte: since } } }, { $group: { _id: null, calls: { $sum: 1 }, seconds: { $sum: '$duration' }, spend: { $sum: '$charge' },
+    messages: { $sum: { $cond: [{ $in: ['$outcome', ['message', 'callback']] }, 1, 0] } }, booked: { $sum: { $cond: [{ $eq: ['$outcome', 'booked'] }, 1, 0] } }, transferred: { $sum: { $cond: [{ $eq: ['$outcome', 'transferred'] }, 1, 0] } } } }]).toArray()
+  const inbox = await calls.find({ ...q, handledAt: { $exists: false }, $or: [{ outcome: { $in: ['message', 'callback'] } }, { message: { $ne: null } }] }, { projection: CALL_LIST }).sort({ startedAt: -1 }).limit(50).toArray()
+  const upcoming = await calls.find({ ...q, 'booking.end': { $gte: now.toISOString() } }, { projection: CALL_LIST }).sort({ 'booking.start': 1 }).limit(20).toArray()
+  const { _id, ...stats } = agg || { calls: 0, seconds: 0, spend: 0, messages: 0, booked: 0, transferred: 0 }
+  return { stats: { ...stats, spend: +(stats.spend || 0).toFixed(2) }, inbox, upcoming }
 }
 const getCall = (chatId, id) => calls.findOne({ id: String(id), chatId: String(chatId) }, { projection: { _id: 0 } })
 async function testSecondsToday(chatId) {
@@ -127,5 +155,5 @@ async function summarize(transcript, agent) {
 
 module.exports = { flagOf,
   init, VOICES, LANGS, LANG_NAMES, OUTCOMES, normPhone, cleanAgent, publicAgent, listAgents, getAgent, createAgent, updateAgent, deleteAgent,
-  saveCall, listCalls, getCall, testSecondsToday, addDnc, removeDnc, listDnc, onDnc, countDnc, summarize,
+  saveCall, listCalls, getCall, setHandled, reception, cleanOffice, inOffice, testSecondsToday, addDnc, removeDnc, listDnc, onDnc, countDnc, summarize,
 }

@@ -1,6 +1,6 @@
 // Printable CloudIVR invoice / receipt (the browser's print dialog can save it as PDF).
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const usd = (n) => `$${Number(n || 0).toFixed(2)}`;
+const usd = (n) => { const v = Number(n || 0); return `$${v > 0 && v < 0.01 ? v.toFixed(4).replace(/0+$/, '') : v.toFixed(2)}`; };
 export const KIND = { invoice: 'Invoice', receipt: 'Receipt', credit_note: 'Credit note' };
 
 export function printInvoice(inv) {
@@ -21,9 +21,9 @@ export function printInvoice(inv) {
   .foot{margin-top:40px;font-size:12px;color:#94a3b8}@media print{body{padding:24px}}</style></head><body>
   <div class="top"><div><div class="brand">Cloud<span>IVR</span></div><div class="muted">${esc(s.site || 'cloudivr.net')}<br>${esc(s.address || '')}</div></div>
   <div class="meta"><h1>${esc(KIND[inv.kind] || 'Invoice')}</h1><div class="muted">No. <b>${esc(inv.number)}</b><br>Date ${esc(date)}</div></div></div>
-  <div class="cols"><div><div class="lbl">Billed to</div><div><b>${esc(b.name || '')}</b></div><div class="muted">${esc(b.email || '')}${b.email && b.address ? '<br>' : ''}${esc(b.address || '')}${b.vat ? `<br>VAT ${esc(b.vat)}` : ''}</div></div>
+  <div class="cols"><div><div class="lbl">Billed to</div><div><b>${esc(b.name || b.email || '')}</b></div><div class="muted">${b.name ? esc(b.email || '') : ''}${b.name && b.email && b.address ? '<br>' : ''}${esc(b.address || '')}${b.vat ? `<br>VAT ${esc(b.vat)}` : ''}</div></div>
   <div><div class="lbl">Payment</div><div>${esc(inv.paidWith || '')}</div><div class="muted">${esc(inv.currency || 'USD')}</div></div></div>
-  <table><thead><tr><th>Description</th><th class="r">Amount</th></tr></thead><tbody>${rows}<tr class="tot"><td>${inv.kind === 'credit_note' ? 'Total refunded' : 'Total paid'}</td><td class="r">${usd(inv.total)}</td></tr></tbody></table>
+  ${inv.title ? `<div class="lbl">Statement</div><div style="margin-bottom:12px"><b>${esc(inv.title)}</b></div>` : ''}<table><thead><tr><th>Description</th><th class="r">Amount</th></tr></thead><tbody>${rows}<tr class="tot"><td>${inv.kind === 'credit_note' ? 'Total refunded' : 'Total paid'}</td><td class="r">${usd(inv.total)}</td></tr></tbody></table>
   <div class="stamp">${inv.kind === 'credit_note' ? 'Refunded' : 'Paid'}</div>
   <div class="foot">Thank you for choosing CloudIVR · ${esc(s.site || 'cloudivr.net')}</div>
   <script>setTimeout(function(){print()},350)</script></body></html>`);

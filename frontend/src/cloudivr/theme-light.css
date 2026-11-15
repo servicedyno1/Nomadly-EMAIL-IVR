@@ -1,6 +1,7 @@
 /* In-app light mode: html[data-civr-theme="light"] is set by ThemeRoot (app shell only). Variables first, then the
    few hand-written dark surfaces, then a generated map for the dark Tailwind colour classes used across the app. */
 html[data-civr-theme="light"] .civr {
+  --cap-in: #059669; --cap-out: #2563eb; --cap-text: #db2777; --cap-fax: #b45309;
   --c-bg: #f7f8fb;
   --c-card: #ffffff;
   --c-card-hover: #f8fafc;
@@ -166,3 +167,6 @@ html[data-civr-theme="light"] .civr aside.civr-side .civr-side-rule { border-col
 html[data-civr-theme="light"] .civr aside.civr-side .civr-nav-sub { color: #475569; background: #f1f5f9; border-color: #e2e8f0; }
 html[data-civr-theme="light"] .civr aside.civr-side .civr-nav-link.active .civr-nav-sub { color: #1d4ed8; background: #dbeafe; }
 html[data-civr-theme="light"] .civr aside.civr-side .civr-side-search { background: #f8fafc; border-color: #e2e8f0; color: #64748b; }
+
+/* Number capacity labels: darker shades for readable contrast on light cards. */
+html[data-civr-theme="light"] .civr { --cap-in: #047857; --cap-out: #1d4ed8; --cap-text: #be185d; --cap-fax: #b45309; }
