@@ -15,7 +15,7 @@ const { supportLink } = require('./support')
 const T = require('./email-templates')
 const { LIVE_MOBILE, LIVE_TEXTING } = require('./numbers')
 
-const GROUPS = { weekly: 'weekly', campaignDone: 'campaigns', voicemail: 'voicemail', missed: 'missed' }
+const GROUPS = { weekly: 'weekly', campaignDone: 'campaigns', voicemail: 'voicemail', aiMessage: 'voicemail', missed: 'missed' }
 const OPTIONAL = Object.values(GROUPS)
 const DEFAULTS = { weekly: true, campaigns: true, voicemail: true, missed: true, marketing: false, lowBalanceAt: 10 }
 const LANGS = ['en', 'fr', 'es']
@@ -186,6 +186,11 @@ function createEmails(db, { log = console.log } = {}) {
       }
     }
     for (const [to, j] of missed) jobs.push({ ...j, data: async (items) => ({ to, calls: items.map(i => ({ from: i.from, at: i.at })) }) })
+    // AI receptionist: a caller left a message or booked a visit.
+    const aiq = { direction: 'inbound', endedAt: { $gte: from }, $or: [{ message: { $ne: null } }, { booking: { $ne: null } }] }
+    for (const c of await db.collection('aiCalls').find(aiq, { projection: { id: 1, chatId: 1, agentName: 1, number: 1, other: 1, message: 1, booking: 1, summary: 1 } }).toArray()) {
+      if (isWebChatId(c.chatId)) jobs.push({ chatId: String(c.chatId), type: 'aiMessage', key: `aimsg:${c.id}`, data: async () => ({ agent: c.agentName, from: c.other, to: c.number, message: c.message || null, booking: c.booking ? { day: c.booking.day, time: c.booking.time } : null, summary: c.summary || null }) })
+    }
     return jobs
   }
 
@@ -377,6 +382,7 @@ function createEmails(db, { log = console.log } = {}) {
       case 'depositNudge': return { amount: 50, coin: 'USDT', phone: null, link: '/app/wallet', stage: 1 }
       case 'campaignDone': return { id: 'sample', name: 'Spring offer', callerId: phone, cancelled: false, mode: 'transfer', duration: 1460, rate: 47, notDialed: 0, stats: { total: 250, answered: 118, keyPressed: 64, transferred: 21, noAnswer: 96, hungUp: 12, voicemail: 9, voicemailLeft: 7, busy: 6, failed: 9 }, engagement: { called: 250, total: 250, reached: 118, listened: 71, voicemails: 7, hot: 64, people: 125, listenPct: 60, unanswered: 102, spent: 37.5, perPerson: 0.3, perHot: 0.59, bestHour: { hour: 11, reached: 34 }, bestArea: { area: '415', pct: 58 } } }
       case 'voicemail': return { from: '+14155550122', to: phone, duration: 38, transcript: 'Hi, it’s Dana from Lakeside Realty — calling about the listing on Elm Street. Call me back when you get a minute.' }
+      case 'aiMessage': return { agent: 'Ava', from: '+14155550122', to: phone, message: { name: 'Dana', callback: '+14155550122', text: 'Can someone call me back about a cleaning next week? Mornings are best.' }, booking: null, summary: null }
       case 'missed': return { to: phone, calls: [{ from: '+14155550122', at: at(-20 * 60000) }, { from: '+447700900123', at: at(-5 * 60000) }] }
       case 'weekly': return weeklyFor(chatId, list.length ? list : [n])
       case 'textingStep': return { id: 'sample', step: 'review', phone: '+12125550123', expectedBy: at(3 * DAY), monthly: 50, nextBillAt: at(30 * DAY), note: null, refund: 0 }

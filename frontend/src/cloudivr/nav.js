@@ -11,7 +11,7 @@ export const NAV = [
     ['quick-call', 'Quick call', PhoneOutgoing, 'nav-calls'], ['answer/forwarding', 'Call forwarding & voicemail', PhoneForwarded, 'nav-answer-forwarding'], ['answer/ivr', 'Keypad menus', Workflow, 'nav-answer-ivr', 'IVR'],
     ['campaigns', 'Bulk campaigns', Megaphone, 'nav-campaigns', 'IVR'], ['text-call', 'Text-to-voice call', Captions, 'nav-text-call'], ['sip', 'Softphone logins', KeyRound, 'nav-sip', 'SIP'], ['#phone', 'Browser phone', Headphones, 'nav-browser-phone'],
   ]],
-  ['ai', 'AI', [['ai-agents?use=inbound', 'AI receptionist', BotMessageSquare, 'nav-ai-receptionist'], ['ai-agents', 'AI calling agents', Bot, 'nav-ai-agents']]],
+  ['ai', 'AI', [['receptionist', 'AI receptionist', BotMessageSquare, 'nav-ai-receptionist'], ['ai-agents', 'AI calling agents', Bot, 'nav-ai-agents']]],
   ['messaging', 'Texting', [
     ['texting-number', 'USA Texting Number', MessageSquare, 'nav-texting-number'], ['international-texting', 'International Texting', Globe, 'nav-international-texting', 'Soon'], ['texting', 'Landline texting', MessageSquareText, 'nav-texting', 'Soon'],
   ]],
@@ -26,7 +26,6 @@ export const NAV_ITEMS = SIDE_ITEMS.filter(it => it[0] !== '#phone');
 export const appPath = (to) => cp(to ? `/app/${to}` : '/app');
 
 const under = (pathname, p) => pathname === p || pathname.startsWith(`${p}/`);
-const purposeOf = (search) => new URLSearchParams(search || '').get('use');
 // Old pages that now live under a menu item (orders → Get a number, verification → My numbers).
 const ALSO = { buy: ['orders'], numbers: ['verification'] };
 
@@ -34,11 +33,7 @@ export function isSideActive(item, pathname, search = '') {
   const [to] = item;
   if (to === '#phone') return false;
   if (to === '') return pathname === appPath('');
-  const [path, q] = to.split('?');
-  if (path === 'ai-agents') {
-    if (!under(pathname, appPath('ai-agents'))) return false;
-    return q ? purposeOf(search) === 'inbound' : purposeOf(search) !== 'inbound';
-  }
+  const [path] = to.split('?');
   return [path, ...(ALSO[path] || [])].some(p => under(pathname, appPath(p)));
 }
 

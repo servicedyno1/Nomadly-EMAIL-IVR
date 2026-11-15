@@ -94,6 +94,7 @@ function createTravelEsim({ db, h, walletOps, notify, notifyAdmin = () => {}, lo
       const id = `tes_${crypto.randomUUID().slice(0, 12)}`, idemKey = `cloudivr-${id}`
       const doc = { _id: id, chatId: req.webChatId, offerId: offer.id, name: offer.name, zone: offer.zone, code: offer.code || null, gb: offer.gb, days: offer.days, price, cost, idemKey, status: 'processing', createdAt: new Date(), ...(dryRun() ? { dryRun: true } : {}) }
       await col.insertOne(doc)
+      if (!dryRun()) require('../bird-spend').esim(cost)
       await db.collection('transactions').insertOne({ _id: `travel-esim-${id}`, chatId: String(req.webChatId), type: 'travel-esim', amount: price, currency: 'USD', status: 'completed', ref: offer.name, createdAt: new Date() })
       if (dryRun()) {
         const set = { status: 'active', completedAt: new Date(), install: { qr: null, activationCode: 'LPA:1$preview.example$PREVIEW-ONLY', smdp: 'preview.example', ios: null, android: null, apn: null, roaming: true } }

@@ -156,6 +156,14 @@ const en = {
     noText: 'No transcript for this one — give it a listen in the app.',
     cta: () => 'Listen now',
   },
+  aiMessage: {
+    subject: (d) => (d.booking ? `New booking from ${d.from}` : `New message from ${d.from}`),
+    preheader: (d) => (d.message?.text ? `“${d.message.text.slice(0, 90)}”` : d.summary || `Your AI receptionist took a call on ${d.to}`),
+    eyebrow: 'AI receptionist', title: (d) => (d.booking ? 'A caller booked a visit.' : 'A caller left a message.'),
+    intro: (d) => `${d.agent || 'Your AI receptionist'} answered ${d.from} on ${d.to}.`,
+    name: 'Name', callback: 'Call back on', booked: 'Booked',
+    cta: () => 'Open messages',
+  },
   missed: {
     subject: (d) => (d.calls.length > 1 ? `${d.calls.length} missed calls on ${d.to}` : `Missed call from ${d.calls[0].from}`),
     preheader: () => 'Call back while they’re still thinking about you.',
@@ -344,6 +352,14 @@ const fr = {
     noText: 'Pas de transcription pour celui-ci — écoutez-le dans l’application.',
     cta: () => 'Écouter maintenant',
   },
+  aiMessage: {
+    subject: (d) => (d.booking ? `Nouveau rendez-vous de ${d.from}` : `Nouveau message de ${d.from}`),
+    preheader: (d) => (d.message?.text ? `« ${d.message.text.slice(0, 90)} »` : d.summary || `Votre réceptionniste IA a pris un appel sur ${d.to}`),
+    eyebrow: 'Réceptionniste IA', title: (d) => (d.booking ? 'Un appelant a pris rendez-vous.' : 'Un appelant a laissé un message.'),
+    intro: (d) => `${d.agent || 'Votre réceptionniste IA'} a répondu à ${d.from} sur ${d.to}.`,
+    name: 'Nom', callback: 'Rappeler au', booked: 'Rendez-vous',
+    cta: () => 'Ouvrir les messages',
+  },
   missed: {
     subject: (d) => (d.calls.length > 1 ? `${d.calls.length} appels manqués sur ${d.to}` : `Appel manqué de ${d.calls[0].from}`),
     preheader: () => 'Rappelez pendant qu’ils pensent encore à vous.',
@@ -531,6 +547,14 @@ const es = {
     intro: (d, f) => `${d.from} dejó un mensaje de ${f.dur(d.duration)} en ${d.to}.`,
     noText: 'Este no tiene transcripción — escúchalo en la app.',
     cta: () => 'Escuchar ahora',
+  },
+  aiMessage: {
+    subject: (d) => (d.booking ? `Nueva cita de ${d.from}` : `Nuevo mensaje de ${d.from}`),
+    preheader: (d) => (d.message?.text ? `«${d.message.text.slice(0, 90)}»` : d.summary || `Tu recepcionista IA atendió una llamada en ${d.to}`),
+    eyebrow: 'Recepcionista IA', title: (d) => (d.booking ? 'Alguien reservó una cita.' : 'Alguien dejó un mensaje.'),
+    intro: (d) => `${d.agent || 'Tu recepcionista IA'} atendió a ${d.from} en ${d.to}.`,
+    name: 'Nombre', callback: 'Devolver la llamada al', booked: 'Cita',
+    cta: () => 'Abrir mensajes',
   },
   missed: {
     subject: (d) => (d.calls.length > 1 ? `${d.calls.length} llamadas perdidas en ${d.to}` : `Llamada perdida de ${d.calls[0].from}`),

@@ -54,6 +54,7 @@ async function lookup(number, { bulk = false } = {}) {
   const n = e164(number)
   try {
     const r = await limited(() => req('post', '/lookup/phone-number', { phone_number: n }, { 'Idempotency-Key': `lk-${n}-${new Date().toISOString().slice(0, 10)}` }), bulk)
+    require('../bird-spend').lookup()
     return { valid: r.line_type !== 'unknown' || !!r.network_info?.carrier_name, country: r.country_code || 'unknown', carrier: r.network_info?.carrier_name || 'unknown', type: LINE[r.line_type] || r.line_type || 'unknown', ported: (r.flags || []).includes('ported'), _provider: 'bird' }
   } catch (e) {
     if (e.response?.data?.error?.code === 'E22000') return { valid: false, country: 'unknown', carrier: 'unknown', type: 'invalid', _provider: 'bird' }
@@ -66,6 +67,7 @@ async function lookupEmail(email) {
   if (!enabled()) return null
   try {
     const r = await limited(() => req('post', '/lookup/email', { email }, { 'Idempotency-Key': `le-${email}-${new Date().toISOString().slice(0, 10)}` }))
+    require('../bird-spend').emailLookup()
     return { result: r.result || 'unknown', valid: !!r.valid, confidence: Number(r.delivery_confidence) || 0, flags: r.flags || [] }
   } catch (e) { log('lookupEmail:', errOf(e)); return null }
 }
@@ -77,6 +79,7 @@ async function lookupEmails(emails) {
   for (let i = 0; i < emails.length; i += 1000) {
     const part = emails.slice(i, i + 1000)
     const r = await limited(() => req('post', '/lookup/email/batch', { emails: part }), true).catch(e => { log('lookupEmails:', errOf(e)); return null })
+    if (r) require('../bird-spend').emailLookup(part.length)
     const by = new Map((r?.data || r?.results || []).map(x => [String(x.email).toLowerCase(), x]))
     for (const e of part) { const x = by.get(e); out.push(x ? { result: x.result || 'unknown', valid: !!x.valid, confidence: Number(x.delivery_confidence) || 0, flags: x.flags || [] } : null) }
   }

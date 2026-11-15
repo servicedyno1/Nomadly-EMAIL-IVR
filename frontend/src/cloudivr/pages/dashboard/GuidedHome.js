@@ -12,13 +12,13 @@ const TASKS = [
     ['Pick a country and the number you like', '/app/buy'], ['Choose a plan — every plan calls and texts from your browser', '/app/buy'], ['Pay from your wallet or with crypto', '/app/wallet']]],
   ['answer', PhoneIncoming, 'Answer my calls', 'A keypad menu, forwarding to your phone, or an AI receptionist.', [
     ['Pick the number callers will dial', '/app/numbers'], ['Keypad menu — "press 1 for sales"', '/app/answer/ivr'], ['…or forward to your phone, with voicemail', '/app/answer/forwarding'],
-    ['…or let an AI receptionist pick up', '/app/ai-agents?use=inbound'], ['Test it: call your number from the browser phone', 'phone']]],
+    ['…or let an AI receptionist pick up', '/app/receptionist'], ['Test it: call your number from the browser phone', 'phone']]],
   ['leads', Megaphone, 'Call a list of leads', 'Bulk voice campaigns with press-1 transfer to you.', [
     ['Add or upload your contacts', '/app/contacts'], ['Record or pick the message they hear', '/app/audio'], ['Start the campaign and watch it live', '/app/campaigns/new']]],
   ['texts', MessageSquareText, 'Send texts', 'Text customers from CloudIVR.', [
     ['Order a Texting Number — send and receive texts right here', '/app/texting-number'], ['…or add texting to a number you already have', '/app/texting'], ['Open Messages and send your first text', '/app/messages']]],
   ['agent', Bot, 'Set up an AI agent', 'An AI that answers or calls, in 20 languages.', [
-    ['Create the agent and give it a script', '/app/ai-agents/new'], ['Talk to it in your browser — free', '/app/ai-agents'], ['Give it its own number to answer', '/app/ai-agents?use=inbound']]],
+    ['Create the agent and give it a script', '/app/ai-agents/new'], ['Talk to it in your browser — free', '/app/ai-agents'], ['Give it its own number to answer', '/app/receptionist']]],
   ['connect', KeyRound, 'Connect my phone or softphone', 'Use your number in Zoiper, a desk phone or the browser.', [
     ['Create a softphone (SIP) login', '/app/sip'], ['Or open the browser phone right now', 'phone'], ['Want a real mobile line? Get an eSIM', '/app/esim']]],
 ];

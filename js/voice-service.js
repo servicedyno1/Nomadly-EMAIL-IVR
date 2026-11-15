@@ -2620,8 +2620,9 @@ async function handleCallInitiated(payload) {
   // ── AI agent answers (Business, billed per started minute from the wallet; plan minutes untouched) ──
   // Forward-always wins over the AI agent: the owner asked for every call to ring their phone.
   const _fwdAlways = num.features?.callForwarding?.enabled && num.features.callForwarding.mode === 'always' && num.features.callForwarding.forwardTo
+  let _aiClosed = false
   if (num.features?.aiAgent?.enabled && !_fwdAlways) {
-    try { if (await require('./ai-agent').tryInbound({ payload, chatId, num })) return } catch (e) { log(`[AIAgent] inbound error: ${e.message}`) }
+    try { const r = await require('./ai-agent').tryInbound({ payload, chatId, num }); if (r === 'voicemail') _aiClosed = true; else if (r) return } catch (e) { log(`[AIAgent] inbound error: ${e.message}`) }
   }
 
   const _freeTestRing = require('./test-my-number').isFreeTestRing(from, to)
@@ -2671,7 +2672,9 @@ async function handleCallInitiated(payload) {
     isTestCall: _freeTestRing,
     recordingEnabled: num.features?.recording === true && canAccessFeature(num.plan, 'callRecording'),
     // On/off hours (CloudIVR web): outside the hours the number doesn't ring (voicemail / message / backups) — see routeOffHours.
-    offHours: !!(num.features?.hours?.enabled && !numberHours.isOpen(num.features.hours)),
+    offHours: _aiClosed || !!(num.features?.hours?.enabled && !numberHours.isOpen(num.features.hours)),
+    // AI receptionist closed + "send to voicemail": straight to voicemail (no backups, no closed-message choice).
+    aiClosed: _aiClosed,
   }
 
   // ── MID-CALL LIMIT MONITOR ──
@@ -4011,7 +4014,7 @@ const OFF_HOURS_RING_SECS = 20
 async function routeOffHours(callControlId, session) {
   const { num, chatId, to, from } = session
   const hrs = num.features?.hours || {}
-  const fwd = hrs.offAction === 'forward' ? [...new Set(hrs.offForward || [])].filter(n => n && n !== to && n !== from && !dialGuard.classifyDial(n).blocked).slice(0, 5) : []
+  const fwd = !session.aiClosed && hrs.offAction === 'forward' ? [...new Set(hrs.offForward || [])].filter(n => n && n !== to && n !== from && !dialGuard.classifyDial(n).blocked).slice(0, 5) : []
   if (fwd.length && _walletOf) {
     const { usdBal } = await getBalance(_walletOf, chatId).catch(() => ({ usdBal: CALL_FORWARDING_RATE_MIN }))
     if (usdBal < CALL_FORWARDING_RATE_MIN) { log(`[Voice] Off-hours forward wallet check: $${usdBal} < $${CALL_FORWARDING_RATE_MIN} — not forwarding`); fwd.length = 0 }
@@ -4030,7 +4033,7 @@ async function routeOffHours(callControlId, session) {
 // Voicemail or the closed message (also after none of the off-hours backup numbers answered).
 async function offHoursEnd(callControlId, session) {
   const { num, chatId, to, from } = session
-  const hrs = num.features?.hours || {}
+  const hrs = session.aiClosed ? { offAction: 'voicemail', timezone: 'receptionist hours' } : num.features?.hours || {}
   const vm = num.features?.voicemail || {}
   const lang = vm.language || 'en'
   const toVoicemail = hrs.offAction !== 'message' && canAccessFeature(num.plan, 'voicemail')

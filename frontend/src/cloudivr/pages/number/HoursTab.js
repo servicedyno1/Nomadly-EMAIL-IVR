@@ -4,14 +4,14 @@ import { api, enc } from '../../api';
 import { Field, Toggle } from '../../ui';
 import { useUnsaved, SaveRow } from '../../guard';
 
-const DAYS = [['mon', 'Mon'], ['tue', 'Tue'], ['wed', 'Wed'], ['thu', 'Thu'], ['fri', 'Fri'], ['sat', 'Sat'], ['sun', 'Sun']];
+export const DAYS = [['mon', 'Mon'], ['tue', 'Tue'], ['wed', 'Wed'], ['thu', 'Thu'], ['fri', 'Fri'], ['sat', 'Sat'], ['sun', 'Sun']];
 const browserZone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch (_) { return 'UTC'; } };
-const ALL_ZONES = (() => { try { return Intl.supportedValuesOf('timeZone'); } catch (_) { return []; } })();
+export const ALL_ZONES = (() => { try { return Intl.supportedValuesOf('timeZone'); } catch (_) { return []; } })();
 
 // A schedule that was never switched on starts in the browser's time zone.
 const initial = (h) => ({ ...h, timezone: !h.enabled && h.timezone === 'UTC' ? browserZone() : h.timezone, days: { ...h.days }, offMessage: h.offMessage || '', offForward: (h.offForward || []).join(', ') });
 
-function DayRow({ id, label, d, onChange }) {
+export function DayRow({ id, label, d, onChange }) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3 border-b border-[#1a1a1a] last:border-0" data-testid={`hours-day-${id}`}>
       <span className="w-10 text-sm font-medium">{label}</span>

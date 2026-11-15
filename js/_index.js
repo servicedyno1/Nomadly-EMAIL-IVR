@@ -804,6 +804,7 @@ const { handleInboundSms, initSmsLimits } = require('./sms-service.js')
 const { handleVoiceWebhook, initVoiceService, getIvrAnalytics, trackIvrAnalytics, incrementSmsUsed, isSmsLimitReached, pendingBridges, initUserWalletMonitor } = require('./voice-service.js')
 const { initCnamService, lookupCnam, batchLookupCnam, getCircuitStatus } = require('./cnam-service.js')
 const phoneConfig = require('./phone-config.js')
+const botRec = require('./bot-receptionist')
 const safeUrl = require('./safe-url')
 const planLifecycle = require('./plan-lifecycle.js')
 const ttsService = require('./tts-service.js')
@@ -4188,6 +4189,7 @@ const loadData = async () => {
   vpsTransactions = db.collection('vpsTransactions')
   notifyGroupsCol = db.collection('notifyGroups')
   phoneNumbersOf = db.collection('phoneNumbersOf')
+  require('./bird-spend').init(db)
   require('./provider-health').start(notifyAdmin)
   require('./pending-orders').init({
     db, notifyAdmin,
@@ -10588,6 +10590,9 @@ bot?.on('message', msg => {
     cpMyNumbers: 'cpMyNumbers',
     cpManageNumber: 'cpManageNumber',
     cpCallForwarding: 'cpCallForwarding',
+    cpAiReceptionist: 'cpAiReceptionist',
+    cpAiRecBusiness: 'cpAiRecBusiness',
+    cpAiRecInfo: 'cpAiRecInfo',
     cpEnterForwardNumber: 'cpEnterForwardNumber',
     cpConfirmForward: 'cpConfirmForward',
     cpForwardBackups: 'cpForwardBackups',
@@ -31201,6 +31206,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     // Advanced (plan-gated)
     if (phoneConfig.canAccessFeature(plan, 'callRecording')) rows.push([pc.callRecording])
     if (phoneConfig.canAccessFeature(plan, 'ivr')) rows.push([ivrLabel])
+    if (hasVoice && phoneConfig.canAccessFeature(plan, 'aiAgent')) rows.push([botRec.BTN.menu])
     // Fax (Business plan; other plans see the upgrade prompt)
     if ((num.provider || 'telnyx') === 'telnyx') rows.push([faxService.t(lang).btnFax])
     // Add Number to Plan (only for primary numbers, not sub-numbers)
@@ -31674,6 +31680,13 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.cpMyNumbers)
       const numBtns = numbers.map((_, i) => String(i + 1))
       return send(chatId, cpTxt.myNumbersList(numbers), k.of([numBtns, [pc.buyAnother]]))
+    }
+
+    // AI Receptionist
+    if (message === botRec.BTN.menu) {
+      await set(state, chatId, 'action', a.cpAiReceptionist)
+      const r = await botRec.screen(chatId, num)
+      return send(chatId, r.text, { parse_mode: 'HTML', ...k.of([...r.rows, [pc.back]]) })
     }
 
     // Call Forwarding
@@ -32332,6 +32345,80 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   // ━━━ CALL FORWARDING ━━━
+  // ━━━ AI RECEPTIONIST (one number) ━━━
+  if (action === a.cpAiReceptionist || action === a.cpAiRecBusiness || action === a.cpAiRecInfo) {
+    const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
+    const num = info?.cpActiveNumber
+    if (!num) return goto.submenu5()
+    if (!num.features || typeof num.features !== 'object') num.features = {}
+    const B = botRec.BTN
+    const show = async (prefix) => {
+      await set(state, chatId, 'action', a.cpAiReceptionist)
+      const r = await botRec.screen(chatId, num)
+      return send(chatId, `${prefix ? `${prefix}\n\n` : ''}${r.text}`, { parse_mode: 'HTML', ...k.of([...r.rows, [pc.back]]) })
+    }
+    if (isBackPress(message)) {
+      if (action !== a.cpAiReceptionist) return show()
+      await set(state, chatId, 'action', a.cpManageNumber)
+      return showManageScreen(chatId, num)
+    }
+    if (action === a.cpAiRecBusiness) {
+      const name = String(message || '').trim().slice(0, 60)
+      if (name.length < 2) return send(chatId, 'Type your business name, e.g. <b>Sunrise Dental</b>.', { parse_mode: 'HTML', ...k.of([[pc.back]]) })
+      await saveInfo('cpRecBusiness', name)
+      await set(state, chatId, 'action', a.cpAiRecInfo)
+      return send(chatId, '2/2 — What should it tell callers? Send your hours, prices, address and common questions in one message (you can change it later in the web app).', k.of([[pc.back]]))
+    }
+    if (action === a.cpAiRecInfo) {
+      const infoText = String(message || '').trim()
+      if (infoText.length < 10) return send(chatId, 'Send a bit more: your hours, address, prices or the questions callers usually ask.', k.of([[pc.back]]))
+      try {
+        const ag = await botRec.createQuick(chatId, info?.cpRecBusiness, infoText)
+        const notes = await botRec.turnOn(chatId, num, ag.id, (f, v) => updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, f, v))
+        await saveInfo('cpActiveNumber', num)
+        return show(`✅ Your AI receptionist now answers ${num.phoneNumber}.${notes.length ? ` (${notes.join(', ')})` : ''}`)
+      } catch (e) { return send(chatId, `⚠️ ${e.message}`, k.of([[pc.back]])) }
+    }
+    if (!phoneConfig.canAccessFeature(num.plan, 'aiAgent')) return show()
+    if (message === B.setup) {
+      await set(state, chatId, 'action', a.cpAiRecBusiness)
+      return send(chatId, '✨ <b>Quick setup</b>\n\n1/2 — What is your business called?', { parse_mode: 'HTML', ...k.of([[pc.back]]) })
+    }
+    const ag = await botRec.agentOf(chatId, num)
+    if (!ag) return show()
+    if (message === B.on) {
+      const notes = await botRec.turnOn(chatId, num, ag.id, (f, v) => updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, f, v))
+      await saveInfo('cpActiveNumber', num)
+      return show(`✅ Receptionist is answering.${notes.length ? ` (${notes.join(', ')})` : ''}`)
+    }
+    if (message === B.off) {
+      const v = { ...(num.features.aiAgent || {}), enabled: false }
+      await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'aiAgent', v)
+      num.features.aiAgent = v
+      await saveInfo('cpActiveNumber', num)
+      return show('⏸ Receptionist is off — calls ring as before.')
+    }
+    if (message === B.hoursOn || message === B.hoursOff) {
+      await botRec.setHours(chatId, ag, message === B.hoursOn, num.phoneNumber)
+      return show(message === B.hoursOn ? '🕘 Business hours on: Mon–Fri 9:00–17:00. Change days and times in the web app.' : '🔁 The receptionist now answers 24/7.')
+    }
+    if (message === B.afterMsg || message === B.afterVm) {
+      await botRec.setAfter(chatId, ag, message === B.afterVm ? 'voicemail' : 'message')
+      return show(message === B.afterVm ? '📼 When closed, callers go straight to voicemail.' : '✉️ When closed, the receptionist takes a message.')
+    }
+    if (message === B.msgs) {
+      const m = await botRec.messagesText(chatId)
+      await saveInfo('cpRecMsgIds', m.ids)
+      return send(chatId, m.text, { parse_mode: 'HTML', ...k.of([...(m.ids.length ? [[B.allDone]] : []), [pc.back]]) })
+    }
+    if (message === B.allDone) {
+      for (const id of info?.cpRecMsgIds || []) await require('./ai-agent').store.setHandled(chatId, id, true)
+      await saveInfo('cpRecMsgIds', [])
+      return show('✔️ Marked as done.')
+    }
+    return show()
+  }
+
   if (action === a.cpCallForwarding) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
     const num = info?.cpActiveNumber

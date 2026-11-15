@@ -20,7 +20,7 @@ export default function AiAgentTab({ num, reload }) {
   const first = agents[0]?.id;
   useEffect(() => { if (!agentId && first) setAgentId(first); }, [first, agentId]);
   if (loading && !data) return <Spinner />;
-  if (!agents.length) return <Empty icon={Bot} title="Create an AI agent first" sub="Give it a script and FAQs, test it in your browser, then let it answer this number." testid="number-ai-empty"><Link to={cp('/app/ai-agents/new')} className="civr-btn civr-btn-primary" data-testid="number-ai-create-link">Create an agent</Link></Empty>;
+  if (!agents.length) return <Empty icon={Bot} title="Create an AI agent first" sub="Give it a script and FAQs, test it in your browser, then let it answer this number." testid="number-ai-empty"><Link to={cp('/app/receptionist/new')} className="civr-btn civr-btn-primary" data-testid="number-ai-create-link">Set up an AI receptionist</Link></Empty>;
   return (
     <div className="civr-card p-6 max-w-2xl space-y-6" data-testid="number-ai-tab" {...u.bind}>
       <div>
@@ -32,7 +32,7 @@ export default function AiAgentTab({ num, reload }) {
       <select className="civr-input" value={agentId} onChange={e => setAgentId(e.target.value)} data-testid="number-ai-agent-select">{agents.map(a => <option key={a.id} value={a.id}>{a.name}{a.businessName ? ` · ${a.businessName}` : ''}</option>)}</select>
       <div className="flex flex-wrap gap-2">
         <button className="civr-btn civr-btn-primary" disabled={busy} onClick={async () => { if (await save({ enabled, agentId }, 'PUT', (r) => (r?.forwardingTurnedOff ? 'Saved. Forward-every-call is now off — the AI agent answers.' : r?.ivrTurnedOff ? 'Saved. The keypad menu is now off on this number.' : enabled ? 'Saved' : 'Agent saved — flip the switch above to let it answer'))) u.reset(); }} data-testid="number-ai-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save</button>
-        <Link to={cp(`/app/ai-agents/${agentId}`)} className="civr-btn civr-btn-ghost" data-testid="number-ai-edit-agent-link">Edit or test the agent</Link>
+        <Link to={cp(agents.find(a => a.id === agentId)?.role === 'receptionist' ? `/app/receptionist/${agentId}` : `/app/ai-agents/${agentId}`)} className="civr-btn civr-btn-ghost" data-testid="number-ai-edit-agent-link">Edit or test the agent</Link>
         <UnsavedPill show={u.dirty} testid="number-ai-unsaved-pill" />
       </div>
       <span className={enabled && cur.enabled ? 'civr-pill civr-pill-on' : 'civr-pill'} data-testid="number-ai-status-pill">{cur.enabled ? 'AI voice agent is answering' : 'Normal call handling'}</span>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Bot, Plus, ArrowLeft, ChevronRight, Lock } from 'lucide-react';
 import { useApi, enc } from '../api';
 import { PageHeader, SkeletonRows, SkeletonPage, Empty, ErrorNote, TabStrip } from '../ui';
@@ -54,6 +54,7 @@ export function AiAgents() {
   const inbound = params.get('use') === 'inbound';
   const setTab = (id) => setParams(inbound ? { use: 'inbound', tab: id } : { tab: id }, { replace: true });
   const { data, loading, error, reload } = useApi('/ai-agents');
+  if (inbound) return <Navigate to={cp('/app/receptionist')} replace />;
   return (
     <div data-testid="ai-agents-page" data-use={inbound ? 'inbound' : 'outbound'}>
       <PageHeader label={inbound ? 'Answer calls' : 'Make calls'} title={inbound ? 'AI receptionist' : 'AI calling agents'}

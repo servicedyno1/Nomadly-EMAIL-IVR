@@ -1,5 +1,6 @@
 import React from 'react';
 import { Load, Stat, fmt } from './common';
+import BirdSpend from './BirdSpend';
 
 const TYPE = { 'wallet-topup': 'Deposits', 'phone-number': 'Phone numbers', 'hosted-sms-setup': 'Texting setup', 'hosted-sms-nobill': 'Texting bill collection', 'hosted-sms-renewal': 'Texting monthly', 'hosted-sms-text': 'Texts sent', 'hosted-sms-inbound': 'Texts received', 'lead-check': 'Lead checks', 'cnam-lookup': 'Owner-name lookups', domain: 'Domains', hosting: 'Hosting', 'hosting-renewal': 'Hosting renewals', vps: 'VPS', 'admin-credit': 'Admin credits', 'admin-debit': 'Admin debits', 'hosted-sms-refund': 'Texting refunds', 'lead-check-refund': 'Lead check refunds', 'topup-bonus': 'Deposit bonuses', 'welcome-bonus': 'Welcome bonuses', refund: 'Refunds', ai_summary: 'AI summaries', 'cloudphone-subscription': 'Cloud phone plans' };
 const label = (t) => TYPE[t] || t.replace(/[-_]/g, ' ');
@@ -65,6 +66,7 @@ export default function Overview() {
             </div>
           </div>
           <Funnel />
+          <BirdSpend />
           <div className="civr-card p-5" data-testid="admin-revenue-types">
             <div className="text-xs uppercase tracking-widest text-[#a1a1aa] mb-3">Money in & out by type · 30 days</div>
             <div className="civr-scroll-x"><table className="civr-table w-full text-sm"><thead><tr><th className="text-left">Type</th><th className="text-right">Count</th><th className="text-right">Amount</th></tr></thead>

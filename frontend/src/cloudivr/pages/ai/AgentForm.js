@@ -8,6 +8,7 @@ import { BookingFields, browserZone } from './BookingFields';
 import { useUnsaved, UnsavedPill } from '../../guard';
 import { AI_LANGS } from './languages';
 import { OpeningPreview, ScriptGuide } from './OpeningPreview';
+import { HoursFields } from './HoursFields';
 
 export const EMPTY_AGENT = {
   name: '', businessName: '', language: 'en', voice: 'marin', goal: '', greeting: '', firstMessage: '', waitForHello: true, knowledge: '', transferTo: '', takeMessages: true, maxMinutes: 5, record: true, discloseAi: true,
@@ -54,7 +55,8 @@ function Actions({ f, set, recordRate = 0.02, recordingDays = 90 }) {
 }
 
 // Create / edit an AI agent: personality + script, FAQs, transfer and message taking.
-export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved, onDeleted }) {
+export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved, onDeleted, mode }) {
+  const rec = mode === 'receptionist';
   const [f, setF] = useState({ ...EMPTY_AGENT, ...initial, transferTo: initial?.transferTo || '', record: initial?.record !== false, discloseAi: initial?.discloseAi !== false, booking: { ...EMPTY_AGENT.booking, ...(initial?.booking || {}) } });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -74,16 +76,17 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
   return (
     <form onSubmit={save} className="civr-card p-6 space-y-6" data-testid="ai-agent-form" {...u.bind}>
       <Basics f={f} set={set} voices={voices} />
-      <Field label="First message (optional)" hint="The exact words that open every call. Use {name}, {business} and {lead_name} (or {lead_name|there} for leads without a name). Leave empty for the standard opening."><Text f={f} set={set} k="firstMessage" rows={2} ph="Hi {lead_name|there}, this is {name} from {business}. Do you have a minute?" testid="ai-agent-first-message-input" /></Field>
-      <div className="flex items-center justify-between gap-4" data-testid="ai-agent-wait-hello-row">
+      <Field label={rec ? 'Greeting (optional)' : 'First message (optional)'} hint={rec ? 'The exact words callers hear when it picks up. Use {name} and {business}. Leave empty for the standard greeting.' : 'The exact words that open every call. Use {name}, {business} and {lead_name} (or {lead_name|there} for leads without a name). Leave empty for the standard opening.'}><Text f={f} set={set} k="firstMessage" rows={2} ph={rec ? 'Thanks for calling {business}, this is {name}. How can I help?' : 'Hi {lead_name|there}, this is {name} from {business}. Do you have a minute?'} testid="ai-agent-first-message-input" /></Field>
+      {!rec && <div className="flex items-center justify-between gap-4" data-testid="ai-agent-wait-hello-row">
         <span className="text-sm">Wait for them to say hello<span className="block text-xs text-[#a1a1aa] mt-0.5">On calls to leads, the agent stays quiet until the person answers (“Hello?”), then speaks. If nobody says anything for 4 seconds, it starts anyway.</span></span>
         <Toggle checked={f.waitForHello !== false} onChange={v => set('waitForHello', v)} testid="ai-agent-wait-hello-toggle" label="Wait for them to say hello" />
-      </div>
+      </div>}
       <OpeningPreview f={f} />
       <Field label="Personality & script" hint="What the agent does after the first message, how it talks and what it should find out."><Text f={f} set={set} k="goal" rows={5} ph="Friendly receptionist. Answer questions, book cleanings and get the caller's name and preferred time." testid="ai-agent-goal-input" /></Field>
       <ScriptGuide />
       <Field label="FAQs & facts" hint="Prices, hours, policies — the agent only uses what is here."><Text f={f} set={set} k="knowledge" rows={6} ph={'Q: Are you open Saturday? A: No, Monday–Friday 9am–5pm.\nCleaning: $90.'} testid="ai-agent-knowledge-input" /></Field>
       <Actions f={f} set={set} recordRate={recordRate} recordingDays={recordingDays} />
+      {(rec || f.hours?.enabled) && <HoursFields f={f} set={set} />}
       <BookingFields f={f} set={set} />
       <ErrorNote error={error} testid="ai-agent-form-error" />
       <div className="flex flex-wrap gap-2">
