@@ -6173,7 +6173,9 @@ async function sendDay12UpgradeCreditNudges() {
                 `(क्रेडिट समाप्त होने के बाद $${quote.newPrice} होगा)।\n\n` +
                 `<i>नंबर खोलें: 📞 Cloud IVR + SIP → 📋 मेरे प्लान्स और ⬆️ ${nextUp === 'pro' ? 'प्रो' : 'बिज़नेस'} में अपग्रेड करें टैप करें।</i>`,
           }
-          const body = bodyByLang[lang] || bodyByLang.en
+          const webAcct = require('./cloudivr-web/notify').isWebChatId(chatId)
+          // Web accounts upgrade from the number's Billing tab, not the bot menu.
+          const body = webAcct ? bodyByLang.en.replace(/<i>Open the number from[^<]*<\/i>/, `<i>Open the number in My numbers → Billing and choose Upgrade to ${targetLabel}.</i>`) : (bodyByLang[lang] || bodyByLang.en)
           await send(chatId, body, { parse_mode: 'HTML' })
 
           // Stamp the sent flag on the EXACT array element by index, scoped
@@ -6650,6 +6652,13 @@ bot?.on('callback_query', async (query) => {
   try {
     const data = query?.data || ''
     const chatId = String(query?.message?.chat?.id) // Always convert to string for DB consistency
+    if (data === 'sipqr:l' || data === 'sipqr:g') {
+      bot.answerCallbackQuery(query.id).catch(() => {})
+      const info = await get(state, chatId)
+      if (!info?.cpActiveNumber?.phoneNumber) return
+      await require('./bot-sip-qr').send({ bot, db, phoneNumbersOf, chatId, phone: info.cpActiveNumber.phoneNumber, domain: phoneConfig.getSipDomainForNumber(), lang: info.userLanguage || 'en', which: data.slice(6), replaceId: query.message?.message_id, log })
+      return
+    }
     if (data.startsWith('bse-reply:') || data.startsWith('bse-rv:')) { bot.answerCallbackQuery(query.id).catch(() => {}); await bulkEsimBot.onCallback(query, { set, state, saveInfo: (k, v) => set(state, chatId, k, v), send: (id, t, o) => bot.sendMessage(id, t, o), lang: (await get(state, chatId))?.userLanguage || 'en' }); return }
     try { setChatLang(chatId, (await get(state, chatId))?.userLanguage || 'en') } catch { /* non-fatal */ }
 
@@ -35669,19 +35678,7 @@ Select a category:`), k.of(catBtns))
       return showManageScreen(chatId, num)
     }
     if (message === pc.sipQr) {
-      const freshSip = (await phoneNumbersOf.findOne({ _id: chatId }))?.val?.numbers?.find(x => x.phoneNumber === num.phoneNumber)
-      if (!freshSip) return goto.submenu5()
-      await require('./sip-logins').ensure(phoneNumbersOf, chatId, freshSip)
-      const QR = require('qrcode'), c = await require('./sip-provision').codes(db, chatId, freshSip, phoneConfig.getSipDomainForNumber())
-      const L = { en: ['<b>Linphone</b>: open Linphone → Account assistant → <b>Fetch remote configuration</b> / scan QR code. Your account is filled in for you.', '<b>Other apps</b> (Zoiper, Groundwire, Acrobits…): scan this if the app offers QR setup; otherwise type the details from 👁️ Reveal Password.', `These codes include your password and are deleted in 2 minutes. The Linphone code works for ${c.expiresInMin} minutes.`], fr: ['<b>Linphone</b> : ouvrez Linphone → Assistant de compte → <b>Configuration distante</b> / scanner le QR code. Votre compte est rempli automatiquement.', '<b>Autres applis</b> (Zoiper, Groundwire, Acrobits…) : scannez-le si l\'appli propose la config. par QR ; sinon saisissez les infos de 👁️ Révéler le mot de passe.', `Ces codes contiennent votre mot de passe et sont supprimés dans 2 minutes. Le code Linphone marche ${c.expiresInMin} minutes.`], zh: ['<b>Linphone</b>：打开 Linphone → 账户助手 → <b>获取远程配置</b>/扫描二维码，账户会自动填好。', '<b>其他应用</b>（Zoiper、Groundwire、Acrobits…）：若应用支持扫码设置请扫描；否则请使用 👁️ 显示密码 中的信息手动填写。', `二维码含有您的密码，2 分钟后删除。Linphone 二维码 ${c.expiresInMin} 分钟内有效。`], hi: ['<b>Linphone</b>: Linphone खोलें → Account assistant → <b>Fetch remote configuration</b> / QR स्कैन करें। आपका खाता अपने-आप भर जाएगा।', '<b>दूसरे ऐप</b> (Zoiper, Groundwire, Acrobits…): अगर ऐप QR सेटअप देता है तो स्कैन करें; नहीं तो 👁️ पासवर्ड दिखाएं से जानकारी भरें।', `इन कोड में आपका पासवर्ड है, ये 2 मिनट में हट जाएंगे। Linphone कोड ${c.expiresInMin} मिनट चलता है।`], fa: ['<b>Linphone</b>: Linphone را باز کنید ← Account assistant ← <b>Fetch remote configuration</b> / اسکن QR. حساب شما خودکار پر می‌شود.', '<b>برنامه‌های دیگر</b> (Zoiper، Groundwire، Acrobits…): اگر برنامه تنظیم با QR دارد اسکن کنید؛ وگرنه اطلاعات را از 👁️ نمایش رمز عبور وارد کنید.', `این کدها رمز شما را دارند و پس از ۲ دقیقه حذف می‌شوند. کد Linphone تا ${c.expiresInMin} دقیقه کار می‌کند.`] }[info?.userLanguage] || null
-      const [tl, tg, tn] = L || ['<b>Linphone</b>: open Linphone → Account assistant → <b>Fetch remote configuration</b> / scan QR code. Your account is filled in for you.', '<b>Other apps</b> (Zoiper, Groundwire, Acrobits…): scan this if the app offers QR setup; otherwise type the details from 👁️ Reveal Password.', `These codes include your password and are deleted in 2 minutes. The Linphone code works for ${c.expiresInMin} minutes.`]
-      const sent = []
-      for (const [data, cap] of [[c.linphone, tl], [c.generic, `${tg}\n\n⏱ ${tn}`]]) {
-        const png = await QR.toBuffer(data, { width: 480, margin: 2 })
-        const m = await bot?.sendPhoto(chatId, png, { caption: cap, parse_mode: 'HTML' }, { filename: 'sip-qr.png', contentType: 'image/png' }).catch(e => { log(`[SipQr] send failed: ${e.message}`); return null })
-        if (m?.message_id) sent.push(m.message_id)
-      }
-      if (sent.length) setTimeout(() => sent.forEach(id => bot?.deleteMessage(chatId, id)?.catch(() => {})), 120000)
+      if (!(await require('./bot-sip-qr').send({ bot, db, phoneNumbersOf, chatId, phone: num.phoneNumber, domain: phoneConfig.getSipDomainForNumber(), lang: info?.userLanguage || 'en', log }))) return goto.submenu5()
       return
     }
     if (message === pc.revealPassword) {
@@ -50022,6 +50019,10 @@ app.get('/callengine/tts.mp3', async (req, res) => {
     const r = await require('axios').post('https://api.openai.com/v1/audio/speech', { model: 'gpt-4o-mini-tts', voice: req.query.g === 'm' ? 'onyx' : 'nova', input: text, response_format: 'mp3' }, { headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }, responseType: 'arraybuffer', timeout: 30000 })
     res.set('Content-Type', 'audio/mpeg').set('Cache-Control', 'public, max-age=86400').send(Buffer.from(r.data))
   } catch (e) { res.sendStatus(502) }
+})
+app.get('/callengine/m/:id', (req, res) => {
+  const u = require('./callengine').mediaUrl(req.params.id)
+  return u ? res.redirect(302, u) : res.sendStatus(404)
 })
 app.get('/callengine/recording/:name', async (req, res) => {
   const ce = require('./callengine')

@@ -797,7 +797,9 @@ async function notifyLowBalance(chatId, phoneNumber) {
 
     // Include loyalty tier incentive
     let tierLine = ''
-    if (_loyalty && _walletOf) {
+    const webAcct = require('./cloudivr-web/notify.js').isWebChatId(chatId)
+    // Loyalty tiers are a bot programme; web accounts don't have them.
+    if (_loyalty && _walletOf && !webAcct) {
       try {
         const tier = await _loyalty.getUserTier(_walletOf, chatId)
         if (tier.discount > 0) {
@@ -815,7 +817,7 @@ async function notifyLowBalance(chatId, phoneNumber) {
       urgency,
       tierLine,
       ``,
-      `💳 Top up via <b>👛 Wallet</b> in the bot menu.`,
+      webAcct ? `💳 Top up anytime from <b>Wallet</b>.` : `💳 Top up via <b>👛 Wallet</b> in the bot menu.`,
     ].filter(Boolean).join('\n')
 
     _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
@@ -956,7 +958,8 @@ async function runUserWalletMonitor() {
 
         // Loyalty tier incentive
         let tierLine = ''
-        if (_loyalty && _walletOf) {
+        const webAcct = require('./cloudivr-web/notify.js').isWebChatId(chatId)
+        if (_loyalty && _walletOf && !webAcct) {
           try {
             const tier = await _loyalty.getUserTier(_walletOf, chatId)
             if (tier.discount > 0) {
@@ -988,7 +991,7 @@ async function runUserWalletMonitor() {
           urgency,
           tierLine,
           ``,
-          `💳 Top up anytime via <b>👛 Wallet</b> in the bot menu.`,
+          webAcct ? `💳 Top up anytime from <b>Wallet</b>.` : `💳 Top up anytime via <b>👛 Wallet</b> in the bot menu.`,
         ].filter(Boolean).join('\n')
 
         // Inline keyboard adds a one-tap "💰 Top Up Wallet" button, surfaced
@@ -3516,8 +3519,11 @@ async function handleOutboundSipCall(payload) {
     } catch (e) { log(`[Voice] Connection fee charge error: ${e.message}`) }
   }
 
-  // ── TELNYX NUMBER: Route SIP call to PSTN via transfer command ──
-  if (num.provider === 'telnyx') {
+  // ── TELNYX NUMBER, or any softphone call that reached our own call engine: route to PSTN via transfer ──
+  // Engine calls (ae:) work for every provider; MultiTEL numbers leave on the MultiTEL trunk so their own caller ID shows.
+  const viaEngine = String(callControlId).startsWith('ae:') && num.provider !== 'twilio'
+  const trunkOpt = viaEngine && num.provider === 'multitel' && process.env.CALLER_ID_PASSTHROUGH_TRUNK ? { trunk: process.env.CALLER_ID_PASSTHROUGH_TRUNK } : {}
+  if (num.provider === 'telnyx' || viaEngine) {
     const callerDisplay = num.phoneNumber || 'TEST-SIP'
     log(`[Voice] Outbound SIP (Telnyx): ${callerDisplay} → ${destination} — routing to PSTN`)
 
@@ -3619,7 +3625,7 @@ async function handleOutboundSipCall(payload) {
       }
       // Tag the NEW PSTN leg so its own call.initiated is skipped (no reverse lookup / re-route).
       _markSelfPstnLeg(payload.connection_id, destination, outFrom)
-      await _telnyxApi.transferCall(callControlId, destination, outFrom, { targetLegClientState: PSTN_LEG_STATE })
+      await _telnyxApi.transferCall(callControlId, destination, outFrom, { targetLegClientState: PSTN_LEG_STATE, ...trunkOpt })
       log(`[Voice] Outbound SIP (Telnyx): Transfer initiated ${callerDisplay} → ${destination} (autoRouted=${isAutoRouted})`)
     } catch (e) {
       const errMsg = e.message || ''
@@ -3634,7 +3640,7 @@ async function handleOutboundSipCall(payload) {
           await new Promise(r => setTimeout(r, 1500))
           try {
             _markSelfPstnLeg(payload.connection_id, destination, outFrom)
-            await _telnyxApi.transferCall(callControlId, destination, outFrom, { targetLegClientState: PSTN_LEG_STATE })
+            await _telnyxApi.transferCall(callControlId, destination, outFrom, { targetLegClientState: PSTN_LEG_STATE, ...trunkOpt })
             log(`[Voice] Outbound SIP (Telnyx): Transfer retry ${retryCount + 1} succeeded ${callerDisplay} → ${destination}`)
           } catch (retryErr) {
             if ((retryErr.message || '').includes('not been answered') || (retryErr.message || '').includes('not answered')) {
@@ -3650,7 +3656,7 @@ async function handleOutboundSipCall(payload) {
         _notifyCidRejected(chatId, outFrom, num.phoneNumber, { via: 'sip', to: destination, how: 'telnyx' })
         try {
           _markSelfPstnLeg(payload.connection_id, destination, num.phoneNumber)
-          await _telnyxApi.transferCall(callControlId, destination, num.phoneNumber, { targetLegClientState: PSTN_LEG_STATE })
+          await _telnyxApi.transferCall(callControlId, destination, num.phoneNumber, { targetLegClientState: PSTN_LEG_STATE, ...trunkOpt })
         } catch (e2) { log(`[Voice] Outbound SIP (Telnyx): own-number retry failed — ${e2.message}`) }
       } else {
         log(`[Voice] Outbound SIP (Telnyx): Transfer failed — ${errMsg}`)
@@ -3887,8 +3893,10 @@ async function handleOutboundSipCall(payload) {
       await _telnyxApi.speakOnCall(callControlId, 'Outbound calling is not available for this number.')
       setTimeout(() => _telnyxApi.hangupCall(callControlId), 3000)
     } else {
-      log(`[Voice] Outbound SIP: Skipping answer/speak for outbound call (not an incoming SIP call)`)
+      log(`[Voice] Outbound SIP: no route for this number — hanging up`)
+      await _telnyxApi.hangupCall(callControlId).catch(() => {})
     }
+    _releaseOutbound(chatId, callControlId)
   } catch (e) {
     log(`[Voice] Reject error: ${e.message}`)
   }
@@ -3994,10 +4002,8 @@ async function playVoicemailGreeting(callControlId, num, vm = {}, say = null) {
   const legacy = `The person at ${formatPhone(num.phoneNumber)} is unavailable. Please leave a message after the tone.`
   if (audioUrl && !say) {
     try {
-      const axios = require('axios')
-      await axios.post(`https://api.telnyx.com/v2/calls/${callControlId}/actions/playback_start`, { audio_url: audioUrl }, {
-        headers: { 'Authorization': `Bearer ${process.env.TELNYX_API_KEY}`, 'Content-Type': 'application/json' },
-      })
+      // Through the call router: engine (ae:) calls play on our own engine, Telnyx calls on Telnyx.
+      if (!(await _telnyxApi.playbackStart(callControlId, audioUrl))) throw new Error('playback not started')
       return
     } catch (e) {
       log(`[Voice] Custom audio playback failed, falling back to TTS: ${e.message}`)
@@ -6047,7 +6053,7 @@ async function handleOutboundIvrHangup(payload) {
         log(`[OutboundIVR] Trial marked as used for chatId ${session.chatId} (call was answered)`)
       }
       setTimeout(() => {
-        _bot?.sendMessage(session.chatId, ivrOutbound.formatCallNotification('trial_used', {}), { parse_mode: 'HTML' }).catch(() => {})
+        _bot?.sendMessage(session.chatId, ivrOutbound.formatCallNotification('trial_used', { web: require('./cloudivr-web/notify.js').isWebChatId(session.chatId) }), { parse_mode: 'HTML' }).catch(() => {})
       }, 2000)
     } else {
       // Call never connected (busy, no answer, etc.) — trial is preserved

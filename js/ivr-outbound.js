@@ -16,6 +16,7 @@ const TRIAL_CALLER_ID = process.env.TELNYX_TRIAL_CALLER_ID || '+18889020132'
 // System caller IDs for free/test calls take turns (USA MultiTEL + Canada Infobip); every pick is logged.
 const SYSTEM_CALLERS = () => String(process.env.SYSTEM_CALLER_IDS || '+18648308599,+16479457172').split(',').map(s => s.trim()).filter(s => /^\+[1-9]\d{7,14}$/.test(s))
 let rot = 0, pickLog = null
+const planFrom = () => Math.min(...Object.values(require('./phone-config').plans).map(p => Number(p.price)).filter(p => p > 0))
 const setPickLogDb = (db) => { pickLog = db.collection('systemCallerPicks'); pickLog.createIndex({ at: -1 }).catch(() => {}) }
 async function getTrialCaller(meta = {}) {
   const pool = SYSTEM_CALLERS()
@@ -488,7 +489,7 @@ function formatCallNotification(type, data) {
         `✅ Custom voice menus & call routing\n` +
         `✅ Text-to-Speech in 50+ voices\n` +
         `✅ Call recording & real-time analytics\n\n` +
-        `📞 Tap <b>Cloud IVR + SIP</b> on the main menu to get started — plans from just <b>$5</b>!`
+        (data.web ? `📞 Open <b>Get a number</b> to pick a plan — plans from <b>$${planFrom()}</b>/month.` : `📞 Tap <b>Cloud IVR + SIP</b> on the main menu to get started — plans from <b>$${planFrom()}</b>/month.`)
 
     default:
       return `📞 Call event: ${type}`

@@ -12,6 +12,7 @@ const telnyxApi = require('./telnyx-service.js')
 const twilioService = require('./twilio-service.js')
 const { translation } = require('./translation.js')
 const lifecycle = require('./plan-lifecycle.js')
+const { runBirdCallerIdCleanup } = require('./bird-cid-cleanup.js')
 
 let _bot = null
 let _phoneNumbersOf = null
@@ -52,6 +53,11 @@ function initPhoneScheduler(deps) {
     log('[PhoneScheduler] Running hourly expiry check...')
     await runExpiryCheck()
     await runMonthlyReset()
+    if (_db) await runBirdCallerIdCleanup({
+      db: _db, bird: require('./bird'), log,
+      systemCallers: require('./ivr-outbound').SYSTEM_CALLERS(),
+      owned: async () => [...await require('./multitel').refreshOwned(), ...(require('./infobip').enabled() ? await require('./infobip').refreshOwned() : [])],
+    }).catch(e => log(`[BirdCidCleanup] ${e.message}`))
   })
 
   // ── Daily at 3:00 AM UTC: 80% / 100% usage alerts (usage itself is counted live per call / SMS) ──

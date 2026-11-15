@@ -613,3 +613,13 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Mobile: confirm dialog = bottom sheet, quick switches 44px on phones, install banner right-20 (clear of chat FAB), auto-renew OFF always confirms (toggle, undo, fax, mobile lines), compare tables kept as tables, td overflow fix. Testing iteration_298 passed; its 4 items fixed.
 - Deployed: app-main workspace 7cd53ac (app-main-b, WS_DEPLOY_EXIT=0). WL overlay r12 (_index.js, phone-config.js, sip-provision.js) on app-wl-b :5101, app-voodoo-a :5003, app-proshop-b :5104 — healthy, /sip-provision/bad → 404. Backups deploy-backups/<slot>-r12-*.
 - ⚠️ Save to GitHub so CI keeps these.
+
+## 2026-11-15 ~22:50–23:20Z — Call paths fixed + Bird caller-ID cleanup (all brands)
+- Engine prompts were silent: Asterisk rejects media links >253 chars (astdb "Family and key length"), so long TTS/greeting links failed. callengine/index.js now shortens long links via GET /callengine/m/:id (302 to the real URL, in-memory 6 h). Voicemail custom audio now goes through _telnyxApi.playbackStart (was direct Telnyx → 401).
+- Softphone ringing on inbound calls went to SignalWire (queue-full refusals, and it dialed sip.telnyx.com). signalwire/index.js createOutboundCall now rings sip: targets via CallEngine → Kamailio first.
+- Live tests (company line +18648308599 on owner 5590563715, temp record removed after): outbound softphone→PSTN OK, voicemail greeting + recording OK, inbound ring → softphone answered + bridged OK, IVR long greeting OK, forwarding to internal test line +16479457172 connected OK. Scripts: scripts/sip_call_check.py (HOLD env), scripts/sip_answer_check.py, scripts/call_path_testline.js.
+- @CPBandz 8712875591 +18885084690 Business: MultiTEL routed to SIP server + SMS webhook, Bird caller ID verified, SIP cvgy3yws3m 401→200 on UDP/TCP/TLS. Their 22:47 SIP test timed out with no call placed (phone not set up yet).
+- Refund: $0.15 credited to 9013312785 (asked $0.12) — owner chose to keep the extra $0.03 as goodwill.
+- Bird caller ID cleanup: js/bird-cid-cleanup.js, hourly in phone-scheduler. Queue `birdCidRemovals`; removes a number from Bird 3 days after it is released for good (suspended lines keep it). Guards: not live in this DB, not a system caller, not a verified webCallerId, not in MultiTEL/Infobip inventory (empty inventory → skip). Test js/tests/test_bird_cid_cleanup.js. Dry run on main: 0 due.
+- Deployed: app-main workspace 467aeeb8 (WS_DEPLOY_EXIT=0). WL overlays (callengine, _index m/:id route, voice-service greeting, signalwire ring, bird-cid-cleanup + phone-scheduler) on app-wl-b, app-voodoo-a, app-proshop-b at 0 calls, healthy. Backups *.bak-media-*, *.bak-ring-*, *.bak-birdcid-*.
+- ⚠️ Save to GitHub or CI rolls these back.

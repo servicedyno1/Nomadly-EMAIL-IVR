@@ -77,6 +77,12 @@ function wrap(t) {
   // US/Canada: Bird (own call engine) → SignalWire → Infobip → Telnyx (only if TELNYX_FALLBACK=true).
   w.createOutboundCall = async (from, to, webhookUrl, connectionId, options = {}) => {
     const nanp = /^\+1\d{10}$/.test(String(to)) || /^sip:/i.test(String(to))
+    // Softphones sign in to our own SIP server, so they are rung from our call engine.
+    if (/^sip:/i.test(String(to)) && ce.enabled() && ce.connected()) {
+      const r = await ce.createOutboundCall(from, to, webhookUrl, connectionId, options)
+      if (!r.error) return r
+      log(`ring ${to} via CallEngine refused (${r.error})`)
+    }
     const tries = []
     // Voicemail drop: the call engine detects answering machines on the call itself (Asterisk AMD), so Bird handles it too.
     // Bird only (default): a caller ID not verified on Bird is swapped for a system caller ID (logged); any failure alerts the admin.

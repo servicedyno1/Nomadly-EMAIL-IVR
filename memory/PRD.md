@@ -305,3 +305,9 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 ## 2026-11-15 late — One-tap SIP QR + mobile polish (shipped, agent-tested)
 - QR setup on web SIP card + bot (Linphone auto-provision link, generic SIP URI). Mobile: bottom-sheet confirms, 44px switches, install banner clear of chat, auto-renew-off confirm.
 - Remaining: SIP connection status badges + 30-min offline alert; country pricing regression; eSIM/texting validation.
+
+## 2026-11-15 late — Call reliability + Bird caller-ID lifecycle
+- Fixed: silent voice prompts on our call engine (long links), voicemail custom audio, inbound calls ringing softphones (now via our SIP server, not SignalWire). Live-tested outbound, voicemail, ring+answer, IVR, forwarding.
+- Extra numbers (owner decision: keep as today): own monthly date; main lapses for no funds → main + extras suspended 7 days together, restoring main brings extras back if their month is paid; main auto-renew off → extras released with main at main's end date.
+- New: numbers come off Bird caller ID 3 days after release for good (all brands).
+- Backlog: owner to Save to GitHub; customer confirmation of softphone calls (cv5shdaatb, cvztncffh9, cvgy3yws3m).

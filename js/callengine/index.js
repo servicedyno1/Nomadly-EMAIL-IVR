@@ -74,7 +74,17 @@ function finish(l, cause) {
 }
 
 // ── media: everything is converted to 8 kHz wav by the media helper on the SIP server ──
-const conv = (audioUrl) => `sound:http://127.0.0.1:8090/c.wav?u=${b64u(audioUrl)}`
+// Asterisk drops media links over ~250 chars, so long links go through a short app link that redirects.
+const shortMedia = new Map()
+function shortUrl(url) {
+  if (url.length < 120 || !self()) return url
+  const id = crypto.createHash('sha1').update(url).digest('hex').slice(0, 20)
+  shortMedia.set(id, { url, at: Date.now() })
+  for (const [k, v] of shortMedia) if (Date.now() - v.at > 6 * 3600000) shortMedia.delete(k)
+  return `${self()}/callengine/m/${id}`
+}
+const mediaUrl = (id) => shortMedia.get(String(id))?.url || null
+const conv = (audioUrl) => `sound:http://127.0.0.1:8090/c.wav?u=${b64u(shortUrl(String(audioUrl)))}`
 function ttsMedia(text, voice, language) {
   const male = /^male$/i.test(String(voice || '')) || /matthew|joey|justin|brian/i.test(String(voice || ''))
   if (process.env.OPENAI_API_KEY && self()) {
@@ -334,5 +344,5 @@ async function setDidApps(numbers) {
 const M = module.exports = {
   enabled, isAe, connected: () => connected, app, sign, ari: makeAri, _legs: legs, _onEvent: onEvent, _setSink: (fn) => { sink = fn }, _setConnected: (v) => { connected = v },
   setDidApps, onConnect: (fn) => { onConnectHook = fn },
-  activeBird, start, startExternalMedia, stopExternalMedia, setAiHook: (fn) => { aiHook = fn }, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall,
+  mediaUrl, activeBird, start, startExternalMedia, stopExternalMedia, setAiHook: (fn) => { aiHook = fn }, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall,
 }
