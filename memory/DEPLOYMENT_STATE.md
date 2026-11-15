@@ -511,3 +511,8 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Inbound root cause: Infobip CA +16479457172 voice action pointed at calls config `nomadly-dev` (preview) → prod never saw the calls. Re-pointed to `nomadly`; live test: CALL_RECEIVED → answered → greeting → voicemail on prod. FIXED.
 - Guard: infobip/index.js syncVoiceRouting() (in refreshOwned, hourly, prod + configId 'nomadly' only — Infobip account is shared with WL brands whose configs don't exist) re-points any voice number off our config. Main release 7ce7db0 (guard w/o configId check; workspace has it — equivalent on main). Not on WL.
 - Outbound: every /calls/1/calls fails in ~40ms, errorCode 10309 SERVICE_UNAVAILABLE, hangupSource PLATFORM, even from our own number. Balance €2.79 (still, after owner said "credits recharged"). Needs Infobip top-up; if it persists after top-up → Infobip support ticket with that error code.
+
+## 2026-11-15 ~12:45Z — New numbers from MultiTEL only (owner request)
+- New env INFOBIP_SELL=false on all 4 shared envs. infobip.selling() gates searchNumbers/buyNumber; number-catalog ibOn uses selling(). Owned Infobip numbers keep inbound/SMS/voice working (enabled() unchanged).
+- Verified: catalog 174 entries, all multitel (main + voodoo); Infobip search returns 0. Main release b50e5f2; WL overlay patched + restarted. To re-enable Infobip sales: INFOBIP_SELL=true + restart.
+- Risk: MultiTEL balance $11.43 — under $10 provider-health hides MultiTEL → no instant numbers to sell anywhere.
