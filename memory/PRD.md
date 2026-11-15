@@ -238,3 +238,10 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - P1 Infobip inbound routing for +16479457172 / all Infobip DIDs → our SIP.
 - P1 After user presses Save to GitHub: verify Actions deploy app-main + Sync→WhiteLabel → app-wl/voodoo/proshop all report the new sha (deploy guard on droplet).
 - Done this round: invoices/receipts (user+admin), capacity labels, Texting Numbers unlinked from caller ID, bot name/address all brands, IVR caller fix for Multitel/Infobip, live tests (Quick/Bulk IVR, forwarding: Multitel; Infobip outbound), Home recent activity removed.
+
+
+## Update 2026-11-15 02:57 UTC
+- Done & live (all brands): number plan details on Home rows; Travel eSIM iPhone/Android install; onarrival21 eSIM linked.
+- Undone by user request (backlog Phase 3): dedicated AI receptionist page, usage (per-call/per-text) invoices, plan-centric Home redesign.
+- Phase 2 backlog: plan details on My numbers + number Overview; email travel eSIM install links.
+- Open: WL texting-number caller-ID guard; Save to GitHub (main + WhiteLabel); migration 20 vs 18 reconciliation; Bird verification 10/21; Multitel fax; renewal lifecycle test conflict.

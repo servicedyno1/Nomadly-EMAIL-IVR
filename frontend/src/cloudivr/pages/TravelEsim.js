@@ -29,7 +29,7 @@ function InstallButtons({ o, links, os }) {
   return (
     <div className={`flex flex-col ${os ? '' : 'sm:flex-row'} gap-2`}>
       {btns.map(([k, label]) => (
-        <a key={k} href={links[k]} target="_blank" rel="noopener noreferrer" className={`civr-btn justify-center min-h-[48px] w-full ${os ? '' : 'sm:w-auto'} ${k === os ? 'civr-btn-primary text-base' : 'civr-btn-ghost'}`} data-testid={`travel-esim-${k}-${o.id}`}><Smartphone className="w-4 h-4" />{label}</a>
+        <a key={k} href={links[k]} target="_blank" rel="noopener noreferrer" className={`civr-btn justify-center w-full ${k === os ? "!min-h-[52px]" : "!min-h-[48px]"} ${os ? '' : 'sm:w-auto'} ${k === os ? 'civr-btn-primary text-base' : 'civr-btn-ghost'}`} data-testid={`travel-esim-${k}-${o.id}`}><Smartphone className="w-4 h-4" />{label}</a>
       ))}
     </div>
   );
@@ -54,7 +54,7 @@ function Install({ o }) {
         <div className="space-y-3 text-sm min-w-0 flex-1">
           <p>{os ? 'Or scan the QR code from another screen.' : 'Scan the QR code with the phone you travel with, or open this page on that phone and tap its install button.'}</p>
           {!os && buttons}
-          {i.activationCode && <div className="flex items-center gap-2 min-w-0"><span className="text-[var(--c-muted)] shrink-0">Manual code</span><span className="font-mono truncate min-w-0" data-no-translate data-testid={`travel-esim-code-${o.id}`}>{i.activationCode}</span><button className="civr-btn civr-btn-ghost !px-2 shrink-0 min-h-[44px]" onClick={() => copy(i.activationCode)} aria-label="Copy activation code" data-testid={`travel-esim-copy-${o.id}`}><Copy className="w-4 h-4" /></button></div>}
+          {i.activationCode && <div className="flex items-center gap-2 min-w-0"><span className="text-[var(--c-muted)] shrink-0">Manual code</span><span className="font-mono truncate min-w-0" data-no-translate data-testid={`travel-esim-code-${o.id}`}>{i.activationCode}</span><button className="civr-btn civr-btn-ghost !px-2 shrink-0 !min-h-[44px] !min-w-[44px]" onClick={() => copy(i.activationCode)} aria-label="Copy activation code" data-testid={`travel-esim-copy-${o.id}`}><Copy className="w-4 h-4" /></button></div>}
           {i.roaming && <p className="text-xs text-[var(--c-muted)]">Turn on data roaming for this eSIM when you arrive.</p>}
           <p className="text-xs text-[var(--c-muted)]" data-testid={`travel-esim-help-${o.id}`}>One-tap install needs iOS 17.4 or later on iPhone, or Android 10 or later with Google services up to date (most Pixel and Samsung phones). If it doesn’t open, use the QR code or the manual code.</p>
         </div>

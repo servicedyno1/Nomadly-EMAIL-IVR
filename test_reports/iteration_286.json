@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend-only test of CloudIVR (desktop 1920x800, iPhone UA 390x844, Pixel UA 412x915, desktop UA at 390px). Nearly everything works. HOME (uxtest): the old layout is back (home-overview with stat-balance/numbers/live/unread/minutes, home-tasks guided cards, dashboard-your-numbers, home-products). There is no dashboard-activity, no 'Recent activity', and no your-plan-hero, your-platform-section or standalone-services-section. Tabs read 'Calling plans 5' and 'Landline texting 1'. Every calling row has a plan block: -tier, -price, -role ('Main number' or 'Extra number on +13341112222'), -renewal ('Renews Dec 11, 2026 · auto-renew on'), -minutes ('Minutes this month (shared) 0 / 600'), and -includes ('Includes Forwarding · Voicemail · ... · Fax'). Upgrade links: uxtest's Basic number +12024595976 shows 'Upgrade to Starter' -> /cloudivr/app/numbers/%2B12024595976?tab=billing, which opens with the Billing tab selected. The Business numbers and the extra number have no link. Alice: Business +13346970100 has no link; Starter +13346970101 shows 'Upgrade to Pro' with the correct href. The texting row has no plan block and reads '... · separate service · included with +13341112222'. Clicking dashboard-number-0-link opens /app/numbers/%2B13341112222. Alice's Home at 390px has no horizontal scroll. NAV: nav-ai-receptionist href is /cloudivr/app/ai-agents?use=inbound and opens ai-agents-page with data-use=inbound and the title 'AI receptionist'. /cloudivr/app/receptionist redirects to /cloudivr/app (dashboard), so it is no longer a page. TRAVEL eSIM: the tes_preview_install hrefs exactly match the apple/android esimsetup URLs with carddata=LPA%3A1%24consumer.rsp.world%24PREVIEWTESTCODE0001, with target=_blank and rel=noopener noreferrer. On desktop the QR comes first, then both buttons as civr-btn-ghost of equal weight. With the iPhone UA, the ios button comes first with civr-btn-primary and android is ghost. With the Pixel UA, the android button comes first and is primary. scrollWidth equals clientWidth at 390 and 412. The copy button puts the LPA on the clipboard and shows a 'Copied' toast. The help text is present. WALLET: the invoices section has 36 rows with no 'Calls & texts' or usage invoices. View opens the popup 'Invoice CIVR-2026-000071'. FAILED: the install buttons and the copy button are 42px tall, but the requirement is at least 44px.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "TravelEsim InstallButtons + copy button", "issue": "The install buttons are 42px tall (required: at least 44px), at every viewport and UA, including touch emulation. RCA: cloudivr.css:50 sets `.civr .civr-btn { min-height: 42px }`. That selector has specificity 0,2,0, so it beats Tailwind's `min-h-[48px]` (0,1,0), and the min-h class has no effect. The copy button's `min-h-[44px]` is overridden the same way and renders at 42px. Fix: use `!min-h-[48px]` / `!min-h-[44px]`, or a more specific class.", "selector": "[data-testid=travel-esim-ios-tes_preview_install], [data-testid=travel-esim-android-tes_preview_install], [data-testid=travel-esim-copy-tes_preview_install]", "priority": "MEDIUM"},
+      {"component": "TravelEsim primary install button on phone", "issue": "The spec says the button for the user's phone should be primary and large. It is primary, but 'large' only means text-base. It has the same 42px height as the secondary button, so it looks barely bigger. Consider a taller primary button (e.g. !min-h-[52px]).", "selector": "[data-testid=travel-esim-ios-tes_preview_install]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Home Your numbers", "issues": ["The extra number +13343334444 shows '$120.00/mo', the same as its main number. The API returns planPrice=120 for this isSubNumber, which is probably seed data. Check that real extra numbers show their own add-on price."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "TravelEsim.js: change min-h-[48px] to !min-h-[48px] on the install buttons and min-h-[44px] to !min-h-[44px] on the copy button. `.civr .civr-btn { min-height: 42px }` currently overrides both, so they render at 42px."
+  ],
+  "critical_code_review_comments": [
+    "Tailwind min-h-* utilities on .civr-btn elements are overridden by `.civr .civr-btn` (min-height: 42px) everywhere in the app. Any other place that relies on min-h-[44px] with civr-btn has the same problem.",
+    "NumberPlan.js: the TIERS ids ['starter','standard','pro','business'] map to the labels Basic/Starter/Pro/Business. Upgrade logic relies on this order and on the catalog plan ids. It works now, but it is fragile if the catalog adds a tier.",
+    "Install(): on dryRun orders, links={} hides the buttons. The seeded tes_preview_install is not dryRun, so the buttons appear. Real dry-run purchases on preview will show no buttons and no QR (by design)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "95% (all flows pass; 44px tap-target requirement fails)"},
+  "seed_data_creation": "None. Nothing was bought or changed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login at /cloudivr/login: click cookie-allow-all, then auth-email-input / auth-password-input and the 'Sign in' button. uxtest has 5 calling numbers (+12024595976 is Basic, so it has an Upgrade link) plus 1 landline texting (+19053874823). Alice has Business +13346970100 and Starter +13346970101 (Upgrade to Pro). To emulate phones, use browser.new_context(user_agent=..., viewport=..., is_mobile=True). Measure button height with getBoundingClientRect."
+}

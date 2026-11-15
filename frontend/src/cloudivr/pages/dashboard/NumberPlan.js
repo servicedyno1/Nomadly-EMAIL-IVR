@@ -13,7 +13,7 @@ export function NumberPlan({ n, i, catalog, pv }) {
   const used = n.usage?.minutesUsed || 0, inc = n.usage?.minutesIncluded;
   const pct = inc ? Math.min(100, Math.round((used / inc) * 100)) : 0;
   const has = [...INCLUDES.filter(([k]) => n.access?.[k]).map(([, l]) => l), ...(n.plan === 'business' ? ['Fax'] : [])];
-  const price = n.isSubNumber ? n.planPrice : (n.renewalPrice ?? n.planPrice);
+  const price = n.renewalPrice ?? n.planPrice;
   return (
     <div className="mt-2 space-y-2" data-testid={`dashboard-number-${i}-plan`}>
       <div className="flex flex-wrap items-center gap-2 text-xs">
