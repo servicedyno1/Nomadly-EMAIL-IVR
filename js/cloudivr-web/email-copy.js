@@ -9,7 +9,7 @@ const plFr = (n, one, many) => `${n} ${n <= 1 ? one : many}`
 const en = {
   hi: (n) => (n ? `Hi ${n},` : 'Hi there,'),
   labels: { number: 'Number', plan: 'Plan', country: 'Country', renews: 'Renews on', monthly: 'Monthly price', paid: 'Paid from wallet', next: 'Next renewal', balance: 'Wallet balance', added: 'Added', newBalance: 'New balance', from: 'From', to: 'To', when: 'When', length: 'Length', calls: 'Calls', answered: 'Answered', pressed: 'Pressed a key', transferred: 'Transferred', voicemail: 'Voicemail', messagesLeft: 'Messages left', noAnswer: 'No answer', failed: 'Failed / busy', callsIn: 'Calls received', missed: 'Missed', voicemails: 'Voicemails', texts: 'Texts', outgoing: 'Outgoing calls', minutes: 'Minutes' },
-  foot: { why: (e) => `You're getting this because ${e} has a CloudIVR account.`, settings: 'Email settings', support: 'Message support', off: { weekly: 'Stop weekly summaries', campaigns: 'Stop campaign reports', voicemail: 'Stop voicemail alerts', missed: 'Stop missed-call alerts' } },
+  foot: { why: (e) => `You're getting this because ${e} has a CloudIVR account.`, settings: 'Email settings', support: 'Message support', off: { weekly: 'Stop weekly summaries', campaigns: 'Stop campaign reports', voicemail: 'Stop voicemail alerts', receptionist: 'Stop AI receptionist messages', missed: 'Stop missed-call alerts' } },
   adds: {
     standard: ['Voicemail with transcripts', 'SIP logins for softphone apps and desk phones', 'Call recording'],
     pro: ['Voicemail with transcripts', 'Keypad menu — press 1 for sales', 'Quick IVR & Bulk IVR campaigns', 'Code collection with Accept / Decline', 'Browser phone, SIP & call recording'],
@@ -156,6 +156,14 @@ const en = {
     noText: 'No transcript for this one — give it a listen in the app.',
     cta: () => 'Listen now',
   },
+  aiMessage: {
+    subject: (d) => (d.booking ? `New booking from ${d.from}` : `New message from ${d.from}`),
+    preheader: (d) => (d.message?.text ? `“${d.message.text.slice(0, 90)}”` : d.summary || `Your AI receptionist took a call on ${d.to}`),
+    eyebrow: 'AI receptionist', title: (d) => (d.booking ? 'A caller booked a visit.' : 'A caller left a message.'),
+    intro: (d) => `${d.agent || 'Your AI receptionist'} answered ${d.from} on ${d.to}.`,
+    name: 'Name', callback: 'Call back on', booked: 'Booked',
+    cta: () => 'Open messages',
+  },
   missed: {
     subject: (d) => (d.calls.length > 1 ? `${d.calls.length} missed calls on ${d.to}` : `Missed call from ${d.calls[0].from}`),
     preheader: () => 'Call back while they’re still thinking about you.',
@@ -191,13 +199,13 @@ const en = {
       failed: { subject: (d) => `We couldn’t set up texting for ${d.phone}`, eyebrow: 'Not approved', title: () => 'This number couldn’t be text-enabled.', status: 'Not approved', intro: (d, f) => `The carrier didn’t approve texting for ${d.phone}.${d.refund ? ` ${f.usd(d.refund)} has gone back to your wallet.` : ''} Reply to this email if you’d like us to look into it.` },
     },
   },
-  off: { ask: { title: 'Stop these emails?', body: (w) => `You’ll stop getting ${w}. Receipts, renewal notices and wallet alerts still arrive.`, button: 'Yes, stop them' }, title: 'You’re unsubscribed', body: (w) => `You won’t get ${w} anymore. Changed your mind? Switch them back on in Settings → Email notifications.`, what: { weekly: 'weekly summaries', campaigns: 'campaign reports', voicemail: 'voicemail alerts', missed: 'missed-call alerts' }, back: 'Open CloudIVR', bad: 'This link is invalid or has expired.' },
+  off: { ask: { title: 'Stop these emails?', body: (w) => `You’ll stop getting ${w}. Receipts, renewal notices and wallet alerts still arrive.`, button: 'Yes, stop them' }, title: 'You’re unsubscribed', body: (w) => `You won’t get ${w} anymore. Changed your mind? Switch them back on in Settings → Email notifications.`, what: { weekly: 'weekly summaries', campaigns: 'campaign reports', voicemail: 'voicemail alerts', receptionist: 'AI receptionist messages', missed: 'missed-call alerts' }, back: 'Open CloudIVR', bad: 'This link is invalid or has expired.' },
 }
 
 const fr = {
   hi: (n) => (n ? `Bonjour ${n},` : 'Bonjour,'),
   labels: { number: 'Numéro', plan: 'Forfait', country: 'Pays', renews: 'Renouvellement le', monthly: 'Prix mensuel', paid: 'Payé (portefeuille)', next: 'Prochain renouvellement', balance: 'Solde du portefeuille', added: 'Ajouté', newBalance: 'Nouveau solde', from: 'De', to: 'Vers', when: 'Quand', length: 'Durée', calls: 'Appels', answered: 'Décrochés', pressed: 'Touche pressée', transferred: 'Transférés', voicemail: 'Messagerie', messagesLeft: 'Messages déposés', noAnswer: 'Sans réponse', failed: 'Échecs / occupé', callsIn: 'Appels reçus', missed: 'Manqués', voicemails: 'Messages vocaux', texts: 'SMS', outgoing: 'Appels sortants', minutes: 'Minutes' },
-  foot: { why: (e) => `Vous recevez cet e-mail car ${e} possède un compte CloudIVR.`, settings: 'Paramètres e-mail', support: 'Contacter le support', off: { weekly: 'Ne plus recevoir le résumé hebdo', campaigns: 'Ne plus recevoir les rapports de campagne', voicemail: 'Ne plus recevoir les alertes de messagerie', missed: 'Ne plus recevoir les alertes d’appel manqué' } },
+  foot: { why: (e) => `Vous recevez cet e-mail car ${e} possède un compte CloudIVR.`, settings: 'Paramètres e-mail', support: 'Contacter le support', off: { weekly: 'Ne plus recevoir le résumé hebdo', campaigns: 'Ne plus recevoir les rapports de campagne', voicemail: 'Ne plus recevoir les alertes de messagerie', receptionist: 'Ne plus recevoir les messages du réceptionniste IA', missed: 'Ne plus recevoir les alertes d’appel manqué' } },
   adds: {
     standard: ['Messagerie vocale avec transcription', 'Identifiants SIP pour softphones et téléphones de bureau', 'Enregistrement d’appels'],
     pro: ['Messagerie vocale avec transcription', 'Menu à touches — 1 pour les ventes', 'Campagnes Quick IVR et Bulk IVR', 'Collecte de codes avec Accepter / Refuser', 'Téléphone navigateur, SIP et enregistrement d’appels'],
@@ -344,6 +352,14 @@ const fr = {
     noText: 'Pas de transcription pour celui-ci — écoutez-le dans l’application.',
     cta: () => 'Écouter maintenant',
   },
+  aiMessage: {
+    subject: (d) => (d.booking ? `Nouveau rendez-vous de ${d.from}` : `Nouveau message de ${d.from}`),
+    preheader: (d) => (d.message?.text ? `« ${d.message.text.slice(0, 90)} »` : d.summary || `Votre réceptionniste IA a pris un appel sur ${d.to}`),
+    eyebrow: 'Réceptionniste IA', title: (d) => (d.booking ? 'Un appelant a pris rendez-vous.' : 'Un appelant a laissé un message.'),
+    intro: (d) => `${d.agent || 'Votre réceptionniste IA'} a répondu à ${d.from} sur ${d.to}.`,
+    name: 'Nom', callback: 'Rappeler au', booked: 'Rendez-vous',
+    cta: () => 'Ouvrir les messages',
+  },
   missed: {
     subject: (d) => (d.calls.length > 1 ? `${d.calls.length} appels manqués sur ${d.to}` : `Appel manqué de ${d.calls[0].from}`),
     preheader: () => 'Rappelez pendant qu’ils pensent encore à vous.',
@@ -379,13 +395,13 @@ const fr = {
       failed: { subject: (d) => `Impossible d’activer les SMS sur ${d.phone}`, eyebrow: 'Non validé', title: () => 'Ce numéro n’a pas pu être activé pour les SMS.', status: 'Non validé', intro: (d, f) => `L’opérateur n’a pas validé les SMS pour ${d.phone}.${d.refund ? ` ${f.usd(d.refund)} ont été recrédités sur votre portefeuille.` : ''} Répondez à cet e-mail si vous souhaitez que nous regardions.` },
     },
   },
-  off: { ask: { title: 'Arrêter ces e-mails ?', body: (w) => `Vous ne recevrez plus ${w}. Les reçus, avis de renouvellement et alertes de portefeuille continueront d’arriver.`, button: 'Oui, les arrêter' }, title: 'Désinscription confirmée', body: (w) => `Vous ne recevrez plus ${w}. Vous avez changé d’avis ? Réactivez-les dans Paramètres → Notifications par e-mail.`, what: { weekly: 'le résumé hebdomadaire', campaigns: 'les rapports de campagne', voicemail: 'les alertes de messagerie vocale', missed: 'les alertes d’appel manqué' }, back: 'Ouvrir CloudIVR', bad: 'Ce lien est invalide ou a expiré.' },
+  off: { ask: { title: 'Arrêter ces e-mails ?', body: (w) => `Vous ne recevrez plus ${w}. Les reçus, avis de renouvellement et alertes de portefeuille continueront d’arriver.`, button: 'Oui, les arrêter' }, title: 'Désinscription confirmée', body: (w) => `Vous ne recevrez plus ${w}. Vous avez changé d’avis ? Réactivez-les dans Paramètres → Notifications par e-mail.`, what: { weekly: 'le résumé hebdomadaire', campaigns: 'les rapports de campagne', voicemail: 'les alertes de messagerie vocale', receptionist: 'les messages du réceptionniste IA', missed: 'les alertes d’appel manqué' }, back: 'Ouvrir CloudIVR', bad: 'Ce lien est invalide ou a expiré.' },
 }
 
 const es = {
   hi: (n) => (n ? `Hola ${n},` : 'Hola,'),
   labels: { number: 'Número', plan: 'Plan', country: 'País', renews: 'Se renueva el', monthly: 'Precio mensual', paid: 'Pagado (billetera)', next: 'Próxima renovación', balance: 'Saldo de la billetera', added: 'Añadido', newBalance: 'Nuevo saldo', from: 'De', to: 'A', when: 'Cuándo', length: 'Duración', calls: 'Llamadas', answered: 'Contestadas', pressed: 'Pulsaron tecla', transferred: 'Transferidas', voicemail: 'Buzón', messagesLeft: 'Mensajes dejados', noAnswer: 'Sin respuesta', failed: 'Fallidas / ocupado', callsIn: 'Llamadas recibidas', missed: 'Perdidas', voicemails: 'Mensajes de voz', texts: 'SMS', outgoing: 'Llamadas salientes', minutes: 'Minutos' },
-  foot: { why: (e) => `Recibes este correo porque ${e} tiene una cuenta de CloudIVR.`, settings: 'Configuración de correo', support: 'Escribir a soporte', off: { weekly: 'Dejar de recibir el resumen semanal', campaigns: 'Dejar de recibir informes de campaña', voicemail: 'Dejar de recibir avisos de buzón', missed: 'Dejar de recibir avisos de llamadas perdidas' } },
+  foot: { why: (e) => `Recibes este correo porque ${e} tiene una cuenta de CloudIVR.`, settings: 'Configuración de correo', support: 'Escribir a soporte', off: { weekly: 'Dejar de recibir el resumen semanal', campaigns: 'Dejar de recibir informes de campaña', voicemail: 'Dejar de recibir avisos de buzón', receptionist: 'Dejar de recibir mensajes de la recepcionista IA', missed: 'Dejar de recibir avisos de llamadas perdidas' } },
   adds: {
     standard: ['Buzón de voz con transcripción', 'Accesos SIP para softphones y teléfonos de escritorio', 'Grabación de llamadas'],
     pro: ['Buzón de voz con transcripción', 'Menú de teclas — 1 para ventas', 'Campañas Quick IVR y Bulk IVR', 'Recogida de códigos con Aceptar / Rechazar', 'Teléfono en el navegador, SIP y grabación de llamadas'],
@@ -532,6 +548,14 @@ const es = {
     noText: 'Este no tiene transcripción — escúchalo en la app.',
     cta: () => 'Escuchar ahora',
   },
+  aiMessage: {
+    subject: (d) => (d.booking ? `Nueva cita de ${d.from}` : `Nuevo mensaje de ${d.from}`),
+    preheader: (d) => (d.message?.text ? `«${d.message.text.slice(0, 90)}»` : d.summary || `Tu recepcionista IA atendió una llamada en ${d.to}`),
+    eyebrow: 'Recepcionista IA', title: (d) => (d.booking ? 'Alguien reservó una cita.' : 'Alguien dejó un mensaje.'),
+    intro: (d) => `${d.agent || 'Tu recepcionista IA'} atendió a ${d.from} en ${d.to}.`,
+    name: 'Nombre', callback: 'Devolver la llamada al', booked: 'Cita',
+    cta: () => 'Abrir mensajes',
+  },
   missed: {
     subject: (d) => (d.calls.length > 1 ? `${d.calls.length} llamadas perdidas en ${d.to}` : `Llamada perdida de ${d.calls[0].from}`),
     preheader: () => 'Devuelve la llamada mientras aún piensan en ti.',
@@ -567,7 +591,7 @@ const es = {
       failed: { subject: (d) => `No pudimos activar SMS en ${d.phone}`, eyebrow: 'No aprobado', title: () => 'No se pudo activar SMS en este número.', status: 'No aprobado', intro: (d, f) => `El operador no aprobó SMS para ${d.phone}.${d.refund ? ` Devolvimos ${f.usd(d.refund)} a tu billetera.` : ''} Responde a este correo si quieres que lo revisemos.` },
     },
   },
-  off: { ask: { title: '¿Dejar de recibir estos correos?', body: (w) => `Dejarás de recibir ${w}. Los recibos, avisos de renovación y alertas de la billetera seguirán llegando.`, button: 'Sí, dejar de recibirlos' }, title: 'Suscripción cancelada', body: (w) => `Ya no recibirás ${w}. ¿Cambiaste de idea? Vuelve a activarlos en Configuración → Notificaciones por correo.`, what: { weekly: 'el resumen semanal', campaigns: 'los informes de campaña', voicemail: 'los avisos de buzón de voz', missed: 'los avisos de llamadas perdidas' }, back: 'Abrir CloudIVR', bad: 'Este enlace no es válido o ha caducado.' },
+  off: { ask: { title: '¿Dejar de recibir estos correos?', body: (w) => `Dejarás de recibir ${w}. Los recibos, avisos de renovación y alertas de la billetera seguirán llegando.`, button: 'Sí, dejar de recibirlos' }, title: 'Suscripción cancelada', body: (w) => `Ya no recibirás ${w}. ¿Cambiaste de idea? Vuelve a activarlos en Configuración → Notificaciones por correo.`, what: { weekly: 'el resumen semanal', campaigns: 'los informes de campaña', voicemail: 'los avisos de buzón de voz', receptionist: 'los mensajes de la recepcionista IA', missed: 'los avisos de llamadas perdidas' }, back: 'Abrir CloudIVR', bad: 'Este enlace no es válido o ha caducado.' },
 }
 
 module.exports = { en, fr, es }

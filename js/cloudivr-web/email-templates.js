@@ -120,6 +120,11 @@ const B = {
       + L.rows([{ k: c.labels.from, v: L.mono(d.from), html: true }, { k: c.labels.to, v: L.mono(d.to), html: true }, { k: c.labels.length, v: f.dur(d.duration) }])
       + L.button(c.voicemail.cta(d), x.app(`/app/numbers/${enc(d.to)}?tab=logs`)) }),
 
+  aiMessage: (d, c, f, x) => ({ ...head(c.aiMessage, d, f), t: d.booking ? 'ok' : 'brand',
+    body: P(c.aiMessage.intro(d, f)) + (d.message?.text ? L.quote(d.message.text) : d.summary ? L.p(L.esc(d.summary), 'color:#64748b') : '')
+      + L.rows([d.message?.name && { k: c.aiMessage.name, v: d.message.name }, { k: c.aiMessage.callback, v: L.mono(d.message?.callback || d.from), html: true }, d.booking && { k: c.aiMessage.booked, v: `${d.booking.day} · ${d.booking.time}` }, { k: c.labels.to, v: L.mono(d.to), html: true }].filter(Boolean))
+      + L.button(c.aiMessage.cta(d), x.app('/app/receptionist?tab=messages')) }),
+
   missed: (d, c, f, x) => ({ ...head(c.missed, d, f), t: 'warn',
     body: P(c.missed.intro(d, f)) + L.rows(d.calls.slice(0, 10).map(m => ({ k: f.dt(m.at), v: L.mono(m.from), html: true })))
       + L.callout(L.esc(c.missed.tip), 'brand') + L.button(c.missed.cta(d), x.app(`/app/numbers/${enc(d.to)}?tab=logs`)) }),

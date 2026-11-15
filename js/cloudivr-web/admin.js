@@ -31,6 +31,15 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
 
   function routes(r, h) {
     const A = adminAuth.require
+    r.get('/admin/bird-spend', A, h(async (req, res) => res.json(await require('../bird-spend').status())))
+    r.post('/admin/bird-spend/topup', A, h(async (req, res) => {
+      const reason = need(req, res); if (!reason) return
+      try {
+        const s = await require('../bird-spend').topUp(req.body?.amount)
+        await log1(req, 'bird-topup', 'bird', reason, { amount: s.budget })
+        res.json(s)
+      } catch (e) { bad(res, 400, 'invalid_amount', e.message) }
+    }))
     r.get('/admin/overview', A, h(async (req, res) => {
       const now = Date.now(), d30 = new Date(now - 30 * DAY), d1 = new Date(now - DAY)
       const [byType, today, series, botUsers, webUsers, newWeb, numbers, running, hosted, agents, mobileCount] = await Promise.all([

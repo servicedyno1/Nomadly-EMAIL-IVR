@@ -154,7 +154,8 @@ function publicVoicemail(vm) {
 
 // What callers get right now, and which settings are skipped because another one answers first.
 function routeSummary(n) {
-  if (n.features?.aiAgent?.enabled && phoneConfig.canAccessFeature(n.plan, 'aiAgent')) return { primary: 'ai_agent', forwardTo: null, skipped: [], brokenIvr: false }
+  const _fa = n.features?.callForwarding
+  if (n.features?.aiAgent?.enabled && phoneConfig.canAccessFeature(n.plan, 'aiAgent') && !(_fa?.enabled && _fa.mode === 'always' && _fa.forwardTo)) return { primary: 'ai_agent', forwardTo: null, skipped: [], brokenIvr: false }
   const rg = n.features?.ringGroup
   if (rg?.enabled && rg.members?.length && phoneConfig.canAccessFeature(n.plan, 'ringGroup')) return { primary: 'ring_group', forwardTo: null, members: rg.members, skipped: [], brokenIvr: false }
   try {
@@ -165,6 +166,9 @@ function routeSummary(n) {
 
 // `numbers` = the owner's lines, so usage shows the shared allowance of the main line + its extra lines.
 function publicNumber(n, numbers) {
+  return { ..._publicNumber(n, numbers), callFlow: require('../call-flow').callFlow(n) }
+}
+function _publicNumber(n, numbers) {
   const plan = phoneConfig.plans[n.plan] || {}
   const pool = lifecycle.poolUsage(numbers || [n], n)
   const poolPlan = phoneConfig.plans[pool.main.plan] || plan
@@ -193,6 +197,7 @@ function publicNumber(n, numbers) {
       ringGroup: { ...require('./ring-group').defaults(), ...(f.ringGroup || {}) },
       textTriggers: { enabled: !!f.textTriggers?.enabled, count: (f.textTriggers?.rules || []).length },
       aiSummary: { enabled: !!f.aiSummary?.enabled },
+      missedTextBack: f.missedTextBack || { enabled: false, text: null },
     },
     access: access(n.plan),
   }
@@ -467,7 +472,7 @@ function routes(router, deps) {
       const doc = {
         phoneNumber: selected, telnyxOrderId: order.id, provider: viaMultitel ? 'multitel' : viaInfobip ? 'infobip' : 'telnyx', country, countryName: c.name,
         ...(order._needsRegistration ? { registration: { status: 'pending', since: new Date().toISOString() } } : {}),
-        type, plan: planKey, planPrice: round2(base), ...(!sub && hit.surcharge ? { numberSurcharge: round2(hit.surcharge) } : {}), purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(), autoRenew: autoRenew !== false, status: 'active',
+        type, plan: planKey, planPrice: round2(base), ...(!sub && hit.surcharge ? { numberSurcharge: round2(hit.surcharge) } : {}), purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(), autoRenew: autoRenew !== false, status: order._pending ? 'provisioning' : 'active',
         sipUsername, sipPassword, telnyxSipUsername: tUser, telnyxSipPassword: tPass, telnyxCredentialId: tCredId, sipDomain: phoneConfig.WEB_SIP_DOMAIN,
         messagingProfileId: caps.sms ? tr.messagingProfileId || null : null, connectionId: tr.sipConnectionId || null, smsUsed: 0, minutesUsed: 0,
         capabilities: caps, channel: 'web', resold: true, ...(eu ? { endUser: eu } : {}), ...(dryRun() ? { dryRun: true } : {}), ...(sub ? { isSubNumber: true, parentNumber: sub.parentNumber } : {}),
@@ -480,6 +485,7 @@ function routes(router, deps) {
         },
       }
       await phoneNumbersOf.updateOne({ _id: chatId }, { $push: { 'val.numbers': doc } }, { upsert: true })
+      if (order._pending) await require('../pending-orders').enqueue({ chatId, phoneNumber: selected, order, amount: price, email })
       await deps.legalProfile?.recordResale({ chatId, phoneNumber: selected, provider: doc.provider, country })
       if (doc.registration) deps.numberDocs?.submit({ chatId, email, phoneNumber: selected, country, countryName: c.name, type }).catch(e => log(`[CloudIVR-Web] MultiTEL documents for ${selected}: ${e.message}`))
       await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: sub ? 'purchase_sub' : 'purchase', plan: planKey, amount: price, paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), ...(sub ? { parentNumber: sub.parentNumber } : {}), ...(coupon ? { coupon: coupon.code, discountPct: coupon.discount } : {}), channel: 'web', timestamp: new Date().toISOString() })
@@ -492,7 +498,8 @@ function routes(router, deps) {
       if (!sub) await referrals.onPurchase(db, chatId, price, log).catch(e => log(`[CloudIVR-Web] referral payout failed: ${e.message}`))
       notifyAdmin(`🌐 CloudIVR web purchase${dryRun() ? ' (DRY RUN)' : ''}${viaOrder ? ' · crypto checkout' : ''}\nweb account: ${chatId} (${email})\nnumber: ${selected} (${country})${sub ? `\nextra number on ${sub.parentNumber}` : ''}\nplan: ${plan.name} $${price}${coupon ? ` (coupon ${coupon.code} −${coupon.discount}%)` : ''}`)
       await searchCache.deleteOne({ _id: chatId })
-      return { status: 201, body: { number: publicNumber(doc), substitutedFrom: selected !== phone && !order._assigned ? phone : null, balance: await w.balance(chatId) } }
+      if (order._pending) await notify.push(chatId, require('../pending-orders').pendingMsg(selected), null, { kind: 'billing' }).catch(() => {})
+      return { status: 201, body: { number: publicNumber(doc), pending: !!order._pending, substitutedFrom: selected !== phone && !order._assigned ? phone : null, balance: await w.balance(chatId) } }
     } catch (e) {
       if (prepaid) { log(`[CloudIVR-Web] activating requested number ${phone} for ${chatId} failed: ${e.message}`); return { status: 424, body: { error: 'purchase_failed', message: e.message } } }
       await w.credit(chatId, price)
@@ -547,7 +554,11 @@ function routes(router, deps) {
     if (bk.error) return bad(res, 400, 'invalid_backup', bk.error)
     const value = { enabled: mode !== 'disabled', mode, forwardTo: to, ringTimeout, holdMusic: !!req.body.holdMusic, backups: bk.list, showCallerId: !!req.body.showCallerId }
     await setField(req.webChatId, req.num.phoneNumber, 'features.callForwarding', value)
-    res.json({ callForwarding: value })
+    // Only one answers: "forward every call" switches the AI agent off.
+    const ai = req.num.features?.aiAgent
+    const aiAgentTurnedOff = !!(value.enabled && mode === 'always' && ai?.enabled)
+    if (aiAgentTurnedOff) await setField(req.webChatId, req.num.phoneNumber, 'features.aiAgent', { ...ai, enabled: false })
+    res.json({ callForwarding: value, aiAgentTurnedOff })
   }))
 
   // "Ring me in the browser" (Pro+): inbound calls ring the open web app, which answers them by voice (browser phone)
@@ -638,12 +649,15 @@ function routes(router, deps) {
     else if (feature === 'callForwarding') {
       const cf = f.callForwarding || {}
       const live = cf.mode && cf.mode !== 'disabled' ? cf.mode : null
-      await setField(id, phone, 'features.callForwarding', enabled ? { ...cf, enabled: true, mode: live || cf.lastMode || 'always' } : { ...cf, enabled: false, mode: 'disabled', lastMode: live || cf.lastMode || 'always' })
+      const mode = live || cf.lastMode || 'always'
+      await setField(id, phone, 'features.callForwarding', enabled ? { ...cf, enabled: true, mode } : { ...cf, enabled: false, mode: 'disabled', lastMode: mode })
+      if (enabled && mode === 'always' && f.aiAgent?.enabled) { await setField(id, phone, 'features.aiAgent', { ...f.aiAgent, enabled: false }); extra.aiAgentTurnedOff = true }
     } else {
       await setField(id, phone, `features.${feature}`, { ...(f[feature] || {}), enabled })
       // One answers a number: the keypad menu and the AI voice agent are never both on.
       if (enabled && feature === 'ivr' && f.aiAgent?.enabled) { await setField(id, phone, 'features.aiAgent', { ...f.aiAgent, enabled: false }); extra.aiAgentTurnedOff = true }
       if (enabled && feature === 'aiAgent' && f.ivr?.enabled) { await setField(id, phone, 'features.ivr', { ...f.ivr, enabled: false }); extra.ivrTurnedOff = true }
+      if (enabled && feature === 'aiAgent' && f.callForwarding?.enabled && f.callForwarding.mode === 'always') { await setField(id, phone, 'features.callForwarding', { ...f.callForwarding, enabled: false, mode: 'disabled', lastMode: 'always' }); extra.forwardingTurnedOff = true }
     }
     const all = (await phoneNumbersOf.findOne({ _id: id }))?.val?.numbers || []
     res.json({ feature, enabled, ...extra, number: publicNumber(all.find(x => x.phoneNumber === phone) || req.num, all) })

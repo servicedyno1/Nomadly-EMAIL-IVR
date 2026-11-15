@@ -83,6 +83,13 @@ async function _getUserLang(chatId) {
     return lang
   } catch { return 'en' }
 }
+const BACKUP_TIP = {
+  en: '💡 Add a backup number (up to 4) in Call Forwarding — when this phone doesn’t answer, the next one rings instead of losing the caller.',
+  fr: '💡 Ajoutez un numéro de secours (jusqu’à 4) dans le transfert d’appel — si ce téléphone ne répond pas, le suivant sonne.',
+  hi: '💡 कॉल फ़ॉरवर्डिंग में बैकअप नंबर जोड़ें (4 तक) — यह फ़ोन न उठे तो अगला नंबर बजेगा।',
+  zh: '💡 在呼叫转接中添加备用号码（最多 4 个）——此电话无人接听时，会转到下一个号码。',
+  fa: '💡 در انتقال تماس یک شماره پشتیبان (تا ۴) اضافه کنید — اگر این تلفن پاسخ ندهد، شماره بعدی زنگ می‌خورد.',
+}
 function _trans(key, lang, ...args) {
   if (!_translation) return null
   const t = _translation(key, lang, ...args)
@@ -2618,8 +2625,11 @@ async function handleCallInitiated(payload) {
   webEvents().emit(chatId, 'call.started', { number: to, from, direction: 'inbound', callId: callControlId })
 
   // ── AI agent answers (Business, billed per started minute from the wallet; plan minutes untouched) ──
-  if (num.features?.aiAgent?.enabled) {
-    try { if (await require('./ai-agent').tryInbound({ payload, chatId, num })) return } catch (e) { log(`[AIAgent] inbound error: ${e.message}`) }
+  // Forward-always wins over the AI agent: the owner asked for every call to ring their phone.
+  const _fwdAlways = num.features?.callForwarding?.enabled && num.features.callForwarding.mode === 'always' && num.features.callForwarding.forwardTo
+  let _aiClosed = false
+  if (num.features?.aiAgent?.enabled && !_fwdAlways) {
+    try { const r = await require('./ai-agent').tryInbound({ payload, chatId, num }); if (r === 'voicemail') _aiClosed = true; else if (r) return } catch (e) { log(`[AIAgent] inbound error: ${e.message}`) }
   }
 
   const _freeTestRing = require('./test-my-number').isFreeTestRing(from, to)
@@ -2669,7 +2679,9 @@ async function handleCallInitiated(payload) {
     isTestCall: _freeTestRing,
     recordingEnabled: num.features?.recording === true && canAccessFeature(num.plan, 'callRecording'),
     // On/off hours (CloudIVR web): outside the hours the number doesn't ring (voicemail / message / backups) — see routeOffHours.
-    offHours: !!(num.features?.hours?.enabled && !numberHours.isOpen(num.features.hours)),
+    offHours: _aiClosed || !!(num.features?.hours?.enabled && !numberHours.isOpen(num.features.hours)),
+    // AI receptionist closed + "send to voicemail": straight to voicemail (no backups, no closed-message choice).
+    aiClosed: _aiClosed,
   }
 
   // ── MID-CALL LIMIT MONITOR ──
@@ -4009,7 +4021,7 @@ const OFF_HOURS_RING_SECS = 20
 async function routeOffHours(callControlId, session) {
   const { num, chatId, to, from } = session
   const hrs = num.features?.hours || {}
-  const fwd = hrs.offAction === 'forward' ? [...new Set(hrs.offForward || [])].filter(n => n && n !== to && n !== from && !dialGuard.classifyDial(n).blocked).slice(0, 5) : []
+  const fwd = !session.aiClosed && hrs.offAction === 'forward' ? [...new Set(hrs.offForward || [])].filter(n => n && n !== to && n !== from && !dialGuard.classifyDial(n).blocked).slice(0, 5) : []
   if (fwd.length && _walletOf) {
     const { usdBal } = await getBalance(_walletOf, chatId).catch(() => ({ usdBal: CALL_FORWARDING_RATE_MIN }))
     if (usdBal < CALL_FORWARDING_RATE_MIN) { log(`[Voice] Off-hours forward wallet check: $${usdBal} < $${CALL_FORWARDING_RATE_MIN} — not forwarding`); fwd.length = 0 }
@@ -4028,7 +4040,7 @@ async function routeOffHours(callControlId, session) {
 // Voicemail or the closed message (also after none of the off-hours backup numbers answered).
 async function offHoursEnd(callControlId, session) {
   const { num, chatId, to, from } = session
-  const hrs = num.features?.hours || {}
+  const hrs = session.aiClosed ? { offAction: 'voicemail', timezone: 'receptionist hours' } : num.features?.hours || {}
   const vm = num.features?.voicemail || {}
   const lang = vm.language || 'en'
   const toVoicemail = hrs.offAction !== 'message' && canAccessFeature(num.plan, 'voicemail')
@@ -4950,7 +4962,8 @@ async function handleCallHangup(payload) {
     } else {
       const lang2 = await _getUserLang(chatId)
       const msg = _trans('t.vs_forwardFailed', lang2, formatPhone(to), formatPhone(forwardTo), formatPhone(from), time) || `📞 <b>Forward — No Answer</b>\n\n📞 ${formatPhone(to)} → 📲 ${formatPhone(forwardTo)}\n👤 ${formatPhone(from)}\n🕐 ${time}`
-      _bot.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
+      const tip = (num.features?.callForwarding?.backups || []).length ? '' : `\n\n${BACKUP_TIP[lang2] || BACKUP_TIP.en}`
+      _bot.sendMessage(chatId, msg + tip, { parse_mode: 'HTML' }).catch(() => {})
     }
     logEvent(to, from, transferConnected ? 'forwarded' : 'forward_failed', duration)
   } else if (isOutbound) {
@@ -4980,6 +4993,7 @@ async function handleCallHangup(payload) {
     const msg = _trans('t.vs_missedCall', langMissed, formatPhone(to), formatPhone(from), time) || `📞 <b>Missed Call</b>\n\n📞 To: ${formatPhone(to)}\n👤 From: ${formatPhone(from)}\n🕐 ${time}`
     _bot.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
     logEvent(to, from, 'missed', 0)
+    require('./cloudivr-web/missed-textback').onMissed({ chatId, num, from }).catch(e => log(`[TextBack] ${e.message}`))
   } else if (session.phase === 'bridged' && session.ringGroupAnsweredBy) {
     logEvent(to, from, 'forwarded', duration, null, session.ringGroupAnsweredBy)
   } else if (session.phase === 'voicemail_recording' || session.phase === 'voicemail_greeting') {

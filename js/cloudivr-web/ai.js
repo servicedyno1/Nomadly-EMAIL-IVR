@@ -113,8 +113,17 @@ function routes(router, { h, numbersApi }) {
   router.delete('/calendar', h(async (req, res) => res.json({ disconnected: await gcal.disconnect(req.webChatId) })))
 
   router.get('/ai-calls', h(async (req, res) => res.json({
-    calls: await s.listCalls(req.webChatId, { agentId: req.query.agentId, campaignId: req.query.campaignId, limit: parseInt(req.query.limit, 10) || 30 }),
+    calls: await s.listCalls(req.webChatId, { agentId: req.query.agentId, campaignId: req.query.campaignId, direction: req.query.direction, limit: parseInt(req.query.limit, 10) || 30 }),
   })))
+  router.get('/ai-receptionist/messages', h(async (req, res) => {
+    const [messages, open] = await Promise.all([s.listMessages(req.webChatId, { open: req.query.open === '1', limit: parseInt(req.query.limit, 10) || 50 }), s.countOpenMessages(req.webChatId)])
+    res.json({ messages, open })
+  }))
+  router.put('/ai-receptionist/messages/:id', h(async (req, res) => {
+    const r = await s.setHandled(req.webChatId, req.params.id, !!req.body?.handled)
+    if (!r.matchedCount) return bad(res, 404, 'not_found', 'Message not found.')
+    res.json({ handled: !!req.body?.handled, open: await s.countOpenMessages(req.webChatId) })
+  }))
   router.get('/ai-calls/:id', h(async (req, res) => {
     const c = await s.getCall(req.webChatId, req.params.id)
     if (!c) return bad(res, 404, 'not_found', 'Call not found.')
@@ -150,7 +159,11 @@ function routes(router, { h, numbersApi }) {
     const ivr = num.features?.ivr
     const ivrTurnedOff = !!(enabled && ivr?.enabled)
     if (ivrTurnedOff) await numbersApi.setField(req.webChatId, num.phoneNumber, 'features.ivr', { ...ivr, enabled: false })
-    res.json({ aiAgent: value, ivrTurnedOff })
+    // …and "forward every call" too: only one can answer.
+    const cf = num.features?.callForwarding
+    const forwardingTurnedOff = !!(enabled && cf?.enabled && cf.mode === 'always')
+    if (forwardingTurnedOff) await numbersApi.setField(req.webChatId, num.phoneNumber, 'features.callForwarding', { ...cf, enabled: false, mode: 'disabled', lastMode: 'always' })
+    res.json({ aiAgent: value, ivrTurnedOff, forwardingTurnedOff })
   }))
 }
 

@@ -101,7 +101,7 @@ async function linkSim(iccid, email, kind) {
 }
 
 // ---------- customer lines ----------
-const pub = (d) => ({ numberChange: d.numberChange ? { status: d.numberChange.status, at: d.numberChange.at, oldNumber: d.numberChange.oldNumber, newNumber: d.numberChange.newNumber || null } : null, formerNumbers: (d.formerNumbers || []).map(f => f.phone), autoRenew: d.autoRenew !== false, id: d._id, iccid: d.iccid || null, phoneNumber: d.phoneNumber || null, planId: d.planId, price: d.price, status: d.status, note: d.note || null, callsTo: d.callsTo || 'device', ivrNumber: d.ivrNumber || null, nextBillAt: d.nextBillAt || null, expiresAt: d.expiresAt || null, createdAt: d.createdAt, linked: !!d.linked, kind: d.kind || 'esim', zipcode: d.zipcode || null, hasQr: d.kind !== 'mobile' && !!(d.qrCode || d.iccid), qrEmail: d.qrEmail || null, qrEmailedAt: d.qrEmailedAt || null, imeiDueAt: d.status === 'awaiting_imei' ? new Date(new Date(d.createdAt).getTime() + IMEI_WAIT_MS) : null })
+const pub = (d) => ({ numberChange: d.numberChange ? { status: d.numberChange.status, at: d.numberChange.at, oldNumber: d.numberChange.oldNumber, newNumber: d.numberChange.newNumber || null } : null, formerNumbers: (d.formerNumbers || []).map(f => f.phone), autoRenew: d.autoRenew !== false, id: d._id, iccid: d.iccid || null, phoneNumber: d.phoneNumber || null, planId: d.planId, price: d.price, status: d.status === 'awaiting_funds' ? 'provisioning' : d.status, note: d.note || null, callsTo: d.callsTo || 'device', ivrNumber: d.ivrNumber || null, nextBillAt: d.nextBillAt || null, expiresAt: d.expiresAt || null, createdAt: d.createdAt, linked: !!d.linked, kind: d.kind || 'esim', zipcode: d.zipcode || null, hasQr: d.kind !== 'mobile' && !!(d.qrCode || d.iccid), qrEmail: d.qrEmail || null, qrEmailedAt: d.qrEmailedAt || null, imeiDueAt: d.status === 'awaiting_imei' ? new Date(new Date(d.createdAt).getTime() + IMEI_WAIT_MS) : null })
 const luhn = (s) => { let sum = 0; for (let i = 0; i < s.length; i++) { let n = +s[s.length - 1 - i]; if (i % 2) { n *= 2; if (n > 9) n -= 9 } sum += n } return sum % 10 === 0 }
 const txn = (chatId, type, amount, meta) => S.db.collection('transactions').insertOne({ chatId: String(chatId), type, amount: round2(amount), currency: 'USD', status: 'completed', metadata: { ...meta, channel: 'esim' }, createdAt: new Date(), updatedAt: new Date() })
 
@@ -178,6 +178,13 @@ const orderRefunded = (lineId) => S.db.collection('digitalOrders').updateOne({ e
 // Send the paid line to Spenza; refund the wallet if Spenza refuses.
 async function provision(doc) {
   const { _id, chatId, price, simId, planId, imei: im, zipcode: zip } = doc
+  // Spenza balance too low: the paid line waits (pending-orders retries it after the top-up; refund after 48 h).
+  if (!dry() && require('./provider-health').isLow('spenza')) {
+    await S.col.updateOne({ _id }, { $set: { status: 'awaiting_funds', updatedAt: new Date() } })
+    say(chatId, '⏳ Payment received — your eSIM is being set up. We’ll message and email you as soon as it’s ready (usually within a few hours).', { kind: 'billing', meta: { esim: _id } })
+    require('./provider-health').alert(`⏳ eSIM ${_id} for ${chatId} ($${price}) is waiting for a Spenza top-up. It completes automatically after the top-up; refunded after 48 h.`)
+    return { item: pub({ ...doc, status: 'provisioning' }), pending: true }
+  }
   if (dry()) { await S.col.updateOne({ _id }, { $set: { transactionId: 'preview-' + _id, simulated: true } }); return { item: pub(doc) } }
   try {
     const u = await spenzaUser(chatId, doc.source === 'telegram' ? doc.qrEmail || null : null)
@@ -191,6 +198,21 @@ async function provision(doc) {
     await S.col.updateOne({ _id }, { $set: { status: 'failed', note: 'The eSIM couldn’t be created. Your payment was refunded.', providerError: e.message, updatedAt: new Date() } })
     say(chatId, bt({ chatId, lang: doc.lang }, 'failed', price) || `⚠️ Your eSIM couldn’t be created. $${price} was refunded to your wallet.`, { kind: 'billing', meta: { esim: _id } })
     return { error: `We couldn’t create the eSIM right now. Your $${price} was refunded to your wallet.`, code: 'esim_failed' }
+  }
+}
+
+// Lines waiting for a Spenza top-up: create them once the balance is back; refund after 48 hours.
+async function retryAwaitingFunds() {
+  if (!S.col) return
+  for (const d of await S.col.find({ status: 'awaiting_funds' }).toArray()) {
+    if (Date.now() - new Date(d.createdAt).getTime() > 48 * 3600000) {
+      const r = await S.col.updateOne({ _id: d._id, status: 'awaiting_funds' }, { $set: { status: 'failed', note: 'Not completed in 48 hours. Your payment was refunded.', updatedAt: new Date() } })
+      if (r.modifiedCount) { await S.w.credit(d.chatId, d.price); await txn(d.chatId, 'esim-refund', d.price, { lineId: d._id }); orderRefunded(d._id); say(d.chatId, `↩️ Your eSIM couldn’t be set up in time. $${d.price} is back in your wallet — please order again.`, { kind: 'billing', meta: { esim: d._id } }) }
+      continue
+    }
+    if (require('./provider-health').isLow('spenza')) return
+    await S.col.updateOne({ _id: d._id }, { $set: { status: 'provisioning', updatedAt: new Date() } })
+    await provision({ ...d, status: 'provisioning' }).catch(e => S.log(`[eSIM] retry ${d._id}: ${e.message}`))
   }
 }
 
@@ -699,5 +721,5 @@ function init({ db, log = console.log, tell }) {
   return api
 }
 
-const api = { init, setBot, sendBotQr, tick, syncUser, syncProfile, linkUser, receiptsOf, MOBILE_PRICE, bundlePrice, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, submitImei, imeiChase, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE, MOBILE_TEXT_PRICE, creditBalance }
+const api = { retryAwaitingFunds, init, setBot, sendBotQr, tick, syncUser, syncProfile, linkUser, receiptsOf, MOBILE_PRICE, bundlePrice, mobileOffer, buyMobile, mobileSip, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, submitImei, imeiChase, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE, MOBILE_TEXT_PRICE, creditBalance }
 module.exports = api

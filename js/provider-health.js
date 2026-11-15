@@ -5,7 +5,7 @@
 // Balance under WARN → alert. Under STOP → that provider's numbers are hidden while the other number provider is healthy.
 const axios = require('axios')
 const LOW = { multitel: 20, infobip: 20, spenza: 25 }
-const STOP = { multitel: 10, infobip: 10 }
+const STOP = { multitel: 10, infobip: 10, spenza: 10 }
 const EUR_USD = 1.08
 const state = {}
 let notify = () => {}
@@ -60,7 +60,7 @@ async function check(p) {
     const stop = Number.isFinite(bal) && STOP[p] != null && bal < STOP[p]
     if (Number.isFinite(bal) && LOW[p] != null && bal < LOW[p] && once(`${p}-${stop ? 'stop' : 'low'}`, 12 * 3600000)) {
       s.lowAlertAt = Date.now()
-      alert(`⚠️ [Providers] ${p} balance is low: $${bal.toFixed(2)} (alert below $${LOW[p]}).${stop ? ` Under $${STOP[p]}: its numbers are hidden and new orders go to the other provider while that one is healthy.` : ''} Top it up so orders, calls and texts keep working.`)
+      alert(`⚠️ [Providers] ${p} balance is low: $${bal.toFixed(2)} (alert below $${LOW[p]}).${stop ? ` Under $${STOP[p]}: numbers stay on sale, but paid orders wait until you top up (they complete automatically; refunded after 48 h).` : ''} Top it up so orders, calls and texts keep working.`)
     }
   } catch (e) {
     s.fails++; s.checkedAt = new Date(); s.reason = e.response?.status ? `HTTP ${e.response.status}` : e.message
@@ -74,16 +74,27 @@ function alert(text) {
   require('./admin-mail').adminMail(`CloudIVR provider alert: ${String(text).replace(/^\W+\[Providers\]\s*/, '').slice(0, 70)}`, `<p>${String(text).replace(/</g, '&lt;')}</p>`)
 }
 
-const tick = () => Promise.all(Object.keys(CHECKS).map(check))
+// Bird extras: spend estimate vs the last top-up (80% alert, once a day) and Bird's own daily calling limit.
+const BIRD_DAILY_WARN = 5
+async function birdExtras() {
+  if (!process.env.BIRD_API_KEY) return
+  const t = await require('./bird-spend').check().catch(() => null)
+  if (t) alert(t)
+  try {
+    const r = await require('./bird').http().get('/voice/settings')
+    const left = Number(r.data?.daily_spend_limit?.remaining?.amount)
+    if (!Number.isFinite(left)) return
+    st('bird').dailyLeft = left
+    if (left < BIRD_DAILY_WARN && once('bird-daily', 6 * 3600000)) alert(`⚠️ [Providers] Bird daily calling limit almost used: $${left.toFixed(2)} left today. Bird refuses calls at $0 — raise the daily limit in Bird.`)
+  } catch (_) { /* no voice settings → nothing to report */ }
+}
+
+const tick = () => Promise.all([...Object.keys(CHECKS).map(check), birdExtras()])
 const hardDown = (p) => !!state[p]?.down || (p === 'multitel' && require('./multitel').isBlocked())
 const isLow = (p) => STOP[p] != null && Number.isFinite(state[p]?.balance) && state[p].balance < STOP[p]
 // Low balance hides a number provider only while the other one can still sell (never hide both).
-const isDown = (p) => {
-  if (hardDown(p)) return true
-  if (!isLow(p)) return false
-  const other = p === 'multitel' ? 'infobip' : p === 'infobip' ? 'multitel' : null
-  return !!other && !hardDown(other) && !isLow(other)
-}
+// Low balance never hides numbers: paid orders wait in pending-orders until the top-up.
+const isDown = (p) => hardDown(p)
 const snapshot = () => Object.fromEntries(Object.keys(CHECKS).map(p => [p, { ...st(p) }]))
 function start(notifyAdmin) {
   if (notifyAdmin) notify = notifyAdmin
@@ -96,6 +107,7 @@ function start(notifyAdmin) {
 async function buyWithBackup(primary, phoneNumber, retry) {
   const ib = require('./infobip'), mt = require('./multitel')
   const P = primary === 'infobip' ? ib : mt
+  if (isLow(primary)) return require('./pending-orders').pendingResult(primary, phoneNumber)
   let r = await P.buyNumber(phoneNumber).catch(() => null)
   if (r || !retry) return r
   const cc = String(retry.countryCode || 'US').toUpperCase(), type = retry.numberType || 'local'

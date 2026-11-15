@@ -9,6 +9,14 @@ const VOICES = ['marin', 'cedar', 'alloy', 'ash', 'ballad', 'coral', 'echo', 'sa
 const OUTCOMES = ['booked', 'interested', 'not_interested', 'callback', 'message', 'transferred', 'opted_out', 'voicemail', 'no_conversation', 'other']
 const OUTCOME_HELP = 'Meanings: booked = an appointment was made; interested = wants to buy or go ahead; not_interested = said no or declined an offer; callback = asked to be called back later; message = left a message for the owner; transferred = handed to a person; opted_out = asked not to be called again; voicemail = reached an answering machine; no_conversation = the other side never really spoke; other = anything else, e.g. a question that was simply answered.'
 const E164 = /^\+[1-9]\d{7,14}$/
+const numberHours = require('../number-hours')
+const AFTER_HOURS = ['message', 'voicemail']
+// Receptionist business hours (same weekly format as a number's on/off hours) + what happens when closed.
+function cleanHours(h) {
+  if (!h || typeof h !== 'object') return null
+  const v = numberHours.validateHours(h)
+  return { enabled: v.enabled, timezone: v.timezone, days: v.days, afterHours: AFTER_HOURS.includes(h.afterHours) ? h.afterHours : 'message' }
+}
 let agents, calls, dnc
 let notifyAdmin = () => {}
 
@@ -62,11 +70,12 @@ function cleanAgent(b) {
     transferTo: transferTo || null, takeMessages: b.takeMessages !== false,
     maxMinutes: Math.min(15, Math.max(1, parseInt(b.maxMinutes, 10) || 5)),
     record: b.record !== false, discloseAi: b.discloseAi !== false, booking: cleanBooking(b.booking),
+    role: b.role === 'receptionist' ? 'receptionist' : 'agent', hours: cleanHours(b.hours),
   }
 }
-const FIELDS = ['id', 'name', 'goal', 'businessName', 'greeting', 'firstMessage', 'waitForHello', 'knowledge', 'language', 'voice', 'transferTo', 'takeMessages', 'maxMinutes', 'record', 'discloseAi', 'booking', 'createdAt', 'updatedAt']
+const FIELDS = ['id', 'name', 'goal', 'businessName', 'greeting', 'firstMessage', 'waitForHello', 'knowledge', 'language', 'voice', 'transferTo', 'takeMessages', 'maxMinutes', 'record', 'discloseAi', 'booking', 'role', 'hours', 'createdAt', 'updatedAt']
 // Agents saved before recording/booking existed: recording on (owner default), booking off.
-const publicAgent = (a) => ({ ...Object.fromEntries(FIELDS.map(k => [k, a[k] ?? null])), firstMessage: a.firstMessage || '', waitForHello: a.waitForHello !== false, record: a.record !== false, discloseAi: a.discloseAi !== false, booking: cleanBooking(a.booking) })
+const publicAgent = (a) => ({ ...Object.fromEntries(FIELDS.map(k => [k, a[k] ?? null])), role: a.role || 'agent', openNow: a.hours?.enabled ? numberHours.isOpen(a.hours) : null, firstMessage: a.firstMessage || '', waitForHello: a.waitForHello !== false, record: a.record !== false, discloseAi: a.discloseAi !== false, booking: cleanBooking(a.booking) })
 
 const listAgents = (chatId) => agents.find({ chatId: String(chatId) }).sort({ createdAt: -1 }).limit(50).toArray()
 const getAgent = (id, chatId) => (id ? agents.findOne({ id: String(id), chatId: String(chatId) }) : null)
@@ -78,6 +87,9 @@ async function createAgent(chatId, body) {
 }
 async function updateAgent(chatId, id, body) {
   const clean = cleanAgent(body)
+  // A client that doesn't send role / hours keeps the saved ones.
+  if (body.role === undefined) delete clean.role
+  if (body.hours === undefined) delete clean.hours
   const r = await agents.findOneAndUpdate({ id: String(id), chatId: String(chatId) }, { $set: { ...clean, updatedAt: new Date() } }, { returnDocument: 'after' })
   screenScript({ ...clean, chatId: String(chatId) })
   return r?.value !== undefined ? r.value : r
@@ -86,12 +98,18 @@ const deleteAgent = (chatId, id) => agents.deleteOne({ id: String(id), chatId: S
 
 const saveCall = (doc) => calls.insertOne({ id: crypto.randomUUID(), ...doc })
 const CALL_LIST = { transcript: 0, _id: 0 }
-function listCalls(chatId, { agentId, campaignId, limit = 30 } = {}) {
+function listCalls(chatId, { agentId, campaignId, direction, limit = 30 } = {}) {
   const q = { chatId: String(chatId) }
   if (agentId) q.agentId = String(agentId)
   if (campaignId) q.campaignId = String(campaignId)
+  if (direction) q.direction = String(direction)
   return calls.find(q, { projection: CALL_LIST }).sort({ startedAt: -1 }).limit(Math.min(100, limit)).toArray()
 }
+// Receptionist inbox: incoming AI calls where the caller left a message, asked for a call back or booked.
+const MSG_Q = (chatId) => ({ chatId: String(chatId), direction: 'inbound', $or: [{ message: { $ne: null } }, { booking: { $ne: null } }, { outcome: { $in: ['message', 'callback'] } }] })
+const listMessages = (chatId, { open = false, limit = 50 } = {}) => calls.find({ ...MSG_Q(chatId), ...(open ? { handledAt: null } : {}) }, { projection: CALL_LIST }).sort({ startedAt: -1 }).limit(Math.min(100, limit)).toArray()
+const countOpenMessages = (chatId) => calls.countDocuments({ ...MSG_Q(chatId), handledAt: null })
+const setHandled = (chatId, id, on) => calls.updateOne({ ...MSG_Q(chatId), id: String(id) }, { $set: { handledAt: on ? new Date() : null } })
 const getCall = (chatId, id) => calls.findOne({ id: String(id), chatId: String(chatId) }, { projection: { _id: 0 } })
 async function testSecondsToday(chatId) {
   const since = new Date(); since.setUTCHours(0, 0, 0, 0)
@@ -127,5 +145,5 @@ async function summarize(transcript, agent) {
 
 module.exports = { flagOf,
   init, VOICES, LANGS, LANG_NAMES, OUTCOMES, normPhone, cleanAgent, publicAgent, listAgents, getAgent, createAgent, updateAgent, deleteAgent,
-  saveCall, listCalls, getCall, testSecondsToday, addDnc, removeDnc, listDnc, onDnc, countDnc, summarize,
+  saveCall, listCalls, getCall, testSecondsToday, addDnc, removeDnc, listDnc, onDnc, countDnc, summarize, listMessages, countOpenMessages, setHandled, cleanHours,
 }

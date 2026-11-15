@@ -804,6 +804,7 @@ const { handleInboundSms, initSmsLimits } = require('./sms-service.js')
 const { handleVoiceWebhook, initVoiceService, getIvrAnalytics, trackIvrAnalytics, incrementSmsUsed, isSmsLimitReached, pendingBridges, initUserWalletMonitor } = require('./voice-service.js')
 const { initCnamService, lookupCnam, batchLookupCnam, getCircuitStatus } = require('./cnam-service.js')
 const phoneConfig = require('./phone-config.js')
+const botRec = require('./bot-receptionist')
 const safeUrl = require('./safe-url')
 const planLifecycle = require('./plan-lifecycle.js')
 const ttsService = require('./tts-service.js')
@@ -4188,7 +4189,18 @@ const loadData = async () => {
   vpsTransactions = db.collection('vpsTransactions')
   notifyGroupsCol = db.collection('notifyGroups')
   phoneNumbersOf = db.collection('phoneNumbersOf')
+  require('./bird-spend').init(db)
+  require('./growth-nudges').start({ db, notifyAdmin, log, send: (id, text) => bot?.sendMessage(id, text, { parse_mode: 'HTML' }).catch(() => {}) })
   require('./provider-health').start(notifyAdmin)
+  require('./pending-orders').init({
+    db, notifyAdmin,
+    send: (id, text) => bot?.sendMessage(id, text, { parse_mode: 'HTML' }).catch(() => {}),
+    email: (to, subject, html) => require('./cloudivr-web/auth').sendMail(to, subject, html).catch(() => {}),
+    adminEmail: (subject, html) => process.env.CIVR_ADMIN_EMAIL && require('./cloudivr-web/auth').sendMail(process.env.CIVR_ADMIN_EMAIL, subject, html).catch(() => {}),
+    credit: (id, amt) => atomicIncrement(walletOf, id, 'usdIn', Number(amt) || 0),
+    removeNumber: (id, phone) => phoneNumbersOf.updateOne({ _id: id }, { $pull: { 'val.numbers': { phoneNumber: phone, status: 'provisioning' } } }),
+    activateNumber: (id, phone, r) => phoneNumbersOf.updateOne({ _id: id, 'val.numbers.phoneNumber': phone }, { $set: { 'val.numbers.$.status': 'active', 'val.numbers.$.phoneNumber': r.phoneNumber, 'val.numbers.$.telnyxOrderId': r.telnyxOrderId, ...(r.needsRegistration ? { 'val.numbers.$.registration': { status: 'pending', since: new Date().toISOString() } } : {}) } }),
+  }).catch(e => log('[PendingOrders] init: ' + e.message))
   require('./bird-alert').setTelegram(notifyAdmin)
   planLifecycle.lockLegacyPrices(phoneNumbersOf, db.collection('migrationMarks')).then(r => Object.keys(r).length && log(`[PlanLadder] price locks applied: ${JSON.stringify(r)}`)).catch(e => log(`[PlanLadder] price lock failed: ${e.message}`))
   // Customers' own SignalWire numbers are never lent out as a stand-in caller ID.
@@ -10579,6 +10591,9 @@ bot?.on('message', msg => {
     cpMyNumbers: 'cpMyNumbers',
     cpManageNumber: 'cpManageNumber',
     cpCallForwarding: 'cpCallForwarding',
+    cpAiReceptionist: 'cpAiReceptionist',
+    cpAiRecBusiness: 'cpAiRecBusiness',
+    cpAiRecInfo: 'cpAiRecInfo',
     cpEnterForwardNumber: 'cpEnterForwardNumber',
     cpConfirmForward: 'cpConfirmForward',
     cpForwardBackups: 'cpForwardBackups',
@@ -14696,7 +14711,7 @@ Enter new value:`), bc)
           purchaseDate: new Date().toISOString(),
           expiresAt: expiresAt.toISOString(),
           autoRenew: true,
-          status: 'active',
+          status: orderResult?._pending ? 'provisioning' : 'active',
           sipUsername, sipPassword,
           telnyxSipUsername: telnyxSipUsernameLocal,
           telnyxSipPassword: telnyxSipPasswordLocal,
@@ -14728,6 +14743,7 @@ Enter new value:`), bc)
           { upsert: true }
         )
         askAddressAfterPay(chatId, info, selectedNumber)
+        if (orderResult?._pending) require('./pending-orders').enqueue({ chatId, phoneNumber: selectedNumber, order: orderResult, amount: priceUsd, lang: info?.userLanguage || 'en' }).catch(e => log('[PendingOrders] enqueue: ' + e.message))
         const existing = await get(phoneNumbersOf, chatId)
 
         await phoneTransactions.insertOne({ chatId, phoneNumber: selectedNumber, action: isSubNumber ? 'sub-number-purchase' : 'purchase', plan: planKey, amount: price, paymentMethod: 'wallet_usd', timestamp: new Date().toISOString() })
@@ -14757,7 +14773,7 @@ Enter new value:`), bc)
           send(chatId, subMsg, trans('o'))
           notifyGroup(cpTxt.adminSubPurchase(maskName(name), selectedNumber, info?.cpSubParentNumber, price, coin === u.usd ? 'Wallet USD' : 'Wallet USD'), cpTxt.adminSubPurchasePrivate(adminUserTag(name, chatId), selectedNumber, info?.cpSubParentNumber, price, coin === u.usd ? 'Wallet USD' : 'Wallet USD'))
         } else {
-          const activatedMsg = cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())) + 
+          const activatedMsg = orderResult?._pending ? require('./pending-orders').pendingMsg(selectedNumber) : cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())) + 
             `\n\n<b>Transaction ID:</b> <code>${txnId}</code>\n<i>Quote this ID when contacting support</i>`
           send(chatId, activatedMsg, trans('o'))
           postActivationNudge(chatId, selectedNumber, plan.name)
@@ -31191,6 +31207,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     // Advanced (plan-gated)
     if (phoneConfig.canAccessFeature(plan, 'callRecording')) rows.push([pc.callRecording])
     if (phoneConfig.canAccessFeature(plan, 'ivr')) rows.push([ivrLabel])
+    if (hasVoice && phoneConfig.canAccessFeature(plan, 'aiAgent')) rows.push([botRec.BTN.menu])
     // Fax (Business plan; other plans see the upgrade prompt)
     if ((num.provider || 'telnyx') === 'telnyx') rows.push([faxService.t(lang).btnFax])
     // Add Number to Plan (only for primary numbers, not sub-numbers)
@@ -31232,7 +31249,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const subCount = num.isSubNumber ? 0 : allNumbers.filter(n => n.isSubNumber && n.parentNumber === num.phoneNumber && (n.status === 'active' || n.status === 'suspended')).length
     const subLimit = num.isSubNumber ? 0 : phoneConfig.getSubNumberLimit(num.plan)
     const faxNote = faxService.lineOn(num) ? `\n\n${faxService.t(info?.userLanguage).lineOn(num.phoneNumber)}` : ''
-    return send(chatId, cpTxt.manageNumber(num, subCount, subLimit, allNumbers) + faxNote, k.of(buildManageMenu(num, subCount, subLimit)))
+    return send(chatId, cpTxt.manageNumber(num, subCount, subLimit, allNumbers) + `\n\n📞 <i>${require('./call-flow').callFlow(num)}</i>` + faxNote, k.of(buildManageMenu(num, subCount, subLimit)))
   }
 
   // Fax menu for a Business number (re-reads the record so the fax-line state is current).
@@ -31664,6 +31681,13 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.cpMyNumbers)
       const numBtns = numbers.map((_, i) => String(i + 1))
       return send(chatId, cpTxt.myNumbersList(numbers), k.of([numBtns, [pc.buyAnother]]))
+    }
+
+    // AI Receptionist
+    if (message === botRec.BTN.menu) {
+      await set(state, chatId, 'action', a.cpAiReceptionist)
+      const r = await botRec.screen(chatId, num)
+      return send(chatId, r.text, { parse_mode: 'HTML', ...k.of([...r.rows, [pc.back]]) })
     }
 
     // Call Forwarding
@@ -32322,6 +32346,80 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   // ━━━ CALL FORWARDING ━━━
+  // ━━━ AI RECEPTIONIST (one number) ━━━
+  if (action === a.cpAiReceptionist || action === a.cpAiRecBusiness || action === a.cpAiRecInfo) {
+    const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
+    const num = info?.cpActiveNumber
+    if (!num) return goto.submenu5()
+    if (!num.features || typeof num.features !== 'object') num.features = {}
+    const B = botRec.BTN
+    const show = async (prefix) => {
+      await set(state, chatId, 'action', a.cpAiReceptionist)
+      const r = await botRec.screen(chatId, num)
+      return send(chatId, `${prefix ? `${prefix}\n\n` : ''}${r.text}`, { parse_mode: 'HTML', ...k.of([...r.rows, [pc.back]]) })
+    }
+    if (isBackPress(message)) {
+      if (action !== a.cpAiReceptionist) return show()
+      await set(state, chatId, 'action', a.cpManageNumber)
+      return showManageScreen(chatId, num)
+    }
+    if (action === a.cpAiRecBusiness) {
+      const name = String(message || '').trim().slice(0, 60)
+      if (name.length < 2) return send(chatId, 'Type your business name, e.g. <b>Sunrise Dental</b>.', { parse_mode: 'HTML', ...k.of([[pc.back]]) })
+      await saveInfo('cpRecBusiness', name)
+      await set(state, chatId, 'action', a.cpAiRecInfo)
+      return send(chatId, '2/2 — What should it tell callers? Send your hours, prices, address and common questions in one message (you can change it later in the web app).', k.of([[pc.back]]))
+    }
+    if (action === a.cpAiRecInfo) {
+      const infoText = String(message || '').trim()
+      if (infoText.length < 10) return send(chatId, 'Send a bit more: your hours, address, prices or the questions callers usually ask.', k.of([[pc.back]]))
+      try {
+        const ag = await botRec.createQuick(chatId, info?.cpRecBusiness, infoText)
+        const notes = await botRec.turnOn(chatId, num, ag.id, (f, v) => updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, f, v))
+        await saveInfo('cpActiveNumber', num)
+        return show(`✅ Your AI receptionist now answers ${num.phoneNumber}.${notes.length ? ` (${notes.join(', ')})` : ''}`)
+      } catch (e) { return send(chatId, `⚠️ ${e.message}`, k.of([[pc.back]])) }
+    }
+    if (!phoneConfig.canAccessFeature(num.plan, 'aiAgent')) return show()
+    if (message === B.setup) {
+      await set(state, chatId, 'action', a.cpAiRecBusiness)
+      return send(chatId, '✨ <b>Quick setup</b>\n\n1/2 — What is your business called?', { parse_mode: 'HTML', ...k.of([[pc.back]]) })
+    }
+    const ag = await botRec.agentOf(chatId, num)
+    if (!ag) return show()
+    if (message === B.on) {
+      const notes = await botRec.turnOn(chatId, num, ag.id, (f, v) => updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, f, v))
+      await saveInfo('cpActiveNumber', num)
+      return show(`✅ Receptionist is answering.${notes.length ? ` (${notes.join(', ')})` : ''}`)
+    }
+    if (message === B.off) {
+      const v = { ...(num.features.aiAgent || {}), enabled: false }
+      await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'aiAgent', v)
+      num.features.aiAgent = v
+      await saveInfo('cpActiveNumber', num)
+      return show('⏸ Receptionist is off — calls ring as before.')
+    }
+    if (message === B.hoursOn || message === B.hoursOff) {
+      await botRec.setHours(chatId, ag, message === B.hoursOn, num.phoneNumber)
+      return show(message === B.hoursOn ? '🕘 Business hours on: Mon–Fri 9:00–17:00. Change days and times in the web app.' : '🔁 The receptionist now answers 24/7.')
+    }
+    if (message === B.afterMsg || message === B.afterVm) {
+      await botRec.setAfter(chatId, ag, message === B.afterVm ? 'voicemail' : 'message')
+      return show(message === B.afterVm ? '📼 When closed, callers go straight to voicemail.' : '✉️ When closed, the receptionist takes a message.')
+    }
+    if (message === B.msgs) {
+      const m = await botRec.messagesText(chatId)
+      await saveInfo('cpRecMsgIds', m.ids)
+      return send(chatId, m.text, { parse_mode: 'HTML', ...k.of([...(m.ids.length ? [[B.allDone]] : []), [pc.back]]) })
+    }
+    if (message === B.allDone) {
+      for (const id of info?.cpRecMsgIds || []) await require('./ai-agent').store.setHandled(chatId, id, true)
+      await saveInfo('cpRecMsgIds', [])
+      return show('✔️ Marked as done.')
+    }
+    return show()
+  }
+
   if (action === a.cpCallForwarding) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
     const num = info?.cpActiveNumber
@@ -32347,7 +32445,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       num.features.callForwarding = value
       await saveInfo('cpActiveNumber', num)
       const btns = [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [value.holdMusic ? pc.holdMusicOn : pc.holdMusicOff], [cidBtn(value)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
-      return send(chatId, value.showCallerId ? "🪪 Forwarded calls to US numbers now show the <b>caller's number</b>. Other countries (or if the carrier refuses) show your business number." : '🪪 Forwarded calls now show <b>your business number</b>.', { parse_mode: 'HTML', ...k.of(btns) })
+      return send(chatId, (value.showCallerId ? "🪪 Forwarded calls to US numbers now show the <b>caller's number</b>. Other countries (or if the carrier refuses) show your business number." : '🪪 Forwarded calls now show <b>your business number</b>.') + '\n<i>What the other phone displays can vary by its carrier.</i>', { parse_mode: 'HTML', ...k.of(btns) })
     }
     // ── Toggle Hold Music ──
     if (message === pc.holdMusicOn || message === pc.holdMusicOff) {
@@ -32507,8 +32605,12 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const existingFwd = num.features?.callForwarding || {}
     const keptBackups = (existingFwd.backups || []).filter(n => n !== forwardTo && n !== num.phoneNumber)
     await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'callForwarding', { enabled: true, mode, forwardTo, ringTimeout: 25, holdMusic: existingFwd.holdMusic || false, showCallerId: !!existingFwd.showCallerId, backups: keptBackups })
-    num.features.callForwarding = { enabled: true, mode, forwardTo, ringTimeout: 25, holdMusic: existingFwd.holdMusic || false, backups: keptBackups }
+    num.features.callForwarding = { enabled: true, mode, forwardTo, ringTimeout: 25, holdMusic: existingFwd.holdMusic || false, showCallerId: !!existingFwd.showCallerId, backups: keptBackups }
+    // Only one answers: "forward every call" switches the AI agent off.
+    let _aiOff = false
+    if (mode === 'always' && num.features?.aiAgent?.enabled) { await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'aiAgent', { ...num.features.aiAgent, enabled: false }); num.features.aiAgent.enabled = false; _aiOff = true }
     await saveInfo('cpActiveNumber', num)
+    if (_aiOff) send(chatId, '🤖 AI agent switched off on this number — every call now rings your phone.')
     const modeLabel = mode === 'always' ? 'Always Forward' : mode === 'busy' ? 'Forward When Busy' : 'Forward If No Answer'
     send(chatId, cpTxt.forwardingUpdated(num.phoneNumber, forwardTo, modeLabel, walletBal), { parse_mode: 'HTML' })
 
@@ -40936,7 +41038,7 @@ const bankApis = {
       country: countryCode, countryName: countryName,
       type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
       purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
-      autoRenew: true, status: 'active', sipUsername, sipPassword,
+      autoRenew: true, status: orderResult?._pending ? 'provisioning' : 'active', sipUsername, sipPassword,
       sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
       messagingProfileId: telnyxResources.messagingProfileId,
       connectionId: telnyxResources.sipConnectionId, smsUsed: 0, minutesUsed: 0,
@@ -40952,6 +41054,7 @@ const bankApis = {
       { upsert: true }
     )
     askAddressAfterPay(chatId, info, selectedNumber)
+    if (orderResult?._pending) require('./pending-orders').enqueue({ chatId, phoneNumber: selectedNumber, order: orderResult, amount: price, lang: info?.userLanguage || 'en' }).catch(e => log('[PendingOrders] enqueue: ' + e.message))
     await phoneTransactions.insertOne({ chatId, phoneNumber: selectedNumber, action: 'purchase', plan: planKey, amount: price, paymentMethod: 'bank_ngn', timestamp: new Date().toISOString() })
     
     // Generate transaction ID for phone purchase
@@ -40970,7 +41073,7 @@ const bankApis = {
       log('[Phone] Failed to log transaction (non-blocking):', txErr.message)
     }
     
-    const activatedMsg = cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())) + 
+    const activatedMsg = orderResult?._pending ? require('./pending-orders').pendingMsg(selectedNumber) : cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())) + 
       `\n\n<b>Transaction ID:</b> <code>${txnId}</code>\n<i>Quote this ID when contacting support</i>`
     sendMessage(chatId, activatedMsg)
     // postActivationNudge both sends the "tap SIP Credentials" follow-up AND
@@ -41965,7 +42068,7 @@ app.get('/crypto-pay-phone', auth, async (req, res) => {
     phoneNumber: selectedNumber, telnyxOrderId: orderResult.id, country: countryCode, countryName,
     type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
     purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
-    autoRenew: true, status: 'active', sipUsername, sipPassword,
+    autoRenew: true, status: orderResult?._pending ? 'provisioning' : 'active', sipUsername, sipPassword,
     sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
     messagingProfileId: telnyxResources.messagingProfileId, connectionId: telnyxResources.sipConnectionId,
     smsUsed: 0, minutesUsed: 0,
@@ -41980,10 +42083,11 @@ app.get('/crypto-pay-phone', auth, async (req, res) => {
     { upsert: true }
   )
   askAddressAfterPay(chatId, info, selectedNumber)
+  if (orderResult?._pending) require('./pending-orders').enqueue({ chatId, phoneNumber: selectedNumber, order: orderResult, amount: price, lang: info?.userLanguage || 'en' }).catch(e => log('[PendingOrders] enqueue: ' + e.message))
   const existing = await get(phoneNumbersOf, chatId)
   await phoneTransactions.insertOne({ chatId, phoneNumber: selectedNumber, action: 'purchase', plan: planKey, amount: price, paymentMethod: 'crypto_' + coin, timestamp: new Date().toISOString() })
   await auditCryptoTx(chatId, 'phone-number', price, { phoneNumber: selectedNumber, plan: planKey, countryCode, provider: 'telnyx', coin, value, ref }, 'blockbee')
-  sendMessage(chatId, cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())))
+  sendMessage(chatId, orderResult?._pending ? require('./pending-orders').pendingMsg(selectedNumber) : cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())))
   postActivationNudge(chatId, selectedNumber, plan.name)
   notifyGroup(cpTxt.adminPurchase(maskName(name), selectedNumber, plan.name, price, 'Crypto ' + coin), cpTxt.adminPurchasePrivate(adminUserTag(name, chatId), selectedNumber, plan.name, price, 'Crypto ' + coin))
   webhookTierCheck(chatId, preSpend, lang)
@@ -47313,7 +47417,7 @@ app.post('/dynopay/crypto-pay-phone', authDyno, async (req, res) => {
     phoneNumber: selectedNumber, telnyxOrderId: orderResult.id, country: countryCode, countryName,
     type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
     purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
-    autoRenew: true, status: 'active', sipUsername, sipPassword,
+    autoRenew: true, status: orderResult?._pending ? 'provisioning' : 'active', sipUsername, sipPassword,
     sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
     messagingProfileId: telnyxResources.messagingProfileId, connectionId: telnyxResources.sipConnectionId,
     smsUsed: 0, minutesUsed: 0,
@@ -47328,10 +47432,11 @@ app.post('/dynopay/crypto-pay-phone', authDyno, async (req, res) => {
     { upsert: true }
   )
   askAddressAfterPay(chatId, info, selectedNumber)
+  if (orderResult?._pending) require('./pending-orders').enqueue({ chatId, phoneNumber: selectedNumber, order: orderResult, amount: price, lang: info?.userLanguage || 'en' }).catch(e => log('[PendingOrders] enqueue: ' + e.message))
   const existing = await get(phoneNumbersOf, chatId)
   await phoneTransactions.insertOne({ chatId, phoneNumber: selectedNumber, action: 'purchase', plan: planKey, amount: price, paymentMethod: 'crypto_dynopay_' + coin, timestamp: new Date().toISOString() })
   await auditCryptoTx(chatId, 'phone-number', price, { phoneNumber: selectedNumber, plan: planKey, countryCode, provider: 'telnyx', coin, value, ref }, 'dynopay')
-  sendMessage(chatId, cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())))
+  sendMessage(chatId, orderResult?._pending ? require('./pending-orders').pendingMsg(selectedNumber) : cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())))
   postActivationNudge(chatId, selectedNumber, plan.name)
   notifyGroup(cpTxt.adminPurchase(maskName(name), selectedNumber, plan.name, price, 'Crypto DynoPay'), cpTxt.adminPurchasePrivate(adminUserTag(name, chatId), selectedNumber, plan.name, price, 'Crypto DynoPay'))
   webhookTierCheck(chatId, preSpend, lang)

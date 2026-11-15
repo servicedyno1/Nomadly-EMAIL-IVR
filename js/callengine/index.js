@@ -35,7 +35,7 @@ const track = (meta) => { const l = { session: crypto.randomUUID(), startedAt: n
 const live = (id) => { const l = legs.get(id); return l && !l.ended ? l : null }
 const call = async (method, path, params, data) => { try { return (await M.ari().request({ method, url: path, params, data })).data || {} } catch (e) { log(`${method} ${path}: ${e.response?.status || ''} ${e.response?.data?.message || e.message}`); return null } }
 // With machine detection the app hears call.answered only once the verdict is in (the leg is busy in dialplan until then).
-function markAnswered(l) { if (l.answered) return; l.answered = true; l.state = 'answered'; if (l.amd) runAmd(l); else emit('call.answered', l) }
+function markAnswered(l) { if (l.answered) return; l.answered = true; l.answeredAt = Date.now(); l.state = 'answered'; if (l.amd) runAmd(l); else emit('call.answered', l) }
 // Answering-machine detection on the call itself: the leg visits dialplan [ce-amd] (Asterisk AMD(), then the end of the
 // greeting) and comes back into Stasis with the verdict. Emits the same events Telnyx did:
 // call.machine.detection.ended { result: human | machine | not_sure } and, for machines, call.machine.greeting.ended.
@@ -64,6 +64,7 @@ function finish(l, cause) {
   if (!l || l.ended) return
   l.ended = true; l.state = 'hangup'; l.loop = null
   if (cause != null) l.cause = cause
+  if (l.bird && l.answeredAt) { try { require('../bird-spend').call((Date.now() - l.answeredAt) / 1000) } catch (_) {} }
   clearTimeout(l.gTimer)
   if (l.em) stopExternalMedia(l.id)
   const [c, sip] = CAUSE[cause] || (l.answered ? CAUSE[16] : ['originator_cancel', '487'])

@@ -47,8 +47,9 @@ function instructions(agent, ctx) {
     agent.discloseAi !== false ? '- Never claim to be human. If asked, say you are an AI assistant.' : '- Do not announce that you are an AI unless the person asks; if they directly ask, answer honestly and never claim to be human.',
     '- Never ask for card numbers, passwords or one-time codes.',
     '- If the person asks not to be called again or to be removed from the list, apologise, call opt_out, then say goodbye.',
-    agent.transferTo ? '- If the person wants to talk to a human, or is ready to go ahead, call transfer_call.' : '- You cannot transfer calls. If someone wants a human, offer to take a message.',
-    agent.takeMessages ? '- If they want to leave a message, get their name, a callback number and the message, then call take_message.' : '',
+    ctx.afterHours ? '# Business hours\nThe business is closed right now. Say so briefly, offer to take a message (name, callback number and the message) and say someone will call back when it opens. You can still answer questions from what you know.' : '',
+    agent.transferTo && !ctx.afterHours ? '- If the person wants to talk to a human, or is ready to go ahead, call transfer_call.' : '- You cannot transfer calls. If someone wants a human, offer to take a message.',
+    agent.takeMessages || ctx.afterHours ? '- If they want to leave a message, get their name, a callback number and the message, then call take_message.' : '',
     '- As soon as you know how it went (interested, not interested, call back later), call record_outcome.',
     '- When the conversation is over, say a short goodbye and call end_call.',
     bookingRules(ctx.calendar),
@@ -63,8 +64,8 @@ function tools(agent, ctx = {}) {
     fn('record_outcome', 'Save how the conversation went.', { outcome: { type: 'string', enum: ['interested', 'not_interested', 'callback'] }, note: { type: 'string', description: 'One short sentence, e.g. a good time to call back.' } }, ['outcome']),
     fn('opt_out', 'The person asked not to be called again.'),
   ]
-  if (agent.transferTo) t.push(fn('transfer_call', 'Connect the person to a human at the business now.'))
-  if (agent.takeMessages) t.push(fn('take_message', 'Save a message for the business.', { name: { type: 'string' }, callback_number: { type: 'string' }, message: { type: 'string' } }, ['message']))
+  if (agent.transferTo && !ctx.afterHours) t.push(fn('transfer_call', 'Connect the person to a human at the business now.'))
+  if (agent.takeMessages || ctx.afterHours) t.push(fn('take_message', 'Save a message for the business.', { name: { type: 'string' }, callback_number: { type: 'string' }, message: { type: 'string' } }, ['message']))
   if (ctx.calendar) {
     t.push(fn('check_availability', 'Free appointment times on one day of the business calendar.', { date: { type: 'string', description: 'The day, YYYY-MM-DD.' } }, ['date']))
     t.push(fn('book_appointment', 'Book an appointment in the business calendar at one of the free times.', {

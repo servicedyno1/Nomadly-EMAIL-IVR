@@ -46,7 +46,7 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
   const save = (id, fields) => orders.updateOne({ _id: id }, { $set: { ...fields, updatedAt: new Date() } })
   const tell = (o, text, subject) => {
     notify.push(o.chatId, text).catch(() => {})
-    if (subject && o.email) sendMail(o.email, subject, `<p>${text}</p><p>— CloudIVR</p>`).catch(e => log(`[CloudIVR-Web] order email failed: ${e.message}`))
+    if (subject && o.email) sendMail(o.email, subject, `<p>${text}</p>`).catch(e => log(`[CloudIVR-Web] order email failed: ${e.message}`))
   }
 
   // USD the DynoPay webhook credited for this order's deposit (0 = not paid yet).

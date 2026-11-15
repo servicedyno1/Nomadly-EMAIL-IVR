@@ -13,6 +13,7 @@ const telnyxApi = require('../telnyx-service')
 const ce = require('../callengine')
 const bird = require('../bird')
 const rtp = require('./rtp')
+const numberHours = require('../number-hours')
 const { getBalance, smartWalletDeduct } = require('../utils.js')
 
 const RATE = () => parseFloat(process.env.AI_AGENT_RATE_PER_MIN || '0.30')
@@ -89,12 +90,15 @@ async function tryInbound({ payload, chatId, num }) {
   if (!cfg?.enabled || !phoneConfig.canAccessFeature(num.plan, 'aiAgent')) return false
   const agent = await store.getAgent(cfg.agentId, chatId)
   if (!agent || agent.disabled || !process.env.APP_OPEN_API_KEY) return false
+  // Receptionist business hours: when closed, either take a message (AI answers) or go straight to voicemail.
+  const closed = !!agent.hours?.enabled && !numberHours.isOpen(agent.hours)
+  if (closed && agent.hours.afterHours === 'voicemail') { log(`[AIAgent] ${num.phoneNumber}: outside "${agent.name}" hours — voicemail`); return 'voicemail' }
   const rate = RECEPTION_RATE() + recRate(agent)
   const { usdBal } = await getBalance(deps.walletOf, chatId)
   if (usdBal < rate + committed(chatId)) { log(`[AIAgent] ${num.phoneNumber}: wallet $${usdBal} < $${rate}/min — normal routing`); return false }
   const other = (payload.from || '').replace(/[^+\d]/g, '')
   const calendar = await booking.forCall(chatId, agent, other).catch(() => null)
-  const s = track(payload.call_control_id, { kind: 'inbound', rate, baseRate: RECEPTION_RATE(), recRate: recRate(agent), calendar, token: newToken(), chatId: String(chatId), agent, number: num.phoneNumber, other })
+  const s = track(payload.call_control_id, { kind: 'inbound', afterHours: closed, rate, baseRate: RECEPTION_RATE(), recRate: recRate(agent), calendar, token: newToken(), chatId: String(chatId), agent, number: num.phoneNumber, other })
   try {
     if (ce.isAe(s.ccid)) {
       await ce.answerCall(s.ccid)
@@ -203,7 +207,7 @@ function onStream(token, ws) {
   if (!s || s.bridge) return ws.close()
   if (ws instanceof rtp.RtpMedia) s.rtpMedia = ws
   s.bridge = new Bridge({
-    agent: s.agent, ctx: { direction: s.kind, leadName: s.leadName, callerNumber: s.other, calendar: s.calendar, record: records(s.agent), reason: s.reason || null }, media: ws, log,
+    agent: s.agent, ctx: { direction: s.kind, leadName: s.leadName, callerNumber: s.other, calendar: s.calendar, record: records(s.agent), reason: s.reason || null, afterHours: !!s.afterHours }, media: ws, log,
     actions: { hangup: (why) => { log(`[AIAgent] hangup ${s.ccid}: ${why}`); hangup(s.ccid) }, transfer: (to) => transfer(s, to) },
   })
   ws.on('message', (m) => { try { s.bridge.onMedia(JSON.parse(m)) } catch (_) { /* bad frame */ } })
@@ -261,7 +265,7 @@ async function finish(s, payload) {
     campaignId: s.campaignId || null, leadIndex: s.leadIndex ?? null, startedAt: s.startedAt, answeredAt: s.answeredAt ? new Date(s.answeredAt) : null, endedAt: new Date(endAt),
     duration, minutesBilled: aiMin + restMin, charge: duration ? charge : 0, rate, recordingRate, outcome, summary: sum?.summary || null, note: res.note, message: res.message,
     transferredTo: s.transferredTo || null, optedOut: res.optedOut, answeredBy: s.answeredBy || null, hangupCause: payload?.hangup_cause || null, transcript: res.transcript, usage: res.usage,
-    booking: res.booking || null, ...recordingFields(recording),
+    booking: res.booking || null, afterHours: !!s.afterHours, handledAt: null, ...recordingFields(recording),
   })
   log(`[AIAgent] ${s.kind} call ${s.other} ended: ${duration}s, outcome=${outcome}, charge=$${duration ? charge : 0}`)
 
