@@ -72,7 +72,19 @@ async function getLinklyWorkspaceId() {
   return _cachedWorkspaceId
 }
 
-const createShortUrlApi = async longUrl => {
+// aws3.link (SilverLining) — primary random-link shortener; the customer picks one of its public domains.
+const SHORT_DOMAINS = ['aws3.link', 'azr.link', 'goog.link']
+const aws3On = () => !!String(process.env.AWS3_API_KEY || '').trim()
+async function createShortAws3(longUrl, domain) {
+  const customDomain = SHORT_DOMAINS.includes(domain) ? domain : SHORT_DOMAINS[0]
+  const r = await axios.post('https://api.aws3.link/shorten', { longUrl, customDomain }, { headers: { 'x-api-key': process.env.AWS3_API_KEY, 'Content-Type': 'application/json' }, timeout: 20000, validateStatus: () => true })
+  const short = r.data?.shortUrl
+  if (r.status !== 200 || !short) throw new Error(`aws3.link error: ${r.status} ${r.data?.message || JSON.stringify(r.data || '').slice(0, 120)}`)
+  return /^https?:\/\//.test(short) ? short : `https://${short}`
+}
+
+const createShortUrlApi = async (longUrl, domain) => {
+  if (aws3On()) return createShortAws3(longUrl, domain)
   if (!process.env.LINKLY_API_KEY) {
     throw new Error('Linkly error: LINKLY_API_KEY is not configured')
   }
@@ -111,4 +123,4 @@ const analyticsCuttly = async _shortUrlHash => {
   return 0
 }
 
-module.exports = { createShortUrlApi, analyticsCuttly, getLinklyWorkspaceId }
+module.exports = { SHORT_DOMAINS, aws3On, createShortAws3, createShortUrlApi, analyticsCuttly, getLinklyWorkspaceId }

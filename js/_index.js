@@ -585,7 +585,7 @@ const { user: configUser } = require('./config.js')
 const { computeDepositCreditUsd } = require('./crypto-credit.js')
 const createShortBitly = require('./bitly.js')
 const { getBitlyClicks, isBitlyUrl } = require('./bitly.js')
-const { createShortUrlApi, analyticsCuttly } = require('./cuttly.js')
+const { createShortUrlApi, analyticsCuttly, SHORT_DOMAINS, aws3On } = require('./cuttly.js')
 const linklyUsageMonitor = require('./linkly-usage-monitor.js') // admin warning before Linkly plan limits (links/clicks)
 const { getAnalyticsCapability } = require('./shortener-analytics.js')
 const {
@@ -23100,6 +23100,14 @@ ${message.replace(/\n/g, '<br>')}
       return goto.redSelectRandomCustom()
     }
   }
+  // Random short link: the customer picks which public short-link domain to use (aws3.link / azr.link / goog.link).
+  if (action === 'redPickDomain') {
+    if (isBackPress(message)) return goto.redSelectRandomCustom()
+    const d = SHORT_DOMAINS.find(x => String(message).includes(x))
+    if (!d) return send(chatId, t.what)
+    await saveInfo('shortDomain', d); info.shortDomain = d
+    action = a.redSelectRandomCustom; message = trans('redSelectRandomCustom')[0]
+  }
   if (action === a.redSelectRandomCustom) {
     if (isBackPress(message)) return goto.redSelectUrl()
 
@@ -23123,6 +23131,11 @@ ${message.replace(/\n/g, '<br>')}
         return send(chatId, monetization.getUpsellMessage('linksExhausted', lang), k.of([[user.buyPlan], [user.serviceBundles]]))
       }
 
+      if (aws3On() && !info.shortDomain) {
+        await set(state, chatId, 'action', 'redPickDomain')
+        const pick = { en: '🌐 Pick the domain for your short link:', fr: '🌐 Choisissez le domaine de votre lien court :', zh: '🌐 选择短链接的域名：', hi: '🌐 अपने छोटे लिंक का डोमेन चुनें:', fa: '🌐 دامنه لینک کوتاه خود را انتخاب کنید:' }
+        return send(chatId, pick[lang] || pick.en, k.of(SHORT_DOMAINS.map(d => [`🔗 ${d}`])))
+      }
       try {
         const { url } = info
 
@@ -23149,8 +23162,9 @@ ${message.replace(/\n/g, '<br>')}
         const shortUrl = __shortUrl.replaceAll('.', '@').replace('https://', '')
         let _shortUrl
         try {
-          _shortUrl = await createShortUrlApi(url)
-          log(`[Shortener] Linkly success: ${_shortUrl}`)
+          _shortUrl = await createShortUrlApi(url, info.shortDomain)
+          saveInfo('shortDomain', null)
+          log(`[Shortener] ${aws3On() ? 'aws3.link' : 'Linkly'} success: ${_shortUrl}`)
           linklyUsageMonitor.notifyLinkCreated()
         } catch (error) {
           const errMsg = String(error?.message || error)
@@ -23162,7 +23176,7 @@ ${message.replace(/\n/g, '<br>')}
           // provider failures (401/403 plan limit, 5xx, 429, network, undefined).
           const isUserInputError = /\b400\b/.test(errMsg) && /invalid/i.test(errMsg)
           if (!isUserInputError) {
-            send(TELEGRAM_ADMIN_CHAT_ID, `⚠️ Linkly URL shortener failed:\n${errMsg}`)
+            send(TELEGRAM_ADMIN_CHAT_ID, `⚠️ URL shortener (${aws3On() ? 'aws3.link' : 'Linkly'}) failed:\n${errMsg}`)
           } else {
             log(`[Shortener] Suppressed admin ping for user-input 400 error: ${url}`)
           }

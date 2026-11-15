@@ -33,7 +33,9 @@ const extraPrice = (monthly) => Math.max(EXTRA_MIN, round2(monthly * MARKUP))
 
 // TEXTING_PROVIDERS=multitel sells only providers whose two-way texting is live (unset = all).
 const providerOn = (p) => { const on = String(process.env.TEXTING_PROVIDERS || '').split(',').map(x => x.trim()).filter(Boolean); return !on.length || on.includes(p) }
-const list = () => OFFERS.filter(o => providerOn(o[2])).map(([iso, name, provider, type, monthly, setup, , voice]) => ({
+// MultiTEL offers only when instant and no ID / just name + address (paperwork level ≤ 1 in multitel/countries.js).
+const instant = (o) => o[2] !== 'multitel' || (require('./multitel/countries').offer(o[0], o[3])?.level ?? 9) <= 1
+const list = () => OFFERS.filter(o => providerOn(o[2]) && instant(o)).map(([iso, name, provider, type, monthly, setup, , voice]) => ({
   iso, name, flag: FLAG(iso), provider, type, monthly, setup, voice,
   smsCost: SMS_COST[provider][iso], textPrice: textPrice(SMS_COST[provider][iso]), extraPrice: extraPrice(monthly),
 }))
