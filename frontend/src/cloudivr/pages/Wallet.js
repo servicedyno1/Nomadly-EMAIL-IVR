@@ -10,6 +10,7 @@ import { PageHeader, Field, SkeletonCard, SkeletonRows, Empty, ErrorNote, status
 import { cp } from '../paths';
 import { useOffer } from '../offers';
 import { Renewals } from './wallet/Renewals';
+import { Invoices } from './wallet/Invoices';
 import { Coin, CoinIcon, CoinSelect, PayWindow } from '../Pickers';
 import { MollieForm, MollieWaiting, useMollie, useMollieStatus, fmtCur } from '../MolliePay';
 
@@ -212,6 +213,7 @@ export default function Wallet() {
       </div>
       {dep && <div className="mt-4" ref={(el) => el && el.dataset.seen !== String(dep.address || dep.id) && (el.dataset.seen = String(dep.address || dep.id)) && el.scrollIntoView({ behavior: 'smooth', block: 'center' })}><DepositCard dep={dep} /></div>}
       <div id="renewals"><Renewals /></div>
+      <div id="invoices"><Invoices /></div>
       <Tables data={data} />
     </div>
   );

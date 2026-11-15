@@ -358,8 +358,14 @@ function routes(router, deps) {
     res.json({ numbers: results.map(({ cost, ...r }) => r), fallback: fb ? { areaCode: fb._requestedAreaCode, region: fb._fallbackRegion } : null, paperwork })
   }))
 
-  router.get('/numbers', h(async (req, res) => res.json({ numbers: (await myNumbers(req.webChatId)).map((n, _, all) => publicNumber(n, all)) })))
-  router.get('/numbers/:phone', withNumber(async (req, res) => res.json({ number: publicNumber(req.num, (await phoneNumbersOf.findOne({ _id: req.webChatId }))?.val?.numbers) })))
+  // What the line can really do: calls in, calls out (needs the number linked on Bird), texts, fax.
+  const withCapacity = async (n) => {
+    const c = n.capabilities || {}, bird = require('../bird')
+    const out = c.voice !== false && ['multitel', 'infobip'].includes(n.provider) && n.status === 'active' && !n.dryRun && bird.enabled() ? await bird.presentable(n.phoneNumber).catch(() => false) : null
+    return { ...publicNumber(n, n._all), capacity: { callsIn: c.voice !== false, callsOut: c.voice === false ? false : out === null ? c.voice !== false : out ? true : 'pending', texts: !!c.sms, fax: !!c.fax } }
+  }
+  router.get('/numbers', h(async (req, res) => { const all = await myNumbers(req.webChatId); res.json({ numbers: await Promise.all(all.map(n => withCapacity({ ...n, _all: all }))) }) }))
+  router.get('/numbers/:phone', withNumber(async (req, res) => res.json({ number: await withCapacity({ ...req.num, _all: (await phoneNumbersOf.findOne({ _id: req.webChatId }))?.val?.numbers }) })))
 
   // Picked number from the account's last search (null when it is no longer there).
   const pickFromSearch = async (chatId, phone) => {

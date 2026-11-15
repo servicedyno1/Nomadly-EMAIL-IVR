@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Capacity } from './number/Capacity';
 import { Flag } from '../Pickers';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -75,6 +76,7 @@ function NumberCard({ n, i, pv, onSaved, reload }) {
         </div>
         <span className={statusPill(n.status)} data-testid={`number-card-${i}-status`}>{n.status}</span>
       </div>
+      <div className="mt-4"><Capacity capacity={n.capacity} testid={`number-card-${i}-capacity`} /></div>
       <div className="flex flex-wrap gap-1.5 mt-5">
         <span className="civr-pill">{n.planName} · {money(n.planPrice)}</span>
         {on(n.features.voicemail) && <span className="civr-pill civr-pill-on">Voicemail</span>}

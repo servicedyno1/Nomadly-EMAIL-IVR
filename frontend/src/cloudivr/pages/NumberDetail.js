@@ -7,6 +7,7 @@ import { useApi, enc, day } from '../api';
 import { Spinner, ErrorNote, Locked, statusPill, TabStrip } from '../ui';
 import { OverviewTab, ForwardingTab, VoicemailTab, SmsTab, FaxTab, RecordingTab } from './number/SettingsTabs';
 import SipTab from './number/SipTab';
+import { Capacity } from './number/Capacity';
 import IvrTab from './number/IvrTab';
 import LogsTab from './number/LogsTab';
 import BillingTab from './number/BillingTab';
@@ -74,6 +75,7 @@ export default function NumberDetail() {
         <div>
           <div className="civr-label flex items-center gap-1.5" data-testid="number-detail-country"><Flag code={n.country} />{n.countryName || n.country} · {n.type?.replace('_', '-')} · {n.planName}</div>
           <h1 className="font-mono text-4xl sm:text-5xl mt-2" data-testid="number-detail-phone">{pv.phone(n.phoneNumber)}</h1>
+          <div className="mt-3"><Capacity capacity={n.capacity} testid="number-detail-capacity" /></div>
           {n.capabilities?.sms !== false && <div className="mt-3"><ReachChip phone={n.phoneNumber} testid="number-sms-reach" /></div>}
         </div>
         <div className="flex flex-wrap items-center gap-2">

@@ -90,6 +90,8 @@ const checkPressed = async (n) => {
 
 // US mobile number bought in CloudIVR: we text ourselves the code and read it from the inbound webhook (free).
 async function autoVerify(db, chatId, n) {
+  // Texting Numbers are no longer linked as caller IDs: Bird verifies by voice call and these lines have no voice.
+  if (!process.env.TEXTING_NUMBER_CALLER_ID) return null
   const c = db.collection('webCallerIds')
   const cur = await c.findOne({ _id: n })
   if (cur?.status === 'verified' && cur.chatId === String(chatId)) return 'verified'

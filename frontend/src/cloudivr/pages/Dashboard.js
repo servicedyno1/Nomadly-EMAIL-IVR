@@ -5,7 +5,6 @@ import { useApi, money } from '../api';
 import { useShell } from '../Shell';
 import { useCivrAuth } from '../AuthContext';
 import { PageHeader, SkeletonPage } from '../ui';
-import { LogTable } from '../LogTable';
 import { cp } from '../paths';
 import { GetStarted, YourNumbers } from './dashboard/Widgets';
 import { TopBanner, TrialCard, CallerIdUpsellCard } from './dashboard/Banners';
@@ -53,7 +52,6 @@ export default function Dashboard() {
   const { account } = useCivrAuth();
   // Texting-only accounts (Landline to Texting, no calling/mobile number) keep the texting home.
   const fresh = !!s && !((s.numbers?.total || 0) - (s.numbers?.texting || 0));
-  const { data: act } = useApi(s && !fresh ? '/activity?limit=12' : null);
   const { data: nums } = useApi(s && !fresh ? '/numbers' : null);
   const { data: hosted } = useApi(fresh ? '/hosted-sms' : null);
   const textingOnly = fresh && hosted?.items?.some(x => !['rejected', 'cancelled'].includes(x.status));
@@ -87,10 +85,6 @@ export default function Dashboard() {
           <YourNumbers nums={nums?.numbers} balance={s.balance} />
           <ProductGrid />
           <ReviewPrompt />
-          <div className="civr-card p-6 mt-6">
-            <div className="font-display text-2xl font-bold mb-4">Recent activity</div>
-            <LogTable logs={act?.logs} showNumber testid="dashboard-activity" emptyAction={<Link to={cp('/app/numbers')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="dashboard-activity-empty-action">Test one of your numbers</Link>} />
-          </div>
         </>
       )}
     </div>

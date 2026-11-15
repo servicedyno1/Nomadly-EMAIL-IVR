@@ -84,6 +84,8 @@ function createCloudIvrWeb(deps) {
     compliance.adminRoutes(r)
     const tenDlc = require('./ten-dlc').createTenDlc({ db, h, adminRequire: adminAuth.require, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, walletOps: require('./wallet').walletOps, log })
     tenDlc.adminRoutes(r)
+    const invoices = require('./invoices').createInvoices({ db, h, adminRequire: adminAuth.require, log })
+    invoices.adminRoutes(r)
     // Country add-ons: our monthly cost per country/type (cheapest provider) next to the add-on the admin charges.
     r.get('/admin/number-addons', adminAuth.require, h(async (req, res) => {
       const cat = require('../number-catalog'), add = require('../number-addons')
@@ -106,6 +108,7 @@ function createCloudIvrWeb(deps) {
     mollie.publicRoutes(r, { h })
     require('./journey').createJourney({ db, h, accountOf: (req) => new Promise(ok => auth.requireUser(req, { status: () => ({ json: () => ok(null) }) }, () => ok(req.webChatId))) }).routes(r)
     r.use(auth.requireUser)
+    invoices.routes(r)
     // Admin alert when web content is named after a bank / FDIC / IRS (alert only).
     r.use((req, _res, next) => {
       if ((req.method === 'POST' || req.method === 'PUT') && /^\/(ai-agents|calls\/(quick|presets|trial)|campaigns|audio\/tts|outbound)/.test(req.path))

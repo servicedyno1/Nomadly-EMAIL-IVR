@@ -230,3 +230,11 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 ## Status 2026-11-15
 - Done/live: swap audit (21 replaced), call permission logging, renewals + release at expiry, DE/FR city numbers, bot fixed Istanbul address, bulk lookup downloads.
 - Open: Multitel fax end-to-end (NO_ROUTE_DESTINATION — support question drafted, fax still sold), Multitel SMS live test, set BOT_END_USER_NAME, 11 Bird verifications pending, deploy bot change to WhiteLabel apps if they run separate code.
+
+
+## Pending (2026-11-15, user-requested, NOT started)
+- P0 AI Receptionist: own full page separate from outbound AI Agent (pick number, greeting, business hours, take messages, transfer to person, book visits via Google Calendar, call summaries). Backend inbound AI exists (features.aiAgent on numbers, ai.opening 'inbound'); products.js links 'ai-agents?use=inbound' to the same page today.
+- P0 UI/UX: plan-centric app (talk about "my plan" + what it includes, not just "my number"); group standalone services clearly (eSIM, Texting Number, Fax, Lookups, Travel eSIM) apart from plan features. Call design_agent first.
+- P1 Infobip inbound routing for +16479457172 / all Infobip DIDs → our SIP.
+- P1 After user presses Save to GitHub: verify Actions deploy app-main + Sync→WhiteLabel → app-wl/voodoo/proshop all report the new sha (deploy guard on droplet).
+- Done this round: invoices/receipts (user+admin), capacity labels, Texting Numbers unlinked from caller ID, bot name/address all brands, IVR caller fix for Multitel/Infobip, live tests (Quick/Bulk IVR, forwarding: Multitel; Infobip outbound), Home recent activity removed.
