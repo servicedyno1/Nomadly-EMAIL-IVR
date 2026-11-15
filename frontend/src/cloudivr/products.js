@@ -10,7 +10,7 @@ export const PRODUCT_GROUPS = [
     ['extra-number', PlusCircle, 'Extra numbers', 'Add numbers in more countries for calls. We only ask for an address or ID when the country needs it.', 'From $25/mo', 'buy'],
   ]],
   ['ai', 'AI', 'violet', [
-    ['receptionist', Bot, 'AI receptionist', 'Answers your calls 24/7, books visits and takes messages in 20 languages.', '$0.10/min', 'receptionist'],
+    ['receptionist', Bot, 'AI receptionist', 'Answers your calls 24/7, books visits and takes messages in 20 languages.', '$0.10/min', 'ai-agents?use=inbound'],
     ['text-call', Captions, 'Text-to-voice calls', 'You type, a natural voice speaks, and you read their reply live. On Business.', 'In Business', 'text-call'],
   ]],
   ['texting', 'Texting', 'green', [

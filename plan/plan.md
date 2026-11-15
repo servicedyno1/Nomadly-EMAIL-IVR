@@ -1,97 +1,73 @@
-# CloudIVR Web App — Simpler Navigation and Modern Redesign
+# CloudIVR: Old Home Back with Plan Details, and Travel eSIM Install on Every Phone
 
-A reorganized, modern CloudIVR web app where customers find each feature quickly, grouped by the job they want to do rather than by technical category.
-It keeps every current feature and adds a guided home screen, a clearer menu, and a consistent new look in both light and dark mode.
+The CloudIVR web app goes back to the Home page customers had before this session. Each number in its list now shows clearly which plan it is on and what that plan includes.
+Travel eSIMs get working one-tap install buttons for both iPhone and Android, and the phone's own button comes first on a phone.
 
 ## Who it's for
-- CloudIVR business customers, mostly non-technical small-business owners and teams, who buy numbers, answer calls, run outbound calling (IVR, campaigns, AI agents) and send texts.
-- New customers who need a clear first step, and existing customers who already know the features but get lost moving between them.
+- CloudIVR web customers who own one or more numbers and want to see their plan, what it gives them and when it renews.
+- Travellers who bought a Travel eSIM (for example the Netherlands eSIM on onarrival21@gmail.com) and need to install it on the phone they travel with.
 
 ## Core features and experience
 
-### 1. Menu grouped by what customers want to do
-The current menu has 4 groups, several items with up to 6 hidden tabs each, and job names that use internal terms. For example, "AI voice agents" sits under "Outbound" even though agents also answer incoming calls, and Contacts and Audio library sit under "Calling". The new menu is organized around jobs:
+**1. Undo this session's new work (except the eSIM fix)**
+- Home goes back exactly as it was: stats row, guided tasks, "Your numbers" list with the Calling / Mobile / Texting tabs, products grid. "Recent activity" stays removed, as asked earlier.
+- Removed: the new Home sections (plan hero, platform grid, standalone services strip), the AI receptionist page and its menu entry, the receptionist settings (office hours, "answer only outside hours"), the receptionist inbox, and the monthly calls-and-texts usage invoices.
+- Menu and links for the AI receptionist go back to the old shared AI agents page.
+- Stays: the Bird Travel eSIM is linked to onarrival21@gmail.com. This was a fix to production data and is already live.
 
-| Group | What's in it |
-|---|---|
-| **Home** | Guided home, Messages, Live activity |
-| **Phone numbers** | My numbers, Get a number, eSIM and mobile, Add texting to a landline, Fax |
-| **Answer calls** | Keypad menus (IVR), Call forwarding and voicemail, AI receptionist (agents answering numbers) |
-| **Make calls** | Quick call, Text-to-voice call, Bulk campaigns, AI calling agents, Do-not-call list |
-| **Contacts and media** | Contacts, Audio library |
-| **Connect devices** | SIP and softphone logins, Browser phone |
-| **Account** | Wallet and billing, Settings, Help center |
+**2. Plan details inside the old number list**
+- On Home, every calling number in "Your numbers" shows:
+  - a plan badge (Basic, Starter, Pro, Business) and the monthly price;
+  - whether it is the main number or an extra number on the plan;
+  - minutes used out of the plan's minutes this month (shared with its extra numbers);
+  - renewal date and whether auto-renew is on;
+  - a short "Includes" line, for example "Forwarding · Voicemail · Keypad menu · Bulk IVR · AI agent · Fax", plus "Upgrade to Pro" when a higher plan exists.
+- Opening a number goes to its page, as it does today. "Upgrade" goes to that number's Billing tab.
+- Texting Numbers and Landline texting keep their own tabs, labelled as separate services rather than plans.
+- Before the build, a design expert reviews this list against how telecom and SaaS dashboards present plans, so the layout follows proven patterns and is not new invention.
 
-- Labels are plain and action-led ("Get a number", not "Buy a number"; "AI receptionist", not just "AI voice agents"). Technical terms (IVR, SIP) stay in short subtitles so experienced users still recognize them.
-- Every feature stays visible in the menu and on its page. Nothing moves behind an "Advanced" reveal. Long settings pages get clear section headings and an in-page jump list.
-- All existing web addresses and bookmarks still work and redirect to the new location.
-
-### 2. Guided, task-based home
-- The home screen leads with "What do you want to do?" and offers large task cards: Get a business number, Answer my calls (menu, forwarding or AI receptionist), Call a list of leads, Send texts, Set up an AI agent, Connect my phone or softphone.
-- Each card opens a short step-by-step setup, such as "Answer my calls: 1) pick a number, 2) choose how calls are answered, 3) test it". Each step links to the real settings.
-- A "Your setup" checklist tracks progress (number bought, calls handled, first campaign, wallet funded) and stays until it's complete or dismissed.
-- Below the tasks, a compact overview shows balance, active numbers, live calls, unread messages and recent activity. The existing stats and banners move into it.
-- The home adapts to the customer. Someone without a number sees "Get a number" first. Someone with numbers and no call handling sees "Answer my calls" first.
-
-### 3. Consistent page layouts
-- Every page uses the same layout: a header with title, one-line description and a main action button on the right; sub-sections as tabs under the header; then the content.
-- Sub-pages show a breadcrumb trail, such as Phone numbers › +1 334… › Billing.
-- Each number's settings page gets a clear tab order: Overview · Answering · Texting · Recordings · Billing. Its quick actions (assign AI agent, add extra number, renew) stay on the Overview tab.
-- Empty pages show a short explanation and one clear next-step button.
-
-### 4. Modern visual refresh in light and dark
-- A new design system covers typography, spacing, colors, buttons, inputs, cards, tables, tabs, dialogs and toasts, and every page uses it.
-- Light and dark mode both get full support and have equal quality. A "Match my device" option stays. The setting is in the account menu and in Settings.
-- Hover, focus and transition states stay subtle. Loading placeholders replace bare spinners where content takes time to load.
-- Accessible contrast in both themes, visible keyboard focus, touch targets of at least 44 px on phones.
-
-### 5. Quicker ways to get around
-- Search and command palette (⌘K / Ctrl K, already in the app) finds every page, number, agent, campaign and contact. It also runs actions like "Get a number", "Start a campaign" and "Add funds".
-- Contextual help: the "?" button opens help for the current page. Short inline hints appear next to confusing fields.
-- Phone layout: the bottom navigation bar uses the same new groups, and the "More" sheet lists everything else.
+**3. Travel eSIM install on iPhone and Android**
+- Every travel eSIM shows "Install on iPhone" and "Install on Android". The Android button is missing today because Bird only sends an iPhone link.
+- Both buttons use the official one-tap install links from Apple and Google, built from the eSIM's activation code.
+- On an iPhone, "Install on iPhone" is the large first button. On an Android phone, "Install on Android" is. The other button, the QR code and the manual code (with copy) stay below.
+- On a computer, the QR code comes first, with a note to scan it with the phone you travel with.
+- Buttons open the phone's own eSIM installer, not a page inside the app.
+- A short help line explains: iPhone needs iOS 17.4 or later; Android needs Android 10 or later with Google services up to date (most Pixel and Samsung phones). Otherwise use the QR code or the manual code.
+- Each eSIM card stays readable on a 390px-wide phone screen: no sideways scrolling, and the long manual code wraps or truncates with copy.
 
 ## User flow
-1. A customer signs in and lands on the guided home, which highlights the next most useful task based on their account.
-2. They choose a task card, for example "Answer my calls", and follow 2–4 short steps that take them through the real settings.
-3. To find something specific, they open the matching menu group or use search (⌘K).
-4. On any page the layout is the same, so the main action is always in the same place, top right.
-5. The setup checklist on home marks progress until the account is fully set up.
+1. Customer opens Home → sees the old layout → each number row shows its plan, minutes, renewal and what is included → taps Upgrade or opens the number.
+2. Traveller opens Travel eSIM on their phone → sees their eSIM with the phone's install button on top → taps it → the phone's eSIM setup opens → confirms → done.
+3. If one-tap install doesn't work on their phone → scans the QR code from another screen, or copies the manual code into the phone's eSIM settings.
 
 ## UI/UX feel
-- Calm, clean and professional, in the style of current business tools such as Stripe, Linear and Intercom.
-- Readable type, generous spacing, fewer competing colors, one accent color for main actions.
-- Dark mode is fully finished, not an afterthought. Light mode is bright and crisp.
-- Clear, friendly wording that names the outcome ("Answer my calls"), with technical terms secondary.
+- Same look as the old Home and the current app theme, light and dark.
+- Plan details fit inside each number row and stay compact: one badge, a thin minutes bar, one line of included features. No new large blocks.
+- Status colours meet readability contrast in light mode.
+- Install buttons are large and easy to tap on phones (at least 44px high).
 
 ## Implementation phases
+**Phase 1 (MVP, built now)**
+- Undo this session's Home, AI receptionist and usage-invoice changes. The eSIM data fix stays.
+- Expert design review, then plan details in the old "Your numbers" list.
+- iPhone + Android install buttons, the phone's button first, mobile layout check on iPhone-size and Android-size screens.
+- Publish together to all brands (main and WhiteLabel) at the end, as agreed earlier, after testing passes.
 
-### Phase 1 — MVP (built now)
-- New job-based menu (desktop sidebar and phone navigation), plain labels, redirects for all old addresses.
-- Guided task-based home with task cards, short step-by-step setups, an adaptive "next task" and the setup checklist, plus the compact overview.
-- New design system applied across every page in both light and dark mode.
-- Consistent page header, tabs, breadcrumbs and empty states on all pages. Clearer tab order on each number's settings page.
-- Search and command palette extended to cover the new groups and quick actions.
-- Every existing feature keeps working the same way. This release changes only placement, wording and appearance.
+**Phase 2**
+- Same plan details on the "My numbers" page and on each number's Overview tab.
+- An email that sends travel eSIM install links to the customer's phone.
 
-### Phase 2 — Later
-- First-visit guided tour of the new menu for existing customers, plus a "What's new" summary of where things moved.
-- Inline contextual hints and short how-to videos on the most complex pages (campaigns, keypad menus, AI agents).
-- Saved favorites and shortcuts in the menu.
-
-### Phase 3 — Later
-- Measure where customers get stuck (page visits, abandoned setups) and simplify those screens further.
-- Customizable home (reorder or hide cards) and per-team role views.
-- Usability check with real customers, then polish based on the feedback.
+**Phase 3**
+- Revisit, as separate requests: a dedicated AI receptionist page, and invoices for per-call and per-text usage.
 
 ## Assumptions
-- **Navigation and visuals ship together in the first release**, since all three focus options were selected.
-- **No feature is removed or hidden.** Everything stays visible and is regrouped and relabeled, as requested.
-- **Light and dark mode** both get full support, with "Match my device" as the default. The app already has this switch, so it is being upgraded, not built from scratch.
-- **Group names and labels** in the table above are the proposed wording, and some feature names change ("Buy a number" → "Get a number"). Technical terms stay as subtitles.
-- **AI agents appear in two places:** "AI receptionist" under Answer calls and "AI calling agents" under Make calls. Both open the same agents, filtered by use.
-- **Existing bookmarks and links** (including links in emails and Telegram) keep working through redirects.
-- **The public CloudIVR website** (landing, pricing, legal pages) is not part of this redesign. Only the signed-in web app changes.
-- **The Telegram bots are not affected.**
-- **No changes** to pricing, plans, billing, call handling, campaigns, AI agent behavior or any backend logic.
-- **Existing translations** (English, French, Spanish and others) cover all new and changed wording.
-- **Changes reach customers** after the account owner's usual Save to GitHub / deploy step.
+- "Undo everything from this session" means: keep the onarrival21@gmail.com eSIM link, and remove all other code changes made in this session.
+- Three items from earlier in the session are **not** being built now, because of the undo. They stay open:
+  - an invoice for every call and text charge (only orders, renewals, top-ups and refunds have invoices today);
+  - a separate AI receptionist;
+  - copying the guard that stops USA Texting Numbers being added as Bird caller IDs to the three WhiteLabel brands. The main brand already has it, and no brand currently has a texting number set as a caller ID.
+- The previous number list is restored as it was, and plan details are added to it. Its order and tabs do not change.
+- The Android link is built from the activation code Bird already provides. Bird's own install links are used when Bird sends them.
+- The phone type is detected from the browser. If detection is unsure, both buttons show with equal weight.
+- Install buttons are tested on phone-size screens in the preview. A real install on a physical iPhone and Android phone needs the user's devices. This plan doesn't claim that test as done.
+- Nothing billable is bought, and no new eSIM is ordered.

@@ -14,9 +14,6 @@ const TX = {
   'caller-id-verify': 'Caller ID verification', 'number-lookup': 'Number lookup', 'email-check': 'Email check', ai_summary: 'AI call summaries', leads: 'Lead list',
 }
 const REFUND = { 'esim-refund': 'Refund · USA eSIM', 'mobile-number-refund': 'Refund · USA Texting Number', 'esim-number-refund': 'Refund · number replacement', 'travel-esim-refund': 'Refund · Travel eSIM', 'hosted-sms-refund': 'Refund · Business texting', 'lead-check-refund': 'Refund · lead check' }
-// Per-call / per-text charges: one itemised usage invoice per account per finished month.
-const USAGE = { outbound_call: 'Outbound calls', connection_fee: 'Call connection fees', sip_per_minute: 'Softphone call minutes', twilio_bridge_per_minute: 'Forwarded call minutes', ai_agent_call: 'AI agent calls', text_relay_call: 'Text relay calls', 'esim-sms': 'eSIM texts' }
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const PLAN = { starter: 'Basic', standard: 'Starter', pro: 'Pro', business: 'Business' }
 
 // 'crypto_dynopay_BTC' / '🪙 Crypto (BTC)' → 'Crypto (BTC)'; wallet → 'CloudIVR wallet'. null = not a real charge.
@@ -47,35 +44,16 @@ function createInvoices({ db, h, adminRequire, log = console.log }) {
     const r = await counters.findOneAndUpdate({ _id: `cloudivr-invoice-${year}` }, { $inc: { seq: 1 } }, { upsert: true, returnDocument: 'after', includeResultMetadata: false })
     return `CIVR-${year}-${String(r.seq).padStart(6, '0')}`
   }
-  async function add(id, { chatId, at, kind, description, amount, items, title, paidWith: pw }) {
+  async function add(id, { chatId, at, kind, description, amount, paidWith: pw }) {
     if (await col.findOne({ _id: id }, { projection: { _id: 1 } })) return false
     const issuedAt = new Date(at || Date.now())
-    const doc = { _id: id, number: await nextNumber(issuedAt.getUTCFullYear()), chatId: String(chatId), kind, issuedAt, seller: SELLER, billTo: await billTo(chatId), ...(title ? { title } : {}),
-      items: items || [{ description, amount: round2(amount) }], total: round2(amount), currency: 'USD', paidWith: pw, status: kind === 'credit_note' ? 'refunded' : 'paid', createdAt: new Date() }
+    const doc = { _id: id, number: await nextNumber(issuedAt.getUTCFullYear()), chatId: String(chatId), kind, issuedAt, seller: SELLER, billTo: await billTo(chatId),
+      items: [{ description, amount: round2(amount) }], total: round2(amount), currency: 'USD', paidWith: pw, status: kind === 'credit_note' ? 'refunded' : 'paid', createdAt: new Date() }
     try { await col.insertOne(doc); return true } catch (e) { if (e.code === 11000) return false; throw e }
-  }
-
-  // Closed months only, so a usage invoice never changes after it is issued.
-  async function usage(from) {
-    const cur = new Date().toISOString().slice(0, 7), start = from.toISOString().slice(0, 7)
-    const month = (f) => ({ $substrCP: [{ $toString: f }, 0, 7] })
-    const rows = [
-      ...await db.collection('walletLedger').aggregate([{ $match: { type: { $in: Object.keys(USAGE) }, amount: { $lt: 0 } } }, { $project: { chatId: { $toString: '$chatId' }, type: 1, amount: 1, m: month('$timestamp') } }, { $match: { m: { $gte: start, $lt: cur } } }, { $group: { _id: { c: '$chatId', m: '$m', t: '$type' }, n: { $sum: 1 }, sum: { $sum: '$amount' } } }]).toArray(),
-      ...await db.collection('transactions').aggregate([{ $match: { type: 'esim-sms', status: { $ne: 'failed' }, createdAt: { $gte: from } } }, { $project: { chatId: { $toString: '$chatId' }, type: 1, amount: 1, m: month('$createdAt') } }, { $match: { m: { $lt: cur } } }, { $group: { _id: { c: '$chatId', m: '$m', t: '$type' }, n: { $sum: 1 }, sum: { $sum: { $abs: '$amount' } } } }]).toArray(),
-    ]
-    const by = {}
-    for (const r of rows) (by[`${r._id.c}:${r._id.m}`] = by[`${r._id.c}:${r._id.m}`] || []).push(r)
-    return Object.entries(by).map(([k, rs]) => {
-      const [chatId, m] = k.split(':'), [y, mo] = m.split('-').map(Number)
-      const items = Object.keys(USAGE).map(t => rs.find(r => r._id.t === t)).filter(Boolean).map(r => ({ description: `${USAGE[r._id.t]} · ${r.n} ${r.n === 1 ? 'charge' : 'charges'}`, amount: round2(Math.abs(r.sum)) })).filter(i => i.amount > 0)
-      const amount = items.reduce((a, i) => a + i.amount, 0)
-      return [`usage:${chatId}:${m}`, { chatId, at: new Date(Date.UTC(y, mo, 0, 23, 59, 59)), kind: 'invoice', title: `Calls & texts · ${MONTHS[mo - 1]} ${y}`, items, amount, paidWith: 'CloudIVR wallet' }]
-    }).filter(([, d]) => round2(d.amount) > 0)
   }
 
   // Phone line: "Phone number · +1 555 · Pro plan"
   const phoneLine = (t) => [PHONE[t.action], t.phoneNumber, t.plan && PLAN[t.plan] ? `${PLAN[t.plan]} plan` : null].filter(Boolean).join(' · ')
-  let lastUsage = 0
   async function sync({ since } = {}) {
     const from = since || new Date(Date.now() - 400 * 864e5)
     const todo = []
@@ -94,7 +72,6 @@ function createInvoices({ db, h, adminRequire, log = console.log }) {
           : { kind: 'invoice', description: `${TX[t.type]}${ref ? ` · ${ref}` : ''}`, paidWith: paidWith(t.metadata?.paymentMethod || t.paymentMethod) || 'CloudIVR wallet' }
       todo.push([`tx:${t._id}`, { chatId: t.chatId, at: t.createdAt, amount, ...doc }])
     }
-    if (!since || Date.now() - lastUsage > 6 * 3600000) { todo.push(...await usage(since ? new Date(Date.now() - 62 * 864e5) : from)); lastUsage = Date.now() }
     // Numbers follow the issue date.
     todo.sort((a, b) => new Date(a[1].at) - new Date(b[1].at))
     let n = 0
@@ -123,7 +100,7 @@ function createInvoices({ db, h, adminRequire, log = console.log }) {
     r.get('/admin/invoices', adminRequire, h(async (req, res) => {
       await tick().catch(() => {})
       const q = String(req.query.q || '').trim(), esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      const filter = q ? { $or: [{ number: new RegExp(esc, 'i') }, { chatId: q }, { 'billTo.email': new RegExp(esc, 'i') }, { 'billTo.name': new RegExp(esc, 'i') }, { 'items.description': new RegExp(esc, 'i') }, { title: new RegExp(esc, 'i') }] } : {}
+      const filter = q ? { $or: [{ number: new RegExp(esc, 'i') }, { chatId: q }, { 'billTo.email': new RegExp(esc, 'i') }, { 'billTo.name': new RegExp(esc, 'i') }, { 'items.description': new RegExp(esc, 'i') }] } : {}
       const [list, total] = await Promise.all([col.find(filter).sort({ issuedAt: -1 }).limit(200).toArray(), col.countDocuments(filter)])
       res.json({ invoices: list.map(pub), total })
     }))
@@ -131,4 +108,4 @@ function createInvoices({ db, h, adminRequire, log = console.log }) {
   return { routes, adminRoutes, sync, paidWith }
 }
 
-module.exports = { createInvoices, paidWith, SELLER, BOT_BILL_TO, USAGE }
+module.exports = { createInvoices, paidWith, SELLER, BOT_BILL_TO }

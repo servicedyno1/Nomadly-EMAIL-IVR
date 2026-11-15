@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Bot, Plus, ArrowLeft, ChevronRight, Lock } from 'lucide-react';
 import { useApi, enc } from '../api';
 import { PageHeader, SkeletonRows, SkeletonPage, Empty, ErrorNote, TabStrip } from '../ui';
@@ -51,13 +51,13 @@ function AgentRows({ agents }) {
 export function AiAgents() {
   const [params, setParams] = useSearchParams();
   const tab = params.get('tab') || 'agents';
-  const setTab = (id) => setParams({ tab: id }, { replace: true });
-  const { data, loading, error, reload } = useApi(params.get('use') === 'inbound' ? null : '/ai-agents');
-  if (params.get('use') === 'inbound') return <Navigate to={cp('/app/receptionist')} replace />;
+  const inbound = params.get('use') === 'inbound';
+  const setTab = (id) => setParams(inbound ? { use: 'inbound', tab: id } : { tab: id }, { replace: true });
+  const { data, loading, error, reload } = useApi('/ai-agents');
   return (
-    <div data-testid="ai-agents-page" data-use="outbound">
-      <PageHeader label="Make calls" title="AI calling agents"
-        sub="An AI that calls your leads, in 20 languages, with natural, fast conversation. To answer your own numbers, use the AI receptionist." testid="ai-agents-header">
+    <div data-testid="ai-agents-page" data-use={inbound ? 'inbound' : 'outbound'}>
+      <PageHeader label={inbound ? 'Answer calls' : 'Make calls'} title={inbound ? 'AI receptionist' : 'AI calling agents'}
+        sub={inbound ? 'An AI that picks up your numbers 24/7 — answers questions, takes messages and books appointments. Give each agent its own number.' : 'An AI that calls your leads, in 20 languages — with natural, fast conversation. The same agents can also answer your numbers.'} testid="ai-agents-header">
         <Link to={cp('/app/ai-agents/new')} className="civr-btn civr-btn-primary" data-testid="ai-agents-new-button"><Plus className="w-4 h-4" />New agent</Link>
       </PageHeader>
       {data && <PlanNote canUse={data.canUse} rate={data.rate} receptionRate={data.receptionRate} recordRate={data.recordRate} />}
@@ -65,7 +65,7 @@ export function AiAgents() {
         {TABS.map(([id, name]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} data-testid={`ai-tab-${id}`} className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#818cf8] text-[#818cf8]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>)}
       </TabStrip>
       <ErrorNote error={error} onRetry={reload} className="mb-4" />
-      {tab === 'calls' ? <AiCalls /> : tab === 'dnc' ? <DncList /> : error && !data ? null : loading && !data ? <SkeletonRows rows={3} /> : <AgentRows agents={(data?.agents || []).filter(a => a.role !== 'receptionist')} />}
+      {tab === 'calls' ? <AiCalls /> : tab === 'dnc' ? <DncList /> : error && !data ? null : loading && !data ? <SkeletonRows rows={3} /> : <AgentRows agents={inbound ? [...(data?.agents || [])].sort((a, b) => (b.numbers.length > 0) - (a.numbers.length > 0)) : data?.agents || []} />}
     </div>
   );
 }
@@ -79,7 +79,6 @@ export function AiAgentEdit() {
   const [params] = useSearchParams();
   const prepFor = isNew && params.get('prep') ? params.get('number') : null;
   const agent = isNew ? (prepFor ? RECEPTIONIST : EMPTY_AGENT) : data?.agent;
-  if (agent?.role === 'receptionist') return <Navigate to={cp(`/app/receptionist/${agent.id}`)} replace />;
   return (
     <div data-testid="ai-agent-edit-page">
       <Link to={cp('/app/ai-agents')} className="inline-flex items-center gap-2 min-h-[44px] text-sm text-[#a1a1aa] hover:text-[#818cf8] mb-3" data-testid="ai-agent-back-link"><ArrowLeft className="w-4 h-4" />All agents</Link>

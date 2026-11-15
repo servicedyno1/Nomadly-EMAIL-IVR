@@ -11,19 +11,53 @@ import { QRCodeSVG } from 'qrcode.react';
 
 const copy = (v) => navigator.clipboard?.writeText(v).then(() => toast.success('Copied'));
 
+// Phone type from the browser: 'ios', 'android' or null (computer / unsure).
+const deviceOs = () => {
+  const ua = navigator.userAgent || '';
+  if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'ios';
+  return /Android/.test(ua) ? 'android' : null;
+};
+const lpaOf = (i) => (i.activationCode && /^LPA:/i.test(i.activationCode) ? i.activationCode : i.smdp && i.activationCode ? `LPA:1$${i.smdp}$${i.activationCode}` : null);
+// Official one-tap install links (iOS 17.4+, Android 10+ with Google services); Bird's own links win when sent.
+export const installLinks = (i) => {
+  const lpa = lpaOf(i), q = lpa ? `esim_qrcode_provisioning?carddata=${encodeURIComponent(lpa)}` : null;
+  return { ios: i.ios || (q && `https://esimsetup.apple.com/${q}`), android: i.android || (q && `https://esimsetup.android.com/${q}`) };
+};
+
+function InstallButtons({ o, links, os }) {
+  const btns = [['ios', 'Install on iPhone'], ['android', 'Install on Android']].filter(([k]) => links[k]).sort(([a], [b]) => (b === os) - (a === os));
+  return (
+    <div className={`flex flex-col ${os ? '' : 'sm:flex-row'} gap-2`}>
+      {btns.map(([k, label]) => (
+        <a key={k} href={links[k]} target="_blank" rel="noopener noreferrer" className={`civr-btn justify-center min-h-[48px] w-full ${os ? '' : 'sm:w-auto'} ${k === os ? 'civr-btn-primary text-base' : 'civr-btn-ghost'}`} data-testid={`travel-esim-${k}-${o.id}`}><Smartphone className="w-4 h-4" />{label}</a>
+      ))}
+    </div>
+  );
+}
+
+function Qr({ o, i }) {
+  if (!i.qr && i.activationCode && !o.dryRun) return <div className="w-40 h-40 shrink-0 rounded-lg bg-white p-2 grid place-items-center" data-testid={`travel-esim-qr-${o.id}`}><QRCodeSVG value={lpaOf(i) || i.activationCode} size={144} aria-label={`QR code for ${o.name}`} /></div>;
+  if (i.qr) return <img src={i.qr} alt={`QR code for ${o.name}`} className="w-40 h-40 shrink-0 rounded-lg bg-white p-2" data-testid={`travel-esim-qr-${o.id}`} />;
+  return <div className="w-40 h-40 shrink-0 rounded-lg border border-dashed grid place-items-center text-center p-3 text-xs text-[var(--c-muted)]" data-testid={`travel-esim-qr-missing-${o.id}`}>{o.dryRun ? 'Preview order — no real QR code' : 'QR code is on its way. Refresh in a minute.'}</div>;
+}
+
 function Install({ o }) {
   const i = o.install || {};
+  const os = useMemo(deviceOs, []);
+  const links = o.dryRun ? {} : installLinks(i);
+  const buttons = (links.ios || links.android) && <InstallButtons o={o} links={links} os={os} />;
   return (
-    <div className="grid md:grid-cols-[160px_1fr] gap-4 mt-3" data-testid={`travel-esim-install-${o.id}`}>
-      {!i.qr && i.activationCode && !o.dryRun ? <div className="w-40 h-40 rounded-lg bg-white p-2 grid place-items-center" data-testid={`travel-esim-qr-${o.id}`}><QRCodeSVG value={i.activationCode} size={144} aria-label={`QR code for ${o.name}`} /></div> : i.qr ? <img src={i.qr} alt={`QR code for ${o.name}`} className="w-40 h-40 rounded-lg bg-white p-2" data-testid={`travel-esim-qr-${o.id}`} /> : <div className="w-40 h-40 rounded-lg border border-dashed grid place-items-center text-center p-3 text-xs text-[var(--c-muted)]" data-testid={`travel-esim-qr-missing-${o.id}`}>{o.dryRun ? 'Preview order — no real QR code' : 'QR code is on its way. Refresh in a minute.'}</div>}
-      <div className="space-y-2 text-sm">
-        <p>Scan the QR code with your phone camera, or use the install button on the phone you travel with.</p>
-        <div className="flex flex-wrap gap-2">
-          {i.ios && <a href={i.ios} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`travel-esim-ios-${o.id}`}><Smartphone className="w-4 h-4" />Install on iPhone</a>}
-          {i.android && <a href={i.android} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`travel-esim-android-${o.id}`}><Smartphone className="w-4 h-4" />Install on Android</a>}
+    <div className="mt-3 space-y-4 min-w-0" data-testid={`travel-esim-install-${o.id}`}>
+      {os && buttons}
+      <div className="flex flex-col sm:flex-row gap-4 min-w-0">
+        <Qr o={o} i={i} />
+        <div className="space-y-3 text-sm min-w-0 flex-1">
+          <p>{os ? 'Or scan the QR code from another screen.' : 'Scan the QR code with the phone you travel with, or open this page on that phone and tap its install button.'}</p>
+          {!os && buttons}
+          {i.activationCode && <div className="flex items-center gap-2 min-w-0"><span className="text-[var(--c-muted)] shrink-0">Manual code</span><span className="font-mono truncate min-w-0" data-no-translate data-testid={`travel-esim-code-${o.id}`}>{i.activationCode}</span><button className="civr-btn civr-btn-ghost !px-2 shrink-0 min-h-[44px]" onClick={() => copy(i.activationCode)} aria-label="Copy activation code" data-testid={`travel-esim-copy-${o.id}`}><Copy className="w-4 h-4" /></button></div>}
+          {i.roaming && <p className="text-xs text-[var(--c-muted)]">Turn on data roaming for this eSIM when you arrive.</p>}
+          <p className="text-xs text-[var(--c-muted)]" data-testid={`travel-esim-help-${o.id}`}>One-tap install needs iOS 17.4 or later on iPhone, or Android 10 or later with Google services up to date (most Pixel and Samsung phones). If it doesn’t open, use the QR code or the manual code.</p>
         </div>
-        {i.activationCode && <div className="flex items-center gap-2"><span className="text-[var(--c-muted)]">Manual code</span><span className="font-mono truncate min-w-0" data-no-translate>{i.activationCode}</span><button className="civr-btn civr-btn-ghost !px-2" onClick={() => copy(i.activationCode)} aria-label="Copy activation code" data-testid={`travel-esim-copy-${o.id}`}><Copy className="w-4 h-4" /></button></div>}
-        {i.roaming && <p className="text-xs text-[var(--c-muted)]">Turn on data roaming for this eSIM when you arrive.</p>}
       </div>
     </div>
   );
@@ -35,7 +69,7 @@ function MyEsims({ orders, codes }) {
     <div data-testid="travel-esim-orders"><Label>Your travel eSIMs</Label>
       <div className="space-y-3">{orders.map(o => (
         <div key={o.id} className="civr-card p-5" data-testid={`travel-esim-order-${o.id}`}>
-          <div className="flex flex-wrap items-center gap-3"><span className="flex-1"><span className="font-semibold inline-flex items-center gap-2"><Flag code={o.code || codes[o.zone]} />{o.name}</span>{o.phoneNumber && <span className="block text-xs font-mono text-[var(--c-muted)]" data-no-translate data-testid={`travel-esim-phone-${o.id}`}>{`eSIM number ${o.phoneNumber}`}</span>}<span className="block text-xs text-[var(--c-muted)]" data-testid={`travel-esim-date-${o.id}`}>{`Bought ${new Date(o.createdAt).toLocaleDateString()} · valid ${o.days} days after you first connect`}{o.dryRun ? ' · preview order (not real)' : ''}</span></span><span className={`civr-pill ${o.status === 'active' ? 'civr-pill-ok' : o.status === 'failed' ? 'civr-pill-bad' : 'civr-pill-warn'}`} data-testid={`travel-esim-status-${o.id}`}>{o.status === 'active' ? 'Ready to install' : o.status === 'failed' ? 'Failed · refunded' : 'Preparing…'}</span><span className="font-mono">{money(o.price)}</span></div>
+          <div className="flex flex-wrap items-center gap-3"><span className="flex-1 min-w-0"><span className="font-semibold inline-flex items-center gap-2"><Flag code={o.code || codes[o.zone]} />{o.name}</span>{o.phoneNumber && <span className="block text-xs font-mono text-[var(--c-muted)]" data-no-translate data-testid={`travel-esim-phone-${o.id}`}>{`eSIM number ${o.phoneNumber}`}</span>}<span className="block text-xs text-[var(--c-muted)]" data-testid={`travel-esim-date-${o.id}`}>{`Bought ${new Date(o.createdAt).toLocaleDateString()} · valid ${o.days} days after you first connect`}{o.dryRun ? ' · preview order (not real)' : ''}</span></span><span className={`civr-pill ${o.status === 'active' ? 'civr-pill-ok' : o.status === 'failed' ? 'civr-pill-bad' : 'civr-pill-warn'}`} data-testid={`travel-esim-status-${o.id}`}>{o.status === 'active' ? 'Ready to install' : o.status === 'failed' ? 'Failed · refunded' : 'Preparing…'}</span><span className="font-mono">{money(o.price)}</span></div>
           {o.status === 'active' && <Install o={o} />}
         </div>
       ))}</div>

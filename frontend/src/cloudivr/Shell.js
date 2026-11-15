@@ -43,7 +43,6 @@ import Settings from './pages/Settings';
 import SipPage from './pages/Sip';
 import Fax from './pages/Fax';
 import { AiAgents, AiAgentEdit } from './pages/AiAgents';
-import Receptionist, { ReceptionistEdit } from './pages/Receptionist';
 import { cp } from './paths';
 import { useLang } from './i18n';
 import SupportChat from './SupportChat';
@@ -220,9 +219,6 @@ export default function Shell() {
               <Route path="esim" element={<Esim />} />
               <Route path="quick-call" element={<QuickCall />} />
               <Route path="text-call" element={<TextCall />} />
-              <Route path="receptionist" element={<Receptionist />} />
-              <Route path="receptionist/new" element={<ReceptionistEdit />} />
-              <Route path="receptionist/:id" element={<ReceptionistEdit />} />
               <Route path="ai-agents" element={<AiAgents />} />
               <Route path="ai-agents/new" element={<AiAgentEdit />} />
               <Route path="ai-agents/:id" element={<AiAgentEdit />} />

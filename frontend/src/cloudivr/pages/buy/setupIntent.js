@@ -29,7 +29,7 @@ function readIntent(phone) {
 export function setupPath(use, phone) {
   const p = enc(phone);
   if (use === 'menu') return `/app/numbers/${p}?tab=ivr&prep=menu`;
-  if (use === 'ai') return `/app/receptionist/new?number=${p}&prep=1`;
+  if (use === 'ai') return `/app/ai-agents/new?number=${p}&prep=1`;
   if (use === 'campaigns') return `/app/campaigns/new?callerId=${p}`;
   return `/app/numbers/${p}`;
 }

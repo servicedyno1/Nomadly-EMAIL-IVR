@@ -6,6 +6,7 @@ import { useShell } from '../../Shell';
 import { statusPill } from '../../ui';
 import { cp } from '../../paths';
 import { usePrivacy } from '../../privacy';
+import { NumberPlan } from './NumberPlan';
 
 // First-run checklist shown until the account owns a number.
 export function GetStarted({ balance }) {
@@ -37,18 +38,22 @@ export function GetStarted({ balance }) {
   );
 }
 
-const TABS = [['calling', 'Calling'], ['mobile', 'Mobile'], ['texting', 'Texting']];
+const TABS = [['calling', 'Calling plans'], ['mobile', 'Texting Number'], ['texting', 'Landline texting']];
 const numberLink = (n) => cp(n.texting ? `/app/texting?id=${enc(n.id)}` : n.mobile ? '/app/numbers' : `/app/numbers/${enc(n.phoneNumber)}`);
 
-function NumberRow({ n, i, pv }) {
+function NumberRow({ n, i, pv, catalog }) {
+  const calling = !n.texting && !n.mobile && n.planName;
   return (
-    <Link to={numberLink(n)} className="flex items-center gap-4 py-4 -mx-2 px-2 rounded-lg hover:bg-[#111] transition-colors" data-testid={`dashboard-number-${i}`}>
-      <div className="flex-1 min-w-0">
-        <div className="font-mono text-lg truncate" data-testid={`dashboard-number-${i}-phone`}>{pv.phone(n.phoneNumber)}</div>
-        <div className="text-xs text-[#a1a1aa] mt-1">{n.texting ? n.planName : `${n.countryName || n.country} · ${n.planName}`}{n.planNumber && <> · included with {pv.phone(n.planNumber)}</>}{n.expiresAt && <> · {n.texting ? 'next bill' : n.autoRenew ? 'renews' : 'expires'} {day(n.expiresAt)}</>}</div>
-      </div>
-      <span className={statusPill(n.status)}>{n.status}</span><ChevronRight className="w-4 h-4 text-[#a1a1aa]" />
-    </Link>
+    <div className={`py-4 -mx-2 px-2 rounded-lg ${n.isSubNumber ? 'ml-2 sm:ml-6 pl-3 border-l-2 border-[var(--c-border)]' : ''}`} data-testid={`dashboard-number-${i}`}>
+      <Link to={numberLink(n)} className="flex items-center gap-4 min-h-[44px] hover:text-[var(--c-accent)] transition-colors" data-testid={`dashboard-number-${i}-link`}>
+        <div className="flex-1 min-w-0">
+          <div className="font-mono text-lg truncate" data-testid={`dashboard-number-${i}-phone`}>{pv.phone(n.phoneNumber)}</div>
+          <div className="text-xs text-[#a1a1aa] mt-1">{calling ? (n.countryName || n.country) : <>{n.texting ? n.planName : `${n.countryName || n.country} · ${n.planName}`} · separate service{n.planNumber && <> · included with {pv.phone(n.planNumber)}</>}{n.expiresAt && <> · {n.texting ? 'next bill' : n.autoRenew ? 'renews' : 'expires'} {day(n.expiresAt)}</>}</>}</div>
+        </div>
+        <span className={statusPill(n.status)} data-testid={`dashboard-number-${i}-status`}>{n.status}</span><ChevronRight className="w-4 h-4 text-[#a1a1aa]" />
+      </Link>
+      {calling && <NumberPlan n={n} i={i} catalog={catalog} pv={pv} />}
+    </div>
   );
 }
 
@@ -68,6 +73,7 @@ function NumberTabs({ groups, tab, setTab }) {
 // Existing accounts: their numbers (Calling / Mobile / Texting tabs) with renewal dates + a warning when the wallet can't cover the next renewal.
 export function YourNumbers({ nums: voip, balance }) {
   const pv = usePrivacy();
+  const { catalog } = useShell();
   const [picked, setTab] = useState(null);
   const { data: mob } = useApi('/mobile-numbers');
   // USA mobile numbers (two-way SMS) are numbers too; they open in the mobile section of My numbers.
@@ -92,8 +98,8 @@ export function YourNumbers({ nums: voip, balance }) {
           <Link to={cp(`/app/wallet?need=${shortBy}`)} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="dashboard-low-balance-add-funds">Add funds</Link>
         </div>
       )}
-      <div className="divide-y divide-[#1a1a1a]" role="tabpanel" data-testid={`dashboard-numbers-panel-${tab}`}>
-        {shown.slice(0, 5).map((n, i) => <NumberRow key={n.id || n.phoneNumber} n={n} i={i} pv={pv} />)}
+      <div className="divide-y divide-[var(--c-border)]" role="tabpanel" data-testid={`dashboard-numbers-panel-${tab}`}>
+        {shown.slice(0, 5).map((n, i) => <NumberRow key={n.id || n.phoneNumber} n={n} i={i} pv={pv} catalog={catalog} />)}
       </div>
       {shown.length > 5 && <Link to={cp(tab === 'texting' ? '/app/texting' : '/app/numbers')} className="block text-sm text-[#818cf8] mt-3" data-testid="dashboard-numbers-more">+{shown.length - 5} more</Link>}
       {next && shortBy <= 0 && <div className="text-xs text-[#a1a1aa] mt-4" data-testid="dashboard-next-renewal">Next renewal: <span className="font-mono">{pv.phone(next.phoneNumber)}</span> on {day(next.expiresAt)} · {money(next.planPrice)} from your wallet</div>}

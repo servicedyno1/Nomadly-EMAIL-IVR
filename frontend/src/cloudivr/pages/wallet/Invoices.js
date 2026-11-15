@@ -14,13 +14,13 @@ export function Invoices() {
     <section className="civr-card mt-8" data-testid="invoices">
       <div className="p-5 border-b border-[var(--c-border)]">
         <div className="font-semibold flex items-center gap-2"><FileText className="w-4 h-4" />Invoices &amp; receipts</div>
-        <p className="text-sm text-[var(--c-muted)] mt-1">One for every order, renewal, top-up and refund, plus one usage invoice per month for calls and texts. Open one to print it or save it as a PDF.</p>
+        <p className="text-sm text-[var(--c-muted)] mt-1">One for every order, renewal, top-up and refund. Open one to print it or save it as a PDF.</p>
       </div>
       {!data ? <p className="p-5 text-sm text-[var(--c-muted)]">Loading…</p> : list.length ? (
         <div className="divide-y divide-[var(--c-border)] max-h-[32rem] overflow-y-auto">
           {list.map((inv, i) => (
             <div key={inv.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4" data-testid={`invoice-row-${i}`}>
-              <span className="flex-1 min-w-[12rem]"><span className="block text-sm">{inv.title || inv.items?.[0]?.description}</span><span className="text-xs text-[var(--c-muted)] font-mono" data-testid={`invoice-row-${i}-number`}>{inv.number} · {day(inv.issuedAt)}</span></span>
+              <span className="flex-1 min-w-[12rem]"><span className="block text-sm">{inv.items?.[0]?.description}</span><span className="text-xs text-[var(--c-muted)] font-mono" data-testid={`invoice-row-${i}-number`}>{inv.number} · {day(inv.issuedAt)}</span></span>
               <span className="flex items-center gap-3 ml-auto">
               <span className={`civr-pill ${TONE[inv.kind] || ''}`}>{KIND[inv.kind]}</span>
               <span className="text-right tabular-nums font-medium" data-testid={`invoice-row-${i}-total`}>{inv.kind === 'credit_note' || inv.kind === 'receipt' ? '+' : ''}{inv.total > 0 && inv.total < 0.01 ? `$${inv.total}` : money(inv.total)}</span>

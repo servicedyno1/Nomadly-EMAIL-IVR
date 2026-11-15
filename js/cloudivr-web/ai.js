@@ -113,20 +113,8 @@ function routes(router, { h, numbersApi }) {
   router.delete('/calendar', h(async (req, res) => res.json({ disconnected: await gcal.disconnect(req.webChatId) })))
 
   router.get('/ai-calls', h(async (req, res) => res.json({
-    calls: await s.listCalls(req.webChatId, { agentId: req.query.agentId, campaignId: req.query.campaignId, direction: req.query.direction, limit: parseInt(req.query.limit, 10) || 30 }),
+    calls: await s.listCalls(req.webChatId, { agentId: req.query.agentId, campaignId: req.query.campaignId, limit: parseInt(req.query.limit, 10) || 30 }),
   })))
-  router.post('/ai-calls/:id/handled', h(async (req, res) => {
-    const r = await s.setHandled(req.webChatId, req.params.id, req.body?.handled !== false)
-    if (!r.matchedCount) return bad(res, 404, 'not_found', 'Call not found.')
-    res.json({ handled: req.body?.handled !== false })
-  }))
-  router.get('/ai-receptionist', h(async (req, res) => {
-    const [r, list, nums] = await Promise.all([s.reception(req.webChatId), s.listAgents(req.webChatId), numbersApi.myNumbers(req.webChatId)])
-    const on = (n) => n.status === 'active' && n.features?.aiAgent?.enabled && phoneConfig.canAccessFeature(n.plan, 'aiAgent')
-    const answering = nums.filter(on).map(n => ({ phoneNumber: n.phoneNumber, agentId: n.features.aiAgent.agentId }))
-    const receptionists = list.filter(a => a.role === 'receptionist' || (!a.role && answering.some(x => x.agentId === a.id)))
-    res.json({ ...r, receptionists: receptionists.map(a => ({ ...s.publicAgent(a), numbers: answering.filter(x => x.agentId === a.id).map(x => x.phoneNumber), onDutyNow: a.answerWhen !== 'outside_hours' || !s.inOffice(a.officeHours) })), answering, rate: ai.RECEPTION_RATE(), recordRate: ai.RECORD_RATE(), aiReady: !!process.env.APP_OPEN_API_KEY })
-  }))
   router.get('/ai-calls/:id', h(async (req, res) => {
     const c = await s.getCall(req.webChatId, req.params.id)
     if (!c) return bad(res, 404, 'not_found', 'Call not found.')

@@ -20,7 +20,7 @@ export default function InvoicesAdmin() {
             <div key={inv.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 p-4 text-sm" data-testid={`admin-invoice-row-${i}`}>
               <span className="font-mono w-40">{inv.number}</span>
               <span className="w-32 text-[#a1a1aa]">{dt(inv.issuedAt)}</span>
-              <span className="flex-1 min-w-[14rem]">{inv.title || inv.items?.[0]?.description}<span className="block text-xs text-[#a1a1aa]">{inv.billTo?.name}{inv.billTo?.email ? ` · ${inv.billTo.email}` : ''} · #{inv.chatId}</span></span>
+              <span className="flex-1 min-w-[14rem]">{inv.items?.[0]?.description}<span className="block text-xs text-[#a1a1aa]">{inv.billTo?.name}{inv.billTo?.email ? ` · ${inv.billTo.email}` : ''} · #{inv.chatId}</span></span>
               <span className="civr-pill">{KIND[inv.kind]}</span>
               <span className="w-24 text-right tabular-nums">{fmt(inv.total)}</span>
               <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => printInvoice(inv)} aria-label={`Print ${inv.number}`} title="Print" data-testid={`admin-invoice-row-${i}-print`}><Printer className="w-4 h-4" /></button>

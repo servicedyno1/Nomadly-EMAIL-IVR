@@ -66,7 +66,7 @@ export default function AnswerCalls() {
       ) : (
         <div className="flex flex-col gap-3" data-testid="answer-list">
           {nums.map((n, i) => <NumberRow key={n.phoneNumber} n={n} mode={mode} i={i} />)}
-          <p className="text-sm text-[#a1a1aa] mt-2 pb-20 lg:pb-0">Want an AI to pick up instead? <Link to={cp('/app/receptionist')} className="text-[var(--c-accent)] underline underline-offset-2" data-testid="answer-ai-link">Set up an AI receptionist</Link></p>
+          <p className="text-sm text-[#a1a1aa] mt-2 pb-20 lg:pb-0">Want an AI to pick up instead? <Link to={cp('/app/ai-agents?use=inbound')} className="text-[var(--c-accent)] underline underline-offset-2" data-testid="answer-ai-link">Set up an AI receptionist</Link></p>
         </div>
       )}
     </div>

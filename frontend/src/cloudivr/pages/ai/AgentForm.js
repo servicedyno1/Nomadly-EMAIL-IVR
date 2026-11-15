@@ -8,7 +8,6 @@ import { BookingFields, browserZone } from './BookingFields';
 import { useUnsaved, UnsavedPill } from '../../guard';
 import { AI_LANGS } from './languages';
 import { OpeningPreview, ScriptGuide } from './OpeningPreview';
-import { ReceptionistFields } from './ReceptionistFields';
 
 export const EMPTY_AGENT = {
   name: '', businessName: '', language: 'en', voice: 'marin', goal: '', greeting: '', firstMessage: '', waitForHello: true, knowledge: '', transferTo: '', takeMessages: true, maxMinutes: 5, record: true, discloseAi: true,
@@ -65,7 +64,7 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
     e.preventDefault(); setBusy(true); setError(null);
     try {
       const d = await api(f.id ? `/ai-agents/${f.id}` : '/ai-agents', { method: f.id ? 'PUT' : 'POST', body: f });
-      u.reset(); toast.success(f.role === 'receptionist' ? 'Receptionist saved' : 'Agent saved'); onSaved(d.agent);
+      u.reset(); toast.success('Agent saved'); onSaved(d.agent);
     } catch (err) { setError(err); } finally { setBusy(false); }
   };
   const remove = async () => {
@@ -76,10 +75,10 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
     <form onSubmit={save} className="civr-card p-6 space-y-6" data-testid="ai-agent-form" {...u.bind}>
       <Basics f={f} set={set} voices={voices} />
       <Field label="First message (optional)" hint="The exact words that open every call. Use {name}, {business} and {lead_name} (or {lead_name|there} for leads without a name). Leave empty for the standard opening."><Text f={f} set={set} k="firstMessage" rows={2} ph="Hi {lead_name|there}, this is {name} from {business}. Do you have a minute?" testid="ai-agent-first-message-input" /></Field>
-      {f.role === 'receptionist' ? <ReceptionistFields f={f} set={set} /> : <div className="flex items-center justify-between gap-4" data-testid="ai-agent-wait-hello-row">
+      <div className="flex items-center justify-between gap-4" data-testid="ai-agent-wait-hello-row">
         <span className="text-sm">Wait for them to say hello<span className="block text-xs text-[#a1a1aa] mt-0.5">On calls to leads, the agent stays quiet until the person answers (“Hello?”), then speaks. If nobody says anything for 4 seconds, it starts anyway.</span></span>
         <Toggle checked={f.waitForHello !== false} onChange={v => set('waitForHello', v)} testid="ai-agent-wait-hello-toggle" label="Wait for them to say hello" />
-      </div>}
+      </div>
       <OpeningPreview f={f} />
       <Field label="Personality & script" hint="What the agent does after the first message, how it talks and what it should find out."><Text f={f} set={set} k="goal" rows={5} ph="Friendly receptionist. Answer questions, book cleanings and get the caller's name and preferred time." testid="ai-agent-goal-input" /></Field>
       <ScriptGuide />
