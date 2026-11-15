@@ -74,7 +74,7 @@ function Recent({ list }) {
       {list.slice(0, 6).map((m, i) => (
         <li key={m.id} className="flex flex-wrap items-center gap-2" data-testid={`email-log-${i}`}>
           <span className={STATUS[m.status]}>{m.status}</span>{m.test && <span className="civr-pill">test</span>}
-          <span className="text-[#d4d4d8] min-w-0 truncate max-w-[60%]">{m.subject}</span>
+          <span className="text-[#d4d4d8] min-w-0 basis-full sm:basis-auto sm:flex-1 break-words">{m.subject}</span>
           <span className="ml-auto text-[#a1a1aa]">{when(m.at)}</span>
         </li>
       ))}

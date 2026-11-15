@@ -48,22 +48,24 @@ const file = async (type, id) => Buffer.from((await axios.get(`https://api.multi
 async function pollInbox(onEvent, known) {
   for (const f of await list('fax_inbox', day(2 * 86400000))) {
     const id = `mtin:${f.hash}`
-    if (await known(id)) continue
+    if ((f.status && !/success|received|completed/i.test(f.status)) || await known(id)) continue
     const pdf = await file('inbound', f.hash).catch(e => { log(`download ${f.hash}: ${e.message}`); return null })
     if (!pdf) continue // try again on the next poll
-    await onEvent({ event_type: 'fax.received', payload: { fax_id: id, from: e164(f.from), to: e164(f.to), page_count: Number(f.pages) || undefined, pdf } })
+    await onEvent({ event_type: 'fax.received', payload: { fax_id: id, from: e164(f.from_number || f.from), to: e164(f.to_number || f.to), page_count: Number(f.pages) || undefined, pdf } })
   }
 }
 
-// Sent faxes still queued → delivered / failed, matched on from + to + time (the outbox has no job id).
+// Sent faxes still queued → delivered / failed, matched on the outbox uuid (= send_fax job_id).
+const DONE = /^(success|sent|completed|delivered)$/i, FAILED = /^(failed|error|cancel+ed|busy|no.?answer)$/i
 async function pollOutbox(pending, onEvent) {
   if (!pending.length) return
   const rows = await list('fax_outbox', day(3 * 86400000))
   for (const p of pending) {
-    const hit = rows.find(r => digits(r.from_number) === digits(p.from) && digits(r.to_number) === digits(p.to) && new Date(r.sent_at) >= new Date(p.createdAt.getTime() - 120000))
-    if (!hit || !/success|failed/i.test(hit.status)) continue
-    const payload = { fax_id: p._id, from: p.from, to: p.to, page_count: Number(hit.pages) || p.pages }
-    await onEvent(/success/i.test(hit.status) ? { event_type: 'fax.delivered', payload } : { event_type: 'fax.failed', payload: { ...payload, failure_reason: String(hit.status_text || 'fax_communication_error').toLowerCase().replace(/\s+/g, '_').slice(0, 60) } })
+    const hit = rows.find(r => String(r.uuid || '') === String(p._id).replace(/^mtfax:/, ''))
+    const st = String(hit?.status || '').trim()
+    if (!hit || !(DONE.test(st) || FAILED.test(st))) continue
+    const payload = { fax_id: p._id, from: p.from, to: p.to, page_count: Number(hit.pages_sent ?? hit.pages) || p.pages }
+    await onEvent(DONE.test(st) ? { event_type: 'fax.delivered', payload } : { event_type: 'fax.failed', payload: { ...payload, failure_reason: String(hit.result_text || hit.status_text || 'fax_communication_error').toLowerCase().replace(/\s+/g, '_').slice(0, 60) } })
   }
 }
 

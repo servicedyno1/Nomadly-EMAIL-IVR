@@ -29,6 +29,8 @@ async function api(method, path, form) {
 }
 const ok = (d) => String(d?.status?.code) === '200'
 
+// info.state arrives as an object or as text like '{state: NY, rate_center: ADAMS}' → 'NY'.
+const stateOf = (v) => { if (v && typeof v === 'object') return String(v.state || ''); const t = String(v || ''); return t.startsWith('{') ? ((t.match(/state:\s*([^,}]+)/) || [])[1] || '').trim() : t }
 const areaCache = new Map() // cc → { at, list }
 async function areas(cc) {
   const c = areaCache.get(cc)
@@ -62,7 +64,7 @@ async function searchNumbers(countryCode, numberType = 'local', areaCode = null,
         const num = e164(n.number), f = [].concat(n.features || []).map(String)
         const sms = f.some(x => /sms/i.test(x)) || !!+a.sms_coverage
         searched.set(num, { priceId: price.uuid, features: f, needsReg: String(n.restrictions?.needs_registration) === '1', monthly: +price.monthly_price })
-        out.push({ record_type: 'available_phone_number', phone_number: num, region_information: [{ region_type: 'location', region_name: [a.name, n.info?.state].filter(Boolean).join(', ') }],
+        out.push({ record_type: 'available_phone_number', phone_number: num, region_information: [{ region_type: 'location', region_name: [a.name, stateOf(n.info?.state)].filter(x => x && x !== a.name).join(', ') }],
           cost_information: { currency: 'USD', monthly_cost: String(price.monthly_price), upfront_cost: String(price.setup_price || 0) },
           _capabilities: { voice: true, sms, mms: false, fax: false }, _provider: 'multitel', _needsRegistration: String(n.restrictions?.needs_registration) === '1' })
       }

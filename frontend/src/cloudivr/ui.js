@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, Lock, Plus, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 import { api, enc } from './api';
+import { cp } from './paths';
 import { useLang } from './i18n';
 import { showUpgrade } from './Upgrade';
 import { AudioAddDialog, EmptyAudio, useAudioAdd } from './AudioAdd';
@@ -92,7 +94,7 @@ export function ErrorNote({ error, testid = 'error-message', onRetry, className 
   return (
     <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[#fb7185] border border-[#fb7185]/30 bg-[#fb7185]/5 rounded-xl px-4 py-3 ${className}`} role="alert" data-testid={testid}>
       <span className="flex-1 min-w-0">{error.message || String(error)}</span>
-      {(error.status === 402 || error.code === 'insufficient_balance') && <a href={`${window.location.pathname.split('/app')[0]}/app/wallet`} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`${testid}-topup`}>Add funds — crypto, card or bank</a>}
+      {(error.status === 402 || error.code === 'insufficient_balance') && <Link to={cp('/app/wallet')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`${testid}-topup`}>Add funds — crypto, card or bank</Link>}
       {onRetry && <button type="button" onClick={onRetry} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`${testid}-retry-button`}><RotateCcw className="w-4 h-4" />Try again</button>}
     </div>
   );

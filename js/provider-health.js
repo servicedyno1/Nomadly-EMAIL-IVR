@@ -10,7 +10,7 @@ const EUR_USD = 1.08
 const state = {}
 let notify = () => {}
 // Alert timestamps survive restarts (file), so a redeploy doesn't repeat the same low-balance alert.
-const SEEN_FILE = require('path').join(require('os').tmpdir(), 'provider-health-alerts.json')
+const SEEN_FILE = process.env.PROVIDER_HEALTH_SEEN_FILE || require('path').join(require('os').tmpdir(), 'provider-health-alerts.json')
 const seen = (() => { try { return JSON.parse(require('fs').readFileSync(SEEN_FILE, 'utf8')) } catch { return {} } })()
 const once = (key, ms) => { if (Date.now() - (seen[key] || 0) < ms) return false; seen[key] = Date.now(); try { require('fs').writeFileSync(SEEN_FILE, JSON.stringify(seen)) } catch {} return true }
 const st = (p) => (state[p] = state[p] || { down: false, fails: 0, balance: null, lowAlertAt: 0, checkedAt: null, reason: null })

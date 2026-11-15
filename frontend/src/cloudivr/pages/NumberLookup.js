@@ -23,7 +23,7 @@ function Result({ r, testid }) {
   );
 }
 
-const NumRow = ({ r, i }) => <div className="flex flex-wrap items-center gap-3 p-3 text-sm" data-testid={`lookup-bulk-row-${i}`}><span className="font-mono w-48 inline-flex items-center gap-2" data-no-translate><Flag code={countryOfPhone(r.number)} />{r.number}</span>{r.failed ? <span className="text-[var(--c-muted)]">Not checked · refunded</span> : <><span className="w-28">{TYPE[r.type] || r.type}</span><span className="flex-1 truncate">{r.carrier}</span></>}</div>;
+const NumRow = ({ r, i }) => <div className="flex flex-wrap items-center gap-3 p-3 text-sm" data-testid={`lookup-bulk-row-${i}`}><span className="font-mono w-48 inline-flex items-center gap-2" data-no-translate><Flag code={countryOfPhone(r.number)} />{r.number}</span>{r.failed ? <span className="text-[var(--c-muted)]">Not checked · refunded</span> : <><span className="w-28">{TYPE[r.type] || r.type}</span><span className="flex-1 min-w-[10rem] break-words">{r.carrier}</span></>}</div>;
 const MailRow = ({ r, i }) => <div className="flex flex-wrap items-center gap-3 p-3 text-sm" data-testid={`email-bulk-row-${i}`}><span className="font-mono flex-1 min-w-[200px] truncate" data-no-translate>{r.email}</span>{r.failed ? <span className="text-[var(--c-muted)]">Not checked · refunded</span> : <><span className={`civr-pill ${r.valid ? 'civr-pill-ok' : 'civr-pill-bad'}`}>{VERDICT[r.result] || r.result}</span><span className="w-16 text-right text-[var(--c-muted)]">{r.confidence}%</span></>}</div>;
 
 function Single({ path, field, placeholder, label, unit, onDone, render, testid, inputTestid, submitTestid }) {
@@ -81,7 +81,7 @@ export default function NumberLookup() {
           <div className="civr-card divide-y divide-[var(--c-border,#1f1f1f)]">
             {(phone ? data.history : data.emailHistory).map((h, i) => (
               <div key={i} className="flex flex-wrap items-center gap-3 p-3 text-sm" data-testid={`${phone ? 'lookup' : 'email'}-history-${i}`}>
-                {phone ? <><span className="font-mono w-48 inline-flex items-center gap-2" data-no-translate><Flag code={countryOfPhone(h.number)} />{h.number}</span><span className="w-28">{TYPE[h.type] || h.type}</span><span className="flex-1 truncate">{h.carrier}</span></>
+                {phone ? <><span className="font-mono w-48 inline-flex items-center gap-2" data-no-translate><Flag code={countryOfPhone(h.number)} />{h.number}</span><span className="w-28">{TYPE[h.type] || h.type}</span><span className="flex-1 min-w-[10rem] break-words">{h.carrier}</span></>
                   : <><span className="font-mono flex-1 truncate" data-no-translate>{h.email}</span><span className="w-36">{VERDICT[h.result] || h.result}</span></>}
                 <span className="text-xs text-[var(--c-muted)]">{when(h.at)}</span>
               </div>

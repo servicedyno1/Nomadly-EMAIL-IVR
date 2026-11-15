@@ -152,7 +152,6 @@ async function syncUser(chatId) {
 }
 async function buy(chatId, { planId, imei, zipcode, email, autoRenew, source, lang }) {
   if (!String(zipcode || '').trim()) zipcode = await profileZip(chatId)
-  if (!String(zipcode || '').trim()) zipcode = await profileZip(chatId)
   const bot = source === 'telegram' && !require('./cloudivr-web/notify').isWebChatId(chatId)
   const qrEmail = String(email || '').trim().toLowerCase()
   if ((!bot || qrEmail) && !EMAIL_RE.test(qrEmail)) return { error: 'Enter the email address where we should send your eSIM QR code.' }
@@ -255,13 +254,8 @@ async function profileZip(chatId) {
   const a = (await S.db?.collection('webAccounts').findOne({ _id: Number(chatId) }, { projection: { 'legalProfile.address': 1 } }).catch(() => null))?.legalProfile?.address
   return a?.countryCode === 'US' ? String(a.postalCode || '').slice(0, 5) : ''
 }
-// No ZIP given: use the USA postal code from the account's saved profile, if it has one.
-async function profileZip(chatId) {
-  const a = (await S.db?.collection('webAccounts').findOne({ _id: Number(chatId) }, { projection: { 'legalProfile.address': 1 } }).catch(() => null))?.legalProfile?.address
-  return a?.countryCode === 'US' ? String(a.postalCode || '').slice(0, 5) : ''
-}
 async function buyMobile(chatId, { zipcode, autoRenew, charge = MOBILE_PRICE }) {
-  const zip = String(zipcode || '').trim() || await profileZip(chatId) || await profileZip(chatId)
+  const zip = String(zipcode || '').trim() || await profileZip(chatId)
   if (!/^\d{5}$/.test(zip)) return { error: 'Enter a 5-digit USA ZIP code so we can ask for a number near it.' }
   const im = await mobileImei()
   const plan = (await forSale()).find(p => p.simId)

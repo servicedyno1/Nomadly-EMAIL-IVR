@@ -1,6 +1,7 @@
 // Unit tests: js/provider-health.js thresholds, low-balance hiding (number-catalog.options + signalwire searchNumbers), alerts (Telegram + admin mail)
 'use strict'
 const path = require('path')
+process.env.PROVIDER_HEALTH_SEEN_FILE = require('path').join(require('os').tmpdir(), `ph-test-${process.pid}.json`)
 const J = (p) => path.resolve(__dirname, '../../js', p)
 let pass = 0, fail = 0
 const ok = (c, m) => { if (c) { pass++; console.log('PASS', m) } else { fail++; console.log('FAIL', m) } }

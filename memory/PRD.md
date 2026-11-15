@@ -217,3 +217,11 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - PROD (droplet 146.190.238.190): app-main deployed from workspace 2a6b1e4 (scripts/deploy_workspace_to_droplet.sh now disables GitHub catch-up). Env fixed: EMERGENT_LLM_KEY, CLOUDIVR_ADMIN_EMAILS=moxxcompany@gmail.com on all apps; Infobip, Google Maps, CLOUDIVR_MAIL_SENDER on wl/voodoo/proshop; Multitel creds updated to the working account (backups *.bak-envfix-*, *.bak-multitel-*). Restart needed after Multitel IP allow-list.
 - PROD blockers: Multitel API refuses the droplet IP 146.190.238.190 (403) → whitelist it in Multitel; Telnyx (account blocked, also mailer) and Twilio keys return 401.
 - Telnyx→Multitel migration: prod dry run found 22 numbers (19 app-main, 3 app-voodoo, mostly toll-free); script now maps toll-free→toll-free; NOT applied (waits for Multitel IP allow-list + user OK).
+
+## 2026-11-15 — Address reuse, split payments, copy wrapping, Multitel fax
+- Saved profile address reused automatically: `profile/useSavedAddress.js` prefills ZIP / LOA fields; `spenza.js profileZip()` fills missing ZIP server-side. Profile edits apply to new orders only.
+- Split payments: WalletPay (wallet first, rest by crypto/card) now on Travel eSIM, fax numbers, carrier-request orders, International Texting; any 402 error shows "Add funds" link.
+- Truncated copy fixed (Home stats, sidebar, buy steps, pickers, address suggestions, lookup, email log, SIP card, landing).
+- Fax: new numbers MultiTEL only (`js/multitel/fax.js`: buy + faxdetect, send_fax, fax_inbox/fax_outbox polling in fax-service maintain). Old SignalWire/Telnyx fax numbers untouched.
+- Tests: iteration_282 + multitel_fax_unit_test 16/16, provider_health 19/19, bird_only 22/22.
+- PROD: deployed 9bc2f5e. MultiTEL still 403 from droplet (Cloudflare WAF, Ray a5a9d4e3ce4dfea2) → MultiTEL numbers and fax numbers unavailable live until Multitel unblocks.

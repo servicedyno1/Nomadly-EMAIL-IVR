@@ -44,7 +44,7 @@ function ConnectionCard({ domain }) {
         <div className="flex items-center gap-2 text-sm font-semibold text-[#a5b4fc]"><KeyRound className="w-4 h-4" />Your connection details</div>
         <div className="text-xs civr-l-muted mt-6">Server / domain</div>
         <div className="mt-2 flex items-center gap-2">
-          <code className="flex-1 min-w-0 truncate rounded-xl bg-white/5 border border-white/10 px-4 py-3 font-mono text-base text-white" data-testid="sip-connection-server" data-no-translate>{domain}</code>
+          <code className="flex-1 min-w-0 break-all rounded-xl bg-white/5 border border-white/10 px-4 py-3 font-mono text-base text-white" data-testid="sip-connection-server" data-no-translate>{domain}</code>
           <button type="button" onClick={copy} className="civr-l-btn civr-l-btn-ghost civr-l-btn-sm shrink-0" aria-label="Copy server address" data-testid="sip-copy-server"><Copy className="w-4 h-4" />Copy</button>
         </div>
         <div className="mt-4 divide-y divide-white/10 border-y border-white/10">
