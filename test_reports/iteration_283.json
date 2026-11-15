@@ -1,0 +1,46 @@
+{
+  "summary": "Tested this round's CloudIVR changes through the API (pytest, 7 tests: 5 passed, 2 failed, both failures are real findings) and in the browser with Playwright. Most of it works: (1) the policy-gate pop-up no longer appears on /app, quick-call, campaigns, lookup, wallet or buy. (2) Quick IVR permission: POST /calls/quick returns 428 {permission_required, kind:'quick'}. The UI dialog's confirm button stays disabled until the box is ticked. Confirming sends the call (202, dry-run), sets quickIvrPermissionAt and writes one callPermissions record. The next Quick IVR call does not ask again. Cancelling sends no call. (3) Campaigns: the dialog appears on every create, and each confirm writes a record with the campaign name. Cancelling creates nothing and writes no record. Preview returns 503 bulk_maintenance after confirming, so no campaign is actually saved in preview. (4) Bulk lookup downloads: 'Valid only (n)' and 'All results (n)' both produce correct CSV files (header plus n rows). Valid-only is disabled when n=0. The refund summary text shows. (5) Renewals: the section lists 4 numbers. Turning auto-renew off shows a toast, the row changes to 'Ends <date>' / 'Auto-renew off', and GET /numbers returns autoRenew=false. Turning it back on restores everything. At 390px nothing overflows (scrollWidth 390). (6) Buy page: US search shows 12 results using buy-result-<i>-number. DE/FR return none in preview, as expected. NOTE: none of the seeded accounts (uxtest/alice/bob) has a legal profile, so profile_required fires before the permission check. For the API tests I created TEST_ accounts with a profile. For the UI test I gave uxtest a temporary legal profile directly in Mongo and removed it afterwards (also unset quickIvrPermissionAt and deleted every callPermissions record I created).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "phone-scheduler expiry vs Renewals UI", "issue": "The UI and the scheduler disagree when autoRenew is missing. Renewals.js treats missing autoRenew as ON (`n.autoRenew !== false`), but phone-scheduler.js:211 only renews when `num.autoRenew` is truthy; otherwise it goes to the new 'auto-renew off → release main line + extras at expiry' branch (line 343). A line with no autoRenew field therefore shows 'Auto-renew on' in Wallet and is then released with the carrier at expiry. The preview DB has 1 such number record (out of 23). Fix: treat `autoRenew !== false` as on in the scheduler, or backfill autoRenew:true.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/campaigns (validateOnly)", "issue": "The permission check also runs on the validateOnly pre-check. When the user writes a script (Campaigns.js:320), the frontend sends validateOnly first, gets 428, shows the dialog, writes a callPermissions record, then makes the AI voice and sends the real POST, which gets 428 again. Result: the user is asked TWICE for one campaign and 2 records are logged. Fix: skip the check (or don't log) when b.validateOnly is true."},
+      {"endpoint": "permission middleware (cloudivr-web/index.js:123-129)", "issue": "The confirmation is logged before the campaign is validated. Rejected campaigns (400 invalid_caller, invalid_leads, 503 bulk_maintenance) still leave a callPermissions record, and the user is asked again when they fix the form and resubmit. Quick IVR also sets quickIvrPermissionAt even when the call fails with 400."},
+      {"endpoint": "callPermissions record fields", "issue": "campaign.numbers is always null and campaign.scheduleAt is always null. The middleware reads b.numbers / b.contactListId / b.scheduleAt, but the campaign body uses `leads` (string), `listId` and `scheduledFor`. The record never captures the size of the list or the schedule."},
+      {"endpoint": "lookup batches", "issue": "Email batch bmwh09az7jzm for uxtest has been 'running' since 2026-11-14 22:56 with 0 results. It looks orphaned (probably by a restart). Clicking its 'Recent bulk checks' pill clears the result panel and shows no progress, and polling does not resume."},
+      {"endpoint": "offers upgrade banner (offers.js:34)", "issue": "The home banner reads 'Move +12024595976 from Starter to undefined'. PLAN_NAME[o.to] is undefined for that offer. Possibly pre-existing."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Renewals toggle switch", "issue": "When the switch is on, the white knob sits outside the 32px track and covers the 'A' of 'Auto-renew on', so it reads '\\uto-renew on'. Measured knob x = track.x + 32 (computed left 16px plus translate-x-4). Visible on desktop and mobile. Fix: add `left-0` to the knob span (Renewals.js:35).", "selector": "[data-testid^=renewals-row-][data-testid$=-toggle]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Campaign with written script", "issue": "The permission dialog appears twice for one campaign (validateOnly pre-check, then the real create). See backend minor issue.", "affected_selectors": ["campaign-write-script-button", "permission-ask-dialog"]}
+    ],
+    "design_issues": [
+      {"screen": "Quick IVR / campaign after cancelling the permission dialog", "issues": ["Cancelling shows a red error note ('Confirm you have permission to call…'). This is acceptable but could be a softer hint, since the user chose to cancel."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_call_permission_renewals_iter283.py", "/app/test_reports/pytest/pytest_iter283.xml"],
+  "action_items": [
+    "phone-scheduler.js:211: treat a missing autoRenew as ON (`num.autoRenew !== false`) so it matches the Renewals UI, or backfill autoRenew:true. Otherwise lines shown as 'Auto-renew on' get released at expiry.",
+    "Skip the permission check (no 428, no log) for POST /campaigns with validateOnly:true, so a script-based campaign asks only once.",
+    "Log the callPermissions record only after the campaign is accepted, or at least don't re-ask after a 4xx/5xx. Record leads count (b.leads lines / b.listId) and b.scheduledFor instead of b.numbers / b.scheduleAt.",
+    "Renewals.js:35: add left-0 to the switch knob so it stays inside the track.",
+    "Handle orphaned 'running' lookup batches (mark failed or refund after a timeout), and let opening a running batch resume polling.",
+    "offers.js upgrade banner shows 'to undefined'. Check PLAN_NAME for o.to."
+  ],
+  "critical_code_review_comments": [
+    "Permission middleware runs after legalProfile.callGate, so accounts without legal details never see the permission dialog. None of the seeded QA accounts (uxtest/alice/bob) has a legal profile, despite the request's assumption.",
+    "Bulk.js toCsv does not guard against CSV formula injection (values starting with = + - @), which matters for user-supplied email/number lists opened in Excel.",
+    "Renewals 'loading' returns null until any of 3 APIs respond, then rows grow as the other lists load. This is fine but can shift layout."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_call_permission_renewals_iter283.py", "/app/backend/tests/iter283_ux_profile_toggle.py"],
+  "success_rate": {"backend": "71% (5/7; both failures are real findings)", "frontend": "90% (all flows work; toggle knob visual bug)"},
+  "seed_data_creation": "Created TEST_ accounts test_perm<ts>@example.com (2, ids 5000000000000154/155, password TestPerm#2026x) with legal profiles. Their callPermissions records were deleted; the accounts themselves remain. uxtest: temporary legalProfile set and removed, quickIvrPermissionAt unset, auto-renew on +13341112222 toggled and restored to on, the 11 callPermissions records I created were deleted. Quick IVR dry-run calls were validated only (202 preview), not dialed.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "API base is /api/cloudivr-web. Login uses data-testid auth-email-input / auth-password-input / auth-submit-button after cookie-allow-all. Quick IVR page is /cloudivr/app/quick-call, new campaign is /cloudivr/app/campaigns/new. Bulk IVR returns 503 bulk_maintenance in preview after the permission check. Seeded accounts have no legalProfile, so use tests/iter283_ux_profile_toggle.py on|off|show to toggle a temporary uxtest profile (always run 'off' afterwards). Lookup batches for uxtest: bmwh0gb6vzha (0 valid), bmwh0gfdi67x (refund), bmwh09az7jzm (stuck running)."
+}

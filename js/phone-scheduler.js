@@ -208,7 +208,7 @@ async function runExpiryCheck() {
 
         // ── Expired — attempt auto-renew or release immediately ──
         if (msUntilExpiry <= 0 && num.status === 'active') {
-          if (num.autoRenew) {
+          if (num.autoRenew !== false) {
             // ━━━ Grace-period fast-path (2026-07-16 log-noise fix) ━━━
             // If number is already in an active grace period, do a cheap
             // wallet read first. If the balance still can't cover the
@@ -736,19 +736,19 @@ function buildReminderMsg(num, days, plan, balance) {
 
 Your Cloud Phone number ${formatPhone(num.phoneNumber)} (${plan.name} Plan) expires in <b>${days} days</b> (${shortDate(num.expiresAt)}).
 
-Auto-Renew: ${num.autoRenew ? '✅ ON' : '❌ OFF — it will be released on its end date'}
+Auto-Renew: ${num.autoRenew !== false ? '✅ ON' : '❌ OFF — it will be released on its end date'}
 Wallet Balance: $${balance.toFixed(2)}
 Renewal Cost: ${priceText}${lowBal ? `
 
 ⚠️ Insufficient balance! Deposit at least $${(price - balance).toFixed(2)} to renew.
-${num.isSubNumber ? 'If not renewed, your number will be <b>permanently deleted</b> and cannot be recovered.' : `If not renewed, this number and its extra lines will be <b>suspended</b>. You'll then have ${lifecycle.HOLD_DAYS} days to restore them before they are released for good.`}` : ''}${num.autoRenew && !lowBal ? `
+${num.isSubNumber ? 'If not renewed, your number will be <b>permanently deleted</b> and cannot be recovered.' : `If not renewed, this number and its extra lines will be <b>suspended</b>. You'll then have ${lifecycle.HOLD_DAYS} days to restore them before they are released for good.`}` : ''}${num.autoRenew !== false && !lowBal ? `
 
 ✅ Your number will auto-renew from your wallet.` : ''}`
 }
 
 function buildFinalWarningMsg(num, plan, balance) {
   const price = num.planPrice
-  if (!num.isSubNumber && !num.autoRenew) return `🚨 <b>Number ends tomorrow</b>
+  if (!num.isSubNumber && num.autoRenew === false) return `🚨 <b>Number ends tomorrow</b>
 
 Auto-renew is off, so ${formatPhone(num.phoneNumber)} and its extra lines are <b>released for good</b> on ${shortDate(num.expiresAt)}. Turn auto-renew back on (Wallet → Renewals) to keep them.`
   if (!num.isSubNumber) return `🚨 <b>FINAL Renewal Warning</b>

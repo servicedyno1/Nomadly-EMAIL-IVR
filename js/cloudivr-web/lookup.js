@@ -66,9 +66,11 @@ function createLookup({ db, h, walletOps, bird = require('../bird'), log = conso
     res.json({ batchId, status: 'done', ...r })
   }
 
-  // A run cut short by a restart never finishes: after 3h, refund it in full (nothing was stored for it).
+  // A run cut short by a restart never finishes: refund it in full (nothing was stored for it).
+  // Stuck = older than twice its expected run time (min 10 min), e.g. cut short by a restart.
+  const stuck = (b) => Date.now() - new Date(b.at).getTime() > Math.max(10 * 60000, (b.kind === 'email' ? 30 : 13) * 1000 * (b.total || 1))
   async function sweep() {
-    for (const b of await batches.find({ status: 'running', at: { $lt: new Date(Date.now() - 3 * 3600000) } }).toArray()) {
+    for (const b of (await batches.find({ status: 'running', at: { $lt: new Date(Date.now() - 10 * 60000) } }).toArray()).filter(stuck)) {
       const r = await batches.updateOne({ _id: b._id, status: 'running' }, { $set: { status: 'failed', refunded: round4(b.total * (b.price || 0)) } })
       if (r.modifiedCount && b.price) { await w.credit(b.chatId, round4(b.total * b.price)); log(`[Lookup] refunded interrupted bulk ${b._id} ($${round4(b.total * b.price)})`) }
     }
@@ -79,6 +81,8 @@ function createLookup({ db, h, walletOps, bird = require('../bird'), log = conso
   async function batchView(req, res) {
     const b = await batches.findOne({ _id: String(req.params.id), chatId: req.webChatId })
     if (!b) return bad(res, 404, 'not_found', 'That check was not found.')
+    if (b.status === 'running' && stuck(b)) { await sweep(); return batchView(req, res) }
+    if (b.status === 'failed') return bad(res, 410, 'check_failed', `This check didn’t finish. You were refunded $${round4(b.refunded ?? b.total * (b.price || 0))}. Run it again.`)
     if (b.status !== 'done') return res.json({ batchId: b._id, status: b.status, total: b.total, done: b.done, skipped: b.skipped, duplicates: b.duplicates, etaSeconds: b.kind === 'email' ? 15 : Math.ceil((b.total - (b.done || 0)) * 6.5) })
     const store = b.kind === 'email' ? ecol : col
     const rows = (await store.find({ chatId: req.webChatId, batchId: b._id }).toArray()).map(strip)

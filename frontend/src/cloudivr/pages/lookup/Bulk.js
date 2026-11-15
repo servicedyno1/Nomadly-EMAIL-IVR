@@ -35,7 +35,11 @@ export function BulkRun({ kind, unit, max, path, field, cols, Row, onDone, testi
       setOut(r); onDone();
     } catch (x) { setErr(x); } finally { setBusy(false); setProgress(null); }
   };
-  const open = async (id) => { setErr(null); try { setOut(await api(`/lookup/batches/${id}`)); } catch (x) { setErr(x); } };
+  const open = async (id) => {
+    setErr(null); setOut(null); setBusy(true);
+    try { let r = await api(`/lookup/batches/${id}`); while (r.status === 'running') { setProgress(r); await wait(2500); r = await api(`/lookup/batches/${id}`); } setOut(r); }
+    catch (x) { setErr(x); } finally { setBusy(false); setProgress(null); }
+  };
   const mine = batches.filter(b => b.kind === kind);
   const ok = out?.results?.filter(r => !r.failed) || [];
   return (

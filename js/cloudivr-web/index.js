@@ -122,10 +122,15 @@ function createCloudIvrWeb(deps) {
     const permission = (kind) => h(async (req, res, next) => {
       const b = req.body || {}, acc = req.webUser
       if (kind === 'quick' && acc?.quickIvrPermissionAt) return next()
+      if (kind === 'campaign' && b.validateOnly) return next()
       if (b.permissionConfirmed !== true) return res.status(428).json({ error: 'permission_required', kind, message: kind === 'quick' ? 'Confirm you have permission to call the numbers you call with Quick IVR. We ask this once.' : 'Confirm you have permission to call every number in this campaign.' })
-      const at = new Date()
-      await perms.insertOne({ chatId: req.webChatId, kind, campaign: kind === 'campaign' ? { name: String(b.name || '').slice(0, 120), mode: b.mode || 'ivr', numbers: Array.isArray(b.numbers) ? b.numbers.length : (b.contactListId ? `list:${b.contactListId}` : null), scheduleAt: b.scheduleAt || null } : undefined, ip: req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip, userAgent: String(req.headers['user-agent'] || '').slice(0, 200), at })
-      if (kind === 'quick') await db.collection('webAccounts').updateOne({ _id: acc._id }, { $set: { quickIvrPermissionAt: at } })
+      // Logged only once the call / campaign is accepted, so a rejected form doesn't use up the confirmation.
+      res.on('finish', () => {
+        if (res.statusCode >= 300) return
+        const at = new Date(), leads = typeof b.leads === 'string' ? b.leads.split(/[\s,;]+/).filter(Boolean).length : Array.isArray(b.leads) ? b.leads.length : null
+        perms.insertOne({ chatId: req.webChatId, kind, campaign: kind === 'campaign' ? { name: String(b.name || '').slice(0, 120), mode: b.mode || 'ivr', numbers: leads ?? (b.listId ? `list:${b.listId}` : null), scheduleAt: b.scheduledFor || null } : undefined, ip: req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip, userAgent: String(req.headers['user-agent'] || '').slice(0, 200), at }).catch(e => log(`[Permission] log failed: ${e.message}`))
+        if (kind === 'quick') db.collection('webAccounts').updateOne({ _id: acc._id }, { $set: { quickIvrPermissionAt: at } }).catch(() => {})
+      })
       next()
     })
     r.post('/campaigns', permission('campaign'))

@@ -85,7 +85,7 @@ assert(graceBlock.includes('try {') && graceBlock.includes('catch'), 'Grace bloc
 // Check that the block is inside if (num.autoRenew)
 let autoRenewIfLine = -1
 for (let i = expiredBlockStart; i < graceBlockStart; i++) {
-  if (lines[i].includes('if (num.autoRenew)')) {
+  if (lines[i].includes('if (num.autoRenew !== false)')) {
     autoRenewIfLine = i
     break
   }

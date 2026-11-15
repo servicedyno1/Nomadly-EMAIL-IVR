@@ -12,7 +12,7 @@ const RENEW_PCT = 15
 const UPGRADE_PCT = 20
 const RENEW_WINDOW_MS = 7 * 86400000
 const NEXT_PLAN = { starter: 'standard', standard: 'pro', pro: 'business' }
-const PLAN_NAME = { starter: 'Starter', pro: 'Pro', business: 'Business' }
+const PLAN_NAME = new Proxy({}, { get: (_, k) => require('../phone-config').plans[k]?.name || String(k) })
 const usd = (n) => `$${Number(n).toFixed(Number(n) % 1 ? 2 : 0)}`
 
 const today = () => new Date().toISOString().slice(0, 10)

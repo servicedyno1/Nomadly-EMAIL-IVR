@@ -32,7 +32,7 @@ function Row({ r, i, reload }) {
       <span className="flex items-center gap-2 min-w-[12rem] flex-1"><Flag code={countryOfPhone(r.phone)} /><span><span className="font-mono block" data-no-translate>{r.phone || '—'}</span><span className="text-xs text-[var(--c-muted)]">{r.what}</span></span></span>
       <span className="text-sm w-40" data-testid={`renewals-row-${i}-date`}>{`${r.on ? 'Renews' : 'Ends'} ${day(r.date)}`}<span className="block text-xs text-[var(--c-muted)]">{r.price ? `${money(r.price)}/month` : ''}</span></span>
       <button type="button" role="switch" aria-checked={r.on} disabled={busy} onClick={flip} className="civr-btn civr-btn-ghost civr-btn-sm gap-2" data-testid={`renewals-row-${i}-toggle`}>
-        <span className={`inline-block w-8 h-4 rounded-full relative transition-colors ${r.on ? 'bg-[var(--c-accent)]' : 'bg-[var(--c-border)]'}`}><span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${r.on ? 'translate-x-4' : 'translate-x-0.5'}`} /></span>
+        <span className={`inline-block w-8 h-4 rounded-full relative transition-colors ${r.on ? 'bg-[var(--c-accent)]' : 'bg-[var(--c-border)]'}`}><span className={`absolute left-0 top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${r.on ? 'translate-x-4' : 'translate-x-0.5'}`} /></span>
         {r.on ? 'Auto-renew on' : 'Auto-renew off'}
       </button>
     </div>
