@@ -210,8 +210,26 @@ async function buyNumber(phoneNumber) {
 let owned = []
 async function refreshOwned() {
   if (!enabled()) return owned
-  try { owned = ((await M.http().get('/numbers/1/numbers', { params: { limit: 1000 } })).data?.numbers || []).map(n => e164(n.number)) } catch (e) { log('owned numbers:', errOf(e)) }
+  try {
+    const list = (await M.http().get('/numbers/1/numbers', { params: { limit: 1000 } })).data?.numbers || []
+    owned = list.map(n => e164(n.number))
+    syncVoiceRouting(list).catch(e => log('voice routing sync:', errOf(e)))
+  } catch (e) { log('owned numbers:', errOf(e)) }
   return owned
+}
+// Production owns inbound calls: point every voice number at our calls config (a preview/dev buy can leave it on the dev config).
+let lastSync = 0
+async function syncVoiceRouting(list) {
+  // Main brand only: the Infobip account is shared, and only the 'nomadly' calls config exists.
+  if (process.env.BOT_ENVIRONMENT !== 'production' || configId() !== 'nomadly' || Date.now() - lastSync < 3600000) return
+  lastSync = Date.now()
+  for (const n of list.filter(x => (x.capabilities || []).includes('VOICE'))) {
+    const cur = (await M.http().get(`/numbers/2/numbers/${n.numberKey}/voice`).catch(() => ({ data: null }))).data
+    if (cur?.action?.callsConfigurationId === configId()) continue
+    if (cur?.action) await M.http().delete(`/numbers/2/numbers/${n.numberKey}/voice`)
+    await M.http().post(`/numbers/2/numbers/${n.numberKey}/voice`, { action: { type: 'FORWARD_TO_SUBSCRIPTION', callsConfigurationId: configId() } })
+    log(`voice routing for +${n.number}: ${cur?.action?.callsConfigurationId || 'none'} → ${configId()}`)
+  }
 }
 const ownedNumbers = () => owned
 async function releaseNumber(id) { try { await M.http().delete(`/numbers/1/numbers/${raw(id)}`); return true } catch (e) { log('release:', errOf(e)); return false } }
