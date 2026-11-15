@@ -294,3 +294,5 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - NEXT: owner decision on PLAN_TEXTING=true; Save to GitHub (else CI rolls app-main back / WL overlay drops); bot has no 'turn texting off' button yet.
 - 2026-11-15: Admin Fax sales tab has a daily summary since launch (per country + brand) and a daily admin email after 08:00 UTC (js/fax-sales.js, app-main only).
 - 2026-11-15: Landing page cut down to essentials (hero, how it works, pricing, test call, FAQ, final CTA) after a 9-step UX audit; live on cloudivr.net.
+
+- 2026-11-15: SIP credential fix LIVE on all 4 brands — Kamailio stale-nonce lockout fixed, TLS copy removed (UDP/TCP 5060 only), self-healing SIP logins (web + bot), Basic plan includes SIP, quiet backfill verified 25/25 logins. Details: CHANGELOG 2026-11-15 20:40Z.

@@ -1,0 +1,42 @@
+{
+  "summary": "Tested the CloudIVR SIP credential repair. Unit tests pass: test_sip_repair_2026-11 8/8 and test_starter_browser_phone_2026-10 18/18. These work: the web GET /numbers/:phone/sip self-heal (cv+8 username, 12-char password, sip.cloudivr.net, 5060, UDP/TCP, live:true, same pair on repeat calls, 401 when logged out), all 4 plans having sipCredentials=true in /catalog, the SIP tab UI (port reads '5060 (UDP or TCP)', no 5061/TLS), and /cloudivr/sip plus /cloudivr/app/sip having no 5061/TLS and no 'No SIP logins' text. Reset is BROKEN on dry-run numbers: POST /sip/reset returns a new pair, but the next GET (and the page after a reload) still shows the OLD pair.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/cloudivr-web/numbers/:phone/sip/reset", "issue": "The new pair is not the shown pair afterwards. In rotateSip (numbers.js ~767), live = !dryRun() && !n.dryRun is false for preview/dry-run numbers, so only sipUsername/sipPassword are updated and telnyxSipUsername/telnyxSipPassword keep the OLD values. GET /sip returns telnyxSip* first, and ensure()/repairFields also prefers telnyxSip*, so the OLD pair keeps coming back. Reproduced via API: reset -> cvgj72gcxr, GET -> cvy2a9vddz. Reproduced in UI: after reset the page shows cvs2kue79f, after reload + Show password it shows cvy2a9vddz/755YqpFrz2Q5 again. Any dry-run/preview number on prod is affected the same way. Fix: now that ensure() writes telnyxSip* for every number on a plan with SIP, rotateSip should always set telnyxSipUsername/telnyxSipPassword = new pair and telnyxCredentialId = kam:user when SIP_SERVER_SECRET is set, whatever dryRun is.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /numbers/:phone/sip/reset (live path) + bot resetPassword (_index.js ~35686)", "issue": "When Telnyx createSIPCredential succeeds, telnyxCredentialId is saved as the Telnyx id. The next ensure() overwrites it with 'kam:<user>', so the Telnyx credential id is lost and the following rotate calls deleteSIPCredential('kam:..'), which fails quietly and leaves orphaned Telnyx credentials. repairFields does the same to legacy gencred numbers. Either keep the Telnyx id in a separate field, or have reset create only the Kamailio login, matching the new system."},
+      {"endpoint": "POST /numbers/:phone/sip/extra (numbers.js:816)", "issue": "The response still says transport: 'UDP/TCP/TLS'. It should be 'UDP/TCP' to match the no-TLS copy fix."},
+      {"endpoint": "js/ops/sip_repair_2026-11.js", "issue": "SIP_SERVER_IP falls back to a hardcoded 188.166.34.29. repairFields/backfill do not skip dryRun numbers."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SipCredentials (pages/number/SipTab.js)", "issue": "After 'New credentials' the card shows the new pair, but after a reload it shows the old pair again (backend reset bug above). A user would set up the new pair, which does not match what the server shows later.", "selector": "[data-testid='sip-reset-button'], [data-testid='sip-username']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/cloudivr/sip hero (pages/sip/Hero.js:97,137; Plans.js:157)", "issues": ["The copy still says 'SIP logins from $100/month on Pro' and the stat says '$100 SIP from / month', while the FAQ on the same page says SIP comes with Basic, Starter, Pro and Business and Basic costs $50. sipPick() (sip/shared.js:13) chooses the recommended plan, not the cheapest. 'From' prices should use the cheapest SIP plan (Basic $50)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_sip_credentials_web.py", "/app/test_reports/pytest/pytest_sip_web.xml", "/app/js/tests/test_sip_repair_2026-11.js", "/app/js/tests/test_starter_browser_phone_2026-10.js"],
+  "action_items": [
+    "Fix rotateSip in js/cloudivr-web/numbers.js so the reset pair becomes the shown pair (telnyxSip* + kam: credId) on dry-run numbers too, then add a unit test that checks GET after reset returns the reset pair",
+    "Change transport 'UDP/TCP/TLS' to 'UDP/TCP' in the POST /sip/extra response",
+    "Make the /cloudivr/sip hero and CTA 'SIP from' price use the cheapest SIP plan (Basic $50), not the recommended Pro plan",
+    "Decide how Telnyx credential ids are kept when ensure() rewrites telnyxCredentialId to kam:<user> (orphaned Telnyx credentials)"
+  ],
+  "critical_code_review_comments": [
+    "rotateSip, the bot resetPassword handler and repairFields follow different rules for telnyxSip* and telnyxCredentialId. Put rotation in sip-logins.js (e.g. rotate()) so web and bot share it, the same way ensure() is shared.",
+    "Bot changes at _index.js ~31905 and ~35673 look correct: they re-read the number from the DB, call ensure(), then show the pair telnyxSip* first. Not tested end to end (no bot in preview).",
+    "extras.js:117 and numbers.js:805 upgrade messages ('SIP needs the Starter plan or higher') are out of date now, but cannot be reached because every plan has SIP."
+  ],
+  "updated_files": ["/app/backend/tests/test_sip_credentials_web.py"],
+  "success_rate": {"backend": "75% (3/4 API tests; unit tests 26/26)", "frontend": "80% (SIP tab, port copy, landing and guide pass; reset does not persist after reload)"},
+  "test_credentials": "civr.uxtest@example.com / UxTest#2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. Side effect: 3 SIP resets on dry-run number +13341112222 changed its sipUsername/sipPassword (now cvs2kue79f). The shown pair telnyxSip* = cvy2a9vddz / 755YqpFrz2Q5 is unchanged. Test account only.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest /app/backend/tests/test_sip_credentials_web.py -p no:xdist. test_reset_rotates_and_persists is the regression check for the reset bug. The SIP tab URL is /cloudivr/app/numbers/%2B13341112222?tab=sip; test ids are sip-username, sip-password, sip-domain, sip-port, sip-reveal-button and sip-reset-button; the confirm dialog button is 'Create new credentials'. The catalog is at GET /api/cloudivr-web/catalog (needs login); there is no /plans route.",
+  "rca of the issue": "Reset: rotateSip writes the new pair to telnyxSip* only when live (not dryRun and not n.dryRun). The new ensure()/repairFields now makes telnyxSip* the shown pair for every number, including dry-run ones, so after a dry-run reset the shown pair is still the old one. Steps to reproduce: login, POST /numbers/%2B13341112222/sip/reset, then GET /numbers/%2B13341112222/sip returns the old username. Fix: in rotateSip, update telnyxSip* whenever SIP_SERVER_SECRET is set."
+}

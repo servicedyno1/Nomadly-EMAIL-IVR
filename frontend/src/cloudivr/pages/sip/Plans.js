@@ -5,7 +5,7 @@ import { usd } from '../../api';
 import { SectionHead, Slide, Reveal } from '../landing/kit';
 import { faqItems, useStart } from '../landing/PricingFaq';
 import { PaymentMethods } from '../landing/Payments';
-import { andNames, byPrice, sipDomain, sipPick, sipPlans } from './shared';
+import { andNames, byPrice, sipDomain, sipFrom, sipPick, sipPlans } from './shared';
 
 // What a SIP buyer compares first; the full list is in "Compare every feature".
 const ROWS = [
@@ -111,7 +111,7 @@ export function SipPlans({ catalog }) {
 export function sipFaqItems(c) {
   const domain = sipDomain(c);
   const sp = sipPlans(c);
-  const pick = sipPick(c);
+  const pick = sipFrom(c);
   const starter = byPrice(c?.plans).find(p => !p.access?.sipCredentials);
   const general = Object.fromEntries(faqItems(c));
   return [
@@ -146,7 +146,7 @@ export function SipFaq({ catalog }) {
 
 export function SipFinalCta({ catalog }) {
   const start = useStart();
-  const pick = sipPick(catalog);
+  const pick = sipFrom(catalog);
   return (
     <section className="civr-l-cream py-24" data-testid="sip-final-cta">
       <div className="max-w-7xl mx-auto px-6 md:px-8">

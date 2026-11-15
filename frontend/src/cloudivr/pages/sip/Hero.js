@@ -3,7 +3,7 @@ import { ArrowRight, Check, Phone, PhoneIncoming, PhoneOff, Server } from 'lucid
 import { usd } from '../../api';
 import { useLang } from '../../i18n';
 import { Slide, CountUp, useInView, useStep } from '../landing/kit';
-import { sipDomain, sipPick } from './shared';
+import { sipDomain, sipFrom } from './shared';
 
 // Whole-sentence titles so the highlighted words land in the right place in every language.
 const TITLE = {
@@ -90,7 +90,7 @@ function SoftphoneMock({ domain }) {
 }
 
 function StatStrip({ catalog }) {
-  const pick = sipPick(catalog);
+  const pick = sipFrom(catalog);
   const stats = [
     [catalog?.countries?.length || 2, 'Countries', true],
     ['5060', 'SIP port · UDP or TCP', false],
@@ -114,7 +114,7 @@ function StatStrip({ catalog }) {
 export function SipHero({ catalog }) {
   const t = TITLE[useLang().lang] || TITLE.en;
   const n = catalog?.countries?.length || 2;
-  const pick = sipPick(catalog);
+  const pick = sipFrom(catalog);
   const trust = ['Works with free apps', 'UDP & TCP', 'No contracts', 'Crypto & wallet payments'];
   return (
     <section className="civr-l-cream relative overflow-hidden pt-32 md:pt-40" data-testid="sip-hero">

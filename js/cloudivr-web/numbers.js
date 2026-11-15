@@ -765,7 +765,7 @@ function routes(router, deps) {
       if (n.telnyxCredentialId) await telnyxApi.deleteSIPCredential(n.telnyxCredentialId).catch(() => {})
     }
     const live = !dryRun() && !n.dryRun
-    await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.sipUsername': user, 'val.numbers.$.sipPassword': pass, 'val.numbers.$.telnyxSipUsername': live ? user : n.telnyxSipUsername || null, 'val.numbers.$.telnyxSipPassword': live ? pass : n.telnyxSipPassword || null, 'val.numbers.$.telnyxCredentialId': credId || (live && process.env.SIP_SERVER_SECRET ? `kam:${user}` : n.telnyxCredentialId || null) } })
+    await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.sipUsername': user, 'val.numbers.$.sipPassword': pass, 'val.numbers.$.telnyxSipUsername': live || process.env.SIP_SERVER_SECRET ? user : n.telnyxSipUsername || null, 'val.numbers.$.telnyxSipPassword': live || process.env.SIP_SERVER_SECRET ? pass : n.telnyxSipPassword || null, 'val.numbers.$.telnyxCredentialId': credId || (process.env.SIP_SERVER_SECRET ? `kam:${user}` : n.telnyxCredentialId || null) } })
     return { username: user, password: pass }
   }
 
@@ -813,7 +813,7 @@ function routes(router, deps) {
     if (!u.modifiedCount) { if (paid) await walletOps(db).credit(req.webChatId, price); return bad(res, 400, 'limit_reached', `This number already has ${MAX} extra SIP logins. Remove one to add another.`) }
     if (paid) await db.collection('transactions').insertOne({ _id: `sip-extra-${req.webChatId}-${login.id}`, chatId: String(req.webChatId), type: 'extra-sip-login', amount: price, currency: 'USD', status: 'completed', ref: n.phoneNumber, createdAt: new Date() })
     log(`[CloudIVR-Web] ${req.webChatId} added ${paid ? 'paid' : 'free'} extra SIP login ${login.username} (${label}) to ${n.phoneNumber}`)
-    res.json({ ...login, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP/TLS' })
+    res.json({ ...login, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP' })
   }))
   router.delete('/numbers/:phone/sip/extra/:id', withNumber(async (req, res) => {
     await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': req.num.phoneNumber }, { $pull: { 'val.numbers.$.extraSip': { id: req.params.id } } })

@@ -11,6 +11,8 @@ export const sipPlans = (c) => byPrice(c?.plans).filter(p => p.access?.sipCreden
 
 // The plan the page pushes: the recommended plan when it includes SIP, otherwise the cheapest SIP plan.
 export const sipPick = (c) => { const s = sipPlans(c); return s.find(p => p.recommended) || s[0] || null; };
+// Cheapest plan with SIP logins, for "SIP from $X" copy.
+export const sipFrom = (c) => sipPlans(c)[0] || null;
 
 export const andNames = (plans) => {
   const n = (plans || []).map(p => p.name);
