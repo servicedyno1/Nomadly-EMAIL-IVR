@@ -2649,6 +2649,7 @@ const userKeyboard = {
  // بنابراین تغییر گروه‌بندی/ترتیب هیچ خطری برای مسیریابی ندارد.
 ...require('../web-access').webMenuRows('en'), // 🌐 Hosting/RDP/VPS on Web (NomadlyBot only, WEBSITE_URL set)
  [user.cloudPhone, user.hostingDomainsRedirect],
+ ['📠 شماره فکس'],
  ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
  [user.bulkSmsNew, user.leadsValidation],
  [user.digitalProducts, user.esimMain], // 2026-11: eSIM on the front menu; Marketplace moved under ➕ More

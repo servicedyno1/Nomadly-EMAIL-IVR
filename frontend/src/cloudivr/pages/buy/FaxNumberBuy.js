@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FlagSelect } from '../../Pickers';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -36,12 +36,15 @@ export function FaxNumberBuy({ balance, onBought }) {
   const [autoRenew, setAutoRenew] = useState(true);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState(null);
-  if (offer && !offer.available) return <div className="civr-card p-5 mb-6 text-sm text-[#a1a1aa]" data-testid="fax-buy-unavailable">Fax numbers are not available right now. Please check back soon.</div>;
+  const [docs, setDocs] = useState(null);
   const price = offer?.price || 0;
   const country = offer?.countries?.find(c => c.code === q.country);
   const types = country?.types || [];
   const t = types.find(x => x.type === q.type) || types[0];
-  const paperwork = t?.paperwork === 'name_address' ? { level: 1, businessOnly: t.businessOnly, address: t.address } : null;
+  const level = { name_address: 1, documents: 2 }[t?.paperwork] || 0;
+  useEffect(() => { setDocs(null); if (level === 2) api(`/numbers/documents?country=${q.country}`).then(setDocs).catch(() => {}); }, [level, q.country]);
+  if (offer && !offer.available) return <div className="civr-card p-5 mb-6 text-sm text-[#a1a1aa]" data-testid="fax-buy-unavailable">Fax numbers are not available right now. Please check back soon.</div>;
+  const paperwork = level ? { level, businessOnly: t.businessOnly, address: t.address, documents: docs } : null;
   const search = async (e) => {
     e.preventDefault(); setBusy('search'); setError(null); setPick(null);
     try { setRes(await api(`/fax-numbers/search?country=${q.country}&type=${t?.type || 'local'}${country?.areaCodes && q.areaCode ? `&areaCode=${q.areaCode}` : ''}`)); } catch (err) { setError(err); setRes(null); } finally { setBusy(''); }
@@ -62,13 +65,13 @@ export function FaxNumberBuy({ balance, onBought }) {
       <form onSubmit={search} className="grid sm:grid-cols-3 gap-4 items-end mt-4" data-testid="fax-buy-search-form">
         <Field label="Country">
           <FlagSelect code={q.country}><select className="civr-input w-full" value={q.country} onChange={e => { setQ({ country: e.target.value, type: 'local', areaCode: '' }); setRes(null); setPick(null); }} data-testid="fax-buy-country-select">
-            {(offer?.countries || []).map(c => <option key={c.code} value={c.code}>{c.name}{c.types.some(x => x.paperwork !== 'none') ? ' · name + address' : ''}</option>)}
+            {(offer?.countries || []).map(c => <option key={c.code} value={c.code}>{c.name}{c.types.every(x => x.paperwork === 'documents') ? ' · ID documents' : c.types.some(x => x.paperwork !== 'none') ? ' · name + address' : ''}</option>)}
           </select></FlagSelect>
         </Field>
         {types.length > 1 ? (
           <Field label="Number type">
             <select className="civr-input w-full" value={t?.type} onChange={e => { setQ({ ...q, type: e.target.value }); setRes(null); setPick(null); }} data-testid="fax-buy-type-select">
-              {types.map(x => <option key={x.type} value={x.type}>{x.label}{x.paperwork !== 'none' ? ' · name + address' : ''}</option>)}
+              {types.map(x => <option key={x.type} value={x.type}>{x.label}{x.paperwork === 'documents' ? ' · ID documents' : x.paperwork !== 'none' ? ' · name + address' : ''}</option>)}
             </select>
           </Field>
         ) : country?.areaCodes ? (
@@ -78,7 +81,7 @@ export function FaxNumberBuy({ balance, onBought }) {
         ) : <div />}
         <button className="civr-btn civr-btn-primary" disabled={busy === 'search'} data-testid="fax-buy-search-button">{busy === 'search' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}Search fax numbers</button>
       </form>
-      {paperwork && <div className="mt-4"><PaperworkNote paperwork={paperwork} country={q.country} countryName={country.name} /><p className="text-xs text-[var(--c-muted)]" data-testid="fax-buy-approval-note">You pay now. The carrier approves the number within a few days, and your month starts once it’s live. If the carrier says no, the number is released and you get a full refund. <Link to={cp('/app/settings')} className="text-[#818cf8] underline underline-offset-2" data-testid="fax-buy-legal-link">Edit legal details</Link></p></div>}
+      {paperwork && <div className="mt-4"><PaperworkNote paperwork={paperwork} country={q.country} countryName={country.name} onChange={setDocs} /><p className="text-xs text-[var(--c-muted)]" data-testid="fax-buy-approval-note">You pay now. The carrier approves the number within a few days, and your month starts once it’s live. If the carrier says no, the number is released and you get a full refund. <Link to={cp('/app/settings')} className="text-[#818cf8] underline underline-offset-2" data-testid="fax-buy-legal-link">Edit legal details</Link></p></div>}
       <div className="mt-4"><ErrorNote error={error} testid="fax-buy-error" /></div>
       {res?.nearbyOnly && <div className="text-sm text-[#a1a1aa] mt-4" data-testid="fax-buy-nearby-note">{`No fax numbers in area code ${res.areaCode} right now — these are nearby numbers.`}</div>}
       {pick && !res && <div className="civr-card p-4 mt-4 text-sm flex items-center gap-2" data-testid="fax-buy-picked-note"><Check className="w-4 h-4 text-[#818cf8]" />{`${pick.phoneNumber} from your search is selected.`}</div>}

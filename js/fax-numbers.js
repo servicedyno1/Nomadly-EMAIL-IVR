@@ -14,18 +14,22 @@ const { walletOps, round2 } = require('./cloudivr-web/wallet')
 
 const PRICE = () => round2(Number(process.env.FAX_NUMBER_PRICE) || 50)
 // Fax (T.38) offers from the 15 Nov 2026 MultiTEL scan (memory/MULTITEL_FAX_COUNTRIES_2026-11-15.md), paperwork level 0–1 only.
-const FAX_TYPES = { US: ['local'], CA: ['local'], GB: ['local', 'national', 'mobile'], NL: ['local', 'national', 'mobile'], IE: ['local', 'national'], AR: ['local'], SV: ['local'], IS: ['local'], VN: ['local'], DK: ['national'], LT: ['local'], AU: ['local'], GR: ['local'], NZ: ['local'], EE: ['national'] }
+const FAX_TYPES = { US: ['local'], CA: ['local'], GB: ['local', 'national', 'mobile'], NL: ['local', 'national', 'mobile'], IE: ['local', 'national'], AR: ['local'], SV: ['local'], IS: ['local'], VN: ['local'], DK: ['national'], LT: ['local', 'mobile'], AU: ['local', 'mobile'], GR: ['local'], NZ: ['local'], EE: ['national'],
+  // ID / company documents (uploaded once per country, reused): 
+  DE: ['local', 'national'], FR: ['local'], IT: ['local'], PL: ['local'], ZA: ['local'], SG: ['local'], TH: ['local', 'national'], FI: ['local', 'national'], LV: ['local'], HR: ['local'], UA: ['local', 'mobile'], HK: ['national'], SK: ['local'], AL: ['local'] }
 const TYPE_LABEL = { local: 'Local', national: 'National', mobile: 'Mobile' }
 const { NAMES, offer: mtOffer } = require('./multitel/countries')
-const offerOf = (cc, type) => { const o = FAX_TYPES[cc]?.includes(type) ? mtOffer(cc, type) : null; return o && o.level <= 1 ? o : null }
+const offerOf = (cc, type) => { const o = FAX_TYPES[cc]?.includes(type) ? mtOffer(cc, type) : null; return o && o.level <= 2 ? o : null }
 const COUNTRIES = Object.keys(FAX_TYPES).map(code => ({ code, name: NAMES[code] || code, areaCodes: ['US', 'CA'].includes(code),
-  types: FAX_TYPES[code].filter(t => offerOf(code, t)).map(t => { const o = offerOf(code, t); return { type: t, label: TYPE_LABEL[t], paperwork: o.level ? 'name_address' : 'none', businessOnly: o.businessOnly, address: o.address } }) }))
+  types: FAX_TYPES[code].filter(t => offerOf(code, t)).map(t => { const o = offerOf(code, t); return { type: t, label: TYPE_LABEL[t], paperwork: ['none', 'name_address', 'documents'][o.level], businessOnly: o.businessOnly, address: o.address } }) }))
   .sort((a, b) => (a.code === 'US' ? -1 : b.code === 'US' ? 1 : a.name.localeCompare(b.name)))
 // Saved name + address vs the offer's rules → message, or null when it can buy.
-function paperworkIssue(cc, type, eu) {
+function paperworkIssue(cc, type, eu, { docs = 0, signature = true } = {}) {
   const o = offerOf(cc, type), name = NAMES[cc] || cc
   if (!o?.level) return null
   if (!eu?.name || !eu?.address) return `${name} fax numbers need your name and address.`
+  if (o.level === 2 && !docs) return `${name} fax numbers need ID or company documents. Upload them first.`
+  if (!signature) return `${name} fax numbers need your signature for the carrier registration.`
   if (o.businessOnly && eu.type !== 'business') return `${name} fax numbers are sold to businesses only.`
   if (o.address !== 'any' && eu.countryCode && eu.countryCode !== cc) return `${name} fax numbers need an address in ${name}.`
   return null
@@ -67,14 +71,15 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
     return { numbers: results, price: PRICE(), type: t, areaCode: ac, nearbyOnly: !!ac && results.length > 0 && results.every(n => n.nearby) }
   }
 
-  async function buy(chatId, { phoneNumber, autoRenew = true, email = '', endUser = null }) {
+  async function buy(chatId, { phoneNumber, autoRenew = true, email = '', endUser = null, person = null }) {
     chatId = String(chatId)
     let c = await cache.findOne({ _id: chatId })
     let hit = c?.results?.find(r => r.phoneNumber === phoneNumber)
     if (!hit) { const v = await seen.findOne({ _id: phoneNumber }); if (v) { c = { country: v.country, type: v.type }; hit = { phoneNumber } } }
     if (!hit) throw new FaxNumberError(400, 'search_again', 'That number is no longer in your search results. Search again and pick a number.')
     const type = c.type || 'local', o = offerOf(c.country, type)
-    const why = paperworkIssue(c.country, type, endUser)
+    const docs = o?.level === 2 ? ((await db.collection('numberDocs').findOne({ _id: `${chatId}:${c.country}` }))?.files || []).filter(f => !f.deleted) : []
+    const why = paperworkIssue(c.country, type, endUser, { docs: docs.length, signature: !o?.level || !!person?.signature })
     if (why) throw new FaxNumberError(400, 'paperwork_needed', why)
     let needsReg = !!o?.level || !!require('./multitel').searchedMeta(phoneNumber)?.needsReg
     try { await locks.insertOne({ _id: phoneNumber, chatId, at: new Date() }) } catch (e) {
@@ -95,9 +100,9 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
         log(`[FaxNumbers] order ${phoneNumber} for ${chatId} failed: ${e.response?.data?.errors?.[0]?.detail || e.response?.data?.message || e.message} — refunded $${price}`)
         throw new FaxNumberError(424, 'purchase_failed', `This fax number could not be activated. You were refunded $${price.toFixed(2)}. Pick another number.`)
       }
-      const doc = { _id: real, phoneNumber: real, chatId, country: c.country, type, status: needsReg ? 'pending_registration' : 'active', faxOnly: true, plan: 'fax', price, autoRenew: autoRenew !== false, provider: 'multitel_fax', mtNumberId: orderId, expiresAt: nextMonth(), createdAt: new Date(), ...(endUser ? { endUser } : {}), ...(needsReg ? { registration: { status: 'pending', since: new Date() } } : {}), ...(dry() ? { dryRun: true } : {}) }
+      const doc = { _id: real, phoneNumber: real, chatId, country: c.country, type, status: needsReg ? 'pending_registration' : 'active', faxOnly: true, plan: 'fax', price, autoRenew: autoRenew !== false, provider: 'multitel_fax', mtNumberId: orderId, expiresAt: nextMonth(), createdAt: new Date(), ...(endUser ? { endUser } : {}), ...(person ? { person: { ...person, signature: undefined } } : {}), ...(needsReg ? { registration: { status: 'pending', since: new Date() } } : {}), ...(dry() ? { dryRun: true } : {}) }
       await nums.replaceOne({ _id: real }, doc, { upsert: true })
-      if (needsReg) await sendRegistration(doc, email)
+      if (needsReg) await sendRegistration(doc, email, person, docs)
       await db.collection('transactions').insertOne({ chatId, type: 'fax-number', amount: price, currency: 'USD', status: 'completed', metadata: { phoneNumber: real, provider: 'multitel_fax' }, createdAt: new Date(), updatedAt: new Date() }).catch(() => {})
       await cache.deleteOne({ _id: chatId }); await seen.deleteOne({ _id: phoneNumber }).catch(() => {})
       notifyAdmin(`📠 Fax number${dry() ? ' (DRY RUN)' : ''}${needsReg ? ' — waiting for carrier registration' : ''}\naccount: ${chatId}${email ? ` (${email})` : ''}\nnumber: ${real} (${c.country} ${type}) · $${price}/month`)
@@ -118,11 +123,22 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
   }
 
   // Name + address to MultiTEL's registration desk (their documented route for numbers that need end-user details).
-  async function sendRegistration(n, email) {
+  async function sendRegistration(n, email, person, docs = []) {
     if (n.dryRun) return
+    const files = []
+    for (const f of docs) files.push({ buffer: await require('./cloudivr-web/number-docs').get(f.path), name: f.name, type: f.type })
+    // Preferred: the customer's MultiTEL registration profile (created once, reused) attached to the number.
+    if (person) {
+      try {
+        const r = await require('./multitel/identity').registerNumber(db, { chatId: n.chatId, phoneNumber: n.phoneNumber, person: { ...person, email: person.email || email }, files })
+        await nums.updateOne({ _id: n._id }, { $set: { 'registration.via': 'api', 'registration.profile': r.profile, 'registration.sent': true, 'registration.sentAt': new Date() } })
+        notifyAdmin(`📄 Fax number registration submitted (customer profile): ${n.phoneNumber} (${n.country}) — account ${n.chatId}`)
+        return
+      } catch (e) { log(`[FaxNumbers] profile registration ${n.phoneNumber} failed, emailing instead: ${e.message}`) }
+    }
     const eu = n.endUser || {}, from = process.env.CLOUDIVR_MAIL_SENDER || process.env.MAIL_SENDER
     const html = `<p>Hello MultiTEL team,</p><p>Please register this fax number for its end user.</p><ul><li>Number: <b>${n.phoneNumber}</b> (${NAMES[n.country] || n.country} ${n.type})</li><li>End user type: ${eu.type || '-'}</li><li>Name: ${eu.name || '-'}</li>${eu.contact ? `<li>Contact person: ${eu.contact}</li>` : ''}<li>Address: ${eu.address || '-'}</li>${email ? `<li>Contact email: ${email}</li>` : ''}</ul><p>Thank you</p>`
-    const sent = await require('./mailer').send({ from: { name: process.env.MAIL_SENDER_NAME || 'CloudIVR', email: from }, to: process.env.MULTITEL_DOCS_EMAIL || 'support@multitel.net', subject: `DID registration: ${n.phoneNumber} (${NAMES[n.country] || n.country})`, html }).then(() => true, e => { log(`[FaxNumbers] registration email ${n.phoneNumber}: ${e.message}`); return false })
+    const sent = await require('./mailer').send({ from: { name: process.env.MAIL_SENDER_NAME || 'CloudIVR', email: from }, to: process.env.MULTITEL_DOCS_EMAIL || 'support@multitel.net', subject: `DID registration: ${n.phoneNumber} (${NAMES[n.country] || n.country})`, html, ...(files.length ? { attachments: files.map(f => ({ filename: f.name, content: f.buffer.toString('base64') })) } : {}) }).then(() => true, e => { log(`[FaxNumbers] registration email ${n.phoneNumber}: ${e.message}`); return false })
     await nums.updateOne({ _id: n._id }, { $set: { 'registration.sent': sent, 'registration.sentAt': new Date() } })
     notifyAdmin(`📄 Fax number registration ${sent ? 'sent to MultiTEL' : 'NOT sent (email failed)'}: ${n.phoneNumber} (${n.country}) — account ${n.chatId}`)
   }

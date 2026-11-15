@@ -2478,6 +2478,7 @@ const userKeyboard = {
  // so grouping/order changes carry no routing risk.
  ...require('../web-access').webMenuRows('hi'), // 🌐 Hosting/RDP/VPS on Web (NomadlyBot only, WEBSITE_URL set)
  [user.cloudPhone, user.hostingDomainsRedirect],
+ ['📠 फैक्स नंबर'],
  ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
  [user.bulkSmsNew, user.leadsValidation],
  [user.digitalProducts, user.esimMain], // 2026-11: eSIM on the front menu; Marketplace moved under ➕ More

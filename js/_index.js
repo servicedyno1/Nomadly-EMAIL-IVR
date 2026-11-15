@@ -8716,6 +8716,18 @@ bot?.on('message', msg => {
       } catch (e) { log(`[Fax] bulk list file error for ${chatId}: ${e.message}`); return send(chatId, '⚠️ That file could not be read. Paste the numbers instead.') }
     }
     if (userInfo?.action === 'cpFaxBulkTo' && userInfo?.cpActiveNumber) return send(chatId, faxService.t(userInfo.userLanguage).askBulk, { parse_mode: 'HTML' })
+    if (userInfo?.action === 'fxnDocs' && userInfo?.fxnCountry) {
+      const t = botFax.T(userInfo.userLanguage)
+      try {
+        const f = msg.document || msg.photo[msg.photo.length - 1]
+        const mime = msg.document ? String(msg.document.mime_type || '') : 'image/jpeg'
+        if ((f.file_size || 0) > 10 * 1024 * 1024) return send(chatId, t.docBad)
+        const buffer = Buffer.from((await require('axios').get(await bot.getFileLink(f.file_id), { responseType: 'arraybuffer', timeout: 30000 })).data)
+        const n = await botFax.saveDoc(String(chatId), userInfo.fxnCountry, buffer, mime, msg.document?.file_name)
+        if (!n) return send(chatId, t.docBad)
+        return send(chatId, t.docSaved(n), kOuter.of([[t.docsDone]]))
+      } catch (e) { log(`[FaxNumbers] bot document upload ${chatId}: ${e.message}`); return send(chatId, t.docBad) }
+    }
     if (userInfo?.action === 'cpFaxDoc' && userInfo?.cpActiveNumber) {
       const fx = faxService.t(userInfo.userLanguage)
       try {
@@ -11158,7 +11170,7 @@ bot?.on('message', msg => {
         [pc.myNumbers, pc.usageBilling],
         [pc.bulkCallCampaign, pc.myCampaigns],
         [pc.audioLibrary, pc.sipSettings],
-        [botFax.BTN.menu, pc.howItWorks],
+        [botFax.T(info?.userLanguage).menu, pc.howItWorks],
       ]))
       // One-time nudge: Pro/Starter users can show any caller ID on Business for the price gap only.
       try {
@@ -26254,7 +26266,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     return send(chatId, trans('t.cp_232', '⭐ Pro'), k.of(_rows))
   }
 
-  if (message === botFax.BTN.menu || String(action || '').startsWith('fxn')) {
+  if (botFax.isMenu(message) || String(action || '').startsWith('fxn')) {
     const r = await botFaxHandle(chatId, message, info, action)
     if (r !== false) return r
   }
@@ -26276,7 +26288,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       [pc.myNumbers, pc.usageBilling],
       [pc.bulkCallCampaign, pc.myCampaigns],
       [pc.audioLibrary, pc.sipSettings],
-      [botFax.BTN.menu, pc.howItWorks],
+      [botFax.T(info?.userLanguage).menu, pc.howItWorks],
     ]))
   }
 
@@ -31262,7 +31274,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // Standalone fax numbers (bot-fax-numbers.js): list / buy / open.
   async function botFaxHandle(chatId, message, info, action) {
     return botFax.handle({
-      chatId: String(chatId), message, action, info,
+      chatId: String(chatId), message, action, info, lang: info?.userLanguage || 'en',
       setAction: (v) => set(state, chatId, 'action', v), save: (key, v) => saveInfo(key, v),
       send: (text, opts = {}) => send(chatId, text, { parse_mode: 'HTML', ...opts }),
       kb: (rows) => k.of([...rows, ['Back']]), hub: () => goto.submenu5(),
@@ -31276,7 +31288,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     await set(state, chatId, 'action', a.cpFax)
     const on = faxService.lineOn(fresh)
     const email = await faxService.emailOf(String(chatId))
-    return send(chatId, fresh.faxOnly ? botFax.faxMenuText(fresh, await faxService.usage(fresh)) : fx.menu(fresh.phoneNumber, await faxService.usage(fresh), on), { parse_mode: 'HTML', ...k.of([[fx.btnSend], [fx.btnBulk], ...(fresh.faxOnly ? [] : [[on ? fx.btnLineOn : fx.btnLineOff]]), [fx.btnRecent], [fx.btnEmail(email)]]) })
+    return send(chatId, fresh.faxOnly ? botFax.faxMenuText(fresh, await faxService.usage(fresh), info?.userLanguage) : fx.menu(fresh.phoneNumber, await faxService.usage(fresh), on), { parse_mode: 'HTML', ...k.of([[fx.btnSend], [fx.btnBulk], ...(fresh.faxOnly ? [] : [[on ? fx.btnLineOn : fx.btnLineOff]]), [fx.btnRecent], [fx.btnEmail(email)]]) })
   }
   // Bulk fax: pasted list or CSV/TXT text → saved recipients, then ask for the document.
   async function faxBulkList(chatId, num, text, lang) {

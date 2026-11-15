@@ -6,6 +6,7 @@ import { ErrorNote } from '../../ui';
 import { Link } from 'react-router-dom';
 import { cp } from '../../paths';
 import { StatusPill } from '../../compliance/Compliance';
+import { SignatureField } from './SignatureField';
 
 const WHERE = { any: 'an address in any country', country: 'an address in this country', area: 'an address in this number’s area' };
 
@@ -27,6 +28,7 @@ export function PaperworkNote({ paperwork, country, countryName, onChange }) {
       </div>
       {docs && paperwork.compliance && <ComplianceSteps c={paperwork.compliance} />}
       {docs && <DocumentUpload country={country} status={paperwork.documents} onChange={onChange} />}
+      <SignatureField />
     </div>
   );
 }

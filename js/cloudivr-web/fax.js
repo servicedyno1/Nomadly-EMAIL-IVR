@@ -19,7 +19,8 @@ function routes(router, { db, h, upload, numbersApi, notifyAdmin, legalProfile }
   router.post('/fax-numbers', h((req, res) => out(res, async () => {
     const phoneNumber = String(req.body?.phoneNumber || '')
     const endUser = await legalProfile?.endUserOf(req.webChatId).catch(() => null)
-    const r = await faxNums.buy(req.webChatId, { phoneNumber, autoRenew: req.body?.autoRenew !== false, email: req.webUser?.email, endUser })
+    const person = require('../multitel/identity').personFromLegal(req.webUser)
+    const r = await faxNums.buy(req.webChatId, { phoneNumber, autoRenew: req.body?.autoRenew !== false, email: req.webUser?.email, endUser, person })
     await legalProfile?.recordResale({ chatId: req.webChatId, phoneNumber: r?.number?.phoneNumber || phoneNumber, provider: 'fax', country: r?.number?.country || null })
     return r
   })))
