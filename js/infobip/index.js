@@ -7,8 +7,8 @@ const axios = require('axios')
 const log = (...a) => console.log('[Infobip]', ...a)
 const base = () => `https://${String(process.env.INFOBIP_BASE_URL || 'api.infobip.com').replace(/^https?:\/\//, '').replace(/\/+$/, '')}`
 const enabled = () => !!process.env.INFOBIP_API_KEY && String(process.env.INFOBIP_ENABLED || 'true').toLowerCase() !== 'false'
-// INFOBIP_SELL=false stops new Infobip numbers (search/buy) while owned numbers keep working.
-const selling = () => enabled() && String(process.env.INFOBIP_SELL || 'true').toLowerCase() !== 'false'
+// NUMBER_PROVIDERS (comma list: multitel, infobip) picks who sells NEW numbers; owned numbers keep working.
+const selling = () => enabled() && String(process.env.NUMBER_PROVIDERS || 'multitel,infobip').toLowerCase().split(',').map(x => x.trim()).includes('infobip')
 const makeHttp = () => axios.create({ baseURL: base(), headers: { Authorization: `App ${process.env.INFOBIP_API_KEY}` }, timeout: 15000 })
 const configId = () => process.env.INFOBIP_CALLS_CONFIG_ID || `${String(process.env.CHAT_BOT_BRAND || 'nomadly').toLowerCase().replace(/[^a-z0-9]/g, '')}${process.env.BOT_ENVIRONMENT === 'production' ? '' : '-dev'}`
 const errOf = (e) => { const x = e.response?.data?.requestError?.serviceException; return String(x?.text || x?.messageId || e.response?.data?.description || e.message) }

@@ -9,6 +9,8 @@ const ipv4 = new (require('https').Agent)({ family: 4, keepAlive: true })
 
 const log = (...a) => console.log('[Multitel]', ...a)
 const enabled = () => !!(process.env.MULTITEL_USERNAME && process.env.MULTITEL_PASSWORD)
+// NUMBER_PROVIDERS (comma list: multitel, infobip) picks who sells NEW numbers; owned numbers keep working.
+const selling = () => enabled() && String(process.env.NUMBER_PROVIDERS || 'multitel,infobip').toLowerCase().split(',').map(x => x.trim()).includes('multitel')
 const sipTarget = () => `${process.env.SIP_SERVER_IP || '188.166.34.29'}:5080`
 const digits = (n) => String(n || '').replace(/\D/g, '')
 const e164 = (n) => `+${digits(n)}`
@@ -48,6 +50,7 @@ async function areas(cc) {
 const searched = new Map() // e164 → { priceId, features, needsReg, monthly }
 const cheapest = (prices) => [...(prices || [])].sort((a, b) => (+a.channels - +b.channels) || (+a.monthly_price - +b.monthly_price))[0]
 async function searchNumbers(countryCode, numberType = 'local', areaCode = null, limit = 5) {
+  if (!selling()) return []
   if (!enabled()) return []
   const cc = String(countryCode || 'US').toUpperCase()
   // US/CA area code: search the cities in that area code's state and prefer prefixes that start with it.
@@ -102,6 +105,7 @@ async function route(num) {
   if (!ok(d)) throw new Error(d?.status?.msg || 'route failed')
 }
 async function buyNumber(phoneNumber) {
+  if (!selling()) return null
   const s = searched.get(phoneNumber); if (!s) return null
   if (s.orderPrefix) return orderFromPrefix(phoneNumber, s)
   try {
@@ -163,4 +167,4 @@ async function sendSms(from, to, text) {
 }
 const ownsNumber = (n) => owned.includes(n)
 
-module.exports = { ipv4, isBlocked, api, enabled, sendSms, ownsNumber, smsHookKey, isMt, searchNumbers, isMtSearched, isAssigned, buyNumber, releaseNumber, refreshOwned, ownedNumbers, registrationStatus, route }
+module.exports = { ipv4, isBlocked, api, enabled, selling, sendSms, ownsNumber, smsHookKey, isMt, searchNumbers, isMtSearched, isAssigned, buyNumber, releaseNumber, refreshOwned, ownedNumbers, registrationStatus, route }

@@ -736,6 +736,8 @@ function askAddressAfterPay(chatId, info, number) {
     } catch (e) { log('[Phone] address prompt failed:', e.message) }
   }, 4000)
 }
+// Forwarding caller-ID toggle label (business number vs the caller's number on US forwards).
+const cidBtn = (f) => f?.showCallerId ? "🪪 Caller ID: caller's number (US)" : '🪪 Caller ID: my business number'
 // One short line per number: number · place · calls/texts · ⚡ instant (address numbers just activate after payment).
 function numLine(r, i, cc, type) {
   const c = r?._capabilities || {}
@@ -31672,7 +31674,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       try { const { usdBal } = await getBalance(walletOf, chatId); walletBal = usdBal } catch (e) { /* noop */ }
       const holdLabel = fwd.holdMusic ? pc.holdMusicOn : pc.holdMusicOff
       const btns = fwd.enabled
-        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
+        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], [cidBtn(num.features?.callForwarding)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
         : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer]]
       const preview = phoneConfig.formatCallFlowPreview(num, info?.userLanguage || 'en')
       // audit #22 — surface the forwarding wallet floor HERE with a pre-filled
@@ -32296,7 +32298,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const f = num.features.callForwarding || {}
       const holdLabel = f.holdMusic ? pc.holdMusicOn : pc.holdMusicOff
       const btns = f.enabled
-        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [backupNums.btn('manage', _bl)], [pc.disableForwarding]]
+        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], [cidBtn(num.features?.callForwarding)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', _bl)], [pc.disableForwarding]]
         : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer]]
       return send(chatId, `${prefix ? prefix + '\n\n' : ''}${cpTxt.forwardingStatus(num.phoneNumber, f, walletBal)}`, k.of(btns))
     }
@@ -32337,6 +32339,16 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.cpManageNumber)
       return showManageScreen(chatId, num)
     }
+    // ── Toggle caller ID shown on forwarded calls ──
+    if (String(message || '').startsWith('🪪 Caller ID')) {
+      const fwd = num.features?.callForwarding || {}
+      const value = { ...fwd, showCallerId: !fwd.showCallerId }
+      await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'callForwarding', value)
+      num.features.callForwarding = value
+      await saveInfo('cpActiveNumber', num)
+      const btns = [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [value.holdMusic ? pc.holdMusicOn : pc.holdMusicOff], [cidBtn(value)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
+      return send(chatId, value.showCallerId ? "🪪 Forwarded calls to US numbers now show the <b>caller's number</b>. Other countries (or if the carrier refuses) show your business number." : '🪪 Forwarded calls now show <b>your business number</b>.', { parse_mode: 'HTML', ...k.of(btns) })
+    }
     // ── Toggle Hold Music ──
     if (message === pc.holdMusicOn || message === pc.holdMusicOff) {
       const fwd = num.features?.callForwarding || {}
@@ -32349,7 +32361,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       let walletBal = 0
       try { const { usdBal } = await getBalance(walletOf, chatId); walletBal = usdBal } catch (e) { /* noop */ }
       const holdLabel = newState ? pc.holdMusicOn : pc.holdMusicOff
-      const btns = [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
+      const btns = [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], [cidBtn(num.features?.callForwarding)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
       return send(chatId, cpTxt.forwardingStatus(num.phoneNumber, num.features.callForwarding, walletBal), k.of(btns))
     }
     // ── Backup numbers: rung in order when the forward-to number is busy / doesn't answer (same as the web app) ──
@@ -32402,7 +32414,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       try { const { usdBal } = await getBalance(walletOf, chatId); walletBal = usdBal } catch (e) { /* noop */ }
       const holdLabel = fwd.holdMusic ? pc.holdMusicOn : pc.holdMusicOff
       const btns = fwd.enabled
-        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
+        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], [cidBtn(num.features?.callForwarding)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
         : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer]]
       return send(chatId, cpTxt.forwardingStatus(num.phoneNumber, fwd, walletBal), k.of(btns))
     }
@@ -32469,7 +32481,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const fwd = num.features?.callForwarding || {}
       const holdLabel = fwd.holdMusic ? pc.holdMusicOn : pc.holdMusicOff
       const btns = fwd.enabled
-        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
+        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], [cidBtn(num.features?.callForwarding)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
         : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer]]
       return send(chatId, cpTxt.forwardingStatus(num.phoneNumber, fwd, walletBal), k.of(btns))
     }
@@ -32494,7 +32506,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const mode = info?.cpForwardMode || 'always'
     const existingFwd = num.features?.callForwarding || {}
     const keptBackups = (existingFwd.backups || []).filter(n => n !== forwardTo && n !== num.phoneNumber)
-    await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'callForwarding', { enabled: true, mode, forwardTo, ringTimeout: 25, holdMusic: existingFwd.holdMusic || false, backups: keptBackups })
+    await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'callForwarding', { enabled: true, mode, forwardTo, ringTimeout: 25, holdMusic: existingFwd.holdMusic || false, showCallerId: !!existingFwd.showCallerId, backups: keptBackups })
     num.features.callForwarding = { enabled: true, mode, forwardTo, ringTimeout: 25, holdMusic: existingFwd.holdMusic || false, backups: keptBackups }
     await saveInfo('cpActiveNumber', num)
     const modeLabel = mode === 'always' ? 'Always Forward' : mode === 'busy' ? 'Forward When Busy' : 'Forward If No Answer'

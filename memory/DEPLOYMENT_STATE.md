@@ -521,3 +521,10 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - multitel-out → owner NL mobile +31684448264 with CLI +12074892004 AND with our own MultiTEL CLI +16806811012: both rejected by MultiTEL, Q.850 cause 21 CALL_REJECTED → MultiTEL termination currently allows US destinations only (not a caller-ID issue). Phone never rang.
 - multitel-out → our Bird-hosted +12074891859 (off-net US) with CLI +31684448264: ANSWERED 14s, but the call didn't reach our app logs, so the caller ID shown on arrival is unconfirmed.
 - On-net (MultiTEL→MultiTEL) passthrough confirmed earlier. Feature NOT built yet.
+
+## 2026-11-15 ~13:10Z — Forwarding caller-ID choice + NUMBER_PROVIDERS switch + EZCNAM code (all brands)
+- Env (4 brands): NUMBER_PROVIDERS=multitel (values: "multitel", "infobip", "multitel,infobip"; default both; replaces INFOBIP_SELL, removed). multitel.selling()/infobip.selling() gate search+buy; catalog uses them. CALLER_ID_PASSTHROUGH_TRUNK=multitel-out.
+- Forwarding: features.callForwarding.showCallerId (web select "Caller ID on forwarded calls", bot button "🪪 Caller ID: …"). Inbound forwards (config.inbound) show business number unless showCallerId && +1 destination && ae: leg → dial via passthrough trunk showing caller; refused → Bird with business number (callengine transferCall/createOutboundCall options.trunk). Live E2E: +16806811012 forward-always → +19372491807 arrived from=+31684448264 ✅ (test config restored).
+- CNAM: cnam-service EZCNAM primary (EZCNAM_API_KEY, GET https://api.ezcnam.com/v1?key&phone&out=json), MultiTEL/SignalWire only when EZCNAM errors/missing. Key pending from owner.
+- main release 8560b05; WL overlay r5/r6 patches + fixes; backups /tmp/bk_<app>/ on droplet.
+- 13:20Z EZCNAM_API_KEY copied to all 4 shared envs (endpoint needs trailing slash: https://api.ezcnam.com/v1/). Prod test: EZCNAM returned name; with bad key → "[CNAM] EZCNAM failed" → MultiTEL fallback returned name ✅. All brands restarted, healthy.

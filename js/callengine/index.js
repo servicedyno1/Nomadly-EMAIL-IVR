@@ -263,7 +263,7 @@ async function transferCall(id, toNumber, fromNumber, options = {}) {
     if (!options.audioUrl) call('post', `/channels/${raw(a.id)}/ring`)
     else play(a, conv(options.audioUrl), 'ringback')
     const meta = () => ({ connection: a.connection, clientState: b64(options.targetLegClientState), session: a.session, transferOf: a.id })
-    let b = await dialWithBackup(meta(), fromNumber || (a.direction === 'incoming' ? a.to : a.from), toNumber, options.timeoutSecs || 30)
+    let b = await dialWithBackup(meta(), fromNumber || (a.direction === 'incoming' ? a.to : a.from), toNumber, options.timeoutSecs || 30, undefined, options.trunk)
     // Carrier refused the shown caller ID (e.g. caller's own number not verified) — redial showing our number instead.
     if (refusedEarly(b) && options.fallbackFrom && options.fallbackFrom !== fromNumber) {
       log(`transfer ${id} → ${toNumber}: caller ID ${fromNumber} refused (cause ${b.cause ?? '?'}) — retrying with ${options.fallbackFrom}`)
@@ -292,9 +292,10 @@ async function early(l, ms) {
   const until = Date.now() + Number(ms ?? process.env.CALL_ENGINE_EARLY_MS ?? 6000)
   while (!l.ended && !l.ringing && !l.answered && Date.now() < until) await new Promise(r => setTimeout(r, 100))
 }
-async function dialWithBackup(meta, from, to, timeout, earlyMs) {
-  let l = await originate({ ...meta, held: [] }, from, to, timeout)
+async function dialWithBackup(meta, from, to, timeout, earlyMs, trunk = null) {
+  let l = await originate({ ...meta, held: [] }, from, to, timeout, trunk)
   await early(l, earlyMs)
+  if (trunk) return l // a chosen trunk (caller-ID passthrough) has its own fallback in the caller
   if (refusedEarly(l) && l.bird && BACKUP_TRUNK() && !/^sip:/i.test(String(to))) {
     log(`Bird refused ${from} → ${to} (cause ${l.cause ?? '?'}) — retrying via ${BACKUP_TRUNK()}`)
     const b = await originate({ ...meta, held: [], backupOf: l.id }, from, to, timeout, BACKUP_TRUNK()).catch(e => { log(`backup trunk: ${e.message}`); return null })
@@ -308,7 +309,7 @@ async function createOutboundCall(from, to, webhookUrl, connectionId, options = 
   if (!connected) return { error: 'call engine offline', status: 503, _provider: 'callengine' }
   let l
   try {
-    l = await dialWithBackup({ connection: connectionId || process.env.TELNYX_CALL_CONTROL_APP_ID || 'callengine-app', clientState: options.client_state, amd: !!options.answering_machine_detection }, from, to, options.timeout_secs || 30, options.earlyMs)
+    l = await dialWithBackup({ connection: connectionId || process.env.TELNYX_CALL_CONTROL_APP_ID || 'callengine-app', clientState: options.client_state, amd: !!options.answering_machine_detection }, from, to, options.timeout_secs || 30, options.earlyMs, options.trunk)
   } catch (e) { return { error: e.message, status: /allocate|not found|no such/i.test(e.message) ? 422 : 503, _provider: 'callengine' } }
   const held = l.held; l.held = null
   if (l.ended && !l.answered && !DEST_RESULT.has(Number(l.cause))) {

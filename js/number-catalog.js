@@ -5,7 +5,7 @@ const ibc = require('./infobip/countries')
 const mtc = require('./multitel/countries')
 const health = () => require('./provider-health')
 const ibOn = () => require('./infobip').selling() && !health().isDown('infobip')
-const mtOn = () => require('./multitel').enabled() && !health().isDown('multitel')
+const mtOn = () => require('./multitel').selling() && !health().isDown('multitel')
 
 function options(cc, type) {
   const out = []

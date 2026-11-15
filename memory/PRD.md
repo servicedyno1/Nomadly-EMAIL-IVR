@@ -256,3 +256,9 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Fixed: WL bots' false "MultiTEL DOWN" alerts (old non-IPv4 multitel client). Real issue left: MultiTEL balance $11.43 — top up.
 - Bot plan/number parity with web (except Enterprise) live on all brands.
 - Still open: JujuCloud email (only ensure cloudivr.net customers don't receive JujuCloud mail), Multitel NL inbound SMS + fax (provider), 7 carrier releases (401), 20 vs 18 replacement reconciliation.
+
+## Update 2026-11-15 13:20 UTC
+- Forwarding caller-ID choice (business number default / caller's number on US forwards via MultiTEL trunk, auto-fallback). Live E2E verified on-net.
+- NUMBER_PROVIDERS env (multitel | infobip | multitel,infobip); prod = multitel on all brands.
+- CNAM: EZCNAM primary, MultiTEL then SignalWire fallback on errors. Live verified.
+- Pro $100, brief bot copy, address-after-payment (untested end-to-end), Infobip inbound routing fix. Infobip outbound still 10309 (balance €2.79).
