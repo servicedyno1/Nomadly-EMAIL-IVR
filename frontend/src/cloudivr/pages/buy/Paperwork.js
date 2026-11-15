@@ -33,7 +33,7 @@ export function PaperworkNote({ paperwork, country, countryName, onChange }) {
   );
 }
 
-function DocumentUpload({ country, status, onChange }) {
+export function DocumentUpload({ country, status, onChange }) {
   const input = useRef(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);

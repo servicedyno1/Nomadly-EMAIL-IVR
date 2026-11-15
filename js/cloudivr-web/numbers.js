@@ -176,7 +176,7 @@ function _publicNumber(n, numbers) {
   return {
     phoneNumber: n.phoneNumber, country: n.country, countryName: n.countryName, type: n.type,
     plan: n.plan, planName: plan.name || n.plan, planPrice: n.planPrice, status: n.status, autoRenew: n.autoRenew !== false,
-    registration: n.registration ? { status: n.registration.status, documentsSent: !!n.registration.documentsSent } : null,
+    registration: n.registration ? { status: n.registration.status, documentsSent: !!n.registration.documentsSent, needsDetails: n.registration.status === 'needs_details', ...(n.registration.status === 'needs_details' ? { level: n.registration.level || 0, refundBy: new Date(new Date(n.registration.since).getTime() + 14 * 864e5).toISOString() } : {}) } : null,
     renewalPrice: lifecycle.renewalPrice(n), holdUntil: lifecycle.onHold(n) ? n._holdUntil : null, suspendReason: lifecycle.onHold(n) ? n._suspendReason || null : null,
     purchaseDate: n.purchaseDate, expiresAt: n.expiresAt, isSubNumber: !!n.isSubNumber, parentNumber: n.parentNumber || null, dryRun: !!n.dryRun,
     replacedBy: n.replacedBy || null, releaseAt: n.releaseAt || null, replaces: n.replaces || null,
@@ -360,7 +360,8 @@ function routes(router, deps) {
     })).map(r => ({ ...r, planAddons: Object.fromEntries(Object.keys(phoneConfig.plans).map(k => [k, phoneConfig.planAddon(k, country, type, r.surcharge)])) }))
     const fb = found.find(n => n._areaFallback)
     await searchCache.updateOne({ _id: req.webChatId }, { $set: { country, type, areaCode, results, at: new Date() } }, { upsert: true })
-    const paperwork = own === 'multitel' && offer.level ? { level: offer.level, businessOnly: !!offer.businessOnly, address: offer.address || 'any', documents: offer.level === 2 ? await deps.numberDocs?.status(req.webChatId, country) : null, compliance: offer.level === 2 ? { ...await deps.compliance?.state(req.webChatId), business: req.webUser?.legalProfile?.type === 'business' } : null } : null
+    // Paperwork is never shown while choosing — it is asked for after payment, on the number's page.
+    const paperwork = null
     res.json({ numbers: results.map(({ cost, ...r }) => r), fallback: fb ? { areaCode: fb._requestedAreaCode, region: fb._fallbackRegion } : null, paperwork })
   }))
 
@@ -398,7 +399,7 @@ function routes(router, deps) {
     if (offer.businessOnly && eu.type !== 'business') return `${name} numbers of this type are sold to businesses only. Switch your legal details to a business to buy one.`
     if (offer.address !== 'any' && eu.countryCode !== country) return `${name} numbers of this type need an address in ${name}. Your saved address is in ${eu.countryCode}.`
     if (offer.level === 2) { const why = await deps.compliance?.idIssue(chatId, eu.type === 'business'); if (why) return why }
-    if (offer.level === 2 && !(await deps.numberDocs?.status(chatId, country))?.ready) return `${name} numbers need documents. Upload them on this page before you buy.`
+    if (offer.level === 2 && !(await deps.numberDocs?.status(chatId, country))?.ready) return `${name} numbers need documents. Upload them on this number's page.`
     return null
   }
 
@@ -432,10 +433,8 @@ function routes(router, deps) {
     const ver = offer || hit?.provider === 'multitel' ? { required: false } : await verificationInfo(country, type, `${c.flag} ${c.name}`)
     if (ver.error) return { status: 424, body: { error: 'lookup_failed', message: ver.error } }
     // The usage rules are part of the Terms accepted at sign-up (no separate policy pop-up).
-    if (hit?.provider === 'multitel' && offer?.level && !presetOrder) {
-      const why = await paperworkIssue(chatId, country, c.name, offer)
-      if (why) return { status: 400, body: { error: 'paperwork_needed', message: why } }
-    }
+    // Paperwork never blocks the order: missing details / documents are asked for after payment (number page).
+    const regIssue = hit?.provider === 'multitel' && offer?.level && !presetOrder ? await paperworkIssue(chatId, country, c.name, offer) : null
     const base = sub ? (texting.offerOf(country, type)?.extraPrice ?? phoneConfig.SUB_NUMBER_BASE_PRICE) : plan.price + phoneConfig.planAddon(planKey, country, type, hit.surcharge || 0)
     const price = prepaid ? prepaid.amount : round2(base * (1 - (Number(coupon?.discount) || 0) / 100))
     if (!prepaid && !(await w.debit(chatId, price))) return { status: 402, body: { error: 'insufficient_balance', message: `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(chatId)).toFixed(2)} — top up first.` } }
@@ -472,7 +471,7 @@ function routes(router, deps) {
       const expiresAt = new Date(); expiresAt.setMonth(expiresAt.getMonth() + 1)
       const doc = {
         phoneNumber: selected, telnyxOrderId: order.id, provider: viaMultitel ? 'multitel' : viaInfobip ? 'infobip' : 'telnyx', country, countryName: c.name,
-        ...(order._needsRegistration ? { registration: { status: 'pending', since: new Date().toISOString() } } : {}),
+        ...(order._needsRegistration || regIssue ? { registration: { status: regIssue ? 'needs_details' : 'pending', level: offer?.level || 0, since: new Date().toISOString(), paid: price } } : {}),
         type, plan: planKey, planPrice: round2(base), ...(!sub && phoneConfig.planAddon(planKey, country, type, hit.surcharge || 0) ? { numberSurcharge: round2(phoneConfig.planAddon(planKey, country, type, hit.surcharge || 0)) } : {}), purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(), autoRenew: autoRenew !== false, status: order._pending ? 'provisioning' : 'active',
         sipUsername, sipPassword, telnyxSipUsername: tUser, telnyxSipPassword: tPass, telnyxCredentialId: tCredId, sipDomain: phoneConfig.WEB_SIP_DOMAIN,
         messagingProfileId: caps.sms ? tr.messagingProfileId || null : null, connectionId: tr.sipConnectionId || null, smsUsed: 0, minutesUsed: 0,
@@ -488,7 +487,7 @@ function routes(router, deps) {
       await phoneNumbersOf.updateOne({ _id: chatId }, { $push: { 'val.numbers': doc } }, { upsert: true })
       if (order._pending) await require('../pending-orders').enqueue({ chatId, phoneNumber: selected, order, amount: price, email })
       await deps.legalProfile?.recordResale({ chatId, phoneNumber: selected, provider: doc.provider, country })
-      if (doc.registration) deps.numberDocs?.submit({ chatId, email, phoneNumber: selected, country, countryName: c.name, type }).catch(e => log(`[CloudIVR-Web] MultiTEL documents for ${selected}: ${e.message}`))
+      if (doc.registration?.status === 'pending') deps.numberDocs?.submit({ chatId, email, phoneNumber: selected, country, countryName: c.name, type }).catch(e => log(`[CloudIVR-Web] MultiTEL documents for ${selected}: ${e.message}`))
       await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: sub ? 'purchase_sub' : 'purchase', plan: planKey, amount: price, paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), ...(sub ? { parentNumber: sub.parentNumber } : {}), ...(coupon ? { coupon: coupon.code, discountPct: coupon.discount } : {}), channel: 'web', timestamp: new Date().toISOString() })
       if (coupon?.code) {
         if (coupon.type === 'web-offer') await deps.offers?.markCodeUsed(chatId, coupon.code).catch(() => {})
@@ -768,6 +767,45 @@ function routes(router, deps) {
     await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.sipUsername': user, 'val.numbers.$.sipPassword': pass, 'val.numbers.$.telnyxSipUsername': live || process.env.SIP_SERVER_SECRET ? user : n.telnyxSipUsername || null, 'val.numbers.$.telnyxSipPassword': live || process.env.SIP_SERVER_SECRET ? pass : n.telnyxSipPassword || null, 'val.numbers.$.telnyxCredentialId': credId || (process.env.SIP_SERVER_SECRET ? `kam:${user}` : n.telnyxCredentialId || null) } })
     return { username: user, password: pass }
   }
+
+  // After payment: send the carrier details for a number that needs them, or cancel it for a full refund.
+  const regOffer = (n) => countries().find(x => x.code === n.country)?.offers?.[n.type] || null
+  router.post('/numbers/:phone/registration', withNumber(async (req, res) => {
+    const n = req.num, c = countries().find(x => x.code === n.country), offer = regOffer(n)
+    if (n.registration?.status !== 'needs_details' || !offer) return bad(res, 409, 'not_waiting', 'This number is not waiting for your details.')
+    const why = await paperworkIssue(req.webChatId, n.country, c?.name || n.country, offer)
+    if (why) return bad(res, 400, 'paperwork_needed', why)
+    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.registration.status': 'pending', 'val.numbers.$.registration.detailsAt': new Date().toISOString() } })
+    if (!n.dryRun) await deps.numberDocs?.submit({ chatId: req.webChatId, email: req.webUser?.email, phoneNumber: n.phoneNumber, country: n.country, countryName: c?.name || n.country, type: n.type }).catch(e => log(`[CloudIVR-Web] MultiTEL documents for ${n.phoneNumber}: ${e.message}`))
+    res.json({ ok: true })
+  }))
+  async function cancelForRefund(chatId, n, why) {
+    const ok = await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers': { $elemMatch: { phoneNumber: n.phoneNumber, 'registration.status': { $in: ['needs_details', 'pending'] } } } }, { $set: { 'val.numbers.$.status': 'released', 'val.numbers.$.releasedAt': new Date().toISOString(), 'val.numbers.$._releasedReason': why, 'val.numbers.$.registration.status': why, 'val.numbers.$.autoRenew': false } })
+    if (!ok.modifiedCount) return null
+    if (!dryRun() && !n.dryRun && n.telnyxOrderId) await telnyxApi.releaseNumber(n.telnyxOrderId).catch(e => log(`[CloudIVR-Web] release ${n.phoneNumber}: ${e.message}`))
+    const paid = round2(Number(n.registration?.paid) || (Number(n.planPrice) || 0) + (Number(n.numberSurcharge) || 0))
+    if (paid > 0) await w.credit(chatId, paid)
+    notifyAdmin(`↩️ CloudIVR web: ${n.phoneNumber} cancelled before carrier approval (${why}) — refunded $${paid} to ${chatId}`)
+    return paid
+  }
+  router.post('/numbers/:phone/registration/cancel', withNumber(async (req, res) => {
+    const paid = await cancelForRefund(req.webChatId, req.num, 'cancelled_by_customer')
+    if (paid === null) return bad(res, 409, 'not_cancellable', 'Only a number that is not approved yet can be cancelled for a refund.')
+    res.json({ refunded: paid, balance: await w.balance(req.webChatId) })
+  }))
+  // Paid but details never sent: reminders after 1 and 3 days, refund after 14.
+  async function chaseDetails(now = Date.now()) {
+    const push = (id, text) => require('./notify').push(id, text, null, { kind: 'number', meta: { link: '/app/numbers' } }).catch(() => {})
+    for (const d of await phoneNumbersOf.find({ 'val.numbers.registration.status': 'needs_details' }).toArray()) for (const n of d.val.numbers.filter(x => x.registration?.status === 'needs_details')) {
+      const age = now - new Date(n.registration.since).getTime()
+      if (age >= 14 * 864e5) { const paid = await cancelForRefund(d._id, n, 'details_missing'); if (paid !== null) await push(d._id, `We didn't receive the carrier details for ${n.phoneNumber}, so we released it and refunded $${paid.toFixed(2)} to your wallet.`); continue }
+      const k = age >= 3 * 864e5 ? 'remind2' : age >= 864e5 ? 'remind1' : null
+      if (!k || n.registration[k]) continue
+      const u = await phoneNumbersOf.updateOne({ _id: d._id, 'val.numbers': { $elemMatch: { phoneNumber: n.phoneNumber, [`registration.${k}`]: { $exists: false } } } }, { $set: { 'val.numbers.$.registration.remind1': true, [`val.numbers.$.registration.${k}`]: true } })
+      if (u.modifiedCount) await push(d._id, `${n.phoneNumber} is paid and reserved — the carrier just needs a few details to switch it on. Open the number in My numbers to finish, or cancel it there for a full refund. Without the details it is refunded automatically after 14 days.`)
+    }
+  }
+  require('../active-slot').singletonInterval('web-number-details', () => chaseDetails().catch(e => log(`[CloudIVR-Web] details chase: ${e.message}`)), 30 * 60000)
 
   // Numbers that can send and receive texts with no carrier approval (no ID, no 10DLC) — sold on the Texting Number page.
   // Instant no-ID two-way texting countries, sold on the Basic plan; the USA is the Spenza Texting Number (assigned after payment).

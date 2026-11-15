@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { FlagSelect } from '../../Pickers';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Printer, Search, Loader2, Check } from 'lucide-react';
 import { api, money, useApi } from '../../api';
 import { cp } from '../../paths';
 import { Field, ErrorNote } from '../../ui';
 import { WalletPay } from '../../WalletPay';
-import { PaperworkNote } from './Paperwork';
 
 function FaxResults({ numbers, pick, setPick }) {
   if (!numbers.length) return <div className="text-sm text-[#a1a1aa] mt-4" data-testid="fax-buy-no-results">No fax numbers for that search. Try another area code.</div>;
@@ -36,16 +35,12 @@ export function FaxNumberBuy({ balance, onBought, onStage }) {
   const [autoRenew, setAutoRenew] = useState(true);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState(null);
-  const [docs, setDocs] = useState(null);
   useEffect(() => { onStage?.(pick ? 3 : 2); }, [pick, onStage]);
   const price = offer?.price || 0;
   const country = offer?.countries?.find(c => c.code === q.country);
   const types = country?.types || [];
   const t = types.find(x => x.type === q.type) || types[0];
-  const level = { name_address: 1, documents: 2 }[t?.paperwork] || 0;
-  useEffect(() => { setDocs(null); if (level === 2) api(`/numbers/documents?country=${q.country}`).then(setDocs).catch(() => {}); }, [level, q.country]);
   if (offer && !offer.available) return <div className="civr-card p-5 mb-6 text-sm text-[#a1a1aa]" data-testid="fax-buy-unavailable">Fax numbers are not available right now. Please check back soon.</div>;
-  const paperwork = level ? { level, businessOnly: t.businessOnly, address: t.address, documents: docs } : null;
   const search = async (e) => {
     e.preventDefault(); setBusy('search'); setError(null); setPick(null);
     try { setRes(await api(`/fax-numbers/search?country=${q.country}&type=${t?.type || 'local'}${country?.areaCodes && q.areaCode ? `&areaCode=${q.areaCode}` : ''}`)); } catch (err) { setError(err); setRes(null); } finally { setBusy(''); }
@@ -55,7 +50,7 @@ export function FaxNumberBuy({ balance, onBought, onStage }) {
     try {
       const d = await api('/fax-numbers', { method: 'POST', body: { phoneNumber: pick.phoneNumber, autoRenew } });
       sessionStorage.removeItem('civr.faxPick');
-      toast.success(d.number.status === 'pending_registration' ? `${d.number.phoneNumber} is waiting for the carrier’s approval` : `${d.number.phoneNumber} is your fax number`);
+      toast.success(d.number.registration?.needsDetails ? `${d.number.phoneNumber} is paid and reserved — one quick step left to switch it on` : d.number.status === 'pending_registration' ? `${d.number.phoneNumber} is waiting for the carrier’s approval` : `${d.number.phoneNumber} is your fax number`);
       onBought?.(); nav(cp('/app/fax'));
     } catch (err) { setError(err); toast.error(err.message); } finally { setBusy(''); }
   };
@@ -81,7 +76,6 @@ export function FaxNumberBuy({ balance, onBought, onStage }) {
         ) : <div />}
         <button className="civr-btn civr-btn-primary" disabled={busy === 'search'} data-testid="fax-buy-search-button">{busy === 'search' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}Search fax numbers</button>
       </form>
-      {paperwork && <div className="mt-4"><PaperworkNote paperwork={paperwork} country={q.country} countryName={country.name} onChange={setDocs} /><p className="text-xs text-[var(--c-muted)]" data-testid="fax-buy-approval-note">You pay now. The carrier approves the number within a few days, and your month starts once it’s live. If the carrier says no, the number is released and you get a full refund. <Link to={cp('/app/settings')} className="text-[#818cf8] underline underline-offset-2" data-testid="fax-buy-legal-link">Edit legal details</Link></p></div>}
       <div className="mt-4"><ErrorNote error={error} testid="fax-buy-error" /></div>
       {res?.nearbyOnly && <div className="text-sm text-[#a1a1aa] mt-4" data-testid="fax-buy-nearby-note">{`No fax numbers in area code ${res.areaCode} right now — these are nearby numbers.`}</div>}
       {pick && !res && <div className="civr-card p-4 mt-4 text-sm flex items-center gap-2" data-testid="fax-buy-picked-note"><Check className="w-4 h-4 text-[#818cf8]" />{`${pick.phoneNumber} from your search is selected.`}</div>}

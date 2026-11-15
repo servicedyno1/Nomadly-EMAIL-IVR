@@ -26,6 +26,7 @@ import { confirmLeave } from '../guard';
 import { ReachChip } from '../SmsReach';
 import { SetupGuide } from './number/SetupGuide';
 import { Crumbs } from '../SectionTabs';
+import { NumberRegistration } from './number/NumberRegistration';
 
 // Tabs in 5 groups. Group → [id, label, sub-tabs]; sub-tab → [id, label, access gate, component]. Tab ids are unchanged (old ?tab= links work).
 const GROUPS = [
@@ -110,6 +111,7 @@ export default function NumberDetail() {
           <h1 className="font-mono text-4xl sm:text-5xl mt-2" data-testid="number-detail-phone">{pv.phone(n.phoneNumber)}</h1>
           <div className="mt-3"><CapBadges caps={caps} testid="number-detail-caps" /></div>
           <div className="mt-3"><Capacity capacity={n.capacity} testid="number-detail-capacity" /></div>
+          <NumberRegistration n={n} reload={reload} />
           {caps.includes('texts') && <div className="mt-3"><ReachChip phone={n.phoneNumber} testid="number-sms-reach" /></div>}
         </div>
         <div className="flex flex-wrap items-center gap-2">

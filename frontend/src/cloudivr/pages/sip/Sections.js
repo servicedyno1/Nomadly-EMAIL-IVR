@@ -36,7 +36,7 @@ function ConnectionCard({ domain }) {
   const copy = async () => {
     try { await navigator.clipboard.writeText(domain); toast.success('Server copied'); } catch (_) { toast.error('Couldn’t copy — select the address instead.'); }
   };
-  const rows = [['Port', '5060 (UDP or TCP)', 'port'], ['Username', 'On your number’s SIP tab', 'username'], ['Password', 'On your number’s SIP tab', 'password']];
+  const rows = [['Port', '5060 (UDP/TCP) · 5061 (TLS)', 'port'], ['Username', 'On your number’s SIP tab', 'username'], ['Password', 'On your number’s SIP tab', 'password']];
   return (
     <Reveal className="civr-l-dark relative overflow-hidden rounded-3xl p-6 md:p-8 h-fit" data-testid="sip-connection-card">
       <div className="absolute inset-0 civr-l-gridbg opacity-60" />

@@ -13,7 +13,7 @@ const L = {
     head: (p, f, pp, n) => `📠 <b>Fax Numbers</b>\n\nA fax-only number sends and receives faxes (no calls or texts). <b>$${p}/month</b> · ${f} free pages a month, then $${pp}/page.\nAvailable in ${n} countries.`,
     none: 'You have no fax numbers yet.', stPending: '⏳ waiting for carrier approval', stPaused: '⚠️ paused, top up to renew', stActive: '✅ active',
     unavailable: 'Fax numbers are not available right now. Please try again later.',
-    where: '🌍 <b>Where should your fax number be?</b>\n\n<i>“name + address” and “ID documents” countries: the carrier approves the number within a few days; full refund if it says no.</i>',
+    where: '🌍 <b>Where should your fax number be?</b>',
     searching: '🔍 Searching fax numbers…', noneFound: 'No fax numbers found there right now. Try another area code or country.', nearby: (ac) => `ℹ️ No fax numbers in area code ${ac} right now — these are nearby.\n\n`,
     pickHead: (c) => `📠 <b>Pick your fax number</b> — ${c}`, assigned: '… (exact number assigned when you buy)', whichType: (c) => `📱 <b>${c}</b> — which kind of number?`,
     askArea: '🏙️ Type a 3-digit area code (e.g. 212), or tap “Any area code”.', tapNumber: 'Tap one of the numbers above to pick it.',
@@ -40,7 +40,7 @@ const L = {
     head: (p, f, pp, n) => `📠 <b>Numéros de fax</b>\n\nUn numéro fax uniquement envoie et reçoit des fax (pas d’appels ni de SMS). <b>${p} $/mois</b> · ${f} pages gratuites par mois, puis ${pp} $/page.\nDisponible dans ${n} pays.`,
     none: 'Vous n’avez pas encore de numéro de fax.', stPending: '⏳ en attente de l’opérateur', stPaused: '⚠️ suspendu, rechargez pour renouveler', stActive: '✅ actif',
     unavailable: 'Les numéros de fax ne sont pas disponibles pour le moment. Réessayez plus tard.',
-    where: '🌍 <b>Dans quel pays voulez-vous votre numéro de fax ?</b>\n\n<i>Pays « nom + adresse » et « pièces d’identité » : l’opérateur valide le numéro sous quelques jours ; remboursement total en cas de refus.</i>',
+    where: '🌍 <b>Dans quel pays voulez-vous votre numéro de fax ?</b>',
     searching: '🔍 Recherche de numéros de fax…', noneFound: 'Aucun numéro de fax disponible ici pour le moment. Essayez un autre indicatif ou pays.', nearby: (ac) => `ℹ️ Aucun numéro de fax avec l’indicatif ${ac} pour le moment — voici des numéros proches.\n\n`,
     pickHead: (c) => `📠 <b>Choisissez votre numéro de fax</b> — ${c}`, assigned: '… (numéro exact attribué à l’achat)', whichType: (c) => `📱 <b>${c}</b> — quel type de numéro ?`,
     askArea: '🏙️ Tapez un indicatif à 3 chiffres (ex. 212) ou touchez « N’importe quel indicatif ».', tapNumber: 'Touchez un des numéros ci-dessus pour le choisir.',
@@ -67,7 +67,7 @@ const L = {
     head: (p, f, pp, n) => `📠 <b>传真号码</b>\n\n纯传真号码只能收发传真（不能通话或短信）。<b>$${p}/月</b> · 每月 ${f} 页免费，之后 $${pp}/页。\n覆盖 ${n} 个国家。`,
     none: '您还没有传真号码。', stPending: '⏳ 等待运营商审核', stPaused: '⚠️ 已暂停，请充值续费', stActive: '✅ 使用中',
     unavailable: '传真号码暂时不可用，请稍后再试。',
-    where: '🌍 <b>您想要哪个国家的传真号码？</b>\n\n<i>标注“姓名 + 地址”或“身份证件”的国家：运营商会在几天内审核；如被拒绝将全额退款。</i>',
+    where: '🌍 <b>您想要哪个国家的传真号码？</b>',
     searching: '🔍 正在搜索传真号码…', noneFound: '这里暂时没有传真号码，请换个区号或国家。', nearby: (ac) => `ℹ️ 区号 ${ac} 暂无传真号码——以下为附近号码。\n\n`,
     pickHead: (c) => `📠 <b>选择您的传真号码</b> — ${c}`, assigned: '…（购买时分配具体号码）', whichType: (c) => `📱 <b>${c}</b> — 选择号码类型？`,
     askArea: '🏙️ 输入 3 位区号（如 212），或点击“任意区号”。', tapNumber: '请点击上方的号码进行选择。',
@@ -94,7 +94,7 @@ const L = {
     head: (p, f, pp, n) => `📠 <b>फैक्स नंबर</b>\n\nफैक्स-केवल नंबर फैक्स भेजता और प्राप्त करता है (कॉल या SMS नहीं)। <b>$${p}/माह</b> · हर माह ${f} पेज मुफ्त, फिर $${pp}/पेज।\n${n} देशों में उपलब्ध।`,
     none: 'आपके पास अभी कोई फैक्स नंबर नहीं है।', stPending: '⏳ कैरियर की मंज़ूरी का इंतज़ार', stPaused: '⚠️ रुका हुआ, रिन्यू के लिए टॉप अप करें', stActive: '✅ सक्रिय',
     unavailable: 'फैक्स नंबर अभी उपलब्ध नहीं हैं। कृपया बाद में कोशिश करें।',
-    where: '🌍 <b>आपका फैक्स नंबर किस देश में हो?</b>\n\n<i>“नाम + पता” और “पहचान दस्तावेज़” वाले देश: कैरियर कुछ दिनों में नंबर मंज़ूर करता है; मना करने पर पूरा रिफंड।</i>',
+    where: '🌍 <b>आपका फैक्स नंबर किस देश में हो?</b>',
     searching: '🔍 फैक्स नंबर खोजे जा रहे हैं…', noneFound: 'अभी वहाँ कोई फैक्स नंबर नहीं मिला। दूसरा एरिया कोड या देश आज़माएँ।', nearby: (ac) => `ℹ️ एरिया कोड ${ac} में अभी फैक्स नंबर नहीं हैं — ये पास के नंबर हैं।\n\n`,
     pickHead: (c) => `📠 <b>अपना फैक्स नंबर चुनें</b> — ${c}`, assigned: '… (खरीदते समय सटीक नंबर मिलेगा)', whichType: (c) => `📱 <b>${c}</b> — किस तरह का नंबर?`,
     askArea: '🏙️ 3 अंकों का एरिया कोड लिखें (जैसे 212), या “कोई भी एरिया कोड” दबाएँ।', tapNumber: 'चुनने के लिए ऊपर दिए किसी नंबर पर टैप करें।',
@@ -121,7 +121,7 @@ const L = {
     head: (p, f, pp, n) => `📠 <b>شماره‌های فکس</b>\n\nشماره فقط‌فکس، فکس می‌فرستد و می‌گیرد (بدون تماس یا پیامک). <b>${p}$ در ماه</b> · ${f} صفحه رایگان در ماه، سپس ${pp}$ برای هر صفحه.\nدر ${n} کشور.`,
     none: 'هنوز شماره فکسی ندارید.', stPending: '⏳ در انتظار تأیید اپراتور', stPaused: '⚠️ متوقف، برای تمدید شارژ کنید', stActive: '✅ فعال',
     unavailable: 'شماره‌های فکس فعلاً در دسترس نیستند. لطفاً بعداً تلاش کنید.',
-    where: '🌍 <b>شماره فکس شما در کدام کشور باشد؟</b>\n\n<i>کشورهای «نام + نشانی» و «مدارک هویتی»: اپراتور ظرف چند روز شماره را تأیید می‌کند؛ در صورت رد، کل مبلغ بازگردانده می‌شود.</i>',
+    where: '🌍 <b>شماره فکس شما در کدام کشور باشد؟</b>',
     searching: '🔍 در حال جستجوی شماره فکس…', noneFound: 'فعلاً شماره فکسی آنجا پیدا نشد. کد منطقه یا کشور دیگری را امتحان کنید.', nearby: (ac) => `ℹ️ فعلاً در کد منطقه ${ac} شماره فکسی نیست — این‌ها شماره‌های نزدیک هستند.\n\n`,
     pickHead: (c) => `📠 <b>شماره فکس خود را انتخاب کنید</b> — ${c}`, assigned: '… (شماره دقیق هنگام خرید تعیین می‌شود)', whichType: (c) => `📱 <b>${c}</b> — چه نوع شماره‌ای؟`,
     askArea: '🏙️ یک کد منطقه ۳ رقمی بنویسید (مثلاً 212) یا «هر کد منطقه» را بزنید.', tapNumber: 'برای انتخاب، یکی از شماره‌های بالا را لمس کنید.',
@@ -142,7 +142,11 @@ const L = {
     menuText: (n, u) => `📠 <b>شماره فکس</b> — ${n.phoneNumber}\n\n🆓 صفحات رایگان باقی‌مانده این ماه: <b>${u.left}/${u.free}</b>\n💵 پس از آن: <b>${u.pagePrice}$ برای هر صفحه</b> (ارسالی یا دریافتی) از کیف پول\n🔁 ${n.price}$ در ماه · ${n.autoRenew ? 'تمدید' : 'پایان'} در ${String(n.expiresAt || '').slice(0, 10)}\n\n<i>فکس‌های دریافتی به صورت PDF اینجا می‌آیند.</i>`,
   },
 }
-const T = (lang) => L[lang] || L.en
+const X = {
+  en: { paidNext: (n, c) => `✅ Paid — <b>${n}</b> is reserved for you.\n\nOne more step: the carrier in ${c} needs a few details to switch it on (2 minutes). You can also do it later from 📠 Fax numbers, or cancel there for a full refund.`, finish: '📝 Finish details', cancelRefund: '↩️ Cancel for a refund', refunded: (n, a) => `↩️ ${n} is cancelled and $${a} is back in your wallet.`, needsOwn: (n, d) => `📝 ${n} is paid and reserved — the carrier needs a few details to switch it on. Without them it is refunded automatically on ${d}.`, stNeeds: '📝 paid — details needed' },
+  fr: { paidNext: (n, c) => `✅ Payé — <b>${n}</b> vous est réservé.\n\nDernière étape : l’opérateur (${c}) a besoin de quelques informations pour l’activer (2 minutes). Vous pouvez aussi le faire plus tard depuis 📠 Numéros de fax, ou annuler pour un remboursement complet.`, finish: '📝 Compléter mes infos', cancelRefund: '↩️ Annuler et rembourser', refunded: (n, a) => `↩️ ${n} est annulé et ${a} $ sont de retour dans votre portefeuille.`, needsOwn: (n, d) => `📝 ${n} est payé et réservé — l’opérateur a besoin de quelques informations pour l’activer. Sans elles, il est remboursé automatiquement le ${d}.`, stNeeds: '📝 payé — infos requises' },
+}
+const T = (lang) => ({ ...X.en, ...L.en, ...(L[lang] || {}), ...(X[lang] || {}) })
 const ALL_MENU = Object.values(L).map(x => x.menu)
 const BTN = { menu: L.en.menu, all: ALL_MENU }
 let api = null, pushFn = () => {}, dbRef = null
@@ -177,21 +181,21 @@ async function saveDoc(chatId, cc, buffer, mime, name) {
 async function handle(ctx) {
   const { chatId, message, action, info, setAction, save, send, kb } = ctx
   if (!api) return false
-  const t = T(ctx.lang), offer = api.offer()
+  const t = T(ctx.lang), offer = api.offer({ withPaperwork: true })
   const back = /^(⬅️ )?(Back|Retour|返回|वापस|بازگشت)$/i.test(String(message || ''))
-  const paperLbl = (p) => (p === 'documents' ? ` · ${t.idDocs}` : p !== 'none' ? ` · ${t.nameAddr}` : '')
+  const paperLbl = () => '' // paperwork is only mentioned after payment
   const typeBtn = (x) => `${x.label}${paperLbl(x.paperwork)}`
   const list = async () => {
     const mine = await api.list(chatId)
     await setAction('fxnList')
-    const lines = mine.map(n => `• <b>${esc(n.phoneNumber)}</b> (${n.country}) — ${n.status === 'pending_registration' ? t.stPending : n.status === 'past_due' ? t.stPaused : t.stActive}`)
+    const lines = mine.map(n => `• <b>${esc(n.phoneNumber)}</b> (${n.country}) — ${n.registration?.needsDetails ? t.stNeeds : n.status === 'pending_registration' ? t.stPending : n.status === 'past_due' ? t.stPaused : t.stActive}`)
     return send(`${t.head(offer.price, offer.freePages, offer.pagePrice, offer.countries.length)}\n\n${lines.length ? lines.join('\n') : `<i>${t.none}</i>`}`, kb([...mine.filter(n => n.status !== 'released').map(n => [`📠 ${n.phoneNumber}`]), [t.buy]]))
   }
   if (isMenu(message)) return list()
   if (!String(action || '').startsWith('fxn')) return false
   if (!offer.available) { await send(t.unavailable); return true }
 
-  const pickCountry = async () => { await setAction('fxnCountry'); return send(t.where, kb(offer.countries.map(c => [countryBtn(c) + (c.types.every(x => x.paperwork === 'documents') ? ` · ${t.idDocs}` : c.types.every(x => x.paperwork !== 'none') ? ` · ${t.nameAddr}` : '')]))) }
+  const pickCountry = async () => { await setAction('fxnCountry'); return send(t.where, kb(offer.countries.map(c => [countryBtn(c)]))) }
   const country = offer.countries.find(c => c.code === info?.fxnCountry)
   const type = country?.types.find(x => x.type === info?.fxnType) || country?.types[0]
   const P = info?.fxnPerson || {}
@@ -215,8 +219,7 @@ async function handle(ctx) {
   const confirm = async () => {
     const bal = await ctx.wallet()
     await setAction('fxnConfirm')
-    const reg = type.paperwork !== 'none', p = info.fxnPerson || {}
-    const who = reg ? `\n👤 ${esc(p.companyName || `${p.firstName} ${p.lastName}`)} · ${esc([p.address, p.postalCode, p.city, p.countryCode].filter(Boolean).join(', '))}\n\n${t.approval}` : ''
+    const who = ''
     return send(`${t.review}\n\n📠 <b>${esc(info.fxnPick)}</b> · ${esc(country.name)} ${type.label.toLowerCase()}\n${t.perMonth(offer.price)}\n${t.pages(offer.freePages, offer.pagePrice)}${who}\n\n${t.wallet(bal.toFixed(2))}${bal < offer.price ? t.short((offer.price - bal).toFixed(2)) : ''}`, kb(bal >= offer.price ? [[t.pay(offer.price)]] : []))
   }
   // Paperwork chain: who → company → name → street → city → postcode → address country → phone → documents → signature.
@@ -239,14 +242,36 @@ async function handle(ctx) {
   }
   const askSign = async () => { const p = info.fxnPerson || {}; await setAction('fxnSign'); return send(t.sign(esc(`${p.firstName || ''} ${p.lastName || ''}`.trim())), kb([])) }
   const text = String(message || '').trim()
+  // After payment: the collected details go to the carrier for the paid number.
+  const submitDetails = async () => {
+    const p = info.fxnPerson || {}
+    const endUser = { type: p.type, name: p.companyName || `${p.firstName} ${p.lastName}`, contact: p.companyName ? `${p.firstName} ${p.lastName}` : '', address: [p.address, p.postalCode, p.city, p.countryCode].filter(Boolean).join(', '), countryCode: p.countryCode }
+    const person = { ...p, signature: p.signature?.typedName ? require('./multitel/identity').signaturePng(p.signature.typedName) : null }
+    try { const n = await api.submitDetails(chatId, info.fxnPaid, { endUser, person }); await save('fxnPaid', null); await send(t.paidPending(esc(n.phoneNumber))) } catch (e) { await send(`⚠️ ${e.message}`) }
+    return list()
+  }
 
   if (action === 'fxnList') {
     if (back) return ctx.hub()
     if (message === t.buy) return pickCountry()
     const own = (await api.list(chatId)).find(n => `📠 ${n.phoneNumber}` === message)
     if (own) {
-      if (own.status !== 'active') return send(own.status === 'pending_registration' ? t.pendingOwn(own.phoneNumber) : t.pausedOwn(own.phoneNumber))
+      if (own.status === 'pending_registration') {
+        await save('fxnPaid', own.phoneNumber); await save('fxnCountry', own.country); await save('fxnType', own.type); await save('fxnFresh', false)
+        await setAction('fxnPend')
+        return send(own.registration?.needsDetails ? t.needsOwn(own.phoneNumber, String(own.registration.refundBy || '').slice(0, 10)) : t.pendingOwn(own.phoneNumber), kb([...(own.registration?.needsDetails ? [[t.finish]] : []), [t.cancelRefund]]))
+      }
+      if (own.status !== 'active') return send(t.pausedOwn(own.phoneNumber))
       return ctx.openFax(own.phoneNumber)
+    }
+    return list()
+  }
+  if (action === 'fxnPend') {
+    if (back) return list()
+    if (message === t.finish) return askWho()
+    if (message === t.cancelRefund) {
+      try { const r = await api.cancelPending(chatId, info.fxnPaid); await save('fxnPaid', null); await send(t.refunded(esc(info.fxnPaid), r.refunded.toFixed(2))) } catch (e) { await send(`⚠️ ${e.message}`) }
+      return list()
     }
     return list()
   }
@@ -279,10 +304,9 @@ async function handle(ctx) {
     const phone = text.replace(/^📠\s*/, '').trim()
     if (!(info?.fxnResults || []).includes(phone)) return send(t.tapNumber)
     await save('fxnPick', phone); info.fxnPick = phone
-    if (type.paperwork === 'none') return confirm()
-    return askWho()
+    return confirm()
   }
-  if (back && /^fxn(Saved|Who|Company|Name|Street|City|Postcode|AddrCountry|AddrType|Phone|Docs|Sign)$/.test(action)) return doSearch(null)
+  if (back && /^fxn(Saved|Who|Company|Name|Street|City|Postcode|AddrCountry|AddrType|Phone|Docs|Sign)$/.test(action)) return list()
   if (action === 'fxnSaved') {
     if (message === t.newDetails) { await save('fxnFresh', true); info.fxnFresh = true; info.fxnPerson = {}; await save('fxnPerson', {}); return askWho() }
     if (message !== t.useSaved) return askWho()
@@ -332,17 +356,15 @@ async function handle(ctx) {
     p.signature = { mode: 'typed', typedName: text.slice(0, 80), consentAt: new Date(), via: 'telegram' }
     info.fxnPerson = p; await save('fxnPerson', p)
     await legal().updateOne({ _id: String(chatId) }, { $set: { person: p, updatedAt: new Date() } }, { upsert: true })
-    return confirm()
+    return submitDetails()
   }
   if (action === 'fxnConfirm') {
     if (back) return doSearch(null)
     if (message !== t.pay(offer.price)) return confirm()
-    const reg = type.paperwork !== 'none', p = info.fxnPerson || {}
-    const endUser = reg ? { type: p.type, name: p.companyName || `${p.firstName} ${p.lastName}`, contact: p.companyName ? `${p.firstName} ${p.lastName}` : '', address: [p.address, p.postalCode, p.city, p.countryCode].filter(Boolean).join(', '), countryCode: p.countryCode } : null
-    const person = reg ? { ...p, signature: p.signature?.typedName ? require('./multitel/identity').signaturePng(p.signature.typedName) : null } : null
     try {
-      const r = await api.buy(chatId, { phoneNumber: info.fxnPick, autoRenew: true, endUser, person })
+      const r = await api.buy(chatId, { phoneNumber: info.fxnPick, autoRenew: true })
       await save('fxnPick', null)
+      if (r.number.registration?.needsDetails) { await save('fxnPaid', r.number.phoneNumber); info.fxnPaid = r.number.phoneNumber; await send(t.paidNext(esc(r.number.phoneNumber), esc(country.name))); return askWho() }
       await send(r.number.status === 'pending_registration' ? t.paidPending(esc(r.number.phoneNumber)) : t.paidActive(esc(r.number.phoneNumber)))
       return list()
     } catch (e) {

@@ -24,12 +24,16 @@ function routes(router, { db, h, upload, numbersApi, notifyAdmin, legalProfile }
     await legalProfile?.recordResale({ chatId: req.webChatId, phoneNumber: r?.number?.phoneNumber || phoneNumber, provider: 'fax', country: r?.number?.country || null })
     return r
   })))
+  // After payment: send the carrier details (legal profile + uploaded documents), or cancel for a full refund.
+  router.post('/fax-numbers/:phone/details', h((req, res) => out(res, async () => ({ number: await faxNums.submitDetails(req.webChatId, req.params.phone, { endUser: await legalProfile?.endUserOf(req.webChatId).catch(() => null), person: require('../multitel/identity').personFromLegal(req.webUser), email: req.webUser?.email }) }))))
+  router.post('/fax-numbers/:phone/cancel', h((req, res) => out(res, () => faxNums.cancelPending(req.webChatId, req.params.phone))))
   router.patch('/fax-numbers/:phone', h((req, res) => out(res, async () => ({ number: await faxNums.setAutoRenew(req.webChatId, req.params.phone, !!req.body?.autoRenew) }))))
 
   router.get('/fax', h(async (req, res) => {
     // Web fax runs on the fax-only account, so only fax-only numbers are listed.
-    const nums = await faxOnly(req.webChatId)
+    const nums = await faxOnly(req.webChatId), pubs = await faxNums.list(req.webChatId)
     const numbers = await Promise.all(nums.map(async n => ({
+      registration: pubs.find(x => x.phoneNumber === n.phoneNumber)?.registration || null, country: n.country,
       phoneNumber: n.phoneNumber, plan: n.plan, faxOnly: !!n.faxOnly, status: n.status, price: n.price, autoRenew: n.autoRenew !== false, expiresAt: n.expiresAt, eligible: fax.eligible(n), faxLine: fax.lineOn(n), voiceRouting: fax.voiceRouting(n), usage: fax.eligible(n) ? await fax.usage(n) : null,
     })))
     res.json({ numbers, faxes: await fax.list(req.webChatId), batches: await fax.listBatches(req.webChatId), pricing: { freePages: fax.FREE_PAGES, pagePrice: fax.PAGE_PRICE, bulkMax: fax.BULK_MAX } })

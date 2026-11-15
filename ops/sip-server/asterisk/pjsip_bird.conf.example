@@ -1,5 +1,5 @@
 ; Bird SIP trunk for the call engine (trunk created by js/bird ensureTrunk; outbound admitted by this server's IP).
-; Signalling over TLS 5061 (Bird's public-CA cert verified), audio SRTP (SDES) mandatory — no plain-RTP fallback.
+; Signalling over TLS 5071 (5061 is Kamailio TLS for softphones) (Bird's public-CA cert verified), audio SRTP (SDES) mandatory — no plain-RTP fallback.
 ; Outbound: PJSIP/<number>@bird → sip:<number>@__BIRD_TRUNK_DOMAIN__:5061;transport=tls
 ; Inbound: Bird gateway sip:sip-tls.cloudivr.net:5061;transport=tls (Let's Encrypt via certbot dns-cloudflare,
 ; deploy hook /etc/letsencrypt/renewal-hooks/deploy/asterisk-tls.sh copies it to /etc/asterisk/keys/sip-tls.*).
@@ -7,7 +7,7 @@
 [transport-tls]
 type=transport
 protocol=tls
-bind=0.0.0.0:5061
+bind=0.0.0.0:5071
 cert_file=/etc/asterisk/keys/sip-tls.crt
 priv_key_file=/etc/asterisk/keys/sip-tls.key
 ca_list_file=/etc/ssl/certs/ca-certificates.crt

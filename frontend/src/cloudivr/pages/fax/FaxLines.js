@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { api, money, enc } from '../../api';
 import { ask } from '../../confirm';
 import { Toggle } from '../../ui';
+import { FinishRegistration } from './FinishRegistration';
 
 // Free-page meter + "Fax line" switch (receiving moves the number off voice) for each Business number.
 function LineRow({ n, reload }) {
@@ -39,6 +40,7 @@ function LineRow({ n, reload }) {
         </div>
         {n.faxOnly ? <span className="civr-pill" data-testid={`fax-only-pill-${id}`}>Fax only</span> : <Toggle checked={!!n.faxLine} onChange={flip} disabled={busy} label={`Fax line for ${n.phoneNumber}`} testid={`fax-line-toggle-${id}`} />}
       </div>
+      {n.faxOnly && n.registration && <FinishRegistration n={n} reload={reload} />}
       {n.faxOnly && <div className="mt-3 flex items-center justify-between text-sm"><span className="text-[#a1a1aa]">Renew monthly</span><Toggle checked={!!n.autoRenew} onChange={renew} disabled={busy} label={`Auto-renew ${n.phoneNumber}`} testid={`fax-only-autorenew-${id}`} /></div>}
       <div className="mt-3">
         <div className="h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#34d399] transition-[width] duration-500" style={{ width: `${(u.left / u.free) * 100}%` }} /></div>

@@ -3,12 +3,16 @@ import socket, hashlib, re, sys, random, string, os
 # usage: sw_sip_register_check.py domain user pass [host] ; env SIP_TRANSPORT=udp|tcp, SIP_EXPIRES (0 = check only, no binding)
 domain, user, pw = sys.argv[1], sys.argv[2], sys.argv[3]
 host = sys.argv[4] if len(sys.argv) > 4 else domain
-port = 5060
 proto = os.environ.get('SIP_TRANSPORT', 'udp').lower()
+port = 5061 if proto == 'tls' else 5060
 expires = os.environ.get('SIP_EXPIRES', '60')
 addr = (socket.gethostbyname(host), port)
-if proto == 'tcp':
+if proto in ('tcp', 'tls'):
     s = socket.create_connection(addr, timeout=8)
+    if proto == 'tls':
+        import ssl
+        ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
+        s = ctx.wrap_socket(s, server_hostname=domain)
 else:
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.bind(('', 0))
 s.settimeout(8)
@@ -25,9 +29,9 @@ tag = ''.join(random.choices(string.ascii_lowercase+string.digits, k=8))
 def recv():
     data = b''
     while True:
-        chunk = s.recv(4096) if proto == 'tcp' else s.recvfrom(4096)[0]
+        chunk = s.recv(4096) if proto in ('tcp', 'tls') else s.recvfrom(4096)[0]
         data += chunk
-        if proto != 'tcp' or b'\r\n\r\n' in data:
+        if proto not in ('tcp', 'tls') or b'\r\n\r\n' in data:
             txt = data.decode(errors='ignore')
             if txt.startswith('SIP/2.0 100'):
                 data = data.split(b'\r\n\r\n', 1)[1] if b'\r\n\r\n' in data else b''
@@ -53,7 +57,7 @@ def register(cseq, auth=None):
         lines.append(auth)
     lines += ['Content-Length: 0', '', '']
     msg = ('\r\n'.join(lines)).encode()
-    s.sendall(msg) if proto == 'tcp' else s.sendto(msg, addr)
+    s.sendall(msg) if proto in ('tcp', 'tls') else s.sendto(msg, addr)
     return recv()
 
 r1 = register(1)

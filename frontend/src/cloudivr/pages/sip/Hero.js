@@ -93,7 +93,7 @@ function StatStrip({ catalog }) {
   const pick = sipFrom(catalog);
   const stats = [
     [catalog?.countries?.length || 2, 'Countries', true],
-    ['5060', 'SIP port · UDP or TCP', false],
+    ['5060', 'SIP port · 5061 for TLS', false],
     [pick ? usd(pick.price) : '$75', 'SIP from / month', true],
     ['24/7', 'Calls ring your apps', false],
   ];
@@ -115,7 +115,7 @@ export function SipHero({ catalog }) {
   const t = TITLE[useLang().lang] || TITLE.en;
   const n = catalog?.countries?.length || 2;
   const pick = sipFrom(catalog);
-  const trust = ['Works with free apps', 'UDP & TCP', 'No contracts', 'Crypto & wallet payments'];
+  const trust = ['Works with free apps', 'UDP, TCP & TLS', 'No contracts', 'Crypto & wallet payments'];
   return (
     <section className="civr-l-cream relative overflow-hidden pt-32 md:pt-40" data-testid="sip-hero">
       <div className="absolute inset-0 civr-l-gridbg civr-l-mask" />

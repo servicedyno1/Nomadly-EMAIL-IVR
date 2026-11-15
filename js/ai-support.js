@@ -303,14 +303,17 @@ From there you can:
 
 SIP connection details:
 - Server/Domain: <code>${SIP_DOMAIN}</code>
-- Port: 5060 over UDP or TCP (TLS is not offered for softphones — set the transport to UDP or TCP)
+- Ports: 5060 (UDP/TCP), 5061 (TLS — encrypted sign-in)
 - Codecs: G.711μ, G.711a, Opus
 - DTMF: RFC 2833
 
-NOTE: Every paid plan with a calling number includes SIP credentials. If a softphone won't connect: check the server is exactly the domain above, port 5060, transport UDP or TCP, and copy the username + password again from 🔑 SIP Credentials (old logins from a replaced number stop working). Still stuck → 🔄 Reset Password for a fresh pair.
+NOTE: Every paid plan with a calling number includes SIP credentials. If a softphone won't connect: check the server is exactly the domain above, port 5060 with UDP or TCP (or 5061 with TLS), and copy the username + password again from 🔑 SIP Credentials (old logins from a replaced number stop working). Still stuck → 🔄 Reset Password for a fresh pair.
 
 #### How to make calls via browser (no app needed):
 Visit ${CALL_PAGE_URL} — enter your SIP credentials and call directly from browser. No sign-up needed.
+
+#### Paperwork for some countries (fax and calling numbers):
+Ordering never asks for documents. Some countries' carriers need the owner's details before switching a number on: <b>name + address</b> (e.g. GB/IE/AU/NZ/Lithuania for some types) or an <b>ID or company document</b> (e.g. Germany, France, Italy, Poland, South Africa, Singapore, Thailand, Finland, Latvia, Croatia, Ukraine, Hong Kong, Slovakia, Albania). The customer pays first; right after payment the bot (📠 Fax numbers → the number → 📝 Finish details) or the web (the number's page / Fax page → Send details) asks for them. Approval usually takes 1–3 business days. Reminders go out after 1 and 3 days; if the details never arrive the number is released and fully refunded after 14 days. Until it is approved the customer can tap <b>Cancel for a refund</b> any time. Answer accurately when asked which countries need what; don't volunteer it unprompted.
 
 #### How to set up a softphone (Zoiper, etc.):
 📞 Cloud IVR + SIP → 📖 SIP Setup Guide, OR:

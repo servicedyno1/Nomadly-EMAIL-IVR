@@ -137,7 +137,7 @@ const sipPlansOf = (c) => (c && c.plans ? c.plans.filter((p) => p.access && p.ac
 function sipDesc() {
   const sp = sipPlansOf(cat())
   const from = sp.length ? ` SIP logins from ${usd(sp[0].price)}/month.` : ''
-  return `Put a real phone number on Zoiper, MicroSIP, Linphone or any SIP desk phone. Server ${sipServer()}, port 5060 (UDP or TCP), with voicemail, a keypad menu, call recording and an SMS inbox built in.${from} No contracts.`
+  return `Put a real phone number on Zoiper, MicroSIP, Linphone or any SIP desk phone. Server ${sipServer()}, port 5060 (UDP/TCP) or 5061 (TLS), with voicemail, a keypad menu, call recording and an SMS inbox built in.${from} No contracts.`
 }
 
 function sipFaqs() {
@@ -152,7 +152,7 @@ function sipFaqs() {
       `Because it isn't a website. ${server} is the server address your phone app connects to, so a browser has nothing to show there. Type it into your softphone or desk phone as the SIP server or domain.`],
     ['Which plan do I need for SIP?', `SIP logins come with ${names}${from}.${basic ? ` ${basic.name} includes the browser phone and call forwarding, but no SIP logins.` : ''}`],
     ['Which apps and phones work?', 'Any softphone or desk phone that takes a standard SIP account. Zoiper, MicroSIP and Linphone are free and take a minute to set up.'],
-    ['What do I enter in my app?', `Server or domain: ${server}. Port 5060 over UDP or TCP. Your username and password are on the number's SIP tab in your dashboard.`],
+    ['What do I enter in my app?', `Server or domain: ${server}. Port 5060 over UDP or TCP, or 5061 for TLS. Your username and password are on the number's SIP tab in your dashboard.`],
     ['What do calls cost?', 'Incoming calls use your plan minutes. Outgoing calls from a softphone are billed per minute from your wallet.'],
   ]
 }
