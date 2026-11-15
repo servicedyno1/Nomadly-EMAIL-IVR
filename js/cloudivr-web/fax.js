@@ -33,7 +33,7 @@ function routes(router, { db, h, upload, numbersApi, notifyAdmin, legalProfile }
     // Web fax runs on the fax-only account, so only fax-only numbers are listed.
     const nums = await faxOnly(req.webChatId), pubs = await faxNums.list(req.webChatId)
     const numbers = await Promise.all(nums.map(async n => ({
-      registration: pubs.find(x => x.phoneNumber === n.phoneNumber)?.registration || null, country: n.country,
+      registration: pubs.find(x => x.phoneNumber === n.phoneNumber)?.registration || null, country: n.country, countryName: require('../multitel/countries').NAMES[n.country] || n.country,
       phoneNumber: n.phoneNumber, plan: n.plan, faxOnly: !!n.faxOnly, status: n.status, price: n.price, autoRenew: n.autoRenew !== false, expiresAt: n.expiresAt, eligible: fax.eligible(n), faxLine: fax.lineOn(n), voiceRouting: fax.voiceRouting(n), usage: fax.eligible(n) ? await fax.usage(n) : null,
     })))
     res.json({ numbers, faxes: await fax.list(req.webChatId), batches: await fax.listBatches(req.webChatId), pricing: { freePages: fax.FREE_PAGES, pagePrice: fax.PAGE_PRICE, bulkMax: fax.BULK_MAX } })

@@ -6,6 +6,7 @@ import { api, enc, money } from '../../api';
 import { ask } from '../../confirm';
 import { cp } from '../../paths';
 import { PaperworkNote } from '../buy/Paperwork';
+import { useShell } from '../../Shell';
 
 const LEVEL = { name_address: 1, documents: 2 };
 
@@ -15,6 +16,7 @@ export function FinishRegistration({ n, reload }) {
   const level = LEVEL[r.paperwork] || 0;
   const [docs, setDocs] = useState(null);
   const [busy, setBusy] = useState('');
+  const refreshSummary = useShell()?.refreshSummary;
   useEffect(() => { if (r.needsDetails && level === 2) api(`/numbers/documents?country=${n.country}`).then(setDocs).catch(() => {}); }, [r.needsDetails, level, n.country]);
   const send = async () => {
     setBusy('send');
@@ -23,14 +25,14 @@ export function FinishRegistration({ n, reload }) {
   const cancel = async () => {
     if (!(await ask(`Cancel ${n.phoneNumber}? It is released and ${money(n.price)} goes back to your wallet.`, { ok: 'Cancel and refund', cancel: 'Keep it', title: 'Cancel fax number', danger: true }))) return;
     setBusy('cancel');
-    try { const d = await api(`/fax-numbers/${enc(n.phoneNumber)}/cancel`, { method: 'POST', body: {} }); toast.success(`Cancelled — ${money(d.refunded)} refunded to your wallet`); reload(); } catch (e) { toast.error(e.message); } finally { setBusy(''); }
+    try { const d = await api(`/fax-numbers/${enc(n.phoneNumber)}/cancel`, { method: 'POST', body: {} }); toast.success(`Cancelled — ${money(d.refunded)} refunded to your wallet`); refreshSummary?.(); reload(); } catch (e) { toast.error(e.message); } finally { setBusy(''); }
   };
   return (
     <div className="mt-3 space-y-3" data-testid={`fax-finish-${id}`}>
       {r.needsDetails && (
         <>
           <p className="text-sm" data-testid={`fax-finish-title-${id}`}>Paid and reserved. One more step: the carrier needs a few details to switch it on{r.refundBy ? ` — send them by ${String(r.refundBy).slice(0, 10)} or it is refunded automatically` : ''}.</p>
-          {level > 0 && <PaperworkNote paperwork={{ level, businessOnly: r.businessOnly, address: r.address, documents: docs }} country={n.country} countryName={n.country} onChange={setDocs} />}
+          {level > 0 && <PaperworkNote paperwork={{ level, businessOnly: r.businessOnly, address: r.address, documents: docs }} country={n.country} countryName={n.countryName || n.country} onChange={setDocs} />}
           <p className="text-xs text-[var(--c-muted)]">Your saved legal details are used. <Link to={cp('/app/settings')} className="text-[#818cf8] underline underline-offset-2" data-testid={`fax-finish-legal-link-${id}`}>Edit legal details</Link></p>
         </>
       )}

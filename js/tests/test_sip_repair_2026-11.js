@@ -27,8 +27,8 @@ t('inactive / no-voice / fax plan untouched', () => {
   assert.strictEqual(s.repairFields(BOT, { status: 'active', plan: 'fax' }), null)
 })
 t('sipDisabled cleared on plan with SIP', () => assert.strictEqual(s.repairFields(BOT, { status: 'active', plan: 'starter', sipUsername: 'cvd', sipPassword: 'p', telnyxSipUsername: 'cvd', telnyxSipPassword: 'p', telnyxCredentialId: 'kam:cvd', sipDomain: 'sip.speechcue.com', sipDisabled: true }).sipDisabled, false))
-t('no copy advertises TLS 5061 to customers', () => {
+t('bot copy offers TLS on 5061 (served by the SIP server since 2026-11-15)', () => {
   const txt = require('fs').readFileSync(require.resolve('../phone-config'), 'utf8')
-  assert.ok(!/5061/.test(txt))
+  assert.ok(/5061 \(TLS\)/.test(txt))
 })
 console.log(`${pass}/8 passed`); process.exit(0)

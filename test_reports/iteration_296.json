@@ -1,0 +1,43 @@
+{
+  "summary": "Tested pay-first-then-details for fax and calling numbers (web API + UI, bot by code review). Backend: 10/10 pytest pass, unit test 6/6. Web buy pages show no paperwork before payment (fax DE/FR/IE + calls AU). Fax buy of FR/DE in dry run succeeds without documents → pending_registration + needsDetails, toast 'paid and reserved'. /details refuses with clear message (FR: 'need ID or company documents', DE: 'need an address in Germany'), /cancel refunds the full price and releases; repeat cancel/details → 404. Calling-number registration card (seeded +4930999000) shows Send details + Cancel; send → clear error toast; cancel → confirm dialog → '$120.00 refunded' toast. CRITICAL UI BUG: the Fax page never shows the pending fax number, so the fax-finish card (Send details / Cancel for a refund) can't be reached on the web.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/numbers/:phone/registration/cancel", "issue": "It also lets the customer cancel numbers with registration.status 'pending' (details already sent, and the number's status is 'active', so it may already be taking calls) for a full refund, with no time limit. Check that this is what the business wants."},
+      {"endpoint": "fax buy (js/fax-numbers.js buy)", "issue": "Countries with address:'country' or businessOnly rules (e.g. FR local businessOnly + address in FR, DE address in DE) are now paid before any eligibility check. Customers whose saved legal profile can never meet the rule (wrong country or personal) pay, then can only cancel. This follows from the chosen design; just confirm the post-payment copy tells them clearly."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Fax page (frontend/src/cloudivr/pages/Fax.js)", "issue": "Line 27: `ready = nums.filter(n => n.eligible)`, and FaxLines only gets `ready`. A pending_registration fax number has eligible=false, so it is filtered out and FinishRegistration (fax-finish-<digits>, fax-finish-send-*, fax-finish-cancel-*) never renders. After the buy redirects to /app/fax, the user can't see the paid number at all and can't send details or cancel on the web. Reproduced: bought FR +334 (wallet -$50, toast 'paid and reserved'); /api/cloudivr-web/fax returned it with registration.needsDetails=true, but the page showed only +17167882007. Fix: render pending fax-only numbers (e.g. a separate 'Waiting for details' card listing nums.filter(n => n.faxOnly && n.registration) with FinishRegistration), outside the eligible filter.", "selector": "[data-testid^='fax-finish-']", "priority": "CRITICAL"},
+      {"component": "Fax page empty/paused state", "issue": "If the account's ONLY fax numbers are pending, then nums.length>0 && !ready.length && faxOnly, so the page shows the wrong 'Your fax number is paused because its monthly fee couldn’t be paid. Top up your wallet' (fax-past-due).", "selector": "[data-testid='fax-past-due']", "priority": "HIGH"},
+      {"component": "NumberRegistration after cancel", "issue": "After 'Cancel for a refund' succeeds, reload() leaves the user on 'Number not available — Number not found on your account.' The app should navigate to /app/numbers. The header wallet pill also keeps the old balance ($409.13) until refresh, even though the API balance went up by $120.", "selector": "[data-testid='number-registration-cancel']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "NumberRegistration / FinishRegistration document upload", "issues": ["DocumentUpload shows 'Upload your documents before you buy.' while docs load (and with none uploaded). That contradicts the post-payment flow; it should say something like 'Upload your documents to switch it on'.", "FinishRegistration passes countryName={n.country}, so PaperworkNote reads 'FR numbers need documents' instead of 'France…'.", "A seeded needs_details calling number still shows the 'active' pill, 'Set up this number' and 'Free test ring' even though the carrier hasn't switched it on."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter296_pay_then_details.py", "/app/test_reports/pytest/iter296.xml", "/app/js/tests/test_fax_pay_then_details_2026-11.js"],
+  "action_items": [
+    "CRITICAL: Fax.js must render pending fax-only numbers (status pending_registration / registration != null) with FinishRegistration. Today they are filtered out by `eligible`, so web users can't send details or cancel for a refund.",
+    "Fax.js: don't show the 'paused/past due' message when the only fax numbers are pending registration.",
+    "NumberRegistration: after cancel, navigate to My numbers and refresh the wallet balance in the header.",
+    "Copy: DocumentUpload 'before you buy' text in the post-payment cards; FinishRegistration should pass the country name, not the code.",
+    "Confirm the business rule for cancelling calling numbers whose registration is 'pending' (already active) for a full refund."
+  ],
+  "critical_code_review_comments": [
+    "js/bot-fax-numbers.js: the country/type buttons carry no paperwork labels (paperLbl returns ''). After payment, needsDetails → paidNext + askWho → ... → fxnSign → submitDetails → api.submitDetails. Tapping a pending number in fxnList shows '📝 Finish details' (needsDetails only) and '↩️ Cancel for a refund' → api.cancelPending. Code review only, the bot was not run (no Telegram in preview).",
+    "bot fxnList → pending number: setP merges with stale info.fxnPerson from earlier flows (P = info.fxnPerson). If the user picks 'Business' after an earlier personal flow, old fields like companyName/countryCode can carry over. Minor.",
+    "bot confirm() still has `const who = ''`, which is dead code. Fine.",
+    "numbers.js purchaseLocked: in dry run, `_needsRegistration` is only set for level 2. Level-1 MultiTEL numbers with a complete profile get no registration record (regIssue null), so the details are never submitted in dry run. Real path unverified.",
+    "fax-numbers.js regOf calls offerOf() 3x per number; small, but the result could be cached in a local variable."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter296_pay_then_details.py"],
+  "success_rate": {"backend": "100% (10/10 pytest + 6/6 unit)", "frontend": "~70% (buy pages + calling-number registration card pass; fax finish card unreachable)"},
+  "seed_data_creation": "Seeded +4930999000 in phoneNumbersOf (chatId 5000000000000077) twice (pytest + UI). It was removed both times, and walletOf was restored to the exact pre-seed snapshot, because the $120 refund was never paid. Dry-run fax buys FR/DE/+334 were each cancelled (refunded); their faxNumbers docs remain with status 'released', and 'fax-number' transactions rows were written by the app. Wallet ends at $409.128, the same as at the start.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login civr.uxtest@example.com / UxTest#2026 (chatId 5000000000000077). The account has DE docs uploaded (numberDocs 5000000000000077:DE) and a US legal address, so FR fax → 'need documents' and DE → 'need an address in Germany'. MultiTEL fax search returns assigned prefixes like '+334' / '+4930' (exact number assigned on buy); search takes ~7s. Calling paperwork countries: AU local (L1), DE national (L2), SG local (L2). Retest: after Fax.js fix, buy FR fax at /cloudivr/app/buy?purpose=fax → /app/fax shows fax-finish-334 with send/cancel; send → error toast; cancel → confirm 'Cancel and refund' → refund toast.",
+  "rca of the issue": "Fax.js filters numbers by `eligible` (fax.eligible(n) is false for pending_registration) before passing them to FaxLines, which is the only place FinishRegistration is mounted. Repro: buy a FR fax number in preview → redirected to /app/fax → no fax-finish-* element; GET /api/cloudivr-web/fax shows the number with registration.needsDetails=true. Mitigation: mount FinishRegistration for nums.filter(n => n.faxOnly && n.registration) independent of `ready`, and exclude pending numbers from the past-due branch."
+}

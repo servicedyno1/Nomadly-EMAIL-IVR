@@ -22,7 +22,7 @@ export function PaperworkNote({ paperwork, country, countryName, onChange }) {
           <div className="font-semibold" data-testid="buy-paperwork-title">{docs ? `${countryName} numbers need documents` : `${countryName} numbers need your name and address`}</div>
           <p className="text-[var(--c-muted)] mt-1">
             Your saved legal details are sent to the carrier. They need {WHERE[paperwork.address] || WHERE.any}{paperwork.businessOnly ? ', and they are sold to businesses only' : ''}.
-            {docs && ' Upload an ID or company document and a recent utility bill if you have one. After you buy, the number goes live once the carrier approves them (usually 1–2 business days). If they reject them, the number is released and you get a full refund.'}
+            {docs && ' Upload an ID or company document and a recent utility bill if you have one. The number goes live once the carrier approves them (usually 1–2 business days). If they reject them, the number is released and you get a full refund.'}
           </p>
         </div>
       </div>
@@ -57,7 +57,7 @@ export function DocumentUpload({ country, status, onChange }) {
           <button type="button" className="civr-btn civr-btn-ghost !px-2" onClick={() => remove(f.id)} aria-label={`Remove ${f.name}`} data-testid={`buy-document-remove-${f.id}`}><Trash2 className="w-4 h-4" /></button>
         </div>
       ))}
-      {!files.length && <p className="text-xs text-[#fbbf24] flex gap-2" data-testid="buy-documents-missing"><AlertTriangle className="w-4 h-4 shrink-0" />Upload your documents before you buy.</p>}
+      {!files.length && <p className="text-xs text-[#fbbf24] flex gap-2" data-testid="buy-documents-missing"><AlertTriangle className="w-4 h-4 shrink-0" />Upload your documents.</p>}
       <input ref={input} type="file" multiple accept="application/pdf,image/jpeg,image/png" className="hidden" onChange={e => send(e.target.files)} data-testid="buy-documents-input" />
       <button type="button" className="civr-btn civr-btn-ghost" onClick={() => input.current?.click()} disabled={busy} data-testid="buy-documents-upload-button">
         {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}{files.length ? 'Add more files' : 'Upload documents'}

@@ -5,6 +5,7 @@ import { useApi } from '../api';
 import { cp } from '../paths';
 import { PageHeader, SkeletonPage, ErrorNote, Empty, Locked } from '../ui';
 import { FaxLines } from './fax/FaxLines';
+import { FinishRegistration } from './fax/FinishRegistration';
 import { FaxSend } from './fax/FaxSend';
 import { FaxHistory } from './fax/FaxHistory';
 import { FaxBatches } from './fax/FaxBatches';
@@ -25,6 +26,7 @@ export default function Fax() {
   if (error && !data) return <div data-testid="fax-page">{head}<ErrorNote error={error} onRetry={reload} /></div>;
   const nums = data?.numbers || [];
   const ready = nums.filter(n => n.eligible);
+  const waiting = nums.filter(n => n.faxOnly && n.registration);
   return (
     <div data-testid="fax-page">
       {head}
@@ -33,7 +35,13 @@ export default function Fax() {
           <Link to={cp('/app/buy?purpose=fax')} className="civr-btn civr-btn-primary" data-testid="fax-buy-link">Get a fax number</Link>
         </Empty>
       )}
-      {nums.length > 0 && !ready.length && (nums.some(n => n.faxOnly)
+      {waiting.map(n => (
+        <div key={n.phoneNumber} className="civr-card p-5 mb-4" data-testid={`fax-waiting-${n.phoneNumber.replace(/\D/g, '')}`}>
+          <div className="font-medium tabular-nums">{n.phoneNumber}</div>
+          <FinishRegistration n={n} reload={reload} />
+        </div>
+      ))}
+      {nums.length > 0 && !ready.length && !waiting.length && (nums.some(n => n.faxOnly)
         ? <div className="civr-card p-5 mb-4 text-sm" data-testid="fax-past-due">Your fax number is paused because its monthly fee couldn’t be paid. <Link to={cp('/app/wallet')} className="text-[#818cf8] underline">Top up your wallet</Link> to turn it back on.</div>
         : <Locked feature="Fax" need="Business" phone={nums[0].phoneNumber} />)}
       {ready.length > 0 && (

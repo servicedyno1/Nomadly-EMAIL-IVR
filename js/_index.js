@@ -10875,7 +10875,6 @@ bot?.on('message', msg => {
     }
     const base = Number(info?.cpPriceBase) || 0
     if (base > totalPrice) s += `\n\n🎟️ Coupon: <s>$${base.toFixed(2)}</s> → <b>$${totalPrice.toFixed(2)}</b>`
-    if (info?.cpVerifyNote && !info?.cpIsSubNumber) s += `\n\n${info.cpVerifyNote}`
     if (String(info?.cpSelectedNumber || '').replace(/\D/g, '').length < 9) s += `\n🎲 The rest of the number is assigned when you pay`
     if (!info?.cpAddressAfterPay && !info?.cpVerifyNote) s += `\n⚡ <b>Instant</b> — your number works the moment you pay`
     return s
