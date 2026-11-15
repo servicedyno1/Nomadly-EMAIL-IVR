@@ -5369,5 +5369,12 @@
 "SIP needs the Starter plan or higher": "SIP nécessite le forfait Starter ou supérieur",
 "Buy a number on the Starter plan or higher to get SIP credentials.": "Achetez un numéro avec le forfait Starter ou supérieur pour obtenir des identifiants SIP.",
 "SIP needs the Starter plan or higher.": "SIP nécessite le forfait Starter ou supérieur.",
-"Voicemail needs the Starter plan or higher.": "La messagerie vocale nécessite le forfait Starter ou supérieur."
+"Voicemail needs the Starter plan or higher.": "La messagerie vocale nécessite le forfait Starter ou supérieur.",
+"Put a real phone number on Zoiper, MicroSIP, Linphone or any SIP desk phone. Server {0}, port 5060 (UDP or TCP), with voicemail, a keypad menu, call recording and an SMS inbox built in.{1} No contracts.": "Mettez un vrai numéro de téléphone sur Zoiper, MicroSIP, Linphone ou tout téléphone de bureau SIP. Serveur {0}, port 5060 (UDP/TCP), avec messagerie vocale, menu tactile, enregistrement d’appel et boîte de réception SMS intégrés.{1} Sans contrat.",
+"Server or domain: {0}. Port 5060 over UDP or TCP. Your username and password are on the number's SIP tab in your dashboard.": "Serveur ou domaine : {0}. Port 5060 en UDP ou TCP. Votre nom d'utilisateur et mot de passe sont dans l'onglet SIP du numéro sur votre tableau de bord.",
+"Server or domain: {0}. Port 5060 over UDP or TCP. Your username and password are on the number’s SIP tab in your dashboard.": "Serveur ou domaine : {0}. Port 5060 en UDP ou TCP. Votre identifiant et votre mot de passe sont dans l’onglet SIP du numéro, dans votre tableau de bord.",
+", port 5060 (UDP or TCP).": ", port 5060 (UDP ou TCP).",
+"5060 (UDP or TCP)": "5060 (UDP ou TCP)",
+"SIP port · UDP or TCP": "Port SIP · UDP ou TCP",
+"UDP & TCP": "UDP et TCP"
 }

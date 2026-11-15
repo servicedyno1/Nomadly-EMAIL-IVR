@@ -1,0 +1,41 @@
+{
+  "summary": "Frontend-only phone polish audit (CloudIVR) at 390x844 (iPhone UA), 412x915 (Android UA) and desktop 1920. PASS: no page-level horizontal overflow on landing/login/signup/sip and all app pages (home, numbers, number detail, buy voice/texting/fax, wallet, messages, esim, settings, fax); all text inputs computed font-size >=16px; main has 16px side padding and 160px bottom padding so bottom tab bar never covers CTAs; skeleton loader (loading-indicator.civr-skel-page / skeleton cards) shown on bottom-nav navigation with slowed API, zero spinners in main; landing eSIM checkout, web-texting checkout and command palette open as full-width bottom sheets (radius 20px top, grab handle, overflow-y auto, max-height) and close with Escape; desktop 1920 dialogs stay centered; install banner appears at ~15s on iPhone UA (landing + app), sits above the tab bar, close sets localStorage civr-install-dismissed and stays hidden after reload, not shown on desktop; admin tables (fax daily, users, caller IDs, overview) render as labelled cards (all td[data-label]); desktop tables remain display:table; desktop landing/app home/buy/wallet unchanged. FAILS listed below.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ConfirmHost (confirm.js) on phones", "issue": "Confirm dialog is NOT a bottom sheet: role=alertdialog without data-state matches none of the sheet selectors. Measured at 390: left 16/right 374, bottom 828 (16px gap), radius 12px, no grab handle. Repro: /cloudivr/app/numbers → number-card-0-switch-fax → confirm-dialog. Fix in mobile-app.css: add `[role=\"alertdialog\"][aria-modal=\"true\"]` to the sheet rule + ::before handle rule, and to the parent rule `.civr div:has(> [role=\"alertdialog\"][aria-modal=\"true\"])` (removes the p-4 on confirm-dialog-backdrop).", "selector": "[data-testid=confirm-dialog]", "priority": "HIGH"},
+      {"component": "SIP page compare table (pages/sip/Plans.js)", "issue": "Card conversion breaks the feature-comparison matrix: table keeps Tailwind min-w-[560px] so cards are 560px wide inside a 340px overflow-x-auto box (values/ticks off-screen, needs horizontal scroll) and the table becomes 5583px tall (every feature row repeats Feature/Basic/Starter/Pro/Business labels with tiny ticks). Repro: /cloudivr/sip at 390 → sip-compare-toggle. Fix: add className `civr-keep-table` to sip-compare-table (and to landing plan-compare-table / PlanTable.js, same matrix type) so they keep the original sticky-column scroll layout.", "selector": "[data-testid=sip-compare-table]", "priority": "HIGH"},
+      {"component": "Admin Users table cards", "issue": "Page horizontal overflow at 390 and 412 (documentElement.scrollWidth = 603): the User cell's email div (text-xs text-[#a1a1aa]) doesn't wrap because td is display:flex and its children have no min-width:0 / word-break. Fix: `.civr table:not(.civr-keep-table) td > * { min-width: 0; overflow-wrap: anywhere; }`.", "selector": "/cloudivr/admin?tab=users .civr-table td:first-child", "priority": "MEDIUM"},
+      {"component": "Card cells with several children (admin eSIM plans table, Users name+email)", "issue": "td display:flex + justify-content:space-between lays every child element out side by side, so multi-part cells scatter horizontally (e.g. 'SPENZA_001' next to 'SpenzaJ · physical SIM', 'Your cost $7.00 plan/mo line $3.00 (SIM_J)' overflows to x=454 at 412). Fix: make td a 2-col grid (`display:grid; grid-template-columns:minmax(5.5rem,38%) 1fr`) with `td > * { grid-column: 2 }` so value children stack in one column.", "selector": "/cloudivr/admin?tab=esim table.w-full.text-left td", "priority": "LOW"},
+      {"component": "Command palette sheet (Palette.js)", "issue": "Grab handle not visible: ::before uses margin -4px auto 12px but palette has no top padding and overflow, so the handle is clipped/hugs the edge. Add padding-top (e.g. `.civr [data-testid=palette]{padding-top:10px}` on phones) or use margin 8px auto.", "selector": "[data-testid=palette]", "priority": "LOW"},
+      {"component": "Install banner", "issue": "Banner (z-60, bottom 80px, 688-764px at 390x844) fully covers the round support button support-chat-toggle (700-756px) while it's shown. Raise the banner above the FAB (e.g. bottom calc(9.5rem+safe-area)) or hide/shift the FAB while the banner is visible.", "selector": "[data-testid=install-banner], [data-testid=support-chat-toggle]", "priority": "LOW"},
+      {"component": "Numbers quick switches", "issue": "Tap targets below 44px: number-card-N-switch-forwarding/ivr/hours/fax are 32px tall at 390 (pricing-feature-*-more on landing 20px).", "selector": "[data-testid^=number-card-][data-testid*=-switch-]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Wallet renewals", "issues": ["renewals-row-N-toggle turns auto-renew off immediately with no confirm dialog (review brief expected one). Not clicked in testing to avoid changing data; consider ask() before turning renewal off."]}
+    ]
+  },
+  "test_report_links": ["/app/tests/mobile_audit.js", "/app/tests/sheet_measure.js"],
+  "action_items": [
+    "mobile-app.css: include [role=alertdialog][aria-modal=true] (+ its backdrop parent) in bottom-sheet + handle rules so confirm-dialog becomes a sheet",
+    "Add civr-keep-table to sip-compare-table (pages/sip/Plans.js) and plan-compare-table (pages/landing/PlanTable.js)",
+    "mobile-app.css: td > * { min-width:0; overflow-wrap:anywhere } to stop admin Users overflow (scrollWidth 603 at 390/412)",
+    "Card td layout: grid with value children stacked in column 2 (multi-child cells scatter today)",
+    "Palette sheet: add top padding so the grab handle shows",
+    "Install banner overlaps support-chat-toggle FAB; move one of them",
+    "Optional: 44px min-height for number-card quick switches; confirm before turning auto-renew off"
+  ],
+  "critical_code_review_comments": [
+    "Sheet CSS keys off role=dialog+aria-modal or Radix data-state; custom alertdialogs (confirm.js) are missed",
+    "Global `.civr table:not(.civr-keep-table)` conversion also hits landing/SIP comparison matrices which should stay tables; opt-out needed there",
+    "Tables without <thead> (e.g. admin-user-transactions) get no data-label, cells become unlabelled flex rows",
+    "InstallBanner checks isPhone() only once at 15s; Android without beforeinstallprompt shows nothing (expected)"
+  ],
+  "updated_files": ["/app/tests/mobile_audit.js", "/app/tests/sheet_measure.js", "/app/tests/mobile_audit_helpers.txt"],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "~80% (core checks pass; 2 high + 1 medium + 4 low issues)"},
+  "seed_data_creation": "None. No purchases, toggles or destructive actions confirmed (confirm dialog cancelled).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use browser.new_context(user_agent=iPhone UA, viewport 390x844, is_mobile=True) and wait_until='load' (networkidle never settles in /app). Login civr.uxtest@example.com / UxTest#2026; admin moxxcompany@gmail.com / Katiekendra123@ (devCode auto-filled, click admin-login-submit twice). Confirm dialog trigger: /cloudivr/app/numbers number-card-0-switch-fax → confirm-dialog-cancel. SIP table: /cloudivr/sip → sip-compare-toggle. Admin overflow: /cloudivr/admin?tab=users scrollWidth. Landing plan-compare-table was not rendered on / during this run (not verified)."
+}

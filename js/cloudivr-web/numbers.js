@@ -750,7 +750,8 @@ function routes(router, deps) {
   router.get('/numbers/:phone/sip', withNumber(async (req, res) => {
     const n = req.num, sip = phoneConfig.canAccessFeature(n.plan, 'sipCredentials')
     if (!sip && !(req.query.browser && phoneConfig.canAccessFeature(n.plan, 'browserPhone'))) return gate(req, res, 'sipCredentials', 'SIP credentials')
-    res.json({ username: n.telnyxSipUsername || n.sipUsername, password: n.telnyxSipPassword || n.sipPassword, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP/TLS', live: !!n.telnyxSipUsername, browserOnly: !sip, browserKey: browserCallKey.mint(n.phoneNumber) })
+    if (sip) await require('../sip-logins').ensure(phoneNumbersOf, req.webChatId, n)
+    res.json({ username: n.telnyxSipUsername || n.sipUsername, password: n.telnyxSipPassword || n.sipPassword, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP', live: !!n.telnyxSipUsername, browserOnly: !sip, browserKey: browserCallKey.mint(n.phoneNumber) })
   }))
 
   // New SIP login for a number (devices on the old one stop working) → { username, password } or null if the network refused.
@@ -764,7 +765,7 @@ function routes(router, deps) {
       if (n.telnyxCredentialId) await telnyxApi.deleteSIPCredential(n.telnyxCredentialId).catch(() => {})
     }
     const live = !dryRun() && !n.dryRun
-    await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.sipUsername': user, 'val.numbers.$.sipPassword': pass, 'val.numbers.$.telnyxSipUsername': live ? user : n.telnyxSipUsername || null, 'val.numbers.$.telnyxSipPassword': live ? pass : n.telnyxSipPassword || null, 'val.numbers.$.telnyxCredentialId': credId || n.telnyxCredentialId || null } })
+    await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.sipUsername': user, 'val.numbers.$.sipPassword': pass, 'val.numbers.$.telnyxSipUsername': live ? user : n.telnyxSipUsername || null, 'val.numbers.$.telnyxSipPassword': live ? pass : n.telnyxSipPassword || null, 'val.numbers.$.telnyxCredentialId': credId || (live && process.env.SIP_SERVER_SECRET ? `kam:${user}` : n.telnyxCredentialId || null) } })
     return { username: user, password: pass }
   }
 

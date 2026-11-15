@@ -118,7 +118,7 @@ export function sipFaqItems(c) {
     [`Why doesn’t ${domain} open in my browser?`, `Because it isn’t a website. ${domain} is the server address your phone app connects to, so a browser has nothing to show there. Type it into your softphone or desk phone as the SIP server or domain.`],
     ['Which plan do I need for SIP?', sp.length ? `SIP logins come with ${andNames(sp)}${pick ? `, from ${usd(pick.price)}/month` : ''}.${starter ? ` ${starter.name} includes the browser phone and call forwarding, but no SIP logins.` : ''}` : 'SIP logins come with the Pro plan and up.'],
     ['Which apps and phones work?', 'Any softphone or desk phone that takes a standard SIP account. Zoiper, MicroSIP and Linphone are free and take a minute to set up.'],
-    ['What do I enter in my app?', `Server or domain: ${domain}. Port 5060 over UDP or TCP, or 5061 for TLS. Your username and password are on the number’s SIP tab in your dashboard.`],
+    ['What do I enter in my app?', `Server or domain: ${domain}. Port 5060 over UDP or TCP. Your username and password are on the number’s SIP tab in your dashboard.`],
     ['Can I still use the browser phone?', 'Yes. Every plan includes the browser phone, so you can also make and take calls from any browser tab.'],
     ['What do calls cost?', 'Incoming calls are covered by your plan. Outgoing calls from a softphone are paid from your wallet. Ask our support chat any time for exact rates.'],
     ['Can I try before I pay?', 'Yes. Creating an account is free, and the home page has a free test call you can take before you buy a number.'],

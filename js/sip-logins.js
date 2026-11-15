@@ -39,4 +39,25 @@ async function loadKnown(phoneNumbersOf, log = console.log) {
   } catch (e) { log(`[SipLogins] load failed: ${e.message}`) }
 }
 
-module.exports = { shortUser, shortPass, enabled, isShortLogin, isConnectionId, remember, forget, userForConnection, isSipConnection, loadKnown }
+// Every active calling number on a plan with SIP keeps one working login on our own SIP server (served by /sip-auth).
+// Missing login → a new one; the shown pair (telnyxSip* first) is kept as is, so logins that work never change.
+const brandDomain = (chatId) => (require('./cloudivr-web/notify').isWebChatId(chatId) ? require('./phone-config').WEB_SIP_DOMAIN : require('./phone-config').SIP_DOMAIN)
+function repairFields(chatId, n) {
+  if (!n || n.status !== 'active' || !process.env.SIP_SERVER_SECRET || n.capabilities?.voice === false) return null
+  if (!require('./phone-config').canAccessFeature(n.plan, 'sipCredentials')) return null
+  const user = n.telnyxSipUsername || n.sipUsername
+  const pass = user && (n.telnyxSipUsername ? n.telnyxSipPassword || n.sipPassword : n.sipPassword)
+  const [u, p] = user && pass ? [user, pass] : [shortUser(), shortPass()]
+  const want = { telnyxSipUsername: u, telnyxSipPassword: p, telnyxCredentialId: `kam:${u}`, sipDomain: brandDomain(chatId), ...(n.sipDisabled ? { sipDisabled: false } : {}) }
+  if (!n.sipUsername || !n.sipPassword || !(user && pass)) Object.assign(want, { sipUsername: u, sipPassword: p })
+  const diff = Object.fromEntries(Object.entries(want).filter(([k, v]) => n[k] !== v))
+  return Object.keys(diff).length ? diff : null
+}
+async function ensure(col, chatId, n) {
+  const diff = repairFields(chatId, n)
+  if (!diff) return n
+  await col.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: Object.fromEntries(Object.entries(diff).map(([k, v]) => [`val.numbers.$.${k}`, v])) })
+  return Object.assign(n, diff)
+}
+
+module.exports = { shortUser, shortPass, enabled, isShortLogin, isConnectionId, remember, forget, userForConnection, isSipConnection, loadKnown, repairFields, ensure, brandDomain }

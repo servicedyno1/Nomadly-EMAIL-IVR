@@ -471,7 +471,7 @@ usAreaCodes.forEach(a => { areaByLabel[`${a.city} (${a.code})`] = a.code })
 
 // ── Plans ──
 const plans = {
-  starter: { name: 'Basic', price: PHONE_STARTER_PRICE, minutes: STARTER_MINUTES, sms: STARTER_SMS, features: ['Call forwarding to any number', 'SMS forwarded to Telegram', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
+  starter: { name: 'Basic', price: PHONE_STARTER_PRICE, minutes: STARTER_MINUTES, sms: STARTER_SMS, features: ['Call forwarding to any number', 'SMS forwarded to Telegram', 'SIP credentials for softphones', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
   standard: { name: 'Starter', price: PHONE_STANDARD_PRICE, minutes: STANDARD_MINUTES, sms: 0, features: ['All Basic features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.standard} extra numbers`] },
   pro: { name: 'Pro', price: PHONE_PRO_PRICE, minutes: PRO_MINUTES, sms: PRO_SMS, features: ['All Starter features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign (start now or schedule)', '2FA Code Delivery', 'IVR Auto-Attendant', 'IVR Call Analytics', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
   business: { name: 'Business', price: PHONE_BUSINESS_PRICE, minutes: BUSINESS_MINUTES, sms: BUSINESS_SMS, features: ['All Pro features', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Quick IVR Call Scheduling', 'Custom 2FA Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
@@ -480,31 +480,31 @@ const plans = {
 // Language-specific plan features
 const plansI18n = {
   en: {
-    starter: { features: ['Call forwarding to any number', 'SMS forwarded to Telegram', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
+    starter: { features: ['Call forwarding to any number', 'SMS forwarded to Telegram', 'SIP credentials for softphones', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
     standard: { features: ['All Basic features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.standard} extra numbers`] },
     pro: { features: ['All Starter features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign (start now or schedule)', '2FA Code Delivery', 'IVR Auto-Attendant', 'IVR Call Analytics', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
     business: { features: ['✅ Verified caller ID (numbers you own)', 'All Pro features', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Quick IVR Call Scheduling', 'Custom 2FA Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
   },
   fr: {
-    starter: { features: ['Transfert d\'appels vers n\'importe quel numéro', 'SMS vers Telegram', `Jusqu'à ${SUB_NUMBER_LIMITS.starter} numéros supplémentaires`] },
+    starter: { features: ['Transfert d\'appels vers n\'importe quel numéro', 'SMS vers Telegram', 'Identifiants SIP pour softphones', `Jusqu'à ${SUB_NUMBER_LIMITS.starter} numéros supplémentaires`] },
     standard: { features: ['Toutes fonctions Basic', 'Messagerie vocale personnalisée', 'Identifiants SIP pour softphones', 'Enregistrement d\'appels', `Jusqu'à ${SUB_NUMBER_LIMITS.standard} numéros supplémentaires`] },
     pro: { features: ['Toutes fonctions Starter', 'Messagerie vocale personnalisée', 'Identifiants SIP pour softphones', 'SMS vers Telegram & Email', 'Intégrations Webhook', 'Appel IVR rapide', 'Campagne IVR en masse (immédiate ou planifiée)', 'Envoi de codes 2FA', 'Standard automatique IVR', 'Analytiques SVI', 'Enregistrement d\'appels', `Jusqu'à ${SUB_NUMBER_LIMITS.pro} numéros supplémentaires`] },
     business: { features: ['🎭 Afficher n’importe quel numéro', 'Toutes fonctions Pro', 'Préréglages IVR & Appels récents', 'Bouton de rappel IVR', 'Planification des appels IVR rapides', 'Messages 2FA personnalisés', 'Voix TTS cohérente', 'Support prioritaire', `Jusqu'à ${SUB_NUMBER_LIMITS.business} numéros supplémentaires`] },
   },
   zh: {
-    starter: { features: ['呼叫转移至任何号码', '短信转发至Telegram', `添加最多 ${SUB_NUMBER_LIMITS.starter} 个号码`] },
+    starter: { features: ['呼叫转移至任何号码', '短信转发至Telegram', 'SIP 软电话凭据', `添加最多 ${SUB_NUMBER_LIMITS.starter} 个号码`] },
     standard: { features: ['所有基础版功能', '自定义语音信箱', 'SIP 软电话凭据', '通话录音', `添加最多 ${SUB_NUMBER_LIMITS.standard} 个号码`] },
     pro: { features: ['所有入门版功能', '自定义语音信箱', 'SIP 软电话凭据', '短信转Telegram和邮箱', 'Webhook集成', '快速IVR呼叫', '批量IVR活动（立即或定时）', 'OTP收集', 'IVR自动应答', 'IVR 通话分析', '通话录音', `添加最多 ${SUB_NUMBER_LIMITS.pro} 个号码`] },
     business: { features: ['🎭 显示任意来电号码', '所有专业版功能', 'IVR预设与最近通话', 'IVR重拨按钮', '快速IVR呼叫定时', '自定义OTP消息', '一致TTS语音', '优先支持', `添加最多 ${SUB_NUMBER_LIMITS.business} 个号码`] },
   },
   hi: {
-    starter: { features: ['किसी भी नंबर पर कॉल फ़ॉरवर्डिंग', 'SMS से Telegram', `${SUB_NUMBER_LIMITS.starter} अतिरिक्त नंबर तक`] },
+    starter: { features: ['किसी भी नंबर पर कॉल फ़ॉरवर्डिंग', 'SMS से Telegram', 'सॉफ्टफ़ोन के लिए SIP क्रेडेंशियल्स', `${SUB_NUMBER_LIMITS.starter} अतिरिक्त नंबर तक`] },
     standard: { features: ['सभी बेसिक सुविधाएँ', 'कस्टम वॉइसमेल', 'सॉफ्टफ़ोन के लिए SIP क्रेडेंशियल्स', 'कॉल रिकॉर्डिंग', `${SUB_NUMBER_LIMITS.standard} अतिरिक्त नंबर तक`] },
     pro: { features: ['सभी स्टार्टर सुविधाएँ', 'कस्टम वॉइसमेल', 'सॉफ्टफ़ोन के लिए SIP क्रेडेंशियल्स', 'SMS से Telegram और Email', 'Webhook इंटीग्रेशन', 'त्वरित IVR कॉल', 'बल्क IVR अभियान (अभी या शेड्यूल)', 'OTP संग्रह', 'IVR ऑटो-अटेंडेंट', 'IVR कॉल Analytics', 'कॉल रिकॉर्डिंग', `${SUB_NUMBER_LIMITS.pro} अतिरिक्त नंबर तक`] },
     business: { features: ['🎭 कोई भी कॉलर ID दिखाएँ', 'सभी Pro सुविधाएँ', 'IVR प्रीसेट और हाल की कॉलें', 'IVR रीडायल बटन', 'त्वरित IVR कॉल शेड्यूलिंग', 'कस्टम OTP संदेश', 'सुसंगत TTS आवाज़', 'प्राथमिकता समर्थन', `${SUB_NUMBER_LIMITS.business} अतिरिक्त नंबर तक`] },
   },
   fa: {
-    starter: { features: ['انتقال تماس به هر شماره', 'ارسال SMS به Telegram', `افزودن تا ${SUB_NUMBER_LIMITS.starter} شماره اضافه`] },
+    starter: { features: ['انتقال تماس به هر شماره', 'ارسال SMS به Telegram', 'اطلاعات ورود SIP برای سافت‌فون', `افزودن تا ${SUB_NUMBER_LIMITS.starter} شماره اضافه`] },
     standard: { features: ['همه امکانات Basic', 'پیغام‌گیر صوتی با خوشامد سفارشی', 'اطلاعات ورود SIP برای سافت‌فون', 'ضبط تماس', `افزودن تا ${SUB_NUMBER_LIMITS.standard} شماره اضافه`] },
     pro: { features: ['همه امکانات Starter', 'پیغام‌گیر صوتی با خوشامد سفارشی', 'اطلاعات ورود SIP برای سافت‌فون', 'SMS به Telegram و ایمیل', 'یکپارچه‌سازی Webhook', 'تماس سریع IVR', 'کمپین IVR انبوه (فوری یا زمان‌بندی‌شده)', 'دریافت OTP', 'منشی خودکار IVR', 'آمار تماس IVR', 'ضبط تماس', `افزودن تا ${SUB_NUMBER_LIMITS.pro} شماره اضافه`] },
     business: { features: ['🎭 نمایش هر شماره دلخواه', 'همه امکانات Pro', 'پیش‌تنظیم‌های IVR و تماس‌های اخیر', 'دکمه تماس مجدد IVR', 'زمان‌بندی تماس سریع IVR', 'پیام‌های OTP سفارشی', 'صدای TTS یکسان', 'پشتیبانی ویژه', `افزودن تا ${SUB_NUMBER_LIMITS.business} شماره اضافه`] },
@@ -525,7 +525,7 @@ const planFeatureAccess = {
     smsToEmail: false,
     smsWebhook: false,
     voicemail: false,
-    sipCredentials: false,
+    sipCredentials: true,
     callRecording: false,
     ivr: false,
     ivrOutbound: false,
@@ -810,7 +810,7 @@ Virtual phone numbers in ${CLOUD_COUNTRY_COUNT} countries, managed from Telegram
 Incoming calls you answer on SIP/browser + received SMS are included · Call forwarding & outgoing calls are charged from your wallet
 
 <b>📋 Plans:</b>
-💡 Basic $${PHONE_STARTER_PRICE}/mo — ${plans.starter.minutes} inbound min · Forwarding + SMS
+💡 Basic $${PHONE_STARTER_PRICE}/mo — ${plans.starter.minutes} inbound min · Forwarding, SMS + SIP softphone
 🧩 Starter $${PHONE_STANDARD_PRICE}/mo — ${plans.standard.minutes} inbound min · + Voicemail, SIP softphone, Call recording
 ⭐ Pro $${PHONE_PRO_PRICE}/mo — ${plans.pro.minutes} inbound min · + Voicemail, SIP, Call recording, Auto-attendant, Quick & Bulk IVR, OTP
 👑 Business $${PHONE_BUSINESS_PRICE}/mo — ${BUSINESS_MINUTES} inbound min · + AI voice agent, IVR redial, Quick IVR scheduling & presets, Priority support
@@ -893,7 +893,7 @@ ${/starter/i.test(String(plan)) ? `
 🌐 Server: ${sipDomain}
 👤 Username: ${sipUser}
 🔑 Password: tap <b>🔑 SIP Credentials</b> below to show it
-📡 Port: 5060 (UDP/TCP) · 5061 (TLS)
+📡 Port: 5060 (UDP/TCP)
 
 ━━━ <b>Start calling</b> ━━━
 • Browser: <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a> — no app needed
@@ -926,7 +926,7 @@ ${/starter/i.test(String(plan)) ? `
 🌐 Server: ${sipDomain}
 👤 Username: ${sipUser}
 🔑 Password: ●●●●●●●● (use 🔑 SIP Credentials to reveal)
-📡 Port: 5060 (UDP/TCP) | 5061 (TLS)
+📡 Port: 5060 (UDP/TCP)
 
 ━━━ <b>Quick Setup</b> ━━━
 • Browser: <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a>
@@ -1153,7 +1153,7 @@ ${/starter/i.test(String(plan)) ? `
 🌐 SIP Server: ${domain}
 👤 Username: <code>${username}</code>
 🔑 Password: ●●●●●●●●
-📡 Ports: 5060 (UDP/TCP) · 5061 (TLS)
+📡 Ports: 5060 (UDP/TCP)
 🎵 Codecs: G.711μ, G.711a, Opus`,
 
   sipRevealed: (password) => `🔑 Password: <code>${password}</code>\n\n⚠️ Save this now — this message will be deleted in 30 seconds.`,
@@ -1200,7 +1200,7 @@ Use a single-line softphone (one device per credential):
 2. Add Account → SIP / VoIP
 3. Username + Password from 🔑 SIP Credentials — <b>copy-paste, don't retype</b>
 4. Domain / SIP Server: <code>${domain}</code> — put this in the <i>Domain</i> field ONLY, do NOT append it to the username
-5. Port 5060 (UDP/TCP) or 5061 (TLS) · DTMF: RFC 2833 · Codec: G.711μ
+5. Port 5060 (UDP/TCP) · DTMF: RFC 2833 · Codec: G.711μ
 6. Save and make a test call
 
 ⚠️ <b>Getting "403 Forbidden" / registration failed?</b>
@@ -2254,7 +2254,7 @@ ${/starter/i.test(String(plan)) ? `
 🌐 Serveur : ${sipDomain}
 👤 Nom d'utilisateur : ${sipUser}
 🔑 Mot de passe : appuyez sur <b>🔑 Identifiants SIP</b> ci-dessous pour l'afficher
-📡 Port : 5060 (UDP/TCP) · 5061 (TLS)
+📡 Port : 5060 (UDP/TCP)
 
 ━━━ <b>Commencer à appeler</b> ━━━
 • Navigateur : <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a> — aucune application requise
@@ -2339,7 +2339,7 @@ ${/starter/i.test(String(plan)) ? `
     // ── Sub-number texts ──
     subNumberLimitReached: (plan, limit) => `⚠️ Vous avez atteint la limite de numéros ajoutés pour le forfait <b>${plan}</b> (${limit} numéros).\n\nPassez à un forfait supérieur pour plus de numéros.`,
     subNumberOrderSummary: (number, country, parentNumber, price, parentPlan) => `📋 <b>Commande Numéro Supplémentaire</b>\n\n📞 Nouveau : ${formatPhone(number)} · ${country}\n🔗 Ajouté à : ${formatPhone(parentNumber)} (Forfait ${parentPlan})\n💰 Prix : <b>$${typeof price === 'number' ? price.toFixed(2) : price}/mois</b>\n\n⚡ Partage les minutes & SMS du forfait parent\n🔑 Identifiants SIP propres inclus`,
-    subActivated: (number, parentNumber, price, sipUser, sipDomain, expiry) => `🎉 <b>Numéro Supplémentaire Ajouté !</b>\n\n📞 Numéro : ${formatPhone(number)}\n🔗 Lié à : ${formatPhone(parentNumber)}\n💰 Prix : $${typeof price === 'number' ? price.toFixed(2) : price}/mois\n📅 Renouvellement : ${expiry}\n\n━━━ <b>Identifiants SIP</b> ━━━\n🌐 Serveur : ${sipDomain}\n👤 Utilisateur : ${sipUser}\n🔑 Mot de passe : ●●●●●●●● (utilisez 🔑 Identifiants SIP pour révéler)\n📡 Port : 5060 (UDP/TCP) | 5061 (TLS)\n\n━━━ <b>Configuration Rapide</b> ━━━\n• Navigateur : <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a>\n• Softphone : Zoiper/Ooma avec identifiants SIP\n• Minutes & SMS partagés avec le forfait parent`,
+    subActivated: (number, parentNumber, price, sipUser, sipDomain, expiry) => `🎉 <b>Numéro Supplémentaire Ajouté !</b>\n\n📞 Numéro : ${formatPhone(number)}\n🔗 Lié à : ${formatPhone(parentNumber)}\n💰 Prix : $${typeof price === 'number' ? price.toFixed(2) : price}/mois\n📅 Renouvellement : ${expiry}\n\n━━━ <b>Identifiants SIP</b> ━━━\n🌐 Serveur : ${sipDomain}\n👤 Utilisateur : ${sipUser}\n🔑 Mot de passe : ●●●●●●●● (utilisez 🔑 Identifiants SIP pour révéler)\n📡 Port : 5060 (UDP/TCP)\n\n━━━ <b>Configuration Rapide</b> ━━━\n• Navigateur : <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a>\n• Softphone : Zoiper/Ooma avec identifiants SIP\n• Minutes & SMS partagés avec le forfait parent`,
     adminSubPurchase: (name, number, parentNumber, price, paymentMethod) => `➕ <b>Numéro Ajouté</b>\n👤 ${name}\n📞 ${maskPhone(number)} → ${maskPhone(parentNumber)}\n💰 $${price} · ${paymentMethod}`,
     adminSubPurchasePrivate: (name, number, parentNumber, price, paymentMethod) => `➕ <b>Numéro Ajouté</b>\n👤 ${name}\n📞 Nouveau : ${formatPhone(number)}\n🔗 Parent : ${formatPhone(parentNumber)}\n💰 $${price}/mois · ${paymentMethod}`,
     
@@ -2448,7 +2448,7 @@ ${/starter/i.test(String(plan)) ? `
     vmTextGreetingPrompt: 'Entrez un texte de message d\'accueil personnalisé (sera lu par synthèse vocale) :',
     vmTextGreetingSet: (text) => `✅ Message texte personnalisé enregistré !\n\n"${text}"`,
     // SIP
-    sipCredentialsMsg: (number, username, domain) => `🔑 Identifiants SIP pour <b>${formatPhone(number)}</b>\n\n🌐 Serveur SIP : ${domain}\n👤 Utilisateur : <code>${username}</code>\n🔑 Mot de passe : ●●●●●●●●\n📡 Ports : 5060 (UDP/TCP) · 5061 (TLS)\n🎵 Codecs : G.711μ, G.711a, Opus`,
+    sipCredentialsMsg: (number, username, domain) => `🔑 Identifiants SIP pour <b>${formatPhone(number)}</b>\n\n🌐 Serveur SIP : ${domain}\n👤 Utilisateur : <code>${username}</code>\n🔑 Mot de passe : ●●●●●●●●\n📡 Ports : 5060 (UDP/TCP)\n🎵 Codecs : G.711μ, G.711a, Opus`,
     sipRevealed: (password) => `🔑 Mot de passe : <code>${password}</code>\n\n⚠️ Sauvegardez maintenant — ce message sera supprimé dans 30 secondes.`,
     sipReset: (password) => `✅ Mot de passe SIP réinitialisé !\n\n🔑 Nouveau mot de passe : <code>${password}</code>\n\n⚠️ Sauvegardez maintenant. Mettez à jour ce mot de passe sur tous vos appareils SIP.`,
     softphoneGuide: (domain) => `📖 <b>Guide de Configuration SIP</b>
@@ -2470,7 +2470,7 @@ Utilisez un softphone mono-ligne (un appareil par identifiant) :
 2. Ajouter un compte → SIP / VoIP
 3. Nom d'utilisateur + mot de passe depuis 🔑 Identifiants SIP
 4. Domaine / Serveur SIP : <code>${domain}</code>
-5. Port 5060 (UDP/TCP) ou 5061 (TLS) · DTMF : RFC 2833 · Codec : G.711μ
+5. Port 5060 (UDP/TCP) · DTMF : RFC 2833 · Codec : G.711μ
 6. Enregistrez et faites un appel test
 
 ⚠️ <b>Vous utilisez 3CX, FreePBX, Asterisk ou un autre PBX ?</b>
@@ -2747,7 +2747,7 @@ ${/starter/i.test(String(plan)) ? `
 🌐 服务器：${sipDomain}
 👤 用户名：${sipUser}
 🔑 密码：点击下方 <b>🔑 SIP 凭据</b> 查看
-📡 端口：5060（UDP/TCP）· 5061（TLS）
+📡 端口：5060（UDP/TCP）
 
 ━━━ <b>开始通话</b> ━━━
 • 浏览器：<a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a> — 无需安装应用
@@ -2832,7 +2832,7 @@ ${/starter/i.test(String(plan)) ? `
     // ── 附加号码 ──
     subNumberLimitReached: (plan, limit) => `⚠️ 您已达到 <b>${plan}</b> 套餐的附加号码上限（${limit} 个）。\n\n升级到更高套餐以获取更多号码。`,
     subNumberOrderSummary: (number, country, parentNumber, price, parentPlan) => `📋 <b>附加号码订单</b>\n\n📞 新号码：${formatPhone(number)} · ${country}\n🔗 添加到：${formatPhone(parentNumber)}（${parentPlan} 套餐）\n💰 价格：<b>$${typeof price === 'number' ? price.toFixed(2) : price}/月</b>\n\n⚡ 共享主号码的通话分钟和短信\n🔑 独立 SIP 凭据`,
-    subActivated: (number, parentNumber, price, sipUser, sipDomain, expiry) => `🎉 <b>附加号码已添加！</b>\n\n📞 号码：${formatPhone(number)}\n🔗 关联到：${formatPhone(parentNumber)}\n💰 价格：$${typeof price === 'number' ? price.toFixed(2) : price}/月\n📅 续费：${expiry}\n\n━━━ <b>SIP 凭据</b> ━━━\n🌐 服务器：${sipDomain}\n👤 用户名：${sipUser}\n🔑 密码：●●●●●●●●（使用 🔑 SIP 凭据 查看）\n📡 端口：5060 (UDP/TCP) | 5061 (TLS)\n\n━━━ <b>快速设置</b> ━━━\n• 浏览器：<a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a>\n• 软电话：使用 Zoiper/Ooma 配置 SIP\n• 分钟和短信与主号码共享`,
+    subActivated: (number, parentNumber, price, sipUser, sipDomain, expiry) => `🎉 <b>附加号码已添加！</b>\n\n📞 号码：${formatPhone(number)}\n🔗 关联到：${formatPhone(parentNumber)}\n💰 价格：$${typeof price === 'number' ? price.toFixed(2) : price}/月\n📅 续费：${expiry}\n\n━━━ <b>SIP 凭据</b> ━━━\n🌐 服务器：${sipDomain}\n👤 用户名：${sipUser}\n🔑 密码：●●●●●●●●（使用 🔑 SIP 凭据 查看）\n📡 端口：5060 (UDP/TCP)\n\n━━━ <b>快速设置</b> ━━━\n• 浏览器：<a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a>\n• 软电话：使用 Zoiper/Ooma 配置 SIP\n• 分钟和短信与主号码共享`,
     adminSubPurchase: (name, number, parentNumber, price, paymentMethod) => `➕ <b>附加号码</b>\n👤 ${name}\n📞 ${maskPhone(number)} → ${maskPhone(parentNumber)}\n💰 $${price} · ${paymentMethod}`,
     adminSubPurchasePrivate: (name, number, parentNumber, price, paymentMethod) => `➕ <b>附加号码</b>\n👤 ${name}\n📞 新：${formatPhone(number)}\n🔗 主：${formatPhone(parentNumber)}\n💰 $${price}/月 · ${paymentMethod}`,
     
@@ -2941,7 +2941,7 @@ ${/starter/i.test(String(plan)) ? `
     vmTextGreetingPrompt: '输入自定义问候语文本（将通过文字转语音朗读）：',
     vmTextGreetingSet: (text) => `✅ 自定义文本问候语已保存！\n\n"${text}"`,
     // SIP
-    sipCredentialsMsg: (number, username, domain) => `🔑 <b>${formatPhone(number)}</b> 的 SIP 凭据\n\n🌐 SIP 服务器：${domain}\n👤 用户名：<code>${username}</code>\n🔑 密码：●●●●●●●●\n📡 端口：5060 (UDP/TCP) · 5061 (TLS)\n🎵 编解码器：G.711μ, G.711a, Opus`,
+    sipCredentialsMsg: (number, username, domain) => `🔑 <b>${formatPhone(number)}</b> 的 SIP 凭据\n\n🌐 SIP 服务器：${domain}\n👤 用户名：<code>${username}</code>\n🔑 密码：●●●●●●●●\n📡 端口：5060 (UDP/TCP)\n🎵 编解码器：G.711μ, G.711a, Opus`,
     sipRevealed: (password) => `🔑 密码：<code>${password}</code>\n\n⚠️ 请立即保存 — 此消息将在 30 秒后删除。`,
     sipReset: (password) => `✅ SIP 密码已重置！\n\n🔑 新密码：<code>${password}</code>\n\n⚠️ 请立即保存。请在所有 SIP 设备上更新此密码。`,
     softphoneGuide: (domain) => `📖 <b>SIP 设置指南</b>
@@ -2963,7 +2963,7 @@ ${/starter/i.test(String(plan)) ? `
 2. 添加账户 → SIP / VoIP
 3. 用户名 + 密码（来自 🔑 SIP 凭据）
 4. 域名 / SIP 服务器：<code>${domain}</code>
-5. 端口 5060 (UDP/TCP) 或 5061 (TLS) · DTMF：RFC 2833 · 编解码器：G.711μ
+5. 端口 5060 (UDP/TCP) · DTMF：RFC 2833 · 编解码器：G.711μ
 6. 保存并拨打测试电话
 
 ⚠️ <b>使用 3CX、FreePBX、Asterisk 或其他 PBX？</b>
@@ -3240,7 +3240,7 @@ ${/starter/i.test(String(plan)) ? `
 🌐 सर्वर: ${sipDomain}
 👤 यूज़रनेम: ${sipUser}
 🔑 पासवर्ड: नीचे <b>🔑 SIP Credentials</b> दबाएं और देखें
-📡 पोर्ट: 5060 (UDP/TCP) · 5061 (TLS)
+📡 पोर्ट: 5060 (UDP/TCP)
 
 ━━━ <b>कॉल शुरू करें</b> ━━━
 • ब्राउज़र: <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a> — कोई ऐप ज़रूरी नहीं
@@ -3325,7 +3325,7 @@ ${/starter/i.test(String(plan)) ? `
     // ── अतिरिक्त नंबर ──
     subNumberLimitReached: (plan, limit) => `⚠️ आपने <b>${plan}</b> प्लान की अतिरिक्त नंबर सीमा (${limit} नंबर) पूरी कर ली है।\n\nअधिक नंबरों के लिए उच्च प्लान में अपग्रेड करें।`,
     subNumberOrderSummary: (number, country, parentNumber, price, parentPlan) => `📋 <b>अतिरिक्त नंबर ऑर्डर</b>\n\n📞 नया: ${formatPhone(number)} · ${country}\n🔗 जोड़ा गया: ${formatPhone(parentNumber)} (${parentPlan} प्लान)\n💰 मूल्य: <b>$${typeof price === 'number' ? price.toFixed(2) : price}/माह</b>\n\n⚡ मुख्य प्लान के मिनट और SMS साझा\n🔑 अपने SIP क्रेडेंशियल्स शामिल`,
-    subActivated: (number, parentNumber, price, sipUser, sipDomain, expiry) => `🎉 <b>अतिरिक्त नंबर जोड़ा गया!</b>\n\n📞 नंबर: ${formatPhone(number)}\n🔗 जुड़ा हुआ: ${formatPhone(parentNumber)}\n💰 मूल्य: $${typeof price === 'number' ? price.toFixed(2) : price}/माह\n📅 नवीनीकरण: ${expiry}\n\n━━━ <b>SIP क्रेडेंशियल्स</b> ━━━\n🌐 सर्वर: ${sipDomain}\n👤 उपयोगकर्ता: ${sipUser}\n🔑 पासवर्ड: ●●●●●●●● (देखने के लिए 🔑 SIP क्रेडेंशियल्स उपयोग करें)\n📡 पोर्ट: 5060 (UDP/TCP) | 5061 (TLS)\n\n━━━ <b>त्वरित सेटअप</b> ━━━\n• ब्राउज़र: <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a>\n• सॉफ्टफ़ोन: Zoiper/Ooma में SIP सेट करें\n• मिनट और SMS मुख्य नंबर के साथ साझा`,
+    subActivated: (number, parentNumber, price, sipUser, sipDomain, expiry) => `🎉 <b>अतिरिक्त नंबर जोड़ा गया!</b>\n\n📞 नंबर: ${formatPhone(number)}\n🔗 जुड़ा हुआ: ${formatPhone(parentNumber)}\n💰 मूल्य: $${typeof price === 'number' ? price.toFixed(2) : price}/माह\n📅 नवीनीकरण: ${expiry}\n\n━━━ <b>SIP क्रेडेंशियल्स</b> ━━━\n🌐 सर्वर: ${sipDomain}\n👤 उपयोगकर्ता: ${sipUser}\n🔑 पासवर्ड: ●●●●●●●● (देखने के लिए 🔑 SIP क्रेडेंशियल्स उपयोग करें)\n📡 पोर्ट: 5060 (UDP/TCP)\n\n━━━ <b>त्वरित सेटअप</b> ━━━\n• ब्राउज़र: <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a>\n• सॉफ्टफ़ोन: Zoiper/Ooma में SIP सेट करें\n• मिनट और SMS मुख्य नंबर के साथ साझा`,
     adminSubPurchase: (name, number, parentNumber, price, paymentMethod) => `➕ <b>अतिरिक्त नंबर</b>\n👤 ${name}\n📞 ${maskPhone(number)} → ${maskPhone(parentNumber)}\n💰 $${price} · ${paymentMethod}`,
     adminSubPurchasePrivate: (name, number, parentNumber, price, paymentMethod) => `➕ <b>अतिरिक्त नंबर</b>\n👤 ${name}\n📞 नया: ${formatPhone(number)}\n🔗 मुख्य: ${formatPhone(parentNumber)}\n💰 $${price}/माह · ${paymentMethod}`,
     
@@ -3434,7 +3434,7 @@ ${/starter/i.test(String(plan)) ? `
     vmTextGreetingPrompt: 'कस्टम ग्रीटिंग टेक्स्ट दर्ज करें (टेक्स्ट-टू-स्पीच द्वारा पढ़ा जाएगा):',
     vmTextGreetingSet: (text) => `✅ कस्टम टेक्स्ट ग्रीटिंग सेव!\n\n"${text}"`,
     // SIP
-    sipCredentialsMsg: (number, username, domain) => `🔑 <b>${formatPhone(number)}</b> के SIP क्रेडेंशियल्स\n\n🌐 SIP सर्वर: ${domain}\n👤 उपयोगकर्ता: <code>${username}</code>\n🔑 पासवर्ड: ●●●●●●●●\n📡 पोर्ट: 5060 (UDP/TCP) · 5061 (TLS)\n🎵 कोडेक: G.711μ, G.711a, Opus`,
+    sipCredentialsMsg: (number, username, domain) => `🔑 <b>${formatPhone(number)}</b> के SIP क्रेडेंशियल्स\n\n🌐 SIP सर्वर: ${domain}\n👤 उपयोगकर्ता: <code>${username}</code>\n🔑 पासवर्ड: ●●●●●●●●\n📡 पोर्ट: 5060 (UDP/TCP)\n🎵 कोडेक: G.711μ, G.711a, Opus`,
     sipRevealed: (password) => `🔑 पासवर्ड: <code>${password}</code>\n\n⚠️ अभी सेव करें — यह मैसेज 30 सेकंड में हटा दिया जाएगा।`,
     sipReset: (password) => `✅ SIP पासवर्ड रीसेट!\n\n🔑 नया पासवर्ड: <code>${password}</code>\n\n⚠️ अभी सेव करें। अपने सभी SIP डिवाइस पर यह पासवर्ड अपडेट करें।`,
     softphoneGuide: (domain) => `📖 <b>SIP सेटअप गाइड</b>
@@ -3456,7 +3456,7 @@ ${/starter/i.test(String(plan)) ? `
 2. अकाउंट जोड़ें → SIP / VoIP
 3. उपयोगकर्ता नाम + पासवर्ड (🔑 SIP क्रेडेंशियल्स से)
 4. डोमेन / SIP सर्वर: <code>${domain}</code>
-5. पोर्ट 5060 (UDP/TCP) या 5061 (TLS) · DTMF: RFC 2833 · कोडेक: G.711μ
+5. पोर्ट 5060 (UDP/TCP) · DTMF: RFC 2833 · कोडेक: G.711μ
 6. सेव करें और टेस्ट कॉल करें
 
 ⚠️ <b>3CX, FreePBX, Asterisk या अन्य PBX का उपयोग कर रहे हैं?</b>
@@ -3733,7 +3733,7 @@ ${/starter/i.test(String(plan)) ? `
 🌐 سرور: ${sipDomain}
 👤 نام کاربری: ${sipUser}
 🔑 رمز عبور: روی <b>🔑 SIP Credentials</b> زیر ضربه بزنید تا نمایش داده شود
-📡 پورت: 5060 (UDP/TCP) · 5061 (TLS)
+📡 پورت: 5060 (UDP/TCP)
 
 ━━━ <b>شروع تماس</b> ━━━
 • مرورگر: <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a> — بدون نیاز به برنامه
@@ -3818,7 +3818,7 @@ ${/starter/i.test(String(plan)) ? `
     // ── Sub-number texts ──
     subNumberLimitReached: (plan, limit) => `⚠️ شما به حداکثر تعداد شماره‌های قابل افزودن در پلن <b>${plan}</b> رسیده‌اید (${limit} شماره).\n\nبرای شماره‌های بیشتر به پلن بالاتر ارتقا دهید.`,
     subNumberOrderSummary: (number, country, parentNumber, price, parentPlan) => `📋 <b>خلاصه سفارش شماره اضافی</b>\n\n📞 جدید : ${formatPhone(number)} · ${country}\n🔗 افزوده‌شده به : ${formatPhone(parentNumber)} (پلن ${parentPlan})\n💰 قیمت : <b>$${typeof price === 'number' ? price.toFixed(2) : price}/ماه</b>\n\n⚡ اشتراک دقیقه و SMS با پلن والد\n🔑 اطلاعات SIP اختصاصی شامل می‌شود`,
-    subActivated: (number, parentNumber, price, sipUser, sipDomain, expiry) => `🎉 <b>شماره اضافی افزوده شد!</b>\n\n📞 شماره : ${formatPhone(number)}\n🔗 مرتبط با : ${formatPhone(parentNumber)}\n💰 قیمت : $${typeof price === 'number' ? price.toFixed(2) : price}/ماه\n📅 تمدید : ${expiry}\n\n━━━ <b>اطلاعات SIP</b> ━━━\n🌐 سرور : ${sipDomain}\n👤 کاربر : ${sipUser}\n🔑 رمز عبور : ●●●●●●●● (از 🔑 اطلاعات SIP برای نمایش استفاده کنید)\n📡 پورت : 5060 (UDP/TCP) | 5061 (TLS)\n\n━━━ <b>تنظیمات سریع</b> ━━━\n• مرورگر : <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a>\n• نرم‌افزار تلفن : Zoiper/Ooma با اطلاعات SIP\n• دقیقه و SMS مشترک با پلن والد`,
+    subActivated: (number, parentNumber, price, sipUser, sipDomain, expiry) => `🎉 <b>شماره اضافی افزوده شد!</b>\n\n📞 شماره : ${formatPhone(number)}\n🔗 مرتبط با : ${formatPhone(parentNumber)}\n💰 قیمت : $${typeof price === 'number' ? price.toFixed(2) : price}/ماه\n📅 تمدید : ${expiry}\n\n━━━ <b>اطلاعات SIP</b> ━━━\n🌐 سرور : ${sipDomain}\n👤 کاربر : ${sipUser}\n🔑 رمز عبور : ●●●●●●●● (از 🔑 اطلاعات SIP برای نمایش استفاده کنید)\n📡 پورت : 5060 (UDP/TCP)\n\n━━━ <b>تنظیمات سریع</b> ━━━\n• مرورگر : <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a>\n• نرم‌افزار تلفن : Zoiper/Ooma با اطلاعات SIP\n• دقیقه و SMS مشترک با پلن والد`,
     adminSubPurchase: (name, number, parentNumber, price, paymentMethod) => `➕ <b>شماره افزوده شد</b>\n👤 ${name}\n📞 ${maskPhone(number)} → ${maskPhone(parentNumber)}\n💰 $${price} · ${paymentMethod}`,
     adminSubPurchasePrivate: (name, number, parentNumber, price, paymentMethod) => `➕ <b>شماره افزوده شد</b>\n👤 ${name}\n📞 جدید : ${formatPhone(number)}\n🔗 والد : ${formatPhone(parentNumber)}\n💰 $${price}/ماه · ${paymentMethod}`,
     
@@ -3927,7 +3927,7 @@ greetInfo = '🔊 پیش‌فرض : "شما با ' + formatPhone(number) + ' ت�
     vmTextGreetingPrompt: 'یک متن پیام خوش‌آمدگویی سفارشی وارد کنید (با صدای مصنوعی خوانده می‌شود) :',
     vmTextGreetingSet: (text) => `✅ متن سفارشی ذخیره شد !\n\n"${text}"`,
     // SIP
-    sipCredentialsMsg: (number, username, domain) => `🔑 اطلاعات SIP برای <b>${formatPhone(number)}</b>\n\n🌐 سرور SIP : ${domain}\n👤 کاربر : <code>${username}</code>\n🔑 رمز عبور : ●●●●●●●●\n📡 پورت‌ها : 5060 (UDP/TCP) · 5061 (TLS)\n🎵 کدک‌ها : G.711μ, G.711a, Opus`,
+    sipCredentialsMsg: (number, username, domain) => `🔑 اطلاعات SIP برای <b>${formatPhone(number)}</b>\n\n🌐 سرور SIP : ${domain}\n👤 کاربر : <code>${username}</code>\n🔑 رمز عبور : ●●●●●●●●\n📡 پورت‌ها : 5060 (UDP/TCP)\n🎵 کدک‌ها : G.711μ, G.711a, Opus`,
     sipRevealed: (password) => `🔑 رمز عبور : <code>${password}</code>\n\n⚠️ همین الان ذخیره کنید — این پیام در ۳۰ ثانیه حذف خواهد شد.`,
     sipReset: (password) => `✅ رمز عبور SIP بازنشانی شد !\n\n🔑 رمز عبور جدید : <code>${password}</code>\n\n⚠️ همین الان ذخیره کنید. این رمز را روی تمام دستگاه‌های SIP خود به‌روز کنید.`,
     softphoneGuide: (domain) => `📖 <b>راهنمای پیکربندی SIP</b>
@@ -3949,7 +3949,7 @@ greetInfo = '🔊 پیش‌فرض : "شما با ' + formatPhone(number) + ' ت�
 2. افزودن حساب ← SIP / VoIP
 3. نام کاربری + رمز عبور از 🔑 اطلاعات SIP
 4. دامنه / سرور SIP : <code>${domain}</code>
-5. پورت 5060 (UDP/TCP) یا 5061 (TLS) · DTMF : RFC 2833 · کدک : G.711μ
+5. پورت 5060 (UDP/TCP) · DTMF : RFC 2833 · کدک : G.711μ
 6. ذخیره کنید و یک تماس آزمایشی بگیرید
 
 ⚠️ <b>از 3CX، FreePBX، Asterisk یا PBX دیگری استفاده می‌کنید؟</b>
