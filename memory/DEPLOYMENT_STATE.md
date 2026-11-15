@@ -501,3 +501,8 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Address numbers (botNeedsAddress): no question before payment; askAddressAfterPay() 4s after purchase sets action cpAddressAfterPay, saves endUserAddress on the number + botNumberAddresses + admin alert, tells "active within a few hours". Fixed Turkey address still used where provider accepts any address. NOT tested end-to-end (needs a real purchase).
 - France/Spain missing on Business = Infobip balance $3.01 (< $10 STOP) → provider-health hides Infobip stock. Top up Infobip.
 - main release from workspace 56f613f (+changes) on app-main-a :5000; WL overlay (r3.patch + helpers) on live WL releases.
+
+## 2026-11-15 05:26–05:30Z — Caller-ID passthrough + ring group live tests (owner approved)
+- MultiTEL termination (ARI PJSIP/16806811012@multitel-out, callerId 31684448264 = not ours): arrived on +16806811012 showing +31684448264 → MultiTEL passes the caller's number through. ON-NET only (MultiTEL→MultiTEL); an external mobile test is still needed.
+- Infobip: /calls/1/calls FAILED for both a foreign caller ID and our own +447860089499 → Infobip outbound calling is down for everything (log: CALL_FAILED since 14 Nov; balance $3.01). Inbound to Infobip +16479457172 was answered off-platform with NO Infobip event reaching us. Retest after top-up.
+- Ring group (temporarily enabled on +16806811012, members +19372491807 & +16479457172, reverted after): rang 2/2 at once via Bird showing +16806811012, first answer (+16479457172, ~instant) bridged, other leg cancelled, billing ran. Works. Risk: a member line that auto-answers (voicemail/carrier message) wins the group.
