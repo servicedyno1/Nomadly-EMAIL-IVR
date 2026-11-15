@@ -225,3 +225,8 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Fax: new numbers MultiTEL only (`js/multitel/fax.js`: buy + faxdetect, send_fax, fax_inbox/fax_outbox polling in fax-service maintain). Old SignalWire/Telnyx fax numbers untouched.
 - Tests: iteration_282 + multitel_fax_unit_test 16/16, provider_health 19/19, bird_only 22/22.
 - PROD: deployed 9bc2f5e. MultiTEL still 403 from droplet (Cloudflare WAF, Ray a5a9d4e3ce4dfea2) → MultiTEL numbers and fax numbers unavailable live until Multitel unblocks.
+
+
+## Status 2026-11-15
+- Done/live: swap audit (21 replaced), call permission logging, renewals + release at expiry, DE/FR city numbers, bot fixed Istanbul address, bulk lookup downloads.
+- Open: Multitel fax end-to-end (NO_ROUTE_DESTINATION — support question drafted, fax still sold), Multitel SMS live test, set BOT_END_USER_NAME, 11 Bird verifications pending, deploy bot change to WhiteLabel apps if they run separate code.

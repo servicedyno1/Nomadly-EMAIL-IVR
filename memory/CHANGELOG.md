@@ -3103,3 +3103,13 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - IMEI: Bird has no device API; Spenza /devices/{imei} only for account devices, validate-imei 401, site checker is by model. Needs TAC DB (IMEI.info ~$0.02/check or HiCellTek).
 - Fax: Infobip has no fax. MultiTEL supports T.38 + FaxDetect/FaxEmail + fax APIs; our Asterisk has res_fax_spandsp (T.38 receive/send). Not wired yet.
 - 2026-11-14: Bird caller IDs limited to SYSTEM_CALLER_IDS (+18648308599, +16479457172; both verified). birdAutoLinkTick now only links those; removed pending Bird entries for +447860089499 and +3197010278502; removed birdWanted.add on unlinked. Infobip-first is only a backup when Bird is busy/over budget. Prod still runs old auto-link until publish.
+
+## 2026-11-15 — swap audit, call permission, renewals, Germany lists, bot address (live 57ea299 on app-main)
+- Telnyx→Multitel swap audited: 21 replaced (18 app-main + 3 Voodoo), every old Telnyx number released, 0 active Telnyx left; 2 suspended Telnyx numbers intentionally skipped (605509 +18334511423, 000111 +12075037294). Bird verification of new numbers running (10/21 at 01:15 UTC).
+- Call permission replaces the policy pop-up: Quick IVR asked once, every campaign asked; logged in `callPermissions` only after the call/campaign is accepted; validateOnly skips; records store lead count / list and schedule.
+- Auto-renew off → main line + extras released with the carrier at expiry (no 7-day hold); missing autoRenew = ON everywhere (scheduler matches UI). Reminder texts updated. Wallet → Renewals section (toggle knob fix).
+- Multitel order-only prefixes (most of DE, FR): search lists the city (`+4930 …`), buy posts `v3/order/{prefix}` and keeps the assigned number (`_retriedNumber`). Fax search skips these. Multitel 403 now pauses 10 min (401 still 6 h).
+- Bulk lookup: stuck batches refunded (price fallback for old batches), worker claims batch before charging (no double refund), failed pill label, downloads hardened.
+- Bot: Multitel name+address numbers that accept any address use the fixed Istanbul address (phone-config BOT_END_USER_ADDRESS) and name from env BOT_END_USER_NAME (falls back to Telegram name until set); countries needing a local address still ask.
+- Offers banner plan names from phone-config.
+- NOTE: preview `nodejs` supervisor program does NOT hot-reload — restart it after js/ edits.

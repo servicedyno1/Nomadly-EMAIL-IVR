@@ -1,0 +1,38 @@
+{
+  "summary": "Retest of the iter283 fixes. 6 of 7 work. The stuck lookup batch fix has 2 bugs (refund of $0 on older batches, and the pill still says '(running)'). NOTE: the nodejs supervisor process does NOT hot-reload. It was started at 00:33 and the fixes were saved at 01:00, so I restarted nodejs before testing. (1) Renewals toggle: the 12px knob now sits inside the 32px track on desktop 1920 and mobile 390. ON = 16-28px, OFF = 2-14px, 8px gap before the text, 'Auto-renew on' is fully readable, scrollWidth is 390. Off and on both work and were restored. (2) Scheduler: line 211 is `num.autoRenew !== false`, and the reminder text at lines 739/744/751 matches. test_phone_scheduler_grace_fix.js: 34/34 pass. test_plan_lifecycle_2026-10.js: 32 pass, 1 fail (the known pre-existing 'restoring the main line...'). (3) Campaign with a written script: the validateOnly POST with no permissionConfirmed returns 200 {ok:true} (no 428). The real POST returns 428, then 503 bulk_maintenance after confirming, so the user is asked once. (4) Records only on accepted calls: a rejected campaign (400 invalid_caller, and 503 for uxtest) writes 0 callPermissions records. Quick IVR that fails with 400 (invalid caller via API; missing transfer number via UI) does NOT set quickIvrPermissionAt and asks again next time. A successful Quick IVR (UI, 202 dry-run) writes 1 'quick' record and sets the flag. The next call shows no dialog. (5) Record fields: checked only by reading the code (preview always returns 503 for campaigns). numbers = count of `leads` split on whitespace/commas/semicolons, or `list:<listId>`; scheduleAt = scheduledFor. (6) Stuck batch bmwh09az7jzm: GET returns 410 check_failed and the batch is marked failed. Clicking the pill shows the error note. BUT it says 'refunded $0', because this batch was created before the `price` field existed, so the sweep credits 0 (the user was debited 120 x $0.0015 = $0.18 up front). The pill still reads '120 (running)' after the batch has failed. Done pills still open their results. (7) Offer banner: 'Move +12024595976 from Basic to Starter', with no 'undefined'. /offers/current for uxtest, alice and bob has no 'undefined'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "lookup.js sweep() / batchView 410 message", "issue": "Older batches have no `price` field (added in 6a0f35eb, 23:31). For those, sweep sets refunded = total*0 and skips w.credit because b.price is falsy. Batch bmwh09az7jzm (uxtest, 120 emails) is now status 'failed', refunded 0. The user was debited $0.18 when it started and got nothing back. The message says 'You were refunded $0.' Fix: `const p = b.price ?? (b.kind === 'email' ? EMAIL_PRICE : PRICE)` in sweep and in the 410 message. Then credit uxtest manually for bmwh09az7jzm (status is already failed, so the sweep won't pick it up again)."},
+      {"endpoint": "lookup.js bulk worker vs sweep (race)", "issue": "If a run is still going in the same process past the stuck threshold (for example, a slow provider), the sweep refunds the full total. The worker then still credits failed items, charges ok items and sets status 'done' with a plain updateOne. That double-refunds and overwrites 'failed'. Fix: the worker's final update should filter on {status:'running'} and skip the credit/charge when it no longer matches."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Bulk.js Recent bulk checks pill", "issue": "The label uses `b.status === 'done' ? '' : '(running)'`, so a failed batch still shows '120 (running)'. It should say '(didn't finish)' or '(refunded)' when status is failed.", "selector": "[data-testid=email-bulk-recent-bmwh09az7jzm]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Wallet > Renewals (off state)", "issues": ["White knob on the light var(--c-border) track has low contrast when auto-renew is off. Minor."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_permission_fixes_iter284.py", "/app/backend/tests/iter284_stuck_batch_check.py", "/app/backend/tests/iter284_ux_campaign_check.py", "/app/test_reports/pytest/pytest_iter284.xml"],
+  "action_items": [
+    "lookup.js: when b.price is missing, fall back to PRICE/EMAIL_PRICE in sweep() and in the 410 message. Then credit uxtest $0.18 for batch bmwh09az7jzm (now failed with refunded:0).",
+    "Bulk.js pill label: show a failed state instead of '(running)' when status === 'failed'.",
+    "Optional: make the bulk worker's final update conditional on status:'running' so it can't double-refund after a sweep.",
+    "Remember: the nodejs supervisor program does not hot-reload. Restart it after changing js/ files."
+  ],
+  "critical_code_review_comments": [
+    "Permission middleware (index.js:122-137): the res.on('finish') logging is correct. It does fire on 2xx-only, including 202.",
+    "The campaign record does not split `leads` on new lines that contain commas inside names. That is fine for phone lists.",
+    "Quick record stores campaign: undefined. That is fine."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_permission_fixes_iter284.py", "/app/backend/tests/iter284_stuck_batch_check.py", "/app/backend/tests/iter284_ux_campaign_check.py"],
+  "success_rate": {"backend": "90% (7/7 pytest pass + JS suites as expected; stuck-batch refund amount wrong for older batches)", "frontend": "85% (toggle, quick once, error note, banner OK; pill label wrong)"},
+  "seed_data_creation": "TEST_ account test_perm284_<ts>@example.com (with legal profile; its callPermissions removed). I gave uxtest a temporary legal profile, then removed it. I also unset quickIvrPermissionAt and deleted the 1 quick callPermissions record I created. Renewals toggle for +13341112222 was turned off and back on (autoRenew true). DATA CHANGE: my GET on batch bmwh09az7jzm (the requested test) marked it failed with refunded 0.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "App is at /cloudivr on preview. The login button is 'Sign in' (no submit testid). Dismiss cookie-allow-all first. The seeded accounts have no legal profile; use backend/tests/iter283_ux_profile_toggle.py on/off for uxtest. Preview campaigns always return 503 bulk_maintenance. Restart the nodejs supervisor program after JS changes. The campaign UI script flow (TTS) was not driven in the browser, to avoid TTS spend; it was verified via the API.",
+  "rca of the issue": "Stuck batch $0 refund: batches created before commit 6a0f35eb have no `price`. sweep() computes round4(b.total * (b.price || 0)) and only credits if b.price is set, so older batches are marked failed with nothing refunded."
+}

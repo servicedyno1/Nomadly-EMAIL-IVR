@@ -55,7 +55,7 @@ export function BulkRun({ kind, unit, max, path, field, cols, Row, onDone, testi
       </div>
       {progress && <p className="text-sm text-[var(--c-muted)]" data-testid={`${testid}-progress`}>{`Checked ${progress.done || 0} of ${progress.total}${progress.etaSeconds > 60 ? ` · about ${Math.ceil(progress.etaSeconds / 60)} min left` : ''}. You can leave this page — the results are saved under Recent bulk checks.`}</p>}
       <ErrorNote error={err} testid={`${testid}-error`} />
-      {mine.length > 0 && <div className="flex flex-wrap items-center gap-2 text-sm" data-testid={`${testid}-recent`}><span className="text-[var(--c-muted)]">Recent bulk checks:</span>{mine.map(b => <button key={b.batchId} type="button" className="civr-pill" onClick={() => open(b.batchId)} data-testid={`${testid}-recent-${b.batchId}`}>{`${new Date(b.at).toLocaleDateString()} · ${b.total} ${b.status === 'done' ? '' : '(running)'}`}</button>)}</div>}
+      {mine.length > 0 && <div className="flex flex-wrap items-center gap-2 text-sm" data-testid={`${testid}-recent`}><span className="text-[var(--c-muted)]">Recent bulk checks:</span>{mine.map(b => <button key={b.batchId} type="button" className="civr-pill" onClick={() => open(b.batchId)} data-testid={`${testid}-recent-${b.batchId}`}>{`${new Date(b.at).toLocaleDateString()} · ${b.total} ${b.status === 'done' ? '' : b.status === 'failed' ? '(refunded)' : '(running)'}`}</button>)}</div>}
       {out && out.status !== 'running' && (
         <div className="space-y-3" data-testid={`${testid}-result`}>
           <div className="flex flex-wrap items-center gap-3 text-sm">

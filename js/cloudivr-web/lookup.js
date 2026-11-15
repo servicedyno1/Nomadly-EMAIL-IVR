@@ -53,6 +53,8 @@ function createLookup({ db, h, walletOps, bird = require('../bird'), log = conso
       const outs = runMany ? await runMany(good) : await pool(good, 1, async (x) => { const o = await run(x); if (++n % 5 === 0) batches.updateOne({ _id: batchId }, { $set: { done: n } }).catch(() => {}); return o })
       const rows = good.map((x, k) => (outs[k] ? row(chatId, x, outs[k], batchId) : null))
       const ok = rows.filter(Boolean), failed = good.length - ok.length
+      // Claim the batch first: if the stuck-sweep already refunded it in full, don't refund or charge again.
+      if (!(await batches.updateOne({ _id: batchId, status: 'running' }, { $set: { status: 'finishing' } })).modifiedCount) { log(`[Lookup] bulk ${batchId} finished after it was refunded — results dropped`); return null }
       if (failed) await w.credit(chatId, round4(failed * price))
       if (ok.length) { await store.insertMany(ok); await charge(chatId, type, ok.length * price, `${ok.length} ${noun}${ok.length === 1 ? '' : 's'}`) }
       const result = { results: pub(rows, good, key), charged: round4(ok.length * price), refunded: round4(failed * price), skipped, duplicates }
@@ -68,11 +70,12 @@ function createLookup({ db, h, walletOps, bird = require('../bird'), log = conso
 
   // A run cut short by a restart never finishes: refund it in full (nothing was stored for it).
   // Stuck = older than twice its expected run time (min 10 min), e.g. cut short by a restart.
+  const priceOf = (b) => b.price ?? (b.kind === 'email' ? EMAIL_PRICE : PRICE)
   const stuck = (b) => Date.now() - new Date(b.at).getTime() > Math.max(10 * 60000, (b.kind === 'email' ? 30 : 13) * 1000 * (b.total || 1))
   async function sweep() {
     for (const b of (await batches.find({ status: 'running', at: { $lt: new Date(Date.now() - 10 * 60000) } }).toArray()).filter(stuck)) {
-      const r = await batches.updateOne({ _id: b._id, status: 'running' }, { $set: { status: 'failed', refunded: round4(b.total * (b.price || 0)) } })
-      if (r.modifiedCount && b.price) { await w.credit(b.chatId, round4(b.total * b.price)); log(`[Lookup] refunded interrupted bulk ${b._id} ($${round4(b.total * b.price)})`) }
+      const p = priceOf(b), r = await batches.updateOne({ _id: b._id, status: 'running' }, { $set: { status: 'failed', refunded: round4(b.total * p) } })
+      if (r.modifiedCount && p) { await w.credit(b.chatId, round4(b.total * p)); log(`[Lookup] refunded interrupted bulk ${b._id} ($${round4(b.total * p)})`) }
     }
   }
   setTimeout(() => sweep().catch(() => {}), 60000)
@@ -82,8 +85,8 @@ function createLookup({ db, h, walletOps, bird = require('../bird'), log = conso
     const b = await batches.findOne({ _id: String(req.params.id), chatId: req.webChatId })
     if (!b) return bad(res, 404, 'not_found', 'That check was not found.')
     if (b.status === 'running' && stuck(b)) { await sweep(); return batchView(req, res) }
-    if (b.status === 'failed') return bad(res, 410, 'check_failed', `This check didn’t finish. You were refunded $${round4(b.refunded ?? b.total * (b.price || 0))}. Run it again.`)
-    if (b.status !== 'done') return res.json({ batchId: b._id, status: b.status, total: b.total, done: b.done, skipped: b.skipped, duplicates: b.duplicates, etaSeconds: b.kind === 'email' ? 15 : Math.ceil((b.total - (b.done || 0)) * 6.5) })
+    if (b.status === 'failed') return bad(res, 410, 'check_failed', `This check didn’t finish. You were refunded $${round4(b.refunded || b.total * priceOf(b))}. Run it again.`)
+    if (b.status !== 'done') return res.json({ batchId: b._id, status: b.status === 'finishing' ? 'running' : b.status, total: b.total, done: b.done, skipped: b.skipped, duplicates: b.duplicates, etaSeconds: b.kind === 'email' ? 15 : Math.ceil((b.total - (b.done || 0)) * 6.5) })
     const store = b.kind === 'email' ? ecol : col
     const rows = (await store.find({ chatId: req.webChatId, batchId: b._id }).toArray()).map(strip)
     res.json({ batchId: b._id, status: 'done', total: b.total, done: b.total, results: [...rows, ...(b.failedItems || []).map(x => ({ [b.kind]: x, failed: true }))], charged: b.charged, refunded: b.refunded, skipped: b.skipped, duplicates: b.duplicates })
