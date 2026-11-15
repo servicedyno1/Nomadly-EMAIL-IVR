@@ -78,7 +78,21 @@ const publicAccount = (a) => ({ id: String(a._id), email: a.email || null, phone
 let mailer = null
 // cloudivr.net mails go out from its own address (CLOUDIVR_MAIL_SENDER) through js/mailer.js: MailerSend once the
 // sender's domain is verified there, otherwise the Brevo API (and, without an own sender, the SMTP relay) as before.
+// Plain transactional HTML (<p>… fragments) gets the shared light-card layout: logo, short title, one button.
+function brandedHtml(subject, html) {
+  if (/<html/i.test(html) || /^DID registration documents/.test(subject)) return html
+  const L = require('./email-layout'), FONT = "'Helvetica Neue',Helvetica,Arial,sans-serif"
+  const base = String(process.env.CLOUDIVR_PUBLIC_URL || 'https://cloudivr.net').replace(/\/+$/, '')
+  const body = String(html || '')
+    .replace(/<p>\s*<a href="([^"]+)"[^>]*>([^<]{1,40})<\/a>([^<]{0,80})<\/p>/g, (m, href, label, rest) => `${L.button(label, href.replace(/&amp;/g, '&'))}${rest.trim() ? L.small(L.esc(rest.trim())) : ''}`)
+    .replace(/<p>/g, `<p style="margin:0 0 16px;font:16px/1.6 ${FONT};color:#334155">`)
+    .replace(/<a href=(?![^>]*style=)/g, '<a style="color:#4f46e5;font-weight:600" href=')
+  const preheader = String(html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 110)
+  return L.layout({ title: subject, preheader, body, base, foot: { why: 'You get this email because you have a CloudIVR account.', support: ['Get help', `${base}/app/support`] } })
+}
+
 function sendMail(to, subject, html, attachments, extra) {
+  html = brandedHtml(subject, html)
   const own = process.env.CLOUDIVR_MAIL_SENDER
   // Test fixtures (e2e-*@…, @example.*) never get mail: their inboxes bounce or auto-reply into the support inbox.
   if (/^e2e-|@example\.(com|org|net)$/i.test(String(to || ''))) return Promise.resolve(false)

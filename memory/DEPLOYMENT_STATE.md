@@ -528,3 +528,13 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - CNAM: cnam-service EZCNAM primary (EZCNAM_API_KEY, GET https://api.ezcnam.com/v1?key&phone&out=json), MultiTEL/SignalWire only when EZCNAM errors/missing. Key pending from owner.
 - main release 8560b05; WL overlay r5/r6 patches + fixes; backups /tmp/bk_<app>/ on droplet.
 - 13:20Z EZCNAM_API_KEY copied to all 4 shared envs (endpoint needs trailing slash: https://api.ezcnam.com/v1/). Prod test: EZCNAM returned name; with bad key → "[CNAM] EZCNAM failed" → MultiTEL fallback returned name ✅. All brands restarted, healthy.
+
+## 2026-11-15 ~13:30Z — Orders wait for provider top-ups + branded emails (all brands)
+- NOTE: WL brands were redeployed 13:15–13:18 from GitHub (release 95d3d5d) — they already contain all earlier overlays. Active WL slots now: app-wl-a :5001, app-voodoo-b :5103, app-proshop-a :5004. Main: app-main-b :5100 (043549e).
+- provider-health.isDown = hard down only (low balance never hides numbers). buyWithBackup: isLow(primary) → pending-orders.pendingResult (fake success id 'pending:…', _pending).
+- js/pending-orders.js: collection pendingNumberOrders; in-memory held set filters mt/ib search results (prefix pools not held); worker 2 min (active slot) buys when balance OK → activateNumber (status provisioning→active) + bot msg/web inbox + email; number gone → refund wallet + remove doc + "pick a new number"; 48 h → refund. Admin: Telegram + CIVR_ADMIN_EMAIL.
+- Bot 4 purchase paths + web checkout: doc status 'provisioning' when _pending, enqueue, pending message instead of "activated". Web toast "being set up".
+- Spenza: STOP.spenza=10; provision() → status awaiting_funds (shown as provisioning) + customer/admin notice; retryAwaitingFunds() in the worker; 48 h refund. buyMobile path NOT covered.
+- Emails: auth.sendMail wraps plain <p> HTML in email-layout.layout (logo, title=subject, lone link → button). Voicemail email shortened + "Listen in CloudIVR" button.
+- Unit test (stubbed providers, local Mongo): wait while low → complete one, refund the unavailable one ✅. Live low-balance order not exercised.
+- Prod balances 13:30: MultiTEL $11.28 (ok), Infobip 3.01 (low), Spenza 6.38 (low → eSIM orders will queue now).

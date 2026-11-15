@@ -48,6 +48,9 @@ async function areas(cc) {
 }
 
 const searched = new Map() // e164 → { priceId, features, needsReg, monthly }
+// Waiting orders keep the search details so the buy can run after a restart.
+const searchedMeta = (n) => searched.get(n) || null
+const remember = (n, meta) => { if (meta) searched.set(n, meta) }
 const cheapest = (prices) => [...(prices || [])].sort((a, b) => (+a.channels - +b.channels) || (+a.monthly_price - +b.monthly_price))[0]
 async function searchNumbers(countryCode, numberType = 'local', areaCode = null, limit = 5) {
   if (!selling()) return []
@@ -78,7 +81,7 @@ async function searchNumbers(countryCode, numberType = 'local', areaCode = null,
           _capabilities: { voice: true, sms, mms: false, fax: false }, _provider: 'multitel', _needsRegistration: String(n.restrictions?.needs_registration) === '1' })
       }
     }
-    return out.slice(0, limit)
+    return out.filter(n => !require('../pending-orders').isHeld(n.phone_number)).slice(0, limit)
   } catch (e) { log(`search ${cc} ${numberType}: ${e.message}`); return [] }
 }
 // Placeholder result for an order-only prefix: phone_number is the bare prefix (e.g. +49241); buyNumber orders from it.
@@ -167,4 +170,4 @@ async function sendSms(from, to, text) {
 }
 const ownsNumber = (n) => owned.includes(n)
 
-module.exports = { ipv4, isBlocked, api, enabled, selling, sendSms, ownsNumber, smsHookKey, isMt, searchNumbers, isMtSearched, isAssigned, buyNumber, releaseNumber, refreshOwned, ownedNumbers, registrationStatus, route }
+module.exports = { ipv4, isBlocked, api, enabled, selling, searchedMeta, remember, sendSms, ownsNumber, smsHookKey, isMt, searchNumbers, isMtSearched, isAssigned, buyNumber, releaseNumber, refreshOwned, ownedNumbers, registrationStatus, route }

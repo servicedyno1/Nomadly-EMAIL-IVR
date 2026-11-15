@@ -4189,6 +4189,15 @@ const loadData = async () => {
   notifyGroupsCol = db.collection('notifyGroups')
   phoneNumbersOf = db.collection('phoneNumbersOf')
   require('./provider-health').start(notifyAdmin)
+  require('./pending-orders').init({
+    db, notifyAdmin,
+    send: (id, text) => bot?.sendMessage(id, text, { parse_mode: 'HTML' }).catch(() => {}),
+    email: (to, subject, html) => require('./cloudivr-web/auth').sendMail(to, subject, html).catch(() => {}),
+    adminEmail: (subject, html) => process.env.CIVR_ADMIN_EMAIL && require('./cloudivr-web/auth').sendMail(process.env.CIVR_ADMIN_EMAIL, subject, html).catch(() => {}),
+    credit: (id, amt) => atomicIncrement(walletOf, id, 'usdIn', Number(amt) || 0),
+    removeNumber: (id, phone) => phoneNumbersOf.updateOne({ _id: id }, { $pull: { 'val.numbers': { phoneNumber: phone, status: 'provisioning' } } }),
+    activateNumber: (id, phone, r) => phoneNumbersOf.updateOne({ _id: id, 'val.numbers.phoneNumber': phone }, { $set: { 'val.numbers.$.status': 'active', 'val.numbers.$.phoneNumber': r.phoneNumber, 'val.numbers.$.telnyxOrderId': r.telnyxOrderId, ...(r.needsRegistration ? { 'val.numbers.$.registration': { status: 'pending', since: new Date().toISOString() } } : {}) } }),
+  }).catch(e => log('[PendingOrders] init: ' + e.message))
   require('./bird-alert').setTelegram(notifyAdmin)
   planLifecycle.lockLegacyPrices(phoneNumbersOf, db.collection('migrationMarks')).then(r => Object.keys(r).length && log(`[PlanLadder] price locks applied: ${JSON.stringify(r)}`)).catch(e => log(`[PlanLadder] price lock failed: ${e.message}`))
   // Customers' own SignalWire numbers are never lent out as a stand-in caller ID.
@@ -14696,7 +14705,7 @@ Enter new value:`), bc)
           purchaseDate: new Date().toISOString(),
           expiresAt: expiresAt.toISOString(),
           autoRenew: true,
-          status: 'active',
+          status: orderResult?._pending ? 'provisioning' : 'active',
           sipUsername, sipPassword,
           telnyxSipUsername: telnyxSipUsernameLocal,
           telnyxSipPassword: telnyxSipPasswordLocal,
@@ -14728,6 +14737,7 @@ Enter new value:`), bc)
           { upsert: true }
         )
         askAddressAfterPay(chatId, info, selectedNumber)
+        if (orderResult?._pending) require('./pending-orders').enqueue({ chatId, phoneNumber: selectedNumber, order: orderResult, amount: priceUsd, lang: info?.userLanguage || 'en' }).catch(e => log('[PendingOrders] enqueue: ' + e.message))
         const existing = await get(phoneNumbersOf, chatId)
 
         await phoneTransactions.insertOne({ chatId, phoneNumber: selectedNumber, action: isSubNumber ? 'sub-number-purchase' : 'purchase', plan: planKey, amount: price, paymentMethod: 'wallet_usd', timestamp: new Date().toISOString() })
@@ -14757,7 +14767,7 @@ Enter new value:`), bc)
           send(chatId, subMsg, trans('o'))
           notifyGroup(cpTxt.adminSubPurchase(maskName(name), selectedNumber, info?.cpSubParentNumber, price, coin === u.usd ? 'Wallet USD' : 'Wallet USD'), cpTxt.adminSubPurchasePrivate(adminUserTag(name, chatId), selectedNumber, info?.cpSubParentNumber, price, coin === u.usd ? 'Wallet USD' : 'Wallet USD'))
         } else {
-          const activatedMsg = cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())) + 
+          const activatedMsg = orderResult?._pending ? require('./pending-orders').pendingMsg(selectedNumber) : cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())) + 
             `\n\n<b>Transaction ID:</b> <code>${txnId}</code>\n<i>Quote this ID when contacting support</i>`
           send(chatId, activatedMsg, trans('o'))
           postActivationNudge(chatId, selectedNumber, plan.name)
@@ -40922,7 +40932,7 @@ const bankApis = {
       country: countryCode, countryName: countryName,
       type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
       purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
-      autoRenew: true, status: 'active', sipUsername, sipPassword,
+      autoRenew: true, status: orderResult?._pending ? 'provisioning' : 'active', sipUsername, sipPassword,
       sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
       messagingProfileId: telnyxResources.messagingProfileId,
       connectionId: telnyxResources.sipConnectionId, smsUsed: 0, minutesUsed: 0,
@@ -40938,6 +40948,7 @@ const bankApis = {
       { upsert: true }
     )
     askAddressAfterPay(chatId, info, selectedNumber)
+    if (orderResult?._pending) require('./pending-orders').enqueue({ chatId, phoneNumber: selectedNumber, order: orderResult, amount: price, lang: info?.userLanguage || 'en' }).catch(e => log('[PendingOrders] enqueue: ' + e.message))
     await phoneTransactions.insertOne({ chatId, phoneNumber: selectedNumber, action: 'purchase', plan: planKey, amount: price, paymentMethod: 'bank_ngn', timestamp: new Date().toISOString() })
     
     // Generate transaction ID for phone purchase
@@ -40956,7 +40967,7 @@ const bankApis = {
       log('[Phone] Failed to log transaction (non-blocking):', txErr.message)
     }
     
-    const activatedMsg = cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())) + 
+    const activatedMsg = orderResult?._pending ? require('./pending-orders').pendingMsg(selectedNumber) : cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())) + 
       `\n\n<b>Transaction ID:</b> <code>${txnId}</code>\n<i>Quote this ID when contacting support</i>`
     sendMessage(chatId, activatedMsg)
     // postActivationNudge both sends the "tap SIP Credentials" follow-up AND
@@ -41951,7 +41962,7 @@ app.get('/crypto-pay-phone', auth, async (req, res) => {
     phoneNumber: selectedNumber, telnyxOrderId: orderResult.id, country: countryCode, countryName,
     type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
     purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
-    autoRenew: true, status: 'active', sipUsername, sipPassword,
+    autoRenew: true, status: orderResult?._pending ? 'provisioning' : 'active', sipUsername, sipPassword,
     sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
     messagingProfileId: telnyxResources.messagingProfileId, connectionId: telnyxResources.sipConnectionId,
     smsUsed: 0, minutesUsed: 0,
@@ -41966,10 +41977,11 @@ app.get('/crypto-pay-phone', auth, async (req, res) => {
     { upsert: true }
   )
   askAddressAfterPay(chatId, info, selectedNumber)
+  if (orderResult?._pending) require('./pending-orders').enqueue({ chatId, phoneNumber: selectedNumber, order: orderResult, amount: price, lang: info?.userLanguage || 'en' }).catch(e => log('[PendingOrders] enqueue: ' + e.message))
   const existing = await get(phoneNumbersOf, chatId)
   await phoneTransactions.insertOne({ chatId, phoneNumber: selectedNumber, action: 'purchase', plan: planKey, amount: price, paymentMethod: 'crypto_' + coin, timestamp: new Date().toISOString() })
   await auditCryptoTx(chatId, 'phone-number', price, { phoneNumber: selectedNumber, plan: planKey, countryCode, provider: 'telnyx', coin, value, ref }, 'blockbee')
-  sendMessage(chatId, cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())))
+  sendMessage(chatId, orderResult?._pending ? require('./pending-orders').pendingMsg(selectedNumber) : cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())))
   postActivationNudge(chatId, selectedNumber, plan.name)
   notifyGroup(cpTxt.adminPurchase(maskName(name), selectedNumber, plan.name, price, 'Crypto ' + coin), cpTxt.adminPurchasePrivate(adminUserTag(name, chatId), selectedNumber, plan.name, price, 'Crypto ' + coin))
   webhookTierCheck(chatId, preSpend, lang)
@@ -47299,7 +47311,7 @@ app.post('/dynopay/crypto-pay-phone', authDyno, async (req, res) => {
     phoneNumber: selectedNumber, telnyxOrderId: orderResult.id, country: countryCode, countryName,
     type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
     purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
-    autoRenew: true, status: 'active', sipUsername, sipPassword,
+    autoRenew: true, status: orderResult?._pending ? 'provisioning' : 'active', sipUsername, sipPassword,
     sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
     messagingProfileId: telnyxResources.messagingProfileId, connectionId: telnyxResources.sipConnectionId,
     smsUsed: 0, minutesUsed: 0,
@@ -47314,10 +47326,11 @@ app.post('/dynopay/crypto-pay-phone', authDyno, async (req, res) => {
     { upsert: true }
   )
   askAddressAfterPay(chatId, info, selectedNumber)
+  if (orderResult?._pending) require('./pending-orders').enqueue({ chatId, phoneNumber: selectedNumber, order: orderResult, amount: price, lang: info?.userLanguage || 'en' }).catch(e => log('[PendingOrders] enqueue: ' + e.message))
   const existing = await get(phoneNumbersOf, chatId)
   await phoneTransactions.insertOne({ chatId, phoneNumber: selectedNumber, action: 'purchase', plan: planKey, amount: price, paymentMethod: 'crypto_dynopay_' + coin, timestamp: new Date().toISOString() })
   await auditCryptoTx(chatId, 'phone-number', price, { phoneNumber: selectedNumber, plan: planKey, countryCode, provider: 'telnyx', coin, value, ref }, 'dynopay')
-  sendMessage(chatId, cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())))
+  sendMessage(chatId, orderResult?._pending ? require('./pending-orders').pendingMsg(selectedNumber) : cpTxt.activated(selectedNumber, plan.name, price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())))
   postActivationNudge(chatId, selectedNumber, plan.name)
   notifyGroup(cpTxt.adminPurchase(maskName(name), selectedNumber, plan.name, price, 'Crypto DynoPay'), cpTxt.adminPurchasePrivate(adminUserTag(name, chatId), selectedNumber, plan.name, price, 'Crypto DynoPay'))
   webhookTierCheck(chatId, preSpend, lang)

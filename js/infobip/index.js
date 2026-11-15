@@ -173,7 +173,7 @@ async function searchNumbers(countryCode, numberType, areaCode, limit = 5, { sms
     const params = { country: cc, limit: areaCode ? 100 : Math.max(limit, 10), capabilities: sms ? 'SMS' : 'VOICE' }
     // Infobip ignores area codes, so filter here (US/CA: 1 + area code; elsewhere: digits appear in the number).
     const inArea = (num) => !areaCode || (['US', 'CA', 'PR'].includes(cc) ? String(num).startsWith(`1${areaCode}`) : String(num).includes(String(areaCode)))
-    const list = ((await M.http().get('/numbers/1/numbers/available', { params })).data?.numbers || []).filter(n => !n.additionalSetupRequired && inArea(n.number)).slice(0, limit)
+    const list = ((await M.http().get('/numbers/1/numbers/available', { params })).data?.numbers || []).filter(n => !n.additionalSetupRequired && inArea(n.number) && !require('../pending-orders').isHeld(e164(n.number))).slice(0, limit)
     return list.map(n => {
       const num = e164(n.number); searched.set(num, n.numberKey)
       const caps = n.capabilities || []
@@ -184,6 +184,8 @@ async function searchNumbers(countryCode, numberType, areaCode, limit = 5, { sms
   } catch (e) { log('search:', errOf(e)); return [] }
 }
 const isIbSearched = (n) => searched.has(String(n || ''))
+const searchedMeta = (n) => (searched.has(n) ? { numberKey: searched.get(n) } : null)
+const remember = (n, meta) => { if (meta?.numberKey) searched.set(n, meta.numberKey) }
 // Resale note (end user's name + address) put on the number right after it is bought.
 const notes = new Map()
 const setResaleNote = (phoneNumber, note) => { if (note) notes.set(phoneNumber, String(note).slice(0, 250)) }
@@ -255,5 +257,5 @@ async function sendSms(from, to, text) {
 const M = module.exports = {
   enabled, selling, isIb, configId, http: makeHttp, errOf, recordingToken, smsHookKey, routeSms,
   voice: { ingest, setSink, _legs: legs, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall },
-  searchNumbers, isIbSearched, buyNumber, releaseNumber, refreshOwned, ownedNumbers, lookup, sendSms, setResaleNote,
+  searchNumbers, isIbSearched, searchedMeta, remember, buyNumber, releaseNumber, refreshOwned, ownedNumbers, lookup, sendSms, setResaleNote,
 }

@@ -213,7 +213,8 @@ export default function BuyNumber() {
       if (d.texting) d.texting.error ? toast.error(d.texting.error) : toast.success('Texting Number ordered — we’ll tell you when it’s ready');
       if (d.order) { nav(cp(`/app/orders/${enc(d.order.id)}`)); return; }
       if (d.verification) { toast.success('Paid — one last step for this number'); nav(cp('/app/verification')); return; }
-      if (d.substitutedFrom) toast.info(`${d.substitutedFrom} was just taken, so you got ${d.number.phoneNumber} instead — same price.`);
+      if (d.pending) toast.success(`Paid — ${d.number.phoneNumber} is being set up. We’ll email you when it’s ready.`);
+      else if (d.substitutedFrom) toast.info(`${d.substitutedFrom} was just taken, so you got ${d.number.phoneNumber} instead — same price.`);
       else toast.success(`${d.number.phoneNumber} is yours`);
       nav(cp(setupPath(useNow, d.number.phoneNumber)));
     } catch (err) { setError(err); toast.error(err.message); } finally { setBusy(''); }

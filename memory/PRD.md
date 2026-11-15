@@ -262,3 +262,7 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - NUMBER_PROVIDERS env (multitel | infobip | multitel,infobip); prod = multitel on all brands.
 - CNAM: EZCNAM primary, MultiTEL then SignalWire fallback on errors. Live verified.
 - Pro $100, brief bot copy, address-after-payment (untested end-to-end), Infobip inbound routing fix. Infobip outbound still 10309 (balance €2.79).
+
+## Update 2026-11-15 13:30 UTC
+- Low provider balance no longer hides numbers; paid orders queue (pending-orders.js), auto-complete after top-up, refund if number gone or after 48 h; admin Telegram+email; numbers held from other buyers. Spenza eSIM create path covered (buyMobile not yet).
+- All plain CloudIVR transactional emails now use the shared light-card layout; voicemail email shortened.

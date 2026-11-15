@@ -42,9 +42,10 @@ function createVoicemailDelivery(deps) {
 
     let emailed = false
     if (vm.forwardToEmail && sendMail) {
-      const html = `<p><b>New voicemail</b> on ${esc(formatPhone(to))}</p><p>From: ${esc(formatPhone(from))}<br/>Length: ${fmtDur(duration)}<br/>Received: ${when.toUTCString()}</p>`
-        + (tr.text ? `<p><b>Transcript</b></p><blockquote style="border-left:3px solid #34d399;margin:0;padding-left:12px">${esc(tr.text)}</blockquote>` : '')
-        + `<p>${buf ? 'The recording is attached.' : 'Listen in your CloudIVR inbox.'}</p>`
+      const app = String(process.env.CLOUDIVR_PUBLIC_URL || 'https://cloudivr.net').replace(/\/+$/, '')
+      const html = `<p>To <b>${esc(formatPhone(to))}</b> · ${fmtDur(duration)} · ${when.toUTCString().slice(5, 22)} UTC</p>`
+        + (tr.text ? `<blockquote style="border-left:3px solid #4f46e5;margin:0 0 16px;padding:8px 14px;background:#f6f7fb;border-radius:8px;font:15px/1.55 Helvetica,Arial,sans-serif;color:#0f172a">${esc(tr.text)}</blockquote>` : '')
+        + `<p><a href="${app}/app/inbox">Listen in CloudIVR</a>${buf ? ' Recording attached.' : ''}</p>`
       try {
         emailed = await sendMail(vm.forwardToEmail, `New voicemail from ${formatPhone(from)}`, html, buf ? [{ filename: 'voicemail.mp3', content: buf, contentType: 'audio/mpeg' }] : undefined)
       } catch (e) { log(`[VoicemailWeb] email to ${vm.forwardToEmail} failed: ${e.message}`) }

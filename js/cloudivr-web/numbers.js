@@ -467,7 +467,7 @@ function routes(router, deps) {
       const doc = {
         phoneNumber: selected, telnyxOrderId: order.id, provider: viaMultitel ? 'multitel' : viaInfobip ? 'infobip' : 'telnyx', country, countryName: c.name,
         ...(order._needsRegistration ? { registration: { status: 'pending', since: new Date().toISOString() } } : {}),
-        type, plan: planKey, planPrice: round2(base), ...(!sub && hit.surcharge ? { numberSurcharge: round2(hit.surcharge) } : {}), purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(), autoRenew: autoRenew !== false, status: 'active',
+        type, plan: planKey, planPrice: round2(base), ...(!sub && hit.surcharge ? { numberSurcharge: round2(hit.surcharge) } : {}), purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(), autoRenew: autoRenew !== false, status: order._pending ? 'provisioning' : 'active',
         sipUsername, sipPassword, telnyxSipUsername: tUser, telnyxSipPassword: tPass, telnyxCredentialId: tCredId, sipDomain: phoneConfig.WEB_SIP_DOMAIN,
         messagingProfileId: caps.sms ? tr.messagingProfileId || null : null, connectionId: tr.sipConnectionId || null, smsUsed: 0, minutesUsed: 0,
         capabilities: caps, channel: 'web', resold: true, ...(eu ? { endUser: eu } : {}), ...(dryRun() ? { dryRun: true } : {}), ...(sub ? { isSubNumber: true, parentNumber: sub.parentNumber } : {}),
@@ -480,6 +480,7 @@ function routes(router, deps) {
         },
       }
       await phoneNumbersOf.updateOne({ _id: chatId }, { $push: { 'val.numbers': doc } }, { upsert: true })
+      if (order._pending) await require('../pending-orders').enqueue({ chatId, phoneNumber: selected, order, amount: price, email })
       await deps.legalProfile?.recordResale({ chatId, phoneNumber: selected, provider: doc.provider, country })
       if (doc.registration) deps.numberDocs?.submit({ chatId, email, phoneNumber: selected, country, countryName: c.name, type }).catch(e => log(`[CloudIVR-Web] MultiTEL documents for ${selected}: ${e.message}`))
       await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: sub ? 'purchase_sub' : 'purchase', plan: planKey, amount: price, paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), ...(sub ? { parentNumber: sub.parentNumber } : {}), ...(coupon ? { coupon: coupon.code, discountPct: coupon.discount } : {}), channel: 'web', timestamp: new Date().toISOString() })
@@ -492,7 +493,8 @@ function routes(router, deps) {
       if (!sub) await referrals.onPurchase(db, chatId, price, log).catch(e => log(`[CloudIVR-Web] referral payout failed: ${e.message}`))
       notifyAdmin(`🌐 CloudIVR web purchase${dryRun() ? ' (DRY RUN)' : ''}${viaOrder ? ' · crypto checkout' : ''}\nweb account: ${chatId} (${email})\nnumber: ${selected} (${country})${sub ? `\nextra number on ${sub.parentNumber}` : ''}\nplan: ${plan.name} $${price}${coupon ? ` (coupon ${coupon.code} −${coupon.discount}%)` : ''}`)
       await searchCache.deleteOne({ _id: chatId })
-      return { status: 201, body: { number: publicNumber(doc), substitutedFrom: selected !== phone && !order._assigned ? phone : null, balance: await w.balance(chatId) } }
+      if (order._pending) await notify.push(chatId, require('../pending-orders').pendingMsg(selected), null, { kind: 'billing' }).catch(() => {})
+      return { status: 201, body: { number: publicNumber(doc), pending: !!order._pending, substitutedFrom: selected !== phone && !order._assigned ? phone : null, balance: await w.balance(chatId) } }
     } catch (e) {
       if (prepaid) { log(`[CloudIVR-Web] activating requested number ${phone} for ${chatId} failed: ${e.message}`); return { status: 424, body: { error: 'purchase_failed', message: e.message } } }
       await w.credit(chatId, price)
