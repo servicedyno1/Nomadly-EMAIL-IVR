@@ -1514,7 +1514,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 关闭' 
  cp_224: '活动进行中。请使用下方按钮：',
  cp_225: '🛒 <b>选择套餐：</b>',
  cp_226: '🌍 <b>所有可用国家</b>\n\n请选择一个国家：',
- cp_227: (location, numberLines) => `📱 <b>第 3 步，共 4 步 · 选择您的号码</b> — ${location}\n\n${numberLines}\n\n每个号码均支持通话、短信和 Bulk IVR。\n点击您想要的号码 👇`,
+ cp_227: (location, numberLines) => `📱 <b>第 3 步，共 4 步 · 选择您的号码</b> — ${location}\n\n${numberLines}\n\n点击一个号码 👇`,
  cp_228: (message, numberLines) => `📱 <b>第 3 步，共 4 步 · 选择您的号码</b> — ${message}\n\n${numberLines}\n\n每个号码均支持通话、短信和 Bulk IVR。\n点击您想要的号码 👇`,
  cp_229: (areaCode, numberLines) => `📱 <b>第 3 步，共 4 步 · 选择您的号码</b> — 区号 ${areaCode}\n\n${numberLines}\n\n每个号码均支持通话、短信和 Bulk IVR。\n点击您想要的号码 👇`,
  cp_23: (phoneNumber, recentNumber) => `📱 来自：<b>${phoneNumber}</b>\n📞 呼叫至：<b>${recentNumber}</b>\n\n请选择 IVR 模板类别：`,
@@ -1549,10 +1549,14 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 关闭' 
  cp_258: '请选择一个选项：',
  cp_259: '🌍 <b>所有可用国家</b>\n\n请选择一个国家：',
  cp_26: '📢 <b>快速 IVR 呼叫</b>\n\n使用自动 IVR 消息呼叫一个号码。\n\n📞 <b>第 1/2 步：</b>点击<b>您的</b>哪个号码将在通话中显示为<i>来电显示</i>：',
- cp_260: (subNumbersAvailable, numberLines, bulkIvrSupport, tapToSelect) => `${subNumbersAvailable}\n\n${numberLines}\n\n${bulkIvrSupport}\n\n${tapToSelect}`,
- cp_261: (subNumberSelected, numberLines, bulkIvrSupport, tapToSelect) => `${subNumberSelected}\n\n${numberLines}\n\n${bulkIvrSupport}\n\n${tapToSelect}`,
+ cp_260: (subNumbersAvailable, numberLines, bulkIvrSupport, tapToSelect) => `${subNumbersAvailable}\n\n${numberLines}\n\n${tapToSelect}`,
+ cp_261: (subNumberSelected, numberLines, bulkIvrSupport, tapToSelect) => `${subNumberSelected}\n\n${numberLines}\n\n${tapToSelect}`,
  cp_262: (subNumberArea, numberLines, bulkIvrSupport, tapToSelect) => `${subNumberArea}\n\n${numberLines}\n\n${bulkIvrSupport}\n\n${tapToSelect}`,
- cp_263: (numberLines) => `📱 <b>更多号码</b>\n\n${numberLines}\n\n☎️ = 支持批量 IVR\n\n点击选择：`,
+ cp_263: (numberLines) => `📱 <b>更多号码</b>
+
+${numberLines}
+
+点击一个号码 👇`,
  cp_264: (newState, v1) => `🎵 等待音乐：<b>${newState}</b>\n${v1}`,
  cp_265: '请输入以 http:// 或 https:// 开头的有效 URL。',
  cp_265b: '该地址指向私有或内部网络。请发送公开的网址（http:// 或 https://）。',
@@ -1697,7 +1701,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 关闭' 
  cp_77: '🔑 <b>OTP 收集模式</b>\n\n验证码应为几位数？\n\n💡 验证码提示会自动添加在脚本之后 — 无需手动包含。\n\n<i>默认：6 位</i>',
  cp_78: '请选择一种模式：',
  cp_79: '📋 <b>选择呼叫模式</b>\n\n🔗 <b>转接</b> — 目标按键后，将其接通到您的号码\n🔑 <b>OTP 收集</b> — 按键后，系统自动提示目标输入验证码 — 并通过 Telegram 发送给您\n\n两种模式都会提供完整结果报告。',
- cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business, sp, sm, sl) => `🛒 <b>第 1 步，共 4 步 · 选择您的套餐</b>\n\n💡 <b>Basic — $${price}/月</b>\n✅ ${minutes} 分钟来电 · 呼叫转移\n✖️ 不含 SIP 软电话，不含 IVR · 最多 ${starter} 个号码\n\n🧩 <b>Starter — $${sp}/月</b>\n✅ ${sm} 分钟来电 · 呼叫转移\n✅ SIP 软电话 · 语音信箱 · 录音\n✖️ 不含 IVR · 最多 ${sl} 个号码\n\n⭐ <b>Pro — $${v5}/月</b> · 最受欢迎\n✅ ${v6} 分钟来电\n✅ SIP 软电话 · 浏览器通话 · 语音信箱 · 录音\n✅ Quick IVR、Bulk IVR、OTP、自动话务员 · 最多 ${pro} 个号码\n\n👑 <b>Business — $${v9}/月</b>\n✅ ${v10} 分钟来电\n✅ 包含 Pro 的所有功能 + 🎭 显示任意来电显示\n✅ AI 语音助手、IVR 重拨、自定义 OTP 消息、优先支持 · 最多 ${business} 个号码\n\n<i>拨出电话和呼叫转移费用从您的钱包中扣除。</i>\n📩 短信：每条发送 $0.05 · 接收免费`,
+ cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business, sp, sm, sl) => `🛒 <b>第 1 步，共 4 步 · 选择套餐</b>\n\n💡 <b>Basic $${price}</b> · ${minutes} 分钟 · 呼叫转移 · ${starter} 个号码\n🧩 <b>Starter $${sp}</b> · ${sm} 分钟 · + SIP、语音信箱、录音 · ${sl} 个号码\n⭐ <b>Pro $${v5}</b> · ${v6} 分钟 · + IVR、Bulk IVR、OTP、浏览器通话 · ${pro} 个号码\n👑 <b>Business $${v9}</b> · ${v10} 分钟 · + 任意来电显示、AI 助手、传真 · ${business} 个号码\n\n<i>按月计费。外呼和转移从钱包扣费 · 短信发送 $0.05，接收免费。</i>`,
  cp_80: '请输入有效的位数（1-10）：',
  cp_81: (length) => `✅ OTP 长度：<b>${length} 位</b>（最多 3 次尝试）\n\n✍️ <b>自定义来电者提示语</b>\n\n是否要自定义来电者在验证后听到的内容？\n\n<b>默认确认：</b><i>"您的验证码已成功验证。谢谢，再见。"</i>\n<b>默认拒绝：</b><i>"已达到最大验证尝试次数。再见。"</i>`,
  cp_82: (length) => `✅ OTP 长度：<b>${length} 位</b>（最多 3 次尝试）\n\n🎙 <b>选择语音提供商</b>\n\n请选择您的 TTS 引擎：`,

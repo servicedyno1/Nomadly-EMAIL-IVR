@@ -493,3 +493,11 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Bot parity (main release 20261115T0457xxZ-e4af5e9 on app-main-b :5100; WL overlay): plan free number = web includedIssue rules; extra numbers = all instant/no-ID/address-only (85 country/types, 0 missing vs web); MultiTEL/Infobip plan add-on = number-addons (web); extra price $25 (web); extra-number address step (fixed or ask) like plan flow; order-only prefixes ("+447") show "assigned when you buy" and can be selected (digit match >1).
 - Prod Telegram simulation (Hostbay_support 5168006768): Cloud IVR + SIP → Choose a Plan → Basic → More Countries → UK → Mobile → +447 → Review & pay screen. No errors. Not paid.
 - Not on GitHub / WhiteLabel branch → Save to GitHub; next WL CI deploy drops the WL overlays.
+
+## 2026-11-15 ~05:20Z — Pro $100 + brief bot copy + address-after-payment (all brands)
+- Shared envs (4 brands, backups backend.env.bak.pro100.<ts>): PHONE_PRO_PRICE=100, PHONE_STANDARD_ON=true, PHONE_STANDARD_PRICE=75, STANDARD_MINUTES=250, PHONE_ENTERPRISE_PRICE=399.
+- Existing Pro customers moved to $100 at next renewal (owner choice): priceLock pro75 removed + planPrice 100 on 7 main (test DB) + 1 voodoo numbers; backup in collection priceMigrationBackup key pro100-2026-11. Own account 5000000000000004 untouched.
+- Bot: cp_8 plan list 4 short lines (5 langs); number list one line each (number… · place · calls/texts · ⚡ instant); review screen shows ⚡ Instant / "rest of number assigned when you pay".
+- Address numbers (botNeedsAddress): no question before payment; askAddressAfterPay() 4s after purchase sets action cpAddressAfterPay, saves endUserAddress on the number + botNumberAddresses + admin alert, tells "active within a few hours". Fixed Turkey address still used where provider accepts any address. NOT tested end-to-end (needs a real purchase).
+- France/Spain missing on Business = Infobip balance $3.01 (< $10 STOP) → provider-health hides Infobip stock. Top up Infobip.
+- main release from workspace 56f613f (+changes) on app-main-a :5000; WL overlay (r3.patch + helpers) on live WL releases.

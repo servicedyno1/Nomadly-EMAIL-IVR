@@ -1515,7 +1515,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 बं�
  cp_224: 'कैंपेन जारी है। नीचे दिया बटन उपयोग करें:',
  cp_225: '🛒 <b>प्लान चुनें:</b>',
  cp_226: '🌍 <b>सभी उपलब्ध देश</b>\n\nएक देश चुनें:',
- cp_227: (location, numberLines) => `📱 <b>चरण 3 / 4 · अपना नंबर चुनें</b> — ${location}\n\n${numberLines}\n\nहर नंबर कॉल, SMS और Bulk IVR के साथ काम करता है।\nजो नंबर चाहिए उसे टैप करें 👇`,
+ cp_227: (location, numberLines) => `📱 <b>चरण 3 / 4 · अपना नंबर चुनें</b> — ${location}\n\n${numberLines}\n\nएक नंबर टैप करें 👇`,
  cp_228: (message, numberLines) => `📱 <b>चरण 3 / 4 · अपना नंबर चुनें</b> — ${message}\n\n${numberLines}\n\nहर नंबर कॉल, SMS और Bulk IVR के साथ काम करता है।\nजो नंबर चाहिए उसे टैप करें 👇`,
  cp_229: (areaCode, numberLines) => `📱 <b>चरण 3 / 4 · अपना नंबर चुनें</b> — क्षेत्र ${areaCode}\n\n${numberLines}\n\nहर नंबर कॉल, SMS और Bulk IVR के साथ काम करता है।\nजो नंबर चाहिए उसे टैप करें 👇`,
  cp_23: (phoneNumber, recentNumber) => `📱 से: <b>${phoneNumber}</b>\n📞 किसे: <b>${recentNumber}</b>\n\nIVR टेम्पलेट श्रेणी चुनें:`,
@@ -1550,10 +1550,14 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 बं�
  cp_258: 'कृपया एक विकल्प चुनें:',
  cp_259: '🌍 <b>सभी उपलब्ध देश</b>\n\nएक देश चुनें:',
  cp_26: '📢 <b>क्विक IVR कॉल</b>\n\nस्वचालित IVR संदेश के साथ किसी नंबर पर कॉल करें।\n\n📞 <b>चरण 1/2:</b> <b>अपने</b> किस नंबर को कॉल पर <i>कॉलर ID</i> के रूप में दिखाना है, उसे दबाएँ:',
- cp_260: (subNumbersAvailable, numberLines, bulkIvrSupport, tapToSelect) => `${subNumbersAvailable}\n\n${numberLines}\n\n${bulkIvrSupport}\n\n${tapToSelect}`,
- cp_261: (subNumberSelected, numberLines, bulkIvrSupport, tapToSelect) => `${subNumberSelected}\n\n${numberLines}\n\n${bulkIvrSupport}\n\n${tapToSelect}`,
+ cp_260: (subNumbersAvailable, numberLines, bulkIvrSupport, tapToSelect) => `${subNumbersAvailable}\n\n${numberLines}\n\n${tapToSelect}`,
+ cp_261: (subNumberSelected, numberLines, bulkIvrSupport, tapToSelect) => `${subNumberSelected}\n\n${numberLines}\n\n${tapToSelect}`,
  cp_262: (subNumberArea, numberLines, bulkIvrSupport, tapToSelect) => `${subNumberArea}\n\n${numberLines}\n\n${bulkIvrSupport}\n\n${tapToSelect}`,
- cp_263: (numberLines) => `📱 <b>और नंबर</b>\n\n${numberLines}\n\n☎️ = बल्क IVR समर्थित\n\nचुनने के लिए टैप करें:`,
+ cp_263: (numberLines) => `📱 <b>और नंबर</b>
+
+${numberLines}
+
+एक नंबर टैप करें 👇`,
  cp_264: (newState, v1) => `🎵 होल्ड म्यूज़िक: <b>${newState}</b>\n${v1}`,
  cp_265: 'http:// या https:// से शुरू होने वाला एक मान्य URL दर्ज करें।',
  cp_265b: 'यह पता किसी निजी या आंतरिक नेटवर्क की ओर जाता है। कोई सार्वजनिक वेब पता (http:// या https://) भेजें।',
@@ -1698,7 +1702,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 बं�
  cp_77: '🔑 <b>OTP संग्रह मोड</b>\n\nकोड कितने अंकों का होना चाहिए?\n\n💡 कोड का प्रॉम्प्ट आपकी स्क्रिप्ट के बाद स्वतः जुड़ जाता है — इसे शामिल करने की ज़रूरत नहीं।\n\n<i>डिफ़ॉल्ट: 6 अंक</i>',
  cp_78: 'एक मोड चुनें:',
  cp_79: '📋 <b>कॉल मोड चुनें</b>\n\n🔗 <b>ट्रांसफर</b> — जब लक्ष्य कुंजी दबाए, उसे आपके नंबर से जोड़ दें\n🔑 <b>OTP संग्रह</b> — कुंजी दबाने के बाद लक्ष्य से स्वतः कोड माँगा जाता है — जो Telegram के ज़रिए आप तक पहुँचता है\n\nदोनों मोड पूरे परिणाम रिपोर्ट करते हैं।',
- cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business, sp, sm, sl) => `🛒 <b>चरण 1 / 4 · अपना प्लान चुनें</b>\n\n💡 <b>Basic — $${price}/माह</b>\n✅ ${minutes} इनकमिंग मिनट · कॉल फॉरवर्डिंग\n✖️ कोई SIP सॉफ्टफोन नहीं, कोई IVR नहीं · अधिकतम ${starter} नंबर\n\n🧩 <b>Starter — $${sp}/माह</b>\n✅ ${sm} इनकमिंग मिनट · कॉल फॉरवर्डिंग\n✅ SIP सॉफ्टफोन · वॉइसमेल · कॉल रिकॉर्डिंग\n✖️ कोई IVR नहीं · अधिकतम ${sl} नंबर\n\n⭐ <b>Pro — $${v5}/माह</b> · सबसे लोकप्रिय\n✅ ${v6} इनकमिंग मिनट\n✅ SIP सॉफ्टफोन · ब्राउज़र कॉल · वॉइसमेल · रिकॉर्डिंग\n✅ Quick IVR, Bulk IVR, OTP, ऑटो-अटेंडेंट · अधिकतम ${pro} नंबर\n\n👑 <b>Business — $${v9}/माह</b>\n✅ ${v10} इनकमिंग मिनट\n✅ Pro की सभी सुविधाएं + 🎭 कोई भी कॉलर ID दिखाएं\n✅ AI वॉइस एजेंट, IVR रीडायल, कस्टम OTP संदेश, प्राथमिकता सहायता · अधिकतम ${business} नंबर\n\n<i>आउटगोइंग कॉल और कॉल फॉरवर्डिंग आपके वॉलेट से भुगतान की जाती हैं।</i>\n📩 SMS: हर भेजे गए SMS पर $0.05 · आने वाले SMS मुफ़्त`,
+ cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business, sp, sm, sl) => `🛒 <b>चरण 1 / 4 · प्लान चुनें</b>\n\n💡 <b>Basic $${price}</b> · ${minutes} मिनट · फॉरवर्डिंग · ${starter} नंबर\n🧩 <b>Starter $${sp}</b> · ${sm} मिनट · + SIP, वॉइसमेल, रिकॉर्डिंग · ${sl} नंबर\n⭐ <b>Pro $${v5}</b> · ${v6} मिनट · + IVR, Bulk IVR, OTP, ब्राउज़र कॉल · ${pro} नंबर\n👑 <b>Business $${v9}</b> · ${v10} मिनट · + कोई भी कॉलर ID, AI एजेंट, फैक्स · ${business} नंबर\n\n<i>प्रति माह। आउटगोइंग कॉल व फॉरवर्डिंग वॉलेट से · SMS भेजना $0.05, पाना मुफ्त।</i>`,
  cp_80: 'अंकों की मान्य संख्या (1-10) दर्ज करें:',
  cp_81: (length) => `✅ OTP लंबाई: <b>${length} अंक</b> (अधिकतम 3 प्रयास)\n\n✍️ <b>कॉलर संदेश कस्टमाइज़ करें</b>\n\nक्या आप कस्टमाइज़ करना चाहेंगे कि सत्यापन के बाद कॉलर क्या सुनें?\n\n<b>डिफ़ॉल्ट पुष्टि:</b> <i>"आपका कोड सफलतापूर्वक सत्यापित हो गया है। धन्यवाद। अलविदा।"</i>\n<b>डिफ़ॉल्ट अस्वीकृति:</b> <i>"अधिकतम सत्यापन प्रयास पूरे हो गए। अलविदा।"</i>`,
  cp_82: (length) => `✅ OTP लंबाई: <b>${length} अंक</b> (अधिकतम 3 प्रयास)\n\n🎙 <b>वॉइस प्रोवाइडर चुनें</b>\n\nअपना TTS इंजन चुनें:`,

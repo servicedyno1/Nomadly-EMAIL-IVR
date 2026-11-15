@@ -1603,7 +1603,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_224: 'Campaign in progress. Use the button below:',
  cp_225: '🛒 <b>Select Plan:</b>',
  cp_226: '🌍 <b>All Available Countries</b>\\n\\nSelect a country:',
- cp_227: (location, numberLines) => `📱 <b>Step 3 of 4 · Choose your number</b> — ${location}\n\n${numberLines}\n\nEvery number works with calls, SMS and Bulk IVR.\nTap the number you want 👇`,
+ cp_227: (location, numberLines) => `📱 <b>Step 3 of 4 · Choose your number</b> — ${location}\n\n${numberLines}\n\nTap a number 👇`,
  cp_228: (message, numberLines) => `📱 <b>Step 3 of 4 · Choose your number</b> — ${message}\n\n${numberLines}\n\nEvery number works with calls, SMS and Bulk IVR.\nTap the number you want 👇`,
  cp_229: (areaCode, numberLines) => `📱 <b>Step 3 of 4 · Choose your number</b> — area ${areaCode}\n\n${numberLines}\n\nEvery number works with calls, SMS and Bulk IVR.\nTap the number you want 👇`,
  cp_23: (phoneNumber, recentNumber) => `📱 From: <b>${phoneNumber}</b>\n📞 To: <b>${recentNumber}</b>\n\nChoose an IVR template category:`,
@@ -1638,10 +1638,14 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_258: 'Please choose an option:',
  cp_259: '🌍 <b>All Available Countries</b>\\n\\nSelect a country:',
  cp_26: '📢 <b>Quick IVR Call</b>\\n\\nCall a number with an automated IVR message.\\n\\n📞 <b>Step 1/2:</b> Tap which of <b>your</b> numbers should show as the <i>Caller ID</i> on the call:',
- cp_260: (subNumbersAvailable, numberLines, bulkIvrSupport, tapToSelect) => `${subNumbersAvailable}\n\n${numberLines}\n\n${bulkIvrSupport}\n\n${tapToSelect}`,
- cp_261: (subNumberSelected, numberLines, bulkIvrSupport, tapToSelect) => `${subNumberSelected}\n\n${numberLines}\n\n${bulkIvrSupport}\n\n${tapToSelect}`,
+ cp_260: (subNumbersAvailable, numberLines, bulkIvrSupport, tapToSelect) => `${subNumbersAvailable}\n\n${numberLines}\n\n${tapToSelect}`,
+ cp_261: (subNumberSelected, numberLines, bulkIvrSupport, tapToSelect) => `${subNumberSelected}\n\n${numberLines}\n\n${tapToSelect}`,
  cp_262: (subNumberArea, numberLines, bulkIvrSupport, tapToSelect) => `${subNumberArea}\n\n${numberLines}\n\n${bulkIvrSupport}\n\n${tapToSelect}`,
- cp_263: (numberLines) => `📱 <b>More Numbers</b>\n\n${numberLines}\n\n☎️ = Supports Bulk IVR\n\nTap to select:`,
+ cp_263: (numberLines) => `📱 <b>More numbers</b>
+
+${numberLines}
+
+Tap a number 👇`,
  cp_264: (newState, v1) => `🎵 Hold Music: <b>${newState}</b>\n${v1}`,
  cp_265: 'Enter a valid URL starting with http:// or https://.',
  cp_265b: 'That address leads to a private or internal network. Send a public web address (http:// or https://).',
@@ -1786,7 +1790,7 @@ Make an automated call that plays your recorded message and captures a keypress 
  cp_77: '🔑 <b>OTP Collection Mode</b>\\n\\nHow many digits should the code be?\\n\\n💡 The code prompt is added automatically after your script — no need to include it.\\n\\n<i>Default: 6 digits</i>',
  cp_78: 'Select a mode:',
  cp_79: '📋 <b>Select Call Mode</b>\\n\\n🔗 <b>Transfer</b> — When target presses the key, bridge them to your number\\n🔑 <b>OTP Collection</b> — After the key press, target is auto-prompted for a code — delivered to you via Telegram\\n\\nBoth modes report full results.',
- cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business, sp, sm, sl) => `🛒 <b>Step 1 of 4 · Choose your plan</b>\n\n💡 <b>Basic — $${price}/mo</b>\n✅ ${minutes} incoming minutes · call forwarding\n✖️ No SIP softphone, no IVR · up to ${starter} numbers\n\n🧩 <b>Starter — $${sp}/mo</b>\n✅ ${sm} incoming minutes · call forwarding\n✅ SIP softphone · voicemail · call recording\n✖️ No IVR · up to ${sl} numbers\n\n⭐ <b>Pro — $${v5}/mo</b> · most popular\n✅ ${v6} incoming minutes\n✅ SIP softphone · browser calls · voicemail · recording\n✅ Quick IVR, Bulk IVR, OTP, auto-attendant · up to ${pro} numbers\n\n👑 <b>Business — $${v9}/mo</b>\n✅ ${v10} incoming minutes\n✅ Everything in Pro + 🎭 show any caller ID\n✅ AI voice agent, IVR redial, custom OTP messages, priority support · up to ${business} numbers\n\n<i>Outgoing calls and call forwarding are paid from your wallet.</i>\n📩 Texts: $0.05 per text you send · incoming texts are free`,
+ cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business, sp, sm, sl) => `🛒 <b>Step 1 of 4 · Choose a plan</b>\n\n💡 <b>Basic $${price}</b> · ${minutes} min · forwarding · ${starter} numbers\n🧩 <b>Starter $${sp}</b> · ${sm} min · + SIP, voicemail, recording · ${sl} numbers\n⭐ <b>Pro $${v5}</b> · ${v6} min · + IVR, Bulk IVR, OTP, browser calls · ${pro} numbers\n👑 <b>Business $${v9}</b> · ${v10} min · + any caller ID, AI agent, fax · ${business} numbers\n\n<i>Per month. Outgoing calls & forwarding use your wallet · texts $0.05 out, free in.</i>`,
  cp_80: 'Enter a valid digit count (1-10):',
  cp_81: (length) => `✅ OTP length: <b>${length} digits</b> (max 3 attempts)\n\n✍️ <b>Customize Caller Messages</b>\n\nWould you like to customize what callers hear after verification?\n\n<b>Default Confirm:</b> <i>"Your code has been verified successfully. Thank you. Goodbye."</i>\n<b>Default Reject:</b> <i>"Maximum verification attempts reached. Goodbye."</i>`,
  cp_82: (length) => `✅ OTP length: <b>${length} digits</b> (max 3 attempts)\n\n🎙 <b>Select Voice Provider</b>\n\nChoose your TTS engine:`,

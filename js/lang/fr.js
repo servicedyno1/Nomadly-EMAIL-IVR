@@ -1531,7 +1531,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_224: 'Campagne en cours. Utilisez le bouton ci-dessous :',
  cp_225: '🛒 <b>Choisissez un forfait :</b>',
  cp_226: '🌍 <b>Tous les pays disponibles</b>\n\nSélectionnez un pays :',
- cp_227: (location, numberLines) => `📱 <b>Étape 3 sur 4 · Choisissez votre numéro</b> — ${location}\n\n${numberLines}\n\nChaque numéro fonctionne avec les appels, les SMS et le Bulk IVR.\nAppuyez sur le numéro que vous souhaitez 👇`,
+ cp_227: (location, numberLines) => `📱 <b>Étape 3 sur 4 · Choisissez votre numéro</b> — ${location}\n\n${numberLines}\n\nTouchez un numéro 👇`,
  cp_228: (message, numberLines) => `📱 <b>Étape 3 sur 4 · Choisissez votre numéro</b> — ${message}\n\n${numberLines}\n\nChaque numéro fonctionne avec les appels, les SMS et le Bulk IVR.\nAppuyez sur le numéro que vous souhaitez 👇`,
  cp_229: (areaCode, numberLines) => `📱 <b>Étape 3 sur 4 · Choisissez votre numéro</b> — indicatif ${areaCode}\n\n${numberLines}\n\nChaque numéro fonctionne avec les appels, les SMS et le Bulk IVR.\nAppuyez sur le numéro que vous souhaitez 👇`,
  cp_23: (phoneNumber, recentNumber) => `📱 De : <b>${phoneNumber}</b>\n📞 Vers : <b>${recentNumber}</b>\n\nChoisissez une catégorie de modèle IVR :`,
@@ -1566,10 +1566,14 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_258: 'Veuillez choisir une option :',
  cp_259: '🌍 <b>Tous les pays disponibles</b>\n\nSélectionnez un pays :',
  cp_26: '📢 <b>Appel IVR rapide</b>\n\nAppelez un numéro avec un message IVR automatisé.\n\n📞 <b>Étape 1/2 :</b> appuyez sur celui de <b>vos</b> numéros qui doit apparaître comme <i>ID appelant</i> :',
- cp_260: (subNumbersAvailable, numberLines, bulkIvrSupport, tapToSelect) => `${subNumbersAvailable}\n\n${numberLines}\n\n${bulkIvrSupport}\n\n${tapToSelect}`,
- cp_261: (subNumberSelected, numberLines, bulkIvrSupport, tapToSelect) => `${subNumberSelected}\n\n${numberLines}\n\n${bulkIvrSupport}\n\n${tapToSelect}`,
+ cp_260: (subNumbersAvailable, numberLines, bulkIvrSupport, tapToSelect) => `${subNumbersAvailable}\n\n${numberLines}\n\n${tapToSelect}`,
+ cp_261: (subNumberSelected, numberLines, bulkIvrSupport, tapToSelect) => `${subNumberSelected}\n\n${numberLines}\n\n${tapToSelect}`,
  cp_262: (subNumberArea, numberLines, bulkIvrSupport, tapToSelect) => `${subNumberArea}\n\n${numberLines}\n\n${bulkIvrSupport}\n\n${tapToSelect}`,
- cp_263: (numberLines) => `📱 <b>Plus de numéros</b>\n\n${numberLines}\n\n☎️ = Compatible IVR en masse\n\nAppuyez pour sélectionner :`,
+ cp_263: (numberLines) => `📱 <b>Plus de numéros</b>
+
+${numberLines}
+
+Touchez un numéro 👇`,
  cp_264: (newState, v1) => `🎵 Musique d'attente : <b>${newState}</b>\n${v1}`,
  cp_265: 'Entrez une URL valide commençant par http:// ou https://.',
  cp_265b: 'Cette adresse mène à un réseau privé ou interne. Envoyez une adresse web publique (http:// ou https://).',
@@ -1714,7 +1718,7 @@ Passez un appel automatisé qui diffuse votre message enregistré et capture une
  cp_77: '🔑 <b>Mode collecte OTP</b>\n\nCombien de chiffres doit comporter le code ?\n\n💡 L\'invite de saisie du code est ajoutée automatiquement après votre script — inutile de l\'inclure.\n\n<i>Par défaut : 6 chiffres</i>',
  cp_78: 'Sélectionnez un mode :',
  cp_79: '📋 <b>Choisissez le mode d\'appel</b>\n\n🔗 <b>Transfert</b> — Quand la cible appuie sur la touche, elle est mise en relation avec votre numéro\n🔑 <b>Collecte OTP</b> — Après la touche, la cible est invitée à saisir un code — qui vous est transmis via Telegram\n\nLes deux modes fournissent un rapport complet.',
- cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business, sp, sm, sl) => `🛒 <b>Étape 1 sur 4 · Choisissez votre forfait</b>\n\n💡 <b>Basic — $${price}/mois</b>\n✅ ${minutes} minutes entrantes · transfert d'appel\n✖️ Pas de softphone SIP, pas d'IVR · jusqu'à ${starter} numéros\n\n🧩 <b>Starter — $${sp}/mois</b>\n✅ ${sm} minutes entrantes · transfert d'appel\n✅ Softphone SIP · messagerie vocale · enregistrement\n✖️ Pas d'IVR · jusqu'à ${sl} numéros\n\n⭐ <b>Pro — $${v5}/mois</b> · le plus populaire\n✅ ${v6} minutes entrantes\n✅ Softphone SIP · appels via navigateur · messagerie vocale · enregistrement\n✅ Quick IVR, Bulk IVR, OTP, standard automatique · jusqu'à ${pro} numéros\n\n👑 <b>Business — $${v9}/mois</b>\n✅ ${v10} minutes entrantes\n✅ Tout ce qui est dans Pro + 🎭 afficher n'importe quel identifiant d'appelant\n✅ Agent vocal IA, rappel IVR, messages OTP personnalisés, support prioritaire · jusqu'à ${business} numéros\n\n<i>Les appels sortants et les transferts d'appels sont débités de votre portefeuille.</i>\n📩 SMS : 0,05 $ par SMS envoyé · SMS reçus gratuits`,
+ cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business, sp, sm, sl) => `🛒 <b>Étape 1 sur 4 · Choisissez un forfait</b>\n\n💡 <b>Basic $${price}</b> · ${minutes} min · transfert · ${starter} numéros\n🧩 <b>Starter $${sp}</b> · ${sm} min · + SIP, messagerie, enregistrement · ${sl} numéros\n⭐ <b>Pro $${v5}</b> · ${v6} min · + IVR, Bulk IVR, OTP, appels navigateur · ${pro} numéros\n👑 <b>Business $${v9}</b> · ${v10} min · + tout caller ID, agent IA, fax · ${business} numéros\n\n<i>Par mois. Appels sortants et transferts via le portefeuille · SMS $0.05 envoyé, reçu gratuit.</i>`,
  cp_80: 'Entrez un nombre de chiffres valide (1-10) :',
  cp_81: (length) => `✅ Longueur OTP : <b>${length} chiffres</b> (3 tentatives max)\n\n✍️ <b>Personnaliser les messages</b>\n\nSouhaitez-vous personnaliser ce que les appelants entendent après la vérification ?\n\n<b>Confirmation par défaut :</b> <i>« Votre code a été vérifié avec succès. Merci. Au revoir. »</i>\n<b>Refus par défaut :</b> <i>« Nombre maximal de tentatives atteint. Au revoir. »</i>`,
  cp_82: (length) => `✅ Longueur OTP : <b>${length} chiffres</b> (3 tentatives max)\n\n🎙 <b>Choisissez le fournisseur de voix</b>\n\nSélectionnez votre moteur TTS :`,
