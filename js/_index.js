@@ -4193,6 +4193,7 @@ const loadData = async () => {
   phoneNumbersOf = db.collection('phoneNumbersOf')
   require('./bird-spend').init(db)
   botFax.init(db, { notifyAdmin: (t) => { try { notifyAdmin?.(t) } catch (_) {} }, push: (id, text) => (require('./cloudivr-web/notify').isWebChatId(id) ? require('./cloudivr-web/notify').push(id, text, null, { kind: 'fax' }) : bot?.sendMessage(id, text)).catch?.(() => {}) })
+  require('./fax-sales').start({ db, log })
   require('./growth-nudges').start({ db, notifyAdmin, log, send: (id, text) => bot?.sendMessage(id, text, { parse_mode: 'HTML' }).catch(() => {}) })
   require('./provider-health').start(notifyAdmin)
   require('./pending-orders').init({
