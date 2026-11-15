@@ -9,16 +9,17 @@ const fail = (res, e) => (e instanceof fax.FaxError ? bad(res, STATUS[e.code] ||
 
 function routes(router, { db, h, upload, numbersApi, notifyAdmin, legalProfile }) {
   if (!fax.isReady()) fax.init({ db })
-  const faxNums = require('../fax-numbers').create(db, { notifyAdmin, push: (id, text) => require('./notify').push(id, text, null, { kind: 'fax' }) })
+  const faxNums = require('../fax-numbers').create(db, { notifyAdmin, push: (id, text) => require('./notify').push(id, text, null, { kind: 'fax' }), sweep: false })
   const faxOnly = (chatId) => db.collection('faxNumbers').find({ chatId: String(chatId), status: { $ne: 'released' } }).toArray()
   const mine = async (req, phone) => (await faxOnly(req.webChatId)).find(n => n.phoneNumber === phone) || null
   const out = (res, fn) => fn().then(r => res.json(r), e => (e.status && e.code ? bad(res, e.status, e.code, e.message) : Promise.reject(e)))
 
   router.get('/fax-numbers', h(async (req, res) => res.json({ ...faxNums.offer(), numbers: await faxNums.list(req.webChatId) })))
-  router.get('/fax-numbers/search', h((req, res) => out(res, () => faxNums.search(req.webChatId, req.query.country, req.query.areaCode))))
+  router.get('/fax-numbers/search', h((req, res) => out(res, () => faxNums.search(req.webChatId, req.query.country, req.query.areaCode, req.query.type))))
   router.post('/fax-numbers', h((req, res) => out(res, async () => {
     const phoneNumber = String(req.body?.phoneNumber || '')
-    const r = await faxNums.buy(req.webChatId, { phoneNumber, autoRenew: req.body?.autoRenew !== false, email: req.webUser?.email })
+    const endUser = await legalProfile?.endUserOf(req.webChatId).catch(() => null)
+    const r = await faxNums.buy(req.webChatId, { phoneNumber, autoRenew: req.body?.autoRenew !== false, email: req.webUser?.email, endUser })
     await legalProfile?.recordResale({ chatId: req.webChatId, phoneNumber: r?.number?.phoneNumber || phoneNumber, provider: 'fax', country: r?.number?.country || null })
     return r
   })))
@@ -106,7 +107,7 @@ function publicRoutes(router, { db, h }) {
     if (hits.size > 5000) hits.clear()
     hits.set(k, n)
     if (n > 30) return bad(res, 429, 'too_many', 'Too many searches. Try again in a little while.')
-    try { res.json(await faxNums.search(null, req.query.country, req.query.areaCode)) } catch (e) { return e.status ? bad(res, e.status, e.code, e.message) : Promise.reject(e) }
+    try { res.json(await faxNums.search(null, req.query.country, req.query.areaCode, req.query.type)) } catch (e) { return e.status ? bad(res, e.status, e.code, e.message) : Promise.reject(e) }
   }))
 }
 

@@ -5,7 +5,7 @@ import { SetupIntentBanner } from './buy/setupIntent';
 import { ArrowLeft, Lock, Bot, Plus, RefreshCw } from 'lucide-react';
 import { useApi, enc, day } from '../api';
 import { Spinner, ErrorNote, Locked, statusPill, TabStrip } from '../ui';
-import { OverviewTab, ForwardingTab, VoicemailTab, SmsTab, FaxTab, RecordingTab } from './number/SettingsTabs';
+import { OverviewTab, ForwardingTab, VoicemailTab, SmsTab, RecordingTab } from './number/SettingsTabs';
 import SipTab from './number/SipTab';
 import { Capacity } from './number/Capacity';
 import IvrTab from './number/IvrTab';
@@ -32,7 +32,7 @@ const GROUPS = [
   ['answering', 'Answering', [
     ['forwarding', 'Forwarding', 'callForwarding', ForwardingTab], ['ivr', 'Keypad menu', 'ivr', IvrTab], ['ai', 'AI agent', 'aiAgent', AiAgentTab],
     ['ringgroup', 'Ring group', 'ringGroup', RingGroupTab], ['browser', 'Browser ring', 'browserRing', BrowserRingTab], ['voicemail', 'Voicemail', 'voicemail', VoicemailTab],
-    ['hours', 'Hours', null, HoursTab], ['sip', 'Softphone (SIP)', 'sipCredentials', SipTab], ['fax', 'Fax', null, FaxTab],
+    ['hours', 'Hours', null, HoursTab], ['sip', 'Softphone (SIP)', 'sipCredentials', SipTab],
   ]],
   ['texting', 'Texting', [['sms', 'SMS', null, SmsTab], ['textback', 'Missed-call text', null, MissedTextBackTab], ['triggers', 'Text Triggers', 'textTriggers', TextTriggersTab]]],
   ['recordings', 'Recordings', [['recording', 'Recording', 'callRecording', RecordingTab], ['logs', 'Call log', null, LogsTab]]],

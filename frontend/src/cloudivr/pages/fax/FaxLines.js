@@ -34,7 +34,7 @@ function LineRow({ n, reload }) {
         <div className="min-w-0">
           <div className="font-medium tabular-nums">{n.phoneNumber}</div>
           <div className="text-xs text-[#a1a1aa] mt-1" data-testid={`fax-line-status-${id}`}>{n.faxOnly ? 'Fax-only number · always receiving faxes' : n.faxLine ? 'Receiving faxes · voice calls paused' : 'Voice line · not receiving faxes'}</div>
-          {n.faxOnly && <div className="text-xs text-[#a1a1aa] mt-0.5" data-testid={`fax-only-renewal-${id}`}>{n.status === 'past_due' ? 'Paused — top up to renew' : `${money(n.price)}/month · ${n.autoRenew ? 'renews' : 'released'} ${String(n.expiresAt || '').slice(0, 10)}`}</div>}
+          {n.faxOnly && <div className="text-xs text-[#a1a1aa] mt-0.5" data-testid={`fax-only-renewal-${id}`}>{n.status === 'pending_registration' ? 'Waiting for the carrier’s approval — usually a few days' : n.status === 'past_due' ? 'Paused — top up to renew' : `${money(n.price)}/month · ${n.autoRenew ? 'renews' : 'released'} ${String(n.expiresAt || '').slice(0, 10)}`}</div>}
           {!n.faxLine && n.voiceRouting && <div className="text-xs text-[#a1a1aa] mt-0.5">Takes calls with your {n.voiceRouting}</div>}
         </div>
         {n.faxOnly ? <span className="civr-pill" data-testid={`fax-only-pill-${id}`}>Fax only</span> : <Toggle checked={!!n.faxLine} onChange={flip} disabled={busy} label={`Fax line for ${n.phoneNumber}`} testid={`fax-line-toggle-${id}`} />}

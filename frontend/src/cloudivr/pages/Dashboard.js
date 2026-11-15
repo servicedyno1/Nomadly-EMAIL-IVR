@@ -9,7 +9,6 @@ import { cp } from '../paths';
 import { GetStarted, YourNumbers } from './dashboard/Widgets';
 import { TopBanner, TrialCard, CallerIdUpsellCard } from './dashboard/Banners';
 import { ProductGrid } from './dashboard/ProductGrid';
-import { FaxCard } from './dashboard/FaxCard';
 import { ForYou, ReviewPrompt } from './dashboard/ForYou';
 import { PurposeHome } from './dashboard/PurposeHome';
 import { TextingHome } from './dashboard/TextingHome';
@@ -59,7 +58,6 @@ export default function Dashboard() {
   const promos = !textingOnly && (
     <>
       <div className="civr-promo-slot" data-testid="dashboard-promo-slot"><TrialCard /><TopBanner /><CallerIdUpsellCard /></div>
-      <FaxCard numbers={nums?.numbers} />
     </>
   );
   return (

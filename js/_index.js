@@ -805,6 +805,7 @@ const { handleVoiceWebhook, initVoiceService, getIvrAnalytics, trackIvrAnalytics
 const { initCnamService, lookupCnam, batchLookupCnam, getCircuitStatus } = require('./cnam-service.js')
 const phoneConfig = require('./phone-config.js')
 const botRec = require('./bot-receptionist')
+const botFax = require('./bot-fax-numbers')
 const safeUrl = require('./safe-url')
 const planLifecycle = require('./plan-lifecycle.js')
 const ttsService = require('./tts-service.js')
@@ -4190,6 +4191,7 @@ const loadData = async () => {
   notifyGroupsCol = db.collection('notifyGroups')
   phoneNumbersOf = db.collection('phoneNumbersOf')
   require('./bird-spend').init(db)
+  botFax.init(db, { notifyAdmin: (t) => { try { notifyAdmin?.(t) } catch (_) {} }, push: (id, text) => (require('./cloudivr-web/notify').isWebChatId(id) ? require('./cloudivr-web/notify').push(id, text, null, { kind: 'fax' }) : bot?.sendMessage(id, text)).catch?.(() => {}) })
   require('./growth-nudges').start({ db, notifyAdmin, log, send: (id, text) => bot?.sendMessage(id, text, { parse_mode: 'HTML' }).catch(() => {}) })
   require('./provider-health').start(notifyAdmin)
   require('./pending-orders').init({
@@ -11156,7 +11158,7 @@ bot?.on('message', msg => {
         [pc.myNumbers, pc.usageBilling],
         [pc.bulkCallCampaign, pc.myCampaigns],
         [pc.audioLibrary, pc.sipSettings],
-        [pc.howItWorks],
+        [botFax.BTN.menu, pc.howItWorks],
       ]))
       // One-time nudge: Pro/Starter users can show any caller ID on Business for the price gap only.
       try {
@@ -26252,6 +26254,10 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     return send(chatId, trans('t.cp_232', '⭐ Pro'), k.of(_rows))
   }
 
+  if (message === botFax.BTN.menu || String(action || '').startsWith('fxn')) {
+    const r = await botFaxHandle(chatId, message, info, action)
+    if (r !== false) return r
+  }
   if (message === user.cloudPhone || message === phoneConfig.btn.cloudPhone || message === '📞☁️ Cloud IVR + SIP') {
     if (process.env.PHONE_SERVICE_ON !== 'true') {
       return send(chatId, trans('t.cp_4', process.env.SUPPORT_USERNAME || '@support'), trans('o'))
@@ -26270,7 +26276,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       [pc.myNumbers, pc.usageBilling],
       [pc.bulkCallCampaign, pc.myCampaigns],
       [pc.audioLibrary, pc.sipSettings],
-      [pc.howItWorks],
+      [botFax.BTN.menu, pc.howItWorks],
     ]))
   }
 
@@ -31210,7 +31216,6 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (phoneConfig.canAccessFeature(plan, 'ivr')) rows.push([ivrLabel])
     if (hasVoice && phoneConfig.canAccessFeature(plan, 'aiAgent')) rows.push([botRec.BTN.menu])
     // Fax (Business plan; other plans see the upgrade prompt)
-    if ((num.provider || 'telnyx') === 'telnyx') rows.push([faxService.t(lang).btnFax])
     // Add Number to Plan (only for primary numbers, not sub-numbers)
     if (!num.isSubNumber && subLimit > 0 && subCount < subLimit) {
       rows.push([pc.addNumber])
@@ -31254,13 +31259,24 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   // Fax menu for a Business number (re-reads the record so the fax-line state is current).
+  // Standalone fax numbers (bot-fax-numbers.js): list / buy / open.
+  async function botFaxHandle(chatId, message, info, action) {
+    return botFax.handle({
+      chatId: String(chatId), message, action, info,
+      setAction: (v) => set(state, chatId, 'action', v), save: (key, v) => saveInfo(key, v),
+      send: (text, opts = {}) => send(chatId, text, { parse_mode: 'HTML', ...opts }),
+      kb: (rows) => k.of([...rows, ['Back']]), hub: () => goto.submenu5(),
+      wallet: () => require('./cloudivr-web/wallet').walletOps(db).balance(String(chatId)),
+      openFax: async (phone) => { const n = await faxService.findMine(String(chatId), phone); await saveInfo('cpActiveNumber', n); return showFaxMenu(chatId, n) },
+    })
+  }
   async function showFaxMenu(chatId, num) {
     const fx = faxService.t(info?.userLanguage)
     const fresh = (await faxService.findMine(String(chatId), num.phoneNumber)) || num
     await set(state, chatId, 'action', a.cpFax)
     const on = faxService.lineOn(fresh)
     const email = await faxService.emailOf(String(chatId))
-    return send(chatId, fx.menu(fresh.phoneNumber, await faxService.usage(fresh), on), k.of([[fx.btnSend], [fx.btnBulk], [on ? fx.btnLineOn : fx.btnLineOff], [fx.btnRecent], [fx.btnEmail(email)]]))
+    return send(chatId, fresh.faxOnly ? botFax.faxMenuText(fresh, await faxService.usage(fresh)) : fx.menu(fresh.phoneNumber, await faxService.usage(fresh), on), { parse_mode: 'HTML', ...k.of([[fx.btnSend], [fx.btnBulk], ...(fresh.faxOnly ? [] : [[on ? fx.btnLineOn : fx.btnLineOff]]), [fx.btnRecent], [fx.btnEmail(email)]]) })
   }
   // Bulk fax: pasted list or CSV/TXT text → saved recipients, then ask for the document.
   async function faxBulkList(chatId, num, text, lang) {
@@ -31847,8 +31863,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
     // Fax
     if (message === faxService.t(info?.userLanguage).btnFax) {
-      if (!phoneConfig.canAccessFeature(num.plan, 'fax')) return send(chatId, phoneConfig.upgradeMessage('fax', num.plan, info?.userLanguage), { parse_mode: 'HTML' })
-      return showFaxMenu(chatId, num)
+      return send(chatId, `📠 Fax is now a separate fax number. Open ${botFax.BTN.menu} in the Cloud IVR menu to get one.`)
     }
     if (message === '📠 Fax Settings') {
       await set(state, chatId, 'action', a.cpFaxSettings)
@@ -32884,7 +32899,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const num = (await faxService.findMine(String(chatId), snap.phoneNumber)) || snap
     const back = isBackPress(message)
     if (action === a.cpFax) {
-      if (back) { await set(state, chatId, 'action', a.cpManageNumber); return showManageScreen(chatId, num) }
+      if (back) { if (num.faxOnly) return botFaxHandle(chatId, botFax.BTN.menu, info, botFax.BTN.menu); await set(state, chatId, 'action', a.cpManageNumber); return showManageScreen(chatId, num) }
       if (message === fx.btnSend) { await saveInfo('cpFaxBulk', null); await set(state, chatId, 'action', a.cpFaxTo); return send(chatId, fx.askTo, k.of([])) }
       if (message === fx.btnBulk) { await set(state, chatId, 'action', a.cpFaxBulkTo); return send(chatId, fx.askBulk, { parse_mode: 'HTML', ...k.of([]) }) }
       if (message === fx.btnLineOn || message === fx.btnLineOff) {

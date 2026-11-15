@@ -15,7 +15,7 @@ export function PurposeCards({ catalog, from, offer, fax, esimPrice, goPlans }) 
     ['voice', PhoneCall, 'Voice', 'A Business Line for calls, keypad menus, voicemail, campaigns and AI agents.', from, 'See phone plans', () => goPlans('ivr')],
     ['sip', Server, 'SIP', 'Logins for desk phones and softphone apps, on a Business Line.', sipPlan ? usd(sipPlan.price) : null, 'SIP & softphones', null, cp('/sip')],
     ['sms', MessageSquareText, 'SMS', 'A USA Texting Number with unlimited texts. International texting is coming soon. Read and reply in your browser.', usd(offer?.price || 75), offer?.available ? 'Order number' : 'See details', () => (offer?.available ? openMobileCheckout() : goPlans('mobile'))],
-    ['fax', Printer, 'Fax', 'A fax-only number for the USA or Canada. Send and receive faxes online.', fax?.price ? usd(fax.price) : null, 'Find a fax number', () => goPlans('fax')],
+    ['fax', Printer, 'Fax', 'A fax-only number in the USA, Canada, UK and 12 more countries. Send and receive faxes online.', fax?.price ? usd(fax.price) : null, 'Find a fax number', () => goPlans('fax')],
   ];
   return (
     <div className="mx-auto mt-10 max-w-6xl civr-rise civr-d3 text-left" data-testid="hero-purposes">

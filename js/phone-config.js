@@ -471,7 +471,7 @@ const plans = {
   starter: { name: 'Basic', price: PHONE_STARTER_PRICE, minutes: STARTER_MINUTES, sms: STARTER_SMS, features: ['Call forwarding to any number', 'SMS forwarded to Telegram', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
   standard: { name: 'Starter', price: PHONE_STANDARD_PRICE, minutes: STANDARD_MINUTES, sms: 0, features: ['All Basic features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.standard} extra numbers`] },
   pro: { name: 'Pro', price: PHONE_PRO_PRICE, minutes: PRO_MINUTES, sms: PRO_SMS, features: ['All Starter features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign (start now or schedule)', '2FA Code Delivery', 'IVR Auto-Attendant', 'IVR Call Analytics', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
-  business: { name: 'Business', price: PHONE_BUSINESS_PRICE, minutes: BUSINESS_MINUTES, sms: BUSINESS_SMS, features: ['All Pro features', '📠 Fax send & receive (50 free pages/mo)', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Quick IVR Call Scheduling', 'Custom 2FA Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
+  business: { name: 'Business', price: PHONE_BUSINESS_PRICE, minutes: BUSINESS_MINUTES, sms: BUSINESS_SMS, features: ['All Pro features', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Quick IVR Call Scheduling', 'Custom 2FA Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
 }
 
 // Language-specific plan features
