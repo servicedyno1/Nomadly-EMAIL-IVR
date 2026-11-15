@@ -254,7 +254,10 @@ function createAuth(db, { log = console.log, notifyAdmin = () => {} } = {}) {
       const email = normEmail(info.email)
       let acc = await accounts.findOne({ googleSub: info.sub }) || await accounts.findOne({ email })
       if (acc && !acc.googleSub) await accounts.updateOne({ _id: acc._id }, { $set: { googleSub: info.sub } })
-      if (!acc) acc = await createAccount({ email, name: info.name, googleSub: info.sub, referredBy: await referrerFor(req.body.ref, clientIp(req)), ip: clientIp(req), country: countryOf(req) })
+      if (!acc) {
+        acc = await createAccount({ email, name: info.name, googleSub: info.sub, referredBy: await referrerFor(req.body.ref, clientIp(req)), ip: clientIp(req), country: countryOf(req) })
+        await accounts.updateOne({ _id: acc._id }, { $set: { source: require('./journey').sourceOf(req.body.source), signupMethod: 'google', signupDevice: String(req.headers['user-agent'] || '').slice(0, 200) } })
+      }
       if (acc.disabled) return res.status(403).json({ error: 'disabled' })
       await accounts.updateOne({ _id: acc._id }, { $set: { lastLoginAt: new Date(), lastIp: clientIp(req) } })
       return mfa.finishLogin(req, res, { ...acc, googleSub: info.sub }, { remember: !!req.body.remember })

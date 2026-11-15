@@ -83,6 +83,13 @@ async function _getUserLang(chatId) {
     return lang
   } catch { return 'en' }
 }
+const BACKUP_TIP = {
+  en: '💡 Add a backup number (up to 4) in Call Forwarding — when this phone doesn’t answer, the next one rings instead of losing the caller.',
+  fr: '💡 Ajoutez un numéro de secours (jusqu’à 4) dans le transfert d’appel — si ce téléphone ne répond pas, le suivant sonne.',
+  hi: '💡 कॉल फ़ॉरवर्डिंग में बैकअप नंबर जोड़ें (4 तक) — यह फ़ोन न उठे तो अगला नंबर बजेगा।',
+  zh: '💡 在呼叫转接中添加备用号码（最多 4 个）——此电话无人接听时，会转到下一个号码。',
+  fa: '💡 در انتقال تماس یک شماره پشتیبان (تا ۴) اضافه کنید — اگر این تلفن پاسخ ندهد، شماره بعدی زنگ می‌خورد.',
+}
 function _trans(key, lang, ...args) {
   if (!_translation) return null
   const t = _translation(key, lang, ...args)
@@ -4955,7 +4962,8 @@ async function handleCallHangup(payload) {
     } else {
       const lang2 = await _getUserLang(chatId)
       const msg = _trans('t.vs_forwardFailed', lang2, formatPhone(to), formatPhone(forwardTo), formatPhone(from), time) || `📞 <b>Forward — No Answer</b>\n\n📞 ${formatPhone(to)} → 📲 ${formatPhone(forwardTo)}\n👤 ${formatPhone(from)}\n🕐 ${time}`
-      _bot.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
+      const tip = (num.features?.callForwarding?.backups || []).length ? '' : `\n\n${BACKUP_TIP[lang2] || BACKUP_TIP.en}`
+      _bot.sendMessage(chatId, msg + tip, { parse_mode: 'HTML' }).catch(() => {})
     }
     logEvent(to, from, transferConnected ? 'forwarded' : 'forward_failed', duration)
   } else if (isOutbound) {
@@ -4985,6 +4993,7 @@ async function handleCallHangup(payload) {
     const msg = _trans('t.vs_missedCall', langMissed, formatPhone(to), formatPhone(from), time) || `📞 <b>Missed Call</b>\n\n📞 To: ${formatPhone(to)}\n👤 From: ${formatPhone(from)}\n🕐 ${time}`
     _bot.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
     logEvent(to, from, 'missed', 0)
+    require('./cloudivr-web/missed-textback').onMissed({ chatId, num, from }).catch(e => log(`[TextBack] ${e.message}`))
   } else if (session.phase === 'bridged' && session.ringGroupAnsweredBy) {
     logEvent(to, from, 'forwarded', duration, null, session.ringGroupAnsweredBy)
   } else if (session.phase === 'voicemail_recording' || session.phase === 'voicemail_greeting') {

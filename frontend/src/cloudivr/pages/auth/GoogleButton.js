@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { sourceOf } from '../../track';
 import { useNavigate } from 'react-router-dom';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { toast } from 'sonner';
@@ -63,7 +64,7 @@ export function GoogleButton({ dest, signup, refCode, onMfa }) {
               <GoogleLogin theme="filled_black" shape="pill" width="320" text="continue_with"
                 context={signup ? 'signup' : 'signin'} useOneTap use_fedcm_for_prompt cancel_on_tap_outside={false}
                 onSuccess={async (r) => {
-                  try { const d = await api('/auth/google', { method: 'POST', body: { credential: r.credential, ref: refCode || undefined } }); if (d.twoFactor) { onMfa(d.twoFactor); return; } setAccount(d.account); nav(dest); } catch (e) { toast.error(e.message); }
+                  try { const d = await api('/auth/google', { method: 'POST', body: { credential: r.credential, ref: refCode || undefined, source: sourceOf() || undefined } }); if (d.twoFactor) { onMfa(d.twoFactor); return; } setAccount(d.account); nav(dest); } catch (e) { toast.error(e.message); }
                 }}
                 onError={() => toast.error('Google sign-in was cancelled or failed.')} />
             </GoogleOAuthProvider>

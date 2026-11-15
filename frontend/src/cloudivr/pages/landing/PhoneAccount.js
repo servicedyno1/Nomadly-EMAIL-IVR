@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { sourceOf } from '../../track';
 import { Loader2 } from 'lucide-react';
 import { api } from '../../api';
 import { useCivrAuth } from '../../AuthContext';
@@ -18,7 +19,7 @@ export function PhoneAccount({ onDone, onMfa }) {
   const run = async (fn) => { setBusy(true); setErr(null); try { await fn(); } catch (e) { setErr(e); } finally { setBusy(false); } };
   const send = (channel) => run(async () => { const d = await api('/auth/phone/start', { method: 'POST', body: { phone, channel } }); setCode(''); setSent({ ...d, phone }); });
   const verify = () => run(async () => {
-    const r = await api('/auth/phone/verify', { method: 'POST', body: { challenge: sent.challenge, code, name } });
+    const r = await api('/auth/phone/verify', { method: 'POST', body: { challenge: sent.challenge, code, name, source: sourceOf() || undefined } });
     if (r.twoFactor) { onMfa(); return; }
     setAccount(r.account); onDone(r.account);
   });

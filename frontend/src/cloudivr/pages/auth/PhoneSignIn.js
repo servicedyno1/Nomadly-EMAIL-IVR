@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { sourceOf } from '../../track';
 import { Loader2, MessageSquareText, PhoneCall, RotateCw, ArrowLeft } from 'lucide-react';
 import { api } from '../../api';
 import { Field, ErrorNote } from '../../ui';
@@ -57,7 +58,7 @@ export function PhoneSignIn({ signup, refCode, onDone, onMfa }) {
   const verify = async (code) => {
     setBusy(true); setError(null);
     try {
-      const d = await api('/auth/phone/verify', { method: 'POST', body: { challenge: sent.challenge, code, remember, name: signup ? name : undefined, ref: signup && refCode ? refCode : undefined } });
+      const d = await api('/auth/phone/verify', { method: 'POST', body: { challenge: sent.challenge, code, remember, source: sourceOf() || undefined, name: signup ? name : undefined, ref: signup && refCode ? refCode : undefined } });
       if (d.twoFactor) onMfa(d.twoFactor); else onDone(d);
     } catch (e) { setError(e); } finally { setBusy(false); }
   };

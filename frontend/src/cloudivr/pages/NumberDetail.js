@@ -12,6 +12,7 @@ import IvrTab from './number/IvrTab';
 import LogsTab from './number/LogsTab';
 import BillingTab from './number/BillingTab';
 import HoursTab from './number/HoursTab';
+import MissedTextBackTab from './number/MissedTextBackTab';
 import AiAgentTab from './number/AiAgentTab';
 import BrowserRingTab from './number/BrowserRingTab';
 import RingGroupTab from './number/RingGroupTab';
@@ -33,7 +34,7 @@ const GROUPS = [
     ['ringgroup', 'Ring group', 'ringGroup', RingGroupTab], ['browser', 'Browser ring', 'browserRing', BrowserRingTab], ['voicemail', 'Voicemail', 'voicemail', VoicemailTab],
     ['hours', 'Hours', null, HoursTab], ['sip', 'Softphone (SIP)', 'sipCredentials', SipTab], ['fax', 'Fax', null, FaxTab],
   ]],
-  ['texting', 'Texting', [['sms', 'SMS', null, SmsTab], ['triggers', 'Text Triggers', 'textTriggers', TextTriggersTab]]],
+  ['texting', 'Texting', [['sms', 'SMS', null, SmsTab], ['textback', 'Missed-call text', null, MissedTextBackTab], ['triggers', 'Text Triggers', 'textTriggers', TextTriggersTab]]],
   ['recordings', 'Recordings', [['recording', 'Recording', 'callRecording', RecordingTab], ['logs', 'Call log', null, LogsTab]]],
   ['billing', 'Billing', [['billing', 'Billing', null, BillingTab]]],
 ];

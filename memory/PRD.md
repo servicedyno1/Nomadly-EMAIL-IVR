@@ -270,3 +270,9 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 
 ## 2026-11-15 update
 - DONE (preview): AI Receptionist own page/bot menu (hours, after-hours message/voicemail, messages inbox, emails), Bird spend-estimate + daily-limit alerts. NEXT: deploy app-main + port to WhiteLabel brands; then live receptionist call test.
+
+## 2026-11-15 (fork) — Growth batch live on all brands
+- Done: missed-call text-back (opt-in, web), growth nudges (missed calls, forward failures without backups, auto-renew off), weekly bad-support report (admin Telegram + email, prod email verified), signup source tracking, AI Receptionist + Bird spend — app-main + WL/Voodoo/ProShop (overlay).
+- Forwarding no-answer: backup numbers already existed; owners now get a tip + weekly nudge to add one.
+- Deferred by owner: Mollie card checkout (needs cloudivr.net approved in Mollie profile).
+- Backlog: verify a real forward→backup failover call on Bird/MultiTEL legs (needs owner OK for a billable test); attribution confirmed on next real signup.

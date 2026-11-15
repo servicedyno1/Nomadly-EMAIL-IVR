@@ -179,6 +179,8 @@ function createCloudIvrWeb(deps) {
     relay.routes(r, { ...deps, h, numbersApi })
     const smsReply = smsReplyMod.createSmsReply({ db, voiceService: deps.voiceService, log })
     smsReplyMod.routes(r, { db, h, numbersApi, smsReply })
+    require('./missed-textback').init({ db, smsReply, numbersApi, log })
+    require('./missed-textback').routes(r, { h, numbersApi })
     const messages = require('./messages').routes(r, { db, h, numbersApi, smsReply })
     require('./media').routes(r, { db, h, upload: mediaUpload })
     notify.routes(r, { h, numbersApi, smsReply })

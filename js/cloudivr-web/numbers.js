@@ -197,6 +197,7 @@ function _publicNumber(n, numbers) {
       ringGroup: { ...require('./ring-group').defaults(), ...(f.ringGroup || {}) },
       textTriggers: { enabled: !!f.textTriggers?.enabled, count: (f.textTriggers?.rules || []).length },
       aiSummary: { enabled: !!f.aiSummary?.enabled },
+      missedTextBack: f.missedTextBack || { enabled: false, text: null },
     },
     access: access(n.plan),
   }

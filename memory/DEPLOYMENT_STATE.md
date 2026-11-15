@@ -553,3 +553,11 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Caller-ID: web hint + bot message add "What the other phone displays can vary by its carrier."
 - Data fix: only MAZE +18332690934 had both on → aiAgent.enabled=false (prod main DB).
 - Preview API check: forwarding save returns showCallerId + callFlow ✅; AI-on path not exercised (test account has no AI agent).
+
+## 2026-11-15 ~15:15Z — Growth batch on ALL brands + forward backup nudges
+- Owner choices: skip Mollie cards for now; weekly support report email uses the customer-email sender; forward no-answer → backup numbers (already built: callForwarding.backups, up to 4, web + bot); deploy to all brands.
+- New: forward-failed owner message adds a backup-number tip (5 langs) when the number has no backups; growth-nudges.forwardFails (≥2 forward_failed/7d, forwarding on, no backups → 1 nudge/14d); missed-call nudge mentions text-back only for web accounts; report subject uses CHAT_BOT_BRAND.
+- app-main: workspace deploy 599a54b (+uncommitted) → 20261115T151208Z on app-main-b :5100, healthy.
+- WL overlay r7 (3-way merge base main 043549e vs live WL 95d3d5d vs workspace; 1 conflict resolved to workspace): js/_index.js, ai-agent/{bridge,calls,store}.js, bird/index.js, callengine/index.js, provider-health.js, voice-service.js + new growth-nudges.js, bird-spend.js, bot-receptionist.js, cloudivr-web/missed-textback.js. Applied to app-wl-a, app-voodoo-b, app-proshop-a at 0 calls, all healthy. Backups /opt/nomadly/deploy-backups/<slot>-r7-20261115T151409Z/before.tgz.
+- Prod checks: adminMail from app-main env → sent=true (sender vars exist on all 4 brands; "no sender" was preview only). WL + ProShop multitel.selling()=true and US search returns numbers (nothing bought).
+- ⚠️ Save to GitHub (main) or CI rolls app-main back; WL overlay drops on the next WhiteLabel deploy unless main→WL sync carries it.
