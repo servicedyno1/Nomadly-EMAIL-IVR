@@ -6173,7 +6173,9 @@ async function sendDay12UpgradeCreditNudges() {
                 `(क्रेडिट समाप्त होने के बाद $${quote.newPrice} होगा)।\n\n` +
                 `<i>नंबर खोलें: 📞 Cloud IVR + SIP → 📋 मेरे प्लान्स और ⬆️ ${nextUp === 'pro' ? 'प्रो' : 'बिज़नेस'} में अपग्रेड करें टैप करें।</i>`,
           }
-          const body = bodyByLang[lang] || bodyByLang.en
+          const webAcct = require('./cloudivr-web/notify').isWebChatId(chatId)
+          // Web accounts upgrade from the number's Billing tab, not the bot menu.
+          const body = webAcct ? bodyByLang.en.replace(/<i>Open the number from[^<]*<\/i>/, `<i>Open the number in My numbers → Billing and choose Upgrade to ${targetLabel}.</i>`) : (bodyByLang[lang] || bodyByLang.en)
           await send(chatId, body, { parse_mode: 'HTML' })
 
           // Stamp the sent flag on the EXACT array element by index, scoped
@@ -6650,6 +6652,13 @@ bot?.on('callback_query', async (query) => {
   try {
     const data = query?.data || ''
     const chatId = String(query?.message?.chat?.id) // Always convert to string for DB consistency
+    if (data === 'sipqr:l' || data === 'sipqr:g') {
+      bot.answerCallbackQuery(query.id).catch(() => {})
+      const info = await get(state, chatId)
+      if (!info?.cpActiveNumber?.phoneNumber) return
+      await require('./bot-sip-qr').send({ bot, db, phoneNumbersOf, chatId, phone: info.cpActiveNumber.phoneNumber, domain: phoneConfig.getSipDomainForNumber(), lang: info.userLanguage || 'en', which: data.slice(6), replaceId: query.message?.message_id, log })
+      return
+    }
     if (data.startsWith('bse-reply:') || data.startsWith('bse-rv:')) { bot.answerCallbackQuery(query.id).catch(() => {}); await bulkEsimBot.onCallback(query, { set, state, saveInfo: (k, v) => set(state, chatId, k, v), send: (id, t, o) => bot.sendMessage(id, t, o), lang: (await get(state, chatId))?.userLanguage || 'en' }); return }
     try { setChatLang(chatId, (await get(state, chatId))?.userLanguage || 'en') } catch { /* non-fatal */ }
 
@@ -31907,7 +31916,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       // Prefer Telnyx username since domain is sip.speechcue.com (Telnyx)
       const displaySipUser = num.telnyxSipUsername || num.sipUsername
       return send(chatId, cpTxt.sipCredentialsMsg(num.phoneNumber, displaySipUser, numSipDomain), k.of([
-        [pc.revealPassword], [pc.resetPassword], [pc.softphoneGuide]
+        [pc.revealPassword, pc.sipQr], [pc.resetPassword], [pc.softphoneGuide]
       ]))
     }
 
@@ -35667,6 +35676,10 @@ Select a category:`), k.of(catBtns))
     if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpManageNumber)
       return showManageScreen(chatId, num)
+    }
+    if (message === pc.sipQr) {
+      if (!(await require('./bot-sip-qr').send({ bot, db, phoneNumbersOf, chatId, phone: num.phoneNumber, domain: phoneConfig.getSipDomainForNumber(), lang: info?.userLanguage || 'en', log }))) return goto.submenu5()
+      return
     }
     if (message === pc.revealPassword) {
       const freshSip = (await phoneNumbersOf.findOne({ _id: chatId }))?.val?.numbers?.find(x => x.phoneNumber === num.phoneNumber)
@@ -50021,10 +50034,23 @@ app.get('/callengine/tts.mp3', async (req, res) => {
     res.set('Content-Type', 'audio/mpeg').set('Cache-Control', 'public, max-age=86400').send(Buffer.from(r.data))
   } catch (e) { res.sendStatus(502) }
 })
+app.get('/callengine/m/:id', (req, res) => {
+  const u = require('./callengine').mediaUrl(req.params.id)
+  return u ? res.redirect(302, u) : res.sendStatus(404)
+})
 app.get('/callengine/recording/:name', async (req, res) => {
   const ce = require('./callengine')
   if (String(req.query.k || '') !== ce.sign(req.params.name)) return res.sendStatus(403)
   try { const r = await ce.ari().get(`/recordings/stored/${encodeURIComponent(req.params.name)}/file`, { responseType: 'stream', timeout: 60000 }); res.set('Content-Type', 'audio/wav'); r.data.pipe(res) } catch (e) { res.sendStatus(e.response?.status || 502) }
+})
+
+// Linphone reads its account from here after scanning the setup QR code (15-minute link).
+app.get('/sip-provision/:token', async (req, res) => {
+  try {
+    const body = await require('./sip-provision').render(db, req.params.token)
+    if (!body) return res.status(404).type('text/plain').send('This setup code has expired. Make a new one from SIP credentials.')
+    res.set('Cache-Control', 'no-store').type('application/xml').send(body)
+  } catch (e) { log('sip-provision error:', e.message); res.sendStatus(500) }
 })
 
 // Own SIP server (Kamailio) asks for a softphone's password here before letting it register or call.
@@ -53347,7 +53373,7 @@ if (fs.existsSync(frontendBuildPath)) {
   // those later-registered handlers. Without this, /phone/reviews etc. get index.html on Railway.
   app.get('/{*splat}', (req, res, next) => {
     // Known Express API paths registered asynchronously — let them pass through to actual handlers
-    const apiPrefixes = ['/phone/', '/honeypot/', '/telegram/', '/telnyx/', '/signalwire/', '/sip-auth/', '/callengine/', '/infobip/', '/twilio/', '/panel/', '/dynopay/', '/fincra/', '/blockbee/', '/sms-app/', '/brand/']
+    const apiPrefixes = ['/phone/', '/honeypot/', '/telegram/', '/telnyx/', '/signalwire/', '/sip-auth/', '/sip-provision/', '/callengine/', '/infobip/', '/twilio/', '/panel/', '/dynopay/', '/fincra/', '/blockbee/', '/sms-app/', '/brand/']
     if (apiPrefixes.some(p => req.path.startsWith(p))) {
       return next()
     }
