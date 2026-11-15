@@ -1,42 +1,22 @@
 {
-  "ia_ux_analysis": {
-    "core_problems": [
-      "Siloed service perception: Users treat CloudIVR as disjointed utilities (just a number OR just an eSIM) instead of a connected business communication engine.",
-      "Hidden cross-sell potential: Quick IVR setup, Telegram bot integration, softphone credentials, and AI receptionist features are buried in secondary menus.",
-      "High cognitive load on onboarding: First-time users struggle to pick between virtual landlines, USA texting numbers, and fax-only lines without guided intent.",
-      "Inconsistent visual hierarchy: Dark mode defaults caused harsh contrast for daytime corporate users; light theme needs a calm, professional, high-trust tone."
-    ],
-    "intertwined_user_journeys": [
-      {
-        "stage": "1. Discovery & Land",
-        "action": "User lands on site seeking a local US/UK business number or quick IVR phone tree.",
-        "connected_service": "Interactive Free Test Call sandbox demonstrates AI receptionist voice & IVR response instantly."
-      },
-      {
-        "stage": "2. Provision & Activation",
-        "action": "User picks number (USA/UK/EU) and selects a plan (Starter/Pro/Business).",
-        "connected_service": "Auto-suggests SIP softphone setup + Telegram bot notifications for instant mobile call alerts."
-      },
-      {
-        "stage": "3. Operations & AI Reception",
-        "action": "User receives inbound calls routed via custom IVR menu.",
-        "connected_service": "AI Receptionist ($0.10/min) transcribes voicemails, answers FAQs, and logs calls to CRM."
-      },
-      {
-        "stage": "4. Global Mobility Cross-sell",
-        "action": "User travels internationally or manages remote teams.",
-        "connected_service": "Promote Travel eSIM data (187 countries) directly from the active number details panel."
-      }
-    ],
-    "strategic_cross_sells": [
-      "Number Details Page -> 'Add Travel eSIM for seamless roaming without international call charges'",
-      "Voicemail Inbox -> 'Enable AI Receptionist ($0.10/min) to auto-reply to missed calls via voice & text'",
-      "Call Logs -> 'Connect Telegram Bot for zero-latency incoming call alerts on your phone'",
-      "Campaigns -> 'Verify Caller ID with Bird Code verification for 99.4% carrier deliverability'"
-    ]
-  },
-  "light_design_tokens": {
-    "css_variables": {
+  "tokens": {
+    "dark": {
+      "--c-bg": "#090d16",
+      "--c-card": "#131b2e",
+      "--c-card-hover": "#1c2642",
+      "--c-border": "#26334d",
+      "--c-border-hover": "#38496b",
+      "--c-text": "#f8fafc",
+      "--c-text-2": "#cbd5e1",
+      "--c-muted": "#94a3b8",
+      "--c-accent": "#3b82f6",
+      "--c-accent-strong": "#2563eb",
+      "--c-accent-soft": "rgba(59, 130, 246, 0.15)",
+      "--shadow-card": "0 1px 3px rgba(0, 0, 0, 0.3), 0 2px 8px -2px rgba(0, 0, 0, 0.4)",
+      "--shadow-card-hover": "0 8px 24px -6px rgba(0, 0, 0, 0.5)",
+      "--radius-card": "12px"
+    },
+    "light": {
       "--c-bg": "#f8fafc",
       "--c-card": "#ffffff",
       "--c-card-hover": "#f1f5f9",
@@ -48,176 +28,171 @@
       "--c-accent": "#2563eb",
       "--c-accent-strong": "#1d4ed8",
       "--c-accent-soft": "rgba(37, 99, 235, 0.08)",
-      "--c-emerald": "#059669",
-      "--c-sky": "#0284c7",
-      "--c-amber": "#d97706",
-      "--c-rose": "#e11d48",
-      "--shadow-card": "0 1px 3px rgba(15, 23, 42, 0.05), 0 4px 12px -2px rgba(15, 23, 42, 0.04)",
-      "--shadow-card-hover": "0 4px 12px rgba(15, 23, 42, 0.08), 0 12px 28px -6px rgba(15, 23, 42, 0.12)",
-      "--shadow-pop": "0 20px 40px -12px rgba(15, 23, 42, 0.18)"
+      "--shadow-card": "0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.04)",
+      "--shadow-card-hover": "0 10px 25px -5px rgba(15, 23, 42, 0.1)",
+      "--radius-card": "12px"
+    },
+    "spacing_scale_8pt": {
+      "xs": "4px",
+      "sm": "8px",
+      "md": "16px",
+      "lg": "24px",
+      "xl": "32px",
+      "2xl": "48px"
     },
     "typography": {
-      "headings": {
-        "family": "Plus Jakarta Sans, sans-serif",
-        "weights": ["600", "700", "800"],
-        "max_hero_size": "text-4xl sm:text-5xl lg:text-6xl",
-        "letter_spacing": "tracking-tight"
-      },
-      "body": {
-        "family": "Inter, system-ui, sans-serif",
-        "weights": ["400", "500", "600"],
-        "size": "text-base",
-        "line_height": "leading-relaxed"
-      },
-      "monospace": {
-        "family": "JetBrains Mono, monospace",
-        "usage": "SIP credentials, phone numbers, API keys, logs"
-      }
-    },
-    "radii": {
-      "card": "rounded-2xl",
-      "button": "rounded-xl",
-      "pill": "rounded-full",
-      "input": "rounded-xl"
+      "font_family_body": "'Plus Jakarta Sans', 'DM Sans', sans-serif",
+      "font_family_mono": "'JetBrains Mono', monospace",
+      "h1": "font-weight: 700; font-size: 32px; line-height: 1.2; letter-spacing: -0.02em",
+      "h2": "font-weight: 700; font-size: 24px; line-height: 1.25; letter-spacing: -0.015em",
+      "h3": "font-weight: 600; font-size: 18px; line-height: 1.3",
+      "body": "font-weight: 400; font-size: 14px; line-height: 1.5",
+      "small": "font-weight: 500; font-size: 12px; line-height: 1.4"
     }
   },
-  "landing_page_structure": {
-    "sections": [
-      {
-        "id": "hero",
-        "name": "Hero Section",
-        "headline": "One Cloud Number. Global Reach. Intelligent IVR & AI Support.",
-        "subhead": "Instantly provision USA, Canada, UK, and European business phone numbers with custom IVR menus, web softphone, Telegram alerts, and travel eSIM data.",
-        "primary_cta": "Get Started Free",
-        "secondary_cta": "Try Demo Call",
-        "trust_pills": [
-          "Instant Provisioning",
-          "187 Countries eSIM",
-          "AI Receptionist $0.10/min",
-          "Zero Hardware Required"
-        ]
-      },
-      {
-        "id": "test_call",
-        "name": "Free Test Call Sandbox",
-        "headline": "Experience CloudIVR Live in Your Browser",
-        "subhead": "Test our real-time voice synthesis and interactive auto-responder right now. No credit card required.",
-        "cta": "Place Test Call Now"
-      },
-      {
-        "id": "interlinked_ecosystem",
-        "name": "How CloudIVR Services Interlink",
-        "headline": "An Interconnected Voice & Data Operating System",
-        "subhead": "From local presence to global roaming, see how CloudIVR seamlessly connects every touchpoint of your business communications.",
-        "items": [
-          {
-            "title": "Virtual Numbers & Smart Forwarding",
-            "desc": "Claim numbers in USA, UK, Canada, France, Spain, Netherlands, and forward calls to mobile, web browser, or SIP softphones."
-          },
-          {
-            "title": "AI Receptionist & Custom IVR",
-            "desc": "Route callers with interactive keypress menus or let our 24/7 AI Receptionist handle inquiries, book appointments, and capture voicemails."
-          },
-          {
-            "title": "Telegram Bot & Browser Softphone",
-            "desc": "Receive real-time incoming call push notifications on Telegram and answer right inside your web browser or preferred SIP client."
-          },
-          {
-            "title": "Global Travel eSIM Data",
-            "desc": "Stay online across 187 countries with high-speed travel eSIM data packages, fully integrated into your CloudIVR account."
-          }
-        ]
-      },
-      {
-        "id": "plans",
-        "name": "Pricing Plans",
-        "headline": "Transparent Pricing Built for Growing Businesses",
-        "subhead": "Choose the capacity that fits your business. Scale seamlessly as your caller volume expands.",
-        "plans": [
-          {"name": "Basic", "price": "$50/mo", "badge": "Starter Solopreneur", "included": "USA/Canada/UK Number, Call Forwarding, Standard Voicemail"},
-          {"name": "Starter", "price": "$75/mo", "badge": "Growing Teams", "included": "Includes Basic + Custom IVR Menus, Browser Softphone, Telegram Bot Alerts"},
-          {"name": "Pro", "price": "$100/mo", "badge": "Popular", "included": "Includes Starter + AI Receptionist Access, Quick IVR Campaigns, SIP Softphone Logins"},
-          {"name": "Business", "price": "$120/mo", "badge": "International", "included": "Includes Pro + Netherlands/France/Spain Numbers, Priority Routing, Advanced Analytics"},
-          {"name": "Enterprise", "price": "$399/mo", "badge": "Custom Volume", "included": "Includes Business + Dedicated Account Manager, Custom API Limits, SLA Guarantees"}
-        ]
-      },
-      {
-        "id": "travel_esim",
-        "name": "Travel eSIM Data",
-        "headline": "High-Speed Mobile Data Across 187 Countries",
-        "subhead": "Never lose connectivity while traveling. Instant QR activation for USA eSIM & global coverage without changing your physical SIM card.",
-        "cta": "Explore eSIM Plans"
-      },
-      {
-        "id": "faq",
-        "name": "Frequently Asked Questions",
-        "headline": "Frequently Asked Questions",
-        "subhead": "Everything you need to know about CloudIVR numbers, plans, and technical setup.",
-        "items": [
-          {"q": "How fast are numbers activated?", "a": "Numbers in USA, Canada, and UK are activated instantly upon checkout."},
-          {"q": "Can I use my own SIP software?", "a": "Yes! We provide full SIP softphone credentials compatible with Zoiper, Linphone, MicroSIP, or any standard SIP client."},
-          {"q": "How does the AI Receptionist work?", "a": "Our AI Receptionist answers inbound calls, follows your custom instructions, transcribes conversations, and costs just $0.10/minute."}
-        ]
-      }
-    ]
+  "component_styles": {
+    ".civr-card": {
+      "background": "var(--c-card)",
+      "border": "1px solid var(--c-border)",
+      "border_radius": "var(--radius-card)",
+      "box_shadow": "var(--shadow-card)",
+      "padding": "20px",
+      "transition": "border-color 0.2s ease, box-shadow 0.2s ease",
+      "hover": "border-color: var(--c-border-hover); box-shadow: var(--shadow-card-hover)"
+    },
+    ".civr-btn": {
+      "min_height": "44px",
+      "min_width": "44px",
+      "padding": "10px 20px",
+      "border_radius": "8px",
+      "font_weight": "600",
+      "font_size": "14px",
+      "display": "inline-flex",
+      "align_items": "center",
+      "justify_content": "center",
+      "gap": "8px",
+      "transition": "background-color 0.15s ease, opacity 0.15s ease, transform 0.1s ease"
+    },
+    ".civr-btn-primary": {
+      "background": "var(--c-accent-strong)",
+      "color": "#ffffff",
+      "contrast_ratio": "> 5.5:1 (WCAG AA compliant)",
+      "hover": "background: var(--c-accent)",
+      "active": "transform: scale(0.98)"
+    },
+    ".civr-input": {
+      "min_height": "44px",
+      "padding": "0 14px",
+      "border_radius": "8px",
+      "background": "var(--c-card)",
+      "border": "1px solid var(--c-border)",
+      "color": "var(--c-text)",
+      "font_size": "14px",
+      "focus": "border-color: var(--c-accent); box-shadow: 0 0 0 3px var(--c-accent-soft); outline: none"
+    },
+    ".civr-pill": {
+      "min_height": "28px",
+      "padding": "4px 12px",
+      "border_radius": "999px",
+      "font_size": "12px",
+      "font_weight": "600",
+      "border": "1px solid var(--c-border-hover)",
+      "color": "var(--c-text-2)"
+    },
+    ".civr-label": {
+      "font_size": "12px",
+      "font_weight": "700",
+      "text_transform": "uppercase",
+      "letter_spacing": "0.08em",
+      "color": "var(--c-accent)"
+    }
   },
-  "in_app_copy_rewrites": {
-    "home_guided": {
-      "greeting": "Welcome back to CloudIVR",
-      "subtitle": "Your unified communication dashboard. Select an action below or review active services.",
-      "quick_actions": [
-        {"title": "Get a New Number", "desc": "Provision USA, UK, Canada, or European local & toll-free lines"},
-        {"title": "Configure IVR & AI", "desc": "Set up phone menus, caller options, or launch AI Receptionist"},
-        {"title": "Launch Travel eSIM", "desc": "Activate global data plans across 187 countries in 60 seconds"},
-        {"title": "Top Up Wallet", "desc": "Add funds with credit card or crypto for call time & add-ons"}
+  "ux_audit_and_restructure": {
+    "dashboard_audit": {
+      "primary_stay": [
+        "Active Phone Numbers list & quick search",
+        "Wallet balance card & 1-click Top-up button",
+        "Key metrics row: Unread Messages, Active Calls, Voice Minutes",
+        "Primary action shortcuts: 'Get a Number', 'Send Text/Fax', 'Configure Forwarding'"
+      ],
+      "secondary_progressive_disclosure": [
+        "Live campaign statuses (collapsed into 'Active Campaigns' expandable panel)",
+        "Guided onboarding setup checklist (dismissible or collapsible once 100% complete)",
+        "'More for You' drawer/accordion containing Product Catalog Grid and Review Promos"
+      ],
+      "noise_deleted": [
+        "Duplicate promotional upgrade banners",
+        "Static marketing cards embedded in daily operational feeds",
+        "Excessive heavy dark borders and high-saturate colored cards"
+      ],
+      "layout_order": [
+        "1. Top Status & Wallet Header Bar",
+        "2. Key Operational Metrics (Unread SMS, Voice Minutes, Live Trunks)",
+        "3. Active Numbers List & Fast Actions",
+        "4. Recent Activity Log / Messages",
+        "5. 'More for You' Progressive Disclosure Section (Setup checklist, campaigns, tools)"
       ]
     },
-    "get_number": {
-      "title": "Select Your Business Phone Number",
-      "subtitle": "Search by country, area code, or vanity digit combination.",
-      "step_1": "1. Choose Region & Type",
-      "step_2": "2. Pick Available Number",
-      "step_3": "3. Select Plan & Activate"
+    "buying_flow_fixes": [
+      "Guided 3-step wizard: Purpose Picker -> Country/Area Search -> Instant Wallet Checkout",
+      "Upfront transparent plan pricing with zero hidden fees",
+      "Skeleton states during live inventory lookups instead of full-page spinners",
+      "Inline drag-and-drop paperwork/ID verification with instant clear error feedback"
+    ],
+    "landing_page_fixes": [
+      "Clean, high-contrast light theme with 'ink-on-paper' typography",
+      "Single prominent primary CTA hero button with subtle hover lift",
+      "Interactive voice waveform audio sample player",
+      "Responsive comparison grid with sticky first column on mobile"
+    ],
+    "number_settings_fixes": [
+      "Horizontal segmented tab bar for Overview, Forwarding, Voicemail, Texting, AI, IVR, SIP",
+      "Instant optimistic UI toggles with automatic save feedback toasts via Sonner",
+      "44px minimum touch targets on all mobile controls"
+    ]
+  },
+  "microcopy_table": [
+    {
+      "location": "Dashboard Header",
+      "old": "Manage and configure your active telecommunication numbers and trunks",
+      "new": "Your Numbers & Forwarding",
+      "reason": "Eliminates technical jargon, directly states user benefit."
     },
-    "empty_states": {
-      "messages": {
-        "title": "No Messages Yet",
-        "description": "SMS and texting activity for your verified numbers will appear here."
-      },
-      "campaigns": {
-        "title": "No Quick IVR Campaigns Active",
-        "description": "Start a bulk call or voice broadcast campaign in just a few clicks."
-      },
-      "call_logs": {
-        "title": "No Inbound or Outbound Calls",
-        "description": "Call records, transcripts, and AI receptionist summaries will populate automatically."
-      }
+    {
+      "location": "Wallet Alert",
+      "old": "Insufficient credits in balance account, please recharge",
+      "new": "Wallet balance low ($1.20). Top up to keep numbers active.",
+      "reason": "Human, actionable, gives exact context."
+    },
+    {
+      "location": "Buying Flow - Regulatory",
+      "old": "Submit paperwork documentation for regulatory compliance approval",
+      "new": "Upload ID to activate local number",
+      "reason": "Clear step-by-step instruction without corporate bureaucracy."
+    },
+    {
+      "location": "Campaigns",
+      "old": "Execute campaign outbound broadcast sequence",
+      "new": "Start SMS Campaign",
+      "reason": "Action-oriented and concise."
+    },
+    {
+      "location": "Empty Numbers Table",
+      "old": "No records found in database query",
+      "new": "No active numbers yet. Pick your first number to start.",
+      "reason": "Provides positive direction and immediate next step."
     }
-  },
-  "motion_and_interactions": {
-    "principles": "Lightweight, functional transitions with spring physics. Avoid distracting high-speed loops.",
-    "hover_effects": "Cards lift on hover (-translate-y-1) with soft ambient shadow (shadow-card-hover). Buttons have smooth background transition (duration-150 ease-out).",
-    "click_feedback": "Active button state uses scale-[0.98] transform for crisp tactile response.",
-    "focus_states": "Focus visible triggers ring-2 ring-blue-500/20 ring-offset-2 for screen reader accessibility.",
-    "prefers_reduced_motion": "All transitions degrade gracefully to standard opacity fades when prefers-reduced-motion is active."
-  },
-  "image_urls": {
-    "hero_cloud_render": "https://images.unsplash.com/photo-1667984390538-3dea7a3fe33d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2ODl8MHwxfHNlYXJjaHxfHxjbG91ZCUyMHRlbGVjb20lMjBidXNpbmVzcyUyMHNtYXJ0cGhvbmUlMjBuZXR3b3JrfGVufDB8fHx8MTc5NDY5Mjk2N3ww&ixlib=rb-4.1.0&q=85",
-    "user_smartphone": "https://images.unsplash.com/photo-1512428559087-560fa5ceab42?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2ODl8MHwxfHNlYXJjaHwyfHxjbG91ZCUyMHRlbGVjb20lMjBidXNpbmVzcyUyMHNtYXJ0cGhvbmUlMjBuZXR3b3JrfGVufDB8fHx8MTc5NDY5Mjk2N3ww&ixlib=rb-4.1.0&q=85",
-    "travel_esim": "https://images.unsplash.com/photo-1566818053624-9934143a2a0a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODB8MHwxfHNlYXJjaHwyfHx0cmF2ZWwlMjBidXNpbmVzcyUyMHNtYXJ0cGhvbmV8ZW58MHx8fHwxNzk0NjkyOTc0fDA&ixlib=rb-4.1.0&q=85"
-  },
-  "component_path": "/app/frontend/src/cloudivr/",
-  "instructions_to_main_agent": [
-    "Use light theme CSS variables from /app/frontend/src/cloudivr/theme-light.css with fallback hex values where necessary.",
-    "Keep React .js file conventions (JSX without TypeScript types).",
-    "Ensure all interactive elements (buttons, inputs, tabs, nav links) include kebab-case data-testid attributes for testing.",
-    "Apply 'civr-card', 'civr-btn', 'civr-btn-primary', 'civr-input', and 'civr-pill' base classes across components.",
-    "Verify that header overlays and dropdown menus never use transparent backgrounds without backdrop blur or solid white background."
   ],
-  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
-    "Never center align the entire app container.",
-    "Use generous spacing (p-6, p-8, gap-6) between cards and grid containers.",
-    "Ensure all interactive states provide clear hover, active, and focus visual cues.",
-    "Add explicit data-testid attributes to buttons, links, inputs, and tabs."
-  ]
+  "accessibility_and_testing_rules": {
+    "wcag_aa_requirements": [
+      "All body text meets minimum 4.5:1 contrast against surface background.",
+      "Headings and primary CTA buttons meet minimum 3:1 contrast ratio.",
+      "Interactive touch targets are minimum 44px by 44px on coarse pointers.",
+      "Interactive states do not rely on color alone (include icons, borders, or underline indicators)."
+    ],
+    "testing_data_testids": [
+      "Every interactive element (buttons, links, inputs, selects, toggles) MUST have a data-testid attribute.",
+      "Convention: kebab-case role-based naming e.g., data-testid='dashboard-topup-button', data-testid='number-search-input'."
+    ]
+  }
 }

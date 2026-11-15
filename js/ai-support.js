@@ -194,13 +194,13 @@ This opens the Cloud IVR hub with these buttons:
 - 📞 Bulk IVR Campaign — Run automated IVR campaigns to multiple numbers (Pro/Business)
 - 🎵 Audio Library — Upload and manage IVR audio files
 - 🧪 Test SIP Free — Generate test OTP and temporary SIP credentials to try the service (moved here from main menu)
-- 🛒 Choose a Plan — Purchase a phone number with a plan
+- 🛒 Get a Number — pick what the number is for (Calls, Calls + texting or Fax only), then buy it
 - 📋 My Plans — View and manage your phone plans and numbers
 - 📖 SIP Setup Guide — General SIP configuration instructions
 - 📊 Usage & Billing — View call/SMS usage stats
 
 #### How to buy a phone number:
-📞 Cloud IVR + SIP → 🛒 Choose a Plan → Select plan (Starter/Pro/Business) → Select country → Select number type (Local/Toll-Free/Mobile) → Pick a number from the list → Confirm order → Choose payment method → ✅ Number activated
+📞 Cloud IVR + SIP → 🛒 Get a Number → 📞 Calls → Select plan (Starter/Pro/Business) → Select country → Select number type (Local/Toll-Free/Mobile) → Pick a number from the list → Confirm order → Choose payment method → ✅ Number activated
 
 #### Plans & Pricing:
 ${process.env.PHONE_SERVICE_ON === 'true' ? `- <b>Starter — $${process.env.PHONE_STARTER_PRICE || '50'}/mo</b>: ${process.env.STARTER_MINUTES || '100'} INBOUND min + ${process.env.STARTER_SMS || '50'} SMS included/month. Features: Call forwarding, SMS to Telegram. Up to 3 extra numbers.
@@ -220,7 +220,7 @@ ${process.env.PHONE_SERVICE_ON === 'true' ? `- <b>Starter — $${process.env.PHO
 - A suspended or released NUMBER is not the same as an expired PLAN. Always read the "PHONE PLANS & EXTRA-NUMBER SLOTS" block in the user context first.
 - If the user still has an ACTIVE plan with free extra-number slots → tell them to replace the number under that plan: <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → select the active plan's number → <b>➕ Add Number to Plan</b>. State the slots (used/limit). Extra-number limits: Starter ${require('./phone-config.js').SUB_NUMBER_LIMITS.starter}, Pro ${require('./phone-config.js').SUB_NUMBER_LIMITS.pro}, Business ${require('./phone-config.js').SUB_NUMBER_LIMITS.business}. Do NOT tell them to buy another plan or "purchase a new number" as the only option.
 - If the active plan's extra-number slots are FULL → explain the limit is reached and offer the options: upgrade the plan (⬆️ Upgrade on the Manage screen, higher limit) or free a slot by releasing an unused extra number; a new plan is only one optional choice.
-- If the plan itself has EXPIRED or was cancelled (no active plan) → tell them to renew or buy a plan via <b>🛒 Choose a Plan</b>.
+- If the plan itself has EXPIRED or was cancelled (no active plan) → tell them to renew or buy a plan via <b>🛒 Get a Number</b>.
 - Never tell a user their number "is not suspended" when the context shows it as suspended/released. Carrier suspensions can't be reversed by us; offer escalation to a human if they want the case reviewed.
 
 #### Plan Upgrades & Downgrades:
@@ -1186,7 +1186,7 @@ function phonePlanSlotsContext(numbers, now = Date.now()) {
     ? 'RULE: user HAS an active phone plan with a free slot — for a suspended/released number, guide to "➕ Add Number to Plan" under that active plan and STATE the plan\'s extra-number limit and slots (e.g. "Pro: up to 15 extra numbers, 0/15 used"); never say a new plan is required.'
     : activePlans > 0
       ? `RULE: user HAS an active phone plan but its extra-number slots are FULL (${full.join(', ')}; suspended extra numbers still hold a slot) — "➕ Add Number to Plan" is NOT available. Explain the limit is reached and offer: upgrade the plan (higher limit) or free a slot by releasing an unused/suspended extra number. Do not say a new plan is required.`
-      : 'RULE: user has NO active phone plan — to get a number again they must renew/buy a plan (🛒 Choose a Plan).')
+      : 'RULE: user has NO active phone plan — to get a number again they must renew/buy a plan (🛒 Get a Number).')
   return `PHONE PLANS & EXTRA-NUMBER SLOTS (authoritative):\n  • ${lines.join('\n  • ')}`
 }
 
