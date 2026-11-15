@@ -485,3 +485,11 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Also shipped balance-monitor.js regex fix → [RegulatoryFlow] Initialized now logged on startup (bot CloudIVR+SIP crash root cause).
 - app-main: workspace deploy release 20261115T044221Z-e58da85 on app-main-b :5100. WL (wl/voodoo/proshop): overlay patch of callengine+voice-service on live releases, restarted, healthy. Not on GitHub → Save to GitHub.
 - 11 failed forwards were billed (≈$1.80) for chatId 5000000000000143 on 14–15 Nov — refund pending owner approval.
+
+## 2026-11-15 ~05:00Z — "MultiTEL is DOWN" alerts on WL bots fixed + bot plan/number parity LIVE all brands
+- Root cause (alerts): WL releases (wl/voodoo/proshop) had the OLD js/multitel/index.js — no IPv4-only agent (MultiTEL firewall allow-lists IPv4), 6h block on any 401/403, file /tmp/multitel-auth-block. Every check failed → provider-health flagged multitel DOWN → admin alert on each restart. Main was fine (IPv4 agent, -v4 block file).
+- Fix: overlay patched WL multitel/index.js (ipv4 agent, -v4 block file, 403 → 10 min pause), removed stale /tmp/multitel-auth-block, restarted. getbalance 200 on all 4 brands.
+- Remaining legit alert: MultiTEL balance $11.43 (< $20 warn; < $10 hides MultiTEL stock). Owner should top up.
+- Bot parity (main release 20261115T0457xxZ-e4af5e9 on app-main-b :5100; WL overlay): plan free number = web includedIssue rules; extra numbers = all instant/no-ID/address-only (85 country/types, 0 missing vs web); MultiTEL/Infobip plan add-on = number-addons (web); extra price $25 (web); extra-number address step (fixed or ask) like plan flow; order-only prefixes ("+447") show "assigned when you buy" and can be selected (digit match >1).
+- Prod Telegram simulation (Hostbay_support 5168006768): Cloud IVR + SIP → Choose a Plan → Basic → More Countries → UK → Mobile → +447 → Review & pay screen. No errors. Not paid.
+- Not on GitHub / WhiteLabel branch → Save to GitHub; next WL CI deploy drops the WL overlays.

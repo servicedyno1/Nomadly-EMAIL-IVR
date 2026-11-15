@@ -728,7 +728,9 @@ function numCapTag(r) {
   if (c.voice) tags.push('📞 Voice')
   if (c.sms) tags.push('📱 Texts')
   if ((r?._provider || 'telnyx') === 'telnyx' && !r?._signalwire && c.fax) tags.push('📠 Fax (Business plan)')
-  return tags.length ? `\n     ${tags.join(' · ')}` : ''
+  // Order-only prefix (MultiTEL): the exact number is assigned at checkout, like the web shows it.
+  const assigned = r?._assigned ? `\n     🎲 A number starting ${r.phone_number} is assigned when you buy` : ''
+  return (tags.length ? `\n     ${tags.join(' · ')}` : '') + assigned
 }
 
 const webAccess = require('./web-access.js')
@@ -30145,7 +30147,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
     const results = info?.cpSearchResults || []
     const _dg = String(message || '').replace(/\D/g, '')
-    const _byNum = _dg.length > 6 ? results.findIndex(r => String(r.phone_number).replace(/\D/g, '') === _dg) : -1
+    const _byNum = _dg.length > 1 ? results.findIndex(r => String(r.phone_number).replace(/\D/g, '') === _dg) : -1
     const idx = _byNum >= 0 ? _byNum : parseInt(message) - 1
     if (isNaN(idx) || idx < 0 || idx >= results.length) return send(chatId, phoneConfig.getMsg(info?.userLanguage).tapNumberToSelect)
     const selected = results[idx]
@@ -32023,7 +32025,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const countryBtns = phoneConfig.allCountries.map(c => c.name)
       const rows = []
       for (let i = 0; i < countryBtns.length; i += 2) rows.push(countryBtns.slice(i, i + 2))
-      if (phoneConfig.moreCountries.length > 0) rows.push([pc.moreCountries])
+      if (phoneConfig.botExtraOrMore().length > 0) rows.push([pc.moreCountries])
       return send(chatId, cpTxt.selectCountry, k.of(rows))
     }
     let numberType = null
@@ -32206,7 +32208,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
     const results = info?.cpSearchResults || []
     const _dg = String(message || '').replace(/\D/g, '')
-    const _byNum = _dg.length > 6 ? results.findIndex(r => String(r.phone_number).replace(/\D/g, '') === _dg) : -1
+    const _byNum = _dg.length > 1 ? results.findIndex(r => String(r.phone_number).replace(/\D/g, '') === _dg) : -1
     const idx = _byNum >= 0 ? _byNum : parseInt(message) - 1
     if (isNaN(idx) || idx < 0 || idx >= results.length) return send(chatId, phoneConfig.getMsg(info?.userLanguage).tapNumberToSelect)
     const selected = results[idx]
@@ -32255,6 +32257,18 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (message === pc.proceedPayment) {
       await saveInfo('cpIsSubNumber', true)
       await saveInfo('cpPlanKey', info?.cpSubParentPlan || 'starter')
+      // Address-only extra numbers: same as the plan flow (fixed end-user details, or ask the street address).
+      const cc = info?.cpCountryCode || 'US', nt = info?.cpNumberType || 'local'
+      await saveInfo('cpEndUserAddress', null)
+      await saveInfo('cpEndUserName', null)
+      if (phoneConfig.botUsesFixedAddress(cc, nt)) {
+        await saveInfo('cpEndUserAddress', phoneConfig.BOT_END_USER_ADDRESS)
+        await saveInfo('cpEndUserName', phoneConfig.botEndUserName() || (await get(nameOf, chatId).catch(() => null)) || null)
+      }
+      if (phoneConfig.botNeedsAddress(cc, nt)) {
+        await set(state, chatId, 'action', 'cpAddress')
+        return send(chatId, `📍 <b>${info?.cpCountryName || cc}</b> numbers need a street address in ${info?.cpCountryName || 'that country'} (the provider's rule). No ID or business details needed.\n\nType the full address in one message: street, city, postcode.`, { parse_mode: 'HTML', ...k.of([[pc.back]]) })
+      }
       return goto['phone-pay']()
     }
     return send(chatId, phoneConfig.getMsg(info?.userLanguage).proceedOrBack)

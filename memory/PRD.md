@@ -249,3 +249,10 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 ## Update 2026-11-15 03:25 UTC
 - Done & live: orphan-extra-line fix (scheduler follows provider swaps); MAZE + 1 other account numbers re-activated; old carrier numbers cleared from all accounts; Multitel two-way texting verified, international texting ON (Multitel countries only, all brands; WL had no gating and no Intl Texting page).
 - Open: Multitel fax still fails ("Call ended before fax completion: NORMAL_UNSPECIFIED") → waiting on Multitel; +16806811015 is in fax-inbox mode (no calls). Ask Multitel to whitelist main-server IPv6 2a03:b0c0:2:f0:0:2:875:c001. Customers not notified about the released/repaired numbers.
+
+## Update 2026-11-15 05:05 UTC
+- Fixed: call forwarding refused by Bird when showing caller's unverified number → redial with own number (all brands). ~$1.80 failed-forward charges for MAZE pending refund approval.
+- Fixed: bot "Cloud IVR + SIP" crash (balance-monitor regex blocked RegulatoryFlow init). Verified via prod webhook simulation.
+- Fixed: WL bots' false "MultiTEL DOWN" alerts (old non-IPv4 multitel client). Real issue left: MultiTEL balance $11.43 — top up.
+- Bot plan/number parity with web (except Enterprise) live on all brands.
+- Still open: JujuCloud email (only ensure cloudivr.net customers don't receive JujuCloud mail), Multitel NL inbound SMS + fax (provider), 7 carrier releases (401), 20 vs 18 replacement reconciliation.
