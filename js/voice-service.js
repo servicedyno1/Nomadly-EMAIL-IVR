@@ -1775,14 +1775,21 @@ async function playHoldMusicAndTransfer(callControlId, forwardTo, fromNumber, co
   const useHoldMusic = config?.holdMusic === true || !!session?.transferBackups?.length
   // Show the caller (callbacks) or the lead (IVR transfers) to the person answering; our number is the fallback if refused.
   const shownRaw = String(config?.presentFrom || '').replace(/[^+\d]/g, '')
-  const presentFrom = /^\+\d{8,15}$/.test(shownRaw) && shownRaw !== String(fromNumber || '').replace(/[^+\d]/g, '') ? shownRaw : null
+  let presentFrom = /^\+\d{8,15}$/.test(shownRaw) && shownRaw !== String(fromNumber || '').replace(/[^+\d]/g, '') ? shownRaw : null
+  // Inbound forwarding: the business number unless the owner chose "show the caller" — then US destinations go out
+  // through the passthrough trunk (MultiTEL keeps the caller's number); refused or elsewhere → business number.
+  let via = null
+  if (config?.inbound) {
+    via = process.env.CALLER_ID_PASSTHROUGH_TRUNK || null
+    if (!(config.showCallerId && via && /^\+1\d{10}$/.test(String(forwardTo)) && String(callControlId).startsWith('ae:'))) { presentFrom = null; via = null }
+  }
 
   if (useHoldMusic) {
     // Two-phase approach:
     // Phase 1: Speak TTS announcement
     // Phase 2 (on speak.ended): Start hold music + create outbound call to destination
     // Phase 3 (on destination answered): Bridge the two calls (stops music automatically)
-    pendingHoldTransfers[callControlId] = { forwardTo, fromNumber, presentFrom, createdAt: new Date() }
+    pendingHoldTransfers[callControlId] = { forwardTo, fromNumber, presentFrom, via, createdAt: new Date() }
     // Safety: clean up if speak.ended never fires (10s timeout — TTS is ~3-4s)
     setTimeout(() => {
       if (pendingHoldTransfers[callControlId]) {
@@ -1812,7 +1819,7 @@ async function playHoldMusicAndTransfer(callControlId, forwardTo, fromNumber, co
     pendingNativeTransfers[callControlId]._timeout = transferTimeout
 
     if (presentFrom) {
-      try { await _telnyxApi.transferCall(callControlId, forwardTo, presentFrom); return } catch (e) { log(`[Voice] Transfer showing caller ${presentFrom} refused (${e.message}) — retrying with ${fromNumber}`) }
+      try { await (via ? require('./callengine') : _telnyxApi).transferCall(callControlId, forwardTo, presentFrom, { fallbackFrom: fromNumber, trunk: via }); return } catch (e) { log(`[Voice] Transfer showing caller ${presentFrom} refused (${e.message}) — retrying with ${fromNumber}`) }
     }
     await _telnyxApi.transferCall(callControlId, forwardTo, fromNumber)
   }
@@ -1953,7 +1960,7 @@ async function noAnswerFallback(originalCcid, t, hangupCause) {
     origSession.forwardingRate = CALL_FORWARDING_RATE_MIN
     const modeLabel = fwd.mode === 'busy' ? `${via} busy` : `${via} no answer`
     log(`[Voice] ${modeLabel} → forwarding to ${fwd.forwardTo}`)
-    await playHoldMusicAndTransfer(originalCcid, fwd.forwardTo, activeCalls[originalCcid]?.to || t.fromNumber, { ...fwd, presentFrom: activeCalls[originalCcid]?.from })
+    await playHoldMusicAndTransfer(originalCcid, fwd.forwardTo, activeCalls[originalCcid]?.to || t.fromNumber, { ...fwd, inbound: true, presentFrom: activeCalls[originalCcid]?.from })
   }
   // Try voicemail (if configured and plan allows)
   else if (vm?.enabled && canAccessFeature(t.num.plan, 'voicemail')) {
@@ -3386,6 +3393,16 @@ async function handleOutboundSipCall(payload) {
     return
   }
 
+  // CloudIVR web accounts must add their personal / business details before any outgoing call.
+  if (!lookupResult.isTestCall && _db && Number.isFinite(Number(chatId))) {
+    const acc = await _db.collection('webAccounts').findOne({ _id: Number(chatId) }, { projection: { legalProfile: 1 } }).catch(() => null)
+    if (acc && !acc.legalProfile?.completedAt) {
+      log(`[Voice] Outbound SIP: ${chatId} has no personal/business details yet — call to ${destination} blocked`)
+      await _telnyxApi.hangupCall(callControlId).catch(() => {})
+      return
+    }
+  }
+
   // Wallet balance check — outbound calls charge directly from wallet (plan minutes are for inbound only)
   const sipRate = getCallRate(destination)
   const minRequired = sipRate + CALL_CONNECTION_FEE  // Per-minute rate + connection fee
@@ -4005,7 +4022,7 @@ async function routeOffHours(callControlId, session) {
   session.forwardingRate = CALL_FORWARDING_RATE_MIN
   session.offHoursFallback = true // nobody answers → offHoursEnd (see handleBridgeTransferHangup)
   session.bridgeRingSecs = OFF_HOURS_RING_SECS
-  await playHoldMusicAndTransfer(callControlId, fwd[0], to, { holdMusic: true, backups: fwd.slice(1), presentFrom: activeCalls[callControlId]?.from })
+  await playHoldMusicAndTransfer(callControlId, fwd[0], to, { holdMusic: true, backups: fwd.slice(1), inbound: true, presentFrom: activeCalls[callControlId]?.from })
 }
 
 // Voicemail or the closed message (also after none of the off-hours backup numbers answered).
@@ -4096,13 +4113,14 @@ async function birdAutoLinkTick() {
   if (!_db || !require('./bird').enabled()) return
   // Only Infobip and MultiTEL numbers are linked to Bird (Telnyx / SignalWire / Zadarma caller IDs were removed on request).
   const ib = require('./infobip'), mt = require('./multitel')
-  // Only the system caller IDs (USA MultiTEL + Canada Infobip) are kept on Bird, on request.
-  const only = new Set(require('./ivr-outbound').SYSTEM_CALLERS())
-  const ibNums = [...(ib.enabled() ? await ib.refreshOwned() : []), ...(mt.enabled() ? await mt.refreshOwned() : [])].filter(n => only.has(n))
+  // Bird-only outbound: system caller IDs + every MultiTEL/Infobip number on a customer account are linked on Bird.
+  const ibNums = [...(ib.enabled() ? await ib.refreshOwned() : []), ...(mt.enabled() ? await mt.refreshOwned() : [])]
   if (!ibNums.length) return
   const sw = new Set(ibNums)
   const numbers = new Set()
-  for (const n of ibNums) numbers.add(n)
+  for (const n of require('./ivr-outbound').SYSTEM_CALLERS()) if (sw.has(n)) numbers.add(n)
+  for (const d of await _db.collection('phoneNumbersOf').find({}, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1, 'val.numbers.capabilities': 1 } }).toArray())
+    for (const n of d.val?.numbers || []) if (sw.has(n.phoneNumber) && n.capabilities?.voice !== false && !/released|expired|cancel/i.test(String(n.status || ''))) numbers.add(n.phoneNumber)
   const wanted = [...require('./signalwire').birdWanted].filter(n => sw.has(n))
   const r = await birdVerify().autoLinkTick({ numbers: [...new Set([...wanted, ...numbers])] })
   if (r.armed || r.error) log(`[BirdVerify] auto-link: ${JSON.stringify(r)}`)
@@ -4216,7 +4234,7 @@ async function handleCallAnswered(payload) {
     const rate = getCallRate(fwdConfig.forwardTo)
     const ivrSkipped = ivrConfig?.enabled && canAccessFeature(num.plan, 'ivr') && ivrConfig.options && Object.keys(ivrConfig.options).length > 0
     log(`[Voice] Forwarding call to ${fwdConfig.forwardTo} from ${to} (rate: $${rate}/min ${isUSCanada(fwdConfig.forwardTo) ? 'US/CA' : 'Intl'})${ivrSkipped ? ' — IVR skipped (always-forward overrides)' : ''}`)
-    await playHoldMusicAndTransfer(callControlId, fwdConfig.forwardTo, to, { ...fwdConfig, presentFrom: activeCalls[callControlId]?.from })
+    await playHoldMusicAndTransfer(callControlId, fwdConfig.forwardTo, to, { ...fwdConfig, inbound: true, presentFrom: activeCalls[callControlId]?.from })
     return
   }
 
@@ -4264,7 +4282,7 @@ async function handleCallAnswered(payload) {
       if (isNumberBusy) {
         const rate = getCallRate(fwdConfig.forwardTo)
         log(`[Voice] Number ${to} is BUSY (concurrent call detected) — forwarding to ${fwdConfig.forwardTo} (rate: $${rate}/min)`)
-        await playHoldMusicAndTransfer(callControlId, fwdConfig.forwardTo, to, { ...fwdConfig, presentFrom: activeCalls[callControlId]?.from })
+        await playHoldMusicAndTransfer(callControlId, fwdConfig.forwardTo, to, { ...fwdConfig, inbound: true, presentFrom: activeCalls[callControlId]?.from })
         const lang = await _getUserLang(chatId)
         const msg = _trans('vs.forwardedBusy', lang, formatPhone(from), formatPhone(fwdConfig.forwardTo))
         if (msg) _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
@@ -4290,7 +4308,7 @@ async function handleCallAnswered(payload) {
           const rate = getCallRate(fwdConfig.forwardTo)
           log(`[Voice] No answer after ${fwdConfig.ringTimeout}s, forwarding to ${fwdConfig.forwardTo} from ${to} (rate: $${rate}/min ${isUSCanada(fwdConfig.forwardTo) ? 'US/CA' : 'Intl'})`)
           current.phase = 'forwarding'
-          await playHoldMusicAndTransfer(callControlId, fwdConfig.forwardTo, to, { ...fwdConfig, presentFrom: activeCalls[callControlId]?.from })
+          await playHoldMusicAndTransfer(callControlId, fwdConfig.forwardTo, to, { ...fwdConfig, inbound: true, presentFrom: activeCalls[callControlId]?.from })
         }
       }, ringTime)
       return
@@ -4487,7 +4505,7 @@ async function handleGatherEnded(payload) {
       }
       session.phase = 'ivr_forward'
       log(`[Voice] IVR: forwarding to ${option.forwardTo} from ${session.to} (rate: $${ivrFwdRate}/min ${isUSCanada(option.forwardTo) ? 'US/CA' : 'Intl'})`)
-      await playHoldMusicAndTransfer(callControlId, option.forwardTo, session.to, { ...(num.features?.callForwarding || {}), presentFrom: session.from })
+      await playHoldMusicAndTransfer(callControlId, option.forwardTo, session.to, { ...(num.features?.callForwarding || {}), inbound: true, presentFrom: session.from })
       notifyUser(chatId, num, 'ivr_forward', session, { digit: digits, forwardTo: option.forwardTo })
       break
     }
@@ -4582,7 +4600,7 @@ async function handleSpeakEnded(payload) {
     await new Promise(resolve => setTimeout(resolve, 5000))
 
     // Phase 2b: Create new outbound call to the transfer destination
-    if ((pending.presentFrom && await dialBridgeLeg(callControlId, pending.forwardTo, pending.presentFrom).catch(e => { log(`[Voice] Bridge leg showing caller ${pending.presentFrom} refused (${e.message}) — retrying with ${pending.fromNumber}`); return false })) || await dialBridgeLeg(callControlId, pending.forwardTo, pending.fromNumber)) {
+    if ((pending.presentFrom && await dialBridgeLeg(callControlId, pending.forwardTo, pending.presentFrom, pending.via).catch(e => { log(`[Voice] Bridge leg showing caller ${pending.presentFrom} refused (${e.message}) — retrying with ${pending.fromNumber}`); return false })) || await dialBridgeLeg(callControlId, pending.forwardTo, pending.fromNumber)) {
       // dialed — answered → bridged; busy / no answer → handleBridgeTransferHangup (backup numbers, then hang up)
     } else {
       // Failed to create outbound call — fall back to regular transfer with tracking
@@ -6279,7 +6297,7 @@ async function ringGroupFallback(callControlId) {
   log(`[Voice] Ring group for ${s.to}: nobody answered → ${rg.fallback || 'message'}`)
   if (rg.fallback === 'forward' && rg.fallbackTo) {
     s.phase = 'forwarding'
-    return playHoldMusicAndTransfer(callControlId, rg.fallbackTo, s.to, { holdMusic: true, presentFrom: s.from })
+    return playHoldMusicAndTransfer(callControlId, rg.fallbackTo, s.to, { holdMusic: true, inbound: true, presentFrom: s.from })
   }
   if (rg.fallback === 'voicemail' && canAccessFeature(num.plan, 'voicemail')) {
     s.phase = 'voicemail_greeting'
@@ -6293,8 +6311,8 @@ async function ringGroupFallback(callControlId) {
 
 // Dials `forwardTo` as a new leg that is bridged to the caller once answered (30 s ring limit, or the session's
 // bridgeRingSecs). true when dialed.
-async function dialBridgeLeg(callControlId, forwardTo, fromNumber) {
-  const newCall = await _telnyxApi.createOutboundCall(fromNumber, forwardTo)
+async function dialBridgeLeg(callControlId, forwardTo, fromNumber, via = null) {
+  const newCall = via ? await require('./callengine').createOutboundCall(fromNumber, forwardTo, null, null, { trunk: via }) : await _telnyxApi.createOutboundCall(fromNumber, forwardTo)
   if (!newCall?.callControlId) return false
   activeBridgeTransfers[newCall.callControlId] = { originalCallControlId: callControlId, forwardTo, fromNumber }
   const ringSecs = activeCalls[callControlId]?.bridgeRingSecs || 30

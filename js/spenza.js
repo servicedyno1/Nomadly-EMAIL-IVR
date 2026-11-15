@@ -151,6 +151,7 @@ async function syncUser(chatId) {
   for (const d of await S.col.find({ chatId: String(chatId), status: { $in: ['active', 'suspended'] }, iccid: { $ne: null } }).toArray()) await linkUser(d).catch(e => S.log(`[Spenza] user sync ${d._id}: ${e.message}`))
 }
 async function buy(chatId, { planId, imei, zipcode, email, autoRenew, source, lang }) {
+  if (!String(zipcode || '').trim()) zipcode = await profileZip(chatId)
   const bot = source === 'telegram' && !require('./cloudivr-web/notify').isWebChatId(chatId)
   const qrEmail = String(email || '').trim().toLowerCase()
   if ((!bot || qrEmail) && !EMAIL_RE.test(qrEmail)) return { error: 'Enter the email address where we should send your eSIM QR code.' }
@@ -248,8 +249,13 @@ async function mobileOffer() {
   return { available: !!plan && (await mobileImei()).length === 15, price: MOBILE_PRICE, bundlePrice: bundlePrice(), bundlePct: BUNDLE_PCT }
 }
 // `charge` lets a bundle (Business Line + Texting Number) bill a discounted first month; renewals stay at MOBILE_PRICE.
+// No ZIP given: use the USA postal code from the account's saved profile, if it has one.
+async function profileZip(chatId) {
+  const a = (await S.db?.collection('webAccounts').findOne({ _id: Number(chatId) }, { projection: { 'legalProfile.address': 1 } }).catch(() => null))?.legalProfile?.address
+  return a?.countryCode === 'US' ? String(a.postalCode || '').slice(0, 5) : ''
+}
 async function buyMobile(chatId, { zipcode, autoRenew, charge = MOBILE_PRICE }) {
-  const zip = String(zipcode || '').trim()
+  const zip = String(zipcode || '').trim() || await profileZip(chatId)
   if (!/^\d{5}$/.test(zip)) return { error: 'Enter a 5-digit USA ZIP code so we can ask for a number near it.' }
   const im = await mobileImei()
   const plan = (await forSale()).find(p => p.simId)

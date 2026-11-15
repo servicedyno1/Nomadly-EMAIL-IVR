@@ -32,6 +32,7 @@ const COOLDOWN_TRANSIENT_MS = 5 * 60 * 1000 // 5 minutes for transient errors
 
 const circuitBreakers = {
   telnyx:    { state: BREAKER_STATES.CLOSED, failures: 0, lastFailure: 0, cooldownMs: 0, lastError: '' },
+  ezcnam:    { state: BREAKER_STATES.CLOSED, failures: 0, lastFailure: 0, cooldownMs: 0, lastError: '' },
   multitel:  { state: BREAKER_STATES.CLOSED, failures: 0, lastFailure: 0, cooldownMs: 0, lastError: '' },
   signalwire:{ state: BREAKER_STATES.CLOSED, failures: 0, lastFailure: 0, cooldownMs: 0, lastError: '' },
 }
@@ -166,12 +167,23 @@ async function lookupTelnyx(phone) {
   return data?.caller_name?.caller_name || null
 }
 
+// ── EZCNAM lookup (primary) ── GET https://api.ezcnam.com/v1/?key=&phone=&out=json → { status: 'OK', name }
+async function lookupEzcnam(phone) {
+  const res = await axios.get('https://api.ezcnam.com/v1/', { params: { key: process.env.EZCNAM_API_KEY, phone: phone.replace(/[^0-9]/g, ''), out: 'json' }, timeout: 8000 })
+  const d = res?.data || {}
+  if (String(d.status || '').toUpperCase() !== 'OK') throw new Error(`EZCNAM ${d.status || 'error'}${d.message ? `: ${d.message}` : ''}`)
+  const name = String(d.name || '').trim()
+  if (!name || /^[+\d\s()-]+$/.test(name) || /^(unknown|unavailable|n\/a)$/i.test(name)) return null
+  return name
+}
+
 // ── Multitel CNAM lookup (fallback) ──
 async function lookupMultitel(phone) {
   const clean = phone.replace(/[^0-9]/g, '')
   const res = await axios({
     method: 'get',
     url: `https://api.multitel.net/v3/cnam/${clean}`,
+    httpsAgent: require('./multitel').ipv4,
     auth: { username: MULTITEL_USERNAME, password: MULTITEL_PASSWORD },
     timeout: 8000,
   })
@@ -223,8 +235,21 @@ async function lookupCnam(phoneNumber) {
 
   let name = null
 
-  // 1. Multitel first (takes Telnyx's old primary slot; Bird/Infobip lookups don't return names)
-  if (!name && MULTITEL_USERNAME && MULTITEL_PASSWORD && circuitAllows('multitel')) {
+  // 1. EZCNAM first; MultiTEL only when EZCNAM errors or is not configured.
+  let ezOk = false
+  if (process.env.EZCNAM_API_KEY && circuitAllows('ezcnam')) {
+    try {
+      name = await lookupEzcnam(clean)
+      ezOk = true
+      circuitSuccess('ezcnam')
+    } catch (e) {
+      circuitFailure('ezcnam', e)
+      log(`[CNAM] EZCNAM failed for ${clean}: ${e.message}`)
+    }
+  }
+
+  // 2. MultiTEL backup
+  if (!name && !ezOk && MULTITEL_USERNAME && MULTITEL_PASSWORD && circuitAllows('multitel')) {
     try {
       name = await lookupMultitel(clean)
       circuitSuccess('multitel')
@@ -234,8 +259,8 @@ async function lookupCnam(phoneNumber) {
     }
   }
 
-  // 2. SignalWire backup
-  if (!name && SIGNALWIRE_ON && circuitAllows('signalwire')) {
+  // 3. SignalWire backup
+  if (!name && !ezOk && SIGNALWIRE_ON && circuitAllows('signalwire')) {
     try {
       name = await lookupSignalwire(clean)
       circuitSuccess('signalwire')

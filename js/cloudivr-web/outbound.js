@@ -159,7 +159,7 @@ async function trialStatus(db, numbersApi, chatId) {
     db.collection('state').findOne({ _id: `ivrTrialUsed_${chatId}` }),
     numbersApi.myNumbers(chatId),
   ])
-  const hasCaller = nums.some(n => n.status === 'active' && ['telnyx', 'signalwire'].includes(n.provider) && phoneConfig.canAccessFeature(n.plan, 'ivrOutbound'))
+  const hasCaller = nums.some(n => n.status === 'active' && ['telnyx', 'signalwire', 'multitel', 'infobip'].includes(n.provider) && phoneConfig.canAccessFeature(n.plan, 'ivrOutbound'))
   const used = !!p?.ivrTrialUsed || st?.val === true
   const heldUntil = p?.ivrTrialPendingAt ? new Date(p.ivrTrialPendingAt).getTime() + TRIAL_HOLD_MS : 0
   const inProgress = !used && heldUntil > Date.now()
@@ -183,7 +183,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (!trial) {
       caller = await numbersApi.findMine(chatId, b.callerId)
       if (!caller || caller.status !== 'active') return { err: [400, 'invalid_caller', 'Pick one of your active numbers as caller ID.'] }
-      if (!['telnyx', 'signalwire'].includes(caller.provider) || caller.provider === 'signalwire_fax') return { err: [400, 'invalid_caller', 'This number cannot place outbound IVR calls.'] }
+      if (!['telnyx', 'signalwire', 'multitel', 'infobip'].includes(caller.provider) || caller.provider === 'signalwire_fax') return { err: [400, 'invalid_caller', 'This number cannot place outbound IVR calls.'] }
       if (!phoneConfig.canAccessFeature(caller.plan, 'ivrOutbound')) return { err: [403, 'plan_upgrade_required', 'Quick IVR calls need the Pro plan or higher on the caller number.'] }
     }
     let callerId = trial ? null : caller.phoneNumber

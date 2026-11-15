@@ -7,6 +7,8 @@ const axios = require('axios')
 const log = (...a) => console.log('[Infobip]', ...a)
 const base = () => `https://${String(process.env.INFOBIP_BASE_URL || 'api.infobip.com').replace(/^https?:\/\//, '').replace(/\/+$/, '')}`
 const enabled = () => !!process.env.INFOBIP_API_KEY && String(process.env.INFOBIP_ENABLED || 'true').toLowerCase() !== 'false'
+// NUMBER_PROVIDERS (comma list: multitel, infobip) picks who sells NEW numbers; owned numbers keep working.
+const selling = () => enabled() && String(process.env.NUMBER_PROVIDERS || 'multitel,infobip').toLowerCase().split(',').map(x => x.trim()).includes('infobip')
 const makeHttp = () => axios.create({ baseURL: base(), headers: { Authorization: `App ${process.env.INFOBIP_API_KEY}` }, timeout: 15000 })
 const configId = () => process.env.INFOBIP_CALLS_CONFIG_ID || `${String(process.env.CHAT_BOT_BRAND || 'nomadly').toLowerCase().replace(/[^a-z0-9]/g, '')}${process.env.BOT_ENVIRONMENT === 'production' ? '' : '-dev'}`
 const errOf = (e) => { const x = e.response?.data?.requestError?.serviceException; return String(x?.text || x?.messageId || e.response?.data?.description || e.message) }
@@ -165,7 +167,7 @@ async function createOutboundCall(from, to, webhookUrl, connectionId, options = 
 // ── Numbers ──
 const searched = new Map() // e164 → numberKey
 async function searchNumbers(countryCode, numberType, areaCode, limit = 5, { sms = false } = {}) {
-  if (!enabled()) return []
+  if (!selling()) return []
   try {
     const cc = String(countryCode || 'US').toUpperCase()
     const params = { country: cc, limit: areaCode ? 100 : Math.max(limit, 10), capabilities: sms ? 'SMS' : 'VOICE' }
@@ -194,6 +196,7 @@ async function saveNote(numberKey, note) {
   } catch (e) { log(`resale note on ${numberKey}:`, errOf(e)) }
 }
 async function buyNumber(phoneNumber) {
+  if (!selling()) return null
   const key = searched.get(phoneNumber); if (!key) return null
   try {
     const n = (await M.http().post('/numbers/1/numbers', { numberKey: key })).data
@@ -210,8 +213,26 @@ async function buyNumber(phoneNumber) {
 let owned = []
 async function refreshOwned() {
   if (!enabled()) return owned
-  try { owned = ((await M.http().get('/numbers/1/numbers', { params: { limit: 1000 } })).data?.numbers || []).map(n => e164(n.number)) } catch (e) { log('owned numbers:', errOf(e)) }
+  try {
+    const list = (await M.http().get('/numbers/1/numbers', { params: { limit: 1000 } })).data?.numbers || []
+    owned = list.map(n => e164(n.number))
+    syncVoiceRouting(list).catch(e => log('voice routing sync:', errOf(e)))
+  } catch (e) { log('owned numbers:', errOf(e)) }
   return owned
+}
+// Production owns inbound calls: point every voice number at our calls config (a preview/dev buy can leave it on the dev config).
+let lastSync = 0
+async function syncVoiceRouting(list) {
+  // Main brand only: the Infobip account is shared, and only the 'nomadly' calls config exists.
+  if (process.env.BOT_ENVIRONMENT !== 'production' || configId() !== 'nomadly' || Date.now() - lastSync < 3600000) return
+  lastSync = Date.now()
+  for (const n of list.filter(x => (x.capabilities || []).includes('VOICE'))) {
+    const cur = (await M.http().get(`/numbers/2/numbers/${n.numberKey}/voice`).catch(() => ({ data: null }))).data
+    if (cur?.action?.callsConfigurationId === configId()) continue
+    if (cur?.action) await M.http().delete(`/numbers/2/numbers/${n.numberKey}/voice`)
+    await M.http().post(`/numbers/2/numbers/${n.numberKey}/voice`, { action: { type: 'FORWARD_TO_SUBSCRIPTION', callsConfigurationId: configId() } })
+    log(`voice routing for +${n.number}: ${cur?.action?.callsConfigurationId || 'none'} → ${configId()}`)
+  }
 }
 const ownedNumbers = () => owned
 async function releaseNumber(id) { try { await M.http().delete(`/numbers/1/numbers/${raw(id)}`); return true } catch (e) { log('release:', errOf(e)); return false } }
@@ -232,7 +253,7 @@ async function sendSms(from, to, text) {
 }
 
 const M = module.exports = {
-  enabled, isIb, configId, http: makeHttp, errOf, recordingToken, smsHookKey, routeSms,
+  enabled, selling, isIb, configId, http: makeHttp, errOf, recordingToken, smsHookKey, routeSms,
   voice: { ingest, setSink, _legs: legs, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall },
   searchNumbers, isIbSearched, buyNumber, releaseNumber, refreshOwned, ownedNumbers, lookup, sendSms, setResaleNote,
 }

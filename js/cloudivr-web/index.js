@@ -84,6 +84,8 @@ function createCloudIvrWeb(deps) {
     compliance.adminRoutes(r)
     const tenDlc = require('./ten-dlc').createTenDlc({ db, h, adminRequire: adminAuth.require, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, walletOps: require('./wallet').walletOps, log })
     tenDlc.adminRoutes(r)
+    const invoices = require('./invoices').createInvoices({ db, h, adminRequire: adminAuth.require, log })
+    invoices.adminRoutes(r)
     // Country add-ons: our monthly cost per country/type (cheapest provider) next to the add-on the admin charges.
     r.get('/admin/number-addons', adminAuth.require, h(async (req, res) => {
       const cat = require('../number-catalog'), add = require('../number-addons')
@@ -106,6 +108,7 @@ function createCloudIvrWeb(deps) {
     mollie.publicRoutes(r, { h })
     require('./journey').createJourney({ db, h, accountOf: (req) => new Promise(ok => auth.requireUser(req, { status: () => ({ json: () => ok(null) }) }, () => ok(req.webChatId))) }).routes(r)
     r.use(auth.requireUser)
+    invoices.routes(r)
     // Admin alert when web content is named after a bank / FDIC / IRS (alert only).
     r.use((req, _res, next) => {
       if ((req.method === 'POST' || req.method === 'PUT') && /^\/(ai-agents|calls\/(quick|presets|trial)|campaigns|audio\/tts|outbound)/.test(req.path))
@@ -116,6 +119,25 @@ function createCloudIvrWeb(deps) {
     const legalProfile = require('./legal-profile').createLegalProfile(db, { log })
     legalProfile.routes(r, h)
     r.post(['/numbers/buy', '/numbers/checkout', '/numbers/:phone/extra-checkout', '/numbers/:phone/extra', '/numbers/:phone/replace', '/fax-numbers', '/mobile-numbers', '/esim', '/numbers/request'], legalProfile.gate)
+    r.post(['/calls/quick', '/calls/trial', '/calls/callback', '/calls/history/:id/redial', '/campaigns', '/campaigns/:id/start', '/campaigns/:id/followup', '/relay/calls', '/ai-agents/:id/test'], legalProfile.callGate)
+    // Permission to call: confirmed on every campaign, once per account for Quick IVR — each confirmation is logged.
+    const perms = db.collection('callPermissions')
+    const permission = (kind) => h(async (req, res, next) => {
+      const b = req.body || {}, acc = req.webUser
+      if (kind === 'quick' && acc?.quickIvrPermissionAt) return next()
+      if (kind === 'campaign' && b.validateOnly) return next()
+      if (b.permissionConfirmed !== true) return res.status(428).json({ error: 'permission_required', kind, message: kind === 'quick' ? 'Confirm you have permission to call the numbers you call with Quick IVR. We ask this once.' : 'Confirm you have permission to call every number in this campaign.' })
+      // Logged only once the call / campaign is accepted, so a rejected form doesn't use up the confirmation.
+      res.on('finish', () => {
+        if (res.statusCode >= 300) return
+        const at = new Date(), leads = typeof b.leads === 'string' ? b.leads.split(/[\s,;]+/).filter(Boolean).length : Array.isArray(b.leads) ? b.leads.length : null
+        perms.insertOne({ chatId: req.webChatId, kind, campaign: kind === 'campaign' ? { name: String(b.name || '').slice(0, 120), mode: b.mode || 'ivr', numbers: leads ?? (b.listId ? `list:${b.listId}` : null), scheduleAt: b.scheduledFor || null } : undefined, ip: req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip, userAgent: String(req.headers['user-agent'] || '').slice(0, 200), at }).catch(e => log(`[Permission] log failed: ${e.message}`))
+        if (kind === 'quick') db.collection('webAccounts').updateOne({ _id: acc._id }, { $set: { quickIvrPermissionAt: at } }).catch(() => {})
+      })
+      next()
+    })
+    r.post('/campaigns', permission('campaign'))
+    r.post('/calls/quick', permission('quick'))
     require('./esim').routes(r, { h, legalProfile })
     const offers = createOffers(db, { log })
     offers.routes(r, { h })

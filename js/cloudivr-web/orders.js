@@ -130,7 +130,7 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
       const r = await numbersApi.purchase({ chatId: o.chatId, email: o.email, phone: hit.phoneNumber, planKey: sub ? sub.plan : o.planKey, hit, country: o.country, type: o.type, areaCode: o.areaCode, autoRenew: o.autoRenew, coupon: o.coupon || null, viaOrder: o._id, sub })
       if (r.status === 201 || r.status === 202) {
         const assigned = r.status === 201 ? r.body.number.phoneNumber : hit.phoneNumber
-        const swapped = assigned !== o.phoneNumber
+        const swapped = assigned !== o.phoneNumber && String(o.phoneNumber).replace(/\D/g, '').length >= 9 // a short prefix = number assigned at order
         const status = r.status === 202 ? 'verification' : 'active'
         const charged = extra ? round2(o.charge) : round2(phoneConfig.plans[o.planKey].price + (hit.surcharge || 0))
         const linePaid = round2(needOf(o) - (o.texting?.charge || 0))
@@ -186,6 +186,8 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     if (!picked) return bad(res, 400, 'search_again', 'That number is no longer in your search results. Search again and pick a number.')
     const planKey = String(req.body.plan || ''), plan = phoneConfig.plans[planKey]
     if (!plan || !phoneConfig.isPlanAvailable(planKey)) return bad(res, 400, 'invalid_plan', 'That plan is not available.')
+    const incl = phoneConfig.includedIssue(planKey, picked.country, picked.type)
+    if (incl) return bad(res, 400, 'extra_number_only', incl)
     const autoRenew = req.body.autoRenew !== false
     let coupon = null
     if (req.body.coupon) {

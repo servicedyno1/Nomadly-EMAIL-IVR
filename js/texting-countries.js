@@ -31,7 +31,9 @@ const round2 = (x) => Math.round(x * 100) / 100
 const textPrice = (cost) => Math.max(TEXT_MIN, up(cost * MARKUP))
 const extraPrice = (monthly) => Math.max(EXTRA_MIN, round2(monthly * MARKUP))
 
-const list = () => OFFERS.map(([iso, name, provider, type, monthly, setup, , voice]) => ({
+// TEXTING_PROVIDERS=multitel sells only providers whose two-way texting is live (unset = all).
+const providerOn = (p) => { const on = String(process.env.TEXTING_PROVIDERS || '').split(',').map(x => x.trim()).filter(Boolean); return !on.length || on.includes(p) }
+const list = () => OFFERS.filter(o => providerOn(o[2])).map(([iso, name, provider, type, monthly, setup, , voice]) => ({
   iso, name, flag: FLAG(iso), provider, type, monthly, setup, voice,
   smsCost: SMS_COST[provider][iso], textPrice: textPrice(SMS_COST[provider][iso]), extraPrice: extraPrice(monthly),
 }))

@@ -60,14 +60,15 @@ function countries() {
   }
   // offers[type] = who sells it and the paperwork it needs (absent = the US/CA provider chain).
   for (const c of list) {
+    c.included = phoneConfig.includedTier(c.code)
     c.offers = {}
     for (const t of c.types) {
       const b = numberCatalog.best(c.code, t)
       // caps: what the number can do; smsNeedsApproval: US local texting needs 10DLC, US/CA toll-free needs verification.
       const sms = b ? !!b.sms : ['US', 'CA'].includes(c.code)
       const caps = { voice: true, sms, fax: ['US', 'CA'].includes(c.code) && t !== 'mobile', smsNeedsApproval: sms && c.code === 'US' }
-      if (!b) c.offers[t] = { provider: null, level: 0, caps }
-      if (b) c.offers[t] = { caps, provider: b.provider, level: b.level, ...(b.businessOnly ? { businessOnly: true } : {}), ...(b.level && b.address ? { address: b.address } : {}), ...(b.request ? { request: b.request } : {}) }
+      if (!b) c.offers[t] = { provider: null, level: 0, caps, included: phoneConfig.instantNoId(c.code, t) }
+      if (b) c.offers[t] = { caps, included: phoneConfig.instantNoId(c.code, t), provider: b.provider, level: b.level, ...(b.businessOnly ? { businessOnly: true } : {}), ...(b.level && b.address ? { address: b.address } : {}), ...(b.request ? { request: b.request } : {}) }
     }
   }
   return list.sort((a, b) => (['US', 'CA'].indexOf(b.code) - ['US', 'CA'].indexOf(a.code)) || a.name.localeCompare(b.name))
@@ -109,7 +110,8 @@ const WEB_FEATURES = [
   ['fax', 'Fax — send and receive', 'fax'],
   ['priority', 'Priority support', (plan) => plan === 'business'],
 ]
-const webFeatures = (plan) => WEB_FEATURES.map(([key, label, gate]) => ({
+const TEXTING_KEYS = ['inbox', 'smsEmail', 'textTriggers']
+const webFeatures = (plan) => WEB_FEATURES.filter(([key]) => phoneConfig.PLAN_TEXTING() || !TEXTING_KEYS.includes(key)).map(([key, label, gate]) => ({
   key, label: typeof label === 'function' ? label() : label, included: gate === null ? true : typeof gate === 'function' ? gate(plan) : !!phoneConfig.canAccessFeature(plan, gate),
 }))
 
@@ -130,7 +132,7 @@ const catalog = () => {
     voicemailLanguages: vmGreeting.publicLangs(),
     countries: countries(), typeNames: TYPE_NAMES,
     rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS, aiAgentPerMin: require('../ai-agent').RATE(), aiSummaryPerMin: require('./ai-summary').RATE(), outboundPerMinUsCa: outboundRate(), outboundPerMinIntl: phoneConfig.CALL_FORWARDING_RATE_MIN },
-    sipDomain: phoneConfig.WEB_SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(),
+    sipDomain: phoneConfig.WEB_SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(), planTexting: phoneConfig.PLAN_TEXTING(),
     // Cards show as "coming soon" on the site until this is true (the checkout's card option is still disabled too).
     cardPayments: String(process.env.CLOUDIVR_CARD_PAYMENTS || '').toLowerCase() === 'true',
     texting: { ...require('../hosted-sms.js').TEXTING, available: require('../hosted-sms.js').AVAILABLE, numberPrice: phoneConfig.plans?.starter?.price ?? null },
@@ -332,13 +334,21 @@ function routes(router, deps) {
     const found = await unheld(own === 'infobip' ? await require('../infobip').searchNumbers(country, type, areaCode, 12, { sms: req.query.texting === '1' && !!texting.offerOf(country, type) })
       : own === 'multitel' ? await require('../multitel').searchNumbers(country, type, areaCode, 12)
         : await telnyxApi.searchNumbers(country, type, areaCode, 12))
+    // Nothing listable from the main provider (e.g. MultiTEL Germany/France only assigns on order): try the other one.
+    if (['multitel', 'infobip'].includes(own) && !found.length && !areaCode) {
+      const other = own === 'multitel' ? 'infobip' : 'multitel'
+      const ok = require(`../${other}`).enabled() && !require('../provider-health').isDown(other)
+      if (ok) found.push(...await unheld(other === 'infobip' ? await require('../infobip').searchNumbers(country, type, null, 12).catch(() => []) : await require('../multitel').searchNumbers(country, type, null, 12).catch(() => [])))
+    }
     if (own === 'multitel' && !found.length && require('../multitel').isBlocked()) return bad(res, 503, 'provider_unavailable', 'Numbers in this country are temporarily unavailable. Please try again later.')
+    if (own && !found.length) return res.json({ numbers: [], fallback: null, unavailable: true, message: `No ${c.name} ${TYPE_NAMES[type] || type} numbers can be picked online right now. Try another type, or message support and we'll order one for you.` })
     const results = found.map(n => ({
       phoneNumber: n.phone_number,
       region: (n.region_information || []).map(r => r.region_name).filter(Boolean).join(', '),
       capabilities: { ...(n._capabilities || { voice: true, sms: false, fax: false }), ...(n._signalwire ? { fax: false } : {}) },
       surcharge: ['infobip', 'multitel'].includes(n._provider) ? require('../number-addons').get(country, type) : round2(numberSurcharge(country, type, n)),
       provider: n._provider || null,
+      ...(n._assigned ? { assigned: true } : {}),
       ...(texting.offerOf(country, type) ? { extraPrice: texting.offerOf(country, type).extraPrice, textPrice: texting.offerOf(country, type).textPrice } : {}),
       cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
     }))
@@ -348,8 +358,14 @@ function routes(router, deps) {
     res.json({ numbers: results.map(({ cost, ...r }) => r), fallback: fb ? { areaCode: fb._requestedAreaCode, region: fb._fallbackRegion } : null, paperwork })
   }))
 
-  router.get('/numbers', h(async (req, res) => res.json({ numbers: (await myNumbers(req.webChatId)).map((n, _, all) => publicNumber(n, all)) })))
-  router.get('/numbers/:phone', withNumber(async (req, res) => res.json({ number: publicNumber(req.num, (await phoneNumbersOf.findOne({ _id: req.webChatId }))?.val?.numbers) })))
+  // What the line can really do: calls in, calls out (needs the number linked on Bird), texts, fax.
+  const withCapacity = async (n) => {
+    const c = n.capabilities || {}, bird = require('../bird')
+    const out = c.voice !== false && ['multitel', 'infobip'].includes(n.provider) && n.status === 'active' && !n.dryRun && bird.enabled() ? await bird.presentable(n.phoneNumber).catch(() => false) : null
+    return { ...publicNumber(n, n._all), capacity: { callsIn: c.voice !== false, callsOut: c.voice === false ? false : out === null ? c.voice !== false : out ? true : 'pending', texts: !!c.sms, fax: !!c.fax } }
+  }
+  router.get('/numbers', h(async (req, res) => { const all = await myNumbers(req.webChatId); res.json({ numbers: await Promise.all(all.map(n => withCapacity({ ...n, _all: all }))) }) }))
+  router.get('/numbers/:phone', withNumber(async (req, res) => res.json({ number: await withCapacity({ ...req.num, _all: (await phoneNumbersOf.findOne({ _id: req.webChatId }))?.val?.numbers }) })))
 
   // Picked number from the account's last search (null when it is no longer there).
   const pickFromSearch = async (chatId, phone) => {
@@ -395,6 +411,9 @@ function routes(router, deps) {
     if (sub) planKey = sub.plan
     const plan = phoneConfig.plans[planKey]
     if (!plan || !phoneConfig.isPlanAvailable(planKey)) return { status: 400, body: { error: 'invalid_plan', message: 'That plan is not available.' } }
+    // A plan's own number must be an instant no-ID number from the plan's countries (already-paid crypto orders were checked at checkout).
+    const incl = !sub && !viaOrder && !presetOrder ? phoneConfig.includedIssue(planKey, country, type) : null
+    if (incl) return { status: 400, body: { error: 'extra_number_only', message: incl } }
     const holder = await holderOf(phone)
     if (holder !== null) {
       return { status: 409, body: String(holder) === String(chatId)
@@ -406,7 +425,7 @@ function routes(router, deps) {
     const offer = c?.offers?.[type] || null
     const ver = offer || hit?.provider === 'multitel' ? { required: false } : await verificationInfo(country, type, `${c.flag} ${c.name}`)
     if (ver.error) return { status: 424, body: { error: 'lookup_failed', message: ver.error } }
-    if (!presetOrder && deps.compliance && !(await deps.compliance.policyAccepted(chatId))) return { status: 400, body: { error: 'policy_needed', message: 'Accept the CloudIVR usage policy before buying a number.' } }
+    // The usage rules are part of the Terms accepted at sign-up (no separate policy pop-up).
     if (hit?.provider === 'multitel' && offer?.level && !presetOrder) {
       const why = await paperworkIssue(chatId, country, c.name, offer)
       if (why) return { status: 400, body: { error: 'paperwork_needed', message: why } }
@@ -473,7 +492,7 @@ function routes(router, deps) {
       if (!sub) await referrals.onPurchase(db, chatId, price, log).catch(e => log(`[CloudIVR-Web] referral payout failed: ${e.message}`))
       notifyAdmin(`🌐 CloudIVR web purchase${dryRun() ? ' (DRY RUN)' : ''}${viaOrder ? ' · crypto checkout' : ''}\nweb account: ${chatId} (${email})\nnumber: ${selected} (${country})${sub ? `\nextra number on ${sub.parentNumber}` : ''}\nplan: ${plan.name} $${price}${coupon ? ` (coupon ${coupon.code} −${coupon.discount}%)` : ''}`)
       await searchCache.deleteOne({ _id: chatId })
-      return { status: 201, body: { number: publicNumber(doc), substitutedFrom: selected !== phone ? phone : null, balance: await w.balance(chatId) } }
+      return { status: 201, body: { number: publicNumber(doc), substitutedFrom: selected !== phone && !order._assigned ? phone : null, balance: await w.balance(chatId) } }
     } catch (e) {
       if (prepaid) { log(`[CloudIVR-Web] activating requested number ${phone} for ${chatId} failed: ${e.message}`); return { status: 424, body: { error: 'purchase_failed', message: e.message } } }
       await w.credit(chatId, price)
@@ -526,7 +545,7 @@ function routes(router, deps) {
     const ringTimeout = Math.min(60, Math.max(10, parseInt(req.body.ringTimeout, 10) || 25))
     const bk = mode === 'disabled' ? { list: [] } : parseBackups(req.body.backups, [to, req.num.phoneNumber])
     if (bk.error) return bad(res, 400, 'invalid_backup', bk.error)
-    const value = { enabled: mode !== 'disabled', mode, forwardTo: to, ringTimeout, holdMusic: !!req.body.holdMusic, backups: bk.list }
+    const value = { enabled: mode !== 'disabled', mode, forwardTo: to, ringTimeout, holdMusic: !!req.body.holdMusic, backups: bk.list, showCallerId: !!req.body.showCallerId }
     await setField(req.webChatId, req.num.phoneNumber, 'features.callForwarding', value)
     res.json({ callForwarding: value })
   }))
@@ -736,7 +755,7 @@ function routes(router, deps) {
   router.get('/texting/ready', h(async (req, res) => {
     const sold = countries()
     const items = texting.list().filter(o => sold.find(c => c.code === o.iso)?.types.includes(o.type)).map(o => ({ country: o.iso, name: o.name, flag: o.flag, type: o.type, typeName: 'Mobile', caps: { sms: true, voice: o.voice }, textPrice: o.textPrice, extraPrice: o.extraPrice }))
-    res.json({ items, plan: 'starter', price: phoneConfig.plans?.starter?.price ?? null, usa: { caps: { sms: true, voice: false }, assigned: true } })
+    res.json({ items, available: phoneConfig.PLAN_TEXTING(), plan: 'starter', price: phoneConfig.plans?.starter?.price ?? null, usa: { caps: { sms: true, voice: false }, assigned: true } })
   }))
 
   // Extra SIP logins: free ones come with Pro (2) and Business (5); more on any plan with SIP cost $5/month each.

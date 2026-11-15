@@ -14,8 +14,8 @@ const log = (...a) => console.log('[SignalWire]', ...a)
 const telnyxBackup = () => String(process.env.TELNYX_FALLBACK || 'false').toLowerCase() === 'true'
 // Bird goes first for US/Canada numbers. Returns 'bird', or why not: 'off' | 'unlinked' | 'spend' | 'full'.
 const birdMax = () => Number(process.env.BIRD_MAX_CONCURRENT || 20)
-async function birdState(from, to) {
-  if (!/^\+1\d{10}$/.test(String(to)) || !bird.enabled() || !ce.enabled() || !ce.connected()) return 'off'
+async function birdState(from, to, anyDest = false) {
+  if (!(anyDest ? /^\+[1-9]\d{7,14}$/ : /^\+1\d{10}$/).test(String(to)) || !bird.enabled() || !ce.enabled() || !ce.connected()) return 'off'
   if (!(await bird.presentable(from))) return 'unlinked'
   if ((await bird.spendLeft()) < Number(process.env.BIRD_MIN_SPEND_LEFT || 1)) return 'spend'
   return ce.activeBird() >= birdMax() ? 'full' : 'bird'
@@ -29,7 +29,7 @@ async function waitForBirdLine(from, to) {
   const me = {}; birdWaiters.push(me)
   try {
     for (;;) {
-      const st = await birdState(from, to).catch(() => 'off')
+      const st = await birdState(from, to, true).catch(() => 'off')
       if (st !== 'full' && birdWaiters[0] === me) return st
       if (st !== 'full' && st !== 'bird') return st
       if (Date.now() > until) return 'full'
@@ -67,6 +67,8 @@ async function poolCaller(from, { force = false } = {}) {
 // SignalWire's "the From number isn't one you own/verified" rejection — retry from a valid owned number.
 const SW_CID_REJECT = /purchased or verified|match the parent call|not a valid.*(from|caller)|caller ?id.*not.*(valid|verified|allowed)/i
 
+const BIRD_ONLY = () => String(process.env.OUTBOUND_BIRD_ONLY || 'true').toLowerCase() !== 'false'
+
 function wrap(t) {
   const w = { ...t }
   for (const fn of CALL_FNS) w[fn] = (id, ...a) => (voice.isSw(id) ? voice[fn](id, ...a) : ib.isIb(id) ? ib.voice[fn](id, ...a) : ce.isAe(id) ? ce[fn](id, ...a) : t[fn](id, ...a))
@@ -77,6 +79,28 @@ function wrap(t) {
     const nanp = /^\+1\d{10}$/.test(String(to)) || /^sip:/i.test(String(to))
     const tries = []
     // Voicemail drop: the call engine detects answering machines on the call itself (Asterisk AMD), so Bird handles it too.
+    // Bird only (default): a caller ID not verified on Bird is swapped for a system caller ID (logged); any failure alerts the admin.
+    if (BIRD_ONLY() && !/^sip:/i.test(String(to))) {
+      const { birdAlert } = require('../bird-alert')
+      let st = await birdState(from, to, true).catch(() => 'off')
+      if (st === 'unlinked') {
+        const sys = await Promise.resolve().then(() => require('../ivr-outbound').getTrialCaller({ purpose: 'unverified_caller_swap', to, chatId: options.chatId })).then(r => r?.callerId).catch(() => null)
+        if (!sys) { birdAlert('no-system-caller', `No system caller ID available to replace unverified ${from}. Call → ${to} was not placed.`); return { error: 'No verified caller ID available', status: 503, _provider: 'callengine' } }
+        log(`caller ID ${from} isn't verified on Bird — calling from system number ${sys}`)
+        from = sys; st = await birdState(from, to, true).catch(() => 'off')
+      }
+      if (st === 'full' && !options._campaign) st = await waitForBirdLine(from, to)
+      if (st === 'full' && options._campaign) return { error: `all ${birdMax()} Bird lines busy — waiting for a free line`, status: 429, _provider: 'callengine', birdWait: st }
+      if (st !== 'bird') {
+        const why = { off: 'Bird call engine is offline or not connected', spend: 'Bird daily spend limit reached', unlinked: `caller ID ${from} is not verified on Bird`, full: 'all Bird lines busy' }[st] || `Bird unavailable (${st})`
+        birdAlert(`state-${st}`, `${why}. Call ${from} → ${to} was not placed.`)
+        return { error: why, status: 503, _provider: 'callengine' }
+      }
+      const r = await Promise.resolve().then(() => ce.createOutboundCall(from, to, webhookUrl, connectionId, options)).catch(e => ({ error: e.message || String(e) }))
+      if (r?.error) birdAlert(`dial-${String(r.error).slice(0, 40)}`, `Bird refused the call ${from} → ${to}: ${r.error}`)
+      if (r?.error && !r.status) r.status = 503
+      return r
+    }
     let st = await birdState(from, to).catch(() => 'off')
     // Campaign calls only go through Bird: a full Bird or a caller ID not linked yet puts the lead back in the queue.
     if (options._campaign && (st === 'full' || st === 'unlinked')) {
@@ -145,7 +169,8 @@ function wrap(t) {
   w.searchNumbers = async (countryCode, numberType, areaCode, limit = 5) => {
     // Least paperwork, then cheapest (number-catalog): MultiTEL leads where it wins, e.g. US/CA without an area code.
     if (mt.enabled() && require('../number-catalog').best(String(countryCode || 'US').toUpperCase(), numberType || 'local')?.provider === 'multitel') { const r = await mt.searchNumbers(countryCode, numberType || 'local', areaCode, limit); if (r.length) return r }
-    if (ib.enabled() && (!numberType || numberType === 'local')) { const r = await ib.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
+    const up = (p) => !require('../provider-health').isDown(p)
+    if (ib.enabled() && up('infobip') && (!numberType || numberType === 'local')) { const r = await ib.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
     if (txs.enabled()) {
       const r = await txs.searchNumbers(countryCode, numberType, areaCode, limit, rest.AREA_REGION[Number(areaCode)] || null)
       if (r.length) return r
@@ -154,8 +179,8 @@ function wrap(t) {
       const r = await rest.searchNumbers(countryCode, numberType, areaCode, limit)
       if (r.length) return r
     }
-    if (ib.enabled()) { const r = await ib.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
-    if (mt.enabled()) { const r = await mt.searchNumbers(countryCode, numberType || 'local', areaCode, limit); if (r.length) return r }
+    if (ib.enabled() && up('infobip')) { const r = await ib.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
+    if (mt.enabled() && up('multitel')) { const r = await mt.searchNumbers(countryCode, numberType || 'local', areaCode, limit); if (r.length) return r }
     // Skip Telnyx while its account can't sell numbers (US/CA-only mode); international searches still try it.
     if (!telnyxBackup() || (['US', 'CA'].includes(String(countryCode || 'US').toUpperCase()) && require('../phone-config').numberSearchUsCaOnly())) return []
     return t.searchNumbers(countryCode, numberType, areaCode, limit)

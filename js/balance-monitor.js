@@ -181,6 +181,7 @@ async function sendAlert(result) {
     PROVIDER_LINKS[result.provider] ? `🔗 <a href="${PROVIDER_LINKS[result.provider]}">Open account portal</a>` : '',
   ].join('\n')
 
+  require('./admin-mail').adminMail(`CloudIVR: ${result.provider} balance ${tag.toLowerCase()} ($${result.balance.toFixed(2)})`, msg.replace(/\n/g, '<br>'))
   try {
     await _bot.sendMessage(_adminChatId, msg, { parse_mode: 'HTML' })
     recordAlert(result.provider, level)

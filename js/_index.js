@@ -722,13 +722,29 @@ const kOuter = k // same keyboards, for message-handler code that runs before th
 // env so prod and dev can have different channels.
 const TG_CHANNEL = process.env.TG_CHANNEL || '@nomadly'
 // Capability tag for a number-search result line. Fax is Telnyx + Business plan only, so we flag it as "Fax (Business)".
-function numCapTag(r) {
+// Local-address numbers: after payment ask the street address once (activation within a few hours).
+function askAddressAfterPay(chatId, info, number) {
+  if (!info?.cpAddressAfterPay || !phoneConfig.botNeedsAddress(info?.cpCountryCode || 'US', info?.cpNumberType || 'local')) return
+  setTimeout(async () => {
+    try {
+      await set(state, chatId, 'cpAddressFor', number)
+      await set(state, chatId, 'cpAddressCountry', info?.cpCountryCode || null)
+      await set(state, chatId, 'cpAddressAfterPay', false)
+      await set(state, chatId, 'action', 'cpAddressAfterPay')
+      const where = info?.cpCountryName || info?.cpCountryCode || 'the country'
+      bot.sendMessage(chatId, `📍 <b>Last step for ${number}</b>\nType a street address in ${where} (street, house number, city, postcode). No ID needed — your number will be fully active within a few hours.`, { parse_mode: 'HTML' }).catch(() => {})
+    } catch (e) { log('[Phone] address prompt failed:', e.message) }
+  }, 4000)
+}
+// Forwarding caller-ID toggle label (business number vs the caller's number on US forwards).
+const cidBtn = (f) => f?.showCallerId ? "🪪 Caller ID: caller's number (US)" : '🪪 Caller ID: my business number'
+// One short line per number: number · place · calls/texts · ⚡ instant (address numbers just activate after payment).
+function numLine(r, i, cc, type) {
   const c = r?._capabilities || {}
-  const tags = []
-  if (c.voice) tags.push('📞 Voice')
-  if (c.sms) tags.push('📱 Texts')
-  if ((r?._provider || 'telnyx') === 'telnyx' && !r?._signalwire && c.fax) tags.push('📠 Fax (Business plan)')
-  return tags.length ? `\n     ${tags.join(' · ')}` : ''
+  const caps = [c.voice && 'calls', c.sms && 'texts'].filter(Boolean).join(' + ')
+  const place = r?.region_information?.[0]?.region_name || ''
+  const instant = !phoneConfig.botNeedsAddress(String(cc || 'US'), type || 'local')
+  return `${i + 1}. <code>${r.phone_number}${r?._assigned ? '…' : ''}</code>${place ? ` · ${place}` : ''}${caps ? ` · ${caps}` : ''}${instant ? ' · ⚡ instant' : ''}`
 }
 
 const webAccess = require('./web-access.js')
@@ -4173,6 +4189,7 @@ const loadData = async () => {
   notifyGroupsCol = db.collection('notifyGroups')
   phoneNumbersOf = db.collection('phoneNumbersOf')
   require('./provider-health').start(notifyAdmin)
+  require('./bird-alert').setTelegram(notifyAdmin)
   planLifecycle.lockLegacyPrices(phoneNumbersOf, db.collection('migrationMarks')).then(r => Object.keys(r).length && log(`[PlanLadder] price locks applied: ${JSON.stringify(r)}`)).catch(e => log(`[PlanLadder] price lock failed: ${e.message}`))
   // Customers' own SignalWire numbers are never lent out as a stand-in caller ID.
   { let cache = { at: 0, set: new Set() }; require('./signalwire').setReservedCallers(async () => { if (Date.now() - cache.at < 5 * 60000) return cache.set; cache = { at: Date.now(), set: new Set((await phoneNumbersOf.aggregate([{ $match: { 'val.numbers.provider': 'signalwire' } }, { $unwind: '$val.numbers' }, { $match: { 'val.numbers.provider': 'signalwire' } }, { $group: { _id: '$val.numbers.phoneNumber' } }]).toArray()).map(r => r._id).filter(Boolean)) }; return cache.set }) }
@@ -10828,6 +10845,8 @@ bot?.on('message', msg => {
     const base = Number(info?.cpPriceBase) || 0
     if (base > totalPrice) s += `\n\n🎟️ Coupon: <s>$${base.toFixed(2)}</s> → <b>$${totalPrice.toFixed(2)}</b>`
     if (info?.cpVerifyNote && !info?.cpIsSubNumber) s += `\n\n${info.cpVerifyNote}`
+    if (String(info?.cpSelectedNumber || '').replace(/\D/g, '').length < 9) s += `\n🎲 The rest of the number is assigned when you pay`
+    if (!info?.cpAddressAfterPay && !info?.cpVerifyNote) s += `\n⚡ <b>Instant</b> — your number works the moment you pay`
     return s
   }
   // Domains registered with us that are NOT already on an active hosting plan
@@ -14668,7 +14687,7 @@ Enter new value:`), bc)
         const numberDoc = {
           phoneNumber: selectedNumber,
           telnyxOrderId: orderResult.id,
-          provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}),
+          provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
           country: countryCode,
           countryName: countryName,
           type: info?.cpNumberType || 'local',
@@ -14708,6 +14727,7 @@ Enter new value:`), bc)
           { $push: { 'val.numbers': numberDoc } },
           { upsert: true }
         )
+        askAddressAfterPay(chatId, info, selectedNumber)
         const existing = await get(phoneNumbersOf, chatId)
 
         await phoneTransactions.insertOne({ chatId, phoneNumber: selectedNumber, action: isSubNumber ? 'sub-number-purchase' : 'purchase', plan: planKey, amount: price, paymentMethod: 'wallet_usd', timestamp: new Date().toISOString() })
@@ -26742,34 +26762,19 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       send(chatId, L.resetSip(cc.line), { parse_mode: 'HTML' })
       return backTo()
     }
-    if (action === 'customCidEnter') {
-      const cid = require('./cloudivr-web/caller-ids')
-      const pre = ccid.presetOf(message)
-      if (pre && cc.ctx !== 'trial' && (await cid.presets(chatId)).some(p => p.number === pre)) return applyCustomCid(cc, pre)
-      if (cid.isEmergency(message)) return send(chatId, L.emergency)
-      const n = String(message || '').replace(/[^\d+]/g, '')
-      const e164 = n.startsWith('+') ? n : n.length === 10 ? `+1${n}` : `+${n}`
-      if (!/^\+[1-9]\d{7,14}$/.test(e164)) return send(chatId, L.ask, k.of([['↩️ Back']]))
-      await saveInfo('customCid', { ...cc, number: e164 })
-      await set(state, chatId, 'action', 'customCidConfirm')
-      return send(chatId, L.confirm(e164), k.of([[L.yes], ['↩️ Back']]))
-    }
-    if (!ccid.isYes(message)) return send(chatId, L.confirm(cc.number), k.of([[L.yes], ['↩️ Back']]))
+    // Only caller IDs verified with a Bird code call (in the CloudIVR app) can be shown; typed numbers are never accepted.
     const cid = require('./cloudivr-web/caller-ids')
+    const VERIFY_MSG = '🔒 Only your own numbers verified with a Bird code call can be shown as caller ID. Verify one in the CloudIVR app: My numbers → Your own caller IDs → Verify. Then pick it here.'
     if (cc.ctx === 'trial') {
-      // Free Quick IVR trial: any caller ID (not emergency), logged + admin alert, no plan needed.
       await saveInfo('customCid', null)
-      cid.logUse(chatId, cc.number, 'ivr_trial', '')
-      require('./scam-watch').alert(`🎭 <b>Free Quick IVR trial — custom caller ID</b>\n👤 ${username ? '@' + username : ''} (${chatId})\n📞 ${cc.number}${cid.HOTLINES[cc.number] ? ` — 🚩 matches <b>${cid.HOTLINES[cc.number]}</b> hotline` : ''}`)
-      const ivrObData = { ...(info?.ivrObData || {}), displayCallerId: cc.number }
-      await saveInfo('ivrObData', ivrObData)
       await set(state, chatId, 'action', a.ivrObEnterTarget)
-      return send(chatId, L.trialSet(cc.number), k.of([]))
+      return send(chatId, '📞 The free trial call shows a CloudIVR number. Custom caller IDs must be your own numbers, verified by a Bird code call in the CloudIVR app.', k.of([]))
     }
-    const r = await cid.attest(chatId, cc.number, { who: username ? `@${username}` : '', channel: 'bot' })
-    if (!r.ok && r.error === 'plan_required') { await saveInfo('customCid', null); return cidUpsell(cc.line) }
-    if (!r.ok) { await set(state, chatId, 'action', 'customCidEnter'); return send(chatId, ({ number_taken: L.taken, emergency_number: L.emergency, too_many_presets: L.full })[r.error] || L.ask, k.of([...await ccid.presetRows(chatId), ['↩️ Back']])) }
-    return applyCustomCid(cc, r.number)
+    if (cid.isEmergency(message)) return send(chatId, L.emergency)
+    const pre = ccid.presetOf(message) || (() => { const n = String(message || '').replace(/[^\d+]/g, ''); return n.startsWith('+') ? n : n.length === 10 ? `+1${n}` : `+${n}` })()
+    if ((await cid.presets(chatId)).some(p => p.number === pre)) return applyCustomCid(cc, pre)
+    await set(state, chatId, 'action', 'customCidEnter')
+    return send(chatId, VERIFY_MSG, k.of([...await ccid.presetRows(chatId), ['↩️ Back']]))
   }
 
   if (action === a.ivrObSelectCallerId) {
@@ -29904,16 +29909,18 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       if (phoneConfig.isPlanAvailable('business')) availablePlanBtns.push([pc.businessPlan])
       return send(chatId, trans('t.cp_225'), k.of(availablePlanBtns))
     }
-    // Handle "More Countries" button
+    // Handle "More Countries" button — a plan's own number: USA/Canada/UK, Business also Netherlands/France/Spain (instant, no ID).
+    const planCountries = phoneConfig.BOT_CATALOG() ? phoneConfig.botPlanCountries(info?.cpPlanKey) : phoneConfig.moreCountries
     if (message === pc.moreCountries) {
-      const allBtns = [...phoneConfig.allCountries, ...phoneConfig.moreCountries].map(c => c.name)
+      const allBtns = [...phoneConfig.allCountries, ...planCountries].map(c => c.name)
       const rows = []
       for (let i = 0; i < allBtns.length; i += 2) rows.push(allBtns.slice(i, i + 2))
       return send(chatId, trans('t.cp_226'), k.of(rows))
     }
     const countryCode = phoneConfig.countryByName[message]
     if (!countryCode) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectValidCountry)
-    const countryEntry = phoneConfig.allCountries.find(c => c.name === message) || phoneConfig.moreCountries.find(c => c.name === message)
+    const countryEntry = phoneConfig.allCountries.find(c => c.name === message) || planCountries.find(c => c.name === message)
+    if (!countryEntry && phoneConfig.BOT_CATALOG()) return send(chatId, phoneConfig.includedIssue(info?.cpPlanKey, countryCode, 'local') || phoneConfig.getMsg(info?.userLanguage).selectValidCountry)
     // Store native provider for this country (used for single-provider countries)
     const nativeProvider = countryEntry?.provider || 'telnyx'
     await saveInfo('cpCountryCode', countryCode)
@@ -29999,8 +30006,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const location = info?.cpCountryName || cc
     // Build tagged number display
     const numberLines = results.map((r, i) => {
-      const tag = numCapTag(r)
-      return `${i + 1}. <code>${r.phone_number}</code>${tag}`
+      return numLine(r, i, cc, numberType)
     }).join('\n')
     const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
     return send(chatId, trans('t.cp_227', location, numberLines), k.of([...numBtns, [pc.showMore]]))
@@ -30049,8 +30055,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     await saveInfo('cpSearchResults', results)
     const fbNote = results.some(r => r._areaFallback) ? `ℹ️ Area code ${areaCode} has no numbers available right now — here are other numbers${results.find(r => r._fallbackRegion) ? ` in ${results.find(r => r._fallbackRegion)._fallbackRegion}` : ''} you can use instantly:\n\n` : ''
     const numberLines = fbNote + results.map((r, i) => {
-      const tag = numCapTag(r)
-      return `${i + 1}. <code>${r.phone_number}</code>${tag}`
+      return numLine(r, i, info?.cpCountryCode, info?.cpNumberType)
     }).join('\n')
     const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
     return send(chatId, trans('t.cp_228', message, numberLines), k.of([...numBtns, [pc.showMore]]))
@@ -30099,8 +30104,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     await saveInfo('cpSearchResults', results)
     const fbNote2 = results.some(r => r._areaFallback) ? `ℹ️ Area code ${areaCode} has no numbers available right now — here are other numbers${results.find(r => r._fallbackRegion) ? ` in ${results.find(r => r._fallbackRegion)._fallbackRegion}` : ''} you can use instantly:\n\n` : ''
     const numberLines = fbNote2 + results.map((r, i) => {
-      const tag = numCapTag(r)
-      return `${i + 1}. <code>${r.phone_number}</code>${tag}`
+      return numLine(r, i, info?.cpCountryCode, info?.cpNumberType)
     }).join('\n')
     const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
     return send(chatId, trans('t.cp_229', areaCode, numberLines), k.of([...numBtns, [pc.showMore]]))
@@ -30149,15 +30153,14 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await saveInfo('cpSearchResults', results)
       const location = info?.cpAreaName || info?.cpCountryName || 'US'
       const numberLines = results.map((r, i) => {
-        const tag = numCapTag(r)
-        return `${i + 1}. <code>${r.phone_number}</code>${tag}`
+        return numLine(r, i, info?.cpCountryCode, info?.cpNumberType)
       }).join('\n')
       const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
       return send(chatId, trans('t.cp_230', location, numberLines), k.of([...numBtns, [pc.showMore]]))
     }
     const results = info?.cpSearchResults || []
     const _dg = String(message || '').replace(/\D/g, '')
-    const _byNum = _dg.length > 6 ? results.findIndex(r => String(r.phone_number).replace(/\D/g, '') === _dg) : -1
+    const _byNum = _dg.length > 1 ? results.findIndex(r => String(r.phone_number).replace(/\D/g, '') === _dg) : -1
     const idx = _byNum >= 0 ? _byNum : parseInt(message) - 1
     if (isNaN(idx) || idx < 0 || idx >= results.length) return send(chatId, phoneConfig.getMsg(info?.userLanguage).tapNumberToSelect)
     const selected = results[idx]
@@ -30181,6 +30184,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const numberType = info?.cpNumberType || 'local'
     const countryCode = info?.cpCountryCode || 'US'
     let surcharge = getNumberSurcharge(countryCode, numberType)
+    // MultiTEL / Infobip numbers: same add-on price as the web checkout.
+    if (['multitel', 'infobip'].includes(selectedProvider)) surcharge = require('./number-addons').get(countryCode, numberType)
     let verifyNote = null
     // Telnyx international: live cost + tell the user BEFORE paying what verification follows
     if (isTelnyxIntl(selectedProvider, countryCode)) {
@@ -30204,22 +30209,31 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
     // Address-only numbers: ask just the street address (no ID, no business details), then checkout.
     await saveInfo('cpEndUserAddress', null)
-    if (phoneConfig.botNeedsAddress(countryCode, numberType)) {
-      await set(state, chatId, 'action', 'cpAddress')
-      return send(chatId, `📍 <b>${info?.cpCountryName || countryCode}</b> numbers need a street address in ${info?.cpCountryName || 'that country'} (the provider's rule). No ID or business details needed.\n\nType the full address in one message: street, city, postcode.`, { parse_mode: 'HTML', ...k.of([[pc.back]]) })
+    await saveInfo('cpEndUserName', null)
+    // Name + address numbers that accept any address: our fixed end-user details, no question for the customer.
+    if (phoneConfig.botUsesFixedAddress(countryCode, numberType)) {
+      await saveInfo('cpEndUserAddress', phoneConfig.BOT_END_USER_ADDRESS)
+      await saveInfo('cpEndUserName', phoneConfig.botEndUserName() || (await get(nameOf, chatId).catch(() => null)) || null)
     }
+    // Local-address numbers: the address is asked right after payment (activation within a few hours).
+    await saveInfo('cpAddressAfterPay', phoneConfig.botNeedsAddress(countryCode, numberType))
     // Checkout UX (2026-06): summary + payment options on one screen
     return goto['phone-pay']()
   }
 
-  if (action === 'cpAddress') {
+  if (action === 'cpAddressAfterPay') {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
-    if (isBackPress(message)) return goto.submenu5()
+    const num = info?.cpAddressFor
     const addr = String(message || '').trim().slice(0, 200)
-    if (addr.length < 10 || !/\d/.test(addr)) return send(chatId, '📍 Please type the full street address with the house number, city and postcode.', k.of([[pc.back]]))
-    await saveInfo('cpEndUserAddress', addr)
-    await db.collection('botNumberAddresses').insertOne({ chatId: String(chatId), number: info?.cpSelectedNumber, country: info?.cpCountryCode, type: info?.cpNumberType, address: addr, at: new Date() }).catch(() => {})
-    return goto['phone-pay']()
+    if (!num || isBackPress(message) || addr.startsWith('/')) return goto.submenu5()
+    if (addr.length < 10 || !/\d/.test(addr)) return send(chatId, '📍 Please type the full street address with the house number, city and postcode.')
+    await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': num }, { $set: { 'val.numbers.$.endUserAddress': addr } }).catch(() => {})
+    await db.collection('botNumberAddresses').insertOne({ chatId: String(chatId), number: num, country: info?.cpAddressCountry, address: addr, at: new Date() }).catch(() => {})
+    notifyAdmin(`📍 Address received for ${num} (${info?.cpAddressCountry || ''}) — chat <code>${chatId}</code>:\n${addr}`)
+    await saveInfo('cpAddressFor', null)
+    await set(state, chatId, 'action', 'none')
+    send(chatId, `✅ Thanks! Your number <b>${num}</b> will be fully active within a few hours. We'll message you when it's done.`, { parse_mode: 'HTML' })
+    return goto.submenu5()
   }
 
   // ── BUY FLOW: Select Plan (FIRST STEP) ──
@@ -31660,7 +31674,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       try { const { usdBal } = await getBalance(walletOf, chatId); walletBal = usdBal } catch (e) { /* noop */ }
       const holdLabel = fwd.holdMusic ? pc.holdMusicOn : pc.holdMusicOff
       const btns = fwd.enabled
-        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
+        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], [cidBtn(num.features?.callForwarding)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
         : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer]]
       const preview = phoneConfig.formatCallFlowPreview(num, info?.userLanguage || 'en')
       // audit #22 — surface the forwarding wallet floor HERE with a pre-filled
@@ -31976,7 +31990,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const countryBtns = phoneConfig.allCountries.map(c => c.name)
     const rows = []
     for (let i = 0; i < countryBtns.length; i += 2) rows.push(countryBtns.slice(i, i + 2))
-    if (phoneConfig.moreCountries.length > 0) rows.push([pc.moreCountries])
+    if (phoneConfig.botExtraOrMore().length > 0) rows.push([pc.moreCountries])
     return send(chatId, cpTxt.subAddNumberHeader(parentNum.plan, parentNum.phoneNumber), k.of(rows))
   }
 
@@ -31993,14 +32007,14 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return showManageScreen(chatId, num)
     }
     if (message === pc.moreCountries) {
-      const allBtns = [...phoneConfig.allCountries, ...phoneConfig.moreCountries].map(c => c.name)
+      const allBtns = [...phoneConfig.allCountries, ...phoneConfig.botExtraOrMore()].map(c => c.name)
       const rows = []
       for (let i = 0; i < allBtns.length; i += 2) rows.push(allBtns.slice(i, i + 2))
       return send(chatId, trans('t.cp_259'), k.of(rows))
     }
     const countryCode = phoneConfig.countryByName[message]
     if (!countryCode) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectValidCountry)
-    const countryEntry = phoneConfig.allCountries.find(c => c.name === message) || phoneConfig.moreCountries.find(c => c.name === message)
+    const countryEntry = phoneConfig.allCountries.find(c => c.name === message) || phoneConfig.botExtraOrMore().find(c => c.name === message)
     const nativeProvider = countryEntry?.provider || 'telnyx'
     // Telnyx countries that need verification can only be bought as a main number
     if (nativeProvider === 'telnyx' && countryEntry?.verify) return send(chatId, txReg.T(lang).subNotSupported, { parse_mode: 'HTML' })
@@ -32027,7 +32041,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const countryBtns = phoneConfig.allCountries.map(c => c.name)
       const rows = []
       for (let i = 0; i < countryBtns.length; i += 2) rows.push(countryBtns.slice(i, i + 2))
-      if (phoneConfig.moreCountries.length > 0) rows.push([pc.moreCountries])
+      if (phoneConfig.botExtraOrMore().length > 0) rows.push([pc.moreCountries])
       return send(chatId, cpTxt.selectCountry, k.of(rows))
     }
     let numberType = null
@@ -32068,8 +32082,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
     const numberLines = results.map((r, i) => {
-      const tag = numCapTag(r)
-      return `${i + 1}. <code>${r.phone_number}</code>${tag}`
+      return numLine(r, i, cc, numberType)
     }).join('\n')
     const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
     return send(chatId, trans('t.cp_260', cpTxt.subNumbersAvailable, numberLines, cpTxt.bulkIvrSupport, cpTxt.tapToSelect), k.of([...numBtns, [pc.showMore]]))
@@ -32114,8 +32127,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
     const numberLines = results.map((r, i) => {
-      const tag = numCapTag(r)
-      return `${i + 1}. <code>${r.phone_number}</code>${tag}`
+      return numLine(r, i, info?.cpCountryCode, info?.cpNumberType)
     }).join('\n')
     const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
     return send(chatId, trans('t.cp_261', cpTxt.subNumberSelected(message), numberLines, cpTxt.bulkIvrSupport, cpTxt.tapToSelect), k.of([...numBtns, [pc.showMore]]))
@@ -32160,8 +32172,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (!results.length) return send(chatId, cpTxt.noSearchResults + '\nTry a different area code.', k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
     const numberLines = results.map((r, i) => {
-      const tag = numCapTag(r)
-      return `${i + 1}. <code>${r.phone_number}</code>${tag}`
+      return numLine(r, i, info?.cpCountryCode, info?.cpNumberType)
     }).join('\n')
     const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
     return send(chatId, trans('t.cp_262', cpTxt.subNumberArea(areaCode), numberLines, cpTxt.bulkIvrSupport, cpTxt.tapToSelect), k.of([...numBtns, [pc.showMore]]))
@@ -32202,15 +32213,14 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
       await saveInfo('cpSearchResults', results)
       const numberLines = results.map((r, i) => {
-        const tag = numCapTag(r)
-        return `${i + 1}. <code>${r.phone_number}</code>${tag}`
+        return numLine(r, i, info?.cpCountryCode, info?.cpNumberType)
       }).join('\n')
       const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
       return send(chatId, trans('t.cp_263', numberLines), k.of([...numBtns, [pc.showMore]]))
     }
     const results = info?.cpSearchResults || []
     const _dg = String(message || '').replace(/\D/g, '')
-    const _byNum = _dg.length > 6 ? results.findIndex(r => String(r.phone_number).replace(/\D/g, '') === _dg) : -1
+    const _byNum = _dg.length > 1 ? results.findIndex(r => String(r.phone_number).replace(/\D/g, '') === _dg) : -1
     const idx = _byNum >= 0 ? _byNum : parseInt(message) - 1
     if (isNaN(idx) || idx < 0 || idx >= results.length) return send(chatId, phoneConfig.getMsg(info?.userLanguage).tapNumberToSelect)
     const selected = results[idx]
@@ -32259,6 +32269,15 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (message === pc.proceedPayment) {
       await saveInfo('cpIsSubNumber', true)
       await saveInfo('cpPlanKey', info?.cpSubParentPlan || 'starter')
+      // Address-only extra numbers: same as the plan flow (fixed end-user details, or ask the street address).
+      const cc = info?.cpCountryCode || 'US', nt = info?.cpNumberType || 'local'
+      await saveInfo('cpEndUserAddress', null)
+      await saveInfo('cpEndUserName', null)
+      if (phoneConfig.botUsesFixedAddress(cc, nt)) {
+        await saveInfo('cpEndUserAddress', phoneConfig.BOT_END_USER_ADDRESS)
+        await saveInfo('cpEndUserName', phoneConfig.botEndUserName() || (await get(nameOf, chatId).catch(() => null)) || null)
+      }
+      await saveInfo('cpAddressAfterPay', phoneConfig.botNeedsAddress(cc, nt))
       return goto['phone-pay']()
     }
     return send(chatId, phoneConfig.getMsg(info?.userLanguage).proceedOrBack)
@@ -32279,7 +32298,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const f = num.features.callForwarding || {}
       const holdLabel = f.holdMusic ? pc.holdMusicOn : pc.holdMusicOff
       const btns = f.enabled
-        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [backupNums.btn('manage', _bl)], [pc.disableForwarding]]
+        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], [cidBtn(num.features?.callForwarding)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', _bl)], [pc.disableForwarding]]
         : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer]]
       return send(chatId, `${prefix ? prefix + '\n\n' : ''}${cpTxt.forwardingStatus(num.phoneNumber, f, walletBal)}`, k.of(btns))
     }
@@ -32320,6 +32339,16 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.cpManageNumber)
       return showManageScreen(chatId, num)
     }
+    // ── Toggle caller ID shown on forwarded calls ──
+    if (String(message || '').startsWith('🪪 Caller ID')) {
+      const fwd = num.features?.callForwarding || {}
+      const value = { ...fwd, showCallerId: !fwd.showCallerId }
+      await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'callForwarding', value)
+      num.features.callForwarding = value
+      await saveInfo('cpActiveNumber', num)
+      const btns = [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [value.holdMusic ? pc.holdMusicOn : pc.holdMusicOff], [cidBtn(value)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
+      return send(chatId, value.showCallerId ? "🪪 Forwarded calls to US numbers now show the <b>caller's number</b>. Other countries (or if the carrier refuses) show your business number." : '🪪 Forwarded calls now show <b>your business number</b>.', { parse_mode: 'HTML', ...k.of(btns) })
+    }
     // ── Toggle Hold Music ──
     if (message === pc.holdMusicOn || message === pc.holdMusicOff) {
       const fwd = num.features?.callForwarding || {}
@@ -32332,7 +32361,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       let walletBal = 0
       try { const { usdBal } = await getBalance(walletOf, chatId); walletBal = usdBal } catch (e) { /* noop */ }
       const holdLabel = newState ? pc.holdMusicOn : pc.holdMusicOff
-      const btns = [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
+      const btns = [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], [cidBtn(num.features?.callForwarding)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
       return send(chatId, cpTxt.forwardingStatus(num.phoneNumber, num.features.callForwarding, walletBal), k.of(btns))
     }
     // ── Backup numbers: rung in order when the forward-to number is busy / doesn't answer (same as the web app) ──
@@ -32385,7 +32414,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       try { const { usdBal } = await getBalance(walletOf, chatId); walletBal = usdBal } catch (e) { /* noop */ }
       const holdLabel = fwd.holdMusic ? pc.holdMusicOn : pc.holdMusicOff
       const btns = fwd.enabled
-        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
+        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], [cidBtn(num.features?.callForwarding)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
         : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer]]
       return send(chatId, cpTxt.forwardingStatus(num.phoneNumber, fwd, walletBal), k.of(btns))
     }
@@ -32452,7 +32481,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const fwd = num.features?.callForwarding || {}
       const holdLabel = fwd.holdMusic ? pc.holdMusicOn : pc.holdMusicOff
       const btns = fwd.enabled
-        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
+        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], [cidBtn(num.features?.callForwarding)], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
         : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer]]
       return send(chatId, cpTxt.forwardingStatus(num.phoneNumber, fwd, walletBal), k.of(btns))
     }
@@ -32477,7 +32506,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const mode = info?.cpForwardMode || 'always'
     const existingFwd = num.features?.callForwarding || {}
     const keptBackups = (existingFwd.backups || []).filter(n => n !== forwardTo && n !== num.phoneNumber)
-    await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'callForwarding', { enabled: true, mode, forwardTo, ringTimeout: 25, holdMusic: existingFwd.holdMusic || false, backups: keptBackups })
+    await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'callForwarding', { enabled: true, mode, forwardTo, ringTimeout: 25, holdMusic: existingFwd.holdMusic || false, showCallerId: !!existingFwd.showCallerId, backups: keptBackups })
     num.features.callForwarding = { enabled: true, mode, forwardTo, ringTimeout: 25, holdMusic: existingFwd.holdMusic || false, backups: keptBackups }
     await saveInfo('cpActiveNumber', num)
     const modeLabel = mode === 'always' ? 'Always Forward' : mode === 'busy' ? 'Forward When Busy' : 'Forward If No Answer'
@@ -40908,7 +40937,7 @@ const bankApis = {
       type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
       purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
       autoRenew: true, status: 'active', sipUsername, sipPassword,
-      sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}),
+      sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
       messagingProfileId: telnyxResources.messagingProfileId,
       connectionId: telnyxResources.sipConnectionId, smsUsed: 0, minutesUsed: 0,
       features: { sms: true, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
@@ -40922,6 +40951,7 @@ const bankApis = {
       { $push: { 'val.numbers': numberDoc } },
       { upsert: true }
     )
+    askAddressAfterPay(chatId, info, selectedNumber)
     await phoneTransactions.insertOne({ chatId, phoneNumber: selectedNumber, action: 'purchase', plan: planKey, amount: price, paymentMethod: 'bank_ngn', timestamp: new Date().toISOString() })
     
     // Generate transaction ID for phone purchase
@@ -41936,7 +41966,7 @@ app.get('/crypto-pay-phone', auth, async (req, res) => {
     type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
     purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
     autoRenew: true, status: 'active', sipUsername, sipPassword,
-    sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}),
+    sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
     messagingProfileId: telnyxResources.messagingProfileId, connectionId: telnyxResources.sipConnectionId,
     smsUsed: 0, minutesUsed: 0,
     features: { sms: true, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
@@ -41949,6 +41979,7 @@ app.get('/crypto-pay-phone', auth, async (req, res) => {
     { $push: { 'val.numbers': numberDoc } },
     { upsert: true }
   )
+  askAddressAfterPay(chatId, info, selectedNumber)
   const existing = await get(phoneNumbersOf, chatId)
   await phoneTransactions.insertOne({ chatId, phoneNumber: selectedNumber, action: 'purchase', plan: planKey, amount: price, paymentMethod: 'crypto_' + coin, timestamp: new Date().toISOString() })
   await auditCryptoTx(chatId, 'phone-number', price, { phoneNumber: selectedNumber, plan: planKey, countryCode, provider: 'telnyx', coin, value, ref }, 'blockbee')
@@ -47283,7 +47314,7 @@ app.post('/dynopay/crypto-pay-phone', authDyno, async (req, res) => {
     type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
     purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
     autoRenew: true, status: 'active', sipUsername, sipPassword,
-    sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}),
+    sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
     messagingProfileId: telnyxResources.messagingProfileId, connectionId: telnyxResources.sipConnectionId,
     smsUsed: 0, minutesUsed: 0,
     features: { sms: true, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
@@ -47296,6 +47327,7 @@ app.post('/dynopay/crypto-pay-phone', authDyno, async (req, res) => {
     { $push: { 'val.numbers': numberDoc } },
     { upsert: true }
   )
+  askAddressAfterPay(chatId, info, selectedNumber)
   const existing = await get(phoneNumbersOf, chatId)
   await phoneTransactions.insertOne({ chatId, phoneNumber: selectedNumber, action: 'purchase', plan: planKey, amount: price, paymentMethod: 'crypto_dynopay_' + coin, timestamp: new Date().toISOString() })
   await auditCryptoTx(chatId, 'phone-number', price, { phoneNumber: selectedNumber, plan: planKey, countryCode, provider: 'telnyx', coin, value, ref }, 'dynopay')
@@ -49751,6 +49783,14 @@ app.post('/infobip/sms-webhook/:k', express.json({ limit: '1mb' }), async (req, 
 })
 
 // MultiTEL inbound texts (number smsuri, URL POST form data) → same handler as Telnyx texts. Keyed path like Infobip's.
+// MultiTEL received a fax (type-16 line): read the fax inbox now instead of waiting for the 2-minute poll.
+let _mtFaxPoll = null
+app.post('/multitel/fax-webhook/:k', express.json({ limit: '25mb' }), (req, res) => {
+  res.sendStatus(200)
+  if (req.params.k !== require('./multitel/fax').faxHookKey()) return log('MultiTEL fax webhook: bad key')
+  log(`MultiTEL fax webhook: ${req.body?.from_number || '?'} → ${req.body?.to_number || '?'} pages=${req.body?.pages ?? '?'} success=${req.body?.success}`)
+  if (!_mtFaxPoll) _mtFaxPoll = setTimeout(() => { _mtFaxPoll = null; require('./fax-service').maintain().catch(e => log(`MultiTEL fax webhook poll: ${e.message}`)) }, 3000)
+})
 app.post('/multitel/sms-webhook/:k', express.urlencoded({ extended: true, limit: '1mb' }), async (req, res) => {
   res.sendStatus(200)
   if (req.params.k !== require('./multitel').smsHookKey()) return log('MultiTEL SMS webhook: bad key')

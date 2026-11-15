@@ -62,6 +62,23 @@ async function lockLegacyPrices(col, marks) {
 }
 
 const mainOf = (numbers, n) => (n.isSubNumber ? numbers.find(x => x.phoneNumber === n.parentNumber && live(x)) || null : null)
+// The live main line that took over `phone` after provider swaps (migratedTo / replacedFrom chain), or null.
+function successorMain(numbers, phone) {
+  for (let p = phone, i = 0; p && i < 8; i++) {
+    const cur = numbers.find(x => x.phoneNumber === p)
+    if (cur && live(cur) && !cur.isSubNumber) return cur
+    const next = numbers.find(x => x.replacedFrom === p && live(x) && !x.isSubNumber)
+    if (next) return next
+    p = cur?.migratedTo || cur?.replacedBy || null
+  }
+  return null
+}
+// Extra line whose main moved to a new number: point it at the new main instead of orphaning it.
+function reparentPatch(numbers, n) {
+  if (n.status !== 'active' || !n.isSubNumber || mainOf(numbers, n)) return null
+  const m = successorMain(numbers, n.parentNumber)
+  return m ? [{ phoneNumber: n.phoneNumber, set: { parentNumber: m.phoneNumber } }] : null
+}
 const extrasOf = (numbers, main) => numbers.filter(x => x.isSubNumber && x.parentNumber === main.phoneNumber && live(x))
 
 // An active line whose main line is gone (or that the Oct-2026 migration left standalone at the extra-line price).
@@ -296,7 +313,7 @@ function renewedMsg(n, r, lang) {
   }, lang)
 }
 
-module.exports = {
+module.exports = { successorMain, reparentPatch,
   HOLD_DAYS, isInternalTest, listPrice, EXTRA_SIP_FREE, EXTRA_SIP_MAX, EXTRA_SIP_PRICE, paidSip, sipLoginOk, lockLegacyPrices, canonicalPrice, renewalPrice, mainOf, extrasOf, isOrphan, onHold, holdOver,
   lineGroup, planLimit, poolUsage, USAGE_RESET, usageResetPatches, priceOnPlan, syncExtrasPlan,
   downgradePatch, upgradePatch, numberSet, suspendPlan, orphanToMain, releasePatch, renewBlock, renewPatches, applyLocal, applyDb,

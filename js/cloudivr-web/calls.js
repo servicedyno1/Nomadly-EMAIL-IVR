@@ -41,7 +41,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   async function caller(chatId, phone, feature, label) {
     const n = await numbersApi.findMine(chatId, phone)
     if (!n || n.status !== 'active') return { err: [400, 'invalid_caller', 'Pick one of your active numbers as caller ID.'] }
-    if (!['telnyx', 'signalwire'].includes(n.provider) || n.provider === 'signalwire_fax') return { err: [400, 'invalid_caller', 'This number cannot place outbound IVR calls.'] }
+    if (!['telnyx', 'signalwire', 'multitel', 'infobip'].includes(n.provider) || n.provider === 'signalwire_fax') return { err: [400, 'invalid_caller', 'This number cannot place outbound IVR calls.'] }
     if (!phoneConfig.canAccessFeature(n.plan, feature)) return { err: [403, 'plan_upgrade_required', phoneConfig.canAccessFeature('standard', feature) ? `${label} needs the Starter plan or higher on the caller number.` : phoneConfig.canAccessFeature('pro', feature) ? `${label} needs the Pro plan or higher on the caller number.` : `${label} need the Business plan on the caller number.`] }
     return { n }
   }

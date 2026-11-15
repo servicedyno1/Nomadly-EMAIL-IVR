@@ -1,0 +1,44 @@
+{
+  "component": "CloudIVR YourNumbers / NumberRow (/app/frontend/src/cloudivr/pages/dashboard/Widgets.js)",
+  "scope": "In-app Home 'Your numbers' card row anatomy enhancement (Plan details inside calling number rows)",
+  "design_system_tokens": {
+    "css_vars": ["--c-accent", "--c-muted", "--c-border", "--c-text"],
+    "civr_classes": ["civr-card", "civr-pill", "civr-pill-ok", "civr-pill-warn", "civr-pill-bad", "civr-pill-on", "civr-btn civr-btn-ghost civr-btn-sm"]
+  },
+  "row_anatomy": {
+    "desktop": "Flex flex-col gap-2 py-3.5 border-b border-[var(--c-border)] last:border-b-0. Header row: Left phone number (mono text-base font-semibold) + Tier Badge (civr-pill) + Extra/Main indicator; Right status (civr-pill-ok/warn) + price/mo + Chevron. Body row: Compact usage bar (minutes used/included) + renewal date/auto-renew status + inline 'Includes' feature chips + 'Upgrade' link.",
+    "mobile_390px": "Vertical stacked layout (max-w-[390px] w-full overflow-hidden). Row 1: Phone + Status + Chevron (min-h-[44px] tap target). Row 2: Plan tier badge + price/mo + Main/Extra badge. Row 3: Usage progress bar (minutes used/total). Row 4: Included features wrap + Upgrade button (min 44px touch target)."
+  },
+  "extras_grouping_hierarchy": {
+    "main_number": "Primary row container with left accent border (border-l-2 border-[#818cf8]). Shows plan tier (e.g., Pro - $29/mo) and shared minute pool.",
+    "extra_number": "Indented child row (ml-4 pl-3 border-l border-[var(--c-border)]/60 bg-[var(--c-muted)]/5 rounded-r-lg) labeled with badge 'Extra line · Included in Pro plan'."
+  },
+  "tab_service_labeling": {
+    "calling": "Displays Plan Tiers (Basic/Starter/Pro/Business) & shared usage pools.",
+    "mobile_and_texting": "Displays as 'Standalone Service' (e.g. 'Hosted SMS Service' / 'Mobile Line Service') instead of plan tier to prevent plan confusion."
+  },
+  "exact_tailwind_classes": {
+    "row_wrapper": "group relative flex flex-col gap-2.5 p-3.5 rounded-xl transition-colors hover:bg-[var(--c-muted)]/10 min-h-[44px]",
+    "phone_display": "font-mono text-base md:text-lg font-semibold tracking-tight text-[var(--c-text)] truncate",
+    "tier_badge": "civr-pill civr-pill-on text-xs px-2 py-0.5 font-medium rounded-md bg-[#818cf8]/15 text-[#818cf8] dark:text-[#a5b4fc]",
+    "extra_badge": "text-xs px-2 py-0.5 rounded bg-[var(--c-muted)]/20 text-[var(--c-text)]/70 font-mono",
+    "minutes_bar_container": "w-full flex flex-col gap-1 text-xs text-[var(--c-text)]/70",
+    "minutes_bar_track": "h-1.5 w-full bg-[var(--c-muted)]/20 rounded-full overflow-hidden",
+    "minutes_bar_fill": "h-full bg-[#818cf8] rounded-full transition-all duration-300",
+    "includes_features": "flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--c-text)]/80",
+    "feature_chip": "px-1.5 py-0.5 rounded bg-[var(--c-muted)]/10 border border-[var(--c-border)]/50 text-xs",
+    "upgrade_link": "civr-btn civr-btn-ghost civr-btn-sm text-xs text-[#818cf8] hover:underline min-h-[44px] flex items-center px-2",
+    "status_pill_wcag": "civr-pill px-2.5 py-1 text-xs font-semibold rounded-full dark:bg-emerald-950/60 dark:text-emerald-300 light:bg-emerald-100 light:text-emerald-900 border border-emerald-500/30 min-h-[28px] inline-flex items-center"
+  },
+  "data_testids": {
+    "row": "dashboard-number-row-{id}",
+    "phone": "dashboard-number-phone-{id}",
+    "badge_tier": "dashboard-number-tier-badge-{id}",
+    "extra_indicator": "dashboard-number-extra-indicator-{id}",
+    "usage_bar": "dashboard-number-usage-bar-{id}",
+    "renewal_status": "dashboard-number-renewal-status-{id}",
+    "includes_list": "dashboard-number-includes-list-{id}",
+    "upgrade_link": "dashboard-number-upgrade-link-{id}",
+    "status_pill": "dashboard-number-status-pill-{id}"
+  }
+}

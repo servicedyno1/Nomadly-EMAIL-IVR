@@ -36,6 +36,8 @@ reps = [
  ('git --git-dir=\"\$REPO\" fetch --force --prune origin \"+refs/heads/\$BRANCH:refs/heads/\$BRANCH\" || fail \"git fetch failed\"', ': # workspace tarball deploy'),
  ('SHA=\"\$(git --git-dir=\"\$REPO\" rev-parse \"refs/heads/\$BRANCH\")\" || fail \"cannot resolve \$BRANCH\"', 'SHA=\"\$LOCAL_SHA\"'),
  ('SUBJECT=\"\$(git --git-dir=\"\$REPO\" log -1 --format=%s \"\$SHA\" | cut -c1-80)\"', 'SUBJECT=\"\$LOCAL_SUBJECT\"'),
+ # No GitHub catch-up after a workspace deploy (it would ship the older GitHub branch right back).
+ ('if [ \"\$CMD\" = \"deploy\" ] && [ \"\${DEPLOY_CATCHUP:-0}\" -lt 3 ]', 'if false && [ \"\$CMD\" = \"deploy\" ]'),
 ]
 for a, b in reps:
     assert src.count(a) == 1, ('deploy.sh changed — patch target not found exactly once', a[:60])

@@ -36,6 +36,9 @@ function createNumberRequests({ db, h, phoneConfig, numbersApi, walletOps, notif
       const plan = phoneConfig.plans[planKey]
       if (!cfg || !ib().enabled()) return res.status(400).json({ error: 'invalid_country', message: 'Pick a country from the list.' })
       if (!plan || !phoneConfig.isPlanAvailable(planKey)) return res.status(400).json({ error: 'invalid_plan', message: 'That plan is not available.' })
+      // On-request numbers aren't instant, so they can't be a plan's own number.
+      const incl = phoneConfig.includedIssue(planKey, country, 'local')
+      if (incl) return res.status(400).json({ error: 'extra_number_only', message: incl })
       const eu = endUser(req.webUser)
       const price = round2(plan.price)
       if (!(await w.debit(req.webChatId, price))) return res.status(402).json({ error: 'insufficient_balance', message: `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(req.webChatId)).toFixed(2)} — top up first.` })
