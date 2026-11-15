@@ -45,7 +45,8 @@ const kindOf = (message) => { for (const t of Object.values(L)) for (const k of 
 function textingCountries(phoneConfig) {
   if (!phoneConfig.PLAN_TEXTING()) return []
   const cat = phoneConfig.botExtraCountries()
-  return require('./texting-countries').list().map(o => { const c = cat.find(x => x.code === o.iso && x.types.includes(o.type)); return c ? { ...c, type: o.type } : null }).filter(Boolean)
+  // USA texting needs the web 10DLC registration, so the bots sell it only outside the USA.
+  return require('./texting-countries').list().filter(o => o.iso !== 'US').map(o => { const c = cat.find(x => x.code === o.iso && x.types.includes(o.type)); return c ? { ...c, type: o.type } : null }).filter(Boolean)
 }
 
 const isTextingOn = (message) => Object.values(L).some(t => t.textingOn === message)

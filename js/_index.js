@@ -10875,7 +10875,6 @@ bot?.on('message', msg => {
     }
     const base = Number(info?.cpPriceBase) || 0
     if (base > totalPrice) s += `\n\n🎟️ Coupon: <s>$${base.toFixed(2)}</s> → <b>$${totalPrice.toFixed(2)}</b>`
-    if (info?.cpVerifyNote && !info?.cpIsSubNumber) s += `\n\n${info.cpVerifyNote}`
     if (String(info?.cpSelectedNumber || '').replace(/\D/g, '').length < 9) s += `\n🎲 The rest of the number is assigned when you pay`
     if (!info?.cpAddressAfterPay && !info?.cpVerifyNote) s += `\n⚡ <b>Instant</b> — your number works the moment you pay`
     return s
@@ -31901,6 +31900,9 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         return send(chatId, phoneConfig.upgradeMessage('sipCredentials', num.plan, info?.userLanguage), k.of(buildManageMenu(num)))
       }
       await set(state, chatId, 'action', a.cpSipCredentials)
+      // Always show the login saved on the number now (the cached copy can predate a swap or reset), repaired if missing.
+      const freshSip = (await phoneNumbersOf.findOne({ _id: chatId }))?.val?.numbers?.find(x => x.phoneNumber === num.phoneNumber)
+      if (freshSip) { Object.assign(num, await require('./sip-logins').ensure(phoneNumbersOf, chatId, freshSip)); await saveInfo('cpActiveNumber', num) }
       const numSipDomain = phoneConfig.getSipDomainForNumber()
       // Prefer Telnyx username since domain is sip.speechcue.com (Telnyx)
       const displaySipUser = num.telnyxSipUsername || num.sipUsername
@@ -35667,9 +35669,10 @@ Select a category:`), k.of(catBtns))
       return showManageScreen(chatId, num)
     }
     if (message === pc.revealPassword) {
-      // Prefer Telnyx password since domain is sip.speechcue.com (Telnyx)
+      const freshSip = (await phoneNumbersOf.findOne({ _id: chatId }))?.val?.numbers?.find(x => x.phoneNumber === num.phoneNumber)
+      if (freshSip) Object.assign(num, await require('./sip-logins').ensure(phoneNumbersOf, chatId, freshSip))
       const displayPassword = num.telnyxSipPassword || num.sipPassword
-      const msg = await bot?.sendMessage(chatId, cpTxt.sipRevealed(displayPassword), { parse_mode: 'HTML' })
+      const msg = await bot?.sendMessage(chatId, `${cpTxt.sipRevealed(displayPassword)}\n\n👤 <code>${num.telnyxSipUsername || num.sipUsername}</code>\n🌐 <code>${phoneConfig.getSipDomainForNumber()}</code>`, { parse_mode: 'HTML' })
       // Auto-delete after 30 seconds
       if (msg?.message_id) {
         setTimeout(() => {

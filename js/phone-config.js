@@ -397,6 +397,9 @@ const includedCountries = (planKey) => (['business', 'enterprise'].includes(plan
 const includedTier = (cc) => (INCLUDED_ALL.includes(cc) ? 'all' : INCLUDED_BUSINESS.includes(cc) ? 'business' : null)
 // Instant + no ID: no paperwork level, not a request-based order. US/CA with no MultiTEL/Infobip offer use the Telnyx chain (instant).
 const instantNoId = (cc, t) => { const b = require('./number-catalog').best(cc, t); return b ? b.level === 0 && !b.request && !b.businessOnly : ['US', 'CA'].includes(cc) }
+// A plan's own number can come from any country; outside the plan's countries it costs the admin's country add-on, else the extra-number price.
+const planAddon = (planKey, cc, t, surcharge = 0) => (includedCountries(planKey).includes(cc) || surcharge > 0 ? surcharge : SUB_NUMBER_BASE_PRICE)
+const planNumberIssue = (cc, t) => (!['US', 'CA'].includes(cc) && !require('./number-catalog').best(cc, t) ? 'Numbers from this country are temporarily unavailable. Try again shortly, or pick another country.' : null)
 function includedIssue(planKey, cc, t) {
   if (!includedCountries(planKey).includes(cc)) return includedTier(cc) === 'business'
     ? 'Netherlands, France and Spain numbers come free with the Business plan. Pick Business, or a USA, Canada or UK number.'
@@ -468,7 +471,7 @@ usAreaCodes.forEach(a => { areaByLabel[`${a.city} (${a.code})`] = a.code })
 
 // ── Plans ──
 const plans = {
-  starter: { name: 'Basic', price: PHONE_STARTER_PRICE, minutes: STARTER_MINUTES, sms: STARTER_SMS, features: ['Call forwarding to any number', 'SMS forwarded to Telegram', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
+  starter: { name: 'Basic', price: PHONE_STARTER_PRICE, minutes: STARTER_MINUTES, sms: STARTER_SMS, features: ['Call forwarding to any number', 'SMS forwarded to Telegram', 'SIP credentials for softphones', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
   standard: { name: 'Starter', price: PHONE_STANDARD_PRICE, minutes: STANDARD_MINUTES, sms: 0, features: ['All Basic features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.standard} extra numbers`] },
   pro: { name: 'Pro', price: PHONE_PRO_PRICE, minutes: PRO_MINUTES, sms: PRO_SMS, features: ['All Starter features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign (start now or schedule)', '2FA Code Delivery', 'IVR Auto-Attendant', 'IVR Call Analytics', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
   business: { name: 'Business', price: PHONE_BUSINESS_PRICE, minutes: BUSINESS_MINUTES, sms: BUSINESS_SMS, features: ['All Pro features', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Quick IVR Call Scheduling', 'Custom 2FA Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
@@ -477,31 +480,31 @@ const plans = {
 // Language-specific plan features
 const plansI18n = {
   en: {
-    starter: { features: ['Call forwarding to any number', 'SMS forwarded to Telegram', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
+    starter: { features: ['Call forwarding to any number', 'SMS forwarded to Telegram', 'SIP credentials for softphones', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
     standard: { features: ['All Basic features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.standard} extra numbers`] },
     pro: { features: ['All Starter features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign (start now or schedule)', '2FA Code Delivery', 'IVR Auto-Attendant', 'IVR Call Analytics', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
     business: { features: ['✅ Verified caller ID (numbers you own)', 'All Pro features', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Quick IVR Call Scheduling', 'Custom 2FA Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
   },
   fr: {
-    starter: { features: ['Transfert d\'appels vers n\'importe quel numéro', 'SMS vers Telegram', `Jusqu'à ${SUB_NUMBER_LIMITS.starter} numéros supplémentaires`] },
+    starter: { features: ['Transfert d\'appels vers n\'importe quel numéro', 'SMS vers Telegram', 'Identifiants SIP pour softphones', `Jusqu'à ${SUB_NUMBER_LIMITS.starter} numéros supplémentaires`] },
     standard: { features: ['Toutes fonctions Basic', 'Messagerie vocale personnalisée', 'Identifiants SIP pour softphones', 'Enregistrement d\'appels', `Jusqu'à ${SUB_NUMBER_LIMITS.standard} numéros supplémentaires`] },
     pro: { features: ['Toutes fonctions Starter', 'Messagerie vocale personnalisée', 'Identifiants SIP pour softphones', 'SMS vers Telegram & Email', 'Intégrations Webhook', 'Appel IVR rapide', 'Campagne IVR en masse (immédiate ou planifiée)', 'Envoi de codes 2FA', 'Standard automatique IVR', 'Analytiques SVI', 'Enregistrement d\'appels', `Jusqu'à ${SUB_NUMBER_LIMITS.pro} numéros supplémentaires`] },
     business: { features: ['🎭 Afficher n’importe quel numéro', 'Toutes fonctions Pro', 'Préréglages IVR & Appels récents', 'Bouton de rappel IVR', 'Planification des appels IVR rapides', 'Messages 2FA personnalisés', 'Voix TTS cohérente', 'Support prioritaire', `Jusqu'à ${SUB_NUMBER_LIMITS.business} numéros supplémentaires`] },
   },
   zh: {
-    starter: { features: ['呼叫转移至任何号码', '短信转发至Telegram', `添加最多 ${SUB_NUMBER_LIMITS.starter} 个号码`] },
+    starter: { features: ['呼叫转移至任何号码', '短信转发至Telegram', 'SIP 软电话凭据', `添加最多 ${SUB_NUMBER_LIMITS.starter} 个号码`] },
     standard: { features: ['所有基础版功能', '自定义语音信箱', 'SIP 软电话凭据', '通话录音', `添加最多 ${SUB_NUMBER_LIMITS.standard} 个号码`] },
     pro: { features: ['所有入门版功能', '自定义语音信箱', 'SIP 软电话凭据', '短信转Telegram和邮箱', 'Webhook集成', '快速IVR呼叫', '批量IVR活动（立即或定时）', 'OTP收集', 'IVR自动应答', 'IVR 通话分析', '通话录音', `添加最多 ${SUB_NUMBER_LIMITS.pro} 个号码`] },
     business: { features: ['🎭 显示任意来电号码', '所有专业版功能', 'IVR预设与最近通话', 'IVR重拨按钮', '快速IVR呼叫定时', '自定义OTP消息', '一致TTS语音', '优先支持', `添加最多 ${SUB_NUMBER_LIMITS.business} 个号码`] },
   },
   hi: {
-    starter: { features: ['किसी भी नंबर पर कॉल फ़ॉरवर्डिंग', 'SMS से Telegram', `${SUB_NUMBER_LIMITS.starter} अतिरिक्त नंबर तक`] },
+    starter: { features: ['किसी भी नंबर पर कॉल फ़ॉरवर्डिंग', 'SMS से Telegram', 'सॉफ्टफ़ोन के लिए SIP क्रेडेंशियल्स', `${SUB_NUMBER_LIMITS.starter} अतिरिक्त नंबर तक`] },
     standard: { features: ['सभी बेसिक सुविधाएँ', 'कस्टम वॉइसमेल', 'सॉफ्टफ़ोन के लिए SIP क्रेडेंशियल्स', 'कॉल रिकॉर्डिंग', `${SUB_NUMBER_LIMITS.standard} अतिरिक्त नंबर तक`] },
     pro: { features: ['सभी स्टार्टर सुविधाएँ', 'कस्टम वॉइसमेल', 'सॉफ्टफ़ोन के लिए SIP क्रेडेंशियल्स', 'SMS से Telegram और Email', 'Webhook इंटीग्रेशन', 'त्वरित IVR कॉल', 'बल्क IVR अभियान (अभी या शेड्यूल)', 'OTP संग्रह', 'IVR ऑटो-अटेंडेंट', 'IVR कॉल Analytics', 'कॉल रिकॉर्डिंग', `${SUB_NUMBER_LIMITS.pro} अतिरिक्त नंबर तक`] },
     business: { features: ['🎭 कोई भी कॉलर ID दिखाएँ', 'सभी Pro सुविधाएँ', 'IVR प्रीसेट और हाल की कॉलें', 'IVR रीडायल बटन', 'त्वरित IVR कॉल शेड्यूलिंग', 'कस्टम OTP संदेश', 'सुसंगत TTS आवाज़', 'प्राथमिकता समर्थन', `${SUB_NUMBER_LIMITS.business} अतिरिक्त नंबर तक`] },
   },
   fa: {
-    starter: { features: ['انتقال تماس به هر شماره', 'ارسال SMS به Telegram', `افزودن تا ${SUB_NUMBER_LIMITS.starter} شماره اضافه`] },
+    starter: { features: ['انتقال تماس به هر شماره', 'ارسال SMS به Telegram', 'اطلاعات ورود SIP برای سافت‌فون', `افزودن تا ${SUB_NUMBER_LIMITS.starter} شماره اضافه`] },
     standard: { features: ['همه امکانات Basic', 'پیغام‌گیر صوتی با خوشامد سفارشی', 'اطلاعات ورود SIP برای سافت‌فون', 'ضبط تماس', `افزودن تا ${SUB_NUMBER_LIMITS.standard} شماره اضافه`] },
     pro: { features: ['همه امکانات Starter', 'پیغام‌گیر صوتی با خوشامد سفارشی', 'اطلاعات ورود SIP برای سافت‌فون', 'SMS به Telegram و ایمیل', 'یکپارچه‌سازی Webhook', 'تماس سریع IVR', 'کمپین IVR انبوه (فوری یا زمان‌بندی‌شده)', 'دریافت OTP', 'منشی خودکار IVR', 'آمار تماس IVR', 'ضبط تماس', `افزودن تا ${SUB_NUMBER_LIMITS.pro} شماره اضافه`] },
     business: { features: ['🎭 نمایش هر شماره دلخواه', 'همه امکانات Pro', 'پیش‌تنظیم‌های IVR و تماس‌های اخیر', 'دکمه تماس مجدد IVR', 'زمان‌بندی تماس سریع IVR', 'پیام‌های OTP سفارشی', 'صدای TTS یکسان', 'پشتیبانی ویژه', `افزودن تا ${SUB_NUMBER_LIMITS.business} شماره اضافه`] },
@@ -522,7 +525,7 @@ const planFeatureAccess = {
     smsToEmail: false,
     smsWebhook: false,
     voicemail: false,
-    sipCredentials: false,
+    sipCredentials: true,
     callRecording: false,
     ivr: false,
     ivrOutbound: false,
@@ -807,7 +810,7 @@ Virtual phone numbers in ${CLOUD_COUNTRY_COUNT} countries, managed from Telegram
 Incoming calls you answer on SIP/browser + received SMS are included · Call forwarding & outgoing calls are charged from your wallet
 
 <b>📋 Plans:</b>
-💡 Basic $${PHONE_STARTER_PRICE}/mo — ${plans.starter.minutes} inbound min · Forwarding + SMS
+💡 Basic $${PHONE_STARTER_PRICE}/mo — ${plans.starter.minutes} inbound min · Forwarding, SMS + SIP softphone
 🧩 Starter $${PHONE_STANDARD_PRICE}/mo — ${plans.standard.minutes} inbound min · + Voicemail, SIP softphone, Call recording
 ⭐ Pro $${PHONE_PRO_PRICE}/mo — ${plans.pro.minutes} inbound min · + Voicemail, SIP, Call recording, Auto-attendant, Quick & Bulk IVR, OTP
 👑 Business $${PHONE_BUSINESS_PRICE}/mo — ${BUSINESS_MINUTES} inbound min · + AI voice agent, IVR redial, Quick IVR scheduling & presets, Priority support
@@ -4344,7 +4347,7 @@ module.exports = {
   twilioCountries,
   get allCountries() { return getAllCountries() },
   get moreCountries() { return getMoreCountries() },
-  includedCountries, includedTier, includedIssue, instantNoId, botPlanCountries, botExtraCountries, botExtraOrMore, BOT_CATALOG, INCLUDED_ALL, INCLUDED_BUSINESS, PLAN_TEXTING,
+  includedCountries, includedTier, includedIssue, planAddon, planNumberIssue, instantNoId, botPlanCountries, botExtraCountries, botExtraOrMore, BOT_CATALOG, INCLUDED_ALL, INCLUDED_BUSINESS, PLAN_TEXTING,
   countryByName,
   botNeedsAddress,
   botUsesFixedAddress,

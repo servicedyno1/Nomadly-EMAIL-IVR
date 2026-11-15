@@ -19,23 +19,23 @@ const numbers = require('../cloudivr-web/numbers')
 
 ;(async () => {
   console.log('plan access')
-  await t('Starter: browser phone + browser ring, no SIP apps', () => {
+  await t('Starter (Basic): browser phone + browser ring + SIP apps (SIP on every paid plan, 2026-11)', () => {
     assert.strictEqual(phoneConfig.canAccessFeature('starter', 'browserPhone'), true)
     assert.strictEqual(phoneConfig.canAccessFeature('starter', 'browserRing'), true)
-    assert.strictEqual(phoneConfig.canAccessFeature('starter', 'sipCredentials'), false)
+    assert.strictEqual(phoneConfig.canAccessFeature('starter', 'sipCredentials'), true)
   })
   await t('Pro + Business: browser phone and SIP apps', () => {
     for (const p of ['pro', 'business']) for (const f of ['browserPhone', 'browserRing', 'sipCredentials']) assert.strictEqual(phoneConfig.canAccessFeature(p, f), true, `${p}.${f}`)
   })
-  await t('plan cards: Starter lists the browser phone, SIP apps start at Pro', () => {
+  await t('plan cards: every plan lists the browser phone and SIP apps', () => {
     const inc = (id) => numbers.webFeatures(id).filter(f => f.included).map(f => f.key)
-    assert.ok(inc('starter').includes('browserPhone') && !inc('starter').includes('sip'))
+    assert.ok(inc('starter').includes('browserPhone') && inc('starter').includes('sip'))
     assert.ok(inc('pro').includes('browserPhone') && inc('pro').includes('sip'))
   })
   await t('numbers expose access.browserPhone', () => {
     const pub = numbers.publicNumber({ phoneNumber: '+15550001111', plan: 'starter', status: 'active', features: {} })
     assert.strictEqual(pub.access.browserPhone, true)
-    assert.strictEqual(pub.access.sipCredentials, false)
+    assert.strictEqual(pub.access.sipCredentials, true)
     assert.strictEqual(pub.access.browserRing, true)
   })
 
@@ -66,7 +66,7 @@ const numbers = require('../cloudivr-web/numbers')
   const pro = { phoneNumber: PHONE, plan: 'business', features: { ivr: { enabled: true, options: { 1: { action: 'forward', forwardTo: '+14155550100' } } }, recording: true, voicemail: { enabled: true, greetingType: 'default' }, smsForwarding: { toTelegram: true, toEmail: 'a@b.co', webhookUrl: 'https://x.example/h' }, aiAgent: { enabled: true, agentId: 'ag1' } } }
   const dg = lifecycle.downgradePatch(pro, 'starter')
   await t('downgrade switches off, keeps menu / agent, remembers values', () => {
-    assert.strictEqual(dg.set.sipDisabled, true)
+    assert.strictEqual(dg.set.sipDisabled, undefined, 'SIP stays on Basic')
     assert.strictEqual(dg.set['features.ivr.enabled'], false)
     assert.strictEqual(dg.set['features.recording'], false)
     assert.strictEqual(dg.set['features.voicemail.enabled'], false)
@@ -136,20 +136,10 @@ const numbers = require('../cloudivr-web/numbers')
     await wait(400)
     return { transferred: tx.transfer - before.transfer, hungUp: tx.hangup - before.hangup }
   }
-  await t('Starter: a call from a SIP app / desk phone is refused + one notice', async () => {
+  await t('Starter: a call from a SIP app / desk phone goes through, no plan notice', async () => {
     const r = await outbound()
-    assert.strictEqual(r.transferred, 0)
-    assert.ok(r.hungUp >= 1)
-    assert.ok(sent.some(s => s === 'T:vs.sipPlanBlocked'), sent.join(' | '))
-  })
-  await t('Starter: repeated app retries do not spam notices', async () => {
-    const before = sent.filter(s => s === 'T:vs.sipPlanBlocked').length
-    await outbound()
-    assert.strictEqual(sent.filter(s => s === 'T:vs.sipPlanBlocked').length, before)
-  })
-  await t('Starter: a forged browser header is refused', async () => {
-    const r = await outbound({ custom_headers: [{ name: 'X-Civr-Browser', value: `${Date.now() + 1000}.deadbeefdeadbeefdeadbeefdeadbeef` }] })
-    assert.strictEqual(r.transferred, 0)
+    assert.strictEqual(r.transferred, 1)
+    assert.ok(!sent.some(s => s === 'T:vs.sipPlanBlocked'), sent.join(' | '))
   })
   await t('Starter: a call from the browser phone goes through', async () => {
     const k = key.mint(PHONE)
@@ -169,20 +159,20 @@ const numbers = require('../cloudivr-web/numbers')
     await wait(400)
     return tx.outbound.slice(before)
   }
-  await t('Starter: incoming calls do not ring SIP devices when the web app is closed', async () => {
+  await t('Starter: incoming calls ring SIP devices even when the web app is closed', async () => {
     num.features = { browserRing: { enabled: true } }
     const legs = await inbound()
-    assert.ok(!legs.some(x => String(x).startsWith('sip:')), legs.join(','))
+    assert.ok(legs.includes(`sip:${SIPUSER}@sip.telnyx.com`), legs.join(','))
   })
   await t('Starter: incoming calls ring the browser phone while the app is open', async () => {
     ring.seen(CHAT)
     const legs = await inbound()
     assert.ok(legs.includes(`sip:${SIPUSER}@sip.telnyx.com`), legs.join(','))
   })
-  await t('Starter with browser ring off: no SIP ring even when online', async () => {
+  await t('Starter with browser ring off: SIP devices still ring', async () => {
     num.features = { browserRing: { enabled: false } }
     const legs = await inbound()
-    assert.ok(!legs.some(x => String(x).startsWith('sip:')), legs.join(','))
+    assert.ok(legs.includes(`sip:${SIPUSER}@sip.telnyx.com`), legs.join(','))
   })
   await t('Pro: incoming calls ring SIP devices as before', async () => {
     num.plan = 'pro'; num.features = {}

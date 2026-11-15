@@ -103,7 +103,7 @@ Every price, billing period, or range you give MUST come verbatim from this know
 <b>Domain + hosting total example:</b> a domain (from $${process.env.MIN_DOMAIN_PRICE || '30'}) + Premium Anti-Red HostPanel ($${process.env.PREMIUM_ANTIRED_CPANEL_PRICE || '75'}/month) = about $${(Number(process.env.MIN_DOMAIN_PRICE || 30) + Number(process.env.PREMIUM_ANTIRED_CPANEL_PRICE || 75))} total (exact domain price varies by TLD).
 
 <b>🌐 Bulletproof Domains:</b> registration from $${process.env.MIN_DOMAIN_PRICE || '30'} (varies by TLD).
-<b>📞 Cloud IVR + SIP plans:</b> Starter $${process.env.PHONE_STARTER_PRICE || '50'}/mo · Pro $${process.env.PHONE_PRO_PRICE || '75'}/mo · Business $${process.env.PHONE_BUSINESS_PRICE || '120'}/mo. (Starter = call forwarding + SMS only; IVR/SIP need Pro or Business.)
+<b>📞 Cloud IVR + SIP plans:</b> Starter $${process.env.PHONE_STARTER_PRICE || '50'}/mo · Pro $${process.env.PHONE_PRO_PRICE || '75'}/mo · Business $${process.env.PHONE_BUSINESS_PRICE || '120'}/mo. (Basic = call forwarding, SMS and SIP softphone login; IVR needs Pro or Business.)
 <b>🏪 Marketplace</b> listing/escrow price range: $30–$3,000. Never quote any other range.
 <b>💳 Virtual Card</b> load range: $50–$1,000.
 
@@ -294,7 +294,7 @@ This feature allows you to place an automated IVR call and collect a verificatio
 - 🗑️ Delete Number — Permanently release the number
 
 #### How to find/generate SIP Credentials:
-SIP credentials are <b>automatically generated</b> when you purchase a Cloud IVR number (Pro or Business plan).
+SIP credentials are <b>automatically generated</b> when you get a calling number on any paid plan (Basic, Starter, Pro or Business).
 To view them later: 📞 Cloud IVR + SIP → 📋 My Plans → Select your number → 🔑 SIP Credentials
 From there you can:
 - 👁️ Reveal Password — Show the SIP password
@@ -303,14 +303,17 @@ From there you can:
 
 SIP connection details:
 - Server/Domain: <code>${SIP_DOMAIN}</code>
-- Ports: 5060 (UDP/TCP), 5061 (TLS)
+- Ports: 5060 (UDP/TCP), 5061 (TLS — encrypted sign-in)
 - Codecs: G.711μ, G.711a, Opus
 - DTMF: RFC 2833
 
-NOTE: SIP Credentials require <b>Pro</b> or <b>Business</b> plan. Starter plan users will see an upgrade prompt.
+NOTE: Every paid plan with a calling number includes SIP credentials. If a softphone won't connect: check the server is exactly the domain above, port 5060 with UDP or TCP (or 5061 with TLS), and copy the username + password again from 🔑 SIP Credentials (old logins from a replaced number stop working). Still stuck → 🔄 Reset Password for a fresh pair. A reset works right away; no waiting is needed. If the app shows "403 Forbidden" or "Authentication failed", fill <b>Outbound Proxy</b> with <code>${SIP_DOMAIN}:5060</code> (some apps look the server up differently) and make sure the username is in both User name and Auth username (or leave Auth username empty). If it still fails, offer to pass it to a human agent; never tell the customer TLS is unsupported.
 
 #### How to make calls via browser (no app needed):
 Visit ${CALL_PAGE_URL} — enter your SIP credentials and call directly from browser. No sign-up needed.
+
+#### Paperwork for some countries (fax and calling numbers):
+Ordering never asks for documents. Some countries' carriers need the owner's details before switching a number on: <b>name + address</b> (e.g. GB/IE/AU/NZ/Lithuania for some types) or an <b>ID or company document</b> (e.g. Germany, France, Italy, Poland, South Africa, Singapore, Thailand, Finland, Latvia, Croatia, Ukraine, Hong Kong, Slovakia, Albania). The customer pays first; right after payment the bot (📠 Fax numbers → the number → 📝 Finish details) or the web (the number's page / Fax page → Send details) asks for them. Approval usually takes 1–3 business days. Reminders go out after 1 and 3 days; if the details never arrive the number is released and fully refunded after 14 days. Until it is approved the customer can tap <b>Cancel for a refund</b> any time. Answer accurately when asked which countries need what; don't volunteer it unprompted.
 
 #### How to set up a softphone (Zoiper, etc.):
 📞 Cloud IVR + SIP → 📖 SIP Setup Guide, OR:
@@ -696,7 +699,7 @@ Resell our services under your own brand with a <b>50/50</b> profit share on eve
 → Go to <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → Select your number → <b>🔑 SIP Credentials</b>. From there tap <b>👁️ Reveal Password</b> to see your password. Note: SIP requires <b>Pro</b> or <b>Business</b> plan — Starter users see a one-tap <b>⬆️ Upgrade to Pro</b> button on the Manage screen with the exact upgrade cost (25% credit applied if your number is ≤14 days old).
 
 ### "Does Starter include IVR / SIP?"
-→ <b>No.</b> Starter ($${process.env.PHONE_STARTER_PRICE || '50'}/mo) covers <b>only</b> call forwarding + SMS to Telegram. <b>IVR features (Quick IVR Call, Bulk IVR Campaign, OTP Collection, Auto-Attendant) and SIP softphone credentials require Pro or Business.</b> Good news: if you bought Starter and need IVR, the Manage screen has a <b>⬆️ Upgrade to Pro</b> one-tap button. If your Starter is ≤14 days old you get a 25% credit (so the Pro upgrade costs $${(((parseFloat(process.env.PHONE_PRO_PRICE) || 75) - 0.25 * (parseFloat(process.env.PHONE_STARTER_PRICE) || 50))).toFixed(2)} instead of $${process.env.PHONE_PRO_PRICE || '75'}). After 14 days, you pay full price.
+→ <b>No.</b> Starter ($${process.env.PHONE_STARTER_PRICE || '50'}/mo) covers call forwarding, SMS to Telegram and SIP softphone credentials. <b>IVR features (Quick IVR Call, Bulk IVR Campaign, OTP Collection, Auto-Attendant) require Pro or Business.</b> Good news: if you bought Starter and need IVR, the Manage screen has a <b>⬆️ Upgrade to Pro</b> one-tap button. If your Starter is ≤14 days old you get a 25% credit (so the Pro upgrade costs $${(((parseFloat(process.env.PHONE_PRO_PRICE) || 75) - 0.25 * (parseFloat(process.env.PHONE_STARTER_PRICE) || 50))).toFixed(2)} instead of $${process.env.PHONE_PRO_PRICE || '75'}). After 14 days, you pay full price.
 
 ### "I just bought Starter but I need IVR — what now?"
 → Open the number from <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → tap <b>⬆️ Upgrade to Pro</b> directly. The button shows your exact cost — if you're within the first 14 days you save 25% of your Starter price as credit. Pay via ${PAY_VIA}. IVR unlocks immediately.

@@ -35,6 +35,7 @@ function paperworkIssue(cc, type, eu, { docs = 0, signature = true } = {}) {
   return null
 }
 const GRACE_MS = 3 * 86400000
+const DETAILS_DAYS = 14
 const dry = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const nextMonth = (from = new Date()) => { const d = new Date(from); d.setMonth(d.getMonth() + 1); return d.toISOString() }
 
@@ -46,9 +47,11 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
   const w = walletOps(db)
   nums.createIndex({ chatId: 1 }).catch(() => {})
 
-  const pub = (n) => ({ phoneNumber: n.phoneNumber, country: n.country, type: n.type || 'local', status: n.status, price: n.price, autoRenew: n.autoRenew !== false, expiresAt: n.expiresAt, createdAt: n.createdAt, faxOnly: true, capabilities: { voice: false, sms: false, fax: true } })
+  // Paid numbers whose country needs details: the carrier step comes after payment (needsDetails → form in bot/web).
+  const regOf = (n) => (n.status === 'pending_registration' ? { needsDetails: n.registration?.status === 'needs_details', paperwork: ['none', 'name_address', 'documents'][n.registration?.level || offerOf(n.country, n.type || 'local')?.level || 0], businessOnly: !!offerOf(n.country, n.type || 'local')?.businessOnly, address: offerOf(n.country, n.type || 'local')?.address || 'any', refundBy: n.registration?.status === 'needs_details' ? new Date(new Date(n.registration.since).getTime() + DETAILS_DAYS * 864e5).toISOString() : null } : null)
+  const pub = (n) => ({ phoneNumber: n.phoneNumber, country: n.country, type: n.type || 'local', status: n.status, registration: regOf(n), price: n.price, autoRenew: n.autoRenew !== false, expiresAt: n.expiresAt, createdAt: n.createdAt, faxOnly: true, capabilities: { voice: false, sms: false, fax: true } })
   const list = async (chatId) => (await nums.find({ chatId: String(chatId), status: { $ne: 'released' } }).sort({ createdAt: -1 }).toArray()).map(pub)
-  const offer = () => ({ available: acct.enabled(), price: PRICE(), countries: COUNTRIES, freePages: fax.FREE_PAGES, pagePrice: fax.PAGE_PRICE })
+  const offer = ({ withPaperwork = false } = {}) => ({ available: acct.enabled(), price: PRICE(), countries: withPaperwork ? COUNTRIES : COUNTRIES.map(c => ({ ...c, types: c.types.map(({ type, label }) => ({ type, label })) })), freePages: fax.FREE_PAGES, pagePrice: fax.PAGE_PRICE })
   const cache2 = (chatId) => cache.findOne({ _id: String(chatId) })
 
   async function search(chatId, country, areaCode, type = 'local') {
@@ -79,8 +82,8 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
     if (!hit) throw new FaxNumberError(400, 'search_again', 'That number is no longer in your search results. Search again and pick a number.')
     const type = c.type || 'local', o = offerOf(c.country, type)
     const docs = o?.level === 2 ? ((await db.collection('numberDocs').findOne({ _id: `${chatId}:${c.country}` }))?.files || []).filter(f => !f.deleted) : []
-    const why = paperworkIssue(c.country, type, endUser, { docs: docs.length, signature: !o?.level || !!person?.signature })
-    if (why) throw new FaxNumberError(400, 'paperwork_needed', why)
+    // Details given up front are used; otherwise they are asked for after payment (never blocks the order).
+    const ready = !!o?.level && !!endUser && !paperworkIssue(c.country, type, endUser, { docs: docs.length, signature: !!person?.signature })
     let needsReg = !!o?.level || !!require('./multitel').searchedMeta(phoneNumber)?.needsReg
     try { await locks.insertOne({ _id: phoneNumber, chatId, at: new Date() }) } catch (e) {
       if (e.code === 11000) throw new FaxNumberError(409, 'number_taken', 'Someone is buying that number right now. Pick another one.')
@@ -100,9 +103,9 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
         log(`[FaxNumbers] order ${phoneNumber} for ${chatId} failed: ${e.response?.data?.errors?.[0]?.detail || e.response?.data?.message || e.message} — refunded $${price}`)
         throw new FaxNumberError(424, 'purchase_failed', `This fax number could not be activated. You were refunded $${price.toFixed(2)}. Pick another number.`)
       }
-      const doc = { _id: real, phoneNumber: real, chatId, country: c.country, type, status: needsReg ? 'pending_registration' : 'active', faxOnly: true, plan: 'fax', price, autoRenew: autoRenew !== false, provider: 'multitel_fax', mtNumberId: orderId, expiresAt: nextMonth(), createdAt: new Date(), ...(endUser ? { endUser } : {}), ...(person ? { person: { ...person, signature: undefined } } : {}), ...(needsReg ? { registration: { status: 'pending', since: new Date() } } : {}), ...(dry() ? { dryRun: true } : {}) }
+      const doc = { _id: real, phoneNumber: real, chatId, country: c.country, type, status: needsReg ? 'pending_registration' : 'active', faxOnly: true, plan: 'fax', price, autoRenew: autoRenew !== false, provider: 'multitel_fax', mtNumberId: orderId, expiresAt: nextMonth(), createdAt: new Date(), ...(endUser ? { endUser } : {}), ...(person ? { person: { ...person, signature: undefined } } : {}), ...(needsReg ? { registration: { status: o?.level && !ready ? 'needs_details' : 'pending', level: o?.level || 0, since: new Date() } } : {}), ...(dry() ? { dryRun: true } : {}) }
       await nums.replaceOne({ _id: real }, doc, { upsert: true })
-      if (needsReg) await sendRegistration(doc, email, person, docs)
+      if (needsReg && (!o?.level || ready)) await sendRegistration(doc, email, person, docs)
       await db.collection('transactions').insertOne({ chatId, type: 'fax-number', amount: price, currency: 'USD', status: 'completed', metadata: { phoneNumber: real, provider: 'multitel_fax' }, createdAt: new Date(), updatedAt: new Date() }).catch(() => {})
       await cache.deleteOne({ _id: chatId }); await seen.deleteOne({ _id: phoneNumber }).catch(() => {})
       notifyAdmin(`📠 Fax number${dry() ? ' (DRY RUN)' : ''}${needsReg ? ' — waiting for carrier registration' : ''}\naccount: ${chatId}${email ? ` (${email})` : ''}\nnumber: ${real} (${c.country} ${type}) · $${price}/month`)
@@ -143,10 +146,45 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
     notifyAdmin(`📄 Fax number registration ${sent ? 'sent to MultiTEL' : 'NOT sent (email failed)'}: ${n.phoneNumber} (${n.country}) — account ${n.chatId}`)
   }
 
+  // Details after payment → checked like before, then sent to the carrier.
+  async function submitDetails(chatId, phoneNumber, { endUser, person = null, email = '' }) {
+    const n = await nums.findOne({ _id: phoneNumber, chatId: String(chatId), status: 'pending_registration', 'registration.status': 'needs_details' })
+    if (!n) throw new FaxNumberError(404, 'not_found', 'No fax number is waiting for your details.')
+    const docs = (n.registration.level === 2 ? (await db.collection('numberDocs').findOne({ _id: `${chatId}:${n.country}` }))?.files || [] : []).filter(f => !f.deleted)
+    const why = paperworkIssue(n.country, n.type || 'local', endUser, { docs: docs.length, signature: !!person?.signature })
+    if (why) throw new FaxNumberError(400, 'paperwork_needed', why)
+    await nums.updateOne({ _id: n._id }, { $set: { endUser, ...(person ? { person: { ...person, signature: undefined } } : {}), 'registration.status': 'pending', 'registration.detailsAt': new Date() } })
+    await sendRegistration({ ...n, endUser }, email, person, docs)
+    return pub(await nums.findOne({ _id: n._id }))
+  }
+  // Waiting for the carrier (not live yet) → customer may cancel: released + full refund.
+  async function cancelPending(chatId, phoneNumber, why = 'cancelled_by_customer') {
+    const n = await nums.findOneAndUpdate({ _id: phoneNumber, ...(chatId ? { chatId: String(chatId) } : {}), status: 'pending_registration' }, { $set: { status: 'released', releasedAt: new Date(), releaseReason: why, 'registration.status': why } }, { returnDocument: 'after', includeResultMetadata: false })
+    if (!n) throw new FaxNumberError(404, 'not_found', 'Only a fax number that is not live yet can be cancelled for a refund.')
+    if (!n.dryRun) await mtFax.releaseFax(n.phoneNumber).catch(e => log(`[FaxNumbers] release ${n.phoneNumber}: ${e.message}`))
+    await w.credit(n.chatId, n.price)
+    notifyAdmin(`↩️ Fax number ${n.phoneNumber} cancelled (${why}) — refunded $${n.price} to ${n.chatId}`)
+    return { refunded: n.price, balance: await w.balance(n.chatId) }
+  }
+  // Paid but details never sent: reminders after 1 and 3 days, refund after DETAILS_DAYS.
+  async function chaseDetails(now = Date.now()) {
+    for (const n of await nums.find({ status: 'pending_registration', 'registration.status': 'needs_details' }).limit(200).toArray()) {
+      const age = now - new Date(n.registration.since).getTime()
+      if (age >= DETAILS_DAYS * 864e5) {
+        const r = await cancelPending(null, n.phoneNumber, 'details_missing').catch(() => null)
+        if (r) await push(n.chatId, `We didn't receive the carrier details for fax number ${n.phoneNumber}, so we released it and refunded $${n.price.toFixed(2)} to your wallet.`)
+      } else for (const [k, d] of [['remind2', 3], ['remind1', 1]]) {
+        if (age < d * 864e5 || n.registration[k]) continue
+        const u = await nums.updateOne({ _id: n._id, [`registration.${k}`]: { $exists: false } }, { $set: { 'registration.remind1': true, [`registration.${k}`]: true } })
+        if (u.modifiedCount) await push(n.chatId, `Fax number ${n.phoneNumber} is paid and reserved — the carrier just needs a few details to switch it on. Open Fax numbers to finish (takes 2 minutes), or cancel it there for a full refund. Without the details it is refunded automatically after ${DETAILS_DAYS} days.`)
+        break
+      }
+    }
+  }
   // Waiting registrations: approved → live (the month starts now); rejected → released + full refund.
   async function checkRegistrations() {
     const mt = require('./multitel')
-    for (const n of await nums.find({ status: 'pending_registration', dryRun: { $ne: true } }).limit(50).toArray()) {
+    for (const n of await nums.find({ status: 'pending_registration', 'registration.status': { $ne: 'needs_details' }, dryRun: { $ne: true } }).limit(50).toArray()) {
       const st = await mt.registrationStatus(n.phoneNumber).catch(() => ({ state: 'pending' }))
       if (st.state === 'active') {
         await nums.updateOne({ _id: n._id, status: 'pending_registration' }, { $set: { status: 'active', expiresAt: nextMonth(), 'registration.status': 'approved', 'registration.decidedAt': new Date() } })
@@ -179,9 +217,9 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
       } else if (now - new Date(n.pastDueAt) >= GRACE_MS) await release(n, 'unpaid')
     }
   }
-  if (sweep) require('./active-slot').singletonInterval('fax-numbers', () => renewDue().then(checkRegistrations).catch(e => log(`[FaxNumbers] renewal sweep failed: ${e.message}`)), 30 * 60000)
+  if (sweep) require('./active-slot').singletonInterval('fax-numbers', () => renewDue().then(checkRegistrations).then(() => chaseDetails()).catch(e => log(`[FaxNumbers] renewal sweep failed: ${e.message}`)), 30 * 60000)
 
-  return { offer, search, buy, list, setAutoRenew, renewDue, checkRegistrations, cache: cache2, FaxNumberError }
+  return { offer, search, buy, list, setAutoRenew, renewDue, checkRegistrations, submitDetails, cancelPending, chaseDetails, cache: cache2, FaxNumberError }
 }
 
 module.exports = { create, FaxNumberError, COUNTRIES, offerOf, paperworkIssue, PRICE }

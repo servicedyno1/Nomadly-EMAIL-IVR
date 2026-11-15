@@ -19,6 +19,8 @@ const OFFERS = [
   ['PR', 'Puerto Rico', 'infobip', 'local', 0.98, 0.98, ['1787', '1939'], true],
   ['ES', 'Spain', 'infobip', 'local', 39.03, 9.76, ['34'], false],
   ['GB', 'United Kingdom', 'multitel', 'mobile', 0.70, 0, ['44'], true],
+  // USA local: calls at once; texting needs the customer's 10DLC registration (cloudivr-web/ten-dlc.js) before texts send.
+  ['US', 'United States', 'multitel', 'local', 0.60, 0, ['1'], true],
 ]
 // Our cost per sent text segment, by sending provider and destination country.
 const SMS_COST = {
