@@ -113,7 +113,7 @@ function createLegalProfile(db, { log = console.log } = {}) {
       log(`[CloudIVR-Web] signature saved for ${req.webUser._id} (${signature.mode})`)
       res.json({ signature: { mode: signature.mode, typedName, consentAt: signature.consentAt } })
     }))
-    router.get('/profile/legal', h(async (req, res) => res.json({ profile: req.webUser.legalProfile || null, complete: isComplete(req.webUser) })))
+    router.get('/profile/legal', h(async (req, res) => { const lp = req.webUser.legalProfile; const sig = lp?.signature; res.json({ profile: lp ? { ...lp, signature: sig ? { mode: sig.mode, typedName: sig.typedName, consentAt: sig.consentAt } : undefined } : null, complete: isComplete(req.webUser) }) }))
 
     router.put('/profile/legal', h(async (req, res) => {
       const v = validate(req.body)

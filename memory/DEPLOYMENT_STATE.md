@@ -588,3 +588,10 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - International texting: TEXTING_PROVIDERS=multitel (was `none`) in /opt/nomadly/shared/<app>/backend.env for app-main/wl/voodoo/proshop (+ AWS3_API_KEY; backups backend.env.bak-<TS>). texting-countries.list() now also drops MultiTEL offers with paperwork level >1 → BR CA CO DK NL PE GB. Replies from abroad still untested.
 - Overlay r10 = live _index.js + cuttly.js + texting-countries.js only (fax batch 2 NOT included) on app-main-a :5000, app-wl-b :5101, app-voodoo-a :5003, app-proshop-b :5104; healthy, 0 errors; backups deploy-backups/<slot>-r10-*.
 - ⚠️ /app workspace still holds untested fax batch 2 — a workspace deploy or GitHub push→CI would ship it. Test it first.
+
+## 2026-11-15 ~17:15–17:55Z — Fax batch 2 + shortener + texting live everywhere; web 2026 refinement; fax launch sent
+- 17:13–17:16 a GitHub push → CI deployed main f28f968 and WL b7deac9 to all brands (included fax batch 2, aws3 shortener, texting). All healthy, 0 errors (slots: main-b :5100, wl-a :5001, voodoo-b :5103, proshop-a :5004).
+- Testing agent iteration_289 (web fax batch 2 + redesign): all core flows pass; fixed its findings (fax product tile $50/25 pages, "26 more countries" copy, FAQ mentions ID docs + e-signature, signature/upload buttons styled, draw pad border + hint, promo-slot gap, pill/button wrapping, 44px coarse-pointer switches, GET /profile/legal no longer returns signature PNG/IP).
+- Web: theme-2026.css (flatter cards, 8pt tokens, 44px controls, muted labels, table rhythm, reduced motion); Dashboard simplified (stats → promo → your numbers → guided → collapsed "More for you"). design_guidelines.json = audit/tokens/microcopy. Other screens got only the global layer — per-screen rebuilds (buy flow, landing, number settings) still to do.
+- app-main workspace deploy e6fdef5 (redesign + fixes) DONE.
+- Fax launch (scripts/fax_launch_announce.js, dedupe `announcements` id fax-launch-2026-11): Nomadly tg 1160 ok / 247 failed (blocked etc. → promoOptOut), web 168, email 1; Smadav 204/34; Voodoo 199/8; ProShop 63/10.

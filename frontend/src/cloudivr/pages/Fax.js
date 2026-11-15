@@ -29,7 +29,7 @@ export default function Fax() {
     <div data-testid="fax-page">
       {head}
       {!nums.length && (
-        <Empty icon={Printer} title="No fax numbers yet" sub="Get a fax number in the USA, Canada, UK and 12 more countries to send and receive faxes." testid="fax-empty">
+        <Empty icon={Printer} title="No fax numbers yet" sub="Get a fax number in the USA, Canada, UK and 26 more countries to send and receive faxes." testid="fax-empty">
           <Link to={cp('/app/buy?purpose=fax')} className="civr-btn civr-btn-primary" data-testid="fax-buy-link">Get a fax number</Link>
         </Empty>
       )}

@@ -17,7 +17,7 @@ function FaxResults({ numbers, pick, setPick }) {
         <button key={n.phoneNumber} type="button" onClick={() => setPick(n)} data-testid={`fax-buy-result-${i}`} className={`civr-card text-left p-4 ${pick?.phoneNumber === n.phoneNumber ? 'civr-trace' : ''}`}>
           <div className="flex items-center justify-between"><span className="font-mono text-lg">{n.assigned ? `${n.phoneNumber} …` : n.phoneNumber}</span>{pick?.phoneNumber === n.phoneNumber && <Check className="w-4 h-4 text-[#818cf8]" />}</div>
           <div className="text-xs text-[#a1a1aa] mt-1 break-words">{n.region && n.region.length > 2 ? n.region : 'Any area'}</div>
-          <div className="flex gap-2 mt-3"><span className="civr-pill">Fax only</span>{n.assigned && <span className="civr-pill" data-testid={`fax-buy-assigned-${i}`}>Exact number assigned when you buy</span>}</div>
+          <div className="flex gap-2 mt-3"><span className="civr-pill whitespace-nowrap shrink-0">Fax only</span>{n.assigned && <span className="civr-pill" data-testid={`fax-buy-assigned-${i}`}>Exact number assigned when you buy</span>}</div>
         </button>
       ))}
     </div>

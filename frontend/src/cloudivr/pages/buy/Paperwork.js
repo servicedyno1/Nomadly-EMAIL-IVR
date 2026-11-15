@@ -59,7 +59,7 @@ function DocumentUpload({ country, status, onChange }) {
       ))}
       {!files.length && <p className="text-xs text-[#fbbf24] flex gap-2" data-testid="buy-documents-missing"><AlertTriangle className="w-4 h-4 shrink-0" />Upload your documents before you buy.</p>}
       <input ref={input} type="file" multiple accept="application/pdf,image/jpeg,image/png" className="hidden" onChange={e => send(e.target.files)} data-testid="buy-documents-input" />
-      <button type="button" className="civr-btn" onClick={() => input.current?.click()} disabled={busy} data-testid="buy-documents-upload-button">
+      <button type="button" className="civr-btn civr-btn-ghost" onClick={() => input.current?.click()} disabled={busy} data-testid="buy-documents-upload-button">
         {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}{files.length ? 'Add more files' : 'Upload documents'}
       </button>
       <p className="text-xs text-[var(--c-muted)]">PDF, JPG or PNG · up to 4 files · 10 MB each</p>

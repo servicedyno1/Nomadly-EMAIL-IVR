@@ -34,12 +34,12 @@ export function SignatureField() {
       </div>
       {mode === 'type'
         ? <input className="civr-input w-full italic" value={name} onChange={e => setName(e.target.value)} placeholder="Your full legal name" data-testid="signature-typed-input" />
-        : <DrawPad ref={pad} onDraw={() => setDrawn(true)} />}
+        : <div><DrawPad ref={pad} onDraw={() => setDrawn(true)} /><div className="text-xs text-[var(--c-muted)] mt-1">Sign inside the box with your finger or mouse.</div></div>}
       <label className="flex items-start gap-2 text-xs text-[var(--c-muted)]">
         <input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} className="mt-0.5" data-testid="signature-consent-checkbox" />
         I agree to sign electronically. My signature is sent with my details to the carrier to register my numbers.
       </label>
-      <button type="button" className="civr-btn" disabled={busy || !agree || (mode === 'type' ? name.trim().length < 3 : !drawn)} onClick={save} data-testid="signature-save-button">
+      <button type="button" className="civr-btn civr-btn-primary" disabled={busy || !agree || (mode === 'type' ? name.trim().length < 3 : !drawn)} onClick={save} data-testid="signature-save-button">
         {busy && <Loader2 className="w-4 h-4 animate-spin" />}{saved ? 'Replace signature' : 'Save signature'}
       </button>
     </div>
@@ -58,5 +58,5 @@ const DrawPad = React.forwardRef(function DrawPad({ onDraw }, ref) {
     last.current = p; onDraw();
   };
   useEffect(() => { const c = ref.current.getContext('2d'); c.fillStyle = '#fff'; c.fillRect(0, 0, ref.current.width, ref.current.height); }, [ref]);
-  return <canvas ref={ref} width={600} height={160} className="w-full h-32 rounded-lg bg-white touch-none cursor-crosshair" onPointerDown={down} onPointerMove={move} onPointerUp={() => { last.current = null; }} data-testid="signature-draw-pad" />;
+  return <canvas ref={ref} width={600} height={160} className="w-full h-32 rounded-lg bg-white touch-none cursor-crosshair border-2 border-dashed border-[var(--c-border-hover)]" aria-label="Sign here" onPointerDown={down} onPointerMove={move} onPointerUp={() => { last.current = null; }} data-testid="signature-draw-pad" />;
 });

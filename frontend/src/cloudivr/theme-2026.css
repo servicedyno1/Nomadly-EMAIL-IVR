@@ -48,7 +48,7 @@ html[data-civr-theme] .civr .civr-more[open] .civr-more-chevron { transform: rot
 
 @media (pointer: coarse) {
   html[data-civr-theme] .civr button:not(.civr-pill), html[data-civr-theme] .civr [role="tab"] { min-height: 44px; }
-  html[data-civr-theme] .civr .civr-pill { min-height: 32px; }
+  html[data-civr-theme] .civr button.civr-pill, html[data-civr-theme] .civr [role="switch"] { min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
   html[data-civr-theme] .civr * { animation-duration: .01ms !important; transition-duration: .01ms !important; }

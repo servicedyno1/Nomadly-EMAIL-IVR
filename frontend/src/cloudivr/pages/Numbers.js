@@ -97,7 +97,7 @@ function NumberCard({ n, i, pv, onSaved, reload }) {
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 mt-auto pt-5 text-xs text-[#a1a1aa]">
         <span className="whitespace-nowrap">{n.autoRenew ? 'Renews' : 'Expires'} {day(n.expiresAt)}</span>
         <div className="flex items-center gap-0.5 -mr-2">
-          {!n.isSubNumber && n.status === 'active' && !n.replacedBy && <Link to={cp(`/app/buy?extra=${enc(n.phoneNumber)}`)} className="civr-btn civr-btn-ghost civr-btn-sm !h-9" title="Add another number that shares this plan" data-testid={`number-card-${i}-add-extra`}><Plus className="w-4 h-4" />Add number</Link>}
+          {!n.isSubNumber && n.status === 'active' && !n.replacedBy && <Link to={cp(`/app/buy?extra=${enc(n.phoneNumber)}`)} className="civr-btn civr-btn-ghost civr-btn-sm !h-9 whitespace-nowrap" title="Add another number that shares this plan" data-testid={`number-card-${i}-add-extra`}><Plus className="w-4 h-4" />Add number</Link>}
           <IconBtn icon={Copy} label="Copy number" onClick={copy} testid={`number-card-${i}-copy-button`} />
           {canCall && <IconBtn icon={PhoneOutgoing} label="Call from this number" onClick={call} testid={`number-card-${i}-call-button`} />}
           <Link to={href} className="civr-btn civr-btn-ghost civr-btn-sm !h-9 ml-1" data-testid={`number-card-${i}-link`}>Open<ChevronRight className="w-4 h-4" /></Link>

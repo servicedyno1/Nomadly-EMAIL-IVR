@@ -1,0 +1,48 @@
+{
+  "summary": "Frontend testing (preview, DRY RUN) as civr.uxtest@example.com. Fax batch 2 and the 2026 UX theme mostly work. No page errors on any screen, no horizontal overflow at 1440px or 390px, light and dark themes both render. Dashboard: the Wallet, Numbers, Unread and Minutes tiles show; 'Calling now' (stat-live) is hidden because there are no live campaigns; 'More for you' is closed by default and opens on click to show For-you, the product grid and more. With touch emulation (pointer: coarse) at 390px, every dashboard control is at least 44px tall. Fax buy: 29 countries, price text '$50.00/month, 25 free pages a month, then $0.05 a page'. Germany is labelled '· ID documents' and Netherlands '· name + address'. Germany has a Local/National type select, and its search returns Hamburg/Munich/etc. with the 'Exact number assigned when you buy' pill. The paperwork note shows the documents area and the signature box (Type/Draw, consent, Save). Save stays disabled until consent is ticked. Typed save showed 'Saved (typed)' (PUT /profile/legal/signature 200, mode typed); drawn save showed 'Saved (drawn)' (200, mode drawn). Buy errors are correct, in check order: DE without a signature returns 400 'Germany fax numbers need your signature for the carrier registration.'; after signing, 'Germany fax numbers need an address in Germany.' (the account has a US address); Italy without documents returns 'Italy fax numbers need ID or company documents. Upload them first.' NL Mobile shows no paperwork note (NL Local does). US shows the area code input. Spot-checks of Numbers, Number detail (5 tabs clicked), Wallet, Fax, Settings and the logged-out landing page found no broken layouts. Found: stale fax price and country-count copy, and a few small theme/layout issues (below).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/cloudivr-web/profile/legal", "issue": "Returns the whole legalProfile including signature.png (base64, up to 300 KB) and the signer IP on every load of SignatureField. Each paperwork note fetches this. Leave out png/ip and return only mode, typedName and consentAt."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "products.js PRODUCT_GROUPS fax tile (Dashboard 'More for you' product grid + landing 'Every product, with its price')", "issue": "Fax number tile still says '$9/mo' and 'Business includes fax with 50 free pages a month'. The standalone fax number is now $50/month with 25 free pages.", "selector": "[data-testid=home-product-fax-price]", "priority": "MEDIUM"},
+      {"component": "Fax copy: landing PurposeCards.js:18, PricingFaq.js:97, Fax.js:32 empty state", "issue": "Says 'USA, Canada, UK and 12 more countries'. The API now returns 29 countries (26 more). The FAQ answer at PricingFaq.js:98 also mentions only name/address and says nothing about ID documents or the signature.", "selector": "landing purpose card 'fax', [data-testid=fax-empty]", "priority": "MEDIUM"},
+      {"component": "SignatureField / DocumentUpload buttons", "issue": "'Save signature' / 'Replace signature' and 'Upload documents' / 'Add more files' use a bare .civr-btn with no variant. That class has no border or background, so in both themes these look like plain text, not buttons. Use civr-btn-ghost or civr-btn-primary.", "selector": "[data-testid=signature-save-button], [data-testid=buy-documents-upload-button]", "priority": "LOW"},
+      {"component": "SignatureField DrawPad (light theme)", "issue": "The white canvas has no border inside a white card, so the drawing area can't be seen until the user draws. Add a border or dashed outline and a 'Sign here' hint.", "selector": "[data-testid=signature-draw-pad]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dashboard", "issues": ["The promo slot (dashboard-promo-slot) has 0px gap under the stats row (home-overview bottom = promo top = 402px), so the upgrade banner touches the stat tiles. Add mt-6 (or similar) to civr-promo-slot."]},
+      {"screen": "Fax buy results", "issues": ["The 'Fax only' pill wraps onto two lines ('Fax / only') next to the long 'Exact number assigned when you buy' pill, at 1440px and 390px. Add whitespace-nowrap / shrink-0 to the short pill."]},
+      {"screen": "My numbers (1440px)", "issues": ["The first card's 'Add number' button wraps onto two lines ('Add / number') in the 3-column grid."]},
+      {"screen": "Touch targets (pointer: coarse, 390px)", "issues": ["number-card-*-switch-* quick switches are 32px tall. Settings chips (settings-lang-*, settings-theme-*, webhooks-event-*) are 40px. Both are under 44px. The 44px rule in theme-2026.css skips .civr-pill buttons. On non-touch narrow screens, dashboard tabs and dismiss buttons are 32–36px because the 44px rule only applies under pointer: coarse."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Update products.js fax tile: price '$50/mo' and text about 25 free pages (or read it from /fax-numbers).",
+    "Replace '12 more countries' copy in PurposeCards.js, PricingFaq.js and Fax.js empty state with a dynamic count, and mention ID documents and the signature in the fax FAQ.",
+    "Give the signature Save and document Upload buttons a visible style (civr-btn-ghost) and give the draw pad a visible border.",
+    "Add a top margin to .civr-promo-slot on the Dashboard.",
+    "Stop the 'Fax only' pill and the My numbers 'Add number' button from wrapping.",
+    "Optional: leave signature.png and ip out of GET /profile/legal."
+  ],
+  "critical_code_review_comments": [
+    "SignatureField returns null when there is no legal profile. The PaperworkNote text then says 'Your saved legal details are sent…', which doesn't clearly ask the user to add them (only the small 'Edit legal details' link does). Show a clear 'Add your legal details first' line when the profile is missing. This branch was not tested: the account already has a legal profile.",
+    "SignatureField renders whenever data.profile exists, but the backend needs legalProfile.completedAt. A partly filled profile would show the box and then get 400 no_profile.",
+    "After a drawn signature is saved, a reload resets the mode to 'Type' and the saved image is never shown, so the user can't see what was sent.",
+    "The country label in FaxNumberBuy uses types.every(paperwork==='documents'). A country with an empty types array would be labelled '· ID documents'. Not seen in the current data.",
+    "Stale comments: fax-numbers.js:16 says 'paperwork level 0–1 only' (it is now up to level 2), and FaxNumberBuy.js:27 says '15 countries'.",
+    "The old 'need signature' error stays on screen after the signature is saved, until the next Pay click. Clear the error when the signature is saved."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend only; signature and fax-number POST responses checked via network)", "frontend": "95% — all requested flows pass; issues are copy and cosmetic"},
+  "test_credentials": "civr.uxtest@example.com / UxTest#2026 (from /app/memory/test_credentials.md); worked, no email code step needed.",
+  "seed_data_creation": "None created. Side effect: civr.uxtest legalProfile.signature was saved twice (typed, then drawn), so it is now mode 'drawn'. No purchases were made: every buy attempt returned 400 paperwork_needed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login at /cloudivr/login; click cookie-allow-all first. Theme toggle: topbar-account-menu → topbar-theme-button (submenu) → topbar-theme-dark/light. The uxtest account has a US individual legal profile, a Germany document (id.pdf, uploaded earlier, not by me), a drawn signature and wallet $734.13. Buying DE now fails on the address check (needs an address in Germany). Italy has no documents, so it shows the documents error. To emulate pointer: coarse, use CDP Emulation.setTouchEmulationEnabled. Not tested: the no-legal-profile branch, a real document upload, the wallet-shortfall pay box, and Telegram."
+}

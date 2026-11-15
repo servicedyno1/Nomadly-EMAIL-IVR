@@ -71,7 +71,7 @@ export default function Dashboard() {
   // One promo at a time (first that applies wins) + one announcement; everything else is a slim strip lower down.
   const promos = !textingOnly && (
     <>
-      <div className="civr-promo-slot" data-testid="dashboard-promo-slot"><TrialCard /><TopBanner /><CallerIdUpsellCard /></div>
+      <div className="civr-promo-slot mt-6" data-testid="dashboard-promo-slot"><TrialCard /><TopBanner /><CallerIdUpsellCard /></div>
     </>
   );
   return (

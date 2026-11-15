@@ -19,7 +19,7 @@ export const PRODUCT_GROUPS = [
     ['intl-texting', Globe, 'International texting', 'Texting on numbers outside the USA.', 'Coming soon', 'international-texting', true],
   ]],
   ['fax', 'Fax', 'rose', [
-    ['fax', Printer, 'Fax number', 'Send and receive faxes online. Business includes fax with 50 free pages a month.', '$9/mo', 'fax'],
+    ['fax', Printer, 'Fax number', 'Send and receive faxes online in 29 countries. 25 free pages a month, then $0.05 a page.', '$50/mo', 'fax'],
   ]],
   ['connect', 'Phones, data & tools', 'teal', [
     ['sip', KeyRound, 'Softphone logins (SIP)', 'Use desk phones and softphone apps from Starter. Pro gets 2 logins free, Business 5.', '$5/mo per extra login', 'sip'],
