@@ -3166,3 +3166,7 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Bot: js/bot-receptionist.js + _index.js actions cpAiReceptionist/cpAiRecBusiness/cpAiRecInfo — "🤖 AI Receptionist" in number manage menu: quick setup (2 questions), on/off (switches IVR + forward-always off), Mon–Fri 9–17 hours preset, when-closed choice, messages + mark done.
 - Tests: iteration_287 (API 13/13, UI ~93%); all reported issues fixed and self-verified.
 - NOT deployed; WhiteLabel branch not ported.
+
+## 2026-11-15 15:42 UTC — MultiTEL retests (owner approved)
+- Fax: +16806811012 → +16806811015, 1 page. Outbox id 624 / job d339fb609f7f55d29df42441c26904b7 status sent, result OK, cost $0.025. Inbox fax 1045 status success 15:43:25; our webhook logged it 15:43:27. Not imported into `faxes` because no account owns a MultiTEL fax number (faxNumbers empty) — by design.
+- Call: Asterisk call file PJSIP/16806811012@multitel-out, CID 16806811015, from 188.166.34.29 (IPv4). Placed 15:42:39, answered 15:42:41, voicemail saved 15:42:53 ("Call completed"). Trunk uses IPv4 only (transport 0.0.0.0:5080; term.multitel.net = 67.205.139.35, no AAAA).
