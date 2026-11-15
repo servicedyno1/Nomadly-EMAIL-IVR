@@ -1,0 +1,55 @@
+/* 2026 refinement layer (loaded last): flatter surfaces, 8pt rhythm, one accent, 44px targets, AA contrast.
+   Tokens follow /app/design_guidelines.json; component classes keep their names so every screen picks this up. */
+html[data-civr-theme] .civr {
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 16px; --sp-4: 24px; --sp-5: 32px; --sp-6: 48px;
+  --radius-card: 12px; --radius-ctl: 10px;
+}
+html[data-civr-theme="light"] .civr {
+  --c-bg: #f8fafc; --c-card: #ffffff; --c-card-hover: #f8fafc;
+  --c-border: #e5e9f0; --c-border-hover: #cbd5e1;
+  --c-text: #0f172a; --c-text-2: #334155; --c-muted: #556070;
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-card-hover: 0 8px 24px -12px rgba(15, 23, 42, 0.18);
+}
+html[data-civr-theme="dark"] .civr {
+  --c-border: #2c3138; --c-border-hover: #3d444d; --c-muted: #a3acb9;
+  --shadow-card: none; --shadow-card-hover: 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* Surfaces: hairline border, almost no shadow, hover lifts only links. */
+html[data-civr-theme] .civr .civr-card { border-radius: var(--radius-card); box-shadow: var(--shadow-card); transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+html[data-civr-theme] .civr .civr-card:hover { border-color: var(--c-border); }
+html[data-civr-theme] .civr .civr-card-link:hover { border-color: var(--c-border-hover); box-shadow: var(--shadow-card-hover); transform: translateY(-1px); }
+
+/* Controls: one radius, 44px targets, visible focus ring in the accent. */
+html[data-civr-theme] .civr .civr-btn { min-height: 44px; border-radius: var(--radius-ctl); padding: 10px 20px; font-size: 15px; letter-spacing: 0; }
+html[data-civr-theme] .civr .civr-btn-primary:hover:not(:disabled) { box-shadow: none; }
+html[data-civr-theme] .civr .civr-input { min-height: 44px; border-radius: var(--radius-ctl); font-size: 15px; }
+html[data-civr-theme] .civr :focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+html[data-civr-theme] .civr .civr-pill { min-height: 26px; padding: 3px 10px; font-size: 12.5px; font-weight: 600; }
+
+/* Section labels: quieter (muted, not accent) so the accent is reserved for actions. */
+html[data-civr-theme] .civr .civr-label { color: var(--c-muted); font-size: 12px; font-weight: 700; letter-spacing: .06em; }
+
+/* Type hierarchy: tighter display headings, comfortable body, no text under 12px. */
+html[data-civr-theme] .civr h1 { letter-spacing: -0.02em; line-height: 1.15; }
+html[data-civr-theme] .civr h2, html[data-civr-theme] .civr h3 { letter-spacing: -0.01em; line-height: 1.3; }
+html[data-civr-theme] .civr .text-\[10px\], html[data-civr-theme] .civr .text-\[11px\] { font-size: 12px; }
+
+/* Tables: no zebra/heavy grid — hairline rows and roomy cells. */
+html[data-civr-theme] .civr table th { font-size: 12px; font-weight: 600; color: var(--c-muted); text-transform: none; letter-spacing: 0; }
+html[data-civr-theme] .civr table td, html[data-civr-theme] .civr table th { padding-top: 12px; padding-bottom: 12px; }
+html[data-civr-theme] .civr table tr { border-color: var(--c-border); }
+
+/* Progressive disclosure block on Home. */
+html[data-civr-theme] .civr .civr-more > summary { list-style: none; cursor: pointer; }
+html[data-civr-theme] .civr .civr-more > summary::-webkit-details-marker { display: none; }
+html[data-civr-theme] .civr .civr-more[open] .civr-more-chevron { transform: rotate(180deg); }
+
+@media (pointer: coarse) {
+  html[data-civr-theme] .civr button:not(.civr-pill), html[data-civr-theme] .civr [role="tab"] { min-height: 44px; }
+  html[data-civr-theme] .civr .civr-pill { min-height: 32px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-civr-theme] .civr * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
