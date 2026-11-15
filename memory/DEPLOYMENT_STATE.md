@@ -478,3 +478,10 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Routing (unchanged, correct): web-only (js/cloudivr-web, frontend/src/cloudivr — CloudIVR web is ON only for app-main) → main push → app-main only; shared bot code → app-main + sync → app-wl → app-voodoo → app-proshop; WhiteLabel-only change → the 3 WhiteLabel bots. Docs/memory/.emergent/.github → no deploy.
 - NEW (needs Save to GitHub → main): deploy.yml `verify` job after all deploy jobs → scripts/deploy_verify.sh on droplet: per bot that deployed, live release sha vs branch head (ignoring doc-only diffs) + active-slot /health; behind/unhealthy → deploy.sh once more → re-check; one Telegram report to TELEGRAM_ADMIN_CHAT_ID per run (NO_TELEGRAM=1 to silence). Tested live: caught app-main behind → redeployed → all 4 ✅, Telegram sent.
 - NEW (needs Save to GitHub): scripts/droplet_deploy.sh DRAIN_MAX_SECONDS 180 → 1800 (old slot stops new bulk dials, waits up to 30 min for live calls before the switch). deploy.sh self-installs from it on the next deploy.
+
+## 2026-11-15 04:42Z — Call-forwarding fix (MAZE businessintelusa@gmail.com) LIVE all brands
+- Root cause: forward leg showed the CALLER's number (+12022975390) as caller ID; Bird refuses unverified caller IDs (503 before ringing). callengine transferCall returned ok anyway, so the "retry with our own number" fallback never ran → every forward failed, caller heard ringing until timeout.
+- Fix: callengine transferCall({fallbackFrom}) redials showing the owned number when the first dial is refused early; voice-service passes fallbackFrom. Stub test /tmp/t_fwd.js passed.
+- Also shipped balance-monitor.js regex fix → [RegulatoryFlow] Initialized now logged on startup (bot CloudIVR+SIP crash root cause).
+- app-main: workspace deploy release 20261115T044221Z-e58da85 on app-main-b :5100. WL (wl/voodoo/proshop): overlay patch of callengine+voice-service on live releases, restarted, healthy. Not on GitHub → Save to GitHub.
+- 11 failed forwards were billed (≈$1.80) for chatId 5000000000000143 on 14–15 Nov — refund pending owner approval.

@@ -30169,6 +30169,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const numberType = info?.cpNumberType || 'local'
     const countryCode = info?.cpCountryCode || 'US'
     let surcharge = getNumberSurcharge(countryCode, numberType)
+    // MultiTEL / Infobip numbers: same add-on price as the web checkout.
+    if (['multitel', 'infobip'].includes(selectedProvider)) surcharge = require('./number-addons').get(countryCode, numberType)
     let verifyNote = null
     // Telnyx international: live cost + tell the user BEFORE paying what verification follows
     if (isTelnyxIntl(selectedProvider, countryCode)) {
@@ -31970,7 +31972,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const countryBtns = phoneConfig.allCountries.map(c => c.name)
     const rows = []
     for (let i = 0; i < countryBtns.length; i += 2) rows.push(countryBtns.slice(i, i + 2))
-    if (phoneConfig.moreCountries.length > 0) rows.push([pc.moreCountries])
+    if (phoneConfig.botExtraOrMore().length > 0) rows.push([pc.moreCountries])
     return send(chatId, cpTxt.subAddNumberHeader(parentNum.plan, parentNum.phoneNumber), k.of(rows))
   }
 
@@ -31987,14 +31989,14 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return showManageScreen(chatId, num)
     }
     if (message === pc.moreCountries) {
-      const allBtns = [...phoneConfig.allCountries, ...phoneConfig.moreCountries].map(c => c.name)
+      const allBtns = [...phoneConfig.allCountries, ...phoneConfig.botExtraOrMore()].map(c => c.name)
       const rows = []
       for (let i = 0; i < allBtns.length; i += 2) rows.push(allBtns.slice(i, i + 2))
       return send(chatId, trans('t.cp_259'), k.of(rows))
     }
     const countryCode = phoneConfig.countryByName[message]
     if (!countryCode) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectValidCountry)
-    const countryEntry = phoneConfig.allCountries.find(c => c.name === message) || phoneConfig.moreCountries.find(c => c.name === message)
+    const countryEntry = phoneConfig.allCountries.find(c => c.name === message) || phoneConfig.botExtraOrMore().find(c => c.name === message)
     const nativeProvider = countryEntry?.provider || 'telnyx'
     // Telnyx countries that need verification can only be bought as a main number
     if (nativeProvider === 'telnyx' && countryEntry?.verify) return send(chatId, txReg.T(lang).subNotSupported, { parse_mode: 'HTML' })

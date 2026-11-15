@@ -406,7 +406,11 @@ function includedIssue(planKey, cc, t) {
   return null
 }
 // Bot plan flow: the extra countries (beyond US/CA) a plan's free number can come from.
+// Bot = web: every plan can add any instant number that needs no ID (address-only is fine), priced plan + add-on.
+const instantNoIdDoc = (cc, t) => { const b = require('./number-catalog').best(cc, t); return b ? b.level <= 1 && !b.request && !b.businessOnly : ['US', 'CA'].includes(cc) }
 const botPlanCountries = (planKey) => botCatalogCountries().filter(c => includedCountries(planKey).includes(c.code)).map(c => ({ ...c, types: c.types.filter(t => instantNoId(c.code, t)) })).filter(c => c.types.length)
+const botExtraOrMore = () => (BOT_CATALOG() ? botExtraCountries() : getMoreCountries())
+const botExtraCountries = () => botCatalogCountries().map(c => ({ ...c, types: c.types.filter(t => instantNoIdDoc(c.code, t)) })).filter(c => c.types.length)
 function botCatalogCountries() {
   const cat = require('./number-catalog'), out = []
   for (const [cc, types] of Object.entries(cat.sold())) {
@@ -4338,7 +4342,7 @@ module.exports = {
   twilioCountries,
   get allCountries() { return getAllCountries() },
   get moreCountries() { return getMoreCountries() },
-  includedCountries, includedTier, includedIssue, instantNoId, botPlanCountries, BOT_CATALOG, INCLUDED_ALL, INCLUDED_BUSINESS, PLAN_TEXTING,
+  includedCountries, includedTier, includedIssue, instantNoId, botPlanCountries, botExtraCountries, botExtraOrMore, BOT_CATALOG, INCLUDED_ALL, INCLUDED_BUSINESS, PLAN_TEXTING,
   countryByName,
   botNeedsAddress,
   botUsesFixedAddress,

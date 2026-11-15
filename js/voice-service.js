@@ -1812,7 +1812,7 @@ async function playHoldMusicAndTransfer(callControlId, forwardTo, fromNumber, co
     pendingNativeTransfers[callControlId]._timeout = transferTimeout
 
     if (presentFrom) {
-      try { await _telnyxApi.transferCall(callControlId, forwardTo, presentFrom); return } catch (e) { log(`[Voice] Transfer showing caller ${presentFrom} refused (${e.message}) — retrying with ${fromNumber}`) }
+      try { await _telnyxApi.transferCall(callControlId, forwardTo, presentFrom, { fallbackFrom: fromNumber }); return } catch (e) { log(`[Voice] Transfer showing caller ${presentFrom} refused (${e.message}) — retrying with ${fromNumber}`) }
     }
     await _telnyxApi.transferCall(callControlId, forwardTo, fromNumber)
   }

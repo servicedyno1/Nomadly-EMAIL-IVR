@@ -1,0 +1,64 @@
+diff --git a/js/_index.js b/js/_index.js
+index 44823156..b3fb52a7 100644
+--- a/js/_index.js
++++ b/js/_index.js
+@@ -30169,6 +30169,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
+     const numberType = info?.cpNumberType || 'local'
+     const countryCode = info?.cpCountryCode || 'US'
+     let surcharge = getNumberSurcharge(countryCode, numberType)
++    // MultiTEL / Infobip numbers: same add-on price as the web checkout.
++    if (['multitel', 'infobip'].includes(selectedProvider)) surcharge = require('./number-addons').get(countryCode, numberType)
+     let verifyNote = null
+     // Telnyx international: live cost + tell the user BEFORE paying what verification follows
+     if (isTelnyxIntl(selectedProvider, countryCode)) {
+@@ -31970,7 +31972,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
+     const countryBtns = phoneConfig.allCountries.map(c => c.name)
+     const rows = []
+     for (let i = 0; i < countryBtns.length; i += 2) rows.push(countryBtns.slice(i, i + 2))
+-    if (phoneConfig.moreCountries.length > 0) rows.push([pc.moreCountries])
++    if (phoneConfig.botExtraOrMore().length > 0) rows.push([pc.moreCountries])
+     return send(chatId, cpTxt.subAddNumberHeader(parentNum.plan, parentNum.phoneNumber), k.of(rows))
+   }
+ 
+@@ -31987,14 +31989,14 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
+       return showManageScreen(chatId, num)
+     }
+     if (message === pc.moreCountries) {
+-      const allBtns = [...phoneConfig.allCountries, ...phoneConfig.moreCountries].map(c => c.name)
++      const allBtns = [...phoneConfig.allCountries, ...phoneConfig.botExtraOrMore()].map(c => c.name)
+       const rows = []
+       for (let i = 0; i < allBtns.length; i += 2) rows.push(allBtns.slice(i, i + 2))
+       return send(chatId, trans('t.cp_259'), k.of(rows))
+     }
+     const countryCode = phoneConfig.countryByName[message]
+     if (!countryCode) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectValidCountry)
+-    const countryEntry = phoneConfig.allCountries.find(c => c.name === message) || phoneConfig.moreCountries.find(c => c.name === message)
++    const countryEntry = phoneConfig.allCountries.find(c => c.name === message) || phoneConfig.botExtraOrMore().find(c => c.name === message)
+     const nativeProvider = countryEntry?.provider || 'telnyx'
+     // Telnyx countries that need verification can only be bought as a main number
+     if (nativeProvider === 'telnyx' && countryEntry?.verify) return send(chatId, txReg.T(lang).subNotSupported, { parse_mode: 'HTML' })
+diff --git a/js/phone-config.js b/js/phone-config.js
+index df74410a..80d320c2 100644
+--- a/js/phone-config.js
++++ b/js/phone-config.js
+@@ -406,7 +406,11 @@ function includedIssue(planKey, cc, t) {
+   return null
+ }
+ // Bot plan flow: the extra countries (beyond US/CA) a plan's free number can come from.
++// Bot = web: every plan can add any instant number that needs no ID (address-only is fine), priced plan + add-on.
++const instantNoIdDoc = (cc, t) => { const b = require('./number-catalog').best(cc, t); return b ? b.level <= 1 && !b.request && !b.businessOnly : ['US', 'CA'].includes(cc) }
+ const botPlanCountries = (planKey) => botCatalogCountries().filter(c => includedCountries(planKey).includes(c.code)).map(c => ({ ...c, types: c.types.filter(t => instantNoId(c.code, t)) })).filter(c => c.types.length)
++const botExtraOrMore = () => (BOT_CATALOG() ? botExtraCountries() : getMoreCountries())
++const botExtraCountries = () => botCatalogCountries().map(c => ({ ...c, types: c.types.filter(t => instantNoIdDoc(c.code, t)) })).filter(c => c.types.length)
+ function botCatalogCountries() {
+   const cat = require('./number-catalog'), out = []
+   for (const [cc, types] of Object.entries(cat.sold())) {
+@@ -4338,7 +4342,7 @@ module.exports = {
+   twilioCountries,
+   get allCountries() { return getAllCountries() },
+   get moreCountries() { return getMoreCountries() },
+-  includedCountries, includedTier, includedIssue, instantNoId, botPlanCountries, BOT_CATALOG, INCLUDED_ALL, INCLUDED_BUSINESS, PLAN_TEXTING,
++  includedCountries, includedTier, includedIssue, instantNoId, botPlanCountries, botExtraCountries, botExtraOrMore, BOT_CATALOG, INCLUDED_ALL, INCLUDED_BUSINESS, PLAN_TEXTING,
+   countryByName,
+   botNeedsAddress,
+   botUsesFixedAddress,

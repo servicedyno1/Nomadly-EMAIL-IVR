@@ -262,7 +262,14 @@ async function transferCall(id, toNumber, fromNumber, options = {}) {
   try {
     if (!options.audioUrl) call('post', `/channels/${raw(a.id)}/ring`)
     else play(a, conv(options.audioUrl), 'ringback')
-    const b = await dialWithBackup({ connection: a.connection, clientState: b64(options.targetLegClientState), session: a.session, transferOf: a.id }, fromNumber || (a.direction === 'incoming' ? a.to : a.from), toNumber, options.timeoutSecs || 30)
+    const meta = () => ({ connection: a.connection, clientState: b64(options.targetLegClientState), session: a.session, transferOf: a.id })
+    let b = await dialWithBackup(meta(), fromNumber || (a.direction === 'incoming' ? a.to : a.from), toNumber, options.timeoutSecs || 30)
+    // Carrier refused the shown caller ID (e.g. caller's own number not verified) — redial showing our number instead.
+    if (refusedEarly(b) && options.fallbackFrom && options.fallbackFrom !== fromNumber) {
+      log(`transfer ${id} → ${toNumber}: caller ID ${fromNumber} refused (cause ${b.cause ?? '?'}) — retrying with ${options.fallbackFrom}`)
+      legs.delete(b.id)
+      b = await dialWithBackup(meta(), options.fallbackFrom, toNumber, options.timeoutSecs || 30)
+    }
     a.peer = b.id
     const held = b.held || []; b.held = null
     emit('call.initiated', b)
