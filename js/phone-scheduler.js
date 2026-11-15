@@ -161,6 +161,10 @@ async function runExpiryCheck() {
           continue
         }
 
+        // ── Main line moved to a new number (provider swap) → follow it, don't orphan ──
+        const reparent = lifecycle.reparentPatch(numbers, num)
+        if (reparent) { lifecycle.applyLocal(numbers, reparent); modified = true; log(`[PhoneScheduler] Extra line ${chatId} ${num.phoneNumber} re-linked to ${reparent[0].set.parentNumber}`) }
+
         // ── Line lost its main line → suspended; restorable as a main line at the plan price ──
         if (lifecycle.isOrphan(numbers, num)) {
           const fromPrice = num.planPrice

@@ -19,12 +19,16 @@ async function searchFax(country, areaCode, limit = 12) {
   return rows.filter(n => !n._assigned).map(n => ({ phoneNumber: n.phone_number, nearby: !!areaCode && String(n.phone_number).slice(2, 5) !== areaCode, region: String(n.region_information?.[0]?.region_name || '').replace(/[,\s]+$/, '') }))
 }
 
-// Buy, then fax detection on (listens 4 s for fax tones; the line is fax-only, so every call is a fax).
+// Fax inbox + webhook (MultiTEL type 16): received faxes are saved to the inbox and posted to us; replaces SIP routing.
+const faxHookKey = () => require('crypto').createHash('sha256').update(`mt-fax:${process.env.MULTITEL_PASSWORD || ''}`).digest('hex').slice(0, 24)
+const inboxMode = (phoneNumber) => mt.api('post', `modifynumber/${digits(phoneNumber)}`, { type: '16', uri: `${String(process.env.SELF_URL).replace(/\/+$/, '')}/multitel/fax-webhook/${faxHookKey()}`, description: 'CloudIVR fax' })
+
+// Buy, then switch the line to the fax inbox (fax-only).
 async function orderFax(phoneNumber) {
   const r = await mt.buyNumber(phoneNumber)
   if (!r) throw new Error('MultiTEL purchase failed')
-  const d = await mt.api('post', `modifynumber/${digits(phoneNumber)}`, { faxdetect: '1', faxring: '4', description: 'CloudIVR fax' })
-  if (String(d?.status?.code) !== '200') log(`fax detect on ${phoneNumber}: ${JSON.stringify(d?.status || d).slice(0, 160)}`)
+  const d = await inboxMode(phoneNumber)
+  if (String(d?.status?.code) !== '200') log(`fax inbox mode on ${phoneNumber}: ${JSON.stringify(d?.status || d).slice(0, 160)}`)
   log(`bought fax number ${phoneNumber}`)
   return { id: `mt:${digits(phoneNumber)}` }
 }
@@ -69,4 +73,4 @@ async function pollOutbox(pending, onEvent) {
   }
 }
 
-module.exports = { enabled, isMtFax, searchFax, orderFax, releaseFax, sendFax, pollInbox, pollOutbox }
+module.exports = { faxHookKey, inboxMode, enabled, isMtFax, searchFax, orderFax, releaseFax, sendFax, pollInbox, pollOutbox }

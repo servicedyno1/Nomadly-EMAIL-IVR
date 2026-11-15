@@ -49731,6 +49731,14 @@ app.post('/infobip/sms-webhook/:k', express.json({ limit: '1mb' }), async (req, 
 })
 
 // MultiTEL inbound texts (number smsuri, URL POST form data) → same handler as Telnyx texts. Keyed path like Infobip's.
+// MultiTEL received a fax (type-16 line): read the fax inbox now instead of waiting for the 2-minute poll.
+let _mtFaxPoll = null
+app.post('/multitel/fax-webhook/:k', express.json({ limit: '25mb' }), (req, res) => {
+  res.sendStatus(200)
+  if (req.params.k !== require('./multitel/fax').faxHookKey()) return log('MultiTEL fax webhook: bad key')
+  log(`MultiTEL fax webhook: ${req.body?.from_number || '?'} → ${req.body?.to_number || '?'} pages=${req.body?.pages ?? '?'} success=${req.body?.success}`)
+  if (!_mtFaxPoll) _mtFaxPoll = setTimeout(() => { _mtFaxPoll = null; require('./fax-service').maintain().catch(e => log(`MultiTEL fax webhook poll: ${e.message}`)) }, 3000)
+})
 app.post('/multitel/sms-webhook/:k', express.urlencoded({ extended: true, limit: '1mb' }), async (req, res) => {
   res.sendStatus(200)
   if (req.params.k !== require('./multitel').smsHookKey()) return log('MultiTEL SMS webhook: bad key')
