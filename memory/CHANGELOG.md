@@ -3178,3 +3178,8 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - WL overlay r11 (3-way merge base main f28f968 vs live WL b7deac9; clean): _index.js, bot-number-kinds.js (new), phone-config.js, ai-support.js, cloudivr-web/{admin,messages,numbers,orders}.js (legal-profile kept WL version). Applied to app-wl-a :5001, app-voodoo-b :5103, app-proshop-a :5004; healthy, no new errors; backups deploy-backups/<slot>-r11-*.
 - Web: old ?purpose=voice/sip/sms URLs normalise to ?purpose=calls. iteration_290 "$5 vs $50" note was a misread (cheapest plan is $50); /me is not a route (/auth/me is).
 - Prod PLAN_TEXTING=false on all brands → texting purchase/add-on gated off until owner enables.
+
+## 2026-11-15 ~18:45Z — Fax sales daily summary (tab + daily email), app-main ad38e9a
+- js/fax-sales.js: report(db) (moved from admin.js /admin/fax-sales) now adds `days` = one row per UTC day since the fax launch announcement (total, by country, by brand; all brands via RESELLER_DBS). dailyTick: after 08:00 UTC emails yesterday's summary + since-launch table via admin-mail (BIRD_ALERT_EMAIL inbox), once per day (dedupe `adminReports` _id fax-sales-daily:<date>). Started from _index.js with singletonInterval every 15 min, only where RESELLER_DBS is set (app-main); FAX_SALES_EMAIL=false disables.
+- Web admin Fax sales tab: "Daily summary" table (admin-fax-daily-*).
+- Tests: local sim DB (report days/brands/dryRun excluded; tick sends once, skips before 08:00) ✅; preview admin screenshot ✅; prod report read-only: since 17:33Z, 4 brands, 0 sold. First email due 2026-11-16 after 08:00 UTC (not yet observed).

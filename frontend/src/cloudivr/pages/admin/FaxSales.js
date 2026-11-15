@@ -2,6 +2,33 @@ import React from 'react';
 import { Flag } from '../../Pickers';
 import { Load, Stat, fmt, dt } from './common';
 
+const chips = (xs, kind, date) => xs.length ? xs.map(x => <span key={x.id} className="civr-pill mr-1.5 mb-1 inline-block" data-testid={`admin-fax-daily-${date}-${kind}-${x.id}`}>{`${x.name} ${x.n}`}</span>) : <span className="text-[#71717a]">—</span>;
+
+// One row per day since the launch (UTC), newest first. The same summary is emailed to the admin each morning.
+function DailySummary({ days }) {
+  return (
+    <div className="civr-card overflow-x-auto" data-testid="admin-fax-daily">
+      <div className="p-4 border-b border-[#1f1f1f]">
+        <div className="font-semibold">Daily summary</div>
+        <div className="text-xs text-[#a1a1aa] mt-1" data-testid="admin-fax-daily-email-note">Days are in UTC. Each morning after 08:00 UTC the previous day’s summary is emailed to the admin inbox.</div>
+      </div>
+      <table className="w-full text-sm" data-testid="admin-fax-daily-table">
+        <thead><tr className="text-left text-xs uppercase tracking-wider text-[#a1a1aa] border-b border-[#1f1f1f]"><th className="p-4">Day</th><th className="p-4 text-right">Sold</th><th className="p-4">By country</th><th className="p-4">By brand</th></tr></thead>
+        <tbody>
+          {days.map(day => (
+            <tr key={day.date} className="border-b last:border-0 border-[#1f1f1f] align-top" data-testid={`admin-fax-daily-row-${day.date}`}>
+              <td className="p-4 whitespace-nowrap tabular-nums">{day.date}</td>
+              <td className="p-4 text-right font-semibold tabular-nums" data-testid={`admin-fax-daily-total-${day.date}`}>{day.total}</td>
+              <td className="p-4">{chips(day.countries, 'country', day.date)}</td>
+              <td className="p-4">{chips(day.brands, 'brand', day.date)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // Fax numbers sold per country since the launch announcement, across every brand.
 export default function FaxSales() {
   return (
@@ -20,6 +47,7 @@ export default function FaxSales() {
               {d.brands.map(b => <span key={b.name} className="civr-pill" data-testid={`admin-fax-sales-brand-${b.name}`}>{b.error ? `${b.name}: couldn’t load` : `${b.name}: ${b.soldSince} since launch · ${b.active} live`}</span>)}
             </div>
           )}
+          <DailySummary days={d.days || []} />
           {!d.countries.length ? <div className="civr-card p-6 text-sm text-[#a1a1aa]" data-testid="admin-fax-sales-empty">No fax numbers sold yet. This table fills in as customers buy them.</div> : (
             <div className="civr-card overflow-x-auto">
               <table className="w-full text-sm" data-testid="admin-fax-sales-table">

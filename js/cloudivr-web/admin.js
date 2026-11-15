@@ -31,31 +31,7 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
 
   function routes(r, h) {
     const A = adminAuth.require
-    // Fax numbers sold per country since the launch announcement (first announcement record, else 30 days).
-    r.get('/admin/fax-sales', A, h(async (req, res) => {
-      const first = await db.collection('announcements').find({ id: 'fax-launch-2026-11' }).sort({ at: 1 }).limit(1).next()
-      const since = first?.at || new Date(Date.now() - 30 * 86400000)
-      const rows = [], brands = []
-      for (const src of [{ name: process.env.CHAT_BOT_BRAND || 'CloudIVR', d: db }, ...resellers.map(r => ({ name: r.name || r.key, r }))]) {
-        try {
-          const d = src.d || await resellerDb(src.r)
-          const got = await d.collection('faxNumbers').find({ dryRun: { $ne: true } }).project({ country: 1, status: 1, price: 1, createdAt: 1, chatId: 1 }).toArray()
-          rows.push(...got)
-          brands.push({ name: src.name, sold: got.length, soldSince: got.filter(n => new Date(n.createdAt) >= since).length, active: got.filter(n => !['released', 'pending_registration'].includes(n.status)).length })
-        } catch (e) { brands.push({ name: src.name, error: true }) }
-      }
-      const name = (cc) => { try { return require('../number-catalog').nameOf(cc) || cc } catch (_) { return cc } }
-      const by = {}
-      for (const n of rows) {
-        const c = by[n.country] || (by[n.country] = { country: n.country, name: name(n.country), sold: 0, soldSince: 0, active: 0, pending: 0, released: 0, monthly: 0 })
-        c.sold += 1
-        if (new Date(n.createdAt) >= since) c.soldSince += 1
-        if (n.status === 'released') c.released += 1; else if (n.status === 'pending_registration') c.pending += 1; else { c.active += 1; c.monthly += Number(n.price) || 0 }
-      }
-      const countries = Object.values(by).sort((a, b) => b.soldSince - a.soldSince || b.sold - a.sold)
-      const sum = (k) => countries.reduce((t, c) => t + c[k], 0)
-      res.json({ since, announced: !!first, countries, brands, totals: { sold: sum('sold'), soldSince: sum('soldSince'), active: sum('active'), pending: sum('pending'), released: sum('released'), monthly: sum('monthly'), buyers: new Set(rows.filter(n => new Date(n.createdAt) >= since).map(n => n.chatId)).size } })
-    }))
+    r.get('/admin/fax-sales', A, h(async (req, res) => res.json(await require('../fax-sales').report(db))))
     r.get('/admin/bird-spend', A, h(async (req, res) => res.json(await require('../bird-spend').status())))
     r.post('/admin/bird-spend/topup', A, h(async (req, res) => {
       const reason = need(req, res); if (!reason) return
