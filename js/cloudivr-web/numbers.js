@@ -198,7 +198,7 @@ function _publicNumber(n, numbers) {
       textTriggers: { enabled: !!f.textTriggers?.enabled, count: (f.textTriggers?.rules || []).length },
       aiSummary: { enabled: !!f.aiSummary?.enabled },
       missedTextBack: f.missedTextBack || { enabled: false, text: null },
-      texting: { available: !!(n.capabilities || { sms: true }).sms && phoneConfig.PLAN_TEXTING(), enabled: !!(n.capabilities || { sms: true }).sms && f.sms !== false, textPrice: texting.localTextPrice(n) || texting.TEXT_MIN },
+      texting: { available: !!(n.capabilities || { sms: true }).sms && phoneConfig.PLAN_TEXTING(), enabled: !!(n.capabilities || { sms: true }).sms && f.sms === true, textPrice: texting.localTextPrice(n) || texting.TEXT_MIN },
     },
     access: access(n.plan),
   }
@@ -418,7 +418,7 @@ function routes(router, deps) {
     const plan = phoneConfig.plans[planKey]
     if (!plan || !phoneConfig.isPlanAvailable(planKey)) return { status: 400, body: { error: 'invalid_plan', message: 'That plan is not available.' } }
     // A plan's own number must be an instant no-ID number from the plan's countries (already-paid crypto orders were checked at checkout).
-    const incl = !sub && !viaOrder && !presetOrder ? phoneConfig.includedIssue(planKey, country, type) : null
+    const incl = !sub && !viaOrder && !presetOrder && !(withTexting && texting.offerOf(country, type)) ? phoneConfig.includedIssue(planKey, country, type) : null
     if (incl) return { status: 400, body: { error: 'extra_number_only', message: incl } }
     const holder = await holderOf(phone)
     if (holder !== null) {
@@ -941,7 +941,7 @@ function routes(router, deps) {
         }
         const caps = { voice: picked.hit.capabilities.voice !== false, sms: !!picked.hit.capabilities.sms, mms: !!picked.hit.capabilities.mms, fax: !!picked.hit.capabilities.fax }
         const { _reminder3Sent, _reminder1Sent, ...keep } = old
-        const doc = { ...keep, ...sip, phoneNumber: selected, telnyxOrderId: order.id, provider: order._provider || (String(order.id || '').startsWith('mt:') ? 'multitel' : String(order.id || '').startsWith('ib:') ? 'infobip' : keep.provider || 'telnyx'), capabilities: caps, purchaseDate: new Date().toISOString(), replaces: old.phoneNumber, messagingProfileId: caps.sms ? tr.messagingProfileId || old.messagingProfileId || null : null, features: { ...(old.features || {}), sms: caps.sms }, ...(live ? {} : { dryRun: true }) }
+        const doc = { ...keep, ...sip, phoneNumber: selected, telnyxOrderId: order.id, provider: order._provider || (String(order.id || '').startsWith('mt:') ? 'multitel' : String(order.id || '').startsWith('ib:') ? 'infobip' : keep.provider || 'telnyx'), capabilities: caps, purchaseDate: new Date().toISOString(), replaces: old.phoneNumber, messagingProfileId: caps.sms ? tr.messagingProfileId || old.messagingProfileId || null : null, features: { ...(old.features || {}), sms: !!caps.sms && old.features?.sms === true }, ...(live ? {} : { dryRun: true }) }
         const releaseAt = new Date(Date.now() + OVERLAP_DAYS * 86400000).toISOString()
         await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': old.phoneNumber }, { $set: { 'val.numbers.$.replacedBy': selected, 'val.numbers.$.releaseAt': releaseAt, 'val.numbers.$.autoRenew': false, 'val.numbers.$.telnyxCredentialId': null, 'val.numbers.$.telnyxSipUsername': null, 'val.numbers.$.telnyxSipPassword': null, 'val.numbers.$.sipUsername': null, 'val.numbers.$.sipPassword': null } })
         const eu = await deps.legalProfile?.recordResale({ chatId, phoneNumber: selected, provider: order._provider || 'telnyx', country: old.country })

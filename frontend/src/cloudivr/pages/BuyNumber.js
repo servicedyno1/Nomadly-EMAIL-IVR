@@ -47,6 +47,7 @@ export default function BuyNumber() {
   const kind = kindById(kindId);
   const [stage, setStage] = useState(2);
   useEffect(() => { setStage(2); }, [kindId]);
+  useEffect(() => { if (!extraOf && kindId && params.get('purpose') !== kindId) setParams(p => { const n = new URLSearchParams(p); n.set('purpose', kindId); return n; }, { replace: true }); }, [extraOf, kindId, params, setParams]);
   const onStage = useCallback((s) => setStage(s), []);
   const choose = (id) => setParams(p => { const n = new URLSearchParams(p); n.set('purpose', id); return n; });
   const change = () => setParams({});

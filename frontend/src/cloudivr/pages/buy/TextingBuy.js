@@ -22,15 +22,15 @@ function CountryCard({ code, name, line, caps, on, disabled, soon, onPick }) {
   );
 }
 
-function Results({ list, pick, setPick }) {
-  if (!list.length) return <p className="text-sm text-[var(--c-muted)]" data-testid="texting-buy-no-results">No numbers free right now. Try again in a few minutes.</p>;
+function Results({ list, pick, setPick, onRetry }) {
+  if (!list.length) return <div className="civr-card p-5 text-sm flex flex-wrap items-center gap-3" data-testid="texting-buy-no-results"><span className="flex-1 min-w-[200px] text-[var(--c-muted)]">No numbers free in this country right now. Search again in a few minutes, or pick another country.</span><button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={onRetry} data-testid="texting-buy-retry">Search again</button></div>;
   return (
     <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3" data-testid="texting-buy-results">
       {list.map((n, i) => (
         <button key={n.phoneNumber} type="button" onClick={() => setPick(n)} aria-pressed={pick?.phoneNumber === n.phoneNumber} data-testid={`texting-buy-result-${i}`}
           className={`civr-card p-4 text-left ${pick?.phoneNumber === n.phoneNumber ? '!border-[var(--c-accent)]' : ''}`}>
-          <div className="font-mono text-lg">{n.phoneNumber}</div>
-          <div className="text-xs text-[var(--c-muted)] mt-0.5">Mobile{n.region ? ` · ${n.region}` : ''}</div>
+          <div className="font-mono text-lg">{n.assigned ? `${n.phoneNumber} …` : n.phoneNumber}</div>
+          <div className="text-xs text-[var(--c-muted)] mt-0.5">{n.assigned ? `A number starting ${n.phoneNumber} is assigned when you buy` : `Mobile${n.region ? ` · ${n.region}` : ''}`}</div>
           <CapBadges caps={[...(n.capabilities?.voice ? ['calls'] : []), 'texts']} className="mt-2" />
         </button>
       ))}
@@ -80,11 +80,11 @@ export function TextingBuy({ onStage, startCountry }) {
       </div>
       <ErrorNote error={err} testid="texting-buy-error" />
       {country === 'US' && <div data-testid="texting-buy-usa"><Label>ZIP code and payment</Label><MobileOffer open onBought={() => nav(cp('/app/numbers?show=texts'))} /></div>}
-      {intl && <div><Label>{`Pick your ${intl.name} number`}</Label>{busy === 'search' ? <Spinner label="Finding numbers…" testid="texting-buy-searching" /> : res && <Results list={res} pick={pick} setPick={setPick} />}</div>}
+      {intl && <div><Label>{`Pick your ${intl.name} number`}</Label>{busy === 'search' ? <Spinner label="Finding numbers…" testid="texting-buy-searching" /> : res && <Results list={res} pick={pick} setPick={setPick} onRetry={() => choose(intl)} />}</div>}
       {intl && pick && (
         <div className="civr-card p-6 space-y-4 civr-rise" data-testid="texting-buy-checkout">
           <Label>Pay</Label>
-          <div className="flex flex-wrap items-center gap-3"><div className="flex-1"><div className="font-mono text-xl" data-testid="texting-buy-picked">{pick.phoneNumber}</div><div className="text-sm text-[var(--c-muted)]">{`Calls + texting · ${money(intl.textPrice)} per text sent · receiving free · renews monthly`}</div></div><div className="font-mono text-xl" data-testid="texting-buy-price">{money(data.price)}<span className="text-xs text-[var(--c-muted)]"> /month</span></div></div>
+          <div className="flex flex-wrap items-center gap-3"><div className="flex-1"><div className="font-mono text-xl" data-testid="texting-buy-picked">{pick.assigned ? `${pick.phoneNumber} … (assigned when you buy)` : pick.phoneNumber}</div><div className="text-sm text-[var(--c-muted)]">{`Calls + texting · ${money(intl.textPrice)} per text sent · receiving free · renews monthly`}</div></div><div className="font-mono text-xl" data-testid="texting-buy-price">{money(data.price)}<span className="text-xs text-[var(--c-muted)]"> /month</span></div></div>
           <WalletPay price={data.price} onWallet={buy} busy={busy === 'buy'} testid="texting-buy-pay" walletTestid="texting-buy-pay-button" />
         </div>
       )}

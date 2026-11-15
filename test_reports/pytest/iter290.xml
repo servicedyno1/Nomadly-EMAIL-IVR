@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="4" time="2.257" timestamp="2026-11-15T18:02:01.753210+00:00" hostname="agent-env-c4ea8f4e-6caa-4734-adf8-0f01a828b5c7"><testcase classname="backend.tests.test_cloudivr_unified_buy_iter290" name="test_user_login_ok" time="0.644"><failure message="requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)">/root/.venv/lib/python3.11/site-packages/requests/models.py:1116: in json
+    return complexjson.loads(self.text, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/json/__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/json/decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/json/decoder.py:355: in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+E   json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+backend/tests/test_cloudivr_unified_buy_iter290.py:55: in test_user_login_ok
+    assert "email" in r.json() or "user" in r.json()
+                      ^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/models.py:1120: in json
+    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
+E   requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)</failure></testcase><testcase classname="backend.tests.test_cloudivr_unified_buy_iter290" name="test_numbers_list" time="0.083" /><testcase classname="backend.tests.test_cloudivr_unified_buy_iter290" name="test_texting_switch_off_and_on" time="0.151" /><testcase classname="backend.tests.test_cloudivr_unified_buy_iter290" name="test_admin_fax_sales" time="1.250" /></testsuite></testsuites>

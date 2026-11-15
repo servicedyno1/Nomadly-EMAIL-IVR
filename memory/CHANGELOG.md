@@ -3170,3 +3170,11 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 ## 2026-11-15 15:42 UTC — MultiTEL retests (owner approved)
 - Fax: +16806811012 → +16806811015, 1 page. Outbox id 624 / job d339fb609f7f55d29df42441c26904b7 status sent, result OK, cost $0.025. Inbox fax 1045 status success 15:43:25; our webhook logged it 15:43:27. Not imported into `faxes` because no account owns a MultiTEL fax number (faxNumbers empty) — by design.
 - Call: Asterisk call file PJSIP/16806811012@multitel-out, CID 16806811015, from 188.166.34.29 (IPv4). Placed 15:42:39, answered 15:42:41, voicemail saved 15:42:53 ("Call completed"). Trunk uses IPv4 only (transport 0.0.0.0:5080; term.multitel.net = 67.205.139.35, no AAAA).
+
+## 2026-11-15 ~18:30Z — Three kinds of number LIVE (web + all 4 bots) + texting off everywhere
+- app-main: workspace deploy b17c384 (+14 uncommitted) twice (18:18 first batch, ~18:27 final); WS_DEPLOY_EXIT=0.
+- Texting default off: bot purchase docs (_index.js ×6 paths) set features.sms only when bought via Calls + texting (info.cpTexting); web purchase only withTexting (crypto orders now carry withTexting); number replacement keeps the old setting; web `texting.enabled` now needs features.sms === true.
+- Migration scripts/texting_off_migration.js (dry by default, --apply, idempotent): prod main 22 numbers, voodoo 10, smadav 0, proshop 0 → features.sms=false; re-run = 0 left. Preview: 16 switched.
+- WL overlay r11 (3-way merge base main f28f968 vs live WL b7deac9; clean): _index.js, bot-number-kinds.js (new), phone-config.js, ai-support.js, cloudivr-web/{admin,messages,numbers,orders}.js (legal-profile kept WL version). Applied to app-wl-a :5001, app-voodoo-b :5103, app-proshop-a :5004; healthy, no new errors; backups deploy-backups/<slot>-r11-*.
+- Web: old ?purpose=voice/sip/sms URLs normalise to ?purpose=calls. iteration_290 "$5 vs $50" note was a misread (cheapest plan is $50); /me is not a route (/auth/me is).
+- Prod PLAN_TEXTING=false on all brands → texting purchase/add-on gated off until owner enables.

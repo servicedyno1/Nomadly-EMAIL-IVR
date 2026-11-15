@@ -278,3 +278,18 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Backlog: verify a real forward→backup failover call on Bird/MultiTEL legs (needs owner OK for a billable test); attribution confirmed on next real signup.
 - 2026-11-15: Standalone fax numbers in 15 countries (no-ID + name/address), $50/mo, 25 free pages then $0.05/page; fax removed from Business plan; web + all bots; carrier approval with full refund on rejection. Bot fax flow is English only (backlog: translate).
 - 2026-11-15: Fax batch 2 live (ID-document countries, MultiTEL customer profiles + e-signature, bot main-menu fax, 5 languages); aws3.link shortener with 3 domains; international texting (MultiTEL instant no-ID countries) on all brands; web 2026 refinement layer + simplified Dashboard; fax launch announcement sent. Next: per-screen redesign of Get-a-number, landing, number settings.
+
+## 2026-11-15 (fork 2) — Three kinds of number (LIVE on all brands since ~18:30Z)
+- Architecture: every number is one of three kinds — Calls (texting = optional add-on), Calls + texting (USA unlimited + instant texting countries), Fax only. Shared definition: `frontend/src/cloudivr/kinds.js`, bot `js/bot-number-kinds.js`.
+- Web Get a number: one page, 3 steps (what it's for → pick a number → pay). `pages/BuyNumber.js` + `buy/KindPicker.js`, `buy/CallsBuy.js`, `buy/TextingBuy.js`, `buy/FaxNumberBuy.js`. `?purpose=calls|texting|fax` (old voice/sip/sms still work). `/app/texting-number` and `/app/international-texting` redirect; their pages and menu items are removed.
+- My numbers: one list with Calls/Texts/Fax badges + filter (`?show=`), search across all kinds.
+- Number settings: one tab bar; Answering/Texting/Recordings show a list of settings with instant switches and an inline "Saved" confirmation.
+- Texting add-on: `features.sms` on a calling number, switch `texting` (PATCH /numbers/:phone/switch). New calling purchases start with texting off; Calls + texting purchases (`withTexting:true`) start on; existing numbers switched OFF on every brand (owner decision; scripts/texting_off_migration.js). Replies are blocked while off; incoming texts still arrive.
+- Fixed: web checkout refused texting numbers outside USA/CA/UK on the Basic plan ("extra_number_only"); texting offers now skip the plan-country rule.
+- Landing: hero with one sign-up button + price list of the three kinds; pricing tabs Calls / Calls + texting / Fax only / USA eSIM; Ecosystem and feature-pill sections removed.
+- Admin: Fax sales tab (`/admin/fax-sales`) — sold per country since the launch announcement, all brands via RESELLER_DBS.
+- Bots (all languages): "🛒 Get a Number" asks what the number is for; Calls → plans, Calls + texting → texting countries (Basic plan), Fax only → fax numbers. Old "Choose a Plan" buttons still work.
+- Tests: iteration_290 (web + API) passed; bot simulated in English and Persian up to payment review. Preview .env has PLAN_TEXTING=true, TEXTING_PROVIDERS=multitel.
+- Deployed: app-main workspace b17c384 (+uncommitted); WL/Voodoo/ProShop bot overlay r11. Production PLAN_TEXTING=false on all 4 → Calls + texting shows 'not available' and the add-on switch is hidden until the owner sets it true.
+- NEXT: owner decision on PLAN_TEXTING=true; Save to GitHub (else CI rolls app-main back / WL overlay drops); bot has no 'turn texting off' button yet.
+

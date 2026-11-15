@@ -1742,7 +1742,7 @@ async function activateTelnyxReviewedOrder(doc) {
       messagingProfileId: caps.sms ? telnyxResources.messagingProfileId : null,
       connectionId: telnyxResources.sipConnectionId,
       smsUsed: 0, minutesUsed: 0, capabilities: caps,
-      features: { sms: !!caps.sms,
+      features: { sms: !!caps.sms && doc.texting === true,
         callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25, holdMusic: false },
         voicemail: { enabled: false, greetingType: 'default', customGreetingUrl: null, forwardToTelegram: true, forwardToEmail: null, ringTimeout: 25 },
         smsForwarding: { toTelegram: true, toEmail: null, webhookUrl: null },
@@ -4017,7 +4017,7 @@ async function executeTwilioPurchase(chatId, selectedNumber, planKey, price, cou
     minutesUsed: 0,
     capabilities: { voice: true, sms: true, fax: false },
     features: {
-      sms: true,
+      sms: false,
       callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
       voicemail: { enabled: false, greetingType: 'default', customGreetingUrl: null, forwardToTelegram: true, forwardToEmail: null, ringTimeout: 25 },
       smsForwarding: { toTelegram: true, toEmail: null, webhookUrl: null },
@@ -14736,7 +14736,7 @@ Enter new value:`), bc)
           connectionId: telnyxResources.sipConnectionId,
           smsUsed: 0, minutesUsed: 0,
           capabilities: info?.cpSelectedCapabilities || { voice: true, sms: true, fax: false },
-          features: { sms: true,
+          features: { sms: !!info?.cpTexting && (info?.cpSelectedCapabilities?.sms ?? true),
             callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25, holdMusic: false },
             voicemail: { enabled: false, greetingType: 'default', customGreetingUrl: null, forwardToTelegram: true, forwardToEmail: null, ringTimeout: 25 },
             smsForwarding: { toTelegram: true, toEmail: null, webhookUrl: null },
@@ -31271,6 +31271,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       rows.push([pc.smsInbox])
     } else {
       rows.push([cfLabel])
+      // Texting is an optional add-on: off until the owner turns it on.
+      if (num.capabilities?.sms === true && num.features?.sms === false) rows.push([botKinds.T(lang).textingOn])
     }
     if (phoneConfig.canAccessFeature(plan, 'voicemail')) rows.push([vmLabel])
     // SIP — always visible so users can find credentials (shows upgrade prompt if Starter)
@@ -31755,6 +31757,13 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const num = info?.cpActiveNumber
     if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
     if (!num) return goto.submenu5()
+    if (botKinds.isTextingOn(message) && num.capabilities?.sms === true) {
+      await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'sms', true)
+      num.features.sms = true
+      await saveInfo('cpActiveNumber', num)
+      await send(chatId, botKinds.T(info?.userLanguage || 'en').textingOnDone)
+      return showManageScreen(chatId, num)
+    }
     if (isBackPress(message)) {
       // Go back to my numbers list
       const userData = await get(phoneNumbersOf, chatId)
@@ -41109,7 +41118,7 @@ const bankApis = {
       sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
       messagingProfileId: telnyxResources.messagingProfileId,
       connectionId: telnyxResources.sipConnectionId, smsUsed: 0, minutesUsed: 0,
-      features: { sms: true, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
+      features: { sms: !!info?.cpTexting, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
         voicemail: { enabled: false, greetingType: 'default', customGreetingUrl: null, forwardToTelegram: true, forwardToEmail: null, ringTimeout: 25 },
         smsForwarding: { toTelegram: true, toEmail: null, webhookUrl: null }, recording: false }
     }
@@ -42139,7 +42148,7 @@ app.get('/crypto-pay-phone', auth, async (req, res) => {
     sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
     messagingProfileId: telnyxResources.messagingProfileId, connectionId: telnyxResources.sipConnectionId,
     smsUsed: 0, minutesUsed: 0,
-    features: { sms: true, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
+    features: { sms: !!info?.cpTexting, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
       voicemail: { enabled: false, greetingType: 'default', customGreetingUrl: null, forwardToTelegram: true, forwardToEmail: null, ringTimeout: 25 },
       smsForwarding: { toTelegram: true, toEmail: null, webhookUrl: null }, recording: false }
   }
@@ -47488,7 +47497,7 @@ app.post('/dynopay/crypto-pay-phone', authDyno, async (req, res) => {
     sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
     messagingProfileId: telnyxResources.messagingProfileId, connectionId: telnyxResources.sipConnectionId,
     smsUsed: 0, minutesUsed: 0,
-    features: { sms: true, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
+    features: { sms: !!info?.cpTexting, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
       voicemail: { enabled: false, greetingType: 'default', customGreetingUrl: null, forwardToTelegram: true, forwardToEmail: null, ringTimeout: 25 },
       smsForwarding: { toTelegram: true, toEmail: null, webhookUrl: null }, recording: false }
   }

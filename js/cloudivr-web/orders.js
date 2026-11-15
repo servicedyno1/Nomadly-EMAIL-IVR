@@ -127,7 +127,7 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     let loaded = false
     for (let i = 0; i < list.length; i++) {
       const hit = list[i]
-      const r = await numbersApi.purchase({ chatId: o.chatId, email: o.email, phone: hit.phoneNumber, planKey: sub ? sub.plan : o.planKey, hit, country: o.country, type: o.type, areaCode: o.areaCode, autoRenew: o.autoRenew, coupon: o.coupon || null, viaOrder: o._id, sub })
+      const r = await numbersApi.purchase({ chatId: o.chatId, email: o.email, phone: hit.phoneNumber, planKey: sub ? sub.plan : o.planKey, hit, country: o.country, type: o.type, areaCode: o.areaCode, autoRenew: o.autoRenew, coupon: o.coupon || null, viaOrder: o._id, sub, withTexting: o.withTexting === true })
       if (r.status === 201 || r.status === 202) {
         const assigned = r.status === 201 ? r.body.number.phoneNumber : hit.phoneNumber
         const swapped = assigned !== o.phoneNumber && String(o.phoneNumber).replace(/\D/g, '').length >= 9 // a short prefix = number assigned at order
@@ -186,7 +186,9 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     if (!picked) return bad(res, 400, 'search_again', 'That number is no longer in your search results. Search again and pick a number.')
     const planKey = String(req.body.plan || ''), plan = phoneConfig.plans[planKey]
     if (!plan || !phoneConfig.isPlanAvailable(planKey)) return bad(res, 400, 'invalid_plan', 'That plan is not available.')
-    const incl = phoneConfig.includedIssue(planKey, picked.country, picked.type)
+    // Calls + texting numbers are sold in every instant texting country, not just the plan countries.
+    const textOffer = req.body.withTexting === true && !!require('../texting-countries').offerOf(picked.country, picked.type)
+    const incl = textOffer ? null : phoneConfig.includedIssue(planKey, picked.country, picked.type)
     if (incl) return bad(res, 400, 'extra_number_only', incl)
     const autoRenew = req.body.autoRenew !== false
     let coupon = null
@@ -217,7 +219,7 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     const now = new Date()
     const doc = {
       _id: dep.ref, chatId, email: req.webUser.email, phoneNumber: picked.hit.phoneNumber, hit: picked.hit, country: picked.country, type: picked.type,
-      areaCode: picked.areaCode, planKey, price, need: total, walletPart, autoRenew, coupon, coin, ...(texting ? { texting } : {}), address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider,
+      areaCode: picked.areaCode, planKey, price, need: total, walletPart, autoRenew, coupon, coin, ...(texting ? { texting } : {}), ...(textOffer ? { withTexting: true } : {}), address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider,
       status: 'awaiting_payment', dryRun: dryRun(), createdAt: now, updatedAt: now,
     }
     await orders.insertOne(doc)

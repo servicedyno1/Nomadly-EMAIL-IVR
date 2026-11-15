@@ -1,0 +1,44 @@
+{
+  "summary": "Tested CloudIVR unified Get-a-number flow, My Numbers list, Number settings (texting add-on), Landing page, Sidebar, and Admin Fax sales tracker. 4/4 backend tests passed except /me (empty response). All frontend testids present and flows work. Three-step buy flow (calls / texting / fax) works end-to-end up to checkout. Old URL redirects verified. Texting add-on switch OFF/ON flow works; caps update; 'Add texting' link appears on My numbers when OFF. Forwarding switch ON without forward-to shows proper error toast. Admin fax-sales empty state and testids verified. NL texting simulated purchase could not be completed because the provider returned no live NL SMS numbers at test time (showed texting-buy-no-results — not a bug).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/cloudivr-web/me", "issue": "Returns 200 with empty body (no JSON); cosmetic — session cookie valid (other endpoints work)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Landing / Hero prices", "issue": "All three hero price amounts render as $50 (hero-price-ivr-amount, hero-price-mobile-amount, hero-price-fax-amount). Calls IVR 'from' price should be the actual lowest Calls plan (e.g. $5 like the plan list), not $50. Mobile USA is $50 and Fax is $50 which is correct, but IVR looks wrong.", "selector": "[data-testid='hero-price-ivr-amount']", "priority": "MEDIUM"},
+      {"component": "Buy flow old URL normalization", "issue": "/cloudivr/app/buy?purpose=voice and ?plan=pro open the Calls flow BUT the URL does not get normalized to ?purpose=calls — it stays as ?purpose=voice / ?plan=pro. Flow still works (buy-line-section renders). Minor cleanliness issue.", "selector": "n/a", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing hero prices (row text)", "issues": ["hero-price-ivr inner text shows 'from$5' visually (missing space between 'from' and '$5'); the '0' appears to be in a hidden/omitted span giving the impression the price is $5 — but data-testid=hero-price-ivr-amount equals '$50'. This is inconsistent and confusing for the customer."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_cloudivr_unified_buy_iter290.py",
+    "/app/test_reports/pytest/iter290.xml"
+  ],
+  "action_items": [
+    "Fix hero-price-ivr-amount: the Calls (IVR) tile should display the real 'from' price (likely $5/mo for Starter) not $50. The visible 'from $5' text vs testid '$50' mismatch suggests a rendering bug splitting the amount into separate spans.",
+    "(Optional) Normalize /cloudivr/app/buy?purpose=voice and ?plan=pro URLs to ?purpose=calls after load for cleaner sharing.",
+    "(Optional) Make /api/cloudivr-web/me return the user JSON (currently empty body) for consistency."
+  ],
+  "critical_code_review_comments": [
+    "Landing OneHero PriceList: the IVR 'from' price appears to be hardcoded or taken from the wrong plan. Verify data source maps IVR to Starter cheapest plan, not Business.",
+    "TextingBuy no-results UX is fine but there is NO retry button — users hitting 'No numbers free right now. Try again in a few minutes.' have to reload. Consider a 'Search again' button.",
+    "Shell redirect routes correctly rewrite /cloudivr/app/texting-number → ?purpose=texting&country=US and /international-texting → ?purpose=texting. Good.",
+    "Dry-run fax purchases correctly excluded from admin counts (admin-fax-sales shows 0 while test account has 1 fax number)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_cloudivr_unified_buy_iter290.py"
+  ],
+  "success_rate": {"backend": "75% (3/4; /me minor)", "frontend": "~95% (all testids present; 1 price rendering issue)"},
+  "test_credentials": "civr.uxtest@example.com / UxTest#2026 (user); moxxcompany@gmail.com / Katiekendra123@ (admin, devCode auto-filled in preview).",
+  "seed_data_creation": "None. No simulated purchases were performed (NL inventory empty at test time). No numbers created, deleted, or released. The real test numbers +3197010278502 and +447860089499 were not touched. The +12024595976 texting add-on was left ON (final state).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Core unified buy/numbers/admin-fax-sales UI is working. Only outstanding issues: (1) hero-price-ivr-amount shows $50 instead of real Calls 'from' price — looks like a price mapping bug in OnePage.js/PriceList; (2) /cloudivr/app/buy?purpose=voice & ?plan=pro don't normalize URL (flow itself works). All testids referenced in the review request were found. NL international texting purchase could not be exercised because provider inventory was empty; retry later if needed.",
+  "rca of the issue": "hero-price-ivr renders 'from $5' (text split) but hero-price-ivr-amount testid contains '$50'. Likely in landing/OnePage.js PriceList the amount is composed of two spans with one hidden/whitespaced — resulting in a confusing UX where the visible number ('$5') differs from the testid value ('$50'). Recommend consolidating to a single span and sourcing from the cheapest plan's actual price."
+}
