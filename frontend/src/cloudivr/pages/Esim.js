@@ -147,13 +147,13 @@ function Line({ item, reload, fresh }) {
 
 const WAYS = [
   ['esim', Smartphone, 'On your phone', 'Downloadable eSIM · calls, texts and data on your own phone'],
-  ['web', Globe2, 'In your browser', 'Web texting number · send and receive texts in CloudIVR Messages'],
+  ['web', Globe2, 'In your browser', 'Web texting number · texts in CloudIVR Messages, calls out from your browser'],
 ];
 function WayPicker({ way, setWay }) {
   return (
     <div role="radiogroup" aria-label="How you’ll use the number" className="grid sm:grid-cols-2 gap-3" data-testid="esim-way-picker">
       {WAYS.map(([id, I, t, sub]) => (
-        <button key={id} type="button" role="radio" aria-checked={way === id} onClick={() => setWay(id)} className={`civr-card p-5 text-left flex gap-4 items-start min-h-[44px] ${way === id ? 'civr-trace' : ''}`} data-testid={`esim-way-${id}`}>
+        <button key={id} type="button" role="radio" aria-checked={way === id} onClick={() => setWay(id)} className={`civr-card p-5 text-left flex gap-4 items-start min-h-[44px] transition-[box-shadow,border-color] ${way === id ? '!border-[var(--c-accent)] ring-2 ring-[var(--c-accent)]' : ''}`} data-testid={`esim-way-${id}`}>
           <I className="w-6 h-6 text-[var(--c-accent)] shrink-0" aria-hidden="true" /><span><span className="block font-semibold">{t}</span><span className="block text-sm text-[var(--c-muted)] mt-1">{sub}</span></span>
         </button>
       ))}

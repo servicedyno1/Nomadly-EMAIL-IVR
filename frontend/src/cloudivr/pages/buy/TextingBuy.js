@@ -21,7 +21,7 @@ function CountryCard({ code, name, line, caps, on, disabled, soon, onPick }) {
   );
 }
 
-function Results({ list, pick, setPick, onRetry }) {
+function Results({ list, pick, setPick, onRetry, typeName }) {
   if (!list.length) return <div className="civr-card p-5 text-sm flex flex-wrap items-center gap-3" data-testid="texting-buy-no-results"><span className="flex-1 min-w-[200px] text-[var(--c-muted)]">No numbers free in this country right now. Search again in a few minutes, or pick another country.</span><button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={onRetry} data-testid="texting-buy-retry">Search again</button></div>;
   return (
     <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3" data-testid="texting-buy-results">
@@ -29,7 +29,7 @@ function Results({ list, pick, setPick, onRetry }) {
         <button key={n.phoneNumber} type="button" onClick={() => setPick(n)} aria-pressed={pick?.phoneNumber === n.phoneNumber} data-testid={`texting-buy-result-${i}`}
           className={`civr-card p-4 text-left ${pick?.phoneNumber === n.phoneNumber ? '!border-[var(--c-accent)]' : ''}`}>
           <div className="font-mono text-lg">{n.assigned ? `${n.phoneNumber} …` : n.phoneNumber}</div>
-          <div className="text-xs text-[var(--c-muted)] mt-0.5">{n.assigned ? `A number starting ${n.phoneNumber} is assigned when you buy` : `Mobile${n.region ? ` · ${n.region}` : ''}`}</div>
+          <div className="text-xs text-[var(--c-muted)] mt-0.5">{n.assigned ? `A number starting ${n.phoneNumber} is assigned when you buy` : `${typeName || 'Mobile'}${n.region ? ` · ${n.region}` : ''}`}</div>
           <CapBadges caps={[...(n.capabilities?.voice ? ['calls'] : []), 'texts']} className="mt-2" />
         </button>
       ))}
@@ -37,7 +37,7 @@ function Results({ list, pick, setPick, onRetry }) {
   );
 }
 
-// Calls + texting: the USA number (unlimited texts, assigned near a ZIP) or a two-way number in another country.
+// Calls + texting: a two-way number in the USA (texting after 10DLC registration) or another texting country.
 export function TextingBuy({ onStage }) {
   const { data } = useApi('/texting/ready');
   const { refreshSummary } = useShell();
@@ -77,7 +77,7 @@ export function TextingBuy({ onStage }) {
         </div>
       </div>
       <ErrorNote error={err} testid="texting-buy-error" />
-      {intl && <div><Label>{`Pick your ${intl.name} number`}</Label>{busy === 'search' ? <Spinner label="Finding numbers…" testid="texting-buy-searching" /> : res && <Results list={res} pick={pick} setPick={setPick} onRetry={() => choose(intl)} />}</div>}
+      {intl && <div><Label>{`Pick your ${intl.name} number`}</Label>{busy === 'search' ? <Spinner label="Finding numbers…" testid="texting-buy-searching" /> : res && <Results list={res} pick={pick} setPick={setPick} onRetry={() => choose(intl)} typeName={intl.typeName} />}</div>}
       {intl && pick && (
         <div className="civr-card p-6 space-y-4 civr-rise" data-testid="texting-buy-checkout">
           <Label>Pay</Label>

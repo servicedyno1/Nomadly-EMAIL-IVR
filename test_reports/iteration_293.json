@@ -1,0 +1,48 @@
+{
+  "summary": "Tested the CloudIVR 'Get a number' country pricing, Calls + texting (MultiTEL USA), the eSIM way picker, landing quotes and pricing tabs, fax regression, and the support chat. Backend: 7/7 pytest passed (planAddons BR=25 on every plan, US=0, NL mobile business=0 and others 25; texting/ready US included=true needs10dlc=true; 401 when signed out). Frontend: most flows work: the 89-country picker has no paperwork labels; BR and NL plan cards, breakdowns and checkout totals are right; the UI Brazil purchase on Basic charged $75 and the number appears in My numbers; texting buy US $50 with the 10DLC note and link, BR $75; eSIM way picker; landing plans-mobile and plans-esim, web texting checkout, hero-price-mobile; fax selects are clean. Two real bugs: (1) the country picker labels USA, Canada and UK '· extra monthly charge'. (2) Request-only countries (DE, AT, CR, CY, DK, EC, PY, PE) cannot be bought as a first number: the backend returns 400 extra_number_only, and the price shown has no country charge.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/cloudivr-web/numbers/request", "issue": "js/cloudivr-web/number-requests.js line 40 still calls phoneConfig.includedIssue(planKey, country, 'local'), which rejects every country outside the plan's free countries. Germany (and AT, CR, CY, DK, EC, PY, PE: all request-only offers) on any plan returns 400 extra_number_only 'A plan comes with a USA, Canada or UK number... Add other countries as an extra number once you have a plan.' This breaks the owner's rule that every country is allowed as a first number. Reproduced in the UI: Germany → Order for $50.00 from wallet → red error.", "priority": "HIGH"},
+      {"endpoint": "POST /api/cloudivr-web/numbers/request", "issue": "The price is round2(plan.price) with no planAddon. The country charge ($25) is never added, even though the picker says 'Germany · extra monthly charge'. Billing does not match the label.", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CallsBuy SearchForm country label", "issue": "The catalog sends included:'all' for US, CA and GB, but CallsBuy.js line 41 checks c.included === true. As a result, USA, Canada and UK show '· extra monthly charge' instead of '· free with every plan'. Fix: c.included === 'all' || c.included === true.", "selector": "[data-testid=buy-country-select]", "priority": "HIGH"},
+      {"component": "CallsBuy request-order flow (DE etc.)", "issue": "The PlanPicker gets pick={null} and RequestOrder shows only plan.price, so a request country shows the plain plan price with no '+ country charge' breakdown. This goes against 'shown clearly before paying'.", "selector": "[data-testid=request-order], [data-testid^=buy-plan-]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Germany first-number request", "issue": "Clicking Order shows the backend 400 extra_number_only error; a Germany number cannot be bought as a first number", "affected_selectors": ["[data-testid=request-order-pay-button]", "[data-testid=request-order-error]"]}
+    ],
+    "design_issues": [
+      {"screen": "/app/esim way picker", "issues": ["The selected card (aria-checked=true, class civr-trace) looks exactly like the unselected one: same border, shadow and background in computed styles. There is no visible selected state for On your phone / In your browser."]},
+      {"screen": "/app/buy calls checkout", "issues": ["The calls checkout for a Brazil number still offers the 'Add a Texting Number' upsell (checkout-texting-addon, ZIP-based Spenza, $45 first month). Spenza moved to the eSIM page, so this upsell may now be out of place or confusing next to 'Calls + texting'."]},
+      {"screen": "/app/buy texting results", "issues": ["USA MultiTEL results are labelled 'Mobile · IL', but the brief says these are USA local numbers. Check the type/label."]},
+      {"screen": "Landing plans-esim Web texting number card", "issues": ["The card line says 'texts only, in CloudIVR Messages', but its MOBILE_POINTS bullet says '...and call out from your browser'. The copy contradicts itself."]},
+      {"screen": "/app/buy calls", "issues": ["buy-included-note uses text-[#a1a1aa] on a white card in the light theme, which is low contrast.", "The Fax buy country picker is a native <select>, while Calls uses the shadcn IconSelect. This is inconsistent."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_buy_country_addons_iter293.py", "/app/test_reports/pytest/iter293.xml"],
+  "action_items": [
+    "CallsBuy.js line 41: treat c.included === 'all' as 'free with every plan' (US, CA and UK are currently labelled 'extra monthly charge')",
+    "number-requests.js: replace includedIssue with planNumberIssue (or none) so request-only countries (DE, AT, CR, CY, DK, EC, PY, PE) can be a first number, and charge plan.price + phoneConfig.planAddon(planKey, country, 'local', addonSurcharge)",
+    "RequestOrder.js and the PlanPicker for res.request: show the plan + country charge breakdown and the full total (the crypto path for requests too, if one exists)",
+    "Esim.js WayPicker: add a visible selected style (border/ring/bg), e.g. a ring in the accent colour when aria-checked",
+    "Review whether the calls checkout 'Add a Texting Number' (Spenza ZIP) upsell should stay now that Spenza lives under the eSIM page",
+    "Fix the contradictory web texting card copy (texts only vs call out from browser) and the 'Mobile' label on USA MultiTEL texting results",
+    "Remove the dead ProductHero component export (it still has old 'Texting Number' copy and duplicate testids hero-order-mobile/hero-order-esim), and update the stale TextingBuy.js comment that mentions ZIP"
+  ],
+  "critical_code_review_comments": [
+    "phone-config.planAddon returns the surcharge for included countries when surcharge > 0, so a 'free' country with an admin add-on still costs extra. Confirm this is intended.",
+    "ProductHero.js still exports the old ProductHero, which nothing imports, and it reuses testids that OnePage also uses.",
+    "TextingBuy uses WalletPay with only onWallet, but a 'Pay with crypto' button is shown. Make sure the crypto path passes withTexting and the plan add-on."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_buy_country_addons_iter293.py"],
+  "success_rate": {"backend": "100% of the tested endpoints (7/7); the /numbers/request first-number path fails (found by manual check)", "frontend": "~85%"},
+  "seed_data_creation": "A UI purchase (preview dry-run) created Brazil local +551920425854 on the Basic (starter) plan for civr.uxtest@example.com. The wallet was charged $75 ($559.13 → $484.13). The number was not removed. Test reviews were shown only through a Playwright route mock; nothing was written to the DB.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login civr.uxtest@example.com / UxTest#2026 at /cloudivr/login (dismiss cookie-allow-all first). Plan ids: starter=Basic $50, standard=Starter $75, pro=Pro $100, business=Business $120. In the IconSelect country picker, open buy-country-select, then scroll_into_view the option [data-testid=buy-country-select-option-<code lowercase>] before clicking (with force=True it picked the wrong country). /public/reviews is empty, so quotes-strip is hidden; it was verified via route mock and sits right under product-hero. Support chat says 'Germany local: name and address, no ID documents', which matches the offer data (details=name_address), so the brief's expectation of 'ID documents' does not apply. To retest: US option label, DE request order as first number (Basic → expect 202 and $75 charged), and the eSIM picker selected style.",
+  "rca of the issue": "Label bug: the catalog's included field is 'all' | 'business' | null, but the UI compares it to true. Request bug: number-requests.js was not moved from includedIssue (old rule: only plan countries can be a first number) to the new planNumberIssue/planAddon model that numbers.js and orders.js now use."
+}

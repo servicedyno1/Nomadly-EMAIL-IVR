@@ -14,7 +14,8 @@ const DETAILS = {
 const STATUS = { submitted: 'Sent to the carrier', in_review: 'Carrier is reviewing', approved: 'Approved — activating', active: 'Ready', refunded: 'Declined — refunded' };
 
 // Countries where the carrier assigns the number after an order: pay now, number arrives later, full refund if declined.
-export function RequestOrder({ request, plan, onDone }) {
+export function RequestOrder({ request, plan, addon = 0, onDone }) {
+  const total = (plan?.price || 0) + addon;
   const { refreshSummary } = useShell();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -35,8 +36,8 @@ export function RequestOrder({ request, plan, onDone }) {
       <p className="text-sm flex gap-2" data-testid="request-order-details"><ShieldCheck className="w-4 h-4 mt-0.5 shrink-0 text-[#818cf8]" />{DETAILS[request.details]}</p>
       {request.localOnly && <p className="text-xs text-[#fbbf24] flex gap-2" data-testid="request-order-local-note"><AlertTriangle className="w-4 h-4 shrink-0" />The carrier offers these numbers to businesses based in {request.name}; a request from elsewhere may be declined (and refunded).</p>}
       <div className="flex flex-wrap items-center gap-3">
-        <span className="text-xs text-[var(--c-muted)] basis-full">{plan?.name} plan · {money(plan?.price || 0)} per month</span>
-        <WalletPay price={plan?.price || 0} onWallet={go} busy={busy} disabled={!plan} label={`Order for ${money(plan?.price || 0)} from wallet`} testid="request-order-paybox" walletTestid="request-order-pay-button" />
+        <span className="text-xs text-[var(--c-muted)] basis-full">{plan?.name} plan · {addon > 0 ? `${money(plan?.price || 0)} + country charge ${money(addon)} = ${money(total)}` : money(plan?.price || 0)} per month</span>
+        <WalletPay price={total} onWallet={go} busy={busy} disabled={!plan} label={`Order for ${money(total)} from wallet`} testid="request-order-paybox" walletTestid="request-order-pay-button" />
       </div>
       <ErrorNote error={err} testid="request-order-error" />
     </div>

@@ -38,7 +38,7 @@ function SearchForm({ catalog, q, setQ, onSearch, busy, extra }) {
     <form onSubmit={onSearch} className="civr-card p-6 grid sm:grid-cols-2 xl:grid-cols-4 gap-4 items-end" data-testid="buy-search-form">
       <Field label="Country">
         <IconSelect value={q.country} onChange={setCountry} label="Country" testid="buy-country-select"
-          options={list.map(c => ({ value: c.code, label: extra ? c.name : `${c.name} · ${c.included === true ? 'free with every plan' : c.included === 'business' ? 'free with Business' : 'extra monthly charge'}`, icon: <Flag code={c.code} /> }))} />
+          options={list.map(c => ({ value: c.code, label: extra ? c.name : `${c.name} · ${c.included === true || c.included === 'all' ? 'free with every plan' : c.included === 'business' ? 'free with Business' : 'extra monthly charge'}`, icon: <Flag code={c.code} /> }))} />
       </Field>
       <Field label="Number type">
         <select className="civr-input" value={country.types.includes(q.type) ? q.type : country.types[0]} onChange={e => setQ({ ...q, country: country.code, type: e.target.value })} data-testid="buy-type-select">
@@ -48,7 +48,7 @@ function SearchForm({ catalog, q, setQ, onSearch, busy, extra }) {
       <Field label="Area code (optional)">
         <input className="civr-input font-mono" disabled={!local} maxLength={3} value={q.areaCode} onChange={e => setQ({ ...q, areaCode: e.target.value.replace(/\D/g, '') })} placeholder={local ? 'Any, e.g. 415' : 'Only for USA/Canada local'} data-testid="buy-area-code-input" />
       </Field>
-      {!extra && <p className="sm:col-span-2 xl:col-span-4 text-xs text-[#a1a1aa] -mt-1 order-last" data-testid="buy-included-note">Plans include a number from the USA, Canada or UK (Business also: Netherlands, France, Spain). Any other country adds a monthly charge, shown before you pay.</p>}
+      {!extra && <p className="sm:col-span-2 xl:col-span-4 text-xs text-[var(--c-muted)] -mt-1 order-last" data-testid="buy-included-note">Plans include a number from the USA, Canada or UK (Business also: Netherlands, France, Spain). Any other country adds a monthly charge, shown before you pay.</p>}
       <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="buy-search-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}Search numbers</button>
     </form>
   );
@@ -154,7 +154,6 @@ export function CallsBuy({ extraOf, onStage }) {
   const { data: myNums } = useApi('/numbers');
   const pv = usePrivacy();
   const { data: open } = useApi('/numbers/orders?open=1');
-  const { data: textingOffer } = useApi(extraOf ? null : '/mobile-numbers');
   const [use] = useState(rememberedUse);
   const stage = pick || res?.request ? 3 : 2;
   useEffect(() => { onStage?.(stage); }, [stage, onStage]);
@@ -211,8 +210,8 @@ export function CallsBuy({ extraOf, onStage }) {
       <SearchForm catalog={catalog} q={q} setQ={setQ} onSearch={search} busy={busy === 'search'} extra={!!extraOf} />
       <div className="mt-4"><ErrorNote error={error} testid="buy-error" /></div>
       {res?.request ? <div className="mt-8"><Label>Pick a plan and order</Label>
-        <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} pick={null} />
-        <div className="mt-6">{needsProfile ? <BuyProfileGate /> : <RequestOrder request={res.request} plan={planObj} onDone={() => { setRes(null); setReqTick(t => t + 1); }} />}</div></div>
+        <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} pick={res.request} />
+        <div className="mt-6">{needsProfile ? <BuyProfileGate /> : <RequestOrder request={res.request} plan={planObj} addon={addonOf(res.request, planObj?.id)} onDone={() => { setRes(null); setReqTick(t => t + 1); }} />}</div></div>
         : res && <div className="mt-6">
           <PaperworkNote paperwork={res.paperwork} country={q.country} countryName={catalog.countries.find(c => c.code === q.country)?.name || q.country} onChange={(documents) => setRes(r => ({ ...r, paperwork: { ...r.paperwork, documents } }))} />
           <Results res={res} pick={pick} setPick={setPick} planTexting={catalog.planTexting} planId={extraOf ? null : planObj?.id} /></div>}
@@ -224,7 +223,7 @@ export function CallsBuy({ extraOf, onStage }) {
           <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} pick={pick} businessOnly={businessOnly} />
           </>}
           {needsProfile ? <BuyProfileGate /> : docsMissing ? <div className="civr-card p-5 text-sm text-[#fbbf24]" data-testid="buy-documents-required">Finish the steps above (documents, ID check{pc?.business ? ', company papers' : ''}) to buy this number.</div> : <Checkout key={`${pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}
-            textingOffer={extraOf ? null : textingOffer} coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `Extra number on ${pv.phone(extraOf)} · monthly` : null} autoRenewDefault={extraOf ? (parent ? parent.autoRenew !== false : true) : true} />}
+            textingOffer={null} coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `Extra number on ${pv.phone(extraOf)} · monthly` : null} autoRenewDefault={extraOf ? (parent ? parent.autoRenew !== false : true) : true} />}
         </div>
       )}
     </div>

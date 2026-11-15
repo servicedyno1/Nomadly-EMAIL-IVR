@@ -331,7 +331,7 @@ function routes(router, deps) {
     if (!c.types.includes(type)) return bad(res, 400, 'invalid_type', `${c.name} offers: ${c.types.map(t => TYPE_NAMES[t] || t).join(', ')}.`)
     const areaCode = ['US', 'CA'].includes(country) && type === 'local' && /^\d{3}$/.test(String(req.query.areaCode || '')) ? String(req.query.areaCode) : null
     const offer = c.offers?.[type] || null
-    if (offer?.request) return res.json({ numbers: [], request: { ...offer.request, country: c.code, name: c.name, flag: c.flag } })
+    if (offer?.request) return res.json({ numbers: [], request: { ...offer.request, country: c.code, name: c.name, flag: c.flag, planAddons: Object.fromEntries(Object.keys(phoneConfig.plans).map(k => [k, phoneConfig.planAddon(k, c.code, type, require('../number-addons').get(c.code, type))])) } })
     const own = ownProvider(c, type)
     const verification = own || offer ? { required: false } : await verificationInfo(country, type, `${c.flag} ${c.name}`)
     if (verification.error) return bad(res, 424, 'lookup_failed', verification.error)

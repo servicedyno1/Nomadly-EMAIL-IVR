@@ -84,8 +84,15 @@ export function Field({ label, hint, children }) {
   );
 }
 
-export function Spinner({ label = 'Loading…', testid = 'loading-indicator' }) {
-  return <div className="flex items-center gap-2 text-sm text-[#a1a1aa] py-10" aria-busy="true" data-testid={testid}><Loader2 className="w-4 h-4 animate-spin" />{label}</div>;
+// Loading: grey placeholder blocks shaped like a page instead of a spinner (the label stays for screen readers).
+export function Spinner({ label = 'Loading…', testid = 'loading-indicator', inline = false }) {
+  if (inline) return <span className="inline-flex items-center gap-2 text-sm text-[var(--c-muted)]" aria-busy="true" data-testid={testid}><Loader2 className="w-4 h-4 animate-spin" />{label}</span>;
+  return (
+    <div className="civr-skel-page" role="status" aria-busy="true" aria-label={label} data-testid={testid}>
+      <span className="sr-only">{label}</span>
+      <div className="civr-skel lg" /><div className="civr-skel w-3/4" /><div className="civr-skel w-1/2" /><div className="civr-skel lg" />
+    </div>
+  );
 }
 
 // `onRetry` adds a "Try again" button (pass the page's reload).

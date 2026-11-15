@@ -1,3 +1,4 @@
+import { MobileAppKit } from './MobileAppKit';
 import { captureSource, track } from './track';
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { useTheme } from './theme';
@@ -89,10 +90,11 @@ export default function CloudIvrApp() {
         <PermissionAskHost />
         <UpdateWatcher />
         <CookieBanner />
+        <MobileAppKit />
         <XSignup />
         <Guarded>
         <PageFade>
-        <Suspense fallback={<div className="min-h-screen grid place-items-center"><Spinner /></div>}>
+        <Suspense fallback={<div className="min-h-screen px-6 pt-24 max-w-3xl mx-auto"><Spinner /></div>}>
         <Routes>
           <Route index element={<Landing />} />
           <Route path="terms" element={<Terms />} />

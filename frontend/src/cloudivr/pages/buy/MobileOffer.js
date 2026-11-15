@@ -29,13 +29,13 @@ export function MobileOffer({ onBought, open: startOpen = false }) {
       <div className="flex flex-wrap items-start gap-3">
         <MessageSquare className="w-5 h-5 text-[#818cf8] mt-1" />
         <div className="flex-1 min-w-[200px]">
-          <div className="font-semibold">Order a Texting Number</div>
+          <div className="font-semibold">Order a web texting number</div>
           <p className="text-sm text-[var(--c-muted)] mt-1">A USA number with unlimited texts right here in Messages, including verification codes. Works in your browser: no phone or SIM needed.</p>
         </div>
         <div className="font-mono text-xl" data-testid="mobile-offer-price">{`${money(data.price)}`}<span className="text-xs text-[var(--c-muted)]"> /month</span></div>
       </div>
       <p className="text-sm flex items-start gap-2 text-[#fbbf24]" data-testid="mobile-offer-reveal-note"><Lock className="w-4 h-4 mt-0.5 shrink-0" />You can’t pick the exact number. The carrier assigns it after your payment is confirmed, and we show it to you as soon as it’s ready, usually within minutes.</p>
-      {!open ? <button type="button" onClick={() => setOpen(true)} className="civr-btn civr-btn-ghost" data-testid="mobile-offer-start">Order a Texting Number</button> : <>
+      {!open ? <button type="button" onClick={() => setOpen(true)} className="civr-btn civr-btn-ghost" data-testid="mobile-offer-start">Order a web texting number</button> : <>
         <Field label="ZIP code" hint="We ask the carrier for a number near this USA ZIP code. The area code can’t be guaranteed."><input className="civr-input font-mono max-w-[160px]" inputMode="numeric" value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10011" data-testid="mobile-offer-zip" /></Field>
         <RenewPick on={autoRenew} onChange={setAutoRenew} price={data.price} testid="mobile-offer-autorenew" />
         <WalletPay price={data.price} onWallet={go} busy={busy} disabled={zip.length !== 5} testid="mobile-offer-pay" walletTestid="mobile-offer-pay-button" cryptoTestid="mobile-offer-crypto">
