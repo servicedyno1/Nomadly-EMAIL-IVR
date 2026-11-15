@@ -98,10 +98,10 @@ export function faqItems(c) {
     ['How much does fax cost?', 'A fax number is $50 a month and includes 25 free pages a month (sent and received). After that, each page is $0.05 from your wallet, charged only when a fax is delivered or received. Some countries need your name and address, others an ID or company document, plus a quick e-signature; the carrier approves those within a few days, with a full refund if it says no.'],
     ['Can I pick my fax number before I sign up?', 'Yes. Search by country and area code on this page, pick your number, then create your free account and pay from your wallet. If an area code has no fax numbers, we show nearby ones.'],
     ['How do I send and receive faxes?', 'Upload a PDF or photo in CloudIVR and send it to one number or up to 500 at once, with an optional cover page. Faxes sent to your number arrive as PDFs in CloudIVR and by email.'],
-    ['Can I choose the number?', 'You pick a USA ZIP code and we ask the carrier for a number near it. It’s a preference: the area code and the exact number can’t be chosen.'],
-    ['When do I get it?', 'After your payment is confirmed. It’s usually ready within minutes, and sometimes takes longer. The eSIM QR code is shown in the app and emailed to the address you enter; the calls + texting number appears under My numbers.'],
+    ['Can I choose my USA calls + texting number?', 'You pick a USA ZIP code and we ask the carrier for a number near it. It’s a preference: the area code and the exact number can’t be chosen.'],
+    ['When do I get my USA number or eSIM?', 'After your payment is confirmed. It’s usually ready within minutes, and sometimes takes longer. The eSIM QR code is shown in the app and emailed to the address you enter; the calls + texting number appears under My numbers.'],
     ['Can the USA calls + texting number make calls?', 'Yes, outgoing calls from the browser phone, paid from your wallet. The number is also a free verified caller ID for your other CloudIVR calls.'],
-    ['What happens if I don’t renew?', 'Both renew monthly at $50 from your wallet. If your wallet is short, the line pauses until you top up and tap Renew. If you turn auto-renew off, the line ends after the paid month. Cancelling ends it straight away with no refund for the current month, and the number can’t be recovered.'],
+    ['What happens if I don’t renew my USA number or eSIM?', 'The USA calls + texting number renews at $50 a month and the eSIM at its plan price, from your wallet. If your wallet is short, the line pauses until you top up and tap Renew. If you turn auto-renew off, the line ends after the paid month. Cancelling ends it straight away with no refund for the current month, and the number can’t be recovered.'],
     ['Can I replace the number?', 'Yes, for $25. The carrier assigns the new number; you can’t choose it. If the carrier refuses, or doesn’t assign one within 24 hours, the $25 goes back to your wallet.'],
     ['Can I try it before I pay?', 'Yes, twice. Without an account: confirm your email with a 6-digit code and take one free test call of up to 60 seconds — we ring your phone with a demo menu, or you call from your browser. After you sign up: place one free Quick IVR call from our number — it plays your script to anyone you choose, then connects them to you when they press 1 or collects a code you accept or decline.'],
     ['Is the account really free?', `Yes. Creating an account costs nothing. You only pay when you buy a number${from ? ` (from ${from}/month)` : ''}, plus any extra usage.`],
@@ -147,7 +147,7 @@ export function FinalCta({ catalog }) {
   const start = useStart();
   const from = startPrice(catalog);
   return (
-    <section className="civr-l-cream py-20 md:py-24" data-testid="final-cta">
+    <section className="civr-l-cream pb-20 md:pb-24" data-testid="final-cta">
       <div className="max-w-7xl mx-auto px-6 md:px-8">
         <Reveal className="civr-l-ondark relative overflow-hidden rounded-3xl bg-[#07060f] ring-1 ring-white/10 px-8 py-16 md:px-16 md:py-20 text-center">
           <div className="relative">
@@ -163,8 +163,10 @@ export function FinalCta({ catalog }) {
   );
 }
 
-const FOOTER_KINDS = [['#pricing', 'Calls', 'calls'], ['#pricing', 'Calls + texting', 'texting'], ['#pricing', 'Fax only', 'fax'], ['#pricing', 'USA eSIM', 'esim']];
-const fLink = 'text-sm text-slate-600 hover:text-slate-950 transition-colors py-1.5 text-left';
+const FOOTER_KINDS = [['ivr', 'Calls', 'calls'], ['mobile', 'Calls + texting', 'texting'], ['fax', 'Fax only', 'fax'], ['esim', 'USA eSIM', 'esim']];
+// Opens the pricing tab for a kind of number; off the landing page the link carries it as #pricing-<tab>.
+const openKind = (tab, e) => { if (!document.getElementById('pricing')) return; e.preventDefault(); window.dispatchEvent(new CustomEvent('civr-pricing-tab', { detail: tab })); };
+const fLink = 'text-sm text-slate-600 hover:text-slate-950 transition-colors min-h-[44px] flex items-center text-left';
 
 function FooterCol({ title, children, testid }) {
   return <div data-testid={testid}><div className="text-xs font-semibold uppercase tracking-[.14em] text-slate-900 mb-4">{title}</div><div className="flex flex-col">{children}</div></div>;
@@ -173,6 +175,8 @@ function FooterCol({ title, children, testid }) {
 // Mega footer (cm.com style). Product links open the matching platform tab; on other pages they go back to the landing page.
 export function Footer({ catalog }) {
   const base = cp();
+  const start = useStart();
+  const { account } = useCivrAuth();
   return (
     <footer className="bg-slate-50 text-slate-900 border-t border-slate-200" data-testid="landing-footer">
       <div className="max-w-7xl mx-auto px-6 md:px-8 pt-16 pb-10">
@@ -181,14 +185,14 @@ export function Footer({ catalog }) {
             <div className="font-display text-2xl font-extrabold flex items-center gap-2" data-testid="landing-footer-logo"><Wordmark accent="#059669" iconClass="w-8 h-8" /></div>
             <p className="text-sm text-slate-600 mt-4 max-w-xs">Business numbers for calls, texts and fax, with menus, SIP and an AI receptionist — all in your browser.</p>
             <div className="flex flex-wrap gap-3 mt-6">
-              <Link to={cp('/signup')} className="civr-l-pill civr-l-pill-ink civr-l-pill-sm" data-testid="footer-cta-signup">Get your number</Link>
-              <Link to={cp('/login')} className="civr-l-pill civr-l-pill-outline civr-l-pill-sm" data-testid="footer-link-signin">Sign in</Link>
+              <Link to={start()} className="civr-l-pill civr-l-pill-ink civr-l-pill-sm min-h-[44px]" data-testid="footer-cta-signup">Get your number</Link>
+              {account ? <Link to={cp('/app')} className="civr-l-pill civr-l-pill-outline civr-l-pill-sm min-h-[44px]" data-testid="footer-link-dashboard">Open dashboard</Link> : <Link to={cp('/login')} className="civr-l-pill civr-l-pill-outline civr-l-pill-sm min-h-[44px]" data-testid="footer-link-signin">Sign in</Link>}
             </div>
             <SocialLinks />
           </div>
           <div className="lg:col-span-8 grid grid-cols-2 md:grid-cols-3 gap-8">
             <FooterCol title="Numbers" testid="footer-col-product">
-              {FOOTER_KINDS.map(([h, l, id]) => <a key={id} href={`${base}${h}`} onClick={(e) => goTo(h, e)} className={fLink} data-testid={`footer-product-${id}`}>{l}</a>)}
+              {FOOTER_KINDS.map(([tab, l, id]) => <a key={id} href={`${base}#pricing-${tab}`} onClick={(e) => openKind(tab, e)} className={fLink} data-testid={`footer-product-${id}`}>{l}</a>)}
             </FooterCol>
             <FooterCol title="CloudIVR" testid="footer-col-company">
               {[['#how', 'How it works', 'how'], ['#try', 'Free test call', 'try'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']].map(([h, l, id]) => <a key={id} href={`${base}${h}`} onClick={(e) => goTo(h, e)} className={fLink} data-testid={`footer-link-${id}`}>{l}</a>)}

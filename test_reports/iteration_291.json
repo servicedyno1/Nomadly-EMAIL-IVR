@@ -1,0 +1,40 @@
+{
+  "summary": "Frontend-only test of the cut-down /cloudivr landing page at 1920, 1280 and 390 widths, logged out and logged in (civr.uxtest). Almost everything in the review request passes: section order, removed sections, static hero with one CTA, hero price rows, nav, mobile menu, How it works, pricing tabs, pricing-more/enterprise, fax search, eSIM order dialog, free test call checks (no real call placed), FAQ order/expand/collapse/open-close, final CTA, footer, sticky CTA, no horizontal overflow, computed WCAG AA contrast (0 failing text nodes), logged-in CTAs, and the /terms and /sip pages. I found 2 functional UX bugs (footer product links don't pick the matching pricing tab; a #pricing deep link from other pages doesn't scroll) and a few minor touch-target and copy issues. The theme toggle doesn't exist: SiteThemeButton returns null and the public pages are light-only by design.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Footer > Numbers column", "issue": "footer-product-calls / -texting / -fax / -esim all scroll to #pricing, but the active tab stays where it was (tested: plans-tab-ivr stayed selected after clicking 'Fax only', 'Calls + texting' and 'USA eSIM'). Each label names a kind of number but always opens the Calls panel. FOOTER_KINDS ids (calls/texting/fax/esim) are never passed to setTab. Fix: lift setTab or dispatch an event (e.g. the existing civr-platform-tab pattern) so 'texting' maps to mobile, 'calls' to ivr, and fax/esim to themselves.", "selector": "[data-testid^=footer-product-]", "priority": "MEDIUM"},
+      {"component": "Landing hash deep link", "issue": "Opening /cloudivr#pricing directly (this is where the footer links on /cloudivr/terms and /cloudivr/sip go) leaves the page at scrollY 0; #pricing stays ~1213px down. The browser jumps to the hash before React renders, and nothing re-scrolls once the landing has mounted. Fix: in Landing, a useEffect on mount that scrolls to location.hash (and picks the tab for #pricing links that carry a product).", "selector": "#pricing", "priority": "MEDIUM"},
+      {"component": "Touch targets (390px)", "issue": "Under 44px tall: civr-nav-signup-btn 88x40, hero-try-link 114x36, footer links (footer-product-*, footer-link-*) 32px tall. All other nav, CTA, FAQ and tab buttons measured 44px or more.", "selector": "[data-testid=civr-nav-signup-btn], [data-testid=hero-try-link], footer a", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Logged-in footer", "issue": "When logged in, the nav and hero are account-aware (Open dashboard, /app/buy), but the footer still shows 'Get your number' -> /cloudivr/signup and a 'Sign in' link.", "affected_selectors": ["footer-cta-signup", "footer-link-signin"]}
+    ],
+    "design_issues": [
+      {"screen": "Pricing > Fax only tab (desktop)", "issues": ["Note says 'Pick your exact number below', but the search card is to the right on desktop", "The right search card has a large empty white area under the search row before any search is run (no empty-state hint)", "Price '/month' and the area-code placeholder use a monospace font, unlike the rest of the page (the eSIM card '$75/month' and the ZIP placeholder too)"]},
+      {"screen": "FAQ -> Final CTA", "issues": ["Large blank cream gap (~200px) between 'Show all 26 questions' and the final CTA card: FAQ py-24 plus final-cta py-24"]},
+      {"screen": "FAQ copy (expanded list)", "issues": ["Once byPriority moves the eSIM / calls+texting questions out of their original order, some read without context ('Can I choose the number?', 'When do I get it?', 'What happens if I don't renew?' -> 'Both renew monthly at $50', while the eSIM is shown as $75/month)"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Make the footer product links pick the matching pricing tab (texting->mobile, calls->ivr, fax, esim)",
+    "Scroll to location.hash after the landing mounts so /cloudivr#pricing (and the #how/#try/#faq links from the /terms and /sip footers) land on the section",
+    "Raise civr-nav-signup-btn, hero-try-link and the footer links to at least 44px tall",
+    "Optional: make the footer CTA account-aware; fix 'below' copy on the fax card; check that the FAQ says 'Both renew monthly at $50' while the eSIM is $75; trim the gap above the final CTA"
+  ],
+  "critical_code_review_comments": [
+    "kit.js: SiteThemeButton = () => null and useSiteLook forces light, so the landing-theme-button in the request does not exist. Light-only appears to be intentional.",
+    "OneHero: the fax price shows the shimmer while fax-offer is null. If /public/fax-offer fails, the shimmer never ends (no error or fallback state). I couldn't confirm this in the browser because my request block didn't match the real API path. Consider falling back to the catalog snapshot price.",
+    "OneHero 'Calls + texting' row falls back to the cheapest calling plan (`from`) when the mobile offer is missing, so it could show a wrong price; MOBILE card falls back to a hard-coded 75.",
+    "The hero-try-link is a plain href='#try' anchor (it adds #try to the URL) while the nav links use goTo with preventDefault. Small inconsistency.",
+    "Logged-out landing logs two 401 console errors (likely the auth/me probe). Harmless, but noisy."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped as requested)", "frontend": "~92% (2 medium UX bugs out of ~25 checked behaviours)"},
+  "test_credentials": "civr.uxtest@example.com / UxTest#2026 (works)",
+  "seed_data_creation": "None. No calls placed, no email verification triggered, no purchases.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Landing is at /cloudivr. Section order is verified. Hero prices from the live catalog are all $50 (Calls, Calls+texting, Fax). Cheapest plan is Basic (id starter) at $50; plan cards are starter/standard/pro/business. Dismiss the cookie banner with data-testid=cookie-allow-all. To retest: click footer-product-fax and expect plans-tab-fax aria-selected=true; goto /cloudivr#pricing and expect #pricing near the top. There is no theme toggle by design."
+}

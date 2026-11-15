@@ -34,7 +34,7 @@ export function Card({ id, icon: I, badge, title, kind, price, points, note, chi
       </div>
       <h2 className="civr-l-h text-2xl sm:text-3xl mt-4 text-slate-950">{title}</h2>
       <p className="text-sm font-semibold text-[color:var(--np-blue)] mt-1" data-testid={`product-kind-${id}`}>{kind}</p>
-      <div className="mt-2 font-mono text-slate-950" data-testid={`product-price-${id}`}><span className="text-3xl font-semibold">{`$${price}`}</span><span className="text-sm text-slate-500">/month</span></div>
+      <div className="mt-2 text-slate-950 tabular-nums" data-testid={`product-price-${id}`}><span className="text-3xl font-semibold">{`$${price}`}</span><span className="text-sm text-slate-500">/month</span></div>
       <ul className="mt-5 space-y-2.5 text-[15px] text-slate-700 flex-1">{points.map(x => <li key={x} className="flex gap-2.5"><Check className="w-4 h-4 mt-1 shrink-0 text-[color:var(--np-blue)]" />{x}</li>)}</ul>
       <p className="mt-5 text-xs text-slate-500 flex items-start gap-1.5 min-h-[32px]" data-testid={`product-note-${id}`}><ShieldCheck className="w-3.5 h-3.5 mt-px shrink-0" />{note}</p>
       {children}

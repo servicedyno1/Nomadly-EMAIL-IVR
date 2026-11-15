@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronDown, ChevronRight, PhoneCall, Smartphone, MessageSquareText, Printer, ShieldCheck, Zap, LifeBuoy } from 'lucide-react';
 import { Reveal, reducedMotion } from './kit';
+import { goTo } from './menu';
 import { usd } from '../../api';
 import { PlanCard, useStart } from './PricingFaq';
 import { Card, Waitlist, ESIM_POINTS, MOBILE_POINTS } from './ProductHero';
@@ -23,7 +24,7 @@ const goPlans = (id, setTab) => { setTab(id); document.getElementById('pricing')
 const TRUST = [[ShieldCheck, 'No contract'], [Zap, 'Live in minutes'], [LifeBuoy, 'Real people on support']];
 
 // A price that hasn't loaded yet shows a shimmer, never a dash.
-const Price = ({ value, testid }) => (value ? <b className="text-xl text-slate-950 tabular-nums" data-testid={testid}>{value}</b> : <span className="civr-skel inline-block h-6 w-14 rounded-md align-middle" aria-label="Loading price" data-testid={`${testid}-loading`} />);
+const Price = ({ value, testid }) => (value === false ? <span className="text-sm font-semibold text-slate-700" data-testid={testid}>See plans</span> : value ? <b className="text-xl text-slate-950 tabular-nums" data-testid={testid}>{value}</b> : <span className="civr-skel inline-block h-6 w-14 rounded-md align-middle" aria-label="Loading price" data-testid={`${testid}-loading`} />);
 
 // The three kinds of number with their price, right next to the sign-up button.
 function PriceList({ rows, onDetails }) {
@@ -47,12 +48,12 @@ function PriceList({ rows, onDetails }) {
 }
 
 // Hero: one headline, one sign-up button, and the prices beside it.
-export function OneHero({ setTab, from, offer, fax }) {
+export function OneHero({ setTab, from, offer, fax, offerFailed, faxFailed }) {
   const start = useStart();
   const rows = [
     ['ivr', PhoneCall, 'Calls', 'Answer, forward, menus, voicemail', from, 'texting optional'],
-    ['mobile', MessageSquareText, 'Calls + texting', 'Two-way texts and calls', offer?.price ? usd(offer.price) : from, 'USA texts unlimited'],
-    ['fax', Printer, 'Fax only', 'Send and receive faxes online', fax?.price ? usd(fax.price) : null, `${fax?.freePages ?? 25} free pages a month`],
+    ['mobile', MessageSquareText, 'Calls + texting', 'Two-way texts and calls', offer?.price ? usd(offer.price) : offerFailed ? false : null, 'USA texts unlimited'],
+    ['fax', Printer, 'Fax only', 'Send and receive faxes online', fax?.price ? usd(fax.price) : faxFailed ? false : null, `${fax?.freePages ?? 25} free pages a month`],
   ];
   return (
     <section id="product-hero" className="relative bg-white pt-28 md:pt-36 pb-16 md:pb-24" data-testid="product-hero">
@@ -68,7 +69,7 @@ export function OneHero({ setTab, from, offer, fax }) {
             <ul className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2" data-testid="hero-trust">
               {TRUST.map(([I, t], i) => <li key={t} className="flex items-center gap-2 text-sm font-medium text-slate-700" data-testid={`hero-trust-${i}`}><I className="w-4 h-4 text-emerald-600" aria-hidden="true" />{t}</li>)}
             </ul>
-            <p className="text-sm text-slate-600 mt-6">Not sure yet? <a href="#try" className="font-semibold text-[#1d6fd8] underline underline-offset-2 inline-block py-2" data-testid="hero-try-link">Take a free test call</a></p>
+            <p className="text-sm text-slate-600 mt-6">Not sure yet? <a href="#try" onClick={(e) => goTo('#try', e)} className="font-semibold text-[#1d6fd8] underline underline-offset-2 inline-flex items-center min-h-[44px]" data-testid="hero-try-link">Take a free test call</a></p>
           </div>
           <PriceList rows={rows} onDetails={(id) => goPlans(id, setTab)} />
         </div>

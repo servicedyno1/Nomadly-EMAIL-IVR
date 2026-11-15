@@ -27,7 +27,7 @@ function MobileMenu({ onClose, account }) {
   );
 }
 
-export function LandingNav({ catalog }) {
+export function LandingNav() {
   const { account } = useCivrAuth();
   const [scrolled, setScrolled] = useState(0);
   const [mobile, setMobile] = useState(false);
@@ -53,7 +53,7 @@ export function LandingNav({ catalog }) {
           ? <Link to={cp('/app')} className="civr-l-pill civr-l-pill-ink civr-l-pill-sm" data-testid="landing-open-dashboard"><Slide><span className="sm:hidden">Dashboard</span><span className="hidden sm:inline">Open dashboard</span></Slide></Link>
           : <>
               <Link to={cp('/login')} aria-label="Sign in" className="text-sm font-medium text-slate-700 hover:text-slate-950 px-1 py-3 min-h-[44px] hidden sm:flex items-center whitespace-nowrap transition-colors" data-testid="civr-nav-login-btn">Sign in</Link>
-              <Link to={cp('/signup')} className="civr-l-pill civr-l-pill-ink civr-l-pill-sm whitespace-nowrap" data-testid="civr-nav-signup-btn"><Slide><span className="sm:hidden">Sign up</span><span className="hidden sm:inline">Sign up free</span></Slide></Link>
+              <Link to={cp('/signup')} className="civr-l-pill civr-l-pill-ink civr-l-pill-sm whitespace-nowrap min-h-[44px]" data-testid="civr-nav-signup-btn"><Slide><span className="sm:hidden">Sign up</span><span className="hidden sm:inline">Sign up free</span></Slide></Link>
             </>}
         <button type="button" className="lg:hidden w-11 h-11 -mr-2 grid place-items-center rounded-full hover:bg-slate-100 transition-colors" aria-label={mobile ? 'Close menu' : 'Open menu'} aria-expanded={mobile} onClick={() => setMobile(m => !m)} data-testid="landing-mobile-menu-button">{mobile ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}</button>
       </div>

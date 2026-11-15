@@ -17,7 +17,7 @@ function Zip({ zip, setZip, onNext, autoRenew, setAutoRenew, price }) {
   return (
     <div className="space-y-5" data-testid="mobile-co-details">
       <Label text="ZIP code" hint="We ask the carrier for a number near this USA ZIP code. It’s a preference: the area code can’t be guaranteed.">
-        <input className={`${IN} font-mono max-w-[200px]`} inputMode="numeric" autoComplete="postal-code" value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10011" data-testid="mobile-co-zip" />
+        <input className={`${IN} tabular-nums max-w-[200px]`} inputMode="numeric" autoComplete="postal-code" value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10011" data-testid="mobile-co-zip" />
       </Label>
       <p className="flex items-start gap-2 text-sm text-slate-600 rounded-xl bg-slate-50 p-3" data-testid="mobile-co-reveal-note"><Lock className="w-4 h-4 mt-0.5 shrink-0 text-[color:var(--np-blue)]" />You can’t pick the exact number. The carrier assigns it after your payment is confirmed, usually within minutes.</p>
       <RenewPick on={autoRenew} onChange={setAutoRenew} price={price} testid="mobile-co-autorenew" className="border-slate-200" />
