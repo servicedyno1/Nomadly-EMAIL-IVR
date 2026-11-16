@@ -30,12 +30,23 @@ function decide(idName, cardNames) {
   return r.includes('mismatch') ? 'mismatch' : r.includes('doubt') ? 'doubt' : 'match'
 }
 
-function createCardCheck(db, { log = console.log, notifyAdmin, push, refundPayment, retrieveSession, applySession }) {
+function createCardCheck(db, { log = console.log, notifyAdmin, push, refundPayment, retrieveSession, applySession, replay }) {
   const col = db.collection('compliance'), deposits = db.collection('webDeposits'), walletOf = db.collection('walletOf'), txns = db.collection('transactions')
   const esc = (s) => String(s ?? '').replace(/[<&>]/g, c => ({ '<': '&lt;', '&': '&amp;', '>': '&gt;' }[c]))
   const usd = (n) => `$${Number(n || 0).toFixed(2)}`
   const of = async (chatId) => (await col.findOne({ _id: String(chatId) })) || { _id: String(chatId) }
   const held = (chatId) => deposits.find({ chatId: { $in: [chatId, String(chatId), Number(chatId)].filter(v => v === v) }, provider: 'mollie', idHold: true }).toArray()
+  // Short email for each step (also in the app inbox via push).
+  const site = () => `https://${String(process.env.CLOUDIVR_WEB_DOMAIN || 'cloudivr.net').replace(/^https?:\/\//, '')}`
+  async function mail(chatId, subject, title, lines, points, cta) {
+    try {
+      const acc = await db.collection('webAccounts').findOne({ _id: Number(chatId) }, { projection: { email: 1 } })
+      if (!acc?.email) return
+      const L = require('./email-layout')
+      const body = lines.map(x => L.p(x)).join('') + (points ? L.bullets(points) : '') + (cta ? L.button(cta[0], `${site()}${cta[1]}`) : '')
+      await require('./auth').sendMail(acc.email, subject, L.layout({ preheader: lines[0], eyebrow: 'Card payment', title, body }))
+    } catch (e) { log(`[CardCheck] email ${chatId}: ${e.message}`) }
+  }
   const passed = async (chatId) => (await of(chatId)).cardCheck?.status === 'passed'
 
   // Called by Mollie settle for a paid card payment: true → credit as held. Off while no Stripe key is set
@@ -46,6 +57,13 @@ function createCardCheck(db, { log = console.log, notifyAdmin, push, refundPayme
     const amt = round4(amount)
     await walletOf.updateOne({ _id: String(chatId) }, { $inc: { usdIn: amt, usdOut: amt, usdHeld: amt } }, { upsert: true })
   }
+  // Wallet part of a held wallet + card order: set aside (not spendable) until the order runs or is cancelled.
+  async function reserve(chatId, amount) {
+    const amt = round4(Math.max(0, Number(amount) || 0))
+    if (!amt) return 0
+    const r = await walletOf.updateOne({ _id: String(chatId), $expr: { $gte: [{ $subtract: [{ $ifNull: ['$usdIn', 0] }, { $ifNull: ['$usdOut', 0] }] }, amt] } }, { $inc: { usdOut: amt, usdHeld: amt } })
+    return r.modifiedCount === 1 ? amt : 0
+  }
 
   async function onHeld(dep, p) {
     const chatId = String(dep.chatId), d = await of(chatId), st = d.cardCheck?.status
@@ -54,6 +72,7 @@ function createCardCheck(db, { log = console.log, notifyAdmin, push, refundPayme
     }
     log(`[CardCheck] ${chatId} card payment ${dep.ref} held ($${dep.amountUsd}) — ID check ${st === 'review' ? 'in review' : 'required'}`)
     if (d.identity?.status === 'verified') return evaluate(chatId)
+    if (st !== 'review') mail(chatId, `Verify your ID to use your ${usd(dep.amountUsd)} top-up`, 'One quick ID check', [`We received your card payment of ${usd(dep.amountUsd)}. It is in your wallet, on hold until you verify your ID — a one-time check that takes about 2 minutes.`], ['Photo ID + a quick selfie; the name must match the card', 'Done once — future card payments are never held', 'Not done within 24 hours? The payment is refunded to your card'], ['Verify my ID', '/app/wallet'])
     if (st !== 'review') push?.(chatId, `Payment received: ${usd(dep.amountUsd)} is in your wallet but on hold. Verify your ID within 24 hours (photo ID + quick selfie, name must match the card) to use it — otherwise the payment is refunded to your card. Wallet → Verify ID.`).catch?.(() => {})
   }
 
@@ -62,12 +81,23 @@ function createCardCheck(db, { log = console.log, notifyAdmin, push, refundPayme
     for (const dep of await held(chatId)) {
       const r = await deposits.updateOne({ _id: dep._id, idHold: true }, { $set: { idHold: false, idReleasedAt: new Date(), idReleaseWhy: why } })
       if (r.modifiedCount !== 1) continue
-      const amt = round4(dep.amountUsd)
-      await walletOf.updateOne({ _id: String(chatId) }, { $inc: { usdOut: -amt, usdHeld: -amt } })
+      const amt = round4(dep.amountUsd), back = round4(amt + (dep.reservedUsd || 0))
+      await walletOf.updateOne({ _id: String(chatId) }, { $inc: { usdOut: -back, usdHeld: -back } })
       total += amt
+      for (const a of dep.pendingActions || []) {
+        const r = await replay?.(chatId, a).catch(e => ({ status: 0, message: e.message }))
+        log(`[CardCheck] ${chatId} saved order ${a.method} ${a.path} → ${r?.status}`)
+        const okd = r?.status >= 200 && r.status < 300
+        await deposits.updateOne({ _id: dep._id }, { $set: { orderResult: { state: okd ? 'done' : 'failed', status: r?.status || 0, message: r?.message || null, at: new Date() } } })
+        if (!okd) {
+          push?.(String(chatId), `Your saved order could not be completed automatically${r?.message ? `: ${r.message}` : ''}. Your money is in your wallet — please place the order again.`).catch?.(() => {})
+          notifyAdmin?.(`⚠️ <b>Saved card order failed</b> — web account ${esc(chatId)} ${esc(a.method)} ${esc(a.path)} → ${esc(r?.status)} ${esc(r?.message || '')}`)
+        } else push?.(String(chatId), 'Your saved order went through now that your ID check is approved.').catch?.(() => {})
+      }
     }
     await col.updateOne({ _id: String(chatId) }, { $set: { 'cardCheck.status': 'passed', 'cardCheck.decidedAt': new Date(), 'cardCheck.reason': why } })
     log(`[CardCheck] ${chatId} passed (${why}) — released $${total}`)
+    mail(chatId, 'ID verified — your balance is ready', 'You’re verified', [`Your ID check passed${total ? ` and ${usd(total)} is now available in your wallet` : ''}.`], ['Card, Apple Pay and Google Pay top-ups go straight to your balance from now on', 'You won’t be asked to verify again'], ['Open my wallet', '/app/wallet'])
     push?.(String(chatId), `ID check passed${total ? ` — ${usd(total)} is now available in your wallet` : ''}. You won't be asked again.`).catch?.(() => {})
     return total
   }
@@ -79,9 +109,14 @@ function createCardCheck(db, { log = console.log, notifyAdmin, push, refundPayme
       if (claim.modifiedCount !== 1) continue
       try {
         const rf = await refundPayment(dep, `CloudIVR card payment refunded: ${why}`)
-        const amt = round4(dep.amountUsd)
+        const amt = round4(dep.amountUsd), res = round4(dep.reservedUsd || 0)
         await deposits.updateOne({ _id: dep._id }, { $set: { idHold: false, refundState: 'refunded', refundId: rf?.id || null, refundedAt: new Date(), refundWhy: why } })
-        await walletOf.updateOne({ _id: String(chatId) }, { $inc: { usdIn: -amt, usdOut: -amt, usdHeld: -amt } })
+        // Card part goes back to the card; a set-aside wallet part goes back to the balance; the saved order is dropped.
+        await walletOf.updateOne({ _id: String(chatId) }, { $inc: { usdIn: -amt, usdOut: -amt - res, usdHeld: -amt - res } })
+        if (dep.pendingActions?.length) {
+          await deposits.updateOne({ _id: dep._id }, { $set: { orderResult: { state: 'cancelled', status: 0, message: 'The card payment was refunded, so the order was cancelled.', at: new Date() } } })
+          push?.(String(chatId), `Your saved order was cancelled because the card payment was refunded.${res ? ` The ${usd(res)} from your wallet is back in your balance.` : ''}`).catch?.(() => {})
+        }
         await txns.insertOne({ chatId: String(chatId), type: 'card-refund', amount: amt, currency: 'USD', status: 'completed', metadata: { ref: dep.ref, paymentId: dep.molliePaymentId, refundId: rf?.id || null, value: dep.amountCharged, coin: dep.currency, why }, createdAt: new Date(), updatedAt: new Date() })
         total += amt
       } catch (e) {
@@ -95,6 +130,7 @@ function createCardCheck(db, { log = console.log, notifyAdmin, push, refundPayme
     if (!failed) await col.updateOne({ _id: String(chatId) }, { $set: { 'cardCheck.status': 'refunded', 'cardCheck.decidedAt': new Date(), 'cardCheck.reason': why } })
     log(`[CardCheck] ${chatId} refunded $${total} (${why})${failed ? `, ${failed} refund(s) failed` : ''}`)
     if (total) {
+      mail(chatId, `Your ${usd(total)} card payment was refunded`, 'Payment refunded', [`Your card payment of ${usd(total)} was refunded to your card because ${why}.`, 'Refunds usually show within 5–10 days. You can still top up with crypto or another method.'], null, ['Open my wallet', '/app/wallet'])
       push?.(String(chatId), `Your card payment of ${usd(total)} was refunded to your card: ${why}. Refunds usually show within 5–10 days.`).catch?.(() => {})
       notifyAdmin?.(`↩️ <b>Card payment refunded</b> — web account ${esc(chatId)}: ${usd(total)} (${esc(why)})`)
     }
@@ -120,6 +156,7 @@ function createCardCheck(db, { log = console.log, notifyAdmin, push, refundPayme
     if (d.cardCheck.status !== 'review') {
       await col.updateOne({ _id: String(chatId) }, { $set: { 'cardCheck.status': 'review', 'cardCheck.reviewSince': new Date() } })
       notifyAdmin?.(`🪪 <b>Card ID check needs review</b> — web account ${esc(chatId)}\nID name: <b>${esc(idName) || '—'}</b>\nCard name(s): <b>${esc(cardNames.join(', ')) || 'not given by the card / wallet'}</b>\nHeld: ${usd(deps.reduce((s, x) => s + x.amountUsd, 0))}\nApprove or refund in Admin → Compliance → Card ID checks.`)
+      mail(chatId, 'ID received — we’re confirming your card', 'Almost done', ['Thanks — your ID was received. We are confirming it matches your card; your top-up stays on hold until then, usually within a few hours.', 'We’ll email you as soon as it’s released.'])
       push?.(String(chatId), 'Thanks — your ID was received. We are confirming it matches your card; your top-up stays on hold until then (usually within a few hours).').catch?.(() => {})
     }
     return 'review'
@@ -165,12 +202,13 @@ function createCardCheck(db, { log = console.log, notifyAdmin, push, refundPayme
   }
 
   function adminRoutes(r, h, A) {
+    r.get('/admin/card-checks/count', A, h(async (req, res) => res.json({ open: await col.countDocuments({ 'cardCheck.status': { $in: ['review', 'required'] } }), review: await col.countDocuments({ 'cardCheck.status': 'review' }) })))
     r.get('/admin/card-checks', A, h(async (req, res) => {
       const st = ['review', 'required', 'passed', 'refunded'].includes(req.query.status) ? req.query.status : 'review'
       const docs = await col.find({ 'cardCheck.status': st }).sort({ 'cardCheck.startedAt': -1 }).limit(100).toArray()
       const accs = new Map((await db.collection('webAccounts').find({ _id: { $in: docs.map(d => Number(d._id)).filter(Boolean) } }, { projection: { email: 1 } }).toArray()).map(a => [String(a._id), a]))
       const items = await Promise.all(docs.map(async d => {
-        const deps = await deposits.find({ chatId: { $in: [d._id, Number(d._id)] }, provider: 'mollie', $or: [{ idHold: true }, { refundState: { $exists: true } }] }).sort({ createdAt: -1 }).limit(20).toArray()
+        const deps = await deposits.find({ chatId: { $in: [d._id, Number(d._id)] }, provider: 'mollie', $or: [{ idHold: true }, { refundState: { $exists: true } }, { idReleasedAt: { $exists: true } }] }).sort({ createdAt: -1 }).limit(20).toArray()
         return { chatId: d._id, email: accs.get(String(d._id))?.email || null, ...d.cardCheck, identity: { status: d.identity?.status || 'none', name: d.identity?.name || null },
           deposits: deps.map(x => ({ ref: x.ref, amountUsd: x.amountUsd, amount: x.amountCharged, currency: x.currency, method: x.mollieMethod, cardHolder: x.cardHolder || null, held: !!x.idHold, refundState: x.refundState || null, refundError: x.refundError || null, paidAt: x.paidAt })) }
       }))
@@ -188,7 +226,7 @@ function createCardCheck(db, { log = console.log, notifyAdmin, push, refundPayme
     }))
   }
 
-  return { needsHold, creditHeld, onHeld, onIdentity, evaluate, release, refundAll, tick, status, routes, adminRoutes, passed }
+  return { needsHold, creditHeld, reserve, onHeld, onIdentity, evaluate, release, refundAll, tick, status, routes, adminRoutes, passed }
 }
 
 module.exports = { createCardCheck, compareNames, decide, isCardPayment, DEADLINE_MS, MAX_FAILS }

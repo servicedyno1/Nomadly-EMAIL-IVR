@@ -35,13 +35,39 @@ const networkError = () => new ApiError(0, {
     : 'Can’t reach CloudIVR right now. Check your connection, then try again.',
 });
 
+// Order placed right after a card payment that's held for the ID check: the next order request carries the
+// payment ref (+ the wallet part to set aside) so the server saves it and runs it once the ID check passes.
+let cardHold = null;
+export const holdNextOrder = (ref, reserveUsd = 0) => { cardHold = { ref, reserveUsd, until: Date.now() + 120000 }; };
+const takeHold = (method, path) => {
+  if (!cardHold || !['POST', 'PUT', 'PATCH'].includes(method) || /^\/(wallet|compliance|card-check)/.test(path)) return null;
+  const h = cardHold; cardHold = null;
+  return h.until > Date.now() ? { 'x-card-hold-ref': h.ref, 'x-card-hold-reserve': String(h.reserveUsd || 0) } : null;
+};
+// Wallet + card checkout: catch the order request a checkout is about to send (instead of sending it), so it can go
+// with the card payment and run on the server once paid. The caller's promise settles with the order's real result.
+let capture = null;
+export const captureNextOrder = () => new Promise((ok) => { capture = ok; });
+export const cancelCapture = () => { capture = null; };
+const takeCapture = (method, path, body, form) => {
+  if (!capture || form || !['POST', 'PUT', 'PATCH'].includes(method) || /^\/(wallet|compliance|card-check)/.test(path)) return null;
+  const ok = capture; capture = null;
+  let settle;
+  const result = new Promise((res, rej) => { settle = { res, rej }; });
+  ok({ method, path, body: body || {}, settle });
+  return result;
+};
+
 export async function api(path, { method = 'GET', body, form } = {}) {
   let res;
+  const captured = takeCapture(method, path, body, form);
+  if (captured) return captured;
+  const hold = takeHold(method, path);
   try {
     res = await fetch(`${BASE}${path}`, {
       method,
       credentials: 'include',
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      headers: body || hold ? { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(hold || {}) } : undefined,
       body: form || (body ? JSON.stringify(body) : undefined),
       // Deletes waiting behind an Undo toast are sent while the tab closes (see undo.js).
       keepalive: method === 'DELETE',
@@ -57,6 +83,7 @@ export async function api(path, { method = 'GET', body, form } = {}) {
     if (await permissionAsker(data).catch(() => false)) return api(path, { method, body: { ...body, permissionConfirmed: true }, form });
   }
   if (!res.ok) throw new ApiError(res.status, data);
+  if (res.status === 202 && data?.queued) throw new ApiError(202, { error: 'queued', message: data.message });
   return data;
 }
 

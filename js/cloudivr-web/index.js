@@ -104,14 +104,28 @@ function createCloudIvrWeb(deps) {
     require('./fax').publicRoutes(r, { db, h })
     require('../ivr-outbound').setPickLogDb(db)
     let offersRef = null, cardCheckRef = null
-    const mollie = require('./mollie').createMollie(db, { log, notifyAdmin: deps.notifyAdmin, getOffers: () => offersRef, getCardCheck: () => cardCheckRef, push: (id, text) => notify.push(id, text, null, { kind: 'payment' }) })
+    // Runs a saved order as its owner (card payment settled / ID check released).
+    const replay = async (chatId, a) => { const cookie = await auth.replayCookie(chatId); const r = await require('axios')({ method: a.method, url: `http://127.0.0.1:${process.env.PORT}/cloudivr-web${a.path}`, data: a.body, headers: { cookie, 'x-card-replay': '1' }, validateStatus: () => true, timeout: 60000 }); return { status: r.status, message: r.data?.message || null, data: r.data } }
+    const mollie = require('./mollie').createMollie(db, { log, notifyAdmin: deps.notifyAdmin, getOffers: () => offersRef, getCardCheck: () => cardCheckRef, replay, push: (id, text) => notify.push(id, text, null, { kind: 'payment' }) })
     mollie.publicRoutes(r, { h })
-    const cardCheck = cardCheckRef = require('./card-check').createCardCheck(db, { log, notifyAdmin: deps.notifyAdmin, push: (id, text) => notify.push(id, text, null, { kind: 'payment' }), refundPayment: mollie.refund, retrieveSession: compliance.retrieveSession, applySession: compliance.applySession })
+    const cardCheck = cardCheckRef = require('./card-check').createCardCheck(db, { log, notifyAdmin: deps.notifyAdmin, push: (id, text) => notify.push(id, text, null, { kind: 'payment' }), refundPayment: mollie.refund, replay, retrieveSession: compliance.retrieveSession, applySession: compliance.applySession })
     compliance.hooks.onIdentity = cardCheck.onIdentity
     cardCheck.adminRoutes(r, h, adminAuth.require)
     require('../active-slot').singletonInterval('cloudivr-card-check', () => cardCheck.tick().catch(e => log(`[CardCheck] tick: ${e.message}`)), 5 * 60000)
     require('./journey').createJourney({ db, h, accountOf: (req) => new Promise(ok => auth.requireUser(req, { status: () => ({ json: () => ok(null) }) }, () => ok(req.webChatId))) }).routes(r)
     r.use(auth.requireUser)
+    // Checkout paid by card while the money is held for the ID check: save the order, run it once released.
+    r.use(h(async (req, res, next) => {
+      const ref = String(req.headers['x-card-hold-ref'] || '')
+      if (!ref || !['POST', 'PUT', 'PATCH'].includes(req.method) || req.headers['x-card-replay']) return next()
+      const dep = await db.collection('webDeposits').findOne({ ref, chatId: req.webChatId, provider: 'mollie', idHold: true })
+      if (!dep) return next()
+      // Wallet part of a wallet + card checkout: set aside so it can't be spent before the order runs.
+      const reserved = await cardCheck.reserve(req.webChatId, req.headers['x-card-hold-reserve'])
+      await db.collection('webDeposits').updateOne({ _id: dep._id }, { $push: { pendingActions: { method: req.method, path: req.path, body: req.body || {}, at: new Date() } }, $inc: { reservedUsd: reserved } })
+      log(`[CardCheck] ${req.webChatId} order ${req.method} ${req.path} saved until ${ref} is released${reserved ? ` ($${reserved} wallet part set aside)` : ''}`)
+      res.status(202).json({ queued: true, message: 'Payment received. Your order is saved and goes through automatically as soon as your ID check is approved.' })
+    }))
     invoices.routes(r)
     // Admin alert when web content is named after a bank / FDIC / IRS (alert only).
     r.use((req, _res, next) => {

@@ -99,6 +99,12 @@ export function Spinner({ label = 'Loading…', testid = 'loading-indicator', in
 // `onRetry` adds a "Try again" button (pass the page's reload).
 export function ErrorNote({ error, testid = 'error-message', onRetry, className = '' }) {
   if (!error) return null;
+  if (error.code === 'queued') return (
+    <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[#fbbf24] border border-[#fbbf24]/30 bg-[#fbbf24]/5 rounded-xl px-4 py-3 ${className}`} role="status" data-testid={`${testid}-queued`}>
+      <span className="flex-1 min-w-0">{error.message}</span>
+      <Link to={cp('/app/wallet')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`${testid}-verify-id`}>Verify my ID</Link>
+    </div>
+  );
   return (
     <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[#fb7185] border border-[#fb7185]/30 bg-[#fb7185]/5 rounded-xl px-4 py-3 ${className}`} role="alert" data-testid={testid}>
       <span className="flex-1 min-w-0">{error.message || String(error)}</span>

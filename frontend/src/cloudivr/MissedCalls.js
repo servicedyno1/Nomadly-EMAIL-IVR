@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
-import { PhoneMissed } from 'lucide-react';
-import { useApi, when } from './api';
+import React, { useEffect, useState } from 'react';
+import { PhoneMissed, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { api, useApi, when } from './api';
 import { usePrivacy } from './privacy';
 import { TextBack } from './QuickReply';
 import { RING_ENDED } from './Incoming';
@@ -12,7 +13,9 @@ export function MissedCalls() {
   useLangTick();
   const { data, reload } = useApi('/missed-calls');
   useEffect(() => { window.addEventListener(RING_ENDED, reload); return () => window.removeEventListener(RING_ENDED, reload); }, [reload]);
-  const calls = data?.calls || [];
+  const [gone, setGone] = useState([]);
+  const dismiss = (id) => { setGone(g => [...g, id]); api(`/missed-calls/${id}/dismiss`, { method: 'POST' }).catch(() => { setGone(g => g.filter(x => x !== id)); toast.error('Could not clear that call. Try again.'); }); };
+  const calls = (data?.calls || []).filter(c => !gone.includes(c.id));
   if (!calls.length) return null;
   return (
     <section className="civr-card p-5 mb-6" data-testid="inbox-missed-calls">
@@ -25,6 +28,7 @@ export function MissedCalls() {
               <span className="font-mono" data-no-translate data-testid={`inbox-missed-${i}-from`}>{pv.phone(c.from)}</span>
               <span className="text-xs text-[#a1a1aa]" data-testid={`inbox-missed-${i}-to`}>{`Called ${pv.phone(c.phone)} · ${when(c.timestamp)}`}</span>
               {c.type === 'voicemail' && <span className="civr-pill">Voicemail</span>}
+              <button type="button" onClick={() => dismiss(c.id)} className="ml-auto p-1 text-[#a1a1aa] hover:text-white" aria-label="Clear this missed call" title="Clear" data-testid={`inbox-missed-${i}-dismiss`}><X className="w-4 h-4" /></button>
             </div>
             <TextBack id={c.id} phone={c.phone} to={c.from} reply={c.reply} canReply={c.canReply} onDone={reload} testid={`inbox-missed-${i}-reply`} />
           </li>

@@ -3291,3 +3291,17 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
   destination's voicemail. Cause: transferCall POST /channels/A/ring never stopped on B answer. onUp now DELETEs ring + stops ringback playback before bridging.
 - Stale call session (ae: forwarded call whose hangup hit the old slot during a flip) blocked deploy drain ~30 min. voice-service now
   drops ae: sessions >2 min old whose Asterisk channel 404s.
+
+## 2026-11-16 — Wallet + card split checkout, missed-call dismiss, ID name sync (deployed app-main 20261116T141456Z)
+- Wallet + Mollie split: MolliePay catches the checkout's order request (api.js captureNextOrder) and sends it with the
+  Mollie payment (`order` on /wallet/mollie/pay|session). Server runs it once paid (mollie.js runOrder via local replay),
+  so it works after redirects/tab close. Held for ID check → order saved in pendingActions, wallet part set aside
+  (reservedUsd, card-check.reserve); released on ID pass (order replays), returned on refund (order cancelled).
+  Status poll returns `order.state` (pending/running/done/failed/queued/cancelled). Fallback header path x-card-hold-ref kept.
+- Verified ID name → account name + legalProfile.fullName (compliance.syncName), audit rows in `profileNameChanges`.
+- "You're verified" email on ID pass (skipped when a card check sends its own).
+- Inbox missed calls: dismiss button (POST /missed-calls/:id/dismiss, `dismissedAt`). 4 internal test missed calls on
+  account 5000000000000002 marked dismissed in prod (not deleted).
+- Tests: test_card_check.js 32/0. Split flow NOT browser-tested (Mollie off in preview); no live split payment yet.
+- NOT shipped: texting on/off + 10DLC gates (WIP in workspace, backup memory/wip_texting/). Next deploy will include them
+  unless reverted — finish + test first.

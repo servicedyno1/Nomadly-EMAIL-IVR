@@ -199,7 +199,7 @@ function _publicNumber(n, numbers) {
       textTriggers: { enabled: !!f.textTriggers?.enabled, count: (f.textTriggers?.rules || []).length },
       aiSummary: { enabled: !!f.aiSummary?.enabled },
       missedTextBack: f.missedTextBack || { enabled: false, text: null },
-      texting: { available: !!(n.capabilities || { sms: true }).sms && phoneConfig.PLAN_TEXTING(), enabled: !!(n.capabilities || { sms: true }).sms && f.sms === true, textPrice: texting.localTextPrice(n) || texting.TEXT_MIN },
+      texting: { available: (!!(n.capabilities || { sms: true }).sms || require('./ten-dlc').needs10dlc(n)) && phoneConfig.PLAN_TEXTING(), enabled: f.sms === true && (n.capabilities || { sms: true }).sms !== false, mode: (n.capabilities || { sms: true }).sms ? (require('./ten-dlc').needs10dlc(n) ? 'tendlc' : 'direct') : require('./ten-dlc').needs10dlc(n) ? 'tendlc' : 'none', textPrice: texting.localTextPrice(n) || texting.TEXT_MIN },
     },
     access: access(n.plan),
   }
@@ -644,7 +644,11 @@ function routes(router, deps) {
     if (why) return bad(res, 400, 'not_configured', why)
     const phone = req.num.phoneNumber, id = req.webChatId
     const extra = {}
-    if (feature === 'texting' && req.num.capabilities?.sms === false) return bad(res, 400, 'no_texting', 'This number can’t send or receive texts.')
+    const tendlc = feature === 'texting' && require('./ten-dlc').needs10dlc(req.num)
+    if (feature === 'texting' && req.num.capabilities?.sms === false && !tendlc) return bad(res, 400, 'no_texting', 'This number can’t send or receive texts.')
+    // US local numbers: texting can only be switched on once the account's 10DLC registration is active.
+    if (tendlc && enabled && (await db.collection('tenDlc').findOne({ _id: String(id) }, { projection: { status: 1 } }))?.status !== 'active') return bad(res, 409, 'tendlc_needed', 'US numbers need an approved 10DLC texting registration first. Start it below.')
+    if (tendlc && enabled && req.num.capabilities?.sms === false) await setField(id, phone, 'capabilities', { ...req.num.capabilities, sms: true })
     if (feature === 'autoRenew') await setField(id, phone, 'autoRenew', enabled)
     else if (feature === 'texting') await setField(id, phone, 'features.sms', enabled)
     else if (feature === 'recording') await setField(id, phone, 'features.recording', enabled)

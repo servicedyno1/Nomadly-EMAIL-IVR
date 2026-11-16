@@ -61,8 +61,28 @@ async function methodsFor(currency, value, v) {
   return list || []
 }
 
-function createMollie(db, { log = console.log, push, notifyAdmin, getOffers, getCardCheck } = {}) {
+function createMollie(db, { log = console.log, push, notifyAdmin, getOffers, getCardCheck, replay } = {}) {
   const deposits = db.collection('webDeposits'), txns = db.collection('transactions'), w = walletOps(db)
+  // Wallet + card checkout: the order is sent with the payment and runs on the server once Mollie says paid
+  // (works even when the customer is redirected away or closes the tab).
+  const orderOf = (b) => {
+    const o = b?.order
+    if (!o || !['POST', 'PUT', 'PATCH'].includes(o.method) || !/^\/[\w\-./%:+@]+$/.test(String(o.path || '')) || /^\/(wallet|compliance|card-check|admin|auth)/.test(o.path)) return null
+    const body = o.body && typeof o.body === 'object' ? o.body : {}
+    if (JSON.stringify(body).length > 20000) return null
+    return { method: o.method, path: String(o.path), body, walletUsd: Math.max(0, round2(o.walletUsd) || 0) }
+  }
+  const small = (d) => { try { return JSON.stringify(d ?? null).length <= 50000 ? d : null } catch (_) { return null } }
+  async function runOrder(dep) {
+    const r = await replay(dep.chatId, dep.order).catch(e => ({ status: 0, message: e.message }))
+    const okd = r?.status >= 200 && r.status < 300
+    await deposits.updateOne({ _id: dep._id }, { $set: { orderResult: { state: okd ? 'done' : 'failed', status: r?.status || 0, message: r?.message || null, data: small(r?.data), at: new Date() } } })
+    log(`[Mollie] ${dep.chatId} order ${dep.order.method} ${dep.order.path} after ${dep.ref} → ${r?.status}`)
+    if (!okd) {
+      push?.(String(dep.chatId), `Your payment arrived, but the order could not be completed${r?.message ? `: ${r.message}` : ''}. The money is in your wallet — please place the order again.`).catch?.(() => {})
+      notifyAdmin?.(`⚠️ <b>Card order failed after payment</b> — web account ${dep.chatId} ${dep.order.method} ${String(dep.order.path).replace(/</g, '&lt;')} → ${r?.status} ${String(r?.message || '').replace(/</g, '&lt;')}`)
+    }
+  }
   const keyed = () => !!mode() || !!orgKey()
   let lastFailAlert = 0
   // Card stays "coming soon" on a site until Mollie accepts its domain (website profile). Probed per site with a throwaway Checkout Session, re-checked every 30 min.
@@ -129,7 +149,16 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers, get
     log(`[Mollie] credited $${dep.amountUsd} to ${dep.chatId} (${label}, ${p.method}, ${dep.mode})`)
     if (!hold) push?.(String(dep.chatId), `Payment received: $${dep.amountUsd.toFixed(2)} was added to your wallet (${label} by ${p.method || 'Mollie'}).`).catch?.(() => {})
     notifyAdmin?.(`💳 <b>Wallet top-up (Mollie${dep.mode === 'test' ? ' · TEST' : ''})</b>\n👤 Web account ${dep.chatId}\n💵 Credited <b>$${dep.amountUsd.toFixed(2)}</b>${hold ? ' · <b>on hold until ID check</b>' : ''}\n💶 Paid ${label} · ${p.details?.wallet || p.method || '?'}\n🔖 <code>${dep.ref}</code> · <code>${p.id}</code>`)
+    if (dep.order && hold) {
+      const reserved = await cc.reserve(dep.chatId, dep.order.walletUsd)
+      await deposits.updateOne({ _id: dep._id }, { $push: { pendingActions: { method: dep.order.method, path: dep.order.path, body: dep.order.body, at: new Date() } }, $inc: { reservedUsd: reserved }, $set: { orderResult: { state: 'queued', at: new Date() } } })
+      log(`[Mollie] ${dep.chatId} order saved until ID check (${dep.ref})${reserved ? `, $${reserved} wallet part set aside` : ''}`)
+    }
     if (hold) await cc.onHeld({ ...dep, cardHolder: p.details?.cardHolder || null }, p).catch(e => log(`[CardCheck] onHeld ${dep.ref}: ${e.message}`))
+    else if (dep.order && replay) {
+      await deposits.updateOne({ _id: dep._id }, { $set: { orderResult: { state: 'running', at: new Date() } } })
+      runOrder(dep).catch(e => log(`[Mollie] order ${dep.ref}: ${e.message}`))
+    }
     return { status: 'paid', held: hold }
   }
 
@@ -195,7 +224,7 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers, get
       if (!origin || !back.startsWith(`${origin}/`)) return res.status(400).json({ error: 'invalid_return', message: 'Open the payment from the CloudIVR app.' })
       const ref = `mol_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
       const offers = getOffers?.(), bonus = offers ? await offers.topupBonusFor(req.webChatId).catch(() => null) : null
-      const dep = { chatId: req.webChatId, ref, amountUsd, coin: 'Card / PayPal', provider: 'mollie', mode: modeOf(v), mollieProfile: v.profileId || null, currency, amountCharged: opt.amount, method, bonus, bonusPaidAt: null, createdAt: new Date() }
+      const dep = { chatId: req.webChatId, ref, amountUsd, coin: 'Card / PayPal', provider: 'mollie', mode: modeOf(v), mollieProfile: v.profileId || null, currency, amountCharged: opt.amount, method, bonus, bonusPaidAt: null, order: orderOf(req.body), createdAt: new Date() }
       const { insertedId } = await deposits.insertOne(dep)
       let p
       try {
@@ -227,7 +256,7 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers, get
       const ref = `mol_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
       const offers = getOffers?.(), bonus = offers ? await offers.topupBonusFor(req.webChatId).catch(() => null) : null
       const money = { currency, value: opt.amount }, description = `CloudIVR wallet top-up $${amountUsd.toFixed(2)}`
-      const dep = { chatId: req.webChatId, ref, amountUsd, coin: 'Card / PayPal', provider: 'mollie', mode: modeOf(v), mollieProfile: v.profileId || null, currency, amountCharged: opt.amount, method: null, inApp: true, bonus, bonusPaidAt: null, createdAt: new Date() }
+      const dep = { chatId: req.webChatId, ref, amountUsd, coin: 'Card / PayPal', provider: 'mollie', mode: modeOf(v), mollieProfile: v.profileId || null, currency, amountCharged: opt.amount, method: null, inApp: true, bonus, bonusPaidAt: null, order: orderOf(req.body), createdAt: new Date() }
       const { insertedId } = await deposits.insertOne(dep)
       let s
       try {
@@ -250,7 +279,9 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers, get
       const dep = await deposits.findOne({ ref: String(req.params.ref), chatId: req.webChatId, provider: 'mollie' })
       if (!dep) return res.status(404).json({ error: 'not_found', message: 'Payment not found.' })
       const s = await sync(dep).catch(() => ({ status: dep.mollieStatus || 'open' }))
-      res.json({ ref: dep.ref, status: s.status, amountUsd: dep.amountUsd, currency: dep.currency, amount: dep.amountCharged })
+      const now = await deposits.findOne({ _id: dep._id }, { projection: { idHold: 1, order: 1, orderResult: 1 } })
+      const o = now?.order ? { state: now.orderResult?.state || 'pending', status: now.orderResult?.status || null, message: now.orderResult?.message || null, data: now.orderResult?.data ?? null } : null
+      res.json({ ref: dep.ref, status: s.status, held: s.held ?? !!now?.idHold, order: o, amountUsd: dep.amountUsd, currency: dep.currency, amount: dep.amountCharged })
     }))
   }
 

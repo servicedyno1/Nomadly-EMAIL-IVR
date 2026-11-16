@@ -1,3 +1,4 @@
+import { TenDlcCard } from '../../compliance/TenDlc';
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
@@ -152,6 +153,15 @@ export function VoicemailTab({ num, reload }) {
 // Texting on a calling number is an optional add-on: off until the owner switches it on.
 function TextingSwitchCard({ num, reload }) {
   const t = num.features.texting || {};
+  if (t.mode === 'tendlc') return (
+    <div className="space-y-4" data-testid="texting-tendlc">
+      <Card title="Texting on this number" sub={`US carriers require a 10DLC texting registration before a local number can send or receive texts. Once it’s approved, switch texting on here. ${money(t.textPrice || 0.05)} per text sent; receiving is free.`}>
+        <div className="flex items-center justify-between gap-4"><span className="text-sm">Send and receive texts</span><InstantToggle num={num} feature="texting" label="Texting" checked={!!t.enabled} reload={reload} testid="texting-addon-toggle" /></div>
+        <p className="text-xs text-[var(--c-muted)]" data-testid="texting-addon-note">{t.enabled ? 'Texts to and from this number are in Messages.' : 'While it’s off, this number doesn’t send or receive texts.'}</p>
+      </Card>
+      {!t.enabled && <TenDlcCard />}
+    </div>
+  );
   if (!num.capabilities?.sms) return (
     <Card title="Texting" sub="This number is for calls only. It can’t send or receive texts.">
       <Link to={cp('/app/buy?purpose=texting')} className="civr-btn civr-btn-ghost" data-testid="texting-addon-get-number">Get a Calls + texting number</Link>
@@ -160,13 +170,13 @@ function TextingSwitchCard({ num, reload }) {
   return (
     <Card title="Texting on this number" sub={`Optional add-on with no monthly fee. ${money(t.textPrice || 0.05)} per text sent, paid from your wallet. Receiving is free.`}>
       <div className="flex items-center justify-between gap-4"><span className="text-sm">Send and receive texts</span><InstantToggle num={num} feature="texting" label="Texting" checked={!!t.enabled} reload={reload} testid="texting-addon-toggle" /></div>
-      <p className="text-xs text-[var(--c-muted)]" data-testid="texting-addon-note">{t.enabled ? 'Texts to and from this number are in Messages.' : 'While it’s off, texts people send to this number still arrive in Messages, but you can’t reply from it.'}</p>
+      <p className="text-xs text-[var(--c-muted)]" data-testid="texting-addon-note">{t.enabled ? 'Texts to and from this number are in Messages.' : 'While it’s off, this number doesn’t send or receive texts.'}</p>
     </Card>
   );
 }
 
 export function SmsTab({ num, reload }) {
-  return <div className="space-y-4"><TextingSwitchCard num={num} reload={reload} />{num.capabilities?.sms && num.features.texting?.enabled && <SmsCard num={num} reload={reload} />}</div>;
+  return <div className="space-y-4"><TextingSwitchCard num={num} reload={reload} />{num.features.texting?.enabled && <SmsCard num={num} reload={reload} />}</div>;
 }
 
 

@@ -1,0 +1,1 @@
+    if (num.features?.sms !== true) return { error: [403, 'texting_off', 'Texting is off on this number. Turn it on in the number’s Texts tab first.'] }

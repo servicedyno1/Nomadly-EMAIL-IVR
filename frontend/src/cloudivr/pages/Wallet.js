@@ -172,8 +172,8 @@ function Tables({ data }) {
 
 // Back from Mollie's checkout: show the result (the backend re-checks the payment with Mollie).
 function MollieReturn({ ref_, onPaid }) {
-  const status = useMollieStatus(ref_, onPaid);
-  return <div className="civr-card p-4 mb-4" data-testid="wallet-mollie-return"><MollieWaiting status={status} onRetry={() => document.querySelector('[data-testid="wallet-method-card"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} testid="wallet-mollie-return" newTab={false} />{status === 'paid' && <p className="text-xs text-[var(--c-muted)] mt-1">If you came here from another tab, you can close this one.</p>}</div>;
+  const { status, held, order } = useMollieStatus(ref_, onPaid, true);
+  return <div className="civr-card p-4 mb-4" data-testid="wallet-mollie-return"><MollieWaiting status={status} held={held} order={order} onRetry={() => document.querySelector('[data-testid="wallet-method-card"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })} testid="wallet-mollie-return" newTab={false} />{status === 'paid' && <p className="text-xs text-[var(--c-muted)] mt-1">If you came here from another tab, you can close this one.</p>}</div>;
 }
 
 export default function Wallet() {

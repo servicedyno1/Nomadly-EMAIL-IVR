@@ -141,6 +141,7 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     if (long) return { error: [400, 'too_long', long] }
     if (!E164.test(String(to || ''))) return { error: [400, 'invalid_number', 'This caller’s number can’t receive texts.'] }
     if (num.capabilities?.sms === false) return { error: [400, 'no_sms', 'This number can’t send texts.'] }
+    if (num.features?.sms !== true) return { error: [403, 'texting_off', 'Texting is off on this number. Turn it on in the number’s Texts tab first.'] }
     if (num.status !== 'active') return { error: [409, 'not_active', 'This number is suspended. Renew it to send texts again.'] }
     if (require('./ten-dlc').needs10dlc(num) && !simulated) {
       const reg = await db.collection('tenDlc').findOne({ _id: String(chatId) }, { projection: { status: 1, numbers: 1 } })
@@ -193,9 +194,19 @@ function routes(router, { db, h, numbersApi, smsReply }) {
   router.get('/missed-calls', h(async (req, res) => {
     const phones = (await numbersApi.myNumbers(req.webChatId)).map(n => n.phoneNumber)
     const since = new Date(Date.now() - REPLY_DAYS * 86400000).toISOString()
-    const rows = phones.length ? await phoneLogs.find({ phoneNumber: { $in: phones }, type: { $in: REPLYABLE }, timestamp: { $gte: since } }).sort({ timestamp: -1 }).limit(30).toArray() : []
+    const rows = phones.length ? await phoneLogs.find({ phoneNumber: { $in: phones }, type: { $in: REPLYABLE }, timestamp: { $gte: since }, dismissedAt: { $exists: false } }).sort({ timestamp: -1 }).limit(30).toArray() : []
     const texts = rows.length ? await textsTo(phoneLogs, phones, since, [...new Set(rows.map(r => r.from))]) : []
     res.json({ calls: markReplied(rows, texts).map(view), maxLength: MAX, overageRate: phoneConfig.OVERAGE_RATE_SMS })
+  }))
+
+  // Clear a call from the inbox's missed-call list (the call stays in the number's history).
+  router.post('/missed-calls/:id/dismiss', h(async (req, res) => {
+    let _id
+    try { _id = new ObjectId(String(req.params.id)) } catch (_) { return bad(res, 404, 'not_found', 'Call not found.') }
+    const l = await phoneLogs.findOne({ _id, type: { $in: REPLYABLE } })
+    if (!l || !(await numbersApi.findMine(req.webChatId, l.phoneNumber))) return bad(res, 404, 'not_found', 'Call not found.')
+    await phoneLogs.updateOne({ _id }, { $set: { dismissedAt: new Date().toISOString() } })
+    res.json({ ok: true })
   }))
 
   router.post('/missed-calls/:id/reply', h(async (req, res) => {

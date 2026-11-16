@@ -361,3 +361,11 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 
 ## 2026-11-16 Cardholder ID check (CloudIVR web)
 - LIVE on app-main (cloudivr.net) since 2026-11-16 with owner live Stripe key. Unit 27/0 + preview Stripe test-mode E2E passed. No real customer payment observed yet.
+
+## 2026-11-16 14:15Z — Wallet + card split, missed-call dismiss, ID→profile name: LIVE on cloudivr.net (app-main)
+- Every CloudIVR checkout (all MolliePay/WalletPay users): wallet pays its part, Mollie the rest; order runs server-side once paid.
+- Card part held for ID check → order saved + wallet part set aside → auto-completes on ID pass; refund returns wallet part.
+- ID pass: profile name set to the ID name (audit: profileNameChanges) + "You're verified" email.
+- Inbox missed calls: per-call dismiss. Own-number calls still listed (user choice).
+- Verification: unit 32/0, preview dismiss UI + API ownership check; split flow not exercised with a real payment yet.
+- Backlog (in order): texting on/off + 10DLC gates (WIP in workspace, not shipped) → in-app alerts for held deposits/orders → Apple Pay live re-test → Bird 20-concurrent config check.

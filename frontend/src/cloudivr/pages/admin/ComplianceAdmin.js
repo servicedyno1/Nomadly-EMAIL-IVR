@@ -23,7 +23,7 @@ export default function ComplianceAdmin() {
   </div>);
 }
 
-function CardChecks() {
+export function CardChecks() {
   const [status, setStatus] = useState('review');
   const [items, setItems] = useState(null);
   const [err, setErr] = useState(null);
@@ -33,7 +33,7 @@ function CardChecks() {
   const decide = async (chatId, decision) => {
     if (decision === 'refund' && !window.confirm('Refund every held card payment of this account?')) return;
     setBusy(chatId); setErr(null);
-    try { await api(`/admin/card-checks/${chatId}`, { method: 'POST', body: { decision } }); toast.success(decision === 'approve' ? 'Approved — money released' : 'Refund sent'); load(); } catch (e) { setErr(e); } finally { setBusy(null); }
+    try { await api(`/admin/card-checks/${chatId}`, { method: 'POST', body: { decision } }); toast.success(decision === 'approve' ? 'Approved — money released' : 'Refund sent'); load(); window.dispatchEvent(new Event('civr-card-checks')); } catch (e) { setErr(e); } finally { setBusy(null); }
   };
   const LABEL = { review: 'Needs review', required: 'Waiting for ID', passed: 'Passed', refunded: 'Refunded' };
   return (
