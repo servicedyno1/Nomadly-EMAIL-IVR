@@ -60,7 +60,7 @@ async function check(p) {
     const stop = Number.isFinite(bal) && STOP[p] != null && bal < STOP[p]
     if (Number.isFinite(bal) && LOW[p] != null && bal < LOW[p] && once(`${p}-${stop ? 'stop' : 'low'}`, 12 * 3600000)) {
       s.lowAlertAt = Date.now()
-      alert(`⚠️ [Providers] ${p} balance is low: $${bal.toFixed(2)} (alert below $${LOW[p]}).${stop ? ` Under $${STOP[p]}: numbers stay on sale, but paid orders wait until you top up (they complete automatically; refunded after 48 h).` : ''} Top it up so orders, calls and texts keep working.`)
+      alert(`⚠️ [Providers] ${p} balance is low: $${bal.toFixed(2)} (alert below $${LOW[p]}). Orders keep going — if the provider refuses one for low balance it waits and completes automatically after the top-up. Top it up so orders, calls and texts keep working.`)
     }
   } catch (e) {
     s.fails++; s.checkedAt = new Date(); s.reason = e.response?.status ? `HTTP ${e.response.status}` : e.message
@@ -102,26 +102,24 @@ function start(notifyAdmin) {
   require('./active-slot').singletonInterval('provider-health', () => tick().catch(() => {}), 5 * 60000)
 }
 
-// Buy a searched number on its provider; if that fails, another number from the same provider, then the same
-// country/type from the other provider (no paperwork, not down). The customer pays the same price either way.
+// Buy a searched number on its provider. Never paused ahead of time: we try, and only if the provider says our balance
+// is too low does the paid order wait in pending-orders (bought in order as soon as the balance is back).
+// If the number itself is gone, another one from the same provider. No cross-provider fallback (Infobip not in use).
 async function buyWithBackup(primary, phoneNumber, retry) {
-  const ib = require('./infobip'), mt = require('./multitel')
-  const P = primary === 'infobip' ? ib : mt
-  if (isLow(primary)) return require('./pending-orders').pendingResult(primary, phoneNumber)
+  const P = primary === 'infobip' ? require('./infobip') : require('./multitel')
+  const noFunds = (n) => primary === 'multitel' && P.wasNoFunds?.(n)
   let r = await P.buyNumber(phoneNumber).catch(() => null)
-  if (r || !retry) return r
+  if (r) return r
+  if (noFunds(phoneNumber)) { notify(`⏳ [Providers] ${primary} balance too low to buy ${phoneNumber} — the order waits and goes through as soon as you top up.`); return require('./pending-orders').pendingResult(primary, phoneNumber) }
+  if (!retry) return null
   const cc = String(retry.countryCode || 'US').toUpperCase(), type = retry.numberType || 'local'
   const fresh = (await P.searchNumbers(cc, type, retry.areaCode || null, 3).catch(() => [])).filter(n => n.phone_number !== phoneNumber)
-  if (fresh[0]) { r = await P.buyNumber(fresh[0].phone_number).catch(() => null); if (r) { r._retriedNumber = r._retriedNumber || fresh[0].phone_number; return r } }
-  const altName = primary === 'infobip' ? 'multitel' : 'infobip', alt = altName === 'infobip' ? ib : mt
-  const opt = require('./number-catalog').options(cc, type).find(o => o.provider === altName && o.level === 0 && !o.request)
-  if (!opt || isDown(altName)) { notify(`🚨 [Providers] ${primary} couldn't sell ${phoneNumber} (${cc}/${type}) and no backup provider has it. The customer is refunded.`); return null }
-  const other = await alt.searchNumbers(cc, type, retry.areaCode || null, 3).catch(() => [])
-  for (const n of other) {
-    r = await alt.buyNumber(n.phone_number).catch(() => null)
-    if (r) { r._retriedNumber = r._retriedNumber || n.phone_number; r._provider = altName; r._failover = primary; notify(`🔁 [Providers] ${primary} couldn't sell ${phoneNumber}; sold ${n.phone_number} from ${altName} instead (${cc}/${type}).`); return r }
+  if (fresh[0]) {
+    r = await P.buyNumber(fresh[0].phone_number).catch(() => null)
+    if (r) { r._retriedNumber = r._retriedNumber || fresh[0].phone_number; return r }
+    if (noFunds(fresh[0].phone_number)) return require('./pending-orders').pendingResult(primary, fresh[0].phone_number)
   }
-  notify(`🚨 [Providers] ${primary} and ${altName} both failed for ${cc}/${type} (${phoneNumber}). The customer is refunded.`)
+  notify(`🚨 [Providers] ${primary} couldn't sell ${phoneNumber} (${cc}/${type}) or a similar number. The customer is refunded.`)
   return null
 }
 

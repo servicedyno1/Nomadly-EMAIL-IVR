@@ -110,13 +110,19 @@ async function route(num) {
   const d = await api('post', `modifynumber/${digits(num)}`, { uri: `${digits(num)}@${sipTarget()}`, ringtype: '1', autorenew: '1', description: 'CloudIVR', ...(smsUri() ? { smsuri: smsUri() } : {}) })
   if (!ok(d)) throw new Error(d?.status?.msg || 'route failed')
 }
+// Numbers whose last buy failed because our MultiTEL balance was too low (the order waits for a top-up).
+const noFunds = new Set()
+const NO_FUNDS = /insufficient|not enough|low balance|balance|funds|credit/i
+const wasNoFunds = (n) => noFunds.has(n)
+const isNoFunds = (d) => String(d?.status?.code) === '402' || NO_FUNDS.test(String(d?.status?.msg || ''))
 async function buyNumber(phoneNumber) {
+  noFunds.delete(phoneNumber)
   if (!selling()) return null
   const s = searched.get(phoneNumber); if (!s) return null
   if (s.orderPrefix) return orderFromPrefix(phoneNumber, s)
   try {
     const d = await api('get', `rentnumber/${digits(phoneNumber)}/${s.priceId}`)
-    if (!ok(d)) { log(`buy ${phoneNumber}: ${d?.status?.msg}`); return null }
+    if (!ok(d)) { if (isNoFunds(d)) noFunds.add(phoneNumber); log(`buy ${phoneNumber}: ${d?.status?.msg}`); return null }
     searched.delete(phoneNumber)
     await route(phoneNumber).catch(e => log(`route ${phoneNumber}: ${e.message}`))
     require('../callengine').setDidApps([phoneNumber]).catch(() => {})
@@ -131,6 +137,7 @@ async function orderFromPrefix(prefix, s) {
   try {
     const d = await api('post', `order/${s.orderPrefix}`, { quantity: '1', price_id: s.priceId, channels: String(s.channels ?? ''), reference: 'CloudIVR', uri: `${digits(prefix)}@${sipTarget()}` })
     const got = [].concat(d?.response?.numbers || [])[0]
+    if (!ok(d) && isNoFunds(d)) noFunds.add(prefix)
     if (!ok(d) || !got) { log(`order ${prefix}: ${d?.status?.msg || 'no number returned'}${d?.response?.id ? ` (order ${d.response.id})` : ''}`); return null }
     searched.delete(prefix)
     const phoneNumber = e164(got)
@@ -178,4 +185,4 @@ async function sendSms(from, to, text) {
 }
 const ownsNumber = (n) => owned.includes(n)
 
-module.exports = { ipv4, isBlocked, api, enabled, selling, searchedMeta, remember, sendSms, deliveryOf, ownsNumber, smsHookKey, isMt, searchNumbers, isMtSearched, isAssigned, buyNumber, releaseNumber, refreshOwned, ownedNumbers, registrationStatus, route }
+module.exports = { ipv4, isBlocked, api, enabled, selling, searchedMeta, remember, sendSms, deliveryOf, wasNoFunds, ownsNumber, smsHookKey, isMt, searchNumbers, isMtSearched, isAssigned, buyNumber, releaseNumber, refreshOwned, ownedNumbers, registrationStatus, route }

@@ -77,11 +77,13 @@ function wrap(t) {
   // US/Canada: Bird (own call engine) → SignalWire → Infobip → Telnyx (only if TELNYX_FALLBACK=true).
   w.createOutboundCall = async (from, to, webhookUrl, connectionId, options = {}) => {
     const nanp = /^\+1\d{10}$/.test(String(to)) || /^sip:/i.test(String(to))
-    // Softphones sign in to our own SIP server, so they are rung from our call engine.
-    if (/^sip:/i.test(String(to)) && ce.enabled() && ce.connected()) {
+    // Softphones sign in to our own SIP server only, so they're rung from our call engine — never a SignalWire retry
+    // (it can't reach them: it only ever answered "No valid devices" / queue full).
+    if (/^sip:/i.test(String(to))) {
+      if (!ce.enabled() || !ce.connected()) return { error: 'call engine not connected', status: 503, _provider: 'callengine' }
       const r = await ce.createOutboundCall(from, to, webhookUrl, connectionId, options)
-      if (!r.error) return r
-      log(`ring ${to} via CallEngine refused (${r.error})`)
+      if (r.error) log(`ring ${to} via CallEngine refused (${r.error}) — not retried elsewhere`)
+      return r.error && !r.status ? { ...r, status: 503 } : r
     }
     const tries = []
     // Voicemail drop: the call engine detects answering machines on the call itself (Asterisk AMD), so Bird handles it too.
