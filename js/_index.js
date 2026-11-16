@@ -31948,7 +31948,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       // Prefer Telnyx username since domain is sip.speechcue.com (Telnyx)
       const displaySipUser = num.telnyxSipUsername || num.sipUsername
       return send(chatId, cpTxt.sipCredentialsMsg(num.phoneNumber, displaySipUser, numSipDomain), k.of([
-        [pc.revealPassword, pc.sipQr], [pc.resetPassword], [pc.softphoneGuide]
+        [pc.revealPassword, pc.sipQr], [pc.sipTest], [pc.resetPassword], [pc.softphoneGuide]
       ]))
     }
 
@@ -35786,6 +35786,16 @@ Select a category:`), k.of(catBtns))
     if (message === pc.softphoneGuide) {
       const numSipDomain = phoneConfig.getSipDomainForNumber()
       return send(chatId, cpTxt.softphoneGuide(numSipDomain), k.of([]))
+    }
+    // One-tap self-diagnosis: is the login accepted by our SIP server, and is any device signed in right now?
+    if (message === pc.sipTest) {
+      const selftest = require('./sip-selftest')
+      const freshSip = (await phoneNumbersOf.findOne({ _id: chatId }))?.val?.numbers?.find(x => x.phoneNumber === num.phoneNumber)
+      if (freshSip) Object.assign(num, await require('./sip-logins').ensure(phoneNumbersOf, chatId, freshSip))
+      const r = await selftest.run({ db, num, domain: phoneConfig.getSipDomainForNumber() }).catch(e => { log(`[SipSelfTest] ${chatId} ${num.phoneNumber}: ${e.message}`); return null })
+      if (!r) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectOption)
+      log(`[SipSelfTest] bot ${chatId} ${num.phoneNumber}: ${r.code} devices=${r.devices}`)
+      return send(chatId, selftest.botText(r, info?.userLanguage || 'en'), k.of([[pc.revealPassword, pc.sipQr], [pc.sipTest], [pc.resetPassword], [pc.softphoneGuide]]))
     }
     return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectOption)
   }
