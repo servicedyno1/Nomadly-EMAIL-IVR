@@ -1377,6 +1377,12 @@ async function fireBatchOnce(campaignId) {
       await recalcStats(campaignId)
       continue
     }
+    // The carrier said this number is disconnected on an earlier call (any campaign, last 60 days) → skipped, never billed.
+    if (await isDeadNumber(lead.number)) {
+      await _collection.updateOne({ id: campaignId, [`leads.${lead.index}.status`]: 'pending' }, { $set: { [`leads.${lead.index}.status`]: 'skipped', [`leads.${lead.index}.hangupCause`]: 'Not an in-service number (the carrier reported it disconnected on an earlier call)', [`leads.${lead.index}.completedAt`]: new Date() } })
+      await recalcStats(campaignId)
+      continue
+    }
     if (isAi) {
       // Calling hours (TCPA): only 8am–9pm in the lead's local time — otherwise the lead waits.
       if (!aiAgent().hours.callableNow(lead.number)) { outsideHours++; continue }
@@ -1422,8 +1428,9 @@ async function fireBatchOnce(campaignId) {
           await sched.refundDailySlot(_collection, campaignId)
           continue
         }
-        // Every line is in use (account concurrent-call limit) → lead goes back in the queue, retried shortly.
-        log(`[BulkCall] Line limit reached — ${lead.number} re-queued (campaign ${campaignId}): ${result.error}`)
+        // Every line in use, or Bird turned this call away for a moment (e.g. cause 38) → back in the queue, retried shortly.
+        const refused = /refused the call/i.test(String(result.error))
+        log(`[BulkCall] ${refused ? 'Bird refused this call for now' : 'Line limit reached'} — ${lead.number} re-queued for a retry (campaign ${campaignId}): ${result.error}`)
         await requeueForLines(campaignId, lead.index, { lineWaitReason: String(result.error).slice(0, 120) })
         break
       }
@@ -1513,6 +1520,16 @@ async function fireBatchOnce(campaignId) {
 /**
  * Update a lead's result in the campaign
  */
+// Destinations the carrier reported as not in service, remembered for 60 days so no campaign dials them again.
+const DEAD_DAYS = 60
+async function isDeadNumber(number) {
+  if (!_db) return false
+  return !!(await _db.collection('deadNumbers').findOne({ _id: String(number), at: { $gt: new Date(Date.now() - DEAD_DAYS * 86400000) } }).catch(() => null))
+}
+function rememberDead(number, cause) {
+  if (!_db || !number || !/unallocated_number|^(404|604)$/i.test(String(cause || ''))) return
+  _db.collection('deadNumbers').updateOne({ _id: String(number) }, { $set: { at: new Date(), cause: String(cause) } }, { upsert: true }).catch(() => {})
+}
 async function updateLeadResult(campaignId, leadIndex, updates) {
   const setFields = {}
   for (const [key, val] of Object.entries(updates)) {
@@ -1654,6 +1671,7 @@ async function finalizeLead(campaign, leadIndex, callSid, res) {
   // element, which is missing ⇒ null), so match the sid exactly or a genuinely null/absent callSid.
   if (callSid) filter.$or = [{ [`${p}.callSid`]: callSid }, { [`${p}.callSid`]: { $type: 'null' } }, { [`${p}.callSid`]: { $exists: false } }]
   const claim = await _collection.updateOne(filter, { $set: set })
+  if (claim.modifiedCount) rememberDead(campaign.leads?.[leadIndex]?.number, res.hangupCause)
   if (claim.modifiedCount !== 1) {
     log(`[BulkCall] Ignoring stale/duplicate completion campaign=${campaignId} lead=${leadIndex} sid=${callSid}`)
     return

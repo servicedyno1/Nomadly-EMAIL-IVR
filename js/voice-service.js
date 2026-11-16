@@ -1279,6 +1279,14 @@ setInterval(() => {
   for (const key of Object.keys(outboundIvrCalls)) {
     const entry = outboundIvrCalls[key]
     const ts = entry?.startedAt || entry?.createdAt || entry?.startTime
+    // Same as above: a CallEngine IVR call whose channel is gone no longer counts as live (it held deploy drains).
+    const t0 = ts instanceof Date ? ts.getTime() : new Date(ts || 0).getTime()
+    if (String(key).startsWith('ae:') && t0 && now - t0 > 120000 && !_aliveChecking.has(key)) {
+      _aliveChecking.add(key)
+      require('./callengine').ari().get(`/channels/${encodeURIComponent(key.slice(3))}`, { timeout: 5000 })
+        .then(() => {}, (err) => { if (err.response?.status === 404 && outboundIvrCalls[key] === entry) { if (entry._limitTimer) clearInterval(entry._limitTimer); delete outboundIvrCalls[key]; log(`[Voice] Memory cleanup: removed ended CallEngine IVR session ${key} (channel gone)`) } })
+        .finally(() => _aliveChecking.delete(key))
+    }
     if (ts && (now - (ts instanceof Date ? ts.getTime() : ts)) > IVR_SESSION_MAX_AGE) {
       _expireIfDead(outboundIvrCalls, key, now - (ts instanceof Date ? ts.getTime() : ts), e => { if (e._limitTimer) clearInterval(e._limitTimer) })
     }
@@ -1288,7 +1296,8 @@ setInterval(() => {
   for (const key of Object.keys(twilioIvrSessions)) {
     const entry = twilioIvrSessions[key]
     const ts = entry?.createdAt || entry?.startedAt || entry?.startTime
-    if (ts && (now - (ts instanceof Date ? ts.getTime() : ts)) > IVR_SESSION_MAX_AGE) {
+    // The Twilio account is closed, so a Twilio IVR session can't still be live after 10 minutes.
+    if (ts && (now - (ts instanceof Date ? ts.getTime() : new Date(ts).getTime())) > Math.min(IVR_SESSION_MAX_AGE, 10 * 60000)) {
       delete twilioIvrSessions[key]
       cleaned++
     }
@@ -1757,6 +1766,8 @@ const RINGBACK_URL = `${process.env.SELF_URL || process.env.SELF_URL_PROD || ''}
 // Pending hold-music transfers: callControlId → { forwardTo, fromNumber }
 // Used to defer the transfer until after the TTS announcement finishes
 const pendingHoldTransfers = {}
+// Hold music start in flight: callControlId → promise (stopped only after it has started)
+const holdPlayback = {}
 
 // Active bridge transfers: originalCallControlId → { transferCallControlId, forwardTo, fromNumber }
 // Used to track the two-leg bridge approach for hold music during transfer
@@ -1807,15 +1818,19 @@ async function playHoldMusicAndTransfer(callControlId, forwardTo, fromNumber, co
     // Phase 2 (on speak.ended): Start hold music + create outbound call to destination
     // Phase 3 (on destination answered): Bridge the two calls (stops music automatically)
     pendingHoldTransfers[callControlId] = { forwardTo, fromNumber, presentFrom, via, createdAt: new Date() }
-    // Safety: clean up if speak.ended never fires (10s timeout — TTS is ~3-4s)
+    // Safety: speak.ended never arrived (TTS is ~3-4s) → start the music and dial anyway instead of leaving the caller in silence.
     setTimeout(() => {
       if (pendingHoldTransfers[callControlId]) {
-        log(`[Voice] Stale pendingHoldTransfer cleanup for ${callControlId} — speak.ended never arrived`)
-        delete pendingHoldTransfers[callControlId]
+        log(`[Voice] speak.ended never arrived for ${callControlId} — starting hold music + dialing anyway`)
+        handleSpeakEnded({ call_control_id: callControlId }).catch(e => log(`[Voice] Hold transfer after timeout: ${e.message}`))
       }
     }, 10000)
     log(`[Voice] Speaking hold announcement for ${callControlId}, will bridge-transfer to ${forwardTo}`)
-    await _telnyxApi.speakOnCall(callControlId, 'Please hold while your call is being transferred.')
+    const spoke = await _telnyxApi.speakOnCall(callControlId, 'Please hold while your call is being transferred.').catch(() => null)
+    if (!spoke && pendingHoldTransfers[callControlId]) {
+      log(`[Voice] Hold announcement failed for ${callControlId} — starting hold music + dialing now`)
+      await handleSpeakEnded({ call_control_id: callControlId })
+    }
   } else {
     // Track native transfer for timeout/no-answer detection
     pendingNativeTransfers[callControlId] = {
@@ -1886,7 +1901,8 @@ async function handleBridgeTransferAnswered(payload) {
     }
   }
 
-  // Stop hold music/ringback on original leg and bridge the two calls
+  // Stop hold music/ringback on original leg and bridge the two calls (a very quick answer: let the music start first)
+  await holdPlayback[transfer.originalCallControlId]
   await _telnyxApi.playbackStop(transfer.originalCallControlId).catch(() => {})
   await _telnyxApi.bridgeCalls(transfer.originalCallControlId, callControlId)
 
@@ -2121,7 +2137,8 @@ async function handleBridgeTransferHangup(payload) {
     }
   }
 
-  // Stop any playback (ringback/hold music) on the original leg
+  // Stop any playback (ringback/hold music) on the original leg (after it has started, if the leg failed at once)
+  await holdPlayback[transfer.originalCallControlId]
   await _telnyxApi.playbackStop(transfer.originalCallControlId).catch(() => {})
 
   // If destination never answered (no_answer, busy, timeout), handle fallback
@@ -4624,13 +4641,12 @@ async function handleSpeakEnded(payload) {
   const pending = pendingHoldTransfers[callControlId]
   if (pending) {
     delete pendingHoldTransfers[callControlId]
+    if (isCallEnded(callControlId)) { log(`[Voice] Caller left ${callControlId} before the hold transfer to ${pending.forwardTo} — not dialing`); return }
     log(`[Voice] Hold announcement done for ${callControlId}, starting hold music + dialing ${pending.forwardTo}`)
 
     // Phase 2: Start hold music on the ORIGINAL call leg (caller hears music)
-    await _telnyxApi.playbackStart(callControlId, HOLD_MUSIC_URL, { loop: 'infinity' })
-
-    // Let caller hear 5 seconds of hold music before dialing the transfer destination
-    await new Promise(resolve => setTimeout(resolve, 5000))
+    // Music starts and the destination is dialed at the same time (no extra wait before ringing it).
+    holdPlayback[callControlId] = _telnyxApi.playbackStart(callControlId, HOLD_MUSIC_URL, { loop: 'infinity' }).catch(e => log(`[Voice] Hold music on ${callControlId} failed: ${e.message}`)).finally(() => setTimeout(() => delete holdPlayback[callControlId], 60000))
 
     // Phase 2b: Create new outbound call to the transfer destination
     if ((pending.presentFrom && await dialBridgeLeg(callControlId, pending.forwardTo, pending.presentFrom, pending.via).catch(e => { log(`[Voice] Bridge leg showing caller ${pending.presentFrom} refused (${e.message}) — retrying with ${pending.fromNumber}`); return false })) || await dialBridgeLeg(callControlId, pending.forwardTo, pending.fromNumber)) {
@@ -4638,7 +4654,8 @@ async function handleSpeakEnded(payload) {
     } else {
       // Failed to create outbound call — fall back to regular transfer with tracking
       log(`[Voice] Failed to create outbound call to ${pending.forwardTo}, falling back to transfer`)
-      await _telnyxApi.playbackStop(callControlId)
+      await holdPlayback[callControlId]
+      await _telnyxApi.playbackStop(callControlId).catch(() => {})
       // Track the fallback transfer for no-answer detection
       pendingNativeTransfers[callControlId] = {
         forwardTo: pending.forwardTo,
