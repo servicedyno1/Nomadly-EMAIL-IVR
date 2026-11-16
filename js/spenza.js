@@ -88,7 +88,9 @@ async function usage(iccid) {
   try { return { usage: (await call('get', `/api/v1.1/sims/${encodeURIComponent(iccid)}/usage`))?.data || null } } catch (e) { return errOf(e) }
 }
 
-// Admin: attach an existing Spenza SIM to a CloudIVR account (e.g. the test eSIM), no charge.
+// Standard monthly price of a line: Texting Number flat, eSIM its plan (Starter when unknown).
+const stdPrice = async (kind, planId) => (kind === 'mobile' ? MOBILE_PRICE : (await S.db.collection('esimPlans').findOne({ _id: planId || 'SPENZA_001' }))?.price || (await S.db.collection('esimPlans').findOne({ _id: 'SPENZA_001' }))?.price || null)
+// Admin: attach an existing Spenza SIM to a CloudIVR account (e.g. the test eSIM). First 30 days free, then it renews like any line.
 async function linkSim(iccid, email, kind) {
   const acct = await S.db.collection('webAccounts').findOne({ email: String(email || '').trim().toLowerCase() }, { projection: { _id: 1 } })
   if (!acct) return { error: 'No CloudIVR account with that email.' }
@@ -96,7 +98,7 @@ async function linkSim(iccid, email, kind) {
   if (!sim) return { error: 'That SIM isn’t on your Spenza account.' }
   const sub = await call('get', `/api/v1.1/sims/${encodeURIComponent(iccid)}/subscription`).catch(() => null)
   const _id = 'es_' + crypto.randomBytes(6).toString('hex')
-  await S.col.updateOne({ iccid }, { $set: { chatId: String(acct._id), iccid, phoneNumber: sim.phoneNumber || null, isEsim: !!sim.isEsim, planId: sub?.data?.productId || sub?.data?.planId || null, status: 'active', price: 0, linked: true, ...(kind === 'mobile' ? { kind: 'mobile', callsTo: 'device', ivrNumber: null } : {}), updatedAt: new Date() }, $setOnInsert: { _id, callsTo: 'device', createdAt: new Date() } }, { upsert: true })
+  await S.col.updateOne({ iccid }, { $set: { chatId: String(acct._id), iccid, phoneNumber: sim.phoneNumber || null, isEsim: !!sim.isEsim, planId: sub?.data?.productId || sub?.data?.planId || null, status: 'active', price: await stdPrice(kind, sub?.data?.productId || sub?.data?.planId), autoRenew: true, ...period(new Date(Date.now() + MONTH_MS)), linked: true, ...(kind === 'mobile' ? { kind: 'mobile', callsTo: 'device', ivrNumber: null } : {}), updatedAt: new Date() }, $setOnInsert: { _id, callsTo: 'device', createdAt: new Date() } }, { upsert: true })
   return { ok: true }
 }
 
@@ -689,6 +691,21 @@ async function toMobile() {
   }
 }
 
+// One-off owner decision: linked lines are normal paid lines (price, end date, auto-renew), period counted from when they were linked.
+async function priceLinked() {
+  const flag = 'linked-priced:v1'
+  if (await S.db.collection('spenzaConfig').findOne({ _id: flag })) return
+  for (const d of await S.col.find({ linked: true, status: { $in: ['active', 'suspended'] }, $or: [{ price: 0 }, { price: null }] }).toArray()) {
+    const price = await stdPrice(d.kind, d.planId)
+    if (!price) continue
+    let end = new Date(d.createdAt || Date.now()).getTime() + MONTH_MS
+    while (end < Date.now() + 2 * DAY_MS) end += MONTH_MS
+    await S.col.updateOne({ _id: d._id }, { $set: { price, autoRenew: true, ...period(new Date(end)), updatedAt: new Date() } })
+    S.log(`[eSIM] linked line ${d._id} ${d.phoneNumber}: $${price}/month, renews ${day(new Date(end))}`)
+  }
+  await S.db.collection('spenzaConfig').insertOne({ _id: flag, at: new Date() })
+}
+
 // One-off owner decision: USA Starter eSIM sells at $75.
 async function defaultPrice() {
   const flag = 'price:SPENZA_001:75'
@@ -723,7 +740,7 @@ function init({ db, log = console.log, tell }) {
   setInterval(() => tick().catch(() => {}), 15000).unref?.()
   const pl2 = () => prelink().then(toMobile).catch(e => log(`[eSIM] prelink: ${e.message}`))
   pl2(); setInterval(pl2, 10 * 60000).unref?.()
-  defaultPrice().catch(e => log(`[eSIM] default price: ${e.message}`))
+  defaultPrice().then(priceLinked).catch(e => log(`[eSIM] default price: ${e.message}`))
   return api
 }
 

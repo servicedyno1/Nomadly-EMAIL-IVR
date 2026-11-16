@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import QRCode from 'react-qr-code';
-import { Wallet as WalletIcon, Copy, Loader2, RefreshCw, AlertTriangle, Info, Coins, Receipt, Plus, Check, Gift, CreditCard } from 'lucide-react';
+import { Wallet as WalletIcon, Copy, Loader2, AlertTriangle, Info, Coins, Receipt, Plus, Check, Gift, CreditCard } from 'lucide-react';
 import { CardComingSoon } from './buy/Checkout';
 import { api, useApi, money, when } from '../api';
 import { useShell } from '../Shell';
@@ -188,11 +188,8 @@ export default function Wallet() {
     const t = setInterval(() => { reload(); refreshSummary(); }, POLL_MS);
     return () => clearInterval(t);
   }, [dep, reload, refreshSummary]);
-  const refresh = () => { reload(); refreshSummary(); };
   const header = (
-    <PageHeader label="Account" title="Wallet & billing" sub="Numbers, eSIMs, Texting Numbers, renewals, texts, calls, campaigns and AI agent calls are all paid from here." testid="wallet-header">
-      <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={refresh} data-testid="wallet-refresh-button"><RefreshCw className="w-4 h-4" />Check for my payment</button>
-    </PageHeader>
+    <PageHeader label="Account" title="Wallet & billing" sub="Numbers, eSIMs, Texting Numbers, renewals, texts, calls, campaigns and AI agent calls are all paid from here." testid="wallet-header" />
   );
   if (loading && !data) return (
     <div>{header}
@@ -204,7 +201,7 @@ export default function Wallet() {
   return (
     <div data-testid="wallet-page">
       {header}
-      {params.get('mollie') && <MollieReturn ref_={params.get('mollie')} onPaid={refresh} />}
+      {params.get('mollie') && <MollieReturn ref_={params.get('mollie')} onPaid={() => { reload(); refreshSummary(); }} />}
       {need > 0 && <NeedBanner need={need} forNum={forNum} />}
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="civr-card p-6 flex flex-col justify-between lg:self-start lg:min-h-[280px]" data-testid="wallet-balance-card">

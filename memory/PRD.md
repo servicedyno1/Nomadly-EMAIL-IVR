@@ -436,3 +436,4 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - All 4 brands (app-main, app-wl, app-voodoo, app-proshop): bot SIP guide, SIP self-test tips and web SIP page say "STUN off, or <brand SIP domain>:3478". Deployed, not yet customer-confirmed (@johnwill202).
 - Open: WL web-panel STUN row is overlay-only (next WhiteLabel CI deploy drops it); @johnwill202 retry + trace check.
 - 2026-11-16: USA eSIM / Texting Number lines on web My numbers with auto-renew switch + own page /app/esim/:id (app-main). WL brands are bot-only for these.
+- 2026-11-16: Linked lines bill like normal lines; wallet "check my payment" removed. Billing audit: no change in charging, revenue dip was call volume (see CHANGELOG).
