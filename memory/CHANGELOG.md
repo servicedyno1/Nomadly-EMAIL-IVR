@@ -3258,3 +3258,22 @@ APP (preview pod, ships via GitHub→Actions):
 - frontend sip.js dep + src/cloudivr/sipClient.js (SIP.js UserAgent/Registerer/Inviter, remote-audio attach, dtmf/hangup/answer wrapper). rtc.js: uses SIP.js line when c.webrtc.wss present, else Telnyx fallback. Compiles clean.
 - Prod env set on app-main: SIP_WSS_URL=wss://sip.cloudivr.net:8443, TURN_HOST=sip.cloudivr.net, TURN_SHARED_SECRET.
 NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.net (register, place call via Bird, two-way audio, DTMF, hangup, inbound ring) — the rtpengine WebRTC directional flags are the one untested-from-here bit and may need a tweak during live test. Other brands: set SIP_WSS_URL=wss://sip.<brand>:8443 (cert+8443 already cover all 5) once cloudivr.net is validated.
+
+## 2026-11-16 — CloudIVR cardholder ID check after card payments (PREVIEW, not deployed)
+- New js/cloudivr-web/card-check.js. First card / Apple Pay / Google Pay Mollie top-up per account is credited HELD:
+  walletOf $inc usdIn+X, usdOut+X, usdHeld+X (net balance unchanged → unspendable in every engine). Release = usdOut-X, usdHeld-X.
+  Refund = Mollie POST /payments/:id/refunds (idempotency key per deposit) + usdIn-X, usdOut-X, usdHeld-X + txn 'card-refund'.
+- Stripe Identity (reuses compliance.js session flow; returnTo:'wallet'). Name compare: match → release; doubt (initials,
+  one shared word, no card name e.g. Apple Pay) → admin review (Telegram alert + Admin → Compliance → Card ID checks);
+  mismatch → auto refund. 2 failed Stripe sessions or 24h without check → auto refund (5-min sweep, also polls Stripe).
+  Once passed → never asked again. Already-verified ID (country compliance) is compared immediately.
+- Gate: holds only when STRIPE_IDENTITY_SECRET_KEY or STRIPE_SECRET_KEY is set. PROD droplet has NO Stripe key → dormant there.
+- Fixed: compliance applySession never stored the ID name (verified_outputs needs expand) — now expands.
+- loyalty-service usdOut excludes usdHeld; offers.payBonuses skips held/refunded deposits.
+- Tests: js/tests/test_card_check.js 27/0. E2E preview with Stripe test mode: banner → Stripe → "Verification success" →
+  Jenny Rosen matched card → $50 released.
+- NEXT: user's live Stripe key (STRIPE_IDENTITY_SECRET_KEY, Identity enabled) → copy to /opt/nomadly/shared/app-main/backend.env → deploy app-main.
+- 2026-11-16 12:33 UTC DEPLOYED app-main 20261116T123335Z-0f92e21 (workspace tarball). STRIPE_IDENTITY_SECRET_KEY (sk_live, Identity enabled — live session create+cancel OK)
+  added to /opt/nomadly/shared/app-main/backend.env (backup .bak-cardcheck). Prod /card-check + /admin/card-checks answer 401 unauth.
+  Not yet seen: a real customer card payment going through the hold → Stripe → release/refund path in production.
+  No Stripe webhook endpoint registered for the live key — results come from the return-page refresh + 5-min sweep.

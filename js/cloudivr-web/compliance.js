@@ -15,7 +15,8 @@ async function recordAcceptance(db, chatId, req, method) {
   await db.collection('legalAcceptances').insertMany(Object.entries(LEGAL_DOCS).map(([doc, version]) => ({ chatId: String(chatId), doc, version, at, ip, userAgent, method })))
   await db.collection('compliance').updateOne({ _id: String(chatId) }, { $set: { legal: { ...LEGAL_DOCS, at }, policy: { version: POLICY_VERSION, acceptedAt: at, ip } } }, { upsert: true })
 }
-const stripe = () => new Stripe(process.env.STRIPE_SECRET_KEY)
+const stripeKey = () => process.env.STRIPE_IDENTITY_SECRET_KEY || process.env.STRIPE_SECRET_KEY
+const stripe = () => new Stripe(stripeKey())
 const IDENTITY_MAP = { verified: 'verified', processing: 'pending', requires_input: 'failed', canceled: 'none' }
 
 function createCompliance({ db, h, adminRequire, notifyAdmin = () => {}, notify, log = console.log }) {
@@ -33,6 +34,8 @@ function createCompliance({ db, h, adminRequire, notifyAdmin = () => {}, notify,
   async function applySession(s) {
     const chatId = String(s.metadata?.chatId || '')
     if (!chatId) return null
+    // The verified name is only returned when expanded (webhook payloads and plain retrieves leave it out).
+    if (s.status === 'verified' && !s.verified_outputs) s = await stripe().identity.verificationSessions.retrieve(s.id, { expand: ['verified_outputs'] })
     const status = s.status === 'requires_input' && !s.last_error ? 'none' : (IDENTITY_MAP[s.status] || 'pending')
     const vo = s.verified_outputs
     const set = { 'identity.status': status, 'identity.sessionId': s.id, 'identity.updatedAt': new Date(),
@@ -43,8 +46,10 @@ function createCompliance({ db, h, adminRequire, notifyAdmin = () => {}, notify,
       log(`[Compliance] ${chatId} identity verified (${s.id})`)
       notify?.push(chatId, 'Your ID check passed. You can now buy numbers in countries that need ID.', null, { kind: 'billing' }).catch(() => {})
     }
+    await hooks.onIdentity?.(chatId, status, s)?.catch?.(e => log(`[CardCheck] onIdentity ${chatId}: ${e.message}`))
     return status
   }
+  const hooks = {}
 
   function routes(r) {
     r.get('/compliance', h(async (req, res) => res.json(await state(req.webChatId))))
@@ -65,7 +70,7 @@ function createCompliance({ db, h, adminRequire, notifyAdmin = () => {}, notify,
         options: { document: { require_matching_selfie: true, require_live_capture: true, allowed_types: ['passport', 'driving_license', 'id_card'] } },
         metadata: { chatId: String(req.webChatId) },
         ...(acc?.email ? { provided_details: { email: acc.email } } : {}),
-        return_url: `${origin}/cloudivr/app/settings?identity=done`,
+        return_url: `${origin}/cloudivr/app/${req.body?.returnTo === 'wallet' ? 'wallet' : 'settings'}?identity=done`,
       })
       await col.updateOne({ _id: req.webChatId }, { $set: { 'identity.status': 'pending', 'identity.sessionId': s.id, 'identity.startedAt': new Date() } }, { upsert: true })
       res.json({ url: s.url })
@@ -139,7 +144,7 @@ function createCompliance({ db, h, adminRequire, notifyAdmin = () => {}, notify,
   // Stripe webhook (signature-checked, raw body) — keeps identity status current when the customer leaves early.
   async function webhook(req, res) {
     let evt
-    try { evt = stripe().webhooks.constructEvent(req.rawBody, req.headers['stripe-signature'], process.env.STRIPE_WEBHOOK_SECRET) } catch (e) { log(`[Compliance] Stripe webhook rejected: ${e.message}`); return res.status(400).send('bad signature') }
+    try { evt = stripe().webhooks.constructEvent(req.rawBody, req.headers['stripe-signature'], process.env.STRIPE_IDENTITY_WEBHOOK_SECRET || process.env.STRIPE_WEBHOOK_SECRET) } catch (e) { log(`[Compliance] Stripe webhook rejected: ${e.message}`); return res.status(400).send('bad signature') }
     res.json({ received: true })
     if (String(evt.type).startsWith('identity.verification_session.')) await applySession(evt.data.object).catch(e => log(`[Compliance] webhook apply: ${e.message}`))
   }
@@ -153,7 +158,8 @@ function createCompliance({ db, h, adminRequire, notifyAdmin = () => {}, notify,
   }
   const policyAccepted = async (chatId) => !outstandingOf(await of(chatId)).length
 
-  return { routes, adminRoutes, webhook, state, idIssue, policyAccepted, POLICY_VERSION }
+  const retrieveSession = (id, full) => stripe().identity.verificationSessions.retrieve(id, full ? { expand: ['verified_outputs'] } : undefined)
+  return { routes, adminRoutes, webhook, state, idIssue, policyAccepted, POLICY_VERSION, applySession, retrieveSession, hooks }
 }
 
 module.exports = { createCompliance, POLICY_VERSION, LEGAL_DOCS, recordAcceptance }

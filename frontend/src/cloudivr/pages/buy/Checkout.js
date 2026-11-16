@@ -7,7 +7,7 @@ import { useOffer } from '../../offers';
 import { Field, Toggle } from '../../ui';
 import { CoinSelect } from '../../Pickers';
 import { TextingAddOn } from './TextingAddOn';
-import { MolliePay, useMollie } from '../../MolliePay';
+import { MolliePay, useMollie, mollieMethodNames } from '../../MolliePay';
 
 function Option({ on, onClick, icon: Icon, title, sub, testid }) {
   return (
@@ -88,7 +88,7 @@ export default function Checkout({ pick, planObj, total, balance, coins, busy, o
         {short > 0 && cryptoOk
           ? <div className="civr-card p-4 text-sm" data-testid="civr-checkout-wallet-short"><div className="flex items-center gap-2 font-semibold"><WalletIcon className="w-4 h-4" />Wallet {money(balance)}</div><div className="text-xs text-[#a1a1aa] mt-1">{money(short)} short · <button type="button" onClick={() => onTopUp(short)} className="underline font-semibold text-[var(--c-accent)]" data-testid="civr-checkout-wallet-topup">Top up</button></div></div>
           : <Option on={method === 'wallet'} onClick={() => setMethod('wallet')} icon={WalletIcon} title="Pay from wallet" sub={`Balance ${money(balance)}${short > 0 ? ` · ${money(short)} short` : ' · activates instantly'}`} testid="civr-checkout-wallet-option" />}
-        {cardOk ? <Option on={method === 'card'} onClick={() => setMethod('card')} icon={CreditCard} title={part ? 'Wallet + card for the rest' : 'Pay by card'} sub={`${mol.currencies.map(c => c.currency).slice(0, 4).join(', ')} · secure checkout by Mollie${mol.mode === 'test' ? ' (test mode)' : ''}`} testid="civr-checkout-card-option" /> : <CardComingSoon testid="civr-checkout-card-option" />}
+        {cardOk ? <Option on={method === 'card'} onClick={() => setMethod('card')} icon={CreditCard} title={part ? 'Wallet + card for the rest' : 'Pay by card or bank'} sub={`${mollieMethodNames(mol)} · secure checkout by Mollie${mol.mode === 'test' ? ' (test mode)' : ''}`} testid="civr-checkout-card-option" /> : <CardComingSoon testid="civr-checkout-card-option" />}
         {cryptoOk ? <Option on={method === 'crypto'} onClick={() => setMethod('crypto')} icon={Bitcoin} title={part ? 'Wallet + crypto for the rest' : 'Pay with crypto'} sub={part ? `Uses your ${money(part)} wallet balance — send just ${money(cryptoDue)} in crypto.` : 'Send the exact price — the number activates once the network confirms.'} testid="civr-checkout-crypto-option" />
           : <div className="civr-card p-4 text-xs text-[#a1a1aa] flex gap-3"><Bitcoin className="w-5 h-5 shrink-0 text-[#a1a1aa]" />Crypto isn’t available for this payment. Pay from your wallet — short? Add funds with crypto first.</div>}
       </div>

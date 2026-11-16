@@ -358,3 +358,6 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - CloudIVR profile methods: creditcard (all currencies), plus ideal/banktransfer/mbway in EUR. No PayPal → labels now "Card" / "Pay by card"; card is listed first and preselected in wallet + checkout.
 - Verified on prod: options live, /payments create (open, unpaid), in-app session mounts Mollie components on cloudivr.net/app/wallet, landing shows card chips, webhook URL answers 200. NOT verified: a real paid card payment crediting the wallet.
 - Only app-main has the key/code path enabled.
+
+## 2026-11-16 Cardholder ID check (CloudIVR web)
+- LIVE on app-main (cloudivr.net) since 2026-11-16 with owner live Stripe key. Unit 27/0 + preview Stripe test-mode E2E passed. No real customer payment observed yet.

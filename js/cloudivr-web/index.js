@@ -103,9 +103,13 @@ function createCloudIvrWeb(deps) {
     require('./media').publicRoutes(r, { db, h })
     require('./fax').publicRoutes(r, { db, h })
     require('../ivr-outbound').setPickLogDb(db)
-    let offersRef = null
-    const mollie = require('./mollie').createMollie(db, { log, notifyAdmin: deps.notifyAdmin, getOffers: () => offersRef, push: (id, text) => notify.push(id, text, null, { kind: 'payment' }) })
+    let offersRef = null, cardCheckRef = null
+    const mollie = require('./mollie').createMollie(db, { log, notifyAdmin: deps.notifyAdmin, getOffers: () => offersRef, getCardCheck: () => cardCheckRef, push: (id, text) => notify.push(id, text, null, { kind: 'payment' }) })
     mollie.publicRoutes(r, { h })
+    const cardCheck = cardCheckRef = require('./card-check').createCardCheck(db, { log, notifyAdmin: deps.notifyAdmin, push: (id, text) => notify.push(id, text, null, { kind: 'payment' }), refundPayment: mollie.refund, retrieveSession: compliance.retrieveSession, applySession: compliance.applySession })
+    compliance.hooks.onIdentity = cardCheck.onIdentity
+    cardCheck.adminRoutes(r, h, adminAuth.require)
+    require('../active-slot').singletonInterval('cloudivr-card-check', () => cardCheck.tick().catch(e => log(`[CardCheck] tick: ${e.message}`)), 5 * 60000)
     require('./journey').createJourney({ db, h, accountOf: (req) => new Promise(ok => auth.requireUser(req, { status: () => ({ json: () => ok(null) }) }, () => ok(req.webChatId))) }).routes(r)
     r.use(auth.requireUser)
     invoices.routes(r)
@@ -143,6 +147,7 @@ function createCloudIvrWeb(deps) {
     offers.routes(r, { h })
     offersRef = offers
     mollie.routes(r, { h })
+    cardCheck.routes(r, h)
     wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit, offers, cryptoPerUsd: deps.cryptoPerUsd })
     // Orders go first so /numbers/orders is not caught by /numbers/:phone; numbersApi is filled in right after.
     const numbersApi = {}

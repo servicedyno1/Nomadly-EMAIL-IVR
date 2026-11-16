@@ -12,7 +12,8 @@ import { useOffer } from '../offers';
 import { Renewals } from './wallet/Renewals';
 import { Invoices } from './wallet/Invoices';
 import { Coin, CoinIcon, CoinSelect, PayWindow } from '../Pickers';
-import { MollieForm, MollieWaiting, useMollie, useMollieStatus, fmtCur } from '../MolliePay';
+import { MollieForm, MollieWaiting, useMollie, useMollieStatus, fmtCur, mollieMethodNames } from '../MolliePay';
+import { HeldNote } from '../compliance/CardCheck';
 
 const copy = (v) => navigator.clipboard?.writeText(v).then(() => toast.success('Copied'));
 const PRESETS = [25, 50, 100, 250];
@@ -92,7 +93,7 @@ function TopUp({ coins, min, initial, onCreated }) {
     <form onSubmit={go} noValidate className="civr-card p-6 space-y-6" data-testid="wallet-topup-form">
       <div className="font-display text-2xl font-bold">Add funds</div>
       <div className="grid sm:grid-cols-2 gap-3" data-testid="wallet-pay-methods">
-        {cardOk || pay === 'card' ? <button type="button" onClick={() => setPay('card')} aria-pressed={pay === 'card'} className={`civr-card text-left p-4 flex gap-4 items-start ${pay === 'card' ? 'civr-trace' : ''}`} data-testid="wallet-method-card"><CreditCard className={`w-5 h-5 mt-0.5 shrink-0 ${pay === 'card' ? 'text-[#818cf8]' : 'text-[#a1a1aa]'}`} /><div className="flex-1"><div className="font-semibold">Card</div><div className="text-xs text-[#a1a1aa] mt-1">{cardOk ? `${mol.currencies.map(c => c.currency).slice(0, 5).join(', ')} · secure checkout by Mollie` : 'Checking what’s available for this amount…'}</div></div>{pay === 'card' && <Check className="w-4 h-4 text-[#818cf8] shrink-0" />}</button> : <CardComingSoon testid="wallet-method-card" />}
+        {cardOk || pay === 'card' ? <button type="button" onClick={() => setPay('card')} aria-pressed={pay === 'card'} className={`civr-card text-left p-4 flex gap-4 items-start ${pay === 'card' ? 'civr-trace' : ''}`} data-testid="wallet-method-card"><CreditCard className={`w-5 h-5 mt-0.5 shrink-0 ${pay === 'card' ? 'text-[#818cf8]' : 'text-[#a1a1aa]'}`} /><div className="flex-1"><div className="font-semibold">Card or bank</div><div className="text-xs text-[#a1a1aa] mt-1">{cardOk ? `${mollieMethodNames(mol)} · secure checkout by Mollie` : 'Checking what’s available for this amount…'}</div></div>{pay === 'card' && <Check className="w-4 h-4 text-[#818cf8] shrink-0" />}</button> : <CardComingSoon testid="wallet-method-card" />}
         <button type="button" onClick={() => setPay('crypto')} aria-pressed={pay === 'crypto'} className={`civr-card text-left p-4 flex gap-4 items-start ${pay === 'crypto' ? 'civr-trace' : ''}`} data-testid="wallet-method-crypto"><Coins className="w-5 h-5 mt-0.5 shrink-0 text-[#818cf8]" /><div className="flex-1"><div className="font-semibold">Crypto</div><div className="text-xs text-[#a1a1aa] mt-1">{`${coins.map(c => c.replace(/\s*\(.*\)/, '')).filter((c, i, a) => a.indexOf(c) === i).slice(0, 4).join(', ')} and more`}</div></div>{pay === 'crypto' && <Check className="w-4 h-4 text-[#818cf8] shrink-0" />}</button>
       </div>
       <OfferNote offer={offer} amount={amount} setAmount={setAmount} />
@@ -209,6 +210,7 @@ export default function Wallet() {
         <div className="civr-card p-6 flex flex-col justify-between lg:self-start lg:min-h-[280px]" data-testid="wallet-balance-card">
           <div className="flex items-center justify-between"><span className="civr-label">Balance</span><WalletIcon className="w-5 h-5 text-[#818cf8]" /></div>
           <div className="font-mono text-4xl xl:text-5xl whitespace-nowrap mt-6" data-testid="wallet-balance">{money(data.balance)}</div>
+          <HeldNote held={data.held} />
           <div className="text-xs text-[#a1a1aa] mt-2">USD · top-ups appear once the payment is confirmed</div>
         </div>
         <div className="lg:col-span-2"><TopUp coins={data.coins} min={data.minTopup} initial={need ? Math.max(data.minTopup, Math.ceil(need)) : Number(params.get('amount')) || 50} onCreated={(d) => { setDep(d); reload(); }} /></div>

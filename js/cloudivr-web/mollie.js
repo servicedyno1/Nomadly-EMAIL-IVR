@@ -61,7 +61,7 @@ async function methodsFor(currency, value, v) {
   return list || []
 }
 
-function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = {}) {
+function createMollie(db, { log = console.log, push, notifyAdmin, getOffers, getCardCheck } = {}) {
   const deposits = db.collection('webDeposits'), txns = db.collection('transactions'), w = walletOps(db)
   const keyed = () => !!mode() || !!orgKey()
   let lastFailAlert = 0
@@ -118,15 +118,27 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
       notifyAdmin?.(`⚠️ <b>Mollie amount mismatch</b>\nDeposit <code>${dep.ref}</code> expected ${dep.amountCharged} ${dep.currency}, Mollie says ${p.amount?.value} ${p.amount?.currency}. Not credited — check it by hand.`)
       return { status: 'review' }
     }
-    const r = await deposits.updateOne({ _id: dep._id, molliePaid: { $ne: true } }, { $set: { molliePaid: true, mollieStatus: 'paid', mollieMethod: p.method || null, paidAt: new Date(p.paidAt || Date.now()), updatedAt: new Date() } })
+    // First card / Apple Pay / Google Pay payment of an account: credited but held until the ID check (card-check.js).
+    const cc = getCardCheck?.(), hold = cc ? await cc.needsHold(dep.chatId, p) : false
+    const r = await deposits.updateOne({ _id: dep._id, molliePaid: { $ne: true } }, { $set: { molliePaid: true, mollieStatus: 'paid', mollieMethod: p.details?.wallet || p.method || null, cardHolder: p.details?.cardHolder || null, idHold: hold, paidAt: new Date(p.paidAt || Date.now()), updatedAt: new Date() } })
     if (r.modifiedCount !== 1) return { status: 'paid', already: true }
-    await w.credit(dep.chatId, dep.amountUsd)
+    if (hold) await cc.creditHeld(dep.chatId, dep.amountUsd)
+    else await w.credit(dep.chatId, dep.amountUsd)
     const label = `${dep.amountCharged} ${dep.currency}`
     await txns.insertOne({ chatId: String(dep.chatId), type: 'wallet-topup', amount: dep.amountUsd, currency: 'USD', status: 'completed', metadata: { ref: dep.ref, psp: 'mollie', mode: dep.mode, method: p.method || null, value: dep.amountCharged, coin: dep.currency, paymentId: p.id }, createdAt: new Date(), updatedAt: new Date() })
     log(`[Mollie] credited $${dep.amountUsd} to ${dep.chatId} (${label}, ${p.method}, ${dep.mode})`)
-    push?.(String(dep.chatId), `Payment received: $${dep.amountUsd.toFixed(2)} was added to your wallet (${label} by ${p.method || 'Mollie'}).`).catch?.(() => {})
-    notifyAdmin?.(`💳 <b>Wallet top-up (Mollie${dep.mode === 'test' ? ' · TEST' : ''})</b>\n👤 Web account ${dep.chatId}\n💵 Credited <b>$${dep.amountUsd.toFixed(2)}</b>\n💶 Paid ${label} · ${p.method || '?'}\n🔖 <code>${dep.ref}</code> · <code>${p.id}</code>`)
-    return { status: 'paid' }
+    if (!hold) push?.(String(dep.chatId), `Payment received: $${dep.amountUsd.toFixed(2)} was added to your wallet (${label} by ${p.method || 'Mollie'}).`).catch?.(() => {})
+    notifyAdmin?.(`💳 <b>Wallet top-up (Mollie${dep.mode === 'test' ? ' · TEST' : ''})</b>\n👤 Web account ${dep.chatId}\n💵 Credited <b>$${dep.amountUsd.toFixed(2)}</b>${hold ? ' · <b>on hold until ID check</b>' : ''}\n💶 Paid ${label} · ${p.details?.wallet || p.method || '?'}\n🔖 <code>${dep.ref}</code> · <code>${p.id}</code>`)
+    if (hold) await cc.onHeld({ ...dep, cardHolder: p.details?.cardHolder || null }, p).catch(e => log(`[CardCheck] onHeld ${dep.ref}: ${e.message}`))
+    return { status: 'paid', held: hold }
+  }
+
+  // Full refund of a paid deposit back to the card (ID check failed). Idempotent per deposit.
+  async function refund(dep, description) {
+    const pid = dep.mollieProfile
+    const r = await axios.post(`${API}/payments/${dep.molliePaymentId}/refunds`, { amount: { currency: dep.currency, value: dep.amountCharged }, description: String(description).slice(0, 140), metadata: { ref: dep.ref } },
+      { timeout: 20000, headers: { Authorization: `Bearer ${pid ? orgKey() : key()}`, 'Idempotency-Key': `cloudivr-refund-${dep.ref}` } })
+    return r.data
   }
 
   // In-app checkouts (Checkout Sessions) learn their payment id from the webhook, or from recent payments by metadata.ref.
@@ -242,7 +254,7 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
     }))
   }
 
-  return { enabled, options, sync, settle, routes, publicRoutes, checkDomain, sites, cardsLive }
+  return { enabled, options, sync, settle, refund, routes, publicRoutes, checkDomain, sites, cardsLive }
 }
 
 module.exports = { createMollie, CURRENCIES, mode }

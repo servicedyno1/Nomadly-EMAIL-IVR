@@ -70,9 +70,11 @@ function routes(router, { db, h, coins, createCryptoDeposit, offers, cryptoPerUs
       ...tx.filter(t => t.type === 'wallet-topup').map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `${t.metadata?.psp === 'mollie' ? `Card / PayPal top-up${t.metadata?.mode === 'test' ? ' (test)' : ''}` : 'Crypto top-up'} · ${t.metadata?.value || ''} ${t.metadata?.coin || ''}`.trim(), amount: Math.abs(Number(t.amount) || 0) })),
       ...tx.filter(t => HOSTED[t.type]).map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `${HOSTED[t.type]} · ${t.metadata?.phoneNumber || (t.metadata?.count ? `${t.metadata.count} number${t.metadata.count === 1 ? '' : 's'}` : '')}`, amount: -Math.abs(Number(t.amount) || 0) })),
       ...tx.filter(t => CREDITS[t.type]).map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `${CREDITS[t.type]}${t.metadata?.phoneNumber && t.type === 'hosted-sms-refund' ? ` · ${t.metadata.phoneNumber}` : ''}${t.type === 'lead-check-refund' ? ` · ${t.metadata?.count} number${t.metadata?.count === 1 ? '' : 's'}` : ''}`, amount: Math.abs(Number(t.amount) || 0) })),
+      ...tx.filter(t => t.type === 'card-refund').map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `Refunded to card · ${t.metadata?.value || ''} ${t.metadata?.coin || ''}`.trim(), amount: -Math.abs(Number(t.amount) || 0) })),
     ].sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50)
+    const wal = await db.collection('walletOf').findOne({ _id: String(id) }, { projection: { usdHeld: 1 } })
     res.json({
-      balance: await w.balance(id), currency: 'USD', minTopup: MIN_TOPUP_USD, coins, history,
+      balance: await w.balance(id), held: Math.max(0, Math.round((wal?.usdHeld || 0) * 100) / 100), currency: 'USD', minTopup: MIN_TOPUP_USD, coins, history,
       deposits: deposits.map(d => ({ ref: d.ref, amountUsd: d.amountUsd, coin: d.coin, address: d.address, amountCrypto: d.amountCrypto, createdAt: d.createdAt, expiresAt: d.provider === 'mollie' ? null : expiresAt(d), status: depositStatus(d, paidAt.get(d.ref)), provider: d.provider, ...(d.provider === 'mollie' ? { currency: d.currency, amountCharged: d.amountCharged } : {}) })),
     })
   }))

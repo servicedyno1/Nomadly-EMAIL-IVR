@@ -18,9 +18,44 @@ async function openFile(chatId, id) {
 export default function ComplianceAdmin() {
   const [tab, setTab] = useState('papers');
   return (<div className="space-y-4">
-    <div className="flex gap-2">{[['papers', 'Company papers'], ['tendlc', 'US 10DLC']].map(([k, l]) => <button key={k} className={`civr-btn ${tab === k ? 'civr-btn-primary' : 'civr-btn-ghost'}`} onClick={() => setTab(k)} data-testid={`admin-compliance-tab-${k}`}>{l}</button>)}</div>
-    {tab === 'papers' ? <Papers /> : <TenDlcAdmin />}
+    <div className="flex gap-2">{[['papers', 'Company papers'], ['cards', 'Card ID checks'], ['tendlc', 'US 10DLC']].map(([k, l]) => <button key={k} className={`civr-btn ${tab === k ? 'civr-btn-primary' : 'civr-btn-ghost'}`} onClick={() => setTab(k)} data-testid={`admin-compliance-tab-${k}`}>{l}</button>)}</div>
+    {tab === 'papers' ? <Papers /> : tab === 'cards' ? <CardChecks /> : <TenDlcAdmin />}
   </div>);
+}
+
+function CardChecks() {
+  const [status, setStatus] = useState('review');
+  const [items, setItems] = useState(null);
+  const [err, setErr] = useState(null);
+  const [busy, setBusy] = useState(null);
+  const load = useCallback(() => { setItems(null); api(`/admin/card-checks?status=${status}`).then(d => setItems(d.items)).catch(setErr); }, [status]);
+  useEffect(() => { load(); }, [load]);
+  const decide = async (chatId, decision) => {
+    if (decision === 'refund' && !window.confirm('Refund every held card payment of this account?')) return;
+    setBusy(chatId); setErr(null);
+    try { await api(`/admin/card-checks/${chatId}`, { method: 'POST', body: { decision } }); toast.success(decision === 'approve' ? 'Approved — money released' : 'Refund sent'); load(); } catch (e) { setErr(e); } finally { setBusy(null); }
+  };
+  const LABEL = { review: 'Needs review', required: 'Waiting for ID', passed: 'Passed', refunded: 'Refunded' };
+  return (
+    <div className="space-y-3" data-testid="admin-card-checks">
+      <div className="flex flex-wrap items-center gap-2">
+        {Object.entries(LABEL).map(([s, l]) => <button key={s} className={`civr-btn ${status === s ? 'civr-btn-primary' : 'civr-btn-ghost'}`} onClick={() => setStatus(s)} data-testid={`admin-card-checks-filter-${s}`}>{l}</button>)}
+        <button className="civr-btn civr-btn-ghost ml-auto" onClick={load} aria-label="Refresh" data-testid="admin-card-checks-refresh"><RefreshCw className="w-4 h-4" /></button>
+      </div>
+      <ErrorNote error={err} testid="admin-card-checks-error" />
+      {!items ? <Spinner /> : !items.length ? <p className="text-sm text-[var(--c-muted)]" data-testid="admin-card-checks-empty">Nothing here.</p> : items.map(it => (
+        <div key={it.chatId} className="civr-card p-5 space-y-2 text-sm" data-testid={`admin-card-check-row-${it.chatId}`}>
+          <div className="text-xs text-[var(--c-muted)]">{it.email || '—'} · account {it.chatId}{it.deadline && it.status === 'required' ? ` · refund due ${new Date(it.deadline).toLocaleString()}` : ''}</div>
+          <div>ID name: <b data-testid={`admin-card-check-idname-${it.chatId}`}>{it.identity?.name || it.idName || '—'}</b> <span className="text-[var(--c-muted)]">({it.identity?.status})</span> · Card name(s): <b data-testid={`admin-card-check-cardnames-${it.chatId}`}>{(it.cardNames || []).join(', ') || 'not given'}</b>{it.match ? <span className="text-[var(--c-muted)]"> · result: {it.match}</span> : null}</div>
+          {it.reason && <div className="text-xs text-[var(--c-muted)]">{it.reason}</div>}
+          {(it.deposits || []).map(d => <div key={d.ref} className="text-xs font-mono">{d.ref} · ${d.amountUsd} ({d.amount} {d.currency}) · {d.method || '?'} · {d.cardHolder || 'no card name'} · {d.held ? 'HELD' : d.refundState || 'released'}{d.refundError ? ` — ${d.refundError}` : ''}</div>)}
+          {(['review', 'required'].includes(it.status) || (it.deposits || []).some(d => d.held)) && <div className="flex gap-2 pt-1">
+            {['review', 'required'].includes(it.status) && <button className="civr-btn civr-btn-primary" disabled={busy === it.chatId} onClick={() => decide(it.chatId, 'approve')} data-testid={`admin-card-check-approve-${it.chatId}`}><Check className="w-4 h-4" />Approve and release</button>}
+            <button className="civr-btn" disabled={busy === it.chatId} onClick={() => decide(it.chatId, 'refund')} data-testid={`admin-card-check-refund-${it.chatId}`}><X className="w-4 h-4" />Refund card</button>
+          </div>}
+        </div>))}
+    </div>
+  );
 }
 
 function TenDlcAdmin() {

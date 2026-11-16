@@ -71,42 +71,56 @@ function Chips({ items, value, onChange, testid, render }) {
   return <div className="flex flex-wrap gap-2" data-testid={testid}>{items.map(x => <button type="button" key={x.key} onClick={() => onChange(x.key)} className={`civr-pill civr-preset cursor-pointer inline-flex items-center gap-1.5 ${value === x.key ? 'civr-pill-on' : ''}`} data-testid={`${testid}-${String(x.key).toLowerCase()}`}>{render(x)}</button>)}</div>;
 }
 
-// The picker: currency (with the converted price) + method, then "Continue to secure checkout".
+// Every method the Mollie profile offers, across currencies (card first). Bank methods like iDEAL only exist in euros.
+export const mollieMethods = (opts) => {
+  const seen = new Map();
+  (opts?.currencies || []).forEach(c => c.methods.forEach(m => { if (!seen.has(m.id)) seen.set(m.id, m); }));
+  return [...seen.values()].sort((x, y) => (y.id === 'creditcard') - (x.id === 'creditcard'));
+};
+export const mollieMethodNames = (opts) => mollieMethods(opts).map(m => m.description).join(', ');
+
+// The picker: method first, then a currency that method supports. Card pays inside the page; the rest go to Mollie's page.
 export function MollieForm({ opts, amountUsd, sameTab, onStarted, onClose, testid }) {
+  const all = mollieMethods(opts);
+  const [method, setMethod] = useState(all[0]?.id || '');
   const [cur, setCur] = useState(opts.currencies[0]?.currency);
-  const [method, setMethod] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [session, setSession] = useState(null);
   const [hosted, setHosted] = useState(false);
-  const c = opts.currencies.find(x => x.currency === cur) || opts.currencies[0];
-  const mth = c.methods.some(m => m.id === method) ? method : '';
+  const mth = all.some(m => m.id === method) ? method : all[0]?.id || '';
+  const usable = opts.currencies.filter(x => x.methods.some(m => m.id === mth));
+  const c = usable.find(x => x.currency === cur) || usable[0] || opts.currencies[0];
+  const card = mth === 'creditcard', name = all.find(m => m.id === mth)?.description || 'Mollie';
+  const back = `${window.location.origin}${cp('/app/wallet')}`;
   const go = async () => {
     setBusy(true); setErr(null);
     const tab = sameTab ? null : window.open('', '_blank');
     try {
-      const r = await api('/wallet/mollie/pay', { method: 'POST', body: { amountUsd, currency: c.currency, method: mth || null, returnUrl: `${window.location.origin}${cp('/app/wallet')}` } });
+      const r = await api('/wallet/mollie/pay', { method: 'POST', body: { amountUsd, currency: c.currency, method: mth || null, returnUrl: back } });
       if (tab) { tab.location.href = r.checkoutUrl; onStarted?.(r); } else window.location.assign(r.checkoutUrl);
     } catch (e) { tab?.close(); setErr(e); } finally { setBusy(false); }
   };
   const payHere = async () => {
     setBusy(true); setErr(null);
     try {
-      const r = await api('/wallet/mollie/session', { method: 'POST', body: { amountUsd, currency: c.currency, returnUrl: `${window.location.origin}${cp('/app/wallet')}` } });
+      const r = await api('/wallet/mollie/session', { method: 'POST', body: { amountUsd, currency: c.currency, returnUrl: back } });
       setSession(r); onStarted?.({ ...r, inApp: true });
     } catch (e) { setHosted(true); setErr(e); } finally { setBusy(false); }
   };
   if (session) return <div data-testid={testid}><p className="text-sm mb-3" data-testid={`${testid}-inapp-amount`}>{`Paying ${fmtCur(session.currency, session.amount)} · ${money(amountUsd)} goes to your wallet`}</p><MollieInApp session={session} testid={testid} /></div>;
+  const inPage = card && !hosted;
   return (
     <div className="space-y-3" data-testid={testid}>
       {opts.mode === 'test' && <span className="civr-pill !text-xs" data-testid={`${testid}-test-badge`}>Test mode — no real money moves</span>}
-      <label className="block max-w-xs"><span className="civr-label">Pay in</span><select className="civr-input font-mono mt-1" value={c.currency} onChange={(e) => setCur(e.target.value)} data-testid={`${testid}-currency`}>{opts.currencies.map(x => <option key={x.currency} value={x.currency}>{`${x.currency} · ${fmtCur(x.currency, x.amount)}`}</option>)}</select></label>
-      {hosted && <Chips items={[{ key: '', description: 'Any method' }, ...c.methods.map(m => ({ key: m.id, ...m }))]} value={mth} onChange={setMethod} testid={`${testid}-method`} render={(m) => <>{m.image && <img src={m.image} alt="" className="h-4 w-auto" />}{m.description}</>} />}
-      <p className="text-xs text-[var(--c-muted)]" data-testid={`${testid}-note`}>{`You pay ${fmtCur(c.currency, c.amount)} · ${money(amountUsd)} goes to your wallet${c.currency !== 'USD' ? ' (today’s exchange rate)' : ''}.`}</p>
+      <div><span className="civr-label">Pay with</span><div className="mt-1"><Chips items={all.map(m => ({ key: m.id, ...m }))} value={mth} onChange={setMethod} testid={`${testid}-method`} render={(m) => <>{m.image && <img src={m.image} alt="" className="h-4 w-auto" />}{m.description}</>} /></div></div>
+      {card && <p className="text-xs text-[var(--c-muted)]" data-testid={`${testid}-wallets-note`}>Apple Pay and Google Pay show at the next step on devices that support them.</p>}
+      <label className="block max-w-xs"><span className="civr-label">Pay in</span><select className="civr-input font-mono mt-1" value={c.currency} onChange={(e) => setCur(e.target.value)} disabled={usable.length < 2} data-testid={`${testid}-currency`}>{usable.map(x => <option key={x.currency} value={x.currency}>{`${x.currency} · ${fmtCur(x.currency, x.amount)}`}</option>)}</select></label>
+      <p className="text-xs text-[var(--c-muted)]" data-testid={`${testid}-note`}>{`You pay ${fmtCur(c.currency, c.amount)} · ${money(amountUsd)} goes to your wallet${c.currency !== 'USD' ? ' (today’s exchange rate)' : ''}.${!card && usable.length === 1 ? ` ${name} is paid in ${c.currency}.` : ''}`}</p>
       <ErrorNote error={err} testid={`${testid}-error`} />
-      {!hosted && <button type="button" onClick={payHere} disabled={busy} className="civr-btn civr-btn-primary" data-testid={`${testid}-pay-here`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}Pay here</button>}
-      {hosted && <button type="button" onClick={go} disabled={busy} className="civr-btn civr-btn-primary" data-testid={`${testid}-continue`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}Continue to secure checkout</button>}
-      {!hosted && <button type="button" onClick={() => setHosted(true)} className="text-xs underline text-[var(--c-muted)] ml-3" data-testid={`${testid}-use-hosted`}>Use Mollie’s payment page instead</button>}
+      {inPage && <button type="button" onClick={payHere} disabled={busy} className="civr-btn civr-btn-primary" data-testid={`${testid}-pay-here`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}Pay here</button>}
+      {!inPage && <button type="button" onClick={go} disabled={busy} className="civr-btn civr-btn-primary" data-testid={`${testid}-continue`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}{`Continue with ${name}`}</button>}
+      {inPage && <button type="button" onClick={() => setHosted(true)} className="text-xs underline text-[var(--c-muted)] ml-3" data-testid={`${testid}-use-hosted`}>Use Mollie’s payment page instead</button>}
       {onClose && <button type="button" onClick={onClose} className="civr-btn civr-btn-ghost ml-2" data-testid={`${testid}-close`}>Cancel</button>}
     </div>
   );
@@ -131,6 +145,6 @@ export function MolliePay({ price, onReady, testid = 'mollie-pay', primary = fal
   if (!opts?.enabled || !opts.currencies.length) return null;
   if (ref && !inApp) return <div className="civr-card p-4" data-testid={testid}><MollieWaiting status={status} onRetry={() => setRef(null)} testid={testid} /></div>;
   if (ref && ['paid', 'canceled', 'expired', 'failed'].includes(status)) return <div className="civr-card p-4" data-testid={testid}><MollieWaiting status={status} onRetry={() => { setRef(null); setInApp(false); }} testid={testid} /></div>;
-  if (!open) return <button type="button" onClick={() => setOpen(true)} className={`civr-btn ${primary ? 'civr-btn-primary' : 'civr-btn-ghost'}`} data-testid={`${testid}-open`}><CreditCard className="w-4 h-4" />{balance > 0 && balance < price ? `Pay the ${money(amount)} rest by card / PayPal` : 'Pay by card / PayPal'}</button>;
+  if (!open) return <button type="button" onClick={() => setOpen(true)} className={`civr-btn ${primary ? 'civr-btn-primary' : 'civr-btn-ghost'}`} data-testid={`${testid}-open`}><CreditCard className="w-4 h-4" />{balance > 0 && balance < price ? `Pay the ${money(amount)} rest by card or bank` : 'Pay by card or bank'}</button>;
   return <div className="civr-card p-4 w-full" data-testid={testid}><MollieForm opts={opts} amountUsd={amount} onStarted={(r) => { setInApp(!!r.inApp); setRef(r.ref); }} onClose={startOpen ? null : () => setOpen(false)} testid={`${testid}-form`} /></div>;
 }
