@@ -370,3 +370,22 @@ body.civr-thread-open [data-testid="support-chat-toggle"] { display: none; }
 /* Voicemail-left green: readable on light and dark cards */
 .civr-vm-green { color: #15803d !important; }
 html[data-civr-theme='dark'] .civr-vm-green { color: #4ade80 !important; }
+
+
+/* Portalled popovers/calendars (Radix renders them on <body>, outside .civr).
+   Give them ONLY the theme colour tokens — never the .civr layout/table/button rules,
+   which would collapse react-day-picker's grid. Values mirror the dark/light surfaces. */
+.civr-portal { color: var(--c-text); font-family: 'Source Sans 3', 'DM Sans', sans-serif; }
+html[data-civr-theme="dark"] .civr-portal,
+html:not([data-civr-theme]) .civr-portal {
+  --c-bg: #1b1e22; --c-card: #23272d; --c-card-hover: #2a2f36;
+  --c-border: #343a42; --c-border-hover: #4a525d;
+  --c-text: #ffffff; --c-text-2: #d5dce6; --c-muted: #b4bfce;
+  --c-accent: #64acff; --c-accent-soft: rgba(100, 172, 255, 0.12);
+}
+html[data-civr-theme="light"] .civr-portal {
+  --c-bg: #ffffff; --c-card: #ffffff; --c-card-hover: #f7f9fc;
+  --c-border: #e3e8ef; --c-border-hover: #c9d2df;
+  --c-text: #13171c; --c-text-2: #334155; --c-muted: #556070;
+  --c-accent: #1f6fd6; --c-accent-soft: rgba(31, 111, 214, 0.08);
+}
