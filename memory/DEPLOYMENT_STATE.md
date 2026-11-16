@@ -661,3 +661,8 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
   web /for/* audience pages + fr/es, landing de-cryptoed (single "Crypto" chip, FAQ keeps one factual line), and the 11-16 voice-service/callengine fixes now on WL/Voodoo/ProShop too.
 - Lesson: never run two deploy_workspace_to_droplet.sh chains at once (shared /tmp tarball name → one app-wl build failed, live release untouched, redone).
 - ⚠️ Save to GitHub or the next CI deploy rolls all of this back.
+
+## 2026-11-16 ~17:50 UTC — MultiTEL custom caller ID test (to +13025141000)
+- Call via multitel-out, CLI +12025550143 (fictional 555): 603 Decline, Reason "v=analytics1;email=voicesupport@infobip.com" (MultiTEL's upstream Infobip fraud/analytics).
+- Call via multitel-out, CLI +31684448264 (real NL mobile, not ours): 100 → 183 → 200 OK after ~34 s (delivered). What the handset displayed: awaiting user.
+- SMS sendsms from +31684448264 / +12025550143: {"status":{"code":500,"msg":"Logical Error"}} → refused. Control from our own +16806811012: "Message queued" (Success). → MultiTEL texts only from owned numbers.
