@@ -83,6 +83,7 @@ async function createAgent(chatId, body) {
   const a = { id: crypto.randomUUID(), chatId: String(chatId), ...cleanAgent(body), createdAt: new Date(), updatedAt: new Date() }
   await agents.insertOne(a)
   screenScript(a)
+  require('../call-watch').agentScript(a)
   return a
 }
 async function updateAgent(chatId, id, body) {
@@ -92,6 +93,7 @@ async function updateAgent(chatId, id, body) {
   if (body.hours === undefined) delete clean.hours
   const r = await agents.findOneAndUpdate({ id: String(id), chatId: String(chatId) }, { $set: { ...clean, updatedAt: new Date() } }, { returnDocument: 'after' })
   screenScript({ ...clean, chatId: String(chatId) })
+  require('../call-watch').agentScript({ ...clean, chatId: String(chatId) })
   return r?.value !== undefined ? r.value : r
 }
 const deleteAgent = (chatId, id) => agents.deleteOne({ id: String(id), chatId: String(chatId) })

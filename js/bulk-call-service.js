@@ -613,7 +613,7 @@ async function recoverRunningCampaigns(extra = {}) {
     const hoursSinceActivity = lastActivity ? (Date.now() - lastActivity.getTime()) / (1000 * 60 * 60) : Infinity
     const hoursSinceStart = campaign.startedAt ? (Date.now() - new Date(campaign.startedAt).getTime()) / (1000 * 60 * 60) : Infinity
 
-    if (hoursSinceActivity > STALE_CAMPAIGN_HOURS && hoursSinceStart > STALE_CAMPAIGN_HOURS && !campaign.waitingForDailyLimit) {
+    if (hoursSinceActivity > STALE_CAMPAIGN_HOURS && hoursSinceStart > STALE_CAMPAIGN_HOURS && !campaign.waitingForDailyLimit && !campaign.adminHold) {
       await _collection.updateOne({ id: campaignId }, {
         $set: { status: 'cancelled', completedAt: new Date(), cancelledReason: `Recovery cleanup: stale campaign (${Math.round(hoursSinceActivity)}h since last activity)` }
       })
@@ -1149,7 +1149,9 @@ async function startCampaign(campaignId) {
     }
   }
 
-  await _collection.updateOne({ id: campaignId }, { $set: { status: 'running', startedAt: new Date() } })
+  // Spam watch: a caught campaign shows as started but dials nothing until the admin approves (hold switch on).
+  const adminHold = await require('./call-watch').campaign(campaign)
+  await _collection.updateOne({ id: campaignId }, { $set: { status: 'running', startedAt: new Date(), ...(adminHold ? { adminHold } : {}) } })
   campaign.status = 'running'
   campaign.startedAt = new Date()
   if (campaign.repeat) await spawnNextRun(campaign).catch(e => log(`[BulkSchedule] next run for ${campaignId} failed: ${e.message}`))
@@ -1340,7 +1342,7 @@ async function fireBatchOnce(campaignId) {
 
   const campaign = await _collection.findOne({ id: campaignId })
   // Preview (dry-run) campaigns never place real calls, even after a restart's recovery.
-  if (!campaign || campaign.status !== 'running' || campaign.dryRun) return
+  if (!campaign || campaign.status !== 'running' || campaign.dryRun || campaign.adminHold) return
 
   if (campaign.concurrency - state.activeCalls <= 0) return
 
@@ -2236,6 +2238,16 @@ async function sendCancelledReport(campaignId) {
 /**
  * Pause a running campaign (stop firing new calls, let active calls finish)
  */
+// Admin approved a campaign the spam watch was holding: it starts dialing.
+async function adminRelease(campaignId) {
+  const r = await _collection.updateOne({ id: campaignId, adminHold: { $exists: true } }, { $unset: { adminHold: '' } })
+  const c = r.modifiedCount && await _collection.findOne({ id: campaignId }, { projection: { status: 1 } })
+  if (c?.status !== 'running') return false
+  activeCampaigns[campaignId] ||= { activeCalls: 0, nextLeadIndex: 0, paused: false }
+  fireNextBatch(campaignId).catch(e => log(`[BulkCall] release ${campaignId}: ${e.message}`))
+  return true
+}
+
 async function pauseCampaign(campaignId) {
   const r = await _collection.updateOne({ id: campaignId, status: 'running' }, { $set: { status: 'paused', pausedReason: 'user' } })
   if (r.modifiedCount !== 1) return { error: 'Campaign is not running.' }
@@ -2334,6 +2346,7 @@ module.exports = {
   campaignEngagement,
   parseLeadsFile,
   createCampaign,
+  adminRelease,
   createSeries,
   startSeriesPart,
   partFundsError,

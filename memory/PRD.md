@@ -318,3 +318,13 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 
 ## 2026-11-16 — Spam text watch
 - AI + rules read outgoing (single, BulkSMS) and received texts; Telegram alert to admin; admin switch (web Overview card, bot /spamhold) chooses alert-only (default) or hold for Approve / Reject. Customer never notified. Live on 4 brands, agent-tested.
+
+## 2026-11-16 — Spam watch extended to calls (PREVIEW ONLY, not deployed)
+- Owner choices: alert-only by default; check script/audio, what is said on AI calls, who is called; held items wait until decided; customer sees nothing; ONE master switch (the existing hold switch) for texts + calls, all brands.
+- New `js/call-watch.js` on top of `js/msg-watch.js` (verdict modes `call` / `talk`, `gate({pre, what, action})`, `note()` alert-only records, `setHold` also writes every RESELLER_DBS brand).
+- Quick IVR (`voice-service.initiateOutboundIvrCall`, all bot + web paths, not campaign leads): script text + audio words (Whisper, cached in `callWatchAudio`) + >40 different numbers/hour (`CALL_WATCH_QUICK_PER_HOUR`). Hold on → call parked in `heldCalls`, caller gets a quiet stand-in result; Approve dials, Reject drops. One decision per account + script per day.
+- Call campaigns incl. AI agent campaigns (`bulk-call-service.startCampaign`): name, audio words, menu, agent script, list size ≥5000 (`CALL_WATCH_BIG_CAMPAIGN`) or numbers in sequence. Hold on → campaign shows running with `adminHold`, dials nothing; Approve → `adminRelease`; Reject → never dials.
+- AI agent / receptionist: script checked on save; live transcript checked every 60 s and at call end. Always alert-only (live calls are never cut).
+- Tests: js/tests/test_call_watch.js 20/20, test_call_watch_campaign.js 7/7, test_msg_watch.js 14/14, bulk-call regression suites pass (need BULK_IVR_MAINTENANCE=false). Real classifier + real audio transcription checked in preview. Admin card copy checked by screenshot.
+- NOT covered: person-to-person softphone/forwarded calls (no script to read), email blasts.
+- NEXT: owner OK → deploy app-main + overlay to WL/Voodoo/ProShop; then verify a live Telegram alert + Approve/Reject on each brand, and that prod app-main has RESELLER_DBS so the switch reaches all brands.

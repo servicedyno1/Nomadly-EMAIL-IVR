@@ -5077,6 +5077,7 @@ const loadData = async () => {
   esimBot.ES.init({ db, log, tell: (id, text, extra) => cloudivrWeb.notify.push(id, text, null, extra || { kind: 'system' }).catch(() => {}) })
   esimBot.ES.setBot(bot, esimBot.notice)
   require('./msg-watch').init({ db, bot, adminChatId: TELEGRAM_ADMIN_CHAT_ID, log, brand: process.env.CHAT_BOT_BRAND })
+  require('./call-watch')
   singletonInterval('msg-watch-inbound', () => { require('./msg-watch').inboundTick().catch(e => log(`[MsgWatch] inbound tick: ${e.message}`)) }, 20000)
   bulkEsimBot.init({ db, log, notifyAdmin }).then(() => bot && bulkEsimBot.startNotices(bot, db)).catch(e => log(`[BulkESIM] init failed: ${e.message}`))
   rsApply.init({ db, brand: process.env.CHAT_BOT_BRAND })
