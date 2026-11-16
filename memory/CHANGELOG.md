@@ -3525,3 +3525,10 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - BLOCKER: MultiTEL termination (term.multitel.net 67.205.139.35) answers every INVITE with 488 cause 88 INCOMPATIBLE_DESTINATION — also for our own MultiTEL number as CLI and for other customers' calls. Last answered multitel-out call 18:18Z. Failover treats 88 as neutral → no failover/alert. Portugal +351918251893 also refused (603 MultiTEL, 486 via Bird).
 - Not yet tested: web trial, bot trial, SIP test page real calls (all depend on MultiTEL for custom CID).
 - Debug: `asterisk -rx 'pjsip set logger host 67.205.139.35'` + `logger add channel sipcap.log notice,verbose` on 188.166.34.29 (/root/.ssh/droplet); turn off after.
+
+## 2026-11-16 23:20Z — Silent calls during deploys (ARI event split) FIXED
+- Root cause: during blue/green drain both slots connect ARI with the same app name; the newest slot gets ALL events ("ApplicationReplaced"), so calls originated by the old slot never saw "answered" → no audio, logged no_answer, unbilled.
+- Fix (callengine/index.js): each process has its own ARI app `${app()}-${PORT}` for channels it creates (originate, snoop, externalMedia); ws subscribes `app,ownApp`; legs remember their app (AMD dialplan trip uses l.app). Inbound/DIDAPP stays on the shared app. Verified with throwaway ARI test (zztest apps). Deployed 7429e2c (ARI apps now nomadly + nomadly-5000).
+- Impact today (CDR uniqueid ↔ campaign lead callSid): 34 of 4,871 campaign calls answered by the person but recorded no_answer (silence) — 27 for 5000000000000143 (KEVIN PCH NOV 16), 7 for 9013312785; all inside deploy windows; not billed to customers.
+- Owner confirmed: free test call via Bird to +13025141000 answered with audio playing.
+- WL brands (smadav/voodooland/proshop) share the Asterisk and have the same old code → same bug during their deploys (not yet fixed).

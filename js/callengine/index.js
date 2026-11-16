@@ -12,6 +12,9 @@ const agent = new https.Agent({ rejectUnauthorized: false })
 const url = () => String(process.env.ASTERISK_ARI_URL || '').replace(/\/+$/, '')
 const enabled = () => !!(url() && process.env.ASTERISK_ARI_PASSWORD) && String(process.env.CALL_ENGINE_ENABLED || 'true') !== 'false'
 const app = () => process.env.CALL_ENGINE_APP || `${String(process.env.CHAT_BOT_BRAND || 'nomadly').toLowerCase().replace(/[^a-z0-9]/g, '')}${process.env.BOT_ENVIRONMENT === 'production' ? '' : '-dev'}`
+// Channels this process creates live in its own ARI app, so their events keep coming here while a deploy's newer slot
+// takes over the shared app (inbound calls).
+const ownApp = () => `${app()}-${process.env.PORT || process.pid}`
 const makeAri = () => axios.create({ baseURL: `${url()}/ari`, httpsAgent: agent, auth: { username: process.env.ASTERISK_ARI_USER || 'cloudivr', password: process.env.ASTERISK_ARI_PASSWORD }, timeout: 10000 })
 const isAe = (id) => String(id || '').startsWith('ae:')
 const raw = (id) => String(id).slice(3)
@@ -44,8 +47,8 @@ async function dialplanTrip(l, extension) {
   l.inDialplan = extension
   clearTimeout(l.amdTimer)
   l.amdTimer = setTimeout(() => { if (l.inDialplan === extension && !l.ended) { l.inDialplan = null; amdResult(l, extension, 'NOTSURE', 'TIMEOUT') } }, 40000)
-  const ok = await call('post', `/applications/${app()}/subscription`, { eventSource: `channel:${raw(l.id)}` }) &&
-    await call('post', `/channels/${raw(l.id)}/variable`, { variable: 'CE_APP', value: app() }) &&
+  const ok = await call('post', `/applications/${l.app || app()}/subscription`, { eventSource: `channel:${raw(l.id)}` }) &&
+    await call('post', `/channels/${raw(l.id)}/variable`, { variable: 'CE_APP', value: l.app || app() }) &&
     await call('post', `/channels/${raw(l.id)}/continue`, { context: 'ce-amd', extension, priority: 1 })
   if (!ok) { l.inDialplan = null; clearTimeout(l.amdTimer); amdResult(l, extension, 'NOTSURE', 'ERROR') }
 }
@@ -132,7 +135,7 @@ function onEvent(e) {
       const sip = e.args?.[0] === 'sip'
       const exten = e.args?.[1] || ch.dialplan?.exten || ''
       const num = (n) => (n && /^\d{10,15}$/.test(n) ? `+${n}` : n)
-      l = track({ id, direction: sip ? 'outgoing' : 'incoming', to: sip ? exten.replace(/[^+\d]/g, '') : num(exten.replace(/^\+/, '')), from: sip ? `sip:${e.args?.[2] || ch.caller?.number}@${process.env.SIP_DOMAIN || 'sip.cloudivr.net'}` : num(String(ch.caller?.number || '').replace(/^\+/, '')), connection: sip ? (process.env.TELNYX_SIP_CONNECTION_ID || 'callengine-sip') : (process.env.TELNYX_CALL_CONTROL_APP_ID || 'callengine-app'), initiatedSent: true })
+      l = track({ id, direction: sip ? 'outgoing' : 'incoming', to: sip ? exten.replace(/[^+\d]/g, '') : num(exten.replace(/^\+/, '')), from: sip ? `sip:${e.args?.[2] || ch.caller?.number}@${process.env.SIP_DOMAIN || 'sip.cloudivr.net'}` : num(String(ch.caller?.number || '').replace(/^\+/, '')), connection: sip ? (process.env.TELNYX_SIP_CONNECTION_ID || 'callengine-sip') : (process.env.TELNYX_CALL_CONTROL_APP_ID || 'callengine-app'), initiatedSent: true, app: e.application || app() })
       if (sip) l.fromSipUri = l.from
       emit('call.initiated', l)
       break
@@ -200,7 +203,7 @@ async function start(onEvent_) {
   sink = onEvent_
   const open = () => {
     const auth = `${process.env.ASTERISK_ARI_USER || 'cloudivr'}:${process.env.ASTERISK_ARI_PASSWORD}`
-    ws = new WebSocket(`${url().replace(/^http/, 'ws')}/ari/events?app=${encodeURIComponent(app())}&api_key=${encodeURIComponent(auth)}&subscribeAll=false`, { agent })
+    ws = new WebSocket(`${url().replace(/^http/, 'ws')}/ari/events?app=${encodeURIComponent(`${app()},${ownApp()}`)}&api_key=${encodeURIComponent(auth)}&subscribeAll=false`, { agent })
     ws.on('open', () => { connected = true; log(`connected (app ${app()})`); onConnectHook?.() })
     ws.on('message', (m) => { try { onEvent(JSON.parse(m)) } catch (e) { log('event error', e.message) } })
     ws.on('close', () => { connected = false; setTimeout(open, 5000) })
@@ -230,7 +233,7 @@ const isCallAlive = async (id) => !!live(id)
 async function startExternalMedia(id, host) {
   const l = live(id); if (!l || l.em) return null
   const ch = crypto.randomUUID()
-  const em = await call('post', '/channels/externalMedia', { channelId: ch, app: app(), external_host: host, format: 'ulaw', encapsulation: 'rtp', transport: 'udp', connection_type: 'client', direction: 'both' })
+  const em = await call('post', '/channels/externalMedia', { channelId: ch, app: ownApp(), external_host: host, format: 'ulaw', encapsulation: 'rtp', transport: 'udp', connection_type: 'client', direction: 'both' })
   if (!em) return null
   const br = await call('post', '/bridges', { type: 'mixing' })
   if (!br || !(await call('post', `/bridges/${br.id}/addChannel`, { channel: `${raw(id)},${ch}` }))) { call('delete', `/channels/${ch}`); if (br) call('delete', `/bridges/${br.id}`); return null }
@@ -270,7 +273,7 @@ async function startRecording(id, channels, format, { playBeep = false } = {}) {
   const l = live(id); if (!l) return null
   l.recName = `rec-${raw(id)}-${Date.now()}`
   // Record a snoop copy of the call so prompts and menus can keep playing on the call itself (like Telnyx)
-  const snoop = await call('post', `/channels/${raw(id)}/snoop`, { spy: 'both', app: app(), appArgs: 'out' })
+  const snoop = await call('post', `/channels/${raw(id)}/snoop`, { spy: 'both', app: ownApp(), appArgs: 'out' })
   if (!snoop) return null
   l.snoop = snoop.id
   return call('post', `/channels/${snoop.id}/record`, { name: l.recName, format: 'wav', beep: !!playBeep, maxSilenceSeconds: 0, ifExists: 'overwrite' })
@@ -314,9 +317,9 @@ async function originate(meta, from, to, timeout = 30, trunk = null) {
   const { endpoint, variables } = endpointFor(to, use)
   if (/@bird$/.test(endpoint)) await birdSlot()
   const chId = crypto.randomUUID()
-  const l = track({ id: `ae:${chId}`, from, to, direction: 'outgoing', bird: /@bird$/.test(endpoint), trunk: endpoint.split('@').pop(), pstn, ...meta })
+  const l = track({ id: `ae:${chId}`, app: ownApp(), from, to, direction: 'outgoing', bird: /@bird$/.test(endpoint), trunk: endpoint.split('@').pop(), pstn, ...meta })
   try {
-    await M.ari().post(`/channels/${chId}`, { variables }, { params: { endpoint, app: app(), appArgs: 'out', callerId: String(from || '').replace(/^\+/, ''), timeout } })
+    await M.ari().post(`/channels/${chId}`, { variables }, { params: { endpoint, app: ownApp(), appArgs: 'out', callerId: String(from || '').replace(/^\+/, ''), timeout } })
     return l
   } catch (e) { legs.delete(l.id); if (pstn) FO.result(l.trunk, { connected: false, cause: 'originate_error' }); throw new Error(e.response?.data?.message || e.message) }
 }
