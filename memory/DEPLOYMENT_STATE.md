@@ -666,3 +666,9 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Call via multitel-out, CLI +12025550143 (fictional 555): 603 Decline, Reason "v=analytics1;email=voicesupport@infobip.com" (MultiTEL's upstream Infobip fraud/analytics).
 - Call via multitel-out, CLI +31684448264 (real NL mobile, not ours): 100 → 183 → 200 OK after ~34 s (delivered). What the handset displayed: awaiting user.
 - SMS sendsms from +31684448264 / +12025550143: {"status":{"code":500,"msg":"Logical Error"}} → refused. Control from our own +16806811012: "Message queued" (Success). → MultiTEL texts only from owned numbers.
+
+## 2026-11-16 20:26–20:32Z — Zoiper "STUN server error (57)" guidance LIVE (workspace deploy 1b4f5b3 +4 uncommitted, app-main only)
+- @johnwill202 (chat 8613373426) Zoiper error 57 = Zoiper's default stun.zoiper.com unreachable (no reply from our pod either); never reached Kamailio. Our coturn answers STUN on sip.speechcue.com / sip.cloudivr.net :3478 (verified externally).
+- Bot /sipguide (5 langs), SIP self-test tips (bot 5 langs + web), web SipTab STUN row + Sip.js guide step: "STUN off, or <sip domain>:3478".
+- Release 20261116T202620Z-1b4f5b3 on app-main-b :5100, drained live calls before flip. Customer messaged via bot (msg 3491327). NOT yet customer-confirmed. WL/voodoo/proshop not deployed.
+- ⚠️ Save to GitHub (main) or the next CI deploy rolls this back.

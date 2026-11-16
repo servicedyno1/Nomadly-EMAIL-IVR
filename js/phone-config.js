@@ -1204,6 +1204,7 @@ Use a single-line softphone (one device per credential):
 3. Username + Password from 🔑 SIP Credentials — <b>copy-paste, don't retype</b>
 4. Domain / SIP Server: <code>${domain}</code> — put this in the <i>Domain</i> field ONLY, do NOT append it to the username
 5. Port 5060 (UDP/TCP) or 5061 (TLS) · DTMF: RFC 2833 · Codec: G.711μ
+• STUN: turn it <b>OFF</b> (Zoiper: account → Network settings → STUN → off). Zoiper error "STUN server … (57)" = STUN is on. If your app requires one, use <code>${domain}</code> port 3478
 6. Save and make a test call
 
 ⚠️ <b>Getting "403 Forbidden" / registration failed?</b>
@@ -2484,6 +2485,7 @@ Utilisez un softphone mono-ligne (un appareil par identifiant) :
 3. Nom d'utilisateur + mot de passe depuis 🔑 Identifiants SIP
 4. Domaine / Serveur SIP : <code>${domain}</code>
 5. Port 5060 (UDP/TCP) ou 5061 (TLS) · DTMF : RFC 2833 · Codec : G.711μ
+• STUN : <b>désactivez-le</b> (Zoiper : compte → Paramètres réseau → STUN → désactivé). L'erreur Zoiper « STUN server … (57) » = STUN activé. Si votre application en exige un : <code>${domain}</code> port 3478
 6. Enregistrez et faites un appel test
 
 ⚠️ <b>Vous utilisez 3CX, FreePBX, Asterisk ou un autre PBX ?</b>
@@ -2979,6 +2981,7 @@ ${/starter/i.test(String(plan)) ? `
 3. 用户名 + 密码（来自 🔑 SIP 凭据）
 4. 域名 / SIP 服务器：<code>${domain}</code>
 5. 端口 5060 (UDP/TCP) 或 5061 (TLS) · DTMF：RFC 2833 · 编解码器：G.711μ
+• STUN：请<b>关闭</b>（Zoiper：账户 → 网络设置 → STUN → 关闭）。Zoiper 报错“STUN server … (57)”即 STUN 处于开启状态。若应用必须填写：<code>${domain}</code> 端口 3478
 6. 保存并拨打测试电话
 
 ⚠️ <b>使用 3CX、FreePBX、Asterisk 或其他 PBX？</b>
@@ -3474,6 +3477,7 @@ ${/starter/i.test(String(plan)) ? `
 3. उपयोगकर्ता नाम + पासवर्ड (🔑 SIP क्रेडेंशियल्स से)
 4. डोमेन / SIP सर्वर: <code>${domain}</code>
 5. पोर्ट 5060 (UDP/TCP) या 5061 (TLS) · DTMF: RFC 2833 · कोडेक: G.711μ
+• STUN: इसे <b>बंद</b> करें (Zoiper: अकाउंट → नेटवर्क सेटिंग्स → STUN → बंद)। Zoiper त्रुटि "STUN server … (57)" = STUN चालू है। यदि ऐप को ज़रूरी हो: <code>${domain}</code> पोर्ट 3478
 6. सेव करें और टेस्ट कॉल करें
 
 ⚠️ <b>3CX, FreePBX, Asterisk या अन्य PBX का उपयोग कर रहे हैं?</b>
@@ -3969,6 +3973,7 @@ greetInfo = '🔊 پیش‌فرض : "شما با ' + formatPhone(number) + ' ت�
 3. نام کاربری + رمز عبور از 🔑 اطلاعات SIP
 4. دامنه / سرور SIP : <code>${domain}</code>
 5. پورت 5060 (UDP/TCP) یا 5061 (TLS) · DTMF : RFC 2833 · کدک : G.711μ
+• STUN: آن را <b>خاموش</b> کنید (Zoiper: حساب → تنظیمات شبکه → STUN → خاموش). خطای Zoiper «STUN server … (57)» یعنی STUN روشن است. اگر برنامه لازم دارد: <code>${domain}</code> پورت 3478
 6. ذخیره کنید و یک تماس آزمایشی بگیرید
 
 ⚠️ <b>از 3CX، FreePBX، Asterisk یا PBX دیگری استفاده می‌کنید؟</b>

@@ -22,6 +22,7 @@ function Guide({ domain }) {
         <li>Install a softphone on your computer or phone (Zoiper, Linphone or MicroSIP are free).</li>
         <li>Add a SIP account with the username and password of the number you want to use.</li>
         <li>Server / domain: <code className="text-[#818cf8]" data-testid="sip-guide-domain" data-no-translate>{domain}</code>, port 5060 (UDP or TCP) or 5061 for TLS.</li>
+        <li data-testid="sip-guide-stun">Turn STUN off in the app (Zoiper: account → Network settings → STUN → off). Zoiper’s “STUN server … error (57)” means it is on. If your app needs one, use <code className="text-[#818cf8]" data-no-translate>{domain}</code> port 3478.</li>
         <li>Save. When the account shows “Registered”, you can call out and answer calls to that number.</li>
       </ol>
       <div className="flex flex-col gap-3">

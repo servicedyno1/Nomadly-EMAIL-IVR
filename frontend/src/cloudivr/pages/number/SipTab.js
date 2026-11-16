@@ -95,6 +95,7 @@ export function SipCredentials({ num, prefix = 'sip', heading, className = 'lg:c
         <Row k="Password" v={creds && !hide ? creds.password : '••••••••••'} id={`${prefix}-password`} secret={!creds || hide} />
         <Row k="Server (domain)" v={num.sipDomain} id={`${prefix}-domain`} />
         <Row k="Port" v="5060 (UDP/TCP) · 5061 (TLS)" id={`${prefix}-port`} secret />
+        <Row k="STUN" v={`Off (or ${num.sipDomain}:3478)`} id={`${prefix}-stun`} secret />
       </div>
       <div className="flex flex-wrap items-start gap-2 mt-5">
         {!creds && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={reveal} data-testid={`${prefix}-reveal-button`}><Eye className="w-4 h-4" />Show password</button>}

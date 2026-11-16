@@ -3496,3 +3496,6 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - ADDED visibility: `ops/sip-server/sip_register_trace.sh` (installed at /usr/local/bin on the SIP server, running 24h from Nov 16 20:18 UTC): passive capture of REGISTER requests (5060) + new TLS connections (5061) only. `sip_register_trace.sh show cvpuj4vgzj` shows his next attempt (source IP, login typed, app, with/without password).
 - 🧪 Test SIP Registration button confirmed LIVE in prod (release 33afdce); SipReconciler + DeadNumberGuard running in prod.
 - OTHER REAL CAUSES FOUND IN LOGS (not john): (1) bot "🔄 Reset Password" also changes the USERNAME — user 5828254066's softphone kept the old username after a reset → 43 × 404 in an hour. (2) Kamailio negative-caches a login for up to 5 min when the /sip-auth lookup TIMES OUT (curl 28, e.g. during an app deploy) — valid customer cvt2vrsb7z got 3 auth failures at Nov 16 16:36. Both proposed, not changed (Kamailio change needs a SIP-server restart).
+
+## 2026-11-16 — Zoiper STUN error (57)
+- Setup guides and SIP self-test (bot + web) now tell users to turn STUN off or use our STUN (<sip domain>:3478). Live on app-main; customer @johnwill202 messaged, awaiting his confirmation.
