@@ -51,7 +51,7 @@ export function ProductHero({ esimPrice, offer }) {
         <div className="max-w-4xl">
           <div className="civr-l-kicker civr-rise"><span className="civr-l-dot" />USA carrier lines and texting</div>
           <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-[54px] lg:leading-[1.08] mt-5 text-slate-950 civr-rise civr-d1" data-testid="hero-title">A real USA number on a real carrier. <span className="civr-l-hl">On your phone, or in your browser.</span></h1>
-          <p className="text-base md:text-lg text-slate-600 mt-4 leading-relaxed civr-rise civr-d2" data-testid="hero-subtitle">Order in a couple of minutes, right here. Pay with crypto or your CloudIVR wallet. No contract, renews monthly.</p>
+          <p className="text-base md:text-lg text-slate-600 mt-4 leading-relaxed civr-rise civr-d2" data-testid="hero-subtitle">Order in a couple of minutes, right here. No contract, renews monthly.</p>
         </div>
         <div className="grid md:grid-cols-2 gap-5 mt-8">
           <Card id="esim-card" icon={Smartphone} badge="On your phone" title="USA eSIM" kind="Downloadable eSIM: install it on your phone" price={esimPrice || 75} points={ESIM_POINTS} note="QR code usually ready within minutes of payment." delay={60}>

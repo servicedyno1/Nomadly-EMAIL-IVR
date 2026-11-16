@@ -11,13 +11,13 @@ export const AUDIENCES = [
     pains: [
       ['Your bank and clients still call a number back home', 'Keep a local number and answer it from any browser tab, on any Wi-Fi.'],
       ['You miss calls while you sleep in another time zone', 'Voicemail is written out and sent to your email, so you read it over coffee.'],
-      ['Local cards and bank transfers are a pain abroad', 'Top up your wallet with crypto and pay month to month. Stop any time.'],
+      ['You do not want a contract in a country you are leaving', 'Pay month to month from a prepaid wallet. Stop any time.'],
     ],
     features: [
       [Headphones, 'Browser phone on every plan', 'Call and answer from a tab. Nothing to install.'],
       [Voicemail, 'Voicemail you can read', 'Each message is transcribed and emailed to you.'],
       [Smartphone, 'USA eSIM and travel data', 'A USA line on your own phone, plus data eSIMs for 187 countries.'],
-      [Wallet, 'Pay with crypto or wallet', 'No local bank account needed.'],
+      [Wallet, 'Prepaid wallet', 'Top up once, pay as you go. No contract.'],
     ],
     faq: [
       ['Can I use it from any country?', 'Yes. The browser phone works anywhere you have internet. Your callers dial your normal number.'],

@@ -341,3 +341,7 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Checked in preview (5 pages render, CTAs, redirect on unknown slug, mobile no overflow). Not run through the testing agent.
 - 2026-11-16: fr/es done for the audience pages + new hero (headline pairs hand-written), and the app-wide backlog of 1,433 untranslated strings filled with scripts/civr_i18n_fill_missing.py (machine translation, not human-reviewed).
 - Open: deploy; bot menus/promo texts and JujuCloud not yet audience-led.
+
+## 2026-11-16 — Audience promos + crypto de-emphasis: LIVE on all four apps
+- Bot: 14 promos lead with one of five audiences in rotation; Cloud IVR intro + plan picker hints. Web: audience pages, fr/es, landing no longer crypto-led.
+- Not done: bot web promos still say "top up with crypto"; app/checkout screens unchanged; first real promo send not observed; not run through testing agent.

@@ -17,7 +17,7 @@ export function Hero({ catalog }) {
   const from = startPrice(catalog);
   const n = catalog?.countries?.length || 2;
   const t = TITLE[useLang().lang] || TITLE.en;
-  const trust = ['Live in minutes', 'Browser phone on every plan', 'No contracts', 'Crypto & wallet payments'];
+  const trust = ['Live in minutes', 'Browser phone on every plan', 'No contracts', 'Cancel any time'];
   return (
     <section id="business" className="civr-l-cream relative pt-16 md:pt-24 border-t civr-l-rule scroll-mt-16" data-testid="civr-hero">
       <span className="civr-np-stars" aria-hidden="true" />
@@ -35,7 +35,7 @@ export function Hero({ catalog }) {
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-6 civr-rise civr-d4" data-testid="hero-microcopy">
           {trust.map(x => <span key={x} className="inline-flex items-center gap-2 text-sm text-slate-600"><Check className="w-4 h-4 text-[color:var(--np-lime)]" />{x}</span>)}
         </div>
-        <p className="text-sm text-slate-500 mt-4 civr-rise civr-d4" data-testid="hero-price-note">{`Free to sign up${from ? ` · Numbers from ${from}/month` : ''} · Pay with crypto or your wallet (cards coming soon)`}</p>
+        <p className="text-sm text-slate-500 mt-4 civr-rise civr-d4" data-testid="hero-price-note">{`Free to sign up${from ? ` · Numbers from ${from}/month` : ''} · No contract`}</p>
       </div>
       <HeroTabs />
     </section>

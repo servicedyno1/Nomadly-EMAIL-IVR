@@ -654,3 +654,10 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
   onarrival21 account, +3197010278502 → +18667977419: register 200, call, inbound ring + answer in 2nd tab, RTP both ways on both tabs, DTMF sent, hangup clears all legs, 0 channels left.
 - Routing: line is MultiTEL-provided → existing rule sends it out on `multitel-out` (CALLER_ID_PASSTHROUGH_TRUNK); non-MultiTEL lines use the default Bird trunk. A Bird-trunk browser call was NOT exercised.
 - 3 workspace tarball deploys (last ACTIVE at ~09:53Z). ⚠️ Save to GitHub (main) or the next CI deploy rolls back. voice-service/callengine fixes NOT on WL/Voodoo/ProShop; their browser phone is not switched on (no SIP_WSS_URL).
+
+## 2026-11-16 10:36–10:46Z — Workspace tarball deploy to ALL FOUR apps (5458abe + uncommitted), owner approved
+- app-main 20261116T103652Z, app-voodoo 103926Z, app-wl 104130Z, app-proshop 104342Z — all WS_DEPLOY_EXIT=0, slots online.
+- Ships: audience promo hooks (promo-copy, 5 audiences rotating, 4 langs; AI no longer overrides the hook), Cloud IVR hub audience line + plan "Best for" hints (5 langs),
+  web /for/* audience pages + fr/es, landing de-cryptoed (single "Crypto" chip, FAQ keeps one factual line), and the 11-16 voice-service/callengine fixes now on WL/Voodoo/ProShop too.
+- Lesson: never run two deploy_workspace_to_droplet.sh chains at once (shared /tmp tarball name → one app-wl build failed, live release untouched, redone).
+- ⚠️ Save to GitHub or the next CI deploy rolls all of this back.

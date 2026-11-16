@@ -8,7 +8,7 @@ import { usd, startPrice } from '../../api';
 import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
 import { Wordmark } from '../../Brand';
-import { SectionHead, Slide, coinList, andList, Reveal } from './kit';
+import { SectionHead, Slide, andList, Reveal } from './kit';
 import { PlanFeatures, RecommendedBadge } from '../../PlanFeatures';
 import { PaymentMethods } from './Payments';
 import { PlanCompare } from './PlanTable';
@@ -106,7 +106,7 @@ export function faqItems(c) {
     ['Can I replace the number?', 'Yes, for $25. The carrier assigns the new number; you can’t choose it. If the carrier refuses, or doesn’t assign one within 24 hours, the $25 goes back to your wallet.'],
     ['Can I try it before I pay?', 'Yes, twice. Without an account: confirm your email with a 6-digit code and take one free test call of up to 60 seconds — we ring your phone with a demo menu, or you call from your browser. After you sign up: place one free Quick IVR call from our number — it plays your script to anyone you choose, then connects them to you when they press 1 or collects a code you accept or decline.'],
     ['Is the account really free?', `Yes. Creating an account costs nothing. You only pay when you buy a number${from ? ` (from ${from}/month)` : ''}, plus any extra usage.`],
-    ['How do I pay?', `With crypto (${coinList(c) || 'BTC, ETH, USDT and more'}) or from your CloudIVR wallet (top-ups from ${usd(c?.minTopup || 10)}). Renewals and calls are paid from the wallet. Card payments are coming soon — until they are switched on, cards show as “coming soon” here and at checkout.`],
+    ['How do I pay?', `From your CloudIVR wallet. Top up from ${usd(c?.minTopup || 10)} and renewals and calls are paid from it. Top-ups are by crypto today; card payments are coming soon.`],
     ['What’s the difference between the keypad menu and Quick or Bulk IVR?', `They work in opposite directions. The keypad menu answers people who call your number: they hear your greeting and press a key to reach the right person, a message or voicemail (${ivr}). Quick IVR and Bulk IVR call people for you: they hear your message, then press a key to reach you, type a code or pick an option — Quick IVR for up to 10 numbers at once, Bulk IVR campaigns for a whole list (${out}).`],
     ['What’s the difference between the keypad menu and an AI voice agent?', `The keypad menu plays your greeting and callers press a key to reach the right person, message or voicemail — it uses your plan minutes. An AI voice agent talks with callers instead: it answers questions, books appointments and takes messages, paid from your wallet. Each number uses one or the other.`],
     ['What if I go over my minutes?', 'Extra usage is paid from your wallet at a small rate. Our support chat can tell you the exact rates any time.'],

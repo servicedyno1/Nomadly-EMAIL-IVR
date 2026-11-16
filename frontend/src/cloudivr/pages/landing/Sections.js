@@ -1,6 +1,6 @@
 import React from 'react';
-import { UserPlus, Hash, Wallet, Globe2, Timer, Tag, Languages, Clock3, Coins, ArrowRight } from 'lucide-react';
-import { SectionHead, coinList, planBadge, Reveal, CountUp } from './kit';
+import { UserPlus, Hash, Wallet, Globe2, Timer, Tag, Languages, Clock3, ArrowRight } from 'lucide-react';
+import { SectionHead, planBadge, Reveal, CountUp } from './kit';
 import { startPrice } from '../../api';
 import { Proof } from './Proof';
 import { Flag } from '../../Pickers';
@@ -9,14 +9,12 @@ export { coinList, andList, planBadge } from './kit';
 
 // Real facts from the live catalogue (no made-up customers), cm.com stats-row style.
 export function Facts({ catalog }) {
-  const coins = new Set((catalog?.coins || []).map(c => c.replace(/\s*\(.*\)/, ''))).size;
   const items = [
     [Globe2, String(catalog?.countries?.length || 2), 'Countries with local, mobile or toll-free numbers'],
     [Timer, '60 s', 'Free test call — no account, no card'],
     [Tag, startPrice(catalog) || '$50', 'Numbers from, per month — no contracts'],
     [Languages, '20', 'AI agent languages — it switches when your caller does'],
     [Clock3, '24/7', 'Your menu or AI agent always answers'],
-    ...(coins ? [[Coins, String(coins), 'Cryptocurrencies accepted, plus your wallet']] : []),
   ];
   return (
     <section className="civr-l-cream" data-testid="facts-section">
@@ -87,7 +85,7 @@ export function HowItWorks({ catalog }) {
   const steps = [
     [UserPlus, 'Say what it’s for', 'Calls, calls + texting, or fax only. Create a free account by email or Google, no card needed.'],
     [Hash, 'Pick your number', 'Choose a country and a local, mobile or toll-free number. Add forwarding, voicemail, a keypad menu or an AI receptionist later.'],
-    [Wallet, 'Pay and go live', `Pay with crypto (${coinList(catalog) || 'BTC, ETH, USDT and more'}) or your wallet. Most numbers work within a minute.`],
+    [Wallet, 'Pay and go live', 'Pay from your wallet. Most numbers work within a minute.'],
   ];
   return (
     <section id="how" className="civr-l-cream civr-l-soft scroll-mt-16 border-t civr-l-rule" data-testid="how-section">
