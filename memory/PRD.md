@@ -339,4 +339,5 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Web: `/for/<slug>` pages (nomads, founders, small-business, teams, sales) — pages/For.js + pages/for/audiences.js (all copy lives there); landing "Who it's for" card strip (landing/WhoFor.js, #who), nav link, footer column, new hero headline "One business number, wherever you work." + audience subtitle; page titles; seo.js meta + sitemap for /for/*.
 - Bot: first-session welcome (js/_index.js showFirstSessionIntent, en/fr/zh/hi) names the five audiences.
 - Checked in preview (5 pages render, CTAs, redirect on unknown slug, mobile no overflow). Not run through the testing agent.
-- Open: deploy; fr/es translations of the new web copy (falls back to English); bot menus/promo texts and JujuCloud not yet audience-led.
+- 2026-11-16: fr/es done for the audience pages + new hero (headline pairs hand-written), and the app-wide backlog of 1,433 untranslated strings filled with scripts/civr_i18n_fill_missing.py (machine translation, not human-reviewed).
+- Open: deploy; bot menus/promo texts and JujuCloud not yet audience-led.
