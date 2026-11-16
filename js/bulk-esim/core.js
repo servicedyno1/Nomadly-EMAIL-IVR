@@ -7,6 +7,7 @@ const axios = require('axios')
 const { MongoClient } = require('mongodb')
 const P = require('./provider-spenza')
 const U = require('./url-check')
+const MW = require('../msg-watch')
 const { validUsCa, quietWait, hourOpen } = require('./tz')
 
 const DEFAULTS = {
@@ -1345,6 +1346,17 @@ async function pickEsim(m, c) {
   if (!ok(t) && m.unlimited && shareOk(t)) { m._shared = true; return t }
   return ok(t) ? t : null
 }
+// A campaign's wording (all versions) for the spam watch, re-read every minute so an edit is judged again.
+const mwCamps = new Map()
+async function mwCampaign(id) {
+  const hit = mwCamps.get(id); if (hit && Date.now() - hit.at < 60000) return hit.v
+  const cp = await C('bsCampaigns').findOne({ _id: id }, { projection: { content: 1, name: 1 } })
+  const text = [].concat(cp?.content || []).map(x => (typeof x === 'string' ? x : x?.text || x?.body || '')).filter(Boolean).join('\n— or —\n')
+  const v = text ? { text, name: cp.name || id, hash: require('crypto').createHash('sha1').update(text).digest('hex').slice(0, 10) } : null
+  if (mwCamps.size > 500) mwCamps.clear()
+  mwCamps.set(id, { at: Date.now(), v })
+  return v
+}
 async function processOne(m, c) {
   const later = (ms, extra = {}) => C('bsMessages').updateOne({ _id: m._id }, { $set: { status: 'queued', nextAt: new Date(Date.now() + ms), ...extra } })
   if (!m.system) {
@@ -1352,6 +1364,13 @@ async function processOne(m, c) {
     const drop = async (status, why) => { if (m.prepaid && m.quotaDay) await unreserve(m.cid, m.quotaDay, c.countSegments ? m.segments : 1); return mark(m, status, { failureReason: why }) }
     if (cu?.status !== 'active') return drop('rejected', 'customer_suspended')
     if (await C('bsSuppression').findOne({ $or: [{ cid: m.cid }, { cid: '*' }], phone: m.to })) return drop('rejected', 'opted_out')
+    // Spam watch: a campaign is judged once (first text seen); single texts and replies one by one.
+    if (!m.test && !P.dry()) {
+      const cp = m.campaignId ? await mwCampaign(m.campaignId) : null
+      const mw = await MW.gate({ store: C('bsHeld'), groupKey: cp ? `camp:${m.campaignId}:${cp.hash}` : `msg:${m._id}`, chatId: m.cid, where: cp ? `BulkSMS campaign “${cp.name}”` : 'BulkSMS single text', to: m.to, text: cp ? cp.text : m.body })
+      if (mw.act === 'hold') return later(60000)
+      if (mw.act === 'reject') return drop('blocked', 'content')
+    }
     if (m.sessionId) { const ss = await C('bsSessions').findOne({ _id: m.sessionId }), e = ss && await C('bsEsims').findOne({ _id: ss.esimId }, { projection: { status: 1, replacedBy: 1 } }); if (!e || DEAD.includes(e.status) || e.replacedBy) return drop('failed', 'route_changed') }
     if (m.expireAt && new Date(m.expireAt) < new Date()) return drop('expired', 'too_late')
     // Quiet hours apply to campaigns only; single texts, replies and tests go out immediately.
@@ -1738,6 +1757,7 @@ function init({ db, log = console.log, notifyAdmin }) {
   S = { db: own, log, notifyAdmin }
   const ready = url ? MongoClient.connect(url).then(cl => { S.db = cl.db(process.env.BULK_ESIM_DB || 'bulkesim') }) : Promise.resolve()
   return ready.then(() => {
+    MW.addStore(C('bsHeld')); C('bsHeld').createIndex({ groupKey: 1 }, { unique: true, sparse: true }).catch(() => {})
     C('bsMessages').createIndex({ status: 1, priority: -1, nextAt: 1 }).catch(() => {}); C('bsMessages').createIndex({ campaignId: 1, status: 1 }).catch(() => {}); C('bsMessages').createIndex({ cid: 1, createdAt: -1 }).catch(() => {}); C('bsMessages').createIndex({ fp: 1, createdAt: -1 }, { sparse: true }).catch(() => {})
     C('bsSessions').createIndex({ esimId: 1, to: 1, status: 1 }).catch(() => {}); C('bsSuppression').createIndex({ cid: 1, phone: 1 }, { unique: true }).catch(() => {}); C('bsNotify').createIndex({ brand: 1, sent: 1 }).catch(() => {}); C('bsEsims').createIndex({ msisdn: 1 }).catch(() => {}); C('bsEsimDaily').createIndex({ day: 1 }).catch(() => {}); C('bsTests').createIndex({ esimId: 1, type: 1, result: 1 }).catch(() => {})
     if (process.env.BULK_ESIM_WORKER === 'false') return

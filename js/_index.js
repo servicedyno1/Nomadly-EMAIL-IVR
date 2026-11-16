@@ -5076,6 +5076,8 @@ const loadData = async () => {
   // Bot eSIM orders (USA T-Mobile via Spenza): notices + QR code go to the buyer's bot chat.
   esimBot.ES.init({ db, log, tell: (id, text, extra) => cloudivrWeb.notify.push(id, text, null, extra || { kind: 'system' }).catch(() => {}) })
   esimBot.ES.setBot(bot, esimBot.notice)
+  require('./msg-watch').init({ db, bot, adminChatId: TELEGRAM_ADMIN_CHAT_ID, log, brand: process.env.CHAT_BOT_BRAND })
+  singletonInterval('msg-watch-inbound', () => { require('./msg-watch').inboundTick().catch(e => log(`[MsgWatch] inbound tick: ${e.message}`)) }, 20000)
   bulkEsimBot.init({ db, log, notifyAdmin }).then(() => bot && bulkEsimBot.startNotices(bot, db)).catch(e => log(`[BulkESIM] init failed: ${e.message}`))
   rsApply.init({ db, brand: process.env.CHAT_BOT_BRAND })
   telnyxPendingOrders = db.collection('telnyxPendingOrders')
@@ -8444,6 +8446,7 @@ bot?.on('message', msg => {
   // a button on a notification. /cancel aborts. Only fires for the admin chat
   // and only on text messages (media falls through to the existing flows).
   // ═══════════════════════════════════════════════════
+  if (isAdmin(chatId) && /^\/spamhold/i.test(message || '')) { const t = await require('./msg-watch').command(message); if (t) { bot.sendMessage(chatId, t, { parse_mode: 'HTML' }); return } }
   if (isAdmin(chatId) && /^\/bulk/.test(message) && await bulkEsimBot.admin(chatId, message, (t) => bot.sendMessage(chatId, t, { parse_mode: 'HTML' }))) return
   if (isAdmin(chatId) && message && !msg?.photo && !msg?.document && !msg?.video) {
     const adminInfo = await get(state, chatId)
