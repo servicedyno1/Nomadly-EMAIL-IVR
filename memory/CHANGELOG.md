@@ -3217,3 +3217,7 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Tests: js/tests/test_msg_watch.js 14/14 (needs local mongod), bulk-esim suites pass, admin toggle checked in preview browser, live AI verdict checked with each brand's own key. NOT exercised live: a real held text approved/rejected in production; preview/dry-run sends skip the watch.
 - Deploy: app-main workspace 20261116T004143Z-dc0b097 (:5100). WL r14 overlay (msg-watch, sms-reply, spenza, bulk-esim/core, _index patch) on app-wl-b, app-voodoo-a, app-proshop-b (88ee68c); backups deploy-backups/<slot>-r14-*. ⚠️ Save to GitHub or CI rolls it back.
 - Not covered: BulkSMS replies received (bsInbound), pictures (MMS images), old Android SMS app.
+
+## 2026-11-16 01:05Z — Spam watch extended to calls — LIVE on all 4 brands
+- js/call-watch.js + msg-watch.js (modes call/talk, gate pre/what/action, note, setHold → all RESELLER_DBS), hooks in voice-service.initiateOutboundIvrCall, bulk-call-service.startCampaign/fireBatchOnce/adminRelease, ai-agent/calls.js + store.js, SpamWatch.js copy.
+- Deploy: via GitHub CI (auto-save) main da862b2 → app-main-a :5000; WhiteLabel c045a03 → app-wl-b :5101, app-voodoo-a :5003, app-proshop-b :5104. Details in PRD.md 2026-11-16.
