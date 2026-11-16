@@ -105,11 +105,10 @@ para("\u2022 &nbsp;<b>Number inventory &amp; provisioning</b>, <b>eSIM wholesale
      "infrastructure</b>, <b>payment-processing fees</b>, <b>third-party / AI APIs</b>, <b>staff &amp; support</b>, "
      "<b>compliance</b> (number / caller-ID registration, KYC/AML), and <b>marketing</b>.", LI)
 
-para("6. Risk, compliance and refunds", H2)
+para("6. Risk and compliance", H2)
 para("KYC on accounts and number purchases; automated AI and rule-based anti-spam / anti-scam screening of outbound "
      "calls and SMS with staff review and the ability to hold or block; usage / velocity limits; immediate digital "
-     "provisioning; a published refund policy on our websites (cloudivr.net / jujucloud.com); and auditable "
-     "reconciliation of any dispute against order and usage records.", P)
+     "provisioning; and auditable reconciliation of any dispute against order and usage records.", P)
 
 para("7. Summary", H2)
 para("Dynotech Innovations, Lda (NIF 518713130, Montijo, Portugal) is a software and communications company operating "
