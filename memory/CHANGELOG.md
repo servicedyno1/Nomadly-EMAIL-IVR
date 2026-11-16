@@ -3316,3 +3316,12 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
   the switch, missed-call text + Text Triggers show "Texting is off — Turn texting on".
 - Tests: js/tests/test_texting_switch.js 7/0; preview UI checked. Other brands (wl/voodoo/proshop) not redeployed.
 - Prod effect: the NL +3197010278502 (switch off) no longer receives texts until switched on.
+
+## 2026-11-16 15:00Z — MultiTEL text delivery status LIVE (app-main 38807c8d)
+- multitel.sendSms now sends `reference` (our id, ct-uuid) + `notifyurl` (SELF_URL/multitel/sms-status/<smsHookKey>);
+  old code read a non-existent uuid → messageId null. Callback (form or JSON) → cloudivrWeb.smsDelivery → Delivered /
+  Not delivered (+ give-back + inbox alert on failure). deliveryOf maps delivered/DELIVRD vs undeliv/fail/reject/expire.
+- NL reply issue: +3197010278502 sms_uri at MultiTEL is correct; MultiTEL made NO webhook call for the reply from
+  +31684448264 (nginx shows last MultiTEL SMS hit 15 Nov 17:58). Our side never received it → carrier/MultiTEL routing
+  (097 range is M2M; mobile→097 SMS often not routed). Raise with MultiTEL support. No SMS-log API at MultiTEL (404s).
+- Spotted: account 5000000000000048 (+18084939799) sending bank-alert-style texts (BofA/Chase/Citi "wire transfer") — likely smishing; flagged to user.
