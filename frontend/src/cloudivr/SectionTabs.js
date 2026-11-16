@@ -47,6 +47,6 @@ export function AutoCrumbs() {
   const { pathname, search } = useLocation();
   const sub = pathname.slice(CIVR_BASE.length).replace(/^\/+|\/+$/g, '').replace(/^app\/?/, '');
   const [g, it] = groupOf(pathname, search);
-  if (!g || !sub.includes('/') || /^numbers\//.test(sub) || /^answer\//.test(sub)) return null;
+  if (!g || !sub.includes('/') || /^(numbers|esim)\//.test(sub) || /^answer\//.test(sub)) return null;
   return <Crumbs items={[[g[1]], [it[1], appPath(it[0])], [pageName(pathname) || '']]} />;
 }

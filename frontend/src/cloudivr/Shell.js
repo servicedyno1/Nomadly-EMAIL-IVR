@@ -29,6 +29,7 @@ import Texting from './pages/Texting';
 import NumberLookup from './pages/NumberLookup';
 import TravelEsim from './pages/TravelEsim';
 import Esim from './pages/Esim';
+import EsimLineDetail from './pages/esim/LineDetail';
 import TextCall from './pages/TextCall';
 import { Campaigns, CampaignNew } from './pages/Campaigns';
 import CampaignDetail from './pages/CampaignDetail';
@@ -218,6 +219,7 @@ export default function Shell() {
               <Route path="lookup" element={<NumberLookup />} />
               <Route path="travel-esim" element={<TravelEsim />} />
               <Route path="esim" element={<Esim />} />
+              <Route path="esim/:id" element={<EsimLineDetail />} />
               <Route path="quick-call" element={<QuickCall />} />
               <Route path="text-call" element={<TextCall />} />
               <Route path="receptionist" element={<Receptionist />} />

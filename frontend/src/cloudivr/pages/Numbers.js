@@ -10,7 +10,7 @@ import { ask } from '../confirm';
 import { usePrivacy } from '../privacy';
 import { useSearch, SearchBox, NoMatches } from '../search';
 import { CallerIds } from './number/CallerIds';
-import { MobileLine } from './number/MobileLines';
+import { EsimCard } from './esim/EsimCard';
 import { TextingLine, LIVE_TEXTING } from './number/TextingLines';
 import { FaxLine } from './number/FaxLines';
 import { CapBadges } from '../kinds';
@@ -111,6 +111,7 @@ const BUY = { calls: 'calls', texts: 'texting', fax: 'fax' };
 export default function Numbers() {
   const { data, error, loading, setData, reload } = useApi('/numbers');
   const { data: mob, reload: reloadMob } = useApi('/mobile-numbers');
+  const { data: es, reload: reloadEs } = useApi('/esim');
   const { data: hs } = useApi('/hosted-sms');
   const { data: fx } = useApi('/fax-numbers');
   const [params, setParams] = useSearchParams();
@@ -121,10 +122,11 @@ export default function Numbers() {
   // Every number the account owns in one list, whatever it was bought as.
   const items = useMemo(() => [
     ...(data?.numbers || []).map((n, i) => ({ key: n.phoneNumber, type: 'line', n, i, caps: lineCaps(n), words: [n.phoneNumber, n.countryName, n.country, n.planName, n.status, n.type?.replace('_', '-'), n.isSubNumber ? 'Extra' : ''] })),
+    ...(es?.items || []).filter(x => x.status !== 'failed').map(x => ({ key: `e-${x.id}`, type: 'esim', x, caps: ['calls', 'texts'], words: [x.phoneNumber, 'USA eSIM', x.status] })),
     ...(mob?.items || []).map(x => ({ key: `m-${x.id}`, type: 'mobile', x, caps: ['calls', 'texts'], words: [x.phoneNumber, 'USA texting', x.status] })),
     ...(hs?.items || []).filter(t => LIVE_TEXTING.includes(t.status)).map(t => ({ key: `h-${t.id}`, type: 'hosted', t, caps: ['texts'], words: [t.phoneNumber, 'landline texting', t.status] })),
     ...(fx?.numbers || []).filter(n => n.status !== 'released').map(n => ({ key: `f-${n.phoneNumber}`, type: 'fax', f: n, caps: ['fax'], words: [n.phoneNumber, 'fax', n.country, n.status] })),
-  ], [data, mob, hs, fx]);
+  ], [data, es, mob, hs, fx]);
   const s = useSearch(items, it => it.words);
   const show = FILTERS.some(f => f[0] === params.get('show')) ? params.get('show') : 'all';
   const list = s.list.filter(it => show === 'all' || it.caps.includes(show));
@@ -156,7 +158,8 @@ export default function Numbers() {
         {!list.length && !s.q && <div className="civr-card p-5 text-sm flex flex-wrap items-center gap-3" data-testid="numbers-filter-empty"><span className="flex-1 min-w-[200px] text-[var(--c-muted)]">{`None of your numbers ${show === 'fax' ? 'take faxes' : show === 'texts' ? 'can text' : 'take calls'} yet.`}</span><Link to={cp(`/app/buy?purpose=${BUY[show]}`)} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="numbers-filter-empty-buy">Get one</Link></div>}
         <div className="grid md:grid-cols-2 xl:grid-cols-3 min-[1800px]:grid-cols-4 gap-4 items-start" data-testid="numbers-list">
           {list.map(it => (it.type === 'line' ? <NumberCard key={it.key} n={it.n} i={it.i} caps={it.caps} pv={pv} onSaved={onSaved} reload={reload} />
-            : it.type === 'mobile' ? <MobileLine key={it.key} item={it.x} reload={reloadMob} />
+            : it.type === 'esim' ? <EsimCard key={it.key} item={it.x} reload={reloadEs} />
+            : it.type === 'mobile' ? <EsimCard key={it.key} item={it.x} reload={reloadMob} mobile />
             : it.type === 'hosted' ? <TextingLine key={it.key} t={it.t} pv={pv} />
             : <FaxLine key={it.key} n={it.f} pv={pv} />))}
         </div>

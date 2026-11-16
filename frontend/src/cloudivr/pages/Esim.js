@@ -18,6 +18,7 @@ import { MobileOffer } from './buy/MobileOffer';
 import { RenewPick, renewText } from './esim/RenewPick';
 import { MobileLines } from './number/MobileLines';
 import { ImeiStep } from './esim/ImeiStep';
+import { LineAutoRenew } from './esim/LineAutoRenew';
 const readDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY)) || null; } catch (_) { return null; } };
 const dropDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch (_) { /* private mode */ } };
 
@@ -98,18 +99,7 @@ function UsageLine({ id }) {
   return <p className="text-xs text-[#a1a1aa]" data-testid={`esim-usage-${id}`}><span>This cycle:</span> {parts.map((x, i) => <span key={x}>{i ? ' · ' : ''}<span>{x}</span></span>)}</p>;
 }
 
-function AutoRenew({ item, reload }) {
-  const [busy, setBusy] = useState(false);
-  const flip = async () => { setBusy(true); try { await api(`/esim/${item.id}/auto-renew`, { method: 'POST', body: { on: !item.autoRenew } }); toast.success(item.autoRenew ? `Auto-renew off: the line ends on ${String(item.expiresAt || '').slice(0, 10) || 'its end date'}` : 'Auto-renew on'); reload(); } catch (e) { toast.error(e.message); } finally { setBusy(false); } };
-  return (
-    <button type="button" role="switch" aria-checked={item.autoRenew} disabled={busy} onClick={flip} className="civr-btn civr-btn-ghost civr-btn-sm gap-2" data-testid={`esim-autorenew-${item.id}`}>
-      <span className={`shrink-0 inline-block w-8 h-4 rounded-full relative overflow-hidden transition-colors ${item.autoRenew ? 'bg-[#818cf8]' : 'bg-[#3f3f46]'}`}><span className={`absolute left-0 top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${item.autoRenew ? 'translate-x-4' : 'translate-x-0.5'}`} /></span>
-      {item.autoRenew ? 'Auto-renew on' : 'Auto-renew off'}
-    </button>
-  );
-}
-
-function Line({ item, reload, fresh }) {
+export function Line({ item, reload, fresh, noRenew = false }) {
   const [open, setOpen] = useState(item.status === 'active' && !item.linked);
   const [was, setWas] = useState(item.status);
   if (was !== item.status) { setWas(item.status); if (was === 'provisioning' && item.status === 'active') setOpen(true); }
@@ -119,7 +109,7 @@ function Line({ item, reload, fresh }) {
   return (
     <div className="civr-card p-5 space-y-4" data-testid={`esim-line-${item.id}`}>
       <div className="flex flex-wrap items-center gap-3">
-        <Smartphone className="w-5 h-5 text-[#818cf8]" /><span className="font-mono text-lg" data-no-translate>{item.phoneNumber || 'Number coming'}</span>
+        <Smartphone className="w-5 h-5 text-[#818cf8]" />{noRenew ? <span className="font-mono text-lg" data-no-translate>{item.phoneNumber || 'Number coming'}</span> : <Link to={cp(`/app/esim/${item.id}`)} className="font-mono text-lg hover:text-[var(--c-accent)]" data-no-translate data-testid={`esim-line-open-${item.id}`}>{item.phoneNumber || 'Number coming'}</Link>}
         <span className={`text-sm ${tone}`} data-testid={`esim-status-${item.id}`}>{s}</span>
         <span className="text-xs text-[#a1a1aa] ml-auto" data-testid={`esim-renew-info-${item.id}`}>{renewText(item, money)}</span>
       </div>
@@ -133,9 +123,9 @@ function Line({ item, reload, fresh }) {
         <EmailQr item={item} reload={reload} />
         <p className="text-sm text-[var(--c-muted)] flex items-center gap-2" data-testid={`esim-texts-in-messages-${item.id}`}><MessageSquare className="w-4 h-4" />This eSIM has two-way SMS on your phone: send and receive texts there. Need texting in CloudIVR? Get a <Link to={cp('/app/buy?purpose=texting&country=US')} className="underline font-semibold text-[var(--c-accent)]">Texting Number</Link>.</p>
       </>}
+      {!noRenew && <LineAutoRenew item={item} reload={reload} testid={`esim-autorenew-${item.id}`} className="rounded-xl border border-[var(--c-line,#2a2a2a)] p-3" />}
       <div className="flex flex-wrap items-start gap-2">
         {item.status === 'suspended' && <WalletPay price={item.price} small onWallet={() => act('renew', 'Renewed')} label={`Renew $${item.price}`} testid={`esim-renew-pay-${item.id}`} walletTestid={`esim-renew-${item.id}`} cryptoTestid={`esim-renew-crypto-${item.id}`} />}
-        {['active', 'suspended'].includes(item.status) && item.price > 0 && <AutoRenew item={item} reload={reload} />}
         <NewNumber item={item} reload={reload} />
         <Receipts item={item} />
         {['active', 'suspended'].includes(item.status) && <button type="button" onClick={cancel} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`esim-cancel-${item.id}`}>Cancel eSIM</button>}
