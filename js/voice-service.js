@@ -4194,6 +4194,10 @@ async function handleCallAnswered(payload) {
     session.isRecording = true
   }
 
+  // Answered because the owner's SIP / browser phone picked up: the call is being bridged — nothing left to route.
+  const sipRing = session.phase === 'ringing_sip' && activeBridgeTransfers[session.sipRingCallControlId]
+  if (sipRing && !sipRing.cancelled) return
+
   // Route based on features priority:
   //   Forwarding(always) > IVR > Forwarding(busy) > Forwarding(no_answer) > Ring SIP Device > Voicemail > Missed Call
   // NOTE: Forwarding-mode "always" is deliberately the highest priority — it's an explicit user
