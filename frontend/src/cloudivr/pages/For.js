@@ -14,14 +14,14 @@ function Hero({ a, from, to }) {
   return (
     <section className="relative bg-white pt-28 md:pt-36 pb-16 md:pb-20" data-testid="for-hero">
       <div className="max-w-7xl mx-auto px-6 md:px-8">
-        <div className="inline-flex items-center gap-2 rounded-full bg-[#edf4ff] text-[#1d6fd8] text-sm font-semibold px-4 h-9 civr-rise" data-testid="for-eyebrow"><a.icon className="w-4 h-4" aria-hidden="true" />For {a.name.toLowerCase()}</div>
+        <div className="inline-flex items-center gap-2 rounded-full bg-[#edf4ff] text-[#1d6fd8] text-sm font-semibold px-4 h-9 civr-rise" data-testid="for-eyebrow"><a.icon className="w-4 h-4" aria-hidden="true" />{`For ${a.name.toLowerCase()}`}</div>
         <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-6xl text-slate-950 font-extrabold tracking-tight mt-6 max-w-4xl civr-rise civr-d1" data-testid="for-title">{a.title[0]}<span className="text-[#1d6fd8]">{a.title[1]}</span></h1>
         <p className="max-w-2xl text-base md:text-lg text-slate-600 mt-6 leading-relaxed civr-rise civr-d2" data-testid="for-subtitle">{a.sub}</p>
         <div className="mt-10 flex flex-wrap items-center gap-4 civr-rise civr-d3">
           <Link to={to} className="civr-l-btn civr-l-btn-hero inline-flex items-center justify-center gap-2 min-h-[56px] px-8 w-full sm:w-auto" data-testid="for-hero-cta">Get your number<ArrowRight className="w-5 h-5" aria-hidden="true" /></Link>
           <a href={`${cp()}#pricing`} className="text-sm font-semibold text-slate-900 underline underline-offset-4 min-h-[44px] inline-flex items-center" data-testid="for-hero-pricing">See pricing</a>
         </div>
-        <p className="text-sm text-slate-600 mt-4" data-testid="for-hero-note">Free to sign up{from ? ` · from ${from}/month` : ''} · no contract</p>
+        <p className="text-sm text-slate-600 mt-4" data-testid="for-hero-note">{from ? `Free to sign up · from ${from}/month · no contract` : 'Free to sign up · no contract'}</p>
       </div>
     </section>
   );
