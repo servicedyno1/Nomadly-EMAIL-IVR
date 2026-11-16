@@ -15,7 +15,7 @@ const clean = new Set() // group keys already judged fine
 const sha = (s) => crypto.createHash('sha1').update(String(s)).digest('hex')
 const esc = (s) => String(s ?? '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))
 const col = () => S.db.collection('heldMessages')
-const KINDS = { phishing: 'Phishing', impersonation: 'Impersonation', fraud: 'Fraud / scam', spam: 'Spam' }
+const KINDS = { phishing: 'Phishing', impersonation: 'Impersonation', fraud: 'Fraud / scam', spam: 'Spam', volume: 'Unusual call volume', destination: 'Suspicious list of numbers' }
 const RULES = [
   [/verify\s+your\s+(account|identity|card|details)|account\s+(has\s+been\s+)?(suspended|locked|restricted|on\s+hold)|unusual\s+(sign|log).?in/i, 'phishing'],
   [/(won|winner|claim)\b.{0,40}\b(prize|gift\s*card|reward|lottery)|guaranteed\s+(income|return|profit)|double\s+your\s+(money|bitcoin|crypto)/i, 'fraud'],
@@ -32,16 +32,21 @@ function init({ db, bot, adminChatId, log, brand, ai }) {
 const addStore = (c) => { if (c && !stores.includes(c)) stores.push(c) }
 const register = (type, fns) => { actions[type] = fns }
 
+const ABUSE = 'Flag only clear abuse: pretending to be a bank, government body, phone carrier or well-known company; asking for one-time codes, card numbers, PINs, passwords or remote access under a false pretext; fake fraud or security alerts; fake prizes, debts, arrest or account-closure threats; tech-support, investment or crypto scams. Ordinary business calls (appointment reminders, a named business talking to its own customers, sales, surveys, political or charity calls, taking messages) are NOT flagged. Reply as JSON: {"flag": true|false, "kind": "phishing"|"impersonation"|"fraud"|"spam"|"", "reason": "max 12 words"}.'
+const PROMPTS = {
+  call: `You screen scripts of automated phone calls for a phone company: recorded or spoken IVR messages, key-press menus, voicemail drops and instructions given to AI voice agents. ${ABUSE}`,
+  talk: `You review the transcript of a live phone call handled by an AI voice agent for a phone company ("Agent" is the AI, "Person" is the other side). ${ABUSE}`,
+}
 function defaultAi() {
   const key = process.env.OPEN_API_KEY || process.env.APP_OPEN_API_KEY
   if (!key) return null
   const OpenAI = require('openai'); const client = new OpenAI({ apiKey: key, timeout: 8000, maxRetries: 0 })
-  return async (text) => {
+  return async (text, mode) => {
     const r = await client.chat.completions.create({
       model: 'gpt-4.1-mini', temperature: 0, max_tokens: 80, response_format: { type: 'json_object' },
       messages: [
-        { role: 'system', content: 'You screen SMS text messages for a phone company. Flag only clear abuse: phishing (fake login / payment / delivery / toll links), impersonation of a bank, government body or well-known company, fraud (fake prizes, investment or crypto scams, advance-fee, threats or extortion), or unsolicited bulk spam (gambling, adult, loans, pills, get-rich offers). Normal business texts, appointment reminders, marketing from a named business with opt-out, one-time codes and personal chat are NOT flagged. Reply as JSON: {"flag": true|false, "kind": "phishing"|"impersonation"|"fraud"|"spam"|"", "reason": "max 12 words"}.' },
-        { role: 'user', content: String(text).slice(0, 1200) },
+        { role: 'system', content: PROMPTS[mode] || 'You screen SMS text messages for a phone company. Flag only clear abuse: phishing (fake login / payment / delivery / toll links), impersonation of a bank, government body or well-known company, fraud (fake prizes, investment or crypto scams, advance-fee, threats or extortion), or unsolicited bulk spam (gambling, adult, loans, pills, get-rich offers). Normal business texts, appointment reminders, marketing from a named business with opt-out, one-time codes and personal chat are NOT flagged. Reply as JSON: {"flag": true|false, "kind": "phishing"|"impersonation"|"fraud"|"spam"|"", "reason": "max 12 words"}.' },
+        { role: 'user', content: String(text).slice(0, mode ? 4000 : 1200) },
       ],
     })
     return JSON.parse(r.choices[0].message.content || '{}')
@@ -49,16 +54,16 @@ function defaultAi() {
 }
 
 // → { flagged, kind, reason, by }
-async function verdict(text) {
+async function verdict(text, mode) {
   const body = String(text || '').trim()
   if (body.length < 8) return { flagged: false }
-  const k = sha(body.toLowerCase().replace(/\s+/g, ' '))
+  const k = sha(`${mode || ''}|${body.toLowerCase().replace(/\s+/g, ' ')}`)
   if (cache.has(k)) return cache.get(k)
   let v = { flagged: false }
   const rule = RULES.find(([re]) => re.test(body))
   const terms = scamWatch.scan([body])
   if (S.ai) {
-    try { const a = await S.ai(body); if (a?.flag) v = { flagged: true, kind: KINDS[a.kind] ? a.kind : 'spam', reason: String(a.reason || '').slice(0, 120), by: 'AI' } } catch (e) { S.log(`[MsgWatch] AI check failed (${e.message}) — rules only`); v = null }
+    try { const a = await S.ai(body, mode); if (a?.flag) v = { flagged: true, kind: KINDS[a.kind] ? a.kind : 'spam', reason: String(a.reason || '').slice(0, 120), by: 'AI' } } catch (e) { S.log(`[MsgWatch] AI check failed (${e.message}) — rules only`); v = null }
   }
   // Rules decide alone only when AI is unavailable; with AI they just add the matched name to the alert.
   if (!S.ai || v === null) v = rule ? { flagged: true, kind: rule[1], reason: 'matches a known scam pattern', by: 'rules' } : terms.length && /https?:\/\/|\bcall\b|\bverify\b|\bclick\b/i.test(body) ? { flagged: true, kind: 'impersonation', reason: `mentions ${terms[0].term}`, by: 'rules' } : { flagged: false }
@@ -74,30 +79,49 @@ async function holdOn() {
   holdCache = { at: Date.now(), on: d?.hold === true }
   return holdCache.on
 }
+// Other brands' databases (set on the main app only): the switch is one master switch for every brand.
+const others = () => { try { return JSON.parse(process.env.RESELLER_DBS || '[]') } catch (_) { return [] } }
+const peers = {}
 async function setHold(on, by) {
-  await S.db.collection('adminSettings').updateOne({ _id: 'msgWatch' }, { $set: { hold: !!on, updatedAt: new Date(), updatedBy: by || null } }, { upsert: true })
+  const set = { $set: { hold: !!on, updatedAt: new Date(), updatedBy: by || null } }
+  await S.db.collection('adminSettings').updateOne({ _id: 'msgWatch' }, set, { upsert: true })
+  for (const r of others()) {
+    try {
+      peers[r.key] ||= require('mongodb').MongoClient.connect(r.url, { serverSelectionTimeoutMS: 8000 })
+      await (await peers[r.key]).db(r.db).collection('adminSettings').updateOne({ _id: 'msgWatch' }, set, { upsert: true })
+    } catch (e) { delete peers[r.key]; S.log(`[MsgWatch] switch not saved for ${r.name || r.key}: ${e.message}`) }
+  }
   holdCache = { at: Date.now(), on: !!on }
   return status()
 }
 async function status() {
   const [held, caught] = await Promise.all([col().countDocuments({ status: 'held' }), col().countDocuments({ createdAt: { $gte: new Date(Date.now() - 7 * 864e5) } })])
-  return { hold: await holdOn(), held, caught7d: caught, ai: !!S.ai }
+  return { hold: await holdOn(), held, caught7d: caught, ai: !!S.ai, brands: others().length + 1 }
 }
 
 function alertText(d) {
-  const dir = d.direction === 'in' ? 'received' : 'outgoing'
-  const state = { held: '⏸ <b>Held — waiting for your decision.</b>', alerted: '<i>Alert only — the text was sent.</i>', inbound: '<i>Alert only — the text was delivered to the customer.</i>', approved: '✅ <b>Approved — sent.</b>', rejected: '🚫 <b>Rejected — not sent.</b>' }[d.status]
-  return `🚩 <b>Suspicious ${dir} text</b>${S.brand ? ` · ${esc(S.brand)}` : ''}\n👤 ${esc(d.who || d.chatId)} (${esc(d.chatId)})\n📍 ${esc(d.where)}${d.from ? `\n📤 ${esc(d.from)} → ${esc(d.to || 'many')}` : ''}\n🧠 <b>${KINDS[d.kind] || 'Spam'}</b>${d.reason ? ` — ${esc(d.reason)}` : ''}${d.terms?.length ? ` (${esc(d.terms.join(', '))})` : ''}\n\n“${esc(String(d.text).slice(0, 600))}”\n\n${state}`
+  const call = !!d.what
+  const title = call ? d.what : `${d.direction === 'in' ? 'received' : 'outgoing'} text`
+  const state = {
+    held: '⏸ <b>Held — waiting for your decision.</b>',
+    alerted: call ? '<i>Alert only — nothing was stopped.</i>' : '<i>Alert only — the text was sent.</i>',
+    inbound: '<i>Alert only — the text was delivered to the customer.</i>',
+    approved: call ? '✅ <b>Approved — released.</b>' : '✅ <b>Approved — sent.</b>',
+    rejected: call ? '🚫 <b>Rejected — not dialed.</b>' : '🚫 <b>Rejected — not sent.</b>',
+  }[d.status]
+  const route = call ? (d.from ? `\n📤 from ${esc(d.from)}` : '') : d.from ? `\n📤 ${esc(d.from)} → ${esc(d.to || 'many')}` : ''
+  return `🚩 <b>Suspicious ${esc(title)}</b>${S.brand ? ` · ${esc(S.brand)}` : ''}\n👤 ${esc(d.who || d.chatId)} (${esc(d.chatId)})\n📍 ${esc(d.where)}${route}\n🧠 <b>${KINDS[d.kind] || 'Spam'}</b>${d.reason ? ` — ${esc(d.reason)}` : ''}${d.terms?.length ? ` (${esc(d.terms.join(', '))})` : ''}\n\n“${esc(String(d.text).slice(0, 600))}”\n\n${state}`
 }
-const buttons = (id) => ({ inline_keyboard: [[{ text: '✅ Approve & send', callback_data: `mw:a:${id}` }, { text: '🚫 Reject', callback_data: `mw:r:${id}` }]] })
+const buttons = (id, call) => ({ inline_keyboard: [[{ text: call ? '✅ Approve' : '✅ Approve & send', callback_data: `mw:a:${id}` }, { text: '🚫 Reject', callback_data: `mw:r:${id}` }]] })
 async function alertAdmin(d) {
   if (!S.bot || !S.admin) return
-  await S.bot.sendMessage(S.admin, alertText(d), { parse_mode: 'HTML', ...(d.status === 'held' ? { reply_markup: buttons(d._id) } : {}) }).catch(e => S.log(`[MsgWatch] alert failed: ${e.message}`))
+  await S.bot.sendMessage(S.admin, alertText(d), { parse_mode: 'HTML', ...(d.status === 'held' ? { reply_markup: buttons(d._id, !!d.what) } : {}) }).catch(e => S.log(`[MsgWatch] alert failed: ${e.message}`))
 }
 
 // Outgoing text about to leave. → { act: 'send' | 'hold' | 'reject', id }
 // groupKey: one decision for many texts (a BulkSMS campaign). store: where the record lives (BulkSMS shared DB).
-async function gate({ chatId, who, where, from, to, text, groupKey, store }) {
+// Calls pass what (alert title), pre (a verdict already reached), mode (which AI brief) and action (what Approve / Reject do).
+async function gate({ chatId, who, where, from, to, text, groupKey, store, pre, what, mode, action }) {
   try {
     if (!S.db) return { act: 'send' }
     const c = store || col()
@@ -106,10 +130,10 @@ async function gate({ chatId, who, where, from, to, text, groupKey, store }) {
       if (prev) return { act: prev.status === 'held' ? 'hold' : prev.status === 'rejected' ? 'reject' : 'send', id: prev._id }
     }
     if (groupKey && clean.has(groupKey)) return { act: 'send' }
-    const v = await verdict(text)
+    const v = pre || await verdict(text, mode)
     if (!v.flagged) { if (groupKey) { if (clean.size > 5000) clean.clear(); clean.add(groupKey) } return { act: 'send' } }
     const hold = await holdOn()
-    const d = { _id: crypto.randomBytes(8).toString('hex'), ...(groupKey ? { groupKey } : {}), direction: 'out', status: hold ? 'held' : 'alerted', chatId: String(chatId), who: who || null, where, from: from || null, to: groupKey ? null : to || null, text: String(text).slice(0, 2000), kind: v.kind, reason: v.reason, by: v.by, terms: v.terms || [], brand: S.brand, createdAt: new Date() }
+    const d = { _id: crypto.randomBytes(8).toString('hex'), ...(groupKey ? { groupKey } : {}), direction: 'out', status: hold ? 'held' : 'alerted', ...(what ? { what } : {}), ...(action ? { action } : {}), chatId: String(chatId), who: who || null, where, from: from || null, to: groupKey ? null : to || null, text: String(text).slice(0, 2000), kind: v.kind, reason: v.reason, by: v.by, terms: v.terms || [], brand: S.brand, createdAt: new Date() }
     if (groupKey) {
       const r = await c.updateOne({ groupKey }, { $setOnInsert: d }, { upsert: true })
       if (!r.upsertedCount) { const p = await c.findOne({ groupKey }); return { act: p.status === 'held' ? 'hold' : p.status === 'rejected' ? 'reject' : 'send', id: p._id } }
@@ -118,6 +142,12 @@ async function gate({ chatId, who, where, from, to, text, groupKey, store }) {
     await alertAdmin(d)
     return { act: hold ? 'hold' : 'send', id: d._id }
   } catch (e) { S.log(`[MsgWatch] gate error (${e.message}) — letting the text through`); return { act: 'send' } }
+}
+// Alert-only record (never held): live AI calls and saved agent scripts. key → one alert per key.
+async function note({ key, pre, what, chatId, who, where, from, text }) {
+  const d = { _id: key ? sha(key).slice(0, 16) : crypto.randomBytes(8).toString('hex'), direction: 'out', status: 'alerted', what, chatId: String(chatId), who: who || null, where, from: from || null, to: null, text: String(text).slice(0, 2000), kind: pre.kind, reason: pre.reason, by: pre.by, terms: pre.terms || [], brand: S.brand, createdAt: new Date() }
+  const r = await col().updateOne({ _id: d._id }, { $setOnInsert: d }, { upsert: true })
+  if (r.upsertedCount) { S.log(`[MsgWatch] alerted ${where} ${chatId}: ${pre.kind} (${pre.reason || ''})`); await alertAdmin(d) }
 }
 // What to do when the admin decides on a held single text (how to really send it / give the charge back).
 const attach = (id, action) => col().updateOne({ _id: id }, { $set: { action } }).catch(() => {})
@@ -167,7 +197,7 @@ async function onCallback(q) {
   if (String(q.from?.id) !== S.admin) return ack('⛔ Admin only.', true)
   const d = await decide(m[2], m[1] === 'a', String(q.from.id)) || await find(m[2])
   if (!d) return ack('This alert is no longer available.', true)
-  await ack(d.status === 'approved' ? 'Approved — sending.' : d.status === 'rejected' ? 'Rejected — not sent.' : 'Already handled.')
+  await ack(d.status === 'approved' ? 'Approved.' : d.status === 'rejected' ? 'Rejected.' : 'Already handled.')
   if (q.message) await S.bot.editMessageText(alertText(d), { chat_id: q.message.chat.id, message_id: q.message.message_id, parse_mode: 'HTML' }).catch(() => {})
 }
 
@@ -175,7 +205,7 @@ async function onCallback(q) {
 async function command(text) {
   const m = /^\/spamhold(?:\s+(on|off))?\s*$/i.exec(String(text || '')); if (!m) return null
   const s = m[1] ? await setHold(m[1].toLowerCase() === 'on', 'bot') : await status()
-  return `🚩 <b>Spam text watch</b>\nCaught texts: <b>${s.hold ? 'held for your decision' : 'sent, alert only'}</b>\nWaiting now: ${s.held} · caught in 7 days: ${s.caught7d}\n\n/spamhold on — hold caught texts until you approve\n/spamhold off — let them through and just alert`
+  return `🚩 <b>Spam watch — texts and calls</b>\nCaught texts, Quick IVR calls and call campaigns: <b>${s.hold ? 'held for your decision' : 'let through, alert only'}</b>\nAI agent and receptionist calls: alert only\nWaiting now: ${s.held} · caught in 7 days: ${s.caught7d}\n\n/spamhold on — hold them until you approve\n/spamhold off — let them through and just alert`
 }
 
-module.exports = { init, addStore, register, verdict, gate, attach, inbound, inboundTick, decide, holdOn, setHold, status, command, onCallback, alertText, _S: S, _cache: cache, _reset: () => { cache.clear(); clean.clear(); holdCache = { at: 0, on: false }; lastId = null } }
+module.exports = { init, addStore, register, verdict, gate, note, attach, inbound, inboundTick, decide, holdOn, setHold, status, command, onCallback, alertText, _S: S, _cache: cache, _reset: () => { cache.clear(); clean.clear(); holdCache = { at: 0, on: false }; lastId = null } }

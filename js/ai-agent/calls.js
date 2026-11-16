@@ -82,7 +82,7 @@ function track(ccid, s) {
   streamTokens.set(s.token, ccid)
   return sessions.get(ccid)
 }
-function forget(s) { sessions.delete(s.ccid); streamTokens.delete(s.token); clearInterval(s.walletTimer); s.rtpMedia?.close() }
+function forget(s) { sessions.delete(s.ccid); streamTokens.delete(s.token); clearInterval(s.walletTimer); clearInterval(s.cwTimer); s.rtpMedia?.close() }
 
 // Inbound: the number's AI agent answers (Business, wallet covers a minute). false → route the call normally.
 async function tryInbound({ payload, chatId, num }) {
@@ -213,6 +213,7 @@ function onStream(token, ws) {
   ws.on('message', (m) => { try { s.bridge.onMedia(JSON.parse(m)) } catch (_) { /* bad frame */ } })
   ws.on('close', () => s.bridge.stop())
   s.bridge.start()
+  s.cwTimer = setInterval(() => require('../call-watch').aiTalk(s), 60000)
   for (const what of s.pending || []) s.bridge[what]()
   s.pending = null
 }
@@ -244,6 +245,7 @@ async function finish(s, payload) {
   const aiSecs = s.answeredAt ? Math.round(((s.transferAt || endAt) - s.answeredAt) / 1000) : 0
   const restSecs = s.transferAt ? Math.round((endAt - s.transferAt) / 1000) : 0
   const res = s.bridge?.result || { transcript: [], usage: {} }
+  require('../call-watch').aiTalk(s)
   const [sum, recording] = await Promise.all([
     res.transcript.length ? store.summarize(res.transcript, s.agent) : null,
     duration ? saveRecording(s.bridge?.rec, s.chatId) : null,
