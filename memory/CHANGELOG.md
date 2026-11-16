@@ -3432,3 +3432,11 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
   - Blocklist: Chase, IRS, PayPal, 70+ entries, emergency numbers
   - Guard check: blocked returns false + reason, emergency blocked, normal passes (fail-open without AI key), invalid format rejected, admin alert fires
   - Caller ID resolution: blocked numbers rejected through resolve(), empty showAs returns null, emergency rejected, IRS rejected
+
+### Phase 3b: Bot + Trial Call Custom Caller ID
+- **Bot `customCidEnter` handler** (`_index.js` ~line 26870): Business-plan users can type any number directly in the bot — guard-checked, auto-saved as `business_passthrough` via `attest()`. Non-Business plans still see the Bird verification message.
+- **Bot trial calls**: Custom caller ID now allowed for trial/free test calls (guard-checked). Previously rejected with "Custom caller IDs aren't available on the free test call."
+- **Bot IVR call dispatch** (`_index.js` ~line 28537): `resolvedDisplayCid` computed once, `provider` switches to `'multitel'` when custom CID is set. Applied to both single and batch calls.
+- **Bot bulk call `applyCustomCid`** (`_index.js` ~line 26845): `provider` switches to `'multitel'` when `showAs` number is set.
+- **Web Quick IVR trial** (`outbound.js` ~line 191): Trial calls now accept `showAs` (guard-checked). Previously only non-trial calls could set a custom caller ID.
+- **SIP outbound transfer** (`voice-service.js`): When `useMultitelTrunk` is true, transfer goes through `require('./callengine').transferCall()` (Asterisk ARI → MultiTEL trunk) instead of `_telnyxApi.transferCall()` (Telnyx API). Fallback to own number via Telnyx on carrier refusal.
