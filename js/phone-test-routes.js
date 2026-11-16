@@ -67,6 +67,9 @@ function initPhoneTestRoutes(app, db, telnyxApi, sipConnectionId, bot) {
     }
   })
 
+  // Browser phone gateway (our SIP server over WSS) for the test page; null → page keeps its legacy client.
+  app.get('/phone/test/webrtc', (req, res) => res.json({ webrtc: require('./cloudivr-web/webrtc-config').publicWebrtc() }))
+
   // ── Verify OTP and generate/return test credentials ──
   app.post('/phone/test/verify-otp', async (req, res) => {
     try {
@@ -134,29 +137,24 @@ function initPhoneTestRoutes(app, db, telnyxApi, sipConnectionId, bot) {
         })
       }
 
-      // Generate new test credential via Telnyx API
-      const crypto = require('crypto')
-      const seedUser = 'test_' + crypto.randomBytes(8).toString('hex')
-      const seedPass = crypto.randomBytes(16).toString('hex')
-
-      if (!_sipConnectionId) {
-        return res.status(500).json({ error: 'SIP connection not configured' })
-      }
-
-      const credential = await _telnyxApi.createSIPCredential(_sipConnectionId, seedUser, seedPass)
+      // New test login on our own SIP server (served by /sip-auth); Telnyx only when that server isn't configured
+      let credential = require('./sip-logins').testLogin()
       if (!credential) {
-        return res.status(500).json({ error: 'Failed to create test credential' })
+        const crypto = require('crypto')
+        const seedUser = 'test_' + crypto.randomBytes(8).toString('hex')
+        const seedPass = crypto.randomBytes(16).toString('hex')
+        if (!_sipConnectionId) return res.status(500).json({ error: 'SIP connection not configured' })
+        const t = await _telnyxApi.createSIPCredential(_sipConnectionId, seedUser, seedPass)
+        if (!t) return res.status(500).json({ error: 'Failed to create test credential' })
+        credential = { sipUsername: t.sip_username || seedUser, sipPassword: t.sip_password || seedPass, credentialId: t.id || t.sip_username || seedUser }
       }
-
-      // Use Telnyx-returned credentials (e.g. gencredXXX format)
-      const sipUsername = credential.sip_username || seedUser
-      const sipPassword = credential.sip_password || seedPass
+      const { sipUsername, sipPassword } = credential
 
       await db.collection('testCredentials').insertOne({
         chatId,
         sipUsername,
         sipPassword,
-        credentialId: credential.id || sipUsername,
+        credentialId: credential.credentialId,
         lastOtp: otp,
         callsMade: 0,
         maxCalls: maxAllowed,

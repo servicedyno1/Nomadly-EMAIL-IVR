@@ -39,4 +39,10 @@ function browserWebrtc(label) {
   return { wss, iceServers: iceServers(label) }
 }
 
-module.exports = { wssUrl, browserWebrtc, iceServers, turnCredential }
+// For public pages (no account): WSS + STUN only, so relay credentials are never handed out anonymously.
+function publicWebrtc() {
+  const w = browserWebrtc('public')
+  return w && { wss: w.wss, iceServers: w.iceServers.filter(s => /^stun:/.test(String(s.urls))) }
+}
+
+module.exports = { wssUrl, browserWebrtc, publicWebrtc, iceServers, turnCredential }

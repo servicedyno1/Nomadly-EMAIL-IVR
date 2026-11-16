@@ -143,7 +143,8 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     const d = destination(req.body.to)
     if (d.err) return bad(res, 400, 'invalid_number', d.err)
     if (req.body.showAs) return bad(res, 400, 'invalid_show_as', 'Custom caller IDs aren’t available on free tests.')
-    const answer = (doc, c) => ({ id: doc._id, kind: 'browser', to: doc.to, maxSeconds: MAX_SECONDS, dryRun: !!doc.dryRun, ...(c ? { login: c.sipUsername, password: c.sipPassword, callerNumber: process.env.TELNYX_DEFAULT_ANI || null } : {}) })
+    const kam = (c) => /^kam:/.test(c.credentialId || '') && require('./webrtc-config').publicWebrtc()
+    const answer = (doc, c) => ({ id: doc._id, kind: 'browser', to: doc.to, maxSeconds: MAX_SECONDS, dryRun: !!doc.dryRun, ...(c ? { login: c.sipUsername, password: c.sipPassword, callerNumber: process.env.TELNYX_DEFAULT_ANI || null, ...(kam(c) ? { webrtc: kam(c), domain: require('../phone-config').WEB_SIP_DOMAIN } : {}) } : {}) })
     // Same email reconnecting (mic prompt, page reload): hand back its unused line instead of a new one.
     const prev = await calls.findOne({ email, kind: 'browser', to: d.to, createdAt: { $gt: new Date(Date.now() - 30 * 60000) } })
     if (prev) {
@@ -154,13 +155,18 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     const lim = await limit(req, email, d.to)
     if (lim) return bad(res, ...lim)
     const tr = getTelnyxResources() || {}
-    if (!dryRun() && !tr.sipConnectionId) return bad(res, 503, 'unavailable', 'Browser test calls are paused right now. Try the "we call you" option.')
+    const own = require('../sip-logins').testLogin()
+    if (!dryRun() && !own && !tr.sipConnectionId) return bad(res, 503, 'unavailable', 'Browser test calls are paused right now. Try the "we call you" option.')
     const chatId = await nextChatId()
     let cred = null
     if (!dryRun()) {
-      const made = await telnyxApi.createSIPCredential(tr.sipConnectionId, `try_${crypto.randomBytes(6).toString('hex')}`, crypto.randomBytes(16).toString('hex'))
-      if (!made?.sip_username) return bad(res, 424, 'call_failed', 'We could not set up the browser line. Try again in a minute.')
-      cred = { chatId, sipUsername: made.sip_username, sipPassword: made.sip_password, credentialId: made.id || made.sip_username, callsMade: 0, maxCalls: 1, expired: false, webTest: true, allowedTo: d.to, createdAt: new Date() }
+      let made = own
+      if (!made) {
+        const t = await telnyxApi.createSIPCredential(tr.sipConnectionId, `try_${crypto.randomBytes(6).toString('hex')}`, crypto.randomBytes(16).toString('hex'))
+        if (!t?.sip_username) return bad(res, 424, 'call_failed', 'We could not set up the browser line. Try again in a minute.')
+        made = { sipUsername: t.sip_username, sipPassword: t.sip_password, credentialId: t.id || t.sip_username }
+      }
+      cred = { chatId, ...made, callsMade: 0, maxCalls: 1, expired: false, webTest: true, allowedTo: d.to, createdAt: new Date() }
     }
     const doc = await record(req, email, 'browser', d.to, { chatId, sipUsername: cred?.sipUsername || null })
     if (!doc) return bad(res, 409, 'already_used', 'This email has already had its free test call.')

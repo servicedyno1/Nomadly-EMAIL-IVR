@@ -50127,6 +50127,10 @@ app.get('/sip-auth/:user', async (req, res) => {
     const u = String(req.params.user || '')
     const doc = await phoneNumbersOf.findOne({ $or: [{ 'val.numbers.telnyxSipUsername': u }, { 'val.numbers.sipUsername': u }, { 'val.numbers.extraSip.username': u }] }, { projection: { 'val.numbers': 1 } })
     const n = (doc?.val?.numbers || []).find(x => (x.telnyxSipUsername === u || x.sipUsername === u || (x.extraSip || []).some(e => e.username === u)) && x.status === 'active')
+    if (!n) {
+      const t = await db.collection('testCredentials').findOne({ sipUsername: u, expired: { $ne: true } }, { projection: { sipPassword: 1 } })
+      return t?.sipPassword ? res.type('text/plain').send(String(t.sipPassword)) : res.sendStatus(404)
+    }
     const extra = n && planLifecycle.sipLoginOk(n, (n.extraSip || []).find(e => e.username === u)) && (n.extraSip || []).find(e => e.username === u)
     if (n && !extra && n.telnyxSipUsername !== u && n.sipUsername !== u) return res.sendStatus(404)
     const pw = n && (extra ? extra.password : n.telnyxSipUsername === u ? (n.telnyxSipPassword || n.sipPassword) : n.sipPassword)

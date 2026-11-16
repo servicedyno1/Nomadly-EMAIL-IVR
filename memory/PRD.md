@@ -53,7 +53,13 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 | Zadarma | €0 | €3.20 | included | Number activating |
 | DIDWW | varies | $1.20-$5 | varies | $0 balance, no setup |
 
-## P0 — Immediate
+## P0 — Immediate (2026-11-16)
+- [x] SIP test page login fix (all 4 brands, deployed; registration verified live) — see CHANGELOG 23:50Z
+- [ ] Customer @Spirits_Of_The_Ancesters to retry /call (not user-confirmed)
+- [ ] 4 caller-ID free test calls via Bird (landing, web Quick IVR, bot Quick IVR, bot SIP test page)
+- [ ] Campaign results: 34 answered-but-no_answer calls (deploy windows) — confirm, fix WL brands' ARI app split
+- [ ] Backup carrier switching end-to-end (switch, alert, recovery)
+- [ ] WL CloudIVR web browser phone still Telnyx-only (no sip.js path)
 - [ ] Top up Multitel account, buy test US number, test full SIP routing
 - [ ] Deploy inbound email code to production
 - [ ] Verify Zadarma number activation

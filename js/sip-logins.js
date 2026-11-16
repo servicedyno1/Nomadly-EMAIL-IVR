@@ -60,4 +60,7 @@ async function ensure(col, chatId, n) {
   return Object.assign(n, diff)
 }
 
-module.exports = { shortUser, shortPass, enabled, isShortLogin, isConnectionId, remember, forget, userForConnection, isSipConnection, loadKnown, repairFields, ensure, brandDomain }
+// Free-test logins (SIP test page, landing browser call) live on our own SIP server too — /sip-auth reads testCredentials.
+const testLogin = () => { if (!process.env.SIP_SERVER_SECRET) return null; const u = shortUser(); return { sipUsername: u, sipPassword: shortPass(), credentialId: `kam:${u}` } }
+
+module.exports = { testLogin, shortUser, shortPass, enabled, isShortLogin, isConnectionId, remember, forget, userForConnection, isSipConnection, loadKnown, repairFields, ensure, brandDomain }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../api';
+import { startSipLine } from '../../sipClient';
 
 // Free test call client: email-code token (session only), a stable device id, live call status and browser calling.
 const TOKEN_KEY = 'civr.tryToken';
@@ -50,6 +51,19 @@ export function useCallStatus(id) {
   return s;
 }
 
+// Test line on our own SIP server (WSS): sign in, then dial once registered. Returns the effect cleanup.
+function sipCall(call, cur, setState, setMsg) {
+  let off = false, line = null, ready = false;
+  const fail = () => { if (off) return; setState('error'); setMsg('Could not connect. Allow microphone access and check your internet, then try again.'); };
+  const dial = () => { if (line && ready && !cur.current && !off) cur.current = line.call(call.to); };
+  startSipLine({ username: call.login, password: call.password, domain: call.domain, webrtc: call.webrtc }, document.getElementById('civr-try-remote-audio'), {
+    onState: (c) => { if (off) return; if (!c) { if (cur.current) setState('ended'); return; } setState(s => (c.state === 'active' ? 'active' : s === 'active' ? s : 'ringing')); },
+    onStatus: (s) => { if (s === 'ready') { ready = true; dial(); } },
+    onError: fail,
+  }).then((l) => { line = l; if (off) l.stop(); else dial(); }).catch(fail);
+  return () => { off = true; try { cur.current?.hangup(); } catch (_) { /* gone */ } line?.stop(); };
+}
+
 // Browser call on the one-call test line (simulated in preview).
 export function useBrowserCall(call) {
   const [state, setState] = useState('connecting');
@@ -59,6 +73,7 @@ export function useBrowserCall(call) {
   useEffect(() => {
     let off = false, client = null, t = null;
     if (call.dryRun) { t = setTimeout(() => !off && setState('active'), 1800); return () => { off = true; clearTimeout(t); }; }
+    if (call.webrtc?.wss) return sipCall(call, cur, setState, setMsg);
     import('@telnyx/webrtc').then(({ TelnyxRTC }) => {
       if (off) return;
       client = new TelnyxRTC({ login: call.login, password: call.password });
