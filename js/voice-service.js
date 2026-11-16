@@ -3638,13 +3638,29 @@ async function handleOutboundSipCall(payload) {
 
     // "Show as": the browser phone may ask to display a caller ID this account verified (X-Civr-Show-As).
     // Softphones can't add headers, so the number's saved default caller ID is used when no header is sent.
+    // Business-plan users may use any number (resolve() handles plan check + guard blocklist).
     const _cid = require('./cloudivr-web/caller-ids')
     const showAsHdr = (payload.custom_headers || []).find(x => String(x?.name || '').toLowerCase() === 'x-civr-show-as')?.value || await _cid.defaultFor(chatId, num.phoneNumber).catch(() => null)
-    const outFrom = !_cid.enabled() ? num.phoneNumber : lookupResult?.isTestCall && lookupResult.testShowAs ? String(lookupResult.testShowAs)
-      : showAsHdr && await _cid.isVerified(chatId, showAsHdr).catch(() => false) ? String(showAsHdr) : num.phoneNumber
+    let outFrom = num.phoneNumber
+    let useMultitelTrunk = false
+    if (_cid.enabled() && lookupResult?.isTestCall && lookupResult.testShowAs) {
+      outFrom = String(lookupResult.testShowAs)
+    } else if (showAsHdr) {
+      // Try resolve (which allows Business-plan passthrough + guard check)
+      const resolved = await _cid.resolve(chatId, showAsHdr).catch(() => null)
+      if (resolved) {
+        outFrom = resolved
+        // Check if this number is NOT owned by the account — if so, route through MultiTEL
+        const ownedNumbers = await Promise.resolve(_numbersOf?.get?.(chatId)?.numbers || []).catch(() => [])
+        const isOwned = ownedNumbers.some(n => String(n.phoneNumber || '').replace(/\D/g, '') === String(outFrom).replace(/\D/g, ''))
+        if (!isOwned) useMultitelTrunk = true
+      }
+    }
     if (outFrom !== num.phoneNumber) _cid.logUse(chatId, outFrom, lookupResult?.isTestCall ? 'sip_test_call' : 'sip', destination)
     if ((payload.custom_headers || []).some(x => String(x?.name || '').toLowerCase() === 'x-civr-show-as')) _cid.rememberLast(chatId, num.phoneNumber, outFrom !== num.phoneNumber ? outFrom : null)
-    if (outFrom !== num.phoneNumber) log(`[Voice] Outbound SIP: showing verified caller ID ${outFrom} for ${num.phoneNumber}`)
+    if (outFrom !== num.phoneNumber) log(`[Voice] Outbound SIP: showing${useMultitelTrunk ? ' (via MultiTEL)' : ''} caller ID ${outFrom} for ${num.phoneNumber}`)
+    const trunkOpt = useMultitelTrunk ? { trunk: process.env.CALLER_ID_PASSTHROUGH_TRUNK || 'multitel-out' } : {}
+    const transferApi = useMultitelTrunk ? require('./callengine') : _telnyxApi
     try {
       const callState = activeCalls[callControlId]
       if (callState && callState.phase === 'outbound_telnyx') {
@@ -3652,43 +3668,43 @@ async function handleOutboundSipCall(payload) {
       }
       // Tag the NEW PSTN leg so its own call.initiated is skipped (no reverse lookup / re-route).
       _markSelfPstnLeg(payload.connection_id, destination, outFrom)
-      await _telnyxApi.transferCall(callControlId, destination, outFrom, { targetLegClientState: PSTN_LEG_STATE, ...trunkOpt })
-      log(`[Voice] Outbound SIP (Telnyx): Transfer initiated ${callerDisplay} → ${destination} (autoRouted=${isAutoRouted})`)
+      await transferApi.transferCall(callControlId, destination, outFrom, { targetLegClientState: PSTN_LEG_STATE, fallbackFrom: num.phoneNumber, ...trunkOpt })
+      log(`[Voice] Outbound SIP${useMultitelTrunk ? ' (MultiTEL)' : ' (Telnyx)'}: Transfer initiated ${callerDisplay} → ${destination} (autoRouted=${isAutoRouted})`)
     } catch (e) {
       const errMsg = e.message || ''
       // Handle race condition: call not answered yet — schedule retry
       if (errMsg.includes('not been answered') || errMsg.includes('not answered')) {
-        log(`[Voice] Outbound SIP (Telnyx): Transfer too early, scheduling retry for ${callControlId} → ${destination}`)
+        log(`[Voice] Outbound SIP: Transfer too early, scheduling retry for ${callControlId} → ${destination}`)
         const retryTransfer = async (retryCount = 0) => {
           if (retryCount >= 5) {
-            log(`[Voice] Outbound SIP (Telnyx): Transfer retry exhausted for ${callControlId}`)
+            log(`[Voice] Outbound SIP: Transfer retry exhausted for ${callControlId}`)
             return
           }
           await new Promise(r => setTimeout(r, 1500))
           try {
             _markSelfPstnLeg(payload.connection_id, destination, outFrom)
-            await _telnyxApi.transferCall(callControlId, destination, outFrom, { targetLegClientState: PSTN_LEG_STATE, ...trunkOpt })
-            log(`[Voice] Outbound SIP (Telnyx): Transfer retry ${retryCount + 1} succeeded ${callerDisplay} → ${destination}`)
+            await transferApi.transferCall(callControlId, destination, outFrom, { targetLegClientState: PSTN_LEG_STATE, fallbackFrom: num.phoneNumber, ...trunkOpt })
+            log(`[Voice] Outbound SIP: Transfer retry ${retryCount + 1} succeeded ${callerDisplay} → ${destination}`)
           } catch (retryErr) {
             if ((retryErr.message || '').includes('not been answered') || (retryErr.message || '').includes('not answered')) {
               return retryTransfer(retryCount + 1)
             }
-            log(`[Voice] Outbound SIP (Telnyx): Transfer retry ${retryCount + 1} failed — ${retryErr.message}`)
+            log(`[Voice] Outbound SIP: Transfer retry ${retryCount + 1} failed — ${retryErr.message}`)
           }
         }
         retryTransfer(0).catch(() => {})
       } else if (outFrom !== num.phoneNumber) {
         // Carrier refused the custom caller ID — place the call from the user's own number instead of dropping it.
-        log(`[Voice] Outbound SIP (Telnyx): custom caller ID ${outFrom} refused (${errMsg}) — retrying from ${num.phoneNumber}`)
-        _notifyCidRejected(chatId, outFrom, num.phoneNumber, { via: 'sip', to: destination, how: 'telnyx' })
+        log(`[Voice] Outbound SIP: custom caller ID ${outFrom} refused (${errMsg}) — retrying from ${num.phoneNumber}`)
+        _notifyCidRejected(chatId, outFrom, num.phoneNumber, { via: 'sip', to: destination, how: useMultitelTrunk ? 'multitel' : 'telnyx' })
         try {
           _markSelfPstnLeg(payload.connection_id, destination, num.phoneNumber)
-          await _telnyxApi.transferCall(callControlId, destination, num.phoneNumber, { targetLegClientState: PSTN_LEG_STATE, ...trunkOpt })
-        } catch (e2) { log(`[Voice] Outbound SIP (Telnyx): own-number retry failed — ${e2.message}`) }
+          await _telnyxApi.transferCall(callControlId, destination, num.phoneNumber, { targetLegClientState: PSTN_LEG_STATE })
+        } catch (e2) { log(`[Voice] Outbound SIP: own-number retry failed — ${e2.message}`) }
       } else {
-        log(`[Voice] Outbound SIP (Telnyx): Transfer failed — ${errMsg}`)
+        log(`[Voice] Outbound SIP: Transfer failed — ${errMsg}`)
         if (isAutoRouted) {
-          log(`[Voice] Outbound SIP (Telnyx): Auto-routed call may proceed with connection ANI — still tracking`)
+          log(`[Voice] Outbound SIP: Auto-routed call may proceed with connection ANI — still tracking`)
         } else {
           const sess = activeCalls[callControlId]
           if (sess?._limitTimer) clearInterval(sess._limitTimer)
@@ -5452,7 +5468,29 @@ async function initiateOutboundIvrCall(params) {
   }
   // A "show as" number refused as unverified in the last 24 h is skipped: dial straight from the customer's own number.
   const skipCid = displayCallerId && await cidRefusedRecently(displayCallerId)
-  let result = await _telnyxApi.createOutboundCall(skipCid ? callerId : (displayCallerId || callerId), targetNumber, webhookUrl, undefined, amdOpts)
+  // When using a custom (unowned) caller ID, route through MultiTEL trunk via Asterisk instead of Telnyx.
+  const useMultitel = displayCallerId && !skipCid && params.provider === 'multitel'
+  let result
+  if (useMultitel) {
+    // Route through Asterisk ARI → MultiTEL trunk with the custom caller ID
+    const trunk = process.env.CALLER_ID_PASSTHROUGH_TRUNK || 'multitel-out'
+    try {
+      result = await require('./callengine').originate(
+        { connection: null, session: `ivr-${require('crypto').randomBytes(4).toString('hex')}` },
+        displayCallerId, targetNumber, 45, trunk
+      )
+      if (result?.error || result?.ended) {
+        result = { error: result?.error || `MultiTEL call to ${targetNumber} failed`, callControlId: null }
+      } else {
+        result = { callControlId: result?.id || `mt-${Date.now()}`, _provider: 'multitel' }
+      }
+    } catch (e) {
+      log(`[OutboundIVR] MultiTEL originate failed: ${e.message} — falling back to Telnyx`)
+      result = await _telnyxApi.createOutboundCall(displayCallerId || callerId, targetNumber, webhookUrl, undefined, amdOpts)
+    }
+  } else {
+    result = await _telnyxApi.createOutboundCall(skipCid ? callerId : (displayCallerId || callerId), targetNumber, webhookUrl, undefined, amdOpts)
+  }
   // If the call went through SignalWire REST, finalize the pre-created session
   if (!result.error && result._provider === 'signalwire-rest') {
     twilioIvrSessions[swRestSessionId].callSid = result.sid || result.callControlId
