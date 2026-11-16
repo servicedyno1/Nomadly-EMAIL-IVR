@@ -15,10 +15,12 @@ const PRESET = /^🎭 (?:.+ · )?(\+[1-9]\d{7,14})$/
 const isPreset = (m) => on() && typeof m === 'string' && PRESET.test(m)
 const presetOf = (m) => (isPreset(m) ? m.match(PRESET)[1] : null)
 const isBtn = (m) => on() && typeof m === 'string' && m.startsWith('🎭 ') && !PRESET.test(m)
+// Free test calls offer the button even while custom caller IDs are switched off (the AI guard still checks the number).
+const isTrialBtn = (m) => typeof m === 'string' && Object.values(T).some(x => x.btn === m)
 const isYes = (m) => Object.values(T).some(x => x.yes === m)
 const isOwn = (m) => Object.values(T).some(x => x.own === m)
 const isUpBtn = (m) => typeof m === 'string' && m.startsWith('👑 ') && / — \$\d/.test(m)
 // One keyboard row per saved caller ID (one tap to use it on this call); shows its label if set.
 const presetRows = async (chatId) => (await require('./cloudivr-web/caller-ids').presets(chatId)).map(p => [`🎭 ${p.label ? p.label + ' · ' : ''}${p.number}`])
 
-module.exports = { t, on, btnRow, isBtn, isYes, isOwn, isPreset, presetOf, isUpBtn, presetRows }
+module.exports = { t, on, btnRow, isBtn, isTrialBtn, isYes, isOwn, isPreset, presetOf, isUpBtn, presetRows }
