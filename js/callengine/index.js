@@ -165,6 +165,10 @@ async function onUp(l) {
   if (l.transferOf) {
     const a = legs.get(l.transferOf)
     if (!a || a.ended) return hangupCall(l.id)
+    // Stop the ringing / ringback the caller hears before joining them — otherwise it keeps playing over the answered call.
+    call('delete', `/channels/${raw(a.id)}/ring`)
+    const rb = a.playback && playbacks.get(a.playback)
+    if (rb?.kind === 'ringback') { rb.stopped = true; call('delete', `/playbacks/${a.playback}`) }
     const br = await call('post', '/bridges', { type: 'mixing' })
     if (br) { await call('post', `/bridges/${br.id}/addChannel`, { channel: `${raw(a.id)},${raw(l.id)}` }); emit('call.bridged', a); emit('call.bridged', l) }
   }
@@ -204,6 +208,7 @@ async function start(onEvent_) {
   // A hang-up event can be missed (during a deploy the newest app instance receives the events): any call we still
   // hold that the engine no longer has is ended here, so it can never keep running or billing.
   setInterval(sweep, 30000).unref?.()
+  setInterval(() => { if (connected) birdChannels().catch(() => {}) }, 2000).unref?.()
   return true
 }
 async function sweep() {
@@ -276,8 +281,28 @@ function endpointFor(to, trunk) {
   if (/^sip:/i.test(String(to))) return { endpoint: `PJSIP/kamailio/sip:${String(to).replace(/^sip:/i, '').split('@')[0]}@188.166.34.29:5060`, variables: { 'PJSIP_HEADER(add,X-Nomadly-Key)': process.env.SIP_SERVER_SECRET || '', 'PJSIP_HEADER(add,X-Nomadly-User)': String(to).replace(/^sip:/i, '').split('@')[0] } }
   return { endpoint: `PJSIP/${String(to).replace(/[^\d]/g, '')}@${trunk || process.env.CALL_ENGINE_TRUNK || (process.env.BIRD_API_KEY ? 'bird' : 'didww')}`, variables: {} }
 }
+// Bird trunk limits (account-wide): BIRD_MAX_CONCURRENT live calls, BIRD_MAX_CPS new calls per second. All four brand
+// apps share one Asterisk, so its channel list (PJSIP/bird-…) is the shared count; each app also paces its own starts.
+const BIRD_CPS = () => Math.max(1, Number(process.env.BIRD_MAX_CPS || 5))
+let ariBird = 0, nextBirdStart = 0
+async function birdChannels() {
+  const list = ((await M.ari().get('/channels', { timeout: 3000 })).data || []).filter(c => /^PJSIP\/bird-/.test(c.name || ''))
+  ariBird = list.length
+  return { live: list.length, recent: list.filter(c => Date.now() - Date.parse(c.creationtime) < 1000).length }
+}
+async function birdSlot() {
+  for (let i = 0; i < 100; i++) {
+    const t = Math.max(Date.now(), nextBirdStart)
+    nextBirdStart = t + Math.ceil(1000 / BIRD_CPS())
+    if (t > Date.now()) await new Promise(r => setTimeout(r, t - Date.now()))
+    const s = await birdChannels().catch(() => null)
+    if (!s || s.recent < BIRD_CPS()) return
+    await new Promise(r => setTimeout(r, 150 + Math.random() * 250))
+  }
+}
 async function originate(meta, from, to, timeout = 30, trunk = null) {
   const { endpoint, variables } = endpointFor(to, trunk)
+  if (/@bird$/.test(endpoint)) await birdSlot()
   const chId = crypto.randomUUID()
   const l = track({ id: `ae:${chId}`, from, to, direction: 'outgoing', bird: /@bird$/.test(endpoint), trunk: endpoint.split('@').pop(), ...meta })
   try {
@@ -334,7 +359,7 @@ async function dialWithBackup(meta, from, to, timeout, earlyMs, trunk = null) {
   }
   return l
 }
-const activeBird = () => [...legs.values()].filter(l => l.bird && !l.ended).length
+const activeBird = () => Math.max(ariBird, [...legs.values()].filter(l => l.bird && !l.ended).length)
 // Holds the call's events for a few seconds: if the trunk refuses it before it rings, the caller can retry elsewhere.
 async function createOutboundCall(from, to, webhookUrl, connectionId, options = {}) {
   if (!connected) return { error: 'call engine offline', status: 503, _provider: 'callengine' }
