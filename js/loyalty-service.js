@@ -104,7 +104,7 @@ function getStrings(lang) {
  */
 async function getTotalSpend(walletOf, chatId) {
   const wallet = await get(walletOf, chatId)
-  const usdOut = wallet?.usdOut || 0
+  const usdOut = (wallet?.usdOut || 0) - (wallet?.usdHeld || 0)
   // Convert NGN to USD (rough rate, used only for tier calculation)
   const ngnOut = wallet?.ngnOut || 0
   const ngnToUsd = ngnOut / 1500 // approximate rate
