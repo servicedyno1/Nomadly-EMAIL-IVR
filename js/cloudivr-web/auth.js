@@ -314,7 +314,9 @@ function createAuth(db, { log = console.log, notifyAdmin = () => {} } = {}) {
     }))
   }
 
-  return { requireUser, routes }
+  // 2-minute session cookie so a saved order can run as its owner (card-check replay).
+  const replayCookie = async (chatId) => { const acc = await accounts.findOne({ _id: Number(chatId) }); return acc ? `${COOKIE}=${jwt.sign({ sub: acc._id, v: acc.tokenVersion || 0 }, secret(), { expiresIn: '2m' })}` : null }
+  return { requireUser, routes, replayCookie }
 }
 
 module.exports = { createAuth, parseCookies, COOKIE, secret, clientIp, sendMail, normEmail, EMAIL_RE, isAdmin }

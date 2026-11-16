@@ -23,6 +23,7 @@ function validate(body) {
     registrationNumber: type === 'business' ? clean(b.registrationNumber, 40) : '',
     vatNumber: type === 'business' ? clean(b.vatNumber, 40) : '',
     website: type === 'business' ? clean(b.website, 200) : '',
+    nationality: ISO2.test(clean(b.nationality, 2).toUpperCase()) ? clean(b.nationality, 2).toUpperCase() : '',
     address: {
       line1: clean(a.line1), line2: clean(a.line2), city: clean(a.city, 80), region: clean(a.region, 80),
       postalCode: clean(a.postalCode, 20), countryCode: clean(a.countryCode, 2).toUpperCase(), placeId: clean(a.placeId, 300) || null,
@@ -99,13 +100,26 @@ function createLegalProfile(db, { log = console.log } = {}) {
   async function endUserOf(chatId) { return endUser(await accounts.findOne({ _id: Number(chatId) })) }
 
   function routes(router, h) {
-    router.get('/profile/legal', h(async (req, res) => res.json({ profile: req.webUser.legalProfile || null, complete: isComplete(req.webUser) })))
+    // Signature for carrier registration (MultiTEL profile): drawn PNG, or the typed name with consent.
+    router.put('/profile/legal/signature', h(async (req, res) => {
+      if (!req.webUser.legalProfile?.completedAt) return bad(res, 400, 'no_profile', 'Add your legal details first.')
+      if (req.body?.consent !== true) return bad(res, 400, 'consent_needed', 'Tick the box to agree to sign electronically.')
+      const typedName = clean(req.body?.typedName, 80)
+      const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(String(req.body?.png || ''))
+      if (!m && typedName.length < 3) return bad(res, 400, 'no_signature', 'Draw your signature or type your full name.')
+      if (m && m[1].length > 300000) return bad(res, 400, 'too_big', 'That signature image is too large.')
+      const signature = { mode: m ? 'drawn' : 'typed', typedName, ...(m ? { png: m[1] } : {}), consentAt: new Date(), ip: String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim() }
+      await accounts.updateOne({ _id: req.webUser._id }, { $set: { 'legalProfile.signature': signature } })
+      log(`[CloudIVR-Web] signature saved for ${req.webUser._id} (${signature.mode})`)
+      res.json({ signature: { mode: signature.mode, typedName, consentAt: signature.consentAt } })
+    }))
+    router.get('/profile/legal', h(async (req, res) => { const lp = req.webUser.legalProfile; const sig = lp?.signature; res.json({ profile: lp ? { ...lp, signature: sig ? { mode: sig.mode, typedName: sig.typedName, consentAt: sig.consentAt } : undefined } : null, complete: isComplete(req.webUser) }) }))
 
     router.put('/profile/legal', h(async (req, res) => {
       const v = validate(req.body)
       if (v.error) return bad(res, 400, 'invalid_profile', v.error)
       const prev = req.webUser.legalProfile
-      const profile = { ...v.profile, completedAt: prev?.completedAt || new Date(), updatedAt: new Date() }
+      const profile = { ...v.profile, ...(prev?.signature ? { signature: prev.signature } : {}), completedAt: prev?.completedAt || new Date(), updatedAt: new Date() }
       await accounts.updateOne({ _id: req.webUser._id }, { $set: { legalProfile: profile }, $unset: { profileDue: '' } })
       require('../spenza').syncProfile(req.webUser._id).catch(e => log(`[CloudIVR-Web] Spenza profile sync failed for ${req.webUser._id}: ${e.message}`))
       log(`[CloudIVR-Web] legal profile ${prev ? 'updated' : 'added'} for ${req.webUser._id} (${profile.type}, ${profile.address.countryCode})`)

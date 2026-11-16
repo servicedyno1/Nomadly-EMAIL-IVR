@@ -104,7 +104,7 @@ function createOffers(db, { log = console.log } = {}) {
   const bonusOf = (b, amount) => (b.kind === 'topup' ? tierBonus(amount) : amount >= b.min ? round2(Math.min(b.max, amount * b.pct / 100)) : 0)
 
   async function payBonuses(push) {
-    const open = await deposits.find({ bonus: { $ne: null }, bonusPaidAt: null, createdAt: { $gt: new Date(Date.now() - 7 * 86400000) } }).limit(100).toArray()
+    const open = await deposits.find({ bonus: { $ne: null }, bonusPaidAt: null, idHold: { $ne: true }, refundState: { $exists: false }, createdAt: { $gt: new Date(Date.now() - 7 * 86400000) } }).limit(100).toArray()
     for (const d of open) {
       const t = await txns.findOne({ chatId: String(d.chatId), type: 'wallet-topup', 'metadata.ref': d.ref })
       if (!t) continue

@@ -127,12 +127,12 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     let loaded = false
     for (let i = 0; i < list.length; i++) {
       const hit = list[i]
-      const r = await numbersApi.purchase({ chatId: o.chatId, email: o.email, phone: hit.phoneNumber, planKey: sub ? sub.plan : o.planKey, hit, country: o.country, type: o.type, areaCode: o.areaCode, autoRenew: o.autoRenew, coupon: o.coupon || null, viaOrder: o._id, sub })
+      const r = await numbersApi.purchase({ chatId: o.chatId, email: o.email, phone: hit.phoneNumber, planKey: sub ? sub.plan : o.planKey, hit, country: o.country, type: o.type, areaCode: o.areaCode, autoRenew: o.autoRenew, coupon: o.coupon || null, viaOrder: o._id, sub, withTexting: o.withTexting === true })
       if (r.status === 201 || r.status === 202) {
         const assigned = r.status === 201 ? r.body.number.phoneNumber : hit.phoneNumber
         const swapped = assigned !== o.phoneNumber && String(o.phoneNumber).replace(/\D/g, '').length >= 9 // a short prefix = number assigned at order
         const status = r.status === 202 ? 'verification' : 'active'
-        const charged = extra ? round2(o.charge) : round2(phoneConfig.plans[o.planKey].price + (hit.surcharge || 0))
+        const charged = extra ? round2(o.charge) : round2(phoneConfig.plans[o.planKey].price + phoneConfig.planAddon(o.planKey, o.country, o.type, hit.surcharge || 0))
         const linePaid = round2(needOf(o) - (o.texting?.charge || 0))
         const priceNote = charged < linePaid ? `it costs $${charged.toFixed(2)}, so the $${round2(linePaid - charged).toFixed(2)} difference stays in your wallet` : 'same price'
         const leftover = extra && o.price + (o.walletPart || 0) > charged ? ` The $${round2(o.price + (o.walletPart || 0) - charged).toFixed(2)} left over stays in your wallet.` : ''
@@ -186,7 +186,8 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     if (!picked) return bad(res, 400, 'search_again', 'That number is no longer in your search results. Search again and pick a number.')
     const planKey = String(req.body.plan || ''), plan = phoneConfig.plans[planKey]
     if (!plan || !phoneConfig.isPlanAvailable(planKey)) return bad(res, 400, 'invalid_plan', 'That plan is not available.')
-    const incl = phoneConfig.includedIssue(planKey, picked.country, picked.type)
+    const textOffer = req.body.withTexting === true && !!require('../texting-countries').offerOf(picked.country, picked.type)
+    const incl = phoneConfig.planNumberIssue(picked.country, picked.type)
     if (incl) return bad(res, 400, 'extra_number_only', incl)
     const autoRenew = req.body.autoRenew !== false
     let coupon = null
@@ -196,13 +197,13 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     }
     const texting = await textingAddOn(req.body)
     if (texting?.error) return bad(res, 400, 'texting_unavailable', texting.error)
-    const linePrice = round2((plan.price + (picked.hit.surcharge || 0)) * (1 - (coupon ? coupon.discount : 0) / 100))
+    const linePrice = round2((plan.price + phoneConfig.planAddon(planKey, picked.country, picked.type, picked.hit.surcharge || 0)) * (1 - (coupon ? coupon.discount : 0) / 100))
     if (req.body.method !== 'crypto') {
       if (texting) {
         const bal = await w.balance(chatId), need = round2(linePrice + texting.charge)
         if (bal < need) return bad(res, 402, 'insufficient_balance', `Your wallet needs $${need.toFixed(2)} for the Business Line and the Texting Number. Top up $${round2(need - bal).toFixed(2)} first.`)
       }
-      const r = await numbersApi.purchase({ chatId, email: req.webUser.email, phone: picked.hit.phoneNumber, planKey, autoRenew, coupon, ...picked })
+      const r = await numbersApi.purchase({ chatId, email: req.webUser.email, phone: picked.hit.phoneNumber, planKey, autoRenew, coupon, withTexting: req.body.withTexting === true, ...picked })
       if (texting && (r.status === 201 || r.status === 202)) r.body.texting = await ES().buyMobile(chatId, { zipcode: texting.zipcode, autoRenew, charge: texting.charge }).catch(e => ({ error: e.message }))
       return res.status(r.status).json(r.body)
     }
@@ -217,7 +218,7 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     const now = new Date()
     const doc = {
       _id: dep.ref, chatId, email: req.webUser.email, phoneNumber: picked.hit.phoneNumber, hit: picked.hit, country: picked.country, type: picked.type,
-      areaCode: picked.areaCode, planKey, price, need: total, walletPart, autoRenew, coupon, coin, ...(texting ? { texting } : {}), address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider,
+      areaCode: picked.areaCode, planKey, price, need: total, walletPart, autoRenew, coupon, coin, ...(texting ? { texting } : {}), ...(textOffer ? { withTexting: true } : {}), address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider,
       status: 'awaiting_payment', dryRun: dryRun(), createdAt: now, updatedAt: now,
     }
     await orders.insertOne(doc)

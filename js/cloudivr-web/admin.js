@@ -31,6 +31,9 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
 
   function routes(r, h) {
     const A = adminAuth.require
+    r.get('/admin/fax-sales', A, h(async (req, res) => res.json(await require('../fax-sales').report(db))))
+    r.get('/admin/msg-watch', A, h(async (req, res) => res.json(await require('../msg-watch').status())))
+    r.put('/admin/msg-watch', A, h(async (req, res) => res.json(await require('../msg-watch').setHold(req.body?.hold === true, 'web admin'))))
     r.get('/admin/bird-spend', A, h(async (req, res) => res.json(await require('../bird-spend').status())))
     r.post('/admin/bird-spend/topup', A, h(async (req, res) => {
       const reason = need(req, res); if (!reason) return

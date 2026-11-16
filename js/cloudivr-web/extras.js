@@ -176,7 +176,8 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
   const SR = require('../sms-rules.js')
   const senderOf = async (chatId) => (await prefs.findOne({ _id: chatId }, { projection: { senderName: 1 } }))?.senderName || null
   const ownSender = async (chatId, phone) => {
-    if (await numbersApi.findMine(chatId, phone)) return { hosted: false }
+    const mineNum = await numbersApi.findMine(chatId, phone)
+    if (mineNum) return { hosted: false, num: mineNum }
     const h = (await require('../hosted-sms.js').list(chatId)).find(x => x.phoneNumber === phone && x.status === 'active')
     return h ? { hosted: true } : null
   }
@@ -191,13 +192,13 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
     const phone = String(req.query.phone || '')
     const own = await ownSender(req.webChatId, phone)
     if (!own) return bad(res, 404, 'not_found', 'Number not found.')
-    res.json(await SR.reach(phone, await senderOf(req.webChatId), own.hosted))
+    res.json(await SR.reach(phone, await senderOf(req.webChatId), own.hosted, own.num ? await SR.ownFacts(db, req.webChatId, own.num) : {}))
   }))
   router.post('/sms-reach/check', h(async (req, res) => {
     const phone = String(req.body.phone || '')
     const own = await ownSender(req.webChatId, phone)
     if (!own) return bad(res, 404, 'not_found', 'Number not found.')
-    res.json(await SR.check(phone, String(req.body.to || '').replace(/[^\d+]/g, ''), await senderOf(req.webChatId), own.hosted))
+    res.json(await SR.check(phone, String(req.body.to || '').replace(/[^\d+]/g, ''), await senderOf(req.webChatId), own.hosted, own.num ? await SR.ownFacts(db, req.webChatId, own.num) : {}))
   }))
 
   // ── Daily coupon (same codes as the bot) ──

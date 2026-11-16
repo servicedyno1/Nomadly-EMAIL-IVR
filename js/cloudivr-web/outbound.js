@@ -304,7 +304,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (req.body.scheduleAt) {
       if (!phoneConfig.canAccessFeature(cfg.callerPlan, 'ivrSchedule')) return bad(res, 403, 'plan_upgrade_required', 'Scheduling Quick IVR calls is on the Business plan.')
       const at = new Date(req.body.scheduleAt)
-      if (isNaN(at.getTime()) || at.getTime() < Date.now() + 4 * 60000 || at.getTime() > Date.now() + 86400000) return bad(res, 400, 'invalid_schedule', 'Schedule between 5 minutes and 24 hours from now.')
+      if (isNaN(at.getTime()) || at.getTime() < Date.now() + 4 * 60000 || at.getTime() > Date.now() + 30 * 86400000) return bad(res, 400, 'invalid_schedule', 'Schedule between 5 minutes and 30 days from now.')
       const docs = cfg.targets.map(to => ({
         _id: uid(), chatId, web: true, scheduledAt: at, createdAt: new Date(), status: dryRun() ? 'preview' : 'pending',
         ivrObData: { ...engineParams(chatId, cfg, to, false), targetNumber: to, callerProvider: caller?.provider || 'telnyx' },

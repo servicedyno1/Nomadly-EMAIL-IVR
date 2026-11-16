@@ -9,25 +9,31 @@ const fail = (res, e) => (e instanceof fax.FaxError ? bad(res, STATUS[e.code] ||
 
 function routes(router, { db, h, upload, numbersApi, notifyAdmin, legalProfile }) {
   if (!fax.isReady()) fax.init({ db })
-  const faxNums = require('../fax-numbers').create(db, { notifyAdmin, push: (id, text) => require('./notify').push(id, text, null, { kind: 'fax' }) })
+  const faxNums = require('../fax-numbers').create(db, { notifyAdmin, push: (id, text) => require('./notify').push(id, text, null, { kind: 'fax' }), sweep: false })
   const faxOnly = (chatId) => db.collection('faxNumbers').find({ chatId: String(chatId), status: { $ne: 'released' } }).toArray()
   const mine = async (req, phone) => (await faxOnly(req.webChatId)).find(n => n.phoneNumber === phone) || null
   const out = (res, fn) => fn().then(r => res.json(r), e => (e.status && e.code ? bad(res, e.status, e.code, e.message) : Promise.reject(e)))
 
   router.get('/fax-numbers', h(async (req, res) => res.json({ ...faxNums.offer(), numbers: await faxNums.list(req.webChatId) })))
-  router.get('/fax-numbers/search', h((req, res) => out(res, () => faxNums.search(req.webChatId, req.query.country, req.query.areaCode))))
+  router.get('/fax-numbers/search', h((req, res) => out(res, () => faxNums.search(req.webChatId, req.query.country, req.query.areaCode, req.query.type))))
   router.post('/fax-numbers', h((req, res) => out(res, async () => {
     const phoneNumber = String(req.body?.phoneNumber || '')
-    const r = await faxNums.buy(req.webChatId, { phoneNumber, autoRenew: req.body?.autoRenew !== false, email: req.webUser?.email })
+    const endUser = await legalProfile?.endUserOf(req.webChatId).catch(() => null)
+    const person = require('../multitel/identity').personFromLegal(req.webUser)
+    const r = await faxNums.buy(req.webChatId, { phoneNumber, autoRenew: req.body?.autoRenew !== false, email: req.webUser?.email, endUser, person })
     await legalProfile?.recordResale({ chatId: req.webChatId, phoneNumber: r?.number?.phoneNumber || phoneNumber, provider: 'fax', country: r?.number?.country || null })
     return r
   })))
+  // After payment: send the carrier details (legal profile + uploaded documents), or cancel for a full refund.
+  router.post('/fax-numbers/:phone/details', h((req, res) => out(res, async () => ({ number: await faxNums.submitDetails(req.webChatId, req.params.phone, { endUser: await legalProfile?.endUserOf(req.webChatId).catch(() => null), person: require('../multitel/identity').personFromLegal(req.webUser), email: req.webUser?.email }) }))))
+  router.post('/fax-numbers/:phone/cancel', h((req, res) => out(res, () => faxNums.cancelPending(req.webChatId, req.params.phone))))
   router.patch('/fax-numbers/:phone', h((req, res) => out(res, async () => ({ number: await faxNums.setAutoRenew(req.webChatId, req.params.phone, !!req.body?.autoRenew) }))))
 
   router.get('/fax', h(async (req, res) => {
     // Web fax runs on the fax-only account, so only fax-only numbers are listed.
-    const nums = await faxOnly(req.webChatId)
+    const nums = await faxOnly(req.webChatId), pubs = await faxNums.list(req.webChatId)
     const numbers = await Promise.all(nums.map(async n => ({
+      registration: pubs.find(x => x.phoneNumber === n.phoneNumber)?.registration || null, country: n.country, countryName: require('../multitel/countries').NAMES[n.country] || n.country,
       phoneNumber: n.phoneNumber, plan: n.plan, faxOnly: !!n.faxOnly, status: n.status, price: n.price, autoRenew: n.autoRenew !== false, expiresAt: n.expiresAt, eligible: fax.eligible(n), faxLine: fax.lineOn(n), voiceRouting: fax.voiceRouting(n), usage: fax.eligible(n) ? await fax.usage(n) : null,
     })))
     res.json({ numbers, faxes: await fax.list(req.webChatId), batches: await fax.listBatches(req.webChatId), pricing: { freePages: fax.FREE_PAGES, pagePrice: fax.PAGE_PRICE, bulkMax: fax.BULK_MAX } })
@@ -106,7 +112,7 @@ function publicRoutes(router, { db, h }) {
     if (hits.size > 5000) hits.clear()
     hits.set(k, n)
     if (n > 30) return bad(res, 429, 'too_many', 'Too many searches. Try again in a little while.')
-    try { res.json(await faxNums.search(null, req.query.country, req.query.areaCode)) } catch (e) { return e.status ? bad(res, e.status, e.code, e.message) : Promise.reject(e) }
+    try { res.json(await faxNums.search(null, req.query.country, req.query.areaCode, req.query.type)) } catch (e) { return e.status ? bad(res, e.status, e.code, e.message) : Promise.reject(e) }
   }))
 }
 

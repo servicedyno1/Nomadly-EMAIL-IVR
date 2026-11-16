@@ -60,9 +60,9 @@ function createCloudIvrWeb(deps) {
     const auth = createAuth(db, { log, notifyAdmin: deps.notifyAdmin })
     auth.routes(r, h)
     require('./statement').start(db, { log })
-    r.get('/public/catalog', (req, res) => res.json({
-      ...numbers.catalog(), coins: deps.coins || [], minTopup: wallet.MIN_TOPUP_USD, supportLink: support.supportLink(), channelLink: String(process.env.CLOUDIVR_CHANNEL_LINK || '').trim(),
-    }))
+    r.get('/public/catalog', (req, res) => { const c = numbers.catalog(); res.json({
+      ...c, cardPayments: c.cardPayments || mollie.cardsLive(req), coins: deps.coins || [], minTopup: wallet.MIN_TOPUP_USD, supportLink: support.supportLink(), channelLink: String(process.env.CLOUDIVR_CHANNEL_LINK || '').trim(),
+    }) })
     trycall.routes(r, { ...deps, db, h })
     publicStats.routes(r, { db, h })
     onboarding.publicRoutes(r, { db, h })
@@ -84,6 +84,8 @@ function createCloudIvrWeb(deps) {
     compliance.adminRoutes(r)
     const tenDlc = require('./ten-dlc').createTenDlc({ db, h, adminRequire: adminAuth.require, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, walletOps: require('./wallet').walletOps, log })
     tenDlc.adminRoutes(r)
+    const tollFree = require('./tollfree').createTollFree({ db, h, adminRequire: adminAuth.require, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, log })
+    tollFree.adminRoutes(r)
     const invoices = require('./invoices').createInvoices({ db, h, adminRequire: adminAuth.require, log })
     invoices.adminRoutes(r)
     // Country add-ons: our monthly cost per country/type (cheapest provider) next to the add-on the admin charges.
@@ -98,16 +100,35 @@ function createCloudIvrWeb(deps) {
       res.json({ addon: await require('../number-addons').set(country, type, amount) })
     }))
     require('../active-slot').singletonInterval('cloudivr-10dlc', () => tenDlc.tick().catch(e => log(`[10DLC] tick: ${e.message}`)), 60 * 60000)
+    require('../active-slot').singletonInterval('cloudivr-tollfree', () => tollFree.tick().catch(e => log(`[TollFree] tick: ${e.message}`)), 60 * 60000)
     module.exports.stripeWebhook = compliance.webhook
     require('./esim').publicRoutes(r, { db, h, log, A: adminAuth.require })
     require('./media').publicRoutes(r, { db, h })
     require('./fax').publicRoutes(r, { db, h })
     require('../ivr-outbound').setPickLogDb(db)
-    let offersRef = null
-    const mollie = require('./mollie').createMollie(db, { log, notifyAdmin: deps.notifyAdmin, getOffers: () => offersRef, push: (id, text) => notify.push(id, text, null, { kind: 'payment' }) })
+    let offersRef = null, cardCheckRef = null
+    // Runs a saved order as its owner (card payment settled / ID check released).
+    const replay = async (chatId, a) => { const cookie = await auth.replayCookie(chatId); const r = await require('axios')({ method: a.method, url: `http://127.0.0.1:${process.env.PORT}/cloudivr-web${a.path}`, data: a.body, headers: { cookie, 'x-card-replay': '1' }, validateStatus: () => true, timeout: 60000 }); return { status: r.status, message: r.data?.message || null, data: r.data } }
+    const mollie = require('./mollie').createMollie(db, { log, notifyAdmin: deps.notifyAdmin, getOffers: () => offersRef, getCardCheck: () => cardCheckRef, replay, push: (id, text) => notify.push(id, text, null, { kind: 'payment' }) })
     mollie.publicRoutes(r, { h })
+    const cardCheck = cardCheckRef = require('./card-check').createCardCheck(db, { log, notifyAdmin: deps.notifyAdmin, push: (id, text) => notify.push(id, text, null, { kind: 'payment' }), refundPayment: mollie.refund, replay, retrieveSession: compliance.retrieveSession, applySession: compliance.applySession })
+    compliance.hooks.onIdentity = cardCheck.onIdentity
+    cardCheck.adminRoutes(r, h, adminAuth.require)
+    require('../active-slot').singletonInterval('cloudivr-card-check', () => cardCheck.tick().catch(e => log(`[CardCheck] tick: ${e.message}`)), 5 * 60000)
     require('./journey').createJourney({ db, h, accountOf: (req) => new Promise(ok => auth.requireUser(req, { status: () => ({ json: () => ok(null) }) }, () => ok(req.webChatId))) }).routes(r)
     r.use(auth.requireUser)
+    // Checkout paid by card while the money is held for the ID check: save the order, run it once released.
+    r.use(h(async (req, res, next) => {
+      const ref = String(req.headers['x-card-hold-ref'] || '')
+      if (!ref || !['POST', 'PUT', 'PATCH'].includes(req.method) || req.headers['x-card-replay']) return next()
+      const dep = await db.collection('webDeposits').findOne({ ref, chatId: req.webChatId, provider: 'mollie', idHold: true })
+      if (!dep) return next()
+      // Wallet part of a wallet + card checkout: set aside so it can't be spent before the order runs.
+      const reserved = await cardCheck.reserve(req.webChatId, req.headers['x-card-hold-reserve'])
+      await db.collection('webDeposits').updateOne({ _id: dep._id }, { $push: { pendingActions: { method: req.method, path: req.path, body: req.body || {}, at: new Date() } }, $inc: { reservedUsd: reserved } })
+      log(`[CardCheck] ${req.webChatId} order ${req.method} ${req.path} saved until ${ref} is released${reserved ? ` ($${reserved} wallet part set aside)` : ''}`)
+      res.status(202).json({ queued: true, message: 'Payment received. Your order is saved and goes through automatically as soon as your ID check is approved.' })
+    }))
     invoices.routes(r)
     // Admin alert when web content is named after a bank / FDIC / IRS (alert only).
     r.use((req, _res, next) => {
@@ -143,6 +164,7 @@ function createCloudIvrWeb(deps) {
     offers.routes(r, { h })
     offersRef = offers
     mollie.routes(r, { h })
+    cardCheck.routes(r, h)
     wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit, offers, cryptoPerUsd: deps.cryptoPerUsd })
     // Orders go first so /numbers/orders is not caught by /numbers/:phone; numbersApi is filled in right after.
     const numbersApi = {}
@@ -156,6 +178,7 @@ function createCloudIvrWeb(deps) {
     numberDocs.routes(r)
     compliance.routes(r)
     tenDlc.routes(r)
+    tollFree.routes(r)
     require('./lookup').createLookup({ db, h, walletOps: require('./wallet').walletOps, log }).routes(r)
     require('./travel-esim').createTravelEsim({ db, h, walletOps: require('./wallet').walletOps, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, log }).routes(r)
     require('../active-slot').singletonInterval('cloudivr-number-docs', () => numberDocs.tick().catch(e => log(`[NumberDocs] tick: ${e.message}`)), 30 * 60000)

@@ -164,13 +164,18 @@ async function registrationStatus(num) {
   return { state: 'pending', raw: txt.slice(0, 200) }
 }
 
-// Texts → { id } | { error }
+// Delivery results for sent texts come back to /multitel/sms-status/<key>.
+const statusUri = () => (process.env.SELF_URL ? `${String(process.env.SELF_URL).replace(/\/+$/, '')}/multitel/sms-status/${smsHookKey()}` : '')
+// MultiTEL delivery status → our text status (null = not final yet).
+const deliveryOf = (s) => { const t = String(s || '').toLowerCase(); return /undeliv|fail|reject|expire|error|block/.test(t) ? 'delivery_failed' : /deliv/.test(t) ? 'delivered' : null }
+// Texts → { id } | { error }. The id is our reference, sent along so the delivery result can be matched.
 async function sendSms(from, to, text) {
   try {
-    const d = await api('post', 'sendsms', { from: digits(from), to: digits(to), text })
-    return ok(d) ? { id: d.response?.uuid || d.response?.id || null } : { error: d?.status?.msg || 'MultiTEL refused the text' }
+    const ref = `ct-${crypto.randomUUID()}`
+    const d = await api('post', 'sendsms', { from: digits(from), to: digits(to), text, reference: ref, ...(statusUri() ? { notifyurl: statusUri() } : {}) })
+    return ok(d) && !/fail/i.test(String(d.response?.status || '')) ? { id: ref, providerId: d.response?.uniqueid || d.response?.pid || null } : { error: d?.response?.message || d?.status?.msg || 'MultiTEL refused the text' }
   } catch (e) { return { error: e.message } }
 }
 const ownsNumber = (n) => owned.includes(n)
 
-module.exports = { ipv4, isBlocked, api, enabled, selling, searchedMeta, remember, sendSms, ownsNumber, smsHookKey, isMt, searchNumbers, isMtSearched, isAssigned, buyNumber, releaseNumber, refreshOwned, ownedNumbers, registrationStatus, route }
+module.exports = { ipv4, isBlocked, api, enabled, selling, searchedMeta, remember, sendSms, deliveryOf, ownsNumber, smsHookKey, isMt, searchNumbers, isMtSearched, isAssigned, buyNumber, releaseNumber, refreshOwned, ownedNumbers, registrationStatus, route }

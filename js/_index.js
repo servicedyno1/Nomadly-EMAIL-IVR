@@ -50020,6 +50020,21 @@ app.post('/multitel/sms-webhook/:k', express.urlencoded({ extended: true, limit:
   try { await handleInboundSms({ data: { payload: { from: { phone_number: e(b.from) }, to: [{ phone_number: e(b.to) }], text: String(b.text || '') } } }, bot, phoneNumbersOf, phoneLogs) } catch (err) { log('MultiTEL SMS webhook error:', err.message) }
 })
 
+// Delivery result of a text sent from a MultiTEL number (form or JSON) → "Delivered" / "Not delivered" on the text.
+app.post('/multitel/sms-status/:k', express.urlencoded({ extended: true, limit: '1mb' }), express.json({ limit: '1mb' }), (req, res) => {
+  res.sendStatus(200)
+  if (req.params.k !== require('./multitel').smsHookKey()) return log('MultiTEL SMS status: bad key')
+  const flat = {}
+  const walk = (o, p = '') => { for (const [k, v] of Object.entries(o || {})) { if (v && typeof v === 'object') walk(v, `${p}${k}.`); else if (!/text$|^body$/i.test(k)) flat[`${p}${k}`] = String(v) } }
+  walk(req.body)
+  const pick = (...keys) => { for (const k of keys) { const hit = Object.keys(flat).find(x => x.split('.').pop().toLowerCase() === k); if (hit && flat[hit]) return flat[hit] } return '' }
+  const mt = require('./multitel')
+  const id = pick('reference', 'ref', 'uniqueid', 'message_id', 'messageid'), raw = pick('dlr_status', 'delivery_status', 'status_text', 'status', 'state')
+  const status = mt.deliveryOf(raw), code = pick('error_code', 'errorcode', 'causecode')
+  log(`MultiTEL SMS status: ${id || '?'} ${raw}${code ? ` (code ${code})` : ''} ${JSON.stringify(flat).slice(0, 400)}`)
+  if (id && status && cloudivrWeb?.smsDelivery) cloudivrWeb.smsDelivery(db, { id: String(id), to: [{ status }], errors: status === 'delivery_failed' ? [{ code, title: raw, detail: pick('error', 'error_text') }] : [] }, log)
+})
+
 // Stripe Identity events for CloudIVR compliance (signature checked inside).
 app.post('/stripe/webhook', (req, res) => (cloudivrWeb.stripeWebhook ? cloudivrWeb.stripeWebhook(req, res) : res.sendStatus(503)))
 

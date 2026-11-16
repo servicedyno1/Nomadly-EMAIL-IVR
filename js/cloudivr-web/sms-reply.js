@@ -4,6 +4,7 @@
 // used to text strangers — and once per missed call. Counts as one SMS of the plan, then OVERAGE_RATE_SMS from the wallet.
 const axios = require('axios')
 const crypto = require('crypto')
+const msgWatch = require('../msg-watch')
 const { ObjectId } = require('mongodb')
 const phoneConfig = require('../phone-config')
 const { walletOps } = require('./wallet')
@@ -89,7 +90,7 @@ async function applyDeliveryReport({ db, notify, log = console.log }, payload) {
   const reason = status === 'failed' ? (reasonOf(err.code, `${err.title || ''} ${err.detail || ''}`) || NOT_DELIVERED) : null
   const phoneLogs = db.collection('phoneLogs')
   const set = { status, finalizedAt: new Date().toISOString(), ...(reason ? { smsReason: reason, smsErrorCode: String(err.code || '') } : {}) }
-  const r = await phoneLogs.findOneAndUpdate({ messageId: payload.id, type: 'sms_out', webReply: true, status: { $in: ['sent', 'unconfirmed'] } }, { $set: set })
+  const r = await phoneLogs.findOneAndUpdate({ $or: [{ messageId: payload.id }, { providerId: payload.id }], type: 'sms_out', webReply: true, status: { $in: ['sent', 'unconfirmed'] } }, { $set: set })
   const doc = r && r.value !== undefined ? r.value : r
   if (!doc) return null
   const copy = (path) => ({ [`${path}.status`]: status, ...(reason ? { [`${path}.reason`]: reason, [`${path}.code`]: String(err.code || '') } : {}) })
@@ -112,7 +113,7 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     // Infobip / MultiTEL numbers text through their own provider.
     const ib = require('../infobip'), mt = require('../multitel')
     if (!mediaUrls.length && ib.enabled() && (await ib.refreshOwned()).includes(from)) { const r = await ib.sendSms(from, to, text); return r.error ? { error: 'The text couldn’t be sent right now. Try again in a minute.' } : { id: r.id } }
-    if (!mediaUrls.length && mt.enabled() && (await mt.refreshOwned()).includes(from)) { const r = await mt.sendSms(from, to, text); if (r.error) log(`[SmsReply] MultiTEL ${from} → ${to} failed: ${r.error}`); return r.error ? { error: /not been approved/i.test(r.error) ? 'Texting from this number isn’t switched on yet. We’re on it.' : 'The text couldn’t be sent right now. Try again in a minute.' } : { id: r.id } }
+    if (!mediaUrls.length && mt.enabled() && (await mt.refreshOwned()).includes(from)) { const r = await mt.sendSms(from, to, text); if (r.error) log(`[SmsReply] MultiTEL ${from} → ${to} failed: ${r.error}`); return r.error ? { error: /not been approved/i.test(r.error) ? 'Texting from this number isn’t switched on yet. We’re on it.' : 'The text couldn’t be sent right now. Try again in a minute.' } : { id: r.id, providerId: r.providerId || null } }
     const sw = await require('../signalwire').sendSms(from, to, text, mediaUrls).catch(() => null)
     if (sw && !sw.error) return { id: sw.id }
     if (sw?.error) log(`[SmsReply] SignalWire ${from} → ${to} failed: ${sw.error} — trying Telnyx`)
@@ -128,6 +129,10 @@ function createSmsReply({ db, voiceService, log = console.log }) {
   }
 
   // → { log } | { error: [status, code, message] }
+  msgWatch.register('smsReply', {
+    approve: async (a) => { const r = await deliver(a.from, a.to, a.body, a.urls || []); if (r.error) throw new Error(r.error); await phoneLogs.updateOne({ _id: a.logId }, { $set: { messageId: r.id } }) },
+    reject: async (a) => { const d = await phoneLogs.findOne({ _id: a.logId }); if (d) await giveBack(db, d) },
+  })
   async function send({ chatId, num, to, text, simulated = false, replyTo = null, inboxId = null, media = [] }) {
     const body = require('./sms-limit').gsmText(clean(text))
     if (!body && !media.length) return { error: [400, 'empty', 'Type a reply or pick one.'] }
@@ -136,6 +141,7 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     if (long) return { error: [400, 'too_long', long] }
     if (!E164.test(String(to || ''))) return { error: [400, 'invalid_number', 'This caller’s number can’t receive texts.'] }
     if (num.capabilities?.sms === false) return { error: [400, 'no_sms', 'This number can’t send texts.'] }
+    if (num.features?.sms !== true) return { error: [403, 'texting_off', 'Texting is off on this number. Turn it on in the number’s Texts tab first.'] }
     if (num.status !== 'active') return { error: [409, 'not_active', 'This number is suspended. Renew it to send texts again.'] }
     if (require('./ten-dlc').needs10dlc(num) && !simulated) {
       const reg = await db.collection('tenDlc').findOne({ _id: String(chatId) }, { projection: { status: 1, numbers: 1 } })
@@ -146,7 +152,7 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     const preview = simulated || dryRun() || !!num.dryRun
     const senderName = (await db.collection('webPrefs').findOne({ _id: chatId }, { projection: { senderName: 1 } }))?.senderName || null
     const intl = require('../texting-countries').rateFor(num, to)
-    const rule = intl || await smsRules.check(num.phoneNumber, to, senderName)
+    const rule = intl || await smsRules.check(num.phoneNumber, to, senderName, false, await smsRules.ownFacts(db, chatId, num))
     if (!rule.ok) return { error: [400, 'sms_blocked', rule.why] }
     // US/Canada: plan texts, then the extra-text rate. Other countries: that country's price from the wallet.
     const home = !intl && (rule.iso === 'US' || rule.iso === 'CA')
@@ -159,7 +165,11 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     if (overage && !(await w.debit(chatId, overage))) return { error: [402, 'insufficient_balance', home ? `This text costs $${overage.toFixed(2)} ($${phoneConfig.OVERAGE_RATE_SMS} per part). Top up your wallet first.` : `A text to ${rule.country} costs $${overage.toFixed(2)}. Top up first.`] }
     let out = { id: `preview-${crypto.randomUUID()}` }, tries = 0
     // Up to 3 tries; a failed text is never charged and is logged for follow-up.
-    if (!preview) for (let i = 0; i < 3; i++) { out = await deliver(rule.from || num.phoneNumber, to, body, media.map(m => require('./media').publicUrl(m.id))); if (!out.error) break; tries = i + 1; if (!/try again/i.test(out.error)) break; if (i < 2) await new Promise(r => setTimeout(r, 1500 * (i + 1))) }
+    const urls = media.map(m => require('./media').publicUrl(m.id))
+    // Spam watch: a caught text may wait for the admin (the sender sees it as sent either way).
+    const mw = preview ? { act: 'send' } : await msgWatch.gate({ chatId, where: 'Text from a customer number', from: rule.from || num.phoneNumber, to, text: body })
+    if (mw.act === 'hold') out = { id: `held-${mw.id}` }
+    else if (!preview) for (let i = 0; i < 3; i++) { out = await deliver(rule.from || num.phoneNumber, to, body, urls); if (!out.error) break; tries = i + 1; if (!/try again/i.test(out.error)) break; if (i < 2) await new Promise(r => setTimeout(r, 1500 * (i + 1))) }
     if (out.error) {
       if (overage) await w.credit(chatId, overage)
       await phoneLogs.insertOne({ chatId: String(chatId), phoneNumber: num.phoneNumber, from: rule.from || num.phoneNumber, to, country: rule.iso, type: 'sms_out', direction: 'outbound', body, status: 'failed', error: out.error, attempts: tries, provider: num.provider || null, webReply: true, timestamp: new Date().toISOString() })
@@ -167,9 +177,10 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     }
     if (home) for (let i = 0; i < parts; i++) await voiceService.incrementSmsUsed(chatId, num.phoneNumber)
     if (overage) await phoneTransactions.insertOne({ chatId, phoneNumber: num.phoneNumber, action: 'sms_reply', amount: overage, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
-    const doc = { chatId: String(chatId), phoneNumber: num.phoneNumber, from: rule.from || num.phoneNumber, to, country: rule.iso, type: 'sms_out', direction: 'outbound', body, messageId: out.id, status: preview ? 'preview' : 'sent', webReply: true, ...(media.length ? { media } : {}), ...(overage ? { charge: overage } : {}), ...(replyTo ? { replyTo } : {}), ...(inboxId ? { inboxId: String(inboxId) } : {}), timestamp: new Date().toISOString() }
+    const doc = { chatId: String(chatId), phoneNumber: num.phoneNumber, from: rule.from || num.phoneNumber, to, country: rule.iso, type: 'sms_out', direction: 'outbound', body, messageId: out.id, ...(out.providerId ? { providerId: out.providerId } : {}), status: preview ? 'preview' : 'sent', webReply: true, ...(media.length ? { media } : {}), ...(overage ? { charge: overage } : {}), ...(replyTo ? { replyTo } : {}), ...(inboxId ? { inboxId: String(inboxId) } : {}), timestamp: new Date().toISOString() }
     await phoneLogs.insertOne(doc)
-    log(`[SmsReply] ${num.phoneNumber} → ${to}${preview ? ' (PREVIEW)' : ''}${overage ? ` $${overage}` : ''}`)
+    if (mw.act === 'hold') await msgWatch.attach(mw.id, { type: 'smsReply', logId: doc._id, from: doc.from, to, body, urls })
+    log(`[SmsReply] ${num.phoneNumber} → ${to}${preview ? ' (PREVIEW)' : ''}${mw.act === 'hold' ? ' (HELD)' : ''}${overage ? ` $${overage}` : ''}`)
     return { log: doc, charge: overage }
   }
 
@@ -183,9 +194,19 @@ function routes(router, { db, h, numbersApi, smsReply }) {
   router.get('/missed-calls', h(async (req, res) => {
     const phones = (await numbersApi.myNumbers(req.webChatId)).map(n => n.phoneNumber)
     const since = new Date(Date.now() - REPLY_DAYS * 86400000).toISOString()
-    const rows = phones.length ? await phoneLogs.find({ phoneNumber: { $in: phones }, type: { $in: REPLYABLE }, timestamp: { $gte: since } }).sort({ timestamp: -1 }).limit(30).toArray() : []
+    const rows = phones.length ? await phoneLogs.find({ phoneNumber: { $in: phones }, type: { $in: REPLYABLE }, timestamp: { $gte: since }, dismissedAt: { $exists: false } }).sort({ timestamp: -1 }).limit(30).toArray() : []
     const texts = rows.length ? await textsTo(phoneLogs, phones, since, [...new Set(rows.map(r => r.from))]) : []
     res.json({ calls: markReplied(rows, texts).map(view), maxLength: MAX, overageRate: phoneConfig.OVERAGE_RATE_SMS })
+  }))
+
+  // Clear a call from the inbox's missed-call list (the call stays in the number's history).
+  router.post('/missed-calls/:id/dismiss', h(async (req, res) => {
+    let _id
+    try { _id = new ObjectId(String(req.params.id)) } catch (_) { return bad(res, 404, 'not_found', 'Call not found.') }
+    const l = await phoneLogs.findOne({ _id, type: { $in: REPLYABLE } })
+    if (!l || !(await numbersApi.findMine(req.webChatId, l.phoneNumber))) return bad(res, 404, 'not_found', 'Call not found.')
+    await phoneLogs.updateOne({ _id }, { $set: { dismissedAt: new Date().toISOString() } })
+    res.json({ ok: true })
   }))
 
   router.post('/missed-calls/:id/reply', h(async (req, res) => {

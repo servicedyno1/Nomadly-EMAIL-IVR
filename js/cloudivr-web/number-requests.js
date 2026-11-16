@@ -36,11 +36,8 @@ function createNumberRequests({ db, h, phoneConfig, numbersApi, walletOps, notif
       const plan = phoneConfig.plans[planKey]
       if (!cfg || !ib().enabled()) return res.status(400).json({ error: 'invalid_country', message: 'Pick a country from the list.' })
       if (!plan || !phoneConfig.isPlanAvailable(planKey)) return res.status(400).json({ error: 'invalid_plan', message: 'That plan is not available.' })
-      // On-request numbers aren't instant, so they can't be a plan's own number.
-      const incl = phoneConfig.includedIssue(planKey, country, 'local')
-      if (incl) return res.status(400).json({ error: 'extra_number_only', message: incl })
       const eu = endUser(req.webUser)
-      const price = round2(plan.price)
+      const price = round2(plan.price + phoneConfig.planAddon(planKey, country, 'local', require('../number-addons').get(country, 'local')))
       if (!(await w.debit(req.webChatId, price))) return res.status(402).json({ error: 'insufficient_balance', message: `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(req.webChatId)).toFixed(2)} — top up first.` })
       const doc = { _id: `nr_${crypto.randomUUID().slice(0, 12)}`, chatId: req.webChatId, email: req.webUser.email, country, countryName: cfg.name, plan: planKey, price, autoRenew: req.body?.autoRenew !== false, status: 'submitted', endUser: eu, createdAt: new Date(), updatedAt: new Date() }
       try { doc.ibRequestId = await submit(doc, cfg, eu) } catch (e) {
@@ -88,7 +85,7 @@ function createNumberRequests({ db, h, phoneConfig, numbersApi, walletOps, notif
     const caps = typeof a === 'string' ? ['VOICE'] : a.caps
     const acc = await accounts.findOne({ _id: r.chatId })
     const out = await numbersApi.purchase({ chatId: r.chatId, email: acc?.email || r.email, phone, planKey: r.plan, country: r.country, type: 'local', areaCode: null, autoRenew: r.autoRenew,
-      hit: { capabilities: { voice: true, sms: caps.includes('SMS'), mms: caps.includes('MMS'), fax: false }, surcharge: 0, cost: null },
+      hit: { capabilities: { voice: true, sms: caps.includes('SMS'), mms: caps.includes('MMS'), fax: false }, surcharge: require('../number-addons').get(r.country, 'local'), cost: null },
       prepaid: { amount: r.price }, presetOrder: { id: typeof a === 'string' ? `dryrun-${r._id}` : `ib:${a.key}`, _provider: 'infobip' } })
     if (out.status >= 300) { await release(); return log(`[NumberRequest] ${r._id} activation failed: ${out.body?.message}`) }
     await col.updateOne({ _id: r._id }, { $set: { status: 'active', phoneNumber: phone, updatedAt: new Date() } })
