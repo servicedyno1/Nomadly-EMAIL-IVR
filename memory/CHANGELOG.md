@@ -3361,3 +3361,33 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Fixes: announcement failure or missing speak.ended no longer leaves caller in silence (dials anyway after 10 s); caller hanging up during announcement no longer rings destination; quick answer/fast failure waits for music start before stopping it.
 - Test: js/tests/test_hold_music_2026-11.js 12/12 (sandbox mongo :27999). test_offhours_forward F03/F14 fail before and after (outdated caller-ID expectations).
 - Bird "Direct audio": investigated, left OFF (Bird only carries outbound; our Bird link uses TLS/SRTP).
+
+## 2026-11-16 18:00Z — MultiTEL custom caller-ID test: unowned US numbers ACCEPTED
+
+### Test setup
+- Trunk: `PJSIP/13025141000@multitel-out` (IP-authenticated, 188.166.34.29)
+- Target: `+13025141000` (user-authorized test recipient)
+- Method: Asterisk `.call` files on nomadly-sip-1
+
+### Results
+
+| # | Caller ID | Type | Disposition | Ring | Talk | CDR UniqueId |
+|---|-----------|------|------------|------|------|-------------|
+| 1 | +18772673343 | US toll-free (unowned) | ANSWERED | 35s | 7s | 1794852006.3103 |
+| 2 | +15717231523 | US regular (unowned) | ANSWERED | 7s | 7s | 1794852079.3123 |
+
+### Combined evidence (all custom caller-ID tests to date)
+
+| Caller ID | Type | Result | Date |
+|-----------|------|--------|------|
+| +12025550143 | US fake 555 (unowned) | **DECLINED (603)** | 2026-11-16 ~17:50 |
+| +31684448264 | Dutch mobile (unowned) | ANSWERED | 2026-11-15/16 (multiple) |
+| +18772673343 | US toll-free (unowned) | ANSWERED | 2026-11-16 18:00 |
+| +15717231523 | US regular (unowned) | ANSWERED | 2026-11-16 18:01 |
+
+### Conclusion
+- MultiTEL accepts custom caller IDs from real US numbers we do not own (both toll-free and local).
+- The earlier 603 Decline on +12025550143 was caused by the obviously fake 555 exchange, not by an unowned-number policy.
+- **What we proved:** MultiTEL's termination gateway passes our caller ID to the downstream carrier without verification against our account inventory.
+- **What we did NOT prove yet:** What the recipient (+13025141000) actually saw on their handset display. The user must confirm whether the unowned numbers appeared as the caller ID on the receiving end. Carrier-level STIR/SHAKEN attestation and intermediate carrier behavior could still alter or flag the display.
+- No code changes needed; this is a provider capability test.
