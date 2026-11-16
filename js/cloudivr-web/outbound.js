@@ -188,11 +188,15 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     let callerId = trial ? null : caller.phoneNumber
     let showAs = null
-    if (b.showAs) {
-      try { showAs = await callerIds.resolve(chatId, b.showAs) } catch (e) {
-        // For trial calls, only reject if it's a blocklist issue
-        if (!trial || e.code === 'blocked_caller_id') return { err: [400, e.code || 'invalid_show_as', e.message] }
-      }
+    if (b.showAs && trial) {
+      // Free trial: any number the AI guard clears may be shown (banks, government, hotlines, emergency are blocked).
+      showAs = String(b.showAs).replace(/[^\d+]/g, '')
+      if (!showAs.startsWith('+')) showAs = showAs.length === 10 ? `+1${showAs}` : `+${showAs}`
+      if (!/^\+[1-9]\d{7,14}$/.test(showAs)) return { err: [400, 'invalid_show_as', 'Enter the caller ID with country code, e.g. +14155550100.'] }
+      const g = await require('./cid-guard').guard(showAs, { chatId, channel: 'web_trial' })
+      if (!g.allowed) return { err: [400, 'blocked_caller_id', g.reason || 'This number cannot be used as caller ID.'] }
+    } else if (b.showAs) {
+      try { showAs = await callerIds.resolve(chatId, b.showAs) } catch (e) { return { err: [400, e.code || 'invalid_show_as', e.message] } }
     }
     const targets = parseTargets(b)
     if (!targets.length) return { err: [400, 'invalid_number', 'Enter the number to call with country code, e.g. +14155550100.'] }

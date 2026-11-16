@@ -4200,6 +4200,16 @@ const loadData = async () => {
   require('./fax-sales').start({ db, log })
   require('./growth-nudges').start({ db, notifyAdmin, log, send: (id, text) => bot?.sendMessage(id, text, { parse_mode: 'HTML' }).catch(() => {}) })
   require('./provider-health').start(notifyAdmin)
+  require('./callengine/failover').setAlert((subject, html) => {
+    const brand = process.env.CHAT_BOT_BRAND || 'Nomadly'
+    notifyAdmin(`[${brand}] ${html}`)
+    if (process.env.CIVR_ADMIN_EMAIL) require('./cloudivr-web/auth').sendMail(process.env.CIVR_ADMIN_EMAIL, `[${brand}] ${subject}`, `<p>${html.replace(/\n/g, '<br>')}</p>`).catch(() => {})
+  })
+  require('./wallet-audit').start({ db, log, alert: (subject, html) => {
+    const brand = process.env.CHAT_BOT_BRAND || 'Nomadly'
+    notifyAdmin(`[${brand}] ${html}`)
+    if (process.env.CIVR_ADMIN_EMAIL) require('./cloudivr-web/auth').sendMail(process.env.CIVR_ADMIN_EMAIL, `[${brand}] ${subject}`, `<p>${html.replace(/\n/g, '<br>')}</p>`).catch(() => {})
+  } })
   require('./pending-orders').init({
     db, notifyAdmin,
     send: (id, text) => bot?.sendMessage(id, text, { parse_mode: 'HTML' }).catch(() => {}),
@@ -26854,7 +26864,9 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       await set(state, chatId, 'action', a.bulkUploadLeads)
       return send(chatId, trans('t.cp_132', number), k.of([...ownRow, ['↩️ Back']]))
     }
-    const ivrObData = { ...(info?.ivrObData || {}), callerId: cc.line, displayCallerId: number, callerProvider: number ? 'multitel' : 'telnyx', callerPlan: cc.plan || 'starter' }
+    const ivrObData = cc.ctx === 'trial'
+      ? { ...(info?.ivrObData || {}), displayCallerId: number }
+      : { ...(info?.ivrObData || {}), callerId: cc.line, displayCallerId: number, callerProvider: number ? 'multitel' : 'telnyx', callerPlan: cc.plan || 'starter' }
     await saveInfo('ivrObData', ivrObData)
     await set(state, chatId, 'action', a.ivrObEnterTarget)
     return send(chatId, trans('t.cp_25', number), k.of(ownRow))

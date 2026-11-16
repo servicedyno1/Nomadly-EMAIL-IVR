@@ -437,3 +437,9 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Open: WL web-panel STUN row is overlay-only (next WhiteLabel CI deploy drops it); @johnwill202 retry + trace check.
 - 2026-11-16: USA eSIM / Texting Number lines on web My numbers with auto-renew switch + own page /app/esim/:id (app-main). WL brands are bot-only for these.
 - 2026-11-16: Linked lines bill like normal lines; wallet "check my payment" removed. Billing audit: no change in charging, revenue dip was call volume (see CHANGELOG).
+- 2026-11-16: Automatic Bird ⇄ MultiTEL failover with auto switch-back and Telegram+email alerts (app-main). Renewals list includes Texting Numbers.
+
+## Update 2026-11-16
+- Wallet audit live (js/wallet-audit.js) — alerts admins on any wallet change without a billing record. First real audit run pending (30-min cycle).
+- First-deposit bonus now recorded in transactions; 87 historic records backfilled.
+- Pending: user verification of free-call caller IDs (landing, web trial, bot trial, SIP test page) end-to-end; Portugal test call retry; failover live switch/alerts; other brands (app-wl/voodoo/proshop) still have the unrecorded-bonus code.

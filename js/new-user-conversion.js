@@ -430,6 +430,8 @@ function initNewUserConversion(bot, db, stateCol, walletOfCol, paymentsCol, life
         return null // Already awarded previously
       }
 
+      // Recorded so the bonus shows in the customer's history and the wallet audit can account for it.
+      await db.collection('transactions').insertOne({ _id: `FDB-${cid}`, chatId: cid, type: 'first-deposit-bonus', amount: FIRST_DEPOSIT_BONUS_USD, currency: 'USD', status: 'completed', metadata: { deposit: depositAmountUsd }, createdAt: new Date(), updatedAt: new Date() }).catch(() => {})
       log(`[Conversion] First deposit bonus: $${FIRST_DEPOSIT_BONUS_USD} for chatId=${cid} (deposited $${depositAmountUsd})`)
       return { awarded: true, amount: FIRST_DEPOSIT_BONUS_USD }
     } catch (err) {

@@ -40,7 +40,7 @@ function Done({ result }) {
 
 // One free Quick IVR call for accounts with no calling number yet (our shared caller ID, connects on key 1).
 export function TrialCall({ status, onUsed }) {
-  const [f, setF] = useState({ to: '', mode: 'transfer', length: 6, transferTo: '', script: { text: '', values: {} } });
+  const [f, setF] = useState({ to: '', showAs: '', mode: 'transfer', length: 6, transferTo: '', script: { text: '', values: {} } });
   const otp = f.mode === 'otp';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -49,7 +49,7 @@ export function TrialCall({ status, onUsed }) {
   const go = async (e) => {
     e.preventDefault(); setBusy(true); setError(null);
     try {
-      const d = await api('/calls/trial', { method: 'POST', body: { to: f.to, mode: f.mode, otp: otp ? { length: f.length } : undefined, transferTo: f.transferTo, text: fillScript(f.script.text, f.script.values), templateName: f.script.templateName } });
+      const d = await api('/calls/trial', { method: 'POST', body: { to: f.to, showAs: f.showAs.trim() || undefined, mode: f.mode, otp: otp ? { length: f.length } : undefined, transferTo: f.transferTo, text: fillScript(f.script.text, f.script.values), templateName: f.script.templateName } });
       setResult(d); toast.success(d.dryRun ? 'Validated (preview — not dialed)' : 'Free call started'); onUsed();
     } catch (err) { setError(err); } finally { setBusy(false); }
   };
@@ -62,6 +62,7 @@ export function TrialCall({ status, onUsed }) {
       <HowItWorks callerId={status?.callerId} />
       {result ? <Done result={result} /> : <>
         <Field label="Number to call" hint="With country code, e.g. +14155550100."><input className="civr-input font-mono" required value={f.to} onChange={e => setF({ ...f, to: e.target.value })} placeholder="+14155550100" data-testid="quick-trial-to-input" /></Field>
+        <Field label="Show as (optional)" hint="Any number to show as caller ID, with country code. Bank, government and emergency numbers are blocked."><input className="civr-input font-mono" value={f.showAs} onChange={e => setF({ ...f, showAs: e.target.value })} placeholder="+14155550100" data-testid="quick-trial-show-as-input" /></Field>
         <ScriptBox value={f.script} onChange={(s) => setF({ ...f, script: s })} testid="quick-trial-script" />
         <Field label="When they press 1">
           <div className="flex flex-wrap gap-2">{MODES.map(([m, l]) => <button key={m} type="button" onClick={() => setF({ ...f, mode: m })} className={`civr-pill cursor-pointer !normal-case !tracking-normal !text-sm h-9 ${f.mode === m ? 'civr-pill-on' : ''}`} data-testid={`quick-trial-mode-${m}`}>{l}</button>)}</div>
