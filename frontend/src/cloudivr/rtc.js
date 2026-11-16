@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { TelnyxRTC } from '@telnyx/webrtc';
 import { api, enc, askProfile } from './api';
 import { useMic } from './mic';
+import { startSipLine } from './sipClient';
 
 // SDK errors can carry carrier wording — show our own text instead.
 const friendly = (e) => {
@@ -18,6 +19,7 @@ export const useRtc = () => useContext(RtcCtx);
 // One browser SIP line for the whole app, so a ringing call can be answered from any page.
 export function RtcProvider({ children }) {
   const client = useRef(null);
+  const sip = useRef(null); // SIP.js line (our own Kamailio/Bird), when the server provides a WSS gateway
   const line = useRef('');
   const key = useRef(null); // signed header the browser phone adds to every call it places
   const [status, setStatus] = useState('idle');
@@ -25,7 +27,8 @@ export function RtcProvider({ children }) {
   const [msg, setMsg] = useState('');
   const [phone, setPhone] = useState('');
   const mic = useMic();
-  useEffect(() => () => client.current?.disconnect(), []);
+  const stopLine = useCallback(() => { try { sip.current?.stop(); } catch { /* */ } sip.current = null; client.current?.disconnect(); client.current = null; }, []);
+  useEffect(() => () => stopLine(), [stopLine]);
 
   // quiet = automatic connect: a line that isn't live stays "Offline" instead of showing an error.
   const connect = useCallback(async (p, { quiet = false } = {}) => {
@@ -39,7 +42,18 @@ export function RtcProvider({ children }) {
       const c = await api(`/numbers/${enc(p)}/sip?browser=1`);
       key.current = c.browserKey || null;
       if (!c.live) { setStatus(quiet ? 'idle' : 'error'); setMsg(NOT_LIVE); return; }
-      client.current?.disconnect();
+      stopLine();
+      // Preferred path: our own Kamailio over WSS → engine → Bird (same route as every other call point).
+      if (c.webrtc?.wss) {
+        const audioEl = document.getElementById('civr-remote-audio');
+        sip.current = await startSipLine(c, audioEl, {
+          onState: (cl) => setCall(cl),
+          onStatus: (s) => setStatus((prev) => (s === 'idle' && prev !== 'ready' ? prev : s)),
+          onError: () => { setStatus('error'); setMsg(friendly({ code: -32001 })); },
+        });
+        return;
+      }
+      // Fallback: hosted WebRTC (Telnyx) for any line not yet on the WSS gateway.
       const rtc = new TelnyxRTC({ login: c.username, password: c.password });
       rtc.remoteElement = 'civr-remote-audio';
       rtc.on('telnyx.ready', () => setStatus('ready'));
@@ -55,7 +69,7 @@ export function RtcProvider({ children }) {
       rtc.connect();
       client.current = rtc;
     } catch (e) { setStatus(quiet ? 'idle' : 'error'); setMsg(e.status ? e.message : friendly(e)); }
-  }, [mic.ask]);
+  }, [mic.ask, stopLine]);
 
   // Numbers with "Ring me in the browser" on keep the browser phone online while the app is open.
   const autoConnect = useCallback(async () => {
@@ -83,6 +97,7 @@ export function RtcProvider({ children }) {
     }
     const k = key.current;
     const headers = [...(k ? [{ name: k.name, value: k.value }] : []), ...(showAs ? [{ name: 'X-Civr-Show-As', value: showAs }] : [])];
+    if (sip.current) return sip.current.call(dest, headers);
     return client.current?.newCall({ destinationNumber: dest, callerNumber: from, audio: true, video: false, ...(headers.length ? { customHeaders: headers } : {}) });
   };
   return (
