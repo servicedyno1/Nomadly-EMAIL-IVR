@@ -475,7 +475,7 @@ const plans = {
   starter: { name: 'Basic', price: PHONE_STARTER_PRICE, minutes: STARTER_MINUTES, sms: STARTER_SMS, features: ['Call forwarding to any number', 'SMS forwarded to Telegram', 'SIP credentials for softphones', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
   standard: { name: 'Starter', price: PHONE_STANDARD_PRICE, minutes: STANDARD_MINUTES, sms: 0, features: ['All Basic features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.standard} extra numbers`] },
   pro: { name: 'Pro', price: PHONE_PRO_PRICE, minutes: PRO_MINUTES, sms: PRO_SMS, features: ['All Starter features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign (start now or schedule)', '2FA Code Delivery', 'IVR Auto-Attendant', 'IVR Call Analytics', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
-  business: { name: 'Business', price: PHONE_BUSINESS_PRICE, minutes: BUSINESS_MINUTES, sms: BUSINESS_SMS, features: ['All Pro features', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Quick IVR Call Scheduling', 'Custom 2FA Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
+  business: { name: 'Business', price: PHONE_BUSINESS_PRICE, minutes: BUSINESS_MINUTES, sms: BUSINESS_SMS, features: ['All Pro features', 'Custom caller ID — call from any number', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Quick IVR Call Scheduling', 'Custom 2FA Messages', 'Consistent TTS Voice', 'Encrypted calls (SRTP)', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
 }
 
 // Language-specific plan features
@@ -484,31 +484,31 @@ const plansI18n = {
     starter: { features: ['Call forwarding to any number', 'SMS forwarded to Telegram', 'SIP credentials for softphones', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
     standard: { features: ['All Basic features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.standard} extra numbers`] },
     pro: { features: ['All Starter features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign (start now or schedule)', '2FA Code Delivery', 'IVR Auto-Attendant', 'IVR Call Analytics', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
-    business: { features: ['✅ Verified caller ID (numbers you own)', 'All Pro features', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Quick IVR Call Scheduling', 'Custom 2FA Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
+    business: { features: ['Custom caller ID \u2014 call from any number', 'All Pro features', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Quick IVR Call Scheduling', 'Custom 2FA Messages', 'Consistent TTS Voice', 'Encrypted calls (SRTP)', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
   },
   fr: {
     starter: { features: ['Transfert d\'appels vers n\'importe quel numéro', 'SMS vers Telegram', 'Identifiants SIP pour softphones', `Jusqu'à ${SUB_NUMBER_LIMITS.starter} numéros supplémentaires`] },
     standard: { features: ['Toutes fonctions Basic', 'Messagerie vocale personnalisée', 'Identifiants SIP pour softphones', 'Enregistrement d\'appels', `Jusqu'à ${SUB_NUMBER_LIMITS.standard} numéros supplémentaires`] },
     pro: { features: ['Toutes fonctions Starter', 'Messagerie vocale personnalisée', 'Identifiants SIP pour softphones', 'SMS vers Telegram & Email', 'Intégrations Webhook', 'Appel IVR rapide', 'Campagne IVR en masse (immédiate ou planifiée)', 'Envoi de codes 2FA', 'Standard automatique IVR', 'Analytiques SVI', 'Enregistrement d\'appels', `Jusqu'à ${SUB_NUMBER_LIMITS.pro} numéros supplémentaires`] },
-    business: { features: ['🎭 Afficher n’importe quel numéro', 'Toutes fonctions Pro', 'Préréglages IVR & Appels récents', 'Bouton de rappel IVR', 'Planification des appels IVR rapides', 'Messages 2FA personnalisés', 'Voix TTS cohérente', 'Support prioritaire', `Jusqu'à ${SUB_NUMBER_LIMITS.business} numéros supplémentaires`] },
+    business: { features: ['Caller ID personnalisé — appeler depuis n’importe quel numéro', 'Toutes fonctions Pro', 'Préréglages IVR & Appels récents', 'Bouton de rappel IVR', 'Planification des appels IVR rapides', 'Messages 2FA personnalisés', 'Voix TTS cohérente', 'Appels chiffrés (SRTP)', 'Support prioritaire', `Jusqu'à ${SUB_NUMBER_LIMITS.business} numéros supplémentaires`] },
   },
   zh: {
     starter: { features: ['呼叫转移至任何号码', '短信转发至Telegram', 'SIP 软电话凭据', `添加最多 ${SUB_NUMBER_LIMITS.starter} 个号码`] },
     standard: { features: ['所有基础版功能', '自定义语音信箱', 'SIP 软电话凭据', '通话录音', `添加最多 ${SUB_NUMBER_LIMITS.standard} 个号码`] },
     pro: { features: ['所有入门版功能', '自定义语音信箱', 'SIP 软电话凭据', '短信转Telegram和邮箱', 'Webhook集成', '快速IVR呼叫', '批量IVR活动（立即或定时）', 'OTP收集', 'IVR自动应答', 'IVR 通话分析', '通话录音', `添加最多 ${SUB_NUMBER_LIMITS.pro} 个号码`] },
-    business: { features: ['🎭 显示任意来电号码', '所有专业版功能', 'IVR预设与最近通话', 'IVR重拨按钮', '快速IVR呼叫定时', '自定义OTP消息', '一致TTS语音', '优先支持', `添加最多 ${SUB_NUMBER_LIMITS.business} 个号码`] },
+    business: { features: ['自定义来电显示 — 从任意号码拨打', '所有专业版功能', 'IVR预设与最近通话', 'IVR重拨按钮', '快速IVR呼叫定时', '自定义OTP消息', '一致TTS语音', '加密通话 (SRTP)', '优先支持', `添加最多 ${SUB_NUMBER_LIMITS.business} 个号码`] },
   },
   hi: {
     starter: { features: ['किसी भी नंबर पर कॉल फ़ॉरवर्डिंग', 'SMS से Telegram', 'सॉफ्टफ़ोन के लिए SIP क्रेडेंशियल्स', `${SUB_NUMBER_LIMITS.starter} अतिरिक्त नंबर तक`] },
     standard: { features: ['सभी बेसिक सुविधाएँ', 'कस्टम वॉइसमेल', 'सॉफ्टफ़ोन के लिए SIP क्रेडेंशियल्स', 'कॉल रिकॉर्डिंग', `${SUB_NUMBER_LIMITS.standard} अतिरिक्त नंबर तक`] },
     pro: { features: ['सभी स्टार्टर सुविधाएँ', 'कस्टम वॉइसमेल', 'सॉफ्टफ़ोन के लिए SIP क्रेडेंशियल्स', 'SMS से Telegram और Email', 'Webhook इंटीग्रेशन', 'त्वरित IVR कॉल', 'बल्क IVR अभियान (अभी या शेड्यूल)', 'OTP संग्रह', 'IVR ऑटो-अटेंडेंट', 'IVR कॉल Analytics', 'कॉल रिकॉर्डिंग', `${SUB_NUMBER_LIMITS.pro} अतिरिक्त नंबर तक`] },
-    business: { features: ['🎭 कोई भी कॉलर ID दिखाएँ', 'सभी Pro सुविधाएँ', 'IVR प्रीसेट और हाल की कॉलें', 'IVR रीडायल बटन', 'त्वरित IVR कॉल शेड्यूलिंग', 'कस्टम OTP संदेश', 'सुसंगत TTS आवाज़', 'प्राथमिकता समर्थन', `${SUB_NUMBER_LIMITS.business} अतिरिक्त नंबर तक`] },
+    business: { features: ['कस्टम कॉलर ID — किसी भी नंबर से कॉल करें', 'सभी Pro सुविधाएँ', 'IVR प्रीसेट और हाल की कॉलें', 'IVR रीडायल बटन', 'त्वरित IVR कॉल शेड्यूलिंग', 'कस्टम OTP संदेश', 'सुसंगत TTS आवाज़', 'एन्क्रिप्टेड कॉल (SRTP)', 'प्राथमिकता समर्थन', `${SUB_NUMBER_LIMITS.business} अतिरिक्त नंबर तक`] },
   },
   fa: {
     starter: { features: ['انتقال تماس به هر شماره', 'ارسال SMS به Telegram', 'اطلاعات ورود SIP برای سافت‌فون', `افزودن تا ${SUB_NUMBER_LIMITS.starter} شماره اضافه`] },
     standard: { features: ['همه امکانات Basic', 'پیغام‌گیر صوتی با خوشامد سفارشی', 'اطلاعات ورود SIP برای سافت‌فون', 'ضبط تماس', `افزودن تا ${SUB_NUMBER_LIMITS.standard} شماره اضافه`] },
     pro: { features: ['همه امکانات Starter', 'پیغام‌گیر صوتی با خوشامد سفارشی', 'اطلاعات ورود SIP برای سافت‌فون', 'SMS به Telegram و ایمیل', 'یکپارچه‌سازی Webhook', 'تماس سریع IVR', 'کمپین IVR انبوه (فوری یا زمان‌بندی‌شده)', 'دریافت OTP', 'منشی خودکار IVR', 'آمار تماس IVR', 'ضبط تماس', `افزودن تا ${SUB_NUMBER_LIMITS.pro} شماره اضافه`] },
-    business: { features: ['🎭 نمایش هر شماره دلخواه', 'همه امکانات Pro', 'پیش‌تنظیم‌های IVR و تماس‌های اخیر', 'دکمه تماس مجدد IVR', 'زمان‌بندی تماس سریع IVR', 'پیام‌های OTP سفارشی', 'صدای TTS یکسان', 'پشتیبانی ویژه', `افزودن تا ${SUB_NUMBER_LIMITS.business} شماره اضافه`] },
+    business: { features: ['شناسه تماس‌گیرنده دلخواه — تماس از هر شماره', 'همه امکانات Pro', 'پیش‌تنظیم‌های IVR و تماس‌های اخیر', 'دکمه تماس مجدد IVR', 'زمان‌بندی تماس سریع IVR', 'پیام‌های OTP سفارشی', 'صدای TTS یکسان', 'تماس رمزگذاری‌شده (SRTP)', 'پشتیبانی ویژه', `افزودن تا ${SUB_NUMBER_LIMITS.business} شماره اضافه`] },
   },
 
 }
@@ -816,7 +816,7 @@ Incoming calls you answer on SIP/browser + received SMS are included · Call for
 💡 Basic $${PHONE_STARTER_PRICE}/mo — ${plans.starter.minutes} inbound min · Forwarding, SMS + SIP softphone
 🧩 Starter $${PHONE_STANDARD_PRICE}/mo — ${plans.standard.minutes} inbound min · + Voicemail, SIP softphone, Call recording
 ⭐ Pro $${PHONE_PRO_PRICE}/mo — ${plans.pro.minutes} inbound min · + Voicemail, SIP, Call recording, Auto-attendant, Quick & Bulk IVR, OTP
-👑 Business $${PHONE_BUSINESS_PRICE}/mo — ${BUSINESS_MINUTES} inbound min · + AI voice agent, IVR redial, Quick IVR scheduling & presets, Priority support
+👑 Business $${PHONE_BUSINESS_PRICE}/mo — ${BUSINESS_MINUTES} inbound min · + Custom caller ID, AI voice agent, IVR redial, Quick IVR scheduling & presets, Encrypted calls, Priority support
 
 🧪 Try SIP free — tap <b>🧪 Test SIP Free</b>`,
 
@@ -863,7 +863,7 @@ Incoming calls you answer on SIP/browser + received SMS are included · Call for
       text += `<b>⭐ Pro — $${PHONE_PRO_PRICE}/mo</b>\n<i>👤 Best for small businesses and remote teams</i>\n📞 ${plans.pro.minutes} inbound min · ${SMS_BIT()}All Basic + Voicemail · SIP · Webhooks · Call Recording\n<b>🎙 IVR / SIP softphone:</b> ✅ <i>Auto-Attendant (IVR menu) + Quick IVR + Bulk IVR (schedulable) + OTP</i>\n🛡️ <i>14-day upgrade credit — 25% of your Pro price comes off Business if you upgrade within 14 days</i>\n\n`
     }
     if (PHONE_BUSINESS_ON) {
-      text += `<b>👑 Business — $${PHONE_BUSINESS_PRICE}/mo</b>\n<i>👤 Best for sales and outreach teams</i>\n📞 ${plans.business.minutes} inbound min · ${SMS_BIT()}All Pro + AI Voice Agent · IVR Redial · Quick IVR Scheduling & Presets · Custom 2FA Messages · Priority Support\n<b>🎙 IVR / SIP softphone:</b> ✅ <i>Pro + Redial + Scheduling + Presets + Custom OTP messages</i>\n\n`
+      text += `<b>👑 Business — $${PHONE_BUSINESS_PRICE}/mo</b>\n<i>👤 Best for sales and outreach teams</i>\n📞 ${plans.business.minutes} inbound min · ${SMS_BIT()}All Pro + Custom Caller ID (call from any number) · AI Voice Agent · IVR Redial · Quick IVR Scheduling & Presets · Custom 2FA Messages · Encrypted calls (SRTP) · Priority Support\n<b>🎙 IVR / SIP softphone:</b> ✅ <i>Pro + Custom caller ID + Redial + Scheduling + Presets + Custom OTP messages</i>\n\n`
     }
     text += `<i>📞 Included minutes cover incoming calls you answer via SIP/browser. Call forwarding to another phone & all outbound calls (incl. IVR/OTP) are billed from your wallet.</i>\n<i>⚠️ Need IVR (Quick IVR Call, Bulk IVR Campaign, OTP, Auto-Attendant)? Choose Pro or Business — Basic does <b>not</b> include IVR.</i>`
     return text
@@ -2159,7 +2159,7 @@ Votre propre numéro virtuel dans ${CLOUD_COUNTRY_COUNT} pays. Recevez des appel
 💡 <b>Basic $${PHONE_STARTER_PRICE}/mois</b> — ${plans.starter.minutes} min, transfert + SMS vers Telegram
 🧩 <b>Starter $${PHONE_STANDARD_PRICE}/mois</b> — ${plans.standard.minutes} min, + messagerie vocale, SIP, enregistrement des appels
 ⭐ <b>Pro $${PHONE_PRO_PRICE}/mois</b> — ${plans.pro.minutes} min, + messagerie vocale, SIP, enregistrement des appels, standard automatique, IVR rapide & en masse, OTP
-👑 <b>Business $${PHONE_BUSINESS_PRICE}/mois</b> — ${BUSINESS_MINUTES} min, + agent vocal IA, rappel IVR, planification IVR rapide, support prioritaire
+👑 <b>Business $${PHONE_BUSINESS_PRICE}/mois</b> — ${BUSINESS_MINUTES} min, + Caller ID personnalisé, agent vocal IA, rappel IVR, planification IVR rapide, appels chiffrés, support prioritaire
 
 🧪 Essayez SIP gratuitement — appuyez sur <b>🧪 Tester SIP Gratuit</b>`,
 
@@ -2234,7 +2234,7 @@ Votre propre numéro virtuel dans ${CLOUD_COUNTRY_COUNT} pays. Recevez des appel
       if (PHONE_STARTER_ON) text += `<b>💡 Basic — $${PHONE_STARTER_PRICE}/mois</b>\n<i>👤 Idéal pour les nomades et voyageurs</i>\n📞 ${plans.starter.minutes} min entrantes · ${SMS_BIT()}${plansI18n.fr.starter.features.join(' · ')}\n<b>🎙 IVR / SIP :</b> ❌ <i>non inclus</i>\n🛡️ <i>Crédit de surclassement 14 jours — 25 % de remise sur Pro/Business si vous passez à un forfait supérieur dans les 14 jours</i>\n➕ Ajoutez jusqu'à ${SUB_NUMBER_LIMITS.starter} numéros supplémentaires (à partir de $${SUB_NUMBER_BASE_PRICE}/mois chacun)\n\n`
       if (PHONE_STANDARD_ON) text += `<b>🧩 Starter — $${PHONE_STANDARD_PRICE}/mois</b>\n<i>👤 Idéal pour les fondateurs</i>\n📞 ${plans.standard.minutes} min entrantes · ${SMS_BIT()}${plansI18n.fr.standard.features.join(' · ')}\n<b>🎙 IVR :</b> ❌ <i>non inclus</i>\n\n`
       if (PHONE_PRO_ON) text += `<b>⭐ Pro — $${PHONE_PRO_PRICE}/mois</b>\n<i>👤 Idéal pour les petites entreprises et équipes à distance</i>\n📞 ${plans.pro.minutes} min entrantes · ${SMS_BIT()}${plansI18n.fr.pro.features.join(' · ')}\n<b>🎙 IVR / SIP :</b> ✅ <i>Standard automatique + Quick IVR + Bulk IVR + OTP</i>\n🛡️ <i>Crédit de surclassement 14 jours — 25 % de remise sur Business si vous passez à un forfait supérieur dans les 14 jours</i>\n➕ Ajoutez jusqu'à ${SUB_NUMBER_LIMITS.pro} numéros supplémentaires (à partir de $${SUB_NUMBER_BASE_PRICE}/mois chacun)\n\n`
-      if (PHONE_BUSINESS_ON) text += `<b>👑 Business — $${PHONE_BUSINESS_PRICE}/mois</b>\n<i>👤 Idéal pour les équipes de vente et de prospection</i>\n📞 ${plans.business.minutes} min entrantes · ${SMS_BIT()}${plansI18n.fr.business.features.join(' · ')}\n<b>🎙 IVR / SIP :</b> ✅ <i>Pro + Rappel IVR + Messages 2FA personnalisés</i>\n➕ Ajoutez jusqu'à ${SUB_NUMBER_LIMITS.business} numéros supplémentaires (à partir de $${SUB_NUMBER_BASE_PRICE}/mois chacun)\n\n`
+      if (PHONE_BUSINESS_ON) text += `<b>👑 Business — $${PHONE_BUSINESS_PRICE}/mois</b>\n<i>👤 Idéal pour les équipes de vente et de prospection</i>\n📞 ${plans.business.minutes} min entrantes · ${SMS_BIT()}${plansI18n.fr.business.features.join(' · ')}\n<b>🎙 IVR / SIP :</b> ✅ <i>Pro + Caller ID personnalisé + Rappel IVR + Messages 2FA personnalisés + Appels chiffrés</i>\n➕ Ajoutez jusqu'à ${SUB_NUMBER_LIMITS.business} numéros supplémentaires (à partir de $${SUB_NUMBER_BASE_PRICE}/mois chacun)\n\n`
       text += `<i>📞 Les minutes du forfait sont pour les appels entrants uniquement.\n💳 Les appels sortants et transferts sont facturés depuis votre portefeuille.\n⚠️ Besoin d'IVR (Quick IVR, Bulk IVR, OTP, Auto-Attendant) ? Choisissez Pro ou Business — Basic n'inclut <b>pas</b> l'IVR.</i>`
       return text
     },
@@ -3644,7 +3644,7 @@ SIP क्रेडेंशियल को "user / extension" के रूप
 💡 <b>Basic $${PHONE_STARTER_PRICE}/ماه</b> — ${plans.starter.minutes} دقیقه، انتقال + SMS به Telegram
 🧩 <b>Starter $${PHONE_STANDARD_PRICE}/ماه</b> — ${plans.standard.minutes} دقیقه، + پیغام‌گیر صوتی، SIP، ضبط تماس
 ⭐ <b>Pro $${PHONE_PRO_PRICE}/ماه</b> — ${plans.pro.minutes} دقیقه، + پیام‌گیر صوتی، SIP، ضبط تماس، مرکز تلفن خودکار، IVR سریع و انبوه، OTP
-👑 <b>Business $${PHONE_BUSINESS_PRICE}/ماه</b> — ${BUSINESS_MINUTES} دقیقه، + عامل صوتی هوش مصنوعی، بازگشت تماس IVR، زمان‌بندی IVR سریع، پشتیبانی اولویت‌دار
+👑 <b>Business $${PHONE_BUSINESS_PRICE}/ماه</b> — ${BUSINESS_MINUTES} دقیقه، + شناسه تماس‌گیرنده دلخواه، عامل صوتی هوش مصنوعی، بازگشت تماس IVR، زمان‌بندی IVR سریع، تماس رمزگذاری‌شده، پشتیبانی اولویت‌دار
 
 🧪 SIP را رایگان امتحان کنید — <b>🧪 تست رایگان SIP</b> را فشار دهید`,
 
@@ -3719,7 +3719,7 @@ ivrSelectVoiceProvider: '🎙 <b>انتخاب ارائه‌دهنده صدا</b>
       if (PHONE_STARTER_ON) text += `<b>💡 Basic — $${PHONE_STARTER_PRICE}/ماه</b>\n<i>👤 مناسب دورکارهای مسافر</i>\n📞 ${plans.starter.minutes} دقیقه ورودی · ${SMS_BIT()}${plansI18n.fa.starter.features.join(' · ')}\n<b>🎙 IVR / SIP :</b> ❌ <i>شامل نمی‌شود</i>\n🛡️ <i>اعتبار ارتقاء ۱۴ روزه — ۲۵٪ تخفیف روی Pro/Business در صورت ارتقاء در ۱۴ روز</i>\n➕ تا ${SUB_NUMBER_LIMITS.starter} شماره اضافه اضافه کنید (از $${SUB_NUMBER_BASE_PRICE}/ماه هر کدام)\n\n`
       if (PHONE_STANDARD_ON) text += `<b>🧩 Starter — $${PHONE_STANDARD_PRICE}/ماه</b>\n<i>👤 مناسب بنیان‌گذاران</i>\n📞 ${plans.standard.minutes} دقیقه ورودی · ${SMS_BIT()}${plansI18n.fa.standard.features.join(' · ')}\n<b>🎙 IVR:</b> ❌ <i>شامل نیست</i>\n\n`
       if (PHONE_PRO_ON) text += `<b>⭐ Pro — $${PHONE_PRO_PRICE}/ماه</b>\n<i>👤 مناسب کسب‌وکارهای کوچک و تیم‌های دورکار</i>\n📞 ${plans.pro.minutes} دقیقه ورودی · ${SMS_BIT()}${plansI18n.fa.pro.features.join(' · ')}\n<b>🎙 IVR / SIP :</b> ✅ <i>منشی اتوماتیک + Quick IVR + Bulk IVR + OTP</i>\n🛡️ <i>اعتبار ارتقاء ۱۴ روزه — ۲۵٪ تخفیف روی Business در صورت ارتقاء در ۱۴ روز</i>\n➕ تا ${SUB_NUMBER_LIMITS.pro} شماره اضافه اضافه کنید (از $${SUB_NUMBER_BASE_PRICE}/ماه هر کدام)\n\n`
-      if (PHONE_BUSINESS_ON) text += `<b>👑 Business — $${PHONE_BUSINESS_PRICE}/ماه</b>\n<i>👤 مناسب تیم‌های فروش و بازاریابی</i>\n📞 ${plans.business.minutes} دقیقه ورودی · ${SMS_BIT()}${plansI18n.fa.business.features.join(' · ')}\n<b>🎙 IVR / SIP :</b> ✅ <i>Pro + IVR بازگشتی + پیام‌های OTP سفارشی</i>\n➕ تا ${SUB_NUMBER_LIMITS.business} شماره اضافه اضافه کنید (از $${SUB_NUMBER_BASE_PRICE}/ماه هر کدام)\n\n`
+      if (PHONE_BUSINESS_ON) text += `<b>👑 Business — $${PHONE_BUSINESS_PRICE}/ماه</b>\n<i>👤 مناسب تیم‌های فروش و بازاریابی</i>\n📞 ${plans.business.minutes} دقیقه ورودی · ${SMS_BIT()}${plansI18n.fa.business.features.join(' · ')}\n<b>🎙 IVR / SIP :</b> ✅ <i>Pro + شناسه دلخواه + IVR بازگشتی + پیام‌های OTP سفارشی + تماس رمزگذاری‌شده</i>\n➕ تا ${SUB_NUMBER_LIMITS.business} شماره اضافه اضافه کنید (از $${SUB_NUMBER_BASE_PRICE}/ماه هر کدام)\n\n`
       text += `<i>📞 دقیقه‌های طرح فقط برای تماس‌های ورودی است.\n💳 تماس‌های خروجی و انتقال از کیف پول شما کسر می‌شود.\n⚠️ به IVR نیاز دارید (Quick IVR، Bulk IVR، OTP، Auto-Attendant)؟ Pro یا Business انتخاب کنید — Basic شامل IVR <b>نمی‌شود</b>.</i>`
       return text
     },
