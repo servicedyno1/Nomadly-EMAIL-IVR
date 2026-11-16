@@ -1,0 +1,22 @@
+// Read-only: wallet ledger by time for one customer + anyone still being charged per-minute right now.
+require('dotenv').config({ path: 'backend/.env' })
+const { MongoClient } = require('mongodb')
+const CID = String(process.argv[2] || 5828254066)
+const FROM = new Date(process.argv[3] || '2026-11-15T18:00:00Z')
+;(async () => {
+  const c = await MongoClient.connect(process.env.MONGO_URL)
+  const db = c.db(process.env.DB_NAME)
+  const L = db.collection('walletLedger')
+  const s = await L.findOne({ chatId: CID })
+  const isDate = s && s.timestamp instanceof Date
+  const from = isDate ? FROM : FROM.toISOString()
+  const rows = await L.find({ chatId: CID, timestamp: { $gte: from } }).sort({ timestamp: 1 }).toArray()
+  console.log('## ledger', CID, rows.length)
+  rows.forEach((r) => console.log([new Date(r.timestamp).toISOString().slice(11, 19), r.type, r.amount, 'bal=' + r.balanceAfter, r.destination || '', r.callRef || '', (r.description || '').slice(0, 70)].join(' | ')))
+  const recent = isDate ? new Date(Date.now() - 20 * 60e3) : new Date(Date.now() - 20 * 60e3).toISOString()
+  const live = await L.aggregate([{ $match: { type: 'sip_per_minute', timestamp: { $gte: recent } } }, { $group: { _id: { c: '$chatId', d: '$destination' }, n: { $sum: 1 }, last: { $max: '$timestamp' }, amt: { $sum: '$amount' } } }]).toArray()
+  console.log('## per-minute charges in last 20 min (all users)', JSON.stringify(live))
+  const w = await db.collection('walletOf').findOne({ _id: CID })
+  console.log('## wallet', JSON.stringify(w), 'bal=', (w.usdIn - w.usdOut).toFixed(4))
+  await c.close()
+})().catch((e) => { console.error(e); process.exit(1) })

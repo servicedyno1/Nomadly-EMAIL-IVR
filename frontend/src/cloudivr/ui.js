@@ -193,7 +193,7 @@ export function Toggle({ checked, onChange, testid, disabled, label }) {
 // Saves the moment it is flipped (PATCH /numbers/:phone/switch) and offers Undo in the toast. `onSaved(reply)` gets the
 // server reply (fresh `number`, aiAgentTurnedOff / ivrTurnedOff) before `reload` runs.
 // Turning auto-renew off can lose the number, so it always asks first.
-export const askOff = (n) => ask(`Turn off auto-renew for ${n.phoneNumber}? It won't renew from your wallet and is released when it expires${n.expiresAt ? ` on ${String(n.expiresAt).slice(0, 10)}` : ''}.`, { ok: 'Turn off auto-renew', cancel: 'Keep renewing', title: 'Turn off auto-renew', danger: true });
+export const askOff = (n) => ask(`Turn off auto-renew for ${n.phoneNumber}? It won't renew from your wallet and is released when it expires${n.expiresAt ? ` on ${String(n.expiresAt).slice(0, 10)}` : ''}.${n.extraLines?.length ? ` Its extra number${n.extraLines.length > 1 ? 's' : ''} ${n.extraLines.join(', ')} ${n.extraLines.length > 1 ? 'are' : 'is'} released with it.` : ''}`, { ok: 'Turn off auto-renew', cancel: 'Keep renewing', title: 'Turn off auto-renew', danger: true });
 export function useSwitch({ num, feature, checked, label, reload, onSaved }) {
   const [opt, setOpt] = useState(null);
   const [busy, setBusy] = useState(false);

@@ -13,8 +13,8 @@ callid, tag = rnd(16), rnd(8)
 ruri = f'sip:{dest}@{domain}'
 sdp = f'v=0\r\no=- 1 1 IN IP4 {lip}\r\ns=-\r\nc=IN IP4 {lip}\r\nt=0 0\r\nm=audio {lport + 2} RTP/AVP 0 8 101\r\na=rtpmap:0 PCMU/8000\r\na=rtpmap:8 PCMA/8000\r\na=rtpmap:101 telephone-event/8000\r\na=sendrecv\r\n'
 
-def send(method, cseq, branch, extra=(), body='', to_tag=''):
-    lines = [f'{method} {ruri} SIP/2.0', f'Via: SIP/2.0/UDP {lip}:{lport};branch={branch};rport', 'Max-Forwards: 70',
+def send(method, cseq, branch, extra=(), body='', to_tag='', target=None):
+    lines = [f'{method} {target or ruri} SIP/2.0', f'Via: SIP/2.0/UDP {lip}:{lport};branch={branch};rport', 'Max-Forwards: 70',
              f'From: <sip:{user}@{domain}>;tag={tag}', f'To: <{ruri}>' + (f';tag={to_tag}' if to_tag else ''), f'Call-ID: {callid}',
              f'CSeq: {cseq} {method}', f'Contact: <sip:{user}@{lip}:{lport}>', 'User-Agent: call-check', *extra]
     if body: lines.append('Content-Type: application/sdp')
@@ -56,8 +56,21 @@ while time.time() < end:
     if code >= 200: final = (code, r); break
 if final and final[0] == 200:
     tt = re.search(r'^To:.*;tag=([^;\r\n]+)', final[1], re.M | re.I).group(1)
-    send('ACK', 2, 'z9hG4bK' + rnd(10), to_tag=tt); time.sleep(float(os.environ.get('HOLD', '3')))
-    send('BYE', 3, 'z9hG4bK' + rnd(10), to_tag=tt); print('answered -> BYE sent:', recv(time.time() + 4).split('\r\n')[0])
+    # in-dialog requests like a real softphone: Contact as target, Record-Route (reversed) as Route
+    rr = [x.strip() for h in re.findall(r'^Record-Route:\s*(.*)$', final[1], re.M | re.I) for x in h.strip().split(',')][::-1]
+    ct = re.search(r'^Contact:\s*<([^>]+)>', final[1], re.M | re.I).group(1)
+    rt = [f'Route: {x}' for x in rr]
+    print('dialog: contact', ct, '| routes', rr)
+    send('ACK', 2, 'z9hG4bK' + rnd(10), to_tag=tt, target=ct, extra=rt)
+    hold = time.time() + float(os.environ.get('HOLD', '3')); ended = False
+    while time.time() < hold:
+        r = recv(min(hold, time.time() + 1))
+        if not r: continue
+        first = r.split('\r\n')[0]; print('in-call <-', first, round(time.time() - hold, 1))
+        if first.startswith('SIP/2.0 200'): send('ACK', 2, 'z9hG4bK' + rnd(10), to_tag=tt, target=ct, extra=rt)
+        if first.startswith('BYE'): ended = True; break
+    if ended: print('server ended the call'); sys.exit(3)
+    send('BYE', 3, 'z9hG4bK' + rnd(10), to_tag=tt, target=ct, extra=rt); print('answered -> BYE sent:', recv(time.time() + 4).split('\r\n')[0])
 elif final:
     tt = re.search(r'^To:.*;tag=([^;\r\n]+)', final[1], re.M | re.I)
     send('ACK', 2, b2, to_tag=tt.group(1) if tt else '')

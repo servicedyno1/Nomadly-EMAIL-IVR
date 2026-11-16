@@ -45,6 +45,7 @@ function Renewal({ num, reload, refreshSummary }) {
       <div className="flex justify-between text-sm"><span className="text-[#a1a1aa]">Plan</span><span>{num.planName} · {money(full)}/month</span></div>
       <div className="flex justify-between text-sm"><span className="text-[#a1a1aa]">Paid until</span><span data-testid="billing-expires">{day(num.expiresAt)}</span></div>
       {!held && <div className="flex items-center justify-between"><span className="text-sm">Auto-renew from wallet</span><InstantToggle num={num} feature="autoRenew" label="Auto-renew" checked={num.autoRenew} reload={reload} testid="billing-auto-renew-toggle" /></div>}
+      {!held && num.extraLines?.length > 0 && <div className="text-xs text-[#fde68a]" data-testid="billing-extras-autorenew-warning">{num.autoRenew ? 'If you turn auto-renew off' : 'Auto-renew is off'}: extra number{num.extraLines.length > 1 ? 's' : ''} {num.extraLines.join(', ')} {num.extraLines.length > 1 ? 'are' : 'is'} released with this line on {day(num.expiresAt)}.</div>}
       {!held && num.autoRenew && <RenewWarning price={full} date={num.expiresAt} testid="billing-renew-warning" />}
       {!waitsForMain && <WalletPay price={price} small onWallet={renew} onCrypto={renewNow} busy={busy} label={held ? `Restore for ${money(price)}` : `Renew now for ${money(price)}`} testid="billing-renew-pay" walletTestid="billing-renew-button" cryptoTestid="billing-renew-crypto" />}
     </div>

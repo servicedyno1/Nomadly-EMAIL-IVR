@@ -31,5 +31,23 @@ const E = (type, extra) => ce._onEvent({ type, ...extra })
   await wait(); const bId = last('call.initiated').call_control_id
   E('ChannelStateChange', { channel: { id: bId.slice(3), state: 'Up' } }); await wait(50); ok('B answered → bridged both', ev.filter(e => e.event_type === 'call.bridged').length === 2)
   E('ChannelHangupRequest', { channel: { id: 'c1' }, cause: 17 }); E('ChannelDestroyed', { channel: { id: 'c1' } }); await wait(); ok('cause 17 → user_busy', last('call.hangup')?.hangup_cause === 'user_busy')
+  // softphone dials 10 digits: passed through untouched (voice-service adds +1), never turned into +<10 digits>
+  E('StasisStart', { channel: { id: 's2', state: 'Ring', caller: { number: 'cvabc' } }, args: ['sip', '7023231634', 'cvabc'] }); await wait()
+  ok('softphone 10-digit dial is not prefixed with +', last('call.initiated')?.call_control_id === 'ae:s2' && last('call.initiated').to === '7023231634')
+  // dialed number refused before answer → the softphone leg is ended (no endless ringing)
+  process.env.CALL_ENGINE_EARLY_MS = '50'
+  const before = reqs.length
+  await ce.transferCall('ae:s2', '+17023231634', '+12025550000', {}); await wait()
+  const b2 = last('call.initiated').call_control_id
+  E('ChannelHangupRequest', { channel: { id: b2.slice(3) }, cause: 21 }); E('ChannelDestroyed', { channel: { id: b2.slice(3) } }); await wait(3200)
+  ok('refused destination → softphone leg hung up', reqs.slice(before).some(r => r.method === 'delete' && r.url === '/channels/s2'))
+  // a call the engine no longer has is ended by the sweep (missed hang-up event)
+  E('StasisStart', { channel: { id: 's3', state: 'Up', caller: { number: 'cvabc' } }, args: ['sip', '+12125550000', 'cvabc'] }); await wait()
+  ce._legs.get('ae:s3').startedAt = new Date(Date.now() - 120000).toISOString()
+  const base = ce.ari()
+  ce.ari = () => ({ ...base, get: async (u) => { if (u === '/channels/s3') { const e = new Error('nf'); e.response = { status: 404 }; throw e } return { data: {} } } })
+  await ce._sweep(); await wait()
+  ok('sweep ends a call missing from the engine', last('call.hangup')?.call_control_id === 'ae:s3')
+  ok('sweep keeps calls that still exist', !ce._legs.get('ae:s1').ended)
   console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0)
 })()

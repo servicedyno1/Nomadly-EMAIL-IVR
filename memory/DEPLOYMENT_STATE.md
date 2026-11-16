@@ -623,3 +623,22 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Bird caller ID cleanup: js/bird-cid-cleanup.js, hourly in phone-scheduler. Queue `birdCidRemovals`; removes a number from Bird 3 days after it is released for good (suspended lines keep it). Guards: not live in this DB, not a system caller, not a verified webCallerId, not in MultiTEL/Infobip inventory (empty inventory → skip). Test js/tests/test_bird_cid_cleanup.js. Dry run on main: 0 due.
 - Deployed: app-main workspace 467aeeb8 (WS_DEPLOY_EXIT=0). WL overlays (callengine, _index m/:id route, voice-service greeting, signalwire ring, bird-cid-cleanup + phone-scheduler) on app-wl-b, app-voodoo-a, app-proshop-b at 0 calls, healthy. Backups *.bak-media-*, *.bak-ring-*, *.bak-birdcid-*.
 - ⚠️ Save to GitHub or CI rolls these back.
+
+## 2026-11-15 23:45Z – 2026-11-16 00:05Z — @iamthebestbusiness (5828254066, +12029606313) softphone calls: 3 root causes fixed, all brands
+- RC1 (SIP server): `alias="MY_IP"` in kamailio.cfg made Asterisk's Contact (188.166.34.29:5080) look like "myself", so every softphone ACK/BYE for
+  calls sent straight to the engine (TO_ENGINE, live since ~22:50Z) looped back into Kamailio and was dropped → Asterisk cut every softphone call
+  at 32 s and softphones could not hang up. Removed the alias (repo + live, backup kamailio.cfg.bak-alias-*), restarted at 0 calls / 1 registration.
+  Proven by packet capture before/after. scripts/sip_call_check.py now sends ACK/BYE like a real phone (Contact + Route) — the old one hid this.
+- RC2 (engine): callengine turned 10 dialed digits into "+<10 digits>" (7023231634 → +7023231634 = Russia, $0.45/min, carrier refused).
+  SIP dials now pass raw digits; voice-service adds +1 / 011 / 00.
+- RC3 (engine + deploys): during a blue/green drain Asterisk sends ARI events only to the newest slot, so the old slot never saw hang-ups:
+  its per-minute wallet timer kept charging ($0.50/min for 30 min here) and its "1 live call" blocked the drain for 30 min.
+  callengine now sweeps every 30 s and ends any leg the engine no longer has. Also: refused/unanswered dialed number ends the softphone leg after 3 s.
+- Tests: js/tests/test_callengine_adapter.js 17/17. Live: owner test line → +16806811012, 10-digit dial, held 45 s and 20 s, clean BYE.
+- Deployed: app-main workspace 20261115T235455Z-21b7531 (:5100, WS_DEPLOY_EXIT=0; also carries extra-line auto-renew warning + SIP sign-in
+  missed-call notice). WL r13 overlay (callengine, voice-service, sip-presence, plan-lifecycle, _index patch) on app-wl-a, app-voodoo-b,
+  app-proshop-a (releases 0b1dce1), healthy; backups deploy-backups/<slot>-r13-*.
+- Refund: $19.68 admin-credit to 5828254066 (TXN-20261115-REFUND-SIPFAULT-5828254066): 9 mis-dialed × $0.48, $0.03 + 30 × $0.50 runaway, 2 × $0.165 cut calls.
+- OPEN (owner decision): 9013312785 2 calls cut at 32 s ($0.34 charged, $0.15 already credited); suspected runaway per-minute charges on earlier
+  deploys: 5828254066 9 Nov 20–22h $13.20, 6587790422 3 Nov 15–16h $8.40 (scripts/sip_fault_audit_ro.js). Failed outbound calls are still billed
+  1 minute + $0.03 by design. Customer not messaged. ⚠️ Save to GitHub or CI rolls this back.

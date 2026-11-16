@@ -3201,3 +3201,6 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Deploy: app-main workspace a663670 (WS_DEPLOY_EXIT=0; also shipped the pending mobile-UX + DE request-price fix batch). WL brands: patch overlay (no seo.js) on current releases, backups /opt/nomadly/deploy-backups/<app>-sipfix-<ts>; all healthy.
 - Tests: iteration_295 (reset persistence + extra transport + "SIP from" fixed after), js/tests/test_sip_repair_2026-11.js 8/8, test_starter_browser_phone_2026-10.js 18/18 (updated to the new Basic-has-SIP rule).
 - Open: customers still using pre-swap logins (cvcshtn36x, cv5sr55act, cvd4wg76mm) get 404 — they must copy the current login from the bot; TLS for softphones not offered (would need Kamailio TLS on another port + brand certs).
+
+## 2026-11-16 00:05Z — Softphone outbound calls fixed for good (all 4 brands)
+- Kamailio self-alias dropped softphone ACK/BYE (calls cut at 32 s); engine mis-read 10-digit dials as international; missed hang-ups during deploys left calls billing. All three fixed, tested live with company numbers, deployed. $19.68 refunded to 5828254066. Details: DEPLOYMENT_STATE.md.

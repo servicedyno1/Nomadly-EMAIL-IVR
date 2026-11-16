@@ -179,6 +179,7 @@ function _publicNumber(n, numbers) {
     registration: n.registration ? { status: n.registration.status, documentsSent: !!n.registration.documentsSent, needsDetails: n.registration.status === 'needs_details', ...(n.registration.status === 'needs_details' ? { level: n.registration.level || 0, refundBy: new Date(new Date(n.registration.since).getTime() + 14 * 864e5).toISOString() } : {}) } : null,
     renewalPrice: lifecycle.renewalPrice(n), holdUntil: lifecycle.onHold(n) ? n._holdUntil : null, suspendReason: lifecycle.onHold(n) ? n._suspendReason || null : null,
     purchaseDate: n.purchaseDate, expiresAt: n.expiresAt, isSubNumber: !!n.isSubNumber, parentNumber: n.parentNumber || null, dryRun: !!n.dryRun,
+    extraLines: n.isSubNumber ? [] : lifecycle.extrasOf(numbers || [], n).filter(x => x.status === 'active').map(x => x.phoneNumber),
     replacedBy: n.replacedBy || null, releaseAt: n.releaseAt || null, replaces: n.replaces || null,
     routeSummary: routeSummary(n),
     capabilities: n.capabilities || { voice: true, sms: true, fax: false },

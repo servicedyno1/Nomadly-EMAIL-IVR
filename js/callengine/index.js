@@ -69,7 +69,12 @@ function finish(l, cause) {
   if (l.em) stopExternalMedia(l.id)
   const [c, sip] = CAUSE[cause] || (l.answered ? CAUSE[16] : ['originator_cancel', '487'])
   emit('call.hangup', l, { hangup_cause: c, sip_hangup_cause: sip, hangup_source: l.hungUpByUs ? 'callee' : 'caller', end_time: new Date().toISOString() })
-  if (l.transferOf) { const a = legs.get(l.transferOf); if (a && !a.ended && a.peer === l.id && l.answered) hangupCall(a.id) }
+  if (l.transferOf) {
+    const a = legs.get(l.transferOf)
+    if (a && !a.ended && a.peer === l.id && l.answered) hangupCall(a.id)
+    // A softphone's dialed number never answered (refused, busy, no answer): end the softphone's leg too, unless a redial is under way.
+    else if (!l.answered && a?.fromSipUri) setTimeout(() => { if (!a.ended && !a.dialing && (!a.peer || a.peer === l.id)) hangupCall(a.id) }, 3000)
+  }
   setTimeout(() => legs.delete(l.id), 10 * 60000)
 }
 
@@ -122,7 +127,7 @@ function onEvent(e) {
       const sip = e.args?.[0] === 'sip'
       const exten = e.args?.[1] || ch.dialplan?.exten || ''
       const num = (n) => (n && /^\d{10,15}$/.test(n) ? `+${n}` : n)
-      l = track({ id, direction: sip ? 'outgoing' : 'incoming', to: num(exten.replace(/^\+/, '')), from: sip ? `sip:${e.args?.[2] || ch.caller?.number}@${process.env.SIP_DOMAIN || 'sip.cloudivr.net'}` : num(String(ch.caller?.number || '').replace(/^\+/, '')), connection: sip ? (process.env.TELNYX_SIP_CONNECTION_ID || 'callengine-sip') : (process.env.TELNYX_CALL_CONTROL_APP_ID || 'callengine-app'), initiatedSent: true })
+      l = track({ id, direction: sip ? 'outgoing' : 'incoming', to: sip ? exten.replace(/[^+\d]/g, '') : num(exten.replace(/^\+/, '')), from: sip ? `sip:${e.args?.[2] || ch.caller?.number}@${process.env.SIP_DOMAIN || 'sip.cloudivr.net'}` : num(String(ch.caller?.number || '').replace(/^\+/, '')), connection: sip ? (process.env.TELNYX_SIP_CONNECTION_ID || 'callengine-sip') : (process.env.TELNYX_CALL_CONTROL_APP_ID || 'callengine-app'), initiatedSent: true })
       if (sip) l.fromSipUri = l.from
       emit('call.initiated', l)
       break
@@ -193,7 +198,17 @@ async function start(onEvent_) {
     ws.on('error', (e) => log('ws', e.message))
   }
   open()
+  // A hang-up event can be missed (during a deploy the newest app instance receives the events): any call we still
+  // hold that the engine no longer has is ended here, so it can never keep running or billing.
+  setInterval(sweep, 30000).unref?.()
   return true
+}
+async function sweep() {
+  for (const l of [...legs.values()]) {
+    if (l.ended || Date.now() - new Date(l.startedAt).getTime() < 60000) continue
+    const gone = await M.ari().get(`/channels/${raw(l.id)}`).then(() => false, (e) => e.response?.status === 404)
+    if (gone && !l.ended) { log(`sweep: ${l.id} is gone from the engine — ending it`); finish(l, l.cause) }
+  }
 }
 
 // ── Call control (telnyx-service names) ──
@@ -269,6 +284,7 @@ async function originate(meta, from, to, timeout = 30, trunk = null) {
 }
 async function transferCall(id, toNumber, fromNumber, options = {}) {
   const a = live(id); if (!a) return null
+  a.dialing = (a.dialing || 0) + 1
   if (!a.answered) await answerCall(id)
   try {
     if (!options.audioUrl) call('post', `/channels/${raw(a.id)}/ring`)
@@ -287,6 +303,7 @@ async function transferCall(id, toNumber, fromNumber, options = {}) {
     for (const [type, extra] of held) emit(type, b, extra)
     return { result: 'ok' }
   } catch (e) { log(`transfer ${id} → ${toNumber}: ${e.message}`); return null }
+  finally { a.dialing-- }
 }
 async function bridgeCalls(aId, bId) {
   const br = await call('post', '/bridges', { type: 'mixing' }); if (!br) return null
@@ -344,5 +361,5 @@ async function setDidApps(numbers) {
 const M = module.exports = {
   enabled, isAe, connected: () => connected, app, sign, ari: makeAri, _legs: legs, _onEvent: onEvent, _setSink: (fn) => { sink = fn }, _setConnected: (v) => { connected = v },
   setDidApps, onConnect: (fn) => { onConnectHook = fn },
-  mediaUrl, activeBird, start, startExternalMedia, stopExternalMedia, setAiHook: (fn) => { aiHook = fn }, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall,
+  mediaUrl, activeBird, start, _sweep: sweep, startExternalMedia, stopExternalMedia, setAiHook: (fn) => { aiHook = fn }, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall,
 }

@@ -311,3 +311,7 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Extra numbers (owner decision: keep as today): own monthly date; main lapses for no funds → main + extras suspended 7 days together, restoring main brings extras back if their month is paid; main auto-renew off → extras released with main at main's end date.
 - New: numbers come off Bird caller ID 3 days after release for good (all brands).
 - Backlog: owner to Save to GitHub; customer confirmation of softphone calls (cv5shdaatb, cvztncffh9, cvgy3yws3m).
+
+## 2026-11-16 — Softphone call reliability (agent-tested, not user-confirmed)
+- Live on all 4 brands: softphone ACK/BYE fix (SIP server), 10-digit / 011 / 00 dialing, call sweep for missed hang-ups, refused number ends the softphone leg, extra-line warning before turning off main-plan auto-renew, missed-call notice when the softphone is not signed in (max once per 6 h per number).
+- Backlog (owner decisions): stop charging 1 min + $0.03 for outbound calls that never connect; refund suspected runaway charges (9 Nov, 3 Nov) and 9013312785's remaining $0.19; message @iamthebestbusiness that calls work and the refund is in.

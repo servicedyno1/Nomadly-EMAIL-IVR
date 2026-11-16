@@ -32019,7 +32019,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const lang = info?.userLanguage || 'en'
       const price = planLifecycle.renewalPrice(num) ?? num.planPrice
       const notice = planLifecycle.holdNotice(num, price, lang)
-      return send(chatId, (notice ? notice + '\n\n' : '') + cpTxt.renewMenu(num.phoneNumber, plan.name, num.planPrice, num.expiresAt, num.autoRenew), k.of(planLifecycle.onHold(num) ? [
+      const xWarn = planLifecycle.onHold(num) ? '' : planLifecycle.extrasAutoRenewWarning((await get(phoneNumbersOf, chatId))?.numbers, num, lang)
+      return send(chatId, (notice ? notice + '\n\n' : '') + cpTxt.renewMenu(num.phoneNumber, plan.name, num.planPrice, num.expiresAt, num.autoRenew) + (xWarn ? `\n\n${xWarn}` : ''), k.of(planLifecycle.onHold(num) ? [
         ['🔄 Renew Now ($' + price + ')'],
       ] : [
         ['🔄 Renew Now ($' + price + ')'],
@@ -35777,9 +35778,10 @@ Select a category:`), k.of(catBtns))
       await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'autoRenew', newState)
       num.autoRenew = newState
       await saveInfo('cpActiveNumber', num)
-      send(chatId, phoneConfig.getMsg(info?.userLanguage).autoRenewToggled(newState))
+      const xWarn = planLifecycle.extrasAutoRenewWarning((await get(phoneNumbersOf, chatId))?.numbers, num, info?.userLanguage || 'en')
+      send(chatId, phoneConfig.getMsg(info?.userLanguage).autoRenewToggled(newState) + (!newState && xWarn ? `\n\n${xWarn}` : ''))
       const plan = phoneConfig.plans[num.plan] || { name: num.plan, price: num.planPrice }
-      return send(chatId, cpTxt.renewMenu(num.phoneNumber, plan.name, num.planPrice, num.expiresAt, newState), k.of([
+      return send(chatId, cpTxt.renewMenu(num.phoneNumber, plan.name, num.planPrice, num.expiresAt, newState) + (newState && xWarn ? `\n\n${xWarn}` : ''), k.of([
         ['🔄 Renew Now ($' + (planLifecycle.renewalPrice(num) ?? num.planPrice) + ')'],
         [pc.changePlan],
         ['🔁 Auto-Renew: ' + (newState ? '✅ ON' : '❌ OFF')],
@@ -50039,6 +50041,14 @@ app.get('/sip-provision/:token', async (req, res) => {
   } catch (e) { log('sip-provision error:', e.message); res.sendStatus(500) }
 })
 
+// SIP server reports a softphone signing in (e=seconds) or out (e=0); powers the "phone isn't signed in" note.
+app.get('/sip-registered/:user', async (req, res) => {
+  const key = process.env.SIP_SERVER_SECRET
+  const given = String(req.get('X-Sip-Key') || '')
+  if (!key || given.length !== key.length || !require('crypto').timingSafeEqual(Buffer.from(given), Buffer.from(key))) return res.sendStatus(403)
+  try { await require('./sip-presence').record(db, req.params.user, req.query.e, req.query.ua); res.sendStatus(204) } catch (e) { log('sip-registered error:', e.message); res.sendStatus(500) }
+})
+
 // Own SIP server (Kamailio) asks for a softphone's password here before letting it register or call.
 app.get('/sip-auth/:user', async (req, res) => {
   const key = process.env.SIP_SERVER_SECRET
@@ -53359,7 +53369,7 @@ if (fs.existsSync(frontendBuildPath)) {
   // those later-registered handlers. Without this, /phone/reviews etc. get index.html on Railway.
   app.get('/{*splat}', (req, res, next) => {
     // Known Express API paths registered asynchronously — let them pass through to actual handlers
-    const apiPrefixes = ['/phone/', '/honeypot/', '/telegram/', '/telnyx/', '/signalwire/', '/sip-auth/', '/sip-provision/', '/callengine/', '/infobip/', '/twilio/', '/panel/', '/dynopay/', '/fincra/', '/blockbee/', '/sms-app/', '/brand/']
+    const apiPrefixes = ['/phone/', '/honeypot/', '/telegram/', '/telnyx/', '/signalwire/', '/sip-auth/', '/sip-registered/', '/sip-provision/', '/callengine/', '/infobip/', '/twilio/', '/panel/', '/dynopay/', '/fincra/', '/blockbee/', '/sms-app/', '/brand/']
     if (apiPrefixes.some(p => req.path.startsWith(p))) {
       return next()
     }
