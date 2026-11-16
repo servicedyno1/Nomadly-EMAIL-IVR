@@ -345,3 +345,9 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 ## 2026-11-16 — Audience promos + crypto de-emphasis: LIVE on all four apps
 - Bot: 14 promos lead with one of five audiences in rotation; Cloud IVR intro + plan picker hints. Web: audience pages, fr/es, landing no longer crypto-led.
 - Not done: bot web promos still say "top up with crypto"; app/checkout screens unchanged; first real promo send not observed; not run through testing agent.
+
+## 2026-11-16 — Mollie cards: still blocked at Mollie; site now flips automatically
+- Live probe from prod: profile "Dynotech innovations, Lda", website jujucloud.com, verified; creditcard method present; cloudivr.net redirect still 422 (not a registered domain); jujucloud.com accepted.
+- Public catalog `cardPayments` = env flag OR mollie.cardsLive(req) (cached domain probe, 30 min). Landing chips + "How do I pay?" follow it; checkout already did. Live on app-main (release 20261116T104945Z).
+- User action: add cloudivr.net as a website/domain on that Mollie profile (or supply the key of the profile that has it via secrets).
+- JujuCloud copy brief: /app/memory/jujucloud_copy_brief.md (also served at /jujucloud_copy_brief.md in preview).

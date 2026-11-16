@@ -68,6 +68,8 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
     return sites.get(origin).ok
   }
   const enabled = () => keyed()
+  // Cached answer for public pages; refreshes in the background so the page never waits on Mollie.
+  const cardsLive = (req) => { const o = siteOf(req); checkDomain(o).catch(() => {}); return sites.get(o)?.ok === true }
 
   async function options(amountUsd) {
     const usd = round2(Math.max(MIN_TOPUP_USD, Number(amountUsd) || MIN_TOPUP_USD)), fxr = await rates()
@@ -211,7 +213,7 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
     }))
   }
 
-  return { enabled, options, sync, settle, routes, publicRoutes, checkDomain, sites }
+  return { enabled, options, sync, settle, routes, publicRoutes, checkDomain, sites, cardsLive }
 }
 
 module.exports = { createMollie, CURRENCIES, mode }

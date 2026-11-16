@@ -21,8 +21,8 @@ export function PaymentMethods({ catalog, label = 'Pay with', className = '', te
         {label && <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">{label}</div>}
         <div className="flex flex-wrap items-center gap-2">
           <Chip title="CloudIVR wallet — top up once, pay renewals and calls from it" testid={`${testid}-wallet`} translate><span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700"><Wallet className="w-4 h-4 text-slate-900" />CloudIVR wallet</span></Chip>
-          <Chip title="Crypto top-up" testid={`${testid}-crypto`} translate><span className="text-xs font-semibold text-slate-700">Crypto</span></Chip>
           {cardsLive && CARDS.map(([id, title, mark]) => <Chip key={id} title={title} testid={`${testid}-${id}`} translate={id === 'debit'}>{mark}</Chip>)}
+          <Chip title="Crypto top-up" testid={`${testid}-crypto`} translate><span className="text-xs font-semibold text-slate-700">Crypto</span></Chip>
         </div>
       </div>
       {!cardsLive && (
