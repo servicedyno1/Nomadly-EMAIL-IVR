@@ -13,6 +13,32 @@ import { LiveMap } from './campaign/LiveMap';
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 const pct = (c) => (c.stats?.total ? Math.round(((c.stats.completed || 0) / c.stats.total) * 100) : 0);
 
+const CALL_PILL = {
+  forwarded: 'bg-[#064e3b] text-[#6ee7b7]', forward_failed: 'bg-[#450a0a] text-[#fca5a5]',
+  missed: 'bg-[#450a0a] text-[#fca5a5]', voicemail: 'bg-[#1e3a5f] text-[#93c5fd]',
+  off_hours: 'bg-[#422006] text-[#fcd34d]', outbound_sip: 'bg-[#312e81] text-[#c7d2fe]', outbound_ivr: 'bg-[#312e81] text-[#c7d2fe]',
+};
+const fmtDur = (s) => (s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s || 0}s`);
+const fmtTime = (at) => { try { return new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch { return ''; } };
+
+function AccountCalls({ calls }) {
+  if (!calls.length) return <div className="text-sm text-[#a1a1aa]" data-testid="live-calls-empty">No forwarded, missed or softphone calls on your numbers yet today.</div>;
+  return (
+    <ul className="flex flex-col divide-y divide-[#1f1f1f]" data-testid="live-calls">
+      {calls.map((c, i) => (
+        <li key={c.id || i} className="flex items-center gap-3 py-2.5" data-testid={`live-call-${i}`}>
+          <span className={`civr-pill ${CALL_PILL[c.type] || 'bg-[#27272a] text-[#d4d4d8]'} shrink-0`} data-testid={`live-call-${i}-status`}>{c.label}</span>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-mono truncate">{c.out ? '→ ' : '← '}{c.peer || c.number}</div>
+            <div className="text-xs text-[#a1a1aa] truncate">on {c.number}{c.duration ? ` · ${fmtDur(c.duration)}` : ''}</div>
+          </div>
+          <span className="text-xs text-[#a1a1aa] font-mono shrink-0" data-testid={`live-call-${i}-time`}>{fmtTime(c.at)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function Summary({ s }) {
   const rate = s.callsToday ? Math.round((s.answeredToday / s.callsToday) * 100) : 0;
   const tiles = [
@@ -118,13 +144,13 @@ export default function Live() {
   const onDone = () => { reload(); refreshSummary(); };
   useHotLeadAlert(data?.feed);
   const header = (
-    <PageHeader label="Home" title="Live activity" sub="Every campaign that is calling right now: who is ringing, who is talking, how fast it goes and what is coming up. Updates every few seconds." testid="live-header">
+    <PageHeader label="Home" title="Live activity" sub="What's happening on your numbers right now — forwarded, missed and voicemail calls, softphone and Quick IVR calls, plus every campaign that is calling. Updates every few seconds." testid="live-header">
       <Link to={cp('/app/campaigns/new')} className="civr-btn civr-btn-primary" data-testid="live-new-campaign-button"><Plus className="w-4 h-4" />New campaign</Link>
     </PageHeader>
   );
   if (loading && !data) return <div data-testid="live-page">{header}<SkeletonPage header={false} cards={3} rows={2} /></div>;
   if (error && !data) return <div data-testid="live-page">{header}<ErrorNote error={error} onRetry={reload} /></div>;
-  const { campaigns = [], upcoming = [], feed = [] } = data || {};
+  const { campaigns = [], upcoming = [], feed = [], calls = [] } = data || {};
   return (
     <div data-testid="live-page">
       {header}
@@ -138,9 +164,13 @@ export default function Live() {
         )}
       </div>
       <div className="grid lg:grid-cols-3 gap-4">
-        <div className="civr-card p-5 sm:p-6 lg:col-span-2 min-w-0">
-          <div className="flex items-center gap-2 mb-4"><span className={`w-2 h-2 rounded-full ${running ? 'bg-[#34d399] civr-live-dot' : 'bg-[#52525b]'}`} /><span className="font-display text-xl font-bold">Latest calls</span></div>
-          <CallFeed feed={feed} showCampaign testid="live-feed" empty="No calls today yet." />
+        <div className="civr-card p-5 sm:p-6 min-w-0">
+          <div className="flex items-center gap-2 mb-4"><span className={`w-2 h-2 rounded-full ${calls.length ? 'bg-[#34d399] civr-live-dot' : 'bg-[#52525b]'}`} /><span className="font-display text-xl font-bold">Calls on your numbers</span></div>
+          <AccountCalls calls={calls} />
+        </div>
+        <div className="civr-card p-5 sm:p-6 min-w-0">
+          <div className="flex items-center gap-2 mb-4"><span className={`w-2 h-2 rounded-full ${running ? 'bg-[#34d399] civr-live-dot' : 'bg-[#52525b]'}`} /><span className="font-display text-xl font-bold">Latest campaign calls</span></div>
+          <CallFeed feed={feed} showCampaign testid="live-feed" empty="No campaign calls today yet." />
         </div>
         <div className="civr-card p-5 sm:p-6 h-fit">
           <div className="font-display text-xl font-bold mb-4">Coming up</div>

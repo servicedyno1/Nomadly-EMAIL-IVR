@@ -4870,6 +4870,9 @@ const loadData = async () => {
     // Keep every active SIP-capable number on a complete, correct login on our own SIP server so softphones can always
     // REGISTER (guards against the Telnyx→SignalWire→own-server migration leaving stale/incomplete logins). Hourly.
     require('./sip-reconciler').start(phoneNumbersOf, { log, notifyAdmin })
+    // Keep dead (released/expired/cancelled) numbers from lingering with a stale SIP login / auto-renew, and purge them
+    // after the retention window. Daily.
+    require('./dead-number-guard').start(phoneNumbersOf, { log, notifyAdmin })
 
     // Defer-register voice/IVR/voicemail webhook routes ONLY after voiceService
     // (and all DB collections it relies on) is fully initialized.

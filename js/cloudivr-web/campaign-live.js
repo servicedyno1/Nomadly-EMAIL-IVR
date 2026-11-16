@@ -98,6 +98,30 @@ function mapOf(docs, dayStart) {
   return Object.values(by).sort((x, y) => y.calls + y.live - (x.calls + x.live))
 }
 
+// Non-campaign call activity on this account's own numbers today — inbound forwarding, missed, voicemail, off-hours and
+// outbound softphone / Quick IVR — so the Live page is useful even for people who only forward calls (no campaigns).
+const ACCOUNT_CALL_TYPES = ['forwarded', 'forward_failed', 'missed', 'voicemail', 'off_hours', 'outbound_sip', 'outbound_ivr']
+const CALL_LABEL = { forwarded: 'Forwarded', forward_failed: 'Forward failed', missed: 'Missed', voicemail: 'Voicemail', off_hours: 'Off-hours', outbound_sip: 'Softphone call', outbound_ivr: 'Quick IVR call' }
+const OUT_TYPES = ['outbound_sip', 'outbound_ivr']
+async function accountCalls(db, chatId, dayStart, limit = 25) {
+  const acct = await db.collection('phoneNumbersOf').findOne({ _id: chatId }, { projection: { 'val.numbers.phoneNumber': 1 } })
+  const phones = (acct?.val?.numbers || []).map(n => n.phoneNumber).filter(Boolean)
+  if (!phones.length) return []
+  const rows = await db.collection('phoneLogs')
+    .find({ phoneNumber: { $in: phones }, type: { $in: ACCOUNT_CALL_TYPES } })
+    .sort({ timestamp: -1 }).limit(120).toArray()
+  return rows
+    .map(l => ({ l, t: ms(l.at || l.timestamp) }))
+    .filter(x => x.t >= dayStart)
+    .sort((a, b) => b.t - a.t)
+    .slice(0, limit)
+    .map(({ l }) => ({
+      id: String(l._id || ''), number: l.phoneNumber, peer: l.from || l.to || l.destination || null,
+      type: l.type, label: CALL_LABEL[l.type] || l.type, out: OUT_TYPES.includes(l.type),
+      duration: l.duration || 0, charge: l.charge || 0, at: l.at || l.timestamp || null,
+    }))
+}
+
 function routes(router, { db, h, voiceService, publicCampaign }) {
   const coll = db.collection('bulkCallCampaigns')
   // Everything calling now, today's totals, the latest calls and what is coming up.
@@ -120,9 +144,10 @@ function routes(router, { db, h, voiceService, publicCampaign }) {
       campaigns,
       upcoming: docs.filter(c => c.status === 'scheduled').sort((a, b) => ms(a.scheduledFor) - ms(b.scheduledFor)).slice(0, 10).map(c => publicCampaign(c)),
       feed: feedOf(docs.filter(c => c.status !== 'scheduled'), voiceService, 20, now),
+      calls: await accountCalls(db, String(req.webChatId), dayStart, 25),
       map: mapOf(docs.filter(c => c.status !== 'scheduled'), dayStart),
     })
   }))
 }
 
-module.exports = { routes, liveView, feedOf, areasOf, mapOf, isAnswered }
+module.exports = { routes, liveView, feedOf, areasOf, mapOf, isAnswered, accountCalls }
