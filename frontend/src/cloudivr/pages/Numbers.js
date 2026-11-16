@@ -2,20 +2,19 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Flag } from '../Pickers';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Hash, ShoppingCart, ChevronRight, Copy, PhoneOutgoing, Plus } from 'lucide-react';
+import { Hash, ShoppingCart, ChevronRight, Copy, Plus } from 'lucide-react';
 import { useApi, api, day, money, enc } from '../api';
 import { PageHeader, Spinner, ErrorNote, Empty, statusPill, useSwitch } from '../ui';
 import { cp } from '../paths';
 import { ask } from '../confirm';
 import { usePrivacy } from '../privacy';
 import { useSearch, SearchBox, NoMatches } from '../search';
-import { useShell } from '../Shell';
-import { DIAL_FROM } from '../Softphone';
 import { CallerIds } from './number/CallerIds';
 import { MobileLine } from './number/MobileLines';
 import { TextingLine, LIVE_TEXTING } from './number/TextingLines';
 import { FaxLine } from './number/FaxLines';
 import { CapBadges } from '../kinds';
+import { NumberActions } from './number/NumberActions';
 
 const on = (f) => !!f?.enabled;
 
@@ -61,10 +60,7 @@ function FaxSwitch({ n, reload, testid }) {
 }
 
 function NumberCard({ n, i, caps, pv, onSaved, reload }) {
-  const { openPhone } = useShell();
   const copy = async () => { try { await navigator.clipboard.writeText(n.phoneNumber); toast.success('Number copied'); } catch (_) { toast.error('Couldn’t copy — long-press the number instead.'); } };
-  const call = () => { window.dispatchEvent(new CustomEvent(DIAL_FROM, { detail: { from: n.phoneNumber } })); openPhone(); };
-  const canCall = n.status === 'active' && (n.access?.sipCredentials || n.access?.ivrOutbound);
   const href = cp(`/app/numbers/${enc(n.phoneNumber)}`);
   const switches = [n.access?.callForwarding, n.access?.ivr, true, n.plan === 'business' && n.status === 'active' && n.capabilities?.fax].filter(Boolean).length;
   return (
@@ -99,7 +95,7 @@ function NumberCard({ n, i, caps, pv, onSaved, reload }) {
         <div className="flex items-center gap-0.5 -mr-2">
           {!n.isSubNumber && n.status === 'active' && !n.replacedBy && <Link to={cp(`/app/buy?extra=${enc(n.phoneNumber)}`)} className="civr-btn civr-btn-ghost civr-btn-sm !h-9 whitespace-nowrap" title="Add another number that shares this plan" data-testid={`number-card-${i}-add-extra`}><Plus className="w-4 h-4" />Add number</Link>}
           <IconBtn icon={Copy} label="Copy number" onClick={copy} testid={`number-card-${i}-copy-button`} />
-          {canCall && <IconBtn icon={PhoneOutgoing} label="Call from this number" onClick={call} testid={`number-card-${i}-call-button`} />}
+          <NumberActions n={n} reload={reload} testid={`number-card-${i}`} />
           <Link to={href} className="civr-btn civr-btn-ghost civr-btn-sm !h-9 ml-1" data-testid={`number-card-${i}-link`}>Open<ChevronRight className="w-4 h-4" /></Link>
         </div>
       </div>

@@ -84,6 +84,8 @@ function createCloudIvrWeb(deps) {
     compliance.adminRoutes(r)
     const tenDlc = require('./ten-dlc').createTenDlc({ db, h, adminRequire: adminAuth.require, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, walletOps: require('./wallet').walletOps, log })
     tenDlc.adminRoutes(r)
+    const tollFree = require('./tollfree').createTollFree({ db, h, adminRequire: adminAuth.require, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, log })
+    tollFree.adminRoutes(r)
     const invoices = require('./invoices').createInvoices({ db, h, adminRequire: adminAuth.require, log })
     invoices.adminRoutes(r)
     // Country add-ons: our monthly cost per country/type (cheapest provider) next to the add-on the admin charges.
@@ -98,6 +100,7 @@ function createCloudIvrWeb(deps) {
       res.json({ addon: await require('../number-addons').set(country, type, amount) })
     }))
     require('../active-slot').singletonInterval('cloudivr-10dlc', () => tenDlc.tick().catch(e => log(`[10DLC] tick: ${e.message}`)), 60 * 60000)
+    require('../active-slot').singletonInterval('cloudivr-tollfree', () => tollFree.tick().catch(e => log(`[TollFree] tick: ${e.message}`)), 60 * 60000)
     module.exports.stripeWebhook = compliance.webhook
     require('./esim').publicRoutes(r, { db, h, log, A: adminAuth.require })
     require('./media').publicRoutes(r, { db, h })
@@ -175,6 +178,7 @@ function createCloudIvrWeb(deps) {
     numberDocs.routes(r)
     compliance.routes(r)
     tenDlc.routes(r)
+    tollFree.routes(r)
     require('./lookup').createLookup({ db, h, walletOps: require('./wallet').walletOps, log }).routes(r)
     require('./travel-esim').createTravelEsim({ db, h, walletOps: require('./wallet').walletOps, notify: require('./notify'), notifyAdmin: deps.notifyAdmin, log }).routes(r)
     require('../active-slot').singletonInterval('cloudivr-number-docs', () => numberDocs.tick().catch(e => log(`[NumberDocs] tick: ${e.message}`)), 30 * 60000)

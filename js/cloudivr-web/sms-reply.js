@@ -90,7 +90,7 @@ async function applyDeliveryReport({ db, notify, log = console.log }, payload) {
   const reason = status === 'failed' ? (reasonOf(err.code, `${err.title || ''} ${err.detail || ''}`) || NOT_DELIVERED) : null
   const phoneLogs = db.collection('phoneLogs')
   const set = { status, finalizedAt: new Date().toISOString(), ...(reason ? { smsReason: reason, smsErrorCode: String(err.code || '') } : {}) }
-  const r = await phoneLogs.findOneAndUpdate({ messageId: payload.id, type: 'sms_out', webReply: true, status: { $in: ['sent', 'unconfirmed'] } }, { $set: set })
+  const r = await phoneLogs.findOneAndUpdate({ $or: [{ messageId: payload.id }, { providerId: payload.id }], type: 'sms_out', webReply: true, status: { $in: ['sent', 'unconfirmed'] } }, { $set: set })
   const doc = r && r.value !== undefined ? r.value : r
   if (!doc) return null
   const copy = (path) => ({ [`${path}.status`]: status, ...(reason ? { [`${path}.reason`]: reason, [`${path}.code`]: String(err.code || '') } : {}) })
@@ -113,7 +113,7 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     // Infobip / MultiTEL numbers text through their own provider.
     const ib = require('../infobip'), mt = require('../multitel')
     if (!mediaUrls.length && ib.enabled() && (await ib.refreshOwned()).includes(from)) { const r = await ib.sendSms(from, to, text); return r.error ? { error: 'The text couldn’t be sent right now. Try again in a minute.' } : { id: r.id } }
-    if (!mediaUrls.length && mt.enabled() && (await mt.refreshOwned()).includes(from)) { const r = await mt.sendSms(from, to, text); if (r.error) log(`[SmsReply] MultiTEL ${from} → ${to} failed: ${r.error}`); return r.error ? { error: /not been approved/i.test(r.error) ? 'Texting from this number isn’t switched on yet. We’re on it.' : 'The text couldn’t be sent right now. Try again in a minute.' } : { id: r.id } }
+    if (!mediaUrls.length && mt.enabled() && (await mt.refreshOwned()).includes(from)) { const r = await mt.sendSms(from, to, text); if (r.error) log(`[SmsReply] MultiTEL ${from} → ${to} failed: ${r.error}`); return r.error ? { error: /not been approved/i.test(r.error) ? 'Texting from this number isn’t switched on yet. We’re on it.' : 'The text couldn’t be sent right now. Try again in a minute.' } : { id: r.id, providerId: r.providerId || null } }
     const sw = await require('../signalwire').sendSms(from, to, text, mediaUrls).catch(() => null)
     if (sw && !sw.error) return { id: sw.id }
     if (sw?.error) log(`[SmsReply] SignalWire ${from} → ${to} failed: ${sw.error} — trying Telnyx`)
@@ -177,7 +177,7 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     }
     if (home) for (let i = 0; i < parts; i++) await voiceService.incrementSmsUsed(chatId, num.phoneNumber)
     if (overage) await phoneTransactions.insertOne({ chatId, phoneNumber: num.phoneNumber, action: 'sms_reply', amount: overage, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
-    const doc = { chatId: String(chatId), phoneNumber: num.phoneNumber, from: rule.from || num.phoneNumber, to, country: rule.iso, type: 'sms_out', direction: 'outbound', body, messageId: out.id, status: preview ? 'preview' : 'sent', webReply: true, ...(media.length ? { media } : {}), ...(overage ? { charge: overage } : {}), ...(replyTo ? { replyTo } : {}), ...(inboxId ? { inboxId: String(inboxId) } : {}), timestamp: new Date().toISOString() }
+    const doc = { chatId: String(chatId), phoneNumber: num.phoneNumber, from: rule.from || num.phoneNumber, to, country: rule.iso, type: 'sms_out', direction: 'outbound', body, messageId: out.id, ...(out.providerId ? { providerId: out.providerId } : {}), status: preview ? 'preview' : 'sent', webReply: true, ...(media.length ? { media } : {}), ...(overage ? { charge: overage } : {}), ...(replyTo ? { replyTo } : {}), ...(inboxId ? { inboxId: String(inboxId) } : {}), timestamp: new Date().toISOString() }
     await phoneLogs.insertOne(doc)
     if (mw.act === 'hold') await msgWatch.attach(mw.id, { type: 'smsReply', logId: doc._id, from: doc.from, to, body, urls })
     log(`[SmsReply] ${num.phoneNumber} → ${to}${preview ? ' (PREVIEW)' : ''}${mw.act === 'hold' ? ' (HELD)' : ''}${overage ? ` $${overage}` : ''}`)

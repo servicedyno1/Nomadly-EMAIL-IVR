@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { X, PenSquare } from 'lucide-react';
 import { api } from '../../api';
 
@@ -12,6 +13,14 @@ export function NewMessage({ numbers, onStart }) {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [hits, setHits] = useState([]);
+  // ?compose=<number> (a number's text icon) → open, sending from that number.
+  const [params, setParams] = useSearchParams();
+  const compose = params.get('compose');
+  useEffect(() => {
+    if (!compose || !senders.length) return;
+    setFrom(senders.some(s => s.phone === compose) ? compose : senders[0].phone); setOpen(true);
+    const p = new URLSearchParams(params); p.delete('compose'); setParams(p, { replace: true });
+  }, [compose, senders.length]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (open && !from && senders[0]) setFrom(senders[0].phone); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const term = to.trim();

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { TenDlcCard } from '../../compliance/TenDlc';
+import { TollFreeCard } from '../../compliance/TollFree';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { api, enc, money, useApi } from '../../api';
@@ -153,6 +154,15 @@ export function VoicemailTab({ num, reload }) {
 // Texting on a calling number is an optional add-on: off until the owner switches it on.
 function TextingSwitchCard({ num, reload }) {
   const t = num.features.texting || {};
+  if (t.mode === 'tollfree') return (
+    <div className="space-y-4" data-testid="texting-tollfree">
+      <Card title="Texting on this number" sub={`Toll-free numbers need a one-time texting verification before they can send or receive texts. Once it’s approved, switch texting on here. ${money(t.textPrice || 0.05)} per text sent; receiving is free.`}>
+        <div className="flex items-center justify-between gap-4"><span className="text-sm">Send and receive texts</span><InstantToggle num={num} feature="texting" label="Texting" checked={!!t.enabled} reload={reload} testid="texting-addon-toggle" /></div>
+        <p className="text-xs text-[var(--c-muted)]" data-testid="texting-addon-note">{t.enabled ? 'Texts to and from this number are in Messages.' : 'While it’s off, this number doesn’t send or receive texts.'}</p>
+      </Card>
+      {!t.enabled && <TollFreeCard num={num} />}
+    </div>
+  );
   if (t.mode === 'tendlc') return (
     <div className="space-y-4" data-testid="texting-tendlc">
       <Card title="Texting on this number" sub={`US carriers require a 10DLC texting registration before a local number can send or receive texts. Once it’s approved, switch texting on here. ${money(t.textPrice || 0.05)} per text sent; receiving is free.`}>

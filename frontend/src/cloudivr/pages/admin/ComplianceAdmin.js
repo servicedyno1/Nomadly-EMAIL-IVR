@@ -18,8 +18,8 @@ async function openFile(chatId, id) {
 export default function ComplianceAdmin() {
   const [tab, setTab] = useState('papers');
   return (<div className="space-y-4">
-    <div className="flex gap-2">{[['papers', 'Company papers'], ['cards', 'Card ID checks'], ['tendlc', 'US 10DLC']].map(([k, l]) => <button key={k} className={`civr-btn ${tab === k ? 'civr-btn-primary' : 'civr-btn-ghost'}`} onClick={() => setTab(k)} data-testid={`admin-compliance-tab-${k}`}>{l}</button>)}</div>
-    {tab === 'papers' ? <Papers /> : tab === 'cards' ? <CardChecks /> : <TenDlcAdmin />}
+    <div className="flex gap-2">{[['papers', 'Company papers'], ['cards', 'Card ID checks'], ['tendlc', 'US 10DLC'], ['tollfree', 'Toll-free texting']].map(([k, l]) => <button key={k} className={`civr-btn ${tab === k ? 'civr-btn-primary' : 'civr-btn-ghost'}`} onClick={() => setTab(k)} data-testid={`admin-compliance-tab-${k}`}>{l}</button>)}</div>
+    {tab === 'papers' ? <Papers /> : tab === 'cards' ? <CardChecks /> : tab === 'tollfree' ? <TollFreeAdmin /> : <TenDlcAdmin />}
   </div>);
 }
 
@@ -54,6 +54,41 @@ export function CardChecks() {
             <button className="civr-btn" disabled={busy === it.chatId} onClick={() => decide(it.chatId, 'refund')} data-testid={`admin-card-check-refund-${it.chatId}`}><X className="w-4 h-4" />Refund card</button>
           </div>}
         </div>))}
+    </div>
+  );
+}
+
+function TollFreeAdmin() {
+  const [status, setStatus] = useState('submitted');
+  const [items, setItems] = useState(null);
+  const [err, setErr] = useState(null);
+  const load = useCallback(() => { setItems(null); api(`/admin/tollfree?status=${status}`).then(d => setItems(d.items)).catch(setErr); }, [status]);
+  useEffect(() => { load(); }, [load]);
+  const decide = async (phone, decision) => {
+    const note = decision === 'reject' ? window.prompt('Why is it rejected?') : '';
+    if (decision === 'reject' && !note) return;
+    try { const r = await api(`/admin/tollfree/${encodeURIComponent(phone)}/decision`, { method: 'POST', body: { decision, note } }); toast.success(`Status: ${r.status}`); load(); } catch (e) { setErr(e); }
+  };
+  return (
+    <div className="space-y-3" data-testid="admin-tollfree">
+      <div className="flex flex-wrap gap-2">{['submitted', 'filed', 'active', 'rejected'].map(s => <button key={s} className={`civr-btn ${status === s ? 'civr-btn-primary' : 'civr-btn-ghost'}`} onClick={() => setStatus(s)} data-testid={`admin-tollfree-filter-${s}`}>{s}</button>)}</div>
+      <p className="text-xs text-[var(--c-muted)]">“Approve” sends you the details on Telegram to file in the MultiTEL portal. It turns active by itself once MultiTEL shows it verified, or use “Mark active”.</p>
+      <ErrorNote error={err} testid="admin-tollfree-error" />
+      {!items ? <Spinner /> : !items.length ? <p className="text-sm text-[var(--c-muted)]" data-testid="admin-tollfree-empty">Nothing here.</p> : items.map(it => { const f = it.form || {}; const id = it.phone.replace(/\D/g, ''); return (
+        <div key={it.phone} className="civr-card p-5 space-y-2 text-sm" data-testid={`admin-tollfree-row-${id}`}>
+          <div className="text-xs text-[var(--c-muted)]">{it.email || '—'} · account {it.chatId} · <span className="font-mono">{it.phone}</span></div>
+          <div className="font-semibold">{f.businessName} <span className="text-[var(--c-muted)] font-normal">· {f.website || 'no website'} · {f.city}, {f.state} {f.country}</span></div>
+          <div className="text-[var(--c-muted)]">{f.contactName} · {f.email} · {f.phone}</div>
+          <div><b>{f.useCase}</b> · up to {f.volume}/month: {f.description}</div>
+          <div className="text-[var(--c-muted)]">“{f.sample}”</div>
+          <div className="text-[var(--c-muted)]">Opt-in: {f.optIn} {f.optInUrl}</div>
+          {it.note && <div className="text-xs text-[#f87171]">{it.note}</div>}
+          <div className="flex gap-2">
+            {it.status === 'submitted' && <button className="civr-btn civr-btn-primary" onClick={() => decide(it.phone, 'approve')} data-testid={`admin-tollfree-approve-${id}`}><Check className="w-4 h-4" />Approve and file</button>}
+            {it.status !== 'active' && <button className="civr-btn" onClick={() => decide(it.phone, 'activate')} data-testid={`admin-tollfree-activate-${id}`}>Mark active</button>}
+            {it.status !== 'rejected' && <button className="civr-btn" onClick={() => decide(it.phone, 'reject')} data-testid={`admin-tollfree-reject-${id}`}><X className="w-4 h-4" />Reject</button>}
+          </div>
+        </div>); })}
     </div>
   );
 }

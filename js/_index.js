@@ -50010,11 +50010,15 @@ app.post('/multitel/sms-webhook/:k', express.urlencoded({ extended: true, limit:
 app.post('/multitel/sms-status/:k', express.urlencoded({ extended: true, limit: '1mb' }), express.json({ limit: '1mb' }), (req, res) => {
   res.sendStatus(200)
   if (req.params.k !== require('./multitel').smsHookKey()) return log('MultiTEL SMS status: bad key')
-  const b = req.body || {}, mt = require('./multitel')
-  const id = b.reference || b.ref || b.uniqueid || b.message_id, raw = b.status || b.status_text || b.dlr_status || ''
-  const status = mt.deliveryOf(raw)
-  log(`MultiTEL SMS status: ${id || '?'} ${raw}${b.error_code ? ` (code ${b.error_code})` : ''}`)
-  if (id && status && cloudivrWeb?.smsDelivery) cloudivrWeb.smsDelivery(db, { id: String(id), to: [{ status }], errors: status === 'delivery_failed' ? [{ code: String(b.error_code || b.causecode || ''), title: String(b.status_text || raw), detail: String(b.error || '') }] : [] }, log)
+  const flat = {}
+  const walk = (o, p = '') => { for (const [k, v] of Object.entries(o || {})) { if (v && typeof v === 'object') walk(v, `${p}${k}.`); else if (!/text$|^body$/i.test(k)) flat[`${p}${k}`] = String(v) } }
+  walk(req.body)
+  const pick = (...keys) => { for (const k of keys) { const hit = Object.keys(flat).find(x => x.split('.').pop().toLowerCase() === k); if (hit && flat[hit]) return flat[hit] } return '' }
+  const mt = require('./multitel')
+  const id = pick('reference', 'ref', 'uniqueid', 'message_id', 'messageid'), raw = pick('dlr_status', 'delivery_status', 'status_text', 'status', 'state')
+  const status = mt.deliveryOf(raw), code = pick('error_code', 'errorcode', 'causecode')
+  log(`MultiTEL SMS status: ${id || '?'} ${raw}${code ? ` (code ${code})` : ''} ${JSON.stringify(flat).slice(0, 400)}`)
+  if (id && status && cloudivrWeb?.smsDelivery) cloudivrWeb.smsDelivery(db, { id: String(id), to: [{ status }], errors: status === 'delivery_failed' ? [{ code, title: raw, detail: pick('error', 'error_text') }] : [] }, log)
 })
 
 // Stripe Identity events for CloudIVR compliance (signature checked inside).

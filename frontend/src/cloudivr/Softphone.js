@@ -41,8 +41,17 @@ export default function Softphone({ open, onClose }) {
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (call) setLast({ peer: call.peer, direction: call.inbound ? 'inbound' : 'outbound' }); }, [call]);
   // "Call from this number" on a number card picks that line before the phone opens.
-  useEffect(() => { const on = (e) => { if (e.detail?.from) setSel(e.detail.from); if (e.detail?.to) setDest(e.detail.to); }; window.addEventListener(DIAL_FROM, on); return () => window.removeEventListener(DIAL_FROM, on); }, []);
+  const [autoLine, setAutoLine] = useState(null);
+  useEffect(() => { const on = (e) => { if (e.detail?.from) { setSel(e.detail.from); setAutoLine(e.detail.from); } if (e.detail?.to) setDest(e.detail.to); }; window.addEventListener(DIAL_FROM, on); return () => window.removeEventListener(DIAL_FROM, on); }, []);
   const selNum = nums?.find(n => n.phoneNumber === sel);
+  // Opened from a number's call icon: connect that line right away and put the cursor in the dial box.
+  useEffect(() => {
+    if (!open || !autoLine || !nums) return;
+    const n = nums.find(x => x.phoneNumber === autoLine);
+    setAutoLine(null);
+    if (n?.access?.browserPhone && !n.mobile && !(rtcPhone === autoLine && ['ready', 'connecting'].includes(rtcStatus))) connect(autoLine);
+    setTimeout(() => document.querySelector('[data-testid="softphone-destination-input"]')?.focus(), 150);
+  }, [open, autoLine, nums]); // eslint-disable-line react-hooks/exhaustive-deps
   const cmfAllowed = !!selNum?.access?.ivrOutbound;
   const viaMobile = cmf && cmfAllowed;
   const press = (k) => (call ? call.ref.dtmf(k) : setDest(d => d + k));

@@ -12,7 +12,7 @@ const FAX_STATUS = { past_due: ['Paused · top up to renew', 'text-amber-500'], 
 export function FaxLine({ n, pv }) {
   const [label, tone] = FAX_STATUS[n.status] || ['Receiving faxes', 'text-emerald-500'];
   return (
-    <Link to={cp('/app/fax')} className="civr-card p-5 flex items-center gap-4 hover:border-[#818cf8]/50 transition-colors" data-testid={`fax-number-line-${n.phoneNumber.replace(/\D/g, '')}`}>
+    <Link to={cp(`/app/fax?from=${encodeURIComponent(n.phoneNumber)}`)} className="civr-card p-5 flex items-center gap-4 hover:border-[#818cf8]/50 transition-colors" data-testid={`fax-number-line-${n.phoneNumber.replace(/\D/g, '')}`}>
       <div className="flex-1 min-w-0 space-y-1">
         <div className="flex flex-wrap items-center gap-3"><span className="font-mono text-lg" data-no-translate>{pv.phone(n.phoneNumber)}</span><CapBadges caps={['fax']} /></div>
         <div className={`text-sm ${tone}`}>{label}</div>

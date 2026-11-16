@@ -6,6 +6,7 @@ import { ArrowLeft, Lock, Bot, Plus, RefreshCw, Check, ChevronRight } from 'luci
 import { useApi, enc, day } from '../api';
 import { Spinner, ErrorNote, Locked, statusPill, Toggle, useSwitch } from '../ui';
 import { CapBadges } from '../kinds';
+import { NumberActions } from './number/NumberActions';
 import { OverviewTab, ForwardingTab, VoicemailTab, SmsTab, RecordingTab } from './number/SettingsTabs';
 import SipTab from './number/SipTab';
 import { Capacity } from './number/Capacity';
@@ -110,7 +111,7 @@ export default function NumberDetail() {
         <div>
           <div className="civr-label flex items-center gap-1.5" data-testid="number-detail-country"><Flag code={n.country} />{n.countryName || n.country} · {n.type?.replace('_', '-')} · {n.planName}</div>
           <h1 className="font-mono text-4xl sm:text-5xl mt-2" data-testid="number-detail-phone">{pv.phone(n.phoneNumber)}</h1>
-          <div className="mt-3"><CapBadges caps={caps} testid="number-detail-caps" /></div>
+          <div className="mt-3 flex flex-wrap items-center gap-2"><CapBadges caps={caps} testid="number-detail-caps" /><span className="inline-flex items-center gap-0.5" data-testid="number-detail-actions"><NumberActions n={n} reload={reload} testid="number-detail" /></span></div>
           <div className="mt-3"><Capacity capacity={n.capacity} testid="number-detail-capacity" /></div>
           <NumberRegistration n={n} reload={reload} />
           {caps.includes('texts') && <div className="mt-3"><ReachChip phone={n.phoneNumber} testid="number-sms-reach" /></div>}
