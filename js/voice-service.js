@@ -5256,7 +5256,8 @@ async function initiateOutboundIvrCall(params) {
   // Spam watch: a caught call is dialed as usual (alert only) or waits for the admin when the hold switch is on.
   if (!params.campaignId && !params._cwOk) { const waiting = await require('./call-watch').quickIvr(params); if (waiting) return waiting }
   const { chatId, callerId, displayCallerId: _askedCid, transferCallerId, targetNumber, ivrNumber, menu, audioUrl, greetingText, activeKeys, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg, voicemailAudioUrl } = params
-  const displayCallerId = require('./cloudivr-web/caller-ids').enabled() ? _askedCid : null
+  // Free trial calls (landing, web, bot) accept any caller ID the AI guard cleared upstream, even with the feature off.
+  const displayCallerId = isTrial || require('./cloudivr-web/caller-ids').enabled() ? _askedCid : null
   // Backup transfer numbers, tried in order when the transfer number is busy or doesn't answer.
   const transferBackups = ivrNumber ? [...new Set((params.transferBackups || []).map(n => String(n || '').replace(/[^+\d]/g, '')))]
     .filter(n => /^\+[1-9]\d{7,14}$/.test(n) && n !== ivrNumber && !dialGuard.classifyDial(n).blocked).slice(0, 4) : []

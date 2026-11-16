@@ -26557,7 +26557,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         const _trialCaller = await ivrOb.getTrialCaller({ purpose: 'bot_quick_ivr_trial', chatId })
         await saveInfo('ivrObData', { callerId: _trialCaller.callerId, isTrial: true, callerProvider: _trialCaller.callerProvider })
         await set(state, chatId, 'action', a.ivrObEnterTarget)
-        return send(chatId, trans('t.cp_10', _trialCaller.callerId), k.of(ccid.on() ? ccid.btnRow(lang) : [['↩️ Back']]))
+        return send(chatId, trans('t.cp_10', _trialCaller.callerId), k.of([[ccid.t(lang).btn], ['↩️ Back']]))
       }
 
       // Has numbers but no eligible plan
@@ -27106,7 +27106,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     return send(chatId, trans('t.cp_25', found.phoneNumber), k.of([]))
   }
 
-  if (action === a.ivrObEnterTarget && ccid.isBtn(message) && info?.ivrObData?.isTrial) {
+  if (action === a.ivrObEnterTarget && ccid.isTrialBtn(message) && info?.ivrObData?.isTrial) {
     await saveInfo('customCid', { ctx: 'trial' })
     await set(state, chatId, 'action', 'customCidEnter')
     return send(chatId, ccid.t(lang).askTrial, k.of([['↩️ Back']]))

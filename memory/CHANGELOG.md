@@ -3518,3 +3518,10 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Deployed release 20261116T222721Z-124f1de (includes all caller-ID/failover workspace changes).
 - 22:32–23:00Z: app-main CI deploy 0c6dc69 (auto-saved, includes wallet audit + caller-ID fixes) flipped on owner's "switch it now" (1 live call on old slot cut, by owner instruction). WL brands: first-deposit-bonus backfill done (smadav 15, voodoo 6, proshop 0); wallet-audit overlay (/tmp/wl_audit_deploy.sh on droplet, log /opt/nomadly/logs/wl-audit-deploy.log) app-wl done, voodoo + proshop running sequentially with normal drain. WL brands have no CIVR_ADMIN_EMAIL → Telegram alerts only. Overlay is lost on next WhiteLabel CI deploy unless synced.
 - NOT done: 4 real caller-ID test calls (harness notes: landing = mint try-JWT; web trial = civr_session JWT; SIP test = scripts/sip_softphone_test.py vs Telnyx creds; avoid 555 CLIs — MultiTEL/Infobip 603). Planned show-as +18778570205 to +351918251893.
+
+## 2026-11-16 23:00Z — Free-call caller ID tests
+- Fixed: voice-service ignored displayCallerId on trial calls while CUSTOM_CALLER_ID_ON off (now `isTrial || enabled()`); bot free trial now always shows "🎭 Show Any Caller ID" + handles it (custom-caller-id-bot.isTrialBtn). Deployed (voice-service in 0a5a3be; bot fix in next workspace deploy).
+- Landing test calls verified to leave with the chosen caller ID (Asterisk INVITE From = show-as number).
+- BLOCKER: MultiTEL termination (term.multitel.net 67.205.139.35) answers every INVITE with 488 cause 88 INCOMPATIBLE_DESTINATION — also for our own MultiTEL number as CLI and for other customers' calls. Last answered multitel-out call 18:18Z. Failover treats 88 as neutral → no failover/alert. Portugal +351918251893 also refused (603 MultiTEL, 486 via Bird).
+- Not yet tested: web trial, bot trial, SIP test page real calls (all depend on MultiTEL for custom CID).
+- Debug: `asterisk -rx 'pjsip set logger host 67.205.139.35'` + `logger add channel sipcap.log notice,verbose` on 188.166.34.29 (/root/.ssh/droplet); turn off after.
