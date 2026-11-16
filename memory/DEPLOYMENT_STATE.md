@@ -672,3 +672,8 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Bot /sipguide (5 langs), SIP self-test tips (bot 5 langs + web), web SipTab STUN row + Sip.js guide step: "STUN off, or <sip domain>:3478".
 - Release 20261116T202620Z-1b4f5b3 on app-main-b :5100, drained live calls before flip. Customer messaged via bot (msg 3491327). NOT yet customer-confirmed. WL/voodoo/proshop not deployed.
 - ⚠️ Save to GitHub (main) or the next CI deploy rolls this back.
+
+## 2026-11-16 20:36–20:45Z — Zoiper STUN guidance rolled out to app-wl, app-voodoo, app-proshop
+- Pre-check: coturn answers STUN :3478 on sip.smadavspeech.com / sip.voodooivr.xyz / sip.proshopivr.xyz (same host 188.166.34.29).
+- Overlay = `git diff 1b4f5b3 903eb5a -- frontend js` (Sip.js, SipTab.js, phone-config.js, sip-selftest.js) applied to each live 6ce3f64 release, blue/green tarball deploy (drain waited for 0 calls). Releases: app-wl-b 20261116T203928Z, app-voodoo-a 20261116T204123Z, app-proshop-b 20261116T204317Z — all exit 0, healthy, bot/test/web text present with brand SIP domain.
+- Concurrently GitHub CI shipped main cb19ba2 (app-main-a, includes STUN) and auto-sync WhiteLabel 699d491 (= 6ce3f64 + phone-config + sip-selftest + trace script). Bot/self-test STUN text is therefore permanent on WhiteLabel; the WEB panel rows (frontend/src/cloudivr/* is brand-protected in sync) are overlay-only on WL and will be dropped by the next WhiteLabel CI deploy unless re-applied.

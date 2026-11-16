@@ -431,3 +431,7 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Self-serve "Test my SIP registration" on bot (🧪 button, 5 languages) and web (SIP tab card) — `js/sip-selftest.js`, verified live against the production SIP server.
 - Web buy flow is plan-first; all step/onboarding copy aligned. Web campaign default concurrency 20 (Bird account cap verified 20 / 5 CPS in prod env).
 - Open decisions for owner: (1) bump 2 report-only campaigns to 20? (2) bot concurrency default/button order; (3) SIP on the $75 Starter plan for NEW buyers; (4) retired-login tracking + owner DM on stale-login attempts (top cause of live SIP auth failures).
+
+## 2026-11-16 — Zoiper "STUN server error (57)" guidance
+- All 4 brands (app-main, app-wl, app-voodoo, app-proshop): bot SIP guide, SIP self-test tips and web SIP page say "STUN off, or <brand SIP domain>:3478". Deployed, not yet customer-confirmed (@johnwill202).
+- Open: WL web-panel STUN row is overlay-only (next WhiteLabel CI deploy drops it); @johnwill202 retry + trace check.

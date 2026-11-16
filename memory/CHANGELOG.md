@@ -3499,3 +3499,4 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 
 ## 2026-11-16 — Zoiper STUN error (57)
 - Setup guides and SIP self-test (bot + web) now tell users to turn STUN off or use our STUN (<sip domain>:3478). Live on app-main; customer @johnwill202 messaged, awaiting his confirmation.
+- 2026-11-16 20:45Z: Zoiper STUN guidance (bot /sipguide 5 langs, SIP self-test tips, web SIP page + SipTab STUN row) live on app-wl / app-voodoo / app-proshop with each brand's own SIP domain :3478 (verified answering STUN). WL web rows are overlay-only (see DEPLOYMENT_STATE).
