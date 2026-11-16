@@ -13,6 +13,9 @@ const key = () => process.env.TELNYX_SIP_API_KEY || process.env.TELNYX_FAX_API_K
 const enabled = () => !!key() && String(process.env.TELNYX_SIP_NUMBERS || 'true').toLowerCase() !== 'false'
 const api = (method, path, { data, params } = {}) => axios({ method, url: fa.BASE + path, data, params, headers: { Authorization: `Bearer ${key()}` }, timeout: 30000 }).then(r => r.data)
 const errOf = (e) => e.response?.data?.errors?.[0]?.detail || e.message
+const isBlocked = (e) => e.response?.status === 401 || e.response?.status === 403 || /blocked|suspend|not authorized|unauthorized|forbidden/i.test(String(errOf(e)))
+// Once the Telnyx account is seen blocked/suspended, stop re-hitting the API every few minutes.
+let _blocked = false
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 const isTx = (id) => String(id || '').startsWith('tx:')
 const searched = new Set()
@@ -36,7 +39,7 @@ async function connection({ create = false } = {}) {
 // Numbers on our trunk (5 min cache): e164 → Telnyx number id.
 let owned = { at: 0, map: new Map() }
 async function refreshOwned(force = false) {
-  if (!enabled() || (!force && Date.now() - owned.at < 5 * 60000)) return owned.map
+  if (!enabled() || _blocked || (!force && Date.now() - owned.at < 5 * 60000)) return owned.map
   try {
     const conn = await connection()
     const map = new Map()
@@ -46,7 +49,10 @@ async function refreshOwned(force = false) {
       if (!r?.meta || page >= (r.meta.total_pages || 1)) break
     }
     owned = { at: Date.now(), map }
-  } catch (e) { log('list numbers:', errOf(e)) }
+  } catch (e) {
+    if (isBlocked(e)) { _blocked = true; log(`account blocked/suspended on Telnyx (${errOf(e)}) — pausing Telnyx SIP number sync. Numbers on other carriers (MultiTEL/Bird) are unaffected.`) }
+    else log('list numbers:', errOf(e))
+  }
   return owned.map
 }
 const ownsNumber = (e164) => owned.map.has(String(e164 || ''))

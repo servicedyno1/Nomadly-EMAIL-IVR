@@ -3221,3 +3221,14 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 ## 2026-11-16 01:05Z — Spam watch extended to calls — LIVE on all 4 brands
 - js/call-watch.js + msg-watch.js (modes call/talk, gate pre/what/action, note, setHold → all RESELLER_DBS), hooks in voice-service.initiateOutboundIvrCall, bulk-call-service.startCampaign/fireBatchOnce/adminRelease, ai-agent/calls.js + store.js, SpamWatch.js copy.
 - Deploy: via GitHub CI (auto-save) main da862b2 → app-main-a :5000; WhiteLabel c045a03 → app-wl-b :5101, app-voodoo-a :5003, app-proshop-b :5104. Details in PRD.md 2026-11-16.
+
+## 2026-11-16 ~06:30Z — Log-noise / resilience fixes from the 6h log review (PREVIEW, pending deploy)
+- Two separate Telnyx accounts are blocked/suspended on Telnyx's side (webhook-sync account + inbound SIP-trunk account TELNYX_SIP_API_KEY/TELNYX_FAX_API_KEY). Code now detects "blocked" once and stops re-hitting the API instead of erroring on every startup / every 5 min:
+  - js/telnyx-service.js initializeTelnyxResources: on 401/403/"blocked" at the SIP-connection PATCH, log one clear line and return env-based IDs (skips the messaging-profile + call-control writes that also failed). Module flag short-circuits repeat calls.
+  - js/telnyx-sip.js refreshOwned: on blocked, set _blocked once, log one line, pause the 5-min number sync.
+- js/linkly-usage-monitor.js: on 401/403 (bad/expired LINKLY_API_KEY) back off 24h instead of retrying hourly.
+- js/twilio-service.js cleanupOrphanDrafts: on auth error, log one concise line and skip (was a daily error).
+- js/voice-service.js: corrected the misleading "likely post-deploy orphan" buffer-timeout log (it's a secondary/bridge leg or duplicate hangup webhook; billing unaffected).
+- Left as-is (already handled gracefully / working as designed): balance-monitor (classifies auth, pauses, doesn't spam admin); cr-auto-whitelist (401 = "IP not whitelisted" trigger for its self-heal; escalates to admin after 24 retries).
+- STILL NEEDS THE OWNER (cannot fix in code, lives on prod droplet env / third-party accounts): unblock or retire the two Telnyx accounts; refresh Twilio creds or set TWILIO_ENABLED=false per brand; refresh LINKLY_API_KEY or leave alerts off; whitelist the prod server IP in ConnectReseller (or fix CR_PANEL creds).
+- Verified in preview: node --check all files; blocked-account unit test (patch called once, early-return, env IDs returned); startup log no longer shows the [TelnyxSIP] list numbers blocked cascade. Not yet deployed to the droplet (ships via GitHub → Actions deploy, same path as the spam-watch).

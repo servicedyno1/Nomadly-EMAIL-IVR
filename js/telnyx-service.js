@@ -640,6 +640,13 @@ async function rejectCall(callControlId, cause = 'CALL_REJECTED') {
   }
 }
 
+// A blocked/suspended Telnyx account (or a bad API key) makes every resource-sync write fail.
+// Detect it once so we log a single clear line instead of a cascade of errors on every startup.
+let _telnyxAccountBlocked = false
+function _isTelnyxBlocked(status, detail = '') {
+  return status === 401 || status === 403 || /blocked|suspend|not authorized|unauthorized|forbidden/i.test(String(detail))
+}
+
 // ── Setup: Initialize Telnyx resources (SIP + Messaging Profile + Call Control App) ──
 async function initializeTelnyxResources(selfUrl) {
   const brand = String(process.env.CHAT_BOT_BRAND || 'Nomadly').trim() || 'Nomadly'
@@ -653,6 +660,13 @@ async function initializeTelnyxResources(selfUrl) {
   let sipConnectionId = process.env.TELNYX_SIP_CONNECTION_ID
   let messagingProfileId = process.env.TELNYX_MESSAGING_PROFILE_ID
   let callControlAppId = process.env.TELNYX_CALL_CONTROL_APP_ID
+
+  // Telnyx account already known to be blocked/suspended this process — skip all webhook writes
+  // (they would only fail again). Customer calls route via CallEngine/MultiTEL and are unaffected.
+  if (_telnyxAccountBlocked) {
+    log('[Telnyx] Skipping webhook sync — account previously detected blocked/suspended (calls use CallEngine/MultiTEL).')
+    return { sipConnectionId, messagingProfileId, callControlAppId }
+  }
 
   // Update SIP Connection webhook to current domain
   if (!sipConnectionId) {
@@ -690,7 +704,13 @@ async function initializeTelnyxResources(selfUrl) {
       await axios.patch(`${BASE}/credential_connections/${sipConnectionId}`, patchBody, { headers: headers() })
       log('Updated SIP Connection webhook:', sipConnectionId)
     } catch (e) {
-      log('SIP Connection webhook update error:', e.response?.data?.errors?.[0]?.detail || e.message)
+      const detail = e.response?.data?.errors?.[0]?.detail || e.message
+      if (_isTelnyxBlocked(e.response?.status, detail)) {
+        _telnyxAccountBlocked = true
+        log(`[Telnyx] Account is blocked/suspended on Telnyx (${detail}). Skipping all webhook sync — customer calls route via CallEngine/MultiTEL and are unaffected.`)
+        return { sipConnectionId, messagingProfileId, callControlAppId }
+      }
+      log('SIP Connection webhook update error:', detail)
     }
   }
 
