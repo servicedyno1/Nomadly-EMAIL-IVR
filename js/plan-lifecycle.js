@@ -292,6 +292,20 @@ function renewBlockMsg(code, lang) {
   return pick(m[code] || m.no_price, lang)
 }
 
+// Main line with active extras: turning auto-renew off releases them with it on the main line's end date.
+function extrasAutoRenewWarning(numbers, n, lang) {
+  if (!n || n.isSubNumber) return ''
+  const x = extrasOf(numbers || [], n).filter(e => e.status === 'active').map(e => e.phoneNumber)
+  if (!x.length) return ''
+  const d = shortDate(n.expiresAt)
+  return pick({
+    en: `⚠️ If auto-renew is off, its extra number${x.length > 1 ? 's' : ''} ${list(x)} ${x.length > 1 ? 'are' : 'is'} released with it on ${d}.`,
+    fr: `⚠️ Si le renouvellement auto est désactivé, ${x.length > 1 ? 'ses numéros supplémentaires' : 'son numéro supplémentaire'} ${list(x)} ${x.length > 1 ? 'sont libérés' : 'est libéré'} avec lui le ${d}.`,
+    zh: `⚠️ 如果关闭自动续费，附加号码 ${list(x)} 将于 ${d} 与主号码一起释放。`,
+    hi: `⚠️ ऑटो-रिन्यू बंद होने पर अतिरिक्त नंबर ${list(x)} भी ${d} को इसके साथ रिलीज़ हो जाएंगे।`,
+  }, lang)
+}
+
 // One-line notice shown above the renew menu while a line is suspended.
 function holdNotice(n, price, lang) {
   if (!onHold(n)) return ''
@@ -317,5 +331,5 @@ module.exports = { successorMain, reparentPatch,
   HOLD_DAYS, isInternalTest, listPrice, EXTRA_SIP_FREE, EXTRA_SIP_MAX, EXTRA_SIP_PRICE, paidSip, sipLoginOk, lockLegacyPrices, canonicalPrice, renewalPrice, mainOf, extrasOf, isOrphan, onHold, holdOver,
   lineGroup, planLimit, poolUsage, USAGE_RESET, usageResetPatches, priceOnPlan, syncExtrasPlan,
   downgradePatch, upgradePatch, numberSet, suspendPlan, orphanToMain, releasePatch, renewBlock, renewPatches, applyLocal, applyDb,
-  planSuspendedMsg, orphanSuspendedMsg, releasedAfterHoldMsg, renewBlockMsg, holdNotice, renewedMsg,
+  planSuspendedMsg, orphanSuspendedMsg, releasedAfterHoldMsg, renewBlockMsg, holdNotice, renewedMsg, extrasAutoRenewWarning,
 }

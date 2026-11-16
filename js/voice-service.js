@@ -2791,6 +2791,7 @@ async function handleCallInitiated(payload) {
     const ringTimeout = fwdConfig?.ringTimeout || 25
     const vmConfig = num.features?.voicemail
     log(`[Voice] Ringing SIP device (unanswered): ${sipUri} for ${num.phoneNumber} (timeout: ${ringTimeout}s)`)
+    require('./sip-presence').noteIfOffline({ db: _db, bot: _bot, chatId, num, from: formatPhone(from), web: require('./cloudivr-web/notify.js').isWebChatId(chatId), log }).catch(e => log(`[SipPresence] ${e.message}`))
 
     try {
       const newCall = await _telnyxApi.createOutboundCall(from, sipUri)
@@ -2912,6 +2913,8 @@ async function handleOutboundSipCall(payload) {
   // 10 digits (US/CA local) → prepend +1
   // 11 digits starting with 1 (US/CA with country code) → prepend +
   // Already has + → leave as-is
+  // Softphone international prefixes: 011 (US/CA) or 00 → +
+  if (/^(011|00)[1-9]\d{6,}$/.test(destination)) destination = '+' + destination.replace(/^(011|00)/, '')
   if (destination && !destination.startsWith('+')) {
     if (destination.length === 10) {
       destination = '+1' + destination
@@ -4341,6 +4344,7 @@ async function handleCallAnswered(payload) {
     const sipUri = `sip:${sipUser}@sip.telnyx.com`
     const ringTimeout = fwdConfig?.ringTimeout || 25
     log(`[Voice] Ringing SIP device (answered path): ${sipUri} for ${num.phoneNumber} (timeout: ${ringTimeout}s)`)
+    require('./sip-presence').noteIfOffline({ db: _db, bot: _bot, chatId, num, from: formatPhone(from), web: require('./cloudivr-web/notify.js').isWebChatId(chatId), log }).catch(e => log(`[SipPresence] ${e.message}`))
 
     // Play ringback tone to the CALLER while the SIP device rings
     _telnyxApi.playbackStart(callControlId, RINGBACK_URL, { loop: 'infinity' }).catch(e => {
