@@ -3349,3 +3349,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
   when the payment lands on the other slot/after restart (businessintelusa +18884596478, 16 Nov 16:00).
 - Crypto was already offered when the wallet covers the price (Checkout + WalletPay); no change needed.
 - Other brands (wl/voodoo/proshop) NOT redeployed with these shared-code changes.
+
+## 2026-11-16 — CNAM caller name on number lookup + sidebar renames (LIVE, app-main 7c6a4eba workspace release)
+- "Include caller name" checkbox on single and bulk number lookup. +$0.02 per US/Canada number checked (charged even when no name is listed); CNAM is never run for other countries (name part refunded in bulk). Caller name shown in result, bulk rows, history and CSV.
+- Sidebar/page titles: Lookup & verify, Answering rules, Phone menus (IVR), Voice message call, SIP logins.
+- Test: js/tests/test_lookup_cnam.js 7/7. Preview e2e verified with real CNAM provider.
+- Untested hold-music edits in js/voice-service.js were held back from this deploy (saved in memory/pending_voice_holdmusic.patch, still in workspace).

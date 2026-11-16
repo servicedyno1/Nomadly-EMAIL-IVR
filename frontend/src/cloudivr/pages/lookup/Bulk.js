@@ -17,7 +17,7 @@ function download(name, text) {
 }
 
 // Bulk run: paste a list or pick a CSV, see the total, run it, download the results.
-export function BulkRun({ kind, unit, max, path, field, cols, Row, onDone, testid, batches = [] }) {
+export function BulkRun({ kind, unit, max, path, field, cols, Row, onDone, testid, batches = [], extraBody = {}, children }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -25,11 +25,13 @@ export function BulkRun({ kind, unit, max, path, field, cols, Row, onDone, testi
   const file = useRef(null);
   const [progress, setProgress] = useState(null);
   const list = itemsOf(text, kind);
+  const unitOf = typeof unit === 'function' ? unit : () => unit;
+  const total = list.reduce((t, x) => t + unitOf(x), 0);
   const pick = async (e) => { const f = e.target.files?.[0]; if (f) setText(await f.text()); e.target.value = ''; };
   const run = async () => {
     setBusy(true); setErr(null); setOut(null);
     try {
-      let r = await api(path, { method: 'POST', body: { [field]: list } });
+      let r = await api(path, { method: 'POST', body: { [field]: list, ...extraBody } });
       // Big lists keep running on the server: poll until they finish.
       while (r.status === 'running') { setProgress(r); await wait(2500); r = await api(`/lookup/batches/${r.batchId}`); }
       setOut(r); onDone();
@@ -45,12 +47,13 @@ export function BulkRun({ kind, unit, max, path, field, cols, Row, onDone, testi
   return (
     <div className="civr-card p-6 space-y-4" data-testid={testid}>
       <div className="flex items-center gap-2 font-semibold"><ListChecks className="w-4 h-4" />Check a list of {kind}s</div>
-      <p className="text-sm text-[var(--c-muted)]">Paste up to {max.toLocaleString()} {kind}s (one per line or separated by commas), or upload a CSV file. {price(unit)} each; you’re only charged for the ones we could check.</p>
+      <p className="text-sm text-[var(--c-muted)]">Paste up to {max.toLocaleString()} {kind}s (one per line or separated by commas), or upload a CSV file. {price(unitOf(''))} each; you’re only charged for the ones we could check.</p>
       <textarea className="civr-input font-mono !h-36 py-2" value={text} onChange={e => setText(e.target.value)} placeholder={kind === 'email' ? 'ana@example.com\nsales@example.org' : '+14155550100\n+447700900123'} data-testid={`${testid}-input`} />
+      {children}
       <div className="flex flex-wrap items-center gap-2">
         <input ref={file} type="file" accept=".csv,.txt,text/csv,text/plain" className="hidden" onChange={pick} data-testid={`${testid}-file`} />
         <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => file.current?.click()} data-testid={`${testid}-upload`}><Upload className="w-4 h-4" />Upload CSV</button>
-        <span className="text-sm text-[var(--c-muted)] flex-1" data-testid={`${testid}-count`}>{list.length > max ? `${list.length} items — the limit is ${max}` : `${list.length} ${kind}${list.length === 1 ? '' : 's'} · up to ${price(list.length * unit)}`}</span>
+        <span className="text-sm text-[var(--c-muted)] flex-1" data-testid={`${testid}-count`}>{list.length > max ? `${list.length} items — the limit is ${max}` : `${list.length} ${kind}${list.length === 1 ? '' : 's'} · up to ${price(total)}`}</span>
         <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || !list.length || list.length > max} onClick={run} data-testid={`${testid}-run`}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}{busy ? (progress ? `Checking ${progress.done || 0} of ${progress.total}…` : 'Checking…') : `Check ${list.length || ''}`}</button>
       </div>
       {progress && <p className="text-sm text-[var(--c-muted)]" data-testid={`${testid}-progress`}>{`Checked ${progress.done || 0} of ${progress.total}${progress.etaSeconds > 60 ? ` · about ${Math.ceil(progress.etaSeconds / 60)} min left` : ''}. You can leave this page — the results are saved under Recent bulk checks.`}</p>}

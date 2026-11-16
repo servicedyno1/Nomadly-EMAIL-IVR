@@ -6,10 +6,10 @@ import { cp } from './paths';
 // A path of '#phone' opens the browser phone instead of a page.
 export const NAV = [
   ['home', '', [['', 'Home', Home, 'nav-dashboard'], ['messages', 'Messages', MessagesSquare, 'nav-messages'], ['live', 'Live activity', Radio, 'nav-live']]],
-  ['numbers', 'Numbers', [['numbers', 'My numbers', Hash, 'nav-numbers'], ['buy', 'Get a number', PlusCircle, 'nav-buy'], ['fax', 'Send & receive fax', Printer, 'nav-fax'], ['texting', 'Landline texting', MessageSquareText, 'nav-texting', 'Soon'], ['lookup', 'Number & email lookup', ScanSearch, 'nav-lookup']]],
+  ['numbers', 'Numbers', [['numbers', 'My numbers', Hash, 'nav-numbers'], ['buy', 'Get a number', PlusCircle, 'nav-buy'], ['fax', 'Send & receive fax', Printer, 'nav-fax'], ['texting', 'Landline texting', MessageSquareText, 'nav-texting', 'Soon'], ['lookup', 'Lookup & verify', ScanSearch, 'nav-lookup']]],
   ['calls', 'Calling', [
-    ['quick-call', 'Quick call', PhoneOutgoing, 'nav-calls'], ['answer/forwarding', 'Call forwarding & voicemail', PhoneForwarded, 'nav-answer-forwarding'], ['answer/ivr', 'Keypad menus', Workflow, 'nav-answer-ivr', 'IVR'],
-    ['campaigns', 'Bulk campaigns', Megaphone, 'nav-campaigns', 'IVR'], ['text-call', 'Text-to-voice call', Captions, 'nav-text-call'], ['sip', 'Softphone logins', KeyRound, 'nav-sip', 'SIP'], ['#phone', 'Browser phone', Headphones, 'nav-browser-phone'],
+    ['quick-call', 'Quick call', PhoneOutgoing, 'nav-calls'], ['answer/forwarding', 'Answering rules', PhoneForwarded, 'nav-answer-forwarding'], ['answer/ivr', 'Phone menus (IVR)', Workflow, 'nav-answer-ivr'],
+    ['campaigns', 'Bulk campaigns', Megaphone, 'nav-campaigns', 'IVR'], ['text-call', 'Voice message call', Captions, 'nav-text-call'], ['sip', 'SIP logins', KeyRound, 'nav-sip'], ['#phone', 'Browser phone', Headphones, 'nav-browser-phone'],
   ]],
   ['ai', 'AI', [['receptionist', 'AI receptionist', BotMessageSquare, 'nav-ai-receptionist'], ['ai-agents', 'AI calling agents', Bot, 'nav-ai-agents']]],
   ['more', 'eSIM', [['travel-esim', 'Travel eSIM', Plane, 'nav-travel-esim'], ['esim', 'USA eSIM', Smartphone, 'nav-esim']]],

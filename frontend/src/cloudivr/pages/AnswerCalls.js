@@ -9,12 +9,12 @@ import { answering } from './NumberDetail';
 
 const MODES = {
   ivr: {
-    title: 'Keypad menus', label: 'Answer calls · IVR', Icon: Workflow,
+    title: 'Phone menus (IVR)', label: 'Answer calls · IVR', Icon: Workflow,
     sub: 'Greet callers and let them press a key — "1 for sales, 2 for support". Pick a number to build or edit its menu.',
     links: [['ivr', 'Keypad menu', Workflow, 'ivr']],
   },
   forwarding: {
-    title: 'Call forwarding & voicemail', label: 'Answer calls', Icon: PhoneForwarded,
+    title: 'Answering rules', label: 'Answer calls', Icon: PhoneForwarded,
     sub: 'Send calls to your mobile or team, take voicemail when nobody answers, and set your opening hours — per number.',
     links: [['forwarding', 'Forwarding', PhoneForwarded, 'callForwarding'], ['voicemail', 'Voicemail', Voicemail, 'voicemail'], ['hours', 'Hours', Clock, null]],
   },

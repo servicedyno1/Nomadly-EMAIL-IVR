@@ -80,7 +80,7 @@ export default function SipPage() {
   const canPhone = nums.some(n => n.status === 'active' && n.access?.browserPhone) || mobile.some(m => m.status === 'active' && m.phoneNumber);
   return (
     <div data-testid="sip-page">
-      <PageHeader label="Connect devices · SIP" title="Softphone logins" sub="Log in to any softphone with these details to call and answer on your numbers." testid="sip-header">
+      <PageHeader label="Connect devices · SIP" title="SIP logins" sub="Log in to any softphone with these details to call and answer on your numbers." testid="sip-header">
         {canPhone && <button type="button" className="civr-btn civr-btn-primary" onClick={openPhone} data-testid="sip-page-open-phone"><Phone className="w-4 h-4" />Open browser phone</button>}
       </PageHeader>
       {!nums.length && !mobile.length ? (

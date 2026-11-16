@@ -377,3 +377,7 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 ## 2026-11-16 ~16:00Z — Quick actions + toll-free texting verification LIVE on cloudivr.net
 - Call / Text / Fax icons on number cards + number page; toll-free verification form + admin queue.
 - Agent-tested (testing agent iteration_299 + curl); not user-confirmed. MultiTEL has no toll-free verification API → admin files manually.
+
+## 2026-11-16 status
+- DONE (live, agent-tested, not user-confirmed): CNAM caller name add-on on number lookup (single + bulk, +$0.02 per US/CA number checked, never run elsewhere) + sidebar renames.
+- NEXT: hold music e2e audit (pending untested patch memory/pending_voice_holdmusic.patch is in workspace, NOT live); Dutch inbound SMS replies not arriving; ID verification emails/inbox notices; /notifications null .find error.

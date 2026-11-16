@@ -38,7 +38,7 @@ export default function TextCall() {
   useEffect(() => { if (state?.liveId) setCallId(state.liveId); }, [state?.liveId]);
   return (
     <div data-testid="text-call-page">
-      <PageHeader label="Make calls" title="Text-to-voice call" sub="For deaf and hard-of-hearing callers: you type and they hear a voice; they talk and you read their words live." testid="text-call-header" />
+      <PageHeader label="Make calls" title="Voice message call" sub="For deaf and hard-of-hearing callers: you type and they hear a voice; they talk and you read their words live." testid="text-call-header" />
       <div className="grid lg:grid-cols-3 gap-6 items-start">
         <div className="lg:col-span-2">{callId ? <LiveCall id={callId} onClose={() => { setCallId(null); setRound(r => r + 1); }} /> : <Setup info={info} onStarted={setCallId} />}</div>
         <HowItWorks info={info} />

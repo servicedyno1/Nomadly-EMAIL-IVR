@@ -1,0 +1,61 @@
+diff --git a/js/voice-service.js b/js/voice-service.js
+index af8993d3..b480b4ff 100644
+--- a/js/voice-service.js
++++ b/js/voice-service.js
+@@ -1279,6 +1279,14 @@ setInterval(() => {
+   for (const key of Object.keys(outboundIvrCalls)) {
+     const entry = outboundIvrCalls[key]
+     const ts = entry?.startedAt || entry?.createdAt || entry?.startTime
++    // Same as above: a CallEngine IVR call whose channel is gone no longer counts as live (it held deploy drains).
++    const t0 = ts instanceof Date ? ts.getTime() : new Date(ts || 0).getTime()
++    if (String(key).startsWith('ae:') && t0 && now - t0 > 120000 && !_aliveChecking.has(key)) {
++      _aliveChecking.add(key)
++      require('./callengine').ari().get(`/channels/${encodeURIComponent(key.slice(3))}`, { timeout: 5000 })
++        .then(() => {}, (err) => { if (err.response?.status === 404 && outboundIvrCalls[key] === entry) { if (entry._limitTimer) clearInterval(entry._limitTimer); delete outboundIvrCalls[key]; log(`[Voice] Memory cleanup: removed ended CallEngine IVR session ${key} (channel gone)`) } })
++        .finally(() => _aliveChecking.delete(key))
++    }
+     if (ts && (now - (ts instanceof Date ? ts.getTime() : ts)) > IVR_SESSION_MAX_AGE) {
+       _expireIfDead(outboundIvrCalls, key, now - (ts instanceof Date ? ts.getTime() : ts), e => { if (e._limitTimer) clearInterval(e._limitTimer) })
+     }
+@@ -1288,7 +1296,8 @@ setInterval(() => {
+   for (const key of Object.keys(twilioIvrSessions)) {
+     const entry = twilioIvrSessions[key]
+     const ts = entry?.createdAt || entry?.startedAt || entry?.startTime
+-    if (ts && (now - (ts instanceof Date ? ts.getTime() : ts)) > IVR_SESSION_MAX_AGE) {
++    // The Twilio account is closed, so a Twilio IVR session can't still be live after 10 minutes.
++    if (ts && (now - (ts instanceof Date ? ts.getTime() : new Date(ts).getTime())) > Math.min(IVR_SESSION_MAX_AGE, 10 * 60000)) {
+       delete twilioIvrSessions[key]
+       cleaned++
+     }
+@@ -1757,6 +1766,8 @@ const RINGBACK_URL = `${process.env.SELF_URL || process.env.SELF_URL_PROD || ''}
+ // Pending hold-music transfers: callControlId → { forwardTo, fromNumber }
+ // Used to defer the transfer until after the TTS announcement finishes
+ const pendingHoldTransfers = {}
++// Hold music start in flight: callControlId → promise (stopped only after it has started)
++const holdPlayback = {}
+ 
+ // Active bridge transfers: originalCallControlId → { transferCallControlId, forwardTo, fromNumber }
+ // Used to track the two-leg bridge approach for hold music during transfer
+@@ -1886,7 +1897,8 @@ async function handleBridgeTransferAnswered(payload) {
+     }
+   }
+ 
+-  // Stop hold music/ringback on original leg and bridge the two calls
++  // Stop hold music/ringback on original leg and bridge the two calls (a very quick answer: let the music start first)
++  await holdPlayback[transfer.originalCallControlId]
+   await _telnyxApi.playbackStop(transfer.originalCallControlId).catch(() => {})
+   await _telnyxApi.bridgeCalls(transfer.originalCallControlId, callControlId)
+ 
+@@ -4627,10 +4639,8 @@ async function handleSpeakEnded(payload) {
+     log(`[Voice] Hold announcement done for ${callControlId}, starting hold music + dialing ${pending.forwardTo}`)
+ 
+     // Phase 2: Start hold music on the ORIGINAL call leg (caller hears music)
+-    await _telnyxApi.playbackStart(callControlId, HOLD_MUSIC_URL, { loop: 'infinity' })
+-
+-    // Let caller hear 5 seconds of hold music before dialing the transfer destination
+-    await new Promise(resolve => setTimeout(resolve, 5000))
++    // Music starts and the destination is dialed at the same time (no extra wait before ringing it).
++    holdPlayback[callControlId] = _telnyxApi.playbackStart(callControlId, HOLD_MUSIC_URL, { loop: 'infinity' }).catch(e => log(`[Voice] Hold music on ${callControlId} failed: ${e.message}`)).finally(() => setTimeout(() => delete holdPlayback[callControlId], 60000))
+ 
+     // Phase 2b: Create new outbound call to the transfer destination
+     if ((pending.presentFrom && await dialBridgeLeg(callControlId, pending.forwardTo, pending.presentFrom, pending.via).catch(e => { log(`[Voice] Bridge leg showing caller ${pending.presentFrom} refused (${e.message}) — retrying with ${pending.fromNumber}`); return false })) || await dialBridgeLeg(callControlId, pending.forwardTo, pending.fromNumber)) {
