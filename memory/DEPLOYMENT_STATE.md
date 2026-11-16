@@ -642,3 +642,15 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - OPEN (owner decision): 9013312785 2 calls cut at 32 s ($0.34 charged, $0.15 already credited); suspected runaway per-minute charges on earlier
   deploys: 5828254066 9 Nov 20–22h $13.20, 6587790422 3 Nov 15–16h $8.40 (scripts/sip_fault_audit_ro.js). Failed outbound calls are still billed
   1 minute + $0.03 by design. Customer not messaged. ⚠️ Save to GitHub or CI rolls this back.
+
+## 2026-11-16 08:57–09:55Z — Browser phone over own Kamailio WSS: LIVE + tested on cloudivr.net (app-main only)
+- Root cause of "could not connect" on prod: numbers.js required `../webrtc-config` (wrong path) → GET /numbers/:phone/sip threw. Fixed (`./webrtc-config`).
+- sipClient.js: removed `bundlePolicy: 'max-bundle'` (answer SDP from rtpengine has no BUNDLE group → Chrome rejected it).
+- Kamailio (live + ops/sip-server/kamailio.cfg, backup /root/kamailio.cfg.bak.<ts>): WS caller → engine offer `rtcp-mux-demux DTLS=off SDES-off ICE=remove RTP/AVP`;
+  toward a WS client `rtcp-mux-offer generate-mid DTLS=passive SDES-off ICE=force RTP/SAVPF`; LOCATION no longer sets FLT_WS (reply from a WS callee goes to the plain side); usrloc handle_lost_tcp=1.
+- voice-service.js handleCallAnswered: inbound call answered by the owner's SIP/browser phone (phase ringing_sip, ring leg alive) no longer falls through to "number unavailable" + hangup after 5 s.
+- callengine finish(): caller leg ends → the leg dialed for it (peer.transferOf) is hung up (was left Up = stuck/billing).
+- Live test: `python3 scripts/prod_browser_phone_test.py <from> <to> answer` (headless Chrome, fake mic, session cookie minted on the droplet into /tmp/civr_cookie, 1 h).
+  onarrival21 account, +3197010278502 → +18667977419: register 200, call, inbound ring + answer in 2nd tab, RTP both ways on both tabs, DTMF sent, hangup clears all legs, 0 channels left.
+- Routing: line is MultiTEL-provided → existing rule sends it out on `multitel-out` (CALLER_ID_PASSTHROUGH_TRUNK); non-MultiTEL lines use the default Bird trunk. A Bird-trunk browser call was NOT exercised.
+- 3 workspace tarball deploys (last ACTIVE at ~09:53Z). ⚠️ Save to GitHub (main) or the next CI deploy rolls back. voice-service/callengine fixes NOT on WL/Voodoo/ProShop; their browser phone is not switched on (no SIP_WSS_URL).

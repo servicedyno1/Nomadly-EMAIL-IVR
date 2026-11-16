@@ -329,3 +329,7 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - NOT covered: person-to-person softphone/forwarded calls (no script to read), email blasts.
 - NEXT: owner OK → deploy app-main + overlay to WL/Voodoo/ProShop; then verify a live Telegram alert + Approve/Reject on each brand, and that prod app-main has RESELLER_DBS so the switch reaches all brands.
 - 2026-11-16 01:05Z LIVE on all 4 brands: the platform's auto-save pushed main da862b2 to GitHub and CI deployed it (app-main-a :5000) and synced WhiteLabel c045a03 (app-wl-b, app-voodoo-a, app-proshop-b) BEFORE the owner's OK arrived (OK given afterwards). All healthy, no new errors. Verified per brand with its own release + env: AI check on, hold OFF, a real test alert delivered to the admin Telegram (message ids 3487048 / 35047 / 28691 / 5754, test records removed), normal script not flagged. app-main has 3 RESELLER_DBS → switch from main reaches all brands (not flipped live). NOT exercised live: a real held call/campaign approved or rejected.
+
+## 2026-11-16 — Browser phone on own SIP server (CloudIVR) LIVE, agent-tested on production
+- See DEPLOYMENT_STATE "2026-11-16 08:57–09:55Z". Works: connect, outbound, inbound ring/answer, two-way audio, hangup. Not user-confirmed.
+- Open: Save to GitHub; prove a Bird-trunk browser call with a non-MultiTEL line; DTMF receipt at far end not verified; other brands off; Mollie cloudivr.net profile/key; calendar + 30-day Quick IVR + quieter logs went live with these deploys (not user-confirmed).

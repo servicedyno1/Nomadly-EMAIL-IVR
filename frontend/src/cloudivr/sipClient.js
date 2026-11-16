@@ -64,7 +64,7 @@ export async function startSipLine(cfg, audioEl, { onState, onStatus, onError })
     logLevel: 'error',
     sessionDescriptionHandlerFactoryOptions: {
       iceGatheringTimeout: 3000,
-      peerConnectionConfiguration: { iceServers: cfg.webrtc.iceServers || [], bundlePolicy: 'max-bundle', rtcpMuxPolicy: 'require' },
+      peerConnectionConfiguration: { iceServers: cfg.webrtc.iceServers || [], rtcpMuxPolicy: 'require' },
     },
     delegate: {
       onInvite: (invitation) => wrap(invitation, true, audioEl, onState),

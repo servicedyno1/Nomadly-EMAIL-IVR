@@ -75,6 +75,9 @@ function finish(l, cause) {
     // A softphone's dialed number never answered (refused, busy, no answer): end the softphone's leg too, unless a redial is under way.
     else if (!l.answered && a?.fromSipUri) setTimeout(() => { if (!a.ended && !a.dialing && (!a.peer || a.peer === l.id)) hangupCall(a.id) }, 3000)
   }
+  // The caller hung up: end the leg we dialed for them too (a carrier leg left up keeps billing).
+  const p = l.peer && legs.get(l.peer)
+  if (p && !p.ended && p.transferOf === l.id) hangupCall(p.id)
   setTimeout(() => legs.delete(l.id), 10 * 60000)
 }
 

@@ -752,7 +752,7 @@ function routes(router, deps) {
     if (!sip && !(req.query.browser && phoneConfig.canAccessFeature(n.plan, 'browserPhone'))) return gate(req, res, 'sipCredentials', 'SIP credentials')
     if (sip) await require('../sip-logins').ensure(phoneNumbersOf, req.webChatId, n)
     const user = n.telnyxSipUsername || n.sipUsername
-    res.json({ username: user, password: n.telnyxSipPassword || n.sipPassword, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP', live: !!n.telnyxSipUsername, browserOnly: !sip, browserKey: browserCallKey.mint(n.phoneNumber), webrtc: require('../webrtc-config').browserWebrtc(user) })
+    res.json({ username: user, password: n.telnyxSipPassword || n.sipPassword, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP', live: !!n.telnyxSipUsername, browserOnly: !sip, browserKey: browserCallKey.mint(n.phoneNumber), webrtc: require('./webrtc-config').browserWebrtc(user) })
   }))
 
   router.post('/numbers/:phone/sip/qr', withNumber(async (req, res) => {
