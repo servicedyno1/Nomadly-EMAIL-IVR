@@ -766,6 +766,16 @@ function routes(router, deps) {
     res.json({ username: user, password: n.telnyxSipPassword || n.sipPassword, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP', live: !!n.telnyxSipUsername, browserOnly: !sip, browserKey: browserCallKey.mint(n.phoneNumber), webrtc: require('./webrtc-config').browserWebrtc(user) })
   }))
 
+  // "Test my SIP registration": is the login accepted by our SIP server, and is any device signed in right now?
+  router.post('/numbers/:phone/sip/check', withNumber(async (req, res) => {
+    if (!phoneConfig.canAccessFeature(req.num.plan, 'sipCredentials')) return gate(req, res, 'sipCredentials', 'SIP credentials')
+    const selftest = require('../sip-selftest')
+    const n = await require('../sip-logins').ensure(phoneNumbersOf, req.webChatId, req.num)
+    const r = await selftest.run({ db, num: n || req.num, domain: phoneConfig.WEB_SIP_DOMAIN })
+    log(`[SipSelfTest] web ${req.webChatId} ${req.num.phoneNumber}: ${r.code} devices=${r.devices}`)
+    res.json({ code: r.code, devices: r.devices, server: r.server, lastSeenAt: r.lastSeenAt, lastApp: r.lastApp, ...selftest.explain(r) })
+  }))
+
   router.post('/numbers/:phone/sip/qr', withNumber(async (req, res) => {
     if (!phoneConfig.canAccessFeature(req.num.plan, 'sipCredentials')) return gate(req, res, 'sipCredentials', 'SIP credentials')
     await require('../sip-logins').ensure(phoneNumbersOf, req.webChatId, req.num)

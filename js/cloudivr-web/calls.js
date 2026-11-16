@@ -179,7 +179,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (b.validateOnly) return res.json({ ok: true })
     const params = {
       chatId, callerId: c.n.phoneNumber, showAs, callerPool: rot.pool, audioUrl: audio.audioUrl, audioName: audio.name, name: b.name, mode, transferNumber, transferBackups: bk.list, menu,
-      activeKeys, concurrency: Math.max(1, parseInt(b.concurrency, 10) || 5), poolShare: true, holdMusic: !!b.holdMusic,
+      activeKeys, concurrency: Math.max(1, parseInt(b.concurrency, 10) || 20), poolShare: true, holdMusic: !!b.holdMusic,
       leads, scheduledFor: plan.scheduledFor, repeat: plan.repeat, dailyLimit: plan.dailyLimit, tz: plan.tz, provider: showAs ? 'multitel' : 'telnyx', voicemailAudioUrl: vm?.audioUrl || null, voicemailAudioName: vm?.name || null,
     }
     // Over 500 numbers → parts of 500 run one after another (no repeat for split lists).
@@ -216,7 +216,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const dnc = await dncCount(chatId, leads)
     const campaign = await bulkCallService.createCampaign({
       chatId, callerId: c.n.phoneNumber, showAs, callerPool: rot.pool, audioUrl: null, audioName: `AI agent: ${agent.name}`, name: b.name, mode: 'ai', agentId: agent.id, agentName: agent.name,
-      concurrency: Math.max(1, parseInt(b.concurrency, 10) || 5), poolShare: true, leads, scheduledFor: plan.scheduledFor, repeat: plan.repeat, dailyLimit: plan.dailyLimit, tz: plan.tz, provider: 'telnyx',
+      concurrency: Math.max(1, parseInt(b.concurrency, 10) || 20), poolShare: true, leads, scheduledFor: plan.scheduledFor, repeat: plan.repeat, dailyLimit: plan.dailyLimit, tz: plan.tz, provider: 'telnyx',
     })
     if (campaign.maintenance) return bad(res, 503, 'bulk_maintenance', 'Bulk IVR is temporarily under maintenance. Quick IVR and test calls still work — please try bulk campaigns again later.')
     if (campaign.error) return bad(res, 400, 'create_failed', campaign.error)

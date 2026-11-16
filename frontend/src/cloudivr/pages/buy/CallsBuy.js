@@ -209,7 +209,7 @@ export function CallsBuy({ extraOf, onStage }) {
         <p className="text-xs text-[#a1a1aa] -mt-1 mb-3" data-testid="buy-plan-help">Pick a plan first — then search for a number to go with it. Every plan includes everything in the one before it, and you can upgrade any time from the number’s Billing tab.</p>
         <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} pick={pick || res?.request} businessOnly={businessOnly} />
       </div>}
-      <Label>Pick a number{!extraOf && planObj ? ` for your ${planObj.name} plan` : ''}</Label>
+      <Label>{!extraOf && planObj ? `Pick a number for your ${planObj.name} plan` : 'Pick a number'}</Label>
       <SearchForm catalog={catalog} q={q} setQ={setQ} onSearch={search} busy={busy === 'search'} extra={!!extraOf} />
       <div className="mt-4"><ErrorNote error={error} testid="buy-error" /></div>
       {res?.request ? <div className="mt-8">

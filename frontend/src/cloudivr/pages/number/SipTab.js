@@ -3,7 +3,7 @@ import { CallsFrom } from './SipCallerId';
 import { Link } from 'react-router-dom';
 import { ask } from '../../i18n';
 import { toast } from 'sonner';
-import { Copy, Eye, RefreshCw, Phone, PhoneOutgoing, Loader2, KeyRound } from 'lucide-react';
+import { Copy, Eye, RefreshCw, Phone, PhoneOutgoing, Loader2, KeyRound, Activity, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { api, enc } from '../../api';
 import { useShell } from '../../Shell';
 import { usePrivacy } from '../../privacy';
@@ -29,6 +29,32 @@ function TestOutbound({ num }) {
       <p className="text-sm text-[#a1a1aa] mt-1 mb-4">Checks that calls from your softphone reach us with these credentials. Free — the test call is hung up before it rings anyone.</p>
       <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={go} disabled={busy || left > 0} data-testid="sip-test-outbound-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneOutgoing className="w-4 h-4" />}{left > 0 ? `Waiting for your call… ${left}s` : 'Start 90-second test'}</button>
       {msg && <div className="text-sm text-[#d4d4d8] mt-3" data-testid="sip-test-outbound-result">{msg}</div>}
+    </div>
+  );
+}
+
+// One click: signs in to our SIP server with this number's login and says whether the problem is ours or the app's.
+const CHECK_TONE = { connected: 'border-[#065f46] bg-[#022c22] text-[#6ee7b7]', ready_not_connected: 'border-[#78350f] bg-[#2a1a05] text-[#fcd34d]', locked: 'border-[#78350f] bg-[#2a1a05] text-[#fcd34d]' };
+export function SipCheck({ num, prefix = 'sip' }) {
+  const [busy, setBusy] = useState(false);
+  const [r, setR] = useState(null);
+  const go = async () => {
+    setBusy(true);
+    try { setR(await api(`/numbers/${enc(num.phoneNumber)}/sip/check`, { method: 'POST' })); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
+  };
+  return (
+    <div className="civr-card p-6 lg:col-span-3" data-testid={`${prefix}-check-card`}>
+      <div className="font-display text-2xl font-bold">Test my SIP registration</div>
+      <p className="text-sm text-[#a1a1aa] mt-1 mb-4">Softphone not connecting? We sign in to our server with this number’s login and tell you whether the line is ready and whether any app is signed in right now.</p>
+      <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={go} disabled={busy} data-testid={`${prefix}-check-button`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}{busy ? 'Testing…' : r ? 'Test again' : 'Run test'}</button>
+      {r && (
+        <div className={`mt-4 rounded-lg border p-4 ${CHECK_TONE[r.code] || 'border-[#7f1d1d] bg-[#2a0a0a] text-[#fca5a5]'}`} data-testid={`${prefix}-check-result`} data-code={r.code}>
+          <div className="flex items-center gap-2 font-semibold" data-testid={`${prefix}-check-title`}>{r.ok ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}{r.title}</div>
+          <p className="text-sm text-[#d4d4d8] mt-2" data-testid={`${prefix}-check-message`}>{r.message}</p>
+          {r.tips?.length > 0 && <ol className="list-decimal pl-5 mt-3 space-y-1 text-sm text-[#d4d4d8]" data-testid={`${prefix}-check-tips`}>{r.tips.map((t, i) => <li key={i}>{t}</li>)}</ol>}
+          {r.lastSeenAt && r.code !== 'connected' && <div className="text-xs text-[#a1a1aa] mt-3" data-testid={`${prefix}-check-last-seen`}>{`Last signed in: ${new Date(r.lastSeenAt).toLocaleString()}${r.lastApp ? ` (${r.lastApp})` : ''}`}</div>}
+        </div>
+      )}
     </div>
   );
 }
@@ -95,6 +121,7 @@ export default function SipTab({ num }) {
     <div className="grid lg:grid-cols-3 gap-4">
       <SipCredentials num={num} />
       <BrowserPhoneCard />
+      <SipCheck num={num} />
       <TestOutbound num={num} />
       <CallsFrom num={num} card testid="sip-main-calls-from" />
       <ExtraSipLogins num={num} />

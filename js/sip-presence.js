@@ -6,6 +6,7 @@ const WARMUP_MS = 3600000 // phones re-register within the hour; before that "no
 const col = (db) => db.collection('sipPresence')
 
 async function record(db, user, expires, ua, now = new Date()) {
+  if (/^(cloudivr-selftest|preflight-check)/i.test(String(ua || ''))) return // our own registration checks are not a customer's phone
   const e = Math.max(0, Math.min(3600, Number(expires) || 0))
   await col(db).updateOne({ _id: String(user) }, { $set: { until: new Date(now.getTime() + e * 1000), ua: String(ua || '').slice(0, 80), at: now } }, { upsert: true })
   await db.collection('appSettings').updateOne({ _id: 'sipPresenceSince' }, { $setOnInsert: { at: now } }, { upsert: true })

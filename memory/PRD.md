@@ -426,3 +426,8 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Fax copy: fax is standalone — removed from all plan feature lists (web comparison, Business gate, landing snapshot).
 - Payments copy: landing now shows live Mollie methods (iDEAL, cards, PayPal, Apple Pay…) via `mollie.publicMethods` on `/public/catalog`; "coming soon" shows only when cards truly aren't approved for the domain.
 - PENDING: deploy to droplet (Save to GitHub) to activate the hourly reconciler + make copy changes live; confirm landing visual + live Mollie method list in prod.
+
+## 2026-06 update (2)
+- Self-serve "Test my SIP registration" on bot (🧪 button, 5 languages) and web (SIP tab card) — `js/sip-selftest.js`, verified live against the production SIP server.
+- Web buy flow is plan-first; all step/onboarding copy aligned. Web campaign default concurrency 20 (Bird account cap verified 20 / 5 CPS in prod env).
+- Open decisions for owner: (1) bump 2 report-only campaigns to 20? (2) bot concurrency default/button order; (3) SIP on the $75 Starter plan for NEW buyers; (4) retired-login tracking + owner DM on stale-login attempts (top cause of live SIP auth failures).

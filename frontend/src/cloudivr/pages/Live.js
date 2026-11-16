@@ -29,8 +29,8 @@ function AccountCalls({ calls }) {
         <li key={c.id || i} className="flex items-center gap-3 py-2.5" data-testid={`live-call-${i}`}>
           <span className={`civr-pill ${CALL_PILL[c.type] || 'bg-[#27272a] text-[#d4d4d8]'} shrink-0`} data-testid={`live-call-${i}-status`}>{c.label}</span>
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-mono truncate">{c.out ? '→ ' : '← '}{c.peer || c.number}</div>
-            <div className="text-xs text-[#a1a1aa] truncate">on {c.number}{c.duration ? ` · ${fmtDur(c.duration)}` : ''}</div>
+            <div className="text-sm font-mono truncate" data-no-translate>{`${c.out ? '→' : '←'} ${c.peer || c.number}`}</div>
+            <div className="text-xs text-[#a1a1aa] truncate">{`on ${c.number}${c.duration ? ` · ${fmtDur(c.duration)}` : ''}`}</div>
           </div>
           <span className="text-xs text-[#a1a1aa] font-mono shrink-0" data-testid={`live-call-${i}-time`}>{fmtTime(c.at)}</span>
         </li>

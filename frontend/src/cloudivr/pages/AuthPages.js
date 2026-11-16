@@ -15,7 +15,7 @@ import { GoogleButton } from './auth/GoogleButton';
 import { PhoneSignIn } from './auth/PhoneSignIn';
 import { ThemeRoot } from '../theme';
 
-const NEXT_STEPS = ['Pick a number and plan', 'Pay with crypto or your wallet (cards coming soon)', 'Choose what callers hear'];
+const NEXT_STEPS = ['Pick a plan, then a number', 'Pay by card, bank, crypto or your wallet', 'Choose what callers hear'];
 const TEXTING_STEPS = ['Enter your business number', 'Pay from your wallet', 'Read your customers’ texts'];
 const ESIM_STEPS = ['Pick an eSIM plan', 'Pay from your wallet', 'Scan the QR code on your phone'];
 
