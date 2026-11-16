@@ -5,6 +5,7 @@ process.env.MONGO_URL = URL
 process.env.DB_NAME = 'civr_live_repeat_harness'
 process.env.BULK_TELNYX_DIAL_GAP_MS = '0'
 process.env.TWILIO_ENABLED = 'false'
+process.env.BULK_IVR_MAINTENANCE = 'false'
 delete process.env.SELF_URL; delete process.env.SELF_URL_PROD
 
 const { MongoClient } = require('mongodb')
