@@ -563,6 +563,10 @@ async function pollNumber(d) {
 }
 
 // ---------- texting ----------
+require('./msg-watch').register('spenzaSms', {
+  approve: (a) => call('post', '/api/v1.1/sms', { fromNumber: a.from, toNumber: a.to, text: a.body }),
+  reject: async (a) => { if (a.cost) await S.w.credit(a.chatId, a.cost) },
+})
 async function sendSms(chatId, id, to, text) {
   const d = await mine(chatId, id)
   if (d && d.kind !== 'mobile') return { error: 'Texts from a QR eSIM are sent from your phone, not from CloudIVR.' }
@@ -575,7 +579,9 @@ async function sendSms(chatId, id, to, text) {
   // USA Texting Numbers: unlimited texts, no per-text charge (2026-11).
   const parts = require('./cloudivr-web/sms-limit').smsParts(body), cost = round2(MOBILE_TEXT_PRICE * parts)
   if (cost && !(await S.w.debit(chatId, cost))) return { error: `Your wallet needs $${cost.toFixed(2)} to send this text${parts > 1 ? ` (${parts} parts)` : ''}.` }
-  if (!d.simulated) {
+  const mw = d.simulated ? { act: 'send' } : await require('./msg-watch').gate({ chatId, where: 'Text from a USA mobile number', from: d.phoneNumber, to: dest, text: body })
+  if (mw.act === 'hold') await require('./msg-watch').attach(mw.id, { type: 'spenzaSms', chatId: String(chatId), from: d.phoneNumber, to: dest, body, cost })
+  if (!d.simulated && mw.act !== 'hold') {
     try { await call('post', '/api/v1.1/sms', { fromNumber: d.phoneNumber, toNumber: dest, text: body }) } catch (e) { await S.w.credit(chatId, cost); S.log(`[eSIM] sms ${d._id}: ${e.message}`); return { error: e.code === 'FORBIDDEN' || e.status === 401 || e.status === 403 ? 'Texts from this eSIM aren’t switched on yet. We’ve let support know. You weren’t charged.' : 'The text couldn’t be sent. You weren’t charged. Try again in a minute.' } }
   }
   if (cost) await txn(chatId, 'esim-sms', cost, { lineId: d._id, to: dest, parts })

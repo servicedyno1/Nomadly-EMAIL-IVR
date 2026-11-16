@@ -4,6 +4,7 @@
 // used to text strangers — and once per missed call. Counts as one SMS of the plan, then OVERAGE_RATE_SMS from the wallet.
 const axios = require('axios')
 const crypto = require('crypto')
+const msgWatch = require('../msg-watch')
 const { ObjectId } = require('mongodb')
 const phoneConfig = require('../phone-config')
 const { walletOps } = require('./wallet')
@@ -128,6 +129,10 @@ function createSmsReply({ db, voiceService, log = console.log }) {
   }
 
   // → { log } | { error: [status, code, message] }
+  msgWatch.register('smsReply', {
+    approve: async (a) => { const r = await deliver(a.from, a.to, a.body, a.urls || []); if (r.error) throw new Error(r.error); await phoneLogs.updateOne({ _id: a.logId }, { $set: { messageId: r.id } }) },
+    reject: async (a) => { const d = await phoneLogs.findOne({ _id: a.logId }); if (d) await giveBack(db, d) },
+  })
   async function send({ chatId, num, to, text, simulated = false, replyTo = null, inboxId = null, media = [] }) {
     const body = require('./sms-limit').gsmText(clean(text))
     if (!body && !media.length) return { error: [400, 'empty', 'Type a reply or pick one.'] }
@@ -159,7 +164,11 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     if (overage && !(await w.debit(chatId, overage))) return { error: [402, 'insufficient_balance', home ? `This text costs $${overage.toFixed(2)} ($${phoneConfig.OVERAGE_RATE_SMS} per part). Top up your wallet first.` : `A text to ${rule.country} costs $${overage.toFixed(2)}. Top up first.`] }
     let out = { id: `preview-${crypto.randomUUID()}` }, tries = 0
     // Up to 3 tries; a failed text is never charged and is logged for follow-up.
-    if (!preview) for (let i = 0; i < 3; i++) { out = await deliver(rule.from || num.phoneNumber, to, body, media.map(m => require('./media').publicUrl(m.id))); if (!out.error) break; tries = i + 1; if (!/try again/i.test(out.error)) break; if (i < 2) await new Promise(r => setTimeout(r, 1500 * (i + 1))) }
+    const urls = media.map(m => require('./media').publicUrl(m.id))
+    // Spam watch: a caught text may wait for the admin (the sender sees it as sent either way).
+    const mw = preview ? { act: 'send' } : await msgWatch.gate({ chatId, where: 'Text from a customer number', from: rule.from || num.phoneNumber, to, text: body })
+    if (mw.act === 'hold') out = { id: `held-${mw.id}` }
+    else if (!preview) for (let i = 0; i < 3; i++) { out = await deliver(rule.from || num.phoneNumber, to, body, urls); if (!out.error) break; tries = i + 1; if (!/try again/i.test(out.error)) break; if (i < 2) await new Promise(r => setTimeout(r, 1500 * (i + 1))) }
     if (out.error) {
       if (overage) await w.credit(chatId, overage)
       await phoneLogs.insertOne({ chatId: String(chatId), phoneNumber: num.phoneNumber, from: rule.from || num.phoneNumber, to, country: rule.iso, type: 'sms_out', direction: 'outbound', body, status: 'failed', error: out.error, attempts: tries, provider: num.provider || null, webReply: true, timestamp: new Date().toISOString() })
@@ -169,7 +178,8 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     if (overage) await phoneTransactions.insertOne({ chatId, phoneNumber: num.phoneNumber, action: 'sms_reply', amount: overage, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
     const doc = { chatId: String(chatId), phoneNumber: num.phoneNumber, from: rule.from || num.phoneNumber, to, country: rule.iso, type: 'sms_out', direction: 'outbound', body, messageId: out.id, status: preview ? 'preview' : 'sent', webReply: true, ...(media.length ? { media } : {}), ...(overage ? { charge: overage } : {}), ...(replyTo ? { replyTo } : {}), ...(inboxId ? { inboxId: String(inboxId) } : {}), timestamp: new Date().toISOString() }
     await phoneLogs.insertOne(doc)
-    log(`[SmsReply] ${num.phoneNumber} → ${to}${preview ? ' (PREVIEW)' : ''}${overage ? ` $${overage}` : ''}`)
+    if (mw.act === 'hold') await msgWatch.attach(mw.id, { type: 'smsReply', logId: doc._id, from: doc.from, to, body, urls })
+    log(`[SmsReply] ${num.phoneNumber} → ${to}${preview ? ' (PREVIEW)' : ''}${mw.act === 'hold' ? ' (HELD)' : ''}${overage ? ` $${overage}` : ''}`)
     return { log: doc, charge: overage }
   }
 

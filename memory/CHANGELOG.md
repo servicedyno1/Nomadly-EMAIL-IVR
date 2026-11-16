@@ -3208,3 +3208,12 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 ## 2026-11-16 00:15Z — Landing "No ID needed" removed + customer told
 - Landing hero subtitle and Texting Number pricing card no longer say "No ID needed" (OnePage.js, PricingFaq.js). Live: app-main 20261116T001441Z-8cd511a (:5100).
 - Telegram message sent to 5828254066 (calls fixed, $19.68 refunded), message id 3485565.
+
+## 2026-11-16 00:50Z — Spam text watch (AI + rules) with admin hold switch — LIVE on all 4 brands
+- js/msg-watch.js: verdict = OpenAI gpt-4.1-mini (OPEN_API_KEY / APP_OPEN_API_KEY) + keyword rules (rules alone if AI is down, fail-open). Caught text → Telegram alert to TELEGRAM_ADMIN_CHAT_ID.
+- Switch `adminSettings._id=msgWatch.hold` (default OFF = alert only, text still goes). ON = outgoing caught texts wait for ✅ Approve / 🚫 Reject on the alert (`mw:a|r:<id>`), held forever until decided; customer is never told (text shows as sent; reject gives the charge / plan text back silently).
+- Hooks: cloudivr-web/sms-reply.js send (web 1:1, replies, auto text-back), spenza.js sendSms (USA mobile), bulk-esim/core.js processOne (campaign judged once per wording `camp:<id>:<hash>`, single texts one by one; store `bsHeld` in the BulkSMS DB; hold = requeue 60 s, reject = blocked/content). Received texts: phoneLogs reader every 20 s (`mwSeen`), alert only, once per sender+text per day.
+- Admin: web Overview card "Spam text watch" (GET/PUT /admin/msg-watch), bot `/spamhold [on|off]` (only way on WL brands — no web admin there).
+- Tests: js/tests/test_msg_watch.js 14/14 (needs local mongod), bulk-esim suites pass, admin toggle checked in preview browser, live AI verdict checked with each brand's own key. NOT exercised live: a real held text approved/rejected in production; preview/dry-run sends skip the watch.
+- Deploy: app-main workspace 20261116T004143Z-dc0b097 (:5100). WL r14 overlay (msg-watch, sms-reply, spenza, bulk-esim/core, _index patch) on app-wl-b, app-voodoo-a, app-proshop-b (88ee68c); backups deploy-backups/<slot>-r14-*. ⚠️ Save to GitHub or CI rolls it back.
+- Not covered: BulkSMS replies received (bsInbound), pictures (MMS images), old Android SMS app.
