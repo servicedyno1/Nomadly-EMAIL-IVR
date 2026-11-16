@@ -382,3 +382,41 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - DONE (live, agent-tested, not user-confirmed): CNAM caller name add-on on number lookup (single + bulk, +$0.02 per US/CA number checked, never run elsewhere) + sidebar renames.
 - DONE 2026-11-16: hold music flow fixed + live (162308c0), not user-confirmed by a real call.
 - NEXT: Dutch inbound SMS replies not arriving; ID verification emails/inbox notices; /notifications null .find error.
+
+## 2026-11-16 — Custom Caller ID System (Guard + Business Plan + MultiTEL Routing)
+
+### New Feature: Caller ID Guard (`cid-guard.js`)
+- 71+ hardcoded blocked numbers (US banks, government, payment processors, credit bureaus, UK/CA banks, insurance)
+- Emergency number blocking (911, 112, 999, etc.)
+- Jev AI classification for unknown numbers (financial institution detection)
+- Telegram admin alerts on blocked attempts
+- Admin API for blocklist management
+- DB-backed audit trail + caching
+
+### New Feature: Business Plan Custom Caller ID
+- Business-plan users can use ANY phone number as caller ID without Bird verification
+- Guard blocklist enforced on all plans
+- Auto-saved as `business_passthrough` in presets
+
+### Updated: Custom Caller ID in All Call Paths
+- SIP/browser phone: Custom caller ID via X-Civr-Show-As → MultiTEL trunk (call engine)
+- Quick IVR: `showAs` → MultiTEL provider
+- Bulk IVR campaigns: `showAs` → MultiTEL provider
+- Landing page test call: Visitor enters their own number → guard check → MultiTEL
+- Inbound forwarding: Already supported via CALLER_ID_PASSTHROUGH_TRUNK (unchanged)
+
+### Updated: Compliance Notifications
+- Added ID-check-failed email + push notification (retries remaining, failure reason, tips)
+- Existing: payment-held, ID-verified/released, payment-refunded, review-needed emails already in place
+
+### Key Files
+- `/app/js/cloudivr-web/cid-guard.js` — Guard module (blocklist + AI + alerts)
+- `/app/js/cloudivr-web/caller-ids.js` — Updated resolve() for Business-plan passthrough
+- `/app/js/voice-service.js` — SIP outbound: MultiTEL routing for custom caller IDs
+- `/app/js/cloudivr-web/outbound.js` — Quick IVR: MultiTEL provider for custom CID
+- `/app/js/cloudivr-web/calls.js` — Bulk IVR: MultiTEL provider for custom CID
+- `/app/js/cloudivr-web/trycall.js` — Landing page: visitor caller ID support
+- `/app/js/cloudivr-web/card-check.js` — ID-check-failed notification added
+
+### Tests
+- `/app/js/tests/test_cid_guard.js`: 17/17 passed

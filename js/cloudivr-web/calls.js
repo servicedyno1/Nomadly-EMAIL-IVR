@@ -180,7 +180,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const params = {
       chatId, callerId: c.n.phoneNumber, showAs, callerPool: rot.pool, audioUrl: audio.audioUrl, audioName: audio.name, name: b.name, mode, transferNumber, transferBackups: bk.list, menu,
       activeKeys, concurrency: Math.max(1, parseInt(b.concurrency, 10) || 5), poolShare: true, holdMusic: !!b.holdMusic,
-      leads, scheduledFor: plan.scheduledFor, repeat: plan.repeat, dailyLimit: plan.dailyLimit, tz: plan.tz, provider: 'telnyx', voicemailAudioUrl: vm?.audioUrl || null, voicemailAudioName: vm?.name || null,
+      leads, scheduledFor: plan.scheduledFor, repeat: plan.repeat, dailyLimit: plan.dailyLimit, tz: plan.tz, provider: showAs ? 'multitel' : 'telnyx', voicemailAudioUrl: vm?.audioUrl || null, voicemailAudioName: vm?.name || null,
     }
     // Over 500 numbers → parts of 500 run one after another (no repeat for split lists).
     const splitMode = ['auto', 'ask', 'part', 'first'].includes(b.splitMode) ? b.splitMode : (b.autoNext === false ? 'ask' : 'auto')

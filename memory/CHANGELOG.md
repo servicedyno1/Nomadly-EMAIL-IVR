@@ -3391,3 +3391,44 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - **What we proved:** MultiTEL's termination gateway passes our caller ID to the downstream carrier without verification against our account inventory.
 - **What we did NOT prove yet:** What the recipient (+13025141000) actually saw on their handset display. The user must confirm whether the unowned numbers appeared as the caller ID on the receiving end. Carrier-level STIR/SHAKEN attestation and intermediate carrier behavior could still alter or flag the display.
 - No code changes needed; this is a provider capability test.
+
+## 2026-11-16 — Custom Caller ID System: Guard + Business Plan + MultiTEL Routing + Compliance
+
+### Phase 1: Caller ID Guard (`cid-guard.js`)
+- Created `/app/js/cloudivr-web/cid-guard.js` — central guard module
+- 71+ hardcoded blocked numbers: US banks (Chase, BofA, Wells Fargo, Citi, Capital One, etc.), government (IRS, SSA, FBI, US Treasury, FDIC, FTC, Medicare, USCIS), payment processors (PayPal, Venmo, Cash App, Zelle, Google Pay, Coinbase), credit bureaus (Equifax, TransUnion, Experian), UK banks, Canadian banks, insurance
+- Emergency numbers (911, 112, 999, etc.) blocked
+- Jev AI classification for unknown numbers (financial institution detection, >0.75 confidence threshold)
+- Telegram admin alert (Nomadlybot) on every blocked attempt (rate-limited: 1 per number+account per hour)
+- 24h cache (in-memory + MongoDB `cidGuardCache` collection with TTL)
+- Audit trail: every check logged to `cidGuardAttempts` collection (90-day TTL)
+- Admin API: GET `/admin/cid-guard/blocklist`, GET `/admin/cid-guard/attempts`, POST `/admin/cid-guard/block`, DELETE `/admin/cid-guard/block/:number`
+- Custom admin-added blocks persisted in `cidGuardCustomBlocks` collection
+- Loaded on startup alongside hardcoded list
+
+### Phase 2: Business Plan — Any Caller ID
+- Updated `caller-ids.js` `resolve()`: Business-plan users can use any E164 number as caller ID without Bird verification
+- Guard check runs before resolution for all users
+- Auto-saved as `business_passthrough` method in `webCallerIds` for preset tracking
+- Non-Business plans still require verified-only caller IDs
+- Updated `attest()`: Business-plan users can add any number directly (guard check applies)
+- Updated `isVerified()`: falls through to `hasPaidPlan()` check
+
+### Phase 3: Custom Caller ID Everywhere + MultiTEL Routing
+- **SIP/browser phone outbound** (`voice-service.js` ~line 3634): Business-plan users can pass any caller ID via X-Civr-Show-As header or saved default. Unowned numbers route through MultiTEL trunk via call engine (`require('./callengine').transferCall`), not Telnyx API. Fallback to own number on carrier refusal.
+- **Quick IVR** (`outbound.js` line 260): `provider` switches to `multitel` when `showAs` is set
+- **Bulk IVR campaigns** (`calls.js` line 183): `provider` switches to `multitel` when `showAs` is set
+- **Landing page** (`trycall.js`): Visitors can enter their own phone number as caller ID. Runs through guard blocklist. Routes through MultiTEL when custom caller ID is used.
+- **Inbound forwarding**: Already had MultiTEL routing via `CALLER_ID_PASSTHROUGH_TRUNK` (unchanged)
+- **Env**: Added `CALLER_ID_PASSTHROUGH_TRUNK=multitel-out` to backend/.env
+
+### Phase 4: Compliance Notifications
+- Added ID-check-failed email notification (`card-check.js`): when Stripe Identity verification fails but retries remain, customer receives email with failure reason, remaining attempts count, and tips
+- Added push notification for the same event
+- Existing notifications (payment held, ID verified/released, payment refunded, review needed) were already in place
+
+### Tests
+- `/app/js/tests/test_cid_guard.js`: 17 passed, 0 failed
+  - Blocklist: Chase, IRS, PayPal, 70+ entries, emergency numbers
+  - Guard check: blocked returns false + reason, emergency blocked, normal passes (fail-open without AI key), invalid format rejected, admin alert fires
+  - Caller ID resolution: blocked numbers rejected through resolve(), empty showAs returns null, emergency rejected, IRS rejected

@@ -257,7 +257,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   const engineParams = (chatId, cfg, to, trial) => ({
     chatId, callerId: cfg.callerId, displayCallerId: cfg.showAs || null, targetNumber: to, ivrNumber: cfg.menu ? firstForward(cfg.menu) : cfg.transferTo || null, transferBackups: cfg.menu || cfg.mode === 'otp' ? [] : (cfg.transferBackups || []), menu: cfg.menu,
     audioUrl: cfg.audioUrl, greetingText: cfg.audioUrl ? null : cfg.text, voiceName: cfg.voiceName || undefined, activeKeys: cfg.activeKeys, templateName: cfg.templateName,
-    holdMusic: cfg.holdMusic, provider: 'telnyx', isTrial: !!trial, ivrMode: cfg.mode === 'otp' ? 'otp_collect' : 'transfer',
+    holdMusic: cfg.holdMusic, provider: cfg.showAs ? 'multitel' : 'telnyx', isTrial: !!trial, ivrMode: cfg.mode === 'otp' ? 'otp_collect' : 'transfer',
     otpLength: cfg.otp?.length || 6, otpMaxAttempts: 3, otpConfirmMsg: cfg.otp?.confirmMsg || null, otpRejectMsg: cfg.otp?.rejectMsg || null,
   })
   const publicCall = (d) => ({ id: d._id, at: d.at, callerId: d.cfg.callerId, showAs: d.cfg.showAs || null, targets: d.cfg.targets, mode: d.cfg.mode, templateName: d.cfg.templateName, hasMenu: !!d.cfg.menu, transferTo: d.cfg.transferTo, results: d.results || [], dryRun: !!d.dryRun, trial: !!d.trial, scheduledFor: d.scheduledFor || null })

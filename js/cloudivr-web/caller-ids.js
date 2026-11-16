@@ -37,16 +37,46 @@ async function setEnabled(v, by) {
 }
 
 // The verified number this account may show, or null for "use the CloudIVR number". Throws on a number they haven't verified.
-async function resolve(chatId, showAs) {
+// Business-plan users may use ANY number as caller ID (no verification needed), subject to the cid-guard blocklist.
+async function resolve(chatId, showAs, { skipGuard = false } = {}) {
   if (!showAs || !ON) return null
   const n = clean(showAs)
+  // Run the caller-ID guard (financial-institution / emergency blocklist + AI check)
+  if (!skipGuard) {
+    const cidGuard = require('./cid-guard')
+    const guardResult = await cidGuard.guard(n, { chatId, channel: 'web' })
+    if (!guardResult.allowed) {
+      const e = new Error(guardResult.reason || 'This number cannot be used as caller ID.')
+      e.code = 'blocked_caller_id'
+      throw e
+    }
+  }
+  // Check if already verified (any plan)
   const doc = col && await col.findOne({ _id: n, chatId: String(chatId), status: 'verified', attested: { $ne: true } })
-  if (!doc) { const e = new Error('Add that number under My numbers → Your own caller IDs before calling from it.'); e.code = 'invalid_show_as'; throw e }
-  // Only numbers proven by a code (SMS / call) may be shown — self-declared ("attested") caller IDs are spoofing and were retired 2026-11.
-  if (doc.method === 'attested' || doc.method === 'review') { const e = new Error('Verify this number with a code first: My numbers → Your own caller IDs → Verify.'); e.code = 'invalid_show_as'; throw e }
-  return n
+  if (doc) {
+    if (doc.method === 'attested' || doc.method === 'review') {
+      const e = new Error('Verify this number with a code first: My numbers → Your own caller IDs → Verify.')
+      e.code = 'invalid_show_as'
+      throw e
+    }
+    return n
+  }
+  // Business plan: allow any number without verification, auto-save as business_passthrough
+  if (await hasPaidPlan(chatId)) {
+    // Auto-save so it appears in presets and usage tracking
+    if (col) {
+      await col.replaceOne({ _id: n }, {
+        _id: n, chatId: String(chatId), status: 'verified', method: 'business_passthrough',
+        createdAt: Date.now(), verifiedAt: new Date(),
+      }, { upsert: true }).catch(() => {})
+    }
+    return n
+  }
+  const e = new Error('Add that number under My numbers → Your own caller IDs before calling from it.')
+  e.code = 'invalid_show_as'
+  throw e
 }
-const isVerified = (chatId, n) => (ON ? resolve(chatId, n).then(() => true, () => false) : Promise.resolve(false))
+const isVerified = (chatId, n) => (ON ? resolve(chatId, n).then(() => true, () => false) : hasPaidPlan(chatId))
 
 async function telnyxRequestCode(n, method) {
   const body = { phone_number: n, verification_method: method }
@@ -272,8 +302,23 @@ const hasPaidPlan = async (chatId) => {
 // Returns { ok, number } or { ok:false, status, error, message }.
 async function attest(chatId, raw, { who = '', channel = 'web', label = '' } = {}) {
   chatId = String(chatId)
-  // Unverified (self-declared) caller IDs are no longer accepted anywhere: verify with Bird's code call first.
-  return { ok: false, status: 400, error: 'verification_required', message: 'Caller IDs must be numbers you own. Add the number and verify it with the code Bird reads out in a call.' }
+  const n = clean(raw)
+  if (!E164.test(n)) return { ok: false, status: 400, error: 'invalid_number', message: 'Enter the number with country code, e.g. +14155550100.' }
+  if (isEmergency(raw)) return { ok: false, status: 400, error: 'blocked_caller_id', message: 'Emergency numbers cannot be used as caller ID.' }
+  // Business plan required for attested (unverified) caller IDs
+  if (!(await hasPaidPlan(chatId))) return { ok: false, status: 403, error: 'plan_upgrade_required', message: 'Custom caller IDs without verification require the Business plan.' }
+  // Run the caller-ID guard
+  const cidGuard = require('./cid-guard')
+  const guardResult = await cidGuard.guard(n, { chatId, channel })
+  if (!guardResult.allowed) return { ok: false, status: 400, error: 'blocked_caller_id', message: guardResult.reason || 'This number cannot be used as caller ID.' }
+  // Auto-verify as business_passthrough
+  if (col) {
+    await col.replaceOne({ _id: n }, {
+      _id: n, chatId, status: 'verified', method: 'business_passthrough', label: label ? String(label).slice(0, 24) : null,
+      createdAt: Date.now(), verifiedAt: new Date(),
+    }, { upsert: true }).catch(() => {})
+  }
+  return { ok: true, number: n }
 }
 
 const defaultFor = async (chatId, ownNumber) => ON && (await dbRef?.collection('callerIdDefaults').findOne({ _id: String(ownNumber), chatId: String(chatId) }))?.showAs || null

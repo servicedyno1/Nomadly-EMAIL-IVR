@@ -171,6 +171,10 @@ function createCardCheck(db, { log = console.log, notifyAdmin, push, refundPayme
       const r = await col.findOneAndUpdate({ _id: String(chatId) }, { $addToSet: { 'cardCheck.failedSessions': session.id } }, { returnDocument: 'after' })
       const fails = ((r?.value || r)?.cardCheck?.failedSessions || []).length
       if (fails >= MAX_FAILS) return refundAll(chatId, 'the ID check did not pass')
+      // Notify customer they can try again
+      const reason = session?.last_error?.reason || session?.last_error?.code || 'The check could not be completed'
+      mail(chatId, 'ID check not successful \u2014 try again', 'ID check issue', [`Your ID check did not go through: ${reason}.`, `You have ${MAX_FAILS - fails} attempt(s) left. Your payment stays on hold until verified.`], ['Use a well-lit area for the selfie', 'Make sure the name on your ID matches the card name', "Try a different document type if one doesn't work"], ['Try again', '/app/wallet'])
+      push?.(String(chatId), `Your ID check did not go through: ${reason}. You have ${MAX_FAILS - fails} attempt(s) left \u2014 try again in Wallet \u2192 Verify ID.`).catch?.(() => {})
     }
   }
 
