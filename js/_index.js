@@ -26842,12 +26842,12 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
     const ownRow = cc.auto ? [[L.own]] : []
     if (cc.ctx === 'bulk') {
-      const bulkData = { ...(info?.bulkData || {}), callerId: cc.line, showAs: number, callerType: cc.type, provider: 'telnyx', twilioSubAccountSid: null, twilioSubAccountToken: null }
+      const bulkData = { ...(info?.bulkData || {}), callerId: cc.line, showAs: number, callerType: cc.type, provider: number ? 'multitel' : 'telnyx', twilioSubAccountSid: null, twilioSubAccountToken: null }
       await saveInfo('bulkData', bulkData)
       await set(state, chatId, 'action', a.bulkUploadLeads)
       return send(chatId, trans('t.cp_132', number), k.of([...ownRow, ['↩️ Back']]))
     }
-    const ivrObData = { ...(info?.ivrObData || {}), callerId: cc.line, displayCallerId: number, callerProvider: 'telnyx', callerPlan: cc.plan || 'starter' }
+    const ivrObData = { ...(info?.ivrObData || {}), callerId: cc.line, displayCallerId: number, callerProvider: number ? 'multitel' : 'telnyx', callerPlan: cc.plan || 'starter' }
     await saveInfo('ivrObData', ivrObData)
     await set(state, chatId, 'action', a.ivrObEnterTarget)
     return send(chatId, trans('t.cp_25', number), k.of(ownRow))
@@ -26868,15 +26868,31 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
     // Only caller IDs verified with a Bird code call (in the CloudIVR app) can be shown; typed numbers are never accepted.
     const cid = require('./cloudivr-web/caller-ids')
-    const VERIFY_MSG = '🔒 Only your own numbers verified with a Bird code call can be shown as caller ID. Verify one in the CloudIVR app: My numbers → Your own caller IDs → Verify. Then pick it here.'
+    const VERIFY_MSG = 'Only your own numbers verified with a Bird code call can be shown as caller ID. Verify one in the CloudIVR app: My numbers \u2192 Your own caller IDs \u2192 Verify. Then pick it here.'
+    // Business-plan users may type any number (guard-checked); other plans need a verified preset.
     if (cc.ctx === 'trial') {
-      await saveInfo('customCid', null)
-      await set(state, chatId, 'action', a.ivrObEnterTarget)
-      return send(chatId, '📞 The free trial call shows a CloudIVR number. Custom caller IDs must be your own numbers, verified by a Bird code call in the CloudIVR app.', k.of([]))
+      // Trial calls: allow custom caller ID after guard check
+      const cidGuard = require('./cloudivr-web/cid-guard')
+      if (cid.isEmergency(message)) return send(chatId, L.emergency)
+      const pre = ccid.presetOf(message) || (() => { const n = String(message || '').replace(/[^\d+]/g, ''); return n.startsWith('+') ? n : n.length === 10 ? `+1${n}` : `+${n}` })()
+      const guardResult = await cidGuard.guard(pre, { chatId, channel: 'bot_trial' })
+      if (!guardResult.allowed) return send(chatId, `⚠️ ${guardResult.reason || 'This number cannot be used as caller ID.'}`)
+      return applyCustomCid(cc, pre)
     }
     if (cid.isEmergency(message)) return send(chatId, L.emergency)
     const pre = ccid.presetOf(message) || (() => { const n = String(message || '').replace(/[^\d+]/g, ''); return n.startsWith('+') ? n : n.length === 10 ? `+1${n}` : `+${n}` })()
+    // Existing preset → use directly
     if ((await cid.presets(chatId)).some(p => p.number === pre)) return applyCustomCid(cc, pre)
+    // Business-plan users can type any new number (guard-checked, auto-saved as preset)
+    if (await cid.hasPaidPlan(chatId)) {
+      const cidGuard = require('./cloudivr-web/cid-guard')
+      const guardResult = await cidGuard.guard(pre, { chatId, channel: 'bot' })
+      if (!guardResult.allowed) return send(chatId, `⚠️ ${guardResult.reason || 'This number cannot be used as caller ID.'}`)
+      // Auto-save via attest (which saves as business_passthrough)
+      const att = await cid.attest(chatId, pre, { channel: 'bot' })
+      if (!att.ok) return send(chatId, `⚠️ ${att.message}`)
+      return applyCustomCid(cc, pre)
+    }
     await set(state, chatId, 'action', 'customCidEnter')
     return send(chatId, VERIFY_MSG, k.of([...await ccid.presetRows(chatId), ['↩️ Back']]))
   }
@@ -28516,10 +28532,11 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         return goto.submenu5()
       }
 
+      const resolvedDisplayCid = ivrObData.displayCallerId && (ivrObData.isTrial || await require('./cloudivr-web/caller-ids').isVerified(chatId, ivrObData.displayCallerId)) ? ivrObData.displayCallerId : null
       const result = await voiceService.initiateOutboundIvrCall({
         chatId,
         callerId: ivrObData.callerId,
-        displayCallerId: ivrObData.displayCallerId && (ivrObData.isTrial || await require('./cloudivr-web/caller-ids').isVerified(chatId, ivrObData.displayCallerId)) ? ivrObData.displayCallerId : null,
+        displayCallerId: resolvedDisplayCid,
         targetNumber: ivrObData.targetNumber,
         ivrNumber: ivrObData.ivrNumber,
         transferBackups: ivrObData.menu ? [] : (ivrObData.transferBackups || []),
@@ -28531,7 +28548,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         voiceName: ivrObData.voiceName,
         isTrial: ivrObData.isTrial || false,
         holdMusic: ivrObData.holdMusic || false,
-        provider: callerProvider,
+        provider: resolvedDisplayCid ? 'multitel' : callerProvider,
         twilioSubAccountSid: subAccountSid,
         twilioSubAccountToken: subAccountToken,
         ivrMode: ivrObData.ivrMode || 'transfer',
@@ -28557,12 +28574,12 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           batchCount++
           send(chatId, trans('t.cp_119', batchCount, batchTargets.length, target))
           await voiceService.initiateOutboundIvrCall({
-            chatId, callerId: ivrObData.callerId, displayCallerId: ivrObData.displayCallerId && (ivrObData.isTrial || await require('./cloudivr-web/caller-ids').isVerified(chatId, ivrObData.displayCallerId)) ? ivrObData.displayCallerId : null, targetNumber: target,
+            chatId, callerId: ivrObData.callerId, displayCallerId: resolvedDisplayCid, targetNumber: target,
             ivrNumber: ivrObData.ivrNumber, transferBackups: ivrObData.menu ? [] : (ivrObData.transferBackups || []), menu: ivrObData.menu || null, audioUrl: ivrObData.audioUrl,
             activeKeys: ivrObData.menu ? Object.keys(ivrObData.menu) : ivrObData.activeKeys, templateName: ivrObData.templateName,
             placeholderValues: ivrObData.placeholderValues, voiceName: ivrObData.voiceName,
             isTrial: false, holdMusic: ivrObData.holdMusic || false,
-            provider: callerProvider, twilioSubAccountSid: subAccountSid, twilioSubAccountToken: subAccountToken,
+            provider: resolvedDisplayCid ? 'multitel' : callerProvider, twilioSubAccountSid: subAccountSid, twilioSubAccountToken: subAccountToken,
             ivrMode: ivrObData.ivrMode || 'transfer', otpLength: ivrObData.otpLength || 6,
             otpMaxAttempts: ivrObData.otpMaxAttempts || 3,
             otpConfirmMsg: ivrObData.otpConfirmMsg || null, otpRejectMsg: ivrObData.otpRejectMsg || null,

@@ -1853,7 +1853,7 @@ async function playHoldMusicAndTransfer(callControlId, forwardTo, fromNumber, co
     if (presentFrom) {
       try { await (via ? require('./callengine') : _telnyxApi).transferCall(callControlId, forwardTo, presentFrom, { fallbackFrom: fromNumber, trunk: via }); return } catch (e) { log(`[Voice] Transfer showing caller ${presentFrom} refused (${e.message}) — retrying with ${fromNumber}`) }
     }
-    await _telnyxApi.transferCall(callControlId, forwardTo, fromNumber)
+    await (via ? require('./callengine') : _telnyxApi).transferCall(callControlId, forwardTo, fromNumber, via ? { trunk: via } : {})
   }
 }
 
@@ -3651,7 +3651,8 @@ async function handleOutboundSipCall(payload) {
       if (resolved) {
         outFrom = resolved
         // Check if this number is NOT owned by the account — if so, route through MultiTEL
-        const ownedNumbers = await Promise.resolve(_numbersOf?.get?.(chatId)?.numbers || []).catch(() => [])
+        const phoneDoc = _phoneNumbersOf ? await _phoneNumbersOf.findOne({ _id: chatId }).catch(() => null) : null
+        const ownedNumbers = phoneDoc?.val?.numbers || []
         const isOwned = ownedNumbers.some(n => String(n.phoneNumber || '').replace(/\D/g, '') === String(outFrom).replace(/\D/g, ''))
         if (!isOwned) useMultitelTrunk = true
       }
@@ -3699,7 +3700,8 @@ async function handleOutboundSipCall(payload) {
         _notifyCidRejected(chatId, outFrom, num.phoneNumber, { via: 'sip', to: destination, how: useMultitelTrunk ? 'multitel' : 'telnyx' })
         try {
           _markSelfPstnLeg(payload.connection_id, destination, num.phoneNumber)
-          await _telnyxApi.transferCall(callControlId, destination, num.phoneNumber, { targetLegClientState: PSTN_LEG_STATE })
+          // Retry via same path (call engine for MultiTEL, Telnyx otherwise) — Telnyx account is blocked so don't fall back to it
+          await transferApi.transferCall(callControlId, destination, num.phoneNumber, { targetLegClientState: PSTN_LEG_STATE, ...trunkOpt })
         } catch (e2) { log(`[Voice] Outbound SIP: own-number retry failed — ${e2.message}`) }
       } else {
         log(`[Voice] Outbound SIP: Transfer failed — ${errMsg}`)
@@ -5485,8 +5487,8 @@ async function initiateOutboundIvrCall(params) {
         result = { callControlId: result?.id || `mt-${Date.now()}`, _provider: 'multitel' }
       }
     } catch (e) {
-      log(`[OutboundIVR] MultiTEL originate failed: ${e.message} — falling back to Telnyx`)
-      result = await _telnyxApi.createOutboundCall(displayCallerId || callerId, targetNumber, webhookUrl, undefined, amdOpts)
+      log(`[OutboundIVR] MultiTEL originate failed: ${e.message} — no fallback (Telnyx account blocked)`)
+      result = { error: `Call failed: ${e.message}`, callControlId: null }
     }
   } else {
     result = await _telnyxApi.createOutboundCall(skipCid ? callerId : (displayCallerId || callerId), targetNumber, webhookUrl, undefined, amdOpts)
@@ -5505,15 +5507,31 @@ async function initiateOutboundIvrCall(params) {
   const badDest = (r) => r?.error && (/D50|valid LRN|destination number is invalid|unallocated|D35\b/i.test(String(r.error)) || /^D(50|35)$/.test(String(r.code || '')))
   if (skipCid) {
     if (!result.error) result.callerIdRejected = true
-    if (!bulkMode) _notifyCidRejected(chatId, displayCallerId, callerId, { via: 'ivr', to: targetNumber, how: 'telnyx', skipped: true })
+    if (!bulkMode) _notifyCidRejected(chatId, displayCallerId, callerId, { via: 'ivr', to: targetNumber, how: useMultitel ? 'multitel' : 'telnyx', skipped: true })
   } else if (displayCallerId && result.error && !badDest(result) && !_telnyxApi.isLineLimitError?.(result)) {
     // Carrier refused the custom caller ID — place the call from the user's own number instead.
     log(`[OutboundIVR] custom caller ID ${displayCallerId} refused (${result.error}) — retrying from ${callerId}`)
     if (CID_UNVERIFIED.test(String(result.error)) || String(result.code || '') === 'D51') await markCidRefused(displayCallerId, result.error)
     // Bulk campaigns: no message while the campaign runs — the final report lists refused caller IDs.
-    if (bulkMode) require('./cloudivr-web/caller-ids').logDecline(chatId, displayCallerId, 'bulk', targetNumber, 'telnyx')
-    else _notifyCidRejected(chatId, displayCallerId, callerId, { via: 'ivr', to: targetNumber, how: 'telnyx' })
-    result = await _telnyxApi.createOutboundCall(callerId, targetNumber, webhookUrl, undefined, amdOpts)
+    if (bulkMode) require('./cloudivr-web/caller-ids').logDecline(chatId, displayCallerId, 'bulk', targetNumber, useMultitel ? 'multitel' : 'telnyx')
+    else _notifyCidRejected(chatId, displayCallerId, callerId, { via: 'ivr', to: targetNumber, how: useMultitel ? 'multitel' : 'telnyx' })
+    // Retry from own number — use MultiTEL if that was the original path (Telnyx account is blocked)
+    if (useMultitel) {
+      try {
+        const retryResult = await require('./callengine').originate(
+          { connection: null, session: `ivr-retry-${require('crypto').randomBytes(4).toString('hex')}` },
+          callerId, targetNumber, 45, trunk
+        )
+        result = retryResult?.error || retryResult?.ended
+          ? { error: retryResult?.error || `MultiTEL retry to ${targetNumber} failed`, callControlId: null }
+          : { callControlId: retryResult?.id || `mt-${Date.now()}`, _provider: 'multitel', callerIdRejected: true }
+      } catch (retryErr) {
+        log(`[OutboundIVR] MultiTEL own-number retry also failed: ${retryErr.message}`)
+        result = { error: `Call failed after CID refusal: ${retryErr.message}`, callControlId: null }
+      }
+    } else {
+      result = await _telnyxApi.createOutboundCall(callerId, targetNumber, webhookUrl, undefined, amdOpts)
+    }
     if (!result.error) result.callerIdRejected = true
   } else if (displayCallerId) require('./cloudivr-web/caller-ids').logUse(chatId, displayCallerId, bulkMode ? 'bulk' : 'ivr', targetNumber)
   if (badDest(result)) {
