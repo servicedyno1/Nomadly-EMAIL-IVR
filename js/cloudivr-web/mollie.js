@@ -11,7 +11,31 @@ const CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK
 const key = () => String(process.env.MOLLIE_API_KEY || '').trim()
 // test_… = test mode; live_… or an organization access token (access_…) = real payments.
 const mode = () => (key().startsWith('test_') ? 'test' : /^(live_|access_)/.test(key()) ? 'live' : null)
-const mollie = (method, path, data, idem) => axios({ method, url: `${API}${path}`, data, timeout: 20000, headers: { Authorization: `Bearer ${key()}`, ...(idem ? { 'Idempotency-Key': idem } : {}) } }).then(r => r.data)
+// Organization access token: one key for every website profile; each call names the profile it is for.
+const orgKey = () => String(process.env.MOLLIE_CLOUDIVR_API_KEY || '').trim()
+const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase() } catch (_) { return '' } }
+const profiles = { at: 0, byHost: new Map() }
+// Which Mollie account a site pays through: the profile whose website is that site (org token), else the single-profile key.
+async function via(origin) {
+  if (orgKey()) {
+    if (Date.now() - profiles.at > 3600000) {
+      try {
+        const r = await axios.get(`${API}/profiles?limit=250`, { timeout: 20000, headers: { Authorization: `Bearer ${orgKey()}` } })
+        profiles.byHost = new Map((r.data?._embedded?.profiles || []).filter(p => p.status === 'verified').map(p => [hostOf(p.website), p.id]))
+        profiles.at = Date.now()
+      } catch (_) { /* keep the last list */ }
+    }
+    const profileId = profiles.byHost.get(hostOf(origin))
+    if (profileId) return { profileId }
+  }
+  return {}
+}
+const mollie = (method, path, data, idem, v) => {
+  const pid = v?.profileId
+  const url = `${API}${path}${pid && method === 'get' && /^\/(methods|payments)\?/.test(path) ? `&profileId=${pid}` : ''}`
+  return axios({ method, url, data: pid && data ? { profileId: pid, ...data } : data, timeout: 20000, headers: { Authorization: `Bearer ${pid ? orgKey() : key()}`, ...(idem ? { 'Idempotency-Key': idem } : {}) } }).then(r => r.data)
+}
+const modeOf = (v) => (v?.profileId ? 'live' : mode())
 const fix2 = (n) => (Math.ceil(Number(n) * 100 - 1e-6) / 100).toFixed(2)
 
 const fx = { at: 0, rates: null }
@@ -25,12 +49,12 @@ async function rates() {
 }
 
 const methodCache = new Map()
-async function methodsFor(currency, value) {
-  const k = `${mode()}:${currency}:${Math.round(Number(value))}`, hit = methodCache.get(k)
+async function methodsFor(currency, value, v) {
+  const k = `${v?.profileId || mode()}:${currency}:${Math.round(Number(value))}`, hit = methodCache.get(k)
   if (hit && Date.now() - hit.at < 600000) return hit.list
   let list = []
   try {
-    const r = await mollie('get', `/methods?amount[value]=${value}&amount[currency]=${currency}&sequenceType=oneoff&resource=payments`)
+    const r = await mollie('get', `/methods?amount[value]=${value}&amount[currency]=${currency}&sequenceType=oneoff&resource=payments`, null, null, v)
     list = (r?._embedded?.methods || []).map(m => ({ id: m.id, description: m.description, image: m.image?.svg || m.image?.size2x || null }))
   } catch (_) { list = null }
   if (list) methodCache.set(k, { at: Date.now(), list })
@@ -39,7 +63,7 @@ async function methodsFor(currency, value) {
 
 function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = {}) {
   const deposits = db.collection('webDeposits'), txns = db.collection('transactions'), w = walletOps(db)
-  const keyed = () => !!mode()
+  const keyed = () => !!mode() || !!orgKey()
   let lastFailAlert = 0
   // Card stays "coming soon" on a site until Mollie accepts its domain (website profile). Probed per site with a throwaway Checkout Session, re-checked every 30 min.
   const sites = new Map()
@@ -58,7 +82,9 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
     if (sites.size > 50) sites.clear()
     const money = { currency: 'EUR', value: '10.00' }
     try {
-      await mollie('post', '/sessions', { amount: money, description: 'Domain check', lines: [{ type: 'digital', description: 'Domain check', quantity: 1, unitPrice: money, totalAmount: money }], redirectUrl: `${origin}/cloudivr/app/wallet` })
+      const v = await via(origin)
+      if (!v.profileId && !mode()) return false
+      await mollie('post', '/sessions', { amount: money, description: 'Domain check', lines: [{ type: 'digital', description: 'Domain check', quantity: 1, unitPrice: money, totalAmount: money }], redirectUrl: `${origin}/cloudivr/app/wallet` }, null, v)
       markSite(origin, true)
     } catch (e) {
       const why = String(e.response?.data?.detail || e.message)
@@ -71,13 +97,13 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
   // Cached answer for public pages; refreshes in the background so the page never waits on Mollie.
   const cardsLive = (req) => { const o = siteOf(req); checkDomain(o).catch(() => {}); return sites.get(o)?.ok === true }
 
-  async function options(amountUsd) {
+  async function options(amountUsd, v) {
     const usd = round2(Math.max(MIN_TOPUP_USD, Number(amountUsd) || MIN_TOPUP_USD)), fxr = await rates()
     const got = await Promise.all(CURRENCIES.filter(c => fxr[c]).map(async c => {
-      const amount = fix2(usd * fxr[c]), methods = await methodsFor(c, amount)
+      const amount = fix2(usd * fxr[c]), methods = await methodsFor(c, amount, v)
       return methods.length ? { currency: c, amount, rate: fxr[c], methods } : null
     }))
-    return { enabled: true, mode: mode(), amountUsd: usd, currencies: got.filter(Boolean), ratesAt: fx.at ? new Date(fx.at).toISOString() : null }
+    return { enabled: true, mode: modeOf(v), amountUsd: usd, currencies: got.filter(Boolean), ratesAt: fx.at ? new Date(fx.at).toISOString() : null }
   }
 
   // Credit once: the deposit flips to paid atomically, so webhook + status poll + retries can't double-credit.
@@ -105,10 +131,11 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
 
   // In-app checkouts (Checkout Sessions) learn their payment id from the webhook, or from recent payments by metadata.ref.
   async function findSessionPayment(dep) {
-    const s = await mollie('get', `/sessions/${dep.mollieSessionId}`)
+    const v = dep.mollieProfile ? { profileId: dep.mollieProfile } : null
+    const s = await mollie('get', `/sessions/${dep.mollieSessionId}`, null, null, v)
     if (s.status === 'expired') { await deposits.updateOne({ _id: dep._id, molliePaid: { $ne: true } }, { $set: { mollieStatus: 'expired' } }); return null }
     if (s.status !== 'completed') return null
-    const list = (await mollie('get', '/payments?limit=50'))?._embedded?.payments || []
+    const list = (await mollie('get', '/payments?limit=50', null, null, v))?._embedded?.payments || []
     const p = list.find(x => x.metadata?.ref === dep.ref)
     if (p) await deposits.updateOne({ _id: dep._id }, { $set: { molliePaymentId: p.id } })
     return p || null
@@ -120,7 +147,7 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
       return p ? settle(dep, p) : { status: (await deposits.findOne({ _id: dep._id }))?.mollieStatus || 'open' }
     }
     if (!dep?.molliePaymentId) return { status: dep?.mollieStatus || 'open' }
-    return settle(dep, await mollie('get', `/payments/${dep.molliePaymentId}`))
+    return settle(dep, await mollie('get', `/payments/${dep.molliePaymentId}`, null, null, dep.mollieProfile ? { profileId: dep.mollieProfile } : null))
   }
 
   function publicRoutes(router, { h }) {
@@ -130,7 +157,7 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
       if (!/^tr_[A-Za-z0-9]+$/.test(id) || !keyed()) return res.status(200).send('ok')
       let dep = await deposits.findOne({ molliePaymentId: id })
       if (!dep) {
-        const p = await mollie('get', `/payments/${id}`).catch(() => null)
+        const p = (mode() && await mollie('get', `/payments/${id}`).catch(() => null)) || (orgKey() && await mollie('get', `/payments/${id}`, null, null, { profileId: 'org' }).catch(() => null)) || null
         const d = p?.metadata?.ref && await deposits.findOne({ ref: String(p.metadata.ref), provider: 'mollie', mollieSessionId: { $exists: true } })
         if (d) { await deposits.updateOne({ _id: d._id }, { $set: { molliePaymentId: id } }); dep = { ...d, molliePaymentId: id } }
       }
@@ -142,20 +169,21 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
   function routes(router, { h }) {
     router.get('/wallet/mollie/options', h(async (req, res) => {
       if (!enabled() || !(await checkDomain(siteOf(req)))) return res.json({ enabled: false, currencies: [], comingSoon: true })
-      res.json(await options(req.query.amountUsd))
+      res.json(await options(req.query.amountUsd, await via(siteOf(req))))
     }))
     router.post('/wallet/mollie/pay', h(async (req, res) => {
       if (!enabled() || !(await checkDomain(siteOf(req)))) return res.status(424).json({ error: 'mollie_off', message: 'Card payments are coming soon.' })
       const amountUsd = round2(req.body.amountUsd), currency = String(req.body.currency || 'USD').toUpperCase(), method = req.body.method ? String(req.body.method) : null
       if (!(amountUsd >= MIN_TOPUP_USD) || amountUsd > 10000) return res.status(400).json({ error: 'invalid_amount', message: `Top up between $${MIN_TOPUP_USD} and $10,000.` })
-      const opt = (await options(amountUsd)).currencies.find(c => c.currency === currency)
+      const v = await via(siteOf(req))
+      const opt = (await options(amountUsd, v)).currencies.find(c => c.currency === currency)
       if (!opt) return res.status(400).json({ error: 'invalid_currency', message: 'That currency is not available. Pick another one.' })
       if (method && !opt.methods.some(m => m.id === method)) return res.status(400).json({ error: 'invalid_method', message: 'That payment method is not available for this currency.' })
       const back = String(req.body.returnUrl || ''), origin = String(req.get('origin') || '')
       if (!origin || !back.startsWith(`${origin}/`)) return res.status(400).json({ error: 'invalid_return', message: 'Open the payment from the CloudIVR app.' })
       const ref = `mol_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
       const offers = getOffers?.(), bonus = offers ? await offers.topupBonusFor(req.webChatId).catch(() => null) : null
-      const dep = { chatId: req.webChatId, ref, amountUsd, coin: 'Card / PayPal', provider: 'mollie', mode: mode(), currency, amountCharged: opt.amount, method, bonus, bonusPaidAt: null, createdAt: new Date() }
+      const dep = { chatId: req.webChatId, ref, amountUsd, coin: 'Card / PayPal', provider: 'mollie', mode: modeOf(v), mollieProfile: v.profileId || null, currency, amountCharged: opt.amount, method, bonus, bonusPaidAt: null, createdAt: new Date() }
       const { insertedId } = await deposits.insertOne(dep)
       let p
       try {
@@ -163,7 +191,7 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
           amount: { currency, value: opt.amount }, description: `CloudIVR wallet top-up $${amountUsd.toFixed(2)}`,
           redirectUrl: `${back}${back.includes('?') ? '&' : '?'}mollie=${ref}`, cancelUrl: `${back}${back.includes('?') ? '&' : '?'}mollie=${ref}`,
           webhookUrl: `${process.env.SELF_URL}/cloudivr-web/mollie/webhook`, metadata: { ref, chatId: String(req.webChatId) }, ...(method ? { method } : {}),
-        }, `cloudivr-${ref}`)
+        }, `cloudivr-${ref}`, v)
       } catch (e) {
         await deposits.updateOne({ _id: insertedId }, { $set: { mollieStatus: 'error', mollieError: String(e.response?.data?.detail || e.message).slice(0, 300) } })
         log(`[Mollie] create failed ${ref}: ${e.response?.data?.detail || e.message}`)
@@ -172,28 +200,29 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
         return res.status(424).json({ error: 'mollie_error', message: 'The card payment service did not answer. Try again or pick another method.' })
       }
       await deposits.updateOne({ _id: insertedId }, { $set: { molliePaymentId: p.id, mollieStatus: p.status } })
-      res.status(201).json({ ref, checkoutUrl: p._links?.checkout?.href, amountUsd, currency, amount: opt.amount, mode: mode() })
+      res.status(201).json({ ref, checkoutUrl: p._links?.checkout?.href, amountUsd, currency, amount: opt.amount, mode: modeOf(v) })
     }))
     // In-app checkout: a Checkout Session whose client token mounts Mollie's card / express / methods components on our page.
     router.post('/wallet/mollie/session', h(async (req, res) => {
       if (!enabled() || !(await checkDomain(siteOf(req)))) return res.status(424).json({ error: 'mollie_off', message: 'Card payments are coming soon.' })
       const amountUsd = round2(req.body.amountUsd), currency = String(req.body.currency || 'USD').toUpperCase()
       if (!(amountUsd >= MIN_TOPUP_USD) || amountUsd > 10000) return res.status(400).json({ error: 'invalid_amount', message: `Top up between $${MIN_TOPUP_USD} and $10,000.` })
-      const opt = (await options(amountUsd)).currencies.find(c => c.currency === currency)
+      const v = await via(siteOf(req))
+      const opt = (await options(amountUsd, v)).currencies.find(c => c.currency === currency)
       if (!opt) return res.status(400).json({ error: 'invalid_currency', message: 'That currency is not available. Pick another one.' })
       const back = String(req.body.returnUrl || ''), origin = String(req.get('origin') || '')
       if (!origin || !back.startsWith(`${origin}/`)) return res.status(400).json({ error: 'invalid_return', message: 'Open the payment from the CloudIVR app.' })
       const ref = `mol_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
       const offers = getOffers?.(), bonus = offers ? await offers.topupBonusFor(req.webChatId).catch(() => null) : null
       const money = { currency, value: opt.amount }, description = `CloudIVR wallet top-up $${amountUsd.toFixed(2)}`
-      const dep = { chatId: req.webChatId, ref, amountUsd, coin: 'Card / PayPal', provider: 'mollie', mode: mode(), currency, amountCharged: opt.amount, method: null, inApp: true, bonus, bonusPaidAt: null, createdAt: new Date() }
+      const dep = { chatId: req.webChatId, ref, amountUsd, coin: 'Card / PayPal', provider: 'mollie', mode: modeOf(v), mollieProfile: v.profileId || null, currency, amountCharged: opt.amount, method: null, inApp: true, bonus, bonusPaidAt: null, createdAt: new Date() }
       const { insertedId } = await deposits.insertOne(dep)
       let s
       try {
         s = await mollie('post', '/sessions', {
           amount: money, description, lines: [{ type: 'digital', description: 'CloudIVR wallet credit', quantity: 1, unitPrice: money, totalAmount: money }],
           redirectUrl: `${back}${back.includes('?') ? '&' : '?'}mollie=${ref}`, payment: { webhookUrl: `${process.env.SELF_URL}/cloudivr-web/mollie/webhook` }, metadata: { ref, chatId: String(req.webChatId) },
-        }, `cloudivr-sess-${ref}`)
+        }, `cloudivr-sess-${ref}`, v)
       } catch (e) {
         const why = String(e.response?.data?.detail || e.message)
         await deposits.deleteOne({ _id: insertedId })
@@ -203,7 +232,7 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers } = 
         return res.status(424).json({ error: 'mollie_error', message: 'Paying inside the app isn’t available right now. Use Mollie’s secure payment page below.', fallback: true })
       }
       await deposits.updateOne({ _id: insertedId }, { $set: { mollieSessionId: s.id, mollieStatus: 'open' } })
-      res.status(201).json({ ref, clientAccessToken: s.clientAccessToken, amountUsd, currency, amount: opt.amount, mode: mode() })
+      res.status(201).json({ ref, clientAccessToken: s.clientAccessToken, amountUsd, currency, amount: opt.amount, mode: modeOf(v) })
     }))
     router.get('/wallet/mollie/:ref', h(async (req, res) => {
       const dep = await deposits.findOne({ ref: String(req.params.ref), chatId: req.webChatId, provider: 'mollie' })

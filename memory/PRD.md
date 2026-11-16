@@ -351,3 +351,10 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Public catalog `cardPayments` = env flag OR mollie.cardsLive(req) (cached domain probe, 30 min). Landing chips + "How do I pay?" follow it; checkout already did. Live on app-main (release 20261116T104945Z).
 - User action: add cloudivr.net as a website/domain on that Mollie profile (or supply the key of the profile that has it via secrets).
 - JujuCloud copy brief: /app/memory/jujucloud_copy_brief.md (also served at /jujucloud_copy_brief.md in preview).
+
+## 2026-11-16 11:15Z — Mollie cards LIVE on cloudivr.net
+- New secret MOLLIE_CLOUDIVR_API_KEY = Mollie organization access token (also added to /opt/nomadly/shared/app-main/backend.env on the droplet, backup alongside). MOLLIE_API_KEY (jujucloud profile key) untouched and still the fallback.
+- mollie.js: `via(origin)` maps the site host to the verified Mollie profile with that website (CloudIVR pfl_9wEoriKUvZ → cloudivr.net; Dynotech → jujucloud.com) and sends profileId with the org token; deposits store `mollieProfile` so sync/webhook use the same account.
+- CloudIVR profile methods: creditcard (all currencies), plus ideal/banktransfer/mbway in EUR. No PayPal → labels now "Card" / "Pay by card"; card is listed first and preselected in wallet + checkout.
+- Verified on prod: options live, /payments create (open, unpaid), in-app session mounts Mollie components on cloudivr.net/app/wallet, landing shows card chips, webhook URL answers 200. NOT verified: a real paid card payment crediting the wallet.
+- Only app-main has the key/code path enabled.

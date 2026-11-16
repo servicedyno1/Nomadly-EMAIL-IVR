@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import QRCode from 'react-qr-code';
@@ -78,6 +78,8 @@ function TopUp({ coins, min, initial, onCreated }) {
   const [error, setError] = useState(null);
   const [pay, setPay] = useState('crypto');
   const n0 = Number(amount), mol = useMollie(n0 >= min && n0 <= 10000 ? Math.round(n0) : 0), cardOk = !!mol?.enabled && mol.currencies.length > 0;
+  const picked = useRef(false);
+  useEffect(() => { if (cardOk && !picked.current) { picked.current = true; setPay('card'); } }, [cardOk]);
   const go = async (e) => {
     e.preventDefault(); setError(null);
     if (pay === 'card') return;
@@ -90,8 +92,8 @@ function TopUp({ coins, min, initial, onCreated }) {
     <form onSubmit={go} noValidate className="civr-card p-6 space-y-6" data-testid="wallet-topup-form">
       <div className="font-display text-2xl font-bold">Add funds</div>
       <div className="grid sm:grid-cols-2 gap-3" data-testid="wallet-pay-methods">
+        {cardOk || pay === 'card' ? <button type="button" onClick={() => setPay('card')} aria-pressed={pay === 'card'} className={`civr-card text-left p-4 flex gap-4 items-start ${pay === 'card' ? 'civr-trace' : ''}`} data-testid="wallet-method-card"><CreditCard className={`w-5 h-5 mt-0.5 shrink-0 ${pay === 'card' ? 'text-[#818cf8]' : 'text-[#a1a1aa]'}`} /><div className="flex-1"><div className="font-semibold">Card</div><div className="text-xs text-[#a1a1aa] mt-1">{cardOk ? `${mol.currencies.map(c => c.currency).slice(0, 5).join(', ')} · secure checkout by Mollie` : 'Checking what’s available for this amount…'}</div></div>{pay === 'card' && <Check className="w-4 h-4 text-[#818cf8] shrink-0" />}</button> : <CardComingSoon testid="wallet-method-card" />}
         <button type="button" onClick={() => setPay('crypto')} aria-pressed={pay === 'crypto'} className={`civr-card text-left p-4 flex gap-4 items-start ${pay === 'crypto' ? 'civr-trace' : ''}`} data-testid="wallet-method-crypto"><Coins className="w-5 h-5 mt-0.5 shrink-0 text-[#818cf8]" /><div className="flex-1"><div className="font-semibold">Crypto</div><div className="text-xs text-[#a1a1aa] mt-1">{`${coins.map(c => c.replace(/\s*\(.*\)/, '')).filter((c, i, a) => a.indexOf(c) === i).slice(0, 4).join(', ')} and more`}</div></div>{pay === 'crypto' && <Check className="w-4 h-4 text-[#818cf8] shrink-0" />}</button>
-        {cardOk || pay === 'card' ? <button type="button" onClick={() => setPay('card')} aria-pressed={pay === 'card'} className={`civr-card text-left p-4 flex gap-4 items-start ${pay === 'card' ? 'civr-trace' : ''}`} data-testid="wallet-method-card"><CreditCard className={`w-5 h-5 mt-0.5 shrink-0 ${pay === 'card' ? 'text-[#818cf8]' : 'text-[#a1a1aa]'}`} /><div className="flex-1"><div className="font-semibold">Card, PayPal & more</div><div className="text-xs text-[#a1a1aa] mt-1">{cardOk ? `${mol.currencies.map(c => c.currency).slice(0, 5).join(', ')} · secure checkout by Mollie` : 'Checking what’s available for this amount…'}</div></div>{pay === 'card' && <Check className="w-4 h-4 text-[#818cf8] shrink-0" />}</button> : <CardComingSoon testid="wallet-method-card" />}
       </div>
       <OfferNote offer={offer} amount={amount} setAmount={setAmount} />
       <div className="flex flex-wrap gap-2">{PRESETS.map(p => <button type="button" key={p} onClick={() => setAmount(p)} className={`civr-pill civr-preset cursor-pointer ${Number(amount) === p ? 'civr-pill-on' : ''}`} data-testid={`wallet-preset-${p}`}>${p}</button>)}</div>
