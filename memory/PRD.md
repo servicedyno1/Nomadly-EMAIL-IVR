@@ -333,3 +333,10 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 ## 2026-11-16 — Browser phone on own SIP server (CloudIVR) LIVE, agent-tested on production
 - See DEPLOYMENT_STATE "2026-11-16 08:57–09:55Z". Works: connect, outbound, inbound ring/answer, two-way audio, hangup. Not user-confirmed.
 - Open: Save to GitHub; prove a Bird-trunk browser call with a non-MultiTEL line; DTMF receipt at far end not verified; other brands off; Mollie cloudivr.net profile/key; calendar + 30-day Quick IVR + quieter logs went live with these deploys (not user-confirmed).
+
+## 2026-11-16 — Audience targeting (PREVIEW ONLY, not deployed)
+- Audiences: nomads/travellers, founders, small businesses, remote teams/agencies, sales teams.
+- Web: `/for/<slug>` pages (nomads, founders, small-business, teams, sales) — pages/For.js + pages/for/audiences.js (all copy lives there); landing "Who it's for" card strip (landing/WhoFor.js, #who), nav link, footer column, new hero headline "One business number, wherever you work." + audience subtitle; page titles; seo.js meta + sitemap for /for/*.
+- Bot: first-session welcome (js/_index.js showFirstSessionIntent, en/fr/zh/hi) names the five audiences.
+- Checked in preview (5 pages render, CTAs, redirect on unknown slug, mobile no overflow). Not run through the testing agent.
+- Open: deploy; fr/es translations of the new web copy (falls back to English); bot menus/promo texts and JujuCloud not yet audience-led.

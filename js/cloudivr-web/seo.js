@@ -157,6 +157,15 @@ function sipFaqs() {
   ]
 }
 
+// Audience pages (/for/<slug>): [title, description].
+const AUDIENCE_META = {
+  nomads: ['Virtual phone number for digital nomads & travellers', 'Keep a USA, Canada or UK number that rings in your browser anywhere. Voicemail by email, crypto payments, no contract.'],
+  founders: ['Business phone number for entrepreneurs & solo founders', 'A business number with a greeting, a keypad menu and an AI receptionist, so every caller is answered while you build.'],
+  'small-business': ['Phone system for small businesses & shops', 'A menu routes callers, closed hours get their own message, and texts, voicemails and faxes land in one inbox.'],
+  teams: ['Cloud phone system for remote teams & agencies', 'Numbers in several countries, ring groups, softphone logins and one call history in a single account.'],
+  sales: ['Call campaigns for sales & outreach teams', 'Call a whole list, connect the people who press 1 straight to you, and watch every call live.'],
+}
+
 // ── Per-page <head> metadata ─────────────────────────────────────────────────
 function metaFor(pathname) {
   const p = (String(pathname || '/').split('?')[0].replace(/\/+$/, '') || '/')
@@ -190,7 +199,8 @@ function metaFor(pathname) {
     },
   }
   const indexable = !(p.startsWith('/app') || p.startsWith('/reset-password') || p === '/help')
-  const meta = pages[p] || pages['/']
+  const aud = p.startsWith('/for/') ? AUDIENCE_META[p.slice(5)] : null
+  const meta = aud ? { title: `${aud[0]} · ${BRAND}`, desc: aud[1] } : pages[p] || pages['/']
   return { ...meta, path: p === '/' ? '/' : p, url: `${CANONICAL}${p === '/' ? '/' : p}`, indexable }
 }
 
@@ -475,6 +485,7 @@ function sitemapXml() {
   const urls = [
     { loc: `${CANONICAL}/`, priority: '1.0', changefreq: 'weekly' },
     { loc: `${CANONICAL}/sip`, priority: '0.9', changefreq: 'weekly' },
+    ...Object.keys(AUDIENCE_META).map((s) => ({ loc: `${CANONICAL}/for/${s}`, priority: '0.8', changefreq: 'monthly' })),
     { loc: `${CANONICAL}/signup`, priority: '0.8', changefreq: 'monthly' },
     { loc: `${CANONICAL}/login`, priority: '0.5', changefreq: 'monthly' },
     { loc: `${CANONICAL}/terms`, priority: '0.3', changefreq: 'yearly' },

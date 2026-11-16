@@ -12,6 +12,7 @@ import { Spinner } from './ui';
 import Landing from './pages/Landing';
 const Terms = lazy(() => import('./pages/Terms'));
 const SipFunnel = lazy(() => import('./pages/SipFunnel'));
+const ForPage = lazy(() => import('./pages/For'));
 import { AuthPage, ForgotPage, ResetPage } from './pages/AuthPages';
 const Shell = lazy(() => import('./Shell'));
 const AdminApp = lazy(() => import('./pages/admin/AdminApp'));
@@ -99,6 +100,7 @@ export default function CloudIvrApp() {
           <Route index element={<Landing />} />
           <Route path="terms" element={<Terms />} />
           <Route path="sip" element={<SipFunnel />} />
+          <Route path="for/:who" element={<ForPage />} />
           <Route path="admin/*" element={<AdminApp />} />
           <Route path="login" element={<AuthPage mode="login" />} />
           <Route path="signup" element={<AuthPage mode="signup" />} />

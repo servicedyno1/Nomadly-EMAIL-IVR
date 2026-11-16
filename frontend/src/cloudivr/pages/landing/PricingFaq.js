@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AUDIENCES } from '../for/audiences';
 import { COPYRIGHT } from '../../company';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUp, ChevronDown, MessageCircle, Send, MessageSquareText, Check } from 'lucide-react';
@@ -190,9 +191,12 @@ export function Footer({ catalog }) {
             </div>
             <SocialLinks />
           </div>
-          <div className="lg:col-span-8 grid grid-cols-2 md:grid-cols-3 gap-8">
+          <div className="lg:col-span-8 grid grid-cols-2 md:grid-cols-4 gap-8">
             <FooterCol title="Numbers" testid="footer-col-product">
               {FOOTER_KINDS.map(([tab, l, id]) => <a key={id} href={`${base}#pricing-${tab}`} onClick={(e) => openKind(tab, e)} className={fLink} data-testid={`footer-product-${id}`}>{l}</a>)}
+            </FooterCol>
+            <FooterCol title="Who it’s for" testid="footer-col-audiences">
+              {AUDIENCES.map(a => <Link key={a.slug} to={cp(`/for/${a.slug}`)} className={fLink} data-testid={`footer-for-${a.slug}`}>{a.short}</Link>)}
             </FooterCol>
             <FooterCol title="CloudIVR" testid="footer-col-company">
               {[['#how', 'How it works', 'how'], ['#try', 'Free test call', 'try'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']].map(([h, l, id]) => <a key={id} href={`${base}${h}`} onClick={(e) => { if (document.querySelector('[data-testid="landing-page"]')) goTo(h, e); }} className={fLink} data-testid={`footer-link-${id}`}>{l}</a>)}

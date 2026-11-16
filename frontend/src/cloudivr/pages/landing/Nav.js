@@ -8,7 +8,7 @@ import { LangSwitcher } from '../../i18n';
 import { Slide, SiteThemeButton } from './kit';
 import { goTo } from './menu';
 
-export const LANDING_LINKS = [['#how', 'How it works', 'how'], ['#pricing', 'Pricing', 'pricing'], ['#try', 'Free test call', 'try'], ['#faq', 'FAQ', 'faq']];
+export const LANDING_LINKS = [['#who', 'Who it’s for', 'who'], ['#how', 'How it works', 'how'], ['#pricing', 'Pricing', 'pricing'], ['#try', 'Free test call', 'try'], ['#faq', 'FAQ', 'faq']];
 
 function MobileMenu({ onClose, account }) {
   useEffect(() => { const o = document.body.style.overflow; document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = o; }; }, []);
@@ -16,7 +16,7 @@ function MobileMenu({ onClose, account }) {
     <div className="lg:hidden fixed inset-x-0 top-16 bottom-0 z-[45] bg-white text-slate-900 overflow-y-auto civr-l-swap" data-testid="landing-mobile-menu">
       <div className="px-4 sm:px-6 py-6 flex flex-col gap-8">
         <div className="flex flex-col border-b border-slate-200 pb-4">
-          {LANDING_LINKS.map(([href, label, id]) => <a key={id} href={href} onClick={(e) => { goTo(href, e); onClose(); }} className="px-3 py-3 min-h-[48px] text-base font-medium text-slate-700" data-testid={`mobile-menu-link-${id}`}>{label}</a>)}
+          {LANDING_LINKS.map(([href, label, id]) => <a key={id} href={`${cp()}${href}`} onClick={(e) => { goTo(href, e); onClose(); }} className="px-3 py-3 min-h-[48px] text-base font-medium text-slate-700" data-testid={`mobile-menu-link-${id}`}>{label}</a>)}
         </div>
         <div className="grid gap-3 pb-6">
           <Link to={account ? cp('/app') : cp('/signup')} className="civr-l-btn w-full" data-testid="mobile-menu-cta">{account ? 'Open dashboard' : 'Sign up free'}</Link>
@@ -45,7 +45,7 @@ export function LandingNav() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 md:px-8 h-16 flex items-center gap-1 min-[420px]:gap-2 sm:gap-4">
         <Link to={cp()} className="font-display text-2xl font-extrabold tracking-tight min-h-[44px] flex items-center gap-2 mr-auto lg:mr-6" data-testid="civr-nav-logo"><Wordmark accent="#059669" iconClass="w-7 h-7 sm:w-8 sm:h-8" textClass="max-[419px]:sr-only" /></Link>
         <nav className="hidden lg:flex items-center gap-1 mr-auto" aria-label="Main">
-          {LANDING_LINKS.map(([href, label, id]) => <a key={id} href={href} onClick={(e) => goTo(href, e)} className="civr-l-navlink" data-testid={`landing-nav-${id}`}>{label}</a>)}
+          {LANDING_LINKS.map(([href, label, id]) => <a key={id} href={`${cp()}${href}`} onClick={(e) => goTo(href, e)} className="civr-l-navlink" data-testid={`landing-nav-${id}`}>{label}</a>)}
         </nav>
         <SiteThemeButton testid="landing-theme-button" />
         <LangSwitcher testid="landing-lang-switcher" tone="landing" />
