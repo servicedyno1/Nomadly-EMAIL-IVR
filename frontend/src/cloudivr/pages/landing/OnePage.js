@@ -61,7 +61,7 @@ export function OneHero({ setTab, from, fax, faxFailed }) {
         <div className="grid lg:grid-cols-[minmax(0,1.05fr)_minmax(0,.95fr)] gap-12 lg:gap-16 items-center">
           <div>
             <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-6xl text-slate-950 font-extrabold tracking-tight civr-rise civr-d1" data-testid="hero-title">A business number for calls, texts or fax.</h1>
-            <p className="max-w-xl text-base md:text-lg text-slate-600 mt-6 leading-relaxed civr-rise civr-d2" data-testid="hero-subtitle">Live in minutes. No ID needed in the USA, Canada or UK. Month to month{from ? `, from ${from}` : ''}.</p>
+            <p className="max-w-xl text-base md:text-lg text-slate-600 mt-6 leading-relaxed civr-rise civr-d2" data-testid="hero-subtitle">Live in minutes. Month to month{from ? `, from ${from}` : ''}.</p>
             <div className="mt-10 civr-rise civr-d3">
               <Link to={start()} className="civr-l-btn civr-l-btn-hero inline-flex items-center justify-center gap-2 min-h-[56px] px-8 w-full sm:w-auto" data-testid="hero-signup-cta">Get your number<ArrowRight className="w-5 h-5" aria-hidden="true" /></Link>
               <p className="text-sm text-slate-600 mt-3" data-testid="hero-signup-note">Free to sign up. Pay only when you pick a number.</p>

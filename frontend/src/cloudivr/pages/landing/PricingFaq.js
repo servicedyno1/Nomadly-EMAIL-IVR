@@ -30,7 +30,7 @@ export function PlanCard({ p, plans, hot, start, delay }) {
 
 // While landline texting is paused, the card sells the USA Texting Number (international texting coming soon).
 function TextingNumberCard({ t, start, delay }) {
-  const pts = ['Unlimited texts on a USA number', 'Read and reply to every text in the app', 'No ID needed', 'More countries in the app, pay per text'];
+  const pts = ['Unlimited texts on a USA number', 'Read and reply to every text in the app', 'More countries in the app, pay per text'];
   return (
     <Reveal delay={delay} className="civr-l-card-cream p-8 flex flex-col" data-testid="civr-plan-card-texting">
       <div className="text-xs font-semibold uppercase tracking-[.14em] text-slate-500" data-testid="pricing-texting-eyebrow">Texting Number</div>

@@ -3204,3 +3204,7 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 
 ## 2026-11-16 00:05Z — Softphone outbound calls fixed for good (all 4 brands)
 - Kamailio self-alias dropped softphone ACK/BYE (calls cut at 32 s); engine mis-read 10-digit dials as international; missed hang-ups during deploys left calls billing. All three fixed, tested live with company numbers, deployed. $19.68 refunded to 5828254066. Details: DEPLOYMENT_STATE.md.
+
+## 2026-11-16 00:15Z — Landing "No ID needed" removed + customer told
+- Landing hero subtitle and Texting Number pricing card no longer say "No ID needed" (OnePage.js, PricingFaq.js). Live: app-main 20261116T001441Z-8cd511a (:5100).
+- Telegram message sent to 5828254066 (calls fixed, $19.68 refunded), message id 3485565.
