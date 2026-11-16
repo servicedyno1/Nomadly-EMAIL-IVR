@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend-only test of the USA eSIM / Texting Number auto-renew switch (My numbers cards, own detail page /app/esim/:id, the eSIM page, and the Wallet Renewals regression check) using civr.uxtest@example.com on desktop 1920x1080. Every requested flow passed. Turning a switch off asks for confirmation; 'Keep renewing' leaves it on; turning it off changes the renew text and stays off after a reload; turning it back on needs no confirmation and stays on after a reload. Tested on qa-esim-1 and qa-mobile-1 from the list card and the detail page, and on qa-esim-1 from the eSIM page and Wallet Renewals. The awaiting_imei line shows no switch and no failed eSIM is listed. Each detail page has one breadcrumb bar and one switch (the manage card has none). An unknown id shows the 'missing' note with a working link back. The 8 regular number cards still render. All three QA lines were left with auto-renew ON (checked in Mongo).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "My numbers / eSIM detail / eSIM page", "issues": [
+        "Date format differs: eSIM/Texting cards say 'renews 2026-12-06' (ISO, via renewText), regular number cards say 'Renews Dec 14, 2026'. Use day() in renewText so they match.",
+        "The awaiting_imei card says '$75.00/month · renews —'. Show something like 'Add IMEI to finish setup' instead of 'renews —'.",
+        "Detail page /app/esim/:id repeats the number and renew text in the manage card header right under the big heading. Consider hiding them when noRenew is set.",
+        "On /app/esim/:id the sidebar highlights 'USA eSIM' while the breadcrumbs say Phone numbers › My numbers. Small mismatch when you arrive from My numbers."
+      ]},
+      {"screen": "Wallet → Renewals", "issues": [
+        "eSIM/Texting rows show nextBillAt (Dec 5) and say 'Ends Dec 5, 2026' when off, but the card and detail page say 'ends 2026-12-06' (expiresAt). When the switch is off, the Ends date should use expiresAt. This was not changed in this task."
+      ]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: show the same date format (day()) in renewText as on regular number cards",
+    "Optional: replace 'renews —' on awaiting_imei lines",
+    "Optional: Renewals row 'Ends' date should use expiresAt when auto-renew is off"
+  ],
+  "critical_code_review_comments": [
+    "LineDetail.js: if /esim fails but /mobile-numbers works (or the other way round), the page shows a Spinner forever, because it only shows an error when both calls fail and otherwise waits for both to have data. It should go on when one call returns data and the other fails.",
+    "LineAutoRenew hasRenew allows only active/suspended lines, but the backend setAutoRenew also accepts provisioning. Fine to hide it, just a mismatch.",
+    "LineAutoRenew shows an error toast when the backend refuses because the line is inside the end cutoff ('about to end'). That works, but the switch could be disabled up front instead."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100%"},
+  "seed_data_creation": "None. Used the existing seeded lines qa-esim-1, qa-mobile-1, qa-mobile-line-1 and es_937d10bcb81c (awaiting_imei). All switches left ON.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "uxtest account chatId 5000000000000077. esimLines: qa-esim-1 (esim $75), qa-mobile-1 (mobile $50), qa-mobile-line-1 (mobile $25), es_937d10bcb81c (awaiting_imei). The confirm dialog buttons are 'Keep renewing' and 'Turn off auto-renew'. On the eSIM detail page the QR shows 'eSIM service didn't respond' because the ICCID is fake; this is expected."
+}

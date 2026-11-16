@@ -108,11 +108,11 @@ export function Line({ item, reload, fresh, noRenew = false }) {
   const act = async (path, msg) => { try { await api(`/esim/${item.id}/${path}`, { method: 'POST' }); toast.success(msg); reload(); } catch (e) { toast.error(e.message); } };
   return (
     <div className="civr-card p-5 space-y-4" data-testid={`esim-line-${item.id}`}>
-      <div className="flex flex-wrap items-center gap-3">
+      {!noRenew && <div className="flex flex-wrap items-center gap-3">
         <Smartphone className="w-5 h-5 text-[#818cf8]" />{noRenew ? <span className="font-mono text-lg" data-no-translate>{item.phoneNumber || 'Number coming'}</span> : <Link to={cp(`/app/esim/${item.id}`)} className="font-mono text-lg hover:text-[var(--c-accent)]" data-no-translate data-testid={`esim-line-open-${item.id}`}>{item.phoneNumber || 'Number coming'}</Link>}
         <span className={`text-sm ${tone}`} data-testid={`esim-status-${item.id}`}>{s}</span>
         <span className="text-xs text-[#a1a1aa] ml-auto" data-testid={`esim-renew-info-${item.id}`}>{renewText(item, money)}</span>
-      </div>
+      </div>}
       {item.note && <p className="text-sm text-[#fbbf24]">{item.note}</p>}
       {item.status === 'awaiting_imei' && <ImeiStep id={item.id} dueAt={item.imeiDueAt} onSent={reload} autoFocus={fresh} />}
       {item.formerNumbers?.length > 0 && <p className="text-xs text-[var(--c-muted)]" data-testid={`esim-former-${item.id}`}>Previous numbers: <span className="font-mono" data-no-translate>{item.formerNumbers.join(', ')}</span></p>}

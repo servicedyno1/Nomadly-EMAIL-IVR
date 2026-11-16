@@ -677,3 +677,8 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Pre-check: coturn answers STUN :3478 on sip.smadavspeech.com / sip.voodooivr.xyz / sip.proshopivr.xyz (same host 188.166.34.29).
 - Overlay = `git diff 1b4f5b3 903eb5a -- frontend js` (Sip.js, SipTab.js, phone-config.js, sip-selftest.js) applied to each live 6ce3f64 release, blue/green tarball deploy (drain waited for 0 calls). Releases: app-wl-b 20261116T203928Z, app-voodoo-a 20261116T204123Z, app-proshop-b 20261116T204317Z — all exit 0, healthy, bot/test/web text present with brand SIP domain.
 - Concurrently GitHub CI shipped main cb19ba2 (app-main-a, includes STUN) and auto-sync WhiteLabel 699d491 (= 6ce3f64 + phone-config + sip-selftest + trace script). Bot/self-test STUN text is therefore permanent on WhiteLabel; the WEB panel rows (frontend/src/cloudivr/* is brand-protected in sync) are overlay-only on WL and will be dropped by the next WhiteLabel CI deploy unless re-applied.
+
+## 2026-11-16 ~21:05Z — USA eSIM / Texting Number auto-renew on web My numbers + own page (app-main only)
+- Web: eSIMs now listed on My numbers (EsimCard), Texting Numbers use the same compact card; both have "Auto-renew from wallet" switch (pages/esim/LineAutoRenew.js, confirm on off). New page /app/esim/:id (pages/esim/LineDetail.js). Free ($0) lines show no switch. Renewals page "Ends" date uses expiresAt when off.
+- Testing agent iteration_300: 100% frontend. Workspace deploy d8d2a1c started (drain waits for live calls, cap 30m).
+- WhiteLabel brands: owner said bot-only, no web eSIM pages needed → not deployed. Bot already has eSIM auto-renew toggle (My eSIMs → line).

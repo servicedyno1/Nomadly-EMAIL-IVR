@@ -23,13 +23,13 @@ export function MobileLine({ item, reload, noRenew = false }) {
   const cancel = async () => { if (await ask(`Cancel ${item.phoneNumber}? It stops sending and receiving texts and can’t be recovered.`, { danger: true, ok: 'Cancel number', cancel: 'Keep it', title: 'Cancel this number?' })) act('cancel', {}, 'Cancelled'); };
   return (
     <div className="civr-card p-5 space-y-3" data-testid={`mobile-line-${item.id}`}>
-      <div className="flex flex-wrap items-center gap-3">
+      {!noRenew && <div className="flex flex-wrap items-center gap-3">
         {noRenew ? <span className="font-mono text-lg" data-no-translate data-testid={`mobile-line-number-${item.id}`}>{item.phoneNumber || 'Number coming'}</span> : <Link to={cp(`/app/esim/${item.id}`)} className="font-mono text-lg hover:text-[var(--c-accent)]" data-no-translate data-testid={`mobile-line-number-${item.id}`}>{item.phoneNumber || 'Number coming'}</Link>}
         <CapBadges caps={['calls', 'texts']} testid={`mobile-line-caps-${item.id}`} /><span className="civr-pill">USA · unlimited texts</span>
         <span className="text-sm text-[var(--c-muted)]" data-testid={`mobile-line-status-${item.id}`}>{STATUS[item.status] || item.status}</span>
         {item.status === 'provisioning' && <Loader2 className="w-4 h-4 animate-spin text-[var(--c-muted)]" />}
         <span className="text-xs text-[var(--c-muted)] ml-auto" data-testid={`mobile-renew-info-${item.id}`}>{renewText(item, money)}</span>
-      </div>
+      </div>}
       {item.status === 'provisioning' && <p className="text-sm text-[var(--c-muted)]" data-testid={`mobile-line-pending-${item.id}`}>{`Paid. We asked for a number near ${item.zipcode || 'your ZIP code'}; it appears here as soon as the carrier assigns it.`}</p>}
       {item.note && <p className="text-sm text-[#fbbf24]">{item.note}</p>}
       {item.status === 'active' && <div className="flex flex-wrap items-center gap-x-5 gap-y-2">

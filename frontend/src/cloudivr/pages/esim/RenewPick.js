@@ -1,4 +1,5 @@
 import React from 'react';
+import { day } from '../../api';
 
 // Auto-renew choice at checkout (on by default). Shared by eSIM and USA mobile number purchases.
 export function RenewPick({ on, onChange, price, testid, className = "border-[var(--c-line,#2a2a2a)]" }) {
@@ -11,10 +12,12 @@ export function RenewPick({ on, onChange, price, testid, className = "border-[va
   );
 }
 
-// "Renews 2026-12-01" / "Ends 2026-12-01" for a line's manage card.
+// "$75.00/month · renews Dec 1, 2026" / "Auto-renew off · ends Dec 1, 2026" for a line's card.
 export const renewText = (item, money) => {
   if (!item.price) return 'Linked by CloudIVR';
-  const end = String(item.expiresAt || item.nextBillAt || '').slice(0, 10);
-  if (item.status === 'suspended') return `Renewal due · ends ${end || '—'} if unpaid`;
-  return item.autoRenew ? `${money(item.price)}/month · renews ${end || '—'}` : `Auto-renew off · ends ${end || '—'}`;
+  if (item.status === 'awaiting_imei') return 'Add your IMEI to finish setup';
+  if (item.status === 'provisioning') return 'Setting up…';
+  const end = item.expiresAt || item.nextBillAt ? day(item.expiresAt || item.nextBillAt) : '—';
+  if (item.status === 'suspended') return `Renewal due · ends ${end} if unpaid`;
+  return item.autoRenew ? `${money(item.price)}/month · renews ${end}` : `Auto-renew off · ends ${end}`;
 };

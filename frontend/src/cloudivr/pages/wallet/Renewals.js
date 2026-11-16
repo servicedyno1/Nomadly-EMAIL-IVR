@@ -14,7 +14,7 @@ function useLines() {
   const nums = useApi('/numbers'), es = useApi('/esim'), fax = useApi('/fax-numbers');
   const rows = [
     ...(nums.data?.numbers || []).filter(n => ACTIVE.has(n.status) && !n.isSubNumber && !n.replacedBy).map(n => ({ key: `n-${n.phoneNumber}`, what: `${n.planName || n.plan || 'Plan'} number`, phone: n.phoneNumber, price: n.renewalPrice || n.planPrice, date: n.expiresAt, on: n.autoRenew !== false, flip: (on) => api(`/numbers/${enc(n.phoneNumber)}/auto-renew`, { method: 'POST', body: { enabled: on } }) })),
-    ...(es.data?.items || []).filter(i => ACTIVE.has(i.status) && i.price > 0).map(i => ({ key: `e-${i.id}`, what: i.kind === 'mobile' ? 'USA Texting Number' : 'USA eSIM', phone: i.phoneNumber, price: i.price, date: i.nextBillAt || i.expiresAt, on: !!i.autoRenew, flip: (on) => api(`/esim/${i.id}/auto-renew`, { method: 'POST', body: { on } }) })),
+    ...(es.data?.items || []).filter(i => ACTIVE.has(i.status) && i.price > 0).map(i => ({ key: `e-${i.id}`, what: i.kind === 'mobile' ? 'USA Texting Number' : 'USA eSIM', phone: i.phoneNumber, price: i.price, date: i.autoRenew ? (i.nextBillAt || i.expiresAt) : i.expiresAt, on: !!i.autoRenew, flip: (on) => api(`/esim/${i.id}/auto-renew`, { method: 'POST', body: { on } }) })),
     ...(fax.data?.numbers || []).filter(n => ACTIVE.has(n.status)).map(n => ({ key: `f-${n.phoneNumber}`, what: 'Fax number', phone: n.phoneNumber, price: n.price, date: n.expiresAt, on: n.autoRenew !== false, flip: (on) => api(`/fax-numbers/${enc(n.phoneNumber)}`, { method: 'PATCH', body: { autoRenew: on } }) })),
   ];
   const reload = () => { nums.reload(); es.reload(); fax.reload(); };
