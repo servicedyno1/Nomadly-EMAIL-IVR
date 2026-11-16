@@ -268,7 +268,7 @@ export function CampaignNew() {
   const { data: au, reload: reloadAudio } = useApi('/audio');
   const [params] = useSearchParams();
   // Contacts → "Start a campaign" opens this page with ?list=<id>.
-  const [f, setF] = useState(() => ({ name: '', callerId: params.get('callerId') || '', showAs: '', audioId: '', voicemailAudioId: '', vmMode: 'main', leads: '', source: params.get('list') ? 'list' : 'numbers', listId: params.get('list') || '', mode: 'report_only', transferNumber: '', transferBackups: '', activeKeys: ['1'], menu: [], concurrency: 5, scheduledFor: '', holdMusic: false, agentId: '', repeat: '', dailyLimit: '' }));
+  const [f, setF] = useState(() => ({ name: '', callerId: params.get('callerId') || '', showAs: '', audioId: '', voicemailAudioId: '', vmMode: 'main', leads: '', source: params.get('list') ? 'list' : 'numbers', listId: params.get('list') || '', mode: 'report_only', transferNumber: '', transferBackups: '', activeKeys: ['1'], menu: [], concurrency: 20, scheduledFor: '', holdMusic: false, agentId: '', repeat: '', dailyLimit: '' }));
   const [script, setScript] = useState(null);
   const [vmScript, setVmScript] = useState({ text: '' });
   const [madeTexts, setMadeTexts] = useState({}); // audioId → script text, so the voicemail can start from it after the voice is made

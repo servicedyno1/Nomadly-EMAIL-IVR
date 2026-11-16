@@ -167,7 +167,6 @@ export function CallsBuy({ extraOf, onStage }) {
   const total = extraOf ? (pick?.extraPrice ?? extra?.price ?? 0) : planObj ? planObj.price + addonOf(pick, planObj.id) : 0;
   const pc = res?.paperwork?.compliance;
   const docsMissing = res?.paperwork?.level === 2 && (!res.paperwork.documents?.ready || (pc && (pc.identity?.status !== 'verified' || (pc.business && pc.company?.status !== 'approved'))));
-  const fromParam = !saved && params.get('plan') && planObj?.id === params.get('plan');
 
   const search = async (e) => {
     e.preventDefault(); setBusy('search'); setError(null); setPick(null);
@@ -205,23 +204,22 @@ export function CallsBuy({ extraOf, onStage }) {
       {open?.orders?.[0] && <OpenOrder order={open.orders[0]} />}
       <PendingRequests refresh={reqTick} />
       {saved?.pick && <div className="civr-card p-4 mb-4 text-sm flex items-center gap-2" data-testid="buy-resume-note"><Check className="w-4 h-4 text-[#818cf8]" />Welcome back — {saved.pick.phoneNumber} and the {planObj?.name} plan are still selected below.</div>}
-      {fromParam && <div className="text-sm text-[#818cf8] mb-4 flex items-center gap-2" data-testid="buy-plan-hint"><Check className="w-4 h-4" />{planObj.name} plan picked — search for a number below.</div>}
-      <Label>Pick a number</Label>
+      {!extraOf && <div className="mb-8">
+        <Label>Choose your plan</Label>
+        <p className="text-xs text-[#a1a1aa] -mt-1 mb-3" data-testid="buy-plan-help">Pick a plan first — then search for a number to go with it. Every plan includes everything in the one before it, and you can upgrade any time from the number’s Billing tab.</p>
+        <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} pick={pick || res?.request} businessOnly={businessOnly} />
+      </div>}
+      <Label>Pick a number{!extraOf && planObj ? ` for your ${planObj.name} plan` : ''}</Label>
       <SearchForm catalog={catalog} q={q} setQ={setQ} onSearch={search} busy={busy === 'search'} extra={!!extraOf} />
       <div className="mt-4"><ErrorNote error={error} testid="buy-error" /></div>
-      {res?.request ? <div className="mt-8"><Label>Pick a plan and order</Label>
-        <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} pick={res.request} />
-        <div className="mt-6">{needsProfile ? <BuyProfileGate /> : <RequestOrder request={res.request} plan={planObj} addon={addonOf(res.request, planObj?.id)} onDone={() => { setRes(null); setReqTick(t => t + 1); }} />}</div></div>
+      {res?.request ? <div className="mt-8">
+        <div className="mt-2">{needsProfile ? <BuyProfileGate /> : <RequestOrder request={res.request} plan={planObj} addon={addonOf(res.request, planObj?.id)} onDone={() => { setRes(null); setReqTick(t => t + 1); }} />}</div></div>
         : res && <div className="mt-6">
           <PaperworkNote paperwork={res.paperwork} country={q.country} countryName={catalog.countries.find(c => c.code === q.country)?.name || q.country} onChange={(documents) => setRes(r => ({ ...r, paperwork: { ...r.paperwork, documents } }))} />
           <Results res={res} pick={pick} setPick={setPick} planTexting={catalog.planTexting} planId={extraOf ? null : planObj?.id} /></div>}
       {pick && (
         <div className="mt-8 civr-rise">
-          <Label>{extraOf ? 'Pay' : 'Pick a plan and pay'}</Label>
-          {!extraOf && <>
-          <p className="text-xs text-[#a1a1aa] -mt-1 mb-3" data-testid="buy-plan-help">Every plan includes everything in the one before it. Upgrade any time from the number’s Billing tab.</p>
-          <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} pick={pick} businessOnly={businessOnly} />
-          </>}
+          <Label>{extraOf ? 'Pay' : `Pay for ${pick.phoneNumber} · ${planObj?.name} plan`}</Label>
           {needsProfile ? <BuyProfileGate /> : docsMissing ? <div className="civr-card p-5 text-sm text-[#fbbf24]" data-testid="buy-documents-required">Finish the steps above (documents, ID check{pc?.business ? ', company papers' : ''}) to buy this number.</div> : <Checkout key={`${pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}
             textingOffer={null} coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `Extra number on ${pv.phone(extraOf)} · monthly` : null} autoRenewDefault={extraOf ? (parent ? parent.autoRenew !== false : true) : true} />}
         </div>
