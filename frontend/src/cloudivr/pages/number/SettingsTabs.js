@@ -1,5 +1,5 @@
-import { TenDlcCard } from '../../compliance/TenDlc';
 import React, { useState } from 'react';
+import { TenDlcCard } from '../../compliance/TenDlc';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { api, enc, money, useApi } from '../../api';
@@ -173,6 +173,12 @@ function TextingSwitchCard({ num, reload }) {
       <p className="text-xs text-[var(--c-muted)]" data-testid="texting-addon-note">{t.enabled ? 'Texts to and from this number are in Messages.' : 'While it’s off, this number doesn’t send or receive texts.'}</p>
     </Card>
   );
+}
+
+// Shown on text features (missed-call text, triggers) while texting is off on the number.
+export function TextingOffNote({ num, testid }) {
+  if (num.features?.texting?.enabled) return null;
+  return <p className="text-sm text-[#fbbf24]" data-testid={testid}>Texting is off on this number, so this can’t run. <Link to={cp(`/app/numbers/${encodeURIComponent(num.phoneNumber)}?tab=sms`)} className="underline font-semibold" data-testid={`${testid}-link`}>Turn texting on</Link></p>;
 }
 
 export function SmsTab({ num, reload }) {

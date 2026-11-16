@@ -76,7 +76,7 @@ function NumberCard({ n, i, caps, pv, onSaved, reload }) {
         </div>
         <span className={statusPill(n.status)} data-testid={`number-card-${i}-status`}>{n.status}</span>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-1.5"><CapBadges caps={caps} testid={`number-card-${i}-caps`} />{n.capabilities?.sms && n.features?.texting?.available && !n.features.texting.enabled && <Link to={`${href}?tab=sms`} className="civr-pill relative z-10 hover:!border-[var(--c-accent)]" data-testid={`number-card-${i}-add-texting`}>+ Add texting</Link>}</div>
+      <div className="mt-3 flex flex-wrap items-center gap-1.5"><CapBadges caps={caps} testid={`number-card-${i}-caps`} />{n.features?.texting?.available && !n.features.texting.enabled && <Link to={`${href}?tab=sms`} className="civr-pill relative z-10 hover:!border-[var(--c-accent)]" data-testid={`number-card-${i}-add-texting`}>+ Add texting</Link>}</div>
       <div className="flex flex-wrap gap-1.5 mt-5">
         <span className="civr-pill">{n.planName} · {money(n.planPrice)}</span>
         {on(n.features.voicemail) && <span className="civr-pill civr-pill-on">Voicemail</span>}

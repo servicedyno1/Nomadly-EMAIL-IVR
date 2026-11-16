@@ -3305,3 +3305,14 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Tests: test_card_check.js 32/0. Split flow NOT browser-tested (Mollie off in preview); no live split payment yet.
 - NOT shipped: texting on/off + 10DLC gates (WIP in workspace, backup memory/wip_texting/). Next deploy will include them
   unless reverted — finish + test first.
+
+## 2026-11-16 14:45Z — Texting on/off + 10DLC: LIVE on cloudivr.net (app-main 917b1f6f)
+- Switch off (features.sms !== true) → no outgoing texts (smsReply.send: texting_off; covers inbox reply, Messages,
+  missed-call text, call-screen replies) and no incoming texts (sms-service.handleInboundSms drops when features.sms===false
+  or capabilities.sms===false; STOP/START still recorded first). One gate each way — every provider webhook goes through it.
+- US local (multitel/infobip, ten-dlc.needs10dlc) → Texting tab shows the switch + 10DLC registration card; switching on
+  needs the account's 10DLC = active (409 tendlc_needed), then marks the number SMS-capable.
+- UI: "+ Add texting" on every eligible number, header "Texts" badge only when on, Messages send/receive caps follow
+  the switch, missed-call text + Text Triggers show "Texting is off — Turn texting on".
+- Tests: js/tests/test_texting_switch.js 7/0; preview UI checked. Other brands (wl/voodoo/proshop) not redeployed.
+- Prod effect: the NL +3197010278502 (switch off) no longer receives texts until switched on.

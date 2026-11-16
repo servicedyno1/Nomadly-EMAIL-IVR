@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Field, Toggle } from '../../ui';
-import { useSave } from './SettingsTabs';
+import { useSave, TextingOffNote } from './SettingsTabs';
 
 const DEFAULT = 'Sorry we missed your call. We’ll call you back as soon as we can.';
 
@@ -18,6 +18,7 @@ export default function MissedTextBackTab({ num, reload }) {
         <div className="font-display text-2xl font-bold">Text back missed callers</div>
         <p className="text-sm text-[#a1a1aa] mt-1">When nobody answers, the caller gets one text from this number, at most once a day. Texts use your plan’s texts, then the extra-text rate. It only works once texting is approved on this number (US numbers also need the 10DLC registration).</p>
       </div>
+      {!noSms && <TextingOffNote num={num} testid="textback-texting-off" />}
       {noSms ? <p className="text-sm text-[#fbbf24]" data-testid="textback-no-sms">This number can’t send texts.</p> : <>
         <div className="flex items-center justify-between gap-4"><span className="text-sm">Send a text after a missed call</span><Toggle checked={!!cur.enabled} disabled={busy} onChange={put} testid="textback-toggle" label="Send a text after a missed call" /></div>
         <Field label="Text" hint={`${text.length}/300`}><textarea rows={3} maxLength={300} className="civr-input" value={text} onChange={e => setText(e.target.value)} data-testid="textback-text-input" /></Field>

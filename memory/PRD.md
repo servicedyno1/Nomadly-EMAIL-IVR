@@ -369,3 +369,7 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Inbox missed calls: per-call dismiss. Own-number calls still listed (user choice).
 - Verification: unit 32/0, preview dismiss UI + API ownership check; split flow not exercised with a real payment yet.
 - Backlog (in order): texting on/off + 10DLC gates (WIP in workspace, not shipped) → in-app alerts for held deposits/orders → Apple Pay live re-test → Bird 20-concurrent config check.
+
+## 2026-11-16 14:45Z — Texting on/off + 10DLC: LIVE on cloudivr.net
+- Texting off → no texts in or out on any number. US local numbers start 10DLC from the Texting tab; switch unlocks once approved.
+- Agent-tested (unit + preview); not user-confirmed. Next: in-app alerts for held deposits/orders, Apple Pay live re-test, Bird 20-concurrent check.

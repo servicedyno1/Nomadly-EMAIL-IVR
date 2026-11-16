@@ -25,7 +25,8 @@ function create({ db, numbersApi, smsReply }) {
   async function numbers(chatId) {
     const out = []
     for (const n of await numbersApi.myNumbers(chatId)) {
-      const on = n.status === 'active', sms = n.capabilities?.sms !== false, cur = on && !n.replacedBy && n.features?.sms !== false
+      // Texting is an opt-in switch: off → this number neither sends nor receives texts.
+      const on = n.status === 'active', sms = n.capabilities?.sms !== false && n.features?.sms === true, cur = on && !n.replacedBy
       out.push({ phone: n.phoneNumber, provider: n.provider || null, kind: 'calling', status: n.status, since: n.purchaseDate || null, caps: { send: cur && sms, receive: sms, pictures: cur && sms && canMms(n), calls: cur }, old: n.replacedBy ? { newNumber: n.replacedBy, until: n.releaseAt } : null })
     }
     for (const d of await db.collection('esimLines').find({ chatId: String(chatId), status: { $in: ['active', 'suspended', 'cancelled'] } }).toArray()) {

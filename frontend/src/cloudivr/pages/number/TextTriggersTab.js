@@ -5,6 +5,7 @@ import { api, enc, useApi } from '../../api';
 import { Field, InstantToggle, Spinner, ErrorNote } from '../../ui';
 import { useUnsaved, SaveRow } from '../../guard';
 import { RuleCard, TryText, RunsList, ACTIONS } from './TriggerParts';
+import { TextingOffNote } from './SettingsTabs';
 
 const MAX = 5;
 // `_k` = stable React key while editing (the server ignores it), so reordering never mixes up a card's state.
@@ -68,6 +69,7 @@ export default function TextTriggersTab({ num }) {
   if (!num.capabilities?.sms) return <div className="civr-card p-6 text-sm text-[#a1a1aa]" data-testid="triggers-no-sms">This number can’t receive text messages, so Text Triggers can’t run on it.</div>;
   return (
     <div className="grid xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4 items-start">
+      {!num.features?.texting?.enabled && <div className="xl:col-span-2 civr-card p-4"><TextingOffNote num={num} testid="triggers-texting-off" /></div>}
       <Editor key={JSON.stringify({ ...data.textTriggers, enabled: undefined })} num={num} data={data} reload={reload} onDirty={setDirty} />
       <div className="space-y-4"><TryText num={num} dirty={dirty} /><RunsList runs={data.runs} /></div>
     </div>

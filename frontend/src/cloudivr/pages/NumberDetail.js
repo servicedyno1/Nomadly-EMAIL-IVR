@@ -60,7 +60,7 @@ function FeatureRow({ n, id, name, gate, active, onOpen, reload }) {
   const [feature, read] = SW[id] || [];
   const locked = !!gate && !n.access[gate];
   const on = !!read?.(n.features || {});
-  const canSwitch = !!feature && !locked && n.status === 'active' && (id !== 'sms' || !!n.capabilities?.sms);
+  const canSwitch = !!feature && !locked && n.status === 'active' && (id !== 'sms' || !!n.features?.texting?.available);
   const [saved, setSaved] = useState(false);
   const timer = useRef(null);
   const sw = useSwitch({ num: n, feature, label: name, checked: on, reload, onSaved: () => { setSaved(true); clearTimeout(timer.current); timer.current = setTimeout(() => setSaved(false), 2500); } });
