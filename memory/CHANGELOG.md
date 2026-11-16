@@ -3232,3 +3232,9 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Left as-is (already handled gracefully / working as designed): balance-monitor (classifies auth, pauses, doesn't spam admin); cr-auto-whitelist (401 = "IP not whitelisted" trigger for its self-heal; escalates to admin after 24 retries).
 - STILL NEEDS THE OWNER (cannot fix in code, lives on prod droplet env / third-party accounts): unblock or retire the two Telnyx accounts; refresh Twilio creds or set TWILIO_ENABLED=false per brand; refresh LINKLY_API_KEY or leave alerts off; whitelist the prod server IP in ConnectReseller (or fix CR_PANEL creds).
 - Verified in preview: node --check all files; blocked-account unit test (patch called once, early-return, env IDs returned); startup log no longer shows the [TelnyxSIP] list numbers blocked cascade. Not yet deployed to the droplet (ships via GitHub → Actions deploy, same path as the spam-watch).
+
+## 2026-11-16 ~06:55Z — Fix transparent/invisible calendar popover (frontend)
+- Root cause: cloudivr theme tokens (--c-card/--c-border/--c-text) are scoped to `.civr`, but Radix Popover/Select/Dropdown/Dialog render through a Portal on <body>, outside `.civr`, so `var(--c-*)` was undefined → transparent background + washed-out text.
+- frontend/src/cloudivr/DateTimePicker.js PopoverContent was the only portalled component missing the codebase's standard `civr !min-h-0 !bg-[var(--c-card)]...` pattern (the others — Pickers Select, AccountMenu/i18n Dropdown, AudioAdd/CallerIdPick Dialog — already had it). Added `civr !min-h-0 !bg/!border/!text + shadow-xl z-[100]`.
+- Fixes the calendar in every place DateTimePicker is used: Quick IVR, Campaigns, AI Calls, AI Campaigns, Receptionist, Booking fields.
+- Verified: logged in on preview (civr.uxtest@example.com), opened the Quick IVR "When to call" calendar — now solid opaque surface with readable weekday/day text (light theme). No other portalled component affected.
