@@ -10389,10 +10389,10 @@ bot?.on('message', msg => {
     const depBonus = (userConversion && userConversion.FIRST_DEPOSIT_BONUS_USD) || 5
     try {
       const q = ({
-        en: `👋 <b>Welcome to ${CHAT_BOT_NAME}</b> — your all-in-one toolkit: phone numbers, hosting, domains & digital products.\n\n<b>What do you need today?</b> Tap one to jump straight in — or 👀 Just looking to browse everything.\n\n💸 <i>Tip: deposit $20+ and get $${depBonus} free on your first deposit.</i>`,
-        fr: `👋 <b>Bienvenue sur ${CHAT_BOT_NAME}</b> — votre boîte à outils tout-en-un : numéros, hébergement, domaines & produits numériques.\n\n<b>De quoi avez-vous besoin aujourd'hui ?</b> Appuyez pour aller droit au but — ou 👀 Je regarde pour tout parcourir.\n\n💸 <i>Astuce : déposez 20 $+ et recevez ${depBonus} $ offerts sur votre premier dépôt.</i>`,
-        zh: `👋 <b>欢迎使用 ${CHAT_BOT_NAME}</b> — 一站式工具箱：电话号码、主机、域名和数字产品。\n\n<b>您今天需要什么？</b>点击直接进入 — 或点 👀 随便看看 浏览全部。\n\n💸 <i>提示：首次充值 $20+ 即可获得 $${depBonus} 赠金。</i>`,
-        hi: `👋 <b>${CHAT_BOT_NAME} में आपका स्वागत है</b> — फ़ोन नंबर, होस्टिंग, डोमेन और डिजिटल प्रोडक्ट के लिए ऑल-इन-वन टूलकिट।\n\n<b>आज आपको क्या चाहिए?</b> सीधे जाने के लिए टैप करें — या सब कुछ देखने के लिए 👀 बस देख रहे हैं।\n\n💸 <i>टिप: $20+ जमा करें और पहली जमा पर $${depBonus} मुफ़्त पाएं।</i>`,
+        en: `👋 <b>Welcome to ${CHAT_BOT_NAME}</b> — built for nomads, founders, small businesses, remote teams and sales teams. One place for phone numbers, hosting, domains & digital products.\n\n<b>What do you need today?</b> Tap one to jump straight in — or 👀 Just looking to browse everything.\n\n💸 <i>Tip: deposit $20+ and get $${depBonus} free on your first deposit.</i>`,
+        fr: `👋 <b>Bienvenue sur ${CHAT_BOT_NAME}</b> — conçu pour les nomades, fondateurs, petites entreprises, équipes à distance et équipes commerciales. Numéros, hébergement, domaines & produits numériques au même endroit.\n\n<b>De quoi avez-vous besoin aujourd'hui ?</b> Appuyez pour aller droit au but — ou 👀 Je regarde pour tout parcourir.\n\n💸 <i>Astuce : déposez 20 $+ et recevez ${depBonus} $ offerts sur votre premier dépôt.</i>`,
+        zh: `👋 <b>欢迎使用 ${CHAT_BOT_NAME}</b> — 为数字游民、创业者、小型企业、远程团队和销售团队打造。电话号码、主机、域名和数字产品，一站搞定。\n\n<b>您今天需要什么？</b>点击直接进入 — 或点 👀 随便看看 浏览全部。\n\n💸 <i>提示：首次充值 $20+ 即可获得 $${depBonus} 赠金。</i>`,
+        hi: `👋 <b>${CHAT_BOT_NAME} में आपका स्वागत है</b> — नोमैड, फ़ाउंडर, छोटे व्यवसाय, रिमोट टीम और सेल्स टीम के लिए बना। फ़ोन नंबर, होस्टिंग, डोमेन और डिजिटल प्रोडक्ट एक ही जगह।\n\n<b>आज आपको क्या चाहिए?</b> सीधे जाने के लिए टैप करें — या सब कुछ देखने के लिए 👀 बस देख रहे हैं।\n\n💸 <i>टिप: $20+ जमा करें और पहली जमा पर $${depBonus} मुफ़्त पाएं।</i>`,
       })[_l] || `👋 <b>Welcome to ${CHAT_BOT_NAME}</b> — what do you need today?`
       const qWeb = q + webAccess.webWelcomeLine(_l) + webAccess.cloudivrWelcomeLine(_l)
       const rows = [
