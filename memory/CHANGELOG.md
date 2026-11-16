@@ -3277,3 +3277,17 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
   added to /opt/nomadly/shared/app-main/backend.env (backup .bak-cardcheck). Prod /card-check + /admin/card-checks answer 401 unauth.
   Not yet seen: a real customer card payment going through the hold → Stripe → release/refund path in production.
   No Stripe webhook endpoint registered for the live key — results come from the return-page refresh + 5-min sweep.
+
+## 2026-11-16 13:29 UTC — app-main 20261116T132848Z (workspace deploy)
+- Apple Pay "Payment failed" on cloudivr.net: /.well-known/apple-developer-merchantid-domain-association was answered by the CloudIVR
+  domain guard with SPA HTML. Now served byte-exact (js/static/, same file as Hosta/jujucloud + mollie.com) on earlyApp BEFORE the guard.
+  Mollie session sess_yJGT… had no payment → failure was Apple merchant validation. Owner to retry Apple Pay (not yet confirmed).
+- Stripe Identity webhook: endpoint we_1UcPMb… → https://2.speechcue.com/stripe/webhook (verified/requires_input/canceled/processing);
+  STRIPE_IDENTITY_WEBHOOK_SECRET in shared/app-main/backend.env. Signed probe → 200, forged → 400.
+- Bird limits (20 concurrent, 5 CPS): callengine counts PJSIP/bird-* channels on the shared Asterisk (all brands) for activeBird, and
+  birdSlot() paces Bird originates ≤ BIRD_MAX_CPS per second (local pacer + Asterisk channels created <1s). Env BIRD_MAX_CONCURRENT=20,
+  BIRD_MAX_CPS=5 set on all 4 brands; code only on app-main so far (WL/Voodoo/ProShop still old code).
+- Call forwarding (businessintelusa@gmail.com, acct 5000000000000143, +18065931064 → +12033440626): caller heard ringing on top of the
+  destination's voicemail. Cause: transferCall POST /channels/A/ring never stopped on B answer. onUp now DELETEs ring + stops ringback playback before bridging.
+- Stale call session (ae: forwarded call whose hangup hit the old slot during a flip) blocked deploy drain ~30 min. voice-service now
+  drops ae: sessions >2 min old whose Asterisk channel 404s.

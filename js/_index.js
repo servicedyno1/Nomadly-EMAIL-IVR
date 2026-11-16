@@ -128,6 +128,10 @@ if (LEGACY_HOST_REDIRECTS.size) {
 // ── CloudIVR web app is opt-in per bot (CLOUDIVR_WEB_ON=true, Nomadly only); off = /cloudivr pages + API return 404 ──
 const CLOUDIVR_WEB_ON = process.env.CLOUDIVR_WEB_ON === 'true'
 if (!CLOUDIVR_WEB_ON) earlyApp.use((req, res, next) => (/^\/cloudivr(-web)?(\/|$)/.test(req.path) ? res.status(404).json({ error: 'Page not found' }) : next()))
+// Apple Pay domain check for Mollie — before the CloudIVR domain guard, which serves the SPA for every path (Apple fetches this byte-exact file before opening the payment sheet).
+earlyApp.get('/.well-known/apple-developer-merchantid-domain-association', (req, res) => {
+  res.type('text/plain').sendFile(require('path').join(__dirname, 'static', 'apple-developer-merchantid-domain-association'))
+})
 // ── CloudIVR custom domain (CLOUDIVR_WEB_DOMAIN, e.g. cloudivr.net) — that host serves only the web app ──
 {
   const cloudIvrDomainGuard = CLOUDIVR_WEB_ON && require('./cloudivr-web/domain-guard').createCloudIvrDomainGuard({
@@ -53338,6 +53342,7 @@ const PANEL_DOMAIN = (process.env.PANEL_DOMAIN || '')
   .replace(/^https?:\/\//, '')
   .split('/')[0]
   .split(':')[0]
+
 
 if (fs.existsSync(frontendBuildPath)) {
   // Panel domain handler: on panel.hostbay.io, ONLY serve the panel SPA + panel API.

@@ -1263,6 +1263,13 @@ setInterval(() => {
   // activeCalls: each entry has startedAt timestamp
   for (const key of Object.keys(activeCalls)) {
     const entry = activeCalls[key]
+    // CallEngine call whose Asterisk channel is gone (its hangup went to the other slot during a blue/green flip).
+    if (String(key).startsWith('ae:') && entry?.startedAt && now - new Date(entry.startedAt).getTime() > 120000 && !_aliveChecking.has(key)) {
+      _aliveChecking.add(key)
+      require('./callengine').ari().get(`/channels/${encodeURIComponent(key.slice(3))}`, { timeout: 5000 })
+        .then(() => {}, (err) => { if (err.response?.status === 404 && activeCalls[key] === entry) { if (entry._limitTimer) clearInterval(entry._limitTimer); delete activeCalls[key]; log(`[Voice] Memory cleanup: removed ended CallEngine session ${key} (channel gone)`) } })
+        .finally(() => _aliveChecking.delete(key))
+    }
     if (entry?.startedAt && (now - new Date(entry.startedAt).getTime()) > ACTIVE_CALL_MAX_AGE) {
       _expireIfDead(activeCalls, key, now - new Date(entry.startedAt).getTime(), e => { if (e._limitTimer) clearInterval(e._limitTimer) })
     }
