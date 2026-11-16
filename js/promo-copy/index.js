@@ -77,6 +77,7 @@ function variantCount(theme, lang, mode = 'hero') {
 
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }
 
+// Hero hooks rotate through the audiences (nomads, founders, small business, teams, sales), one per send.
 // Assemble the message text. `ai` may override hook/lines (never the price line).
 function renderPromo({ theme, lang = 'en', variation = 0, mode = 'hero', prices, couponLine = null, ai = null, footer = true }) {
   const c = copyFor(theme, lang)

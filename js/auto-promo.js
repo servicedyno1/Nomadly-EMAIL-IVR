@@ -671,7 +671,7 @@ function initAutoPromo(bot, db, nameOf, stateCol, lifecycleDiet = null) {
       let ai = null
       if (item.mode === 'hero') {
         try { ai = await generateDynamicPromo(item.theme, lang) } catch (err) { log(`[AutoPromo] AI fail: ${err.message}`) }
-        if (ai) aiUsed++
+        if (ai) { delete ai.hook; aiUsed++ } // the hook stays the audience-led one from promo-copy
       }
       composedCache.set(key, composePromo({ theme: item.theme, lang, mode: item.mode, variation, ai, couponLine, prices }))
     }
