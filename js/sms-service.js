@@ -154,6 +154,10 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
     if (numberConfig.status !== 'active') {
       return log(`handleInboundSms: number ${cleanTo} is ${numberConfig.status}, skipping`)
     }
+    // Texting switched off (or never added) on this number → incoming texts are not delivered either.
+    if (numberConfig.features?.sms === false || numberConfig.capabilities?.sms === false) {
+      return log(`handleInboundSms: texting is off on ${cleanTo} (account ${ownerChatId}) — not delivered`)
+    }
 
     // Receiving texts is free (2026-11 pricing: only sent texts are billed, per message) — no inbound limit or charge.
     if (false && _isSmsLimitReached && _isSmsLimitReached(numberConfig, ownerNumbers)) {

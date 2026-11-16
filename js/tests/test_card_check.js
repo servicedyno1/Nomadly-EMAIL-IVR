@@ -95,6 +95,35 @@ const ok = (n, c) => { c ? pass++ : fail++; console.log(`${c ? '✅' : '❌'} ${
   await pay(d8, { method: 'creditcard', details: { cardHolder: 'WEI LI' } })
   ok('pre-verified ID matches instantly', (await w.balance('700')) === 12 && (await cc.status('700')).status === 'passed')
 
+  // 8) Wallet + card checkout: the order goes with the payment and runs on the server
+  const ran = []
+  const replay = async (chatId, a) => { ran.push({ chatId, ...a }); const okd = await w.debit(chatId, a.body.price); return okd ? { status: 200, data: { ok: true } } : { status: 402, message: 'short' } }
+  const cc2 = CC.createCardCheck(db, { log: () => {}, push: async () => {}, notifyAdmin: () => {}, refundPayment: async (d) => ({ id: 're_' + d.ref }), replay })
+  const m2 = createMollie(db, { log: () => {}, getCardCheck: () => cc2, push: async () => {}, replay })
+  const pay2 = (d, extra) => m2.settle(d, { id: d.molliePaymentId, status: 'paid', amount: { currency: d.currency, value: d.amountCharged }, ...extra })
+  const mkOrder = async (chatId, ref, usd, price, walletUsd) => { await dep.insertOne({ chatId, ref, amountUsd: usd, provider: 'mollie', currency: 'EUR', amountCharged: (usd * 0.9).toFixed(2), molliePaymentId: 'tr_' + ref, order: { method: 'POST', path: '/numbers/checkout', body: { price }, walletUsd }, createdAt: new Date() }); return dep.findOne({ ref }) }
+  // Verified account, wallet $15 + card $10 for a $25 order → runs right away
+  await comp.insertOne({ _id: '800', cardCheck: { status: 'passed' } })
+  await w.credit('800', 15)
+  await pay2(await mkOrder('800', 'h1', 10, 25, 15), { method: 'creditcard' })
+  await new Promise(r => setTimeout(r, 50))
+  ok('split order runs once paid', ran.filter(x => x.chatId === '800').length === 1 && (await w.balance('800')) === 0 && (await dep.findOne({ ref: 'h1' })).orderResult.state === 'done')
+  ok('replayed webhook does not rerun the order', (await pay2(await dep.findOne({ ref: 'h1' }), { method: 'creditcard' })).already === true && ran.filter(x => x.chatId === '800').length === 1)
+  // Needs ID check: card part held, wallet part set aside, order saved
+  await w.credit('900', 15)
+  await pay2(await mkOrder('900', 'i1', 10, 25, 15), { method: 'creditcard', details: { cardHolder: 'JOHN SMITH' } })
+  const i1 = await dep.findOne({ ref: 'i1' })
+  ok('held split: order saved, wallet part set aside', i1.orderResult.state === 'queued' && i1.reservedUsd === 15 && (await w.balance('900')) === 0 && (await held('900')) === 25 && !ran.some(x => x.chatId === '900'))
+  await comp.updateOne({ _id: '900' }, { $set: { identity: { status: 'verified', name: 'John Smith' } } })
+  await cc2.onIdentity('900', 'verified')
+  ok('ID passes → order runs with both parts', ran.filter(x => x.chatId === '900').length === 1 && (await w.balance('900')) === 0 && (await held('900')) === 0 && (await dep.findOne({ ref: 'i1' })).orderResult.state === 'done')
+  // ID mismatch → card part refunded, wallet part returned, order cancelled
+  await w.credit('950', 15)
+  await pay2(await mkOrder('950', 'j1', 10, 25, 15), { method: 'creditcard', details: { cardHolder: 'ANA COSTA' } })
+  await comp.updateOne({ _id: '950' }, { $set: { identity: { status: 'verified', name: 'John Smith' } } })
+  await cc2.onIdentity('950', 'verified')
+  ok('mismatch → wallet part back, order cancelled', (await w.balance('950')) === 15 && (await held('950')) === 0 && (await dep.findOne({ ref: 'j1' })).orderResult.state === 'cancelled' && !ran.some(x => x.chatId === '950'))
+
   await db.dropDatabase(); await cl.close()
   console.log(`\n${pass} passed, ${fail} failed`)
   process.exit(fail ? 1 : 0)
