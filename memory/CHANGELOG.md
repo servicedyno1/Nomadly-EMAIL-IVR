@@ -3239,3 +3239,11 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - CORRECT fix: a variables-ONLY class `.civr-portal` (added in cloudivr.css) that carries just the theme colour tokens per dark/light (and a no-theme fallback) — NONE of the `.civr` layout/table/button rules. DateTimePicker.js PopoverContent now uses `civr-portal !min-h-0 !bg/!border/!text shadow-xl z-[100]`.
 - Fixes the calendar in every place DateTimePicker is used: Quick IVR, Campaigns, AI Calls, AI Campaigns, Receptionist, Booking fields.
 - Verified on preview (civr.uxtest@example.com) at two viewports: DARK and LIGHT themes both show a solid surface, correct month grid (Su–Sa header + aligned days), today highlighted, readable text.
+
+## 2026-11-16 ~07:50Z — Quick IVR scheduling window 24h → 30 days + Mollie finding
+- Users could only schedule Quick IVR calls up to 24h out (calendar showed only today+tomorrow). Raised to 30 days to match campaigns:
+  - frontend QuickCall.js: DateTimePicker maxDays 1→30; hint + LockedNote copy "24 hours"→"30 days".
+  - backend js/cloudivr-web/outbound.js /calls/quick: cap 86400000 → 30*86400000; message updated.
+  - Scheduler (js/_index.js 'scheduled-call-executor', polls scheduledCalls every 30s, no horizon) fires due pending calls regardless of how far out — safe. Campaigns already allowed 30 days (calls.js), messages 90 days (unchanged).
+  - Verified in preview (dark): calendar now enables the full 30-day range.
+- MOLLIE (cloudivr.net card payments still "coming soon"): probed prod live API. Key is live_, profile VERIFIED, creditcard ENABLED, BUT both the /sessions domain-probe AND the real /payments endpoint are rejected for https://cloudivr.net with 422 "redirect URL doesn't match your profile URL or any of your registered domains". The live key is restricted to the profile whose website is https://jujucloud.com/ (profiles list returns 403 → key is profile-scoped, not an org access token). So cloudivr.net is NOT a registered domain on THIS key's profile. The code auto-enables once Mollie accepts the domain — no code change needed. Resolution is account-side: either add cloudivr.net to the jujucloud.com profile's registered domains, OR (if cloudivr.net is a different/new Mollie profile) switch MOLLIE_API_KEY to that profile's key / use an org access token + profileId. Awaiting user.

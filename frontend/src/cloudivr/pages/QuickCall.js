@@ -160,9 +160,9 @@ export default function QuickCall() {
             <Section n="2" title="What they hear"><Message f={f} set={set} audios={audios} reloadAudio={reloadAudio} /></Section>
             <Section n="3" title="When they press a key"><Answer f={f} set={set} can={can} phone={caller.phoneNumber} /></Section>
             <Section n="4" title="When to call">
-              <Field label="Schedule (optional)" hint={can.ivrSchedule ? '5 minutes to 24 hours from now. Leave empty to call now.' : null}>{can.ivrSchedule
-                ? <DateTimePicker value={f.scheduleAt} onChange={(v) => set({ scheduleAt: v })} maxDays={1} testid="quick-schedule" />
-                : <LockedNote text="Schedule calls from 5 minutes to 24 hours ahead." feature="Scheduling Quick IVR calls" phone={caller.phoneNumber} testid="quick-schedule-locked" />}</Field>
+              <Field label="Schedule (optional)" hint={can.ivrSchedule ? '5 minutes to 30 days from now. Leave empty to call now.' : null}>{can.ivrSchedule
+                ? <DateTimePicker value={f.scheduleAt} onChange={(v) => set({ scheduleAt: v })} maxDays={30} testid="quick-schedule" />
+                : <LockedNote text="Schedule calls from 5 minutes to 30 days ahead." feature="Scheduling Quick IVR calls" phone={caller.phoneNumber} testid="quick-schedule-locked" />}</Field>
               <ErrorNote error={error} testid="quick-call-error" />
               {result && <div className="civr-card p-4 text-sm" data-testid="quick-call-result">{result.message || (result.scheduled ? `Scheduled ${result.scheduled} call(s).` : `Started ${result.started} call(s).`)}</div>}
               {result?.mode === 'otp' && (result.results || []).filter(r => r.callControlId).map((r, i) => <OtpLive key={r.callControlId} ccid={r.callControlId} testid={`quick-otp-live-${i}`} />)}
