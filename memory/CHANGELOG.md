@@ -3440,3 +3440,11 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - **Bot bulk call `applyCustomCid`** (`_index.js` ~line 26845): `provider` switches to `'multitel'` when `showAs` number is set.
 - **Web Quick IVR trial** (`outbound.js` ~line 191): Trial calls now accept `showAs` (guard-checked). Previously only non-trial calls could set a custom caller ID.
 - **SIP outbound transfer** (`voice-service.js`): When `useMultitelTrunk` is true, transfer goes through `require('./callengine').transferCall()` (Asterisk ARI → MultiTEL trunk) instead of `_telnyxApi.transferCall()` (Telnyx API). Fallback to own number via Telnyx on carrier refusal.
+
+### Telnyx Fallback Removal + SIP Business-Plan CID Fix
+- **IVR outbound** (`voice-service.js` ~line 5487): Removed Telnyx `createOutboundCall` fallback when MultiTEL originate fails. Now returns error directly (Telnyx account is blocked).
+- **IVR outbound CID refusal** (~line 5514): When MultiTEL refuses a custom caller ID, retry from own number **also via MultiTEL** (not Telnyx). Non-MultiTEL paths still use Telnyx for existing numbers.
+- **SIP outbound CID refusal** (~line 3700): Retry from own number uses `transferApi` (call engine when MultiTEL, Telnyx otherwise) — no longer hardcoded `_telnyxApi.transferCall`.
+- **Inbound forwarding fallback** (~line 1856): When `via` trunk is set, retry from business number also goes through call engine (not Telnyx).
+- **SIP outbound owned-number check** (~line 3654): Fixed `_numbersOf` → `_phoneNumbersOf.findOne()` for correct MongoDB lookup to determine if the caller ID is owned.
+- All `how` and `provider` references updated to reflect actual routing path instead of hardcoded `'telnyx'`.
