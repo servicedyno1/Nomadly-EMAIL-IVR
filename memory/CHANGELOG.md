@@ -3338,3 +3338,14 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
   US sends from MultiTEL numbers being blocked even after approval.
 - Tests: iteration_299 frontend flows all passed; fixes applied for its findings. texting_switch 7/0, card_check 32/0.
 - Pending: Dutch +31 6 number search (no purchase), held-payment inbox alerts, Apple Pay live check, Bird 20-concurrency check.
+
+## 2026-11-16 ~17:00Z — Order queue on real low balance, no SIP SignalWire retry, crypto order fix: LIVE app-main 22798f5b
+- provider-health.buyWithBackup: no pre-emptive isLow pause; tries MultiTEL; only a "balance too low" answer
+  (multitel.wasNoFunds: status 402 or /insufficient|balance|funds|credit/) queues the order. No Infobip fallback.
+- pending-orders.tick (every 60s): oldest-first; first no-funds answer stops that provider's queue until next tick.
+  48h auto-refund kept. Test js/tests/test_order_queue_funds.js 5/0.
+- signalwire.createOutboundCall: sip: destinations only via CallEngine; refused → error returned (no SignalWire retry).
+- Crypto orders store mtMeta (MultiTEL search details) and remember() it before buying — fixes "could not be reserved"
+  when the payment lands on the other slot/after restart (businessintelusa +18884596478, 16 Nov 16:00).
+- Crypto was already offered when the wallet covers the price (Checkout + WalletPay); no change needed.
+- Other brands (wl/voodoo/proshop) NOT redeployed with these shared-code changes.

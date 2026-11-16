@@ -10,7 +10,7 @@ const held = new Set()
 const isHeld = (phone) => held.has(String(phone || ''))
 const providerMod = (p) => require(p === 'infobip' ? './infobip' : './multitel')
 
-// Called by provider-health.buyWithBackup when the provider's balance is too low to buy right now.
+// Called by provider-health.buyWithBackup when the provider refused the buy for low balance.
 function pendingResult(provider, phoneNumber) {
   const meta = providerMod(provider).searchedMeta?.(phoneNumber) || null
   const id = `pending:${crypto.randomUUID().slice(0, 12)}`
@@ -49,6 +49,7 @@ async function complete(o) {
   const P = providerMod(o.provider)
   if (o.meta) P.remember?.(o.phoneNumber, o.meta)
   const r = await P.buyNumber(o.phoneNumber).catch(() => null)
+  if (!r && P.wasNoFunds?.(o.phoneNumber)) return 'no_funds'
   if (!r) return refund(o, 'number no longer available')
   const phone = r.phone_numbers?.[0]?.phone_number || o.phoneNumber
   await col.updateOne({ _id: o._id }, { $set: { status: 'done', orderId: r.id, finalNumber: phone, doneAt: new Date() } })
@@ -63,10 +64,13 @@ async function tick() {
   if (!col || running) return
   running = true
   try {
-    const health = require('./provider-health')
-    for (const o of await col.find({ status: 'waiting' }).toArray()) {
+    const health = require('./provider-health'), stopped = new Set()
+    // Oldest first; a provider that says "balance too low" stops its queue until the next tick (top-up).
+    for (const o of await col.find({ status: 'waiting' }).sort({ createdAt: 1 }).toArray()) {
       if (Date.now() - new Date(o.createdAt).getTime() > MAX_AGE_MS) { await refund(o, 'not completed within 48 hours'); continue }
-      if (!health.isLow(o.provider) && !health.isDown(o.provider)) await complete(o).catch(e => log(`complete ${o._id}: ${e.message}`))
+      if (stopped.has(o.provider) || health.isDown(o.provider)) continue
+      const r = await complete(o).catch(e => log(`complete ${o._id}: ${e.message}`))
+      if (r === 'no_funds') { stopped.add(o.provider); log(`${o.provider} balance too low — queue paused at ${o._id}`) }
     }
     await require('./spenza').retryAwaitingFunds?.().catch(e => log(`spenza: ${e.message}`))
   } finally { running = false }
@@ -75,7 +79,7 @@ async function tick() {
 async function init(deps) {
   D = deps; col = deps.db.collection('pendingNumberOrders')
   for (const o of await col.find({ status: 'waiting' }, { projection: { phoneNumber: 1 } }).toArray()) held.add(o.phoneNumber)
-  require('./active-slot').singletonInterval('pending-number-orders', () => tick().catch(e => log(e.message)), 2 * 60000)
+  require('./active-slot').singletonInterval('pending-number-orders', () => tick().catch(e => log(e.message)), 60000)
   log(`ready — ${held.size} waiting`)
 }
 

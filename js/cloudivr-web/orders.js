@@ -116,6 +116,8 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
       }
       sub = { parentNumber: p.parent.phoneNumber, plan: p.parent.plan }
     }
+    // The number's buy details from the search (in memory only — a restart while the crypto payment arrives loses them).
+    if (o.mtMeta) require('../multitel').remember(o.phoneNumber, o.mtMeta)
     const need = needOf(o)
     if ((await w.balance(o.chatId)) < need) {
       const message = `We received $${(o.paidUsd || 0).toFixed(2)} but ${o.phoneNumber} needs $${need.toFixed(2)}${o.walletPart ? ` (with $${o.walletPart.toFixed(2)} from your wallet)` : ''}. Nothing was bought — everything is in your wallet. Start the purchase again any time.`
@@ -217,7 +219,7 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     if (!dep || !dep.address) return bad(res, 424, 'deposit_unavailable', 'The crypto payment service did not return an address. Try again or pick another coin.')
     const now = new Date()
     const doc = {
-      _id: dep.ref, chatId, email: req.webUser.email, phoneNumber: picked.hit.phoneNumber, hit: picked.hit, country: picked.country, type: picked.type,
+      _id: dep.ref, chatId, email: req.webUser.email, phoneNumber: picked.hit.phoneNumber, hit: picked.hit, mtMeta: require('../multitel').searchedMeta(picked.hit.phoneNumber), country: picked.country, type: picked.type,
       areaCode: picked.areaCode, planKey, price, need: total, walletPart, autoRenew, coupon, coin, ...(texting ? { texting } : {}), ...(textOffer ? { withTexting: true } : {}), address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider,
       status: 'awaiting_payment', dryRun: dryRun(), createdAt: now, updatedAt: now,
     }
@@ -279,7 +281,7 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     if (!dep || !dep.address) return bad(res, 424, 'deposit_unavailable', 'The crypto payment service did not return an address. Try again or pick another coin.')
     const now = new Date()
     const doc = {
-      _id: dep.ref, kind: 'extra', chatId, email: req.webUser.email, phoneNumber: picked.hit.phoneNumber, parentNumber: n.phoneNumber, hit: picked.hit,
+      _id: dep.ref, kind: 'extra', chatId, email: req.webUser.email, phoneNumber: picked.hit.phoneNumber, parentNumber: n.phoneNumber, hit: picked.hit, mtMeta: require('../multitel').searchedMeta(picked.hit.phoneNumber),
       country: picked.country, type: picked.type, areaCode: picked.areaCode, planKey: n.plan, price, charge, walletPart, autoRenew: req.body.autoRenew !== false, coupon, coin,
       address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider, status: 'awaiting_payment', dryRun: dryRun(), createdAt: now, updatedAt: now,
     }
