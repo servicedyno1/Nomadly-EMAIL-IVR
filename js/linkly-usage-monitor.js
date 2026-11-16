@@ -303,9 +303,12 @@ async function checkLinklyUsage(opts = {}) {
     } catch (e) {
       const status = e && e.response && e.response.status
       if (status === 429) _backoffUntil = Date.now() + BACKOFF_429_MS
+      // Auth failures (bad/expired key) won't fix themselves — back off 24h instead of retrying hourly.
+      else if (status === 401 || status === 403) _backoffUntil = Date.now() + 24 * 60 * 60 * 1000
       log(
         `[LinklyUsage] (${reason}) check failed${status ? ` (HTTP ${status})` : ''}: ${e.message}` +
-          (status === 429 ? ' — backing off 30 min (no alert sent)' : ''),
+          (status === 429 ? ' — backing off 30 min (no alert sent)' : '') +
+          (status === 401 || status === 403 ? ' — invalid LINKLY_API_KEY, pausing checks 24h until the key is refreshed (no alert sent)' : ''),
       )
       _lastResult = { ok: false, reason, enabled: _enabled, error: e.message, status, config: cfg, checkedAt: new Date().toISOString() }
     }

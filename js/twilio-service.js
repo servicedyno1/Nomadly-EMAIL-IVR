@@ -1219,6 +1219,11 @@ async function cleanupOrphanDrafts(olderThanMs = 24 * 60 * 60 * 1000) {
     log(`[Twilio] cleanupOrphanDrafts: scanned=${bundles.length} deleted=${deleted} errors=${errors}`)
     return { scanned: bundles.length, deleted, errors }
   } catch (e) {
+    const status = e && (e.status || e.code)
+    if (status === 20003 || status === 401 || /authenticate/i.test(e.message || '')) {
+      log('[Twilio] cleanupOrphanDrafts skipped — Twilio credentials invalid (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN).')
+      return { skipped: 'auth' }
+    }
     log(`[Twilio] cleanupOrphanDrafts error: ${e.message}`)
     return { error: e.message }
   }

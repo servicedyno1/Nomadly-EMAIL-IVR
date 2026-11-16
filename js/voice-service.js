@@ -2192,7 +2192,7 @@ function bufferHangup(callControlId, payload) {
       const entry = _eventBuffer.get(callControlId)
       if (entry) {
         _eventBuffer.delete(callControlId)
-        log(`[Voice] Buffer timeout — processing late hangup for ${callControlId} (no matching call.initiated — likely post-deploy orphan)`)
+        log(`[Voice] Buffer timeout — processing late hangup for ${callControlId} (no matching call.initiated seen in ${EVENT_BUFFER_TIMEOUT_MS}ms — e.g. a secondary/bridge leg or a duplicate hangup webhook)`)
         processHangup(entry.hangupPayload)
       }
     }, EVENT_BUFFER_TIMEOUT_MS)
