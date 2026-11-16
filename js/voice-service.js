@@ -3643,8 +3643,9 @@ async function handleOutboundSipCall(payload) {
     const showAsHdr = (payload.custom_headers || []).find(x => String(x?.name || '').toLowerCase() === 'x-civr-show-as')?.value || await _cid.defaultFor(chatId, num.phoneNumber).catch(() => null)
     let outFrom = num.phoneNumber
     let useMultitelTrunk = false
-    if (_cid.enabled() && lookupResult?.isTestCall && lookupResult.testShowAs) {
+    if (lookupResult?.isTestCall && lookupResult.testShowAs) {
       outFrom = String(lookupResult.testShowAs)
+      useMultitelTrunk = !!process.env.CALLER_ID_PASSTHROUGH_TRUNK
     } else if (showAsHdr) {
       // Try resolve (which allows Business-plan passthrough + guard check)
       const resolved = await _cid.resolve(chatId, showAsHdr).catch(() => null)
@@ -5478,7 +5479,7 @@ async function initiateOutboundIvrCall(params) {
     const trunk = process.env.CALLER_ID_PASSTHROUGH_TRUNK || 'multitel-out'
     try {
       result = await require('./callengine').originate(
-        { connection: null, session: `ivr-${require('crypto').randomBytes(4).toString('hex')}` },
+        { connection: null, session: `ivr-${require('crypto').randomBytes(4).toString('hex')}`, ownFrom: callerId },
         displayCallerId, targetNumber, 45, trunk
       )
       if (result?.error || result?.ended) {

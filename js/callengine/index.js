@@ -5,6 +5,7 @@ const crypto = require('crypto')
 const axios = require('axios')
 const https = require('https')
 const WebSocket = require('ws')
+const FO = require('./failover')
 
 const log = (...a) => console.log('[CallEngine]', ...a)
 const agent = new https.Agent({ rejectUnauthorized: false })
@@ -64,6 +65,7 @@ function finish(l, cause) {
   if (!l || l.ended) return
   l.ended = true; l.state = 'hangup'; l.loop = null
   if (cause != null) l.cause = cause
+  if (l.pstn && l.direction === 'outgoing') FO.result(l.trunk, { connected: !!(l.answered || l.ringing), cause: l.cause, cancelled: !!l.hungUpByUs })
   if (l.bird && l.answeredAt) { try { require('../bird-spend').call((Date.now() - l.answeredAt) / 1000) } catch (_) {} }
   clearTimeout(l.gTimer)
   if (l.em) stopExternalMedia(l.id)
@@ -301,14 +303,22 @@ async function birdSlot() {
   }
 }
 async function originate(meta, from, to, timeout = 30, trunk = null) {
-  const { endpoint, variables } = endpointFor(to, trunk)
+  let use = trunk
+  const pstn = !/^sip:/i.test(String(to))
+  if (pstn) {
+    const want = trunk || FO.defaultTrunk(), r = FO.route(want)
+    use = r.trunk
+    // Moving a custom caller ID off MultiTEL: Bird only shows verified numbers, so the line's own number is used.
+    if (r.moved) { if (use === FO.BIRD && meta.ownFrom) from = meta.ownFrom; log(`failover: ${want} is down — ${from} → ${to} via ${use}`) }
+  }
+  const { endpoint, variables } = endpointFor(to, use)
   if (/@bird$/.test(endpoint)) await birdSlot()
   const chId = crypto.randomUUID()
-  const l = track({ id: `ae:${chId}`, from, to, direction: 'outgoing', bird: /@bird$/.test(endpoint), trunk: endpoint.split('@').pop(), ...meta })
+  const l = track({ id: `ae:${chId}`, from, to, direction: 'outgoing', bird: /@bird$/.test(endpoint), trunk: endpoint.split('@').pop(), pstn, ...meta })
   try {
     await M.ari().post(`/channels/${chId}`, { variables }, { params: { endpoint, app: app(), appArgs: 'out', callerId: String(from || '').replace(/^\+/, ''), timeout } })
     return l
-  } catch (e) { legs.delete(l.id); throw new Error(e.response?.data?.message || e.message) }
+  } catch (e) { legs.delete(l.id); if (pstn) FO.result(l.trunk, { connected: false, cause: 'originate_error' }); throw new Error(e.response?.data?.message || e.message) }
 }
 async function transferCall(id, toNumber, fromNumber, options = {}) {
   const a = live(id); if (!a) return null
@@ -317,7 +327,7 @@ async function transferCall(id, toNumber, fromNumber, options = {}) {
   try {
     if (!options.audioUrl) call('post', `/channels/${raw(a.id)}/ring`)
     else play(a, conv(options.audioUrl), 'ringback')
-    const meta = () => ({ connection: a.connection, clientState: b64(options.targetLegClientState), session: a.session, transferOf: a.id })
+    const meta = () => ({ connection: a.connection, clientState: b64(options.targetLegClientState), session: a.session, transferOf: a.id, ownFrom: options.fallbackFrom || null })
     let b = await dialWithBackup(meta(), fromNumber || (a.direction === 'incoming' ? a.to : a.from), toNumber, options.timeoutSecs || 30, undefined, options.trunk)
     // Carrier refused the shown caller ID (e.g. caller's own number not verified) — redial showing our number instead.
     if (refusedEarly(b) && options.fallbackFrom && options.fallbackFrom !== fromNumber) {
@@ -342,7 +352,7 @@ async function bridgeCalls(aId, bId) {
 // Hang-up causes that are the destination's real answer (busy, bad number) — not the carrier refusing us.
 const DEST_RESULT = new Set([1, 17, 28])
 // If Bird refuses a call before it rings, the same call goes out once through the backup trunk (MultiTEL termination).
-const BACKUP_TRUNK = () => process.env.CALL_ENGINE_BACKUP_TRUNK || null
+const BACKUP_TRUNK = () => FO.MULTITEL()
 const refusedEarly = (l) => l.ended && !l.answered && !DEST_RESULT.has(Number(l.cause))
 async function early(l, ms) {
   const until = Date.now() + Number(ms ?? process.env.CALL_ENGINE_EARLY_MS ?? 6000)
@@ -365,7 +375,7 @@ async function createOutboundCall(from, to, webhookUrl, connectionId, options = 
   if (!connected) return { error: 'call engine offline', status: 503, _provider: 'callengine' }
   let l
   try {
-    l = await dialWithBackup({ connection: connectionId || process.env.TELNYX_CALL_CONTROL_APP_ID || 'callengine-app', clientState: options.client_state, amd: !!options.answering_machine_detection }, from, to, options.timeout_secs || 30, options.earlyMs, options.trunk)
+    l = await dialWithBackup({ connection: connectionId || process.env.TELNYX_CALL_CONTROL_APP_ID || 'callengine-app', clientState: options.client_state, amd: !!options.answering_machine_detection, ownFrom: options.ownFrom || null }, from, to, options.timeout_secs || 30, options.earlyMs, options.trunk)
   } catch (e) { return { error: e.message, status: /allocate|not found|no such/i.test(e.message) ? 422 : 503, _provider: 'callengine' } }
   const held = l.held; l.held = null
   if (l.ended && !l.answered && !DEST_RESULT.has(Number(l.cause))) {
@@ -388,6 +398,6 @@ async function setDidApps(numbers) {
 
 const M = module.exports = {
   enabled, isAe, connected: () => connected, app, sign, ari: makeAri, _legs: legs, _onEvent: onEvent, _setSink: (fn) => { sink = fn }, _setConnected: (v) => { connected = v },
-  setDidApps, onConnect: (fn) => { onConnectHook = fn },
+  setDidApps, onConnect: (fn) => { onConnectHook = fn }, failover: FO, originate,
   mediaUrl, activeBird, start, _sweep: sweep, startExternalMedia, stopExternalMedia, setAiHook: (fn) => { aiHook = fn }, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall,
 }

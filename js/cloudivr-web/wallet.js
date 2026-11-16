@@ -38,7 +38,7 @@ function walletOps(db) {
   return { balance, debit, credit }
 }
 
-const CREDITS = { 'hosted-sms-refund': 'Refund · Business texting', 'topup-bonus': 'Top-up bonus', 'admin-credit': 'Credit from CloudIVR', 'referral-reward': 'Referral reward', 'suggestion-reward': 'Free credit · adopted suggestion', 'sms-refund': 'Refund · text not delivered', 'lead-check-refund': 'Refund · numbers we couldn’t check' }
+const CREDITS = { 'hosted-sms-refund': 'Refund · Business texting', 'topup-bonus': 'Top-up bonus', 'first-deposit-bonus': 'First deposit bonus', 'admin-credit': 'Credit from CloudIVR', 'referral-reward': 'Referral reward', 'suggestion-reward': 'Free credit · adopted suggestion', 'sms-refund': 'Refund · text not delivered', 'lead-check-refund': 'Refund · numbers we couldn’t check' }
 const HOSTED = { 'hosted-sms-setup': 'Business texting setup', 'hosted-sms-renewal': 'Texting plan monthly', 'hosted-sms-text': 'Text sent · Business texting', 'hosted-sms-inbound': 'Text received · Business texting', 'lead-check': 'Lead check', 'cnam-lookup': 'Owner-name lookup', 'caller-id-verify': 'Caller ID verification', 'number-lookup': 'Number lookup', 'email-check': 'Email check', 'fax-number': 'Fax number', 'fax-number-renewal': 'Fax number monthly' }
 const LABEL = { purchase: 'Number purchase', purchase_sub: 'Extra number purchase', purchase_verification: 'Number purchase (verification)', renew: 'Number renewal', upgrade: 'Plan upgrade', release: 'Number deleted', sms_reply: 'Extra text' }
 

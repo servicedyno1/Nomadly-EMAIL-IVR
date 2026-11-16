@@ -222,13 +222,16 @@ function initPhoneTestRoutes(app, db, telnyxApi, sipConnectionId, bot) {
   app.post('/phone/test/caller-id', async (req, res) => {
     try {
       const { sipUsername, showAs } = req.body || {}
-      // Unverified caller IDs were removed: free SIP tests always show the CloudIVR test number.
-      if (showAs) return res.status(400).json({ error: 'Custom caller IDs aren’t available on free tests. Calls show a CloudIVR number.' })
       const cid = require('./cloudivr-web/caller-ids')
       const n = String(showAs || '').replace(/[^\d+]/g, '')
       const e164 = !n ? null : n.startsWith('+') ? n : n.length === 10 ? `+1${n}` : `+${n}`
       if (e164 && cid.isEmergency(showAs)) return res.status(400).json({ error: 'Emergency numbers can’t be used as a caller ID.' })
       if (e164 && !/^\+[1-9]\d{7,14}$/.test(e164)) return res.status(400).json({ error: 'Enter the full number with country code, e.g. +14155550100.' })
+      // Any caller ID is allowed on free tests once the AI guard clears it (banks, government, hotlines are blocked).
+      if (e164) {
+        const g = await require('./cloudivr-web/cid-guard').guard(e164, { chatId: 'sip_test', channel: 'sip_test' })
+        if (!g.allowed) return res.status(400).json({ error: g.reason || 'This number cannot be used as caller ID.' })
+      }
       const cred = await db.collection('testCredentials').findOne({ sipUsername: String(sipUsername || ''), expired: { $ne: true } })
       if (!cred) return res.status(404).json({ error: 'Test login not found or expired.' })
       await db.collection('testCredentials').updateOne({ _id: cred._id }, { $set: { showAs: e164 } })
