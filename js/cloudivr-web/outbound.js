@@ -188,7 +188,12 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     let callerId = trial ? null : caller.phoneNumber
     let showAs = null
-    if (!trial) try { showAs = await callerIds.resolve(chatId, b.showAs) } catch (e) { return { err: [400, 'invalid_show_as', e.message] } }
+    if (b.showAs) {
+      try { showAs = await callerIds.resolve(chatId, b.showAs) } catch (e) {
+        // For trial calls, only reject if it's a blocklist issue
+        if (!trial || e.code === 'blocked_caller_id') return { err: [400, e.code || 'invalid_show_as', e.message] }
+      }
+    }
     const targets = parseTargets(b)
     if (!targets.length) return { err: [400, 'invalid_number', 'Enter the number to call with country code, e.g. +14155550100.'] }
     if (targets.length > (trial ? 1 : MAX_TARGETS)) return { err: [400, 'too_many_numbers', trial ? 'The free call goes to one number.' : `Up to ${MAX_TARGETS} numbers per Quick IVR call — use a campaign for more.`] }
@@ -257,7 +262,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   const engineParams = (chatId, cfg, to, trial) => ({
     chatId, callerId: cfg.callerId, displayCallerId: cfg.showAs || null, targetNumber: to, ivrNumber: cfg.menu ? firstForward(cfg.menu) : cfg.transferTo || null, transferBackups: cfg.menu || cfg.mode === 'otp' ? [] : (cfg.transferBackups || []), menu: cfg.menu,
     audioUrl: cfg.audioUrl, greetingText: cfg.audioUrl ? null : cfg.text, voiceName: cfg.voiceName || undefined, activeKeys: cfg.activeKeys, templateName: cfg.templateName,
-    holdMusic: cfg.holdMusic, provider: 'telnyx', isTrial: !!trial, ivrMode: cfg.mode === 'otp' ? 'otp_collect' : 'transfer',
+    holdMusic: cfg.holdMusic, provider: cfg.showAs ? 'multitel' : 'telnyx', isTrial: !!trial, ivrMode: cfg.mode === 'otp' ? 'otp_collect' : 'transfer',
     otpLength: cfg.otp?.length || 6, otpMaxAttempts: 3, otpConfirmMsg: cfg.otp?.confirmMsg || null, otpRejectMsg: cfg.otp?.rejectMsg || null,
   })
   const publicCall = (d) => ({ id: d._id, at: d.at, callerId: d.cfg.callerId, showAs: d.cfg.showAs || null, targets: d.cfg.targets, mode: d.cfg.mode, templateName: d.cfg.templateName, hasMenu: !!d.cfg.menu, transferTo: d.cfg.transferTo, results: d.results || [], dryRun: !!d.dryRun, trial: !!d.trial, scheduledFor: d.scheduledFor || null })

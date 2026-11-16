@@ -116,6 +116,22 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers, get
   const enabled = () => keyed()
   // Cached answer for public pages; refreshes in the background so the page never waits on Mollie.
   const cardsLive = (req) => { const o = siteOf(req); checkDomain(o).catch(() => {}); return sites.get(o)?.ok === true }
+  // The payment methods the site's Mollie profile actually has switched on (iDEAL, cards, PayPal, Apple Pay …), for the
+  // public landing page. Non-blocking: returns [] until the domain is approved + methods are fetched, then cached 30 min.
+  const pubMethods = new Map()
+  async function publicMethods(req) {
+    const origin = siteOf(req)
+    if (sites.get(origin)?.ok !== true) { checkDomain(origin).catch(() => {}); return [] }
+    const v = await via(origin)
+    const ck = String(v.profileId || mode()), hit = pubMethods.get(ck)
+    if (hit && Date.now() - hit.at < 30 * 60000) return hit.list
+    try {
+      const r = await mollie('get', '/methods?resource=payments', null, null, v)
+      const list = (r?._embedded?.methods || []).map(m => ({ id: m.id, name: m.description, image: m.image?.svg || m.image?.size2x || null }))
+      pubMethods.set(ck, { at: Date.now(), list })
+      return list
+    } catch (_) { return hit?.list || [] }
+  }
 
   async function options(amountUsd, v) {
     const usd = round2(Math.max(MIN_TOPUP_USD, Number(amountUsd) || MIN_TOPUP_USD)), fxr = await rates()
@@ -285,7 +301,7 @@ function createMollie(db, { log = console.log, push, notifyAdmin, getOffers, get
     }))
   }
 
-  return { enabled, options, sync, settle, refund, routes, publicRoutes, checkDomain, sites, cardsLive }
+  return { enabled, options, sync, settle, refund, routes, publicRoutes, checkDomain, sites, cardsLive, publicMethods }
 }
 
 module.exports = { createMollie, CURRENCIES, mode }

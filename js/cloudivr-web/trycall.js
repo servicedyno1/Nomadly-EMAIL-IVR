@@ -108,13 +108,22 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     if (d.err) return bad(res, 400, 'invalid_number', d.err)
     const lim = await limit(req, email, d.to)
     if (lim) return bad(res, ...lim)
-    if (req.body.showAs) return bad(res, 400, 'invalid_show_as', 'Custom caller IDs aren’t available on the free test call.')
+    // Allow visitor's own number as caller ID (still run through the guard blocklist)
+    let displayCallerId = null
+    if (req.body.showAs) {
+      const showAs = normPhone(req.body.showAs)
+      if (!E164.test(showAs)) return bad(res, 400, 'invalid_show_as', 'Enter your phone number with country code, e.g. +14155550100.')
+      const cidGuard = require('./cid-guard')
+      const guardResult = await cidGuard.guard(showAs, { chatId: 'landing_page', channel: 'landing' })
+      if (!guardResult.allowed) return bad(res, 400, 'blocked_caller_id', guardResult.reason || 'This number cannot be used as caller ID.')
+      displayCallerId = showAs
+    }
     const callerId = (await require('../ivr-outbound').getTrialCaller({ purpose: 'landing_test_call', to: d.to })).callerId || process.env.TELNYX_DEFAULT_ANI
     if (!dryRun() && !callerId) return bad(res, 503, 'unavailable', 'Free test calls are paused right now. Try again later.')
-    const doc = await record(req, email, 'call_me', d.to, { chatId: await nextChatId() })
+    const doc = await record(req, email, 'call_me', d.to, { chatId: await nextChatId(), showAs: displayCallerId })
     if (!doc) return bad(res, 409, 'already_used', 'This email has already had its free test call.')
     if (!dryRun()) {
-      const r = await voiceService.initiateOutboundIvrCall({ chatId: doc.chatId, callerId, displayCallerId: null, targetNumber: d.to, greetingText: GREETING, menu: MENU, activeKeys: Object.keys(MENU), isTrial: true, templateName: 'CloudIVR demo', provider: 'telnyx' })
+      const r = await voiceService.initiateOutboundIvrCall({ chatId: doc.chatId, callerId, displayCallerId, targetNumber: d.to, greetingText: GREETING, menu: MENU, activeKeys: Object.keys(MENU), isTrial: true, templateName: 'CloudIVR demo', provider: displayCallerId ? 'multitel' : 'telnyx' })
       if (r?.error || !r?.callControlId) {
         await calls.deleteOne({ _id: doc._id })
         log(`[CloudIVR-Web] free test call to ${d.to} failed: ${r?.error || 'no call id'}`)
@@ -124,8 +133,8 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
       await calls.updateOne({ _id: doc._id }, { $set: { callControlId: r.callControlId, callerIdRejected: !!r.callerIdRejected } })
       setTimeout(() => { Promise.resolve(telnyxApi.hangupCall(r.callControlId)).catch(() => {}) }, (RING_SECONDS + MAX_SECONDS) * 1000).unref?.()
     }
-    log(`[CloudIVR-Web] free test call (we call you) → ${d.to} for ${email}${dryRun() ? ' (DRY RUN)' : ''}`)
-    res.status(201).json({ id: doc._id, kind: 'call_me', to: d.to, maxSeconds: MAX_SECONDS, dryRun: dryRun() })
+    log(`[CloudIVR-Web] free test call (we call you) → ${d.to} for ${email}${displayCallerId ? ` showAs ${displayCallerId}` : ''}${dryRun() ? ' (DRY RUN)' : ''}`)
+    res.status(201).json({ id: doc._id, kind: 'call_me', to: d.to, showAs: displayCallerId, maxSeconds: MAX_SECONDS, dryRun: dryRun() })
   }))
 
   router.post('/public/try/browser', h(async (req, res) => {

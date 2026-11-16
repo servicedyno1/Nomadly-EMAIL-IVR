@@ -60,9 +60,9 @@ function createCloudIvrWeb(deps) {
     const auth = createAuth(db, { log, notifyAdmin: deps.notifyAdmin })
     auth.routes(r, h)
     require('./statement').start(db, { log })
-    r.get('/public/catalog', (req, res) => { const c = numbers.catalog(); res.json({
-      ...c, cardPayments: c.cardPayments || mollie.cardsLive(req), coins: deps.coins || [], minTopup: wallet.MIN_TOPUP_USD, supportLink: support.supportLink(), channelLink: String(process.env.CLOUDIVR_CHANNEL_LINK || '').trim(),
-    }) })
+    r.get('/public/catalog', h(async (req, res) => { const c = numbers.catalog(); res.json({
+      ...c, cardPayments: c.cardPayments || mollie.cardsLive(req), paymentMethods: await mollie.publicMethods(req).catch(() => []), coins: deps.coins || [], minTopup: wallet.MIN_TOPUP_USD, supportLink: support.supportLink(), channelLink: String(process.env.CLOUDIVR_CHANNEL_LINK || '').trim(),
+    }) }))
     trycall.routes(r, { ...deps, db, h })
     publicStats.routes(r, { db, h })
     onboarding.publicRoutes(r, { db, h })
@@ -196,6 +196,11 @@ function createCloudIvrWeb(deps) {
     require('./templates').routes(r, { db, h })
     leads.routes(r, { db, h })
     require('./caller-ids').routes(r, { db, h, numbersApi })
+    // Caller-ID guard (financial-institution blocklist + AI detection)
+    const cidGuard = require('./cid-guard')
+    cidGuard.init(db, { notifyAdmin: deps.notifyAdmin, log })
+    cidGuard.loadCustomBlocks().catch(e => log(`[CID-Guard] loadCustomBlocks: ${e.message}`))
+    cidGuard.adminApi(r, h, adminAuth.require)
     support.routes(r, { ...deps, db, h, numbersApi })
     referrals.routes(r, { db, h })
     suggestions.routes(r, { ...deps, db, h })

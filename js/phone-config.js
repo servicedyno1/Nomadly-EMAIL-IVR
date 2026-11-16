@@ -623,7 +623,6 @@ const planFeatureAccess = {
     ivrSchedule: true,
     ivrPresets: true,
     consistentVoice: true,
-    fax: true,
   },
 }
 
