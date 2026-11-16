@@ -85,7 +85,7 @@ function TollFreeAdmin() {
           {it.note && <div className="text-xs text-[#f87171]">{it.note}</div>}
           <div className="flex gap-2">
             {it.status === 'submitted' && <button className="civr-btn civr-btn-primary" onClick={() => decide(it.phone, 'approve')} data-testid={`admin-tollfree-approve-${id}`}><Check className="w-4 h-4" />Approve and file</button>}
-            {it.status !== 'active' && <button className="civr-btn" onClick={() => decide(it.phone, 'activate')} data-testid={`admin-tollfree-activate-${id}`}>Mark active</button>}
+            {it.status === 'filed' && <button className="civr-btn" onClick={() => decide(it.phone, 'activate')} data-testid={`admin-tollfree-activate-${id}`}>Mark active</button>}
             {it.status !== 'rejected' && <button className="civr-btn" onClick={() => decide(it.phone, 'reject')} data-testid={`admin-tollfree-reject-${id}`}><X className="w-4 h-4" />Reject</button>}
           </div>
         </div>); })}

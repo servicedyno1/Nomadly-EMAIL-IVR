@@ -373,3 +373,7 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 ## 2026-11-16 14:45Z — Texting on/off + 10DLC: LIVE on cloudivr.net
 - Texting off → no texts in or out on any number. US local numbers start 10DLC from the Texting tab; switch unlocks once approved.
 - Agent-tested (unit + preview); not user-confirmed. Next: in-app alerts for held deposits/orders, Apple Pay live re-test, Bird 20-concurrent check.
+
+## 2026-11-16 ~16:00Z — Quick actions + toll-free texting verification LIVE on cloudivr.net
+- Call / Text / Fax icons on number cards + number page; toll-free verification form + admin queue.
+- Agent-tested (testing agent iteration_299 + curl); not user-confirmed. MultiTEL has no toll-free verification API → admin files manually.

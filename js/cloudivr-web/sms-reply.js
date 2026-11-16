@@ -152,7 +152,7 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     const preview = simulated || dryRun() || !!num.dryRun
     const senderName = (await db.collection('webPrefs').findOne({ _id: chatId }, { projection: { senderName: 1 } }))?.senderName || null
     const intl = require('../texting-countries').rateFor(num, to)
-    const rule = intl || await smsRules.check(num.phoneNumber, to, senderName)
+    const rule = intl || await smsRules.check(num.phoneNumber, to, senderName, false, await smsRules.ownFacts(db, chatId, num))
     if (!rule.ok) return { error: [400, 'sms_blocked', rule.why] }
     // US/Canada: plan texts, then the extra-text rate. Other countries: that country's price from the wallet.
     const home = !intl && (rule.iso === 'US' || rule.iso === 'CA')

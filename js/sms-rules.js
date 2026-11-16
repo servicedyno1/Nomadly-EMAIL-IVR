@@ -82,8 +82,9 @@ function rule(phone, f, c, senderName, isHosted) {
 }
 
 // Overall status for a number + each country it could text.
-async function reach(phone, senderName, isHosted = false) {
-  const f = await facts(phone, isHosted)
+// own = what we know ourselves for non-Telnyx numbers (MultiTEL/Infobip): { tenDlc, tollFreeOk }.
+async function reach(phone, senderName, isHosted = false, own = {}) {
+  const f = { ...(await facts(phone, isHosted)), ...own }
   const seen = new Set()
   const countries = COUNTRIES.filter(c => !seen.has(c[1]) && seen.add(c[1])).map(c => ({ iso: c[1], name: c[2], ...rule(phone, f, c, senderName, isHosted) }))
   const okList = countries.filter(c => c.ok)
@@ -94,11 +95,18 @@ async function reach(phone, senderName, isHosted = false) {
 }
 
 // Before a send: is this destination allowed, as what sender, at what price?
-async function check(phone, to, senderName, isHosted = false) {
+async function check(phone, to, senderName, isHosted = false, own = {}) {
   const c = countryOf(to)
   if (!c) return { ok: false, why: 'Enter the full number with its country code, e.g. +1 312 555 0100.' }
-  const r = rule(phone, await facts(phone, isHosted), c, senderName, isHosted)
+  const r = rule(phone, { ...(await facts(phone, isHosted)), ...own }, c, senderName, isHosted)
   return { ...r, iso: c[1], country: c[2] }
 }
 
-module.exports = { reach, check, countryOf, COUNTRIES, TOLL_FREE, _cache: cache }
+// Registration state we keep ourselves for MultiTEL / Infobip numbers (Telnyx's own lookups don't know them).
+async function ownFacts(db, chatId, num) {
+  if (!num || !['multitel', 'infobip'].includes(num.provider)) return {}
+  const reg = await db.collection('tenDlc').findOne({ _id: String(chatId) }, { projection: { status: 1, numbers: 1 } })
+  return { tenDlc: reg?.status === 'active' && (reg.numbers || []).some(x => x.phoneNumber === num.phoneNumber), tollFreeOk: TOLL_FREE.test(num.phoneNumber) ? await require('./cloudivr-web/tollfree').canText(db, chatId, num.phoneNumber) : false }
+}
+
+module.exports = { reach, check, ownFacts, countryOf, COUNTRIES, TOLL_FREE, _cache: cache }

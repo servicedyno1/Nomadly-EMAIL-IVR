@@ -25,6 +25,8 @@ export function NumberActions({ n, testid, reload }) {
   const call = () => { window.dispatchEvent(new CustomEvent(DIAL_FROM, { detail: { from: n.phoneNumber } })); openPhone?.(); };
   const text = async () => {
     if (t.enabled) return compose();
+    // US local / toll-free: texting needs the carrier registration first — the switch and the form are on the Texting tab.
+    if (t.mode === 'tendlc' || t.mode === 'tollfree') { toast.message(t.mode === 'tollfree' ? 'Toll-free texting needs a one-time verification — switch it on here once approved.' : 'US texting needs a 10DLC registration — switch it on here once approved.'); return nav(cp(`/app/numbers/${enc(n.phoneNumber)}?tab=sms`)); }
     const ok = await ask(`Texting is off on ${n.phoneNumber}. Turn it on to send and receive texts? ${money(t.textPrice || 0.05)} per text sent, paid from your wallet; receiving is free.`, { ok: 'Turn on texting', title: 'Turn on texting' });
     if (!ok) return;
     setBusy(true);

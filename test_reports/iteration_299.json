@@ -1,0 +1,43 @@
+{
+  "summary": "Frontend E2E (Playwright, desktop 1920x1080) of number quick actions (Call/Text/Fax) and the toll-free texting verification flow (customer form → admin approve/file → Mark active → switch texting on). Every requested flow worked as specified. Found 1 functional bug: after toll-free verification is active and texting is on, the number page still says 'Limited texting … US mobile carriers need business texting approval (10DLC)'. Also found 3 minor UX/design issues.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/admin/tollfree/:phone/decision (activate)", "issue": "There is no status check on 'activate', so a 'submitted' row can go straight to active without being filed, and so can a 'rejected' one. The admin UI also shows 'Mark active' on submitted rows."},
+      {"endpoint": "POST /admin/tollfree/:phone/decision (reject) on an active row", "issue": "An active verification can be rejected, but texting stays on if it was already switched on. canText is only checked when texting is switched on."},
+      {"endpoint": "GET /api/cloudivr-web/sms-reach (js/sms-rules.js:75)", "issue": "US numbers count as 'approval needed' unless f.tenDlc or P2P is set. A toll-free number whose tollFreeVerify status is active (or that MultiTEL shows as verified) still gets 'US mobile carriers need business texting approval (10DLC)'."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Number detail header ReachChip (+13341112222 after TFV active + texting on)", "issue": "Shows 'Limited texting · can text 4 countries' and the 10DLC note 'US mobile carriers need business texting approval (10DLC) for this number first'. This is wrong and confusing for a verified toll-free number. The root cause is in the backend sms-rules (see above).", "selector": "[data-testid='sms-reach-chip'], [data-testid='sms-reach-note']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "My numbers cards (4-column grid at 1920px)", "issues": ["On cards that show Add number + copy + call + text icons, the 'Open' button sticks out about 12px past the right edge of the card (e.g. cards 0, 2 and 3). The footer row needs to wrap or shrink."]},
+      {"screen": "Text icon on an unverified toll-free number", "issues": ["The confirm dialog offers 'Turn on texting? $0.05 per text', which then always fails with the toll-free verification error. Since n.features.texting.mode === 'tollfree' is known, it would be better to skip the price confirm and go straight to the Texting tab with an info toast."]},
+      {"screen": "Admin top nav", "issues": ["The last nav item is cut off ('Clouc…') and runs into the admin email at 1920px width."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix sms-rules / sms-reach so a toll-free US/CA number whose tollFreeVerify status is active (or carrierVerified) is treated as approved, not as needing 10DLC.",
+    "Only allow 'activate' from 'filed' (or hide 'Mark active' on submitted rows), or confirm that skipping the filing step is intended.",
+    "Decide what rejecting an active TFV should do to texting that is already on (turn it off?).",
+    "Make the number-card footer fit inside the card (the Open button overflows when 3 icons show).",
+    "NumberActions.text(): when mode === 'tollfree' and not verified, skip the price confirm and go straight to ?tab=sms.",
+    "Optional: after the TFV PUT succeeds, refresh the form state from the response so the state field shows the normalised 'TX' (it shows 'tx' until reload)."
+  ],
+  "critical_code_review_comments": [
+    "NumberActions: canCall shows the Call icon on +447860089499 even though that card has no 'Calls' capability badge. Check whether access.browserPhone is meant to override the capability badges.",
+    "Softphone autoLine effect works when the panel is already open and the line is switched (tested). connect() is skipped for mobile/non-browserPhone numbers, so the auto-connect does nothing there, which is fine.",
+    "tollfree.js canText: `(d?.status==='active' && ...) || carrierVerified(phone)` returns a Promise inside an async function. This works, but carrierVerified makes a MultiTEL network call on every switch-on attempt and on every GET for numbers that are not active."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend only)", "frontend": "100% of requested flows passed; 1 display bug (10DLC note on verified toll-free)"},
+  "test_credentials": "Customer civr.uxtest@example.com / UxTest#2026; Admin moxxcompany@gmail.com / Katiekendra123@ (devCode pre-fills)",
+  "seed_data_creation": "Created a tollFreeVerify doc for +13341112222 (businessName TEST_Acme LLC) and turned texting on for +3197010278502 and +13341112222 during the tests. Cleanup done: texting switched back OFF on both numbers through the API, and the tollFreeVerify doc deleted by _id. Both numbers are back to their starting state.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Results: Call icon → softphone opens with that number (softphone-number-select value), status 'Connecting…' then 'Not connected' (expected in preview), softphone-destination-input focused. NL Text icon → confirm ($0.24) → Cancel does nothing; OK → toast 'Texting is on' → /app/messages with new-message-dialog and new-message-from=+3197010278502; second click goes straight to the composer. Toll-free card Text → confirm → error toast → ?tab=sms. Toggle before approval → error toast. Missing fields → tollfree-error. Full submit → 'Sent for review', pill 'Checking…', form locked (stays after reload). Admin approve → 'Status: filed', row moves to the filed filter; activate → active. Customer: tollfree-verified shown, switch on → 'Texting on', caps show Texts. number-detail-actions has call and text buttons. Fax line fax-number-line-17167882007 → /app/fax?from=%2B17167882007 with fax-from-select preselected. No console errors other than expected 401/409/400."
+}

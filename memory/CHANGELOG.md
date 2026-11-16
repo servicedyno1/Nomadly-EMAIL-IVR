@@ -3325,3 +3325,16 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
   +31684448264 (nginx shows last MultiTEL SMS hit 15 Nov 17:58). Our side never received it → carrier/MultiTEL routing
   (097 range is M2M; mobile→097 SMS often not routed). Raise with MultiTEL support. No SMS-log API at MultiTEL (404s).
 - Spotted: account 5000000000000048 (+18084939799) sending bank-alert-style texts (BofA/Chase/Citi "wire transfer") — likely smishing; flagged to user.
+
+## 2026-11-16 ~16:00Z — Number quick actions + toll-free texting verification: LIVE (app-main fbafee01)
+- pages/number/NumberActions.js on My numbers cards + number page: Call (opens phone on that number, auto-connects the
+  browser line, focuses dial box — Softphone autoLine), Text (composer ?compose=; texting off + direct → confirm then
+  switch on; tendlc/tollfree → Texting tab), Fax (fax-only → /app/fax?from=). Fax line cards link to ?from=.
+- js/cloudivr-web/tollfree.js: tollFreeVerify per number; customer PUT form → admin Approve (filed, Telegram details to
+  file in MultiTEL portal — no MultiTEL TFV API; registration_status exposes verification_status only) → Mark active
+  (filed only) or auto-active when MultiTEL verification_status approved (hourly tick). Reject on active turns texting off.
+  Switch: tollfree mode needs canText (409 tollfree_needed). Admin → Compliance → Toll-free texting.
+- sms-rules ownFacts: MultiTEL/Infobip numbers use our 10DLC / toll-free state (Telnyx lookups don't know them) — fixes
+  US sends from MultiTEL numbers being blocked even after approval.
+- Tests: iteration_299 frontend flows all passed; fixes applied for its findings. texting_switch 7/0, card_check 32/0.
+- Pending: Dutch +31 6 number search (no purchase), held-payment inbox alerts, Apple Pay live check, Bird 20-concurrency check.

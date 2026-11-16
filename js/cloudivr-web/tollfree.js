@@ -75,6 +75,8 @@ function createTollFree({ db, h, adminRequire, notify, notifyAdmin = () => {}, l
       if (d === 'reject') {
         if (!note) return res.status(400).json({ error: 'note_needed', message: 'Say why it was rejected.' })
         await col.updateOne({ _id: phone }, { $set: { status: 'rejected', note } })
+        // Was approved before → texting can't stay on.
+        if (cur.status === 'active') await db.collection('phoneNumbersOf').updateOne({ _id: cur.chatId, 'val.numbers.phoneNumber': phone }, { $set: { 'val.numbers.$.features.sms': false } })
         notify?.push(cur.chatId, `Your toll-free texting verification for ${phone} needs changes: ${note}`, null, { kind: 'billing' }).catch(() => {})
         return res.json({ status: 'rejected' })
       }
@@ -87,6 +89,7 @@ function createTollFree({ db, h, adminRequire, notify, notifyAdmin = () => {}, l
         return res.json({ status: 'filed' })
       }
       if (d === 'activate') {
+        if (cur.status !== 'filed') return res.status(409).json({ error: 'not_filed', message: 'Approve and file it with the carrier first.' })
         await col.updateOne({ _id: phone }, { $set: { status: 'active', activatedAt: new Date() } })
         notify?.push(cur.chatId, `Toll-free texting is approved for ${phone}. Switch texting on in the number’s Texting tab.`, null, { kind: 'billing' }).catch(() => {})
         return res.json({ status: 'active' })
