@@ -420,3 +420,9 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 
 ### Tests
 - `/app/js/tests/test_cid_guard.js`: 17/17 passed
+
+## 2026-06 update
+- SIP "not registering" root-caused (migration left active numbers with incomplete/stale logins; repair ran only lazily). Fixed with an automatic in-app SIP reconciler (`js/sip-reconciler.js`, hourly) + eager repair at purchase. Grandfather-safe: mints fresh logins only for Pro/Business, repairs (never grants) lower plans that already have a login (old $75 "standard" users kept SIP). Remediation applied to live DB (18/21 repaired, idempotent). Tests 14/14.
+- Fax copy: fax is standalone — removed from all plan feature lists (web comparison, Business gate, landing snapshot).
+- Payments copy: landing now shows live Mollie methods (iDEAL, cards, PayPal, Apple Pay…) via `mollie.publicMethods` on `/public/catalog`; "coming soon" shows only when cards truly aren't approved for the domain.
+- PENDING: deploy to droplet (Save to GitHub) to activate the hourly reconciler + make copy changes live; confirm landing visual + live Mollie method list in prod.

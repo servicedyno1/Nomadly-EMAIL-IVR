@@ -107,7 +107,6 @@ const WEB_FEATURES = [
   ['textTriggers', 'Text Triggers — a text starts a callback, a spoken reply or an AI call', 'textTriggers'],
   ['aiAgent', 'AI receptionist — answers callers, books and takes messages (per minute)', 'aiAgent'],
   ['aiCampaigns', 'AI agent call campaigns', 'aiCampaigns'],
-  ['fax', 'Fax — send and receive', 'fax'],
   ['encryptedCalls', 'Encrypted calls (SRTP) — audio encrypted in transit', (plan) => plan === 'business'],
   ['priority', 'Priority support', (plan) => plan === 'business'],
 ]
@@ -487,6 +486,9 @@ function routes(router, deps) {
         },
       }
       await phoneNumbersOf.updateOne({ _id: chatId }, { $push: { 'val.numbers': doc } }, { upsert: true })
+      // Give it a complete brand-SIP login immediately (kam: credential + brand domain) so the softphone can REGISTER
+      // from the first minute — don't wait for the customer to open the SIP page.
+      if (doc.status === 'active' && phoneConfig.canAccessFeature(planKey, 'sipCredentials')) await require('../sip-logins').ensure(phoneNumbersOf, chatId, doc).catch(e => log(`[CloudIVR-Web] SIP login setup for ${selected}: ${e.message}`))
       if (order._pending) await require('../pending-orders').enqueue({ chatId, phoneNumber: selected, order, amount: price, email })
       await deps.legalProfile?.recordResale({ chatId, phoneNumber: selected, provider: doc.provider, country })
       if (doc.registration?.status === 'pending') deps.numberDocs?.submit({ chatId, email, phoneNumber: selected, country, countryName: c.name, type }).catch(e => log(`[CloudIVR-Web] MultiTEL documents for ${selected}: ${e.message}`))
