@@ -1818,15 +1818,19 @@ async function playHoldMusicAndTransfer(callControlId, forwardTo, fromNumber, co
     // Phase 2 (on speak.ended): Start hold music + create outbound call to destination
     // Phase 3 (on destination answered): Bridge the two calls (stops music automatically)
     pendingHoldTransfers[callControlId] = { forwardTo, fromNumber, presentFrom, via, createdAt: new Date() }
-    // Safety: clean up if speak.ended never fires (10s timeout — TTS is ~3-4s)
+    // Safety: speak.ended never arrived (TTS is ~3-4s) → start the music and dial anyway instead of leaving the caller in silence.
     setTimeout(() => {
       if (pendingHoldTransfers[callControlId]) {
-        log(`[Voice] Stale pendingHoldTransfer cleanup for ${callControlId} — speak.ended never arrived`)
-        delete pendingHoldTransfers[callControlId]
+        log(`[Voice] speak.ended never arrived for ${callControlId} — starting hold music + dialing anyway`)
+        handleSpeakEnded({ call_control_id: callControlId }).catch(e => log(`[Voice] Hold transfer after timeout: ${e.message}`))
       }
     }, 10000)
     log(`[Voice] Speaking hold announcement for ${callControlId}, will bridge-transfer to ${forwardTo}`)
-    await _telnyxApi.speakOnCall(callControlId, 'Please hold while your call is being transferred.')
+    const spoke = await _telnyxApi.speakOnCall(callControlId, 'Please hold while your call is being transferred.').catch(() => null)
+    if (!spoke && pendingHoldTransfers[callControlId]) {
+      log(`[Voice] Hold announcement failed for ${callControlId} — starting hold music + dialing now`)
+      await handleSpeakEnded({ call_control_id: callControlId })
+    }
   } else {
     // Track native transfer for timeout/no-answer detection
     pendingNativeTransfers[callControlId] = {
@@ -2133,7 +2137,8 @@ async function handleBridgeTransferHangup(payload) {
     }
   }
 
-  // Stop any playback (ringback/hold music) on the original leg
+  // Stop any playback (ringback/hold music) on the original leg (after it has started, if the leg failed at once)
+  await holdPlayback[transfer.originalCallControlId]
   await _telnyxApi.playbackStop(transfer.originalCallControlId).catch(() => {})
 
   // If destination never answered (no_answer, busy, timeout), handle fallback
@@ -4636,6 +4641,7 @@ async function handleSpeakEnded(payload) {
   const pending = pendingHoldTransfers[callControlId]
   if (pending) {
     delete pendingHoldTransfers[callControlId]
+    if (isCallEnded(callControlId)) { log(`[Voice] Caller left ${callControlId} before the hold transfer to ${pending.forwardTo} — not dialing`); return }
     log(`[Voice] Hold announcement done for ${callControlId}, starting hold music + dialing ${pending.forwardTo}`)
 
     // Phase 2: Start hold music on the ORIGINAL call leg (caller hears music)
@@ -4648,7 +4654,8 @@ async function handleSpeakEnded(payload) {
     } else {
       // Failed to create outbound call — fall back to regular transfer with tracking
       log(`[Voice] Failed to create outbound call to ${pending.forwardTo}, falling back to transfer`)
-      await _telnyxApi.playbackStop(callControlId)
+      await holdPlayback[callControlId]
+      await _telnyxApi.playbackStop(callControlId).catch(() => {})
       // Track the fallback transfer for no-answer detection
       pendingNativeTransfers[callControlId] = {
         forwardTo: pending.forwardTo,

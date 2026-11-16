@@ -3355,3 +3355,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Sidebar/page titles: Lookup & verify, Answering rules, Phone menus (IVR), Voice message call, SIP logins.
 - Test: js/tests/test_lookup_cnam.js 7/7. Preview e2e verified with real CNAM provider.
 - Untested hold-music edits in js/voice-service.js were held back from this deploy (saved in memory/pending_voice_holdmusic.patch, still in workspace).
+
+## 2026-11-16 — Hold music while connecting (LIVE, app-main 162308c0)
+- One shared flow powers every hold-music surface (Quick call transfer, Bulk campaign transfer + menu keys, number forwarding always/busy/no-answer, backups, ring-group fallback): announcement → music + destination rings at once (no 5 s wait, industry standard) → music stopped before bridge.
+- Fixes: announcement failure or missing speak.ended no longer leaves caller in silence (dials anyway after 10 s); caller hanging up during announcement no longer rings destination; quick answer/fast failure waits for music start before stopping it.
+- Test: js/tests/test_hold_music_2026-11.js 12/12 (sandbox mongo :27999). test_offhours_forward F03/F14 fail before and after (outdated caller-ID expectations).
+- Bird "Direct audio": investigated, left OFF (Bird only carries outbound; our Bird link uses TLS/SRTP).

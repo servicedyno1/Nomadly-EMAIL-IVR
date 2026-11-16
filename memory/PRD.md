@@ -380,4 +380,5 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 
 ## 2026-11-16 status
 - DONE (live, agent-tested, not user-confirmed): CNAM caller name add-on on number lookup (single + bulk, +$0.02 per US/CA number checked, never run elsewhere) + sidebar renames.
-- NEXT: hold music e2e audit (pending untested patch memory/pending_voice_holdmusic.patch is in workspace, NOT live); Dutch inbound SMS replies not arriving; ID verification emails/inbox notices; /notifications null .find error.
+- DONE 2026-11-16: hold music flow fixed + live (162308c0), not user-confirmed by a real call.
+- NEXT: Dutch inbound SMS replies not arriving; ID verification emails/inbox notices; /notifications null .find error.
