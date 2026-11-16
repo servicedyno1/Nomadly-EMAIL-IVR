@@ -99,7 +99,7 @@ const WEB_FEATURES = [
   ['recording', 'Call recording', 'callRecording'],
   ['ringGroup', 'Ring groups — ring several phones at once', 'ringGroup'],
   ['aiSummary', 'AI summaries & caller mood for voicemails and recorded calls', 'aiSummary'],
-  ['anyCallerId', 'Show your verified caller IDs (numbers you own) on calls — softphone, browser, Quick IVR and campaigns', (plan) => plan === 'business'],
+  ['anyCallerId', 'Custom caller ID — call from any number on softphone, browser, Quick IVR and campaigns', (plan) => plan === 'business'],
   ['redial', 'Redial and your own accept / decline messages for codes', 'ivrRedial'],
   ['schedulePresets', 'Quick IVR scheduling and saved call presets', 'ivrSchedule'],
   ['defaultVoice', 'One saved AI voice for all your calls', 'consistentVoice'],
@@ -108,6 +108,7 @@ const WEB_FEATURES = [
   ['aiAgent', 'AI receptionist — answers callers, books and takes messages (per minute)', 'aiAgent'],
   ['aiCampaigns', 'AI agent call campaigns', 'aiCampaigns'],
   ['fax', 'Fax — send and receive', 'fax'],
+  ['encryptedCalls', 'Encrypted calls (SRTP) — audio encrypted in transit', (plan) => plan === 'business'],
   ['priority', 'Priority support', (plan) => plan === 'business'],
 ]
 const TEXTING_KEYS = ['inbox', 'smsEmail', 'textTriggers']
