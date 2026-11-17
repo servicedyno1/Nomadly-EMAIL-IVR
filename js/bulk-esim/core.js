@@ -1127,6 +1127,28 @@ async function singleTextMode(cid) {
   }
   return { paid: false, price: 0, freeLeft: Math.max(0, PAID_FREE_INTRO - sent) }
 }
+// ---------- win-back: paid customers who stopped sending get 2 free single texts (the $20 minimum still applies) ----------
+const WINBACK = { idleDays: 7, everyDays: 30, validDays: 14, texts: 2 }
+// Claims (atomically) the paid customers of this brand who have gone quiet and are due an offer.
+async function dueWinbacks(brandName) {
+  const now = Date.now(), every = new Date(now - WINBACK.everyDays * DAY), idle = new Date(now - WINBACK.idleDays * DAY)
+  const due = { $or: [{ winbackAt: { $exists: false } }, { winbackAt: { $lt: every } }] }
+  const out = []
+  for (const c of await C('bsCustomers').find({ brand: brandName, smsPaid: true, status: 'active', ...due }).project({ _id: 1, chatId: 1 }).limit(50).toArray()) {
+    const last = await C('bsMessages').find({ cid: c._id, direction: 'out', system: { $ne: true }, test: { $ne: true } }).sort({ createdAt: -1 }).limit(1).project({ createdAt: 1 }).next()
+    if (!last || last.createdAt >= idle) continue
+    const r = await C('bsCustomers').updateOne({ _id: c._id, ...due }, { $set: { winbackAt: new Date(), winback: { left: WINBACK.texts, expiresAt: new Date(now + WINBACK.validDays * DAY) } } })
+    if (r.modifiedCount) out.push({ cid: c._id, chatId: c.chatId || String(c._id).split(':').slice(1).join(':'), texts: WINBACK.texts, days: WINBACK.validDays })
+  }
+  return out
+}
+// Uses one free win-back text if the customer has one that hasn't expired. Returns { left } or null.
+async function winbackTake(cid) {
+  const r = await C('bsCustomers').findOneAndUpdate({ _id: cid, 'winback.left': { $gt: 0 }, 'winback.expiresAt': { $gt: new Date() } }, { $inc: { 'winback.left': -1 } }, { returnDocument: 'after' })
+  const d = r?.value !== undefined ? r.value : r
+  return d ? { left: d.winback.left } : null
+}
+const winbackGive = (cid) => C('bsCustomers').updateOne({ _id: cid }, { $inc: { 'winback.left': 1 } })
 const SINGLE_TEXT_PRICE = 1
 const SINGLE_TEXT_MIN_BALANCE = 20
 
@@ -1799,4 +1821,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { orderOrQueue, processLineQueue, replaceEsim, altLine, promoteTester, lineUsage, dailyTesterRenumber, aiTips, testFeedback, testBarred, oneGuardList, oneGuardSet, adminAlert: alert, dueReviews, reviewAnswer, singleTextMode, SINGLE_TEXT_PRICE, SINGLE_TEXT_MIN_BALANCE, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone, backfillIdentity }
+module.exports = { orderOrQueue, processLineQueue, replaceEsim, altLine, promoteTester, lineUsage, dailyTesterRenumber, aiTips, testFeedback, testBarred, oneGuardList, oneGuardSet, adminAlert: alert, dueReviews, reviewAnswer, singleTextMode, dueWinbacks, winbackTake, winbackGive, WINBACK, SINGLE_TEXT_PRICE, SINGLE_TEXT_MIN_BALANCE, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone, backfillIdentity }

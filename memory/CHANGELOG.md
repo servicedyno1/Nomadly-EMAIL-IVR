@@ -3619,3 +3619,8 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - After each paid single text: "💳 $1 charged · balance $X" under "On its way". Once balance < $20: hint "Keep at least $20…" + inline "➕ Add funds" (callback wallet_topup_quick → main wallet menu). Blocked sends (< $20) also carry the Add funds button. 5 languages.
 - Test: js/tests/test_bulk_esim_paid_receipt.js 8/8 (drives the running bot via tg_sim; restart nodejs after edits).
 - Win-back promos for idle paid users: proposed, awaiting user's choice.
+
+## 2026-06 (e) — Win-back offer for quiet paid users (preview only, NOT deployed)
+- Hourly loop in bulk-esim bot (startNotices → sendWinbacks): paid users (smsPaid) with no outgoing text for 7+ days get "🎁 2 free texts, valid 14 days" — at most once every 30 days (bsCustomers.winbackAt / winback {left, expiresAt}, claimed atomically in core.dueWinbacks).
+- Free texts used automatically on the next single texts (core.winbackTake; returned on failed send via winbackGive). $20 minimum still applies. Receipt: "🎁 Free text · N free left · balance $X"; then normal $1 charging resumes. 5 languages (wb_offer, wb_receipt).
+- Test: js/tests/test_bulk_esim_winback.js 9/9; paid/receipt/free tests still pass.

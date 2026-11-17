@@ -312,20 +312,21 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     const r2 = (x) => Math.round(x * 100) / 100
     if (bill.paid) {
       const bal = await w.balance(chatId).catch(() => 0)
-      if (bal < bill.minBalance || !(await w.debit(chatId, bill.price))) {
+      if (bal >= bill.minBalance) bill.free = await B.winbackTake(cid).catch(() => null)
+      if (bal < bill.minBalance || (!bill.free && !(await w.debit(chatId, bill.price)))) {
         if (action === 'bse-one-text') await go('bse-home')
         // The reply keyboard from the earlier screen stays on; this message carries the one-tap top-up.
         return bot ? bot.sendMessage(chatId, say('one_min_balance', { min: bill.minBalance, bal: r2(bal) }), topupKb).catch(() => {}) : send(chatId, say('one_min_balance', { min: bill.minBalance, bal: r2(bal) }), HK)
       }
     }
     const r = await B.sendOne(cid, info.bseTo, message, action === 'bse-reply' ? info.bseSession : null, { optOut: info.bseOneOpt !== false, unlimited: action === 'bse-one-text' && unlimitedOne(chatId) })
-    if (bill.paid && r.error) await w.credit(chatId, bill.price).catch(() => {})
+    if (bill.paid && r.error) await (bill.free ? B.winbackGive(cid) : w.credit(chatId, bill.price)).catch(() => {})
     if (['err_number_busy', 'err_one_used', 'err_one_slow', 'err_one_bulk', 'err_one_blocked', 'reply_route_changed', 'reply_campaign_only'].includes(r.error)) { await go('bse-home'); return send(chatId, `⚠️ ${errText(lang, r)}`, HK) }
     if (r.error) return send(chatId, `⚠️ ${errText(lang, r)}`)
     if (action === 'bse-one-text') await go('bse-home')
     // Paid sends get a receipt line; once the balance drops below the minimum, a one-tap top-up button follows.
     const left = bill.paid ? r2(await w.balance(chatId).catch(() => 0)) : null
-    const receipt = bill.paid ? `\n${say('one_receipt', { charged: bill.price, bal: left })}` : (r.left != null ? `\n${say('one_left', r.left)}` : '')
+    const receipt = bill.free ? `\n${say('wb_receipt', { left: bill.free.left, bal: left })}` : bill.paid ? `\n${say('one_receipt', { charged: bill.price, bal: left })}` : (r.left != null ? `\n${say('one_left', r.left)}` : '')
     await send(chatId, say('queued', r.segments, action === 'bse-reply') + receipt, action === 'bse-reply' ? kb([[L.back]]) : homeKb(L, { ...RD, oneLeft: bill.paid ? null : r.left }))
     if (bill.paid && left < bill.minBalance) await bot?.sendMessage(chatId, say('one_topup_q', { bal: left, min: bill.minBalance }), topupKb).catch(() => {})
     return
@@ -408,6 +409,8 @@ async function admin(chatId, message, say) {
 function startNotices(bot, db) {
   const col = () => B.db().collection('bsNotify'); BOT = bot
   setInterval(() => askReviews(bot, db).catch(() => {}), 15000)
+  const winback = () => sendWinbacks(bot, db).catch(() => {})
+  setTimeout(winback, 60000).unref?.(); setInterval(winback, 3600000).unref?.()
   setInterval(async () => {
     try {
       for (let i = 0; i < 20; i++) {
@@ -422,6 +425,10 @@ function startNotices(bot, db) {
       }
     } catch (_) { /* next round */ }
   }, 3000)
+}
+// Hourly: paid customers quiet for 7+ days get 2 free single texts (at most once every 30 days, valid 14 days).
+async function sendWinbacks(bot, db) {
+  for (const o of await B.dueWinbacks(brand())) await bot.sendMessage(o.chatId, t(await langOf(db, o.chatId), 'wb_offer', o.texts, o.days), { parse_mode: 'HTML' }).catch(() => {})
 }
 const langOf = async (db, chatId) => (await db.collection('state').findOne({ _id: String(chatId) }, { projection: { userLanguage: 1 } }).catch(() => null))?.userLanguage || 'en'
 async function askReviews(bot, db) {
@@ -477,4 +484,4 @@ async function onCallback(q, { set, state, saveInfo, send, lang = 'en' }) {
 }
 const homeBtn = (lang) => btn(lang || 'en').home
 
-module.exports = { askReviews, PRODUCT_KEY, BTN, homeBtn, handle, paid, paidFromWallet, showHome: (send, chatId, lang) => home(send, chatId, lang), admin, startNotices, onCallback, brand, init: (o) => { T = o; return B.init(o) } }
+module.exports = { askReviews, sendWinbacks, PRODUCT_KEY, BTN, homeBtn, handle, paid, paidFromWallet, showHome: (send, chatId, lang) => home(send, chatId, lang), admin, startNotices, onCallback, brand, init: (o) => { T = o; return B.init(o) } }
