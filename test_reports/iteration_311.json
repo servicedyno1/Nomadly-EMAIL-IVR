@@ -1,0 +1,41 @@
+{
+  "summary": "Backend + frontend test of the CloudIVR keypad menu expansion on Alice's +13346970100 (new keys devices/ai/ringgroup/fax/callback, department mailboxes, sub-menu language, extensions, after-hours menu, Emily). Backend pytest 16/16 pass after restarting the stale nodejs process. js/tests/ivr_more_keys.test.js all pass. UI: all 15 actions listed; fax 'Get a fax number' CTA (/cloudivr/app/buy?purpose=fax) + PDF upload (doc name + 1 page) + right panel 'You need a fax number' error; AI 'Create an AI agent' CTA; devices ring secs/no-answer select/mailbox/sorry message; callback checkbox reveals phone; voicemail box name/email; sub-menu language select (Same/English/Spanish/French); extensions; after-hours with Hours-tab warning. Save round trip through the UI (callback auto +14155550100, Spanish sub-menu with Ventas mailbox, Billing/billing@example.com voicemail, ext 101 Anna, after-hours key 1 message) survives reload. Toasts: 'Extension 1: use 2 to 5 digits, e.g. 101.' and 'Key 8: pick the fax number ... (get one in Fax if you have none).' Call flow shows Call back request / Sub-menu / Voicemail / Extensions '101 Anna' / After-hours greeting nodes. Emily: fax request -> explains no fax number + upload; 'add extension 105 for Anna ... and a Spanish option on key 8' -> extension + submenu language es, Apply fills form. Alice's menu restored (4 original keys identical; afterHours/extensions now stored as empty defaults).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "nodejs service", "issue": "Running node process (started 18:12:24) was older than the ivr-blueprint.js edit (18:15:42); node has no hot reload, so /ivr/validate returned old messages ('Pick the fax number...' instead of 'get one on the Fax page', 'Pick the AI agent' instead of 'Create an AI agent'). Fixed by `sudo supervisorctl restart nodejs`. Remember to restart nodejs after editing js/."},
+      {"endpoint": "POST /api/cloudivr-web/fax/ivr-doc", "issue": "Uploaded IVR fax docs are never removed when the key is deleted or never saved (2 orphan TEST_ docs from this run remain in faxFiles GridFS, metadata.kind='ivr', Alice). Consider cleanup of unreferenced ivr docs."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "IvrMore RingGroupFields / DevicesFields CTA", "issue": "'Open Ring group' / 'Open Phone apps' link went to /cloudivr/app/numbers/?tab=ringgroup (number missing) because IvrCtx ctx (extra) had no `number`. FIXED by tester: added `number: num.phoneNumber` to `extra` in IvrTab.js; verified href now /cloudivr/app/numbers/%2B13346970100?tab=ringgroup.", "selector": "[data-testid=ivr-option-N-ringgroup-need-cta]", "priority": "MEDIUM (fixed)"}
+    ],
+    "integration_issues": [
+      {"flow": "Emily ambiguous phrasing", "issue": "'a Spanish option on key 9 that takes a voicemail' produced a plain voicemail key (no submenu / language es) while her summary said 'Key 9 -> voicemail in Spanish' (voicemail has no language). Exact phrasing 'a Spanish option on key 8' worked (submenu language es). Prompt could say: any 'Spanish/French option' = submenu with language, even if it only holds a voicemail.", "affected_selectors": ["[data-testid=ivr-assist-apply]"]}
+    ],
+    "design_issues": [
+      {"screen": "IVR tab - Emily proposal chips", "issues": ["Changed-field chips show raw keys 'extensions' and 'afterHours' because LABELS in IvrTab.js only has greeting/options. Add extensions: 'Extensions', afterHours: 'After hours'."]},
+      {"screen": "IVR tab - Call flow panel (light theme)", "issues": ["Node labels (Incoming call, Greeting, Collect digits, ...) use inherited dark text on the #0d0d0f panel - nearly invisible. IvrFlow.js line 31 span needs a light text color (e.g. text-[#e4e4e7])."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_ivr_more_keys_iter311.py", "/app/test_reports/pytest/pytest_iter311.xml", "/app/js/tests/ivr_more_keys.test.js"],
+  "action_items": [
+    "Add LABELS for extensions/afterHours in IvrTab.js (Emily chips)",
+    "Fix Call flow node label contrast in light theme (IvrFlow.js)",
+    "Tighten Emily prompt: a language option always becomes a submenu with language, even when it only has a voicemail",
+    "Optional: clean up unreferenced IVR fax docs",
+    "Always restart nodejs supervisor service after js/ edits"
+  ],
+  "critical_code_review_comments": [
+    "numbers.js PUT /ivr: AI agent ownership is checked one-by-one with awaits in a loop - fine for <=10 keys.",
+    "numbers.js is 1200 lines - consider splitting validateIvr into its own module.",
+    "IvrTab onApply sets afterHours.enabled = afterHours.enabled !== false - a proposal that only echoes a disabled-but-undefined afterHours could switch it on; confirm Emily always sends enabled explicitly."
+  ],
+  "updated_files": ["/app/frontend/src/cloudivr/pages/number/IvrTab.js", "/app/backend/tests/test_ivr_more_keys_iter311.py"],
+  "success_rate": {"backend": "100% (16/16 after nodejs restart)", "frontend": "95% (1 bug fixed, 2 design + 1 Emily phrasing issue)"},
+  "seed_data_creation": "None. 2 TEST_ fax IVR docs uploaded (GridFS faxFiles, Alice). Alice's IVR backup at /app/test_reports/alice_ivr_backup_iter311.json; restored via PUT.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Alice +13346970100 has sipUsername (devices allowed), ring group has 0 members, no fax numbers, no AI agents. Pytest restores the original IVR in a module fixture. nodejs service has no hot reload - restart it after js edits. Emily testids: ivr-assist-input/-send/-apply/-typing; switch with ivr-assist-mode-chat if needed."
+}

@@ -193,7 +193,7 @@ export default function IvrTab({ num, reload }) {
   const fx = useApi('/fax');
   const agents = ag.data ? (ag.data.agents || []).map(a => ({ id: a.id, name: a.name })) : null;
   const faxNumbers = fx.data ? (fx.data.numbers || []).filter(n => n.eligible).map(n => n.phoneNumber) : null;
-  const extra = { textingNumbers, aiAgents: agents, faxNumbers, sipLogin: !!num.sipUsername, ringGroupMembers: (num.features?.ringGroup?.members || []).filter(Boolean).length, hoursOn: !!num.features?.hours?.enabled };
+  const extra = { number: num.phoneNumber, textingNumbers, aiAgents: agents, faxNumbers, sipLogin: !!num.sipUsername, ringGroupMembers: (num.features?.ringGroup?.members || []).filter(Boolean).length, hoursOn: !!num.features?.hours?.enabled };
   // On a language switch, greetings still on a built-in default follow the new language; custom text stays.
   useEffect(() => {
     const d = defOf(lang);
