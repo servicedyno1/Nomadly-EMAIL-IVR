@@ -698,3 +698,4 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
   - Web app (main brand): ShowAsSelect "Any number" box for Business (POST /caller-ids/check: E.164, emergency, Business, cid-guard) else 🔒 Business LockedNote (upgrade pop-up). presets now returns anyNumber.
   - WL brands' web app has no CallerIdPick (older web) — not changed.
   - Bot: unchanged; "🎭 Show Any Caller ID" shows when switch ON (Business any number, others verified presets).
+- 04:20Z FREE-TEST RESET (owner request, all 4 brands + CloudIVR web Quick IVR free test): testCredentials.callsMade→0 (logins kept; test 130, voodoo 5), state ivrTrialUsed_* deleted (test 106, smadav 1, voodoo 18), webPrefs ivrTrialUsed/ivrTrialPendingAt unset (19), webTryCalls deleted (20), webTryCodes cleared. Backup: /opt/nomadly/backups/test-reset-20261117/<db>.json. Verified all counters 0.
