@@ -792,6 +792,74 @@ const deleteFirewallRule = async (zoneId, ruleId) => {
   }
 }
 
+
+// ─── IP redirects (Single Redirects phase) + IP Logs (blocked requests) ───
+// Visits from listed IPs/CIDRs are sent (302) to another URL. Tagged 'IP-redirect:' so only these are listed/deleted.
+const CF_REDIRECT_PHASE = 'http_request_dynamic_redirect'
+const IP_REDIRECT_PREFIX = 'IP-redirect:'
+const _redirectEntrypoint = async (zoneId) => {
+  const url = `${CF_BASE_URL}/zones/${zoneId}/rulesets/phases/${CF_REDIRECT_PHASE}/entrypoint`
+  try {
+    const r = await axios.get(url, { headers: cfHeaders(), timeout: 15000 })
+    if (r.data?.success) return r.data.result
+  } catch (err) {
+    if (err.response?.status !== 404) { log(`CF redirect entrypoint GET error: ${err.message}`); return null }
+  }
+  try {
+    const r = await axios.put(url, { rules: [] }, { headers: cfHeaders(), timeout: 15000 })
+    return r.data?.success ? r.data.result : null
+  } catch (err) { log(`CF redirect entrypoint create error: ${err.message}`); return null }
+}
+const listIpRedirectRules = async (zoneId) => {
+  const ep = await _redirectEntrypoint(zoneId)
+  return (ep?.rules || []).filter(r => String(r.description || '').startsWith(IP_REDIRECT_PREFIX))
+    .map(r => ({ ..._adaptRule(r), target: r.action_parameters?.from_value?.target_url?.value || '' }))
+}
+const createIpRedirectRule = async (zoneId, ips, target, note = '') => {
+  try {
+    const ep = await _redirectEntrypoint(zoneId)
+    if (!ep) return { success: false, errors: [{ message: 'Could not access the redirect rules of this site' }] }
+    const desc = `${IP_REDIRECT_PREFIX} ${note || ips.join(', ')}`.slice(0, 500)
+    const r = await axios.post(`${CF_BASE_URL}/zones/${zoneId}/rulesets/${ep.id}/rules`, {
+      expression: `(ip.src in {${ips.join(' ')}})`, action: 'redirect', description: desc, enabled: true,
+      action_parameters: { from_value: { target_url: { value: target }, status_code: 302, preserve_query_string: false } },
+    }, { headers: cfHeaders(), timeout: 15000 })
+    if (!r.data?.success) return { success: false, errors: r.data?.errors || [] }
+    return { success: true }
+  } catch (err) {
+    const detail = err.response?.data ? JSON.stringify(err.response.data).slice(0, 300) : ''
+    log(`CF createIpRedirectRule error: ${err.message}${detail ? ' :: ' + detail : ''}`)
+    return { success: false, errors: [{ message: err.response?.data?.errors?.[0]?.message || err.message }] }
+  }
+}
+const deleteIpRedirectRule = async (zoneId, ruleId) => {
+  const ep = await _redirectEntrypoint(zoneId)
+  if (!ep) return { success: false, errors: [{ message: 'Could not access the redirect rules of this site' }] }
+  try {
+    const r = await axios.delete(`${CF_BASE_URL}/zones/${zoneId}/rulesets/${ep.id}/rules/${ruleId}`, { headers: cfHeaders(), timeout: 15000 })
+    return r.data?.success ? { success: true } : { success: false, errors: r.data?.errors || [] }
+  } catch (err) {
+    if (err.response?.status === 404) return { success: true, alreadyGone: true }
+    return { success: false, errors: [{ message: err.message }] }
+  }
+}
+// Blocked / challenged requests for a hostname, newest first. q = an IP address or a Ray ID (optional).
+const getIpLogs = async (zoneId, { host, ip, rayId, hours = 24, limit = 100 } = {}) => {
+  const query = `query($zone: String!, $filter: FirewallEventsAdaptiveFilter_InputObject!, $limit: Int!) { viewer { zones(filter: { zoneTag: $zone }) {
+    firewallEventsAdaptive(filter: $filter, limit: $limit, orderBy: [datetime_DESC]) { datetime action source rayName clientIP clientCountryName clientAsn clientASNDescription clientRequestHTTPHost clientRequestHTTPMethodName clientRequestPath userAgent description } } } }`
+  const run = async (h) => {
+    const filter = { datetime_geq: new Date(Date.now() - h * 3600e3).toISOString(), datetime_leq: new Date().toISOString(), ...(host ? { clientRequestHTTPHost: host } : {}), ...(ip ? { clientIP: ip } : {}), ...(rayId ? { rayName: rayId } : {}) }
+    const r = await axios.post(`${CF_BASE_URL}/graphql`, { query, variables: { zone: zoneId, filter, limit } }, { headers: cfHeaders(), timeout: 20000 })
+    if (r.data?.errors?.length) throw new Error(r.data.errors[0].message)
+    return r.data?.data?.viewer?.zones?.[0]?.firewallEventsAdaptive || []
+  }
+  try { return { success: true, hours, events: await run(hours) } } catch (err) {
+    if (hours > 24) { try { return { success: true, hours: 24, events: await run(24) } } catch (_) { /* fall through */ } }
+    log(`CF getIpLogs error: ${err.message}`)
+    return { success: false, error: err.message, events: [] }
+  }
+}
+
 // ─── Zone Analytics ─────────────────────────────────────
 
 /**
@@ -1686,6 +1754,10 @@ module.exports = {
   createGeoRule,
   createIpRule,
   isIpRule,
+  listIpRedirectRules,
+  createIpRedirectRule,
+  deleteIpRedirectRule,
+  getIpLogs,
   deleteFirewallRule,
   // Public alias of _getOrCreateCustomRulesEntrypoint — used by anti-red-service.js
   // to mint additional WAF Custom Rules (JA3, anti-phishing) on the same

@@ -251,7 +251,8 @@
       "geo": "Geo Cloak",
       "security": "Sécurité",
       "analytics": "Analytique",
-      "account": "Compte"
+      "account": "Compte",
+      "ip": "Accès IP"
     },
     "welcome": "Bienvenue de nouveau, {{name}}",
     "planLabel": "Plan",
@@ -269,7 +270,8 @@
       "security": "Sécurité",
       "geo": "Geo Cloak",
       "analytics": "Statistiques",
-      "account": "Compte"
+      "account": "Compte",
+      "ip": "Accès IP"
     },
     "descs": {
       "site": "Mettez votre site hors ligne pour maintenance ou remettez-le en ligne.",
@@ -281,7 +283,8 @@
       "security": "Protégez votre site et contrôlez qui peut le visiter.",
       "geo": "Affichez un contenu différent selon le pays du visiteur.",
       "analytics": "Consultez les statistiques de visite de votre site.",
-      "account": "Gérez votre connexion, le renouvellement et les paramètres du compte."
+      "account": "Gérez votre connexion, le renouvellement et les paramètres du compte.",
+      "ip": "Bloquez ou redirigez les visiteurs par adresse IP, et consultez les requêtes bloquées."
     },
     "ov": {
       "subtitle": "Voici où en est {{domain}}.",

@@ -251,7 +251,8 @@
       "geo": "地理隐匿",
       "security": "安全",
       "analytics": "分析",
-      "account": "账户"
+      "account": "账户",
+      "ip": "IP 访问"
     },
     "welcome": "欢迎回来, {{name}}",
     "planLabel": "套餐",
@@ -269,7 +270,8 @@
       "security": "安全",
       "geo": "Geo Cloak",
       "analytics": "数据分析",
-      "account": "账户"
+      "account": "账户",
+      "ip": "IP 访问"
     },
     "descs": {
       "site": "将网站下线维护，或重新上线。",
@@ -281,7 +283,8 @@
       "security": "保护您的网站，控制谁可以访问。",
       "geo": "根据访客所在国家显示不同内容。",
       "analytics": "查看网站的访客统计。",
-      "account": "管理登录、续费和账户设置。"
+      "account": "管理登录、续费和账户设置。",
+      "ip": "按 IP 地址阻止或重定向访客，并查看被拦截的请求。"
     },
     "ov": {
       "subtitle": "{{domain}} 的运行概况。",

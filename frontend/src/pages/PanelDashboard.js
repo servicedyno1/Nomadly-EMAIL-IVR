@@ -7,6 +7,7 @@ import EmailManager from '../components/panel/EmailManager';
 import MysqlManager from '../components/panel/MysqlManager';
 import AppsManager from '../components/panel/AppsManager';
 import GeoManager from '../components/panel/GeoManager';
+import IpManager from '../components/panel/IpManager';
 import Analytics from '../components/panel/Analytics';
 import SecurityPanel from '../components/panel/SecurityPanel';
 import AccountSettings from '../components/panel/AccountSettings';
@@ -27,6 +28,7 @@ const TABS = [
   { id: 'apps', i18nKey: 'apps', icon: 'apps' },
   { id: 'security', i18nKey: 'security', icon: 'shield' },
   { id: 'geo', i18nKey: 'geo', icon: 'lock' },
+  { id: 'ip', i18nKey: 'ip', icon: 'shield' },
   { id: 'analytics', i18nKey: 'analytics', icon: 'chart' },
   { id: 'account', i18nKey: 'account', icon: 'user' },
 ];
@@ -166,6 +168,7 @@ export default function PanelDashboard() {
         {activeTab === 'apps' && <AppsManager />}
         {activeTab === 'security' && <SecurityPanel />}
         {activeTab === 'geo' && <GeoManager />}
+        {activeTab === 'ip' && <IpManager />}
         {activeTab === 'analytics' && <Analytics />}
         {activeTab === 'account' && <AccountSettings />}
       </main>
