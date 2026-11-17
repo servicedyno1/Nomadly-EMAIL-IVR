@@ -652,7 +652,7 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
         isGold = /Golden Anti-Red HostPanel/i.test(plan)
       }
     } catch (_) { /* fall through with defaults */ }
-    res.json({ username: req.cpUser, domain: req.cpDomain, isGold, plan })
+    res.json({ username: req.cpUser, domain: req.cpDomain, isGold, plan, addonDomains: req.cpAddonDomains || [] })
   })
 
   // ─── File Manager ──────────────────────────────────────
@@ -3261,6 +3261,77 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
       log(`[Panel] Geo delete error: ${err.message}`)
       res.status(500).json({ error: 'Failed to delete geo rule' })
     }
+  })
+
+  // ─── IP blocking / redirect per domain + IP Logs (Cloudflare edge) ─────
+  const IP_OK = (x) => { const [ip, bits, extra] = String(x).trim().split('/'); const v = require('net').isIP(ip); if (!v || extra !== undefined) return false; if (bits === undefined) return true; const n = Number(bits); return /^\d+$/.test(bits) && n >= (v === 4 ? 8 : 16) && n <= (v === 4 ? 32 : 128) }
+  // The domain must be this hosting account's main or addon domain; returns its Cloudflare zone.
+  const ipZone = async (req, res) => {
+    const domain = String(req.body?.domain || req.query?.domain || req.cpDomain || '').trim().toLowerCase()
+    const own = [req.cpDomain, ...(req.cpAddonDomains || [])].map(d => String(d || '').toLowerCase())
+    if (!own.includes(domain)) { res.status(403).json({ error: 'That domain is not on this hosting plan.' }); return null }
+    const zone = await cfService.getZoneByName(domain)
+    if (!zone) { res.status(400).json({ error: 'This domain is not on Cloudflare yet, so IP rules cannot be applied.' }); return null }
+    return { zone, domain }
+  }
+  const ipsOf = (r) => ((r.filter?.expression || r.expression || '').match(/\{([^}]*)\}/)?.[1] || '').trim().split(/\s+/).filter(Boolean)
+  router.get('/ip-rules', ...auth, async (req, res) => {
+    try {
+      const o = await ipZone(req, res); if (!o) return
+      const [waf, redirects] = await Promise.all([cfService.listFirewallRules(o.zone.id), cfService.listIpRedirectRules(o.zone.id)])
+      const block = waf.filter(r => String(r.description || '').startsWith('IP-block:')).map(r => ({ id: r.id, kind: 'block', ips: ipsOf(r), note: String(r.description).replace(/^IP-block:\s*/, '') }))
+      const redirect = redirects.map(r => ({ id: r.id, kind: 'redirect', ips: ipsOf(r), target: r.target, note: String(r.description).replace(/^IP-redirect:\s*/, '') }))
+      res.json({ domain: o.domain, rules: [...block, ...redirect] })
+    } catch (err) { log(`[Panel] IP rules list error: ${err.message}`); res.status(500).json({ error: 'Could not load IP rules' }) }
+  })
+  router.post('/ip-rules/create', ...auth, async (req, res) => {
+    const { ips, action, target, note } = req.body || {}
+    const list = [...new Set((Array.isArray(ips) ? ips : String(ips || '').split(/[\s,;]+/)).map(x => String(x).trim()).filter(Boolean))]
+    if (!list.length || list.length > 100) return res.status(400).json({ error: 'Enter 1 to 100 IP addresses or ranges.' })
+    const bad = list.filter(x => !IP_OK(x))
+    if (bad.length) return res.status(400).json({ error: `Not a valid IP address or range: ${bad.slice(0, 5).join(', ')}` })
+    if (!['block', 'redirect'].includes(action)) return res.status(400).json({ error: 'Choose block or redirect.' })
+    let url = null
+    if (action === 'redirect') {
+      url = String(target || '').trim() || 'https://www.google.com'
+      if (!/^https?:\/\//i.test(url)) url = `https://${url}`
+      try { const u = new URL(url); if (!/\./.test(u.hostname)) throw new Error() } catch (_) { return res.status(400).json({ error: 'Enter a valid web address to redirect to, e.g. https://example.com' }) }
+    }
+    try {
+      const o = await ipZone(req, res); if (!o) return
+      if (url && new URL(url).hostname.replace(/^www\./, '') === o.domain.replace(/^www\./, '')) return res.status(400).json({ error: 'Redirect to a different website, not this one.' })
+      const n = String(note || '').slice(0, 120)
+      const r = action === 'block' ? await cfService.createIpRule(o.zone.id, list, 'block', n) : await cfService.createIpRedirectRule(o.zone.id, list, url, n)
+      if (!r.success) return res.status(502).json({ error: r.errors?.[0]?.message || 'Could not save the rule.' })
+      log(`[Panel] IP ${action} on ${o.domain}: ${list.join(', ')}${url ? ` → ${url}` : ''} by ${req.cpUser}`)
+      res.json({ success: true })
+    } catch (err) { log(`[Panel] IP rule create error: ${err.message}`); res.status(500).json({ error: 'Could not save the rule' }) }
+  })
+  router.post('/ip-rules/delete', ...auth, async (req, res) => {
+    const { ruleId, kind } = req.body || {}
+    if (!ruleId) return res.status(400).json({ error: 'ruleId is required' })
+    try {
+      const o = await ipZone(req, res); if (!o) return
+      if (kind === 'redirect') {
+        if (!(await cfService.listIpRedirectRules(o.zone.id)).some(r => r.id === ruleId)) return res.status(404).json({ error: 'Rule not found' })
+        return res.json(await cfService.deleteIpRedirectRule(o.zone.id, ruleId))
+      }
+      const rule = (await cfService.listFirewallRules(o.zone.id)).find(r => r.id === ruleId)
+      if (!rule || !String(rule.description || '').startsWith('IP-block:')) return res.status(404).json({ error: 'Rule not found' })
+      res.json(await cfService.deleteFirewallRule(o.zone.id, ruleId))
+    } catch (err) { log(`[Panel] IP rule delete error: ${err.message}`); res.status(500).json({ error: 'Could not delete the rule' }) }
+  })
+  router.get('/ip-logs', ...auth, async (req, res) => {
+    try {
+      const o = await ipZone(req, res); if (!o) return
+      const q = String(req.query.q || '').trim()
+      const hours = Math.min(72, Math.max(1, parseInt(req.query.hours, 10) || 24))
+      const isIp = q && IP_OK(q.split('/')[0])
+      if (q && !isIp && !/^[0-9a-f]{12,20}(-[A-Z]{3})?$/i.test(q)) return res.status(400).json({ error: 'Search by an IP address or a Ray ID (e.g. 8f2a1b3c4d5e6f70).' })
+      const r = await cfService.getIpLogs(o.zone.id, { host: o.domain, ip: isIp ? q : undefined, rayId: !isIp && q ? q.split('-')[0] : undefined, hours })
+      if (!r.success) return res.status(502).json({ error: 'Could not load IP logs right now. Try again in a moment.' })
+      res.json({ domain: o.domain, hours: r.hours, events: r.events.map(e => ({ at: e.datetime, ip: e.clientIP, country: e.clientCountryName, asn: e.clientASNDescription || (e.clientAsn ? `AS${e.clientAsn}` : ''), rayId: e.rayName, action: e.action, source: e.source, method: e.clientRequestHTTPMethodName, path: e.clientRequestPath, host: e.clientRequestHTTPHost, userAgent: e.userAgent, rule: e.description || '' })) })
+    } catch (err) { log(`[Panel] IP logs error: ${err.message}`); res.status(500).json({ error: 'Could not load IP logs' }) }
   })
 
   // ─── Email Test ─────────────────────────────────────────

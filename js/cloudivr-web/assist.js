@@ -77,7 +77,7 @@ const SCREENS = {
       repeat: [oneOf(['', 'daily', 'weekly']), '"" (once) | daily | weekly'],
       dailyLimit: [(v) => (v === '' || v == null ? '' : int(1, 10000)(v) ?? ''), 'max calls per day, "" for no limit'],
     },
-    note: 'The contact list, caller ID and audio file are picked on the page, not by you.',
+    note: 'The contact list, caller ID and audio file are picked on the page, not by you. The campaign needs about $20 in the wallet to start and bills per minute as it runs — for a large list (thousands of numbers) advise the owner to top up enough credit up front so it does not pause mid-campaign when the wallet runs low.',
   },
   ivr: {
     what: 'the keypad menu (IVR) people hear when they call this number',

@@ -11,7 +11,7 @@ const MW = require('../msg-watch')
 const { validUsCa, quietWait, hourOpen } = require('./tz')
 
 const DEFAULTS = {
-  defaultDailyLimit: 2000, maxCustomerLimit: 10000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 6, quietEnd: 21, freeOneSends: 0, oneGuardNumbers: 10, oneGuardSimilar: 5, oneGuardSlowMin: 10, oneGuardDailyFree: 300, oneGuardNewDays: 3, swapUndelivered: 5, swapUndeliveredTo: 3,
+  defaultDailyLimit: 20000, maxCustomerLimit: 20000, resetHourUtc: 0, countSegments: true, refundFailed: true, quietStart: 6, quietEnd: 21, freeOneSends: 0, oneGuardNumbers: 10, oneGuardSimilar: 5, oneGuardSlowMin: 10, oneGuardDailyFree: 300, oneGuardNewDays: 3, swapUndelivered: 5, swapUndeliveredTo: 3,
   platformPerMin: 30, rateMargin: 2, esimPerMin: 10, platformDailyLimit: 40000, slotUtilization: 0.8,
   minVolume: 500, maxVolume: 2000, pricePlain: 0.10, priceLink: 0.10, freeBookings: false, freeVolume: 500, holdMinutes: 15, testSends: 0, scheduleDiscountPct: 10, scheduleMinHours: 24, replyFee: 20, testsPerDay: 4, testsPerWeek: 10, freeTestsPerDay: 0, numberCheck: true, lookupCost: 0.0025, lookupDays: 30,
   minEsims: 2, monitorEsims: 0, testerEsims: 1, testerRenumberDaily: true, maxEsims: 0, autoProvision: true, manualApproval: false, provisionThreshold: 0.8, provisionBudget: 0,

@@ -3583,3 +3583,10 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 
 ## 2026-11-17
 - Setup assistant (chat/manual, confirm-first, audited IVR knowledge) on 9 CloudIVR screens; IVR text-key rotation; fixes: IVR message 8 s hang-up, OTP prompt used confirm message. Not deployed yet (owner wants one combined release).
+
+## 2026-11-17 (part 2) — Hosting IP control, SMS limit, call-test reviews, assistant polish
+- Panel: new "IP Access" tab (frontend/src/components/panel/IpManager.js) — block or redirect visitors by IP/CIDR (redirect to google.com or a custom URL) + "IP Logs" (search blocked/challenged requests by IP or Ray ID, last 1h/24h/3d). Backend js/cpanel-routes.js (/ip-rules, /ip-rules/create, /ip-rules/delete, /ip-logs) + js/cf-service.js (createIpRedirectRule/listIpRedirectRules/deleteIpRedirectRule/getIpLogs; reused createIpRule/listFirewallRules). Applied at Cloudflare edge → works for all 3 bots (shared code). Verified live against a real CF zone (redirect+block create/list/delete, IP logs returned a real blocked request with Ray ID). /session now returns addonDomains.
+- Bulk SMS: js/bulk-esim/core.js defaultDailyLimit 2000→20000, maxCustomerLimit 10000→20000.
+- Call-test reviews: scripts/seed_phone_reviews.js — 12 natural approved reviews into phoneReviews; run per brand DB in production. Seeded on preview DB (shows on /api/phone/reviews).
+- Assistant: campaign note now advises topping up credit for large lead lists; IVR sms-key gap already recommends ordering/using a Texting Number and asks which one.
+- PENDING (need production): deploy all; run seed_phone_reviews.js on each brand DB (wl/voodoo/proshop + main); MultiTEL outbound test call ring +13025141000 show +18005146000 (preview is dry-run, can't test here); broadcast "daily SMS limit now 20,000" to all 4 bot users.
