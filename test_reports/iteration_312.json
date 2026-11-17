@@ -1,0 +1,39 @@
+{
+  "summary": "Tested the Accept/Decline outcome choices (backend + UI), screen sizes 390/768/1024/1280, the Accept/Decline pop-up, call-flow panel colors and Emily (Spanish sub-menu, chip labels). Backend: 12/12 pytest pass. The outcome pickers work: 6 options, 'forward' shows the phone and message inputs, Accept=Transfer +14155550144 and Decline=menu 'Not found' saved and were still there after reload, and phone '123' shows the toast 'Key 1: enter the number with country code'. No sideways page scroll at any size, including after switching a key through devices/ringgroup/ai/fax/callback, adding an extension and turning on the after-hours menu. The settings tab list stacks above the editor at 1024 (editor 704px wide) and is a 280px side column at 1280. Database chips scroll inside on phone (128px box, 314px content, overflow auto). On phone the pop-up shows Accept and Decline side by side (165x60 each), Hang up full width (338x44), and Accept closes it. Call-flow panel is dark (#0d0d0f) with light labels (#e4e4e7). Emily: key 9 becomes a sub-menu with language es and a voicemail key; chips show 'Extensions' and 'After-hours menu'. Found 1 high bug (pop-up code invisible in light theme) and 3 minor issues. Alice's +13346970100 keypad menu was put back and checked equal to the backup.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/ivr-connections/confirm-preview", "issue": "The example pop-up ignores the owner's Accept/Decline choices. ConfirmAsk.show only sends kind/digit/label/connectTo, and the route never sets onAccept/onDecline/declineTo. With Accept=Transfer +14155550144 and Decline=back to menu, the preview still says 'Accept to let them through.' / 'Decline plays your decline message and ends the call.'"},
+      {"endpoint": "PUT /numbers/:phone/ivr (outcomeOf)", "issue": "A bad Accept/Decline transfer number gives the same message as a normal key ('Key 1: enter the number with country code…'). It doesn't say whether the Accept or the Decline transfer is wrong."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "OtpAlert (light theme)", "issue": "The code in the Accept/Decline banner is invisible: color rgb(255,255,255) (text-white) on a white background. The light theme turns bg-[#0e0e16] white but leaves text-white. Seen on phone and desktop.", "selector": "[data-testid='otp-alert-code']", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Emily proposals", "issue": "Proposal 1 (Spanish key 9) adds lines nobody asked for: 'Extensions enabled for staff codes' in the summary and an after-hours 'Still needed' note. Proposal 2 (extension + after-hours) warns 'Key 4: texting a payment link needs a Texting Number' even though key 4 already uses mn_ab01. The proposal probably drops smsFrom on existing keys, so applying it could wipe the texting number.", "affected_selectors": ["[data-testid^='ivr-assist-proposal-']"]}
+    ],
+    "design_issues": [
+      {"screen": "IVR Extensions row at 768/1024/1280", "issues": ["The phone input and delete button wrap onto a second line and leave empty space on the right. Fitting code, name, action and phone on one line at 1024 or wider would look better (minor)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_ivr_accept_decline_iter312.py", "/app/test_reports/pytest/iter312.xml"],
+  "action_items": [
+    "Fix the invisible otp-alert-code in light theme (give it a theme-aware color, e.g. a var(--c-text) style class instead of text-white).",
+    "Send o.onAccept/o.onDecline (action plus forwardTo) to confirm-preview and add onAccept/onDecline/declineTo to the preview view, so the example pop-up shows the chosen outcomes.",
+    "Emily: keep fields of existing keys (e.g. key 4 smsFrom) in proposals, and don't add summary lines or 'Still needed' notes for things nobody asked for.",
+    "Optional: say which outcome failed in the error, e.g. 'Key 1 (on Accept): …'."
+  ],
+  "critical_code_review_comments": [
+    "voice-service.js finishChecked: on a timeout with confirmTimeout='voicemail', resolveIvrConfirm runs voicemail before onDecline is checked, so the Decline outcome never runs on timeout. The timeout logic itself is fine, but the UI should say that 'Say so and take a voicemail' wins over 'When I press Decline'.",
+    "runOwnOutcome voicemail: when the plan has no voicemail it quietly falls back to sayAndEnd. Fine, since the save is refused anyway.",
+    "Orphan keypad fax document cleanup was not tested on purpose: Alice has no fax numbers."
+  ],
+  "updated_files": ["/app/backend/tests/test_ivr_accept_decline_iter312.py", "/app/tests/iter312_resp.py"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "~90% (1 high visual bug in pop-up, 2 minor)"},
+  "seed_data_creation": "None. Alice's IVR backup is at /app/backend/tests/alice_ivr_backup_iter312.json; restored and checked equal.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Alice +13346970100: key 1 collect (confirm on), 2 pin (confirm on), 3 webhook, 4 pay (smsFrom mn_ab01). Original IVR backup is in /app/backend/tests/alice_ivr_backup_iter312.json. The pytest module restores the IVR itself. The light theme is the default. The pop-up preview id is pv_*; check otp-alert-code color and the otp-alert-ivr-note/decline-note text after fixes. js/tests/ivr_more_keys.test.js runs with `node --test` (jest testMatch only covers /app/tests)."
+}

@@ -31,7 +31,7 @@ function OtpBanner({ o, more, onDone, onLater }) {
           <span className="civr-incoming-ring w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-full bg-[#f59e0b] text-[#0e0e16] grid place-items-center"><KeyRound className="w-6 h-6" /></span>
           <div className="min-w-0">
             <div className="text-xs font-mono uppercase tracking-widest text-[#fbbf24]" data-testid="otp-alert-label">{`${o.kind === 'ivr' ? `${o.title}${o.label ? ` · ${o.label}` : ''}` : 'Code received'}${more > 0 ? ` · ${more} more waiting` : ''}`}</div>
-            <div className="font-mono text-3xl sm:text-4xl font-bold tracking-[.25em] text-white" data-no-translate data-testid="otp-alert-code">{pv.text(o.code, '••••••')}</div>
+            <div className="font-mono text-3xl sm:text-4xl font-bold tracking-[.25em]" style={{ color: "#d97706" }} data-no-translate data-testid="otp-alert-code">{pv.text(o.code, '••••••')}</div>
             <div className="text-xs sm:text-sm text-[#a1a1aa]" data-testid="otp-alert-from">{`From ${pv.phone(o.to)} · they are on hold`}{o.kind === 'ivr' && o.checked && <span className={`ml-2 font-semibold ${o.found ? 'text-[#34d399]' : 'text-[#fbbf24]'}`} data-testid="otp-alert-checked">{o.checked}</span>}{o.preview && <span className="civr-pill ml-2 align-middle">Preview</span>}</div>
           </div>
         </div>

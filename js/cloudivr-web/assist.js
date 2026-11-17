@@ -340,7 +340,7 @@ function keepLive(next, prev, fresh = []) {
     if (['webhook', 'collect', 'pin'].includes(o.action)) { if (was ? was.confirm === true : true) o.confirm = true; else delete o.confirm; if (!was) fresh.push(o.digit) }
     if (!was) continue
     // Fax document (uploaded in the form) and other form-only details stay on a re-proposed key.
-    for (const f of ['fileId', 'pages', 'docName', 'agentId', 'faxFrom', 'box', 'callbackTo']) if (was[f] !== undefined && (o[f] === undefined || o[f] === '')) o[f] = was[f]
+    for (const f of ['fileId', 'pages', 'docName', 'agentId', 'faxFrom', 'box', 'callbackTo', 'smsFrom', 'payUrl', 'payNote']) if (was[f] !== undefined && (o[f] === undefined || o[f] === '')) o[f] = was[f]
     if (was.check?.source || was.confirm || was.payVia === 'provider') for (const f of LIVE_FIELDS) if (was[f] !== undefined && (o[f] === undefined || o[f] === '' || f === 'check')) o[f] = was[f]
     if (o.action === 'submenu') keepLive(o.options || o.subMenu?.options, was.options || was.subMenu?.options, fresh)
   }

@@ -566,3 +566,10 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Unit: js/tests/ivr_more_keys.test.js. NOT yet verified on real calls (production deploy blocked by GitHub Actions billing).
 - Backlog (user approved): per-client personalization ([Name], [Code], any column) for web campaigns + Quick IVR, bot Bulk IVR, bot Bulk SMS; then Full team accounts (Owner/Admin/Agent, per-teammate browser phone extension, live queue, shared inbox).
 - Open minor findings: orphan IVR fax docs not cleaned; Emily "Spanish option ... voicemail" phrasing makes a plain voicemail; proposal chips show raw 'extensions'/'afterHours'; call-flow node labels low contrast in light theme.
+
+## 2026-11-17 (k) — Accept/Decline outcomes, mobile/tablet/iPad pass, 4 fixes (iteration_312)
+- Manual-check keys (confirm): onAccept / onDecline {action message|forward|menu|voicemail|end, message, forwardTo}; timeout counts as Decline unless "take a voicemail" timeout set. voice-service runOwnOutcome; banner shows the choices.
+- Responsive: number settings tab list stacks until xl (1280); IVR tab single column until 2xl; extension rows, sub-menu language, greeting pills wrap; DB chips scroll on phone; Accept/Decline buttons grid + 44px on phone; flow labels light.
+- Fixed: Emily "Spanish option" → language sub-menu; Emily keeps smsFrom/payUrl/payNote on re-proposed keys; chips labels; orphan IVR fax docs swept (>1 day, unreferenced) on save; banner code readable in light theme.
+- Open minor: example pop-up ignores Accept/Decline choices; error text doesn't say Accept vs Decline transfer; Emily adds unasked lines in summaries; extension row wraps on wide screens.
+- Next (approved): personalization ([Name]/[Code]/any column) for web campaigns + Quick IVR, bot Bulk IVR, bot Bulk SMS; then Full team accounts; real calls after GitHub billing fixed.
