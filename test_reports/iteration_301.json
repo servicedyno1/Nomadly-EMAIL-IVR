@@ -1,0 +1,43 @@
+{
+  "summary": "Tested the CloudIVR setup assistant (Chat/Manual) end to end on all 9 screens, plus IVR text rotation. Backend: 16/16 pytest pass. Covered: 401 without login, 404 unknown_screen, 400 no_message (4 bad bodies), {reply, summary, missing, patch} on every screen, and patch cleaning (unit check: phones to E.164, ringTimeout 500 clamped to 60, unknown fields dropped, invalid zone/time/otp length/mode removed or reset, smsTexts capped at 5, duplicate digits removed). IVR PUT keeps smsTexts plus smsFrom mn_ab01, caps at 5 versions, and rejects a smsFrom the user doesn't own and a badly formatted id with 400 invalid_ivr. UI: the assistant card and switch appear on all 7 number tabs, on Quick call (reached from the sidebar) and on New campaign (Recorded message only; hidden for AI agent). Manual hides the panel and changes the note; the choice survives a reload; entered values stay when switching. In the guided flow the assistant asked first, then showed a proposal card. The form did not change before Fill in / yes. 'yes' and 'ok' apply it in the browser with no API call. Undo restores the old values. 'Change something' puts the cursor in the input. Pressing Enter on Quick call and New campaign did not place a call or create a campaign (only /assist POSTs were seen). IVR Bella Bakery request: key 2 became 'Send the caller a text' from +12025550111, with a 'Rotating 2 versions' note. Saved, then reloaded, and the versions were still there. Manual rotation editor: add up to 5 versions (the add button then hides), remove works, counts and prices show. Quick call OTP: 'Collect a code (OTP)' pill on, 6 digits, script says 'press 1', connect = +14155550100. Hours (Chicago, weekdays 9-5, Sat 10-2, Sun closed), forwarding (no_answer, 20 s), ring group, voicemail greeting text box, missed-call text and Text Triggers (a message rule with keyword 'quote') all fill in and save. Checked via API that they persisted. Dark and light themes are readable. At 390 px the buttons wrap and there is no horizontal scroll. All of Alice's settings were put back afterwards: IVR (off), forwarding off, hours, ring group, triggers, missed-call text, voicemail.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/assist/ivr", "issue": "With 2 Texting Numbers in context.textingNumbers and the user not saying which one, the LLM picked the first number (mn_ab01) without asking. GAPS.ivr only flags a smsFrom that is missing or not in the list, so 'missing' stayed empty. This goes against the requirement that the assistant must ask which Texting Number sends the texts. Fix: when there are more than 1 lines and the user's messages never mention that line's phone or id, add 'Key N: which Texting Number should send it?' to missing, or drop smsFrom from the patch."},
+      {"endpoint": "assist.js int() sanitizer", "issue": "int(10,60)('') or null gives Number('')=0, which is clamped to 10. So an empty or null ringTimeout from the LLM silently becomes 10 s instead of being ignored. bool(null/undefined) also becomes false, so an LLM sending holdMusic:null switches it off. Treat ''/null as undefined."},
+      {"endpoint": "POST /api/cloudivr-web/assist/hours", "issue": "The proposal sometimes comes back with summary [] even though the patch is filled in, so the card shows only the chips and no summary lines. Consider a fallback summary, or a retry, when the patch is non-empty and the summary is empty."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "MissedTextBackTab assist apply", "issue": "onApply sets the text but never calls an unsaved tracker. No 'Unsaved changes' pill appears after Fill in the form, unlike the other tabs.", "selector": "[data-testid='textback-assist-apply']", "priority": "LOW"},
+      {"component": "VoicemailTab assist apply", "issue": "When the only change is greetingScript, no 'Unsaved changes' pill appears (the script is separate state and is not part of useUnsaved(f)). The user can leave the page and lose the greeting text without a warning.", "selector": "[data-testid='voicemail-tts-text-input']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Assist (Quick call / New campaign)", "issues": ["The DONE message after applying always says 'press Save', but these pages have Place call / Create campaign buttons. Make the message depend on the screen."]},
+      {"screen": "Assist proposal card", "issues": ["The bot reply text repeats the whole proposal and the Summary card repeats it again, which makes a long bubble. Chips list every field the LLM returned, even unchanged or empty ones (e.g. 'Backups', 'Key menu', 'Sorry message'). Show chips only for fields whose value differs from current."]},
+      {"screen": "Campaign assist script quality", "issues": ["The LLM copied the user's words into the script as-is (it starts lowercase, reads the transfer phone number aloud and leaves out the business name). Consider a prompt hint: write a polished script, don't read the transfer number."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_assist.py", "/app/test_reports/pytest/assist.xml"],
+  "action_items": [
+    "IVR assist: when the account has more than 1 Texting Number and the user didn't choose one, flag it in missing (or drop smsFrom) instead of letting the LLM silently pick the first",
+    "assist.js int()/bool() sanitizers: treat ''/null as undefined (don't clamp to the minimum or set false)",
+    "Missed-call text and voicemail (greeting script only): show the 'Unsaved changes' pill after the assistant applies changes",
+    "Make the DONE text depend on the screen (Place call / Create campaign instead of Save)",
+    "Optional: only show chips for fields that actually changed; fall back to a summary when it comes back empty"
+  ],
+  "critical_code_review_comments": [
+    "Campaigns.js CampaignAssist.apply clears audioId when a script is applied, but Undo only restores the patch keys (script and others), not audioId. An audio file picked before the apply is not restored on Undo.",
+    "Assist.js apply() uses the msgs/current values captured when the component rendered (stale closure risk if onApply runs while a reply is being set). Works in practice, but use the setMsgs functional form.",
+    "Assist.js undo uses pick(current, keys): keys missing from current become undefined and are merged back into the form as undefined (e.g. VoicemailTab forwardToEmail). It works now because current includes all the keys.",
+    "numbers.js PUT /ivr correctly checks smsFrom ownership against esimLines; voice-service pickIvrText rotation (findOneAndUpdate upsert, returnDocument before) looks correct for driver v6."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_assist.py"],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "~95% (all flows work; minor UX gaps)"},
+  "seed_data_creation": "None. Temporary changes to Alice's +13346970100 settings (IVR, forwarding, hours, ring group, voicemail, missed-call text, Text Triggers) were all put back to their earlier values. IVR is OFF.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login: civr.alice@example.com / AliceTest#2026 at /cloudivr/login (click cookie-allow-all first). GET /numbers/%2B13346970100 wraps the data in {number:{...}}. Forwarding and voicemail save with PATCH /numbers/:p/forwarding|voicemail; ring group uses PUT /ring-group, missed-call text PUT /missed-text-back, triggers PUT /text-triggers, IVR PUT /ivr, hours PUT /hours. Theme: open the account menu ('alice') → topbar-theme-button → topbar-theme-dark|light. Regression suite: pytest /app/backend/tests/test_cloudivr_assist.py -p no:xdist -o addopts=\"\" (takes about 20 s, makes real LLM calls)."
+}

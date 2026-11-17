@@ -35,7 +35,7 @@ function CampaignAssist({ f, setF, script, setScript }) {
     if (s !== undefined) setScript(s ? (x) => ({ values: {}, ...(x || {}), templateKey: '', text: s }) : null);
     setF(x => ({ ...x, ...p, ...(s ? { audioId: '' } : {}) }));
   };
-  return <div className="lg:col-span-2"><Assist screen="campaign" title="Plan this campaign by chatting" hello="Tell me who you’re calling and why — I’ll write the message and set what happens when they press a key." examples={CAMPAIGN_EXAMPLES} current={current} onApply={apply} labels={CAMPAIGN_LABELS} testid="campaign-assist" /></div>;
+  return <div className="lg:col-span-2"><Assist screen="campaign" title="Plan this campaign by chatting" hello="Tell me who you’re calling and why — I’ll write the message and set what happens when they press a key." examples={CAMPAIGN_EXAMPLES} current={current} onApply={apply} labels={CAMPAIGN_LABELS} saveLabel="Save campaign" testid="campaign-assist" /></div>;
 }
 
 const pct = (c) => (c.stats?.total ? Math.round(((c.stats.completed || 0) / c.stats.total) * 100) : 0);

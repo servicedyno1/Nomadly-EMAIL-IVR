@@ -5,7 +5,8 @@ import { api } from './api';
 const pick = (obj, keys) => Object.fromEntries(keys.map(k => [k, obj?.[k]]));
 const modeKey = (screen) => `civr-assist-mode-${screen}`;
 const YES = /^\s*(yes|yep|yeah|yup|sure|ok(ay)?|do it|go ahead|apply( it)?|fill( it)? in|looks good|perfect|great|confirm(ed)?|please do|sounds good)\b[\s.!]*$/i;
-const DONE = 'Done — I’ve filled in the form below. Check it, then press Save. Want to change anything?';
+const DONE = (action) => `Done — I’ve filled in the form below. Check it, then press ${action}. Want to change anything?`;
+const same = (a, b) => JSON.stringify(a ?? '') === JSON.stringify(b ?? '');
 
 function Proposal({ m, i, prefix, labels, onApply, onEdit }) {
   return (
@@ -51,7 +52,7 @@ function ModeSwitch({ mode, setMode, prefix }) {
 
 // Guided chat that suggests a setup, asks to confirm, then fills in the settings form below. Nothing is saved here.
 // screen: backend schema id · current: form values · context: facts about the account · onApply(patch): merge into the form.
-export function Assist({ screen, title, hello, examples = [], current, context, onApply, labels = {}, testid }) {
+export function Assist({ screen, title, hello, examples = [], current, context, onApply, labels = {}, testid, saveLabel = 'Save' }) {
   const prefix = testid || `assist-${screen}`;
   const [mode, setModeState] = useState(() => localStorage.getItem(modeKey(screen)) || 'chat');
   const [msgs, setMsgs] = useState([]);
@@ -68,7 +69,7 @@ export function Assist({ screen, title, hello, examples = [], current, context, 
     const m = msgs[i];
     setUndo({ at: i, before: pick(current, Object.keys(m.proposal)) });
     onApply(m.proposal);
-    setMsgs([...msgs.map((x, j) => (j === i ? { ...x, applied: true } : x)), ...extra, { role: 'assistant', content: DONE }]);
+    setMsgs([...msgs.map((x, j) => (j === i ? { ...x, applied: true } : x)), ...extra, { role: 'assistant', content: DONE(saveLabel) }]);
   };
   const send = async (raw) => {
     const t = String(raw ?? text).trim();
@@ -79,8 +80,8 @@ export function Assist({ screen, title, hello, examples = [], current, context, 
     setMsgs(next); setBusy(true);
     try {
       const d = await api(`/assist/${screen}`, { method: 'POST', body: { messages: next.map(({ role, content }) => ({ role, content })), current, context } });
-      const keys = Object.keys(d.patch || {});
-      setMsgs(m => [...m, { role: 'assistant', content: d.reply, ...(keys.length ? { proposal: d.patch, summary: d.summary, missing: d.missing, changed: keys } : {}) }]);
+      const keys = Object.keys(d.patch || {}).filter(k => !same(d.patch[k], current?.[k]));
+      setMsgs(m => [...m, { role: 'assistant', content: d.reply, ...(keys.length ? { proposal: pick(d.patch, keys), summary: d.summary, missing: d.missing, changed: keys } : {}) }]);
     } catch (err) {
       setMsgs(m => [...m, { role: 'assistant', content: err.message || 'Something went wrong. Try again.', error: true, retry: t }]);
     } finally { setBusy(false); setTimeout(() => input.current?.focus(), 0); }

@@ -4,6 +4,8 @@
 - `civr.uxtest@example.com` / `UxTest#2026` — has a dry-run Business number `+13341112222` and one extra/sub-number `+13343334444` (seeded for the "add number to existing plan" UX test). Also has AI agent "Sales AI" (`b0059c9f-cca0-4cd2-aaee-79d77f223f3b`) with +13341112222 assigned as its dedicated number. Numbers set to provider `telnyx`, preview wallet $1000, audio clip `aud-split-test` ("Split test clip") for Bulk IVR campaign tests; a preview "Split test" campaign (2 parts) exists. App mounts under `/cloudivr` on preview; login path `/cloudivr/login`, dismiss cookie banner (`Allow all`) first.
 
 
+- Setup assistant tests (2026-11-17): Alice owns local test Texting Number `mn_ab01` (+12025550111, row in `esimLines`) so IVR "send the caller a text" keys can be saved.
+
 ## Secrets Vault (Nomadly)
 - The full `/app/backend/.env` credential set is stored encrypted at `/app/memory/nomadly.vault.enc`.
 - **Vault passphrase:** `Katiekendra123@`

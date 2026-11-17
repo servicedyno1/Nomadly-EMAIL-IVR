@@ -121,7 +121,7 @@ export function VoicemailTab({ num, reload }) {
   const langs = catalog?.voicemailLanguages || [{ code: 'en', label: 'English' }];
   const [f, setF] = useState({ greetingType: vm.greetingType === 'custom' ? 'custom' : 'default', customGreetingUrl: vm.customGreetingUrl || '', forwardToEmail: vm.forwardToEmail || '', ringTimeout: vm.ringTimeout || 25, language: vm.language || 'en' });
   const [save, busy] = useSave(num, 'voicemail', reload);
-  const u = useUnsaved(f);
+  const u = useUnsaved({ f, script });
   const sample = langs.find(l => l.code === f.language)?.sample;
   return (
     <Card title="Voicemail" sub="Unanswered callers can leave a message. Recordings land in your inbox." bind={u.bind}>

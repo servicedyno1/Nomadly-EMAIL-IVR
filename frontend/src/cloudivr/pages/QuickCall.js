@@ -29,7 +29,7 @@ const QUICK_EXAMPLES = ['Remind Sarah at +14155550123 about her 3pm appointment,
 function QuickAssist({ f, setF, can, caller }) {
   const current = { targets: f.targets, script: f.script.text, mode: f.mode, transferTo: f.transferTo, transferBackups: f.transferBackups, activeKeys: f.activeKeys, otp: f.otp, menu: f.menu, holdMusic: f.holdMusic };
   const apply = ({ script, ...p }) => setF(x => ({ ...x, ...p, ...(script !== undefined ? { source: 'script', script: { ...x.script, templateKey: '', text: script } } : {}) }));
-  return <Assist screen="quick" title="Set up this call by chatting" hello="Tell me who to call and what the call should do — I’ll write the script and set the keys. You still press Place call yourself." examples={QUICK_EXAMPLES} current={current} context={{ callFrom: caller?.phoneNumber, plan: caller?.planName, ownConfirmRejectMessages: !!can.otpCustomMessages, canSchedule: !!can.ivrSchedule }} onApply={apply} labels={QUICK_LABELS} testid="quick-assist" />;
+  return <Assist screen="quick" title="Set up this call by chatting" hello="Tell me who to call and what the call should do — I’ll write the script and set the keys. You still press Place call yourself." examples={QUICK_EXAMPLES} current={current} context={{ callFrom: caller?.phoneNumber, plan: caller?.planName, ownConfirmRejectMessages: !!can.otpCustomMessages, canSchedule: !!can.ivrSchedule }} onApply={apply} labels={QUICK_LABELS} saveLabel="Place call" testid="quick-assist" />;
 }
 
 // Active numbers allowed to place outbound IVR calls for `feature`.
