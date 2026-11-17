@@ -25,7 +25,7 @@ const DEFAULTS = {
 const defOf = (lang) => DEFAULTS[lang] || DEFAULTS.en;
 const isDef = (text, keys) => !String(text || '').trim() || Object.values(DEFAULTS).some(d => keys.some(k => d[k] === String(text).trim()));
 
-const ACTIONS = [['forward', 'Forward to a phone'], ['message', 'Play a message'], ['sms', 'Send the caller a text'], ['voicemail', 'Take a voicemail'], ['submenu', 'Open a sub-menu']];
+const ACTIONS = [['forward', 'Forward to a phone'], ['message', 'Play a message'], ['sms', 'Send the caller a text'], ['voicemail', 'Take a voicemail'], ['webhook', 'Call your system (webhook)'], ['submenu', 'Open a sub-menu']];
 const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 const toList = (opts) => Object.entries(opts || {}).map(([digit, o]) => ({ digit, ...o, subMenu: o.subMenu ? { ...o.subMenu, options: toList(o.subMenu.options) } : undefined }));
 const toObj = (list) => Object.fromEntries(list.map(({ digit, subMenu, ...o }) => [digit, { ...o, ...(o.action === 'submenu' ? { subMenu: { ...(subMenu || {}), options: toObj(subMenu?.options || []) } } : {}) }]));
@@ -48,7 +48,7 @@ function RowHead({ o, set, onRemove, used, depth, prefix }) {
   return (
     <div className="flex flex-wrap gap-2 items-center">
       <select className="civr-input !w-20 font-mono" value={o.digit} onChange={e => set({ digit: e.target.value })} data-testid={`${prefix}-digit-select`}>{DIGITS.filter(d => d === o.digit || !used.includes(d)).map(d => <option key={d}>{d}</option>)}</select>
-      <select className="civr-input !w-auto flex-1 min-w-0 max-w-full" value={o.action} onChange={e => set({ action: e.target.value })} data-testid={`${prefix}-action-select`}>{ACTIONS.filter(([a]) => depth === 0 || a !== 'submenu').map(([a, l]) => <option key={a} value={a}>{l}</option>)}</select>
+      <select className="civr-input !w-auto flex-1 min-w-0 max-w-full" value={o.action} onChange={e => set({ action: e.target.value })} data-testid={`${prefix}-action-select`}>{ACTIONS.filter(([a]) => depth < 3 || a !== 'submenu').map(([a, l]) => <option key={a} value={a}>{l}</option>)}</select>
       <input className="civr-input !w-40" value={o.label || ''} onChange={e => set({ label: e.target.value })} placeholder="Label (e.g. Sales)" data-testid={`${prefix}-label-input`} />
       <button type="button" onClick={onRemove} className="p-2 text-[#a1a1aa] hover:text-[#fb7185]" data-testid={`${prefix}-remove-button`} aria-label="Remove option"><Trash2 className="w-4 h-4" /></button>
     </div>
@@ -59,6 +59,7 @@ function ActionFields({ o, set, audios, prefix, onAudio }) {
   if (o.action === 'sms') return <IvrSms o={o} set={set} prefix={prefix} />;
   if (o.action === 'message' && onAudio) return <div className="space-y-2"><div className="grid md:grid-cols-2 gap-2"><input className="civr-input" value={o.message || ''} onChange={e => set({ message: e.target.value })} placeholder="Text to read out" data-testid={`${prefix}-message-input`} /><AudioSelect value={o.audioUrl} onChange={v => set({ audioUrl: v || null })} audios={audios} placeholder="…or pick audio" onAdded={onAudio} compact testid={`${prefix}-message-audio-select`} /></div>{o.message && !o.audioUrl && <VoiceMaker text={o.message} name={o.label || `Key ${o.digit}`} onMade={(a) => { onAudio(); set({ audioUrl: a.audioUrl }); }} testid={`${prefix}-message-voice`} />}</div>;
   if (o.action === 'forward') return <input className="civr-input font-mono" value={o.forwardTo || ''} onChange={e => set({ forwardTo: e.target.value })} placeholder="+14155550100" data-testid={`${prefix}-forward-input`} />;
+  if (o.action === 'webhook') return <div className="space-y-2"><input className="civr-input font-mono" value={o.url || ''} onChange={e => set({ url: e.target.value })} placeholder="https://your-system.com/hook" data-testid={`${prefix}-webhook-url`} /><input className="civr-input" value={o.message || ''} onChange={e => set({ message: e.target.value })} placeholder="What to say after calling it (optional)" data-testid={`${prefix}-webhook-message`} /><p className="text-xs text-[#71717a]">We POST who called, the number and the key to this secure https address.</p></div>;
   if (o.action === 'message') return <div className="grid md:grid-cols-2 gap-2"><input className="civr-input" value={o.message || ''} onChange={e => set({ message: e.target.value })} placeholder="Text to read out" data-testid={`${prefix}-message-input`} /><AudioSelect value={o.audioUrl} onChange={v => set({ audioUrl: v || null })} audios={audios} placeholder="…or pick audio" onAdded={onAudio} compact testid={`${prefix}-message-audio-select`} /></div>;
   return null;
 }
@@ -75,30 +76,21 @@ function OptionList({ list, setList, prefix, render }) {
   );
 }
 
-function LeafRow({ o, onChange, onRemove, used, audios, prefix, onAudio }) {
-  const set = (patch) => onChange({ ...o, ...patch });
-  return (
-    <div className="border border-[#222] rounded-xl p-4 space-y-3" data-testid={prefix}>
-      <RowHead o={o} set={set} onRemove={onRemove} used={used} depth={1} prefix={prefix} />
-      <ActionFields o={o} set={set} audios={audios} prefix={prefix} onAudio={onAudio} />
-    </div>
-  );
-}
-
-function TopRow({ o, onChange, onRemove, used, audios, prefix, onAudio }) {
+// One menu key row; recurses into sub-menus (up to 3 levels deep, matching the call executor).
+function MenuRow({ o, onChange, onRemove, used, audios, prefix, onAudio, depth = 0 }) {
   const { lang } = useLang();
   const set = (patch) => onChange({ ...o, ...patch });
   const sub = o.subMenu || { greeting: defOf(lang).sub, options: [] };
   const sp = `${prefix}-sub`;
   return (
     <div className="border border-[#222] rounded-xl p-4 space-y-3" data-testid={prefix}>
-      <RowHead o={o} set={set} onRemove={onRemove} used={used} depth={0} prefix={prefix} />
+      <RowHead o={o} set={set} onRemove={onRemove} used={used} depth={depth} prefix={prefix} />
       <ActionFields o={o} set={set} audios={audios} prefix={prefix} onAudio={onAudio} />
-      {o.action === 'submenu' && (
+      {o.action === 'submenu' && depth < 3 && (
         <div className="pl-4 border-l-2 border-[#818cf8]/30 space-y-3">
           <Greeting g={sub} set={(p) => set({ subMenu: { ...sub, ...p } })} audios={audios} prefix={sp} label="Sub-menu greeting" onAudio={onAudio} />
           <OptionList list={sub.options || []} setList={(l) => set({ subMenu: { ...sub, options: l } })} prefix={sp}
-            render={(so, i, u, ch, rm) => <LeafRow key={i} o={so} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`${sp}-option-${i}`} onAudio={onAudio} />} />
+            render={(so, i, u, ch, rm) => <MenuRow key={i} o={so} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`${sp}-option-${i}`} onAudio={onAudio} depth={depth + 1} />} />
         </div>
       )}
     </div>
@@ -161,7 +153,7 @@ export default function IvrTab({ num, reload }) {
         <Greeting g={g} set={(p) => setG({ ...g, ...p })} audios={audios} prefix="ivr" onAudio={reloadAudio} />
         <p className="text-xs text-[#a1a1aa] -mt-3" data-testid="ivr-language-note">{`Callers hear typed text in ${langName}, the app's language. Change the app language to change it.`}</p>
         <OptionList list={list} setList={setList} prefix="ivr"
-          render={(o, i, u, ch, rm) => <TopRow key={i} o={o} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`ivr-option-${i}`} onAudio={reloadAudio} />} />
+          render={(o, i, u, ch, rm) => <MenuRow key={i} o={o} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`ivr-option-${i}`} onAudio={reloadAudio} depth={0} />} />
         <SaveRow dirty={u.dirty} testid="ivr-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="ivr-save-button">Save keypad menu</button></SaveRow>
       </div>
       <div className="space-y-4"><IvrFlow greeting={g.greeting} list={list} context={numContext(num, { textingNumbers })} /><IvrTemplates current={current} onApply={(c) => { if (prep) u.touch(); apply(c); }} auto={prep} /><Analytics num={num} /></div>

@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { PhoneIncoming, MessageSquare, Voicemail, Send, PhoneForwarded, List, AlertTriangle, CheckCircle2, Info, PlayCircle, Loader2 } from 'lucide-react';
+import { PhoneIncoming, MessageSquare, Voicemail, Send, PhoneForwarded, List, AlertTriangle, CheckCircle2, Info, PlayCircle, Loader2, Webhook } from 'lucide-react';
 import { api } from '../../api';
 
 const ICON = {
   incoming: PhoneIncoming, greeting: MessageSquare, forward: PhoneForwarded, message: MessageSquare,
-  sms: Send, voicemail: Voicemail, menu: List,
+  sms: Send, voicemail: Voicemail, menu: List, webhook: Webhook,
 };
-const TONE = { incoming: '#38bdf8', greeting: '#818cf8', forward: '#34d399', message: '#fbbf24', sms: '#f472b6', voicemail: '#a78bfa', menu: '#38bdf8' };
+const TONE = { incoming: '#38bdf8', greeting: '#818cf8', forward: '#34d399', message: '#fbbf24', sms: '#f472b6', voicemail: '#a78bfa', menu: '#38bdf8', webhook: '#2dd4bf' };
 
 // Build parent→children map from edges, render as an indented tree from "incoming".
 function Tree({ nodes, edges }) {

@@ -31,17 +31,18 @@ const zone = (v) => { try { Intl.DateTimeFormat('en-US', { timeZone: String(v) }
 function menu(acts, nested) {
   const rows = (v, depth = 0) => {
     const seen = new Set()
-    return (Array.isArray(v) ? v : []).filter(r => DIGITS.includes(String(r?.digit)) && acts.includes(r?.action) && !(depth && r.action === 'submenu') && !seen.has(String(r.digit)) && seen.add(String(r.digit))).slice(0, 10).map(r => {
+    return (Array.isArray(v) ? v : []).filter(r => DIGITS.includes(String(r?.digit)) && acts.includes(r?.action) && !(depth >= 3 && r.action === 'submenu') && !seen.has(String(r.digit)) && seen.add(String(r.digit))).slice(0, 10).map(r => {
       const o = { digit: String(r.digit), action: r.action, label: str(r.label, 40) }
       if (r.action === 'forward') o.forwardTo = phone(r.forwardTo)
       if (r.action === 'message') o.message = str(r.message, 400)
+      if (r.action === 'webhook') { o.url = /^https:\/\//i.test(String(r.url || '').trim()) ? str(r.url, 300) : ''; o.message = str(r.message, 300); o.after = r.after === 'menu' ? 'menu' : 'hangup' }
       if (r.action === 'sms') {
         const texts = (Array.isArray(r.smsTexts) ? r.smsTexts : [r.smsText]).map(t => str(t, 600)).filter(Boolean).slice(0, 5)
         Object.assign(o, { smsText: texts[0] || '', ...(texts.length > 1 ? { smsTexts: texts } : {}), message: str(r.message, 300), after: r.after === 'menu' ? 'menu' : 'hangup', ...(/^(es|mn)_[0-9a-f]+$/.test(String(r.smsFrom)) ? { smsFrom: String(r.smsFrom) } : {}) })
       }
       if (r.action === 'submenu') {
         const sub = nested ? r.subMenu || {} : r
-        const inner = { greeting: str(sub.greeting, 400), options: rows(sub.options, 1) }
+        const inner = { greeting: str(sub.greeting, 400), options: rows(sub.options, depth + 1) }
         Object.assign(o, nested ? { subMenu: inner } : inner)
       }
       return o
@@ -94,7 +95,7 @@ const SCREENS = {
     what: 'the keypad menu (IVR) people hear when they call this number',
     fields: {
       greeting: [text(600), 'what callers hear first, listing the keys, e.g. "Thanks for calling Bella\'s. Press 1 for reservations, press 2 for our hours."'],
-      options: [menu(['forward', 'message', 'sms', 'voicemail', 'submenu'], true), `full list of keys: [{"digit":"1","action":"forward|message|sms|voicemail|submenu","label":"Sales","forwardTo":"+1... (forward)","message":"words read out (message), or said after the text is sent (sms)","smsFrom":"id of the texting number that sends it (from account info textingNumbers)","smsTexts":["text version A","version B (optional, rotates)"],"after":"hangup|menu (sms)","subMenu":{"greeting":"...","options":[same, no submenu]}}]`],
+      options: [menu(['forward', 'message', 'sms', 'voicemail', 'webhook', 'submenu'], true), `full list of keys: [{"digit":"1","action":"forward|message|sms|voicemail|webhook|submenu","label":"Sales","forwardTo":"+1... (forward)","message":"words read out (message), said after the text (sms), or said after a webhook","smsFrom":"id of the texting number that sends it (from account info textingNumbers)","smsTexts":["text version A","version B (optional, rotates)"],"url":"https://... secure webhook called on this key (webhook)","after":"hangup|menu (sms/webhook)","subMenu":{"greeting":"...","options":[same keys; sub-menus may nest up to 3 levels deep]}}]`],
     },
     note: `The greeting must mention every key in options.\nTEXT KEYS (sms): the text is sent FROM one of the owner's Texting Numbers listed in account info textingNumbers [{id, phone}]. If there are several, ask which one should send it and set smsFrom to its id. If there is exactly one, set smsFrom to it and tell the owner the texts go out from that number. If there are none, explain the key can't send texts until they order a Texting Number (the key row has an Order button) and offer an alternative such as a message key. Also mention: USA callers only, $0.05 per text from the wallet, and whether the call hangs up or replays the menu after. Rotation: 2-5 smsTexts versions, each caller gets the next one in turn.`,
   },
@@ -165,7 +166,8 @@ KEYPAD MENU (IVR, Pro+): greeting (typed text read in the app's language, or an 
 - message: reads words (or plays an audio file) then hangs up — good for hours, address, website.
 - sms: texts the caller from one of the owner's Texting Numbers (USA eSIM / mobile line), USA callers only, $0.05 per text from the wallet; 1-5 versions rotate so each caller gets the next one; after sending it says a short line, then hangs up or replays the menu.
 - voicemail (Starter+): "leave a message after the tone", up to 60 seconds, lands in Inbox (+ email/transcript if set on the Voicemail tab).
-- submenu: one more level of keys with its own greeting (no deeper levels).
+- webhook: calls one of the owner's own secure https web addresses (sends who called, the number and the key pressed), then says a short line and hangs up or replays the menu — good for logging a request, notifying another system or starting a workflow. Needs a valid https URL from the owner; never invent one.
+- submenu: more levels of keys with their own greeting (may nest up to 3 levels deep).
 The menu must be saved AND switched on (switch at the top). Switching it on turns the AI agent off on that number.
 FORWARDING: always / when busy / when not answered after 10-60 s; up to 4 backups ring one after another; forwarded phone sees the business number or, US only, the caller's number. Minutes bill from the wallet.
 RING GROUP (Pro+): up to 5 phones ring together, first to answer gets it; ring 10-60 s; then voicemail (Starter+), one backup number, or a sorry message. While on, forwarding and the keypad menu are skipped; Hours still apply.
@@ -231,6 +233,7 @@ function keyGaps(opts, ctx, where = '', said = '', prev = []) {
       }
     }
     if (o.action === 'voicemail' && ctx && ctx.voicemailAvailable === false) out.push(`${k}: voicemail needs the Starter plan or higher.`)
+    if (o.action === 'webhook' && !/^https:\/\//i.test(String(o.url || '').trim())) out.push(`${k}: add the secure https web address (webhook URL) to call.`)
     const sub = o.subMenu || (o.action === 'submenu' ? o : null)
     if (o.action === 'submenu') { if (!(sub.options || []).length) out.push(`${k}: the sub-menu has no keys yet.`); out.push(...keyGaps(sub.options, ctx, `${k} → `, said)) }
   }

@@ -6,9 +6,11 @@
 // sub-menu level only (depth capped at 2); wrong/no key → "invalid option" once,
 // then goodbye.
 
-const LEAF = ['forward', 'message', 'sms', 'voicemail']
+const LEAF = ['forward', 'message', 'sms', 'voicemail', 'webhook']
 const ACTIONS = [...LEAF, 'submenu']
+const MAX_SUB_DEPTH = 3 // sub-menus may nest up to 3 levels (paths like 1.2.3); the executor walks session.ivrPath as an array.
 const isPhone = (v) => /^\+\d{8,15}$/.test(String(v || '').replace(/[^\d+]/g, ''))
+const isUrl = (v) => /^https:\/\/[^\s]+$/i.test(String(v || '').trim())
 const hasText = (v) => !!String(v ?? '').trim()
 const fmt = (p) => { try { return require('../phone-config').formatPhone?.(p) || p } catch (_) { return p } }
 
@@ -29,6 +31,7 @@ function actionOutcome(o, ctx) {
     case 'message': return (hasText(o.message) || o.audioUrl) ? 'reads your message, then hangs up' : null
     case 'sms': return hasText(o.smsText) || (Array.isArray(o.smsTexts) && o.smsTexts.length) ? 'sends the caller a text, then ' + (o.after === 'menu' ? 'replays the menu' : 'hangs up') : null
     case 'voicemail': return ctx?.voicemailAvailable === false ? null : 'takes a voicemail'
+    case 'webhook': return isUrl(o.url) ? 'calls your system, then ' + (o.after === 'menu' ? 'replays the menu' : 'hangs up') : null
     case 'submenu': return subList(o).length ? `opens the "${o.label || 'sub-menu'}" sub-menu` : null
     default: return null
   }
@@ -60,8 +63,9 @@ function validate(ivr, ctx = {}) {
       else if (lines && lines.length > 1 && !lines.some(l => l.id === o.smsFrom)) err(k, `Choose which Texting Number sends it (${lines.map(l => l.phone).join(' or ')}).`)
     }
     if (o.action === 'voicemail' && ctx.voicemailAvailable === false) err(k, 'Voicemail needs the Starter plan or higher.')
+    if (o.action === 'webhook' && !isUrl(o.url)) err(k, 'Add the secure https web address (webhook URL) this key should call.')
     if (o.action === 'submenu') {
-      if (depth >= 1) { err(k, 'Sub-menus can only go one level deep — this key is too deep to work on a real call.'); return }
+      if (depth >= MAX_SUB_DEPTH) { err(k, `Sub-menus can only go ${MAX_SUB_DEPTH} levels deep — this key is too deep to work on a real call.`); return }
       const subs = subList(o)
       if (!subs.length) err(k, 'This sub-menu has no keys yet.')
       for (const so of subs) checkKey(so, `${k} → `, depth + 1)
@@ -96,7 +100,7 @@ function simulate(ivr, ctx = {}) {
     for (const o of opts) {
       const out = actionOutcome(o, ctx)
       add(`${where}Key ${o.digit}${o.label ? ` (${o.label})` : ''}`, `press ${o.digit}`, out || `⚠ not set up yet — this key would fail on a real call`, !!out)
-      if (o.action === 'submenu' && depth < 1) {
+      if (o.action === 'submenu' && depth < MAX_SUB_DEPTH) {
         const subs = subList(o)
         add(`${where}Key ${o.digit} → sub-menu`, 'enter sub-menu', subs.length ? 'plays the sub-menu greeting and waits for a key' : '⚠ empty sub-menu', subs.length > 0)
         if (subs.length) walk(subs, `${where}Key ${o.digit} → `, depth + 1)
@@ -128,11 +132,12 @@ function blueprint(ivr, ctx = {}) {
     if (o.action === 'message') return add(id, 'message', 'Message', (o.message || 'audio').slice(0, 80))
     if (o.action === 'sms') return add(id, 'sms', 'Send a text', (o.smsText || '').slice(0, 80))
     if (o.action === 'voicemail') return add(id, 'voicemail', 'Voicemail', ctx?.voicemailAvailable === false ? 'needs Starter+' : '')
+    if (o.action === 'webhook') return add(id, 'webhook', 'Webhook', (o.url || 'no URL set'))
     return null
   }
   const walk = (opts, parent, prefix, depth) => {
     for (const o of optList(opts)) {
-      if (o.action === 'submenu' && depth < 1) {
+      if (o.action === 'submenu' && depth < MAX_SUB_DEPTH) {
         const subId = add(`${prefix}${o.digit}`, 'menu', o.label || `Sub-menu ${o.digit}`, subGreeting(o) ? String(subGreeting(o)).slice(0, 80) : '')
         link(parent, subId, `Key ${o.digit}`)
         walk(subList(o), subId, `${prefix}${o.digit}.`, depth + 1)
