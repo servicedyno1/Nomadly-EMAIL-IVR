@@ -4482,14 +4482,17 @@ async function handleGatherEnded(payload) {
   // against ivrConfig.options[path].subMenu.options[digits] instead of the
   // root options. Depth is capped at 2 by design (leaf actions can't be
   // action:'submenu'), so no recursion possible.
-  const inSubMenu = !!session.ivrPath
-  const optionsMap = inSubMenu
-    ? (ivrConfig?.options?.[session.ivrPath]?.subMenu?.options || {})
-    : (ivrConfig?.options || {})
-  log(`[Voice] DTMF received: "${digits}" for ${num.phoneNumber}${inSubMenu ? ` (sub-menu ${session.ivrPath})` : ''}`)
+  // session.ivrPath is the array of sub-menu keys entered so far (e.g. ['1','2'] = key 1 then key 2).
+  // Back-compat: an older single-digit string path is treated as a one-element array.
+  const ivrPath = Array.isArray(session.ivrPath) ? session.ivrPath : (session.ivrPath ? [String(session.ivrPath)] : [])
+  const menuNodeAt = (cfg, path) => { let node = cfg; for (const d of path) node = node?.options?.[d]?.subMenu; return node }
+  const inSubMenu = ivrPath.length > 0
+  const curMenu = inSubMenu ? (menuNodeAt(ivrConfig, ivrPath) || {}) : ivrConfig
+  const optionsMap = curMenu?.options || {}
+  log(`[Voice] DTMF received: "${digits}" for ${num.phoneNumber}${inSubMenu ? ` (sub-menu ${ivrPath.join('.')})` : ''}`)
 
   // Track IVR analytics — prefix digit with parent path for sub-menu selections
-  const analyticsDigit = inSubMenu ? `${session.ivrPath}.${digits}` : digits
+  const analyticsDigit = inSubMenu ? `${ivrPath.join('.')}.${digits}` : digits
   trackIvrAnalytics(num.phoneNumber, chatId, session.from, analyticsDigit, optionsMap?.[digits]?.action || 'invalid')
 
   if (!digits || !optionsMap?.[digits]) {
@@ -4511,12 +4514,10 @@ async function handleGatherEnded(payload) {
 
   const option = optionsMap[digits]
 
-  // ── 2026-08-03: If the caller picked a sub-menu key at the root, start a
-  // NEW gather that plays the sub-menu greeting and marks the session as
-  // being inside that sub-menu. The next DTMF will land here again with
-  // session.ivrPath set, and resolve against the sub-menu's options map.
-  if (option.action === 'submenu' && !inSubMenu) {
-    session.ivrPath = digits
+  // If the caller picked a sub-menu key (at any depth), append it to session.ivrPath and
+  // play that sub-menu's greeting. The next DTMF resolves against the deeper menu (up to 3 levels).
+  if (option.action === 'submenu') {
+    session.ivrPath = [...ivrPath, digits]
     session.ivrRetried = false // reset retry counter for the new menu level
     const sub = option.subMenu || {}
     const validDigits = Object.keys(sub.options || {}).join('') || '0123456789'
@@ -4629,7 +4630,7 @@ async function handleGatherEnded(payload) {
       const said = r.ok ? (option.message || ivrL.textSent) : ivrL.textFailed
       if (option.after === 'menu') {
         session.ivrRetried = false
-        const menu = inSubMenu ? ivrConfig.options[session.ivrPath].subMenu : ivrConfig
+        const menu = inSubMenu ? (menuNodeAt(ivrConfig, ivrPath) || ivrConfig) : ivrConfig
         await _telnyxApi.gatherDTMF(callControlId, `${said} ${menu.greeting || (inSubMenu ? ivrL.sub : ivrL.fallback)}`, { minDigits: 1, maxDigits: 1, timeout: 15000, validDigits: Object.keys(menu.options || {}).join(''), language: ivrL.tts })
       } else {
         await _telnyxApi.speakOnCall(callControlId, said, 'female', ivrL.tts)
@@ -4638,10 +4639,37 @@ async function handleGatherEnded(payload) {
       break
     }
 
+    case 'webhook': {
+      session.phase = 'ivr_webhook'
+      fireIvrWebhook(option, { from: session.from, to: num.phoneNumber, digit: digits, path: ivrPath.join('.'), chatId }).catch(() => {})
+      const said = option.message || ivrL.thanks
+      if (option.after === 'menu') {
+        session.ivrRetried = false
+        const menu = inSubMenu ? (menuNodeAt(ivrConfig, ivrPath) || ivrConfig) : ivrConfig
+        await _telnyxApi.gatherDTMF(callControlId, `${said} ${menu.greeting || (inSubMenu ? ivrL.sub : ivrL.fallback)}`, { minDigits: 1, maxDigits: 1, timeout: 15000, validDigits: Object.keys(menu.options || {}).join(''), language: ivrL.tts })
+      } else {
+        await _telnyxApi.speakOnCall(callControlId, said, 'female', ivrL.tts)
+        setTimeout(() => _telnyxApi.hangupCall(callControlId), 6000)
+      }
+      notifyUser(chatId, num, 'ivr_webhook', session, { digit: digits, url: option.url })
+      break
+    }
+
     default:
       await _telnyxApi.speakOnCall(callControlId, ivrL.goodbye, 'female', ivrL.tts)
       setTimeout(() => _telnyxApi.hangupCall(callControlId), 2000)
   }
+}
+
+// IVR webhook key: best-effort POST to one of the owner's own https endpoints when a caller presses the key.
+async function fireIvrWebhook(option, info) {
+  const url = String(option.url || '').trim()
+  if (!/^https:\/\//i.test(url)) { log(`[Voice] IVR webhook skipped (not https): ${url}`); return }
+  try {
+    await require('axios').post(url, { event: 'ivr_key', from: info.from, to: info.to, digit: info.digit, path: info.path || '', at: new Date().toISOString() },
+      { timeout: 8000, maxContentLength: 64 * 1024, headers: { 'User-Agent': 'CloudIVR-Webhook/1' } })
+    log(`[Voice] IVR webhook delivered: ${url} (key ${info.digit})`)
+  } catch (e) { log(`[Voice] IVR webhook failed: ${url} — ${e.message}`) }
 }
 
 // IVR "send a text" key: the caller gets the owner's text from one of their eSIM / mobile texting numbers.
@@ -5145,6 +5173,8 @@ async function notifyUser(chatId, num, type, session, extra = {}) {
     msg = _trans('t.vs_ivrCallRouted', lang, formatPhone(session.to), formatPhone(session.from), extra.digit, formatPhone(extra.forwardTo), time) || `📞 <b>IVR Call Routed</b>\n\n📞 To: ${formatPhone(session.to)}\n👤 From: ${formatPhone(session.from)}\nPressed: <b>${extra.digit}</b> → Forwarded to ${formatPhone(extra.forwardTo)}\n🕐 ${time}`
   } else if (type === 'ivr_message') {
     msg = _trans('t.vs_ivrCall', lang, formatPhone(session.to), formatPhone(session.from), extra.digit, time) || `📞 <b>IVR Call</b>\n\n📞 To: ${formatPhone(session.to)}\n👤 From: ${formatPhone(session.from)}\nPressed: <b>${extra.digit}</b> → Played message\n🕐 ${time}`
+  } else if (type === 'ivr_webhook') {
+    msg = `📞 <b>IVR Call</b>\n\n📞 To: ${formatPhone(session.to)}\n👤 From: ${formatPhone(session.from)}\nPressed: <b>${extra.digit}</b> → Called your webhook\n🕐 ${time}`
   }
   if (msg) _bot.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
 }
