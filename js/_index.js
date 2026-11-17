@@ -6313,7 +6313,7 @@ function _resumeFlowType(step) {
     'phone-pay': 'phone-order', 'plan-pay': 'phone-order',
     'vps-plan-pay': 'vps-order', 'vps-upgrade-plan-pay': 'vps-order',
     'digital-product-pay': 'digital-purchase', 'virtual-card-pay': 'vcard-order',
-    'leads-pay': 'leads-purchase',
+    'leads-pay': 'leads-purchase', 'fxn-pay': 'fax-order',
   })[step] || 'order'
 }
 
@@ -6344,6 +6344,22 @@ async function maybeOfferResume(chatId, lang = 'en') {
       return
     }
     const label = session?.data?.label || ''
+    // Fax number: bought via its own module (not the tap-the-confirm-button flow). Wallet is now funded.
+    if (session.flowType === 'fax-order' && session?.data?.phoneNumber) {
+      await clearResumableSession(db, chatId).catch(() => {})
+      try {
+        const r = await botFax.api().buy(String(chatId), { phoneNumber: session.data.phoneNumber, autoRenew: true })
+        const n = r.number
+        await bot.sendMessage(chatId, n.registration?.needsDetails
+          ? `✅ <b>Payment received</b> — <b>${n.phoneNumber}</b> is reserved for you. Open 📠 Fax numbers to finish a few carrier details and switch it on.`
+          : `✅ <b>Payment received</b> — <b>${n.phoneNumber}</b> is now your fax number. It can send and receive faxes.`, { parse_mode: 'HTML' }).catch(() => {})
+        log(`[Resume] fax-order completed for ${chatId}: ${n.phoneNumber}`)
+      } catch (e) {
+        await bot.sendMessage(chatId, '⚠️ Your payment landed, but the fax number could not be bought automatically. Open 📠 Fax numbers to finish, or contact support — your funds are safe in your wallet.', { parse_mode: 'HTML' }).catch(() => {})
+        log(`[Resume] fax-order buy failed for ${chatId}: ${e.message}`)
+      }
+      return
+    }
     const btn = RESUME_ORDER_CTA[lang] || RESUME_ORDER_CTA.en
     const dismiss = RESUME_DISMISS_CTA[lang] || RESUME_DISMISS_CTA.en
     const msg = ({
@@ -31386,6 +31402,14 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       kb: (rows) => k.of([...rows, ['Back']]), hub: () => goto.submenu5(),
       wallet: () => require('./cloudivr-web/wallet').walletOps(db).balance(String(chatId)),
       openFax: async (phone) => { const n = await faxService.findMine(String(chatId), phone); await saveInfo('cpActiveNumber', n); return showFaxMenu(chatId, n) },
+      // Short on wallet → save the fax order and go straight to the deposit chooser (wallet applied first, crypto covers the rest).
+      shortPay: async ({ price, label, phoneNumber }) => {
+        const lang = info?.userLanguage || 'en'
+        const { usdBal } = await getBalance(walletOf, String(chatId))
+        await saveResumableSession(db, chatId, { flowType: 'fax-order', step: 'fxn-pay', data: { price: Number(price), coin: 'usd', label: label || 'Fax number', phoneNumber } })
+        const w = getInsufficientBalanceMessage(usdBal, Number(price), 'USD', lang)
+        return send(chatId, w.message, { parse_mode: 'HTML', ...k.of(w.keyboard) })
+      },
     })
   }
   async function showFaxMenu(chatId, num) {

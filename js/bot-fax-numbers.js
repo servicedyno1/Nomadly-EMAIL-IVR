@@ -8,7 +8,7 @@ const faxNumbers = require('./fax-numbers')
 const L = {
   en: {
     menu: '📠 Fax Numbers', buy: '🛒 Get a Fax Number', anyArea: '🌎 Any area code', more: '🔄 Show more', personal: '👤 Personal', business: '🏢 Business',
-    pay: (p) => `✅ Pay $${p}/month from wallet`, useSaved: '♻️ Use my saved details', newDetails: '✏️ Enter new details', sameCountry: (c) => `🏠 In ${c}`, otherCountry: '🌍 Another country',
+    pay: (p) => `✅ Pay $${p}/month from wallet`, payNow: '💳 Pay now with crypto', useSaved: '♻️ Use my saved details', newDetails: '✏️ Enter new details', sameCountry: (c) => `🏠 In ${c}`, otherCountry: '🌍 Another country',
     docsDone: '✅ Done uploading', useDocs: (n) => `♻️ Use my ${n} saved document(s)`, nameAddr: 'name + address', idDocs: 'ID documents',
     head: (p, f, pp, n) => `📠 <b>Fax Numbers</b>\n\nA fax-only number sends and receives faxes (no calls or texts). <b>$${p}/month</b> · ${f} free pages a month, then $${pp}/page.\nAvailable in ${n} countries.`,
     none: 'You have no fax numbers yet.', stPending: '⏳ waiting for carrier approval', stPaused: '⚠️ paused, top up to renew', stActive: '✅ active',
@@ -19,7 +19,7 @@ const L = {
     askArea: '🏙️ Type a 3-digit area code (e.g. 212), or tap “Any area code”.', tapNumber: 'Tap one of the numbers above to pick it.',
     review: '🧾 <b>Review & pay</b>', perMonth: (p) => `💰 <b>$${p}/month</b>, renews from your wallet`, pages: (f, pp) => `🆓 ${f} free pages a month, then $${pp}/page`,
     approval: '⏳ The carrier approves this number within a few days and your month starts when it’s live. If it says no, you get a full refund.',
-    wallet: (b) => `👛 Wallet: <b>$${b}</b>`, short: (s) => ` — <b>$${s} short</b>. Top up with 👛 Wallet first.`,
+    wallet: (b) => `👛 Wallet: <b>$${b}</b>`, short: (s) => ` — we'll use it, then you pay the <b>$${s}</b> rest in crypto. Tap below.`,
     pendingOwn: (n) => `⏳ ${n} is waiting for the carrier’s approval. We’ll message you when it’s live.`, pausedOwn: (n) => `⚠️ ${n} is paused — top up your wallet to renew it.`,
     needDetails: (c) => `👤 ${c} needs the details of who uses this number. Is it for a person or a business?`, bizOnly: (c) => `🏢 ${c} fax numbers are sold to businesses only.`,
     savedAsk: (s) => `👤 Use your saved details?\n\n<b>${s}</b>`, company: 'Type your <b>company name</b>:', fullName: 'Type your <b>full legal name</b> (first and last name):',
@@ -35,7 +35,7 @@ const L = {
   },
   fr: {
     menu: '📠 Numéros de fax', buy: '🛒 Obtenir un numéro de fax', anyArea: '🌎 N’importe quel indicatif', more: '🔄 Voir plus', personal: '👤 Particulier', business: '🏢 Entreprise',
-    pay: (p) => `✅ Payer ${p} $/mois depuis le portefeuille`, useSaved: '♻️ Utiliser mes informations', newDetails: '✏️ Saisir de nouvelles informations', sameCountry: (c) => `🏠 En ${c}`, otherCountry: '🌍 Autre pays',
+    pay: (p) => `✅ Payer ${p} $/mois depuis le portefeuille`, payNow: '💳 Payer maintenant en crypto', useSaved: '♻️ Utiliser mes informations', newDetails: '✏️ Saisir de nouvelles informations', sameCountry: (c) => `🏠 En ${c}`, otherCountry: '🌍 Autre pays',
     docsDone: '✅ Envoi terminé', useDocs: (n) => `♻️ Utiliser mes ${n} document(s)`, nameAddr: 'nom + adresse', idDocs: 'pièces d’identité',
     head: (p, f, pp, n) => `📠 <b>Numéros de fax</b>\n\nUn numéro fax uniquement envoie et reçoit des fax (pas d’appels ni de SMS). <b>${p} $/mois</b> · ${f} pages gratuites par mois, puis ${pp} $/page.\nDisponible dans ${n} pays.`,
     none: 'Vous n’avez pas encore de numéro de fax.', stPending: '⏳ en attente de l’opérateur', stPaused: '⚠️ suspendu, rechargez pour renouveler', stActive: '✅ actif',
@@ -46,7 +46,7 @@ const L = {
     askArea: '🏙️ Tapez un indicatif à 3 chiffres (ex. 212) ou touchez « N’importe quel indicatif ».', tapNumber: 'Touchez un des numéros ci-dessus pour le choisir.',
     review: '🧾 <b>Vérifier et payer</b>', perMonth: (p) => `💰 <b>${p} $/mois</b>, renouvelé depuis votre portefeuille`, pages: (f, pp) => `🆓 ${f} pages gratuites par mois, puis ${pp} $/page`,
     approval: '⏳ L’opérateur valide ce numéro sous quelques jours ; votre mois commence quand il est actif. En cas de refus, vous êtes remboursé intégralement.',
-    wallet: (b) => `👛 Portefeuille : <b>${b} $</b>`, short: (s) => ` — <b>il manque ${s} $</b>. Rechargez d’abord via 👛 Portefeuille.`,
+    wallet: (b) => `👛 Portefeuille : <b>${b} $</b>`, short: (s) => ` — on l'utilise, puis payez le reste de <b>${s} $</b> en crypto. Appuyez ci-dessous.`,
     pendingOwn: (n) => `⏳ ${n} attend la validation de l’opérateur. Nous vous préviendrons dès qu’il sera actif.`, pausedOwn: (n) => `⚠️ ${n} est suspendu — rechargez votre portefeuille pour le renouveler.`,
     needDetails: (c) => `👤 ${c} demande les informations de l’utilisateur du numéro. Est-ce pour un particulier ou une entreprise ?`, bizOnly: (c) => `🏢 Les numéros de fax ${c} sont réservés aux entreprises.`,
     savedAsk: (s) => `👤 Utiliser vos informations enregistrées ?\n\n<b>${s}</b>`, company: 'Tapez le <b>nom de votre entreprise</b> :', fullName: 'Tapez votre <b>nom légal complet</b> (prénom et nom) :',
@@ -62,7 +62,7 @@ const L = {
   },
   zh: {
     menu: '📠 传真号码', buy: '🛒 获取传真号码', anyArea: '🌎 任意区号', more: '🔄 显示更多', personal: '👤 个人', business: '🏢 企业',
-    pay: (p) => `✅ 从钱包支付 $${p}/月`, useSaved: '♻️ 使用已保存的资料', newDetails: '✏️ 填写新资料', sameCountry: (c) => `🏠 在${c}`, otherCountry: '🌍 其他国家',
+    pay: (p) => `✅ 从钱包支付 $${p}/月`, payNow: '💳 立即用加密货币支付', useSaved: '♻️ 使用已保存的资料', newDetails: '✏️ 填写新资料', sameCountry: (c) => `🏠 在${c}`, otherCountry: '🌍 其他国家',
     docsDone: '✅ 上传完成', useDocs: (n) => `♻️ 使用已保存的 ${n} 份文件`, nameAddr: '姓名 + 地址', idDocs: '身份证件',
     head: (p, f, pp, n) => `📠 <b>传真号码</b>\n\n纯传真号码只能收发传真（不能通话或短信）。<b>$${p}/月</b> · 每月 ${f} 页免费，之后 $${pp}/页。\n覆盖 ${n} 个国家。`,
     none: '您还没有传真号码。', stPending: '⏳ 等待运营商审核', stPaused: '⚠️ 已暂停，请充值续费', stActive: '✅ 使用中',
@@ -73,7 +73,7 @@ const L = {
     askArea: '🏙️ 输入 3 位区号（如 212），或点击“任意区号”。', tapNumber: '请点击上方的号码进行选择。',
     review: '🧾 <b>确认并支付</b>', perMonth: (p) => `💰 <b>$${p}/月</b>，从钱包自动续费`, pages: (f, pp) => `🆓 每月 ${f} 页免费，之后 $${pp}/页`,
     approval: '⏳ 运营商会在几天内审核此号码，开通后开始计月。如被拒绝，将全额退款。',
-    wallet: (b) => `👛 钱包：<b>$${b}</b>`, short: (s) => ` — <b>还差 $${s}</b>。请先通过 👛 钱包充值。`,
+    wallet: (b) => `👛 钱包：<b>$${b}</b>`, short: (s) => ` — 将先使用余额，其余 <b>$${s}</b> 用加密货币支付。点击下方。`,
     pendingOwn: (n) => `⏳ ${n} 正在等待运营商审核，开通后我们会通知您。`, pausedOwn: (n) => `⚠️ ${n} 已暂停——请充值钱包以续费。`,
     needDetails: (c) => `👤 ${c}需要号码使用者的资料。是个人还是企业使用？`, bizOnly: (c) => `🏢 ${c}的传真号码仅售予企业。`,
     savedAsk: (s) => `👤 使用已保存的资料？\n\n<b>${s}</b>`, company: '请输入<b>公司名称</b>：', fullName: '请输入您的<b>法定全名</b>（名和姓）：',
@@ -89,7 +89,7 @@ const L = {
   },
   hi: {
     menu: '📠 फैक्स नंबर', buy: '🛒 फैक्स नंबर लें', anyArea: '🌎 कोई भी एरिया कोड', more: '🔄 और दिखाएँ', personal: '👤 व्यक्तिगत', business: '🏢 व्यवसाय',
-    pay: (p) => `✅ वॉलेट से $${p}/माह भुगतान करें`, useSaved: '♻️ मेरी सेव की गई जानकारी इस्तेमाल करें', newDetails: '✏️ नई जानकारी दर्ज करें', sameCountry: (c) => `🏠 ${c} में`, otherCountry: '🌍 दूसरा देश',
+    pay: (p) => `✅ वॉलेट से $${p}/माह भुगतान करें`, payNow: '💳 अभी क्रिप्टो से भुगतान करें', useSaved: '♻️ मेरी सेव की गई जानकारी इस्तेमाल करें', newDetails: '✏️ नई जानकारी दर्ज करें', sameCountry: (c) => `🏠 ${c} में`, otherCountry: '🌍 दूसरा देश',
     docsDone: '✅ अपलोड पूरा', useDocs: (n) => `♻️ मेरे ${n} सेव किए गए दस्तावेज़ इस्तेमाल करें`, nameAddr: 'नाम + पता', idDocs: 'पहचान दस्तावेज़',
     head: (p, f, pp, n) => `📠 <b>फैक्स नंबर</b>\n\nफैक्स-केवल नंबर फैक्स भेजता और प्राप्त करता है (कॉल या SMS नहीं)। <b>$${p}/माह</b> · हर माह ${f} पेज मुफ्त, फिर $${pp}/पेज।\n${n} देशों में उपलब्ध।`,
     none: 'आपके पास अभी कोई फैक्स नंबर नहीं है।', stPending: '⏳ कैरियर की मंज़ूरी का इंतज़ार', stPaused: '⚠️ रुका हुआ, रिन्यू के लिए टॉप अप करें', stActive: '✅ सक्रिय',
@@ -100,7 +100,7 @@ const L = {
     askArea: '🏙️ 3 अंकों का एरिया कोड लिखें (जैसे 212), या “कोई भी एरिया कोड” दबाएँ।', tapNumber: 'चुनने के लिए ऊपर दिए किसी नंबर पर टैप करें।',
     review: '🧾 <b>जाँचें और भुगतान करें</b>', perMonth: (p) => `💰 <b>$${p}/माह</b>, वॉलेट से रिन्यू`, pages: (f, pp) => `🆓 हर माह ${f} पेज मुफ्त, फिर $${pp}/पेज`,
     approval: '⏳ कैरियर कुछ दिनों में यह नंबर मंज़ूर करता है और चालू होने पर आपका महीना शुरू होता है। मना करने पर पूरा रिफंड मिलेगा।',
-    wallet: (b) => `👛 वॉलेट: <b>$${b}</b>`, short: (s) => ` — <b>$${s} कम</b>। पहले 👛 वॉलेट से टॉप अप करें।`,
+    wallet: (b) => `👛 वॉलेट: <b>$${b}</b>`, short: (s) => ` — इसे इस्तेमाल करेंगे, बाकी <b>$${s}</b> क्रिप्टो से चुकाएँ। नीचे टैप करें।`,
     pendingOwn: (n) => `⏳ ${n} कैरियर की मंज़ूरी का इंतज़ार कर रहा है। चालू होने पर हम आपको बताएँगे।`, pausedOwn: (n) => `⚠️ ${n} रुका हुआ है — रिन्यू के लिए वॉलेट टॉप अप करें।`,
     needDetails: (c) => `👤 ${c} को इस नंबर के उपयोगकर्ता की जानकारी चाहिए। यह व्यक्ति के लिए है या व्यवसाय के लिए?`, bizOnly: (c) => `🏢 ${c} के फैक्स नंबर केवल व्यवसायों को बेचे जाते हैं।`,
     savedAsk: (s) => `👤 सेव की गई जानकारी इस्तेमाल करें?\n\n<b>${s}</b>`, company: '<b>कंपनी का नाम</b> लिखें:', fullName: 'अपना <b>पूरा कानूनी नाम</b> लिखें (पहला और अंतिम नाम):',
@@ -116,7 +116,7 @@ const L = {
   },
   fa: {
     menu: '📠 شماره فکس', buy: '🛒 دریافت شماره فکس', anyArea: '🌎 هر کد منطقه', more: '🔄 بیشتر', personal: '👤 شخصی', business: '🏢 تجاری',
-    pay: (p) => `✅ پرداخت ${p}$ در ماه از کیف پول`, useSaved: '♻️ استفاده از اطلاعات ذخیره‌شده', newDetails: '✏️ وارد کردن اطلاعات جدید', sameCountry: (c) => `🏠 در ${c}`, otherCountry: '🌍 کشور دیگر',
+    pay: (p) => `✅ پرداخت ${p}$ در ماه از کیف پول`, payNow: '💳 پرداخت با ارز دیجیتال', useSaved: '♻️ استفاده از اطلاعات ذخیره‌شده', newDetails: '✏️ وارد کردن اطلاعات جدید', sameCountry: (c) => `🏠 در ${c}`, otherCountry: '🌍 کشور دیگر',
     docsDone: '✅ ارسال تمام شد', useDocs: (n) => `♻️ استفاده از ${n} مدرک ذخیره‌شده`, nameAddr: 'نام + نشانی', idDocs: 'مدارک هویتی',
     head: (p, f, pp, n) => `📠 <b>شماره‌های فکس</b>\n\nشماره فقط‌فکس، فکس می‌فرستد و می‌گیرد (بدون تماس یا پیامک). <b>${p}$ در ماه</b> · ${f} صفحه رایگان در ماه، سپس ${pp}$ برای هر صفحه.\nدر ${n} کشور.`,
     none: 'هنوز شماره فکسی ندارید.', stPending: '⏳ در انتظار تأیید اپراتور', stPaused: '⚠️ متوقف، برای تمدید شارژ کنید', stActive: '✅ فعال',
@@ -127,7 +127,7 @@ const L = {
     askArea: '🏙️ یک کد منطقه ۳ رقمی بنویسید (مثلاً 212) یا «هر کد منطقه» را بزنید.', tapNumber: 'برای انتخاب، یکی از شماره‌های بالا را لمس کنید.',
     review: '🧾 <b>بررسی و پرداخت</b>', perMonth: (p) => `💰 <b>${p}$ در ماه</b>، تمدید از کیف پول`, pages: (f, pp) => `🆓 ${f} صفحه رایگان در ماه، سپس ${pp}$ برای هر صفحه`,
     approval: '⏳ اپراتور ظرف چند روز این شماره را تأیید می‌کند و ماه شما از زمان فعال شدن آغاز می‌شود. در صورت رد، کل مبلغ بازگردانده می‌شود.',
-    wallet: (b) => `👛 کیف پول: <b>${b}$</b>`, short: (s) => ` — <b>${s}$ کم است</b>. ابتدا از 👛 کیف پول شارژ کنید.`,
+    wallet: (b) => `👛 کیف پول: <b>${b}$</b>`, short: (s) => ` — از آن استفاده می‌کنیم، باقی <b>${s}$</b> را با ارز دیجیتال بپردازید. پایین بزنید.`,
     pendingOwn: (n) => `⏳ ${n} در انتظار تأیید اپراتور است. پس از فعال شدن به شما خبر می‌دهیم.`, pausedOwn: (n) => `⚠️ ${n} متوقف است — برای تمدید، کیف پول را شارژ کنید.`,
     needDetails: (c) => `👤 ${c} اطلاعات کاربر این شماره را لازم دارد. برای شخص است یا کسب‌وکار؟`, bizOnly: (c) => `🏢 شماره‌های فکس ${c} فقط به کسب‌وکارها فروخته می‌شوند.`,
     savedAsk: (s) => `👤 از اطلاعات ذخیره‌شده استفاده شود؟\n\n<b>${s}</b>`, company: '<b>نام شرکت</b> را بنویسید:', fullName: '<b>نام کامل قانونی</b> خود را بنویسید (نام و نام خانوادگی):',
@@ -220,7 +220,7 @@ async function handle(ctx) {
     const bal = await ctx.wallet()
     await setAction('fxnConfirm')
     const who = ''
-    return send(`${t.review}\n\n📠 <b>${esc(info.fxnPick)}</b> · ${esc(country.name)} ${type.label.toLowerCase()}\n${t.perMonth(offer.price)}\n${t.pages(offer.freePages, offer.pagePrice)}${who}\n\n${t.wallet(bal.toFixed(2))}${bal < offer.price ? t.short((offer.price - bal).toFixed(2)) : ''}`, kb(bal >= offer.price ? [[t.pay(offer.price)]] : []))
+    return send(`${t.review}\n\n📠 <b>${esc(info.fxnPick)}</b> · ${esc(country.name)} ${type.label.toLowerCase()}\n${t.perMonth(offer.price)}\n${t.pages(offer.freePages, offer.pagePrice)}${who}\n\n${t.wallet(bal.toFixed(2))}${bal < offer.price ? t.short((offer.price - bal).toFixed(2)) : ''}`, kb(bal >= offer.price ? [[t.pay(offer.price)]] : [[t.payNow]]))
   }
   // Paperwork chain: who → company → name → street → city → postcode → address country → phone → documents → signature.
   const askWho = async () => {
@@ -360,6 +360,7 @@ async function handle(ctx) {
   }
   if (action === 'fxnConfirm') {
     if (back) return doSearch(null)
+    if (message === t.payNow) { if (!ctx.shortPay) return confirm(); return ctx.shortPay({ price: offer.price, label: `Fax number ${info.fxnPick}`, phoneNumber: info.fxnPick }) }
     if (message !== t.pay(offer.price)) return confirm()
     try {
       const r = await api.buy(chatId, { phoneNumber: info.fxnPick, autoRenew: true })
