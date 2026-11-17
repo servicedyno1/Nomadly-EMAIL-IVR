@@ -246,7 +246,17 @@ function validateIvr(body, plan, audioOk = () => true, ctx = {}) {
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error(`Key ${digit}: the mailbox email address does not look right.`)
     return name || email || greeting ? { name, email, greeting } : null
   }
-  const confirmOf = (o) => (o.confirm === true ? { confirm: true, confirmTimeout: o.confirmTimeout === 'voicemail' && phoneConfig.canAccessFeature(plan, 'voicemail') ? 'voicemail' : 'decline', declineMessage: txt(o.declineMessage, 300) } : {})
+  const outcomeOf = (v, digit, which) => {
+    const a = ['message', 'forward', 'menu', 'voicemail', 'end'].includes(v?.action) ? v.action : null
+    if (!a) return null
+    if (a === 'voicemail' && !phoneConfig.canAccessFeature(plan, 'voicemail')) throw new Error(`Key ${digit}: voicemail after ${which} needs the Starter plan or higher.`)
+    return { action: a, message: txt(v.message, 300), forwardTo: a === 'forward' ? fwd(v.forwardTo, digit) : '' }
+  }
+  const confirmOf = (o, digit) => {
+    if (o.confirm !== true) return {}
+    const onAccept = outcomeOf(o.onAccept, digit, 'Accept'), onDecline = outcomeOf(o.onDecline, digit, 'Decline')
+    return { confirm: true, confirmTimeout: o.confirmTimeout === 'voicemail' && phoneConfig.canAccessFeature(plan, 'voicemail') ? 'voicemail' : 'decline', declineMessage: txt(o.declineMessage, 300), ...(onAccept ? { onAccept } : {}), ...(onDecline ? { onDecline } : {}) }
+  }
   const clean = (opts, depth) => {
     const out = {}
     for (const [digit, o] of Object.entries(opts || {})) {
@@ -333,7 +343,7 @@ function validateIvr(body, plan, audioOk = () => true, ctx = {}) {
         const db = o.check?.source === 'db'
         const url = db && !String(o.url || '').trim() ? '' : hookUrl(o.url, digit)
         const check = checkOf(o, digit, { url })
-        out[digit] = { action, url, message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label, ...(check ? { check } : {}), ...confirmOf(o) }
+        out[digit] = { action, url, message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label, ...(check ? { check } : {}), ...confirmOf(o, digit) }
       } else if (action === 'collect') {
         const prompt = String(o.prompt || '').trim().slice(0, 500)
         if (!prompt) throw new Error(`Key ${digit}: say what the caller should type.`)
@@ -341,15 +351,15 @@ function validateIvr(body, plan, audioOk = () => true, ctx = {}) {
         const webhook = o.webhook ? hookUrl(o.webhook, digit) : ''
         const message = String(o.message || '').slice(0, 500)
         const check = checkOf(o, digit, { url: webhook })
-        if (!to && !webhook && !message && !check) throw new Error(`Key ${digit}: choose what happens with the digits — send to your system, connect the call, or a confirmation message.`)
-        out[digit] = { action, prompt, length: Math.min(20, Math.max(1, Math.round(Number(o.length)) || 6)), webhook, forwardTo: to, message, label, ...(check ? { check } : {}), ...confirmOf(o) }
+        if (!to && !webhook && !message && !check && o.confirm !== true) throw new Error(`Key ${digit}: choose what happens with the digits — send to your system, connect the call, or a confirmation message.`)
+        out[digit] = { action, prompt, length: Math.min(20, Math.max(1, Math.round(Number(o.length)) || 6)), webhook, forwardTo: to, message, label, ...(check ? { check } : {}), ...confirmOf(o, digit) }
       } else if (action === 'pin') {
         const url = o.check?.source === 'reply' ? hookUrl(o.url, digit) : ''
         const check = checkOf(o, digit, { url })
         const pin = check ? '' : String(o.pin || '').replace(/\D/g, '').slice(0, 12)
         if (!check && pin.length < 3) throw new Error(`Key ${digit}: the PIN needs at least 3 digits.`)
         const okTo = o.onOk?.forwardTo ? fwd(o.onOk.forwardTo, digit) : ''
-        out[digit] = { action, prompt: String(o.prompt || '').slice(0, 500), pin, onOk: { action: okTo ? 'forward' : 'message', forwardTo: okTo, message: String(o.onOk?.message || '').slice(0, 500) }, failMessage: String(o.failMessage || '').slice(0, 500), label, ...(check ? { check, url, length: Math.min(12, Math.max(3, Math.round(Number(o.length)) || 6)) } : {}), ...confirmOf(o) }
+        out[digit] = { action, prompt: String(o.prompt || '').slice(0, 500), pin, onOk: { action: okTo ? 'forward' : 'message', forwardTo: okTo, message: String(o.onOk?.message || '').slice(0, 500) }, failMessage: String(o.failMessage || '').slice(0, 500), label, ...(check ? { check, url, length: Math.min(12, Math.max(3, Math.round(Number(o.length)) || 6)) } : {}), ...confirmOf(o, digit) }
       } else if (action === 'submenu') {
         if (depth >= 3) throw new Error('Sub-menus can only go 3 levels deep.')
         const sub = o.subMenu || {}
@@ -848,6 +858,11 @@ function routes(router, deps) {
       if (ok !== new Set(lines).size) return bad(res, 400, 'invalid_ivr', 'Pick one of your own texting numbers to send the text from.')
     }
     await setField(req.webChatId, req.num.phoneNumber, 'features.ivr', value)
+    // Fax documents no menu uses any more are cleaned up (any of the owner's numbers may still use one).
+    deps.db.collection('phoneNumbersOf').findOne({ _id: req.webChatId }).then(d => {
+      const ids = (d?.val?.numbers || []).flatMap(n => [...every(n.features?.ivr?.options), ...every(n.features?.ivr?.afterHours?.options)]).filter(k => k.action === 'fax').map(k => k.fileId)
+      return require('../fax-service').sweepIvrDocs(req.webChatId, ids)
+    }).catch(e => console.log(`[IVR] fax doc sweep: ${e.message}`))
     // One answers a number: the keypad menu going on switches the AI voice agent off.
     const aiCfg = req.num.features?.aiAgent
     const aiAgentTurnedOff = !!(value.enabled && aiCfg?.enabled)

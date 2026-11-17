@@ -216,7 +216,7 @@ KEYPAD MENU (IVR, Pro+): greeting (typed text read in the app's language, or an 
 - fax ("fax me a document"): asks the caller for their fax number and faxes the owner's document (PDF/Word/image, up to 20 pages) from one of the owner's fax numbers (account info faxNumbers); free pages first, then the usual page price from the wallet. The owner uploads the document under the key (you cannot). If faxNumbers is empty, tell them to tap "Get a fax number" under the key first.
 - callback: the caller asks to be called back and the call ends. Default: the owner gets a notification with the number. With auto on, the owner's own phone (callbackTo) rings a few seconds later and pressing 1 connects them to the caller.
 - voicemail can have a department mailbox: box {name, email} — the voicemail is labelled with that name in Inbox and its email copy goes to that person (e.g. press 2 to leave a message for Billing).
-- Language choice: a submenu with "language":"es" (or fr / en) — callers who press it hear that sub-menu and everything after it in that language; write its greeting and texts in that language. The main menu language follows the app language.
+- Language choice: a submenu with "language":"es" (or fr / en) — callers who press it hear that sub-menu and everything after it in that language; write its greeting and texts in that language. ANY "Spanish / French / English option", "para español" or "en français" key is ALWAYS such a submenu, even when it only does one thing: e.g. "a Spanish option on key 9 that takes a voicemail" = key 9 submenu {language:"es", greeting:"Para dejar un mensaje, pulse 1.", options:[{digit:"1",action:"voicemail"}]}. Other key actions have no language of their own — never describe a non-submenu key as being "in Spanish". The main menu language follows the app language.
 - extensions: staff codes of 2-5 digits callers can dial any time during the main greeting (e.g. 101 for Anna) that ring a phone or the number's own browser phone/apps; the greeting should say "if you know your party's extension, dial it now". A single key then waits about 2 seconds before acting.
 - afterHours: a separate menu used outside the number's Hours schedule (instead of the closed message), e.g. "We're closed. Press 1 to leave a message, press 2 for emergencies." Needs the Hours schedule on (account info hoursOn).
 - submenu: more levels of keys with their own greeting (may nest up to 3 levels deep).
@@ -332,7 +332,7 @@ const GAPS = {
 
 
 // Live-data settings (database lookup, Accept / Decline, payment provider) are set in the form, not by chat: keep them when a key is re-proposed.
-const LIVE_FIELDS = ['check', 'confirm', 'confirmTimeout', 'declineMessage', 'payVia', 'connId', 'amountFrom', 'amount', 'currency', 'description', 'waitPaid', 'paidMessage', 'length', 'prompt', 'url']
+const LIVE_FIELDS = ['check', 'confirm', 'confirmTimeout', 'declineMessage', 'onAccept', 'onDecline', 'payVia', 'connId', 'amountFrom', 'amount', 'currency', 'description', 'waitPaid', 'paidMessage', 'length', 'prompt', 'url']
 function keepLive(next, prev, fresh = []) {
   for (const o of next || []) {
     const was = (Array.isArray(prev) ? prev : []).find(x => String(x.digit) === String(o.digit) && x.action === o.action)

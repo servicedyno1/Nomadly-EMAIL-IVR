@@ -39,8 +39,8 @@ function OtpBanner({ o, more, onDone, onLater }) {
       </div>
       <div className="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[#a1a1aa]">
         {o.kind === 'ivr' ? <>
-          <span data-testid="otp-alert-ivr-note">{o.connectTo ? `Accept to connect them to ${pv.phone(o.connectTo)}.` : o.say ? `Accept and they hear: “${o.say}”` : 'Accept to let them through.'}</span>
-          <span>{o.ivrKind === 'pin' && o.attempt < o.maxAttempts ? 'Decline asks them to type it again.' : 'Decline plays your decline message and ends the call.'}</span>
+          <span data-testid="otp-alert-ivr-note">{o.connectTo ? `Accept to connect them to ${pv.phone(o.connectTo)}.` : OWN[o.onAccept] ? `Accept: ${OWN[o.onAccept]}.` : o.say ? `Accept and they hear: “${o.say}”` : 'Accept to let them through.'}</span>
+          <span data-testid="otp-alert-decline-note">{o.declineTo ? `Decline: transfer to ${pv.phone(o.declineTo)}.` : OWN[o.onDecline] ? `Decline: ${OWN[o.onDecline]}.` : o.ivrKind === 'pin' && o.attempt < o.maxAttempts ? 'Decline asks them to type it again.' : 'Decline plays your decline message and ends the call.'}</span>
         </> : <>
           <span>{o.connectTo ? `Accept to confirm the code and connect them to ${pv.phone(o.connectTo)}.` : 'Accept to confirm the code.'}</span>
           <span>Decline asks them to type it again.</span>
@@ -53,6 +53,7 @@ function OtpBanner({ o, more, onDone, onLater }) {
 }
 
 // Banner on every page while a collected code waits for Accept / Decline (Inbox and Quick IVR page still work too).
+const OWN = { message: 'they hear your message, then the call ends', menu: 'they go back to the menu', voicemail: 'they can leave a voicemail', end: 'the call ends', forward: 'they are transferred' };
 export function OtpAlerts({ list }) {
   const pv = usePrivacy();
   const [hidden, setHidden] = useState(() => new Set());

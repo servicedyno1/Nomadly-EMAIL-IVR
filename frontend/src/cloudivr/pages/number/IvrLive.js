@@ -97,7 +97,7 @@ function DbLookup({ c, setC, kind, prefix }) {
             <Field label="What the caller hears when it is found (optional)">
               <textarea rows={2} className="civr-input" value={c.say || ''} onChange={e => setC({ say: e.target.value })} placeholder="Your balance is {balance} dollars." data-testid={`${prefix}-db-say`} />
             </Field>
-            <div className="flex flex-wrap gap-1.5" data-testid={`${prefix}-db-chips`}>{columns.slice(0, 24).map(x => <button key={x} type="button" className="civr-pill cursor-pointer font-mono" onClick={() => setC({ say: `${c.say || ''}${c.say && !/\s$/.test(c.say) ? ' ' : ''}{${x}}` })}>{`{${x}}`}</button>)}</div>
+            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto sm:max-h-none" data-testid={`${prefix}-db-chips`}>{columns.slice(0, 24).map(x => <button key={x} type="button" className="civr-pill cursor-pointer font-mono" onClick={() => setC({ say: `${c.say || ''}${c.say && !/\s$/.test(c.say) ? ' ' : ''}{${x}}` })}>{`{${x}}`}</button>)}</div>
             {colSelect('routeColumn', 'Connect the call to the phone number in this column (optional)', 'db-route', 'Don’t connect from the database')}
           </>}
           <input className="civr-input" value={c.notFound || ''} onChange={e => setC({ notFound: e.target.value })} placeholder="Say when nothing is found (optional)" data-testid={`${prefix}-db-notfound`} />
@@ -137,6 +137,20 @@ export function CheckWith({ o, set, prefix, kind }) {
   );
 }
 
+// What happens after you press Accept / Decline: the key's usual result, or your own choice.
+const OUTCOMES = [['default', 'The key’s usual result'], ['message', 'Play a message, then hang up'], ['forward', 'Transfer to a phone'], ['menu', 'Say a message, then back to the menu'], ['voicemail', 'Take a voicemail'], ['end', 'End the call']];
+function Outcome({ label, v = {}, set, prefix, decline, pin }) {
+  const a = v.action || 'default';
+  const put = (p) => set({ ...v, ...p });
+  return (
+    <div className="space-y-2" data-testid={prefix}>
+      <Field label={label}><select className="civr-input" value={a} onChange={e => put({ action: e.target.value })} data-testid={`${prefix}-action`}>{OUTCOMES.map(([k, l]) => <option key={k} value={k}>{k === 'default' ? (decline ? (pin ? 'Ask for the code again (3 tries)' : 'Play the decline message, then hang up') : l) : l}</option>)}</select></Field>
+      {['message', 'forward', 'menu', 'end'].includes(a) && <input className="civr-input" value={v.message || ''} onChange={e => put({ message: e.target.value })} placeholder={a === 'forward' ? 'Say before connecting (optional)' : 'What they hear (optional)'} data-testid={`${prefix}-message`} />}
+      {a === 'forward' && <input className="civr-input font-mono" value={v.forwardTo || ''} onChange={e => put({ forwardTo: e.target.value })} placeholder="+14155550100" data-testid={`${prefix}-forward`} />}
+    </div>
+  );
+}
+
 // Manual check: the caller waits on hold while Accept / Decline pops up in the app.
 export function ConfirmAsk({ o, set, prefix }) {
   const show = async () => {
@@ -149,6 +163,10 @@ export function ConfirmAsk({ o, set, prefix }) {
       {o.confirm === true && <div className="grid md:grid-cols-2 gap-2">
         <Field label="If I don’t answer in 45 seconds"><select className="civr-input" value={o.confirmTimeout || 'decline'} onChange={e => set({ confirmTimeout: e.target.value })} data-testid={`${prefix}-confirm-timeout`}><option value="decline">Treat it as declined</option><option value="voicemail">Say so and take a voicemail</option></select></Field>
         <Field label="Say when declined (optional)"><input className="civr-input" value={o.declineMessage || ''} onChange={e => set({ declineMessage: e.target.value })} placeholder="Sorry, we could not confirm that." data-testid={`${prefix}-confirm-decline-message`} /></Field>
+      </div>}
+      {o.confirm === true && <div className="grid md:grid-cols-2 gap-3">
+        <Outcome label="When I press Accept" v={o.onAccept} set={(v) => set({ onAccept: v })} prefix={`${prefix}-on-accept`} />
+        <Outcome label="When I press Decline" v={o.onDecline} set={(v) => set({ onDecline: v })} prefix={`${prefix}-on-decline`} decline pin={o.action === 'pin'} />
       </div>}
     </div>
   );

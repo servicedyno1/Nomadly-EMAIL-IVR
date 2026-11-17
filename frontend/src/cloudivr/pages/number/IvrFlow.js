@@ -28,8 +28,8 @@ function Tree({ nodes, edges, testid = 'ivr-flow', edit }) {
         {label && <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[#1c1c1c] text-[#a1a1aa] mt-0.5 shrink-0">{label}</span>}
         <span className="mt-0.5 shrink-0" style={{ color: c }}><Ico className="w-4 h-4" /></span>
         <span className="min-w-0 text-left">
-          <span className="block text-sm leading-tight">{n.label}</span>
-          {n.detail && <span className="block text-xs text-[#71717a] truncate max-w-[280px]">{n.detail}</span>}
+          <span className="block text-sm leading-tight" style={{ color: "#e4e4e7" }}>{n.label}</span>
+          {n.detail && <span className="block text-xs text-[#71717a] truncate max-w-[min(280px,55vw)]">{n.detail}</span>}
         </span>
       </>
     );

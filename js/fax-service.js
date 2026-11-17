@@ -987,4 +987,10 @@ async function sendIvrDoc({ chatId, faxFrom, fileId, pages, to }) {
   return publicFax(await dispatch({ chatId, num, fileId, pages, to: chk.to }))
 }
 
-module.exports = { storeIvrDoc, sendIvrDoc, readFile, voiceRouting, voiceOnFaxNudge, reasonText, reapplyLine, parseCoverText, addCover, cleanCover, coverPdf, announce, batchReport, reportCsv, emailOf, maintain, BULK_MAX, parseRecipients, bulkQuote, sendBulk, cancelBatch, resumeBatches, listBatches, init, isReady, t, TXT, FREE_PAGES, PAGE_PRICE, FaxError, eligible, lineOn, ensureApp, usage, quote, stage, sendStaged, setLine, handleEvent, list, fileOf, toPdf, checkTo, findMine }
+// Keypad fax documents no saved keypad menu uses any more (key deleted, or uploaded and never saved) — removed after a day.
+async function sweepIvrDocs(chatId, usedIds) {
+  const keep = new Set((usedIds || []).map(String))
+  const old = await col('faxFiles.files').find({ 'metadata.chatId': chatId, 'metadata.kind': 'ivr', uploadDate: { $lt: new Date(Date.now() - 86400000) } }, { projection: { _id: 1 } }).limit(200).toArray()
+  for (const f of old) if (!keep.has(String(f._id))) await bucket().delete(f._id).catch(() => {})
+}
+module.exports = { sweepIvrDocs, storeIvrDoc, sendIvrDoc, readFile, voiceRouting, voiceOnFaxNudge, reasonText, reapplyLine, parseCoverText, addCover, cleanCover, coverPdf, announce, batchReport, reportCsv, emailOf, maintain, BULK_MAX, parseRecipients, bulkQuote, sendBulk, cancelBatch, resumeBatches, listBatches, init, isReady, t, TXT, FREE_PAGES, PAGE_PRICE, FaxError, eligible, lineOn, ensureApp, usage, quote, stage, sendStaged, setLine, handleEvent, list, fileOf, toPdf, checkTo, findMine }

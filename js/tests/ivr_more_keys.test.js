@@ -99,6 +99,20 @@ const open = (id, extra = {}) => { vs.activeCalls[id] = { num, chatId: 'u1', fro
   ok(/Open at nine/.test(String(last('speak')?.a[1])), 'after hours, key 1 follows the after-hours menu')
   s = open('h2', { ivrRoot: 'after' }); await press('h2', '101')
   ok(!acts.some(x => x.name === 'transfer') && s.ivrRetried, 'extensions are not offered in the after-hours menu')
+  // ── your own Accept / Decline outcomes on a manual-check key ──
+  ivr.options[0] = { action: 'collect', prompt: 'Type your order', length: 6, confirm: true, onAccept: { action: 'forward', forwardTo: '+14155550144', message: 'Connecting you' }, onDecline: { action: 'menu', message: 'Not found' } }
+  s = open('o1'); await press('o1', '0'); await press('o1', '123456')
+  ok(s.phase === 'ivr_confirm', 'manual-check key waits for Accept / Decline')
+  acts.length = 0; await vs.resolveIvrConfirm('o1', 'accept', 'u1'); await new Promise(r => setTimeout(r, 60))
+  ok(s.routeGo && /Connecting you/.test(String(last('speak')?.a[1])), 'Accept → your message, then transfer to your phone')
+  s = open('o2'); await press('o2', '0'); await press('o2', '654321')
+  acts.length = 0; await vs.resolveIvrConfirm('o2', 'decline', 'u1'); await new Promise(r => setTimeout(r, 60))
+  ok(s.phase === 'ivr' && /Not found/.test(String(last('gather')?.a[1])), 'Decline → your message, then back to the menu')
+  ivr.options[0].onDecline = { action: 'end' }
+  s = open('o3'); await press('o3', '0'); await press('o3', '111111')
+  acts.length = 0; await vs.resolveIvrConfirm('o3', 'decline', 'u1'); await new Promise(r => setTimeout(r, 60))
+  ok(acts.some(x => x.name === 'hangup') && !acts.some(x => x.name === 'speak'), 'Decline → end the call at once')
+  delete ivr.options[0]
   console.log('DONE')
   setTimeout(() => process.exit(process.exitCode || 0), 200)
 })().catch(e => { console.error(e); process.exit(1) })

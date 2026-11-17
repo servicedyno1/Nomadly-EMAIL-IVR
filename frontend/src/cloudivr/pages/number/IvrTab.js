@@ -16,7 +16,7 @@ import { useUnsaved, SaveRow } from '../../guard';
 import { LANGS, tr, useLang } from '../../i18n';
 import { Assist } from '../../Assist';
 
-const LABELS = { greeting: 'Greeting', options: 'Keys' };
+const LABELS = { greeting: 'Greeting', options: 'Keys', extensions: 'Extensions', afterHours: 'After-hours menu' };
 const EXAMPLES = ['Press 1 for sales at +14155550100, 2 for support at +14155550101, 3 to leave a voicemail', 'Add a key that reads our opening hours', 'Make the greeting warmer, we’re Bella’s Bakery'];
 
 // Built-in IVR texts per language (same as js/voicemail-greeting.js).
@@ -37,8 +37,8 @@ function Greeting({ g, set, audios, prefix, label = 'Greeting', onAudio }) {
   const audio = !!g.greetingAudioUrl || g.mode === 'audio';
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 text-sm"><span className="text-[#d4d4d8] mr-2">{label}</span>
-        {[['text', 'Spoken text'], ['audio', 'Audio file']].map(([m, l]) => <button key={m} type="button" onClick={() => set({ mode: m, greetingAudioUrl: m === 'text' ? null : g.greetingAudioUrl })} className={`civr-pill cursor-pointer ${(audio ? 'audio' : 'text') === m ? 'civr-pill-on' : ''}`} data-testid={`${prefix}-greeting-mode-${m}`}>{l}</button>)}
+      <div className="flex flex-wrap items-center gap-2 text-sm"><span className="text-[#d4d4d8] mr-2">{label}</span>
+        {[['text', 'Spoken text'], ['audio', 'Audio file']].map(([m, l]) => <button key={m} type="button" onClick={() => set({ mode: m, greetingAudioUrl: m === 'text' ? null : g.greetingAudioUrl })} className={`civr-pill cursor-pointer whitespace-nowrap ${(audio ? 'audio' : 'text') === m ? 'civr-pill-on' : ''}`} data-testid={`${prefix}-greeting-mode-${m}`}>{l}</button>)}
       </div>
       {audio ? <AudioSelect value={g.greetingAudioUrl} onChange={v => set({ greetingAudioUrl: v || null, mode: 'audio' })} audios={audios} onAdded={onAudio} testid={`${prefix}-greeting-audio-select`} />
         : <><textarea rows={2} className="civr-input" value={g.greeting || ''} onChange={e => set({ greeting: e.target.value })} data-testid={`${prefix}-greeting-text-input`} />
@@ -208,8 +208,8 @@ export default function IvrTab({ num, reload }) {
   const apply = (c) => { setG({ greeting: tr(c.greeting || ''), greetingAudioUrl: c.greetingAudioUrl || null }); setList(toList(locOpts(c.options))); };
   return (
     <IvrCtx.Provider value={{ ctx: extra, agents, faxNumbers }}>
-    <div className="grid lg:grid-cols-3 gap-4" {...u.bind}>
-      <div className="civr-card p-6 lg:col-span-2 space-y-6" data-testid="ivr-builder">
+    <div className="grid 2xl:grid-cols-3 gap-4" {...u.bind}>
+      <div className="civr-card p-4 sm:p-6 2xl:col-span-2 space-y-6 min-w-0" data-testid="ivr-builder">
         <div className="flex items-center justify-between">
           <div><div className="font-display text-2xl font-bold">Keypad menu (IVR)</div><p className="text-sm text-[#a1a1aa]">For people who call this number: they hear your greeting, then press a key to reach the right place.</p></div>
           <InstantToggle num={num} feature="ivr" label="Keypad menu" checked={enabled} reload={reload} testid="ivr-enabled-toggle" />

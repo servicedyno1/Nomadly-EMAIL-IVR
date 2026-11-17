@@ -99,7 +99,7 @@ export default function NumberDetail() {
   const visible = () => true;
   const subTabs = (GROUPS.find(g => g[0] === gid) || GROUPS[0])[2].filter(visible);
   const badge = answering(n.features);
-  const go = async (id) => { if (id !== tab && await confirmLeave()) { setParams({ tab: id }, { replace: true }); if (window.matchMedia?.('(max-width: 1023px)').matches) setTimeout(() => document.querySelector('[data-number-panel]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80); } };
+  const go = async (id) => { if (id !== tab && await confirmLeave()) { setParams({ tab: id }, { replace: true }); if (window.matchMedia?.('(max-width: 1279px)').matches) setTimeout(() => document.querySelector('[data-number-panel]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80); } };
   const caps = [...(n.features?.fax?.line ? ['fax'] : n.capabilities?.voice !== false ? ['calls'] : []), ...(n.capabilities?.sms && n.features?.texting?.enabled && n.features.texting.available ? ['texts'] : [])];
   const regWait = ['needs_details', 'pending'].includes(n.registration?.status);
   const main = n.status === 'active' && !n.isSubNumber && !n.replacedBy;
@@ -145,9 +145,9 @@ export default function NumberDetail() {
           {!n.replacedBy && <button type="button" onClick={() => go('billing')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="number-quick-renew"><RefreshCw className="w-4 h-4" />Renew or change plan</button>}
         </div>
       )}
-      <div className={subTabs.length > 1 ? 'grid lg:grid-cols-[300px_minmax(0,1fr)] gap-6 items-start' : ''}>
+      <div className={subTabs.length > 1 ? 'grid xl:grid-cols-[280px_minmax(0,1fr)] gap-6 items-start' : ''}>
         {subTabs.length > 1 && (
-          <div className="civr-card !p-0 overflow-hidden lg:sticky lg:top-20" role="tablist" aria-orientation="vertical" aria-label="Settings" data-testid="number-tabstrip">
+          <div className="civr-card !p-0 overflow-hidden xl:sticky xl:top-20" role="tablist" aria-orientation="vertical" aria-label="Settings" data-testid="number-tabstrip">
             {subTabs.map(([id, name, g]) => <FeatureRow key={id} n={n} id={id} name={name} gate={g} active={tab === id} onOpen={() => go(id)} reload={reload} />)}
           </div>
         )}

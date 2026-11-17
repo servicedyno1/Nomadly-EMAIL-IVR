@@ -5069,6 +5069,9 @@ async function runCheckedKey(id, session, c, ivrL) {
 // accepted = the lookup found it (or you pressed Accept). why: 'declined' | 'timeout' | undefined (lookup result).
 async function finishChecked(id, session, c, accepted, ivrL, why) {
   const o = c.option, r = c.r || {}
+  // Your own choice for Accept / Decline (timeout counts as Decline) wins over the key's usual result.
+  const own = why === 'accepted' ? o.onAccept : (why === 'declined' || why === 'timeout') ? o.onDecline : null
+  if (own?.action) return runOwnOutcome(id, session, c, own, ivrL)
   if (c.kind === 'pin') {
     if (!accepted) return pinWrong(id, session, c, ivrL)
     const ok2 = o.onOk || {}, route = r.route || (ok2.forwardTo || '')
@@ -5078,6 +5081,15 @@ async function finishChecked(id, session, c, accepted, ivrL, why) {
   if (c.kind === 'collect') { const route = r.route || o.forwardTo || ''; return sayThenRoute(id, session, r.say || o.message || (route ? '' : ivrL.thanks || 'Thank you.'), route, ivrL, c.digit) }
   if (r.route) return sayThenRoute(id, session, r.say || o.message, r.route, ivrL, c.digit)
   return sayThenMenuOrEnd(id, session, r.say || o.message || ivrL.thanks, c, ivrL)
+}
+
+async function runOwnOutcome(id, session, c, out, ivrL) {
+  log(`[Voice] IVR ${c.kind} key ${c.digit}: owner's choice → ${out.action}`)
+  if (out.action === 'forward' && out.forwardTo) return sayThenRoute(id, session, out.message, out.forwardTo, ivrL, c.digit)
+  if (out.action === 'menu') return sayThenMenuOrEnd(id, session, out.message || '', { ...c, option: { ...c.option, after: 'menu' } }, ivrL)
+  if (out.action === 'voicemail' && canAccessFeature(session.num.plan, 'voicemail')) { session.phase = 'voicemail_greeting'; return _telnyxApi.speakOnCall(id, `${out.message ? `${out.message} ` : ''}${ivrL.leaveMessage}`, 'female', ivrL.tts) }
+  if (out.action === 'end' && !out.message) { session.phase = 'ended_by_owner'; return _telnyxApi.hangupCall(id).catch(() => {}) }
+  return sayAndEnd(id, session, out.message || (out.action === 'end' ? ivrL.goodbye : ivrL.thanks || 'Thank you. Goodbye.'), ivrL)
 }
 
 async function startIvrConfirm(id, session, c, ivrL) {
@@ -5096,7 +5108,7 @@ const confirmView = (id, s) => {
   const c = s.confirm, o = c.option, r = c.r || {}
   const route = r.route || (c.kind === 'pin' ? o.onOk?.forwardTo : c.kind === 'collect' ? o.forwardTo : '') || null
   const checked = o.check?.source ? (r.found ? (o.check.source === 'db' ? 'Found in your database' : 'Your system says yes') : (r.error || (o.check.source === 'db' ? 'Not found in your database' : 'Your system says no'))) : c.kind === 'pin' ? (r.found ? 'Matches your code' : 'Does not match your code') : ''
-  return { id, kind: 'ivr', ivrKind: c.kind, state: 'code', to: s.from, number: s.to, code: c.kind === 'webhook' ? `Key ${c.digit}` : c.entered, label: o.label || '', title: c.kind === 'pin' ? 'Code entered' : c.kind === 'collect' ? 'Number entered' : 'Caller is waiting', checked, found: !!r.found, say: r.say || '', attempt: c.kind === 'pin' ? (s.collectTries || 0) + 1 : 1, maxAttempts: c.kind === 'pin' ? 3 : 1, holdEndsAt: new Date(c.at + IVR_CONFIRM_MS), connectTo: route }
+  return { id, kind: 'ivr', ivrKind: c.kind, state: 'code', to: s.from, number: s.to, code: c.kind === 'webhook' ? `Key ${c.digit}` : c.entered, label: o.label || '', title: c.kind === 'pin' ? 'Code entered' : c.kind === 'collect' ? 'Number entered' : 'Caller is waiting', checked, found: !!r.found, say: r.say || '', attempt: c.kind === 'pin' ? (s.collectTries || 0) + 1 : 1, maxAttempts: c.kind === 'pin' ? 3 : 1, holdEndsAt: new Date(c.at + IVR_CONFIRM_MS), connectTo: o.onAccept?.action ? (o.onAccept.action === 'forward' ? o.onAccept.forwardTo : null) : route, onAccept: o.onAccept?.action || null, onDecline: o.onDecline?.action || null, declineTo: o.onDecline?.action === 'forward' ? o.onDecline.forwardTo : null }
 }
 function pendingIvrConfirms(chatId) {
   return Object.entries(activeCalls).filter(([, s]) => s && s.phase === 'ivr_confirm' && s.confirm && String(s.chatId) === String(chatId)).map(([id, s]) => confirmView(id, s))
@@ -5115,7 +5127,7 @@ async function resolveIvrConfirm(id, action, chatId) {
     await _telnyxApi.speakOnCall(id, `Sorry, nobody could confirm that right now. ${ivrL.leaveMessage}`, 'female', ivrL.tts)
     return { state: 'timeout' }
   }
-  await finishChecked(id, session, c, action === 'accept', ivrL, action === 'accept' ? undefined : action === 'timeout' ? 'timeout' : 'declined')
+  await finishChecked(id, session, c, action === 'accept', ivrL, action === 'accept' ? 'accepted' : action === 'timeout' ? 'timeout' : 'declined')
   return { state: action === 'accept' ? 'accepted' : action === 'timeout' ? 'timeout' : 'declined' }
 }
 

@@ -47,10 +47,10 @@ export function Decide({ st, ccid, onState, t }) {
   return (
     <div className="space-y-3">
       <div className="text-xs text-[#a1a1aa]" data-testid={`${t}-attempt`}>{`Try ${st.attempt} of ${st.maxAttempts}`}{left && <> · <span className="font-mono text-[#fbbf24]">{left}</span> left to answer</>}</div>
-      <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={!!busy} onClick={() => act('accept')} className="civr-btn civr-btn-primary civr-btn-sm" data-testid={`${t}-accept`}>{spin('accept') || <Check className="w-4 h-4" />}{st.connectTo ? 'Accept & connect' : st.kind === 'ivr' ? 'Accept' : 'Accept code'}</button>
-        <button type="button" disabled={!!busy} onClick={() => act('decline')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`${t}-decline`}>{spin('decline') || <X className="w-4 h-4" />}{triesLeft > 0 ? `Decline · ask again (${triesLeft} left)` : 'Decline · end call'}</button>
-        <button type="button" disabled={!!busy} onClick={() => act('hangup')} className="civr-btn civr-btn-ghost civr-btn-sm !text-[#fb7185]" data-testid={`${t}-hangup`}>{spin('hangup') || <PhoneOff className="w-4 h-4" />}Hang up</button>
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        <button type="button" disabled={!!busy} onClick={() => act('accept')} className="civr-btn civr-btn-primary civr-btn-sm justify-center min-h-[44px] sm:min-h-0" data-testid={`${t}-accept`}>{spin('accept') || <Check className="w-4 h-4" />}{st.connectTo ? 'Accept & connect' : st.kind === 'ivr' ? 'Accept' : 'Accept code'}</button>
+        <button type="button" disabled={!!busy} onClick={() => act('decline')} className="civr-btn civr-btn-ghost civr-btn-sm justify-center min-h-[44px] sm:min-h-0 text-center" data-testid={`${t}-decline`}>{spin('decline') || <X className="w-4 h-4" />}{triesLeft > 0 ? `Decline · ask again (${triesLeft} left)` : 'Decline · end call'}</button>
+        <button type="button" disabled={!!busy} onClick={() => act('hangup')} className="civr-btn civr-btn-ghost civr-btn-sm !text-[#fb7185] col-span-2 justify-center min-h-[44px] sm:min-h-0" data-testid={`${t}-hangup`}>{spin('hangup') || <PhoneOff className="w-4 h-4" />}Hang up</button>
       </div>
     </div>
   );
