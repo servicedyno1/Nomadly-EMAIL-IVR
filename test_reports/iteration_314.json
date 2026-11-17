@@ -1,0 +1,32 @@
+{
+  "summary": "Tested the CloudIVR 'pay the shortfall' flow (no more 'top up first' dead-ends). Backend: 8/8 pytest pass. Every 402 insufficient_balance reply now also has balance and need, and need = ceil((cost - real balance)*100)/100 on all endpoints checked: lookup ($0.015 -> need 0.02), lookup/bulk ($0.03 -> 0.03), lookup/email ($0.0015 at $0 -> 0.01), numbers/+13346970100/renew ($120 -> 120), travel-esim/orders ($15 -> 15), caller-ids/verify ($25 -> 25). A 400 error does not get the extra fields. Frontend (Playwright, Alice): a lookup with a near-empty wallet opens funds-ask-dialog titled 'Pay $0.02 to continue'. The reason reads 'A lookup costs $0.015.' (the top-up sentence is removed). The dialog shows the crypto option, the card option with 'Coming soon', amount prefilled to 10 (the minimum) and the min-top-up note. 'Get payment address' shows the deposit card (PREVIEW-MODE-DO-NOT-SEND-FUNDS) and funds-ask-waiting. Raising walletOf.usdIn in Mongo showed funds-ask-paid after 3.8s, the dialog closed at 4.6s and the lookup ran by itself (lookup-result shown, $0.015 charged). Closing with X or Esc leaves lookup-single-error with the 'Add funds' link; no crash. Retry still short (wallet drained right after paid): the dialog came back once, only 1 extra POST /lookup, and it can be closed, so no loop. Layout is fine at 390 (bottom sheet), 768 and 1280, with no horizontal overflow and the buttons reachable. The renew page in billing has its own 'Pay the $120 rest with crypto' block (WalletPay) and never reaches the global dialog, as designed.",
+  "backend_issues": {"critical": [], "minor": [
+    {"endpoint": "402 shortfall wrapper (index.js withShortfall)", "issue": "balance is round2(real balance), so a $0.003 wallet comes back as balance: 0, while need is worked out from the real balance. Harmless (the target is still reached), but the frontend target balance+need can be up to $0.005 off from the server's own idea of the shortfall."}
+  ]},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Header wallet chip", "issue": "After the dialog auto-finished (wallet raised to $50, then charged), the header chip still showed $0.003. The balance summary is not refreshed when FundsAskHost resolves.", "selector": "header balance chip", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "funds-ask-dialog", "issues": ["The title says 'Pay $0.02 to continue', but the user is asked to send $10 (the minimum top-up). The min-note explains this, but the title could show the real charge, e.g. 'Pay $10.00 to continue ($0.02 needed)'.", "After closing, the error note still says 'Top up your wallet first.' (expected per the request, noted only)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_funds_shortfall.py", "/app/test_reports/pytest/funds_shortfall.xml"],
+  "action_items": [
+    "(Low) Refresh the header balance/summary after the funds-ask dialog resolves true (e.g. call refreshSummary or dispatch an event).",
+    "(Low/UX) Consider showing the actual amount to pay (max(min, need)) in the dialog title when need < minTopup."
+  ],
+  "critical_code_review_comments": [
+    "FundsAsk.js: setPending's updater calls prev?.resolve(false), a side effect inside a state updater. React StrictMode/concurrent rendering may run it twice. It's harmless here because resolve is idempotent, but it's cleaner to resolve outside the updater (a ref).",
+    "withShortfall parses the cost from free-text messages with regex ('costs $X', 'add $X'). Fragile if copy changes or is translated; prefer passing body.cost/body.need explicitly from each 402 site (the wrapper already honours them).",
+    "The wrapper only applies inside the cloudivr-web router; the 402 site copy still ends with 'Top up your wallet first.', and the dialog filters it with a regex /top up|add funds|add \\$/. A localized message would slip through.",
+    "useWalletReaches polls GET /wallet every 5s (26 polls seen in about 2 minutes across the dialog sessions). Fine while the dialog is open, and it is cleared on close."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_funds_shortfall.py", "/app/backend/tests/alice_wallet_backup.json"],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "Temporary only: a pending webCallerIds doc +14155559871 (removed by the test teardown). The test runs created email-check and number-lookup rows/transactions and 3 preview webDeposits; all were deleted by id. Alice's walletOf was restored to usdIn 0.003 / usdOut 0. /app/backend/tests/alice_wallet_backup.json did not exist and was created with these values.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Alice walletOf _id '5000000000000900' is normally usdIn 0.003, usdOut 0. The pytest sets the wallet near-empty and restores it. The email-check price is $0.0015, so set the wallet to exactly $0 for that test. Playwright can call mongosh via subprocess to simulate funds landing. The dialog uses the Wallet TopUp test IDs (wallet-method-crypto, wallet-amount-input, wallet-topup-button), scoped under [data-testid=funds-ask-dialog]."
+}
