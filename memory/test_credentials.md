@@ -270,3 +270,7 @@
 - MultiTEL NL mobile +3197010278502 — PROD on onarrival21@gmail.com (chat 5000000000000002); preview copy on civr.uxtest (5000000000000077).
 - Infobip GB SMS-only +447860089499 — preview civr.uxtest. Infobip CA +16479457172 + MultiTEL US +18648308599 = system caller rotation.
 - Owner's test phone for texts: +31684448264 (corrected 2026-11-15; old +316844448264 was wrong) (as given; looks 1 digit long for NL).
+
+## 2026-11-17 note
+- Alice (civr.alice@example.com / AliceTest#2026) now has a legal profile in the preview DB, so campaign validateOnly / outgoing-call routes no longer return 428. Emily harness: `node scripts/emily_e2e.js all 1` (restores +13346970100 menu).
+- Production live keypad probe: copy scripts/ivr_live_probe.js to the app droplet, run from the app-main release dir (see file header). Uses owner's +18667977419 (restores its menu) and caller ID +18648308599.

@@ -1,5 +1,5 @@
 # Live test script — new keypad keys, queue, stop key (written 2026-11-17)
-Nothing below has run on a real call. Do this after Save to GitHub + deploy, on ONE test number, before telling customers.
+Calls A–F (deep menu, webhook, collect, PIN, pay text) and the wrong-key path PASSED on production 2026-11-17 with scripts/ivr_live_probe.js. After the next deploy: re-run E (PIN pound fix), then G–O (queue, stop key) which are not live yet.
 Agent side: confirm the release on app-main contains js/cloudivr-web/ivr-blueprint.js and `grep -c queueContinue js/voice-service.js` > 0, then tail the app log while the owner calls.
 
 Setup on the test number's Keypad menu (then Save, switch ON):
