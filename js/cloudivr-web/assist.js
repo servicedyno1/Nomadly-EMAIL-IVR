@@ -324,7 +324,7 @@ const GAPS = {
   ivr: (f, c, said, cur) => [...(f.options && !f.options.length ? ['Add at least one key.'] : []), ...keyGaps(f.options, c, '', said, cur?.options),
     ...(f.greeting && f.options ? f.options.filter(o => !new RegExp(`\\b${o.digit}\\b`).test(f.greeting)).map(o => `The greeting doesn't mention key ${o.digit}.`) : []),
     ...(f.afterHours?.options ? keyGaps(f.afterHours.options, c, 'After hours → ', said, cur?.afterHours?.options) : []),
-    ...(f.afterHours && c && c.hoursOn === false ? ['The after-hours menu only plays once your Hours schedule is on (Hours tab).'] : []),
+    ...(f.afterHours?.enabled && c && c.hoursOn === false ? ['The after-hours menu only plays once your Hours schedule is on (Hours tab).'] : []),
     ...(f.extensions || []).filter(e => e.action !== 'devices' && !e.forwardTo).map(e => `Extension ${e.code}: which phone should it ring?`)],
   quick: (f) => [...(!has(f.targets) ? ['Which number(s) should I call?'] : []), ...(f.mode === 'transfer' && !f.transferTo ? ['Which phone should callers be connected to?'] : []), ...(f.mode === 'otp' && f.script && !/press\s*(1|one)/i.test(f.script) ? ['The script should tell them to press 1 before typing the code.'] : []), ...(f.mode === 'menu' ? keyGaps(f.menu) : [])],
   campaign: (f) => [...(f.mode === 'transfer' && !f.transferNumber ? ['Which phone should calls transfer to?'] : []), ...(f.mode === 'menu' ? keyGaps(f.menu) : [])],
@@ -441,7 +441,8 @@ async function chat(screen, messages, current, context) {
     if (screen === 'ivr' && patch.afterHours?.options) keepLive(patch.afterHours.options, current?.afterHours?.options)
     if (screen === 'ivr' && Array.isArray(patch.options)) dropUnasked(patch, messages, current)
     // Parts the proposal just repeats unchanged are left out, so the summary and "still needed" only cover what was asked.
-    const echoed = screen === 'ivr' ? ['extensions', 'afterHours'].filter(f => f in patch && (sameAs(patch[f], current?.[f]) || (!current?.[f] && !patch[f]?.enabled && !(patch[f]?.length)))) : []
+    const emptyAH = (v) => !v || (!v.enabled && !((v.options || []).length)), emptyExt = (v) => !v || !v.length
+    const echoed = screen === 'ivr' ? ['extensions', 'afterHours'].filter(f => f in patch && (sameAs(patch[f], current?.[f]) || (f === 'afterHours' ? emptyAH(patch.afterHours) && emptyAH(current?.afterHours) : emptyExt(patch.extensions) && emptyExt(current?.extensions)))) : []
     for (const f of echoed) delete patch[f]
     if (echoed.length && Array.isArray(j.summary)) j.summary = j.summary.filter(x => !(echoed.includes('extensions') && /extension/i.test(String(x))) && !(echoed.includes('afterHours') && /after.?hours|closed/i.test(String(x))))
     const ask = Object.keys(patch).length ? invented(screen, patch, messages, current) : []

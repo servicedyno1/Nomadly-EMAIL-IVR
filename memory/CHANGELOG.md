@@ -3599,3 +3599,11 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Emily: unchanged keys / echoed extensions not re-questioned. Extensions row one line at md+.
 - Tests: js/tests/ivr_more_keys.test.js (replay), js/tests/fax_ivr_doc_sweep.test.js; iteration_313 passed.
 - Open: Emily still echoes a disabled afterHours (frontend sends greetingAudioUrl:null); readiness ignores eSIM texting lines; extension inputs cramped at 1280; real test call pending a production deploy.
+
+## 2026-06 (b) — iPad fix, quick replies, Emily cleanup, personalization engine
+- iPad/tablet: New Receptionist page no longer crushes the form to one char. AgentForm's internal form|chat split and the receptionist side column now collapse until xl (1280) instead of lg (1024), so iPad (1024) stacks. Verified at 1024px.
+- Pop-up quick replies: owner keeps a list of "wrong code" messages (3 ready-made defaults) + one-tap Save from the pop-up. Backend GET/PUT /prefs/otp-replies; frontend chips + Save link in Decide (data-testid otp-alert-replies / -reply-N / -save-reply). Tested via curl + screenshot.
+- Emily cleaner replies: (1) readiness no longer flags an sms/pay key that already has smsFrom set (ivr-blueprint line 95). (2) assist no longer echoes a disabled/empty afterHours or unchanged extensions (summary line, chip, Hours-schedule note); GAPS Hours note only when afterHours.enabled. Both verified by node one-liners.
+- Personalization engine js/personalize.js (fillPersonal/tokensIn): [Name]/[Code]/[Amount]/[AnyColumn] per contact; codes read digit-by-digit, amounts as money; missing → owner fallback word, else skip. Unit test js/tests/personalize.test.js.
+- Quick IVR personalization (web, live TTS): POST /calls/quick accepts personalize + fallback + contacts[{number,name,fields}]; per-contact greeting; skipped contacts reported; preview at POST /calls/quick/preview. parseLeads now carries extra columns as fields. Verified via curl.
+- PENDING: personalization UI in Quick IVR/campaign pages; Bulk SMS (bot) and Bulk IVR per-lead voice (Bulk IVR uses one pre-recorded audio → needs per-call TTS, larger change).

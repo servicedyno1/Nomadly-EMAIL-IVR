@@ -27,6 +27,18 @@ function useOtpCall(ccid) {
   return { st, setSt, gone };
 }
 
+// Owner's saved "wrong code" replies for the pop-up (shared across all open banners; loaded once).
+let _repliesCache = null;
+function useOtpReplies() {
+  const [replies, setReplies] = useState(_repliesCache || []);
+  useEffect(() => {
+    if (_repliesCache) return;
+    api('/prefs/otp-replies').then(d => { _repliesCache = d.replies || []; setReplies(_repliesCache); }).catch(() => {});
+  }, []);
+  const save = (list) => { _repliesCache = list; setReplies(list); api('/prefs/otp-replies', { method: 'PUT', body: { replies: list } }).catch(() => {}); };
+  return { replies, save };
+}
+
 function useLeft(until) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { if (!until) return undefined; const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, [until]);
@@ -38,8 +50,10 @@ function useLeft(until) {
 export function Decide({ st, ccid, onState, t }) {
   const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState(st.replayMessage || st.declineMessage || '');
+  const { replies, save } = useOtpReplies();
   const left = useLeft(st.holdEndsAt);
   const triesLeft = st.maxAttempts - st.attempt;
+  const saved = (msg || '').trim() && replies.some(r => r === msg.trim());
   const done = { accept: st.kind === 'ivr' ? 'Accepted' : 'Code accepted', replay: 'Replaying — they can type it again', decline: triesLeft > 0 || st.kind === 'ivr' ? 'Declined' : 'Declined — call ended', hangup: 'Call ended' };
   const act = async (action) => {
     setBusy(action);
@@ -50,9 +64,15 @@ export function Decide({ st, ccid, onState, t }) {
   return (
     <div className="space-y-3 w-full md:w-auto md:max-w-md">
       <div className="text-xs text-[#a1a1aa]" data-testid={`${t}-attempt`}>{`Try ${st.attempt} of ${st.maxAttempts}`}{left && <> · <span className="font-mono text-[#fbbf24]">{left}</span> left to answer</>}</div>
-      {st.canReplay && <label className="block text-xs text-[#a1a1aa]">Message they hear on Replay or Decline
-        <input className="civr-input mt-1" value={msg} maxLength={300} onChange={e => setMsg(e.target.value)} placeholder="That code was not correct." data-testid={`${t}-message`} />
-      </label>}
+      {st.canReplay && <div className="space-y-1.5">
+        <label className="block text-xs text-[#a1a1aa]">Message they hear on Replay or Decline
+          <input className="civr-input mt-1" value={msg} maxLength={300} onChange={e => setMsg(e.target.value)} placeholder="That code was not correct." data-testid={`${t}-message`} />
+        </label>
+        {replies.length > 0 && <div className="flex flex-wrap gap-1.5" data-testid={`${t}-replies`}>
+          {replies.map((r, i) => <button key={i} type="button" onClick={() => setMsg(r)} className="civr-pill max-w-full truncate hover:text-white" title={r} data-testid={`${t}-reply-${i}`}>{r}</button>)}
+        </div>}
+        {(msg || '').trim() && !saved && <button type="button" onClick={() => save([...replies, msg.trim()].slice(-12))} className="text-xs underline text-[#818cf8] hover:text-white" data-testid={`${t}-save-reply`}>Save this message for next time</button>}
+      </div>}
       <div className={`grid gap-2 ${st.canReplay ? 'grid-cols-3' : 'grid-cols-2'}`}>
         <button type="button" disabled={!!busy} onClick={() => act('accept')} className={`${btn} civr-btn-primary`} data-testid={`${t}-accept`}>{spin('accept') || <Check className="w-4 h-4" />}{st.connectTo ? 'Accept & connect' : st.kind === 'ivr' ? 'Accept' : 'Accept code'}</button>
         {st.canReplay && <button type="button" disabled={!!busy} onClick={() => act('replay')} className={`${btn} civr-btn-ghost !text-[#fbbf24]`} title="Plays your message, then asks for the code again. Doesn't use up a try." data-testid={`${t}-replay`}>{spin('replay') || <RotateCcw className="w-4 h-4" />}Replay</button>}

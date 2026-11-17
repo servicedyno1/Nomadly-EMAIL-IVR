@@ -157,6 +157,20 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
   }))
 
   // ── App language: spoken IVR menus follow it (greetings still on a default text switch language too) ──
+  // ── Saved "wrong code" replies for the Accept / Decline pop-up (owner keeps a list; the pop-up adds to it) ──
+  const DEFAULT_OTP_REPLIES = ['That code is not correct. Please check and try again.', 'That code has expired. We can send you a new one.', 'We could not verify that. Please try once more.']
+  const cleanReply = (t) => String(t || '').replace(/\s+/g, ' ').trim().slice(0, 300)
+  router.get('/prefs/otp-replies', h(async (req, res) => {
+    const p = await prefs.findOne({ _id: req.webChatId }, { projection: { otpReplies: 1 } })
+    res.json({ replies: Array.isArray(p?.otpReplies) ? p.otpReplies : DEFAULT_OTP_REPLIES })
+  }))
+  router.put('/prefs/otp-replies', h(async (req, res) => {
+    const list = [...new Set((Array.isArray(req.body?.replies) ? req.body.replies : []).map(cleanReply).filter(Boolean))].slice(0, 12)
+    await prefs.updateOne({ _id: req.webChatId }, { $set: { otpReplies: list, updatedAt: new Date() } }, { upsert: true })
+    res.json({ replies: list })
+  }))
+
+
   router.put('/prefs/lang', h(async (req, res) => {
     const lang = String(req.body.lang || '')
     if (!vmGreeting.IVR_LANGS.includes(lang)) return bad(res, 400, 'invalid_lang', 'Pick English, French or Spanish.')

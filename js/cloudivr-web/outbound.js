@@ -5,6 +5,7 @@
 const crypto = require('crypto')
 const phoneConfig = require('../phone-config')
 const ivrOb = require('../ivr-outbound')
+const personalize = require('../personalize')
 const { walletOps } = require('./wallet')
 const callerIds = require('./caller-ids')
 const { normPhone, E164, parseBackups } = require('./numbers')
@@ -199,7 +200,8 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     } else if (b.showAs) {
       try { showAs = await callerIds.resolve(chatId, b.showAs) } catch (e) { return { err: [400, e.code || 'invalid_show_as', e.message] } }
     }
-    const targets = parseTargets(b)
+    let targets = parseTargets(b)
+    if (!targets.length && Array.isArray(b.contacts)) targets = [...new Set(b.contacts.map(c => normPhone(c.number) || String(c.number || '').trim()).filter(Boolean))]
     if (!targets.length) return { err: [400, 'invalid_number', 'Enter the number to call with country code, e.g. +14155550100.'] }
     if (targets.length > (trial ? 1 : MAX_TARGETS)) return { err: [400, 'too_many_numbers', trial ? 'The free call goes to one number.' : `Up to ${MAX_TARGETS} numbers per Quick IVR call — use a campaign for more.`] }
     for (const t of targets) {
@@ -210,7 +212,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     // Free trial: the system caller is picked (and logged) only once the request is valid.
     if (trial) callerId = (await ivrOb.getTrialCaller({ purpose: 'web_quick_ivr_trial', chatId, to: targets[0] })).callerId
-    let audio = null, text = null
+    let audio = null, text = null, personalizeOn = false
     if (b.audioId && !trial) {
       const a = await audioLibraryService.getAudio(String(b.audioId))
       if (!a || a.chatId !== String(chatId)) return { err: [400, 'invalid_audio', 'Pick a message from your audio library.'] }
@@ -218,8 +220,11 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     } else {
       text = String(b.text || '').trim().slice(0, 1500)
       if (!text) return { err: [400, 'invalid_message', 'Pick a template, type a script or choose audio from your library.'] }
-      const unfilled = ivrOb.validateFilled(text).unfilled || []
-      if (unfilled.length) return { err: [400, 'unfilled_placeholders', `Fill in: ${unfilled.map(u => `[${u}]`).join(', ')}.`] }
+      personalizeOn = !!b.personalize && personalize.tokensIn(text).length > 0
+      if (!personalizeOn) {
+        const unfilled = ivrOb.validateFilled(text).unfilled || []
+        if (unfilled.length) return { err: [400, 'unfilled_placeholders', `Fill in: ${unfilled.map(u => `[${u}]`).join(', ')}.`] }
+      }
     }
     // Spoken scripts use the picked voice, else the account's saved default voice.
     const voiceKey = String(b.voice || (await getPrefs(chatId)).ttsVoice || '').toLowerCase()
@@ -261,10 +266,32 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     const stopKey = mode === 'transfer' && !menu && !trial && /^[0-9]$/.test(String(b.stopKey ?? '')) ? String(b.stopKey) : null
     if (stopKey && activeKeys.includes(stopKey)) return { err: [400, 'invalid_stop_key', `Key ${stopKey} is already used to connect the call — pick a different stop key.`] }
+    // Per-contact personalization: fill [Name]/[Code]/[Amount] and any uploaded column for each number, spoken for the call.
+    let personalizeCfg = null, leadText = null, skipped = []
+    if (personalizeOn && audio == null) {
+      const fallback = String(b.fallback || '').trim().slice(0, 40)
+      const byNum = new Map()
+      for (const c of Array.isArray(b.contacts) ? b.contacts : []) {
+        const n = normPhone(c.number) || String(c.number || '').trim()
+        if (n && !byNum.has(n)) byNum.set(n, { number: n, name: String(c.name || '').slice(0, 60) || null, fields: Array.isArray(c.fields) ? c.fields.slice(0, 20).map(f => ({ label: String(f.label || '').slice(0, 40), value: String(f.value ?? '').slice(0, 200) })) : [] })
+      }
+      for (const n of targets) if (!byNum.has(n)) byNum.set(n, { number: n, name: null, fields: [] })
+      leadText = {}
+      const sendable = []
+      for (const n of targets) {
+        const r = personalize.fillPersonal(text, byNum.get(n), { speak: true, fallback })
+        if (r.skip) skipped.push({ number: n, missing: r.missing })
+        else { leadText[n] = r.text; sendable.push(n) }
+      }
+      if (!sendable.length) return { err: [400, 'all_skipped', `No one has the details your script needs (${personalize.tokensIn(text).join(', ')}). Add a fallback word, or include those columns.`] }
+      targets = sendable
+      personalizeCfg = { on: true, fallback, tokens: personalize.tokensIn(text) }
+    }
     return {
       cfg: {
         stopKey, callerId, showAs, callerPlan: caller?.plan || null, targets, mode, menu, transferTo, transferBackups, otp, activeKeys, holdMusic: !!b.holdMusic && (mode === 'otp' || !trial),
         audioId: audio?.id || null, audioUrl: audio?.audioUrl || null, text, voiceName, templateName: String(b.templateName || audio?.name || 'Custom script').slice(0, 80),
+        personalize: personalizeCfg, leadText, skipped,
       },
     }
   }
@@ -272,7 +299,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   const rateOf = (cfg) => Math.max(...cfg.targets.map(t => voiceService.getIvrCallRate(t)), cfg.transferTo ? voiceService.getIvrCallRate(cfg.transferTo) : 0)
   const engineParams = (chatId, cfg, to, trial) => ({
     chatId, callerId: cfg.callerId, displayCallerId: cfg.showAs || null, targetNumber: to, ivrNumber: cfg.menu ? firstForward(cfg.menu) : cfg.transferTo || null, transferBackups: cfg.menu || cfg.mode === 'otp' ? [] : (cfg.transferBackups || []), menu: cfg.menu,
-    audioUrl: cfg.audioUrl, greetingText: cfg.audioUrl ? null : cfg.text, voiceName: cfg.voiceName || undefined, activeKeys: cfg.activeKeys, stopKey: cfg.stopKey || null, templateName: cfg.templateName,
+    audioUrl: cfg.audioUrl, greetingText: cfg.audioUrl ? null : (cfg.personalize?.on && cfg.leadText ? cfg.leadText[to] : cfg.text), voiceName: cfg.voiceName || undefined, activeKeys: cfg.activeKeys, stopKey: cfg.stopKey || null, templateName: cfg.templateName,
     holdMusic: cfg.holdMusic, provider: cfg.showAs ? 'multitel' : 'telnyx', isTrial: !!trial, ivrMode: cfg.mode === 'otp' ? 'otp_collect' : 'transfer',
     otpLength: cfg.otp?.length || 6, otpMaxAttempts: 3, otpConfirmMsg: cfg.otp?.confirmMsg || null, otpRejectMsg: cfg.otp?.rejectMsg || null,
   })
@@ -291,7 +318,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       doc.results = cfg.targets.map(to => ({ to, ok: true, preview: true, callControlId: cfg.mode === 'otp' ? otpSim.start(chatId, to, cfg) : null }))
       await history.insertOne(doc)
       const what = cfg.mode === 'otp' ? `ask for a ${cfg.otp.length}-digit code` : cfg.menu ? `route keys ${Object.keys(cfg.menu).join(', ')}` : `transfer to ${cfg.transferTo} on key ${cfg.activeKeys.join('/')}`
-      return { status: 202, body: { dryRun: true, rate, count: cfg.targets.length, callId: doc._id, results: doc.results, mode: cfg.mode, message: `Preview mode: ${cfg.targets.length} call(s) validated (${what}) but not dialed.${cfg.mode === 'otp' ? ' A simulated call below lets you try Accept / Decline.' : ''}` } }
+      return { status: 202, body: { dryRun: true, rate, count: cfg.targets.length, callId: doc._id, results: doc.results, mode: cfg.mode, ...(cfg.skipped?.length ? { skipped: cfg.skipped } : {}), message: `Preview mode: ${cfg.targets.length} call(s) validated (${what}) but not dialed.${cfg.mode === 'otp' ? ' A simulated call below lets you try Accept / Decline.' : ''}` } }
     }
     const results = []
     for (const to of cfg.targets) {
@@ -304,8 +331,20 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const ok = results.filter(r => r.ok).length
     if (!ok) return { status: 424, body: { error: 'call_failed', message: results[0]?.error || 'The call could not be started.', results } }
     const swapped = results.find(r => r.callerUsed)
-    return { status: 201, body: { started: ok, results, rate, callId: doc._id, mode: cfg.mode, ...(swapped ? { callerUsed: swapped.callerUsed, notice: `Your number ${cfg.showAs || cfg.callerId} can't be shown as caller ID right now, so this call went out from ${swapped.callerUsed}.` } : {}) } }
+    return { status: 201, body: { started: ok, results, rate, callId: doc._id, mode: cfg.mode, ...(cfg.skipped?.length ? { skipped: cfg.skipped } : {}), ...(swapped ? { callerUsed: swapped.callerUsed, notice: `Your number ${cfg.showAs || cfg.callerId} can't be shown as caller ID right now, so this call went out from ${swapped.callerUsed}.` } : {}) } }
   }
+
+  // Preview the personalized script for the first few contacts before dialing (and who would be skipped).
+  router.post('/calls/quick/preview', h(async (req, res) => {
+    const { cfg, err } = await buildCall(req.webChatId, req.body)
+    if (err) return bad(res, ...err)
+    if (!cfg.personalize?.on) return res.json({ personalized: false, samples: [], skipped: [] })
+    res.json({
+      personalized: true, tokens: cfg.personalize.tokens, fallback: cfg.personalize.fallback,
+      samples: cfg.targets.slice(0, 5).map(to => ({ number: to, text: cfg.leadText[to] })),
+      skipped: cfg.skipped, total: cfg.targets.length,
+    })
+  }))
 
   router.get('/outbound/templates', (req, res) => res.json(templates()))
   router.post('/outbound/fill', h(async (req, res) => {

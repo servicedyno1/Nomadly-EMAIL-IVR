@@ -77,7 +77,7 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
     try { await api(`/ai-agents/${f.id}`, { method: 'DELETE' }); toast.success('Agent deleted'); u.reset(); onDeleted(); } catch (err) { toast.error(err.message); }
   };
   return (
-    <div className="grid lg:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
+    <div className="grid xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
     <form onSubmit={save} className="civr-card p-6 space-y-6" data-testid="ai-agent-form" {...u.bind}>
       <Basics f={f} set={set} voices={voices} />
       <Field label={rec ? 'Greeting (optional)' : 'First message (optional)'} hint={rec ? 'The exact words callers hear when it picks up. Use {name} and {business}. Leave empty for the standard greeting.' : 'The exact words that open every call. Use {name}, {business} and {lead_name} (or {lead_name|there} for leads without a name). Leave empty for the standard opening.'}><Text f={f} set={set} k="firstMessage" rows={2} ph={rec ? 'Thanks for calling {business}, this is {name}. How can I help?' : 'Hi {lead_name|there}, this is {name} from {business}. Do you have a minute?'} testid="ai-agent-first-message-input" /></Field>

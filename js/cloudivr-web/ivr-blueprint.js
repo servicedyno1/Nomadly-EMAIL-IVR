@@ -92,7 +92,7 @@ function validate(ivr, ctx = {}) {
     if (o.action === 'pay' && o.payVia !== 'provider' && !isUrl(o.payUrl)) err(k, 'Add the https address of your own payment page (e.g. your Stripe or PayPal link).')
     if (o.action === 'sms' || o.action === 'pay') {
       if (o.action === 'sms' && !hasText(o.smsText) && !(Array.isArray(o.smsTexts) && o.smsTexts.length)) err(k, 'Add the text this key should send.')
-      if (lines && !lines.length) err(k, 'This key texts the caller, but you have no Texting Number yet — order one, or change the key.')
+      if (lines && !lines.length && !o.smsFrom) err(k, 'This key texts the caller, but you have no Texting Number yet — order one, or change the key.')
       else if (lines && lines.length > 1 && !lines.some(l => l.id === o.smsFrom)) err(k, `Choose which Texting Number sends it (${lines.map(l => l.phone).join(' or ')}).`)
     }
     if (o.action === 'voicemail' && ctx.voicemailAvailable === false) err(k, 'Voicemail needs the Starter plan or higher.')

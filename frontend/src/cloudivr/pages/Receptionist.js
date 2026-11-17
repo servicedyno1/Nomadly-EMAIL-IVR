@@ -139,9 +139,9 @@ export function ReceptionistEdit() {
       <ErrorNote error={error} />
       {prepFor && <div className="civr-card p-4 mb-4 text-sm" data-testid="rec-prep-note">{`Setting up a receptionist for ${prepFor}. Add your business name and answers, save, then assign the number on the right.`}</div>}
       {!isNew && loading && !agent ? <SkeletonPage header={false} cards={2} rows={0} /> : agent && (
-        <div className="grid lg:grid-cols-5 gap-4 items-start">
-          <div className="lg:col-span-3"><AgentForm mode="receptionist" key={agent.id || 'new'} initial={{ ...agent, role: 'receptionist', hours: agent.hours || defaultHours() }} voices={list?.voices} recordRate={list?.recordRate} recordingDays={list?.recordingDays} onSaved={(a) => (isNew ? nav(cp(`/app/receptionist/${a.id}`), { replace: true }) : setData({ agent: a }))} onDeleted={() => nav(cp('/app/receptionist'))} /></div>
-          <div className="lg:col-span-2 space-y-4">{isNew ? <div className="civr-card p-6 text-sm text-[#a1a1aa] flex gap-3" data-testid="rec-save-first-note"><Clock className="w-5 h-5 text-[#818cf8] shrink-0" />Save the receptionist, then talk to it here in your browser and pick the number it answers.</div> : <><AgentNumbers agent={agent} agents={list?.agents || []} /><TestTalk agent={agent} /><AiCalls agentId={agent.id} /></>}</div>
+        <div className="grid xl:grid-cols-5 gap-4 items-start">
+          <div className="xl:col-span-3"><AgentForm mode="receptionist" key={agent.id || 'new'} initial={{ ...agent, role: 'receptionist', hours: agent.hours || defaultHours() }} voices={list?.voices} recordRate={list?.recordRate} recordingDays={list?.recordingDays} onSaved={(a) => (isNew ? nav(cp(`/app/receptionist/${a.id}`), { replace: true }) : setData({ agent: a }))} onDeleted={() => nav(cp('/app/receptionist'))} /></div>
+          <div className="xl:col-span-2 space-y-4">{isNew ? <div className="civr-card p-6 text-sm text-[#a1a1aa] flex gap-3" data-testid="rec-save-first-note"><Clock className="w-5 h-5 text-[#818cf8] shrink-0" />Save the receptionist, then talk to it here in your browser and pick the number it answers.</div> : <><AgentNumbers agent={agent} agents={list?.agents || []} /><TestTalk agent={agent} /><AiCalls agentId={agent.id} /></>}</div>
         </div>
       )}
     </div>

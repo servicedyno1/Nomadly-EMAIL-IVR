@@ -387,7 +387,7 @@ function parseLeads(input, fileName, opts = {}) {
   const head = (role) => det.columns.find(c => c.role === role)?.header || null
   const nameCol = head('name') || [head('first_name'), head('last_name')].filter(Boolean).join(' + ') || null
   return {
-    leads: records.map(r => ({ number: r.phone, name: r.name.replace(/[^\x20-\x7E\u00A0-\uFFFC]/g, '').slice(0, 60) || null })),
+    leads: records.map(r => ({ number: r.phone, name: r.name.replace(/[^\x20-\x7E\u00A0-\uFFFC]/g, '').slice(0, 60) || null, fields: r.fields && r.fields.length ? r.fields : undefined })),
     errors: det.columns.some(c => c.role === 'phone') ? invalid.map(x => `Line ${x.row}: ${x.reason || `Invalid number "${x.value}"`}`) : ['No phone number column found. Add a column called Phone with numbers in it.'],
     columns: det.hasHeader ? { phone: head('phone'), name: nameCol } : null,
     noCode, fixed, rows: records.map(r => r.row),
