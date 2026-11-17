@@ -3614,3 +3614,8 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Charge enforced in js/bulk-esim/bot.js at the send point (new text AND replies): wallet must hold ≥$20, debit $1 on send, refund if the send errors. Low-balance shows a neutral "add at least $20 to send texts" prompt (i18n one_min_balance, en/fr/zh/hi/fa) — no mention of the review/reason. Paid users no longer see the "free texts left" line.
 - Tests: js/tests/bulk_esim_paid_single.test.js (7/7). Existing test_bulk_esim_one_free.js still 8/8. Fixed 4 pre-existing core.js lint errors (unused `raw` init, duplicate export keys checkTimeouts/replaceEsim).
 - NOT deployed; runs in the simless BulkSMS bot. Verify live against that bot after deploy.
+
+## 2026-06 (d) — Paid single-text receipts (preview only, NOT deployed)
+- After each paid single text: "💳 $1 charged · balance $X" under "On its way". Once balance < $20: hint "Keep at least $20…" + inline "➕ Add funds" (callback wallet_topup_quick → main wallet menu). Blocked sends (< $20) also carry the Add funds button. 5 languages.
+- Test: js/tests/test_bulk_esim_paid_receipt.js 8/8 (drives the running bot via tg_sim; restart nodejs after edits).
+- Win-back promos for idle paid users: proposed, awaiting user's choice.
