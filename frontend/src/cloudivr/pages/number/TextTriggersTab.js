@@ -5,7 +5,7 @@ import { api, enc, useApi } from '../../api';
 import { Field, InstantToggle, Spinner, ErrorNote } from '../../ui';
 import { useUnsaved, SaveRow } from '../../guard';
 import { RuleCard, TryText, RunsList, ACTIONS } from './TriggerParts';
-import { TextingOffNote } from './SettingsTabs';
+import { TextingOffNote, numContext } from './SettingsTabs';
 import { Assist } from '../../Assist';
 
 const LABELS = { myPhone: 'Your phone', rules: 'Triggers' };
@@ -49,7 +49,7 @@ function Editor({ num, data, reload, onDirty }) {
         </div>
         <div className="flex items-center gap-3"><span className="text-sm">{on ? 'On' : 'Off'}</span><InstantToggle num={num} feature="textTriggers" label="Text Triggers" checked={on} reload={reload} testid="triggers-enabled-toggle" /></div>
       </div>
-      <Assist screen="triggers" hello="Tell me what should happen when someone texts this number — I’ll set up the triggers." examples={EXAMPLES} labels={LABELS} testid="triggers-assist"
+      <Assist screen="triggers" hello="Tell me what should happen when someone texts this number — I’ll set up the triggers." examples={EXAMPLES} labels={LABELS} testid="triggers-assist" context={numContext(num, { hoursScheduleOn: !!data.hours?.enabled, canAi: !!data.canAi, agents: data.agents?.length || 0 })}
         current={{ myPhone: f.myPhone, rules: f.rules.map(({ _k, id, agentId, showAs, enabled, ...r }) => r) }}
         onApply={({ rules, ...p }) => { u.touch(); setF(x => ({ ...x, ...p, ...(rules ? { rules: mergeRules(x.rules, rules) } : {}) })); }} />
       <Field label="Your phone" hint={needsPhone ? 'Auto Callback rings this phone first, then connects you to the person who texted.' : 'Used by Auto Callback. Include the country code.'}>

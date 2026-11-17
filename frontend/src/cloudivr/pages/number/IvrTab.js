@@ -6,7 +6,7 @@ import { InstantToggle, AudioSelect } from '../../ui';
 import { VoiceMaker } from '../../VoiceMaker';
 import { IvrTemplates } from './IvrTemplates';
 import { IvrSms } from './IvrSms';
-import { useSave } from './SettingsTabs';
+import { useSave, numContext } from './SettingsTabs';
 import { OneAnswerNote } from './RouteSummary';
 import { useUnsaved, SaveRow } from '../../guard';
 import { LANGS, tr, useLang } from '../../i18n';
@@ -128,6 +128,8 @@ export default function IvrTab({ num, reload }) {
   const ivr = num.features.ivr || {};
   const { data, reload: reloadAudio } = useApi('/audio');
   const audios = data?.audios;
+  const mn = useApi('/mobile-numbers');
+  const textingNumbers = (mn.data?.items || []).filter(x => ['provisioning', 'active'].includes(x.status)).length;
   const enabled = !!ivr.enabled;
   const [g, setG] = useState({ greeting: ivr.greeting || defOf(lang).greeting, greetingAudioUrl: ivr.greetingAudioUrl || null });
   const [list, setList] = useState(toList(ivr.options));
@@ -152,7 +154,7 @@ export default function IvrTab({ num, reload }) {
         </div>
         {prep && <div className="rounded-xl border border-[#818cf8]/30 bg-[#818cf8]/5 p-3 text-sm" data-testid="ivr-prep-note">We prepared a “press 1 for sales” menu below. Add the phone numbers it should forward to, Save, then switch the menu on.</div>}
         {num.features.aiAgent?.enabled && <OneAnswerNote testid="ivr-ai-agent-note">Your AI voice agent answers this number now. Turning the keypad menu on switches the AI voice agent off — a number uses one or the other.</OneAnswerNote>}
-        <Assist screen="ivr" title="Build this menu by chatting" hello="Tell me what callers should be able to do — I’ll write the greeting and set up each key." examples={EXAMPLES} labels={LABELS} testid="ivr-assist"
+        <Assist screen="ivr" title="Build this menu by chatting" hello="Tell me what callers should be able to do — I’ll write the greeting and set up each key." examples={EXAMPLES} labels={LABELS} testid="ivr-assist" context={numContext(num, { textingNumbers })}
           current={{ greeting: g.greeting, options: list }}
           onApply={({ greeting, options }) => { u.touch(); if (greeting !== undefined) setG({ greeting, greetingAudioUrl: null }); if (options) setList(options); }} />
         <Greeting g={g} set={(p) => setG({ ...g, ...p })} audios={audios} prefix="ivr" onAudio={reloadAudio} />

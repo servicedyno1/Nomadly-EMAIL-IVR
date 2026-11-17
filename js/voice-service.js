@@ -4643,8 +4643,19 @@ async function handleGatherEnded(payload) {
 }
 
 // IVR "send a text" key: the caller gets the owner's text from one of their eSIM / mobile texting numbers.
+// Several versions (smsTexts) rotate: each caller gets the next one in turn.
+async function pickIvrText(chatId, option) {
+  const list = Array.isArray(option.smsTexts) ? option.smsTexts.filter(Boolean) : []
+  if (list.length < 2 || !_db) return option.smsText
+  const id = `${chatId}|${option.smsFrom}|${require('crypto').createHash('sha1').update(list.join('\u0000')).digest('hex').slice(0, 16)}`
+  const r = await _db.collection('ivrSmsRotation').findOneAndUpdate({ _id: id }, { $inc: { n: 1 }, $set: { at: new Date() } }, { upsert: true, returnDocument: 'before' }).catch(() => null)
+  const doc = r && 'value' in r ? r.value : r
+  return list[(doc?.n || 0) % list.length]
+}
+
 async function sendIvrText(chatId, option, caller) {
-  const r = await require('./spenza.js').sendSms(chatId, option.smsFrom, caller, option.smsText).catch(e => ({ error: e.message }))
+  const text = await pickIvrText(chatId, option)
+  const r = await require('./spenza.js').sendSms(chatId, option.smsFrom, caller, text).catch(e => ({ error: e.message }))
   log(`[Voice] IVR text to ${caller}: ${r.error ? 'failed — ' + r.error : 'sent'}`)
   if (r.error) require('./cloudivr-web/notify').push(chatId, `⚠️ A caller (${caller}) pressed a key for a text, but it wasn't sent: ${r.error}`, null, { kind: 'sms' }).catch(() => {})
   return r.error ? { error: r.error } : { ok: true }

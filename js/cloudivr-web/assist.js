@@ -23,6 +23,10 @@ function menu(acts, nested) {
       const o = { digit: String(r.digit), action: r.action, label: str(r.label, 40) }
       if (r.action === 'forward') o.forwardTo = phone(r.forwardTo)
       if (r.action === 'message') o.message = str(r.message, 400)
+      if (r.action === 'sms') {
+        const texts = (Array.isArray(r.smsTexts) ? r.smsTexts : [r.smsText]).map(t => str(t, 600)).filter(Boolean).slice(0, 5)
+        Object.assign(o, { smsText: texts[0] || '', ...(texts.length > 1 ? { smsTexts: texts } : {}), message: str(r.message, 300), after: r.after === 'menu' ? 'menu' : 'hangup' })
+      }
       if (r.action === 'submenu') {
         const sub = nested ? r.subMenu || {} : r
         const inner = { greeting: str(sub.greeting, 400), options: rows(sub.options, 1) }
@@ -52,7 +56,7 @@ const SCREENS = {
       transferTo: [phone, 'phone that the caller is connected to (transfer mode, or after an accepted code in otp mode)'],
       transferBackups: [phoneCsv(4), 'backup phones if busy, comma separated'],
       activeKeys: [keyList, 'keys that connect in transfer mode, e.g. ["1"]'],
-      otp: [(v) => ({ length: [4, 5, 6, 8].includes(Number(v?.length)) ? Number(v.length) : 6, confirmMsg: str(v?.confirmMsg, 200), rejectMsg: str(v?.rejectMsg, 200) }), '{"length":4|5|6|8,"confirmMsg":"","rejectMsg":""}'],
+      otp: [(v) => ({ length: [4, 5, 6, 8].includes(Number(v?.length)) ? Number(v.length) : 6, confirmMsg: str(v?.confirmMsg, 200), rejectMsg: str(v?.rejectMsg, 200) }), '{"length":4|5|6|8 digits of the code,"confirmMsg":"said after the owner accepts (Business plan)","rejectMsg":"said after a wrong code (Business plan)"} — set mode "otp" too, and the script must say to press 1 then type the code'],
       menu: [menu(['forward', 'message', 'submenu'], false), MENU_DOC(['forward', 'message', 'submenu'])],
       holdMusic: [bool, 'hold music while connecting or verifying'],
     },
@@ -78,9 +82,9 @@ const SCREENS = {
     what: 'the keypad menu (IVR) people hear when they call this number',
     fields: {
       greeting: [text(600), 'what callers hear first, listing the keys, e.g. "Thanks for calling Bella\'s. Press 1 for reservations, press 2 for our hours."'],
-      options: [menu(['forward', 'message', 'voicemail', 'submenu'], true), `list of keys: [{"digit":"1","action":"forward|message|voicemail|submenu","label":"Sales","forwardTo":"+1...","message":"words read out","subMenu":{"greeting":"...","options":[same, no submenu]}}]`],
+      options: [menu(['forward', 'message', 'sms', 'voicemail', 'submenu'], true), `full list of keys: [{"digit":"1","action":"forward|message|sms|voicemail|submenu","label":"Sales","forwardTo":"+1... (forward)","message":"words read out (message), or said after the text is sent (sms)","smsTexts":["text version A","version B (optional, rotates)"],"after":"hangup|menu (sms)","subMenu":{"greeting":"...","options":[same, no submenu]}}]`],
     },
-    note: 'The greeting must mention every key in options.',
+    note: 'The greeting must mention every key in options. sms keys need a Texting Number (see account info); if there is none, suggest ordering one right in the key row. Rotation: give 2-5 smsTexts versions.',
   },
   hours: {
     what: 'the weekly business hours of this number and what happens when it is closed',
@@ -140,19 +144,46 @@ const SCREENS = {
   },
 }
 
-const OTHER = 'Other settings live elsewhere: forwarding, keypad menu, ring group, voicemail and hours are tabs of each number; Quick call and campaigns are under Make calls; AI agents have their own page.'
+// How CloudIVR works end to end, so the assistant can explain, suggest and catch mistakes on any screen.
+const KNOWLEDGE = `HOW CLOUDIVR WORKS
+INBOUND (people calling the owner's number). One thing answers each call, in this order: AI voice agent (if on) → ring group (if on; skips forwarding and the keypad menu) → keypad menu (IVR) or forwarding → browser phone / softphone (SIP) → voicemail. The Hours tab applies on top: outside opening hours the call goes to voicemail, a closed message, or backup numbers.
+- Keypad menu (IVR): callers hear a greeting, then press ONE key (0-9). Key actions: forward (ring a phone, with country code), message (read words or play audio, then hang up), sms (text the caller from the owner's Texting Number / USA eSIM, USA callers only, $0.05 per text; several versions can rotate so each caller gets the next one; then hang up or replay the menu), voicemail (needs Starter plan or higher), submenu (one more level of keys). The greeting must say every key ("Press 1 for sales…"). Good practice: 2-4 keys, key 0 or 1 for a person, a voicemail key for after hours.
+- Forwarding: always, when busy, or when not answered after a ring time (10-60 s); up to 4 backup phones ring one after another; optional hold music; the forwarded phone sees the business number or (US only) the caller's number. Forwarded minutes bill from the wallet.
+- Ring group: up to 5 phones ring at the same time, first to answer wins; if nobody answers: voicemail, one backup number, or a sorry message.
+- Voicemail: greeting (standard, own audio, or AI voice made from text), language, ring time, email copy, transcripts. Callers hear a beep, then leave a message; it lands in Inbox.
+- Missed-call text: one text per caller per day to people whose call was not answered.
+- Text Triggers: when a text arrives on the number, start a call: callback (ring the owner first, press 1 to call the texter back), message (call the texter and read a message), ai (an AI agent calls them). Optional keyword filter, business-hours-only, once per sender per hour.
+OUTBOUND (the owner calling people).
+- Quick call: up to 10 people now or scheduled. They hear a script (AI voice) or audio, then: transfer mode (pressing a chosen key connects them to the owner's phone, optional backups and hold music), OTP mode, or menu mode (each key forwards, plays a message, or opens a submenu).
+- OTP mode (collect a code): the script asks them to press 1, then type their code on the keypad; length is 4, 5, 6 or 8 digits (if the owner says "6-digit code", set otp.length to 6 and make the script say "press 1, then enter your 6-digit code"). They wait on hold music while the code pops up for the owner, who confirms (optionally connecting them to a phone), asks again, or hangs up within 90 seconds. They get 3 tries. Own confirm/reject sentences are on the Business plan.
+- Bulk IVR campaign: the same message to a whole list (up to thousands, called 1-20 at a time); key press: just report it, transfer to the owner, or a key menu; optional voicemail drop, schedule, repeat daily/weekly, daily limit. Calls only go out in legal local hours.
+- AI voice agents (own page) hold real conversations for inbound or outbound calls.
+Billing is per minute from the wallet. Plans gate features (Pro and up: Quick IVR and campaigns; Business: AI agents, custom OTP messages).`
 
-function system(sc, current) {
+const OTHER = 'Where things live: forwarding, keypad menu, AI agent, ring group, voicemail, hours (Answering group) and SMS, missed-call text, Text Triggers (Texting group) are tabs of each number; Quick call and Bulk campaigns are under Make calls; AI agents have their own page.'
+
+function system(sc, current, context) {
   const fields = Object.entries(sc.fields).map(([k, [, doc]]) => `- ${k}: ${doc}`).join('\n')
-  return `You are the CloudIVR setup assistant. You help a small business owner set up ${sc.what} by chatting.
-Each turn reply in 1-3 short, friendly, plain-language sentences (ask at most one question, no jargon) and fill in the form. Say what you filled in ("I've set…"), not what you will do.
-Never invent facts about the business (opening hours, prices, addresses, links, names): if a message needs one, ask for it, or write a clear placeholder like [your hours] and say so.
-Reply as JSON {"reply": "...", "patch": {only the fields that change}}. Fields you may set:
-${fields}
-Phones are E.164 like +14155550100; if the owner gives a number without a country code and it has 10 digits, it is US (+1). Never invent phone numbers: if one is needed and unknown, leave it out and ask for it.
-${sc.note || ''} Nothing is saved until the owner presses Save, so remind them once when the form looks ready.
-If they ask for something this screen cannot do, say so and where to find it. ${OTHER}
+  return `You are the CloudIVR setup assistant, an expert on the whole CloudIVR phone system. You guide a small business owner through setting up ${sc.what} in a friendly conversation.
+${KNOWLEDGE}
+
+HOW TO TALK
+- Plain, warm language, 1-3 short sentences per turn plus an optional short list. No jargon. Ask ONE question at a time.
+- Guide: find out what they need (business, who calls, where calls should go, phone numbers). Suggest what works best and why, in a few words (e.g. "most callers want a person — shall key 0 reach you?"). Point out conflicts (e.g. a ring group skips the keypad menu, voicemail needs a plan).
+- Never invent facts about the business (hours, prices, addresses, links, names) or phone numbers: ask, or use a clear placeholder like [your hours] and say so.
+- Confirm before changing the form: when you know enough, propose the full setup and ask "Shall I fill this in?". Small direct edits the owner asks for ("make it 30 seconds") can be proposed straight away.
+- Nothing is saved until the owner presses Save on the page; you cannot place calls, switch features on, or save.
+- If they ask for something this screen cannot do, say where it is. ${OTHER}
 ${SAFE}
+
+REPLY AS JSON {"reply": "...", "summary": ["short plain lines describing the proposed setup"], "patch": {fields}}
+- While still asking questions: "patch": {} and "summary": [].
+- When proposing: "patch" holds every field to change (lists in full), "summary" 2-6 lines like "Key 1 → rings +14155550100 (Sales)", and "reply" ends by asking to confirm.
+Fields on this screen:
+${fields}
+Phones are E.164 like +14155550100; a 10-digit number without country code is US (+1).
+${sc.note || ''}
+${context ? `About this account: ${JSON.stringify(context).slice(0, 800)}` : ''}
 Current form: ${JSON.stringify(current || {}).slice(0, 6000)}`
 }
 
@@ -167,16 +198,17 @@ function clean(sc, raw) {
   return out
 }
 
-async function chat(screen, messages, current) {
+async function chat(screen, messages, current, context) {
   const sc = SCREENS[screen]
   if (!sc || !process.env.APP_OPEN_API_KEY) return null
   try {
     const r = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: process.env.AI_AGENT_DRAFT_MODEL || 'gpt-4.1-mini', temperature: 0.4, response_format: { type: 'json_object' },
-      messages: [{ role: 'system', content: system(sc, current) }, ...messages.slice(-16).map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: str(m.content, 2000) }))],
+      messages: [{ role: 'system', content: system(sc, current, context) }, ...messages.slice(-16).map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: str(m.content, 2000) }))],
     }, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` }, timeout: 30000 })
     const j = JSON.parse(r.data.choices[0].message.content)
-    return { reply: str(j.reply, 800) || 'Done — check the form.', patch: clean(sc, j.patch) }
+    const patch = clean(sc, j.patch)
+    return { reply: str(j.reply, 900) || 'Here’s what I suggest.', summary: Object.keys(patch).length ? (Array.isArray(j.summary) ? j.summary : []).map(x => str(x, 160)).filter(Boolean).slice(0, 8) : [], patch }
   } catch (e) {
     console.log(`[Assist:${screen}] failed: ${e.response?.data?.error?.message || e.message}`)
     return null
@@ -188,7 +220,8 @@ function routes(router, { h }) {
     if (!SCREENS[req.params.screen]) return res.status(404).json({ error: 'unknown_screen', message: 'This page has no setup assistant.' })
     const msgs = (Array.isArray(req.body?.messages) ? req.body.messages : []).filter(m => m && typeof m.content === 'string' && m.content.trim())
     if (!msgs.length || msgs[msgs.length - 1].role === 'assistant') return res.status(400).json({ error: 'no_message', message: 'Type a message.' })
-    const r = await chat(req.params.screen, msgs, req.body?.current)
+    const ctx = req.body?.context && typeof req.body.context === 'object' ? req.body.context : null
+    const r = await chat(req.params.screen, msgs, req.body?.current, ctx)
     if (!r) return res.status(503).json({ error: 'assist_failed', message: 'The assistant is busy right now. Try again in a moment.' })
     res.json(r)
   }))

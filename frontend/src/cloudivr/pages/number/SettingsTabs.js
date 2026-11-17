@@ -18,6 +18,8 @@ import { Assist } from '../../Assist';
 const FWD_LABELS = { mode: 'When to forward', forwardTo: 'Forward to', ringTimeout: 'Ring time', backups: 'Backups', holdMusic: 'Hold music', showCallerId: 'Caller ID shown' };
 const FWD_EXAMPLES = ['Forward to my cell +14155550100 if I don’t answer in 20 seconds', 'Always forward to the office, show who is calling', 'Turn forwarding off'];
 const VM_LABELS = { greetingScript: 'Greeting text', language: 'Language', forwardToEmail: 'Email copy', ringTimeout: 'Ring time' };
+// Facts about a number the setup assistant uses to suggest settings that work on it.
+export const numContext = (num, extra) => ({ number: num.phoneNumber, plan: num.planName || num.plan, voicemailAvailable: !!num.access?.voicemail, answeredNowBy: num.routeSummary?.primary || null, aiAgentOn: !!num.features?.aiAgent?.enabled, ringGroupOn: !!num.features?.ringGroup?.enabled, keypadMenuOn: !!num.features?.ivr?.enabled, textingOn: !!num.features?.texting?.enabled, ...extra });
 const VM_EXAMPLES = ['Write a friendly greeting for Bella’s Bakery', 'Email voicemails to me@example.com', 'Ring 30 seconds before voicemail'];
 
 const VM_TEMPLATES = [
@@ -89,7 +91,7 @@ export function ForwardingTab({ num, reload }) {
   const u = useUnsaved(f);
   return (
     <Card title="Call forwarding" sub="Send calls to any phone. Forwarded minutes bill from your wallet." bind={u.bind}>
-      <Assist screen="forwarding" hello="Tell me where calls should go and when — I’ll set the options below." examples={FWD_EXAMPLES} current={f} onApply={(p) => { u.touch(); setF(x => ({ ...x, ...p })); }} labels={FWD_LABELS} testid="forwarding-assist" />
+      <Assist screen="forwarding" hello="Tell me where calls should go and when — I’ll set the options below." examples={FWD_EXAMPLES} current={f} context={numContext(num)} onApply={(p) => { u.touch(); setF(x => ({ ...x, ...p })); }} labels={FWD_LABELS} testid="forwarding-assist" />
       <Field label="When to forward">
         <select className="civr-input" value={f.mode} onChange={e => setF({ ...f, mode: e.target.value })} data-testid="forwarding-mode-select">
           <option value="disabled">Off</option><option value="always">Always</option><option value="busy">When busy</option><option value="no_answer">When not answered</option>
@@ -123,7 +125,7 @@ export function VoicemailTab({ num, reload }) {
   const sample = langs.find(l => l.code === f.language)?.sample;
   return (
     <Card title="Voicemail" sub="Unanswered callers can leave a message. Recordings land in your inbox." bind={u.bind}>
-      <Assist screen="voicemail" hello="Tell me about your business — I’ll write a greeting and set the voicemail options." examples={VM_EXAMPLES} current={{ greetingScript: script, language: f.language, forwardToEmail: f.forwardToEmail, ringTimeout: f.ringTimeout }}
+      <Assist screen="voicemail" hello="Tell me about your business — I’ll write a greeting and set the voicemail options." examples={VM_EXAMPLES} context={numContext(num)} current={{ greetingScript: script, language: f.language, forwardToEmail: f.forwardToEmail, ringTimeout: f.ringTimeout }}
         onApply={({ greetingScript, ...p }) => { u.touch(); if (greetingScript !== undefined) setScript(greetingScript); setF(x => ({ ...x, ...p })); }} labels={VM_LABELS} testid="voicemail-assist" />
       <div className="flex items-center justify-between"><span className="text-sm">Voicemail on</span><InstantToggle num={num} feature="voicemail" label="Voicemail" checked={!!vm.enabled} reload={reload} testid="voicemail-enabled-toggle" /></div>
       <Field label="Greeting">
