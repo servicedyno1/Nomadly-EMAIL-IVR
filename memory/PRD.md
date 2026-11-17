@@ -489,3 +489,12 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Verified in preview: 3-level menu + webhook validates/simulates/blueprints correctly (curl + unit); UI driven test — added a webhook key, URL field appeared, Call-flow node + live Checks ("add the https webhook URL") updated. Frontend compiles.
 - ⚠️ The EXECUTOR changes (N-level routing + webhook firing) run on the prod SIP server and were NOT exercised on a real inbound call — needs ONE live test call before switch-on. No production change made this session.
 - STILL TODO (user picked all): smart keys collect-digits + PIN verify + pay-by-phone (as a texted secure payment link, not raw card DTMF); true call queues; outbound campaign architect; editable (drag) visual builder.
+
+## 2026-11-17 (c) — Phase 2: smart keys collect-digits + PIN (built, preview-tested)
+- Engine (js/voice-service.js): after a 'collect' or 'pin' key, a multi-digit gather (terminating #) is issued; handleGatherEnded intercepts via session.collect and routes to handleCollectedDigits.
+  - collect: caller types N digits → best-effort POST {collected} to owner https webhook (optional) + Telegram notice → then forward (optional) or confirm message + hangup.
+  - pin: caller types a code, compared to option.pin / pins[] → match runs onOk (forward or message); wrong retries up to 3 then hangs up. Simple access code (not bank-grade), noted in UI.
+- Design layer (preview-tested): ivr-blueprint.js validate/simulate/blueprint cover collect+pin (LEAF); assist.js menu() parser + options schema + KNOWLEDGE + keyGaps so Emily designs them; IvrTab.js ActionFields add collect (prompt/length/forward/webhook/message) + pin (prompt/pin/onOk-forward/failMessage); IvrFlow.js icons (Hash=collect, KeyRound=pin).
+- Verified in preview: validate/simulate/blueprint via curl+unit (collect→"sends it to your system", pin→"if it matches, connects them"); UI driven test — set keys to collect+pin, fields rendered, Call-flow nodes + live Checks ("add at least one PIN code") updated. Frontend compiles, node syntax OK.
+- ⚠️ collect/pin EXECUTOR runs on the prod SIP server — NOT exercised on a real inbound call; needs ONE live test call before switch-on. No production change this session.
+- STILL TODO (Phase 2 remaining): pay-by-phone (texted secure payment link, not raw card DTMF); true call queues; outbound campaign architect; editable (drag) visual builder.

@@ -4477,11 +4477,9 @@ async function handleGatherEnded(payload) {
   const ivrConfig = num.features?.ivr
   const ivrL = vmGreeting.ivrSpeech(ivrConfig?.language)
 
-  // ── 2026-08-03: Multi-layer IVR — resolve option through session.ivrPath ──
-  // If session.ivrPath is set, we're inside a sub-menu and the digit resolves
-  // against ivrConfig.options[path].subMenu.options[digits] instead of the
-  // root options. Depth is capped at 2 by design (leaf actions can't be
-  // action:'submenu'), so no recursion possible.
+  // If a 'collect' / 'pin' key is waiting for the caller's typed digits, handle them here (not as a menu key press).
+  if (session.collect) return handleCollectedDigits(callControlId, session, digits, ivrL)
+
   // session.ivrPath is the array of sub-menu keys entered so far (e.g. ['1','2'] = key 1 then key 2).
   // Back-compat: an older single-digit string path is treated as a one-element array.
   const ivrPath = Array.isArray(session.ivrPath) ? session.ivrPath : (session.ivrPath ? [String(session.ivrPath)] : [])
@@ -4655,9 +4653,80 @@ async function handleGatherEnded(payload) {
       break
     }
 
+    case 'collect': {
+      session.phase = 'ivr_collect'
+      session.collect = { kind: 'collect', option, path: ivrPath.slice() }
+      const len = Math.min(20, Math.max(1, Number(option.length) || 6))
+      await _telnyxApi.gatherDTMF(callControlId, option.prompt || ivrL.collect || 'Please enter your number, then press pound.', { minDigits: 1, maxDigits: len, timeout: 15000, terminatingDigit: '#', validDigits: '0123456789', language: ivrL.tts })
+      break
+    }
+
+    case 'pin': {
+      session.phase = 'ivr_pin'
+      session.collect = { kind: 'pin', option, path: ivrPath.slice(), tries: 0 }
+      const plen = String(option.pin || '').replace(/\D/g, '').length || 6
+      await _telnyxApi.gatherDTMF(callControlId, option.prompt || ivrL.pin || 'Please enter your code, then press pound.', { minDigits: 1, maxDigits: plen, timeout: 15000, terminatingDigit: '#', validDigits: '0123456789', language: ivrL.tts })
+      break
+    }
+
     default:
       await _telnyxApi.speakOnCall(callControlId, ivrL.goodbye, 'female', ivrL.tts)
       setTimeout(() => _telnyxApi.hangupCall(callControlId), 2000)
+  }
+}
+
+// Handle digits typed after a 'collect' or 'pin' key. Resolves the key's follow-up action.
+async function handleCollectedDigits(callControlId, session, digits, ivrL) {
+  const { num, chatId } = session
+  const { kind, option, path = [] } = session.collect || {}
+  session.collect = null
+  const entered = String(digits || '').replace(/\D/g, '')
+
+  if (kind === 'pin') {
+    const allowed = (Array.isArray(option.pins) ? option.pins : [option.pin]).map(p => String(p || '').replace(/\D/g, '')).filter(Boolean)
+    const ok = allowed.length > 0 && allowed.includes(entered)
+    const ok2 = option.onOk || {}
+    if (ok) {
+      if (ok2.action === 'forward' && ok2.forwardTo) {
+        session.phase = 'ivr_forward'
+        if (ok2.message) await _telnyxApi.speakOnCall(callControlId, ok2.message, 'female', ivrL.tts)
+        await playHoldMusicAndTransfer(callControlId, ok2.forwardTo, session.to, { ...(num.features?.callForwarding || {}), inbound: true, presentFrom: session.from })
+        notifyUser(chatId, num, 'ivr_forward', session, { digit: option.digit || '#', forwardTo: ok2.forwardTo })
+      } else {
+        session.phase = 'ivr_message'
+        await _telnyxApi.speakOnCall(callControlId, ok2.message || option.okMessage || 'Thank you, that is correct.', 'female', ivrL.tts)
+        setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), 6000)
+      }
+      return
+    }
+    // wrong PIN — retry up to 3 times
+    const tries = (session.collectTries || 0) + 1
+    session.collectTries = tries
+    if (tries < 3) {
+      session.collect = { kind: 'pin', option, path }
+      const plen = String(allowed[0] || '').length || 6
+      await _telnyxApi.gatherDTMF(callControlId, option.failMessage || 'That code was not recognised. Please try again, then press pound.', { minDigits: 1, maxDigits: plen, timeout: 15000, terminatingDigit: '#', validDigits: '0123456789', language: ivrL.tts })
+    } else {
+      await _telnyxApi.speakOnCall(callControlId, option.failMessage || ivrL.goodbye, 'female', ivrL.tts)
+      setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), 2000)
+    }
+    return
+  }
+
+  // collect: fire the webhook with what they typed (if set), then say the confirmation / forward.
+  if (/^https:\/\//i.test(String(option.webhook || '').trim())) {
+    require('axios').post(option.webhook.trim(), { event: 'ivr_collect', from: session.from, to: num.phoneNumber, collected: entered, at: new Date().toISOString() },
+      { timeout: 8000, maxContentLength: 64 * 1024, headers: { 'User-Agent': 'CloudIVR-Webhook/1' } }).then(() => log(`[Voice] IVR collect webhook delivered (${entered.length} digits)`)).catch(e => log(`[Voice] IVR collect webhook failed: ${e.message}`))
+  }
+  _bot?.sendMessage(chatId, `📞 <b>IVR — digits collected</b>\nFrom: ${formatPhone(session.from)}\nEntered: <b>${escapeHtml(entered)}</b>`, { parse_mode: 'HTML' }).catch(() => {})
+  if (option.forwardTo) {
+    session.phase = 'ivr_forward'
+    if (option.message) await _telnyxApi.speakOnCall(callControlId, option.message, 'female', ivrL.tts)
+    await playHoldMusicAndTransfer(callControlId, option.forwardTo, session.to, { ...(num.features?.callForwarding || {}), inbound: true, presentFrom: session.from })
+  } else {
+    session.phase = 'ivr_message'
+    await _telnyxApi.speakOnCall(callControlId, option.message || ivrL.thanks || 'Thank you.', 'female', ivrL.tts)
+    setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), 6000)
   }
 }
 

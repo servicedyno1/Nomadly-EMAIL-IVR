@@ -6,7 +6,7 @@
 // sub-menu level only (depth capped at 2); wrong/no key → "invalid option" once,
 // then goodbye.
 
-const LEAF = ['forward', 'message', 'sms', 'voicemail', 'webhook']
+const LEAF = ['forward', 'message', 'sms', 'voicemail', 'webhook', 'collect', 'pin']
 const ACTIONS = [...LEAF, 'submenu']
 const MAX_SUB_DEPTH = 3 // sub-menus may nest up to 3 levels (paths like 1.2.3); the executor walks session.ivrPath as an array.
 const isPhone = (v) => /^\+\d{8,15}$/.test(String(v || '').replace(/[^\d+]/g, ''))
@@ -32,6 +32,8 @@ function actionOutcome(o, ctx) {
     case 'sms': return hasText(o.smsText) || (Array.isArray(o.smsTexts) && o.smsTexts.length) ? 'sends the caller a text, then ' + (o.after === 'menu' ? 'replays the menu' : 'hangs up') : null
     case 'voicemail': return ctx?.voicemailAvailable === false ? null : 'takes a voicemail'
     case 'webhook': return isUrl(o.url) ? 'calls your system, then ' + (o.after === 'menu' ? 'replays the menu' : 'hangs up') : null
+    case 'collect': return hasText(o.prompt) ? 'asks the caller to type a number, then ' + (isUrl(o.webhook) ? 'sends it to your system' : isPhone(o.forwardTo) ? 'connects them' : 'confirms it') : null
+    case 'pin': return (String(o.pin || '').replace(/\D/g, '').length || (Array.isArray(o.pins) && o.pins.length)) ? 'asks for a code; if it matches, ' + (isPhone(o.onOk?.forwardTo) ? 'connects them' : 'continues') + '; otherwise retries' : null
     case 'submenu': return subList(o).length ? `opens the "${o.label || 'sub-menu'}" sub-menu` : null
     default: return null
   }
@@ -64,6 +66,14 @@ function validate(ivr, ctx = {}) {
     }
     if (o.action === 'voicemail' && ctx.voicemailAvailable === false) err(k, 'Voicemail needs the Starter plan or higher.')
     if (o.action === 'webhook' && !isUrl(o.url)) err(k, 'Add the secure https web address (webhook URL) this key should call.')
+    if (o.action === 'collect') {
+      if (!hasText(o.prompt)) err(k, 'Say what the caller should type (e.g. "enter your order number").')
+      if (!isUrl(o.webhook) && !isPhone(o.forwardTo) && !hasText(o.message)) err(k, 'Choose what happens with the digits — send to your system, connect the call, or confirm a message.')
+    }
+    if (o.action === 'pin') {
+      const pins = (Array.isArray(o.pins) ? o.pins : [o.pin]).map(p => String(p || '').replace(/\D/g, '')).filter(Boolean)
+      if (!pins.length) err(k, 'Add at least one PIN code (digits) callers can enter.')
+    }
     if (o.action === 'submenu') {
       if (depth >= MAX_SUB_DEPTH) { err(k, `Sub-menus can only go ${MAX_SUB_DEPTH} levels deep — this key is too deep to work on a real call.`); return }
       const subs = subList(o)
@@ -133,6 +143,8 @@ function blueprint(ivr, ctx = {}) {
     if (o.action === 'sms') return add(id, 'sms', 'Send a text', (o.smsText || '').slice(0, 80))
     if (o.action === 'voicemail') return add(id, 'voicemail', 'Voicemail', ctx?.voicemailAvailable === false ? 'needs Starter+' : '')
     if (o.action === 'webhook') return add(id, 'webhook', 'Webhook', (o.url || 'no URL set'))
+    if (o.action === 'collect') return add(id, 'collect', 'Collect digits', o.prompt ? String(o.prompt).slice(0, 60) : (isPhone(o.forwardTo) ? `→ ${fmt(o.forwardTo)}` : ''))
+    if (o.action === 'pin') return add(id, 'pin', 'PIN check', isPhone(o.onOk?.forwardTo) ? `ok → ${fmt(o.onOk.forwardTo)}` : '')
     return null
   }
   const walk = (opts, parent, prefix, depth) => {
