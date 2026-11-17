@@ -49,11 +49,21 @@ function instructions(agent, ctx) {
     '- If the person asks not to be called again or to be removed from the list, apologise, call opt_out, then say goodbye.',
     ctx.afterHours ? '# Business hours\nThe business is closed right now. Say so briefly, offer to take a message (name, callback number and the message) and say someone will call back when it opens. You can still answer questions from what you know.' : '',
     agent.transferTo && !ctx.afterHours ? '- If the person wants to talk to a human, or is ready to go ahead, call transfer_call.' : '- You cannot transfer calls. If someone wants a human, offer to take a message.',
+    keysLine(agent, ctx),
     agent.takeMessages || ctx.afterHours ? '- If they want to leave a message, get their name, a callback number and the message, then call take_message.' : '',
     '- As soon as you know how it went (interested, not interested, call back later), call record_outcome.',
     '- When the conversation is over, say a short goodbye and call end_call.',
     bookingRules(ctx.calendar),
   ].filter(Boolean).join('\n')
+}
+
+const KEY_SAYS = { transfer: 'to be connected to a person', message: 'to leave a message', hangup: 'to end the call', repeat: 'to hear that again' }
+// Keypad options: the phone system acts on the key itself; the AI only offers them.
+function keysLine(agent, ctx) {
+  const keys = (agent.keys || []).filter(k => !(ctx.afterHours && k.action === 'transfer'))
+  if (!keys.length) return ''
+  const list = keys.map(k => `press ${k.key} ${k.label || KEY_SAYS[k.action]}`).join('; ')
+  return `- Keypad options (the phone system handles the key press itself): ${list}. ${ctx.direction === 'outbound' ? 'Right after the person first responds, clearly tell them these keypad options in one sentence.' : 'The greeting already listed them; repeat them whenever the person is unsure what to do.'}`
 }
 
 const fn = (name, description, properties = {}, required = []) => ({ type: 'function', name, description, parameters: { type: 'object', properties, required } })
@@ -112,7 +122,7 @@ class Bridge {
     this.ai = new WebSocket(`wss://api.openai.com/v1/realtime?model=${MODEL()}`, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` } })
     this.ai.on('open', () => this.send({ type: 'session.update', session: {
       type: 'realtime', instructions: instructions(this.agent, this.ctx), output_modalities: ['audio'], tools: tools(this.agent, this.ctx), tool_choice: 'auto',
-      audio: { input: { format: { type: 'audio/pcmu' }, transcription: { model: 'gpt-4o-mini-transcribe' }, noise_reduction: { type: 'near_field' }, turn_detection: vad(false, !this.waitHello) }, output: { format: { type: 'audio/pcmu' }, voice: this.agent.voice } },
+      audio: { input: { format: { type: 'audio/pcmu' }, transcription: { model: 'gpt-4o-mini-transcribe' }, noise_reduction: { type: 'near_field' }, turn_detection: vad(false, !this.waitHello) }, output: { format: { type: 'audio/pcmu' }, voice: this.agent.voice, speed: this.agent.speed || 1 } },
     } }))
     this.ai.on('message', (m) => { try { this.onAi(JSON.parse(m)) } catch (e) { this.log(`[AIAgent] event error: ${e.message}`) } })
     this.ai.on('close', () => { if (!this.closed) this.actions.hangup('ai_closed') })
@@ -358,6 +368,14 @@ class Bridge {
   }
 
   // Ends the conversation politely (time limit, empty wallet…).
+  // The caller pressed a keypad option the AI has to handle (message, repeat).
+  keyPressed(digit, k) {
+    if (this.closed || this.ending) return
+    if (this.responding) this.send({ type: 'response.cancel' })
+    const what = k.action === 'message' ? 'Ask for their name, a callback number and their message, then call take_message.' : 'Briefly repeat the key information you just gave.'
+    this.createResponse({ instructions: `The caller pressed ${digit}${k.label ? ` (${k.label})` : ''}. ${what}` })
+  }
+
   wrapUp(why) {
     if (this.closed || this.ending) return
     this.ending = 'hangup'

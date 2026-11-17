@@ -6,6 +6,12 @@ import { Field, InstantToggle, Spinner, ErrorNote } from '../../ui';
 import { useUnsaved, SaveRow } from '../../guard';
 import { RuleCard, TryText, RunsList, ACTIONS } from './TriggerParts';
 import { TextingOffNote } from './SettingsTabs';
+import { Assist } from '../../Assist';
+
+const LABELS = { myPhone: 'Your phone', rules: 'Triggers' };
+const EXAMPLES = ['When someone texts “quote”, ring me at +14155550100 so I can call them back', 'Outside business hours, call them and say we’ll reply in the morning', 'Only once per hour per person'];
+// Keeps a rule's saved id and picked agent when the assistant rewrites the list.
+const mergeRules = (prev, next) => next.map((r, i) => ({ ...blank(r.action), ...(prev[i]?.action === r.action ? { _k: prev[i]._k, id: prev[i].id, agentId: prev[i].agentId, showAs: prev[i].showAs, enabled: prev[i].enabled } : {}), ...r }));
 
 const MAX = 5;
 // `_k` = stable React key while editing (the server ignores it), so reordering never mixes up a card's state.
@@ -43,6 +49,9 @@ function Editor({ num, data, reload, onDirty }) {
         </div>
         <div className="flex items-center gap-3"><span className="text-sm">{on ? 'On' : 'Off'}</span><InstantToggle num={num} feature="textTriggers" label="Text Triggers" checked={on} reload={reload} testid="triggers-enabled-toggle" /></div>
       </div>
+      <Assist screen="triggers" hello="Tell me what should happen when someone texts this number — I’ll set up the triggers." examples={EXAMPLES} labels={LABELS} testid="triggers-assist"
+        current={{ myPhone: f.myPhone, rules: f.rules.map(({ _k, id, agentId, showAs, enabled, ...r }) => r) }}
+        onApply={({ rules, ...p }) => { u.touch(); setF(x => ({ ...x, ...p, ...(rules ? { rules: mergeRules(x.rules, rules) } : {}) })); }} />
       <Field label="Your phone" hint={needsPhone ? 'Auto Callback rings this phone first, then connects you to the person who texted.' : 'Used by Auto Callback. Include the country code.'}>
         <input className="civr-input font-mono" value={f.myPhone} onChange={e => setF({ ...f, myPhone: e.target.value })} placeholder="+14155550100" data-testid="triggers-my-phone-input" />
       </Field>

@@ -3,6 +3,10 @@ import { toast } from 'sonner';
 import { api, enc } from '../../api';
 import { Field, Toggle } from '../../ui';
 import { useUnsaved, SaveRow } from '../../guard';
+import { Assist } from '../../Assist';
+
+const LABELS = { timezone: 'Time zone', days: 'Opening hours', offAction: 'When closed', offForward: 'Backup numbers', offMessage: 'Closed message' };
+const EXAMPLES = ['Open 9 to 5 weekdays, 10 to 2 on Saturday, closed Sunday', 'We’re in Chicago', 'When closed, play a message saying we reopen at 9am'];
 
 export const DAYS = [['mon', 'Mon'], ['tue', 'Tue'], ['wed', 'Wed'], ['thu', 'Thu'], ['fri', 'Fri'], ['sat', 'Sat'], ['sun', 'Sun']];
 const browserZone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch (_) { return 'UTC'; } };
@@ -63,6 +67,9 @@ export default function HoursTab({ num, reload }) {
       </div>
       <p className="text-sm text-[#a1a1aa] mt-1 mb-6">Outside these hours your number doesn’t ring. Callers go to voicemail, hear a short closed message, or are forwarded to your backup numbers.</p>
       <div className="space-y-6">
+        <Assist screen="hours" hello="Tell me your opening hours in plain words — I’ll fill in every day." examples={EXAMPLES} labels={LABELS} testid="hours-assist"
+          current={{ timezone: f.timezone, days: f.days, offAction, offForward: f.offForward, offMessage: f.offMessage }}
+          onApply={({ days, ...p }) => { u.touch(); setF(x => ({ ...x, ...p, ...(days ? { days: Object.fromEntries(Object.entries(x.days).map(([k, d]) => [k, days[k] ? { ...d, ...days[k] } : d])) } : {}) })); }} />
         <div className="flex items-center justify-between gap-4"><span className="text-sm">Use a weekly schedule</span><Toggle checked={!!saved.enabled} disabled={busy} onChange={v => put(v, v ? 'Weekly schedule turned on' : 'Weekly schedule turned off')} testid="hours-enabled-toggle" label="Use a weekly schedule" /></div>
         <Field label="Time zone">
           <select className="civr-input" value={f.timezone} onChange={e => setF({ ...f, timezone: e.target.value })} data-testid="hours-timezone-select">

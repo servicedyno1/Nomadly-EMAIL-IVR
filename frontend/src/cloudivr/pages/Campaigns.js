@@ -24,6 +24,19 @@ import { LeadCheck } from '../LeadCheck';
 import { ShowAsSelect, RotateCallerIds } from '../CallerIdPick';
 import { useBalance, ShortNote } from '../WalletPay';
 import { VoicemailScript } from './VoicemailScript';
+import { Assist } from '../Assist';
+
+const CAMPAIGN_LABELS = { name: 'Name', script: 'Script', mode: 'Key press action', transferNumber: 'Transfer to', transferBackups: 'Backups', activeKeys: 'Keys', menu: 'Key menu', concurrency: 'Calls at once', holdMusic: 'Hold music', repeat: 'Repeat', dailyLimit: 'Daily limit' };
+const CAMPAIGN_EXAMPLES = ['Remind my patients about their appointment tomorrow, press 1 to reach the front desk', 'Announce our weekend sale, press 1 to talk to sales at +14155550100', 'Call every Monday, max 200 calls a day'];
+
+function CampaignAssist({ f, setF, script, setScript }) {
+  const current = { name: f.name, script: script?.text || '', mode: f.mode, transferNumber: f.transferNumber, transferBackups: f.transferBackups, activeKeys: f.activeKeys, menu: f.menu, concurrency: f.concurrency, holdMusic: f.holdMusic, repeat: f.repeat, dailyLimit: f.dailyLimit };
+  const apply = ({ script: s, ...p }) => {
+    if (s !== undefined) setScript(s ? (x) => ({ values: {}, ...(x || {}), templateKey: '', text: s }) : null);
+    setF(x => ({ ...x, ...p, ...(s ? { audioId: '' } : {}) }));
+  };
+  return <div className="lg:col-span-2"><Assist screen="campaign" title="Plan this campaign by chatting" hello="Tell me who you’re calling and why — I’ll write the message and set what happens when they press a key." examples={CAMPAIGN_EXAMPLES} current={current} onApply={apply} labels={CAMPAIGN_LABELS} testid="campaign-assist" /></div>;
+}
 
 const pct = (c) => (c.stats?.total ? Math.round(((c.stats.completed || 0) / c.stats.total) * 100) : 0);
 
@@ -334,6 +347,7 @@ export function CampaignNew() {
       <PageHeader label="Make calls" title="New campaign" testid="campaign-new-header" />
       <CampaignKind value={kind} onChange={setKind} aiLocked={aiLocked} />
       <form onSubmit={create} className="grid lg:grid-cols-2 gap-4" {...u.bind}>
+        {!isAi && <CampaignAssist f={f} setF={setF} script={script} setScript={setScript} />}
         <div className="civr-card p-6 space-y-6">
           <Field label="Campaign name (optional)" hint="Shown in your campaign list and reports. Leave empty to use the message name."><input className="civr-input" maxLength={80} value={f.name} onChange={set('name')} placeholder="e.g. June follow-ups" data-testid="campaign-name-input" /></Field>
           <Field label="Caller ID"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="campaign-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{n.phoneNumber}</option>)}</select></Field>

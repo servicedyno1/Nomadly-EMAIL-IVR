@@ -9,9 +9,11 @@ import { useUnsaved, UnsavedPill } from '../../guard';
 import { AI_LANGS } from './languages';
 import { OpeningPreview, ScriptGuide } from './OpeningPreview';
 import { HoursFields } from './HoursFields';
+import { KeypadFields, CallMeTest } from './SmartKeys';
+import { BuilderChat, SpeedField } from './BuilderChat';
 
 export const EMPTY_AGENT = {
-  name: '', businessName: '', language: 'en', voice: 'marin', goal: '', greeting: '', firstMessage: '', waitForHello: true, knowledge: '', transferTo: '', takeMessages: true, maxMinutes: 5, record: true, discloseAi: true,
+  name: '', businessName: '', language: 'en', voice: 'marin', goal: '', greeting: '', firstMessage: '', waitForHello: true, knowledge: '', transferTo: '', takeMessages: true, maxMinutes: 5, record: true, discloseAi: true, keys: [], holdMusic: true, speed: 1,
   booking: { enabled: false, calendarId: 'primary', calendarName: null, slotMinutes: 30, days: [1, 2, 3, 4, 5], start: '09:00', end: '17:00', timeZone: browserZone() },
 };
 
@@ -32,6 +34,7 @@ function Basics({ f, set, voices }) {
       <Field label="Voice">
         <select className="civr-input capitalize" value={f.voice} onChange={e => set('voice', e.target.value)} data-testid="ai-agent-voice-select">{(voices || []).map(v => <option key={v} value={v}>{v}</option>)}</select>
       </Field>
+      <div className="sm:col-span-2"><SpeedField f={f} set={set} /></div>
     </div>
   );
 }
@@ -74,6 +77,7 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
     try { await api(`/ai-agents/${f.id}`, { method: 'DELETE' }); toast.success('Agent deleted'); u.reset(); onDeleted(); } catch (err) { toast.error(err.message); }
   };
   return (
+    <div className="grid lg:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
     <form onSubmit={save} className="civr-card p-6 space-y-6" data-testid="ai-agent-form" {...u.bind}>
       <Basics f={f} set={set} voices={voices} />
       <Field label={rec ? 'Greeting (optional)' : 'First message (optional)'} hint={rec ? 'The exact words callers hear when it picks up. Use {name} and {business}. Leave empty for the standard greeting.' : 'The exact words that open every call. Use {name}, {business} and {lead_name} (or {lead_name|there} for leads without a name). Leave empty for the standard opening.'}><Text f={f} set={set} k="firstMessage" rows={2} ph={rec ? 'Thanks for calling {business}, this is {name}. How can I help?' : 'Hi {lead_name|there}, this is {name} from {business}. Do you have a minute?'} testid="ai-agent-first-message-input" /></Field>
@@ -86,8 +90,10 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
       <ScriptGuide />
       <Field label="FAQs & facts" hint="Prices, hours, policies — the agent only uses what is here."><Text f={f} set={set} k="knowledge" rows={6} ph={'Q: Are you open Saturday? A: No, Monday–Friday 9am–5pm.\nCleaning: $90.'} testid="ai-agent-knowledge-input" /></Field>
       <Actions f={f} set={set} recordRate={recordRate} recordingDays={recordingDays} />
+      <KeypadFields f={f} set={set} />
       {(rec || f.hours?.enabled) && <HoursFields f={f} set={set} />}
       <BookingFields f={f} set={set} />
+      {f.id && !rec && <CallMeTest id={f.id} />}
       <ErrorNote error={error} testid="ai-agent-form-error" />
       <div className="flex flex-wrap gap-2">
         <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="ai-agent-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{rec ? 'Save receptionist' : 'Save agent'}</button>
@@ -95,5 +101,7 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
         <UnsavedPill show={u.dirty} testid="ai-agent-unsaved-pill" />
       </div>
     </form>
+    <BuilderChat rec={rec} f={f} onPatch={(p) => setF(x => ({ ...x, ...p }))} />
+    </div>
   );
 }

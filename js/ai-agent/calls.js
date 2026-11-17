@@ -55,7 +55,20 @@ async function startMedia(s) {
   s.mediaStarted = true
   const r = await ce.startExternalMedia(s.ccid, rtp.host())
   if (!r?.port) { log(`[AIAgent] no audio link for ${s.ccid} — hanging up`); return hangup(s.ccid) }
+  ce.watchDtmf(s.ccid, (d) => keypad(s, d))
   onStream(s.token, rtp.open(r.port, r.address))
+}
+
+const HOLD_MUSIC = () => `${process.env.SELF_URL || process.env.SELF_URL_PROD || ''}/assets/hold-music-jazz.mp3?v=1`
+// A keypad option the owner set up: acts at once (transfer / hang up) or hands the request to the AI (message, repeat).
+function keypad(s, digit) {
+  const k = (s.agent.keys || []).find(x => x.key === String(digit))
+  if (!k || s.transferAt) return
+  log(`[AIAgent] key ${digit} → ${k.action} on ${s.ccid}`)
+  const to = k.to || s.agent.transferTo
+  if (k.action === 'transfer' && to && !s.afterHours) return transfer(s, to)
+  if (k.action === 'hangup') return s.bridge ? s.bridge.wrapUp(`The caller pressed ${digit} to end the call.`) : hangup(s.ccid)
+  s.bridge?.keyPressed(digit, k)
 }
 
 // The SIP leg SignalWire opened to our call engine for an inbound AI call: the agent now runs on that leg.
@@ -210,7 +223,7 @@ function onStream(token, ws) {
     agent: s.agent, ctx: { direction: s.kind, leadName: s.leadName, callerNumber: s.other, calendar: s.calendar, record: records(s.agent), reason: s.reason || null, afterHours: !!s.afterHours }, media: ws, log,
     actions: { hangup: (why) => { log(`[AIAgent] hangup ${s.ccid}: ${why}`); hangup(s.ccid) }, transfer: (to) => transfer(s, to) },
   })
-  ws.on('message', (m) => { try { s.bridge.onMedia(JSON.parse(m)) } catch (_) { /* bad frame */ } })
+  ws.on('message', (m) => { try { const f = JSON.parse(m); if (f.event === 'dtmf') keypad(s, f.dtmf?.digit); else s.bridge.onMedia(f) } catch (_) { /* bad frame */ } })
   ws.on('close', () => s.bridge.stop())
   s.bridge.start()
   s.cwTimer = setInterval(() => require('../call-watch').aiTalk(s), 60000)
@@ -225,12 +238,12 @@ async function transfer(s, to) {
   if (ce.isAe(s.ccid)) {
     s.rtpMedia?.close()
     await ce.stopExternalMedia(s.ccid)
-    const ok = await ce.transferCall(s.ccid, to, s.number, { targetLegClientState: 'nomadly_pstn_leg', timeoutSecs: 30 })
+    const ok = await ce.transferCall(s.ccid, to, s.number, { targetLegClientState: 'nomadly_pstn_leg', timeoutSecs: 30, ...(s.agent.holdMusic ? { audioUrl: HOLD_MUSIC() } : {}) })
     if (!ok) { log(`[AIAgent] transfer to ${to} failed — hanging up ${s.ccid}`); hangup(s.ccid) }
     return
   }
   await tx(`/calls/${s.ccid}/actions/streaming_stop`, {}).catch(() => {})
-  const ok = await telnyxApi.transferCall(s.ccid, to, s.number, { targetLegClientState: 'nomadly_pstn_leg', timeoutSecs: 30 }).catch(() => null)
+  const ok = await telnyxApi.transferCall(s.ccid, to, s.number, { targetLegClientState: 'nomadly_pstn_leg', timeoutSecs: 30, ...(s.agent.holdMusic ? { audioUrl: HOLD_MUSIC() } : {}) }).catch(() => null)
   if (!ok) { log(`[AIAgent] transfer to ${to} failed — hanging up ${s.ccid}`); hangup(s.ccid) }
 }
 

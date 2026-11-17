@@ -10,6 +10,10 @@ import { useSave } from './SettingsTabs';
 import { OneAnswerNote } from './RouteSummary';
 import { useUnsaved, SaveRow } from '../../guard';
 import { LANGS, tr, useLang } from '../../i18n';
+import { Assist } from '../../Assist';
+
+const LABELS = { greeting: 'Greeting', options: 'Keys' };
+const EXAMPLES = ['Press 1 for sales at +14155550100, 2 for support at +14155550101, 3 to leave a voicemail', 'Add a key that reads our opening hours', 'Make the greeting warmer, we’re Bella’s Bakery'];
 
 // Built-in IVR texts per language (same as js/voicemail-greeting.js).
 const DEFAULTS = {
@@ -148,6 +152,9 @@ export default function IvrTab({ num, reload }) {
         </div>
         {prep && <div className="rounded-xl border border-[#818cf8]/30 bg-[#818cf8]/5 p-3 text-sm" data-testid="ivr-prep-note">We prepared a “press 1 for sales” menu below. Add the phone numbers it should forward to, Save, then switch the menu on.</div>}
         {num.features.aiAgent?.enabled && <OneAnswerNote testid="ivr-ai-agent-note">Your AI voice agent answers this number now. Turning the keypad menu on switches the AI voice agent off — a number uses one or the other.</OneAnswerNote>}
+        <Assist screen="ivr" title="Build this menu by chatting" hello="Tell me what callers should be able to do — I’ll write the greeting and set up each key." examples={EXAMPLES} labels={LABELS} testid="ivr-assist"
+          current={{ greeting: g.greeting, options: list }}
+          onApply={({ greeting, options }) => { u.touch(); if (greeting !== undefined) setG({ greeting, greetingAudioUrl: null }); if (options) setList(options); }} />
         <Greeting g={g} set={(p) => setG({ ...g, ...p })} audios={audios} prefix="ivr" onAudio={reloadAudio} />
         <p className="text-xs text-[#a1a1aa] -mt-3" data-testid="ivr-language-note">{`Callers hear typed text in ${langName}, the app's language. Change the app language to change it.`}</p>
         <OptionList list={list} setList={setList} prefix="ivr"

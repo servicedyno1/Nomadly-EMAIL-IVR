@@ -5,6 +5,10 @@ import { Field, InstantToggle } from '../../ui';
 import { useUnsaved, SaveRow } from '../../guard';
 import { Card, useSave } from './SettingsTabs';
 import { OneAnswerNote } from './RouteSummary';
+import { Assist } from '../../Assist';
+
+const LABELS = { members: 'Phones', ringTimeout: 'Ring time', fallback: 'If nobody answers', fallbackTo: 'Backup number', message: 'Sorry message' };
+const EXAMPLES = ['Ring my cell +14155550100 and the front desk +14155550101', 'If nobody answers in 30 seconds, send them to voicemail', 'Add my partner’s phone +14155550102'];
 
 const MAX = 5;
 const SKIP_NAMES = { forwarding: 'Forwarding', 'keypad menu': 'the keypad menu', 'browser ring': 'Browser ring' };
@@ -64,6 +68,8 @@ export default function RingGroupTab({ num, reload }) {
   return (
     <Card title="Ring group" sub="Ring several phones at once — your mobile, a colleague, the front desk. Whoever answers first gets the caller." bind={u.bind}>
       <div className="flex items-center justify-between"><span className="text-sm flex items-center gap-2"><Users className="w-4 h-4 text-[#818cf8]" />Ring all these phones for every call</span><InstantToggle num={num} feature="ringGroup" label="Ring group" checked={on} reload={reload} testid="ring-group-enabled-toggle" /></div>
+      <Assist screen="ringgroup" hello="Tell me which phones should ring together and what happens if nobody picks up." examples={EXAMPLES} current={f} labels={LABELS} testid="ring-group-assist"
+        onApply={(p) => { u.touch(); setF(x => ({ ...x, ...p, ...(p.members ? { members: p.members.length ? p.members : [''] } : {}) })); }} />
       {ai && on && <OneAnswerNote testid="ring-group-ai-note">Your AI voice agent answers this number first. The ring group only runs if the agent can’t take the call.</OneAnswerNote>}
       {on && !ai && <p className="text-xs text-[#a1a1aa]" data-testid="ring-group-priority-note">While it’s on, every call rings the group — forwarding and the keypad menu are skipped. Your Hours schedule still applies.</p>}
       <Members list={f.members} onChange={v => setF({ ...f, members: v })} />

@@ -27737,12 +27737,9 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
 
     if (message === '🔑 OTP Collection') {
-      // Plan check — OTP Collection requires Pro or Business
-      if (ivrObData.isTrial) {
-        return send(chatId, trans('t.cp_76'), k.of([['🔗 Transfer'], ['↩️ Back']]))
-      }
+      // Plan check — OTP Collection requires Pro or Business (the one free trial call may use it, same as the web trial)
       const currentPlan = ivrObData.callerPlan || 'starter'
-      if (!phoneConfig.canAccessFeature(currentPlan, 'otpCollection')) {
+      if (!ivrObData.isTrial && !phoneConfig.canAccessFeature(currentPlan, 'otpCollection')) {
         return send(chatId, phoneConfig.upgradeMessage('otpCollection', currentPlan, info?.userLanguage), k.of([['🔗 Transfer'], ['↩️ Back']]))
       }
 

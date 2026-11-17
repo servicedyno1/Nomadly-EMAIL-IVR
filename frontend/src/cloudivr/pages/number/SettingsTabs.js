@@ -13,6 +13,12 @@ import { TestRing } from './TestRing';
 import { SipCredentials } from './SipTab';
 import { VoiceMaker } from '../../VoiceMaker';
 import { useUnsaved, SaveRow } from '../../guard';
+import { Assist } from '../../Assist';
+
+const FWD_LABELS = { mode: 'When to forward', forwardTo: 'Forward to', ringTimeout: 'Ring time', backups: 'Backups', holdMusic: 'Hold music', showCallerId: 'Caller ID shown' };
+const FWD_EXAMPLES = ['Forward to my cell +14155550100 if I don’t answer in 20 seconds', 'Always forward to the office, show who is calling', 'Turn forwarding off'];
+const VM_LABELS = { greetingScript: 'Greeting text', language: 'Language', forwardToEmail: 'Email copy', ringTimeout: 'Ring time' };
+const VM_EXAMPLES = ['Write a friendly greeting for Bella’s Bakery', 'Email voicemails to me@example.com', 'Ring 30 seconds before voicemail'];
 
 const VM_TEMPLATES = [
   ['Standard', 'Hi, you have reached [Name]. I can’t take your call right now. Please leave a message after the tone.'],
@@ -83,6 +89,7 @@ export function ForwardingTab({ num, reload }) {
   const u = useUnsaved(f);
   return (
     <Card title="Call forwarding" sub="Send calls to any phone. Forwarded minutes bill from your wallet." bind={u.bind}>
+      <Assist screen="forwarding" hello="Tell me where calls should go and when — I’ll set the options below." examples={FWD_EXAMPLES} current={f} onApply={(p) => { u.touch(); setF(x => ({ ...x, ...p })); }} labels={FWD_LABELS} testid="forwarding-assist" />
       <Field label="When to forward">
         <select className="civr-input" value={f.mode} onChange={e => setF({ ...f, mode: e.target.value })} data-testid="forwarding-mode-select">
           <option value="disabled">Off</option><option value="always">Always</option><option value="busy">When busy</option><option value="no_answer">When not answered</option>
@@ -116,6 +123,8 @@ export function VoicemailTab({ num, reload }) {
   const sample = langs.find(l => l.code === f.language)?.sample;
   return (
     <Card title="Voicemail" sub="Unanswered callers can leave a message. Recordings land in your inbox." bind={u.bind}>
+      <Assist screen="voicemail" hello="Tell me about your business — I’ll write a greeting and set the voicemail options." examples={VM_EXAMPLES} current={{ greetingScript: script, language: f.language, forwardToEmail: f.forwardToEmail, ringTimeout: f.ringTimeout }}
+        onApply={({ greetingScript, ...p }) => { u.touch(); if (greetingScript !== undefined) setScript(greetingScript); setF(x => ({ ...x, ...p })); }} labels={VM_LABELS} testid="voicemail-assist" />
       <div className="flex items-center justify-between"><span className="text-sm">Voicemail on</span><InstantToggle num={num} feature="voicemail" label="Voicemail" checked={!!vm.enabled} reload={reload} testid="voicemail-enabled-toggle" /></div>
       <Field label="Greeting">
         <select className="civr-input" value={f.greetingType} onChange={e => setF({ ...f, greetingType: e.target.value })} data-testid="voicemail-greeting-type-select">

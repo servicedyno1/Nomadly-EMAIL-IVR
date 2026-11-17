@@ -389,3 +389,18 @@ html[data-civr-theme="light"] .civr-portal {
   --c-text: #13171c; --c-text-2: #334155; --c-muted: #556070;
   --c-accent: #1f6fd6; --c-accent-soft: rgba(31, 111, 214, 0.08);
 }
+
+/* Setup assistant (Assist.js): chat that fills in a settings form. Theme-aware via the palette variables. */
+.civr .civr-assist { border: 1px solid color-mix(in srgb, var(--c-accent) 28%, transparent); background: linear-gradient(180deg, var(--c-accent-soft) 0%, transparent 85%), var(--c-card); border-radius: var(--radius-card, 1rem); }
+.civr .civr-assist-icon { background: var(--c-accent-soft); color: var(--c-accent); }
+.civr .civr-assist-sub { color: var(--c-muted); }
+.civr .civr-assist-chip { border: 1px solid var(--c-border); background: var(--c-card); color: var(--c-text-2, var(--c-text)); transition: border-color .15s ease, background-color .15s ease, transform .15s ease; }
+.civr .civr-assist-chip:hover { border-color: color-mix(in srgb, var(--c-accent) 60%, transparent); background: var(--c-accent-soft); transform: translateY(-1px); }
+.civr .civr-assist-me { background: var(--c-accent-strong); color: #fff; }
+.civr .civr-assist-bot { background: color-mix(in srgb, var(--c-text) 6%, var(--c-card)); color: var(--c-text); border: 1px solid var(--c-border); }
+.civr .civr-assist-err { background: color-mix(in srgb, var(--c-rose, #fb7185) 12%, var(--c-card)); color: var(--c-rose, #fb7185); }
+.civr .civr-assist-tag { background: var(--c-accent-soft); color: var(--c-accent); }
+.civr .civr-assist-link { color: var(--c-accent); }
+.civr .civr-assist-in { animation: civr-assist-in .22s ease-out both; }
+@keyframes civr-assist-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .civr .civr-assist-in { animation: none; } }

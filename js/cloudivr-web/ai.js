@@ -63,6 +63,38 @@ function routes(router, { h, numbersApi }) {
     if (await needCalendar(req, res)) return
     try { res.status(201).json({ agent: s.publicAgent(await s.createAgent(req.webChatId, req.body || {})) }) } catch (e) { bad(res, 400, 'invalid_agent', e.message) }
   }))
+  // Smart setup: one sentence → a filled-in agent form (not saved; the owner checks it first).
+  router.post('/ai-agents/draft', h(async (req, res) => {
+    const text = String(req.body?.description || '').trim().slice(0, 600)
+    if (text.length < 8) return bad(res, 400, 'too_short', 'Describe the agent in one sentence, e.g. "A receptionist for a dental clinic that books cleanings."')
+    const d = await require('./ai-draft').draftAgent(text, req.body?.role === 'receptionist' ? 'receptionist' : 'agent')
+    if (!d) return bad(res, 503, 'draft_failed', 'Could not write the setup right now. Try again in a moment.')
+    res.json({ draft: d })
+  }))
+  // Chat builder: the owner chats, the AI answers and returns the form fields to change (nothing saved here).
+  router.post('/ai-agents/builder-chat', h(async (req, res) => {
+    const msgs = Array.isArray(req.body?.messages) ? req.body.messages.filter(m => m && typeof m.content === 'string') : []
+    if (!msgs.length) return bad(res, 400, 'no_message', 'Type a message.')
+    const r = await require('./ai-draft').builderChat(msgs, req.body?.current || {}, req.body?.role === 'receptionist' ? 'receptionist' : 'agent')
+    if (!r) return bad(res, 503, 'builder_failed', 'The assistant is busy right now. Try again in a moment.')
+    res.json(r)
+  }))
+  // "Call me to test": rings one US/CA number now (the owner's own phone), a few times a day — not a way around campaign calling hours.
+  const callMeLog = new Map()
+  router.post('/ai-agents/:id/call-me', withAgent(async (req, res) => {
+    const to = String(req.body?.to || '').replace(/[^\d+]/g, '').replace(/^(?!\+)/, '+')
+    if (!/^\+1\d{10}$/.test(to)) return bad(res, 400, 'invalid_number', 'Enter your own US or Canada number, e.g. +14155550100.')
+    const key = String(req.webChatId), day = new Date().toISOString().slice(0, 10)
+    const used = (callMeLog.get(key) || []).filter(d => d === day)
+    if (used.length >= 5) return bad(res, 429, 'test_limit', 'You can place 5 test calls a day. Try again tomorrow.')
+    const nums = (await numbersApi.myNumbers(req.webChatId)).filter(n => n.status === 'active')
+    const from = nums.find(n => n.phoneNumber === req.body?.callerId)?.phoneNumber || nums[0]?.phoneNumber
+    if (!from) return bad(res, 400, 'no_number', 'You need an active number to place a test call.')
+    const r = await ai.dialLead({ agentId: req.agent.id, chatId: key, callerId: from, id: null }, { number: to, name: null })
+    if (r.error) return bad(res, 503, 'call_failed', r.error)
+    callMeLog.set(key, [...used, day])
+    res.json({ calling: to, from })
+  }))
   // What the agent will say first, for the form preview (unsaved values; {lead_name} = a sample name).
   router.post('/ai-agents/opening-preview', h(async (req, res) => {
     const b = req.body || {}
