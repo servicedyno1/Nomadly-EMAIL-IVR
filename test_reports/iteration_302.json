@@ -1,0 +1,38 @@
+{
+  "summary": "Retest of the iteration_301 fixes for the CloudIVR setup assistant. Backend: 7 of 8 new tests pass, plus 16 of 16 in the old regression suite. The 2-Texting-Number gap now works. With no line named, missing has 'Key 1: which Texting Number should send it (+12025550111 or +12025550122)?'. After 'Send from the one ending 0122', smsFrom is mn_cd02 and that item is gone. Sanitizer: clean(forwarding,{ringTimeout:'',holdMusic:null,mode:'always'}) returns {mode:'always'}. Empty or null values are also ignored on voicemail, ringgroup, quick and campaign, while false, 'true' and '25' are still kept. Live hours, forwarding and ringgroup proposals all had a non-empty summary. However, the summaryOf fallback only makes lines from text, number and true/false values. A patch that holds only lists or objects still gets summary []. UI: every requested flow passes. Missed-call text: the 'Unsaved changes' pill appears after Fill in the form and goes away after Save text. Voicemail: when the assistant fills only the greeting text, the pill appears. The done message says 'press Place call' on Quick call, 'press Save campaign' on New campaign and 'press Save' on number tabs. Asking only for hold music on Quick call gave just the 'Hold music' chip. The Chat/Manual switch works on Forwarding and IVR. The form does not change before the user confirms, and 'ok' fills it in with no API call. Undo works on IVR. Two new minor issues found (below). All of Alice's settings were put back and checked against a snapshot: IVR off, forwarding disabled, missed-call text text restored and off, voicemail unchanged.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "assist.js summaryOf", "issue": "The fallback skips values that are lists or objects. A non-empty patch with only options (ivr), members (ringgroup), days (hours) or rules (triggers) and an empty summary from the LLM still returns summary []. Unit check: summaryOf([], {options:[...]}) gives [], and the same for {members:[...]} and {days:{...}}. Add short fallbacks, e.g. 'Keys: 1 → forward, 2 → sms', 'members: +1..., +1...', 'days: mon, tue …', or at least the field names."},
+      {"endpoint": "POST /api/cloudivr-web/assist/ivr (GAPS.ivr / keyGaps)", "issue": "False 'which Texting Number' item. A key already saved with smsFrom:'mn_cd02' in current gets flagged again when the user only asks to change the greeting, because 'named' only looks at the user's words in this chat. Reproduced: test_cloudivr_assist_existing_line.py. Fix: treat smsFrom as settled when it equals current's smsFrom for that digit (or when it is not in the patch), and only ask when the LLM set or changed it."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Assist same() changed-key filter, Forwarding tab", "issue": "A 'Backups' chip shows up even though nothing changed. The forwarding form stores backups as an array ([]), but the backend phoneCsv sends a string (''), so same([], '') is false. Applying also changes the type of f.backups from an array to a string. Fix: before comparing, convert array and comma-separated string to one form (e.g. turn arrays into ', '-joined strings in same()). transferBackups on Quick call and New campaign may have the same problem.", "selector": "[data-testid^='forwarding-assist-proposal-'] span.rounded-full", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Assist done message", "issues": ["Quick call: when a schedule time is set the button reads 'Schedule call', but the done message still says 'press Place call'.", "The mode note still says 'Nothing is saved until you press Save' on Quick call and New campaign (minor)."]},
+      {"screen": "Campaign assist reply", "issues": ["One LLM reply said 'reporting key presses only' while the patch set mode to transfer, so the reply and the chips disagree. This is LLM wording, but it is worth a line in the prompt: the reply must match the patch."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_assist_fixes.py", "/app/backend/tests/test_cloudivr_assist_existing_line.py", "/app/backend/tests/test_cloudivr_assist.py", "/app/test_reports/pytest/assist_fixes.xml"],
+  "action_items": [
+    "summaryOf: add fallback lines for list and object patch values (options, members, days, rules), so a non-empty patch never has summary [].",
+    "keyGaps: don't flag 'which Texting Number' when smsFrom for that digit is the same as in the current form (already chosen and saved).",
+    "Assist same(): treat [] and '' (and arrays vs comma-separated strings) as equal, so an unchanged 'Backups' chip doesn't appear on Forwarding.",
+    "Optional: on Quick call, pass saveLabel='Schedule call' when scheduleAt is set."
+  ],
+  "critical_code_review_comments": [
+    "keyGaps 'named' check uses the last 4 digits of the line's phone found anywhere in the user's words. If a forward number or other number in the chat happens to end in the same 4 digits, the line counts as named. This is acceptable but loose.",
+    "GAPS run on { ...current, ...patch }, so problems in parts of the current form the user didn't touch get reported too. This is by design, but it causes the existing-line false positive above."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_assist_fixes.py", "/app/backend/tests/test_cloudivr_assist_existing_line.py"],
+  "success_rate": {"backend": "88% (7/8 new tests, plus 16/16 regression; 1 extra edge-case test fails)", "frontend": "100% of the requested retest items (1 new minor chip issue)"},
+  "seed_data_creation": "None saved. Missed-call text was saved once with a TEST text during the UI test, then restored to the original text with enabled:false. Forwarding, IVR and voicemail were not saved. Checked against a feature snapshot: no differences.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login: civr.alice@example.com / AliceTest#2026 at /cloudivr/login (click cookie-allow-all first). Number +13346970100; tabs ?tab=textback|voicemail|forwarding|ivr. Run: pytest backend/tests/test_cloudivr_assist_fixes.py test_cloudivr_assist_existing_line.py test_cloudivr_assist.py -p no:xdist -o addopts=\"\" (these make real LLM calls). test_summary_fallback_unit and test_existing_line_not_reflagged should pass once the fixes are in. The assist test uses a second fake line mn_cd02 (+12025550122) only in the context; it is not stored in the DB.",
+  "rca of the issue": "summaryOf filters Object.entries(patch) to typeof string/number/boolean, so list and object fields are dropped. keyGaps 'named' only checks the user's words, not current.options[digit].smsFrom. In Assist.js, same() compares JSON.stringify([]) with JSON.stringify(''), and they differ."
+}

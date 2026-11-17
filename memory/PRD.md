@@ -452,3 +452,15 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Wallet audit live (js/wallet-audit.js) — alerts admins on any wallet change without a billing record. First real audit run pending (30-min cycle).
 - First-deposit bonus now recorded in transactions; 87 historic records backfilled.
 - Pending: user verification of free-call caller IDs (landing, web trial, bot trial, SIP test page) end-to-end; Portugal test call retry; failover live switch/alerts; other brands (app-wl/voodoo/proshop) still have the unrecorded-bonus code.
+
+## 2026-11-17 — CloudIVR setup assistant on every IVR screen (NOT yet deployed to production)
+- Shared `frontend/src/cloudivr/Assist.js` + backend `js/cloudivr-web/assist.js` (`POST /api/cloudivr-web/assist/:screen`) on 9 screens:
+  Quick call, New campaign (Bulk IVR), number tabs Keypad menu, Hours, Voicemail, Forwarding, Ring group, Missed-call text, Text Triggers.
+- Owner choices: Chat / Manual switch per screen (remembered); assistant asks → suggests → confirms ("Fill in the form" or "yes") before
+  filling the form; Undo; nothing saved until the page's own Save / Place call; "Still needed before it works" list (server GAPS checks).
+- Assistant knowledge = audited product facts (plans, inbound order, key actions, OTP flow, campaigns, texting) in `KNOWLEDGE`; gets account
+  context (plan, voicemail availability, the owner's Texting Numbers) and asks which Texting Number sends texts when there are several.
+- New: IVR "send the caller a text" key supports 2-5 rotating versions (`smsTexts`, rotation counter in `ivrSmsRotation`).
+- Audit bug fixes: IVR message key no longer hangs up after 8 s (hangs up when the message ends); OTP entry prompt no longer plays the
+  owner's "after accept" sentence; custom decline sentence now also asks to re-enter the code.
+- Tested: iteration_301 (all 9 screens, backend 16/16) + iteration_302 retest; last minor fixes unit-checked.

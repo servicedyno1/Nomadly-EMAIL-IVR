@@ -182,6 +182,7 @@ HOW TO TALK
 - Confirm before changing the form: when you know enough, propose the full setup and ask "Shall I fill this in?". Small direct edits the owner asks for ("make it 30 seconds") can be proposed straight away.
 - Be thorough end to end, like a product expert: before proposing, make sure every piece the setup needs to really work is known (phone numbers, which Texting Number sends texts, plan limits, what happens if nobody answers). Ask for what's missing, one question at a time.
 - Scripts and greetings callers hear must be polished and natural: start with the business name, short sentences, never read out phone numbers that calls are transferred to, end with a clear key instruction ("press 1 to…").
+- "reply" and "summary" must describe exactly what is in "patch" — never say one thing and set another.
 - Keep "reply" short when proposing (one sentence + the question); the details go in "summary".
 - When the form is filled, tell them the next steps on this page in one line (press Save, switch the feature on if it's off, and a test call if useful).
 - Nothing is saved until the owner presses Save on the page; you cannot place calls, switch features on, or save.
@@ -201,7 +202,7 @@ Current form: ${JSON.stringify(current || {}).slice(0, 6000)}`
 
 // Things a proposal still needs before it can be saved and work on a real call, in plain words.
 const has = (v) => (Array.isArray(v) ? v.length > 0 : !!String(v ?? '').trim())
-function keyGaps(opts, ctx, where = '', said = '') {
+function keyGaps(opts, ctx, where = '', said = '', prev = []) {
   const out = []
   const lines = Array.isArray(ctx?.textingNumbers) ? ctx.textingNumbers : null
   for (const o of opts || []) {
@@ -213,7 +214,8 @@ function keyGaps(opts, ctx, where = '', said = '') {
       if (lines && !lines.length) out.push(`${k}: you need a Texting Number to send texts (order one in the key row).`)
       else if (lines && lines.length > 1) {
         const line = lines.find(l => l.id === o.smsFrom)
-        const named = line && (said.includes(String(line.phone).replace(/\D/g, '').slice(-4)) || said.toLowerCase().includes(line.id))
+        const kept = line && (prev || []).some(p => String(p.digit) === String(o.digit) && p.smsFrom === o.smsFrom)
+        const named = line && (kept || said.includes(String(line.phone).replace(/\D/g, '').slice(-4)) || said.toLowerCase().includes(line.id))
         if (!named) out.push(`${k}: which Texting Number should send it (${lines.map(l => l.phone).join(' or ')})?`)
       }
     }
@@ -224,7 +226,7 @@ function keyGaps(opts, ctx, where = '', said = '') {
   return out
 }
 const GAPS = {
-  ivr: (f, c, said) => [...(f.options && !f.options.length ? ['Add at least one key.'] : []), ...keyGaps(f.options, c, '', said),
+  ivr: (f, c, said, cur) => [...(f.options && !f.options.length ? ['Add at least one key.'] : []), ...keyGaps(f.options, c, '', said, cur?.options),
     ...(f.greeting && f.options ? f.options.filter(o => !new RegExp(`\\b${o.digit}\\b`).test(f.greeting)).map(o => `The greeting doesn't mention key ${o.digit}.`) : [])],
   quick: (f) => [...(f.mode === 'transfer' && !f.transferTo ? ['Which phone should callers be connected to?'] : []), ...(f.mode === 'otp' && f.script && !/press\s*(1|one)/i.test(f.script) ? ['The script should tell them to press 1 before typing the code.'] : []), ...(f.mode === 'menu' ? keyGaps(f.menu) : [])],
   campaign: (f) => [...(f.mode === 'transfer' && !f.transferNumber ? ['Which phone should calls transfer to?'] : []), ...(f.mode === 'menu' ? keyGaps(f.menu) : [])],
@@ -238,7 +240,13 @@ const GAPS = {
 function summaryOf(lines, patch) {
   const list = (Array.isArray(lines) ? lines : []).map(x => str(x, 160)).filter(Boolean).slice(0, 8)
   if (list.length) return list
-  return Object.entries(patch).filter(([, v]) => ['string', 'number', 'boolean'].includes(typeof v) && v !== '').slice(0, 6).map(([k, v]) => `${k}: ${typeof v === 'boolean' ? (v ? 'on' : 'off') : str(v, 120)}`)
+  const val = (k, v) => {
+    if (typeof v === 'boolean') return v ? 'on' : 'off'
+    if (Array.isArray(v)) return v.map(x => (typeof x === 'string' ? x : x?.digit ? `${x.digit} → ${x.action}` : x?.action || '')).filter(Boolean).join(', ')
+    if (v && typeof v === 'object') return k === 'days' ? Object.entries(v).map(([d, x]) => `${d} ${x.on ? `${x.start || ''}-${x.end || ''}` : 'closed'}`).join(', ') : Object.keys(v).join(', ')
+    return String(v)
+  }
+  return Object.entries(patch).map(([k, v]) => [k, val(k, v)]).filter(([, v]) => v !== '').slice(0, 6).map(([k, v]) => `${k}: ${str(v, 140)}`)
 }
 
 function clean(sc, raw) {
@@ -262,7 +270,7 @@ async function chat(screen, messages, current, context) {
     }, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` }, timeout: 30000 })
     const j = JSON.parse(r.data.choices[0].message.content)
     const patch = clean(sc, j.patch)
-    const missing = Object.keys(patch).length && GAPS[screen] ? [...new Set(GAPS[screen]({ ...(current || {}), ...patch }, context, messages.filter(m => m.role !== 'assistant').map(m => m.content).join(' ').replace(/[^\w\s]/g, '')))].slice(0, 6) : []
+    const missing = Object.keys(patch).length && GAPS[screen] ? [...new Set(GAPS[screen]({ ...(current || {}), ...patch }, context, messages.filter(m => m.role !== 'assistant').map(m => m.content).join(' ').replace(/[^\w\s]/g, ''), current || {}))].slice(0, 6) : []
     return { reply: str(j.reply, 900) || 'Here’s what I suggest.', summary: Object.keys(patch).length ? summaryOf(j.summary, patch) : [], missing, patch }
   } catch (e) {
     console.log(`[Assist:${screen}] failed: ${e.response?.data?.error?.message || e.message}`)
@@ -282,4 +290,4 @@ function routes(router, { h }) {
   }))
 }
 
-module.exports = { routes, clean, SCREENS }
+module.exports = { routes, clean, SCREENS, summaryOf, GAPS }

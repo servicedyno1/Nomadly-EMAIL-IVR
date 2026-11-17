@@ -6,7 +6,8 @@ const pick = (obj, keys) => Object.fromEntries(keys.map(k => [k, obj?.[k]]));
 const modeKey = (screen) => `civr-assist-mode-${screen}`;
 const YES = /^\s*(yes|yep|yeah|yup|sure|ok(ay)?|do it|go ahead|apply( it)?|fill( it)? in|looks good|perfect|great|confirm(ed)?|please do|sounds good)\b[\s.!]*$/i;
 const DONE = (action) => `Done — I’ve filled in the form below. Check it, then press ${action}. Want to change anything?`;
-const same = (a, b) => JSON.stringify(a ?? '') === JSON.stringify(b ?? '');
+const norm = (v) => (Array.isArray(v) && v.every(x => typeof x === 'string') ? v.filter(Boolean).join(', ') : v ?? '');
+const same = (a, b) => JSON.stringify(norm(a)) === JSON.stringify(norm(b));
 
 function Proposal({ m, i, prefix, labels, onApply, onEdit }) {
   return (
@@ -96,7 +97,7 @@ export function Assist({ screen, title, hello, examples = [], current, context, 
         <span className="shrink-0 w-8 h-8 rounded-xl civr-assist-icon grid place-items-center"><Sparkles className="w-4 h-4" /></span>
         <div className="flex-1 min-w-[12rem]">
           <div className="text-sm font-semibold">{title || 'Set this up by chatting'}</div>
-          <div className="text-xs civr-assist-sub" data-testid={`${prefix}-mode-note`}>{mode === 'chat' ? 'I ask a few questions, suggest a setup and fill in the form once you agree. Nothing is saved until you press Save.' : 'You’re setting this up by hand below. Switch to Chat any time — your entries are kept.'}</div>
+          <div className="text-xs civr-assist-sub" data-testid={`${prefix}-mode-note`}>{mode === 'chat' ? `I ask a few questions, suggest a setup and fill in the form once you agree. Nothing happens until you press ${saveLabel}.` : 'You’re setting this up by hand below. Switch to Chat any time — your entries are kept.'}</div>
         </div>
         {mode === 'chat' && msgs.length > 0 && <button type="button" onClick={restart} className="civr-btn civr-btn-ghost civr-btn-sm !px-2" aria-label="Start over" title="Start over" data-testid={`${prefix}-restart`}><RotateCcw className="w-4 h-4" /></button>}
         <ModeSwitch mode={mode} setMode={setMode} prefix={prefix} />
