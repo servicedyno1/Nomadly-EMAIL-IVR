@@ -1983,7 +1983,8 @@ async function noAnswerFallback(originalCcid, t, hangupCause) {
 
   const vm = t.vmConfig
   const fwd = t.fwdConfig
-
+  // A keypad "ring my phones" key: its own no-answer choice (voicemail / back to the menu / message).
+  if (t.ivrKey) { origSession.phase = 'ivr'; return ivrKeyNoAnswer(originalCcid, origSession, t.ivrKey, ivrSpeechOf(origSession)) }
   // Try forwarding based on mode (no_answer OR busy when the ring reports busy / was declined)
   const sipHangupCause = hangupCause || ''
   const isSipBusy = sipHangupCause === 'USER_BUSY' || sipHangupCause === 'BUSY'
@@ -4234,6 +4235,12 @@ async function handleCallAnswered(payload) {
 
   // On/off hours: outside the number's hours nothing rings or forwards (checked before recording starts).
   if (session.offHours) {
+    if (afterHoursMenuOn(num)) {
+      session.ivrRoot = 'after'
+      log(`[Voice] ${num.phoneNumber} is outside its hours — playing the after-hours menu`)
+      await startIvrMenu(callControlId, session)
+      return
+    }
     await routeOffHours(callControlId, session)
     return
   }
@@ -4316,28 +4323,8 @@ async function handleCallAnswered(payload) {
 
   // 2. IVR — Pro and Business plans (only reached when forwarding is NOT in "always" mode)
   if (ivrConfig?.enabled && canAccessFeature(num.plan, 'ivr') && ivrConfig.options && Object.keys(ivrConfig.options).length > 0) {
-    session.phase = 'ivr'
-    const ivrL = vmGreeting.ivrSpeech(ivrConfig.language)
-    const greeting = ivrConfig.greeting || ivrL.fallback
     log(`[Voice] Starting IVR for ${num.phoneNumber}`)
-
-    // (#9) Play audio greeting if available, otherwise use TTS
-    if (ivrConfig.greetingAudioUrl) {
-      await _telnyxApi.gatherDTMFWithAudio(callControlId, ivrConfig.greetingAudioUrl, {
-        minDigits: 1,
-        maxDigits: 1,
-        timeout: 15000,
-        validDigits: Object.keys(ivrConfig.options).join(''),
-      })
-    } else {
-      await _telnyxApi.gatherDTMF(callControlId, greeting, {
-        minDigits: 1,
-        maxDigits: 1,
-        timeout: 15000,
-        validDigits: Object.keys(ivrConfig.options).join(''),
-        language: ivrL.tts,
-      })
-    }
+    await startIvrMenu(callControlId, session)
     return
   }
 
@@ -4464,6 +4451,156 @@ async function handleCallAnswered(payload) {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// IVR MENU HELPERS + KEYS THAT REACH YOUR DEVICES, TEAM, AI AGENT, FAX AND CALL BACK
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// After-hours menu: outside the number's hours callers get this menu instead of the closed routing.
+function afterHoursMenuOn(num) {
+  const ivr = num?.features?.ivr, ah = ivr?.afterHours
+  return !!(ivr?.enabled && canAccessFeature(num.plan, 'ivr') && ah?.enabled && Object.keys(ah.options || {}).length)
+}
+const ivrRootOf = (session) => { const ivr = session.num.features?.ivr || {}; return session.ivrRoot === 'after' && ivr.afterHours?.options ? ivr.afterHours : ivr }
+// A language sub-menu ("press 2 para español") switches the spoken language for the rest of the call.
+const ivrSpeechOf = (session) => vmGreeting.ivrSpeech(session.ivrLang || session.num.features?.ivr?.language)
+const menuNodeAt = (cfg, path) => { let node = cfg; for (const d of path) node = node?.options?.[d]?.subMenu; return node }
+const extensionsOf = (session) => (session.ivrRoot === 'after' ? [] : (session.num.features?.ivr?.extensions || []).filter(e => e?.code))
+// Waits for one key of `menu`; at the top of the main menu also for a staff extension (a short pause ends a single key).
+function menuGather(id, session, text, menu, { audioUrl, timeout = 15000 } = {}) {
+  const ivrL = ivrSpeechOf(session)
+  const exts = menu === ivrRootOf(session) ? extensionsOf(session) : []
+  const valid = [...new Set(Object.keys(menu?.options || {}).join('') + exts.map(e => e.code).join(''))].join('') || '0123456789'
+  const o = { minDigits: 1, maxDigits: exts.length ? Math.max(...exts.map(e => String(e.code).length)) : 1, timeout, validDigits: valid, language: ivrL.tts, ...(exts.length ? { interDigitTimeout: 2500 } : {}) }
+  if (audioUrl && _telnyxApi.gatherDTMFWithAudio) return _telnyxApi.gatherDTMFWithAudio(id, audioUrl, o)
+  return _telnyxApi.gatherDTMF(id, text, o)
+}
+async function startIvrMenu(id, session) {
+  session.phase = 'ivr'
+  session.ivrPath = []
+  session.ivrRetried = false
+  const root = ivrRootOf(session)
+  await menuGather(id, session, root.greeting || ivrSpeechOf(session).fallback, root, { audioUrl: root.greetingAudioUrl })
+}
+
+// Staff extension: rings that person's phone, or this number's own browser phone / desk phones.
+async function dialExtension(id, session, ext, ivrL) {
+  log(`[Voice] IVR extension ${ext.code} (${ext.name || 'no name'}) on ${session.to}`)
+  trackIvrAnalytics(session.num.phoneNumber, session.chatId, session.from, `ext ${ext.code}`, ext.action === 'devices' ? 'devices' : 'forward')
+  if (ext.action === 'devices') return ringOwnDevices(id, session, { digit: `ext ${ext.code}`, label: ext.name, noAnswer: ext.noAnswer || 'voicemail' }, ivrL)
+  if (!(await ivrForwardAllowed(id, session, ext.forwardTo))) return
+  session.phase = 'ivr_forward'
+  await playHoldMusicAndTransfer(id, ext.forwardTo, session.to, { ...(session.num.features?.callForwarding || {}), inbound: true, presentFrom: session.from })
+  notifyUser(session.chatId, session.num, 'ivr_forward', session, { digit: `ext ${ext.code}`, forwardTo: ext.forwardTo })
+}
+
+// Key → ring this number's own browser phone and desk / mobile phone apps (its SIP login), with ringback for the caller.
+async function ringOwnDevices(id, session, o, ivrL) {
+  const { num, chatId } = session
+  if (!num.sipUsername) return ivrKeyNoAnswer(id, session, o, ivrL)
+  const sipUri = `sip:${num.telnyxSipUsername || num.sipUsername}@sip.telnyx.com`
+  const ringSecs = Math.min(60, Math.max(10, Number(o.ringSecs) || 25))
+  session.phase = 'ringing_sip'
+  _telnyxApi.playbackStart(id, RINGBACK_URL, { loop: 'infinity' }).catch(() => {})
+  const leg = await _telnyxApi.createOutboundCall(session.from, sipUri).catch(e => { log(`[Voice] IVR devices ring failed: ${e.message}`); return null })
+  if (!leg?.callControlId) { await _telnyxApi.playbackStop(id).catch(() => {}); return ivrKeyNoAnswer(id, session, o, ivrL) }
+  activeBridgeTransfers[leg.callControlId] = { originalCallControlId: id, forwardTo: sipUri, fromNumber: session.to, type: 'sip_ring', vmConfig: null, fwdConfig: null, chatId, num, phase: 'ringing', ivrKey: o, createdAt: new Date() }
+  session.sipRingCallControlId = leg.callControlId
+  if (browserRing.isOnline(chatId)) browserRing.add({ chatId, phone: session.to, from: session.from, ccid: id, timeoutMs: ringSecs * 1000 })
+  log(`[Voice] IVR key ${o.digit}: ringing your phones (${sipUri}) for ${ringSecs}s`)
+  require('./cloudivr-web/notify').push(chatId, `📞 ${formatPhone(session.from)} pressed ${o.digit}${o.label ? ` (${o.label})` : ''} on ${formatPhone(session.to)} — your browser phone and phone apps are ringing.`, null, { kind: 'call' }).catch(() => {})
+  setTimeout(() => { const t = activeBridgeTransfers[leg.callControlId]; if (t && t.phase !== 'bridged') _telnyxApi.hangupCall(leg.callControlId).catch(() => {}) }, ringSecs * 1000)
+}
+// Nobody picked up a devices key: voicemail (its own box), back to the menu, or the key's message.
+async function ivrKeyNoAnswer(id, session, o, ivrL) {
+  if (!stillOn(id, session)) return
+  log(`[Voice] IVR key ${o.digit}: nobody answered → ${o.noAnswer || 'message'}`)
+  if (o.noAnswer === 'voicemail' && canAccessFeature(session.num.plan, 'voicemail')) {
+    session.phase = 'voicemail_greeting'
+    session.vmBox = o.box?.name || o.box?.email ? { ...o.box, digit: o.digit } : session.vmBox
+    return _telnyxApi.speakOnCall(id, `Sorry, nobody could take your call. ${ivrL.leaveMessage}`, 'female', ivrL.tts)
+  }
+  if (o.noAnswer === 'menu') {
+    session.ivrRetried = false
+    session.phase = 'ivr'
+    const root = ivrRootOf(session)
+    return menuGather(id, session, `Sorry, nobody is available right now. ${root.greeting || ivrL.fallback}`, root)
+  }
+  notifyUser(session.chatId, session.num, 'missed', session)
+  return sayAndEnd(id, session, o.noAnswerMessage || 'Sorry, nobody is available to take your call right now. Please try again later. Goodbye.', ivrL)
+}
+
+// Key → the number's ring group (its phones ring together; its own no-answer choice applies).
+async function ringGroupKey(id, session, o, ivrL) {
+  const rg = session.num.features?.ringGroup
+  if (!rg?.members?.length || !canAccessFeature(session.num.plan, 'ringGroup')) return sayAndEnd(id, session, 'Sorry, nobody is available right now. Goodbye.', ivrL)
+  if (!(await ivrForwardAllowed(id, session, rg.members[0]))) return
+  session.phase = 'ring_group'
+  session.forwardingRate = CALL_FORWARDING_RATE_MIN
+  log(`[Voice] IVR key ${o.digit}: ringing the team group (${rg.members.length} phones)`)
+  await startRingGroup(id, session)
+}
+
+// Key → one of the owner's AI agents takes the call from here (billed like an AI-answered call).
+async function aiAgentKey(id, session, o, ivrL) {
+  session.phase = 'ivr_check'
+  await _telnyxApi.speakOnCall(id, o.message || 'Connecting you to our assistant.', 'female', ivrL.tts).catch(() => {})
+  const r = await require('./ai-agent').takeFromIvr({ ccid: id, chatId: session.chatId, num: session.num, agentId: o.agentId, from: session.from }).catch(e => { log(`[Voice] IVR AI handover error: ${e.message}`); return false })
+  if (r === true) {
+    if (session._limitTimer) clearInterval(session._limitTimer)
+    trackIvrAnalytics(session.num.phoneNumber, session.chatId, session.from, String(o.digit), 'ai')
+    delete activeCalls[id] // the AI agent owns this call (its events, billing and summary) from now on
+    return
+  }
+  if (r === 'voicemail' && canAccessFeature(session.num.plan, 'voicemail')) {
+    session.phase = 'voicemail_greeting'
+    return _telnyxApi.speakOnCall(id, `Our assistant is closed right now. ${ivrL.leaveMessage}`, 'female', ivrL.tts)
+  }
+  require('./cloudivr-web/notify').push(session.chatId, `⚠️ A caller pressed ${o.digit} for your AI agent on ${formatPhone(session.to)}, but it could not take the call (agent removed or off, or the wallet is too low).`, null, { kind: 'call' }).catch(() => {})
+  return sayAndEnd(id, session, o.unavailableMessage || 'Sorry, our assistant is not available right now. Please try again later. Goodbye.', ivrL)
+}
+
+// Fax key: the caller typed their fax number → send the owner's document from their fax number.
+async function faxKeyNumber(id, session, c, ivrL) {
+  const o = c.option, raw = c.entered
+  if (!raw) return sayAndEnd(id, session, ivrL.goodbye, ivrL)
+  const to = raw.length === 10 && /^\+1/.test(session.to) ? `+1${raw}` : raw.length === 11 && raw.startsWith('1') ? `+${raw}` : `+${raw}`
+  session.phase = 'ivr_check'
+  try {
+    await require('./fax-service').sendIvrDoc({ chatId: session.chatId, faxFrom: o.faxFrom, fileId: o.fileId, pages: o.pages, to })
+    log(`[Voice] IVR fax key ${c.digit}: "${o.docName || 'document'}" faxed to ${to} from ${o.faxFrom}`)
+    require('./cloudivr-web/notify').push(session.chatId, `📠 ${formatPhone(session.from)} asked for "${o.docName || 'your document'}" — faxing it to ${formatPhone(to)}.`, null, { kind: 'call' }).catch(() => {})
+    return sayThenMenuOrEnd(id, session, o.message || 'Thank you. Your fax is on its way and should arrive in a few minutes.', c, ivrL)
+  } catch (e) {
+    log(`[Voice] IVR fax key ${c.digit} failed: ${e.message}`)
+    if (e.code === 'bad_number' && !session.faxRetried) {
+      session.faxRetried = true
+      session.collect = { kind: 'fax', option: o, path: c.path, digit: c.digit }
+      session.phase = 'ivr_collect'
+      return _telnyxApi.gatherDTMF(id, 'That fax number did not work. Please enter it again with the area code, then press pound.', { minDigits: 7, maxDigits: 15, timeout: 20000, validDigits: '0123456789', language: ivrL.tts })
+    }
+    require('./cloudivr-web/notify').push(session.chatId, `⚠️ A caller asked for a fax of "${o.docName || 'your document'}", but it was not sent: ${e.message}`, null, { kind: 'call' }).catch(() => {})
+    return sayAndEnd(id, session, 'Sorry, we could not send the fax right now. Please try again later. Goodbye.', ivrL)
+  }
+}
+
+// Call back key: the caller hangs up and keeps their place — you get the request, or (auto) your phone rings and
+// pressing 1 calls them back.
+async function callbackKey(id, session, o, ivrL) {
+  const { num, chatId, from } = session
+  session.callbackRequested = true
+  log(`[Voice] IVR key ${o.digit}: ${from} asked for a call back on ${session.to}${o.auto ? ` — ringing ${o.callbackTo}` : ''}`)
+  logEvent(session.to, from, 'callback_request', 0)
+  notifyUser(chatId, num, 'ivr_queue_callback', session, { digit: o.digit })
+  await sayAndEnd(id, session, o.message || 'Thank you. We have your number and will call you back as soon as we can. Goodbye.', ivrL)
+  if (!o.auto || !o.callbackTo) return
+  setTimeout(async () => {
+    const greetingText = `A caller from your keypad menu, ${spokenDigits(from)}, asked for a call back${o.label ? ` about ${o.label}` : ''}. Press 1 to call them now. To skip, just hang up.`
+    const r = await initiateOutboundIvrCall({ chatId, callerId: num.phoneNumber, targetNumber: o.callbackTo, ivrNumber: from, greetingText, activeKeys: ['1'], ivrMode: 'transfer', templateName: 'Call back request', holdMusic: false, provider: 'telnyx' }).catch(e => ({ error: e.message }))
+    if (r?.error) require('./cloudivr-web/notify').push(chatId, `⚠️ ${formatPhone(from)} asked for a call back, but your phone could not be rung: ${r.error}. Call them back from the app.`, null, { kind: 'call' }).catch(() => {})
+  }, 8000)
+}
+const spokenDigits = (p) => String(p || '').replace(/\D/g, '').split('').join(' ')
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // GATHER ENDED — IVR DTMF selection
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -4480,8 +4617,8 @@ async function handleGatherEnded(payload) {
 
   const digits = payload.digits || ''
   const { num, chatId } = session
-  const ivrConfig = num.features?.ivr
-  const ivrL = vmGreeting.ivrSpeech(ivrConfig?.language)
+  const ivrConfig = ivrRootOf(session)
+  const ivrL = ivrSpeechOf(session)
 
   // Queue callback offer between rounds: 1 = call me back, anything else = keep waiting.
   if (session.queue?.offering) return queueOfferEnded(callControlId, session, digits)
@@ -4491,8 +4628,10 @@ async function handleGatherEnded(payload) {
   // session.ivrPath is the array of sub-menu keys entered so far (e.g. ['1','2'] = key 1 then key 2).
   // Back-compat: an older single-digit string path is treated as a one-element array.
   const ivrPath = Array.isArray(session.ivrPath) ? session.ivrPath : (session.ivrPath ? [String(session.ivrPath)] : [])
-  const menuNodeAt = (cfg, path) => { let node = cfg; for (const d of path) node = node?.options?.[d]?.subMenu; return node }
   const inSubMenu = ivrPath.length > 0
+  // A staff extension typed at the top of the menu (more than one digit, or a one-digit code that is not a key).
+  const ext = !inSubMenu && digits && extensionsOf(session).find(e => String(e.code) === digits)
+  if (ext && (digits.length > 1 || !ivrConfig?.options?.[digits])) return dialExtension(callControlId, session, ext, ivrL)
   const curMenu = inSubMenu ? (menuNodeAt(ivrConfig, ivrPath) || {}) : ivrConfig
   const optionsMap = curMenu?.options || {}
   log(`[Voice] DTMF received: "${digits}" for ${num.phoneNumber}${inSubMenu ? ` (sub-menu ${ivrPath.join('.')})` : ''}`)
@@ -4504,13 +4643,7 @@ async function handleGatherEnded(payload) {
   if (!digits || !optionsMap?.[digits]) {
     if (!session.ivrRetried) {
       session.ivrRetried = true
-      await _telnyxApi.gatherDTMF(callControlId, ivrL.invalid, {
-        minDigits: 1,
-        maxDigits: 1,
-        timeout: 10000,
-        validDigits: Object.keys(optionsMap || {}).join('') || '0123456789',
-        language: ivrL.tts,
-      })
+      await menuGather(callControlId, session, ivrL.invalid, curMenu, { timeout: 10000 })
     } else {
       await _telnyxApi.speakOnCall(callControlId, ivrL.goodbye, 'female', ivrL.tts)
       setTimeout(() => _telnyxApi.hangupCall(callControlId), 2000)
@@ -4522,29 +4655,16 @@ async function handleGatherEnded(payload) {
 
   // If the caller picked a sub-menu key (at any depth), append it to session.ivrPath and
   // play that sub-menu's greeting. The next DTMF resolves against the deeper menu (up to 3 levels).
+  // A sub-menu with its own language ("press 2 para español") switches the spoken language from here on.
   if (option.action === 'submenu') {
     session.ivrPath = [...ivrPath, digits]
     session.ivrRetried = false // reset retry counter for the new menu level
     const sub = option.subMenu || {}
-    const validDigits = Object.keys(sub.options || {}).join('') || '0123456789'
-    const greetingText = sub.greeting || ivrL.sub
+    if (sub.language) session.ivrLang = sub.language
+    const subL = ivrSpeechOf(session)
+    const greetingText = sub.greeting || subL.sub
     try {
-      if (sub.greetingType === 'audio' && sub.greetingAudioUrl && _telnyxApi.gatherDTMFWithAudio) {
-        await _telnyxApi.gatherDTMFWithAudio(callControlId, sub.greetingAudioUrl, {
-          minDigits: 1,
-          maxDigits: 1,
-          timeout: 10000,
-          validDigits,
-        })
-      } else {
-        await _telnyxApi.gatherDTMF(callControlId, greetingText, {
-          minDigits: 1,
-          maxDigits: 1,
-          timeout: 10000,
-          validDigits,
-          language: ivrL.tts,
-        })
-      }
+      await menuGather(callControlId, session, greetingText, sub, { audioUrl: sub.greetingType === 'audio' ? sub.greetingAudioUrl : null, timeout: 10000 })
       // Notify owner that a caller entered the sub-menu
       _bot?.sendMessage(chatId, `📞 <b>IVR Call — Key ${digits}</b>\nFrom: ${session.from}\n📂 Entering sub-menu <b>${escapeHtml(option.label && option.label.trim() ? option.label.trim() : 'Sub-Menu ' + digits)}</b> (${Object.keys(sub.options || {}).length} options)`, { parse_mode: 'HTML' }).catch(() => {})
     } catch (e) {
@@ -4568,7 +4688,31 @@ async function handleGatherEnded(payload) {
 
     case 'voicemail':
       session.phase = 'voicemail_greeting'
-      await _telnyxApi.speakOnCall(callControlId, ivrL.leaveMessage, 'female', ivrL.tts)
+      session.vmBox = option.box?.name || option.box?.email ? { ...option.box, digit: [...ivrPath, digits].join('.') } : null
+      await _telnyxApi.speakOnCall(callControlId, option.box?.greeting || ivrL.leaveMessage, 'female', ivrL.tts)
+      break
+
+    case 'devices':
+      await ringOwnDevices(callControlId, session, { ...option, digit: digits }, ivrL)
+      break
+
+    case 'ringgroup':
+      await ringGroupKey(callControlId, session, { ...option, digit: digits }, ivrL)
+      break
+
+    case 'ai':
+      await aiAgentKey(callControlId, session, { ...option, digit: digits }, ivrL)
+      break
+
+    case 'fax': {
+      session.phase = 'ivr_collect'
+      session.collect = { kind: 'fax', option, path: ivrPath.slice(), digit: digits }
+      await _telnyxApi.gatherDTMF(callControlId, option.prompt || 'Please enter your fax number, including the area code, then press pound.', { minDigits: 7, maxDigits: 15, timeout: 20000, terminatingDigit: '#', validDigits: '0123456789', language: ivrL.tts })
+      break
+    }
+
+    case 'callback':
+      await callbackKey(callControlId, session, { ...option, digit: digits }, ivrL)
       break
 
     case 'message':
@@ -4625,7 +4769,7 @@ async function handleGatherEnded(payload) {
       if (option.after === 'menu') {
         session.ivrRetried = false
         const menu = inSubMenu ? (menuNodeAt(ivrConfig, ivrPath) || ivrConfig) : ivrConfig
-        await _telnyxApi.gatherDTMF(callControlId, `${said} ${menu.greeting || (inSubMenu ? ivrL.sub : ivrL.fallback)}`, { minDigits: 1, maxDigits: 1, timeout: 15000, validDigits: Object.keys(menu.options || {}).join(''), language: ivrL.tts })
+        await menuGather(callControlId, session, `${said} ${menu.greeting || (inSubMenu ? ivrL.sub : ivrL.fallback)}`, menu)
       } else {
         await _telnyxApi.speakOnCall(callControlId, said, 'female', ivrL.tts)
         setTimeout(() => _telnyxApi.hangupCall(callControlId), 6000)
@@ -4641,7 +4785,7 @@ async function handleGatherEnded(payload) {
       if (option.after === 'menu') {
         session.ivrRetried = false
         const menu = inSubMenu ? (menuNodeAt(ivrConfig, ivrPath) || ivrConfig) : ivrConfig
-        await _telnyxApi.gatherDTMF(callControlId, `${said} ${menu.greeting || (inSubMenu ? ivrL.sub : ivrL.fallback)}`, { minDigits: 1, maxDigits: 1, timeout: 15000, validDigits: Object.keys(menu.options || {}).join(''), language: ivrL.tts })
+        await menuGather(callControlId, session, `${said} ${menu.greeting || (inSubMenu ? ivrL.sub : ivrL.fallback)}`, menu)
       } else {
         await _telnyxApi.speakOnCall(callControlId, said, 'female', ivrL.tts)
         setTimeout(() => _telnyxApi.hangupCall(callControlId), 6000)
@@ -4778,7 +4922,7 @@ async function queueContinue(id) {
   notifyUser(s.chatId, s.num, 'ivr_queue_overflow', s, { digit: q.digit })
   if (o.action === 'voicemail' && canAccessFeature(s.num.plan, 'voicemail')) {
     s.phase = 'voicemail_greeting'
-    await _telnyxApi.speakOnCall(id, vmGreeting.ivrSpeech(s.num.features?.ivr?.language).leaveMessage, 'female', q.tts)
+    await _telnyxApi.speakOnCall(id, ivrSpeechOf(s).leaveMessage, 'female', q.tts)
   } else if (o.action === 'forward' && o.forwardTo && await ivrForwardAllowed(id, s, o.forwardTo)) {
     await playHoldMusicAndTransfer(id, o.forwardTo, s.to, { ...(s.num.features?.callForwarding || {}), inbound: true, presentFrom: s.from, holdMusic: true })
   } else if (o.action !== 'forward') {
@@ -4812,6 +4956,7 @@ async function handleCollectedDigits(callControlId, session, digits, ivrL) {
   const entered = String(digits || '').replace(/\D/g, '')
   const c = { kind, option, path, digit, entered }
 
+  if (kind === 'fax') return faxKeyNumber(callControlId, session, c, ivrL)
   if (kind === 'pin') {
     // A full code ends the entry by itself; the pound the caller presses after it arrives as an empty entry — not a try.
     if (!entered && session.pinPoundUntil && Date.now() < session.pinPoundUntil) { session.pinPoundUntil = 0; return pinAsk(callControlId, session, c, ivrL) }
@@ -4899,11 +5044,11 @@ async function sayThenRoute(id, session, say, route, ivrL, digit) {
 }
 async function sayThenMenuOrEnd(id, session, said, c, ivrL) {
   if (c.option.after !== 'menu') return sayAndEnd(id, session, said, ivrL)
-  const ivrConfig = session.num.features?.ivr || {}
+  const ivrConfig = ivrRootOf(session)
   const menu = (c.path || []).length ? (menuNodeAt(ivrConfig, c.path) || ivrConfig) : ivrConfig
   session.ivrRetried = false
   session.phase = 'ivr'
-  await _telnyxApi.gatherDTMF(id, `${said} ${menu.greeting || ivrL.fallback}`, { minDigits: 1, maxDigits: 1, timeout: 15000, validDigits: Object.keys(menu.options || {}).join(''), language: ivrL.tts })
+  await menuGather(id, session, `${said} ${menu.greeting || ivrL.fallback}`, menu)
 }
 
 async function runCheckedKey(id, session, c, ivrL) {
@@ -5164,7 +5309,7 @@ async function handleRecordingSaved(payload) {
 
     // CloudIVR web accounts: keep the MP3 (Telnyx links expire), transcribe, inbox + email. Falls back to the bot path on error.
     if (recordingUrl && require('./cloudivr-web/notify.js').isWebChatId(chatId)) {
-      try { await _webVoicemail()({ chatId, num, from, to, recordingUrl, duration }); return } catch (e) { log(`[Voice] Web voicemail delivery failed, using default delivery: ${e.message}`) }
+      try { await _webVoicemail()({ chatId, num, from, to, recordingUrl, duration, box: session.vmBox || null }); return } catch (e) { log(`[Voice] Web voicemail delivery failed, using default delivery: ${e.message}`) }
     }
 
     if (num.features?.voicemail?.forwardToTelegram && recordingUrl) {

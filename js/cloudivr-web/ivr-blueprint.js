@@ -6,7 +6,7 @@
 // sub-menu level only (depth capped at 2); wrong/no key → "invalid option" once,
 // then goodbye.
 
-const LEAF = ['forward', 'message', 'sms', 'voicemail', 'webhook', 'collect', 'pin', 'pay', 'queue']
+const LEAF = ['forward', 'message', 'sms', 'voicemail', 'webhook', 'collect', 'pin', 'pay', 'queue', 'devices', 'ringgroup', 'ai', 'fax', 'callback']
 const ACTIONS = [...LEAF, 'submenu']
 const MAX_SUB_DEPTH = 3 // sub-menus may nest up to 3 levels (paths like 1.2.3); the executor walks session.ivrPath as an array.
 const isPhone = (v) => /^\+\d{8,15}$/.test(String(v || '').replace(/[^\d+]/g, ''))
@@ -25,6 +25,8 @@ function subList(o) {
 }
 function subGreeting(o) { return (o.subMenu || o).greeting }
 
+const countOf = (v) => (Array.isArray(v) ? v.length : v)
+const LANG_NAMES = { en: 'English', fr: 'French', es: 'Spanish' }
 const dbReady = (o) => !!(o.check?.connId && o.check?.table && o.check?.match)
 const payReady = (o) => !!o.connId && (o.amountFrom === 'lookup' ? !!o.check?.source : Number(o.amount) > 0)
 const askYou = (o) => (o.confirm ? ', then waits for your Accept or Decline' : '')
@@ -40,7 +42,12 @@ function actionOutcome(o, ctx) {
     case 'pay': return o.payVia === 'provider' ? (payReady(o) ? `texts a payment link for ${o.amountFrom === 'lookup' ? 'the amount they owe' : `${o.amount} ${o.currency || 'USD'}`}${o.waitPaid ? ' and waits for the payment' : ''}` : null) : isUrl(o.payUrl) ? 'texts the caller your payment link, then ' + (o.after === 'menu' ? 'replays the menu' : 'hangs up') : null
     case 'collect': return hasText(o.prompt) ? 'asks the caller to type a number, then ' + (o.check?.source ? (o.check.source === 'db' ? 'checks it in your database' : 'asks your system') + askYou(o) : o.confirm ? 'waits for your Accept or Decline' : isUrl(o.webhook) ? 'sends it to your system' : isPhone(o.forwardTo) ? 'connects them' : 'confirms it') : null
     case 'pin': return (o.check?.source || String(o.pin || '').replace(/\D/g, '').length || (Array.isArray(o.pins) && o.pins.length)) ? 'asks for a code; if ' + (o.check?.source === 'db' ? 'it is in your database' : o.check?.source === 'reply' ? 'your system accepts it' : 'it matches') + (o.confirm ? ' and you accept it, ' : ', ') + (isPhone(o.onOk?.forwardTo) ? 'connects them' : 'continues') + '; otherwise retries' : null
-    case 'submenu': return subList(o).length ? `opens the "${o.label || 'sub-menu'}" sub-menu` : null
+    case 'devices': return ctx?.sipLogin === false ? null : `rings your browser phone and phone apps for ${Number(o.ringSecs) || 25}s; if nobody answers, ${o.noAnswer === 'menu' ? 'goes back to the menu' : o.noAnswer === 'message' ? 'plays a sorry message' : 'takes a voicemail'}`
+    case 'ringgroup': return ctx?.ringGroupMembers === 0 ? null : 'rings your team group (its phones ring together; its own no-answer choice applies)'
+    case 'ai': return o.agentId ? `hands the call to your AI agent${o.agentName ? ` "${o.agentName}"` : ''}` : null
+    case 'fax': return o.faxFrom && o.fileId ? `asks for their fax number and faxes them "${o.docName || 'your document'}"` : null
+    case 'callback': return o.auto ? (isPhone(o.callbackTo) ? `takes a call-back request, then rings ${fmt(o.callbackTo)} — press 1 to call them back` : null) : 'takes a call-back request (you get their number and call them back)'
+    case 'submenu': return subList(o).length ? `opens the "${o.label || 'sub-menu'}" sub-menu${(o.subMenu || o).language ? ` in ${LANG_NAMES[(o.subMenu || o).language] || (o.subMenu || o).language}` : ''}` : null
     default: return null
   }
 }
@@ -89,6 +96,16 @@ function validate(ivr, ctx = {}) {
       else if (lines && lines.length > 1 && !lines.some(l => l.id === o.smsFrom)) err(k, `Choose which Texting Number sends it (${lines.map(l => l.phone).join(' or ')}).`)
     }
     if (o.action === 'voicemail' && ctx.voicemailAvailable === false) err(k, 'Voicemail needs the Starter plan or higher.')
+    if (o.action === 'devices' && ctx.sipLogin === false) err(k, 'This number has no browser phone / phone app login yet — set one up in the Phone apps tab first.')
+    if (o.action === 'devices' && (o.noAnswer || 'voicemail') === 'voicemail' && ctx.voicemailAvailable === false) err(k, 'Voicemail when nobody answers needs the Starter plan — pick "back to the menu" or a message instead.')
+    if (o.action === 'devices') warn(k, 'Keep CloudIVR open in your browser or a phone app signed in, so this key can ring you.')
+    if (o.action === 'ringgroup' && ctx.ringGroupMembers === 0) err(k, "Add your team's phones in the Ring group tab first (it can stay switched off).")
+    if (o.action === 'ai' && !o.agentId) err(k, countOf(ctx.aiAgents) === 0 ? 'Create an AI agent first (AI agents page), then pick it here.' : 'Pick the AI agent that should take these calls.')
+    if (o.action === 'fax') {
+      if (!o.faxFrom) err(k, countOf(ctx.faxNumbers) === 0 ? 'You need a fax number to send from — get one on the Fax page, then pick it here.' : 'Pick the fax number that sends the document.')
+      if (!o.fileId) err(k, 'Upload the document callers should receive by fax.')
+    }
+    if (o.action === 'callback' && o.auto && !isPhone(o.callbackTo)) err(k, 'Add your phone (with country code) that should ring for each call-back request.')
     if (o.action === 'webhook' && !isUrl(o.url) && o.check?.source !== 'db') err(k, 'Add the secure https web address (webhook URL) this key should call.')
     if (o.action === 'collect') {
       if (!hasText(o.prompt)) err(k, 'Say what the caller should type (e.g. "enter your order number").')
@@ -117,7 +134,27 @@ function validate(ivr, ctx = {}) {
   }
 
   // A way to reach a person is almost always wanted.
-  if (root.length && !root.some(o => o.action === 'forward' || o.action === 'submenu' || o.action === 'queue')) warn('menu', 'No key reaches a person — consider a key that forwards to you (e.g. press 0 for an operator).')
+  if (root.length && !root.some(o => ['forward', 'submenu', 'queue', 'devices', 'ringgroup', 'ai'].includes(o.action))) warn('menu', 'No key reaches a person — consider a key that forwards to you (e.g. press 0 for an operator).')
+
+  // After-hours menu and staff extensions.
+  const ah = ivr?.afterHours
+  if (ah?.enabled) {
+    const ahKeys = optList(ah.options)
+    if (!ahKeys.length) err('After hours', 'The after-hours menu has no keys yet.')
+    for (const o of ahKeys) checkKey(o, 'After hours → ', 0)
+    if (ctx.hoursOn === false) warn('After hours', 'Turn on your Hours schedule (Hours tab), otherwise the after-hours menu never plays.')
+  }
+  const codes = new Set()
+  for (const e of Array.isArray(ivr?.extensions) ? ivr.extensions : []) {
+    const where = `Extension ${e.code || '?'}`
+    const code = String(e.code || '')
+    if (!/^\d{2,5}$/.test(code)) err(where, 'Use 2 to 5 digits for an extension, e.g. 101.')
+    else if (codes.has(code)) err(where, 'Two extensions use the same code.')
+    codes.add(code)
+    if (e.action !== 'devices' && !isPhone(e.forwardTo)) err(where, 'Add the phone number this extension rings (with country code).')
+    if (e.action === 'devices' && ctx.sipLogin === false) err(where, 'This number has no browser phone / phone app login yet.')
+  }
+  if (codes.size && !/extension/i.test(greeting)) warn('greeting', 'Tell callers they can dial an extension (e.g. "if you know your party\'s extension, dial it now").')
 
   const errors = issues.filter(i => i.level === 'error').length
   return { ok: errors === 0, ready: errors === 0, errors, warnings: issues.length - errors, issues }
@@ -151,6 +188,11 @@ function simulate(ivr, ctx = {}) {
   }
   if (root.length) walk(root, '', 0)
   else add('Menu', 'press any key', '⚠ no keys configured', false)
+  for (const e of Array.isArray(ivr?.extensions) ? ivr.extensions : []) add(`Extension ${e.code}${e.name ? ` (${e.name})` : ''}`, `dial ${e.code} during the greeting`, e.action === 'devices' ? 'rings your browser phone and phone apps' : isPhone(e.forwardTo) ? `connects the caller to ${fmt(e.forwardTo)}` : '⚠ no phone set', e.action === 'devices' || isPhone(e.forwardTo))
+  if (ivr?.afterHours?.enabled) {
+    add('After hours', 'call comes in outside your hours', 'plays the after-hours greeting and waits for a key', true)
+    walk(optList(ivr.afterHours.options), 'After hours → ', 0)
+  }
 
   const failed = tests.filter(t => !t.ok).length
   return { tests, passed: tests.length - failed, failed, ok: failed === 0 }
@@ -177,6 +219,11 @@ function blueprint(ivr, ctx = {}) {
     if (o.action === 'pay') return add(id, 'pay', 'Text a payment link', o.payVia === 'provider' ? (o.amountFrom === 'lookup' ? 'amount from your data' : `${o.amount || '?'} ${o.currency || 'USD'}`) : o.payUrl || 'no link set')
     if (o.action === 'collect') return add(id, 'collect', 'Collect digits', o.prompt ? String(o.prompt).slice(0, 60) : (isPhone(o.forwardTo) ? `→ ${fmt(o.forwardTo)}` : ''))
     if (o.action === 'pin') return add(id, 'pin', 'PIN check', isPhone(o.onOk?.forwardTo) ? `ok → ${fmt(o.onOk.forwardTo)}` : '')
+    if (o.action === 'devices') return add(id, 'devices', 'Ring my phones', `browser phone + apps · ${Number(o.ringSecs) || 25}s · then ${o.noAnswer || 'voicemail'}`)
+    if (o.action === 'ringgroup') return add(id, 'ringgroup', 'Team group', ctx?.ringGroupMembers ? `${ctx.ringGroupMembers} phones ring together` : 'set up in the Ring group tab')
+    if (o.action === 'ai') return add(id, 'ai', 'AI assistant', o.agentName || (o.agentId ? 'your agent' : 'no agent picked'))
+    if (o.action === 'fax') return add(id, 'fax', 'Fax a document', o.docName || 'no document yet')
+    if (o.action === 'callback') return add(id, 'callback', 'Call back request', o.auto ? `rings ${fmt(o.callbackTo || '')}` : 'you call them back')
     return null
   }
   const walk = (opts, parent, prefix, depth) => {
@@ -192,6 +239,13 @@ function blueprint(ivr, ctx = {}) {
     }
   }
   walk(ivr?.options, gid, 'k', 0)
+  const exts = Array.isArray(ivr?.extensions) ? ivr.extensions : []
+  if (exts.length) { const xid = add('extensions', 'extensions', 'Extensions', exts.map(e => `${e.code}${e.name ? ` ${e.name}` : ''}`).join(' · ').slice(0, 120)); link(gid, xid, 'Dial any time') }
+  if (ivr?.afterHours?.enabled) {
+    const aid = add('afterhours', 'greeting', 'After-hours greeting', String(ivr.afterHours.greeting || 'Standard greeting').slice(0, 120))
+    link('incoming', aid, 'Outside your hours')
+    walk(ivr.afterHours.options, aid, 'a', 0)
+  }
   return { nodes, edges }
 }
 

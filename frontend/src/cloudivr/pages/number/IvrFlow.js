@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { PhoneIncoming, PhoneOutgoing, MessageSquare, Voicemail, Send, PhoneForwarded, List, AlertTriangle, CheckCircle2, Info, PlayCircle, Loader2, Plus, Webhook, Hash, KeyRound, CreditCard, Users, Ban } from 'lucide-react';
+import { PhoneIncoming, PhoneOutgoing, MessageSquare, Voicemail, Send, PhoneForwarded, List, AlertTriangle, CheckCircle2, Info, PlayCircle, Loader2, Plus, Webhook, Hash, KeyRound, CreditCard, Users, Ban, MonitorSmartphone, Bot, Printer, PhoneCall, Contact } from 'lucide-react';
 import { api } from '../../api';
 
 const ICON = {
   incoming: PhoneIncoming, outgoing: PhoneOutgoing, greeting: MessageSquare, forward: PhoneForwarded, message: MessageSquare,
-  sms: Send, voicemail: Voicemail, menu: List, webhook: Webhook, collect: Hash, pin: KeyRound, pay: CreditCard, queue: Users, stop: Ban,
+  sms: Send, voicemail: Voicemail, menu: List, webhook: Webhook, collect: Hash, pin: KeyRound, pay: CreditCard, queue: Users, stop: Ban, devices: MonitorSmartphone, ringgroup: Users, ai: Bot, fax: Printer, callback: PhoneCall, extensions: Contact,
 };
-const TONE = { incoming: '#38bdf8', outgoing: '#38bdf8', greeting: '#818cf8', forward: '#34d399', message: '#fbbf24', sms: '#f472b6', voicemail: '#a78bfa', menu: '#38bdf8', webhook: '#2dd4bf', collect: '#fb923c', pin: '#f87171', pay: '#4ade80', queue: '#60a5fa', stop: '#fb7185' };
+const TONE = { incoming: '#38bdf8', outgoing: '#38bdf8', greeting: '#818cf8', forward: '#34d399', message: '#fbbf24', sms: '#f472b6', voicemail: '#a78bfa', menu: '#38bdf8', webhook: '#2dd4bf', collect: '#fb923c', pin: '#f87171', pay: '#4ade80', queue: '#60a5fa', stop: '#fb7185' , devices: '#34d399', ringgroup: '#60a5fa', ai: '#c084fc', fax: '#94a3b8', callback: '#fb923c', extensions: '#38bdf8' };
 
 // Build parent→children map from edges, render as an indented tree from "incoming".
 // With `edit`, key nodes (ids like k1.2 = key 1 then key 2) open an inline editor and menus get an "add key" button.
@@ -51,12 +51,12 @@ function Tree({ nodes, edges, testid = 'ivr-flow', edit }) {
 const LEVEL_ICON = { error: AlertTriangle, warn: Info };
 const LEVEL_TONE = { error: '#fb7185', warn: '#fbbf24' };
 
-export function IvrFlow({ greeting, list, context, edit }) {
+export function IvrFlow({ greeting, list, context, edit, afterHours, extensions }) {
   const [bp, setBp] = useState({ nodes: [], edges: [] });
   const [val, setVal] = useState(null);
   const [test, setTest] = useState(null);
   const [testing, setTesting] = useState(false);
-  const ivr = useCallback(() => ({ greeting, options: list }), [greeting, list]);
+  const ivr = useCallback(() => ({ greeting, options: list, ...(afterHours?.enabled ? { afterHours } : {}), ...(extensions?.length ? { extensions } : {}) }), [greeting, list, afterHours, extensions]);
 
   useEffect(() => {
     const body = { ivr: ivr(), context };

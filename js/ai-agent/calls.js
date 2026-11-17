@@ -97,6 +97,36 @@ function track(ccid, s) {
 }
 function forget(s) { sessions.delete(s.ccid); streamTokens.delete(s.token); clearInterval(s.walletTimer); clearInterval(s.cwTimer); s.rtpMedia?.close() }
 
+// A keypad-menu key hands an already answered inbound call to one of the owner's agents. → true | 'voicemail' | false
+async function takeFromIvr({ ccid, chatId, num, agentId, from }) {
+  const agent = await store.getAgent(agentId, chatId)
+  if (!agent || agent.disabled || !process.env.APP_OPEN_API_KEY) return false
+  const closed = !!agent.hours?.enabled && !numberHours.isOpen(agent.hours)
+  if (closed && agent.hours.afterHours === 'voicemail') return 'voicemail'
+  const rate = RECEPTION_RATE() + recRate(agent)
+  const { usdBal } = await getBalance(deps.walletOf, chatId)
+  if (usdBal < rate + committed(chatId)) { log(`[AIAgent] ${num.phoneNumber}: wallet $${usdBal} < $${rate}/min — keypad key cannot hand over`); return false }
+  const other = String(from || '').replace(/[^+\d]/g, '')
+  const calendar = await booking.forCall(chatId, agent, other).catch(() => null)
+  const s = track(ccid, { kind: 'inbound', afterHours: closed, rate, baseRate: RECEPTION_RATE(), recRate: recRate(agent), calendar, token: newToken(), chatId: String(chatId), agent, number: num.phoneNumber, other })
+  s.answeredAt = Date.now()
+  try {
+    if (ce.isAe(ccid)) { watchWallet(s); await startMedia(s) }
+    else if (String(ccid).startsWith('sw:')) {
+      if (!engineUp()) throw new Error('call engine offline')
+      s.awaitingLeg = true
+      const ok = await require('../signalwire/voice').transferCall(ccid, `sip:ai.${ce.app()}.${s.token}@${process.env.SIP_DOMAIN || 'sip.cloudivr.net'}`, num.phoneNumber, { timeoutSecs: 15 })
+      if (!ok) throw new Error('handover to the call engine failed')
+    } else { await tx(`/calls/${ccid}/actions/streaming_start`, streamParams(s.token)); watchWallet(s) }
+    log(`[AIAgent] Keypad key handed ${other} → ${num.phoneNumber} to "${agent.name}"`)
+    return true
+  } catch (e) {
+    log(`[AIAgent] keypad handover failed ${ccid}: ${txError(e)}`)
+    forget(s)
+    return false
+  }
+}
+
 // Inbound: the number's AI agent answers (Business, wallet covers a minute). false → route the call normally.
 async function tryInbound({ payload, chatId, num }) {
   const cfg = num.features?.aiAgent
@@ -138,6 +168,43 @@ async function tryInbound({ payload, chatId, num }) {
     return false
   }
 }
+
+// Keypad-menu key: hand an inbound call that is already answered (it heard the menu) to one of the owner's agents.
+// → true (the agent has it) | 'voicemail' (agent closed, owner chose voicemail) | false (not available).
+async function takeFromIvr({ ccid, chatId, num, agentId, from }) {
+  const agent = await store.getAgent(agentId, chatId)
+  if (!agent || agent.disabled || !process.env.APP_OPEN_API_KEY) return false
+  const closed = !!agent.hours?.enabled && !numberHours.isOpen(agent.hours)
+  if (closed && agent.hours.afterHours === 'voicemail') return 'voicemail'
+  const rate = RECEPTION_RATE() + recRate(agent)
+  const { usdBal } = await getBalance(deps.walletOf, chatId)
+  if (usdBal < rate + committed(chatId)) { log(`[AIAgent] ${num.phoneNumber}: wallet $${usdBal} < $${rate}/min — menu key not handed over`); return false }
+  const other = String(from || '').replace(/[^+\d]/g, '')
+  const calendar = await booking.forCall(chatId, agent, other).catch(() => null)
+  const s = track(ccid, { kind: 'inbound', afterHours: closed, rate, baseRate: RECEPTION_RATE(), recRate: recRate(agent), calendar, token: newToken(), chatId: String(chatId), agent, number: num.phoneNumber, other })
+  s.answeredAt = Date.now()
+  try {
+    if (ce.isAe(ccid)) {
+      watchWallet(s)
+      await startMedia(s)
+    } else if (String(ccid).startsWith('sw:')) {
+      if (!engineUp()) throw new Error('call engine offline')
+      s.awaitingLeg = true
+      const ok = await require('../signalwire/voice').transferCall(ccid, `sip:ai.${ce.app()}.${s.token}@${process.env.SIP_DOMAIN || 'sip.cloudivr.net'}`, num.phoneNumber, { timeoutSecs: 15 })
+      if (!ok) throw new Error('handover to the call engine failed')
+    } else {
+      await tx(`/calls/${ccid}/actions/streaming_start`, streamParams(s.token))
+      watchWallet(s)
+    }
+    log(`[AIAgent] Menu key: ${other} → ${num.phoneNumber} handed to "${agent.name}"`)
+    return true
+  } catch (e) {
+    log(`[AIAgent] menu hand-over failed ${ccid}: ${txError(e)}`)
+    forget(s)
+    return false
+  }
+}
+
 
 // Outbound campaign lead → { callControlId } | { error }.
 async function dialLead(campaign, lead) {
@@ -364,4 +431,4 @@ async function onTest(token, ws) {
   bridge.start()
 }
 
-module.exports = { init, committed, RATE, RECEPTION_RATE, RECORD_RATE: recorder.RECORD_RATE, owns, activeCount, tryInbound, dialLead, onWebhook, onStream, createTest, onTest, leadRate, finish, track, sessions }
+module.exports = { init, committed, RATE, RECEPTION_RATE, RECORD_RATE: recorder.RECORD_RATE, owns, activeCount, tryInbound, takeFromIvr, takeFromIvr, dialLead, onWebhook, onStream, createTest, onTest, leadRate, finish, track, sessions }

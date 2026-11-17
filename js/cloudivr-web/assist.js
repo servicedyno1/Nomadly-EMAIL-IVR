@@ -49,6 +49,9 @@ const keyList = (v) => [...new Set((Array.isArray(v) ? v : String(v ?? '').split
 const time = (v) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v)) ? String(v) : undefined)
 const zone = (v) => { try { Intl.DateTimeFormat('en-US', { timeZone: String(v) }); return String(v) } catch (_) { return undefined } }
 
+const IVR_ACTS = ['forward', 'message', 'sms', 'voicemail', 'webhook', 'collect', 'pin', 'pay', 'queue', 'devices', 'ringgroup', 'ai', 'fax', 'callback', 'submenu']
+const extList = (v) => { const seen = new Set(); return (Array.isArray(v) ? v : []).map(e => ({ code: String(e?.code || '').replace(/\D/g, '').slice(0, 5), name: str(e?.name, 40), action: e?.action === 'devices' ? 'devices' : 'forward', forwardTo: phone(e?.forwardTo) })).filter(e => e.code.length >= 2 && !seen.has(e.code) && seen.add(e.code)).slice(0, 30) }
+const afterHoursOf = (v) => (v && typeof v === 'object' ? { enabled: v.enabled !== false, greeting: str(v.greeting, 600), options: menu(IVR_ACTS, true, 3)(v.options) } : undefined)
 // One menu level → rows; `acts` allowed actions, `sub` key holding the sub-menu (rows nested one level).
 function menu(acts, nested, maxSub = 1) {
   const rows = (v, depth = 0) => {
@@ -66,9 +69,14 @@ function menu(acts, nested, maxSub = 1) {
         const texts = (Array.isArray(r.smsTexts) ? r.smsTexts : [r.smsText]).map(t => str(t, 600)).filter(Boolean).slice(0, 5)
         Object.assign(o, { smsText: texts[0] || '', ...(texts.length > 1 ? { smsTexts: texts } : {}), message: str(r.message, 300), after: r.after === 'menu' ? 'menu' : 'hangup', ...(/^(es|mn)_[0-9a-f]+$/.test(String(r.smsFrom)) ? { smsFrom: String(r.smsFrom) } : {}) })
       }
+      if (r.action === 'voicemail' && (r.box?.name || r.box?.email)) o.box = { name: str(r.box.name, 40), email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(r.box.email || '').trim()) ? str(r.box.email, 120) : '' }
+      if (r.action === 'devices') { o.noAnswer = ['voicemail', 'menu', 'message'].includes(r.noAnswer) ? r.noAnswer : 'voicemail'; const n = Math.round(Number(r.ringSecs)); o.ringSecs = Number.isFinite(n) ? Math.min(60, Math.max(10, n)) : 25; o.noAnswerMessage = str(r.noAnswerMessage, 300); if (r.box?.name || r.box?.email) o.box = { name: str(r.box.name, 40), email: str(r.box.email, 120) } }
+      if (r.action === 'ai') { o.agentId = /^[A-Za-z0-9_-]{6,64}$/.test(String(r.agentId || '')) ? String(r.agentId) : ''; o.message = str(r.message, 300) }
+      if (r.action === 'fax') { o.faxFrom = phone(r.faxFrom); o.prompt = str(r.prompt, 300); o.message = str(r.message, 300) }
+      if (r.action === 'callback') { o.auto = r.auto === true || r.auto === 'true'; o.callbackTo = phone(r.callbackTo); o.message = str(r.message, 300) }
       if (r.action === 'submenu') {
         const sub = nested ? r.subMenu || {} : r
-        const inner = { greeting: str(sub.greeting, 400), options: rows(sub.options, depth + 1) }
+        const inner = { greeting: str(sub.greeting, 400), options: rows(sub.options, depth + 1), ...(['en', 'fr', 'es'].includes(sub.language) ? { language: sub.language } : {}) }
         Object.assign(o, nested ? { subMenu: inner } : inner)
       }
       return o
@@ -123,7 +131,9 @@ const SCREENS = {
     what: 'the keypad menu (IVR) people hear when they call this number',
     fields: {
       greeting: [text(600), 'what callers hear first, listing the keys, e.g. "Thanks for calling Bella\'s. Press 1 for reservations, press 2 for our hours."'],
-      options: [menu(['forward', 'message', 'sms', 'voicemail', 'webhook', 'collect', 'pin', 'pay', 'queue', 'submenu'], true, 3), `full list of keys: [{"digit":"1","action":"forward|message|sms|voicemail|webhook|collect|pin|pay|queue|submenu","label":"Sales","forwardTo":"+1... (forward)","message":"words read out (message), after the text (sms), after a webhook, or after collected digits","smsFrom":"id of the texting number","smsTexts":["version A","version B (rotates)"],"url":"https://... secure webhook (webhook)","prompt":"what to ask the caller to type (collect/pin)","length":"how many digits to collect (collect)","webhook":"https://... where to send the typed digits (collect)","pin":"the digit code to check (pin)","onOk":{"action":"forward|message","forwardTo":"+1...","message":"said when the code is right"},"failMessage":"said when the code is wrong (pin)","agents":["+1...","+1... up to 5 phones (queue)"],"maxWait":"seconds a caller may wait, 30-900, default 180 (queue)","announcePosition":"true|false (queue)","callback":"true|false - offer a call back while waiting (queue)","overflow":{"action":"voicemail|forward|message","forwardTo":"+1...","message":"..."},"payUrl":"https://... the owner's own payment page (pay)","payNote":"short line texted before the link (pay)","after":"hangup|menu (sms/webhook)","subMenu":{"greeting":"...","options":[same keys; nest up to 3 levels]}}]`],
+      options: [menu(IVR_ACTS, true, 3), `full list of keys: [{"digit":"1","action":"forward|message|sms|voicemail|webhook|collect|pin|pay|queue|devices|ringgroup|ai|fax|callback|submenu","box":{"name":"Billing - department mailbox (voicemail / devices)","email":"who gets the email copy"},"noAnswer":"voicemail|menu|message (devices)","ringSecs":"10-60 (devices)","agentId":"id from account info aiAgents (ai)","faxFrom":"+1... one of account info faxNumbers (fax)","auto":"true|false - ring the owner's phone right away (callback)","callbackTo":"+1... owner's phone (callback auto)","label":"Sales","forwardTo":"+1... (forward)","message":"words read out (message), after the text (sms), after a webhook, or after collected digits","smsFrom":"id of the texting number","smsTexts":["version A","version B (rotates)"],"url":"https://... secure webhook (webhook)","prompt":"what to ask the caller to type (collect/pin)","length":"how many digits to collect (collect)","webhook":"https://... where to send the typed digits (collect)","pin":"the digit code to check (pin)","onOk":{"action":"forward|message","forwardTo":"+1...","message":"said when the code is right"},"failMessage":"said when the code is wrong (pin)","agents":["+1...","+1... up to 5 phones (queue)"],"maxWait":"seconds a caller may wait, 30-900, default 180 (queue)","announcePosition":"true|false (queue)","callback":"true|false - offer a call back while waiting (queue)","overflow":{"action":"voicemail|forward|message","forwardTo":"+1...","message":"..."},"payUrl":"https://... the owner's own payment page (pay)","payNote":"short line texted before the link (pay)","after":"hangup|menu (sms/webhook/fax)","subMenu":{"greeting":"...","language":"en|fr|es - only for a language choice key, the sub-menu greeting and keys then written in that language","options":[same keys; nest up to 3 levels]}}]`],
+      extensions: [extList, '[{"code":"101 (2-5 digits)","name":"Anna","action":"forward|devices","forwardTo":"+1... (forward)"}] - staff extensions callers can dial at any time during the main greeting (mention it in the greeting)'],
+      afterHours: [afterHoursOf, '{"enabled":true,"greeting":"what callers hear outside the Hours schedule, listing its keys","options":[same keys as the main menu]} - a separate menu outside business hours (needs the Hours schedule on)'],
     },
     note: `The greeting must mention every key in options.\nTEXT KEYS (sms): the text is sent FROM one of the owner's Texting Numbers listed in account info textingNumbers [{id, phone}]. If there are several, ask which one should send it and set smsFrom to its id. If there is exactly one, set smsFrom to it and tell the owner the texts go out from that number. If there are none, explain the key can't send texts until they order a Texting Number (the key row has an Order button) and offer an alternative such as a message key. Also mention: USA callers only, $0.05 per text from the wallet, and whether the call hangs up or replays the menu after. Rotation: 2-5 smsTexts versions, each caller gets the next one in turn.`,
   },
@@ -200,6 +210,15 @@ KEYPAD MENU (IVR, Pro+): greeting (typed text read in the app's language, or an 
 - Live data (the owner sets these in the form under each key, you cannot set them; mention them when useful): a webhook key can use the REPLY of the owner's system ("say: your balance is $42" / "route to: +1…"); collect and PIN keys can check what the caller typed in the owner's own database (MongoDB or Postgres, connected in the form) or with their system; new webhook, collect and PIN keys WAIT for the owner's Accept / Decline in the app by default (a banner pops up; the caller is on hold up to 45 seconds) — say so in one short sentence when you propose such a key, and that it can be switched off under the key; a pay key can create a link for an exact amount with the owner's Stripe, PayPal, Square, Razorpay or Mollie account. Keys that already have these settings keep them.
 - queue: for a team. The caller hears hold music while up to 5 phones ring one after another, round after round, until someone answers or the maximum wait passes (default 3 minutes); a caller who is not first is told their place in the queue. If nobody answers in time, the last resort runs: voicemail (Starter+), another phone, or a closing message. Use it when the owner says team, queue, agents, "whoever is free", or gives several phones for one key; use forward for a single phone. Optional "callback": between rounds the caller can press 1 to stop waiting; the owner then gets a message with the caller's number to ring back themselves (CloudIVR does not redial automatically — say so). There is no estimated wait time — do not promise one.
 - pay: texts the caller a link to the owner's OWN payment page (their Stripe, PayPal, Mollie… link) from one of the owner's Texting Numbers, then hangs up or replays the menu. Card details are never taken over the phone and CloudIVR does not handle the money. Needs the owner's https payment link (never invent one) and a Texting Number, exactly like the sms key.
+- devices ("ring my phones"): rings this number's own browser phone and phone apps (its SIP login) with ringback for the caller, 10-60 s (default 25); nobody answers → voicemail (Starter+, optionally a department mailbox), back to the menu, or a sorry message. Needs the number's phone app login (account info sipLogin); the owner must keep CloudIVR open or an app signed in. Use it when the owner says "ring me", "my desk phone", "my browser", "the office phone".
+- ringgroup ("team group"): rings the phones saved in the number's Ring group tab all at once, first to answer gets it; the group's own no-answer choice applies. Needs at least one phone saved there (ringGroupMembers); the Ring group switch can stay off. Use queue instead when the team should ring one after another with hold music.
+- ai: hands the caller to one of the owner's AI agents (account info aiAgents [{id,name}]); the agent can answer questions and book appointments if its calendar is set; billed per minute like an AI-answered call. If there are no agents, say to create one on the AI agents page first.
+- fax ("fax me a document"): asks the caller for their fax number and faxes the owner's document (PDF/Word/image, up to 20 pages) from one of the owner's fax numbers (account info faxNumbers); free pages first, then the usual page price from the wallet. The owner uploads the document under the key (you cannot). If faxNumbers is empty, tell them to tap "Get a fax number" under the key first.
+- callback: the caller asks to be called back and the call ends. Default: the owner gets a notification with the number. With auto on, the owner's own phone (callbackTo) rings a few seconds later and pressing 1 connects them to the caller.
+- voicemail can have a department mailbox: box {name, email} — the voicemail is labelled with that name in Inbox and its email copy goes to that person (e.g. press 2 to leave a message for Billing).
+- Language choice: a submenu with "language":"es" (or fr / en) — callers who press it hear that sub-menu and everything after it in that language; write its greeting and texts in that language. The main menu language follows the app language.
+- extensions: staff codes of 2-5 digits callers can dial any time during the main greeting (e.g. 101 for Anna) that ring a phone or the number's own browser phone/apps; the greeting should say "if you know your party's extension, dial it now". A single key then waits about 2 seconds before acting.
+- afterHours: a separate menu used outside the number's Hours schedule (instead of the closed message), e.g. "We're closed. Press 1 to leave a message, press 2 for emergencies." Needs the Hours schedule on (account info hoursOn).
 - submenu: more levels of keys with their own greeting (may nest up to 3 levels deep).
 The menu must be saved AND switched on (switch at the top). Switching it on turns the AI agent off on that number.
 FORWARDING: always / when busy / when not answered after 10-60 s; up to 4 backups ring one after another; forwarded phone sees the business number or, US only, the caller's number. Minutes bill from the wallet.
@@ -282,6 +301,15 @@ function keyGaps(opts, ctx, where = '', said = '', prev = []) {
       if (!has(o.prompt)) out.push(`${k}: what should the caller be asked to type?`)
       if (!/^https:\/\//i.test(String(o.webhook || '').trim()) && !o.forwardTo && !has(o.message) && !o.check?.source && !o.confirm) out.push(`${k}: what happens with the digits — send to your system, connect the call, or confirm?`)
     }
+    if (o.action === 'devices' && ctx && ctx.sipLogin === false) out.push(`${k}: this number has no browser phone / phone app login yet — set it up in the Phone apps tab first.`)
+    if (o.action === 'ringgroup' && ctx && ctx.ringGroupMembers === 0) out.push(`${k}: which phones are in your team group? (add them in the Ring group tab)`)
+    if (o.action === 'ai' && !o.agentId) out.push(ctx && Array.isArray(ctx.aiAgents) && !ctx.aiAgents.length ? `${k}: you have no AI agent yet — create one on the AI agents page first.` : `${k}: which AI agent should take these calls?`)
+    if (o.action === 'fax') {
+      if (ctx && Array.isArray(ctx.faxNumbers) && !ctx.faxNumbers.length) out.push(`${k}: you need a fax number to send from — get one with the "Get a fax number" button under the key.`)
+      else if (!o.faxFrom) out.push(`${k}: which fax number should send it?`)
+      if (!o.fileId) out.push(`${k}: upload the document callers should get (button under the key).`)
+    }
+    if (o.action === 'callback' && o.auto && !o.callbackTo) out.push(`${k}: which phone of yours should ring for each call-back request?`)
     if (o.action === 'pin' && !o.check?.source && !(String(o.pin || '').replace(/\D/g, '') || (Array.isArray(o.pins) && o.pins.length))) out.push(`${k}: which code should callers enter?`)
     const sub = o.subMenu || (o.action === 'submenu' ? o : null)
     if (o.action === 'submenu') { if (!(sub.options || []).length) out.push(`${k}: the sub-menu has no keys yet.`); out.push(...keyGaps(sub.options, ctx, `${k} → `, said)) }
@@ -290,7 +318,10 @@ function keyGaps(opts, ctx, where = '', said = '', prev = []) {
 }
 const GAPS = {
   ivr: (f, c, said, cur) => [...(f.options && !f.options.length ? ['Add at least one key.'] : []), ...keyGaps(f.options, c, '', said, cur?.options),
-    ...(f.greeting && f.options ? f.options.filter(o => !new RegExp(`\\b${o.digit}\\b`).test(f.greeting)).map(o => `The greeting doesn't mention key ${o.digit}.`) : [])],
+    ...(f.greeting && f.options ? f.options.filter(o => !new RegExp(`\\b${o.digit}\\b`).test(f.greeting)).map(o => `The greeting doesn't mention key ${o.digit}.`) : []),
+    ...(f.afterHours?.options ? keyGaps(f.afterHours.options, c, 'After hours → ', said, cur?.afterHours?.options) : []),
+    ...(f.afterHours && c && c.hoursOn === false ? ['The after-hours menu only plays once your Hours schedule is on (Hours tab).'] : []),
+    ...(f.extensions || []).filter(e => e.action !== 'devices' && !e.forwardTo).map(e => `Extension ${e.code}: which phone should it ring?`)],
   quick: (f) => [...(!has(f.targets) ? ['Which number(s) should I call?'] : []), ...(f.mode === 'transfer' && !f.transferTo ? ['Which phone should callers be connected to?'] : []), ...(f.mode === 'otp' && f.script && !/press\s*(1|one)/i.test(f.script) ? ['The script should tell them to press 1 before typing the code.'] : []), ...(f.mode === 'menu' ? keyGaps(f.menu) : [])],
   campaign: (f) => [...(f.mode === 'transfer' && !f.transferNumber ? ['Which phone should calls transfer to?'] : []), ...(f.mode === 'menu' ? keyGaps(f.menu) : [])],
   forwarding: (f) => (f.mode && f.mode !== 'disabled' && !f.forwardTo ? ['Which phone should calls forward to?'] : []),
@@ -308,6 +339,8 @@ function keepLive(next, prev, fresh = []) {
     // New live keys wait for the owner's Accept / Decline by default (same as the form); existing keys keep their choice.
     if (['webhook', 'collect', 'pin'].includes(o.action)) { if (was ? was.confirm === true : true) o.confirm = true; else delete o.confirm; if (!was) fresh.push(o.digit) }
     if (!was) continue
+    // Fax document (uploaded in the form) and other form-only details stay on a re-proposed key.
+    for (const f of ['fileId', 'pages', 'docName', 'agentId', 'faxFrom', 'box', 'callbackTo']) if (was[f] !== undefined && (o[f] === undefined || o[f] === '')) o[f] = was[f]
     if (was.check?.source || was.confirm || was.payVia === 'provider') for (const f of LIVE_FIELDS) if (was[f] !== undefined && (o[f] === undefined || o[f] === '' || f === 'check')) o[f] = was[f]
     if (o.action === 'submenu') keepLive(o.options || o.subMenu?.options, was.options || was.subMenu?.options, fresh)
   }
@@ -401,6 +434,7 @@ async function chat(screen, messages, current, context) {
     const j = await ask1().catch((e) => { console.log(`[Assist:${screen}] retry after: ${e.response?.data?.error?.message || e.message}`); return ask1(true) })
     const patch = clean(sc, j.patch)
     const waits = screen === 'ivr' && patch.options ? keepLive(patch.options, current?.options) : []
+    if (screen === 'ivr' && patch.afterHours?.options) keepLive(patch.afterHours.options, current?.afterHours?.options)
     if (screen === 'ivr' && Array.isArray(patch.options)) dropUnasked(patch, messages, current)
     const ask = Object.keys(patch).length ? invented(screen, patch, messages, current) : []
     const askFor = (list) => ({ reply: `Almost there — I just need ${list.length === 1 ? 'one thing' : 'a few things'} from you so I don’t guess:\n${list.map(a => `• ${a}`).join('\n')}`, summary: [], missing: [], patch: {} })

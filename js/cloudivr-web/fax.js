@@ -39,6 +39,11 @@ function routes(router, { db, h, upload, numbersApi, notifyAdmin, legalProfile }
     res.json({ numbers, faxes: await fax.list(req.webChatId), batches: await fax.listBatches(req.webChatId), pricing: { freePages: fax.FREE_PAGES, pagePrice: fax.PAGE_PRICE, bulkMax: fax.BULK_MAX } })
   }))
 
+  // Document for a keypad "fax me a document" key (kept until the key changes; sent when a caller asks).
+  router.post('/fax/ivr-doc', upload.single('file'), h(async (req, res) => {
+    if (!req.file) return bad(res, 400, 'no_file', 'Choose a PDF, Word or image file.')
+    try { res.json({ ...(await fax.storeIvrDoc({ chatId: req.webChatId, buffer: req.file.buffer, name: req.file.originalname })), docName: String(req.file.originalname || 'document.pdf').slice(0, 80) }) } catch (e) { if (e instanceof fax.FaxError) return bad(res, 400, e.code, e.message); throw e }
+  }))
   router.post('/fax/stage', upload.single('file'), h(async (req, res) => {
     const num = await mine(req, String(req.body?.from || ''))
     if (!num) return bad(res, 404, 'not_found', 'Number not found on your account.')

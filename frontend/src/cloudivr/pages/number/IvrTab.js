@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useContext, useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { cp } from '../../paths';
 import { Plus, Trash2, BarChart3 } from 'lucide-react';
 import { useApi, enc } from '../../api';
 import { InstantToggle, AudioSelect } from '../../ui';
@@ -8,6 +9,7 @@ import { IvrTemplates } from './IvrTemplates';
 import { IvrSms } from './IvrSms';
 import { IvrFlow } from './IvrFlow';
 import { CheckWith, ConfirmAsk, PayFields } from './IvrLive';
+import { IvrCtx, BoxFields, DevicesFields, RingGroupFields, AiFields, FaxFields, CallbackFields, SubLang, Extensions } from './IvrMore';
 import { useSave, numContext } from './SettingsTabs';
 import { OneAnswerNote } from './RouteSummary';
 import { useUnsaved, SaveRow } from '../../guard';
@@ -26,7 +28,7 @@ const DEFAULTS = {
 const defOf = (lang) => DEFAULTS[lang] || DEFAULTS.en;
 const isDef = (text, keys) => !String(text || '').trim() || Object.values(DEFAULTS).some(d => keys.some(k => d[k] === String(text).trim()));
 
-const ACTIONS = [['forward', 'Forward to a phone'], ['message', 'Play a message'], ['sms', 'Send the caller a text'], ['voicemail', 'Take a voicemail'], ['webhook', 'Live answer from your system or database'], ['collect', 'Collect digits (then route)'], ['pin', 'Ask for a PIN'], ['pay', 'Text a payment link'], ['queue', 'Call queue (team)'], ['submenu', 'Open a sub-menu']];
+const ACTIONS = [['forward', 'Forward to a phone'], ['message', 'Play a message'], ['sms', 'Send the caller a text'], ['voicemail', 'Take a voicemail'], ['webhook', 'Live answer from your system or database'], ['collect', 'Collect digits (then route)'], ['pin', 'Ask for a PIN'], ['pay', 'Text a payment link'], ['queue', 'Call queue (team)'], ['devices', 'Ring my browser phone / desk phones'], ['ringgroup', 'Ring my team group'], ['ai', 'Talk to my AI assistant'], ['fax', 'Fax me a document'], ['callback', 'Call me back later'], ['submenu', 'Open a sub-menu / language choice']];
 const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 const toList = (opts) => Object.entries(opts || {}).map(([digit, o]) => ({ digit, ...o, subMenu: o.subMenu ? { ...o.subMenu, options: toList(o.subMenu.options) } : undefined }));
 const toObj = (list) => Object.fromEntries(list.map(({ digit, subMenu, ...o }) => [digit, { ...o, ...(o.action === 'submenu' ? { subMenu: { ...(subMenu || {}), options: toObj(subMenu?.options || []) } } : {}) }]));
@@ -57,6 +59,13 @@ function RowHead({ o, set, onRemove, used, depth, prefix }) {
 }
 
 function ActionFields({ o, set, audios, prefix, onAudio }) {
+  const x = useContext(IvrCtx);
+  if (o.action === 'voicemail') return <BoxFields o={o} set={set} prefix={prefix} />;
+  if (o.action === 'devices') return <DevicesFields o={o} set={set} prefix={prefix} ctx={x.ctx} />;
+  if (o.action === 'ringgroup') return <RingGroupFields prefix={prefix} ctx={x.ctx} />;
+  if (o.action === 'ai') return <AiFields o={o} set={set} prefix={prefix} agents={x.agents} />;
+  if (o.action === 'fax') return <FaxFields o={o} set={set} prefix={prefix} faxNumbers={x.faxNumbers} />;
+  if (o.action === 'callback') return <CallbackFields o={o} set={set} prefix={prefix} />;
   if (o.action === 'sms') return <IvrSms o={o} set={set} prefix={prefix} />;
   if (o.action === 'message' && onAudio) return <div className="space-y-2"><div className="grid md:grid-cols-2 gap-2"><input className="civr-input" value={o.message || ''} onChange={e => set({ message: e.target.value })} placeholder="Text to read out" data-testid={`${prefix}-message-input`} /><AudioSelect value={o.audioUrl} onChange={v => set({ audioUrl: v || null })} audios={audios} placeholder="…or pick audio" onAdded={onAudio} compact testid={`${prefix}-message-audio-select`} /></div>{o.message && !o.audioUrl && <VoiceMaker text={o.message} name={o.label || `Key ${o.digit}`} onMade={(a) => { onAudio(); set({ audioUrl: a.audioUrl }); }} testid={`${prefix}-message-voice`} />}</div>;
   if (o.action === 'forward') return <input className="civr-input font-mono" value={o.forwardTo || ''} onChange={e => set({ forwardTo: e.target.value })} placeholder="+14155550100" data-testid={`${prefix}-forward-input`} />;
@@ -124,11 +133,27 @@ function MenuRow({ o, onChange, onRemove, used, audios, prefix, onAudio, depth =
       <ActionFields o={o} set={set} audios={audios} prefix={prefix} onAudio={onAudio} />
       {o.action === 'submenu' && depth < 3 && (
         <div className="pl-4 border-l-2 border-[#818cf8]/30 space-y-3">
+          <SubLang sub={sub} set={(p) => set({ subMenu: { ...sub, ...p } })} prefix={sp} />
           <Greeting g={sub} set={(p) => set({ subMenu: { ...sub, ...p } })} audios={audios} prefix={sp} label="Sub-menu greeting" onAudio={onAudio} />
           <OptionList list={sub.options || []} setList={(l) => set({ subMenu: { ...sub, options: l } })} prefix={sp}
             render={(so, i, u, ch, rm) => <MenuRow key={i} o={so} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`${sp}-option-${i}`} onAudio={onAudio} depth={depth + 1} />} />
         </div>
       )}
+    </div>
+  );
+}
+
+// Separate menu outside the Hours schedule (instead of the closed message).
+function AfterHours({ ah, setAh, audios, onAudio, hoursOn, number }) {
+  return (
+    <div className="space-y-3 border-t border-[#222] pt-5" data-testid="ivr-after-hours">
+      <label className="flex items-center gap-2 font-display text-lg font-bold"><input type="checkbox" checked={ah.enabled} onChange={e => setAh({ ...ah, enabled: e.target.checked })} data-testid="ivr-after-hours-toggle" />Different menu after hours</label>
+      {ah.enabled && <>
+        {!hoursOn && <div className="rounded-xl border border-[#fbbf24]/40 bg-[#fbbf24]/5 p-3 text-sm" data-testid="ivr-after-hours-need">This menu plays outside your business hours. Turn on the schedule in the <Link to={cp(`/app/numbers/${encodeURIComponent(number)}?tab=hours`)} className="underline" data-testid="ivr-after-hours-hours-link">Hours tab</Link> first.</div>}
+        <Greeting g={ah} set={(p) => setAh({ ...ah, ...p })} audios={audios} prefix="ivr-ah" label="After-hours greeting" onAudio={onAudio} />
+        <OptionList list={ah.options} setList={(l) => setAh({ ...ah, options: l })} prefix="ivr-ah"
+          render={(o, i, used, ch, rm) => <MenuRow key={i} o={o} used={used} onChange={ch} onRemove={rm} audios={audios} prefix={`ivr-ah-option-${i}`} onAudio={onAudio} depth={0} />} />
+      </>}
     </div>
   );
 }
@@ -162,6 +187,13 @@ export default function IvrTab({ num, reload }) {
   const enabled = !!ivr.enabled;
   const [g, setG] = useState({ greeting: ivr.greeting || defOf(lang).greeting, greetingAudioUrl: ivr.greetingAudioUrl || null });
   const [list, setList] = useState(toList(ivr.options));
+  const [ah, setAh] = useState({ enabled: !!ivr.afterHours?.enabled, greeting: ivr.afterHours?.greeting || '', greetingAudioUrl: ivr.afterHours?.greetingAudioUrl || null, options: toList(ivr.afterHours?.options) });
+  const [exts, setExts] = useState(ivr.extensions || []);
+  const ag = useApi('/ai-agents');
+  const fx = useApi('/fax');
+  const agents = ag.data ? (ag.data.agents || []).map(a => ({ id: a.id, name: a.name })) : null;
+  const faxNumbers = fx.data ? (fx.data.numbers || []).filter(n => n.eligible).map(n => n.phoneNumber) : null;
+  const extra = { textingNumbers, aiAgents: agents, faxNumbers, sipLogin: !!num.sipUsername, ringGroupMembers: (num.features?.ringGroup?.members || []).filter(Boolean).length, hoursOn: !!num.features?.hours?.enabled };
   // On a language switch, greetings still on a built-in default follow the new language; custom text stays.
   useEffect(() => {
     const d = defOf(lang);
@@ -169,12 +201,13 @@ export default function IvrTab({ num, reload }) {
     setList(l => l.map(o => (o.subMenu && isDef(o.subMenu.greeting, ['sub']) && o.subMenu.greeting !== d.sub ? { ...o, subMenu: { ...o.subMenu, greeting: d.sub } } : o)));
   }, [lang]);
   const [save, busy] = useSave(num, 'ivr', reload);
-  const u = useUnsaved({ g, list });
-  const current = () => ({ greeting: g.greeting, greetingAudioUrl: g.greetingAudioUrl || null, options: toObj(list) });
+  const u = useUnsaved({ g, list, ah, exts });
+  const current = () => ({ greeting: g.greeting, greetingAudioUrl: g.greetingAudioUrl || null, options: toObj(list), afterHours: { enabled: ah.enabled, greeting: ah.greeting, greetingAudioUrl: ah.greetingAudioUrl || null, options: toObj(ah.options) }, extensions: exts });
   const submit = async () => { if (await save({ enabled, ...current(), language: lang }, 'PUT', (r) => (r?.aiAgentTurnedOff ? 'Saved. The AI voice agent is now off on this number.' : enabled ? 'Saved' : 'Saved — flip the switch above to turn the menu on'))) u.reset(); };
   const prep = params.get('prep') === 'menu' && !enabled && !Object.keys(ivr.options || {}).length;
   const apply = (c) => { setG({ greeting: tr(c.greeting || ''), greetingAudioUrl: c.greetingAudioUrl || null }); setList(toList(locOpts(c.options))); };
   return (
+    <IvrCtx.Provider value={{ ctx: extra, agents, faxNumbers }}>
     <div className="grid lg:grid-cols-3 gap-4" {...u.bind}>
       <div className="civr-card p-6 lg:col-span-2 space-y-6" data-testid="ivr-builder">
         <div className="flex items-center justify-between">
@@ -183,20 +216,23 @@ export default function IvrTab({ num, reload }) {
         </div>
         {prep && <div className="rounded-xl border border-[#818cf8]/30 bg-[#818cf8]/5 p-3 text-sm" data-testid="ivr-prep-note">We prepared a “press 1 for sales” menu below. Add the phone numbers it should forward to, Save, then switch the menu on.</div>}
         {num.features.aiAgent?.enabled && <OneAnswerNote testid="ivr-ai-agent-note">Your AI voice agent answers this number now. Turning the keypad menu on switches the AI voice agent off — a number uses one or the other.</OneAnswerNote>}
-        <Assist screen="ivr" title="Build this menu by chatting" hello="Tell me what callers should be able to do — I’ll write the greeting and set up each key." examples={EXAMPLES} labels={LABELS} testid="ivr-assist" context={numContext(num, { textingNumbers })}
-          current={{ greeting: g.greeting, options: list }}
-          onApply={({ greeting, options }) => { u.touch(); if (greeting !== undefined) setG({ greeting, greetingAudioUrl: null }); if (options) setList(options); }} />
+        <Assist screen="ivr" title="Build this menu by chatting" hello="Tell me what callers should be able to do — I’ll write the greeting and set up each key." examples={EXAMPLES} labels={LABELS} testid="ivr-assist" context={numContext(num, extra)}
+          current={{ greeting: g.greeting, options: list, afterHours: { ...ah }, extensions: exts }}
+          onApply={({ greeting, options, afterHours, extensions }) => { u.touch(); if (greeting !== undefined) setG({ greeting, greetingAudioUrl: null }); if (options) setList(options); if (afterHours) setAh({ enabled: afterHours.enabled !== false, greeting: afterHours.greeting || '', greetingAudioUrl: null, options: afterHours.options || [] }); if (extensions) setExts(extensions); }} />
         <Greeting g={g} set={(p) => setG({ ...g, ...p })} audios={audios} prefix="ivr" onAudio={reloadAudio} />
         <p className="text-xs text-[#a1a1aa] -mt-3" data-testid="ivr-language-note">{`Callers hear typed text in ${langName}, the app's language. Change the app language to change it.`}</p>
         <OptionList list={list} setList={setList} prefix="ivr"
           render={(o, i, u, ch, rm) => <MenuRow key={i} o={o} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`ivr-option-${i}`} onAudio={reloadAudio} depth={0} />} />
+        <Extensions list={exts} setList={setExts} ctx={extra} />
+        <AfterHours ah={ah} setAh={setAh} audios={audios} onAudio={reloadAudio} hoursOn={extra.hoursOn} number={num.phoneNumber} />
         <SaveRow dirty={u.dirty} testid="ivr-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="ivr-save-button">Save keypad menu</button></SaveRow>
       </div>
-      <div className="space-y-4"><IvrFlow greeting={g.greeting} list={list} context={numContext(num, { textingNumbers })} edit={{
+      <div className="space-y-4"><IvrFlow greeting={g.greeting} list={list} afterHours={ah} extensions={exts} context={numContext(num, extra)} edit={{
         canAdd: (p) => !!freeAt(list, p),
         onAdd: (p) => { const d = freeAt(list, p); if (!d) return null; const row = { digit: d, action: 'forward', label: '' }; u.touch(); setList(p.length ? mapAt(list, p, x => ({ ...x, subMenu: { greeting: '', ...(x.subMenu || {}), options: [...(x.subMenu?.options || []), row] } })) : [...list, row]); return [...p, d]; },
         renderEditor: (p, setPath) => <FlowEditor path={p} setPath={setPath} list={list} setList={(l) => { u.touch(); setList(l); }} audios={audios} onAudio={reloadAudio} />,
       }} /><IvrTemplates current={current} onApply={(c) => { if (prep) u.touch(); apply(c); }} auto={prep} /><Analytics num={num} /></div>
     </div>
+    </IvrCtx.Provider>
   );
 }

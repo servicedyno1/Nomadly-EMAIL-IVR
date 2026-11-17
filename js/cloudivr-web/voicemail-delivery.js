@@ -14,7 +14,7 @@ function createVoicemailDelivery(deps) {
   const download = deps.download || (async (url) => Buffer.from((await axios.get(url, { responseType: 'arraybuffer', timeout: 30000, maxContentLength: 25 * 1024 * 1024 })).data))
 
   // → { audioUrl, transcript, transcriptStatus, emailed }
-  return async function deliver({ chatId, num, from, to, recordingUrl, duration }) {
+  return async function deliver({ chatId, num, from, to, recordingUrl, duration, box = null }) {
     const vm = num?.features?.voicemail || {}
     let buf = null
     try { buf = await download(recordingUrl) } catch (e) { log(`[VoicemailWeb] download failed for ${to}: ${e.message}`) }
@@ -32,26 +32,28 @@ function createVoicemailDelivery(deps) {
 
     const when = new Date()
     if (phoneLogs) {
-      await phoneLogs.insertOne({ phoneNumber: to, from, type: 'voicemail', duration: duration || 0, recordingUrl: audioUrl, transcript: tr.text || null, transcriptStatus: tr.status, channel: 'web', timestamp: when.toISOString() })
+      await phoneLogs.insertOne({ phoneNumber: to, from, type: 'voicemail', duration: duration || 0, recordingUrl: audioUrl, transcript: tr.text || null, transcriptStatus: tr.status, channel: 'web', ...(box?.name ? { mailbox: box.name } : {}), timestamp: when.toISOString() })
         .catch(e => log(`[VoicemailWeb] log insert failed: ${e.message}`))
     }
 
-    const caption = `🎙️ <b>New Voicemail</b>\n\n📞 To: ${formatPhone(to)}\n👤 From: ${formatPhone(from)}\n⏱️ Duration: ${fmtDur(duration)}`
+    const caption = `🎙️ <b>New Voicemail${box?.name ? ` · ${esc(box.name)}` : ''}</b>\n\n📞 To: ${formatPhone(to)}\n👤 From: ${formatPhone(from)}\n⏱️ Duration: ${fmtDur(duration)}`
       + (tr.text ? `\n\n📝 Transcript:\n“${esc(tr.text)}”` : tr.status === 'empty' ? '\n\n📝 No words detected in this message.' : '')
     try { await bot.sendAudio(chatId, audioUrl, { caption, parse_mode: 'HTML' }) } catch (e) { log(`[VoicemailWeb] inbox delivery failed: ${e.message}`) }
 
     let emailed = false
-    if (vm.forwardToEmail && sendMail) {
+    // A department mailbox (keypad voicemail key) emails its own person; otherwise the Voicemail tab's address.
+    const mailTo = box?.email || vm.forwardToEmail
+    if (mailTo && sendMail) {
       const app = String(process.env.CLOUDIVR_PUBLIC_URL || 'https://cloudivr.net').replace(/\/+$/, '')
       const html = `<p>To <b>${esc(formatPhone(to))}</b> · ${fmtDur(duration)} · ${when.toUTCString().slice(5, 22)} UTC</p>`
         + (tr.text ? `<blockquote style="border-left:3px solid #4f46e5;margin:0 0 16px;padding:8px 14px;background:#f6f7fb;border-radius:8px;font:15px/1.55 Helvetica,Arial,sans-serif;color:#0f172a">${esc(tr.text)}</blockquote>` : '')
         + `<p><a href="${app}/app/inbox">Listen in CloudIVR</a>${buf ? ' Recording attached.' : ''}</p>`
       try {
-        emailed = await sendMail(vm.forwardToEmail, `New voicemail from ${formatPhone(from)}`, html, buf ? [{ filename: 'voicemail.mp3', content: buf, contentType: 'audio/mpeg' }] : undefined)
-      } catch (e) { log(`[VoicemailWeb] email to ${vm.forwardToEmail} failed: ${e.message}`) }
+        emailed = await sendMail(mailTo, `New voicemail${box?.name ? ` for ${box.name}` : ''} from ${formatPhone(from)}`, html, buf ? [{ filename: 'voicemail.mp3', content: buf, contentType: 'audio/mpeg' }] : undefined)
+      } catch (e) { log(`[VoicemailWeb] email to ${mailTo} failed: ${e.message}`) }
     }
     log(`[VoicemailWeb] delivered voicemail ${from} → ${to} (${duration || 0}s, transcript=${tr.status}, emailed=${!!emailed})`)
-    require('./events').emit(chatId, 'voicemail.left', { number: to, from, duration: duration || 0, transcript: tr.text || null, recordingUrl: audioUrl })
+    require('./events').emit(chatId, 'voicemail.left', { number: to, from, mailbox: box?.name || null, duration: duration || 0, transcript: tr.text || null, recordingUrl: audioUrl })
     return { audioUrl, transcript: tr.text || null, transcriptStatus: tr.status, emailed: !!emailed }
   }
 }

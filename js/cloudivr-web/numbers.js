@@ -206,7 +206,7 @@ function _publicNumber(n, numbers) {
 }
 
 // audioOk(url) → true when the url is one of the account's own library files.
-function validateIvr(body, plan, audioOk = () => true) {
+function validateIvr(body, plan, audioOk = () => true, ctx = {}) {
   const ivr = body || {}
   // Spoken menu language = the web app's language when saved (unset/other = English).
   const language = vmGreeting.IVR_LANGS.includes(ivr.language) ? ivr.language : 'en'
@@ -240,6 +240,12 @@ function validateIvr(body, plan, audioOk = () => true) {
     if (amount && !txt(c.amountColumn, 120)) throw new Error(`Key ${digit}: pick the column that holds the amount to pay.`)
     return { source: 'db', connId: String(c.connId), table: txt(c.table, 120), match: txt(c.match, 120), say: txt(c.say, 500), routeColumn: txt(c.routeColumn, 120), amountColumn: txt(c.amountColumn, 120), notFound: txt(c.notFound, 300) }
   }
+  // Department mailbox on a voicemail: its name (said in the Inbox) and who gets the email copy.
+  const boxOf = (b, digit) => {
+    const name = txt(b?.name, 40), email = txt(b?.email, 120).toLowerCase(), greeting = txt(b?.greeting, 300)
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error(`Key ${digit}: the mailbox email address does not look right.`)
+    return name || email || greeting ? { name, email, greeting } : null
+  }
   const confirmOf = (o) => (o.confirm === true ? { confirm: true, confirmTimeout: o.confirmTimeout === 'voicemail' && phoneConfig.canAccessFeature(plan, 'voicemail') ? 'voicemail' : 'decline', declineMessage: txt(o.declineMessage, 300) } : {})
   const clean = (opts, depth) => {
     const out = {}
@@ -268,7 +274,28 @@ function validateIvr(body, plan, audioOk = () => true) {
         out[digit] = { action, smsFrom, smsText, ...(texts.length > 1 ? { smsTexts: texts } : {}), message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label }
       } else if (action === 'voicemail') {
         if (!phoneConfig.canAccessFeature(plan, 'voicemail')) throw new Error('Voicemail needs the Starter plan or higher.')
+        const box = boxOf(o.box, digit)
+        out[digit] = { action, label, ...(box ? { box } : {}) }
+      } else if (action === 'devices') {
+        if (!ctx.sipLogin) throw new Error(`Key ${digit}: this number has no browser phone / phone app login yet — set one up in the Phone apps tab first.`)
+        const noAnswer = ['voicemail', 'menu', 'message'].includes(o.noAnswer) ? o.noAnswer : 'voicemail'
+        if (noAnswer === 'voicemail' && !phoneConfig.canAccessFeature(plan, 'voicemail')) throw new Error(`Key ${digit}: voicemail when nobody answers needs the Starter plan or higher.`)
+        const box = noAnswer === 'voicemail' ? boxOf(o.box, digit) : null
+        out[digit] = { action, label, ringSecs: Math.min(60, Math.max(10, Math.round(Number(o.ringSecs)) || 25)), noAnswer, noAnswerMessage: noAnswer === 'message' ? txt(o.noAnswerMessage, 300) : '', ...(box ? { box } : {}) }
+      } else if (action === 'ringgroup') {
+        if (!phoneConfig.canAccessFeature(plan, 'ringGroup')) throw new Error(`Key ${digit}: the team group needs the Pro plan or higher.`)
+        if (!ctx.ringGroupMembers) throw new Error(`Key ${digit}: add your team's phones in the Ring group tab first (it can stay switched off).`)
         out[digit] = { action, label }
+      } else if (action === 'ai') {
+        if (!/^[A-Za-z0-9_-]{6,64}$/.test(String(o.agentId || ''))) throw new Error(`Key ${digit}: pick the AI agent that should take these calls.`)
+        out[digit] = { action, label, agentId: String(o.agentId), message: txt(o.message, 300), unavailableMessage: txt(o.unavailableMessage, 300) }
+      } else if (action === 'fax') {
+        if (!E164.test(String(o.faxFrom || ''))) throw new Error(`Key ${digit}: pick the fax number that sends the document (get one in Fax if you have none).`)
+        if (!/^[0-9a-f]{24}$/.test(String(o.fileId || ''))) throw new Error(`Key ${digit}: upload the document callers should receive.`)
+        out[digit] = { action, label, faxFrom: String(o.faxFrom), fileId: String(o.fileId), pages: Math.min(20, Math.max(1, Math.round(Number(o.pages)) || 1)), docName: txt(o.docName, 80) || 'document.pdf', prompt: txt(o.prompt, 300), message: txt(o.message, 300), after: o.after === 'menu' ? 'menu' : 'hangup' }
+      } else if (action === 'callback') {
+        const auto = o.auto === true
+        out[digit] = { action, label, message: txt(o.message, 300), auto, callbackTo: auto ? fwd(o.callbackTo, digit) : '' }
       } else if (action === 'queue') {
         const agents = [...new Set((Array.isArray(o.agents) ? o.agents : String(o.agents || '').split(/[\s,;]+/)).filter(Boolean).map(a => fwd(a, digit)))]
         if (!agents.length) throw new Error(`Key ${digit}: add at least one phone for the queue to ring.`)
@@ -327,7 +354,8 @@ function validateIvr(body, plan, audioOk = () => true) {
         if (depth >= 3) throw new Error('Sub-menus can only go 3 levels deep.')
         const sub = o.subMenu || {}
         const subAudio = audio(sub.greetingAudioUrl, `Key ${digit} sub-menu`)
-        out[digit] = { action, label, subMenu: { greetingType: subAudio ? 'audio' : 'text', greeting: String(sub.greeting || speech.sub).slice(0, 1000), greetingAudioUrl: subAudio, options: clean(sub.options, depth + 1) } }
+        const subLang = vmGreeting.IVR_LANGS.includes(sub.language) && sub.language !== language ? sub.language : null
+        out[digit] = { action, label, subMenu: { greetingType: subAudio ? 'audio' : 'text', greeting: String(sub.greeting || (subLang ? vmGreeting.ivrSpeech(subLang).sub : speech.sub)).slice(0, 1000), greetingAudioUrl: subAudio, ...(subLang ? { language: subLang } : {}), options: clean(sub.options, depth + 1) } }
       } else throw new Error(`Key ${digit}: unknown action "${action}".`)
     }
     return out
@@ -335,13 +363,29 @@ function validateIvr(body, plan, audioOk = () => true) {
   const options = clean(ivr.options, 0)
   if (ivr.enabled && !Object.keys(options).length) throw new Error('Add at least one menu option before turning the IVR on.')
   const greetingAudioUrl = audio(ivr.greetingAudioUrl, 'Greeting')
+  // After-hours menu (outside the Hours schedule) and staff extensions typed at the top of the main menu.
+  const ah = ivr.afterHours || {}
+  const ahOptions = ah.enabled || Object.keys(ah.options || {}).length ? clean(ah.options, 0) : {}
+  if (ah.enabled && !Object.keys(ahOptions).length) throw new Error('After-hours menu: add at least one key, or switch it off.')
+  const ahAudio = audio(ah.greetingAudioUrl, 'After-hours greeting')
+  const afterHours = { enabled: !!ah.enabled && Object.keys(ahOptions).length > 0, greeting: txt(ah.greeting, 1000), greetingAudioUrl: ahAudio, options: ahOptions }
+  const seenExt = new Set()
+  const extensions = (Array.isArray(ivr.extensions) ? ivr.extensions : []).filter(e => e && (e.code || e.forwardTo || e.name)).slice(0, 30).map((e, i) => {
+    const code = String(e.code || '').replace(/\D/g, '')
+    const where = `Extension ${code || i + 1}`
+    if (code.length < 2 || code.length > 5) throw new Error(`${where}: use 2 to 5 digits, e.g. 101.`)
+    if (seenExt.has(code)) throw new Error(`${where}: two extensions use the same code.`)
+    seenExt.add(code)
+    if (e.action === 'devices') { if (!ctx.sipLogin) throw new Error(`${where}: this number has no browser phone / phone app login yet.`); return { code, name: txt(e.name, 40), action: 'devices', noAnswer: phoneConfig.canAccessFeature(plan, 'voicemail') ? 'voicemail' : 'message' } }
+    return { code, name: txt(e.name, 40), action: 'forward', forwardTo: fwd(e.forwardTo, where.replace('Extension', 'ext')) }
+  })
   return {
     enabled: !!ivr.enabled,
     greetingType: greetingAudioUrl ? 'audio' : 'text',
     greeting: String(ivr.greeting || speech.greeting).slice(0, 1000),
     greetingAudioUrl, language,
     voice: ivr.voice || null, speed: Number(ivr.speed) || 1,
-    options,
+    options, afterHours, extensions,
   }
 }
 
@@ -782,9 +826,20 @@ function routes(router, deps) {
     if (!gate(req, res, 'ivr', 'The keypad menu')) return
     const urls = await ownAudioUrls(req.webChatId)
     let value
-    try { value = validateIvr(req.body, req.num.plan, (u) => urls.has(u)) } catch (e) { return bad(res, 400, 'invalid_ivr', e.message) }
+    const rgMembers = (req.num.features?.ringGroup?.members || []).filter(Boolean).length
+    try { value = validateIvr(req.body, req.num.plan, (u) => urls.has(u), { sipLogin: !!req.num.sipUsername, ringGroupMembers: rgMembers }) } catch (e) { return bad(res, 400, 'invalid_ivr', e.message) }
     const every = (opts) => Object.values(opts || {}).flatMap(o => [o, ...every(o.subMenu?.options)])
-    const keys = every(value.options), liveData = require('../ivr-live-data')
+    const keys = [...every(value.options), ...every(value.afterHours?.options)], liveData = require('../ivr-live-data')
+    const ai = require('../ai-agent')
+    for (const o of keys.filter(k => k.action === 'ai')) if (!(await ai.store.getAgent(o.agentId, req.webChatId).catch(() => null))) return bad(res, 400, 'invalid_ivr', 'A key uses an AI agent that was removed. Pick one of your agents again.')
+    const faxKeys = keys.filter(k => k.action === 'fax')
+    if (faxKeys.length) {
+      const fax = require('../fax-service'), { ObjectId } = require('mongodb')
+      for (const o of faxKeys) {
+        if (!fax.eligible(await fax.findMine(req.webChatId, o.faxFrom))) return bad(res, 400, 'invalid_ivr', `The fax number ${o.faxFrom} is not one of your active fax numbers. Pick another, or get a fax number first.`)
+        if (!(await deps.db.collection('faxFiles.files').findOne({ _id: new ObjectId(o.fileId), 'metadata.chatId': req.webChatId, 'metadata.kind': 'ivr' }))) return bad(res, 400, 'invalid_ivr', 'Upload the fax document again.')
+      }
+    }
     if (!(await liveData.owns(req.webChatId, keys.map(o => o.check?.connId), 'database'))) return bad(res, 400, 'invalid_ivr', 'A key uses a database connection that was removed. Pick it again.')
     if (!(await liveData.owns(req.webChatId, keys.filter(o => o.action === 'pay').map(o => o.connId), 'payments'))) return bad(res, 400, 'invalid_ivr', 'A key uses a payment provider that was removed. Pick it again.')
     const lines = keys.filter(o => o.action === 'sms').map(o => o.smsFrom)
@@ -794,9 +849,9 @@ function routes(router, deps) {
     }
     await setField(req.webChatId, req.num.phoneNumber, 'features.ivr', value)
     // One answers a number: the keypad menu going on switches the AI voice agent off.
-    const ai = req.num.features?.aiAgent
-    const aiAgentTurnedOff = !!(value.enabled && ai?.enabled)
-    if (aiAgentTurnedOff) await setField(req.webChatId, req.num.phoneNumber, 'features.aiAgent', { ...ai, enabled: false })
+    const aiCfg = req.num.features?.aiAgent
+    const aiAgentTurnedOff = !!(value.enabled && aiCfg?.enabled)
+    if (aiAgentTurnedOff) await setField(req.webChatId, req.num.phoneNumber, 'features.aiAgent', { ...aiCfg, enabled: false })
     res.json({ ivr: value, aiAgentTurnedOff })
   }))
 
