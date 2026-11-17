@@ -304,11 +304,21 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     const opt = message === L.one_opt_yes; await put('bseOneOpt', opt); await go('bse-one-text'); return send(chatId, say(opt ? 'one_text_q' : 'one_text_q_plain'), kb([[L.back]]))
   }
   if (action === 'bse-one-text' || action === 'bse-reply') {
+    // Once the customer is "satisfied" (good review, or kept sending past the free intro), single texts are paid: $1 each,
+    // and the wallet must hold at least $20. Charged on a successful send, refunded if it fails. Low-rated customers stay free.
+    const bill = await B.singleTextMode(cid).catch(() => ({ paid: false }))
+    const w = walletOps(T.db)
+    if (bill.paid) {
+      const bal = await w.balance(chatId).catch(() => 0)
+      if (bal < bill.minBalance) { if (action === 'bse-one-text') await go('bse-home'); return send(chatId, say('one_min_balance', { min: bill.minBalance, bal: Math.round(bal * 100) / 100 }), action === 'bse-reply' ? kb([[L.back]]) : HK) }
+      if (!(await w.debit(chatId, bill.price))) { if (action === 'bse-one-text') await go('bse-home'); return send(chatId, say('one_min_balance', { min: bill.minBalance, bal: Math.round(bal * 100) / 100 }), action === 'bse-reply' ? kb([[L.back]]) : HK) }
+    }
     const r = await B.sendOne(cid, info.bseTo, message, action === 'bse-reply' ? info.bseSession : null, { optOut: info.bseOneOpt !== false, unlimited: action === 'bse-one-text' && unlimitedOne(chatId) })
+    if (bill.paid && r.error) await w.credit(chatId, bill.price).catch(() => {})
     if (['err_number_busy', 'err_one_used', 'err_one_slow', 'err_one_bulk', 'err_one_blocked', 'reply_route_changed', 'reply_campaign_only'].includes(r.error)) { await go('bse-home'); return send(chatId, `⚠️ ${errText(lang, r)}`, HK) }
     if (r.error) return send(chatId, `⚠️ ${errText(lang, r)}`)
     if (action === 'bse-one-text') await go('bse-home')
-    return send(chatId, say('queued', r.segments, action === 'bse-reply') + (r.left != null ? `\n${say('one_left', r.left)}` : ''), action === 'bse-reply' ? kb([[L.back]]) : homeKb(L, { ...RD, oneLeft: r.left }))
+    return send(chatId, say('queued', r.segments, action === 'bse-reply') + (!bill.paid && r.left != null ? `\n${say('one_left', r.left)}` : ''), action === 'bse-reply' ? kb([[L.back]]) : homeKb(L, { ...RD, oneLeft: bill.paid ? null : r.left }))
   }
   if (action === 'bse-conv') {
     const to = String(message).replace(/^💬\s*/, ''), s = await B.db().collection('bsSessions').findOne({ cid, to })

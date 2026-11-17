@@ -910,7 +910,7 @@ async function aiVariants(cid, { text, withLinks, optOut = true, avoid = [], swa
   if (alts.some(a => !onlyLinkOrPhone(a) || swapIn(src, src, a) == null)) return E('err_links_bad')
   const allowed = urlsAndPhones([src, ...alts].join(' ')), known = new Set([src, ...avoid].map(x => x.toLowerCase()))
   const valid = (v) => { const t = String(v || '').trim(); if (!t || known.has(t.toLowerCase()) || segs(t + optLine(optOut)) > MAX_PARTS) return null; if (!withLinks && hasLinkOrPhone(t)) return null; for (const u of urlsAndPhones(t)) if (!allowed.has(u)) return null; for (const u of urlsAndPhones(src)) if (!alts.length && !t.toLowerCase().includes(u)) return null; return t }
-  let raw = [], model = 'simulated'
+  let raw, model = 'simulated'
   if (!process.env.EMERGENT_LLM_KEY && process.env.OPENAI_API_KEY && !P.dry()) { // production server: the customer's text goes straight to OpenAI with the owner's key
     try { raw = await openaiVariants(src, limit, want + 2, withLinks, avoid); model = OPENAI_MODEL() } catch (err) {
       const msg = err.response?.data?.error?.message || err.message; audit('ai_variants_error', { cid, error: msg })
@@ -1106,6 +1106,30 @@ async function oneLeft(cid) {
   const lim = (await cfg()).freeOneSends ?? 2
   return lim ? Math.max(0, lim - await oneUsed(cid)) : Infinity
 }
+// ---------- paid single texts: once a customer is "satisfied" (gave a good review, or kept sending past the free intro),
+// single texts are charged (handled in bot.js against the wallet). A poor review keeps them free. Permanent, per Telegram user. ----------
+const PAID_FREE_INTRO = 3 // free single texts before paying starts (the 4th onward is paid)
+// Single-text reviews only (campaign / test reviews don't affect single-text pricing).
+const singleReviews = (ids) => C('bsReviews').find({ cid: { $in: ids }, stars: { $exists: true }, kind: { $nin: ['campaign', 'test'] } }).project({ stars: 1 }).toArray()
+const userIdList = async (cid) => (await C('bsCustomers').find({ _id: sameUser(cid) }).project({ _id: 1 }).toArray()).map(x => x._id)
+// Decide whether this customer's single texts are now paid. Persists the decision so it is cheap and permanent.
+async function singleTextMode(cid) {
+  const cu = await C('bsCustomers').findOne({ _id: cid }, { projection: { smsPaid: 1 } })
+  if (cu?.smsPaid) return { paid: true, price: SINGLE_TEXT_PRICE, minBalance: SINGLE_TEXT_MIN_BALANCE }
+  const ids = await userIdList(cid)
+  const reviews = ids.length ? await singleReviews(ids) : []
+  // Any single-text review (satisfied → good stars, or engaged enough to rate at all), or already past the free intro
+  // (skipped the review but kept sending), → start paying.
+  const sent = (await Promise.all(ids.map(oneUsed))).reduce((a, b) => a + b, 0)
+  if (reviews.some(r => Number(r.stars) > 0) || sent >= PAID_FREE_INTRO) {
+    await C('bsCustomers').updateOne({ _id: cid }, { $set: { smsPaid: true, smsPricedAt: new Date() } })
+    return { paid: true, price: SINGLE_TEXT_PRICE, minBalance: SINGLE_TEXT_MIN_BALANCE }
+  }
+  return { paid: false, price: 0, freeLeft: Math.max(0, PAID_FREE_INTRO - sent) }
+}
+const SINGLE_TEXT_PRICE = 1
+const SINGLE_TEXT_MIN_BALANCE = 20
+
 // ---------- free-text abuse guard (unlimited single texts: freeOneSends 0 · unlimited campaign tests: testSends 0) ----------
 // A person texts a few people and gets answers; a bulk sender texts many new numbers the same thing and gets none.
 // Single texts and campaign tests are counted together, per Telegram user across all 4 bots.
@@ -1775,4 +1799,4 @@ const db = () => S.db
 
 // Live (non-simulated) use needs the shared database so all bots use one pool and one Spenza rate limit.
 const configured = () => P.configured() && (P.dry() || !!process.env.BULK_ESIM_MONGO_URL)
-module.exports = { orderOrQueue, processLineQueue, replaceEsim, altLine, promoteTester, lineUsage, dailyTesterRenumber, aiTips, testFeedback, testBarred, oneGuardList, oneGuardSet, adminAlert: alert, dueReviews, reviewAnswer, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, checkTimeouts, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, replaceEsim, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone, backfillIdentity }
+module.exports = { orderOrQueue, processLineQueue, replaceEsim, altLine, promoteTester, lineUsage, dailyTesterRenumber, aiTips, testFeedback, testBarred, oneGuardList, oneGuardSet, adminAlert: alert, dueReviews, reviewAnswer, singleTextMode, SINGLE_TEXT_PRICE, SINGLE_TEXT_MIN_BALANCE, warmUp, volumeChecks, warmBookings, checkTimeouts, ready, lineReady, acctOpen, linksIn: (t) => [...linkToks(t), ...(String(t).match(PHONE_G) || []).filter(hasPhone)], screenContent, linkSweep, onlyLinkOrPhone, checkNumbers, setLookup, swapIn, OPT, MAX_PARTS, testOffer, testQuota, testCheck, contentHash, bodyOf, aiVariants, setReplies, replyImpact, claimWorker, whenOptions, sendWindow, oneLeft, onStatus, dlrWatch, undeliveredSwap, replyRoute, numberBusy, discountFor, acctRoom, adviseAccounts, ratePerMin, acctMaxLines, setAccount, paceByHeaders, stuckLines, nextFreeDay, cancelDead, ensureRoles, roleCount, bootstrap, startCheck, preUse, dueCheck, monitorLine, monitorCount, plan, demandModel, maxLines, dayCeiling, lineHistory, lineLog, provisionFor, capacity, linesShort, lineCap, lineAge, forecast, provisionMany, autoReplace, unmetDemand, checkContent, hasLinkOrPhone, refundUnsent, expireStale, init, db, configured, cfg, DEFAULTS, cidOf, customer, usage, createCampaign, parseContacts, testSend, createBooking, confirmBooking, cancelBooking, availability, sendOne, onWebhook, registerWebhook, report, overview, setConfig, setCustomer, provisionOne, healthCheck, syncInventory, creditWatch, pause, resume, state, addEsim, setEsim, tick, autoscale, finishCampaigns, segs, normPhone, backfillIdentity }

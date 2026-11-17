@@ -3607,3 +3607,10 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Personalization engine js/personalize.js (fillPersonal/tokensIn): [Name]/[Code]/[Amount]/[AnyColumn] per contact; codes read digit-by-digit, amounts as money; missing → owner fallback word, else skip. Unit test js/tests/personalize.test.js.
 - Quick IVR personalization (web, live TTS): POST /calls/quick accepts personalize + fallback + contacts[{number,name,fields}]; per-contact greeting; skipped contacts reported; preview at POST /calls/quick/preview. parseLeads now carries extra columns as fields. Verified via curl.
 - PENDING: personalization UI in Quick IVR/campaign pages; Bulk SMS (bot) and Bulk IVR per-lead voice (Bulk IVR uses one pre-recorded audio → needs per-call TTS, larger change).
+
+## 2026-06 (c) — Paid single texts in the BulkSMS bot (preview only, NOT deployed)
+- Single "Send one SMS" texts become paid once a customer is engaged: 3 free intro texts, then $1 per text with a $20 minimum wallet balance. Permanent, per Telegram user (across brands via sameUser).
+- Triggers (js/bulk-esim/core.js singleTextMode): ANY single-text review (1–5 stars) → paid from the next text; OR past the 3 free texts (skipped the review but kept sending) → paid. Campaign/test reviews don't count. Decision persisted as bsCustomers.smsPaid.
+- Charge enforced in js/bulk-esim/bot.js at the send point (new text AND replies): wallet must hold ≥$20, debit $1 on send, refund if the send errors. Low-balance shows a neutral "add at least $20 to send texts" prompt (i18n one_min_balance, en/fr/zh/hi/fa) — no mention of the review/reason. Paid users no longer see the "free texts left" line.
+- Tests: js/tests/bulk_esim_paid_single.test.js (7/7). Existing test_bulk_esim_one_free.js still 8/8. Fixed 4 pre-existing core.js lint errors (unused `raw` init, duplicate export keys checkTimeouts/replaceEsim).
+- NOT deployed; runs in the simless BulkSMS bot. Verify live against that bot after deploy.
