@@ -9,7 +9,7 @@ const S = {
     picked: (n, left) => `✅ ${n} selected · room for ${room(left)} on this plan.\nTap more numbers to add them, tap a ✅ number to remove it, or tap <b>Continue</b>.`,
     full: (left) => `⚠️ This plan has room for ${room(left)} more extra number${left === 1 ? '' : 's'}. Remove one first, or upgrade the plan.`,
     none: 'Tap at least one number first.',
-    summary: (parent, picks, total, plan) => `🧾 <b>Add ${picks.length} extra numbers to ${parent}</b> (${plan} plan)\n\n${picks.map(p => `📞 ${p.phone_number} — ${fmt(p.price)}/mo`).join('\n')}\n\n<b>Total: ${fmt(total)}</b> · one payment. Each number renews monthly with your plan.`,
+    summary: (parent, picks, total, plan) => `🧾 <b>Add ${picks.length} extra numbers to ${parent}</b> (${plan} plan)\n\n${picks.map(p => `📞 ${p.phone_number} — ${fmt(p.price)}${p.monthly > p.price ? ` → ${fmt(p.monthly)}/mo` : `/mo`}`).join('\n')}\n\n<b>Total: ${fmt(total)}</b> · one payment. Each number renews monthly with your plan.`,
     done: (parent, added, failed) => [
       added.length ? `🎉 <b>${added.length} extra number${added.length === 1 ? '' : 's'} added to ${parent}</b>\n${added.map(x => `✅ ${x}`).join('\n')}` : `⚠️ None of the extra numbers could be added to ${parent}.`,
       failed.length ? `\n<b>Not added — nothing charged for ${failed.length === 1 ? 'it' : 'these'}, the money stays in your wallet:</b>\n${failed.map(f => `❌ ${f.phone} — ${f.why}`).join('\n')}` : '',
@@ -23,7 +23,7 @@ const S = {
     picked: (n, left) => `✅ ${n} sélectionné(s) · place pour ${room(left)} sur ce forfait.\nTouchez d'autres numéros pour les ajouter, un numéro ✅ pour le retirer, ou <b>Continuer</b>.`,
     full: (left) => `⚠️ Ce forfait a de la place pour ${room(left)} numéro(s) supplémentaire(s). Retirez-en un, ou passez à un forfait supérieur.`,
     none: "Touchez d'abord au moins un numéro.",
-    summary: (parent, picks, total, plan) => `🧾 <b>Ajouter ${picks.length} numéros à ${parent}</b> (forfait ${plan})\n\n${picks.map(p => `📞 ${p.phone_number} — ${fmt(p.price)}/mois`).join('\n')}\n\n<b>Total : ${fmt(total)}</b> · un seul paiement. Chaque numéro se renouvelle avec votre forfait.`,
+    summary: (parent, picks, total, plan) => `🧾 <b>Ajouter ${picks.length} numéros à ${parent}</b> (forfait ${plan})\n\n${picks.map(p => `📞 ${p.phone_number} — ${fmt(p.price)}${p.monthly > p.price ? ` → ${fmt(p.monthly)}/mois` : `/mois`}`).join('\n')}\n\n<b>Total : ${fmt(total)}</b> · un seul paiement. Chaque numéro se renouvelle avec votre forfait.`,
     done: (parent, added, failed) => [
       added.length ? `🎉 <b>${added.length} numéro(s) ajouté(s) à ${parent}</b>\n${added.map(x => `✅ ${x}`).join('\n')}` : `⚠️ Aucun numéro n'a pu être ajouté à ${parent}.`,
       failed.length ? `\n<b>Non ajoutés — rien n'a été débité, l'argent reste dans votre portefeuille :</b>\n${failed.map(f => `❌ ${f.phone} — ${f.why}`).join('\n')}` : '',
@@ -37,7 +37,7 @@ const S = {
     picked: (n, left) => `✅ 已选 ${n} 个 · 此套餐还可添加 ${room(left)} 个。\n点击更多号码添加，点击 ✅ 号码移除，或点击<b>继续</b>。`,
     full: (left) => `⚠️ 此套餐只能再添加 ${room(left)} 个号码。请先移除一个，或升级套餐。`,
     none: '请先点击至少一个号码。',
-    summary: (parent, picks, total, plan) => `🧾 <b>为 ${parent} 添加 ${picks.length} 个号码</b>（${plan} 套餐）\n\n${picks.map(p => `📞 ${p.phone_number} — ${fmt(p.price)}/月`).join('\n')}\n\n<b>合计：${fmt(total)}</b> · 一次付款。每个号码随套餐按月续费。`,
+    summary: (parent, picks, total, plan) => `🧾 <b>为 ${parent} 添加 ${picks.length} 个号码</b>（${plan} 套餐）\n\n${picks.map(p => `📞 ${p.phone_number} — ${fmt(p.price)}${p.monthly > p.price ? ` → ${fmt(p.monthly)}/月` : `/月`}`).join('\n')}\n\n<b>合计：${fmt(total)}</b> · 一次付款。每个号码随套餐按月续费。`,
     done: (parent, added, failed) => [
       added.length ? `🎉 <b>已为 ${parent} 添加 ${added.length} 个号码</b>\n${added.map(x => `✅ ${x}`).join('\n')}` : `⚠️ 没有号码能添加到 ${parent}。`,
       failed.length ? `\n<b>未添加 — 未扣费，款项留在钱包中：</b>\n${failed.map(f => `❌ ${f.phone} — ${f.why}`).join('\n')}` : '',
@@ -51,7 +51,7 @@ const S = {
     picked: (n, left) => `✅ ${n} चुने गए · इस प्लान पर ${room(left)} की जगह।\nऔर नंबर जोड़ने के लिए टैप करें, हटाने के लिए ✅ नंबर टैप करें, या <b>आगे बढ़ें</b>।`,
     full: (left) => `⚠️ इस प्लान पर केवल ${room(left)} और अतिरिक्त नंबर की जगह है। पहले एक हटाएँ, या प्लान अपग्रेड करें।`,
     none: 'पहले कम से कम एक नंबर टैप करें।',
-    summary: (parent, picks, total, plan) => `🧾 <b>${parent} में ${picks.length} अतिरिक्त नंबर जोड़ें</b> (${plan} प्लान)\n\n${picks.map(p => `📞 ${p.phone_number} — ${fmt(p.price)}/माह`).join('\n')}\n\n<b>कुल: ${fmt(total)}</b> · एक ही भुगतान। हर नंबर प्लान के साथ मासिक रिन्यू होगा।`,
+    summary: (parent, picks, total, plan) => `🧾 <b>${parent} में ${picks.length} अतिरिक्त नंबर जोड़ें</b> (${plan} प्लान)\n\n${picks.map(p => `📞 ${p.phone_number} — ${fmt(p.price)}${p.monthly > p.price ? ` → ${fmt(p.monthly)}/माह` : `/माह`}`).join('\n')}\n\n<b>कुल: ${fmt(total)}</b> · एक ही भुगतान। हर नंबर प्लान के साथ मासिक रिन्यू होगा।`,
     done: (parent, added, failed) => [
       added.length ? `🎉 <b>${parent} में ${added.length} अतिरिक्त नंबर जोड़े गए</b>\n${added.map(x => `✅ ${x}`).join('\n')}` : `⚠️ ${parent} में कोई नंबर नहीं जुड़ सका।`,
       failed.length ? `\n<b>नहीं जुड़े — इनका कोई शुल्क नहीं लगा, पैसा वॉलेट में है:</b>\n${failed.map(f => `❌ ${f.phone} — ${f.why}`).join('\n')}` : '',
@@ -65,7 +65,7 @@ const S = {
     picked: (n, left) => `✅ ${n} انتخاب شد · جا برای ${room(left)} در این طرح.\nبرای افزودن شماره‌های بیشتر بزنید، برای حذف روی شماره ✅ بزنید، یا <b>ادامه</b> را بزنید.`,
     full: (left) => `⚠️ این طرح فقط برای ${room(left)} شماره اضافه دیگر جا دارد. ابتدا یکی را حذف کنید یا طرح را ارتقا دهید.`,
     none: 'ابتدا حداقل یک شماره را بزنید.',
-    summary: (parent, picks, total, plan) => `🧾 <b>افزودن ${picks.length} شماره به ${parent}</b> (طرح ${plan})\n\n${picks.map(p => `📞 ${p.phone_number} — ${fmt(p.price)}/ماه`).join('\n')}\n\n<b>جمع: ${fmt(total)}</b> · یک پرداخت. هر شماره همراه طرح ماهانه تمدید می‌شود.`,
+    summary: (parent, picks, total, plan) => `🧾 <b>افزودن ${picks.length} شماره به ${parent}</b> (طرح ${plan})\n\n${picks.map(p => `📞 ${p.phone_number} — ${fmt(p.price)}${p.monthly > p.price ? ` → ${fmt(p.monthly)}/ماه` : `/ماه`}`).join('\n')}\n\n<b>جمع: ${fmt(total)}</b> · یک پرداخت. هر شماره همراه طرح ماهانه تمدید می‌شود.`,
     done: (parent, added, failed) => [
       added.length ? `🎉 <b>${added.length} شماره به ${parent} اضافه شد</b>\n${added.map(x => `✅ ${x}`).join('\n')}` : `⚠️ هیچ شماره‌ای به ${parent} اضافه نشد.`,
       failed.length ? `\n<b>اضافه نشد — هزینه‌ای کسر نشد، پول در کیف پول ماند:</b>\n${failed.map(f => `❌ ${f.phone} — ${f.why}`).join('\n')}` : '',

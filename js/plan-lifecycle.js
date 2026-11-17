@@ -79,6 +79,30 @@ function reparentPatch(numbers, n) {
   const m = successorMain(numbers, n.parentNumber)
   return m ? [{ phoneNumber: n.phoneNumber, set: { parentNumber: m.phoneNumber } }] : null
 }
+// ── One bill: extra lines renew on their main line's date. A new or out-of-step extra pays only for the days
+// left until that date (a full month costs the monthly price). ──
+const CYCLE_DAYS = 30
+const prorateRatio = (until, now = new Date()) => { const d = (new Date(until) - now) / DAY_MS; return d > 0 ? Math.min(1, Math.ceil(d) / CYCLE_DAYS) : 1 }
+const proratedTo = (monthly, until, now = new Date()) => round2(Math.max(0.5, Number(monthly) * prorateRatio(until, now)))
+// The main line's renewal date an extra should share (null = it renews a full month on its own).
+function cotermDate(numbers, n, now = new Date()) {
+  const m = n?.isSubNumber ? (numbers || []).find(x => x.phoneNumber === n.parentNumber && x.status === 'active' && !x.isSubNumber) : null
+  return m && new Date(m.expiresAt) > now ? m.expiresAt : null
+}
+const sameDate = (a, b) => Math.abs(new Date(a) - new Date(b)) < 3600000
+// What the main line's renewal day charges: the plan plus every extra still on auto-renew.
+function groupRenewal(numbers, main) {
+  const extras = (numbers || []).filter(x => x.isSubNumber && x.parentNumber === main.phoneNumber && x.status === 'active')
+    .map(x => ({ phoneNumber: x.phoneNumber, price: renewalPrice(x), autoRenew: x.autoRenew !== false, expiresAt: x.expiresAt, onPlanDate: sameDate(x.expiresAt, main.expiresAt) }))
+  const mainPrice = renewalPrice(main)
+  const on = main.autoRenew !== false
+  // Only extras already on the plan date are in this charge; the rest renew once on their own date, prorated up to it.
+  const onDate = extras.filter(e => e.autoRenew && e.onPlanDate)
+  const later = on ? extras.filter(e => e.autoRenew && !e.onPlanDate).map(e => ({ ...e, firstPrice: proratedTo(e.price || 0, main.expiresAt, new Date(e.expiresAt)) })) : []
+  const total = on ? round2((mainPrice || 0) + onDate.reduce((t, e) => t + (e.price || 0), 0)) : 0
+  return { date: main.expiresAt, autoRenew: on, main: mainPrice, extras, renewing: on ? onDate.length : 0, later, total }
+}
+const groupDueLine = (g) => g.renewing ? `\n💳 Due on renewal: <b>$${g.total.toFixed(2)}</b> (plan $${Number(g.main || 0).toFixed(2)} + ${g.renewing} extra number${g.renewing === 1 ? '' : 's'})` : ''
 const extrasOf = (numbers, main) => numbers.filter(x => x.isSubNumber && x.parentNumber === main.phoneNumber && live(x))
 
 // An active line whose main line is gone (or that the Oct-2026 migration left standalone at the extra-line price).
@@ -330,6 +354,7 @@ function renewedMsg(n, r, lang) {
 module.exports = { successorMain, reparentPatch,
   HOLD_DAYS, isInternalTest, listPrice, EXTRA_SIP_FREE, EXTRA_SIP_MAX, EXTRA_SIP_PRICE, paidSip, sipLoginOk, lockLegacyPrices, canonicalPrice, renewalPrice, mainOf, extrasOf, isOrphan, onHold, holdOver,
   lineGroup, planLimit, poolUsage, USAGE_RESET, usageResetPatches, priceOnPlan, syncExtrasPlan,
+  prorateRatio, proratedTo, cotermDate, sameDate, groupRenewal, groupDueLine,
   downgradePatch, upgradePatch, numberSet, suspendPlan, orphanToMain, releasePatch, renewBlock, renewPatches, applyLocal, applyDb,
   planSuspendedMsg, orphanSuspendedMsg, releasedAfterHoldMsg, renewBlockMsg, holdNotice, renewedMsg, extrasAutoRenewWarning,
 }

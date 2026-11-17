@@ -192,12 +192,19 @@ async function runExpiryCheck() {
         const msUntilExpiry = expiresAt.getTime() - now.getTime()
         const daysUntilExpiry = msUntilExpiry / (1000 * 60 * 60 * 24)
 
+        // Extras on their main line's date are covered by the main line's single reminder (one bill).
+        const _main = num.isSubNumber ? numbers.find(x => x.phoneNumber === num.parentNumber && x.status === 'active') : null
+        const _quiet = !!_main && lifecycle.sameDate(_main.expiresAt, num.expiresAt)
+        const _group = num.isSubNumber ? null : lifecycle.groupRenewal(numbers, num)
+        const _due = _group && _group.renewing ? _group.total : num.planPrice
+
         // ── 3-day reminder ──
-        if (daysUntilExpiry > 2.5 && daysUntilExpiry <= 3.0 && !num._reminder3Sent) {
+        if (_quiet && daysUntilExpiry <= 3.0 && (!num._reminder3Sent || !num._reminder1Sent)) { numbers[i]._reminder3Sent = true; numbers[i]._reminder1Sent = true; modified = true }
+        else if (daysUntilExpiry > 2.5 && daysUntilExpiry <= 3.0 && !num._reminder3Sent) {
           const { usdBal } = await getBalance(_walletOf, chatId)
           const plan = plans[num.plan] || { name: num.plan, price: num.planPrice }
-          const msg = buildReminderMsg(num, 3, plan, usdBal)
-          sendToUser(chatId, msg, usdBal < num.planPrice ? { reply_markup: topup.depositKeyboard(num.planPrice - usdBal) } : {})
+          const msg = buildReminderMsg(num, 3, plan, usdBal) + (_group ? lifecycle.groupDueLine(_group) : '')
+          sendToUser(chatId, msg, usdBal < _due ? { reply_markup: topup.depositKeyboard(_due - usdBal) } : {})
           numbers[i]._reminder3Sent = true
           modified = true
           remindersSent++
@@ -205,11 +212,11 @@ async function runExpiryCheck() {
         }
 
         // ── 1-day reminder ──
-        if (daysUntilExpiry > 0.5 && daysUntilExpiry <= 1.0 && !num._reminder1Sent) {
+        if (!_quiet && daysUntilExpiry > 0.5 && daysUntilExpiry <= 1.0 && !num._reminder1Sent) {
           const { usdBal } = await getBalance(_walletOf, chatId)
           const plan = plans[num.plan] || { name: num.plan, price: num.planPrice }
-          const msg = buildFinalWarningMsg(num, plan, usdBal)
-          sendToUser(chatId, msg, usdBal < num.planPrice ? { reply_markup: topup.depositKeyboard(num.planPrice - usdBal) } : {})
+          const msg = buildFinalWarningMsg(num, plan, usdBal) + (_group ? lifecycle.groupDueLine(_group) : '')
+          sendToUser(chatId, msg, usdBal < _due ? { reply_markup: topup.depositKeyboard(_due - usdBal) } : {})
           numbers[i]._reminder1Sent = true
           modified = true
           remindersSent++
@@ -554,6 +561,10 @@ async function attemptAutoRenew(chatId, num, index, numbers) {
     }
     // (else: storedPrice matches canonical or grandfathered — use stored)
 
+    // One bill: an extra renews only up to its main line's date (prorated), so the whole group then renews together.
+    const coterm = isSub ? lifecycle.cotermDate(numbers, num) : null
+    if (coterm) price = lifecycle.proratedTo(price, coterm)
+
     // ━━━ LAYER 1: Fresh-read idempotency guard ━━━
     // Re-read from DB to catch renewals completed by another pod (Railway vs preview)
     const freshDoc = await _phoneNumbersOf.findOne({ _id: chatId })
@@ -576,8 +587,8 @@ async function attemptAutoRenew(chatId, num, index, numbers) {
 
     // Wallet charged — extend expiry one month from the old expiry; if that is still in the past (number held for
     // months, e.g. Twilio paused), from now — otherwise every hourly run would charge again until it caught up.
-    const newExpiry = new Date(num.expiresAt)
-    newExpiry.setMonth(newExpiry.getMonth() + 1)
+    const newExpiry = coterm ? new Date(coterm) : new Date(num.expiresAt)
+    if (!coterm) newExpiry.setMonth(newExpiry.getMonth() + 1)
     if (!(newExpiry > new Date())) { newExpiry.setTime(Date.now()); newExpiry.setMonth(newExpiry.getMonth() + 1) }
 
     // ━━━ LAYER 2: Atomic claim — only extend if expiresAt is still the old value ━━━
@@ -1086,4 +1097,5 @@ module.exports = {
   runPricingReconciler,
   runInactiveReleasedCleanup,
   attemptAutoRenew,
+  releaseFromProvider,
 }
