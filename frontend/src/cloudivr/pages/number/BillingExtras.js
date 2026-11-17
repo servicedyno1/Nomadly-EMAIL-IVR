@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowDownCircle, Layers, Plus, Loader2 } from 'lucide-react';
+import { ArrowDownCircle, Loader2 } from 'lucide-react';
 import { api, enc, money, useApi } from '../../api';
 import { Field } from '../../ui';
 import { cp } from '../../paths';
 import { usePrivacy } from '../../privacy';
 import { ask } from '../../i18n';
+import { ExtraLines } from './ExtraLines';
 
 // Switch to a cheaper plan now — no refund; features the new plan lacks turn off.
 export function Downgrade({ num, plans, reload, refreshSummary }) {
@@ -47,7 +48,7 @@ export function Downgrade({ num, plans, reload, refreshSummary }) {
 // Extra numbers on this plan (the bot's sub-numbers): flat monthly price, same plan features.
 export function ExtraNumbers({ num }) {
   const pv = usePrivacy();
-  const { data } = useApi(num.isSubNumber ? null : `/numbers/${enc(num.phoneNumber)}/extra`);
+  const { data, reload } = useApi(num.isSubNumber ? null : `/numbers/${enc(num.phoneNumber)}/extra`);
   if (num.isSubNumber) return (
     <div className="civr-card p-6 space-y-2" data-testid="billing-extra-of">
       <div className="font-display text-2xl font-bold">Extra number</div>
@@ -55,15 +56,5 @@ export function ExtraNumbers({ num }) {
     </div>
   );
   if (!data) return null;
-  const full = !data.unlimited && data.used >= data.limit;
-  return (
-    <div className="civr-card p-6 space-y-4" data-testid="billing-extra-card">
-      <div className="flex items-center gap-2 font-display text-2xl font-bold"><Layers className="w-5 h-5 text-[#38bdf8]" />Extra numbers</div>
-      <p className="text-sm text-[#a1a1aa]">{`Add more numbers to this plan for ${money(data.price)}/month each. They get the same ${num.planName} features.`}</p>
-      <div className="text-sm font-mono" data-testid="billing-extra-usage">{data.unlimited ? `${data.used} added · no limit` : `${data.used} of ${data.limit} used`}</div>
-      {data.numbers.map((x, i) => <Link key={x.phoneNumber} to={cp(`/app/numbers/${enc(x.phoneNumber)}`)} className="flex items-center min-h-[40px] font-mono text-sm text-[#f4f4f5] hover:text-[#818cf8]" data-testid={`billing-extra-row-${i}`}>{pv.phone(x.phoneNumber)} · {x.status}</Link>)}
-      {full ? <div className="text-xs text-[#fbbf24]">Limit reached — upgrade this number to add more.</div>
-        : <Link to={cp(`/app/buy?extra=${enc(num.phoneNumber)}`)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="billing-extra-add-link"><Plus className="w-4 h-4" />Add extra numbers</Link>}
-    </div>
-  );
+  return <ExtraLines num={num} data={data} reload={reload} />;
 }

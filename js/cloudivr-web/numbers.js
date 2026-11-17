@@ -557,7 +557,7 @@ function routes(router, deps) {
   // Debits the wallet and activates the number → { status, body } (HTTP-style; refunds on failure).
   // `sub` = { parentNumber, plan } adds the number to an existing plan (flat extra-number price, parent's plan features).
   // `coupon` = { code, type, discount } from deps.resolveCoupon (percent off; redeemed only after success).
-  async function purchaseLocked({ chatId, email, phone, planKey, hit, country, type, areaCode, autoRenew = true, viaOrder = null, sub = null, coupon = null, prepaid = null, presetOrder = null, withTexting = false }) {
+  async function purchaseLocked({ chatId, email, phone, planKey, hit, country, type, areaCode, autoRenew = true, viaOrder = null, sub = null, coupon = null, prepaid = null, presetOrder = null, withTexting = false, skipRedeem = false }) {
     if (sub) planKey = sub.plan
     const plan = phoneConfig.plans[planKey]
     if (!plan || !phoneConfig.isPlanAvailable(planKey)) return { status: 400, body: { error: 'invalid_plan', message: 'That plan is not available.' } }
@@ -579,7 +579,11 @@ function routes(router, deps) {
     // Paperwork never blocks the order: missing details / documents are asked for after payment (number page).
     const regIssue = hit?.provider === 'multitel' && offer?.level && !presetOrder ? await paperworkIssue(chatId, country, c.name, offer) : null
     const base = sub ? extraPriceOf(country, type) : plan.price + phoneConfig.planAddon(planKey, country, type, hit.surcharge || 0)
-    const price = prepaid ? prepaid.amount : round2(base * (1 - (Number(coupon?.discount) || 0) / 100))
+    // Extra numbers join the main line's renewal date: the first charge covers only the days until then.
+    const parentExp = sub ? (await myNumbers(chatId)).find(x => x.phoneNumber === sub.parentNumber && x.status === 'active')?.expiresAt : null
+    const coterm = parentExp && new Date(parentExp) > new Date() ? parentExp : null
+    const firstBase = coterm ? lifecycle.proratedTo(base, coterm) : base
+    const price = prepaid ? prepaid.amount : round2(firstBase * (1 - (Number(coupon?.discount) || 0) / 100))
     if (!prepaid && !(await w.debit(chatId, price))) return { status: 402, body: { error: 'insufficient_balance', message: `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(chatId)).toFixed(2)}.`, cost: price } }
 
     let selected = phone
@@ -611,7 +615,7 @@ function routes(router, deps) {
         if (cred?.sip_username) { tUser = sipUsername = cred.sip_username; tPass = sipPassword = cred.sip_password || sipPassword; tCredId = cred.id || null }
       }
       const caps = { voice: hit.capabilities.voice !== false, sms: !!hit.capabilities.sms, mms: !!hit.capabilities.mms, fax: !!hit.capabilities.fax }
-      const expiresAt = new Date(); expiresAt.setMonth(expiresAt.getMonth() + 1)
+      const expiresAt = coterm ? new Date(coterm) : new Date(); if (!coterm) expiresAt.setMonth(expiresAt.getMonth() + 1)
       const doc = {
         phoneNumber: selected, telnyxOrderId: order.id, provider: viaMultitel ? 'multitel' : viaInfobip ? 'infobip' : 'telnyx', country, countryName: c.name,
         ...(order._needsRegistration || regIssue ? { registration: { status: regIssue ? 'needs_details' : 'pending', level: offer?.level || 0, since: new Date().toISOString(), paid: price } } : {}),
@@ -635,7 +639,7 @@ function routes(router, deps) {
       await deps.legalProfile?.recordResale({ chatId, phoneNumber: selected, provider: doc.provider, country })
       if (doc.registration?.status === 'pending') deps.numberDocs?.submit({ chatId, email, phoneNumber: selected, country, countryName: c.name, type }).catch(e => log(`[CloudIVR-Web] MultiTEL documents for ${selected}: ${e.message}`))
       await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: sub ? 'purchase_sub' : 'purchase', plan: planKey, amount: price, paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), ...(sub ? { parentNumber: sub.parentNumber } : {}), ...(coupon ? { coupon: coupon.code, discountPct: coupon.discount } : {}), channel: 'web', timestamp: new Date().toISOString() })
-      if (coupon?.code) {
+      if (coupon?.code && !skipRedeem) {
         if (coupon.type === 'web-offer') await deps.offers?.markCodeUsed(chatId, coupon.code).catch(() => {})
         else if (deps.redeemCoupon) await Promise.resolve(deps.redeemCoupon(chatId, coupon.code, coupon.type)).catch(() => {})
         await notify.push(chatId, `Coupon ${coupon.code} applied: ${coupon.discount}% off ${selected}. You saved $${round2(base - price).toFixed(2)}.`, null, { kind: 'coupon', meta: { coupon: coupon.code, discount: coupon.discount, used: true } }).catch(() => {})

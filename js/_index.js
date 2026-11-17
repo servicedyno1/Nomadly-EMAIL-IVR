@@ -14775,8 +14775,9 @@ Enter new value:`), bc)
           }
         }
 
-        const expiresAt = new Date()
-        expiresAt.setMonth(expiresAt.getMonth() + 1)
+        const _subExp = info?.cpIsSubNumber && info?.cpSubParentExpiresAt && new Date(info.cpSubParentExpiresAt) > new Date() ? info.cpSubParentExpiresAt : null
+        const expiresAt = _subExp ? new Date(_subExp) : new Date()
+        if (!_subExp) expiresAt.setMonth(expiresAt.getMonth() + 1)
 
         const numberDoc = {
           phoneNumber: selectedNumber,
@@ -14786,7 +14787,7 @@ Enter new value:`), bc)
           countryName: countryName,
           type: info?.cpNumberType || 'local',
           plan: planKey,
-          planPrice: price,
+          planPrice: info?.cpIsSubNumber && info?.cpSubMonthly ? Number(info.cpSubMonthly) : price,
           purchaseDate: new Date().toISOString(),
           expiresAt: expiresAt.toISOString(),
           autoRenew: true,
@@ -14899,6 +14900,7 @@ Enter new value:`), bc)
         await saveInfo('cpSelectedCapabilities', p._capabilities || { voice: true, sms: true, fax: false })
         await saveInfo('cpPrice', p.price)
         await saveInfo('price', p.price)
+        await saveInfo('cpSubMonthly', p.monthly || p.price)
         await saveInfo('cpIsSubNumber', true)
         await saveInfo('cpPlanKey', plan)
         await saveInfo('cpAddressAfterPay', false)
@@ -32156,7 +32158,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const lang = info?.userLanguage || 'en'
       const price = planLifecycle.renewalPrice(num) ?? num.planPrice
       const notice = planLifecycle.holdNotice(num, price, lang)
-      const xWarn = planLifecycle.onHold(num) ? '' : planLifecycle.extrasAutoRenewWarning((await get(phoneNumbersOf, chatId))?.numbers, num, lang)
+      const _grpNums = (await get(phoneNumbersOf, chatId))?.numbers || []
+      const xWarn = (planLifecycle.onHold(num) ? '' : planLifecycle.extrasAutoRenewWarning(_grpNums, num, lang)) + (num.isSubNumber ? '' : planLifecycle.groupDueLine(planLifecycle.groupRenewal(_grpNums, num)))
       return send(chatId, (notice ? notice + '\n\n' : '') + cpTxt.renewMenu(num.phoneNumber, plan.name, num.planPrice, num.expiresAt, num.autoRenew) + (xWarn ? `\n\n${xWarn}` : ''), k.of(planLifecycle.onHold(num) ? [
         ['🔄 Renew Now ($' + price + ')'],
       ] : [
@@ -32520,9 +32523,13 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const numberType = info?.cpNumberType || 'local'
     const countryCode = info?.cpCountryCode || 'US'
     if (await telnyxNeedsVerification(selectedProvider, countryCode, numberType)) return send(chatId, txReg.T(lang).subNotSupported, { parse_mode: 'HTML' })
-    const subPrice = getSubNumberPrice(countryCode, numberType, selectedProvider)
+    const subMonthly = getSubNumberPrice(countryCode, numberType, selectedProvider)
+    // One bill: the extra joins the main number's renewal date, so the first charge covers only the days until then.
+    const _pexp = info?.cpSubParentExpiresAt && new Date(info.cpSubParentExpiresAt) > new Date() ? info.cpSubParentExpiresAt : null
+    const subPrice = _pexp ? planLifecycle.proratedTo(subMonthly, _pexp) : subMonthly
+    await saveInfo('cpSubMonthly', subMonthly)
     if (_multi && !_single) {
-      const r = subBatch.toggle(info?.cpSubPicks, { ...selected, _capabilities: caps, _provider: selectedProvider, price: subPrice }, _left)
+      const r = subBatch.toggle(info?.cpSubPicks, { ...selected, _capabilities: caps, _provider: selectedProvider, price: subPrice, monthly: subMonthly }, _left)
       await saveInfo('cpSubPicks', r.picks)
       return send(chatId, r.error ? subBatch.T(lang).full(_left) : subBatch.T(lang).picked(r.picks.length, _left), { parse_mode: 'HTML', ...k.of(subBatch.rows(results, r.picks, lang, pc.showMore, phoneConfig.formatPhone)) })
     }
@@ -32539,6 +32546,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const bulkTag = selected._bulkIvrCapable ? '\n☎️ <b>Bulk IVR capable</b>' : ''
     let summaryText = cpTxt.subNumberOrderSummary(selected.phone_number, info?.cpCountryName || 'US', parentNumber, subPrice, planLabel)
     summaryText += `\n📋 Capabilities: ${capLabels.join(' · ')}${bulkTag}`
+    if (_pexp && subPrice < subMonthly) summaryText += `\n🗓️ Renews with your plan on ${phoneConfig.shortDate(_pexp)} — today you pay $${subPrice.toFixed(2)} for the days until then, then $${Number(subMonthly).toFixed(2)}/mo on one bill.`
     return send(chatId, summaryText, k.of([[pc.proceedPayment], [pc.cancel]]))
   }
 

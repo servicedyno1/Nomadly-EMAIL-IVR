@@ -114,12 +114,12 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     const parent = p.parent
     let left = phoneConfig.subSlotsLeft(parent.plan, (await numbersApi.myNumbers(o.chatId)).filter(n => n.isSubNumber && n.parentNumber === parent.phoneNumber).length)
     const added = [], failed = []
+    let redeemed = false
     for (const it of o.items) {
       if (!left) { failed.push({ phoneNumber: it.phoneNumber, message: 'the plan has no free extra-number slot left' }); continue }
-      if ((await w.balance(o.chatId)) < it.charge) { failed.push({ phoneNumber: it.phoneNumber, message: 'not enough paid to cover it' }); continue }
       if (it.mtMeta) require('../multitel').remember(it.phoneNumber, it.mtMeta)
-      const r = await numbersApi.purchase({ chatId: o.chatId, email: o.email, phone: it.phoneNumber, planKey: parent.plan, hit: it.hit, country: it.country, type: it.type, areaCode: it.areaCode, autoRenew: o.autoRenew, coupon: o.coupon || null, viaOrder: o._id, sub: { parentNumber: parent.phoneNumber, plan: parent.plan } })
-      if (r.status === 201 || r.status === 202) { added.push(r.body.number?.phoneNumber || it.phoneNumber); left-- } else failed.push({ phoneNumber: it.phoneNumber, message: r.body.message })
+      const r = await numbersApi.purchase({ chatId: o.chatId, email: o.email, phone: it.phoneNumber, planKey: parent.plan, hit: it.hit, country: it.country, type: it.type, areaCode: it.areaCode, autoRenew: o.autoRenew, coupon: o.coupon || null, skipRedeem: redeemed, viaOrder: o._id, sub: { parentNumber: parent.phoneNumber, plan: parent.plan } })
+      if (r.status === 201 || r.status === 202) { added.push(r.body.number?.phoneNumber || it.phoneNumber); left--; redeemed = true } else failed.push({ phoneNumber: it.phoneNumber, message: r.body.message })
     }
     const { extraSummary } = require('./extras')
     const message = `${added.length ? 'Payment confirmed — ' : ''}${extraSummary(parent.phoneNumber, added, failed)}`
@@ -305,7 +305,8 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     }
     const coin = String(req.body.coin || '')
     if (!coins.includes(coin)) return bad(res, 400, 'invalid_coin', `Pick one of: ${coins.join(', ')}.`)
-    const each = (p) => round2(numbersApi.extraPriceOf(p.country, p.type) * (1 - (coupon ? coupon.discount : 0) / 100))
+    const ratio = new Date(n.expiresAt) > new Date() ? require('../plan-lifecycle').prorateRatio(n.expiresAt) : 1
+    const each = (p) => round2(Math.max(0.5, numbersApi.extraPriceOf(p.country, p.type) * ratio) * (1 - (coupon ? coupon.discount : 0) / 100))
     const charge = round2(picks.reduce((t, p) => t + each(p), 0))
     const items = picks.length > 1 ? picks.map(p => ({ phoneNumber: p.hit.phoneNumber, hit: p.hit, mtMeta: require('../multitel').searchedMeta(p.hit.phoneNumber), country: p.country, type: p.type, areaCode: p.areaCode, charge: each(p) })) : null
     const { walletPart, deposit: price } = await split(chatId, charge, req.body.useWallet === true)

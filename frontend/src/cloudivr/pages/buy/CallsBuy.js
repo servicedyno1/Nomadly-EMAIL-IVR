@@ -178,7 +178,7 @@ export function CallsBuy({ extraOf, onStage }) {
   const avail = (id) => catalog.plans.find(p => p.id === id && p.available);
   const businessOnly = false;
   const planObj = businessOnly ? avail('business') : avail(plan) || avail(catalog.recommendedPlan) || catalog.plans.find(p => p.available);
-  const total = extraOf ? Math.round(picks.reduce((t, p) => t + (p.extraPrice ?? extra?.price ?? 0), 0) * 100) / 100 : planObj ? planObj.price + addonOf(pick, planObj.id) : 0;
+  const total = extraOf ? Math.round(picks.reduce((t, p) => t + Math.max(0.5, (p.extraPrice ?? extra?.price ?? 0) * (extra?.prorate ?? 1)), 0) * 100) / 100 : planObj ? planObj.price + addonOf(pick, planObj.id) : 0;
   const pc = res?.paperwork?.compliance;
   const docsMissing = res?.paperwork?.level === 2 && (!res.paperwork.documents?.ready || (pc && (pc.identity?.status !== 'verified' || (pc.business && pc.company?.status !== 'approved'))));
 
@@ -248,7 +248,7 @@ export function CallsBuy({ extraOf, onStage }) {
         <div className="mt-8 civr-rise">
           <Label>{extraOf ? 'Pay' : `Pay for ${pick.phoneNumber} · ${planObj?.name} plan`}</Label>
           {needsProfile ? <BuyProfileGate /> : docsMissing ? <div className="civr-card p-5 text-sm text-[#fbbf24]" data-testid="buy-documents-required">Finish the steps above (documents, ID check{pc?.business ? ', company papers' : ''}) to buy this number.</div> : <Checkout key={`${extraOf ? picks.length : pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}
-            textingOffer={null} coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? (picks.length > 1 ? `${picks.map(p => p.phoneNumber).join(', ')} · extra numbers on ${pv.phone(extraOf)} · monthly` : `Extra number on ${pv.phone(extraOf)} · monthly`) : null} autoRenewDefault={extraOf ? (parent ? parent.autoRenew !== false : true) : true} />}
+            textingOffer={null} coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `${picks.length > 1 ? `${picks.map(p => p.phoneNumber).join(', ')} · extra numbers` : 'Extra number'} on ${pv.phone(extraOf)}${extra?.renewsOn && extra.prorate < 1 ? ` · today covers the days until ${new Date(extra.renewsOn).toLocaleDateString()}, then renews with the plan` : ' · monthly'}` : null} autoRenewDefault={extraOf ? (parent ? parent.autoRenew !== false : true) : true} />}
         </div>
       )}
     </div>
