@@ -72,6 +72,7 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     return doc
   }
 
+  router.get('/public/try/options', h(async (req, res) => res.json({ customCallerId: require('./caller-ids').enabled() })))
   router.post('/public/try/send-code', h(async (req, res) => {
     const email = normEmail(req.body.email), ip = clientIp(req)
     if (!EMAIL_RE.test(email)) return bad(res, 400, 'invalid_email', 'Enter a valid email address.')

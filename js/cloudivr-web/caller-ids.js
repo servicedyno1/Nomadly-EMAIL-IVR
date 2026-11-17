@@ -264,7 +264,18 @@ function routes(router, { db, h, numbersApi }) {
     const r = await numbersApi.upgradeNumber(req.webChatId, n, 'business', null, 0, true)
     res.status(r.status).json({ number: n.phoneNumber, ...r.body })
   }))
-  router.get('/caller-ids/presets', h(async (req, res) => res.json({ enabled: ON, items: await presets(req.webChatId), max: MAX_PRESETS, last: req.query?.from ? await lastFor(req.webChatId, clean(req.query.from)) : null })))
+  router.get('/caller-ids/presets', h(async (req, res) => res.json({ enabled: ON, anyNumber: ON && await hasPaidPlan(req.webChatId), items: await presets(req.webChatId), max: MAX_PRESETS, last: req.query?.from ? await lastFor(req.webChatId, clean(req.query.from)) : null })))
+  // "Type any number" box: Business plan only, number must pass the caller-ID guard (banks, government, hotlines, emergency…).
+  router.post('/caller-ids/check', h(async (req, res) => {
+    if (!ON) return off(res)
+    const n = clean(req.body?.number)
+    if (!E164.test(n)) return bad(res, 400, 'invalid_number', 'Enter the number with country code, e.g. +14155550100.')
+    if (isEmergency(req.body?.number)) return bad(res, 400, 'blocked_caller_id', 'Emergency numbers cannot be used as caller ID.')
+    if (!(await hasPaidPlan(req.webChatId))) return bad(res, 403, 'plan_upgrade_required', 'Showing any number as caller ID needs the Business plan.')
+    const g = await require('./cid-guard').guard(n, { chatId: req.webChatId, channel: 'web' })
+    if (!g.allowed) return bad(res, 400, 'blocked_caller_id', g.reason || 'This number cannot be used as caller ID.')
+    res.json({ ok: true, number: n })
+  }))
   // Hand order for saved caller IDs: numbers in the order the user wants them.
   router.put('/caller-ids/order', h(async (req, res) => {
     if (!ON) return off(res)

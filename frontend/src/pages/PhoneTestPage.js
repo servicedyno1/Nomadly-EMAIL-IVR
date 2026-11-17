@@ -5,30 +5,47 @@ import { startSipLine } from '../cloudivr/sipClient';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 
-// Free test: show any caller ID on the test call (emergency numbers blocked; every use is logged).
+// Test call caller ID: Business plan → type any number (guarded); other plans → pick one of your own numbers.
 function TestCallerId({ sipUsername }) {
+  const [opt, setOpt] = useState(null);
   const [value, setValue] = useState('');
   const [saved, setSaved] = useState(null);
   const [err, setErr] = useState('');
-  const save = async () => {
+  useEffect(() => {
+    fetch(`${BACKEND_URL}/api/phone/test/caller-id-options?sipUsername=${encodeURIComponent(sipUsername)}`).then(r => r.json()).then(d => { setOpt(d); if (d.current) setSaved(d.current); }).catch(() => setOpt({ enabled: false }));
+  }, [sipUsername]);
+  const save = async (num) => {
     setErr('');
+    const showAs = String(num ?? value).trim() || null;
     try {
-      const r = await fetch(`${BACKEND_URL}/api/phone/test/caller-id`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sipUsername, showAs: value.trim() || null }) });
+      const r = await fetch(`${BACKEND_URL}/api/phone/test/caller-id`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sipUsername, showAs }) });
       const d = await r.json();
       if (!r.ok) return setErr(d.error || 'Could not save');
       setSaved(d.showAs);
     } catch (_) { setErr('Could not save'); }
   };
+  if (!opt?.enabled) return null;
+  if (!opt.any) return (
+    <div className="mb-3" data-testid="test-caller-id">
+      <label className="text-[11px] text-neutral-500 block mb-1">Caller ID to show</label>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={() => save('')} className={`px-3 py-1.5 rounded-full border text-xs font-mono ${!saved ? 'border-green-500 text-green-400' : 'border-neutral-700 text-neutral-400'}`} data-testid="test-caller-id-default">Our number</button>
+        {opt.own.map((n, i) => <button type="button" key={n} onClick={() => save(n)} className={`px-3 py-1.5 rounded-full border text-xs font-mono ${saved === n ? 'border-green-500 text-green-400' : 'border-neutral-700 text-neutral-400'}`} data-testid={`test-caller-id-own-${i}`}>{n}</button>)}
+      </div>
+      <p className="text-[11px] text-neutral-500 mt-1" data-testid="test-caller-id-upgrade">🔒 Showing any number is on the <b className="text-amber-400">Business</b> plan — upgrade in the bot under your number’s plan.</p>
+      {err && <p className="text-xs text-red-400 mt-1" data-testid="test-caller-id-error">{err}</p>}
+    </div>
+  );
   return (
-    <div className="mt-3" data-testid="test-caller-id">
-      <label className="text-[11px] text-neutral-500 block mb-1">Caller ID to show (optional — any number)</label>
+    <div className="mb-3" data-testid="test-caller-id">
+      <label className="text-[11px] text-neutral-500 block mb-1">Caller ID to show (optional — any number, Business plan)</label>
       <div className="flex gap-2">
         <input type="tel" value={value} onChange={e => setValue(e.target.value)} placeholder="+14155550100"
           className="flex-1 bg-[#0a0a0a] border border-neutral-700 rounded-lg px-3 py-2 text-sm font-mono text-white" data-testid="test-caller-id-input" />
-        <button type="button" onClick={save} className="px-3 py-2 rounded-lg bg-green-600 text-white text-sm" data-testid="test-caller-id-save">Use</button>
+        <button type="button" onClick={() => save()} className="px-3 py-2 rounded-lg bg-green-600 text-white text-sm" data-testid="test-caller-id-save">Use</button>
       </div>
       {saved && <p className="text-xs text-green-400 mt-1" data-testid="test-caller-id-saved">Your test call will show {saved}.</p>}
-      {saved === null && !err && <p className="text-[11px] text-neutral-500 mt-1">Leave empty to use our number. On Business, every call can show any caller ID.</p>}
+      {saved === null && !err && <p className="text-[11px] text-neutral-500 mt-1">Leave empty to use our number. Banks, government, hotlines and emergency numbers are blocked.</p>}
       {err && <p className="text-xs text-red-400 mt-1" data-testid="test-caller-id-error">{err}</p>}
     </div>
   );
@@ -883,6 +900,7 @@ const PhoneTestPage = () => {
         {/* Dialer */}
         <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 mt-4" data-testid="dialer-card">
           <div className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">Make a Call</div>
+          {isTestMode && testUsername && <TestCallerId sipUsername={testUsername} />}
           <div className="flex gap-2">
             <input
               type="tel" value={destination} onChange={(e) => setDestination(e.target.value)}
