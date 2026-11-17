@@ -3648,3 +3648,11 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Every web paid action now returns its price as `cost` (and `need` where known: orders) on 402; messages no longer say "Top up your wallet first" (ai-summary, caller-ids, calls, leads, lookup, number-requests, numbers, orders, outbound, ten-dlc, travel-esim, sms-reply, fax-service via FaxError.extra, hosted-sms via hosted.js/notify.js, esim.js passes r.cost). Local `bad()` helpers take an `extra` arg. index.js withShortfall: explicit need/cost win; wording only a fallback.
 - FundsAsk: title "Add $10.00 to continue — You need $0.02 more…" when shortfall < min top-up; dispatches `civr:wallet-changed` (0/2.5/6 s) and Shell refreshes the top-bar balance on it.
 - Verified: curl lookup/renew return cost+need with clean messages; dialog title screenshot; event triggers /dashboard reload. Lint error counts unchanged vs before (pre-existing only).
+
+## 2026-11-17 — Investigation: SIP "STUN server … error (57)" for user 9013312785 (@2XqZO), +18774756817 (MultiTEL, business)
+- Phone app (Zoiper) has STUN ON with an unreachable STUN server → it fails before sending REGISTER, so Kamailio (188.166.34.29) logged nothing for today's attempts. Our STUN at sip.speechcue.com:3478 answers; stun.speechcue.com does NOT exist (no DNS).
+- 21:56 UTC user told support "My sip is not registering"; AI support suggested checking creds / Reset Password (never mentioned STUN). 21:57:40 user tapped 🔄 Reset Password → username changed cv5shdaatb → cv5cfyvh68 (kam:). Screenshot still uses old username + blank password → will now fail auth even after STUN fixed.
+- Old login worked: outbound calls Nov 15, inbound rings Nov 16. Only Kamailio auth failure: Nov 13 from 34.170.12.145.
+- Bot state cpNumbers (cache) still holds old sipUsername/sipPassword; phoneNumbersOf has the new one.
+- Side finding: Nov 15 "[Voice] Outbound SIP: Unknown provider 'multitel'" during the free SIP test.
+- Recurrence drivers: AI support doesn't map error 57 → "turn STUN off"; Reset Password silently changes the username, not just the password; stale cached creds.
