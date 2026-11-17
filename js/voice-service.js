@@ -5069,15 +5069,27 @@ async function runCheckedKey(id, session, c, ivrL) {
 // accepted = the lookup found it (or you pressed Accept). why: 'declined' | 'timeout' | undefined (lookup result).
 async function finishChecked(id, session, c, accepted, ivrL, why) {
   const o = c.option, r = c.r || {}
+  // Your own choice for Accept / Decline (timeout counts as Decline) wins over the key's usual result.
+  const own = why === 'accepted' ? o.onAccept : (why === 'declined' || why === 'timeout') ? o.onDecline : null
+  if (own?.action) return runOwnOutcome(id, session, c, c.liveMsg ? { ...own, message: c.liveMsg } : own, ivrL)
   if (c.kind === 'pin') {
-    if (!accepted) return pinWrong(id, session, c, ivrL)
+    if (!accepted) return pinWrong(id, session, c.liveMsg ? { ...c, option: { ...o, failMessage: `${c.liveMsg} Please try again, then press pound.` } } : c, ivrL)
     const ok2 = o.onOk || {}, route = r.route || (ok2.forwardTo || '')
     return sayThenRoute(id, session, r.say || ok2.message || (route ? '' : o.okMessage || 'Thank you, that is correct.'), route, ivrL, c.digit)
   }
-  if (!accepted) return sayAndEnd(id, session, (why ? o.declineMessage : o.check?.notFound) || o.declineMessage || o.check?.notFound || (c.kind === 'collect' ? 'Sorry, we could not confirm that number. Goodbye.' : 'Sorry, we could not help with that right now. Goodbye.'), ivrL)
+  if (!accepted) return sayAndEnd(id, session, c.liveMsg || (why ? o.declineMessage : o.check?.notFound) || o.declineMessage || o.check?.notFound || (c.kind === 'collect' ? 'Sorry, we could not confirm that number. Goodbye.' : 'Sorry, we could not help with that right now. Goodbye.'), ivrL)
   if (c.kind === 'collect') { const route = r.route || o.forwardTo || ''; return sayThenRoute(id, session, r.say || o.message || (route ? '' : ivrL.thanks || 'Thank you.'), route, ivrL, c.digit) }
   if (r.route) return sayThenRoute(id, session, r.say || o.message, r.route, ivrL, c.digit)
   return sayThenMenuOrEnd(id, session, r.say || o.message || ivrL.thanks, c, ivrL)
+}
+
+async function runOwnOutcome(id, session, c, out, ivrL) {
+  log(`[Voice] IVR ${c.kind} key ${c.digit}: owner's choice → ${out.action}`)
+  if (out.action === 'forward' && out.forwardTo) return sayThenRoute(id, session, out.message, out.forwardTo, ivrL, c.digit)
+  if (out.action === 'menu') return sayThenMenuOrEnd(id, session, out.message || '', { ...c, option: { ...c.option, after: 'menu' } }, ivrL)
+  if (out.action === 'voicemail' && canAccessFeature(session.num.plan, 'voicemail')) { session.phase = 'voicemail_greeting'; return _telnyxApi.speakOnCall(id, `${out.message ? `${out.message} ` : ''}${ivrL.leaveMessage}`, 'female', ivrL.tts) }
+  if (out.action === 'end' && !out.message) { session.phase = 'ended_by_owner'; return _telnyxApi.hangupCall(id).catch(() => {}) }
+  return sayAndEnd(id, session, out.message || (out.action === 'end' ? ivrL.goodbye : ivrL.thanks || 'Thank you. Goodbye.'), ivrL)
 }
 
 async function startIvrConfirm(id, session, c, ivrL) {
@@ -5096,26 +5108,39 @@ const confirmView = (id, s) => {
   const c = s.confirm, o = c.option, r = c.r || {}
   const route = r.route || (c.kind === 'pin' ? o.onOk?.forwardTo : c.kind === 'collect' ? o.forwardTo : '') || null
   const checked = o.check?.source ? (r.found ? (o.check.source === 'db' ? 'Found in your database' : 'Your system says yes') : (r.error || (o.check.source === 'db' ? 'Not found in your database' : 'Your system says no'))) : c.kind === 'pin' ? (r.found ? 'Matches your code' : 'Does not match your code') : ''
-  return { id, kind: 'ivr', ivrKind: c.kind, state: 'code', to: s.from, number: s.to, code: c.kind === 'webhook' ? `Key ${c.digit}` : c.entered, label: o.label || '', title: c.kind === 'pin' ? 'Code entered' : c.kind === 'collect' ? 'Number entered' : 'Caller is waiting', checked, found: !!r.found, say: r.say || '', attempt: c.kind === 'pin' ? (s.collectTries || 0) + 1 : 1, maxAttempts: c.kind === 'pin' ? 3 : 1, holdEndsAt: new Date(c.at + IVR_CONFIRM_MS), connectTo: route }
+  return { id, kind: 'ivr', ivrKind: c.kind, state: 'code', to: s.from, number: s.to, code: c.kind === 'webhook' ? `Key ${c.digit}` : c.entered, label: o.label || '', title: c.kind === 'pin' ? 'Code entered' : c.kind === 'collect' ? 'Number entered' : 'Caller is waiting', checked, found: !!r.found, say: r.say || '', attempt: c.kind === 'pin' ? (s.collectTries || 0) + 1 : 1, maxAttempts: c.kind === 'pin' ? 3 : 1, holdEndsAt: new Date(c.at + IVR_CONFIRM_MS), connectTo: o.onAccept?.action ? (o.onAccept.action === 'forward' ? o.onAccept.forwardTo : null) : route, onAccept: o.onAccept?.action || null, onDecline: o.onDecline?.action || null, declineTo: o.onDecline?.action === 'forward' ? o.onDecline.forwardTo : null, canReplay: c.kind !== 'webhook', replayMessage: o.replayMessage || '', declineMessage: o.onDecline?.message || o.declineMessage || '' }
 }
 function pendingIvrConfirms(chatId) {
   return Object.entries(activeCalls).filter(([, s]) => s && s.phase === 'ivr_confirm' && s.confirm && String(s.chatId) === String(chatId)).map(([id, s]) => confirmView(id, s))
 }
-async function resolveIvrConfirm(id, action, chatId) {
+// Replay: say your message, then ask for the code / number again (doesn't use up a try; no limit).
+async function ivrReplay(id, session, c, ivrL, message) {
+  const o = c.option, pin = c.kind === 'pin'
+  const say = message || o.replayMessage || (pin ? 'That code was not recognised.' : 'We could not confirm that number.')
+  const ask = o.prompt || (pin ? ivrL.pin || 'Please enter your code, then press pound.' : ivrL.collect || 'Please enter your number, then press pound.')
+  session.phase = pin ? 'ivr_pin' : 'ivr_collect'
+  session.collect = { kind: c.kind, option: o, path: c.path, digit: c.digit }
+  const len = pin ? pinLen(o) : Math.min(20, Math.max(1, Number(o.length) || 6))
+  return _telnyxApi.gatherDTMF(id, `${say} ${ask}`, { minDigits: 1, maxDigits: len, timeout: 15000, terminatingDigit: '#', validDigits: '0123456789', language: ivrL.tts })
+}
+async function resolveIvrConfirm(id, action, chatId, message) {
   const session = activeCalls[id]
   if (!session || session.phase !== 'ivr_confirm' || !session.confirm || (chatId !== undefined && String(session.chatId) !== String(chatId))) return { error: 'not_waiting' }
   const c = session.confirm, ivrL = c.ivrL
+  if (action === 'replay' && c.kind === 'webhook') return { error: 'no_replay' }
   session.confirm = null
   session.phase = 'ivr_check'
   await _telnyxApi.playbackStop(id).catch(() => {})
   log(`[Voice] IVR confirm for ${session.to}: ${action}`)
   if (action === 'hangup') { await _telnyxApi.hangupCall(id).catch(() => {}); return { state: 'hung_up' } }
+  if (action === 'replay') { await ivrReplay(id, session, c, ivrL, message); return { state: 'replayed' } }
+  if (message) c.liveMsg = message
   if (action === 'timeout' && c.option.confirmTimeout === 'voicemail' && canAccessFeature(session.num.plan, 'voicemail')) {
     session.phase = 'voicemail_greeting'
     await _telnyxApi.speakOnCall(id, `Sorry, nobody could confirm that right now. ${ivrL.leaveMessage}`, 'female', ivrL.tts)
     return { state: 'timeout' }
   }
-  await finishChecked(id, session, c, action === 'accept', ivrL, action === 'accept' ? undefined : action === 'timeout' ? 'timeout' : 'declined')
+  await finishChecked(id, session, c, action === 'accept', ivrL, action === 'accept' ? 'accepted' : action === 'timeout' ? 'timeout' : 'declined')
   return { state: action === 'accept' ? 'accepted' : action === 'timeout' ? 'timeout' : 'declined' }
 }
 
@@ -6993,12 +7018,25 @@ async function dialBridgeLeg(callControlId, forwardTo, fromNumber, via = null) {
 // Web accounts answer the "code collected" prompt in the app — same steps as the bot's Confirm / Reject / Hang up buttons.
 // accept → confirm message, then transfer (or hang up when there is no transfer number); decline → ask again until the
 // attempts run out; hangup → goodbye.
-async function resolveOtp(callControlId, action) {
+async function resolveOtp(callControlId, action, message) {
   const session = outboundIvrCalls[callControlId]
   if (!session) return { error: 'ended' }
   if (session.phase !== 'otp_hold') return { error: 'not_waiting', phase: session.phase }
   if (session.holdMusic) await _telnyxApi.playbackStop(callControlId).catch(() => {})
   const voice = getTelnyxVoice(session.voiceName)
+  const askAgain = (msg) => {
+    session.phase = 'otp_gathering'
+    session.otpStatus = 'retry'
+    session.otpDigits = null
+    return _telnyxApi.gatherDTMFWithSpeak(callControlId, `${msg || 'That code was not accepted.'} Please enter your ${session.otpLength || 6}-digit code again.`, voice, {
+      minDigits: session.otpLength || 4, maxDigits: session.otpLength || 6, timeout: 30000, interDigitTimeout: 5000, validDigits: '0123456789',
+    }).catch(() => {})
+  }
+  // Replay: your message, then ask for the code again — doesn't use up a try.
+  if (action === 'replay') {
+    await askAgain(message || session.otpRejectMsg)
+    return { phase: session.phase, remaining: (session.otpMaxAttempts || 3) - (session.otpAttempt || 1) + 1 }
+  }
   if (action === 'accept') {
     session.phase = 'otp_confirmed'
     session.otpStatus = 'confirmed'
@@ -7013,18 +7051,13 @@ async function resolveOtp(callControlId, action) {
     const max = session.otpMaxAttempts || 3
     const attempt = session.otpAttempt || 1
     if (attempt < max) {
-      session.phase = 'otp_gathering'
-      session.otpStatus = 'retry'
-      session.otpDigits = null
       session.otpAttempt = attempt + 1
-      await _telnyxApi.gatherDTMFWithSpeak(callControlId, session.otpRejectMsg ? `${session.otpRejectMsg} Please enter your ${session.otpLength || 6}-digit code again.` : `That code was not accepted. Please enter your ${session.otpLength || 6}-digit code again.`, voice, {
-        minDigits: session.otpLength || 4, maxDigits: session.otpLength || 6, timeout: 30000, interDigitTimeout: 5000, validDigits: '0123456789',
-      }).catch(() => {})
+      await askAgain(message || session.otpRejectMsg)
       return { phase: session.phase, remaining: max - attempt }
     }
     session.phase = 'otp_failed'
     session.otpStatus = 'rejected_final'
-    await _telnyxApi.speakOnCall(callControlId, 'Your code could not be verified. Goodbye.', voice).catch(() => {})
+    await _telnyxApi.speakOnCall(callControlId, `${message ? `${message} ` : ''}Your code could not be verified. Goodbye.`, voice).catch(() => {})
     setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), 3000)
     return { phase: session.phase, remaining: 0 }
   }

@@ -857,6 +857,7 @@ async function maintain() {
     const pending = await col('faxes').find({ _id: { $regex: '^mtfax:' }, status: { $in: ['queued', 'sending'] } }).limit(100).toArray()
     await mtFax.pollOutbox(pending, (ev) => handleEvent(ev)).catch(e => _log(`[Fax] MultiTEL outbox poll failed: ${e.message}`))
   }
+  if (_maintRuns % 30 === 1) sweepAllIvrDocs().catch(e => _log(`[Fax] keypad document cleanup failed: ${e.message}`))
   if (_maintRuns % 30 === 1) announce().catch(e => _log(`[Fax] announce failed: ${e.message}`))
   for (const f of await col('faxes').find({ held: true }).limit(100).toArray()) {
     const { usdBal } = await getBalance(_walletOf, f.chatId)
@@ -987,4 +988,26 @@ async function sendIvrDoc({ chatId, faxFrom, fileId, pages, to }) {
   return publicFax(await dispatch({ chatId, num, fileId, pages, to: chk.to }))
 }
 
-module.exports = { storeIvrDoc, sendIvrDoc, readFile, voiceRouting, voiceOnFaxNudge, reasonText, reapplyLine, parseCoverText, addCover, cleanCover, coverPdf, announce, batchReport, reportCsv, emailOf, maintain, BULK_MAX, parseRecipients, bulkQuote, sendBulk, cancelBatch, resumeBatches, listBatches, init, isReady, t, TXT, FREE_PAGES, PAGE_PRICE, FaxError, eligible, lineOn, ensureApp, usage, quote, stage, sendStaged, setLine, handleEvent, list, fileOf, toPdf, checkTo, findMine }
+// Keypad fax documents no saved keypad menu uses any more: a key's old document goes right away when the menu is saved;
+// uploads that were never saved go after 6 hours (hourly check over every account).
+const IVR_DOC_GRACE_MS = 6 * 3600000
+const everyKey = (opts) => Object.values(opts || {}).flatMap(o => [o, ...everyKey(o?.subMenu?.options)])
+const ivrDocIds = (numbers) => (numbers || []).flatMap(n => [...everyKey(n.features?.ivr?.options), ...everyKey(n.features?.ivr?.afterHours?.options)]).filter(k => k?.action === 'fax' && k.fileId).map(k => String(k.fileId))
+async function sweepIvrDocs(chatId, usedIds, droppedIds = []) {
+  const keep = new Set((usedIds || []).map(String))
+  const gone = [...new Set((droppedIds || []).map(String))].filter(id => !keep.has(id) && /^[0-9a-f]{24}$/.test(id)).map(id => new ObjectId(id))
+  const now = gone.length ? await col('faxFiles.files').find({ _id: { $in: gone }, 'metadata.chatId': chatId, 'metadata.kind': 'ivr' }, { projection: { _id: 1 } }).toArray() : []
+  const old = await col('faxFiles.files').find({ 'metadata.chatId': chatId, 'metadata.kind': 'ivr', uploadDate: { $lt: new Date(Date.now() - IVR_DOC_GRACE_MS) } }, { projection: { _id: 1 } }).limit(200).toArray()
+  let n = 0
+  for (const f of [...now, ...old]) if (!keep.has(String(f._id))) { await bucket().delete(f._id).catch(() => {}); n++ }
+  return n
+}
+async function sweepAllIvrDocs() {
+  const chats = await col('faxFiles.files').distinct('metadata.chatId', { 'metadata.kind': 'ivr', uploadDate: { $lt: new Date(Date.now() - IVR_DOC_GRACE_MS) } })
+  for (const chatId of chats.slice(0, 500)) {
+    const d = await col('phoneNumbersOf').findOne({ _id: chatId }, { projection: { 'val.numbers.features.ivr': 1 } })
+    const n = await sweepIvrDocs(chatId, ivrDocIds(d?.val?.numbers))
+    if (n) _log(`[Fax] removed ${n} unused keypad fax document(s) for ${chatId}`)
+  }
+}
+module.exports = { sweepIvrDocs, sweepAllIvrDocs, ivrDocIds, storeIvrDoc, sendIvrDoc, readFile, voiceRouting, voiceOnFaxNudge, reasonText, reapplyLine, parseCoverText, addCover, cleanCover, coverPdf, announce, batchReport, reportCsv, emailOf, maintain, BULK_MAX, parseRecipients, bulkQuote, sendBulk, cancelBatch, resumeBatches, listBatches, init, isReady, t, TXT, FREE_PAGES, PAGE_PRICE, FaxError, eligible, lineOn, ensureApp, usage, quote, stage, sendStaged, setLine, handleEvent, list, fileOf, toPdf, checkTo, findMine }
