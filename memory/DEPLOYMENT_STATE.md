@@ -682,3 +682,19 @@ backup: speechcue A 192.76.120.10 | cloudivr CNAME sip.telnyx.com | smadav/voodo
 - Web: eSIMs now listed on My numbers (EsimCard), Texting Numbers use the same compact card; both have "Auto-renew from wallet" switch (pages/esim/LineAutoRenew.js, confirm on off). New page /app/esim/:id (pages/esim/LineDetail.js). Free ($0) lines show no switch. Renewals page "Ends" date uses expiresAt when off.
 - Testing agent iteration_300: 100% frontend. Workspace deploy d8d2a1c started (drain waits for live calls, cap 30m).
 - WhiteLabel brands: owner said bot-only, no web eSIM pages needed → not deployed. Bot already has eSIM auto-renew toggle (My eSIMs → line).
+
+## 2026-11-17 03:38–04:00Z — MultiTEL fixed, custom caller ID + failover back ON, overlay deploy all 4, SMS 20k broadcast
+- MultiTEL (SBC now accepts our SDES-SRTP offer `RTP/AVP + a=crypto`): test 03:38:54Z PJSIP/13025141000@multitel-out CID 18005146000 → ANSWERED (8 s ring, 11 s audio, hello-world+tt-monkeys). Owner confirmed the handset showed +1 800-514-6000. Previous blocker (488 cause 88 on every MultiTEL call) is gone.
+- GitHub CI had already shipped main 26e3046 / WhiteLabel fba122b to all 4 at ~03:36–03:41Z (assistant, IP Access, IVR fixes, SMS daily 20k).
+- Overlay deploy (live release tree + 3 brand-neutral files, identical md5 on all 4 beforehand): js/bulk-esim/core.js (maxVolume 20000), js/phone-test-routes.js (review brand tag = CHAT_BOT_NAME, list own brand + untagged), js/voice-service.js (custom-CID refused → retry own number on normal route/Bird, not MultiTEL). Script /opt/nomadly/ov/overlay_deploy.sh; releases app-main 034910Z, app-wl 034943Z, app-voodoo 035013Z, app-proshop 035042Z — all OV_EXIT=0, healthy. Frontend builds reused.
+- Env: BIRD_ONLY=true → false on all 4 shared backend.env (backups backend.env.bak-20261117T034858Z) → Bird⇄MultiTEL failover (js/callengine/failover.js) active again; custom-CID calls leave via multitel-out; MultiTEL down → Bird with the line's own number.
+- appSettings.customCallerId.enabled=true in DBs test/smadav/voodoo/proshop (was false). Business plan = any number after cid-guard; other plans = verified own numbers; test points (landing, web/bot free Quick IVR, bot SIP test pages) = any permissible number after cid-guard.
+- Broadcast scripts/sms_limit_announce.js (id sms-limit-20k-2026-11, dedup in `announcements`): dry run 1413 Nomadly / 238 Smadav / 208 Voodoo / 72 PROSHOP reachable. Log /opt/nomadly/logs/sms-limit-announce-20261117.log.
+- ⚠️ The 3 overlay files + scripts/sms_limit_announce.js are workspace-only: Save to GitHub (main), or the next CI deploy rolls them back (WhiteLabel gets them via auto-sync).
+- 04:00–04:25Z: SMS 20k broadcast DONE — delivered Nomadly 1159, Smadav 204, Voodoo 200, PROSHOP 63 (=1626; failures = blocked/deleted chats, now in promoOptOut).
+- Caller-ID inputs were built but never rendered: PhoneTestPage TestCallerId unused; landing TryForm had no input and sent showAs=null; web ShowAsSelect only listed verified presets. Fixed + overlay2 deploy (/opt/nomadly/ov2/deploy2.sh, frontend rebuilt) to all 4:
+  - Test pages: GET /phone/test/caller-id-options?sipUsername → {enabled, any(Business), own[]}; Business = type any number (cid-guard); others = own active numbers only (+ upgrade note); POST /phone/test/caller-id enforces it.
+  - Landing "We call your phone": optional "Caller ID to show" input when GET /api/cloudivr-web/public/try/options → customCallerId true (guarded server-side). WL TryCall/tryApi = brand versions + showAs (ops/whitelabel-overrides tryApi updated).
+  - Web app (main brand): ShowAsSelect "Any number" box for Business (POST /caller-ids/check: E.164, emergency, Business, cid-guard) else 🔒 Business LockedNote (upgrade pop-up). presets now returns anyNumber.
+  - WL brands' web app has no CallerIdPick (older web) — not changed.
+  - Bot: unchanged; "🎭 Show Any Caller ID" shows when switch ON (Business any number, others verified presets).

@@ -28,11 +28,13 @@ function initPhoneTestRoutes(app, db, telnyxApi, sipConnectionId, bot) {
 
   // ── Phone Reviews / Feedback ──
   db.collection('phoneReviews').createIndex({ createdAt: -1 }).catch(() => {})
+  // Each review is tagged with the brand it was left on; a page lists only its own brand (plus older untagged ones).
+  const BRAND = String(process.env.CHAT_BOT_NAME || 'Nomadly Bot').trim()
 
   app.get('/phone/reviews', async (req, res) => {
     try {
       const reviews = await db.collection('phoneReviews')
-        .find({ status: { $nin: ['pending', 'rejected'] } }, { projection: { _id: 0, status: 0, chatId: 0, sipUsername: 0, by: 0 } })
+        .find({ status: { $nin: ['pending', 'rejected'] }, brand: { $in: [BRAND, null] } }, { projection: { _id: 0, status: 0, chatId: 0, sipUsername: 0, by: 0, brand: 0 } })
         .sort({ createdAt: -1 })
         .limit(50)
         .toArray()
@@ -59,6 +61,7 @@ function initPhoneTestRoutes(app, db, telnyxApi, sipConnectionId, bot) {
         comment: comment.trim().substring(0, 500),
         name: name ? String(name).trim().substring(0, 50) : 'Anonymous',
         status: 'pending',
+        brand: BRAND,
         ...by,
         createdAt: new Date()
       }
@@ -221,7 +224,17 @@ function initPhoneTestRoutes(app, db, telnyxApi, sipConnectionId, bot) {
     }
   })
 
-  // Free SIP test: show any caller ID (not emergency). Stored on the test credential; logged + admin alert.
+  // What the test page may offer: Business plan → type any number (after the guard); others → pick one of their own numbers.
+  const ownNumbers = async (chatId) => ((await db.collection('phoneNumbersOf').findOne({ _id: String(chatId) }))?.val?.numbers || []).filter(n => n.status === 'active' && n.phoneNumber).map(n => n.phoneNumber)
+  app.get('/phone/test/caller-id-options', async (req, res) => {
+    try {
+      const cid = require('./cloudivr-web/caller-ids')
+      const cred = await db.collection('testCredentials').findOne({ sipUsername: String(req.query.sipUsername || ''), expired: { $ne: true } })
+      if (!cred || !cid.enabled()) return res.json({ enabled: false })
+      res.json({ enabled: true, any: await cid.hasPaidPlan(cred.chatId), own: await ownNumbers(cred.chatId), current: cred.showAs || null })
+    } catch (e) { res.status(500).json({ error: 'Could not load caller ID options' }) }
+  })
+  // Free SIP test caller ID. Stored on the test credential; logged + admin alert.
   app.post('/phone/test/caller-id', async (req, res) => {
     try {
       const { sipUsername, showAs } = req.body || {}
@@ -230,7 +243,10 @@ function initPhoneTestRoutes(app, db, telnyxApi, sipConnectionId, bot) {
       const e164 = !n ? null : n.startsWith('+') ? n : n.length === 10 ? `+1${n}` : `+${n}`
       if (e164 && cid.isEmergency(showAs)) return res.status(400).json({ error: 'Emergency numbers can’t be used as a caller ID.' })
       if (e164 && !/^\+[1-9]\d{7,14}$/.test(e164)) return res.status(400).json({ error: 'Enter the full number with country code, e.g. +14155550100.' })
-      // Any caller ID is allowed on free tests once the AI guard clears it (banks, government, hotlines are blocked).
+      if (!cid.enabled()) return res.status(403).json({ error: 'Custom caller IDs are not available right now.' })
+      const cred0 = await db.collection('testCredentials').findOne({ sipUsername: String(sipUsername || ''), expired: { $ne: true } })
+      if (e164 && cred0 && !(await cid.hasPaidPlan(cred0.chatId)) && !(await ownNumbers(cred0.chatId)).includes(e164)) return res.status(403).json({ error: 'Showing any number needs the Business plan. Pick one of your own numbers.' })
+      // Business: any number once the AI guard clears it (banks, government, hotlines are blocked).
       if (e164) {
         const g = await require('./cloudivr-web/cid-guard').guard(e164, { chatId: 'sip_test', channel: 'sip_test' })
         if (!g.allowed) return res.status(400).json({ error: g.reason || 'This number cannot be used as caller ID.' })

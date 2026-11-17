@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Plus, Check } from 'lucide-react';
-import { useApi } from './api';
+import { Plus, Check, Loader2 } from 'lucide-react';
+import { useApi, api } from './api';
+import { LockedNote } from './Upgrade';
 import { Field } from './ui';
 import { usePrivacy } from './privacy';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
@@ -12,6 +13,30 @@ function Chip({ on, onClick, children, testid, compact }) {
       className={`inline-flex items-center gap-1 rounded-full border font-mono transition-colors ${compact ? 'px-2.5 h-8 text-xs' : 'px-3 h-9 text-sm'} ${on ? 'border-[#818cf8] bg-[#818cf8]/15 text-[#e0e7ff]' : 'border-[#3f3f46] text-[#a1a1aa] hover:border-[#71717a] hover:text-[#e4e4e7]'}`}>
       {on && <Check className="w-3.5 h-3.5" />}{children}
     </button>
+  );
+}
+
+// Business plan: type any number (checked by the caller-ID guard). Other plans: a locked note that opens the upgrade pop-up.
+function AnyNumber({ any, onChange, testid, phone }) {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  if (!any) return <LockedNote text="Show any number as caller ID" feature="Any caller ID" need="business" phone={phone} testid={`${testid}-any-locked`} />;
+  const use = async () => {
+    setBusy(true); setErr('');
+    try { const r = await api('/caller-ids/check', { method: 'POST', body: { number: text } }); onChange(r.number); setText(''); }
+    catch (e) { setErr(e.message); } finally { setBusy(false); }
+  };
+  return (
+    <div className="space-y-1" data-testid={`${testid}-any`}>
+      <div className="flex gap-2">
+        <input className="civr-input flex-1 font-mono" value={text} onChange={e => { setText(e.target.value); setErr(''); }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (text.trim()) use(); } }}
+          placeholder="Any number, e.g. +14155550100" inputMode="tel" aria-label="Show any number as caller ID" data-testid={`${testid}-any-input`} />
+        <button type="button" className="civr-btn civr-btn-ghost" disabled={busy || !text.trim()} onClick={use} data-testid={`${testid}-any-use`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Use'}</button>
+      </div>
+      {err ? <p className="text-xs text-[#fb7185]" data-testid={`${testid}-any-error`}>{err}</p>
+        : <p className="text-xs text-[#a1a1aa]">Business plan: any number you're allowed to use. Banks, government, hotlines and emergency numbers are blocked.</p>}
+    </div>
   );
 }
 
@@ -29,7 +54,8 @@ export function ShowAsSelect({ value, onChange, testid, compact = false, from })
   }, [data, stale, from]); // eslint-disable-line react-hooks/exhaustive-deps
   const [open, setOpen] = useState(false);
   const list = data?.items || [];
-  const cur = list.some(i => i.number === value) ? value : '';
+  const typed = value && !list.some(i => i.number === value) && data?.anyNumber ? value : '';
+  const cur = list.some(i => i.number === value) ? value : typed;
   if (!data?.enabled) return null;
   const onVerified = (n) => { reload(); if (n) { onChange(n); setOpen(false); } };
   const addBtn = <button type="button" className="text-[#818cf8] hover:underline inline-flex items-center gap-1 min-h-[44px]" onClick={() => setOpen(true)} data-testid={`${testid}-add-button`}><Plus className="w-3.5 h-3.5" />{list.length ? 'Add a caller ID' : 'Show a different caller ID'}</button>;
@@ -48,18 +74,23 @@ export function ShowAsSelect({ value, onChange, testid, compact = false, from })
     <div role="radiogroup" aria-label="Caller ID shown" className="flex flex-wrap gap-2" data-testid={testid}>
       <Chip on={!cur} onClick={() => onChange('')} compact={compact} testid={`${testid}-own`}>Your VoIP number</Chip>
       {list.map((i, k) => <Chip key={i.number} on={cur === i.number} onClick={() => onChange(i.number)} compact={compact} testid={`${testid}-option-${k}`}>{i.label ? `${i.label} · ${pv.phone(i.number)}` : pv.phone(i.number)}</Chip>)}
+      {typed && <Chip on onClick={() => {}} compact={compact} testid={`${testid}-typed`}>{pv.phone(typed)}</Chip>}
     </div>
   );
   if (compact) return (
     <div className="mb-3" data-testid={`${testid}-compact`}>
       <div className="flex items-center justify-between mb-1"><span className="text-xs text-[#a1a1aa]">Show as</span>{addBtn}</div>
-      {list.length ? chips : null}
+      {list.length || typed ? chips : null}
+      <AnyNumber any={data.anyNumber} onChange={onChange} testid={testid} phone={from} />
       {dialog}
     </div>
   );
   return (
     <Field label="Show as (caller ID people see)" hint={<>Calls are still billed to the VoIP number you call from. {addBtn}</>}>
-      {list.length ? chips : <p className="text-sm text-[#a1a1aa]" data-testid={`${testid}-empty`}>Calls show your VoIP number.</p>}
+      <div className="space-y-3">
+        {list.length || typed ? chips : <p className="text-sm text-[#a1a1aa]" data-testid={`${testid}-empty`}>Calls show your VoIP number.</p>}
+        <AnyNumber any={data.anyNumber} onChange={onChange} testid={testid} phone={from} />
+      </div>
       {dialog}
     </Field>
   );

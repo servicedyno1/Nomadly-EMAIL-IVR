@@ -464,3 +464,10 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Audit bug fixes: IVR message key no longer hangs up after 8 s (hangs up when the message ends); OTP entry prompt no longer plays the
   owner's "after accept" sentence; custom decline sentence now also asks to re-enter the code.
 - Tested: iteration_301 (all 9 screens, backend 16/16) + iteration_302 retest; last minor fixes unit-checked.
+
+## 2026-11-17 (later) — LIVE on all 4 brands
+- MultiTEL outbound works again (SRTP offer accepted); custom caller ID confirmed on handset (+1 800-514-6000).
+- BIRD_ONLY=false → Bird⇄MultiTEL failover back on; custom caller ID switch ON (all 4 DBs). MultiTEL refusing a custom-CID call → retried from the user's own number via the normal route.
+- Caller-ID inputs now render: test pages (Business: any number; others: own numbers + Business upgrade note), CloudIVR landing "We call your phone" (any permissible number), CloudIVR web Quick call/campaigns (Business: type any number; others: 🔒 Business upgrade). Bot "🎭 Show Any Caller ID" (already built) shows again.
+- Hosting panel IP Access (block/redirect + IP Logs), bulk SMS 20,000/day + 20,000 per send, broadcast sent (1,626 delivered), review brand tag. No invented reviews published.
+- ⚠️ Overlay files are workspace-only until "Save to GitHub".

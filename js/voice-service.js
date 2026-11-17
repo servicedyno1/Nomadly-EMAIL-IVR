@@ -5537,23 +5537,8 @@ async function initiateOutboundIvrCall(params) {
     // Bulk campaigns: no message while the campaign runs — the final report lists refused caller IDs.
     if (bulkMode) require('./cloudivr-web/caller-ids').logDecline(chatId, displayCallerId, 'bulk', targetNumber, useMultitel ? 'multitel' : 'telnyx')
     else _notifyCidRejected(chatId, displayCallerId, callerId, { via: 'ivr', to: targetNumber, how: useMultitel ? 'multitel' : 'telnyx' })
-    // Retry from own number — use MultiTEL if that was the original path (Telnyx account is blocked)
-    if (useMultitel) {
-      try {
-        const retryResult = await require('./callengine').originate(
-          { connection: null, session: `ivr-retry-${require('crypto').randomBytes(4).toString('hex')}` },
-          callerId, targetNumber, 45, trunk
-        )
-        result = retryResult?.error || retryResult?.ended
-          ? { error: retryResult?.error || `MultiTEL retry to ${targetNumber} failed`, callControlId: null }
-          : { callControlId: retryResult?.id || `mt-${Date.now()}`, _provider: 'multitel', callerIdRejected: true }
-      } catch (retryErr) {
-        log(`[OutboundIVR] MultiTEL own-number retry also failed: ${retryErr.message}`)
-        result = { error: `Call failed after CID refusal: ${retryErr.message}`, callControlId: null }
-      }
-    } else {
-      result = await _telnyxApi.createOutboundCall(callerId, targetNumber, webhookUrl, undefined, amdOpts)
-    }
+    // Retry from the user's own number on the normal route (Bird, or whichever trunk failover says is up) — not MultiTEL again.
+    result = await _telnyxApi.createOutboundCall(callerId, targetNumber, webhookUrl, undefined, amdOpts)
     if (!result.error) result.callerIdRejected = true
   } else if (displayCallerId) require('./cloudivr-web/caller-ids').logUse(chatId, displayCallerId, bulkMode ? 'bulk' : 'ivr', targetNumber)
   if (badDest(result)) {
