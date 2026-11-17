@@ -3557,7 +3557,10 @@ async function handleOutboundSipCall(payload) {
   // Engine calls (ae:) work for every provider; MultiTEL numbers leave on the MultiTEL trunk so their own caller ID shows.
   const viaEngine = String(callControlId).startsWith('ae:') && num.provider !== 'twilio'
   const trunkOpt = viaEngine && num.provider === 'multitel' && process.env.CALLER_ID_PASSTHROUGH_TRUNK ? { trunk: process.env.CALLER_ID_PASSTHROUGH_TRUNK } : {}
-  if (num.provider === 'telnyx' || viaEngine) {
+  // MultiTEL / Infobip numbers whose softphone call reached us over Telnyx (e.g. the free SIP test login) are
+  // placed the same way — the test shows our test caller ID, otherwise the number's own.
+  const viaTelnyx = num.provider === 'telnyx' || ['multitel', 'infobip'].includes(num.provider) || (!!lookupResult?.isTestCall && num.provider !== 'twilio')
+  if (viaTelnyx || viaEngine) {
     const callerDisplay = num.phoneNumber || 'TEST-SIP'
     log(`[Voice] Outbound SIP (Telnyx): ${callerDisplay} → ${destination} — routing to PSTN`)
 

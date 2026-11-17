@@ -54,7 +54,7 @@ export default function BuyNumber() {
   if (!catalog) return <Spinner />;
   if (extraOf) return (
     <div data-testid="buy-page">
-      <PageHeader label="Phone numbers · Extra number" title="Add an extra number" sub={`Shares the plan of ${pv.phone(extraOf)} — ${money(extra?.price || 25)}/month, same features.${extra ? ` ${extra.used} of ${extra.limit} used.` : ''}`} testid="buy-header" />
+      <PageHeader label="Phone numbers · Extra number" title="Add an extra number" sub={`Shares the plan of ${pv.phone(extraOf)} — ${money(extra?.price || 25)}/month each, same features. Tick several numbers to add them in one payment.${extra ? extra.unlimited ? ` ${extra.used} added, no limit.` : ` ${extra.used} of ${extra.limit} used.` : ''}`} testid="buy-header" />
       <p className="text-sm text-[var(--c-muted)] -mt-2 mb-6" data-testid="buy-extra-back"><Link to={cp('/app/buy')} className="inline-block py-2 text-[var(--c-accent)] underline underline-offset-2" data-testid="buy-extra-back-button">Get a brand-new number instead</Link></p>
       <Steps labels={['Pick a number', 'Pay']} current={stage - 1} />
       <CallsBuy extraOf={extraOf} onStage={onStage} />

@@ -29,7 +29,7 @@ const needOf = (o) => o.need != null ? o.need : (o.kind === 'extra' || o.kind ==
 
 const publicOrder = (o) => ({
   id: o._id, kind: o.kind || 'number', charge: o.charge || o.price, phoneNumber: o.phoneNumber, plan: o.planKey, planName: phoneConfig.plans[o.planKey]?.name || o.planKey, price: o.price,
-  parentNumber: o.parentNumber || null, texting: o.texting ? { charge: o.texting.charge, line: o.textingLine || null } : null,
+  parentNumber: o.parentNumber || null, count: o.items ? o.items.length : 1, numbers: o.items ? o.items.map(i => i.phoneNumber) : [o.phoneNumber], added: o.added || null, failed: o.failed || null, texting: o.texting ? { charge: o.texting.charge, line: o.textingLine || null } : null,
   coin: o.coin, address: o.address, amountCrypto: o.amountCrypto || null, autoRenew: o.autoRenew !== false, status: o.status,
   paidUsd: o.paidUsd || 0, walletPart: o.walletPart || 0, total: needOf(o), assignedNumber: o.assignedNumber || null, substitutedFrom: o.substitutedFrom || null,
   message: o.message || null, dryRun: !!o.dryRun, preview: o.provider === 'preview', createdAt: o.createdAt, updatedAt: o.updatedAt,
@@ -102,8 +102,34 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     return { parent }
   }
 
+  // Several extra numbers paid in one crypto order: add each from the wallet; any that can't be added stay paid-for in the wallet.
+  async function activateExtras(o) {
+    const p = await extraParent(o)
+    if (p.error) {
+      const message = `${p.error} Your payment is in your wallet.`
+      await save(o._id, { status: 'failed', message })
+      tell(o, `We could not add your extra numbers: ${message}`, 'Your CloudIVR payment is in your wallet')
+      return
+    }
+    const parent = p.parent
+    let left = phoneConfig.subSlotsLeft(parent.plan, (await numbersApi.myNumbers(o.chatId)).filter(n => n.isSubNumber && n.parentNumber === parent.phoneNumber).length)
+    const added = [], failed = []
+    for (const it of o.items) {
+      if (!left) { failed.push({ phoneNumber: it.phoneNumber, message: 'the plan has no free extra-number slot left' }); continue }
+      if ((await w.balance(o.chatId)) < it.charge) { failed.push({ phoneNumber: it.phoneNumber, message: 'not enough paid to cover it' }); continue }
+      if (it.mtMeta) require('../multitel').remember(it.phoneNumber, it.mtMeta)
+      const r = await numbersApi.purchase({ chatId: o.chatId, email: o.email, phone: it.phoneNumber, planKey: parent.plan, hit: it.hit, country: it.country, type: it.type, areaCode: it.areaCode, autoRenew: o.autoRenew, coupon: o.coupon || null, viaOrder: o._id, sub: { parentNumber: parent.phoneNumber, plan: parent.plan } })
+      if (r.status === 201 || r.status === 202) { added.push(r.body.number?.phoneNumber || it.phoneNumber); left-- } else failed.push({ phoneNumber: it.phoneNumber, message: r.body.message })
+    }
+    const { extraSummary } = require('./extras')
+    const message = `${added.length ? 'Payment confirmed — ' : ''}${extraSummary(parent.phoneNumber, added, failed)}`
+    await save(o._id, { status: added.length ? 'active' : 'failed', assignedNumber: added[0] || null, added, failed, message })
+    tell(o, message, added.length ? `${added.length} extra number${added.length === 1 ? '' : 's'} added` : 'Your CloudIVR payment is in your wallet')
+  }
+
   async function activate(o) {
     if (o.kind === 'upgrade') return activateUpgrade(o)
+    if (o.kind === 'extra' && o.items?.length) return activateExtras(o)
     const extra = o.kind === 'extra'
     let sub = null
     if (extra) {
@@ -261,11 +287,17 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     if (!n) return bad(res, 404, 'not_found', 'Number not found on your account.')
     if (n.isSubNumber) return bad(res, 400, 'is_extra', 'This is already an extra number. Add extras from its main number.')
     if (n.status !== 'active') return bad(res, 400, 'not_active', 'The main number must be active to add extra numbers.')
-    const limit = phoneConfig.getSubNumberLimit(n.plan)
+    const { extraPicks } = require('./extras')
+    const phones = extraPicks(req.body)
+    if (!phones.length) return bad(res, 400, 'pick_number', 'Pick at least one number.')
     const used = (await numbersApi.myNumbers(chatId)).filter(x => x.isSubNumber && x.parentNumber === n.phoneNumber).length
-    if (used >= limit) return bad(res, 400, 'limit_reached', `The ${phoneConfig.plans[n.plan]?.name || n.plan} plan allows ${limit} extra numbers. Upgrade the main number to add more.`)
-    const picked = await numbersApi.pickFromSearch(chatId, req.body.phoneNumber)
-    if (!picked) return bad(res, 400, 'search_again', 'That number is no longer in your search results. Search again and pick a number.')
+    const left = phoneConfig.subSlotsLeft(n.plan, used)
+    const planName = phoneConfig.plans[n.plan]?.name || n.plan
+    if (!left) return bad(res, 400, 'limit_reached', `The ${planName} plan allows ${phoneConfig.getSubNumberLimit(n.plan)} extra numbers. Upgrade the main number to add more.`)
+    if (phones.length > left) return bad(res, 400, 'too_many', `The ${planName} plan has room for ${left} more extra number${left === 1 ? '' : 's'}. Untick ${phones.length - left} and try again.`)
+    const picks = await numbersApi.pickManyFromSearch(chatId, phones)
+    if (!picks) return bad(res, 400, 'search_again', 'A number you picked is no longer in your search results. Search again and pick your numbers.')
+    const picked = picks[0]
     let coupon = null
     if (req.body.coupon) {
       coupon = await numbersApi.checkCoupon(chatId, req.body.coupon)
@@ -273,7 +305,9 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     }
     const coin = String(req.body.coin || '')
     if (!coins.includes(coin)) return bad(res, 400, 'invalid_coin', `Pick one of: ${coins.join(', ')}.`)
-    const charge = round2(phoneConfig.SUB_NUMBER_BASE_PRICE * (1 - (coupon ? coupon.discount : 0) / 100))
+    const each = (p) => round2(numbersApi.extraPriceOf(p.country, p.type) * (1 - (coupon ? coupon.discount : 0) / 100))
+    const charge = round2(picks.reduce((t, p) => t + each(p), 0))
+    const items = picks.length > 1 ? picks.map(p => ({ phoneNumber: p.hit.phoneNumber, hit: p.hit, mtMeta: require('../multitel').searchedMeta(p.hit.phoneNumber), country: p.country, type: p.type, areaCode: p.areaCode, charge: each(p) })) : null
     const { walletPart, deposit: price } = await split(chatId, charge, req.body.useWallet === true)
     const dep = !livePayments()
       ? { ref: `dry-${crypto.randomUUID().slice(0, 12)}`, address: 'PREVIEW-MODE-DO-NOT-SEND-FUNDS', amountCrypto: null, provider: 'preview' }
@@ -282,12 +316,12 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     const now = new Date()
     const doc = {
       _id: dep.ref, kind: 'extra', chatId, email: req.webUser.email, phoneNumber: picked.hit.phoneNumber, parentNumber: n.phoneNumber, hit: picked.hit, mtMeta: require('../multitel').searchedMeta(picked.hit.phoneNumber),
-      country: picked.country, type: picked.type, areaCode: picked.areaCode, planKey: n.plan, price, charge, walletPart, autoRenew: req.body.autoRenew !== false, coupon, coin,
+      country: picked.country, type: picked.type, areaCode: picked.areaCode, planKey: n.plan, price, charge, walletPart, ...(items ? { items } : {}), autoRenew: req.body.autoRenew !== false, coupon, coin,
       address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider, status: 'awaiting_payment', dryRun: dryRun(), createdAt: now, updatedAt: now,
     }
     await orders.insertOne(doc)
     await db.collection('webDeposits').insertOne({ chatId, ref: dep.ref, amountUsd: price, coin, address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider, forNumber: doc.phoneNumber, forExtraOn: n.phoneNumber, createdAt: now })
-    log(`[CloudIVR-Web] crypto extra-number order ${dep.ref} ${doc.phoneNumber} on ${n.phoneNumber} $${price} ${coin} for ${chatId}`)
+    log(`[CloudIVR-Web] crypto extra-number order ${dep.ref} ${items ? `${items.length} numbers` : doc.phoneNumber} on ${n.phoneNumber} $${price} ${coin} for ${chatId}`)
     res.status(201).json({ order: publicOrder(doc) })
   }))
 

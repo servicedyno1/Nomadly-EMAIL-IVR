@@ -71,8 +71,9 @@ function Outcome({ o, balance, busy, onFinish }) {
   );
   if (o.status === 'active') return (
     <div className="civr-card civr-trace p-6" data-testid="order-success">
-      <div className="flex items-center gap-2 text-[#818cf8] font-semibold"><Check className="w-5 h-5" />{o.kind === 'extra' ? 'Your extra number is live' : 'Your number is live'}</div>
-      <div className="font-mono text-3xl mt-3" data-testid="order-assigned-number">{num}</div>
+      <div className="flex items-center gap-2 text-[#818cf8] font-semibold"><Check className="w-5 h-5" />{o.kind === 'extra' ? (o.count > 1 ? 'Your extra numbers are live' : 'Your extra number is live') : 'Your number is live'}</div>
+      {o.count > 1 ? <div className="font-mono text-xl mt-3 space-y-1" data-testid="order-assigned-numbers">{(o.added || []).map(x => <div key={x}>{x}</div>)}</div>
+        : <div className="font-mono text-3xl mt-3" data-testid="order-assigned-number">{num}</div>}
       {o.kind === 'extra' && !o.substitutedFrom && o.message && <p className="text-sm text-[#a1a1aa] mt-2" data-testid="order-message">{o.message}</p>}
       {o.substitutedFrom && <div className="mt-4 flex gap-3 text-sm rounded-xl border border-[#fbbf24]/40 bg-[#fbbf24]/5 p-4" data-testid="order-substituted-notice"><Sparkles className="w-5 h-5 text-[#fbbf24] shrink-0" /><span>{o.message} We also emailed you.</span></div>}
       <Link to={cp(`/app/numbers/${enc(num)}?setup=1`)} className="civr-btn civr-btn-primary mt-6" data-testid="order-open-number-btn">Set up {num} <ArrowRight className="w-4 h-4" /></Link>
@@ -131,7 +132,7 @@ export default function OrderStatus() {
       <PageHeader label="Checkout" title={o.kind === 'upgrade' ? 'Your plan upgrade' : o.kind === 'extra' ? 'Your extra number order' : 'Your number order'}
         sub={o.walletPart > 0 ? `${o.phoneNumber} · ${money(o.total)} total: ${money(o.walletPart)} from your wallet + ${money(o.price)} in crypto`
           : o.kind === 'upgrade' ? `${o.phoneNumber} → ${o.planName} plan · ${money(o.price)}`
-          : o.kind === 'extra' ? `${o.phoneNumber} · extra number on ${o.parentNumber} (${o.planName} plan) · ${money(o.charge)}${o.price > o.charge && !o.walletPart ? ` · deposit ${money(o.price)}, the rest stays in your wallet` : ''} · auto-renew ${o.autoRenew ? 'on' : 'off'}`
+          : o.kind === 'extra' ? `${o.count > 1 ? `${o.count} numbers (${o.numbers.join(', ')})` : o.phoneNumber} · extra number${o.count > 1 ? 's' : ''} on ${o.parentNumber} (${o.planName} plan) · ${money(o.charge)}${o.price > o.charge && !o.walletPart ? ` · deposit ${money(o.price)}, the rest stays in your wallet` : ''} · auto-renew ${o.autoRenew ? 'on' : 'off'}`
           : `${o.phoneNumber} · ${o.planName} plan · ${money(o.price)} · auto-renew ${o.autoRenew ? 'on' : 'off'}`} testid="order-header" />
       <Steps status={status} upgrade={o.kind === 'upgrade'} />
       <div className="mb-4"><ErrorNote error={err} testid="order-error" /></div>

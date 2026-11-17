@@ -516,6 +516,13 @@ function routes(router, deps) {
     const hit = cache?.results?.find(r => r.phoneNumber === normPhone(phone))
     return hit ? { hit, country: cache.country, type: cache.type, areaCode: cache.areaCode } : null
   }
+  // Several picks from the same search (null when any is no longer there).
+  const pickManyFromSearch = async (chatId, phones) => {
+    const cache = await searchCache.findOne({ _id: chatId })
+    const out = phones.map(p => cache?.results?.find(r => r.phoneNumber === normPhone(p))).map(hit => hit && { hit, country: cache.country, type: cache.type, areaCode: cache.areaCode })
+    return out.length && out.every(Boolean) ? out : null
+  }
+  const extraPriceOf = (country, type) => texting.offerOf(country, type)?.extraPrice ?? phoneConfig.SUB_NUMBER_BASE_PRICE
   const searchSimilar = async (country, type, areaCode) => (await unheld(await telnyxApi.searchNumbers(country, type, areaCode, 6))).map(n => ({
     phoneNumber: n.phone_number, capabilities: n._capabilities || { voice: true, sms: false, fax: false },
     surcharge: ['infobip', 'multitel'].includes(n._provider) ? require('../number-addons').get(country, type) : round2(numberSurcharge(country, type, n)), cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
@@ -571,7 +578,7 @@ function routes(router, deps) {
     // The usage rules are part of the Terms accepted at sign-up (no separate policy pop-up).
     // Paperwork never blocks the order: missing details / documents are asked for after payment (number page).
     const regIssue = hit?.provider === 'multitel' && offer?.level && !presetOrder ? await paperworkIssue(chatId, country, c.name, offer) : null
-    const base = sub ? (texting.offerOf(country, type)?.extraPrice ?? phoneConfig.SUB_NUMBER_BASE_PRICE) : plan.price + phoneConfig.planAddon(planKey, country, type, hit.surcharge || 0)
+    const base = sub ? extraPriceOf(country, type) : plan.price + phoneConfig.planAddon(planKey, country, type, hit.surcharge || 0)
     const price = prepaid ? prepaid.amount : round2(base * (1 - (Number(coupon?.discount) || 0) / 100))
     if (!prepaid && !(await w.debit(chatId, price))) return { status: 402, body: { error: 'insufficient_balance', message: `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(chatId)).toFixed(2)}.`, cost: price } }
 
@@ -1198,7 +1205,7 @@ function routes(router, deps) {
   const relT = setInterval(() => releaseReplaced().catch(e => log(`[CloudIVR-Web] release replaced: ${e.message}`)), 10 * 60000)
   relT.unref?.()
 
-  return { myNumbers, findMine, purchase, REPLACE_PRICE, releaseReplaced, pickFromSearch, searchSimilar, setField, checkCoupon, unheld, ownAudioUrls, upgradeQuote, upgradeNumber, upgradeOffer, rotateSip }
+  return { myNumbers, findMine, purchase, REPLACE_PRICE, releaseReplaced, pickFromSearch, pickManyFromSearch, extraPriceOf, searchSimilar, setField, checkCoupon, unheld, ownAudioUrls, upgradeQuote, upgradeNumber, upgradeOffer, rotateSip }
 }
 
 // USA mobile numbers (two-way SMS lines, esimLines kind 'mobile') are numbers too; plain eSIMs are not.

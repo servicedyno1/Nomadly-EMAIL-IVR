@@ -58,12 +58,15 @@ function getSipDomainForNumber() {
 // ── Sub-Number Pricing ──
 const SUB_NUMBER_BASE_PRICE = 25  // Minimum price for a sub-number
 const SUB_NUMBER_MARKUP = 0.5     // 50% markup on Twilio number cost
-const SUB_NUMBER_LIMITS = { starter: 3, standard: 8, pro: 15, business: 30 }
+// Extra numbers each plan can hold (Enterprise: no limit).
+const SUB_NUMBER_LIMITS = { starter: 5, standard: 10, pro: 25, business: 50, enterprise: Infinity }
 const ENTERPRISE_PRICE = parseFloat(process.env.PHONE_ENTERPRISE_PRICE || '399')
 
 function getSubNumberLimit(planKey) {
   return SUB_NUMBER_LIMITS[planKey] || 0
 }
+// Free extra-number slots on a plan (Infinity = unlimited).
+const subSlotsLeft = (planKey, used) => Math.max(0, getSubNumberLimit(planKey) - (used || 0))
 
 // ── Plan availability (admin toggle via .env) ──
 const PHONE_STARTER_ON = (process.env.PHONE_STARTER_ON || 'true').toLowerCase() === 'true'
@@ -4404,6 +4407,7 @@ module.exports = {
   SUB_NUMBER_MARKUP,
   SUB_NUMBER_LIMITS,
   getSubNumberLimit,
+  subSlotsLeft,
   getCallRouteSummary,
   formatCallFlowPreview,
   formatIvrOptionsInline,

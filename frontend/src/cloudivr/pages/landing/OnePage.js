@@ -116,7 +116,7 @@ export function AllPlans({ catalog, tab, setTab, esimPrice, offer, fax }) {
                 <summary className="cursor-pointer inline-flex items-center gap-2 min-h-[44px] text-sm font-semibold text-slate-900" data-testid="pricing-more-toggle"><ChevronDown className="w-4 h-4 transition-transform group-open:rotate-180" aria-hidden="true" />Not sure which plan? Need more?</summary>
                 <div className="mt-4 space-y-6">
                   <LandingPlanHelper plans={plans} onPlan={(id) => { setHotId(id); setTimeout(() => document.querySelector(`[data-testid="civr-plan-card-${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120); }} setTab={setTab} />
-                  <p className="text-sm text-slate-700" data-testid="pricing-enterprise"><b>Enterprise · {'$'}{catalog?.enterprise?.price ?? 399}/month</b> — custom minutes, API access, a dedicated SIP trunk and white-label for resellers. <a href="mailto:sales@cloudivr.net?subject=CloudIVR%20Enterprise" className="font-semibold text-[#1d6fd8] underline underline-offset-2 inline-block py-2" data-testid="pricing-enterprise-contact">Talk to sales</a></p>
+                  <p className="text-sm text-slate-700" data-testid="pricing-enterprise"><b>Enterprise · {'$'}{catalog?.enterprise?.price ?? 399}/month</b> — custom minutes, unlimited extra numbers, API access, a dedicated SIP trunk and white-label for resellers. <a href="mailto:sales@cloudivr.net?subject=CloudIVR%20Enterprise" className="font-semibold text-[#1d6fd8] underline underline-offset-2 inline-block py-2" data-testid="pricing-enterprise-contact">Talk to sales</a></p>
                 </div>
               </details>
             </>

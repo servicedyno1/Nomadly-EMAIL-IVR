@@ -203,9 +203,9 @@ This opens the Cloud IVR hub with these buttons:
 📞 Cloud IVR + SIP → 🛒 Get a Number → 📞 Calls → Select plan (Starter/Pro/Business) → Select country → Select number type (Local/Toll-Free/Mobile) → Pick a number from the list → Confirm order → Choose payment method → ✅ Number activated
 
 #### Plans & Pricing:
-${process.env.PHONE_SERVICE_ON === 'true' ? `- <b>Starter — $${process.env.PHONE_STARTER_PRICE || '50'}/mo</b>: ${process.env.STARTER_MINUTES || '100'} INBOUND min + ${process.env.STARTER_SMS || '50'} SMS included/month. Features: Call forwarding, SMS to Telegram. Up to 3 extra numbers.
-- <b>Pro — $${process.env.PHONE_PRO_PRICE || '75'}/mo</b>: ${process.env.PRO_MINUTES || '400'} INBOUND min + ${process.env.PRO_SMS || '200'} SMS included/month. Features: All Starter + Voicemail, SIP Credentials, SMS to Email, IVR Auto-attendant (keypad menu), Quick IVR, Bulk IVR, OTP Collection (basic — default prompts only), Call Recording. Up to 15 extra numbers.
-- <b>Business — $${process.env.PHONE_BUSINESS_PRICE || '120'}/mo</b>: ${process.env.BUSINESS_MINUTES || '600'} INBOUND min + ${process.env.BUSINESS_SMS || '300'} SMS included/month. Features: All Pro + AI Voice Agent, Fax send & receive (${FAX_FREE} free pages/mo then $${FAX_PRICE}/page, bulk up to ${FAX_BULK_MAX} numbers), Custom OTP Messages & Goodbye, IVR Redial, Quick IVR Scheduling & Saved Presets, Priority Support. Up to 30 extra numbers.
+${process.env.PHONE_SERVICE_ON === 'true' ? `- <b>Starter — $${process.env.PHONE_STARTER_PRICE || '50'}/mo</b>: ${process.env.STARTER_MINUTES || '100'} INBOUND min + ${process.env.STARTER_SMS || '50'} SMS included/month. Features: Call forwarding, SMS to Telegram. Up to ${require('./phone-config.js').SUB_NUMBER_LIMITS.starter} extra numbers.
+- <b>Pro — $${process.env.PHONE_PRO_PRICE || '75'}/mo</b>: ${process.env.PRO_MINUTES || '400'} INBOUND min + ${process.env.PRO_SMS || '200'} SMS included/month. Features: All Starter + Voicemail, SIP Credentials, SMS to Email, IVR Auto-attendant (keypad menu), Quick IVR, Bulk IVR, OTP Collection (basic — default prompts only), Call Recording. Up to ${require('./phone-config.js').SUB_NUMBER_LIMITS.pro} extra numbers.
+- <b>Business — $${process.env.PHONE_BUSINESS_PRICE || '120'}/mo</b>: ${process.env.BUSINESS_MINUTES || '600'} INBOUND min + ${process.env.BUSINESS_SMS || '300'} SMS included/month. Features: All Pro + AI Voice Agent, Fax send & receive (${FAX_FREE} free pages/mo then $${FAX_PRICE}/page, bulk up to ${FAX_BULK_MAX} numbers), Custom OTP Messages & Goodbye, IVR Redial, Quick IVR Scheduling & Saved Presets, Priority Support. Up to ${require('./phone-config.js').SUB_NUMBER_LIMITS.business} extra numbers.
 - <b>IMPORTANT — included plan minutes are for INBOUND (received) calls only.</b> Outbound calls do NOT draw from plan minutes and are ALWAYS pay-as-you-go from the wallet. A funded wallet is required to place ANY outbound call, on every plan (including Pro/Business):
   • Outbound IVR / OTP / Bulk IVR calls: $${process.env.BULK_CALL_RATE_PER_MIN || '0.15'}/min + $${process.env.CALL_CONNECTION_FEE || '0.03'} connection fee per call
   • Call forwarding: $${process.env.CALL_FORWARDING_RATE_MIN || '0.50'}/min
@@ -218,7 +218,7 @@ ${process.env.PHONE_SERVICE_ON === 'true' ? `- <b>Starter — $${process.env.PHO
 
 #### Suspended / released number (carrier suspension) — DO NOT sell a new plan by default:
 - A suspended or released NUMBER is not the same as an expired PLAN. Always read the "PHONE PLANS & EXTRA-NUMBER SLOTS" block in the user context first.
-- If the user still has an ACTIVE plan with free extra-number slots → tell them to replace the number under that plan: <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → select the active plan's number → <b>➕ Add Number to Plan</b>. State the slots (used/limit). Extra-number limits: Starter ${require('./phone-config.js').SUB_NUMBER_LIMITS.starter}, Pro ${require('./phone-config.js').SUB_NUMBER_LIMITS.pro}, Business ${require('./phone-config.js').SUB_NUMBER_LIMITS.business}. Do NOT tell them to buy another plan or "purchase a new number" as the only option.
+- If the user still has an ACTIVE plan with free extra-number slots → tell them to replace the number under that plan: <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → select the active plan's number → <b>➕ Add Number to Plan</b>. State the slots (used/limit). Extra-number limits: Basic ${require('./phone-config.js').SUB_NUMBER_LIMITS.starter}, Starter ${require('./phone-config.js').SUB_NUMBER_LIMITS.standard}, Pro ${require('./phone-config.js').SUB_NUMBER_LIMITS.pro}, Business ${require('./phone-config.js').SUB_NUMBER_LIMITS.business}, Enterprise unlimited. Several extra numbers can be picked and paid for in one go (web app: tick several numbers in the search; bot: tap several numbers, then Continue). Do NOT tell them to buy another plan or "purchase a new number" as the only option.
 - If the active plan's extra-number slots are FULL → explain the limit is reached and offer the options: upgrade the plan (⬆️ Upgrade on the Manage screen, higher limit) or free a slot by releasing an unused extra number; a new plan is only one optional choice.
 - If the plan itself has EXPIRED or was cancelled (no active plan) → tell them to renew or buy a plan via <b>🛒 Get a Number</b>.
 - Never tell a user their number "is not suspended" when the context shows it as suspended/released. Carrier suspensions can't be reversed by us; offer escalation to a human if they want the case reviewed.
@@ -298,7 +298,7 @@ SIP credentials are <b>automatically generated</b> when you get a calling number
 To view them later: 📞 Cloud IVR + SIP → 📋 My Plans → Select your number → 🔑 SIP Credentials
 From there you can:
 - 👁️ Reveal Password — Show the SIP password
-- 🔄 Reset Password — Generate new SIP credentials
+- 🔄 Reset Password — New SIP password (the username stays the same)
 - 📖 SIP Setup Guide — Step-by-step softphone configuration
 
 SIP connection details:
@@ -307,7 +307,8 @@ SIP connection details:
 - Codecs: G.711μ, G.711a, Opus
 - DTMF: RFC 2833
 
-NOTE: Every paid plan with a calling number includes SIP credentials. If a softphone won't connect: check the server is exactly the domain above, port 5060 with UDP or TCP (or 5061 with TLS), and copy the username + password again from 🔑 SIP Credentials (old logins from a replaced number stop working). Still stuck → 🔄 Reset Password for a fresh pair. A reset works right away; no waiting is needed. If the app shows "403 Forbidden" or "Authentication failed", fill <b>Outbound Proxy</b> with <code>${SIP_DOMAIN}:5060</code> (some apps look the server up differently) and make sure the username is in both User name and Auth username (or leave Auth username empty). If it still fails, offer to pass it to a human agent; never tell the customer TLS is unsupported.
+NOTE: Every paid plan with a calling number includes SIP credentials. If a softphone won't connect: check the server is exactly the domain above, port 5060 with UDP or TCP (or 5061 with TLS), and copy the username + password again from 🔑 SIP Credentials (old logins from a replaced number stop working). Still stuck → 🔄 Reset Password for a fresh password (the username stays the same; update the password in the app). A reset works right away; no waiting is needed. If the app shows "403 Forbidden" or "Authentication failed", fill <b>Outbound Proxy</b> with <code>${SIP_DOMAIN}:5060</code> (some apps look the server up differently) and make sure the username is in both User name and Auth username (or leave Auth username empty). If it still fails, offer to pass it to a human agent; never tell the customer TLS is unsupported.
+<b>"Error 57" (or any STUN error) in Zoiper or another softphone</b> means the app's STUN setting is the problem, NOT the login: tell them to turn STUN <b>off</b> (Zoiper: Settings → Accounts → the account → Network settings → STUN → "Don't use STUN" / disable it), save, and register again. Do NOT suggest 🔄 Reset Password for error 57 — the username and password are fine. If they want STUN on, the only valid server is <code>${SIP_DOMAIN}:3478</code>.
 
 #### How to make calls via browser (no app needed):
 Visit ${CALL_PAGE_URL} — enter your SIP credentials and call directly from browser. No sign-up needed.
@@ -343,7 +344,7 @@ If the issue persists, I'll connect you with our technical team who can check yo
 ### "My call shows caller ID then hangs up"
 → If the called phone shows your number but immediately disconnects, this typically means:
 1. The call was rejected by the system before it connected (often a balance or configuration issue)
-2. Your SIP credentials may have expired — regenerate them via <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → Select number → <b>🔑 SIP Credentials</b> → <b>🔄 Reset Password</b>
+2. Your SIP password may be out of date (e.g. after a reset) — copy it again, or set a new one via <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → Select number → <b>🔑 SIP Credentials</b> → <b>🔄 Reset Password</b>
 I'll flag this for our technical team to review your call logs.
 
 ### "IVR call not working / no sound plays / audio failing"
@@ -1176,7 +1177,7 @@ function phonePlanSlotsContext(numbers, now = Date.now()) {
       const used = numbers.filter(n => n && n.isSubNumber && n.parentNumber === p.phoneNumber && live(n)).length
       if (used < limit) freePlans++; else full.push(`${p.plan} ${used}/${limit}`)
       const slots = used < limit ? `${limit - used} free → "➕ Add Number to Plan" AVAILABLE` : 'FULL → upgrade the plan or free a slot'
-      lines.push(`PLAN ACTIVE: ${label} (number ${p.status.toUpperCase()}), expires ${p.expiresAt ? new Date(p.expiresAt).toISOString().slice(0, 10) : 'n/a'} · extra numbers ${used}/${limit} used · slots ${slots}`)
+      lines.push(`PLAN ACTIVE: ${label} (number ${p.status.toUpperCase()}), expires ${p.expiresAt ? new Date(p.expiresAt).toISOString().slice(0, 10) : 'n/a'} · extra numbers ${used}/${Number.isFinite(limit) ? limit : 'unlimited'} used · slots ${slots}`)
     } else {
       lines.push(`NO LONGER USABLE: ${label} — number ${String(p.status || 'unknown').toUpperCase()}${notExpired(p) ? ' (carrier suspension/release; paid period not over)' : ' (plan EXPIRED)'}`)
     }
@@ -1186,7 +1187,7 @@ function phonePlanSlotsContext(numbers, now = Date.now()) {
   }
   if (!lines.length) return ''
   lines.push(freePlans > 0
-    ? 'RULE: user HAS an active phone plan with a free slot — for a suspended/released number, guide to "➕ Add Number to Plan" under that active plan and STATE the plan\'s extra-number limit and slots (e.g. "Pro: up to 15 extra numbers, 0/15 used"); never say a new plan is required.'
+    ? 'RULE: user HAS an active phone plan with a free slot — for a suspended/released number, guide to "➕ Add Number to Plan" under that active plan and STATE the plan\'s extra-number limit and slots (e.g. "Pro: up to 25 extra numbers, 0/25 used"); never say a new plan is required.'
     : activePlans > 0
       ? `RULE: user HAS an active phone plan but its extra-number slots are FULL (${full.join(', ')}; suspended extra numbers still hold a slot) — "➕ Add Number to Plan" is NOT available. Explain the limit is reached and offer: upgrade the plan (higher limit) or free a slot by releasing an unused/suspended extra number. Do not say a new plan is required.`
       : 'RULE: user has NO active phone plan — to get a number again they must renew/buy a plan (🛒 Get a Number).')
