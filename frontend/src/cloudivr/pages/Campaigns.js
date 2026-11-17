@@ -27,11 +27,11 @@ import { VoicemailScript } from './VoicemailScript';
 import { Assist } from '../Assist';
 import { OutboundFlow } from './number/IvrFlow';
 
-const CAMPAIGN_LABELS = { name: 'Name', script: 'Script', mode: 'Key press action', transferNumber: 'Transfer to', transferBackups: 'Backups', activeKeys: 'Keys', menu: 'Key menu', concurrency: 'Calls at once', holdMusic: 'Hold music', repeat: 'Repeat', dailyLimit: 'Daily limit' };
+const CAMPAIGN_LABELS = { name: 'Name', script: 'Script', mode: 'Key press action', transferNumber: 'Transfer to', transferBackups: 'Backups', activeKeys: 'Keys', stopKey: 'Stop-calls key', menu: 'Key menu', concurrency: 'Calls at once', holdMusic: 'Hold music', repeat: 'Repeat', dailyLimit: 'Daily limit' };
 const CAMPAIGN_EXAMPLES = ['Remind my patients about their appointment tomorrow, press 1 to reach the front desk', 'Announce our weekend sale, press 1 to talk to sales at +14155550100', 'Call every Monday, max 200 calls a day'];
 
 function CampaignAssist({ f, setF, script, setScript }) {
-  const current = { name: f.name, script: script?.text || '', mode: f.mode, transferNumber: f.transferNumber, transferBackups: f.transferBackups, activeKeys: f.activeKeys, menu: f.menu, concurrency: f.concurrency, holdMusic: f.holdMusic, repeat: f.repeat, dailyLimit: f.dailyLimit };
+  const current = { name: f.name, script: script?.text || '', mode: f.mode, transferNumber: f.transferNumber, transferBackups: f.transferBackups, activeKeys: f.activeKeys, stopKey: f.stopKey || '', menu: f.menu, concurrency: f.concurrency, holdMusic: f.holdMusic, repeat: f.repeat, dailyLimit: f.dailyLimit };
   const apply = ({ script: s, ...p }) => {
     if (s !== undefined) setScript(s ? (x) => ({ values: {}, ...(x || {}), templateKey: '', text: s }) : null);
     setF(x => ({ ...x, ...p, ...(s ? { audioId: '' } : {}) }));
@@ -330,7 +330,7 @@ export function CampaignNew() {
       if (!isAi && f.vmMode === 'other' && !f.voicemailAudioId) throw new Error('Pick the clip to leave on voicemail, or choose “Leave my message”.');
       const scheduledFor = f.scheduledFor ? new Date(f.scheduledFor).toISOString() : null;
       const plan = { repeat: f.repeat || null, dailyLimit: f.dailyLimit === '' ? null : Number(f.dailyLimit), tz: TZ };
-      const base = { ...f, ...audience, source: undefined, callerId, callerIds: f.callerIds?.length ? f.callerIds : undefined, showAs: f.showAs || undefined, menu: f.mode === 'menu' ? menuToApi(f.menu) : undefined, scheduledFor, ...plan };
+      const base = { ...f, stopKey: f.mode === 'menu' ? undefined : (f.stopKey || undefined), ...audience, source: undefined, callerId, callerIds: f.callerIds?.length ? f.callerIds : undefined, showAs: f.showAs || undefined, menu: f.mode === 'menu' ? menuToApi(f.menu) : undefined, scheduledFor, ...plan };
       const audioId = !isAi && !f.audioId && script ? await scriptAudio(() => api('/campaigns', { method: 'POST', body: { ...base, validateOnly: true, audioPending: true } })) : f.audioId;
       const body = isAi ? { mode: 'ai', name: f.name, agentId: f.agentId, callerId, callerIds: f.callerIds?.length ? f.callerIds : undefined, showAs: f.showAs || undefined, ...audience, concurrency: f.concurrency, scheduledFor, ...plan }
         : { ...base, vmMode: undefined, audioId, voicemailAudioId: f.vmMode === 'main' ? audioId : f.vmMode === 'other' ? f.voicemailAudioId : f.vmMode === 'script' ? vmScript.audioId : '' };
@@ -349,7 +349,7 @@ export function CampaignNew() {
       <CampaignKind value={kind} onChange={setKind} aiLocked={aiLocked} />
       <form onSubmit={create} className="grid lg:grid-cols-2 gap-4" {...u.bind}>
         {!isAi && <CampaignAssist f={f} setF={setF} script={script} setScript={setScript} />}
-        {!isAi && <div className="lg:col-span-2"><OutboundFlow kind="campaign" testid="campaign-flow" readyLabel="Ready to save" config={{ name: f.name, script: script?.text || '', mode: f.mode, transferNumber: f.transferNumber, activeKeys: f.activeKeys, menu: f.menu, holdMusic: f.holdMusic }} context={{ hasAudio: !!f.audioId, ...(est ? { contacts: est.count } : {}) }} /></div>}
+        {!isAi && <div className="lg:col-span-2"><OutboundFlow kind="campaign" testid="campaign-flow" readyLabel="Ready to save" config={{ name: f.name, script: script?.text || '', mode: f.mode, transferNumber: f.transferNumber, activeKeys: f.activeKeys, stopKey: f.stopKey || '', menu: f.menu, holdMusic: f.holdMusic }} context={{ hasAudio: !!f.audioId, ...(est ? { contacts: est.count } : {}) }} /></div>}
         <div className="civr-card p-6 space-y-6">
           <Field label="Campaign name (optional)" hint="Shown in your campaign list and reports. Leave empty to use the message name."><input className="civr-input" maxLength={80} value={f.name} onChange={set('name')} placeholder="e.g. June follow-ups" data-testid="campaign-name-input" /></Field>
           <Field label="Caller ID"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="campaign-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{n.phoneNumber}</option>)}</select></Field>
@@ -379,7 +379,7 @@ export function CampaignNew() {
           </Field>
           {f.mode === 'transfer' && <Field label="Transfer to"><input className="civr-input font-mono" value={f.transferNumber} onChange={set('transferNumber')} placeholder="+14155550199" data-testid="campaign-transfer-input" /></Field>}
           {f.mode === 'transfer' && <BackupsField value={f.transferBackups} onChange={set('transferBackups')} testid="campaign-backups-input" />}
-          {f.mode === 'menu' ? <MenuBuilder value={f.menu} onChange={set('menu')} testid="campaign-menu" /> : <Field label="Keys that count"><KeyPicker value={f.activeKeys} onChange={set('activeKeys')} testid="campaign-keys" /></Field>}
+          {f.mode === 'menu' ? <MenuBuilder value={f.menu} onChange={set('menu')} testid="campaign-menu" /> : <><Field label="Keys that count"><KeyPicker value={f.activeKeys} onChange={set('activeKeys')} testid="campaign-keys" /></Field><Field label="Stop-calls key" hint="If someone presses it, they go on your do-not-call list and are told they won't be called again."><select className="civr-input" value={f.stopKey || ''} onChange={e => setF(x => ({ ...x, stopKey: e.target.value }))} data-testid="campaign-stop-key"><option value="">None</option>{['9', '8', '7', '6', '5', '4', '3', '2', '0'].map(k => <option key={k} value={k}>Key {k}</option>)}</select></Field></>}
           </>}
           <ConcurrencyField ids={f.callerIds?.length ? f.callerIds.length + 1 : 0} value={f.concurrency} onChange={set('concurrency')} />
           <Field label="Schedule (optional)" hint={f.repeat ? 'First run. Leave empty to start it yourself — the next runs follow at the same time. You’re notified in Inbox when each run starts and when it finishes.' : 'Leave empty to start manually. Scheduled campaigns start by themselves — you’re notified in Inbox when calling starts and when it finishes.'}><DateTimePicker value={f.scheduledFor} onChange={set("scheduledFor")} minMinutes={2} testid="campaign-schedule" /></Field>

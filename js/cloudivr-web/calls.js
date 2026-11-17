@@ -18,7 +18,7 @@ const { notInService } = require('../bulk-call-service')
 const KEYS = /^[0-9*#]$/
 
 const publicCampaign = (c, withLeads = false) => ({
-  id: c.id, name: c.name || null, callerId: c.callerId, showAs: c.showAs || null, audioName: c.audioName, mode: c.menu ? 'menu' : c.mode, menu: c.menu || null, transferNumber: c.transferNumber, transferBackups: c.transferBackups || [], activeKeys: c.activeKeys,
+  id: c.id, name: c.name || null, callerId: c.callerId, showAs: c.showAs || null, audioName: c.audioName, mode: c.menu ? 'menu' : c.mode, menu: c.menu || null, stopKey: c.stopKey || null, transferNumber: c.transferNumber, transferBackups: c.transferBackups || [], activeKeys: c.activeKeys,
   concurrency: c.concurrency, callerPool: c.callerPool || null, status: c.status, stats: c.stats, scheduledFor: c.scheduledFor, startedAt: c.startedAt, completedAt: c.completedAt,
   createdAt: c.createdAt, cancelledReason: c.cancelledReason || null, pausedReason: c.pausedReason || null, dryRun: !!c.dryRun,
   agentId: c.agentId || null, agentName: c.agentName || null, waitingForHours: !!c.waitingForHours,
@@ -174,12 +174,14 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     const bk = mode === 'transfer' ? parseBackups(b.transferBackups, [transferNumber, c.n.phoneNumber]) : { list: [] }
     if (bk.error) return bad(res, 400, 'invalid_backup', bk.error)
+    const stopKey = /^[0-9]$/.test(String(b.stopKey ?? '')) && !menu ? String(b.stopKey) : null
+    if (stopKey && activeKeys.includes(stopKey)) return bad(res, 400, 'invalid_stop_key', `Key ${stopKey} is already used for something else — pick a different stop key.`)
     const plan = runPlan(b)
     if (plan.err) return bad(res, ...plan.err)
     if (b.validateOnly) return res.json({ ok: true })
     const params = {
       chatId, callerId: c.n.phoneNumber, showAs, callerPool: rot.pool, audioUrl: audio.audioUrl, audioName: audio.name, name: b.name, mode, transferNumber, transferBackups: bk.list, menu,
-      activeKeys, concurrency: Math.max(1, parseInt(b.concurrency, 10) || 20), poolShare: true, holdMusic: !!b.holdMusic,
+      activeKeys, stopKey, concurrency: Math.max(1, parseInt(b.concurrency, 10) || 20), poolShare: true, holdMusic: !!b.holdMusic,
       leads, scheduledFor: plan.scheduledFor, repeat: plan.repeat, dailyLimit: plan.dailyLimit, tz: plan.tz, provider: showAs ? 'multitel' : 'telnyx', voicemailAudioUrl: vm?.audioUrl || null, voicemailAudioName: vm?.name || null,
     }
     // Over 500 numbers → parts of 500 run one after another (no repeat for split lists).

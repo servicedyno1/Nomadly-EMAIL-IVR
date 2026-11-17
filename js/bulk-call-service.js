@@ -859,7 +859,7 @@ function parseLeadsFile(content, fileName, opts) {
 async function createCampaign(params) {
   if (require('./phone-config').bulkIvrMaintenance()) return { error: 'maintenance', maintenance: true }
   require('./scam-watch').watch({ chatId: params.chatId, where: 'Call campaign', data: { name: params.name, audioName: params.audioName, agentName: params.agentName, menu: params.menu, voicemailAudioName: params.voicemailAudioName } })
-  const { chatId, callerId, showAs, audioUrl, audioName, mode, transferNumber, transferBackups, menu, activeKeys, concurrency, holdMusic, leads, twilioSubAccountSid, twilioSubAccountToken, scheduledFor, provider, voicemailAudioUrl, voicemailAudioName, agentId, agentName, repeat, dailyLimit, tz } = params
+  const { chatId, callerId, showAs, audioUrl, audioName, mode, transferNumber, transferBackups, menu, activeKeys, stopKey, concurrency, holdMusic, leads, twilioSubAccountSid, twilioSubAccountToken, scheduledFor, provider, voicemailAudioUrl, voicemailAudioName, agentId, agentName, repeat, dailyLimit, tz } = params
 
   // ━━━ Enforce max lead limit ━━━
   if (leads.length > MAX_BULK_LEADS) {
@@ -889,6 +889,7 @@ async function createCampaign(params) {
     transferBackups: Array.isArray(transferBackups) && transferNumber ? transferBackups.slice(0, 4) : [],
     menu: menu || null,
     activeKeys: activeKeys || ['1'],
+    stopKey: stopKey || null,
     concurrency: Math.min(concurrency || 10, 20),
     // Rotation: bots = one call per caller ID (calls at once = pool size); web (poolShare) = the customer's
     // calls-at-once shared across the IDs (1–20, or up to one per ID when they rotate more than 20, max 50).
@@ -1278,6 +1279,7 @@ function dialTelnyx(campaign, lead) {
     menu: campaign.menu || null,
     audioUrl,
     activeKeys: campaign.activeKeys || ['1'],
+    stopKey: campaign.menu ? null : (campaign.stopKey || null),
     templateName: campaign.audioName,
     holdMusic: !!campaign.holdMusic,
     voicemailAudioUrl: /^https?:\/\//i.test(campaign.voicemailAudioUrl || '') ? campaign.voicemailAudioUrl : null,
@@ -1913,7 +1915,7 @@ async function createFollowup(campaignId, chatId, kind, { at = null, start = fal
   const leads = ENG.followupLeads(c, kind)
   if (!leads.length) return { error: kind === 'listeners' ? 'No one listened 30s+ without pressing a key.' : 'Every number answered — nothing to re-call.' }
   const e = ENG.engagementOf(c), when = at === 'best' ? ENG.bestTimeTomorrow(e) : null
-  const keep = ['chatId', 'callerId', 'showAs', 'callerPool', 'poolShare', 'audioUrl', 'audioName', 'mode', 'transferNumber', 'transferBackups', 'menu', 'activeKeys', 'concurrency', 'holdMusic', 'twilioSubAccountSid', 'twilioSubAccountToken', 'provider', 'voicemailAudioUrl', 'voicemailAudioName', 'agentId', 'agentName', 'tz', 'dryRun']
+  const keep = ['chatId', 'callerId', 'showAs', 'callerPool', 'poolShare', 'audioUrl', 'audioName', 'mode', 'transferNumber', 'transferBackups', 'menu', 'activeKeys', 'stopKey', 'concurrency', 'holdMusic', 'twilioSubAccountSid', 'twilioSubAccountToken', 'provider', 'voicemailAudioUrl', 'voicemailAudioName', 'agentId', 'agentName', 'tz', 'dryRun']
   const params = Object.fromEntries(keep.filter(k => c[k] !== undefined).map(k => [k, c[k]]))
   const label = kind === 'listeners' ? 'listeners' : 'unanswered'
   const nc = await createCampaign({ ...params, callerPool: c.callerPool?.length ? c.callerPool : undefined, name: `${(c.name || 'Campaign').slice(0, 60)} — ${label}`, leads: leads.slice(0, MAX_BULK_LEADS), ...(when ? { scheduledFor: when } : {}) })

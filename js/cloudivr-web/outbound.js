@@ -258,9 +258,11 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (mode === 'otp' && !audio && !/press\s*1\b/i.test(text || '')) {
       text = `${(text || '').trim()} To continue, press 1 now.`.trim()
     }
+    const stopKey = mode === 'transfer' && !menu && !trial && /^[0-9]$/.test(String(b.stopKey ?? '')) ? String(b.stopKey) : null
+    if (stopKey && activeKeys.includes(stopKey)) return { err: [400, 'invalid_stop_key', `Key ${stopKey} is already used to connect the call — pick a different stop key.`] }
     return {
       cfg: {
-        callerId, showAs, callerPlan: caller?.plan || null, targets, mode, menu, transferTo, transferBackups, otp, activeKeys, holdMusic: !!b.holdMusic && (mode === 'otp' || !trial),
+        stopKey, callerId, showAs, callerPlan: caller?.plan || null, targets, mode, menu, transferTo, transferBackups, otp, activeKeys, holdMusic: !!b.holdMusic && (mode === 'otp' || !trial),
         audioId: audio?.id || null, audioUrl: audio?.audioUrl || null, text, voiceName, templateName: String(b.templateName || audio?.name || 'Custom script').slice(0, 80),
       },
     }
@@ -269,7 +271,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   const rateOf = (cfg) => Math.max(...cfg.targets.map(t => voiceService.getIvrCallRate(t)), cfg.transferTo ? voiceService.getIvrCallRate(cfg.transferTo) : 0)
   const engineParams = (chatId, cfg, to, trial) => ({
     chatId, callerId: cfg.callerId, displayCallerId: cfg.showAs || null, targetNumber: to, ivrNumber: cfg.menu ? firstForward(cfg.menu) : cfg.transferTo || null, transferBackups: cfg.menu || cfg.mode === 'otp' ? [] : (cfg.transferBackups || []), menu: cfg.menu,
-    audioUrl: cfg.audioUrl, greetingText: cfg.audioUrl ? null : cfg.text, voiceName: cfg.voiceName || undefined, activeKeys: cfg.activeKeys, templateName: cfg.templateName,
+    audioUrl: cfg.audioUrl, greetingText: cfg.audioUrl ? null : cfg.text, voiceName: cfg.voiceName || undefined, activeKeys: cfg.activeKeys, stopKey: cfg.stopKey || null, templateName: cfg.templateName,
     holdMusic: cfg.holdMusic, provider: cfg.showAs ? 'multitel' : 'telnyx', isTrial: !!trial, ivrMode: cfg.mode === 'otp' ? 'otp_collect' : 'transfer',
     otpLength: cfg.otp?.length || 6, otpMaxAttempts: 3, otpConfirmMsg: cfg.otp?.confirmMsg || null, otpRejectMsg: cfg.otp?.rejectMsg || null,
   })

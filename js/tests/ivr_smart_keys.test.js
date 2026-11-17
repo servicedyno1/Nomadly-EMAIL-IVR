@@ -86,6 +86,32 @@ const open = (id) => { vs.activeCalls[id] = { num: { phoneNumber: '+13346970100'
     ok(!so.queue && acts.some(x => x.name === 'speak' && want.test(String(x.a[1]))) && !acts.some(x => x.name === 'hangup' && x.a[0] === id), `queue: overflow to ${name} (${acts.filter(x => x.name === 'speak').map(x => String(x.a[1]).slice(0, 40))})`)
     if (name === 'another phone') { acts.length = 0; await ev('call.speak.ended', { call_control_id: id }); ok(dials()[0] === '+14155550177', 'queue: overflow phone is dialled') }
   }
+  // ── queue callback offer ──
+  for (const [name, digit] of [['asks for a call back', '1'], ['keeps waiting', '']]) {
+    const id = `qc-${digit || 'none'}`; const sc = open(id); sc.num = { ...sc.num, features: { ivr: { ...ivr, options: { 9: { ...ivr.options[9], callback: true, maxWait: 300 } } } } }
+    await press(id, '9'); acts.length = 0; await ev('call.speak.ended', { call_control_id: id })
+    const lg = acts.find(x => x.name === 'dial')?.a[2]; sc.transferBackups = []
+    acts.length = 0; await ev('call.hangup', { call_control_id: lg, hangup_cause: 'no_answer' })
+    ok(sc.queue?.offering && /Press 1 and we will call you back/.test(String(last('gather')?.a[1])) && !dials().length, `queue callback: offered between rounds, nobody rung yet (${name})`)
+    msgs.length = 0; await press(id, digit)
+    if (digit === '1') ok(!sc.queue && sc.callbackRequested && /call you back/.test(String(last('speak')?.a[1])) && !dials().length, 'queue callback: pressing 1 ends the wait and confirms; no more ringing')
+    else ok(sc.queue && !sc.queue.offering && dials().length === 1 && acts.some(x => x.name === 'play'), 'queue callback: no key → hold music and the team rings again')
+  }
+  { const id = 'qc-off'; const sc = open(id); await press(id, '9'); acts.length = 0; await ev('call.speak.ended', { call_control_id: id }); const lg = acts.find(x => x.name === 'dial')?.a[2]; sc.transferBackups = []; sc.queue.maxWait = 300000
+    acts.length = 0; await ev('call.hangup', { call_control_id: lg, hangup_cause: 'no_answer' })
+    ok(!sc.queue.offering && !last('gather') && /stay on the line/.test(String(last('speak')?.a[1])), 'queue callback: off by default — plain update, no offer') }
+  // ── outbound stop-calls key ──
+  const dncAdds = []; const store = require('../../js/ai-agent').store; const realAdd = store.addDnc
+  store.addDnc = async (chatId, number, reason) => { dncAdds.push([chatId, number, reason]); return {} }
+  const ob = (id, extra) => { vs.outboundIvrCalls[id] = { chatId: 'u1', callerId: '+13346970100', targetNumber: '+14155550188', ivrNumber: '+14155550100', activeKeys: ['1'], stopKey: '9', phase: 'playing', greetingText: 'Hi', startedAt: new Date(), ...extra }; return vs.outboundIvrCalls[id] }
+  let o1 = ob('ob1'); await press('ob1', '9')
+  ok(o1.optedOut && dncAdds.length === 1 && dncAdds[0][1] === '+14155550188' && /not receive these calls again/.test(String(last('speak')?.a[1])) && !acts.some(x => x.name === 'transfer' || x.name === 'dial'), 'stop key: number goes on the do-not-call list, caller is told, nobody is connected')
+  o1 = ob('ob2', { bulkMode: 'report_only' }); await press('ob2', '9'); ok(o1.optedOut && dncAdds.length === 2, 'stop key: works on a record-only campaign call too')
+  o1 = ob('ob3'); await press('ob3', '1'); ok(!o1.optedOut && dncAdds.length === 2 && o1.phase === 'transferring', 'stop key: the connect key still connects')
+  o1 = ob('ob4', { stopKey: null }); await press('ob4', '9'); ok(!o1.optedOut && dncAdds.length === 2, 'stop key: off by default — 9 does nothing special')
+  store.addDnc = async () => { throw new Error('db down') }
+  o1 = ob('ob5'); await press('ob5', '9'); ok(o1.optedOut && !/not receive these calls again/.test(String(last('speak')?.a[1])) && msgs.some(m => /saving it failed/.test(m)), 'stop key: if saving fails the caller is NOT told they are removed and the owner is alerted')
+  store.addDnc = realAdd
   // caller gives up while waiting → nothing more is dialled
   const s4 = open('q4'); await press('q4', '9'); acts.length = 0; await ev('call.speak.ended', { call_control_id: 'q4' })
   l = acts.find(x => x.name === 'dial')?.a[2]; s4.transferBackups = []

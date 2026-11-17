@@ -24,11 +24,11 @@ import { ShowAsSelect } from '../CallerIdPick';
 import { Assist } from '../Assist';
 import { OutboundFlow } from './number/IvrFlow';
 
-const QUICK_LABELS = { targets: 'Numbers to call', script: 'Script', mode: 'Key press action', transferTo: 'Connect to', transferBackups: 'Backups', activeKeys: 'Keys', otp: 'Code settings', menu: 'Key menu', holdMusic: 'Hold music' };
+const QUICK_LABELS = { targets: 'Numbers to call', script: 'Script', mode: 'Key press action', transferTo: 'Connect to', transferBackups: 'Backups', activeKeys: 'Keys', stopKey: 'Stop-calls key', otp: 'Code settings', menu: 'Key menu', holdMusic: 'Hold music' };
 const QUICK_EXAMPLES = ['Remind Sarah at +14155550123 about her 3pm appointment, press 1 to reach me at +14155550100', 'Ask customers to confirm their delivery with a 6-digit code', 'Press 1 for sales, 2 for support'];
 
 function QuickAssist({ f, setF, can, caller }) {
-  const current = { targets: f.targets, script: f.script.text, mode: f.mode, transferTo: f.transferTo, transferBackups: f.transferBackups, activeKeys: f.activeKeys, otp: f.otp, menu: f.menu, holdMusic: f.holdMusic };
+  const current = { targets: f.targets, script: f.script.text, mode: f.mode, transferTo: f.transferTo, transferBackups: f.transferBackups, activeKeys: f.activeKeys, stopKey: f.stopKey || '', otp: f.otp, menu: f.menu, holdMusic: f.holdMusic };
   const apply = ({ script, ...p }) => setF(x => ({ ...x, ...p, ...(script !== undefined ? { source: 'script', script: { ...x.script, templateKey: '', text: script } } : {}) }));
   return <Assist screen="quick" title="Set up this call by chatting" hello="Tell me who to call and what the call should do — I’ll write the script and set the keys. You still press Place call yourself." examples={QUICK_EXAMPLES} current={current} context={{ callFrom: caller?.phoneNumber, plan: caller?.planName, ownConfirmRejectMessages: !!can.otpCustomMessages, canSchedule: !!can.ivrSchedule }} onApply={apply} labels={QUICK_LABELS} saveLabel={f.scheduleAt ? 'Schedule call' : 'Place call'} testid="quick-assist" />;
 }
@@ -45,7 +45,7 @@ const Pill = ({ on, onClick, children, testid, locked }) => <button type="button
 
 function toBody(f, callerId) {
   const msg = f.source === 'audio' ? { audioId: f.audioId } : { text: fillScript(f.script.text, f.script.values), voice: f.voice || undefined, templateName: f.script.templateName || 'Custom script' };
-  const action = f.mode === 'otp' ? { otp: f.otp, transferTo: f.transferTo } : f.mode === 'menu' ? { menu: menuToApi(f.menu) } : { transferTo: f.transferTo, transferBackups: f.transferBackups, activeKeys: f.activeKeys };
+  const action = f.mode === 'otp' ? { otp: f.otp, transferTo: f.transferTo } : f.mode === 'menu' ? { menu: menuToApi(f.menu) } : { transferTo: f.transferTo, transferBackups: f.transferBackups, activeKeys: f.activeKeys, stopKey: f.stopKey || undefined };
   return { callerId, showAs: f.showAs || undefined, targets: f.targets, holdMusic: f.holdMusic, mode: f.mode === 'otp' ? 'otp' : 'transfer', ...msg, ...action, ...(f.scheduleAt ? { scheduleAt: new Date(f.scheduleAt).toISOString() } : {}) };
 }
 
@@ -96,6 +96,7 @@ function Answer({ f, set, can, phone }) {
         <Field label="Connect to (when they press a key)"><input className="civr-input font-mono" value={f.transferTo} onChange={e => set({ transferTo: e.target.value })} placeholder="+14155550199" data-testid="quick-call-transfer-input" /></Field>
         <BackupsField value={f.transferBackups} onChange={(v) => set({ transferBackups: v })} testid="quick-call-backups-input" />
         <Field label="Keys that connect"><KeyPicker value={f.activeKeys} onChange={(v) => set({ activeKeys: v })} testid="quick-call-keys" /></Field>
+        <Field label="Stop-calls key" hint="If someone presses it, they go on your do-not-call list and are told they won't be called again."><select className="civr-input" value={f.stopKey || ''} onChange={e => set({ stopKey: e.target.value })} data-testid="quick-call-stop-key"><option value="">None</option>{['9', '8', '7', '6', '5', '4', '3', '2', '0'].map(k => <option key={k} value={k}>Key {k}</option>)}</select></Field>
         <div className="flex items-center justify-between"><span className="text-sm">Hold music while connecting</span><Toggle checked={f.holdMusic} onChange={(v) => set({ holdMusic: v })} testid="quick-call-hold-music-toggle" label="Hold music while connecting" /></div>
       </>}
       {f.mode === 'otp' && <div className="space-y-4" data-testid="quick-otp-fields">
@@ -160,7 +161,7 @@ export default function QuickCall() {
           <form onSubmit={go} className="xl:col-span-2 space-y-4" data-testid="quick-call-form">
             <DraftBanner draft={draft} onResume={(d) => { setF({ ...EMPTY, ...d }); toast.success('Draft restored'); }} />
             <QuickAssist f={f} setF={setF} can={can} caller={caller} />
-            <OutboundFlow kind="quick" testid="quick-flow" readyLabel="Ready to place" config={{ targets: f.targets, script: f.script.text, mode: f.mode, transferTo: f.transferTo, activeKeys: f.activeKeys, otp: f.otp, menu: f.menu, holdMusic: f.holdMusic }} context={{ hasAudio: f.source === 'audio' && !!f.audioId }} />
+            <OutboundFlow kind="quick" testid="quick-flow" readyLabel="Ready to place" config={{ targets: f.targets, script: f.script.text, mode: f.mode, transferTo: f.transferTo, activeKeys: f.activeKeys, stopKey: f.stopKey || '', otp: f.otp, menu: f.menu, holdMusic: f.holdMusic }} context={{ hasAudio: f.source === 'audio' && !!f.audioId }} />
             <Section n="1" title="Who to call">
               <Field label="Call from"><select className="civr-input font-mono" value={caller.phoneNumber} onChange={e => set({ callerId: e.target.value })} data-testid="quick-call-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{`${n.phoneNumber} · ${n.planName}`}</option>)}</select></Field>
               <ShowAsSelect value={f.showAs} onChange={(v) => set({ showAs: v })} from={caller?.phoneNumber} testid="quick-call-show-as-select" />

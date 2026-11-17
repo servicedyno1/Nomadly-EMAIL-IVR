@@ -127,6 +127,7 @@ function simulate(ivr, ctx = {}) {
       if (o.action === 'queue' && out) {
         add(`${where}Key ${o.digit} → queue`, 'another caller is already waiting', o.announcePosition === false ? 'waits on hold music' : 'is told their place in the queue, then waits on hold music', true)
         add(`${where}Key ${o.digit} → queue`, 'caller hangs up while waiting', 'the ringing stops', true)
+        if (o.callback === true) add(`${where}Key ${o.digit} → queue`, 'presses 1 when offered a call back', 'the call ends and you get a message with their number to call back yourself', true)
       }
       if (o.action === 'submenu' && depth < MAX_SUB_DEPTH) {
         const subs = subList(o)
@@ -207,6 +208,7 @@ function outbound(kind, c = {}, ctx = {}) {
   const keys = (Array.isArray(c.activeKeys) ? c.activeKeys : []).map(String)
   const menu = optList(c.menu)
   const says = (k) => new RegExp(`\\b(${k}|${['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'][Number(k)]})\\b`, 'i').test(script)
+  const stopKey = /^[0-9]$/.test(String(c.stopKey ?? '')) && (mode === 'transfer' || mode === 'report_only') && !menu.length ? String(c.stopKey) : ''
   const targets = String(Array.isArray(c.targets) ? c.targets.join(',') : c.targets || '').split(/[\s,;]+/).filter(Boolean)
 
   if (!script && !hasAudio) err('message', kind === 'campaign' ? 'Write the message (or pick an audio file) people will hear.' : 'Write the script the call reads out.')
@@ -216,11 +218,22 @@ function outbound(kind, c = {}, ctx = {}) {
   } else {
     if (ctx.contacts === 0) err('contacts', 'Choose or upload the list of people to call.')
     if (typeof ctx.balance === 'number' && ctx.balance < 20) warn('wallet', 'A campaign needs about $20 in the wallet to start — add funds so it does not pause.')
-    warn('contacts', 'Only call people who agreed to hear from you, and add anyone who asks to stop to your Do not call page — campaigns skip those numbers. Rules differ by country.')
+    warn('contacts', 'Only call people who agreed to hear from you. Rules differ by country.')
+    if (!stopKey && (mode === 'transfer' || mode === 'report_only')) warn('keys', 'No stop-calls key is set. Consider one (for example 9) so people can take themselves off your list.')
   }
-  // A key that promises to stop calls does nothing of the sort: no key press adds a number to the do-not-call list.
-  const stopKey = (script.match(/press\s+(\d|zero|one|two|three|four|five|six|seven|eight|nine)\b[^.!?]{0,40}\b(stop|opt.?out|unsubscribe|remove|no more calls)|\b(stop|opt.?out|unsubscribe|be removed)\b[^.!?]{0,40}press\s+(\d|zero|one|two|three|four|five|six|seven|eight|nine)\b/i) || [])
-  if (stopKey.length) err('message', 'The message promises a key that stops future calls, but no key does that. Remove that line — add people who ask to stop to your Do not call page instead.')
+  // A script may promise a stop key only when that exact key is set as the stop-calls key.
+  const NUM = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
+  const KEYW = '(\\d|zero|one|two|three|four|five|six|seven|eight|nine)'
+  const STOPW = /\b(stop|opt.?out|unsubscribe|removed?|no more calls)\b/i
+  const digitOf = (w) => (NUM.indexOf(String(w).toLowerCase()) >= 0 ? String(NUM.indexOf(String(w).toLowerCase())) : String(w))
+  let promised = ''
+  // "press 9 to stop…": the words between this "press X" and the next "press" / end of sentence
+  for (const x of script.matchAll(new RegExp(`press\\s+${KEYW}\\b([^.!?]*?)(?=press\\s|[.!?]|$)`, 'gi'))) if (STOPW.test(x[2])) { promised = digitOf(x[1]); break }
+  // "to stop these calls, press nine"
+  if (!promised) { const r = script.match(new RegExp(`\\b(?:stop|opt.?out|unsubscribe|be removed)\\b[^.!?]{0,40}?press\\s+${KEYW}\\b`, 'i')); if (r) promised = digitOf(r[1]) }
+  if (promised && promised !== stopKey) err('message', stopKey ? `The message says key ${promised} stops future calls, but the stop-calls key is ${stopKey}.` : `The message promises that key ${promised} stops future calls, but no stop-calls key is set. Set the stop-calls key to ${promised}, or remove that line.`)
+  if (stopKey && keys.includes(stopKey)) err('keys', `Key ${stopKey} is both a normal key and the stop-calls key — pick a different one.`)
+  if (stopKey && script && !promised) warn('message', `The stop-calls key is ${stopKey}, but the message never tells people to press it.`)
   if (mode === 'transfer') {
     if (!isPhone(to)) err('connect to', 'Add the phone number people are connected to when they press a key.')
     if (!keys.length) err('keys', 'Choose which key connects the call (e.g. 1).')
@@ -262,6 +275,7 @@ function outbound(kind, c = {}, ctx = {}) {
     }
     if (menu.length) walk(menu, '', 0); else t('Menu', 'press any key', '⚠ no keys set', false)
   }
+  if (stopKey) t(`Key ${stopKey}`, `press ${stopKey}`, 'is put on your do-not-call list and told they will not be called again; nobody is connected')
   t('No key', 'presses nothing', 'nobody is connected; the call ends')
   t('No answer', 'does not pick up', 'nothing is played; shown as not answered in your results')
 
@@ -273,6 +287,7 @@ function outbound(kind, c = {}, ctx = {}) {
   add('greeting', 'greeting', 'Message', script ? script.slice(0, 120) : hasAudio ? 'Audio file' : 'not written yet'); link('incoming', 'greeting')
   if (mode === 'transfer') for (const k of keys) link('greeting', add(`k${k}`, 'forward', 'Connect', isPhone(to) ? fmt(to) : 'no number set'), `Key ${k}`)
   if (mode === 'report_only') link('greeting', add('report', 'message', 'Record the key press', 'shown in your results'), keys.length ? `Key ${keys.join(', ')}` : 'Any key')
+  if (stopKey) link('greeting', add('stop', 'stop', 'Stop these calls', 'added to your do-not-call list'), `Key ${stopKey}`)
   if (mode === 'otp') { link('greeting', add('code', 'collect', 'Type a code', `${c.otp?.length || 6} digits`), 'Key 1'); link('code', add('review', 'pin', 'You accept or decline', ''), ''); if (isPhone(to)) link('review', add('conn', 'forward', 'Connect', fmt(to)), 'accepted') }
   if (mode === 'menu') {
     const walk = (opts, parent, prefix, depth) => { for (const o of opts) {
