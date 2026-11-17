@@ -1,0 +1,36 @@
+{
+  "summary": "Tested the Replay option on the Accept/Decline pop-up (backend + UI), saving replayMessage, Quick IVR code calls with Replay in preview, the extension row layout and the light-theme code colour. The main features all pass. Also tried Emily (optional): the Spanish voicemail sub-menu and key 4 smsFrom are correct, but she still adds after-hours lines nobody asked for.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/assist/ivr", "issue": "Asked 'add a Spanish option on key 9 that takes a voicemail'. The reply still had the summary line 'After hours menu: disabled', the missing note 'The after-hours menu only plays once your Hours schedule is on (Hours tab).' and an 'After-hours menu' chip. Cause: the frontend sends current.afterHours = {enabled:false, greeting:'', greetingAudioUrl:null, options:[]}, but clean()/afterHoursOf leaves greetingAudioUrl out of the patch. So sameAs(patch.afterHours, current.afterHours) is false, and `!current?.afterHours` is also false because it is an object. The 'echoed' filter in assist.js line 444 never drops it. Fix: run current.afterHours through afterHoursOf before comparing, or treat 'disabled with no options' on both sides as echoed."},
+      {"endpoint": "POST /api/cloudivr-web/assist/ivr", "issue": "readiness.stillNeeded says 'Key 4: This key texts the caller, but you have no Texting Number yet' even though key 4 has smsFrom mn_ab01, Alice owns that Texting Number, and the IVR saves without error. The context the frontend sends has textingNumbers: [] and textingOn: false, so the readiness check doesn't see the eSIM-line texting number. The chat's own 'missing' list no longer shows this, so it only reaches users through readiness."},
+      {"endpoint": "Quick IVR simulator (otpSim.decide)", "issue": "In preview, the typed Replay/Decline message is not used or stored. Fine for a dry run, but there is no way to confirm the live message there. The live path (resolveOtp message) is covered only by unit tests."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "IVR Extensions row at 1280px", "issues": ["The row stays on one line, but the name input ('Name, e.g. A…') and phone input ('+141555501…') are squeezed, so their placeholders are cut off. The side 'Call flow' column takes the space. Consider a min width for the phone input, or a narrower action select."]},
+      {"screen": "Global otp-alert banner", "issues": ["It covers the top of the page content, including the IVR form while you preview it. Acceptable, since 'Answer later' hides it."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_ivr_replay_iter313.py", "/app/test_reports/pytest/pytest_iter313.xml"],
+  "action_items": [
+    "Emily IVR assist: normalise current.afterHours (and extensions) with the same cleaner before the sameAs echo check. Then an untouched afterHours {enabled:false, greetingAudioUrl:null, options:[]} doesn't produce summary lines, the 'Hours schedule' missing note or the 'After-hours menu' chip.",
+    "Emily readiness: add eSIM/Texting Numbers (e.g. mn_ab01) to context.textingNumbers, or check smsFrom against the account's lines, so key 4 isn't flagged with 'no Texting Number yet'.",
+    "Optional: give the Extensions phone input a min width at 1280 so placeholders aren't cut off."
+  ],
+  "critical_code_review_comments": [
+    "OtpAlerts hides by `${id}:${attempt}`, and Replay keeps the attempt, so the same key comes back after a Replay. In testing the banner reappeared correctly when the new code arrived (verified on Quick IVR). Still, keep the key unique per code (e.g. include the holdEndsAt/code) so a Replay never matches an already-hidden key.",
+    "Decide keeps the typed message in local state. When the banner remounts for the next code, the box goes back to the key's default replayMessage, so a live edit doesn't carry over between replays. That may be intended.",
+    "The confirm-preview view is one very long line (ivr-connections.js line 34). Hard to review; split it into a helper."
+  ],
+  "updated_files": ["/app/backend/tests/test_ivr_replay_iter313.py", "/app/backend/tests/alice_ivr_backup_iter313.json"],
+  "success_rate": {"backend": "100% (11/11 pytest; node unit tests ivr_more_keys and fax_ivr_doc_sweep pass)", "frontend": "~95% (all requested flows pass; Emily has the minor after-hours/readiness noise)"},
+  "seed_data_creation": "None. Alice's +13346970100 IVR was backed up to /app/backend/tests/alice_ivr_backup_iter313.json and restored after the UI save test (options match the backup; extensions []). The simulated Quick IVR call to +14155550177 was hung up.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Verified: confirm-preview for pin/collect has canReplay true with replayMessage, onAccept, onDecline and declineTo; webhook has canReplay false (no Replay button, no replay field in setup). Preview replay returns 200 'replayed'; a bad action returns 400 with the exact text; unauthenticated returns 401. replayMessage saves for pin/collect, is dropped for webhook and when confirm is off. Bad forward errors name 'Key 1 (when you press Accept/Decline)'. Quick IVR sim: Replay keeps 'Try 1 of 3' and a new code arrives after ~6s, the banner reappears; Decline moves to Try 2 of 3. Setup UI: field ivr-option-N-confirm-replay-message survives reload; 'Show me the pop-up' sends onAccept/onDecline/replayMessage and the notes read 'Accept: they go back to the menu.' / 'Decline: they can leave a voicemail.'. Extension row is on one line at 1024 and 1280 and wraps at 390 with no sideways scroll. Light theme: otp-alert-code is rgb(217,119,6) on white. Quick IVR needs the 'Permission to call' dialog checkbox and 'Confirm and continue' on first submit. The pending list is at GET /api/cloudivr-web/incoming (field otp)."
+}

@@ -573,3 +573,7 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Fixed: Emily "Spanish option" → language sub-menu; Emily keeps smsFrom/payUrl/payNote on re-proposed keys; chips labels; orphan IVR fax docs swept (>1 day, unreferenced) on save; banner code readable in light theme.
 - Open minor: example pop-up ignores Accept/Decline choices; error text doesn't say Accept vs Decline transfer; Emily adds unasked lines in summaries; extension row wraps on wide screens.
 - Next (approved): personalization ([Name]/[Code]/any column) for web campaigns + Quick IVR, bot Bulk IVR, bot Bulk SMS; then Full team accounts; real calls after GitHub billing fixed.
+
+## 2026-06 update
+- DONE (preview): OTP Replay + live wrong-code message on Accept/Decline pop-up; fax doc cleanup; Emily echo fixes; extension row layout. See CHANGELOG.
+- NEXT: production deploy + controlled real test call of Replay (scripts/ivr_live_probe.js, back up/restore IVR); Emily afterHours echo + readiness texting-line fix; then personalization (web/Quick IVR, Bulk IVR, Bulk SMS) and full team accounts.

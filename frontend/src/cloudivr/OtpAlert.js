@@ -6,7 +6,7 @@ import { usePrivacy } from './privacy';
 import { useRingNotify, useTitleFlash } from './ringAlerts';
 import { Decide } from './pages/quick/Otp';
 
-const keyOf = (o) => `${o.id}:${o.attempt}`;
+const keyOf = (o) => `${o.id}:${o.attempt}:${o.holdEndsAt || ""}:${o.code || ""}`;
 
 // Two short rising beeps when a new code arrives (the page already had a tap, so audio is allowed).
 function chime() {

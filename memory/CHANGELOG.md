@@ -3590,3 +3590,12 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Call-test reviews: scripts/seed_phone_reviews.js — 12 natural approved reviews into phoneReviews; run per brand DB in production. Seeded on preview DB (shows on /api/phone/reviews).
 - Assistant: campaign note now advises topping up credit for large lead lists; IVR sms-key gap already recommends ordering/using a Texting Number and asks which one.
 - PENDING (need production): deploy all; run seed_phone_reviews.js on each brand DB (wl/voodoo/proshop + main); MultiTEL outbound test call ring +13025141000 show +18005146000 (preview is dry-run, can't test here); broadcast "daily SMS limit now 20,000" to all 4 bot users.
+
+## 2026-06 — Replay on the Accept/Decline pop-up (preview only, NOT deployed)
+- Pop-up: Accept / Replay / Decline / Hang up + a "message they hear on Replay or Decline" box (prefilled from setup). Replay plays the message and asks for the code again; unlimited, doesn't use a try. Not shown for webhook keys.
+- Setup: pin/collect keys with Accept/Decline get "Say when I press Replay" (replayMessage). Quick IVR "Said after a wrong code" is the Replay/Decline default.
+- Backend: resolveIvrConfirm(..., message) / resolveOtp(..., message) support 'replay'; owner's live message used on Decline too. confirm-preview shows chosen outcomes. Outcome phone errors say "(when you press Accept/Decline)".
+- Fax keypad docs: replaced doc removed on save; never-saved uploads removed after 6h (hourly sweep in fax maintain).
+- Emily: unchanged keys / echoed extensions not re-questioned. Extensions row one line at md+.
+- Tests: js/tests/ivr_more_keys.test.js (replay), js/tests/fax_ivr_doc_sweep.test.js; iteration_313 passed.
+- Open: Emily still echoes a disabled afterHours (frontend sends greetingAudioUrl:null); readiness ignores eSIM texting lines; extension inputs cramped at 1280; real test call pending a production deploy.
