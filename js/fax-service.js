@@ -970,4 +970,21 @@ const reportCsv = (rows) => ['fax_number,status,reason,pages,cost_usd', ...rows.
 
 const isReady = () => !!_db
 
-module.exports = { readFile, voiceRouting, voiceOnFaxNudge, reasonText, reapplyLine, parseCoverText, addCover, cleanCover, coverPdf, announce, batchReport, reportCsv, emailOf, maintain, BULK_MAX, parseRecipients, bulkQuote, sendBulk, cancelBatch, resumeBatches, listBatches, init, isReady, t, TXT, FREE_PAGES, PAGE_PRICE, FaxError, eligible, lineOn, ensureApp, usage, quote, stage, sendStaged, setLine, handleEvent, list, fileOf, toPdf, checkTo, findMine }
+// Keypad "fax me a document" key: the owner's document is kept as a PDF; a caller types their fax number and gets it
+// from one of the owner's fax numbers (free pages first, then the usual per-page price from the wallet).
+async function storeIvrDoc({ chatId, buffer, name }) {
+  const { pdf, pages } = await toPdf(buffer)
+  if (pages > 20) throw new FaxError('too_long', 'Keep the document to 20 pages or fewer for callers.')
+  const fileId = await saveFile(pdf, { chatId, kind: 'ivr', filename: String(name || 'document.pdf').slice(0, 80) })
+  return { fileId: String(fileId), pages }
+}
+async function sendIvrDoc({ chatId, faxFrom, fileId, pages, to }) {
+  const num = await findMine(chatId, faxFrom)
+  if (!eligible(num)) throw new FaxError('no_fax_number', 'The fax number for this key is not active.')
+  const chk = checkTo(to, num.phoneNumber)
+  if (chk.error) throw new FaxError('bad_number', chk.error)
+  await coverCost(chatId, await quote(num, pages))
+  return publicFax(await dispatch({ chatId, num, fileId, pages, to: chk.to }))
+}
+
+module.exports = { storeIvrDoc, sendIvrDoc, readFile, voiceRouting, voiceOnFaxNudge, reasonText, reapplyLine, parseCoverText, addCover, cleanCover, coverPdf, announce, batchReport, reportCsv, emailOf, maintain, BULK_MAX, parseRecipients, bulkQuote, sendBulk, cancelBatch, resumeBatches, listBatches, init, isReady, t, TXT, FREE_PAGES, PAGE_PRICE, FaxError, eligible, lineOn, ensureApp, usage, quote, stage, sendStaged, setLine, handleEvent, list, fileOf, toPdf, checkTo, findMine }

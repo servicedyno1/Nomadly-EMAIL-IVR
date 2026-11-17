@@ -30,5 +30,5 @@ function init({ db, server, ...deps }) {
 
 module.exports = {
   init, store, hours, gcal, booking, recorder, opening: openingLib, RATE: calls.RATE, RECEPTION_RATE: calls.RECEPTION_RATE, RECORD_RATE: calls.RECORD_RATE, leadRate: calls.leadRate, committed: calls.committed, owns: calls.owns, activeCount: calls.activeCount,
-  onWebhook: calls.onWebhook, tryInbound: calls.tryInbound, dialLead: calls.dialLead, createTest: calls.createTest,
+  onWebhook: calls.onWebhook, tryInbound: calls.tryInbound, takeFromIvr: calls.takeFromIvr, takeFromIvr: calls.takeFromIvr, dialLead: calls.dialLead, createTest: calls.createTest,
 }
