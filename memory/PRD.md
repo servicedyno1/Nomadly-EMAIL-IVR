@@ -58,7 +58,7 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - [ ] Customer @Spirits_Of_The_Ancesters to retry /call (not user-confirmed)
 - [x] Reviews moderated (admin approve), custom caller ID OFF, Bird-only calling — all 4 brands (2026-11-17)
 - [x] Test page /call live E2E (2026-11-17): Free Test outbound PASS on all 4 brands (user answered); My Credentials inbound ring+answer+2-way RTP PASS on Nomadly & Voodoo (Smadav/PROSHOP have no active numbers). Inbound route was never broken. "Beep" = robot browser's fake mic.
-- [ ] CloudIVR web dashboard browser phone: incoming + outgoing E2E test (user asked)
+- [x] CloudIVR web dashboard browser phone: incoming + outgoing live E2E PASS (2026-11-17, Nomadly; WL brands have no web accounts)
 - [ ] Real Bird-only test calls: landing browser call, bot Quick IVR transfer + OTP (+ hold music)
 - [ ] Campaign results: 34 answered-but-no_answer calls (deploy windows) — confirm, fix WL brands' ARI app split
 - [ ] Backup carrier switching end-to-end (switch, alert, recovery)

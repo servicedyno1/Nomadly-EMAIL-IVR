@@ -3579,3 +3579,4 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - "Beep-only" explained: headless Chromium's fake microphone emits a beep tone. Audio reaching the phone = working path. Not a media bug.
 - Test scripts: scripts/browser_inbound_e2e.py, scripts/browser_freetest_e2e.py, scripts/wss_inbound_probe.js. QA chatId 900000001 data cleaned on all 4 DBs.
 - Lesson: always warn the user before placing calls to +13025141000.
+- CloudIVR web dashboard browser phone (cloudivr.net/app, company account 5000000000000004, line +19372491807): auto "Online"; real Bird call in → incoming banner → Answer by voice → "Call active", 2-way RTP 25s PASS. Outbound to +13025141000 via Bird, caller ID +19372491807, answered, 2-way RTP 30s PASS. Only Nomadly has CloudIVR web accounts (WL brands: 0). Script: scripts/browser_dashboard_e2e.py (mints 30-min session on droplet; dismiss onboarding-skip + whats-new-close first).
