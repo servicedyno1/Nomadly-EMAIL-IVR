@@ -163,7 +163,7 @@ async function trialStatus(db, numbersApi, chatId) {
   const used = !!p?.ivrTrialUsed || st?.val === true
   const heldUntil = p?.ivrTrialPendingAt ? new Date(p.ivrTrialPendingAt).getTime() + TRIAL_HOLD_MS : 0
   const inProgress = !used && heldUntil > Date.now()
-  return { available: !used && !hasCaller, used, inProgress, retryAt: inProgress ? new Date(heldUntil) : null, callerId: ivrOb.SYSTEM_CALLERS()[0] || ivrOb.TRIAL_CALLER_ID, callerIds: ivrOb.SYSTEM_CALLERS() }
+  return { available: !used && !hasCaller, used, inProgress, retryAt: inProgress ? new Date(heldUntil) : null, callerId: ivrOb.SYSTEM_CALLERS()[0] || ivrOb.TRIAL_CALLER_ID, callerIds: ivrOb.SYSTEM_CALLERS(), customCallerId: callerIds.enabled() }
 }
 
 function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, ttsService, log = console.log }) {
@@ -188,7 +188,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     let callerId = trial ? null : caller.phoneNumber
     let showAs = null
-    if (b.showAs && trial) {
+    if (b.showAs && trial && callerIds.enabled()) {
       // Free trial: any number the AI guard clears may be shown (banks, government, hotlines, emergency are blocked).
       showAs = String(b.showAs).replace(/[^\d+]/g, '')
       if (!showAs.startsWith('+')) showAs = showAs.length === 10 ? `+1${showAs}` : `+${showAs}`

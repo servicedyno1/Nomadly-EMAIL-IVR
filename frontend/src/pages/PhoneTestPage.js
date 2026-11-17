@@ -560,6 +560,7 @@ const PhoneTestPage = () => {
           stars: reviewStars,
           comment: reviewComment.trim(),
           name: reviewName.trim() || null,
+          sipUsername: (isTestMode ? testUsername : ownUsername) || null,
         }),
       });
       if (res.ok) {
@@ -1014,7 +1015,7 @@ const PhoneTestPage = () => {
               </button>
 
               <div className="text-sm font-semibold text-neutral-300 mb-4">
-                {reviewSubmitted ? '✅ Thank you for your feedback!' : '⭐ Share Your Experience'}
+                {reviewSubmitted ? '✅ Thank you! Your review will appear once it’s checked.' : '⭐ Share Your Experience'}
               </div>
 
               {!reviewSubmitted ? (

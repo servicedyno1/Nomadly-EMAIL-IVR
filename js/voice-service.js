@@ -3643,10 +3643,11 @@ async function handleOutboundSipCall(payload) {
     const showAsHdr = (payload.custom_headers || []).find(x => String(x?.name || '').toLowerCase() === 'x-civr-show-as')?.value || await _cid.defaultFor(chatId, num.phoneNumber).catch(() => null)
     let outFrom = num.phoneNumber
     let useMultitelTrunk = false
-    if (lookupResult?.isTestCall && lookupResult.testShowAs) {
-      outFrom = String(lookupResult.testShowAs)
-      useMultitelTrunk = !!process.env.CALLER_ID_PASSTHROUGH_TRUNK
-    } else if (showAsHdr) {
+    if (lookupResult?.isTestCall) {
+      // Free SIP test: the user's chosen caller ID only while custom caller IDs are on; else our rotating system numbers.
+      if (lookupResult.testShowAs && _cid.enabled()) { outFrom = String(lookupResult.testShowAs); useMultitelTrunk = !!process.env.CALLER_ID_PASSTHROUGH_TRUNK }
+      else outFrom = (await require('./ivr-outbound').getTrialCaller({ purpose: 'sip_test_call', chatId, to: destination }).catch(() => null))?.callerId || outFrom
+    } else if (showAsHdr && _cid.enabled()) {
       // Try resolve (which allows Business-plan passthrough + guard check)
       const resolved = await _cid.resolve(chatId, showAsHdr).catch(() => null)
       if (resolved) {
@@ -4984,6 +4985,7 @@ async function handleCallHangup(payload) {
     }
   } else if (session.isTestCall) {
     log(`[Voice] Skipping billing for test call (${duration}s) — free test call`)
+    require('./phone-test-routes').askForReview(chatId, duration).catch(() => {})
   }
 
   // Clean up mid-call limit timer
@@ -5256,8 +5258,8 @@ async function initiateOutboundIvrCall(params) {
   // Spam watch: a caught call is dialed as usual (alert only) or waits for the admin when the hold switch is on.
   if (!params.campaignId && !params._cwOk) { const waiting = await require('./call-watch').quickIvr(params); if (waiting) return waiting }
   const { chatId, callerId, displayCallerId: _askedCid, transferCallerId, targetNumber, ivrNumber, menu, audioUrl, greetingText, activeKeys, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg, voicemailAudioUrl } = params
-  // Free trial calls (landing, web, bot) accept any caller ID the AI guard cleared upstream, even with the feature off.
-  const displayCallerId = isTrial || require('./cloudivr-web/caller-ids').enabled() ? _askedCid : null
+  // Custom caller IDs (trial or paid) only while the admin switch is on; otherwise the system / line number shows.
+  const displayCallerId = require('./cloudivr-web/caller-ids').enabled() ? _askedCid : null
   // Backup transfer numbers, tried in order when the transfer number is busy or doesn't answer.
   const transferBackups = ivrNumber ? [...new Set((params.transferBackups || []).map(n => String(n || '').replace(/[^+\d]/g, '')))]
     .filter(n => /^\+[1-9]\d{7,14}$/.test(n) && n !== ivrNumber && !dialGuard.classifyDial(n).blocked).slice(0, 4) : []

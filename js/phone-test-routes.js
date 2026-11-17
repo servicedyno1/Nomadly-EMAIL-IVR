@@ -32,7 +32,7 @@ function initPhoneTestRoutes(app, db, telnyxApi, sipConnectionId, bot) {
   app.get('/phone/reviews', async (req, res) => {
     try {
       const reviews = await db.collection('phoneReviews')
-        .find({}, { projection: { _id: 0 } })
+        .find({ status: { $nin: ['pending', 'rejected'] } }, { projection: { _id: 0, status: 0, chatId: 0, sipUsername: 0, by: 0 } })
         .sort({ createdAt: -1 })
         .limit(50)
         .toArray()
@@ -43,24 +43,29 @@ function initPhoneTestRoutes(app, db, telnyxApi, sipConnectionId, bot) {
     }
   })
 
+  // Every new review waits for the admin (Telegram Approve / Reject), whatever its rating.
   app.post('/phone/reviews', async (req, res) => {
     try {
-      const { stars, comment, name } = req.body
+      const { stars, comment, name, sipUsername } = req.body
       if (!stars || stars < 1 || stars > 5) {
         return res.status(400).json({ error: 'Stars must be between 1 and 5' })
       }
       if (!comment || typeof comment !== 'string' || !comment.trim()) {
         return res.status(400).json({ error: 'Comment is required' })
       }
+      const by = await reviewerOf(db, sipUsername)
       const review = {
         stars: Math.round(stars),
         comment: comment.trim().substring(0, 500),
-        name: name ? name.trim().substring(0, 50) : 'Anonymous',
+        name: name ? String(name).trim().substring(0, 50) : 'Anonymous',
+        status: 'pending',
+        ...by,
         createdAt: new Date()
       }
-      await db.collection('phoneReviews').insertOne(review)
-      console.log(`[PhoneTest] New review: ${review.stars}★ by ${review.name}`)
-      res.json({ success: true })
+      const { insertedId } = await db.collection('phoneReviews').insertOne(review)
+      console.log(`[PhoneTest] New review (pending): ${review.stars}★ by ${review.name}`)
+      sendReviewToAdmin(db, { ...review, _id: insertedId }).catch(e => console.error('[PhoneTest] review alert failed:', e.message))
+      res.json({ success: true, pending: true })
     } catch (e) {
       console.error('[PhoneTest] Error submitting review:', e.message)
       res.status(500).json({ error: 'Failed to submit review' })
@@ -577,4 +582,53 @@ async function checkTestCredentialCall(sipUsername, chatId, destination) {
   }
 }
 
-module.exports = { initPhoneTestRoutes, generateTestOtp, checkTestCredentialCall, getOrCreateReferralCode, trackReferral }
+// ── Review moderation ──
+const esc = (s) => String(s || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))
+
+// Bot user behind the SIP login the page used (free-test or own login), for the admin's review card.
+async function reviewerOf(db, sipUsername) {
+  const u = String(sipUsername || '').trim().slice(0, 64)
+  if (!u) return {}
+  const t = await db.collection('testCredentials').findOne({ sipUsername: u }, { projection: { chatId: 1 } })
+  const owner = t ? null : await db.collection('phoneNumbersOf').findOne({ $or: [{ 'val.numbers.telnyxSipUsername': u }, { 'val.numbers.sipUsername': u }] }, { projection: { _id: 1 } })
+  const chatId = t?.chatId ?? owner?._id
+  if (chatId == null) return { sipUsername: u }
+  const n = await db.collection('nameOf').findOne({ _id: String(chatId) }).catch(() => null) || await db.collection('nameOf').findOne({ _id: chatId }).catch(() => null)
+  return { sipUsername: u, chatId: String(chatId), by: n?.val ? `@${n.val}` : null }
+}
+
+async function sendReviewToAdmin(db, r) {
+  const admin = process.env.TELEGRAM_ADMIN_CHAT_ID
+  if (!_bot || !admin) return
+  const who = r.by ? `${esc(r.by)} (${esc(r.chatId)})` : r.chatId ? esc(r.chatId) : 'not signed in'
+  const text = `📝 <b>New test-page review</b> — waiting for you\n\n${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}  <b>${esc(r.name)}</b>\n${esc(r.comment)}\n\n👤 User: ${who}${r.sipUsername ? `\n🔑 SIP login: <code>${esc(r.sipUsername)}</code>` : ''}`
+  await _bot.sendMessage(admin, text, { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: '✅ Publish', callback_data: `prv:a:${r._id}` }, { text: '🗑 Reject', callback_data: `prv:r:${r._id}` }]] } })
+}
+
+// Admin tapped Publish / Reject on a review card (callback data prv:a|r:<id>). Returns true when handled.
+async function onReviewCallback(query) {
+  const data = String(query?.data || '')
+  if (!data.startsWith('prv:')) return false
+  const [, act, id] = data.split(':')
+  const answer = (text) => _bot.answerCallbackQuery(query.id, { text }).catch(() => {})
+  if (String(query?.message?.chat?.id) !== String(process.env.TELEGRAM_ADMIN_CHAT_ID)) { answer('Admins only'); return true }
+  const { ObjectId } = require('mongodb')
+  if (!ObjectId.isValid(id)) { answer('Unknown review'); return true }
+  const status = act === 'a' ? 'approved' : 'rejected'
+  await _db.collection('phoneReviews').updateOne({ _id: new ObjectId(id) }, { $set: { status, reviewedAt: new Date() } })
+  answer(status === 'approved' ? 'Published' : 'Rejected')
+  const msg = query.message
+  _bot.editMessageText(`${esc(msg?.text || '')}\n\n${status === 'approved' ? '✅ Published' : '🗑 Rejected'}`, { chat_id: msg?.chat?.id, message_id: msg?.message_id, parse_mode: 'HTML' }).catch(() => {})
+  return true
+}
+
+// After a free SIP test call that really connected, ask the bot user once for a review.
+async function askForReview(chatId, seconds) {
+  if (!_bot || !_db || seconds < 15 || !/^\d{5,15}$/.test(String(chatId || ''))) return
+  const r = await _db.collection('testReviewAsks').updateOne({ _id: String(chatId) }, { $setOnInsert: { at: new Date() } }, { upsert: true }).catch(() => null)
+  if (!r?.upsertedCount) return
+  const page = process.env.CALL_PAGE_URL || `${process.env.SELF_URL_PROD || process.env.SELF_URL || ''}/call`
+  _bot.sendMessage(chatId, `🙌 Glad your test call went through!\n\nGot 30 seconds? Tell others how it went — leave a quick review at the bottom of the test page:\n${page}`).catch(() => {})
+}
+
+module.exports = { initPhoneTestRoutes, generateTestOtp, checkTestCredentialCall, getOrCreateReferralCode, trackReferral, onReviewCallback, askForReview }

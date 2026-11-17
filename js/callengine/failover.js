@@ -17,7 +17,10 @@ const BIRD = 'bird'
 const MULTITEL = () => process.env.CALL_ENGINE_BACKUP_TRUNK || process.env.CALLER_ID_PASSTHROUGH_TRUNK || null
 const defaultTrunk = () => process.env.CALL_ENGINE_TRUNK || (process.env.BIRD_API_KEY ? BIRD : 'didww')
 const NAME = (t) => (t === BIRD ? 'Bird' : t === MULTITEL() ? 'MultiTEL' : t)
+// BIRD_ONLY=true: no other carrier, no failover (calls fail if Bird is down).
+const birdOnly = () => String(process.env.BIRD_ONLY || '').toLowerCase() === 'true' && !!process.env.BIRD_API_KEY
 function alt(t) {
+  if (birdOnly()) return null
   if (t === BIRD) return MULTITEL()
   if (t === MULTITEL() && process.env.BIRD_API_KEY) return BIRD
   return null
@@ -63,4 +66,4 @@ function result(trunk, { connected, cause, cancelled }) {
 const status = () => [...state.entries()].map(([t, s]) => ({ trunk: t, name: NAME(t), down: !!s.down, since: s.down?.since || null, reason: s.down?.reason || null, moved: s.down?.moved || 0, recentFails: s.fails.length }))
 const reset = () => state.clear()
 
-module.exports = { route, result, alt, isDown, status, reset, defaultTrunk, setAlert: (fn) => { alert = fn }, BIRD, MULTITEL }
+module.exports = { route, result, alt, isDown, status, reset, defaultTrunk, birdOnly, setAlert: (fn) => { alert = fn }, BIRD, MULTITEL }

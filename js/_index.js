@@ -6676,6 +6676,7 @@ bot?.on('callback_query', async (query) => {
   try {
     const data = query?.data || ''
     const chatId = String(query?.message?.chat?.id) // Always convert to string for DB consistency
+    if (data.startsWith('prv:')) { await require('./phone-test-routes').onReviewCallback(query); return }
     if (data === 'sipqr:l' || data === 'sipqr:g') {
       bot.answerCallbackQuery(query.id).catch(() => {})
       const info = await get(state, chatId)
@@ -26557,7 +26558,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         const _trialCaller = await ivrOb.getTrialCaller({ purpose: 'bot_quick_ivr_trial', chatId })
         await saveInfo('ivrObData', { callerId: _trialCaller.callerId, isTrial: true, callerProvider: _trialCaller.callerProvider })
         await set(state, chatId, 'action', a.ivrObEnterTarget)
-        return send(chatId, trans('t.cp_10', _trialCaller.callerId), k.of([[ccid.t(lang).btn], ['↩️ Back']]))
+        return send(chatId, trans('t.cp_10', _trialCaller.callerId), k.of(ccid.on() ? [[ccid.t(lang).btn], ['↩️ Back']] : [['↩️ Back']]))
       }
 
       // Has numbers but no eligible plan
@@ -27106,7 +27107,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     return send(chatId, trans('t.cp_25', found.phoneNumber), k.of([]))
   }
 
-  if (action === a.ivrObEnterTarget && ccid.isTrialBtn(message) && info?.ivrObData?.isTrial) {
+  if (action === a.ivrObEnterTarget && ccid.isTrialBtn(message) && info?.ivrObData?.isTrial && ccid.on()) {
     await saveInfo('customCid', { ctx: 'trial' })
     await set(state, chatId, 'action', 'customCidEnter')
     return send(chatId, ccid.t(lang).askTrial, k.of([['↩️ Back']]))

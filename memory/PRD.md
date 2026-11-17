@@ -56,7 +56,8 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 ## P0 — Immediate (2026-11-16)
 - [x] SIP test page login fix (all 4 brands, deployed; registration verified live) — see CHANGELOG 23:50Z
 - [ ] Customer @Spirits_Of_The_Ancesters to retry /call (not user-confirmed)
-- [ ] 4 caller-ID free test calls via Bird (landing, web Quick IVR, bot Quick IVR, bot SIP test page)
+- [x] Reviews moderated (admin approve), custom caller ID OFF, Bird-only calling — all 4 brands (2026-11-17)
+- [ ] Real Bird-only test calls: landing, web Quick IVR, bot Quick IVR, bot SIP test page (show rotating system numbers)
 - [ ] Campaign results: 34 answered-but-no_answer calls (deploy windows) — confirm, fix WL brands' ARI app split
 - [ ] Backup carrier switching end-to-end (switch, alert, recovery)
 - [x] WL dashboard browser phone on our SIP server + brand sync always carries SIP files (deployed f84ae145; permanent after Save to GitHub)

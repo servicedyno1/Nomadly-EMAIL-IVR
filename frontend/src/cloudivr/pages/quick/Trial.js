@@ -62,7 +62,7 @@ export function TrialCall({ status, onUsed }) {
       <HowItWorks callerId={status?.callerId} />
       {result ? <Done result={result} /> : <>
         <Field label="Number to call" hint="With country code, e.g. +14155550100."><input className="civr-input font-mono" required value={f.to} onChange={e => setF({ ...f, to: e.target.value })} placeholder="+14155550100" data-testid="quick-trial-to-input" /></Field>
-        <Field label="Show as (optional)" hint="Any number to show as caller ID, with country code. Bank, government and emergency numbers are blocked."><input className="civr-input font-mono" value={f.showAs} onChange={e => setF({ ...f, showAs: e.target.value })} placeholder="+14155550100" data-testid="quick-trial-show-as-input" /></Field>
+        {status?.customCallerId && <Field label="Show as (optional)" hint="Any number to show as caller ID, with country code. Bank, government and emergency numbers are blocked."><input className="civr-input font-mono" value={f.showAs} onChange={e => setF({ ...f, showAs: e.target.value })} placeholder="+14155550100" data-testid="quick-trial-show-as-input" /></Field>}
         <ScriptBox value={f.script} onChange={(s) => setF({ ...f, script: s })} testid="quick-trial-script" />
         <Field label="When they press 1">
           <div className="flex flex-wrap gap-2">{MODES.map(([m, l]) => <button key={m} type="button" onClick={() => setF({ ...f, mode: m })} className={`civr-pill cursor-pointer !normal-case !tracking-normal !text-sm h-9 ${f.mode === m ? 'civr-pill-on' : ''}`} data-testid={`quick-trial-mode-${m}`}>{l}</button>)}</div>
