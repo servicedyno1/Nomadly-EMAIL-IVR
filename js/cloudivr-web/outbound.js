@@ -163,7 +163,7 @@ async function trialStatus(db, numbersApi, chatId) {
   const used = !!p?.ivrTrialUsed || st?.val === true
   const heldUntil = p?.ivrTrialPendingAt ? new Date(p.ivrTrialPendingAt).getTime() + TRIAL_HOLD_MS : 0
   const inProgress = !used && heldUntil > Date.now()
-  return { available: !used && !hasCaller, used, inProgress, retryAt: inProgress ? new Date(heldUntil) : null, callerId: ivrOb.SYSTEM_CALLERS()[0] || ivrOb.TRIAL_CALLER_ID, callerIds: ivrOb.SYSTEM_CALLERS() }
+  return { available: !used && !hasCaller, used, inProgress, retryAt: inProgress ? new Date(heldUntil) : null, callerId: ivrOb.SYSTEM_CALLERS()[0] || ivrOb.TRIAL_CALLER_ID, callerIds: ivrOb.SYSTEM_CALLERS(), customCallerId: callerIds.enabled() }
 }
 
 function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, ttsService, log = console.log }) {
@@ -188,11 +188,15 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     let callerId = trial ? null : caller.phoneNumber
     let showAs = null
-    if (b.showAs) {
-      try { showAs = await callerIds.resolve(chatId, b.showAs) } catch (e) {
-        // For trial calls, only reject if it's a blocklist issue
-        if (!trial || e.code === 'blocked_caller_id') return { err: [400, e.code || 'invalid_show_as', e.message] }
-      }
+    if (b.showAs && trial && callerIds.enabled()) {
+      // Free trial: any number the AI guard clears may be shown (banks, government, hotlines, emergency are blocked).
+      showAs = String(b.showAs).replace(/[^\d+]/g, '')
+      if (!showAs.startsWith('+')) showAs = showAs.length === 10 ? `+1${showAs}` : `+${showAs}`
+      if (!/^\+[1-9]\d{7,14}$/.test(showAs)) return { err: [400, 'invalid_show_as', 'Enter the caller ID with country code, e.g. +14155550100.'] }
+      const g = await require('./cid-guard').guard(showAs, { chatId, channel: 'web_trial' })
+      if (!g.allowed) return { err: [400, 'blocked_caller_id', g.reason || 'This number cannot be used as caller ID.'] }
+    } else if (b.showAs) {
+      try { showAs = await callerIds.resolve(chatId, b.showAs) } catch (e) { return { err: [400, e.code || 'invalid_show_as', e.message] } }
     }
     const targets = parseTargets(b)
     if (!targets.length) return { err: [400, 'invalid_number', 'Enter the number to call with country code, e.g. +14155550100.'] }
@@ -250,9 +254,13 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       if (!trial) activeKeys = [...new Set((Array.isArray(b.activeKeys) ? b.activeKeys : ['1']).map(String))].filter(k => KEYS.test(k))
       if (!activeKeys.length) activeKeys = ['1']
     }
+    // Foolproof OTP: callers must press the trigger key first, so make sure the script says so (any language-agnostic hint is skipped if the user already mentions pressing a key).
+    if (mode === 'otp' && !audio && !/press\s*1\b/i.test(text || '')) {
+      text = `${(text || '').trim()} To continue, press 1 now.`.trim()
+    }
     return {
       cfg: {
-        callerId, showAs, callerPlan: caller?.plan || null, targets, mode, menu, transferTo, transferBackups, otp, activeKeys, holdMusic: !!b.holdMusic && !trial,
+        callerId, showAs, callerPlan: caller?.plan || null, targets, mode, menu, transferTo, transferBackups, otp, activeKeys, holdMusic: !!b.holdMusic && (mode === 'otp' || !trial),
         audioId: audio?.id || null, audioUrl: audio?.audioUrl || null, text, voiceName, templateName: String(b.templateName || audio?.name || 'Custom script').slice(0, 80),
       },
     }

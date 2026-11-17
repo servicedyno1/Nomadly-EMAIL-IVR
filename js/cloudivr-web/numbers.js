@@ -233,12 +233,14 @@ function validateIvr(body, plan, audioOk = () => true) {
         out[digit] = { action, message: String(o.message || '').slice(0, 1000), audioUrl: audio(o.audioUrl, `Key ${digit}`), label }
       } else if (action === 'sms') {
         const smsFrom = String(o.smsFrom || '')
-        const smsText = require('./sms-limit').gsmText(String(o.smsText || '').trim()).slice(0, 1000)
+        const sl = require('./sms-limit')
+        const texts = (Array.isArray(o.smsTexts) && o.smsTexts.length ? o.smsTexts : [o.smsText]).map(t => sl.gsmText(String(t || '').trim()).slice(0, 1000)).filter(Boolean).slice(0, 5)
+        const smsText = texts[0] || ''
         if (!/^(es|mn)_[0-9a-f]+$/.test(smsFrom)) throw new Error(`Key ${digit}: pick the number the text is sent from.`)
         if (!smsText) throw new Error(`Key ${digit}: write the text to send.`)
-        const long = require('./sms-limit').smsTooLong(smsText)
+        const long = texts.map(t => sl.smsTooLong(t)).find(Boolean)
         if (long) throw new Error(`Key ${digit}: ${long}`)
-        out[digit] = { action, smsFrom, smsText, message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label }
+        out[digit] = { action, smsFrom, smsText, ...(texts.length > 1 ? { smsTexts: texts } : {}), message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label }
       } else if (action === 'voicemail') {
         if (!phoneConfig.canAccessFeature(plan, 'voicemail')) throw new Error('Voicemail needs the Starter plan or higher.')
         out[digit] = { action, label }
@@ -764,6 +766,16 @@ function routes(router, deps) {
     if (sip) await require('../sip-logins').ensure(phoneNumbersOf, req.webChatId, n)
     const user = n.telnyxSipUsername || n.sipUsername
     res.json({ username: user, password: n.telnyxSipPassword || n.sipPassword, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP', live: !!n.telnyxSipUsername, browserOnly: !sip, browserKey: browserCallKey.mint(n.phoneNumber), webrtc: require('./webrtc-config').browserWebrtc(user) })
+  }))
+
+  // "Test my SIP registration": is the login accepted by our SIP server, and is any device signed in right now?
+  router.post('/numbers/:phone/sip/check', withNumber(async (req, res) => {
+    if (!phoneConfig.canAccessFeature(req.num.plan, 'sipCredentials')) return gate(req, res, 'sipCredentials', 'SIP credentials')
+    const selftest = require('../sip-selftest')
+    const n = await require('../sip-logins').ensure(phoneNumbersOf, req.webChatId, req.num)
+    const r = await selftest.run({ db, num: n || req.num, domain: phoneConfig.WEB_SIP_DOMAIN })
+    log(`[SipSelfTest] web ${req.webChatId} ${req.num.phoneNumber}: ${r.code} devices=${r.devices}`)
+    res.json({ code: r.code, devices: r.devices, server: r.server, lastSeenAt: r.lastSeenAt, lastApp: r.lastApp, ...selftest.explain(r) })
   }))
 
   router.post('/numbers/:phone/sip/qr', withNumber(async (req, res) => {

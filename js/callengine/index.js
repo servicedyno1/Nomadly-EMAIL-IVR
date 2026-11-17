@@ -154,7 +154,7 @@ function onEvent(e) {
       emit(p.kind === 'speak' ? 'call.speak.ended' : 'call.playback.ended', pl, { status: 'completed' })
       break
     }
-    case 'ChannelDtmfReceived': if (l?.gather) onDigit(l, e.digit); break
+    case 'ChannelDtmfReceived': if (l?.gather) onDigit(l, e.digit); else if (l?.onDtmf) l.onDtmf(e.digit); break
     case 'RecordingFinished': case 'RecordingFailed': {
       const name = e.recording?.name; const rl = [...legs.values()].find(x => x.recName === name)
       if (!rl || e.type === 'RecordingFailed') break
@@ -276,7 +276,9 @@ async function startRecording(id, channels, format, { playBeep = false } = {}) {
   const snoop = await call('post', `/channels/${raw(id)}/snoop`, { spy: 'both', app: ownApp(), appArgs: 'out' })
   if (!snoop) return null
   l.snoop = snoop.id
-  return call('post', `/channels/${snoop.id}/record`, { name: l.recName, format: 'wav', beep: !!playBeep, maxSilenceSeconds: 0, ifExists: 'overwrite' })
+  // The record beep only plays on the snoop copy, so the caller would never hear "the tone" — play it on the call itself.
+  if (playBeep) await call('post', `/channels/${raw(id)}/play`, { media: 'sound:beep' })
+  return call('post', `/channels/${snoop.id}/record`, { name: l.recName, format: 'wav', beep: false, maxSilenceSeconds: 0, ifExists: 'overwrite' })
 }
 const stopRecording = async (id) => { const l = legs.get(id); return l?.recName ? call('post', `/recordings/live/${l.recName}/stop`) : null }
 // when a call ends its snoop copy ends too, which finishes the recording
@@ -405,6 +407,7 @@ async function setDidApps(numbers) {
 
 const M = module.exports = {
   enabled, isAe, connected: () => connected, app, sign, ari: makeAri, _legs: legs, _onEvent: onEvent, _setSink: (fn) => { sink = fn }, _setConnected: (v) => { connected = v },
+  watchDtmf: (id, fn) => { const l = legs.get(id); if (l) l.onDtmf = fn },
   setDidApps, onConnect: (fn) => { onConnectHook = fn }, failover: FO, originate,
   mediaUrl, activeBird, start, _sweep: sweep, startExternalMedia, stopExternalMedia, setAiHook: (fn) => { aiHook = fn }, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall,
 }

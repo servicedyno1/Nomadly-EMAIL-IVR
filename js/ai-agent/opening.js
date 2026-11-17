@@ -91,8 +91,24 @@ function standard(agent, direction, recorded) {
   return `${intro}${recorded ? ` ${o.rec}` : ''} ${agent.greeting || (out ? o.askOut : o.askIn)}`
 }
 
+// Keypad options said in the greeting of incoming calls (English sentence; the AI keeps other languages in the call itself).
+const KEY_SAYS = { transfer: 'to speak with someone', message: 'to leave a message', hangup: 'to end the call', repeat: 'to hear that again' }
+function keysSentence(agent, direction) {
+  const keys = direction === 'outbound' ? [] : (agent.keys || [])
+  if (!keys.length || (agent.language && agent.language !== 'en')) return ''
+  const parts = keys.map(k => `press ${k.key} ${k.label || KEY_SAYS[k.action]}`)
+  return ` At any time, ${parts.length > 1 ? `${parts.slice(0, -1).join(', ')}, or ${parts[parts.length - 1]}` : parts[0]}.`
+}
+
 // → { text, custom, aiAdded, recAdded }
 function openingInfo(agent, direction, recorded = false, leadName = null) {
+  const r = openingBase(agent, direction, recorded, leadName), keys = keysSentence(agent, direction)
+  if (!keys) return r
+  // Options go before the closing question ("…press 9 to leave a message. How can I help?") so the caller answers it.
+  const m = r.text.match(/^(.*[.!])\s+([^.!?]*\?)$/s)
+  return { ...r, text: m ? `${m[1]}${keys} ${m[2]}` : r.text + keys }
+}
+function openingBase(agent, direction, recorded, leadName) {
   const own = String(agent.firstMessage || '').trim()
   if (!own) return { text: standard(agent, direction, recorded), custom: false, aiAdded: false, recAdded: false }
   const filled = tidy(dropEmpty(stripNotes(fill(own, { name: agent.name, business: agent.businessName, leadName: direction === 'outbound' ? leadName : '' }))))

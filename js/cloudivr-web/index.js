@@ -191,6 +191,7 @@ function createCloudIvrWeb(deps) {
     calls.routes(r, { ...deps, db, h, numbersApi })
     notes.routes(r, { db, h, numbersApi })
     ai.routes(r, { h, numbersApi })
+    require('./assist').routes(r, { h })
     extras.routes(r, { ...deps, db, h, numbersApi, offers })
     onboarding.routes(r, { db, h, numbersApi })
     require('./templates').routes(r, { db, h })

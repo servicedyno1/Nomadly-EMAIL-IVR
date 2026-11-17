@@ -57,6 +57,22 @@ function init(db, opts = {}) {
 const str = (v, max) => String(v ?? '').trim().slice(0, max)
 const normPhone = (p) => { const d = String(p || '').replace(/[^\d+]/g, ''); return d ? (d.startsWith('+') ? d : `+${d}`) : '' }
 
+const KEY_ACTIONS = ['transfer', 'message', 'hangup', 'repeat']
+// Keypad options: one per key, transfer needs a number (its own, or the agent's transfer number).
+function cleanKeys(list, transferTo) {
+  if (!Array.isArray(list)) return []
+  const out = []
+  for (const k of list.slice(0, 12)) {
+    const key = String(k?.key || '').trim(), action = KEY_ACTIONS.includes(k?.action) ? k.action : null
+    if (!/^[0-9*#]$/.test(key) || !action || out.some(x => x.key === key)) continue
+    const to = normPhone(k.to)
+    if (to && !E164.test(to)) throw new Error(`Key ${key}: enter the transfer number with country code, e.g. +14155550100.`)
+    if (action === 'transfer' && !to && !transferTo) throw new Error(`Key ${key}: add the number it should transfer to.`)
+    out.push({ key, action, to: action === 'transfer' ? (to || null) : null, label: str(k.label, 60) })
+  }
+  return out
+}
+
 function cleanAgent(b) {
   const name = str(b.name, 40), goal = str(b.goal, 4000)
   if (!name) throw new Error('Give the agent a name.')
@@ -71,9 +87,11 @@ function cleanAgent(b) {
     maxMinutes: Math.min(15, Math.max(1, parseInt(b.maxMinutes, 10) || 5)),
     record: b.record !== false, discloseAi: b.discloseAi !== false, booking: cleanBooking(b.booking),
     role: b.role === 'receptionist' ? 'receptionist' : 'agent', hours: cleanHours(b.hours),
+    keys: cleanKeys(b.keys, transferTo), holdMusic: b.holdMusic === true,
+    speed: Math.min(1.3, Math.max(0.75, Number(b.speed) || 1)),
   }
 }
-const FIELDS = ['id', 'name', 'goal', 'businessName', 'greeting', 'firstMessage', 'waitForHello', 'knowledge', 'language', 'voice', 'transferTo', 'takeMessages', 'maxMinutes', 'record', 'discloseAi', 'booking', 'role', 'hours', 'createdAt', 'updatedAt']
+const FIELDS = ['id', 'name', 'goal', 'businessName', 'greeting', 'firstMessage', 'waitForHello', 'knowledge', 'language', 'voice', 'transferTo', 'takeMessages', 'maxMinutes', 'record', 'discloseAi', 'booking', 'role', 'hours', 'keys', 'holdMusic', 'speed', 'createdAt', 'updatedAt']
 // Agents saved before recording/booking existed: recording on (owner default), booking off.
 const publicAgent = (a) => ({ ...Object.fromEntries(FIELDS.map(k => [k, a[k] ?? null])), role: a.role || 'agent', openNow: a.hours?.enabled ? numberHours.isOpen(a.hours) : null, firstMessage: a.firstMessage || '', waitForHello: a.waitForHello !== false, record: a.record !== false, discloseAi: a.discloseAi !== false, booking: cleanBooking(a.booking) })
 

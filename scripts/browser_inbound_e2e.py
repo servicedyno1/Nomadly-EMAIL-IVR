@@ -31,6 +31,8 @@ async def main():
           return out;
         }""")
         print('STEP rtp', stats, flush=True)
+        await page.wait_for_timeout(8000)
+        print('STEP rtp t+16s', await page.evaluate("async () => { const out = []; for (const pc of (window.__pcs || [])) { const s = await pc.getStats(); s.forEach(r => { if (r.type === 'inbound-rtp' || r.type === 'outbound-rtp') out.push(r.type + ':' + (r.packetsReceived ?? r.packetsSent)); }); } return out; }"), flush=True)
         await page.screenshot(path='/tmp/inbound_answered.png')
         body = await page.inner_text('body')
         print('STEP page has active timer/status:', [l for l in body.split('\n') if any(k in l.lower() for k in ['active', 'connected', 'call', '00:'])][:12], flush=True)
