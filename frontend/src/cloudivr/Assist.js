@@ -11,10 +11,11 @@ function Proposal({ m, i, prefix, labels, onApply, onEdit }) {
   return (
     <div className="mt-2.5 rounded-xl border border-[var(--c-border)] bg-[var(--c-card)] p-3 space-y-2" data-testid={`${prefix}-proposal-${i}`}>
       <div className="text-[11px] uppercase tracking-wider font-semibold civr-assist-sub">Suggested setup</div>
+      {m.missing?.length > 0 && <div className="rounded-lg border border-[#fbbf24]/40 bg-[#fbbf24]/10 px-2.5 py-2 text-[12px] space-y-0.5" data-testid={`${prefix}-proposal-${i}-missing`}><div className="font-semibold">Still needed before it works</div>{m.missing.map((x, j) => <div key={j}>• {x}</div>)}</div>}
       {m.summary?.length > 0 && <ul className="space-y-1 text-[13px]" data-testid={`${prefix}-proposal-${i}-summary`}>{m.summary.map((l, j) => <li key={j} className="flex gap-2"><span className="civr-assist-link">•</span><span>{l}</span></li>)}</ul>}
       <div className="flex flex-wrap gap-1.5">{m.changed.map(k => <span key={k} className="rounded-full civr-assist-tag text-[11px] px-2 py-0.5">{labels[k] || k}</span>)}</div>
       <div className="flex flex-wrap gap-2 pt-1">
-        <button type="button" onClick={onApply} className="civr-btn civr-btn-primary civr-btn-sm" data-testid={`${prefix}-apply`}><Wand2 className="w-3.5 h-3.5" />Fill in the form</button>
+        <button type="button" onClick={onApply} className="civr-btn civr-btn-primary civr-btn-sm" data-testid={`${prefix}-apply`}><Wand2 className="w-3.5 h-3.5" />{m.missing?.length ? 'Fill in what we have' : 'Fill in the form'}</button>
         <button type="button" onClick={onEdit} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`${prefix}-edit`}>Change something</button>
       </div>
     </div>
@@ -79,7 +80,7 @@ export function Assist({ screen, title, hello, examples = [], current, context, 
     try {
       const d = await api(`/assist/${screen}`, { method: 'POST', body: { messages: next.map(({ role, content }) => ({ role, content })), current, context } });
       const keys = Object.keys(d.patch || {});
-      setMsgs(m => [...m, { role: 'assistant', content: d.reply, ...(keys.length ? { proposal: d.patch, summary: d.summary, changed: keys } : {}) }]);
+      setMsgs(m => [...m, { role: 'assistant', content: d.reply, ...(keys.length ? { proposal: d.patch, summary: d.summary, missing: d.missing, changed: keys } : {}) }]);
     } catch (err) {
       setMsgs(m => [...m, { role: 'assistant', content: err.message || 'Something went wrong. Try again.', error: true, retry: t }]);
     } finally { setBusy(false); setTimeout(() => input.current?.focus(), 0); }

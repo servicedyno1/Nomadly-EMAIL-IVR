@@ -25,7 +25,7 @@ function menu(acts, nested) {
       if (r.action === 'message') o.message = str(r.message, 400)
       if (r.action === 'sms') {
         const texts = (Array.isArray(r.smsTexts) ? r.smsTexts : [r.smsText]).map(t => str(t, 600)).filter(Boolean).slice(0, 5)
-        Object.assign(o, { smsText: texts[0] || '', ...(texts.length > 1 ? { smsTexts: texts } : {}), message: str(r.message, 300), after: r.after === 'menu' ? 'menu' : 'hangup' })
+        Object.assign(o, { smsText: texts[0] || '', ...(texts.length > 1 ? { smsTexts: texts } : {}), message: str(r.message, 300), after: r.after === 'menu' ? 'menu' : 'hangup', ...(/^(es|mn)_[0-9a-f]+$/.test(String(r.smsFrom)) ? { smsFrom: String(r.smsFrom) } : {}) })
       }
       if (r.action === 'submenu') {
         const sub = nested ? r.subMenu || {} : r
@@ -82,9 +82,9 @@ const SCREENS = {
     what: 'the keypad menu (IVR) people hear when they call this number',
     fields: {
       greeting: [text(600), 'what callers hear first, listing the keys, e.g. "Thanks for calling Bella\'s. Press 1 for reservations, press 2 for our hours."'],
-      options: [menu(['forward', 'message', 'sms', 'voicemail', 'submenu'], true), `full list of keys: [{"digit":"1","action":"forward|message|sms|voicemail|submenu","label":"Sales","forwardTo":"+1... (forward)","message":"words read out (message), or said after the text is sent (sms)","smsTexts":["text version A","version B (optional, rotates)"],"after":"hangup|menu (sms)","subMenu":{"greeting":"...","options":[same, no submenu]}}]`],
+      options: [menu(['forward', 'message', 'sms', 'voicemail', 'submenu'], true), `full list of keys: [{"digit":"1","action":"forward|message|sms|voicemail|submenu","label":"Sales","forwardTo":"+1... (forward)","message":"words read out (message), or said after the text is sent (sms)","smsFrom":"id of the texting number that sends it (from account info textingNumbers)","smsTexts":["text version A","version B (optional, rotates)"],"after":"hangup|menu (sms)","subMenu":{"greeting":"...","options":[same, no submenu]}}]`],
     },
-    note: 'The greeting must mention every key in options. sms keys need a Texting Number (see account info); if there is none, suggest ordering one right in the key row. Rotation: give 2-5 smsTexts versions.',
+    note: `The greeting must mention every key in options.\nTEXT KEYS (sms): the text is sent FROM one of the owner's Texting Numbers listed in account info textingNumbers [{id, phone}]. If there are several, ask which one should send it and set smsFrom to its id. If there is exactly one, set smsFrom to it and tell the owner the texts go out from that number. If there are none, explain the key can't send texts until they order a Texting Number (the key row has an Order button) and offer an alternative such as a message key. Also mention: USA callers only, $0.05 per text from the wallet, and whether the call hangs up or replays the menu after. Rotation: 2-5 smsTexts versions, each caller gets the next one in turn.`,
   },
   hours: {
     what: 'the weekly business hours of this number and what happens when it is closed',
@@ -145,20 +145,27 @@ const SCREENS = {
 }
 
 // How CloudIVR works end to end, so the assistant can explain, suggest and catch mistakes on any screen.
-const KNOWLEDGE = `HOW CLOUDIVR WORKS
-INBOUND (people calling the owner's number). One thing answers each call, in this order: AI voice agent (if on) → ring group (if on; skips forwarding and the keypad menu) → keypad menu (IVR) or forwarding → browser phone / softphone (SIP) → voicemail. The Hours tab applies on top: outside opening hours the call goes to voicemail, a closed message, or backup numbers.
-- Keypad menu (IVR): callers hear a greeting, then press ONE key (0-9). Key actions: forward (ring a phone, with country code), message (read words or play audio, then hang up), sms (text the caller from the owner's Texting Number / USA eSIM, USA callers only, $0.05 per text; several versions can rotate so each caller gets the next one; then hang up or replay the menu), voicemail (needs Starter plan or higher), submenu (one more level of keys). The greeting must say every key ("Press 1 for sales…"). Good practice: 2-4 keys, key 0 or 1 for a person, a voicemail key for after hours.
-- Forwarding: always, when busy, or when not answered after a ring time (10-60 s); up to 4 backup phones ring one after another; optional hold music; the forwarded phone sees the business number or (US only) the caller's number. Forwarded minutes bill from the wallet.
-- Ring group: up to 5 phones ring at the same time, first to answer wins; if nobody answers: voicemail, one backup number, or a sorry message.
-- Voicemail: greeting (standard, own audio, or AI voice made from text), language, ring time, email copy, transcripts. Callers hear a beep, then leave a message; it lands in Inbox.
-- Missed-call text: one text per caller per day to people whose call was not answered.
-- Text Triggers: when a text arrives on the number, start a call: callback (ring the owner first, press 1 to call the texter back), message (call the texter and read a message), ai (an AI agent calls them). Optional keyword filter, business-hours-only, once per sender per hour.
-OUTBOUND (the owner calling people).
-- Quick call: up to 10 people now or scheduled. They hear a script (AI voice) or audio, then: transfer mode (pressing a chosen key connects them to the owner's phone, optional backups and hold music), OTP mode, or menu mode (each key forwards, plays a message, or opens a submenu).
-- OTP mode (collect a code): the script asks them to press 1, then type their code on the keypad; length is 4, 5, 6 or 8 digits (if the owner says "6-digit code", set otp.length to 6 and make the script say "press 1, then enter your 6-digit code"). They wait on hold music while the code pops up for the owner, who confirms (optionally connecting them to a phone), asks again, or hangs up within 90 seconds. They get 3 tries. Own confirm/reject sentences are on the Business plan.
-- Bulk IVR campaign: the same message to a whole list (up to thousands, called 1-20 at a time); key press: just report it, transfer to the owner, or a key menu; optional voicemail drop, schedule, repeat daily/weekly, daily limit. Calls only go out in legal local hours.
-- AI voice agents (own page) hold real conversations for inbound or outbound calls.
-Billing is per minute from the wallet. Plans gate features (Pro and up: Quick IVR and campaigns; Business: AI agents, custom OTP messages).`
+const KNOWLEDGE = `HOW CLOUDIVR WORKS (audited from the product — rely on this, don't guess beyond it)
+PLANS (per number): Basic, Starter, Pro, Business. Basic: forwarding, browser phone, softphone (SIP), AI agent. Starter adds voicemail and call recording. Pro adds keypad menu (IVR), ring group, Quick IVR calls, Bulk IVR campaigns, OTP code collection, SMS to email/webhook. Business adds Text Triggers, scheduling Quick calls, presets, redial, own OTP confirm/reject sentences, AI agent campaigns. If the owner wants something their plan can't do, say which plan it needs (upgrade is in the number's Billing tab).
+INBOUND — what answers a call, first match wins: 1) forwarding set to "always" (beats everything, even the AI agent) 2) AI voice agent 3) ring group 4) keypad menu — while the menu is on, busy/no-answer forwarding, browser ring and voicemail don't run except through its keys 5) forwarding when busy / not answered (rings the browser phone/softphone first) 6) browser phone / softphone 7) voicemail. The Hours schedule applies on top: when closed, callers go to voicemail (Starter+), hear a closed message and are hung up, or are forwarded to up to 5 backup numbers (~20 s each). The schedule has its own on/off switch.
+KEYPAD MENU (IVR, Pro+): greeting (typed text read in the app's language, or an audio file / AI voice), then the caller presses ONE key 0-9 (up to 10 keys). Wrong or no key: they hear "invalid option" once, then goodbye. Key actions:
+- forward: rings a phone (with country code); billed per minute from the wallet (US/Canada cheaper than international); blocked if the wallet can't cover a minute. Hold music follows the Forwarding tab's setting.
+- message: reads words (or plays an audio file) then hangs up — good for hours, address, website.
+- sms: texts the caller from one of the owner's Texting Numbers (USA eSIM / mobile line), USA callers only, $0.05 per text from the wallet; 1-5 versions rotate so each caller gets the next one; after sending it says a short line, then hangs up or replays the menu.
+- voicemail (Starter+): "leave a message after the tone", up to 60 seconds, lands in Inbox (+ email/transcript if set on the Voicemail tab).
+- submenu: one more level of keys with its own greeting (no deeper levels).
+The menu must be saved AND switched on (switch at the top). Switching it on turns the AI agent off on that number.
+FORWARDING: always / when busy / when not answered after 10-60 s; up to 4 backups ring one after another; forwarded phone sees the business number or, US only, the caller's number. Minutes bill from the wallet.
+RING GROUP (Pro+): up to 5 phones ring together, first to answer gets it; ring 10-60 s; then voicemail (Starter+), one backup number, or a sorry message. While on, forwarding and the keypad menu are skipped; Hours still apply.
+VOICEMAIL (Starter+): standard greeting in a chosen language, or own audio / AI voice made from text; ring time 10-60 s; email copy; transcripts.
+TEXTING on a calling number is an add-on ($0.05 per text sent, receiving free); US local numbers need 10DLC registration, toll-free numbers need verification, before texts work. Missed-call text: one text per caller per day after an unanswered call (needs texting on). Text Triggers (Business): an incoming text starts a call — callback (rings the owner, reads the text, press 1 to call them back), message (calls the texter and reads a message), ai (AI agent calls them back); filters: keywords, business hours only, once per sender per hour; checked top to bottom, max 5; wallet must be over $1.
+QUICK CALL (Pro+): up to 10 numbers (use a campaign for more), from one of the owner's numbers. They hear a script read by an AI voice (max 1500 characters) or an audio file. Any [Placeholder] like [Name] must be filled in the boxes under the script before calling, or the call is refused. Then:
+- transfer: pressing one of the chosen keys connects them to the owner's phone (must differ from the caller ID), up to 4 backups, optional hold music. Any other key or none: the message replays once (audio) then goodbye.
+- otp (code collection): the caller presses 1, hears "Please enter your N-digit verification code now" and types it (4, 5, 6 or 8 digits; "6-digit code" → length 6). If the script doesn't say "press 1", the system adds "To continue, press 1 now." They wait on hold (hold music if on) while the code appears for the owner on the Quick call page and in Inbox, who has 90 s to Accept (optional: then connect them to a phone), Decline (they're asked again, 3 tries in total) or hang up. Business plan: own sentence said after Accept and after Decline.
+- menu: each key forwards to a phone, reads a message, or opens one sub-menu.
+Billed per minute (rate depends on the destination); wallet must cover at least $1 / one minute. Scheduling (5 min–30 days ahead), presets and redial are Business.
+BULK IVR CAMPAIGN (Pro+): one message (audio from the library or a script turned into an AI voice when saved) to a contact list; 500 numbers per campaign, bigger lists split into parts of 500 called one after another (up to 10 parts) or only the first 500; numbers on the do-not-call list and known dead numbers are skipped. Key press: just report it, transfer to the owner, or a key menu. Answering machines: leave the same message, another clip, a separate voicemail script, or hang up. 1-20 calls at a time (more with rotating caller IDs), schedule, repeat daily/weekly (not for split lists), daily call limit. Needs about $20 in the wallet to launch. Suggest calling during normal daytime hours of the contacts.
+AI VOICE AGENTS (own page) hold real conversations; AI agent campaigns (Business) call only 8am-9pm in each contact's local time.`
 
 const OTHER = 'Where things live: forwarding, keypad menu, AI agent, ring group, voicemail, hours (Answering group) and SMS, missed-call text, Text Triggers (Texting group) are tabs of each number; Quick call and Bulk campaigns are under Make calls; AI agents have their own page.'
 
@@ -170,8 +177,10 @@ ${KNOWLEDGE}
 HOW TO TALK
 - Plain, warm language, 1-3 short sentences per turn plus an optional short list. No jargon. Ask ONE question at a time.
 - Guide: find out what they need (business, who calls, where calls should go, phone numbers). Suggest what works best and why, in a few words (e.g. "most callers want a person — shall key 0 reach you?"). Point out conflicts (e.g. a ring group skips the keypad menu, voicemail needs a plan).
-- Never invent facts about the business (hours, prices, addresses, links, names) or phone numbers: ask, or use a clear placeholder like [your hours] and say so.
+- Never invent facts about the business (hours, prices, addresses, links, names) or phone numbers: ask for them. Don't leave [brackets] in anything callers hear (they would be read out), except [Name]-style placeholders in Quick call / campaign scripts, and then tell the owner to fill them in.
 - Confirm before changing the form: when you know enough, propose the full setup and ask "Shall I fill this in?". Small direct edits the owner asks for ("make it 30 seconds") can be proposed straight away.
+- Be thorough end to end, like a product expert: before proposing, make sure every piece the setup needs to really work is known (phone numbers, which Texting Number sends texts, plan limits, what happens if nobody answers). Ask for what's missing, one question at a time.
+- When the form is filled, tell them the next steps on this page in one line (press Save, switch the feature on if it's off, and a test call if useful).
 - Nothing is saved until the owner presses Save on the page; you cannot place calls, switch features on, or save.
 - If they ask for something this screen cannot do, say where it is. ${OTHER}
 ${SAFE}
@@ -185,6 +194,37 @@ Phones are E.164 like +14155550100; a 10-digit number without country code is US
 ${sc.note || ''}
 ${context ? `About this account: ${JSON.stringify(context).slice(0, 800)}` : ''}
 Current form: ${JSON.stringify(current || {}).slice(0, 6000)}`
+}
+
+// Things a proposal still needs before it can be saved and work on a real call, in plain words.
+const has = (v) => (Array.isArray(v) ? v.length > 0 : !!String(v ?? '').trim())
+function keyGaps(opts, ctx, where = '') {
+  const out = []
+  const lines = Array.isArray(ctx?.textingNumbers) ? ctx.textingNumbers : null
+  for (const o of opts || []) {
+    const k = `${where}Key ${o.digit}`
+    if (o.action === 'forward' && !o.forwardTo) out.push(`${k}: which phone should it ring?`)
+    if (o.action === 'message' && !has(o.message)) out.push(`${k}: what should it say?`)
+    if (o.action === 'sms') {
+      if (!has(o.smsText)) out.push(`${k}: what should the text say?`)
+      if (lines && !lines.length) out.push(`${k}: you need a Texting Number to send texts (order one in the key row).`)
+      else if (lines && lines.length > 1 && !lines.some(l => l.id === o.smsFrom)) out.push(`${k}: which Texting Number should send it?`)
+    }
+    if (o.action === 'voicemail' && ctx && ctx.voicemailAvailable === false) out.push(`${k}: voicemail needs the Starter plan or higher.`)
+    const sub = o.subMenu || (o.action === 'submenu' ? o : null)
+    if (o.action === 'submenu') { if (!(sub.options || []).length) out.push(`${k}: the sub-menu has no keys yet.`); out.push(...keyGaps(sub.options, ctx, `${k} → `)) }
+  }
+  return out
+}
+const GAPS = {
+  ivr: (f, c) => [...(f.options && !f.options.length ? ['Add at least one key.'] : []), ...keyGaps(f.options, c),
+    ...(f.greeting && f.options ? f.options.filter(o => !new RegExp(`\\b${o.digit}\\b`).test(f.greeting)).map(o => `The greeting doesn't mention key ${o.digit}.`) : [])],
+  quick: (f) => [...(f.mode === 'transfer' && !f.transferTo ? ['Which phone should callers be connected to?'] : []), ...(f.mode === 'otp' && f.script && !/press\s*(1|one)/i.test(f.script) ? ['The script should tell them to press 1 before typing the code.'] : []), ...(f.mode === 'menu' ? keyGaps(f.menu) : [])],
+  campaign: (f) => [...(f.mode === 'transfer' && !f.transferNumber ? ['Which phone should calls transfer to?'] : []), ...(f.mode === 'menu' ? keyGaps(f.menu) : [])],
+  forwarding: (f) => (f.mode && f.mode !== 'disabled' && !f.forwardTo ? ['Which phone should calls forward to?'] : []),
+  ringgroup: (f, c) => [...(f.members && f.members.length < 2 ? ['A ring group works best with at least 2 phones.'] : []), ...(f.fallback === 'forward' && !f.fallbackTo ? ['Which backup number?'] : []), ...(f.fallback === 'voicemail' && c?.voicemailAvailable === false ? ['Voicemail needs the Starter plan or higher.'] : [])],
+  hours: (f, c) => [...(f.offAction === 'forward' && !f.offForward ? ['Which backup numbers when closed?'] : []), ...(f.offAction === 'voicemail' && c?.voicemailAvailable === false ? ['Voicemail needs the Starter plan or higher.'] : [])],
+  triggers: (f, c) => (f.rules || []).flatMap((r, i) => [...(r.action === 'callback' && !f.myPhone && !c?.myPhone ? [`Trigger ${i + 1}: which phone should we ring for the callback?`] : []), ...(r.action === 'message' && !r.message ? [`Trigger ${i + 1}: what should the call say?`] : []), ...(r.action === 'ai' && c?.agents === 0 ? [`Trigger ${i + 1}: create an AI agent first, then pick it in the trigger.`] : []), ...(r.keywordOnly && !r.keywords ? [`Trigger ${i + 1}: which keywords?`] : [])]),
 }
 
 function clean(sc, raw) {
@@ -208,7 +248,8 @@ async function chat(screen, messages, current, context) {
     }, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` }, timeout: 30000 })
     const j = JSON.parse(r.data.choices[0].message.content)
     const patch = clean(sc, j.patch)
-    return { reply: str(j.reply, 900) || 'Here’s what I suggest.', summary: Object.keys(patch).length ? (Array.isArray(j.summary) ? j.summary : []).map(x => str(x, 160)).filter(Boolean).slice(0, 8) : [], patch }
+    const missing = Object.keys(patch).length && GAPS[screen] ? [...new Set(GAPS[screen]({ ...(current || {}), ...patch }, context))].slice(0, 6) : []
+    return { reply: str(j.reply, 900) || 'Here’s what I suggest.', summary: Object.keys(patch).length ? (Array.isArray(j.summary) ? j.summary : []).map(x => str(x, 160)).filter(Boolean).slice(0, 8) : [], missing, patch }
   } catch (e) {
     console.log(`[Assist:${screen}] failed: ${e.response?.data?.error?.message || e.message}`)
     return null

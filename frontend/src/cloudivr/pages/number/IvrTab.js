@@ -129,7 +129,7 @@ export default function IvrTab({ num, reload }) {
   const { data, reload: reloadAudio } = useApi('/audio');
   const audios = data?.audios;
   const mn = useApi('/mobile-numbers');
-  const textingNumbers = (mn.data?.items || []).filter(x => ['provisioning', 'active'].includes(x.status)).length;
+  const textingNumbers = (mn.data?.items || []).filter(x => ['provisioning', 'active'].includes(x.status)).map(x => ({ id: x.id, phone: x.phoneNumber || 'being assigned', kind: x.kind === 'mobile' ? 'Texting Number' : 'USA eSIM' }));
   const enabled = !!ivr.enabled;
   const [g, setG] = useState({ greeting: ivr.greeting || defOf(lang).greeting, greetingAudioUrl: ivr.greetingAudioUrl || null });
   const [list, setList] = useState(toList(ivr.options));
