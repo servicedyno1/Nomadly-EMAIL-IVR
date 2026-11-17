@@ -22,6 +22,7 @@ import { planFor } from '../PlanFeatures';
 import { OwnerName } from './quick/OwnerName';
 import { ShowAsSelect } from '../CallerIdPick';
 import { Assist } from '../Assist';
+import { OutboundFlow } from './number/IvrFlow';
 
 const QUICK_LABELS = { targets: 'Numbers to call', script: 'Script', mode: 'Key press action', transferTo: 'Connect to', transferBackups: 'Backups', activeKeys: 'Keys', otp: 'Code settings', menu: 'Key menu', holdMusic: 'Hold music' };
 const QUICK_EXAMPLES = ['Remind Sarah at +14155550123 about her 3pm appointment, press 1 to reach me at +14155550100', 'Ask customers to confirm their delivery with a 6-digit code', 'Press 1 for sales, 2 for support'];
@@ -159,6 +160,7 @@ export default function QuickCall() {
           <form onSubmit={go} className="xl:col-span-2 space-y-4" data-testid="quick-call-form">
             <DraftBanner draft={draft} onResume={(d) => { setF({ ...EMPTY, ...d }); toast.success('Draft restored'); }} />
             <QuickAssist f={f} setF={setF} can={can} caller={caller} />
+            <OutboundFlow kind="quick" testid="quick-flow" readyLabel="Ready to place" config={{ targets: f.targets, script: f.script.text, mode: f.mode, transferTo: f.transferTo, activeKeys: f.activeKeys, otp: f.otp, menu: f.menu, holdMusic: f.holdMusic }} context={{ hasAudio: f.source === 'audio' && !!f.audioId }} />
             <Section n="1" title="Who to call">
               <Field label="Call from"><select className="civr-input font-mono" value={caller.phoneNumber} onChange={e => set({ callerId: e.target.value })} data-testid="quick-call-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{`${n.phoneNumber} · ${n.planName}`}</option>)}</select></Field>
               <ShowAsSelect value={f.showAs} onChange={(v) => set({ showAs: v })} from={caller?.phoneNumber} testid="quick-call-show-as-select" />

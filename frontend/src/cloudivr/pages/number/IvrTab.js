@@ -79,6 +79,26 @@ function OptionList({ list, setList, prefix, render }) {
   );
 }
 
+// Path helpers for editing a key straight from the Call flow view (path = digits, e.g. ['1','2']).
+const rowAt = (l, [d, ...rest]) => { const r = (l || []).find(x => x.digit === d); return rest.length ? rowAt(r?.subMenu?.options, rest) : r; };
+const mapAt = (l, [d, ...rest], fn) => (l || []).flatMap(x => (x.digit !== d ? [x] : rest.length ? [{ ...x, subMenu: { ...(x.subMenu || {}), options: mapAt(x.subMenu?.options, rest, fn) } }] : [fn(x)].filter(Boolean)));
+const kidsAt = (l, p) => (p.length ? rowAt(l, p)?.subMenu?.options || [] : l);
+const freeAt = (l, p) => DIGITS.find(d => !kidsAt(l, p).some(s => s.digit === d));
+
+function FlowEditor({ path, setPath, list, setList, audios, onAudio }) {
+  const o = rowAt(list, path);
+  if (!o) return null;
+  const used = kidsAt(list, path.slice(0, -1)).map(x => x.digit);
+  const set = (patch) => { setList(mapAt(list, path, x => ({ ...x, ...patch }))); if (patch.digit) setPath([...path.slice(0, -1), patch.digit]); };
+  return (
+    <>
+      <RowHead o={o} set={set} onRemove={() => { setList(mapAt(list, path, () => null)); setPath(null); }} used={used} depth={path.length - 1} prefix="ivr-flow-edit" />
+      <ActionFields o={o} set={set} audios={audios} prefix="ivr-flow-edit" onAudio={onAudio} />
+      {o.action === 'submenu' && <input className="civr-input" value={o.subMenu?.greeting || ''} onChange={e => set({ subMenu: { options: [], ...(o.subMenu || {}), greeting: e.target.value } })} placeholder="Sub-menu greeting, e.g. Press 1 for billing" data-testid="ivr-flow-edit-sub-greeting" />}
+    </>
+  );
+}
+
 // One menu key row; recurses into sub-menus (up to 3 levels deep, matching the call executor).
 function MenuRow({ o, onChange, onRemove, used, audios, prefix, onAudio, depth = 0 }) {
   const { lang } = useLang();
@@ -159,7 +179,11 @@ export default function IvrTab({ num, reload }) {
           render={(o, i, u, ch, rm) => <MenuRow key={i} o={o} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`ivr-option-${i}`} onAudio={reloadAudio} depth={0} />} />
         <SaveRow dirty={u.dirty} testid="ivr-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="ivr-save-button">Save keypad menu</button></SaveRow>
       </div>
-      <div className="space-y-4"><IvrFlow greeting={g.greeting} list={list} context={numContext(num, { textingNumbers })} /><IvrTemplates current={current} onApply={(c) => { if (prep) u.touch(); apply(c); }} auto={prep} /><Analytics num={num} /></div>
+      <div className="space-y-4"><IvrFlow greeting={g.greeting} list={list} context={numContext(num, { textingNumbers })} edit={{
+        canAdd: (p) => !!freeAt(list, p),
+        onAdd: (p) => { const d = freeAt(list, p); if (!d) return null; const row = { digit: d, action: 'forward', label: '' }; u.touch(); setList(p.length ? mapAt(list, p, x => ({ ...x, subMenu: { greeting: '', ...(x.subMenu || {}), options: [...(x.subMenu?.options || []), row] } })) : [...list, row]); return [...p, d]; },
+        renderEditor: (p, setPath) => <FlowEditor path={p} setPath={setPath} list={list} setList={(l) => { u.touch(); setList(l); }} audios={audios} onAudio={reloadAudio} />,
+      }} /><IvrTemplates current={current} onApply={(c) => { if (prep) u.touch(); apply(c); }} auto={prep} /><Analytics num={num} /></div>
     </div>
   );
 }

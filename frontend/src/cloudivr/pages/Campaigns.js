@@ -25,6 +25,7 @@ import { ShowAsSelect, RotateCallerIds } from '../CallerIdPick';
 import { useBalance, ShortNote } from '../WalletPay';
 import { VoicemailScript } from './VoicemailScript';
 import { Assist } from '../Assist';
+import { OutboundFlow } from './number/IvrFlow';
 
 const CAMPAIGN_LABELS = { name: 'Name', script: 'Script', mode: 'Key press action', transferNumber: 'Transfer to', transferBackups: 'Backups', activeKeys: 'Keys', menu: 'Key menu', concurrency: 'Calls at once', holdMusic: 'Hold music', repeat: 'Repeat', dailyLimit: 'Daily limit' };
 const CAMPAIGN_EXAMPLES = ['Remind my patients about their appointment tomorrow, press 1 to reach the front desk', 'Announce our weekend sale, press 1 to talk to sales at +14155550100', 'Call every Monday, max 200 calls a day'];
@@ -348,6 +349,7 @@ export function CampaignNew() {
       <CampaignKind value={kind} onChange={setKind} aiLocked={aiLocked} />
       <form onSubmit={create} className="grid lg:grid-cols-2 gap-4" {...u.bind}>
         {!isAi && <CampaignAssist f={f} setF={setF} script={script} setScript={setScript} />}
+        {!isAi && <div className="lg:col-span-2"><OutboundFlow kind="campaign" testid="campaign-flow" readyLabel="Ready to save" config={{ name: f.name, script: script?.text || '', mode: f.mode, transferNumber: f.transferNumber, activeKeys: f.activeKeys, menu: f.menu, holdMusic: f.holdMusic }} context={{ hasAudio: !!f.audioId, ...(est ? { contacts: est.count } : {}) }} /></div>}
         <div className="civr-card p-6 space-y-6">
           <Field label="Campaign name (optional)" hint="Shown in your campaign list and reports. Leave empty to use the message name."><input className="civr-input" maxLength={80} value={f.name} onChange={set('name')} placeholder="e.g. June follow-ups" data-testid="campaign-name-input" /></Field>
           <Field label="Caller ID"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="campaign-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{n.phoneNumber}</option>)}</select></Field>

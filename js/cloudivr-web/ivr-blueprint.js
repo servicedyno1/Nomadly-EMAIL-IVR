@@ -176,4 +176,96 @@ function readiness(ivr, ctx) {
   }
 }
 
-module.exports = { validate, simulate, blueprint, readiness, optList, LEAF, ACTIONS }
+// ── Outbound (Quick IVR call / Bulk IVR campaign): one call returns checks + simulated test + flow ──
+// config uses the same field names the setup assistant fills. Menus here are the outbound kind:
+// forward | message | submenu (one level), with the sub-menu's greeting/options on the key itself.
+function outbound(kind, c = {}, ctx = {}) {
+  const issues = []
+  const err = (where, message) => issues.push({ level: 'error', where, message })
+  const warn = (where, message) => issues.push({ level: 'warn', where, message })
+  const script = String(c.script || '').trim()
+  const hasAudio = !!ctx.hasAudio
+  const mode = c.mode || (kind === 'campaign' ? 'report_only' : 'transfer')
+  const to = kind === 'campaign' ? c.transferNumber : c.transferTo
+  const keys = (Array.isArray(c.activeKeys) ? c.activeKeys : []).map(String)
+  const menu = optList(c.menu)
+  const says = (k) => new RegExp(`\\b(${k}|${['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'][Number(k)]})\\b`, 'i').test(script)
+  const targets = String(Array.isArray(c.targets) ? c.targets.join(',') : c.targets || '').split(/[\s,;]+/).filter(Boolean)
+
+  if (!script && !hasAudio) err('message', kind === 'campaign' ? 'Write the message (or pick an audio file) people will hear.' : 'Write the script the call reads out.')
+  if (kind === 'quick') {
+    if (!targets.length) err('who to call', 'Add at least one number to call.')
+    else if (targets.some(t => !isPhone(t))) err('who to call', 'One of the numbers is not a full number with country code (e.g. +14155550100).')
+  } else {
+    if (ctx.contacts === 0) err('contacts', 'Choose or upload the list of people to call.')
+    if (typeof ctx.balance === 'number' && ctx.balance < 20) warn('wallet', 'A campaign needs about $20 in the wallet to start — add funds so it does not pause.')
+    if (script && !/\b(opt.?out|stop|unsubscribe|remove|no more calls|do not call)\b/i.test(script)) warn('message', 'Consider telling people how to stop these calls (for example "press 9 to stop these calls"). Only call people who agreed to hear from you; rules differ by country.')
+  }
+  if (mode === 'transfer') {
+    if (!isPhone(to)) err('connect to', 'Add the phone number people are connected to when they press a key.')
+    if (!keys.length) err('keys', 'Choose which key connects the call (e.g. 1).')
+    if (script) for (const k of keys) if (!says(k)) warn('message', `The message doesn't tell people to press ${k}.`)
+  }
+  if (mode === 'report_only' && script) for (const k of keys) if (!says(k)) warn('message', `The message doesn't tell people to press ${k}.`)
+  if (mode === 'otp' && script && !/press\s*(1|one)\b/i.test(script)) err('script', 'The script must tell the person to press 1 before typing the code.')
+  if (mode === 'menu') {
+    const v = validate({ greeting: script, options: menu }, { ...ctx, textingNumbers: null })
+    for (const i of v.issues) if (!(i.where === 'menu' && /No key reaches a person/.test(i.message))) issues.push({ ...i, where: i.where === 'greeting' ? 'message' : i.where, message: i.message.replace('The greeting', 'The message').replace('No greeting yet — the standard "please select an option" will be used, which does not list your keys.', 'The message should list the keys people can press.') })
+    for (const o of menu) if (o.action === 'submenu' && subList(o).some(s => s.action === 'submenu')) err(`Key ${o.digit}`, 'Outbound menus can only have one sub-menu level.')
+    for (const o of menu) if (!['forward', 'message', 'submenu'].includes(o.action)) err(`Key ${o.digit}`, 'Outbound menus can connect to a phone, play a message or open a sub-menu.')
+  }
+
+  // simulated walk-through
+  const tests = []
+  const t = (path, input, expect, ok = true) => tests.push({ path, input, expect, ok })
+  const heard = script || hasAudio
+  t('Start', 'person answers', heard ? 'hears your message' : '⚠ nothing to play yet', !!heard)
+  if (mode === 'transfer') {
+    for (const k of keys) t(`Key ${k}`, `press ${k}`, isPhone(to) ? `is connected to ${fmt(to)}${c.holdMusic ? ' (hold music while connecting)' : ''}` : '⚠ no phone to connect to', isPhone(to))
+    if (!keys.length) t('Keys', 'press any key', '⚠ no key is set to connect', false)
+    t('Other keys', 'press another key', 'no action is set for other keys')
+  } else if (mode === 'report_only') {
+    t(keys.length ? `Keys ${keys.join(', ')}` : 'Any key', 'press a key', 'the key press is recorded in your results; nobody is connected')
+  } else if (mode === 'otp') {
+    const says1 = /press\s*(1|one)\b/i.test(script)
+    t('Key 1', 'press 1', says1 ? `is asked to type a ${c.otp?.length || 6}-digit code` : '⚠ the script never asks them to press 1', says1)
+    t('Code', 'types the code', 'you see the code and accept or decline it')
+    t('Accepted', 'you accept', isPhone(to) ? `hears the confirmation, then is connected to ${fmt(to)}` : 'hears the confirmation, then the call ends')
+    t('Declined', 'you decline', 'hears that the code was not accepted')
+  } else if (mode === 'menu') {
+    const walk = (opts, where, depth) => {
+      for (const o of opts) {
+        const ok = o.action === 'forward' ? isPhone(o.forwardTo) : o.action === 'message' ? hasText(o.message) : o.action === 'submenu' ? subList(o).length > 0 && depth < 1 : false
+        t(`${where}Key ${o.digit}`, `press ${o.digit}`, !ok ? '⚠ not set up yet' : o.action === 'forward' ? `is connected to ${fmt(o.forwardTo)}` : o.action === 'message' ? 'hears your message, then the call ends' : 'hears the sub-menu prompt', ok)
+        if (o.action === 'submenu' && depth < 1) walk(subList(o), `${where}Key ${o.digit} → `, depth + 1)
+      }
+    }
+    if (menu.length) walk(menu, '', 0); else t('Menu', 'press any key', '⚠ no keys set', false)
+  }
+  t('No key', 'presses nothing', 'nobody is connected; the call ends')
+  t('No answer', 'does not pick up', 'nothing is played; shown as not answered in your results')
+
+  // flow
+  const nodes = [], edges = []
+  const add = (id, type, label, detail) => { nodes.push({ id, type, label, detail: detail || '' }); return id }
+  const link = (from, toId, label) => edges.push({ from, to: toId, label: label || '' })
+  add('incoming', 'outgoing', kind === 'campaign' ? 'Call each contact' : `Call ${targets.length || 0} number${targets.length === 1 ? '' : 's'}`, '')
+  add('greeting', 'greeting', 'Message', script ? script.slice(0, 120) : hasAudio ? 'Audio file' : 'not written yet'); link('incoming', 'greeting')
+  if (mode === 'transfer') for (const k of keys) link('greeting', add(`k${k}`, 'forward', 'Connect', isPhone(to) ? fmt(to) : 'no number set'), `Key ${k}`)
+  if (mode === 'report_only') link('greeting', add('report', 'message', 'Record the key press', 'shown in your results'), keys.length ? `Key ${keys.join(', ')}` : 'Any key')
+  if (mode === 'otp') { link('greeting', add('code', 'collect', 'Type a code', `${c.otp?.length || 6} digits`), 'Key 1'); link('code', add('review', 'pin', 'You accept or decline', ''), ''); if (isPhone(to)) link('review', add('conn', 'forward', 'Connect', fmt(to)), 'accepted') }
+  if (mode === 'menu') {
+    const walk = (opts, parent, prefix, depth) => { for (const o of opts) {
+      if (o.action === 'submenu' && depth < 1) { const id = add(`${prefix}${o.digit}`, 'menu', o.label || `Sub-menu ${o.digit}`, String(subGreeting(o) || '').slice(0, 80)); link(parent, id, `Key ${o.digit}`); walk(subList(o), id, `${prefix}${o.digit}.`, depth + 1) }
+      else if (o.action === 'forward') link(parent, add(`${prefix}${o.digit}`, 'forward', 'Connect', isPhone(o.forwardTo) ? fmt(o.forwardTo) : 'no number set'), `Key ${o.digit}`)
+      else if (o.action === 'message') link(parent, add(`${prefix}${o.digit}`, 'message', 'Message', String(o.message || '').slice(0, 80)), `Key ${o.digit}`)
+    } }
+    walk(menu, 'greeting', 'k', 0)
+  }
+
+  const errors = issues.filter(i => i.level === 'error').length
+  const failed = tests.filter(x => !x.ok).length
+  return { validation: { ok: errors === 0, ready: errors === 0, errors, warnings: issues.length - errors, issues }, test: { tests, passed: tests.length - failed, failed, ok: failed === 0 }, flow: { nodes, edges } }
+}
+
+module.exports = { validate, simulate, blueprint, readiness, outbound, optList, LEAF, ACTIONS }

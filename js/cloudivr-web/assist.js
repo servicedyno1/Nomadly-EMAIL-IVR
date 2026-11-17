@@ -3,6 +3,15 @@
 const axios = require('axios')
 const BP = require('./ivr-blueprint')
 
+// Outbound calls (Quick IVR call + Bulk IVR campaign): same end-to-end architect behaviour.
+const OUTBOUND_ARCHITECT = `YOU ARE "EMILY", THE CLOUDIVR ARCHITECT FOR THIS OUTBOUND CALL SETUP.
+Take the owner from nothing to a complete, ready-to-send setup — never leave it half-finished.
+- First message: one short introduction, then ask the one thing you most need (usually: who are you calling and what should the call achieve).
+- Drive the whole flow: the exact script, what each key does, where calls connect, and what happens if nobody presses anything (the call simply ends and is reported).
+- The script must tell people exactly which key to press for each thing the setup reacts to. Propose a full setup as soon as you can and let the owner adjust it.
+- For anything sent to a list of people, remind the owner once, briefly: only call people who agreed to hear from them, and give listeners a simple way to say they don't want more calls (for example "press 9 to stop these calls"). You are not giving legal advice — rules differ by country, so suggest they check theirs.
+- Never claim a call or campaign was sent, scheduled or tested: the owner presses the button on the page themselves.`
+
 // Extra guidance for the keypad-menu screen: Emily acts as a whole-flow IVR architect
 // that drives the owner from start to a complete, working menu — not a one-field helper.
 const ARCHITECT = `YOU ARE "EMILY", THE CLOUDIVR IVR ARCHITECT FOR THIS KEYPAD MENU.
@@ -28,10 +37,10 @@ const time = (v) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v)) ? String(v) : u
 const zone = (v) => { try { Intl.DateTimeFormat('en-US', { timeZone: String(v) }); return String(v) } catch (_) { return undefined } }
 
 // One menu level → rows; `acts` allowed actions, `sub` key holding the sub-menu (rows nested one level).
-function menu(acts, nested) {
+function menu(acts, nested, maxSub = 1) {
   const rows = (v, depth = 0) => {
     const seen = new Set()
-    return (Array.isArray(v) ? v : []).filter(r => DIGITS.includes(String(r?.digit)) && acts.includes(r?.action) && !(depth >= 3 && r.action === 'submenu') && !seen.has(String(r.digit)) && seen.add(String(r.digit))).slice(0, 10).map(r => {
+    return (Array.isArray(v) ? v : []).filter(r => DIGITS.includes(String(r?.digit)) && acts.includes(r?.action) && !(depth >= maxSub && r.action === 'submenu') && !seen.has(String(r.digit)) && seen.add(String(r.digit))).slice(0, 10).map(r => {
       const o = { digit: String(r.digit), action: r.action, label: str(r.label, 40) }
       if (r.action === 'forward') o.forwardTo = phone(r.forwardTo)
       if (r.action === 'message') o.message = str(r.message, 400)
@@ -98,7 +107,7 @@ const SCREENS = {
     what: 'the keypad menu (IVR) people hear when they call this number',
     fields: {
       greeting: [text(600), 'what callers hear first, listing the keys, e.g. "Thanks for calling Bella\'s. Press 1 for reservations, press 2 for our hours."'],
-      options: [menu(['forward', 'message', 'sms', 'voicemail', 'webhook', 'collect', 'pin', 'pay', 'submenu'], true), `full list of keys: [{"digit":"1","action":"forward|message|sms|voicemail|webhook|collect|pin|pay|submenu","label":"Sales","forwardTo":"+1... (forward)","message":"words read out (message), after the text (sms), after a webhook, or after collected digits","smsFrom":"id of the texting number","smsTexts":["version A","version B (rotates)"],"url":"https://... secure webhook (webhook)","prompt":"what to ask the caller to type (collect/pin)","length":"how many digits to collect (collect)","webhook":"https://... where to send the typed digits (collect)","pin":"the digit code to check (pin)","onOk":{"action":"forward|message","forwardTo":"+1...","message":"said when the code is right"},"failMessage":"said when the code is wrong (pin)","payUrl":"https://... the owner's own payment page (pay)","payNote":"short line texted before the link (pay)","after":"hangup|menu (sms/webhook)","subMenu":{"greeting":"...","options":[same keys; nest up to 3 levels]}}]`],
+      options: [menu(['forward', 'message', 'sms', 'voicemail', 'webhook', 'collect', 'pin', 'pay', 'submenu'], true, 3), `full list of keys: [{"digit":"1","action":"forward|message|sms|voicemail|webhook|collect|pin|pay|submenu","label":"Sales","forwardTo":"+1... (forward)","message":"words read out (message), after the text (sms), after a webhook, or after collected digits","smsFrom":"id of the texting number","smsTexts":["version A","version B (rotates)"],"url":"https://... secure webhook (webhook)","prompt":"what to ask the caller to type (collect/pin)","length":"how many digits to collect (collect)","webhook":"https://... where to send the typed digits (collect)","pin":"the digit code to check (pin)","onOk":{"action":"forward|message","forwardTo":"+1...","message":"said when the code is right"},"failMessage":"said when the code is wrong (pin)","payUrl":"https://... the owner's own payment page (pay)","payNote":"short line texted before the link (pay)","after":"hangup|menu (sms/webhook)","subMenu":{"greeting":"...","options":[same keys; nest up to 3 levels]}}]`],
     },
     note: `The greeting must mention every key in options.\nTEXT KEYS (sms): the text is sent FROM one of the owner's Texting Numbers listed in account info textingNumbers [{id, phone}]. If there are several, ask which one should send it and set smsFrom to its id. If there is exactly one, set smsFrom to it and tell the owner the texts go out from that number. If there are none, explain the key can't send texts until they order a Texting Number (the key row has an Order button) and offer an alternative such as a message key. Also mention: USA callers only, $0.05 per text from the wallet, and whether the call hangs up or replays the menu after. Rotation: 2-5 smsTexts versions, each caller gets the next one in turn.`,
   },
@@ -192,7 +201,7 @@ const OTHER = 'Where things live: forwarding, keypad menu, AI agent, ring group,
 function system(sc, current, context, screen) {
   const fields = Object.entries(sc.fields).map(([k, [, doc]]) => `- ${k}: ${doc}`).join('\n')
   return `You are the CloudIVR setup assistant, an expert on the whole CloudIVR phone system. You guide a small business owner through setting up ${sc.what} in a friendly conversation.
-${screen === 'ivr' ? ARCHITECT + '\n' : ''}${KNOWLEDGE}
+${screen === 'ivr' ? ARCHITECT + '\n' : (screen === 'quick' || screen === 'campaign') ? OUTBOUND_ARCHITECT + '\n' : ''}${KNOWLEDGE}
 
 HOW TO TALK
 - Plain, warm language, 1-3 short sentences per turn plus an optional short list. No jargon. Ask ONE question at a time.
@@ -315,6 +324,7 @@ function routes(router, { h }) {
   // Whole-flow IVR architect: validate / simulate / blueprint a keypad menu (operates on the posted config only).
   router.post('/ivr/validate', h(async (req, res) => res.json(BP.validate(req.body?.ivr || {}, req.body?.context || {}))))
   router.post('/ivr/simulate', h(async (req, res) => res.json(BP.simulate(req.body?.ivr || {}, req.body?.context || {}))))
+  router.post('/outbound/check', h(async (req, res) => res.json(BP.outbound(req.body?.kind === 'campaign' ? 'campaign' : 'quick', req.body?.config || {}, req.body?.context || {}))))
   router.post('/ivr/blueprint', h(async (req, res) => res.json(BP.blueprint(req.body?.ivr || {}, req.body?.context || {}))))
   router.post('/assist/:screen', h(async (req, res) => {
     if (!SCREENS[req.params.screen]) return res.status(404).json({ error: 'unknown_screen', message: 'This page has no setup assistant.' })
