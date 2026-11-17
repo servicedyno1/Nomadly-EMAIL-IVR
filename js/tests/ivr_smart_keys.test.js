@@ -46,6 +46,7 @@ const open = (id) => { vs.activeCalls[id] = { num: { phoneNumber: '+13346970100'
   s = open('c6')
   await press('c6', '7'); ok(s.collect?.kind === 'pin' && last('gather')?.a[2].maxDigits === 4, 'pin key asks for a 4-digit code')
   await press('c6', '0000'); ok(s.collect?.kind === 'pin' && /Wrong code/.test(last('gather')?.a[1]), 'wrong pin is asked again')
+  await press('c6', ''); ok(s.collect?.kind === 'pin' && (s.collectTries || 0) === 1 && /Wrong code/.test(last('gather')?.a[1]), 'the pound pressed after a full wrong code is not counted as a try (found on a live call)')
   await press('c6', '4821'); ok(!s.collect && /Welcome staff/.test(last('speak')?.a[1]), 'right pin continues')
   s = open('c7'); await press('c7', '7'); await press('c7', '1'); await press('c7', '2'); await press('c7', '3')
   ok(!s.collect && !last('gather') && /Wrong code/.test(last('speak')?.a[1]), 'three wrong pins ends the call')

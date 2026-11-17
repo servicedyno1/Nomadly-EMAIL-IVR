@@ -222,15 +222,8 @@ function outbound(kind, c = {}, ctx = {}) {
     if (!stopKey && (mode === 'transfer' || mode === 'report_only')) warn('keys', 'No stop-calls key is set. Consider one (for example 9) so people can take themselves off your list.')
   }
   // A script may promise a stop key only when that exact key is set as the stop-calls key.
-  const NUM = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
-  const KEYW = '(\\d|zero|one|two|three|four|five|six|seven|eight|nine)'
-  const STOPW = /\b(stop|opt.?out|unsubscribe|removed?|no more calls)\b/i
-  const digitOf = (w) => (NUM.indexOf(String(w).toLowerCase()) >= 0 ? String(NUM.indexOf(String(w).toLowerCase())) : String(w))
-  let promised = ''
-  // "press 9 to stop…": the words between this "press X" and the next "press" / end of sentence
-  for (const x of script.matchAll(new RegExp(`press\\s+${KEYW}\\b([^.!?]*?)(?=press\\s|[.!?]|$)`, 'gi'))) if (STOPW.test(x[2])) { promised = digitOf(x[1]); break }
-  // "to stop these calls, press nine"
-  if (!promised) { const r = script.match(new RegExp(`\\b(?:stop|opt.?out|unsubscribe|be removed)\\b[^.!?]{0,40}?press\\s+${KEYW}\\b`, 'i')); if (r) promised = digitOf(r[1]) }
+  const hits = stopClauses(script).hits
+  const promised = (hits.find(h => h.key !== stopKey) || hits[0] || {}).key || ''
   if (promised && promised !== stopKey) err('message', stopKey ? `The message says key ${promised} stops future calls, but the stop-calls key is ${stopKey}.` : `The message promises that key ${promised} stops future calls, but no stop-calls key is set. Set the stop-calls key to ${promised}, or remove that line.`)
   if (stopKey && keys.includes(stopKey)) err('keys', `Key ${stopKey} is both a normal key and the stop-calls key — pick a different one.`)
   if (stopKey && script && !promised) warn('message', `The stop-calls key is ${stopKey}, but the message never tells people to press it.`)
@@ -303,4 +296,59 @@ function outbound(kind, c = {}, ctx = {}) {
   return { validation: { ok: errors === 0, ready: errors === 0, errors, warnings: issues.length - errors, issues }, test: { tests, passed: tests.length - failed, failed, ok: failed === 0 }, flow: { nodes, edges } }
 }
 
-module.exports = { validate, simulate, blueprint, readiness, outbound, optList, LEAF, ACTIONS }
+// Stop-call promises in a script, found clause by clause ("press 9 to stop these calls", "to opt out, press nine", "…and 9 to unsubscribe").
+const NUMW = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
+const KEYW = '(\\d|zero|one|two|three|four|five|six|seven|eight|nine)'
+const STOP_RE = new RegExp('\\b(?:' + [
+  'stop(?:\\s+(?:receiving|getting))?(?:\\s+(?:these|the|our|all|future|further|any more))*\\s+(?:calls?|calling|messages|contact)',
+  'to stop(?!\\s+by\\b)(?=\\s*(?:$|now\\b|at any time|anytime))',
+  'opt(?:ing)?[ -]?out', 'unsubscribe', 'be removed', 'removed? (?:you|me|your number|my number|from)', 'no more calls',
+  "(?:not|n't|never) (?:call you|be called|receive|get|contact you)", 'no longer (?:wish|want|receive|be called|call)',
+  "do(?:n't| not) (?:want|wish)(?: to (?:receive|get|hear))? (?:these|any|more|further|our) calls?", 'do[- ]not[- ]call',
+  'off (?:our|the|this|my) (?:calling |call )?list',
+].join('|') + ')', 'i')
+const KEY_IN = new RegExp(`\\b(?:press(?:ing)?|dial|hit|push|key|option)\\s+${KEYW}\\b`, 'i')
+const KEY_BARE = /^(?:(?:or|and)\s+)?(\d)\s+(?:to|for|if)\b/i
+const KEY_ONLY = new RegExp(`^(?:(?:or|and|then|just|simply|please)\\s+)*(?:press|dial|hit|push)\\s+${KEYW}(?:\\s+(?:now|anytime|at any time|any time|instead))?$`, 'i')
+const FILLER = /^(?:now|today|anytime|at any time|any time)$/i
+const CLAUSE_SEP = /([.!?]+(?:\s+|$)|[,;]\s*|\s+[—–-]\s+|\s+(?=(?:or|and)\s+(?:please\s+)?(?:press|dial|hit|push|to\s|if\s|for\s|\d\b)))/
+const digitOf = (w) => (NUMW.indexOf(String(w).toLowerCase()) >= 0 ? String(NUMW.indexOf(String(w).toLowerCase())) : String(w))
+function stopClauses(script) {
+  const parts = String(script || '').split(CLAUSE_SEP)
+  const cl = []
+  for (let i = 0; i < parts.length; i += 2) cl.push({ text: parts[i] || '', sep: parts[i + 1] || '' })
+  const near = (i, step) => { for (let j = i + step; j >= 0 && j < cl.length; j += step) if (cl[j].text.trim()) return j; return -1 }
+  const hits = []
+  cl.forEach((c, i) => {
+    if (!STOP_RE.test(c.text)) return
+    const m = c.text.match(KEY_IN) || c.text.trim().match(KEY_BARE)
+    let idx = null, key = ''
+    if (m) { idx = [i]; key = digitOf(m[1]) }
+    else for (const j of [near(i, 1), near(i, -1)]) { const k = j >= 0 && cl[j].text.trim().match(KEY_ONLY); if (k) { idx = [i, j]; key = digitOf(k[1]); break } }
+    if (!idx) return
+    const after = near(Math.max(...idx), 1)
+    if (after >= 0 && FILLER.test(cl[after].text.trim())) idx.push(after)
+    hits.push({ key, idx })
+  })
+  return { cl, hits }
+}
+
+// Remove every stop-call promise from a script (used when no stop-calls key is in effect).
+function stripStopPromise(script) {
+  const src = String(script || '').trim()
+  const { cl, hits } = stopClauses(src)
+  if (!hits.length) return src
+  const drop = new Set(hits.flatMap(h => h.idx))
+  const rank = (x) => (/[.!?]/.test(x) ? 3 : /[,;—–-]/.test(x) ? 2 : x ? 1 : 0)
+  let out = '', pend = '', started = false, lastDropped = false
+  cl.forEach((c, i) => {
+    if (drop.has(i)) { if (started && rank(c.sep) > rank(pend)) pend = c.sep; lastDropped = true; return }
+    if (!c.text.trim() && !started) return
+    out += pend + c.text; pend = c.sep; started = true; if (c.text.trim()) lastDropped = false
+  })
+  out += /[.!?]/.test(pend) ? pend : lastDropped ? '.' : pend
+  return out.replace(/(^|[.!?]\s+)(?:or|and)\s+(\w)/gi, (m, pre, ch) => pre + ch.toUpperCase()).replace(/([.!?]\s+)([a-z])/g, (m, pre, ch) => pre + ch.toUpperCase())
+    .replace(/\s+([.,!?])/g, '$1').replace(/,\s*([.!?])/g, '$1').replace(/([.!?])\s*[.,]+/g, '$1').replace(/^[\s,.;]+/, '').replace(/\s{2,}/g, ' ').trim()
+}
+
+module.exports = { validate, simulate, blueprint, readiness, outbound, stripStopPromise, stopClauses, optList, LEAF, ACTIONS }

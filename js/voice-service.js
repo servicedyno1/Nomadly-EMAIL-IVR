@@ -4804,12 +4804,20 @@ async function handleCollectedDigits(callControlId, session, digits, ivrL) {
       }
       return
     }
+    const plen = String(allowed[0] || '').length || 6
+    // A full code ends the entry by itself; the pound the caller presses after it arrives as an empty entry — not a try.
+    if (!entered && session.pinPoundUntil && Date.now() < session.pinPoundUntil) {
+      session.pinPoundUntil = 0
+      session.collect = { kind: 'pin', option, path }
+      await _telnyxApi.gatherDTMF(callControlId, option.failMessage || 'That code was not recognised. Please try again, then press pound.', { minDigits: 1, maxDigits: plen, timeout: 15000, terminatingDigit: '#', validDigits: '0123456789', language: ivrL.tts })
+      return
+    }
     // wrong PIN — retry up to 3 times
     const tries = (session.collectTries || 0) + 1
     session.collectTries = tries
+    session.pinPoundUntil = entered.length >= plen ? Date.now() + 4000 : 0
     if (tries < 3) {
       session.collect = { kind: 'pin', option, path }
-      const plen = String(allowed[0] || '').length || 6
       await _telnyxApi.gatherDTMF(callControlId, option.failMessage || 'That code was not recognised. Please try again, then press pound.', { minDigits: 1, maxDigits: plen, timeout: 15000, terminatingDigit: '#', validDigits: '0123456789', language: ivrL.tts })
     } else {
       await _telnyxApi.speakOnCall(callControlId, option.failMessage || ivrL.goodbye, 'female', ivrL.tts)

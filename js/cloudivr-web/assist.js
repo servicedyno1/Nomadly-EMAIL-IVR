@@ -13,7 +13,9 @@ Take the owner from nothing to a complete, ready-to-send setup — never leave i
 - You are not giving legal advice — rules differ by country, so suggest they check theirs.
 - CHOOSING THE MODE — decide it yourself, never ask:
   · one key connects people to one phone → mode "transfer", activeKeys = [that key], and the phone in the connect-to field.
-  · keys only record an answer (survey, yes/no, confirm/decline, "just record") → mode "report_only", activeKeys = those keys. No phone number is needed at all — never ask for one.
+  · keys only record an answer (survey, yes/no, confirm/decline, "just record") → mode "report_only", activeKeys = those keys. No phone number is needed at all — never ask for one, and never ask which keys to listen for when the owner already named them.
+  · an announcement with nothing to press → mode "report_only", activeKeys = [] (on a campaign still with stopKey "9").
+- Never guess facts: dates, times, prices, addresses, phone numbers and web addresses in the script must come from the owner's own words. Ask if one is missing.
   · different keys do different things (one connects, another plays information) → mode "menu" with every key filled in "menu". This mode has no stop key: leave stopKey "" and do not mention or ask about one.
 - A phone number or wording the owner already wrote is final — never ask them to confirm or repeat it.
 - NEVER ask about these — use the default silently and mention it in the summary: the campaign name (make up a short one from the purpose), backup numbers (none), whether to add a stop key (follow the rule below), calls at the same time (1), hold music (on when connecting), repeat/schedule (none), daily limit (none), which number the calls come from (chosen on the page), voice. A missing one of these is never a reason to hold back a proposal.
@@ -29,6 +31,7 @@ Your job is to take the owner from nothing to a complete, working keypad menu, e
 - Drive the whole flow: the greeting, every key and where it goes, any sub-menu, a way to reach a person (e.g. press 0), and what happens on a wrong/no key (the system already retries once then says goodbye — reassure them).
 - Work in sensible defaults and PROPOSE a full menu as soon as you have enough; don't ask for things you can reasonably assume, and never stall waiting for one more detail when you could propose and let them adjust.
 - Changing an existing menu: keep every other key, sub-menu and the rest of the greeting EXACTLY as they are in the current form — copy them into the patch unchanged. Never remove, renumber or rewrite a key the owner did not mention. If you think something else should change, suggest it in the reply and leave it alone.
+- NEVER GUESS FACTS: opening hours, addresses, prices, phone numbers, web addresses and PIN codes must come from the owner's own words or the current form. If a key needs one you were not given, ask for it (you may ask for several missing facts in one message) — do not fill in a plausible-looking value. Never forward a key to this number itself or to a Texting Number. Only add a "reach a person" key when you know which phone it rings; otherwise suggest it in your reply.
 - When you propose, fill EVERY key fully (digit, action, destination, label) and write a greeting that names each key. A proposal that leaves a key without its phone number / message / text is not acceptable — ask for that one missing piece instead.
 - After the owner is happy, tell them the two steps left on this page: press "Save keypad menu", then flip the switch at the top to turn it on. Offer a test call.`
 
@@ -263,14 +266,14 @@ function keyGaps(opts, ctx, where = '', said = '', prev = []) {
       }
     }
     if (o.action === 'voicemail' && ctx && ctx.voicemailAvailable === false) out.push(`${k}: voicemail needs the Starter plan or higher.`)
-    if (o.action === 'webhook' && !/^https:\/\//i.test(String(o.url || '').trim())) out.push(`${k}: add the secure https web address (webhook URL) to call.`)
+    if (o.action === 'webhook' && !/^https:\/\//i.test(String(o.url || '').trim())) out.push(`${k}: what is the secure https web address (webhook URL) it should call?`)
     if (o.action === 'queue') {
       if (!has(o.agents)) out.push(`${k}: which phones should the queue ring (up to 5)?`)
       if (o.overflow?.action === 'forward' && !o.overflow.forwardTo) out.push(`${k}: which phone should be tried when nobody in the queue answers?`)
       if (o.overflow?.action === 'voicemail' && ctx && ctx.voicemailAvailable === false) out.push(`${k}: voicemail as the last resort needs the Starter plan or higher.`)
     }
     if (o.action === 'pay') {
-      if (!/^https:\/\//i.test(String(o.payUrl || '').trim())) out.push(`${k}: add the https link to your own payment page.`)
+      if (!/^https:\/\//i.test(String(o.payUrl || '').trim())) out.push(`${k}: what is the https link to your own payment page?`)
       if (lines && !lines.length) out.push(`${k}: texting a payment link needs a Texting Number — order one first.`)
       else if (lines && lines.length > 1 && !lines.some(l => l.id === o.smsFrom)) out.push(`${k}: which Texting Number sends the link?`)
     }
@@ -278,7 +281,7 @@ function keyGaps(opts, ctx, where = '', said = '', prev = []) {
       if (!has(o.prompt)) out.push(`${k}: what should the caller be asked to type?`)
       if (!/^https:\/\//i.test(String(o.webhook || '').trim()) && !o.forwardTo && !has(o.message)) out.push(`${k}: what happens with the digits — send to your system, connect the call, or confirm?`)
     }
-    if (o.action === 'pin' && !(String(o.pin || '').replace(/\D/g, '') || (Array.isArray(o.pins) && o.pins.length))) out.push(`${k}: add at least one PIN code callers can enter.`)
+    if (o.action === 'pin' && !(String(o.pin || '').replace(/\D/g, '') || (Array.isArray(o.pins) && o.pins.length))) out.push(`${k}: which code should callers enter?`)
     const sub = o.subMenu || (o.action === 'submenu' ? o : null)
     if (o.action === 'submenu') { if (!(sub.options || []).length) out.push(`${k}: the sub-menu has no keys yet.`); out.push(...keyGaps(sub.options, ctx, `${k} → `, said)) }
   }
@@ -287,12 +290,52 @@ function keyGaps(opts, ctx, where = '', said = '', prev = []) {
 const GAPS = {
   ivr: (f, c, said, cur) => [...(f.options && !f.options.length ? ['Add at least one key.'] : []), ...keyGaps(f.options, c, '', said, cur?.options),
     ...(f.greeting && f.options ? f.options.filter(o => !new RegExp(`\\b${o.digit}\\b`).test(f.greeting)).map(o => `The greeting doesn't mention key ${o.digit}.`) : [])],
-  quick: (f) => [...(f.mode === 'transfer' && !f.transferTo ? ['Which phone should callers be connected to?'] : []), ...(f.mode === 'otp' && f.script && !/press\s*(1|one)/i.test(f.script) ? ['The script should tell them to press 1 before typing the code.'] : []), ...(f.mode === 'menu' ? keyGaps(f.menu) : [])],
+  quick: (f) => [...(!has(f.targets) ? ['Which number(s) should I call?'] : []), ...(f.mode === 'transfer' && !f.transferTo ? ['Which phone should callers be connected to?'] : []), ...(f.mode === 'otp' && f.script && !/press\s*(1|one)/i.test(f.script) ? ['The script should tell them to press 1 before typing the code.'] : []), ...(f.mode === 'menu' ? keyGaps(f.menu) : [])],
   campaign: (f) => [...(f.mode === 'transfer' && !f.transferNumber ? ['Which phone should calls transfer to?'] : []), ...(f.mode === 'menu' ? keyGaps(f.menu) : [])],
   forwarding: (f) => (f.mode && f.mode !== 'disabled' && !f.forwardTo ? ['Which phone should calls forward to?'] : []),
   ringgroup: (f, c) => [...(f.members && f.members.length < 2 ? ['A ring group works best with at least 2 phones.'] : []), ...(f.fallback === 'forward' && !f.fallbackTo ? ['Which backup number?'] : []), ...(f.fallback === 'voicemail' && c?.voicemailAvailable === false ? ['Voicemail needs the Starter plan or higher.'] : [])],
   hours: (f, c) => [...(f.offAction === 'forward' && !f.offForward ? ['Which backup numbers when closed?'] : []), ...(f.offAction === 'voicemail' && c?.voicemailAvailable === false ? ['Voicemail needs the Starter plan or higher.'] : [])],
   triggers: (f, c) => (f.rules || []).flatMap((r, i) => [...(r.action === 'callback' && !f.myPhone && !c?.myPhone ? [`Trigger ${i + 1}: which phone should we ring for the callback?`] : []), ...(r.action === 'message' && !r.message ? [`Trigger ${i + 1}: what should the call say?`] : []), ...(r.action === 'ai' && c?.agents === 0 ? [`Trigger ${i + 1}: create an AI agent first, then pick it in the trigger.`] : []), ...(r.keywordOnly && !r.keywords ? [`Trigger ${i + 1}: which keywords?`] : [])]),
+}
+
+
+// Nothing invented: phones, web addresses, PIN codes and numbers in spoken words must come from the owner (their messages or the current form).
+const WORDNUM = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, ninety: 90, hundred: 100, noon: 12, midnight: 12 }
+function invented(screen, patch, messages, current) {
+  const own = `${messages.filter(m => m.role !== 'assistant').map(m => m.content).join(' \n ')} \n ${JSON.stringify(current || {})}`
+  const low = own.toLowerCase(), digits = own.replace(/[^\d]/g, '')
+  const nums = new Set([...(own.match(/\d+/g) || []), ...Object.entries(WORDNUM).filter(([w]) => new RegExp(`\\b${w}\\b`, 'i').test(own)).map(([, n]) => String(n))])
+  for (const n of [...nums]) { const v = Number(n); if (v >= 13 && v <= 23) nums.add(String(v - 12)); if (v >= 1 && v <= 11) nums.add(String(v + 12)); nums.add(String(v).padStart(2, '0')) }
+  const out = []
+  const badPhone = (p) => p && !digits.includes(String(p).replace(/\D/g, '').replace(/^1(?=\d{10}$)/, ''))
+  const badUrl = (u) => { if (!u) return false; try { return !low.includes(new URL(u).hostname.toLowerCase()) } catch (_) { return true } }
+  const badFacts = (t, keys = []) => [...new Set((String(t || '').replace(/\b(?:press(?:ing)?|key|option|dial|number)\s+\d\b/gi, ' ').replace(/\b\d+[- ]digit/gi, ' ').match(/\d+/g) || []).filter(n => !nums.has(n) && !nums.has(String(Number(n))) && !(n.length === 1 && keys.includes(n)) && n !== '00'))]
+  const said = (where, label, t, keys) => { if (badFacts(t, keys).length) out.push(`${where}: what are the real details ${label} should give? (I won’t guess times, dates, prices or addresses.)`) }
+  const walk = (opts, where) => {
+    const keys = (opts || []).map(o => String(o.digit))
+    for (const o of opts || []) {
+      const k = `${where}Key ${o.digit}${o.label ? ` (${o.label})` : ''}`
+      if (badPhone(o.forwardTo)) out.push(`${k}: which phone should it ring?`)
+      if (badPhone(o.onOk?.forwardTo)) out.push(`${k}: which phone should a correct code connect to?`)
+      if (badPhone(o.overflow?.forwardTo)) out.push(`${k}: which phone should be tried when nobody answers?`)
+      if ((o.agents || []).some(badPhone)) out.push(`${k}: which phones should ring (up to 5)?`)
+      for (const [f, q] of [['url', 'what is the https address of your system?'], ['webhook', 'what is the https address that should receive the digits?'], ['payUrl', 'what is the https link to your payment page?']]) if (badUrl(o[f])) out.push(`${k}: ${q}`)
+      if (o.action === 'pin' && o.pin && !digits.includes(o.pin)) out.push(`${k}: which code should callers enter?`)
+      for (const t of [o.message, o.smsText, ...(o.smsTexts || []), o.payNote, o.onOk?.message, o.overflow?.message]) said(k, 'it', t, keys)
+      const sub = o.subMenu || (o.action === 'submenu' ? o : null)
+      if (sub) { said(k, 'the sub-menu greeting', sub.greeting, (sub.options || []).map(x => String(x.digit))); walk(sub.options, `${k} → `) }
+    }
+  }
+  if (screen === 'ivr') { if (patch.options) walk(patch.options, ''); if (patch.greeting) said('Greeting', 'the greeting', patch.greeting, (patch.options || current?.options || []).map(o => String(o.digit))) }
+  if (screen === 'quick' || screen === 'campaign') {
+    const all = [...'0123456789']
+    if (String(patch.targets || '').split(/[,\s]+/).filter(Boolean).some(badPhone)) out.push('Which number(s) should I call?')
+    if (badPhone(patch.transferTo) || badPhone(patch.transferNumber)) out.push('Which phone should people be connected to?')
+    if (String(patch.transferBackups || '').split(/[,\s]+/).filter(Boolean).some(badPhone)) out.push('Which backup phones, if any?')
+    if (patch.menu) walk(patch.menu, '')
+    if (patch.script) said('Script', 'the call', patch.script, all)
+  }
+  return [...new Set(out)].slice(0, 6)
 }
 
 // The model's summary lines, or short 'field: value' lines when it sent none.
@@ -323,20 +366,49 @@ async function chat(screen, messages, current, context) {
   const sc = SCREENS[screen]
   if (!sc || !process.env.APP_OPEN_API_KEY) return null
   try {
-    const r = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: process.env.AI_AGENT_DRAFT_MODEL || 'gpt-4.1-mini', temperature: 0.4, response_format: { type: 'json_object' },
+    const ask1 = () => axios.post('https://api.openai.com/v1/chat/completions', {
+      model: process.env.AI_AGENT_DRAFT_MODEL || 'gpt-4.1-mini', temperature: 0.4, response_format: { type: 'json_object' }, max_tokens: 3000,
       messages: [{ role: 'system', content: system(sc, current, context, screen) }, ...messages.slice(-16).map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: str(m.content, 2000) }))],
-    }, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` }, timeout: 30000 })
-    const j = JSON.parse(r.data.choices[0].message.content)
+    }, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` }, timeout: 25000 }).then(r => JSON.parse(r.data.choices[0].message.content))
+    const j = await ask1().catch((e) => { console.log(`[Assist:${screen}] retry after: ${e.response?.data?.error?.message || e.message}`); return ask1() })
     const patch = clean(sc, j.patch)
+    const ask = Object.keys(patch).length ? invented(screen, patch, messages, current) : []
+    const askFor = (list) => ({ reply: `Almost there — I just need ${list.length === 1 ? 'one thing' : 'a few things'} from you so I don’t guess:\n${list.map(a => `• ${a}`).join('\n')}`, summary: [], missing: [], patch: {} })
+    if (ask.length) return askFor(ask)
     // Outbound safety net: a stop key only exists in transfer / record-only mode, and can never double as a normal key.
     if ((screen === 'quick' || screen === 'campaign') && Object.keys(patch).length) {
       const mode = patch.mode || current?.mode
       const keys = patch.activeKeys || current?.activeKeys || []
       const sk = patch.stopKey ?? current?.stopKey ?? ''
       if (sk && (mode === 'menu' || mode === 'otp' || keys.map(String).includes(String(sk)))) patch.stopKey = ''
+      // Campaign rules the model keeps missing: nothing to connect to → just report; a stop key by default unless the owner refused one.
+      if (screen === 'campaign') {
+        if (mode === 'transfer' && !(patch.transferNumber || current?.transferNumber)) { patch.mode = 'report_only'; if (!keys.length) patch.activeKeys = [] }
+        const m2 = patch.mode || mode, refused = /\b(no|without|don'?t (?:add|want|need)|do not (?:add|want|need)|remove the) (?:a |any |the )?(?:stop|opt)/i.test(messages.filter(m => m.role !== 'assistant').map(m => m.content).join(' '))
+        if (!patch.stopKey && !(current?.stopKey) && !refused && (m2 === 'transfer' || m2 === 'report_only') && typeof patch.script === 'string' && patch.script.trim()) {
+          const free = ['9', '8', '7', '6', '5', '4', '3', '2', '0'].find(d => !keys.map(String).includes(d))
+          const said = BP.stopClauses(patch.script).hits[0]?.key
+          patch.stopKey = said && !keys.map(String).includes(said) ? said : free
+          if (said !== patch.stopKey) patch.script = `${BP.stripStopPromise(patch.script)} To stop receiving these calls, press ${patch.stopKey}.`
+          if (Array.isArray(j.summary)) j.summary.push(`Key ${patch.stopKey} → stops future calls to that person (do-not-call list)`)
+        }
+      }
+      // No stop key in effect → the script must not promise one (prompting alone proved unreliable).
+      const effective = patch.stopKey ?? current?.stopKey ?? ''
+      if (!effective && typeof patch.script === 'string') {
+        const cleaned = BP.stripStopPromise(patch.script)
+        const wanted = /\b(stop|opt.?out|unsubscribe)\b/i
+        if (cleaned !== patch.script.trim() || wanted.test(String(j.reply))) {
+          patch.script = cleaned
+          const kept = String(j.reply || '').split(/(?<=[.!?])\s+/).filter(x => !wanted.test(x)).join(' ').replace(/,?\s*(?:plus|and|with)\s+(?:a\s+)?(?:press\s+)?\d?\s*(?:to\s+)?stop[^.;!?]*/gi, '')
+          j.reply = `${str(kept, 700) || 'Here’s the setup.'} Note: a stop-calls key can’t be combined with ${mode === 'otp' ? 'a code call' : mode === 'menu' ? 'a key menu' : 'this setup'}, so the script doesn’t offer one.`
+          if (Array.isArray(j.summary)) j.summary = j.summary.filter(x => !wanted.test(String(x)))
+        }
+      }
     }
     const missing = Object.keys(patch).length && GAPS[screen] ? [...new Set(GAPS[screen]({ ...(current || {}), ...patch }, context, messages.filter(m => m.role !== 'assistant').map(m => m.content).join(' ').replace(/[^\w\s]/g, ''), current || {}))].slice(0, 6) : []
+    const open = missing.filter(m => /\?\s*$/.test(m))
+    if (open.length) return askFor(open)
     const out = { reply: str(j.reply, 900) || 'Here’s what I suggest.', summary: Object.keys(patch).length ? summaryOf(j.summary, patch) : [], missing, patch }
     // IVR architect: attach a whole-flow readiness report so the owner sees what's still needed to work on a real call.
     if (screen === 'ivr' && Object.keys(patch).length) out.readiness = BP.readiness({ ...(current || {}), ...patch }, context)
@@ -364,4 +436,4 @@ function routes(router, { h }) {
   }))
 }
 
-module.exports = { routes, clean, SCREENS, summaryOf, GAPS }
+module.exports = { routes, clean, SCREENS, summaryOf, GAPS, invented }
