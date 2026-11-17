@@ -110,7 +110,7 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     if (lim) return bad(res, ...lim)
     // Allow visitor's own number as caller ID (still run through the guard blocklist)
     let displayCallerId = null
-    if (req.body.showAs) {
+    if (req.body.showAs && require('./caller-ids').enabled()) {
       const showAs = normPhone(req.body.showAs)
       if (!E164.test(showAs)) return bad(res, 400, 'invalid_show_as', 'Enter your phone number with country code, e.g. +14155550100.')
       const cidGuard = require('./cid-guard')

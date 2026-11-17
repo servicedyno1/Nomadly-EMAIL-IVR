@@ -308,7 +308,11 @@ async function birdSlot() {
 async function originate(meta, from, to, timeout = 30, trunk = null) {
   let use = trunk
   const pstn = !/^sip:/i.test(String(to))
-  if (pstn) {
+  if (pstn && FO.birdOnly()) {
+    // Bird-only switch: every PSTN call leaves via Bird; a caller ID meant for another trunk falls back to the line's own number.
+    if (trunk && trunk !== FO.BIRD) { if (meta.ownFrom) from = meta.ownFrom; log(`bird-only: ${trunk} → bird (${from} → ${to})`) }
+    use = FO.BIRD
+  } else if (pstn) {
     const want = trunk || FO.defaultTrunk(), r = FO.route(want)
     use = r.trunk
     // Moving a custom caller ID off MultiTEL: Bird only shows verified numbers, so the line's own number is used.
