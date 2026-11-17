@@ -82,7 +82,7 @@ function OtpMessages({ f, set, can, phone }) {
       {!can && <div className="flex flex-wrap items-center gap-2 text-sm">{feature}<PlanLock feature={feature} phone={phone} testid="quick-otp-custom-lock" /></div>}
       <div className={`grid sm:grid-cols-2 gap-3 ${can ? '' : 'opacity-50 cursor-pointer [&_input]:pointer-events-none'}`} onClick={can ? undefined : () => showUpgrade({ feature, need: 'business', phone })}>
         {box('confirmMsg', 'Said after a valid code (optional)', 'Thank you, your code is confirmed.', can ? 'quick-otp-confirm' : 'quick-otp-confirm-locked')}
-        {box('rejectMsg', 'Said after a wrong code (optional)', 'That code was not valid.', can ? 'quick-otp-reject' : 'quick-otp-reject-locked')}
+        {box('rejectMsg', 'Said after a wrong code — on Replay or Decline (optional)', 'That code was not valid.', can ? 'quick-otp-reject' : 'quick-otp-reject-locked')}
       </div>
     </div>
   );

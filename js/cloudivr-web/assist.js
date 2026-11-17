@@ -268,11 +268,15 @@ Current form: ${JSON.stringify(current || {}).slice(0, 6000)}`
 
 // Things a proposal still needs before it can be saved and work on a real call, in plain words.
 const has = (v) => (Array.isArray(v) ? v.length > 0 : !!String(v ?? '').trim())
+const stable = (v) => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).filter(([, y]) => y !== undefined && y !== '').sort(([a], [b]) => a.localeCompare(b))) : x))
+const sameAs = (a, b) => a !== undefined && b !== undefined && stable(a) === stable(b)
 function keyGaps(opts, ctx, where = '', said = '', prev = []) {
   const out = []
   const lines = Array.isArray(ctx?.textingNumbers) ? ctx.textingNumbers : null
   for (const o of opts || []) {
     const k = `${where}Key ${o.digit}`
+    // A key the proposal leaves exactly as it is already saved isn't questioned again.
+    if (sameAs(o, (prev || []).find(p => String(p.digit) === String(o.digit)))) continue
     if (o.action === 'forward' && !o.forwardTo) out.push(`${k}: which phone should it ring?`)
     if (o.action === 'message' && !has(o.message)) out.push(`${k}: what should it say?`)
     if (o.action === 'sms') {
@@ -312,7 +316,7 @@ function keyGaps(opts, ctx, where = '', said = '', prev = []) {
     if (o.action === 'callback' && o.auto && !o.callbackTo) out.push(`${k}: which phone of yours should ring for each call-back request?`)
     if (o.action === 'pin' && !o.check?.source && !(String(o.pin || '').replace(/\D/g, '') || (Array.isArray(o.pins) && o.pins.length))) out.push(`${k}: which code should callers enter?`)
     const sub = o.subMenu || (o.action === 'submenu' ? o : null)
-    if (o.action === 'submenu') { if (!(sub.options || []).length) out.push(`${k}: the sub-menu has no keys yet.`); out.push(...keyGaps(sub.options, ctx, `${k} → `, said)) }
+    if (o.action === 'submenu') { if (!(sub.options || []).length) out.push(`${k}: the sub-menu has no keys yet.`); const was = (prev || []).find(p => String(p.digit) === String(o.digit)); out.push(...keyGaps(sub.options, ctx, `${k} → `, said, was?.options || was?.subMenu?.options)) }
   }
   return out
 }
@@ -332,7 +336,7 @@ const GAPS = {
 
 
 // Live-data settings (database lookup, Accept / Decline, payment provider) are set in the form, not by chat: keep them when a key is re-proposed.
-const LIVE_FIELDS = ['check', 'confirm', 'confirmTimeout', 'declineMessage', 'onAccept', 'onDecline', 'payVia', 'connId', 'amountFrom', 'amount', 'currency', 'description', 'waitPaid', 'paidMessage', 'length', 'prompt', 'url']
+const LIVE_FIELDS = ['check', 'confirm', 'confirmTimeout', 'declineMessage', 'replayMessage', 'onAccept', 'onDecline', 'payVia', 'connId', 'amountFrom', 'amount', 'currency', 'description', 'waitPaid', 'paidMessage', 'length', 'prompt', 'url']
 function keepLive(next, prev, fresh = []) {
   for (const o of next || []) {
     const was = (Array.isArray(prev) ? prev : []).find(x => String(x.digit) === String(o.digit) && x.action === o.action)
@@ -436,6 +440,10 @@ async function chat(screen, messages, current, context) {
     const waits = screen === 'ivr' && patch.options ? keepLive(patch.options, current?.options) : []
     if (screen === 'ivr' && patch.afterHours?.options) keepLive(patch.afterHours.options, current?.afterHours?.options)
     if (screen === 'ivr' && Array.isArray(patch.options)) dropUnasked(patch, messages, current)
+    // Parts the proposal just repeats unchanged are left out, so the summary and "still needed" only cover what was asked.
+    const echoed = screen === 'ivr' ? ['extensions', 'afterHours'].filter(f => f in patch && (sameAs(patch[f], current?.[f]) || (!current?.[f] && !patch[f]?.enabled && !(patch[f]?.length)))) : []
+    for (const f of echoed) delete patch[f]
+    if (echoed.length && Array.isArray(j.summary)) j.summary = j.summary.filter(x => !(echoed.includes('extensions') && /extension/i.test(String(x))) && !(echoed.includes('afterHours') && /after.?hours|closed/i.test(String(x))))
     const ask = Object.keys(patch).length ? invented(screen, patch, messages, current) : []
     const askFor = (list) => ({ reply: `Almost there — I just need ${list.length === 1 ? 'one thing' : 'a few things'} from you so I don’t guess:\n${list.map(a => `• ${a}`).join('\n')}`, summary: [], missing: [], patch: {} })
     if (ask.length) return askFor(ask)

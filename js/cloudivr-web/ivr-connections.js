@@ -19,7 +19,7 @@ function publicRoutes(r, { h }) {
 }
 
 // "Show me the pop-up": an example Accept / Decline banner for this account only (no call involved).
-const HOLD_MS = 45000, previews = new Map()
+const HOLD_MS = 45000, previews = new Map(), OUT = ['message', 'forward', 'menu', 'voicemail', 'end']
 function previewList(chatId) {
   for (const [id, p] of previews) if (Date.now() - p.at > HOLD_MS) previews.delete(id)
   return [...previews.values()].filter(p => p.chatId === String(chatId)).map(p => p.view)
@@ -31,7 +31,7 @@ function routes(r, { h }) {
     const b = req.body || {}, kind = ['webhook', 'collect', 'pin'].includes(b.kind) ? b.kind : 'collect'
     const id = `pv_${Date.now().toString(36)}`
     for (const [k, p] of previews) if (p.chatId === String(req.webChatId)) previews.delete(k)
-    const view = { id, kind: 'ivr', ivrKind: kind, state: 'code', to: '+14155550123', number: String(b.number || ''), code: kind === 'webhook' ? `Key ${String(b.digit || '1').slice(0, 1)}` : kind === 'pin' ? '4821' : '123456', label: String(b.label || '').slice(0, 60), title: kind === 'pin' ? 'Code entered' : kind === 'collect' ? 'Number entered' : 'Caller is waiting', checked: 'Example only', found: true, say: '', attempt: 1, maxAttempts: kind === 'pin' ? 3 : 1, holdEndsAt: new Date(Date.now() + HOLD_MS), connectTo: /^\+\d{8,15}$/.test(String(b.connectTo || '')) ? String(b.connectTo) : null, preview: true }
+    const view = { id, kind: 'ivr', ivrKind: kind, state: 'code', to: '+14155550123', number: String(b.number || ''), code: kind === 'webhook' ? `Key ${String(b.digit || '1').slice(0, 1)}` : kind === 'pin' ? '4821' : '123456', label: String(b.label || '').slice(0, 60), title: kind === 'pin' ? 'Code entered' : kind === 'collect' ? 'Number entered' : 'Caller is waiting', checked: 'Example only', found: true, say: '', attempt: 1, maxAttempts: kind === 'pin' ? 3 : 1, holdEndsAt: new Date(Date.now() + HOLD_MS), connectTo: /^\+\d{8,15}$/.test(String(b.connectTo || '')) ? String(b.connectTo) : null, preview: true, onAccept: OUT.includes(b.onAccept) ? b.onAccept : null, onDecline: OUT.includes(b.onDecline) ? b.onDecline : null, declineTo: b.onDecline === 'forward' && /^\+\d{8,15}$/.test(String(b.declineTo || '')) ? String(b.declineTo) : null, canReplay: kind !== 'webhook', replayMessage: String(b.replayMessage || '').slice(0, 300), declineMessage: String(b.declineMessage || '').slice(0, 300) }
     previews.set(id, { chatId: String(req.webChatId), at: Date.now(), view })
     res.json({ shown: true, id })
   }))

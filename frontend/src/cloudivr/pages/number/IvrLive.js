@@ -154,7 +154,7 @@ function Outcome({ label, v = {}, set, prefix, decline, pin }) {
 // Manual check: the caller waits on hold while Accept / Decline pops up in the app.
 export function ConfirmAsk({ o, set, prefix }) {
   const show = async () => {
-    try { await api('/ivr-connections/confirm-preview', { method: 'POST', body: { kind: o.action, digit: o.digit, label: o.label, connectTo: o.action === 'pin' ? o.onOk?.forwardTo : o.forwardTo } }); toast.success('Example pop-up is showing at the top of the page'); } catch (e) { toast.error(e.message); }
+    try { await api('/ivr-connections/confirm-preview', { method: 'POST', body: { kind: o.action, digit: o.digit, label: o.label, connectTo: o.onAccept?.action ? (o.onAccept.action === 'forward' ? o.onAccept.forwardTo : '') : o.action === 'pin' ? o.onOk?.forwardTo : o.forwardTo, onAccept: o.onAccept?.action, onDecline: o.onDecline?.action, declineTo: o.onDecline?.forwardTo, replayMessage: o.replayMessage, declineMessage: o.onDecline?.message || o.declineMessage } }); toast.success('Example pop-up is showing at the top of the page'); } catch (e) { toast.error(e.message); }
   };
   return (
     <div className="space-y-2 rounded-xl border border-[#27272a] p-3" data-testid={`${prefix}-confirm`}>
@@ -163,6 +163,7 @@ export function ConfirmAsk({ o, set, prefix }) {
       {o.confirm === true && <div className="grid md:grid-cols-2 gap-2">
         <Field label="If I don’t answer in 45 seconds"><select className="civr-input" value={o.confirmTimeout || 'decline'} onChange={e => set({ confirmTimeout: e.target.value })} data-testid={`${prefix}-confirm-timeout`}><option value="decline">Treat it as declined</option><option value="voicemail">Say so and take a voicemail</option></select></Field>
         <Field label="Say when declined (optional)"><input className="civr-input" value={o.declineMessage || ''} onChange={e => set({ declineMessage: e.target.value })} placeholder="Sorry, we could not confirm that." data-testid={`${prefix}-confirm-decline-message`} /></Field>
+        {(o.action === 'pin' || o.action === 'collect') && <Field label="Say when I press Replay — then they type it again"><input className="civr-input" value={o.replayMessage || ''} onChange={e => set({ replayMessage: e.target.value })} placeholder={o.action === 'pin' ? 'That code was not correct.' : 'We could not find that number.'} data-testid={`${prefix}-confirm-replay-message`} /></Field>}
       </div>}
       {o.confirm === true && <div className="grid md:grid-cols-2 gap-3">
         <Outcome label="When I press Accept" v={o.onAccept} set={(v) => set({ onAccept: v })} prefix={`${prefix}-on-accept`} />

@@ -120,12 +120,12 @@ export function Extensions({ list, setList, ctx }) {
     <div className="space-y-3" data-testid="ivr-extensions">
       <div><div className="font-display text-lg font-bold">Extensions</div><Hint>Callers can dial a person’s code (e.g. 101) at any time during the main greeting. Say so in the greeting: “If you know your party’s extension, dial it now.” A single key then waits about 2 seconds.</Hint></div>
       {list.map((e, i) => (
-        <div key={i} className="flex flex-wrap gap-2 items-center" data-testid={`ivr-ext-${i}`}>
+        <div key={i} className="flex flex-wrap md:flex-nowrap gap-2 items-center" data-testid={`ivr-ext-${i}`}>
           <input className="civr-input !w-20 font-mono shrink-0" value={e.code || ''} onChange={ev => put(i, { code: ev.target.value.replace(/\D/g, '').slice(0, 5) })} placeholder="101" data-testid={`ivr-ext-${i}-code`} />
-          <input className="civr-input flex-1 min-w-[8rem] sm:!w-36 sm:flex-none" value={e.name || ''} onChange={ev => put(i, { name: ev.target.value })} placeholder="Name, e.g. Anna" data-testid={`ivr-ext-${i}-name`} />
-          <select className="civr-input w-full sm:!w-auto" value={e.action || 'forward'} onChange={ev => put(i, { action: ev.target.value })} data-testid={`ivr-ext-${i}-action`}><option value="forward">Ring a phone</option>{ctx?.sipLogin !== false && <option value="devices">Ring my browser phone / apps</option>}</select>
-          {(e.action || 'forward') === 'forward' && <input className="civr-input flex-1 min-w-[10rem] sm:!w-44 sm:flex-none font-mono" value={e.forwardTo || ''} onChange={ev => put(i, { forwardTo: ev.target.value })} placeholder="+14155550100" data-testid={`ivr-ext-${i}-phone`} />}
-          <button type="button" onClick={() => setList(list.filter((_, j) => j !== i))} className="p-2 text-[#a1a1aa] hover:text-[#fb7185]" aria-label="Remove extension" data-testid={`ivr-ext-${i}-remove`}><Trash2 className="w-4 h-4" /></button>
+          <input className="civr-input flex-1 min-w-[8rem] md:min-w-0 md:basis-32" value={e.name || ''} onChange={ev => put(i, { name: ev.target.value })} placeholder="Name, e.g. Anna" data-testid={`ivr-ext-${i}-name`} />
+          <select className="civr-input w-full sm:!w-auto md:shrink-0 md:max-w-[15rem]" value={e.action || 'forward'} onChange={ev => put(i, { action: ev.target.value })} data-testid={`ivr-ext-${i}-action`}><option value="forward">Ring a phone</option>{ctx?.sipLogin !== false && <option value="devices">Ring my browser phone / apps</option>}</select>
+          {(e.action || 'forward') === 'forward' && <input className="civr-input flex-1 min-w-[10rem] md:min-w-0 md:basis-40 font-mono" value={e.forwardTo || ''} onChange={ev => put(i, { forwardTo: ev.target.value })} placeholder="+14155550100" data-testid={`ivr-ext-${i}-phone`} />}
+          <button type="button" onClick={() => setList(list.filter((_, j) => j !== i))} className="p-2 shrink-0 text-[#a1a1aa] hover:text-[#fb7185]" aria-label="Remove extension" data-testid={`ivr-ext-${i}-remove`}><Trash2 className="w-4 h-4" /></button>
         </div>
       ))}
       {list.length < 30 && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => setList([...list, { code: String(101 + list.length), name: '', action: 'forward', forwardTo: '' }])} data-testid="ivr-ext-add"><Plus className="w-4 h-4" />Add an extension</button>}

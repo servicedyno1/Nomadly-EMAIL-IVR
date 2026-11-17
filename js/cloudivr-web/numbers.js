@@ -250,12 +250,12 @@ function validateIvr(body, plan, audioOk = () => true, ctx = {}) {
     const a = ['message', 'forward', 'menu', 'voicemail', 'end'].includes(v?.action) ? v.action : null
     if (!a) return null
     if (a === 'voicemail' && !phoneConfig.canAccessFeature(plan, 'voicemail')) throw new Error(`Key ${digit}: voicemail after ${which} needs the Starter plan or higher.`)
-    return { action: a, message: txt(v.message, 300), forwardTo: a === 'forward' ? fwd(v.forwardTo, digit) : '' }
+    return { action: a, message: txt(v.message, 300), forwardTo: a === 'forward' ? fwd(v.forwardTo, `${digit} (when you press ${which})`) : '' }
   }
   const confirmOf = (o, digit) => {
     if (o.confirm !== true) return {}
     const onAccept = outcomeOf(o.onAccept, digit, 'Accept'), onDecline = outcomeOf(o.onDecline, digit, 'Decline')
-    return { confirm: true, confirmTimeout: o.confirmTimeout === 'voicemail' && phoneConfig.canAccessFeature(plan, 'voicemail') ? 'voicemail' : 'decline', declineMessage: txt(o.declineMessage, 300), ...(onAccept ? { onAccept } : {}), ...(onDecline ? { onDecline } : {}) }
+    return { confirm: true, confirmTimeout: o.confirmTimeout === 'voicemail' && phoneConfig.canAccessFeature(plan, 'voicemail') ? 'voicemail' : 'decline', declineMessage: txt(o.declineMessage, 300), ...(['pin', 'collect'].includes(o.action) && txt(o.replayMessage, 300) ? { replayMessage: txt(o.replayMessage, 300) } : {}), ...(onAccept ? { onAccept } : {}), ...(onDecline ? { onDecline } : {}) }
   }
   const clean = (opts, depth) => {
     const out = {}
@@ -857,12 +857,10 @@ function routes(router, deps) {
       const ok = await deps.db.collection('esimLines').countDocuments({ _id: { $in: [...new Set(lines)] }, kind: 'mobile', chatId: String(req.webChatId), status: { $in: ['provisioning', 'active', 'suspended'] } })
       if (ok !== new Set(lines).size) return bad(res, 400, 'invalid_ivr', 'Pick one of your own texting numbers to send the text from.')
     }
+    const faxSvc = require('../fax-service'), dropped = faxSvc.ivrDocIds([req.num])
     await setField(req.webChatId, req.num.phoneNumber, 'features.ivr', value)
     // Fax documents no menu uses any more are cleaned up (any of the owner's numbers may still use one).
-    deps.db.collection('phoneNumbersOf').findOne({ _id: req.webChatId }).then(d => {
-      const ids = (d?.val?.numbers || []).flatMap(n => [...every(n.features?.ivr?.options), ...every(n.features?.ivr?.afterHours?.options)]).filter(k => k.action === 'fax').map(k => k.fileId)
-      return require('../fax-service').sweepIvrDocs(req.webChatId, ids)
-    }).catch(e => console.log(`[IVR] fax doc sweep: ${e.message}`))
+    deps.db.collection('phoneNumbersOf').findOne({ _id: req.webChatId }).then(d => faxSvc.sweepIvrDocs(req.webChatId, faxSvc.ivrDocIds(d?.val?.numbers), dropped)).catch(e => console.log(`[IVR] fax doc sweep: ${e.message}`))
     // One answers a number: the keypad menu going on switches the AI voice agent off.
     const aiCfg = req.num.features?.aiAgent
     const aiAgentTurnedOff = !!(value.enabled && aiCfg?.enabled)

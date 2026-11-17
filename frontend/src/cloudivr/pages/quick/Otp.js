@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Check, X, PhoneOff, KeyRound, Loader2 } from 'lucide-react';
+import { Check, X, PhoneOff, KeyRound, Loader2, RotateCcw } from 'lucide-react';
 import { api } from '../../api';
 import { usePrivacy } from '../../privacy';
 
@@ -37,21 +37,29 @@ function useLeft(until) {
 
 export function Decide({ st, ccid, onState, t }) {
   const [busy, setBusy] = useState('');
+  const [msg, setMsg] = useState(st.replayMessage || st.declineMessage || '');
   const left = useLeft(st.holdEndsAt);
   const triesLeft = st.maxAttempts - st.attempt;
+  const done = { accept: st.kind === 'ivr' ? 'Accepted' : 'Code accepted', replay: 'Replaying — they can type it again', decline: triesLeft > 0 || st.kind === 'ivr' ? 'Declined' : 'Declined — call ended', hangup: 'Call ended' };
   const act = async (action) => {
     setBusy(action);
-    try { onState(await api(`/calls/otp/${encodeURIComponent(ccid)}`, { method: 'POST', body: { action } })); toast.success(action === 'accept' ? (st.kind === 'ivr' ? 'Accepted' : 'Code accepted') : action === 'decline' ? (triesLeft > 0 ? 'Declined — asking for the code again' : 'Declined — call ended') : 'Call ended'); } catch (e) { toast.error(e.message); } finally { setBusy(''); }
+    try { onState(await api(`/calls/otp/${encodeURIComponent(ccid)}`, { method: 'POST', body: { action, message: action === 'replay' || action === 'decline' ? msg.trim() : '' } })); toast.success(done[action]); } catch (e) { toast.error(e.message); } finally { setBusy(''); }
   };
   const spin = (a) => busy === a && <Loader2 className="w-4 h-4 animate-spin" />;
+  const btn = 'civr-btn civr-btn-sm justify-center min-h-[44px] sm:min-h-0 text-center';
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 w-full md:w-auto md:max-w-md">
       <div className="text-xs text-[#a1a1aa]" data-testid={`${t}-attempt`}>{`Try ${st.attempt} of ${st.maxAttempts}`}{left && <> · <span className="font-mono text-[#fbbf24]">{left}</span> left to answer</>}</div>
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-        <button type="button" disabled={!!busy} onClick={() => act('accept')} className="civr-btn civr-btn-primary civr-btn-sm justify-center min-h-[44px] sm:min-h-0" data-testid={`${t}-accept`}>{spin('accept') || <Check className="w-4 h-4" />}{st.connectTo ? 'Accept & connect' : st.kind === 'ivr' ? 'Accept' : 'Accept code'}</button>
-        <button type="button" disabled={!!busy} onClick={() => act('decline')} className="civr-btn civr-btn-ghost civr-btn-sm justify-center min-h-[44px] sm:min-h-0 text-center" data-testid={`${t}-decline`}>{spin('decline') || <X className="w-4 h-4" />}{triesLeft > 0 ? `Decline · ask again (${triesLeft} left)` : 'Decline · end call'}</button>
-        <button type="button" disabled={!!busy} onClick={() => act('hangup')} className="civr-btn civr-btn-ghost civr-btn-sm !text-[#fb7185] col-span-2 justify-center min-h-[44px] sm:min-h-0" data-testid={`${t}-hangup`}>{spin('hangup') || <PhoneOff className="w-4 h-4" />}Hang up</button>
+      {st.canReplay && <label className="block text-xs text-[#a1a1aa]">Message they hear on Replay or Decline
+        <input className="civr-input mt-1" value={msg} maxLength={300} onChange={e => setMsg(e.target.value)} placeholder="That code was not correct." data-testid={`${t}-message`} />
+      </label>}
+      <div className={`grid gap-2 ${st.canReplay ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        <button type="button" disabled={!!busy} onClick={() => act('accept')} className={`${btn} civr-btn-primary`} data-testid={`${t}-accept`}>{spin('accept') || <Check className="w-4 h-4" />}{st.connectTo ? 'Accept & connect' : st.kind === 'ivr' ? 'Accept' : 'Accept code'}</button>
+        {st.canReplay && <button type="button" disabled={!!busy} onClick={() => act('replay')} className={`${btn} civr-btn-ghost !text-[#fbbf24]`} title="Plays your message, then asks for the code again. Doesn't use up a try." data-testid={`${t}-replay`}>{spin('replay') || <RotateCcw className="w-4 h-4" />}Replay</button>}
+        <button type="button" disabled={!!busy} onClick={() => act('decline')} className={`${btn} civr-btn-ghost`} data-testid={`${t}-decline`}>{spin('decline') || <X className="w-4 h-4" />}{st.kind === 'ivr' ? 'Decline' : triesLeft > 0 ? `Decline (${triesLeft} left)` : 'Decline · end'}</button>
+        <button type="button" disabled={!!busy} onClick={() => act('hangup')} className={`${btn} civr-btn-ghost !text-[#fb7185] ${st.canReplay ? 'col-span-3' : 'col-span-2'}`} data-testid={`${t}-hangup`}>{spin('hangup') || <PhoneOff className="w-4 h-4" />}Hang up</button>
       </div>
+      {st.canReplay && <div className="text-[11px] text-[#71717a]" data-testid={`${t}-replay-note`}>Replay plays your message and asks for the code again. It doesn&apos;t use up a try.</div>}
     </div>
   );
 }

@@ -5,7 +5,7 @@ const vs = require('../../js/voice-service')
 const acts = [], msgs = []
 const rec = (name) => async (...a) => { acts.push({ name, a }); return {} }
 let legN = 0
-const stub = new Proxy({ createOutboundCall: async (from, to) => { legN++; acts.push({ name: 'dial', a: [from, to, `leg${legN}`] }); return { callControlId: `leg${legN}` } }, gatherDTMF: rec('gather'), gatherDTMFWithAudio: rec('gatherAudio'), speakOnCall: rec('speak'), hangupCall: rec('hangup'), transferCall: rec('transfer'), playbackStart: rec('play'), playbackStop: rec('stop') }, { get: (t, k) => t[k] || (async () => ({})) })
+const stub = new Proxy({ createOutboundCall: async (from, to) => { legN++; acts.push({ name: 'dial', a: [from, to, `leg${legN}`] }); return { callControlId: `leg${legN}` } }, gatherDTMF: rec('gather'), gatherDTMFWithAudio: rec('gatherAudio'), gatherDTMFWithSpeak: rec('gatherDTMFWithSpeak'), speakOnCall: rec('speak'), hangupCall: rec('hangup'), transferCall: rec('transfer'), playbackStart: rec('play'), playbackStop: rec('stop') }, { get: (t, k) => t[k] || (async () => ({})) })
 const phoneNumbersOf = { findOne: async () => ({ _id: 'u1', val: { numbers: [] } }), find: () => ({ toArray: async () => [] }) }
 vs.initVoiceService({ telnyxApi: stub, phoneNumbersOf, selfUrl: 'http://x', bot: { sendMessage: async (c, t) => { msgs.push(t); return {} } } })
 const ok = (c, m) => { console.log(c ? 'PASS' : 'FAIL', m); if (!c) process.exitCode = 1 }
@@ -112,6 +112,25 @@ const open = (id, extra = {}) => { vs.activeCalls[id] = { num, chatId: 'u1', fro
   s = open('o3'); await press('o3', '0'); await press('o3', '111111')
   acts.length = 0; await vs.resolveIvrConfirm('o3', 'decline', 'u1'); await new Promise(r => setTimeout(r, 60))
   ok(acts.some(x => x.name === 'hangup') && !acts.some(x => x.name === 'speak'), 'Decline → end the call at once')
+  // ── Replay: your message, then ask again (no limit, doesn't use a try) ──
+  ivr.options[0] = { action: 'pin', pins: ['4821'], prompt: 'Enter your code', confirm: true, replayMessage: 'That code is wrong.', onDecline: { action: 'end' } }
+  s = open('r1'); await press('r1', '0'); await press('r1', '1111')
+  for (let i = 0; i < 4; i++) {
+    acts.length = 0; const rr = await vs.resolveIvrConfirm('r1', 'replay', 'u1', i === 3 ? 'Typed live by owner.' : '')
+    ok(rr.state === 'replayed' && s.phase === 'ivr_pin' && s.collect?.kind === 'pin' && new RegExp(i === 3 ? 'Typed live by owner\\. Enter your code' : 'That code is wrong\\. Enter your code').test(String(last('gather')?.a[1])), `Replay #${i + 1} plays the message and asks for the code again`)
+    await press('r1', '2222'); ok(s.phase === 'ivr_confirm', `after Replay #${i + 1} the new code waits for Accept / Decline again`)
+  }
+  ok(!(s.collectTries > 0), 'Replay does not use up a try')
+  acts.length = 0; await vs.resolveIvrConfirm('r1', 'decline', 'u1', 'Goodbye from owner'); await new Promise(r => setTimeout(r, 60))
+  ok(/Goodbye from owner/.test(String(last('speak')?.a[1])), 'Decline with a live message says that message before ending')
+  ivr.options[0] = { action: 'webhook', url: 'https://example.com/h', confirm: true }
+  s = open('r2'); s.confirm = { kind: 'webhook', option: ivr.options[0], digit: '0', ivrL: {}, at: Date.now() }; s.phase = 'ivr_confirm'
+  ok((await vs.resolveIvrConfirm('r2', 'replay', 'u1')).error === 'no_replay' && s.phase === 'ivr_confirm', 'a key without typed digits cannot be replayed')
+  // ── Quick IVR code call: Replay keeps the try count ──
+  vs.outboundIvrCalls.q1 = { chatId: 'u1', ivrMode: 'otp_collect', phase: 'otp_hold', otpAttempt: 2, otpMaxAttempts: 3, otpLength: 6, otpRejectMsg: 'Default wrong.' }
+  acts.length = 0; await vs.resolveOtp('q1', 'replay', '')
+  ok(vs.outboundIvrCalls.q1.phase === 'otp_gathering' && vs.outboundIvrCalls.q1.otpAttempt === 2 && /Default wrong\. Please enter/.test(String(acts.find(x => x.name === 'gatherDTMFWithSpeak')?.a[1] || JSON.stringify(acts))), 'Quick IVR Replay: default message, asks again, try count unchanged')
+
   delete ivr.options[0]
   console.log('DONE')
   setTimeout(() => process.exit(process.exitCode || 0), 200)
