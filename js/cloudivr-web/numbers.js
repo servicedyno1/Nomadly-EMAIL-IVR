@@ -216,6 +216,19 @@ function validateIvr(body, plan, audioOk = () => true) {
     if (!audioOk(url)) throw new Error(`${where}: pick an audio file from your library.`)
     return String(url)
   }
+  const hookUrl = (raw, digit) => {
+    const u = String(raw || '').trim().slice(0, 300)
+    const q = safeUrl.quickCheck(u)
+    if (!q.ok) throw new Error(`Key ${digit}: ${q.reason === 'private_address' ? 'that address leads to a private or internal network — use a public https:// address.' : 'enter a web address that starts with https://'}`)
+    return u
+  }
+  const fwd = (raw, digit) => {
+    const to = dialNorm(raw)
+    if (!E164.test(to)) throw new Error(`Key ${digit}: enter the number with country code, e.g. +14155550100.`)
+    if (dialIssue(to)) throw new Error(`Key ${digit}: ${dialIssue(to)}`)
+    if (phoneConfig.isBlockedPrefix(to)) throw new Error(`Key ${digit}: ${to} is a blocked premium/satellite destination.`)
+    return to
+  }
   const clean = (opts, depth) => {
     const out = {}
     for (const [digit, o] of Object.entries(opts || {})) {
@@ -244,11 +257,26 @@ function validateIvr(body, plan, audioOk = () => true) {
       } else if (action === 'voicemail') {
         if (!phoneConfig.canAccessFeature(plan, 'voicemail')) throw new Error('Voicemail needs the Starter plan or higher.')
         out[digit] = { action, label }
+      } else if (action === 'webhook') {
+        out[digit] = { action, url: hookUrl(o.url, digit), message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label }
+      } else if (action === 'collect') {
+        const prompt = String(o.prompt || '').trim().slice(0, 500)
+        if (!prompt) throw new Error(`Key ${digit}: say what the caller should type.`)
+        const to = o.forwardTo ? fwd(o.forwardTo, digit) : ''
+        const webhook = o.webhook ? hookUrl(o.webhook, digit) : ''
+        const message = String(o.message || '').slice(0, 500)
+        if (!to && !webhook && !message) throw new Error(`Key ${digit}: choose what happens with the digits — send to your system, connect the call, or a confirmation message.`)
+        out[digit] = { action, prompt, length: Math.min(20, Math.max(1, Math.round(Number(o.length)) || 6)), webhook, forwardTo: to, message, label }
+      } else if (action === 'pin') {
+        const pin = String(o.pin || '').replace(/\D/g, '').slice(0, 12)
+        if (pin.length < 3) throw new Error(`Key ${digit}: the PIN needs at least 3 digits.`)
+        const okTo = o.onOk?.forwardTo ? fwd(o.onOk.forwardTo, digit) : ''
+        out[digit] = { action, prompt: String(o.prompt || '').slice(0, 500), pin, onOk: { action: okTo ? 'forward' : 'message', forwardTo: okTo, message: String(o.onOk?.message || '').slice(0, 500) }, failMessage: String(o.failMessage || '').slice(0, 500), label }
       } else if (action === 'submenu') {
-        if (depth > 0) throw new Error('Sub-menus can only be one level deep.')
+        if (depth >= 3) throw new Error('Sub-menus can only go 3 levels deep.')
         const sub = o.subMenu || {}
         const subAudio = audio(sub.greetingAudioUrl, `Key ${digit} sub-menu`)
-        out[digit] = { action, label, subMenu: { greetingType: subAudio ? 'audio' : 'text', greeting: String(sub.greeting || speech.sub).slice(0, 1000), greetingAudioUrl: subAudio, options: clean(sub.options, 1) } }
+        out[digit] = { action, label, subMenu: { greetingType: subAudio ? 'audio' : 'text', greeting: String(sub.greeting || speech.sub).slice(0, 1000), greetingAudioUrl: subAudio, options: clean(sub.options, depth + 1) } }
       } else throw new Error(`Key ${digit}: unknown action "${action}".`)
     }
     return out

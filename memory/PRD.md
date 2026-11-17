@@ -498,3 +498,11 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Verified in preview: validate/simulate/blueprint via curl+unit (collect→"sends it to your system", pin→"if it matches, connects them"); UI driven test — set keys to collect+pin, fields rendered, Call-flow nodes + live Checks ("add at least one PIN code") updated. Frontend compiles, node syntax OK.
 - ⚠️ collect/pin EXECUTOR runs on the prod SIP server — NOT exercised on a real inbound call; needs ONE live test call before switch-on. No production change this session.
 - STILL TODO (Phase 2 remaining): pay-by-phone (texted secure payment link, not raw card DTMF); true call queues; outbound campaign architect; editable (drag) visual builder.
+
+## 2026-11-17 (d) — CORRECTION to (b)/(c) + fixes
+- Entries (b) and (c) overstated: webhook/collect/pin keys and menus deeper than 1 sub-level could NOT be saved — PUT /numbers/:phone/ivr (numbers.js validateIvr) rejected them ("unknown action" / "one level deep"). Only builder/validator/flow view had been checked, never a save.
+- Fixed: validateIvr now accepts webhook, collect, pin and sub-menus to 3 levels (https-only URLs through safe-url quickCheck, forward numbers through the same dial checks, PIN >= 3 digits).
+- Fixed: IVR webhook + collect webhook deliveries now go through safe-url assertSendable + sendOptions (they bypassed the private-network guard). Collect with nothing typed now says goodbye instead of confirming.
+- Evidence: real save + read-back via API on the test number (then restored); rejects for private URL, http URL, 5 levels, short PIN. New js/tests/ivr_smart_keys.test.js drives the real gather handler with a stubbed carrier: 13/13 pass (3-level path, legacy string path, webhook, collect, empty collect, pin wrong/right/3-strikes).
+- Still NOT done: a real inbound call on the production SIP server; UI save of the new keys through the browser (API save verified only); Emily proposing the new keys in chat (not re-tested after adding them). Nothing deployed.
+- Pay-by-phone not started: needs a decision on whose payment link is texted.

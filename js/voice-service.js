@@ -4713,11 +4713,13 @@ async function handleCollectedDigits(callControlId, session, digits, ivrL) {
     return
   }
 
-  // collect: fire the webhook with what they typed (if set), then say the confirmation / forward.
-  if (/^https:\/\//i.test(String(option.webhook || '').trim())) {
-    require('axios').post(option.webhook.trim(), { event: 'ivr_collect', from: session.from, to: num.phoneNumber, collected: entered, at: new Date().toISOString() },
-      { timeout: 8000, maxContentLength: 64 * 1024, headers: { 'User-Agent': 'CloudIVR-Webhook/1' } }).then(() => log(`[Voice] IVR collect webhook delivered (${entered.length} digits)`)).catch(e => log(`[Voice] IVR collect webhook failed: ${e.message}`))
+  // collect: nothing typed → say goodbye; otherwise send what they typed to the webhook (if set), then confirm / forward.
+  if (!entered) {
+    await _telnyxApi.speakOnCall(callControlId, ivrL.goodbye, 'female', ivrL.tts)
+    setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), 2000)
+    return
   }
+  if (option.webhook) postIvrHook(option.webhook, { event: 'ivr_collect', from: session.from, to: num.phoneNumber, collected: entered, at: new Date().toISOString() })
   _bot?.sendMessage(chatId, `📞 <b>IVR — digits collected</b>\nFrom: ${formatPhone(session.from)}\nEntered: <b>${escapeHtml(entered)}</b>`, { parse_mode: 'HTML' }).catch(() => {})
   if (option.forwardTo) {
     session.phase = 'ivr_forward'
@@ -4732,13 +4734,17 @@ async function handleCollectedDigits(callControlId, session, digits, ivrL) {
 
 // IVR webhook key: best-effort POST to one of the owner's own https endpoints when a caller presses the key.
 async function fireIvrWebhook(option, info) {
-  const url = String(option.url || '').trim()
-  if (!/^https:\/\//i.test(url)) { log(`[Voice] IVR webhook skipped (not https): ${url}`); return }
+  return postIvrHook(option.url, { event: 'ivr_key', from: info.from, to: info.to, digit: info.digit, path: info.path || '', at: new Date().toISOString() })
+}
+// Owner-typed URL: https only, never into private/internal networks (checked again at connect time by safe-url).
+async function postIvrHook(rawUrl, body) {
+  const url = String(rawUrl || '').trim()
+  const safeUrl = require('./safe-url')
   try {
-    await require('axios').post(url, { event: 'ivr_key', from: info.from, to: info.to, digit: info.digit, path: info.path || '', at: new Date().toISOString() },
-      { timeout: 8000, maxContentLength: 64 * 1024, headers: { 'User-Agent': 'CloudIVR-Webhook/1' } })
-    log(`[Voice] IVR webhook delivered: ${url} (key ${info.digit})`)
-  } catch (e) { log(`[Voice] IVR webhook failed: ${url} — ${e.message}`) }
+    safeUrl.assertSendable(url)
+    await require('axios').post(url, body, { timeout: 8000, maxContentLength: 64 * 1024, headers: { 'User-Agent': 'CloudIVR-Webhook/1' }, ...safeUrl.sendOptions() })
+    log(`[Voice] IVR webhook delivered (${body.event})`)
+  } catch (e) { log(`[Voice] IVR webhook failed (${body.event}): ${e.code || e.message}`) }
 }
 
 // IVR "send a text" key: the caller gets the owner's text from one of their eSIM / mobile texting numbers.
