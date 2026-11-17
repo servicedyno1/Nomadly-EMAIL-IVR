@@ -256,6 +256,17 @@ async function createShortSipLogin(mainConnectionId, phoneNumber) {
   return null
 }
 
+// New password on a per-number short login (credential connection); the username stays. → true on success.
+async function setShortSipPassword(connectionId, password) {
+  try {
+    await axios.patch(`${BASE}/credential_connections/${connectionId}`, { password }, { headers: headers() })
+    return true
+  } catch (e) {
+    log(`[Telnyx] setShortSipPassword ${connectionId} failed: ${JSON.stringify(e.response?.data?.errors || e.message)}`)
+    return false
+  }
+}
+
 // ── Create SIP Credential (username/password for a connection) ──
 // With SIP_SHORT_LOGINS=true a short per-number login is made first; the long telephony credential is the fallback.
 async function createSIPCredential(connectionId, username, password, phoneNumber) {
@@ -1089,6 +1100,7 @@ module.exports = require('./signalwire').wrap({
   createSIPConnection,
   getSIPConnection,
   createSIPCredential,
+  setShortSipPassword,
   createShortSipLogin,
   listSIPCredentials,
   deleteSIPCredential,

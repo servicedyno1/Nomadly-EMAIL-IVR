@@ -60,7 +60,28 @@ async function ensure(col, chatId, n) {
   return Object.assign(n, diff)
 }
 
+// Reset that keeps the username: a new password on our own SIP server, or on the number's short Telnyx login.
+// → { set, username, password } (fields to save on the number), or null when only a whole new login is possible.
+async function newPasswordOnly(n, telnyxApi) {
+  const user = n?.telnyxSipUsername || n?.sipUsername
+  if (!user) return null
+  const id = String(n.telnyxCredentialId || '')
+  const password = shortPass()
+  if (isConnectionId(id)) {
+    if (!(await telnyxApi.setShortSipPassword(id, password))) return null
+  } else if (!process.env.SIP_SERVER_SECRET) return null
+  else if (id && !id.startsWith('kam:')) await telnyxApi.deleteSIPCredential(id).catch(() => {})
+  const set = { sipUsername: user, sipPassword: password, telnyxSipUsername: user, telnyxSipPassword: password, ...(isConnectionId(id) ? {} : { telnyxCredentialId: `kam:${user}` }) }
+  return { set, username: user, password }
+}
+
+const RESET_NOTE = {
+  same: { en: '👤 Your username stays the same — only change the password in your SIP app.', fr: "👤 Votre nom d'utilisateur ne change pas — modifiez seulement le mot de passe dans votre application SIP.", zh: '👤 用户名不变 — 只需在 SIP 应用中更新密码。', hi: '👤 आपका यूज़रनेम वही रहेगा — SIP ऐप में केवल पासवर्ड बदलें।', fa: '👤 نام کاربری شما تغییر نمی‌کند — فقط رمز را در برنامه SIP عوض کنید.' },
+  changed: { en: '⚠️ <b>Your username changed too.</b> Update BOTH the username and the password in your SIP app — the old login stops working now.', fr: "⚠️ <b>Votre nom d'utilisateur a aussi changé.</b> Mettez à jour le nom d'utilisateur ET le mot de passe dans votre application SIP — l'ancien identifiant ne fonctionne plus.", zh: '⚠️ <b>用户名也已更改。</b>请在 SIP 应用中同时更新用户名和密码 — 旧登录已失效。', hi: '⚠️ <b>आपका यूज़रनेम भी बदल गया है।</b> SIP ऐप में यूज़रनेम और पासवर्ड दोनों अपडेट करें — पुराना लॉगिन अब काम नहीं करेगा।', fa: '⚠️ <b>نام کاربری شما هم تغییر کرد.</b> هم نام کاربری و هم رمز را در برنامه SIP به‌روز کنید — ورود قبلی دیگر کار نمی‌کند.' },
+}
+const resetNote = (lang, changed) => (changed ? RESET_NOTE.changed : RESET_NOTE.same)[lang] || (changed ? RESET_NOTE.changed : RESET_NOTE.same).en
+
 // Free-test logins (SIP test page, landing browser call) live on our own SIP server too — /sip-auth reads testCredentials.
 const testLogin = () => { if (!process.env.SIP_SERVER_SECRET) return null; const u = shortUser(); return { sipUsername: u, sipPassword: shortPass(), credentialId: `kam:${u}` } }
 
-module.exports = { testLogin, shortUser, shortPass, enabled, isShortLogin, isConnectionId, remember, forget, userForConnection, isSipConnection, loadKnown, repairFields, ensure, brandDomain }
+module.exports = { newPasswordOnly, resetNote, testLogin, shortUser, shortPass, enabled, isShortLogin, isConnectionId, remember, forget, userForConnection, isSipConnection, loadKnown, repairFields, ensure, brandDomain }

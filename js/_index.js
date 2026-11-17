@@ -832,6 +832,7 @@ const marketplaceService = require('./marketplace-service.js')
 const mpSafeDeal = require('./mp-safedeal.js')
 const depositFunnel = require('./deposit-funnel.js')
 const regulatoryFlow = require('./regulatory-flow.js')
+const subBatch = require('./sub-batch.js') // bot: several extra numbers in one payment
 const txReg = require('./telnyx-regulatory.js') // Telnyx intl numbers: pre-payment verification + review tracking
 const rsApply = require('./reseller-apply.js') // 💼 Reseller in-bot application form (RESELLER_APPLY_FORM=true)
 const { needsDocUpload } = require('./regulatory-config.js')
@@ -3073,6 +3074,8 @@ const notifyWithRetry = async (targetChatId, text, opts = {}, label = 'tg', atte
   }
   return false
 }
+// Group chats get no alerts unless TELEGRAM_GROUP_ALERTS=true (the admin chat still gets every alert).
+const GROUP_ALERTS_ON = () => String(process.env.TELEGRAM_GROUP_ALERTS || '').toLowerCase() === 'true'
 const notifyGroup = async (message, adminMessage = null, adminButtons = null) => {
   try {
     const taggedAdminMessage = (adminMessage != null ? adminMessage : message) + `\n— <b>${CHAT_BOT_NAME}</b>`
@@ -3081,7 +3084,7 @@ const notifyGroup = async (message, adminMessage = null, adminButtons = null) =>
     const sentTo = new Set()
 
     // 1. Always send to configured notification group (if set) — masked, no buttons
-    if (TELEGRAM_NOTIFY_GROUP_ID) {
+    if (TELEGRAM_NOTIFY_GROUP_ID && GROUP_ALERTS_ON()) {
       const gid = Number(TELEGRAM_NOTIFY_GROUP_ID)
       sentTo.add(String(gid)) // normalize to String for consistent dedup
       bot?.sendMessage(gid, taggedMessage, { parse_mode: 'HTML' })?.then(() => {
@@ -3105,7 +3108,9 @@ const notifyGroup = async (message, adminMessage = null, adminButtons = null) =>
     }
 
     // 3. Send to all auto-registered groups from notifyGroups collection — masked, no buttons
-    if (notifyGroupsCol?.find) {
+    if (!GROUP_ALERTS_ON()) {
+      log('[NotifyGroup] Group alerts are off — sent to the admin chat only')
+    } else if (notifyGroupsCol?.find) {
       const groups = await notifyGroupsCol.find({}).toArray()
       log('[NotifyGroup] Auto-registered groups found: ' + groups.length + (groups.length ? ' → ' + groups.map(g => g.title || g._id).join(', ') : ''))
       for (const group of groups) {
@@ -6310,7 +6315,7 @@ const RESUME_DISMISS_CTA_ALL = Object.values(RESUME_DISMISS_CTA)
 function _resumeFlowType(step) {
   return ({
     'domain-pay': 'domain-purchase', 'hosting-pay': 'hosting-setup',
-    'phone-pay': 'phone-order', 'plan-pay': 'phone-order',
+    'phone-pay': 'phone-order', 'plan-pay': 'phone-order', 'phone-batch-pay': 'phone-order',
     'vps-plan-pay': 'vps-order', 'vps-upgrade-plan-pay': 'vps-order',
     'digital-product-pay': 'digital-purchase', 'virtual-card-pay': 'vcard-order',
     'leads-pay': 'leads-purchase', 'fxn-pay': 'fax-order',
@@ -10966,6 +10971,7 @@ bot?.on('message', msg => {
       case 'domain-pay': return { step, total: n(cp ? info?.newPrice : info?.price), label: info?.domain || 'domain', walletOkKey: step }
       case 'plan-pay': return { step, total: n(cp ? info?.newPrice : info?.price), label: info?.plan || 'plan', walletOkKey: step }
       case 'phone-pay': return { step, total: n(info?.cpPrice), label: info?.cpSelectedNumber || 'Cloud IVR', walletOkKey: step }
+      case 'phone-batch-pay': return { step, total: n(info?.cpPrice), label: `${(info?.cpSubBatch || []).length} extra numbers`, walletOkKey: step }
       case 'digital-product-pay': return { step, total: n(info?.dpPrice), label: info?.dpProductName || 'digital product', walletOkKey: step }
       case 'virtual-card-pay': {
         const amount = n(info?.vcAmount)
@@ -11250,6 +11256,13 @@ bot?.on('message', msg => {
       // "Proceed to Payment" hop is gone) with balance line + 1-tap wallet pay.
       const pc = phoneConfig.getBtn(lang)
       return checkoutScreen('phone-pay', () => cpOrderSummaryText() + '\n\n' + cpTxt.paymentPrompt(info.cpPrice), { couponLabel: pc.applyCoupon, backLabel: pc.back })
+    },
+    'phone-batch-pay': async () => {
+      if (!((info?.cpSubBatch || []).length > 1) || !info.cpPrice) return goto.submenu5()
+      await set(state, chatId, 'action', 'phone-batch-pay')
+      const pc = phoneConfig.getBtn(lang)
+      const plan = info?.cpSubParentPlan || 'starter'
+      return checkoutScreen('phone-batch-pay', () => subBatch.T(lang).summary(info.cpSubParentNumber, info.cpSubBatch, info.cpPrice, phoneConfig.plans[plan]?.name || plan), { walletOnly: true, backLabel: pc.back })
     },
     // ━━━ Digital Products goto functions ━━━
     submenu6: async () => {
@@ -14858,6 +14871,46 @@ Enter new value:`), bc)
         return send(chatId, phoneConfig.getMsg(info?.userLanguage).purchaseFailed + '\n' + sanitizeProviderError(purchaseErr?.message || 'Unexpected error', 'voice'), trans('o'))
       }
       checkAndNotifyTierUpgrade(preSpend)
+    },
+    // Several extra numbers, one payment: the balance must cover all of them, then each goes through the
+    // normal extra-number purchase (which refunds itself if that number fails).
+    'phone-batch-pay': async () => {
+      await set(state, chatId, 'action', 'none')
+      const batch = info?.cpSubBatch || []
+      const total = Number(info?.cpPrice) || 0
+      const parent = info?.cpSubParentNumber, plan = info?.cpSubParentPlan || 'starter'
+      if (batch.length < 2 || !(total > 0) || !parent) return send(chatId, trans('t.someIssue'))
+      const { usdBal } = await getBalance(walletOf, chatId)
+      if (usdBal < total) {
+        const { message: balMsg, keyboard: balKeyboard } = getInsufficientBalanceMessage(usdBal, total, 'USD', lang)
+        return send(chatId, balMsg, k.of(balKeyboard))
+      }
+      const subsOf = async () => ((await get(phoneNumbersOf, chatId))?.numbers || []).filter(n => n.isSubNumber && n.parentNumber === parent && n.status !== 'released')
+      let left = phoneConfig.subSlotsLeft(plan, (await subsOf()).filter(n => n.status === 'active' || n.status === 'suspended').length)
+      const S = subBatch.T(lang), cc = info?.cpCountryCode || 'US'
+      const added = [], failed = []
+      for (const p of batch) {
+        const provider = p._provider || info?.cpProvider || 'telnyx'
+        if (!left) { failed.push({ phone: p.phone_number, why: S.whyFull }); continue }
+        if (needsTwilioAddress(cc, provider)) { failed.push({ phone: p.phone_number, why: S.whySeparate }); continue }
+        const before = new Set((await subsOf()).map(n => n.phoneNumber))
+        await saveInfo('cpSelectedNumber', p.phone_number)
+        await saveInfo('cpProvider', provider)
+        await saveInfo('cpSelectedCapabilities', p._capabilities || { voice: true, sms: true, fax: false })
+        await saveInfo('cpPrice', p.price)
+        await saveInfo('price', p.price)
+        await saveInfo('cpIsSubNumber', true)
+        await saveInfo('cpPlanKey', plan)
+        await saveInfo('cpAddressAfterPay', false)
+        try { await walletOk['phone-pay'](u.usd) } catch (e) { log(`[SubBatch] ${p.phone_number} for ${chatId}: ${e.message}`) }
+        const fresh = (await subsOf()).find(n => !before.has(n.phoneNumber))
+        if (fresh) { added.push(fresh.phoneNumber); left-- } else failed.push({ phone: p.phone_number, why: S.whyFailed })
+      }
+      await saveInfo('cpSubBatch', null)
+      await saveInfo('cpSubPicks', [])
+      const { usdBal: after } = await getBalance(walletOf, chatId)
+      log(`[SubBatch] ${chatId} on ${parent}: added ${added.length}/${batch.length}`)
+      return send(chatId, S.done(parent, added, failed) + '\n\n' + t.showWallet(after), { parse_mode: 'HTML', ...trans('o') })
     },
     [a.buyLeadsSelectFormat]: async coin => {
       await set(state, chatId, 'action', 'none')
@@ -30466,6 +30519,17 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   // ── PHONE PAY ──
+  if (action === 'phone-batch-pay') {
+    if (isBackPress(message) || message === phoneConfig.getBtn(lang).cancel) {
+      await saveInfo('cpSubBatch', null)
+      await set(state, chatId, 'action', a.cpSubAddNumber)
+      const res = info?.cpSearchResults || []
+      return send(chatId, subBatch.T(lang).picked((info?.cpSubPicks || []).length, Infinity), { parse_mode: 'HTML', ...k.of(subBatch.rows(res, info?.cpSubPicks, lang, phoneConfig.getBtn(lang).showMore, phoneConfig.formatPhone)) })
+    }
+    const tap = hcx.parseCheckoutTap(message)
+    if (tap) return runCheckoutTap('phone-batch-pay', tap)
+    return goto['phone-batch-pay']()
+  }
   if (action === 'phone-pay') {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
     if (isBackPress(message)) {
@@ -31386,6 +31450,13 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   async function showManageScreen(chatId, num) {
     const userData = await get(phoneNumbersOf, chatId)
     const allNumbers = userData?.numbers || []
+    // The bot's saved copy of the number can predate a SIP reset made elsewhere — always refresh the login from the record.
+    const _rec = allNumbers.find(n => n.phoneNumber === num?.phoneNumber)
+    const _sipKeys = ['sipUsername', 'sipPassword', 'telnyxSipUsername', 'telnyxSipPassword', 'telnyxCredentialId', 'sipDomain', 'extraSip']
+    if (_rec && _sipKeys.some(f => JSON.stringify(num[f]) !== JSON.stringify(_rec[f]))) {
+      for (const f of _sipKeys) num[f] = _rec[f]
+      if (info?.cpActiveNumber?.phoneNumber === num.phoneNumber) await saveInfo('cpActiveNumber', num)
+    }
     const subCount = num.isSubNumber ? 0 : allNumbers.filter(n => n.isSubNumber && n.parentNumber === num.phoneNumber && (n.status === 'active' || n.status === 'suspended')).length
     const subLimit = num.isSubNumber ? 0 : phoneConfig.getSubNumberLimit(num.plan)
     const faxNote = faxService.lineOn(num) ? `\n\n${faxService.t(info?.userLanguage).lineOn(num.phoneNumber)}` : ''
@@ -32214,6 +32285,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     await saveInfo('cpCountryCode', countryCode)
     await saveInfo('cpCountryName', message)
     await saveInfo('cpProvider', nativeProvider)
+    await saveInfo('cpSubPicks', [])
     const canSearchBoth = (nativeProvider === 'telnyx') && phoneConfig.isTwilioEnabled()
     await saveInfo('cpCanSearchBoth', canSearchBoth)
     await set(state, chatId, 'action', a.cpSubAddType)
@@ -32408,15 +32480,32 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const numberLines = results.map((r, i) => {
         return numLine(r, i, info?.cpCountryCode, info?.cpNumberType)
       }).join('\n')
-      const numBtns = results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)])
-      return send(chatId, trans('t.cp_263', numberLines), k.of([...numBtns, [pc.showMore]]))
+      return send(chatId, trans('t.cp_263', numberLines), k.of(subBatch.rows(results, info?.cpSubPicks, lang, pc.showMore, phoneConfig.formatPhone)))
     }
     const results = info?.cpSearchResults || []
+    // Several extra numbers at once: tap to tick / untick, then Continue → one payment for all.
+    const _subUsed = ((await get(phoneNumbersOf, chatId))?.numbers || []).filter(n => n.isSubNumber && n.parentNumber === info?.cpSubParentNumber && (n.status === 'active' || n.status === 'suspended')).length
+    const _left = phoneConfig.subSlotsLeft(info?.cpSubParentPlan || 'starter', _subUsed)
+    const _multi = _left > 1 && !phoneConfig.botNeedsAddress(info?.cpCountryCode || 'US', info?.cpNumberType || 'local')
+    let _single = null
+    if (_multi && subBatch.isContinue(message)) {
+      const picks = info?.cpSubPicks || []
+      if (!picks.length) return send(chatId, subBatch.T(lang).none, k.of(subBatch.rows(results, picks, lang, pc.showMore, phoneConfig.formatPhone)))
+      if (picks.length === 1) _single = picks[0]
+      else {
+        await saveInfo('cpSubBatch', picks)
+        await saveInfo('cpPrice', subBatch.total(picks))
+        await saveInfo('cpSelectedNumber', `${picks.length} numbers`)
+        await saveInfo('cpIsSubNumber', true)
+        await saveInfo('cpPlanKey', info?.cpSubParentPlan || 'starter')
+        return goto['phone-batch-pay']()
+      }
+    }
     const _dg = String(message || '').replace(/\D/g, '')
     const _byNum = _dg.length > 1 ? results.findIndex(r => String(r.phone_number).replace(/\D/g, '') === _dg) : -1
     const idx = _byNum >= 0 ? _byNum : parseInt(message) - 1
-    if (isNaN(idx) || idx < 0 || idx >= results.length) return send(chatId, phoneConfig.getMsg(info?.userLanguage).tapNumberToSelect, k.of([...results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)]), [phoneConfig.getBtn(info?.userLanguage || 'en').showMore]]))
-    const selected = results[idx]
+    if (!_single && (isNaN(idx) || idx < 0 || idx >= results.length)) return send(chatId, phoneConfig.getMsg(info?.userLanguage).tapNumberToSelect, k.of([...results.map(r => ['📞 ' + phoneConfig.formatPhone(r.phone_number)]), [phoneConfig.getBtn(info?.userLanguage || 'en').showMore]]))
+    const selected = _single || results[idx]
     await saveInfo('cpSelectedNumber', selected.phone_number)
     const selectedProvider = selected._provider || info?.cpProvider || 'telnyx'
     await saveInfo('cpProvider', selectedProvider)
@@ -32432,6 +32521,11 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const countryCode = info?.cpCountryCode || 'US'
     if (await telnyxNeedsVerification(selectedProvider, countryCode, numberType)) return send(chatId, txReg.T(lang).subNotSupported, { parse_mode: 'HTML' })
     const subPrice = getSubNumberPrice(countryCode, numberType, selectedProvider)
+    if (_multi && !_single) {
+      const r = subBatch.toggle(info?.cpSubPicks, { ...selected, _capabilities: caps, _provider: selectedProvider, price: subPrice }, _left)
+      await saveInfo('cpSubPicks', r.picks)
+      return send(chatId, r.error ? subBatch.T(lang).full(_left) : subBatch.T(lang).picked(r.picks.length, _left), { parse_mode: 'HTML', ...k.of(subBatch.rows(results, r.picks, lang, pc.showMore, phoneConfig.formatPhone)) })
+    }
     await saveInfo('cpPrice', subPrice)
     await saveInfo('price', subPrice)
     await set(state, chatId, 'action', a.cpSubAddConfirm)
@@ -35762,6 +35856,25 @@ Select a category:`), k.of(catBtns))
       return
     }
     if (message === pc.resetPassword) {
+      // Keep the username where we can — only the password changes, so the softphone just needs the new password.
+      const _sl = require('./sip-logins')
+      const _fresh = (await phoneNumbersOf.findOne({ _id: chatId }))?.val?.numbers?.find(x => x.phoneNumber === num.phoneNumber)
+      if (_fresh) Object.assign(num, _fresh)
+      const _keep = await _sl.newPasswordOnly(num, telnyxApi).catch(e => { log(`[CloudPhone] password-only reset for ${num.phoneNumber}: ${e.message}`); return null })
+      if (_keep) {
+        for (const [f, v] of Object.entries(_keep.set)) await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, f, v)
+        Object.assign(num, _keep.set)
+        await saveInfo('cpActiveNumber', num)
+        if (num.provider === 'twilio' && twilioResources?.credentialListSid) {
+          try { await twilioService.removeSipCredential(twilioResources.credentialListSid, _keep.username) } catch (_) { /* noop */ }
+          await twilioService.addSipCredential(twilioResources.credentialListSid, _keep.username, _keep.password)
+        }
+        log(`[CloudPhone] SIP password reset for ${num.phoneNumber} — username ${_keep.username} kept`)
+        const keepMsg = `${cpTxt.sipReset(_keep.password)}\n\n👤 <code>${_keep.username}</code>\n🌐 <code>${phoneConfig.getSipDomainForNumber()}</code>\n\n${_sl.resetNote(lang, false)}`
+        const km = await bot?.sendMessage(chatId, keepMsg, { parse_mode: 'HTML' })
+        if (km?.message_id) setTimeout(() => { bot?.deleteMessage(chatId, km.message_id)?.catch(() => {}) }, 60000)
+        return
+      }
       const seedUser = phoneConfig.generateSipUsername()
       const seedPass = phoneConfig.generateSipPassword()
       const oldSipUsername = num.sipUsername
@@ -35808,7 +35921,7 @@ Select a category:`), k.of(catBtns))
         await twilioService.addSipCredential(twilioResources.credentialListSid, newSipUsername, newSipPassword)
       }
       // Show the FULL matching pair (username + password + domain) so the user cannot mix old/new
-      const resetMsg = `${cpTxt.sipReset(newSipPassword)}\n\n👤 <code>${newSipUsername}</code>\n🌐 <code>${phoneConfig.SIP_DOMAIN}</code>`
+      const resetMsg = `${cpTxt.sipReset(newSipPassword)}\n\n👤 <code>${newSipUsername}</code>\n🌐 <code>${phoneConfig.SIP_DOMAIN}</code>${newSipUsername !== oldSipUsername ? `\n\n${require('./sip-logins').resetNote(lang, true)}` : ''}`
       const msg = await bot?.sendMessage(chatId, resetMsg, { parse_mode: 'HTML' })
       if (msg?.message_id) {
         setTimeout(() => {
