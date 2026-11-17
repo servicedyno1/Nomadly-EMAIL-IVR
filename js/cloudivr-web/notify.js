@@ -146,7 +146,7 @@ function routes(router, { h, numbersApi, smsReply }) {
     }
     if (n.meta.hosted) {
       const hr = await require('../hosted-sms.js').sendText(req.webChatId, n.meta.hosted, n.meta.from, req.body?.text)
-      if (hr.error) return res.status(400).json({ error: 'cannot_reply', message: hr.error })
+      if (hr.error) return hr.code === 'insufficient_balance' ? res.status(402).json({ error: 'insufficient_balance', message: hr.error, ...(hr.cost != null ? { cost: hr.cost } : {}) }) : res.status(400).json({ error: 'cannot_reply', message: hr.error })
       const reply = { text: hr.log.body, at: hr.log.timestamp, status: hr.log.status }
       await _col.updateOne({ _id }, { $set: { 'meta.reply': reply, read: true } })
       return res.json({ reply, charge: hr.charge })

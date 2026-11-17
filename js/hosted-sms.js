@@ -127,7 +127,7 @@ async function start(chatId, phone, planNumber) {
   try { await S.col.insertOne({ _id, chatId: String(chatId), phoneNumber: el.phoneNumber, mode: null, planNumber: parent.phoneNumber, plan: parent.plan, status: 'starting', live: true, paid: 0, createdAt: new Date(), updatedAt: new Date() }) } catch (e) { if (e.code === 11000) return { error: 'This number is already being text-enabled.' }; throw e }
   // Re-count after claiming so parallel setups can't go over the plan's limit.
   if (parent.limit != null && (await S.col.countDocuments({ chatId: String(chatId), planNumber: parent.phoneNumber, live: true })) > parent.limit) { await S.col.deleteOne({ _id }); return { error: `Your ${parent.plan} plan on ${parent.phoneNumber} already has ${parent.limit} texting numbers.`, code: 'plan_limit' } }
-  if (price > 0 && !(await S.w.debit(chatId, price))) { await S.col.deleteOne({ _id }); return { error: `Your wallet needs $${price} for this setup. Top up first.`, code: 'insufficient_balance' } }
+  if (price > 0 && !(await S.w.debit(chatId, price))) { await S.col.deleteOne({ _id }); return { error: `This setup costs $${price}.`, code: 'insufficient_balance', cost: Number(price) } }
   let orderId = `preview-${_id}`
   if (!dry()) {
     try {
@@ -395,7 +395,7 @@ async function renew(chatId, id) {
   await S.col.updateOne({ _id: d._id }, { $set: { retryAt: new Date(0) } })
   await billOne({ ...d, retryAt: new Date(0) })
   const x = await S.col.findOne({ _id: d._id })
-  return x.status === 'active' ? { item: pub(x) } : { error: `Your wallet needs $${monthlyOf(d)}. Top up first.`, code: 'insufficient_balance' }
+  return x.status === 'active' ? { item: pub(x) } : { error: `This costs $${monthlyOf(d)} a month.`, code: 'insufficient_balance', cost: Number(monthlyOf(d)) }
 }
 
 async function billOne(d) {
@@ -470,7 +470,7 @@ async function sendText(chatId, id, to, text) {
   const rule = await require('./sms-rules.js').check(d.phoneNumber, dest, senderName, true)
   if (!rule.ok) return { error: rule.why }
   const price = rule.price
-  if (!(await S.w.debit(chatId, price))) return { error: `A text to ${rule.country} costs $${price.toFixed(2)}. Top up your wallet first.` }
+  if (!(await S.w.debit(chatId, price))) return { error: `A text to ${rule.country} costs $${price.toFixed(2)}.`, code: 'insufficient_balance', cost: price }
   let mid = `preview-${crypto.randomUUID()}`
   if (!dry()) {
     try {
