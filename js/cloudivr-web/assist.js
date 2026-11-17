@@ -1,6 +1,17 @@
 'use strict'
 // Setup assistant for CloudIVR settings screens: the owner chats, we return the form fields to change (never saved here).
 const axios = require('axios')
+const BP = require('./ivr-blueprint')
+
+// Extra guidance for the keypad-menu screen: Emily acts as a whole-flow IVR architect
+// that drives the owner from start to a complete, working menu — not a one-field helper.
+const ARCHITECT = `YOU ARE "EMILY", THE CLOUDIVR IVR ARCHITECT FOR THIS KEYPAD MENU.
+Your job is to take the owner from nothing to a complete, working keypad menu, end to end — never leave the setup half-finished.
+- If this is the first message, introduce yourself in one short line ("Hi, I'm Emily — I'll set up your keypad menu") and ask the one thing you most need next (usually: what's the business and what should callers be able to do).
+- Drive the whole flow: the greeting, every key and where it goes, any sub-menu, a way to reach a person (e.g. press 0), and what happens on a wrong/no key (the system already retries once then says goodbye — reassure them).
+- Work in sensible defaults and PROPOSE a full menu as soon as you have enough; don't ask for things you can reasonably assume, and never stall waiting for one more detail when you could propose and let them adjust.
+- When you propose, fill EVERY key fully (digit, action, destination, label) and write a greeting that names each key. A proposal that leaves a key without its phone number / message / text is not acceptable — ask for that one missing piece instead.
+- After the owner is happy, tell them the two steps left on this page: press "Save keypad menu", then flip the switch at the top to turn it on. Offer a test call.`
 
 const str = (v, n) => String(v ?? '').trim().slice(0, n)
 const empty = (v) => v === null || v === undefined || v === ''
@@ -170,10 +181,10 @@ AI VOICE AGENTS (own page) hold real conversations; AI agent campaigns (Business
 
 const OTHER = 'Where things live: forwarding, keypad menu, AI agent, ring group, voicemail, hours (Answering group) and SMS, missed-call text, Text Triggers (Texting group) are tabs of each number; Quick call and Bulk campaigns are under Make calls; AI agents have their own page.'
 
-function system(sc, current, context) {
+function system(sc, current, context, screen) {
   const fields = Object.entries(sc.fields).map(([k, [, doc]]) => `- ${k}: ${doc}`).join('\n')
   return `You are the CloudIVR setup assistant, an expert on the whole CloudIVR phone system. You guide a small business owner through setting up ${sc.what} in a friendly conversation.
-${KNOWLEDGE}
+${screen === 'ivr' ? ARCHITECT + '\n' : ''}${KNOWLEDGE}
 
 HOW TO TALK
 - Plain, warm language, 1-3 short sentences per turn plus an optional short list. No jargon. Ask ONE question at a time.
@@ -266,12 +277,15 @@ async function chat(screen, messages, current, context) {
   try {
     const r = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: process.env.AI_AGENT_DRAFT_MODEL || 'gpt-4.1-mini', temperature: 0.4, response_format: { type: 'json_object' },
-      messages: [{ role: 'system', content: system(sc, current, context) }, ...messages.slice(-16).map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: str(m.content, 2000) }))],
+      messages: [{ role: 'system', content: system(sc, current, context, screen) }, ...messages.slice(-16).map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: str(m.content, 2000) }))],
     }, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` }, timeout: 30000 })
     const j = JSON.parse(r.data.choices[0].message.content)
     const patch = clean(sc, j.patch)
     const missing = Object.keys(patch).length && GAPS[screen] ? [...new Set(GAPS[screen]({ ...(current || {}), ...patch }, context, messages.filter(m => m.role !== 'assistant').map(m => m.content).join(' ').replace(/[^\w\s]/g, ''), current || {}))].slice(0, 6) : []
-    return { reply: str(j.reply, 900) || 'Here’s what I suggest.', summary: Object.keys(patch).length ? summaryOf(j.summary, patch) : [], missing, patch }
+    const out = { reply: str(j.reply, 900) || 'Here’s what I suggest.', summary: Object.keys(patch).length ? summaryOf(j.summary, patch) : [], missing, patch }
+    // IVR architect: attach a whole-flow readiness report so the owner sees what's still needed to work on a real call.
+    if (screen === 'ivr' && Object.keys(patch).length) out.readiness = BP.readiness({ ...(current || {}), ...patch }, context)
+    return out
   } catch (e) {
     console.log(`[Assist:${screen}] failed: ${e.response?.data?.error?.message || e.message}`)
     return null
@@ -279,6 +293,10 @@ async function chat(screen, messages, current, context) {
 }
 
 function routes(router, { h }) {
+  // Whole-flow IVR architect: validate / simulate / blueprint a keypad menu (operates on the posted config only).
+  router.post('/ivr/validate', h(async (req, res) => res.json(BP.validate(req.body?.ivr || {}, req.body?.context || {}))))
+  router.post('/ivr/simulate', h(async (req, res) => res.json(BP.simulate(req.body?.ivr || {}, req.body?.context || {}))))
+  router.post('/ivr/blueprint', h(async (req, res) => res.json(BP.blueprint(req.body?.ivr || {}, req.body?.context || {}))))
   router.post('/assist/:screen', h(async (req, res) => {
     if (!SCREENS[req.params.screen]) return res.status(404).json({ error: 'unknown_screen', message: 'This page has no setup assistant.' })
     const msgs = (Array.isArray(req.body?.messages) ? req.body.messages : []).filter(m => m && typeof m.content === 'string' && m.content.trim())

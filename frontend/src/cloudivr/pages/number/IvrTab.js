@@ -6,6 +6,7 @@ import { InstantToggle, AudioSelect } from '../../ui';
 import { VoiceMaker } from '../../VoiceMaker';
 import { IvrTemplates } from './IvrTemplates';
 import { IvrSms } from './IvrSms';
+import { IvrFlow } from './IvrFlow';
 import { useSave, numContext } from './SettingsTabs';
 import { OneAnswerNote } from './RouteSummary';
 import { useUnsaved, SaveRow } from '../../guard';
@@ -163,7 +164,7 @@ export default function IvrTab({ num, reload }) {
           render={(o, i, u, ch, rm) => <TopRow key={i} o={o} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`ivr-option-${i}`} onAudio={reloadAudio} />} />
         <SaveRow dirty={u.dirty} testid="ivr-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="ivr-save-button">Save keypad menu</button></SaveRow>
       </div>
-      <div className="space-y-4"><IvrTemplates current={current} onApply={(c) => { if (prep) u.touch(); apply(c); }} auto={prep} /><Analytics num={num} /></div>
+      <div className="space-y-4"><IvrFlow greeting={g.greeting} list={list} context={numContext(num, { textingNumbers })} /><IvrTemplates current={current} onApply={(c) => { if (prep) u.touch(); apply(c); }} auto={prep} /><Analytics num={num} /></div>
     </div>
   );
 }
