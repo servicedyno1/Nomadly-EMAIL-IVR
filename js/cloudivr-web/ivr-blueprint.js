@@ -6,7 +6,7 @@
 // sub-menu level only (depth capped at 2); wrong/no key → "invalid option" once,
 // then goodbye.
 
-const LEAF = ['forward', 'message', 'sms', 'voicemail', 'webhook', 'collect', 'pin']
+const LEAF = ['forward', 'message', 'sms', 'voicemail', 'webhook', 'collect', 'pin', 'pay']
 const ACTIONS = [...LEAF, 'submenu']
 const MAX_SUB_DEPTH = 3 // sub-menus may nest up to 3 levels (paths like 1.2.3); the executor walks session.ivrPath as an array.
 const isPhone = (v) => /^\+\d{8,15}$/.test(String(v || '').replace(/[^\d+]/g, ''))
@@ -32,6 +32,7 @@ function actionOutcome(o, ctx) {
     case 'sms': return hasText(o.smsText) || (Array.isArray(o.smsTexts) && o.smsTexts.length) ? 'sends the caller a text, then ' + (o.after === 'menu' ? 'replays the menu' : 'hangs up') : null
     case 'voicemail': return ctx?.voicemailAvailable === false ? null : 'takes a voicemail'
     case 'webhook': return isUrl(o.url) ? 'calls your system, then ' + (o.after === 'menu' ? 'replays the menu' : 'hangs up') : null
+    case 'pay': return isUrl(o.payUrl) ? 'texts the caller your payment link, then ' + (o.after === 'menu' ? 'replays the menu' : 'hangs up') : null
     case 'collect': return hasText(o.prompt) ? 'asks the caller to type a number, then ' + (isUrl(o.webhook) ? 'sends it to your system' : isPhone(o.forwardTo) ? 'connects them' : 'confirms it') : null
     case 'pin': return (String(o.pin || '').replace(/\D/g, '').length || (Array.isArray(o.pins) && o.pins.length)) ? 'asks for a code; if it matches, ' + (isPhone(o.onOk?.forwardTo) ? 'connects them' : 'continues') + '; otherwise retries' : null
     case 'submenu': return subList(o).length ? `opens the "${o.label || 'sub-menu'}" sub-menu` : null
@@ -59,8 +60,9 @@ function validate(ivr, ctx = {}) {
     if (!ACTIONS.includes(o.action)) { err(k, 'Pick what this key does.'); return }
     if (o.action === 'forward' && !isPhone(o.forwardTo)) err(k, 'Add the phone number this key should ring (with country code).')
     if (o.action === 'message' && !hasText(o.message) && !o.audioUrl) err(k, 'Add the words this key should read out.')
-    if (o.action === 'sms') {
-      if (!hasText(o.smsText) && !(Array.isArray(o.smsTexts) && o.smsTexts.length)) err(k, 'Add the text this key should send.')
+    if (o.action === 'pay' && !isUrl(o.payUrl)) err(k, 'Add the https address of your own payment page (e.g. your Stripe or PayPal link).')
+    if (o.action === 'sms' || o.action === 'pay') {
+      if (o.action === 'sms' && !hasText(o.smsText) && !(Array.isArray(o.smsTexts) && o.smsTexts.length)) err(k, 'Add the text this key should send.')
       if (lines && !lines.length) err(k, 'This key texts the caller, but you have no Texting Number yet — order one, or change the key.')
       else if (lines && lines.length > 1 && !lines.some(l => l.id === o.smsFrom)) err(k, `Choose which Texting Number sends it (${lines.map(l => l.phone).join(' or ')}).`)
     }
@@ -143,6 +145,7 @@ function blueprint(ivr, ctx = {}) {
     if (o.action === 'sms') return add(id, 'sms', 'Send a text', (o.smsText || '').slice(0, 80))
     if (o.action === 'voicemail') return add(id, 'voicemail', 'Voicemail', ctx?.voicemailAvailable === false ? 'needs Starter+' : '')
     if (o.action === 'webhook') return add(id, 'webhook', 'Webhook', (o.url || 'no URL set'))
+    if (o.action === 'pay') return add(id, 'pay', 'Text a payment link', o.payUrl || 'no link set')
     if (o.action === 'collect') return add(id, 'collect', 'Collect digits', o.prompt ? String(o.prompt).slice(0, 60) : (isPhone(o.forwardTo) ? `→ ${fmt(o.forwardTo)}` : ''))
     if (o.action === 'pin') return add(id, 'pin', 'PIN check', isPhone(o.onOk?.forwardTo) ? `ok → ${fmt(o.onOk.forwardTo)}` : '')
     return null

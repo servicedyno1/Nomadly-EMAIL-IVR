@@ -8,7 +8,7 @@ const shown = (x) => ['provisioning', 'active', 'suspended'].includes(x.status);
 const nameOf = (x) => `${x.phoneNumber || 'Number coming'} · ${x.kind === 'mobile' ? 'Texting Number' : 'USA eSIM'}${x.status === 'active' ? '' : x.status === 'provisioning' ? ' (being assigned)' : ' (paused)'}`;
 
 // IVR key that texts the caller from one of the owner's eSIM / mobile numbers; no number → buy one right here.
-export function IvrSms({ o, set, prefix }) {
+export function IvrSms({ o, set, prefix, hideText }) {
   const mn = useApi('/mobile-numbers');
   const [buying, setBuying] = useState(false);
   const lines = (mn.data?.items || []).filter(shown);
@@ -30,7 +30,7 @@ export function IvrSms({ o, set, prefix }) {
           {lines.map(x => <option key={x.id} value={x.id}>{nameOf(x)}</option>)}
         </select>
       )}
-      <SmsVersions o={o} set={set} prefix={prefix} />
+      {!hideText && <SmsVersions o={o} set={set} prefix={prefix} />}
       <div className="grid md:grid-cols-2 gap-2">
         <input className="civr-input" value={o.message || ''} onChange={e => set({ message: e.target.value })} placeholder="Say after sending (default: We have sent you a text message.)" data-testid={`${prefix}-sms-say`} />
         <select className="civr-input" value={o.after || 'hangup'} onChange={e => set({ after: e.target.value })} aria-label="Then" data-testid={`${prefix}-sms-after`}>

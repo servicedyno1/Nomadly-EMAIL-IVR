@@ -15,6 +15,7 @@ const ivr = { enabled: true, greeting: 'Main', options: {
   1: { action: 'submenu', subMenu: { greeting: 'Level one', options: { 2: { action: 'submenu', subMenu: { greeting: 'Level two', options: { 3: { action: 'submenu', subMenu: { greeting: 'Level three', options: { 4: { action: 'message', message: 'Deep leaf' } } } } } } } } } },
   5: { action: 'webhook', url: 'https://127.0.0.1/hook', message: 'Logged' },
   6: { action: 'collect', prompt: 'Type your order', length: 8, message: 'Got it' },
+  8: { action: 'pay', payUrl: 'https://pay.example.com/x', smsFrom: 'mn_abc123', smsText: 'Pay securely here: https://pay.example.com/x' },
   7: { action: 'pin', prompt: 'Code please', pin: '4821', onOk: { action: 'message', message: 'Welcome staff' }, failMessage: 'Wrong code' },
 } }
 const open = (id) => { vs.activeCalls[id] = { num: { phoneNumber: '+13346970100', plan: 'business', features: { ivr } }, chatId: 'u1', from: '+14155550199', to: '+13346970100', phase: 'ivr' }; return vs.activeCalls[id] }
@@ -44,5 +45,7 @@ const open = (id) => { vs.activeCalls[id] = { num: { phoneNumber: '+13346970100'
   await press('c6', '4821'); ok(!s.collect && /Welcome staff/.test(last('speak')?.a[1]), 'right pin continues')
   s = open('c7'); await press('c7', '7'); await press('c7', '1'); await press('c7', '2'); await press('c7', '3')
   ok(!s.collect && !last('gather') && /Wrong code/.test(last('speak')?.a[1]), 'three wrong pins ends the call')
+  s = open('c8'); await press('c8', '8')
+  ok(s.phase === 'ivr_sms' && /text/i.test(String(last('speak')?.a[1])), `pay key runs the text path and tells the caller (${last('speak')?.a[1]})`)
   setTimeout(() => process.exit(process.exitCode || 0), 200)
 })()

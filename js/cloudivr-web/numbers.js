@@ -257,6 +257,15 @@ function validateIvr(body, plan, audioOk = () => true) {
       } else if (action === 'voicemail') {
         if (!phoneConfig.canAccessFeature(plan, 'voicemail')) throw new Error('Voicemail needs the Starter plan or higher.')
         out[digit] = { action, label }
+      } else if (action === 'pay') {
+        const sl = require('./sms-limit')
+        const payUrl = hookUrl(o.payUrl, digit)
+        const smsFrom = String(o.smsFrom || '')
+        if (!/^(es|mn)_[0-9a-f]+$/.test(smsFrom)) throw new Error(`Key ${digit}: pick the number the payment link is texted from.`)
+        const payNote = sl.gsmText(String(o.payNote || '').trim()).slice(0, 300)
+        const smsText = `${payNote || 'Pay securely here:'} ${payUrl}`
+        if (sl.smsTooLong(smsText)) throw new Error(`Key ${digit}: ${sl.smsTooLong(smsText)}`)
+        out[digit] = { action, payUrl, payNote, smsFrom, smsText, message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label }
       } else if (action === 'webhook') {
         out[digit] = { action, url: hookUrl(o.url, digit), message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label }
       } else if (action === 'collect') {

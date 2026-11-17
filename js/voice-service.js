@@ -4622,6 +4622,7 @@ async function handleGatherEnded(payload) {
       notifyUser(chatId, num, 'ivr_message', session, { digit: digits, message: option.message })
       break
 
+    case 'pay':
     case 'sms': {
       session.phase = 'ivr_sms'
       const r = await sendIvrText(chatId, option, session.from)

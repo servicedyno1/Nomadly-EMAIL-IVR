@@ -36,6 +36,7 @@ function menu(acts, nested) {
       if (r.action === 'forward') o.forwardTo = phone(r.forwardTo)
       if (r.action === 'message') o.message = str(r.message, 400)
       if (r.action === 'webhook') { o.url = /^https:\/\//i.test(String(r.url || '').trim()) ? str(r.url, 300) : ''; o.message = str(r.message, 300); o.after = r.after === 'menu' ? 'menu' : 'hangup' }
+      if (r.action === 'pay') { o.payUrl = /^https:\/\//i.test(String(r.payUrl || '').trim()) ? str(r.payUrl, 300) : ''; o.payNote = str(r.payNote, 300); o.message = str(r.message, 300); o.after = r.after === 'menu' ? 'menu' : 'hangup'; if (/^(es|mn)_[0-9a-f]+$/.test(String(r.smsFrom))) o.smsFrom = String(r.smsFrom) }
       if (r.action === 'collect') { o.prompt = str(r.prompt, 300); const n = Math.round(Number(r.length)); o.length = Number.isFinite(n) ? Math.min(20, Math.max(1, n)) : 6; o.webhook = /^https:\/\//i.test(String(r.webhook || '').trim()) ? str(r.webhook, 300) : ''; o.forwardTo = phone(r.forwardTo); o.message = str(r.message, 300) }
       if (r.action === 'pin') { o.prompt = str(r.prompt, 300); o.pin = String(r.pin || '').replace(/\D/g, '').slice(0, 12); o.onOk = { action: r.onOk?.action === 'forward' ? 'forward' : 'message', forwardTo: phone(r.onOk?.forwardTo), message: str(r.onOk?.message, 300) }; o.failMessage = str(r.failMessage, 300) }
       if (r.action === 'sms') {
@@ -97,7 +98,7 @@ const SCREENS = {
     what: 'the keypad menu (IVR) people hear when they call this number',
     fields: {
       greeting: [text(600), 'what callers hear first, listing the keys, e.g. "Thanks for calling Bella\'s. Press 1 for reservations, press 2 for our hours."'],
-      options: [menu(['forward', 'message', 'sms', 'voicemail', 'webhook', 'collect', 'pin', 'submenu'], true), `full list of keys: [{"digit":"1","action":"forward|message|sms|voicemail|webhook|collect|pin|submenu","label":"Sales","forwardTo":"+1... (forward)","message":"words read out (message), after the text (sms), after a webhook, or after collected digits","smsFrom":"id of the texting number","smsTexts":["version A","version B (rotates)"],"url":"https://... secure webhook (webhook)","prompt":"what to ask the caller to type (collect/pin)","length":"how many digits to collect (collect)","webhook":"https://... where to send the typed digits (collect)","pin":"the digit code to check (pin)","onOk":{"action":"forward|message","forwardTo":"+1...","message":"said when the code is right"},"failMessage":"said when the code is wrong (pin)","after":"hangup|menu (sms/webhook)","subMenu":{"greeting":"...","options":[same keys; nest up to 3 levels]}}]`],
+      options: [menu(['forward', 'message', 'sms', 'voicemail', 'webhook', 'collect', 'pin', 'pay', 'submenu'], true), `full list of keys: [{"digit":"1","action":"forward|message|sms|voicemail|webhook|collect|pin|pay|submenu","label":"Sales","forwardTo":"+1... (forward)","message":"words read out (message), after the text (sms), after a webhook, or after collected digits","smsFrom":"id of the texting number","smsTexts":["version A","version B (rotates)"],"url":"https://... secure webhook (webhook)","prompt":"what to ask the caller to type (collect/pin)","length":"how many digits to collect (collect)","webhook":"https://... where to send the typed digits (collect)","pin":"the digit code to check (pin)","onOk":{"action":"forward|message","forwardTo":"+1...","message":"said when the code is right"},"failMessage":"said when the code is wrong (pin)","payUrl":"https://... the owner's own payment page (pay)","payNote":"short line texted before the link (pay)","after":"hangup|menu (sms/webhook)","subMenu":{"greeting":"...","options":[same keys; nest up to 3 levels]}}]`],
     },
     note: `The greeting must mention every key in options.\nTEXT KEYS (sms): the text is sent FROM one of the owner's Texting Numbers listed in account info textingNumbers [{id, phone}]. If there are several, ask which one should send it and set smsFrom to its id. If there is exactly one, set smsFrom to it and tell the owner the texts go out from that number. If there are none, explain the key can't send texts until they order a Texting Number (the key row has an Order button) and offer an alternative such as a message key. Also mention: USA callers only, $0.05 per text from the wallet, and whether the call hangs up or replays the menu after. Rotation: 2-5 smsTexts versions, each caller gets the next one in turn.`,
   },
@@ -171,6 +172,7 @@ KEYPAD MENU (IVR, Pro+): greeting (typed text read in the app's language, or an 
 - webhook: calls one of the owner's own secure https web addresses (sends who called, the number and the key pressed), then says a short line and hangs up or replays the menu — good for logging a request, notifying another system or starting a workflow. Needs a valid https URL from the owner; never invent one.
 - collect: asks the caller to type a number (e.g. order or account number) and press pound, then sends those digits to the owner's https webhook, connects the call, or just confirms. Needs a prompt and at least one of: webhook URL, forward number, or confirmation message.
 - pin: asks the caller for a code and checks it; a correct code forwards the call or plays a message, a wrong code is retried (3 tries) then hangs up. Good for a members-only or staff-only path. This is a simple access code, not for bank-grade secrets. Needs at least one PIN.
+- pay: texts the caller a link to the owner's OWN payment page (their Stripe, PayPal, Mollie… link) from one of the owner's Texting Numbers, then hangs up or replays the menu. Card details are never taken over the phone and CloudIVR does not handle the money. Needs the owner's https payment link (never invent one) and a Texting Number, exactly like the sms key.
 - submenu: more levels of keys with their own greeting (may nest up to 3 levels deep).
 The menu must be saved AND switched on (switch at the top). Switching it on turns the AI agent off on that number.
 FORWARDING: always / when busy / when not answered after 10-60 s; up to 4 backups ring one after another; forwarded phone sees the business number or, US only, the caller's number. Minutes bill from the wallet.
@@ -238,6 +240,11 @@ function keyGaps(opts, ctx, where = '', said = '', prev = []) {
     }
     if (o.action === 'voicemail' && ctx && ctx.voicemailAvailable === false) out.push(`${k}: voicemail needs the Starter plan or higher.`)
     if (o.action === 'webhook' && !/^https:\/\//i.test(String(o.url || '').trim())) out.push(`${k}: add the secure https web address (webhook URL) to call.`)
+    if (o.action === 'pay') {
+      if (!/^https:\/\//i.test(String(o.payUrl || '').trim())) out.push(`${k}: add the https link to your own payment page.`)
+      if (lines && !lines.length) out.push(`${k}: texting a payment link needs a Texting Number — order one first.`)
+      else if (lines && lines.length > 1 && !lines.some(l => l.id === o.smsFrom)) out.push(`${k}: which Texting Number sends the link?`)
+    }
     if (o.action === 'collect') {
       if (!has(o.prompt)) out.push(`${k}: what should the caller be asked to type?`)
       if (!/^https:\/\//i.test(String(o.webhook || '').trim()) && !o.forwardTo && !has(o.message)) out.push(`${k}: what happens with the digits — send to your system, connect the call, or confirm?`)
