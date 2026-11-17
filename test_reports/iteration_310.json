@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend-only test of CloudIVR Keypad menu live-data keys on Alice's +13346970100. All 8 explicit scenarios (S1 load-back of saved 4-key live menu, S2 DB guided picker + Try-it, S3 ConnectForm private/invalid/public URL validation + trash-remove, S4 payment provider connect per-provider credential fields + Stripe bogus error + cancel-preserves-selection, S5 payment key mode switching + flow error when amount column missing, S6 Accept/Decline preview banner Accept/Decline/cross-page persistence, S7 Save round-trip of decline message + timeout, S8 validation toast when PIN+db source saved without picking table) PASS. S9 regression paths verified by code review (IvrTab.js line 63 webhook-url renders when check.source!=='db'; line 78 pin-code input renders when !o.check?.source; plain actions forward/message/sms/queue/submenu are unchanged). Alice's saved menu was restored verbatim (4 keys: collect+db+confirm/voicemail, pin+reply+confirm/decline, webhook+reply, pay+Stripe+fixed 25 USD+waitPaid). Public demo + Stripe test connections kept.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Doc/testid naming inconsistency: review_request listed 'otp-alert-reject' and 'otp-alert-checked' in files_of_reference, but the Decide component (pages/quick/Otp.js:52) emits data-testid='otp-alert-decline' (not '-reject'). 'otp-alert-checked' selector exists only when the key was DB-checked at call time, so it is NOT present in the preview-popup path. Consider aligning the review doc OR adding an alias testid='otp-alert-reject' to the decline button for backwards-compat with existing E2E scripts."
+  ],
+  "critical_code_review_comments": [
+    "IvrLive.js is concise (188 lines) and reuses ConnPick + ConnectForm for both database and payments cleanly. The per-field data-testid prefix pattern (${prefix}-...) is excellent for testability.",
+    "ConnectForm (line 36) correctly uses type='password' + autoComplete='off' for the DB url input; the DOM never leaks the password after submit (verified: 'NWDMCE5xdipIjRrp' absent from innerHTML after connect succeeds). Good.",
+    "PayFields (line 169): switching to 'What each caller owes' lazily initialises check={source:'db'} only when there is no existing check — safe. The resulting flow errors ('Pick the column that holds the amount to pay' / 'Finish the database lookup…') are actionable and shown in the Call flow checks card.",
+    "ConfirmAsk (line 141-154): Accept/Decline block is self-contained and only the 'Show me the pop-up' button triggers a dry-run POST to /ivr-connections/confirm-preview. The banner title rendered from the server preview is 'Number entered' (visible as uppercase 'NUMBER ENTERED' due to Tailwind class 'uppercase'), code 123456, 'Example only' pill — all correct.",
+    "Validation on Save (backend validateIvr in /app/js/cloudivr-web/numbers.js) produces a targeted human message 'Key 5: connect your database first.' for PIN+db without a connection. Message is clear enough.",
+    "Minor UX: after removing the selected connection via the trash icon, the key's local state loses its connId/table/match but the Call-flow checks card does flag 'Finish the database lookup…' — OK, but a confirm or a 'the connection used by key 1 was removed' note could be useful."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend only)", "frontend": "100% (8/8 scenarios PASS, S9 regression by code review)"},
+  "test_credentials": "civr.alice@example.com / AliceTest#2026 (Alice's +13346970100 preview number)",
+  "seed_data_creation": "None. Alice's menu was saved once with modified decline/timeout to verify persistence then IMMEDIATELY resaved back to the original values (decline message 'Sorry, we could not confirm that.', timeout 'voicemail'). Final state: 4 live keys exactly as found; Public demo + Stripe test connections intact. Temporary 'Demo 2' DB connection and 'Bogus' Stripe credential attempt were discarded (Demo 2 explicitly removed via trash; Bogus Stripe never saved — 400 response from backend).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All live-data scenarios on the Keypad menu tab work as specified. Key findings: (a) correct testids for the Accept/Decline preview banner are data-testid='otp-alert-accept' and data-testid='otp-alert-decline' (review doc said '-reject'); (b) 'Example only' pill appears in otp-alert-from, title shows via otp-alert-label with Tailwind uppercase; (c) Save validation messages are prefixed 'Key N: …'; (d) Try-it against the slow public hh-pgsql-public demo DB takes ~3-10s for tables/columns but returns in ~2s for a simple lookup on rnc_database.id=5 -> 'Caller hears: \"Your order is with VEGA.\"'; (e) private-network DB URLs are rejected server-side with 'That database address is inside a private network. Use the public address of your database.'; (f) invalid URLs with 'hello' return 'Paste the full Postgres address. It starts with postgres:// or postgresql://'; (g) Stripe bogus toast: 'Stripe did not accept those credentials.'. No retests required.",
+  "rca of the issue": "N/A — no issues found. Only observation is the testid naming mismatch between the review_request doc and the actual code (-decline vs -reject)."
+}
