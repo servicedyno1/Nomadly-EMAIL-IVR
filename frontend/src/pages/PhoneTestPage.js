@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
 import { useBrand } from '../hooks/useBrand';
+import { startSipLine } from '../cloudivr/sipClient';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 
@@ -230,7 +231,54 @@ const PhoneTestPage = () => {
     addLog('Disconnected', 'info');
   }, [addLog, hangup]);
 
-  const connect = useCallback(() => {
+  // Our own SIP server over WSS (where every bot/web login lives). Maps SIP.js call states onto this page's UI.
+  const connectSip = useCallback(async (creds, webrtc) => {
+    let ringing = false, active = false;
+    const onState = (c) => {
+      if (!c) {
+        if (callRef.current) addLog('Call ended');
+        ringing = false; active = false;
+        stopRingtone(); setIncomingCall(null); setIncomingCaller(''); setIncomingCallerName(''); setIncomingCallerLocation('');
+        setCallStatus('idle'); stopCallTimer(); callRef.current = null; userDialedRef.current = false;
+        return;
+      }
+      callRef.current = c.ref;
+      if (c.inbound && c.state === 'ringing') {
+        if (ringing) return;
+        ringing = true;
+        addLog(`📞 Incoming call from ${c.peer || 'Unknown'}`);
+        setIncomingCall(c.ref); setIncomingCaller(c.peer || 'Unknown'); setCallStatus('ringing'); startRingtone();
+        return;
+      }
+      if (c.state === 'active') {
+        if (active) return;
+        active = true;
+        stopRingtone(); setIncomingCall(null); setCallStatus('active'); startCallTimer();
+        addLog('Call connected');
+        return;
+      }
+      setCallStatus('ringing');
+    };
+    try {
+      const line = await startSipLine({ username: creds.username, password: creds.password, domain: SIP_DOMAIN, webrtc }, audioRef.current, {
+        onState,
+        onStatus: (s) => {
+          if (s === 'ready') { setStatus('connected'); addLog(`Registered with ${PHONE_NAME} SIP`); }
+          else setStatus((prev) => (prev === 'error' ? prev : 'disconnected'));
+        },
+        onError: () => {
+          addLog('Authentication failed — your SIP password is incorrect or outdated. In the bot, open 🔑 SIP Credentials → Reveal Password and paste the latest password, then Connect again.', 'error');
+          setStatus('error');
+        },
+      });
+      clientRef.current = { disconnect: () => line.stop(), newCall: ({ destinationNumber }) => line.call(destinationNumber) };
+    } catch (e) {
+      addLog(`Connection error: ${e.message || 'Unknown'}`, 'error');
+      setStatus('error');
+    }
+  }, [addLog, startCallTimer, stopCallTimer, startRingtone, stopRingtone]);
+
+  const connect = useCallback(async () => {
     const creds = getCredentials();
     if (!creds.username || !creds.password) {
       addLog('Enter SIP credentials first', 'error');
@@ -242,6 +290,10 @@ const PhoneTestPage = () => {
 
     // Pre-warm AudioContext on user gesture (required for mobile browsers)
     ensureAudioContext();
+
+    let webrtc = null;
+    try { webrtc = (await (await fetch(`${BACKEND_URL}/api/phone/test/webrtc`)).json()).webrtc; } catch (_) { /* legacy client below */ }
+    if (webrtc?.wss) return connectSip(creds, webrtc);
 
     try {
       const client = new TelnyxRTC({
@@ -371,7 +423,7 @@ const PhoneTestPage = () => {
       addLog(`Error: ${e.message}`, 'error');
       setStatus('error');
     }
-  }, [getCredentials, addLog, startCallTimer, stopCallTimer, startRingtone, stopRingtone, ensureAudioContext]);
+  }, [getCredentials, addLog, startCallTimer, stopCallTimer, startRingtone, stopRingtone, ensureAudioContext, connectSip]);
 
   const makeCall = useCallback(async () => {
     const dest = destination.replace(/[^+\d]/g, '');

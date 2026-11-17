@@ -73,6 +73,15 @@ WEB_ONLY_PATTERNS = [
     'frontend/src/cloudivr/*',
     'frontend/public/civr*',
 ]
+# Web-only files WhiteLabel must always get as main has them (shared by the bots' SIP test page + free test call).
+# Copied as-is, no dependency chasing — list only self-contained files.
+ALWAYS_CARRY = [
+    'js/cloudivr-web/webrtc-config.js',
+    'js/cloudivr-web/trycall.js',
+    'frontend/src/cloudivr/sipClient.js',
+]
+# WhiteLabel's own variant of a web file lives on main at ops/whitelabel-overrides/<path> and is written to <path>.
+OVERRIDE_DIR = 'ops/whitelabel-overrides/'
 # The web app shell on main boots CloudIVR web; WhiteLabel keeps its own (hosting panel) shell.
 WL_SHELL_PATTERNS = [
     'frontend/src/App.js',
@@ -366,6 +375,8 @@ def main():
                 continue
             skipped_web.remove(p)  # a skipped web file that synced code needs after all
         seen.add(p)
+        if p.startswith(OVERRIDE_DIR):
+            continue  # applied below at its real path
         if not forced and listed is not None and not matches(p, listed):
             skipped_unlisted += 1
             continue
@@ -420,8 +431,20 @@ def main():
         else:
             conflicts.append(f'{p}  ({reason})')
 
+    pinned = []
+    if listed is None:
+        pins = [(p, S[p]) for p in ALWAYS_CARRY if p in S]
+        pins += [(q[len(OVERRIDE_DIR):], ent) for q, ent in S.items() if q.startswith(OVERRIDE_DIR)]
+        for p, ent in pins:
+            if T.get(p) == ent:
+                continue
+            ops = [o for o in ops if o[0] != p] + [(p, ent)]
+            pinned.append(p)
+            if p in skipped_web:
+                skipped_web.remove(p)
     report = (
         section('Updated from main (WhiteLabel had not edited them)', taken)
+        + section('Pinned (always carried / WhiteLabel overrides)', pinned)
         + section('3-way merged (both branches edited, merged cleanly)', merged)
         + section('Kept WhiteLabel version (test/artifact file conflict)', kept_wl)
         + section('Carried because synced code needs them', pulled_in)
@@ -493,7 +516,7 @@ def main():
         if os.path.exists(idx):
             os.unlink(idx)
 
-    n_code = len(taken) + len(merged)
+    n_code = len(taken) + len(merged) + len(pinned)
     body = (f'sync(WhiteLabel){" shared-fix" if listed is not None else ""}: carry main {base[:8]}..{source[:8]} ({n_code} file(s))\n\n'
             f'Brand-safe sync by scripts/sync_whitelabel.py — WhiteLabel brand files and\n'
             f'session docs untouched; only main\'s code changes carried over.\n\n' + report)
@@ -523,7 +546,7 @@ def main():
     git('push', a.remote, f'{commit}:refs/heads/{a.target_branch}')  # fast-forward only (no --force)
     print(f'\n🚀 Pushed {commit[:8]} to {a.remote}/{a.target_branch}')
     note(f'🔄 WhiteLabel sync → {commit[:8]} (main {base[:8]}..{source[:8]})\n\n'
-         f'✅ Reached Smadav / Voodoo / ProShop: {n_code} file(s)\n{brief(taken + merged)}\n\n'
+         f'✅ Reached Smadav / Voodoo / ProShop: {n_code} file(s)\n{brief(taken + merged + pinned)}\n\n'
          + (f'➕ Web files carried because bot code needs them: {len(pulled_in)}\n{brief(pulled_in, 5)}\n\n' if pulled_in else '')
          + f'🌐 Stayed web-only on main: {len(skipped_web)} file(s)\n{brief(skipped_web, 5)}\n\n'
          + ('🚢 Redeploying the 3 bots now.' if runtime_changed else 'No runtime code changed — no redeploy.'))

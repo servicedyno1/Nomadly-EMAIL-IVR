@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
 import { api, enc } from './api';
+import { startSipLine } from './sipClient';
 
 // SDK errors can carry carrier wording — show our own text instead.
 const friendly = (e) => {
@@ -17,12 +18,14 @@ export const useRtc = () => useContext(RtcCtx);
 // One browser SIP line for the whole app, so a ringing call can be answered from any page.
 export function RtcProvider({ children }) {
   const client = useRef(null);
+  const sip = useRef(null); // SIP.js line on our own SIP server (WSS), when the server provides the gateway
   const line = useRef('');
   const [status, setStatus] = useState('idle');
   const [call, setCall] = useState(null);
   const [msg, setMsg] = useState('');
   const [phone, setPhone] = useState('');
-  useEffect(() => () => client.current?.disconnect(), []);
+  const stopLine = useCallback(() => { try { sip.current?.stop(); } catch { /* */ } sip.current = null; client.current?.disconnect(); client.current = null; }, []);
+  useEffect(() => () => stopLine(), [stopLine]);
 
   // quiet = automatic connect: a line that isn't live stays "Offline" instead of showing an error.
   const connect = useCallback(async (p, { quiet = false } = {}) => {
@@ -30,7 +33,16 @@ export function RtcProvider({ children }) {
     try {
       const c = await api(`/numbers/${enc(p)}/sip`);
       if (!c.live) { setStatus(quiet ? 'idle' : 'error'); setMsg(NOT_LIVE); return; }
-      client.current?.disconnect();
+      stopLine();
+      // Preferred: our own SIP server over WSS (where every login lives). Telnyx stays only as a fallback.
+      if (c.webrtc?.wss) {
+        sip.current = await startSipLine(c, document.getElementById('civr-remote-audio'), {
+          onState: (cl) => setCall(cl),
+          onStatus: (s) => setStatus((prev) => (s === 'idle' && prev !== 'ready' ? prev : s)),
+          onError: () => { setStatus('error'); setMsg(friendly({ code: -32001 })); },
+        });
+        return;
+      }
       const rtc = new TelnyxRTC({ login: c.username, password: c.password });
       rtc.remoteElement = 'civr-remote-audio';
       rtc.on('telnyx.ready', () => setStatus('ready'));
@@ -46,7 +58,7 @@ export function RtcProvider({ children }) {
       rtc.connect();
       client.current = rtc;
     } catch (e) { setStatus(quiet ? 'idle' : 'error'); setMsg(e.status ? e.message : friendly(e)); }
-  }, []);
+  }, [stopLine]);
 
   // Numbers with "Ring me in the browser" on keep the browser phone online while the app is open.
   const autoConnect = useCallback(async () => {
@@ -56,7 +68,7 @@ export function RtcProvider({ children }) {
   }, [connect]);
   useEffect(() => { autoConnect(); }, [autoConnect]);
 
-  const dial = (dest, from) => client.current?.newCall({ destinationNumber: dest, callerNumber: from, audio: true, video: false });
+  const dial = (dest, from) => (sip.current ? sip.current.call(dest) : client.current?.newCall({ destinationNumber: dest, callerNumber: from, audio: true, video: false }));
   return (
     <RtcCtx.Provider value={{ status, call, msg, phone, connect, dial, autoConnect }}>
       <audio id="civr-remote-audio" autoPlay />
