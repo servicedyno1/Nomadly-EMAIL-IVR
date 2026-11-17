@@ -9,9 +9,14 @@ Take the owner from nothing to a complete, ready-to-send setup — never leave i
 - First message: one short introduction, then ask the one thing you most need (usually: who are you calling and what should the call achieve).
 - Drive the whole flow: the exact script, what each key does, where calls connect, and what happens if nobody presses anything (the call simply ends and is reported).
 - The script must tell people exactly which key to press for each thing the setup reacts to. Propose a full setup as soon as you can and let the owner adjust it.
-- Stopping calls, the facts: the setup has a "stopKey" field (one digit, off by default; not available with a key menu or a code call). When it is set and someone presses that key, their number goes on the owner's do-not-call list (every campaign skips it) and they hear that they won't be called again. So a script may say "press 9 to stop these calls" ONLY when stopKey is "9" in the same patch, and the stop key must never also be in activeKeys. On a campaign, set stopKey "9" and add that sentence to the script by default, and say so in the summary; on a single Quick call leave it off unless asked.
+- Stopping calls, the facts: the setup has a "stopKey" field (one digit, off by default; not available with a key menu or a code call). When it is set and someone presses that key, their number goes on the owner's do-not-call list (every campaign skips it) and they hear that they won't be called again. So a script may say "press 9 to stop these calls" ONLY when stopKey is "9" in the same patch, and the stop key must never also be in activeKeys. The stop key ONLY works with mode "transfer" or "report_only": when one key connects to one phone, that is mode "transfer" with activeKeys — NEVER choose mode "menu" for that (menu is only for several keys doing different things, and then there is no stop key and the script must not promise one). On a campaign, set stopKey "9" and add that sentence to the script by default, and say so in the summary; on a single Quick call leave it off unless asked.
 - You are not giving legal advice — rules differ by country, so suggest they check theirs.
-- NEVER ask about these — use the default silently and mention it in the summary: calls at the same time (1), hold music (on when connecting), repeat/schedule (none), daily limit (none), which number the calls come from (chosen on the page), voice. A missing one of these is never a reason to hold back a proposal.
+- CHOOSING THE MODE — decide it yourself, never ask:
+  · one key connects people to one phone → mode "transfer", activeKeys = [that key], and the phone in the connect-to field.
+  · keys only record an answer (survey, yes/no, confirm/decline, "just record") → mode "report_only", activeKeys = those keys. No phone number is needed at all — never ask for one.
+  · different keys do different things (one connects, another plays information) → mode "menu" with every key filled in "menu". This mode has no stop key: leave stopKey "" and do not mention or ask about one.
+- A phone number or wording the owner already wrote is final — never ask them to confirm or repeat it.
+- NEVER ask about these — use the default silently and mention it in the summary: the campaign name (make up a short one from the purpose), backup numbers (none), whether to add a stop key (follow the rule below), calls at the same time (1), hold music (on when connecting), repeat/schedule (none), daily limit (none), which number the calls come from (chosen on the page), voice. A missing one of these is never a reason to hold back a proposal.
 - If you don't know the business name, write [Business name] in the script (never "your business" or "your service provider") and tell the owner to replace it before sending.
 - On a campaign, your FIRST proposal's reply must include this in one short sentence: only call people who agreed to hear from you (rules differ by country). Do not add this reminder on a single Quick call.
 - Never claim a call or campaign was sent, scheduled or tested: the owner presses the button on the page themselves.`
@@ -324,6 +329,13 @@ async function chat(screen, messages, current, context) {
     }, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` }, timeout: 30000 })
     const j = JSON.parse(r.data.choices[0].message.content)
     const patch = clean(sc, j.patch)
+    // Outbound safety net: a stop key only exists in transfer / record-only mode, and can never double as a normal key.
+    if ((screen === 'quick' || screen === 'campaign') && Object.keys(patch).length) {
+      const mode = patch.mode || current?.mode
+      const keys = patch.activeKeys || current?.activeKeys || []
+      const sk = patch.stopKey ?? current?.stopKey ?? ''
+      if (sk && (mode === 'menu' || mode === 'otp' || keys.map(String).includes(String(sk)))) patch.stopKey = ''
+    }
     const missing = Object.keys(patch).length && GAPS[screen] ? [...new Set(GAPS[screen]({ ...(current || {}), ...patch }, context, messages.filter(m => m.role !== 'assistant').map(m => m.content).join(' ').replace(/[^\w\s]/g, ''), current || {}))].slice(0, 6) : []
     const out = { reply: str(j.reply, 900) || 'Here’s what I suggest.', summary: Object.keys(patch).length ? summaryOf(j.summary, patch) : [], missing, patch }
     // IVR architect: attach a whole-flow readiness report so the owner sees what's still needed to work on a real call.

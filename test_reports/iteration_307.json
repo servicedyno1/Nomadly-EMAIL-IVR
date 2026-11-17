@@ -1,0 +1,95 @@
+{
+  "summary": "Frontend-only end-to-end verification of the new 'Stop-calls key' (Quick call + New campaign + Emily on campaign) and the new 'Offer a call back while waiting' queue checkbox (Keypad menu IVR tab). 5 of 6 scenarios behave exactly as described; one scenario is not fully reachable because the Quick call 'Stop-calls key' dropdown does NOT include 'Key 1' as an option (so the described 'conflict with connect key 1' error path cannot be exercised through the UI). Emily on the campaign form proposes a correct stop-calls setup (summary includes a stop key 9 line and 'press 9 to stop these calls'), but when 'Fill in the form' is pressed, Emily selects the 'Route each key (menu)' mode, which has no 'Keys that count' and no 'Stop-calls key' UI field; as a result the applied script contains 'To stop these calls, press 9.' but no stop-calls key is actually set on the campaign, so campaign-flow shows an ERROR instead of the task-expected 'no errors / Keys that count = 1 / stop-key = Key 9'.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "QuickCall – Stop-calls key select",
+        "issue": "The quick-call-stop-key <select> is hard-coded to the options [None, 9, 8, 7, 6, 5, 4, 3, 2, 0] — 'Key 1' is NOT offered at all. Consequently the task scenario 'Select Key 1 (same as the connect key) → error that key 1 is both a normal key and the stop-calls key' is not reachable through the UI. The validator may still handle the conflict, but a user can never trigger it from this screen. Either (a) include Key 1 in the dropdown so the validator's conflict message can be seen, or (b) remove any activeKey digit from the list only when it conflicts to make the UX consistent with the Campaign variant (campaign-stop-key also lacks Key 1, but there 'Keys that count' is a multi-digit picker so the same issue may apply when a user picks Key 9 for both activeKeys and stopKey).",
+        "selector": "[data-testid=\"quick-call-stop-key\"]",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "Campaign Assist (Emily) → Fill in the form",
+        "issue": "Emily's chat proposal explicitly lists 'Stop-calls key' as one of the fields she will set, and her summary includes 'Press 9 to stop these calls and be added to the do-not-call list.' However the patch she applies sets mode = 'menu' (Route each key), which hides both 'Keys that count' and 'Stop-calls key'. The script she writes contains 'To stop these calls, press 9.' but, because the campaign is in menu mode, there is no stop-calls key set anywhere. Campaign-flow therefore shows an ERROR: 'message — The message promises that key 9 stops future calls, but no stop-calls key is set.' Expected (per test spec): campaign-stop-key = Key 9, Keys that count = only Key 1, campaign-flow has no errors.",
+        "selector": "[data-testid=\"campaign-assist-apply\"]",
+        "priority": "HIGH"
+      },
+      {
+        "component": "IVR Keypad – queue callback checkbox",
+        "issue": "Minor UX quirk: a plain Playwright .click() on [data-testid=\"ivr-option-N-queue-callback\"] does not toggle the checkbox state when it is wrapped by a <label>; .set_checked(False) works. End users clicking the label text toggle it fine, but the native <input> hit area appears to lose the event once. Not critical; worth a quick repro by E1.",
+        "selector": "[data-testid$=\"-queue-callback\"]",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix Emily's campaign proposal: when the user asks for a stop key, apply mode='report_only' (or 'transfer' if a transfer number is implied) and set f.stopKey + activeKeys, so campaign-stop-key is actually set and campaign-flow is clean. Current behaviour writes 'press 9 to stop' into the script but leaves stopKey empty because mode='menu' hides the field.",
+    "Decide whether 'Key 1' should appear in the quick-call-stop-key dropdown so the 'stop key = connect key' conflict error is reachable from the UI (currently options are 9..2,0 only)."
+  ],
+  "critical_code_review_comments": [
+    "QuickCall.js line 99: option list is a hard-coded literal that omits '1'. If the design is 'any digit except activeKeys', this should be derived dynamically (e.g. DIGITS.filter(k => !f.activeKeys.includes(k))) with a 'conflict' validator still firing when needed. Hard-coded without 1 silently denies one of the documented validation paths.",
+    "Campaigns.js line 333: stopKey is always added to the campaign body in non-menu mode, but the Emily assistant may hand back a patch that sets mode='menu' plus a stop-related script. There is no reconciliation — Emily's intent (stop key) and her mode choice (menu) can conflict. Consider either (a) having the assistant never choose menu when a stop key is requested, or (b) teaching the server/UI to accept stopKey in menu mode as well."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (not tested)", "frontend": "~85% (5/6 scenarios behave as specified; 1 partial — Emily; 1 not reachable — quick-call Key 1)" },
+  "test_credentials": "civr.alice@example.com / AliceTest#2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. All test changes to the +13346970100 IVR keypad were reverted at the end of the run; final state verified to match initial state exactly: greeting 'Press 1 for orders, press 2 for our menu by text.', Key 1 forward Orders +14155550100, Key 2 sms Menu (2 rotating versions 'Menu: bella.com/menu' and 'Specials: bella.com/today'), IVR toggle OFF.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Quick-call stop-key behaviour (A/B/C) and OTP/menu-mode hiding (D) verified clean. Campaign-flow warnings/errors transition exactly as described. Emily proposal content is on-topic (mentions stop key 9) but the Apply step picks menu mode, silently dropping stopKey. For the IVR queue callback test, the final cleanup has been performed — menu is restored to the original 2-key state with the IVR toggle OFF.",
+  "detailed_findings": {
+    "quick_call_stop_key": {
+      "options_present": ["None","Key 9","Key 8","Key 7","Key 6","Key 5","Key 4","Key 3","Key 2","Key 0"],
+      "stopKey_None": "ERROR: 'message — The message promises that key 9 stops future calls, but no stop-calls key is set. Set the stop-calls key to 9, or remove that line.' (as expected)",
+      "stopKey_9": "'Ready to place · No problems found.' Tree shows Key 9 → 'Stop these calls · added to your do-not-call list'. Walk through lists 6 passing rows including 'Key 9 · press 9 → is put on your do-not-call list and told they will not be called again; nobody is connected'. (as expected)",
+      "stopKey_8": "ERROR: 'message — The message says key 9 stops future calls, but the stop-calls key is 8.' (as expected)",
+      "stopKey_1": "NOT REACHABLE — Key 1 is not in the dropdown options at all.",
+      "otp_mode": "quick-call-stop-key is HIDDEN (count=0). (as expected)",
+      "menu_mode": "quick-call-stop-key is HIDDEN (count=0). (as expected)"
+    },
+    "campaign_stop_key": {
+      "options_present": ["None","Key 9","Key 8","Key 7","Key 6","Key 5","Key 4","Key 3","Key 2","Key 0"],
+      "visible_in_default_mode": "yes (mode='Just report it')",
+      "stopKey_None_sale_script": "WARNING: 'keys — No stop-calls key is set. Consider one (for example 9) so people can take themselves off your list.' Status still 'Ready to save'. (as expected)",
+      "stopKey_9_sale_script_no_press9": "WARNING: 'message — The stop-calls key is 9, but the message never tells people to press it.' Tree gains Key 9 Stop these calls node. Status still 'Ready to save'. (as expected)",
+      "stopKey_9_script_includes_press9": "Warning clears. (as expected)"
+    },
+    "emily_campaign_assist": {
+      "model_asks_follow_up": "First reply was a clarifying question ('Should I include a stop key 9 ...? Also, do you want the call to end if no key is pressed?')",
+      "proposal_summary_text": "'Campaign announces weekend sale from [Business name].', 'Key 1 → forwards call to +14155550100 (Sales).', 'Press 9 to stop these calls and be added to the do-not-call list.', 'Calls end if no key pressed or invalid key.', '20 calls at the same time, no repeats or daily limits, no hold music on transfers.'",
+      "patch_fields_listed": ["Name","Script","Key press action","Stop-calls key","Key menu"],
+      "after_fill_in_the_form": {
+        "campaign_name": "Weekend Sale Announcement",
+        "mode_select_value": "Route each key (menu)",
+        "script_text": "Hello, this is [Business name]. We have a special weekend sale just for you! To talk to our sales team now, press 1. To stop these calls, press 9.",
+        "campaign_stop_key_field_present": false,
+        "campaign_keys_that_count_field_present": false,
+        "campaign_flow_status": "1 thing to fix before it works — message — The message promises that key 9 stops future calls, but no stop-calls key is set. Set the stop-calls key to 9, or remove that line. (NOT the expected 'no errors')"
+      }
+    },
+    "ivr_queue_callback": {
+      "initial_menu_captured": {
+        "greeting": "Press 1 for orders, press 2 for our menu by text.",
+        "key_1": "forward Orders +14155550100",
+        "key_2": "sms Menu (2 rotating versions: 'Menu: bella.com/menu', 'Specials: bella.com/today'), Texting Number +12025550111",
+        "toggle_enabled": false
+      },
+      "added_key_3_queue_with_callback_true": true,
+      "test_my_menu_passing_rows_contain": [
+        "Key 3 · press 3 → holds the caller with music while 2 phones ring in turn for up to 3 min; if nobody answers, plays your closing message",
+        "Key 3 → queue · another caller is already waiting → is told their place in the queue, then waits on hold music",
+        "Key 3 → queue · caller hangs up while waiting → the ringing stops",
+        "Key 3 → queue · presses 1 when offered a call back → the call ends and you get a message with their number to call back yourself"
+      ],
+      "save_reload_callback_still_true": true,
+      "uncheck_save_reload_callback_now_false": true,
+      "cleanup_removed_key_3_and_saved": true,
+      "final_state_matches_initial_state": true,
+      "ivr_toggle_remained_off": true
+    }
+  }
+}
