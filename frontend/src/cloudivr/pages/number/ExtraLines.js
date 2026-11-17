@@ -18,6 +18,7 @@ function RenewalSummary({ r }) {
       {r.autoRenew ? <>
         <div className="font-mono text-2xl" data-testid="extra-renewal-total">{money(r.total)}</div>
         <div className="text-xs text-[var(--c-muted)]" data-testid="extra-renewal-breakdown">{`Plan ${money(r.main || 0)} + ${r.renewing} extra number${r.renewing === 1 ? '' : 's'} — one charge from your wallet`}</div>
+        {r.later?.length > 0 && <div className="text-xs text-[var(--c-muted)]" data-testid="extra-renewal-later">{`Not in this charge: ${r.later.length} extra number${r.later.length === 1 ? '' : 's'} still on ${r.later.length === 1 ? 'its' : 'their'} own date — ${money(r.later.reduce((t, e) => t + e.firstPrice, 0))} in total when ${r.later.length === 1 ? 'it renews' : 'they renew'} (only the days up to ${day(r.date)}), then ${r.later.length === 1 ? 'it joins' : 'they join'} this bill.`}</div>}
       </> : <div className="text-xs text-[#fbbf24]" data-testid="extra-renewal-off">Auto-renew is off on the main number — it and all its extra numbers end on {day(r.date)}.</div>}
     </div>
   );
@@ -38,7 +39,7 @@ function LineRow({ x, i, onChanged, pv }) {
     <div className="py-3 border-t border-[var(--c-border,#27272a)] first:border-t-0" data-testid={`extra-line-${i}`}>
       <div className="flex flex-wrap items-center gap-3">
         <Link to={cp(`/app/numbers/${enc(x.phoneNumber)}`)} className="font-mono text-sm hover:text-[#818cf8] min-w-[9rem]" data-testid={`extra-line-${i}-link`}>{pv.phone(x.phoneNumber)}</Link>
-        <span className="text-xs text-[var(--c-muted)] flex-1 min-w-[10rem]" data-testid={`extra-line-${i}-info`}>{x.autoRenew ? `${money(x.renewalPrice)}/mo${x.onPlanDate ? '' : ` · moves to the plan date on ${day(x.expiresAt)}`}` : `Ends ${day(x.expiresAt)}`}</span>
+        <span className="text-xs text-[var(--c-muted)] flex-1 min-w-[10rem]" data-testid={`extra-line-${i}-info`}>{x.autoRenew ? `${money(x.renewalPrice)}/mo${x.onPlanDate ? '' : ` · renews ${day(x.expiresAt)}, then joins the plan date`}` : `Ends ${day(x.expiresAt)}`}</span>
         <Toggle checked={!!x.autoRenew} disabled={!!busy} onChange={renew} testid={`extra-line-${i}-renew-toggle`} label="Renew" />
         <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" disabled={!!busy} onClick={() => setConfirm(true)} data-testid={`extra-line-${i}-delete`}><Trash2 className="w-4 h-4" /></button>
       </div>

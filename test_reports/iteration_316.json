@@ -1,0 +1,42 @@
+{
+  "summary": "Tested the one-bill renewal for extra numbers, per-extra Renew toggle, Delete extra, Copy settings, prorated buy checkout, the concurrency lock and the landing snapshot, through the API (new pytest, 8/8) and the UI (Playwright). Most features work. Found one CRITICAL bug: deleting an extra number that was bought again after an earlier delete returns 200, but the number stays active. Cause: the positional '$' update hits the old released entry. Also found: the renewal summary total counts extras that renew on a different date. NOTE: the nodejs service was running code from before extras.js was last edited, so every new route returned 404 (Express 'Cannot POST'). I restarted nodejs and then all routes worked. The main agent must restart nodejs after backend JS edits.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "DELETE /api/cloudivr-web/numbers/:phone/extra-line (also copy-settings, auto-renew, numbersApi.setField and 18 updateOne calls in js/cloudivr-web/*.js that use 'val.numbers.phoneNumber': p + 'val.numbers.$')", "issue": "If the account's numbers array has the same phoneNumber twice (an older released entry plus a new active one, which happens when a deleted extra is bought again), the positional $ updates the FIRST match, which is the released one. Reproduced: bought +17076220116, deleted it (OK), bought it again in the UI, then DELETE returned 200 {deleted}. DB idx 27 (released) got releasedAt rewritten, idx 31 stayed status=active, and used stayed 20. In live mode releaseFromProvider would free the carrier number while the DB keeps it active and renewing. copy-settings, auto-renew and setField would also write to the dead entry.", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "GET /numbers/:phone/extra → renewal (lifecycle.groupRenewal) + scheduler groupDueLine reminders", "issue": "The total adds every active extra on auto-renew, even extras whose expiresAt is not the plan date (onPlanDate=false). The UI says 'Next renewal · Dec 11, 2026 · $715.00 … one charge from your wallet', but 18 of the extras renew on Dec 17 (their own date, prorated to the main's date in attemptAutoRenew). So the Dec 11 charge is really much less than $715, and the Dec 17 charges are separate. Either count only onPlanDate extras in the total and list the others as 'renews <date>, $x prorated', or change the wording."},
+      {"endpoint": "POST /numbers/:phone/extra (single pick)", "issue": "picks.length===1 returns before the plan lock 'extras:<chatId>:<parent>' is taken. purchaseLocked only locks the phone number itself and does not re-check free slots. Two simultaneous single-number requests (or one single + one multi) when 1 slot is left can both pass the subSlotsLeft check and go over the limit. Not reproduced (it would need 49 extras); found in code review. Fix: take the plan lock and re-check slots on the single path too."},
+      {"endpoint": "Seed extra +13343334444", "issue": "Its renewalPrice is $120/mo (the plan price) while other extras are $25. It may be legacy seed data, but it adds $120 to the summary. Worth checking renewalPrice() for extras."},
+      {"endpoint": "POST /numbers/:phone/extra multi", "issue": "The wallet balance check runs before the lock and uses the prorated total. Fine, but the response balance is not rounded (54.128)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Delete an extra that was bought again after an earlier delete", "issue": "Shows the success toast, but the row comes back on reload (backend positional-update bug above)", "affected_selectors": ["extra-line-{i}-confirm-delete"]}
+    ],
+    "design_issues": [
+      {"screen": "Billing → Extra numbers rows", "issues": ["The text 'moves to the plan date on Dec 17, 2026' is unclear. Dec 17 is the extra's own expiry, not the plan date (Dec 11). Suggest something like 'renews Dec 17, then joins the plan date'.", "Copy settings target list shows 19+ checkboxes with no 'select all / none' control, and unticking them one by one is tedious."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_extra_renewal_iter316.py", "/app/test_reports/pytest/pytest_iter316.xml"],
+  "action_items": [
+    "CRITICAL: In extras.js delete-extra-line and copy-settings, numbers.js setField/auto-renew, and the other ~18 'val.numbers.phoneNumber' positional updates, target the live entry. Use {'val.numbers': {$elemMatch: {phoneNumber: p, status: {$ne: 'released'}}}} with $, or arrayFilters [{ 'n.phoneNumber': p, 'n.status': {$ne: 'released'} }]. Then delete the leftover active +17076220116 on the QA account (it cannot be deleted through the API right now).",
+    "Fix the groupRenewal total and groupDueLine so extras not on the plan date are not counted in the plan-date charge (or are shown separately with their own date and prorated amount).",
+    "Take the plan lock and re-check slots on the single-pick POST /numbers/:phone/extra path too.",
+    "Always run 'sudo supervisorctl restart nodejs' after editing js/ files. The running process did not have the new routes until I restarted it."
+  ],
+  "critical_code_review_comments": [
+    "Positional '$' on 'val.numbers.phoneNumber' is unsafe now that delete + buy again can leave duplicate phoneNumber entries in one account doc. findMine returns the active entry, but writes go to the first match.",
+    "Frontend checkout total sums unrounded max(0.5, price*prorate) and rounds once; the backend rounds per number. Can differ by a cent with odd prorate ratios.",
+    "Coupon: a daily coupon exists (NMD10UALMFY, 10%). I did NOT redeem it in the UI (to avoid spending the QA user's daily coupon). An invalid code correctly shows 'That coupon code is not valid.' The unit test covers redeem-once."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_extra_renewal_iter316.py"],
+  "success_rate": {"backend": "90% (8/8 pytest pass; 1 critical bug found by a manual delete-after-buying-again check)", "frontend": "92% (summary, toggle, keep/delete, copy settings, prorated checkout, wallet buy all OK; delete of a bought-again number broken)"},
+  "seed_data_creation": "Bought and deleted TEST extras through the API and UI (+17076220116/0131/0135/0242 etc.). Deleted 1 pre-existing extra +18065931140 through the UI (allowed by the brief). DEFECT on non-test data: the API copy-settings test copied the main number's forwarding/IVR/voicemail onto seed extra +13343334444 (its earlier settings were overwritten), and the UI test copied +13343334444's forwarding/voicemail back onto +13341112222 (same values, so no net change on the main). +17076220116 is left ACTIVE on the QA account because of the critical bug. Wallet went $234 → ~$34.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "API prefix /api/cloudivr-web, cookie login. Run pytest with -n0. Restart nodejs after backend JS changes (no hot reload). QA wallet is now ~$34 (each prorated extra is $20 at prorate 0.8), so top up through the preview crypto flow before buying more. To reproduce the critical bug: buy extra X, DELETE it, search again, buy X again, DELETE it, then GET /numbers/:parent/extra and X is still active. +17076220116 is currently in this state.",
+  "rca of the issue": "Delete of a bought-again extra: phoneNumbersOf.val.numbers keeps released entries. Buying the same number again appends a new active entry. updateOne({_id, 'val.numbers.phoneNumber': p}, {$set: {'val.numbers.$.status': 'released'}}) matches the first array element, the old released entry, so the active one never changes. Fix: match {phoneNumber: p, status: {$ne: 'released'}} via $elemMatch or arrayFilters."
+}

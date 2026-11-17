@@ -116,7 +116,7 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
       await require('../phone-scheduler').releaseFromProvider(n, acct, req.webChatId).catch(e => log(`[CloudIVR-Web] release ${n.phoneNumber}: ${e.message}`))
     }
     const now = new Date().toISOString()
-    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.status': 'released', 'val.numbers.$.releasedAt': now, 'val.numbers.$._releasedReason': 'deleted_by_owner', 'val.numbers.$.autoRenew': false } })
+    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers': { $elemMatch: { phoneNumber: n.phoneNumber, status: { $ne: 'released' } } } }, { $set: { 'val.numbers.$.status': 'released', 'val.numbers.$.releasedAt': now, 'val.numbers.$._releasedReason': 'deleted_by_owner', 'val.numbers.$.autoRenew': false } })
     await phoneTransactions.insertOne({ chatId: req.webChatId, phoneNumber: n.phoneNumber, action: 'delete_extra', parentNumber: n.parentNumber, amount: 0, channel: 'web', timestamp: now })
     notifyAdmin(`🗑️ CloudIVR web: extra number ${n.phoneNumber} (on ${n.parentNumber}) deleted by web account ${req.webChatId}`)
     res.json({ deleted: n.phoneNumber, parentNumber: n.parentNumber })
@@ -137,7 +137,7 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
     for (const t of targets) {
       const ok = parts.filter(p => p !== 'ivr' || phoneConfig.canAccessFeature(t.plan, 'ivr'))
       if (!ok.length) { skipped.push({ phoneNumber: t.phoneNumber, message: 'its plan has none of these features' }); continue }
-      await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': t.phoneNumber }, { $set: Object.fromEntries(ok.map(p => [`val.numbers.$.features.${COPY_PARTS[p]}`, set[COPY_PARTS[p]]])) })
+      await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers': { $elemMatch: { phoneNumber: t.phoneNumber, status: { $ne: 'released' } } } }, { $set: Object.fromEntries(ok.map(p => [`val.numbers.$.features.${COPY_PARTS[p]}`, set[COPY_PARTS[p]]])) })
       done.push(t.phoneNumber)
     }
     res.json({ copied: parts, to: done, skipped })

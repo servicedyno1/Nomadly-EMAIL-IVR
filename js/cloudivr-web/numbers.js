@@ -423,7 +423,8 @@ function routes(router, deps) {
 
   const myNumbers = async (chatId) => ((await phoneNumbersOf.findOne({ _id: chatId }))?.val?.numbers || []).filter(n => n.status !== 'released')
   const findMine = async (chatId, phone) => (await myNumbers(chatId)).find(n => n.phoneNumber === normPhone(phone)) || null
-  const setField = (chatId, phone, path, value) => phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': phone }, { $set: { [`val.numbers.$.${path}`]: value } })
+  // $elemMatch skips an older released copy of the same number (bought again after a delete).
+  const setField = (chatId, phone, path, value) => phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers': { $elemMatch: { phoneNumber: phone, status: { $ne: 'released' } } } }, { $set: { [`val.numbers.$.${path}`]: value } })
   // One answers a number: where both were on, the AI agent already took every call, so the keypad menu goes off.
   const both = { 'features.aiAgent.enabled': true, 'features.ivr.enabled': true }
   phoneNumbersOf.updateMany({ 'val.numbers': { $elemMatch: both } }, { $set: { 'val.numbers.$[n].features.ivr.enabled': false } }, { arrayFilters: [{ 'n.features.aiAgent.enabled': true, 'n.features.ivr.enabled': true }] })

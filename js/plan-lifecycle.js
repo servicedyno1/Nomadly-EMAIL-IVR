@@ -96,8 +96,11 @@ function groupRenewal(numbers, main) {
     .map(x => ({ phoneNumber: x.phoneNumber, price: renewalPrice(x), autoRenew: x.autoRenew !== false, expiresAt: x.expiresAt, onPlanDate: sameDate(x.expiresAt, main.expiresAt) }))
   const mainPrice = renewalPrice(main)
   const on = main.autoRenew !== false
-  const total = on ? round2((mainPrice || 0) + extras.filter(e => e.autoRenew).reduce((t, e) => t + (e.price || 0), 0)) : 0
-  return { date: main.expiresAt, autoRenew: on, main: mainPrice, extras, renewing: on ? extras.filter(e => e.autoRenew).length : 0, total }
+  // Only extras already on the plan date are in this charge; the rest renew once on their own date, prorated up to it.
+  const onDate = extras.filter(e => e.autoRenew && e.onPlanDate)
+  const later = on ? extras.filter(e => e.autoRenew && !e.onPlanDate).map(e => ({ ...e, firstPrice: proratedTo(e.price || 0, main.expiresAt, new Date(e.expiresAt)) })) : []
+  const total = on ? round2((mainPrice || 0) + onDate.reduce((t, e) => t + (e.price || 0), 0)) : 0
+  return { date: main.expiresAt, autoRenew: on, main: mainPrice, extras, renewing: on ? onDate.length : 0, later, total }
 }
 const groupDueLine = (g) => g.renewing ? `\n💳 Due on renewal: <b>$${g.total.toFixed(2)}</b> (plan $${Number(g.main || 0).toFixed(2)} + ${g.renewing} extra number${g.renewing === 1 ? '' : 's'})` : ''
 const extrasOf = (numbers, main) => numbers.filter(x => x.isSubNumber && x.parentNumber === main.phoneNumber && live(x))
