@@ -46,7 +46,7 @@ const findOffer = async (id) => { for (const z of await catalog()) { const o = z
 
 function createTravelEsim({ db, h, walletOps, notify, notifyAdmin = () => {}, log = console.log }) {
   const w = walletOps(db), col = db.collection('travelEsims')
-  const bad = (res, s, error, message) => res.status(s).json({ error, message })
+  const bad = (res, s, error, message, extra) => res.status(s).json({ error, message, ...extra })
   const pub = ({ _id, chatId, cost, idemKey, ...d }) => ({ id: _id, ...d })
 
   async function settle(d) {
@@ -90,7 +90,7 @@ function createTravelEsim({ db, h, walletOps, notify, notifyAdmin = () => {}, lo
       const quote = dryRun() ? { offer_revision: 0, price: { amount: String(offer.cost), currency_code: 'USD' } } : (await bird('get', `/offers/${offer.id}/checkout`)).one_time
       const cost = Number(quote?.price?.amount), price = sell(cost)
       if (!(cost > 0)) return bad(res, 409, 'price_changed', 'This plan can’t be bought right now. Try another one.')
-      if (!(await w.debit(req.webChatId, price))) return bad(res, 402, 'insufficient_balance', `This plan costs $${price}. Top up your wallet first.`)
+      if (!(await w.debit(req.webChatId, price))) return bad(res, 402, 'insufficient_balance', `This plan costs $${price}.`, { cost: Number(price) })
       const id = `tes_${crypto.randomUUID().slice(0, 12)}`, idemKey = `cloudivr-${id}`
       const doc = { _id: id, chatId: req.webChatId, offerId: offer.id, name: offer.name, zone: offer.zone, code: offer.code || null, gb: offer.gb, days: offer.days, price, cost, idemKey, status: 'processing', createdAt: new Date(), ...(dryRun() ? { dryRun: true } : {}) }
       await col.insertOne(doc)

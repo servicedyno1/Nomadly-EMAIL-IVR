@@ -5,7 +5,7 @@ const phoneConfig = require('../phone-config')
 
 const bad = (res, status, error, message, extra = {}) => res.status(status).json({ error, message, ...extra })
 const STATUS = { plan_upgrade_required: 403, insufficient_balance: 402, expired: 410, unavailable: 503, send_failed: 503, not_running: 409, not_found: 404, fax_only: 409 }
-const fail = (res, e) => (e instanceof fax.FaxError ? bad(res, STATUS[e.code] || 400, e.code, e.message) : Promise.reject(e))
+const fail = (res, e) => (e instanceof fax.FaxError ? bad(res, STATUS[e.code] || 400, e.code, e.message, e.extra || {}) : Promise.reject(e))
 
 function routes(router, { db, h, upload, numbersApi, notifyAdmin, legalProfile }) {
   if (!fax.isReady()) fax.init({ db })

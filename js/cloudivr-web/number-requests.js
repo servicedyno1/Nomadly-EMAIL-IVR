@@ -38,7 +38,7 @@ function createNumberRequests({ db, h, phoneConfig, numbersApi, walletOps, notif
       if (!plan || !phoneConfig.isPlanAvailable(planKey)) return res.status(400).json({ error: 'invalid_plan', message: 'That plan is not available.' })
       const eu = endUser(req.webUser)
       const price = round2(plan.price + phoneConfig.planAddon(planKey, country, 'local', require('../number-addons').get(country, 'local')))
-      if (!(await w.debit(req.webChatId, price))) return res.status(402).json({ error: 'insufficient_balance', message: `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(req.webChatId)).toFixed(2)} — top up first.` })
+      if (!(await w.debit(req.webChatId, price))) return res.status(402).json({ error: 'insufficient_balance', message: `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(req.webChatId)).toFixed(2)}.`, cost: price })
       const doc = { _id: `nr_${crypto.randomUUID().slice(0, 12)}`, chatId: req.webChatId, email: req.webUser.email, country, countryName: cfg.name, plan: planKey, price, autoRenew: req.body?.autoRenew !== false, status: 'submitted', endUser: eu, createdAt: new Date(), updatedAt: new Date() }
       try { doc.ibRequestId = await submit(doc, cfg, eu) } catch (e) {
         await w.credit(req.webChatId, price)

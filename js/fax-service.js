@@ -32,7 +32,7 @@ let _sweep = null, _db = null, _bot = null, _walletOf = null, _log = console.log
 const col = (n) => _db.collection(n)
 const bucket = () => new GridFSBucket(_db, { bucketName: 'faxFiles' })
 
-class FaxError extends Error { constructor(code, message) { super(message); this.code = code } }
+class FaxError extends Error { constructor(code, message, extra) { super(message); this.code = code; this.extra = extra } }
 
 const TXT = {
   en: {
@@ -552,7 +552,7 @@ async function coverCost(chatId, q) {
   const need = q.cost + (q.pendingCost || 0)
   if (need <= 0) return
   const { usdBal } = await getBalance(_walletOf, chatId)
-  if ((usdBal || 0) < need) throw new FaxError('insufficient_balance', `This fax needs $${need.toFixed(2)} for paid pages${q.pendingCost ? ' (including faxes still sending)' : ''}. Your wallet has $${Number(usdBal || 0).toFixed(2)} — top up and try again.`)
+  if ((usdBal || 0) < need) throw new FaxError('insufficient_balance', `This fax needs $${need.toFixed(2)} for paid pages${q.pendingCost ? ' (including faxes still sending)' : ''}. Your wallet has $${Number(usdBal || 0).toFixed(2)}.`, { cost: need })
 }
 const claimStage = async (st) => {
   if (!(await col('faxStaged').findOneAndDelete({ _id: st._id }, { includeResultMetadata: false }))) throw new FaxError('expired', 'That upload expired. Please upload the document again.')
@@ -951,7 +951,7 @@ async function list(chatId, limit = 100) {
 }
 async function fileOf(chatId, faxId) {
   const f = await col('faxes').findOne({ _id: String(faxId), chatId })
-  if (f?.held) throw new FaxError('insufficient_balance', `Top up $${Number(f.cost).toFixed(2)} to open this fax — it's delivered automatically once your wallet covers it.`)
+  if (f?.held) throw new FaxError('insufficient_balance', `This fax costs $${Number(f.cost).toFixed(2)} to open — it's delivered automatically once it's paid.`, { cost: Number(f.cost) })
   return f?.fileId ? { buffer: await readFile(f.fileId), fax: f } : null
 }
 // Bulk report rows: every recipient with its result (failed-to-start ones included).

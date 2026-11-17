@@ -155,7 +155,7 @@ function routes(router, { db, h, numbersApi }) {
   sends.createIndex({ at: 1 }, { expireAfterSeconds: 86400 }).catch(() => {})
   col.createIndex({ chatId: 1 }).catch(() => {})
   const w = walletOps(db)
-  const bad = (res, status, error, message) => res.status(status).json({ error, message })
+  const bad = (res, status, error, message, extra) => res.status(status).json({ error, message, ...extra })
   const off = (res) => bad(res, 403, 'caller_id_off', 'Custom caller IDs aren’t available right now. Calls show your CloudIVR number.')
   const view = (d) => ({ number: d._id, status: d.status, method: d.method, note: d.note || null, label: d.label || null, verifiedAt: d.verifiedAt || null })
 
@@ -176,7 +176,7 @@ function routes(router, { db, h, numbersApi }) {
     if (!list.length) return bad(res, 400, 'invalid_number', 'Enter the number with country code, e.g. +14155550100.')
     if (list.length > MAX_BATCH) return bad(res, 400, 'too_many_numbers', `Up to ${MAX_BATCH} numbers at a time.`)
     const bal = await w.balance(chatId)
-    if (bal < PRICE) return bad(res, 402, 'insufficient_balance', `Verifying a caller ID costs $${PRICE.toFixed(2)}, charged once the code is accepted. Your balance is $${bal.toFixed(2)} — top up first.`)
+    if (bal < PRICE) return bad(res, 402, 'insufficient_balance', `Verifying a caller ID costs $${PRICE.toFixed(2)}, charged once the code is accepted. Your balance is $${bal.toFixed(2)}.`, { cost: PRICE })
     const results = []
     for (const n of list) results.push({ number: n, ...(await sendOne(chatId, n, method)) })
     const sent = results.filter(r => r.ok)
@@ -210,7 +210,7 @@ function routes(router, { db, h, numbersApi }) {
     if (doc.tries >= MAX_TRIES) return bad(res, 429, 'too_many_tries', 'Too many wrong codes. Send a new one.')
     const press = doc?.method === 'dtmf'
     if (!press && !code) return bad(res, 400, 'invalid_code', 'Enter the code you received.')
-    if (!(await w.debit(chatId, PRICE))) return bad(res, 402, 'insufficient_balance', `Verifying a caller ID costs $${PRICE.toFixed(2)}. Top up your wallet first.`)
+    if (!(await w.debit(chatId, PRICE))) return bad(res, 402, 'insufficient_balance', `Verifying a caller ID costs $${PRICE.toFixed(2)}.`, { cost: PRICE })
     if (!(await (press ? checkPressed(n) : checkCode(n, code, doc)))) {
       await w.credit(chatId, PRICE)
       await col.updateOne({ _id: n }, { $inc: { tries: 1 } })

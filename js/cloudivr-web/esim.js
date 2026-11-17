@@ -3,7 +3,7 @@
 const ES = require('../spenza.js')
 const notify = require('./notify')
 
-const out = (res, r) => (r?.error ? res.status(r.code === 'insufficient_balance' ? 402 : 400).json({ error: r.code || 'bad_request', message: r.error }) : res.json(r))
+const out = (res, r) => (r?.error ? res.status(r.code === 'insufficient_balance' ? 402 : 400).json({ error: r.code || 'bad_request', message: r.error, ...(r.cost != null ? { cost: r.cost } : {}) }) : res.json(r))
 const tell = async (id, text, extra) => { await notify.push(id, text, null, extra || { kind: 'system' }).catch(() => {}); return null }
 
 function publicRoutes(r, { db, h, log, A }) {

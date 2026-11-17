@@ -25,7 +25,7 @@ const normPhone = (p) => { const d = String(p || '').replace(/[^\d+]/g, '').repl
 // Numbers typed to dial (forward-to, backups, IVR forward keys): the bot's auto-correct (10-digit US → +1).
 const dialNorm = require('../backup-numbers').norm
 const { dialIssue } = require('../dial-check')
-const bad = (res, status, error, message) => res.status(status).json({ error, message })
+const bad = (res, status, error, message, extra) => res.status(status).json({ error, message, ...extra })
 // Up to `max` backup numbers rung in order when the main one is busy or doesn't answer → { list } | { error }.
 function parseBackups(raw, exclude = [], max = 4) {
   const tokens = (Array.isArray(raw) ? raw : String(raw || '').split(/[,;\n]+|\s+(?=\+)/)).map(t => String(t || '').trim()).filter(Boolean)
@@ -573,7 +573,7 @@ function routes(router, deps) {
     const regIssue = hit?.provider === 'multitel' && offer?.level && !presetOrder ? await paperworkIssue(chatId, country, c.name, offer) : null
     const base = sub ? (texting.offerOf(country, type)?.extraPrice ?? phoneConfig.SUB_NUMBER_BASE_PRICE) : plan.price + phoneConfig.planAddon(planKey, country, type, hit.surcharge || 0)
     const price = prepaid ? prepaid.amount : round2(base * (1 - (Number(coupon?.discount) || 0) / 100))
-    if (!prepaid && !(await w.debit(chatId, price))) return { status: 402, body: { error: 'insufficient_balance', message: `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(chatId)).toFixed(2)} — top up first.` } }
+    if (!prepaid && !(await w.debit(chatId, price))) return { status: 402, body: { error: 'insufficient_balance', message: `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(chatId)).toFixed(2)}.`, cost: price } }
 
     let selected = phone
     try {
@@ -1026,7 +1026,7 @@ function routes(router, deps) {
     if ((n.extraSip || []).length >= MAX) return bad(res, 400, 'limit_reached', `This number already has ${MAX} extra SIP logins. Remove one to add another.`)
     const paid = freeLeft(n) === 0, price = lifecycle.EXTRA_SIP_PRICE()
     if (paid && req.body?.confirmPaid !== true) return bad(res, 402, 'confirm_paid', `No free extra logins left on this plan. Each extra one costs $${price}/month, charged now and with each renewal.`)
-    if (paid && !(await walletOps(db).debit(req.webChatId, price))) return bad(res, 402, 'insufficient_balance', `An extra SIP login costs $${price}/month. Top up your wallet first.`)
+    if (paid && !(await walletOps(db).debit(req.webChatId, price))) return bad(res, 402, 'insufficient_balance', `An extra SIP login costs $${price}/month.`, { cost: Number(price) })
     const label = String(req.body?.label || '').trim().slice(0, 40) || `Device ${(n.extraSip || []).length + 1}`
     const login = { id: crypto.randomUUID().slice(0, 8), label, username: phoneConfig.generateSipUsername(), password: phoneConfig.generateSipPassword(), createdAt: new Date().toISOString(), ...(paid ? { paid: true, price } : {}) }
     const u = await phoneNumbersOf.updateOne({ _id: req.webChatId, val: { $exists: true }, 'val.numbers': { $elemMatch: { phoneNumber: n.phoneNumber, [`extraSip.${MAX - 1}`]: { $exists: false } } } }, { $push: { 'val.numbers.$.extraSip': login } })
@@ -1062,7 +1062,7 @@ function routes(router, deps) {
     const offer = deps.offers ? await deps.offers.renewOffer(req.webChatId, n.phoneNumber).catch(() => null) : null
     const full = round2(lifecycle.renewalPrice(n))
     const price = offer ? round2(full * (1 - offer.discount / 100)) : full
-    if (price > 0 && !(await w.debit(req.webChatId, price))) return bad(res, 402, 'insufficient_balance', `Renewal costs $${price.toFixed(2)}. Top up your wallet first.`)
+    if (price > 0 && !(await w.debit(req.webChatId, price))) return bad(res, 402, 'insufficient_balance', `Renewal costs $${price.toFixed(2)}.`, { cost: price })
     const r = lifecycle.renewPatches(numbers, n)
     await lifecycle.applyDb(phoneNumbersOf, req.webChatId, r.patches)
     const action = r.wasSuspended ? 'restore' : 'renew'
@@ -1092,7 +1092,7 @@ function routes(router, deps) {
     const offer = pct === null ? await upgradeOffer(chatId, n, newPlan) : null
     const q = upgradeQuote(n, newPlan, pct === null ? (offer?.discount || 0) : pct, diff)
     if (q.error) return { status: q.error.status, body: { error: q.error.error, message: q.error.message } }
-    if (!(await w.debit(chatId, q.charge))) return { status: 402, body: { error: 'insufficient_balance', message: `The upgrade costs $${q.charge.toFixed(2)}. Top up your wallet first.` } }
+    if (!(await w.debit(chatId, q.charge))) return { status: 402, body: { error: 'insufficient_balance', message: `The upgrade costs $${q.charge.toFixed(2)}.`, cost: q.charge } }
     // Switch back on what a downgrade turned off, when the new plan includes it.
     const set = lifecycle.numberSet({ plan: newPlan, planPrice: q.newPrice, ...lifecycle.upgradePatch(n, newPlan) })
     await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: set, $unset: { 'val.numbers.$.priceLock': '' } })
@@ -1145,7 +1145,7 @@ function routes(router, deps) {
       const ver = await verificationInfo(old.country, old.type, `${c?.flag || ''} ${c?.name || old.country}`)
       if (ver.error) return bad(res, 424, 'lookup_failed', ver.error)
       if (ver.required) return bad(res, 400, 'needs_documents', 'Numbers in this country need ID documents, so they can’t be replaced online. Message support and we’ll help.')
-      if (!(await w.debit(chatId, REPLACE_PRICE))) return bad(res, 402, 'insufficient_balance', `Replacing a number costs $${REPLACE_PRICE}. Your wallet has $${(await w.balance(chatId)).toFixed(2)} — top up first.`)
+      if (!(await w.debit(chatId, REPLACE_PRICE))) return bad(res, 402, 'insufficient_balance', `Replacing a number costs $${REPLACE_PRICE}. Your wallet has $${(await w.balance(chatId)).toFixed(2)}.`, { cost: REPLACE_PRICE })
       try {
         const live = !dryRun() && !old.dryRun
         const tr = getTelnyxResources() || {}

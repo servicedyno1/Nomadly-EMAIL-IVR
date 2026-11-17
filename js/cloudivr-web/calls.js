@@ -33,7 +33,7 @@ const publicCampaign = (c, withLeads = false) => ({
 
 function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, bulkCallService, log = console.log }) {
   const w = walletOps(db)
-  const bad = (res, status, error, message) => res.status(status).json({ error, message })
+  const bad = (res, status, error, message, extra) => res.status(status).json({ error, message, ...extra })
   // Campaign audience: a saved contact list, or the pasted / uploaded numbers.
   const leadsOf = (chatId, b) => (b.listId ? listLeads(db, chatId, b.listId) : bulkCallService.parseLeadsFile(String(b.leads || '')))
 
@@ -120,7 +120,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const rateMe = voiceService.getIvrCallRate(me), rateTo = voiceService.getIvrCallRate(to)
     const rate = Math.round((rateMe + rateTo) * 100) / 100
     const bal = await w.balance(chatId)
-    if (bal < Math.max(QUICK_MIN_WALLET, rate)) return bad(res, 402, 'insufficient_balance', `Call me first bills both calls from your wallet. Your balance is $${bal.toFixed(2)} — top up first.`)
+    if (bal < Math.max(QUICK_MIN_WALLET, rate)) return bad(res, 402, 'insufficient_balance', `Call me first bills both calls from your wallet and needs at least $${Math.max(QUICK_MIN_WALLET, rate).toFixed(2)} in it. Your balance is $${bal.toFixed(2)}.`, { cost: Math.max(QUICK_MIN_WALLET, rate) })
     await prefs.updateOne({ _id: chatId }, { $set: { callbackPhone: me, updatedAt: new Date() } }, { upsert: true })
     if (dryRun()) callerIds.rememberLast(chatId, c.n.phoneNumber, showAs)
     if (dryRun()) return res.status(202).json({ dryRun: true, rate, message: `Preview mode: we would ring ${me}, and after you press 1 connect you to ${to} showing ${showAs || c.n.phoneNumber}. Nothing was dialed.` })

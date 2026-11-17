@@ -310,7 +310,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const rate = rateOf(cfg)
     if (!trial) {
       const bal = await w.balance(chatId)
-      if (bal < Math.max(MIN_WALLET, rate)) return { status: 402, body: { error: 'insufficient_balance', message: `Quick IVR calls bill about $${rate.toFixed(2)}/min from your wallet. Your balance is $${bal.toFixed(2)} — top up first.` } }
+      if (bal < Math.max(MIN_WALLET, rate)) return { status: 402, body: { error: 'insufficient_balance', message: `Quick IVR calls bill about $${rate.toFixed(2)}/min from your wallet. They need at least $${Math.max(MIN_WALLET, rate).toFixed(2)} in it; your balance is $${bal.toFixed(2)}.`, cost: Math.max(MIN_WALLET, rate) } }
     }
     const doc = { _id: uid(), chatId, at: new Date(), body: { ...body, scheduleAt: undefined }, cfg, trial, dryRun: dryRun() }
     if (!trial && dryRun()) callerIds.rememberLast(chatId, cfg.callerId, cfg.showAs)

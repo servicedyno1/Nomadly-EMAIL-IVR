@@ -172,7 +172,9 @@ export default function Shell() {
     refreshSummary();
     api('/public/catalog').then(setCatalog).catch(() => {});
     const t = setInterval(refreshSummary, 30000);
-    return () => clearInterval(t);
+    // The pay-the-difference window (outside the Shell) asks for a fresh balance after a payment lands.
+    window.addEventListener('civr:wallet-changed', refreshSummary);
+    return () => { clearInterval(t); window.removeEventListener('civr:wallet-changed', refreshSummary); };
   }, [refreshSummary]);
 
   return (

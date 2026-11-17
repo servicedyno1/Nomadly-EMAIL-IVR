@@ -12,7 +12,7 @@ const POLL_MS = 30000
 const MAX_AGE_MS = 7 * 86400000
 const OPEN = ['awaiting_payment', 'underpaid']
 const { PAY_WINDOW_MS } = require('./wallet')
-const bad = (res, status, error, message) => res.status(status).json({ error, message })
+const bad = (res, status, error, message, extra) => res.status(status).json({ error, message, ...extra })
 const ES = () => require('../spenza.js')
 // Texting Number bought with the Business Line in one checkout (first month at the bundle price).
 async function textingAddOn(body) {
@@ -203,7 +203,7 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     if (req.body.method !== 'crypto') {
       if (texting) {
         const bal = await w.balance(chatId), need = round2(linePrice + texting.charge)
-        if (bal < need) return bad(res, 402, 'insufficient_balance', `Your wallet needs $${need.toFixed(2)} for the Business Line and the Texting Number. Top up $${round2(need - bal).toFixed(2)} first.`)
+        if (bal < need) return bad(res, 402, 'insufficient_balance', `The Business Line and the Texting Number come to $${need.toFixed(2)}. Your wallet has $${bal.toFixed(2)}.`, { cost: need, need: round2(need - bal) })
       }
       const r = await numbersApi.purchase({ chatId, email: req.webUser.email, phone: picked.hit.phoneNumber, planKey, autoRenew, coupon, withTexting: req.body.withTexting === true, ...picked })
       if (texting && (r.status === 201 || r.status === 202)) r.body.texting = await ES().buyMobile(chatId, { zipcode: texting.zipcode, autoRenew, charge: texting.charge }).catch(e => ({ error: e.message }))
@@ -309,7 +309,7 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
     if (!o) return bad(res, 404, 'not_found', 'Order not found.')
     if (o.status !== 'underpaid') return bad(res, 400, 'not_underpaid', 'This order is not waiting for the rest of a payment.')
     const bal = await w.balance(req.webChatId)
-    if (o.kind !== 'upgrade' && bal < needOf(o)) return bad(res, 402, 'insufficient_balance', `Your wallet has $${bal.toFixed(2)} — add $${round2(needOf(o) - bal).toFixed(2)} more to finish.`)
+    if (o.kind !== 'upgrade' && bal < needOf(o)) return bad(res, 402, 'insufficient_balance', `This order comes to $${needOf(o).toFixed(2)}. Your wallet has $${bal.toFixed(2)}.`, { cost: needOf(o), need: round2(needOf(o) - bal) })
     await settle(o)
     res.json({ order: publicOrder(await orders.findOne({ _id: o._id })), balance: await w.balance(req.webChatId) })
   }))

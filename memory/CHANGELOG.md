@@ -3643,3 +3643,8 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - eSIM/BulkSMS: campaign bookings and USA eSIM already use the main bot's shared checkout (digital-product-pay) → _showBalanceWall + maybeOfferResume (wallet first, shortfall by crypto, completes itself). Fixed the remaining dead-ends: legacy bse-pay wallet path now opens that checkout instead of "wallet needs $X"; test-send fee shortage now carries a one-tap "➕ Add funds" button.
 - Web shortfall wrapper also reads "Top up $X to open this fax" as the needed amount.
 - Regression: test_bulk_esim_bot_flow 24/24, paid_receipt 8/8, one_free 8/8.
+
+## 2026-06 (i) — Clean short-funds replies (preview only, NOT deployed)
+- Every web paid action now returns its price as `cost` (and `need` where known: orders) on 402; messages no longer say "Top up your wallet first" (ai-summary, caller-ids, calls, leads, lookup, number-requests, numbers, orders, outbound, ten-dlc, travel-esim, sms-reply, fax-service via FaxError.extra, hosted-sms via hosted.js/notify.js, esim.js passes r.cost). Local `bad()` helpers take an `extra` arg. index.js withShortfall: explicit need/cost win; wording only a fallback.
+- FundsAsk: title "Add $10.00 to continue — You need $0.02 more…" when shortfall < min top-up; dispatches `civr:wallet-changed` (0/2.5/6 s) and Shell refreshes the top-bar balance on it.
+- Verified: curl lookup/renew return cost+need with clean messages; dialog title screenshot; event triggers /dashboard reload. Lint error counts unchanged vs before (pre-existing only).

@@ -262,7 +262,8 @@ function createCloudIvrWeb(deps) {
     const m = String(body.message || '').replace(/,/g, '')
     const add = m.match(/\b(?:add|top up) \$(\d+(?:\.\d+)?)/i)
     const cost = Number(body.cost) || Number((m.match(/\b(?:costs?|needs?|at least)\s+(?:about\s+)?\$(\d+(?:\.\d+)?)/i) || [])[1])
-    const need = Number(body.need) || (add ? Number(add[1]) : cost > bal ? cost - bal : 0)
+    // Explicit need/cost from the route wins; the wording is only a fallback for older messages.
+    const need = Number(body.need) || (Number(body.cost) ? Math.max(0, Number(body.cost) - bal) : add ? Number(add[1]) : cost > bal ? cost - bal : 0)
     return { ...body, balance: wallet.round2(bal), ...(need > 0 ? { need: Math.ceil(need * 100) / 100 } : {}) }
   }
   router.use((req, res, next) => {

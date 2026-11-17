@@ -52,7 +52,7 @@ function routes(router, { db, h }) {
   const tx = db.collection('transactions')
   const w = walletOps(db)
   const inFlight = new Set()
-  const bad = (res, status, error, message) => res.status(status).json({ error, message })
+  const bad = (res, status, error, message, extra) => res.status(status).json({ error, message, ...extra })
   const log = (chatId, type, amount, metadata) => tx.insertOne({ _id: `${type}-${crypto.randomUUID()}`, chatId: String(chatId), type, amount: money(amount), currency: 'USD', status: 'completed', metadata: { ...metadata, channel: 'web' }, createdAt: new Date(), updatedAt: new Date() }).catch(() => {})
 
   // Numbers to check: pasted list, a saved contact list, or every contact.
@@ -85,7 +85,7 @@ function routes(router, { db, h }) {
     if (list.length > MAX) return bad(res, 400, 'too_many', `Check up to ${MAX} numbers at a time.`)
     const { fresh, old } = await split(chatId, list, !!req.body.recheck)
     const price = money(fresh.length * RATE)
-    if (!(await w.debit(chatId, price))) return bad(res, 402, 'insufficient_balance', `Checking ${fresh.length} numbers costs $${price}. Top up your wallet first.`)
+    if (!(await w.debit(chatId, price))) return bad(res, 402, 'insufficient_balance', `Checking ${fresh.length} numbers costs $${price}.`, { cost: Number(price) })
     if (price > 0) await log(chatId, 'lead-check', price, { count: fresh.length })
     const id = crypto.randomUUID()
     const done = !fresh.length
@@ -131,7 +131,7 @@ function routes(router, { db, h }) {
     if (inFlight.has(key)) return bad(res, 409, 'in_progress', 'Already looking up this number — one moment.')
     inFlight.add(key)
     try {
-      if (!(await w.debit(chatId, CNAM_RATE))) return bad(res, 402, 'insufficient_balance', `An owner-name lookup costs $${CNAM_RATE}. Top up your wallet first.`)
+      if (!(await w.debit(chatId, CNAM_RATE))) return bad(res, 402, 'insufficient_balance', `An owner-name lookup costs $${CNAM_RATE}.`, { cost: Number(CNAM_RATE) })
       let name
       try { name = await cnam(phone) } catch {
         await w.credit(chatId, CNAM_RATE)
