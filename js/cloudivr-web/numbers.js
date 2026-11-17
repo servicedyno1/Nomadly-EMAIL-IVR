@@ -257,6 +257,15 @@ function validateIvr(body, plan, audioOk = () => true) {
       } else if (action === 'voicemail') {
         if (!phoneConfig.canAccessFeature(plan, 'voicemail')) throw new Error('Voicemail needs the Starter plan or higher.')
         out[digit] = { action, label }
+      } else if (action === 'queue') {
+        const agents = [...new Set((Array.isArray(o.agents) ? o.agents : String(o.agents || '').split(/[\s,;]+/)).filter(Boolean).map(a => fwd(a, digit)))]
+        if (!agents.length) throw new Error(`Key ${digit}: add at least one phone for the queue to ring.`)
+        if (agents.length > 5) throw new Error(`Key ${digit}: a queue can ring up to 5 phones.`)
+        const ov = o.overflow || {}
+        const ovAction = ['voicemail', 'forward', 'message'].includes(ov.action) ? ov.action : 'message'
+        if (ovAction === 'voicemail' && !phoneConfig.canAccessFeature(plan, 'voicemail')) throw new Error(`Key ${digit}: voicemail as the queue's last resort needs the Starter plan or higher.`)
+        out[digit] = { action, agents, maxWait: Math.min(900, Math.max(30, Math.round(Number(o.maxWait)) || 180)), ringSecs: Math.min(40, Math.max(10, Math.round(Number(o.ringSecs)) || 20)), announcePosition: o.announcePosition !== false, message: String(o.message || '').slice(0, 300),
+          overflow: { action: ovAction, forwardTo: ovAction === 'forward' ? fwd(ov.forwardTo, digit) : '', message: ovAction === 'message' ? String(ov.message || '').slice(0, 300) : '' }, label }
       } else if (action === 'pay') {
         const sl = require('./sms-limit')
         const payUrl = hookUrl(o.payUrl, digit)

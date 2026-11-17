@@ -6,7 +6,7 @@
 // sub-menu level only (depth capped at 2); wrong/no key → "invalid option" once,
 // then goodbye.
 
-const LEAF = ['forward', 'message', 'sms', 'voicemail', 'webhook', 'collect', 'pin', 'pay']
+const LEAF = ['forward', 'message', 'sms', 'voicemail', 'webhook', 'collect', 'pin', 'pay', 'queue']
 const ACTIONS = [...LEAF, 'submenu']
 const MAX_SUB_DEPTH = 3 // sub-menus may nest up to 3 levels (paths like 1.2.3); the executor walks session.ivrPath as an array.
 const isPhone = (v) => /^\+\d{8,15}$/.test(String(v || '').replace(/[^\d+]/g, ''))
@@ -25,6 +25,7 @@ function subList(o) {
 }
 function subGreeting(o) { return (o.subMenu || o).greeting }
 
+const agentsOf = (o) => (Array.isArray(o.agents) ? o.agents : String(o.agents || '').split(/[\s,;]+/)).map(a => String(a).trim()).filter(Boolean)
 function actionOutcome(o, ctx) {
   switch (o.action) {
     case 'forward': return o.forwardTo ? `connects the caller to ${fmt(o.forwardTo)}` : null
@@ -32,6 +33,7 @@ function actionOutcome(o, ctx) {
     case 'sms': return hasText(o.smsText) || (Array.isArray(o.smsTexts) && o.smsTexts.length) ? 'sends the caller a text, then ' + (o.after === 'menu' ? 'replays the menu' : 'hangs up') : null
     case 'voicemail': return ctx?.voicemailAvailable === false ? null : 'takes a voicemail'
     case 'webhook': return isUrl(o.url) ? 'calls your system, then ' + (o.after === 'menu' ? 'replays the menu' : 'hangs up') : null
+    case 'queue': { const a = agentsOf(o); const ov = o.overflow || {}; return a.length && a.every(isPhone) && (ov.action !== 'forward' || isPhone(ov.forwardTo)) ? `holds the caller with music while ${a.length} phone${a.length === 1 ? ' rings' : 's ring in turn'} for up to ${Math.round((Number(o.maxWait) || 180) / 60 * 10) / 10} min; if nobody answers, ${ov.action === 'voicemail' ? 'takes a voicemail' : ov.action === 'forward' ? `tries ${fmt(ov.forwardTo)}` : 'plays your closing message'}` : null }
     case 'pay': return isUrl(o.payUrl) ? 'texts the caller your payment link, then ' + (o.after === 'menu' ? 'replays the menu' : 'hangs up') : null
     case 'collect': return hasText(o.prompt) ? 'asks the caller to type a number, then ' + (isUrl(o.webhook) ? 'sends it to your system' : isPhone(o.forwardTo) ? 'connects them' : 'confirms it') : null
     case 'pin': return (String(o.pin || '').replace(/\D/g, '').length || (Array.isArray(o.pins) && o.pins.length)) ? 'asks for a code; if it matches, ' + (isPhone(o.onOk?.forwardTo) ? 'connects them' : 'continues') + '; otherwise retries' : null
@@ -60,6 +62,15 @@ function validate(ivr, ctx = {}) {
     if (!ACTIONS.includes(o.action)) { err(k, 'Pick what this key does.'); return }
     if (o.action === 'forward' && !isPhone(o.forwardTo)) err(k, 'Add the phone number this key should ring (with country code).')
     if (o.action === 'message' && !hasText(o.message) && !o.audioUrl) err(k, 'Add the words this key should read out.')
+    if (o.action === 'queue') {
+      const a = agentsOf(o)
+      if (!a.length) err(k, 'Add at least one phone for the queue to ring (up to 5).')
+      else if (a.some(x => !isPhone(x))) err(k, 'One of the queue phones is not a full number with country code.')
+      if (a.length > 5) err(k, 'A queue can ring up to 5 phones.')
+      if (o.overflow?.action === 'forward' && !isPhone(o.overflow.forwardTo)) err(k, 'Add the phone to try when nobody in the queue answers.')
+      if (o.overflow?.action === 'voicemail' && ctx.voicemailAvailable === false) err(k, 'Voicemail as the last resort needs the Starter plan or higher.')
+      if (a.length === 1) warn(k, 'A queue with one phone works, but a caller only gets through when that phone is free.')
+    }
     if (o.action === 'pay' && !isUrl(o.payUrl)) err(k, 'Add the https address of your own payment page (e.g. your Stripe or PayPal link).')
     if (o.action === 'sms' || o.action === 'pay') {
       if (o.action === 'sms' && !hasText(o.smsText) && !(Array.isArray(o.smsTexts) && o.smsTexts.length)) err(k, 'Add the text this key should send.')
@@ -85,6 +96,7 @@ function validate(ivr, ctx = {}) {
   }
   for (const o of root) checkKey(o, '', 0)
 
+  // A way to reach a person: a queue counts.
   // Greeting must mention each key, or callers won't know to press it.
   const greeting = String(ivr?.greeting || '')
   if (!greeting.trim()) {
@@ -94,7 +106,7 @@ function validate(ivr, ctx = {}) {
   }
 
   // A way to reach a person is almost always wanted.
-  if (root.length && !root.some(o => o.action === 'forward' || o.action === 'submenu')) warn('menu', 'No key reaches a person — consider a key that forwards to you (e.g. press 0 for an operator).')
+  if (root.length && !root.some(o => o.action === 'forward' || o.action === 'submenu' || o.action === 'queue')) warn('menu', 'No key reaches a person — consider a key that forwards to you (e.g. press 0 for an operator).')
 
   const errors = issues.filter(i => i.level === 'error').length
   return { ok: errors === 0, ready: errors === 0, errors, warnings: issues.length - errors, issues }
@@ -112,6 +124,10 @@ function simulate(ivr, ctx = {}) {
     for (const o of opts) {
       const out = actionOutcome(o, ctx)
       add(`${where}Key ${o.digit}${o.label ? ` (${o.label})` : ''}`, `press ${o.digit}`, out || `⚠ not set up yet — this key would fail on a real call`, !!out)
+      if (o.action === 'queue' && out) {
+        add(`${where}Key ${o.digit} → queue`, 'another caller is already waiting', o.announcePosition === false ? 'waits on hold music' : 'is told their place in the queue, then waits on hold music', true)
+        add(`${where}Key ${o.digit} → queue`, 'caller hangs up while waiting', 'the ringing stops', true)
+      }
       if (o.action === 'submenu' && depth < MAX_SUB_DEPTH) {
         const subs = subList(o)
         add(`${where}Key ${o.digit} → sub-menu`, 'enter sub-menu', subs.length ? 'plays the sub-menu greeting and waits for a key' : '⚠ empty sub-menu', subs.length > 0)
@@ -145,6 +161,7 @@ function blueprint(ivr, ctx = {}) {
     if (o.action === 'sms') return add(id, 'sms', 'Send a text', (o.smsText || '').slice(0, 80))
     if (o.action === 'voicemail') return add(id, 'voicemail', 'Voicemail', ctx?.voicemailAvailable === false ? 'needs Starter+' : '')
     if (o.action === 'webhook') return add(id, 'webhook', 'Webhook', (o.url || 'no URL set'))
+    if (o.action === 'queue') return add(id, 'queue', 'Call queue', `${agentsOf(o).length} phone${agentsOf(o).length === 1 ? '' : 's'} · wait up to ${Number(o.maxWait) || 180}s · then ${o.overflow?.action || 'message'}`)
     if (o.action === 'pay') return add(id, 'pay', 'Text a payment link', o.payUrl || 'no link set')
     if (o.action === 'collect') return add(id, 'collect', 'Collect digits', o.prompt ? String(o.prompt).slice(0, 60) : (isPhone(o.forwardTo) ? `→ ${fmt(o.forwardTo)}` : ''))
     if (o.action === 'pin') return add(id, 'pin', 'PIN check', isPhone(o.onOk?.forwardTo) ? `ok → ${fmt(o.onOk.forwardTo)}` : '')
@@ -199,8 +216,11 @@ function outbound(kind, c = {}, ctx = {}) {
   } else {
     if (ctx.contacts === 0) err('contacts', 'Choose or upload the list of people to call.')
     if (typeof ctx.balance === 'number' && ctx.balance < 20) warn('wallet', 'A campaign needs about $20 in the wallet to start — add funds so it does not pause.')
-    if (script && !/\b(opt.?out|stop|unsubscribe|remove|no more calls|do not call)\b/i.test(script)) warn('message', 'Consider telling people how to stop these calls (for example "press 9 to stop these calls"). Only call people who agreed to hear from you; rules differ by country.')
+    warn('contacts', 'Only call people who agreed to hear from you, and add anyone who asks to stop to your Do not call page — campaigns skip those numbers. Rules differ by country.')
   }
+  // A key that promises to stop calls does nothing of the sort: no key press adds a number to the do-not-call list.
+  const stopKey = (script.match(/press\s+(\d|zero|one|two|three|four|five|six|seven|eight|nine)\b[^.!?]{0,40}\b(stop|opt.?out|unsubscribe|remove|no more calls)|\b(stop|opt.?out|unsubscribe|be removed)\b[^.!?]{0,40}press\s+(\d|zero|one|two|three|four|five|six|seven|eight|nine)\b/i) || [])
+  if (stopKey.length) err('message', 'The message promises a key that stops future calls, but no key does that. Remove that line — add people who ask to stop to your Do not call page instead.')
   if (mode === 'transfer') {
     if (!isPhone(to)) err('connect to', 'Add the phone number people are connected to when they press a key.')
     if (!keys.length) err('keys', 'Choose which key connects the call (e.g. 1).')
