@@ -82,11 +82,17 @@ export async function api(path, { method = 'GET', body, form } = {}) {
   if (res.status === 428 && data?.error === 'permission_required' && permissionAsker && body && !form) {
     if (await permissionAsker(data).catch(() => false)) return api(path, { method, body: { ...body, permissionConfirmed: true }, form });
   }
+  // Not enough in the wallet for an action: pay the difference (crypto or Mollie), then the same action runs again.
+  if (res.status === 402 && data?.need > 0 && fundsAsker && method !== 'GET' && !form && !/^\/wallet/.test(path)) {
+    if (await fundsAsker(data).catch(() => false)) return api(path, { method, body, form });
+  }
   if (!res.ok) throw new ApiError(res.status, data);
   if (res.status === 202 && data?.queued) throw new ApiError(202, { error: 'queued', message: data.message });
   return data;
 }
 
+let fundsAsker = null;
+export const setFundsAsker = (fn) => { fundsAsker = fn; };
 let permissionAsker = null;
 export const setPermissionAsker = (fn) => { permissionAsker = fn; };
 let profileAsker = null;

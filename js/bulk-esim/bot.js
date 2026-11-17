@@ -316,7 +316,10 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
       if (bal < bill.minBalance || (!bill.free && !(await w.debit(chatId, bill.price)))) {
         if (action === 'bse-one-text') await go('bse-home')
         // The reply keyboard from the earlier screen stays on; this message carries the one-tap top-up.
-        return bot ? bot.sendMessage(chatId, say('one_min_balance', { min: bill.minBalance, bal: r2(bal) }), topupKb).catch(() => {}) : send(chatId, say('one_min_balance', { min: bill.minBalance, bal: r2(bal) }), HK)
+        // Keep the text: it goes out by itself once the wallet is topped up (within 24 hours).
+        await B.savePendingText(cid, { to: info.bseTo, message, session: action === 'bse-reply' ? info.bseSession || null : null, optOut: info.bseOneOpt !== false, lang }).catch(() => {})
+        const low = `${say('one_min_balance', { min: bill.minBalance, bal: r2(bal) })}\n\n${say('one_pending_note')}`
+        return bot ? bot.sendMessage(chatId, low, topupKb).catch(() => {}) : send(chatId, low, HK)
       }
     }
     const r = await B.sendOne(cid, info.bseTo, message, action === 'bse-reply' ? info.bseSession : null, { optOut: info.bseOneOpt !== false, unlimited: action === 'bse-one-text' && unlimitedOne(chatId) })
@@ -409,6 +412,7 @@ async function admin(chatId, message, say) {
 function startNotices(bot, db) {
   const col = () => B.db().collection('bsNotify'); BOT = bot
   setInterval(() => askReviews(bot, db).catch(() => {}), 15000)
+  setInterval(() => sendPendingTexts(bot, db).catch(() => {}), 30000).unref?.()
   const winback = () => sendWinbacks(bot, db).catch(() => {})
   setTimeout(winback, 60000).unref?.(); setInterval(winback, 3600000).unref?.()
   setInterval(async () => {
@@ -425,6 +429,31 @@ function startNotices(bot, db) {
       }
     } catch (_) { /* next round */ }
   }, 3000)
+}
+// Every 30 s: a paid text saved because the wallet was low goes out once the wallet has the $20 minimum again.
+async function sendPendingTexts(bot, db) {
+  const w = walletOps(db), r2 = (x) => Math.round(x * 100) / 100
+  for (const c of await B.duePendingTexts(brand())) {
+    if (!(await B.claimPendingText(c._id))) continue
+    const pt = c.pendingText, chatId = c.chatId || String(c._id).split(':').slice(1).join(':')
+    const lang = pt.lang || await langOf(db, chatId)
+    const tell = (text) => bot.sendMessage(chatId, text, { parse_mode: 'HTML' }).catch(() => {})
+    if (new Date(pt.expiresAt) < new Date()) { await B.clearPendingText(c._id); await tell(t(lang, 'one_pending_expired', pt.to)); continue }
+    const bill = await B.singleTextMode(c._id).catch(() => ({ paid: false }))
+    let free = null
+    if (bill.paid) {
+      const bal = await w.balance(chatId).catch(() => 0)
+      if (bal < bill.minBalance) { await B.releasePendingText(c._id); continue }
+      free = await B.winbackTake(c._id).catch(() => null)
+      if (!free && !(await w.debit(chatId, bill.price))) { await B.releasePendingText(c._id); continue }
+    }
+    const r = await B.sendOne(c._id, pt.to, pt.message, pt.session || null, { optOut: pt.optOut !== false, unlimited: false })
+    await B.clearPendingText(c._id)
+    if (r.error) { if (bill.paid) await (free ? B.winbackGive(c._id) : w.credit(chatId, bill.price)).catch(() => {}); await tell(`⚠️ ${errText(lang, r)}`); continue }
+    const left = bill.paid ? r2(await w.balance(chatId).catch(() => 0)) : null
+    const receipt = free ? `\n${t(lang, 'wb_receipt', { left: free.left, bal: left })}` : bill.paid ? `\n${t(lang, 'one_receipt', { charged: bill.price, bal: left })}` : ''
+    await tell(`${t(lang, 'queued', r.segments, !!pt.session)}${receipt}`)
+  }
 }
 // Hourly: paid customers quiet for 7+ days get 2 free single texts (at most once every 30 days, valid 14 days).
 async function sendWinbacks(bot, db) {
@@ -484,4 +513,4 @@ async function onCallback(q, { set, state, saveInfo, send, lang = 'en' }) {
 }
 const homeBtn = (lang) => btn(lang || 'en').home
 
-module.exports = { askReviews, sendWinbacks, PRODUCT_KEY, BTN, homeBtn, handle, paid, paidFromWallet, showHome: (send, chatId, lang) => home(send, chatId, lang), admin, startNotices, onCallback, brand, init: (o) => { T = o; return B.init(o) } }
+module.exports = { askReviews, sendWinbacks, sendPendingTexts, PRODUCT_KEY, BTN, homeBtn, handle, paid, paidFromWallet, showHome: (send, chatId, lang) => home(send, chatId, lang), admin, startNotices, onCallback, brand, init: (o) => { T = o; return B.init(o) } }

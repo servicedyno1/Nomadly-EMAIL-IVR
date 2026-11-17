@@ -253,9 +253,27 @@ function createCloudIvrWeb(deps) {
   const bootTimer = setInterval(() => { if (boot()) clearInterval(bootTimer) }, 5000)
   if (bootTimer.unref) bootTimer.unref()
   const router = express.Router()
+  // Every "not enough in your wallet" reply also says how much is there and how much more is needed, so the app can
+  // open a pay-the-difference checkout (crypto or Mollie) and then finish the same action by itself.
+  const SHORT_CODES = new Set(['insufficient_balance', 'start_failed', 'series_funds'])
+  const withShortfall = async (req, body) => {
+    const bal = await wallet.walletOps(getDb()).balance(req.webChatId).catch(() => null)
+    if (bal == null) return body
+    const m = String(body.message || '').replace(/,/g, '')
+    const add = m.match(/\badd \$(\d+(?:\.\d+)?)/i)
+    const cost = Number(body.cost) || Number((m.match(/\b(?:costs?|needs?|at least)\s+(?:about\s+)?\$(\d+(?:\.\d+)?)/i) || [])[1])
+    const need = Number(body.need) || (add ? Number(add[1]) : cost > bal ? cost - bal : 0)
+    return { ...body, balance: wallet.round2(bal), ...(need > 0 ? { need: Math.ceil(need * 100) / 100 } : {}) }
+  }
   router.use((req, res, next) => {
     const json = res.json.bind(res)
-    res.json = (body) => json(scrubBody(body))
+    res.json = (body) => {
+      if (res.statusCode === 402 && SHORT_CODES.has(body?.error) && req.webChatId && (body.error === 'insufficient_balance' || /wallet|balance/i.test(body.message || ''))) {
+        withShortfall(req, body).then(b => json(scrubBody(b)), () => json(scrubBody(body)))
+        return res
+      }
+      return json(scrubBody(body))
+    }
     next()
   })
   router.use((req, res, next) => {

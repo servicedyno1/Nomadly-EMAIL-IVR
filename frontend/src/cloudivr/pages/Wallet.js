@@ -19,7 +19,7 @@ const copy = (v) => navigator.clipboard?.writeText(v).then(() => toast.success('
 const PRESETS = [25, 50, 100, 250];
 const POLL_MS = 20000;
 
-function DepositCard({ dep }) {
+export function DepositCard({ dep }) {
   const preview = dep.dryRun;
   return (
     <div className={`civr-card p-6 civr-rise ${preview ? '' : 'civr-trace'}`} data-testid="wallet-deposit-card">
@@ -71,7 +71,7 @@ function OfferNote({ offer, amount, setAmount }) {
   );
 }
 
-function TopUp({ coins, min, initial, onCreated }) {
+export function TopUp({ coins, min, initial, onCreated, sameTab = true, testid = 'wallet' }) {
   const { offer } = useOffer();
   const [amount, setAmount] = useState(initial);
   const [coin, setCoin] = useState(coins[0] || '');
@@ -103,7 +103,7 @@ function TopUp({ coins, min, initial, onCreated }) {
         {pay === 'crypto' && <Field label="Coin"><CoinSelect coins={coins} value={coin} onChange={setCoin} amountUsd={amount} testid="wallet-coin-select" /></Field>}
       </div>
       <ErrorNote error={error} testid="wallet-topup-error" />
-      {pay === 'card' ? (cardOk ? <MollieForm opts={mol} amountUsd={Math.round(n0)} sameTab testid="wallet-mollie" /> : <p className="text-sm text-[var(--c-muted)]" data-testid="wallet-mollie-unavailable">{`Enter an amount between $${min} and $10,000 to see card options.`}</p>)
+      {pay === 'card' ? (cardOk ? <MollieForm opts={mol} amountUsd={Math.round(n0)} sameTab={sameTab} testid={`${testid}-mollie`} /> : <p className="text-sm text-[var(--c-muted)]" data-testid="wallet-mollie-unavailable">{`Enter an amount between $${min} and $10,000 to see card options.`}</p>)
         : <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="wallet-topup-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Get payment address</button>}
     </form>
   );

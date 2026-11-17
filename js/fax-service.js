@@ -1003,8 +1003,9 @@ async function sweepIvrDocs(chatId, usedIds, droppedIds = []) {
   return n
 }
 async function sweepAllIvrDocs() {
-  const chats = await col('faxFiles.files').distinct('metadata.chatId', { 'metadata.kind': 'ivr', uploadDate: { $lt: new Date(Date.now() - IVR_DOC_GRACE_MS) } })
-  for (const chatId of chats.slice(0, 500)) {
+  // aggregate instead of distinct: this database runs the strict API, which doesn't allow distinct.
+  const chats = (await col('faxFiles.files').aggregate([{ $match: { 'metadata.kind': 'ivr', uploadDate: { $lt: new Date(Date.now() - IVR_DOC_GRACE_MS) } } }, { $group: { _id: '$metadata.chatId' } }, { $limit: 500 }]).toArray()).map(x => x._id)
+  for (const chatId of chats) {
     const d = await col('phoneNumbersOf').findOne({ _id: chatId }, { projection: { 'val.numbers.features.ivr': 1 } })
     const n = await sweepIvrDocs(chatId, ivrDocIds(d?.val?.numbers))
     if (n) _log(`[Fax] removed ${n} unused keypad fax document(s) for ${chatId}`)

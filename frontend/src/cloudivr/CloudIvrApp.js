@@ -8,6 +8,7 @@ import './cloudivr.css';
 import { CivrAuthProvider, useCivrAuth } from './AuthContext';
 import { ProfileAskHost } from './profile/ProfilePrompts';
 import { PermissionAskHost } from './compliance/PermissionAsk';
+import { FundsAskHost } from './FundsAsk';
 import { Spinner } from './ui';
 import Landing from './pages/Landing';
 const Terms = lazy(() => import('./pages/Terms'));
@@ -89,6 +90,7 @@ export default function CloudIvrApp() {
         <ConfirmHost />
         <ProfileAskHost />
         <PermissionAskHost />
+        <FundsAskHost />
         <UpdateWatcher />
         <CookieBanner />
         <MobileAppKit />
