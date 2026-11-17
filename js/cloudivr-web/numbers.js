@@ -229,6 +229,18 @@ function validateIvr(body, plan, audioOk = () => true) {
     if (phoneConfig.isBlockedPrefix(to)) throw new Error(`Key ${digit}: ${to} is a blocked premium/satellite destination.`)
     return to
   }
+  // Live data: where a key checks what the caller typed (your database or your system's reply), and whether you confirm by hand.
+  const txt = (v, n) => String(v || '').trim().slice(0, n)
+  const checkOf = (o, digit, { url, amount } = {}) => {
+    const c = o.check || {}
+    if (c.source === 'reply') { if (!url) throw new Error(`Key ${digit}: add the https address of your system, so it can answer.`); return { source: 'reply', notFound: txt(c.notFound, 300) } }
+    if (c.source !== 'db') return null
+    if (!/^ic_[0-9a-f]+$/.test(String(c.connId || ''))) throw new Error(`Key ${digit}: connect your database first.`)
+    if (!txt(c.table, 120) || !txt(c.match, 120)) throw new Error(`Key ${digit}: pick the table and the column to look in.`)
+    if (amount && !txt(c.amountColumn, 120)) throw new Error(`Key ${digit}: pick the column that holds the amount to pay.`)
+    return { source: 'db', connId: String(c.connId), table: txt(c.table, 120), match: txt(c.match, 120), say: txt(c.say, 500), routeColumn: txt(c.routeColumn, 120), amountColumn: txt(c.amountColumn, 120), notFound: txt(c.notFound, 300) }
+  }
+  const confirmOf = (o) => (o.confirm === true ? { confirm: true, confirmTimeout: o.confirmTimeout === 'voicemail' && phoneConfig.canAccessFeature(plan, 'voicemail') ? 'voicemail' : 'decline', declineMessage: txt(o.declineMessage, 300) } : {})
   const clean = (opts, depth) => {
     const out = {}
     for (const [digit, o] of Object.entries(opts || {})) {
@@ -268,28 +280,49 @@ function validateIvr(body, plan, audioOk = () => true) {
           overflow: { action: ovAction, forwardTo: ovAction === 'forward' ? fwd(ov.forwardTo, digit) : '', message: ovAction === 'message' ? String(ov.message || '').slice(0, 300) : '' }, label }
       } else if (action === 'pay') {
         const sl = require('./sms-limit')
-        const payUrl = hookUrl(o.payUrl, digit)
         const smsFrom = String(o.smsFrom || '')
         if (!/^(es|mn)_[0-9a-f]+$/.test(smsFrom)) throw new Error(`Key ${digit}: pick the number the payment link is texted from.`)
         const payNote = sl.gsmText(String(o.payNote || '').trim()).slice(0, 300)
-        const smsText = `${payNote || 'Pay securely here:'} ${payUrl}`
-        if (sl.smsTooLong(smsText)) throw new Error(`Key ${digit}: ${sl.smsTooLong(smsText)}`)
-        out[digit] = { action, payUrl, payNote, smsFrom, smsText, message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label }
+        const rest = { payNote, smsFrom, message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label }
+        if (o.payVia === 'provider') {
+          if (!/^ic_[0-9a-f]+$/.test(String(o.connId || ''))) throw new Error(`Key ${digit}: connect your payment provider first.`)
+          const currency = String(o.currency || 'USD').toUpperCase()
+          if (!/^[A-Z]{3}$/.test(currency)) throw new Error(`Key ${digit}: enter a 3-letter currency, e.g. USD.`)
+          const lookup = o.amountFrom === 'lookup'
+          const amount = lookup ? 0 : Math.round(Number(o.amount) * 100) / 100
+          if (!lookup && !(amount > 0 && amount < 1000000)) throw new Error(`Key ${digit}: enter the amount to charge.`)
+          const prompt = txt(o.prompt, 500), url = lookup && o.check?.source === 'reply' ? hookUrl(o.url, digit) : ''
+          if (lookup && !prompt) throw new Error(`Key ${digit}: say what the caller should type so we can find what they owe (e.g. "enter your account number").`)
+          const check = lookup ? checkOf(o, digit, { url, amount: true }) : null
+          if (lookup && !check) throw new Error(`Key ${digit}: choose where the amount comes from — your database or your system.`)
+          out[digit] = { action, payVia: 'provider', connId: String(o.connId), amountFrom: lookup ? 'lookup' : 'fixed', amount, currency, description: txt(o.description, 80) || 'Payment', waitPaid: o.waitPaid === true, paidMessage: txt(o.paidMessage, 300), ...(lookup ? { prompt, length: Math.min(20, Math.max(1, Math.round(Number(o.length)) || 6)), url, check } : {}), ...rest }
+        } else {
+          const payUrl = hookUrl(o.payUrl, digit)
+          const smsText = `${payNote || 'Pay securely here:'} ${payUrl}`
+          if (sl.smsTooLong(smsText)) throw new Error(`Key ${digit}: ${sl.smsTooLong(smsText)}`)
+          out[digit] = { action, payUrl, smsText, ...rest }
+        }
       } else if (action === 'webhook') {
-        out[digit] = { action, url: hookUrl(o.url, digit), message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label }
+        const db = o.check?.source === 'db'
+        const url = db && !String(o.url || '').trim() ? '' : hookUrl(o.url, digit)
+        const check = checkOf(o, digit, { url })
+        out[digit] = { action, url, message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label, ...(check ? { check } : {}), ...confirmOf(o) }
       } else if (action === 'collect') {
         const prompt = String(o.prompt || '').trim().slice(0, 500)
         if (!prompt) throw new Error(`Key ${digit}: say what the caller should type.`)
         const to = o.forwardTo ? fwd(o.forwardTo, digit) : ''
         const webhook = o.webhook ? hookUrl(o.webhook, digit) : ''
         const message = String(o.message || '').slice(0, 500)
-        if (!to && !webhook && !message) throw new Error(`Key ${digit}: choose what happens with the digits — send to your system, connect the call, or a confirmation message.`)
-        out[digit] = { action, prompt, length: Math.min(20, Math.max(1, Math.round(Number(o.length)) || 6)), webhook, forwardTo: to, message, label }
+        const check = checkOf(o, digit, { url: webhook })
+        if (!to && !webhook && !message && !check) throw new Error(`Key ${digit}: choose what happens with the digits — send to your system, connect the call, or a confirmation message.`)
+        out[digit] = { action, prompt, length: Math.min(20, Math.max(1, Math.round(Number(o.length)) || 6)), webhook, forwardTo: to, message, label, ...(check ? { check } : {}), ...confirmOf(o) }
       } else if (action === 'pin') {
-        const pin = String(o.pin || '').replace(/\D/g, '').slice(0, 12)
-        if (pin.length < 3) throw new Error(`Key ${digit}: the PIN needs at least 3 digits.`)
+        const url = o.check?.source === 'reply' ? hookUrl(o.url, digit) : ''
+        const check = checkOf(o, digit, { url })
+        const pin = check ? '' : String(o.pin || '').replace(/\D/g, '').slice(0, 12)
+        if (!check && pin.length < 3) throw new Error(`Key ${digit}: the PIN needs at least 3 digits.`)
         const okTo = o.onOk?.forwardTo ? fwd(o.onOk.forwardTo, digit) : ''
-        out[digit] = { action, prompt: String(o.prompt || '').slice(0, 500), pin, onOk: { action: okTo ? 'forward' : 'message', forwardTo: okTo, message: String(o.onOk?.message || '').slice(0, 500) }, failMessage: String(o.failMessage || '').slice(0, 500), label }
+        out[digit] = { action, prompt: String(o.prompt || '').slice(0, 500), pin, onOk: { action: okTo ? 'forward' : 'message', forwardTo: okTo, message: String(o.onOk?.message || '').slice(0, 500) }, failMessage: String(o.failMessage || '').slice(0, 500), label, ...(check ? { check, url, length: Math.min(12, Math.max(3, Math.round(Number(o.length)) || 6)) } : {}), ...confirmOf(o) }
       } else if (action === 'submenu') {
         if (depth >= 3) throw new Error('Sub-menus can only go 3 levels deep.')
         const sub = o.subMenu || {}
@@ -750,7 +783,11 @@ function routes(router, deps) {
     const urls = await ownAudioUrls(req.webChatId)
     let value
     try { value = validateIvr(req.body, req.num.plan, (u) => urls.has(u)) } catch (e) { return bad(res, 400, 'invalid_ivr', e.message) }
-    const lines = [...Object.values(value.options), ...Object.values(value.options).flatMap(o => Object.values(o.subMenu?.options || {}))].filter(o => o.action === 'sms').map(o => o.smsFrom)
+    const every = (opts) => Object.values(opts || {}).flatMap(o => [o, ...every(o.subMenu?.options)])
+    const keys = every(value.options), liveData = require('../ivr-live-data')
+    if (!(await liveData.owns(req.webChatId, keys.map(o => o.check?.connId), 'database'))) return bad(res, 400, 'invalid_ivr', 'A key uses a database connection that was removed. Pick it again.')
+    if (!(await liveData.owns(req.webChatId, keys.filter(o => o.action === 'pay').map(o => o.connId), 'payments'))) return bad(res, 400, 'invalid_ivr', 'A key uses a payment provider that was removed. Pick it again.')
+    const lines = keys.filter(o => o.action === 'sms').map(o => o.smsFrom)
     if (lines.length) {
       const ok = await deps.db.collection('esimLines').countDocuments({ _id: { $in: [...new Set(lines)] }, kind: 'mobile', chatId: String(req.webChatId), status: { $in: ['provisioning', 'active', 'suspended'] } })
       if (ok !== new Set(lines).size) return bad(res, 400, 'invalid_ivr', 'Pick one of your own texting numbers to send the text from.')

@@ -133,7 +133,7 @@ let engine = null // voiceService, set by routes()
 function pendingOtp(chatId) {
   const ids = otpSim.all().filter(s => s.chatId === String(chatId)).map(s => s.id)
   for (const [ccid, s] of Object.entries(engine?.outboundIvrCalls || {})) if (String(s.chatId) === String(chatId) && s.ivrMode === 'otp_collect' && s.phase === 'otp_hold') ids.push(ccid)
-  return ids.map(id => ({ id, ...otpState(chatId, id, engine) })).filter(o => o.state === 'code').map(pubOtp)
+  return [...ids.map(id => ({ id, ...otpState(chatId, id, engine) })).filter(o => o.state === 'code').map(pubOtp), ...(engine?.pendingIvrConfirms ? engine.pendingIvrConfirms(chatId) : []), ...require('./ivr-connections').previewList(chatId)]
 }
 
 function otpState(chatId, ccid, voiceService) {
@@ -396,6 +396,13 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   router.post('/calls/otp/:ccid', h(async (req, res) => {
     const ccid = String(req.params.ccid), action = String(req.body?.action || '')
     if (!['accept', 'decline', 'hangup'].includes(action)) return bad(res, 400, 'invalid_action', 'Choose accept, decline or hang up.')
+    if (ccid.startsWith('pv_')) return require('./ivr-connections').previewResolve(req.webChatId, ccid) ? res.json({ id: ccid, kind: 'ivr', state: action === 'accept' ? 'accepted' : 'declined', preview: true }) : bad(res, 409, 'not_waiting', 'This example is no longer showing.')
+    // A keypad-menu caller on hold for Accept / Decline (inbound).
+    if (voiceService.pendingIvrConfirms && voiceService.pendingIvrConfirms(req.webChatId).some(o => o.id === ccid)) {
+      const r = await voiceService.resolveIvrConfirm(ccid, action, req.webChatId)
+      if (r?.error) return bad(res, 409, 'not_waiting', 'This call is not waiting for your answer any more.')
+      return res.json({ id: ccid, kind: 'ivr', ...r })
+    }
     const st = otpState(req.webChatId, ccid, voiceService)
     if (!st) return bad(res, 404, 'not_found', 'That call is not available any more.')
     if (st.state !== 'code') return bad(res, 409, 'not_waiting', 'This call is not waiting for your answer any more.')

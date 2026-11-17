@@ -3,4 +3,5 @@ gcc=4:12.2.0-3
 liblinphone-dev=5.1.65-4
 linphone-cli=5.1.65-4
 netcat-openbsd=1.219-1
+postgresql=15+248+deb12u2
 whois=5.5.17

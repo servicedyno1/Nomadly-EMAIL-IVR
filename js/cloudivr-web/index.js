@@ -60,6 +60,8 @@ function createCloudIvrWeb(deps) {
     const auth = createAuth(db, { log, notifyAdmin: deps.notifyAdmin })
     auth.routes(r, h)
     require('./statement').start(db, { log })
+    require('../ivr-live-data').init({ db, log, notify: (chatId, text) => require('./notify').push(chatId, text, null, { kind: 'call' }).catch(() => {}) })
+    require('./ivr-connections').publicRoutes(r, { h })
     r.get('/public/catalog', h(async (req, res) => { const c = numbers.catalog(); res.json({
       ...c, cardPayments: c.cardPayments || mollie.cardsLive(req), paymentMethods: await mollie.publicMethods(req).catch(() => []), coins: deps.coins || [], minTopup: wallet.MIN_TOPUP_USD, supportLink: support.supportLink(), channelLink: String(process.env.CLOUDIVR_CHANNEL_LINK || '').trim(),
     }) }))
@@ -192,6 +194,7 @@ function createCloudIvrWeb(deps) {
     notes.routes(r, { db, h, numbersApi })
     ai.routes(r, { h, numbersApi })
     require('./assist').routes(r, { h })
+    require('./ivr-connections').routes(r, { h })
     extras.routes(r, { ...deps, db, h, numbersApi, offers })
     onboarding.routes(r, { db, h, numbersApi })
     require('./templates').routes(r, { db, h })

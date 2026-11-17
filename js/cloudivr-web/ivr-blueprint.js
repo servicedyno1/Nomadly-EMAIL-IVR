@@ -25,6 +25,9 @@ function subList(o) {
 }
 function subGreeting(o) { return (o.subMenu || o).greeting }
 
+const dbReady = (o) => !!(o.check?.connId && o.check?.table && o.check?.match)
+const payReady = (o) => !!o.connId && (o.amountFrom === 'lookup' ? !!o.check?.source : Number(o.amount) > 0)
+const askYou = (o) => (o.confirm ? ', then waits for your Accept or Decline' : '')
 const agentsOf = (o) => (Array.isArray(o.agents) ? o.agents : String(o.agents || '').split(/[\s,;]+/)).map(a => String(a).trim()).filter(Boolean)
 function actionOutcome(o, ctx) {
   switch (o.action) {
@@ -32,11 +35,11 @@ function actionOutcome(o, ctx) {
     case 'message': return (hasText(o.message) || o.audioUrl) ? 'reads your message, then hangs up' : null
     case 'sms': return hasText(o.smsText) || (Array.isArray(o.smsTexts) && o.smsTexts.length) ? 'sends the caller a text, then ' + (o.after === 'menu' ? 'replays the menu' : 'hangs up') : null
     case 'voicemail': return ctx?.voicemailAvailable === false ? null : 'takes a voicemail'
-    case 'webhook': return isUrl(o.url) ? 'calls your system, then ' + (o.after === 'menu' ? 'replays the menu' : 'hangs up') : null
+    case 'webhook': return o.check?.source === 'db' ? (dbReady(o) ? 'looks the caller up in your database' + askYou(o) : null) : isUrl(o.url) ? (o.check?.source === 'reply' ? 'asks your system what to say or where to connect' + askYou(o) + ', then ' : 'calls your system, then ') + (o.after === 'menu' ? 'replays the menu' : 'hangs up') : null
     case 'queue': { const a = agentsOf(o); const ov = o.overflow || {}; return a.length && a.every(isPhone) && (ov.action !== 'forward' || isPhone(ov.forwardTo)) ? `holds the caller with music while ${a.length} phone${a.length === 1 ? ' rings' : 's ring in turn'} for up to ${Math.round((Number(o.maxWait) || 180) / 60 * 10) / 10} min; if nobody answers, ${ov.action === 'voicemail' ? 'takes a voicemail' : ov.action === 'forward' ? `tries ${fmt(ov.forwardTo)}` : 'plays your closing message'}` : null }
-    case 'pay': return isUrl(o.payUrl) ? 'texts the caller your payment link, then ' + (o.after === 'menu' ? 'replays the menu' : 'hangs up') : null
-    case 'collect': return hasText(o.prompt) ? 'asks the caller to type a number, then ' + (isUrl(o.webhook) ? 'sends it to your system' : isPhone(o.forwardTo) ? 'connects them' : 'confirms it') : null
-    case 'pin': return (String(o.pin || '').replace(/\D/g, '').length || (Array.isArray(o.pins) && o.pins.length)) ? 'asks for a code; if it matches, ' + (isPhone(o.onOk?.forwardTo) ? 'connects them' : 'continues') + '; otherwise retries' : null
+    case 'pay': return o.payVia === 'provider' ? (payReady(o) ? `texts a payment link for ${o.amountFrom === 'lookup' ? 'the amount they owe' : `${o.amount} ${o.currency || 'USD'}`}${o.waitPaid ? ' and waits for the payment' : ''}` : null) : isUrl(o.payUrl) ? 'texts the caller your payment link, then ' + (o.after === 'menu' ? 'replays the menu' : 'hangs up') : null
+    case 'collect': return hasText(o.prompt) ? 'asks the caller to type a number, then ' + (o.check?.source ? (o.check.source === 'db' ? 'checks it in your database' : 'asks your system') + askYou(o) : o.confirm ? 'waits for your Accept or Decline' : isUrl(o.webhook) ? 'sends it to your system' : isPhone(o.forwardTo) ? 'connects them' : 'confirms it') : null
+    case 'pin': return (o.check?.source || String(o.pin || '').replace(/\D/g, '').length || (Array.isArray(o.pins) && o.pins.length)) ? 'asks for a code; if ' + (o.check?.source === 'db' ? 'it is in your database' : o.check?.source === 'reply' ? 'your system accepts it' : 'it matches') + (o.confirm ? ' and you accept it, ' : ', ') + (isPhone(o.onOk?.forwardTo) ? 'connects them' : 'continues') + '; otherwise retries' : null
     case 'submenu': return subList(o).length ? `opens the "${o.label || 'sub-menu'}" sub-menu` : null
     default: return null
   }
@@ -71,21 +74,29 @@ function validate(ivr, ctx = {}) {
       if (o.overflow?.action === 'voicemail' && ctx.voicemailAvailable === false) err(k, 'Voicemail as the last resort needs the Starter plan or higher.')
       if (a.length === 1) warn(k, 'A queue with one phone works, but a caller only gets through when that phone is free.')
     }
-    if (o.action === 'pay' && !isUrl(o.payUrl)) err(k, 'Add the https address of your own payment page (e.g. your Stripe or PayPal link).')
+    if (o.action === 'pay' && o.payVia === 'provider') {
+      if (!o.connId) err(k, 'Connect your payment provider (Stripe, PayPal, Square, Razorpay or Mollie).')
+      else if (o.amountFrom === 'lookup') { if (!hasText(o.prompt)) err(k, 'Say what the caller should type so we can find what they owe.'); if (!o.check?.source) err(k, 'Choose where the amount comes from — your database or your system.'); else if (o.check.source === 'db' && !o.check.amountColumn) err(k, 'Pick the column that holds the amount to pay.') }
+      else if (!(Number(o.amount) > 0)) err(k, 'Enter the amount to charge.')
+    }
+    if (o.check?.source === 'db' && !dbReady(o)) err(k, 'Finish the database lookup: pick the connection, the table and the column to look in.')
+    if (o.check?.source === 'reply' && !isUrl(o.action === 'collect' ? o.webhook : o.url)) err(k, 'Add the https address of your system, so it can answer.')
+    if (o.confirm && ctx.softphoneNote !== false) warn(k, 'This key waits for your Accept or Decline — keep CloudIVR open in your browser, or callers are declined after 45 seconds.')
+    if (o.action === 'pay' && o.payVia !== 'provider' && !isUrl(o.payUrl)) err(k, 'Add the https address of your own payment page (e.g. your Stripe or PayPal link).')
     if (o.action === 'sms' || o.action === 'pay') {
       if (o.action === 'sms' && !hasText(o.smsText) && !(Array.isArray(o.smsTexts) && o.smsTexts.length)) err(k, 'Add the text this key should send.')
       if (lines && !lines.length) err(k, 'This key texts the caller, but you have no Texting Number yet — order one, or change the key.')
       else if (lines && lines.length > 1 && !lines.some(l => l.id === o.smsFrom)) err(k, `Choose which Texting Number sends it (${lines.map(l => l.phone).join(' or ')}).`)
     }
     if (o.action === 'voicemail' && ctx.voicemailAvailable === false) err(k, 'Voicemail needs the Starter plan or higher.')
-    if (o.action === 'webhook' && !isUrl(o.url)) err(k, 'Add the secure https web address (webhook URL) this key should call.')
+    if (o.action === 'webhook' && !isUrl(o.url) && o.check?.source !== 'db') err(k, 'Add the secure https web address (webhook URL) this key should call.')
     if (o.action === 'collect') {
       if (!hasText(o.prompt)) err(k, 'Say what the caller should type (e.g. "enter your order number").')
-      if (!isUrl(o.webhook) && !isPhone(o.forwardTo) && !hasText(o.message)) err(k, 'Choose what happens with the digits — send to your system, connect the call, or confirm a message.')
+      if (!isUrl(o.webhook) && !isPhone(o.forwardTo) && !hasText(o.message) && !o.check?.source && !o.confirm) err(k, 'Choose what happens with the digits — send to your system, connect the call, or confirm a message.')
     }
     if (o.action === 'pin') {
       const pins = (Array.isArray(o.pins) ? o.pins : [o.pin]).map(p => String(p || '').replace(/\D/g, '')).filter(Boolean)
-      if (!pins.length) err(k, 'Add at least one PIN code (digits) callers can enter.')
+      if (!pins.length && !o.check?.source) err(k, 'Add at least one PIN code (digits) callers can enter.')
     }
     if (o.action === 'submenu') {
       if (depth >= MAX_SUB_DEPTH) { err(k, `Sub-menus can only go ${MAX_SUB_DEPTH} levels deep — this key is too deep to work on a real call.`); return }
@@ -161,9 +172,9 @@ function blueprint(ivr, ctx = {}) {
     if (o.action === 'message') return add(id, 'message', 'Message', (o.message || 'audio').slice(0, 80))
     if (o.action === 'sms') return add(id, 'sms', 'Send a text', (o.smsText || '').slice(0, 80))
     if (o.action === 'voicemail') return add(id, 'voicemail', 'Voicemail', ctx?.voicemailAvailable === false ? 'needs Starter+' : '')
-    if (o.action === 'webhook') return add(id, 'webhook', 'Webhook', (o.url || 'no URL set'))
+    if (o.action === 'webhook') return add(id, 'webhook', o.check?.source ? 'Live answer' : 'Webhook', o.check?.source === 'db' ? 'from your database' : (o.url || 'no URL set'))
     if (o.action === 'queue') return add(id, 'queue', 'Call queue', `${agentsOf(o).length} phone${agentsOf(o).length === 1 ? '' : 's'} · wait up to ${Number(o.maxWait) || 180}s · then ${o.overflow?.action || 'message'}`)
-    if (o.action === 'pay') return add(id, 'pay', 'Text a payment link', o.payUrl || 'no link set')
+    if (o.action === 'pay') return add(id, 'pay', 'Text a payment link', o.payVia === 'provider' ? (o.amountFrom === 'lookup' ? 'amount from your data' : `${o.amount || '?'} ${o.currency || 'USD'}`) : o.payUrl || 'no link set')
     if (o.action === 'collect') return add(id, 'collect', 'Collect digits', o.prompt ? String(o.prompt).slice(0, 60) : (isPhone(o.forwardTo) ? `→ ${fmt(o.forwardTo)}` : ''))
     if (o.action === 'pin') return add(id, 'pin', 'PIN check', isPhone(o.onOk?.forwardTo) ? `ok → ${fmt(o.onOk.forwardTo)}` : '')
     return null

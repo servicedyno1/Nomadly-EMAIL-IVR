@@ -30,18 +30,23 @@ function OtpBanner({ o, more, onDone, onLater }) {
         <div className="flex items-center gap-4 min-w-0 flex-1">
           <span className="civr-incoming-ring w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-full bg-[#f59e0b] text-[#0e0e16] grid place-items-center"><KeyRound className="w-6 h-6" /></span>
           <div className="min-w-0">
-            <div className="text-xs font-mono uppercase tracking-widest text-[#fbbf24]" data-testid="otp-alert-label">{more > 0 ? `Code received · ${more} more waiting` : 'Code received'}</div>
+            <div className="text-xs font-mono uppercase tracking-widest text-[#fbbf24]" data-testid="otp-alert-label">{`${o.kind === 'ivr' ? `${o.title}${o.label ? ` · ${o.label}` : ''}` : 'Code received'}${more > 0 ? ` · ${more} more waiting` : ''}`}</div>
             <div className="font-mono text-3xl sm:text-4xl font-bold tracking-[.25em] text-white" data-no-translate data-testid="otp-alert-code">{pv.text(o.code, '••••••')}</div>
-            <div className="text-xs sm:text-sm text-[#a1a1aa]" data-testid="otp-alert-from">{`From ${pv.phone(o.to)} · they are on hold`}{o.preview && <span className="civr-pill ml-2 align-middle">Preview</span>}</div>
+            <div className="text-xs sm:text-sm text-[#a1a1aa]" data-testid="otp-alert-from">{`From ${pv.phone(o.to)} · they are on hold`}{o.kind === 'ivr' && o.checked && <span className={`ml-2 font-semibold ${o.found ? 'text-[#34d399]' : 'text-[#fbbf24]'}`} data-testid="otp-alert-checked">{o.checked}</span>}{o.preview && <span className="civr-pill ml-2 align-middle">Preview</span>}</div>
           </div>
         </div>
         <Decide st={o} ccid={o.id} onState={onDone} t="otp-alert" />
       </div>
       <div className="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[#a1a1aa]">
-        <span>{o.connectTo ? `Accept to confirm the code and connect them to ${pv.phone(o.connectTo)}.` : 'Accept to confirm the code.'}</span>
-        <span>Decline asks them to type it again.</span>
+        {o.kind === 'ivr' ? <>
+          <span data-testid="otp-alert-ivr-note">{o.connectTo ? `Accept to connect them to ${pv.phone(o.connectTo)}.` : o.say ? `Accept and they hear: “${o.say}”` : 'Accept to let them through.'}</span>
+          <span>{o.ivrKind === 'pin' && o.attempt < o.maxAttempts ? 'Decline asks them to type it again.' : 'Decline plays your decline message and ends the call.'}</span>
+        </> : <>
+          <span>{o.connectTo ? `Accept to confirm the code and connect them to ${pv.phone(o.connectTo)}.` : 'Accept to confirm the code.'}</span>
+          <span>Decline asks them to type it again.</span>
+        </>}
         <button type="button" onClick={onLater} className="ml-auto inline-flex items-center gap-1.5 underline text-[#e4e4e7] hover:text-white" data-testid="otp-alert-later-button"><Clock className="w-3.5 h-3.5" />Answer later</button>
-        <Link to={cp('/app/quick-call')} onClick={onLater} className="underline text-[#e4e4e7] hover:text-white" data-testid="otp-alert-open-link">Open Quick IVR call</Link>
+        {o.kind !== 'ivr' && <Link to={cp('/app/quick-call')} onClick={onLater} className="underline text-[#e4e4e7] hover:text-white" data-testid="otp-alert-open-link">Open Quick IVR call</Link>}
       </div>
     </div>
   );

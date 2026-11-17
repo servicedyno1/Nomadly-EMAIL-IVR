@@ -4609,6 +4609,15 @@ async function handleGatherEnded(payload) {
       break
 
     case 'pay':
+      if (option.payVia === 'provider') {
+        if (option.amountFrom === 'lookup') {
+          session.phase = 'ivr_collect'
+          session.collect = { kind: 'pay', option, path: ivrPath.slice(), digit: digits }
+          await _telnyxApi.gatherDTMF(callControlId, option.prompt || 'Please enter your account number, then press pound.', { minDigits: 1, maxDigits: Math.min(20, Math.max(1, Number(option.length) || 6)), timeout: 15000, terminatingDigit: '#', validDigits: '0123456789', language: ivrL.tts })
+        } else await startProviderPay(callControlId, session, { option, path: ivrPath.slice(), digit: digits }, null, ivrL)
+        break
+      }
+    // falls through
     case 'sms': {
       session.phase = 'ivr_sms'
       const r = await sendIvrText(chatId, option, session.from)
@@ -4625,6 +4634,7 @@ async function handleGatherEnded(payload) {
     }
 
     case 'webhook': {
+      if (usesLive(option)) { notifyUser(chatId, num, 'ivr_webhook', session, { digit: digits, url: option.url }); await runCheckedKey(callControlId, session, { kind: 'webhook', option, entered: '', path: ivrPath.slice(), digit: digits }, ivrL); break }
       session.phase = 'ivr_webhook'
       fireIvrWebhook(option, { from: session.from, to: num.phoneNumber, digit: digits, path: ivrPath.join('.'), chatId }).catch(() => {})
       const said = option.message || ivrL.thanks
@@ -4646,7 +4656,7 @@ async function handleGatherEnded(payload) {
 
     case 'collect': {
       session.phase = 'ivr_collect'
-      session.collect = { kind: 'collect', option, path: ivrPath.slice() }
+      session.collect = { kind: 'collect', option, path: ivrPath.slice(), digit: digits }
       const len = Math.min(20, Math.max(1, Number(option.length) || 6))
       await _telnyxApi.gatherDTMF(callControlId, option.prompt || ivrL.collect || 'Please enter your number, then press pound.', { minDigits: 1, maxDigits: len, timeout: 15000, terminatingDigit: '#', validDigits: '0123456789', language: ivrL.tts })
       break
@@ -4654,8 +4664,8 @@ async function handleGatherEnded(payload) {
 
     case 'pin': {
       session.phase = 'ivr_pin'
-      session.collect = { kind: 'pin', option, path: ivrPath.slice(), tries: 0 }
-      const plen = String(option.pin || '').replace(/\D/g, '').length || 6
+      session.collect = { kind: 'pin', option, path: ivrPath.slice(), tries: 0, digit: digits }
+      const plen = pinLen(option)
       await _telnyxApi.gatherDTMF(callControlId, option.prompt || ivrL.pin || 'Please enter your code, then press pound.', { minDigits: 1, maxDigits: plen, timeout: 15000, terminatingDigit: '#', validDigits: '0123456789', language: ivrL.tts })
       break
     }
@@ -4779,14 +4789,33 @@ async function queueContinue(id) {
   return true
 }
 
-// Handle digits typed after a 'collect' or 'pin' key. Resolves the key's follow-up action.
+// Handle digits typed after a 'collect', 'pin' or 'pay' key. Resolves the key's follow-up action.
+const pinLen = (option) => (option.check?.source ? Math.min(12, Math.max(3, Number(option.length) || 6)) : String((Array.isArray(option.pins) ? option.pins[0] : option.pin) || '').replace(/\D/g, '').length || 6)
+const pinAsk = (id, session, c, ivrL) => {
+  session.collect = { kind: 'pin', option: c.option, path: c.path, digit: c.digit }
+  return _telnyxApi.gatherDTMF(id, c.option.failMessage || 'That code was not recognised. Please try again, then press pound.', { minDigits: 1, maxDigits: pinLen(c.option), timeout: 15000, terminatingDigit: '#', validDigits: '0123456789', language: ivrL.tts })
+}
+// wrong PIN — retry up to 3 times
+async function pinWrong(id, session, c, ivrL) {
+  const tries = (session.collectTries || 0) + 1
+  session.collectTries = tries
+  session.pinPoundUntil = String(c.entered || '').length >= pinLen(c.option) ? Date.now() + 4000 : 0
+  if (tries < 3) return pinAsk(id, session, c, ivrL)
+  await _telnyxApi.speakOnCall(id, c.option.failMessage || ivrL.goodbye, 'female', ivrL.tts)
+  setTimeout(() => _telnyxApi.hangupCall(id).catch(() => {}), 2000)
+}
+
 async function handleCollectedDigits(callControlId, session, digits, ivrL) {
   const { num, chatId } = session
-  const { kind, option, path = [] } = session.collect || {}
+  const { kind, option, path = [], digit = '' } = session.collect || {}
   session.collect = null
   const entered = String(digits || '').replace(/\D/g, '')
+  const c = { kind, option, path, digit, entered }
 
   if (kind === 'pin') {
+    // A full code ends the entry by itself; the pound the caller presses after it arrives as an empty entry — not a try.
+    if (!entered && session.pinPoundUntil && Date.now() < session.pinPoundUntil) { session.pinPoundUntil = 0; return pinAsk(callControlId, session, c, ivrL) }
+    if (usesLive(option) && entered) return runCheckedKey(callControlId, session, c, ivrL)
     const allowed = (Array.isArray(option.pins) ? option.pins : [option.pin]).map(p => String(p || '').replace(/\D/g, '')).filter(Boolean)
     const ok = allowed.length > 0 && allowed.includes(entered)
     const ok2 = option.onOk || {}
@@ -4804,36 +4833,27 @@ async function handleCollectedDigits(callControlId, session, digits, ivrL) {
       }
       return
     }
-    const plen = String(allowed[0] || '').length || 6
-    // A full code ends the entry by itself; the pound the caller presses after it arrives as an empty entry — not a try.
-    if (!entered && session.pinPoundUntil && Date.now() < session.pinPoundUntil) {
-      session.pinPoundUntil = 0
-      session.collect = { kind: 'pin', option, path }
-      await _telnyxApi.gatherDTMF(callControlId, option.failMessage || 'That code was not recognised. Please try again, then press pound.', { minDigits: 1, maxDigits: plen, timeout: 15000, terminatingDigit: '#', validDigits: '0123456789', language: ivrL.tts })
-      return
-    }
-    // wrong PIN — retry up to 3 times
-    const tries = (session.collectTries || 0) + 1
-    session.collectTries = tries
-    session.pinPoundUntil = entered.length >= plen ? Date.now() + 4000 : 0
-    if (tries < 3) {
-      session.collect = { kind: 'pin', option, path }
-      await _telnyxApi.gatherDTMF(callControlId, option.failMessage || 'That code was not recognised. Please try again, then press pound.', { minDigits: 1, maxDigits: plen, timeout: 15000, terminatingDigit: '#', validDigits: '0123456789', language: ivrL.tts })
-    } else {
-      await _telnyxApi.speakOnCall(callControlId, option.failMessage || ivrL.goodbye, 'female', ivrL.tts)
-      setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), 2000)
-    }
-    return
+    return pinWrong(callControlId, session, c, ivrL)
   }
 
-  // collect: nothing typed → say goodbye; otherwise send what they typed to the webhook (if set), then confirm / forward.
+  // collect / pay: nothing typed → say goodbye.
   if (!entered) {
     await _telnyxApi.speakOnCall(callControlId, ivrL.goodbye, 'female', ivrL.tts)
     setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), 2000)
     return
   }
-  if (option.webhook) postIvrHook(option.webhook, { event: 'ivr_collect', from: session.from, to: num.phoneNumber, collected: entered, at: new Date().toISOString() })
+  if (kind === 'pay') {
+    session.phase = 'ivr_check'
+    const r = await liveData.resolve(chatId, option, { from: session.from, to: num.phoneNumber, digit, entered, event: 'ivr_pay' })
+    if (!stillOn(callControlId, session)) return
+    log(`[Voice] IVR pay lookup for ${session.to}: ${r.found && r.amount ? `amount ${r.amount}` : `nothing to pay${r.error ? ` (${r.error})` : ''}`}`)
+    if (!r.found || !r.amount) return sayAndEnd(callControlId, session, option.check?.notFound || 'Sorry, we could not find an amount to pay for that number. Goodbye.', ivrL)
+    return startProviderPay(callControlId, session, c, { amount: r.amount, currency: r.currency, note: entered }, ivrL)
+  }
+  // collect: send what they typed to the webhook (if set), then confirm / forward.
+  if (option.webhook && option.check?.source !== 'reply') postIvrHook(option.webhook, { event: 'ivr_collect', from: session.from, to: num.phoneNumber, collected: entered, at: new Date().toISOString() })
   _bot?.sendMessage(chatId, `📞 <b>IVR — digits collected</b>\nFrom: ${formatPhone(session.from)}\nEntered: <b>${escapeHtml(entered)}</b>`, { parse_mode: 'HTML' }).catch(() => {})
+  if (usesLive(option)) return runCheckedKey(callControlId, session, c, ivrL)
   if (option.forwardTo) {
     if (!(await ivrForwardAllowed(callControlId, session, option.forwardTo))) return
     session.phase = 'ivr_forward'
@@ -4844,6 +4864,140 @@ async function handleCollectedDigits(callControlId, session, digits, ivrL) {
     await _telnyxApi.speakOnCall(callControlId, option.message || ivrL.thanks || 'Thank you.', 'female', ivrL.tts)
     setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), 6000)
   }
+}
+
+// ── Live-data keys: your database / your system's reply decides what the caller hears or where the call goes;
+//    with "confirm" on, the caller waits on hold until you press Accept or Decline in the app. ──
+const liveData = require('./ivr-live-data')
+const IVR_CONFIRM_MS = 45000, IVR_PAY_WAIT_MS = 180000
+const usesLive = (o) => !!(o && (o.check?.source || o.confirm))
+const stillOn = (id, session) => activeCalls[id] === session && !isCallEnded(id)
+const routeOk = (to) => !!to && !require('./phone-config').isBlockedPrefix(to) && !require('./dial-check').dialIssue(to)
+
+async function sayAndEnd(id, session, text, ivrL) {
+  session.phase = 'ivr_message'
+  await _telnyxApi.speakOnCall(id, text, 'female', ivrL.tts)
+  setTimeout(() => { if (activeCalls[id] === session && session.phase === 'ivr_message') _telnyxApi.hangupCall(id).catch(() => {}) }, 90000)
+}
+// Say the live answer in full, then connect (the connection starts when the sentence has finished).
+async function sayThenRoute(id, session, say, route, ivrL, digit) {
+  if (!route) return sayAndEnd(id, session, say || ivrL.thanks || 'Thank you.', ivrL)
+  if (!(await ivrForwardAllowed(id, session, route))) return
+  const go = async () => {
+    if (session.routeGo !== go) return
+    session.routeGo = null
+    if (!stillOn(id, session)) return
+    session.phase = 'ivr_forward'
+    await playHoldMusicAndTransfer(id, route, session.to, { ...(session.num.features?.callForwarding || {}), inbound: true, presentFrom: session.from })
+    notifyUser(session.chatId, session.num, 'ivr_forward', session, { digit: digit || '#', forwardTo: route })
+  }
+  session.routeGo = go
+  if (!say) return go()
+  session.phase = 'ivr_say_route'
+  await _telnyxApi.speakOnCall(id, say, 'female', ivrL.tts)
+  setTimeout(() => go().catch(e => log(`[Voice] IVR route after speak: ${e.message}`)), 25000)
+}
+async function sayThenMenuOrEnd(id, session, said, c, ivrL) {
+  if (c.option.after !== 'menu') return sayAndEnd(id, session, said, ivrL)
+  const ivrConfig = session.num.features?.ivr || {}
+  const menu = (c.path || []).length ? (menuNodeAt(ivrConfig, c.path) || ivrConfig) : ivrConfig
+  session.ivrRetried = false
+  session.phase = 'ivr'
+  await _telnyxApi.gatherDTMF(id, `${said} ${menu.greeting || ivrL.fallback}`, { minDigits: 1, maxDigits: 1, timeout: 15000, validDigits: Object.keys(menu.options || {}).join(''), language: ivrL.tts })
+}
+
+async function runCheckedKey(id, session, c, ivrL) {
+  const o = c.option
+  session.phase = 'ivr_check'
+  if (o.check?.source) {
+    c.r = await liveData.resolve(session.chatId, o, { from: session.from, to: session.num.phoneNumber, digit: c.digit, entered: c.entered, event: c.kind === 'webhook' ? 'ivr_key' : c.kind === 'pin' ? 'ivr_pin' : 'ivr_collect' })
+    log(`[Voice] IVR ${c.kind} check (${o.check.source}) for ${session.to}: ${c.r.found ? 'found' : `not found${c.r.error ? ` — ${c.r.error}` : ''}`}${c.r.route ? ` → route ${c.r.route}` : ''}`)
+  } else if (c.kind === 'pin') {
+    c.r = { found: (Array.isArray(o.pins) ? o.pins : [o.pin]).map(p => String(p || '').replace(/\D/g, '')).filter(Boolean).includes(c.entered) }
+  } else c.r = { found: true }
+  if (c.r.route && !routeOk(c.r.route)) c.r.route = ''
+  if (!stillOn(id, session)) return
+  if (o.confirm) return startIvrConfirm(id, session, c, ivrL)
+  return finishChecked(id, session, c, c.r.found, ivrL)
+}
+
+// accepted = the lookup found it (or you pressed Accept). why: 'declined' | 'timeout' | undefined (lookup result).
+async function finishChecked(id, session, c, accepted, ivrL, why) {
+  const o = c.option, r = c.r || {}
+  if (c.kind === 'pin') {
+    if (!accepted) return pinWrong(id, session, c, ivrL)
+    const ok2 = o.onOk || {}, route = r.route || (ok2.forwardTo || '')
+    return sayThenRoute(id, session, r.say || ok2.message || (route ? '' : o.okMessage || 'Thank you, that is correct.'), route, ivrL, c.digit)
+  }
+  if (!accepted) return sayAndEnd(id, session, (why ? o.declineMessage : o.check?.notFound) || o.declineMessage || o.check?.notFound || (c.kind === 'collect' ? 'Sorry, we could not confirm that number. Goodbye.' : 'Sorry, we could not help with that right now. Goodbye.'), ivrL)
+  if (c.kind === 'collect') { const route = r.route || o.forwardTo || ''; return sayThenRoute(id, session, r.say || o.message || (route ? '' : ivrL.thanks || 'Thank you.'), route, ivrL, c.digit) }
+  if (r.route) return sayThenRoute(id, session, r.say || o.message, r.route, ivrL, c.digit)
+  return sayThenMenuOrEnd(id, session, r.say || o.message || ivrL.thanks, c, ivrL)
+}
+
+async function startIvrConfirm(id, session, c, ivrL) {
+  const at = Date.now()
+  session.phase = 'ivr_confirm'
+  session.confirm = { ...c, ivrL, at }
+  await _telnyxApi.speakOnCall(id, 'Please hold for a moment while we check that.', 'female', ivrL.tts)
+  setTimeout(() => { if (activeCalls[id] === session && session.confirm?.at === at) _telnyxApi.playbackStart(id, HOLD_MUSIC_URL, { loop: 'infinity' }).catch(() => {}) }, 3500)
+  setTimeout(() => { if (activeCalls[id] === session && session.confirm?.at === at) resolveIvrConfirm(id, 'timeout').catch(e => log(`[Voice] IVR confirm timeout: ${e.message}`)) }, IVR_CONFIRM_MS)
+  const what = c.kind === 'webhook' ? `pressed key ${c.digit}` : `typed ${c.entered}`
+  log(`[Voice] IVR confirm: ${session.from} ${c.kind === 'webhook' ? what : 'typed a number'} on ${session.to} — waiting for Accept / Decline`)
+  require('./cloudivr-web/notify').push(session.chatId, `🔑 A caller (${formatPhone(session.from)}) ${what} on ${formatPhone(session.to)} and is on hold. Open CloudIVR now to Accept or Decline.`, null, { kind: 'call' }).catch(() => {})
+}
+
+const confirmView = (id, s) => {
+  const c = s.confirm, o = c.option, r = c.r || {}
+  const route = r.route || (c.kind === 'pin' ? o.onOk?.forwardTo : c.kind === 'collect' ? o.forwardTo : '') || null
+  const checked = o.check?.source ? (r.found ? (o.check.source === 'db' ? 'Found in your database' : 'Your system says yes') : (r.error || (o.check.source === 'db' ? 'Not found in your database' : 'Your system says no'))) : c.kind === 'pin' ? (r.found ? 'Matches your code' : 'Does not match your code') : ''
+  return { id, kind: 'ivr', ivrKind: c.kind, state: 'code', to: s.from, number: s.to, code: c.kind === 'webhook' ? `Key ${c.digit}` : c.entered, label: o.label || '', title: c.kind === 'pin' ? 'Code entered' : c.kind === 'collect' ? 'Number entered' : 'Caller is waiting', checked, found: !!r.found, say: r.say || '', attempt: c.kind === 'pin' ? (s.collectTries || 0) + 1 : 1, maxAttempts: c.kind === 'pin' ? 3 : 1, holdEndsAt: new Date(c.at + IVR_CONFIRM_MS), connectTo: route }
+}
+function pendingIvrConfirms(chatId) {
+  return Object.entries(activeCalls).filter(([, s]) => s && s.phase === 'ivr_confirm' && s.confirm && String(s.chatId) === String(chatId)).map(([id, s]) => confirmView(id, s))
+}
+async function resolveIvrConfirm(id, action, chatId) {
+  const session = activeCalls[id]
+  if (!session || session.phase !== 'ivr_confirm' || !session.confirm || (chatId !== undefined && String(session.chatId) !== String(chatId))) return { error: 'not_waiting' }
+  const c = session.confirm, ivrL = c.ivrL
+  session.confirm = null
+  session.phase = 'ivr_check'
+  await _telnyxApi.playbackStop(id).catch(() => {})
+  log(`[Voice] IVR confirm for ${session.to}: ${action}`)
+  if (action === 'hangup') { await _telnyxApi.hangupCall(id).catch(() => {}); return { state: 'hung_up' } }
+  if (action === 'timeout' && c.option.confirmTimeout === 'voicemail' && canAccessFeature(session.num.plan, 'voicemail')) {
+    session.phase = 'voicemail_greeting'
+    await _telnyxApi.speakOnCall(id, `Sorry, nobody could confirm that right now. ${ivrL.leaveMessage}`, 'female', ivrL.tts)
+    return { state: 'timeout' }
+  }
+  await finishChecked(id, session, c, action === 'accept', ivrL, action === 'accept' ? undefined : action === 'timeout' ? 'timeout' : 'declined')
+  return { state: action === 'accept' ? 'accepted' : action === 'timeout' ? 'timeout' : 'declined' }
+}
+
+// Payment key with your own provider account: create a link for the exact amount, text it, optionally wait for the payment.
+async function startProviderPay(id, session, c, pre, ivrL) {
+  const o = c.option, { chatId, num } = session
+  session.phase = 'ivr_sms'
+  let pay
+  try { pay = await liveData.startPayment(chatId, o, { caller: session.from, to: num.phoneNumber, amount: pre ? pre.amount : o.amount, currency: (pre && pre.currency) || o.currency, note: pre?.note }) } catch (e) {
+    log(`[Voice] IVR payment link failed for ${session.to}: ${e.message}`)
+    require('./cloudivr-web/notify').push(chatId, `⚠️ A caller (${session.from}) pressed your payment key, but the link could not be created: ${e.friendly ? e.message : 'the payment provider did not answer.'}`, null, { kind: 'call' }).catch(() => {})
+    return sayAndEnd(id, session, 'Sorry, we could not create your payment link right now. Please try again later. Goodbye.', ivrL)
+  }
+  const sent = await sendIvrText(chatId, { ...o, smsTexts: null, smsText: `${o.payNote || 'Pay securely here:'} ${pay.url}` }, session.from)
+  if (sent.error) return stillOn(id, session) ? sayAndEnd(id, session, ivrL.textFailed, ivrL) : null
+  log(`[Voice] IVR payment link for ${pay.amount} ${pay.currency} texted to ${session.from}${o.waitPaid ? ' — caller is waiting for confirmation' : ''}`)
+  if (!o.waitPaid || !stillOn(id, session)) {
+    liveData.watchPayment(pay.token)
+    return stillOn(id, session) ? sayThenMenuOrEnd(id, session, o.message || ivrL.textSent, c, ivrL) : null
+  }
+  session.phase = 'ivr_pay_wait'
+  session.payToken = pay.token
+  const waiting = () => activeCalls[id] === session && session.phase === 'ivr_pay_wait' && session.payToken === pay.token
+  await _telnyxApi.speakOnCall(id, `We have sent you a text with a payment link for ${pay.amount} ${pay.currency}. Stay on the line and we will confirm your payment, or hang up and pay later.`, 'female', ivrL.tts)
+  setTimeout(() => { if (waiting()) _telnyxApi.playbackStart(id, HOLD_MUSIC_URL, { loop: 'infinity' }).catch(() => {}) }, 10000)
+  liveData.watchPayment(pay.token, async () => { if (!waiting()) return; await _telnyxApi.playbackStop(id).catch(() => {}); await sayAndEnd(id, session, o.paidMessage || 'Thank you. Your payment was received. Goodbye.', ivrL) })
+  setTimeout(async () => { if (!waiting()) return; await _telnyxApi.playbackStop(id).catch(() => {}); await sayAndEnd(id, session, 'We have not received the payment yet. You can still pay with the link we sent. Goodbye.', ivrL) }, IVR_PAY_WAIT_MS)
 }
 
 // IVR webhook key: best-effort POST to one of the owner's own https endpoints when a caller presses the key.
@@ -4936,6 +5090,8 @@ async function handleSpeakEnded(payload) {
     await _telnyxApi.hangupCall(callControlId).catch(() => {})
     return
   }
+
+  if (session.phase === 'ivr_say_route' && session.routeGo) return session.routeGo()
 
   if (session.phase === 'ivr_message') {
     session.phase = 'ivr_message_done'
@@ -6736,6 +6892,7 @@ async function resolveOtp(callControlId, action) {
 
 module.exports = {
   resolveOtp,
+  pendingIvrConfirms, resolveIvrConfirm,
   handleVoiceWebhook,
   initVoiceService,
   getLiveCallCounts,

@@ -197,6 +197,7 @@ KEYPAD MENU (IVR, Pro+): greeting (typed text read in the app's language, or an 
 - webhook: calls one of the owner's own secure https web addresses (sends who called, the number and the key pressed), then says a short line and hangs up or replays the menu — good for logging a request, notifying another system or starting a workflow. Needs a valid https URL from the owner; never invent one. When the owner says a key should call / notify / ping "my system", "my API", "my server", "my CRM" or an automation tool, they mean this action (not forward) — ask for the https address.
 - collect: asks the caller to type a number (e.g. order or account number) and press pound, then sends those digits to the owner's https webhook, connects the call, or just confirms. Needs a prompt and at least one of: webhook URL, forward number, or confirmation message.
 - pin: asks the caller for a code and checks it; a correct code forwards the call or plays a message, a wrong code is retried (3 tries) then hangs up. Good for a members-only or staff-only path. This is a simple access code, not for bank-grade secrets. Needs at least one PIN.
+- Live data (the owner sets these in the form under each key, you cannot set them; mention them when useful): a webhook key can use the REPLY of the owner's system ("say: your balance is $42" / "route to: +1…"); collect and PIN keys can check what the caller typed in the owner's own database (MongoDB or Postgres, connected in the form) or with their system; new webhook, collect and PIN keys WAIT for the owner's Accept / Decline in the app by default (a banner pops up; the caller is on hold up to 45 seconds) — say so in one short sentence when you propose such a key, and that it can be switched off under the key; a pay key can create a link for an exact amount with the owner's Stripe, PayPal, Square, Razorpay or Mollie account. Keys that already have these settings keep them.
 - queue: for a team. The caller hears hold music while up to 5 phones ring one after another, round after round, until someone answers or the maximum wait passes (default 3 minutes); a caller who is not first is told their place in the queue. If nobody answers in time, the last resort runs: voicemail (Starter+), another phone, or a closing message. Use it when the owner says team, queue, agents, "whoever is free", or gives several phones for one key; use forward for a single phone. Optional "callback": between rounds the caller can press 1 to stop waiting; the owner then gets a message with the caller's number to ring back themselves (CloudIVR does not redial automatically — say so). There is no estimated wait time — do not promise one.
 - pay: texts the caller a link to the owner's OWN payment page (their Stripe, PayPal, Mollie… link) from one of the owner's Texting Numbers, then hangs up or replays the menu. Card details are never taken over the phone and CloudIVR does not handle the money. Needs the owner's https payment link (never invent one) and a Texting Number, exactly like the sms key.
 - submenu: more levels of keys with their own greeting (may nest up to 3 levels deep).
@@ -266,22 +267,22 @@ function keyGaps(opts, ctx, where = '', said = '', prev = []) {
       }
     }
     if (o.action === 'voicemail' && ctx && ctx.voicemailAvailable === false) out.push(`${k}: voicemail needs the Starter plan or higher.`)
-    if (o.action === 'webhook' && !/^https:\/\//i.test(String(o.url || '').trim())) out.push(`${k}: what is the secure https web address (webhook URL) it should call?`)
+    if (o.action === 'webhook' && o.check?.source !== 'db' && !/^https:\/\//i.test(String(o.url || '').trim())) out.push(`${k}: what is the secure https web address (webhook URL) it should call?`)
     if (o.action === 'queue') {
       if (!has(o.agents)) out.push(`${k}: which phones should the queue ring (up to 5)?`)
       if (o.overflow?.action === 'forward' && !o.overflow.forwardTo) out.push(`${k}: which phone should be tried when nobody in the queue answers?`)
       if (o.overflow?.action === 'voicemail' && ctx && ctx.voicemailAvailable === false) out.push(`${k}: voicemail as the last resort needs the Starter plan or higher.`)
     }
     if (o.action === 'pay') {
-      if (!/^https:\/\//i.test(String(o.payUrl || '').trim())) out.push(`${k}: what is the https link to your own payment page?`)
+      if (o.payVia !== 'provider' && !/^https:\/\//i.test(String(o.payUrl || '').trim())) out.push(`${k}: what is the https link to your own payment page?`)
       if (lines && !lines.length) out.push(`${k}: texting a payment link needs a Texting Number — order one first.`)
       else if (lines && lines.length > 1 && !lines.some(l => l.id === o.smsFrom)) out.push(`${k}: which Texting Number sends the link?`)
     }
     if (o.action === 'collect') {
       if (!has(o.prompt)) out.push(`${k}: what should the caller be asked to type?`)
-      if (!/^https:\/\//i.test(String(o.webhook || '').trim()) && !o.forwardTo && !has(o.message)) out.push(`${k}: what happens with the digits — send to your system, connect the call, or confirm?`)
+      if (!/^https:\/\//i.test(String(o.webhook || '').trim()) && !o.forwardTo && !has(o.message) && !o.check?.source && !o.confirm) out.push(`${k}: what happens with the digits — send to your system, connect the call, or confirm?`)
     }
-    if (o.action === 'pin' && !(String(o.pin || '').replace(/\D/g, '') || (Array.isArray(o.pins) && o.pins.length))) out.push(`${k}: which code should callers enter?`)
+    if (o.action === 'pin' && !o.check?.source && !(String(o.pin || '').replace(/\D/g, '') || (Array.isArray(o.pins) && o.pins.length))) out.push(`${k}: which code should callers enter?`)
     const sub = o.subMenu || (o.action === 'submenu' ? o : null)
     if (o.action === 'submenu') { if (!(sub.options || []).length) out.push(`${k}: the sub-menu has no keys yet.`); out.push(...keyGaps(sub.options, ctx, `${k} → `, said)) }
   }
@@ -299,6 +300,33 @@ const GAPS = {
 }
 
 
+// Live-data settings (database lookup, Accept / Decline, payment provider) are set in the form, not by chat: keep them when a key is re-proposed.
+const LIVE_FIELDS = ['check', 'confirm', 'confirmTimeout', 'declineMessage', 'payVia', 'connId', 'amountFrom', 'amount', 'currency', 'description', 'waitPaid', 'paidMessage', 'length', 'prompt', 'url']
+function keepLive(next, prev, fresh = []) {
+  for (const o of next || []) {
+    const was = (Array.isArray(prev) ? prev : []).find(x => String(x.digit) === String(o.digit) && x.action === o.action)
+    // New live keys wait for the owner's Accept / Decline by default (same as the form); existing keys keep their choice.
+    if (['webhook', 'collect', 'pin'].includes(o.action)) { if (was ? was.confirm === true : true) o.confirm = true; else delete o.confirm; if (!was) fresh.push(o.digit) }
+    if (!was) continue
+    if (was.check?.source || was.confirm || was.payVia === 'provider') for (const f of LIVE_FIELDS) if (was[f] !== undefined && (o[f] === undefined || o[f] === '' || f === 'check')) o[f] = was[f]
+    if (o.action === 'submenu') keepLive(o.options || o.subMenu?.options, was.options || was.subMenu?.options, fresh)
+  }
+  return fresh
+}
+
+// A "reach a person" key the owner never asked for and gave no phone for is left out (she may suggest it in words) instead of blocking the whole setup.
+function dropUnasked(patch, messages, current) {
+  const own = messages.filter(m => m.role !== 'assistant').map(m => m.content).join(' \n '), digits = own.replace(/[^\d]/g, '')
+  const mine = (o) => new RegExp(`\\b(?:press|key|option|dial|number)\\s*${o.digit}\\b`, 'i').test(own) || (current?.options || []).some(c => String(c.digit) === String(o.digit))
+  const gone = patch.options.filter(o => o.action === 'forward' && !mine(o) && !(o.forwardTo && digits.includes(String(o.forwardTo).replace(/\D/g, '').replace(/^1(?=\d{10}$)/, ''))))
+  if (!gone.length || gone.length === patch.options.length) return
+  patch.options = patch.options.filter(o => !gone.includes(o))
+  for (const o of gone) {
+    const press = new RegExp(`\\b(?:press|dial)\\s+${o.digit}\\b`, 'i')
+    if (typeof patch.greeting === 'string') patch.greeting = patch.greeting.split(/(?<=[.!?])\s+/).map(sen => (!press.test(sen) ? sen : (sen.match(/\b(?:press|dial)\s+\d\b/gi) || []).length === 1 ? '' : sen.split(/,\s*/).filter(cl => !press.test(cl)).join(', ').replace(/,?\s*(?:or|and)\s*$/i, '').replace(/([^.!?])$/, '$1.'))).filter(Boolean).join(' ')
+  }
+}
+
 // Nothing invented: phones, web addresses, PIN codes and numbers in spoken words must come from the owner (their messages or the current form).
 const WORDNUM = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, ninety: 90, hundred: 100, noon: 12, midnight: 12 }
 function invented(screen, patch, messages, current) {
@@ -308,7 +336,7 @@ function invented(screen, patch, messages, current) {
   for (const n of [...nums]) { const v = Number(n); if (v >= 13 && v <= 23) nums.add(String(v - 12)); if (v >= 1 && v <= 11) nums.add(String(v + 12)); nums.add(String(v).padStart(2, '0')) }
   const out = []
   const badPhone = (p) => p && !digits.includes(String(p).replace(/\D/g, '').replace(/^1(?=\d{10}$)/, ''))
-  const badUrl = (u) => { if (!u) return false; try { return !low.includes(new URL(u).hostname.toLowerCase()) } catch (_) { return true } }
+  const badUrl = (u) => !!u && !low.includes(String(u).trim().toLowerCase().replace(/\/+$/, ''))
   const badFacts = (t, keys = []) => [...new Set((String(t || '').replace(/\b(?:press(?:ing)?|key|option|dial|number)\s+\d\b/gi, ' ').replace(/\b\d+[- ]digit/gi, ' ').match(/\d+/g) || []).filter(n => !nums.has(n) && !nums.has(String(Number(n))) && !(n.length === 1 && keys.includes(n)) && n !== '00'))]
   const said = (where, label, t, keys) => { if (badFacts(t, keys).length) out.push(`${where}: what are the real details ${label} should give? (I won’t guess times, dates, prices or addresses.)`) }
   const walk = (opts, where) => {
@@ -366,12 +394,14 @@ async function chat(screen, messages, current, context) {
   const sc = SCREENS[screen]
   if (!sc || !process.env.APP_OPEN_API_KEY) return null
   try {
-    const ask1 = () => axios.post('https://api.openai.com/v1/chat/completions', {
-      model: process.env.AI_AGENT_DRAFT_MODEL || 'gpt-4.1-mini', temperature: 0.4, response_format: { type: 'json_object' }, max_tokens: 3000,
+    const ask1 = (retry) => axios.post('https://api.openai.com/v1/chat/completions', {
+      model: process.env.AI_AGENT_DRAFT_MODEL || 'gpt-4.1-mini', temperature: retry ? 0.1 : 0.4, frequency_penalty: retry ? 0.4 : 0, response_format: { type: 'json_object' }, max_tokens: 3000,
       messages: [{ role: 'system', content: system(sc, current, context, screen) }, ...messages.slice(-16).map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: str(m.content, 2000) }))],
-    }, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` }, timeout: 25000 }).then(r => JSON.parse(r.data.choices[0].message.content))
-    const j = await ask1().catch((e) => { console.log(`[Assist:${screen}] retry after: ${e.response?.data?.error?.message || e.message}`); return ask1() })
+    }, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` }, timeout: retry ? 40000 : 25000 }).then(r => JSON.parse(r.data.choices[0].message.content))
+    const j = await ask1().catch((e) => { console.log(`[Assist:${screen}] retry after: ${e.response?.data?.error?.message || e.message}`); return ask1(true) })
     const patch = clean(sc, j.patch)
+    const waits = screen === 'ivr' && patch.options ? keepLive(patch.options, current?.options) : []
+    if (screen === 'ivr' && Array.isArray(patch.options)) dropUnasked(patch, messages, current)
     const ask = Object.keys(patch).length ? invented(screen, patch, messages, current) : []
     const askFor = (list) => ({ reply: `Almost there — I just need ${list.length === 1 ? 'one thing' : 'a few things'} from you so I don’t guess:\n${list.map(a => `• ${a}`).join('\n')}`, summary: [], missing: [], patch: {} })
     if (ask.length) return askFor(ask)
@@ -409,6 +439,7 @@ async function chat(screen, messages, current, context) {
     const missing = Object.keys(patch).length && GAPS[screen] ? [...new Set(GAPS[screen]({ ...(current || {}), ...patch }, context, messages.filter(m => m.role !== 'assistant').map(m => m.content).join(' ').replace(/[^\w\s]/g, ''), current || {}))].slice(0, 6) : []
     const open = missing.filter(m => /\?\s*$/.test(m))
     if (open.length) return askFor(open)
+    if (waits.length && Array.isArray(patch.options)) j.reply = `${str(j.reply, 740) || 'Here’s what I suggest.'} Note: key ${waits.join(' and ')} waits for your Accept or Decline in the app before going on (the caller holds up to 45 seconds). You can switch that off under the key.`
     const out = { reply: str(j.reply, 900) || 'Here’s what I suggest.', summary: Object.keys(patch).length ? summaryOf(j.summary, patch) : [], missing, patch }
     // IVR architect: attach a whole-flow readiness report so the owner sees what's still needed to work on a real call.
     if (screen === 'ivr' && Object.keys(patch).length) out.readiness = BP.readiness({ ...(current || {}), ...patch }, context)
