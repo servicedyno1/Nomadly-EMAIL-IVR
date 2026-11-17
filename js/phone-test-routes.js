@@ -563,32 +563,13 @@ async function checkTestCredentialCall(sipUsername, chatId, destination) {
         { $set: { expired: true } }
       )
       console.log(`[PhoneTest] Test credential ${sipUsername} expired after ${newCount} calls`)
-      
-      // ── Send subscription upsell notification via Telegram ──
-      if (_bot && cred.chatId && !cred.webTest) {
-        const BRAND = process.env.CHAT_BOT_BRAND || 'Nomadly'
-        setTimeout(() => {
-          _bot.sendMessage(cred.chatId,
-            `🎉 <b>SIP Test Complete!</b>\n\n` +
-            `You've used all ${maxAllowed} of your free test calls. Hope you enjoyed the experience!\n\n` +
-            `🚀 <b>Ready for the full experience?</b>\n` +
-            `Get your own <b>Cloud Phone Number</b> with:\n` +
-            `✅ Unlimited SIP calls with your own Caller ID\n` +
-            `✅ Cloud IVR with custom voice menus\n` +
-            `✅ Web & softphone calling\n` +
-            `✅ Call recording & analytics\n\n` +
-            `📞 Tap <b>Cloud IVR + SIP</b> on the main menu to browse plans starting from just <b>$5</b>!\n\n` +
-            `💡 <i>Tip: Refer friends with your referral code to earn bonus test calls!</i>`,
-            { parse_mode: 'HTML' }
-          ).catch(e => console.error(`[PhoneTest] Failed to send upsell notification: ${e.message}`))
-        }, 3000)  // Delay 3s so it arrives after the call-end notification
-      }
     }
 
     console.log(`[PhoneTest] Test call #${newCount}/${maxAllowed} by ${sipUsername} (chatId: ${cred.chatId})`)
 
     return {
       isTestCall: true,
+      credId: cred._id,
       maxDuration: MAX_CALL_DURATION_SEC,
       callsRemaining: maxAllowed - newCount
     }
@@ -647,4 +628,36 @@ async function askForReview(chatId, seconds) {
   _bot.sendMessage(chatId, `🙌 Glad your test call went through!\n\nGot 30 seconds? Tell others how it went — leave a quick review at the bottom of the test page:\n${page}`).catch(() => {})
 }
 
-module.exports = { initPhoneTestRoutes, generateTestOtp, checkTestCredentialCall, getOrCreateReferralCode, trackReferral, onReviewCallback, askForReview }
+
+// End of a free test call. Never connected → give the call back (and reopen the login). Connected last call → upsell once.
+async function testCallEnded(credId, connected) {
+  if (!_db || !credId) return
+  const col = _db.collection('testCredentials')
+  if (!connected) {
+    const r = await col.findOneAndUpdate({ _id: credId, callsMade: { $gt: 0 } }, { $inc: { callsMade: -1 }, $set: { expired: false, lastRefundAt: new Date() } }, { returnDocument: 'after' })
+    const doc = r && 'value' in r ? r.value : r
+    if (doc) console.log(`[PhoneTest] Test call by ${doc.sipUsername} never connected — not counted (${doc.callsMade} used)`)
+    return
+  }
+  const cred = await col.findOne({ _id: credId })
+  if (!cred?.expired || cred.webTest || cred.upsellSentAt || !_bot || !cred.chatId) return
+  await col.updateOne({ _id: credId }, { $set: { upsellSentAt: new Date() } })
+  const maxAllowed = await getMaxCallsForUser(cred.chatId)
+  setTimeout(() => {
+    _bot.sendMessage(cred.chatId,
+      `🎉 <b>SIP Test Complete!</b>\n\n` +
+      `You've used all ${maxAllowed} of your free test calls. Hope you enjoyed the experience!\n\n` +
+      `🚀 <b>Ready for the full experience?</b>\n` +
+      `Get your own <b>Cloud Phone Number</b> with:\n` +
+      `✅ Unlimited SIP calls with your own Caller ID\n` +
+      `✅ Cloud IVR with custom voice menus\n` +
+      `✅ Web & softphone calling\n` +
+      `✅ Call recording & analytics\n\n` +
+      `📞 Tap <b>Cloud IVR + SIP</b> on the main menu to browse plans starting from just <b>$5</b>!\n\n` +
+      `💡 <i>Tip: Refer friends with your referral code to earn bonus test calls!</i>`,
+      { parse_mode: 'HTML' }
+    ).catch(e => console.error(`[PhoneTest] Failed to send upsell notification: ${e.message}`))
+  }, 3000)
+}
+
+module.exports = { initPhoneTestRoutes, generateTestOtp, checkTestCredentialCall, getOrCreateReferralCode, trackReferral, onReviewCallback, askForReview, testCallEnded }

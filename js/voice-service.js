@@ -3586,6 +3586,7 @@ async function handleOutboundSipCall(payload) {
       direction: 'outgoing',
       recordingEnabled: num.features?.recording === true,
       isTestCall: testCallInfo.isTestCall || !!lookupResult?.isTestCall,
+      testCredId: testCallInfo.credId || null,
     }
     sipQueue.settled(callControlId)
 
@@ -5003,7 +5004,9 @@ async function handleCallHangup(payload) {
     }
   } else if (session.isTestCall) {
     log(`[Voice] Skipping billing for test call (${duration}s) — free test call`)
-    require('./phone-test-routes').askForReview(chatId, duration).catch(() => {})
+    const connected = session.phase === 'bridged'
+    require('./phone-test-routes').testCallEnded(session.testCredId, connected).catch(e => log(`[PhoneTest] testCallEnded error: ${e.message}`))
+    if (connected) require('./phone-test-routes').askForReview(chatId, duration).catch(() => {})
   }
 
   // Clean up mid-call limit timer
