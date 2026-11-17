@@ -260,7 +260,7 @@ function createCloudIvrWeb(deps) {
     const bal = await wallet.walletOps(getDb()).balance(req.webChatId).catch(() => null)
     if (bal == null) return body
     const m = String(body.message || '').replace(/,/g, '')
-    const add = m.match(/\badd \$(\d+(?:\.\d+)?)/i)
+    const add = m.match(/\b(?:add|top up) \$(\d+(?:\.\d+)?)/i)
     const cost = Number(body.cost) || Number((m.match(/\b(?:costs?|needs?|at least)\s+(?:about\s+)?\$(\d+(?:\.\d+)?)/i) || [])[1])
     const need = Number(body.need) || (add ? Number(add[1]) : cost > bal ? cost - bal : 0)
     return { ...body, balance: wallet.round2(bal), ...(need > 0 ? { need: Math.ceil(need * 100) / 100 } : {}) }

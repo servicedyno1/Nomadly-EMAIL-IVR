@@ -3637,3 +3637,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - BulkSMS: blocked paid text saved (bsCustomers.pendingText, 24 h); bot loop every 30 s sends it once wallet ≥ $20 (charge $1 or use win-back free text, refund on failure); expired → dropped + told. Test js/tests/test_bulk_esim_pending_text.js 7/7.
 - Fax doc sweep: `distinct` → aggregate $group (strict API). No `.distinct(` left in js/.
 - Open (low): header wallet chip not refreshed after dialog auto-finish; title shows shortfall not the min top-up actually charged; 402 copy still says "Top up first" (filtered in dialog only); cost parsed from message text (prefer explicit cost on each 402).
+
+## 2026-06 (h) — Last "top up first" gaps closed (preview only, NOT deployed)
+- Status of the remaining-tasks list: web fax/lookups/caller-ID/renewals/10DLC/travel eSIM all go through the global pay-the-difference window (FundsAskHost, iteration_314); paid single-SMS auto-resume done in (g).
+- eSIM/BulkSMS: campaign bookings and USA eSIM already use the main bot's shared checkout (digital-product-pay) → _showBalanceWall + maybeOfferResume (wallet first, shortfall by crypto, completes itself). Fixed the remaining dead-ends: legacy bse-pay wallet path now opens that checkout instead of "wallet needs $X"; test-send fee shortage now carries a one-tap "➕ Add funds" button.
+- Web shortfall wrapper also reads "Top up $X to open this fax" as the needed amount.
+- Regression: test_bulk_esim_bot_flow 24/24, paid_receipt 8/8, one_free 8/8.

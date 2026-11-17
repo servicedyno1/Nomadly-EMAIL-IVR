@@ -204,7 +204,12 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     if (message === L.cont || message === L.test_skip || message === L.send_anyway) return askWhen()
     const k = await B.testCheck(cid, info.bseCampaign, message, { altFrom: info.bseAltFrom || null }); if (k.error) return send(chatId, `⚠️ ${errText(lang, k)}`, kb([[L.cont], [L.back]]))
     const w = walletOps(T.db)
-    if (k.charge && !(await w.debit(chatId, k.charge))) { await go('bse-test'); return send(chatId, say('wallet_low', k.charge), kb([[L.cont], [L.back]])) }
+    if (k.charge && !(await w.debit(chatId, k.charge))) {
+      await go('bse-test')
+      // One tap to the crypto top-up (the test screen's buttons stay); the test can be sent again right after.
+      if (!bot) return send(chatId, say('wallet_low', k.charge), kb([[L.cont], [L.back]]))
+      return bot.sendMessage(chatId, say('wallet_low', k.charge), { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: say('topup_btn'), callback_data: 'wallet_topup_quick' }]] } }).catch(() => {})
+    }
     const r = await B.testSend(cid, info.bseCampaign, message, { charge: k.charge, altFrom: info.bseAltFrom || null }); await go('bse-test'); if (info.bseAltFrom) await put('bseAltFrom', null)
     if (r.error) { if (k.charge) await w.credit(chatId, k.charge); return send(chatId, `⚠️ ${errText(lang, r)}`, testKb(r.error === 'err_test_guard')) }
     await put('bseTestMsg', r.messageId); await put('bseTestTo', k.to); await go('bse-test-check')
@@ -290,7 +295,8 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     const b = await B.db().collection('bsBookings').findOne({ _id: info.bseBookingId, cid }); if (!b) return send(chatId, say('err_not_found'), HK)
     if (message === L.wallet) {
       const w = walletOps(T.db)
-      if (!(await w.debit(chatId, b.price))) return send(chatId, say('wallet_low', b.price))
+      // Short: the shared checkout uses the wallet first and takes only the rest in crypto, then confirms the booking itself.
+      if (!(await w.debit(chatId, b.price))) return showBooking(b)
       const r = await B.confirmBooking(b._id, { method: 'wallet', amount: b.price })
       if (r.error) { await w.credit(chatId, b.price); return send(chatId, `⚠️ ${errText(lang, r)} ${say('not_charged')}`, HK) }
       await go('bse-home'); return true
