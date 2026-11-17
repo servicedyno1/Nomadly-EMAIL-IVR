@@ -254,9 +254,13 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       if (!trial) activeKeys = [...new Set((Array.isArray(b.activeKeys) ? b.activeKeys : ['1']).map(String))].filter(k => KEYS.test(k))
       if (!activeKeys.length) activeKeys = ['1']
     }
+    // Foolproof OTP: callers must press the trigger key first, so make sure the script says so (any language-agnostic hint is skipped if the user already mentions pressing a key).
+    if (mode === 'otp' && !audio && !/press\s*1\b/i.test(text || '')) {
+      text = `${(text || '').trim()} To continue, press 1 now.`.trim()
+    }
     return {
       cfg: {
-        callerId, showAs, callerPlan: caller?.plan || null, targets, mode, menu, transferTo, transferBackups, otp, activeKeys, holdMusic: !!b.holdMusic && !trial,
+        callerId, showAs, callerPlan: caller?.plan || null, targets, mode, menu, transferTo, transferBackups, otp, activeKeys, holdMusic: !!b.holdMusic && (mode === 'otp' || !trial),
         audioId: audio?.id || null, audioUrl: audio?.audioUrl || null, text, voiceName, templateName: String(b.templateName || audio?.name || 'Custom script').slice(0, 80),
       },
     }

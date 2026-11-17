@@ -3553,3 +3553,14 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Custom caller ID OFF: appSettings.customCallerId enabled=false in all 4 DBs; trials no longer bypass the switch (voice-service displayCallerId, SIP test testShowAs, landing call-me showAs, web trial showAs, bot trial "Show Any Caller ID" button hidden; web Trial.js hides field via trialStatus.customCallerId). Free SIP test calls now show the rotating system callers (SYSTEM_CALLER_IDS default +18648308599 / +16479457172, both Bird-verified) instead of the test account number.
 - Bird only: BIRD_ONLY=true in all 4 shared backend.env (backups .bak-birdonly). callengine originate forces trunk bird for PSTN (other-trunk caller ID → meta.ownFrom); failover.alt → null (no MultiTEL fallback; calls fail if Bird down). Failover 16/16, adapter 17/17 tests pass. NOT verified with a real call yet.
 - Deployed app-main 38cd660 (workspace deploy) + WL commit 2757ab99 (sync dry-run result) to app-wl/voodoo/proshop. Permanent after Save to GitHub.
+
+## 2026-11-17 00:45Z — Bird test calls verified + OTP fixes
+- Owner tapped Save to GitHub mid-session → GitHub Actions synced + redeployed all 4 brands (app-main f432799, WL e46b86b). So SIP-page fix, moderated reviews, custom-CID-off, Bird-only, ALWAYS_CARRY/override sync — all now permanent on GitHub + live on all brands. WL brands confirmed: callengine ownApp (silent-call fix) + failover.birdOnly present.
+- Bird-only test calls (to +13025141000) via webhook/token harness on prod, all left via Bird with rotating system callers +18648308599 / +16479457172 (both Bird-verified):
+  - Landing "we call you" menu: owner answered, heard menu, key message played ✓
+  - Web free Quick IVR, press-1 transfer: ✓ (transfer "unavailable→voicemail" only because test transferTo +16479457172 isn't a live phone)
+  - Web free Quick IVR, OTP: pressed 1 → entered 123456 → collected → on hold → bot got code + Confirm/Reject/Hangup buttons ✓ (owner confirmed message arrived)
+- Fix: OTP dead-end — if the caller pressed a code digit at the greeting (not the trigger key) the call said goodbye. buildCall (cloudivr-web/outbound.js) now appends " To continue, press 1 now." to any OTP script that doesn't already say press 1 (trial + normal).
+- New: hold music during OTP verification (owner request). voice-service otp_hold loops HOLD_MUSIC_URL when session.holdMusic; resolveOtp stops it. buildCall now allows holdMusic for OTP (was off for trials). UI toggles: web Trial.js (OTP block), QuickCall.js (OTP block), bot already had Hold Music ON/OFF.
+- Deployed app-main f432799a (workspace, uncommitted OTP+holdMusic). NOT yet on GitHub/WL — owner Save to GitHub to sync.
+- STILL PENDING (owner wants webhook-simulated, at end): bot free Quick IVR + bot SIP test page E2E. Landing "call from browser" not re-tested on sip.js path (one earlier browser call connected, caller heard beep = that browser's own audio).
