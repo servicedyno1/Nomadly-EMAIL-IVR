@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend-only verification of the new IVR Architect / Call flow feature on +13346970100 for civr.alice@example.com. All five requested items pass. (1) The Call flow card (data-testid='ivr-flow') renders with a visual tree (ivr-flow-tree): 'Incoming call → Greeting → Key 1 · Orders (Forward +14155550100) → Key 2 · Menu (Send a text  Menu: bella.com/menu)'. (2) Live Checks panel (ivr-flow-checks) works: adding a 3rd key with action 'Forward' and blank number produced within ~1s '1 thing to fix before it works' and the issue 'Key 3 — Add the phone number this key should ring (with country code).' plus a warn 'greeting — The greeting doesn't mention key 3'. Filling +14155550100 cleared the error and the panel flipped to 'Ready to save' (warn remained, as expected). (3) 'Test my menu' (ivr-flow-test-button) returned 6 passed when the key was complete, and 5 passed · 1 would fail when the key's forwardTo was blanked — rows render with data-testid='ivr-flow-test-row-*'. (4) Emily the IVR Architect: in Chat mode she introduces herself and asks a focused question, then produces a full proposal card (ivr-assist-proposal-*) with a Suggested setup summary listing Key 1 → forwards to +14155550100 (Sales), Key 2 → reads hours message: Mon-Fri 9 AM to 5 PM, Key 3 → voicemail with standard greeting, 'Greeting mentions all keys clearly'. 'Still needed before it works' block is absent — the menu is complete and saveable. 'Fill in the form' (ivr-assist-apply) is present. (5) Regression: Save button (ivr-save-button) is enabled, add/remove keys and action/forward edits still work; no unsaved pill after discarding via reload. Alice's original IVR state (greeting + 2 keys) was preserved — I never clicked Save.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Call flow card after a hard reload", "issues": ["On one reload the Call flow tree briefly showed 'Add a key to see the flow.' even though 2 keys existed in the builder (likely the 400ms debounce in the IvrFlow useEffect not having fired yet before the screenshot). Not reproducible beyond ~1s. Consider firing the initial blueprint/validate requests without the 400ms debounce on first mount so the tree is never briefly empty for a saved menu."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Optional) Skip the 400ms debounce on the initial mount in IvrFlow so a saved menu never flashes 'Add a key to see the flow.' after a reload.",
+    "(Nice-to-have) When Emily's chat first opens, ensure the first LLM response either asks ONE question OR proposes — occasionally variance causes an intro-only reply with no proposal-apply control; UX-wise this is fine because the user can continue, but tests benefit from a deterministic 'always propose by turn 2' guarantee."
+  ],
+  "critical_code_review_comments": [
+    "IvrFlow.js: the Tree component does not de-dupe visited nodes; if a submenu edge accidentally points back (data error), this would recurse. The blueprint caps depth at 2, so OK in practice, but add a visited-set guard for defensive rendering.",
+    "IvrFlow.js: swallows all errors on /ivr/blueprint and /ivr/validate with .catch(() => {}). If the backend returns an error (e.g. 401/500), the UI silently sticks with the previous state and users see stale checks. Surface at least a small 'checks unavailable' hint.",
+    "IvrFlow.js: the issues list uses index as key — stable enough here, but a composite key of {level,where,message} would prevent subtle React reconciliation glitches when live-editing."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (skipped per request)", "frontend": "100% of requested flows"},
+  "test_credentials": "civr.alice@example.com / AliceTest#2026 at /cloudivr/login (cookie-allow-all first).",
+  "seed_data_creation": "None. The number's IVR was not saved; all edits were discarded by reload. Alice's greeting ('Press 1 for orders, press 2 for our menu by text.') and both keys (Key 1 Forward +14155550100, Key 2 Send-a-text Menu: bella.com/menu) are intact.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "IVR URL: /cloudivr/app/numbers/%2B13346970100?tab=ivr. Selectors: ivr-flow, ivr-flow-tree, ivr-flow-checks, ivr-flow-issue-error-*, ivr-flow-test-button, ivr-flow-test-summary, ivr-flow-test-row-*, ivr-assist, ivr-assist-mode-chat, ivr-assist-input, ivr-assist-send, ivr-assist-proposal-{msgIdx}, ivr-assist-proposal-{msgIdx}-summary, ivr-assist-proposal-{msgIdx}-missing, ivr-assist-proposal-{msgIdx}-apply. NOTE: the proposal testid suffix is the MESSAGE index in the conversation (not a sequential proposal index); use locator('[data-testid^=ivr-assist-proposal-][data-testid$=-apply]').last. Emily occasionally asks a clarifying question first — be ready to send a confirming follow-up. Use domcontentloaded + explicit selector waits (networkidle times out because of the live SSE).",
+  "rca of the issue": "No defect reproduced. The 'empty flow on reload' flash is a 400ms debounce timing, not a logic bug."
+}
