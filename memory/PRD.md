@@ -577,3 +577,11 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 ## 2026-06 update
 - DONE (preview): OTP Replay + live wrong-code message on Accept/Decline pop-up; fax doc cleanup; Emily echo fixes; extension row layout. See CHANGELOG.
 - NEXT: production deploy + controlled real test call of Replay (scripts/ivr_live_probe.js, back up/restore IVR); Emily afterHours echo + readiness texting-line fix; then personalization (web/Quick IVR, Bulk IVR, Bulk SMS) and full team accounts.
+
+## 2026-06 — Extra numbers in bulk, new limits, SIP reset & group alerts
+- Extra-number limits: Basic 5, Starter 10, Pro 25, Business 50, Enterprise unlimited (phone-config SUB_NUMBER_LIMITS + subSlotsLeft). Existing plans get them immediately.
+- Web: tick several search results on /app/buy?extra=… and pay once (wallet: POST /numbers/:phone/extra {phoneNumbers}; crypto: one order with items[] → activateExtras). A number that fails is skipped, its money stays in the wallet. Testing agent iteration_315: 12/12 backend, all UI flows pass.
+- Bot: sub-number search is tick-to-pick (js/sub-batch.js) + "➡️ Continue with N numbers" → walletOnly checkout step 'phone-batch-pay' (deposit/resume for shortfall), each number bought via walletOk['phone-pay']. Unit-tested only, not driven live.
+- Group alerts off: notifyGroup sends only to admin chat unless TELEGRAM_GROUP_ALERTS=true.
+- SIP: 🔄 Reset Password keeps the username (sip-logins.newPasswordOnly; Telnyx short logins PATCHed); if only a whole new login is possible the message warns the username changed. Manage screen refreshes the cached SIP login from the record. AI support: "error 57" = turn STUN off, never a reset. voice-service: MultiTEL/Infobip numbers and free-test logins arriving via Telnyx no longer hit "Unknown provider". Tests: js/tests/test_sip_reset_keep_user.js 8/8, test_extra_numbers_multi.js 9/9.
+- Open (not fixed, from iteration_315): landing catalogSnapshot still shows old 3/8/15/30; 1-pick extra lands on number setup vs N-picks on billing; wallet multi-add slot check not locked against concurrent requests; one coupon discounts all N extras; singular headings; checkout resets when ticking.

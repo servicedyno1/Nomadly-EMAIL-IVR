@@ -1,0 +1,44 @@
+{
+  "summary": "End-to-end test of the CloudIVR multi-select extra-number feature (web API + UI) as QA user civr.uxtest@example.com on Business number +13341112222. Backend: new pytest file with 12 tests, all passing: catalog limits 5/10/25/50 (authed /catalog and /public/catalog), GET extra limit 50, too_many (wallet and crypto), pick_number, search_again, is_extra, wallet purchase of 3 at once (201, $75 charged, used +3), old single {phoneNumber} body, crypto extra-checkout with 3 numbers (count=3, numbers[], charge 75), then simulate-payment adds all 3. Frontend: Billing tab card shows 'N of 50 used' and the billing-extra-add-link goes to /cloudivr/app/buy?extra=%2B13341112222. The header shows 'N of 50 used'. The pick bar ticks, unticks and clears correctly (data-selected). With 3 ticked, buy-total is $75.00 and the label lists all 3. Paying from the wallet redirects to the parent's billing tab, the count goes from 10 to 13 of 50, the wallet goes from $309.13 to $234.13 and the rows list the new numbers. Paying by crypto opens the order page with '3 numbers (...) · extra numbers on +13341112222 (Business plan)'. Simulate payment then shows 'Your extra numbers are live' with all 3 in order-assigned-numbers, and the wallet stays the same. Landing pricing-enterprise says 'unlimited extra numbers' (inside the collapsed 'pricing-more' details). Regression: buying a brand-new number still selects one number and shows the plan picker, with no pick bar. Node unit tests pass: test_extra_numbers_multi 9/9 and test_sip_reset_keep_user 8/8. No functional bugs found; only minor issues below.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/numbers/:phone/extra (multi)", "issue": "The free-slot check runs once before the buy loop and is not locked. Two requests sent at the same time can both pass it and go over the plan limit. The crypto path (activateExtras) re-checks the slots as it loops; the wallet path does not."},
+      {"endpoint": "POST .../extra and .../extra-checkout with coupon", "issue": "The coupon is checked once, then applied to every one of the N numbers, and redeemCoupon/markCodeUsed is called N times. A single-use coupon therefore discounts all N extras. Confirm this is the intended business rule."},
+      {"endpoint": "POST .../extra 402 insufficient_balance (multi)", "issue": "Not exercised live: the QA wallet ($459) could not be drained without changing seeded data. Verified by code review only: it returns cost/balance/need when the wallet is short of the N-number total."},
+      {"endpoint": "Partial failure (one picked number taken, rest added, missed one's money kept)", "issue": "Not reproducible via the API alone: a bought number is removed from the account's search cache, so re-picking it returns 400 search_again. Covered only by the unit tests."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "landing/catalogSnapshot.js (fallback catalog for Landing.js / For.js)", "issue": "The static CATALOG_SNAPSHOT still says 'Add up to 3 / 8 / 15 / 30 extra numbers' (the old limits). It is shown on first paint or whenever /public/catalog fails. Regenerate the snapshot with the 5/10/25/50 limits.", "selector": "CATALOG_SNAPSHOT", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Extra flow with exactly 1 pick", "issue": "The backend returns the single-purchase shape ({number,...}, not {added}), so the UI shows '<number> is yours' and goes to the new number's setup page. With 2 or more picks it shows 'N extra numbers added' and goes to the parent's billing tab. The two cases end in different places.", "affected_selectors": ["civr-checkout-pay-now-btn"]}
+    ],
+    "design_issues": [
+      {"screen": "Buy page (?extra=)", "issues": ["Headings are still singular: 'Add an extra number', and on the order page 'Your extra number order', even when several are picked.", "Ticked and unticked result cards look almost the same (only a small check icon). Make the selected state stronger, e.g. an accent border or background.", "Checkout is keyed on picks.length, so it remounts every time a number is ticked or unticked and resets the chosen pay method, coin and coupon input."]},
+      {"screen": "Number → Billing → Extra numbers", "issues": ["The list of extras has no paging or collapse and each row has a lot of empty space. With up to 50 extras the card becomes very long. The red auto-renew warning lists every extra number in one long line."]},
+      {"screen": "Order success (multi extras)", "issues": ["The only button is 'Set up <first number>'. Add a link back to the parent's Billing tab or the numbers list."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_extra_numbers_multi.py", "/app/test_reports/pytest/extra_multi.xml"],
+  "action_items": [
+    "Update frontend/src/cloudivr/pages/landing/catalogSnapshot.js to the new extra-number limits (5/10/25/50)",
+    "Optional: lock or re-check free slots inside the wallet multi-buy loop to prevent concurrent over-limit purchases",
+    "Confirm the coupon rule for multi-extra orders (one coupon discounting all N numbers)",
+    "Optional UX: plural headings, a stronger selected-card style, keep Checkout state when picks change, a link back to the parent's billing after a multi-extra order, and the same success path when only 1 number is picked"
+  ],
+  "critical_code_review_comments": [
+    "numbers.js is 1220 lines, over the 700-line guideline",
+    "extras.js POST /extra and orders.js /extra-checkout repeat the same validation (is_extra / not_active / pick_number / limit_reached / too_many / search_again); move it into one shared helper",
+    "getSubNumberLimit uses `|| 0`, so an unknown plan key gives 0 slots. That is fine; Infinity for enterprise works with subSlotsLeft and limitJson"
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_extra_numbers_multi.py"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "Preview DB, QA account civr.uxtest: 15 extra numbers were added on +13341112222 (it now has 16 of 50: 9 from API tests, plus 3 wallet + 3 crypto from the UI). Wallet went from $459.13 to $234.13 (wallet purchases; the crypto simulation was net zero). Two dry-run crypto orders were created. Nothing was deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Web API prefix is /api/cloudivr-web (cookie session from POST /auth/login). /catalog needs auth; /public/catalog does not. Search cache: POST /extra only accepts numbers from the account's last /numbers/search, and bought numbers drop out of the cache. Run pytest with -n0 because the tests share state. The QA user's Business number now has 16 extras and the wallet is ~$234; each run of the pytest file uses ~8 slots and $125.",
+  "test_credentials": "civr.uxtest@example.com / UxTest#2026 (from /app/memory/test_credentials.md)"
+}
