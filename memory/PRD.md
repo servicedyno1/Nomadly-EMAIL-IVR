@@ -59,7 +59,7 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - [ ] 4 caller-ID free test calls via Bird (landing, web Quick IVR, bot Quick IVR, bot SIP test page)
 - [ ] Campaign results: 34 answered-but-no_answer calls (deploy windows) — confirm, fix WL brands' ARI app split
 - [ ] Backup carrier switching end-to-end (switch, alert, recovery)
-- [ ] WL CloudIVR web browser phone still Telnyx-only (no sip.js path)
+- [x] WL dashboard browser phone on our SIP server + brand sync always carries SIP files (deployed f84ae145; permanent after Save to GitHub)
 - [ ] Top up Multitel account, buy test US number, test full SIP routing
 - [ ] Deploy inbound email code to production
 - [ ] Verify Zadarma number activation

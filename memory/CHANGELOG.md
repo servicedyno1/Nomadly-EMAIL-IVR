@@ -3539,3 +3539,10 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Deployed: app-main 79598ef workspace deploy (normal drain). WL brands via overlay /tmp/wlsip/wl_sip_test_overlay.sh (+ SIP_WSS_URL added to shared/<app>/backend.env, backup .bak-wlsip) — app-wl, app-voodoo, app-proshop all EXIT 0. Overlay lost on next WhiteLabel CI deploy unless synced.
 - Verified live: 2.speechcue.com/call My Credentials with a QA test login → "Registered with Speechcue SIP"; wrong pw → auth error. WSS REGISTER with QA test logins on smadav/voodoo/proshop domains → 200. QA creds deleted. NOT verified: a real outbound call from the page; landing browser free call over sip.js.
 - Not changed: WL CloudIVR web dashboard browser phone (WL rtc.js has no sip.js path) still Telnyx-only.
+
+## 2026-11-17 00:05Z — Brand SIP fix made permanent + brand dashboard browser phone on our SIP server
+- scripts/sync_whitelabel.py: ALWAYS_CARRY (webrtc-config.js, trycall.js, sipClient.js copied from main every sync, no dep chasing) + OVERRIDE_DIR `ops/whitelabel-overrides/<path>` (WhiteLabel's own variant written to <path>). Overrides: WL `frontend/src/cloudivr/rtc.js` (WL version + sip.js WSS path, Telnyx fallback) and WL landing `tryApi.js` (WL version + sipCall). Edit those override files when WL's rtc/tryApi must change.
+- Dry run on droplet (/tmp/wlsync: app-main.git + WhiteLabel, workspace bundle) → clean: 9 taken, 5 pinned, _index.js 3-way merged, 0 conflicts → commit f84ae145.
+- Deployed f84ae145 to app-wl, app-voodoo, app-proshop (scripts/wl_commit_deploy.sh, normal drain, all EXIT 0). Added CLOUDIVR_SIP_DOMAIN=<brand sip domain> to each WL shared backend.env (was defaulting to sip.cloudivr.net → Kamailio would send WL web logins to Nomadly's /sip-auth). WL brands have 0 web accounts with numbers today.
+- Verified: 1.smadavspeech.com/call registers a QA test login ("Registered with SmadavSpeech SIP"; first try hit one transient WS 1006). QA creds removed.
+- Permanent once owner taps Save to GitHub (auto sync → WL CI redeploy of same content).
