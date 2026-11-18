@@ -457,6 +457,8 @@ async function receiptsOf(chatId, id) {
 }
 async function billOne(d) {
   if (!d.price || d.autoRenew === false) return false
+  // eSIMs bought at the old $75 (e.g. still waiting for an IMEI at the switch) renew at $50 too.
+  if (d.kind !== 'mobile' && d.price > 50) { d = { ...d, price: 50 }; await S.col.updateOne({ _id: d._id }, { $set: { price: 50 } }) }
   if (await S.w.debit(d.chatId, d.price)) {
     await txn(d.chatId, 'esim-renewal', d.price, { lineId: d._id })
     const base = (real(d) && await subEnd(d.iccid, d._id)) || new Date(d.expiresAt)
@@ -706,11 +708,13 @@ async function priceLinked() {
   await S.db.collection('spenzaConfig').insertOne({ _id: flag, at: new Date() })
 }
 
-// One-off owner decision: USA Starter eSIM sells at $75.
+// One-off owner decision: USA Starter eSIM sells at $50 (web and bot); live eSIM lines renew at $50 too.
 async function defaultPrice() {
-  const flag = 'price:SPENZA_001:75'
+  const flag = 'price:SPENZA_001:50'
   if (await S.db.collection('spenzaConfig').findOne({ _id: flag })) return
-  await S.db.collection('esimPlans').updateOne({ _id: 'SPENZA_001' }, { $set: { price: 75, enabled: true, updatedAt: new Date() }, $setOnInsert: { label: 'USA Starter eSIM' } }, { upsert: true })
+  await S.db.collection('esimPlans').updateOne({ _id: 'SPENZA_001' }, { $set: { price: 50, enabled: true, updatedAt: new Date() }, $setOnInsert: { label: 'USA Starter eSIM' } }, { upsert: true })
+  const r = await S.col.updateMany({ kind: { $ne: 'mobile' }, status: { $in: ['active', 'suspended'] }, price: { $gt: 50 } }, { $set: { price: 50, updatedAt: new Date() } })
+  S.log(`[eSIM] price set to $50/month; ${r.modifiedCount} live line(s) now renew at $50`)
   await S.db.collection('spenzaConfig').insertOne({ _id: flag, at: new Date() })
 }
 

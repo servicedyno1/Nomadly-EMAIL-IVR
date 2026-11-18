@@ -640,19 +640,19 @@ ${CHAT_BOT_NAME}`,
  },
 
  // Digital Products
- digitalProductsSelect: `🛒 <b>डिजिटल उत्पाद</b>\n\nसत्यापित खाते इस बॉट के माध्यम से <b>तेज़ी</b> से वितरित किए जाते हैं।\n\n<b>टेलीकॉम</b> — Twilio, Telnyx (SMS, वॉइस, SIP)\n<b>क्लाउड</b> — AWS, Google Cloud (पूर्ण एक्सेस)\n<b>ईमेल</b> — Google Workspace, Zoho Mail, IONOS SMTP\n<b>मोबाइल</b> — eSIM T-Mobile\n\nक्रिप्टो, बैंक या वॉलेट से भुगतान करें। नीचे चुनें:`,
+ digitalProductsSelect: `🛒 <b>डिजिटल उत्पाद</b>\n\nसत्यापित खाते इस बॉट के माध्यम से <b>तेज़ी</b> से वितरित किए जाते हैं।\n\n<b>क्लाउड</b> — AWS, Google Cloud (पूर्ण एक्सेस)\n<b>ईमेल</b> — Google Workspace, Zoho Mail, IONOS SMTP\n<b>मोबाइल</b> — eSIM T-Mobile\n\nक्रिप्टो, बैंक या वॉलेट से भुगतान करें। नीचे चुनें:`,
  dpTwilioMain: `📞 Twilio मुख्य खाता — $${DP_PRICE_TWILIO_MAIN}`,
  dpTwilioSub: `📞 Twilio उप-खाता — $${DP_PRICE_TWILIO_SUB}`,
  dpTelnyxMain: `📡 Telnyx मुख्य खाता — $${DP_PRICE_TELNYX_MAIN}`,
  dpTelnyxSub: `📡 Telnyx उप-खाता — $${DP_PRICE_TELNYX_SUB}`,
  dpGworkspaceNew: `📧 Google Workspace Admin (नया डोमेन) — $${DP_PRICE_GWORKSPACE_NEW}`,
- dpGworkspaceAged: `📧 Google Workspace Admin (पुराना डोमेन) — $${DP_PRICE_GWORKSPACE_AGED}`,
- dpEsim: `📱 USA T-Mobile eSIM — $75/माह`,
+ dpGworkspaceAged: `📧 Google Workspace अकाउंट — $${DP_PRICE_GWORKSPACE_AGED}`,
+ dpEsim: `📱 USA T-Mobile eSIM — $50/माह`,
  dpZohoNew: `📧 Zoho Mail (नया डोमेन) — $${DP_PRICE_ZOHO_NEW}`,
- dpZohoAged: `📧 Zoho Mail (पुराना डोमेन) — $${DP_PRICE_ZOHO_AGED}`,
+ dpZohoAged: `📧 Zoho Mail अकाउंट — $${DP_PRICE_ZOHO_AGED}`,
  dpAwsMain: `☁️ AWS मुख्य खाता — $${DP_PRICE_AWS_MAIN}`,
  dpAwsSub: `☁️ AWS उप-खाता — $${DP_PRICE_AWS_SUB}`,
- dpGcloudMain: `🌐 Google Cloud मुख्य — $${DP_PRICE_GCLOUD_MAIN}`,
+ dpGcloudMain: `🌐 Google Cloud अकाउंट — $${DP_PRICE_GCLOUD_MAIN}`,
  dpGcloudSub: `🌐 Google Cloud उप — $${DP_PRICE_GCLOUD_SUB}`,
  dpIonosSmtp: `📧 IONOS SMTP — $${DP_PRICE_IONOS_SMTP}`,
  dpPaymentPrompt: (product, price) => {
@@ -663,12 +663,12 @@ ${CHAT_BOT_NAME}`,
  'Telnyx Sub-Account': 'Telnyx सब-अकाउंट, Mission Control Portal लॉगिन और API एक्सेस — मैसेजिंग, वॉइस और नंबर।\n\nआपको मिलेगा: लॉगिन क्रेडेंशियल + API कुंजी।',
  'AWS Main Account': 'पूर्ण root-स्तर AWS खाता, Console एक्सेस — EC2, S3, Lambda, SES आदि।\n\nआपको मिलेगा: root ईमेल, पासवर्ड और MFA सेटअप।',
  'AWS Sub-Account': 'AWS सब-अकाउंट (Organizations सदस्य), पूर्ण Console लॉगिन और मुख्य सेवाओं तक पहुँच — EC2, S3, Lambda आदि।\n\nआपको मिलेगा: लॉगिन क्रेडेंशियल और IAM एक्सेस।',
- 'Google Cloud Main Account': 'पूर्ण स्वामी-स्तर Google Cloud खाता, बिलिंग सक्रिय। Compute Engine, Cloud Storage, BigQuery और सभी GCP सेवाएँ।\n\nआपको मिलेगा: लॉगिन क्रेडेंशियल।',
+ 'Google Cloud Account': 'पूर्ण स्वामी-स्तर Google Cloud खाता, बिलिंग सक्रिय। Compute Engine, Cloud Storage, BigQuery और सभी GCP सेवाएँ।\n\nआपको मिलेगा: लॉगिन क्रेडेंशियल।',
  'Google Cloud Sub-Account': 'Google Cloud प्रोजेक्ट, पूर्ण Console लॉगिन और एडिटर-स्तर एक्सेस। कंप्यूट, स्टोरेज और API शामिल।\n\nआपको मिलेगा: लॉगिन क्रेडेंशियल और सर्विस अकाउंट कुंजी।',
  'Google Workspace (New Domain)': 'नए डोमेन पर Google Workspace बिज़नेस ईमेल। @आपकाडोमेन ईमेल — Gmail, Drive, Docs और Meet।\n\nआपको मिलेगा: एडमिन लॉगिन + डोमेन क्रेडेंशियल।',
- 'Google Workspace (Aged Domain)': 'पुराने डोमेन पर Google Workspace, बेहतर डिलीवरेबिलिटी। बिज़नेस ईमेल + पूर्ण Google सुइट।\n\nआपको मिलेगा: एडमिन लॉगिन + डोमेन क्रेडेंशियल।',
+ 'Google Workspace Account': 'पुराने डोमेन पर Google Workspace, बेहतर डिलीवरेबिलिटी। बिज़नेस ईमेल + पूर्ण Google सुइट।\n\nआपको मिलेगा: एडमिन लॉगिन + डोमेन क्रेडेंशियल।',
  'Zoho Mail (New Domain)': 'नए डोमेन पर Zoho Mail प्रोफेशनल ईमेल। @आपकाडोमेन ईमेल — कैलेंडर, संपर्क और स्टोरेज।\n\nआपको मिलेगा: एडमिन लॉगिन + डोमेन सेटअप।',
- 'Zoho Mail (Aged Domain)': 'पुराने डोमेन पर Zoho Mail, बेहतर प्रतिष्ठा। प्रोफेशनल ईमेल + पूर्ण Zoho सुइट।\n\nआपको मिलेगा: एडमिन लॉगिन + डोमेन क्रेडेंशियल।',
+ 'Zoho Mail Account': 'पुराने डोमेन पर Zoho Mail, बेहतर प्रतिष्ठा। प्रोफेशनल ईमेल + पूर्ण Zoho सुइट।\n\nआपको मिलेगा: एडमिन लॉगिन + डोमेन क्रेडेंशियल।',
  }
  const desc = descriptions[product] || ''
  return `💰 <b>ऑर्डर: ${product}</b>\n\n💵 कीमत: <b>$${price}</b>${desc ? '\n\n' + desc : ''}\n\nभुगतान विधि चुनें:`
@@ -2532,7 +2532,7 @@ DNS प्रबंधन · Anti-Red सुरक्षा
 JS Challenge शील्ड · SSL शामिल
 
 🛒 <b>डिजिटल उत्पाद</b>
-Twilio · Telnyx · AWS · Google Cloud
+AWS · Google Cloud
 Google Workspace · Zoho Mail · eSIM
 
 💳 <b>वर्चुअल डेबिट कार्ड</b>

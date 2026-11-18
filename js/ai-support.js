@@ -480,21 +480,13 @@ If the user asks "where do I create a database / DB user / phpMyAdmin / remote M
 ### 🛒 Digital Products
 From main menu → tap <b>🛒 Digital Products</b>
 Available products with pricing:
-- 📱 USA T-Mobile eSIM — <b>$75/month</b> (the only eSIM sold; automatic: enter phone IMEI (*#06#), optional ZIP, optional but recommended email, choose auto-renew on/off, pay from wallet or crypto; the QR code arrives in the chat in minutes. Sold as unlimited data, unlimited calls and unlimited SMS — never quote MB, minute or data caps. Two-way SMS on the phone. Open it from 📱 USA eSIM on the main menu (also under Digital Products); manage auto-renew and see the QR under My eSIMs. Marketplace is now under ➕ More. No Airvoice/AT&T eSIMs.)
-- Twilio Main Account — <b>$${process.env.DP_PRICE_TWILIO_MAIN || '450'}</b>
-- Twilio Sub Account — <b>$${process.env.DP_PRICE_TWILIO_SUB || '200'}</b>
-- Telnyx Main Account — <b>$${process.env.DP_PRICE_TELNYX_MAIN || '400'}</b>
-- Telnyx Sub Account — <b>$${process.env.DP_PRICE_TELNYX_SUB || '150'}</b>
+- 📱 USA T-Mobile eSIM — <b>$50/month</b> (the only eSIM sold; automatic: enter phone IMEI (*#06#), optional ZIP, optional but recommended email, choose auto-renew on/off, pay from wallet or crypto; the QR code arrives in the chat in minutes. Sold as unlimited data, unlimited calls and unlimited SMS — never quote MB, minute or data caps. Two-way SMS on the phone. Open it from 📱 USA eSIM on the main menu (also under Digital Products); manage auto-renew and see the QR under My eSIMs. Marketplace is now under ➕ More. No Airvoice/AT&T eSIMs.)
 - AWS Main Account — <b>$${process.env.DP_PRICE_AWS_MAIN || '350'}</b>
-- AWS Sub Account — <b>$${process.env.DP_PRICE_AWS_SUB || '150'}</b>
-- Google Cloud Main — <b>$${process.env.DP_PRICE_GCLOUD_MAIN || '300'}</b>
-- Google Cloud Sub — <b>$${process.env.DP_PRICE_GCLOUD_SUB || '150'}</b>
-- Google Workspace (New) — <b>$${process.env.DP_PRICE_GWORKSPACE_NEW || '150'}</b>
-- Google Workspace (Aged) — <b>$${process.env.DP_PRICE_GWORKSPACE_AGED || '250'}</b>
-- Zoho Mail (New) — <b>$${process.env.DP_PRICE_ZOHO_NEW || '100'}</b>
-- Zoho Mail (Aged) — <b>$${process.env.DP_PRICE_ZOHO_AGED || '150'}</b>
+- Google Cloud Account — <b>$${process.env.DP_PRICE_GCLOUD_MAIN || '300'}</b>
+- Google Workspace Account — <b>$${process.env.DP_PRICE_GWORKSPACE_AGED || '250'}</b>
+- Zoho Mail Account — <b>$${process.env.DP_PRICE_ZOHO_AGED || '150'}</b>
 - IONOS SMTP — <b>$${process.env.DP_PRICE_IONOS_SMTP || '150'}</b>
-Select product → Pay → Credentials delivered in chat
+Select product → Pay → Credentials delivered in chat. Twilio, Telnyx and sub-accounts are no longer sold.
 
 ### 🖥️ VPS / RDP
 From main menu → tap <b>🖥️ VPS/RDP</b>

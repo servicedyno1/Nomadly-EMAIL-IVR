@@ -12,7 +12,7 @@ const en = {
   foot: { why: (e) => `You're getting this because ${e} has a CloudIVR account.`, settings: 'Email settings', support: 'Message support', off: { weekly: 'Stop weekly summaries', campaigns: 'Stop campaign reports', voicemail: 'Stop voicemail alerts', receptionist: 'Stop AI receptionist messages', missed: 'Stop missed-call alerts' } },
   adds: {
     standard: ['Keypad menu — press 1 for sales', 'Ring groups — ring several phones at once', 'Call recording', 'AI call summaries'],
-    pro: ['Quick IVR & recorded-message campaigns', 'AI conversation campaigns — an AI talks with each lead', 'Code collection with Accept / Decline', 'Scheduled calls & saved presets'],
+    pro: ['Quick IVR & recorded-message campaigns', 'AI conversation campaigns — an AI talks with each lead', 'Verify your customers identity via OTP', 'Scheduled calls & saved presets'],
     business: ['Call from any number (custom caller ID)', 'Text Triggers — a text starts a call', 'Text calls for deaf & hard-of-hearing users', 'Encrypted calls', 'Priority support'],
   },
   upsell: { title: (p) => `Want more firepower? ${p} adds:`, cta: (p) => `See what ${p} adds` },
@@ -225,7 +225,7 @@ const fr = {
   foot: { why: (e) => `Vous recevez cet e-mail car ${e} possède un compte CloudIVR.`, settings: 'Paramètres e-mail', support: 'Contacter le support', off: { weekly: 'Ne plus recevoir le résumé hebdo', campaigns: 'Ne plus recevoir les rapports de campagne', voicemail: 'Ne plus recevoir les alertes de messagerie', receptionist: 'Ne plus recevoir les messages du réceptionniste IA', missed: 'Ne plus recevoir les alertes d’appel manqué' } },
   adds: {
     standard: ['Menu à touches — 1 pour les ventes', 'Groupes de sonnerie', 'Enregistrement d’appels', 'Résumés d’appels IA'],
-    pro: ['Quick IVR et campagnes de messages enregistrés', 'Campagnes de conversations IA — une IA parle avec chaque contact', 'Collecte de codes avec Accepter / Refuser', 'Appels planifiés et préréglages enregistrés'],
+    pro: ['Quick IVR et campagnes de messages enregistrés', 'Campagnes de conversations IA — une IA parle avec chaque contact', 'Vérifiez l’identité de vos clients par OTP', 'Appels planifiés et préréglages enregistrés'],
     business: ['Appeler depuis n’importe quel numéro (caller ID personnalisé)', 'Text Triggers — un SMS déclenche un appel', 'Appels texte pour personnes sourdes et malentendantes', 'Appels chiffrés', 'Support prioritaire'],
   },
   upsell: { title: (p) => `Envie de plus de puissance ? ${p} ajoute :`, cta: (p) => `Voir ce qu’ajoute ${p}` },

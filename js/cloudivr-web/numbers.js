@@ -95,7 +95,7 @@ const WEB_FEATURES = [
   ['quickIvr', 'Quick IVR — automated calls to up to 10 people', 'ivrOutbound', 'calls'],
   ['callMeFirst', 'Call me first — calls through your mobile', 'ivrOutbound', 'calls'],
   ['bulk', 'Recorded-message campaigns to a whole list', 'bulkCall', 'calls'],
-  ['otp', 'Code collection (OTP) with Accept / Decline', 'otpCollection', 'calls'],
+  ['otp', 'Verify your customers identity via OTP', 'otpCollection', 'calls'],
   ['schedulePresets', 'Scheduled calls and saved call presets', 'ivrSchedule', 'calls'],
   ['anyCallerId', 'Custom caller ID — call from any number', (plan) => plan === 'business', 'calls'],
   ['redial', 'Redial and your own accept / decline messages for codes', 'ivrRedial', 'calls'],

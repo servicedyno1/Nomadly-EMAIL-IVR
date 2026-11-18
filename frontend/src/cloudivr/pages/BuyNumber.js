@@ -11,6 +11,7 @@ import { KindPicker, KindChosen, useKindFacts } from './buy/KindPicker';
 import { CallsBuy } from './buy/CallsBuy';
 import { TextingBuy } from './buy/TextingBuy';
 import { FaxNumberBuy } from './buy/FaxNumberBuy';
+import { PlanSuggest } from '../PlanSuggest';
 
 // One progress bar for every kind of number: what it's for → pick a number → pay.
 function Steps({ labels, current, onBack }) {
@@ -48,6 +49,7 @@ export default function BuyNumber() {
   const onStage = useCallback((s) => setStage(s), []);
   const choose = (id) => setParams(p => { const n = new URLSearchParams(p); n.set('purpose', id); return n; });
   const change = () => setParams({});
+  const fromEmily = (o) => setParams(o.kind && o.kind !== 'calls' ? { purpose: o.kind } : { purpose: 'calls', plan: o.plan });
   if (!catalog) return <Spinner />;
   if (extraOf) return (
     <div data-testid="buy-page">
@@ -61,7 +63,7 @@ export default function BuyNumber() {
     <div data-testid="buy-page" data-kind={kindId || ''}>
       <PageHeader label="Phone numbers" title="Get a number" sub="Three steps: say what it’s for, pick your plan and number, pay. Month to month, paid from your wallet." testid="buy-header" />
       <Steps labels={['What it’s for', kindId === 'calls' ? 'Plan and number' : 'Pick a number', 'Pay']} current={kind ? stage : 1} onBack={change} />
-      {!kind ? <KindPicker facts={facts} onPick={choose} /> : <>
+      {!kind ? <><div className="mb-6 civr-rise"><PlanSuggest dark onContinue={fromEmily} title="Not sure what you need? Tell Emily about your business" testid="buy-start-suggest" /></div><KindPicker facts={facts} onPick={choose} /></> : <>
         <KindChosen kind={kind} onChange={change} />
         {kindId === 'calls' && <CallsBuy onStage={onStage} />}
         {kindId === 'texting' && <TextingBuy onStage={onStage} startCountry={(params.get('country') || '').toUpperCase()} />}

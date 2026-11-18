@@ -643,19 +643,19 @@ ${CHAT_BOT_NAME}`,
  },
 
  // Digital Products
- digitalProductsSelect: `🛒 <b>Produits numériques</b>\n\nComptes vérifiés livrés <b>rapidement</b> via ce bot.\n\n<b>Télécom</b> — Twilio, Telnyx (SMS, Voix, SIP)\n<b>Cloud</b> — AWS, Google Cloud (Accès complet)\n<b>Email</b> — Google Workspace, Zoho Mail, IONOS SMTP\n<b>Mobile</b> — eSIM T-Mobile\n\nPayez par crypto, virement bancaire ou portefeuille. Sélectionnez ci-dessous :`,
+ digitalProductsSelect: `🛒 <b>Produits numériques</b>\n\nComptes vérifiés livrés <b>rapidement</b> via ce bot.\n\n<b>Cloud</b> — AWS, Google Cloud (Accès complet)\n<b>Email</b> — Google Workspace, Zoho Mail, IONOS SMTP\n<b>Mobile</b> — eSIM T-Mobile\n\nPayez par crypto, virement bancaire ou portefeuille. Sélectionnez ci-dessous :`,
  dpTwilioMain: `📞 Compte Twilio Principal — $${DP_PRICE_TWILIO_MAIN}`,
  dpTwilioSub: `📞 Sous-compte Twilio — $${DP_PRICE_TWILIO_SUB}`,
  dpTelnyxMain: `📡 Compte Telnyx Principal — $${DP_PRICE_TELNYX_MAIN}`,
  dpTelnyxSub: `📡 Sous-compte Telnyx — $${DP_PRICE_TELNYX_SUB}`,
  dpGworkspaceNew: `📧 Google Workspace Admin (Nouveau domaine) — $${DP_PRICE_GWORKSPACE_NEW}`,
- dpGworkspaceAged: `📧 Google Workspace Admin (Domaine ancien) — $${DP_PRICE_GWORKSPACE_AGED}`,
- dpEsim: `📱 eSIM USA T-Mobile — 75 $/mois`,
+ dpGworkspaceAged: `📧 Compte Google Workspace — $${DP_PRICE_GWORKSPACE_AGED}`,
+ dpEsim: `📱 eSIM USA T-Mobile — 50 $/mois`,
  dpZohoNew: `📧 Zoho Mail (Nouveau domaine) — $${DP_PRICE_ZOHO_NEW}`,
- dpZohoAged: `📧 Zoho Mail (Domaine ancien) — $${DP_PRICE_ZOHO_AGED}`,
+ dpZohoAged: `📧 Compte Zoho Mail — $${DP_PRICE_ZOHO_AGED}`,
  dpAwsMain: `☁️ Compte AWS Principal — $${DP_PRICE_AWS_MAIN}`,
  dpAwsSub: `☁️ Sous-compte AWS — $${DP_PRICE_AWS_SUB}`,
- dpGcloudMain: `🌐 Google Cloud Principal — $${DP_PRICE_GCLOUD_MAIN}`,
+ dpGcloudMain: `🌐 Compte Google Cloud — $${DP_PRICE_GCLOUD_MAIN}`,
  dpGcloudSub: `🌐 Google Cloud Sous-compte — $${DP_PRICE_GCLOUD_SUB}`,
  dpIonosSmtp: `📧 IONOS SMTP — $${DP_PRICE_IONOS_SMTP}`,
  dpPaymentPrompt: (product, price) => {
@@ -666,12 +666,12 @@ ${CHAT_BOT_NAME}`,
  'Telnyx Sub-Account': 'Sous-compte Telnyx avec connexion Mission Control Portal et accès API pour messagerie, voix et numéros. Comprend 2 Sender IDs et $20 de crédit.\n\nVous recevez : identifiants de connexion + clé API.',
  'AWS Main Account': 'Compte AWS root avec accès Console a tous les services — EC2, S3, Lambda, SES, etc.\n\nVous recevez : email root, mot de passe et configuration MFA.',
  'AWS Sub-Account': 'Sous-compte AWS (Organizations) avec connexion Console et accès aux services principaux — EC2, S3, Lambda, etc.\n\nVous recevez : identifiants de connexion et accès IAM.',
- 'Google Cloud Main Account': 'Compte Google Cloud principal avec facturation activée. Compute Engine, Cloud Storage, BigQuery et tous les services GCP.\n\nVous recevez : identifiants de connexion.',
+ 'Google Cloud Account': 'Compte Google Cloud principal avec facturation activée. Compute Engine, Cloud Storage, BigQuery et tous les services GCP.\n\nVous recevez : identifiants de connexion.',
  'Google Cloud Sub-Account': 'Projet Google Cloud avec connexion Console et accès éditeur. Compute, stockage et API inclus.\n\nVous recevez : identifiants de connexion et clé de compte de service.',
  'Google Workspace (New Domain)': 'Email professionnel Google Workspace sur un nouveau domaine. Email @votredomaine avec Gmail, Drive, Docs et Meet.\n\nVous recevez : connexion admin + identifiants domaine.',
- 'Google Workspace (Aged Domain)': 'Google Workspace sur un domaine âgé pour une meilleure délivrabilité. Email avec suite Google complète.\n\nVous recevez : connexion admin + identifiants domaine.',
+ 'Google Workspace Account': 'Google Workspace sur un domaine âgé pour une meilleure délivrabilité. Email avec suite Google complète.\n\nVous recevez : connexion admin + identifiants domaine.',
  'Zoho Mail (New Domain)': 'Email professionnel Zoho Mail sur un nouveau domaine. Email @votredomaine avec calendrier, contacts et stockage.\n\nVous recevez : connexion admin + configuration domaine.',
- 'Zoho Mail (Aged Domain)': 'Zoho Mail sur un domaine âgé pour une meilleure réputation. Email avec suite Zoho complète.\n\nVous recevez : connexion admin + identifiants domaine.',
+ 'Zoho Mail Account': 'Zoho Mail sur un domaine âgé pour une meilleure réputation. Email avec suite Zoho complète.\n\nVous recevez : connexion admin + identifiants domaine.',
  }
  const desc = descriptions[product] || ''
  return `💰 <b>Commande : ${product}</b>\n\n💵 Prix : <b>$${price}</b>${desc ? '\n\n' + desc : ''}\n\nSélectionnez le mode de paiement :`
@@ -2541,7 +2541,7 @@ HostPanel offshore · Hebdomadaire et mensuel
 Bouclier JS Challenge · SSL inclus
 
 🛒 <b>Produits Numériques</b>
-Twilio · Telnyx · AWS · Google Cloud
+AWS · Google Cloud
 Google Workspace · Zoho Mail · eSIM
 
 💳 <b>Cartes Virtuelles</b>

@@ -3720,3 +3720,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - number-catalog.js: request flow only where MultiTEL has no pick-a-number offer (DK, CR, EC, PY local); AT/SE/AU/DE/CY/DO/PE local now normal MultiTEL picks.
 - Payment-first: /numbers/request no longer needs the profile first (legal-profile AFTER_BUY; CallsBuy gate removed).
 - Test: js/tests/test_number_requests_multitel.js (9/9 pass). Telegram bots had no on-request flow (already MultiTEL).
+
+## 2026-06 — Emily on Get a number step 1, Digital Products cleanup, eSIM $50, OTP wording
+- Emily (PlanSuggest) now also on Get a number step 1 (testid buy-start-suggest): picks kind (calls/texting/fax via new `kind` in /public/plan-suggest) + plan, "Continue" jumps to ?purpose=calls&plan=X. Plan-step Emily (buy-plan-suggest) unchanged. Old "What will you use it for?" helper was removed 13 Nov (replaced by KindPicker).
+- Bot Digital Products: removed Twilio/Telnyx (main+sub), AWS/GCloud sub, Workspace/Zoho New Domain. Renamed: Google Cloud Account, Google Workspace Account, Zoho Mail Account (all 5 langs + ai-support KB). Test: js/tests/test_digital_products_menu.js.
+- eSIM $50/month web + bot: spenza defaultPrice flag price:SPENZA_001:50 (plan price + live lines >$50 → $50); billOne caps eSIM renewals at $50; esim-bot PRICE 50; lang labels.
+- "Code collection (OTP) with Accept / Decline" → "Verify your customers identity via OTP" in plan features (web catalog, landing snapshot, FAQ, help, emails, bot plan texts, Emily prompts); bot Quick IVR mode button → "🔑 Verify identity (OTP)" (old label still accepted).

@@ -6,7 +6,7 @@ const { walletOps, round2 } = require('./cloudivr-web/wallet')
 
 const PRODUCT_KEY = 'esim_spenza'
 const PRODUCT_NAME = 'USA T-Mobile eSIM'
-const PRICE = 75
+const PRICE = 50
 const luhn = (s) => { let sum = 0; for (let i = 0; i < s.length; i++) { let n = +s[s.length - 1 - i]; if (i % 2) { n *= 2; if (n > 9) n -= 9 } sum += n } return sum % 10 === 0 }
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 const day = (t) => (t ? new Date(t).toISOString().slice(0, 10) : '—')
