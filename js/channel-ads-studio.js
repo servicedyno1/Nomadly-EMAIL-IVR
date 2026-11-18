@@ -42,7 +42,7 @@ const SCREENS = [
 // Phone-size clips, recorded live each time (steps run after recording starts).
 const CLIPS = [
   { id: 'landing-tour', title: 'CloudIVR on your phone', pillar: 'how', path: '/', steps: async (p) => { for (let i = 0; i < 7; i++) { await p.evaluate(() => window.scrollBy({ top: 520, behavior: 'smooth' })); await wait(1800) } } },
-  { id: 'plan-pick', title: 'Not sure which plan? Ask Emily', pillar: 'feature', path: '/#pricing', steps: async (p) => {
+  { id: 'plan-pick', title: 'Not sure which plan? Ask Emily', pillar: 'feature', path: '/pricing', steps: async (p) => {
     await p.evaluate(() => document.querySelector('[data-testid="pricing-plan-suggest"]')?.scrollIntoView({ block: 'center' })); await wait(1500)
     await p.type('[data-testid="pricing-plan-suggest-input"]', pick(['Dental clinic with 3 front-desk phones', 'Real estate agent, I work alone', 'Online shop with 5 support agents', 'Small law office, 2 lines']), { delay: 60 })
     await p.click('[data-testid="pricing-plan-suggest-button"]'); await wait(8000)
@@ -104,7 +104,7 @@ const DEMOS = [
     await snap('Say what the number is for')
     await p.type('[data-testid="buy-area-code-input"]', pick(['415', '212', '305', '512', '646', '718']), { delay: 180 }); await p.keyboard.press('Enter'); await wait(5000)
     await down(p, 320); await snap('Pick a local number in seconds')
-    await go(p, '/#pricing')
+    await go(p, '/pricing')
     await p.evaluate(() => document.querySelector('[data-testid="pricing-plan-suggest"]')?.scrollIntoView({ block: 'center' })); await wait(1200)
     await p.type('[data-testid="pricing-plan-suggest-input"]', pick(['Dental clinic with 3 front-desk phones', 'Real estate agent, I work alone', 'Online shop with 5 support agents']), { delay: 50 })
     await p.click('[data-testid="pricing-plan-suggest-button"]'); await wait(8000)
