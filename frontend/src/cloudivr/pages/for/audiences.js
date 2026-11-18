@@ -63,7 +63,7 @@ export const AUDIENCES = [
     ],
     faq: [
       ['Do I need new equipment?', 'No. Use the browser phone, forward calls to the phones you have, or sign in from a desk phone.'],
-      ['Can staff share the number?', 'Yes. Ring several phones at once and the first to answer takes the call (Pro and up).'],
+      ['Can staff share the number?', 'Yes. Ring several phones at once and the first to answer takes the call (Plus and up).'],
     ],
   },
   {
@@ -77,7 +77,7 @@ export const AUDIENCES = [
       ['Nobody knows who spoke to the customer', 'Calls, voicemails and texts sit in one history, and calls can be recorded.'],
     ],
     features: [
-      [Radio, 'Ring groups', 'Up to 5 phones ring together (Pro and up).'],
+      [Radio, 'Ring groups', 'Up to 5 phones ring together (Plus and up).'],
       [Headphones, 'SIP and browser phone', 'Softphones, desk phones or a browser tab.'],
       [Globe2, 'Numbers in several countries', 'A local presence for each market.'],
       [ShieldCheck, 'Verified caller ID', 'Business shows your number on every call.'],

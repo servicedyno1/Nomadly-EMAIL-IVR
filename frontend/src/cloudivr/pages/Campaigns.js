@@ -279,9 +279,9 @@ export function CampaignNew() {
   const nav = useNavigate();
   const [params] = useSearchParams();
   const [kind, setKind] = useState(() => (params.get('kind') === 'ai' ? 'ai' : 'audio'));
-  const { numbers, all, loading, reload: reloadNums } = useCallerNumbers(kind === 'ai' ? 'aiAgent' : 'bulkCall');
+  const { numbers, all, loading, reload: reloadNums } = useCallerNumbers(kind === 'ai' ? 'aiCampaigns' : 'bulkCall');
   const { catalog } = useShell();
-  const aiLocked = !all.some(n => n.status === 'active' && n.access?.aiAgent);
+  const aiLocked = !all.some(n => n.status === 'active' && n.access?.aiCampaigns);
   const { data: au, reload: reloadAudio } = useApi('/audio');
   // Contacts → "Start a campaign" opens this page with ?list=<id>.
   const [f, setF] = useState(() => ({ name: '', callerId: params.get('callerId') || '', showAs: '', audioId: '', voicemailAudioId: '', vmMode: 'main', leads: '', source: params.get('list') ? 'list' : 'numbers', listId: params.get('list') || '', mode: 'report_only', transferNumber: '', transferBackups: '', activeKeys: ['1'], menu: [], concurrency: 20, scheduledFor: '', holdMusic: false, agentId: '', repeat: '', dailyLimit: '' }));
@@ -301,8 +301,8 @@ export function CampaignNew() {
     <div data-testid="campaign-new-page">
       <PageHeader label="Make calls" title="New campaign" testid="campaign-new-header" />
       <CampaignKind value={kind} onChange={setKind} aiLocked={aiLocked} />
-      <Empty icon={Megaphone} title={kind === 'ai' ? 'No number can run AI conversation campaigns' : 'No number can run campaigns'} sub={kind === 'ai' ? 'AI conversation campaigns need an active number on the Business plan.' : 'Bulk IVR needs an active number on the Pro plan or higher.'} testid="campaign-new-empty">
-        {all.some(n => n.status === 'active') ? <div className="mt-6 w-full"><CampaignUpgradeNudge numbers={all} need={planFor(catalog?.plans, kind === 'ai' ? 'aiAgent' : 'bulkCall')?.id || 'business'} feature={kind === 'ai' ? 'AI conversation campaigns' : 'Calling campaigns'} onDone={reloadNums} /><button type="button" onClick={() => showUpgrade({ feature: kind === 'ai' ? 'AI conversation campaigns' : 'Bulk IVR campaigns', need: planFor(catalog?.plans, kind === 'ai' ? 'aiAgent' : 'bulkCall')?.id || 'business' })} className="civr-btn civr-btn-ghost civr-btn-sm mt-3" data-testid="campaign-new-empty-action">See what you get</button></div>
+      <Empty icon={Megaphone} title={kind === 'ai' ? 'No number can run AI conversation campaigns' : 'No number can run campaigns'} sub={kind === 'ai' ? 'AI conversation campaigns need an active number on the Pro plan or higher.' : 'Bulk IVR needs an active number on the Pro plan or higher.'} testid="campaign-new-empty">
+        {all.some(n => n.status === 'active') ? <div className="mt-6 w-full"><CampaignUpgradeNudge numbers={all} need={planFor(catalog?.plans, kind === 'ai' ? 'aiCampaigns' : 'bulkCall')?.id || 'business'} feature={kind === 'ai' ? 'AI conversation campaigns' : 'Calling campaigns'} onDone={reloadNums} /><button type="button" onClick={() => showUpgrade({ feature: kind === 'ai' ? 'AI conversation campaigns' : 'Bulk IVR campaigns', need: planFor(catalog?.plans, kind === 'ai' ? 'aiAgent' : 'bulkCall')?.id || 'business' })} className="civr-btn civr-btn-ghost civr-btn-sm mt-3" data-testid="campaign-new-empty-action">See what you get</button></div>
           : <Link to={cp('/app/buy?purpose=voice')} className="civr-btn civr-btn-primary" data-testid="campaign-new-empty-action">Get a Business Line</Link>}
         {kind !== 'ai' && <TrialLink testid="campaign-new-trial-link" />}
       </Empty>

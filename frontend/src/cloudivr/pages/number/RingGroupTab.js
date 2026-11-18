@@ -37,7 +37,7 @@ function Fallback({ f, setF, hasVm }) {
     <>
       <Field label="If nobody answers">
         <select className="civr-input" value={f.fallback} onChange={e => setF({ ...f, fallback: e.target.value })} data-testid="ring-group-fallback-select">
-          <option value="voicemail" disabled={!hasVm}>Go to voicemail{hasVm ? '' : ' (Pro plan and up)'}</option>
+          <option value="voicemail" disabled={!hasVm}>Go to voicemail{hasVm ? '' : ' (not on this plan)'}</option>
           <option value="forward">Forward to one backup number</option>
           <option value="message">Play a “sorry, try later” message and hang up</option>
         </select>

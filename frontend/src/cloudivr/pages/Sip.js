@@ -38,7 +38,7 @@ function LockedList({ nums }) {
   if (!nums.length) return null;
   return (
     <div className="civr-card p-6 space-y-3" data-testid="sip-page-locked">
-      <div className="flex items-center gap-2 font-semibold"><Lock className="w-4 h-4 text-[#fbbf24]" />SIP needs the Starter plan or higher</div>
+      <div className="flex items-center gap-2 font-semibold"><Lock className="w-4 h-4 text-[#fbbf24]" />SIP isn’t on this number’s plan</div>
       <p className="text-xs text-[#a1a1aa]" data-testid="sip-page-locked-browser-note">These numbers still make and take calls in the browser phone — open it from the phone icon in the top bar.</p>
       {nums.map((n, i) => (
         <div key={n.phoneNumber} className="flex items-center justify-between gap-3 py-2 border-t border-[#262626]" data-testid={`sip-page-locked-${i}`}>
@@ -85,7 +85,7 @@ export default function SipPage() {
         {canPhone && <button type="button" className="civr-btn civr-btn-primary" onClick={openPhone} data-testid="sip-page-open-phone"><Phone className="w-4 h-4" />Open browser phone</button>}
       </PageHeader>
       {!nums.length && !mobile.length ? (
-        <Empty icon={KeyRound} title="No numbers yet" sub="Buy a number on the Starter plan or higher to get SIP credentials." testid="sip-page-empty">
+        <Empty icon={KeyRound} title="No numbers yet" sub="Buy a number on any plan to get SIP credentials." testid="sip-page-empty">
           <Link to={cp('/app/buy?purpose=voice')} className="civr-btn civr-btn-primary" data-testid="sip-page-buy"><ShoppingCart className="w-4 h-4" />Get a Business Line</Link>
         </Empty>
       ) : (

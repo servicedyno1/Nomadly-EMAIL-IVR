@@ -78,7 +78,7 @@ function validate(ivr, ctx = {}) {
       else if (a.some(x => !isPhone(x))) err(k, 'One of the queue phones is not a full number with country code.')
       if (a.length > 5) err(k, 'A queue can ring up to 5 phones.')
       if (o.overflow?.action === 'forward' && !isPhone(o.overflow.forwardTo)) err(k, 'Add the phone to try when nobody in the queue answers.')
-      if (o.overflow?.action === 'voicemail' && ctx.voicemailAvailable === false) err(k, 'Voicemail as the last resort needs the Starter plan or higher.')
+      if (o.overflow?.action === 'voicemail' && ctx.voicemailAvailable === false) err(k, 'Voicemail isn’t on this number’s plan — pick another last resort.')
       if (a.length === 1) warn(k, 'A queue with one phone works, but a caller only gets through when that phone is free.')
     }
     if (o.action === 'pay' && o.payVia === 'provider') {
@@ -95,9 +95,9 @@ function validate(ivr, ctx = {}) {
       if (lines && !lines.length && !o.smsFrom) err(k, 'This key texts the caller, but you have no Texting Number yet — order one, or change the key.')
       else if (lines && lines.length > 1 && !lines.some(l => l.id === o.smsFrom)) err(k, `Choose which Texting Number sends it (${lines.map(l => l.phone).join(' or ')}).`)
     }
-    if (o.action === 'voicemail' && ctx.voicemailAvailable === false) err(k, 'Voicemail needs the Starter plan or higher.')
+    if (o.action === 'voicemail' && ctx.voicemailAvailable === false) err(k, 'Voicemail isn’t on this number’s plan.')
     if (o.action === 'devices' && ctx.sipLogin === false) err(k, 'This number has no browser phone / phone app login yet — set one up in the Phone apps tab first.')
-    if (o.action === 'devices' && (o.noAnswer || 'voicemail') === 'voicemail' && ctx.voicemailAvailable === false) err(k, 'Voicemail when nobody answers needs the Starter plan — pick "back to the menu" or a message instead.')
+    if (o.action === 'devices' && (o.noAnswer || 'voicemail') === 'voicemail' && ctx.voicemailAvailable === false) err(k, 'Voicemail when nobody answers isn’t on this number’s plan — pick "back to the menu" or a message instead.')
     if (o.action === 'devices') warn(k, 'Keep CloudIVR open in your browser or a phone app signed in, so this key can ring you.')
     if (o.action === 'ringgroup' && ctx.ringGroupMembers === 0) err(k, "Add your team's phones in the Ring group tab first (it can stay switched off).")
     if (o.action === 'ai' && !o.agentId) err(k, countOf(ctx.aiAgents) === 0 ? 'Create an AI agent first (AI agents page), then pick it here.' : 'Pick the AI agent that should take these calls.')
@@ -213,7 +213,7 @@ function blueprint(ivr, ctx = {}) {
     if (o.action === 'forward') return add(id, 'forward', 'Forward', o.forwardTo ? fmt(o.forwardTo) : 'no number set')
     if (o.action === 'message') return add(id, 'message', 'Message', (o.message || 'audio').slice(0, 80))
     if (o.action === 'sms') return add(id, 'sms', 'Send a text', (o.smsText || '').slice(0, 80))
-    if (o.action === 'voicemail') return add(id, 'voicemail', 'Voicemail', ctx?.voicemailAvailable === false ? 'needs Starter+' : '')
+    if (o.action === 'voicemail') return add(id, 'voicemail', 'Voicemail', ctx?.voicemailAvailable === false ? 'not on this plan' : '')
     if (o.action === 'webhook') return add(id, 'webhook', o.check?.source ? 'Live answer' : 'Webhook', o.check?.source === 'db' ? 'from your database' : (o.url || 'no URL set'))
     if (o.action === 'queue') return add(id, 'queue', 'Call queue', `${agentsOf(o).length} phone${agentsOf(o).length === 1 ? '' : 's'} · wait up to ${Number(o.maxWait) || 180}s · then ${o.overflow?.action || 'message'}`)
     if (o.action === 'pay') return add(id, 'pay', 'Text a payment link', o.payVia === 'provider' ? (o.amountFrom === 'lookup' ? 'amount from your data' : `${o.amount || '?'} ${o.currency || 'USD'}`) : o.payUrl || 'no link set')

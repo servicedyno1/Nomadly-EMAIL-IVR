@@ -14,7 +14,7 @@ const TX = {
   'caller-id-verify': 'Caller ID verification', 'number-lookup': 'Number lookup', 'email-check': 'Email check', ai_summary: 'AI call summaries', leads: 'Lead list',
 }
 const REFUND = { 'esim-refund': 'Refund · USA eSIM', 'mobile-number-refund': 'Refund · USA Texting Number', 'esim-number-refund': 'Refund · number replacement', 'travel-esim-refund': 'Refund · Travel eSIM', 'hosted-sms-refund': 'Refund · Business texting', 'lead-check-refund': 'Refund · lead check' }
-const PLAN = { starter: 'Basic', standard: 'Starter', pro: 'Pro', business: 'Business' }
+const PLAN = { starter: 'Basic', standard: 'Plus', pro: 'Pro', business: 'Business' }
 
 // 'crypto_dynopay_BTC' / '🪙 Crypto (BTC)' → 'Crypto (BTC)'; wallet → 'CloudIVR wallet'. null = not a real charge.
 function paidWith(m) {

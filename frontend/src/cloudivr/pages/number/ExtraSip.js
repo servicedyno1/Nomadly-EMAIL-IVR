@@ -28,7 +28,7 @@ export function ExtraSipLogins({ num }) {
   return (
     <div className="civr-card p-6 space-y-4 lg:col-span-3" data-testid="extra-sip-card">
       <div className="flex items-center gap-2"><KeyRound className="w-5 h-5 text-[#818cf8]" /><div className="font-display text-xl font-bold">Extra SIP logins</div><span className="civr-pill" data-testid="extra-sip-count">{d.logins.length}/{d.max}</span></div>
-      {!d.allowed ? <p className="text-sm text-[var(--c-muted)]" data-testid="extra-sip-upgrade">Give each desk phone or teammate its own login. Needs a plan with SIP: Starter, Pro (2 free) or Business (5 free). More cost $5/month each.</p> : <>
+      {!d.allowed ? <p className="text-sm text-[var(--c-muted)]" data-testid="extra-sip-upgrade">Give each desk phone or teammate its own login. Pro includes 2 free, Business 5. More cost $5/month each.</p> : <>
         <p className="text-sm text-[var(--c-muted)]">Each login rings for {num.phoneNumber} and can call out from any of your numbers. Remove one to cut off that device without touching the others.</p>
         <p className="text-sm" data-testid="extra-sip-pricing">{d.freeLeft > 0 ? `${d.freeLeft} free login${d.freeLeft === 1 ? '' : 's'} left on this plan, then $${d.price}/month each.` : `Extra logins cost $${d.price}/month each.`}</p>
         {d.logins.map(x => (

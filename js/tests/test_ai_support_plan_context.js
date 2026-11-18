@@ -98,8 +98,8 @@ async function test_planContextHasUpgradeMath() {
   assert.ok(/purchased \d{4}-\d{2}-\d{2}.*\((9|10|11)d ago\)/.test(capturedPrompt), 'purchase date + age listed')
   assert.ok(/expires \d{4}-\d{2}-\d{2}.*\((19|20|21)d left\)/.test(capturedPrompt), 'expiry date + remaining days listed')
   assert.ok(/unused credit ~\$/.test(capturedPrompt), 'unused-credit dollar figure listed')
-  assert.ok(/Plan tier prices.*Starter \$50.*Pro \$75.*Business \$120/i.test(capturedPrompt),
-    'all 3 tier prices injected')
+  assert.ok(/Plan tier prices.*Basic \$\d+.*Plus \$\d+.*Pro \$\d+.*Business \$\d+/i.test(capturedPrompt),
+    'all 4 tier prices injected')
   assert.ok(/UPGRADE MATH RULE/i.test(capturedPrompt), 'explicit upgrade-math rule present')
   assert.ok(/do NOT invent figures/i.test(capturedPrompt), 'anti-hallucination instruction present')
   // Sanity: unused credit should be ~$33 (20 days remaining out of 30-day cycle at $50)

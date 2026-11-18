@@ -8,7 +8,7 @@ import { useShell } from '../../Shell';
 import { Field, Spinner, ErrorNote, Label } from '../../ui';
 import { cp } from '../../paths';
 import Checkout from './Checkout';
-import { PlanFeatures, RecommendedBadge, availablePlans } from '../../PlanFeatures';
+import { PlanFeatures, RecommendedBadge, availablePlans, PLAN_JOB } from '../../PlanFeatures';
 import { usePrivacy } from '../../privacy';
 import { Flag, IconSelect } from '../../Pickers';
 import { saveIntent, setupPath, USE_PLAN, rememberedUse } from './setupIntent';
@@ -93,6 +93,7 @@ function PlanPicker({ plans, value, onChange, pick, businessOnly }) {
             <span className="font-display text-2xl font-bold">{p.name}</span>
             <span className="flex items-center gap-2">{p.recommended && <RecommendedBadge testid={`buy-plan-${p.id}-recommended`} />}{value === p.id && <Check className="w-5 h-5 text-[#818cf8]" />}</span>
           </div>
+          {PLAN_JOB[p.id] && <div className="text-xs text-[var(--c-muted)]" data-testid={`buy-plan-${p.id}-job`}>{PLAN_JOB[p.id]}</div>}
           <div className="text-2xl font-semibold tabular-nums mt-2">{money(p.price + addonOf(pick, p.id))}<span className="text-xs text-[#a1a1aa]"> /month</span></div>
           {pick && <div className="text-xs text-[var(--c-muted)] mt-1" data-testid={`buy-plan-${p.id}-breakdown`}>{addonOf(pick, p.id) > 0 ? `Plan ${money(p.price)} + country charge ${money(addonOf(pick, p.id))}` : 'Number included free with this plan'}</div>}
           <div className="mt-4"><PlanFeatures plan={p} plans={plans} compact testid={`buy-plan-${p.id}-feature`} /></div>

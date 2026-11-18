@@ -26716,13 +26716,13 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       // Presets are Business-only: Pro accounts see them listed but locked (with the upgrade hint).
       const presetsOn = eligibleNumbers.some(n => phoneConfig.canAccessFeature(n.plan, 'ivrPresets'))
       if (presets.length > 0) {
-        menuText += `\n💾 <b>Saved Presets:</b>${presetsOn ? '' : ' 🔒 <i>Business plan</i>'}\n`
+        menuText += `\n💾 <b>Saved Presets:</b>${presetsOn ? '' : ' 🔒 <i>Pro plan</i>'}\n`
         presets.forEach((p, i) => {
           menuText += `${i + 1}. ${p.name} (${p.templateName || 'Custom'})\n`
           if (presetsOn) menuRows.push([`💾 ${p.name}`])
         })
       }
-      if (!presetsOn) menuText += `\n🔒 <i>Saved presets and scheduled calls are on the Business plan — upgrade a number via 🔄 Renew / Change Plan.</i>\n`
+      if (!presetsOn) menuText += `\n🔒 <i>Saved presets and scheduled calls are on the Pro plan and up — upgrade a number via 🔄 Renew / Change Plan.</i>\n`
 
       if (recentCalls.length > 0) {
         menuText += `\n📋 <b>Recent:</b>\n`
@@ -30505,7 +30505,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const rows = []
     for (let i = 0; i < countryBtns.length; i += 2) rows.push(countryBtns.slice(i, i + 2))
     if (phoneConfig.moreCountries.length > 0) rows.push([pc.moreCountries])
-    const planLabel = planKey === 'starter' ? '💡 Basic' : planKey === 'standard' ? '🧩 Starter' : planKey === 'pro' ? '⭐ Pro' : '👑 Business'
+    const planLabel = planKey === 'starter' ? '💡 Basic' : planKey === 'standard' ? '🧩 Plus' : planKey === 'pro' ? '⭐ Pro' : '👑 Business'
     return send(chatId, trans('t.cp_232', planLabel), k.of(rows))
   }
 
@@ -36092,7 +36092,7 @@ Select a category:`), k.of(catBtns))
 
     // Block "Coming Soon" plans
     if (message.includes('Coming Soon')) {
-      const comingPlan = message.includes('Basic') ? 'starter' : message.includes('Starter') ? 'standard' : message.includes('Pro') ? 'pro' : message.includes('Business') ? 'business' : null
+      const comingPlan = message.includes('Basic') ? 'starter' : (message.includes('Plus') || message.includes('Starter')) ? 'standard' : message.includes('Pro') ? 'pro' : message.includes('Business') ? 'business' : null
       if (comingPlan) {
         return send(chatId, phoneConfig.comingSoonText(comingPlan), k.of([
           [pc.changePlan],
@@ -36194,7 +36194,7 @@ Select a category:`), k.of(catBtns))
 
     let newPlan = null
     if (message.includes('Basic')) newPlan = 'starter'
-    if (message.includes('Starter')) newPlan = 'standard'
+    if (message.includes('Plus') || message.includes('Starter')) newPlan = 'standard'
     if (message.includes('Pro')) newPlan = 'pro'
     if (message.includes('Business')) newPlan = 'business'
     if (!newPlan) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectValidPlan)

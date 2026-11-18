@@ -16,7 +16,7 @@ export function CampaignKind({ value, onChange, aiLocked }) {
   return (
     <div className="flex flex-col sm:flex-row gap-2 mb-4" data-testid="campaign-kind">
       {opt('audio', 'Recorded message', 'Everyone hears the same message, then presses a key.', 'campaign-kind-audio')}
-      {opt('ai', 'AI conversation', 'Business plan · an AI talks with each lead, answers questions and hands over the interested ones', 'campaign-kind-ai', aiLocked)}
+      {opt('ai', 'AI conversation', 'Pro plan and up · an AI talks with each lead, answers questions and hands over the interested ones', 'campaign-kind-ai', aiLocked)}
     </div>
   );
 }

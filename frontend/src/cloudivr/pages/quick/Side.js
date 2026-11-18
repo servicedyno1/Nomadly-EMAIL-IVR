@@ -83,7 +83,7 @@ export function MenuStats() {
 export function Presets({ onLoad, current, stamp, locked, phone }) {
   const { data, reload, setData } = useApi(`/calls/presets?s=${stamp}`);
   const [name, setName] = React.useState('');
-  const upsell = () => showUpgrade({ feature: 'Saved call presets', need: 'business', phone });
+  const upsell = () => showUpgrade({ feature: 'Saved call presets', need: 'pro', phone });
   const save = async () => {
     try { await api('/calls/presets', { method: 'POST', body: { name, setup: current() } }); toast.success('Preset saved'); setName(''); reload(); } catch (e) { toast.error(e.message); }
   };

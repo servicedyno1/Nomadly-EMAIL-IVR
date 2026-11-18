@@ -42,7 +42,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const n = await numbersApi.findMine(chatId, phone)
     if (!n || n.status !== 'active') return { err: [400, 'invalid_caller', 'Pick one of your active numbers as caller ID.'] }
     if (!['telnyx', 'signalwire', 'multitel', 'infobip'].includes(n.provider) || n.provider === 'signalwire_fax') return { err: [400, 'invalid_caller', 'This number cannot place outbound IVR calls.'] }
-    if (!phoneConfig.canAccessFeature(n.plan, feature)) return { err: [403, 'plan_upgrade_required', phoneConfig.canAccessFeature('standard', feature) ? `${label} needs the Starter plan or higher on the caller number.` : phoneConfig.canAccessFeature('pro', feature) ? `${label} needs the Pro plan or higher on the caller number.` : `${label} need the Business plan on the caller number.`] }
+    if (!phoneConfig.canAccessFeature(n.plan, feature)) return { err: [403, 'plan_upgrade_required', `${label} need ${phoneConfig.planNeed(feature)} on the caller number.`] }
     return { n }
   }
   // Extra caller IDs to rotate through (own numbers, or verified caller IDs shown on calls from the primary number).
@@ -199,9 +199,9 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   // AI agent campaign: the agent talks to every lead (8am–9pm lead's local time, do-not-call list skipped).
   async function createAiCampaign(req, res) {
     const chatId = req.webChatId, b = req.body
-    const c = await caller(chatId, b.callerId, 'aiCampaigns', 'AI agent campaigns')
+    const c = await caller(chatId, b.callerId, 'aiCampaigns', 'AI conversation campaigns')
     if (c.err) return bad(res, ...c.err)
-    const rot = await rotation(chatId, b, c.n.phoneNumber, 'aiCampaigns', 'AI agent campaigns')
+    const rot = await rotation(chatId, b, c.n.phoneNumber, 'aiCampaigns', 'AI conversation campaigns')
     if (rot.err) return bad(res, ...rot.err)
     const showAs = await callerIds.resolve(chatId, b.showAs).catch(e => e)
     if (showAs instanceof Error) return bad(res, 400, 'invalid_show_as', showAs.message)
@@ -273,7 +273,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   // A saved campaign that never started needs the feature on the caller's plan now (running ones finish after a downgrade).
   router.post('/campaigns/:id/start', withCampaign(async (req, res) => {
     const ai = req.campaign.mode === 'ai'
-    const c = await caller(req.webChatId, req.campaign.callerId, ai ? 'aiCampaigns' : 'bulkCall', ai ? 'AI agent campaigns' : 'Bulk IVR campaigns')
+    const c = await caller(req.webChatId, req.campaign.callerId, ai ? 'aiCampaigns' : 'bulkCall', ai ? 'AI conversation campaigns' : 'Bulk IVR campaigns')
     if (c.err) return bad(res, ...c.err)
     if (req.campaign.dryRun || dryRun()) {
       const low = req.campaign.status === 'series_ready' && await bulkCallService.partFundsError(req.campaign, req.webChatId)

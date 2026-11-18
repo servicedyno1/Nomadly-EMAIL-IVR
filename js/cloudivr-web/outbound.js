@@ -357,7 +357,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const { cfg, err } = await buildCall(chatId, req.body)
     if (err) return bad(res, ...err)
     if (req.body.scheduleAt) {
-      if (!phoneConfig.canAccessFeature(cfg.callerPlan, 'ivrSchedule')) return bad(res, 403, 'plan_upgrade_required', 'Scheduling Quick IVR calls is on the Business plan.')
+      if (!phoneConfig.canAccessFeature(cfg.callerPlan, 'ivrSchedule')) return bad(res, 403, 'plan_upgrade_required', `Scheduling Quick IVR calls is on ${phoneConfig.planNeed('ivrSchedule')}.`)
       const at = new Date(req.body.scheduleAt)
       if (isNaN(at.getTime()) || at.getTime() < Date.now() + 4 * 60000 || at.getTime() > Date.now() + 30 * 86400000) return bad(res, 400, 'invalid_schedule', 'Schedule between 5 minutes and 30 days from now.')
       const docs = cfg.targets.map(to => ({
@@ -410,7 +410,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     delete setup.targets; delete setup.to; delete setup.scheduleAt
     const { cfg, err } = await buildCall(chatId, { ...setup, to: '+14155550100' })
     if (err) return bad(res, ...err)
-    if (!phoneConfig.canAccessFeature(cfg.callerPlan, 'ivrPresets')) return bad(res, 403, 'plan_upgrade_required', 'Saving call presets is on the Business plan.')
+    if (!phoneConfig.canAccessFeature(cfg.callerPlan, 'ivrPresets')) return bad(res, 403, 'plan_upgrade_required', `Saving call presets is on ${phoneConfig.planNeed('ivrPresets')}.`)
     const list = ((await getPrefs(chatId)).ivrPresets || []).filter(p => p.name.toLowerCase() !== name.toLowerCase())
     if (list.length >= MAX_PRESETS) return bad(res, 400, 'too_many_presets', `Up to ${MAX_PRESETS} presets — delete one first.`)
     const preset = { id: uid(), name, setup, hasMenu: !!cfg.menu, mode: cfg.mode, menu: cfg.menu, createdAt: new Date() }
@@ -482,7 +482,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   }))
   router.put('/prefs/voice', h(async (req, res) => {
     const nums = await numbersApi.myNumbers(req.webChatId)
-    if (!nums.some(n => n.status === 'active' && phoneConfig.canAccessFeature(n.plan, 'consistentVoice'))) return bad(res, 403, 'plan_upgrade_required', 'Saving a default voice is on the Business plan.')
+    if (!nums.some(n => n.status === 'active' && phoneConfig.canAccessFeature(n.plan, 'consistentVoice'))) return bad(res, 403, 'plan_upgrade_required', `Saving a default voice is on ${phoneConfig.planNeed('consistentVoice')}.`)
     const voice = req.body.voice ? String(req.body.voice).slice(0, 40) : null
     const speed = req.body.speed ? Math.min(1.5, Math.max(0.5, Number(req.body.speed) || 1)) : null
     await prefs.updateOne({ _id: req.webChatId }, { $set: { ttsVoice: voice, ttsSpeed: speed, updatedAt: new Date() } }, { upsert: true })

@@ -73,7 +73,7 @@ export default function AgentNumbers({ agent, agents = [] }) {
 
       <div className="pt-1 text-sm">
         <Link to={cp('/app/buy?plan=business')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="agent-numbers-buy-link"><ShoppingCart className="w-4 h-4" />Get a number for this agent</Link>
-        <p className="text-xs text-[#a1a1aa] mt-2">Any plan can use the AI receptionist on incoming calls ($0.10/min). Outgoing AI conversation campaigns need a Business-plan number.</p>
+        <p className="text-xs text-[#a1a1aa] mt-2">Any plan can use the AI receptionist on incoming calls ($0.10/min). Outgoing AI conversation campaigns need a Pro or Business number.</p>
       </div>
     </div>
   );

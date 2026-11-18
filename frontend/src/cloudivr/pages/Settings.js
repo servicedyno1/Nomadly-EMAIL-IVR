@@ -119,7 +119,7 @@ function DefaultVoice() {
         <button className="civr-btn civr-btn-primary" disabled={busy} onClick={save} data-testid="settings-voice-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save voice</button>
       </> : <div className="space-y-3" data-testid="settings-voice-locked">
         <div className="flex flex-wrap gap-2 opacity-50 pointer-events-none" aria-hidden="true"><VoiceSelect value={cur.voice} onChange={() => {}} voices={voices} testid="settings-voice-select-locked" /></div>
-        <LockedNote text="Keep one voice for every call and message on the Business plan." feature="A saved default voice" testid="settings-voice-lock" />
+        <LockedNote text="Keep one voice for every call and message on the Pro plan and up." feature="A saved default voice" testid="settings-voice-lock" />
       </div>}
     </div>
   );

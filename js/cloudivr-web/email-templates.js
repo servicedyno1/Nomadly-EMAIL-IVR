@@ -3,7 +3,7 @@
 const COPY = require('./email-copy')
 const L = require('./email-layout')
 
-const PLAN_NAMES = { starter: 'Starter', pro: 'Pro', business: 'Business' }
+const PLAN_NAMES = { starter: 'Basic', standard: 'Plus', pro: 'Pro', business: 'Business' }
 const NEXT = { starter: 'standard', standard: 'pro', pro: 'business' }
 const LOCALE = { en: 'en-US', fr: 'fr-FR', es: 'es-ES' }
 const RATE = { us: 0.15, intl: 0.5 }

@@ -88,7 +88,7 @@ export default function HoursTab({ num, reload }) {
         </div>
         <Field label="Outside these hours">
           <select className="civr-input" value={offAction} onChange={e => setF({ ...f, offAction: e.target.value })} data-testid="hours-off-action-select">
-            <option value="voicemail" disabled={!hasVm}>Send callers to voicemail{hasVm ? '' : ' (Pro plan and up)'}</option>
+            <option value="voicemail" disabled={!hasVm}>Send callers to voicemail{hasVm ? '' : ' (not on this plan)'}</option>
             <option value="message">Play a closed message, then hang up</option>
             <option value="forward">Forward to backup numbers</option>
           </select>

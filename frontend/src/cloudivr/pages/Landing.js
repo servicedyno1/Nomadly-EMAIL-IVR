@@ -14,6 +14,7 @@ import { CATALOG_SNAPSHOT } from './landing/catalogSnapshot';
 import SupportChat from '../SupportChat';
 import { MobileCheckoutHost } from './landing/MobileCheckout';
 import { WhoFor } from './landing/WhoFor';
+import { AiSection } from './landing/AiSection';
 
 export { LANDING_LINKS } from './landing/Nav';
 
@@ -43,6 +44,7 @@ export default function Landing() {
         <WhoFor />
         <QuotesStrip />
         <HowItWorks catalog={catalog} />
+        <AiSection catalog={catalog} />
         <AllPlans catalog={catalog} tab={tab} setTab={setTab} esimPrice={esim?.plans?.[0]?.price} offer={offer} fax={fax} />
         <TryCall />
         <Faq catalog={catalog} />

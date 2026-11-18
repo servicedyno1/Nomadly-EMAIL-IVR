@@ -14,7 +14,7 @@ const safeUrl = require('../safe-url')
 const browserCallKey = require('../browser-call-key')
 
 const TYPE_NAMES = { local: 'Local', toll_free: 'Toll-free', mobile: 'Mobile', national: 'National' }
-const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'browserPhone', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent', 'textRelay', 'ringGroup', 'textTriggers', 'aiSummary', 'browserRing', 'ivrRedial', 'otpCustomMessages', 'ivrSchedule', 'ivrPresets', 'consistentVoice']
+const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'browserPhone', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent', 'aiCampaigns', 'textRelay', 'ringGroup', 'textTriggers', 'aiSummary', 'browserRing', 'ivrRedial', 'otpCustomMessages', 'ivrSchedule', 'ivrPresets', 'consistentVoice']
 const LOG_TYPES = { sms: ['sms', 'sms_out'], voicemail: ['voicemail'], fax: ['fax'] }
 const E164 = /^\+[1-9]\d{7,14}$/
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
@@ -81,38 +81,40 @@ const ownProvider = (c, type) => (['US', 'CA'].includes(c?.code) ? null : c?.off
 
 // What each plan gets IN THE WEB APP. The bot's plan copy lists Telegram-only extras (redial button, presets,
 // sub-numbers…), so plan cards use this list instead. `gate` is the engine feature check; null = every plan.
+// Grouped for the plan cards: answer (incoming calls), calls (outgoing), ai, account.
 const WEB_FEATURES = [
-  ['inbox', 'SMS inbox — read texts and reply', null],
-  ['forwarding', 'Call forwarding to any phone', 'callForwarding'],
-  ['browserPhone', 'Browser phone — make and take calls in any browser tab', 'browserPhone'],
-  ['hours', 'On/off hours for each number', null],
-  ['notes', 'Call notes', null],
-  ['private', 'Private mode — hide numbers on screen', null],
-  ['voicemail', () => `Voicemail in ${vmGreeting.LANG_CODES.length} languages + transcripts`, 'voicemail'],
-  ['sip', 'SIP logins for desk phones and softphone apps', 'sipCredentials'],
-  ['smsEmail', 'SMS to email & webhooks', 'smsToEmail'],
-  ['ivr', 'Keypad menu (IVR) for incoming calls — press 1 for sales, with key stats', 'ivr'],
-  ['quickIvr', 'Quick IVR — automated calls to up to 10 people', 'ivrOutbound'],
-  ['callMeFirst', 'Call me first — calls through your mobile', 'ivrOutbound'],
-  ['bulk', 'Bulk IVR campaigns — automated calls to a whole list', 'bulkCall'],
-  ['otp', 'Code collection (OTP) with Accept / Decline', 'otpCollection'],
-  ['recording', 'Call recording', 'callRecording'],
-  ['ringGroup', 'Ring groups — ring several phones at once', 'ringGroup'],
-  ['aiSummary', 'AI summaries & caller mood for voicemails and recorded calls', 'aiSummary'],
-  ['anyCallerId', 'Custom caller ID — call from any number on softphone, browser, Quick IVR and campaigns', (plan) => plan === 'business'],
-  ['redial', 'Redial and your own accept / decline messages for codes', 'ivrRedial'],
-  ['schedulePresets', 'Quick IVR scheduling and saved call presets', 'ivrSchedule'],
-  ['defaultVoice', 'One saved AI voice for all your calls', 'consistentVoice'],
-  ['textRelay', 'Text calls for deaf & hard-of-hearing users', 'textRelay'],
-  ['textTriggers', 'Text Triggers — a text starts a callback, a spoken reply or an AI call', 'textTriggers'],
-  ['aiAgent', 'AI receptionist — answers callers, books and takes messages (per minute)', 'aiAgent'],
-  ['aiCampaigns', 'AI agent call campaigns', 'aiCampaigns'],
-  ['encryptedCalls', 'Encrypted calls (SRTP) — audio encrypted in transit', (plan) => plan === 'business'],
-  ['priority', 'Priority support', (plan) => plan === 'business'],
+  ['emily', 'Emily — set up menus, calls and campaigns just by chatting', null, 'account'],
+  ['forwarding', 'Call forwarding to any phone', 'callForwarding', 'answer'],
+  ['voicemail', () => `Voicemail in ${vmGreeting.LANG_CODES.length} languages + transcripts`, 'voicemail', 'answer'],
+  ['hours', 'On/off hours for each number', null, 'answer'],
+  ['ivr', 'Keypad menu (IVR) — press 1 for sales, with key stats', 'ivr', 'answer'],
+  ['ringGroup', 'Ring groups — ring several phones at once', 'ringGroup', 'answer'],
+  ['recording', 'Call recording', 'callRecording', 'answer'],
+  ['browserPhone', 'Browser phone — make and take calls in any browser tab', 'browserPhone', 'calls'],
+  ['sip', 'SIP logins for desk phones and softphone apps, with live signed-in status', 'sipCredentials', 'calls'],
+  ['quickIvr', 'Quick IVR — automated calls to up to 10 people', 'ivrOutbound', 'calls'],
+  ['callMeFirst', 'Call me first — calls through your mobile', 'ivrOutbound', 'calls'],
+  ['bulk', 'Recorded-message campaigns to a whole list', 'bulkCall', 'calls'],
+  ['otp', 'Code collection (OTP) with Accept / Decline', 'otpCollection', 'calls'],
+  ['schedulePresets', 'Scheduled calls and saved call presets', 'ivrSchedule', 'calls'],
+  ['anyCallerId', 'Custom caller ID — call from any number', (plan) => plan === 'business', 'calls'],
+  ['redial', 'Redial and your own accept / decline messages for codes', 'ivrRedial', 'calls'],
+  ['aiAgent', 'AI receptionist — real conversations with your callers, books and takes messages (per minute)', 'aiAgent', 'ai'],
+  ['aiSummary', 'AI summaries & caller mood for voicemails and recorded calls', 'aiSummary', 'ai'],
+  ['aiCampaigns', 'AI conversation campaigns — an AI talks with each lead, free test call first (per minute)', 'aiCampaigns', 'ai'],
+  ['defaultVoice', 'One saved AI voice for all your calls', 'consistentVoice', 'ai'],
+  ['textTriggers', 'Text Triggers — a text starts a callback, a spoken reply or an AI call', 'textTriggers', 'ai'],
+  ['textRelay', 'Text calls for deaf & hard-of-hearing users', 'textRelay', 'ai'],
+  ['inbox', 'SMS inbox — read texts and reply', null, 'account'],
+  ['smsEmail', 'SMS to email & webhooks', 'smsToEmail', 'account'],
+  ['notes', 'Call notes and private mode', null, 'account'],
+  ['calendar', 'Renewal dates in Google or Apple Calendar', null, 'account'],
+  ['encryptedCalls', 'Encrypted calls (SRTP) — audio encrypted in transit', (plan) => plan === 'business', 'account'],
+  ['priority', 'Priority support', (plan) => plan === 'business', 'account'],
 ]
 const TEXTING_KEYS = ['inbox', 'smsEmail', 'textTriggers']
-const webFeatures = (plan) => WEB_FEATURES.filter(([key]) => phoneConfig.PLAN_TEXTING() || !TEXTING_KEYS.includes(key)).map(([key, label, gate]) => ({
-  key, label: typeof label === 'function' ? label() : label, included: gate === null ? true : typeof gate === 'function' ? gate(plan) : !!phoneConfig.canAccessFeature(plan, gate),
+const webFeatures = (plan) => WEB_FEATURES.filter(([key]) => phoneConfig.PLAN_TEXTING() || !TEXTING_KEYS.includes(key)).map(([key, label, gate, group]) => ({
+  key, group, label: typeof label === 'function' ? label() : label, included: gate === null ? true : typeof gate === 'function' ? gate(plan) : !!phoneConfig.canAccessFeature(plan, gate),
 }))
 
 // Plan pre-selected on the buy page and badged "Recommended" (Pro unless switched off).
@@ -131,7 +133,7 @@ const catalog = () => {
     recommendedPlan: rec,
     voicemailLanguages: vmGreeting.publicLangs(),
     countries: countries(), typeNames: TYPE_NAMES,
-    rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS, aiAgentPerMin: require('../ai-agent').RATE(), aiSummaryPerMin: require('./ai-summary').RATE(), outboundPerMinUsCa: outboundRate(), outboundPerMinIntl: phoneConfig.CALL_FORWARDING_RATE_MIN },
+    rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS, aiAgentPerMin: require('../ai-agent').RATE(), aiReceptionPerMin: require('../ai-agent').RECEPTION_RATE(), aiSummaryPerMin: require('./ai-summary').RATE(), outboundPerMinUsCa: outboundRate(), outboundPerMinIntl: phoneConfig.CALL_FORWARDING_RATE_MIN },
     sipDomain: phoneConfig.WEB_SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(), planTexting: phoneConfig.PLAN_TEXTING(),
     // Cards show as "coming soon" on the site until this is true (the checkout's card option is still disabled too).
     cardPayments: String(process.env.CLOUDIVR_CARD_PAYMENTS || '').toLowerCase() === 'true',

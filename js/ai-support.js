@@ -44,6 +44,20 @@ function initAiSupport(db) {
 }
 
 // ── System prompt with full product knowledge + navigation ──
+// Plan list and feature table for the support prompt, built from phone-config so they always match what is sold.
+const PLAN_ROWS = [['callForwarding', 'Call Forwarding'], ['voicemail', 'Voicemail'], ['sipCredentials', 'SIP Credentials (softphones, desk phones)'], ['aiAgent', 'AI receptionist (answers calls, per minute)'], ['ivr', 'IVR Auto-attendant (keypad menu)'], ['ringGroup', 'Ring groups'], ['callRecording', 'Call Recording'], ['aiSummary', 'AI call summaries'], ['smsToEmail', 'SMS to Email / Webhook'], ['ivrOutbound', 'Quick IVR Call'], ['bulkCall', 'Bulk IVR Campaign'], ['aiCampaigns', 'AI conversation campaigns'], ['otpCollection', 'OTP Collection (basic)'], ['ivrSchedule', 'Quick IVR Scheduling & Saved Presets'], ['consistentVoice', 'One saved TTS voice'], ['otpCustomMessages', 'Custom OTP Messages & Goodbye'], ['ivrRedial', 'IVR Redial'], ['textTriggers', 'Text Triggers'], ['textRelay', 'Text calls (deaf & hard-of-hearing)']]
+function planLines() {
+  const pc = require('./phone-config.js')
+  return pc.PLAN_ORDER.map((k, i) => {
+    const p = pc.plans[k], prev = i ? pc.plans[pc.PLAN_ORDER[i - 1]].name : null
+    const adds = PLAN_ROWS.filter(([f]) => pc.canAccessFeature(k, f) && !(i && pc.canAccessFeature(pc.PLAN_ORDER[i - 1], f))).map(([, l]) => l)
+    return `- <b>${p.name} — $${p.price}/mo</b>: ${p.minutes} INBOUND min included/month. ${prev ? `All ${prev} features + ` : 'Features: '}${adds.join(', ')}${k === 'business' ? ', custom caller ID (call from any number), Fax send & receive, encrypted calls, priority support' : ''}. Up to ${pc.SUB_NUMBER_LIMITS[k]} extra numbers.`
+  }).join('\n')
+}
+function planTable() {
+  const pc = require('./phone-config.js')
+  return [`| Feature | ${pc.PLAN_ORDER.map(k => pc.plans[k].name).join(' | ')} |`, ...PLAN_ROWS.map(([f, l]) => `| ${l} | ${pc.PLAN_ORDER.map(k => (pc.canAccessFeature(k, f) ? '✅' : '❌')).join(' | ')} |`)].join('\n')
+}
 const BRAND = process.env.CHAT_BOT_BRAND || 'Nomadly'
 const SUPPORT_HANDLE = process.env.SUPPORT_HANDLE || '@support'
 const SIP_DOMAIN = process.env.SIP_DOMAIN || 'sip.speechcue.com'
@@ -103,7 +117,7 @@ Every price, billing period, or range you give MUST come verbatim from this know
 <b>Domain + hosting total example:</b> a domain (from $${process.env.MIN_DOMAIN_PRICE || '30'}) + Premium Anti-Red HostPanel ($${process.env.PREMIUM_ANTIRED_CPANEL_PRICE || '75'}/month) = about $${(Number(process.env.MIN_DOMAIN_PRICE || 30) + Number(process.env.PREMIUM_ANTIRED_CPANEL_PRICE || 75))} total (exact domain price varies by TLD).
 
 <b>🌐 Bulletproof Domains:</b> registration from $${process.env.MIN_DOMAIN_PRICE || '30'} (varies by TLD).
-<b>📞 Cloud IVR + SIP plans:</b> Starter $${process.env.PHONE_STARTER_PRICE || '50'}/mo · Pro $${process.env.PHONE_PRO_PRICE || '75'}/mo · Business $${process.env.PHONE_BUSINESS_PRICE || '120'}/mo. (Basic = call forwarding, SMS and SIP softphone login; IVR needs Pro or Business.)
+<b>📞 Cloud IVR + SIP plans:</b> ${require('./phone-config.js').PLAN_ORDER.map(k => `${require('./phone-config.js').plans[k].name} $${require('./phone-config.js').plans[k].price}/mo`).join(' · ')}. (Basic = forwarding, voicemail, SIP softphone login, AI receptionist; keypad menu (IVR) from Plus; Quick/Bulk IVR and AI conversation campaigns from Pro.)
 <b>🏪 Marketplace</b> listing/escrow price range: $30–$3,000. Never quote any other range.
 <b>💳 Virtual Card</b> load range: $50–$1,000.
 
@@ -200,12 +214,10 @@ This opens the Cloud IVR hub with these buttons:
 - 📊 Usage & Billing — View call/SMS usage stats
 
 #### How to buy a phone number:
-📞 Cloud IVR + SIP → 🛒 Get a Number → 📞 Calls → Select plan (Starter/Pro/Business) → Select country → Select number type (Local/Toll-Free/Mobile) → Pick a number from the list → Confirm order → Choose payment method → ✅ Number activated
+📞 Cloud IVR + SIP → 🛒 Get a Number → 📞 Calls → Select plan (Basic/Plus/Pro/Business) → Select country → Select number type (Local/Toll-Free/Mobile) → Pick a number from the list → Confirm order → Choose payment method → ✅ Number activated
 
 #### Plans & Pricing:
-${process.env.PHONE_SERVICE_ON === 'true' ? `- <b>Starter — $${process.env.PHONE_STARTER_PRICE || '50'}/mo</b>: ${process.env.STARTER_MINUTES || '100'} INBOUND min + ${process.env.STARTER_SMS || '50'} SMS included/month. Features: Call forwarding, SMS to Telegram. Up to ${require('./phone-config.js').SUB_NUMBER_LIMITS.starter} extra numbers.
-- <b>Pro — $${process.env.PHONE_PRO_PRICE || '75'}/mo</b>: ${process.env.PRO_MINUTES || '400'} INBOUND min + ${process.env.PRO_SMS || '200'} SMS included/month. Features: All Starter + Voicemail, SIP Credentials, SMS to Email, IVR Auto-attendant (keypad menu), Quick IVR, Bulk IVR, OTP Collection (basic — default prompts only), Call Recording. Up to ${require('./phone-config.js').SUB_NUMBER_LIMITS.pro} extra numbers.
-- <b>Business — $${process.env.PHONE_BUSINESS_PRICE || '120'}/mo</b>: ${process.env.BUSINESS_MINUTES || '600'} INBOUND min + ${process.env.BUSINESS_SMS || '300'} SMS included/month. Features: All Pro + AI Voice Agent, Fax send & receive (${FAX_FREE} free pages/mo then $${FAX_PRICE}/page, bulk up to ${FAX_BULK_MAX} numbers), Custom OTP Messages & Goodbye, IVR Redial, Quick IVR Scheduling & Saved Presets, Priority Support. Up to ${require('./phone-config.js').SUB_NUMBER_LIMITS.business} extra numbers.
+${process.env.PHONE_SERVICE_ON === 'true' ? `${planLines()}
 - <b>IMPORTANT — included plan minutes are for INBOUND (received) calls only.</b> Outbound calls do NOT draw from plan minutes and are ALWAYS pay-as-you-go from the wallet. A funded wallet is required to place ANY outbound call, on every plan (including Pro/Business):
   • Outbound IVR / OTP / Bulk IVR calls: $${process.env.BULK_CALL_RATE_PER_MIN || '0.15'}/min + $${process.env.CALL_CONNECTION_FEE || '0.03'} connection fee per call
   • Call forwarding: $${process.env.CALL_FORWARDING_RATE_MIN || '0.50'}/min
@@ -218,32 +230,19 @@ ${process.env.PHONE_SERVICE_ON === 'true' ? `- <b>Starter — $${process.env.PHO
 
 #### Suspended / released number (carrier suspension) — DO NOT sell a new plan by default:
 - A suspended or released NUMBER is not the same as an expired PLAN. Always read the "PHONE PLANS & EXTRA-NUMBER SLOTS" block in the user context first.
-- If the user still has an ACTIVE plan with free extra-number slots → tell them to replace the number under that plan: <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → select the active plan's number → <b>➕ Add Number to Plan</b>. State the slots (used/limit). Extra-number limits: Basic ${require('./phone-config.js').SUB_NUMBER_LIMITS.starter}, Starter ${require('./phone-config.js').SUB_NUMBER_LIMITS.standard}, Pro ${require('./phone-config.js').SUB_NUMBER_LIMITS.pro}, Business ${require('./phone-config.js').SUB_NUMBER_LIMITS.business}, Enterprise unlimited. Several extra numbers can be picked and paid for in one go (web app: tick several numbers in the search; bot: tap several numbers, then Continue). Do NOT tell them to buy another plan or "purchase a new number" as the only option.
+- If the user still has an ACTIVE plan with free extra-number slots → tell them to replace the number under that plan: <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → select the active plan's number → <b>➕ Add Number to Plan</b>. State the slots (used/limit). Extra-number limits: Basic ${require('./phone-config.js').SUB_NUMBER_LIMITS.starter}, Plus ${require('./phone-config.js').SUB_NUMBER_LIMITS.standard}, Pro ${require('./phone-config.js').SUB_NUMBER_LIMITS.pro}, Business ${require('./phone-config.js').SUB_NUMBER_LIMITS.business}, Enterprise unlimited. Several extra numbers can be picked and paid for in one go (web app: tick several numbers in the search; bot: tap several numbers, then Continue). Do NOT tell them to buy another plan or "purchase a new number" as the only option.
 - If the active plan's extra-number slots are FULL → explain the limit is reached and offer the options: upgrade the plan (⬆️ Upgrade on the Manage screen, higher limit) or free a slot by releasing an unused extra number; a new plan is only one optional choice.
 - If the plan itself has EXPIRED or was cancelled (no active plan) → tell them to renew or buy a plan via <b>🛒 Get a Number</b>.
 - Never tell a user their number "is not suspended" when the context shows it as suspended/released. Carrier suspensions can't be reversed by us; offer escalation to a human if they want the case reviewed.
 
 #### Plan Upgrades & Downgrades:
-- <b>One-tap upgrade button</b>: From any active Starter/Pro number, the Manage screen now shows ⬆️ Upgrade to Pro / ⬆️ Upgrade to Business directly — the button label includes the live upgrade cost (e.g. "⬆️ Upgrade to Pro — $62.50") so the user knows exactly what they'll pay before tapping. No need to navigate Renew → Change Plan first.
+- <b>One-tap upgrade button</b>: From any active Basic/Plus/Pro number, the Manage screen shows ⬆️ Upgrade to the next plans directly — the button label includes the live upgrade cost (e.g. "⬆️ Upgrade to Pro — $62.50") so the user knows exactly what they'll pay before tapping. No need to navigate Renew → Change Plan first.
 - <b>Upgrading</b>: User receives a 25% credit from their current plan price <b>only if their current plan is ≤14 days old</b> (purchased within the last 2 weeks). After 14 days, no credit is applied — user pays the full new-plan price. The upgrade preview screen always shows the exact charge and either "Credit (25% of starter, plan only Nd old): -$X.XX" or "No credit applied — plan Nd old, past 14-day window". Payment via ${PAY_VIA}.
 - <b>Downgrading</b>: No refund for remaining billing period. Features not supported by the new plan are auto-disabled immediately.
 
 #### Feature availability by plan:
-| Feature | Starter | Pro | Business |
-| Call Forwarding | ✅ | ✅ | ✅ |
-| SMS to Telegram | ✅ | ✅ | ✅ |
-| SMS to Email | ❌ | ✅ | ✅ |
-| SMS Webhook | ❌ | ✅ | ✅ |
-| Voicemail | ❌ | ✅ | ✅ |
-| SIP Credentials | ❌ | ✅ | ✅ |
-| Quick IVR Call | ❌ | ✅ | ✅ |
-| Bulk IVR Campaign | ❌ | ✅ | ✅ |
-| OTP Collection (basic) | ❌ | ✅ | ✅ |
-| Custom OTP Messages & Goodbye | ❌ | ❌ | ✅ |
-| IVR Redial | ❌ | ❌ | ✅ |
-| Call Recording | ❌ | ✅ | ✅ |
-| IVR Auto-attendant | ❌ | ❌ | ✅ |
-| Fax — send, receive & bulk fax (up to ${FAX_BULK_MAX} numbers) | ❌ | ❌ | ✅ |
+${planTable()}
+| Fax — send, receive & bulk fax (up to ${FAX_BULK_MAX} numbers) | ❌ | ❌ | ❌ | ✅ |
 
 #### Quick IVR Call — How to set up:
 📞 Cloud IVR + SIP → 📢 Quick IVR Call → Select Caller ID → Enter target number → Select template → Fill placeholders → Select Call Mode → Choose voice → Preview → Confirm
@@ -271,7 +270,7 @@ This feature allows you to place an automated IVR call and collect a verificatio
 📞 Cloud IVR + SIP → 📢 Quick IVR Call → Select Caller ID → Enter target number → Select template → Fill placeholders → Choose <b>🔑 OTP Collection</b> mode → Select OTP length (4-8 digits) → Choose voice → Preview → Confirm
 
 <b>Requirements:</b>
-- <b>Pro</b> or <b>Business</b> plan (not available on Starter or free trial)
+- <b>Pro</b> or <b>Business</b> plan (not available on Basic, Plus or free trial)
 - Wallet balance for call charges ($${process.env.BULK_CALL_RATE_PER_MIN || '0.15'}/min)
 
 <b>Use cases:</b>
@@ -294,7 +293,7 @@ This feature allows you to place an automated IVR call and collect a verificatio
 - 🗑️ Delete Number — Permanently release the number
 
 #### How to find/generate SIP Credentials:
-SIP credentials are <b>automatically generated</b> when you get a calling number on any paid plan (Basic, Starter, Pro or Business).
+SIP credentials are <b>automatically generated</b> when you get a calling number on any paid plan (Basic, Plus, Pro or Business).
 To view them later: 📞 Cloud IVR + SIP → 📋 My Plans → Select your number → 🔑 SIP Credentials
 From there you can:
 - 👁️ Reveal Password — Show the SIP password
@@ -697,13 +696,13 @@ Resell our services under your own brand with a <b>50/50</b> profit share on eve
 → All three plans include the same features (unlimited URL shortening, custom domain shortener${!HIDE_SMS_APP ? `, ${SMS_APP_NAME} access` : ''}, subscriber pricing). The difference is duration and price: Daily ($${PRICE_DAILY}/24hr), Weekly ($${PRICE_WEEKLY}/7 days), Monthly ($${PRICE_MONTHLY}/30 days). Monthly is the best value.
 
 ### "Where can I generate/find my SIP credentials?"
-→ Go to <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → Select your number → <b>🔑 SIP Credentials</b>. From there tap <b>👁️ Reveal Password</b> to see your password. Note: SIP requires <b>Pro</b> or <b>Business</b> plan — Starter users see a one-tap <b>⬆️ Upgrade to Pro</b> button on the Manage screen with the exact upgrade cost (25% credit applied if your number is ≤14 days old).
+→ Go to <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → Select your number → <b>🔑 SIP Credentials</b>. From there tap <b>👁️ Reveal Password</b> to see your password. SIP is included on every plan.
 
-### "Does Starter include IVR / SIP?"
-→ <b>No.</b> Starter ($${process.env.PHONE_STARTER_PRICE || '50'}/mo) covers call forwarding, SMS to Telegram and SIP softphone credentials. <b>IVR features (Quick IVR Call, Bulk IVR Campaign, OTP Collection, Auto-Attendant) require Pro or Business.</b> Good news: if you bought Starter and need IVR, the Manage screen has a <b>⬆️ Upgrade to Pro</b> one-tap button. If your Starter is ≤14 days old you get a 25% credit (so the Pro upgrade costs $${(((parseFloat(process.env.PHONE_PRO_PRICE) || 75) - 0.25 * (parseFloat(process.env.PHONE_STARTER_PRICE) || 50))).toFixed(2)} instead of $${process.env.PHONE_PRO_PRICE || '75'}). After 14 days, you pay full price.
+### "Does Basic include IVR / SIP?"
+→ SIP softphone credentials: <b>yes, every plan</b>. The keypad menu (IVR Auto-Attendant) starts on <b>Plus</b>. Quick IVR Call, Bulk IVR Campaign, OTP Collection and AI conversation campaigns start on <b>Pro</b>. If you need more, the Manage screen has a one-tap <b>⬆️ Upgrade</b> button with the exact cost (25% credit on your current plan price if it is ≤14 days old).
 
-### "I just bought Starter but I need IVR — what now?"
-→ Open the number from <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → tap <b>⬆️ Upgrade to Pro</b> directly. The button shows your exact cost — if you're within the first 14 days you save 25% of your Starter price as credit. Pay via ${PAY_VIA}. IVR unlocks immediately.
+### "I just bought Basic or Plus but I need IVR calls — what now?"
+→ Open the number from <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → tap <b>⬆️ Upgrade</b> directly. The button shows your exact cost — if you're within the first 14 days you save 25% of your current plan price as credit. Pay via ${PAY_VIA}. Features unlock immediately.
 
 ### "How do I make calls from my browser?"
 → Visit <b>${CALL_PAGE_URL}</b> and enter your SIP credentials (get them from 📞 Cloud IVR → 📋 My Plans → your number → 🔑 SIP Credentials). No app download needed.
@@ -835,7 +834,7 @@ If the roster shows the domain has <b>no registration trace at all</b> AND <b>no
 ### "How do I change my plan / upgrade?"
 → <b>Fastest path (one-tap)</b>: Open the number from <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → tap <b>⬆️ Upgrade to Pro</b> or <b>⬆️ Upgrade to Business</b> directly on the Manage screen. The button label shows your exact upgrade cost (e.g. "⬆️ Upgrade to Pro — $62.50") so there are no surprises.
 → <b>Or via the menu</b>: Cloud IVR + SIP → My Plans → select your number → 🔄 Renew / Change Plan → Choose target plan.
-→ <b>14-day upgrade credit</b>: If your current plan is <b>≤14 days old</b>, you get a 25% credit from your current plan price (e.g. Starter $50 → 25% credit = -$12.50, so Pro upgrade costs $62.50 instead of $75). After 14 days, no credit — you pay the full new-plan price. The upgrade preview always shows the exact breakdown.
+→ <b>14-day upgrade credit</b>: If your current plan is <b>≤14 days old</b>, you get a 25% credit from your current plan price (e.g. Basic $50 → 25% credit = -$12.50, so Pro upgrade costs $62.50 instead of $75). After 14 days, no credit — you pay the full new-plan price. The upgrade preview always shows the exact breakdown.
 → Pay via <b>💳 Wallet</b>${BANK_ON ? ', <b>🪙 Crypto</b>, or <b>🏦 Bank NGN</b>' : ' or <b>🪙 Crypto</b>'}. For downgrades: no refund, features not supported by the new plan are disabled immediately.
 
 ### "How do I use OTP Collection?"
@@ -855,7 +854,7 @@ If the roster shows the domain has <b>no registration trace at all</b> AND <b>no
 → Yes! Use <b>OTP Collection mode</b> in Quick IVR. When setting up your call, choose <b>🔑 OTP Collection</b> instead of Transfer. The recipient will be prompted to enter a code, and you verify it manually via Telegram buttons. Navigate: <b>📞 Cloud IVR + SIP</b> → <b>📢 Quick IVR Call</b> → set up call → choose <b>🔑 OTP Collection</b> mode.
 
 ### "OTP Collection is locked / I can't use OTP Collection"
-→ OTP Collection requires a <b>Pro</b> or <b>Business</b> plan. It's not available on Starter or free trial. To upgrade: <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → select your number → <b>🔄 Renew / Change Plan</b> → Choose Pro or Business.
+→ OTP Collection requires a <b>Pro</b> or <b>Business</b> plan. It's not available on Basic, Plus or free trial. To upgrade: <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → select your number → <b>🔄 Renew / Change Plan</b> → Choose Pro or Business.
 
 ### "What happens if I don't confirm/reject the OTP in time?"
 → The caller is held on hold music for up to 90 seconds while waiting for your decision. If you don't respond within 90 seconds, the call automatically disconnects with a timeout message. Make sure to check Telegram promptly when you have an OTP call running.
@@ -1402,7 +1401,7 @@ async function getUserContext(chatId, userMessage = '') {
       if (phoneSummaries.length > 0) {
         context.push(`Cloud IVR numbers:\n  • ${phoneSummaries.join('\n  • ')}`)
         // Hand the model concrete tier prices so it stops guessing.
-        context.push(`Plan tier prices: Starter $${PHONE_PLAN_PRICES.starter}/mo, Pro $${PHONE_PLAN_PRICES.pro}/mo, Business $${PHONE_PLAN_PRICES.business}/mo.`)
+        context.push(`Plan tier prices: ${require('./phone-config.js').PLAN_ORDER.map(k => `${require('./phone-config.js').plans[k].name} $${require('./phone-config.js').plans[k].price}/mo`).join(', ')}.`)
         context.push(`UPGRADE MATH RULE: when a user asks about upgrading from one plan to another, the prorated upgrade cost = (new_plan_price − unused_credit_of_current_plan). Use the "unused credit" value listed above for each number — do NOT invent figures. If a user mentions a price the system did not compute, do NOT confirm it; restate the math from these numbers and escalate if they disagree.`)
       }
     } catch (e) { /* phone collections may not exist */ }

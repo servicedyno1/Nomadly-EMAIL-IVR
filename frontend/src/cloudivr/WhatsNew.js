@@ -14,8 +14,8 @@ export const RELEASE = {
   since: '2026-10-25T18:00:00Z', // ≈ when this release went live; accounts created after it never see this card
   items: [
     { key: 'triggers', Icon: Zap, title: 'Text Triggers', body: 'A text to your number can start a call automatically — a call back to you, a recorded message or your AI agent.', feature: 'textTriggers', tab: 'triggers', plan: 'Business plan' },
-    { key: 'ringgroup', Icon: Users, title: 'Ring groups', body: 'Ring up to 5 phones at once — the first one to answer gets the caller.', feature: 'ringGroup', tab: 'ringgroup', plan: 'Pro plan and up' },
-    { key: 'summary', Icon: Sparkles, title: 'AI call summaries', body: 'Voicemails and recorded calls get a short summary, the caller’s mood and next steps.', feature: 'aiSummary', tab: 'logs', plan: 'Pro plan and up' },
+    { key: 'ringgroup', Icon: Users, title: 'Ring groups', body: 'Ring up to 5 phones at once — the first one to answer gets the caller.', feature: 'ringGroup', tab: 'ringgroup', plan: 'Plus plan and up' },
+    { key: 'summary', Icon: Sparkles, title: 'AI call summaries', body: 'Voicemails and recorded calls get a short summary, the caller’s mood and next steps.', feature: 'aiSummary', tab: 'logs', plan: 'Plus plan and up' },
     { key: 'webhooks', Icon: Webhook, title: 'Call events for your CRM and Zapier', body: 'Send calls, voicemails and texts to your own tools the moment they happen.', to: '/app/settings#webhooks' },
     { key: 'install', Icon: Download, title: 'Install the app', body: 'Put CloudIVR on your phone or computer like a normal app.', to: '/app/settings#install' },
   ],

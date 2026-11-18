@@ -19,12 +19,12 @@ import { AI_LANG_NAME as LANG_NAME } from './ai/languages';
 const TABS = [['agents', 'Agents'], ['calls', 'Call history'], ['dnc', 'Do-not-call list']];
 
 function PlanNote({ canUse, rate, receptionRate, recordRate }) {
-  if (canUse) return <div className="text-sm text-[#a1a1aa] mb-6" data-testid="ai-agents-rate-note">{`The same AI holds both kinds of conversation. Incoming calls (AI receptionist): $${receptionRate ?? 0.1}/min on any plan. Outgoing AI conversation campaigns: $${rate}/min on Business. Paid from your wallet; browser tests are free.`}</div>;
+  if (canUse) return <div className="text-sm text-[#a1a1aa] mb-6" data-testid="ai-agents-rate-note">{`The same AI holds both kinds of conversation. Incoming calls (AI receptionist): $${receptionRate ?? 0.1}/min on any plan. Outgoing AI conversation campaigns: $${rate}/min on Pro and Business. Paid from your wallet; browser tests are free.`}</div>;
   return (
     <div className="civr-card p-6 mb-6 flex flex-col md:flex-row md:items-center gap-4" data-testid="ai-agents-plan-note">
       <Lock className="w-6 h-6 text-[#fbbf24]" />
-      <div className="flex-1"><div className="font-semibold">Get a number to start AI conversations</div><div className="text-sm text-[#a1a1aa]">{`You can build and test agents now. Any plan can let the agent answer calls for $${receptionRate ?? 0.1}/min. Outgoing AI conversation campaigns need Business.`}</div></div>
-      <button type="button" onClick={() => showUpgrade({ feature: 'AI conversations on real calls', need: 'business' })} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="ai-agents-upgrade-link">See what Business adds</button>
+      <div className="flex-1"><div className="font-semibold">Get a number to start AI conversations</div><div className="text-sm text-[#a1a1aa]">{`You can build and test agents now. Any plan can let the agent answer calls for $${receptionRate ?? 0.1}/min. Outgoing AI conversation campaigns need Pro or Business.`}</div></div>
+      <button type="button" onClick={() => showUpgrade({ feature: 'AI conversation campaigns', need: 'pro' })} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="ai-agents-upgrade-link">See what Pro adds</button>
     </div>
   );
 }

@@ -20,7 +20,10 @@ export const availablePlans = (plans) => byPrice(plans).filter(p => p.available)
 // What a plan includes (✓) and leaves out (✗). With `plans`, a plan card lists only what it adds over the next cheaper
 // plan ("Everything in Basic, plus:"). `tone`: 'app' (dark app UI), 'dark' / 'cream' (landing cards).
 // The 3 biggest reasons to pick each plan, shown first; the rest stay behind "See all".
-const TOP = { starter: ['browserPhone', 'forwarding', 'inbox'], pro: ['ivr', 'bulk', 'voicemail'], business: ['anyCallerId', 'aiAgent', 'encryptedCalls'] };
+const TOP = { starter: ['emily', 'forwarding', 'voicemail'], standard: ['ivr', 'ringGroup', 'recording'], pro: ['aiCampaigns', 'bulk', 'quickIvr'], business: ['anyCallerId', 'textTriggers', 'encryptedCalls'] };
+// Each plan's one job, shown under its name.
+export const PLAN_JOB = { starter: 'Get a business number', standard: 'Answer like a business', pro: 'Reach out to your customers', business: 'Scale up, with full control' };
+const GROUPS = [['answer', 'Answer calls'], ['calls', 'Make calls'], ['ai', 'AI'], ['account', 'Texts & account']];
 
 export function PlanFeatures({ plan, plans, tone = 'app', compact = false, testid }) {
   const [all, setAll] = useState(false);
@@ -31,6 +34,8 @@ export function PlanFeatures({ plan, plans, tone = 'app', compact = false, testi
   const sorted = [...full.filter(f => top.includes(f.key)).sort((a, b) => top.indexOf(a.key) - top.indexOf(b.key)), ...full.filter(f => !top.includes(f.key))];
   const short = ladder && sorted.length > 4 && top.some(k => full.some(f => f.key === k));
   const list = short && !all ? sorted.slice(0, 3) : sorted;
+  // The full list reads in groups (Answer calls, Make calls, AI, Texts & account) once it is longer than a few lines.
+  const grouped = (!short || all) && list.length > 4 && list.some(f => f.group);
   const toggle = (e) => { e.preventDefault(); e.stopPropagation(); setAll(a => !a); };
   const on = { app: 'text-[#818cf8]', dark: 'text-[#6366f1]', cream: 'text-slate-900' }[tone];
   const offText = { app: 'text-[#a1a1aa]', dark: 'text-white/35', cream: 'text-slate-400' }[tone];
@@ -39,11 +44,16 @@ export function PlanFeatures({ plan, plans, tone = 'app', compact = false, testi
   return (
     <ul className={`flex flex-col ${compact ? 'gap-1 text-xs' : 'gap-2 text-sm'}`} data-testid={testid}>
       {ladder && <li className={`font-semibold ${head} ${compact ? 'mb-0.5' : 'mb-1'}`} data-testid={`${testid}-heading`}>{prev ? `Everything in ${prev.name}, plus:` : `${plan.name} includes:`}</li>}
-      {list.map(f => (
-        <li key={f.key} className={`flex gap-2 ${f.included ? onText : `${offText} line-through decoration-1`}`} data-testid={`${testid}-${f.key}`} data-included={f.included ? 'true' : 'false'}>
-          {f.included ? <Check className={`w-4 h-4 mt-0.5 shrink-0 ${on}`} /> : <X className="w-4 h-4 mt-0.5 shrink-0 opacity-60" />}
-          <span className={short && top.includes(f.key) ? `font-semibold ${head}` : ''}>{f.label}</span>
-        </li>
+      {(grouped ? GROUPS.map(([g, label]) => [label, list.filter(f => (f.group || 'account') === g)]).filter(([, fs]) => fs.length) : [[null, list]]).map(([label, fs]) => (
+        <React.Fragment key={label || 'all'}>
+          {label && <li className={`text-[11px] uppercase tracking-[.12em] font-semibold ${offText} ${compact ? 'mt-1' : 'mt-2'}`} data-testid={`${testid}-group-${label.split(' ')[0].toLowerCase()}`}>{label}</li>}
+          {fs.map(f => (
+            <li key={f.key} className={`flex gap-2 ${f.included ? onText : `${offText} line-through decoration-1`}`} data-testid={`${testid}-${f.key}`} data-included={f.included ? 'true' : 'false'}>
+              {f.included ? <Check className={`w-4 h-4 mt-0.5 shrink-0 ${on}`} /> : <X className="w-4 h-4 mt-0.5 shrink-0 opacity-60" />}
+              <span className={short && !all && top.includes(f.key) ? `font-semibold ${head}` : ''}>{f.label}</span>
+            </li>
+          ))}
+        </React.Fragment>
       ))}
       {short && <li><span role="button" tabIndex={0} onClick={toggle} onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && toggle(e)} className={`underline underline-offset-2 cursor-pointer ${on}`} data-testid={`${testid}-more`}>{all ? 'Show fewer' : `See all ${sorted.length} features`}</span></li>}
     </ul>
