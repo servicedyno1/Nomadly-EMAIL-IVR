@@ -3683,3 +3683,6 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 
 ## 2026-11-18 — Emily end-to-end demos in channel posts
 - 5 Emily demos (keypad menu, AI receptionist, reminder call, plan+number, AI campaign) as phone clips or 3-step albums; saved real recordings for production; admin pages blocked from captures. Verified in preview (live demo post simulated, saved-library album + clip rendered). Album send to Telegram not yet exercised live.
+
+## 2026-11-18 — Channel posts CTA
+- cloudivr.net link + @CloudIVRhelp support line on every caption; Support button next to Try CloudIVR.

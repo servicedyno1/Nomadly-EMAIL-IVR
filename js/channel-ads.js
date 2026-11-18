@@ -48,7 +48,10 @@ async function caption(pillar, topic, extra) {
   return fallback
 }
 
-const htmlText = (c) => `<b>${c.headline.replace(/[<>&]/g, '')}</b>\n${c.line.replace(/[<>&]/g, '')}`
+const SUPPORT = () => String(process.env.CHANNEL_ADS_SUPPORT || 'CloudIVRhelp').replace('@', '')
+const ctaUrl = (chat, topicId) => `${SITE()}/?utm_source=telegram&utm_medium=channel&utm_campaign=${encodeURIComponent(chat.replace('@', ''))}&utm_content=${topicId}`
+// Every post ends with the cloudivr.net link and the support handle.
+const htmlText = (c, url) => `<b>${c.headline.replace(/[<>&]/g, '')}</b>\n${c.line.replace(/[<>&]/g, '')}\n\n👉 <a href="${url}">${new URL(SITE()).host}</a>\n💬 Support: @${SUPPORT()}`
 
 // Next post for a channel: rotate the 5 kinds, least-recently-used topic, random visual (clip / AI art / screens).
 async function plan(chat) {
@@ -76,12 +79,11 @@ async function plan(chat) {
 }
 
 async function send(chat, media, text, topicId) {
-  const button = { inline_keyboard: [[{ text: 'Try CloudIVR', url: `${SITE()}/?utm_source=telegram&utm_medium=channel&utm_campaign=${encodeURIComponent(chat.replace('@', ''))}&utm_content=${topicId}` }]] }
+  const button = { inline_keyboard: [[{ text: 'Try CloudIVR', url: ctaUrl(chat, topicId) }, { text: 'Support', url: `https://t.me/${SUPPORT()}` }]] }
   if (media.type === 'album') {
     const fd = new FormData()
-    const link = `\n\n<a href="${button.inline_keyboard[0][0].url}">Try CloudIVR →</a>`
     fd.append('chat_id', chat)
-    fd.append('media', JSON.stringify(media.files.map((_, i) => ({ type: 'photo', media: `attach://s${i}`, ...(i === 0 ? { caption: text + link, parse_mode: 'HTML' } : {}) }))))
+    fd.append('media', JSON.stringify(media.files.map((_, i) => ({ type: 'photo', media: `attach://s${i}`, ...(i === 0 ? { caption: text, parse_mode: 'HTML' } : {}) }))))
     media.files.forEach((f, i) => fd.append(`s${i}`, new Blob([fs.readFileSync(f)]), `step-${i + 1}.jpg`))
     const r = await axios.post(`https://api.telegram.org/bot${token}/sendMediaGroup`, fd, { timeout: 120000, maxBodyLength: Infinity })
     return r.data.result[0].message_id
@@ -110,7 +112,7 @@ async function postNow(chat = TARGETS()[0]?.chat, slotKey = `manual:${chat}:${Da
       fs.rmSync(media.file, { force: true })
     }
     const topicId = media.type === 'photo' ? p.screen.id : (p.demo && !media.v.fallback ? p.demo.id : (p.clip || p.screen).id)
-    const text = htmlText(cap)
+    const text = htmlText(cap, ctaUrl(chat, topicId))
     const rec = { chat, pillar: p.pillar, topicId, mediaId: topicId, visual: media.type === 'album' ? 'series' : media.type === 'video' ? (p.kind === 'demo' ? 'demo' : 'clip') : media.v.layout, steps: media.files?.length || null, live: media.live, fallback: media.v.fallback || null, sig: sigOf(topicId, media.v), extra: p.extra, text, thumb: media.thumb.toString('base64') }
     if (dryRun()) {
       await col.updateOne({ _id: slotKey }, { $set: { status: 'simulated', ...rec } })
