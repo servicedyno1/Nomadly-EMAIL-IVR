@@ -51,14 +51,58 @@ async function refreshOwned(force = false) {
   return owned
 }
 const ownsNumber = (e164) => owned.has(String(e164 || ''))
+
+// SignalWire caps how many numbers one Space may hold. Once a buy is refused for that, its stock is hidden (file = shared
+// by every app process on the box) until numbers are released, the window ends, or a buy works again.
+const FULL_FILE = process.env.SIGNALWIRE_FULL_FILE || require('path').join(require('os').tmpdir(), 'signalwire-numbers-full.json')
+const FULL_MS = 2 * 3600000
+const AT_LIMIT = /maximum allowed phone numbers/i
+let fullCache = { at: 0, v: null }
+let onFull = () => {}
+const readFull = () => {
+  if (Date.now() - fullCache.at < 30000) return fullCache.v
+  let v = null
+  try { v = JSON.parse(require('fs').readFileSync(FULL_FILE, 'utf8')) } catch (_) { /* not full */ }
+  fullCache = { at: Date.now(), v }
+  return v
+}
+const isFull = () => { const f = readFull(); return !!f && f.until > Date.now() && !(ownedAt && owned.size < f.count) }
+function setFull(on) {
+  const v = on ? { until: Date.now() + FULL_MS, count: owned.size } : null
+  if (!on && !readFull()) return
+  try { if (v) require('fs').writeFileSync(FULL_FILE, JSON.stringify(v)); else require('fs').unlinkSync(FULL_FILE) } catch (_) { /* best effort */ }
+  fullCache = { at: Date.now(), v }
+}
 const isSwSearched = (e164) => searched.has(String(e164 || ''))
 
 // US area code → state / CA area code → province, so an out-of-stock area code falls back to in-state numbers.
-const AREA_REGION = { 212: 'NY', 315: 'NY', 347: 'NY', 516: 'NY', 518: 'NY', 585: 'NY', 607: 'NY', 631: 'NY', 646: 'NY', 716: 'NY', 718: 'NY', 845: 'NY', 914: 'NY', 917: 'NY', 305: 'FL', 321: 'FL', 352: 'FL', 386: 'FL', 407: 'FL', 561: 'FL', 727: 'FL', 754: 'FL', 772: 'FL', 786: 'FL', 813: 'FL', 850: 'FL', 863: 'FL', 904: 'FL', 941: 'FL', 954: 'FL', 310: 'CA', 213: 'CA', 323: 'CA', 408: 'CA', 415: 'CA', 510: 'CA', 530: 'CA', 559: 'CA', 562: 'CA', 619: 'CA', 626: 'CA', 650: 'CA', 657: 'CA', 707: 'CA', 714: 'CA', 760: 'CA', 805: 'CA', 818: 'CA', 858: 'CA', 909: 'CA', 916: 'CA', 925: 'CA', 949: 'CA', 951: 'CA', 312: 'IL', 773: 'IL', 847: 'IL', 630: 'IL', 708: 'IL', 713: 'TX', 214: 'TX', 281: 'TX', 469: 'TX', 512: 'TX', 682: 'TX', 713: 'TX', 737: 'TX', 817: 'TX', 832: 'TX', 972: 'TX', 206: 'WA', 253: 'WA', 360: 'WA', 425: 'WA', 509: 'WA', 202: 'DC', 404: 'GA', 678: 'GA', 770: 'GA', 617: 'MA', 857: 'MA', 781: 'MA', 215: 'PA', 267: 'PA', 412: 'PA', 702: 'NV', 725: 'NV', 303: 'CO', 720: 'CO', 602: 'AZ', 480: 'AZ', 623: 'AZ', 503: 'OR', 971: 'OR', 615: 'TN', 901: 'TN', 313: 'MI', 248: 'MI', 216: 'OH', 614: 'OH', 513: 'OH', 704: 'NC', 919: 'NC', 980: 'NC', 980: 'NC', 201: 'NJ', 551: 'NJ', 609: 'NJ', 732: 'NJ', 862: 'NJ', 973: 'NJ', 416: 'ON', 647: 'ON', 437: 'ON', 613: 'ON', 905: 'ON', 289: 'ON', 604: 'BC', 778: 'BC', 236: 'BC', 514: 'QC', 438: 'QC', 403: 'AB', 587: 'AB', 780: 'AB', 825: 'AB' }
+// Every US state / Canadian province with its area codes (overlays included).
+const AREA_CODES = {
+  AL: '205 251 256 334 659 938', AK: '907', AZ: '480 520 602 623 928', AR: '327 479 501 870',
+  CA: '209 213 279 310 323 341 350 369 408 415 424 442 510 530 559 562 619 626 628 650 657 661 669 707 714 738 747 760 805 818 820 831 837 840 858 909 916 925 949 951',
+  CO: '303 719 720 970 983', CT: '203 475 860 959', DE: '302', DC: '202 771',
+  FL: '239 305 321 324 352 386 407 448 561 645 656 689 727 728 754 772 786 813 850 863 904 941 954',
+  GA: '229 404 470 478 678 706 762 770 912 943', HI: '808', ID: '208 986',
+  IL: '217 224 309 312 331 447 464 618 630 708 730 773 779 815 847 861 872', IN: '219 260 317 463 574 765 812 930',
+  IA: '319 515 563 641 712', KS: '316 620 785 913', KY: '270 364 502 606 859', LA: '225 318 337 504 985', ME: '207',
+  MD: '227 240 301 410 443 667', MA: '339 351 413 508 617 774 781 857 978', MI: '231 248 269 313 517 586 616 679 734 810 906 947 989',
+  MN: '218 320 507 612 651 763 924 952', MS: '228 601 662 769', MO: '235 314 417 557 573 636 660 816 975', MT: '406',
+  NE: '308 402 531', NV: '702 725 775', NH: '603', NJ: '201 551 609 640 732 848 856 862 908 973', NM: '505 575',
+  NY: '212 315 329 332 347 363 516 518 585 607 624 631 646 680 716 718 838 845 914 917 929 934',
+  NC: '252 336 472 704 743 828 910 919 980 984', ND: '701', OH: '216 220 234 283 326 330 380 419 436 440 513 567 614 740 937',
+  OK: '405 539 572 580 918', OR: '458 503 541 971', PA: '215 223 267 272 412 445 484 570 582 610 717 724 814 835 878', RI: '401',
+  SC: '803 821 839 843 854 864', SD: '605', TN: '423 615 629 731 865 901 931',
+  TX: '210 214 254 281 325 346 361 409 430 432 469 512 621 682 713 726 737 806 817 830 832 903 915 936 940 945 956 972 979',
+  UT: '385 435 801', VT: '802', VA: '276 434 540 571 686 703 757 804 826 948', WA: '206 253 360 425 509 564', WV: '304 681',
+  WI: '262 274 353 414 534 608 715 920', WY: '307', PR: '787 939',
+  ON: '226 249 289 343 365 382 416 437 519 548 613 647 683 705 742 753 807 905 942', QC: '263 354 367 418 438 450 468 514 579 581 819 873',
+  BC: '236 250 257 604 672 778', AB: '368 403 587 780 825', MB: '204 431 584', SK: '306 474 639', NS: '782 902', NB: '428 506', NL: '709 879',
+}
+const AREA_REGION = Object.fromEntries(Object.entries(AREA_CODES).flatMap(([st, list]) => list.split(' ').map(c => [c, st])))
 
 async function searchNumbers(countryCode, numberType, areaCode, limit = 5) {
   const cc = String(countryCode || 'US').toUpperCase()
-  if (!enabled() || !['US', 'CA'].includes(cc)) return []
+  if (!enabled() || !['US', 'CA'].includes(cc) || isFull()) return []
   const type = numberType === 'toll_free' || numberType === 'toll-free' ? 'toll-free' : 'local'
   const run = async (extra) => {
     try {
@@ -107,10 +151,16 @@ async function buyNumber(phoneNumber) {
     const n = (await http().post('/api/relay/rest/phone_numbers', { number: phoneNumber })).data
     searched.delete(phoneNumber)
     owned.set(n.number || phoneNumber, n.id)
+    setFull(false)
     await configureNumber(n.id)
     log(`Bought ${phoneNumber} (${n.id}) → topic ${liveTopic()}`)
     return { id: 'sw:' + n.id, status: 'success', requirements_met: true, phone_numbers: [{ id: 'sw:' + n.id, phone_number: n.number || phoneNumber, status: 'success', requirements_status: 'requirements-met' }], _provider: 'signalwire' }
-  } catch (e) { log(`buy ${phoneNumber}:`, errOf(e)); return null }
+  } catch (e) {
+    const why = errOf(e)
+    log(`buy ${phoneNumber}:`, why)
+    if (AT_LIMIT.test(why)) { await refreshOwned(true); setFull(true); try { onFull(owned.size, phoneNumber) } catch (_) { /* alert only */ } }
+    return null
+  }
 }
 
 async function assignNumber(phoneNumber) {
@@ -248,6 +298,7 @@ async function createRestCall(from, to, url, statusCallbackUrl) {
 module.exports = {
   enabled, host, topic, liveTopic, liveUrl, handlerBody, brandSlug, sipDomain, http, errOf, AREA_REGION,
   searchNumbers, buyNumber, assignNumber, releaseById, releaseByPhoneNumber, listNumbers, refreshOwned, ownsNumber, ownedNumbers: () => [...owned.keys()], isSwSearched, configureNumber,
+  isFull, setFull, setOnFull: (fn) => { onFull = fn },
   lookup, loadSipUsers, isSipUser, createSipEndpoint, deleteSipEndpoint,
   sendSms, inboundToTelnyx, validSignature, createRestCall,
 }

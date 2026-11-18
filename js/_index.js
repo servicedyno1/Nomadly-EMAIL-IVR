@@ -4207,6 +4207,7 @@ const loadData = async () => {
   require('./fax-sales').start({ db, log })
   require('./growth-nudges').start({ db, notifyAdmin, log, send: (id, text) => bot?.sendMessage(id, text, { parse_mode: 'HTML' }).catch(() => {}) })
   require('./provider-health').start(notifyAdmin)
+  require('./signalwire/rest').setOnFull((count, phone) => require('./provider-health').numbersFull('signalwire', count, phone))
   require('./callengine/failover').setAlert((subject, html) => {
     const brand = process.env.CHAT_BOT_BRAND || 'Nomadly'
     notifyAdmin(`[${brand}] ${html}`)

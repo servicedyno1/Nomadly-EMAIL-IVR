@@ -189,6 +189,14 @@ function wrap(t) {
     }
     if (ib.enabled() && up('infobip')) { const r = await ib.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
     if (mt.enabled() && up('multitel')) { const r = await mt.searchNumbers(countryCode, numberType || 'local', areaCode, limit); if (r.length) return r }
+    // SignalWire can't take more numbers and nobody else has this area code → offer numbers from other areas, flagged as such.
+    if (areaCode && swOn() && rest.isFull()) {
+      for (const p of [mt, ib]) {
+        if (!p.enabled() || !up(p === mt ? 'multitel' : 'infobip')) continue
+        const r = await p.searchNumbers(countryCode, numberType || 'local', null, limit).catch(() => [])
+        if (r.length) return r.map(n => ({ ...n, _areaFallback: true, _requestedAreaCode: String(areaCode), _fallbackRegion: n._fallbackRegion || null }))
+      }
+    }
     // Skip Telnyx while its account can't sell numbers (US/CA-only mode); international searches still try it.
     if (!telnyxBackup() || (['US', 'CA'].includes(String(countryCode || 'US').toUpperCase()) && require('../phone-config').numberSearchUsCaOnly())) return []
     return t.searchNumbers(countryCode, numberType, areaCode, limit)
@@ -208,6 +216,7 @@ function wrap(t) {
     if (mt.isMtSearched(phoneNumber)) return require('../provider-health').buyWithBackup('multitel', phoneNumber, retrySearch)
     if (bird.isBirdSearched(phoneNumber)) return bird.buyNumber(phoneNumber)
     if (swOn() && rest.isSwSearched(phoneNumber)) {
+      if (rest.isFull()) return null
       const r = await rest.buyNumber(phoneNumber)
       if (r) return r
       if (retrySearch) {
