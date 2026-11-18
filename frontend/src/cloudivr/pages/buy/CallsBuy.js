@@ -13,8 +13,6 @@ import { PlanSuggest } from '../../PlanSuggest';
 import { usePrivacy } from '../../privacy';
 import { Flag, IconSelect } from '../../Pickers';
 import { saveIntent, setupPath, USE_PLAN, rememberedUse } from './setupIntent';
-import { useCivrAuth } from '../../AuthContext';
-import { BuyProfileGate } from '../../profile/ProfilePrompts';
 import { RequestOrder, PendingRequests } from './RequestOrder';
 
 // The chosen number + plan survive the wallet top-up detour (Wallet links back with ?resume=1).
@@ -151,15 +149,12 @@ function ExistingPlanChooser({ nums, price, pv }) {
 // Calls: find a number, then plan and pay. With extraOf, the number joins an existing plan instead.
 export function CallsBuy({ extraOf, onStage }) {
   const { catalog, summary, refreshSummary } = useShell();
-  const profileComplete = !!useCivrAuth()?.account?.profileComplete;
   const [reqTick, setReqTick] = useState(0);
   const nav = useNavigate();
   const [params] = useSearchParams();
   const [saved] = useState(() => readResume(params));
   const [q, setQ] = useState(saved?.q || { country: (params.get('country') || 'US').toUpperCase(), type: params.get('type') || 'local', areaCode: '' });
   const [res, setRes] = useState(saved?.res || null);
-  // Details and documents are asked right after payment (on the number's page), never before.
-  const needsProfile = !profileComplete && !!res?.request;
   const [single, setPick] = useState(saved?.pick || null);
   const [picks, setPicks] = useState(saved?.picks || []);
   const [plan, setPlan] = useState(saved?.plan || params.get('plan') || USE_PLAN[rememberedUse()] || null);
@@ -247,15 +242,15 @@ export function CallsBuy({ extraOf, onStage }) {
       <SearchForm catalog={catalog} q={q} setQ={setQ} onSearch={search} busy={busy === 'search'} extra={!!extraOf} />
       <div className="mt-4"><ErrorNote error={error} testid="buy-error" /></div>
       {res?.request ? <div className="mt-8">
-        <div className="mt-2">{needsProfile ? <BuyProfileGate /> : <RequestOrder request={res.request} plan={planObj} addon={addonOf(res.request, planObj?.id)} onDone={() => { setRes(null); setReqTick(t => t + 1); }} />}</div></div>
+        <div className="mt-2"><RequestOrder request={res.request} plan={planObj} addon={addonOf(res.request, planObj?.id)} onDone={() => { setRes(null); setReqTick(t => t + 1); }} /></div></div>
         : res && <div className="mt-6">
           {extraOf && res.numbers.length > 0 && <PickBar picks={picks} slots={slots} onClear={() => setPicks([])} />}
           <Results res={res} isOn={isOn} onPick={onPick} planTexting={catalog.planTexting} planId={extraOf ? null : planObj?.id} /></div>}
       {pick && (
         <div className="mt-8 civr-rise">
           <Label>{extraOf ? 'Pay' : `Pay for ${pick.phoneNumber} · ${planObj?.name} plan`}</Label>
-          {needsProfile ? <BuyProfileGate /> : <Checkout key={`${extraOf ? picks.length : pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}
-            textingOffer={null} coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `${picks.length > 1 ? `${picks.map(p => p.phoneNumber).join(', ')} · extra numbers` : 'Extra number'} on ${pv.phone(extraOf)}${extra?.renewsOn && extra.prorate < 1 ? ` · today covers the days until ${new Date(extra.renewsOn).toLocaleDateString()}, then renews with the plan` : ' · monthly'}` : null} autoRenewDefault={extraOf ? (parent ? parent.autoRenew !== false : true) : true} />}
+          <Checkout key={`${extraOf ? picks.length : pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}
+            textingOffer={null} coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `${picks.length > 1 ? `${picks.map(p => p.phoneNumber).join(', ')} · extra numbers` : 'Extra number'} on ${pv.phone(extraOf)}${extra?.renewsOn && extra.prorate < 1 ? ` · today covers the days until ${new Date(extra.renewsOn).toLocaleDateString()}, then renews with the plan` : ' · monthly'}` : null} autoRenewDefault={extraOf ? (parent ? parent.autoRenew !== false : true) : true} />
         </div>
       )}
     </div>

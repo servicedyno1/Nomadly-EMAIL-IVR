@@ -6,12 +6,8 @@ import { useShell } from '../../Shell';
 import { ErrorNote } from '../../ui';
 import { WalletPay } from '../../WalletPay';
 
-const DETAILS = {
-  none: 'No paperwork needed.',
-  name: 'Your saved business or full name is sent with the order.',
-  name_address: 'Your saved name and address are sent with the order.',
-};
-const STATUS = { submitted: 'Sent to the carrier', in_review: 'Carrier is reviewing', approved: 'Approved — activating', active: 'Ready', refunded: 'Declined — refunded' };
+const DETAILS = { none: 'If the carrier needs any details, we ask for them after you pay.' };
+const STATUS = { submitted: 'Ordering from the carrier', in_review: 'Ordering from the carrier', approved: 'Ordering from the carrier', activating: 'Assigning your number', needs_attention: 'Our team is finishing it', active: 'Ready', refunded: 'Not available — refunded' };
 
 // Countries where the carrier assigns the number after an order: pay now, number arrives later, full refund if declined.
 export function RequestOrder({ request, plan, addon = 0, onDone }) {
@@ -30,7 +26,7 @@ export function RequestOrder({ request, plan, addon = 0, onDone }) {
         <Clock className="w-5 h-5 text-[#818cf8] mt-1 shrink-0" />
         <div>
           <div className="font-semibold">{request.flag} {request.name} numbers are assigned by the carrier</div>
-          <p className="text-sm text-[var(--c-muted)] mt-1">You can’t pick the exact number. Pay now and the carrier assigns one, usually within a few business days. If they decline, you get a full refund to your wallet.</p>
+          <p className="text-sm text-[var(--c-muted)] mt-1">You can’t pick the exact number. Pay now and the carrier assigns one, usually within minutes (sometimes up to 3 days). If none can be supplied, you get a full refund to your wallet.</p>
         </div>
       </div>
       <p className="text-sm flex gap-2" data-testid="request-order-details"><ShieldCheck className="w-4 h-4 mt-0.5 shrink-0 text-[#818cf8]" />{DETAILS[request.details]}</p>

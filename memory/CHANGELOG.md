@@ -3714,3 +3714,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - channel-ads: visual built up to 25 min before each slot (status prepared, files in CHANNEL_ADS_WORK_DIR), sent on the minute (tick every 60 s); missing files → rebuild + send. Preview test: prepared 11:12:54, sent 11:15:04 for an 11:15 slot.
 - numbers.js / fax-numbers.js chaseDetails: day-1 and day-3 reminders now also emailed (web accounts have no Telegram chat).
 - Fax: /fax-numbers no longer gated by legal details (backend already supports needs_details after payment → FinishRegistration); BuyNumber fax tab no longer shows BuyProfileGate.
+
+## 2026-06 — On-request numbers moved from Infobip to MultiTEL
+- js/cloudivr-web/number-requests.js: pay now → order from MultiTEL (local, then national, then mobile), retried every tick; refunded at once if MultiTEL sells nothing in that country, or after 3 days with no stock. Existing Infobip pending requests are picked up by the same tick. Bought-but-not-attached → status needs_attention + admin alert (no double buy).
+- number-catalog.js: request flow only where MultiTEL has no pick-a-number offer (DK, CR, EC, PY local); AT/SE/AU/DE/CY/DO/PE local now normal MultiTEL picks.
+- Payment-first: /numbers/request no longer needs the profile first (legal-profile AFTER_BUY; CallsBuy gate removed).
+- Test: js/tests/test_number_requests_multitel.js (9/9 pass). Telegram bots had no on-request flow (already MultiTEL).
