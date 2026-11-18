@@ -16,7 +16,6 @@ import { saveIntent, setupPath, USE_PLAN, rememberedUse } from './setupIntent';
 import { useCivrAuth } from '../../AuthContext';
 import { BuyProfileGate } from '../../profile/ProfilePrompts';
 import { RequestOrder, PendingRequests } from './RequestOrder';
-import { PaperworkNote } from './Paperwork';
 
 // The chosen number + plan survive the wallet top-up detour (Wallet links back with ?resume=1).
 const RESUME_KEY = 'civr.buyResume';
@@ -159,8 +158,8 @@ export function CallsBuy({ extraOf, onStage }) {
   const [saved] = useState(() => readResume(params));
   const [q, setQ] = useState(saved?.q || { country: (params.get('country') || 'US').toUpperCase(), type: params.get('type') || 'local', areaCode: '' });
   const [res, setRes] = useState(saved?.res || null);
-  // Details are asked before paying only where the carrier needs paperwork; otherwise right after the purchase.
-  const needsProfile = !profileComplete && !!(res?.request || res?.paperwork);
+  // Details and documents are asked right after payment (on the number's page), never before.
+  const needsProfile = !profileComplete && !!res?.request;
   const [single, setPick] = useState(saved?.pick || null);
   const [picks, setPicks] = useState(saved?.picks || []);
   const [plan, setPlan] = useState(saved?.plan || params.get('plan') || USE_PLAN[rememberedUse()] || null);
@@ -190,8 +189,6 @@ export function CallsBuy({ extraOf, onStage }) {
   const businessOnly = false;
   const planObj = businessOnly ? avail('business') : avail(plan) || avail(catalog.recommendedPlan) || catalog.plans.find(p => p.available);
   const total = extraOf ? Math.round(picks.reduce((t, p) => t + Math.max(0.5, (p.extraPrice ?? extra?.price ?? 0) * (extra?.prorate ?? 1)), 0) * 100) / 100 : planObj ? planObj.price + addonOf(pick, planObj.id) : 0;
-  const pc = res?.paperwork?.compliance;
-  const docsMissing = res?.paperwork?.level === 2 && (!res.paperwork.documents?.ready || (pc && (pc.identity?.status !== 'verified' || (pc.business && pc.company?.status !== 'approved'))));
 
   const search = async (e) => {
     e.preventDefault(); setBusy('search'); setError(null); setPick(null); setPicks([]);
@@ -252,13 +249,12 @@ export function CallsBuy({ extraOf, onStage }) {
       {res?.request ? <div className="mt-8">
         <div className="mt-2">{needsProfile ? <BuyProfileGate /> : <RequestOrder request={res.request} plan={planObj} addon={addonOf(res.request, planObj?.id)} onDone={() => { setRes(null); setReqTick(t => t + 1); }} />}</div></div>
         : res && <div className="mt-6">
-          <PaperworkNote paperwork={res.paperwork} country={q.country} countryName={catalog.countries.find(c => c.code === q.country)?.name || q.country} onChange={(documents) => setRes(r => ({ ...r, paperwork: { ...r.paperwork, documents } }))} />
           {extraOf && res.numbers.length > 0 && <PickBar picks={picks} slots={slots} onClear={() => setPicks([])} />}
           <Results res={res} isOn={isOn} onPick={onPick} planTexting={catalog.planTexting} planId={extraOf ? null : planObj?.id} /></div>}
       {pick && (
         <div className="mt-8 civr-rise">
           <Label>{extraOf ? 'Pay' : `Pay for ${pick.phoneNumber} · ${planObj?.name} plan`}</Label>
-          {needsProfile ? <BuyProfileGate /> : docsMissing ? <div className="civr-card p-5 text-sm text-[#fbbf24]" data-testid="buy-documents-required">Finish the steps above (documents, ID check{pc?.business ? ', company papers' : ''}) to buy this number.</div> : <Checkout key={`${extraOf ? picks.length : pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}
+          {needsProfile ? <BuyProfileGate /> : <Checkout key={`${extraOf ? picks.length : pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}
             textingOffer={null} coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `${picks.length > 1 ? `${picks.map(p => p.phoneNumber).join(', ')} · extra numbers` : 'Extra number'} on ${pv.phone(extraOf)}${extra?.renewsOn && extra.prorate < 1 ? ` · today covers the days until ${new Date(extra.renewsOn).toLocaleDateString()}, then renews with the plan` : ' · monthly'}` : null} autoRenewDefault={extraOf ? (parent ? parent.autoRenew !== false : true) : true} />}
         </div>
       )}

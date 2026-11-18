@@ -3704,3 +3704,7 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - emails.js welcomeBack (once per account; signed up 2+ days ago, never back after 1 h, no number) en/fr/es.
 - funnel-report.js: daily 08:00 UTC Telegram summary to admin (FUNNEL_REPORT_ON=false to stop); verified build() on prod data read-only.
 - Tests: iteration_324 (backend 7/7 + bug fixed: crypto invoice no longer triggers the details dialog).
+
+## 2026-11-18 — Paperwork after payment + channel posts prod check
+- CallsBuy: removed the pre-payment PaperworkNote/doc upload and the "documents required" checkout block; BuyProfileGate only for Infobip request orders (Infobip not selling in prod). Backend already took paperwork orders and marks registration needs_details on the number page. Bot: only Telnyx intl had a pre-pay note and Telnyx/Twilio no longer sell; Twilio doc collection already starts after "Payment received".
+- Prod channel posts: code live since 10:15 UTC; first slots 14:00 (@CloudIVRNet), 18:00 (@Hostbay), 22:00 — none were due yet (channelAdPosts empty). Read-only prod generation check: caption OK 1s, screen duo 138s, 3-step album 107s, Emily demo clip 52s (Browserless is slow but within limits).
