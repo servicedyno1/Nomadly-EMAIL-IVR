@@ -240,10 +240,22 @@ function createEmails(db, { log = console.log } = {}) {
           jobs.push({ chatId, type: 'renewFailed', key: `grace:${phone}:${n._graceUntil}`, data: async () => { const balance = await w.balance(chatId); return { phone, price, balance, shortfall: round2(Math.max(0, price - balance)), graceUntil: n._graceUntil } } })
         } else if (exp > now && exp - now <= 3 * DAY) {
           const soon = async () => { const balance = await w.balance(chatId); return { phone, planName, price, expiresAt: n.expiresAt, autoRenew: !!n.autoRenew, balance, shortfall: round2(Math.max(0, price - balance)) } }
+          // Lines that renew get one email only when the wallet is short (walletShort below); these are lines that END.
+          if (n.autoRenew) continue
           if (exp - now > DAY) jobs.push({ chatId, type: 'renewSoon', key: `renewsoon:${phone}:${n.expiresAt}`, data: soon })
           else jobs.push({ chatId, type: 'renewSoon', key: `renewsoon1:${phone}:${n.expiresAt}`, data: soon })
         }
       }
+    }
+    return jobs
+  }
+
+  // Wallet too low for charges due in the next 3 days (plans, extras, Texting Numbers, eSIMs, fax): 3 days and 1 day before.
+  async function walletShort(nums) {
+    const cal = require('../renewal-calendar'), jobs = []
+    for (const [chatId] of nums.byChat) {
+      const s = cal.shortSoon(await cal.forAccount(db, chatId, { days: 4 }))
+      if (s) jobs.push({ chatId, type: 'renewSoon', key: `walletshort:${chatId}:${s.date.slice(0, 10)}:${s.stage}`, data: async () => ({ phone: s.first.phone || s.first.title, planName: s.count > 1 ? `${s.count} renewals` : s.first.title, price: s.due, expiresAt: s.date, autoRenew: true, balance: s.balance, shortfall: s.shortBy }) })
     }
     return jobs
   }
@@ -312,7 +324,7 @@ function createEmails(db, { log = console.log } = {}) {
       const nums = await webNumbers()
       const jobs = await events(from, nums)
       jobs.push(...(await textingSteps()))
-      if (ticks++ % 5 === 0) jobs.push(...numberStates(nums), ...(await walletLevels(nums)), ...(await depositNudges()))
+      if (ticks++ % 5 === 0) jobs.push(...numberStates(nums), ...(await walletShort(nums)), ...(await walletLevels(nums)), ...(await depositNudges()))
       return await run(jobs)
     } catch (e) { log(`[CloudIVR-Email] scan failed: ${e.message}`); return 0 } finally { busy = false }
   }

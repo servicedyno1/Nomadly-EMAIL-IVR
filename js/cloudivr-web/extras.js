@@ -74,7 +74,7 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
     const sub = { parentNumber: n.phoneNumber, plan: n.plan }
     let redeemed = false
     const buyOne = async (p) => {
-      const r = await numbersApi.purchase({ chatId, email: req.webUser.email, phone: p.hit.phoneNumber, planKey: n.plan, autoRenew: req.body.autoRenew !== false, coupon, skipRedeem: redeemed, sub, ...p })
+      const r = await numbersApi.purchase({ chatId, email: req.webUser.email, phone: p.hit.phoneNumber, planKey: n.plan, autoRenew: req.body.autoRenew !== false, coupon, skipRedeem: redeemed, sub, planLocked: picks.length > 1, ...p })
       if (r.status === 201 || r.status === 202) redeemed = true
       return r
     }
@@ -143,6 +143,9 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
     res.json({ copied: parts, to: done, skipped })
   }))
 
+  // ── Renewal calendar: every upcoming charge by date and what the wallet covers ──
+  router.get('/renewals/calendar', h(async (req, res) => res.json(await require('../renewal-calendar').forAccount(db, req.webChatId))))
+
   // ── Downgrade: switch now, no refund; features the new plan lacks are turned off (same as the bot) ──
   router.post('/numbers/:phone/downgrade', withNumber(async (req, res) => {
     const n = req.num, newPlan = String(req.body.plan || '')
@@ -164,7 +167,7 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
     // Settings switched off are remembered so a later upgrade can switch them back on. Running campaigns and
     // scheduled calls are not touched — they finish as planned.
     const { set } = lifecycle.downgradePatch(n, newPlan)
-    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: lifecycle.numberSet({ plan: newPlan, planPrice: newPrice, ...set }) })
+    await require('../live-number').updateLive(phoneNumbersOf, req.webChatId, n.phoneNumber, { $set: lifecycle.numberSet({ plan: newPlan, planPrice: newPrice, ...set }) })
     await syncExtras(req.webChatId, n.phoneNumber, newPlan)
     if (sipSignOut) Promise.all([n, ...subs.filter(x => x.status !== 'released')].map(x => numbersApi.rotateSip(req.webChatId, x)))
       .catch(e => log(`[CloudIVR-Web] SIP sign-out after downgrade failed for ${n.phoneNumber}: ${e.message}`))

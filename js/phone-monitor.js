@@ -273,8 +273,7 @@ async function runHealthCheck(bot, db) {
       totalInactiveReleased++;
 
       const now = new Date().toISOString();
-      await phoneNumbersOf.updateOne(
-        { _id: chatId, 'val.numbers.phoneNumber': phoneNumber },
+      await require('./live-number').updateLive(phoneNumbersOf, chatId, phoneNumber,
         { $set: {
           'val.numbers.$.status': 'inactive_released',
           'val.numbers.$._inactiveSince': now,
@@ -363,14 +362,14 @@ async function runHealthCheck(bot, db) {
         bot, db, suspensionEvents, phoneNumbersOf,
         chatId, phoneNumber, 'telnyx', String(statusInfo.id || phoneNumber),
         statusInfo.connectionName || '',
-        { _id: chatId, 'val.numbers.phoneNumber': phoneNumber },
+        require('./live-number').liveQuery(chatId, phoneNumber),
         'val.numbers.$.status',
       );
       if (isNew) totalSuspended++;
     } else if (statusInfo.status === 'active') {
       await handleReactivation(
         suspensionEvents, phoneNumbersOf, phoneNumber, 'telnyx', chatId,
-        { _id: chatId, 'val.numbers.phoneNumber': phoneNumber },
+        require('./live-number').liveQuery(chatId, phoneNumber),
         'val.numbers.$.status',
       );
     }

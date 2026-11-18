@@ -36,6 +36,7 @@ import CampaignDetail from './pages/CampaignDetail';
 import Live from './pages/Live';
 import DoNotCall from './pages/DoNotCall';
 import Wallet from './pages/Wallet';
+import RenewalCalendar from './pages/RenewalCalendar';
 import Inbox from './pages/Inbox';
 import Messages from './pages/Messages';
 import Settings from './pages/Settings';
@@ -236,6 +237,7 @@ export default function Shell() {
               <Route path="live" element={<Live />} />
               <Route path="do-not-call" element={<DoNotCall />} />
               <Route path="wallet" element={<Wallet />} />
+              <Route path="renewals" element={<RenewalCalendar />} />
               <Route path="inbox" element={<Inbox />} />
               <Route path="messages" element={<Messages />} />
               <Route path="settings" element={<Settings />} />

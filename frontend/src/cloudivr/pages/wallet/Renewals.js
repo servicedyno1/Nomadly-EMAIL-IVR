@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
-import { RefreshCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { RefreshCw, CalendarClock } from 'lucide-react';
+import { cp } from '../../paths';
 import { api, enc, money, useApi } from '../../api';
 import { Flag } from '../../Pickers';
 import { countryOfPhone } from '../../phoneCountry';
@@ -45,7 +47,7 @@ export function Renewals() {
   return (
     <section className="civr-card mt-8" data-testid="renewals">
       <div className="p-5 border-b border-[var(--c-border)]">
-        <div className="font-semibold flex items-center gap-2"><RefreshCw className="w-4 h-4" />Renewals</div>
+        <div className="font-semibold flex items-center justify-between gap-2"><span className="flex items-center gap-2"><RefreshCw className="w-4 h-4" />Renewals</span><Link to={cp('/app/renewals')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="renewals-calendar-link"><CalendarClock className="w-4 h-4" />Renewal calendar</Link></div>
         <p className="text-sm text-[var(--c-muted)] mt-1">Every number and line you pay for monthly. Turn auto-renew off and it stays yours until its end date, then we release it with the carrier so you’re never billed again.</p>
       </div>
       {rows.length ? <div className="divide-y divide-[var(--c-border)]">{rows.map((r, i) => <Row key={r.key} r={r} i={i} reload={reload} />)}</div>

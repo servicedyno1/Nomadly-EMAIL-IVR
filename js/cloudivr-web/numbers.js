@@ -535,6 +535,7 @@ function routes(router, deps) {
   // One buyer at a time per number: the lock closes the gap between the holder check and saving the number
   // (TTL frees it if the process dies mid-purchase).
   const locks = db.collection('webNumberLocks')
+  locks.createIndex({ at: 1 }, { expireAfterSeconds: 900 }).catch(() => {}) // a lock left by a crash clears itself
   locks.createIndex({ at: 1 }, { expireAfterSeconds: 600 }).catch(() => {})
   // MultiTEL details / documents rules for this account → message, or null when it can buy.
   async function paperworkIssue(chatId, country, name, offer) {
@@ -547,12 +548,28 @@ function routes(router, deps) {
     return null
   }
 
+  // Extra numbers: one buy per plan at a time, and the plan's free slots are checked again under that lock,
+  // so two buys at the same moment can never go over the plan's limit.
   async function purchase(args) {
-    try { await locks.insertOne({ _id: args.phone, chatId: args.chatId, at: new Date() }) } catch (e) {
-      if (e.code === 11000) return { status: 409, body: { error: 'number_taken', message: 'Someone is buying that number right now. Pick another one.' } }
-      throw e
+    const planLock = args.sub && !args.planLocked ? `extras:${args.chatId}:${args.sub.parentNumber}` : null
+    if (planLock) {
+      let got = false
+      for (let i = 0; i < 40 && !got; i++) {
+        try { await locks.insertOne({ _id: planLock, at: new Date() }); got = true } catch (e) { if (e.code !== 11000) throw e; await new Promise(r => setTimeout(r, 250)) }
+      }
+      if (!got) return { status: 409, body: { error: 'busy', message: 'Extra numbers are already being added to this plan. Wait a moment and try again.' } }
     }
-    try { return await purchaseLocked(args) } finally { await locks.deleteOne({ _id: args.phone }).catch(() => {}) }
+    try {
+      if (planLock) {
+        const used = (await myNumbers(args.chatId)).filter(n => n.isSubNumber && n.parentNumber === args.sub.parentNumber).length
+        if (!phoneConfig.subSlotsLeft(args.sub.plan, used)) return { status: 400, body: { error: 'limit_reached', message: `The ${phoneConfig.plans[args.sub.plan]?.name || args.sub.plan} plan allows ${phoneConfig.getSubNumberLimit(args.sub.plan)} extra numbers. Upgrade the main number to add more.` } }
+      }
+      try { await locks.insertOne({ _id: args.phone, chatId: args.chatId, at: new Date() }) } catch (e) {
+        if (e.code === 11000) return { status: 409, body: { error: 'number_taken', message: 'Someone is buying that number right now. Pick another one.' } }
+        throw e
+      }
+      try { return await purchaseLocked(args) } finally { await locks.deleteOne({ _id: args.phone }).catch(() => {}) }
+    } finally { if (planLock) await locks.deleteOne({ _id: planLock }).catch(() => {}) }
   }
 
   // Debits the wallet and activates the number → { status, body } (HTTP-style; refunds on failure).
@@ -958,7 +975,7 @@ function routes(router, deps) {
       if (n.telnyxCredentialId) await telnyxApi.deleteSIPCredential(n.telnyxCredentialId).catch(() => {})
     }
     const live = !dryRun() && !n.dryRun
-    await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.sipUsername': user, 'val.numbers.$.sipPassword': pass, 'val.numbers.$.telnyxSipUsername': live || process.env.SIP_SERVER_SECRET ? user : n.telnyxSipUsername || null, 'val.numbers.$.telnyxSipPassword': live || process.env.SIP_SERVER_SECRET ? pass : n.telnyxSipPassword || null, 'val.numbers.$.telnyxCredentialId': credId || (process.env.SIP_SERVER_SECRET ? `kam:${user}` : n.telnyxCredentialId || null) } })
+    await require('../live-number').updateLive(phoneNumbersOf, chatId, n.phoneNumber, { $set: { 'val.numbers.$.sipUsername': user, 'val.numbers.$.sipPassword': pass, 'val.numbers.$.telnyxSipUsername': live || process.env.SIP_SERVER_SECRET ? user : n.telnyxSipUsername || null, 'val.numbers.$.telnyxSipPassword': live || process.env.SIP_SERVER_SECRET ? pass : n.telnyxSipPassword || null, 'val.numbers.$.telnyxCredentialId': credId || (process.env.SIP_SERVER_SECRET ? `kam:${user}` : n.telnyxCredentialId || null) } })
     return { username: user, password: pass }
   }
 
@@ -969,7 +986,7 @@ function routes(router, deps) {
     if (n.registration?.status !== 'needs_details' || !offer) return bad(res, 409, 'not_waiting', 'This number is not waiting for your details.')
     const why = await paperworkIssue(req.webChatId, n.country, c?.name || n.country, offer)
     if (why) return bad(res, 400, 'paperwork_needed', why)
-    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.registration.status': 'pending', 'val.numbers.$.registration.detailsAt': new Date().toISOString() } })
+    await require('../live-number').updateLive(phoneNumbersOf, req.webChatId, n.phoneNumber, { $set: { 'val.numbers.$.registration.status': 'pending', 'val.numbers.$.registration.detailsAt': new Date().toISOString() } })
     if (!n.dryRun) await deps.numberDocs?.submit({ chatId: req.webChatId, email: req.webUser?.email, phoneNumber: n.phoneNumber, country: n.country, countryName: c?.name || n.country, type: n.type }).catch(e => log(`[CloudIVR-Web] MultiTEL documents for ${n.phoneNumber}: ${e.message}`))
     res.json({ ok: true })
   }))
@@ -1048,7 +1065,7 @@ function routes(router, deps) {
     res.json({ ...login, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP' })
   }))
   router.delete('/numbers/:phone/sip/extra/:id', withNumber(async (req, res) => {
-    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': req.num.phoneNumber }, { $pull: { 'val.numbers.$.extraSip': { id: req.params.id } } })
+    await require('../live-number').updateLive(phoneNumbersOf, req.webChatId, req.num.phoneNumber, { $pull: { 'val.numbers.$.extraSip': { id: req.params.id } } })
     res.json({ ok: true })
   }))
 
@@ -1107,7 +1124,7 @@ function routes(router, deps) {
     if (!(await w.debit(chatId, q.charge))) return { status: 402, body: { error: 'insufficient_balance', message: `The upgrade costs $${q.charge.toFixed(2)}.`, cost: q.charge } }
     // Switch back on what a downgrade turned off, when the new plan includes it.
     const set = lifecycle.numberSet({ plan: newPlan, planPrice: q.newPrice, ...lifecycle.upgradePatch(n, newPlan) })
-    await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: set, $unset: { 'val.numbers.$.priceLock': '' } })
+    await require('../live-number').updateLive(phoneNumbersOf, chatId, n.phoneNumber, { $set: set, $unset: { 'val.numbers.$.priceLock': '' } })
     await phoneNumbersOf.updateOne({ _id: chatId }, { $set: { 'val.numbers.$[s].plan': newPlan } }, { arrayFilters: [{ 's.isSubNumber': true, 's.parentNumber': n.phoneNumber }] }).catch(() => {})
     await phoneTransactions.insertOne({ chatId, phoneNumber: n.phoneNumber, action: 'upgrade', oldPlan: n.plan, newPlan, oldPrice: n.planPrice, newPrice: q.newPrice, amount: q.charge.toFixed(2), credit: q.credit.toFixed(2), paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), channel: 'web', timestamp: new Date().toISOString() })
     await txn(chatId, 'phone-upgrade', q.charge, { phoneNumber: n.phoneNumber, plan: newPlan })
@@ -1176,7 +1193,7 @@ function routes(router, deps) {
         const { _reminder3Sent, _reminder1Sent, ...keep } = old
         const doc = { ...keep, ...sip, phoneNumber: selected, telnyxOrderId: order.id, provider: order._provider || (String(order.id || '').startsWith('mt:') ? 'multitel' : String(order.id || '').startsWith('ib:') ? 'infobip' : keep.provider || 'telnyx'), capabilities: caps, purchaseDate: new Date().toISOString(), replaces: old.phoneNumber, messagingProfileId: caps.sms ? tr.messagingProfileId || old.messagingProfileId || null : null, features: { ...(old.features || {}), sms: !!caps.sms && old.features?.sms === true }, ...(live ? {} : { dryRun: true }) }
         const releaseAt = new Date(Date.now() + OVERLAP_DAYS * 86400000).toISOString()
-        await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': old.phoneNumber }, { $set: { 'val.numbers.$.replacedBy': selected, 'val.numbers.$.releaseAt': releaseAt, 'val.numbers.$.autoRenew': false, 'val.numbers.$.telnyxCredentialId': null, 'val.numbers.$.telnyxSipUsername': null, 'val.numbers.$.telnyxSipPassword': null, 'val.numbers.$.sipUsername': null, 'val.numbers.$.sipPassword': null } })
+        await require('../live-number').updateLive(phoneNumbersOf, chatId, old.phoneNumber, { $set: { 'val.numbers.$.replacedBy': selected, 'val.numbers.$.releaseAt': releaseAt, 'val.numbers.$.autoRenew': false, 'val.numbers.$.telnyxCredentialId': null, 'val.numbers.$.telnyxSipUsername': null, 'val.numbers.$.telnyxSipPassword': null, 'val.numbers.$.sipUsername': null, 'val.numbers.$.sipPassword': null } })
         const eu = await deps.legalProfile?.recordResale({ chatId, phoneNumber: selected, provider: order._provider || 'telnyx', country: old.country })
         if (eu) doc.endUser = eu
         doc.resold = true

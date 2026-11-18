@@ -833,6 +833,8 @@ const mpSafeDeal = require('./mp-safedeal.js')
 const depositFunnel = require('./deposit-funnel.js')
 const regulatoryFlow = require('./regulatory-flow.js')
 const subBatch = require('./sub-batch.js') // bot: several extra numbers in one payment
+const renewalCalendar = require('./renewal-calendar.js') // every upcoming charge by date + low-wallet reminders
+const subBuyGuard = new Map() // bot: one extra-number buy per plan at a time
 const txReg = require('./telnyx-regulatory.js') // Telnyx intl numbers: pre-payment verification + review tracking
 const rsApply = require('./reseller-apply.js') // 💼 Reseller in-bot application form (RESELLER_APPLY_FORM=true)
 const { needsDocUpload } = require('./regulatory-config.js')
@@ -4222,7 +4224,7 @@ const loadData = async () => {
     adminEmail: (subject, html) => process.env.CIVR_ADMIN_EMAIL && require('./cloudivr-web/auth').sendMail(process.env.CIVR_ADMIN_EMAIL, subject, html).catch(() => {}),
     credit: (id, amt) => atomicIncrement(walletOf, id, 'usdIn', Number(amt) || 0),
     removeNumber: (id, phone) => phoneNumbersOf.updateOne({ _id: id }, { $pull: { 'val.numbers': { phoneNumber: phone, status: 'provisioning' } } }),
-    activateNumber: (id, phone, r) => phoneNumbersOf.updateOne({ _id: id, 'val.numbers.phoneNumber': phone }, { $set: { 'val.numbers.$.status': 'active', 'val.numbers.$.phoneNumber': r.phoneNumber, 'val.numbers.$.telnyxOrderId': r.telnyxOrderId, ...(r.needsRegistration ? { 'val.numbers.$.registration': { status: 'pending', since: new Date().toISOString() } } : {}) } }),
+    activateNumber: (id, phone, r) => require('./live-number').updateLive(phoneNumbersOf, id, phone, { $set: { 'val.numbers.$.status': 'active', 'val.numbers.$.phoneNumber': r.phoneNumber, 'val.numbers.$.telnyxOrderId': r.telnyxOrderId, ...(r.needsRegistration ? { 'val.numbers.$.registration': { status: 'pending', since: new Date().toISOString() } } : {}) } }),
   }).catch(e => log('[PendingOrders] init: ' + e.message))
   require('./bird-alert').setTelegram(notifyAdmin)
   planLifecycle.lockLegacyPrices(phoneNumbersOf, db.collection('migrationMarks')).then(r => Object.keys(r).length && log(`[PlanLadder] price locks applied: ${JSON.stringify(r)}`)).catch(e => log(`[PlanLadder] price lock failed: ${e.message}`))
@@ -11226,6 +11228,7 @@ bot?.on('message', msg => {
         [pc.buyPhoneNumber],
         [pc.testSipFree, ivrBtnHub],
         [pc.myNumbers, pc.usageBilling],
+        [renewalCalendar.BUTTONS[info?.userLanguage] || renewalCalendar.BUTTONS.en],
         [pc.bulkCallCampaign, pc.myCampaigns],
         [pc.audioLibrary, pc.sipSettings],
         [botFax.T(info?.userLanguage).menu, pc.howItWorks],
@@ -14442,6 +14445,18 @@ Enter new value:`), bc)
       if (!price || price <= 0 || !info?.cpSelectedNumber) {
         log(`[CloudPhone] walletOk called without valid cpPrice/cpSelectedNumber for ${chatId}`)
         return send(chatId, trans('t.someIssue'))
+      }
+      // Extra number: the plan's free slots are checked again right before paying, one buy per plan at a time.
+      if (info?.cpIsSubNumber && info?.cpSubParentNumber) {
+        const _gk = `${chatId}:${info.cpSubParentNumber}`, _busy = subBuyGuard.get(_gk)
+        const _nums = ((await get(phoneNumbersOf, chatId))?.numbers || []).filter(n => n.status !== 'released')
+        const _parent = _nums.find(n => n.phoneNumber === info.cpSubParentNumber && !n.isSubNumber)
+        const _used = _nums.filter(n => n.isSubNumber && n.parentNumber === info.cpSubParentNumber).length
+        if ((_busy && Date.now() - _busy < 45000) || !_parent || !phoneConfig.subSlotsLeft(_parent.plan, _used)) {
+          return send(chatId, _busy && Date.now() - _busy < 45000 ? '⏳ An extra number is already being added to this plan. Try again in a minute.' : subBatch.T(info?.userLanguage || 'en').full(0), { parse_mode: 'HTML' })
+        }
+        subBuyGuard.set(_gk, Date.now())
+        setTimeout(() => subBuyGuard.delete(_gk), 45000).unref?.()
       }
       const { usdBal } = await getBalance(walletOf, chatId)
       const preSpend = await loyalty.getTotalSpend(walletOf, chatId)
@@ -26398,6 +26413,11 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     return goto.submenu5()
   }
 
+  // 📅 Renewal calendar: every upcoming charge by date and what the wallet covers
+  if (renewalCalendar.isButton(message)) {
+    return send(chatId, renewalCalendar.botText(await renewalCalendar.forAccount(db, chatId), info?.userLanguage || 'en'), { parse_mode: 'HTML' })
+  }
+
   // ❓ Cloud IVR: How It Works
   if (action === a.submenu5 && phoneConfig.isBtnMatch(message, 'howItWorks')) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
@@ -26407,6 +26427,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       [pc.buyPhoneNumber],
       [pc.testSipFree, ivrBtnHiw],
       [pc.myNumbers, pc.usageBilling],
+        [renewalCalendar.BUTTONS[info?.userLanguage] || renewalCalendar.BUTTONS.en],
       [pc.bulkCallCampaign, pc.myCampaigns],
       [pc.audioLibrary, pc.sipSettings],
       [botFax.T(info?.userLanguage).menu, pc.howItWorks],
@@ -28604,8 +28625,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
             // (a full rewrite here raced with concurrent feature edits and wiped IVR/voicemail/forwarding settings)
             if (callerNumber) {
               callerNumber.twilioSubAccountToken = subAccountToken
-              await phoneNumbersOf.updateOne(
-                { _id: chatId, 'val.numbers.phoneNumber': ivrObData.callerId },
+              await require('./live-number').updateLive(phoneNumbersOf, chatId, ivrObData.callerId,
                 { $set: { 'val.numbers.$.twilioSubAccountToken': subAccountToken } }
               )
             }
@@ -30437,7 +30457,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const addr = String(message || '').trim().slice(0, 200)
     if (!num || isBackPress(message) || addr.startsWith('/')) return goto.submenu5()
     if (addr.length < 10 || !/\d/.test(addr)) return send(chatId, '📍 Please type the full street address with the house number, city and postcode.')
-    await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': num }, { $set: { 'val.numbers.$.endUserAddress': addr } }).catch(() => {})
+    await require('./live-number').updateLive(phoneNumbersOf, chatId, num, { $set: { 'val.numbers.$.endUserAddress': addr } }).catch(() => {})
     await db.collection('botNumberAddresses').insertOne({ chatId: String(chatId), number: num, country: info?.cpAddressCountry, address: addr, at: new Date() }).catch(() => {})
     notifyAdmin(`📍 Address received for ${num} (${info?.cpAddressCountry || ''}) — chat <code>${chatId}</code>:\n${addr}`)
     await saveInfo('cpAddressFor', null)
@@ -36126,7 +36146,7 @@ Select a category:`), k.of(catBtns))
 
       await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'plan', newPlan)
       await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'planPrice', newPrice)
-      await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': num.phoneNumber }, { $unset: { 'val.numbers.$.priceLock': '' } })
+      await require('./live-number').updateLive(phoneNumbersOf, chatId, num.phoneNumber, { $unset: { 'val.numbers.$.priceLock': '' } })
       delete num.priceLock
       await planLifecycle.syncExtrasPlan(phoneNumbersOf, chatId, num.phoneNumber, newPlan)
       num.plan = newPlan
@@ -36137,7 +36157,7 @@ Select a category:`), k.of(catBtns))
       const downgradeNotices = []
       const hadSip = phoneConfig.canAccessFeature(oldPlan, 'sipCredentials') && !num.sipDisabled
       const dg = planLifecycle.downgradePatch(num, newPlan)
-      await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': num.phoneNumber }, { $set: { ...planLifecycle.numberSet(dg.set), 'val.numbers.$.updatedAt': new Date().toISOString() } })
+      await require('./live-number').updateLive(phoneNumbersOf, chatId, num.phoneNumber, { $set: { ...planLifecycle.numberSet(dg.set), 'val.numbers.$.updatedAt': new Date().toISOString() } })
       const freshNum = (await phoneNumbersOf.findOne({ _id: chatId }))?.val?.numbers?.find(x => x.phoneNumber === num.phoneNumber)
       if (freshNum) Object.assign(num, freshNum)
       if (hadSip && dg.set.sipDisabled) downgradeNotices.push('🔑 SIP Credentials have been disabled')
@@ -40246,7 +40266,7 @@ async function applyPhonePlanUpgrade(chatId, num, newPlan, newPrice, lang, payme
   newPrice = planLifecycle.priceOnPlan(num, newPlan) ?? newPrice
   await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'plan', newPlan)
   await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'planPrice', newPrice)
-  await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': num.phoneNumber }, { $unset: { 'val.numbers.$.priceLock': '' } })
+  await require('./live-number').updateLive(phoneNumbersOf, chatId, num.phoneNumber, { $unset: { 'val.numbers.$.priceLock': '' } })
   delete num.priceLock
   await planLifecycle.syncExtrasPlan(phoneNumbersOf, chatId, num.phoneNumber, newPlan)
   num.plan = newPlan
@@ -40254,7 +40274,7 @@ async function applyPhonePlanUpgrade(chatId, num, newPlan, newPrice, lang, payme
 
   // Re-enable SIP and switch back on what a downgrade turned off, when the new plan includes it
   const upg = planLifecycle.upgradePatch(num, newPlan)
-  await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': num.phoneNumber }, { $set: planLifecycle.numberSet(upg) })
+  await require('./live-number').updateLive(phoneNumbersOf, chatId, num.phoneNumber, { $set: planLifecycle.numberSet(upg) })
   const freshUpg = (await phoneNumbersOf.findOne({ _id: chatId }))?.val?.numbers?.find(x => x.phoneNumber === num.phoneNumber)
   if (freshUpg) Object.assign(num, freshUpg)
 
@@ -40337,8 +40357,7 @@ async function updatePhoneNumberFeature(col, chatId, phoneNumber, featureKey, va
   // and wipe IVR/voicemail/forwarding settings saved moments earlier).
   // MongoDB auto-creates nested paths, so `features.<key>` works even if features is missing.
   // Stamp updatedAt so the Manage screen can show "Last changed: X ago".
-  await col.updateOne(
-    { _id: chatId, 'val.numbers.phoneNumber': phoneNumber },
+  await require('./live-number').updateLive(col, chatId, phoneNumber,
     { $set: {
       [`val.numbers.$.features.${featureKey}`]: value,
       'val.numbers.$.updatedAt': new Date().toISOString(),
@@ -40355,8 +40374,7 @@ async function updatePhoneNumberField(col, chatId, phoneNumber, fieldKey, value)
   if (!INTERNAL_FIELDS.has(fieldKey)) {
     setObj['val.numbers.$.updatedAt'] = new Date().toISOString()
   }
-  await col.updateOne(
-    { _id: chatId, 'val.numbers.phoneNumber': phoneNumber },
+  await require('./live-number').updateLive(col, chatId, phoneNumber,
     { $set: setObj }
   )
 }
@@ -50272,12 +50290,18 @@ app.get('/sip-auth/:user', async (req, res) => {
     const n = (doc?.val?.numbers || []).find(x => (x.telnyxSipUsername === u || x.sipUsername === u || (x.extraSip || []).some(e => e.username === u)) && x.status === 'active')
     if (!n) {
       const t = await db.collection('testCredentials').findOne({ sipUsername: u, expired: { $ne: true } }, { projection: { sipPassword: 1 } })
+      if (!t?.sipPassword) {
+        const sp = require('./sip-presence')
+        sp.noteAsk(db, u, false)
+        sp.noteStale({ db, bot, user: u, web: require('./cloudivr-web/notify').isWebChatId, log }).catch(e => log('sip stale note:', e.message))
+      }
       return t?.sipPassword ? res.type('text/plain').send(String(t.sipPassword)) : res.sendStatus(404)
     }
     const extra = n && planLifecycle.sipLoginOk(n, (n.extraSip || []).find(e => e.username === u)) && (n.extraSip || []).find(e => e.username === u)
     if (n && !extra && n.telnyxSipUsername !== u && n.sipUsername !== u) return res.sendStatus(404)
     const pw = n && (extra ? extra.password : n.telnyxSipUsername === u ? (n.telnyxSipPassword || n.sipPassword) : n.sipPassword)
     if (!pw) return res.sendStatus(404)
+    require('./sip-presence').noteAsk(db, u, true)
     res.type('text/plain').send(String(pw))
   } catch (e) { log('sip-auth error:', e.message); res.sendStatus(500) }
 })
@@ -52008,7 +52032,7 @@ app.post('/twilio/voice-dial-status', async (req, res) => {
           const { num, drifted } = callBillingReconciler.resolveOwnedTwilioNumber(numbers, decodedTo)
           if (num && drifted) {
             log(`[Twilio] ⚠️ provider-drift heal: billing ${decodedTo} matched by number only (provider='${num.provider || 'unset'}') — self-healing to 'twilio'`)
-            phoneNumbersOf.updateOne({ _id: ownerKey, 'val.numbers.phoneNumber': decodedTo }, { $set: { 'val.numbers.$.provider': 'twilio' } }).catch(() => {})
+            require('./live-number').updateLive(phoneNumbersOf, ownerKey, decodedTo, { $set: { 'val.numbers.$.provider': 'twilio' } }).catch(() => {})
           }
           if (num) {
             const fwdDest = destination || (num.features?.callForwarding?.forwardTo || decodeURIComponent(from || ''))
@@ -52064,7 +52088,7 @@ app.post('/twilio/voice-dial-status', async (req, res) => {
           const { num, drifted } = callBillingReconciler.resolveOwnedTwilioNumber(numbers, decodedToNum)
           if (num && drifted) {
             log(`[Twilio] ⚠️ provider-drift heal: billing ${decodedToNum} matched by number only (provider='${num.provider || 'unset'}') — self-healing to 'twilio'`)
-            phoneNumbersOf.updateOne({ _id: ownerKey, 'val.numbers.phoneNumber': decodedToNum }, { $set: { 'val.numbers.$.provider': 'twilio' } }).catch(() => {})
+            require('./live-number').updateLive(phoneNumbersOf, ownerKey, decodedToNum, { $set: { 'val.numbers.$.provider': 'twilio' } }).catch(() => {})
           }
           if (num) {
             const fwdDest = destination || (num.features?.callForwarding?.forwardTo || '')
@@ -52212,8 +52236,7 @@ app.post('/phone/reset-credentials', async (req, res) => {
     userData.numbers[numIdx].telnyxSipUsername = newTelnyxSipUsername
     userData.numbers[numIdx].telnyxSipPassword = newTelnyxSipPassword
     userData.numbers[numIdx].telnyxCredentialId = newTelnyxCredentialId
-    await phoneNumbersOf.updateOne(
-      { _id: chatId, 'val.numbers.phoneNumber': phoneNumber },
+    await require('./live-number').updateLive(phoneNumbersOf, chatId, phoneNumber,
       {
         $set: {
           'val.numbers.$.sipUsername': newTelnyxSipUsername || newSeedUser,
@@ -52748,8 +52771,7 @@ app.post('/twilio/sms-webhook', async (req, res) => {
         }
         // Increment SMS usage — atomic $inc to prevent race conditions overwriting IVR/forwarding settings
         match.smsUsed = (match.smsUsed || 0) + 1
-        await db.collection('phoneNumbersOf').updateOne(
-          { _id: chatId, 'val.numbers.phoneNumber': To },
+        await require('./live-number').updateLive(db.collection('phoneNumbersOf'), chatId, To,
           { $inc: { 'val.numbers.$.smsUsed': 1 } }
         )
         break

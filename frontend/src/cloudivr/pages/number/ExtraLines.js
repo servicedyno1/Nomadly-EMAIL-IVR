@@ -14,7 +14,7 @@ function RenewalSummary({ r }) {
   if (!r) return null;
   return (
     <div className="rounded-xl border border-[var(--c-border,#27272a)] p-4 text-sm space-y-1" data-testid="extra-renewal-summary">
-      <div className="flex items-center gap-2 font-semibold"><CalendarClock className="w-4 h-4 text-[#38bdf8]" />Next renewal · {day(r.date)}</div>
+      <div className="flex items-center gap-2 font-semibold"><CalendarClock className="w-4 h-4 text-[#38bdf8]" />Next renewal · {day(r.date)}<Link to={cp('/app/renewals')} className="ml-auto text-xs font-normal underline text-[var(--c-muted)] hover:text-[#818cf8]" data-testid="extra-renewal-calendar-link">Renewal calendar</Link></div>
       {r.autoRenew ? <>
         <div className="font-mono text-2xl" data-testid="extra-renewal-total">{money(r.total)}</div>
         <div className="text-xs text-[var(--c-muted)]" data-testid="extra-renewal-breakdown">{`Plan ${money(r.main || 0)} + ${r.renewing} extra number${r.renewing === 1 ? '' : 's'} — one charge from your wallet`}</div>
@@ -73,6 +73,11 @@ function CopySettings({ group }) {
           <select className="civr-input mt-1" value={src} onChange={e => pickSrc(e.target.value)} data-testid="extra-copy-source">{group.map(p => <option key={p} value={p}>{p}</option>)}</select>
         </label>
         <div className="flex flex-wrap gap-3">{PARTS.map(([k, l]) => <label key={k} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={parts.includes(k)} onChange={() => flip(parts, setParts, k)} data-testid={`extra-copy-part-${k}`} />{l}</label>)}</div>
+        <div className="flex items-center gap-3 text-xs text-[var(--c-muted)]" data-testid="extra-copy-select-bar">
+          <span data-testid="extra-copy-selected-count">{`${to.length} of ${group.length - 1} selected`}</span>
+          <button type="button" className="underline hover:text-[#818cf8] disabled:opacity-40 disabled:no-underline" disabled={to.length === group.length - 1} onClick={() => setTo(group.filter(x => x !== src))} data-testid="extra-copy-select-all">Select all</button>
+          <button type="button" className="underline hover:text-[#818cf8] disabled:opacity-40 disabled:no-underline" disabled={!to.length} onClick={() => setTo([])} data-testid="extra-copy-select-none">Select none</button>
+        </div>
         <div className="grid sm:grid-cols-2 gap-1">{group.filter(p => p !== src).map((p, i) => <label key={p} className="flex items-center gap-2 font-mono text-xs"><input type="checkbox" checked={to.includes(p)} onChange={() => flip(to, setTo, p)} data-testid={`extra-copy-target-${i}`} />{p}</label>)}</div>
         <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || !to.length || !parts.length} onClick={run} data-testid="extra-copy-apply">{busy && <Loader2 className="w-3 h-3 animate-spin" />}Copy to {to.length} number{to.length === 1 ? '' : 's'}</button>
       </div>

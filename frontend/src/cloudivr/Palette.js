@@ -63,6 +63,7 @@ export function Palette({ openPhone }) {
       ['campaign', 'Start a campaign', Megaphone, () => nav(cp('/app/campaigns/new'))],
       ['agent', 'New AI agent', Bot, () => nav(cp('/app/ai-agents/new'))],
       ['funds', 'Add funds', Wallet, () => nav(cp('/app/wallet'))],
+      ['renewals', 'Renewal calendar', Wallet, () => nav(cp('/app/renewals'))],
       ['phone', 'Open the browser phone', Phone, openPhone],
       ['theme', theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode', theme === 'light' ? Moon : Sun, () => setThemePref(theme === 'light' ? 'dark' : 'light')],
       ['private', pv.on ? 'Private mode off' : 'Private mode on', pv.on ? Eye : EyeOff, pv.toggle],

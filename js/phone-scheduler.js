@@ -52,6 +52,7 @@ function initPhoneScheduler(deps) {
     if (!live()) return
     log('[PhoneScheduler] Running hourly expiry check...')
     await runExpiryCheck()
+    if (_db) await require('./renewal-calendar').remind({ db: _db, bot: _bot, lang: _getUserLang, log }).catch(e => log(`[RenewalCalendar] ${e.message}`))
     await runMonthlyReset()
     if (_db) await runBirdCallerIdCleanup({
       db: _db, bird: require('./bird'), log,
@@ -199,7 +200,8 @@ async function runExpiryCheck() {
         const _due = _group && _group.renewing ? _group.total : num.planPrice
 
         // ── 3-day reminder ──
-        if (_quiet && daysUntilExpiry <= 3.0 && (!num._reminder3Sent || !num._reminder1Sent)) { numbers[i]._reminder3Sent = true; numbers[i]._reminder1Sent = true; modified = true }
+        const _noNote = _quiet || (num.autoRenew !== false && !(num.isSubNumber && _main && _main.autoRenew === false)) // renewing lines: the calendar reminder speaks, and only when the wallet is short
+        if (_noNote && daysUntilExpiry <= 3.0 && (!num._reminder3Sent || !num._reminder1Sent)) { numbers[i]._reminder3Sent = true; numbers[i]._reminder1Sent = true; modified = true }
         else if (daysUntilExpiry > 2.5 && daysUntilExpiry <= 3.0 && !num._reminder3Sent) {
           const { usdBal } = await getBalance(_walletOf, chatId)
           const plan = plans[num.plan] || { name: num.plan, price: num.planPrice }
@@ -212,7 +214,7 @@ async function runExpiryCheck() {
         }
 
         // ── 1-day reminder ──
-        if (!_quiet && daysUntilExpiry > 0.5 && daysUntilExpiry <= 1.0 && !num._reminder1Sent) {
+        if (!_noNote && daysUntilExpiry > 0.5 && daysUntilExpiry <= 1.0 && !num._reminder1Sent) {
           const { usdBal } = await getBalance(_walletOf, chatId)
           const plan = plans[num.plan] || { name: num.plan, price: num.planPrice }
           const msg = buildFinalWarningMsg(num, plan, usdBal) + (_group ? lifecycle.groupDueLine(_group) : '')
@@ -533,8 +535,7 @@ async function attemptAutoRenew(chatId, num, index, numbers) {
         `<i>phoneNumbersOf.planPrice has been self-healed. If this was an intentional grandfather, set <code>grandfathered:true</code> on the number doc.</i>`
       )
       try {
-        await _phoneNumbersOf.updateOne(
-          { _id: chatId, 'val.numbers.phoneNumber': num.phoneNumber },
+        await require('./live-number').updateLive(_phoneNumbersOf, chatId, num.phoneNumber,
           { $set: {
             'val.numbers.$.planPrice': canonicalPlanPrice,
             'val.numbers.$._priceHealedAt': new Date().toISOString(),
