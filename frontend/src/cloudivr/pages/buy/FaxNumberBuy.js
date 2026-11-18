@@ -7,6 +7,7 @@ import { api, money, useApi } from '../../api';
 import { cp } from '../../paths';
 import { Field, ErrorNote } from '../../ui';
 import { WalletPay } from '../../WalletPay';
+import { FaxSuggest } from './FaxSuggest';
 
 function FaxResults({ numbers, pick, setPick }) {
   if (!numbers.length) return <div className="text-sm text-[#a1a1aa] mt-4" data-testid="fax-buy-no-results">No fax numbers for that search. Try another area code.</div>;
@@ -41,9 +42,16 @@ export function FaxNumberBuy({ balance, onBought, onStage }) {
   const types = country?.types || [];
   const t = types.find(x => x.type === q.type) || types[0];
   if (offer && !offer.available) return <div className="civr-card p-5 mb-6 text-sm text-[#a1a1aa]" data-testid="fax-buy-unavailable">Fax numbers are not available right now. Please check back soon.</div>;
-  const search = async (e) => {
-    e.preventDefault(); setBusy('search'); setError(null); setPick(null);
-    try { setRes(await api(`/fax-numbers/search?country=${q.country}&type=${t?.type || 'local'}${country?.areaCodes && q.areaCode ? `&areaCode=${q.areaCode}` : ''}`)); } catch (err) { setError(err); setRes(null); } finally { setBusy(''); }
+  const run = async (cc, type, areaCode) => {
+    setBusy('search'); setError(null); setPick(null);
+    try { setRes(await api(`/fax-numbers/search?country=${cc}&type=${type}${areaCode ? `&areaCode=${areaCode}` : ''}`)); } catch (err) { setError(err); setRes(null); } finally { setBusy(''); }
+  };
+  const search = (e) => { e.preventDefault(); run(q.country, t?.type || 'local', country?.areaCodes && q.areaCode ? q.areaCode : ''); };
+  // Emily's pick: switch the country and search it straight away.
+  const fromEmily = (cc) => {
+    const type = offer?.countries?.find(c => c.code === cc)?.types?.[0]?.type || 'local';
+    setQ({ country: cc, type, areaCode: '' }); run(cc, type, '');
+    setTimeout(() => document.querySelector('[data-testid="fax-buy-search-form"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   };
   const buy = async () => {
     setBusy('buy'); setError(null);
@@ -55,6 +63,7 @@ export function FaxNumberBuy({ balance, onBought, onStage }) {
     } catch (err) { setError(err); toast.error(err.message); } finally { setBusy(''); }
   };
   return (
+    <>{offer?.countries?.length > 1 && <FaxSuggest onPick={fromEmily} />}
     <div className="civr-card p-6" data-testid="fax-buy-card">
       <p className="text-sm text-[#a1a1aa] flex gap-2" data-testid="fax-buy-price"><Printer className="w-4 h-4 mt-0.5 shrink-0 text-[#818cf8]" />{!offer ? 'Loading fax prices…' : `${offer.countries?.length || 15} countries. Sends and receives faxes only — it can't take calls or texts. ${money(price)}/month, ${offer.freePages} free pages a month, then ${money(offer.pagePrice)} a page.`}</p>
       <form onSubmit={search} className="grid sm:grid-cols-3 gap-4 items-end mt-4" data-testid="fax-buy-search-form">
@@ -87,6 +96,6 @@ export function FaxNumberBuy({ balance, onBought, onStage }) {
           <div className="basis-full"><WalletPay price={price} onWallet={buy} busy={busy === 'buy'} testid="fax-buy-paybox" walletTestid="fax-buy-pay" /></div>
         </div>
       )}
-    </div>
+    </div></>
   );
 }

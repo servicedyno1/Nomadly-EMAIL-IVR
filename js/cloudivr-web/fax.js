@@ -15,6 +15,19 @@ function routes(router, { db, h, upload, numbersApi, notifyAdmin, legalProfile }
   const out = (res, fn) => fn().then(r => res.json(r), e => (e.status && e.code ? bad(res, e.status, e.code, e.message) : Promise.reject(e)))
 
   router.get('/fax-numbers', h(async (req, res) => res.json({ ...faxNums.offer(), numbers: await faxNums.list(req.webChatId) })))
+  router.post('/fax-numbers/suggest', h(async (req, res) => {
+    const text = String(req.body?.text || '').trim().slice(0, 500)
+    if (text.length < 8) return bad(res, 400, 'too_short', 'Tell Emily a little more — who will fax you, and where are they?')
+    if (!process.env.APP_OPEN_API_KEY) return bad(res, 503, 'unavailable', 'Emily can’t suggest right now — pick a country below.')
+    const ps = require('./plan-suggest')
+    if (ps.limited(`f:${req.webChatId}`)) return bad(res, 429, 'rate_limited', 'That’s a lot of questions! Try again in a little while, or pick a country below.')
+    const countries = (faxNums.offer().countries || []).map(c => ({ code: c.code, name: c.name }))
+    try {
+      const o = await ps.suggestFax(text, countries)
+      if (o.offTopic) { require('../emily-guard').record('fax-suggest', { text, chatId: req.webChatId, reply: o.reason }); return bad(res, 422, 'off_topic', o.reason) }
+      res.json(o)
+    } catch (e) { console.log(`[CloudIVR-Web] fax suggest failed: ${e.message}`); bad(res, 503, 'unavailable', 'Emily couldn’t answer just now — try again, or pick a country below.') }
+  }))
   router.get('/fax-numbers/search', h((req, res) => out(res, () => faxNums.search(req.webChatId, req.query.country, req.query.areaCode, req.query.type))))
   router.post('/fax-numbers', h((req, res) => out(res, async () => {
     const phoneNumber = String(req.body?.phoneNumber || '')

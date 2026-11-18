@@ -61,6 +61,23 @@ You are Emily from CloudIVR. A customer wants a number for calls + texting and d
   return { country: pick?.country || null, name: pick?.name || null, alt: ['esim', 'mobile'].includes(out.alt) ? out.alt : null, reason: String(out.reason || '').slice(0, 240) }
 }
 
+// Fax only: Emily picks the fax country (where the people who will fax them are) from the countries sold.
+async function suggestFax(text, countries) {
+  const r = await axios.post('https://api.openai.com/v1/chat/completions', {
+    model: process.env.AI_AGENT_DRAFT_MODEL || 'gpt-4.1-mini', temperature: 0.2, response_format: { type: 'json_object' }, max_tokens: 200,
+    messages: [
+      { role: 'system', content: `${require('../emily-guard').SCOPE}
+
+You are Emily from CloudIVR. A customer wants a fax-only number and describes who will fax them. Pick the country of the people who will send or receive their faxes (default the USA when unclear). Countries sold: ${countries.map(c => `${c.code} ${c.name}`).join(', ')}. Reply as JSON: {"country": one of ${JSON.stringify(countries.map(c => c.code))}, "reason": one friendly sentence (max 25 words) that names the country in words, never its 2-letter code}. Only for off-topic or improper requests set "offTopic": true with your one-sentence reply in "reason".` },
+      { role: 'user', content: text },
+    ],
+  }, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` }, timeout: 20000 })
+  const out = JSON.parse(r.data.choices[0].message.content)
+  if (out.offTopic === true) return { offTopic: true, reason: String(out.reason || 'I can only help you choose a fax number.').slice(0, 240) }
+  const pick = countries.find(c => c.code === out.country) || countries.find(c => c.code === 'US') || countries[0]
+  return { country: pick?.code || null, name: pick?.name || null, reason: String(out.reason || '').slice(0, 240) }
+}
+
 function routes(r, { log = console.log } = {}) {
   r.post('/public/plan-suggest', async (req, res) => {
     const text = String(req.body?.text || '').trim().slice(0, 500)
@@ -81,4 +98,4 @@ function routes(r, { log = console.log } = {}) {
   })
 }
 
-module.exports = { routes, suggest, suggestTexting, limited, ladder }
+module.exports = { routes, suggest, suggestTexting, suggestFax, limited, ladder }

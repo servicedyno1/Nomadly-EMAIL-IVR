@@ -3732,3 +3732,6 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Step 1 Emily chips: 5 examples (calls/leads/texting/fax/solo) via PlanSuggest `examples` prop.
 - js/esim-price-announce.js: one-off "eSIM now $50/month" (id esim-50-2026-11) 5 min after boot, every bot user (lang + 📱 USA eSIM button) + every web account (Inbox + email, no opt-out filter per user choice), deduped in `announcements`; DRY RUN in preview. Disable with ESIM_PRICE_ANNOUNCE=false.
 - Test iteration_325: backend 10/10, all frontend flows pass; 4 minor UX notes open.
+
+## 2026-06 — Emily on Fax only
+- POST /api/cloudivr-web/fax-numbers/suggest (fax.js) → plan-suggest.suggestFax picks country from faxNums.offer().countries. UI pages/buy/FaxSuggest.js above the fax search; "Show <country> fax numbers" sets the country and searches at once. Screenshot-verified (London law firm → GB → UK results).
