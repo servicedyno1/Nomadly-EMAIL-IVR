@@ -709,3 +709,15 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Web buy (calls): plan must be chosen before the number search shows. Steps: What it's for → Choose a plan → Pick a number → Pay. No plan is pre-selected unless it came from a link (`?plan=`) or a resumed checkout. `buy-plan-chosen` / `buy-plan-change` / `buy-number-step` / `buy-pay-step` testids.
 - Bot: main buy path was already plan-first; "buy another number" with no active plan used to skip the plan (silently Starter) — now goes through `cpAskPlanFirst()`. Bot path NOT exercised live.
 - Texting and fax numbers have a single plan, so they have no plan step.
+
+## 2026-11-18 — Challenge page redesign ("Quick security check") — preview, needs publish
+- Replaced the old "Verifying your browser" spinner+progress-bar captcha interstitial with a clean card-based design matching the user-provided reference screenshots.
+- New design: centered frosted-glass card with shield-checkmark SVG icon, "Quick security check" heading, "Please continue to complete a security check before accessing this website." body, full-width "Continue" button, "Thank you for your patience." footer.
+- Adapts to both dark mode (dark charcoal background, glass card) and light mode (light gray background, white card with shadow) via `prefers-color-scheme` media query.
+- All bot-detection heuristics preserved exactly (same scoring logic, same nonce/PoI verification, same timeout behavior).
+- Button is immediately visible (no hidden-then-reveal); if clicked before checks complete, it shows "Checking..." and waits for readiness, then auto-submits. High-score clients wait slightly longer (4.2s vs 3s) before PoI becomes ready.
+- "Access Denied" failure page also updated to match the new card design language (dark, shield-X icon).
+- All user-facing references updated from "Verifying your browser" to "Quick security check" across: `js/lang/en.js`, `js/protection-enforcer.js`, `js/ai-support.js`, `js/cpanel-routes.js`, `js/_index.js`, and detection string in `anti-red-service.js`.
+- Files changed: `js/anti-red-service.js` (challengePage function + Access Denied + detection string), `js/lang/en.js` (6 strings), `js/protection-enforcer.js`, `js/ai-support.js`, `js/cpanel-routes.js`, `js/_index.js`.
+- Applies to all Reseller API customers and all bot hosting customers (single `challengePage()` function serves all domains).
+- Visually verified via screenshot tool (dark + light modes on mobile viewport).

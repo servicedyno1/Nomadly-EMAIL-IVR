@@ -3825,7 +3825,7 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
         // NOTE (2026-02): we no longer remove the CF Worker route when the
         // user toggles captcha off. The Worker must stay deployed so scanner
         // cloaking, honeypots, and IP bans continue to run. Only the human-
-        // facing "Verifying your browser" page is hidden (via the KV bypass
+        // facing "Quick security check" page is hidden (via the KV bypass
         // flag below). Previously this called removeWorkerRoutes() which
         // killed all anti-red layers — see verify-navy.com incident.
         // Disable only the challenge PAGE at the edge (Step 7 of the worker —
@@ -4021,7 +4021,7 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
       } else {
         // NOTE (2026-02): we no longer remove the CF Worker route on captcha
         // disable. The Worker stays deployed so scanner cloaking + honeypots
-        // + IP bans + WAF still run. Only the human "Verifying your browser"
+        // + IP bans + WAF still run. Only the human "Quick security check"
         // page is hidden (via the KV bypass flag below).
         // Make sure the Worker route IS deployed (idempotent self-heal) — if
         // a prior version of the code removed it, restore it now.

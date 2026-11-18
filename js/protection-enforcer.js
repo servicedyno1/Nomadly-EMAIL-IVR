@@ -989,7 +989,7 @@ async function runLegacyAntiRedOffMigration() {
             const t = require(`./lang/${safeLang}`)
             const msg = t.antiRedRestoredNote
               ? t.antiRedRestoredNote(domain)
-              : `🛡️ Anti-Red protection restored for ${domain}. Scanner cloaking, honeypots and IP bans are now active again. Your "Visitor Captcha OFF" preference is preserved — humans still don't see the "Verifying your browser" page.`
+              : `🛡️ Anti-Red protection restored for ${domain}. Scanner cloaking, honeypots and IP bans are now active again. Your "Visitor Captcha OFF" preference is preserved — humans still don't see the "Quick security check" page.`
             await _bot.sendMessage(ownerChatId, msg, { parse_mode: 'HTML' }).catch(() => {})
           }
         } catch (notifyErr) {
