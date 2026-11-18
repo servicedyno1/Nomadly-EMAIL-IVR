@@ -60,6 +60,64 @@ const CLIPS = [
   } },
 ]
 
+// Emily end to end: ask in plain words → she suggests the setup → the form is filled in. Stops before Save / Pay.
+const tap = async (p, sel, ms = 2500) => { const el = await p.$(sel); if (el) { await el.click(); await wait(ms) } return !!el }
+const into = (p, sel) => p.evaluate((s) => { const el = document.querySelector(s); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' }) }, sel).then(() => wait(1200))
+async function emily(p, prefix, ask, builder) {
+  const input = `[data-testid="${prefix}-input"]`
+  await tap(p, `[data-testid="${prefix}-mode-chat"]`, 800)
+  await p.waitForSelector(input, { timeout: 20000 }); await into(p, `[data-testid="${prefix}"]`)
+  const ready = builder ? `[data-testid^="${prefix}-msg-"][data-testid$="-changes"]` : `[data-testid="${prefix}-apply"]`
+  for (const msg of [ask, 'Ring +14155550199 for anything that goes to a person, and use your best guess for the rest.', 'Yes, that looks good.']) {
+    await p.click(input); await p.type(input, msg, { delay: 26 }); await p.keyboard.press('Enter'); await wait(2000)
+    await p.waitForFunction((pre) => !document.querySelector(`[data-testid="${pre}-typing"]`), { timeout: 70000, polling: 500 }, prefix).catch(() => {})
+    await wait(1500)
+    if (await p.$(ready)) return true
+  }
+  throw new Error(`Emily gave no setup on ${prefix}`)
+}
+const apply = async (p, prefix) => { await tap(p, `[data-testid="${prefix}-apply"]`, 2500) }
+const down = async (p, px) => { await p.evaluate((y) => window.scrollBy({ top: y, behavior: 'smooth' }), px); await wait(1600) }
+
+const DEMOS = [
+  { id: 'demo-ivr', title: 'Build a "Press 1 for sales" menu by chatting with Emily', login: true, path: '/app/answer/ivr', run: async (p, snap) => {
+    if (!(await tap(p, '[data-testid="answer-row-0-ivr"]', 4500))) throw new Error('no number for the menu')
+    await emily(p, 'ivr-assist', pick(['Greet callers for Sunrise Dental. Press 1 to book (ring +14155550199), 2 for billing (ring +14155550188), 3 to leave a voicemail', 'Welcome to Bright Homes Realty: press 1 for buying (ring +14155550199), 2 for selling (ring +14155550188), 3 to leave a voicemail', 'Press 1 for sales (ring +14155550199), 2 for support (ring +14155550188), 3 to leave a voicemail']))
+    await snap('Tell Emily what callers can do')
+    await apply(p, 'ivr-assist'); await down(p, 520); await snap('Emily writes the greeting and sets every key')
+    await down(p, 520); await snap('Check it, save, switch it on')
+  } },
+  { id: 'demo-receptionist', title: 'An AI receptionist answering your calls, set up by chatting', login: true, path: '/app/receptionist/new', run: async (p, snap) => {
+    await emily(p, 'ai-builder', pick(['Answer calls for Sunrise Dental, book cleanings Monday to Friday 9 to 5 and take a message after hours', 'Pick up for Bella Pizza, take orders for pickup and tell people our hours, 11am to 10pm', 'Answer for Green Leaf Plumbing, get the address and problem, and pass urgent leaks to +14155550199']), true)
+    await snap('Describe your business to Emily')
+    await down(p, 560); await snap('She writes the receptionist: greeting, script and FAQs')
+    await down(p, 620); await snap('Hear it with a free test call, then turn it on')
+  } },
+  { id: 'demo-reminder', title: 'An automated reminder call from one sentence', login: true, path: '/app/quick-call', run: async (p, snap) => {
+    await emily(p, 'quick-assist', pick(['Remind +14155550123 about her 3pm cleaning tomorrow, press 1 to confirm or 2 to talk to us at +14155550199', 'Call +14155550188 to confirm Friday 10am delivery, press 1 to confirm or 2 to talk to us at +14155550199', 'Remind +14155550144 that the invoice is due Monday, press 1 to talk to billing at +14155550199']))
+    await snap('Say who to call and why')
+    await apply(p, 'quick-assist'); await down(p, 480); await snap('Emily writes the call and sets the keys')
+    await down(p, 520); await snap('Press Place call, or schedule it')
+  } },
+  { id: 'demo-plan-number', title: 'Pick the right plan and get a local number', login: true, path: '/app/buy', run: async (p, snap) => {
+    await tap(p, '[data-testid="buy-kind-calls"]', 2500)
+    await snap('Say what the number is for')
+    await p.type('[data-testid="buy-area-code-input"]', pick(['415', '212', '305', '512', '646', '718']), { delay: 180 }); await p.keyboard.press('Enter'); await wait(5000)
+    await down(p, 320); await snap('Pick a local number in seconds')
+    await go(p, '/#pricing')
+    await p.evaluate(() => document.querySelector('[data-testid="pricing-plan-suggest"]')?.scrollIntoView({ block: 'center' })); await wait(1200)
+    await p.type('[data-testid="pricing-plan-suggest-input"]', pick(['Dental clinic with 3 front-desk phones', 'Real estate agent, I work alone', 'Online shop with 5 support agents']), { delay: 50 })
+    await p.click('[data-testid="pricing-plan-suggest-button"]'); await wait(8000)
+    await snap('Not sure which plan? Emily picks it')
+  } },
+  { id: 'demo-ai-campaign', title: 'An AI conversation campaign to your lead list, set up by chatting', login: true, path: '/app/campaigns/new?kind=ai', run: async (p, snap) => {
+    await emily(p, 'aicampaign-assist', pick(['Call my real estate leads, ask if they still plan to buy this year, and pass the interested ones to me at +14155550199', 'Call last month\'s webinar sign-ups, ask what they need, and pass the interested ones to me at +14155550199', 'Call my dental patients who are due a cleaning, offer a time this week, and pass questions to +14155550199']))
+    await snap('Tell Emily who to call and why')
+    await apply(p, 'aicampaign-assist'); await down(p, 520); await snap('She writes the AI agent and picks your number')
+    await down(p, 560); await snap('Upload your list and start')
+  } },
+]
+
 const THEMES = [
   { name: 'midnight blue', bg: '#0b1220', glow: '#3b82f6', ink: '#ffffff', soft: '#a9bbd6' },
   { name: 'deep teal', bg: '#05201c', glow: '#2dd4bf', ink: '#ecfdf5', soft: '#9fd8cb' },
@@ -93,6 +151,7 @@ async function openPage(view) {
 
 async function go(page, p) {
   const [route, hash] = p.split('#')
+  if (/(^|\/)admin(\/|$)/.test(route)) throw new Error('admin pages are never shown')
   await page.goto(BASE() + route, { waitUntil: 'networkidle2', timeout: 45000 }).catch(() => {})
   await wait(3500)
   if (hash) { await page.evaluate((h) => document.getElementById(h)?.scrollIntoView({ block: 'start' }), hash); await wait(1500) }
@@ -107,6 +166,10 @@ async function login(page) {
   if (!/\/app/.test(page.url())) throw new Error('showcase login failed')
 }
 
+// Never put the admin dashboard in a post.
+const notAdmin = (page) => { if (/\/admin(\/|$|\?)/.test(new URL(page.url()).pathname)) throw new Error('admin page reached') }
+const snapPage = async (page) => { notAdmin(page); return page.screenshot({ type: 'jpeg', quality: 84 }) }
+
 const libFile = (id, view) => path.join(SRC, `${id}-${view}.jpg`)
 const fromLib = (id, view) => (fs.existsSync(libFile(id, view)) ? fs.readFileSync(libFile(id, view)) : null)
 
@@ -120,7 +183,7 @@ async function shots(screen) {
       try {
         if (screen.login) await login(page)
         await go(page, screen.path)
-        buf = await page.screenshot({ type: 'jpeg', quality: 84 })
+        buf = await snapPage(page)
       } catch (_) { buf = null } finally { await done() }
     }
     if (!buf) { buf = fromLib(screen.id, view); out.live = false }
@@ -166,6 +229,7 @@ function html({ v, headline, sub, desk, phone, art, w, h, clipBox }) {
 h1{position:absolute;left:80px;top:118px;line-height:1.04;font-weight:800;letter-spacing:-.025em;z-index:3}
 .sub{position:absolute;left:80px;max-width:470px;font-size:27px;line-height:1.4;font-weight:600;color:${t.soft};z-index:3}
 .url{position:absolute;right:80px;top:66px;font-size:22px;font-weight:600;color:${t.soft};z-index:3}
+.step{display:inline-block;padding:10px 20px;border-radius:999px;background:${t.glow};color:#fff;font-weight:800;font-size:22px}
 .desk{position:absolute;border-radius:18px;overflow:hidden;background:#0f172a;border:1px solid ${t.soft}44;box-shadow:0 50px 100px -30px rgba(0,0,0,.6);transform-origin:top left}
 .desk .bar{height:34px;background:#111827;display:flex;align-items:center;gap:8px;padding:0 14px}.desk .bar b{width:11px;height:11px;border-radius:50%;background:#374151}.desk .bar span{margin-left:14px;font:500 14px sans-serif;color:#9ca3af}
 .desk img{width:100%;display:block}
@@ -174,7 +238,7 @@ h1{position:absolute;left:80px;top:118px;line-height:1.04;font-weight:800;letter
 .phone .notch{position:absolute;top:22px;left:50%;transform:translateX(-50%);width:96px;height:26px;border-radius:14px;background:#050505}
 .art{position:absolute;top:0;right:0;width:1100px;height:100%;background-size:cover;background-position:center}
 .art:after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,${t.bg} 0%,${t.bg}cc 22%,transparent 60%)}
-</style></head><body><div class="g"></div><div class="dots"></div><div class="brand"><i></i>CloudIVR</div>${body}<div class="url">cloudivr.net</div></body></html>`
+</style></head><body><div class="g"></div><div class="dots"></div><div class="brand"><i></i>CloudIVR</div>${body}<div class="url">${v.step ? `<span class="step">${esc(v.step)}</span>` : 'cloudivr.net'}</div></body></html>`
 }
 
 async function render(doc, w, h, png) {
@@ -191,33 +255,79 @@ async function render(doc, w, h, png) {
 
 const ffmpeg = (args) => new Promise((ok, no) => execFile('ffmpeg', ['-y', '-loglevel', 'error', ...args], { timeout: 120000 }, (e) => (e ? no(e) : ok())))
 
-async function recordClip(clip, v, headline) {
-  const dir = WORK(), id = `${clip.id}-${Date.now()}`
-  const webm = path.join(dir, `${id}.webm`), bg = path.join(dir, `${id}.png`), mp4 = path.join(dir, `${id}.mp4`)
+// Records a phone-size run of a clip or demo; demos that cannot run live use their saved recording.
+async function liveWebm(item) {
+  const webm = path.join(WORK(), `${item.id}-${Date.now()}.webm`)
   const { page, done } = await openPage(PHONE)
   try {
-    if (clip.login) await login(page)
-    await go(page, clip.path)
+    if (item.login) await login(page)
+    await go(page, item.path)
     const rec = await page.screencast({ path: webm })
-    await clip.steps(page)
-    await rec.stop()
+    try { await (item.steps ? item.steps(page) : item.run(page, async () => notAdmin(page))) } finally { await rec.stop() }
   } finally { await done() }
+  return webm
+}
+
+async function frameClip(webm, v, headline, speed = 1) {
+  const id = `${path.basename(webm, '.webm')}-${Date.now()}`
+  const bg = path.join(WORK(), `${id}.png`), mp4 = path.join(WORK(), `${id}.mp4`)
   const box = { x: 300, y: 330, w: 480, h: 1040 }
   const { full, thumb } = await render(html({ v, headline, w: 1080, h: 1350, clipBox: box }), 1080, 1350, true)
   fs.writeFileSync(bg, full)
-  await ffmpeg(['-loop', '1', '-i', bg, '-i', webm, '-filter_complex', `[1:v]scale=${box.w}:-2,crop=${box.w}:${box.h - 30}:0:0,fps=24[c];[0:v][c]overlay=${box.x}:${box.y}:shortest=1,format=yuv420p`, '-an', '-c:v', 'libx264', '-crf', '24', '-movflags', '+faststart', '-t', '25', mp4])
-  const st = fs.statSync(mp4)
-  if (st.size < 30000) throw new Error('clip too short')
-  for (const f of [webm, bg]) fs.rmSync(f, { force: true })
+  try {
+    await ffmpeg(['-loop', '1', '-i', bg, '-i', webm, '-filter_complex', `[1:v]setpts=PTS/${speed},scale=${box.w}:-2,crop=${box.w}:${box.h - 30}:0:0,fps=24[c];[0:v][c]overlay=${box.x}:${box.y}:shortest=1,format=yuv420p`, '-an', '-c:v', 'libx264', '-crf', '24', '-movflags', '+faststart', '-t', '55', mp4])
+  } finally { fs.rmSync(bg, { force: true }) }
+  if (fs.statSync(mp4).size < 30000) throw new Error('clip too short')
   return { file: mp4, thumb }
 }
 
+const demoWebm = (id) => path.join(SRC, `${id}.webm`)
+const demoShots = (id) => { try { return JSON.parse(fs.readFileSync(path.join(SRC, `${id}.json`), 'utf8')).map((label, i) => ({ label, buf: fs.readFileSync(path.join(SRC, `${id}-${i + 1}.jpg`)) })) } catch (_) { return null } }
+
+async function liveStages(demo) {
+  const out = []
+  const { page, done } = await openPage(DESK)
+  try {
+    if (demo.login) await login(page)
+    await go(page, demo.path)
+    await demo.run(page, async (label) => out.push({ label, buf: await snapPage(page) }))
+  } finally { await done() }
+  if (out.length < 2) throw new Error('demo incomplete')
+  return out
+}
+
+// Album of 3–4 framed steps (same look across the album, new look every post).
+async function series(demo, kind) {
+  let stages = null, live = true
+  if (DEMO()) stages = await liveStages(demo).catch(() => null)
+  if (!stages) { stages = demoShots(demo.id); live = false }
+  if (!stages) throw new Error(`no saved demo for ${demo.id}`)
+  const v = { ...variant('screen'), kind, layout: 'desk' }
+  const files = [], thumbs = []
+  for (const [i, s] of stages.entries()) {
+    const { full, thumb } = await render(html({ v: { ...v, step: `Step ${i + 1} of ${stages.length}` }, headline: s.label, desk: s.buf, w: 1600, h: 1000 }), 1600, 1000)
+    const file = path.join(WORK(), `${demo.id}-${i + 1}-${Date.now()}.jpg`); fs.writeFileSync(file, full); files.push(file); thumbs.push(thumb)
+  }
+  return { type: 'album', files, file: null, thumb: thumbs[0], v, live }
+}
+
 // One finished visual for a post. kind: 'screen' | 'art' | 'clip'. Falls back to a screen image.
-async function make({ kind, screen, clip, headline, sub, scene }) {
+async function make({ kind, screen, clip, demo, headline, sub, scene }) {
   {
     let v = variant(kind)
-    if (kind === 'clip') {
-      try { const c = await recordClip(clip, v, headline); return { type: 'video', ...c, v, live: true } } catch (e) { v = variant('screen'); v.fallback = `clip: ${e.message}` }
+    if (kind === 'series') {
+      try { return await series(demo, kind) } catch (e) { v = { ...variant('screen'), fallback: `series: ${e.message}` } }
+    }
+    if (kind === 'clip' || kind === 'demo') {
+      const item = kind === 'demo' ? demo : clip
+      let webm = null, live = true
+      try {
+        if (!item.login || DEMO()) webm = await liveWebm(item).catch(() => null)
+        if (!webm && kind === 'demo' && fs.existsSync(demoWebm(item.id))) { webm = demoWebm(item.id); live = false }
+        if (!webm) throw new Error('no recording')
+        const c = await frameClip(webm, { ...v, layout: 'clip' }, headline, kind === 'demo' ? 0.6 : 1)
+        return { type: 'video', ...c, v: { ...v, layout: 'clip' }, live }
+      } catch (e) { v = { ...variant('screen'), fallback: `${kind}: ${e.message}` } } finally { if (webm && live) fs.rmSync(webm, { force: true }) }
     }
     const s = await shots(screen)
     let art = null
@@ -238,11 +348,27 @@ async function buildLibrary(ids) {
     for (const s of SCREENS.filter(x => !ids || ids.includes(x.id))) {
       for (const [view, vp] of [['desktop', DESK], ['phone', PHONE]]) {
         const { page, done } = await openPage(vp)
-        try { if (s.login) await login(page); await go(page, s.path); fs.writeFileSync(libFile(s.id, view), await page.screenshot({ type: 'jpeg', quality: 80 })); out.push(`${s.id}-${view}`) } catch (e) { out.push(`${s.id}-${view} FAILED ${e.message}`) } finally { await done() }
+        try { if (s.login) await login(page); await go(page, s.path); fs.writeFileSync(libFile(s.id, view), await snapPage(page)); out.push(`${s.id}-${view}`) } catch (e) { out.push(`${s.id}-${view} FAILED ${e.message}`) } finally { await done() }
       }
     }
     return out
   }
 }
 
-module.exports = { make, buildLibrary, SCREENS, CLIPS, THEMES, variant }
+// Saves each Emily demo (desktop steps + phone recording) for when no showcase account can be used live.
+async function buildDemoLibrary(ids) {
+  fs.mkdirSync(SRC, { recursive: true })
+  const out = []
+  for (const d of DEMOS.filter(x => !ids || ids.includes(x.id))) {
+    try {
+      const st = await liveStages(d)
+      st.forEach((s, i) => fs.writeFileSync(path.join(SRC, `${d.id}-${i + 1}.jpg`), s.buf))
+      fs.writeFileSync(path.join(SRC, `${d.id}.json`), JSON.stringify(st.map(s => s.label)))
+      out.push(`${d.id} steps ${st.length}`)
+    } catch (e) { out.push(`${d.id} steps FAILED ${e.message}`) }
+    try { const w = await liveWebm(d); fs.copyFileSync(w, demoWebm(d.id)); fs.rmSync(w, { force: true }); out.push(`${d.id} clip ${Math.round(fs.statSync(demoWebm(d.id)).size / 1024)}KB`) } catch (e) { out.push(`${d.id} clip FAILED ${e.message}`) }
+  }
+  return out
+}
+
+module.exports = { make, buildLibrary, buildDemoLibrary, SCREENS, CLIPS, DEMOS, THEMES, variant }

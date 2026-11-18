@@ -3680,3 +3680,6 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 
 ## 2026-11-18 — Channel posts: unique daily visuals + @Hostbay
 - New js/channel-ads-studio.js (live screens desktop+phone, AI artwork via owner OpenAI keys, live phone clips); js/channel-ads.js multi-channel + punchy captions; admin ChannelPosts with thumbnails + per-channel post-now. Removed static frontend/public/channel-ads, channel-ads-media.json, old python capture/frame scripts. Verified in preview: desk, duo, art, clip (local Chrome and Browserless) + admin simulated @Hostbay post. Real channel delivery not yet observed.
+
+## 2026-11-18 — Emily end-to-end demos in channel posts
+- 5 Emily demos (keypad menu, AI receptionist, reminder call, plan+number, AI campaign) as phone clips or 3-step albums; saved real recordings for production; admin pages blocked from captures. Verified in preview (live demo post simulated, saved-library album + clip rendered). Album send to Telegram not yet exercised live.

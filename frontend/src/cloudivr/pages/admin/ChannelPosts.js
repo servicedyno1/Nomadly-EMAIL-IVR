@@ -6,7 +6,7 @@ import { Load } from './common';
 
 const when = (d) => new Date(d).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 const TONE = { posted: 'text-[#34d399]', simulated: 'text-[#a1a1aa]', failed: 'text-[#f87171]', claimed: 'text-[#fbbf24]' };
-const VISUAL = { clip: ['Phone clip', Film], art: ['AI artwork', Sparkles], duo: ['Phone + desktop', ImageIcon], desk: ['Desktop screen', ImageIcon] };
+const VISUAL = { demo: ['Emily demo clip', Film], series: ['Emily step-by-step album', ImageIcon], clip: ['Phone clip', Film], art: ['AI artwork', Sparkles], duo: ['Phone + desktop', ImageIcon], desk: ['Desktop screen', ImageIcon] };
 
 function PostRow({ x, i }) {
   const [label, Icon] = VISUAL[x.visual] || [x.visual || '', ImageIcon];

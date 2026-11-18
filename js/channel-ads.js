@@ -28,7 +28,7 @@ function facts() {
 
 // Headline (also printed on the visual) + 1–2 short lines + an artwork scene, from the owner's OpenAI keys.
 async function caption(pillar, topic, extra) {
-  const brief = { how: `"how it works" — the screen: "${topic.title}"`, feature: `a feature spotlight on "${topic.title}"`, usecase: `why a ${extra} would use CloudIVR (screen: "${topic.title}")`, tip: `a quick tip about "${topic.title}"`, new: `"What's new": ${extra}` }[pillar]
+  const brief = { how: topic.run ? `an end-to-end "watch Emily set it up" post: ${topic.title}. The visual shows the whole flow — you ask Emily in plain words, she suggests the setup, the form is filled in, you press Save` : `"how it works" — the screen: "${topic.title}"`, feature: `a feature spotlight on "${topic.title}"`, usecase: `why a ${extra} would use CloudIVR (screen: "${topic.title}")`, tip: `a quick tip about "${topic.title}"`, new: `"What's new": ${extra}` }[pillar]
   const fallback = { headline: (pillar === 'new' ? extra : topic.title).slice(0, 70), line: 'Business numbers, keypad menus and AI calling — set up in minutes by chatting with Emily. From $50/month.', scene: `a small business owner relaxed while calls are handled for them, ${extra || topic.title}` }
   const keys = [...new Set([process.env.APP_OPEN_API_KEY, process.env.OPEN_API_KEY].filter(Boolean))]
   for (const key of keys) {
@@ -59,8 +59,9 @@ async function plan(chat) {
   const recent = await col.find({ status: { $in: ['posted', 'simulated'] } }).sort({ at: -1 }).limit(40).project({ topicId: 1, sig: 1 }).toArray()
   const lastUse = (id) => { const i = recent.findIndex(r => r.topicId === id); return i < 0 ? 999 : i }
   const r = crypto.randomInt(100)
-  const kind = r < 25 ? 'clip' : r < 55 ? 'art' : 'screen'
-  let extra = null, screen, clip = null
+  // Emily end-to-end demos lead (clip or step-by-step album); then live screens, AI artwork, short clips.
+  const kind = r < 30 ? 'demo' : r < 55 ? 'series' : r < 75 ? 'screen' : r < 90 ? 'art' : 'clip'
+  let extra = null, screen, clip = null, demo = null
   if (pillar === 'new') {
     const [what, id] = WHATS_NEW[n % WHATS_NEW.length]
     extra = what; screen = studio.SCREENS.find(s => s.id === id) || studio.SCREENS[0]
@@ -70,11 +71,21 @@ async function plan(chat) {
     if (pillar === 'usecase') extra = USE_CASES[(n + ti * 3) % USE_CASES.length]
   }
   if (kind === 'clip') clip = [...studio.CLIPS].sort((a, b) => lastUse(b.id) - lastUse(a.id))[0]
-  return { pillar, kind, screen, clip, extra, topic: clip || screen, recentSigs: new Set(recent.map(x => x.sig).filter(Boolean)) }
+  if (kind === 'demo' || kind === 'series') demo = [...studio.DEMOS].sort((a, b) => lastUse(b.id) - lastUse(a.id) || crypto.randomInt(3) - 1)[0]
+  return { pillar: demo ? 'how' : pillar, kind, screen, clip, demo, extra: demo ? null : extra, topic: demo || clip || screen, recentSigs: new Set(recent.map(x => x.sig).filter(Boolean)) }
 }
 
 async function send(chat, media, text, topicId) {
   const button = { inline_keyboard: [[{ text: 'Try CloudIVR', url: `${SITE()}/?utm_source=telegram&utm_medium=channel&utm_campaign=${encodeURIComponent(chat.replace('@', ''))}&utm_content=${topicId}` }]] }
+  if (media.type === 'album') {
+    const fd = new FormData()
+    const link = `\n\n<a href="${button.inline_keyboard[0][0].url}">Try CloudIVR →</a>`
+    fd.append('chat_id', chat)
+    fd.append('media', JSON.stringify(media.files.map((_, i) => ({ type: 'photo', media: `attach://s${i}`, ...(i === 0 ? { caption: text + link, parse_mode: 'HTML' } : {}) }))))
+    media.files.forEach((f, i) => fd.append(`s${i}`, new Blob([fs.readFileSync(f)]), `step-${i + 1}.jpg`))
+    const r = await axios.post(`https://api.telegram.org/bot${token}/sendMediaGroup`, fd, { timeout: 120000, maxBodyLength: Infinity })
+    return r.data.result[0].message_id
+  }
   const video = media.type === 'video'
   const fd = new FormData()
   fd.append('chat_id', chat); fd.append('caption', text); fd.append('parse_mode', 'HTML'); fd.append('reply_markup', JSON.stringify(button))
@@ -94,13 +105,13 @@ async function postNow(chat = TARGETS()[0]?.chat, slotKey = `manual:${chat}:${Da
     const p = await plan(chat)
     const cap = await caption(p.pillar, p.topic, p.extra)
     for (let i = 0; i < 4; i++) {
-      media = await studio.make({ kind: p.kind, screen: p.screen, clip: p.clip, headline: cap.headline, sub: cap.line, scene: cap.scene })
-      if (media.type === 'video' || media.v.layout === 'art' || !p.recentSigs.has(sigOf(p.screen.id, media.v))) break
+      media = await studio.make({ kind: p.kind, screen: p.screen, clip: p.clip, demo: p.demo, headline: cap.headline, sub: cap.line, scene: cap.scene })
+      if (media.type !== 'photo' || media.v.layout === 'art' || !p.recentSigs.has(sigOf(p.screen.id, media.v))) break
       fs.rmSync(media.file, { force: true })
     }
-    const topicId = media.type === 'video' ? p.clip.id : p.screen.id
+    const topicId = media.type === 'photo' ? p.screen.id : (p.demo && !media.v.fallback ? p.demo.id : (p.clip || p.screen).id)
     const text = htmlText(cap)
-    const rec = { chat, pillar: p.pillar, topicId, mediaId: topicId, visual: media.type === 'video' ? 'clip' : media.v.layout, live: media.live, fallback: media.v.fallback || null, sig: sigOf(topicId, media.v), extra: p.extra, text, thumb: media.thumb.toString('base64') }
+    const rec = { chat, pillar: p.pillar, topicId, mediaId: topicId, visual: media.type === 'album' ? 'series' : media.type === 'video' ? (p.kind === 'demo' ? 'demo' : 'clip') : media.v.layout, steps: media.files?.length || null, live: media.live, fallback: media.v.fallback || null, sig: sigOf(topicId, media.v), extra: p.extra, text, thumb: media.thumb.toString('base64') }
     if (dryRun()) {
       await col.updateOne({ _id: slotKey }, { $set: { status: 'simulated', ...rec } })
       log(`[ChannelAds] (preview) would post ${p.pillar}/${topicId} (${rec.visual}) to ${chat}`)
@@ -115,7 +126,7 @@ async function postNow(chat = TARGETS()[0]?.chat, slotKey = `manual:${chat}:${Da
     await col.updateOne({ _id: slotKey }, { $set: { status: 'failed', error: msg } }).catch(() => {})
     log(`[ChannelAds] post to ${chat} failed: ${msg}`)
     return { error: msg }
-  } finally { if (media?.file) fs.rmSync(media.file, { force: true }) }
+  } finally { for (const f of [media?.file, ...(media?.files || [])].filter(Boolean)) fs.rmSync(f, { force: true }) }
 }
 
 async function tick() {
