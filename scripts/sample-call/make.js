@@ -1,6 +1,6 @@
 'use strict'
-// Builds the landing page "Hear it" sample call from the platform's own voice engine (OpenAI TTS — the same
-// engine behind IVR greetings — and the AI agent's default 'marin' voice), a real DTMF "1" tone and a US ringback,
+// Builds the landing page "Hear it" sample call from the platform's own voice engine (OpenAI's lifelike voices — 'marin' for the
+// business, the same voice landing-page test calls use), a real DTMF "1" tone and a US ringback,
 // stitched with ffmpeg. Writes:
 //   frontend/public/civr/sample/sample-call.mp3
 //   frontend/src/cloudivr/pages/landing/sampleCall.js   (segments + per-word timings for the synced transcript)
@@ -19,29 +19,26 @@ const TMP = path.join(__dirname, 'tmp')
 fs.mkdirSync(OUT_DIR, { recursive: true }); fs.mkdirSync(TMP, { recursive: true })
 
 // speaker: menu (IVR greeting), tone (DTMF), agent (AI voice agent), caller, ring (ringback), human (front desk)
+const WARM = 'You are a warm, friendly American receptionist on a phone call. Sound natural and relaxed, like a real person who is smiling: clear, unhurried, never robotic or sing-song.'
 const SCRIPT = [
-  { speaker: 'menu', voice: 'nova', text: 'Thanks for calling Northwind Dental. Press 1 to book, 2 for billing, or 3 to leave a message.', gap: 0.45 },
+  { speaker: 'menu', voice: 'marin', style: `${WARM} This is the recorded welcome: pause gently between the options.`, text: 'Thanks for calling Northwind Dental. Press 1 to book, 2 for billing, or 3 to leave a message.', gap: 0.45 },
   { speaker: 'tone', text: '1', gap: 0.45 },
-  { speaker: 'agent', voice: 'marin', text: 'Hi, this is Northwind’s booking assistant. New visit, or changing one?', gap: 0.3 },
-  { speaker: 'caller', voice: 'echo', text: 'A new one — a cleaning next Tuesday afternoon, if you have it.', gap: 0.3 },
-  { speaker: 'agent', voice: 'marin', text: 'Tuesday at 2:30 is free. Shall I book it?', gap: 0.25 },
-  { speaker: 'caller', voice: 'echo', text: 'Yes, please.', gap: 0.25 },
-  { speaker: 'agent', voice: 'marin', text: 'Done — Tuesday at 2:30. I’ll pass you to the front desk to confirm your details.', gap: 0.35 },
+  { speaker: 'agent', voice: 'marin', style: `${WARM} You are now talking live with the caller: conversational and helpful.`, text: 'Hi, this is Northwind’s booking assistant. New visit, or changing one?', gap: 0.3 },
+  { speaker: 'caller', voice: 'cedar', style: 'A relaxed American man in his thirties calling his dentist from home. Casual, natural, slightly informal.', text: 'A new one — a cleaning next Tuesday afternoon, if you have it.', gap: 0.3 },
+  { speaker: 'agent', voice: 'marin', style: `${WARM} Pleased to have found a free slot.`, text: 'Tuesday at 2:30 is free. Shall I book it?', gap: 0.25 },
+  { speaker: 'caller', voice: 'cedar', style: 'A relaxed American man in his thirties. Casual and pleased.', text: 'Yes, please.', gap: 0.25 },
+  { speaker: 'agent', voice: 'marin', style: `${WARM} Cheerful and reassuring.`, text: 'Done — Tuesday at 2:30. I’ll pass you to the front desk to confirm your details.', gap: 0.35 },
   { speaker: 'ring', text: '', gap: 0.15 },
-  { speaker: 'human', voice: 'shimmer', text: 'Front desk, this is Maya — I have your booking right here.', gap: 0.5 },
+  { speaker: 'human', voice: 'coral', style: 'A real, upbeat American front-desk receptionist picking up a transferred call. Natural, quick and friendly.', text: 'Front desk, this is Maya — I have your booking right here.', gap: 0.5 },
 ]
 
 const sh = (args) => execFileSync('ffmpeg', ['-y', '-loglevel', 'error', ...args], { stdio: 'inherit' })
 const dur = (f) => Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', f]).toString().trim())
 
-async function tts(text, voice, file) {
-  const call = (model, v) => axios.post('https://api.openai.com/v1/audio/speech', { model, voice: v, input: text, response_format: 'mp3', speed: 1.08 },
+// Uncompressed audio at natural speed with a spoken-style brief per speaker; the only lossy step is the final MP3.
+async function tts(text, voice, style, file) {
+  const res = await axios.post('https://api.openai.com/v1/audio/speech', { model: 'gpt-4o-mini-tts', voice, input: text, instructions: style, response_format: 'wav' },
     { headers: { Authorization: `Bearer ${KEY}` }, responseType: 'arraybuffer', timeout: 60000 })
-  let res
-  try { res = await call('gpt-4o-mini-tts', voice) } catch (e) {
-    console.log(`  gpt-4o-mini-tts/${voice} failed (${e.response?.status || e.message}) → tts-1/${voice === 'marin' ? 'coral' : voice}`)
-    res = await call('tts-1', voice === 'marin' ? 'coral' : voice)
-  }
   fs.writeFileSync(file, Buffer.from(res.data))
 }
 
@@ -71,10 +68,10 @@ async function main() {
   pieces.push(silence(0.4, path.join(TMP, 'lead.wav')) || path.join(TMP, 'lead.wav'))
   for (let i = 0; i < SCRIPT.length; i++) {
     const s = SCRIPT[i]
-    const raw = path.join(TMP, `${i}-raw.mp3`), out = path.join(TMP, `${i}.wav`)
+    const raw = path.join(TMP, `${i}-raw.wav`), out = path.join(TMP, `${i}.wav`)
     if (s.speaker === 'tone') dtmf(out)
     else if (s.speaker === 'ring') ring(out)
-    else { console.log(`TTS ${s.speaker}/${s.voice}: ${s.text}`); await tts(s.text, s.voice, raw); wav(raw, out) }
+    else { console.log(`TTS ${s.speaker}/${s.voice}: ${s.text}`); await tts(s.text, s.voice, s.style, raw); wav(raw, out) }
     const d = dur(out)
     const seg = { speaker: s.speaker, text: s.speaker === 'tone' ? 'Caller presses 1' : s.speaker === 'ring' ? 'Ringing the front desk…' : s.text, start: +t.toFixed(2), end: +(t + d).toFixed(2) }
     if (!['tone', 'ring'].includes(s.speaker)) seg.words = words(s.text, t, t + d)
@@ -88,7 +85,7 @@ async function main() {
   const mix = path.join(TMP, 'mix.wav')
   sh(['-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', mix])
   const mp3 = path.join(OUT_DIR, 'sample-call.mp3')
-  sh(['-i', mix, '-codec:a', 'libmp3lame', '-b:a', '64k', '-ac', '1', mp3])
+  sh(['-i', mix, '-codec:a', 'libmp3lame', '-b:a', '128k', '-ac', '1', mp3])
   const total = dur(mp3)
   const js = `// Generated by scripts/sample-call/make.js — do not edit by hand. Audio: /civr/sample/sample-call.mp3\n` +
     `export const SAMPLE_DURATION = ${total.toFixed(2)};\n` +

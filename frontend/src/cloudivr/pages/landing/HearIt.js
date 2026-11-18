@@ -3,7 +3,7 @@ import { Play, Pause, RotateCcw } from 'lucide-react';
 import { Wave, reducedMotion } from './kit';
 import { SAMPLE_DURATION, SAMPLE_SEGMENTS } from './sampleCall';
 
-// "Hear it": a 30-second sample produced with the platform's own voices — IVR greeting, a real key press, the AI
+// "Hear it": a short sample produced with the platform's own voices — IVR greeting, a real key press, the AI
 // agent booking a slot, then the handover — with a transcript that follows word by word. No form, no account.
 export const SAMPLE_SRC = '/civr/sample/sample-call.mp3';
 const WHO = { menu: 'Keypad menu', agent: 'AI receptionist', caller: 'Caller', human: 'Front desk', tone: 'Key press', ring: 'Handover' };
@@ -80,7 +80,7 @@ export function HearIt({ className = '' }) {
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3">
-            <span className="font-semibold text-slate-900 text-sm md:text-base" data-testid="hear-it-title">{playing ? 'Playing a sample call' : state === 'ended' ? 'That was 30 seconds of CloudIVR' : 'Hear a 30-second call'}</span>
+            <span className="font-semibold text-slate-900 text-sm md:text-base" data-testid="hear-it-title">{playing ? 'Playing a sample call' : state === 'ended' ? 'That was a CloudIVR call' : 'Hear a sample call'}</span>
             <Wave on={playing} className="text-slate-900 hidden sm:inline-flex" />
           </div>
           <p className="text-xs md:text-sm text-slate-500 mt-0.5" data-testid="hear-it-sub">Keypad menu · key press · AI receptionist books a slot · handover to a person. Made with CloudIVR’s own voices.</p>

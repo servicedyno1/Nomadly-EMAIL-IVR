@@ -696,3 +696,8 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Test: `node js/tests/test_sip_signin_failures.js`.
 - SIP server side (upgrade to 6.0.8, watchdog, lock replies) is already live — see DEPLOYMENT_STATE.md.
 - Not done: failure note in the Telegram bot's SIP status line; alert when the nginx door or the app API is down.
+
+## 2026-11-18 — Natural female voice for landing demo + free test calls — preview, needs publish, not user-confirmed
+- Demo clip `frontend/public/civr/sample/sample-call.mp3` rebuilt by `node scripts/sample-call/make.js`: gpt-4o-mini-tts, voice `marin` (business), `cedar` (caller), `coral` (front desk), per-speaker style brief, natural speed (was 1.08x), uncompressed source, 128 kbps (was 64). 34.7 s → labels now "Hear a sample call" / "That was a CloudIVR call" (es/fr added).
+- Free "call me" test calls: `trycall.js` marks the call with `callengine.naturalVoice(id)`; `/callengine/tts.mp3?...&v=n` (signed) speaks with `marin` + style brief as WAV. Other customers' calls keep their current voice (nova/onyx). Endpoint now retries with APP_OPEN_API_KEY if OPENAI_API_KEY is rejected (preview's OPENAI_API_KEY is invalid; both prod keys valid).
+- Phone calls are still narrowband (8 kHz) by nature. Not verified on a real phone call.
