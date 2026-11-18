@@ -225,7 +225,9 @@ async function dialLead(campaign, lead) {
     const r = await ce.createOutboundCall(from, lead.number, null, null, { client_state: CLIENT_STATE, timeout_secs: 30 })
     if (r.error) return { error: r.error, lineLimit: !!r.refused || r.status === 503 }
     const ccid = r.callControlId
-    track(ccid, { kind: 'outbound', rate: leadRate(lead.number, records(agent)), baseRate: leadRate(lead.number), recRate: recRate(agent), calendar, token, chatId: String(campaign.chatId), agent, number: campaign.callerId, other: lead.number, leadName: lead.name || null, campaignId: campaign.id, leadIndex: lead.index, reason: lead.reason || null })
+    // Owner's own test call ("Call me now") is free.
+    const free = campaign.test === true
+    track(ccid, { kind: 'outbound', rate: free ? 0 : leadRate(lead.number, records(agent)), baseRate: free ? 0 : leadRate(lead.number), recRate: free ? 0 : recRate(agent), free, calendar, token, chatId: String(campaign.chatId), agent, number: campaign.callerId, other: lead.number, leadName: lead.name || null, campaignId: campaign.id, leadIndex: lead.index, reason: lead.reason || null })
     return { callControlId: ccid }
   } catch (e) {
     const err = e.response?.data?.errors?.[0]
@@ -238,7 +240,7 @@ function committed(chatId) {
   let sum = 0
   for (const s of sessions.values()) {
     if (s.chatId !== String(chatId) || !s.answeredAt) continue
-    sum += (Math.ceil((Date.now() - s.answeredAt) / 60000) + 1) * (s.rate || RATE())
+    sum += (Math.ceil((Date.now() - s.answeredAt) / 60000) + 1) * (s.rate ?? RATE())
   }
   return sum
 }
@@ -340,7 +342,7 @@ async function finish(s, payload) {
   const fwdRate = (s.transferredTo && deps.voiceService?.getIvrCallRate?.(s.transferredTo)) || 0.15
   const aiMin = duration ? Math.max(1, Math.ceil(aiSecs / 60)) : 0
   const restMin = restSecs > 0 ? Math.ceil(restSecs / 60) : 0
-  const charge = +(aiMin * rate + restMin * fwdRate).toFixed(4)
+  const charge = s.free ? 0 : +(aiMin * rate + restMin * fwdRate).toFixed(4)
   if (res.optedOut) await store.addDnc(s.chatId, s.other, 'asked on an AI call').catch(() => {})
   const callId = await store.saveCall({
     chatId: s.chatId, agentId: s.agent.id, agentName: s.agent.name, direction: s.kind, number: s.number, other: s.other, leadName: s.leadName || null,
@@ -362,7 +364,7 @@ async function finish(s, payload) {
       aiBilling: duration ? { minutesBilled: aiMin + restMin, charge, rate, recordingRate } : null,
     })
   }
-  if (duration && deps.walletOf) {
+  if (duration && deps.walletOf && charge > 0) {
     await smartWalletDeduct(deps.walletOf, s.chatId, charge, {
       type: 'ai_agent_call', callType: 'AIAgent', destination: s.other, phoneNumber: s.number,
       description: `AI agent "${s.agent.name}": ${s.other} → ${s.number} (${aiMin} min × $${rate}${recordingRate ? ` incl. $${recordingRate} recording` : ''}${restMin ? ` + ${restMin} min transferred` : ''})`,

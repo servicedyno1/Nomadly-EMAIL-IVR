@@ -6,7 +6,9 @@ let pass = 0, fail = 0
 const ok = (n, c) => { c ? pass++ : fail++; console.log(`${c ? '✅' : '❌'} ${n}`) }
 
 ;(async () => {
-  ok('maintenance ON by default', pc.bulkIvrMaintenance() === true)
+  ok('maintenance OFF by default', pc.bulkIvrMaintenance() === false)
+  process.env.BULK_IVR_MAINTENANCE = 'true'
+  ok('env can pause campaigns', pc.bulkIvrMaintenance() === true)
   ok('US/CA-only ON by default', pc.numberSearchUsCaOnly() === true)
   ok('country picker = US + CA only', pc.allCountries.map(c => c.code).join(',') === 'US,CA')
   ok('no "more countries"', pc.moreCountries.length === 0)
