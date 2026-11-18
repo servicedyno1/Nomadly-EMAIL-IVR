@@ -39,6 +39,24 @@ const SCREENS = [
   { id: 'for-nomads', path: '/for/nomads', title: 'Your local number, anywhere in the world', pillar: 'usecase' },
 ]
 
+// Nomadly product screens — bot-only products (no web screenshots, use AI artwork).
+const NOMADLY_SCREENS = [
+  { id: 'nm-hosting', title: 'Anti-Red hosting that keeps your site online', pillar: 'feature', product: 'hosting' },
+  { id: 'nm-hosting-gold', title: 'Golden hosting: captcha, geo-block, full protection', pillar: 'feature', product: 'hosting' },
+  { id: 'nm-domains', title: 'Bulletproof domains with DNS and privacy', pillar: 'feature', product: 'domains' },
+  { id: 'nm-vps', title: 'VPS and RDP servers in minutes', pillar: 'feature', product: 'vps' },
+  { id: 'nm-leads', title: 'Targeted phone leads by area code', pillar: 'feature', product: 'leads' },
+  { id: 'nm-sms', title: 'BulkSMS campaigns to US and Canada', pillar: 'feature', product: 'sms' },
+  { id: 'nm-esim', title: 'USA eSIM with data, calls and texts', pillar: 'feature', product: 'esim' },
+  { id: 'nm-digital', title: 'Google Workspace, Cloud accounts, SMTP', pillar: 'feature', product: 'digital' },
+  { id: 'nm-shortener', title: 'URL shortener with custom domains', pillar: 'feature', product: 'shortener' },
+  { id: 'nm-wallet', title: 'One wallet for everything — crypto deposits in seconds', pillar: 'tip', product: 'wallet' },
+  { id: 'nm-all-in-one', title: 'Hosting, numbers, domains, SMS — one bot', pillar: 'how', product: 'platform' },
+  { id: 'nm-reseller', title: 'White-label hosting for your clients', pillar: 'usecase', product: 'reseller' },
+  { id: 'nm-startup', title: 'Everything a startup needs from day one', pillar: 'usecase', product: 'platform' },
+  { id: 'nm-nomad', title: 'Run your business from anywhere with eSIM and cloud', pillar: 'usecase', product: 'platform' },
+]
+
 // Phone-size clips, recorded live each time (steps run after recording starts).
 const CLIPS = [
   { id: 'landing-tour', title: 'CloudIVR on your phone', pillar: 'how', path: '/', steps: async (p) => { for (let i = 0; i < 7; i++) { await p.evaluate(() => window.scrollBy({ top: 520, behavior: 'smooth' })); await wait(1800) } } },
@@ -193,10 +211,14 @@ async function shots(screen) {
 }
 
 // AI artwork with the owner's own OpenAI keys; tries each key × model, null when all fail.
-async function artwork(scene, theme) {
+async function artwork(scene, theme, chat) {
   const keys = [...new Set([process.env.APP_OPEN_API_KEY, process.env.OPEN_API_KEY].filter(Boolean))]
   const models = [...new Set([process.env.CHANNEL_ADS_IMAGE_MODEL, 'gpt-image-1.5', 'gpt-image-1-mini'].filter(Boolean))]
-  const prompt = `Premium editorial ad illustration for a cloud business phone system. Scene: ${scene}. Colour palette: ${theme.name} — ${theme.bg} background with ${theme.glow} accents. Soft cinematic lighting, modern, clean, generous calm empty space on the left third. Absolutely no text, letters, numbers, logos or user-interface screens.`
+  const hb = /hostbay/i.test(chat || '')
+  const brandDesc = hb
+    ? 'an all-in-one online business platform (hosting, domains, VPS, phone systems, SMS, digital products)'
+    : 'a cloud business phone system'
+  const prompt = `Premium editorial ad illustration for ${brandDesc}. Scene: ${scene}. Colour palette: ${theme.name} — ${theme.bg} background with ${theme.glow} accents. Soft cinematic lighting, modern, clean, generous calm empty space on the left third. Absolutely no text, letters, numbers, logos or user-interface screens.`
   for (const key of keys) {
     for (const model of models) {
       try {
@@ -211,10 +233,14 @@ async function artwork(scene, theme) {
 
 const uri = (buf, mime = 'image/jpeg') => (buf ? `data:${mime};base64,${buf.toString('base64')}` : '')
 
-function html({ v, headline, sub, desk, phone, art, w, h, clipBox }) {
+function html({ v, headline, sub, desk, phone, art, w, h, clipBox, chat }) {
   const t = THEMES[v.theme]
+  const hb = /hostbay/i.test(chat || '')
+  const brandName = hb ? 'Nomadly' : 'CloudIVR'
+  const brandUrl = hb ? '@Nomadlybot' : 'cloudivr.net'
+  const deskBarUrl = hb ? 'nomadly.bot' : 'cloudivr.net'
   const phoneEl = (x, y, pw, ph, img) => `<div class="phone" style="left:${x}px;top:${y}px;width:${pw}px;height:${ph}px">${img ? `<img src="${uri(img)}">` : ''}<span class="notch"></span></div>`
-  const deskEl = (x, y, dw, dh) => `<div class="desk" style="left:${x}px;top:${y}px;width:${dw}px;height:${dh}px;transform:rotate(${v.tilt}deg)"><div class="bar"><b></b><b></b><b></b><span>cloudivr.net</span></div><img src="${uri(desk)}"></div>`
+  const deskEl = (x, y, dw, dh) => `<div class="desk" style="left:${x}px;top:${y}px;width:${dw}px;height:${dh}px;transform:rotate(${v.tilt}deg)"><div class="bar"><b></b><b></b><b></b><span>${esc(deskBarUrl)}</span></div><img src="${uri(desk)}"></div>`
   let body = ''
   if (v.layout === 'desk') body = `<h1 style="max-width:1320px;font-size:66px">${esc(headline)}</h1>${deskEl(170 + v.jx, 330 + v.jy, 1260, 760)}`
   if (v.layout === 'duo') body = `<h1 style="max-width:560px;font-size:60px;top:150px">${esc(headline)}</h1>${sub ? `<p class="sub" style="top:${headline.length > 28 ? 420 : 350}px">${esc(sub)}</p>` : ''}${deskEl(700 + v.jx, 120 + v.jy, 1080, 680)}${phoneEl(560 + v.jx, 300, 290, 620, phone)}`
@@ -238,7 +264,7 @@ h1{position:absolute;left:80px;top:118px;line-height:1.04;font-weight:800;letter
 .phone .notch{position:absolute;top:22px;left:50%;transform:translateX(-50%);width:96px;height:26px;border-radius:14px;background:#050505}
 .art{position:absolute;top:0;right:0;width:1100px;height:100%;background-size:cover;background-position:center}
 .art:after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,${t.bg} 0%,${t.bg}cc 22%,transparent 60%)}
-</style></head><body><div class="g"></div><div class="dots"></div><div class="brand"><i></i>CloudIVR</div>${body}<div class="url">${v.step ? `<span class="step">${esc(v.step)}</span>` : 'cloudivr.net'}</div></body></html>`
+</style></head><body><div class="g"></div><div class="dots"></div><div class="brand"><i></i>${brandName}</div>${body}<div class="url">${v.step ? `<span class="step">${esc(v.step)}</span>` : esc(brandUrl)}</div></body></html>`
 }
 
 async function render(doc, w, h, png) {
@@ -297,7 +323,7 @@ async function liveStages(demo) {
 }
 
 // Album of 3–4 framed steps (same look across the album, new look every post).
-async function series(demo, kind) {
+async function series(demo, kind, chat) {
   let stages = null, live = true
   if (DEMO()) stages = await liveStages(demo).catch(() => null)
   if (!stages) { stages = demoShots(demo.id); live = false }
@@ -305,18 +331,18 @@ async function series(demo, kind) {
   const v = { ...variant('screen'), kind, layout: 'desk' }
   const files = [], thumbs = []
   for (const [i, s] of stages.entries()) {
-    const { full, thumb } = await render(html({ v: { ...v, step: `Step ${i + 1} of ${stages.length}` }, headline: s.label, desk: s.buf, w: 1600, h: 1000 }), 1600, 1000)
+    const { full, thumb } = await render(html({ v: { ...v, step: `Step ${i + 1} of ${stages.length}` }, headline: s.label, desk: s.buf, w: 1600, h: 1000, chat }), 1600, 1000)
     const file = path.join(WORK(), `${demo.id}-${i + 1}-${Date.now()}.jpg`); fs.writeFileSync(file, full); files.push(file); thumbs.push(thumb)
   }
   return { type: 'album', files, file: null, thumb: thumbs[0], v, live }
 }
 
 // One finished visual for a post. kind: 'screen' | 'art' | 'clip'. Falls back to a screen image.
-async function make({ kind, screen, clip, demo, headline, sub, scene }) {
+async function make({ kind, screen, clip, demo, headline, sub, scene, chat }) {
   {
     let v = variant(kind)
     if (kind === 'series') {
-      try { return await series(demo, kind) } catch (e) { v = { ...variant('screen'), fallback: `series: ${e.message}` } }
+      try { return await series(demo, kind, chat) } catch (e) { v = { ...variant('screen'), fallback: `series: ${e.message}` } }
     }
     if (kind === 'clip' || kind === 'demo') {
       const item = kind === 'demo' ? demo : clip
@@ -329,11 +355,14 @@ async function make({ kind, screen, clip, demo, headline, sub, scene }) {
         return { type: 'video', ...c, v: { ...v, layout: 'clip' }, live }
       } catch (e) { v = { ...variant('screen'), fallback: `${kind}: ${e.message}` } } finally { if (webm && live) fs.rmSync(webm, { force: true }) }
     }
-    const s = await shots(screen)
+    // For Nomadly-only products (no web path), force art layout
+    const nomadlyForceArt = screen.product && screen.product !== 'cloudivr' && !screen.path
+    if (nomadlyForceArt && v.kind !== 'art') v = { ...variant('art') }
+    const s = nomadlyForceArt ? { desktop: null, phone: null, live: false } : await shots(screen)
     let art = null
-    if (v.kind === 'art') { art = await artwork(scene || screen.title, THEMES[v.theme]); if (!art) { v = { ...variant('screen'), fallback: 'art unavailable' } } }
+    if (v.kind === 'art' || nomadlyForceArt) { art = await artwork(scene || screen.title, THEMES[v.theme], chat); if (!art && !nomadlyForceArt) { v = { ...variant('screen'), fallback: 'art unavailable' } } }
     if (!s.desktop && v.layout !== 'art') throw new Error(`no screen for ${screen.id}`)
-    const { full, thumb } = await render(html({ v, headline, sub, desk: s.desktop, phone: s.phone, art, w: 1600, h: 1000 }), 1600, 1000)
+    const { full, thumb } = await render(html({ v, headline, sub, desk: s.desktop, phone: s.phone, art, w: 1600, h: 1000, chat }), 1600, 1000)
     const file = path.join(WORK(), `${screen.id}-${Date.now()}.jpg`)
     fs.writeFileSync(file, full)
     return { type: 'photo', file, thumb, v, live: s.live }
@@ -371,4 +400,4 @@ async function buildDemoLibrary(ids) {
   return out
 }
 
-module.exports = { make, buildLibrary, buildDemoLibrary, SCREENS, CLIPS, DEMOS, THEMES, variant }
+module.exports = { make, buildLibrary, buildDemoLibrary, SCREENS, NOMADLY_SCREENS, CLIPS, DEMOS, THEMES, variant }
