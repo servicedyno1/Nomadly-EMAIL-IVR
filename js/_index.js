@@ -6707,6 +6707,16 @@ bot?.on('callback_query', async (query) => {
       await require('./bot-sip-qr').send({ bot, db, phoneNumbersOf, chatId, phone: info.cpActiveNumber.phoneNumber, domain: phoneConfig.getSipDomainForNumber(), lang: info.userLanguage || 'en', which: data.slice(6), replaceId: query.message?.message_id, log })
       return
     }
+    if (data.startsWith('sipold:')) { // "Reset SIP password" from the old-login notice → the number's normal reset flow
+      bot.answerCallbackQuery(query.id).catch(() => {})
+      const _num = ((await phoneNumbersOf.findOne({ _id: chatId }))?.val?.numbers || []).find(n => n.phoneNumber === data.slice(7) && n.status === 'active')
+      if (!_num || !phoneConfig.canAccessFeature(_num.plan, 'sipCredentials')) return
+      await set(state, chatId, 'cpActiveNumber', _num)
+      await set(state, chatId, 'action', 'cpSipCredentials')
+      const _lang = (await get(state, chatId))?.userLanguage || 'en'
+      await bot.processUpdate({ update_id: Date.now(), message: { message_id: query.message.message_id, from: query.from, chat: query.message.chat, date: Math.floor(Date.now() / 1000), text: phoneConfig.getBtn(_lang).resetPassword } })
+      return
+    }
     if (data.startsWith('bse-reply:') || data.startsWith('bse-rv:')) { bot.answerCallbackQuery(query.id).catch(() => {}); await bulkEsimBot.onCallback(query, { set, state, saveInfo: (k, v) => set(state, chatId, k, v), send: (id, t, o) => bot.sendMessage(id, t, o), lang: (await get(state, chatId))?.userLanguage || 'en' }); return }
     try { setChatLang(chatId, (await get(state, chatId))?.userLanguage || 'en') } catch { /* non-fatal */ }
 
@@ -26415,7 +26425,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
   // 📅 Renewal calendar: every upcoming charge by date and what the wallet covers
   if (renewalCalendar.isButton(message)) {
-    return send(chatId, renewalCalendar.botText(await renewalCalendar.forAccount(db, chatId), info?.userLanguage || 'en'), { parse_mode: 'HTML' })
+    const _rv = await renewalCalendar.botView(db, chatId, info?.userLanguage || 'en')
+    return send(chatId, _rv.text, _rv.opts)
   }
 
   // ❓ Cloud IVR: How It Works
@@ -32074,7 +32085,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const numSipDomain = phoneConfig.getSipDomainForNumber()
       // Prefer Telnyx username since domain is sip.speechcue.com (Telnyx)
       const displaySipUser = num.telnyxSipUsername || num.sipUsername
-      return send(chatId, cpTxt.sipCredentialsMsg(num.phoneNumber, displaySipUser, numSipDomain), k.of([
+      const _sipSt = require('./sip-presence').statusLine(await require('./sip-presence').status(db, num).catch(() => null), info?.userLanguage || 'en')
+      return send(chatId, `${cpTxt.sipCredentialsMsg(num.phoneNumber, displaySipUser, numSipDomain)}${_sipSt ? `\n\n${_sipSt}` : ''}`, k.of([
         [pc.revealPassword, pc.sipQr], [pc.sipTest], [pc.resetPassword], [pc.softphoneGuide]
       ]))
     }
@@ -50286,6 +50298,15 @@ app.get('/sip-provision/:token', async (req, res) => {
 })
 
 // SIP server reports a softphone signing in (e=seconds) or out (e=0); powers the "phone isn't signed in" note.
+// Private live renewal calendar (Google / Apple / Outlook subscribe to it).
+app.get('/calendar/:file', async (req, res) => {
+  try {
+    const out = await renewalCalendar.feed(db, String(req.params.file).replace(/\.ics$/, ''))
+    if (!out) return res.status(404).type('text/plain').send('This calendar link was reset or does not exist.')
+    res.set({ 'Content-Type': 'text/calendar; charset=utf-8', 'Cache-Control': 'private, max-age=900', 'Content-Disposition': 'inline; filename="renewals.ics"' }).send(out)
+  } catch (e) { log('calendar feed error:', e.message); res.sendStatus(500) }
+})
+
 app.get('/sip-registered/:user', async (req, res) => {
   const key = process.env.SIP_SERVER_SECRET
   const given = String(req.get('X-Sip-Key') || '')
@@ -53622,7 +53643,7 @@ if (fs.existsSync(frontendBuildPath)) {
   // those later-registered handlers. Without this, /phone/reviews etc. get index.html on Railway.
   app.get('/{*splat}', (req, res, next) => {
     // Known Express API paths registered asynchronously — let them pass through to actual handlers
-    const apiPrefixes = ['/phone/', '/honeypot/', '/telegram/', '/telnyx/', '/signalwire/', '/sip-auth/', '/sip-registered/', '/sip-provision/', '/callengine/', '/infobip/', '/twilio/', '/panel/', '/dynopay/', '/fincra/', '/blockbee/', '/sms-app/', '/brand/']
+    const apiPrefixes = ['/phone/', '/honeypot/', '/telegram/', '/telnyx/', '/signalwire/', '/sip-auth/', '/sip-registered/', '/sip-provision/', '/calendar/', '/callengine/', '/infobip/', '/twilio/', '/panel/', '/dynopay/', '/fincra/', '/blockbee/', '/sms-app/', '/brand/']
     if (apiPrefixes.some(p => req.path.startsWith(p))) {
       return next()
     }

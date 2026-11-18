@@ -53,6 +53,7 @@ function initPhoneScheduler(deps) {
     log('[PhoneScheduler] Running hourly expiry check...')
     await runExpiryCheck()
     if (_db) await require('./renewal-calendar').remind({ db: _db, bot: _bot, lang: _getUserLang, log }).catch(e => log(`[RenewalCalendar] ${e.message}`))
+    if (_db) await require('./sip-old-login-sweep').run({ db: _db, bot: _bot, lang: _getUserLang, log }).catch(e => log(`[SipOldLogin] ${e.message}`))
     await runMonthlyReset()
     if (_db) await runBirdCallerIdCleanup({
       db: _db, bird: require('./bird'), log,

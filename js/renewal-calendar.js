@@ -155,4 +155,66 @@ async function remind({ db, bot, lang = async () => 'en', log = console.log, now
   return sent
 }
 
-module.exports = { load, entries, summarize, forAccount, shortSoon, botText, remind, BUTTONS, isButton }
+// ── Live calendar link (Google / Apple / Outlook subscribe to it; it refreshes on its own) ──
+const feeds = (db) => db.collection('calendarFeeds')
+async function feedToken(db, chatId, rotate = false) {
+  const id = String(chatId)
+  if (rotate) await feeds(db).deleteMany({ chatId: id })
+  else { const f = await feeds(db).findOne({ chatId: id }); if (f) return f._id }
+  const token = require('crypto').randomBytes(24).toString('hex')
+  await feeds(db).insertOne({ _id: token, chatId: id, at: new Date() })
+  return token
+}
+function feedLinks(token) {
+  const url = `${String(process.env.SELF_URL || '').replace(/\/+$/, '')}/calendar/${token}.ics`
+  const webcal = url.replace(/^https?:\/\//, 'webcal://')
+  return { url, webcal, google: `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcal)}` }
+}
+const links = async (db, chatId, rotate = false) => feedLinks(await feedToken(db, chatId, rotate))
+
+const icsText = (s) => String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n')
+const fold = (line) => { const out = []; let x = line; while (Buffer.byteLength(x) > 74) { let n = 74; while (Buffer.byteLength(x.slice(0, n)) > 74) n--; out.push(x.slice(0, n)); x = ' ' + x.slice(n) } out.push(x); return out.join('\r\n') }
+const ymd = (d) => new Date(d).toISOString().slice(0, 10).replace(/-/g, '')
+const stamp = (d) => new Date(d).toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')
+
+// iCalendar text: one all-day event per charge / end date, with a reminder the day before.
+function ics(cal, { name = 'Renewals', now = new Date() } = {}) {
+  const L2 = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//CloudIVR//Renewal calendar//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', `X-WR-CALNAME:${icsText(name)}`, 'X-WR-CALDESC:Upcoming charges and end dates', 'REFRESH-INTERVAL;VALUE=DURATION:PT6H', 'X-PUBLISHED-TTL:PT6H']
+  for (const e of cal.entries) {
+    const end = new Date(new Date(e.date).getTime() + DAY)
+    const uid = require('crypto').createHash('sha1').update(`${e.type}|${e.kind}|${e.phone || e.id || ''}|${e.title}|${e.date.slice(0, 10)}`).digest('hex')
+    const summary = e.type === 'ends' ? `${e.title}${e.phone ? ` · ${e.phone}` : ''}` : `${fmt(e.amount)} renewal · ${e.title}${e.phone ? ` · ${e.phone}` : ''}`
+    const desc = [e.type === 'ends' ? 'Not renewed — it ends on this date.' : `${fmt(e.amount)} is charged from your wallet on this date${e.projected ? ' (estimate from today’s prices)' : ''}.`,
+      e.parts?.length > 1 ? e.parts.map(x => `${x.label}${x.phone ? ` ${x.phone}` : ''}: ${fmt(x.amount)}`).join('\n') : '',
+      e.type === 'charge' ? (e.covered ? 'Your wallet covers it today.' : `Your wallet is short for this charge today — top up before ${shortDay(e.date)}.`) : ''].filter(Boolean).join('\n')
+    L2.push('BEGIN:VEVENT', `UID:${uid}@renewals`, `DTSTAMP:${stamp(now)}`, `DTSTART;VALUE=DATE:${ymd(e.date)}`, `DTEND;VALUE=DATE:${ymd(end)}`, `SUMMARY:${icsText(summary)}`, `DESCRIPTION:${icsText(desc)}`, 'TRANSP:TRANSPARENT')
+    if (e.type === 'charge' && !e.projected) L2.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'TRIGGER:-P1D', `DESCRIPTION:${icsText(summary)}`, 'END:VALARM')
+    L2.push('END:VEVENT')
+  }
+  L2.push('END:VCALENDAR')
+  return L2.map(fold).join('\r\n') + '\r\n'
+}
+
+// Public feed for a token → iCalendar text, or null for an unknown / reset link.
+async function feed(db, token, now = new Date()) {
+  if (!/^[a-f0-9]{48}$/.test(String(token || ''))) return null
+  const f = await feeds(db).findOne({ _id: String(token) })
+  if (!f) return null
+  const web = require('./cloudivr-web/notify').isWebChatId(f.chatId)
+  return ics(await forAccount(db, f.chatId, { now, days: 180 }), { name: web ? 'CloudIVR renewals' : 'Number renewals', now })
+}
+
+const FEED = {
+  en: { google: '📅 Add to Google Calendar', text: (u) => `🍎 <b>Apple / Outlook / other calendars:</b> subscribe to this private link (it updates on its own):\n<code>${u}</code>\n<i>iPhone: Settings → Calendar → Accounts → Add Account → Other → Add Subscribed Calendar.</i>` },
+  fr: { google: '📅 Ajouter à Google Agenda', text: (u) => `🍎 <b>Apple / Outlook / autres agendas :</b> abonnez-vous à ce lien privé (il se met à jour tout seul) :\n<code>${u}</code>\n<i>iPhone : Réglages → Calendrier → Comptes → Ajouter un compte → Autre → Ajouter un calendrier avec abonnement.</i>` },
+  zh: { google: '📅 添加到 Google 日历', text: (u) => `🍎 <b>Apple / Outlook / 其他日历：</b>订阅这个私人链接（会自动更新）：\n<code>${u}</code>\n<i>iPhone：设置 → 日历 → 账户 → 添加账户 → 其他 → 添加已订阅的日历。</i>` },
+  hi: { google: '📅 Google Calendar में जोड़ें', text: (u) => `🍎 <b>Apple / Outlook / अन्य कैलेंडर:</b> इस निजी लिंक को सब्सक्राइब करें (यह अपने आप अपडेट होता है):\n<code>${u}</code>\n<i>iPhone: Settings → Calendar → Accounts → Add Account → Other → Add Subscribed Calendar.</i>` },
+  fa: { google: '📅 افزودن به Google Calendar', text: (u) => `🍎 <b>Apple / Outlook / تقویم‌های دیگر:</b> این لینک خصوصی را مشترک شوید (خودش به‌روز می‌شود):\n<code>${u}</code>\n<i>iPhone: Settings → Calendar → Accounts → Add Account → Other → Add Subscribed Calendar.</i>` },
+}
+// Bot: the calendar text plus the live-link part and its Google button.
+async function botView(db, chatId, lang = 'en', now = new Date()) {
+  const cal = await forAccount(db, chatId, { now }), l = await links(db, chatId), f = FEED[lang] || FEED.en
+  return { text: `${botText(cal, lang, now)}\n\n${f.text(l.webcal)}`, opts: { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: f.google, url: l.google }]] } } }
+}
+
+module.exports = { load, entries, summarize, forAccount, shortSoon, botText, botView, remind, BUTTONS, isButton, feedToken, feedLinks, links, ics, feed }
