@@ -131,6 +131,7 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
         if (r?.invalidNumber) return bad(res, 400, 'invalid_number', `${r.error.replace('Nothing was charged', 'Your free call is still unused')}`)
         return bad(res, 424, 'call_failed', 'We could not place the call right now. Try again in a minute.')
       }
+      try { require('../callengine').naturalVoice(r.callControlId) } catch (_) { /* voice upgrade is best-effort */ }
       await calls.updateOne({ _id: doc._id }, { $set: { callControlId: r.callControlId, callerIdRejected: !!r.callerIdRejected } })
       setTimeout(() => { Promise.resolve(telnyxApi.hangupCall(r.callControlId)).catch(() => {}) }, (RING_SECONDS + MAX_SECONDS) * 1000).unref?.()
     }

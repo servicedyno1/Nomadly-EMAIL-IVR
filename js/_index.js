@@ -50269,12 +50269,19 @@ app.get('/infobip/recording/:fileId', async (req, res) => {
 // Call engine media: spoken text (OpenAI voice) and stored recordings, both behind signed links
 app.get('/callengine/tts.mp3', async (req, res) => {
   const ce = require('./callengine')
-  const q = `t=${req.query.t}&g=${req.query.g}`
+  const natural = req.query.v === 'n'
+  const q = `t=${req.query.t}&g=${req.query.g}${natural ? '&v=n' : ''}`
   if (String(req.query.k || '') !== ce.sign(q) || !process.env.OPENAI_API_KEY) return res.sendStatus(403)
   try {
     const text = Buffer.from(String(req.query.t), 'base64url').toString().slice(0, 4000)
-    const r = await require('axios').post('https://api.openai.com/v1/audio/speech', { model: 'gpt-4o-mini-tts', voice: req.query.g === 'm' ? 'onyx' : 'nova', input: text, response_format: 'mp3' }, { headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }, responseType: 'arraybuffer', timeout: 30000 })
-    res.set('Content-Type', 'audio/mpeg').set('Cache-Control', 'public, max-age=86400').send(Buffer.from(r.data))
+    // Natural voice: uncompressed audio (cleaner once it is narrowed to phone quality) and a spoken-style brief.
+    const body = natural
+      ? { model: 'gpt-4o-mini-tts', voice: 'marin', input: text, response_format: 'wav', instructions: 'You are a warm, friendly American receptionist speaking to a caller on the phone. Sound natural and relaxed, like a real person who is smiling: clear, unhurried, with gentle pauses between options. Never robotic or sing-song.' }
+      : { model: 'gpt-4o-mini-tts', voice: req.query.g === 'm' ? 'onyx' : 'nova', input: text, response_format: 'mp3' }
+    const say = (key) => require('axios').post('https://api.openai.com/v1/audio/speech', body, { headers: { Authorization: `Bearer ${key}` }, responseType: 'arraybuffer', timeout: 30000 })
+    // A rejected key must not leave the caller in silence: try the app's other OpenAI key once.
+    const r = await say(process.env.OPENAI_API_KEY).catch(e => (e.response?.status === 401 && process.env.APP_OPEN_API_KEY ? say(process.env.APP_OPEN_API_KEY) : Promise.reject(e)))
+    res.set('Content-Type', natural ? 'audio/wav' : 'audio/mpeg').set('Cache-Control', 'public, max-age=86400').send(Buffer.from(r.data))
   } catch (e) { res.sendStatus(502) }
 })
 app.get('/callengine/m/:id', (req, res) => {
