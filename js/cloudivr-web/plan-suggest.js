@@ -3,7 +3,7 @@
 const axios = require('axios')
 const phoneConfig = require('../phone-config')
 
-const ROWS = [['callForwarding', 'call forwarding'], ['voicemail', 'voicemail'], ['sipCredentials', 'desk phone / softphone logins'], ['aiAgent', 'AI receptionist answering calls (per minute)'], ['ivr', 'keypad menu (press 1 for sales)'], ['ringGroup', 'ring several phones at once'], ['callRecording', 'call recording'], ['aiSummary', 'AI call summaries'], ['ivrOutbound', 'automated calls to up to 10 people'], ['bulkCall', 'recorded-message campaigns to a list'], ['aiCampaigns', 'AI conversation campaigns calling a list (per minute)'], ['otpCollection', 'verify your customers identity via OTP'], ['ivrSchedule', 'scheduled calls & presets'], ['ivrRedial', 'redial and custom code messages'], ['textTriggers', 'text triggers'], ['textRelay', 'text calls for deaf users']]
+const ROWS = [['callForwarding', 'call forwarding'], ['voicemail', 'voicemail'], ['sipCredentials', 'desk phone / softphone logins'], ['aiAgent', 'AI receptionist answering calls (pay as you use)'], ['ivr', 'keypad menu (press 1 for sales)'], ['ringGroup', 'ring several phones at once'], ['callRecording', 'call recording'], ['aiSummary', 'AI call summaries'], ['ivrOutbound', 'automated calls to up to 10 people'], ['bulkCall', 'recorded-message campaigns to a list'], ['aiCampaigns', 'AI conversation campaigns calling a list (pay as you use)'], ['otpCollection', 'verify your customers identity via OTP'], ['ivrSchedule', 'scheduled calls & presets'], ['ivrRedial', 'redial and custom code messages'], ['textTriggers', 'text triggers'], ['textRelay', 'text calls for deaf users']]
 
 function ladder() {
   const keys = phoneConfig.PLAN_ORDER.filter(k => phoneConfig.isPlanAvailable?.(k) !== false)

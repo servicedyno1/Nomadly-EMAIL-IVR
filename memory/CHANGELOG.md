@@ -3741,3 +3741,5 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Landing, For pages, and the signed-in app no longer show per-minute rates. A "See pricing" link (ui.js `SeePricing`) appears where a rate used to be.
 - Nav and footer "Pricing" now open /pricing. The campaign total estimate stays; its per-minute line was removed.
 - Agent-tested (iteration_326). The tester fixed a landing crash (`usd` undefined in AiSection). Not user-confirmed yet.
+- Plan feature labels, Emily setup prompt and plan-suggest rows now say "(pay as you use)" instead of "(per minute)". Node preview restarted to load them.
+- Channel ads: the saved backup screens in js/channel-ads-src (Nov 18, 09:xx) were captured BEFORE the redesign. The pricing captures still point at /#pricing. Both need refreshing after the redesign is published.
