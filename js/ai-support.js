@@ -450,7 +450,7 @@ To view/reveal your hosting credentials: <b>🛡️🔥 Anti-Red Hosting</b> →
 - 🔄 <b>Renew Now</b> — pay for another billing cycle from your wallet
 - ⬆️ <b>Upgrade Plan</b> (weekly only) — move to monthly with a 25% credit applied
 - 🔁 <b>Toggle Auto-Renew</b> (monthly only) — switch automatic renewal on/off; weekly plans never auto-renew
-- 🛡️ <b>On/Off Captcha</b> (Golden Anti-Red HostPanel only) — show/hide the "Verifying your browser" interstitial for human visitors. Turning it off does NOT disable scanner cloaking, honeypots, IP bans or WAF.
+- 🛡️ <b>On/Off Captcha</b> (Golden Anti-Red HostPanel only) — show/hide the "Quick security check" page for human visitors. Turning it off does NOT disable scanner cloaking, honeypots, IP bans or WAF.
 - 🍯 <b>On/Off Honeypot Traps</b> (Monthly plans only — Premium or Golden; locked on Weekly) — turn the hidden bot decoys (fake links/forms/APIs injected into HTML pages) on or off per domain. Turn OFF if your site serves raw JSON/API output and you want pages left byte-exact. Honeypot markup is only ever added to real HTML pages — JSON/API responses are never modified either way. Turning honeypots off does NOT weaken Visitor Captcha, scanner cloaking, IP bans or WAF. Weekly-plan users see a locked prompt to upgrade to a monthly plan.
 - 🔌 <b>Take Site Offline</b> / 🌐 <b>Bring Site Online</b> — pick maintenance mode (clean "We'll be back soon" page; email/FTP/DBs keep working) or full suspend (everything stopped). <b>Does NOT pause expiry or auto-renewal billing.</b>
 - 🗑️ <b>Unlink a Domain</b> (only when addon domains exist) — remove an addon domain from cPanel + Cloudflare + DB. Permanent and non-refundable.

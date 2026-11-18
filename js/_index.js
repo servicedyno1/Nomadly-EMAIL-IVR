@@ -37340,7 +37340,7 @@ Select a category:`), k.of(catBtns))
       const domain = info?.domainToManage
       if (!domain) return send(chatId, trans('t.noDomainSelected'))
       // The captcha-off toggle does NOT remove scanner cloaking, honeypots, or
-      // any other anti-red layer — it only hides the "Verifying your browser"
+      // any other anti-red layer — it only hides the "Quick security check"
       // interstitial for human visitors (KV bypass flag). Architecture fix
       // post-verify-navy.com (2026-02). We still show a one-tap confirm to
       // protect against accidental presses, but no longer require a typed word.
