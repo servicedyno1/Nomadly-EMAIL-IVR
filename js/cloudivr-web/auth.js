@@ -73,7 +73,7 @@ function clearSession(req, res) {
 
 const adminEmails = () => String(process.env.CLOUDIVR_ADMIN_EMAILS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean)
 const isAdmin = (a) => !!a?.email && adminEmails().includes(String(a.email).toLowerCase())
-const publicAccount = (a) => ({ id: String(a._id), email: a.email || null, phone: a.phone || null, name: a.name || '', hasPassword: !!a.passwordHash, google: !!a.googleSub, createdAt: a.createdAt, twoFactor: a.twoFactor?.method || null, admin: isAdmin(a), profileComplete: !!a.legalProfile?.completedAt, profileType: a.legalProfile?.type || null, profileDue: !!a.profileDue && !a.legalProfile?.completedAt })
+const publicAccount = (a) => ({ id: String(a._id), email: a.email || null, phone: a.phone || null, name: a.name || '', hasPassword: !!a.passwordHash, google: !!a.googleSub, createdAt: a.createdAt, twoFactor: a.twoFactor?.method || null, admin: isAdmin(a), profileComplete: !!a.legalProfile?.completedAt, profileType: a.legalProfile?.type || null, profileDue: !!a.profileDue && !a.legalProfile?.completedAt, profileAsk: !a.legalProfile?.completedAt && !a.profileLaterAt })
 
 let mailer = null
 // cloudivr.net mails go out from its own address (CLOUDIVR_MAIL_SENDER) through js/mailer.js: MailerSend once the

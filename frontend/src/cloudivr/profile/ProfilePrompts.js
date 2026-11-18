@@ -9,8 +9,8 @@ import { LegalProfileForm } from './LegalProfileForm';
 export function ProfileSetupDialog({ ready }) {
   const { account, setAccount } = useCivrAuth();
   const [open, setOpen] = useState(true);
-  if (!ready || !account?.profileDue || !open) return null;
-  const later = () => { setOpen(false); api('/profile/legal/later', { method: 'POST' }).then(() => setAccount({ ...account, profileDue: false })).catch(() => {}); };
+  if (!ready || !account?.profileAsk || !open) return null;
+  const later = () => { setOpen(false); api('/profile/legal/later', { method: 'POST' }).then(() => setAccount({ ...account, profileDue: false, profileAsk: false })).catch(() => {}); };
   return (
     <Modal title="Last step: who is this number for?" sub="Carriers register each number to a person or business. Takes a minute — the address fills in as you type." onClose={later} testid="profile-setup-dialog">
       <LegalProfileForm onSaved={() => setOpen(false)} onLater={later} submitLabel="Save and continue" testid="profile-setup-form" />
@@ -22,7 +22,7 @@ export function ProfileSetupDialog({ ready }) {
 export function ProfileBanner({ hasNumbers }) {
   const { account } = useCivrAuth();
   const [open, setOpen] = useState(false);
-  if (!hasNumbers || !account || account.profileComplete || account.profileDue) return null;
+  if (!hasNumbers || !account || account.profileComplete || account.profileAsk) return null;
   return (
     <>
       <div role="region" aria-label="Profile reminder" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm bg-[#818cf8]/10 border-b border-[#818cf8]/25 px-4 py-2" data-testid="profile-banner">

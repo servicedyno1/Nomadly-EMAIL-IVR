@@ -83,10 +83,7 @@ function createLegalProfile(db, { log = console.log } = {}) {
   const AFTER_BUY = /^\/numbers\/(buy|checkout|[^/]+\/(extra-checkout|extra|replace))$/
   function gate(req, res, next) {
     if (isComplete(req.webUser)) return next()
-    if (AFTER_BUY.test(req.path)) {
-      res.on('finish', () => { if (res.statusCode < 300) accounts.updateOne({ _id: req.webUser._id, 'legalProfile.completedAt': { $exists: false } }, { $set: { profileDue: true } }).catch(() => {}) })
-      return next()
-    }
+    if (AFTER_BUY.test(req.path)) return next()
     return bad(res, 428, 'profile_required', 'Add your personal or business details before buying a number. We register every number in your name.')
   }
   // Outgoing calls, Quick IVR and Bulk IVR (sending or scheduling) also need the details.
@@ -139,7 +136,7 @@ function createLegalProfile(db, { log = console.log } = {}) {
 
     // "Later" on the sign-up step: stop showing it right after sign-up (buying still needs the details).
     router.post('/profile/legal/later', h(async (req, res) => {
-      await accounts.updateOne({ _id: req.webUser._id }, { $unset: { profileDue: '' } })
+      await accounts.updateOne({ _id: req.webUser._id }, { $set: { profileLaterAt: new Date() }, $unset: { profileDue: '' } })
       res.json({ ok: true })
     }))
 

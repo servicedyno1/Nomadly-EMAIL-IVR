@@ -3696,3 +3696,11 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - outbound.js trialBody: 10/11-digit NANP → +1; empty key-1 number → the called number. Trial.js flags unfilled [placeholders] before sending; transfer field optional.
 - signalwire/index.js: Telnyx SIP + SignalWire only sell new numbers if listed in NUMBER_PROVIDERS (prod = multitel); SW buys refused when not selling; area-code fallback to other areas whenever the area has no stock. numbers.js stillOffered drops cached SW/Telnyx hits. Existing SW numbers keep working.
 - Home (fresh accounts): free-call card first; Get started = number → funds → setup.
+
+## 2026-11-18 — Details only after first purchase + card-first + welcome-back + daily funnel (preview, NOT deployed)
+- No profileDue at signup; US/CA number orders not gated (paperwork countries still are: numbers.js paperworkIssue / CallsBuy needsProfile only with res.request/paperwork). Account.profileAsk = !complete && !profileLaterAt; Shell shows ProfileSetupDialog only once the account owns a number (/dashboard numbers.total>0); banner only with numbers after "Later". Resale records get endUser when details saved later.
+- Bots: Twilio countries route through the shared chain (MultiTEL) unless NUMBER_PROVIDERS lists twilio (_index noTwilioSales).
+- Checkout pre-selects card when cards are on and wallet is short (Wallet already card-first).
+- emails.js welcomeBack (once per account; signed up 2+ days ago, never back after 1 h, no number) en/fr/es.
+- funnel-report.js: daily 08:00 UTC Telegram summary to admin (FUNNEL_REPORT_ON=false to stop); verified build() on prod data read-only.
+- Tests: iteration_324 (backend 7/7 + bug fixed: crypto invoice no longer triggers the details dialog).

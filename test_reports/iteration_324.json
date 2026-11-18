@@ -1,0 +1,33 @@
+{
+  "summary": "Tested the CloudIVR onboarding funnel fixes in preview (dry run). Backend: all 7 requested checks pass (test_cloudivr_funnel_iter324.py). A new account has profileDue false. The trial works without a legal profile: '(415) 555-0123' becomes +14155550123, an empty key-1 number connects back to +14155550123, and dryRun is true. The trial with showAs returns 428 profile_required. The trial with [Name] returns 400 unfilled_placeholders. The US/212 search returns 10 numbers, all from MultiTEL. Checkout with no profile is not blocked by the details gate: it returns 402 insufficient_balance and profileDue stays false. Alice still logs in. funnel-report exports build(). Frontend (mobile 390x844): sign-up, then 'Skip' on onboarding, leads to Home with no details dialog and no profile-banner. dashboard-trial-card (y=148) is above dashboard-get-started (y=474). The steps run buy, funds, setup with no trial duplicate. 'Call me now' opens /app/quick-call. A template with placeholders shows quick-trial-error 'Fill in [Name], [Bank], [Amount], [CardLast4], [CaseID] ... before calling' and no call is made. A plain script with '415 555 0123' and an empty transfer number shows quick-trial-done 'validated (transfer to +14155550123 on key 1)', with no details dialog. The buy page for a new account (US 212) goes straight to buy-summary, with no buy-profile-gate. Cards are disabled in preview (the card option shows 'Coming soon', aria-disabled), so crypto is pre-selected. The card option is listed before crypto. Card-first pre-selection could NOT be checked because cards are off in preview. Alice's home, numbers and buy pages load with no page errors. One new bug: making a crypto checkout invoice (not paid) sets profileDue=true.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/numbers/checkout (method=crypto) via legal-profile.gate AFTER_BUY", "issue": "gate() sets profileDue=true for any status below 300. The crypto checkout returns 201 with an UNPAID order (status awaiting_payment). Seen on a new account: profileDue becomes true right after the invoice is made. ProfileSetup then shows the 'Last step: who is this number for?' dialog before the user has paid or bought anything. This breaks requirement (8), which says to ask only after the first plan is bought. The same problem applies to /numbers/:phone/extra-checkout. Fix: set profileDue only when the purchase is done (wallet buy 201/202, or in the crypto order fulfil handler), not on gate finish for a crypto order."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/app/quick-call after the free call (mobile)", "issues": ["The success toast 'Validated (preview — not dialed)' covers the 'Get your own number' button for a few seconds."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_funnel_iter324.py", "/app/backend/tests/test_cloudivr_funnel_crypto_iter324.py", "/app/test_reports/pytest/iter324.xml"],
+  "action_items": [
+    "Do not set profileDue when a crypto checkout only creates an unpaid invoice (/numbers/checkout and extra-checkout with method=crypto). Set it when the order is fulfilled.",
+    "welcomeBack scanner (emails.js about line 166): lastLoginAt changes only on an explicit login. Users who stay signed in by cookie and come back often without buying will still get the 'welcome back' email. Track activity (for example a lastSeenAt set in the auth middleware) instead of only lastLoginAt.",
+    "welcomeBack has no lower limit on createdAt. The first run will queue an email to every old account with no number that never logged in again. Make sure this one-off send is intended and rate-limited."
+  ],
+  "critical_code_review_comments": [
+    "legal-profile.js gate(): the AFTER_BUY regex lets /numbers/buy, /numbers/checkout, extra-checkout, extra and replace through. /fax-numbers, /mobile-numbers, /esim and /numbers/request still return 428 before the details are saved. That is fine for paperwork, but fax/esim/mobile buys still ask for details before buying.",
+    "Checkout.js: the useEffect on line 72 reads cardPicked.current, but the ref is declared on line 78. It works because effects run after render, but the order is fragile. Declare the ref before the effects.",
+    "outbound.js trialBody: when transferTo is empty it is set to the 'to' number, which is correct. buildCall then checks only transferTo === callerId, so this passes."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_funnel_iter324.py", "/app/backend/tests/test_cloudivr_funnel_crypto_iter324.py"],
+  "success_rate": {"backend": "88% (7/8; the 1 failure is the new crypto profileDue bug)", "frontend": "100% of the requested flows (card-first not checkable: cards are disabled in preview)"},
+  "seed_data_creation": "Test accounts funnel.<ts>@example.com / FunnelTest#2026 were made by the tests and the UI run (one free trial used each, one has an unpaid dry-run crypto order). No seed data was changed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Preview: WEB_CLOUDIVR_DRY_RUN is on and Mollie cards are off (CardComingSoon), so card-first pre-selection can only be checked with a Mollie test key. The trial is marked used on the first dry-run success, so use a new account for each success case and run the 428/400 cases first. Run test_cloudivr_funnel_crypto_iter324.py to check the profileDue fix."
+}
