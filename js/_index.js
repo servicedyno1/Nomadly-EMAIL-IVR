@@ -11298,12 +11298,8 @@ bot?.on('message', msg => {
         if (proof) dpMsg += `\n\n${proof}`
       }
       send(chatId, dpMsg, k.of([
-        [t.dpTwilioMain, t.dpTwilioSub],
-        [t.dpTelnyxMain, t.dpTelnyxSub],
-        [t.dpAwsMain, t.dpAwsSub],
-        [t.dpGcloudMain, t.dpGcloudSub],
-        [t.dpGworkspaceNew, t.dpGworkspaceAged],
-        [t.dpZohoNew, t.dpZohoAged],
+        [t.dpAwsMain, t.dpGcloudMain],
+        [t.dpGworkspaceAged, t.dpZohoAged],
         [t.dpEsim],
         [t.dpIonosSmtp],
         ['↩️ Back', '🏠 Main Menu'],
@@ -20669,18 +20665,10 @@ ${message.replace(/\n/g, '<br>')}
     if (message === t.dpEsim) { await saveInfo('esimEntry', 'dp'); return goto['esim-bot-home']() }
 
     const dpProducts = {
-      [t.dpTwilioMain]:     { name: 'Twilio Main Account',            key: 'twilio_main',      price: DP_PRICE_TWILIO_MAIN },
-      [t.dpTwilioSub]:      { name: 'Twilio Sub-Account',             key: 'twilio_sub',       price: DP_PRICE_TWILIO_SUB },
-      [t.dpTelnyxMain]:     { name: 'Telnyx Main Account',            key: 'telnyx_main',      price: DP_PRICE_TELNYX_MAIN },
-      [t.dpTelnyxSub]:      { name: 'Telnyx Sub-Account',             key: 'telnyx_sub',       price: DP_PRICE_TELNYX_SUB },
       [t.dpAwsMain]:        { name: 'AWS Main Account',               key: 'aws_main',         price: DP_PRICE_AWS_MAIN },
-      [t.dpAwsSub]:         { name: 'AWS Sub-Account',                key: 'aws_sub',          price: DP_PRICE_AWS_SUB },
-      [t.dpGcloudMain]:     { name: 'Google Cloud Main Account',      key: 'gcloud_main',      price: DP_PRICE_GCLOUD_MAIN },
-      [t.dpGcloudSub]:      { name: 'Google Cloud Sub-Account',       key: 'gcloud_sub',       price: DP_PRICE_GCLOUD_SUB },
-      [t.dpGworkspaceNew]:  { name: 'Google Workspace (New Domain)',   key: 'gworkspace_new',   price: DP_PRICE_GWORKSPACE_NEW },
-      [t.dpGworkspaceAged]: { name: 'Google Workspace (Aged Domain)',  key: 'gworkspace_aged',  price: DP_PRICE_GWORKSPACE_AGED },
-      [t.dpZohoNew]:        { name: 'Zoho Mail (New Domain)',          key: 'zoho_new',         price: DP_PRICE_ZOHO_NEW },
-      [t.dpZohoAged]:       { name: 'Zoho Mail (Aged Domain)',         key: 'zoho_aged',        price: DP_PRICE_ZOHO_AGED },
+      [t.dpGcloudMain]:     { name: 'Google Cloud Account',           key: 'gcloud_main',      price: DP_PRICE_GCLOUD_MAIN },
+      [t.dpGworkspaceAged]: { name: 'Google Workspace Account',       key: 'gworkspace_aged',  price: DP_PRICE_GWORKSPACE_AGED },
+      [t.dpZohoAged]:       { name: 'Zoho Mail Account',              key: 'zoho_aged',        price: DP_PRICE_ZOHO_AGED },
       [t.dpIonosSmtp]:      { name: 'IONOS SMTP',                      key: 'ionos_smtp',       price: DP_PRICE_IONOS_SMTP },
     }
 
@@ -27421,7 +27409,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       ivrObData.placeholderValues = {}
       await saveInfo('ivrObData', ivrObData)
       await set(state, chatId, 'action', a.ivrObSelectMode)
-      return send(chatId, trans('t.cp_41'), k.of([['🔗 Transfer'], ['🔑 OTP Collection'], ['↩️ Back']]))
+      return send(chatId, trans('t.cp_41'), k.of([['🔗 Transfer'], ['🔑 Verify identity (OTP)'], ['↩️ Back']]))
     }
 
     await set(state, chatId, 'action', a.ivrObSelectCategory)
@@ -27624,7 +27612,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
     // No placeholders — skip to mode selection
     await set(state, chatId, 'action', a.ivrObSelectMode)
-    return send(chatId, trans('t.cp_57'), k.of([['🔗 Transfer'], ['🔑 OTP Collection'], ['↩️ Back']]))
+    return send(chatId, trans('t.cp_57'), k.of([['🔗 Transfer'], ['🔑 Verify identity (OTP)'], ['↩️ Back']]))
   }
 
   if (action === a.ivrObSelectTemplate) {
@@ -27691,7 +27679,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
     // No placeholders — skip to mode selection
     await set(state, chatId, 'action', a.ivrObSelectMode)
-    return send(chatId, trans('t.cp_65'), k.of([['🔗 Transfer'], ['🔑 OTP Collection'], ['↩️ Back']]))
+    return send(chatId, trans('t.cp_65'), k.of([['🔗 Transfer'], ['🔑 Verify identity (OTP)'], ['↩️ Back']]))
   }
 
   if (action === a.ivrObFillPlaceholder) {
@@ -27824,7 +27812,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
     // Go to mode selection
     await set(state, chatId, 'action', a.ivrObSelectMode)
-    return send(chatId, trans('t.cp_74'), k.of([['🔗 Transfer'], ['🔑 OTP Collection'], ['↩️ Back']]))
+    return send(chatId, trans('t.cp_74'), k.of([['🔗 Transfer'], ['🔑 Verify identity (OTP)'], ['↩️ Back']]))
   }
 
   // Quick IVR — Select mode (Transfer vs OTP Collection)
@@ -27849,7 +27837,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return send(chatId, trans('t.cp_75'), k.of([['🔀 Route each key (menu)'], ['↩️ Back']]))
     }
 
-    if (message === '🔑 OTP Collection') {
+    if (message === '🔑 Verify identity (OTP)' || message === '🔑 OTP Collection') {
       // Plan check — OTP Collection requires Pro or Business (the one free trial call may use it, same as the web trial)
       const currentPlan = ivrObData.callerPlan || 'starter'
       if (!ivrObData.isTrial && !phoneConfig.canAccessFeature(currentPlan, 'otpCollection')) {
@@ -27866,7 +27854,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return send(chatId, trans('t.cp_77'), k.of([['4 digits'], ['5 digits'], ['6 digits'], ['8 digits'], ['↩️ Back']]))
     }
 
-    return send(chatId, trans('t.cp_78'), k.of([['🔗 Transfer'], ['🔑 OTP Collection'], ['↩️ Back']]))
+    return send(chatId, trans('t.cp_78'), k.of([['🔗 Transfer'], ['🔑 Verify identity (OTP)'], ['↩️ Back']]))
   }
 
   // Quick IVR — OTP digit length
@@ -27874,7 +27862,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (message === 'Cancel' || isCancelPress(message)) return goto.submenu5()
     if (isBackPress(message)) {
       await set(state, chatId, 'action', a.ivrObSelectMode)
-      return send(chatId, trans('t.cp_79'), k.of([['🔗 Transfer'], ['🔑 OTP Collection'], ['↩️ Back']]))
+      return send(chatId, trans('t.cp_79'), k.of([['🔗 Transfer'], ['🔑 Verify identity (OTP)'], ['↩️ Back']]))
     }
 
     const ivrObData = info?.ivrObData || {}
@@ -43077,7 +43065,7 @@ app.get('/dev/ux-fixes-audit', (req, res) => {
   const featureKeywords = {
     voicemail: ['Voicemail'], sipCredentials: ['SIP'], callRecording: ['Recording'],
     ivr: ['Auto-Attendant', 'Auto-attendant'], ivrOutbound: ['Quick IVR'], bulkCall: ['Bulk IVR'],
-    otpCollection: ['OTP Collection'], ivrRedial: ['Redial'], otpCustomMessages: ['Custom OTP'],
+    otpCollection: ['OTP'], ivrRedial: ['Redial'], otpCustomMessages: ['Custom OTP'],
   }
   const lowerOf = { pro: 'starter', business: 'pro' }
   const ownFeatures = (plan) => [

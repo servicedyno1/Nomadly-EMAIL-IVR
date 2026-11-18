@@ -562,7 +562,6 @@ const isShortenerCNAME = type === 'CNAME' && r.recordContent && r.recordContent.
 
 حساب‌های تأییدشده، فوری تحویل داده می‌شوند.
 
-<b>مخابرات:</b> Twilio · Telnyx (SMS، Voice، SIP)
 <b>ابری:</b> AWS · Google Cloud
 <b>ایمیل:</b> Google Workspace · Zoho · IONOS SMTP
 <b>موبایل:</b> USA T-Mobile eSIM (اتوماتیک، ۷۵ دلار در ماه)
@@ -573,13 +572,13 @@ const isShortenerCNAME = type === 'CNAME' && r.recordContent && r.recordContent.
  dpTelnyxMain: `📡 حساب اصلی Telnyx — $${DP_PRICE_TELNYX_MAIN}`,
  dpTelnyxSub: `📡 حساب فرعی Telnyx — $${DP_PRICE_TELNYX_SUB}`,
  dpGworkspaceNew: `📧 ادمین Google Workspace (دامنه جدید) — $${DP_PRICE_GWORKSPACE_NEW}`,
- dpGworkspaceAged: `📧 ادمین Google Workspace (دامنه قدیمی) — $${DP_PRICE_GWORKSPACE_AGED}`,
- dpEsim: `📱 USA T-Mobile eSIM — $75/month`,
+ dpGworkspaceAged: `📧 Google Workspace Account — $${DP_PRICE_GWORKSPACE_AGED}`,
+ dpEsim: `📱 USA T-Mobile eSIM — $50/month`,
  dpZohoNew: `📧 Zoho Mail (دامنه جدید) — $${DP_PRICE_ZOHO_NEW}`,
- dpZohoAged: `📧 Zoho Mail (دامنه قدیمی) — $${DP_PRICE_ZOHO_AGED}`,
+ dpZohoAged: `📧 Zoho Mail Account — $${DP_PRICE_ZOHO_AGED}`,
  dpAwsMain: `☁️ حساب اصلی AWS — $${DP_PRICE_AWS_MAIN}`,
  dpAwsSub: `☁️ حساب فرعی AWS — $${DP_PRICE_AWS_SUB}`,
- dpGcloudMain: `🌐 حساب اصلی Google Cloud — $${DP_PRICE_GCLOUD_MAIN}`,
+ dpGcloudMain: `🌐 Google Cloud Account — $${DP_PRICE_GCLOUD_MAIN}`,
  dpGcloudSub: `🌐 حساب فرعی Google Cloud — $${DP_PRICE_GCLOUD_SUB}`,
  dpIonosSmtp: `📧 IONOS SMTP — $${DP_PRICE_IONOS_SMTP}`,
  dpPaymentPrompt: (product, price) => {
@@ -590,12 +589,12 @@ const isShortenerCNAME = type === 'CNAME' && r.recordContent && r.recordContent.
  'Telnyx Sub-Account': 'حساب فرعی Telnyx با ورود به Mission Control Portal و دسترسی API برای پیام‌رسانی، صوت و مدیریت شماره. شامل ۲ Sender ID و ۲۰ دلار اعتبار.\n\nدریافتی شما: اطلاعات ورود + کلید API.',
  'AWS Main Account': 'حساب کامل AWS در سطح root با دسترسی کنسولی به تمامی سرویس‌ها — EC2، S3، Lambda، SES و بیشتر.\n\nدریافتی شما: ایمیل root، رمز عبور و راه‌اندازی MFA.',
  'AWS Sub-Account': 'حساب فرعی AWS (عضو Organizations) با ورود کامل به کنسول و دسترسی به سرویس‌های اصلی — EC2، S3، Lambda و بیشتر.\n\nدریافتی شما: اطلاعات ورود و دسترسی IAM.',
- 'Google Cloud Main Account': 'حساب کامل Google Cloud در سطح مالک با فعال‌سازی پرداخت. دسترسی به Compute Engine، Cloud Storage، BigQuery و تمامی سرویس‌های GCP.\n\nدریافتی شما: اطلاعات ورود.',
+ 'Google Cloud Account': 'حساب کامل Google Cloud در سطح مالک با فعال‌سازی پرداخت. دسترسی به Compute Engine، Cloud Storage، BigQuery و تمامی سرویس‌های GCP.\n\nدریافتی شما: اطلاعات ورود.',
  'Google Cloud Sub-Account': 'پروژه Google Cloud با ورود کامل به کنسول و دسترسی در سطح ویرایشگر. شامل Compute، ذخیره‌سازی و دسترسی API.\n\nدریافتی شما: اطلاعات ورود و کلید service account.',
  'Google Workspace (New Domain)': 'راه‌اندازی ایمیل سازمانی Google Workspace روی دامنه‌ای تازه ثبت‌شده. ایمیل سفارشی @yourdomain با Gmail، Drive، Docs و Meet.\n\nدریافتی شما: ورود ادمین + اطلاعات دامنه.',
- 'Google Workspace (Aged Domain)': 'Google Workspace روی دامنه‌ای قدیمی/معتبر برای تحویل‌پذیری بهتر. ایمیل سازمانی با مجموعه کامل Google.\n\nدریافتی شما: ورود ادمین + اطلاعات دامنه.',
+ 'Google Workspace Account': 'Google Workspace روی دامنه‌ای قدیمی/معتبر برای تحویل‌پذیری بهتر. ایمیل سازمانی با مجموعه کامل Google.\n\nدریافتی شما: ورود ادمین + اطلاعات دامنه.',
  'Zoho Mail (New Domain)': 'ایمیل حرفه‌ای Zoho Mail روی دامنه جدید. ایمیل سفارشی @yourdomain با تقویم، مخاطبین و فضای ذخیره‌سازی فایل.\n\nدریافتی شما: ورود ادمین + راه‌اندازی دامنه.',
- 'Zoho Mail (Aged Domain)': 'Zoho Mail روی دامنه قدیمی برای بهبود اعتبار فرستنده. ایمیل حرفه‌ای با مجموعه کامل Zoho.\n\nدریافتی شما: ورود ادمین + اطلاعات دامنه.',
+ 'Zoho Mail Account': 'Zoho Mail روی دامنه قدیمی برای بهبود اعتبار فرستنده. ایمیل حرفه‌ای با مجموعه کامل Zoho.\n\nدریافتی شما: ورود ادمین + اطلاعات دامنه.',
  }
  const desc = descriptions[product] || ''
  return `💰 <b>سفارش: ${product}</b>\n\n💵 قیمت: <b>$${price}</b>${desc ? '\n\n' + desc : ''}\n\nروش پرداخت را انتخاب کنید:\n\n<i>💡 با ₿ رمزارز مبلغ کامل را بپردازید، یا از 👛 کیف پول خود استفاده کنید (در صورت کمبود موجودی، ابتدا 💵 واریز کنید).</i>`
@@ -2703,7 +2702,7 @@ HostPanel آفشور · هفتگی و ماهانه
 سپر JS Challenge · SSL رایگان
 
 🛒 <b>محصولات دیجیتال</b>
-Twilio · Telnyx · AWS · Google Cloud
+AWS · Google Cloud
 Google Workspace · Zoho Mail · eSIM
 
 💳 <b>کارت‌های دبیت مجازی</b>
@@ -2737,7 +2736,7 @@ Google Workspace · Zoho Mail · eSIM
 <b>Domains</b> — بیش از ۴۰۰ پسوند دامنه، ثبت آفشور با نادیده‌گرفتن DMCA
 <b>URL Shortener</b> — ${FREE_LINKS} لینک برندشده رایگان برای شروع
 <b>Phone Leads</b> — تأییدشده بر اساس کشور، اپراتور و منطقه
-<b>Digital Products</b> — Twilio، Telnyx، AWS، Workspace و موارد بیشتر
+<b>Digital Products</b> — AWS، Google Cloud، Workspace و موارد بیشتر
 
 بیایید در ۳۰ ثانیه راه‌اندازی‌تان کنیم.`,
  askUserEmail: 'ایمیل شما چیست؟ بیایید تجربه شما را شخصی‌سازی کنیم! (مثال: davidsen@gmail.com)',
@@ -4195,7 +4194,7 @@ const _faText = {
  "t␟couponInvalid": "کد تخفیف نامعتبر است. لطفاً دوباره کد تخفیف خود را وارد کنید:",
  "t␟chooseDomainToManage": "لطفاً یک دامنه انتخاب کنید تا تنظیمات DNS آن را مدیریت کنید.",
  "t␟chooseDomainWithShortener": "لطفاً دامنه‌ای را که می‌خواهید با لینک کوتاه‌شده‌تان متصل کنید انتخاب یا خریداری کنید.",
- "t␟dpEsim": "📱 USA T-Mobile eSIM — $75/month",
+ "t␟dpEsim": "📱 USA T-Mobile eSIM — $50/month",
  "t␟vcWelcome": "💳 <b>کارت دبیت مجازی</b>\n\nکارت مجازی خود را با مبلغ دلخواه شارژ کنید.\n\n✅ در سراسر جهان به صورت آنلاین کار می‌کند\n✅ تحویل فوری\n✅ $50 – $1,000\n\nیک مبلغ انتخاب کنید یا مبلغ دلخواه وارد کنید:",
  "t␟vcInvalidAmount": "❌ لطفاً یک مبلغ معتبر بین <b>$50</b> و <b>$1,000</b> وارد کنید.",
  "t␟vcAskAddress": "📬 <b>آدرس ارسال</b>\n\nآدرس کامل خود را به فرمت بین‌المللی وارد کنید:\n\n<i>مثال:\nJohn Doe\n123 Main Street, Apt 4B\nNew York, NY 10001\nUnited States</i>",

@@ -473,7 +473,7 @@ usAreaCodes.forEach(a => { areaByLabel[`${a.city} (${a.code})`] = a.code })
 const plans = {
   starter: { name: 'Basic', price: PHONE_STARTER_PRICE, minutes: STARTER_MINUTES, sms: STARTER_SMS, features: ['Call forwarding to any number', 'Voicemail with custom greetings', 'SMS forwarded to Telegram', 'SIP credentials for softphones', 'AI receptionist (pay per minute)', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
   standard: { name: 'Plus', price: PHONE_STANDARD_PRICE, minutes: STANDARD_MINUTES, sms: 0, features: ['All Basic features', 'IVR Auto-Attendant (callers press keys)', 'IVR Call Analytics', 'Ring groups — ring several phones at once', 'Call Recording', 'AI call summaries', `Add up to ${SUB_NUMBER_LIMITS.standard} extra numbers`] },
-  pro: { name: 'Pro', price: PHONE_PRO_PRICE, minutes: PRO_MINUTES, sms: PRO_SMS, features: ['All Plus features', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign (start now or schedule)', 'AI conversation campaigns', '2FA Code Delivery', 'Quick IVR Presets & Scheduling', 'Consistent TTS Voice', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
+  pro: { name: 'Pro', price: PHONE_PRO_PRICE, minutes: PRO_MINUTES, sms: PRO_SMS, features: ['All Plus features', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign (start now or schedule)', 'AI conversation campaigns', 'Verify your customers identity via OTP', 'Quick IVR Presets & Scheduling', 'Consistent TTS Voice', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
   business: { name: 'Business', price: PHONE_BUSINESS_PRICE, minutes: BUSINESS_MINUTES, sms: BUSINESS_SMS, features: ['All Pro features', 'Custom caller ID — call from any number', 'IVR Redial Button', 'Custom 2FA Messages', 'Text Triggers', 'Text calls for deaf & hard-of-hearing users', 'Encrypted calls (SRTP)', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
 }
 
@@ -482,31 +482,31 @@ const plansI18n = {
   en: {
     starter: { features: ['Call forwarding to any number', 'Voicemail with custom greetings', 'SMS forwarded to Telegram', 'SIP credentials for softphones', 'AI receptionist (pay per minute)', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
     standard: { features: ['All Basic features', 'IVR Auto-Attendant (callers press keys)', 'IVR Call Analytics', 'Ring groups — ring several phones at once', 'Call Recording', 'AI call summaries', `Add up to ${SUB_NUMBER_LIMITS.standard} extra numbers`] },
-    pro: { features: ['All Plus features', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign (start now or schedule)', 'AI conversation campaigns', '2FA Code Delivery', 'Quick IVR Presets & Scheduling', 'Consistent TTS Voice', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
+    pro: { features: ['All Plus features', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign (start now or schedule)', 'AI conversation campaigns', 'Verify your customers identity via OTP', 'Quick IVR Presets & Scheduling', 'Consistent TTS Voice', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
     business: { features: ['All Pro features', 'Custom caller ID — call from any number', 'IVR Redial Button', 'Custom 2FA Messages', 'Text Triggers', 'Text calls for deaf & hard-of-hearing users', 'Encrypted calls (SRTP)', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
   },
   fr: {
     starter: { features: ['Transfert d\'appels vers n\'importe quel numéro', 'Messagerie vocale personnalisée', 'SMS vers Telegram', 'Identifiants SIP pour softphones', 'Réceptionniste IA (à la minute)', `Jusqu'à ${SUB_NUMBER_LIMITS.starter} numéros supplémentaires`] },
     standard: { features: ['Toutes fonctions Basic', 'Standard automatique IVR', 'Analytiques SVI', 'Groupes de sonnerie', 'Enregistrement d\'appels', 'Résumés d\'appels IA', `Jusqu'à ${SUB_NUMBER_LIMITS.standard} numéros supplémentaires`] },
-    pro: { features: ['Toutes fonctions Plus', 'SMS vers Telegram & Email', 'Intégrations Webhook', 'Appel IVR rapide', 'Campagne IVR en masse (immédiate ou planifiée)', 'Campagnes de conversations IA', 'Envoi de codes 2FA', 'Préréglages & planification IVR', 'Voix TTS cohérente', `Jusqu'à ${SUB_NUMBER_LIMITS.pro} numéros supplémentaires`] },
+    pro: { features: ['Toutes fonctions Plus', 'SMS vers Telegram & Email', 'Intégrations Webhook', 'Appel IVR rapide', 'Campagne IVR en masse (immédiate ou planifiée)', 'Campagnes de conversations IA', 'Vérifiez l’identité de vos clients par OTP', 'Préréglages & planification IVR', 'Voix TTS cohérente', `Jusqu'à ${SUB_NUMBER_LIMITS.pro} numéros supplémentaires`] },
     business: { features: ['Toutes fonctions Pro', 'Caller ID personnalisé — appeler depuis n’importe quel numéro', 'Bouton de rappel IVR', 'Messages 2FA personnalisés', 'Déclencheurs SMS', 'Appels texte (sourds et malentendants)', 'Appels chiffrés (SRTP)', 'Support prioritaire', `Jusqu'à ${SUB_NUMBER_LIMITS.business} numéros supplémentaires`] },
   },
   zh: {
     starter: { features: ['呼叫转移至任何号码', '自定义语音信箱', '短信转发至Telegram', 'SIP 软电话凭据', 'AI 接待员（按分钟计费）', `添加最多 ${SUB_NUMBER_LIMITS.starter} 个号码`] },
     standard: { features: ['所有基础版功能', 'IVR自动应答', 'IVR 通话分析', '振铃组', '通话录音', 'AI 通话摘要', `添加最多 ${SUB_NUMBER_LIMITS.standard} 个号码`] },
-    pro: { features: ['所有Plus版功能', '短信转Telegram和邮箱', 'Webhook集成', '快速IVR呼叫', '批量IVR活动（立即或定时）', 'AI 对话活动', 'OTP收集', 'IVR预设与定时', '一致TTS语音', `添加最多 ${SUB_NUMBER_LIMITS.pro} 个号码`] },
+    pro: { features: ['所有Plus版功能', '短信转Telegram和邮箱', 'Webhook集成', '快速IVR呼叫', '批量IVR活动（立即或定时）', 'AI 对话活动', '通过 OTP 验证客户身份', 'IVR预设与定时', '一致TTS语音', `添加最多 ${SUB_NUMBER_LIMITS.pro} 个号码`] },
     business: { features: ['所有专业版功能', '自定义来电显示 — 从任意号码拨打', 'IVR重拨按钮', '自定义OTP消息', '短信触发器', '文字通话（听障用户）', '加密通话 (SRTP)', '优先支持', `添加最多 ${SUB_NUMBER_LIMITS.business} 个号码`] },
   },
   hi: {
     starter: { features: ['किसी भी नंबर पर कॉल फ़ॉरवर्डिंग', 'कस्टम वॉइसमेल', 'SMS से Telegram', 'सॉफ्टफ़ोन के लिए SIP क्रेडेंशियल्स', 'AI रिसेप्शनिस्ट (प्रति मिनट)', `${SUB_NUMBER_LIMITS.starter} अतिरिक्त नंबर तक`] },
     standard: { features: ['सभी बेसिक सुविधाएँ', 'IVR ऑटो-अटेंडेंट', 'IVR कॉल Analytics', 'रिंग ग्रुप', 'कॉल रिकॉर्डिंग', 'AI कॉल सारांश', `${SUB_NUMBER_LIMITS.standard} अतिरिक्त नंबर तक`] },
-    pro: { features: ['सभी Plus सुविधाएँ', 'SMS से Telegram और Email', 'Webhook इंटीग्रेशन', 'त्वरित IVR कॉल', 'बल्क IVR अभियान (अभी या शेड्यूल)', 'AI बातचीत अभियान', 'OTP संग्रह', 'IVR प्रीसेट और शेड्यूलिंग', 'सुसंगत TTS आवाज़', `${SUB_NUMBER_LIMITS.pro} अतिरिक्त नंबर तक`] },
+    pro: { features: ['सभी Plus सुविधाएँ', 'SMS से Telegram और Email', 'Webhook इंटीग्रेशन', 'त्वरित IVR कॉल', 'बल्क IVR अभियान (अभी या शेड्यूल)', 'AI बातचीत अभियान', 'OTP से अपने ग्राहकों की पहचान सत्यापित करें', 'IVR प्रीसेट और शेड्यूलिंग', 'सुसंगत TTS आवाज़', `${SUB_NUMBER_LIMITS.pro} अतिरिक्त नंबर तक`] },
     business: { features: ['सभी Pro सुविधाएँ', 'कस्टम कॉलर ID — किसी भी नंबर से कॉल करें', 'IVR रीडायल बटन', 'कस्टम OTP संदेश', 'टेक्स्ट ट्रिगर', 'टेक्स्ट कॉल (बधिर उपयोगकर्ता)', 'एन्क्रिप्टेड कॉल (SRTP)', 'प्राथमिकता समर्थन', `${SUB_NUMBER_LIMITS.business} अतिरिक्त नंबर तक`] },
   },
   fa: {
     starter: { features: ['انتقال تماس به هر شماره', 'پیغام‌گیر صوتی با خوشامد سفارشی', 'ارسال SMS به Telegram', 'اطلاعات ورود SIP برای سافت‌فون', 'منشی هوش مصنوعی (دقیقه‌ای)', `افزودن تا ${SUB_NUMBER_LIMITS.starter} شماره اضافه`] },
     standard: { features: ['همه امکانات Basic', 'منشی خودکار IVR', 'آمار تماس IVR', 'گروه زنگ', 'ضبط تماس', 'خلاصه تماس هوش مصنوعی', `افزودن تا ${SUB_NUMBER_LIMITS.standard} شماره اضافه`] },
-    pro: { features: ['همه امکانات Plus', 'SMS به Telegram و ایمیل', 'یکپارچه‌سازی Webhook', 'تماس سریع IVR', 'کمپین IVR انبوه (فوری یا زمان‌بندی‌شده)', 'کمپین گفتگوی هوش مصنوعی', 'دریافت OTP', 'پیش‌تنظیم و زمان‌بندی IVR', 'صدای TTS یکسان', `افزودن تا ${SUB_NUMBER_LIMITS.pro} شماره اضافه`] },
+    pro: { features: ['همه امکانات Plus', 'SMS به Telegram و ایمیل', 'یکپارچه‌سازی Webhook', 'تماس سریع IVR', 'کمپین IVR انبوه (فوری یا زمان‌بندی‌شده)', 'کمپین گفتگوی هوش مصنوعی', 'تأیید هویت مشتریان با OTP', 'پیش‌تنظیم و زمان‌بندی IVR', 'صدای TTS یکسان', `افزودن تا ${SUB_NUMBER_LIMITS.pro} شماره اضافه`] },
     business: { features: ['همه امکانات Pro', 'شناسه تماس‌گیرنده دلخواه — تماس از هر شماره', 'دکمه تماس مجدد IVR', 'پیام‌های OTP سفارشی', 'محرک‌های پیامکی', 'تماس متنی (ناشنوایان)', 'تماس رمزگذاری‌شده (SRTP)', 'پشتیبانی ویژه', `افزودن تا ${SUB_NUMBER_LIMITS.business} شماره اضافه`] },
   },
 
@@ -664,10 +664,10 @@ const upgradeMessage = (feature, currentPlan, lang) => {
   const neededRank = planRank[neededKey] || 0
   const planAlreadyMeets = currentRank > 0 && currentRank >= neededRank
   const featureNamesI18n = {
-    en: { browserPhone: 'Browser Phone', voicemail: 'Voicemail', sipCredentials: 'SIP Credentials', smsToEmail: 'SMS to Email', smsWebhook: 'SMS Webhook', callRecording: 'Call Recording', ivr: 'IVR / Auto-attendant', ivrOutbound: 'Quick IVR Call', bulkCall: 'Bulk IVR Campaign', otpCollection: 'OTP Collection (IVR)', ivrRedial: 'IVR Redial', otpCustomMessages: 'Custom 2FA Messages' , ivrSchedule: 'Quick IVR Scheduling', ivrPresets: 'Quick IVR Presets', consistentVoice: 'Saved Default Voice', aiAgent: 'AI Receptionist', aiCampaigns: 'AI Conversation Campaigns', fax: 'Fax' },
-    fr: { browserPhone: 'Téléphone Navigateur', voicemail: 'Messagerie Vocale', sipCredentials: 'Identifiants SIP', smsToEmail: 'SMS par Email', smsWebhook: 'Webhook SMS', callRecording: 'Enregistrement d\'Appels', ivr: 'SVI / Standard Auto', ivrOutbound: 'Appel IVR Rapide', bulkCall: 'Campagne IVR en Masse', otpCollection: 'Envoi de codes 2FA (IVR)', ivrRedial: 'Rappel IVR', otpCustomMessages: 'Messages OTP Personnalisés' , ivrSchedule: 'Planification IVR Rapide', ivrPresets: 'Préréglages IVR Rapide', consistentVoice: 'Voix par Défaut', aiAgent: 'Agent Vocal IA', aiCampaigns: 'Campagnes Agent IA', fax: 'Fax' },
-    zh: { browserPhone: '浏览器电话', voicemail: '语音信箱', sipCredentials: 'SIP 凭据', smsToEmail: '短信转邮箱', smsWebhook: '短信 Webhook', callRecording: '通话录音', ivr: 'IVR / 自动应答', ivrOutbound: '快速IVR呼叫', bulkCall: '批量IVR活动', otpCollection: 'OTP 收集 (IVR)', ivrRedial: 'IVR 重拨', otpCustomMessages: '自定义OTP消息' , ivrSchedule: '快速IVR定时', ivrPresets: '快速IVR预设', consistentVoice: '默认语音', aiAgent: 'AI 语音助手', aiCampaigns: 'AI 外呼活动', fax: '传真' },
-    hi: { browserPhone: 'ब्राउज़र फ़ोन', voicemail: 'वॉइसमेल', sipCredentials: 'SIP क्रेडेंशियल्स', smsToEmail: 'SMS ईमेल पर', smsWebhook: 'SMS Webhook', callRecording: 'कॉल रिकॉर्डिंग', ivr: 'IVR / ऑटो-अटेंडेंट', ivrOutbound: 'त्वरित IVR कॉल', bulkCall: 'बल्क IVR अभियान', otpCollection: 'OTP संग्रह (IVR)', ivrRedial: 'IVR रीडायल', otpCustomMessages: 'कस्टम OTP संदेश' , ivrSchedule: 'त्वरित IVR शेड्यूलिंग', ivrPresets: 'त्वरित IVR प्रीसेट', consistentVoice: 'डिफ़ॉल्ट आवाज़', aiAgent: 'AI वॉइस एजेंट', aiCampaigns: 'AI एजेंट कैंपेन', fax: 'फैक्स' },
+    en: { browserPhone: 'Browser Phone', voicemail: 'Voicemail', sipCredentials: 'SIP Credentials', smsToEmail: 'SMS to Email', smsWebhook: 'SMS Webhook', callRecording: 'Call Recording', ivr: 'IVR / Auto-attendant', ivrOutbound: 'Quick IVR Call', bulkCall: 'Bulk IVR Campaign', otpCollection: 'Verify your customers identity via OTP', ivrRedial: 'IVR Redial', otpCustomMessages: 'Custom 2FA Messages' , ivrSchedule: 'Quick IVR Scheduling', ivrPresets: 'Quick IVR Presets', consistentVoice: 'Saved Default Voice', aiAgent: 'AI Receptionist', aiCampaigns: 'AI Conversation Campaigns', fax: 'Fax' },
+    fr: { browserPhone: 'Téléphone Navigateur', voicemail: 'Messagerie Vocale', sipCredentials: 'Identifiants SIP', smsToEmail: 'SMS par Email', smsWebhook: 'Webhook SMS', callRecording: 'Enregistrement d\'Appels', ivr: 'SVI / Standard Auto', ivrOutbound: 'Appel IVR Rapide', bulkCall: 'Campagne IVR en Masse', otpCollection: 'Vérifiez l’identité de vos clients par OTP', ivrRedial: 'Rappel IVR', otpCustomMessages: 'Messages OTP Personnalisés' , ivrSchedule: 'Planification IVR Rapide', ivrPresets: 'Préréglages IVR Rapide', consistentVoice: 'Voix par Défaut', aiAgent: 'Agent Vocal IA', aiCampaigns: 'Campagnes Agent IA', fax: 'Fax' },
+    zh: { browserPhone: '浏览器电话', voicemail: '语音信箱', sipCredentials: 'SIP 凭据', smsToEmail: '短信转邮箱', smsWebhook: '短信 Webhook', callRecording: '通话录音', ivr: 'IVR / 自动应答', ivrOutbound: '快速IVR呼叫', bulkCall: '批量IVR活动', otpCollection: '通过 OTP 验证客户身份', ivrRedial: 'IVR 重拨', otpCustomMessages: '自定义OTP消息' , ivrSchedule: '快速IVR定时', ivrPresets: '快速IVR预设', consistentVoice: '默认语音', aiAgent: 'AI 语音助手', aiCampaigns: 'AI 外呼活动', fax: '传真' },
+    hi: { browserPhone: 'ब्राउज़र फ़ोन', voicemail: 'वॉइसमेल', sipCredentials: 'SIP क्रेडेंशियल्स', smsToEmail: 'SMS ईमेल पर', smsWebhook: 'SMS Webhook', callRecording: 'कॉल रिकॉर्डिंग', ivr: 'IVR / ऑटो-अटेंडेंट', ivrOutbound: 'त्वरित IVR कॉल', bulkCall: 'बल्क IVR अभियान', otpCollection: 'OTP से अपने ग्राहकों की पहचान सत्यापित करें', ivrRedial: 'IVR रीडायल', otpCustomMessages: 'कस्टम OTP संदेश' , ivrSchedule: 'त्वरित IVR शेड्यूलिंग', ivrPresets: 'त्वरित IVR प्रीसेट', consistentVoice: 'डिफ़ॉल्ट आवाज़', aiAgent: 'AI वॉइस एजेंट', aiCampaigns: 'AI एजेंट कैंपेन', fax: 'फैक्स' },
   }
   const upgradeTemplates = {
     en: (fn, nd, cp) => `🔒 <b>${fn}</b> requires the <b>${nd}</b> plan or higher.\n\nYour current plan: <b>${cp || 'Basic'}</b>\n\nUpgrade via 🔄 Renew / Change Plan.`,
@@ -822,7 +822,7 @@ Incoming calls you answer on SIP/browser + received SMS are included · Call for
 <b>📋 Plans:</b>
 💡 Basic $${PHONE_STARTER_PRICE}/mo — ${plans.starter.minutes} inbound min · Forwarding, voicemail, SIP softphone, AI receptionist
 🧩 Plus $${PHONE_STANDARD_PRICE}/mo — ${plans.standard.minutes} inbound min · + Keypad menu (IVR), ring groups, call recording, AI call summaries
-⭐ Pro $${PHONE_PRO_PRICE}/mo — ${plans.pro.minutes} inbound min · + Quick & Bulk IVR, AI conversation campaigns, OTP, scheduling & presets
+⭐ Pro $${PHONE_PRO_PRICE}/mo — ${plans.pro.minutes} inbound min · + Quick & Bulk IVR, AI conversation campaigns, customer identity checks via OTP, scheduling & presets
 👑 Business $${PHONE_BUSINESS_PRICE}/mo — ${BUSINESS_MINUTES} inbound min · + Custom caller ID, IVR redial, Text Triggers, encrypted calls, priority support
 
 🧪 Try SIP free — tap <b>🧪 Test SIP Free</b>`,
@@ -867,7 +867,7 @@ Incoming calls you answer on SIP/browser + received SMS are included · Call for
       text += `<b>🧩 Plus — $${PHONE_STANDARD_PRICE}/mo</b>\n<i>👤 Best for teams answering customer calls</i>\n📞 ${plans.standard.minutes} inbound min · ${SMS_BIT()}${plansI18n.en.standard.features.join(' · ')}\n\n`
     }
     if (PHONE_PRO_ON) {
-      text += `<b>⭐ Pro — $${PHONE_PRO_PRICE}/mo</b>\n<i>👤 Best for small businesses and remote teams</i>\n📞 ${plans.pro.minutes} inbound min · ${SMS_BIT()}${plansI18n.en.pro.features.join(' · ')}\n<b>🎙 Outbound:</b> ✅ <i>Quick IVR + Bulk IVR + AI conversation campaigns + OTP</i>\n🛡️ <i>14-day upgrade credit — 25% of your Pro price comes off Business if you upgrade within 14 days</i>\n\n`
+      text += `<b>⭐ Pro — $${PHONE_PRO_PRICE}/mo</b>\n<i>👤 Best for small businesses and remote teams</i>\n📞 ${plans.pro.minutes} inbound min · ${SMS_BIT()}${plansI18n.en.pro.features.join(' · ')}\n<b>🎙 Outbound:</b> ✅ <i>Quick IVR + Bulk IVR + AI conversation campaigns + customer identity checks via OTP</i>\n🛡️ <i>14-day upgrade credit — 25% of your Pro price comes off Business if you upgrade within 14 days</i>\n\n`
     }
     if (PHONE_BUSINESS_ON) {
       text += `<b>👑 Business — $${PHONE_BUSINESS_PRICE}/mo</b>\n<i>👤 Best for sales and outreach teams</i>\n📞 ${plans.business.minutes} inbound min · ${SMS_BIT()}${plansI18n.en.business.features.join(' · ')}\n<b>🎙 IVR / SIP softphone:</b> ✅ <i>Pro + Custom caller ID + Redial + Scheduling + Presets + Custom OTP messages</i>\n\n`
@@ -2168,7 +2168,7 @@ Votre propre numéro virtuel dans ${CLOUD_COUNTRY_COUNT} pays. Recevez des appel
 <b>📋 Forfaits :</b>
 💡 <b>Basic $${PHONE_STARTER_PRICE}/mois</b> — ${plans.starter.minutes} min, transfert, messagerie vocale, SIP, réceptionniste IA
 🧩 <b>Plus $${PHONE_STANDARD_PRICE}/mois</b> — ${plans.standard.minutes} min, + standard automatique (IVR), groupes de sonnerie, enregistrement, résumés IA
-⭐ <b>Pro $${PHONE_PRO_PRICE}/mois</b> — ${plans.pro.minutes} min, + IVR rapide & en masse, campagnes de conversations IA, OTP, planification
+⭐ <b>Pro $${PHONE_PRO_PRICE}/mois</b> — ${plans.pro.minutes} min, + IVR rapide & en masse, campagnes de conversations IA, vérification d’identité par OTP, planification
 👑 <b>Business $${PHONE_BUSINESS_PRICE}/mois</b> — ${BUSINESS_MINUTES} min, + Caller ID personnalisé, rappel IVR, déclencheurs SMS, appels chiffrés, support prioritaire
 
 🧪 Essayez SIP gratuitement — appuyez sur <b>🧪 Tester SIP Gratuit</b>`,

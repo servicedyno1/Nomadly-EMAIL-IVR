@@ -635,19 +635,19 @@ ${CHAT_BOT_NAME}`,
  },
 
  // Digital Products
- digitalProductsSelect: `🛒 <b>数字产品</b>\n\n经验证的账户通过此机器人<b>快速</b>交付。\n\n<b>电信</b> — Twilio, Telnyx (短信, 语音, SIP)\n<b>云服务</b> — AWS, Google Cloud (完全访问)\n<b>电子邮件</b> — Google Workspace, Zoho Mail, IONOS SMTP\n<b>移动</b> — eSIM T-Mobile\n\n使用加密货币、银行转账或钱包支付。请在下方选择：`,
+ digitalProductsSelect: `🛒 <b>数字产品</b>\n\n经验证的账户通过此机器人<b>快速</b>交付。\n\n<b>云服务</b> — AWS, Google Cloud (完全访问)\n<b>电子邮件</b> — Google Workspace, Zoho Mail, IONOS SMTP\n<b>移动</b> — eSIM T-Mobile\n\n使用加密货币、银行转账或钱包支付。请在下方选择：`,
  dpTwilioMain: `📞 Twilio 主账号 — $${DP_PRICE_TWILIO_MAIN}`,
  dpTwilioSub: `📞 Twilio 子账号 — $${DP_PRICE_TWILIO_SUB}`,
  dpTelnyxMain: `📡 Telnyx 主账号 — $${DP_PRICE_TELNYX_MAIN}`,
  dpTelnyxSub: `📡 Telnyx 子账号 — $${DP_PRICE_TELNYX_SUB}`,
  dpGworkspaceNew: `📧 Google Workspace Admin（新域名）— $${DP_PRICE_GWORKSPACE_NEW}`,
- dpGworkspaceAged: `📧 Google Workspace Admin（老域名）— $${DP_PRICE_GWORKSPACE_AGED}`,
- dpEsim: `📱 美国 T-Mobile eSIM — $75/月`,
+ dpGworkspaceAged: `📧 Google Workspace 账号 — $${DP_PRICE_GWORKSPACE_AGED}`,
+ dpEsim: `📱 美国 T-Mobile eSIM — $50/月`,
  dpZohoNew: `📧 Zoho Mail（新域名）— $${DP_PRICE_ZOHO_NEW}`,
- dpZohoAged: `📧 Zoho Mail（老域名）— $${DP_PRICE_ZOHO_AGED}`,
+ dpZohoAged: `📧 Zoho Mail 账号 — $${DP_PRICE_ZOHO_AGED}`,
  dpAwsMain: `☁️ AWS 主账号 — $${DP_PRICE_AWS_MAIN}`,
  dpAwsSub: `☁️ AWS 子账号 — $${DP_PRICE_AWS_SUB}`,
- dpGcloudMain: `🌐 Google Cloud 主账号 — $${DP_PRICE_GCLOUD_MAIN}`,
+ dpGcloudMain: `🌐 Google Cloud 账号 — $${DP_PRICE_GCLOUD_MAIN}`,
  dpGcloudSub: `🌐 Google Cloud 子账号 — $${DP_PRICE_GCLOUD_SUB}`,
  dpIonosSmtp: `📧 IONOS SMTP — $${DP_PRICE_IONOS_SMTP}`,
  dpPaymentPrompt: (product, price) => {
@@ -658,12 +658,12 @@ ${CHAT_BOT_NAME}`,
  'Telnyx Sub-Account': 'Telnyx 子账户，含 Mission Control Portal 登录和 API 访问，支持消息、语音和号码管理。\n\n您将收到：登录凭据 + API 密钥。',
  'AWS Main Account': '完整的 AWS 根账户，含控制台访问所有服务 — EC2、S3、Lambda、SES 等。\n\n您将收到：根邮箱、密码和 MFA 设置。',
  'AWS Sub-Account': 'AWS 子账户（Organizations 成员），含完整控制台登录和核心服务访问 — EC2、S3、Lambda 等。\n\n您将收到：登录凭据和 IAM 访问。',
- 'Google Cloud Main Account': '完整的 Google Cloud 主账户，已启用计费。Compute Engine、Cloud Storage、BigQuery 等全部 GCP 服务。\n\n您将收到：登录凭据。',
+ 'Google Cloud Account': '完整的 Google Cloud 主账户，已启用计费。Compute Engine、Cloud Storage、BigQuery 等全部 GCP 服务。\n\n您将收到：登录凭据。',
  'Google Cloud Sub-Account': 'Google Cloud 项目，含完整控制台登录和编辑器级访问。包含计算、存储和 API 访问。\n\n您将收到：登录凭据和服务账户密钥。',
  'Google Workspace (New Domain)': '在新注册域名上设置 Google Workspace 企业邮箱。@您的域名 邮箱含 Gmail、Drive、Docs 和 Meet。\n\n您将收到：管理员登录 + 域名凭据。',
- 'Google Workspace (Aged Domain)': '在老域名上设置 Google Workspace，提升邮件送达率。企业邮箱含完整 Google 套件。\n\n您将收到：管理员登录 + 域名凭据。',
+ 'Google Workspace Account': '在老域名上设置 Google Workspace，提升邮件送达率。企业邮箱含完整 Google 套件。\n\n您将收到：管理员登录 + 域名凭据。',
  'Zoho Mail (New Domain)': '在新域名上设置 Zoho Mail 专业邮箱。@您的域名 邮箱含日历、联系人和文件存储。\n\n您将收到：管理员登录 + 域名设置。',
- 'Zoho Mail (Aged Domain)': '在老域名上设置 Zoho Mail，提升发件人信誉。专业邮箱含完整 Zoho 套件。\n\n您将收到：管理员登录 + 域名凭据。',
+ 'Zoho Mail Account': '在老域名上设置 Zoho Mail，提升发件人信誉。专业邮箱含完整 Zoho 套件。\n\n您将收到：管理员登录 + 域名凭据。',
  }
  const desc = descriptions[product] || ''
  return `💰 <b>订单：${product}</b>\n\n💵 价格：<b>$${price}</b>${desc ? '\n\n' + desc : ''}\n\n请选择支付方式：`
@@ -2524,7 +2524,7 @@ DNS 管理 · Anti-Red 保护
 JS Challenge 防护 · SSL 包含
 
 🛒 <b>数字产品</b>
-Twilio · Telnyx · AWS · Google Cloud
+AWS · Google Cloud
 Google Workspace · Zoho Mail · eSIM
 
 💳 <b>虚拟借记卡</b>
