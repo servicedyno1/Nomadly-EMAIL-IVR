@@ -1,0 +1,8 @@
+[Unit]
+Description=CloudIVR SIP sign-in watchdog
+After=kamailio.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/bin/sip_watchdog.py
+TimeoutStartSec=240
