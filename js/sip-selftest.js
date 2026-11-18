@@ -75,6 +75,7 @@ async function run({ db, num, domain, probeFn = probe, now = Date.now() }) {
   let r = await probeFn(args)
   // Our SIP server caches a password for a few minutes; right after a reset the first try can miss — it re-reads on the next.
   if (r.status === 401) r = await probeFn(args)
+  if (db) await db.collection('sipAuthAsks').updateOne({ _id: String(user) }, { $set: { selfAt: new Date() } }, { upsert: true }).catch(() => {}) // our own check, not the customer's app
   // 403 = the server's lockout: more than 10 wrong-password tries on this login in 15 minutes.
   const code = r.status === 0 ? 'unreachable' : r.status === 403 ? 'locked' : r.status !== 200 ? 'rejected' : r.contacts > 0 ? 'connected' : 'ready_not_connected'
   const result = { ...base, code, devices: r.contacts || 0, ...(code === 'rejected' ? { sipStatus: r.status } : {}) }

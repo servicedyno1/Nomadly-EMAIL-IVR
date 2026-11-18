@@ -1394,6 +1394,7 @@ async function getUserContext(chatId, userMessage = '') {
         if (purchaseISO) parts.push(`purchased ${fmtDate(purchaseISO)}${ageDays != null ? ` (${ageDays}d ago)` : ''}`)
         if (expiresISO)  parts.push(`expires ${fmtDate(expiresISO)}${remainingDays != null ? ` (${remainingDays}d left)` : ''}`)
         if (remainingValue != null && paidPrice > 0) parts.push(`unused credit ~$${remainingValue.toFixed(2)}`)
+        if (num.status === 'active') { try { const sf = await require('./sip-presence').facts(_db, chatId, num); if (sf) parts.push(`SIP FACTS (from our SIP server — use these instead of generic steps): ${sf}`) } catch (_) { /* non-fatal */ } }
         phoneSummaries.push(parts.join(' · '))
       }
       const planBlock = phonePlanSlotsContext(phoneNumbers)

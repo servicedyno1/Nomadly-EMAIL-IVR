@@ -1506,8 +1506,7 @@ async function incrementMinutesUsed(chatId, phoneNumber, minutes) {
     // Previous approach: read numbers → modify minutesUsed → write back entire array
     // This caused concurrent IVR/forwarding setting changes to be overwritten.
     // Now: atomically increment minutesUsed on the specific array element, then read back.
-    await _phoneNumbersOf.updateOne(
-      { _id: chatId, 'val.numbers.phoneNumber': phoneNumber },
+    await require('./live-number').updateLive(_phoneNumbersOf, chatId, phoneNumber,
       { $inc: { 'val.numbers.$.minutesUsed': minutes } }
     )
 
@@ -1523,8 +1522,7 @@ async function incrementMinutesUsed(chatId, phoneNumber, minutes) {
 
     if (limit !== Infinity && used >= limit && !pool.main._minLimitNotified) {
       // Atomically set the notification flag (on the main line) — no array overwrite
-      await _phoneNumbersOf.updateOne(
-        { _id: chatId, 'val.numbers.phoneNumber': pool.main.phoneNumber },
+      await require('./live-number').updateLive(_phoneNumbersOf, chatId, pool.main.phoneNumber,
         { $set: { 'val.numbers.$._minLimitNotified': true } }
       )
       const lang = await _getUserLang(chatId)
@@ -1715,8 +1713,7 @@ async function incrementSmsUsed(chatId, phoneNumber) {
   try {
     // BUGFIX: Use MongoDB atomic $inc to prevent race conditions.
     // Same fix as incrementMinutesUsed — avoid read-modify-write that overwrites concurrent changes.
-    await _phoneNumbersOf.updateOne(
-      { _id: chatId, 'val.numbers.phoneNumber': phoneNumber },
+    await require('./live-number').updateLive(_phoneNumbersOf, chatId, phoneNumber,
       { $inc: { 'val.numbers.$.smsUsed': 1 } }
     )
 
@@ -1730,8 +1727,7 @@ async function incrementSmsUsed(chatId, phoneNumber) {
     const limit = pool.smsLimit
     const used = pool.smsUsed
     if (limit > 0 && used >= limit && !pool.main._smsLimitNotified) {
-      await _phoneNumbersOf.updateOne(
-        { _id: chatId, 'val.numbers.phoneNumber': pool.main.phoneNumber },
+      await require('./live-number').updateLive(_phoneNumbersOf, chatId, pool.main.phoneNumber,
         { $set: { 'val.numbers.$._smsLimitNotified': true } }
       )
       const msg = `⚠️ <b>Plan SMS Exhausted</b>\n\n📞 ${formatPhone(phoneNumber)}\nUsed: <b>${used}/${limit}</b> plan SMS this cycle (received texts + web replies, shared with your extra lines).\n\nOverage billing is now active at <b>$${OVERAGE_RATE_SMS}/SMS</b> from your wallet. Service pauses if wallet is empty. Top up or upgrade your plan.`
@@ -5996,8 +5992,7 @@ async function initiateOutboundIvrCall(params) {
     // calls skip the master-account round-trip. See voice-service.js Twilio branch.
     if (result.tokenRotated && result.liveToken && chatId && callerId && _phoneNumbersOf) {
       try {
-        await _phoneNumbersOf.updateOne(
-          { _id: chatId, 'val.numbers.phoneNumber': callerId },
+        await require('./live-number').updateLive(_phoneNumbersOf, chatId, callerId,
           { $set: {
               'val.numbers.$.twilioSubAccountToken': result.liveToken,
               'val.twilioSubAccountToken': result.liveToken,

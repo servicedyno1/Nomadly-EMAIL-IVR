@@ -90,6 +90,8 @@ function cotermDate(numbers, n, now = new Date()) {
   return m && new Date(m.expiresAt) > now ? m.expiresAt : null
 }
 const sameDate = (a, b) => Math.abs(new Date(a) - new Date(b)) < 3600000
+// The plan date an extra pays up to when it renews on its own date: the main's next date after that day.
+function joinDate(mainDate, extraDate) { const d = new Date(mainDate); while (d <= new Date(extraDate)) d.setMonth(d.getMonth() + 1); return d }
 // What the main line's renewal day charges: the plan plus every extra still on auto-renew.
 function groupRenewal(numbers, main) {
   const extras = (numbers || []).filter(x => x.isSubNumber && x.parentNumber === main.phoneNumber && x.status === 'active')
@@ -98,7 +100,7 @@ function groupRenewal(numbers, main) {
   const on = main.autoRenew !== false
   // Only extras already on the plan date are in this charge; the rest renew once on their own date, prorated up to it.
   const onDate = extras.filter(e => e.autoRenew && e.onPlanDate)
-  const later = on ? extras.filter(e => e.autoRenew && !e.onPlanDate).map(e => ({ ...e, firstPrice: proratedTo(e.price || 0, main.expiresAt, new Date(e.expiresAt)) })) : []
+  const later = on ? extras.filter(e => e.autoRenew && !e.onPlanDate).map(e => ({ ...e, firstPrice: proratedTo(e.price || 0, joinDate(main.expiresAt, e.expiresAt), new Date(e.expiresAt)) })) : []
   const total = on ? round2((mainPrice || 0) + onDate.reduce((t, e) => t + (e.price || 0), 0)) : 0
   return { date: main.expiresAt, autoRenew: on, main: mainPrice, extras, renewing: on ? onDate.length : 0, later, total }
 }

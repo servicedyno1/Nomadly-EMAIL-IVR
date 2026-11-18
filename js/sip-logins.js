@@ -56,7 +56,7 @@ function repairFields(chatId, n) {
 async function ensure(col, chatId, n) {
   const diff = repairFields(chatId, n)
   if (!diff) return n
-  await col.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: Object.fromEntries(Object.entries(diff).map(([k, v]) => [`val.numbers.$.${k}`, v])) })
+  await require('./live-number').updateLive(col, chatId, n.phoneNumber, { $set: Object.fromEntries(Object.entries(diff).map(([k, v]) => [`val.numbers.$.${k}`, v])) })
   return Object.assign(n, diff)
 }
 
