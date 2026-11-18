@@ -476,7 +476,7 @@ function routes(router, deps) {
   const searchArgs = (country, type, areaCode, sms) => ({ country, type, areaCode: areaCode || null, texting: !!sms, own: ownProvider(countries().find(x => x.code === country), type) })
   const hot = require('./search-warm').create(rawSearch, { log: (m) => log(`[CloudIVR-Web] number search cache: ${m}`) })
   // A cached hit the provider no longer remembers (bought or refused since) can't be ordered any more.
-  const stillOffered = (n) => (n._provider === 'multitel' ? require('../multitel').isMtSearched(n.phone_number) : n._provider === 'infobip' ? require('../infobip').isIbSearched(n.phone_number) : true)
+  const stillOffered = (n) => (n._signalwire || n._provider === 'signalwire' ? require('../signalwire').sells('signalwire') && !require('../signalwire/rest').isFull() : n._provider === 'telnyx' ? require('../signalwire').sells('telnyx') : n._provider === 'multitel' ? require('../multitel').isMtSearched(n.phone_number) : n._provider === 'infobip' ? require('../infobip').isIbSearched(n.phone_number) : true)
   if (String(process.env.NUMBER_SEARCH_WARM || 'true').toLowerCase() !== 'false') hot.start(searchArgs)
 
   // Typed a full area code: start that search now so pressing Search answers straight away.

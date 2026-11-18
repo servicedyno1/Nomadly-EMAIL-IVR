@@ -666,3 +666,6 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Link previews off: channel posts are media captions (never previewed); all bot text messages default to no preview (tg-opts.js).
 - Admin dashboard is never captured (go() + snapPage guard on /admin).
 - Admin: /admin/channel-posts shows thumbnails, visual type, per-channel "Post to … now" (runs in background).
+
+## 2026-11-18 — Onboarding funnel fixes (preview)
+- Free test call needs no legal details (unless custom caller ID). New numbers come only from NUMBER_PROVIDERS (prod: multitel) — SignalWire/Telnyx SIP no longer sell. Home leads with the free call. Abandoned-payment + try-call reminder emails already existed (emails.js depositNudges/tryNudge).

@@ -39,6 +39,7 @@ async function waitForBirdLine(from, to) {
 }
 
 const swOn = () => rest.enabled()
+const sells = (p) => String(process.env.NUMBER_PROVIDERS || 'multitel,infobip').toLowerCase().split(',').map(x => x.trim()).includes(p)
 
 const CALL_FNS = ['answerCall', 'rejectCall', 'hangupCall', 'isCallAlive', 'speakOnCall', 'playbackStart', 'playbackStop', 'gatherDTMF', 'gatherDTMFWithSpeak', 'gatherDTMFWithAudio', 'gatherStop', 'startRecording', 'stopRecording', 'transferCall']
 
@@ -174,23 +175,24 @@ function wrap(t) {
   w.isLineLimitError = (r) => (['signalwire', 'infobip', 'callengine'].includes(r?._provider) ? r.status === 429 || r.status === 503 : !!t.isLineLimitError?.(r))
 
   // New numbers: Infobip (default for local numbers) → Telnyx SIP → SignalWire → Infobip → Telnyx old account.
+  // Only providers listed in NUMBER_PROVIDERS sell new numbers (owned numbers keep working).
   w.searchNumbers = async (countryCode, numberType, areaCode, limit = 5) => {
     // Least paperwork, then cheapest (number-catalog): MultiTEL leads where it wins, e.g. US/CA without an area code.
     if (mt.enabled() && require('../number-catalog').best(String(countryCode || 'US').toUpperCase(), numberType || 'local')?.provider === 'multitel') { const r = await mt.searchNumbers(countryCode, numberType || 'local', areaCode, limit); if (r.length) return r }
     const up = (p) => !require('../provider-health').isDown(p)
     if (ib.enabled() && up('infobip') && (!numberType || numberType === 'local')) { const r = await ib.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
-    if (txs.enabled()) {
+    if (txs.enabled() && sells('telnyx')) {
       const r = await txs.searchNumbers(countryCode, numberType, areaCode, limit, rest.AREA_REGION[Number(areaCode)] || null)
       if (r.length) return r
     }
-    if (swOn()) {
+    if (swOn() && sells('signalwire')) {
       const r = await rest.searchNumbers(countryCode, numberType, areaCode, limit)
       if (r.length) return r
     }
     if (ib.enabled() && up('infobip')) { const r = await ib.searchNumbers(countryCode, numberType, areaCode, limit); if (r.length) return r }
     if (mt.enabled() && up('multitel')) { const r = await mt.searchNumbers(countryCode, numberType || 'local', areaCode, limit); if (r.length) return r }
-    // SignalWire can't take more numbers and nobody else has this area code → offer numbers from other areas, flagged as such.
-    if (areaCode && swOn() && rest.isFull()) {
+    // Nobody has this area code → offer numbers from other areas, flagged as such.
+    if (areaCode) {
       for (const p of [mt, ib]) {
         if (!p.enabled() || !up(p === mt ? 'multitel' : 'infobip')) continue
         const r = await p.searchNumbers(countryCode, numberType || 'local', null, limit).catch(() => [])
@@ -203,7 +205,7 @@ function wrap(t) {
   }
 
   w.buyNumber = async (phoneNumber, connectionId, messagingProfileId, retrySearch = null) => {
-    if (txs.isTxSearched(phoneNumber)) {
+    if (txs.isTxSearched(phoneNumber) && sells('telnyx')) {
       let r = await txs.buyNumber(phoneNumber)
       if (!r && retrySearch) {
         const fresh = await txs.searchNumbers(retrySearch.countryCode || 'US', retrySearch.numberType || 'local', retrySearch.areaCode || null, 3)
@@ -216,7 +218,7 @@ function wrap(t) {
     if (mt.isMtSearched(phoneNumber)) return require('../provider-health').buyWithBackup('multitel', phoneNumber, retrySearch)
     if (bird.isBirdSearched(phoneNumber)) return bird.buyNumber(phoneNumber)
     if (swOn() && rest.isSwSearched(phoneNumber)) {
-      if (rest.isFull()) return null
+      if (!sells('signalwire') || rest.isFull()) return null
       const r = await rest.buyNumber(phoneNumber)
       if (r) return r
       if (retrySearch) {
@@ -288,4 +290,4 @@ async function sendSms(from, to, text, mediaUrls = []) {
   return rest.sendSms(from, to, text, mediaUrls)
 }
 
-module.exports = { wrap, rest, voice, lookup, sendSms, enabled: swOn, poolCaller, setReservedCallers, setNeverCallers, birdWanted }
+module.exports = { wrap, rest, voice, lookup, sendSms, enabled: swOn, sells, poolCaller, setReservedCallers, setNeverCallers, birdWanted }

@@ -47,9 +47,13 @@ export function TrialCall({ status, onUsed }) {
   const [result, setResult] = useState(null);
   const waiting = !result && status?.inProgress;
   const go = async (e) => {
-    e.preventDefault(); setBusy(true); setError(null);
+    e.preventDefault(); setError(null);
+    const text = fillScript(f.script.text, f.script.values);
+    const blanks = [...new Set(String(text).match(/\[[^\]]+\]/g) || [])];
+    if (blanks.length) return setError(new Error(`Fill in ${blanks.join(', ')} in your message before calling.`));
+    setBusy(true);
     try {
-      const d = await api('/calls/trial', { method: 'POST', body: { to: f.to, showAs: f.showAs.trim() || undefined, mode: f.mode, otp: otp ? { length: f.length } : undefined, holdMusic: otp ? !!f.holdMusic : undefined, transferTo: f.transferTo, text: fillScript(f.script.text, f.script.values), templateName: f.script.templateName } });
+      const d = await api('/calls/trial', { method: 'POST', body: { to: f.to, showAs: f.showAs.trim() || undefined, mode: f.mode, otp: otp ? { length: f.length } : undefined, holdMusic: otp ? !!f.holdMusic : undefined, transferTo: f.transferTo, text, templateName: f.script.templateName } });
       setResult(d); toast.success(d.dryRun ? 'Validated (preview — not dialed)' : 'Free call started'); onUsed();
     } catch (err) { setError(err); } finally { setBusy(false); }
   };
@@ -61,7 +65,7 @@ export function TrialCall({ status, onUsed }) {
       </div>
       <HowItWorks callerId={status?.callerId} />
       {result ? <Done result={result} /> : <>
-        <Field label="Number to call" hint="With country code, e.g. +14155550100."><input className="civr-input font-mono" required value={f.to} onChange={e => setF({ ...f, to: e.target.value })} placeholder="+14155550100" data-testid="quick-trial-to-input" /></Field>
+        <Field label="Number to call" hint="Usually your own phone. US/Canada numbers can be typed without +1."><input className="civr-input font-mono" required value={f.to} onChange={e => setF({ ...f, to: e.target.value })} placeholder="+14155550100" data-testid="quick-trial-to-input" /></Field>
         {status?.customCallerId && <Field label="Show as (optional)" hint="Any number to show as caller ID, with country code. Bank, government and emergency numbers are blocked."><input className="civr-input font-mono" value={f.showAs} onChange={e => setF({ ...f, showAs: e.target.value })} placeholder="+14155550100" data-testid="quick-trial-show-as-input" /></Field>}
         <ScriptBox value={f.script} onChange={(s) => setF({ ...f, script: s })} testid="quick-trial-script" />
         <Field label="When they press 1">
@@ -75,7 +79,7 @@ export function TrialCall({ status, onUsed }) {
             <span className="text-sm text-[#a1a1aa]">Play hold music to the caller while you verify the code</span>
           </label>
         </div>}
-        <Field label={otp ? 'Connect them after you accept (optional)' : 'Connect to (when they press 1)'} hint={otp ? 'Leave empty to end the call after the confirmation.' : 'Usually your own phone.'}><input className="civr-input font-mono" required={!otp} value={f.transferTo} onChange={e => setF({ ...f, transferTo: e.target.value })} placeholder="+14155550199" data-testid="quick-trial-transfer-input" /></Field>
+        <Field label={otp ? 'Connect them after you accept (optional)' : 'Connect to (when they press 1)'} hint={otp ? 'Leave empty to end the call after the confirmation.' : 'Optional. Leave empty to connect back to the number you are calling.'}><input className="civr-input font-mono" value={f.transferTo} onChange={e => setF({ ...f, transferTo: e.target.value })} placeholder="+14155550199" data-testid="quick-trial-transfer-input" /></Field>
         <ErrorNote error={error} testid="quick-trial-error" />
         {waiting && <div className="flex items-center gap-2 text-sm text-[#fbbf24]" data-testid="quick-trial-in-progress"><Clock className="w-4 h-4" />Your free call is still going. If nobody answered, try again in about {mins(status.retryAt)} min.</div>}
         <button className="civr-btn civr-btn-primary" disabled={busy || waiting} data-testid="quick-trial-submit-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneOutgoing className="w-4 h-4" />}Place my free call</button>

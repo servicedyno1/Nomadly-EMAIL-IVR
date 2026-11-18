@@ -3689,3 +3689,10 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 
 ## 2026-11-18 — No link previews
 - js/tg-opts.js wrapBotMethods: every bot sendMessage/editMessageText defaults disable_web_page_preview=true (callers can still opt in). Channel posts are photo/video/album captions, which Telegram never previews.
+
+## 2026-11-18 — CloudIVR web onboarding fixes (preview, NOT deployed)
+- Prod funnel audit (Oct 23–Nov 18): 184 sign-ups, 9 returned after 1 h; free call 75 tries/14 OK (14 d) — profile form required first + typing errors; 45 started crypto/4 paid; SignalWire Space at number limit → customer …0143 paid 3× ($154) for 0 numbers (refunded to wallet). Deposit/try reminder emails already run (depositNudge 58 ok, tryNudge 126 ok).
+- legal-profile callGate: /calls/trial skips the details form unless a custom "Show as" caller ID is used.
+- outbound.js trialBody: 10/11-digit NANP → +1; empty key-1 number → the called number. Trial.js flags unfilled [placeholders] before sending; transfer field optional.
+- signalwire/index.js: Telnyx SIP + SignalWire only sell new numbers if listed in NUMBER_PROVIDERS (prod = multitel); SW buys refused when not selling; area-code fallback to other areas whenever the area has no stock. numbers.js stillOffered drops cached SW/Telnyx hits. Existing SW numbers keep working.
+- Home (fresh accounts): free-call card first; Get started = number → funds → setup.

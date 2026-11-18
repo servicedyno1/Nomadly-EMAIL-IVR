@@ -72,7 +72,7 @@ export default function Dashboard() {
   // One promo at a time (first that applies wins) + one announcement; everything else is a slim strip lower down.
   const promos = !textingOnly && (
     <>
-      <div className="civr-promo-slot mt-6" data-testid="dashboard-promo-slot"><TrialCard /><TopBanner /><CallerIdUpsellCard /></div>
+      <div className="civr-promo-slot mt-6" data-testid="dashboard-promo-slot">{!fresh && <TrialCard />}<TopBanner /><CallerIdUpsellCard /></div>
     </>
   );
   return (
@@ -88,7 +88,7 @@ export default function Dashboard() {
           <ArrowRight className="w-4 h-4" />
         </Link>
       )}
-      {!s || (fresh && !hosted) ? <SkeletonPage header={false} cards={3} rows={3} /> : textingOnly ? <TextingHome items={hosted.items} balance={s.balance} /> : fresh ? <><PurposeHome /><div className="mt-8"><GetStarted balance={s.balance} /></div>{promos}<Guided nums={[]} /><More><ProductGrid /></More></> : (
+      {!s || (fresh && !hosted) ? <SkeletonPage header={false} cards={3} rows={3} /> : textingOnly ? <TextingHome items={hosted.items} balance={s.balance} /> : fresh ? <><TrialCard /><PurposeHome /><div className="mt-8"><GetStarted balance={s.balance} /></div>{promos}<Guided nums={[]} /><More><ProductGrid /></More></> : (
         <>
           <Stats s={s} />
           <NextStep s={s} nums={nums?.numbers} />

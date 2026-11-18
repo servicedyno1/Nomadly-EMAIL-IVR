@@ -86,6 +86,8 @@ function createLegalProfile(db, { log = console.log } = {}) {
   // Outgoing calls, Quick IVR and Bulk IVR (sending or scheduling) also need the details.
   function callGate(req, res, next) {
     if (isComplete(req.webUser)) return next()
+    // The one free test call from our shared number needs no details, unless it shows a custom caller ID.
+    if (req.path === '/calls/trial' && !String(req.body?.showAs || '').trim()) return next()
     return bad(res, 428, 'profile_required', 'Add your personal or business details before making outgoing calls, Quick IVR or Bulk IVR calls.')
   }
 

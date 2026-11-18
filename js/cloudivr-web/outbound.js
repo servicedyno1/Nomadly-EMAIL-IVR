@@ -456,6 +456,12 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     res.json(pubOtp(otpState(req.webChatId, ccid, voiceService)))
   }))
 
+  // Free call typing fixes: 10-digit US/CA numbers get +1, key 1 connects back to the called number when left empty.
+  const nanp = (v) => { const d = String(v || '').replace(/[^\d+]/g, ''); return /^1?[2-9]\d{2}[2-9]\d{6}$/.test(d) ? `+${d.length === 10 ? '1' : ''}${d}` : v }
+  const trialBody = (b = {}) => {
+    const to = nanp(b.to), transferTo = nanp(b.transferTo)
+    return { ...b, to, transferTo: b.mode !== 'otp' && !String(transferTo || '').trim() ? to : transferTo }
+  }
   // One free Quick IVR call from our shared number for accounts without a VoIP number (the bot's "Quick IVR Call — 1 Free").
   const busyMsg = 'Your free call is still going. If nobody answered, you can try again in a few minutes.'
   router.get('/calls/trial', h(async (req, res) => res.json(await trialStatus(db, numbersApi, req.webChatId))))
@@ -464,7 +470,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const t = await trialStatus(db, numbersApi, chatId)
     if (!t.available) return bad(res, 403, 'trial_used', 'The free Quick IVR call is for accounts without a VoIP number, once.')
     if (t.inProgress) return bad(res, 409, 'trial_in_progress', busyMsg)
-    const { cfg, err } = await buildCall(chatId, req.body, { trial: true })
+    const { cfg, err } = await buildCall(chatId, trialBody(req.body), { trial: true })
     if (err) return bad(res, ...err)
     const now = new Date()
     const claim = await prefs.updateOne({ _id: chatId, ivrTrialUsed: { $ne: true }, $or: [{ ivrTrialPendingAt: null }, { ivrTrialPendingAt: { $lt: new Date(now - TRIAL_HOLD_MS) } }] }, { $set: { ivrTrialPendingAt: now } }, { upsert: true }).catch(() => ({ modifiedCount: 0, upsertedCount: 0 }))

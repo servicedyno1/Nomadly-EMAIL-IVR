@@ -13,8 +13,8 @@ export function GetStarted({ balance }) {
   const { catalog } = useShell();
   const from = startPrice(catalog);
   const steps = [
-    { id: 'funds', done: balance > 0, title: 'Add funds to your wallet', sub: balance > 0 ? `Wallet ready · ${money(balance)}` : (catalog?.cardPayments ? 'Top up by card, bank or crypto. Numbers, renewals and calls are paid from your wallet.' : 'Crypto today, cards coming soon. Numbers, renewals and calls are paid from your wallet.'), to: cp('/app/wallet'), cta: 'Add funds' },
     { id: 'buy', done: false, title: 'Pick your plan and first number', sub: `${catalog?.countries?.length || 2} countries${from ? ` · from ${from}/month` : ''}.`, to: cp('/app/buy'), cta: 'Buy a number' },
+    { id: 'funds', done: balance > 0, title: 'Add funds to your wallet', sub: balance > 0 ? `Wallet ready · ${money(balance)}` : (catalog?.cardPayments ? 'Top up by card, bank or crypto. Numbers, renewals and calls are paid from your wallet.' : 'Crypto today, cards coming soon. Numbers, renewals and calls are paid from your wallet.'), to: cp('/app/wallet'), cta: 'Add funds' },
     { id: 'setup', done: false, title: 'Choose what callers hear', sub: 'Forwarding, voicemail or a keypad menu — set it on your number once it’s live.' },
   ];
   const current = steps.findIndex(x => !x.done);
