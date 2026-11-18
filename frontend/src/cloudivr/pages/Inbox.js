@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useOffer } from '../offers';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { Inbox as InboxIcon, CheckCheck, MessageSquare, Voicemail, Wallet, Megaphone, Receipt, Phone, Info, Ticket, MessageSquareReply, ChevronRight, Printer } from 'lucide-react';
+import { Inbox as InboxIcon, CheckCheck, MessageSquare, Voicemail, Wallet, Megaphone, Receipt, Phone, Info, Ticket, MessageSquareReply, ChevronRight, Printer, KeyRound } from 'lucide-react';
 import { cp } from '../paths';
 import { api, useApi, when, playUrl } from '../api';
 import { useShell } from '../Shell';
@@ -125,6 +125,7 @@ export default function Inbox() {
                   {n.mediaUrl && /\.(mp3|wav|ogg)(\?|$)/i.test(n.mediaUrl) && <audio controls preload="none" src={playUrl(n.mediaUrl)} className="relative z-10 h-9 mt-2" data-testid={`inbox-item-${i}-audio`} />}
                   {n.meta?.coupon && couponLive(n) && <Link to={cp(`/app/buy?coupon=${encodeURIComponent(n.meta.coupon)}`)} className="relative z-10 civr-btn civr-btn-ghost civr-btn-sm mt-2" data-testid={`inbox-item-${i}-use-coupon`}><Ticket className="w-4 h-4" />Use coupon {n.meta.coupon}</Link>}
                   {n.meta?.cta && !n.meta.coupon && couponLive(n) && <Link to={cp(n.meta.cta.to)} className="relative z-10 civr-btn civr-btn-ghost civr-btn-sm mt-2" data-testid={`inbox-item-${i}-offer-cta`}><Ticket className="w-4 h-4" />{n.meta.cta.label}</Link>}
+                  {n.meta?.sipReset && <Link to={cp(`/app/numbers/${encodeURIComponent(n.meta.sipReset)}?tab=sip&reset=1`)} className="relative z-10 civr-btn civr-btn-primary civr-btn-sm mt-2" data-testid={`inbox-item-${i}-sip-reset`}><KeyRound className="w-4 h-4" />Reset SIP password</Link>}
                   {n.meta?.topup > 0 && <Link to={cp(`/app/wallet?amount=${Math.max(5, n.meta.topup)}`)} className="relative z-10 civr-btn civr-btn-primary civr-btn-sm mt-2" data-testid={`inbox-item-${i}-topup`}>Top up ${n.meta.topup} now</Link>}
                   {n.canReply && <SmsReply n={n} i={i} pv={pv} onReplied={onReplied} reload={reload} />}
                   {ccid && Date.now() - new Date(n.createdAt).getTime() < 15 * 60000 && (newestTry ? <OtpLive ccid={ccid} compact testid={`inbox-item-${i}-otp`} />

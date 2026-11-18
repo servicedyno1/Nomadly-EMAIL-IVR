@@ -96,6 +96,15 @@ const en = {
     short: { subject: (d, f) => `Action needed: add ${f.usd(d.shortfall)} to keep ${d.phone}`, title: 'Top up to keep your number.', intro: (d, f) => `${d.phone} renews on ${f.date(d.expiresAt)} for ${f.usd(d.price)}, but your wallet only has ${f.usd(d.balance)}. Add at least ${f.usd(d.shortfall)} so your number, its settings and its history stay yours.`, cta: 'Add funds' },
     manual: { subject: (d, f) => `${d.phone} expires on ${f.date(d.expiresAt)}`, title: 'Don’t let your number slip away.', intro: (d, f) => `Auto-renew is off for ${d.phone}, so it expires on ${f.date(d.expiresAt)}. Renew now for ${f.usd(d.price)} — or switch auto-renew on and never think about it again.`, cta: 'Renew now' },
   },
+  sipOldLogin: {
+    subject: (d) => `Your SIP app is using an old login for ${d.phone}`,
+    preheader: (d) => `Use ${d.current} — the old login ${d.old} no longer works.`,
+    eyebrow: 'SIP login changed', title: () => 'Your phone app needs the current login.',
+    intro: (d, f) => `A phone app last signed in to ${d.phone} on ${f.date(d.lastAt)} with the username ${d.old}. That login was replaced and no longer works, so the app now shows “unauthorized” or “not registered” and calls can’t ring it.`,
+    oldLabel: 'Old username (stopped working)', newLabel: 'Current username',
+    steps: ['Click Reset SIP password below — you get a fresh password for the current username.', 'In your SIP app, replace the username and password with the ones shown.', 'Keep the server exactly as shown on the SIP tab, then save. The app should say Registered.'],
+    cta: 'Reset SIP password', ps: 'We never send passwords by email — they are only shown inside your account.',
+  },
   renewFailed: {
     subject: (d) => `Urgent: ${d.phone} couldn’t renew — 24 hours to fix it`,
     preheader: () => 'Top up within 24 hours to keep your number.',
@@ -292,6 +301,15 @@ const fr = {
     short: { subject: (d, f) => `Action requise : ajoutez ${f.usd(d.shortfall)} pour garder ${d.phone}`, title: 'Rechargez pour garder votre numéro.', intro: (d, f) => `${d.phone} se renouvelle le ${f.date(d.expiresAt)} pour ${f.usd(d.price)}, mais votre portefeuille ne contient que ${f.usd(d.balance)}. Ajoutez au moins ${f.usd(d.shortfall)} pour garder votre numéro, ses réglages et son historique.`, cta: 'Ajouter des fonds' },
     manual: { subject: (d, f) => `${d.phone} expire le ${f.date(d.expiresAt)}`, title: 'Ne laissez pas filer votre numéro.', intro: (d, f) => `Le renouvellement automatique est désactivé pour ${d.phone} : il expire le ${f.date(d.expiresAt)}. Renouvelez-le maintenant pour ${f.usd(d.price)} — ou activez le renouvellement automatique et n’y pensez plus.`, cta: 'Renouveler maintenant' },
   },
+  sipOldLogin: {
+    subject: (d) => `Votre application SIP utilise un ancien identifiant pour ${d.phone}`,
+    preheader: (d) => `Utilisez ${d.current} — l’ancien identifiant ${d.old} ne fonctionne plus.`,
+    eyebrow: 'Identifiant SIP modifié', title: () => 'Votre application a besoin de l’identifiant actuel.',
+    intro: (d, f) => `Une application s’est connectée pour la dernière fois à ${d.phone} le ${f.date(d.lastAt)} avec l’identifiant ${d.old}. Cet identifiant a été remplacé et ne fonctionne plus : l’application affiche « unauthorized » ou « non enregistré » et les appels ne peuvent pas la faire sonner.`,
+    oldLabel: 'Ancien identifiant (ne fonctionne plus)', newLabel: 'Identifiant actuel',
+    steps: ['Cliquez sur Réinitialiser le mot de passe SIP ci-dessous — vous obtenez un nouveau mot de passe pour l’identifiant actuel.', 'Dans votre application SIP, remplacez l’identifiant et le mot de passe par ceux affichés.', 'Gardez le serveur exactement comme indiqué dans l’onglet SIP, puis enregistrez. L’application doit afficher Enregistré.'],
+    cta: 'Réinitialiser le mot de passe SIP', ps: 'Nous n’envoyons jamais de mot de passe par e-mail — ils ne s’affichent que dans votre compte.',
+  },
   renewFailed: {
     subject: (d) => `Urgent : ${d.phone} n’a pas pu être renouvelé — 24 h pour régler ça`,
     preheader: () => 'Rechargez sous 24 heures pour garder votre numéro.',
@@ -487,6 +505,15 @@ const es = {
     ok: { subject: (d, f) => `Aviso: ${d.phone} se renueva el ${f.date(d.expiresAt)}`, title: 'Tu renovación está lista.', intro: (d, f) => `${d.phone} se renueva automáticamente el ${f.date(d.expiresAt)} por ${f.usd(d.price)}. Tu billetera tiene ${f.usd(d.balance)}, así que no tienes que hacer nada.`, cta: 'Ver facturación' },
     short: { subject: (d, f) => `Acción necesaria: añade ${f.usd(d.shortfall)} para conservar ${d.phone}`, title: 'Recarga para conservar tu número.', intro: (d, f) => `${d.phone} se renueva el ${f.date(d.expiresAt)} por ${f.usd(d.price)}, pero tu billetera solo tiene ${f.usd(d.balance)}. Añade al menos ${f.usd(d.shortfall)} para que tu número, su configuración y su historial sigan siendo tuyos.`, cta: 'Añadir fondos' },
     manual: { subject: (d, f) => `${d.phone} vence el ${f.date(d.expiresAt)}`, title: 'No dejes escapar tu número.', intro: (d, f) => `La renovación automática está desactivada para ${d.phone}, así que vence el ${f.date(d.expiresAt)}. Renuévalo ahora por ${f.usd(d.price)} — o activa la renovación automática y olvídate.`, cta: 'Renovar ahora' },
+  },
+  sipOldLogin: {
+    subject: (d) => `Tu app SIP usa un acceso antiguo para ${d.phone}`,
+    preheader: (d) => `Usa ${d.current} — el acceso antiguo ${d.old} ya no funciona.`,
+    eyebrow: 'Acceso SIP cambiado', title: () => 'Tu app necesita el acceso actual.',
+    intro: (d, f) => `Una app inició sesión por última vez en ${d.phone} el ${f.date(d.lastAt)} con el usuario ${d.old}. Ese acceso fue reemplazado y ya no funciona, así que la app muestra “unauthorized” o “no registrado” y las llamadas no pueden sonar en ella.`,
+    oldLabel: 'Usuario antiguo (dejó de funcionar)', newLabel: 'Usuario actual',
+    steps: ['Haz clic en Restablecer contraseña SIP abajo — recibes una contraseña nueva para el usuario actual.', 'En tu app SIP, cambia el usuario y la contraseña por los que se muestran.', 'Deja el servidor exactamente como aparece en la pestaña SIP y guarda. La app debe decir Registrado.'],
+    cta: 'Restablecer contraseña SIP', ps: 'Nunca enviamos contraseñas por correo — solo se muestran dentro de tu cuenta.',
   },
   renewFailed: {
     subject: (d) => `Urgente: ${d.phone} no se pudo renovar — tienes 24 horas`,

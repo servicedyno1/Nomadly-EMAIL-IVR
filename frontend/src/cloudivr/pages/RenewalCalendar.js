@@ -5,6 +5,7 @@ import { enc, money, useApi } from '../api';
 import { PageHeader, ErrorNote, SkeletonPage, Empty } from '../ui';
 import { cp } from '../paths';
 import { usePrivacy } from '../privacy';
+import { CalendarSubscribe } from './wallet/CalendarSubscribe';
 
 const KIND = { plan: 'Plan', extra: 'Extra number', texting: 'Texting', esim: 'eSIM', fax: 'Fax' };
 const WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -118,6 +119,7 @@ export default function RenewalCalendar() {
             <p className="text-xs text-[var(--c-muted)] mt-4">Charges come from your wallet on the date shown. Later months are estimates from today’s prices. Turn auto-renew on or off under <Link to={cp('/app/wallet#renewals')} className="underline" data-testid="renewal-manage-link">Wallet → Renewals</Link>.</p>
           </div>
         </div>
+        <CalendarSubscribe />
       </>}
     </div>
   );

@@ -260,6 +260,12 @@ function createEmails(db, { log = console.log } = {}) {
     return jobs
   }
 
+  // A phone app still uses a SIP login that was replaced: one email per old login (Inbox notice comes from the sweep).
+  async function sipOldLogins() {
+    return (await require('../sip-old-login-sweep').candidates(db)).filter(c => isWebChatId(c.chatId))
+      .map(c => ({ chatId: c.chatId, type: 'sipOldLogin', key: `sipold:${c.old}`, data: async () => ({ phone: c.phone, old: c.old, current: c.current, lastAt: c.lastAt }) }))
+  }
+
   // Low / empty wallet: one email each time the balance drops a level (ok → low → empty); topping up resets it.
   async function walletLevels(nums) {
     const jobs = []
@@ -324,7 +330,7 @@ function createEmails(db, { log = console.log } = {}) {
       const nums = await webNumbers()
       const jobs = await events(from, nums)
       jobs.push(...(await textingSteps()))
-      if (ticks++ % 5 === 0) jobs.push(...numberStates(nums), ...(await walletShort(nums)), ...(await walletLevels(nums)), ...(await depositNudges()))
+      if (ticks++ % 5 === 0) jobs.push(...numberStates(nums), ...(await walletShort(nums)), ...(await walletLevels(nums)), ...(await depositNudges()), ...(await sipOldLogins()))
       return await run(jobs)
     } catch (e) { log(`[CloudIVR-Email] scan failed: ${e.message}`); return 0 } finally { busy = false }
   }
@@ -386,6 +392,7 @@ function createEmails(db, { log = console.log } = {}) {
       case 'renewed': return { phone, plan, planName, amount: price, expiresAt: n.expiresAt, balance }
       case 'upgraded': return { phone, from: 'pro', to: 'business', fromName: 'Pro', toName: 'Business', amount: 45 }
       case 'renewSoon': return { phone, planName, price, expiresAt: at(3 * DAY), autoRenew: !!n.autoRenew, balance, shortfall: round2(Math.max(0, price - balance)) }
+      case 'sipOldLogin': return { phone, old: 'cvoldlogin', current: n.telnyxSipUsername || n.sipUsername || 'cvk3x9p2qa', lastAt: at(-2 * DAY) }
       case 'renewFailed': return { phone, price, balance: round2(price / 3), shortfall: round2(price - price / 3), graceUntil: at(DAY) }
       case 'suspended': return { phone, planName, holdUntil: at(7 * DAY) }
       case 'topup': return { amount: 50, balance: Math.max(balance, 50) }

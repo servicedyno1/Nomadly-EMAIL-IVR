@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CallsFrom } from './SipCallerId';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ask } from '../../i18n';
 import { toast } from 'sonner';
 import { Copy, Eye, RefreshCw, Phone, PhoneOutgoing, Loader2, KeyRound, Activity, CheckCircle2, AlertTriangle } from 'lucide-react';
@@ -10,6 +10,7 @@ import { usePrivacy } from '../../privacy';
 import { cp } from '../../paths';
 import { ExtraSipLogins } from './ExtraSip';
 import { SipQr } from './SipQr';
+import { SipStatusBadge } from './SipStatusBadge';
 
 const copy = (v) => navigator.clipboard?.writeText(v).then(() => toast.success('Copied'));
 
@@ -81,12 +82,19 @@ export function SipCredentials({ num, prefix = 'sip', heading, className = 'lg:c
     try { const c = await api(`/numbers/${enc(num.phoneNumber)}/sip/reset`, { method: 'POST' }); setCreds({ ...creds, ...c }); toast.success('New SIP credentials ready'); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   const hide = pv.on;
+  const [params, setParams] = useSearchParams();
+  // Arrived from the "old SIP login" notice (?reset=1): offer the reset straight away, once.
+  React.useEffect(() => {
+    if (prefix !== 'sip' || params.get('reset') !== '1') return;
+    const p = new URLSearchParams(params); p.delete('reset'); setParams(p, { replace: true });
+    reset();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className={`civr-card p-6 ${className}`} data-testid={`${prefix}-credentials-card`}>
       <div className="flex items-start gap-3">
         <KeyRound className="w-5 h-5 text-[#818cf8] mt-1 shrink-0" />
         <div className="min-w-0">
-          <div className="font-display text-2xl font-bold">{heading || 'SIP credentials'}</div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2"><div className="font-display text-2xl font-bold">{heading || 'SIP credentials'}</div><SipStatusBadge num={num} prefix={prefix} /></div>
           <p className="text-sm text-[#a1a1aa] mt-1">Use these in any softphone (Zoiper, Linphone, MicroSIP) to call and receive calls on this number.</p>
         </div>
       </div>

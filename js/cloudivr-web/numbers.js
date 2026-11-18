@@ -958,6 +958,12 @@ function routes(router, deps) {
     res.json({ code: r.code, devices: r.devices, server: r.server, lastSeenAt: r.lastSeenAt, lastApp: r.lastApp, ...selftest.explain(r) })
   }))
 
+  // Live badge: is a phone app signed in to this number's SIP login right now?
+  router.get('/numbers/:phone/sip/status', withNumber(async (req, res) => {
+    if (!phoneConfig.canAccessFeature(req.num.plan, 'sipCredentials')) return gate(req, res, 'sipCredentials', 'SIP credentials')
+    res.json(await require('../sip-presence').status(db, req.num))
+  }))
+
   router.post('/numbers/:phone/sip/qr', withNumber(async (req, res) => {
     if (!phoneConfig.canAccessFeature(req.num.plan, 'sipCredentials')) return gate(req, res, 'sipCredentials', 'SIP credentials')
     await require('../sip-logins').ensure(phoneNumbersOf, req.webChatId, req.num)

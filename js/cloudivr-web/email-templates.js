@@ -74,6 +74,13 @@ const B = {
         + L.button(k.cta, href, v === 'ok' ? 'brand' : 'warn') }
   },
 
+  sipOldLogin: (d, c, f, x) => {
+    const k = c.sipOldLogin
+    return { ...head(k, d, f), t: 'warn',
+      body: P(k.intro(d, f)) + L.rows([{ k: c.labels.number, v: L.mono(d.phone), html: true }, { k: k.oldLabel, v: L.mono(d.old), html: true }, { k: k.newLabel, v: L.mono(d.current), html: true }])
+        + L.steps(k.steps) + L.button(k.cta, x.app(`/app/numbers/${enc(d.phone)}?tab=sip&reset=1`), 'warn') + L.small(L.esc(k.ps)) }
+  },
+
   renewFailed: (d, c, f, x) => ({ ...head(c.renewFailed, d, f), t: 'bad',
     body: P(c.renewFailed.intro(d, f)) + L.callout(L.esc(c.renewFailed.after), 'bad') + L.button(c.renewFailed.cta(d), x.app(`/app/wallet?need=${Math.ceil(d.shortfall)}`), 'bad') }),
 

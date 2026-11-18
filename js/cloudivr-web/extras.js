@@ -145,6 +145,9 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
 
   // ── Renewal calendar: every upcoming charge by date and what the wallet covers ──
   router.get('/renewals/calendar', h(async (req, res) => res.json(await require('../renewal-calendar').forAccount(db, req.webChatId))))
+  // Private live calendar link for Google / Apple calendars; reset makes the old link stop working.
+  router.get('/renewals/calendar/feed', h(async (req, res) => res.json(await require('../renewal-calendar').links(db, req.webChatId))))
+  router.post('/renewals/calendar/feed/reset', h(async (req, res) => res.json(await require('../renewal-calendar').links(db, req.webChatId, true))))
 
   // ── Downgrade: switch now, no refund; features the new plan lacks are turned off (same as the bot) ──
   router.post('/numbers/:phone/downgrade', withNumber(async (req, res) => {
