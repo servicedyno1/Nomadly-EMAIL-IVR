@@ -620,3 +620,9 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Home: one "Do this next" card (`pages/dashboard/NextStep.js`, `pickNextStep`).
 - Tested: /app/test_reports/iteration_320.json (all pass; full campaign save blocked by pre-existing BULK_IVR_MAINTENANCE default=true).
 - Open: nav has 5 groups vs user's "6 clear areas" choice — confirm with user.
+
+## 2026-11-18 — AI conversations merged into Campaigns (Emily-controlled)
+- Naming: outgoing = "AI conversation" campaigns; saved agents tab "AI conversations" under the Campaigns hub; inbound = "AI receptionist" (AI conversations on incoming calls). The "AI calling agents" tab under AI was removed.
+- New campaign → AI conversation: one Emily chat (`/assist/aicampaign`, js/cloudivr-web/assist.js) writes the agent and fills in who to call, caller ID, name, schedule. Form folded below (`pages/campaign/AiSetup.js`). Save creates a new agent (POST /ai-agents) or saves edits to the chosen agent (PUT), then the campaign. Receptionist agents are not offered for campaigns.
+- /app/ai-agents/new redirects to /app/campaigns/new?kind=ai; existing agents still open at /app/ai-agents/:id.
+- Tested: /app/test_reports/iteration_321.json (pass; campaign start blocked by the existing BULK_IVR_MAINTENANCE default).

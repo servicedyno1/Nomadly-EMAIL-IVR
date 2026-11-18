@@ -28,7 +28,8 @@ export function AiAssist({ f, setF, draft, setDraft, agents, numbers, lists }) {
     contactLists: lists.map(l => ({ id: l.id, name: l.name, count: l.count })),
   };
   const apply = ({ agentId, agentName, ...p }) => {
-    const ag = Object.fromEntries(Object.entries({ name: agentName, ...p }).filter(([k, v]) => AGENT_KEYS.includes(k) && v !== undefined));
+    // p.name is the campaign name; the agent's name comes from agentName only.
+    const ag = Object.fromEntries(Object.entries({ ...p, name: agentName }).filter(([k, v]) => AGENT_KEYS.includes(k) && v !== undefined));
     const camp = Object.fromEntries(Object.entries(p).filter(([k]) => CAMPAIGN_KEYS.includes(k)));
     const known = agentId === 'new' || agents.some(a => a.id === agentId);
     const switching = agentId !== undefined && known && agentId !== f.agentId;
@@ -88,7 +89,7 @@ const AiRules = () => (
 export function useAiSetup(on, f, setF, setDraft) {
   const { data: ag, reload } = useApi(on ? '/ai-agents' : null);
   const { data: li } = useApi(on ? '/contacts/lists' : null);
-  const agents = ag?.agents || [];
+  const agents = (ag?.agents || []).filter(a => a.role !== 'receptionist');
   useEffect(() => {
     if (!on || !ag || f.agentId) return;
     const first = agents[0];

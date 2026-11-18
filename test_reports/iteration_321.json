@@ -1,0 +1,42 @@
+{
+  "summary": "Tested the merged AI conversation campaigns, with Emily inside Campaigns. Backend pytest: 7/7 passed. Covered: agent create, GET and PUT with the full agent body; POST /campaigns mode ai (gives 428 permission_required without permissionConfirmed, then 503 bulk_maintenance — the default, intentional); invalid_agent; 401 when signed out; and one real Emily /assist/aicampaign call. UI passed: nav ('AI receptionist' only), Campaigns hub tabs (Campaigns / AI conversations / Live activity), /app/ai-agents title, label, button and Campaigns highlight, /ai-agents/new redirect, kind picker and ?kind=ai, Emily panel, fold and save bar, Chat/Manual switch, missing-field error (unfolds, outlines fields, no POST), Emily proposal → Fill in the form (agent fields + leads + callerId + name, select = New agent). Save with New agent: POST /ai-agents 201 → POST /campaigns 428 → permission dialog → 503 maintenance shown clearly. Saving again made no second agent (select switches to the created agent id). Existing agent with an edited script: PUT then POST, and the change was saved. Agent edit page: back link 'AI conversations', test talk works. Receptionist pages and header text OK. Ctrl+K palette entry OK. Recorded message kind: Emily first, fold, missing-field error. No 'AI calling agents' or 'AI assistants' text anywhere in the app. Found and fixed 1 bug: Emily's Fill in the form overwrote the agent name with the campaign name.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/campaigns (mode ai)", "issue": "AI conversation campaigns show the Bulk IVR maintenance message ('Bulk IVR is temporarily under maintenance... try bulk campaigns again later'). The plan/caller errors say 'AI agent campaigns'. Both clash with the new 'AI conversation' naming. js/cloudivr-web/calls.js createAiCampaign."},
+      {"endpoint": "assist.js SCREENS.aicampaign", "issue": "The LLM 'what' text still says 'an AI calling campaign', and Emily may repeat it. Emily also said 'concurrency 20' when the note sets the default to 5 (LLM following the prompt loosely)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AiAssist.apply (pages/campaign/AiSetup.js)", "issue": "FIXED: '{ name: agentName, ...p }' let p.name (the campaign name) overwrite the agent name. Fill in the form set Agent name to 'Missed Cleaning Rebooking' instead of 'Ava'. Changed to '{ ...p, name: agentName }'. Checked with a mocked assist reply: agent name = Ava, campaign name kept.", "selector": "[data-testid=aicampaign-agent-name-input]", "priority": "HIGH"},
+      {"component": "AgentPanel select / useAiSetup", "issue": "The campaign agent select and Emily's context list include receptionist-role (inbound) agents. For civr.uxtest the default selection is 'Receptionist' (newest, role=receptionist), and two 'Receptionist' options look the same. Editing it in a campaign PUTs changes to the inbound receptionist. /app/ai-agents already hides role 'receptionist'. Filter them here too (or at least don't default to one), and add a hint to tell same-name agents apart.", "selector": "[data-testid=campaign-ai-agent-select]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/app/campaigns/new (AI conversation)", "issues": ["After a failed save, the red outline on a field from the earlier missing-field error stays after the user fills it (campaign-leads-input stayed red with numbers in it)."]},
+      {"screen": "/app/campaigns hub", "issues": ["The page is titled 'Bulk campaigns', labelled 'MAKE CALLS · IVR', and the subtitle only covers recorded messages, though this hub now also creates AI conversation campaigns."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter321_ai_conversation_campaign.py", "/app/test_reports/pytest/iter321.xml"],
+  "action_items": [
+    "Exclude role==='receptionist' agents from the AI conversation campaign agent select, the default pick and the Emily context (or don't default to them)",
+    "Rename AI-campaign server messages: give mode ai its own maintenance text instead of 'Bulk IVR... bulk campaigns', and say 'AI conversation campaigns' instead of 'AI agent campaigns'. Also update the SCREENS.aicampaign 'what' text",
+    "Clear a field's missing-field outline once it is filled",
+    "Optional: update the Campaigns hub title/subtitle to cover AI conversation campaigns",
+    "Optional: remove the dead AiCampaignFields component in pages/ai/AiCampaignFields.js (unused; it still links to /ai-agents/new)"
+  ],
+  "critical_code_review_comments": [
+    "AiSetup.js apply(): the campaign and agent both use the key 'name'. This caused the overwrite bug (fixed). Keep agent keys and campaign keys strictly separate.",
+    "Campaigns.js create(): the PUT body spreads the whole saved agent (id, numbers, createdAt...) into the request. The backend accepts it (200), but sending only agentBody(draft) would be safer.",
+    "Campaigns.js create(): after the agent is created and the campaign POST fails, f.agentId is set to the new id, so re-saving reuses it. Verified: no duplicate agent.",
+    "AiCampaignFields.js: AiCampaignFields export is unused (only CampaignKind is imported)."
+  ],
+  "updated_files": ["/app/frontend/src/cloudivr/pages/campaign/AiSetup.js", "/app/backend/tests/test_iter321_ai_conversation_campaign.py"],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "~92% (1 bug fixed, 1 medium open)"},
+  "seed_data_creation": "Test agents created and then deleted by id: TEST_Ava (pytest) and 'Missed Cleaning Rebooking' (a274ac53, made in the UI) on Alice. Alice has 0 agents again. No campaigns were created (503 maintenance). The edited goal was only on the deleted agent.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "API prefix is /api/cloudivr-web. Login sets a cookie (POST /auth/login). POST /campaigns needs permissionConfirmed:true, otherwise 428. The UI then shows the permission-ask-dialog (permission-ask-checkbox, permission-ask-confirm-button). AI and recorded campaigns both give 503 bulk_maintenance by default (intentional). To test Emily without the LLM, route-mock /assist/aicampaign with {reply, patch, summary, missing}. Alice has no saved agents. civr.uxtest has 3 receptionist-role agents plus 'Sales AI'.",
+  "rca of the issue": "Agent name overwrite: in AiAssist.apply the object spread order '{ name: agentName, ...p }' let the campaign 'name' from Emily's patch replace agentName, because 'name' is in both AGENT_KEYS and CAMPAIGN_KEYS. Repro: send Emily a message that leads to a proposal with both agentName and name, then press Fill in the form → Agent name shows the campaign name. Fix: '{ ...p, name: agentName }' (undefined agentName gets filtered out)."
+}
