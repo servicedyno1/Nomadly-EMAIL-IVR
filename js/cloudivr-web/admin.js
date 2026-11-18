@@ -34,8 +34,8 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
     r.get('/admin/fax-sales', A, h(async (req, res) => res.json(await require('../fax-sales').report(db))))
     r.get('/admin/msg-watch', A, h(async (req, res) => res.json(await require('../msg-watch').status())))
     r.put('/admin/msg-watch', A, h(async (req, res) => res.json(await require('../msg-watch').setHold(req.body?.hold === true, 'web admin'))))
-    r.get('/admin/channel-posts', A, h(async (req, res) => res.json({ channel: require('../channel-ads').CHANNEL(), items: (await require('../channel-ads').recentPosts(20)).map(({ _id, ...x }) => ({ slot: _id, ...x })) })))
-    r.post('/admin/channel-posts/now', A, h(async (req, res) => res.json(await require('../channel-ads').postNow())))
+    r.get('/admin/channel-posts', A, h(async (req, res) => res.json({ targets: require('../channel-ads').targets(), items: (await require('../channel-ads').recentPosts(20)).map(({ _id, ...x }) => ({ slot: _id, ...x })) })))
+    r.post('/admin/channel-posts/now', A, h(async (req, res) => { const ca = require('../channel-ads'), chat = ca.targets().find(t => t.chat === req.body?.chat)?.chat; if (req.body?.chat && !chat) return res.status(400).json({ error: 'Unknown channel' }); ca.postNow(chat).catch(() => {}); res.json({ started: true, chat: chat || ca.targets()[0]?.chat }) }))
     r.get('/admin/emily-misuse', A, h(async (req, res) => res.json({ items: await require('../emily-guard').list({ limit: Number(req.query.limit) || 100 }) })))
     r.get('/admin/bird-spend', A, h(async (req, res) => res.json(await require('../bird-spend').status())))
     r.post('/admin/bird-spend/topup', A, h(async (req, res) => {

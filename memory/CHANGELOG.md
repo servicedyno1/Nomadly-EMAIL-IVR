@@ -3677,3 +3677,6 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Old-login sweep (js/sip-old-login-sweep.js, hourly in phone-scheduler): replaced logins seen in last 30 days whose owner hasn't signed in with the current login → once per old login: Telegram msg + `sipold:<phone>` reset button (bot), Inbox notice with Reset SIP password button (web), email type `sipOldLogin` (web). No passwords sent.
 - Private live calendar feed: GET /api/calendar/<token>.ics (calendarFeeds collection), web card on Renewal calendar (Google/Apple/copy/new link), bot calendar adds Google button + webcal link.
 - Tests: js/tests/test_sip_badge_sweep_feed.js 6/6; iteration_318 frontend pass (email steps blank bug fixed after).
+
+## 2026-11-18 — Channel posts: unique daily visuals + @Hostbay
+- New js/channel-ads-studio.js (live screens desktop+phone, AI artwork via owner OpenAI keys, live phone clips); js/channel-ads.js multi-channel + punchy captions; admin ChannelPosts with thumbnails + per-channel post-now. Removed static frontend/public/channel-ads, channel-ads-media.json, old python capture/frame scripts. Verified in preview: desk, duo, art, clip (local Chrome and Browserless) + admin simulated @Hostbay post. Real channel delivery not yet observed.

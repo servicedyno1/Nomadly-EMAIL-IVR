@@ -1,21 +1,20 @@
 'use strict'
-// Automatic CloudIVR posts to the Telegram channel (@CloudIVRNet) — 2 a day, real in-app screens and clips,
-// captions written by Emily. Runs only in the bot that is an admin of the channel (default @Nomadlybot).
+// Automatic CloudIVR posts to Telegram channels (@CloudIVRNet twice a day, @Hostbay once): every post gets
+// a new visual made on the spot (live screens desktop + phone, AI artwork, or a phone clip) and a punchy caption.
 const fs = require('fs')
-const path = require('path')
+const crypto = require('crypto')
 const axios = require('axios')
+const studio = require('./channel-ads-studio')
 
-const MEDIA = require('./channel-ads-media.json')
-const MEDIA_DIR = path.join(__dirname, '..', 'frontend', 'public', 'channel-ads')
-const CHANNEL = () => process.env.CHANNEL_ADS_CHAT || '@CloudIVRNet'
+const TARGETS = () => String(process.env.CHANNEL_ADS_TARGETS || '@CloudIVRNet=14:00,22:00;@Hostbay=18:00').split(';')
+  .map(s => { const [chat, slots = ''] = s.split('='); return { chat: chat.trim(), slots: slots.split(',').map(x => x.trim()).filter(Boolean) } })
+  .filter(t => t.chat && t.slots.length)
 const POSTER_BOT = () => String(process.env.CHANNEL_ADS_BOT || 'Nomadlybot').toLowerCase()
-const SLOTS_UTC = () => String(process.env.CHANNEL_ADS_SLOTS_UTC || '14:00,22:00').split(',').map(s => s.trim()).filter(Boolean)
 const SITE = () => String(process.env.CLOUDIVR_PUBLIC_URL || 'https://cloudivr.net').replace(/\/+$/, '')
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true' || process.env.CHANNEL_ADS_DRY_RUN === 'true'
 const PILLARS = ['how', 'feature', 'usecase', 'tip', 'new']
 const USE_CASES = ['dental or medical clinic', 'real estate agent', 'online shop', 'small call center', 'law office', 'restaurant taking bookings', 'home services (plumber, cleaner)', 'recruiting agency', 'freelancer or consultant', 'car dealership']
-const WHATS_NEW = ['Emily sets up menus, calls and campaigns just by chatting', 'AI conversation campaigns: an AI talks with each lead, then hands the interested ones to you', 'Free "Call me now" test call to hear your AI agent before going live', 'Ask Emily which plan fits your business', 'Live "signed in" badges for your softphones and desk phones', 'Renewal dates synced to Google or Apple Calendar', 'Number search answers in a second or two']
-const NEW_MEDIA = { 0: 'emily-ivr', 1: 'ai-campaign', 2: 'ai-campaign', 3: 'plan-pick', 4: 'sip', 5: 'renewals', 6: 'number-search' }
+const WHATS_NEW = [['Emily sets up menus, calls and campaigns just by chatting', 'landing-ai'], ['AI conversation campaigns: an AI talks with each lead, then hands the interested ones to you', 'ai-campaign'], ['Free "Call me now" test call to hear your AI agent before going live', 'ai-conversations'], ['Ask Emily which plan fits your business', 'pricing'], ['Live "signed in" badges for your softphones and desk phones', 'sip'], ['Renewal dates synced to Google or Apple Calendar', 'renewals'], ['Number search answers in a second or two', 'buy']]
 
 let col = null, token = null, log = console.log, timer = null, busy = false
 
@@ -27,79 +26,96 @@ function facts() {
   } catch (_) { return 'Plans from $50/month, month to month.' }
 }
 
-async function caption(pillar, media, extra) {
-  const brief = { how: `a 30-second "how it works" post built around this real screen: "${media.title}" — 3 short numbered steps`, feature: `a feature spotlight on: "${media.title}"`, usecase: `a use case for a ${extra} using CloudIVR — tie it to the screen "${media.title}"`, tip: `a practical tip or trick inside the CloudIVR app related to: "${media.title}"`, new: `a "What's new" post announcing: ${extra}` }[pillar]
-  const fallback = `<b>${media.title}</b>\n\n${pillar === 'new' ? `New in CloudIVR: ${extra}.` : 'Business numbers, keypad menus, AI receptionist and AI conversation campaigns — set up in minutes by chatting with Emily.'}\n\nMonth to month, from $50.`
-  if (!process.env.APP_OPEN_API_KEY) return fallback
-  try {
-    const r = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: process.env.AI_AGENT_DRAFT_MODEL || 'gpt-4.1-mini', temperature: 0.8, max_tokens: 400,
-      messages: [
-        { role: 'system', content: `You write posts for the CloudIVR Telegram channel (cloud phone system for businesses: virtual numbers, keypad menus, AI receptionist, AI conversation campaigns, softphones, texting, fax). Audience: channel subscribers — keep them engaged and curious. Style: friendly, concrete, skimmable, English, max 550 characters, at most 2 emoji, no hashtags, no links (a button is added). Use Telegram HTML only: <b>bold</b> for the first line (a hook) and nothing else. Never invent prices, numbers, customers or features beyond these facts: ${facts()} Mention Emily (the in-app setup assistant) when it fits. End with one short call to action.` },
-        { role: 'user', content: `Write ${brief}. The post shows a real screen / clip from the app.` },
-      ],
-    }, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` }, timeout: 25000 })
-    const t = String(r.data.choices[0].message.content || '').trim().replace(/<(?!\/?b>)[^>]*>/g, '')
-    return t.length > 40 ? t.slice(0, 1000) : fallback
-  } catch (e) { log(`[ChannelAds] caption fallback: ${e.message}`); return fallback }
-}
-
-// Next post: rotate the 5 kinds; pick the screen used least recently for that kind.
-async function plan() {
-  const n = await col.countDocuments({ status: { $in: ['posted', 'simulated'] } })
-  const pillar = PILLARS[n % PILLARS.length]
-  const recent = (await col.find({ status: { $in: ['posted', 'simulated'] } }).sort({ at: -1 }).limit(30).project({ mediaId: 1, extra: 1 }).toArray())
-  const lastUse = (id) => { const i = recent.findIndex(r => r.mediaId === id); return i < 0 ? 999 : i }
-  let extra = null, media
-  if (pillar === 'new') {
-    const idx = WHATS_NEW.map((_, i) => i).sort((a, b) => recent.filter(r => r.extra === WHATS_NEW[a]).length - recent.filter(r => r.extra === WHATS_NEW[b]).length || a - b)[0]
-    extra = WHATS_NEW[idx]; media = MEDIA.find(m => m.id === NEW_MEDIA[idx]) || MEDIA[0]
-  } else {
-    const pool = pillar === 'usecase' ? MEDIA.filter(m => m.pillar === 'feature') : MEDIA.filter(m => m.pillar === pillar)
-    media = [...(pool.length ? pool : MEDIA)].sort((a, b) => lastUse(b.id) - lastUse(a.id))[0]
-    if (pillar === 'usecase') extra = USE_CASES[n % USE_CASES.length]
+// Headline (also printed on the visual) + 1–2 short lines + an artwork scene, from the owner's OpenAI keys.
+async function caption(pillar, topic, extra) {
+  const brief = { how: `"how it works" — the screen: "${topic.title}"`, feature: `a feature spotlight on "${topic.title}"`, usecase: `why a ${extra} would use CloudIVR (screen: "${topic.title}")`, tip: `a quick tip about "${topic.title}"`, new: `"What's new": ${extra}` }[pillar]
+  const fallback = { headline: (pillar === 'new' ? extra : topic.title).slice(0, 70), line: 'Business numbers, keypad menus and AI calling — set up in minutes by chatting with Emily. From $50/month.', scene: `a small business owner relaxed while calls are handled for them, ${extra || topic.title}` }
+  const keys = [...new Set([process.env.APP_OPEN_API_KEY, process.env.OPEN_API_KEY].filter(Boolean))]
+  for (const key of keys) {
+    try {
+      const r = await axios.post('https://api.openai.com/v1/chat/completions', {
+        model: process.env.AI_AGENT_DRAFT_MODEL || 'gpt-4.1-mini', temperature: 0.9, max_tokens: 300, response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: `You write short ad posts for the CloudIVR Telegram channel (cloud phone system for businesses: virtual numbers, keypad menus, AI receptionist, AI conversation campaigns, softphones, texting, fax). English. Return JSON {"headline","line","scene"}. headline: punchy hook, max 7 words, no emoji, no trailing period. line: 1–2 short sentences, max 150 characters total, concrete benefit, may end with a tiny call to action, at most 1 emoji. scene: one sentence describing an illustration for this post (people/objects/mood, no text, no screens). Never invent prices, numbers, customers or features beyond: ${facts()} Mention Emily (the in-app setup assistant) only when it fits. No hashtags, no links.` },
+          { role: 'user', content: `Write ${brief}. Be fresh — avoid generic phrases like "game changer" or "revolutionize".` },
+        ],
+      }, { headers: { Authorization: `Bearer ${key}` }, timeout: 25000 })
+      const j = JSON.parse(r.data.choices[0].message.content)
+      const clean = (s, n) => String(s || '').replace(/<[^>]*>/g, '').trim().slice(0, n)
+      if (clean(j.headline, 80).length > 5 && clean(j.line, 220).length > 10) return { headline: clean(j.headline, 80).replace(/\.$/, ''), line: clean(j.line, 220), scene: clean(j.scene, 300) || fallback.scene }
+    } catch (e) { log(`[ChannelAds] caption attempt failed: ${e.message}`) }
   }
-  return { pillar, media, extra }
+  return fallback
 }
 
-async function send(media, text) {
-  const button = { inline_keyboard: [[{ text: 'Try CloudIVR', url: `${SITE()}/?utm_source=telegram&utm_medium=channel&utm_content=${media.id}` }]] }
-  const method = media.kind === 'video' ? 'sendVideo' : 'sendPhoto'
-  const field = media.kind === 'video' ? 'video' : 'photo'
-  const cached = (await col.findOne({ _id: `file:${media.id}` }))?.fileId
+const htmlText = (c) => `<b>${c.headline.replace(/[<>&]/g, '')}</b>\n${c.line.replace(/[<>&]/g, '')}`
+
+// Next post for a channel: rotate the 5 kinds, least-recently-used topic, random visual (clip / AI art / screens).
+async function plan(chat) {
+  const done = { chat, status: { $in: ['posted', 'simulated'] } }
+  const n = await col.countDocuments(done)
+  const ti = Math.max(0, TARGETS().findIndex(t => t.chat === chat))
+  const pillar = PILLARS[(n + ti * 2) % PILLARS.length]
+  const recent = await col.find({ status: { $in: ['posted', 'simulated'] } }).sort({ at: -1 }).limit(40).project({ topicId: 1, sig: 1 }).toArray()
+  const lastUse = (id) => { const i = recent.findIndex(r => r.topicId === id); return i < 0 ? 999 : i }
+  const r = crypto.randomInt(100)
+  const kind = r < 25 ? 'clip' : r < 55 ? 'art' : 'screen'
+  let extra = null, screen, clip = null
+  if (pillar === 'new') {
+    const [what, id] = WHATS_NEW[n % WHATS_NEW.length]
+    extra = what; screen = studio.SCREENS.find(s => s.id === id) || studio.SCREENS[0]
+  } else {
+    const pool = studio.SCREENS.filter(s => (pillar === 'usecase' ? ['usecase', 'feature'] : [pillar]).includes(s.pillar))
+    screen = [...pool].sort((a, b) => lastUse(b.id) - lastUse(a.id) || crypto.randomInt(3) - 1)[0]
+    if (pillar === 'usecase') extra = USE_CASES[(n + ti * 3) % USE_CASES.length]
+  }
+  if (kind === 'clip') clip = [...studio.CLIPS].sort((a, b) => lastUse(b.id) - lastUse(a.id))[0]
+  return { pillar, kind, screen, clip, extra, topic: clip || screen, recentSigs: new Set(recent.map(x => x.sig).filter(Boolean)) }
+}
+
+async function send(chat, media, text, topicId) {
+  const button = { inline_keyboard: [[{ text: 'Try CloudIVR', url: `${SITE()}/?utm_source=telegram&utm_medium=channel&utm_campaign=${encodeURIComponent(chat.replace('@', ''))}&utm_content=${topicId}` }]] }
+  const video = media.type === 'video'
   const fd = new FormData()
-  fd.append('chat_id', CHANNEL()); fd.append('caption', text); fd.append('parse_mode', 'HTML'); fd.append('reply_markup', JSON.stringify(button))
-  if (media.kind === 'video') fd.append('supports_streaming', 'true')
-  if (cached) fd.append(field, cached)
-  else fd.append(field, new Blob([fs.readFileSync(path.join(MEDIA_DIR, path.basename(media.file)))]), path.basename(media.file))
-  const r = await axios.post(`https://api.telegram.org/bot${token}/${method}`, fd, { timeout: 60000 })
-  const m = r.data.result
-  const fileId = media.kind === 'video' ? m.video?.file_id : m.photo?.[m.photo.length - 1]?.file_id
-  if (fileId && !cached) await col.updateOne({ _id: `file:${media.id}` }, { $set: { fileId } }, { upsert: true })
-  return m.message_id
+  fd.append('chat_id', chat); fd.append('caption', text); fd.append('parse_mode', 'HTML'); fd.append('reply_markup', JSON.stringify(button))
+  if (video) { fd.append('supports_streaming', 'true'); fd.append('width', '1080'); fd.append('height', '1350') }
+  fd.append(video ? 'video' : 'photo', new Blob([fs.readFileSync(media.file)]), video ? 'cloudivr.mp4' : 'cloudivr.jpg')
+  const r = await axios.post(`https://api.telegram.org/bot${token}/${video ? 'sendVideo' : 'sendPhoto'}`, fd, { timeout: 120000, maxBodyLength: Infinity })
+  return r.data.result.message_id
 }
 
-// Posts one (slotKey makes it once-only across the two app slots and restarts).
-async function postNow(slotKey = `manual:${Date.now()}`) {
-  try { await col.insertOne({ _id: slotKey, at: new Date(), status: 'claimed' }) } catch (e) { if (e.code === 11000) return { skipped: 'already posted' }; throw e }
+const sigOf = (topicId, v) => `${topicId}|${v.layout}|${v.theme}|${v.font}`
+
+// Posts one (slotKey makes it once-only across the app slots and restarts).
+async function postNow(chat = TARGETS()[0]?.chat, slotKey = `manual:${chat}:${Date.now()}`) {
+  try { await col.insertOne({ _id: slotKey, chat, at: new Date(), status: 'claimed' }) } catch (e) { if (e.code === 11000) return { skipped: 'already posted' }; throw e }
+  let media = null
   try {
-    const { pillar, media, extra } = await plan()
-    const text = await caption(pillar, media, extra)
-    if (dryRun()) {
-      await col.updateOne({ _id: slotKey }, { $set: { status: 'simulated', pillar, mediaId: media.id, extra, text } })
-      log(`[ChannelAds] (preview) would post ${pillar}/${media.id} to ${CHANNEL()}`)
-      return { simulated: true, pillar, mediaId: media.id, text }
+    const p = await plan(chat)
+    const cap = await caption(p.pillar, p.topic, p.extra)
+    for (let i = 0; i < 4; i++) {
+      media = await studio.make({ kind: p.kind, screen: p.screen, clip: p.clip, headline: cap.headline, sub: cap.line, scene: cap.scene })
+      if (media.type === 'video' || media.v.layout === 'art' || !p.recentSigs.has(sigOf(p.screen.id, media.v))) break
+      fs.rmSync(media.file, { force: true })
     }
-    const messageId = await send(media, text)
-    await col.updateOne({ _id: slotKey }, { $set: { status: 'posted', pillar, mediaId: media.id, extra, text, messageId } })
-    log(`[ChannelAds] posted ${pillar}/${media.id} to ${CHANNEL()} (#${messageId})`)
-    return { posted: true, pillar, mediaId: media.id, messageId }
+    const topicId = media.type === 'video' ? p.clip.id : p.screen.id
+    const text = htmlText(cap)
+    const rec = { chat, pillar: p.pillar, topicId, mediaId: topicId, visual: media.type === 'video' ? 'clip' : media.v.layout, live: media.live, fallback: media.v.fallback || null, sig: sigOf(topicId, media.v), extra: p.extra, text, thumb: media.thumb.toString('base64') }
+    if (dryRun()) {
+      await col.updateOne({ _id: slotKey }, { $set: { status: 'simulated', ...rec } })
+      log(`[ChannelAds] (preview) would post ${p.pillar}/${topicId} (${rec.visual}) to ${chat}`)
+      return { simulated: true, chat, pillar: p.pillar, topicId, visual: rec.visual, text }
+    }
+    const messageId = await send(chat, media, text, topicId)
+    await col.updateOne({ _id: slotKey }, { $set: { status: 'posted', ...rec, messageId } })
+    log(`[ChannelAds] posted ${p.pillar}/${topicId} (${rec.visual}) to ${chat} (#${messageId})`)
+    return { posted: true, chat, pillar: p.pillar, topicId, visual: rec.visual, messageId }
   } catch (e) {
     const msg = e.response?.data?.description || e.message
     await col.updateOne({ _id: slotKey }, { $set: { status: 'failed', error: msg } }).catch(() => {})
-    log(`[ChannelAds] post failed: ${msg}`)
+    log(`[ChannelAds] post to ${chat} failed: ${msg}`)
     return { error: msg }
-  }
+  } finally { if (media?.file) fs.rmSync(media.file, { force: true }) }
 }
 
 async function tick() {
@@ -107,11 +123,14 @@ async function tick() {
   busy = true
   try {
     const now = new Date(), day = now.toISOString().slice(0, 10)
-    for (const hm of SLOTS_UTC()) {
-      const [h, m] = hm.split(':').map(Number)
-      const at = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m || 0)
-      // Due and not more than 3 h late (a long outage skips the slot instead of double posting later).
-      if (now >= at && now - at < 3 * 3600e3 && !(await col.findOne({ _id: `${day}T${hm}` }))) await postNow(`${day}T${hm}`)
+    for (const { chat, slots } of TARGETS()) {
+      for (const hm of slots) {
+        const [h, m] = hm.split(':').map(Number)
+        const at = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m || 0)
+        const key = chat === '@CloudIVRNet' ? `${day}T${hm}` : `${chat}:${day}T${hm}`
+        // Due and not more than 3 h late (a long outage skips the slot instead of double posting later).
+        if (now >= at && now - at < 3 * 3600e3 && !(await col.findOne({ _id: key }))) await postNow(chat, key)
+      }
     }
   } catch (e) { log(`[ChannelAds] tick error: ${e.message}`) } finally { busy = false }
 }
@@ -124,7 +143,7 @@ async function init({ db, bot, logger } = {}) {
   let me = null
   try { me = (await axios.get(`https://api.telegram.org/bot${token}/getMe`, { timeout: 15000 })).data.result } catch (_) { /* offline */ }
   if (!dryRun() && String(me?.username || '').toLowerCase() !== POSTER_BOT()) return false
-  log(`[ChannelAds] ${dryRun() ? 'preview (simulated)' : 'live'} — ${CHANNEL()} at ${SLOTS_UTC().join(' & ')} UTC via @${me?.username || '?'}`)
+  log(`[ChannelAds] ${dryRun() ? 'preview (simulated)' : 'live'} — ${TARGETS().map(t => `${t.chat} at ${t.slots.join(' & ')}`).join('; ')} UTC via @${me?.username || '?'}`)
   if (timer) clearInterval(timer)
   timer = setInterval(tick, 5 * 60000); timer.unref?.()
   setTimeout(tick, 60000).unref?.()
@@ -132,5 +151,6 @@ async function init({ db, bot, logger } = {}) {
 }
 
 const recentPosts = (limit = 20) => (col ? col.find({ _id: { $not: /^file:/ } }).sort({ at: -1 }).limit(limit).toArray() : [])
+const targets = () => TARGETS()
 
-module.exports = { init, postNow, tick, plan, caption, recentPosts, MEDIA, CHANNEL }
+module.exports = { init, postNow, tick, plan, caption, recentPosts, targets }
