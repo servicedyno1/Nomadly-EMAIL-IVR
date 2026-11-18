@@ -64,9 +64,9 @@ const num = (phone, user, extra = {}) => ({ phoneNumber: phone, plan: 'pro', pla
       assert.strictEqual(await sweep.run({ db, bot: fake, now: new Date(now.getTime() + DAY), log: () => {} }), 0)
     })
     await t('feed: same private link until reset; old token stops working; unknown token → null', async () => {
-      process.env.SELF_URL = 'https://example.test/api'
+      process.env.CLOUDIVR_PUBLIC_URL = 'https://example.test'
       const a = await cal.links(db, bot), b = await cal.links(db, bot)
-      assert.strictEqual(a.url, b.url); assert.match(a.webcal, /^webcal:\/\/example\.test\/api\/calendar\/[a-f0-9]{48}\.ics$/); assert.match(a.google, /^https:\/\/calendar\.google\.com\//)
+      assert.strictEqual(a.url, b.url); assert.match(a.webcal, /^webcal:\/\/example\.test\/api\/cloudivr-web\/public\/calendar\/[a-f0-9]{48}\.ics$/); assert.match(a.google, /^https:\/\/calendar\.google\.com\//)
       const token = a.url.match(/([a-f0-9]{48})\.ics$/)[1]
       const ics = await cal.feed(db, token, now)
       assert.match(ics, /^BEGIN:VCALENDAR\r\n/); assert.match(ics, /BEGIN:VEVENT/); assert.match(ics, /DTSTART;VALUE=DATE:20261211/)

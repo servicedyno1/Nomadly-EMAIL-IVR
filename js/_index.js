@@ -6185,22 +6185,22 @@ async function sendDay12UpgradeCreditNudges() {
           // Localized message bodies.
           const bodyByLang = {
             en: `🛡️ <b>2 days left on your upgrade credit</b>\n\n` +
-                `Your <b>${num.plan.charAt(0).toUpperCase() + num.plan.slice(1)}</b> plan on ${phoneLabel} is 12 days old. You still have <b>2 days</b> to upgrade with the 25% credit.\n\n` +
+                `Your <b>${phoneConfig.plans[num.plan]?.name || num.plan}</b> plan on ${phoneLabel} is 12 days old. You still have <b>2 days</b> to upgrade with the 25% credit.\n\n` +
                 `Upgrade to <b>${targetLabel}</b> now for <b>$${quote.chargeAmount.toFixed(2)}</b> ` +
                 `(would be $${quote.newPrice} after the credit expires).\n\n` +
                 `<i>Open the number from 📞 Cloud IVR + SIP → 📋 My Plans and tap ⬆️ Upgrade to ${targetLabel}.</i>`,
             fr: `🛡️ <b>Plus que 2 jours pour votre crédit de surclassement</b>\n\n` +
-                `Votre forfait <b>${num.plan.charAt(0).toUpperCase() + num.plan.slice(1)}</b> sur ${phoneLabel} a 12 jours. Il vous reste <b>2 jours</b> pour passer à un forfait supérieur avec un crédit de 25 %.\n\n` +
+                `Votre forfait <b>${phoneConfig.plans[num.plan]?.name || num.plan}</b> sur ${phoneLabel} a 12 jours. Il vous reste <b>2 jours</b> pour passer à un forfait supérieur avec un crédit de 25 %.\n\n` +
                 `Passez à <b>${targetLabel}</b> maintenant pour <b>$${quote.chargeAmount.toFixed(2)}</b> ` +
                 `(ce sera $${quote.newPrice} après l'expiration du crédit).\n\n` +
                 `<i>Ouvrez le numéro depuis 📞 Cloud IVR + SIP → 📋 Mes Forfaits et appuyez sur ⬆️ Passer à ${targetLabel}.</i>`,
             zh: `🛡️ <b>升级抵扣还剩 2 天</b>\n\n` +
-                `您在 ${phoneLabel} 上的 <b>${num.plan === 'starter' ? '入门版' : '专业版'}</b> 套餐已使用 12 天。您还有 <b>2 天</b> 可享 25% 抵扣升级。\n\n` +
+                `您在 ${phoneLabel} 上的 <b>${num.plan === 'starter' ? '基础版' : num.plan === 'standard' ? 'Plus版' : '专业版'}</b> 套餐已使用 12 天。您还有 <b>2 天</b> 可享 25% 抵扣升级。\n\n` +
                 `立即升级到 <b>${nextUp === 'pro' ? '专业版' : '商务版'}</b>，仅需 <b>$${quote.chargeAmount.toFixed(2)}</b> ` +
                 `（抵扣到期后为 $${quote.newPrice}）。\n\n` +
                 `<i>打开号码：📞 Cloud IVR + SIP → 📋 我的套餐，点击 ⬆️ 升级到${nextUp === 'pro' ? '专业版' : '商务版'}。</i>`,
             hi: `🛡️ <b>आपके अपग्रेड क्रेडिट के 2 दिन शेष</b>\n\n` +
-                `${phoneLabel} पर आपका <b>${num.plan === 'starter' ? 'स्टार्टर' : 'प्रो'}</b> प्लान 12 दिन का हो गया है। 25% क्रेडिट के साथ अपग्रेड करने के लिए आपके पास <b>2 दिन</b> शेष हैं।\n\n` +
+                `${phoneLabel} पर आपका <b>${num.plan === 'starter' ? 'बेसिक' : num.plan === 'standard' ? 'Plus' : 'प्रो'}</b> प्लान 12 दिन का हो गया है। 25% क्रेडिट के साथ अपग्रेड करने के लिए आपके पास <b>2 दिन</b> शेष हैं।\n\n` +
                 `अभी <b>${nextUp === 'pro' ? 'प्रो' : 'बिज़नेस'}</b> में अपग्रेड करें — केवल <b>$${quote.chargeAmount.toFixed(2)}</b> ` +
                 `(क्रेडिट समाप्त होने के बाद $${quote.newPrice} होगा)।\n\n` +
                 `<i>नंबर खोलें: 📞 Cloud IVR + SIP → 📋 मेरे प्लान्स और ⬆️ ${nextUp === 'pro' ? 'प्रो' : 'बिज़नेस'} में अपग्रेड करें टैप करें।</i>`,
@@ -36062,8 +36062,8 @@ Select a category:`), k.of(catBtns))
       const verb = (k) => rank.indexOf(k) > rank.indexOf(currentPlan) ? 'Upgrade' : 'Downgrade'
       if (currentPlan !== 'starter' && phoneConfig.isPlanAvailable('starter')) btns.push([`💡 Downgrade to Basic — $${phoneConfig.PHONE_STARTER_PRICE}/mo`])
       if (currentPlan !== 'starter' && !phoneConfig.isPlanAvailable('starter')) btns.push([`💡 Basic — Coming Soon 🔜`])
-      if (currentPlan !== 'standard' && phoneConfig.isPlanAvailable('standard')) btns.push([`🧩 ${verb('standard')} to Starter — $${phoneConfig.PHONE_STANDARD_PRICE}/mo`])
-      if (currentPlan !== 'standard' && !phoneConfig.isPlanAvailable('standard')) btns.push([`🧩 Starter — Coming Soon 🔜`])
+      if (currentPlan !== 'standard' && phoneConfig.isPlanAvailable('standard')) btns.push([`🧩 ${verb('standard')} to Plus — $${phoneConfig.PHONE_STANDARD_PRICE}/mo`])
+      if (currentPlan !== 'standard' && !phoneConfig.isPlanAvailable('standard')) btns.push([`🧩 Plus — Coming Soon 🔜`])
       if (currentPlan !== 'pro' && phoneConfig.isPlanAvailable('pro')) btns.push([`⭐ ${verb('pro')} to Pro — $${phoneConfig.PHONE_PRO_PRICE}/mo`])
       if (currentPlan !== 'pro' && !phoneConfig.isPlanAvailable('pro')) btns.push([`⭐ Pro — Coming Soon 🔜`])
       if (currentPlan !== 'business' && phoneConfig.isPlanAvailable('business')) btns.push([`👑 Upgrade to Business — $${phoneConfig.PHONE_BUSINESS_PRICE}/mo`])
