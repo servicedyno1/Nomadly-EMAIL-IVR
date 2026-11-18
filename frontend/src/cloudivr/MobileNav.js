@@ -10,9 +10,9 @@ import { LangSwitcher, useLang } from './i18n';
 import { cp } from './paths';
 import { confirmLeave } from './guard';
 
-const SHORT = { 'nav-dashboard': 'Home', 'nav-numbers': 'Numbers', 'nav-messages': 'Messages', 'nav-wallet': 'Wallet' };
+const SHORT = { 'nav-dashboard': 'Home', 'nav-numbers': 'Numbers', 'nav-messages': 'Inbox', 'nav-wallet': 'Wallet' };
 // Tab labels whose translation is too long for a 5-column phone bar.
-const NARROW = { fr: { 'nav-messages': 'Messages' }, es: { 'nav-messages': 'Mensajes' } };
+const NARROW = {};
 const MAIN = ['nav-dashboard', 'nav-numbers', 'nav-messages', 'nav-wallet'].map(id => SIDE_ITEMS.find(x => x[3] === id));
 // "More" sheet: everything not on the bar, under the same group headings as the desktop menu.
 const MORE_GROUPS = NAV.map(([gid, label, items]) => [gid, label, items.filter(([, , , id]) => !SHORT[id])]).filter(g => g[2].length);

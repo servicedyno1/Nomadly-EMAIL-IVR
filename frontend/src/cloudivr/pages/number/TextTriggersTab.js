@@ -7,6 +7,7 @@ import { useUnsaved, SaveRow } from '../../guard';
 import { RuleCard, TryText, RunsList, ACTIONS } from './TriggerParts';
 import { TextingOffNote, numContext } from './SettingsTabs';
 import { Assist } from '../../Assist';
+import { FormFold } from '../../Emily';
 
 const LABELS = { myPhone: 'Your phone', rules: 'Triggers' };
 const EXAMPLES = ['When someone texts “quote”, ring me at +14155550100 so I can call them back', 'Outside business hours, call them and say we’ll reply in the morning', 'Only once per hour per person'];
@@ -52,6 +53,7 @@ function Editor({ num, data, reload, onDirty }) {
       <Assist screen="triggers" hello="Tell me what should happen when someone texts this number — I’ll set up the triggers." examples={EXAMPLES} labels={LABELS} testid="triggers-assist" context={numContext(num, { hoursScheduleOn: !!data.hours?.enabled, canAi: !!data.canAi, agents: data.agents?.length || 0 })}
         current={{ myPhone: f.myPhone, rules: f.rules.map(({ _k, id, agentId, showAs, enabled, ...r }) => r) }}
         onApply={({ rules, ...p }) => { u.touch(); setF(x => ({ ...x, ...p, ...(rules ? { rules: mergeRules(x.rules, rules) } : {}) })); }} />
+      <FormFold screen="triggers" open={f.rules.length > 0}>
       <Field label="Your phone" hint={needsPhone ? 'Auto Callback rings this phone first, then connects you to the person who texted.' : 'Used by Auto Callback. Include the country code.'}>
         <input className="civr-input font-mono" value={f.myPhone} onChange={e => setF({ ...f, myPhone: e.target.value })} placeholder="+14155550100" data-testid="triggers-my-phone-input" />
       </Field>
@@ -64,6 +66,7 @@ function Editor({ num, data, reload, onDirty }) {
           {ACTIONS.map(([k, label]) => <button key={k} type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => add(k)} data-testid={`triggers-add-${k}`}><Plus className="w-4 h-4" />{label}</button>)}
         </div>
       )}
+      </FormFold>
       <p className="text-xs text-[#a1a1aa]" data-testid="triggers-cost-note">Calls are paid from your wallet. Nothing runs if your wallet is below $1.</p>
       <SaveRow dirty={u.dirty} testid="triggers-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={save} data-testid="triggers-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save Text Triggers</button></SaveRow>
     </div>

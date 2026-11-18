@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Loader2, RotateCcw, Send, Sparkles, Undo2, Check, MessageSquare, SlidersHorizontal, Wand2 } from 'lucide-react';
+import { Loader2, RotateCcw, Send, Undo2, Check, MessageSquare, SlidersHorizontal, Wand2 } from 'lucide-react';
 import { api } from './api';
+import { EmilyFace, emilyEvent, useEmilyMode } from './Emily';
 
 const pick = (obj, keys) => Object.fromEntries(keys.map(k => [k, obj?.[k]]));
-const modeKey = (screen) => `civr-assist-mode-${screen}`;
 const YES = /^\s*(yes|yep|yeah|yup|sure|ok(ay)?|do it|go ahead|apply( it)?|fill( it)? in|looks good|perfect|great|confirm(ed)?|please do|sounds good)\b[\s.!]*$/i;
 const DONE = (action) => `Done — I’ve filled in the form below. Check it, then press ${action}. Want to change anything?`;
 const norm = (v) => (Array.isArray(v) && v.every(x => typeof x === 'string') ? v.filter(Boolean).join(', ') : v ?? '');
@@ -55,7 +55,7 @@ function ModeSwitch({ mode, setMode, prefix }) {
 // screen: backend schema id · current: form values · context: facts about the account · onApply(patch): merge into the form.
 export function Assist({ screen, title, hello, examples = [], current, context, onApply, labels = {}, testid, saveLabel = 'Save' }) {
   const prefix = testid || `assist-${screen}`;
-  const [mode, setModeState] = useState(() => localStorage.getItem(modeKey(screen)) || 'chat');
+  const [mode, setMode] = useEmilyMode(screen);
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -63,13 +63,13 @@ export function Assist({ screen, title, hello, examples = [], current, context, 
   const box = useRef(null);
   const input = useRef(null);
   useEffect(() => { if (box.current) box.current.scrollTop = box.current.scrollHeight; }, [msgs, busy]);
-  const setMode = (m) => { localStorage.setItem(modeKey(screen), m); setModeState(m); };
   const pendingAt = msgs.findIndex(m => m.proposal && !m.applied && !m.stale);
 
   const apply = (i, extra = []) => {
     const m = msgs[i];
     setUndo({ at: i, before: pick(current, Object.keys(m.proposal)) });
     onApply(m.proposal);
+    emilyEvent('applied', screen);
     setMsgs([...msgs.map((x, j) => (j === i ? { ...x, applied: true } : x)), ...extra, { role: 'assistant', content: DONE(saveLabel) }]);
   };
   const send = async (raw) => {
@@ -94,10 +94,10 @@ export function Assist({ screen, title, hello, examples = [], current, context, 
   return (
     <section className="civr-assist" data-testid={prefix}>
       <div className="flex flex-wrap items-center gap-3 px-4 py-3">
-        <span className="shrink-0 w-8 h-8 rounded-xl civr-assist-icon grid place-items-center"><Sparkles className="w-4 h-4" /></span>
+        <EmilyFace />
         <div className="flex-1 min-w-[12rem]">
-          <div className="text-sm font-semibold">{title || 'Set this up by chatting'}</div>
-          <div className="text-xs civr-assist-sub" data-testid={`${prefix}-mode-note`}>{mode === 'chat' ? `I ask a few questions, suggest a setup and fill in the form once you agree. Nothing happens until you press ${saveLabel}.` : 'You’re setting this up by hand below. Switch to Chat any time — your entries are kept.'}</div>
+          <div className="text-sm font-semibold" data-testid={`${prefix}-title`}><span className="civr-assist-link">Emily</span> · {title || 'Set this up by chatting'}</div>
+          <div className="text-xs civr-assist-sub" data-testid={`${prefix}-mode-note`}>{mode === 'chat' ? `I ask a few questions, suggest a setup and fill in the form once you agree. Nothing happens until you press ${saveLabel}.` : 'You’re setting this up by hand below. Switch to Chat any time and Emily picks up from your entries.'}</div>
         </div>
         {mode === 'chat' && msgs.length > 0 && <button type="button" onClick={restart} className="civr-btn civr-btn-ghost civr-btn-sm !px-2" aria-label="Start over" title="Start over" data-testid={`${prefix}-restart`}><RotateCcw className="w-4 h-4" /></button>}
         <ModeSwitch mode={mode} setMode={setMode} prefix={prefix} />

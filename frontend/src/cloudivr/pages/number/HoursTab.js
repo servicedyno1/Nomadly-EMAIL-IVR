@@ -5,6 +5,7 @@ import { Field, Toggle } from '../../ui';
 import { useUnsaved, SaveRow } from '../../guard';
 import { numContext } from './SettingsTabs';
 import { Assist } from '../../Assist';
+import { FormFold } from '../../Emily';
 
 const LABELS = { timezone: 'Time zone', days: 'Opening hours', offAction: 'When closed', offForward: 'Backup numbers', offMessage: 'Closed message' };
 const EXAMPLES = ['Open 9 to 5 weekdays, 10 to 2 on Saturday, closed Sunday', 'We’re in Chicago', 'When closed, play a message saying we reopen at 9am'];
@@ -72,6 +73,7 @@ export default function HoursTab({ num, reload }) {
           current={{ timezone: f.timezone, days: f.days, offAction, offForward: f.offForward, offMessage: f.offMessage }}
           onApply={({ days, ...p }) => { u.touch(); setF(x => ({ ...x, ...p, ...(days ? { days: Object.fromEntries(Object.entries(x.days).map(([k, d]) => [k, days[k] ? { ...d, ...days[k] } : d])) } : {}) })); }} />
         <div className="flex items-center justify-between gap-4"><span className="text-sm">Use a weekly schedule</span><Toggle checked={!!saved.enabled} disabled={busy} onChange={v => put(v, v ? 'Weekly schedule turned on' : 'Weekly schedule turned off')} testid="hours-enabled-toggle" label="Use a weekly schedule" /></div>
+        <FormFold screen="hours" open={!!saved.enabled}>
         <Field label="Time zone">
           <select className="civr-input" value={f.timezone} onChange={e => setF({ ...f, timezone: e.target.value })} data-testid="hours-timezone-select">
             {zones.map(z => <option key={z} value={z}>{z.replace(/_/g, ' ')}</option>)}
@@ -95,6 +97,7 @@ export default function HoursTab({ num, reload }) {
         <Field label="Closed message (optional)" hint={`${f.offMessage.length}/500 · Leave empty for the standard message in your voicemail language (Voicemail tab).`}>
           <textarea rows={3} maxLength={500} className="civr-input" value={f.offMessage} onChange={e => setF({ ...f, offMessage: e.target.value })} placeholder="Thanks for calling. We’re closed right now — please call back between 9am and 5pm." data-testid="hours-off-message-input" />
         </Field>
+        </FormFold>
         <SaveRow dirty={u.dirty} testid="hours-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={() => put(!!saved.enabled, 'Hours saved')} data-testid="hours-save-button">Save hours</button></SaveRow>
       </div>
     </div>

@@ -1,49 +1,66 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Loader2, Send, Sparkles } from 'lucide-react';
+import { Loader2, Send, Check } from 'lucide-react';
 import { api } from '../../api';
+import { EmilyFace, emilyEvent } from '../../Emily';
 
 const HELLO = (rec) => (rec
-  ? 'Hi! Tell me about your business and how calls should be answered, e.g. "a receptionist for a dental clinic that books cleanings". I’ll fill in the form as we go.'
-  : 'Hi! Tell me who the agent calls and why, e.g. "call new leads to book a free consultation". I’ll fill in the form as we go.');
+  ? 'Hi, I’m Emily. Tell me about your business and how calls should be answered — I’ll write the greeting, the answers and the hours for you.'
+  : 'Hi, I’m Emily. Tell me who the agent calls and why — I’ll write the opening line and the script for you.');
+const EXAMPLES = (rec) => (rec
+  ? ['A receptionist for a dental clinic that books cleanings', 'Answer for my plumbing business, take messages after 6pm', 'Greet callers in Spanish and English']
+  : ['Call new leads to book a free consultation', 'Remind customers about tomorrow’s appointment', 'Follow up on quotes we sent last week']);
+const LABELS = { name: 'Name', businessName: 'Business', language: 'Language', voice: 'Voice', goal: 'Script', firstMessage: 'Opening line', knowledge: 'FAQs', transferTo: 'Transfer', takeMessages: 'Messages', hours: 'Hours', booking: 'Booking', keys: 'Keys', speed: 'Speed', maxMinutes: 'Call length', record: 'Recording', discloseAi: 'AI notice', waitForHello: 'Wait for hello', holdMusic: 'Hold music' };
+export const AGENT_SCREEN = 'agent';
 
-// Chat with our AI to set up the agent; each answer updates the form next to it (saved only with Save).
+// Emily builds the agent: each answer updates the form under her (saved only with Save).
 export function BuilderChat({ rec, f, onPatch }) {
-  const [msgs, setMsgs] = useState([{ role: 'assistant', content: HELLO(rec) }]);
+  const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
-  const end = useRef(null);
-  useEffect(() => { end.current?.scrollIntoView({ block: 'nearest' }); }, [msgs, busy]);
-  const send = async (e) => {
-    e?.preventDefault();
-    const t = text.trim();
+  const box = useRef(null);
+  useEffect(() => { if (box.current) box.current.scrollTop = box.current.scrollHeight; }, [msgs, busy]);
+  const send = async (raw) => {
+    const t = String(raw ?? text).trim();
     if (!t || busy) return;
     const next = [...msgs, { role: 'user', content: t }];
     setMsgs(next); setText(''); setBusy(true);
     try {
       const { keys, ...cur } = f;
-      const d = await api('/ai-agents/builder-chat', { method: 'POST', body: { messages: next.slice(1), current: { ...cur, keys }, role: rec ? 'receptionist' : 'agent' } });
-      if (d.patch && Object.keys(d.patch).length) onPatch(d.patch);
-      setMsgs(m => [...m, { role: 'assistant', content: d.reply, changed: Object.keys(d.patch || {}) }]);
+      const d = await api('/ai-agents/builder-chat', { method: 'POST', body: { messages: next.map(({ role, content }) => ({ role, content })), current: { ...cur, keys }, role: rec ? 'receptionist' : 'agent' } });
+      const changed = Object.keys(d.patch || {});
+      if (changed.length) { onPatch(d.patch); emilyEvent('applied', AGENT_SCREEN); }
+      setMsgs(m => [...m, { role: 'assistant', content: d.reply, changed }]);
     } catch (err) { setMsgs(m => [...m, { role: 'assistant', content: err.message, error: true }]); } finally { setBusy(false); }
   };
   return (
-    <aside className="civr-card p-4 flex flex-col h-[560px] lg:sticky lg:top-24" data-testid="ai-builder-chat">
-      <div className="flex items-center gap-2 text-sm font-semibold mb-3"><Sparkles className="w-4 h-4 text-[#818cf8]" />Set up by chatting</div>
-      <div className="flex-1 overflow-y-auto space-y-2 pr-1" data-testid="ai-builder-messages">
-        {msgs.map((m, i) => (
-          <div key={i} className={`max-w-[90%] rounded-2xl px-3 py-2 text-sm ${m.role === 'user' ? 'ml-auto bg-[#6366f1] text-white' : m.error ? 'bg-[#2a1215] text-[#fda4af]' : 'bg-[#15151f] text-[#e4e4e7]'}`} data-testid={`ai-builder-msg-${i}`}>
-            {m.content}
-            {m.changed?.length > 0 && <span className="block text-[11px] text-[#a5b4fc] mt-1">Updated: {m.changed.join(', ')}</span>}
-          </div>
-        ))}
-        {busy && <div className="text-xs text-[#a1a1aa] flex items-center gap-2" data-testid="ai-builder-typing"><Loader2 className="w-3 h-3 animate-spin" />Writing…</div>}
-        <div ref={end} />
+    <section className="civr-assist" data-testid="ai-builder-chat">
+      <div className="flex items-center gap-3 px-4 sm:px-6 pt-4 sm:pt-5">
+        <EmilyFace className="w-11 h-11" />
+        <div className="min-w-0">
+          <div className="font-display text-lg font-bold leading-tight" data-testid="ai-builder-title">{rec ? 'Emily sets up your receptionist' : 'Emily sets up your agent'}</div>
+          <div className="text-xs civr-assist-sub">Chat in plain words. She fills in the details below — nothing is saved until you press Save.</div>
+        </div>
       </div>
-      <form onSubmit={send} className="flex gap-2 mt-3">
-        <input className="civr-input flex-1" value={text} onChange={e => setText(e.target.value)} placeholder='e.g. "speak a bit slower" or "add press 0 for a message"' data-testid="ai-builder-input" />
-        <button className="civr-btn civr-btn-primary" disabled={busy || !text.trim()} aria-label="Send" data-testid="ai-builder-send"><Send className="w-4 h-4" /></button>
-      </form>
-    </aside>
+      <div className="px-4 sm:px-6 pb-4 sm:pb-5 pt-4 space-y-3">
+        <div ref={box} className="max-h-[360px] overflow-y-auto space-y-2 pr-1 overscroll-contain" aria-live="polite" data-testid="ai-builder-messages">
+          <div className="flex justify-start"><div className="max-w-[90%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-sm leading-relaxed civr-assist-bot" data-testid="ai-builder-msg-hello">{HELLO(rec)}</div></div>
+          {msgs.map((m, i) => (
+            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} civr-assist-in`}>
+              <div className={`max-w-[90%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-line ${m.role === 'user' ? 'civr-assist-me rounded-br-md' : m.error ? 'civr-assist-err rounded-bl-md' : 'civr-assist-bot rounded-bl-md'}`} data-testid={`ai-builder-msg-${i}`}>
+                {m.content}
+                {m.changed?.length > 0 && <span className="flex flex-wrap gap-1.5 mt-2" data-testid={`ai-builder-msg-${i}-changes`}>{m.changed.map(k => <span key={k} className="inline-flex items-center gap-1 rounded-full civr-assist-tag text-[11px] px-2 py-0.5"><Check className="w-3 h-3" />{LABELS[k] || k}</span>)}</span>}
+              </div>
+            </div>
+          ))}
+          {busy && <div className="text-xs civr-assist-sub flex items-center gap-2 px-1" data-testid="ai-builder-typing"><Loader2 className="w-3.5 h-3.5 animate-spin" />Emily is writing…</div>}
+        </div>
+        {!msgs.length && <div className="flex flex-wrap gap-1.5" data-testid="ai-builder-examples">{EXAMPLES(rec).map((e, i) => <button key={e} type="button" onClick={() => send(e)} className="civr-assist-chip text-left text-xs rounded-full px-3 py-1.5 min-h-[32px]" data-testid={`ai-builder-example-${i}`}>{e}</button>)}</div>}
+        <div className="flex gap-2">
+          <input className="civr-input flex-1" value={text} onChange={e => setText(e.target.value)} disabled={busy} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); send(); } }} placeholder={msgs.length ? 'e.g. “speak a bit slower” or “add press 0 for a message”' : 'Describe your business or what the call is for…'} aria-label="Message Emily" data-testid="ai-builder-input" />
+          <button type="button" onClick={() => send()} className="civr-btn civr-btn-primary !px-3" disabled={busy || !text.trim()} aria-label="Send" data-testid="ai-builder-send">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}</button>
+        </div>
+      </div>
+    </section>
   );
 }
 

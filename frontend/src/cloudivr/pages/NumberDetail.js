@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Flag } from '../Pickers';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { SetupIntentBanner } from './buy/setupIntent';
-import { ArrowLeft, Lock, Bot, Plus, RefreshCw, Check, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Lock, Plus, Check, ChevronRight } from 'lucide-react';
 import { useApi, enc, day } from '../api';
 import { Spinner, ErrorNote, Locked, statusPill, Toggle, useSwitch } from '../ui';
 import { CapBadges } from '../kinds';
@@ -125,7 +125,7 @@ export default function NumberDetail() {
             : n.status === 'active' && <button type="button" onClick={async () => { if (await confirmLeave()) setParams({ tab: 'billing', replace: '1' }, { replace: true }); }} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="number-detail-replace">Replace number</button>}
         </div>
       </div>
-      {!regWait && <SetupGuide n={n} />}
+      {!regWait && !badge && <SetupGuide n={n} />}
       <div className="civr-seg civr-scroll-x flex gap-1 overflow-x-auto mb-4" role="tablist" aria-label="Settings groups" data-testid="number-groups">
         {GROUPS.map(([id, name, tabs]) => {
           const first = (badge && badge[0] === id && tabs.some(t => t[0] === badge[2]) ? badge[2] : null) || tabs.filter(visible)[0]?.[0];
@@ -140,9 +140,7 @@ export default function NumberDetail() {
       </div>
       {tab === 'overview' && n.status === 'active' && (
         <div className="flex flex-wrap gap-2 mb-6" data-testid="number-quick-actions">
-          {n.access?.aiAgent && <button type="button" onClick={() => go('ai')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="number-quick-assign-ai"><Bot className="w-4 h-4" />Assign an AI agent</button>}
           {main && <Link to={cp(`/app/buy?extra=${enc(n.phoneNumber)}`)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="number-quick-add-extra"><Plus className="w-4 h-4" />Add an extra number</Link>}
-          {!n.replacedBy && <button type="button" onClick={() => go('billing')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="number-quick-renew"><RefreshCw className="w-4 h-4" />Renew or change plan</button>}
         </div>
       )}
       <div className={subTabs.length > 1 ? 'grid xl:grid-cols-[280px_minmax(0,1fr)] gap-6 items-start' : ''}>

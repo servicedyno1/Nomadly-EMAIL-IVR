@@ -14,6 +14,7 @@ import { SipCredentials } from './SipTab';
 import { VoiceMaker } from '../../VoiceMaker';
 import { useUnsaved, SaveRow } from '../../guard';
 import { Assist } from '../../Assist';
+import { FormFold } from '../../Emily';
 
 const FWD_LABELS = { mode: 'When to forward', forwardTo: 'Forward to', ringTimeout: 'Ring time', backups: 'Backups', holdMusic: 'Hold music', showCallerId: 'Caller ID shown' };
 const FWD_EXAMPLES = ['Forward to my cell +14155550100 if I don’t answer in 20 seconds', 'Always forward to the office, show who is calling', 'Turn forwarding off'];
@@ -92,6 +93,7 @@ export function ForwardingTab({ num, reload }) {
   return (
     <Card title="Call forwarding" sub="Send calls to any phone. Forwarded minutes bill from your wallet." bind={u.bind}>
       <Assist screen="forwarding" hello="Tell me where calls should go and when — I’ll set the options below." examples={FWD_EXAMPLES} current={f} context={numContext(num)} onApply={(p) => { u.touch(); setF(x => ({ ...x, ...p })); }} labels={FWD_LABELS} testid="forwarding-assist" />
+      <FormFold screen="forwarding" open={cf.mode && cf.mode !== 'disabled'}>
       <Field label="When to forward">
         <select className="civr-input" value={f.mode} onChange={e => setF({ ...f, mode: e.target.value })} data-testid="forwarding-mode-select">
           <option value="disabled">Off</option><option value="always">Always</option><option value="busy">When busy</option><option value="no_answer">When not answered</option>
@@ -108,6 +110,7 @@ export function ForwardingTab({ num, reload }) {
           </select>
         </Field>
       </>}
+      </FormFold>
       <SaveRow dirty={u.dirty} testid="forwarding-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={async () => { if (await save(f, 'PATCH', (r) => (r?.aiAgentTurnedOff ? 'Saved. The AI agent is now off — every call rings your phone.' : 'Saved'))) u.reset(); }} data-testid="forwarding-save-button">Save forwarding</button></SaveRow>
     </Card>
   );
@@ -128,6 +131,7 @@ export function VoicemailTab({ num, reload }) {
       <Assist screen="voicemail" hello="Tell me about your business — I’ll write a greeting and set the voicemail options." examples={VM_EXAMPLES} context={numContext(num)} current={{ greetingScript: script, language: f.language, forwardToEmail: f.forwardToEmail, ringTimeout: f.ringTimeout }}
         onApply={({ greetingScript, ...p }) => { u.touch(); if (greetingScript !== undefined) setScript(greetingScript); setF(x => ({ ...x, ...p })); }} labels={VM_LABELS} testid="voicemail-assist" />
       <div className="flex items-center justify-between"><span className="text-sm">Voicemail on</span><InstantToggle num={num} feature="voicemail" label="Voicemail" checked={!!vm.enabled} reload={reload} testid="voicemail-enabled-toggle" /></div>
+      <FormFold screen="voicemail" open={!!vm.enabled}>
       <Field label="Greeting">
         <select className="civr-input" value={f.greetingType} onChange={e => setF({ ...f, greetingType: e.target.value })} data-testid="voicemail-greeting-type-select">
           <option value="default">Standard greeting</option><option value="custom">From my audio library</option>
@@ -157,6 +161,7 @@ export function VoicemailTab({ num, reload }) {
         <div><div className="text-sm">Transcribe voicemails</div><div className="text-xs text-[#a1a1aa] mt-1">The message as text in your inbox, email and call logs.</div></div>
         <InstantToggle num={num} feature="transcribe" label="Voicemail transcripts" checked={vm.transcribe !== false} reload={reload} testid="voicemail-transcribe-toggle" />
       </div>
+      </FormFold>
       <SaveRow dirty={u.dirty} testid="voicemail-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={async () => { if (await save({ ...f, enabled: !!vm.enabled, transcribe: vm.transcribe !== false })) u.reset(); }} data-testid="voicemail-save-button">Save voicemail</button></SaveRow>
     </Card>
   );

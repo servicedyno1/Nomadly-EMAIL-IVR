@@ -6,6 +6,7 @@ import { useUnsaved, SaveRow } from '../../guard';
 import { Card, useSave, numContext } from './SettingsTabs';
 import { OneAnswerNote } from './RouteSummary';
 import { Assist } from '../../Assist';
+import { FormFold } from '../../Emily';
 
 const LABELS = { members: 'Phones', ringTimeout: 'Ring time', fallback: 'If nobody answers', fallbackTo: 'Backup number', message: 'Sorry message' };
 const EXAMPLES = ['Ring my cell +14155550100 and the front desk +14155550101', 'If nobody answers in 30 seconds, send them to voicemail', 'Add my partner’s phone +14155550102'];
@@ -72,10 +73,12 @@ export default function RingGroupTab({ num, reload }) {
         onApply={(p) => { u.touch(); setF(x => ({ ...x, ...p, ...(p.members ? { members: p.members.length ? p.members : [''] } : {}) })); }} />
       {ai && on && <OneAnswerNote testid="ring-group-ai-note">Your AI voice agent answers this number first. The ring group only runs if the agent can’t take the call.</OneAnswerNote>}
       {on && !ai && <p className="text-xs text-[#a1a1aa]" data-testid="ring-group-priority-note">While it’s on, every call rings the group — forwarding and the keypad menu are skipped. Your Hours schedule still applies.</p>}
+      <FormFold screen="ringgroup" open={on}>
       <Members list={f.members} onChange={v => setF({ ...f, members: v })} />
       <Field label="Ring for (seconds)" hint="Between 10 and 60 seconds."><input type="number" min={10} max={60} step={1} className="civr-input" value={f.ringTimeout} onChange={e => setF({ ...f, ringTimeout: e.target.value })} data-testid="ring-group-timeout-input" /></Field>
       <Fallback f={f} setF={setF} hasVm={hasVm} />
       <p className="text-xs text-[#a1a1aa]">The answered phone bills like a forwarded call from your wallet. Phones that only ring are free.</p>
+      </FormFold>
       <SaveRow dirty={u.dirty} testid="ring-group-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="ring-group-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save ring group</button></SaveRow>
     </Card>
   );

@@ -15,6 +15,7 @@ import { OneAnswerNote } from './RouteSummary';
 import { useUnsaved, SaveRow } from '../../guard';
 import { LANGS, tr, useLang } from '../../i18n';
 import { Assist } from '../../Assist';
+import { FormFold } from '../../Emily';
 
 const LABELS = { greeting: 'Greeting', options: 'Keys', extensions: 'Extensions', afterHours: 'After-hours menu' };
 const EXAMPLES = ['Press 1 for sales at +14155550100, 2 for support at +14155550101, 3 to leave a voicemail', 'Add a key that reads our opening hours', 'Make the greeting warmer, we’re Bella’s Bakery'];
@@ -219,12 +220,14 @@ export default function IvrTab({ num, reload }) {
         <Assist screen="ivr" title="Build this menu by chatting" hello="Tell me what callers should be able to do — I’ll write the greeting and set up each key." examples={EXAMPLES} labels={LABELS} testid="ivr-assist" context={numContext(num, extra)}
           current={{ greeting: g.greeting, options: list, afterHours: { ...ah }, extensions: exts }}
           onApply={({ greeting, options, afterHours, extensions }) => { u.touch(); if (greeting !== undefined) setG({ greeting, greetingAudioUrl: null }); if (options) setList(options); if (afterHours) setAh({ enabled: afterHours.enabled !== false, greeting: afterHours.greeting || '', greetingAudioUrl: null, options: afterHours.options || [] }); if (extensions) setExts(extensions); }} />
+        <FormFold screen="ivr" open={prep || !!g.greeting || list.length > 0} label="Review or edit the greeting and each key yourself">
         <Greeting g={g} set={(p) => setG({ ...g, ...p })} audios={audios} prefix="ivr" onAudio={reloadAudio} />
         <p className="text-xs text-[#a1a1aa] -mt-3" data-testid="ivr-language-note">{`Callers hear typed text in ${langName}, the app's language. Change the app language to change it.`}</p>
         <OptionList list={list} setList={setList} prefix="ivr"
           render={(o, i, u, ch, rm) => <MenuRow key={i} o={o} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`ivr-option-${i}`} onAudio={reloadAudio} depth={0} />} />
         <Extensions list={exts} setList={setExts} ctx={extra} />
         <AfterHours ah={ah} setAh={setAh} audios={audios} onAudio={reloadAudio} hoursOn={extra.hoursOn} number={num.phoneNumber} />
+        </FormFold>
         <SaveRow dirty={u.dirty} testid="ivr-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="ivr-save-button">Save keypad menu</button></SaveRow>
       </div>
       <div className="space-y-4"><IvrFlow greeting={g.greeting} list={list} afterHours={ah} extensions={exts} context={numContext(num, extra)} edit={{

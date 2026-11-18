@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Search, Hash, Wallet, Phone, Eye, EyeOff, LogOut, HelpCircle, Megaphone, Bot, CornerDownLeft, Bell, PlusCircle, Workflow, PhoneOutgoing, Sun, Moon, Contact } from 'lucide-react';
 import { api, enc } from './api';
-import { NAV, appPath } from './nav';
+import { NAV_ITEMS, appPath } from './nav';
 import { useTheme, setThemePref } from './theme';
 import { cp } from './paths';
 import { useCivrAuth } from './AuthContext';
@@ -54,7 +54,7 @@ export function Palette({ openPhone }) {
 
   const items = useMemo(() => {
     const numbers = (nums || []).map(n => ({ id: `num-${n.phoneNumber}`, group: 'Numbers', label: pv.phone(n.phoneNumber), sub: `${n.countryName || n.country} · ${n.planName} · ${n.status}`, Icon: Hash, keys: [n.phoneNumber, n.countryName, n.planName, n.status], run: () => nav(cp(`/app/numbers/${enc(n.phoneNumber)}`)) }));
-    const pages = [...NAV.flatMap(([, g, its]) => its.filter(i => i[0] !== '#phone').map(i => [...i.slice(0, 4), g])), ['inbox', 'Notifications', Bell, 'nav-notifications', 'Home']]
+    const pages = NAV_ITEMS
       .map(([to, label, Icon, id, g]) => ({ id: `page-${id}`, group: 'Pages', label, sub: g, Icon, run: () => nav(appPath(to)) }));
     const actions = [
       ['buy', 'Get a number', PlusCircle, () => nav(cp('/app/buy'))],

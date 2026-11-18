@@ -43,7 +43,7 @@ function More({ children }) {
   return (
     <details className="civr-more mt-10" data-testid="dashboard-more">
       <summary className="flex items-center justify-between gap-3 py-3 border-t border-[var(--c-border)]" data-testid="dashboard-more-toggle">
-        <span><span className="font-semibold">More for you</span><span className="block text-sm text-[var(--c-muted)]">Ideas, add-ons and every product you can add</span></span>
+        <span><span className="font-semibold">Do more with CloudIVR</span><span className="block text-sm text-[var(--c-muted)]">Step-by-step guides, ideas and every product you can add</span></span>
         <ChevronDown className="civr-more-chevron w-5 h-5 text-[var(--c-muted)] transition-transform" />
       </summary>
       <div className="pt-4 space-y-6">{children}</div>
@@ -92,10 +92,10 @@ export default function Dashboard() {
           <Stats s={s} />
           {promos}
           <YourNumbers nums={nums?.numbers} balance={s.balance} />
-          <Guided nums={nums?.numbers} />
+          <div className="mt-6 max-w-xl"><SetupChecklist nums={nums?.numbers} /></div>
           <More>
+            <TaskCards nums={nums?.numbers} />
             <ForYou />
-            <PurposeHome />
             <ProductGrid />
             <ReviewPrompt />
           </More>

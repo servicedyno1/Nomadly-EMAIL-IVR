@@ -57,7 +57,7 @@ export function AiAgents() {
   if (inbound) return <Navigate to={cp('/app/receptionist')} replace />;
   return (
     <div data-testid="ai-agents-page" data-use={inbound ? 'inbound' : 'outbound'}>
-      <PageHeader label={inbound ? 'Answer calls' : 'Make calls'} title={inbound ? 'AI receptionist' : 'AI calling agents'}
+      <PageHeader label="AI assistants" title={inbound ? 'AI receptionist' : 'AI calling agents'}
         sub={inbound ? 'An AI that picks up your numbers 24/7 — answers questions, takes messages and books appointments. Give each agent its own number.' : 'An AI that calls your leads, in 20 languages — with natural, fast conversation. The same agents can also answer your numbers.'} testid="ai-agents-header">
         <Link to={cp('/app/ai-agents/new')} className="civr-btn civr-btn-primary" data-testid="ai-agents-new-button"><Plus className="w-4 h-4" />New agent</Link>
       </PageHeader>
@@ -87,9 +87,9 @@ export function AiAgentEdit() {
       <ErrorNote error={error} />
       {prepFor && <div className="civr-card p-4 mb-4 text-sm" data-testid="ai-agent-prep-note">{`We started an AI receptionist for ${prepFor}. Add your business name and answers, then save. It only answers calls once you switch it on in the number’s AI agent tab.`}</div>}
       {!isNew && loading && !agent ? <SkeletonPage header={false} cards={2} rows={0} /> : agent && (
-        <div className="grid lg:grid-cols-5 gap-4 items-start">
-          <div className="lg:col-span-3"><AgentForm key={agent.id || 'new'} initial={agent} voices={list?.voices} recordRate={list?.recordRate} recordingDays={list?.recordingDays} onSaved={(a) => (prepFor ? nav(cp(`/app/numbers/${enc(prepFor)}?tab=ai`)) : isNew ? nav(cp(`/app/ai-agents/${a.id}`), { replace: true }) : setData({ agent: a }))} onDeleted={() => nav(cp('/app/ai-agents'))} /></div>
-          <div className="lg:col-span-2 space-y-4">{isNew ? <div className="civr-card p-6 text-sm text-[#a1a1aa]" data-testid="ai-agent-save-first-note">Save the agent, then talk to it here in your browser before it takes real calls.</div> : <><TestTalk agent={agent} /><AgentNumbers agent={agent} agents={list?.agents || []} /><AiCalls agentId={agent.id} /></>}</div>
+        <div className="grid xl:grid-cols-[minmax(0,1fr)_380px] gap-4 items-start">
+          <div className="min-w-0"><AgentForm key={agent.id || 'new'} initial={agent} voices={list?.voices} recordRate={list?.recordRate} recordingDays={list?.recordingDays} onSaved={(a) => (prepFor ? nav(cp(`/app/numbers/${enc(prepFor)}?tab=ai`)) : isNew ? nav(cp(`/app/ai-agents/${a.id}`), { replace: true }) : setData({ agent: a }))} onDeleted={() => nav(cp('/app/ai-agents'))} /></div>
+          <div className="space-y-4 xl:sticky xl:top-20">{isNew ? <div className="civr-card p-6 text-sm text-[#a1a1aa]" data-testid="ai-agent-save-first-note">Save the agent, then talk to it here in your browser before it takes real calls.</div> : <><TestTalk agent={agent} /><AgentNumbers agent={agent} agents={list?.agents || []} /><AiCalls agentId={agent.id} /></>}</div>
         </div>
       )}
     </div>

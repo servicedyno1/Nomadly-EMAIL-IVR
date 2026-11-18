@@ -109,10 +109,10 @@ export default function Receptionist() {
   const { data: msgs, reload: reloadCount } = useApi('/ai-receptionist/messages?open=1&limit=1');
   return (
     <div data-testid="receptionist-page">
-      <PageHeader label="Answer calls" title="AI receptionist" sub={`Picks up your number, answers questions, takes messages and books visits. $${data?.receptionRate ?? 0.1}/min from your wallet on any plan; browser tests are free.`} testid="receptionist-header">
+      <PageHeader label="AI assistants" title="AI receptionist" sub={`Picks up your number, answers questions, takes messages and books visits. $${data?.receptionRate ?? 0.1}/min from your wallet on any plan; browser tests are free.`} testid="receptionist-header">
         <Link to={cp('/app/receptionist/new')} className="civr-btn civr-btn-primary" data-testid="receptionist-new-button"><Plus className="w-4 h-4" />New receptionist</Link>
       </PageHeader>
-      <Steps />
+      {data && !data.agents.some(isReceptionist) && <Steps />}
       <TabStrip active={tab} className="mb-6" testid="rec-tabstrip">
         {TABS.map(([id, name]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setParams({ tab: id }, { replace: true })} data-testid={`rec-tab-${id}`} className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#818cf8] text-[#818cf8]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}{id === 'messages' && msgs?.open ? <span className="ml-2 civr-pill civr-pill-warn" data-testid="rec-tab-messages-count">{msgs.open}</span> : null}</button>)}
       </TabStrip>
@@ -139,9 +139,9 @@ export function ReceptionistEdit() {
       <ErrorNote error={error} />
       {prepFor && <div className="civr-card p-4 mb-4 text-sm" data-testid="rec-prep-note">{`Setting up a receptionist for ${prepFor}. Add your business name and answers, save, then assign the number on the right.`}</div>}
       {!isNew && loading && !agent ? <SkeletonPage header={false} cards={2} rows={0} /> : agent && (
-        <div className="grid xl:grid-cols-5 gap-4 items-start">
-          <div className="xl:col-span-3"><AgentForm mode="receptionist" key={agent.id || 'new'} initial={{ ...agent, role: 'receptionist', hours: agent.hours || defaultHours() }} voices={list?.voices} recordRate={list?.recordRate} recordingDays={list?.recordingDays} onSaved={(a) => (isNew ? nav(cp(`/app/receptionist/${a.id}`), { replace: true }) : setData({ agent: a }))} onDeleted={() => nav(cp('/app/receptionist'))} /></div>
-          <div className="xl:col-span-2 space-y-4">{isNew ? <div className="civr-card p-6 text-sm text-[#a1a1aa] flex gap-3" data-testid="rec-save-first-note"><Clock className="w-5 h-5 text-[#818cf8] shrink-0" />Save the receptionist, then talk to it here in your browser and pick the number it answers.</div> : <><AgentNumbers agent={agent} agents={list?.agents || []} /><TestTalk agent={agent} /><AiCalls agentId={agent.id} /></>}</div>
+        <div className="grid xl:grid-cols-[minmax(0,1fr)_380px] gap-4 items-start">
+          <div className="min-w-0"><AgentForm mode="receptionist" key={agent.id || 'new'} initial={{ ...agent, role: 'receptionist', hours: agent.hours || defaultHours() }} voices={list?.voices} recordRate={list?.recordRate} recordingDays={list?.recordingDays} onSaved={(a) => (isNew ? nav(cp(`/app/receptionist/${a.id}`), { replace: true }) : setData({ agent: a }))} onDeleted={() => nav(cp('/app/receptionist'))} /></div>
+          <div className="space-y-4 xl:sticky xl:top-20">{isNew ? <div className="civr-card p-6 text-sm text-[#a1a1aa] flex gap-3" data-testid="rec-save-first-note"><Clock className="w-5 h-5 text-[#818cf8] shrink-0" />Save the receptionist, then talk to it here in your browser and pick the number it answers.</div> : <><AgentNumbers agent={agent} agents={list?.agents || []} /><TestTalk agent={agent} /><AiCalls agentId={agent.id} /></>}</div>
         </div>
       )}
     </div>

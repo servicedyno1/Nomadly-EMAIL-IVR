@@ -22,6 +22,7 @@ import { planFor } from '../PlanFeatures';
 import { OwnerName } from './quick/OwnerName';
 import { ShowAsSelect } from '../CallerIdPick';
 import { Assist } from '../Assist';
+import { FormFold, emilyEvent } from '../Emily';
 import { OutboundFlow } from './number/IvrFlow';
 
 const QUICK_LABELS = { targets: 'Numbers to call', script: 'Script', mode: 'Key press action', transferTo: 'Connect to', transferBackups: 'Backups', activeKeys: 'Keys', stopKey: 'Stop-calls key', otp: 'Code settings', menu: 'Key menu', holdMusic: 'Hold music' };
@@ -143,14 +144,13 @@ export default function QuickCall() {
       toast.success(d.scheduled ? 'Call scheduled' : d.dryRun ? 'Validated (preview — not dialed)' : 'Calling now');
       if (d.notice) toast.info(d.notice, { duration: 10000 });
       refreshSummary();
-    } catch (err) { setError(err); } finally { setBusy(false); }
+    } catch (err) { setError(err); emilyEvent('applied', 'quick'); } finally { setBusy(false); }
   };
   const loadPreset = (p) => { setF({ ...EMPTY, ...(p.setup.ui || {}), targets: f.targets, callerId: p.setup.callerId || f.callerId }); toast.success(`Loaded “${p.name}”`); };
 
   return (
     <div data-testid="quick-call-page">
-      <PageHeader label="Make calls" title="Quick call" sub={numbers.length ? 'Automated calls to up to 10 people: they hear your script or recording, then press a key to reach you, type a code you accept or decline, or pick from a menu. Billed per minute from your wallet.' : 'Call one person from our number for free: play your script, then connect them on key 1 or collect a code you accept or decline.'} testid="quick-call-header" />
-      <div className="civr-card px-4 py-3 mb-6 flex flex-wrap items-center gap-3 text-sm" data-testid="quick-call-phone-hint"><Phone className="w-4 h-4 text-[#818cf8]" /><span className="flex-1 min-w-[12rem]">Want to talk to someone yourself? Use the browser phone: a normal call from any of your numbers.</span><button type="button" onClick={openPhone} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="quick-call-open-phone">Open browser phone</button></div>
+      <PageHeader label="Make calls" title="Quick call" sub={numbers.length ? 'Automated calls to up to 10 people: they hear your script or recording, then press a key to reach you, type a code you accept or decline, or pick from a menu. Billed per minute from your wallet.' : 'Call one person from our number for free: play your script, then connect them on key 1 or collect a code you accept or decline.'} testid="quick-call-header"><button type="button" onClick={openPhone} className="civr-btn civr-btn-ghost civr-btn-sm" title="A normal call you talk on yourself, from any of your numbers" data-testid="quick-call-open-phone"><Phone className="w-4 h-4" />Talk yourself: browser phone</button></PageHeader>
       {!numbers.length ? (trial?.available || trialShown ? <TrialCall status={trial} onUsed={() => { setTrialShown(true); reloadTrial(); refreshSummary(); }} /> : (
         <Empty icon={PhoneOutgoing} title="No number can place IVR calls yet" sub={all.length ? 'Quick IVR calls need an active number on the Pro plan or higher. Upgrade one in its Billing tab.' : 'Buy a number on the Pro plan or higher to place IVR calls.'} testid="quick-call-empty">
           {all.length ? <button type="button" onClick={() => showUpgrade({ feature: 'Quick IVR calls', need: planFor(catalog?.plans, 'ivrOutbound')?.id || 'pro' })} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">See what you get</button>
@@ -162,11 +162,13 @@ export default function QuickCall() {
             <DraftBanner draft={draft} onResume={(d) => { setF({ ...EMPTY, ...d }); toast.success('Draft restored'); }} />
             <QuickAssist f={f} setF={setF} can={can} caller={caller} />
             <OutboundFlow kind="quick" testid="quick-flow" readyLabel="Ready to place" config={{ targets: f.targets, script: f.script.text, mode: f.mode, transferTo: f.transferTo, activeKeys: f.activeKeys, stopKey: f.stopKey || '', otp: f.otp, menu: f.menu, holdMusic: f.holdMusic }} context={{ hasAudio: f.source === 'audio' && !!f.audioId }} />
+            <FormFold screen="quick" open={!!f.targets} label="Fill in the call yourself: who, message and keys">
+            <div className="space-y-4">
             <Section n="1" title="Who to call">
               <Field label="Call from"><select className="civr-input font-mono" value={caller.phoneNumber} onChange={e => set({ callerId: e.target.value })} data-testid="quick-call-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{`${n.phoneNumber} · ${n.planName}`}</option>)}</select></Field>
               <ShowAsSelect value={f.showAs} onChange={(v) => set({ showAs: v })} from={caller?.phoneNumber} testid="quick-call-show-as-select" />
               <Field label="Number(s) to call" hint="With country code. Up to 10, separated by commas.">
-                <input className="civr-input font-mono" required value={f.targets} onChange={e => set({ targets: e.target.value })} placeholder="+14155550100, +14155550101" data-testid="quick-call-to-input" />
+                <input className="civr-input font-mono" value={f.targets} onChange={e => set({ targets: e.target.value })} placeholder="+14155550100, +14155550101" data-testid="quick-call-to-input" />
                 <TextCountryFix text={f.targets} onChange={(v) => set({ targets: v })} testid="quick-call-nocc" />
                 <Recent onPick={(n) => set({ targets: f.targets.includes(n) ? f.targets : [f.targets, n].filter(Boolean).join(', ') })} />
                 <OwnerName targets={f.targets} onUse={(name) => { set({ script: { ...f.script, values: { ...(f.script.values || {}), Name: name } } }); toast.success(String(f.script.text || '').includes('[Name]') ? `[Name] set to ${name}` : `Saved — type [Name] in your message and the call will say “${name}”`); }} />
@@ -174,6 +176,8 @@ export default function QuickCall() {
             </Section>
             <Section n="2" title="What they hear"><Message f={f} set={set} audios={audios} reloadAudio={reloadAudio} /></Section>
             <Section n="3" title="When they press a key"><Answer f={f} set={set} can={can} phone={caller.phoneNumber} /></Section>
+            </div>
+            </FormFold>
             <Section n="4" title="When to call">
               <Field label="Schedule (optional)" hint={can.ivrSchedule ? '5 minutes to 30 days from now. Leave empty to call now.' : null}>{can.ivrSchedule
                 ? <DateTimePicker value={f.scheduleAt} onChange={(v) => set({ scheduleAt: v })} maxDays={30} testid="quick-schedule" />

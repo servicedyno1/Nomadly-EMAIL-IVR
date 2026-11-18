@@ -10,7 +10,8 @@ import { AI_LANGS } from './languages';
 import { OpeningPreview, ScriptGuide } from './OpeningPreview';
 import { HoursFields } from './HoursFields';
 import { KeypadFields, CallMeTest } from './SmartKeys';
-import { BuilderChat, SpeedField } from './BuilderChat';
+import { BuilderChat, SpeedField, AGENT_SCREEN } from './BuilderChat';
+import { FormFold, emilyEvent } from '../../Emily';
 
 export const EMPTY_AGENT = {
   name: '', businessName: '', language: 'en', voice: 'marin', goal: '', greeting: '', firstMessage: '', waitForHello: true, knowledge: '', transferTo: '', takeMessages: true, maxMinutes: 5, record: true, discloseAi: true, keys: [], holdMusic: true, speed: 1,
@@ -70,15 +71,17 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
     try {
       const d = await api(f.id ? `/ai-agents/${f.id}` : '/ai-agents', { method: f.id ? 'PUT' : 'POST', body: f });
       u.reset(); toast.success(rec ? 'Receptionist saved' : 'Agent saved'); onSaved(d.agent);
-    } catch (err) { setError(err); } finally { setBusy(false); }
+    } catch (err) { setError(err); emilyEvent('applied', AGENT_SCREEN); } finally { setBusy(false); }
   };
   const remove = async () => {
     if (!(await ask(`Delete this ${rec ? 'receptionist' : 'agent'}? Numbers using it go back to normal call handling.`, { danger: true, ok: rec ? 'Delete receptionist' : 'Delete agent' }))) return;
     try { await api(`/ai-agents/${f.id}`, { method: 'DELETE' }); toast.success('Agent deleted'); u.reset(); onDeleted(); } catch (err) { toast.error(err.message); }
   };
   return (
-    <div className="grid xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
-    <form onSubmit={save} className="civr-card p-6 space-y-6" data-testid="ai-agent-form" {...u.bind}>
+    <div className="space-y-4">
+    <BuilderChat rec={rec} f={f} onPatch={(p) => setF(x => ({ ...x, ...p }))} />
+    <form onSubmit={save} className="civr-card p-4 sm:p-6 space-y-6" data-testid="ai-agent-form" {...u.bind}>
+      <FormFold screen={AGENT_SCREEN} open={!!f.id} label={f.id ? 'Details: voice, script, FAQs, hours and booking' : 'Fill in the details yourself: voice, script, FAQs, hours and booking'} testid="ai-agent-fold">
       <Basics f={f} set={set} voices={voices} />
       <Field label={rec ? 'Greeting (optional)' : 'First message (optional)'} hint={rec ? 'The exact words callers hear when it picks up. Use {name} and {business}. Leave empty for the standard greeting.' : 'The exact words that open every call. Use {name}, {business} and {lead_name} (or {lead_name|there} for leads without a name). Leave empty for the standard opening.'}><Text f={f} set={set} k="firstMessage" rows={2} ph={rec ? 'Thanks for calling {business}, this is {name}. How can I help?' : 'Hi {lead_name|there}, this is {name} from {business}. Do you have a minute?'} testid="ai-agent-first-message-input" /></Field>
       {!rec && <div className="flex items-center justify-between gap-4" data-testid="ai-agent-wait-hello-row">
@@ -93,6 +96,7 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
       <KeypadFields f={f} set={set} />
       {(rec || f.hours?.enabled) && <HoursFields f={f} set={set} />}
       <BookingFields f={f} set={set} />
+      </FormFold>
       {f.id && !rec && <CallMeTest id={f.id} />}
       <ErrorNote error={error} testid="ai-agent-form-error" />
       <div className="flex flex-wrap gap-2">
@@ -101,7 +105,6 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
         <UnsavedPill show={u.dirty} testid="ai-agent-unsaved-pill" />
       </div>
     </form>
-    <BuilderChat rec={rec} f={f} onPatch={(p) => setF(x => ({ ...x, ...p }))} />
     </div>
   );
 }

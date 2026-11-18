@@ -1,24 +1,25 @@
 import React, { useEffect, useRef } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
-import { groupOf, appPath, isSideActive } from './nav';
+import { groupOf, appPath, isTabActive, HUBS } from './nav';
 import { pageName } from './PageTitle';
 import { CIVR_BASE } from './paths';
 
-// Phones/tablets (no sidebar): the other pages of the current menu group as a tab strip.
+// Pages that share one menu entry (e.g. My numbers · Answering rules · SIP logins) as tabs, on every screen size.
 export default function SectionTabs() {
   const { pathname, search } = useLocation();
-  const [g] = groupOf(pathname, search);
+  const [, it] = groupOf(pathname, search);
   const ref = useRef(null);
-  useEffect(() => { ref.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [pathname, search]);
-  const items = g ? g[2].filter(i => i[0] !== '#phone') : [];
-  if (!g || g[0] === 'home' || g[0] === 'account' || items.length < 2) return null;
+  useEffect(() => { ref.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [pathname]);
+  const tabs = it ? HUBS[it[3]] : null;
+  const sub = pathname.slice(appPath('').length).replace(/^\/+/, '');
+  // Only on the hub pages themselves, not inside one number, agent or campaign.
+  if (!tabs || !tabs.some(([p]) => sub === p) ) return null;
   return (
-    <div className="lg:hidden relative -mt-2 mb-6">
-      <span aria-hidden className="md:hidden pointer-events-none absolute right-0 top-0 bottom-px w-10 z-10 bg-gradient-to-l from-[var(--c-bg,#0a0a0a)] to-[color-mix(in_srgb,var(--c-bg,#0a0a0a)_0%,transparent)]" />
-      <nav ref={ref} aria-label={`${g[1]} pages`} className="civr-tabs flex pr-8 md:pr-0 gap-1 overflow-x-auto border-b border-[#1f1f1f] [scrollbar-width:none]" data-testid={`section-tabs-${g[0]}`}>
-        {items.map((it) => { const [to, label, Icon, id] = it; const on = isSideActive(it, pathname, search); return (
-          <NavLink key={id} to={appPath(to)} aria-current={on ? 'page' : undefined} className={`shrink-0 inline-flex items-center gap-2 px-3.5 min-h-[44px] text-sm font-medium border-b-2 -mb-px transition-colors ${on ? 'border-[var(--c-accent-strong,#6366f1)] text-[var(--c-text,#f4f4f5)]' : 'border-transparent text-[#a1a1aa] hover:text-[var(--c-text,#f4f4f5)]'}`} data-testid={`tab-${id.replace('nav-', '')}`}>
+    <div className="relative -mt-2 mb-6">
+      <nav ref={ref} aria-label={`${it[1]} pages`} className="civr-tabs flex gap-1 overflow-x-auto border-b border-[var(--c-border,#1f1f1f)] [scrollbar-width:none]" data-testid={`hub-tabs-${it[3].replace('nav-', '')}`}>
+        {tabs.map(([to, label, Icon]) => { const on = isTabActive(to, pathname); return (
+          <NavLink key={to} to={appPath(to)} aria-current={on ? 'page' : undefined} className={`shrink-0 inline-flex items-center gap-2 px-3.5 min-h-[44px] text-sm font-medium border-b-2 -mb-px transition-colors ${on ? 'border-[var(--c-accent-strong,#6366f1)] text-[var(--c-text,#f4f4f5)]' : 'border-transparent text-[#a1a1aa] hover:text-[var(--c-text,#f4f4f5)]'}`} data-testid={`hub-tab-${to.replace(/\//g, '-')}`}>
             <Icon className="w-4 h-4" />{label}
           </NavLink>
         ); })}
