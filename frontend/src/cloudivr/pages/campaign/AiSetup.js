@@ -80,30 +80,35 @@ export function AgentPanel({ agentId, onAgent, draft, setDraft, agents, voices, 
 }
 
 const MY_PHONE = 'civr-test-call-phone';
+// 10 digits typed (or 11 starting with 1) become +1…; anything already starting with + is left alone.
+export const withPlusOne = (v) => { const d = String(v).replace(/\D/g, ''); if (String(v).trim().startsWith('+')) return v; return d.length === 10 && d[0] !== '1' ? `+1${d}` : d.length === 11 && d[0] === '1' ? `+${d}` : v; };
 // Rings the owner's own phone with this agent before the campaign is saved (saves just the agent first).
 function TestCall({ callerId, onTest, isNew }) {
   const [to, setTo] = useState(() => { try { return localStorage.getItem(MY_PHONE) || ''; } catch (_) { return ''; } });
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
+  const [fail, setFail] = useState('');
   const go = async () => {
     const save = onTest();
     if (save instanceof Error) { toast.error(save.message); return; }
-    setBusy(true); setNote('');
+    setBusy(true); setNote(''); setFail('');
     try {
       const id = await save();
       const d = await api(`/ai-agents/${id}/call-me`, { method: 'POST', body: { to, callerId } });
       try { localStorage.setItem(MY_PHONE, to); } catch (_) { /* private mode */ }
-      setNote(`Calling ${d.calling} from ${d.from} — pick up and talk to your agent like a lead would.`);
-      toast.success(`Calling ${d.calling}…`);
-    } catch (e) { toast.error(e.message); } finally { setBusy(false); }
+      const left = `${d.left} free test call${d.left === 1 ? '' : 's'} left today.`;
+      setNote(d.simulated ? `Preview: your phone would ring now — ${d.calling} from ${d.from}. No real call is placed until you publish. ${left}` : `Calling ${d.calling} from ${d.from} — pick up and talk to your agent like a lead would. ${left}`);
+      toast.success(d.simulated ? `Test call simulated to ${d.calling}` : `Calling ${d.calling}…`);
+    } catch (e) { setFail(e.message); toast.error(e.message); } finally { setBusy(false); }
   };
   return (
     <div className="rounded-xl border border-[var(--c-border)] p-4 space-y-2" data-testid="aicampaign-test-call">
       <div className="flex flex-wrap items-end gap-2">
-        <div className="flex-1 min-w-[14rem]"><Field label="Hear it first: free test call to your phone" hint={`Your own US or Canada number · 5 free test calls a day.${isNew ? ' The agent is saved first; the campaign stays unsaved.' : ''}`}><input className="civr-input font-mono" inputMode="tel" value={to} onChange={e => setTo(e.target.value)} placeholder="+14155550100" data-testid="aicampaign-test-call-input" /></Field></div>
+        <div className="flex-1 min-w-[14rem]"><Field label="Hear it first: free test call to your phone" hint={`Your own US or Canada number · 5 free test calls a day.${isNew ? ' The agent is saved first; the campaign stays unsaved.' : ''}`}><input className="civr-input font-mono" inputMode="tel" value={to} onChange={e => { setTo(withPlusOne(e.target.value)); setFail(''); }} placeholder="+14155550100" data-testid="aicampaign-test-call-input" /></Field></div>
         <button type="button" className="civr-btn civr-btn-ghost" disabled={busy || to.replace(/\D/g, '').length < 10} onClick={go} data-testid="aicampaign-test-call-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneCall className="w-4 h-4" />}Call me now</button>
       </div>
       {note && <div className="text-xs text-[#34d399]" data-testid="aicampaign-test-call-note">{note}</div>}
+      {fail && <div className="text-xs text-[#f87171]" role="alert" data-testid="aicampaign-test-call-error">{fail}</div>}
     </div>
   );
 }

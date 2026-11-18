@@ -13,8 +13,8 @@ export function Facts({ catalog }) {
     [Globe2, String(catalog?.countries?.length || 2), 'Countries with local, mobile or toll-free numbers'],
     [Timer, '60 s', 'Free test call — no account, no card'],
     [Tag, startPrice(catalog) || '$50', 'Numbers from, per month — no contracts'],
-    [Languages, '20', 'AI agent languages — it switches when your caller does'],
-    [Clock3, '24/7', 'Your menu or AI agent always answers'],
+    [Languages, '20', 'AI conversation languages — it switches when your caller does'],
+    [Clock3, '24/7', 'Your menu or AI receptionist always answers'],
   ];
   return (
     <section className="civr-l-cream" data-testid="facts-section">

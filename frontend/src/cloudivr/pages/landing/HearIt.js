@@ -6,7 +6,7 @@ import { SAMPLE_DURATION, SAMPLE_SEGMENTS } from './sampleCall';
 // "Hear it": a 30-second sample produced with the platform's own voices — IVR greeting, a real key press, the AI
 // agent booking a slot, then the handover — with a transcript that follows word by word. No form, no account.
 export const SAMPLE_SRC = '/civr/sample/sample-call.mp3';
-const WHO = { menu: 'Keypad menu', agent: 'AI agent', caller: 'Caller', human: 'Front desk', tone: 'Key press', ring: 'Handover' };
+const WHO = { menu: 'Keypad menu', agent: 'AI receptionist', caller: 'Caller', human: 'Front desk', tone: 'Key press', ring: 'Handover' };
 const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 function Line({ seg, t, active, lineRef }) {

@@ -73,7 +73,7 @@ export function Pricing({ catalog }) {
         <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 mt-12 items-stretch">{plans.map((p, i) => <PlanCard key={p.id} p={p} plans={plans} hot={hasRec ? p.recommended : i === 1} start={start} delay={i * 120} />)}{catalog?.texting && <TextingCard t={catalog.texting} start={start} delay={plans.length * 120} />}</div>
         {r && (
           <p className="text-sm text-slate-500 mt-8 max-w-3xl" data-testid="pricing-extra-usage">
-            {`Outgoing calls, forwarding and AI agent calls are paid from your wallet. Extra numbers cost from ${usd(catalog?.extraNumber?.price || 25)}/month each and share the plan's features.`}
+            {`Outgoing calls, forwarding and AI conversations are paid from your wallet. Extra numbers cost from ${usd(catalog?.extraNumber?.price || 25)}/month each and share the plan's features.`}
           </p>
         )}
         <PlanCompare catalog={catalog} start={start} />
@@ -113,7 +113,7 @@ export function faqItems(c) {
     ['Are outgoing calls included in my minutes?', 'No. Plan minutes cover incoming calls you answer. Outgoing calls — browser phone, softphone, Quick IVR, campaigns and AI conversations — and forwarded calls are billed per minute from your wallet.'],
     ...(ex ? [['Can I put several numbers on one plan?', `Yes. Add extra numbers to a main number from ${usd(ex.price)}/month each — up to ${ex.limits.starter} on Basic, ${ex.limits.pro} on Pro and ${ex.limits.business} on Business. They share its plan and get the same features.`]] : []),
     ['Can I cancel?', 'Yes. Plans are month to month. Auto-renew is on by default so your number never lapses — turn it off in the number’s Billing tab and it simply won’t renew, or delete the number any time.'],
-    ['What happens if the AI agent can’t help?', 'It never pretends to be human and never asks for card numbers, passwords or one-time codes. When a caller wants a person, the agent transfers the call to the number you set — or, if you haven’t set one, offers to take a message with a name, callback number and the message, which lands in your inbox. On a keypad menu, callers can always reach voicemail. Anyone who asks not to be called again is removed from the list and the call ends politely.'],
+    ['What happens if the AI can’t help?', 'It never pretends to be human and never asks for card numbers, passwords or one-time codes. When a caller wants a person, the agent transfers the call to the number you set — or, if you haven’t set one, offers to take a message with a name, callback number and the message, which lands in your inbox. On a keypad menu, callers can always reach voicemail. Anyone who asks not to be called again is removed from the list and the call ends politely.'],
     ['Do you scrub numbers or enforce quiet hours?', 'Your do-not-call list is enforced on every campaign — recorded message and AI conversation, web and Telegram bot: numbers on it are never dialed and never billed. We don’t check public Do-Not-Call registries for you and we don’t enforce quiet hours automatically: you schedule each campaign, set a daily call limit and repeat it daily or weekly, and you’re responsible for calling only people who have agreed to hear from you, at reasonable hours where they live.'],
     ['Is this the same account as the Telegram bot?', 'No. CloudIVR web accounts are separate from Telegram bot accounts, so sign up here with your email.'],
   ];

@@ -192,7 +192,7 @@ function createCloudIvrWeb(deps) {
     require('./hosted').routes(r, { db, h, upload, log, notifyAdmin: deps.notifyAdmin })
     calls.routes(r, { ...deps, db, h, numbersApi })
     notes.routes(r, { db, h, numbersApi })
-    ai.routes(r, { h, numbersApi })
+    ai.routes(r, { h, numbersApi, db })
     require('./assist').routes(r, { h })
     require('./ivr-connections').routes(r, { h })
     extras.routes(r, { ...deps, db, h, numbersApi, offers })

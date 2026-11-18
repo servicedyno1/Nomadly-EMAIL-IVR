@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { api } from '../../api';
 import { Field, Toggle } from '../../ui';
+import { withPlusOne } from '../campaign/AiSetup';
 
 const ACTIONS = [['transfer', 'Transfer to a person'], ['message', 'Take a message'], ['repeat', 'Repeat the information'], ['hangup', 'End the call']];
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '*', '#'];
@@ -46,11 +47,11 @@ export function CallMeTest({ id }) {
   const [busy, setBusy] = useState(false);
   const go = async () => {
     setBusy(true);
-    try { const d = await api(`/ai-agents/${id}/call-me`, { method: 'POST', body: { to } }); toast.success(`Calling ${d.calling} from ${d.from}…`); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
+    try { const d = await api(`/ai-agents/${id}/call-me`, { method: 'POST', body: { to } }); toast.success(d.simulated ? `Preview: test call to ${d.calling} simulated (${d.left} left today)` : `Calling ${d.calling} from ${d.from}… (${d.left} left today)`); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   return (
     <div className="flex flex-wrap items-end gap-2" data-testid="ai-call-me-test">
-      <Field label="Call me to test" hint="Rings your own phone now so you hear the agent like a lead would. 5 test calls a day."><input className="civr-input font-mono" inputMode="tel" value={to} onChange={e => setTo(e.target.value)} placeholder="+14155550100" data-testid="ai-call-me-input" /></Field>
+      <Field label="Call me to test" hint="Rings your own phone now so you hear the agent like a lead would. 5 test calls a day."><input className="civr-input font-mono" inputMode="tel" value={to} onChange={e => setTo(withPlusOne(e.target.value))} placeholder="+14155550100" data-testid="ai-call-me-input" /></Field>
       <button type="button" className="civr-btn civr-btn-ghost" disabled={busy || to.replace(/\D/g, '').length < 10} onClick={go} data-testid="ai-call-me-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Call me</button>
     </div>
   );

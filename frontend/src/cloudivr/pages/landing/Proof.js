@@ -7,7 +7,7 @@ import { Reveal, CountUp, Wave } from './kit';
 // data comes back null and is simply not shown — no invented customers, logos or ratings.
 const COUNTERS = [
   ['callsHandled', 'Calls handled on the platform'],
-  ['campaignCalls', 'Campaign calls placed by Bulk IVR and AI agents'],
+  ['campaignCalls', 'Campaign calls placed — recorded and AI conversations'],
   ['countries', 'Countries with numbers'],
 ];
 

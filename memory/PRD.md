@@ -632,3 +632,9 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - AI conversation campaign: "Call me now" test call (AiSetup.js TestCall) saves only the agent, then POST /ai-agents/:id/call-me. Test calls are free (`test: true` → rate 0, no wallet deduction, js/ai-agent/calls.js). 5/day.
 - Public/help wording: "AI conversations" (outgoing / the AI) and "AI receptionist" (incoming). Hero.js/Platform.js/Highlights.js are not rendered (dead files).
 - Tested: iteration_322 — campaigns save & start (dry-run); test call reaches the server but preview has no live AI calling line (503 "AI calling line is offline"), so the ring itself is unverified.
+
+## 2026-11-18 — Test-call polish
+- `/ai-agents/:id/call-me`: simulated in preview (WEB_CLOUDIVR_DRY_RUN=true → `simulated: true`, nothing dialled), 10-digit numbers get +1, 5/day count persisted in Mongo `aiTestCalls` (TTL 3 days), returns `left`; failures mapped to plain messages (`testCallError`).
+- Frontend: test-call box auto-adds +1 (`withPlusOne`), shows preview/real note with calls left and an inline error (`aicampaign-test-call-error`); same for agent page CallMeTest.
+- Deleted 15 unused landing files (Bubbles, EsimPlans, Hero, HeroCard, HeroPhone, Highlights, NumbersPreview, Platform, Products, Showcase, Trust, UseCases, V2Sections, Mockups, MockupsLive); visible landing copy now says AI conversations / AI receptionist.
+- Self-tested via curl (count survives restart, limit message) and screenshot.
