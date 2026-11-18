@@ -9,6 +9,7 @@ import { Spinner, ErrorNote, Label } from '../../ui';
 import { WalletPay } from '../../WalletPay';
 import { useShell } from '../../Shell';
 import { CapBadges } from '../../kinds';
+import { TextingSuggest } from './TextingSuggest';
 
 function CountryCard({ code, name, line, caps, on, disabled, soon, onPick }) {
   return (
@@ -69,6 +70,7 @@ export function TextingBuy({ onStage }) {
   const addon = pick?.planAddons?.[data.plan] ?? 0, price = (data.price || 0) + addon;
   return (
     <div className="space-y-8" data-testid="texting-buy">
+      {data.available && data.items.length > 1 && <TextingSuggest items={data.items} onPick={choose} />}
       <div>
         <Label>Pick a country</Label>
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3" data-testid="texting-buy-countries">

@@ -13,6 +13,9 @@ import { TextingBuy } from './buy/TextingBuy';
 import { FaxNumberBuy } from './buy/FaxNumberBuy';
 import { PlanSuggest } from '../PlanSuggest';
 
+// Tap-to-try businesses on step 1: one for each kind of number.
+const START_EXAMPLES = ['Dental clinic, 3 front-desk phones', 'I call leads from a list every day', 'Salon that texts appointment reminders', 'Law office that sends and receives faxes', 'Solo consultant, just need a US number'];
+
 // One progress bar for every kind of number: what it's for → pick a number → pay.
 function Steps({ labels, current, onBack }) {
   return (
@@ -63,7 +66,7 @@ export default function BuyNumber() {
     <div data-testid="buy-page" data-kind={kindId || ''}>
       <PageHeader label="Phone numbers" title="Get a number" sub="Three steps: say what it’s for, pick your plan and number, pay. Month to month, paid from your wallet." testid="buy-header" />
       <Steps labels={['What it’s for', kindId === 'calls' ? 'Plan and number' : 'Pick a number', 'Pay']} current={kind ? stage : 1} onBack={change} />
-      {!kind ? <><div className="mb-6 civr-rise"><PlanSuggest dark onContinue={fromEmily} title="Not sure what you need? Tell Emily about your business" testid="buy-start-suggest" /></div><KindPicker facts={facts} onPick={choose} /></> : <>
+      {!kind ? <><div className="mb-6 civr-rise"><PlanSuggest dark onContinue={fromEmily} title="Not sure what you need? Tell Emily about your business" testid="buy-start-suggest" examples={START_EXAMPLES} /></div><KindPicker facts={facts} onPick={choose} /></> : <>
         <KindChosen kind={kind} onChange={change} />
         {kindId === 'calls' && <CallsBuy onStage={onStage} />}
         {kindId === 'texting' && <TextingBuy onStage={onStage} startCountry={(params.get('country') || '').toUpperCase()} />}

@@ -4207,6 +4207,7 @@ const loadData = async () => {
   require('./bird-spend').init(db)
   botFax.init(db, { notifyAdmin: (t) => { try { notifyAdmin?.(t) } catch (_) {} }, push: (id, text) => (require('./cloudivr-web/notify').isWebChatId(id) ? require('./cloudivr-web/notify').push(id, text, null, { kind: 'fax' }) : bot?.sendMessage(id, text)).catch?.(() => {}) })
   require('./fax-sales').start({ db, log })
+  require('./esim-price-announce').start({ db, log, get bot() { return bot } })
   require('./growth-nudges').start({ db, notifyAdmin, log, send: (id, text) => bot?.sendMessage(id, text, { parse_mode: 'HTML' }).catch(() => {}) })
   require('./provider-health').start(notifyAdmin)
   require('./signalwire/rest').setOnFull((count, phone) => require('./provider-health').numbersFull('signalwire', count, phone))
