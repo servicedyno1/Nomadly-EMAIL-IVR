@@ -638,3 +638,12 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Frontend: test-call box auto-adds +1 (`withPlusOne`), shows preview/real note with calls left and an inline error (`aicampaign-test-call-error`); same for agent page CallMeTest.
 - Deleted 15 unused landing files (Bubbles, EsimPlans, Hero, HeroCard, HeroPhone, Highlights, NumbersPreview, Platform, Products, Showcase, Trust, UseCases, V2Sections, Mockups, MockupsLive); visible landing copy now says AI conversations / AI receptionist.
 - Self-tested via curl (count survives restart, limit message) and screenshot.
+
+## 2026-11-18 — Plan ladder rework, landing AI section, calendar link fix
+- Plans: Basic $50 (starter) "Get a business number" · Plus $75 (standard, renamed from Starter) "Answer like a business" · Pro $100 "Reach out" · Business $120 "Scale & control".
+- Moves (js/phone-config.js planFeatureAccess): voicemail→Basic; ivr, ringGroup, aiSummary→Plus; aiCampaigns, ivrSchedule, ivrPresets, consistentVoice→Pro. New helpers planNeed/minPlanFor/PLAN_ORDER; backend plan messages use planNeed.
+- Plan cards: WEB_FEATURES grouped (answer/calls/ai/account) + new items (Emily, SIP live status, renewal calendar); PlanFeatures.js PLAN_JOB + grouped "See all"; catalog snapshot regenerated; rates.aiReceptionPerMin added.
+- Bot: plans/plansI18n (en/fr/zh/hi/fa), plan summaries, selectPlan, cp_8 (lang/*.js), upgrade buttons, 2-days-left credit nudge, email upsell lists, ai-support plan list/table generated from phone-config.
+- Landing: new AiSection (#ai, nav "AI") — Emily chat + AI receptionist / AI conversation campaigns.
+- Calendar feed link now `${CLOUDIVR_PUBLIC_URL||https://cloudivr.net}/api/cloudivr-web/public/calendar/<token>.ics`; old SELF_URL /calendar links still served.
+- Testing: unit tests pass (manage screen, ai-support plan context, sip/calendar feed); testing agent run was cut off (credits) — UI checked by screenshots only.

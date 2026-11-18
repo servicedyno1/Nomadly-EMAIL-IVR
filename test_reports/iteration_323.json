@@ -1,0 +1,24 @@
+{
+  "summary": "PARTIAL testing only (session cut short). Done: bot plan copy via node (selectPlan for en/fr/zh/hi/fa, planNeed, lang/en.js cp_8). NOT done: catalog API, landing/pricing UI, buy page, plan-gate copy, calendar link/feed, node unit tests, backend planNeed error messages.",
+  "backend_issues": {"critical": [], "minor": [
+    {"endpoint": "bot selectPlan (js/phone-config.js plansI18n)", "issue": "en Business 'IVR / SIP softphone' line still says 'Pro + Custom caller ID + Redial + Scheduling + Presets + Custom OTP messages'. Scheduling and presets are now on Pro, so they shouldn't be listed as Business extras."},
+    {"endpoint": "bot selectPlan fr/zh/hi/fa", "issue": "The Pro 'IVR / SIP' line still says 'Auto-attendant + Quick IVR + Bulk IVR + OTP'. The keypad menu (auto-attendant) now starts on Plus, and AI conversation campaigns are missing from the line. en is already fixed."},
+    {"endpoint": "bot selectPlan fr/zh/hi/fa", "issue": "The Plus job line is 'Best for founders' (fr 'Idéal pour les fondateurs', zh '适合创业者', hi/fa likewise). en says 'Best for teams answering customer calls'. The translations don't match en."},
+    {"endpoint": "bot selectPlan fr", "issue": "The fr Business feature list has no Text Triggers. en and hi have it."},
+    {"endpoint": "bot selectPlan zh/hi", "issue": "The Business 'IVR / SIP' line has no custom caller ID ('Pro + IVR redial + custom OTP'). en, fr and fa have it."},
+    {"endpoint": "bot selectPlan all langs", "issue": "The Basic upgrade-credit line says the credit comes off 'Pro/Business' only, not Plus. Check whether an upgrade to Plus should also get the credit. Also, en shows no '➕ add extra numbers' lines but fr/zh/hi/fa do."}
+  ]},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified_ok": [
+    "planNeed('ivr')='the Plus plan or higher', planNeed('aiCampaigns')='the Pro plan or higher', planNeed('voicemail')='any plan'",
+    "selectPlan in all 5 languages shows Basic $50/Plus $75/Pro $100/Business $120 with the features in the new places. The footer says the keypad menu starts on Plus (en: 'Keypad menu (IVR) starts on Plus...')",
+    "lang/en.js cp_8 lists Plus $sp with keypad menu, ring groups, recording and AI summaries"
+  ],
+  "test_report_links": [],
+  "action_items": ["Fix the leftover bot wording listed above in plansI18n (fr/zh/hi/fa Pro line, Plus job line, en Business line)", "Retest everything that was not tested"],
+  "updated_files": [],
+  "success_rate": {"backend": "not run", "frontend": "not run"},
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Only the bot node copy was checked. Still to test: GET /api/cloudivr-web/public/catalog fields, landing #ai section and pricing cards (civr-plan-card-*, pricing-job-*, pricing-feature-*-group-*), /cloudivr/app/buy buy-plan-*-job, campaign-kind-ai subtitle, the ai-agents rate note, help-center copy, Wallet CalendarSubscribe link (https://cloudivr.net/api/cloudivr-web/public/calendar/) plus the .ics feed and 404 for an unknown token, node tests test_manage_screen_features.js / test_ai_support_plan_context.js / test_sip_badge_sweep_feed.js, and ring-group planNeed error copy. Logins: Alice civr.alice@example.com/AliceTest#2026; dismiss the cookie banner first (cookie-allow-all)."
+}
