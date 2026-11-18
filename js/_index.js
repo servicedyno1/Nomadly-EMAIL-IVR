@@ -26545,6 +26545,31 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
   }
 
+  // Plan first, then country and number: every new-number purchase in the bot starts here.
+  const cpAskPlanFirst = async () => {
+    const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
+    // Step 1: Select Plan FIRST — reset stale phone purchase state
+    saveInfo('cpIsSubNumber', false)
+    saveInfo('cpSubParentNumber', null)
+    saveInfo('cpSubParentPlan', null)
+    saveInfo('cpSubParentPlanPrice', null)
+    saveInfo('cpSubParentExpiresAt', null)
+    saveInfo('cpSelectedNumber', null)
+    saveInfo('cpPrice', null)
+    saveInfo('cpCountryCode', null)
+    saveInfo('cpCountryName', null)
+    saveInfo('cpProvider', null)
+    saveInfo('cpPlanKey', null)
+    await set(state, chatId, 'action', a.cpSelectPlan)
+    const availablePlanBtns = []
+    if (phoneConfig.isPlanAvailable('starter')) availablePlanBtns.push([pc.starterPlan])
+    if (phoneConfig.isPlanAvailable('standard')) availablePlanBtns.push([pc.standardPlan])
+    if (phoneConfig.isPlanAvailable('pro')) availablePlanBtns.push([pc.proPlan])
+    if (phoneConfig.isPlanAvailable('business')) availablePlanBtns.push([pc.businessPlan])
+    const pMsg = phoneConfig.getMsg(info?.userLanguage || 'en')
+    return send(chatId, trans('t.cp_8', pMsg.buyPlansHeader, phoneConfig.plans.starter.price, phoneConfig.plans.starter.minutes, phoneConfig.plans.starter.sms, phoneConfig.SUB_NUMBER_LIMITS.starter, phoneConfig.plans.pro.price, phoneConfig.plans.pro.minutes, phoneConfig.plans.pro.sms, phoneConfig.SUB_NUMBER_LIMITS.pro, phoneConfig.plans.business.price, phoneConfig.plans.business.minutes === 'Unlimited' ? 'Unlimited' : phoneConfig.plans.business.minutes, phoneConfig.plans.business.sms, phoneConfig.SUB_NUMBER_LIMITS.business, phoneConfig.plans.standard.price, phoneConfig.plans.standard.minutes, phoneConfig.SUB_NUMBER_LIMITS.standard), k.of(availablePlanBtns))
+  }
+
   if (action === a.submenu5) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
     const buyLabel = pc.buyPhoneNumber
@@ -26556,26 +26581,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return send(chatId, botKinds.T(lang).ask, { parse_mode: 'HTML', ...k.of(botKinds.keyboard(lang)) })
     }
     if (phoneConfig.btnKeyOf(message) === 'buyPhoneNumber') {
-      // Step 1: Select Plan FIRST — reset stale phone purchase state
-      saveInfo('cpIsSubNumber', false)
-      saveInfo('cpSubParentNumber', null)
-      saveInfo('cpSubParentPlan', null)
-      saveInfo('cpSubParentPlanPrice', null)
-      saveInfo('cpSubParentExpiresAt', null)
-      saveInfo('cpSelectedNumber', null)
-      saveInfo('cpPrice', null)
-      saveInfo('cpCountryCode', null)
-      saveInfo('cpCountryName', null)
-      saveInfo('cpProvider', null)
-      saveInfo('cpPlanKey', null)
-      await set(state, chatId, 'action', a.cpSelectPlan)
-      const availablePlanBtns = []
-      if (phoneConfig.isPlanAvailable('starter')) availablePlanBtns.push([pc.starterPlan])
-      if (phoneConfig.isPlanAvailable('standard')) availablePlanBtns.push([pc.standardPlan])
-      if (phoneConfig.isPlanAvailable('pro')) availablePlanBtns.push([pc.proPlan])
-      if (phoneConfig.isPlanAvailable('business')) availablePlanBtns.push([pc.businessPlan])
-      const pMsg = phoneConfig.getMsg(info?.userLanguage || 'en')
-      return send(chatId, trans('t.cp_8', pMsg.buyPlansHeader, phoneConfig.plans.starter.price, phoneConfig.plans.starter.minutes, phoneConfig.plans.starter.sms, phoneConfig.SUB_NUMBER_LIMITS.starter, phoneConfig.plans.pro.price, phoneConfig.plans.pro.minutes, phoneConfig.plans.pro.sms, phoneConfig.SUB_NUMBER_LIMITS.pro, phoneConfig.plans.business.price, phoneConfig.plans.business.minutes === 'Unlimited' ? 'Unlimited' : phoneConfig.plans.business.minutes, phoneConfig.plans.business.sms, phoneConfig.SUB_NUMBER_LIMITS.business, phoneConfig.plans.standard.price, phoneConfig.plans.standard.minutes, phoneConfig.SUB_NUMBER_LIMITS.standard), k.of(availablePlanBtns))
+      return cpAskPlanFirst()
     }
     if (message === pc.myNumbers) {
       const userData = await get(phoneNumbersOf, chatId)
@@ -31719,20 +31725,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         const numBtns = primaryNumbers.map((_, i) => String(i + 1))
         return send(chatId, trans('t.cp_252', numLines), k.of([numBtns, [pc.back, pc.cancel]]))
       }
-      // No active plans → regular new purchase flow
-      saveInfo('cpIsSubNumber', false)
-      saveInfo('cpSubParentNumber', null)
-      saveInfo('cpSubParentPlan', null)
-      saveInfo('cpSubParentPlanPrice', null)
-      saveInfo('cpSubParentExpiresAt', null)
-      saveInfo('cpSelectedNumber', null)
-      saveInfo('cpPrice', null)
-      await set(state, chatId, 'action', a.cpSelectCountry)
-      const countryBtns = phoneConfig.countries.map(c => c.name)
-      const rows = []
-      for (let i = 0; i < countryBtns.length; i += 2) rows.push(countryBtns.slice(i, i + 2))
-      if (phoneConfig.moreCountries.length > 0) rows.push([pc.moreCountries])
-      return send(chatId, cpTxt.selectCountry, k.of(rows))
+      // No active plans → regular new purchase flow, plan first
+      return cpAskPlanFirst()
     }
     const idx = parseInt(message) - 1
     const numbers = info?.cpNumbers || []
@@ -50267,23 +50261,41 @@ app.get('/infobip/recording/:fileId', async (req, res) => {
 })
 
 // Call engine media: spoken text (OpenAI voice) and stored recordings, both behind signed links
+// Speech for the call engine. Each sentence is made once and kept on disk, so repeat prompts (and the prepared
+// free-test-call script) are served instantly instead of waiting on the voice provider.
+const CE_TTS_DIR = require('path').join(require('os').tmpdir(), 'callengine-tts')
+const CE_TTS_STYLE = 'You are a warm, friendly receptionist speaking to a caller on the phone. Sound natural and relaxed, like a real person who is smiling: clear, unhurried, with gentle pauses between options. Never robotic or sing-song. Speak in the language of the text; for English use a natural American accent.'
+async function ceTts(text, male) {
+  const fs = require('fs')
+  const file = require('path').join(CE_TTS_DIR, `${require('crypto').createHash('sha1').update(`${male ? 'm' : 'n2'}:${text}`).digest('hex')}.${male ? 'mp3' : 'wav'}`)
+  if (fs.existsSync(file)) return { buf: fs.readFileSync(file), type: male ? 'audio/mpeg' : 'audio/wav', cached: true }
+  // Female: uncompressed audio (cleaner once narrowed to phone quality) with a spoken-style brief.
+  const body = male
+    ? { model: 'gpt-4o-mini-tts', voice: 'onyx', input: text, response_format: 'mp3' }
+    : { model: 'gpt-4o-mini-tts', voice: 'marin', input: text, response_format: 'wav', instructions: CE_TTS_STYLE }
+  const say = (key) => require('axios').post('https://api.openai.com/v1/audio/speech', body, { headers: { Authorization: `Bearer ${key}` }, responseType: 'arraybuffer', timeout: 30000 })
+  // A rejected key must not leave the caller in silence: try the app's other OpenAI key once.
+  const r = await say(process.env.OPENAI_API_KEY).catch(e => (e.response?.status === 401 && process.env.APP_OPEN_API_KEY ? say(process.env.APP_OPEN_API_KEY) : Promise.reject(e)))
+  const buf = Buffer.from(r.data)
+  try { fs.mkdirSync(CE_TTS_DIR, { recursive: true }); fs.writeFileSync(`${file}.tmp`, buf); fs.renameSync(`${file}.tmp`, file) } catch (_) { /* cache is best-effort */ }
+  return { buf, type: male ? 'audio/mpeg' : 'audio/wav', cached: false }
+}
 app.get('/callengine/tts.mp3', async (req, res) => {
   const ce = require('./callengine')
-  const natural = req.query.v === 'n'
-  const q = `t=${req.query.t}&g=${req.query.g}${natural ? '&v=n' : ''}`
+  const q = `t=${req.query.t}&g=${req.query.g}${req.query.v === 'n' ? '&v=n' : ''}`
   if (String(req.query.k || '') !== ce.sign(q) || !process.env.OPENAI_API_KEY) return res.sendStatus(403)
   try {
-    const text = Buffer.from(String(req.query.t), 'base64url').toString().slice(0, 4000)
-    // Natural voice: uncompressed audio (cleaner once it is narrowed to phone quality) and a spoken-style brief.
-    const body = natural
-      ? { model: 'gpt-4o-mini-tts', voice: 'marin', input: text, response_format: 'wav', instructions: 'You are a warm, friendly American receptionist speaking to a caller on the phone. Sound natural and relaxed, like a real person who is smiling: clear, unhurried, with gentle pauses between options. Never robotic or sing-song.' }
-      : { model: 'gpt-4o-mini-tts', voice: req.query.g === 'm' ? 'onyx' : 'nova', input: text, response_format: 'mp3' }
-    const say = (key) => require('axios').post('https://api.openai.com/v1/audio/speech', body, { headers: { Authorization: `Bearer ${key}` }, responseType: 'arraybuffer', timeout: 30000 })
-    // A rejected key must not leave the caller in silence: try the app's other OpenAI key once.
-    const r = await say(process.env.OPENAI_API_KEY).catch(e => (e.response?.status === 401 && process.env.APP_OPEN_API_KEY ? say(process.env.APP_OPEN_API_KEY) : Promise.reject(e)))
-    res.set('Content-Type', natural ? 'audio/wav' : 'audio/mpeg').set('Cache-Control', 'public, max-age=86400').send(Buffer.from(r.data))
+    const a = await ceTts(Buffer.from(String(req.query.t), 'base64url').toString().slice(0, 4000), req.query.g === 'm')
+    res.set('Content-Type', a.type).set('Cache-Control', 'public, max-age=86400').send(a.buf)
   } catch (e) { res.sendStatus(502) }
 })
+// Prepare the free-test-call script shortly after start, so the very first call speaks without a wait.
+setTimeout(async () => {
+  if (!process.env.OPENAI_API_KEY) return
+  let made = 0
+  for (const text of require('./cloudivr-web/trycall').SPOKEN || []) { try { if (!(await ceTts(text, false)).cached) made++ } catch (e) { log('[callengine] could not prepare test-call speech:', e.message) } }
+  if (made) log(`[callengine] prepared ${made} test-call sentence(s)`)
+}, 20000).unref()
 app.get('/callengine/m/:id', (req, res) => {
   const u = require('./callengine').mediaUrl(req.params.id)
   return u ? res.redirect(302, u) : res.sendStatus(404)

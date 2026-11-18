@@ -95,13 +95,13 @@ const WEB_FEATURES = [
   ['quickIvr', 'Quick IVR — automated calls to up to 10 people', 'ivrOutbound', 'calls'],
   ['callMeFirst', 'Call me first — calls through your mobile', 'ivrOutbound', 'calls'],
   ['bulk', 'Recorded-message campaigns to a whole list', 'bulkCall', 'calls'],
-  ['otp', 'Code collection (OTP) with Accept / Decline', 'otpCollection', 'calls'],
+  ['otp', 'Verify your customers identity via OTP', 'otpCollection', 'calls'],
   ['schedulePresets', 'Scheduled calls and saved call presets', 'ivrSchedule', 'calls'],
   ['anyCallerId', 'Custom caller ID — call from any number', (plan) => plan === 'business', 'calls'],
   ['redial', 'Redial and your own accept / decline messages for codes', 'ivrRedial', 'calls'],
-  ['aiAgent', 'AI receptionist — real conversations with your callers, books and takes messages (per minute)', 'aiAgent', 'ai'],
+  ['aiAgent', 'AI receptionist — real conversations with your callers, books and takes messages (pay as you use)', 'aiAgent', 'ai'],
   ['aiSummary', 'AI summaries & caller mood for voicemails and recorded calls', 'aiSummary', 'ai'],
-  ['aiCampaigns', 'AI conversation campaigns — an AI talks with each lead, free test call first (per minute)', 'aiCampaigns', 'ai'],
+  ['aiCampaigns', 'AI conversation campaigns — an AI talks with each lead, free test call first (pay as you use)', 'aiCampaigns', 'ai'],
   ['defaultVoice', 'One saved AI voice for all your calls', 'consistentVoice', 'ai'],
   ['textTriggers', 'Text Triggers — a text starts a callback, a spoken reply or an AI call', 'textTriggers', 'ai'],
   ['textRelay', 'Text calls for deaf & hard-of-hearing users', 'textRelay', 'ai'],
@@ -476,7 +476,7 @@ function routes(router, deps) {
   const searchArgs = (country, type, areaCode, sms) => ({ country, type, areaCode: areaCode || null, texting: !!sms, own: ownProvider(countries().find(x => x.code === country), type) })
   const hot = require('./search-warm').create(rawSearch, { log: (m) => log(`[CloudIVR-Web] number search cache: ${m}`) })
   // A cached hit the provider no longer remembers (bought or refused since) can't be ordered any more.
-  const stillOffered = (n) => (n._provider === 'multitel' ? require('../multitel').isMtSearched(n.phone_number) : n._provider === 'infobip' ? require('../infobip').isIbSearched(n.phone_number) : true)
+  const stillOffered = (n) => (n._signalwire || n._provider === 'signalwire' ? require('../signalwire').sells('signalwire') && !require('../signalwire/rest').isFull() : n._provider === 'telnyx' ? require('../signalwire').sells('telnyx') : n._provider === 'multitel' ? require('../multitel').isMtSearched(n.phone_number) : n._provider === 'infobip' ? require('../infobip').isIbSearched(n.phone_number) : true)
   if (String(process.env.NUMBER_SEARCH_WARM || 'true').toLowerCase() !== 'false') hot.start(searchArgs)
 
   // Typed a full area code: start that search now so pressing Search answers straight away.
@@ -1032,6 +1032,13 @@ function routes(router, deps) {
     if (paid === null) return bad(res, 409, 'not_cancellable', 'Only a number that is not approved yet can be cancelled for a refund.')
     res.json({ refunded: paid, balance: await w.balance(req.webChatId) })
   }))
+  // Same reminder by email (web accounts have no Telegram chat; the in-app Inbox gets it too).
+  async function mailDetails(chatId, n) {
+    const a = await db.collection('webAccounts').findOne({ _id: Number(chatId) }, { projection: { email: 1 } }).catch(() => null)
+    if (!a?.email) return
+    const site = String(process.env.CLOUDIVR_PUBLIC_URL || 'https://cloudivr.net').replace(/\/+$/, '')
+    await require('./auth').sendMail(a.email, `Finish switching on ${n.phoneNumber}`, `<p>Your number <b>${n.phoneNumber}</b> is paid and reserved. The carrier just needs your details and documents to switch it on.</p><p><a href="${site}/app/numbers">Open My numbers to finish</a> — it takes a couple of minutes. You can also cancel it there for a full refund.</p><p>Without the details the number is released and refunded to your wallet 14 days after purchase.</p>`).catch(e => log(`[CloudIVR-Web] details mail: ${e.message}`))
+  }
   // Paid but details never sent: reminders after 1 and 3 days, refund after 14.
   async function chaseDetails(now = Date.now()) {
     const push = (id, text) => require('./notify').push(id, text, null, { kind: 'number', meta: { link: '/app/numbers' } }).catch(() => {})
@@ -1041,6 +1048,7 @@ function routes(router, deps) {
       const k = age >= 3 * 864e5 ? 'remind2' : age >= 864e5 ? 'remind1' : null
       if (!k || n.registration[k]) continue
       const u = await phoneNumbersOf.updateOne({ _id: d._id, 'val.numbers': { $elemMatch: { phoneNumber: n.phoneNumber, [`registration.${k}`]: { $exists: false } } } }, { $set: { 'val.numbers.$.registration.remind1': true, [`val.numbers.$.registration.${k}`]: true } })
+      if (u.modifiedCount) await mailDetails(d._id, n)
       if (u.modifiedCount) await push(d._id, `${n.phoneNumber} is paid and reserved — the carrier just needs a few details to switch it on. Open the number in My numbers to finish, or cancel it there for a full refund. Without the details it is refunded automatically after 14 days.`)
     }
   }
@@ -1052,6 +1060,20 @@ function routes(router, deps) {
     const sold = countries()
     const items = texting.list().filter(o => sold.find(c => c.code === o.iso)?.types.includes(o.type)).map(o => ({ country: o.iso, name: o.name, flag: o.flag, type: o.type, typeName: o.type === 'local' ? 'Local' : 'Mobile', included: phoneConfig.includedCountries('starter').includes(o.iso), needs10dlc: o.iso === 'US', caps: { sms: true, voice: o.voice }, textPrice: o.textPrice, extraPrice: o.extraPrice }))
     res.json({ items, available: phoneConfig.PLAN_TEXTING(), plan: 'starter', price: phoneConfig.plans?.starter?.price ?? null, usa: { caps: { sms: true, voice: false }, assigned: true } })
+  }))
+  router.post('/texting/suggest', h(async (req, res) => {
+    const text = String(req.body?.text || '').trim().slice(0, 500)
+    if (text.length < 8) return bad(res, 400, 'too_short', 'Tell Emily a little more — who will you text, and where are they?')
+    if (!process.env.APP_OPEN_API_KEY) return bad(res, 503, 'unavailable', 'Emily can’t suggest right now — pick a country below.')
+    const ps = require('./plan-suggest')
+    if (ps.limited(`t:${req.webChatId}`)) return bad(res, 429, 'rate_limited', 'That’s a lot of questions! Try again in a little while, or pick a country below.')
+    const sold = countries()
+    const items = texting.list().filter(o => sold.find(c => c.code === o.iso)?.types.includes(o.type)).map(o => ({ country: o.iso, name: o.name, flag: o.flag, type: o.type, typeName: o.type === 'local' ? 'Local' : 'Mobile', included: phoneConfig.includedCountries('starter').includes(o.iso), needs10dlc: o.iso === 'US', caps: { sms: true, voice: o.voice }, textPrice: o.textPrice, extraPrice: o.extraPrice }))
+    try {
+      const out = await ps.suggestTexting(text, items)
+      if (out.offTopic) { require('../emily-guard').record('texting-suggest', { text, chatId: req.webChatId, reply: out.reason }); return bad(res, 422, 'off_topic', out.reason) }
+      res.json(out)
+    } catch (e) { log(`[CloudIVR-Web] texting suggest failed: ${e.message}`); bad(res, 503, 'unavailable', 'Emily couldn’t answer just now — try again, or pick a country below.') }
   }))
 
   // Extra SIP logins: free ones come with Pro (2) and Business (5); more on any plan with SIP cost $5/month each.

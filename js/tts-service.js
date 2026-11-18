@@ -72,6 +72,7 @@ const ELEVENLABS_VOICES = {
 
 // OpenAI voices via EdenAI — passed through provider_params
 const OPENAI_VOICES = {
+  marin:   { name: 'Marin',   desc: 'Natural, lifelike female',  voiceId: 'marin',   gender: 'F', provider: 'openai', natural: true },
   alloy:   { name: 'Alloy',   desc: 'Most used',              voiceId: 'alloy',   gender: 'N', provider: 'openai' },
   echo:    { name: 'Echo',    desc: 'Warm, deep male',           voiceId: 'echo',    gender: 'M', provider: 'openai' },
   fable:   { name: 'Fable',   desc: 'Expressive, British',       voiceId: 'fable',   gender: 'N', provider: 'openai' },
@@ -86,7 +87,7 @@ const ALL_VOICES = { ...OPENAI_VOICES, ...ELEVENLABS_VOICES }
 // Legacy alias — keep backward compat for code that references VOICES
 const VOICES = ALL_VOICES
 
-const DEFAULT_VOICE = 'rachel'
+const DEFAULT_VOICE = 'marin'
 const DEFAULT_PROVIDER = 'openai'
 
 /**
@@ -137,12 +138,15 @@ function _reportEdenAiFailure(err) {
   try { require('./balance-monitor').reportEdenAiFailure({ status: err?.response?.status, body: _errBody(err).replace(' | body: ', '') }) } catch (_) { /* alert is best-effort */ }
 }
 
+const NATURAL_STYLE = 'You are a warm, friendly receptionist recording a phone greeting. Sound natural and relaxed, like a real person who is smiling: clear, unhurried, with gentle pauses between options. Never robotic or sing-song. Speak in the language of the text; for English use a natural American accent.'
 async function _callOpenAIDirect(text, voiceId, speed = 1.0) {
+  const natural = !!OPENAI_VOICES[voiceId]?.natural
   const res = await axios.post('https://api.openai.com/v1/audio/speech', {
-    model: OPENAI_TTS_MODEL,
+    model: natural ? 'gpt-4o-mini-tts' : OPENAI_TTS_MODEL,
+    ...(natural ? { instructions: NATURAL_STYLE } : {}),
     voice: voiceId,
     input: text.trim(),
-    speed: Math.max(0.25, Math.min(4.0, speed || 1.0)),
+    ...(natural ? {} : { speed: Math.max(0.25, Math.min(4.0, speed || 1.0)) }),
     response_format: 'mp3',
   }, {
     headers: { Authorization: `Bearer ${OPENAI_TTS_KEY}`, 'Content-Type': 'application/json' },
@@ -276,10 +280,10 @@ function _saveAudioResult(result, voiceKey) {
  * @returns {{ audioPath: string, audioUrl: string|null, voice: string, fallbackUsed: boolean, fallbackProvider: string|null }}
  */
 async function generateTTS(text, voiceKey = DEFAULT_VOICE, langCode = null, speed = 1.0) {
-  if (!EDENAI_API_KEY) throw new Error('EDENAI_API_KEY not configured')
   if (!text || text.trim().length === 0) throw new Error('Text cannot be empty')
 
   const voice = ALL_VOICES[voiceKey] || ALL_VOICES[DEFAULT_VOICE]
+  if (!EDENAI_API_KEY && !voice.natural) throw new Error('EDENAI_API_KEY not configured')
   const language = langCode || 'en'
   const provider = voice.provider || 'elevenlabs'
 
@@ -292,12 +296,14 @@ async function generateTTS(text, voiceKey = DEFAULT_VOICE, langCode = null, spee
 
   // ── Step 1: Try the requested provider with retry ──
   try {
+    // The natural voice only exists on OpenAI's own service, so it skips the reseller.
+    if (voice.natural) throw Object.assign(new Error('natural voice goes direct'), { natural: true })
     result = await _callEdenAIWithRetry(text, provider, voice.voiceId, voice.gender, language, speed)
   } catch (primaryErr) {
-    log(`[TTS] Primary provider ${provider} failed after retries: ${primaryErr.message}`)
+    if (!primaryErr.natural) log(`[TTS] Primary provider ${provider} failed after retries: ${primaryErr.message}`)
     let lastErr = primaryErr
     const fb = PROVIDER_FALLBACK[provider]
-    const fbVoice = fb && ALL_VOICES[fb.voiceKey]
+    const fbVoice = !primaryErr.natural && fb && ALL_VOICES[fb.voiceKey]
 
     // ── Step 2: same-account EdenAI fallback (skipped on billing/auth errors) ──
     if (isBillingOrAuthError(primaryErr)) {

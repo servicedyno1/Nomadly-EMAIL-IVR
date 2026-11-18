@@ -98,11 +98,11 @@ function shortUrl(url) {
 }
 const mediaUrl = (id) => shortMedia.get(String(id))?.url || null
 const conv = (audioUrl) => `sound:http://127.0.0.1:8090/c.wav?u=${b64u(shortUrl(String(audioUrl)))}`
-// natural = the lifelike female voice (landing-page free test calls); set per call with naturalVoice(id).
-function ttsMedia(text, voice, language, natural) {
+// Female (the default) speaks with the lifelike voice; v=n also keeps old cached audio from being reused.
+function ttsMedia(text, voice, language) {
   const male = /^male$/i.test(String(voice || '')) || /matthew|joey|justin|brian/i.test(String(voice || ''))
   if (process.env.OPENAI_API_KEY && self()) {
-    const q = `t=${b64u(text)}&g=${male ? 'm' : 'f'}${natural && !male ? '&v=n' : ''}`
+    const q = `t=${b64u(text)}&g=${male ? 'm' : 'f'}${male ? '' : '&v=n'}`
     return conv(`${self()}/callengine/tts.mp3?${q}&k=${sign(q)}`)
   }
   return `sound:http://127.0.0.1:8090/tts.wav?t=${b64u(text)}&g=${male ? 'male' : 'female'}&l=${String(language || 'en').slice(0, 2)}`
@@ -251,7 +251,7 @@ async function stopExternalMedia(id) {
   await call('delete', `/channels/${em.ch}`)
   await call('delete', `/bridges/${em.br}`)
 }
-async function speakOnCall(id, text, voice, language) { const l = live(id); if (!l) return null; return (await play(l, ttsMedia(text, voice, language, l.natural), 'speak')) ? { result: 'ok' } : null }
+async function speakOnCall(id, text, voice, language) { const l = live(id); if (!l) return null; return (await play(l, ttsMedia(text, voice, language), 'speak')) ? { result: 'ok' } : null }
 async function playbackStart(id, audioUrl, options = {}) {
   const l = live(id); if (!l) return null
   const left = String(options.loop) === 'infinity' ? Infinity : Math.max(1, Number(options.loop) || 1)
@@ -262,7 +262,7 @@ async function playbackStop(id) { const l = live(id); if (!l) return null; l.loo
 async function gather(id, { text, voice, language, audioUrl, minDigits = 1, maxDigits = 1, timeout = 15000, interDigitTimeout = 5000, validDigits, terminator = '#' }) {
   const l = live(id); if (!l) return null
   l.gather = { digits: '', min: minDigits, max: maxDigits, timeout, inter: interDigitTimeout, valid: validDigits, terminator }
-  if (text || audioUrl) await play(l, audioUrl ? conv(audioUrl) : ttsMedia(text, voice, language, l.natural), 'prompt')
+  if (text || audioUrl) await play(l, audioUrl ? conv(audioUrl) : ttsMedia(text, voice, language), 'prompt')
   else armGather(l, timeout)
   return { result: 'ok' }
 }
@@ -410,5 +410,5 @@ const M = module.exports = {
   enabled, isAe, connected: () => connected, liveLegs: () => [...legs.values()].filter(l => !l.ended).length, app, sign, ari: makeAri, _legs: legs, _onEvent: onEvent, _setSink: (fn) => { sink = fn }, _setConnected: (v) => { connected = v },
   watchDtmf: (id, fn) => { const l = legs.get(id); if (l) l.onDtmf = fn },
   setDidApps, onConnect: (fn) => { onConnectHook = fn }, failover: FO, originate,
-  mediaUrl, activeBird, start, _sweep: sweep, startExternalMedia, stopExternalMedia, setAiHook: (fn) => { aiHook = fn }, naturalVoice: (id) => { const l = live(id); if (l) l.natural = true; return !!l }, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall,
+  mediaUrl, activeBird, start, _sweep: sweep, startExternalMedia, stopExternalMedia, setAiHook: (fn) => { aiHook = fn }, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall,
 }

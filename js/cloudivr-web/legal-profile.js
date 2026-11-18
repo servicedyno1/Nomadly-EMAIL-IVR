@@ -79,13 +79,18 @@ function createLegalProfile(db, { log = console.log } = {}) {
   const bad = (res, status, error, message) => res.status(status).json({ error, message })
 
   // Express middleware for number checkouts.
+  // Plain number orders go through; the details are asked right after (paperwork countries still check in numbers.js).
+  const AFTER_BUY = /^\/(numbers\/(buy|checkout|request|[^/]+\/(extra-checkout|extra|replace))|fax-numbers)$/
   function gate(req, res, next) {
     if (isComplete(req.webUser)) return next()
+    if (AFTER_BUY.test(req.path)) return next()
     return bad(res, 428, 'profile_required', 'Add your personal or business details before buying a number. We register every number in your name.')
   }
   // Outgoing calls, Quick IVR and Bulk IVR (sending or scheduling) also need the details.
   function callGate(req, res, next) {
     if (isComplete(req.webUser)) return next()
+    // The one free test call from our shared number needs no details, unless it shows a custom caller ID.
+    if (req.path === '/calls/trial' && !String(req.body?.showAs || '').trim()) return next()
     return bad(res, 428, 'profile_required', 'Add your personal or business details before making outgoing calls, Quick IVR or Bulk IVR calls.')
   }
 
@@ -121,6 +126,9 @@ function createLegalProfile(db, { log = console.log } = {}) {
       const prev = req.webUser.legalProfile
       const profile = { ...v.profile, ...(prev?.signature ? { signature: prev.signature } : {}), completedAt: prev?.completedAt || new Date(), updatedAt: new Date() }
       await accounts.updateOne({ _id: req.webUser._id }, { $set: { legalProfile: profile }, $unset: { profileDue: '' } })
+      // Numbers bought before the details were saved get their end user now.
+      const eu = endUser({ ...req.webUser, legalProfile: profile })
+      if (eu) await resale.updateMany({ chatId: String(req.webUser._id), endUser: null }, { $set: { endUser: eu, note: resaleNote(eu) } }).catch(() => {})
       require('../spenza').syncProfile(req.webUser._id).catch(e => log(`[CloudIVR-Web] Spenza profile sync failed for ${req.webUser._id}: ${e.message}`))
       log(`[CloudIVR-Web] legal profile ${prev ? 'updated' : 'added'} for ${req.webUser._id} (${profile.type}, ${profile.address.countryCode})`)
       res.json({ profile, complete: true })
@@ -128,7 +136,7 @@ function createLegalProfile(db, { log = console.log } = {}) {
 
     // "Later" on the sign-up step: stop showing it right after sign-up (buying still needs the details).
     router.post('/profile/legal/later', h(async (req, res) => {
-      await accounts.updateOne({ _id: req.webUser._id }, { $unset: { profileDue: '' } })
+      await accounts.updateOne({ _id: req.webUser._id }, { $set: { profileLaterAt: new Date() }, $unset: { profileDue: '' } })
       res.json({ ok: true })
     }))
 
