@@ -158,7 +158,7 @@ function createAuth(db, { log = console.log, notifyAdmin = () => {} } = {}) {
 
   async function createAccount({ email = null, phone = null, name, passwordHash = null, googleSub = null, referredBy = null, ip = null, country = null }) {
     const _id = await nextChatId()
-    const acc = { _id, ...(email ? { email } : {}), ...(phone ? { phone } : {}), name: String(name || '').trim().slice(0, 80), passwordHash, ...(googleSub ? { googleSub } : {}), ...(referredBy ? { referredBy } : {}), signupIp: ip, lastIp: ip, tokenVersion: 0, profileDue: true, createdAt: new Date(), lastLoginAt: new Date() }
+    const acc = { _id, ...(email ? { email } : {}), ...(phone ? { phone } : {}), name: String(name || '').trim().slice(0, 80), passwordHash, ...(googleSub ? { googleSub } : {}), ...(referredBy ? { referredBy } : {}), signupIp: ip, lastIp: ip, tokenVersion: 0, createdAt: new Date(), lastLoginAt: new Date() }
     await accounts.insertOne(acc)
     await db.collection('walletOf').updateOne({ _id: String(_id) }, { $setOnInsert: { usdIn: 0, usdOut: 0 } }, { upsert: true })
     await db.collection('state').updateOne({ _id: String(_id) }, { $setOnInsert: { userLanguage: 'en', webAccount: true } }, { upsert: true })

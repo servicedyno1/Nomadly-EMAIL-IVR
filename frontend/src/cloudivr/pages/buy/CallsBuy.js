@@ -152,13 +152,15 @@ function ExistingPlanChooser({ nums, price, pv }) {
 // Calls: find a number, then plan and pay. With extraOf, the number joins an existing plan instead.
 export function CallsBuy({ extraOf, onStage }) {
   const { catalog, summary, refreshSummary } = useShell();
-  const needsProfile = !useCivrAuth()?.account?.profileComplete;
+  const profileComplete = !!useCivrAuth()?.account?.profileComplete;
   const [reqTick, setReqTick] = useState(0);
   const nav = useNavigate();
   const [params] = useSearchParams();
   const [saved] = useState(() => readResume(params));
   const [q, setQ] = useState(saved?.q || { country: (params.get('country') || 'US').toUpperCase(), type: params.get('type') || 'local', areaCode: '' });
   const [res, setRes] = useState(saved?.res || null);
+  // Details are asked before paying only where the carrier needs paperwork; otherwise right after the purchase.
+  const needsProfile = !profileComplete && !!(res?.request || res?.paperwork);
   const [single, setPick] = useState(saved?.pick || null);
   const [picks, setPicks] = useState(saved?.picks || []);
   const [plan, setPlan] = useState(saved?.plan || params.get('plan') || USE_PLAN[rememberedUse()] || null);

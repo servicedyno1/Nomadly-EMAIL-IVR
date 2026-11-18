@@ -804,6 +804,8 @@ const { initDailyCoupons } = require('./daily-coupons.js')
 const telnyxApi = require('./telnyx-service.js')
 const faxService = require('./fax-service.js')
 const twilioService = require('./twilio-service.js')
+// New numbers only from NUMBER_PROVIDERS: a Twilio country goes through the shared chain (MultiTEL) unless Twilio is listed.
+const noTwilioSales = (p) => (p === 'twilio' && !require('./signalwire').sells('twilio') ? 'telnyx' : p)
 const { handleInboundSms, initSmsLimits } = require('./sms-service.js')
 const { handleVoiceWebhook, initVoiceService, getIvrAnalytics, trackIvrAnalytics, incrementSmsUsed, isSmsLimitReached, pendingBridges, initUserWalletMonitor } = require('./voice-service.js')
 const { initCnamService, lookupCnam, batchLookupCnam, getCircuitStatus } = require('./cnam-service.js')
@@ -4634,6 +4636,7 @@ const loadData = async () => {
 
   // CloudIVR Telegram channel posts (only the channel's admin bot posts; 2 a day).
   require('./channel-ads').init({ db, bot, logger: log }).catch(e => log(`[ChannelAds] init error: ${e.message}`))
+  require('./cloudivr-web/funnel-report').start({ db, notifyAdmin: (t) => { try { notifyAdmin?.(t) } catch (_) { /* best-effort */ } }, log })
   // Initialize Cloud IVR scheduler (expiry, usage tracking, monthly reset)
   if (process.env.PHONE_SERVICE_ON === 'true') {
     initPhoneScheduler({
@@ -30169,12 +30172,12 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const countryEntry = phoneConfig.allCountries.find(c => c.name === message) || planCountries.find(c => c.name === message)
     if (!countryEntry && phoneConfig.BOT_CATALOG()) return send(chatId, phoneConfig.includedIssue(info?.cpPlanKey, countryCode, 'local') || phoneConfig.getMsg(info?.userLanguage).selectValidCountry)
     // Store native provider for this country (used for single-provider countries)
-    const nativeProvider = countryEntry?.provider || 'telnyx'
+    const nativeProvider = noTwilioSales(countryEntry?.provider || 'telnyx')
     await saveInfo('cpCountryCode', countryCode)
     await saveInfo('cpCountryName', message)
     await saveInfo('cpProvider', nativeProvider)
     // Check if this country supports dual-provider search (Telnyx countries can also search Twilio)
-    const canSearchBoth = (nativeProvider === 'telnyx') && phoneConfig.isTwilioEnabled() // Telnyx countries (US, CA) — search both
+    const canSearchBoth = (nativeProvider === 'telnyx') && phoneConfig.isTwilioEnabled() && require('./signalwire').sells('twilio') // Telnyx countries (US, CA) — search both
     await saveInfo('cpCanSearchBoth', canSearchBoth)
     await set(state, chatId, 'action', a.cpSelectType)
     // Show available types for this country
@@ -32321,7 +32324,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const countryCode = phoneConfig.countryByName[message]
     if (!countryCode) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectValidCountry)
     const countryEntry = phoneConfig.allCountries.find(c => c.name === message) || phoneConfig.botExtraOrMore().find(c => c.name === message)
-    const nativeProvider = countryEntry?.provider || 'telnyx'
+    const nativeProvider = noTwilioSales(countryEntry?.provider || 'telnyx')
     // Telnyx countries that need verification can only be bought as a main number
     if (nativeProvider === 'telnyx' && countryEntry?.verify) return send(chatId, txReg.T(lang).subNotSupported, { parse_mode: 'HTML' })
     await saveInfo('cpCountryCode', countryCode)

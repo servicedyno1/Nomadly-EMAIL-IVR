@@ -5,29 +5,28 @@ import { useCivrAuth } from '../AuthContext';
 import { Modal } from '../pages/contacts/Modal';
 import { LegalProfileForm } from './LegalProfileForm';
 
-// Right after sign-up (new accounts): one step to add personal or business details. "Later" is allowed.
-// Waits for the onboarding step (`ready`) so the two dialogs never stack.
+// Right after the first number is bought: one step to add personal or business details. "Later" is allowed.
 export function ProfileSetupDialog({ ready }) {
   const { account, setAccount } = useCivrAuth();
   const [open, setOpen] = useState(true);
   if (!ready || !account?.profileDue || !open) return null;
   const later = () => { setOpen(false); api('/profile/legal/later', { method: 'POST' }).then(() => setAccount({ ...account, profileDue: false })).catch(() => {}); };
   return (
-    <Modal title="Who will use your numbers?" sub="Carriers register every number to a person or business. Takes a minute — the address fills in as you type." onClose={later} testid="profile-setup-dialog">
+    <Modal title="Last step: who is this number for?" sub="Carriers register each number to a person or business. Takes a minute — the address fills in as you type." onClose={later} testid="profile-setup-dialog">
       <LegalProfileForm onSaved={() => setOpen(false)} onLater={later} submitLabel="Save and continue" testid="profile-setup-form" />
     </Modal>
   );
 }
 
 // Existing accounts without details: slim reminder until it's done.
-export function ProfileBanner() {
+export function ProfileBanner({ hasNumbers }) {
   const { account } = useCivrAuth();
   const [open, setOpen] = useState(false);
-  if (!account || account.profileComplete || account.profileDue) return null;
+  if (!hasNumbers || !account || account.profileComplete || account.profileDue) return null;
   return (
     <>
       <div role="region" aria-label="Profile reminder" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm bg-[#818cf8]/10 border-b border-[#818cf8]/25 px-4 py-2" data-testid="profile-banner">
-        <span className="flex items-center gap-2"><IdCard className="w-4 h-4 text-[#818cf8]" />Add your personal or business details — needed before you make outgoing calls, Quick IVR or Bulk IVR calls, or buy a number.</span>
+        <span className="flex items-center gap-2"><IdCard className="w-4 h-4 text-[#818cf8]" />Add your personal or business details so carriers can register your number.</span>
         <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" onClick={() => setOpen(true)} data-testid="profile-banner-button">Add details</button>
       </div>
       {open && <Modal title="Your personal or business details" sub="Needed for outgoing calls, Quick IVR and Bulk IVR, and to register numbers with carriers." onClose={() => setOpen(false)} testid="profile-banner-dialog">

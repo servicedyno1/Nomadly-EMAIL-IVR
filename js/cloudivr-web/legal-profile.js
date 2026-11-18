@@ -79,8 +79,14 @@ function createLegalProfile(db, { log = console.log } = {}) {
   const bad = (res, status, error, message) => res.status(status).json({ error, message })
 
   // Express middleware for number checkouts.
+  // Plain number orders go through; the details are asked right after (paperwork countries still check in numbers.js).
+  const AFTER_BUY = /^\/numbers\/(buy|checkout|[^/]+\/(extra-checkout|extra|replace))$/
   function gate(req, res, next) {
     if (isComplete(req.webUser)) return next()
+    if (AFTER_BUY.test(req.path)) {
+      res.on('finish', () => { if (res.statusCode < 300) accounts.updateOne({ _id: req.webUser._id, 'legalProfile.completedAt': { $exists: false } }, { $set: { profileDue: true } }).catch(() => {}) })
+      return next()
+    }
     return bad(res, 428, 'profile_required', 'Add your personal or business details before buying a number. We register every number in your name.')
   }
   // Outgoing calls, Quick IVR and Bulk IVR (sending or scheduling) also need the details.
@@ -123,6 +129,9 @@ function createLegalProfile(db, { log = console.log } = {}) {
       const prev = req.webUser.legalProfile
       const profile = { ...v.profile, ...(prev?.signature ? { signature: prev.signature } : {}), completedAt: prev?.completedAt || new Date(), updatedAt: new Date() }
       await accounts.updateOne({ _id: req.webUser._id }, { $set: { legalProfile: profile }, $unset: { profileDue: '' } })
+      // Numbers bought before the details were saved get their end user now.
+      const eu = endUser({ ...req.webUser, legalProfile: profile })
+      if (eu) await resale.updateMany({ chatId: String(req.webUser._id), endUser: null }, { $set: { endUser: eu, note: resaleNote(eu) } }).catch(() => {})
       require('../spenza').syncProfile(req.webUser._id).catch(e => log(`[CloudIVR-Web] Spenza profile sync failed for ${req.webUser._id}: ${e.message}`))
       log(`[CloudIVR-Web] legal profile ${prev ? 'updated' : 'added'} for ${req.webUser._id} (${profile.type}, ${profile.address.countryCode})`)
       res.json({ profile, complete: true })

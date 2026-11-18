@@ -69,11 +69,14 @@ export default function Checkout({ pick, planObj, total, balance, coins, busy, o
   const txBad = !!addOn && !/^\d{5}$/.test(tx.zip);
   const short = Math.max(0, Math.round((due - (balance || 0)) * 100) / 100);
   const [method, setMethod] = useState(short > 0 && cryptoOk ? 'crypto' : 'wallet');
-  useEffect(() => { if (short > 0 && cryptoOk && method === 'wallet') setMethod('crypto'); }, [short, cryptoOk, method]);
+  useEffect(() => { if (short > 0 && cryptoOk && method === 'wallet') setMethod(cardPicked.current ? 'card' : 'crypto'); }, [short, cryptoOk, method]);
   const [coin, setCoin] = useState(coins[0] || '');
   const [autoRenew, setAutoRenew] = useState(autoRenewDefault);
   const walletShort = method === 'wallet' && short > 0;
   const mol = useMollie(due > 0 ? Math.max(10, Math.ceil(short || due)) : 0), cardOk = !!mol?.enabled && mol.currencies.length > 0;
+  // Card first: when the wallet is short and cards are on, card is pre-selected (crypto stays one tap away).
+  const cardPicked = useRef(false);
+  useEffect(() => { if (cardOk && short > 0 && !cardPicked.current) { cardPicked.current = true; setMethod('card'); } }, [cardOk, short]);
   const extra = { autoRenew, ...(addOn ? { texting: { zipcode: tx.zip } } : {}) };
   // Short wallet: its balance pays part, crypto only the rest (never below the crypto minimum).
   const part = short > 0 && (balance || 0) > 0 ? Math.round(balance * 100) / 100 : 0;

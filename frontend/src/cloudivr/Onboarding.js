@@ -38,7 +38,7 @@ export function Onboarding({ data, setData }) {
         {step === 0 ? (
           <>
             <h2 id="onb-title" className="civr-page-title text-3xl">What do you need?</h2>
-            <p className="text-[#a1a1aa] mt-2">Pick all that fit — your Home shows these first. No paperwork now: we only ask for details when something you buy needs them.</p>
+            <p className="text-[#a1a1aa] mt-2">Pick all that fit — your Home shows these first.</p>
             <div className="grid sm:grid-cols-2 gap-3 mt-7" data-testid="onboarding-purposes">
               {PURPOSES.map(([id, Icon, label, sub], i) => {
                 const on = pick.includes(id);

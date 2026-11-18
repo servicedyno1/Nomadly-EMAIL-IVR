@@ -162,6 +162,12 @@ function createEmails(db, { log = console.log } = {}) {
       const [st, tried, hasNum] = await Promise.all([db.collection('state').findOne({ _id: `ivrTrialUsed_${id}`, val: true }), db.collection('webQuickCalls').findOne({ chatId: id, trial: true }), nums.byChat.get(id)?.numbers?.length])
       if (!st && !tried && !hasNum) jobs.push({ chatId: id, type: 'tryNudge', key: `trynudge:${id}`, data: async () => ({}) })
     }
+    // Welcome back (once): signed up 2+ days ago and never came back after the first hour.
+    for (const a of await accounts.find({ createdAt: { $lt: new Date(Date.now() - 2 * DAY) }, disabled: { $ne: true }, $expr: { $lt: [{ $ifNull: ['$lastLoginAt', '$createdAt'] }, { $add: ['$createdAt', 3600e3] }] } }, { projection: { _id: 1 } }).toArray()) {
+      const id = String(a._id)
+      if (nums.byChat.get(id)?.numbers?.length) continue
+      jobs.push({ chatId: id, type: 'welcomeBack', key: `welcomeback:${id}`, data: async () => ({ tried: !!(await db.collection('webQuickCalls').findOne({ chatId: id, trial: true })) }) })
+    }
     // Follow-up ~3 minutes after a free call (Quick IVR trial, or the landing-page test call matched to its email).
     const lag = 3 * 60000, fromLag = new Date(from.getTime() - lag), toLag = new Date(Date.now() - lag)
     for (const q of await db.collection('webQuickCalls').find({ trial: true, at: { $gte: fromLag, $lt: toLag } }, { projection: { chatId: 1 } }).toArray()) {

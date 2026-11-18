@@ -52,7 +52,7 @@ import Help from './pages/Help';
 import { CrashGuard, CrashProbe, OfflineBanner } from './safety';
 import { UpdateBanner } from './update';
 import { WhatsNew } from './WhatsNew';
-import { ProfileBanner } from './profile/ProfilePrompts';
+import { ProfileBanner, ProfileSetupDialog } from './profile/ProfilePrompts';
 import { CardCheckBanner } from './compliance/CardCheck';
 import { track } from './track';
 import { UnsavedGuard } from './guard';
@@ -161,6 +161,10 @@ export default function Shell() {
   const [catalog, setCatalog] = useState(null);
   const [phoneOpen, setPhoneOpen] = useState(false);
   const refreshSummary = useCallback(() => api('/dashboard').then(setSummary).catch(() => {}), []);
+  // First number bought → reload the account so the one details step shows right after.
+  const owned = summary?.numbers?.total || 0;
+  const { refresh: refreshAccount } = useCivrAuth() || {};
+  useEffect(() => { if (owned > 0) refreshAccount?.(); }, [owned, refreshAccount]);
   const openPhone = useCallback(() => setPhoneOpen(true), []);
   const closePhone = useCallback(() => setPhoneOpen(false), []);
   const { pathname } = useLocation();
@@ -196,7 +200,8 @@ export default function Shell() {
           <OfflineBanner />
           <UpdateBanner />
           <TopBar summary={summary} onPhone={() => setPhoneOpen(o => !o)} />
-          <ProfileBanner />
+          <ProfileBanner hasNumbers={owned > 0} />
+          <ProfileSetupDialog ready={owned > 0} />
           <CardCheckBanner />
           <PrivateBanner />
           <main className="px-4 md:px-8 min-[1800px]:px-12 pt-8 md:pt-10 pb-40 lg:pb-12 max-w-7xl min-[1600px]:max-w-[1440px] min-[1800px]:max-w-[1640px] min-[2300px]:max-w-[1880px] mx-auto" data-testid="app-main">
