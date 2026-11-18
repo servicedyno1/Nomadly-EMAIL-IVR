@@ -612,3 +612,11 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - Menu: 27 links → 13 in 5 groups (`nav.js` NAV + HUBS); pages sharing a menu entry get tabs on top (`SectionTabs.js`, testids `hub-tabs-*`, `hub-tab-*`); all old URLs unchanged.
 - Emily first: `Emily.js` (`FormFold`, `useEmilyMode`, `EmilyFace`); AI receptionist/agent pages = Emily panel on top (`BuilderChat.js`), form folded for new / open for existing, test + numbers column right; number tabs (forwarding, voicemail, hours, ring group, IVR, triggers) and Quick call fold their fields under Emily while in Chat mode. Home: tasks moved into "Do more with CloudIVR"; number page: setup banner hidden once answered.
 - iteration_319: backend 100%, frontend ~92%. Open (not fixed): Quick call empty submit gives no visible error / fold stays shut; empty-name agent save opens the fold but shows no message; `app-sidebar` testid not found by tester; Campaign form and missed-call text not folded; first area-code search of a big state ~10 s (cold cache).
+
+## 2026-11-18 — UX batch: clear errors, Emily campaign, fast number search, next step
+- Missing required fields on Quick call, AI agent/receptionist and New campaign: inline + toast "Almost there — add …", form unfolds, missing inputs outlined (civr-missing) and first focused; no server call. Helper `missingFields` in `frontend/src/cloudivr/Emily.js`.
+- New campaign: Emily first, form folded in `campaign-fold`, Save bar always visible (`campaign-save-bar`); AI-agent kind shows plain form.
+- Number search: in-memory stale-while-revalidate cache `js/cloudivr-web/search-warm.js` (fresh 3 min, kept 20 min, popular + recent area codes re-warmed every 10 min; `NUMBER_SEARCH_WARM=false` disables). `GET /numbers/search/warm` prefetch fired by Buy page as the area code is typed. Warm searches ~0.1 s, cold ~1–3 s.
+- Home: one "Do this next" card (`pages/dashboard/NextStep.js`, `pickNextStep`).
+- Tested: /app/test_reports/iteration_320.json (all pass; full campaign save blocked by pre-existing BULK_IVR_MAINTENANCE default=true).
+- Open: nav has 5 groups vs user's "6 clear areas" choice — confirm with user.

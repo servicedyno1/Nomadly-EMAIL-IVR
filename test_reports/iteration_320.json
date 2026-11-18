@@ -1,0 +1,38 @@
+{
+  "summary": "Tested 4 CloudIVR features on preview (Alice/Bob). 1) Clear missing-field errors: Quick call, AI agent new, Receptionist new and New campaign all PASS. The 'Almost there — add ...' message shows inline and in a toast, the fold opens (data-open=yes), every missing input gets civr-missing (red border plus 2px ring), the first one gets focus, the outline goes away when you type in it, and no save POST is sent. 2) Campaign Emily-first: PASS. Assist panel is on top, then the Call flow card, then campaign-fold (data-open=no) with its toggle, and campaign-save-bar sits outside the fold. Manual mode shows no fold and the form is visible. The AI voice agent kind shows no fold and no assist panel. BLOCKED: a full valid Recorded-message campaign does not save. After the permission modal is confirmed, POST /campaigns returns 503 bulk_maintenance, because phone-config.bulkIvrMaintenance() defaults to true when BULK_IVR_MAINTENANCE is unset. The error appears correctly in campaign-create-error, but saving and reaching the detail page could not be checked. 3) Number search speed: PASS, 9/9 pytest. Warm searches for 415/212/305/713/818 take about 0.10–0.12 s with 10–12 numbers each, all with providers and none held by Alice. /numbers/search/warm returns 202 straight away, and 919 then answers in 0.12 s. Without warm: 509 took 2.5 s cold and 0.16 s repeated, 907 took 1.26 s, toll_free 2.9 s. Buy page (?purpose=voice) with area code 646: 10 results in 0.23 s, and the frontend sent warm requests before Search. Picking a number reached buy-plan-picker. 4) Home next step: PASS. Alice sees one card, data-step=answer, 'Choose how +13346970100 answers calls', linking to /cloudivr/app/answer/ivr, and the click navigates there. Bob sees the fresh-account home with no card.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/campaigns", "issue": "Returns 503 bulk_maintenance in preview because BULK_IVR_MAINTENANCE is not set and phone-config.js:640 defaults it to 'true'. This blocks the valid-campaign save to detail page check. Set BULK_IVR_MAINTENANCE=false in the preview env, or confirm maintenance is intended."},
+      {"endpoint": "js/cloudivr-web/search-warm.js", "issue": "hot.drop(phone) is defined but never called after a purchase. Cached lists keep numbers that were bought until the next refresh. unheld() does hide them per request, so the user sees no problem, but it costs an extra DB query on every search."},
+      {"endpoint": "GET /api/cloudivr-web/numbers/search/warm", "issue": "No rate limit. Any logged-in user can add many area codes to the 'recent' map; each stays for 2 h and gets re-warmed every 10 min (capped at 60 jobs per run, but POPULAR takes 25 of those slots). Consider a per-user throttle."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "New campaign, AI voice agent kind", "issue": "missingFields only checks the numbers to call. If the account has no AI agent, or none is picked, the client does not flag it, so the user only gets a server error after pressing Save.", "affected_selectors": ["campaign-create-button", "campaign-create-error"]}
+    ],
+    "design_issues": [
+      {"screen": "New campaign (1920x1080)", "issues": ["campaign-save-bar starts at y≈1083, just below the first screen, because the Call flow card sits between Emily and the fold. Save is outside the fold but needs a scroll on desktop."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_search_cache.py", "/app/test_reports/pytest/cloudivr_search_cache.xml"],
+  "action_items": [
+    "Set BULK_IVR_MAINTENANCE=false for preview (or confirm maintenance is intended) so a valid Bulk IVR campaign can be saved, then re-check that a full campaign saves and navigates to the detail page",
+    "Optional: add the AI agent selection to missingFields for AI campaigns",
+    "Optional: call hot.drop(phone) after a successful purchase; throttle /numbers/search/warm"
+  ],
+  "critical_code_review_comments": [
+    "NextStep 'answer' rule uses answering(), which only counts AI agent, IVR, ring group and forwarding. A number answered only through a SIP softphone or voicemail is still told 'callers just ring'. Consider counting sipUsername or voicemail.",
+    "missingFields marks fields with a 60 ms setTimeout and plain DOM classList. This works now, but a React re-render that rewrites className (e.g. a conditional class) would silently remove the outline.",
+    "Receptionist new comes pre-filled (name 'Receptionist' plus a 148-char script), so pressing Save right away saves without errors. This is by design."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_search_cache.py"],
+  "success_rate": {"backend": "100% (9/9 search-cache tests)", "frontend": "~93% (all checks pass except the valid campaign save, blocked by env maintenance flag)"},
+  "seed_data_creation": "Created and deleted (by id) AI agents 'TEST_Agent QA' (492b3533...) and 'Receptionist' (8eb71ef2...) on Alice. No campaigns were created (503). Alice's searchCache doc was updated by normal searches.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login: dismiss cookie-allow-all first. The Buy page needs ?purpose=voice to show the search form. Campaign save opens a 'Permission to call this list' dialog (checkbox, then 'Confirm and continue'), then fails with 503 bulk_maintenance unless BULK_IVR_MAINTENANCE=false. Alice's numbers are now +13346970100 (Business) and +13346970101 (Starter); the only audio is 'Test greeting'. On a folded form, Playwright fill(force=True) on hidden inputs does not change React state; open the fold toggle first.",
+  "rca of the issue": "Campaign save 503: js/phone-config.js:640 `bulkIvrMaintenance = () => String(process.env.BULK_IVR_MAINTENANCE ?? 'true').toLowerCase() !== 'false'`. The env var is missing in this pod, so bulk-call-service.createCampaign returns {maintenance:true} and calls.js:192 returns 503. Fix: add BULK_IVR_MAINTENANCE=false to the preview env and restart nodejs."
+}
