@@ -1,0 +1,36 @@
+{
+  "summary": "Tested the Emily step-1 chips on Get a number, Emily on Calls + texting (/texting/suggest), the new 'kind' field from /public/plan-suggest, and regressions for the kind picker and calls plan search. Backend 10/10 pytest passed with real LLM answers. Frontend: every requested flow passed. Dental -> purpose=calls&plan=standard with Plus aria-pressed=true and buy-plan-suggest visible. Law office -> 'Emily suggests a Fax number' -> purpose=fax. Salon -> Calls + texting -> purpose=texting. UK prompt -> data-country=GB -> Show UK numbers -> texting-buy-searching -> texting-buy-results with the GB card pressed. The verification-codes chip returned alt=mobile, and its link opened /app/esim. Only minor content and UX issues were found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/public/plan-suggest", "issue": "When kind is fax or texting, the reason still talks about a calls plan. Fax answer: 'Basic plan covers fax sending and receiving along with call forwarding and voicemail', which is wrong because fax is its own product. Salon answer: 'Text triggers ... included in the Business plan', which pushes the $120 plan although Continue goes to Calls + texting. The step-1 UI shows this reason under 'Emily suggests a Fax number / Calls + texting number', so the message contradicts itself. Fix: tell the prompt that when kind is not calls, the reason must describe that number kind and not mention plans or features (or ignore plan/alsoLike for non-calls kinds). The fax answer also returned alsoLike 'keypad menu', which the UI shows."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Calls + texting, Emily result", "issues": ["Clicking texting-suggest-show runs the search, but texting-buy-results renders below the 8-country grid and off-screen at 1920x1080. Only the GB card tick changes, so the user may think nothing happened. Scroll the results or spinner into view.", "When alt is set, the bold ALT line and Emily's reason say almost the same thing ('A USA Texting Number works in your browser and is good for verification codes. A USA Texting Number in the browser is perfect for receiving verification codes easily.'). Show only one of them."]},
+      {"screen": "Get a number step 1, Emily result (desktop)", "issues": ["The 'Continue with Plus' button sits inline at the end of the reason sentence instead of on its own row. mt-3 has no effect on an inline button, so the layout looks cramped."]},
+      {"screen": "Get a number step 1 (mobile 390px)", "issues": ["The Emily box plus 5 chips, each on its own row, fills the first screen, so the kind cards are below the fold. Consider fewer chips or a horizontal scroll on mobile."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_emily_texting_iter325.py", "/app/test_reports/pytest/iter325.xml"],
+  "action_items": [
+    "plan-suggest prompt: when kind is fax or texting, make the reason and alsoLike match that number kind (no Basic/Business plan talk); otherwise drop alsoLike for non-calls kinds",
+    "TextingSuggest: after onPick, scroll the texting search spinner or results into view",
+    "TextingSuggest: when out.alt is set, don't show both the ALT[alt][1] line and a near-duplicate reason",
+    "PlanSuggest: put the Continue button on its own line (block or flex wrapper)"
+  ],
+  "critical_code_review_comments": [
+    "fromEmily replaces all search params ({purpose, plan}), so any existing coupon/resume/ref query params are dropped when the user taps Continue. Merge into the existing params if coupon links should survive step 1.",
+    "TextingSuggest shows the 'Show X numbers' button only when out.country is in the frontend items. The backend filters items the same way, so they agree today; if the lists drift, the result shows only the reason and no action.",
+    "The rate limiter in /texting/suggest shares the hits Map with the public IP limiter (key prefix 't:'), 15 per hour. That is fine, but the shared map is cleared whenever it grows past 5000 entries."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_emily_texting_iter325.py"],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100% of the requested flows; 4 minor UX/content issues"},
+  "seed_data_creation": "None. Used civr.uxtest@example.com. Nothing was bought.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Emily answers come from a real LLM (2-8s). Observed: dental -> standard (Plus); law fax -> kind fax; salon -> kind texting; UK -> GB; US reminders -> US; verification codes -> alt mobile (US). Countries sold for texting: BR, CA, CO, DK, NL, PE, GB, US. Off-topic -> 422 off_topic."
+}

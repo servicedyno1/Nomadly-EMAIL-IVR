@@ -3726,3 +3726,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Bot Digital Products: removed Twilio/Telnyx (main+sub), AWS/GCloud sub, Workspace/Zoho New Domain. Renamed: Google Cloud Account, Google Workspace Account, Zoho Mail Account (all 5 langs + ai-support KB). Test: js/tests/test_digital_products_menu.js.
 - eSIM $50/month web + bot: spenza defaultPrice flag price:SPENZA_001:50 (plan price + live lines >$50 → $50); billOne caps eSIM renewals at $50; esim-bot PRICE 50; lang labels.
 - "Code collection (OTP) with Accept / Decline" → "Verify your customers identity via OTP" in plan features (web catalog, landing snapshot, FAQ, help, emails, bot plan texts, Emily prompts); bot Quick IVR mode button → "🔑 Verify identity (OTP)" (old label still accepted).
+
+## 2026-06 — Emily on texting, step-1 chips, eSIM $50 announcement
+- POST /api/cloudivr-web/texting/suggest (signed in): Emily picks texting country or alt esim/mobile (plan-suggest.js suggestTexting). UI: pages/buy/TextingSuggest.js inside TextingBuy.
+- Step 1 Emily chips: 5 examples (calls/leads/texting/fax/solo) via PlanSuggest `examples` prop.
+- js/esim-price-announce.js: one-off "eSIM now $50/month" (id esim-50-2026-11) 5 min after boot, every bot user (lang + 📱 USA eSIM button) + every web account (Inbox + email, no opt-out filter per user choice), deduped in `announcements`; DRY RUN in preview. Disable with ESIM_PRICE_ANNOUNCE=false.
+- Test iteration_325: backend 10/10, all frontend flows pass; 4 minor UX notes open.
