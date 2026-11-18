@@ -3671,3 +3671,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Plan-limit lock for multi-add (webNumberLocks 'extras:<chat>:<parent>') + slots re-checked per number; coupon applies to the whole order and is redeemed once (purchaseLocked skipRedeem). Landing catalogSnapshot limits 5/10/25/50.
 - Fixed (iteration_316 critical): positional updates hit an old released copy of a re-bought number → setField / delete / copy now match status != released.
 - Not done: live SIP test call (user skipped). Open: the single-pick extra purchase skips the plan lock; ~18 other positional updates in cloudivr-web still use 'val.numbers.phoneNumber' (same released-duplicate risk); no select-all in copy targets; scheduler co-term renewal is only unit/logic checked, not time-travelled.
+
+## 2026-11-18 — SIP status badge, old SIP login sweep, live calendar link
+- Live SIP badge (web SIP tab + SIP page, bot SIP Credentials screen): "Signed in" while a device's registration is active (sip-presence.status), polls every 30 s.
+- Old-login sweep (js/sip-old-login-sweep.js, hourly in phone-scheduler): replaced logins seen in last 30 days whose owner hasn't signed in with the current login → once per old login: Telegram msg + `sipold:<phone>` reset button (bot), Inbox notice with Reset SIP password button (web), email type `sipOldLogin` (web). No passwords sent.
+- Private live calendar feed: GET /api/calendar/<token>.ics (calendarFeeds collection), web card on Renewal calendar (Google/Apple/copy/new link), bot calendar adds Google button + webcal link.
+- Tests: js/tests/test_sip_badge_sweep_feed.js 6/6; iteration_318 frontend pass (email steps blank bug fixed after).

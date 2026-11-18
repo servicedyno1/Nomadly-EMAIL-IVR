@@ -68,6 +68,7 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - [ ] Verify Zadarma number activation
 
 ## P1 — Next
+- (2026-11-18) Shipped: live SIP status badge, old SIP login sweep (Telegram/Inbox/email), live renewal calendar link (Google/Apple). See CHANGELOG. Pending user confirmation; @Chemist454 sign-in never verified (prod DB not reachable from preview).
 - [ ] Build full Multitel provider adapter (search/buy/release/SIP)
 - [ ] Wire Multitel into voice-service, Bird caller-ID, QuickIVR
 - [ ] Country catalog in CloudIVR number selection (17 no-paperwork countries)

@@ -1,0 +1,45 @@
+{
+  "summary": "Frontend tests (Playwright, desktop 1920x1080, civr.uxtest@example.com) for the 3 new features: renewal calendar subscribe card, live SIP status badge, old-SIP-login notice (Inbox button + ?reset=1 dialog) and the 'Old SIP login' email preview. Nearly everything works. Found 1 real bug: the 3 numbered steps in the sipOldLogin email are blank in every language. Found 1 problem that only shows on the preview site: the Google/Apple Calendar buttons are hidden there because of an emergent-badge CSS rule.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/cloudivr-web/emails/preview/sipOldLogin (js/cloudivr-web/email-templates.js:81 + email-copy.js sipOldLogin.steps en/fr/es)", "issue": "The numbered steps 1/2/3 show up empty. L.steps() (email-layout.js:59) expects [{title, text}] objects, but sipOldLogin.steps is an array of plain strings, so s.title and s.text are undefined. The same bug is in the real email customers get, in en, fr and es."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CalendarSubscribe (Google / Apple buttons)", "issue": "Only on the preview site: both <a> buttons get display:none and opacity:0. The cause is the rule '#emergent-badge, a[href*=\"emergent\"] {display:none !important}' in frontend/public/index.html:69. The feed URL contains the preview host '...preview.emergentagent.com', so the rule matches these links. The elements and hrefs are correct; the production domain should not match. Narrow the rule (for example a[href*=\"emergent.sh\"] or only #emergent-badge) so preview QA and screenshots show the buttons.", "selector": "[data-testid=renewal-subscribe-google], [data-testid=renewal-subscribe-apple]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_checks": [
+    "Renewal subscribe card renders. Google href starts with https://calendar.google.com/calendar/render?cid=webcal%3A, Apple href starts with webcal://, the URL text ends in .ics",
+    "Fetching the feed URL returns 200 text/calendar starting with BEGIN:VCALENDAR (90 VEVENTs)",
+    "Copy link puts the exact URL on the clipboard and shows the 'Link copied' toast",
+    "New link: Cancel keeps the URL unchanged. Confirming ('Make new link') changes the URL and the Google href and shows a toast. The OLD url now returns 404 and the new one returns 200 VCALENDAR",
+    "Number +13341112222 SIP tab: sip-status-badge sits inside sip-credentials-card, data-state=signed_in, label 'Signed in', detail 'Zoiper QA · checked in 1 min ago'",
+    "/cloudivr/app/sip: 25 badges. sip-page-0 is signed_in and the others are signed_out ('No app has signed in yet'). sip-page-3 has no badge (state 'none' by design)",
+    "Inbox: the seeded 'old login (QA seed)' notice shows a 'Reset SIP password' button with href ?tab=sip&reset=1. The notice text contains no password",
+    "Clicking the button opens the 'Create new SIP credentials?' dialog straight away (only one dialog). Cancel closes it, reset=1 is removed from the URL, the page still works (Show password reveals it, badge OK) and a reload does not reopen the dialog",
+    "Opening ?reset=1 directly and confirming shows the 'New SIP credentials ready' toast and new username/password",
+    "Settings > Emails example select includes 'Old SIP login'. Open preview renders with the current username and the Reset SIP password CTA (-> ?tab=sip&reset=1). No password is in the email",
+    "API GET /numbers/%2B13341112222/sip/status returned signed_in (devices 1) before the reset"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Change sipOldLogin.steps in js/cloudivr-web/email-copy.js (en ~line 103, fr ~304, es ~509) to [{title, text}] objects, or make L.steps accept strings. Right now the email shows 3 empty numbered steps",
+    "Narrow the a[href*=\"emergent\"] hide rule in frontend/public/index.html:69 so it does not hide app links that contain the preview host (renewal calendar Google/Apple buttons)"
+  ],
+  "critical_code_review_comments": [
+    "SipCredentials reset=1 effect runs on mount with [] deps. Only one dialog appeared in testing, but under React StrictMode dev double-mount it could call reset() twice. A ref guard would make it safer",
+    "SipStatusBadge swallows errors and renders nothing. That is fine, but each SipCredentials on /app/sip polls every 30 s (25 numbers means about 50 req/min per open tab). Consider one batch status endpoint",
+    "After a SIP reset the seeded presence ('Zoiper QA') belongs to the old username, so the badge correctly flips to signed_out"
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend only)", "frontend": "~90% (all flows work; 1 email content bug, 1 issue only on the preview site)"},
+  "seed_data_creation": "None created. Changes made to seeded data during testing (as allowed by the request): (1) the renewal calendar feed token for civr.uxtest was rotated (old 81ceb244... now 404, new e20f22fd...); (2) the SIP credentials of dry-run +13341112222 were reset (username cvta4fs5g6 -> cv9hh5qd4q), so the seeded 'Zoiper QA' presence no longer matches and the status is now signed_out. Re-seed presence for the new username if a later test needs signed_in.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login /cloudivr/login after cookie-allow-all. The Google/Apple subscribe buttons are hidden by preview CSS, so assert on href attributes rather than visibility. The +13341112222 SIP badge is now signed_out because creds were reset in iteration 318. The Inbox seeded notice index has sip-reset at inbox-item-<i>-sip-reset. Email preview URL: /api/cloudivr-web/emails/preview/sipOldLogin?lang=en (needs login cookie)."
+}

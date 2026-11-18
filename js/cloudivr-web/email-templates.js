@@ -78,7 +78,7 @@ const B = {
     const k = c.sipOldLogin
     return { ...head(k, d, f), t: 'warn',
       body: P(k.intro(d, f)) + L.rows([{ k: c.labels.number, v: L.mono(d.phone), html: true }, { k: k.oldLabel, v: L.mono(d.old), html: true }, { k: k.newLabel, v: L.mono(d.current), html: true }])
-        + L.steps(k.steps) + L.button(k.cta, x.app(`/app/numbers/${enc(d.phone)}?tab=sip&reset=1`), 'warn') + L.small(L.esc(k.ps)) }
+        + L.steps(k.steps.map(x => { const [title, ...rest] = x.split(' — '); return { title, text: rest.join(' — ') } })) + L.button(k.cta, x.app(`/app/numbers/${enc(d.phone)}?tab=sip&reset=1`), 'warn') + L.small(L.esc(k.ps)) }
   },
 
   renewFailed: (d, c, f, x) => ({ ...head(c.renewFailed, d, f), t: 'bad',
