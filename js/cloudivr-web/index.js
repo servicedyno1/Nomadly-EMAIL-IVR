@@ -77,6 +77,7 @@ function createCloudIvrWeb(deps) {
     trycall.routes(r, { ...deps, db, h })
     publicStats.routes(r, { db, h })
     onboarding.publicRoutes(r, { db, h })
+    require('../emily-guard').init(db)
     support.publicRoutes(r, { db, h, log })
     const emails = createEmails(db, { log })
     emails.publicRoutes(r, { h })

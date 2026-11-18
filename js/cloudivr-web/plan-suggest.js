@@ -27,11 +27,14 @@ async function suggest(text) {
   const r = await axios.post('https://api.openai.com/v1/chat/completions', {
     model: process.env.AI_AGENT_DRAFT_MODEL || 'gpt-4.1-mini', temperature: 0.2, response_format: { type: 'json_object' }, max_tokens: 300,
     messages: [
-      { role: 'system', content: `You are Emily from CloudIVR. A visitor describes their business. Pick the CHEAPEST plan that covers what they clearly need — never upsell features they did not ask for. Plans (each includes everything in the plans above it):\n${ladder()}\nReply as JSON: {"plan": one of ${JSON.stringify(plans)}, "reason": one friendly sentence (max 30 words) naming the 1-3 features that matter for them — call plans only by their name (Basic, Plus, Pro, Business), never by id, "alsoLike": "" or a short phrase naming ONE feature that is only in a more expensive plan than the one you picked and that fits their business}. If the text is not about a business or phone needs, pick "${plans.includes('pro') ? 'pro' : plans[0]}" and say it is the most popular choice.` },
+      { role: 'system', content: `${require('../emily-guard').SCOPE}
+
+You are Emily from CloudIVR. A visitor describes their business. Pick the CHEAPEST plan that covers what they clearly need — never upsell features they did not ask for. Plans (each includes everything in the plans above it):\n${ladder()}\nReply as JSON: {"plan": one of ${JSON.stringify(plans)}, "reason": one friendly sentence (max 30 words) naming the 1-3 features that matter for them — call plans only by their name (Basic, Plus, Pro, Business), never by id, "alsoLike": "" or a short phrase naming ONE feature that is only in a more expensive plan than the one you picked and that fits their business}. If it is a plain description of a business, just pick a plan (that is in scope). Only for off-topic or improper requests set "offTopic": true with your one-sentence reply in "reason".` },
       { role: 'user', content: text },
     ],
   }, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` }, timeout: 20000 })
   const out = JSON.parse(r.data.choices[0].message.content)
+  if (out.offTopic === true) return { offTopic: true, reason: String(out.reason || 'I can only help you choose a CloudIVR plan.').slice(0, 240) }
   if (!plans.includes(out.plan)) out.plan = plans.includes('pro') ? 'pro' : plans[0]
   // Drop a "later you might like" that the suggested plan already has.
   const words = ROWS.filter(([f]) => phoneConfig.canAccessFeature(out.plan, f)).flatMap(([, l]) => l.toLowerCase().match(/[a-z]{6,}/g) || [])
@@ -45,7 +48,14 @@ function routes(r, { log = console.log } = {}) {
     if (text.length < 8) return res.status(400).json({ error: 'too_short', message: 'Tell Emily a little more — what does your business do, and how do you use the phone?' })
     if (!process.env.APP_OPEN_API_KEY) return res.status(503).json({ error: 'unavailable', message: 'Emily can’t suggest a plan right now — Pro is the most popular choice.' })
     if (limited(String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim())) return res.status(429).json({ error: 'rate_limited', message: 'That’s a lot of questions! Try again in a little while, or compare the plans below.' })
-    try { res.json(await suggest(text)) } catch (e) {
+    try {
+      const out = await suggest(text)
+      if (out.offTopic) {
+        require('../emily-guard').record('plan-suggest', { text, ip: String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim(), reply: out.reason })
+        return res.status(422).json({ error: 'off_topic', message: out.reason })
+      }
+      res.json(out)
+    } catch (e) {
       log(`[CloudIVR-Web] plan suggest failed: ${e.message}`)
       res.status(503).json({ error: 'unavailable', message: 'Emily couldn’t answer just now — try again, or compare the plans below.' })
     }

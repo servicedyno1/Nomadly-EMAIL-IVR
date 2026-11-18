@@ -133,6 +133,31 @@ except Exception:
   echo "$P drain: ${DRAIN_MAX_SECONDS}s cap reached on :$port with calls still live — flipping anyway (persisted callSessions cover the new slot)"
   return 0
 }
+# retire_when_idle <pm2-name> <port>: in the background, stop the old slot once it has no live calls (cap
+# DRAIN_MAX_SECONDS). Its in-progress calls keep their controller, so no call loses its message; the deploy
+# itself returns right away. Releasing its dialer lease on exit lets the new slot resume the campaigns.
+retire_when_idle() {
+  local name="$1" port="$2"
+  echo "$P old slot $name keeps its live calls; it stops by itself when they end (cap $((DRAIN_MAX_SECONDS/60))m)"
+  ( trap '' HUP; deadline=$((SECONDS + DRAIN_MAX_SECONDS)); sleep 3
+    while [ "$SECONDS" -lt "$deadline" ]; do
+      live="$(curl -s -m 5 "http://127.0.0.1:$port/health" 2>/dev/null | python3 -c 'import sys,json
+try:
+    c=json.load(sys.stdin).get("calls"); print(int(c.get("total",0)) if isinstance(c,dict) else 0)
+except Exception: print(0)' 2>/dev/null || echo 0)"
+      case "$live" in ''|*[!0-9]*) live=0 ;; esac
+      [ "$live" -le 0 ] && break
+      sleep "$DRAIN_POLL_SECONDS"
+    done
+    # Only stop it if it is still the old slot (a newer deploy may already have reused the name).
+    [ "$(readlink -f "$CURRENT" 2>/dev/null)" != "$(pm2 jlist 2>/dev/null | python3 -c 'import sys,json
+n=sys.argv[1]
+for p in json.load(sys.stdin):
+    if p["name"]==n: print(p["pm2_env"].get("pm_cwd",""))' "$name" 2>/dev/null)" ] && pm2 delete "$name" >/dev/null 2>&1 && pm2 save >/dev/null 2>&1
+    echo "$P old slot $name retired (live calls: ${live:-0})" >> "${LOG_DIR:-/opt/nomadly/logs}/deploy-retire.log"
+  ) >/dev/null 2>&1 &
+  disown || true
+}
 # set_upstream <port>: rewrite this app's upstream line, validate, graceful reload (restores on failure)
 set_upstream() {
   local tmp out; tmp="$(mktemp)"
@@ -242,7 +267,8 @@ activate_release() {
   if [ "${2:-}" = "drain" ] && [ -n "$active" ] && [ "$active" != "$new_port" ]; then
     curl -sf -m 10 -X POST -H "x-dialer-token: $(cat "/tmp/bulk-dialer-$active.token" 2>/dev/null)" "http://127.0.0.1:$active/internal/bulk-dialer/stop" >/dev/null 2>&1 \
       && echo "$P old slot :$active stopped placing new bulk calls" || echo "$P old slot :$active has no dialer handover (older release) — continuing"
-    drain_calls "$active"
+    # Owner: deploys never wait for calls. We flip now; the old slot keeps running in the background until its
+    # live calls (incl. our own Asterisk legs it controls over ARI) have ended — see retire_when_idle below.
   fi
   if ! set_upstream "$new_port"; then
     pm2 delete "$new_name" >/dev/null 2>&1 || true
@@ -250,8 +276,11 @@ activate_release() {
     echo "$P ERROR: nginx switch failed — active release untouched (still serving on :${active:-?})"; return 1
   fi
   ln -sfn "$rel" "$CURRENT"
-  echo "$P nginx → :$new_port ($new_name). Draining old slot(s) 3 s…"; sleep 3
-  for n in "${old[@]}"; do pm2 delete "$n" >/dev/null 2>&1 && echo "$P stopped old slot $n"; done
+  echo "$P nginx → :$new_port ($new_name)."
+  for n in "${old[@]}"; do
+    local port; case "$n" in "$APP-b") port="$ALT_PORT" ;; *) port="$BASE_PORT" ;; esac
+    if [ "${2:-}" = "drain" ] && [ -n "$port" ]; then retire_when_idle "$n" "$port"; else sleep 3; pm2 delete "$n" >/dev/null 2>&1 && echo "$P stopped old slot $n"; fi
+  done
   pm2 save >/dev/null 2>&1 || true
   echo "$P ACTIVE → $(basename "$rel") on :$new_port ($new_name)"
 }

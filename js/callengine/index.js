@@ -406,7 +406,7 @@ async function setDidApps(numbers) {
 }
 
 const M = module.exports = {
-  enabled, isAe, connected: () => connected, app, sign, ari: makeAri, _legs: legs, _onEvent: onEvent, _setSink: (fn) => { sink = fn }, _setConnected: (v) => { connected = v },
+  enabled, isAe, connected: () => connected, liveLegs: () => [...legs.values()].filter(l => !l.ended).length, app, sign, ari: makeAri, _legs: legs, _onEvent: onEvent, _setSink: (fn) => { sink = fn }, _setConnected: (v) => { connected = v },
   watchDtmf: (id, fn) => { const l = legs.get(id); if (l) l.onDtmf = fn },
   setDidApps, onConnect: (fn) => { onConnectHook = fn }, failover: FO, originate,
   mediaUrl, activeBird, start, _sweep: sweep, startExternalMedia, stopExternalMedia, setAiHook: (fn) => { aiHook = fn }, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall,
