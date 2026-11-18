@@ -3735,3 +3735,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 
 ## 2026-06 — Emily on Fax only
 - POST /api/cloudivr-web/fax-numbers/suggest (fax.js) → plan-suggest.suggestFax picks country from faxNums.offer().countries. UI pages/buy/FaxSuggest.js above the fax search; "Show <country> fax numbers" sets the country and searches at once. Screenshot-verified (London law firm → GB → UK results).
+
+## 2026-06 — Per-minute rates moved to a standalone Pricing page
+- New public page `/pricing` (PricingPage.js + landing/UsageRates.js): plans, every usage rate, FAQ.
+- Landing, For pages, and the signed-in app no longer show per-minute rates. A "See pricing" link (ui.js `SeePricing`) appears where a rate used to be.
+- Nav and footer "Pricing" now open /pricing. The campaign total estimate stays; its per-minute line was removed.
+- Agent-tested (iteration_326). The tester fixed a landing crash (`usd` undefined in AiSection). Not user-confirmed yet.

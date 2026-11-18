@@ -11,7 +11,7 @@ export function UsageRates({ catalog, fax }) {
     ['ai-reception', 'AI receptionist (incoming calls)', 'Every plan', per(r.aiReceptionPerMin)],
     ['ai-campaign', 'AI conversation campaigns (outgoing)', 'Pro and Business', per(r.aiAgentPerMin)],
     ['outbound-usca', 'Outgoing calls to USA & Canada', 'Browser phone, softphone, Quick IVR, campaigns', per(r.outboundPerMinUsCa)],
-    ['outbound-intl', 'Outgoing calls to other countries', 'From', per(r.outboundPerMinIntl)],
+    ['outbound-intl', 'Outgoing calls to other countries', 'Starting rate, varies by country', per(r.outboundPerMinIntl)],
     ['forwarding', 'Call forwarding', 'Forwarded to any phone', per(r.forwardingPerMin)],
     ['overage', 'Incoming minutes over your plan', 'After your included minutes', per(r.overagePerMin)],
     ['ai-summary', 'AI call summaries', 'Plus and up', per(r.aiSummaryPerMin)],

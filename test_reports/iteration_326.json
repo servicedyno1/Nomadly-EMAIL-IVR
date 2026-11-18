@@ -1,0 +1,31 @@
+{
+  "summary": "Frontend-only test of moving per-minute rates to a separate /cloudivr/pricing page. CRITICAL bug found and fixed: the landing page /cloudivr crashed on load ('This screen ran into a problem') with ReferenceError: usd is not defined in AiSection.js. The usd import had been removed but line 54 still used it (and would also have shown '$0.30/min · Pro and up', which the spec forbids). Fix: price is now the fixed text \"Pro and up\" and the unused catalog/rates code is removed. After the fix everything requested passes: landing has no per-minute prices; the two AI price labels read 'Every plan' and 'Pro and up'; the all-rates link, the nav Pricing link and the footer Pricing link all go to /cloudivr/pricing (#rates scrolls to the rates section, top at about 80px). The pricing page shows the h1, 4 working plan tabs and 10 rate rows with the expected values. Mobile 390px has no horizontal overflow. In the app: receptionist, AI agents, the agent edit 'Record calls' hint, the agent numbers panel and AI campaign rules have no $ per-minute text and the See pricing links work. Home receptionist tile text is 'On every plan'. The founders and sales pages are clean. The bulk campaign estimate still shows 'about $0.30 for 1 minute each'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "landing/AiSection.js", "issue": "Landing page crashed on load: ReferenceError 'usd is not defined'. The usd import was removed but still used in the AI campaigns price. FIXED by testing agent (price=\"Pro and up\").", "selector": "[data-testid='landing-ai-campaigns-price']", "priority": "CRITICAL (fixed)"}
+    ],
+    "integration_issues": [
+      {"flow": "Bulk campaign estimate (Campaigns.js line 252)", "issue": "The estimate card still shows the per-minute rate line from the backend: 'Rate: $0.15/min per call. Wallet needs at least $20.00 to start.' The user asked to keep the total estimate, but this is a per-minute rate inside the app. Decide whether to hide est.estimate.rateLine (and keep only the total and minimum wallet) or replace it with a SeePricing link.", "affected_selectors": ["[data-testid='campaign-estimate']"]}
+    ],
+    "design_issues": [
+      {"screen": "Landing plan cards", "issues": ["The live catalog feature label reads '...free test call first (per minute)'. It has no price, so it is acceptable, but the snapshot says '(pay as you use)'. Consider making the backend label consistent."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Review the AiSection.js fix (the landing page was crashing). Run a full-page smoke check after edits that remove imports.",
+    "Decide whether the bulk campaign estimate should drop 'Rate: $0.15/min per call' (est.estimate.rateLine) in the web app."
+  ],
+  "critical_code_review_comments": [
+    "AiSection.js referenced usd() after its import was removed. The build compiled, so this only failed at runtime. ESLint no-undef should have flagged it; check the lint output.",
+    "Campaigns.js shows the backend rateLine directly, so per-minute text from bulk-call-service.js leaks into the web UI."
+  ],
+  "updated_files": ["/app/frontend/src/cloudivr/pages/landing/AiSection.js"],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "95% (1 critical crash fixed; 1 open product decision on estimate rate line)"},
+  "seed_data_creation": "None. No campaigns were saved (estimate only).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login civr.uxtest@example.com / UxTest#2026 at /cloudivr/login (cookie-allow-all first). Bulk estimate: /cloudivr/app/campaigns/new, click 'Manual', fill campaign-leads-input, click campaign-estimate-button. AI campaign: /cloudivr/app/campaigns/new?kind=ai (rules are in the collapsed manual section; ai-setup-see-pricing is in the DOM). The home-product-receptionist-price textContent is 'On every plan', but it is not visible in the default viewport.",
+  "rca of the issue": "Landing crash: while removing per-minute rates, E1 dropped `import { usd }` from AiSection.js but left the ternary `r.aiAgentPerMin != null ? `${usd(...)}/min · Pro and up` : 'Pro and up'`. The catalog always has aiAgentPerMin (0.3), so usd() was called, threw a ReferenceError and CrashGuard replaced the whole landing page. Fixed by using the fixed text 'Pro and up'."
+}

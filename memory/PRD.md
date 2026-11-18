@@ -669,3 +669,6 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 
 ## 2026-11-18 — Onboarding funnel fixes (preview)
 - Free test call needs no legal details (unless custom caller ID). New numbers come only from NUMBER_PROVIDERS (prod: multitel) — SignalWire/Telnyx SIP no longer sell. Home leads with the free call. Abandoned-payment + try-call reminder emails already existed (emails.js depositNudges/tryNudge).
+
+## Pricing display rule (2026-06)
+Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing copy uses a "See pricing" link instead. Admin pages are exempt.

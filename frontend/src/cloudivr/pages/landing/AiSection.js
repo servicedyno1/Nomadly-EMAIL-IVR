@@ -38,8 +38,7 @@ function Way({ Icon, label, title, text, price, testid }) {
 }
 
 // One AI, both directions — set up by chatting with Emily.
-export function AiSection({ catalog }) {
-  const r = catalog?.rates || {};
+export function AiSection() {
   return (
     <section id="ai" className="bg-white scroll-mt-16 border-t border-slate-100" data-testid="landing-ai-section">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-20 md:py-24 grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
@@ -51,7 +50,7 @@ export function AiSection({ catalog }) {
           </Reveal>
           <div className="grid sm:grid-cols-2 gap-4 mt-8">
             <Way Icon={PhoneIncoming} label="Incoming" title="AI receptionist" text="Picks up 24/7, answers questions, books visits and takes messages — in 20 languages." price="Every plan" testid="landing-ai-receptionist" />
-            <Way Icon={PhoneOutgoing} label="Outgoing" title="AI conversation campaigns" text="Calls your list, talks with each lead and hands the interested ones to you. Hear it on your own phone first." price={r.aiAgentPerMin != null ? `${usd(r.aiAgentPerMin)}/min · Pro and up` : 'Pro and up'} testid="landing-ai-campaigns" />
+            <Way Icon={PhoneOutgoing} label="Outgoing" title="AI conversation campaigns" text="Calls your list, talks with each lead and hands the interested ones to you. Hear it on your own phone first." price="Pro and up" testid="landing-ai-campaigns" />
           </div>
           <Link to={cp('/signup')} className="inline-flex items-center gap-2 text-sm font-semibold text-[#1d6fd8] mt-8 min-h-[44px]" data-testid="landing-ai-cta">Try Emily free<ArrowRight className="w-4 h-4" aria-hidden="true" /></Link>
         </div>

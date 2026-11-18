@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { Megaphone, Plus, Loader2, Calculator, FileUp, ChevronRight, Pause, Play, Contact, Repeat, Radio, Check } from 'lucide-react';
 import { TextCountryFix } from '../CountryFix';
 import { api, useApi, when, money } from '../api';
-import { PageHeader, Field, SkeletonRows, SkeletonPage, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, statusPill, BackupsField } from '../ui';
+import { PageHeader, Field, SkeletonRows, SkeletonPage, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, statusPill, BackupsField, SeePricing } from '../ui';
 import { useCallerNumbers } from './QuickCall';
 import { CampaignUpgradeNudge } from './campaign/UpgradeNudge';
 import { DateTimePicker } from '../DateTimePicker';
@@ -249,7 +249,7 @@ function Estimate({ est }) {
   return (
     <div className="civr-card p-4 text-sm space-y-1" data-testid="campaign-estimate">
       <div><span className="font-mono text-lg">{est.count}</span> valid numbers (max {est.max}) · about <span className="font-mono">{money(est.estimate.total)}</span> for 1 minute each</div>
-      <div className="text-xs text-[#a1a1aa]">{est.estimate.rateLine}. Wallet needs at least {money(est.minWallet)} to start.</div>
+      <div className="text-xs text-[#a1a1aa]">Wallet needs at least {money(est.minWallet)} to start. <SeePricing testid="campaign-estimate-see-pricing" /></div>
       {!funds.enough && <ShortNote balance={funds.balance} short={funds.short} testid="campaign-estimate-short" />}
       {est.estimate.blockedLine && <div className="text-xs text-[#fbbf24]">{est.estimate.blockedLine.replace(/^\W+/, '')}</div>}
       {est.errors?.length > 0 && <div className="text-xs text-[#fb7185]" data-testid="campaign-estimate-errors">{est.fromList ? `${est.badCount} number(s) will be skipped` : `${est.errors.length} number(s) to fix before starting`}: {est.errors.slice(0, 3).join(' · ')}</div>}
