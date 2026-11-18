@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { api, enc } from '../../api';
 
 const ago = (d) => { const m = Math.max(0, Math.round((Date.now() - new Date(d)) / 60000)); return m < 1 ? 'just now' : m < 90 ? `${m} min ago` : m < 2880 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
@@ -21,14 +22,24 @@ export function SipStatusBadge({ num, prefix = 'sip' }) {
   if (!s || s.state === 'none') return null;
   const l = LOOK[s.state] || LOOK.unknown;
   const sub = s.state === 'signed_in' ? `${s.devices > 1 ? `${s.devices} apps` : s.lastApp || 'App'} · checked in ${ago(s.lastSeenAt)}` : s.lastSeenAt ? `Last seen ${ago(s.lastSeenAt)}` : s.state === 'signed_out' ? 'No app has signed in yet' : '';
+  const f = s.lastFailure;
   return (
-    <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${l.ring}`} title={sub} data-testid={`${prefix}-status-badge`} data-state={s.state}>
-      <span className="relative flex w-2 h-2">
-        {s.state === 'signed_in' && <span className={`absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping ${l.dot}`} />}
-        <span className={`relative inline-flex w-2 h-2 rounded-full ${l.dot}`} />
+    <>
+      <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${l.ring}`} title={sub} data-testid={`${prefix}-status-badge`} data-state={s.state}>
+        <span className="relative flex w-2 h-2">
+          {s.state === 'signed_in' && <span className={`absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping ${l.dot}`} />}
+          <span className={`relative inline-flex w-2 h-2 rounded-full ${l.dot}`} />
+        </span>
+        <span className="font-semibold" data-testid={`${prefix}-status-label`}>{l.label}</span>
+        {sub && <span className="text-[11px] opacity-80 hidden sm:inline" data-testid={`${prefix}-status-detail`}>{sub}</span>}
       </span>
-      <span className="font-semibold" data-testid={`${prefix}-status-label`}>{l.label}</span>
-      {sub && <span className="text-[11px] opacity-80 hidden sm:inline" data-testid={`${prefix}-status-detail`}>{sub}</span>}
-    </span>
+      {sub && <span className="basis-full text-xs text-[var(--c-muted)] sm:hidden" data-testid={`${prefix}-status-detail-mobile`}>{sub}</span>}
+      {f && (
+        <p className="basis-full flex items-start gap-2 rounded-lg bg-[var(--c-surface-2)] px-3 py-2 text-sm font-normal font-sans" role="status" data-testid={`${prefix}-status-failure`} data-reason={f.reason}>
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-[#f59e0b]" aria-hidden="true" />
+          <span><b>Last sign-in try failed {ago(f.at)}.</b> {f.text}</span>
+        </p>
+      )}
+    </>
   );
 }

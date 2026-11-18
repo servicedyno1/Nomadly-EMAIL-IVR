@@ -689,3 +689,10 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Grid/checker backgrounds removed from landing hero and SIP pages.
 - 2026-11-18: Landing 'Cards coming soon' on production — cause: bundled catalogSnapshot (taken from preview) had cardPayments=false and no paymentMethods; live prod catalog returns true. Snapshot regenerated from https://cloudivr.net (script now keeps paymentMethods); /public/catalog now waits up to 2.5s for the Mollie domain check on the first request after a restart (mollie.warm). Needs publish; not verified on production.
 - 2026-11-18: SIP 408 (onarrival21) — see DEPLOYMENT_STATE.md last section; fix live on SIP server, awaiting user retry.
+
+## 2026-11-18 — Softphone sign-in status (customers + admin) — preview, self-tested (unit test + screenshots), needs publish
+- `js/sip-presence.js`: `fail()`, `overview()`, `status()` now returns `lastFailure {at, reason: password|locked|old_login, login, app, text}` (only failures newer than the last good sign-in, 24 h). `GET /sip-failed/:user` in `_index.js` (X-Sip-Key). `GET /admin/softphones` in `cloudivr-web/admin.js`.
+- UI: `SipStatusBadge.js` shows last sign-in on phones too and a plain failure note; admin tab "Softphones" (`pages/admin/Softphones.js`).
+- Test: `node js/tests/test_sip_signin_failures.js`.
+- SIP server side (upgrade to 6.0.8, watchdog, lock replies) is already live — see DEPLOYMENT_STATE.md.
+- Not done: failure note in the Telegram bot's SIP status line; alert when the nginx door or the app API is down.

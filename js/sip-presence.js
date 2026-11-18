@@ -23,6 +23,22 @@ async function record(db, user, expires, ua, now = new Date()) {
   } catch (_) { /* owner note is best-effort; presence is already saved */ }
 }
 
+// Why a known login could not sign in, as reported by the SIP server (GET /sip-failed/:user?r=password|locked).
+const FAIL_FOR_MS = 24 * 3600000
+const FAIL_TEXT = {
+  password: 'The password in the phone app is wrong. Copy it again from this page, with no spaces.',
+  locked: 'Too many wrong passwords from this app, so it is paused for 15 minutes. Then sign in with the password from this page.',
+  old_login: (u) => `A phone app is still using an old username (${u}). Replace it with the username and password on this page.`,
+}
+async function fail(db, user, reason, ua, now = new Date()) {
+  if (!['password', 'locked'].includes(reason) || /^(cloudivr-selftest|preflight-check)/i.test(String(ua || ''))) return false
+  await col(db).updateOne({ _id: String(user) }, { $set: { failAt: now, failReason: reason, failUa: String(ua || '').slice(0, 80) } }, { upsert: true })
+  return true
+}
+// Newest failure that happened after that login's last good sign-in, within 24 h.
+const failureOf = (rows, now) => rows.filter(r => r.failAt && now - new Date(r.failAt) < FAIL_FOR_MS && (!r.at || new Date(r.failAt) > new Date(r.at)))
+  .map(r => ({ at: r.failAt, reason: r.failReason, login: r._id, app: r.failUa || null, text: FAIL_TEXT[r.failReason] })).sort((a, b) => new Date(b.at) - new Date(a.at))[0] || null
+
 const hasLogin = (n, u) => n.telnyxSipUsername === u || n.sipUsername === u || (n.extraSip || []).some(e => e.username === u)
 async function ownerOf(db, user) {
   const u = String(user)
@@ -106,12 +122,35 @@ async function noteIfOffline({ db, bot, chatId, num, from, web, log = console.lo
 async function status(db, num, now = new Date()) {
   const users = [...new Set(loginsOf(num).filter(Boolean).map(String))]
   if (!users.length) return { state: 'none', devices: 0, lastSeenAt: null, lastApp: null, checkedAt: now }
-  const [rows, since] = await Promise.all([col(db).find({ _id: { $in: users } }).toArray(), db.collection('appSettings').findOne({ _id: 'sipPresenceSince' })])
+  const [rows, since, stale] = await Promise.all([col(db).find({ _id: { $in: users } }).toArray(), db.collection('appSettings').findOne({ _id: 'sipPresenceSince' }),
+    db.collection('sipStaleNotices').find({ phoneNumber: num.phoneNumber, at: { $gt: new Date(now - FAIL_FOR_MS) } }).sort({ at: -1 }).limit(1).toArray()])
   const on = rows.filter(r => r.until && new Date(r.until) > now)
   const last = rows.filter(r => r.at).sort((a, b) => new Date(b.at) - new Date(a.at))[0]
   const warm = !since || now - new Date(since.at) < WARMUP_MS
   const state = on.length ? 'signed_in' : !last && warm ? 'unknown' : 'signed_out'
-  return { state, devices: on.length, lastSeenAt: last?.at || null, lastApp: last?.ua || null, checkedAt: now }
+  let lastFailure = failureOf(rows, now)
+  const old = stale[0]
+  if (old && users.includes(String(old.current)) && (!lastFailure || new Date(old.at) > new Date(lastFailure.at))) lastFailure = { at: old.at, reason: 'old_login', login: old._id, app: null, text: FAIL_TEXT.old_login(old._id) }
+  return { state, devices: on.length, lastSeenAt: last?.at || null, lastApp: last?.ua || null, lastFailure, checkedAt: now }
+}
+
+// Every active number with a SIP login, for the owner's dashboard: problems first, then signed in, then most recent.
+async function overview(db, now = new Date()) {
+  const docs = await db.collection('phoneNumbersOf').find({ 'val.numbers': { $elemMatch: { status: 'active', $or: [{ sipUsername: { $exists: true, $ne: null } }, { telnyxSipUsername: { $exists: true, $ne: null } }] } } }, { projection: { 'val.numbers': 1 } }).toArray()
+  const nums = docs.flatMap(d => (d.val?.numbers || []).filter(n => n.status === 'active' && loginsOf(n).some(Boolean)).map(n => ({ chatId: d._id, n })))
+  const rows = await col(db).find({ _id: { $in: nums.flatMap(x => loginsOf(x.n).filter(Boolean).map(String)) } }).toArray()
+  const by = new Map(rows.map(r => [r._id, r]))
+  const ids = [...new Set(nums.map(x => x.chatId))].filter(c => /^\d+$/.test(String(c))).map(Number)
+  const mail = new Map((await db.collection('webAccounts').find({ _id: { $in: ids } }, { projection: { email: 1 } }).toArray()).map(a => [String(a._id), a.email]))
+  const items = nums.map(({ chatId, n }) => {
+    const mine = loginsOf(n).filter(Boolean).map(u => by.get(String(u))).filter(Boolean)
+    const on = mine.filter(r => r.until && new Date(r.until) > now)
+    const last = mine.filter(r => r.at).sort((a, b) => new Date(b.at) - new Date(a.at))[0]
+    return { chatId: String(chatId), email: mail.get(String(chatId)) || null, phoneNumber: n.phoneNumber, login: n.telnyxSipUsername || n.sipUsername, logins: loginsOf(n).filter(Boolean).length, state: on.length ? 'signed_in' : 'signed_out', devices: on.length, lastSeenAt: last?.at || null, lastApp: last?.ua || null, lastFailure: failureOf(mine, now) }
+  })
+  const rank = (i) => (i.lastFailure ? 0 : i.state === 'signed_in' ? 1 : 2)
+  items.sort((a, b) => rank(a) - rank(b) || new Date(b.lastFailure?.at || b.lastSeenAt || 0) - new Date(a.lastFailure?.at || a.lastSeenAt || 0))
+  return { items: items.slice(0, 500), total: items.length, signedIn: items.filter(i => i.state === 'signed_in').length, failing: items.filter(i => i.lastFailure).length, checkedAt: now }
 }
 
 const ST = {
@@ -129,4 +168,4 @@ function statusLine(s, lang = 'en') {
   return `${t.out}\n${s.lastSeenAt ? t.last(`${new Date(s.lastSeenAt).toISOString().slice(0, 16).replace('T', ' ')} UTC`) : t.never}`
 }
 
-module.exports = { status, statusLine, loginsOf, ownerOf, noteAsk, noteStale, staleText, facts, record, anyOnline, noteIfOffline, offlineText, NOTE_EVERY_MS, WARMUP_MS }
+module.exports = { status, fail, overview, FAIL_TEXT, statusLine, loginsOf, ownerOf, noteAsk, noteStale, staleText, facts, record, anyOnline, noteIfOffline, offlineText, NOTE_EVERY_MS, WARMUP_MS }

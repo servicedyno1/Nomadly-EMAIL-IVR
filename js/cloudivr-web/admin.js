@@ -309,6 +309,9 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
 
     r.get('/admin/audit', A, h(async (req, res) => res.json({ items: await audit.find({}).sort({ at: -1 }).limit(150).toArray() })))
 
+    // Softphone sign-in state for every number with a SIP login.
+    r.get('/admin/softphones', A, h(async (req, res) => res.json(await require('../sip-presence').overview(db))))
+
     // Customer-requested caller IDs waiting for approval (no code — admin vouches; Telnyx still filters the call).
     const callerIdsAdmin = require('./caller-ids').adminApi(db)
     const { sendMail } = require('./auth')

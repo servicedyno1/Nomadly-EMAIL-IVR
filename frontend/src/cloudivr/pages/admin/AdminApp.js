@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Users as UsersIcon, MessageSquareText, Phone, Store, ScrollText, LogOut, FileText, BadgeCheck, Smartphone, Mail, ShieldCheck, Globe2, LineChart, Printer, CreditCard } from 'lucide-react';
+import { LayoutDashboard, Users as UsersIcon, MessageSquareText, Phone, Store, ScrollText, LogOut, FileText, BadgeCheck, Smartphone, Mail, ShieldCheck, Globe2, LineChart, Printer, CreditCard, PhoneCall } from 'lucide-react';
 import { api } from '../../api';
 import { Spinner } from '../../ui';
 import AdminLogin from './AdminLogin';
@@ -16,8 +16,9 @@ import AddonsAdmin from './AddonsAdmin';
 import Insights from './Insights';
 import InvoicesAdmin from './InvoicesAdmin';
 import FaxSales from './FaxSales';
+import Softphones from './Softphones';
 
-const TABS = [['overview', 'Overview', LayoutDashboard, Overview], ['card-checks', 'Card ID checks', CreditCard, CardChecks], ['insights', 'Signup insights', LineChart, Insights], ['inbox', 'Inbox', Mail, InboxAdmin], ['users', 'Users & wallets', UsersIcon, Users], ['invoices', 'Invoices', FileText, InvoicesAdmin], ['fax-sales', 'Fax sales', Printer, FaxSales], ['compliance', 'Compliance', ShieldCheck, ComplianceAdmin], ['addons', 'Country prices', Globe2, AddonsAdmin], ['texting', 'Texting queue', MessageSquareText, Texting], ['esim', 'CloudIVR eSIM', Smartphone, EsimAdmin], ['cloudivr', 'CloudIVR', Phone, Cloud], ['caller-ids', 'Caller IDs', BadgeCheck, CallerIdsAdmin], ['resellers', 'Resellers', Store, Resellers], ['log', 'Admin log', ScrollText, Audit]];
+const TABS = [['overview', 'Overview', LayoutDashboard, Overview], ['card-checks', 'Card ID checks', CreditCard, CardChecks], ['insights', 'Signup insights', LineChart, Insights], ['inbox', 'Inbox', Mail, InboxAdmin], ['users', 'Users & wallets', UsersIcon, Users], ['invoices', 'Invoices', FileText, InvoicesAdmin], ['fax-sales', 'Fax sales', Printer, FaxSales], ['compliance', 'Compliance', ShieldCheck, ComplianceAdmin], ['addons', 'Country prices', Globe2, AddonsAdmin], ['texting', 'Texting queue', MessageSquareText, Texting], ['esim', 'CloudIVR eSIM', Smartphone, EsimAdmin], ['cloudivr', 'CloudIVR', Phone, Cloud], ['caller-ids', 'Caller IDs', BadgeCheck, CallerIdsAdmin], ['softphones', 'Softphones', PhoneCall, Softphones], ['resellers', 'Resellers', Store, Resellers], ['log', 'Admin log', ScrollText, Audit]];
 
 // cloudivr.net/admin — the owner's dashboard (own sign-in; tabs live in ?tab=).
 export default function AdminApp() {

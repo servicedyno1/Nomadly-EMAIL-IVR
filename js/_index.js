@@ -50299,6 +50299,14 @@ app.get('/sip-registered/:user', async (req, res) => {
   try { await require('./sip-presence').record(db, req.params.user, req.query.e, req.query.ua); res.sendStatus(204) } catch (e) { log('sip-registered error:', e.message); res.sendStatus(500) }
 })
 
+// SIP server reports why a known login could not sign in (r=password|locked); shown on the number's SIP page.
+app.get('/sip-failed/:user', async (req, res) => {
+  const key = process.env.SIP_SERVER_SECRET
+  const given = String(req.get('X-Sip-Key') || '')
+  if (!key || given.length !== key.length || !require('crypto').timingSafeEqual(Buffer.from(given), Buffer.from(key))) return res.sendStatus(403)
+  try { await require('./sip-presence').fail(db, req.params.user, String(req.query.r || ''), req.query.ua); res.sendStatus(204) } catch (e) { log('sip-failed error:', e.message); res.sendStatus(500) }
+})
+
 // Own SIP server (Kamailio) asks for a softphone's password here before letting it register or call.
 app.get('/sip-auth/:user', async (req, res) => {
   const key = process.env.SIP_SERVER_SECRET
@@ -53628,7 +53636,7 @@ if (fs.existsSync(frontendBuildPath)) {
   // those later-registered handlers. Without this, /phone/reviews etc. get index.html on Railway.
   app.get('/{*splat}', (req, res, next) => {
     // Known Express API paths registered asynchronously — let them pass through to actual handlers
-    const apiPrefixes = ['/phone/', '/honeypot/', '/telegram/', '/telnyx/', '/signalwire/', '/sip-auth/', '/sip-registered/', '/sip-provision/', '/calendar/', '/callengine/', '/infobip/', '/twilio/', '/panel/', '/dynopay/', '/fincra/', '/blockbee/', '/sms-app/', '/brand/']
+    const apiPrefixes = ['/phone/', '/honeypot/', '/telegram/', '/telnyx/', '/signalwire/', '/sip-auth/', '/sip-registered/', '/sip-failed/', '/sip-provision/', '/calendar/', '/callengine/', '/infobip/', '/twilio/', '/panel/', '/dynopay/', '/fincra/', '/blockbee/', '/sms-app/', '/brand/']
     if (apiPrefixes.some(p => req.path.startsWith(p))) {
       return next()
     }

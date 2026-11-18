@@ -1,5 +1,10 @@
 ffmpeg=7:5.1.9-0+deb12u1
 gcc=4:12.2.0-3
+kamailio=6.0.8+bpo12
+kamailio-extra-modules=6.0.8+bpo12
+kamailio-tls-modules=6.0.8+bpo12
+kamailio-utils-modules=6.0.8+bpo12
+kamailio-websocket-modules=6.0.8+bpo12
 liblinphone-dev=5.1.65-4
 linphone-cli=5.1.65-4
 netcat-openbsd=1.219-1
