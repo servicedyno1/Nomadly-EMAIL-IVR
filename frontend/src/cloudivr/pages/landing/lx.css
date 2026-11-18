@@ -83,6 +83,6 @@
 @keyframes lxPop { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
 @keyframes lxBar { 0% { width: 8%; } 60%, 100% { width: var(--w, 80%); } }
 @keyframes lxScan { 0% { top: -22px; } 100% { top: 108px; } }
-@media (max-width: 1023px) { .civr .civr-np .lx-stage { min-height: 0; padding: 8px 0; } .civr .civr-np .lx-phone { height: 480px; } .civr .civr-np .lx-float-chip { display: none; } }
+@media (max-width: 1023px) { .civr .civr-np .lx-stage { min-height: 0; padding: 8px 0; } .civr .civr-np .lx-phone { height: 400px; width: min(260px, 72vw); } .civr .civr-np .lx-ringwrap { margin-top: 28px; } .civr .civr-np .lx-float-chip { display: none; } }
 @media (prefers-reduced-motion: reduce) { .civr .civr-np .lx-phone, .civr .civr-np .lx-float-chip, .civr .civr-np .lx-ring, .civr .civr-np .lx-live, .civr .civr-np .lx-bar > i, .civr .civr-np .lx-page::after, .civr .civr-np .lx-pop { animation: none; } .civr .civr-np .lx-bar > i { width: var(--w, 80%); } .civr .civr-np .lx-tile:hover { transform: none; } }
 .civr .civr-np .civr-faq-item[open] .civr-faq-chevron { transform: rotate(180deg); background: none; }

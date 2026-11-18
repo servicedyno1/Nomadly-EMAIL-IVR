@@ -11,14 +11,25 @@ PAGES = [
     ('messages', f'/app/messages?number={q(MN)}&contact={q("+18885550134")}', None, None),
     ('numbers', '/app/numbers', '[data-testid="mobile-lines"]', None),
     ('esim', '/app/esim', '[data-testid="esim-list"], [data-testid^="esim-line-"]', 'Show install QR'),
-    ('ivr', f'/app/numbers/{q("+13346972125")}?tab=ivr', 'text=Keypad menu (IVR)', None),
+    ('ivr', f'/app/numbers/{q("+13346970100")}?tab=ivr', 'text=Keypad menu (IVR)', None),
     ('overview', '/app', None, None),
-    ('campaigns', '/app/campaigns', None, None),
+    ('campaigns', '/app/campaigns/seed-live-running', None, None),
     ('live', '/app/live', None, None),
 ]
 HIDE = """
 document.addEventListener('DOMContentLoaded', () => { const st = document.createElement('style'); st.textContent = '[aria-label="Preview mode notice"],[data-testid="support-chat-toggle"],[data-testid="dashboard-channel-card"],.civr-offer{display:none!important}'; document.head.appendChild(st); });
 setInterval(() => document.querySelectorAll('.civr-card').forEach(c => { if (/how is CloudIVR so far/i.test(c.textContent)) c.style.display = 'none'; }), 300);
+setInterval(() => {
+  document.querySelectorAll('.civr-pill-warn, .civr-pill').forEach(e => { if (/^preview$/i.test(e.textContent.trim())) e.remove(); });
+  document.querySelectorAll('div,li').forEach(e => { if (/^Hot lead:/.test(e.textContent.trim()) && e.textContent.length < 120) e.style.display = 'none'; });
+  const map = window.__m || (window.__m = new Map());
+  const fake = (m) => { if (/^\+1\d{3}555/.test(m)) return m; if (!map.has(m)) map.set(m, '+1415555' + String(182 + map.size * 7).padStart(4, '0')); return map.get(m); };
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = w.nextNode(); n; n = w.nextNode()) {
+    const t = n.nodeValue.replace(/\+1\d{10}/g, fake).replace(/\\balice\\b/gi, 'Maya').replace(/Preview mode:[^.]*\.?( use \d+\.)?/i, '').replace(/ — demo/g, '');
+    if (t !== n.nodeValue) n.nodeValue = t;
+  }
+}, 300);
 """
 SIZES = {'desktop': dict(viewport={'width': 1440, 'height': 900}, device_scale_factor=1), 'phone': dict(viewport={'width': 390, 'height': 844}, device_scale_factor=2, is_mobile=True, has_touch=True)}
 
@@ -46,7 +57,7 @@ async def main():
                     if await btn.count(): await btn.click(); await pg.wait_for_timeout(1500)
                 if scroll:
                     el = pg.locator(scroll).first
-                    if await el.count(): await el.evaluate('(e, b) => e.scrollIntoView({block: b})', 'start'); await pg.evaluate('window.scrollBy(0, %d)' % (330 if name == 'ivr' else -90))
+                    if await el.count(): await el.evaluate('(e, b) => e.scrollIntoView({block: b})', 'start'); await pg.evaluate('window.scrollBy(0, %d)' % (-90))
                 await pg.wait_for_timeout(600)
                 png = await pg.screenshot(full_page=False)
                 Image.open(io.BytesIO(png)).convert('RGB').save(f'{OUT}/{name}-{size}.webp', 'WEBP', quality=78, method=6)

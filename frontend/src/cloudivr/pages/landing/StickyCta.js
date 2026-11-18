@@ -10,7 +10,7 @@ export function StickyCta() {
   const { account } = useCivrAuth();
   const [show, setShow] = useState(false);
   useEffect(() => {
-    const hero = document.querySelector('[data-testid="product-hero"]');
+    const hero = document.querySelector('[data-testid="hero-try-cta"]') || document.querySelector('[data-testid="product-hero"]');
     const hide = ['try-section', 'final-cta', 'landing-footer'].map(id => document.querySelector(`[data-testid="${id}"]`)).filter(Boolean);
     if (!hero || typeof IntersectionObserver === 'undefined') return undefined;
     let heroOut = false; const covering = new Set();

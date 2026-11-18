@@ -680,4 +680,5 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Landing plans = one row of cards; tabs/eSIM/fax/texting detail on /pricing (old `#pricing-<tab>` links redirect there; PricingPage listens to `civr-pricing-tab`).
 - FAQ added: countries, documents. Porting NOT added (unconfirmed offer). Cookie banner slimmer on phones.
 - channel-ads-studio plan-suggest captures now use `/pricing`.
-- Open: audience-tab screenshots (public/cloudivr/shots) still show the pre-redesign app; mobile hero is ~1290px tall so sticky bar rarely shows; old unused landing files (ProductHero hero, HeroTabs, WhoFor on landing, Facts/Statement/Coverage) not cleaned up.
+- 2026-11-18 follow-up: app shots in public/cloudivr/shots recaptured from the redesigned app via `node scripts/seed_civr_live_demo.js` → `python3 scripts/landing_shots.py` → `seed --clean` (script now tidies preview pills, test numbers/names, toasts; campaigns shot = seeded demo campaign). Mobile hero shortened (1290→1154px) and sticky bar now appears once the hero buttons scroll away. Self-checked by screenshot only.
+- Open: old unused landing files (ProductHero hero, HeroTabs, WhoFor on landing, Facts/Statement/Coverage) not cleaned up.

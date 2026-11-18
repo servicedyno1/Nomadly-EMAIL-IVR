@@ -15,14 +15,14 @@ const SAFE = ['No card needed', '60-second test call', 'Live in minutes'];
 export function OneHero() {
   const start = useStart();
   return (
-    <section id="product-hero" className="lx-hero relative pt-28 md:pt-36 pb-24 md:pb-32" data-testid="product-hero">
+    <section id="product-hero" className="lx-hero relative pt-24 md:pt-36 pb-20 md:pb-32" data-testid="product-hero">
       <div className="lx-aurora" aria-hidden="true" /><div className="lx-grid" aria-hidden="true" /><div className="lx-grain" aria-hidden="true" />
-      <div className="relative max-w-7xl mx-auto px-6 md:px-8 grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,.9fr)] gap-12 lg:gap-8 items-center">
+      <div className="relative max-w-7xl mx-auto px-6 md:px-8 grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,.9fr)] gap-8 lg:gap-8 items-center">
         <div>
           <div className="lx-chip civr-rise" data-testid="hero-kicker"><span className="lx-live" aria-hidden="true" />AI receptionist on every plan</div>
           <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-6xl text-slate-950 mt-6 civr-rise civr-d1" data-testid="hero-title">One business number, <span className="lx-grad">wherever you work.</span></h1>
           <p className="max-w-xl text-base md:text-lg text-slate-600 mt-6 leading-relaxed civr-rise civr-d2" data-testid="hero-subtitle">Never miss a customer call. A menu or an AI receptionist answers, routes and takes messages around the clock, on a number for calls, texts or fax.</p>
-          <div className="mt-10 flex flex-col sm:flex-row gap-3 civr-rise civr-d3">
+          <div className="mt-8 md:mt-10 flex flex-col sm:flex-row gap-3 civr-rise civr-d3">
             <a href={`${cp()}#try`} onClick={(e) => goTo('#try', e)} className="civr-l-btn civr-l-btn-hero px-8" data-testid="hero-try-cta"><PhoneCall className="w-5 h-5" aria-hidden="true" />Make a free test call</a>
             <Link to={start()} className="civr-l-btn civr-l-btn-ghost civr-l-btn-hero px-8" data-testid="hero-signup-cta">Get your number<ArrowRight className="w-5 h-5" aria-hidden="true" /></Link>
           </div>
