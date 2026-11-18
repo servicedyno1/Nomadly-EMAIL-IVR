@@ -73,7 +73,7 @@ function clearSession(req, res) {
 
 const adminEmails = () => String(process.env.CLOUDIVR_ADMIN_EMAILS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean)
 const isAdmin = (a) => !!a?.email && adminEmails().includes(String(a.email).toLowerCase())
-const publicAccount = (a) => ({ id: String(a._id), email: a.email || null, phone: a.phone || null, name: a.name || '', hasPassword: !!a.passwordHash, google: !!a.googleSub, createdAt: a.createdAt, twoFactor: a.twoFactor?.method || null, admin: isAdmin(a), profileComplete: !!a.legalProfile?.completedAt, profileType: a.legalProfile?.type || null, profileDue: !!a.profileDue && !a.legalProfile?.completedAt })
+const publicAccount = (a) => ({ id: String(a._id), email: a.email || null, phone: a.phone || null, name: a.name || '', hasPassword: !!a.passwordHash, google: !!a.googleSub, createdAt: a.createdAt, twoFactor: a.twoFactor?.method || null, admin: isAdmin(a), profileComplete: !!a.legalProfile?.completedAt, profileType: a.legalProfile?.type || null, profileDue: !!a.profileDue && !a.legalProfile?.completedAt, profileAsk: !a.legalProfile?.completedAt && !a.profileLaterAt })
 
 let mailer = null
 // cloudivr.net mails go out from its own address (CLOUDIVR_MAIL_SENDER) through js/mailer.js: MailerSend once the
@@ -158,7 +158,7 @@ function createAuth(db, { log = console.log, notifyAdmin = () => {} } = {}) {
 
   async function createAccount({ email = null, phone = null, name, passwordHash = null, googleSub = null, referredBy = null, ip = null, country = null }) {
     const _id = await nextChatId()
-    const acc = { _id, ...(email ? { email } : {}), ...(phone ? { phone } : {}), name: String(name || '').trim().slice(0, 80), passwordHash, ...(googleSub ? { googleSub } : {}), ...(referredBy ? { referredBy } : {}), signupIp: ip, lastIp: ip, tokenVersion: 0, profileDue: true, createdAt: new Date(), lastLoginAt: new Date() }
+    const acc = { _id, ...(email ? { email } : {}), ...(phone ? { phone } : {}), name: String(name || '').trim().slice(0, 80), passwordHash, ...(googleSub ? { googleSub } : {}), ...(referredBy ? { referredBy } : {}), signupIp: ip, lastIp: ip, tokenVersion: 0, createdAt: new Date(), lastLoginAt: new Date() }
     await accounts.insertOne(acc)
     await db.collection('walletOf').updateOne({ _id: String(_id) }, { $setOnInsert: { usdIn: 0, usdOut: 0 } }, { upsert: true })
     await db.collection('state').updateOne({ _id: String(_id) }, { $setOnInsert: { userLanguage: 'en', webAccount: true } }, { upsert: true })
