@@ -80,7 +80,7 @@ function createLegalProfile(db, { log = console.log } = {}) {
 
   // Express middleware for number checkouts.
   // Plain number orders go through; the details are asked right after (paperwork countries still check in numbers.js).
-  const AFTER_BUY = /^\/numbers\/(buy|checkout|[^/]+\/(extra-checkout|extra|replace))$/
+  const AFTER_BUY = /^\/(numbers\/(buy|checkout|[^/]+\/(extra-checkout|extra|replace))|fax-numbers)$/
   function gate(req, res, next) {
     if (isComplete(req.webUser)) return next()
     if (AFTER_BUY.test(req.path)) return next()

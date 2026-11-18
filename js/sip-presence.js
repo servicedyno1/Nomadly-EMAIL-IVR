@@ -2,13 +2,17 @@
 // Softphone sign-in state, reported by our SIP server on each REGISTER (GET /sip-registered/:user?e=<expires>),
 // and the "your phone isn't signed in" note sent when an incoming call can't ring it (max once per 6 h per number).
 const NOTE_EVERY_MS = 6 * 3600000
+const REPORT_EVERY_S = 240 // Kamailio reg=>autoexpire (ops/sip-server/kamailio.cfg)
 const WARMUP_MS = 3600000 // phones re-register within the hour; before that "no record" may just mean "not reported yet"
 const col = (db) => db.collection('sipPresence')
 
 async function record(db, user, expires, ua, now = new Date()) {
   if (/^(cloudivr-selftest|preflight-check)/i.test(String(ua || ''))) return // our own registration checks are not a customer's phone
   const e = Math.max(0, Math.min(3600, Number(expires) || 0))
-  await col(db).updateOne({ _id: String(user) }, { $set: { until: new Date(now.getTime() + e * 1000), ua: String(ua || '').slice(0, 80), at: now } }, { upsert: true })
+  // The SIP server re-reports a registered phone at most every 4 min, so short re-register timers (e.g. Zoiper's 60 s)
+  // must stay "signed in" until the next report could arrive — otherwise the phone flaps offline between reports.
+  const keep = e > 0 ? Math.max(e, REPORT_EVERY_S + 60) : 0
+  await col(db).updateOne({ _id: String(user) }, { $set: { until: new Date(now.getTime() + keep * 1000), ua: String(ua || '').slice(0, 80), at: now } }, { upsert: true })
   await db.collection('appSettings').updateOne({ _id: 'sipPresenceSince' }, { $setOnInsert: { at: now } }, { upsert: true })
   // Remember whose login this is, so a later attempt with it after it was replaced can be explained to its owner.
   try {

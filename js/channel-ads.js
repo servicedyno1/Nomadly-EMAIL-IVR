@@ -100,9 +100,10 @@ async function send(chat, media, text, topicId) {
 const sigOf = (topicId, v) => `${topicId}|${v.layout}|${v.theme}|${v.font}`
 
 // Posts one (slotKey makes it once-only across the app slots and restarts).
-async function postNow(chat = TARGETS()[0]?.chat, slotKey = `manual:${chat}:${Date.now()}`) {
+// prepare=true builds the visual ahead of the slot and keeps it on disk; publish() sends it on time.
+async function postNow(chat = TARGETS()[0]?.chat, slotKey = `manual:${chat}:${Date.now()}`, { prepare = false } = {}) {
   try { await col.insertOne({ _id: slotKey, chat, at: new Date(), status: 'claimed' }) } catch (e) { if (e.code === 11000) return { skipped: 'already posted' }; throw e }
-  let media = null
+  let media = null, keep = false
   try {
     const p = await plan(chat)
     const cap = await caption(p.pillar, p.topic, p.extra)
@@ -114,6 +115,12 @@ async function postNow(chat = TARGETS()[0]?.chat, slotKey = `manual:${chat}:${Da
     const topicId = media.type === 'photo' ? p.screen.id : (p.demo && !media.v.fallback ? p.demo.id : (p.clip || p.screen).id)
     const text = htmlText(cap, ctaUrl(chat, topicId))
     const rec = { chat, pillar: p.pillar, topicId, mediaId: topicId, visual: media.type === 'album' ? 'series' : media.type === 'video' ? (p.kind === 'demo' ? 'demo' : 'clip') : media.v.layout, steps: media.files?.length || null, live: media.live, fallback: media.v.fallback || null, sig: sigOf(topicId, media.v), extra: p.extra, text, thumb: media.thumb.toString('base64') }
+    if (prepare) {
+      await col.updateOne({ _id: slotKey }, { $set: { status: 'prepared', ...rec, media: { type: media.type, file: media.file || null, files: media.files || null } } })
+      keep = true
+      log(`[ChannelAds] prepared ${p.pillar}/${topicId} (${rec.visual}) for ${chat}`)
+      return { prepared: true }
+    }
     if (dryRun()) {
       await col.updateOne({ _id: slotKey }, { $set: { status: 'simulated', ...rec } })
       log(`[ChannelAds] (preview) would post ${p.pillar}/${topicId} (${rec.visual}) to ${chat}`)
@@ -128,7 +135,25 @@ async function postNow(chat = TARGETS()[0]?.chat, slotKey = `manual:${chat}:${Da
     await col.updateOne({ _id: slotKey }, { $set: { status: 'failed', error: msg } }).catch(() => {})
     log(`[ChannelAds] post to ${chat} failed: ${msg}`)
     return { error: msg }
-  } finally { for (const f of [media?.file, ...(media?.files || [])].filter(Boolean)) fs.rmSync(f, { force: true }) }
+  } finally { if (!keep) for (const f of [media?.file, ...(media?.files || [])].filter(Boolean)) fs.rmSync(f, { force: true }) }
+}
+
+// Sends a prepared post; if its files are gone (e.g. server moved), it is rebuilt and sent now.
+async function publish(doc) {
+  const m = doc.media || {}, files = [m.file, ...(m.files || [])].filter(Boolean)
+  if (!files.length || !files.every(f => fs.existsSync(f))) { await col.deleteOne({ _id: doc._id }); return postNow(doc.chat, doc._id) }
+  try {
+    if (dryRun()) { await col.updateOne({ _id: doc._id }, { $set: { status: 'simulated' }, $unset: { media: '' } }); log(`[ChannelAds] (preview) would post prepared ${doc.topicId} to ${doc.chat}`); return { simulated: true } }
+    const messageId = await send(doc.chat, m, doc.text, doc.topicId)
+    await col.updateOne({ _id: doc._id }, { $set: { status: 'posted', messageId, postedAt: new Date() }, $unset: { media: '' } })
+    log(`[ChannelAds] posted ${doc.pillar}/${doc.topicId} (${doc.visual}) to ${doc.chat} (#${messageId})`)
+    return { posted: true, messageId }
+  } catch (e) {
+    const msg = e.response?.data?.description || e.message
+    await col.updateOne({ _id: doc._id }, { $set: { status: 'failed', error: msg } }).catch(() => {})
+    log(`[ChannelAds] post to ${doc.chat} failed: ${msg}`)
+    return { error: msg }
+  } finally { for (const f of files) fs.rmSync(f, { force: true }) }
 }
 
 async function tick() {
@@ -141,8 +166,13 @@ async function tick() {
         const [h, m] = hm.split(':').map(Number)
         const at = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m || 0)
         const key = chat === '@CloudIVRNet' ? `${day}T${hm}` : `${chat}:${day}T${hm}`
-        // Due and not more than 3 h late (a long outage skips the slot instead of double posting later).
-        if (now >= at && now - at < 3 * 3600e3 && !(await col.findOne({ _id: key }))) await postNow(chat, key)
+        const doc = await col.findOne({ _id: key })
+        // Built up to 25 min early so it goes out on the minute; due and not more than 3 h late (a long outage skips the slot).
+        if (!doc && now < at && at - now <= 25 * 60e3) await postNow(chat, key, { prepare: true })
+        else if (now >= at && now - at < 3 * 3600e3) {
+          if (!doc) await postNow(chat, key)
+          else if (doc.status === 'prepared') await publish(doc)
+        }
       }
     }
   } catch (e) { log(`[ChannelAds] tick error: ${e.message}`) } finally { busy = false }
@@ -158,7 +188,7 @@ async function init({ db, bot, logger } = {}) {
   if (!dryRun() && String(me?.username || '').toLowerCase() !== POSTER_BOT()) return false
   log(`[ChannelAds] ${dryRun() ? 'preview (simulated)' : 'live'} — ${TARGETS().map(t => `${t.chat} at ${t.slots.join(' & ')}`).join('; ')} UTC via @${me?.username || '?'}`)
   if (timer) clearInterval(timer)
-  timer = setInterval(tick, 5 * 60000); timer.unref?.()
+  timer = setInterval(tick, 60000); timer.unref?.()
   setTimeout(tick, 60000).unref?.()
   return true
 }

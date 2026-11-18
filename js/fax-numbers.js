@@ -166,6 +166,13 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
     notifyAdmin(`↩️ Fax number ${n.phoneNumber} cancelled (${why}) — refunded $${n.price} to ${n.chatId}`)
     return { refunded: n.price, balance: await w.balance(n.chatId) }
   }
+  // Same reminder by email (web accounts have no Telegram chat).
+  async function mailDetails(n) {
+    const a = await db.collection('webAccounts').findOne({ _id: Number(n.chatId) }, { projection: { email: 1 } }).catch(() => null)
+    if (!a?.email) return
+    const site = String(process.env.CLOUDIVR_PUBLIC_URL || 'https://cloudivr.net').replace(/\/+$/, '')
+    await require('./cloudivr-web/auth').sendMail(a.email, `Finish switching on fax number ${n.phoneNumber}`, `<p>Your fax number <b>${n.phoneNumber}</b> is paid and reserved. The carrier just needs your details to switch it on.</p><p><a href="${site}/app/fax">Open Fax numbers to finish</a> — it takes about 2 minutes. You can also cancel it there for a full refund.</p>`).catch(e => log(`[FaxNumbers] details mail: ${e.message}`))
+  }
   // Paid but details never sent: reminders after 1 and 3 days, refund after DETAILS_DAYS.
   async function chaseDetails(now = Date.now()) {
     for (const n of await nums.find({ status: 'pending_registration', 'registration.status': 'needs_details' }).limit(200).toArray()) {
@@ -176,6 +183,7 @@ function create(db, { log = console.log, notifyAdmin = () => {}, push = () => {}
       } else for (const [k, d] of [['remind2', 3], ['remind1', 1]]) {
         if (age < d * 864e5 || n.registration[k]) continue
         const u = await nums.updateOne({ _id: n._id, [`registration.${k}`]: { $exists: false } }, { $set: { 'registration.remind1': true, [`registration.${k}`]: true } })
+        if (u.modifiedCount) await mailDetails(n)
         if (u.modifiedCount) await push(n.chatId, `Fax number ${n.phoneNumber} is paid and reserved — the carrier just needs a few details to switch it on. Open Fax numbers to finish (takes 2 minutes), or cancel it there for a full refund. Without the details it is refunded automatically after ${DETAILS_DAYS} days.`)
         break
       }

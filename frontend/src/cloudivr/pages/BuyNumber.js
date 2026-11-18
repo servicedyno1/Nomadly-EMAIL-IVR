@@ -6,8 +6,6 @@ import { useShell } from '../Shell';
 import { PageHeader, Spinner } from '../ui';
 import { cp } from '../paths';
 import { usePrivacy } from '../privacy';
-import { useCivrAuth } from '../AuthContext';
-import { BuyProfileGate } from '../profile/ProfilePrompts';
 import { kindById, kindOfPurpose } from '../kinds';
 import { KindPicker, KindChosen, useKindFacts } from './buy/KindPicker';
 import { CallsBuy } from './buy/CallsBuy';
@@ -35,7 +33,6 @@ function Steps({ labels, current, onBack }) {
 
 export default function BuyNumber() {
   const { catalog, summary, refreshSummary } = useShell();
-  const needsProfile = !useCivrAuth()?.account?.profileComplete;
   const [params, setParams] = useSearchParams();
   const pv = usePrivacy();
   const extraOf = params.get('extra');
@@ -68,7 +65,7 @@ export default function BuyNumber() {
         <KindChosen kind={kind} onChange={change} />
         {kindId === 'calls' && <CallsBuy onStage={onStage} />}
         {kindId === 'texting' && <TextingBuy onStage={onStage} startCountry={(params.get('country') || '').toUpperCase()} />}
-        {kindId === 'fax' && (needsProfile ? <BuyProfileGate /> : <FaxNumberBuy balance={summary?.balance} onBought={refreshSummary} onStage={onStage} />)}
+        {kindId === 'fax' && <FaxNumberBuy balance={summary?.balance} onBought={refreshSummary} onStage={onStage} />}
       </>}
     </div>
   );

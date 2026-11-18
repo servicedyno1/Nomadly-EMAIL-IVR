@@ -1032,6 +1032,13 @@ function routes(router, deps) {
     if (paid === null) return bad(res, 409, 'not_cancellable', 'Only a number that is not approved yet can be cancelled for a refund.')
     res.json({ refunded: paid, balance: await w.balance(req.webChatId) })
   }))
+  // Same reminder by email (web accounts have no Telegram chat; the in-app Inbox gets it too).
+  async function mailDetails(chatId, n) {
+    const a = await db.collection('webAccounts').findOne({ _id: Number(chatId) }, { projection: { email: 1 } }).catch(() => null)
+    if (!a?.email) return
+    const site = String(process.env.CLOUDIVR_PUBLIC_URL || 'https://cloudivr.net').replace(/\/+$/, '')
+    await require('./auth').sendMail(a.email, `Finish switching on ${n.phoneNumber}`, `<p>Your number <b>${n.phoneNumber}</b> is paid and reserved. The carrier just needs your details and documents to switch it on.</p><p><a href="${site}/app/numbers">Open My numbers to finish</a> — it takes a couple of minutes. You can also cancel it there for a full refund.</p><p>Without the details the number is released and refunded to your wallet 14 days after purchase.</p>`).catch(e => log(`[CloudIVR-Web] details mail: ${e.message}`))
+  }
   // Paid but details never sent: reminders after 1 and 3 days, refund after 14.
   async function chaseDetails(now = Date.now()) {
     const push = (id, text) => require('./notify').push(id, text, null, { kind: 'number', meta: { link: '/app/numbers' } }).catch(() => {})
@@ -1041,6 +1048,7 @@ function routes(router, deps) {
       const k = age >= 3 * 864e5 ? 'remind2' : age >= 864e5 ? 'remind1' : null
       if (!k || n.registration[k]) continue
       const u = await phoneNumbersOf.updateOne({ _id: d._id, 'val.numbers': { $elemMatch: { phoneNumber: n.phoneNumber, [`registration.${k}`]: { $exists: false } } } }, { $set: { 'val.numbers.$.registration.remind1': true, [`val.numbers.$.registration.${k}`]: true } })
+      if (u.modifiedCount) await mailDetails(d._id, n)
       if (u.modifiedCount) await push(d._id, `${n.phoneNumber} is paid and reserved — the carrier just needs a few details to switch it on. Open the number in My numbers to finish, or cancel it there for a full refund. Without the details it is refunded automatically after 14 days.`)
     }
   }
