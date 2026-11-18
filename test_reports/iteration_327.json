@@ -1,0 +1,26 @@
+{
+  "summary": "Frontend-only re-test of the rebuilt CloudIVR /cloudivr landing page. Landing renders with no error screen and no console/page errors on desktop 1920 and mobile 390. Every section is present in the right order (product-hero -> facts -> try -> features -> landing-ai -> who-for -> how -> pricing -> faq -> final-cta -> footer). Hero: title/subtitle/CTAs present, hero-try-cta scrolls try to y=64, hero-signup-cta=/cloudivr/signup, hero-trust shows 3 items, hero-stats has 4, hero-demo cycles ('Incoming call' observed at load, then 'AI receptionist · on call' with hero-demo-booked visible). Nav: features/pricing/faq/signin all route correctly, mobile menu has try/cta/signin. Trust band + payment methods render. Try section: both tabs (callme + browser) visible and switch forms, invalid input shows civr-try-error, valid +number opens civr-email-gate-modal (step 1 of 2). Hear-it: play + show-transcript work. Feature tiles: all 6 present; feature-tile-texting-link -> /cloudivr/pricing#pricing-mobile with plans-tab-mobile aria-selected=true; feature-tile-fax-link -> fax tab selected; hero-order-esim opens eSIM checkout dialog. Audience: all 4 tabs switch panels and images load (naturalWidth > 0); who-for-link-* hrefs correct. Plans: 4 cards, 4 pricing-choose-* buttons (starter/standard/pro/business -> /cloudivr/signup?plan=<id>); pricing-kind-mobile/fax/esim and pricing-full-link all point to /cloudivr/pricing[#...]. NO '/min' or 'per minute' anywhere on the landing page. FAQ: 6 items -> faq-show-all expands to 28. Final CTA: final-cta-try scrolls try to y=64 on landing; final-cta-button -> /cloudivr/signup; on /cloudivr/pricing the same final-cta-try navigates to /cloudivr/#try. Footer: footer-product-fax -> /cloudivr/pricing#pricing-fax. Old deep link /cloudivr#pricing-fax correctly redirects to /cloudivr/pricing#pricing-fax with plans-tab-fax selected. Pricing page regression: pricing-page + pricing-plan-suggest render. /cloudivr/for/founders and /cloudivr/login both render. Mobile 390: no horizontal overflow (scrollWidth==clientWidth==390); cookie-banner is 96px (<=120px) and sits below the hero buttons; sticky CTA hides while try-section is in view and reappears on later sections. Hero demo 'Incoming call' phase confirmed via 200ms sampling right after load. No ReferenceError on load (last iteration's AiSection.js crash is gone).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Mobile product-hero (390x844)", "issues": ["Hero section is ~1290px tall on 390px width, which is longer than a full viewport. The mobile sticky CTA therefore rarely has an 'empty' region to appear in: as soon as the hero scrolls past, try-section is already in view and the sticky hides. Not a defect per se - all testids exist and hide-logic is correct - but consider trimming the hero height on mobile."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "No blocking issues. Optional: shrink mobile hero vertical height so the sticky CTA has a visible window between hero and try-section."
+  ],
+  "critical_code_review_comments": [
+    "StickyCta.js uses IntersectionObserver with threshold 0.05 on try-section/final-cta/landing-footer to hide the bar - works as designed.",
+    "HeroDemo.js: phase 0 ('Incoming call') is brief; it is observable with sub-second sampling after load, but a 700ms poll is likely to miss it. Fine for users."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100% of requested checks pass; 1 minor mobile-layout design note"},
+  "seed_data_creation": "None. No test calls placed, no payments, no signups. Email gate dialog was opened but not submitted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Landing testids are stable. Try form submit button is data-testid='civr-callme-start-btn' (NOT 'civr-callme-submit'). Email gate modal = data-testid='civr-email-gate-modal'. Hero demo cycles roughly every 2.3s; phase 0 'Incoming call' lasts well under 1s - use 200ms polling from load to catch it. Mobile hero is ~1290px tall; sticky-cta hide/show follows IntersectionObserver on try-section/final-cta/footer (uses .hide class with opacity:0 - Playwright is_visible() returns True for that; check class or opacity instead). Cookies are stored in localStorage; clear both cookies and localStorage then reload to see the banner again.",
+  "rca of the issue": "N/A - no critical issues this iteration. Previous iteration's AiSection.js ReferenceError is already fixed and did not regress."
+}

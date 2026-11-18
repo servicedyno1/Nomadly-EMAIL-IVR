@@ -67,7 +67,7 @@ export function TryCall() {
   const verified = (d) => { saveToken(d.token, d.email); setGate(false); begin(d); };
 
   return (
-    <section id="try" className="lx-soft relative scroll-mt-16" data-testid="try-section">
+    <section id="try" className="civr-l-cream lx-soft relative scroll-mt-16" data-testid="try-section">
       <div className="relative max-w-7xl mx-auto px-6 md:px-8 pt-8 pb-24 md:pb-28 grid lg:grid-cols-12 gap-12 items-start">
         <div className="lg:col-span-5">
           <SectionHead label="Free test call" title="Don’t take our word for it. Call it." sub="A free 60-second test call — on your own phone or right here in your browser. No card needed." />

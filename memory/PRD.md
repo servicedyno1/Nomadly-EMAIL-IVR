@@ -672,3 +672,12 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 
 ## Pricing display rule (2026-06)
 Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing copy uses a "See pricing" link instead. Admin pages are exempt.
+
+## 2026-11-18 — Landing page rebuild (2026 premium look) — shipped, agent-tested (iteration_327), not user-confirmed
+- New: `landing/Hero.js` (OneHero + TrustBand), `HeroDemo.js`, `Bento.js` (#features), `UseCases.js` (audience tabs), `Plans.js`, `lx.css` (Bricolage Grotesque + Plus Jakarta Sans, glow/glass/grain; loaded from kit.js so all public pages get it).
+- Main action everywhere = free test call (#try); secondary = Get your number. Header: Product, Pricing, FAQ, Sign in, Free test call.
+- Order: hero → trust band → try (+HearIt) → features → AI → audiences → how → reviews (real only) → plans → FAQ → final CTA.
+- Landing plans = one row of cards; tabs/eSIM/fax/texting detail on /pricing (old `#pricing-<tab>` links redirect there; PricingPage listens to `civr-pricing-tab`).
+- FAQ added: countries, documents. Porting NOT added (unconfirmed offer). Cookie banner slimmer on phones.
+- channel-ads-studio plan-suggest captures now use `/pricing`.
+- Open: audience-tab screenshots (public/cloudivr/shots) still show the pre-redesign app; mobile hero is ~1290px tall so sticky bar rarely shows; old unused landing files (ProductHero hero, HeroTabs, WhoFor on landing, Facts/Statement/Coverage) not cleaned up.
