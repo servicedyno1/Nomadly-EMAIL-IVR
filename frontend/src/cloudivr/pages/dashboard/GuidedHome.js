@@ -17,8 +17,8 @@ const TASKS = [
     ['Add or upload your contacts', '/app/contacts'], ['Record or pick the message they hear', '/app/audio'], ['Start the campaign and watch it live', '/app/campaigns/new']]],
   ['texts', MessageSquareText, 'Send texts', 'Text customers from CloudIVR.', [
     ['Order a Texting Number — send and receive texts right here', '/app/buy?purpose=texting&country=US'], ['…or add texting to a number you already have', '/app/texting'], ['Open Messages and send your first text', '/app/messages']]],
-  ['agent', Bot, 'Set up an AI agent', 'An AI that answers or calls, in 20 languages.', [
-    ['Create the agent and give it a script', '/app/ai-agents/new'], ['Talk to it in your browser — free', '/app/ai-agents'], ['Give it its own number to answer', '/app/receptionist']]],
+  ['agent', Bot, 'Start AI conversations', 'An AI that talks with your leads — or answers your calls — in 20 languages.', [
+    ['Tell Emily who to call and why — she writes the agent', '/app/campaigns/new?kind=ai'], ['Talk to it in your browser — free', '/app/ai-agents'], ['Give it its own number to answer', '/app/receptionist']]],
   ['connect', KeyRound, 'Connect my phone or softphone', 'Use your number in Zoiper, a desk phone or the browser.', [
     ['Create a softphone (SIP) login', '/app/sip'], ['Or open the browser phone right now', 'phone'], ['Want a real mobile line? Get an eSIM', '/app/esim']]],
 ];

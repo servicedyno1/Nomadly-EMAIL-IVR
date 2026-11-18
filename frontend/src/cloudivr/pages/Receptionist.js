@@ -109,7 +109,7 @@ export default function Receptionist() {
   const { data: msgs, reload: reloadCount } = useApi('/ai-receptionist/messages?open=1&limit=1');
   return (
     <div data-testid="receptionist-page">
-      <PageHeader label="AI assistants" title="AI receptionist" sub={`Picks up your number, answers questions, takes messages and books visits. $${data?.receptionRate ?? 0.1}/min from your wallet on any plan; browser tests are free.`} testid="receptionist-header">
+      <PageHeader label="AI" title="AI receptionist" sub={`AI conversations on your incoming calls: it picks up your number, answers questions, takes messages and books visits. $${data?.receptionRate ?? 0.1}/min from your wallet on any plan; browser tests are free. To have the AI call people, start an AI conversation campaign.`} testid="receptionist-header">
         <Link to={cp('/app/receptionist/new')} className="civr-btn civr-btn-primary" data-testid="receptionist-new-button"><Plus className="w-4 h-4" />New receptionist</Link>
       </PageHeader>
       {data && !data.agents.some(isReceptionist) && <Steps />}

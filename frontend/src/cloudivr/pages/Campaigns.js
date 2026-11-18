@@ -13,7 +13,8 @@ import { usePrivacy } from '../privacy';
 import { MenuBuilder, menuToApi } from './quick/MenuBuilder';
 import { ScriptBox, fillScript, placeholdersOf } from './quick/ScriptBox';
 import { useVoices } from '../VoiceMaker';
-import { CampaignKind, AiCampaignFields } from './ai/AiCampaignFields';
+import { CampaignKind } from './ai/AiCampaignFields';
+import { AiAssist, AgentPanel, AiLoading, useAiSetup, draftOf, agentChanged, agentBody, NEW_AGENT } from './campaign/AiSetup';
 import { useSearch, SearchBox, NoMatches } from '../search';
 import { useUnsaved, UnsavedPill } from '../guard';
 import { TrialLink } from './dashboard/Banners';
@@ -90,7 +91,7 @@ export function Campaigns() {
   const { data, loading, error, reload, setData } = useApi('/campaigns');
   const pv = usePrivacy();
   const list = data?.campaigns || [];
-  const s = useSearch(list, c => [c.name || '', c.audioName || 'Campaign', c.callerId, c.status, c.mode === 'ai' ? 'AI voice agent' : '']);
+  const s = useSearch(list, c => [c.name || '', c.audioName || 'Campaign', c.callerId, c.status, c.mode === 'ai' ? 'AI conversation' : '']);
   const onChange = (c) => setData(x => ({ ...x, campaigns: (x?.campaigns || []).map(k => (k.id === c.id ? c : k)) }));
   // Live numbers while something is dialing.
   const running = list.some(c => c.status === 'running');
@@ -276,12 +277,12 @@ function RunPlanFields({ f, set }) {
 
 export function CampaignNew() {
   const nav = useNavigate();
-  const [kind, setKind] = useState('audio');
+  const [params] = useSearchParams();
+  const [kind, setKind] = useState(() => (params.get('kind') === 'ai' ? 'ai' : 'audio'));
   const { numbers, all, loading, reload: reloadNums } = useCallerNumbers(kind === 'ai' ? 'aiAgent' : 'bulkCall');
   const { catalog } = useShell();
   const aiLocked = !all.some(n => n.status === 'active' && n.access?.aiAgent);
   const { data: au, reload: reloadAudio } = useApi('/audio');
-  const [params] = useSearchParams();
   // Contacts → "Start a campaign" opens this page with ?list=<id>.
   const [f, setF] = useState(() => ({ name: '', callerId: params.get('callerId') || '', showAs: '', audioId: '', voicemailAudioId: '', vmMode: 'main', leads: '', source: params.get('list') ? 'list' : 'numbers', listId: params.get('list') || '', mode: 'report_only', transferNumber: '', transferBackups: '', activeKeys: ['1'], menu: [], concurrency: 20, scheduledFor: '', holdMusic: false, agentId: '', repeat: '', dailyLimit: '' }));
   const [script, setScript] = useState(null);
@@ -292,14 +293,16 @@ export function CampaignNew() {
   const [error, setError] = useState(null);
   const u = useUnsaved({ f, kind, script });
   const voiceDef = useVoices().def;
+  const [agentDraft, setAgentDraft] = useState(() => draftOf(NEW_AGENT));
+  const ai = useAiSetup(kind === 'ai', f, setF, setAgentDraft);
   const set = (k) => (v) => setF({ ...f, [k]: v?.target ? v.target.value : v });
   if (loading) return <SkeletonPage cards={2} rows={0} />;
   if (!numbers.length) return (
     <div data-testid="campaign-new-page">
       <PageHeader label="Make calls" title="New campaign" testid="campaign-new-header" />
       <CampaignKind value={kind} onChange={setKind} aiLocked={aiLocked} />
-      <Empty icon={Megaphone} title={kind === 'ai' ? 'No number can run AI voice agent campaigns' : 'No number can run campaigns'} sub={kind === 'ai' ? 'AI voice agent campaigns need an active number on the Business plan.' : 'Bulk IVR needs an active number on the Pro plan or higher.'} testid="campaign-new-empty">
-        {all.some(n => n.status === 'active') ? <div className="mt-6 w-full"><CampaignUpgradeNudge numbers={all} need={planFor(catalog?.plans, kind === 'ai' ? 'aiAgent' : 'bulkCall')?.id || 'business'} feature={kind === 'ai' ? 'AI voice agent campaigns' : 'Calling campaigns'} onDone={reloadNums} /><button type="button" onClick={() => showUpgrade({ feature: kind === 'ai' ? 'AI voice agent campaigns' : 'Bulk IVR campaigns', need: planFor(catalog?.plans, kind === 'ai' ? 'aiAgent' : 'bulkCall')?.id || 'business' })} className="civr-btn civr-btn-ghost civr-btn-sm mt-3" data-testid="campaign-new-empty-action">See what you get</button></div>
+      <Empty icon={Megaphone} title={kind === 'ai' ? 'No number can run AI conversation campaigns' : 'No number can run campaigns'} sub={kind === 'ai' ? 'AI conversation campaigns need an active number on the Business plan.' : 'Bulk IVR needs an active number on the Pro plan or higher.'} testid="campaign-new-empty">
+        {all.some(n => n.status === 'active') ? <div className="mt-6 w-full"><CampaignUpgradeNudge numbers={all} need={planFor(catalog?.plans, kind === 'ai' ? 'aiAgent' : 'bulkCall')?.id || 'business'} feature={kind === 'ai' ? 'AI conversation campaigns' : 'Calling campaigns'} onDone={reloadNums} /><button type="button" onClick={() => showUpgrade({ feature: kind === 'ai' ? 'AI conversation campaigns' : 'Bulk IVR campaigns', need: planFor(catalog?.plans, kind === 'ai' ? 'aiAgent' : 'bulkCall')?.id || 'business' })} className="civr-btn civr-btn-ghost civr-btn-sm mt-3" data-testid="campaign-new-empty-action">See what you get</button></div>
           : <Link to={cp('/app/buy?purpose=voice')} className="civr-btn civr-btn-primary" data-testid="campaign-new-empty-action">Get a Business Line</Link>}
         {kind !== 'ai' && <TrialLink testid="campaign-new-trial-link" />}
       </Empty>
@@ -326,7 +329,8 @@ export function CampaignNew() {
   };
   const create = async (e) => {
     e.preventDefault(); setError(null);
-    const miss = missingFields('campaign', [
+    const miss = missingFields(isAi ? 'aicampaign' : 'campaign', [
+      ...(isAi ? [[!!String(agentDraft.name || '').trim(), 'a name for the AI agent', 'aicampaign-agent-name-input'], [String(agentDraft.goal || '').trim().length >= 10, 'what the agent does on each call', 'aicampaign-agent-goal-input']] : []),
       [fromList ? !!f.listId : !!f.leads.trim(), fromList ? 'the contact list to call' : 'the numbers to call', fromList ? 'campaign-list-select' : 'campaign-leads-input'],
       ...(isAi ? [] : [[!!f.audioId || !!String(script?.text || '').trim(), 'the message they hear', script ? 'campaign-script-text' : 'campaign-audio-select'],
         [f.mode !== 'transfer' || !!f.transferNumber.trim(), 'the number to transfer to', 'campaign-transfer-input'],
@@ -338,10 +342,18 @@ export function CampaignNew() {
       if (!isAi && f.vmMode === 'script' && !vmScript.audioId) throw new Error('Create the voicemail audio first, or pick another option.');
       if (!isAi && f.vmMode === 'other' && !f.voicemailAudioId) throw new Error('Pick the clip to leave on voicemail, or choose “Leave my message”.');
       const scheduledFor = f.scheduledFor ? new Date(f.scheduledFor).toISOString() : null;
+      let agentId = f.agentId;
+      if (isAi && agentId === 'new') {
+        const d = await api('/ai-agents', { method: 'POST', body: agentBody(agentDraft) });
+        agentId = d.agent.id; setF(x => ({ ...x, agentId })); setAgentDraft(draftOf(d.agent)); ai.reload();
+      } else if (isAi && agentChanged(agentDraft)) {
+        const d = await api(`/ai-agents/${agentId}`, { method: 'PUT', body: { ...ai.agents.find(a => a.id === agentId), ...agentBody(agentDraft) } });
+        setAgentDraft(draftOf(d.agent)); ai.reload();
+      }
       const plan = { repeat: f.repeat || null, dailyLimit: f.dailyLimit === '' ? null : Number(f.dailyLimit), tz: TZ };
       const base = { ...f, stopKey: f.mode === 'menu' ? undefined : (f.stopKey || undefined), ...audience, source: undefined, callerId, callerIds: f.callerIds?.length ? f.callerIds : undefined, showAs: f.showAs || undefined, menu: f.mode === 'menu' ? menuToApi(f.menu) : undefined, scheduledFor, ...plan };
       const audioId = !isAi && !f.audioId && script ? await scriptAudio(() => api('/campaigns', { method: 'POST', body: { ...base, validateOnly: true, audioPending: true } })) : f.audioId;
-      const body = isAi ? { mode: 'ai', name: f.name, agentId: f.agentId, callerId, callerIds: f.callerIds?.length ? f.callerIds : undefined, showAs: f.showAs || undefined, ...audience, concurrency: f.concurrency, scheduledFor, ...plan }
+      const body = isAi ? { mode: 'ai', name: f.name, agentId, callerId, callerIds: f.callerIds?.length ? f.callerIds : undefined, showAs: f.showAs || undefined, ...audience, concurrency: f.concurrency, scheduledFor, ...plan }
         : { ...base, vmMode: undefined, audioId, voicemailAudioId: f.vmMode === 'main' ? audioId : f.vmMode === 'other' ? f.voicemailAudioId : f.vmMode === 'script' ? vmScript.audioId : '' };
       const d = await api('/campaigns', { method: 'POST', body });
       toast.success(d.skipped ? `Campaign saved · ${d.skipped} line(s) skipped` : 'Campaign saved');
@@ -349,7 +361,7 @@ export function CampaignNew() {
       if (d.doNotCall) toast.message(`${d.doNotCall} number(s) are on your do-not-call list and will be skipped`);
       u.reset();
       nav(cp(`/app/campaigns/${d.campaign.id}`));
-    } catch (err) { setError(err); emilyEvent('applied', 'campaign'); } finally { setBusy(''); }
+    } catch (err) { setError(err); emilyEvent('applied', isAi ? 'aicampaign' : 'campaign'); } finally { setBusy(''); }
   };
 
   return (
@@ -357,17 +369,17 @@ export function CampaignNew() {
       <PageHeader label="Make calls" title="New campaign" testid="campaign-new-header" />
       <CampaignKind value={kind} onChange={setKind} aiLocked={aiLocked} />
       <form onSubmit={create} className="grid lg:grid-cols-2 gap-4" {...u.bind}>
-        {!isAi && <CampaignAssist f={f} setF={setF} script={script} setScript={setScript} />}
+        {isAi ? <div className="lg:col-span-2">{ai.ready ? <AiAssist f={f} setF={setF} draft={agentDraft} setDraft={setAgentDraft} agents={ai.agents} numbers={numbers} lists={ai.lists} /> : <AiLoading />}</div> : <CampaignAssist f={f} setF={setF} script={script} setScript={setScript} />}
         {!isAi && <div className="lg:col-span-2"><OutboundFlow kind="campaign" testid="campaign-flow" readyLabel="Ready to save" config={{ name: f.name, script: script?.text || '', mode: f.mode, transferNumber: f.transferNumber, activeKeys: f.activeKeys, stopKey: f.stopKey || '', menu: f.menu, holdMusic: f.holdMusic }} context={{ hasAudio: !!f.audioId, ...(est ? { contacts: est.count } : {}) }} /></div>}
         <div className="lg:col-span-2">
-        <FormFold screen="campaign" off={isAi} open={!!(f.listId || f.leads)} label="Fill in the campaign yourself: who to call, message, keys and schedule" testid="campaign-fold">
+        <FormFold key={kind} screen={isAi ? 'aicampaign' : 'campaign'} open={!!(f.listId || f.leads)} label={isAi ? 'Fill in the campaign yourself: the AI agent, who to call and when' : 'Fill in the campaign yourself: who to call, message, keys and schedule'} testid="campaign-fold">
         <div className="grid lg:grid-cols-2 gap-4">
         <div className="civr-card p-6 space-y-6">
           <Field label="Campaign name (optional)" hint="Shown in your campaign list and reports. Leave empty to use the message name."><input className="civr-input" maxLength={80} value={f.name} onChange={set('name')} placeholder="e.g. June follow-ups" data-testid="campaign-name-input" /></Field>
           <Field label="Caller ID"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="campaign-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{n.phoneNumber}</option>)}</select></Field>
           <ShowAsSelect value={f.showAs} onChange={set('showAs')} from={callerId} testid="campaign-show-as-select" />
           <RotateCallerIds numbers={numbers} primary={callerId} value={f.callerIds || []} onChange={(v) => setF(x => ({ ...x, callerIds: v }))} />
-          {isAi ? <AiCampaignFields agentId={f.agentId} onChange={set('agentId')} /> : <>
+          {isAi ? (ai.ready ? <AgentPanel agentId={f.agentId || 'new'} onAgent={ai.onAgent} draft={agentDraft} setDraft={setAgentDraft} agents={ai.agents} voices={ai.voices} /> : <AiLoading />) : <>
           <Field label="Message"><AudioSelect value={f.audioId} onChange={set('audioId')} audios={au?.audios} by="id" onAdded={reloadAudio} testid="campaign-audio-select" /></Field>
           {script ? <div className="border border-[#262626] rounded-xl p-4"><ScriptBox value={script} onChange={setScript} onAudio={(a) => { reloadAudio(); setMadeTexts(m => ({ ...m, [a.id]: fillScript(script.text, script.values) })); setF(x => ({ ...x, audioId: a.id })); setScript(null); }} testid="campaign-script" /></div>
             : <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => setScript({ text: '', values: {} })} data-testid="campaign-write-script-button">Write a script with a template instead</button>}

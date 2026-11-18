@@ -127,6 +127,31 @@ const SCREENS = {
     },
     note: 'The contact list, caller ID and audio file are picked on the page, not by you. The campaign needs about $20 in the wallet to start and bills per minute as it runs — for a large list (thousands of numbers) advise the owner to top up enough credit up front so it does not pause mid-campaign when the wallet runs low.',
   },
+  aicampaign: {
+    what: 'an AI calling campaign: an AI voice agent holds a real conversation with every contact on a list. You set up BOTH the agent (who it is, what it says, what it finds out) AND the campaign (who to call, from which number, when)',
+    fields: {
+      agentId: [(v) => str(v, 60), '"new" to write a new agent from the agent fields below, or the id of one of account info agents to reuse it (then only send agent fields the owner wants changed)'],
+      agentName: [text(40), 'first name the agent uses, e.g. "Ava"'],
+      businessName: [text(60), 'the business it calls for'],
+      language: [(v) => require('../ai-agent/languages').LANGS.includes(v) ? v : undefined, 'language code the agent starts in'],
+      voice: [oneOf(['marin', 'cedar', 'alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse']), 'voice name'],
+      firstMessage: [text(500), 'exact opening line; may use {name}, {business} and {lead_name|there}'],
+      goal: [text(4000), 'personality and script: what the agent does after the opening, how it talks, what it must find out, when to transfer'],
+      knowledge: [text(6000), 'FAQs and facts the agent may use (prices, hours, offers) — only what the owner told you'],
+      transferTo: [phone, 'phone to hand interested people to, or "" for none'],
+      takeMessages: [bool, 'take a message (name, callback number) when nobody can take a transfer'],
+      discloseAi: [bool, 'agent says it is an AI at the start'],
+      name: [text(80), 'campaign name'],
+      callerId: [phone, 'one of account info callerNumbers the calls come from'],
+      listId: [(v) => str(v, 60), 'id of one of account info contactLists to call, or "" when numbers are typed'],
+      leads: [(v) => phoneList(500)(v).join('\n'), 'numbers to call, one per line, E.164 (only numbers the owner gave you)'],
+      concurrency: [int(1, 20), 'calls at the same time, 1-20'],
+      scheduledFor: [(v) => (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(String(v ?? '')) ? String(v) : v === '' ? '' : undefined), 'start time in the owner\'s local time "YYYY-MM-DDTHH:mm", or "" to start it by hand'],
+      repeat: [oneOf(['', 'daily', 'weekly']), '"" (once) | daily | weekly'],
+      dailyLimit: [(v) => (v === '' || v == null ? '' : int(1, 10000)(v) ?? ''), 'max calls per day, "" for no limit'],
+    },
+    note: `HOW TO RUN THIS CHAT: find out (one question at a time) what the calls are for and what the agent should achieve, then who to call. If account info agents already has a fitting agent, offer to reuse it (agentId = its id); otherwise agentId "new" and write the agent: a warm natural script, a short opening line, the facts it may use. Never invent prices, offers or phone numbers. Pick callerId from account info callerNumbers (if several, ask which; if one, use it and say so). For who to call: a saved list from contactLists (set listId) or numbers the owner pastes (set leads). Defaults you use silently and mention in the summary: concurrency 5, no schedule (owner presses Save, then Start), no repeat, no daily limit, discloseAi on, takeMessages on. Rules to mention once in your first proposal: calls go out only 8am-9pm in each contact's local time, do-not-call numbers are skipped, only call people who agreed to hear from you, $0.30 per started minute on the Business plan, unanswered calls are free. You never save or start the campaign — the owner presses Save campaign.`,
+  },
   ivr: {
     what: 'the keypad menu (IVR) people hear when they call this number',
     fields: {
@@ -231,9 +256,9 @@ QUICK CALL (Pro+): up to 10 numbers (use a campaign for more), from one of the o
 - menu: each key forwards to a phone, reads a message, or opens one sub-menu.
 Billed per minute (rate depends on the destination); wallet must cover at least $1 / one minute. Scheduling (5 min–30 days ahead), presets and redial are Business.
 BULK IVR CAMPAIGN (Pro+): one message (audio from the library or a script turned into an AI voice when saved) to a contact list; 500 numbers per campaign, bigger lists split into parts of 500 called one after another (up to 10 parts) or only the first 500; numbers on the do-not-call list and known dead numbers are skipped. Key press: just report it, transfer to the owner, or a key menu. Answering machines: leave the same message, another clip, a separate voicemail script, or hang up. 1-20 calls at a time (more with rotating caller IDs), schedule, repeat daily/weekly (not for split lists), daily call limit. Needs about $20 in the wallet to launch. Suggest calling during normal daytime hours of the contacts.
-AI VOICE AGENTS (own page) hold real conversations; AI agent campaigns (Business) call only 8am-9pm in each contact's local time.`
+AI CALLING (Campaigns → New campaign → AI voice agent conversation, Business): the AI voice agent and its campaign are set up together in one chat; agents hold real conversations and call only 8am-9pm in each contact's local time. Saved agents are under Campaigns → AI calling agents. The AI receptionist (answering incoming calls) is under AI.`
 
-const OTHER = 'Where things live: forwarding, keypad menu, AI agent, ring group, voicemail, hours (Answering group) and SMS, missed-call text, Text Triggers (Texting group) are tabs of each number; Quick call and Bulk campaigns are under Make calls; AI agents have their own page.'
+const OTHER = 'Where things live: forwarding, keypad menu, AI agent, ring group, voicemail, hours (Answering group) and SMS, missed-call text, Text Triggers (Texting group) are tabs of each number; Quick call is under Calls; Bulk and AI calling campaigns (with their AI agents) are under Campaigns; the AI receptionist is under AI.'
 
 function system(sc, current, context, screen) {
   const fields = Object.entries(sc.fields).map(([k, [, doc]]) => `- ${k}: ${doc}`).join('\n')
@@ -327,6 +352,11 @@ const GAPS = {
     ...(f.afterHours?.enabled && c && c.hoursOn === false ? ['The after-hours menu only plays once your Hours schedule is on (Hours tab).'] : []),
     ...(f.extensions || []).filter(e => e.action !== 'devices' && !e.forwardTo).map(e => `Extension ${e.code}: which phone should it ring?`)],
   quick: (f) => [...(!has(f.targets) ? ['Which number(s) should I call?'] : []), ...(f.mode === 'transfer' && !f.transferTo ? ['Which phone should callers be connected to?'] : []), ...(f.mode === 'otp' && f.script && !/press\s*(1|one)/i.test(f.script) ? ['The script should tell them to press 1 before typing the code.'] : []), ...(f.mode === 'menu' ? keyGaps(f.menu) : [])],
+  aicampaign: (f) => [
+    ...(f.agentId === 'new' && String(f.goal || '').trim().length < 10 ? ['What should the agent say and find out on each call?'] : []),
+    ...(!f.agentId ? ['Should I write a new agent for this, or reuse one of yours?'] : []),
+    ...(!f.listId && !String(f.leads || '').trim() ? ['Who should the agent call? Paste the numbers here, or tell me which saved list to use.'] : []),
+  ],
   campaign: (f) => [...(f.mode === 'transfer' && !f.transferNumber ? ['Which phone should calls transfer to?'] : []), ...(f.mode === 'menu' ? keyGaps(f.menu) : [])],
   forwarding: (f) => (f.mode && f.mode !== 'disabled' && !f.forwardTo ? ['Which phone should calls forward to?'] : []),
   ringgroup: (f, c) => [...(f.members && f.members.length < 2 ? ['A ring group works best with at least 2 phones.'] : []), ...(f.fallback === 'forward' && !f.fallbackTo ? ['Which backup number?'] : []), ...(f.fallback === 'voicemail' && c?.voicemailAvailable === false ? ['Voicemail needs the Starter plan or higher.'] : [])],

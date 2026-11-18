@@ -61,7 +61,7 @@ export function Palette({ openPhone }) {
       ['answer', 'Set up how my calls are answered', Workflow, () => nav(cp('/app/answer/ivr'))],
       ['quick-call', 'Place a quick call', PhoneOutgoing, () => nav(cp('/app/quick-call'))],
       ['campaign', 'Start a campaign', Megaphone, () => nav(cp('/app/campaigns/new'))],
-      ['agent', 'New AI agent', Bot, () => nav(cp('/app/ai-agents/new'))],
+      ['agent', 'New AI conversation campaign', Bot, () => nav(cp('/app/campaigns/new?kind=ai'))],
       ['funds', 'Add funds', Wallet, () => nav(cp('/app/wallet'))],
       ['renewals', 'Renewal calendar', Wallet, () => nav(cp('/app/renewals'))],
       ['phone', 'Open the browser phone', Phone, openPhone],
@@ -71,7 +71,7 @@ export function Palette({ openPhone }) {
       ['logout', 'Sign out', LogOut, async () => { if (!(await confirmLeave())) return; nav(cp(), { replace: true }); await logout(); }],
     ].map(([id, label, Icon, run]) => ({ id: `act-${id}`, group: 'Actions', label, Icon, run }));
     const found = q.trim() ? [
-      ...more.agents.map(a => ({ id: `agent-${a.id}`, group: 'AI agents', label: a.name, sub: a.businessName, Icon: Bot, run: () => nav(cp(`/app/ai-agents/${a.id}`)) })),
+      ...more.agents.map(a => ({ id: `agent-${a.id}`, group: 'AI conversations', label: a.name, sub: a.businessName, Icon: Bot, run: () => nav(cp(`/app/ai-agents/${a.id}`)) })),
       ...more.campaigns.map(c => ({ id: `camp-${c.id}`, group: 'Campaigns', label: c.name || c.audioName || 'Campaign', sub: c.status, Icon: Megaphone, run: () => nav(cp(`/app/campaigns/${c.id}`)) })),
       ...more.lists.map(l => ({ id: `list-${l.id}`, group: 'Contact lists', label: l.name, sub: l.count != null ? `${l.count} contacts` : '', Icon: Contact, run: () => nav(cp(`/app/contacts?list=${enc(l.id)}`)) })),
     ] : [];

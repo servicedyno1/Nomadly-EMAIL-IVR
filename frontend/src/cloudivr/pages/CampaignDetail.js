@@ -223,7 +223,7 @@ export default function CampaignDetail() {
       {back}
       <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between mb-8">
         <div>
-          <div className="civr-label">{isAi ? `AI agent conversation · ${c.agentName || ''}` : `${c.mode === 'menu' ? 'Menu' : c.mode === 'transfer' ? `Transfer to ${pv.phone(c.transferNumber)}` : 'Report key presses'} · keys ${c.activeKeys?.join(' ')}`}</div>
+          <div className="civr-label">{isAi ? `AI conversation · ${c.agentName || ''}` : `${c.mode === 'menu' ? 'Menu' : c.mode === 'transfer' ? `Transfer to ${pv.phone(c.transferNumber)}` : 'Report key presses'} · keys ${c.activeKeys?.join(' ')}`}</div>
           <CampaignName c={c} onSaved={(name) => setData(p => ({ campaign: { ...p.campaign, name } }))} />
           <div className="text-sm text-[#a1a1aa] font-mono mt-1">from {pv.phone(c.callerId)} · created {when(c.createdAt)}{c.scheduledFor ? ` · scheduled ${when(c.scheduledFor)}` : ''}</div>
           {c.voicemailAudioName && <div className="text-sm text-[#a1a1aa] mt-1" data-testid="campaign-voicemail-drop">{`Voicemail drop: ${c.voicemailAudioName}`}</div>}

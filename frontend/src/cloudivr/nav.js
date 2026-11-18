@@ -7,7 +7,7 @@ export const NAV = [
   ['home', '', [['', 'Home', Home, 'nav-dashboard'], ['messages', 'Inbox', MessagesSquare, 'nav-messages']]],
   ['numbers', 'Numbers', [['numbers', 'My numbers', Hash, 'nav-numbers'], ['buy', 'Get a number', PlusCircle, 'nav-buy'], ['esim', 'eSIM', Smartphone, 'nav-esim'], ['fax', 'Fax', Printer, 'nav-fax']]],
   ['calls', 'Calls & campaigns', [['quick-call', 'Make a call', PhoneOutgoing, 'nav-calls'], ['campaigns', 'Campaigns', Megaphone, 'nav-campaigns'], ['contacts', 'Contacts & audio', Contact, 'nav-contacts'], ['#phone', 'Browser phone', Headphones, 'nav-browser-phone']]],
-  ['ai', 'AI', [['receptionist', 'AI assistants', BotMessageSquare, 'nav-ai']]],
+  ['ai', 'AI', [['receptionist', 'AI receptionist', BotMessageSquare, 'nav-ai']]],
   ['account', 'Account', [['wallet', 'Wallet & billing', Wallet, 'nav-wallet'], ['settings', 'Settings', Settings, 'nav-settings'], ['help', 'Help center', BookOpen, 'nav-help']]],
 ];
 
@@ -18,9 +18,8 @@ export const HUBS = {
   'nav-esim': [['esim', 'USA eSIM', Smartphone], ['travel-esim', 'Travel eSIM', Plane]],
   'nav-fax': [['fax', 'Send & receive fax', Printer], ['texting', 'Landline texting', MessageSquareText]],
   'nav-calls': [['quick-call', 'Quick call', PhoneOutgoing], ['text-call', 'Voice message call', Captions]],
-  'nav-campaigns': [['campaigns', 'Bulk campaigns', Megaphone], ['live', 'Live activity', Radio]],
+  'nav-campaigns': [['campaigns', 'Campaigns', Megaphone], ['ai-agents', 'AI conversations', Bot], ['live', 'Live activity', Radio]],
   'nav-contacts': [['contacts', 'Contacts', Contact], ['audio', 'Audio library', Music], ['do-not-call', 'Do-not-call list', Ban]],
-  'nav-ai': [['receptionist', 'AI receptionist', BotMessageSquare], ['ai-agents', 'AI calling agents', Bot]],
   'nav-wallet': [['wallet', 'Wallet', Wallet], ['renewals', 'Renewal calendar', CalendarDays]],
 };
 
