@@ -35,7 +35,7 @@ export function UploadCard({ onDone }) {
 
 export function TtsCard({ onDone }) {
   const { data } = useApi('/audio/voices');
-  const [f, setF] = useState({ text: '', voice: 'rachel', speed: 1, name: '' });
+  const [f, setF] = useState({ text: '', voice: 'marin', speed: 1, name: '' });
   const [busy, setBusy] = useState(false);
   const make = async () => {
     setBusy(true);

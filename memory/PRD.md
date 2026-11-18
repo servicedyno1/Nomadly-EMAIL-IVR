@@ -701,3 +701,11 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Demo clip `frontend/public/civr/sample/sample-call.mp3` rebuilt by `node scripts/sample-call/make.js`: gpt-4o-mini-tts, voice `marin` (business), `cedar` (caller), `coral` (front desk), per-speaker style brief, natural speed (was 1.08x), uncompressed source, 128 kbps (was 64). 34.7 s → labels now "Hear a sample call" / "That was a CloudIVR call" (es/fr added).
 - Free "call me" test calls: `trycall.js` marks the call with `callengine.naturalVoice(id)`; `/callengine/tts.mp3?...&v=n` (signed) speaks with `marin` + style brief as WAV. Other customers' calls keep their current voice (nova/onyx). Endpoint now retries with APP_OPEN_API_KEY if OPENAI_API_KEY is rejected (preview's OPENAI_API_KEY is invalid; both prod keys valid).
 - Phone calls are still narrowband (8 kHz) by nature. Not verified on a real phone call.
+
+## 2026-11-18 — Natural voice for everyone, instant test-call greeting, plan-first buying — preview, needs publish, not user-confirmed
+- Call engine: every female-voiced spoken prompt now uses `marin` + style brief (`&v=n` on all female URLs; `ceTts()` in `_index.js`). Male stays `onyx`. `naturalVoice()` per-call flag removed.
+- `ceTts` keeps each sentence on disk (`os.tmpdir()/callengine-tts`); 20 s after start the app prepares `trycall.SPOKEN` (greeting + 3 menu answers). Measured in preview: greeting 3.1 s → 21 ms from the app. SIP-server helper still converts once per new URL (fast).
+- Saved greetings (Voice maker / audio library / bot): new voice `marin` ("Natural, lifelike female") added to `tts-service.js`, goes direct to OpenAI gpt-4o-mini-tts (no speed control), and is the default (`DEFAULT_VOICE`, VoiceMaker, AudioLibrary). Existing saved audio files are unchanged.
+- Web buy (calls): plan must be chosen before the number search shows. Steps: What it's for → Choose a plan → Pick a number → Pay. No plan is pre-selected unless it came from a link (`?plan=`) or a resumed checkout. `buy-plan-chosen` / `buy-plan-change` / `buy-number-step` / `buy-pay-step` testids.
+- Bot: main buy path was already plan-first; "buy another number" with no active plan used to skip the plan (silently Starter) — now goes through `cpAskPlanFirst()`. Bot path NOT exercised live.
+- Texting and fax numbers have a single plan, so they have no plan step.

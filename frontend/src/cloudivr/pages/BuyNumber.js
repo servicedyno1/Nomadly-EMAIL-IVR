@@ -64,8 +64,8 @@ export default function BuyNumber() {
   );
   return (
     <div data-testid="buy-page" data-kind={kindId || ''}>
-      <PageHeader label="Phone numbers" title="Get a number" sub="Say what it’s for, pick a number, pay. Month to month." testid="buy-header" />
-      <Steps labels={['What it’s for', kindId === 'calls' ? 'Plan and number' : 'Pick a number', 'Pay']} current={kind ? stage : 1} onBack={change} />
+      <PageHeader label="Phone numbers" title="Get a number" sub="Say what it’s for, choose a plan, pick a number, pay. Month to month." testid="buy-header" />
+      <Steps labels={kindId === 'calls' ? ['What it’s for', 'Choose a plan', 'Pick a number', 'Pay'] : ['What it’s for', 'Pick a number', 'Pay']} current={kind ? stage : 1} onBack={change} />
       {!kind ? <><div className="mb-6 civr-rise"><PlanSuggest dark onContinue={fromEmily} title="Not sure what you need? Tell Emily about your business" testid="buy-start-suggest" examples={START_EXAMPLES} /></div><KindPicker facts={facts} onPick={choose} /></> : <>
         <KindChosen kind={kind} onChange={change} />
         {kindId === 'calls' && <CallsBuy onStage={onStage} />}

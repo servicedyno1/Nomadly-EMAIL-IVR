@@ -183,7 +183,7 @@ const OPENAI_TO_TWILIO_VOICE = {
   'echo': 'Polly.Matthew-Neural',       // Male, warm deep
   'onyx': 'Polly.Stephen-Neural',       // Male, deep authoritative
   // ElevenLabs female voices → female Polly
-  'rachel': 'Polly.Joanna-Neural', 'sarah': 'Polly.Kimberly-Neural', 'laura': 'Polly.Salli-Neural',
+  'marin': 'Polly.Joanna-Neural', 'rachel': 'Polly.Joanna-Neural', 'sarah': 'Polly.Kimberly-Neural', 'laura': 'Polly.Salli-Neural',
   'emily': 'Polly.Joanna-Neural', 'domi': 'Polly.Kimberly-Neural', 'dorothy': 'Polly.Salli-Neural',
   'glinda': 'Polly.Joanna-Neural',
   // ElevenLabs male voices → male Polly
@@ -194,7 +194,7 @@ const OPENAI_TO_TWILIO_VOICE = {
 const OPENAI_TO_TELNYX_VOICE = {
   'alloy': 'female', 'fable': 'male', 'nova': 'female',
   'shimmer': 'female', 'echo': 'male', 'onyx': 'male',
-  'rachel': 'female', 'sarah': 'female', 'laura': 'female', 'emily': 'female',
+  'marin': 'female', 'rachel': 'female', 'sarah': 'female', 'laura': 'female', 'emily': 'female',
   'domi': 'female', 'dorothy': 'female', 'glinda': 'female',
   'drew': 'male', 'charlie': 'male', 'clyde': 'male', 'adam': 'male',
   'josh': 'male', 'arnold': 'male', 'sam': 'male', 'thomas': 'male',

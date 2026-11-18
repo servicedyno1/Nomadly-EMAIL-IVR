@@ -157,7 +157,8 @@ export function CallsBuy({ extraOf, onStage }) {
   const [res, setRes] = useState(saved?.res || null);
   const [single, setPick] = useState(saved?.pick || null);
   const [picks, setPicks] = useState(saved?.picks || []);
-  const [plan, setPlan] = useState(saved?.plan || params.get('plan') || USE_PLAN[rememberedUse()] || null);
+  const [plan, setPlan] = useState(saved?.plan || params.get('plan') || null);
+  const [changing, setChanging] = useState(false);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState(null);
   const [coupon, setCoupon] = useState(saved?.coupon || null);
@@ -174,7 +175,9 @@ export function CallsBuy({ extraOf, onStage }) {
     return () => clearTimeout(t);
   }, [q.country, q.type, q.areaCode]);
   const [use] = useState(rememberedUse);
-  const stage = single || picks.length || res?.request ? 3 : 2;
+  const picked = single || picks.length || res?.request;
+  // New number: plan first (2), then the number (3), then pay (4). Extra numbers share a plan: number (2), pay (3).
+  const stage = extraOf ? (picked ? 3 : 2) : !plan ? 2 : picked ? 4 : 3;
   useEffect(() => { onStage?.(stage); }, [stage, onStage]);
   useEffect(() => { refreshSummary(); }, [refreshSummary]);
   if (!catalog) return <Spinner />;
@@ -182,7 +185,8 @@ export function CallsBuy({ extraOf, onStage }) {
   const parent = extraOf ? (myNums?.numbers || []).find(n => n.phoneNumber === extraOf) : null;
   const avail = (id) => catalog.plans.find(p => p.id === id && p.available);
   const businessOnly = false;
-  const planObj = businessOnly ? avail('business') : avail(plan) || avail(catalog.recommendedPlan) || catalog.plans.find(p => p.available);
+  const planObj = extraOf ? avail(plan) || avail(catalog.recommendedPlan) || catalog.plans.find(p => p.available) : avail(plan) || null;
+  const choosePlan = (id) => { setPlan(id); setChanging(false); setTimeout(() => document.querySelector('[data-testid="buy-number-step"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150); };
   const total = extraOf ? Math.round(picks.reduce((t, p) => t + Math.max(0.5, (p.extraPrice ?? extra?.price ?? 0) * (extra?.prorate ?? 1)), 0) * 100) / 100 : planObj ? planObj.price + addonOf(pick, planObj.id) : 0;
 
   const search = async (e) => {
@@ -195,7 +199,7 @@ export function CallsBuy({ extraOf, onStage }) {
   };
   const isOn = (n) => (extraOf ? picks.some(p => p.phoneNumber === n.phoneNumber) : single?.phoneNumber === n.phoneNumber);
   const onPick = (n) => {
-    if (!extraOf) { setPick(n); setTimeout(() => document.querySelector('[data-testid="buy-plan-picker"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150); return; }
+    if (!extraOf) { setPick(n); setTimeout(() => document.querySelector('[data-testid="buy-pay-step"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150); return; }
     if (isOn(n)) return setPicks(ps => ps.filter(p => p.phoneNumber !== n.phoneNumber));
     if (picks.length >= slots) return toast.error(`This plan has room for ${slots} more extra number${slots === 1 ? '' : 's'}. Untick one first, or upgrade the plan.`);
     setPicks(ps => [...ps, n]);
@@ -233,11 +237,18 @@ export function CallsBuy({ extraOf, onStage }) {
       {open?.orders?.[0] && <OpenOrder order={open.orders[0]} />}
       <PendingRequests refresh={reqTick} />
       {saved?.pick && <div className="civr-card p-4 mb-4 text-sm flex items-center gap-2" data-testid="buy-resume-note"><Check className="w-4 h-4 text-[#818cf8]" />Welcome back — {saved.pick.phoneNumber} and the {planObj?.name} plan are still selected below.</div>}
-      {!extraOf && <div className="mb-8">
-        <Label>Choose your plan</Label>
-        <p className="text-xs text-[#a1a1aa] -mt-1 mb-3" data-testid="buy-plan-help">Pick a plan first — then search for a number to go with it. Every plan includes everything in the one before it, and you can upgrade any time from the number’s Billing tab.</p>
-        <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} pick={pick || res?.request} businessOnly={businessOnly} />
-      </div>}
+      {!extraOf && (planObj && !changing
+        ? <div className="civr-card p-4 mb-8 flex flex-wrap items-center gap-x-4 gap-y-2" data-testid="buy-plan-chosen">
+          <Check className="w-5 h-5 text-[#34d399]" aria-hidden="true" />
+          <div className="flex-1 min-w-[180px]"><div className="font-semibold" data-testid="buy-plan-chosen-name">{planObj.name} plan</div><div className="text-sm text-[var(--c-muted)]" data-testid="buy-plan-chosen-price">{money(planObj.price + addonOf(pick || res?.request, planObj.id))}/month</div></div>
+          <button type="button" onClick={() => setChanging(true)} className="civr-btn civr-btn-sm civr-btn-ghost" data-testid="buy-plan-change">Change plan</button>
+        </div>
+        : <div className="mb-8" data-testid="buy-plan-step">
+          <Label>Choose your plan</Label>
+          <p className="text-xs text-[#a1a1aa] -mt-1 mb-3" data-testid="buy-plan-help">Pick a plan, then choose a number to go with it. Every plan includes everything in the one before it, and you can upgrade any time.</p>
+          <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={choosePlan} pick={pick || res?.request} businessOnly={businessOnly} />
+        </div>)}
+      {(extraOf || planObj) && <div data-testid="buy-number-step" className="scroll-mt-24">
       <Label>{!extraOf && planObj ? `Pick a number for your ${planObj.name} plan` : 'Pick a number'}</Label>
       <SearchForm catalog={catalog} q={q} setQ={setQ} onSearch={search} busy={busy === 'search'} extra={!!extraOf} />
       <div className="mt-4"><ErrorNote error={error} testid="buy-error" /></div>
@@ -246,8 +257,9 @@ export function CallsBuy({ extraOf, onStage }) {
         : res && <div className="mt-6">
           {extraOf && res.numbers.length > 0 && <PickBar picks={picks} slots={slots} onClear={() => setPicks([])} />}
           <Results res={res} isOn={isOn} onPick={onPick} planTexting={catalog.planTexting} planId={extraOf ? null : planObj?.id} /></div>}
-      {pick && (
-        <div className="mt-8 civr-rise">
+      </div>}
+      {pick && planObj !== null && (
+        <div className="mt-8 civr-rise scroll-mt-24" data-testid="buy-pay-step">
           <Label>{extraOf ? 'Pay' : `Pay for ${pick.phoneNumber} · ${planObj?.name} plan`}</Label>
           <Checkout key={`${extraOf ? picks.length : pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}
             textingOffer={null} coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `${picks.length > 1 ? `${picks.map(p => p.phoneNumber).join(', ')} · extra numbers` : 'Extra number'} on ${pv.phone(extraOf)}${extra?.renewsOn && extra.prorate < 1 ? ` · today covers the days until ${new Date(extra.renewsOn).toLocaleDateString()}, then renews with the plan` : ' · monthly'}` : null} autoRenewDefault={extraOf ? (parent ? parent.autoRenew !== false : true) : true} />

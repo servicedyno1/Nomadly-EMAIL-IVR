@@ -7,7 +7,7 @@ import { api, useApi, playUrl } from './api';
 export function useVoices() {
   const { data } = useApi('/audio/voices');
   const { data: p } = useApi('/prefs/voice');
-  return { voices: data?.voices || [], speeds: data?.speeds || [1], def: { voice: p?.voice || 'rachel', speed: p?.speed || 1 }, canSave: !!p?.canSave, ready: !!p };
+  return { voices: data?.voices || [], speeds: data?.speeds || [1], def: { voice: p?.voice || 'marin', speed: p?.speed || 1 }, canSave: !!p?.canSave, ready: !!p };
 }
 
 export function VoiceSelect({ value, onChange, voices, testid }) {
