@@ -20,9 +20,11 @@ export default function PricingPage() {
   useEffect(() => {
     const h = window.location.hash.slice(1);
     if (h.startsWith('pricing-')) setTab(h.slice(8));
-    if (!h || h.startsWith('pricing-')) { window.scrollTo(0, 0); return undefined; }
-    const t = setTimeout(() => document.getElementById(h)?.scrollIntoView({ block: 'start' }), 300);
-    return () => clearTimeout(t);
+    const on = (e) => { if (e.detail) setTab(e.detail); document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    window.addEventListener('civr-pricing-tab', on);
+    if (!h || h.startsWith('pricing-')) window.scrollTo(0, 0);
+    const t = h && !h.startsWith('pricing-') ? setTimeout(() => document.getElementById(h)?.scrollIntoView({ block: 'start' }), 300) : null;
+    return () => { window.removeEventListener('civr-pricing-tab', on); clearTimeout(t); };
   }, []);
   return (
     <div className="civr-l civr-np" data-testid="pricing-page">

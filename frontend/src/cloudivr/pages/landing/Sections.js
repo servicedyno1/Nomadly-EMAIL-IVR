@@ -88,14 +88,20 @@ export function HowItWorks({ catalog }) {
     [Wallet, 'Pay and go live', 'Pay from your wallet. Most numbers work within a minute.'],
   ];
   return (
-    <section id="how" className="civr-l-cream civr-l-soft scroll-mt-16 border-t civr-l-rule" data-testid="how-section">
-      <div className="max-w-7xl mx-auto px-6 md:px-8 py-20 md:py-24">
+    <section id="how" className="bg-[#fbfcfe] scroll-mt-16" data-testid="how-section">
+      <div className="max-w-7xl mx-auto px-6 md:px-8 py-24 md:py-28">
         <SectionHead label="How it works" title="Three steps. About five minutes." />
-        <ol className="grid md:grid-cols-3 gap-10 md:gap-8 mt-12">
+        <ol className="relative grid md:grid-cols-3 gap-10 md:gap-8 mt-14">
+          <span className="lx-step-line hidden md:block" aria-hidden="true" />
           {steps.map(([Icon, t, s], i) => (
-            <Reveal as="li" key={t} delay={i * 120} className="p-2 md:pr-8" data-testid={`how-step-${i + 1}`}>
-              <div className="flex items-center gap-3"><span className="w-9 h-9 rounded-full bg-[#1d6fd8] text-white text-sm font-semibold grid place-items-center" aria-hidden="true">{i + 1}</span><Icon className="w-5 h-5 text-slate-500" aria-hidden="true" /></div>
-              <h3 className="text-xl font-semibold text-slate-900 mt-5">{t}</h3>
+            <Reveal as="li" key={t} delay={i * 120} className="relative md:pr-8" data-testid={`how-step-${i + 1}`}>
+              <span className="relative w-9 h-9 rounded-full bg-[#1d6fd8] text-white text-sm font-semibold grid place-items-center ring-8 ring-[#fbfcfe]" aria-hidden="true">{i + 1}</span>
+              <div className="civr-l-card-cream mt-6 h-24 px-5 flex items-center gap-2 flex-wrap" aria-hidden="true" data-testid={`how-step-${i + 1}-visual`}>
+                {i === 0 && ['Calls', 'Calls + texting', 'Fax'].map((x, k) => <span key={x} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${k ? 'bg-slate-100 text-slate-600' : 'bg-[#1d6fd8] text-white'}`}>{x}</span>)}
+                {i === 1 && <><Icon className="w-5 h-5 text-[#1d6fd8]" /><span className="font-mono text-base font-semibold text-slate-950" data-no-translate>+1 (415) 555-0134</span></>}
+                {i === 2 && <><span className="lx-live" /><span className="text-sm font-semibold text-slate-950">Your number is live</span></>}
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900 mt-6">{t}</h3>
               <p className="text-base text-slate-600 mt-2 leading-relaxed">{s}</p>
             </Reveal>
           ))}

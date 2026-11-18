@@ -8,7 +8,8 @@ import { LangSwitcher } from '../../i18n';
 import { Slide, SiteThemeButton } from './kit';
 import { goTo } from './menu';
 
-export const LANDING_LINKS = [['#who', 'Who it’s for', 'who'], ['#how', 'How it works', 'how'], ['#ai', 'AI', 'ai'], ['/pricing', 'Pricing', 'pricing'], ['#try', 'Free test call', 'try'], ['#faq', 'FAQ', 'faq']];
+export const LANDING_LINKS = [['#features', 'Product', 'features'], ['/pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']];
+const TryLink = ({ className, testid, onDone, children }) => <a href={`${cp()}#try`} onClick={(e) => { goTo('#try', e); onDone?.(); }} className={className} data-testid={testid}>{children}</a>;
 
 function MobileMenu({ onClose, account }) {
   useEffect(() => { const o = document.body.style.overflow; document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = o; }; }, []);
@@ -19,7 +20,8 @@ function MobileMenu({ onClose, account }) {
           {LANDING_LINKS.map(([href, label, id]) => <a key={id} href={`${cp()}${href}`} onClick={(e) => { goTo(href, e); onClose(); }} className="px-3 py-3 min-h-[48px] text-base font-medium text-slate-700" data-testid={`mobile-menu-link-${id}`}>{label}</a>)}
         </div>
         <div className="grid gap-3 pb-6">
-          <Link to={account ? cp('/app') : cp('/signup')} className="civr-l-btn w-full" data-testid="mobile-menu-cta">{account ? 'Open dashboard' : 'Sign up free'}</Link>
+          {!account && <TryLink className="civr-l-btn w-full" testid="mobile-menu-try" onDone={onClose}>Free test call</TryLink>}
+          <Link to={account ? cp('/app') : cp('/signup')} className={`civr-l-btn w-full ${account ? '' : 'civr-l-btn-ghost'}`} data-testid="mobile-menu-cta">{account ? 'Open dashboard' : 'Get your number'}</Link>
           {!account && <Link to={cp('/login')} className="civr-l-btn civr-l-btn-ghost w-full" data-testid="mobile-menu-signin">Sign in</Link>}
         </div>
       </div>
@@ -53,7 +55,7 @@ export function LandingNav() {
           ? <Link to={cp('/app')} className="civr-l-pill civr-l-pill-ink civr-l-pill-sm" data-testid="landing-open-dashboard"><Slide><span className="sm:hidden">Dashboard</span><span className="hidden sm:inline">Open dashboard</span></Slide></Link>
           : <>
               <Link to={cp('/login')} aria-label="Sign in" className="text-sm font-medium text-slate-700 hover:text-slate-950 px-1 py-3 min-h-[44px] hidden sm:flex items-center whitespace-nowrap transition-colors" data-testid="civr-nav-login-btn">Sign in</Link>
-              <Link to={cp('/signup')} className="civr-l-pill civr-l-pill-ink civr-l-pill-sm whitespace-nowrap min-h-[44px]" data-testid="civr-nav-signup-btn"><Slide><span className="sm:hidden">Sign up</span><span className="hidden sm:inline">Sign up free</span></Slide></Link>
+              <TryLink className="civr-l-pill civr-l-pill-ink civr-l-pill-sm whitespace-nowrap min-h-[44px]" testid="civr-nav-try-btn"><Slide><span className="sm:hidden">Test call</span><span className="hidden sm:inline">Free test call</span></Slide></TryLink>
             </>}
         <button type="button" className="lg:hidden w-11 h-11 -mr-2 grid place-items-center rounded-full hover:bg-slate-100 transition-colors" aria-label={mobile ? 'Close menu' : 'Open menu'} aria-expanded={mobile} onClick={() => setMobile(m => !m)} data-testid="landing-mobile-menu-button">{mobile ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}</button>
       </div>

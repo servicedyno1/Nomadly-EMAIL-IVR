@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronDown, ChevronRight, PhoneCall, Smartphone, MessageSquareText, Printer, ShieldCheck, Zap, LifeBuoy } from 'lucide-react';
-import { Reveal, reducedMotion } from './kit';
-import { goTo } from './menu';
-import { usd } from '../../api';
+import { ArrowRight, ChevronDown, PhoneCall, Smartphone, MessageSquareText, Printer } from 'lucide-react';
+import { Reveal } from './kit';
 import { PlanCard, useStart } from './PricingFaq';
 import { Card, Waitlist, ESIM_POINTS, MOBILE_POINTS } from './ProductHero';
 import { openEsimCheckout } from './EsimCheckout';
@@ -22,63 +20,6 @@ export const PICKS = [
   ['esim', Smartphone, 'USA eSIM', 'On your phone or in your browser'],
 ];
 
-const goPlans = (id, setTab) => { setTab(id); document.getElementById('pricing')?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' }); };
-const TRUST = [[ShieldCheck, 'No contract'], [Zap, 'Live in minutes'], [LifeBuoy, 'Real people on support']];
-
-// A price that hasn't loaded yet shows a shimmer, never a dash.
-const Price = ({ value, testid }) => (value === false ? <span className="text-sm font-semibold text-slate-700" data-testid={testid}>See plans</span> : value ? <b className="text-xl text-slate-950 tabular-nums" data-testid={testid}>{value}</b> : <span className="civr-skel inline-block h-6 w-14 rounded-md align-middle" aria-label="Loading price" data-testid={`${testid}-loading`} />);
-
-// The three kinds of number with their price, right next to the sign-up button.
-function PriceList({ rows, onDetails }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white text-left civr-rise civr-d3" data-testid="hero-prices">
-      <div className="px-6 pt-6 pb-3 text-sm font-semibold text-slate-700">Pick what your number is for</div>
-      <ul>
-        {rows.map(([id, I, title, text, price, extra]) => (
-          <li key={id} className="border-t border-slate-100">
-            <button type="button" onClick={() => onDetails(id)} className="group w-full text-left px-6 py-5 min-h-[72px] flex items-center gap-4 hover:bg-slate-50 focus-visible:bg-slate-50 transition-colors" aria-label={`${title}: see prices`} data-testid={`hero-price-${id}`}>
-              <span className="w-10 h-10 rounded-xl bg-[#edf4ff] grid place-items-center shrink-0"><I className="w-5 h-5 text-[#1d6fd8]" aria-hidden="true" /></span>
-              <span className="flex-1 min-w-0"><span className="block font-semibold text-slate-950">{title}</span><span className="block text-sm text-slate-600">{text}{extra ? ` · ${extra}` : ''}</span></span>
-              <span className="text-right shrink-0"><span className="block text-xs text-slate-600">from</span><Price value={price} testid={`hero-price-${id}-amount`} /><span className="text-xs text-slate-600">/mo</span></span>
-              <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-// Hero: one headline, one sign-up button, and the prices beside it.
-export function OneHero({ setTab, from, fax, faxFailed }) {
-  const start = useStart();
-  const rows = [
-    ['ivr', PhoneCall, 'Calls', 'Answer, forward, menus, voicemail', from, 'texting optional'],
-    ['mobile', MessageSquareText, 'Calls + texting', 'Two-way texts and calls', from, 'pay per text sent'],
-    ['fax', Printer, 'Fax only', 'Send and receive faxes online', fax?.price ? usd(fax.price) : faxFailed ? false : null, `${fax?.freePages ?? 25} free pages a month`],
-  ];
-  return (
-    <section id="product-hero" className="relative bg-white pt-28 md:pt-36 pb-16 md:pb-24" data-testid="product-hero">
-      <div className="relative max-w-7xl mx-auto px-6 md:px-8">
-        <div className="grid lg:grid-cols-[minmax(0,1.05fr)_minmax(0,.95fr)] gap-12 lg:gap-16 items-center">
-          <div>
-            <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-6xl text-slate-950 font-extrabold tracking-tight civr-rise civr-d1" data-testid="hero-title">One business number, wherever you work.</h1>
-            <p className="max-w-xl text-base md:text-lg text-slate-600 mt-6 leading-relaxed civr-rise civr-d2" data-testid="hero-subtitle">{from ? `For founders, nomads, shops, remote teams and sales teams. Calls, texts or fax, live in minutes. Month to month, from ${from}.` : 'For founders, nomads, shops, remote teams and sales teams. Calls, texts or fax, live in minutes. Month to month.'}</p>
-            <div className="mt-10 civr-rise civr-d3">
-              <Link to={start()} className="civr-l-btn civr-l-btn-hero inline-flex items-center justify-center gap-2 min-h-[56px] px-8 w-full sm:w-auto" data-testid="hero-signup-cta">Get your number<ArrowRight className="w-5 h-5" aria-hidden="true" /></Link>
-              <p className="text-sm text-slate-600 mt-3" data-testid="hero-signup-note">Free to sign up. Pay only when you pick a number.</p>
-            </div>
-            <ul className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2" data-testid="hero-trust">
-              {TRUST.map(([I, t], i) => <li key={t} className="flex items-center gap-2 text-sm font-medium text-slate-700" data-testid={`hero-trust-${i}`}><I className="w-4 h-4 text-emerald-600" aria-hidden="true" />{t}</li>)}
-            </ul>
-            <p className="text-sm text-slate-600 mt-6">Not sure yet? <a href="#try" onClick={(e) => goTo('#try', e)} className="font-semibold text-[#1d6fd8] underline underline-offset-2 inline-flex items-center min-h-[44px]" data-testid="hero-try-link">Take a free test call</a></p>
-          </div>
-          <PriceList rows={rows} onDetails={(id) => goPlans(id, setTab)} />
-        </div>
-      </div>
-    </section>
-  );
-}
 
 const startFrom = (c) => Math.min(...(c?.plans || []).filter(p => p.available !== false).map(p => p.price)) || null;
 const TEXTING_POINTS = ['Calls and two-way texts on one number', 'Free with your plan in the USA, Canada and UK', 'Other countries: plan + a country charge', 'Pay per text sent; receiving is free'];

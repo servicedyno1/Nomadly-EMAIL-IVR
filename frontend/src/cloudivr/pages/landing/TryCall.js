@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Loader2, PhoneCall, Laptop, MailCheck, Timer, ShieldCheck } from 'lucide-react';
 import { SectionHead, Slide, Reveal } from './kit';
 import EmailGate from './EmailGate';
+import { HearIt } from './HearIt';
 import { CallMeLive, BrowserLive, Keypad } from './TryLive';
 import { savedToken, saveToken, clearToken, startCall } from './tryApi';
 import { api } from '../../api';
@@ -66,13 +67,14 @@ export function TryCall() {
   const verified = (d) => { saveToken(d.token, d.email); setGate(false); begin(d); };
 
   return (
-    <section id="try" className="civr-l-cream civr-l-soft relative scroll-mt-16 border-t civr-l-rule" data-testid="try-section">
-      <div className="relative max-w-7xl mx-auto px-6 md:px-8 py-24 grid lg:grid-cols-12 gap-12 items-start">
+    <section id="try" className="lx-soft relative scroll-mt-16" data-testid="try-section">
+      <div className="relative max-w-7xl mx-auto px-6 md:px-8 pt-8 pb-24 md:pb-28 grid lg:grid-cols-12 gap-12 items-start">
         <div className="lg:col-span-5">
           <SectionHead label="Free test call" title="Don’t take our word for it. Call it." sub="A free 60-second test call — on your own phone or right here in your browser. No card needed." />
           <ul className="mt-8 grid gap-4">
             {POINTS.map(([Icon, t], i) => <Reveal as="li" key={t} delay={150 + i * 100} className="flex items-center gap-4" data-testid={`try-point-${i}`}><span className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0"><Icon className="w-5 h-5 text-slate-900" /></span><span className="text-sm text-slate-700">{t}</span></Reveal>)}
           </ul>
+          <Reveal delay={300} className="mt-10"><p className="text-sm font-semibold text-slate-900 mb-3">Or just listen first</p><HearIt /></Reveal>
         </div>
         <Reveal delay={120} className="lg:col-span-7">
           <div className="civr-l-card-cream p-6 md:p-8" data-testid="try-card">

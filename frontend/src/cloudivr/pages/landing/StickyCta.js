@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { PhoneCall } from 'lucide-react';
 import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
 
@@ -31,7 +31,8 @@ export function StickyCta() {
   return (
     <div className={`civr-l-sticky ${show ? '' : 'hide'}`} aria-hidden={!show} data-testid="mobile-sticky-cta">
       <div className="flex items-center gap-2">
-        <Link to={account ? cp('/app/buy') : cp('/signup')} tabIndex={show ? 0 : -1} className="civr-l-btn flex-1 !h-12" data-testid="sticky-cta-order">Get your number<ArrowRight className="w-4 h-4" /></Link>
+        <a href="#try" onClick={(e) => { e.preventDefault(); document.getElementById('try')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} tabIndex={show ? 0 : -1} className="civr-l-btn flex-1 !h-12 !px-3" data-testid="sticky-cta-try"><PhoneCall className="w-4 h-4" />Free test call</a>
+        <Link to={account ? cp('/app/buy') : cp('/signup')} tabIndex={show ? 0 : -1} className="civr-l-btn civr-l-btn-ghost !h-12 !px-4" data-testid="sticky-cta-order">Get number</Link>
       </div>
     </div>
   );

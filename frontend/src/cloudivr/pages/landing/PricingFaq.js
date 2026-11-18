@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { AUDIENCES } from '../for/audiences';
 import { COPYRIGHT } from '../../company';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ArrowUp, ChevronDown, MessageCircle, Send, MessageSquareText, Check } from 'lucide-react';
+import { ArrowRight, ArrowUp, ChevronDown, MessageCircle, Send, MessageSquareText, Check, PhoneCall } from 'lucide-react';
 import { SocialLinks } from './Social';
 import { usd, startPrice } from '../../api';
 import { useCivrAuth } from '../../AuthContext';
@@ -104,6 +104,8 @@ export function faqItems(c) {
     ['Can the USA calls + texting number make calls?', 'Yes, outgoing calls from the browser phone, paid from your wallet. The number is also a free verified caller ID for your other CloudIVR calls.'],
     ['What happens if I don’t renew my USA number or eSIM?', 'The USA calls + texting number renews at $50 a month and the eSIM at its plan price, from your wallet. If your wallet is short, the line pauses until you top up and tap Renew. If you turn auto-renew off, the line ends after the paid month. Cancelling ends it straight away with no refund for the current month, and the number can’t be recovered.'],
     ['Can I replace the number?', 'Yes, for $25. The carrier assigns the new number; you can’t choose it. If the carrier refuses, or doesn’t assign one within 24 hours, the $25 goes back to your wallet.'],
+    ['Which countries can I get a number in?', `Local, mobile or toll-free numbers in ${c?.countries?.length || 'many'} countries${c?.countries?.length ? `, including ${andList(c.countries.slice(0, 5).map(x => x.name))}` : ''}. You see the full list when you pick your number.`],
+    ['Do I need to send documents?', 'Not to sign up or to take a test call. Some countries’ carriers ask for your name and address, or an ID or company document, before they release a number. We only ask after you have paid, and if the carrier cannot supply the number the payment goes back to your wallet.'],
     ['Can I try it before I pay?', 'Yes, twice. Without an account: confirm your email with a 6-digit code and take one free test call of up to 60 seconds — we ring your phone with a demo menu, or you call from your browser. After you sign up: place one free Quick IVR call from our number — it plays your script to anyone you choose, then connects them to you when they press 1 or collects a code you accept or decline.'],
     ['Is the account really free?', `Yes. Creating an account costs nothing. You only pay when you buy a number${from ? ` (from ${from}/month)` : ''}, plus any extra usage.`],
     ['How do I pay?', c?.cardPayments ? `From your CloudIVR wallet. Top up from ${usd(c?.minTopup || 10)} by card or crypto, and renewals and calls are paid from it.` : `From your CloudIVR wallet. Top up from ${usd(c?.minTopup || 10)} and renewals and calls are paid from it. Top-ups are by crypto today; card payments are coming soon.`],
@@ -121,19 +123,19 @@ export function faqItems(c) {
 
 const FAQ_FIRST = 6;
 // The landing page leads with what first-time visitors ask most; the Help centre keeps the full order.
-const FIRST_QS = ['How does texting work?', 'What does each plan include?', 'How much does fax cost?', 'Can I try it before I pay?', 'How do I pay?', 'Can I cancel?'];
+const FIRST_QS = ['Can I try it before I pay?', 'Which countries can I get a number in?', 'Do I need to send documents?', 'What does each plan include?', 'How do I pay?', 'Can I cancel?'];
 const byPriority = (items) => [...FIRST_QS.map(q => items.find(x => x[0] === q)).filter(Boolean), ...items.filter(x => !FIRST_QS.includes(x[0]))];
 export function Faq({ catalog }) {
   const [all, setAll] = useState(false);
   const items = byPriority(faqItems(catalog));
   return (
-    <section id="faq" className="civr-l-cream civr-l-soft scroll-mt-16 border-t civr-l-rule" data-testid="faq-section">
-      <div className="max-w-3xl mx-auto px-6 md:px-8 py-20 md:py-24">
-        <Reveal><div className="civr-l-eyebrow">FAQ</div><h2 className="civr-l-h text-3xl sm:text-4xl text-slate-950 mt-3">Questions, answered</h2></Reveal>
-        <div className="mt-10 divide-y civr-l-rule border-y civr-l-rule" data-testid="faq-list">
+    <section id="faq" className="bg-[#fbfcfe] scroll-mt-16" data-testid="faq-section">
+      <div className="max-w-3xl mx-auto px-6 md:px-8 py-24 md:py-28">
+        <Reveal><div className="civr-l-eyebrow">FAQ</div><h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl text-slate-950 mt-4">Questions, answered</h2></Reveal>
+        <div className="mt-10 space-y-3" data-testid="faq-list">
           {items.slice(0, all ? items.length : FAQ_FIRST).map(([q, a], i) => (
-            <details key={q} className="civr-faq-item" data-testid={`faq-item-${i}`}>
-              <summary className="flex items-center justify-between gap-4 cursor-pointer py-5 min-h-[56px] text-base font-semibold text-slate-950" data-testid={`faq-question-${i}`}>{q}<ChevronDown className="civr-faq-chevron w-5 h-5 shrink-0 text-[#1d6fd8]" aria-hidden="true" /></summary>
+            <details key={q} className="civr-faq-item civr-l-card-cream px-6" data-testid={`faq-item-${i}`}>
+              <summary className="flex items-center justify-between gap-4 cursor-pointer py-5 min-h-[56px] text-base font-semibold text-slate-950" data-testid={`faq-question-${i}`}>{q}<ChevronDown className="civr-faq-chevron w-5 h-5 shrink-0 text-[#1d6fd8] transition-transform" aria-hidden="true" /></summary>
               <p className="pb-6 text-base leading-relaxed text-slate-600" data-testid={`faq-answer-${i}`}>{a}</p>
             </details>
           ))}
@@ -148,14 +150,16 @@ export function FinalCta({ catalog }) {
   const start = useStart();
   const from = startPrice(catalog);
   return (
-    <section className="civr-l-cream pb-20 md:pb-24" data-testid="final-cta">
+    <section className="bg-[#fbfcfe] pb-20 md:pb-24" data-testid="final-cta">
       <div className="max-w-7xl mx-auto px-6 md:px-8">
-        <Reveal className="civr-l-ondark relative overflow-hidden rounded-3xl bg-[#07060f] ring-1 ring-white/10 px-8 py-16 md:px-16 md:py-20 text-center">
+        <Reveal className="lx-dark rounded-[32px] ring-1 ring-white/10 px-6 py-16 md:px-16 md:py-24 text-center">
+          <div className="lx-glow" aria-hidden="true" /><div className="lx-grain" aria-hidden="true" />
           <div className="relative">
-            <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl text-white max-w-3xl mx-auto">Your business number, live in minutes.</h2>
-            <p className="text-base mt-5 text-slate-300">Free to sign up{from ? ` · from ${from}/month` : ''} · no contract</p>
-            <div className="flex justify-center mt-9">
-              <Link to={start()} className="civr-l-pill civr-l-pill-ink" data-testid="final-cta-button"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>
+            <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-6xl text-white max-w-3xl mx-auto">One business number, wherever you work.</h2>
+            <p className="text-base mt-5 text-slate-300">No card needed for the test call{from ? ` · numbers from ${from}/month` : ''} · no contract</p>
+            <div className="flex flex-col sm:flex-row justify-center gap-3 mt-10">
+              <a href={`${cp()}#try`} onClick={(e) => goTo('#try', e)} className="civr-l-btn civr-l-btn-hero px-8" data-testid="final-cta-try"><PhoneCall className="w-5 h-5" aria-hidden="true" />Make a free test call</a>
+              <Link to={start()} className="civr-l-btn civr-l-btn-ghost civr-l-btn-hero px-8" data-testid="final-cta-button">Get your number<ArrowRight className="w-4 h-4" aria-hidden="true" /></Link>
             </div>
           </div>
         </Reveal>
@@ -166,7 +170,7 @@ export function FinalCta({ catalog }) {
 
 const FOOTER_KINDS = [['ivr', 'Calls', 'calls'], ['mobile', 'Calls + texting', 'texting'], ['fax', 'Fax only', 'fax'], ['esim', 'USA eSIM', 'esim']];
 // Opens the pricing tab for a kind of number; off the landing page the link carries it as #pricing-<tab>.
-const openKind = (tab, e) => { if (!document.getElementById('pricing')) return; e.preventDefault(); window.dispatchEvent(new CustomEvent('civr-pricing-tab', { detail: tab })); };
+const openKind = (tab, e) => { if (!document.querySelector('[data-testid="plans-tabs"]')) return; e.preventDefault(); window.dispatchEvent(new CustomEvent('civr-pricing-tab', { detail: tab })); };
 const fLink = 'text-sm text-slate-600 hover:text-slate-950 transition-colors min-h-[44px] flex items-center text-left';
 
 function FooterCol({ title, children, testid }) {
@@ -193,7 +197,7 @@ export function Footer({ catalog }) {
           </div>
           <div className="lg:col-span-8 grid grid-cols-2 md:grid-cols-4 gap-8">
             <FooterCol title="Numbers" testid="footer-col-product">
-              {FOOTER_KINDS.map(([tab, l, id]) => <a key={id} href={`${base}#pricing-${tab}`} onClick={(e) => openKind(tab, e)} className={fLink} data-testid={`footer-product-${id}`}>{l}</a>)}
+              {FOOTER_KINDS.map(([tab, l, id]) => <a key={id} href={`${cp('/pricing')}#pricing-${tab}`} onClick={(e) => openKind(tab, e)} className={fLink} data-testid={`footer-product-${id}`}>{l}</a>)}
             </FooterCol>
             <FooterCol title="Who it’s for" testid="footer-col-audiences">
               {AUDIENCES.map(a => <Link key={a.slug} to={cp(`/for/${a.slug}`)} className={fLink} data-testid={`footer-for-${a.slug}`}>{a.short}</Link>)}

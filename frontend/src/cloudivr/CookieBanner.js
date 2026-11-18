@@ -57,13 +57,13 @@ export function CookieBanner() {
     <div className="civr-l-cookiebar fixed inset-x-0 bottom-0 z-[90] p-2 sm:p-4 pointer-events-none" data-testid="cookie-banner">
       <section role="dialog" aria-labelledby="civr-cookie-title" aria-describedby="civr-cookie-text" className={`civr-rise civr-l-cookie pointer-events-auto mx-auto text-slate-700 max-h-[85vh] overflow-y-auto ${manage ? 'max-w-3xl' : 'max-w-4xl'}`} style={{ fontFamily: "'DM Sans', sans-serif" }}>
         {manage ? <Manage pick={pick} setPick={setPick} choose={choose} onBack={() => setManage(false)} /> : (
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-4 py-3 sm:px-5" data-testid="cookie-compact">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 px-3 py-2 sm:px-5 sm:py-3" data-testid="cookie-compact">
             <Cookie className="w-5 h-5 text-slate-900 shrink-0 hidden sm:block" aria-hidden="true" />
-            <p id="civr-cookie-text" className="text-sm text-slate-700 leading-snug flex-1 min-w-0" data-testid="cookie-text"><span id="civr-cookie-title" className="font-semibold text-slate-900">Cookies:</span> sign-in and security always; analytics and referral credit only if you allow them. No ads, no data sales.</p>
+            <p id="civr-cookie-text" className="text-xs sm:text-sm text-slate-700 leading-snug flex-1 min-w-0" data-testid="cookie-text"><span id="civr-cookie-title" className="font-semibold text-slate-900">Cookies:</span> <span className="sm:hidden">analytics and referral credit only if you allow them.</span><span className="hidden sm:inline">sign-in and security always; analytics and referral credit only if you allow them. No ads, no data sales.</span></p>
             <div className="flex items-center gap-2 shrink-0">
-              <button type="button" onClick={() => setManage(true)} className={`${btn} text-slate-900 hover:bg-slate-100`} data-testid="cookie-manage-btn">Manage</button>
-              <button type="button" onClick={() => choose({})} className={`${btn} border border-slate-300 text-slate-900 hover:bg-slate-100`} data-testid="cookie-deny">Deny</button>
-              <button type="button" onClick={() => choose({ preferences: true, statistics: true, marketing: true })} className={`${btn} bg-[#0f172a] text-white hover:bg-black flex-1 sm:flex-none`} data-testid="cookie-allow-all">Allow all</button>
+              <button type="button" onClick={() => setManage(true)} className={`${btn} max-sm:h-10 max-sm:px-3 text-slate-900 hover:bg-slate-100`} data-testid="cookie-manage-btn">Manage</button>
+              <button type="button" onClick={() => choose({})} className={`${btn} max-sm:h-10 max-sm:px-3 border border-slate-300 text-slate-900 hover:bg-slate-100`} data-testid="cookie-deny">Deny</button>
+              <button type="button" onClick={() => choose({ preferences: true, statistics: true, marketing: true })} className={`${btn} max-sm:h-10 bg-[#0f172a] text-white hover:bg-black flex-1 sm:flex-none`} data-testid="cookie-allow-all">Allow all</button>
             </div>
           </div>
         )}
