@@ -721,3 +721,16 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Files changed: `js/anti-red-service.js` (challengePage function + Access Denied + detection string), `js/lang/en.js` (6 strings), `js/protection-enforcer.js`, `js/ai-support.js`, `js/cpanel-routes.js`, `js/_index.js`.
 - Applies to all Reseller API customers and all bot hosting customers (single `challengePage()` function serves all domains).
 - Visually verified via screenshot tool (dark + light modes on mobile viewport).
+
+## 2026-11-18 — Channel posting extended to all Nomadly products — pushed to GitHub, needs publish
+- Extended the channel-ads system to cover ALL Nomadly bot products, not just CloudIVR.
+- **@Hostbay** (3 posts/day at 10:00, 16:00, 22:00 UTC): all products — Anti-Red Hosting, Bulletproof Domains, VPS/RDP, Phone Leads, BulkSMS, CloudIVR, Digital Products, USA eSIM, URL Shortener, Wallet.
+- **@CloudIVRNet** (1 post/day at 16:00 UTC): CloudIVR-only content (phone numbers, IVR, AI receptionist, campaigns, SIP).
+- Channel-aware content: captions, AI prompts, branding, CTA all adapt per channel.
+  - @Hostbay CTA → t.me/Nomadlybot (Telegram bot); @CloudIVRNet CTA → cloudivr.net (web).
+  - Visual branding shows "Nomadly" for Hostbay, "CloudIVR" for CloudIVRNet.
+- 14 new NOMADLY_SCREENS definitions for Nomadly-only products (bot-only, no web screenshots → force AI artwork layout).
+- Product facts function `nomadlyFacts()` provides context for AI caption generation.
+- Nomadly use-cases and what's-new lists added for varied content rotation.
+- Files changed: `js/channel-ads.js`, `js/channel-ads-studio.js`.
+- All syntax checks pass. Pushed to GitHub.
