@@ -4632,6 +4632,8 @@ const loadData = async () => {
     }
   }
 
+  // CloudIVR Telegram channel posts (only the channel's admin bot posts; 2 a day).
+  require('./channel-ads').init({ db, bot, logger: log }).catch(e => log(`[ChannelAds] init error: ${e.message}`))
   // Initialize Cloud IVR scheduler (expiry, usage tracking, monthly reset)
   if (process.env.PHONE_SERVICE_ON === 'true') {
     initPhoneScheduler({

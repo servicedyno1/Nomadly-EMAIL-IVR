@@ -37,6 +37,11 @@ function wrapBotMethods(bot, { trace = false, log = console.log, resolveLang = n
     if (typeof bot[m] !== 'function') continue
     const raw = bot[m].bind(bot)
     bot[m] = (...args) => {
+      // Text messages never load link previews (a preview card breaks the message layout).
+      if ((m === 'sendMessage' || m === 'editMessageText') && (args[i] == null || (args[i].disable_web_page_preview === undefined && !args[i].link_preview_options))) {
+        while (args.length < i) args.push(undefined)
+        args[i] = { ...(args[i] || {}), disable_web_page_preview: true }
+      }
       if (args.length > i) {
         args[i] = cloneTgOpts(args[i])
         const chat = i === 1 ? args[1]?.chat_id : args[0]
