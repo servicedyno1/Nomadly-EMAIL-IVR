@@ -203,7 +203,8 @@ export function Footer({ catalog }) {
               {AUDIENCES.map(a => <Link key={a.slug} to={cp(`/for/${a.slug}`)} className={fLink} data-testid={`footer-for-${a.slug}`}>{a.short}</Link>)}
             </FooterCol>
             <FooterCol title="CloudIVR" testid="footer-col-company">
-              {[['#how', 'How it works', 'how'], ['#try', 'Free test call', 'try'], ['/pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']].map(([h, l, id]) => <a key={id} href={`${base}${h}`} onClick={(e) => { if (document.querySelector('[data-testid="landing-page"]')) goTo(h, e); }} className={fLink} data-testid={`footer-link-${id}`}>{l}</a>)}
+              {[['#how', 'How it works', 'how'], ['#try', 'Free test call', 'try'], ['#faq', 'FAQ', 'faq']].map(([h, l, id]) => <a key={id} href={`${base}${h}`} onClick={(e) => { if (document.querySelector('[data-testid="landing-page"]')) goTo(h, e); }} className={fLink} data-testid={`footer-link-${id}`}>{l}</a>)}
+              <Link to={cp('/pricing')} className={fLink} data-testid="footer-link-pricing">Pricing</Link>
               <Link to={cp('/sip')} className={fLink} data-testid="footer-link-sip">SIP & softphones</Link>
             </FooterCol>
             <FooterCol title="Support & legal" testid="footer-col-support">
