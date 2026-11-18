@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bot, Clock, Ban } from 'lucide-react';
-import { useApi } from '../../api';
+import { toast } from 'sonner';
+import { Bot, Clock, Ban, PhoneCall, Loader2 } from 'lucide-react';
+import { api, useApi } from '../../api';
 import { Field, Toggle, Spinner } from '../../ui';
 import { cp } from '../../paths';
 import { Assist } from '../../Assist';
@@ -40,7 +41,7 @@ export function AiAssist({ f, setF, draft, setDraft, agents, numbers, lists }) {
     const source = camp.listId ? { source: 'list' } : camp.leads ? { source: 'numbers' } : {};
     setF(x => ({ ...x, ...camp, ...source, ...(switching ? { agentId } : {}) }));
   };
-  return <Assist screen="aicampaign" title="Set up your AI conversation campaign by chatting" hello="Tell me who you want to call and what the conversation is for — I’ll write the AI agent, pick your number and set up the list. You press Save campaign yourself." examples={EXAMPLES} current={current} context={context} onApply={apply} labels={LABELS} saveLabel="Save campaign" testid="aicampaign-assist" />;
+  return <Assist screen="aicampaign" title="Set up your AI conversation campaign by chatting" hello="Tell me who you want to call and what the conversation is for — I’ll write the AI agent, pick your number and set up the list. Then press Call me now below to hear the agent on your own phone, free, before you press Save campaign." examples={EXAMPLES} current={current} context={context} onApply={apply} labels={LABELS} saveLabel="Save campaign" testid="aicampaign-assist" />;
 }
 
 const Text = ({ d, set, k, rows, ph, testid, max }) => (rows
@@ -48,7 +49,7 @@ const Text = ({ d, set, k, rows, ph, testid, max }) => (rows
   : <input className="civr-input" maxLength={max} value={d[k] || ''} onChange={e => set(k, e.target.value)} placeholder={ph} data-testid={testid} />);
 
 // The agent part of an AI conversation campaign: reuse a saved agent (edits are saved to it) or write a new one.
-export function AgentPanel({ agentId, onAgent, draft, setDraft, agents, voices }) {
+export function AgentPanel({ agentId, onAgent, draft, setDraft, agents, voices, callerId, onTest }) {
   const set = (k, v) => setDraft(d => ({ ...d, [k]: v }));
   const saved = agents.find(a => a.id === agentId);
   return (
@@ -71,8 +72,38 @@ export function AgentPanel({ agentId, onAgent, draft, setDraft, agents, voices }
       <Field label="Hand interested people to (optional)"><Text d={draft} set={set} k="transferTo" ph="+14155550199" testid="aicampaign-agent-transfer-input" /></Field>
       <div className="flex items-center justify-between gap-4"><span className="text-sm">Take a message when nobody can take the call</span><Toggle checked={draft.takeMessages !== false} onChange={v => set('takeMessages', v)} testid="aicampaign-agent-messages-toggle" label="Take messages" /></div>
       <div className="flex items-center justify-between gap-4"><span className="text-sm">Say it’s an AI at the start</span><Toggle checked={draft.discloseAi !== false} onChange={v => set('discloseAi', v)} testid="aicampaign-agent-disclose-toggle" label="Say it’s an AI" /></div>
+      <TestCall callerId={callerId} onTest={onTest} isNew={!saved} />
       {saved && <Link to={cp(`/app/ai-agents/${saved.id}`)} className="text-sm text-[var(--c-accent)] underline" data-testid="aicampaign-agent-more-link">More settings for this agent: keys, hours, booking, test talk</Link>}
       <AiRules />
+    </div>
+  );
+}
+
+const MY_PHONE = 'civr-test-call-phone';
+// Rings the owner's own phone with this agent before the campaign is saved (saves just the agent first).
+function TestCall({ callerId, onTest, isNew }) {
+  const [to, setTo] = useState(() => { try { return localStorage.getItem(MY_PHONE) || ''; } catch (_) { return ''; } });
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+  const go = async () => {
+    const save = onTest();
+    if (save instanceof Error) { toast.error(save.message); return; }
+    setBusy(true); setNote('');
+    try {
+      const id = await save();
+      const d = await api(`/ai-agents/${id}/call-me`, { method: 'POST', body: { to, callerId } });
+      try { localStorage.setItem(MY_PHONE, to); } catch (_) { /* private mode */ }
+      setNote(`Calling ${d.calling} from ${d.from} — pick up and talk to your agent like a lead would.`);
+      toast.success(`Calling ${d.calling}…`);
+    } catch (e) { toast.error(e.message); } finally { setBusy(false); }
+  };
+  return (
+    <div className="rounded-xl border border-[var(--c-border)] p-4 space-y-2" data-testid="aicampaign-test-call">
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="flex-1 min-w-[14rem]"><Field label="Hear it first: free test call to your phone" hint={`Your own US or Canada number · 5 free test calls a day.${isNew ? ' The agent is saved first; the campaign stays unsaved.' : ''}`}><input className="civr-input font-mono" inputMode="tel" value={to} onChange={e => setTo(e.target.value)} placeholder="+14155550100" data-testid="aicampaign-test-call-input" /></Field></div>
+        <button type="button" className="civr-btn civr-btn-ghost" disabled={busy || to.replace(/\D/g, '').length < 10} onClick={go} data-testid="aicampaign-test-call-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneCall className="w-4 h-4" />}Call me now</button>
+      </div>
+      {note && <div className="text-xs text-[#34d399]" data-testid="aicampaign-test-call-note">{note}</div>}
     </div>
   );
 }

@@ -637,7 +637,8 @@ const canAccessFeature = (planKey, feature) => {
 // ── Bulk IVR maintenance switch (env BULK_IVR_MAINTENANCE=true) ──
 // When on, no Bulk IVR campaign can be created or launched on any bot or the web panel,
 // and no bulk calls go out over SIP. Quick IVR, the test-call page and number search stay live.
-const bulkIvrMaintenance = () => String(process.env.BULK_IVR_MAINTENANCE ?? 'true').toLowerCase() !== 'false'
+// Campaigns run unless BULK_IVR_MAINTENANCE=true pauses them.
+const bulkIvrMaintenance = () => String(process.env.BULK_IVR_MAINTENANCE ?? 'false').toLowerCase() === 'true'
 const bulkMaintenanceMsg = (lang) => ({
   en: '🛠️ <b>Bulk IVR is temporarily under maintenance</b>\n\nWe\'re upgrading the calling network. Quick IVR, test calls and buying numbers still work. Bulk campaigns will be back shortly — thanks for your patience.',
   fr: '🛠️ <b>Le Bulk IVR est en maintenance</b>\n\nNous améliorons le réseau d\'appels. L\'IVR rapide, les appels de test et l\'achat de numéros fonctionnent toujours. Les campagnes de masse reviendront bientôt — merci de votre patience.',

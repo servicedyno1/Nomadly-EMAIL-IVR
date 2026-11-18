@@ -327,6 +327,20 @@ export function CampaignNew() {
     setBusy('create');
     return d.audio.id;
   };
+  // Saves the AI agent on its own (new, or edits to a saved one) and returns its id — for Save campaign and test calls.
+  const saveAgent = async () => {
+    if (f.agentId === 'new') {
+      const d = await api('/ai-agents', { method: 'POST', body: agentBody(agentDraft) });
+      setF(x => ({ ...x, agentId: d.agent.id })); setAgentDraft(draftOf(d.agent)); ai.reload();
+      return d.agent.id;
+    }
+    if (agentChanged(agentDraft)) {
+      const d = await api(`/ai-agents/${f.agentId}`, { method: 'PUT', body: { ...ai.agents.find(a => a.id === f.agentId), ...agentBody(agentDraft) } });
+      setAgentDraft(draftOf(d.agent)); ai.reload();
+    }
+    return f.agentId;
+  };
+  const testAgent = () => (missingFields('aicampaign', [[!!String(agentDraft.name || '').trim(), 'a name for the AI agent', 'aicampaign-agent-name-input'], [String(agentDraft.goal || '').trim().length >= 10, 'what the agent does on each call', 'aicampaign-agent-goal-input']]) || saveAgent);
   const create = async (e) => {
     e.preventDefault(); setError(null);
     const miss = missingFields(isAi ? 'aicampaign' : 'campaign', [
@@ -342,14 +356,7 @@ export function CampaignNew() {
       if (!isAi && f.vmMode === 'script' && !vmScript.audioId) throw new Error('Create the voicemail audio first, or pick another option.');
       if (!isAi && f.vmMode === 'other' && !f.voicemailAudioId) throw new Error('Pick the clip to leave on voicemail, or choose “Leave my message”.');
       const scheduledFor = f.scheduledFor ? new Date(f.scheduledFor).toISOString() : null;
-      let agentId = f.agentId;
-      if (isAi && agentId === 'new') {
-        const d = await api('/ai-agents', { method: 'POST', body: agentBody(agentDraft) });
-        agentId = d.agent.id; setF(x => ({ ...x, agentId })); setAgentDraft(draftOf(d.agent)); ai.reload();
-      } else if (isAi && agentChanged(agentDraft)) {
-        const d = await api(`/ai-agents/${agentId}`, { method: 'PUT', body: { ...ai.agents.find(a => a.id === agentId), ...agentBody(agentDraft) } });
-        setAgentDraft(draftOf(d.agent)); ai.reload();
-      }
+      const agentId = isAi ? await saveAgent() : f.agentId;
       const plan = { repeat: f.repeat || null, dailyLimit: f.dailyLimit === '' ? null : Number(f.dailyLimit), tz: TZ };
       const base = { ...f, stopKey: f.mode === 'menu' ? undefined : (f.stopKey || undefined), ...audience, source: undefined, callerId, callerIds: f.callerIds?.length ? f.callerIds : undefined, showAs: f.showAs || undefined, menu: f.mode === 'menu' ? menuToApi(f.menu) : undefined, scheduledFor, ...plan };
       const audioId = !isAi && !f.audioId && script ? await scriptAudio(() => api('/campaigns', { method: 'POST', body: { ...base, validateOnly: true, audioPending: true } })) : f.audioId;
@@ -379,7 +386,7 @@ export function CampaignNew() {
           <Field label="Caller ID"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="campaign-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{n.phoneNumber}</option>)}</select></Field>
           <ShowAsSelect value={f.showAs} onChange={set('showAs')} from={callerId} testid="campaign-show-as-select" />
           <RotateCallerIds numbers={numbers} primary={callerId} value={f.callerIds || []} onChange={(v) => setF(x => ({ ...x, callerIds: v }))} />
-          {isAi ? (ai.ready ? <AgentPanel agentId={f.agentId || 'new'} onAgent={ai.onAgent} draft={agentDraft} setDraft={setAgentDraft} agents={ai.agents} voices={ai.voices} /> : <AiLoading />) : <>
+          {isAi ? (ai.ready ? <AgentPanel agentId={f.agentId || 'new'} onAgent={ai.onAgent} draft={agentDraft} setDraft={setAgentDraft} agents={ai.agents} voices={ai.voices} callerId={callerId} onTest={testAgent} /> : <AiLoading />) : <>
           <Field label="Message"><AudioSelect value={f.audioId} onChange={set('audioId')} audios={au?.audios} by="id" onAdded={reloadAudio} testid="campaign-audio-select" /></Field>
           {script ? <div className="border border-[#262626] rounded-xl p-4"><ScriptBox value={script} onChange={setScript} onAudio={(a) => { reloadAudio(); setMadeTexts(m => ({ ...m, [a.id]: fillScript(script.text, script.values) })); setF(x => ({ ...x, audioId: a.id })); setScript(null); }} testid="campaign-script" /></div>
             : <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => setScript({ text: '', values: {} })} data-testid="campaign-write-script-button">Write a script with a template instead</button>}

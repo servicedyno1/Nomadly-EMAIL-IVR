@@ -14,7 +14,7 @@ export const PURPOSES = [
 const LEGACY = [
   ['sales', TrendingUp, '', '', [['Start a Bulk IVR campaign', '/app/campaigns/new'], ['Quick IVR call', '/app/quick-call'], ['Import contacts', '/app/contacts']]],
   ['support', LifeBuoy, '', '', [['Get a Business Line', '/app/buy?purpose=voice'], ['Watch calls live', '/app/live'], ['Read your messages', '/app/messages']]],
-  ['bookings', CalendarCheck, '', '', [['Set up an AI voice agent', '/app/ai-agents'], ['Get a Business Line', '/app/buy?purpose=voice'], ['Read your messages', '/app/messages']]],
+  ['bookings', CalendarCheck, '', '', [['Set up an AI receptionist', '/app/receptionist/new'], ['Get a Business Line', '/app/buy?purpose=voice'], ['Read your messages', '/app/messages']]],
   ['accessible', Captions, '', '', [['Make a text-to-voice call', '/app/text-call'], ['Get a Business Line', '/app/buy?purpose=voice'], ['Contacts', '/app/contacts']]],
 ];
 

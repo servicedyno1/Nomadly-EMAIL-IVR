@@ -100,7 +100,7 @@ export const AUDIENCES = [
     ],
     features: [
       [PhoneCall, 'Quick and bulk campaigns', 'One call or a whole list, with a live view.'],
-      [Bot, 'AI voice agents', 'An agent holds the first conversation for $0.10 a minute.'],
+      [Bot, 'AI receptionist', 'An AI holds the first conversation for $0.10 a minute.'],
       [CalendarClock, 'Scheduling', 'Start now or pick a time up to 30 days ahead.'],
       [ScanSearch, 'Number lookup', 'Clean a list from $0.015 a number.'],
     ],

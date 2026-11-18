@@ -4,7 +4,7 @@ import { Wordmark } from '../../Brand';
 import { useInView, useStep, CountUp } from './kit';
 
 // Coded product shots: the real app's dark styling with sample data, sharp at any size.
-const NAV = [['Numbers', [[Gauge, 'Overview', true], [Hash, 'My numbers'], [ShoppingCart, 'Buy a number']]], ['Calling', [[PhoneOutgoing, 'Quick IVR call'], [Megaphone, 'Campaigns'], [Bot, 'AI voice agents']]], ['Account', [[Inbox, 'Inbox'], [Wallet, 'Wallet']]]];
+const NAV = [['Numbers', [[Gauge, 'Overview', true], [Hash, 'My numbers'], [ShoppingCart, 'Buy a number']]], ['Calling', [[PhoneOutgoing, 'Quick IVR call'], [Megaphone, 'Campaigns'], [Bot, 'AI conversations']]], ['Account', [[Inbox, 'Inbox'], [Wallet, 'Wallet']]]];
 const STATS = [['Wallet', '$128.40'], ['Numbers', '3'], ['Minutes', '142'], ['SMS', '36']];
 const NUMS = [['+1 415 555 0182', 'United States · Pro', 'Active'], ['+1 416 555 0137', 'Canada · Business', 'Active'], ['+1 212 555 0164', 'United States · Starter', 'Renews 12 Nov']];
 const ACT = [[PhoneIncoming, 'Pressed 1 → Sales', '2m 14s', '09:41'], [Voicemail, 'New voicemail', '0m 42s', '09:12'], [MessageSquare, 'SMS received', 'Inbox', '08:57']];
@@ -208,7 +208,7 @@ export function AiMock() {
   return (
     <MockFrame url="cloudivr.net/app/ai-agents" testid="feature-ai-mock">
       <div className="p-4 min-h-[13.5rem]" ref={ref}>
-        <div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold">AI voice agent · Front desk</span><span className="text-xs font-mono text-[#818cf8] inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#818cf8] civr-pulse" />Live · {`0${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`}</span></div>
+        <div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold">AI receptionist · Front desk</span><span className="text-xs font-mono text-[#818cf8] inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#818cf8] civr-pulse" />Live · {`0${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`}</span></div>
         <div className="mt-3 space-y-2">
           {LINES.slice(0, shown).map(([agent, t]) => (
             <div key={t} className={`flex civr-pop ${agent ? 'justify-start' : 'justify-end'}`}>

@@ -22,7 +22,7 @@ export const PRODUCTS = [
 export const USE_CASES = [
   ['sales', TrendingUp, 'Sales & lead follow-up', 'Bulk IVR calls your list and connects the hot leads to you.', 'campaigns'],
   ['support', LifeBuoy, 'Customer support', 'A keypad menu routes every caller; voicemail catches the rest.', 'ivr'],
-  ['bookings', CalendarCheck, 'Appointments & bookings', 'An AI voice agent answers around the clock and books the slot.', 'ai'],
+  ['bookings', CalendarCheck, 'Appointments & bookings', 'An AI receptionist answers around the clock and books the slot.', 'ai'],
   ['global', Globe2, 'Local presence abroad', 'A local number in each market, all in one account.', '#coverage'],
   ['access', Captions, 'Accessible calling', 'Text calls for deaf and hard-of-hearing callers.', 'text'],
 ];
