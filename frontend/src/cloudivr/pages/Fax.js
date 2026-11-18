@@ -21,7 +21,7 @@ export default function Fax() {
     const t = setInterval(reload, 5000);
     return () => clearInterval(t);
   }, [live, reload]);
-  const head = <PageHeader label="Phone numbers" title="Fax" sub="Send and receive faxes on your fax numbers. 25 free pages a month per number (sent + received), then $0.05 a page from your wallet." testid="fax-header"><Link to={cp('/app/help?topic=fax')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="fax-help-link"><HelpCircle className="w-4 h-4" />Fax guide</Link></PageHeader>;
+  const head = <PageHeader label="Phone numbers" title="Fax" sub="Send and receive faxes. 25 free pages a month per number, then $0.05 a page." testid="fax-header"><Link to={cp('/app/help?topic=fax')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="fax-help-link"><HelpCircle className="w-4 h-4" />Fax guide</Link></PageHeader>;
   if (loading && !data) return <div data-testid="fax-page">{head}<SkeletonPage header={false} cards={2} rows={3} /></div>;
   if (error && !data) return <div data-testid="fax-page">{head}<ErrorNote error={error} onRetry={reload} /></div>;
   const nums = data?.numbers || [];

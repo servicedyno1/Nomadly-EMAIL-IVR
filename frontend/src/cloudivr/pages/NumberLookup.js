@@ -79,7 +79,7 @@ export default function NumberLookup() {
   const phone = tab === 'phone';
   return (
     <div className="space-y-8 max-w-4xl" data-testid="lookup-page">
-      <PageHeader label="Lookup" title="Lookup & verify" sub={`Check numbers before you call or text: mobile or landline, carrier, country and porting — ${price(data.price)} each (caller name +${price(data.cnamPrice)} for US/Canada). Check emails before you send: deliverable, risky or a typo — ${price(data.emailPrice)} each. No charge when a check fails.`} testid="lookup-header" />
+      <PageHeader label="Lookup" title="Lookup & verify" sub="Check a number or an email before you call, text or send. No charge when a check fails." testid="lookup-header" />
       <div role="tablist" className="inline-flex gap-1 rounded-xl border border-[var(--c-border)] p-1" data-testid="lookup-tabs">
         {[['phone', 'Phone numbers'], ['email', 'Emails']].map(([id, l]) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`px-4 h-9 rounded-lg text-sm font-semibold ${tab === id ? 'bg-[var(--c-accent-soft)] text-[var(--c-text)]' : 'text-[var(--c-muted)]'}`} data-testid={`lookup-tab-${id}`}>{l}</button>)}
       </div>

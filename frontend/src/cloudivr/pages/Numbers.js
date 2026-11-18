@@ -64,40 +64,34 @@ function NumberCard({ n, i, caps, pv, onSaved, reload }) {
   const href = cp(`/app/numbers/${enc(n.phoneNumber)}`);
   const switches = [n.access?.callForwarding, n.access?.ivr, true, n.plan === 'business' && n.status === 'active' && n.capabilities?.fax].filter(Boolean).length;
   return (
-    <div className={`civr-card p-6 civr-rise civr-d${(i % 4) + 1} flex flex-col`} data-testid={`number-card-${i}`}>
+    <div className="civr-card p-5 civr-rise flex flex-col" data-testid={`number-card-${i}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <Link to={href} className="font-mono text-xl inline-flex items-center gap-1.5 min-h-[44px] -my-2 hover:text-[var(--c-accent,#818cf8)] transition-colors" data-testid={`number-card-${i}-phone`} aria-label={`Open ${n.phoneNumber}`}>{pv.phone(n.phoneNumber)}</Link>
-          <div className="text-xs text-[#a1a1aa] mt-1 flex items-center gap-1.5" data-testid={`number-card-${i}-country`}><Flag code={n.country} />{n.countryName || n.country} · {n.type?.replace('_', '-')}</div>
+          <Link to={href} className="font-mono text-xl inline-flex items-center gap-1.5 min-h-[44px] -my-2 hover:text-[var(--c-accent)] transition-colors" data-testid={`number-card-${i}-phone`} aria-label={`Open ${n.phoneNumber}`}>{pv.phone(n.phoneNumber)}</Link>
+          <div className="text-[13px] text-[var(--c-muted)] mt-1" data-testid={`number-card-${i}-country`}><span className="inline-block align-[-2px] mr-1.5"><Flag code={n.country} /></span>{n.countryName || n.country} · {n.planName} {money(n.planPrice)} · {n.autoRenew ? 'renews' : 'expires'} {day(n.expiresAt)}</div>
         </div>
         <span className={statusPill(n.status)} data-testid={`number-card-${i}-status`}>{n.status}</span>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-1.5"><CapBadges caps={caps} testid={`number-card-${i}-caps`} />{n.features?.texting?.available && !n.features.texting.enabled && <Link to={`${href}?tab=sms`} className="civr-pill relative z-10 hover:!border-[var(--c-accent)]" data-testid={`number-card-${i}-add-texting`}>+ Add texting</Link>}</div>
-      <div className="flex flex-wrap gap-1.5 mt-5">
-        <span className="civr-pill">{n.planName} · {money(n.planPrice)}</span>
-        {on(n.features.voicemail) && <span className="civr-pill civr-pill-on">Voicemail</span>}
-        {n.features.recording && <span className="civr-pill civr-pill-on">Recording</span>}
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        <CapBadges caps={caps} testid={`number-card-${i}-caps`} />
+        {on(n.features.voicemail) && <span className="civr-pill">Voicemail</span>}
+        {n.features.recording && <span className="civr-pill">Recording</span>}
         {n.isSubNumber && <span className="civr-pill" data-testid={`number-card-${i}-extra`}>Extra on {pv.phone(n.parentNumber)}</span>}
         {n.dryRun && <span className="civr-pill civr-pill-warn">Preview</span>}
         {n.registration?.status === 'pending' && <span className="civr-pill civr-pill-warn" title="The carrier is checking your documents. The number goes live once they approve them." data-testid={`number-card-${i}-registration`}>Awaiting carrier approval</span>}
+        {n.features?.texting?.available && !n.features.texting.enabled && <Link to={`${href}?tab=sms`} className="text-[13px] text-[var(--c-accent)] hover:underline relative z-10 ml-1 min-h-[32px] inline-flex items-center" data-testid={`number-card-${i}-add-texting`}>+ Add texting</Link>}
       </div>
-      <div className="mt-5 pt-4 border-t border-[var(--c-border,#1f1f1f)]" data-testid={`number-card-${i}-switches`}>
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-[#a1a1aa] mb-2">Quick switches{switches ? '' : ' · none'}</div>
-        <div className="flex flex-wrap gap-1.5">
-          {n.access?.callForwarding && <QuickSwitch num={n} feature="callForwarding" label="Forwarding" checked={on(n.features.callForwarding)} onSaved={onSaved} testid={`number-card-${i}-switch-forwarding`} />}
-          {n.access?.ivr && <QuickSwitch num={n} feature="ivr" label="IVR" checked={on(n.features.ivr)} onSaved={onSaved} testid={`number-card-${i}-switch-ivr`} />}
-          <QuickSwitch num={n} feature="hours" label="Hours" checked={on(n.features.hours)} onSaved={onSaved} testid={`number-card-${i}-switch-hours`} />
-          {n.plan === 'business' && n.status === 'active' && n.capabilities?.fax && <FaxSwitch n={n} reload={reload} testid={`number-card-${i}-switch-fax`} />}
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 mt-auto pt-5 text-xs text-[#a1a1aa]">
-        <span className="whitespace-nowrap">{n.autoRenew ? 'Renews' : 'Expires'} {day(n.expiresAt)}</span>
-        <div className="flex flex-wrap items-center justify-end gap-0.5 -mr-1 min-w-0 ml-auto">
-          {!n.isSubNumber && n.status === 'active' && !n.replacedBy && <Link to={cp(`/app/buy?extra=${enc(n.phoneNumber)}`)} className="civr-btn civr-btn-ghost civr-btn-sm !h-9 whitespace-nowrap" title="Add another number that shares this plan" data-testid={`number-card-${i}-add-extra`}><Plus className="w-4 h-4" />Add number</Link>}
-          <IconBtn icon={Copy} label="Copy number" onClick={copy} testid={`number-card-${i}-copy-button`} />
-          <NumberActions n={n} reload={reload} testid={`number-card-${i}`} />
-          <Link to={href} className="civr-btn civr-btn-ghost civr-btn-sm !h-9 ml-1" data-testid={`number-card-${i}-link`}>Open<ChevronRight className="w-4 h-4" /></Link>
-        </div>
+      {switches > 0 && <div className="mt-4 flex flex-wrap items-center gap-1.5" aria-label="Quick switches" data-testid={`number-card-${i}-switches`}>
+        {n.access?.callForwarding && <QuickSwitch num={n} feature="callForwarding" label="Forwarding" checked={on(n.features.callForwarding)} onSaved={onSaved} testid={`number-card-${i}-switch-forwarding`} />}
+        {n.access?.ivr && <QuickSwitch num={n} feature="ivr" label="IVR" checked={on(n.features.ivr)} onSaved={onSaved} testid={`number-card-${i}-switch-ivr`} />}
+        <QuickSwitch num={n} feature="hours" label="Hours" checked={on(n.features.hours)} onSaved={onSaved} testid={`number-card-${i}-switch-hours`} />
+        {n.plan === 'business' && n.status === 'active' && n.capabilities?.fax && <FaxSwitch n={n} reload={reload} testid={`number-card-${i}-switch-fax`} />}
+      </div>}
+      <div className="flex items-center gap-1 mt-auto pt-4">
+        <Link to={href} className="civr-btn civr-btn-ghost civr-btn-sm mr-auto" data-testid={`number-card-${i}-link`}>Settings<ChevronRight className="w-4 h-4" /></Link>
+        <NumberActions n={n} reload={reload} testid={`number-card-${i}`} />
+        <IconBtn icon={Copy} label="Copy number" onClick={copy} testid={`number-card-${i}-copy-button`} />
+        {!n.isSubNumber && n.status === 'active' && !n.replacedBy && <Link to={cp(`/app/buy?extra=${enc(n.phoneNumber)}`)} className="relative z-10 w-9 h-9 rounded-lg flex items-center justify-center text-[var(--c-muted)] hover:text-[var(--c-text)] hover:bg-[var(--c-surface-2)] transition-colors" aria-label="Add another number that shares this plan" title="Add another number that shares this plan" data-testid={`number-card-${i}-add-extra`}><Plus className="w-4 h-4" /></Link>}
       </div>
     </div>
   );
@@ -135,7 +129,7 @@ export default function Numbers() {
   const onSaved = (d) => { if (d?.number) setData(x => ({ ...x, numbers: (x?.numbers || []).map(n => (n.phoneNumber === d.number.phoneNumber ? d.number : n)) })); };
   return (
     <div data-testid="numbers-page" className="pb-20 lg:pb-0">
-      <PageHeader label="Phone numbers" title="My numbers" sub="Every number you own in one list. The badges show what each one does: calls, texts or fax." testid="numbers-header">
+      <PageHeader label="Phone numbers" title="My numbers" sub="Every number you own. Badges show what each one does." testid="numbers-header">
         <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="numbers-buy-button"><ShoppingCart className="w-4 h-4" />Get a number</Link>
       </PageHeader>
       <ErrorNote error={error} />
@@ -156,7 +150,7 @@ export default function Numbers() {
         </div>
         <NoMatches s={s} testid="numbers-no-matches" />
         {!list.length && !s.q && <div className="civr-card p-5 text-sm flex flex-wrap items-center gap-3" data-testid="numbers-filter-empty"><span className="flex-1 min-w-[200px] text-[var(--c-muted)]">{`None of your numbers ${show === 'fax' ? 'take faxes' : show === 'texts' ? 'can text' : 'take calls'} yet.`}</span><Link to={cp(`/app/buy?purpose=${BUY[show]}`)} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="numbers-filter-empty-buy">Get one</Link></div>}
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 min-[1800px]:grid-cols-4 gap-4 items-start" data-testid="numbers-list">
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4 items-start" data-testid="numbers-list">
           {list.map(it => (it.type === 'line' ? <NumberCard key={it.key} n={it.n} i={it.i} caps={it.caps} pv={pv} onSaved={onSaved} reload={reload} />
             : it.type === 'esim' ? <EsimCard key={it.key} item={it.x} reload={reloadEs} />
             : it.type === 'mobile' ? <EsimCard key={it.key} item={it.x} reload={reloadMob} mobile />

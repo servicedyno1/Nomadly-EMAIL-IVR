@@ -35,11 +35,11 @@ export function NextStep({ s, nums }) {
   if (!step) return null;
   const { Icon } = step;
   return (
-    <section className="civr-card civr-next-step mt-6 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4 civr-rise civr-d2" aria-label="Your next step" data-testid="home-next-step" data-step={step.id}>
-      <span className="w-11 h-11 shrink-0 rounded-xl grid place-items-center bg-[var(--c-accent)]/15 text-[var(--c-accent)]"><Icon className="w-5 h-5" /></span>
+    <section className="civr-card civr-next-step p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4 civr-rise" aria-label="Your next step" data-testid="home-next-step" data-step={step.id}>
+      <span className="hidden sm:grid w-11 h-11 shrink-0 rounded-xl place-items-center bg-[var(--c-card)] text-[var(--c-accent)]"><Icon className="w-5 h-5" /></span>
       <div className="flex-1 min-w-0">
-        <div className="civr-label !text-[var(--c-accent)] !tracking-[.12em]">Do this next</div>
-        <div className="font-semibold mt-1" data-testid="home-next-step-title">{step.title}</div>
+        <div className="civr-label">Do this next</div>
+        <div className="font-semibold text-[17px] mt-0.5" data-testid="home-next-step-title">{step.title}</div>
         <div className="text-sm text-[var(--c-muted)] mt-0.5" data-testid="home-next-step-why">{step.why}</div>
       </div>
       <Link to={cp(step.to)} className="civr-btn civr-btn-primary shrink-0" data-testid="home-next-step-action">{step.cta}<ArrowRight className="w-4 h-4" /></Link>

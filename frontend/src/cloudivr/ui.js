@@ -62,15 +62,15 @@ export function TabStrip({ active, children, className = 'mb-8', testid }) {
 
 export const Label = ({ children }) => <div className="civr-label mb-3">{children}</div>;
 
-export function PageHeader({ label, title, sub, children, testid }) {
+// Title, one short line, and the page's main action on the right (full width on phones). The menu already says which section this is.
+export function PageHeader({ title, sub, children, testid }) {
   return (
-    <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8 civr-rise" data-testid={testid}>
+    <div className="civr-page-head flex flex-col gap-4 md:flex-row md:items-center md:justify-between civr-rise" data-testid={testid}>
       <div className="min-w-0">
-        {label && <Label>{label}</Label>}
-        <h1 className="civr-page-title text-[28px] sm:text-[32px]" data-testid={testid ? `${testid}-title` : undefined}>{title}</h1>
-        {sub && <p className="text-sm md:text-[15px] text-[#a1a1aa] mt-2 max-w-2xl">{sub}</p>}
+        <h1 className="civr-page-title" data-testid={testid ? `${testid}-title` : undefined}>{title}</h1>
+        {sub && <p className="text-sm md:text-[15px] mt-1.5 max-w-xl">{sub}</p>}
       </div>
-      {children && <div className="flex flex-wrap gap-2 md:shrink-0 md:justify-end">{children}</div>}
+      {children && <div className="civr-page-actions flex flex-wrap gap-2 md:shrink-0 md:justify-end">{children}</div>}
     </div>
   );
 }
@@ -127,7 +127,7 @@ function EmptyArt({ icon: Icon }) {
 // Empty state: short line + next-step button(s) as children. `bare` drops the card (for use inside another card).
 export function Empty({ icon: Icon, title, sub, children, testid, bare = false }) {
   return (
-    <div className={`${bare ? 'py-12' : 'civr-card px-6 py-14 md:py-20'} text-center civr-rise`} data-testid={testid}>
+    <div className={`${bare ? 'py-12' : 'px-6 py-12 md:py-16'} text-center civr-rise`} data-testid={testid}>
       {Icon && <EmptyArt icon={Icon} />}
       <div className={`font-semibold tracking-tight ${bare ? 'text-lg' : 'text-xl md:text-2xl'}`}>{title}</div>
       {sub && <p className="text-sm md:text-[15px] text-[#a1a1aa] mt-3 max-w-md mx-auto">{sub}</p>}

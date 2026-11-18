@@ -217,7 +217,7 @@ export default function Settings() {
   const [active, pick] = useActiveSection();
   return (
     <div data-testid="settings-page">
-      <PageHeader label="Account" title="Settings" sub="Your login, language, alerts and security. This web account is separate from any Telegram bot account." testid="settings-header">
+      <PageHeader label="Account" title="Settings" sub="Your login, language, alerts and security." testid="settings-header">
         <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={async () => { nav(cp(), { replace: true }); await logout(); }} data-testid="settings-logout-button"><LogOut className="w-4 h-4" />Sign out</button>
       </PageHeader>
       <div className="lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-10 max-w-6xl min-[1800px]:max-w-7xl">

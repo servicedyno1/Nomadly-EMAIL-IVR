@@ -79,7 +79,7 @@ export default function Contacts() {
 
   return (
     <div data-testid="contacts-page">
-      <PageHeader label="Contacts & media" title="Contacts" sub="Save the people you call. Upload a spreadsheet and we match the columns for you, then call anyone in one tap or send a whole list a Bulk IVR campaign." testid="contacts-header">
+      <PageHeader label="Contacts & media" title="Contacts" sub="Save the people you call, then call one or send a whole list a campaign." testid="contacts-header">
         <button type="button" className="civr-btn civr-btn-primary" onClick={() => setDialog('import')} data-testid="contacts-import-button"><FileUp className="w-4 h-4" />Upload contacts</button>
         <button type="button" className="civr-btn civr-btn-ghost" onClick={() => setDialog('add')} data-testid="contacts-add-button"><UserPlus className="w-4 h-4" />Add contact</button>
       </PageHeader>

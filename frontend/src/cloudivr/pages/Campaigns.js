@@ -63,10 +63,10 @@ function RowAction({ c, i, onChange }) {
 function CampaignRow({ c, i, pv, onChange }) {
   const live = ['running', 'paused', 'scheduled', 'created'].includes(c.status);
   return (
-    <div className="civr-card civr-card-link relative p-4 sm:p-6" data-testid={`campaign-row-${i}`}>
-      <Link to={cp(`/app/campaigns/${c.id}`)} className="absolute inset-0 rounded-[14px]" aria-label={`Open campaign ${c.name || c.audioName || ''}`} data-testid={`campaign-row-${i}-link`} />
-      <div className="flex flex-col md:flex-row md:items-center gap-3">
-        <div className="flex-1 min-w-0"><div className="font-semibold truncate" data-testid={`campaign-row-${i}-name`}>{c.name || c.audioName || 'Campaign'}</div><div className="text-xs text-[#a1a1aa] font-mono">{pv.phone(c.callerId)} · {when(c.createdAt)}</div></div>
+    <div className="civr-card relative px-4 py-3.5 sm:px-5" data-testid={`campaign-row-${i}`}>
+      <Link to={cp(`/app/campaigns/${c.id}`)} className="absolute inset-0" aria-label={`Open campaign ${c.name || c.audioName || ''}`} data-testid={`campaign-row-${i}-link`} />
+      <div className="flex flex-wrap md:flex-nowrap items-center gap-x-3 gap-y-2">
+        <div className="basis-full md:basis-auto md:flex-1 min-w-0"><div className="font-semibold truncate" data-testid={`campaign-row-${i}-name`}>{c.name || c.audioName || 'Campaign'}</div><div className="text-xs text-[#a1a1aa] font-mono">{pv.phone(c.callerId)} · {when(c.createdAt)}</div></div>
         <div className="font-mono text-sm text-[#d4d4d8]" data-testid={`campaign-row-${i}-progress-text`}>{c.stats?.completed || 0}/{c.stats?.total || 0} called</div>
         {c.voicemailAudioName && c.startedAt && <span className={`civr-pill ${c.stats?.voicemailLeft ? '!bg-[#22c55e]/15 civr-vm-green !border-[#22c55e]/40' : ''}`} data-testid={`campaign-row-${i}-voicemail-left`}>{c.stats?.voicemailLeft === 1 ? '📩 1 voicemail left' : `📩 ${c.stats?.voicemailLeft || 0} voicemails left`}</span>}
         {c.repeat && <span className="civr-pill civr-pill-on" data-testid={`campaign-row-${i}-repeat`}><Repeat className="w-3 h-3" />{c.repeat === 'weekly' ? 'weekly' : 'daily'}{c.runNumber > 1 ? ` · run ${c.runNumber}` : ''}</span>}
@@ -98,7 +98,7 @@ export function Campaigns() {
   useEffect(() => { if (!running) return undefined; const t = setInterval(reload, 8000); return () => clearInterval(t); }, [running, reload]);
   return (
     <div data-testid="campaigns-page">
-      <PageHeader label="Make calls · IVR" title="Bulk campaigns" sub="Automated calls to a whole list: play your message, see who answered and what they pressed, and connect interested people to you." testid="campaigns-header">
+      <PageHeader label="Make calls · IVR" title="Bulk campaigns" sub="Call a whole list with one message and see who answered." testid="campaigns-header">
         {running && <Link to={cp('/app/live')} className="civr-btn civr-btn-ghost" data-testid="campaigns-live-button"><Radio className="w-4 h-4 text-[#34d399]" />Watch live</Link>}
         <Link to={cp('/app/campaigns/new')} className="civr-btn civr-btn-primary" data-testid="campaigns-new-button"><Plus className="w-4 h-4" />New campaign</Link>
       </PageHeader>
@@ -111,7 +111,7 @@ export function Campaigns() {
         <div className="flex flex-col gap-4">
           <SearchBox s={s} placeholder="Search campaigns" testid="campaigns-search" className="max-w-md" />
           <NoMatches s={s} testid="campaigns-no-matches" />
-          {s.list.map((c, i) => <CampaignRow key={c.id} c={c} i={i} pv={pv} onChange={onChange} />)}
+          {s.list.length > 0 && <div className="civr-list" data-testid="campaigns-list">{s.list.map((c, i) => <CampaignRow key={c.id} c={c} i={i} pv={pv} onChange={onChange} />)}</div>}
         </div>
       )}
     </div>

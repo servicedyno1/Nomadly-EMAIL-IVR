@@ -140,7 +140,7 @@ function ExistingPlanChooser({ nums, price, pv }) {
         <select className="civr-input !h-11 sm:w-60" value={sel} onChange={e => setSel(e.target.value)} data-testid="buy-add-to-plan-select">
           {nums.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{`${pv.phone(n.phoneNumber)} · ${n.planName}`}</option>)}
         </select>
-        <button type="button" className="civr-btn civr-btn-primary whitespace-nowrap !h-11 px-5" disabled={!sel} onClick={() => nav(cp(`/app/buy?extra=${enc(sel)}`))} data-testid="buy-add-to-plan-cta"><Plus className="w-4 h-4" />Add to this plan</button>
+        <button type="button" className="civr-btn civr-btn-ghost whitespace-nowrap !h-11 px-5" disabled={!sel} onClick={() => nav(cp(`/app/buy?extra=${enc(sel)}`))} data-testid="buy-add-to-plan-cta"><Plus className="w-4 h-4" />Add to this plan</button>
       </div>
     </div>
   );

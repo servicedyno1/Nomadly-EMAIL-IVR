@@ -41,7 +41,7 @@ export default function Verification() {
   const state = data?.state;
   return (
     <div data-testid="verification-page">
-      <PageHeader label="Phone numbers" title="Number verification" sub="The carrier needs a few details before this number goes live. Your number is held for you with no time limit — if the carrier asks for changes, you can send corrected details here." testid="verification-header" />
+      <PageHeader label="Phone numbers" title="Number verification" sub="The carrier needs a few details before this number goes live. It stays held for you meanwhile." testid="verification-header" />
       <ErrorNote error={error} />
       {state === 'none' && <Empty icon={ShieldCheck} title="Nothing to verify" sub="If a number you buy needs details for the carrier, the steps show up here." testid="verification-empty"><Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="verification-buy-link">Buy a number</Link></Empty>}
       {state && state !== 'none' && (

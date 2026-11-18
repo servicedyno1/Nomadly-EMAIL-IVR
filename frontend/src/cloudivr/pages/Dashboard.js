@@ -17,24 +17,24 @@ import { NextStep } from './dashboard/NextStep';
 
 function Stat({ icon: Icon, label, value, to, testid, delay, title }) {
   const body = (
-    <div className={`civr-card ${to ? 'civr-card-link' : ''} p-6 h-full civr-rise ${delay}`} data-testid={testid} title={title}>
-      <div className="flex items-start justify-between gap-2"><span className="civr-label !text-[var(--c-muted)] !tracking-[.12em] leading-snug min-w-0 break-words">{label}</span><Icon className="w-4 h-4 shrink-0 text-[var(--c-accent)]" /></div>
-      <div className="font-mono text-3xl mt-4" data-testid={`${testid}-value`}>{value}</div>
-      {title && <div className="text-xs text-[var(--c-muted)] mt-1">This month</div>}
-    </div>
+    <>
+      <span className="flex items-center gap-1.5 text-[13px] text-[var(--c-muted)]"><Icon className="w-3.5 h-3.5 shrink-0" />{label}</span>
+      <span className="civr-stat-value block" data-testid={`${testid}-value`}>{value}</span>
+    </>
   );
-  return to ? <Link to={to} className="block h-full">{body}</Link> : body;
+  return to ? <Link to={to} className="civr-stat" data-testid={testid} title={title}>{body}</Link> : <div className="civr-stat" data-testid={testid} title={title}>{body}</div>;
 }
 
+// One strip instead of a row of boxes.
 function Stats({ s }) {
   const live = (s.liveCampaigns || 0) > 0;
   return (
-    <div className={`grid grid-cols-2 ${live ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-4`} data-testid="home-overview">
-      <div className="col-span-2"><Stat icon={Wallet} label="Wallet" value={money(s.balance)} to={cp('/app/wallet')} testid="stat-balance" delay="civr-d1" /></div>
-      <Stat icon={Hash} label="Numbers" value={s.numbers?.active ?? '—'} to={cp('/app/numbers')} testid="stat-numbers" delay="civr-d1" />
-      {live && <Stat icon={Radio} label="Calling now" value={s.liveCampaigns} to={cp('/app/live')} testid="stat-live" delay="civr-d2" />}
-      <Stat icon={MessageSquare} label="Unread" value={s.messagesUnread ?? 0} to={cp('/app/messages')} testid="stat-unread" delay="civr-d2" />
-      <Stat icon={Clock} label="Minutes" title="Minutes used this month" value={s.minutesUsed ?? '—'} testid="stat-minutes" delay="civr-d3" />
+    <div className="civr-stats civr-rise" style={{ '--n': live ? 5 : 4 }} data-testid="home-overview">
+      <Stat icon={Wallet} label="Wallet" value={money(s.balance)} to={cp('/app/wallet')} testid="stat-balance" />
+      <Stat icon={Hash} label="Numbers" value={s.numbers?.active ?? '—'} to={cp('/app/numbers')} testid="stat-numbers" />
+      {live && <Stat icon={Radio} label="Calling now" value={s.liveCampaigns} to={cp('/app/live')} testid="stat-live" />}
+      <Stat icon={MessageSquare} label="Unread" value={s.messagesUnread ?? 0} to={cp('/app/messages')} testid="stat-unread" />
+      <Stat icon={Clock} label="Minutes this month" title="Minutes used this month" value={s.minutesUsed ?? '—'} testid="stat-minutes" />
     </div>
   );
 }
@@ -90,10 +90,10 @@ export default function Dashboard() {
       )}
       {!s || (fresh && !hosted) ? <SkeletonPage header={false} cards={3} rows={3} /> : textingOnly ? <TextingHome items={hosted.items} balance={s.balance} /> : fresh ? <><TrialCard /><PurposeHome /><div className="mt-8"><GetStarted balance={s.balance} /></div>{promos}<Guided nums={[]} /><More><ProductGrid /></More></> : (
         <>
-          <Stats s={s} />
           <NextStep s={s} nums={nums?.numbers} />
+          <div className="mt-4"><Stats s={s} /></div>
+          <div className="mt-8"><YourNumbers nums={nums?.numbers} balance={s.balance} /></div>
           {promos}
-          <YourNumbers nums={nums?.numbers} balance={s.balance} />
           <div className="mt-6 max-w-xl"><SetupChecklist nums={nums?.numbers} /></div>
           <More>
             <TaskCards nums={nums?.numbers} />

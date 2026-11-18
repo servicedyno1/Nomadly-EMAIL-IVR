@@ -1,0 +1,164 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
+/* "Air" (loaded last): ink + emerald on quiet neutrals, Geist type, one strong action per screen,
+   flat sections instead of boxes-in-boxes. Class names are unchanged so every signed-in page picks it up. */
+html[data-civr-theme] .civr {
+  --radius-card: 14px; --radius-ctl: 10px;
+  --font-ui: 'Geist', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-num: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-ui); font-size: 15px; line-height: 1.55; letter-spacing: -0.003em;
+}
+html[data-civr-theme="light"] .civr, html[data-civr-theme="light"] .civr-portal {
+  --c-bg: #fafaf9; --c-card: #ffffff; --c-card-hover: #f7f7f6; --c-surface-2: #f4f4f3;
+  --c-border: #e8e8e6; --c-border-hover: #d1d1ce; --c-hairline: #efefed;
+  --c-text: #18181b; --c-text-2: #3f3f46; --c-muted: #6b6b76;
+  --c-accent: #047857; --c-emerald: #047857; --c-accent-strong: #047857; --c-accent-hover: #065f46;
+  --c-accent-soft: rgba(4, 120, 87, 0.07);
+  --c-primary: #18181b; --c-primary-hover: #000000; --c-primary-fg: #ffffff;
+  --shadow-card: none; --shadow-card-hover: 0 10px 28px -18px rgba(24, 24, 27, 0.28);
+  --shadow-pop: 0 20px 48px -20px rgba(24, 24, 27, 0.3);
+}
+html[data-civr-theme="dark"] .civr, html[data-civr-theme="dark"] .civr-portal, html:not([data-civr-theme]) .civr-portal {
+  --c-bg: #0c0c0e; --c-card: #151517; --c-card-hover: #1b1b1e; --c-surface-2: #1d1d21;
+  --c-border: #26262b; --c-border-hover: #3a3a41; --c-hairline: #1f1f23;
+  --c-text: #fafafa; --c-text-2: #d4d4d8; --c-muted: #a1a1aa;
+  --c-accent: #34d399; --c-emerald: #34d399; --c-accent-strong: #047857; --c-accent-hover: #059669;
+  --c-accent-soft: rgba(52, 211, 153, 0.12);
+  --c-primary: #fafafa; --c-primary-hover: #ffffff; --c-primary-fg: #0c0c0e;
+  --shadow-card: none; --shadow-card-hover: 0 12px 30px -18px rgba(0, 0, 0, 0.8);
+}
+html[data-civr-theme="light"] body { background: #fafaf9; }
+html[data-civr-theme="dark"] body { background: #0c0c0e; }
+html[data-civr-theme] .civr ::selection { background: var(--c-accent-soft); color: var(--c-text); }
+
+/* Type */
+html[data-civr-theme] .civr .font-display, html[data-civr-theme] .civr .civr-page-title { font-family: var(--font-ui); font-weight: 600; letter-spacing: -0.025em; line-height: 1.15; }
+html[data-civr-theme] .civr .font-mono, html[data-civr-theme] .civr code { font-family: var(--font-num); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+html[data-civr-theme] .civr .font-mono.text-xl, html[data-civr-theme] .civr .font-mono.text-lg, html[data-civr-theme] .civr .font-mono.text-2xl, html[data-civr-theme] .civr .font-mono.text-3xl { font-weight: 500; letter-spacing: -0.02em; }
+html[data-civr-theme] .civr .civr-label { color: var(--c-muted); font-family: var(--font-ui); font-size: 12px; font-weight: 500; letter-spacing: .04em; }
+html[data-civr-theme] .civr .font-display.text-2xl { font-size: 18px; }
+
+/* Surfaces: one hairline, no shadow. A box inside a box becomes a soft tinted area (options you can pick keep their outline). */
+html[data-civr-theme] .civr .civr-card { border-radius: var(--radius-card); border-color: var(--c-border); box-shadow: none; }
+html[data-civr-theme] .civr .civr-card .civr-card:not(button):not(a):not(label):not([role="radio"]):not([role="dialog"]) { background: var(--c-surface-2); border-color: transparent; border-radius: 12px; }
+html[data-civr-theme] .civr .civr-card-link:hover { border-color: var(--c-border-hover); background: var(--c-card); box-shadow: var(--shadow-card-hover); transform: none; }
+html[data-civr-theme] .civr .civr-trace { box-shadow: none; border-color: color-mix(in srgb, var(--c-accent) 35%, transparent); }
+html[data-civr-theme] .civr .civr-offer.civr-offer { border-color: transparent; background: var(--c-accent-soft); }
+html[data-civr-theme] .civr .civr-card.bg-gradient-to-r { background-image: none; background-color: var(--c-surface-2); border-color: transparent !important; }
+html[data-civr-theme] .civr .civr-assist { border-color: transparent; background: var(--c-accent-soft); }
+
+/* Lists: one surface, hairline rows (instead of one box per row). */
+html[data-civr-theme] .civr .civr-list { background: var(--c-card); border: 1px solid var(--c-border); border-radius: var(--radius-card); overflow: hidden; }
+html[data-civr-theme] .civr .civr-list > .civr-card, html[data-civr-theme] .civr .civr-list > [data-ve-dynamic] > .civr-card { border: 0; border-radius: 0; background: transparent; box-shadow: none; border-top: 1px solid var(--c-hairline); }
+html[data-civr-theme] .civr .civr-list > .civr-card:first-child, html[data-civr-theme] .civr .civr-list > [data-ve-dynamic]:first-child > .civr-card:first-child { border-top: 0; }
+html[data-civr-theme] .civr .civr-list > .civr-card:hover, html[data-civr-theme] .civr .civr-list > [data-ve-dynamic] > .civr-card:hover { background: var(--c-card-hover); box-shadow: none; }
+
+/* Buttons: one solid action, everything else quiet. */
+html[data-civr-theme] .civr .civr-btn { min-height: 42px; padding: 9px 18px; border-radius: var(--radius-ctl); font-size: 14.5px; font-weight: 500; letter-spacing: -0.005em; border: 1px solid transparent; transition: background-color .15s ease, color .15s ease, border-color .15s ease, transform .12s ease, opacity .15s ease; }
+html[data-civr-theme] .civr .civr-btn-primary { background: var(--c-primary); color: var(--c-primary-fg); box-shadow: none; font-weight: 600; }
+html[data-civr-theme] .civr .civr-btn-primary:hover:not(:disabled) { background: var(--c-primary-hover); box-shadow: none; transform: none; }
+html[data-civr-theme] .civr .civr-btn-primary:active:not(:disabled) { transform: scale(.98); }
+html[data-civr-theme] .civr .civr-btn-ghost { background: var(--c-surface-2); color: var(--c-text); border-color: transparent; }
+html[data-civr-theme] .civr .civr-btn-ghost:hover:not(:disabled) { background: color-mix(in srgb, var(--c-text) 9%, var(--c-card)); color: var(--c-text); border-color: transparent; }
+html[data-civr-theme] .civr .civr-card .civr-card .civr-btn-ghost { background: var(--c-card); border-color: var(--c-border); }
+html[data-civr-theme] .civr .civr-btn-danger { background: transparent; border-color: transparent; color: var(--c-rose); }
+html[data-civr-theme] .civr .civr-btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--c-rose) 10%, transparent); }
+html[data-civr-theme] .civr .civr-btn-sm { min-height: 34px; padding: 5px 12px; font-size: 13.5px; border-radius: 8px; }
+html[data-civr-theme] .civr :focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+
+/* Fields */
+html[data-civr-theme] .civr .civr-input { min-height: 42px; border-radius: var(--radius-ctl); border-color: var(--c-border); font-size: 14.5px; background-color: var(--c-card); box-shadow: none; }
+html[data-civr-theme] .civr .civr-input:hover:not(:focus):not(:disabled) { border-color: var(--c-border-hover); }
+html[data-civr-theme] .civr .civr-input:focus { border-color: var(--c-text); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-text) 10%, transparent); }
+html[data-civr-theme] .civr .civr-input::placeholder { color: var(--c-muted); opacity: .8; }
+
+/* Pills: soft fills, no outlines. Filter chips (buttons) read as chips, the chosen one is solid. */
+html[data-civr-theme] .civr .civr-pill { border-color: transparent; background: var(--c-surface-2); color: var(--c-text-2); min-height: 24px; padding: 2px 9px; font-size: 12px; font-weight: 500; font-family: var(--font-ui); }
+html[data-civr-theme] .civr .civr-card .civr-card .civr-pill:not([class*="civr-pill-"]) { background: var(--c-card); }
+html[data-civr-theme] .civr .civr-pill-on { background: var(--c-accent-soft); color: var(--c-accent); border-color: transparent; }
+html[data-civr-theme="light"] .civr .civr-pill-on { color: #047857; }
+html[data-civr-theme] .civr .civr-pill-ok { background: rgba(16, 185, 129, .1); border-color: transparent; }
+html[data-civr-theme] .civr .civr-pill-warn { background: rgba(245, 158, 11, .12); border-color: transparent; }
+html[data-civr-theme] .civr .civr-pill-bad { background: rgba(244, 63, 94, .1); border-color: transparent; }
+html[data-civr-theme] .civr button.civr-pill, html[data-civr-theme] .civr a.civr-pill { min-height: 34px; padding: 4px 13px; font-size: 13.5px; }
+html[data-civr-theme] .civr button.civr-pill:hover, html[data-civr-theme] .civr a.civr-pill:hover { background: color-mix(in srgb, var(--c-text) 9%, var(--c-card)); }
+html[data-civr-theme] .civr button.civr-pill.civr-pill-on { background: var(--c-primary); color: var(--c-primary-fg); }
+html[data-civr-theme] .civr .civr-pill-count { background: var(--c-accent-strong); }
+
+/* Segmented control: grey track, white thumb. */
+html[data-civr-theme] .civr .civr-seg { background: var(--c-surface-2); padding: 3px; border-radius: 12px; width: fit-content; max-width: 100%; }
+html[data-civr-theme] .civr .civr-seg-btn { border-radius: 9px; min-height: 34px; border: 0; color: var(--c-muted); }
+html[data-civr-theme] .civr .civr-seg-btn:hover { background: transparent; color: var(--c-text); }
+html[data-civr-theme] .civr .civr-seg-on, html[data-civr-theme] .civr .civr-seg-on:hover { background: var(--c-card); color: var(--c-text); border: 0; box-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 0 0 1px var(--c-border); }
+
+/* Tabs: text only, ink underline on the current page. */
+html[data-civr-theme] .civr .civr-tabs, html[data-civr-theme] .civr .civr-tabstrip > div { border-bottom-color: var(--c-border); }
+html[data-civr-theme] .civr .civr-tabs a { font-weight: 500; color: var(--c-muted); padding-left: 2px; padding-right: 2px; margin-right: 20px; }
+html[data-civr-theme] .civr .civr-tabs a > svg { display: none; }
+html[data-civr-theme] .civr .civr-tabs a[aria-current="page"] { color: var(--c-text); border-bottom-color: var(--c-text); }
+html[data-civr-theme] .civr .civr-tabstrip [role="tab"][aria-selected="true"] { color: var(--c-text); border-bottom-color: var(--c-text); }
+
+/* Tables */
+html[data-civr-theme] .civr .civr-table th, html[data-civr-theme="light"] .civr .civr-table th { background: transparent; color: var(--c-muted); font-weight: 500; font-size: 12.5px; border-bottom-color: var(--c-border); }
+html[data-civr-theme] .civr .civr-table td, html[data-civr-theme="light"] .civr .civr-table td { border-bottom-color: var(--c-hairline); color: var(--c-text); }
+html[data-civr-theme] .civr .civr-table tr:hover td { background: var(--c-card-hover); }
+
+/* Page header + shell */
+html[data-civr-theme] .civr .civr-page-head { margin-bottom: 28px; }
+html[data-civr-theme] .civr .civr-page-head h1 { font-size: 26px; }
+@media (min-width: 640px) { html[data-civr-theme] .civr .civr-page-head h1 { font-size: 30px; } }
+html[data-civr-theme] .civr .civr-page-head p { color: var(--c-muted); }
+html[data-civr-theme="light"] .civr [data-civr-topbar] { background: rgba(250, 250, 249, .9); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-bottom-color: transparent; }
+html[data-civr-theme="dark"] .civr [data-civr-topbar] { background: rgba(12, 12, 14, .88); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-bottom-color: transparent; }
+html[data-civr-theme] .civr [data-civr-topbar] .civr-pill { min-height: 34px; background: var(--c-card); border: 1px solid var(--c-border); color: var(--c-text); font-family: var(--font-num); font-weight: 500; }
+html[data-civr-theme] .civr .civr-crumbs { font-size: 13px; }
+
+/* Sidebar keeps its layout; only the colours follow the new palette. */
+html[data-civr-theme="light"] .civr aside.civr-side { background: #fafaf9; border-right-color: var(--c-border); }
+html[data-civr-theme="light"] .civr aside.civr-side .civr-nav-link:hover { background: #f0f0ee; }
+html[data-civr-theme="light"] .civr aside.civr-side .civr-nav-link.active { background: #ffffff; border-color: var(--c-border); color: var(--c-text); box-shadow: 0 1px 2px rgba(24, 24, 27, .05); }
+html[data-civr-theme="light"] .civr aside.civr-side .civr-nav-link.active .civr-nav-sub { color: #047857; background: rgba(4, 120, 87, .08); }
+html[data-civr-theme="light"] .civr aside.civr-side .civr-side-search { background: #ffffff; border-color: var(--c-border); }
+html[data-civr-theme="dark"] .civr .civr-side { background: #0c0c0e; border-right-color: var(--c-border); }
+html[data-civr-theme="dark"] .civr .civr-side .civr-nav-link.active { background: var(--c-card); border-color: var(--c-border); }
+html[data-civr-theme] .civr .civr-side .civr-nav-link.active::before { display: none; }
+html[data-civr-theme] .civr .civr-nav-link.active { color: var(--c-text); }
+
+/* Home: one summary strip, one clear next step. */
+html[data-civr-theme] .civr .civr-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); background: var(--c-card); border: 1px solid var(--c-border); border-radius: var(--radius-card); overflow: hidden; }
+html[data-civr-theme] .civr .civr-stat { display: block; padding: 18px 20px; border-top: 1px solid var(--c-hairline); border-left: 1px solid var(--c-hairline); margin: -1px 0 0 -1px; transition: background-color .15s ease; }
+html[data-civr-theme] .civr a.civr-stat:hover { background: var(--c-card-hover); }
+html[data-civr-theme] .civr .civr-stat-value { font-family: var(--font-num); font-size: 26px; font-weight: 500; letter-spacing: -0.03em; line-height: 1.2; margin-top: 6px; }
+@media (min-width: 900px) { html[data-civr-theme] .civr .civr-stats { grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); } }
+html[data-civr-theme] .civr .civr-next-step { background: var(--c-accent-soft); border-color: transparent; }
+html[data-civr-theme] .civr .civr-next-step .civr-label { color: var(--c-accent) !important; }
+html[data-civr-theme] .civr .civr-task-icon { background: var(--c-surface-2); color: var(--c-text); }
+html[data-civr-theme] .civr .civr-progress > span { background: var(--c-accent); }
+
+/* Old blue/indigo hard-coded bits follow the palette. */
+html[data-civr-theme="light"] .civr .text-\[\#818cf8\], html[data-civr-theme="light"] .civr .text-\[\#6366f1\], html[data-civr-theme="light"] .civr .text-\[\#a5b4fc\], html[data-civr-theme="light"] .civr .text-\[\#818cf8\]\/80, html[data-civr-theme="light"] .civr .hover\:text-\[\#818cf8\]:hover { color: var(--c-accent); }
+html[data-civr-theme="light"] .civr .text-\[\#c7d2fe\], html[data-civr-theme="light"] .civr .text-\[\#e0e7ff\] { color: var(--c-accent); }
+html[data-civr-theme="light"] .civr .civr-table tr:hover td { background: var(--c-card-hover); }
+html[data-civr-theme="light"] .civr .civr-tabstrip::after { background: linear-gradient(to right, rgba(250, 250, 249, 0), var(--c-bg) 75%); }
+html[data-civr-theme="light"] .civr .civr-tabstrip::before { background: linear-gradient(to left, rgba(250, 250, 249, 0), var(--c-bg) 75%); }
+html[data-civr-theme="dark"] .civr .civr-input { background-color: #111113; }
+html[data-civr-theme="dark"] .civr .civr-skel { background: linear-gradient(90deg, #1b1b1e 25%, #26262b 50%, #1b1b1e 75%); background-size: 200% 100%; }
+html[data-civr-theme="light"] .civr .civr-skel { background: linear-gradient(90deg, #f1f1ef 25%, #e8e8e6 50%, #f1f1ef 75%); background-size: 200% 100%; }
+html[data-civr-theme] .civr .civr-empty-art { border-width: 1.5px; background: var(--c-surface-2); }
+html[data-civr-theme] .civr .civr-empty-plus { background: var(--c-card); color: var(--c-text); border: 1px solid var(--c-border); }
+
+/* Motion: quick and small. */
+html[data-civr-theme] .civr .civr-rise { animation-duration: .28s; }
+@keyframes civrRiseAir { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+html[data-civr-theme] .civr .civr-rise { animation-name: civrRiseAir; }
+
+/* Phones: roomier taps, full-width header action, calmer cards. */
+@media (max-width: 767px) {
+  html[data-civr-theme] .civr .civr-btn { min-height: 46px; }
+  html[data-civr-theme] .civr .civr-btn-sm { min-height: 40px; }
+  html[data-civr-theme] .civr .civr-page-head { margin-bottom: 20px; }
+  html[data-civr-theme] .civr .civr-page-actions > .civr-btn { flex: 1 1 auto; }
+  html[data-civr-theme] .civr .civr-card.p-6, html[data-civr-theme] .civr .civr-card.p-8 { padding: 16px; }
+  html[data-civr-theme] .civr [data-testid="mobile-bottom-nav"] { background: color-mix(in srgb, var(--c-bg) 92%, transparent); border-top-color: var(--c-border); }
+  html[data-civr-theme] .civr [data-testid="mobile-bottom-nav"] [aria-current="page"] { color: var(--c-text); font-weight: 600; }
+}
+@media (pointer: coarse) { html[data-civr-theme] .civr .civr-btn-sm { min-height: 40px; } html[data-civr-theme] .civr button.civr-pill { min-height: 40px; } }

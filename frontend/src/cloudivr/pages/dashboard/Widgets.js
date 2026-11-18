@@ -59,10 +59,10 @@ function NumberRow({ n, i, pv, catalog }) {
 
 function NumberTabs({ groups, tab, setTab }) {
   return (
-    <div role="tablist" className="flex gap-2 mt-3 mb-1" data-testid="dashboard-numbers-tabs">
+    <div role="tablist" className="civr-seg flex gap-1 mt-2 mb-3" data-testid="dashboard-numbers-tabs">
       {TABS.filter(([k]) => groups[k].length).map(([k, label]) => (
         <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} data-testid={`dashboard-numbers-tab-${k}`}
-          className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${tab === k ? 'bg-[#818cf8] text-white' : 'bg-[#111] text-[#a1a1aa] hover:text-white'}`}>
+          className={`civr-seg-btn px-3.5 text-sm font-medium transition-colors ${tab === k ? 'civr-seg-on' : ''}`}>
           {label} <span className="opacity-70">{groups[k].length}</span>
         </button>
       ))}
@@ -88,8 +88,8 @@ export function YourNumbers({ nums: voip, balance }) {
   const next = nums.filter(n => n.autoRenew && n.status === 'active' && n.expiresAt && new Date(n.expiresAt) > Date.now()).sort((a, b) => new Date(a.expiresAt) - new Date(b.expiresAt))[0];
   const shortBy = next ? Math.round(((next.planPrice || 0) - balance) * 100) / 100 : 0;
   return (
-    <div className="civr-card p-6" data-testid="dashboard-your-numbers">
-      <div className="flex items-center justify-between mb-2"><div className="font-display text-2xl font-bold">Your numbers</div><Link to={cp('/app/numbers')} className="text-sm text-[#a1a1aa] hover:text-[#818cf8] py-2" data-testid="dashboard-all-numbers-link">All numbers</Link></div>
+    <div data-testid="dashboard-your-numbers">
+      <div className="flex items-center justify-between mb-1"><h2 className="text-lg font-semibold tracking-tight">Your numbers</h2><Link to={cp('/app/numbers')} className="text-sm text-[var(--c-muted)] hover:text-[var(--c-text)] py-2 inline-flex items-center gap-1" data-testid="dashboard-all-numbers-link">All numbers<ChevronRight className="w-4 h-4" /></Link></div>
       {TABS.filter(([k]) => groups[k].length).length > 1 && <NumberTabs groups={groups} tab={tab} setTab={setTab} />}
       {shortBy > 0 && (
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-xl border border-[#fbbf24]/40 bg-[#fbbf24]/5 p-4 my-4" data-testid="dashboard-low-balance-warning">
@@ -98,7 +98,7 @@ export function YourNumbers({ nums: voip, balance }) {
           <Link to={cp(`/app/wallet?need=${shortBy}`)} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="dashboard-low-balance-add-funds">Add funds</Link>
         </div>
       )}
-      <div className="divide-y divide-[var(--c-border)]" role="tabpanel" data-testid={`dashboard-numbers-panel-${tab}`}>
+      <div className="civr-card px-5 divide-y divide-[var(--c-hairline)]" role="tabpanel" data-testid={`dashboard-numbers-panel-${tab}`}>
         {shown.slice(0, 5).map((n, i) => <NumberRow key={n.id || n.phoneNumber} n={n} i={i} pv={pv} catalog={catalog} />)}
       </div>
       {shown.length > 5 && <Link to={cp(tab === 'texting' ? '/app/texting' : '/app/numbers')} className="block text-sm text-[#818cf8] mt-3" data-testid="dashboard-numbers-more">+{shown.length - 5} more</Link>}

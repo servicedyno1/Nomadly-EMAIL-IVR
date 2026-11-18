@@ -144,7 +144,7 @@ export default function Live() {
   const onDone = () => { reload(); refreshSummary(); };
   useHotLeadAlert(data?.feed);
   const header = (
-    <PageHeader label="Home" title="Live activity" sub="What's happening on your numbers right now — forwarded, missed and voicemail calls, softphone and Quick IVR calls, plus every campaign that is calling. Updates every few seconds." testid="live-header">
+    <PageHeader label="Home" title="Live activity" sub="Calls and campaigns happening right now. Updates every few seconds." testid="live-header">
       <Link to={cp('/app/campaigns/new')} className="civr-btn civr-btn-primary" data-testid="live-new-campaign-button"><Plus className="w-4 h-4" />New campaign</Link>
     </PageHeader>
   );

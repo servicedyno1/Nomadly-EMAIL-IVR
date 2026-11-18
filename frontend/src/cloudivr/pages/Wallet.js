@@ -189,7 +189,7 @@ export default function Wallet() {
     return () => clearInterval(t);
   }, [dep, reload, refreshSummary]);
   const header = (
-    <PageHeader label="Account" title="Wallet & billing" sub="Numbers, eSIMs, Texting Numbers, renewals, texts, calls, campaigns and AI agent calls are all paid from here." testid="wallet-header" />
+    <PageHeader label="Account" title="Wallet & billing" sub="Everything you use is paid from this balance." testid="wallet-header" />
   );
   if (loading && !data) return (
     <div>{header}
@@ -203,12 +203,12 @@ export default function Wallet() {
       {header}
       {params.get('mollie') && <MollieReturn ref_={params.get('mollie')} onPaid={() => { reload(); refreshSummary(); }} />}
       {need > 0 && <NeedBanner need={need} forNum={forNum} />}
-      <div className="grid lg:grid-cols-3 gap-4">
-        <div className="civr-card p-6 flex flex-col justify-between lg:self-start lg:min-h-[280px]" data-testid="wallet-balance-card">
-          <div className="flex items-center justify-between"><span className="civr-label">Balance</span><WalletIcon className="w-5 h-5 text-[#818cf8]" /></div>
-          <div className="font-mono text-4xl xl:text-5xl whitespace-nowrap mt-6" data-testid="wallet-balance">{money(data.balance)}</div>
+      <div className="grid lg:grid-cols-3 gap-x-10 gap-y-6 items-start">
+        <div className="lg:sticky lg:top-20" data-testid="wallet-balance-card">
+          <div className="flex items-center gap-1.5 text-[13px] text-[var(--c-muted)]"><WalletIcon className="w-3.5 h-3.5" />Balance</div>
+          <div className="font-mono text-4xl xl:text-5xl whitespace-nowrap mt-2" data-testid="wallet-balance">{money(data.balance)}</div>
           <HeldNote held={data.held} />
-          <div className="text-xs text-[#a1a1aa] mt-2">USD · top-ups appear once the payment is confirmed</div>
+          <div className="text-[13px] text-[var(--c-muted)] mt-2">USD · top-ups appear once the payment is confirmed</div>
         </div>
         <div className="lg:col-span-2"><TopUp coins={data.coins} min={data.minTopup} initial={need ? Math.max(data.minTopup, Math.ceil(need)) : Number(params.get('amount')) || 50} onCreated={(d) => { setDep(d); reload(); }} /></div>
       </div>

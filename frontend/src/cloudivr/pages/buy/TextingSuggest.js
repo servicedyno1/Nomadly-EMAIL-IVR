@@ -24,7 +24,7 @@ export function TextingSuggest({ items, onPick }) {
       <div className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="w-4 h-4 text-[#1d6fd8]" aria-hidden="true" />Not sure which country? Ask Emily</div>
       <form className="mt-3 flex flex-col sm:flex-row gap-2" onSubmit={e => { e.preventDefault(); ask(); }}>
         <input className="civr-input flex-1" maxLength={500} value={text} onChange={e => setText(e.target.value)} placeholder="Who will you text, and where are they?" aria-label="Who will you text" data-testid="texting-suggest-input" />
-        <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="texting-suggest-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}Suggest</button>
+        <button className="civr-btn civr-btn-ghost" disabled={busy} data-testid="texting-suggest-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}Suggest</button>
       </form>
       {!out && !busy && <div className="mt-2 -mx-1 px-1 flex gap-2 overflow-x-auto sm:flex-wrap sm:overflow-visible pb-1">{EXAMPLES.map((x, i) => <button key={x} type="button" onClick={() => { setText(x); ask(x); }} className="shrink-0 whitespace-nowrap text-xs rounded-full border px-3 py-1 border-[var(--c-border)] text-[var(--c-muted)] hover:border-current" data-testid={`texting-suggest-example-${i}`}>{x}</button>)}</div>}
       {out && (

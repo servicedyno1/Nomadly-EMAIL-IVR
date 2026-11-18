@@ -87,7 +87,7 @@ export default function RenewalCalendar() {
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [picked, setPicked] = useState(null);
   const byDay = useMemo(() => (data?.entries || []).reduce((m, e) => { const k = dayKey(e.date); (m[k] = m[k] || []).push(e); return m; }, {}), [data]);
-  const header = <PageHeader label="Wallet" title="Renewal calendar" sub="Every upcoming charge by date — plans, extra numbers, Texting Numbers, eSIMs and fax numbers — and what your wallet covers." testid="renewal-calendar-header" />;
+  const header = <PageHeader label="Wallet" title="Renewal calendar" sub="Every upcoming charge by date, and what your wallet covers." testid="renewal-calendar-header" />;
   if (error && !data) return <div data-testid="renewal-calendar-page">{header}<ErrorNote error={error} onRetry={reload} /></div>;
   if (!data) return <div data-testid="renewal-calendar-page">{header}<SkeletonPage header={false} /></div>;
   const mk = monthKey(month), inMonth = data.entries.filter(e => monthKey(e.date) === mk);

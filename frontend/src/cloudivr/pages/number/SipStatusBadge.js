@@ -3,9 +3,9 @@ import { api, enc } from '../../api';
 
 const ago = (d) => { const m = Math.max(0, Math.round((Date.now() - new Date(d)) / 60000)); return m < 1 ? 'just now' : m < 90 ? `${m} min ago` : m < 2880 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
 const LOOK = {
-  signed_in: { dot: 'bg-[#34d399]', ring: 'border-[#065f46] bg-[#022c22] text-[#6ee7b7]', label: 'Signed in' },
-  signed_out: { dot: 'bg-[#f87171]', ring: 'border-[#7f1d1d] bg-[#2a0a0a] text-[#fca5a5]', label: 'Not signed in' },
-  unknown: { dot: 'bg-[#a1a1aa]', ring: 'border-[#3f3f46] bg-white/5 text-[#d4d4d8]', label: 'Checking…' },
+  signed_in: { dot: 'bg-[#34d399]', ring: 'civr-pill-ok border-transparent', label: 'Signed in' },
+  signed_out: { dot: 'bg-[#f87171]', ring: 'civr-pill-bad border-transparent', label: 'Not signed in' },
+  unknown: { dot: 'bg-[#a1a1aa]', ring: 'border-transparent bg-[var(--c-surface-2)] text-[var(--c-muted)]', label: 'Checking…' },
 };
 
 // Live "is a phone app signed in to this login" pill; refreshes every 30 s.
