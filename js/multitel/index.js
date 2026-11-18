@@ -52,6 +52,46 @@ const searched = new Map() // e164 → { priceId, features, needsReg, monthly }
 const searchedMeta = (n) => searched.get(n) || null
 const remember = (n, meta) => { if (meta) searched.set(n, meta) }
 const cheapest = (prices) => [...(prices || [])].sort((a, b) => (+a.channels - +b.channels) || (+a.monthly_price - +b.monthly_price))[0]
+// Prefixes of one city, cached for 6 hours.
+const prefixCache = new Map() // area uuid → { at, list }
+async function prefixesOf(a) {
+  const c = prefixCache.get(a.uuid)
+  if (c && Date.now() - c.at < 6 * 3600000) return c.list
+  const pre = (await api('get', `getprefixes/${a.uuid}`)).response
+  const list = Array.isArray(pre) ? pre : []
+  prefixCache.set(a.uuid, { at: Date.now(), list })
+  return list
+}
+const npaOf = (p) => String(p.prefix || p.name || '').replace(/\D/g, '').replace(/^1/, '').slice(0, 3)
+// → [[area, prefix]] with stock in exactly this area code, most stock first.
+async function areaCodeHits(list, areaCode) {
+  const hits = []
+  for (let i = 0; i < list.length; i += 16) {
+    const got = await Promise.all(list.slice(i, i + 16).map(a => prefixesOf(a).then(pre => pre.filter(p => npaOf(p) === String(areaCode) && +p.available > 0 && String(p.returns_numbers) !== '0').map(p => [a, p])).catch(() => [])))
+    hits.push(...got.flat())
+  }
+  // City prefixes ("+1415") hand out numbers reliably; the state-wide blocks ("+1415981") often list stock they can't give.
+  const city = (h) => (String(h[1].prefix || h[1].name || '').replace(/\D/g, '').length <= 4 ? 0 : 1)
+  return hits.sort((x, y) => city(x) - city(y) || +y[1].available - +x[1].available)
+}
+function toHit(n, a) {
+  const price = cheapest(n.price); if (!price) return null
+  const num = e164(n.number), f = [].concat(n.features || []).map(String)
+  const sms = f.some(x => /sms/i.test(x)) || !!+a.sms_coverage
+  searched.set(num, { priceId: price.uuid, features: f, needsReg: String(n.restrictions?.needs_registration) === '1', monthly: +price.monthly_price })
+  return { record_type: 'available_phone_number', phone_number: num, region_information: [{ region_type: 'location', region_name: [a.name, stateOf(n.info?.state)].filter(x => x && x !== a.name).join(', ') }],
+    cost_information: { currency: 'USD', monthly_cost: String(price.monthly_price), upfront_cost: String(price.setup_price || 0) },
+    _capabilities: { voice: true, sms, mms: false, fax: false }, _provider: 'multitel', _needsRegistration: String(n.restrictions?.needs_registration) === '1' }
+}
+async function numbersFrom(pairs, limit) {
+  const out = []
+  for (const [a, p] of pairs) {
+    if (out.length >= limit) break
+    const nums = (await api('get', `getnumbers/${p.uuid}/${Math.min(limit - out.length, 6)}`)).response
+    for (const n of Array.isArray(nums) ? nums : []) { const h = toHit(n, a); if (h && !out.some(x => x.phone_number === h.phone_number)) out.push(h) }
+  }
+  return out
+}
 async function searchNumbers(countryCode, numberType = 'local', areaCode = null, limit = 5) {
   if (!selling()) return []
   if (!enabled()) return []
@@ -61,7 +101,14 @@ async function searchNumbers(countryCode, numberType = 'local', areaCode = null,
   if (areaCode && ['US', 'CA'].includes(cc) && !state) return []
   const re = TYPES[numberType] || TYPES.local
   try {
-    const pool = (await areas(cc)).filter(a => re.test(a.number_type || a.area_type || '') && +a.available > 0 && (!state || a.state_iso === state)).sort((a, b) => +b.available - +a.available).slice(0, 8)
+    const inType = (await areas(cc)).filter(a => re.test(a.number_type || a.area_type || '') && +a.available > 0 && (!state || a.state_iso === state)).sort((a, b) => +b.available - +a.available)
+    // An area code: only the cities whose prefixes really start with it (all of that state's cities are checked, cached 6 h).
+    const exact = state ? await areaCodeHits(inType, areaCode) : []
+    if (exact.length) {
+      const got = (await numbersFrom(exact.slice(0, 8), limit + 2)).filter(n => !require('../pending-orders').isHeld(n.phone_number)).slice(0, limit)
+      if (got.length) return got
+    }
+    const pool = inType.slice(0, 8)
     const out = []
     for (const a of pool.sort(() => Math.random() - 0.5).slice(0, 6)) {
       if (out.length >= limit) break

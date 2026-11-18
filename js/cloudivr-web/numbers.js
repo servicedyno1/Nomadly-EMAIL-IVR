@@ -620,7 +620,7 @@ function routes(router, deps) {
         notifyAdmin(`🌐 CloudIVR web: paid ${country} number ${phone} — collecting verification\nweb account: ${chatId} (${email})\nplan: ${plan.name} $${price}`)
         return { status: 202, body: { verification: true, sessionId: order.sessionId, phoneNumber: phone, substitutedFrom: null, balance: await w.balance(chatId) } }
       }
-      if (!order) throw new Error('The number could not be reserved — it may have just been taken. Pick another one.')
+      if (!order) throw new Error(hit?.provider === 'signalwire' && require('../signalwire/rest').isFull() ? 'We can’t activate numbers in this area right now. Search again to see the numbers we can switch on today.' : 'The number could not be reserved — it may have just been taken. Pick another one.')
       if (order._retriedNumber) selected = order._retriedNumber
       const viaMultitel = order._provider === 'multitel' || String(order.id || '').startsWith('mt:')
       const viaInfobip = viaMultitel || order._provider === 'infobip' || String(order.id || '').startsWith('ib:') // own routing, no Telnyx steps

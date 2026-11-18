@@ -123,4 +123,9 @@ async function buyWithBackup(primary, phoneNumber, retry) {
   return null
 }
 
-module.exports = { start, tick, isDown, isLow, snapshot, buyWithBackup, alert, LOW, STOP }
+// A provider refused a buy because the account holds its maximum of numbers: one alert per 6 h.
+function numbersFull(p, count, phone) {
+  if (once(`${p}-numbers-full`, 6 * 3600000)) alert(`🚨 [Providers] ${p} refused to sell ${phone}: the account is at its maximum of phone numbers (${count} held). The customer was refunded and ${p} numbers are hidden from search for 2 hours. Ask ${p} support to raise the number limit, or release unused numbers.`)
+}
+
+module.exports = { start, tick, isDown, isLow, snapshot, buyWithBackup, alert, numbersFull, LOW, STOP }
