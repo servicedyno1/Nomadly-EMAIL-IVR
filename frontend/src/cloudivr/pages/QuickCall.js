@@ -22,7 +22,7 @@ import { planFor } from '../PlanFeatures';
 import { OwnerName } from './quick/OwnerName';
 import { ShowAsSelect } from '../CallerIdPick';
 import { Assist } from '../Assist';
-import { FormFold, emilyEvent } from '../Emily';
+import { FormFold, emilyEvent, missingFields } from '../Emily';
 import { OutboundFlow } from './number/IvrFlow';
 
 const QUICK_LABELS = { targets: 'Numbers to call', script: 'Script', mode: 'Key press action', transferTo: 'Connect to', transferBackups: 'Backups', activeKeys: 'Keys', stopKey: 'Stop-calls key', otp: 'Code settings', menu: 'Key menu', holdMusic: 'Hold music' };
@@ -137,7 +137,15 @@ export default function QuickCall() {
   const scheduleAt = can.ivrSchedule ? f.scheduleAt : '';
 
   const go = async (e) => {
-    e.preventDefault(); setBusy(true); setError(null); setResult(null);
+    e.preventDefault(); setError(null); setResult(null);
+    const miss = missingFields('quick', [
+      [String(f.targets || '').trim(), 'the number(s) to call', 'quick-call-to-input'],
+      [f.source === 'audio' ? !!f.audioId : !!String(f.script.text || '').trim(), f.source === 'audio' ? 'the recording they hear' : 'the message they hear', f.source === 'audio' ? 'quick-call-audio-select' : 'quick-script-text'],
+      [f.mode !== 'transfer' || !!String(f.transferTo || '').trim(), 'the number to connect them to', 'quick-call-transfer-input'],
+      [f.mode !== 'menu' || (f.menu || []).length > 0, 'at least one menu key', 'quick-menu'],
+    ]);
+    if (miss) { setError(miss); toast.error(miss.message); return; }
+    setBusy(true);
     try {
       const d = await api('/calls/quick', { method: 'POST', body: toBody({ ...f, scheduleAt }, caller.phoneNumber) });
       setResult(d); setStamp(s => s + 1); draft.clear();

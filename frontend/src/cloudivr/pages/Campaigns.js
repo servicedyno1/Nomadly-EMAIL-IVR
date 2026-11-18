@@ -25,6 +25,7 @@ import { ShowAsSelect, RotateCallerIds } from '../CallerIdPick';
 import { useBalance, ShortNote } from '../WalletPay';
 import { VoicemailScript } from './VoicemailScript';
 import { Assist } from '../Assist';
+import { FormFold, emilyEvent, missingFields } from '../Emily';
 import { OutboundFlow } from './number/IvrFlow';
 
 const CAMPAIGN_LABELS = { name: 'Name', script: 'Script', mode: 'Key press action', transferNumber: 'Transfer to', transferBackups: 'Backups', activeKeys: 'Keys', stopKey: 'Stop-calls key', menu: 'Key menu', concurrency: 'Calls at once', holdMusic: 'Hold music', repeat: 'Repeat', dailyLimit: 'Daily limit' };
@@ -324,7 +325,15 @@ export function CampaignNew() {
     return d.audio.id;
   };
   const create = async (e) => {
-    e.preventDefault(); setBusy('create'); setError(null);
+    e.preventDefault(); setError(null);
+    const miss = missingFields('campaign', [
+      [fromList ? !!f.listId : !!f.leads.trim(), fromList ? 'the contact list to call' : 'the numbers to call', fromList ? 'campaign-list-select' : 'campaign-leads-input'],
+      ...(isAi ? [] : [[!!f.audioId || !!String(script?.text || '').trim(), 'the message they hear', script ? 'campaign-script-text' : 'campaign-audio-select'],
+        [f.mode !== 'transfer' || !!f.transferNumber.trim(), 'the number to transfer to', 'campaign-transfer-input'],
+        [f.mode !== 'menu' || (f.menu || []).length > 0, 'at least one menu key', 'campaign-menu']]),
+    ]);
+    if (miss) { setError(miss); toast.error(miss.message); return; }
+    setBusy('create');
     try {
       if (!isAi && f.vmMode === 'script' && !vmScript.audioId) throw new Error('Create the voicemail audio first, or pick another option.');
       if (!isAi && f.vmMode === 'other' && !f.voicemailAudioId) throw new Error('Pick the clip to leave on voicemail, or choose “Leave my message”.');
@@ -340,7 +349,7 @@ export function CampaignNew() {
       if (d.doNotCall) toast.message(`${d.doNotCall} number(s) are on your do-not-call list and will be skipped`);
       u.reset();
       nav(cp(`/app/campaigns/${d.campaign.id}`));
-    } catch (err) { setError(err); } finally { setBusy(''); }
+    } catch (err) { setError(err); emilyEvent('applied', 'campaign'); } finally { setBusy(''); }
   };
 
   return (
@@ -350,6 +359,9 @@ export function CampaignNew() {
       <form onSubmit={create} className="grid lg:grid-cols-2 gap-4" {...u.bind}>
         {!isAi && <CampaignAssist f={f} setF={setF} script={script} setScript={setScript} />}
         {!isAi && <div className="lg:col-span-2"><OutboundFlow kind="campaign" testid="campaign-flow" readyLabel="Ready to save" config={{ name: f.name, script: script?.text || '', mode: f.mode, transferNumber: f.transferNumber, activeKeys: f.activeKeys, stopKey: f.stopKey || '', menu: f.menu, holdMusic: f.holdMusic }} context={{ hasAudio: !!f.audioId, ...(est ? { contacts: est.count } : {}) }} /></div>}
+        <div className="lg:col-span-2">
+        <FormFold screen="campaign" off={isAi} open={!!(f.listId || f.leads)} label="Fill in the campaign yourself: who to call, message, keys and schedule" testid="campaign-fold">
+        <div className="grid lg:grid-cols-2 gap-4">
         <div className="civr-card p-6 space-y-6">
           <Field label="Campaign name (optional)" hint="Shown in your campaign list and reports. Leave empty to use the message name."><input className="civr-input" maxLength={80} value={f.name} onChange={set('name')} placeholder="e.g. June follow-ups" data-testid="campaign-name-input" /></Field>
           <Field label="Caller ID"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="campaign-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{n.phoneNumber}</option>)}</select></Field>
@@ -385,9 +397,16 @@ export function CampaignNew() {
           <Field label="Schedule (optional)" hint={f.repeat ? 'First run. Leave empty to start it yourself — the next runs follow at the same time. You’re notified in Inbox when each run starts and when it finishes.' : 'Leave empty to start manually. Scheduled campaigns start by themselves — you’re notified in Inbox when calling starts and when it finishes.'}><DateTimePicker value={f.scheduledFor} onChange={set("scheduledFor")} minMinutes={2} testid="campaign-schedule" /></Field>
           <RunPlanFields f={f} set={set} />
           {!isAi && f.mode !== 'report_only' && <div className="flex items-center justify-between"><span className="text-sm">Hold music during transfer</span><Toggle checked={f.holdMusic} onChange={set('holdMusic')} testid="campaign-hold-music-toggle" label="Hold music during transfer" /></div>}
+        </div>
+        </div>
+        </FormFold>
+        </div>
+        <div className="lg:col-span-2 civr-card p-4 sm:p-6 space-y-3" data-testid="campaign-save-bar">
           <ErrorNote error={error} testid="campaign-create-error" />
-          <button className="civr-btn civr-btn-primary w-full" disabled={!!busy && busy !== 'est'} data-testid="campaign-create-button">{(busy === 'create' || busy === 'voice') && <Loader2 className="w-4 h-4 animate-spin" />}{busy === 'voice' ? 'Making AI voice…' : 'Save campaign'}</button>
-          <UnsavedPill show={u.dirty} testid="campaign-unsaved-pill" />
+          <div className="flex flex-wrap items-center gap-3">
+            <button className="civr-btn civr-btn-primary" disabled={!!busy && busy !== 'est'} data-testid="campaign-create-button">{(busy === 'create' || busy === 'voice') && <Loader2 className="w-4 h-4 animate-spin" />}{busy === 'voice' ? 'Making AI voice…' : 'Save campaign'}</button>
+            <UnsavedPill show={u.dirty} testid="campaign-unsaved-pill" />
+          </div>
         </div>
       </form>
     </div>

@@ -24,9 +24,25 @@ export const EmilyFace = ({ className = 'w-9 h-9' }) => (
   </span>
 );
 
+// Save pressed with required details empty: unfold the form, name what's missing and jump to the first gap.
+// checks: [[filled, label, testid]] → an Error to show (or null when everything is there).
+export function missingFields(screen, checks) {
+  const miss = checks.filter(([ok]) => !ok);
+  if (!miss.length) return null;
+  emilyEvent('applied', screen);
+  setTimeout(() => {
+    miss.forEach(([, , id]) => { const el = document.querySelector(`[data-testid="${id}"]`); if (!el) return; el.classList.add('civr-missing'); const off = () => { el.classList.remove('civr-missing'); el.removeEventListener('input', off); el.removeEventListener('change', off); }; el.addEventListener('input', off); el.addEventListener('change', off); });
+    const first = document.querySelector(`[data-testid="${miss[0][2]}"]`);
+    if (first) { first.scrollIntoView({ behavior: 'smooth', block: 'center' }); first.focus?.({ preventScroll: true }); }
+  }, 60);
+  const names = miss.map(m => m[1]);
+  const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
+  return Object.assign(new Error(`Almost there — add ${list} before saving. We opened the form and marked ${names.length > 1 ? 'them' : 'it'} for you.`), { code: 'missing_fields', missing: names });
+}
+
 // The detailed settings under Emily: folded while chatting, opened by the customer or as soon as Emily fills them in.
-// `open` (optional) starts it unfolded, e.g. when there is already a saved setup to look at.
-export function FormFold({ screen, open: startOpen = false, label = 'Review or edit the details yourself', children, testid }) {
+// `open` (optional) starts it unfolded, e.g. when there is already a saved setup to look at. `off` shows the form plainly.
+export function FormFold({ screen, open: startOpen = false, off = false, label = 'Review or edit the details yourself', children, testid }) {
   const [mode] = useEmilyMode(screen);
   const [open, setOpen] = useState(startOpen);
   const id = testid || `fold-${screen}`;
@@ -35,7 +51,7 @@ export function FormFold({ screen, open: startOpen = false, label = 'Review or e
     window.addEventListener(EVT, on);
     return () => window.removeEventListener(EVT, on);
   }, [screen]);
-  if (mode !== 'chat') return <>{children}</>;
+  if (mode !== 'chat' || off) return <>{children}</>;
   return (
     <div className="civr-fold" data-testid={id} data-open={open ? 'yes' : 'no'}>
       <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} className="civr-fold-toggle w-full flex items-center gap-3 text-left min-h-[48px] px-4 rounded-xl border border-[var(--c-border)] hover:bg-[var(--c-card-hover)] transition-colors" data-testid={`${id}-toggle`}>

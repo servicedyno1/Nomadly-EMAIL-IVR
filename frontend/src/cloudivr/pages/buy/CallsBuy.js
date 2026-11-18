@@ -168,6 +168,12 @@ export function CallsBuy({ extraOf, onStage }) {
   const slots = extra ? (extra.unlimited ? Infinity : extra.left ?? Math.max(0, extra.limit - extra.used)) : 0;
   const pick = extraOf ? (picks.length ? { ...picks[0], phoneNumber: picks.length > 1 ? `${picks.length} numbers` : picks[0].phoneNumber } : null) : single;
   const { data: open } = useApi('/numbers/orders?open=1');
+  // Start the search in the background as soon as the area code is typed, so pressing Search answers straight away.
+  useEffect(() => {
+    if (q.areaCode && q.areaCode.length !== 3) return undefined;
+    const t = setTimeout(() => api(`/numbers/search/warm?country=${q.country}&type=${q.type}${q.areaCode ? `&areaCode=${q.areaCode}` : ''}`).catch(() => {}), 250);
+    return () => clearTimeout(t);
+  }, [q.country, q.type, q.areaCode]);
   const [use] = useState(rememberedUse);
   const stage = single || picks.length || res?.request ? 3 : 2;
   useEffect(() => { onStage?.(stage); }, [stage, onStage]);

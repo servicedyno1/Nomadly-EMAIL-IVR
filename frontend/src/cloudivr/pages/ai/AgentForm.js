@@ -11,7 +11,7 @@ import { OpeningPreview, ScriptGuide } from './OpeningPreview';
 import { HoursFields } from './HoursFields';
 import { KeypadFields, CallMeTest } from './SmartKeys';
 import { BuilderChat, SpeedField, AGENT_SCREEN } from './BuilderChat';
-import { FormFold, emilyEvent } from '../../Emily';
+import { FormFold, emilyEvent, missingFields } from '../../Emily';
 
 export const EMPTY_AGENT = {
   name: '', businessName: '', language: 'en', voice: 'marin', goal: '', greeting: '', firstMessage: '', waitForHello: true, knowledge: '', transferTo: '', takeMessages: true, maxMinutes: 5, record: true, discloseAi: true, keys: [], holdMusic: true, speed: 1,
@@ -67,7 +67,10 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
   const u = useUnsaved(f);
   const set = (k, v) => setF(x => ({ ...x, [k]: v }));
   const save = async (e) => {
-    e.preventDefault(); setBusy(true); setError(null);
+    e.preventDefault(); setError(null);
+    const miss = missingFields(AGENT_SCREEN, [[String(f.name || '').trim(), rec ? 'a name for the receptionist' : 'an agent name', 'ai-agent-name-input'], [String(f.goal || '').trim().length >= 10, 'what it should do (one sentence is enough)', 'ai-agent-goal-input']]);
+    if (miss) { setError(miss); toast.error(miss.message); return; }
+    setBusy(true);
     try {
       const d = await api(f.id ? `/ai-agents/${f.id}` : '/ai-agents', { method: f.id ? 'PUT' : 'POST', body: f });
       u.reset(); toast.success(rec ? 'Receptionist saved' : 'Agent saved'); onSaved(d.agent);

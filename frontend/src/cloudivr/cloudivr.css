@@ -404,3 +404,5 @@ html[data-civr-theme="light"] .civr-portal {
 .civr .civr-assist-in { animation: civr-assist-in .22s ease-out both; }
 @keyframes civr-assist-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .civr .civr-assist-in { animation: none; } }
+.civr-missing { box-shadow: 0 0 0 2px #f87171 !important; border-color: #f87171 !important; animation: civrMissing .9s ease-in-out 2; }
+@keyframes civrMissing { 50% { box-shadow: 0 0 0 5px rgba(248, 113, 113, .35); } }

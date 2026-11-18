@@ -458,6 +458,35 @@ function routes(router, deps) {
     return false
   }
 
+  // Infobip / MultiTEL countries search that provider directly; US/CA go through the provider chain.
+  const rawSearch = async ({ country, type, areaCode, texting: sms, own }) => {
+    const found = own === 'infobip' ? await require('../infobip').searchNumbers(country, type, areaCode, 12, { sms: sms && !!texting.offerOf(country, type) })
+      : own === 'multitel' ? await require('../multitel').searchNumbers(country, type, areaCode, 12)
+        : await telnyxApi.searchNumbers(country, type, areaCode, 12)
+    // Nothing listable from the main provider (e.g. MultiTEL Germany/France only assigns on order): try the other one.
+    if (['multitel', 'infobip'].includes(own) && !found.length && !areaCode) {
+      const other = own === 'multitel' ? 'infobip' : 'multitel'
+      const ok = require(`../${other}`).enabled() && !require('../provider-health').isDown(other)
+      if (ok) found.push(...(other === 'infobip' ? await require('../infobip').searchNumbers(country, type, null, 12).catch(() => []) : await require('../multitel').searchNumbers(country, type, null, 12).catch(() => [])))
+    }
+    return found
+  }
+  const searchArgs = (country, type, areaCode, sms) => ({ country, type, areaCode: areaCode || null, texting: !!sms, own: ownProvider(countries().find(x => x.code === country), type) })
+  const hot = require('./search-warm').create(rawSearch, { log: (m) => log(`[CloudIVR-Web] number search cache: ${m}`) })
+  // A cached hit the provider no longer remembers (bought or refused since) can't be ordered any more.
+  const stillOffered = (n) => (n._provider === 'multitel' ? require('../multitel').isMtSearched(n.phone_number) : n._provider === 'infobip' ? require('../infobip').isIbSearched(n.phone_number) : true)
+  if (String(process.env.NUMBER_SEARCH_WARM || 'true').toLowerCase() !== 'false') hot.start(searchArgs)
+
+  // Typed a full area code: start that search now so pressing Search answers straight away.
+  router.get('/numbers/search/warm', (req, res) => {
+    const country = String(req.query.country || 'US').toUpperCase()
+    const c = countries().find(x => x.code === country)
+    const type = String(req.query.type || c?.types?.[0] || 'local')
+    const areaCode = /^\d{3}$/.test(String(req.query.areaCode || '')) ? String(req.query.areaCode) : null
+    if (c && c.types.includes(type) && !c.offers?.[type]?.request) hot.prefetch(searchArgs(country, type, ['US', 'CA'].includes(country) && type === 'local' ? areaCode : null, req.query.texting === '1'))
+    res.status(202).json({ ok: true })
+  })
+
   router.get('/catalog', (req, res) => res.json(catalog()))
 
   router.get('/numbers/search', h(async (req, res) => {
@@ -473,16 +502,7 @@ function routes(router, deps) {
     const verification = own || offer ? { required: false } : await verificationInfo(country, type, `${c.flag} ${c.name}`)
     if (verification.error) return bad(res, 424, 'lookup_failed', verification.error)
     if (verification.required && !verification.supported) return bad(res, 400, 'unsupported', `${c.name} ${TYPE_NAMES[type] || type} numbers can't be ordered online right now. Pick another country or type.`)
-    // Infobip / MultiTEL countries search that provider directly; US/CA go through the provider chain.
-    const found = await unheld(own === 'infobip' ? await require('../infobip').searchNumbers(country, type, areaCode, 12, { sms: req.query.texting === '1' && !!texting.offerOf(country, type) })
-      : own === 'multitel' ? await require('../multitel').searchNumbers(country, type, areaCode, 12)
-        : await telnyxApi.searchNumbers(country, type, areaCode, 12))
-    // Nothing listable from the main provider (e.g. MultiTEL Germany/France only assigns on order): try the other one.
-    if (['multitel', 'infobip'].includes(own) && !found.length && !areaCode) {
-      const other = own === 'multitel' ? 'infobip' : 'multitel'
-      const ok = require(`../${other}`).enabled() && !require('../provider-health').isDown(other)
-      if (ok) found.push(...await unheld(other === 'infobip' ? await require('../infobip').searchNumbers(country, type, null, 12).catch(() => []) : await require('../multitel').searchNumbers(country, type, null, 12).catch(() => [])))
-    }
+    const found = await unheld((await hot.get(searchArgs(country, type, areaCode, req.query.texting === '1'))).list.filter(stillOffered))
     if (own === 'multitel' && !found.length && require('../multitel').isBlocked()) return bad(res, 503, 'provider_unavailable', 'Numbers in this country are temporarily unavailable. Please try again later.')
     if (own && !found.length) return res.json({ numbers: [], fallback: null, unavailable: true, message: `No ${c.name} ${TYPE_NAMES[type] || type} numbers can be picked online right now. Try another type, or message support and we'll order one for you.` })
     const results = found.map(n => ({

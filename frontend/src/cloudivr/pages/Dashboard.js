@@ -13,6 +13,7 @@ import { ForYou, ReviewPrompt } from './dashboard/ForYou';
 import { PurposeHome } from './dashboard/PurposeHome';
 import { TextingHome } from './dashboard/TextingHome';
 import { TaskCards, SetupChecklist } from './dashboard/GuidedHome';
+import { NextStep } from './dashboard/NextStep';
 
 function Stat({ icon: Icon, label, value, to, testid, delay, title }) {
   const body = (
@@ -90,6 +91,7 @@ export default function Dashboard() {
       {!s || (fresh && !hosted) ? <SkeletonPage header={false} cards={3} rows={3} /> : textingOnly ? <TextingHome items={hosted.items} balance={s.balance} /> : fresh ? <><PurposeHome /><div className="mt-8"><GetStarted balance={s.balance} /></div>{promos}<Guided nums={[]} /><More><ProductGrid /></More></> : (
         <>
           <Stats s={s} />
+          <NextStep s={s} nums={nums?.numbers} />
           {promos}
           <YourNumbers nums={nums?.numbers} balance={s.balance} />
           <div className="mt-6 max-w-xl"><SetupChecklist nums={nums?.numbers} /></div>
