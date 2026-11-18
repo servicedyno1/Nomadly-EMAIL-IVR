@@ -1,0 +1,20 @@
+{
+  "summary": "Tested the renewal calendar (API + web page), the live-copy regression from iter_316, the single-extra plan lock, and the Copy settings select-all/none control. 6/6 pytest pass (one wallet top-up needed first). Critical iter_316 bugs are fixed: delete-after-rebuy now releases the ACTIVE entry (used drops, number disappears), auto-renew / recording / copy-settings now write to the live copy, and the leftover +17076220116 was deletable in one call. Two concurrent single-pick POST /numbers/:phone/extra requests no longer race past the limit (one 201, one 400; no 500). GET /renewals/calendar returns the right shape, entries sorted, parts[] sums to the plan charge, due30 == sum of charges <=30d, shortBy30 math holds, projected flag on later months. Web /cloudivr/app/renewals renders every required data-testid, UI month total matches the API, previous-month button disabled on the current month, no horizontal overflow at 390px, day cells filter to that day and 'Show month' resets. Entry points from Wallet (renewals-calendar-link) and number Billing tab (extra-renewal-calendar-link) both present. Copy settings select-none: '0 of 19 selected', Apply disabled; select-all: '19 of 19'; switching source re-selects all others. No issues found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_cloudivr_renewal_iter317.py"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Positional '$' writes have been migrated to $elemMatch with status: {$ne:'released'} — verified behaviourally for auto-renew, delete-extra-line and the end-to-end live-copy flow.",
+    "numbers.js purchase() now wraps BOTH single and multi picks in the plan lock + slot re-check (planLocked flag toggles on picks.length>1). Verified: parallel singles → 201 + 400, used stays within limit.",
+    "renewal-calendar.entries() plan branch correctly bundles only onPlanDate extras into parts[] and emits 'days up to the plan date' separate charges for extras on earlier dates — the iter_316 'summary over-counts' concern is now addressed at the calendar level."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_renewal_iter317.py"],
+  "success_rate": {"backend": "100% (6/6 pytest)", "frontend": "100%"},
+  "test_credentials": "civr.uxtest@example.com / UxTest#2026 (main +13341112222)",
+  "seed_data_creation": "Top-up of +$200 to civr.uxtest wallet via direct Mongo update (preview dry-run has no simulated credit route, only a placeholder address). Bought and deleted TEST extras through the API during testing. Deleted leftover +17076220116 from iter_316. Final wallet ~$114. No seed numbers were overwritten.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "pytest -n0; set REACT_APP_BACKEND_URL before running. Wallet on civr.uxtest hovered around $114 at end; top up via mongosh ($inc usdIn) if more buys are needed. +17076220116 is cleaned up. Node service has no hot reload — run 'sudo supervisorctl restart nodejs' after any /app/js change.",
+  "rca of the issue": "N/A — all iter_316 critical and minor issues verified fixed."
+}
