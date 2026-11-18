@@ -89,7 +89,7 @@ function createTenDlc({ db, h, adminRequire, notify, notifyAdmin = () => {}, wal
       if (v.error) return res.status(400).json({ error: 'invalid', message: v.error })
       if (!(await usNumbers(req.webChatId)).length) return res.status(400).json({ error: 'no_us_numbers', message: 'US texting registration is only needed for US local numbers. Get one first, then register.' })
       // One-off $49 service fee (refunded if we reject it); carrier fees are separate.
-      if (!cur?.feePaid && FEE > 0 && !(await w.debit(req.webChatId, FEE))) return res.status(402).json({ error: 'insufficient_balance', message: `The registration service costs $${FEE}. Top up your wallet first.` })
+      if (!cur?.feePaid && FEE > 0 && !(await w.debit(req.webChatId, FEE))) return res.status(402).json({ error: 'insufficient_balance', message: `The registration service costs $${FEE}.`, cost: FEE })
       if (!cur?.feePaid && FEE > 0) await db.collection('transactions').insertOne({ _id: `tendlc-${req.webChatId}-${Date.now()}`, chatId: String(req.webChatId), type: 'tendlc-service', amount: FEE, currency: 'USD', status: 'completed', createdAt: new Date() })
       await col.updateOne({ _id: req.webChatId }, { $set: { ...v, status: 'submitted', submittedAt: new Date(), note: null, feePaid: cur?.feePaid || FEE > 0 } }, { upsert: true })
       notifyAdmin(`📝 New 10DLC registration from web account ${req.webChatId} (${v.brand.companyName || v.brand.lastName}). Admin → Compliance → 10DLC.`)

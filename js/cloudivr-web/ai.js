@@ -16,6 +16,17 @@ function redirectUri(req) {
   const proto = /^(localhost|127\.)/.test(host) ? (first(req.headers['x-forwarded-proto']) || 'http') : 'https'
   return `${proto}://${host}${CALLBACK}`
 }
+// Why a test call could not start, in words the owner can act on (the raw reason is for the logs).
+function testCallError(raw) {
+  const m = String(raw || '')
+  if (/offline|lines? busy|spend cap|line limit/i.test(m)) return 'Our AI calling line is busy right now, so the test call didn’t go out. Nothing was charged — try again in a few minutes, or talk to the agent in your browser.'
+  if (/caller ID|not linked/i.test(m)) return 'Your number isn’t ready to place AI calls yet. Try again in a few minutes, or pick another “calls from” number.'
+  if (/deleted|not found/i.test(m)) return 'This agent was deleted. Pick or create an agent and try again.'
+  if (/stopped|disabled/i.test(m)) return 'This agent was paused by CloudIVR. Contact support to switch it back on.'
+  if (/US and Canada/i.test(m)) return 'Test calls reach US and Canada numbers only.'
+  if (/wallet|balance|funds/i.test(m)) return 'Your wallet is too low to place a call. Add funds and try again — the test itself is free.'
+  return 'The test call didn’t go out. Nothing was charged — try again in a minute, or talk to the agent in your browser.'
+}
 function calBad(res, e) {
   if (['not_connected', 'revoked', 'bad_token'].includes(e.code)) return bad(res, 400, 'calendar_not_connected', 'Connect your Google Calendar again.')
   if (e.code === 'calendar_not_found') return bad(res, 400, 'calendar_not_found', 'That calendar was not found. Pick another one.')
@@ -32,7 +43,7 @@ function publicRoutes(router, { h }) {
   }))
 }
 
-function routes(router, { h, numbersApi }) {
+function routes(router, { h, numbersApi, db }) {
   const s = ai.store
   const gcal = ai.gcal
   // Turning bookings ON needs a connected calendar. An agent that already had bookings on stays saveable after a
@@ -79,21 +90,27 @@ function routes(router, { h, numbersApi }) {
     if (!r) return bad(res, 503, 'builder_failed', 'The assistant is busy right now. Try again in a moment.')
     res.json(r)
   }))
-  // "Call me to test": rings one US/CA number now (the owner's own phone), a few times a day — not a way around campaign calling hours.
-  const callMeLog = new Map()
+  // "Call me to test": rings one US/CA number now (the owner's own phone), 5 a day (kept in Mongo so restarts don't reset it).
+  const TEST_CALLS_A_DAY = 5
+  const testCalls = db.collection('aiTestCalls')
+  testCalls.createIndex({ at: 1 }, { expireAfterSeconds: 3 * 86400 }).catch(() => {})
   router.post('/ai-agents/:id/call-me', withAgent(async (req, res) => {
-    const to = String(req.body?.to || '').replace(/[^\d+]/g, '').replace(/^(?!\+)/, '+')
-    if (!/^\+1\d{10}$/.test(to)) return bad(res, 400, 'invalid_number', 'Enter your own US or Canada number, e.g. +14155550100.')
+    const to = String(req.body?.to || '').replace(/[^\d+]/g, '').replace(/^(\d{10})$/, '1$1').replace(/^(?!\+)/, '+')
+    if (!/^\+1\d{10}$/.test(to)) return bad(res, 400, 'invalid_number', 'That doesn’t look like a US or Canada number. Enter your own 10-digit number, e.g. (415) 555-0100.')
     const key = String(req.webChatId), day = new Date().toISOString().slice(0, 10)
-    const used = (callMeLog.get(key) || []).filter(d => d === day)
-    if (used.length >= 5) return bad(res, 429, 'test_limit', 'You can place 5 test calls a day. Try again tomorrow.')
+    const used = await testCalls.countDocuments({ chatId: key, day })
+    if (used >= TEST_CALLS_A_DAY) return bad(res, 429, 'test_limit', `You’ve used today’s ${TEST_CALLS_A_DAY} free test calls. You can still talk to the agent in your browser, or try again tomorrow.`)
     const nums = (await numbersApi.myNumbers(req.webChatId)).filter(n => n.status === 'active')
     const from = nums.find(n => n.phoneNumber === req.body?.callerId)?.phoneNumber || nums[0]?.phoneNumber
-    if (!from) return bad(res, 400, 'no_number', 'You need an active number to place a test call.')
-    const r = await ai.dialLead({ agentId: req.agent.id, chatId: key, callerId: from, id: null }, { number: to, name: null })
-    if (r.error) return bad(res, 503, 'call_failed', r.error)
-    callMeLog.set(key, [...used, day])
-    res.json({ calling: to, from })
+    if (!from) return bad(res, 400, 'no_number', 'A test call comes from one of your numbers — get a number first.')
+    // Preview / dry-run: nothing is dialled, but the flow and the count behave as in production.
+    const simulated = process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
+    if (!simulated) {
+      const r = await ai.dialLead({ agentId: req.agent.id, chatId: key, callerId: from, id: null, test: true }, { number: to, name: null })
+      if (r.error) return bad(res, 503, 'call_failed', testCallError(r.error))
+    }
+    await testCalls.insertOne({ chatId: key, day, at: new Date(), agentId: req.agent.id, to, simulated })
+    res.json({ calling: to, from, simulated, left: TEST_CALLS_A_DAY - used - 1 })
   }))
   // What the agent will say first, for the form preview (unsaved values; {lead_name} = a sample name).
   router.post('/ai-agents/opening-preview', h(async (req, res) => {

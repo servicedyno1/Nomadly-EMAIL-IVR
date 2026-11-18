@@ -10,7 +10,7 @@ function routes(router, { db, h, log, notifyAdmin }) {
   const mailSupport = (subject, html) => (process.env.CIVR_ADMIN_EMAIL ? sendMail(process.env.CIVR_ADMIN_EMAIL, subject, html).catch(e => log(`[HostedSMS] support email failed: ${e.message}`)) : Promise.resolve(false))
   HS.init({ db, log, notifyAdmin, mailSupport, brand: () => 'CloudIVR', tell: async (id, text, extra) => { await notify.push(id, text, null, extra || { kind: 'system' }).catch(() => {}); return null } })
   const bad = (res, msg, status = 400, code = 'bad_request') => res.status(status).json({ error: code, message: msg })
-  const out = (res, r) => (r.error ? bad(res, r.error, r.code === 'insufficient_balance' ? 402 : 400, r.code || 'bad_request') : res.json(r))
+  const out = (res, r) => (r.error ? (r.cost != null ? res.status(402).json({ error: r.code, message: r.error, cost: r.cost }) : bad(res, r.error, r.code === 'insufficient_balance' ? 402 : 400, r.code || 'bad_request')) : res.json(r))
   const holderOf = (b) => { try { return typeof b.holder === 'string' ? JSON.parse(b.holder) : b.holder || {} } catch (_) { return {} } }
 
   router.get('/hosted-sms', h(async (req, res) => res.json({ available: HS.AVAILABLE, items: await HS.list(req.webChatId), planPrices: HS.PLAN_PRICE, planLimits: HS.PLAN_LIMIT, texting: HS.TEXTING, plans: await HS.plansFor(req.webChatId), reviewDays: HS.REVIEW_DAYS, monthly: HS.MONTHLY, textPrice: HS.TEXT_PRICE, maxText: HS.MAX_TEXT })))

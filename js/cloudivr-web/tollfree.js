@@ -76,7 +76,7 @@ function createTollFree({ db, h, adminRequire, notify, notifyAdmin = () => {}, l
         if (!note) return res.status(400).json({ error: 'note_needed', message: 'Say why it was rejected.' })
         await col.updateOne({ _id: phone }, { $set: { status: 'rejected', note } })
         // Was approved before → texting can't stay on.
-        if (cur.status === 'active') await db.collection('phoneNumbersOf').updateOne({ _id: cur.chatId, 'val.numbers.phoneNumber': phone }, { $set: { 'val.numbers.$.features.sms': false } })
+        if (cur.status === 'active') await require('../live-number').updateLive(db.collection('phoneNumbersOf'), cur.chatId, phone, { $set: { 'val.numbers.$.features.sms': false } })
         notify?.push(cur.chatId, `Your toll-free texting verification for ${phone} needs changes: ${note}`, null, { kind: 'billing' }).catch(() => {})
         return res.json({ status: 'rejected' })
       }

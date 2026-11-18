@@ -3,7 +3,7 @@
 const COPY = require('./email-copy')
 const L = require('./email-layout')
 
-const PLAN_NAMES = { starter: 'Starter', pro: 'Pro', business: 'Business' }
+const PLAN_NAMES = { starter: 'Basic', standard: 'Plus', pro: 'Pro', business: 'Business' }
 const NEXT = { starter: 'standard', standard: 'pro', pro: 'business' }
 const LOCALE = { en: 'en-US', fr: 'fr-FR', es: 'es-ES' }
 const RATE = { us: 0.15, intl: 0.5 }
@@ -72,6 +72,13 @@ const B = {
       body: P(k.intro(d, f))
         + L.rows([{ k: c.labels.number, v: L.mono(d.phone), html: true }, { k: c.labels.plan, v: d.planName }, { k: c.labels.renews, v: f.date(d.expiresAt) }, { k: c.labels.monthly, v: f.usd(d.price) }, { k: c.labels.balance, v: f.usd(d.balance) }])
         + L.button(k.cta, href, v === 'ok' ? 'brand' : 'warn') }
+  },
+
+  sipOldLogin: (d, c, f, x) => {
+    const k = c.sipOldLogin
+    return { ...head(k, d, f), t: 'warn',
+      body: P(k.intro(d, f)) + L.rows([{ k: c.labels.number, v: L.mono(d.phone), html: true }, { k: k.oldLabel, v: L.mono(d.old), html: true }, { k: k.newLabel, v: L.mono(d.current), html: true }])
+        + L.steps(k.steps.map(x => { const [title, ...rest] = x.split(' — '); return { title, text: rest.join(' — ') } })) + L.button(k.cta, x.app(`/app/numbers/${enc(d.phone)}?tab=sip&reset=1`), 'warn') + L.small(L.esc(k.ps)) }
   },
 
   renewFailed: (d, c, f, x) => ({ ...head(c.renewFailed, d, f), t: 'bad',

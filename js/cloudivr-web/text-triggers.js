@@ -52,7 +52,7 @@ function validate(body = {}, num, agentIds = []) {
       if (!rule.message) throw new Error(`${where}: type the message we read to the person who texted.`)
     }
     if (action === 'ai') {
-      if (!phoneConfig.canAccessFeature(num.plan, 'aiCampaigns')) throw new Error(`${where}: AI agent call backs need the Business plan.`)
+      if (!phoneConfig.canAccessFeature(num.plan, 'aiCampaigns')) throw new Error(`${where}: AI call backs need the Pro plan or higher.`)
       if (!agentIds.includes(String(r.agentId || ''))) throw new Error(`${where}: pick one of your AI agents.`)
       rule.agentId = String(r.agentId)
     }

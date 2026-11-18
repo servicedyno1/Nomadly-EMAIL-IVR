@@ -15,7 +15,7 @@ const REPLY_DAYS = 7
 const REPLYABLE = ['missed', 'voicemail']
 const E164 = /^\+[1-9]\d{7,14}$/
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
-const bad = (res, status, error, message) => res.status(status).json({ error, message })
+const bad = (res, status, error, message, extra) => res.status(status).json({ error, message, ...extra })
 const clean = (t) => String(t || '').replace(/\s+/g, ' ').trim()
 const recent = (l) => Date.now() - new Date(l.timestamp).getTime() < REPLY_DAYS * 86400000
 const STALE_CLAIM_MS = 120000
@@ -162,7 +162,7 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     const pool = home ? require('../plan-lifecycle').poolUsage(ownerNumbers, num) : null
     const extra = home ? Math.max(0, parts - Math.max(0, (pool.smsLimit || 0) - (pool.smsUsed || 0))) : parts
     const overage = Math.round((home ? phoneConfig.OVERAGE_RATE_SMS : rule.price) * extra * 100) / 100
-    if (overage && !(await w.debit(chatId, overage))) return { error: [402, 'insufficient_balance', home ? `This text costs $${overage.toFixed(2)} ($${phoneConfig.OVERAGE_RATE_SMS} per part). Top up your wallet first.` : `A text to ${rule.country} costs $${overage.toFixed(2)}. Top up first.`] }
+    if (overage && !(await w.debit(chatId, overage))) return { error: [402, 'insufficient_balance', home ? `This text costs $${overage.toFixed(2)} ($${phoneConfig.OVERAGE_RATE_SMS} per part).` : `A text to ${rule.country} costs $${overage.toFixed(2)}.`, { cost: overage }] }
     let out = { id: `preview-${crypto.randomUUID()}` }, tries = 0
     // Up to 3 tries; a failed text is never charged and is logged for follow-up.
     const urls = media.map(m => require('./media').publicUrl(m.id))

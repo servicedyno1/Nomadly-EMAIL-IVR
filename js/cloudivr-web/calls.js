@@ -18,7 +18,7 @@ const { notInService } = require('../bulk-call-service')
 const KEYS = /^[0-9*#]$/
 
 const publicCampaign = (c, withLeads = false) => ({
-  id: c.id, name: c.name || null, callerId: c.callerId, showAs: c.showAs || null, audioName: c.audioName, mode: c.menu ? 'menu' : c.mode, menu: c.menu || null, transferNumber: c.transferNumber, transferBackups: c.transferBackups || [], activeKeys: c.activeKeys,
+  id: c.id, name: c.name || null, callerId: c.callerId, showAs: c.showAs || null, audioName: c.audioName, mode: c.menu ? 'menu' : c.mode, menu: c.menu || null, stopKey: c.stopKey || null, transferNumber: c.transferNumber, transferBackups: c.transferBackups || [], activeKeys: c.activeKeys,
   concurrency: c.concurrency, callerPool: c.callerPool || null, status: c.status, stats: c.stats, scheduledFor: c.scheduledFor, startedAt: c.startedAt, completedAt: c.completedAt,
   createdAt: c.createdAt, cancelledReason: c.cancelledReason || null, pausedReason: c.pausedReason || null, dryRun: !!c.dryRun,
   agentId: c.agentId || null, agentName: c.agentName || null, waitingForHours: !!c.waitingForHours,
@@ -33,7 +33,7 @@ const publicCampaign = (c, withLeads = false) => ({
 
 function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, bulkCallService, log = console.log }) {
   const w = walletOps(db)
-  const bad = (res, status, error, message) => res.status(status).json({ error, message })
+  const bad = (res, status, error, message, extra) => res.status(status).json({ error, message, ...extra })
   // Campaign audience: a saved contact list, or the pasted / uploaded numbers.
   const leadsOf = (chatId, b) => (b.listId ? listLeads(db, chatId, b.listId) : bulkCallService.parseLeadsFile(String(b.leads || '')))
 
@@ -42,7 +42,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const n = await numbersApi.findMine(chatId, phone)
     if (!n || n.status !== 'active') return { err: [400, 'invalid_caller', 'Pick one of your active numbers as caller ID.'] }
     if (!['telnyx', 'signalwire', 'multitel', 'infobip'].includes(n.provider) || n.provider === 'signalwire_fax') return { err: [400, 'invalid_caller', 'This number cannot place outbound IVR calls.'] }
-    if (!phoneConfig.canAccessFeature(n.plan, feature)) return { err: [403, 'plan_upgrade_required', phoneConfig.canAccessFeature('standard', feature) ? `${label} needs the Starter plan or higher on the caller number.` : phoneConfig.canAccessFeature('pro', feature) ? `${label} needs the Pro plan or higher on the caller number.` : `${label} need the Business plan on the caller number.`] }
+    if (!phoneConfig.canAccessFeature(n.plan, feature)) return { err: [403, 'plan_upgrade_required', `${label} need ${phoneConfig.planNeed(feature)} on the caller number.`] }
     return { n }
   }
   // Extra caller IDs to rotate through (own numbers, or verified caller IDs shown on calls from the primary number).
@@ -120,7 +120,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const rateMe = voiceService.getIvrCallRate(me), rateTo = voiceService.getIvrCallRate(to)
     const rate = Math.round((rateMe + rateTo) * 100) / 100
     const bal = await w.balance(chatId)
-    if (bal < Math.max(QUICK_MIN_WALLET, rate)) return bad(res, 402, 'insufficient_balance', `Call me first bills both calls from your wallet. Your balance is $${bal.toFixed(2)} — top up first.`)
+    if (bal < Math.max(QUICK_MIN_WALLET, rate)) return bad(res, 402, 'insufficient_balance', `Call me first bills both calls from your wallet and needs at least $${Math.max(QUICK_MIN_WALLET, rate).toFixed(2)} in it. Your balance is $${bal.toFixed(2)}.`, { cost: Math.max(QUICK_MIN_WALLET, rate) })
     await prefs.updateOne({ _id: chatId }, { $set: { callbackPhone: me, updatedAt: new Date() } }, { upsert: true })
     if (dryRun()) callerIds.rememberLast(chatId, c.n.phoneNumber, showAs)
     if (dryRun()) return res.status(202).json({ dryRun: true, rate, message: `Preview mode: we would ring ${me}, and after you press 1 connect you to ${to} showing ${showAs || c.n.phoneNumber}. Nothing was dialed.` })
@@ -174,12 +174,14 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     const bk = mode === 'transfer' ? parseBackups(b.transferBackups, [transferNumber, c.n.phoneNumber]) : { list: [] }
     if (bk.error) return bad(res, 400, 'invalid_backup', bk.error)
+    const stopKey = /^[0-9]$/.test(String(b.stopKey ?? '')) && !menu ? String(b.stopKey) : null
+    if (stopKey && activeKeys.includes(stopKey)) return bad(res, 400, 'invalid_stop_key', `Key ${stopKey} is already used for something else — pick a different stop key.`)
     const plan = runPlan(b)
     if (plan.err) return bad(res, ...plan.err)
     if (b.validateOnly) return res.json({ ok: true })
     const params = {
       chatId, callerId: c.n.phoneNumber, showAs, callerPool: rot.pool, audioUrl: audio.audioUrl, audioName: audio.name, name: b.name, mode, transferNumber, transferBackups: bk.list, menu,
-      activeKeys, concurrency: Math.max(1, parseInt(b.concurrency, 10) || 20), poolShare: true, holdMusic: !!b.holdMusic,
+      activeKeys, stopKey, concurrency: Math.max(1, parseInt(b.concurrency, 10) || 20), poolShare: true, holdMusic: !!b.holdMusic,
       leads, scheduledFor: plan.scheduledFor, repeat: plan.repeat, dailyLimit: plan.dailyLimit, tz: plan.tz, provider: showAs ? 'multitel' : 'telnyx', voicemailAudioUrl: vm?.audioUrl || null, voicemailAudioName: vm?.name || null,
     }
     // Over 500 numbers → parts of 500 run one after another (no repeat for split lists).
@@ -197,9 +199,9 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   // AI agent campaign: the agent talks to every lead (8am–9pm lead's local time, do-not-call list skipped).
   async function createAiCampaign(req, res) {
     const chatId = req.webChatId, b = req.body
-    const c = await caller(chatId, b.callerId, 'aiCampaigns', 'AI agent campaigns')
+    const c = await caller(chatId, b.callerId, 'aiCampaigns', 'AI conversation campaigns')
     if (c.err) return bad(res, ...c.err)
-    const rot = await rotation(chatId, b, c.n.phoneNumber, 'aiCampaigns', 'AI agent campaigns')
+    const rot = await rotation(chatId, b, c.n.phoneNumber, 'aiCampaigns', 'AI conversation campaigns')
     if (rot.err) return bad(res, ...rot.err)
     const showAs = await callerIds.resolve(chatId, b.showAs).catch(e => e)
     if (showAs instanceof Error) return bad(res, 400, 'invalid_show_as', showAs.message)
@@ -271,7 +273,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   // A saved campaign that never started needs the feature on the caller's plan now (running ones finish after a downgrade).
   router.post('/campaigns/:id/start', withCampaign(async (req, res) => {
     const ai = req.campaign.mode === 'ai'
-    const c = await caller(req.webChatId, req.campaign.callerId, ai ? 'aiCampaigns' : 'bulkCall', ai ? 'AI agent campaigns' : 'Bulk IVR campaigns')
+    const c = await caller(req.webChatId, req.campaign.callerId, ai ? 'aiCampaigns' : 'bulkCall', ai ? 'AI conversation campaigns' : 'Bulk IVR campaigns')
     if (c.err) return bad(res, ...c.err)
     if (req.campaign.dryRun || dryRun()) {
       const low = req.campaign.status === 'series_ready' && await bulkCallService.partFundsError(req.campaign, req.webChatId)

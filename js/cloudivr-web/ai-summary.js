@@ -14,7 +14,7 @@ const KINDS = ['voicemail', 'call_recording']
 const SENTIMENTS = ['positive', 'neutral', 'negative']
 const SWEEP_MS = 30000
 const WINDOW_MS = 2 * 3600000
-const bad = (res, status, error, message) => res.status(status).json({ error, message })
+const bad = (res, status, error, message, extra) => res.status(status).json({ error, message, ...extra })
 const str = (v, max) => String(v ?? '').trim().slice(0, max)
 const minutesOf = (l) => Math.max(1, Math.ceil((Number(l.duration) || 0) / 60))
 const priceOf = (l) => Math.round(minutesOf(l) * RATE() * 100) / 100
@@ -152,7 +152,7 @@ function routes(router, deps) {
     if (!eligible(l)) return bad(res, 400, 'not_summarizable', 'Only voicemails and recorded calls can be summarised.')
     if (l.aiSummary?.status === 'done') return res.json({ aiSummary: l.aiSummary })
     const s = await summarize(req.webChatId, l)
-    if (s?.status === 'no_funds') return bad(res, 402, 'insufficient_balance', `This summary costs $${priceOf(l).toFixed(2)} — top up your wallet first.`)
+    if (s?.status === 'no_funds') return bad(res, 402, 'insufficient_balance', `This summary costs $${priceOf(l).toFixed(2)}.`, { cost: priceOf(l) })
     if (s?.status === 'working') return res.status(202).json({ aiSummary: s })
     if (s?.status !== 'done') return bad(res, 424, 'summary_failed', s?.detail || 'The AI summary is not available right now. You were not charged.')
     res.json({ aiSummary: s })

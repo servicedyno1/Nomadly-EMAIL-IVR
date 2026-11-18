@@ -5,6 +5,7 @@
 const crypto = require('crypto')
 const phoneConfig = require('../phone-config')
 const ivrOb = require('../ivr-outbound')
+const personalize = require('../personalize')
 const { walletOps } = require('./wallet')
 const callerIds = require('./caller-ids')
 const { normPhone, E164, parseBackups } = require('./numbers')
@@ -100,7 +101,7 @@ const otpSim = (() => {
     all: () => [...sims.values()],
     start(chatId, to, cfg) {
       const id = `sim-${uid()}`, now = Date.now()
-      const s = { id, chatId: String(chatId), to, length: cfg.otp?.length || 6, max: 3, attempt: 1, startedAt: now, holdAt: now + 11000, code: null, decided: null, transferTo: cfg.transferTo || null }
+      const s = { id, chatId: String(chatId), to, length: cfg.otp?.length || 6, replayMessage: cfg.otp?.rejectMsg || '', max: 3, attempt: 1, startedAt: now, holdAt: now + 11000, code: null, decided: null, transferTo: cfg.transferTo || null }
       s.code = code(s.length)
       sims.set(id, s)
       setTimeout(() => notice(s), 11000).unref?.()
@@ -120,6 +121,7 @@ const otpSim = (() => {
       const s = sims.get(id)
       if (action === 'accept') s.decided = 'accepted'
       else if (action === 'hangup') s.decided = 'hung_up'
+      else if (action === 'replay') { s.holdAt = Date.now() + 6000; s.code = code(s.length); setTimeout(() => notice(s), 6000).unref?.() }
       else if (s.attempt < s.max) { s.attempt += 1; s.holdAt = Date.now() + 6000; s.code = code(s.length); setTimeout(() => notice(s), 6000).unref?.() }
       else s.decided = 'declined'
     },
@@ -133,7 +135,7 @@ let engine = null // voiceService, set by routes()
 function pendingOtp(chatId) {
   const ids = otpSim.all().filter(s => s.chatId === String(chatId)).map(s => s.id)
   for (const [ccid, s] of Object.entries(engine?.outboundIvrCalls || {})) if (String(s.chatId) === String(chatId) && s.ivrMode === 'otp_collect' && s.phase === 'otp_hold') ids.push(ccid)
-  return ids.map(id => ({ id, ...otpState(chatId, id, engine) })).filter(o => o.state === 'code').map(pubOtp)
+  return [...ids.map(id => ({ id, ...otpState(chatId, id, engine) })).filter(o => o.state === 'code').map(pubOtp), ...(engine?.pendingIvrConfirms ? engine.pendingIvrConfirms(chatId) : []), ...require('./ivr-connections').previewList(chatId)]
 }
 
 function otpState(chatId, ccid, voiceService) {
@@ -141,13 +143,13 @@ function otpState(chatId, ccid, voiceService) {
   if (sim) {
     if (sim.chatId !== String(chatId)) return null
     const state = otpSim.phase(sim)
-    return { state, to: sim.to, code: state === 'code' || state === 'accepted' ? sim.code : null, length: sim.length, attempt: sim.attempt, maxAttempts: sim.max, holdEndsAt: state === 'code' ? new Date(sim.holdAt + OTP_HOLD_MS) : null, connectTo: sim.transferTo, preview: true }
+    return { state, to: sim.to, code: state === 'code' || state === 'accepted' ? sim.code : null, length: sim.length, attempt: sim.attempt, maxAttempts: sim.max, holdEndsAt: state === 'code' ? new Date(sim.holdAt + OTP_HOLD_MS) : null, connectTo: sim.transferTo, preview: true, canReplay: true, replayMessage: sim.replayMessage, declineMessage: sim.replayMessage }
   }
   const s = voiceService.outboundIvrCalls[ccid]
   if (!s) { const last = lastOtp.get(ccid); return last && last.chatId === String(chatId) ? { ...last, state: ['accepted', 'declined', 'hung_up', 'timeout'].includes(last.state) ? last.state : 'ended', holdEndsAt: null } : null }
   if (String(s.chatId) !== String(chatId) || s.ivrMode !== 'otp_collect') return null
   const state = PHASE[s.phase] || 'playing'
-  return remember(ccid, { chatId: String(chatId), state, to: s.targetNumber, code: state === 'code' || state === 'accepted' ? s.otpDigits : null, length: s.otpLength || 6, attempt: s.otpAttempt || 1, maxAttempts: s.otpMaxAttempts || 3, holdEndsAt: state === 'code' && s.otpHoldStartedAt ? new Date(s.otpHoldStartedAt + OTP_HOLD_MS) : null, connectTo: s.ivrNumber || null, preview: false })
+  return remember(ccid, { chatId: String(chatId), state, to: s.targetNumber, code: state === 'code' || state === 'accepted' ? s.otpDigits : null, length: s.otpLength || 6, attempt: s.otpAttempt || 1, maxAttempts: s.otpMaxAttempts || 3, holdEndsAt: state === 'code' && s.otpHoldStartedAt ? new Date(s.otpHoldStartedAt + OTP_HOLD_MS) : null, connectTo: s.ivrNumber || null, preview: false, canReplay: true, replayMessage: s.otpRejectMsg || '', declineMessage: s.otpRejectMsg || '' })
 }
 
 // Free-call status. Like the bot, it is used up only once someone answers (the call engine then sets state
@@ -198,7 +200,8 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     } else if (b.showAs) {
       try { showAs = await callerIds.resolve(chatId, b.showAs) } catch (e) { return { err: [400, e.code || 'invalid_show_as', e.message] } }
     }
-    const targets = parseTargets(b)
+    let targets = parseTargets(b)
+    if (!targets.length && Array.isArray(b.contacts)) targets = [...new Set(b.contacts.map(c => normPhone(c.number) || String(c.number || '').trim()).filter(Boolean))]
     if (!targets.length) return { err: [400, 'invalid_number', 'Enter the number to call with country code, e.g. +14155550100.'] }
     if (targets.length > (trial ? 1 : MAX_TARGETS)) return { err: [400, 'too_many_numbers', trial ? 'The free call goes to one number.' : `Up to ${MAX_TARGETS} numbers per Quick IVR call — use a campaign for more.`] }
     for (const t of targets) {
@@ -209,7 +212,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     // Free trial: the system caller is picked (and logged) only once the request is valid.
     if (trial) callerId = (await ivrOb.getTrialCaller({ purpose: 'web_quick_ivr_trial', chatId, to: targets[0] })).callerId
-    let audio = null, text = null
+    let audio = null, text = null, personalizeOn = false
     if (b.audioId && !trial) {
       const a = await audioLibraryService.getAudio(String(b.audioId))
       if (!a || a.chatId !== String(chatId)) return { err: [400, 'invalid_audio', 'Pick a message from your audio library.'] }
@@ -217,8 +220,11 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     } else {
       text = String(b.text || '').trim().slice(0, 1500)
       if (!text) return { err: [400, 'invalid_message', 'Pick a template, type a script or choose audio from your library.'] }
-      const unfilled = ivrOb.validateFilled(text).unfilled || []
-      if (unfilled.length) return { err: [400, 'unfilled_placeholders', `Fill in: ${unfilled.map(u => `[${u}]`).join(', ')}.`] }
+      personalizeOn = !!b.personalize && personalize.tokensIn(text).length > 0
+      if (!personalizeOn) {
+        const unfilled = ivrOb.validateFilled(text).unfilled || []
+        if (unfilled.length) return { err: [400, 'unfilled_placeholders', `Fill in: ${unfilled.map(u => `[${u}]`).join(', ')}.`] }
+      }
     }
     // Spoken scripts use the picked voice, else the account's saved default voice.
     const voiceKey = String(b.voice || (await getPrefs(chatId)).ttsVoice || '').toLowerCase()
@@ -258,10 +264,34 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (mode === 'otp' && !audio && !/press\s*1\b/i.test(text || '')) {
       text = `${(text || '').trim()} To continue, press 1 now.`.trim()
     }
+    const stopKey = mode === 'transfer' && !menu && !trial && /^[0-9]$/.test(String(b.stopKey ?? '')) ? String(b.stopKey) : null
+    if (stopKey && activeKeys.includes(stopKey)) return { err: [400, 'invalid_stop_key', `Key ${stopKey} is already used to connect the call — pick a different stop key.`] }
+    // Per-contact personalization: fill [Name]/[Code]/[Amount] and any uploaded column for each number, spoken for the call.
+    let personalizeCfg = null, leadText = null, skipped = []
+    if (personalizeOn && audio == null) {
+      const fallback = String(b.fallback || '').trim().slice(0, 40)
+      const byNum = new Map()
+      for (const c of Array.isArray(b.contacts) ? b.contacts : []) {
+        const n = normPhone(c.number) || String(c.number || '').trim()
+        if (n && !byNum.has(n)) byNum.set(n, { number: n, name: String(c.name || '').slice(0, 60) || null, fields: Array.isArray(c.fields) ? c.fields.slice(0, 20).map(f => ({ label: String(f.label || '').slice(0, 40), value: String(f.value ?? '').slice(0, 200) })) : [] })
+      }
+      for (const n of targets) if (!byNum.has(n)) byNum.set(n, { number: n, name: null, fields: [] })
+      leadText = {}
+      const sendable = []
+      for (const n of targets) {
+        const r = personalize.fillPersonal(text, byNum.get(n), { speak: true, fallback })
+        if (r.skip) skipped.push({ number: n, missing: r.missing })
+        else { leadText[n] = r.text; sendable.push(n) }
+      }
+      if (!sendable.length) return { err: [400, 'all_skipped', `No one has the details your script needs (${personalize.tokensIn(text).join(', ')}). Add a fallback word, or include those columns.`] }
+      targets = sendable
+      personalizeCfg = { on: true, fallback, tokens: personalize.tokensIn(text) }
+    }
     return {
       cfg: {
-        callerId, showAs, callerPlan: caller?.plan || null, targets, mode, menu, transferTo, transferBackups, otp, activeKeys, holdMusic: !!b.holdMusic && (mode === 'otp' || !trial),
+        stopKey, callerId, showAs, callerPlan: caller?.plan || null, targets, mode, menu, transferTo, transferBackups, otp, activeKeys, holdMusic: !!b.holdMusic && (mode === 'otp' || !trial),
         audioId: audio?.id || null, audioUrl: audio?.audioUrl || null, text, voiceName, templateName: String(b.templateName || audio?.name || 'Custom script').slice(0, 80),
+        personalize: personalizeCfg, leadText, skipped,
       },
     }
   }
@@ -269,7 +299,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   const rateOf = (cfg) => Math.max(...cfg.targets.map(t => voiceService.getIvrCallRate(t)), cfg.transferTo ? voiceService.getIvrCallRate(cfg.transferTo) : 0)
   const engineParams = (chatId, cfg, to, trial) => ({
     chatId, callerId: cfg.callerId, displayCallerId: cfg.showAs || null, targetNumber: to, ivrNumber: cfg.menu ? firstForward(cfg.menu) : cfg.transferTo || null, transferBackups: cfg.menu || cfg.mode === 'otp' ? [] : (cfg.transferBackups || []), menu: cfg.menu,
-    audioUrl: cfg.audioUrl, greetingText: cfg.audioUrl ? null : cfg.text, voiceName: cfg.voiceName || undefined, activeKeys: cfg.activeKeys, templateName: cfg.templateName,
+    audioUrl: cfg.audioUrl, greetingText: cfg.audioUrl ? null : (cfg.personalize?.on && cfg.leadText ? cfg.leadText[to] : cfg.text), voiceName: cfg.voiceName || undefined, activeKeys: cfg.activeKeys, stopKey: cfg.stopKey || null, templateName: cfg.templateName,
     holdMusic: cfg.holdMusic, provider: cfg.showAs ? 'multitel' : 'telnyx', isTrial: !!trial, ivrMode: cfg.mode === 'otp' ? 'otp_collect' : 'transfer',
     otpLength: cfg.otp?.length || 6, otpMaxAttempts: 3, otpConfirmMsg: cfg.otp?.confirmMsg || null, otpRejectMsg: cfg.otp?.rejectMsg || null,
   })
@@ -280,7 +310,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const rate = rateOf(cfg)
     if (!trial) {
       const bal = await w.balance(chatId)
-      if (bal < Math.max(MIN_WALLET, rate)) return { status: 402, body: { error: 'insufficient_balance', message: `Quick IVR calls bill about $${rate.toFixed(2)}/min from your wallet. Your balance is $${bal.toFixed(2)} — top up first.` } }
+      if (bal < Math.max(MIN_WALLET, rate)) return { status: 402, body: { error: 'insufficient_balance', message: `Quick IVR calls bill about $${rate.toFixed(2)}/min from your wallet. They need at least $${Math.max(MIN_WALLET, rate).toFixed(2)} in it; your balance is $${bal.toFixed(2)}.`, cost: Math.max(MIN_WALLET, rate) } }
     }
     const doc = { _id: uid(), chatId, at: new Date(), body: { ...body, scheduleAt: undefined }, cfg, trial, dryRun: dryRun() }
     if (!trial && dryRun()) callerIds.rememberLast(chatId, cfg.callerId, cfg.showAs)
@@ -288,7 +318,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       doc.results = cfg.targets.map(to => ({ to, ok: true, preview: true, callControlId: cfg.mode === 'otp' ? otpSim.start(chatId, to, cfg) : null }))
       await history.insertOne(doc)
       const what = cfg.mode === 'otp' ? `ask for a ${cfg.otp.length}-digit code` : cfg.menu ? `route keys ${Object.keys(cfg.menu).join(', ')}` : `transfer to ${cfg.transferTo} on key ${cfg.activeKeys.join('/')}`
-      return { status: 202, body: { dryRun: true, rate, count: cfg.targets.length, callId: doc._id, results: doc.results, mode: cfg.mode, message: `Preview mode: ${cfg.targets.length} call(s) validated (${what}) but not dialed.${cfg.mode === 'otp' ? ' A simulated call below lets you try Accept / Decline.' : ''}` } }
+      return { status: 202, body: { dryRun: true, rate, count: cfg.targets.length, callId: doc._id, results: doc.results, mode: cfg.mode, ...(cfg.skipped?.length ? { skipped: cfg.skipped } : {}), message: `Preview mode: ${cfg.targets.length} call(s) validated (${what}) but not dialed.${cfg.mode === 'otp' ? ' A simulated call below lets you try Accept / Decline.' : ''}` } }
     }
     const results = []
     for (const to of cfg.targets) {
@@ -301,8 +331,20 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const ok = results.filter(r => r.ok).length
     if (!ok) return { status: 424, body: { error: 'call_failed', message: results[0]?.error || 'The call could not be started.', results } }
     const swapped = results.find(r => r.callerUsed)
-    return { status: 201, body: { started: ok, results, rate, callId: doc._id, mode: cfg.mode, ...(swapped ? { callerUsed: swapped.callerUsed, notice: `Your number ${cfg.showAs || cfg.callerId} can't be shown as caller ID right now, so this call went out from ${swapped.callerUsed}.` } : {}) } }
+    return { status: 201, body: { started: ok, results, rate, callId: doc._id, mode: cfg.mode, ...(cfg.skipped?.length ? { skipped: cfg.skipped } : {}), ...(swapped ? { callerUsed: swapped.callerUsed, notice: `Your number ${cfg.showAs || cfg.callerId} can't be shown as caller ID right now, so this call went out from ${swapped.callerUsed}.` } : {}) } }
   }
+
+  // Preview the personalized script for the first few contacts before dialing (and who would be skipped).
+  router.post('/calls/quick/preview', h(async (req, res) => {
+    const { cfg, err } = await buildCall(req.webChatId, req.body)
+    if (err) return bad(res, ...err)
+    if (!cfg.personalize?.on) return res.json({ personalized: false, samples: [], skipped: [] })
+    res.json({
+      personalized: true, tokens: cfg.personalize.tokens, fallback: cfg.personalize.fallback,
+      samples: cfg.targets.slice(0, 5).map(to => ({ number: to, text: cfg.leadText[to] })),
+      skipped: cfg.skipped, total: cfg.targets.length,
+    })
+  }))
 
   router.get('/outbound/templates', (req, res) => res.json(templates()))
   router.post('/outbound/fill', h(async (req, res) => {
@@ -315,7 +357,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const { cfg, err } = await buildCall(chatId, req.body)
     if (err) return bad(res, ...err)
     if (req.body.scheduleAt) {
-      if (!phoneConfig.canAccessFeature(cfg.callerPlan, 'ivrSchedule')) return bad(res, 403, 'plan_upgrade_required', 'Scheduling Quick IVR calls is on the Business plan.')
+      if (!phoneConfig.canAccessFeature(cfg.callerPlan, 'ivrSchedule')) return bad(res, 403, 'plan_upgrade_required', `Scheduling Quick IVR calls is on ${phoneConfig.planNeed('ivrSchedule')}.`)
       const at = new Date(req.body.scheduleAt)
       if (isNaN(at.getTime()) || at.getTime() < Date.now() + 4 * 60000 || at.getTime() > Date.now() + 30 * 86400000) return bad(res, 400, 'invalid_schedule', 'Schedule between 5 minutes and 30 days from now.')
       const docs = cfg.targets.map(to => ({
@@ -368,7 +410,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     delete setup.targets; delete setup.to; delete setup.scheduleAt
     const { cfg, err } = await buildCall(chatId, { ...setup, to: '+14155550100' })
     if (err) return bad(res, ...err)
-    if (!phoneConfig.canAccessFeature(cfg.callerPlan, 'ivrPresets')) return bad(res, 403, 'plan_upgrade_required', 'Saving call presets is on the Business plan.')
+    if (!phoneConfig.canAccessFeature(cfg.callerPlan, 'ivrPresets')) return bad(res, 403, 'plan_upgrade_required', `Saving call presets is on ${phoneConfig.planNeed('ivrPresets')}.`)
     const list = ((await getPrefs(chatId)).ivrPresets || []).filter(p => p.name.toLowerCase() !== name.toLowerCase())
     if (list.length >= MAX_PRESETS) return bad(res, 400, 'too_many_presets', `Up to ${MAX_PRESETS} presets — delete one first.`)
     const preset = { id: uid(), name, setup, hasMenu: !!cfg.menu, mode: cfg.mode, menu: cfg.menu, createdAt: new Date() }
@@ -393,13 +435,22 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   }))
   router.post('/calls/otp/:ccid', h(async (req, res) => {
     const ccid = String(req.params.ccid), action = String(req.body?.action || '')
-    if (!['accept', 'decline', 'hangup'].includes(action)) return bad(res, 400, 'invalid_action', 'Choose accept, decline or hang up.')
+    const message = String(req.body?.message || '').replace(/\s+/g, ' ').trim().slice(0, 300)
+    if (!['accept', 'decline', 'replay', 'hangup'].includes(action)) return bad(res, 400, 'invalid_action', 'Choose accept, decline, replay or hang up.')
+    if (ccid.startsWith('pv_')) return require('./ivr-connections').previewResolve(req.webChatId, ccid) ? res.json({ id: ccid, kind: 'ivr', state: { accept: 'accepted', replay: 'replayed', hangup: 'hung_up' }[action] || 'declined', preview: true }) : bad(res, 409, 'not_waiting', 'This example is no longer showing.')
+    // A keypad-menu caller on hold for Accept / Decline (inbound).
+    if (voiceService.pendingIvrConfirms && voiceService.pendingIvrConfirms(req.webChatId).some(o => o.id === ccid)) {
+      const r = await voiceService.resolveIvrConfirm(ccid, action, req.webChatId, message)
+      if (r?.error === 'no_replay') return bad(res, 400, 'no_replay', 'This key has nothing to type again — choose Accept or Decline.')
+      if (r?.error) return bad(res, 409, 'not_waiting', 'This call is not waiting for your answer any more.')
+      return res.json({ id: ccid, kind: 'ivr', ...r })
+    }
     const st = otpState(req.webChatId, ccid, voiceService)
     if (!st) return bad(res, 404, 'not_found', 'That call is not available any more.')
     if (st.state !== 'code') return bad(res, 409, 'not_waiting', 'This call is not waiting for your answer any more.')
     if (otpSim.has(ccid)) otpSim.decide(ccid, action)
     else {
-      const r = await voiceService.resolveOtp(ccid, action)
+      const r = await voiceService.resolveOtp(ccid, action, message)
       if (r?.error) return bad(res, 409, 'not_waiting', 'This call is not waiting for your answer any more.')
     }
     res.json(pubOtp(otpState(req.webChatId, ccid, voiceService)))
@@ -431,7 +482,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   }))
   router.put('/prefs/voice', h(async (req, res) => {
     const nums = await numbersApi.myNumbers(req.webChatId)
-    if (!nums.some(n => n.status === 'active' && phoneConfig.canAccessFeature(n.plan, 'consistentVoice'))) return bad(res, 403, 'plan_upgrade_required', 'Saving a default voice is on the Business plan.')
+    if (!nums.some(n => n.status === 'active' && phoneConfig.canAccessFeature(n.plan, 'consistentVoice'))) return bad(res, 403, 'plan_upgrade_required', `Saving a default voice is on ${phoneConfig.planNeed('consistentVoice')}.`)
     const voice = req.body.voice ? String(req.body.voice).slice(0, 40) : null
     const speed = req.body.speed ? Math.min(1.5, Math.max(0.5, Number(req.body.speed) || 1)) : null
     await prefs.updateOne({ _id: req.webChatId }, { $set: { ttsVoice: voice, ttsSpeed: speed, updatedAt: new Date() } }, { upsert: true })

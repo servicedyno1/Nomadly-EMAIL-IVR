@@ -14,7 +14,7 @@ const safeUrl = require('../safe-url')
 const browserCallKey = require('../browser-call-key')
 
 const TYPE_NAMES = { local: 'Local', toll_free: 'Toll-free', mobile: 'Mobile', national: 'National' }
-const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'browserPhone', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent', 'textRelay', 'ringGroup', 'textTriggers', 'aiSummary', 'browserRing', 'ivrRedial', 'otpCustomMessages', 'ivrSchedule', 'ivrPresets', 'consistentVoice']
+const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'browserPhone', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent', 'aiCampaigns', 'textRelay', 'ringGroup', 'textTriggers', 'aiSummary', 'browserRing', 'ivrRedial', 'otpCustomMessages', 'ivrSchedule', 'ivrPresets', 'consistentVoice']
 const LOG_TYPES = { sms: ['sms', 'sms_out'], voicemail: ['voicemail'], fax: ['fax'] }
 const E164 = /^\+[1-9]\d{7,14}$/
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
@@ -25,7 +25,7 @@ const normPhone = (p) => { const d = String(p || '').replace(/[^\d+]/g, '').repl
 // Numbers typed to dial (forward-to, backups, IVR forward keys): the bot's auto-correct (10-digit US → +1).
 const dialNorm = require('../backup-numbers').norm
 const { dialIssue } = require('../dial-check')
-const bad = (res, status, error, message) => res.status(status).json({ error, message })
+const bad = (res, status, error, message, extra) => res.status(status).json({ error, message, ...extra })
 // Up to `max` backup numbers rung in order when the main one is busy or doesn't answer → { list } | { error }.
 function parseBackups(raw, exclude = [], max = 4) {
   const tokens = (Array.isArray(raw) ? raw : String(raw || '').split(/[,;\n]+|\s+(?=\+)/)).map(t => String(t || '').trim()).filter(Boolean)
@@ -81,38 +81,40 @@ const ownProvider = (c, type) => (['US', 'CA'].includes(c?.code) ? null : c?.off
 
 // What each plan gets IN THE WEB APP. The bot's plan copy lists Telegram-only extras (redial button, presets,
 // sub-numbers…), so plan cards use this list instead. `gate` is the engine feature check; null = every plan.
+// Grouped for the plan cards: answer (incoming calls), calls (outgoing), ai, account.
 const WEB_FEATURES = [
-  ['inbox', 'SMS inbox — read texts and reply', null],
-  ['forwarding', 'Call forwarding to any phone', 'callForwarding'],
-  ['browserPhone', 'Browser phone — make and take calls in any browser tab', 'browserPhone'],
-  ['hours', 'On/off hours for each number', null],
-  ['notes', 'Call notes', null],
-  ['private', 'Private mode — hide numbers on screen', null],
-  ['voicemail', () => `Voicemail in ${vmGreeting.LANG_CODES.length} languages + transcripts`, 'voicemail'],
-  ['sip', 'SIP logins for desk phones and softphone apps', 'sipCredentials'],
-  ['smsEmail', 'SMS to email & webhooks', 'smsToEmail'],
-  ['ivr', 'Keypad menu (IVR) for incoming calls — press 1 for sales, with key stats', 'ivr'],
-  ['quickIvr', 'Quick IVR — automated calls to up to 10 people', 'ivrOutbound'],
-  ['callMeFirst', 'Call me first — calls through your mobile', 'ivrOutbound'],
-  ['bulk', 'Bulk IVR campaigns — automated calls to a whole list', 'bulkCall'],
-  ['otp', 'Code collection (OTP) with Accept / Decline', 'otpCollection'],
-  ['recording', 'Call recording', 'callRecording'],
-  ['ringGroup', 'Ring groups — ring several phones at once', 'ringGroup'],
-  ['aiSummary', 'AI summaries & caller mood for voicemails and recorded calls', 'aiSummary'],
-  ['anyCallerId', 'Custom caller ID — call from any number on softphone, browser, Quick IVR and campaigns', (plan) => plan === 'business'],
-  ['redial', 'Redial and your own accept / decline messages for codes', 'ivrRedial'],
-  ['schedulePresets', 'Quick IVR scheduling and saved call presets', 'ivrSchedule'],
-  ['defaultVoice', 'One saved AI voice for all your calls', 'consistentVoice'],
-  ['textRelay', 'Text calls for deaf & hard-of-hearing users', 'textRelay'],
-  ['textTriggers', 'Text Triggers — a text starts a callback, a spoken reply or an AI call', 'textTriggers'],
-  ['aiAgent', 'AI receptionist — answers callers, books and takes messages (per minute)', 'aiAgent'],
-  ['aiCampaigns', 'AI agent call campaigns', 'aiCampaigns'],
-  ['encryptedCalls', 'Encrypted calls (SRTP) — audio encrypted in transit', (plan) => plan === 'business'],
-  ['priority', 'Priority support', (plan) => plan === 'business'],
+  ['emily', 'Emily — set up menus, calls and campaigns just by chatting', null, 'account'],
+  ['forwarding', 'Call forwarding to any phone', 'callForwarding', 'answer'],
+  ['voicemail', () => `Voicemail in ${vmGreeting.LANG_CODES.length} languages + transcripts`, 'voicemail', 'answer'],
+  ['hours', 'On/off hours for each number', null, 'answer'],
+  ['ivr', 'Keypad menu (IVR) — press 1 for sales, with key stats', 'ivr', 'answer'],
+  ['ringGroup', 'Ring groups — ring several phones at once', 'ringGroup', 'answer'],
+  ['recording', 'Call recording', 'callRecording', 'answer'],
+  ['browserPhone', 'Browser phone — make and take calls in any browser tab', 'browserPhone', 'calls'],
+  ['sip', 'SIP logins for desk phones and softphone apps, with live signed-in status', 'sipCredentials', 'calls'],
+  ['quickIvr', 'Quick IVR — automated calls to up to 10 people', 'ivrOutbound', 'calls'],
+  ['callMeFirst', 'Call me first — calls through your mobile', 'ivrOutbound', 'calls'],
+  ['bulk', 'Recorded-message campaigns to a whole list', 'bulkCall', 'calls'],
+  ['otp', 'Code collection (OTP) with Accept / Decline', 'otpCollection', 'calls'],
+  ['schedulePresets', 'Scheduled calls and saved call presets', 'ivrSchedule', 'calls'],
+  ['anyCallerId', 'Custom caller ID — call from any number', (plan) => plan === 'business', 'calls'],
+  ['redial', 'Redial and your own accept / decline messages for codes', 'ivrRedial', 'calls'],
+  ['aiAgent', 'AI receptionist — real conversations with your callers, books and takes messages (per minute)', 'aiAgent', 'ai'],
+  ['aiSummary', 'AI summaries & caller mood for voicemails and recorded calls', 'aiSummary', 'ai'],
+  ['aiCampaigns', 'AI conversation campaigns — an AI talks with each lead, free test call first (per minute)', 'aiCampaigns', 'ai'],
+  ['defaultVoice', 'One saved AI voice for all your calls', 'consistentVoice', 'ai'],
+  ['textTriggers', 'Text Triggers — a text starts a callback, a spoken reply or an AI call', 'textTriggers', 'ai'],
+  ['textRelay', 'Text calls for deaf & hard-of-hearing users', 'textRelay', 'ai'],
+  ['inbox', 'SMS inbox — read texts and reply', null, 'account'],
+  ['smsEmail', 'SMS to email & webhooks', 'smsToEmail', 'account'],
+  ['notes', 'Call notes and private mode', null, 'account'],
+  ['calendar', 'Renewal dates in Google or Apple Calendar', null, 'account'],
+  ['encryptedCalls', 'Encrypted calls (SRTP) — audio encrypted in transit', (plan) => plan === 'business', 'account'],
+  ['priority', 'Priority support', (plan) => plan === 'business', 'account'],
 ]
 const TEXTING_KEYS = ['inbox', 'smsEmail', 'textTriggers']
-const webFeatures = (plan) => WEB_FEATURES.filter(([key]) => phoneConfig.PLAN_TEXTING() || !TEXTING_KEYS.includes(key)).map(([key, label, gate]) => ({
-  key, label: typeof label === 'function' ? label() : label, included: gate === null ? true : typeof gate === 'function' ? gate(plan) : !!phoneConfig.canAccessFeature(plan, gate),
+const webFeatures = (plan) => WEB_FEATURES.filter(([key]) => phoneConfig.PLAN_TEXTING() || !TEXTING_KEYS.includes(key)).map(([key, label, gate, group]) => ({
+  key, group, label: typeof label === 'function' ? label() : label, included: gate === null ? true : typeof gate === 'function' ? gate(plan) : !!phoneConfig.canAccessFeature(plan, gate),
 }))
 
 // Plan pre-selected on the buy page and badged "Recommended" (Pro unless switched off).
@@ -131,7 +133,7 @@ const catalog = () => {
     recommendedPlan: rec,
     voicemailLanguages: vmGreeting.publicLangs(),
     countries: countries(), typeNames: TYPE_NAMES,
-    rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS, aiAgentPerMin: require('../ai-agent').RATE(), aiSummaryPerMin: require('./ai-summary').RATE(), outboundPerMinUsCa: outboundRate(), outboundPerMinIntl: phoneConfig.CALL_FORWARDING_RATE_MIN },
+    rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS, aiAgentPerMin: require('../ai-agent').RATE(), aiReceptionPerMin: require('../ai-agent').RECEPTION_RATE(), aiSummaryPerMin: require('./ai-summary').RATE(), outboundPerMinUsCa: outboundRate(), outboundPerMinIntl: phoneConfig.CALL_FORWARDING_RATE_MIN },
     sipDomain: phoneConfig.WEB_SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(), planTexting: phoneConfig.PLAN_TEXTING(),
     // Cards show as "coming soon" on the site until this is true (the checkout's card option is still disabled too).
     cardPayments: String(process.env.CLOUDIVR_CARD_PAYMENTS || '').toLowerCase() === 'true',
@@ -206,7 +208,7 @@ function _publicNumber(n, numbers) {
 }
 
 // audioOk(url) → true when the url is one of the account's own library files.
-function validateIvr(body, plan, audioOk = () => true) {
+function validateIvr(body, plan, audioOk = () => true, ctx = {}) {
   const ivr = body || {}
   // Spoken menu language = the web app's language when saved (unset/other = English).
   const language = vmGreeting.IVR_LANGS.includes(ivr.language) ? ivr.language : 'en'
@@ -215,6 +217,47 @@ function validateIvr(body, plan, audioOk = () => true) {
     if (!url) return null
     if (!audioOk(url)) throw new Error(`${where}: pick an audio file from your library.`)
     return String(url)
+  }
+  const hookUrl = (raw, digit) => {
+    const u = String(raw || '').trim().slice(0, 300)
+    const q = safeUrl.quickCheck(u)
+    if (!q.ok) throw new Error(`Key ${digit}: ${q.reason === 'private_address' ? 'that address leads to a private or internal network — use a public https:// address.' : 'enter a web address that starts with https://'}`)
+    return u
+  }
+  const fwd = (raw, digit) => {
+    const to = dialNorm(raw)
+    if (!E164.test(to)) throw new Error(`Key ${digit}: enter the number with country code, e.g. +14155550100.`)
+    if (dialIssue(to)) throw new Error(`Key ${digit}: ${dialIssue(to)}`)
+    if (phoneConfig.isBlockedPrefix(to)) throw new Error(`Key ${digit}: ${to} is a blocked premium/satellite destination.`)
+    return to
+  }
+  // Live data: where a key checks what the caller typed (your database or your system's reply), and whether you confirm by hand.
+  const txt = (v, n) => String(v || '').trim().slice(0, n)
+  const checkOf = (o, digit, { url, amount } = {}) => {
+    const c = o.check || {}
+    if (c.source === 'reply') { if (!url) throw new Error(`Key ${digit}: add the https address of your system, so it can answer.`); return { source: 'reply', notFound: txt(c.notFound, 300) } }
+    if (c.source !== 'db') return null
+    if (!/^ic_[0-9a-f]+$/.test(String(c.connId || ''))) throw new Error(`Key ${digit}: connect your database first.`)
+    if (!txt(c.table, 120) || !txt(c.match, 120)) throw new Error(`Key ${digit}: pick the table and the column to look in.`)
+    if (amount && !txt(c.amountColumn, 120)) throw new Error(`Key ${digit}: pick the column that holds the amount to pay.`)
+    return { source: 'db', connId: String(c.connId), table: txt(c.table, 120), match: txt(c.match, 120), say: txt(c.say, 500), routeColumn: txt(c.routeColumn, 120), amountColumn: txt(c.amountColumn, 120), notFound: txt(c.notFound, 300) }
+  }
+  // Department mailbox on a voicemail: its name (said in the Inbox) and who gets the email copy.
+  const boxOf = (b, digit) => {
+    const name = txt(b?.name, 40), email = txt(b?.email, 120).toLowerCase(), greeting = txt(b?.greeting, 300)
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error(`Key ${digit}: the mailbox email address does not look right.`)
+    return name || email || greeting ? { name, email, greeting } : null
+  }
+  const outcomeOf = (v, digit, which) => {
+    const a = ['message', 'forward', 'menu', 'voicemail', 'end'].includes(v?.action) ? v.action : null
+    if (!a) return null
+    if (a === 'voicemail' && !phoneConfig.canAccessFeature(plan, 'voicemail')) throw new Error(`Key ${digit}: voicemail after ${which} needs the Starter plan or higher.`)
+    return { action: a, message: txt(v.message, 300), forwardTo: a === 'forward' ? fwd(v.forwardTo, `${digit} (when you press ${which})`) : '' }
+  }
+  const confirmOf = (o, digit) => {
+    if (o.confirm !== true) return {}
+    const onAccept = outcomeOf(o.onAccept, digit, 'Accept'), onDecline = outcomeOf(o.onDecline, digit, 'Decline')
+    return { confirm: true, confirmTimeout: o.confirmTimeout === 'voicemail' && phoneConfig.canAccessFeature(plan, 'voicemail') ? 'voicemail' : 'decline', declineMessage: txt(o.declineMessage, 300), ...(['pin', 'collect'].includes(o.action) && txt(o.replayMessage, 300) ? { replayMessage: txt(o.replayMessage, 300) } : {}), ...(onAccept ? { onAccept } : {}), ...(onDecline ? { onDecline } : {}) }
   }
   const clean = (opts, depth) => {
     const out = {}
@@ -243,12 +286,88 @@ function validateIvr(body, plan, audioOk = () => true) {
         out[digit] = { action, smsFrom, smsText, ...(texts.length > 1 ? { smsTexts: texts } : {}), message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label }
       } else if (action === 'voicemail') {
         if (!phoneConfig.canAccessFeature(plan, 'voicemail')) throw new Error('Voicemail needs the Starter plan or higher.')
+        const box = boxOf(o.box, digit)
+        out[digit] = { action, label, ...(box ? { box } : {}) }
+      } else if (action === 'devices') {
+        if (!ctx.sipLogin) throw new Error(`Key ${digit}: this number has no browser phone / phone app login yet — set one up in the Phone apps tab first.`)
+        const noAnswer = ['voicemail', 'menu', 'message'].includes(o.noAnswer) ? o.noAnswer : 'voicemail'
+        if (noAnswer === 'voicemail' && !phoneConfig.canAccessFeature(plan, 'voicemail')) throw new Error(`Key ${digit}: voicemail when nobody answers needs the Starter plan or higher.`)
+        const box = noAnswer === 'voicemail' ? boxOf(o.box, digit) : null
+        out[digit] = { action, label, ringSecs: Math.min(60, Math.max(10, Math.round(Number(o.ringSecs)) || 25)), noAnswer, noAnswerMessage: noAnswer === 'message' ? txt(o.noAnswerMessage, 300) : '', ...(box ? { box } : {}) }
+      } else if (action === 'ringgroup') {
+        if (!phoneConfig.canAccessFeature(plan, 'ringGroup')) throw new Error(`Key ${digit}: the team group needs the Pro plan or higher.`)
+        if (!ctx.ringGroupMembers) throw new Error(`Key ${digit}: add your team's phones in the Ring group tab first (it can stay switched off).`)
         out[digit] = { action, label }
+      } else if (action === 'ai') {
+        if (!/^[A-Za-z0-9_-]{6,64}$/.test(String(o.agentId || ''))) throw new Error(`Key ${digit}: pick the AI agent that should take these calls.`)
+        out[digit] = { action, label, agentId: String(o.agentId), message: txt(o.message, 300), unavailableMessage: txt(o.unavailableMessage, 300) }
+      } else if (action === 'fax') {
+        if (!E164.test(String(o.faxFrom || ''))) throw new Error(`Key ${digit}: pick the fax number that sends the document (get one in Fax if you have none).`)
+        if (!/^[0-9a-f]{24}$/.test(String(o.fileId || ''))) throw new Error(`Key ${digit}: upload the document callers should receive.`)
+        out[digit] = { action, label, faxFrom: String(o.faxFrom), fileId: String(o.fileId), pages: Math.min(20, Math.max(1, Math.round(Number(o.pages)) || 1)), docName: txt(o.docName, 80) || 'document.pdf', prompt: txt(o.prompt, 300), message: txt(o.message, 300), after: o.after === 'menu' ? 'menu' : 'hangup' }
+      } else if (action === 'callback') {
+        const auto = o.auto === true
+        out[digit] = { action, label, message: txt(o.message, 300), auto, callbackTo: auto ? fwd(o.callbackTo, digit) : '' }
+      } else if (action === 'queue') {
+        const agents = [...new Set((Array.isArray(o.agents) ? o.agents : String(o.agents || '').split(/[\s,;]+/)).filter(Boolean).map(a => fwd(a, digit)))]
+        if (!agents.length) throw new Error(`Key ${digit}: add at least one phone for the queue to ring.`)
+        if (agents.length > 5) throw new Error(`Key ${digit}: a queue can ring up to 5 phones.`)
+        const ov = o.overflow || {}
+        const ovAction = ['voicemail', 'forward', 'message'].includes(ov.action) ? ov.action : 'message'
+        if (ovAction === 'voicemail' && !phoneConfig.canAccessFeature(plan, 'voicemail')) throw new Error(`Key ${digit}: voicemail as the queue's last resort needs the Starter plan or higher.`)
+        out[digit] = { action, agents, maxWait: Math.min(900, Math.max(30, Math.round(Number(o.maxWait)) || 180)), ringSecs: Math.min(40, Math.max(10, Math.round(Number(o.ringSecs)) || 20)), announcePosition: o.announcePosition !== false, callback: o.callback === true, message: String(o.message || '').slice(0, 300),
+          overflow: { action: ovAction, forwardTo: ovAction === 'forward' ? fwd(ov.forwardTo, digit) : '', message: ovAction === 'message' ? String(ov.message || '').slice(0, 300) : '' }, label }
+      } else if (action === 'pay') {
+        const sl = require('./sms-limit')
+        const smsFrom = String(o.smsFrom || '')
+        if (!/^(es|mn)_[0-9a-f]+$/.test(smsFrom)) throw new Error(`Key ${digit}: pick the number the payment link is texted from.`)
+        const payNote = sl.gsmText(String(o.payNote || '').trim()).slice(0, 300)
+        const rest = { payNote, smsFrom, message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label }
+        if (o.payVia === 'provider') {
+          if (!/^ic_[0-9a-f]+$/.test(String(o.connId || ''))) throw new Error(`Key ${digit}: connect your payment provider first.`)
+          const currency = String(o.currency || 'USD').toUpperCase()
+          if (!/^[A-Z]{3}$/.test(currency)) throw new Error(`Key ${digit}: enter a 3-letter currency, e.g. USD.`)
+          const lookup = o.amountFrom === 'lookup'
+          const amount = lookup ? 0 : Math.round(Number(o.amount) * 100) / 100
+          if (!lookup && !(amount > 0 && amount < 1000000)) throw new Error(`Key ${digit}: enter the amount to charge.`)
+          const prompt = txt(o.prompt, 500), url = lookup && o.check?.source === 'reply' ? hookUrl(o.url, digit) : ''
+          if (lookup && !prompt) throw new Error(`Key ${digit}: say what the caller should type so we can find what they owe (e.g. "enter your account number").`)
+          const check = lookup ? checkOf(o, digit, { url, amount: true }) : null
+          if (lookup && !check) throw new Error(`Key ${digit}: choose where the amount comes from — your database or your system.`)
+          out[digit] = { action, payVia: 'provider', connId: String(o.connId), amountFrom: lookup ? 'lookup' : 'fixed', amount, currency, description: txt(o.description, 80) || 'Payment', waitPaid: o.waitPaid === true, paidMessage: txt(o.paidMessage, 300), ...(lookup ? { prompt, length: Math.min(20, Math.max(1, Math.round(Number(o.length)) || 6)), url, check } : {}), ...rest }
+        } else {
+          const payUrl = hookUrl(o.payUrl, digit)
+          const smsText = `${payNote || 'Pay securely here:'} ${payUrl}`
+          if (sl.smsTooLong(smsText)) throw new Error(`Key ${digit}: ${sl.smsTooLong(smsText)}`)
+          out[digit] = { action, payUrl, smsText, ...rest }
+        }
+      } else if (action === 'webhook') {
+        const db = o.check?.source === 'db'
+        const url = db && !String(o.url || '').trim() ? '' : hookUrl(o.url, digit)
+        const check = checkOf(o, digit, { url })
+        out[digit] = { action, url, message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label, ...(check ? { check } : {}), ...confirmOf(o, digit) }
+      } else if (action === 'collect') {
+        const prompt = String(o.prompt || '').trim().slice(0, 500)
+        if (!prompt) throw new Error(`Key ${digit}: say what the caller should type.`)
+        const to = o.forwardTo ? fwd(o.forwardTo, digit) : ''
+        const webhook = o.webhook ? hookUrl(o.webhook, digit) : ''
+        const message = String(o.message || '').slice(0, 500)
+        const check = checkOf(o, digit, { url: webhook })
+        if (!to && !webhook && !message && !check && o.confirm !== true) throw new Error(`Key ${digit}: choose what happens with the digits — send to your system, connect the call, or a confirmation message.`)
+        out[digit] = { action, prompt, length: Math.min(20, Math.max(1, Math.round(Number(o.length)) || 6)), webhook, forwardTo: to, message, label, ...(check ? { check } : {}), ...confirmOf(o, digit) }
+      } else if (action === 'pin') {
+        const url = o.check?.source === 'reply' ? hookUrl(o.url, digit) : ''
+        const check = checkOf(o, digit, { url })
+        const pin = check ? '' : String(o.pin || '').replace(/\D/g, '').slice(0, 12)
+        if (!check && pin.length < 3) throw new Error(`Key ${digit}: the PIN needs at least 3 digits.`)
+        const okTo = o.onOk?.forwardTo ? fwd(o.onOk.forwardTo, digit) : ''
+        out[digit] = { action, prompt: String(o.prompt || '').slice(0, 500), pin, onOk: { action: okTo ? 'forward' : 'message', forwardTo: okTo, message: String(o.onOk?.message || '').slice(0, 500) }, failMessage: String(o.failMessage || '').slice(0, 500), label, ...(check ? { check, url, length: Math.min(12, Math.max(3, Math.round(Number(o.length)) || 6)) } : {}), ...confirmOf(o, digit) }
       } else if (action === 'submenu') {
-        if (depth > 0) throw new Error('Sub-menus can only be one level deep.')
+        if (depth >= 3) throw new Error('Sub-menus can only go 3 levels deep.')
         const sub = o.subMenu || {}
         const subAudio = audio(sub.greetingAudioUrl, `Key ${digit} sub-menu`)
-        out[digit] = { action, label, subMenu: { greetingType: subAudio ? 'audio' : 'text', greeting: String(sub.greeting || speech.sub).slice(0, 1000), greetingAudioUrl: subAudio, options: clean(sub.options, 1) } }
+        const subLang = vmGreeting.IVR_LANGS.includes(sub.language) && sub.language !== language ? sub.language : null
+        out[digit] = { action, label, subMenu: { greetingType: subAudio ? 'audio' : 'text', greeting: String(sub.greeting || (subLang ? vmGreeting.ivrSpeech(subLang).sub : speech.sub)).slice(0, 1000), greetingAudioUrl: subAudio, ...(subLang ? { language: subLang } : {}), options: clean(sub.options, depth + 1) } }
       } else throw new Error(`Key ${digit}: unknown action "${action}".`)
     }
     return out
@@ -256,13 +375,29 @@ function validateIvr(body, plan, audioOk = () => true) {
   const options = clean(ivr.options, 0)
   if (ivr.enabled && !Object.keys(options).length) throw new Error('Add at least one menu option before turning the IVR on.')
   const greetingAudioUrl = audio(ivr.greetingAudioUrl, 'Greeting')
+  // After-hours menu (outside the Hours schedule) and staff extensions typed at the top of the main menu.
+  const ah = ivr.afterHours || {}
+  const ahOptions = ah.enabled || Object.keys(ah.options || {}).length ? clean(ah.options, 0) : {}
+  if (ah.enabled && !Object.keys(ahOptions).length) throw new Error('After-hours menu: add at least one key, or switch it off.')
+  const ahAudio = audio(ah.greetingAudioUrl, 'After-hours greeting')
+  const afterHours = { enabled: !!ah.enabled && Object.keys(ahOptions).length > 0, greeting: txt(ah.greeting, 1000), greetingAudioUrl: ahAudio, options: ahOptions }
+  const seenExt = new Set()
+  const extensions = (Array.isArray(ivr.extensions) ? ivr.extensions : []).filter(e => e && (e.code || e.forwardTo || e.name)).slice(0, 30).map((e, i) => {
+    const code = String(e.code || '').replace(/\D/g, '')
+    const where = `Extension ${code || i + 1}`
+    if (code.length < 2 || code.length > 5) throw new Error(`${where}: use 2 to 5 digits, e.g. 101.`)
+    if (seenExt.has(code)) throw new Error(`${where}: two extensions use the same code.`)
+    seenExt.add(code)
+    if (e.action === 'devices') { if (!ctx.sipLogin) throw new Error(`${where}: this number has no browser phone / phone app login yet.`); return { code, name: txt(e.name, 40), action: 'devices', noAnswer: phoneConfig.canAccessFeature(plan, 'voicemail') ? 'voicemail' : 'message' } }
+    return { code, name: txt(e.name, 40), action: 'forward', forwardTo: fwd(e.forwardTo, where.replace('Extension', 'ext')) }
+  })
   return {
     enabled: !!ivr.enabled,
     greetingType: greetingAudioUrl ? 'audio' : 'text',
     greeting: String(ivr.greeting || speech.greeting).slice(0, 1000),
     greetingAudioUrl, language,
     voice: ivr.voice || null, speed: Number(ivr.speed) || 1,
-    options,
+    options, afterHours, extensions,
   }
 }
 
@@ -290,7 +425,8 @@ function routes(router, deps) {
 
   const myNumbers = async (chatId) => ((await phoneNumbersOf.findOne({ _id: chatId }))?.val?.numbers || []).filter(n => n.status !== 'released')
   const findMine = async (chatId, phone) => (await myNumbers(chatId)).find(n => n.phoneNumber === normPhone(phone)) || null
-  const setField = (chatId, phone, path, value) => phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': phone }, { $set: { [`val.numbers.$.${path}`]: value } })
+  // $elemMatch skips an older released copy of the same number (bought again after a delete).
+  const setField = (chatId, phone, path, value) => phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers': { $elemMatch: { phoneNumber: phone, status: { $ne: 'released' } } } }, { $set: { [`val.numbers.$.${path}`]: value } })
   // One answers a number: where both were on, the AI agent already took every call, so the keypad menu goes off.
   const both = { 'features.aiAgent.enabled': true, 'features.ivr.enabled': true }
   phoneNumbersOf.updateMany({ 'val.numbers': { $elemMatch: both } }, { $set: { 'val.numbers.$[n].features.ivr.enabled': false } }, { arrayFilters: [{ 'n.features.aiAgent.enabled': true, 'n.features.ivr.enabled': true }] })
@@ -324,6 +460,35 @@ function routes(router, deps) {
     return false
   }
 
+  // Infobip / MultiTEL countries search that provider directly; US/CA go through the provider chain.
+  const rawSearch = async ({ country, type, areaCode, texting: sms, own }) => {
+    const found = own === 'infobip' ? await require('../infobip').searchNumbers(country, type, areaCode, 12, { sms: sms && !!texting.offerOf(country, type) })
+      : own === 'multitel' ? await require('../multitel').searchNumbers(country, type, areaCode, 12)
+        : await telnyxApi.searchNumbers(country, type, areaCode, 12)
+    // Nothing listable from the main provider (e.g. MultiTEL Germany/France only assigns on order): try the other one.
+    if (['multitel', 'infobip'].includes(own) && !found.length && !areaCode) {
+      const other = own === 'multitel' ? 'infobip' : 'multitel'
+      const ok = require(`../${other}`).enabled() && !require('../provider-health').isDown(other)
+      if (ok) found.push(...(other === 'infobip' ? await require('../infobip').searchNumbers(country, type, null, 12).catch(() => []) : await require('../multitel').searchNumbers(country, type, null, 12).catch(() => [])))
+    }
+    return found
+  }
+  const searchArgs = (country, type, areaCode, sms) => ({ country, type, areaCode: areaCode || null, texting: !!sms, own: ownProvider(countries().find(x => x.code === country), type) })
+  const hot = require('./search-warm').create(rawSearch, { log: (m) => log(`[CloudIVR-Web] number search cache: ${m}`) })
+  // A cached hit the provider no longer remembers (bought or refused since) can't be ordered any more.
+  const stillOffered = (n) => (n._provider === 'multitel' ? require('../multitel').isMtSearched(n.phone_number) : n._provider === 'infobip' ? require('../infobip').isIbSearched(n.phone_number) : true)
+  if (String(process.env.NUMBER_SEARCH_WARM || 'true').toLowerCase() !== 'false') hot.start(searchArgs)
+
+  // Typed a full area code: start that search now so pressing Search answers straight away.
+  router.get('/numbers/search/warm', (req, res) => {
+    const country = String(req.query.country || 'US').toUpperCase()
+    const c = countries().find(x => x.code === country)
+    const type = String(req.query.type || c?.types?.[0] || 'local')
+    const areaCode = /^\d{3}$/.test(String(req.query.areaCode || '')) ? String(req.query.areaCode) : null
+    if (c && c.types.includes(type) && !c.offers?.[type]?.request) hot.prefetch(searchArgs(country, type, ['US', 'CA'].includes(country) && type === 'local' ? areaCode : null, req.query.texting === '1'))
+    res.status(202).json({ ok: true })
+  })
+
   router.get('/catalog', (req, res) => res.json(catalog()))
 
   router.get('/numbers/search', h(async (req, res) => {
@@ -339,16 +504,7 @@ function routes(router, deps) {
     const verification = own || offer ? { required: false } : await verificationInfo(country, type, `${c.flag} ${c.name}`)
     if (verification.error) return bad(res, 424, 'lookup_failed', verification.error)
     if (verification.required && !verification.supported) return bad(res, 400, 'unsupported', `${c.name} ${TYPE_NAMES[type] || type} numbers can't be ordered online right now. Pick another country or type.`)
-    // Infobip / MultiTEL countries search that provider directly; US/CA go through the provider chain.
-    const found = await unheld(own === 'infobip' ? await require('../infobip').searchNumbers(country, type, areaCode, 12, { sms: req.query.texting === '1' && !!texting.offerOf(country, type) })
-      : own === 'multitel' ? await require('../multitel').searchNumbers(country, type, areaCode, 12)
-        : await telnyxApi.searchNumbers(country, type, areaCode, 12))
-    // Nothing listable from the main provider (e.g. MultiTEL Germany/France only assigns on order): try the other one.
-    if (['multitel', 'infobip'].includes(own) && !found.length && !areaCode) {
-      const other = own === 'multitel' ? 'infobip' : 'multitel'
-      const ok = require(`../${other}`).enabled() && !require('../provider-health').isDown(other)
-      if (ok) found.push(...await unheld(other === 'infobip' ? await require('../infobip').searchNumbers(country, type, null, 12).catch(() => []) : await require('../multitel').searchNumbers(country, type, null, 12).catch(() => [])))
-    }
+    const found = await unheld((await hot.get(searchArgs(country, type, areaCode, req.query.texting === '1'))).list.filter(stillOffered))
     if (own === 'multitel' && !found.length && require('../multitel').isBlocked()) return bad(res, 503, 'provider_unavailable', 'Numbers in this country are temporarily unavailable. Please try again later.')
     if (own && !found.length) return res.json({ numbers: [], fallback: null, unavailable: true, message: `No ${c.name} ${TYPE_NAMES[type] || type} numbers can be picked online right now. Try another type, or message support and we'll order one for you.` })
     const results = found.map(n => ({
@@ -383,6 +539,13 @@ function routes(router, deps) {
     const hit = cache?.results?.find(r => r.phoneNumber === normPhone(phone))
     return hit ? { hit, country: cache.country, type: cache.type, areaCode: cache.areaCode } : null
   }
+  // Several picks from the same search (null when any is no longer there).
+  const pickManyFromSearch = async (chatId, phones) => {
+    const cache = await searchCache.findOne({ _id: chatId })
+    const out = phones.map(p => cache?.results?.find(r => r.phoneNumber === normPhone(p))).map(hit => hit && { hit, country: cache.country, type: cache.type, areaCode: cache.areaCode })
+    return out.length && out.every(Boolean) ? out : null
+  }
+  const extraPriceOf = (country, type) => texting.offerOf(country, type)?.extraPrice ?? phoneConfig.SUB_NUMBER_BASE_PRICE
   const searchSimilar = async (country, type, areaCode) => (await unheld(await telnyxApi.searchNumbers(country, type, areaCode, 6))).map(n => ({
     phoneNumber: n.phone_number, capabilities: n._capabilities || { voice: true, sms: false, fax: false },
     surcharge: ['infobip', 'multitel'].includes(n._provider) ? require('../number-addons').get(country, type) : round2(numberSurcharge(country, type, n)), cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
@@ -394,6 +557,7 @@ function routes(router, deps) {
   // One buyer at a time per number: the lock closes the gap between the holder check and saving the number
   // (TTL frees it if the process dies mid-purchase).
   const locks = db.collection('webNumberLocks')
+  locks.createIndex({ at: 1 }, { expireAfterSeconds: 900 }).catch(() => {}) // a lock left by a crash clears itself
   locks.createIndex({ at: 1 }, { expireAfterSeconds: 600 }).catch(() => {})
   // MultiTEL details / documents rules for this account → message, or null when it can buy.
   async function paperworkIssue(chatId, country, name, offer) {
@@ -406,18 +570,34 @@ function routes(router, deps) {
     return null
   }
 
+  // Extra numbers: one buy per plan at a time, and the plan's free slots are checked again under that lock,
+  // so two buys at the same moment can never go over the plan's limit.
   async function purchase(args) {
-    try { await locks.insertOne({ _id: args.phone, chatId: args.chatId, at: new Date() }) } catch (e) {
-      if (e.code === 11000) return { status: 409, body: { error: 'number_taken', message: 'Someone is buying that number right now. Pick another one.' } }
-      throw e
+    const planLock = args.sub && !args.planLocked ? `extras:${args.chatId}:${args.sub.parentNumber}` : null
+    if (planLock) {
+      let got = false
+      for (let i = 0; i < 40 && !got; i++) {
+        try { await locks.insertOne({ _id: planLock, at: new Date() }); got = true } catch (e) { if (e.code !== 11000) throw e; await new Promise(r => setTimeout(r, 250)) }
+      }
+      if (!got) return { status: 409, body: { error: 'busy', message: 'Extra numbers are already being added to this plan. Wait a moment and try again.' } }
     }
-    try { return await purchaseLocked(args) } finally { await locks.deleteOne({ _id: args.phone }).catch(() => {}) }
+    try {
+      if (planLock) {
+        const used = (await myNumbers(args.chatId)).filter(n => n.isSubNumber && n.parentNumber === args.sub.parentNumber).length
+        if (!phoneConfig.subSlotsLeft(args.sub.plan, used)) return { status: 400, body: { error: 'limit_reached', message: `The ${phoneConfig.plans[args.sub.plan]?.name || args.sub.plan} plan allows ${phoneConfig.getSubNumberLimit(args.sub.plan)} extra numbers. Upgrade the main number to add more.` } }
+      }
+      try { await locks.insertOne({ _id: args.phone, chatId: args.chatId, at: new Date() }) } catch (e) {
+        if (e.code === 11000) return { status: 409, body: { error: 'number_taken', message: 'Someone is buying that number right now. Pick another one.' } }
+        throw e
+      }
+      try { return await purchaseLocked(args) } finally { await locks.deleteOne({ _id: args.phone }).catch(() => {}) }
+    } finally { if (planLock) await locks.deleteOne({ _id: planLock }).catch(() => {}) }
   }
 
   // Debits the wallet and activates the number → { status, body } (HTTP-style; refunds on failure).
   // `sub` = { parentNumber, plan } adds the number to an existing plan (flat extra-number price, parent's plan features).
   // `coupon` = { code, type, discount } from deps.resolveCoupon (percent off; redeemed only after success).
-  async function purchaseLocked({ chatId, email, phone, planKey, hit, country, type, areaCode, autoRenew = true, viaOrder = null, sub = null, coupon = null, prepaid = null, presetOrder = null, withTexting = false }) {
+  async function purchaseLocked({ chatId, email, phone, planKey, hit, country, type, areaCode, autoRenew = true, viaOrder = null, sub = null, coupon = null, prepaid = null, presetOrder = null, withTexting = false, skipRedeem = false }) {
     if (sub) planKey = sub.plan
     const plan = phoneConfig.plans[planKey]
     if (!plan || !phoneConfig.isPlanAvailable(planKey)) return { status: 400, body: { error: 'invalid_plan', message: 'That plan is not available.' } }
@@ -438,9 +618,13 @@ function routes(router, deps) {
     // The usage rules are part of the Terms accepted at sign-up (no separate policy pop-up).
     // Paperwork never blocks the order: missing details / documents are asked for after payment (number page).
     const regIssue = hit?.provider === 'multitel' && offer?.level && !presetOrder ? await paperworkIssue(chatId, country, c.name, offer) : null
-    const base = sub ? (texting.offerOf(country, type)?.extraPrice ?? phoneConfig.SUB_NUMBER_BASE_PRICE) : plan.price + phoneConfig.planAddon(planKey, country, type, hit.surcharge || 0)
-    const price = prepaid ? prepaid.amount : round2(base * (1 - (Number(coupon?.discount) || 0) / 100))
-    if (!prepaid && !(await w.debit(chatId, price))) return { status: 402, body: { error: 'insufficient_balance', message: `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(chatId)).toFixed(2)} — top up first.` } }
+    const base = sub ? extraPriceOf(country, type) : plan.price + phoneConfig.planAddon(planKey, country, type, hit.surcharge || 0)
+    // Extra numbers join the main line's renewal date: the first charge covers only the days until then.
+    const parentExp = sub ? (await myNumbers(chatId)).find(x => x.phoneNumber === sub.parentNumber && x.status === 'active')?.expiresAt : null
+    const coterm = parentExp && new Date(parentExp) > new Date() ? parentExp : null
+    const firstBase = coterm ? lifecycle.proratedTo(base, coterm) : base
+    const price = prepaid ? prepaid.amount : round2(firstBase * (1 - (Number(coupon?.discount) || 0) / 100))
+    if (!prepaid && !(await w.debit(chatId, price))) return { status: 402, body: { error: 'insufficient_balance', message: `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(chatId)).toFixed(2)}.`, cost: price } }
 
     let selected = phone
     try {
@@ -458,7 +642,7 @@ function routes(router, deps) {
         notifyAdmin(`🌐 CloudIVR web: paid ${country} number ${phone} — collecting verification\nweb account: ${chatId} (${email})\nplan: ${plan.name} $${price}`)
         return { status: 202, body: { verification: true, sessionId: order.sessionId, phoneNumber: phone, substitutedFrom: null, balance: await w.balance(chatId) } }
       }
-      if (!order) throw new Error('The number could not be reserved — it may have just been taken. Pick another one.')
+      if (!order) throw new Error(hit?.provider === 'signalwire' && require('../signalwire/rest').isFull() ? 'We can’t activate numbers in this area right now. Search again to see the numbers we can switch on today.' : 'The number could not be reserved — it may have just been taken. Pick another one.')
       if (order._retriedNumber) selected = order._retriedNumber
       const viaMultitel = order._provider === 'multitel' || String(order.id || '').startsWith('mt:')
       const viaInfobip = viaMultitel || order._provider === 'infobip' || String(order.id || '').startsWith('ib:') // own routing, no Telnyx steps
@@ -471,7 +655,7 @@ function routes(router, deps) {
         if (cred?.sip_username) { tUser = sipUsername = cred.sip_username; tPass = sipPassword = cred.sip_password || sipPassword; tCredId = cred.id || null }
       }
       const caps = { voice: hit.capabilities.voice !== false, sms: !!hit.capabilities.sms, mms: !!hit.capabilities.mms, fax: !!hit.capabilities.fax }
-      const expiresAt = new Date(); expiresAt.setMonth(expiresAt.getMonth() + 1)
+      const expiresAt = coterm ? new Date(coterm) : new Date(); if (!coterm) expiresAt.setMonth(expiresAt.getMonth() + 1)
       const doc = {
         phoneNumber: selected, telnyxOrderId: order.id, provider: viaMultitel ? 'multitel' : viaInfobip ? 'infobip' : 'telnyx', country, countryName: c.name,
         ...(order._needsRegistration || regIssue ? { registration: { status: regIssue ? 'needs_details' : 'pending', level: offer?.level || 0, since: new Date().toISOString(), paid: price } } : {}),
@@ -495,7 +679,7 @@ function routes(router, deps) {
       await deps.legalProfile?.recordResale({ chatId, phoneNumber: selected, provider: doc.provider, country })
       if (doc.registration?.status === 'pending') deps.numberDocs?.submit({ chatId, email, phoneNumber: selected, country, countryName: c.name, type }).catch(e => log(`[CloudIVR-Web] MultiTEL documents for ${selected}: ${e.message}`))
       await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: sub ? 'purchase_sub' : 'purchase', plan: planKey, amount: price, paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), ...(sub ? { parentNumber: sub.parentNumber } : {}), ...(coupon ? { coupon: coupon.code, discountPct: coupon.discount } : {}), channel: 'web', timestamp: new Date().toISOString() })
-      if (coupon?.code) {
+      if (coupon?.code && !skipRedeem) {
         if (coupon.type === 'web-offer') await deps.offers?.markCodeUsed(chatId, coupon.code).catch(() => {})
         else if (deps.redeemCoupon) await Promise.resolve(deps.redeemCoupon(chatId, coupon.code, coupon.type)).catch(() => {})
         await notify.push(chatId, `Coupon ${coupon.code} applied: ${coupon.discount}% off ${selected}. You saved $${round2(base - price).toFixed(2)}.`, null, { kind: 'coupon', meta: { coupon: coupon.code, discount: coupon.discount, used: true } }).catch(() => {})
@@ -703,17 +887,35 @@ function routes(router, deps) {
     if (!gate(req, res, 'ivr', 'The keypad menu')) return
     const urls = await ownAudioUrls(req.webChatId)
     let value
-    try { value = validateIvr(req.body, req.num.plan, (u) => urls.has(u)) } catch (e) { return bad(res, 400, 'invalid_ivr', e.message) }
-    const lines = [...Object.values(value.options), ...Object.values(value.options).flatMap(o => Object.values(o.subMenu?.options || {}))].filter(o => o.action === 'sms').map(o => o.smsFrom)
+    const rgMembers = (req.num.features?.ringGroup?.members || []).filter(Boolean).length
+    try { value = validateIvr(req.body, req.num.plan, (u) => urls.has(u), { sipLogin: !!req.num.sipUsername, ringGroupMembers: rgMembers }) } catch (e) { return bad(res, 400, 'invalid_ivr', e.message) }
+    const every = (opts) => Object.values(opts || {}).flatMap(o => [o, ...every(o.subMenu?.options)])
+    const keys = [...every(value.options), ...every(value.afterHours?.options)], liveData = require('../ivr-live-data')
+    const ai = require('../ai-agent')
+    for (const o of keys.filter(k => k.action === 'ai')) if (!(await ai.store.getAgent(o.agentId, req.webChatId).catch(() => null))) return bad(res, 400, 'invalid_ivr', 'A key uses an AI agent that was removed. Pick one of your agents again.')
+    const faxKeys = keys.filter(k => k.action === 'fax')
+    if (faxKeys.length) {
+      const fax = require('../fax-service'), { ObjectId } = require('mongodb')
+      for (const o of faxKeys) {
+        if (!fax.eligible(await fax.findMine(req.webChatId, o.faxFrom))) return bad(res, 400, 'invalid_ivr', `The fax number ${o.faxFrom} is not one of your active fax numbers. Pick another, or get a fax number first.`)
+        if (!(await deps.db.collection('faxFiles.files').findOne({ _id: new ObjectId(o.fileId), 'metadata.chatId': req.webChatId, 'metadata.kind': 'ivr' }))) return bad(res, 400, 'invalid_ivr', 'Upload the fax document again.')
+      }
+    }
+    if (!(await liveData.owns(req.webChatId, keys.map(o => o.check?.connId), 'database'))) return bad(res, 400, 'invalid_ivr', 'A key uses a database connection that was removed. Pick it again.')
+    if (!(await liveData.owns(req.webChatId, keys.filter(o => o.action === 'pay').map(o => o.connId), 'payments'))) return bad(res, 400, 'invalid_ivr', 'A key uses a payment provider that was removed. Pick it again.')
+    const lines = keys.filter(o => o.action === 'sms').map(o => o.smsFrom)
     if (lines.length) {
       const ok = await deps.db.collection('esimLines').countDocuments({ _id: { $in: [...new Set(lines)] }, kind: 'mobile', chatId: String(req.webChatId), status: { $in: ['provisioning', 'active', 'suspended'] } })
       if (ok !== new Set(lines).size) return bad(res, 400, 'invalid_ivr', 'Pick one of your own texting numbers to send the text from.')
     }
+    const faxSvc = require('../fax-service'), dropped = faxSvc.ivrDocIds([req.num])
     await setField(req.webChatId, req.num.phoneNumber, 'features.ivr', value)
+    // Fax documents no menu uses any more are cleaned up (any of the owner's numbers may still use one).
+    deps.db.collection('phoneNumbersOf').findOne({ _id: req.webChatId }).then(d => faxSvc.sweepIvrDocs(req.webChatId, faxSvc.ivrDocIds(d?.val?.numbers), dropped)).catch(e => console.log(`[IVR] fax doc sweep: ${e.message}`))
     // One answers a number: the keypad menu going on switches the AI voice agent off.
-    const ai = req.num.features?.aiAgent
-    const aiAgentTurnedOff = !!(value.enabled && ai?.enabled)
-    if (aiAgentTurnedOff) await setField(req.webChatId, req.num.phoneNumber, 'features.aiAgent', { ...ai, enabled: false })
+    const aiCfg = req.num.features?.aiAgent
+    const aiAgentTurnedOff = !!(value.enabled && aiCfg?.enabled)
+    if (aiAgentTurnedOff) await setField(req.webChatId, req.num.phoneNumber, 'features.aiAgent', { ...aiCfg, enabled: false })
     res.json({ ivr: value, aiAgentTurnedOff })
   }))
 
@@ -778,6 +980,12 @@ function routes(router, deps) {
     res.json({ code: r.code, devices: r.devices, server: r.server, lastSeenAt: r.lastSeenAt, lastApp: r.lastApp, ...selftest.explain(r) })
   }))
 
+  // Live badge: is a phone app signed in to this number's SIP login right now?
+  router.get('/numbers/:phone/sip/status', withNumber(async (req, res) => {
+    if (!phoneConfig.canAccessFeature(req.num.plan, 'sipCredentials')) return gate(req, res, 'sipCredentials', 'SIP credentials')
+    res.json(await require('../sip-presence').status(db, req.num))
+  }))
+
   router.post('/numbers/:phone/sip/qr', withNumber(async (req, res) => {
     if (!phoneConfig.canAccessFeature(req.num.plan, 'sipCredentials')) return gate(req, res, 'sipCredentials', 'SIP credentials')
     await require('../sip-logins').ensure(phoneNumbersOf, req.webChatId, req.num)
@@ -795,7 +1003,7 @@ function routes(router, deps) {
       if (n.telnyxCredentialId) await telnyxApi.deleteSIPCredential(n.telnyxCredentialId).catch(() => {})
     }
     const live = !dryRun() && !n.dryRun
-    await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.sipUsername': user, 'val.numbers.$.sipPassword': pass, 'val.numbers.$.telnyxSipUsername': live || process.env.SIP_SERVER_SECRET ? user : n.telnyxSipUsername || null, 'val.numbers.$.telnyxSipPassword': live || process.env.SIP_SERVER_SECRET ? pass : n.telnyxSipPassword || null, 'val.numbers.$.telnyxCredentialId': credId || (process.env.SIP_SERVER_SECRET ? `kam:${user}` : n.telnyxCredentialId || null) } })
+    await require('../live-number').updateLive(phoneNumbersOf, chatId, n.phoneNumber, { $set: { 'val.numbers.$.sipUsername': user, 'val.numbers.$.sipPassword': pass, 'val.numbers.$.telnyxSipUsername': live || process.env.SIP_SERVER_SECRET ? user : n.telnyxSipUsername || null, 'val.numbers.$.telnyxSipPassword': live || process.env.SIP_SERVER_SECRET ? pass : n.telnyxSipPassword || null, 'val.numbers.$.telnyxCredentialId': credId || (process.env.SIP_SERVER_SECRET ? `kam:${user}` : n.telnyxCredentialId || null) } })
     return { username: user, password: pass }
   }
 
@@ -806,7 +1014,7 @@ function routes(router, deps) {
     if (n.registration?.status !== 'needs_details' || !offer) return bad(res, 409, 'not_waiting', 'This number is not waiting for your details.')
     const why = await paperworkIssue(req.webChatId, n.country, c?.name || n.country, offer)
     if (why) return bad(res, 400, 'paperwork_needed', why)
-    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.registration.status': 'pending', 'val.numbers.$.registration.detailsAt': new Date().toISOString() } })
+    await require('../live-number').updateLive(phoneNumbersOf, req.webChatId, n.phoneNumber, { $set: { 'val.numbers.$.registration.status': 'pending', 'val.numbers.$.registration.detailsAt': new Date().toISOString() } })
     if (!n.dryRun) await deps.numberDocs?.submit({ chatId: req.webChatId, email: req.webUser?.email, phoneNumber: n.phoneNumber, country: n.country, countryName: c?.name || n.country, type: n.type }).catch(e => log(`[CloudIVR-Web] MultiTEL documents for ${n.phoneNumber}: ${e.message}`))
     res.json({ ok: true })
   }))
@@ -875,7 +1083,7 @@ function routes(router, deps) {
     if ((n.extraSip || []).length >= MAX) return bad(res, 400, 'limit_reached', `This number already has ${MAX} extra SIP logins. Remove one to add another.`)
     const paid = freeLeft(n) === 0, price = lifecycle.EXTRA_SIP_PRICE()
     if (paid && req.body?.confirmPaid !== true) return bad(res, 402, 'confirm_paid', `No free extra logins left on this plan. Each extra one costs $${price}/month, charged now and with each renewal.`)
-    if (paid && !(await walletOps(db).debit(req.webChatId, price))) return bad(res, 402, 'insufficient_balance', `An extra SIP login costs $${price}/month. Top up your wallet first.`)
+    if (paid && !(await walletOps(db).debit(req.webChatId, price))) return bad(res, 402, 'insufficient_balance', `An extra SIP login costs $${price}/month.`, { cost: Number(price) })
     const label = String(req.body?.label || '').trim().slice(0, 40) || `Device ${(n.extraSip || []).length + 1}`
     const login = { id: crypto.randomUUID().slice(0, 8), label, username: phoneConfig.generateSipUsername(), password: phoneConfig.generateSipPassword(), createdAt: new Date().toISOString(), ...(paid ? { paid: true, price } : {}) }
     const u = await phoneNumbersOf.updateOne({ _id: req.webChatId, val: { $exists: true }, 'val.numbers': { $elemMatch: { phoneNumber: n.phoneNumber, [`extraSip.${MAX - 1}`]: { $exists: false } } } }, { $push: { 'val.numbers.$.extraSip': login } })
@@ -885,7 +1093,7 @@ function routes(router, deps) {
     res.json({ ...login, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP' })
   }))
   router.delete('/numbers/:phone/sip/extra/:id', withNumber(async (req, res) => {
-    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': req.num.phoneNumber }, { $pull: { 'val.numbers.$.extraSip': { id: req.params.id } } })
+    await require('../live-number').updateLive(phoneNumbersOf, req.webChatId, req.num.phoneNumber, { $pull: { 'val.numbers.$.extraSip': { id: req.params.id } } })
     res.json({ ok: true })
   }))
 
@@ -911,7 +1119,7 @@ function routes(router, deps) {
     const offer = deps.offers ? await deps.offers.renewOffer(req.webChatId, n.phoneNumber).catch(() => null) : null
     const full = round2(lifecycle.renewalPrice(n))
     const price = offer ? round2(full * (1 - offer.discount / 100)) : full
-    if (price > 0 && !(await w.debit(req.webChatId, price))) return bad(res, 402, 'insufficient_balance', `Renewal costs $${price.toFixed(2)}. Top up your wallet first.`)
+    if (price > 0 && !(await w.debit(req.webChatId, price))) return bad(res, 402, 'insufficient_balance', `Renewal costs $${price.toFixed(2)}.`, { cost: price })
     const r = lifecycle.renewPatches(numbers, n)
     await lifecycle.applyDb(phoneNumbersOf, req.webChatId, r.patches)
     const action = r.wasSuspended ? 'restore' : 'renew'
@@ -941,10 +1149,10 @@ function routes(router, deps) {
     const offer = pct === null ? await upgradeOffer(chatId, n, newPlan) : null
     const q = upgradeQuote(n, newPlan, pct === null ? (offer?.discount || 0) : pct, diff)
     if (q.error) return { status: q.error.status, body: { error: q.error.error, message: q.error.message } }
-    if (!(await w.debit(chatId, q.charge))) return { status: 402, body: { error: 'insufficient_balance', message: `The upgrade costs $${q.charge.toFixed(2)}. Top up your wallet first.` } }
+    if (!(await w.debit(chatId, q.charge))) return { status: 402, body: { error: 'insufficient_balance', message: `The upgrade costs $${q.charge.toFixed(2)}.`, cost: q.charge } }
     // Switch back on what a downgrade turned off, when the new plan includes it.
     const set = lifecycle.numberSet({ plan: newPlan, planPrice: q.newPrice, ...lifecycle.upgradePatch(n, newPlan) })
-    await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: set, $unset: { 'val.numbers.$.priceLock': '' } })
+    await require('../live-number').updateLive(phoneNumbersOf, chatId, n.phoneNumber, { $set: set, $unset: { 'val.numbers.$.priceLock': '' } })
     await phoneNumbersOf.updateOne({ _id: chatId }, { $set: { 'val.numbers.$[s].plan': newPlan } }, { arrayFilters: [{ 's.isSubNumber': true, 's.parentNumber': n.phoneNumber }] }).catch(() => {})
     await phoneTransactions.insertOne({ chatId, phoneNumber: n.phoneNumber, action: 'upgrade', oldPlan: n.plan, newPlan, oldPrice: n.planPrice, newPrice: q.newPrice, amount: q.charge.toFixed(2), credit: q.credit.toFixed(2), paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), channel: 'web', timestamp: new Date().toISOString() })
     await txn(chatId, 'phone-upgrade', q.charge, { phoneNumber: n.phoneNumber, plan: newPlan })
@@ -994,7 +1202,7 @@ function routes(router, deps) {
       const ver = await verificationInfo(old.country, old.type, `${c?.flag || ''} ${c?.name || old.country}`)
       if (ver.error) return bad(res, 424, 'lookup_failed', ver.error)
       if (ver.required) return bad(res, 400, 'needs_documents', 'Numbers in this country need ID documents, so they can’t be replaced online. Message support and we’ll help.')
-      if (!(await w.debit(chatId, REPLACE_PRICE))) return bad(res, 402, 'insufficient_balance', `Replacing a number costs $${REPLACE_PRICE}. Your wallet has $${(await w.balance(chatId)).toFixed(2)} — top up first.`)
+      if (!(await w.debit(chatId, REPLACE_PRICE))) return bad(res, 402, 'insufficient_balance', `Replacing a number costs $${REPLACE_PRICE}. Your wallet has $${(await w.balance(chatId)).toFixed(2)}.`, { cost: REPLACE_PRICE })
       try {
         const live = !dryRun() && !old.dryRun
         const tr = getTelnyxResources() || {}
@@ -1013,7 +1221,7 @@ function routes(router, deps) {
         const { _reminder3Sent, _reminder1Sent, ...keep } = old
         const doc = { ...keep, ...sip, phoneNumber: selected, telnyxOrderId: order.id, provider: order._provider || (String(order.id || '').startsWith('mt:') ? 'multitel' : String(order.id || '').startsWith('ib:') ? 'infobip' : keep.provider || 'telnyx'), capabilities: caps, purchaseDate: new Date().toISOString(), replaces: old.phoneNumber, messagingProfileId: caps.sms ? tr.messagingProfileId || old.messagingProfileId || null : null, features: { ...(old.features || {}), sms: !!caps.sms && old.features?.sms === true }, ...(live ? {} : { dryRun: true }) }
         const releaseAt = new Date(Date.now() + OVERLAP_DAYS * 86400000).toISOString()
-        await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': old.phoneNumber }, { $set: { 'val.numbers.$.replacedBy': selected, 'val.numbers.$.releaseAt': releaseAt, 'val.numbers.$.autoRenew': false, 'val.numbers.$.telnyxCredentialId': null, 'val.numbers.$.telnyxSipUsername': null, 'val.numbers.$.telnyxSipPassword': null, 'val.numbers.$.sipUsername': null, 'val.numbers.$.sipPassword': null } })
+        await require('../live-number').updateLive(phoneNumbersOf, chatId, old.phoneNumber, { $set: { 'val.numbers.$.replacedBy': selected, 'val.numbers.$.releaseAt': releaseAt, 'val.numbers.$.autoRenew': false, 'val.numbers.$.telnyxCredentialId': null, 'val.numbers.$.telnyxSipUsername': null, 'val.numbers.$.telnyxSipPassword': null, 'val.numbers.$.sipUsername': null, 'val.numbers.$.sipPassword': null } })
         const eu = await deps.legalProfile?.recordResale({ chatId, phoneNumber: selected, provider: order._provider || 'telnyx', country: old.country })
         if (eu) doc.endUser = eu
         doc.resold = true
@@ -1047,7 +1255,7 @@ function routes(router, deps) {
   const relT = setInterval(() => releaseReplaced().catch(e => log(`[CloudIVR-Web] release replaced: ${e.message}`)), 10 * 60000)
   relT.unref?.()
 
-  return { myNumbers, findMine, purchase, REPLACE_PRICE, releaseReplaced, pickFromSearch, searchSimilar, setField, checkCoupon, unheld, ownAudioUrls, upgradeQuote, upgradeNumber, upgradeOffer, rotateSip }
+  return { myNumbers, findMine, purchase, REPLACE_PRICE, releaseReplaced, pickFromSearch, pickManyFromSearch, extraPriceOf, searchSimilar, setField, checkCoupon, unheld, ownAudioUrls, upgradeQuote, upgradeNumber, upgradeOffer, rotateSip }
 }
 
 // USA mobile numbers (two-way SMS lines, esimLines kind 'mobile') are numbers too; plain eSIMs are not.

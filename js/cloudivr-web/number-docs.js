@@ -69,7 +69,7 @@ function createNumberDocs({ db, h, sendMail, legalProfile, notify, notifyAdmin =
         const docs = []
         for (const f of files) docs.push({ buffer: await get(f.path), name: f.name, type: f.type })
         const r = await require('../multitel/identity').registerNumber(db, { chatId, phoneNumber, person: { ...person, email: person.email || email }, files: docs })
-        await nums.updateOne({ _id: chatId, 'val.numbers.phoneNumber': phoneNumber }, { $set: { 'val.numbers.$.registration.via': 'api', 'val.numbers.$.registration.profile': r.profile, 'val.numbers.$.registration.documentsSent': true, 'val.numbers.$.registration.sentAt': new Date().toISOString(), 'val.numbers.$.registration.files': files.length } })
+        await require('../live-number').updateLive(nums, chatId, phoneNumber, { $set: { 'val.numbers.$.registration.via': 'api', 'val.numbers.$.registration.profile': r.profile, 'val.numbers.$.registration.documentsSent': true, 'val.numbers.$.registration.sentAt': new Date().toISOString(), 'val.numbers.$.registration.files': files.length } })
         return notifyAdmin(`📄 MultiTEL registration submitted via customer profile for ${phoneNumber} (${countryName}) — web account ${chatId}, ${files.length} file(s)`)
       } catch (e) { log(`[NumberDocs] profile registration ${phoneNumber} failed, emailing instead: ${e.message}`) }
     }
@@ -79,7 +79,7 @@ function createNumberDocs({ db, h, sendMail, legalProfile, notify, notifyAdmin =
     const html = `<p>Hello MultiTEL team,</p><p>Please register this number for its end user. Documents are attached.</p>
 <ul><li>Number: <b>${phoneNumber}</b> (${countryName} ${type})</li><li>End user type: ${eu?.type || '-'}</li><li>Name: ${eu?.name || '-'}</li><li>Contact person: ${eu?.contact || '-'}</li><li>Address: ${eu?.address || '-'}</li>${eu?.registrationNumber ? `<li>Company registration: ${eu.registrationNumber}</li>` : ''}<li>Contact email: ${email}</li></ul><p>Thank you,<br>CloudIVR</p>`
     const sent = await sendMail(to, `DID registration documents: ${phoneNumber} (${countryName})`, html, attachments).catch(e => { log(`[NumberDocs] email to MultiTEL failed: ${e.message}`); return false })
-    await nums.updateOne({ _id: chatId, 'val.numbers.phoneNumber': phoneNumber }, { $set: { 'val.numbers.$.registration.documentsSent': !!sent, 'val.numbers.$.registration.sentAt': new Date().toISOString(), 'val.numbers.$.registration.files': files.length } })
+    await require('../live-number').updateLive(nums, chatId, phoneNumber, { $set: { 'val.numbers.$.registration.documentsSent': !!sent, 'val.numbers.$.registration.sentAt': new Date().toISOString(), 'val.numbers.$.registration.files': files.length } })
     notifyAdmin(`📄 MultiTEL registration ${sent ? 'sent' : 'NOT sent (email failed)'} for ${phoneNumber} (${countryName}) — web account ${chatId}, ${files.length} file(s)`)
   }
 
@@ -100,7 +100,7 @@ function createNumberDocs({ db, h, sendMail, legalProfile, notify, notifyAdmin =
             log(`[NumberDocs] ${n.phoneNumber} registration approved`)
           } else {
             await mt.releaseNumber(`mt:${n.phoneNumber}`)
-            await nums.updateOne({ _id: doc._id, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.status': 'released', 'val.numbers.$.releasedAt': new Date().toISOString() } })
+            await require('../live-number').updateLive(nums, doc._id, n.phoneNumber, { $set: { 'val.numbers.$.status': 'released', 'val.numbers.$.releasedAt': new Date().toISOString() } })
             const amount = Number(n.planPrice) || 0
             if (amount) await w.credit(doc._id, amount)
             await notify?.push(doc._id, `The carrier did not approve the documents for ${n.phoneNumber}. We released the number and refunded $${amount.toFixed(2)} to your wallet.`, null, { kind: 'billing' }).catch(() => {})

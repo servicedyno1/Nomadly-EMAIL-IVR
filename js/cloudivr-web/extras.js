@@ -17,11 +17,20 @@ const MAX_TEMPLATES = 20
 const html = (s) => notify.strip(s)
 const today = () => new Date().toISOString().slice(0, 10)
 
+// Numbers asked for in one extra-number order: `phoneNumbers` (several) or `phoneNumber` (one), de-duplicated.
+const extraPicks = (body) => [...new Set((Array.isArray(body?.phoneNumbers) ? body.phoneNumbers : [body?.phoneNumber]).filter(Boolean).map(String))].slice(0, 100)
+const extraSummary = (parent, added, failed) => [
+  added.length ? `${added.length} extra number${added.length === 1 ? '' : 's'} added to ${parent}: ${added.join(', ')}.` : 'None of the extra numbers could be added.',
+  failed.length ? `Not added (nothing charged for ${failed.length === 1 ? 'it' : 'them'} — the money stays in your wallet): ${failed.map(f => `${f.phoneNumber} (${f.message})`).join('; ')}` : '',
+].filter(Boolean).join(' ')
+
 function routes(router, { db, h, numbersApi, offers = null, bulkCallService, getTodayCoupons, placeTestMyNumberCall, startTestOutboundSip, notifyAdmin = () => {}, log = console.log }) {
   const phoneNumbersOf = db.collection('phoneNumbersOf')
   const phoneTransactions = db.collection('phoneTransactions')
   const prefs = db.collection('webPrefs')
-  const bad = (res, status, error, message) => res.status(status).json({ error, message })
+  const bad = (res, status, error, message, extra) => res.status(status).json({ error, message, ...extra })
+  const wallet = require('./wallet').walletOps(db)
+  const locks = db.collection('webNumberLocks')
   const withNumber = (fn) => h(async (req, res) => {
     const num = await numbersApi.findMine(req.webChatId, req.params.phone)
     if (!num) return bad(res, 404, 'not_found', 'Number not found on your account.')
@@ -31,29 +40,114 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
   const subsOf = async (chatId, phone) => (await numbersApi.myNumbers(chatId)).filter(n => n.isSubNumber && n.parentNumber === phone)
 
   // ── Extra numbers on a plan (the bot's sub-numbers): flat price, share the main number's plan ──
+  const limitJson = (plan) => { const l = phoneConfig.getSubNumberLimit(plan); return Number.isFinite(l) ? l : null }
   router.get('/numbers/:phone/extra', withNumber(async (req, res) => {
     const n = req.num
     const list = n.isSubNumber ? [] : await subsOf(req.webChatId, n.phoneNumber)
     const group = [n, ...list]
-    res.json({ allowed: !n.isSubNumber, limit: phoneConfig.getSubNumberLimit(n.plan), used: list.length, price: phoneConfig.SUB_NUMBER_BASE_PRICE, numbers: list.map(x => publicNumber(x, group)) })
+    const left = phoneConfig.subSlotsLeft(n.plan, list.length)
+    const all = await numbersApi.myNumbers(req.webChatId)
+    const renewal = n.isSubNumber ? null : lifecycle.groupRenewal(all, n)
+    const renewsOn = !n.isSubNumber && n.status === 'active' && new Date(n.expiresAt) > new Date() ? n.expiresAt : null
+    res.json({ allowed: !n.isSubNumber, limit: limitJson(n.plan), unlimited: !Number.isFinite(left), used: list.length, left: Number.isFinite(left) ? left : null, price: phoneConfig.SUB_NUMBER_BASE_PRICE,
+      renewsOn, prorate: renewsOn ? lifecycle.prorateRatio(renewsOn) : 1, renewal, numbers: list.map(x => ({ ...publicNumber(x, group), renewalPrice: lifecycle.renewalPrice(x), onPlanDate: lifecycle.sameDate(x.expiresAt, n.expiresAt) })) })
   }))
+  // One or several picked numbers (`phoneNumbers`) join the plan in one payment from the wallet.
   router.post('/numbers/:phone/extra', withNumber(async (req, res) => {
     const n = req.num, chatId = req.webChatId
     if (n.isSubNumber) return bad(res, 400, 'is_extra', 'This is already an extra number. Add extras from its main number.')
     if (n.replacedBy) return bad(res, 409, 'replaced', `This number was replaced by ${n.replacedBy}. Add extra numbers there.`)
     if (n.status !== 'active') return bad(res, 400, 'not_active', 'The main number must be active to add extra numbers.')
-    const limit = phoneConfig.getSubNumberLimit(n.plan)
-    if ((await subsOf(chatId, n.phoneNumber)).length >= limit) return bad(res, 400, 'limit_reached', `The ${phoneConfig.plans[n.plan]?.name || n.plan} plan allows ${limit} extra numbers. Upgrade the main number to add more.`)
-    const picked = await numbersApi.pickFromSearch(chatId, req.body.phoneNumber)
-    if (!picked) return bad(res, 400, 'search_again', 'That number is no longer in your search results. Search again and pick a number.')
+    const phones = extraPicks(req.body)
+    if (!phones.length) return bad(res, 400, 'pick_number', 'Pick at least one number.')
+    const left = phoneConfig.subSlotsLeft(n.plan, (await subsOf(chatId, n.phoneNumber)).length)
+    const planName = phoneConfig.plans[n.plan]?.name || n.plan
+    if (!left) return bad(res, 400, 'limit_reached', `The ${planName} plan allows ${phoneConfig.getSubNumberLimit(n.plan)} extra numbers. Upgrade the main number to add more.`)
+    if (phones.length > left) return bad(res, 400, 'too_many', `The ${planName} plan has room for ${left} more extra number${left === 1 ? '' : 's'}. Untick ${phones.length - left} and try again.`)
+    const picks = await numbersApi.pickManyFromSearch(chatId, phones)
+    if (!picks) return bad(res, 400, 'search_again', 'A number you picked is no longer in your search results. Search again and pick your numbers.')
     let coupon = null
     if (req.body.coupon) {
       coupon = await numbersApi.checkCoupon(chatId, req.body.coupon)
       if (coupon.error) return bad(res, 400, 'invalid_coupon', coupon.message)
     }
-    const r = await numbersApi.purchase({ chatId, email: req.webUser.email, phone: picked.hit.phoneNumber, planKey: n.plan, autoRenew: req.body.autoRenew !== false, coupon, sub: { parentNumber: n.phoneNumber, plan: n.plan }, ...picked })
-    res.status(r.status).json(r.body)
+    const sub = { parentNumber: n.phoneNumber, plan: n.plan }
+    let redeemed = false
+    const buyOne = async (p) => {
+      const r = await numbersApi.purchase({ chatId, email: req.webUser.email, phone: p.hit.phoneNumber, planKey: n.plan, autoRenew: req.body.autoRenew !== false, coupon, skipRedeem: redeemed, sub, planLocked: picks.length > 1, ...p })
+      if (r.status === 201 || r.status === 202) redeemed = true
+      return r
+    }
+    if (picks.length === 1) { const r = await buyOne(picks[0]); return res.status(r.status).json(r.body) }
+    const ratio = new Date(n.expiresAt) > new Date() ? lifecycle.prorateRatio(n.expiresAt) : 1
+    const each = (p) => round2(Math.max(0.5, numbersApi.extraPriceOf(p.country, p.type) * ratio) * (1 - (coupon ? coupon.discount : 0) / 100))
+    const total = round2(picks.reduce((t, p) => t + each(p), 0))
+    const bal = await wallet.balance(chatId)
+    if (bal < total) return bad(res, 402, 'insufficient_balance', `These ${picks.length} numbers come to $${total.toFixed(2)}. Your wallet has $${bal.toFixed(2)}.`, { cost: total, balance: round2(bal), need: round2(total - bal) })
+    // One multi-number order per plan at a time, and the free slots are re-checked before every number.
+    const lockId = `extras:${chatId}:${n.phoneNumber}`
+    try { await locks.insertOne({ _id: lockId, at: new Date() }) } catch (e) {
+      if (e.code === 11000) return bad(res, 409, 'busy', 'Extra numbers are already being added to this plan. Wait a moment and check the plan again.')
+      throw e
+    }
+    const added = [], failed = []
+    try {
+      for (const p of picks) {
+        if (!phoneConfig.subSlotsLeft(n.plan, (await subsOf(chatId, n.phoneNumber)).length)) { failed.push({ phoneNumber: p.hit.phoneNumber, message: 'the plan has no free extra-number slot left' }); continue }
+        const r = await buyOne(p)
+        if (r.status === 201 || r.status === 202) added.push(r.body.number?.phoneNumber || p.hit.phoneNumber)
+        else failed.push({ phoneNumber: p.hit.phoneNumber, message: r.body.message })
+      }
+    } finally { await locks.deleteOne({ _id: lockId }).catch(() => {}) }
+    const balance = await wallet.balance(chatId)
+    const message = extraSummary(n.phoneNumber, added, failed)
+    if (!added.length) return res.status(409).json({ error: 'none_added', message, added, failed, balance })
+    if (failed.length) notify.push(chatId, message).catch(() => {})
+    res.status(201).json({ added, failed, balance, message })
   }))
+
+  // Delete one extra number now: released with the carrier, no refund, its slot frees at once.
+  router.delete('/numbers/:phone/extra-line', withNumber(async (req, res) => {
+    const n = req.num
+    if (!n.isSubNumber) return bad(res, 400, 'not_extra', 'Only extra numbers can be deleted here.')
+    if (req.body?.confirm !== n.phoneNumber) return bad(res, 400, 'confirm', `Type ${n.phoneNumber} to confirm.`)
+    if (!dryRun() && !n.dryRun) {
+      const acct = (await phoneNumbersOf.findOne({ _id: req.webChatId }))?.val
+      await require('../phone-scheduler').releaseFromProvider(n, acct, req.webChatId).catch(e => log(`[CloudIVR-Web] release ${n.phoneNumber}: ${e.message}`))
+    }
+    const now = new Date().toISOString()
+    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers': { $elemMatch: { phoneNumber: n.phoneNumber, status: { $ne: 'released' } } } }, { $set: { 'val.numbers.$.status': 'released', 'val.numbers.$.releasedAt': now, 'val.numbers.$._releasedReason': 'deleted_by_owner', 'val.numbers.$.autoRenew': false } })
+    await phoneTransactions.insertOne({ chatId: req.webChatId, phoneNumber: n.phoneNumber, action: 'delete_extra', parentNumber: n.parentNumber, amount: 0, channel: 'web', timestamp: now })
+    notifyAdmin(`🗑️ CloudIVR web: extra number ${n.phoneNumber} (on ${n.parentNumber}) deleted by web account ${req.webChatId}`)
+    res.json({ deleted: n.phoneNumber, parentNumber: n.parentNumber })
+  }))
+
+  // Copy forwarding / keypad menu / voicemail from one number to others on the account in one go.
+  const COPY_PARTS = { forwarding: 'callForwarding', ivr: 'ivr', voicemail: 'voicemail' }
+  router.post('/numbers/:phone/copy-settings', withNumber(async (req, res) => {
+    const src = req.num
+    const parts = [...new Set((Array.isArray(req.body?.parts) ? req.body.parts : []).filter(p => COPY_PARTS[p]))]
+    if (!parts.length) return bad(res, 400, 'pick_parts', 'Pick at least one setting to copy.')
+    const mine = await numbersApi.myNumbers(req.webChatId)
+    const targets = [...new Set(Array.isArray(req.body?.to) ? req.body.to.map(String) : [])].map(p => mine.find(x => x.phoneNumber === p)).filter(x => x && x.phoneNumber !== src.phoneNumber)
+    if (!targets.length) return bad(res, 400, 'pick_numbers', 'Pick at least one number to copy to.')
+    const set = {}
+    for (const p of parts) set[COPY_PARTS[p]] = src.features?.[COPY_PARTS[p]] ?? null
+    const done = [], skipped = []
+    for (const t of targets) {
+      const ok = parts.filter(p => p !== 'ivr' || phoneConfig.canAccessFeature(t.plan, 'ivr'))
+      if (!ok.length) { skipped.push({ phoneNumber: t.phoneNumber, message: 'its plan has none of these features' }); continue }
+      await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers': { $elemMatch: { phoneNumber: t.phoneNumber, status: { $ne: 'released' } } } }, { $set: Object.fromEntries(ok.map(p => [`val.numbers.$.features.${COPY_PARTS[p]}`, set[COPY_PARTS[p]]])) })
+      done.push(t.phoneNumber)
+    }
+    res.json({ copied: parts, to: done, skipped })
+  }))
+
+  // ── Renewal calendar: every upcoming charge by date and what the wallet covers ──
+  router.get('/renewals/calendar', h(async (req, res) => res.json(await require('../renewal-calendar').forAccount(db, req.webChatId))))
+  // Private live calendar link for Google / Apple calendars; reset makes the old link stop working.
+  router.get('/renewals/calendar/feed', h(async (req, res) => res.json(await require('../renewal-calendar').links(db, req.webChatId))))
+  router.post('/renewals/calendar/feed/reset', h(async (req, res) => res.json(await require('../renewal-calendar').links(db, req.webChatId, true))))
 
   // ── Downgrade: switch now, no refund; features the new plan lacks are turned off (same as the bot) ──
   router.post('/numbers/:phone/downgrade', withNumber(async (req, res) => {
@@ -76,7 +170,7 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
     // Settings switched off are remembered so a later upgrade can switch them back on. Running campaigns and
     // scheduled calls are not touched — they finish as planned.
     const { set } = lifecycle.downgradePatch(n, newPlan)
-    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: lifecycle.numberSet({ plan: newPlan, planPrice: newPrice, ...set }) })
+    await require('../live-number').updateLive(phoneNumbersOf, req.webChatId, n.phoneNumber, { $set: lifecycle.numberSet({ plan: newPlan, planPrice: newPrice, ...set }) })
     await syncExtras(req.webChatId, n.phoneNumber, newPlan)
     if (sipSignOut) Promise.all([n, ...subs.filter(x => x.status !== 'released')].map(x => numbersApi.rotateSip(req.webChatId, x)))
       .catch(e => log(`[CloudIVR-Web] SIP sign-out after downgrade failed for ${n.phoneNumber}: ${e.message}`))
@@ -114,7 +208,7 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
     res.status(201).json({ started: true, to, message: `Ringing ${where} now — pick up and press 1. The result shows here within a minute.` })
   }))
   router.post('/numbers/:phone/test-sip', withNumber(async (req, res) => {
-    if (!phoneConfig.canAccessFeature(req.num.plan, 'sipCredentials')) return bad(res, 403, 'plan_upgrade_required', 'SIP needs the Starter plan or higher.')
+    if (!phoneConfig.canAccessFeature(req.num.plan, 'sipCredentials')) return bad(res, 403, 'plan_upgrade_required', 'SIP isn’t included on this number’s plan.')
     if (dryRun() || req.num.dryRun) return res.status(202).json({ dryRun: true, message: 'Preview mode: within 90 seconds you would dial any number from your softphone; we would catch the call, hang it up for free and report the result in your Inbox.' })
     const r = await startTestOutboundSip(req.webChatId, req.num, 'en')
     if (!r?.ok) return bad(res, 400, 'test_failed', html(r?.message || 'The test could not start.'))
@@ -157,6 +251,20 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
   }))
 
   // ── App language: spoken IVR menus follow it (greetings still on a default text switch language too) ──
+  // ── Saved "wrong code" replies for the Accept / Decline pop-up (owner keeps a list; the pop-up adds to it) ──
+  const DEFAULT_OTP_REPLIES = ['That code is not correct. Please check and try again.', 'That code has expired. We can send you a new one.', 'We could not verify that. Please try once more.']
+  const cleanReply = (t) => String(t || '').replace(/\s+/g, ' ').trim().slice(0, 300)
+  router.get('/prefs/otp-replies', h(async (req, res) => {
+    const p = await prefs.findOne({ _id: req.webChatId }, { projection: { otpReplies: 1 } })
+    res.json({ replies: Array.isArray(p?.otpReplies) ? p.otpReplies : DEFAULT_OTP_REPLIES })
+  }))
+  router.put('/prefs/otp-replies', h(async (req, res) => {
+    const list = [...new Set((Array.isArray(req.body?.replies) ? req.body.replies : []).map(cleanReply).filter(Boolean))].slice(0, 12)
+    await prefs.updateOne({ _id: req.webChatId }, { $set: { otpReplies: list, updatedAt: new Date() } }, { upsert: true })
+    res.json({ replies: list })
+  }))
+
+
   router.put('/prefs/lang', h(async (req, res) => {
     const lang = String(req.body.lang || '')
     if (!vmGreeting.IVR_LANGS.includes(lang)) return bad(res, 400, 'invalid_lang', 'Pick English, French or Spanish.')
@@ -253,4 +361,4 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
   return { announceCoupon }
 }
 
-module.exports = { routes }
+module.exports = { extraPicks, extraSummary, routes }

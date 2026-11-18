@@ -29,7 +29,7 @@ function validate(body = {}, num) {
   const ringTimeout = rawTimeout === undefined || rawTimeout === null || rawTimeout === '' ? 25 : Number(rawTimeout)
   if (!Number.isInteger(ringTimeout) || ringTimeout < 10 || ringTimeout > 60) throw new Error('Ring time must be a whole number between 10 and 60 seconds.')
   let fallback = FALLBACKS.includes(body.fallback) ? body.fallback : 'voicemail'
-  if (fallback === 'voicemail' && !phoneConfig.canAccessFeature(num.plan, 'voicemail')) throw new Error('Voicemail needs the Starter plan or higher.')
+  if (fallback === 'voicemail' && !phoneConfig.canAccessFeature(num.plan, 'voicemail')) throw new Error(`Voicemail needs ${phoneConfig.planNeed('voicemail')}.`)
   let fallbackTo = null
   if (fallback === 'forward') {
     fallbackTo = dialNorm(String(body.fallbackTo || '').trim())
@@ -47,7 +47,7 @@ function routes(router, { h, numbersApi }) {
   router.put('/numbers/:phone/ring-group', h(async (req, res) => {
     const num = await numbersApi.findMine(req.webChatId, req.params.phone)
     if (!num) return bad(res, 404, 'not_found', 'Number not found on your account.')
-    if (!phoneConfig.canAccessFeature(num.plan, 'ringGroup')) return bad(res, 403, 'plan_upgrade_required', 'Ring groups need the Pro plan or higher on this number.')
+    if (!phoneConfig.canAccessFeature(num.plan, 'ringGroup')) return bad(res, 403, 'plan_upgrade_required', `Ring groups need ${phoneConfig.planNeed('ringGroup')} on this number.`)
     let value
     try { value = validate(req.body, num) } catch (e) { return bad(res, 400, 'invalid_ring_group', e.message) }
     await numbersApi.setField(req.webChatId, num.phoneNumber, 'features.ringGroup', value)

@@ -5,7 +5,7 @@ const phoneConfig = require('../phone-config')
 
 const bad = (res, status, error, message, extra = {}) => res.status(status).json({ error, message, ...extra })
 const STATUS = { plan_upgrade_required: 403, insufficient_balance: 402, expired: 410, unavailable: 503, send_failed: 503, not_running: 409, not_found: 404, fax_only: 409 }
-const fail = (res, e) => (e instanceof fax.FaxError ? bad(res, STATUS[e.code] || 400, e.code, e.message) : Promise.reject(e))
+const fail = (res, e) => (e instanceof fax.FaxError ? bad(res, STATUS[e.code] || 400, e.code, e.message, e.extra || {}) : Promise.reject(e))
 
 function routes(router, { db, h, upload, numbersApi, notifyAdmin, legalProfile }) {
   if (!fax.isReady()) fax.init({ db })
@@ -39,6 +39,11 @@ function routes(router, { db, h, upload, numbersApi, notifyAdmin, legalProfile }
     res.json({ numbers, faxes: await fax.list(req.webChatId), batches: await fax.listBatches(req.webChatId), pricing: { freePages: fax.FREE_PAGES, pagePrice: fax.PAGE_PRICE, bulkMax: fax.BULK_MAX } })
   }))
 
+  // Document for a keypad "fax me a document" key (kept until the key changes; sent when a caller asks).
+  router.post('/fax/ivr-doc', upload.single('file'), h(async (req, res) => {
+    if (!req.file) return bad(res, 400, 'no_file', 'Choose a PDF, Word or image file.')
+    try { res.json({ ...(await fax.storeIvrDoc({ chatId: req.webChatId, buffer: req.file.buffer, name: req.file.originalname })), docName: String(req.file.originalname || 'document.pdf').slice(0, 80) }) } catch (e) { if (e instanceof fax.FaxError) return bad(res, 400, e.code, e.message); throw e }
+  }))
   router.post('/fax/stage', upload.single('file'), h(async (req, res) => {
     const num = await mine(req, String(req.body?.from || ''))
     if (!num) return bad(res, 404, 'not_found', 'Number not found on your account.')

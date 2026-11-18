@@ -60,6 +60,16 @@ function createCloudIvrWeb(deps) {
     const auth = createAuth(db, { log, notifyAdmin: deps.notifyAdmin })
     auth.routes(r, h)
     require('./statement').start(db, { log })
+    require('../ivr-live-data').init({ db, log, notify: (chatId, text) => require('./notify').push(chatId, text, null, { kind: 'call' }).catch(() => {}) })
+    require('./ivr-connections').publicRoutes(r, { h })
+    // Private live renewal calendar (Google / Apple / Outlook subscribe to it); the token is the secret.
+    r.get('/public/calendar/:file', async (req, res) => {
+      try {
+        const out = await require('../renewal-calendar').feed(db, String(req.params.file).replace(/\.ics$/, ''))
+        if (!out) return res.status(404).type('text/plain').send('This calendar link was reset or does not exist.')
+        res.set({ 'Content-Type': 'text/calendar; charset=utf-8', 'Cache-Control': 'private, max-age=900', 'Content-Disposition': 'inline; filename="renewals.ics"' }).send(out)
+      } catch (e) { log(`[CloudIVR-Web] calendar feed error: ${e.message}`); res.sendStatus(500) }
+    })
     r.get('/public/catalog', h(async (req, res) => { const c = numbers.catalog(); res.json({
       ...c, cardPayments: c.cardPayments || mollie.cardsLive(req), paymentMethods: await mollie.publicMethods(req).catch(() => []), coins: deps.coins || [], minTopup: wallet.MIN_TOPUP_USD, supportLink: support.supportLink(), channelLink: String(process.env.CLOUDIVR_CHANNEL_LINK || '').trim(),
     }) }))
@@ -190,8 +200,9 @@ function createCloudIvrWeb(deps) {
     require('./hosted').routes(r, { db, h, upload, log, notifyAdmin: deps.notifyAdmin })
     calls.routes(r, { ...deps, db, h, numbersApi })
     notes.routes(r, { db, h, numbersApi })
-    ai.routes(r, { h, numbersApi })
+    ai.routes(r, { h, numbersApi, db })
     require('./assist').routes(r, { h })
+    require('./ivr-connections').routes(r, { h })
     extras.routes(r, { ...deps, db, h, numbersApi, offers })
     onboarding.routes(r, { db, h, numbersApi })
     require('./templates').routes(r, { db, h })
@@ -250,9 +261,28 @@ function createCloudIvrWeb(deps) {
   const bootTimer = setInterval(() => { if (boot()) clearInterval(bootTimer) }, 5000)
   if (bootTimer.unref) bootTimer.unref()
   const router = express.Router()
+  // Every "not enough in your wallet" reply also says how much is there and how much more is needed, so the app can
+  // open a pay-the-difference checkout (crypto or Mollie) and then finish the same action by itself.
+  const SHORT_CODES = new Set(['insufficient_balance', 'start_failed', 'series_funds'])
+  const withShortfall = async (req, body) => {
+    const bal = await wallet.walletOps(getDb()).balance(req.webChatId).catch(() => null)
+    if (bal == null) return body
+    const m = String(body.message || '').replace(/,/g, '')
+    const add = m.match(/\b(?:add|top up) \$(\d+(?:\.\d+)?)/i)
+    const cost = Number(body.cost) || Number((m.match(/\b(?:costs?|needs?|at least)\s+(?:about\s+)?\$(\d+(?:\.\d+)?)/i) || [])[1])
+    // Explicit need/cost from the route wins; the wording is only a fallback for older messages.
+    const need = Number(body.need) || (Number(body.cost) ? Math.max(0, Number(body.cost) - bal) : add ? Number(add[1]) : cost > bal ? cost - bal : 0)
+    return { ...body, balance: wallet.round2(bal), ...(need > 0 ? { need: Math.ceil(need * 100) / 100 } : {}) }
+  }
   router.use((req, res, next) => {
     const json = res.json.bind(res)
-    res.json = (body) => json(scrubBody(body))
+    res.json = (body) => {
+      if (res.statusCode === 402 && SHORT_CODES.has(body?.error) && req.webChatId && (body.error === 'insufficient_balance' || /wallet|balance/i.test(body.message || ''))) {
+        withShortfall(req, body).then(b => json(scrubBody(b)), () => json(scrubBody(body)))
+        return res
+      }
+      return json(scrubBody(body))
+    }
     next()
   })
   router.use((req, res, next) => {

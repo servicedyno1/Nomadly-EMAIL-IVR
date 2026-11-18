@@ -25,7 +25,7 @@ async function pool(items, n, fn) {
 function createLookup({ db, h, walletOps, bird = require('../bird'), log = console.log }) {
   const w = walletOps(db), col = db.collection('numberLookups'), ecol = db.collection('emailLookups')
   const tx = db.collection('transactions')
-  const bad = (res, s, error, message) => res.status(s).json({ error, message })
+  const bad = (res, s, error, message, extra) => res.status(s).json({ error, message, ...extra })
   const strip = ({ _id, chatId, ...x }) => x
   const charge = (chatId, type, amount, ref) => tx.insertOne({ _id: `${type}-${chatId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, chatId: String(chatId), type, amount: round4(amount), currency: 'USD', status: 'completed', ref, metadata: { phoneNumber: ref }, createdAt: new Date() })
   const numRow = (chatId, number, out, batchId) => ({ chatId, number, valid: out.valid, country: out.country, carrier: out.carrier, type: out.type, ported: !!out.ported, ...(out.callerName !== undefined ? { callerName: out.callerName || null } : {}), price: round4(PRICE + (out.callerName !== undefined ? CNAM_PRICE : 0)), ...(batchId ? { batchId } : {}), at: new Date() })
@@ -48,7 +48,7 @@ function createLookup({ db, h, walletOps, bird = require('../bird'), log = conso
     if (!good.length) return bad(res, 400, 'nothing_to_check', `Paste or upload at least one ${noun}.`)
     if (good.length > MAX_BULK) return bad(res, 400, 'too_many', `Up to ${MAX_BULK} ${noun}s per run — you sent ${good.length}.`)
     const total = round4(good.length * price)
-    if (!(await w.debit(req.webChatId, total))) return bad(res, 402, 'insufficient_balance', `Checking ${good.length} ${noun}s costs $${total.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')}. Top up your wallet first.`)
+    if (!(await w.debit(req.webChatId, total))) return bad(res, 402, 'insufficient_balance', `Checking ${good.length} ${noun}s costs $${total.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')}.`, { cost: total })
     const chatId = req.webChatId, batchId = `b${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, key = noun === 'email' ? 'email' : 'number'
     await batches.insertOne({ _id: batchId, chatId, kind: key, total: good.length, done: 0, status: 'running', skipped, duplicates, price, at: new Date() })
     const work = (async () => {
@@ -114,7 +114,7 @@ function createLookup({ db, h, walletOps, bird = require('../bird'), log = conso
       const number = cleanNum(req.body?.number)
       if (!E164.test(number)) return bad(res, 400, 'invalid_number', 'Enter the full number with country code, e.g. +44 20 7946 0958.')
       const want = req.body?.callerName === true && NANP.test(number), hold = round4(PRICE + (want ? CNAM_PRICE : 0))
-      if (!(await w.debit(req.webChatId, hold))) return bad(res, 402, 'insufficient_balance', `A lookup costs $${hold}. Top up your wallet first.`)
+      if (!(await w.debit(req.webChatId, hold))) return bad(res, 402, 'insufficient_balance', `A lookup costs $${hold}.`, { cost: hold })
       const out = await withName(number, await numberOf(number).catch(() => null), want)
       if (!out) { await w.credit(req.webChatId, hold); return bad(res, 503, 'lookup_unavailable', 'The lookup service didn’t answer. You weren’t charged. Try again in a minute.') }
       const row = numRow(req.webChatId, number, out)
@@ -131,7 +131,7 @@ function createLookup({ db, h, walletOps, bird = require('../bird'), log = conso
     r.post('/lookup/email', h(async (req, res) => {
       const email = String(req.body?.email || '').trim().toLowerCase()
       if (!EMAIL.test(email)) return bad(res, 400, 'invalid_email', 'Enter a full email address, e.g. name@example.com.')
-      if (!(await w.debit(req.webChatId, EMAIL_PRICE))) return bad(res, 402, 'insufficient_balance', `An email check costs $${EMAIL_PRICE}. Top up your wallet first.`)
+      if (!(await w.debit(req.webChatId, EMAIL_PRICE))) return bad(res, 402, 'insufficient_balance', `An email check costs $${EMAIL_PRICE}.`, { cost: EMAIL_PRICE })
       const out = await emailOf(email).catch(() => null)
       if (!out) { await w.credit(req.webChatId, EMAIL_PRICE); return bad(res, 503, 'lookup_unavailable', 'The email check didn’t answer. You weren’t charged. Try again in a minute.') }
       const row = mailRow(req.webChatId, email, out)
