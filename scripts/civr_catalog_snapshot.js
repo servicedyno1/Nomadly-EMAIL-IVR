@@ -7,7 +7,7 @@ const path = require('path')
 
 const base = (process.argv[2] || 'http://localhost:8001').replace(/\/+$/, '')
 const OUT = path.join(__dirname, '../frontend/src/cloudivr/pages/landing/catalogSnapshot.js')
-const KEEP = ['plans', 'recommendedPlan', 'countries', 'typeNames', 'rates', 'extraNumber', 'coins', 'minTopup', 'channelLink', 'cardPayments']
+const KEEP = ['plans', 'recommendedPlan', 'countries', 'typeNames', 'rates', 'extraNumber', 'coins', 'minTopup', 'channelLink', 'cardPayments', 'paymentMethods']
 
 async function main() {
   const res = await fetch(`${base}/api/cloudivr-web/public/catalog`)

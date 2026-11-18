@@ -71,7 +71,7 @@ function createCloudIvrWeb(deps) {
         res.set({ 'Content-Type': 'text/calendar; charset=utf-8', 'Cache-Control': 'private, max-age=900', 'Content-Disposition': 'inline; filename="renewals.ics"' }).send(out)
       } catch (e) { log(`[CloudIVR-Web] calendar feed error: ${e.message}`); res.sendStatus(500) }
     })
-    r.get('/public/catalog', h(async (req, res) => { const c = numbers.catalog(); res.json({
+    r.get('/public/catalog', h(async (req, res) => { const c = numbers.catalog(); await mollie.warm(req); res.json({
       ...c, cardPayments: c.cardPayments || mollie.cardsLive(req), paymentMethods: await mollie.publicMethods(req).catch(() => []), coins: deps.coins || [], minTopup: wallet.MIN_TOPUP_USD, supportLink: support.supportLink(), channelLink: String(process.env.CLOUDIVR_CHANNEL_LINK || '').trim(),
     }) }))
     trycall.routes(r, { ...deps, db, h })
