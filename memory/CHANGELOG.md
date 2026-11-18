@@ -3686,3 +3686,6 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 
 ## 2026-11-18 — Channel posts CTA
 - cloudivr.net link + @CloudIVRhelp support line on every caption; Support button next to Try CloudIVR.
+
+## 2026-11-18 — No link previews
+- js/tg-opts.js wrapBotMethods: every bot sendMessage/editMessageText defaults disable_web_page_preview=true (callers can still opt in). Channel posts are photo/video/album captions, which Telegram never previews.
