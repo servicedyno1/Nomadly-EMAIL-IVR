@@ -79,7 +79,7 @@ export function TextingBuy({ onStage }) {
         </div>
       </div>
       <ErrorNote error={err} testid="texting-buy-error" />
-      {intl && <div><Label>{`Pick your ${intl.name} number`}</Label>{busy === 'search' ? <Spinner label="Finding numbers…" testid="texting-buy-searching" /> : res && <Results list={res} pick={pick} setPick={setPick} onRetry={() => choose(intl)} typeName={intl.typeName} />}</div>}
+      {intl && <div className="scroll-mt-24" data-testid="texting-buy-numbers"><Label>{`Pick your ${intl.name} number`}</Label>{busy === 'search' ? <Spinner label="Finding numbers…" testid="texting-buy-searching" /> : res && <Results list={res} pick={pick} setPick={setPick} onRetry={() => choose(intl)} typeName={intl.typeName} />}</div>}
       {intl && pick && (
         <div className="civr-card p-6 space-y-4 civr-rise" data-testid="texting-buy-checkout">
           <Label>Pay</Label>
