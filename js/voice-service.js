@@ -138,7 +138,10 @@ function getLiveCallCounts() {
   const pb = Object.keys(_pendingBridgesRaw).length
   const oic = Object.keys(_outboundIvrCallsRaw).length
   const tis = Object.keys(_twilioIvrSessionsRaw).length
-  return { activeCalls: ac, pendingBridges: pb, outboundIvrCalls: oic, twilioIvrSessions: tis, total: ac + pb + oic + tis }
+  // Calls on our own Asterisk (campaigns, softphones, AI) are controlled by this process over ARI — count them too.
+  let ce = 0
+  try { ce = require('./callengine').liveLegs?.() || 0 } catch (_) { /* call engine not loaded */ }
+  return { activeCalls: ac, pendingBridges: pb, outboundIvrCalls: oic, twilioIvrSessions: tis, callEngineLegs: ce, total: ac + pb + oic + tis + ce }
 }
 const lastIvrCallParams = new Map() // chatId → last IVR call params for Redial feature
 

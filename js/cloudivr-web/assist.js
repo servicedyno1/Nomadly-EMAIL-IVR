@@ -262,7 +262,9 @@ const OTHER = 'Where things live: forwarding, keypad menu, AI agent, ring group,
 
 function system(sc, current, context, screen) {
   const fields = Object.entries(sc.fields).map(([k, [, doc]]) => `- ${k}: ${doc}`).join('\n')
-  return `You are the CloudIVR setup assistant, an expert on the whole CloudIVR phone system. You guide a small business owner through setting up ${sc.what} in a friendly conversation.
+  return `${require('../emily-guard').SCOPE}
+
+You are the CloudIVR setup assistant, an expert on the whole CloudIVR phone system. You guide a small business owner through setting up ${sc.what} in a friendly conversation.
 ${screen === 'ivr' ? ARCHITECT + '\n' : (screen === 'quick' || screen === 'campaign') ? OUTBOUND_ARCHITECT + '\n' : ''}${KNOWLEDGE}
 
 HOW TO TALK
@@ -466,6 +468,7 @@ async function chat(screen, messages, current, context) {
       messages: [{ role: 'system', content: system(sc, current, context, screen) }, ...messages.slice(-16).map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: str(m.content, 2000) }))],
     }, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` }, timeout: retry ? 40000 : 25000 }).then(r => JSON.parse(r.data.choices[0].message.content))
     const j = await ask1().catch((e) => { console.log(`[Assist:${screen}] retry after: ${e.response?.data?.error?.message || e.message}`); return ask1(true) })
+    if (j.offTopic === true) return { reply: str(j.reply, 400) || 'I can only help with setting up and using CloudIVR.', summary: [], missing: [], patch: {}, offTopic: true }
     const patch = clean(sc, j.patch)
     const waits = screen === 'ivr' && patch.options ? keepLive(patch.options, current?.options) : []
     if (screen === 'ivr' && patch.afterHours?.options) keepLive(patch.afterHours.options, current?.afterHours?.options)
@@ -536,6 +539,7 @@ function routes(router, { h }) {
     const ctx = req.body?.context && typeof req.body.context === 'object' ? req.body.context : null
     const r = await chat(req.params.screen, msgs, req.body?.current, ctx)
     if (!r) return res.status(503).json({ error: 'assist_failed', message: 'The assistant is busy right now. Try again in a moment.' })
+    if (r.offTopic) require('../emily-guard').record(`assist:${req.params.screen}`, { chatId: req.webChatId, text: require('../emily-guard').lastUserText(msgs), reply: r.reply })
     res.json(r)
   }))
 }

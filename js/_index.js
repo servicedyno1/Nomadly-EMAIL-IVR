@@ -4499,10 +4499,13 @@ const loadData = async () => {
       } else if (sipConnId) {
         try {
           // Query Telnyx for LOCAL numbers on the SIP connection — these get A-level STIR/SHAKEN
-          const numbersRes = await telnyxApi.listPhoneNumbers?.() || { data: [] }
+          const numbersRes = require('./provider-health').isDown('telnyx') ? { data: [] } : (await telnyxApi.listPhoneNumbers?.() || { data: [] })
           const connectionNumbers = (numbersRes.data || []).filter(n =>
             n.connection_id === sipConnId && n.status === 'active'
           )
+          // Telnyx unreachable/blocked: nothing on the Telnyx SIP connection to update. Custom caller ID calls
+          // go out through the call engine (Bird, failing over to MultiTEL), so this legacy step is skipped.
+          if (!connectionNumbers.length) throw Object.assign(new Error('telnyx_unavailable'), { quiet: true })
 
           // Skip numbers that are known spam-flagged (from carrier 403 rejections)
           // The spam-flagged number check uses env var or hardcoded list
@@ -4525,6 +4528,7 @@ const loadData = async () => {
             }
           }
         } catch (aniErr) {
+          if (aniErr.quiet) { log('[CloudPhone] Telnyx SIP connection unavailable — skipping ANI override (custom caller ID runs via Bird / MultiTEL)'); } else
           log(`[CloudPhone] ANI override setup error: ${aniErr.message}`)
         }
       }

@@ -88,6 +88,7 @@ function routes(router, { h, numbersApi, db }) {
     if (!msgs.length) return bad(res, 400, 'no_message', 'Type a message.')
     const r = await require('./ai-draft').builderChat(msgs, req.body?.current || {}, req.body?.role === 'receptionist' ? 'receptionist' : 'agent')
     if (!r) return bad(res, 503, 'builder_failed', 'The assistant is busy right now. Try again in a moment.')
+    if (r.offTopic) require('../emily-guard').record('ai-builder', { chatId: req.webChatId, text: require('../emily-guard').lastUserText(msgs), reply: r.reply })
     res.json(r)
   }))
   // "Call me to test": rings one US/CA number now (the owner's own phone), 5 a day (kept in Mongo so restarts don't reset it).

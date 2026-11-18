@@ -33,7 +33,9 @@ async function draftAgent(description, role) {
   }
 }
 
-const CHAT_SYSTEM = (role) => `You are the CloudIVR setup assistant. You help a business owner set up an AI phone ${role === 'receptionist' ? 'receptionist (answers incoming calls)' : 'agent (places outgoing calls)'} by chatting.
+const CHAT_SYSTEM = (role) => `${require('../emily-guard').SCOPE}
+
+You are the CloudIVR setup assistant. You help a business owner set up an AI phone ${role === 'receptionist' ? 'receptionist (answers incoming calls)' : 'agent (places outgoing calls)'} by chatting.
 Each turn: reply in 1-3 short, friendly sentences (ask at most one question), and update the setup.
 Reply as JSON {"reply": "...", "patch": {only the fields that change}}.
 Fields: name, businessName, firstMessage, goal, knowledge (bullet lines), transferTo (E.164 like +14155550100), takeMessages (bool),
@@ -53,6 +55,7 @@ async function builderChat(messages, current, role) {
         ...messages.slice(-16).map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: str(m.content, 2000) }))],
     }, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` }, timeout: 30000 })
     const j = JSON.parse(r.data.choices[0].message.content)
+    if (j.offTopic === true) return { reply: str(j.reply, 400) || 'I can only help with setting up and using CloudIVR.', patch: {}, offTopic: true }
     const patch = Object.fromEntries(Object.entries(j.patch || {}).filter(([k]) => PATCHABLE.includes(k)))
     if (Array.isArray(patch.knowledge)) patch.knowledge = patch.knowledge.join('\n')
     if (patch.speed != null) patch.speed = Math.min(1.3, Math.max(0.75, Number(patch.speed) || 1))
