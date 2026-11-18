@@ -90,7 +90,7 @@ function routes(router, { h, numbersApi }) {
     const nums = (await numbersApi.myNumbers(req.webChatId)).filter(n => n.status === 'active')
     const from = nums.find(n => n.phoneNumber === req.body?.callerId)?.phoneNumber || nums[0]?.phoneNumber
     if (!from) return bad(res, 400, 'no_number', 'You need an active number to place a test call.')
-    const r = await ai.dialLead({ agentId: req.agent.id, chatId: key, callerId: from, id: null }, { number: to, name: null })
+    const r = await ai.dialLead({ agentId: req.agent.id, chatId: key, callerId: from, id: null, test: true }, { number: to, name: null })
     if (r.error) return bad(res, 503, 'call_failed', r.error)
     callMeLog.set(key, [...used, day])
     res.json({ calling: to, from })

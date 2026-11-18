@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="6" time="2.651" timestamp="2026-11-18T01:56:55.970254+00:00" hostname="agent-env-c4ea8f4e-6caa-4734-adf8-0f01a828b5c7"><testcase classname="tests.test_iter322_maintenance_off_callme.TestRecordedCampaign" name="test_create_and_start" time="1.069" /><testcase classname="tests.test_iter322_maintenance_off_callme.TestRecordedCampaign" name="test_permission_still_required" time="0.174" /><testcase classname="tests.test_iter322_maintenance_off_callme.TestAiCampaign" name="test_agent_then_campaign" time="0.253" /><testcase classname="tests.test_iter322_maintenance_off_callme.TestCallMe" name="test_call_me_flow" time="0.512"><failure message="AssertionError: {&#10;    &quot;error&quot;: &quot;call_failed&quot;,&#10;    &quot;message&quot;: &quot;AI calling line is offline — waiting&quot;&#10;  }&#10;assert 503 == 200&#10; +  where 503 = &lt;Response [503]&gt;.status_code">tests/test_iter322_maintenance_off_callme.py:91: in test_call_me_flow
+    assert ok.status_code == 200, ok.text
+E   AssertionError: {
+E       "error": "call_failed",
+E       "message": "AI calling line is offline — waiting"
+E     }
+E   assert 503 == 200
+E    +  where 503 = &lt;Response [503]&gt;.status_code</failure></testcase><testcase classname="tests.test_iter322_maintenance_off_callme.TestCallMe" name="test_call_me_unknown_agent" time="0.080" /><testcase classname="tests.test_iter322_maintenance_off_callme.TestCallMe" name="test_call_me_signed_out" time="0.463" /></testsuite></testsuites>

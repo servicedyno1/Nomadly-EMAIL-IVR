@@ -31,7 +31,7 @@ export function Bubbles() {
     <section className="civr-l-cream py-24" data-testid="bubbles-section">
       <div className="max-w-6xl mx-auto px-6 text-center">
         <Reveal><h2 className="civr-l-h text-3xl sm:text-4xl lg:text-[56px]">One phone line. Every tool.</h2></Reveal>
-        <Reveal delay={80}><p className="civr-l-muted text-base md:text-xl mt-4 max-w-2xl mx-auto">Numbers, menus, AI agents, campaigns and texting — all in one account, ready in minutes.</p></Reveal>
+        <Reveal delay={80}><p className="civr-l-muted text-base md:text-xl mt-4 max-w-2xl mx-auto">Numbers, menus, AI receptionist & AI conversations, campaigns and texting — all in one account, ready in minutes.</p></Reveal>
         <div className="mt-14 space-y-4 hidden md:block" data-testid="bubbles-cloud">
           {ROWS.map((row, i) => <Reveal key={i} delay={120 + i * 80} className="flex gap-3 justify-center">{row.map((cell, k) => <Bubble key={k} cell={cell} />)}</Reveal>)}
         </div>

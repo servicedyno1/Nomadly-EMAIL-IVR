@@ -1,0 +1,48 @@
+{
+  "summary": "Tested three things: campaigns are now on (maintenance off), the new public wording, and the Emily 'Call me now' test call. Backend pytest: 5 of 6 passed. Regression node test_bulk_maintenance_uscaonly.js: 9 passed, 2 failed — the 2 failures are the known country-list checks. Maintenance is now off by default. Campaign saving works for both kinds. A recorded-message campaign through the UI (Alice, library audio, +14155550100, permission dialog) went 428 → 201, opened the detail page, and 'Start calling' in preview gave 202 with the simulated-calls toast. An AI conversation campaign with a New agent did POST /ai-agents 201 → POST /campaigns 428 → 201 and opened the detail page. No maintenance text anywhere. Test-call box: visible with its hint, and the Emily hello text mentions 'Call me now'. The button stays disabled below 10 digits. With the agent fields missing, the 'Almost there' toast shows, the fields are outlined and nothing is sent. With the fields filled in, POST /ai-agents gives 201 and the select switches to the saved agent; pressing it again creates no second agent; the campaign count is unchanged. BUT POST /ai-agents/:id/call-me returns 503 call_failed 'AI calling line is offline — waiting' in preview, so there is no success toast, no aicampaign-test-call-note, and the number is not saved to localStorage. The success path could not be verified. Wording checks: home tab title is correct. The pricing FAQ question about the keypad menu and the AI receptionist exists. Help 'How do I run a campaign?' and 'How do I let the AI receptionist answer calls?' are there, and the link opens /app/receptionist. The /for pages render with no page errors. However, the landing Hero eyebrow and the 'AI conversations' Platform card are in files that are never rendered (Hero.js, Platform.js, Highlights.js are not imported anywhere). Several visible 'AI agent' phrases remain.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/cloudivr-web/ai-agents/:id/call-me", "issue": "Ignores preview dry-run (WEB_CLOUDIVR_DRY_RUN). It calls ai.dialLead directly. engineUp() (ce.enabled && ce.connected && bird.enabled) is false in preview, so it always returns 503 call_failed 'AI calling line is offline — waiting'. The feature cannot succeed in preview. The other risk: if the call engine were connected in a dry-run environment, it would place a REAL call. Fix: return a simulated {calling, from} when dryRun() is true, like campaigns/start does.", "priority": "HIGH"},
+      {"endpoint": "POST /api/cloudivr-web/ai-agents/:id/call-me", "issue": "The test call is advertised as 'free' ('free test call to your phone', and Emily says 'free'), but it is billed. dialLead → track() sets rate = leadRate; finish() has campaignId=null, so it falls to smartWalletDeduct at about $0.30/min (+$0.02 recording). There is also no wallet-balance check before dialing and no cap on call length for a test call. Either mark the session as free (rate 0, short maxSeconds) or change the wording.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /ai-agents/:id/call-me", "issue": "A 10-digit US number without +1 (e.g. '(415) 555-0100' or '4155550100') becomes '+4155550100' and gets 400 invalid_number. The UI enables 'Call me now' at 10 digits. The number should be normalised to +1 when there are 10 digits."},
+      {"endpoint": "POST /ai-agents/:id/call-me", "issue": "callMeLog (5/day limit) is an in-memory Map. It resets on every node restart and is not shared across instances. A persistent counter in Mongo would be better."},
+      {"endpoint": "POST /ai-agents/:id/call-me", "issue": "Users see internal queue wording on failure ('AI calling line is offline — waiting'). It should say something like 'Test calls are unavailable right now, try again shortly.'"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Call me now success path", "issue": "Blocked by the backend 503 above. The success toast, the aicampaign-test-call-note 'Calling ...' and remembering the number in localStorage could not be checked (localStorage is written only on success).", "affected_selectors": ["[data-testid='aicampaign-test-call-note']", "[data-testid='aicampaign-test-call-button']"]}
+    ],
+    "design_issues": [
+      {"screen": "Public landing /cloudivr", "issues": [
+        "Hero.js (eyebrow 'For business · VoIP numbers · IVR · AI conversations'), Platform.js ('AI conversations' card) and Highlights.js are not imported anywhere. Landing.js renders OneHero instead, so this new wording never appears. The live landing shows 0 'AI conversations'.",
+        "Visible 'AI agent' wording remains: FAQ 'What happens if the AI agent can’t help?' (landing and help center), PricingFaq lines 76/113/117 ('AI agent calls', 'Bulk IVR and AI agent'), catalogSnapshot label 'AI agent call campaigns', Sections.js ('AI agent languages', 'Your menu or AI agent always answers'), Trust.js, Proof.js, Bubbles.js, HearIt.js, HeroPhone.js, help topics.js lines 76/102. In the app, the dashboard number card shows 'AI agent' in its feature list."
+      ]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter322_maintenance_off_callme.py", "/app/test_reports/pytest/pytest_iter322.xml", "/app/js/tests/test_bulk_maintenance_uscaonly.js"],
+  "action_items": [
+    "Make /ai-agents/:id/call-me simulate in dry-run (return {calling, from} without dialing), so the preview success path works and real calls never go out in dry-run.",
+    "Make the 'Call me now' test call actually free (rate 0, short max duration, e.g. 2 min) or remove 'free' from the hint and the Emily text. Add a wallet check if it stays billed.",
+    "Normalise 10-digit numbers to +1 in call-me (or require 11 digits in the UI button check).",
+    "Show a friendly error message for call-me failures. Optionally store the 5/day counter in Mongo.",
+    "Wire the new Hero/Platform wording into the rendered landing (OnePage/OneHero), or delete the dead Hero.js/Platform.js/Highlights.js.",
+    "Replace the remaining visible 'AI agent' copy on public pages and the help center with 'AI conversations' / 'AI receptionist'."
+  ],
+  "critical_code_review_comments": [
+    "ai.js call-me: no dryRun() check, unlike campaigns/start and resume in calls.js.",
+    "call-me billing: finish() bills one-off outbound sessions (campaignId null) through smartWalletDeduct, so the 'free' claim is wrong.",
+    "TestCall: localStorage is saved only on success, so a failed attempt doesn't remember the number. Fine, but it's why the reload check can't pass in preview.",
+    "Campaigns.js saveAgent/testAgent: works well. A second press reuses the saved agent (f.agentId updates). Confirmed: no duplicate agent."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter322_maintenance_off_callme.py"],
+  "success_rate": {"backend": "83% (5/6; call-me success fails with 503 in preview)", "frontend": "~85% (all flows pass except the call-me success path; new landing wording not rendered)"},
+  "seed_data_creation": "Alice: TEST_iter322* campaigns (several from repeated pytest runs, plus 'TEST_iter322 UI recorded' (completed, dry-run) and 'TEST_iter322 UI ai') — all cancelled or completed; there is no DELETE /campaigns endpoint, so they remain. All TEST_ AI agents were deleted. Wallet unchanged at $348.87. Used about 4 call-me attempts, all 503, and failures don't count toward the 5/day limit.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "API prefix /api/cloudivr-web, cookie login. Alice numbers: +13346970100 (business), +13346970101 (standard); audio 'Test greeting'. Maintenance is OFF: POST /campaigns with permissionConfirmed:true gives 201 for both report_only and ai mode; start in preview gives 202 dryRun. call-me needs a +1 number and returns 503 in preview because engineUp() is false (Bird/call engine not connected). Retest the call-me success path, the note and localStorage after the dry-run fix. Hero.js/Platform.js are dead code; the live landing uses OnePage OneHero.",
+  "rca of the issue": "call-me 503: js/cloudivr-web/ai.js:93 calls ai.dialLead. js/ai-agent/calls.js:216 returns {error:'AI calling line is offline — waiting'} when engineUp() is false, which it always is in preview, so ai.js:94 sends 503. Fix: in ai.js, before dialLead: if (dryRun()) return res.json({ calling: to, from, dryRun: true }) — and still count the use toward the limit."
+}

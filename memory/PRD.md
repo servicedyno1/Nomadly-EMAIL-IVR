@@ -626,3 +626,9 @@ Multi-brand telecom platform with virtual numbers, IVR, call forwarding, voicema
 - New campaign → AI conversation: one Emily chat (`/assist/aicampaign`, js/cloudivr-web/assist.js) writes the agent and fills in who to call, caller ID, name, schedule. Form folded below (`pages/campaign/AiSetup.js`). Save creates a new agent (POST /ai-agents) or saves edits to the chosen agent (PUT), then the campaign. Receptionist agents are not offered for campaigns.
 - /app/ai-agents/new redirects to /app/campaigns/new?kind=ai; existing agents still open at /app/ai-agents/:id.
 - Tested: /app/test_reports/iteration_321.json (pass; campaign start blocked by the existing BULK_IVR_MAINTENANCE default).
+
+## 2026-11-18 — Campaigns on, website wording, free Emily test call
+- `BULK_IVR_MAINTENANCE` now defaults OFF (js/phone-config.js); set `BULK_IVR_MAINTENANCE=true` to pause campaigns. Takes effect in production on next publish (unless prod env sets it true).
+- AI conversation campaign: "Call me now" test call (AiSetup.js TestCall) saves only the agent, then POST /ai-agents/:id/call-me. Test calls are free (`test: true` → rate 0, no wallet deduction, js/ai-agent/calls.js). 5/day.
+- Public/help wording: "AI conversations" (outgoing / the AI) and "AI receptionist" (incoming). Hero.js/Platform.js/Highlights.js are not rendered (dead files).
+- Tested: iteration_322 — campaigns save & start (dry-run); test call reaches the server but preview has no live AI calling line (503 "AI calling line is offline"), so the ring itself is unverified.

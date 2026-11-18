@@ -40,7 +40,7 @@ export function Statement() {
   return (
     <section className="civr-l-cream border-t civr-l-rule" data-testid="statement-section">
       <div className="max-w-5xl mx-auto px-6 md:px-8 py-20 md:py-28">
-        <Reveal><p className="civr-l-h text-2xl sm:text-3xl lg:text-[2.75rem] text-slate-900 !leading-[1.2]" data-testid="statement-text">Your callers don’t see a menu, a voicemail box, a campaign and an AI agent. <span className="text-slate-400">They see one phone line — yours.</span></p></Reveal>
+        <Reveal><p className="civr-l-h text-2xl sm:text-3xl lg:text-[2.75rem] text-slate-900 !leading-[1.2]" data-testid="statement-text">Your callers don’t see a menu, a voicemail box, a campaign and an AI conversation. <span className="text-slate-400">They see one phone line — yours.</span></p></Reveal>
         <Reveal delay={120}><p className="text-base md:text-lg text-slate-600 mt-8 max-w-3xl">So CloudIVR runs all of it on one number. Every call, key press, text, voicemail and recording lands in the same account, and you watch your campaigns live — from the first ring to the hot lead you’re connected to.</p></Reveal>
         <Reveal delay={200} className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-4">
           <p className="font-semibold text-slate-900">Answer every call. Call every lead. Miss nothing.</p>
