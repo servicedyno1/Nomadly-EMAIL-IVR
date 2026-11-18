@@ -10,7 +10,7 @@ export function Benefits({ catalog }) {
     [Headphones, 'Use the app you already like', 'Zoiper, MicroSIP, Linphone or the desk phone on your desk. Enter three details and you’re registered.'],
     [Globe, `Local numbers in ${n} countries`, 'Local, mobile and toll-free numbers your customers recognise — and pick up.'],
     [Workflow, 'A full phone system included', 'Voicemail with transcripts, a keypad menu, call recording, ring groups and an SMS inbox come with every SIP plan.'],
-    [Wallet, 'No PBX, no contract', 'Month to month, per number. Incoming calls use your plan minutes; outgoing calls are billed per minute from your wallet.'],
+    [Wallet, 'No PBX, no contract', 'Month to month, per number. Incoming calls use your plan minutes; outgoing calls are paid from your wallet.'],
   ];
   return (
     <section id="why" className="civr-l-cream scroll-mt-16" data-testid="sip-benefits">

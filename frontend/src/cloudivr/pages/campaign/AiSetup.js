@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Bot, Clock, Ban, PhoneCall, Loader2 } from 'lucide-react';
 import { api, useApi } from '../../api';
-import { Field, Toggle, Spinner } from '../../ui';
+import { Field, Toggle, Spinner, SeePricing } from '../../ui';
 import { cp } from '../../paths';
 import { Assist } from '../../Assist';
 import { AI_LANGS } from '../ai/languages';
@@ -117,7 +117,7 @@ const AiRules = () => (
   <ul className="text-xs text-[#a1a1aa] space-y-2" data-testid="campaign-ai-rules">
     <li className="flex gap-2"><Clock className="w-4 h-4 shrink-0 text-[#818cf8]" />Calls only between 8am and 9pm in each lead's local time — others wait and are called when their window opens.</li>
     <li className="flex gap-2"><Ban className="w-4 h-4 shrink-0 text-[#818cf8]" />Numbers on your do-not-call list are skipped; anyone who asks not to be called again is added to it.</li>
-    <li className="flex gap-2"><Bot className="w-4 h-4 shrink-0 text-[#818cf8]" />The agent waits for hello, leaves one voicemail after the beep and bills $0.30 per started minute (+$0.02 when it records). Unanswered calls are free.</li>
+    <li className="flex gap-2"><Bot className="w-4 h-4 shrink-0 text-[#818cf8]" />The agent waits for hello, <span>leaves one voicemail after the beep and is paid from your wallet only for answered calls. <SeePricing testid="ai-setup-see-pricing" /></span></li>
   </ul>
 );
 

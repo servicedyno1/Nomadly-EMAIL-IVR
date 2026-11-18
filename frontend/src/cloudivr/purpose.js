@@ -5,7 +5,7 @@ export const PURPOSES = [
   ['line', PhoneCall, 'Business phone line', 'Calls, forwarding, voicemail, softphone', [['Get a Business Line', '/app/buy?purpose=voice'], ['Set up call forwarding', '/app/answer/forwarding'], ['Connect a softphone', '/app/sip']]],
   ['texting', MessageSquareText, 'Text customers', 'Two-way texts and calls on one number', [['Get a Calls + texting number', '/app/buy?purpose=texting'], ['USA number with unlimited texts', '/app/buy?purpose=texting&country=US'], ['Read your messages', '/app/messages']]],
   ['travel', Plane, 'Travel eSIM', 'Mobile data in 187 countries', [['Find a travel eSIM', '/app/travel-esim'], ['USA eSIM', '/app/esim'], ['Help center', '/app/help']]],
-  ['ai', Bot, 'AI receptionist', 'Answers your calls 24/7, $0.10/min', [['Set up an AI receptionist', '/app/receptionist'], ['Get a Business Line', '/app/buy?purpose=voice'], ['Read your messages', '/app/messages']]],
+  ['ai', Bot, 'AI receptionist', 'Answers your calls 24/7', [['Set up an AI receptionist', '/app/receptionist'], ['Get a Business Line', '/app/buy?purpose=voice'], ['Read your messages', '/app/messages']]],
   ['bulk', Megaphone, 'Bulk calls & campaigns', 'Call lists, press-1, voicemail drops', [['Start a Bulk IVR campaign', '/app/campaigns/new'], ['Quick IVR call', '/app/quick-call'], ['Import contacts', '/app/contacts']]],
   ['fax', Printer, 'Fax', 'Send and receive faxes online', [['Get a fax number', '/app/buy?purpose=fax'], ['Send a fax', '/app/fax'], ['Help center', '/app/help']]],
   ['other', Sparkles, 'Something else', 'Explore everything', [['Get a Business Line', '/app/buy?purpose=voice'], ['Watch calls live', '/app/live'], ['Help center', '/app/help']]],

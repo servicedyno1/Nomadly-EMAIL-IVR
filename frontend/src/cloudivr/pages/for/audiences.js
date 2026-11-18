@@ -36,7 +36,7 @@ export const AUDIENCES = [
     ],
     features: [
       [Workflow, 'Greeting and keypad menu', '“Press 1 for sales, 2 for support” in minutes.'],
-      [Bot, 'AI receptionist', 'Answers 24/7 for $0.10 a minute.'],
+      [Bot, 'AI receptionist', 'Answers 24/7, books visits and takes messages.'],
       [PhoneForwarded, 'Forward to your mobile', 'Calls follow you; your private number stays private.'],
       [Voicemail, 'Voicemail to email', 'Transcribed, so you can reply between tasks.'],
     ],
@@ -100,13 +100,13 @@ export const AUDIENCES = [
     ],
     features: [
       [PhoneCall, 'Quick and bulk campaigns', 'One call or a whole list, with a live view.'],
-      [Bot, 'AI receptionist', 'An AI holds the first conversation for $0.10 a minute.'],
+      [Bot, 'AI receptionist', 'An AI holds the first conversation and hands you the warm leads.'],
       [CalendarClock, 'Scheduling', 'Start now or pick a time up to 30 days ahead.'],
       [ScanSearch, 'Number lookup', 'Clean a list from $0.015 a number.'],
     ],
     faq: [
       ['Which plan do campaigns need?', 'Outbound campaigns start on Pro. Business shows your verified caller ID on every call.'],
-      ['How are campaign calls billed?', 'Per minute from your wallet. You see the estimate before the campaign starts.'],
+      ['How are campaign calls billed?', 'From your wallet, only for answered calls. You see the estimate before the campaign starts.'],
     ],
     plan: 'business',
   },

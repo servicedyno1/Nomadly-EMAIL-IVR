@@ -63,6 +63,9 @@ export function TabStrip({ active, children, className = 'mb-8', testid }) {
 export const Label = ({ children }) => <div className="civr-label mb-3">{children}</div>;
 
 // Title, one short line, and the page's main action on the right (full width on phones). The menu already says which section this is.
+// Usage rates live only on the public pricing page; in-app copy links there instead of quoting them.
+export const SeePricing = ({ testid = 'see-pricing-link', label = 'See pricing' }) => <Link to={cp('/pricing#rates')} className="font-semibold text-[var(--c-accent,#818cf8)] underline underline-offset-2 whitespace-nowrap" data-testid={testid}>{label}</Link>;
+
 export function PageHeader({ title, sub, children, testid }) {
   return (
     <div className="civr-page-head flex flex-col gap-4 md:flex-row md:items-center md:justify-between civr-rise" data-testid={testid}>

@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner';
 import { BotMessageSquare, Plus, ArrowLeft, ChevronRight, CalendarCheck, MessageSquareText, PhoneCall, Check, RotateCcw, Clock, Hash, Inbox } from 'lucide-react';
 import { api, useApi, when, enc } from '../api';
-import { PageHeader, SkeletonRows, SkeletonPage, Empty, ErrorNote, TabStrip } from '../ui';
+import { PageHeader, SkeletonRows, SkeletonPage, Empty, ErrorNote, TabStrip, SeePricing } from '../ui';
 import { cp } from '../paths';
 import { usePrivacy } from '../privacy';
 import { AgentForm, EMPTY_AGENT } from './ai/AgentForm';
@@ -109,7 +109,7 @@ export default function Receptionist() {
   const { data: msgs, reload: reloadCount } = useApi('/ai-receptionist/messages?open=1&limit=1');
   return (
     <div data-testid="receptionist-page">
-      <PageHeader label="AI" title="AI receptionist" sub={`Picks up your calls, answers questions and takes messages. $${data?.receptionRate ?? 0.1}/min, browser tests are free.`} testid="receptionist-header">
+      <PageHeader label="AI" title="AI receptionist" sub={<>Picks up your calls, answers questions and takes messages. Browser tests are free. <SeePricing testid="receptionist-see-pricing" /></>} testid="receptionist-header">
         <Link to={cp('/app/receptionist/new')} className="civr-btn civr-btn-primary" data-testid="receptionist-new-button"><Plus className="w-4 h-4" />New receptionist</Link>
       </PageHeader>
       {data && !data.agents.some(isReceptionist) && <Steps />}

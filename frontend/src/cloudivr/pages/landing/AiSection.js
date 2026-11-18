@@ -2,7 +2,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, PhoneIncoming, PhoneOutgoing, Sparkles } from 'lucide-react';
 import { Reveal } from './kit';
-import { usd } from '../../api';
 import { cp } from '../../paths';
 
 const CHAT = [
@@ -51,7 +50,7 @@ export function AiSection({ catalog }) {
             <p className="text-slate-600 mt-4 max-w-xl">No forms to learn. Describe it in a sentence — Emily builds the keypad menu, the call or the whole campaign, and you press save.</p>
           </Reveal>
           <div className="grid sm:grid-cols-2 gap-4 mt-8">
-            <Way Icon={PhoneIncoming} label="Incoming" title="AI receptionist" text="Picks up 24/7, answers questions, books visits and takes messages — in 20 languages." price={r.aiReceptionPerMin != null ? `${usd(r.aiReceptionPerMin)}/min · every plan` : 'Every plan'} testid="landing-ai-receptionist" />
+            <Way Icon={PhoneIncoming} label="Incoming" title="AI receptionist" text="Picks up 24/7, answers questions, books visits and takes messages — in 20 languages." price="Every plan" testid="landing-ai-receptionist" />
             <Way Icon={PhoneOutgoing} label="Outgoing" title="AI conversation campaigns" text="Calls your list, talks with each lead and hands the interested ones to you. Hear it on your own phone first." price={r.aiAgentPerMin != null ? `${usd(r.aiAgentPerMin)}/min · Pro and up` : 'Pro and up'} testid="landing-ai-campaigns" />
           </div>
           <Link to={cp('/signup')} className="inline-flex items-center gap-2 text-sm font-semibold text-[#1d6fd8] mt-8 min-h-[44px]" data-testid="landing-ai-cta">Try Emily free<ArrowRight className="w-4 h-4" aria-hidden="true" /></Link>

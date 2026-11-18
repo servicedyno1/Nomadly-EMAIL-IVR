@@ -58,7 +58,7 @@ export function AiFields({ o, set, prefix, agents }) {
         {(agents || []).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
       </select>
       <input className="civr-input" value={o.message || ''} onChange={e => set({ message: e.target.value })} placeholder="Say before connecting (optional), e.g. Connecting you to our assistant" data-testid={`${prefix}-ai-message`} />
-      <Hint>The agent takes the call from here and is billed per minute like an AI-answered call.</Hint>
+      <Hint>The agent takes the call from here and is billed like an AI-answered call.</Hint>
     </div>
   );
 }
@@ -98,7 +98,7 @@ export function CallbackFields({ o, set, prefix }) {
       <input className="civr-input" value={o.message || ''} onChange={e => set({ message: e.target.value })} placeholder="What the caller hears (optional), e.g. We will call you back shortly" data-testid={`${prefix}-callback-message`} />
       <label className="flex items-center gap-2 text-sm text-[#d4d4d8]"><input type="checkbox" checked={o.auto === true} onChange={e => set({ auto: e.target.checked })} data-testid={`${prefix}-callback-auto`} />Ring my phone right away. Press 1 to call them back.</label>
       {o.auto && <input className="civr-input font-mono" value={o.callbackTo || ''} onChange={e => set({ callbackTo: e.target.value })} placeholder="Your phone, e.g. +14155550100" data-testid={`${prefix}-callback-to`} />}
-      <Hint>{o.auto ? 'A few seconds after they hang up, your phone rings. Both legs bill per minute from the wallet.' : 'You get a notification with their number to call back.'}</Hint>
+      <Hint>{o.auto ? 'A few seconds after they hang up, your phone rings. Both legs are paid from your wallet.' : 'You get a notification with their number to call back.'}</Hint>
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { LangSwitcher } from '../../i18n';
 import { Slide, SiteThemeButton } from './kit';
 import { goTo } from './menu';
 
-export const LANDING_LINKS = [['#who', 'Who it’s for', 'who'], ['#how', 'How it works', 'how'], ['#ai', 'AI', 'ai'], ['#pricing', 'Pricing', 'pricing'], ['#try', 'Free test call', 'try'], ['#faq', 'FAQ', 'faq']];
+export const LANDING_LINKS = [['#who', 'Who it’s for', 'who'], ['#how', 'How it works', 'how'], ['#ai', 'AI', 'ai'], ['/pricing', 'Pricing', 'pricing'], ['#try', 'Free test call', 'try'], ['#faq', 'FAQ', 'faq']];
 
 function MobileMenu({ onClose, account }) {
   useEffect(() => { const o = document.body.style.overflow; document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = o; }; }, []);

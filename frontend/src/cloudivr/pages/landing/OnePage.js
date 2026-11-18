@@ -12,6 +12,7 @@ import { PaymentMethods } from './Payments';
 import { FaxLanding } from './FaxLanding';
 import { LandingPlanHelper } from './PlanHelper';
 import { PlanSuggest } from '../../PlanSuggest';
+import { cp } from '../../paths';
 
 // Pricing tabs follow the three kinds of number (plus the eSIM, which is a line on your own phone).
 export const PICKS = [
@@ -93,7 +94,7 @@ function WhichOne({ setTab }) {
 }
 
 // Every plan in one place: tabs for Cloud IVR, USA eSIM and USA mobile number.
-export function AllPlans({ catalog, tab, setTab, esimPrice, offer, fax }) {
+export function AllPlans({ catalog, tab, setTab, esimPrice, offer, fax, full }) {
   const start = useStart();
   const plans = (catalog?.plans || []).filter(p => p.available !== false);
   const hasRec = plans.some(p => p.recommended);
@@ -104,7 +105,7 @@ export function AllPlans({ catalog, tab, setTab, esimPrice, offer, fax }) {
     <section id="pricing" className="civr-l-cream scroll-mt-16 border-t civr-l-rule" data-testid="pricing-section">
       <span id="coverage" className="block -mt-16 pt-16" aria-hidden="true" />
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-20">
-        <Reveal><h2 className="civr-l-h text-3xl sm:text-4xl text-slate-950">Pricing</h2><p className="text-slate-600 mt-3 max-w-2xl">One monthly price per number. No contract, cancel any time.</p></Reveal>
+        <Reveal>{full ? <h1 className="civr-l-h text-4xl sm:text-5xl text-slate-950" data-testid="pricing-page-title">Pricing</h1> : <h2 className="civr-l-h text-3xl sm:text-4xl text-slate-950">Pricing</h2>}<p className="text-slate-600 mt-3 max-w-2xl">One monthly price per number. No contract, cancel any time.</p></Reveal>
         <div role="tablist" aria-label="Kind of number" className="inline-flex flex-wrap gap-2 mt-10 rounded-2xl bg-white border civr-l-rule p-1.5" data-testid="plans-tabs">
           {PICKS.map(([id, I, t]) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`civr-plan-tab inline-flex items-center gap-2 rounded-xl px-4 h-11 text-sm font-semibold ${tab === id ? 'bg-slate-950 text-white' : 'text-slate-700 hover:bg-slate-100'}`} data-testid={`plans-tab-${id}`}><I className="w-4 h-4" />{t}</button>)}
         </div>
@@ -113,7 +114,7 @@ export function AllPlans({ catalog, tab, setTab, esimPrice, offer, fax }) {
             <>
               <div className="max-w-3xl mb-6"><PlanSuggest onPick={setHotId} testid="pricing-plan-suggest" /></div>
               <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">{plans.map((p, i) => <PlanCard key={p.id} p={p} plans={plans} hot={isHot(p, i)} start={start} delay={i * 80} />)}</div>
-              {r && <p className="text-sm text-slate-600 mt-6 max-w-3xl" data-testid="pricing-extra-usage">Outgoing calls and forwarding are paid from your wallet. Business shows your verified caller ID on every call.</p>}
+              {r && <p className="text-sm text-slate-600 mt-6 max-w-3xl" data-testid="pricing-extra-usage">Outgoing calls and forwarding are paid from your wallet. Business shows your verified caller ID on every call.{!full && <> <Link to={cp('/pricing#rates')} className="font-semibold text-[#1d6fd8] underline underline-offset-2" data-testid="pricing-all-rates-link">See all usage rates</Link></>}</p>}
               <details className="mt-6 group max-w-3xl" data-testid="pricing-more">
                 <summary className="cursor-pointer inline-flex items-center gap-2 min-h-[44px] text-sm font-semibold text-slate-900" data-testid="pricing-more-toggle"><ChevronDown className="w-4 h-4 transition-transform group-open:rotate-180" aria-hidden="true" />Not sure which plan? Need more?</summary>
                 <div className="mt-4 space-y-6">

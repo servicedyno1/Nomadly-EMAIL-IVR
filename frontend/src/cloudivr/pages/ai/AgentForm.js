@@ -40,14 +40,14 @@ function Basics({ f, set, voices }) {
   );
 }
 
-function Actions({ f, set, recordRate = 0.02, recordingDays = 90 }) {
+function Actions({ f, set, recordingDays = 90 }) {
   return (
     <div className="grid sm:grid-cols-2 gap-4 items-start">
       <Field label="Transfer to a human (optional)" hint="When the caller asks for a person or is ready to go ahead."><Text f={f} set={set} k="transferTo" ph="+14155550199" testid="ai-agent-transfer-input" /></Field>
       <Field label="Longest call (minutes)"><input type="number" min={1} max={15} className="civr-input" value={f.maxMinutes} onChange={e => set('maxMinutes', e.target.value)} data-testid="ai-agent-max-minutes-input" /></Field>
       <div className="flex items-center justify-between sm:col-span-2"><span className="text-sm">Take messages (name, callback number, message)</span><Toggle checked={!!f.takeMessages} onChange={v => set('takeMessages', v)} testid="ai-agent-take-messages-toggle" label="Take messages" /></div>
       <div className="flex items-center justify-between gap-4 sm:col-span-2" data-testid="ai-agent-record-row">
-        <span className="text-sm">Record calls<span className="block text-xs text-[#a1a1aa] mt-0.5">{`The agent says “this call may be recorded” when it answers. +$${Number(recordRate).toFixed(2)} per started minute · kept ${recordingDays} days, then deleted.`}</span></span>
+        <span className="text-sm">Record calls<span className="block text-xs text-[#a1a1aa] mt-0.5">{`The agent says “this call may be recorded” when it answers. Small extra charge · kept ${recordingDays} days, then deleted.`}</span></span>
         <Toggle checked={f.record !== false} onChange={v => set('record', v)} testid="ai-agent-record-toggle" label="Record calls" />
       </div>
       <div className="flex items-center justify-between gap-4 sm:col-span-2" data-testid="ai-agent-disclose-row">
@@ -95,7 +95,7 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
       <Field label="Personality & script" hint="What the agent does after the first message, how it talks and what it should find out."><Text f={f} set={set} k="goal" rows={5} ph="Friendly receptionist. Answer questions, book cleanings and get the caller's name and preferred time." testid="ai-agent-goal-input" /></Field>
       <ScriptGuide />
       <Field label="FAQs & facts" hint="Prices, hours, policies — the agent only uses what is here."><Text f={f} set={set} k="knowledge" rows={6} ph={'Q: Are you open Saturday? A: No, Monday–Friday 9am–5pm.\nCleaning: $90.'} testid="ai-agent-knowledge-input" /></Field>
-      <Actions f={f} set={set} recordRate={recordRate} recordingDays={recordingDays} />
+      <Actions f={f} set={set} recordingDays={recordingDays} />
       <KeypadFields f={f} set={set} />
       {(rec || f.hours?.enabled) && <HoursFields f={f} set={set} />}
       <BookingFields f={f} set={set} />

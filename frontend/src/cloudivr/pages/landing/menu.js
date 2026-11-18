@@ -4,7 +4,7 @@ import { Hash, Workflow, Bot, Megaphone, Headphones, Inbox, TrendingUp, LifeBuoy
 export const PRODUCTS = [
   ['numbers', Hash, 'Business numbers', 'USA, Canada or UK included with every plan; more countries as extras.', '#coverage'],
   ['ivr', Workflow, 'Keypad menu (IVR)', 'Press 1 for sales, 2 for support — every caller routed in under a second.', 'ivr'],
-  ['ai', Bot, 'AI receptionist & agents', 'Answers calls 24/7, books visits and calls your leads. $0.10 a minute.', 'ai'],
+  ['ai', Bot, 'AI receptionist & agents', 'Answers calls 24/7, books visits and calls your leads.', 'ai'],
   ['campaigns', Megaphone, 'Quick & Bulk IVR campaigns', 'Call a whole list, watch it live and connect everyone who presses 1.', 'campaigns'],
   ['phone', Headphones, 'Browser phone & SIP', 'Call from any browser tab, or sign in from a softphone or desk phone.', 'phone'],
   ['text', Captions, 'Text-to-voice calls', 'Type and a natural voice speaks for you; read their reply live.', 'text'],

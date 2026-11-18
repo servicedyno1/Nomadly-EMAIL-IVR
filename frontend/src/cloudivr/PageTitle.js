@@ -5,7 +5,7 @@ import { CIVR_BASE } from './paths';
 import { tr, useLang } from './i18n';
 
 export const HOME_TITLE = 'CloudIVR — Virtual phone numbers, IVR & AI conversations';
-const PAGES = { terms: 'Terms of Service', sip: 'SIP phone numbers', login: 'Sign in', signup: 'Create account', forgot: 'Reset password', 'reset-password': 'Choose a new password', app: 'Overview' };
+const PAGES = { terms: 'Terms of Service', pricing: 'Pricing', sip: 'SIP phone numbers', login: 'Sign in', signup: 'Create account', forgot: 'Reset password', 'reset-password': 'Choose a new password', app: 'Overview' };
 const FOR = { nomads: 'For digital nomads', founders: 'For founders', 'small-business': 'For small businesses', teams: 'For remote teams', sales: 'For sales teams' };
 const APP = [
   [/^numbers\/[^/]+$/, 'Number settings'], [/^orders\//, 'Order status'], [/^verification/, 'Number verification'],

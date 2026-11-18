@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Bot, Plus, ArrowLeft, ChevronRight, Lock } from 'lucide-react';
 import { useApi, enc } from '../api';
-import { PageHeader, SkeletonRows, SkeletonPage, Empty, ErrorNote, TabStrip } from '../ui';
+import { PageHeader, SkeletonRows, SkeletonPage, Empty, ErrorNote, TabStrip, SeePricing } from '../ui';
 import { cp } from '../paths';
 import { usePrivacy } from '../privacy';
 import { AgentForm, EMPTY_AGENT } from './ai/AgentForm';
@@ -18,12 +18,12 @@ import { AI_LANG_NAME as LANG_NAME } from './ai/languages';
 
 const TABS = [['agents', 'Agents'], ['calls', 'Call history'], ['dnc', 'Do-not-call list']];
 
-function PlanNote({ canUse, rate, receptionRate, recordRate }) {
-  if (canUse) return <div className="text-sm text-[#a1a1aa] mb-6" data-testid="ai-agents-rate-note">{`The same AI holds both kinds of conversation. Incoming calls (AI receptionist): $${receptionRate ?? 0.1}/min on any plan. Outgoing AI conversation campaigns: $${rate}/min on Pro and Business. Paid from your wallet; browser tests are free.`}</div>;
+function PlanNote({ canUse }) {
+  if (canUse) return <div className="text-sm text-[#a1a1aa] mb-6" data-testid="ai-agents-rate-note">The same AI answers incoming calls (any plan) and runs outgoing AI campaigns (Pro and Business). Browser tests are free. <SeePricing testid="ai-agents-see-pricing" /></div>;
   return (
     <div className="civr-card p-6 mb-6 flex flex-col md:flex-row md:items-center gap-4" data-testid="ai-agents-plan-note">
       <Lock className="w-6 h-6 text-[#fbbf24]" />
-      <div className="flex-1"><div className="font-semibold">Get a number to start AI conversations</div><div className="text-sm text-[#a1a1aa]">{`You can build and test agents now. Any plan can let the agent answer calls for $${receptionRate ?? 0.1}/min. Outgoing AI conversation campaigns need Pro or Business.`}</div></div>
+      <div className="flex-1"><div className="font-semibold">Get a number to start AI conversations</div><div className="text-sm text-[#a1a1aa]">You can build and test agents now. Any plan can let the agent answer calls. Outgoing AI conversation campaigns need Pro or Business. <SeePricing testid="ai-agents-plan-see-pricing" /></div></div>
       <button type="button" onClick={() => showUpgrade({ feature: 'AI conversation campaigns', need: 'pro' })} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="ai-agents-upgrade-link">See what Pro adds</button>
     </div>
   );
@@ -61,7 +61,7 @@ export function AiAgents() {
         sub={inbound ? 'An AI that picks up your numbers 24/7 — answers questions, takes messages and books appointments. Give each agent its own number.' : 'Your AI agents hold real two-way phone conversations with your leads, in 20 languages. Open one to test it, change it or see its calls. On incoming calls the same AI works as your AI receptionist.'} testid="ai-agents-header">
         <Link to={cp('/app/campaigns/new?kind=ai')} className="civr-btn civr-btn-primary" data-testid="ai-agents-new-button"><Plus className="w-4 h-4" />New AI conversation campaign</Link>
       </PageHeader>
-      {data && <PlanNote canUse={data.canUse} rate={data.rate} receptionRate={data.receptionRate} recordRate={data.recordRate} />}
+      {data && <PlanNote canUse={data.canUse} />}
       <TabStrip active={tab} className="mb-6" testid="ai-tabstrip">
         {TABS.map(([id, name]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} data-testid={`ai-tab-${id}`} className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#818cf8] text-[#818cf8]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>)}
       </TabStrip>

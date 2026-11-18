@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Phone, Plus, Loader2, X, ShoppingCart } from 'lucide-react';
 import { api, enc, useApi } from '../../api';
-import { Spinner } from '../../ui';
+import { Spinner, SeePricing } from '../../ui';
 import { cp } from '../../paths';
 import { usePrivacy } from '../../privacy';
 import { ask } from '../../confirm';
@@ -73,7 +73,7 @@ export default function AgentNumbers({ agent, agents = [] }) {
 
       <div className="pt-1 text-sm">
         <Link to={cp('/app/buy?plan=business')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="agent-numbers-buy-link"><ShoppingCart className="w-4 h-4" />Get a number for this agent</Link>
-        <p className="text-xs text-[#a1a1aa] mt-2">Any plan can use the AI receptionist on incoming calls ($0.10/min). Outgoing AI conversation campaigns need a Pro or Business number.</p>
+        <p className="text-xs text-[#a1a1aa] mt-2">Any plan can use the AI receptionist on incoming calls. Outgoing AI conversation campaigns need a Pro or Business number. <SeePricing testid="agent-numbers-see-pricing" /></p>
       </div>
     </div>
   );

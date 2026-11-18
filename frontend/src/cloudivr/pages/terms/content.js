@@ -18,7 +18,7 @@ export const TERMS = [
   ] },
   { id: 'billing', title: 'Plans, wallet and payments', body: [
     'Plans are charged monthly per number. Auto-renew is on by default and renews each number from your wallet on its renewal date; you can switch it off at any time in the number’s Billing tab.',
-    'Usage outside your plan — outgoing calls, forwarded calls, Quick IVR and campaign calls, AI agent minutes, extra minutes and SMS — is billed from your wallet at the rates shown in the app before you start.',
+    'Usage outside your plan — outgoing calls, forwarded calls, Quick IVR and campaign calls, AI agent minutes, extra minutes and SMS — is billed from your wallet at the rates on our pricing page.',
     'You can pay with the cryptocurrencies listed at checkout. A payment counts once the network confirms it. Send the exact amount on the network shown; funds sent to the wrong address or network may be lost.',
     'Plan fees are not refunded for the current period, including when you move to a smaller plan or delete a number. Wallet credit can only be spent on CloudIVR services and cannot be withdrawn as cash, unless the law requires otherwise. Prices can change; any change applies from your next renewal and is shown before you are charged.',
   ] },
