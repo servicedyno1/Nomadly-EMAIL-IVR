@@ -62,6 +62,7 @@ function createCloudIvrWeb(deps) {
     require('./statement').start(db, { log })
     require('../ivr-live-data').init({ db, log, notify: (chatId, text) => require('./notify').push(chatId, text, null, { kind: 'call' }).catch(() => {}) })
     require('./ivr-connections').publicRoutes(r, { h })
+    require('./plan-suggest').routes(r, { log })
     // Private live renewal calendar (Google / Apple / Outlook subscribe to it); the token is the secret.
     r.get('/public/calendar/:file', async (req, res) => {
       try {

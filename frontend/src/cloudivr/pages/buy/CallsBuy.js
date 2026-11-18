@@ -9,6 +9,7 @@ import { Field, Spinner, ErrorNote, Label } from '../../ui';
 import { cp } from '../../paths';
 import Checkout from './Checkout';
 import { PlanFeatures, RecommendedBadge, availablePlans, PLAN_JOB } from '../../PlanFeatures';
+import { PlanSuggest } from '../../PlanSuggest';
 import { usePrivacy } from '../../privacy';
 import { Flag, IconSelect } from '../../Pickers';
 import { saveIntent, setupPath, USE_PLAN, rememberedUse } from './setupIntent';
@@ -84,6 +85,7 @@ function Results({ res, isOn, onPick, planTexting, planId }) {
 
 function PlanPicker({ plans, value, onChange, pick, businessOnly }) {
   return (
+    <>{!businessOnly && <div className="mb-4"><PlanSuggest dark onPick={onChange} testid="buy-plan-suggest" /></div>}
     <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4" data-testid="buy-plan-picker">
       {availablePlans(plans).map(p => { const locked = businessOnly && p.id !== 'business'; return (
         <button key={p.id} type="button" disabled={locked} onClick={() => onChange(p.id)} aria-pressed={value === p.id} data-testid={`buy-plan-${p.id}`} data-selected={value === p.id ? 'true' : 'false'} title={locked ? 'Numbers from this country come with the Business plan' : undefined}
@@ -99,7 +101,7 @@ function PlanPicker({ plans, value, onChange, pick, businessOnly }) {
           <div className="mt-4"><PlanFeatures plan={p} plans={plans} compact testid={`buy-plan-${p.id}-feature`} /></div>
         </button>
       ); })}
-    </div>
+    </div></>
   );
 }
 

@@ -11,6 +11,7 @@ import { openMobileCheckout } from './MobileCheckout';
 import { PaymentMethods } from './Payments';
 import { FaxLanding } from './FaxLanding';
 import { LandingPlanHelper } from './PlanHelper';
+import { PlanSuggest } from '../../PlanSuggest';
 
 // Pricing tabs follow the three kinds of number (plus the eSIM, which is a line on your own phone).
 export const PICKS = [
@@ -110,6 +111,7 @@ export function AllPlans({ catalog, tab, setTab, esimPrice, offer, fax }) {
         <div key={tab} className="civr-tab-panel mt-8" data-testid={`plans-panel-${tab}`}>
           {tab === 'ivr' && (
             <>
+              <div className="max-w-3xl mb-6"><PlanSuggest onPick={setHotId} testid="pricing-plan-suggest" /></div>
               <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">{plans.map((p, i) => <PlanCard key={p.id} p={p} plans={plans} hot={isHot(p, i)} start={start} delay={i * 80} />)}</div>
               {r && <p className="text-sm text-slate-600 mt-6 max-w-3xl" data-testid="pricing-extra-usage">Outgoing calls and forwarding are paid from your wallet. Business shows your verified caller ID on every call.</p>}
               <details className="mt-6 group max-w-3xl" data-testid="pricing-more">
