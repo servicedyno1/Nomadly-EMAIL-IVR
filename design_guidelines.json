@@ -1,198 +1,369 @@
 {
-  "tokens": {
-    "dark": {
-      "--c-bg": "#090d16",
-      "--c-card": "#131b2e",
-      "--c-card-hover": "#1c2642",
-      "--c-border": "#26334d",
-      "--c-border-hover": "#38496b",
-      "--c-text": "#f8fafc",
-      "--c-text-2": "#cbd5e1",
-      "--c-muted": "#94a3b8",
-      "--c-accent": "#3b82f6",
-      "--c-accent-strong": "#2563eb",
-      "--c-accent-soft": "rgba(59, 130, 246, 0.15)",
-      "--shadow-card": "0 1px 3px rgba(0, 0, 0, 0.3), 0 2px 8px -2px rgba(0, 0, 0, 0.4)",
-      "--shadow-card-hover": "0 8px 24px -6px rgba(0, 0, 0, 0.5)",
-      "--radius-card": "12px"
-    },
-    "light": {
+  "project_name": "CloudIVR 2026 UI/UX Redesign",
+  "version": "2026.1.0",
+  "design_archetype": "The Performance Pro & Modern Swiss Precision (2026 Clean SaaS)",
+  "theme_strategy": {
+    "default_theme": "light",
+    "supported_themes": ["light", "dark"],
+    "switching_mechanism": "data-theme attribute or dark class on root element with CSS variable swapping"
+  },
+  "typography": {
+    "font_family_primary": "Plus Jakarta Sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    "font_family_mono": "JetBrains Mono, 'SF Mono', Consolas, monospace",
+    "google_fonts_embed_url": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap",
+    "type_scale": {
+      "page_title": {
+        "desktop": "font-size: 1.75rem (28px), line-height: 2.25rem (36px), font-weight: 700, letter-spacing: -0.025em (-1px)",
+        "mobile": "font-size: 1.375rem (22px), line-height: 1.75rem (28px), font-weight: 700, letter-spacing: -0.02em"
+      },
+      "page_subtitle": {
+        "desktop": "font-size: 0.875rem (14px), line-height: 1.375rem (22px), font-weight: 400, color: var(--c-text-2)",
+        "mobile": "font-size: 0.8125rem (13px), line-height: 1.25rem (20px), font-weight: 400, color: var(--c-text-2)"
+      },
+      "section_title": {
+        "desktop": "font-size: 1.125rem (18px), line-height: 1.5rem (24px), font-weight: 600, letter-spacing: -0.015em",
+        "mobile": "font-size: 1.0rem (16px), line-height: 1.375rem (22px), font-weight: 600"
+      },
+      "card_title": {
+        "font_size": "0.9375rem (15px)",
+        "line_height": "1.375rem (22px)",
+        "font_weight": "600",
+        "letter_spacing": "-0.01em"
+      },
+      "body": {
+        "font_size": "0.875rem (14px)",
+        "line_height": "1.375rem (22px)",
+        "font_weight": "400"
+      },
+      "body_sm": {
+        "font_size": "0.8125rem (13px)",
+        "line_height": "1.125rem (18px)",
+        "font_weight": "400"
+      },
+      "label": {
+        "font_size": "0.75rem (12px)",
+        "line_height": "1.0rem (16px)",
+        "font_weight": "600",
+        "letter_spacing": "0.025em",
+        "text_transform": "uppercase"
+      },
+      "telephony_number": {
+        "font_family": "var(--font-mono)",
+        "font_size": "0.9375rem (15px)",
+        "font_weight": "500",
+        "letter_spacing": "0.05em"
+      }
+    }
+  },
+  "colors": {
+    "tokens_light": {
       "--c-bg": "#f8fafc",
+      "--c-surface-1": "#ffffff",
+      "--c-surface-2": "#f1f5f9",
+      "--c-surface-subtle": "#f8fafc",
       "--c-card": "#ffffff",
-      "--c-card-hover": "#f1f5f9",
+      "--c-card-hover": "#ffffff",
       "--c-border": "#e2e8f0",
       "--c-border-hover": "#cbd5e1",
+      "--c-hairline": "#edf2f7",
       "--c-text": "#0f172a",
-      "--c-text-2": "#334155",
-      "--c-muted": "#64748b",
+      "--c-text-2": "#475569",
+      "--c-muted": "#94a3b8",
       "--c-accent": "#2563eb",
-      "--c-accent-strong": "#1d4ed8",
-      "--c-accent-soft": "rgba(37, 99, 235, 0.08)",
-      "--shadow-card": "0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.04)",
-      "--shadow-card-hover": "0 10px 25px -5px rgba(15, 23, 42, 0.1)",
-      "--radius-card": "12px"
+      "--c-accent-hover": "#1d4ed8",
+      "--c-accent-strong": "#1e40af",
+      "--c-accent-soft": "#eff6ff",
+      "--c-ring": "rgba(37, 99, 235, 0.2)",
+      "--c-success": "#10b981",
+      "--c-success-soft": "#ecfdf5",
+      "--c-warning": "#f59e0b",
+      "--c-warning-soft": "#fffbeb",
+      "--c-danger": "#ef4444",
+      "--c-danger-soft": "#fef2f2",
+      "--shadow-card": "0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 1px 2px -1px rgba(15, 23, 42, 0.02)",
+      "--shadow-raised": "0 4px 12px -2px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04)",
+      "--shadow-floating": "0 12px 28px -4px rgba(15, 23, 42, 0.12), 0 4px 8px -2px rgba(15, 23, 42, 0.06)",
+      "--radius-card": "12px",
+      "--radius-sm": "6px",
+      "--radius-md": "8px",
+      "--radius-lg": "12px",
+      "--radius-full": "9999px"
     },
-    "spacing_scale_8pt": {
-      "xs": "4px",
-      "sm": "8px",
-      "md": "16px",
-      "lg": "24px",
-      "xl": "32px",
-      "2xl": "48px"
-    },
-    "typography": {
-      "font_family_body": "'Plus Jakarta Sans', 'DM Sans', sans-serif",
-      "font_family_mono": "'JetBrains Mono', monospace",
-      "h1": "font-weight: 700; font-size: 32px; line-height: 1.2; letter-spacing: -0.02em",
-      "h2": "font-weight: 700; font-size: 24px; line-height: 1.25; letter-spacing: -0.015em",
-      "h3": "font-weight: 600; font-size: 18px; line-height: 1.3",
-      "body": "font-weight: 400; font-size: 14px; line-height: 1.5",
-      "small": "font-weight: 500; font-size: 12px; line-height: 1.4"
+    "tokens_dark": {
+      "--c-bg": "#0b0f17",
+      "--c-surface-1": "#131924",
+      "--c-surface-2": "#1a2232",
+      "--c-surface-subtle": "#161d2a",
+      "--c-card": "#131924",
+      "--c-card-hover": "#171f2d",
+      "--c-border": "#222c3d",
+      "--c-border-hover": "#313f57",
+      "--c-hairline": "#1b2333",
+      "--c-text": "#f8fafc",
+      "--c-text-2": "#94a3b8",
+      "--c-muted": "#64748b",
+      "--c-accent": "#3b82f6",
+      "--c-accent-hover": "#60a5fa",
+      "--c-accent-strong": "#2563eb",
+      "--c-accent-soft": "rgba(59, 130, 246, 0.12)",
+      "--c-ring": "rgba(59, 130, 246, 0.3)",
+      "--c-success": "#10b981",
+      "--c-success-soft": "rgba(16, 185, 129, 0.12)",
+      "--c-warning": "#f59e0b",
+      "--c-warning-soft": "rgba(245, 158, 11, 0.12)",
+      "--c-danger": "#f87171",
+      "--c-danger-soft": "rgba(239, 68, 68, 0.12)",
+      "--shadow-card": "0 1px 3px 0 rgba(0, 0, 0, 0.4)",
+      "--shadow-raised": "0 4px 16px 0 rgba(0, 0, 0, 0.5)",
+      "--shadow-floating": "0 16px 32px 0 rgba(0, 0, 0, 0.6)",
+      "--radius-card": "12px",
+      "--radius-sm": "6px",
+      "--radius-md": "8px",
+      "--radius-lg": "12px",
+      "--radius-full": "9999px"
     }
   },
-  "component_styles": {
+  "shared_css_classes_spec": {
     ".civr-card": {
-      "background": "var(--c-card)",
-      "border": "1px solid var(--c-border)",
-      "border_radius": "var(--radius-card)",
-      "box_shadow": "var(--shadow-card)",
-      "padding": "20px",
-      "transition": "border-color 0.2s ease, box-shadow 0.2s ease",
-      "hover": "border-color: var(--c-border-hover); box-shadow: var(--shadow-card-hover)"
+      "description": "2026 Cardless/Flat Surface transformation. Replaces heavy bordered boxes with clean background planes, crisp 1px borders, and ultra-light subtle shadows.",
+      "styles": {
+        "background_color": "var(--c-card)",
+        "border": "1px solid var(--c-border)",
+        "border_radius": "var(--radius-card)",
+        "box_shadow": "var(--shadow-card)",
+        "padding": "1.25rem (20px) desktop, 1.0rem (16px) mobile",
+        "transition": "border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease"
+      },
+      "variants": {
+        ".civr-card-flat": {
+          "border": "1px solid var(--c-hairline)",
+          "box_shadow": "none",
+          "background_color": "var(--c-surface-1)"
+        },
+        ".civr-card-interactive": {
+          "cursor": "pointer",
+          "hover_styles": {
+            "border_color": "var(--c-border-hover)",
+            "box_shadow": "var(--shadow-raised)"
+          }
+        },
+        ".civr-card-accent": {
+          "background": "linear-gradient(135deg, var(--c-accent-soft) 0%, var(--c-surface-1) 100%)",
+          "border_color": "rgba(37, 99, 235, 0.2)"
+        }
+      }
     },
     ".civr-btn": {
-      "min_height": "44px",
-      "min_width": "44px",
-      "padding": "10px 20px",
-      "border_radius": "8px",
-      "font_weight": "600",
-      "font_size": "14px",
-      "display": "inline-flex",
-      "align_items": "center",
-      "justify_content": "center",
-      "gap": "8px",
-      "transition": "background-color 0.15s ease, opacity 0.15s ease, transform 0.1s ease"
-    },
-    ".civr-btn-primary": {
-      "background": "var(--c-accent-strong)",
-      "color": "#ffffff",
-      "contrast_ratio": "> 5.5:1 (WCAG AA compliant)",
-      "hover": "background: var(--c-accent)",
-      "active": "transform: scale(0.98)"
+      "description": "Button system with strict hierarchy: 1 primary action per screen context, quiet secondary/ghost for supporting actions.",
+      "base_styles": {
+        "display": "inline-flex",
+        "align_items": "center",
+        "justify_content": "center",
+        "gap": "0.5rem (8px)",
+        "font_weight": "600",
+        "font_size": "0.875rem (14px)",
+        "border_radius": "var(--radius-md)",
+        "min_height": "2.5rem (40px)",
+        "min_height_mobile": "2.75rem (44px, WCAG touch target)",
+        "padding": "0.5rem 1.0rem",
+        "transition": "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
+        "user_select": "none",
+        "focus_visible": "outline: 2px solid var(--c-accent), outline-offset: 2px"
+      },
+      "variants": {
+        ".civr-btn-primary": {
+          "background_color": "var(--c-accent)",
+          "color": "#ffffff",
+          "border": "none",
+          "box_shadow": "0 1px 2px 0 rgba(37, 99, 235, 0.2)",
+          "hover": "background-color: var(--c-accent-hover), transform: translateY(-1px)",
+          "active": "transform: translateY(0)"
+        },
+        ".civr-btn-secondary": {
+          "background_color": "var(--c-surface-2)",
+          "color": "var(--c-text)",
+          "border": "1px solid var(--c-border)",
+          "hover": "background-color: var(--c-border), border-color: var(--c-border-hover)"
+        },
+        ".civr-btn-ghost": {
+          "background_color": "transparent",
+          "color": "var(--c-text-2)",
+          "border": "1px solid transparent",
+          "hover": "background-color: var(--c-surface-2), color: var(--c-text)"
+        },
+        ".civr-btn-danger": {
+          "background_color": "var(--c-danger-soft)",
+          "color": "var(--c-danger)",
+          "border": "1px solid rgba(239, 68, 68, 0.2)",
+          "hover": "background-color: var(--c-danger), color: #ffffff"
+        },
+        ".civr-btn-sm": {
+          "min_height": "2.0rem (32px)",
+          "min_height_mobile": "2.5rem (40px)",
+          "padding": "0.25rem 0.75rem",
+          "font_size": "0.8125rem (13px)"
+        },
+        ".civr-btn-lg": {
+          "min_height": "3.0rem (48px)",
+          "padding": "0.75rem 1.5rem",
+          "font_size": "1.0rem (16px)"
+        }
+      }
     },
     ".civr-input": {
-      "min_height": "44px",
-      "padding": "0 14px",
-      "border_radius": "8px",
-      "background": "var(--c-card)",
-      "border": "1px solid var(--c-border)",
-      "color": "var(--c-text)",
-      "font_size": "14px",
-      "focus": "border-color: var(--c-accent); box-shadow: 0 0 0 3px var(--c-accent-soft); outline: none"
+      "description": "Modern inset input fields with subtle hairline borders and crisp accent ring focus state.",
+      "styles": {
+        "width": "100%",
+        "min_height": "2.5rem (40px)",
+        "min_height_mobile": "2.75rem (44px)",
+        "padding": "0.5rem 0.875rem",
+        "background_color": "var(--c-surface-1)",
+        "color": "var(--c-text)",
+        "border": "1px solid var(--c-border)",
+        "border_radius": "var(--radius-md)",
+        "font_size": "0.875rem (14px)",
+        "placeholder_color": "var(--c-muted)",
+        "transition": "border-color 0.15s ease, box-shadow 0.15s ease",
+        "focus": "border-color: var(--c-accent), box-shadow: 0 0 0 3px var(--c-ring), outline: none"
+      }
     },
     ".civr-pill": {
-      "min_height": "28px",
-      "padding": "4px 12px",
-      "border_radius": "999px",
-      "font_size": "12px",
-      "font_weight": "600",
-      "border": "1px solid var(--c-border-hover)",
-      "color": "var(--c-text-2)"
+      "description": "Status badges and tag pills with soft background fills and high-contrast text.",
+      "base_styles": {
+        "display": "inline-flex",
+        "align_items": "center",
+        "gap": "0.375rem (6px)",
+        "padding": "0.25rem 0.625rem",
+        "border_radius": "var(--radius-full)",
+        "font_size": "0.75rem (12px)",
+        "font_weight": "600",
+        "line_height": "1"
+      },
+      "variants": {
+        ".civr-pill-on / .civr-pill-ok": {
+          "background_color": "var(--c-success-soft)",
+          "color": "var(--c-success)"
+        },
+        ".civr-pill-warn": {
+          "background_color": "var(--c-warning-soft)",
+          "color": "var(--c-warning)"
+        },
+        ".civr-pill-bad": {
+          "background_color": "var(--c-danger-soft)",
+          "color": "var(--c-danger)"
+        },
+        ".civr-pill-neutral": {
+          "background_color": "var(--c-surface-2)",
+          "color": "var(--c-text-2)"
+        }
+      }
     },
-    ".civr-label": {
-      "font_size": "12px",
-      "font_weight": "700",
-      "text_transform": "uppercase",
-      "letter_spacing": "0.08em",
-      "color": "var(--c-accent)"
+    ".civr-table": {
+      "description": "Clean, cardless data table layout separated by hairlines.",
+      "styles": {
+        "width": "100%",
+        "border_collapse": "collapse",
+        "font_size": "0.875rem (14px)",
+        "header_cell": "padding: 0.75rem 1.0rem, font-size: 0.75rem (12px), text-transform: uppercase, font-weight: 600, color: var(--c-text-2), border-bottom: 1px solid var(--c-border), text-align: left",
+        "body_cell": "padding: 0.875rem 1.0rem, border-bottom: 1px solid var(--c-hairline), color: var(--c-text)",
+        "row_hover": "background-color: var(--c-surface-subtle)"
+      }
+    },
+    ".civr-seg": {
+      "description": "Segmented control container for view toggles or mode selections.",
+      "styles": {
+        "display": "inline-flex",
+        "background_color": "var(--c-surface-2)",
+        "padding": "3px",
+        "border_radius": "var(--radius-md)",
+        "border": "1px solid var(--c-border)",
+        "item_styles": "padding: 0.375rem 0.75rem, font-size: 0.8125rem (13px), font-weight: 500, color: var(--c-text-2), border-radius: var(--radius-sm), cursor: pointer, transition: all 0.15s ease",
+        "item_active_styles": "background-color: var(--c-surface-1), color: var(--c-text), font-weight: 600, box-shadow: 0 1px 2px rgba(0,0,0,0.06)"
+      }
+    },
+    "PageTitle": {
+      "description": "Universal header component across all 35 pages.",
+      "layout": "Flexbox layout (col on mobile, row on desktop), justify-between, items-start md:items-center, gap-4, pb-6, mb-6, border-b border-[var(--c-hairline)]",
+      "structure": {
+        "left_column": "Title (h1), one-line subtitle below",
+        "right_actions": "Flex group containing MAX 1 primary CTA button (.civr-btn-primary), overflow/secondary actions in quiet buttons or dropdown menu"
+      }
+    },
+    "SectionTabs": {
+      "description": "Sub-page or tabbed navigation bar.",
+      "styles": "display: flex, gap: 1.5rem (24px), border-bottom: 1px solid var(--c-border), margin-bottom: 1.5rem",
+      "tab_item": "padding-bottom: 0.75rem, font-size: 0.875rem (14px), font-weight: 500, color: var(--c-text-2), border-bottom: 2px solid transparent, transition: color 0.15s ease, border-color 0.15s ease",
+      "tab_item_active": "color: var(--c-accent), border-bottom-color: var(--c-accent), font-weight: 600"
     }
   },
-  "ux_audit_and_restructure": {
-    "dashboard_audit": {
-      "primary_stay": [
-        "Active Phone Numbers list & quick search",
-        "Wallet balance card & 1-click Top-up button",
-        "Key metrics row: Unread Messages, Active Calls, Voice Minutes",
-        "Primary action shortcuts: 'Get a Number', 'Send Text/Fax', 'Configure Forwarding'"
-      ],
-      "secondary_progressive_disclosure": [
-        "Live campaign statuses (collapsed into 'Active Campaigns' expandable panel)",
-        "Guided onboarding setup checklist (dismissible or collapsible once 100% complete)",
-        "'More for You' drawer/accordion containing Product Catalog Grid and Review Promos"
-      ],
-      "noise_deleted": [
-        "Duplicate promotional upgrade banners",
-        "Static marketing cards embedded in daily operational feeds",
-        "Excessive heavy dark borders and high-saturate colored cards"
-      ],
-      "layout_order": [
-        "1. Top Status & Wallet Header Bar",
-        "2. Key Operational Metrics (Unread SMS, Voice Minutes, Live Trunks)",
-        "3. Active Numbers List & Fast Actions",
-        "4. Recent Activity Log / Messages",
-        "5. 'More for You' Progressive Disclosure Section (Setup checklist, campaigns, tools)"
-      ]
+  "page_shell_and_layout_rules": {
+    "max_content_width": "max-w-7xl (1280px) centered via mx-auto",
+    "page_padding": {
+      "desktop": "px-8 py-8",
+      "mobile": "px-4 py-6"
     },
-    "buying_flow_fixes": [
-      "Guided 3-step wizard: Purpose Picker -> Country/Area Search -> Instant Wallet Checkout",
-      "Upfront transparent plan pricing with zero hidden fees",
-      "Skeleton states during live inventory lookups instead of full-page spinners",
-      "Inline drag-and-drop paperwork/ID verification with instant clear error feedback"
-    ],
-    "landing_page_fixes": [
-      "Clean, high-contrast light theme with 'ink-on-paper' typography",
-      "Single prominent primary CTA hero button with subtle hover lift",
-      "Interactive voice waveform audio sample player",
-      "Responsive comparison grid with sticky first column on mobile"
-    ],
-    "number_settings_fixes": [
-      "Horizontal segmented tab bar for Overview, Forwarding, Voicemail, Texting, AI, IVR, SIP",
-      "Instant optimistic UI toggles with automatic save feedback toasts via Sonner",
-      "44px minimum touch targets on all mobile controls"
+    "vertical_rhythm": "gap-6 (24px) or gap-8 (32px) between major page sections",
+    "cardless_deconstruction_pattern": "Replace nested cards inside outer cards with flat full-bleed sections separated by 1px hairlines (`border-b border-[var(--c-hairline)]`). Maintain visual hierarchy through font weight and subtle surface tinting (`bg-[var(--c-surface-1)]` vs `bg-[var(--c-surface-2)]`) rather than boxing every single paragraph or detail item.",
+    "mobile_sticky_action_bar": "On mobile viewports (screen width < 768px), primary form submissions and call CTAs dock into a fixed bottom action bar (`fixed bottom-14 left-0 right-0 p-3 bg-[var(--c-surface-1)] border-t border-[var(--c-border)] z-40 backdrop-blur-md bg-opacity-90`) above the bottom nav."
+  },
+  "structure_patterns_by_page_type": {
+    "dashboard": {
+      "grid_layout": "grid-cols-1 lg:grid-cols-12 gap-6",
+      "components": "Wallet Balance Hero (col-span-12 lg:col-span-8), Quick Actions/Free Test Call Widget (col-span-12 lg:col-span-4), Active Numbers List (col-span-12), Recent Activity Table/Feed (col-span-12)"
+    },
+    "wizard": {
+      "layout": "max-w-3xl mx-auto py-8",
+      "step_indicator": "Horizontal step pill progress bar (Step 1: Purpose -> Step 2: Pick Number -> Step 3: Pay)",
+      "ai_callout_box": "Emily AI Recommendation box styled with soft accent gradient border, AI icon badge, and instant 'Select Recommended Number' action."
+    },
+    "list_page": {
+      "top_bar": "Search bar + Filter pill group + View switcher (grid/table) + Primary Action CTA",
+      "content": "Hairline-separated card grid or compact table with inline quick actions"
+    },
+    "settings_tab_page": {
+      "layout": "SectionTabs header -> 2-column setting rows (Left: Title + Description, Right: Form Control / Switch Row)",
+      "switch_row_pattern": "Flex justify-between items-center py-4 border-b border-[var(--c-hairline)]"
+    },
+    "form_page": {
+      "layout": "max-w-2xl mx-auto, single-column field stacked layout, gap-5",
+      "footer": "Flex justify-end gap-3 pt-6 border-t border-[var(--c-hairline)]"
+    },
+    "table_page": {
+      "layout": "Filter header -> Full-width .civr-table with sticky header and pagination bar"
+    },
+    "two_pane_inbox": {
+      "desktop_layout": "grid grid-cols-12 h-[calc(100vh-140px)] rounded-xl border border-[var(--c-border)] overflow-hidden",
+      "left_pane": "col-span-4 border-r border-[var(--c-hairline)] bg-[var(--c-surface-1)] (Conversation list)",
+      "right_pane": "col-span-8 bg-[var(--c-surface-subtle)] flex flex-col (Thread message view + Input composer)",
+      "mobile_layout": "Full width list; tapping conversation slides in full screen thread view"
+    }
+  },
+  "motion_and_micro_interactions": {
+    "transition_defaults": "transition-all duration-150 ease-out",
+    "hover_transforms": "hover:-translate-y-0.5 for actionable cards and primary buttons",
+    "active_transforms": "active:translate-y-0 active:scale-[0.99]",
+    "reduced_motion": "@media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }"
+  },
+  "accessibility_and_testing": {
+    "contrast": "All text and surface pairings meet WCAG 2.1 AA (min 4.5:1 for standard body, min 3:1 for large text/ui components)",
+    "touch_targets": "Minimum 44x44px interactive target areas on mobile screens",
+    "keyboard_focus": "Explicit focus-visible ring on all interactive elements using var(--c-ring)",
+    "data_testid_rule": "ALL interactive and key informational elements MUST include a descriptive data-testid attribute in kebab-case (e.g. data-testid=\"home-wallet-add-funds-button\", data-testid=\"wizard-step-2-number-item\", data-testid=\"messages-send-button\")."
+  },
+  "image_urls": {
+    "avatars": [
+      "https://images.unsplash.com/photo-1740252117012-bb53ad05e370?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDJ8MHwxfHNlYXJjaHwzfHxtb2Rlcm4lMjBzYWFzJTIwYXZhdGFyJTIwdXNlciUyMHByb2ZpbGUlMjBwb3J0cmFpdHxlbnwwfHx8fDE3OTUwMDMzMTJ8MA&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1740252117013-4fb21771e7ca?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDJ8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBzYWFzJTIwYXZhdGFyJTIwdXNlciUyMHByb2ZpbGUlMjBwb3J0cmFpdHxlbnwwfHx8fDE3OTUwMDMzMTJ8MA&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1569779213435-ba3167dde7cc?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDJ8MHwxfHNlYXJjaHw0fHxtb2Rlcm4lMjBzYWFzJTIwYXZhdGFyJTIwdXNlciUyMHByb2ZpbGUlMjBwb3J0cmFpdHxlbnwwfHx8fDE3OTUwMDMzMTJ8MA&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1740252117027-4275d3f84385?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDJ8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBzYWFzJTIwYXZhdGFyJTIwdXNlciUyMHByb2ZpbGUlMjBwb3J0cmFpdHxlbnwwfHx8fDE3OTUwMDMzMTJ8MA&ixlib=rb-4.1.0&q=85"
     ]
   },
-  "microcopy_table": [
-    {
-      "location": "Dashboard Header",
-      "old": "Manage and configure your active telecommunication numbers and trunks",
-      "new": "Your Numbers & Forwarding",
-      "reason": "Eliminates technical jargon, directly states user benefit."
-    },
-    {
-      "location": "Wallet Alert",
-      "old": "Insufficient credits in balance account, please recharge",
-      "new": "Wallet balance low ($1.20). Top up to keep numbers active.",
-      "reason": "Human, actionable, gives exact context."
-    },
-    {
-      "location": "Buying Flow - Regulatory",
-      "old": "Submit paperwork documentation for regulatory compliance approval",
-      "new": "Upload ID to activate local number",
-      "reason": "Clear step-by-step instruction without corporate bureaucracy."
-    },
-    {
-      "location": "Campaigns",
-      "old": "Execute campaign outbound broadcast sequence",
-      "new": "Start SMS Campaign",
-      "reason": "Action-oriented and concise."
-    },
-    {
-      "location": "Empty Numbers Table",
-      "old": "No records found in database query",
-      "new": "No active numbers yet. Pick your first number to start.",
-      "reason": "Provides positive direction and immediate next step."
-    }
-  ],
-  "accessibility_and_testing_rules": {
-    "wcag_aa_requirements": [
-      "All body text meets minimum 4.5:1 contrast against surface background.",
-      "Headings and primary CTA buttons meet minimum 3:1 contrast ratio.",
-      "Interactive touch targets are minimum 44px by 44px on coarse pointers.",
-      "Interactive states do not rely on color alone (include icons, borders, or underline indicators)."
-    ],
-    "testing_data_testids": [
-      "Every interactive element (buttons, links, inputs, selects, toggles) MUST have a data-testid attribute.",
-      "Convention: kebab-case role-based naming e.g., data-testid='dashboard-topup-button', data-testid='number-search-input'."
-    ]
-  }
+  "instructions_to_main_agent": [
+    "Apply the exact CSS variable definitions provided under tokens_light and tokens_dark to the project root CSS file (e.g., cloudivr.css or index.css).",
+    "Update all shared CSS classes (.civr-card, .civr-btn, .civr-input, .civr-pill, .civr-table, .civr-seg, PageTitle, SectionTabs) to match the 2026 specs in this document.",
+    "Refactor PageTitle across all signed-in pages to strictly enforce 1 primary action button and move secondary actions into overflow/ghost buttons.",
+    "Eliminate nested boxes and replace them with flat hairline-separated sections to achieve a clean, calm, 2026 UX.",
+    "Ensure both Light and Dark modes render cleanly with high contrast.",
+    "Ensure data-testid attributes are preserved or added on all buttons, inputs, tabs, and actionable items across JS components."
+  ]
 }
