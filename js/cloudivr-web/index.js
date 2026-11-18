@@ -62,6 +62,14 @@ function createCloudIvrWeb(deps) {
     require('./statement').start(db, { log })
     require('../ivr-live-data').init({ db, log, notify: (chatId, text) => require('./notify').push(chatId, text, null, { kind: 'call' }).catch(() => {}) })
     require('./ivr-connections').publicRoutes(r, { h })
+    // Private live renewal calendar (Google / Apple / Outlook subscribe to it); the token is the secret.
+    r.get('/public/calendar/:file', async (req, res) => {
+      try {
+        const out = await require('../renewal-calendar').feed(db, String(req.params.file).replace(/\.ics$/, ''))
+        if (!out) return res.status(404).type('text/plain').send('This calendar link was reset or does not exist.')
+        res.set({ 'Content-Type': 'text/calendar; charset=utf-8', 'Cache-Control': 'private, max-age=900', 'Content-Disposition': 'inline; filename="renewals.ics"' }).send(out)
+      } catch (e) { log(`[CloudIVR-Web] calendar feed error: ${e.message}`); res.sendStatus(500) }
+    })
     r.get('/public/catalog', h(async (req, res) => { const c = numbers.catalog(); res.json({
       ...c, cardPayments: c.cardPayments || mollie.cardsLive(req), paymentMethods: await mollie.publicMethods(req).catch(() => []), coins: deps.coins || [], minTopup: wallet.MIN_TOPUP_USD, supportLink: support.supportLink(), channelLink: String(process.env.CLOUDIVR_CHANNEL_LINK || '').trim(),
     }) }))

@@ -166,7 +166,8 @@ async function feedToken(db, chatId, rotate = false) {
   return token
 }
 function feedLinks(token) {
-  const url = `${String(process.env.SELF_URL || '').replace(/\/+$/, '')}/calendar/${token}.ics`
+  // Served from the CloudIVR site (same-origin /api), so customers see their own brand's address.
+  const url = `${String(process.env.CLOUDIVR_PUBLIC_URL || 'https://cloudivr.net').replace(/\/+$/, '')}/api/cloudivr-web/public/calendar/${token}.ics`
   const webcal = url.replace(/^https?:\/\//, 'webcal://')
   return { url, webcal, google: `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcal)}` }
 }
