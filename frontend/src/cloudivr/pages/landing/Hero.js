@@ -16,7 +16,7 @@ export function OneHero() {
   const start = useStart();
   return (
     <section id="product-hero" className="lx-hero relative pt-24 md:pt-36 pb-20 md:pb-32" data-testid="product-hero">
-      <div className="lx-aurora" aria-hidden="true" /><div className="lx-grid" aria-hidden="true" /><div className="lx-grain" aria-hidden="true" />
+      <div className="lx-aurora" aria-hidden="true" /><div className="lx-grain" aria-hidden="true" />
       <div className="relative max-w-7xl mx-auto px-6 md:px-8 grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,.9fr)] gap-8 lg:gap-8 items-center">
         <div>
           <div className="lx-chip civr-rise" data-testid="hero-kicker"><span className="lx-live" aria-hidden="true" />AI receptionist on every plan</div>

@@ -118,7 +118,6 @@ export function SipHero({ catalog }) {
   const trust = ['Works with free apps', 'UDP, TCP & TLS', 'No contracts', 'Crypto & wallet payments'];
   return (
     <section className="civr-l-cream relative overflow-hidden pt-32 md:pt-40" data-testid="sip-hero">
-      <div className="absolute inset-0 civr-l-gridbg civr-l-mask" />
       <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(50% 45% at 85% 20%, rgba(99,102,241,.10), transparent 70%)' }} />
       <div className="relative max-w-7xl mx-auto px-6 md:px-8 grid lg:grid-cols-12 gap-16 lg:gap-12 items-center pb-24">
         <div className="lg:col-span-6 relative z-10">

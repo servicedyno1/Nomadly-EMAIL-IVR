@@ -39,7 +39,7 @@ export function MobileOffer({ onBought, open: startOpen = false }) {
         <Field label="ZIP code" hint="We ask the carrier for a number near this USA ZIP code. The area code can’t be guaranteed."><input className="civr-input font-mono max-w-[160px]" inputMode="numeric" value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10011" data-testid="mobile-offer-zip" /></Field>
         <RenewPick on={autoRenew} onChange={setAutoRenew} price={data.price} testid="mobile-offer-autorenew" />
         <WalletPay price={data.price} onWallet={go} busy={busy} disabled={zip.length !== 5} testid="mobile-offer-pay" walletTestid="mobile-offer-pay-button" cryptoTestid="mobile-offer-crypto">
-          <button type="button" onClick={() => setOpen(false)} className="civr-btn civr-btn-ghost" data-testid="mobile-offer-cancel">Cancel</button>
+          {!startOpen && <button type="button" onClick={() => setOpen(false)} className="civr-btn civr-btn-ghost" data-testid="mobile-offer-cancel">Cancel</button>}
         </WalletPay>
         <ErrorNote error={err} testid="mobile-offer-error" />
         <p className="text-xs text-[var(--c-muted)]">Manage it under <Link to={cp('/app/numbers')} className="underline">My numbers</Link>.</p>

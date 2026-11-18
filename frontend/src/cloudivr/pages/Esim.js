@@ -24,21 +24,16 @@ const dropDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch (_) 
 
 const STATUS = { awaiting_imei: ['Paid · add your phone’s IMEI to create it', 'text-[#fbbf24]'], provisioning: ['Creating your eSIM… usually ready in minutes', 'text-[#fbbf24]'], active: ['Active', 'text-[#34d399]'], suspended: ['Paused · monthly fee due', 'text-[#fbbf24]'], failed: ['Couldn’t be created · refunded', 'text-[#fb7185]'] };
 
-function PlanCard({ p, onBuy }) {
+function PlanCard({ p, on, onPick }) {
   return (
-    <div className="civr-card p-5 flex flex-col" data-testid={`esim-plan-${p.planId.replace(/\W/g, '')}`}>
-      <div className="font-semibold">{p.label || p.planId}</div>
-      <div className="font-display text-3xl font-bold mt-2">{`$${p.price}`} <span className="text-sm font-normal text-[#a1a1aa]">{`/ ${p.validityDays} days`}</span></div>
-      <ul className="text-sm text-[#d4d4d8] mt-3 space-y-1 flex-1">
-        <li>Unlimited data</li><li>Unlimited calls</li><li>Unlimited texts</li>
-        <li className="text-[#a1a1aa]">{`${p.carrier} · renews monthly from your wallet`}</li>
-      </ul>
-      <button type="button" onClick={() => onBuy(p)} className="civr-btn civr-btn-primary mt-4" data-testid={`esim-plan-buy-${p.planId.replace(/\W/g, '')}`}>Get this eSIM</button>
-    </div>
+    <button type="button" role="radio" aria-checked={on} onClick={() => onPick(p)} className={`civr-card p-5 text-left flex flex-col transition-[box-shadow,border-color] ${on ? '!border-[var(--c-accent)] ring-2 ring-[var(--c-accent)]' : ''}`} data-testid={`esim-plan-buy-${p.planId.replace(/\W/g, '')}`}>
+      <span className="font-semibold">{p.label || p.planId}</span>
+      <span className="font-display text-2xl font-bold mt-1">{`$${p.price}`} <span className="text-sm font-normal text-[var(--c-muted)]">{`/ ${p.validityDays} days`}</span></span>
+    </button>
   );
 }
 
-function BuyForm({ plan, draft, onDone, onCancel }) {
+function BuyForm({ plan, draft, onDone }) {
   const { refreshSummary } = useShell();
   const [zip, setZip] = useState(draft?.zip || '');
   const { account } = useCivrAuth();
@@ -53,13 +48,16 @@ function BuyForm({ plan, draft, onDone, onCancel }) {
   const go = async () => { setBusy(true); setErr(null); try { const r = await api('/esim', { method: 'POST', body: { planId: plan.planId, zipcode: zip.trim(), email: email.trim(), autoRenew } }); toast.success(`Paid $${plan.price}. Last step: add your phone’s IMEI`); refreshSummary(); dropDraft(); onDone(r?.item?.id); } catch (e) { setErr(e); } finally { setBusy(false); } };
   return (
     <div className="civr-card p-6 space-y-4" data-testid="esim-buy">
-      <div className="font-semibold">{plan.label || plan.planId}</div>
+      <div className="flex flex-wrap items-start gap-3">
+        <Smartphone className="w-5 h-5 text-[var(--c-accent)] mt-1" aria-hidden="true" />
+        <div className="flex-1 min-w-[200px]"><div className="font-semibold" data-testid="esim-buy-plan">{plan.label || plan.planId}</div><p className="text-sm text-[var(--c-muted)] mt-1">{`Unlimited data, calls and texts on your own phone · ${plan.carrier}`}</p></div>
+        <div className="font-mono text-xl" data-testid="esim-buy-price">{`$${plan.price}`}<span className="text-xs text-[var(--c-muted)]">{` / ${plan.validityDays} days`}</span></div>
+      </div>
       <p className="text-sm text-[var(--c-muted,#a1a1aa)]" data-testid="esim-buy-instant">Instant delivery: right after you pay, we create your eSIM and show its QR code here.</p>
       <Field label="ZIP code for your number (optional)" hint="We’ll ask for a number near this USA ZIP code. The exact area code can’t be guaranteed."><input className="civr-input font-mono max-w-[160px]" inputMode="numeric" value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10011" data-testid="esim-zip-input" /></Field>
       <Field label="Email for your QR code" hint="We send the eSIM QR code here as soon as it’s ready. It’s also on this page."><input className="civr-input" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" data-testid="esim-email-input" /></Field>
       <RenewPick on={autoRenew} onChange={setAutoRenew} price={plan.price} testid="esim-buy-autorenew" />
       <WalletPay price={plan.price} onWallet={go} busy={busy} disabled={(zip.length > 0 && zip.length !== 5) || !emailOk} crypto={cryptoOk} testid="esim-pay" walletTestid="esim-pay-button" cryptoTestid="esim-crypto">
-        <button type="button" onClick={onCancel} className="civr-btn civr-btn-ghost" data-testid="esim-buy-cancel">Cancel</button>
       </WalletPay>
       <ErrorNote error={err} testid="esim-buy-error" />
     </div>
@@ -166,17 +164,18 @@ export default function Esim() {
   useEffect(() => { if (!waiting) return undefined; const t = setInterval(reload, 5000); return () => clearInterval(t); }, [waiting, reload]);
   if (error) return <ErrorNote error={error} onRetry={reload} />;
   if (!data) return <Spinner />;
+  const plan = buying || data.plans[0];
   return (
     <div className="space-y-8" data-testid="esim-page">
       <PageHeader label="Phone numbers · USA eSIM" title="USA mobile number" sub="A real USA carrier number, two ways: download it to your phone as an eSIM, or use it in your browser for texting." testid="esim-header" />
       {data.items.length > 0 && <div className="space-y-4">{data.items.map(x => <Line key={x.id} item={x} reload={reload} fresh={x.id === fresh} />)}</div>}
       <MobileLines noEmpty />
-      {buying ? <BuyForm plan={buying} draft={draft?.planId === buying.planId ? draft : null} onCancel={() => { dropDraft(); setBuying(null); }} onDone={(id) => { setFresh(id || null); setBuying(null); reload(); }} /> : <>
-        <WayPicker way={way} setWay={setWay} />
-        {way === 'esim' && (data.plans.length ? <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="esim-plans">{data.plans.map(p => <PlanCard key={p.planId} p={p} onBuy={setBuying} />)}</div>
-          : <Empty icon={Smartphone} title="eSIM plans are coming soon" sub="We’re adding mobile plans. Check back shortly." testid="esim-empty" />)}
+      <WayPicker way={way} setWay={setWay} />
+      {way === 'esim' && (plan ? <>
+        {data.plans.length > 1 && <div role="radiogroup" aria-label="eSIM plan" className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3" data-testid="esim-plans">{data.plans.map(p => <PlanCard key={p.planId} p={p} on={p.planId === plan.planId} onPick={setBuying} />)}</div>}
+        <BuyForm key={plan.planId} plan={plan} draft={draft?.planId === plan.planId ? draft : null} onDone={(id) => { setFresh(id || null); setBuying(null); reload(); }} />
+      </> : <Empty icon={Smartphone} title="eSIM plans are coming soon" sub="We’re adding mobile plans. Check back shortly." testid="esim-empty" />)}
         {way === 'web' && <div data-testid="esim-web-number">{web?.available ? <MobileOffer open onBought={() => nav(cp('/app/numbers?show=texts'))} /> : web ? <p className="civr-card p-5 text-sm text-[var(--c-muted)]" data-testid="esim-web-unavailable">Web texting numbers are not available right now. Please try again later.</p> : <Spinner />}</div>}
-      </>}
     </div>
   );
 }

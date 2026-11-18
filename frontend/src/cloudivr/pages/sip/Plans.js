@@ -151,7 +151,6 @@ export function SipFinalCta({ catalog }) {
     <section className="civr-l-cream py-24" data-testid="sip-final-cta">
       <div className="max-w-7xl mx-auto px-6 md:px-8">
         <Reveal className="civr-l-dark relative overflow-hidden rounded-3xl px-8 py-16 md:px-16 flex flex-col md:flex-row md:items-end gap-8">
-          <div className="absolute inset-0 civr-l-gridbg opacity-60" />
           <div className="relative flex-1">
             <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl max-w-2xl">Your number, ringing on your softphone today.</h2>
             <p className="text-base mt-4 civr-l-muted">{pick ? `Free to sign up · SIP from ${usd(pick.price)}/month · No contracts` : 'Free to sign up · No contracts'}</p>

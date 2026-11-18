@@ -39,7 +39,6 @@ function ConnectionCard({ domain }) {
   const rows = [['Port', '5060 (UDP/TCP) · 5061 (TLS)', 'port'], ['Username', 'On your number’s SIP tab', 'username'], ['Password', 'On your number’s SIP tab', 'password']];
   return (
     <Reveal className="civr-l-dark relative overflow-hidden rounded-3xl p-6 md:p-8 h-fit" data-testid="sip-connection-card">
-      <div className="absolute inset-0 civr-l-gridbg opacity-60" />
       <div className="relative">
         <div className="flex items-center gap-2 text-sm font-semibold text-[#a5b4fc]"><KeyRound className="w-4 h-4" />Your connection details</div>
         <div className="text-xs civr-l-muted mt-6">Server / domain</div>

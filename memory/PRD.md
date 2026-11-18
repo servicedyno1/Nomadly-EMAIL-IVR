@@ -682,3 +682,8 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - channel-ads-studio plan-suggest captures now use `/pricing`.
 - 2026-11-18 follow-up: app shots in public/cloudivr/shots recaptured from the redesigned app via `node scripts/seed_civr_live_demo.js` → `python3 scripts/landing_shots.py` → `seed --clean` (script now tidies preview pills, test numbers/names, toasts; campaigns shot = seeded demo campaign). Mobile hero shortened (1290→1154px) and sticky bar now appears once the hero buttons scroll away. Self-checked by screenshot only.
 - Open: old unused landing files (ProductHero hero, HeroTabs, WhoFor on landing, Facts/Statement/Coverage) not cleaned up.
+
+## 2026-11-18 — eSIM buy flow, payment block, grid backgrounds — shipped, screenshot-checked only, not user-confirmed
+- `/app/esim` "On your phone": buy form shows straight away (no "Get this eSIM" step); plan picker only when >1 plan. "In your browser" no longer has a Cancel that collapses the form.
+- `WalletPay.js` rebuilt as one block: Total today, wallet line (covers / short + Top up), then wallet → card or bank → crypto. Removed the duplicate "Pay by card or bank" button (ShortNote + WalletPay both rendered MolliePay when wallet was short). Used on ~15 screens. Card path NOT verified in preview (Mollie is off there).
+- Grid/checker backgrounds removed from landing hero and SIP pages.
