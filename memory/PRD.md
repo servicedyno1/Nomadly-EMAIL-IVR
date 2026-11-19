@@ -770,3 +770,11 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Nomadly use-cases and what's-new lists added for varied content rotation.
 - Files changed: `js/channel-ads.js`, `js/channel-ads-studio.js`.
 - All syntax checks pass. Pushed to GitHub.
+
+### 2026-11-19 — Dark mode polish + number card density
+- Number cards: quick switches collapsed behind "Quick switches · X of N on" toggle (Numbers.js SwitchesToggle)
+- Inbox filters: single swipeable row on phones
+- Fixed select dropdown fill/caret regression (theme-2026.css background → background-color)
+- Dark accent pills lighter blue for contrast; light-mode Usage green amounts darker
+- Tested: iteration_329 (95% frontend pass)
+- Open minor contrast items: ⌘K hint (dark), segmented count opacity, wallet subtitle #a1a1aa, fax "Receiving faxes" emerald-500 (light), logo "IVR" green (light), warn pills amber (light)

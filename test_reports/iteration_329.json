@@ -1,0 +1,42 @@
+{
+  "summary": "Frontend-only follow-up test of CloudIVR signed-in UX (civr.uxtest). Number-card Quick switches toggle, Hours flip + count update, Fax confirm dialog, dark-mode readability on 7 pages + account menu + fax dialog, light-mode regression, and mobile 390px Inbox filters / number cards / bottom nav all PASS. Found 1 real visual regression: every <select class='civr-input'> (e.g. Settings > Country) shows a large grey tiled-gradient fill in LIGHT mode and has NO dropdown caret in DARK mode, caused by the `background:` shorthand in theme-2026.css. Plus a few minor contrast issues.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "All native selects (select.civr-input), e.g. Settings > Home address > Country", "issue": "LIGHT mode: the select gets a grey/slate tiled fill with a big white triangle across the whole field. DARK mode: no dropdown caret at all. Root cause: theme-2026.css line 199-206 `html[data-civr-theme] .civr .civr-input { background: var(--c-surface-subtle); }` is a shorthand that resets background-image/size/position/repeat from cloudivr.css:49. theme-light.css:28 then adds back only background-image, so it tiles at auto size (computed background-size 'auto, auto', repeat 'repeat'). In dark, background-image is 'none'. Fix: use `background-color:` in theme-2026.css line 203, or add `html[data-civr-theme] .civr select.civr-input { background-position: calc(100% - 16px) 19px, calc(100% - 11px) 19px; background-size: 5px 5px; background-repeat: no-repeat; }` along with the chevron image for both themes.", "selector": "[data-testid='address-country-select']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dark mode (all pages)", "issues": ["Sidebar '⌘ K' kbd hint 2.35:1 (#4a5260 on #10131a)", "Segmented filter counts (numbers-filter-*-count, dashboard-numbers-tab-* counts) 3.19:1 because of opacity-70 on muted text", "Accent pills (civr-pill-on: 'Calls', 'Business plan', 'Invoice', 'Complete', 'Verified') #3b82f6 on #182439 = 4.24:1, just under AA for 12-13px text; use a lighter blue (e.g. #60a5fa) in dark", "Wallet method card subtitle uses hardcoded text-[#a1a1aa] (3.75:1 dark, 3.05:1 light) instead of a token"]},
+      {"screen": "Light mode", "issues": ["Usage page: hardcoded text-emerald-400 (#34d399) on white = 1.92:1 (data-testid usage-number-29/30 counts and usage-detail-* credit amounts like '+$0.28')", "Numbers fax line row 'Receiving faxes' uses text-emerald-500 on white = 2.54:1", "Sidebar logo 'IVR' #34d399 on #fafaf9 = 1.84:1 (brand, low priority)", "civr-pill-warn #d97706 on #fffbeb = 3.07:1 (Preview banner, 'preview' pills)"]}
+    ]
+  },
+  "passed_tests": [
+    "Numbers: all 26 number cards render collapsed toggle 'Quick switches · X of N on', aria-expanded=false, number-card-{i}-switches NOT in DOM",
+    "Toggle click -> aria-expanded=true, switches rendered (forwarding/ivr/hours/fax on card 0); second click -> hidden, aria-expanded=false",
+    "Hours flip on card 0 -> toast 'Hours on' with Undo, aria-checked true, count '0 of 4 on' -> '1 of 4 on'; reverted -> '0 of 4 on' (data restored)",
+    "Fax switch opens 'Fax line' confirm dialog; Cancel closes it (no change made); dialog readable in dark mode",
+    "Dark mode via localStorage civr.theme=dark: Dashboard, Numbers, Wallet, Usage, Campaigns, Inbox, Settings readable; no text below 3:1 except the ⌘K hint; account menu popover readable",
+    "Light mode renders correctly on same 7 pages (except select caret bug and minor contrast items above)",
+    "Desktop Inbox filters: flex-wrap: wrap (fit in 1 row at 1920)",
+    "Mobile 390 Inbox filters: single row, nowrap, overflow-x auto (scrollWidth 994 > 390); picking 'Billing' filters list and header shows 'Mark these as read (7)'",
+    "Mobile 390 number card: toggle 44px tall, switch pills 44px tall, wrap ok; bottom nav visible (Home/Numbers/Inbox/Wallet/More) and Home navigates"
+  ],
+  "test_report_links": ["/app/tests/contrast_scan.js"],
+  "action_items": [
+    "Fix select.civr-input background in theme-2026.css (use background-color instead of shorthand, or restore size/position/repeat + chevron for both themes) - visible on Settings Country and every other civr select",
+    "Swap hardcoded text-emerald-400/500 and text-[#a1a1aa] on Usage / Numbers fax row / Wallet method card for theme tokens so light mode keeps contrast",
+    "Optional: lighten civr-pill-on accent text in dark (4.24:1) and the ⌘K kbd / segmented count opacity"
+  ],
+  "critical_code_review_comments": [
+    "theme-2026.css:203 `background:` shorthand on .civr-input wipes the select chevron defined in cloudivr.css:49 - root cause of the select bug",
+    "Numbers.js SwitchesToggle on-count and NumberCard `switches` count duplicate the same visibility rules (access.callForwarding / access.ivr / business+active+fax). Consider one helper that returns the list so the count and the rendered pills can't get out of sync",
+    "Numbers.js is 182 lines, fine"
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "95%"},
+  "seed_data_creation": "None. Hours on card 0 (+13341112222) was turned on and then back off; Fax dialog was cancelled.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login civr.uxtest@example.com / UxTest#2026, click cookie-allow-all first. Theme via localStorage 'civr.theme' = dark|light then reload. /app/tests/contrast_scan.js is a page.evaluate contrast scanner (returns items < AA). Next check: select caret in both themes on Settings (address-country-select) after the fix."
+}

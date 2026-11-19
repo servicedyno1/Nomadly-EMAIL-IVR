@@ -200,7 +200,7 @@ html[data-civr-theme] .civr .civr-input {
   min-height: 44px;
   border-radius: var(--radius-ctl);
   font-size: 15px;
-  background: var(--c-surface-subtle);
+  background-color: var(--c-surface-subtle);
   border-color: var(--c-border);
   color: var(--c-text);
 }
@@ -644,3 +644,7 @@ html[data-civr-theme] .civr .civr-incoming-ring {
   0% { box-shadow: 0 0 0 0 rgba(59,130,246,.55); }
   100% { box-shadow: 0 0 0 14px rgba(59,130,246,0); }
 }
+
+/* Accent pills: lighter blue in dark for AA contrast */
+html[data-civr-theme="dark"] .civr .civr-pill-on { color: #93c5fd; }
+html[data-civr-theme="light"] .civr [data-testid^="usage-"] .text-emerald-400, html[data-civr-theme="light"] .civr [data-testid^="usage-"].text-emerald-400 { color: #047857; }
