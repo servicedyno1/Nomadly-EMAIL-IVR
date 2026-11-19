@@ -6,9 +6,14 @@ const crypto = require('crypto')
 const axios = require('axios')
 const studio = require('./channel-ads-studio')
 
-const TARGETS = () => String(process.env.CHANNEL_ADS_TARGETS || '@CloudIVRNet=16:00;@Hostbay=10:00,16:00,22:00').split(';')
+// Canonical schedule (UTC): @CloudIVRNet 1/day, @Hostbay 3/day. CHANNEL_ADS_TARGETS can override, but any
+// override is logged loudly on startup so the schedule can never drift silently (see init).
+const DEFAULT_TARGETS = '@CloudIVRNet=16:00;@Hostbay=10:00,16:00,22:00'
+const parseTargets = (str) => String(str).split(';')
   .map(s => { const [chat, slots = ''] = s.split('='); return { chat: chat.trim(), slots: slots.split(',').map(x => x.trim()).filter(Boolean) } })
   .filter(t => t.chat && t.slots.length)
+const usingOverride = () => !!process.env.CHANNEL_ADS_TARGETS && process.env.CHANNEL_ADS_TARGETS !== DEFAULT_TARGETS
+const TARGETS = () => parseTargets(process.env.CHANNEL_ADS_TARGETS || DEFAULT_TARGETS)
 const POSTER_BOT = () => String(process.env.CHANNEL_ADS_BOT || 'Nomadlybot').toLowerCase()
 const SITE = () => String(process.env.CLOUDIVR_PUBLIC_URL || 'https://cloudivr.net').replace(/\/+$/, '')
 const BOT_LINK = () => `https://t.me/${process.env.BOT_USERNAME || 'Nomadlybot'}`
@@ -248,6 +253,7 @@ async function init({ db, bot, logger } = {}) {
   try { me = (await axios.get(`https://api.telegram.org/bot${token}/getMe`, { timeout: 15000 })).data.result } catch (_) { /* offline */ }
   if (!dryRun() && String(me?.username || '').toLowerCase() !== POSTER_BOT()) return false
   log(`[ChannelAds] ${dryRun() ? 'preview (simulated)' : 'live'} — ${TARGETS().map(t => `${t.chat} at ${t.slots.join(' & ')}`).join('; ')} UTC via @${me?.username || '?'}`)
+  if (usingOverride()) log(`[ChannelAds] ⚠️ CUSTOM schedule from CHANNEL_ADS_TARGETS overrides the default (${DEFAULT_TARGETS}) — remove it to restore 3/day @Hostbay + 1/day @CloudIVRNet`)
   if (timer) clearInterval(timer)
   timer = setInterval(tick, 60000); timer.unref?.()
   setTimeout(tick, 60000).unref?.()

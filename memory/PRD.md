@@ -784,3 +784,8 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Quick switches open state remembered per number on this device (localStorage `civr.openSwitches`)
 - Contrast fixes: ⌘K hint, segmented counts (no opacity), #a1a1aa hardcodes, light emerald text, warn pills + preview banner (#b45309), wordmark IVR (#047857 light)
 - Preview scan: /wallet, /wallet/usage, /wallet/history contain no carrier names (user to verify live after publishing)
+
+### 2026-11-19 — Channel ads under-delivery
+- Cause: stray CHANNEL_ADS_TARGETS override (@CloudIVRNet=14:00,22:00;@Hostbay=18:00) live Nov 18 10:15–21:58Z; now removed, default 3/day Hostbay + 1/day CloudIVRNet active
+- Catch-up posts sent 08:2xZ Nov 19: @Hostbay #1605, @CloudIVRNet #39
+- js/channel-ads.js: DEFAULT_TARGETS constant + loud startup warning when an override is active (needs Save to Github → deploy)
