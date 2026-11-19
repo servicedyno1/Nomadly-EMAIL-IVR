@@ -3797,3 +3797,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 ## 2026-11-19 23:10Z — Voicemail verified on Retell 833 (landed flow)
 - Temporarily enabled voicemail on +18337549319 (user: test then off), Bird test call with Asterisk playback: answered → ringback + browser ring 25s → greeting → recording 37s → saved + delivered to web/Telegram with transcript; audio verified (Asterisk demo prompt transcribed). Voicemail set back to OFF.
 - Cost note: every leg (Retell toll-free inbound+forward, Infobip landing inbound, Infobip→our SIP trunk leg) stays up for the whole call — no leg is released after connect.
+
+## 2026-11-19 23:15Z — Audit: MultiTEL numbers dead → customers needing replacement (read-only)
+- MultiTEL API (account dynopt, balance $81.06): inventory → 404 "no numbers found"; registration_status for customer numbers → "number not found"; Bird test call to internal +16806811012 → fails instantly. So ALL MultiTEL numbers are gone from the account.
+- Active MultiTEL customer numbers (excl. businessintelusa@gmail.com = 5000000000000143 MAZE, 27 numbers; excl. E2E test acct 5000000000000004): 11 customers / 12 numbers:
+  6604316166 lamanifestor +18665794299 pro exp 11-21 | 7898648919 Spirits_Of_The_Ancesters +18339347382 business 12-07 | 5828254066 iamthebestbusiness +12029606313 pro 12-13 | 6587790422 Chemist454 +18336303485 pro 11-29 | 8944352220 godfrauda +18888370534 standard 12-17 | 5739696549 Login4six8 +18558068355 pro 12-02 | 8666352410 draggadem876 +18557033155 & +18444677524 pro 11-20 | 9013312785 2XqZO +18774756817 business 12-04 | 5000000000000048 meechchop6@gmail.com (Bob) +18883741279 business 12-05 | 8613373426 johnwill202 +18557032782 pro 12-05 | 8712875591 CPBandz +18885084690 business 12-15 | 5000000000000153 paulwzz295@gmail.com (Frank) +15188010947 pro 12-18
+- All auto-renew ON → renewals would charge for dead numbers (first: 8666352410 on 2026-11-20). No changes made yet.
