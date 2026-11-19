@@ -5130,7 +5130,8 @@ const loadData = async () => {
   require('./msg-watch').init({ db, bot, adminChatId: TELEGRAM_ADMIN_CHAT_ID, log, brand: process.env.CHAT_BOT_BRAND })
   require('./call-watch')
   singletonInterval('msg-watch-inbound', () => { require('./msg-watch').inboundTick().catch(e => log(`[MsgWatch] inbound tick: ${e.message}`)) }, 20000)
-  bulkEsimBot.init({ db, log, notifyAdmin }).then(() => bot && bulkEsimBot.startNotices(bot, db)).catch(e => log(`[BulkESIM] init failed: ${e.message}`))
+  // BulkSMS one-checkout validation: USA/Canada, any carrier, no owner-name lookup (not needed for texting).
+  bulkEsimBot.init({ db, log, notifyAdmin, validate: (phones, chatId) => validatePhoneBulkFile('Mixed Carriers', phones, '1', false, bot, chatId), sendMessage: (id, text, o) => bot?.sendMessage(id, text, o) }).then(() => bot && bulkEsimBot.startNotices(bot, db)).catch(e => log(`[BulkESIM] init failed: ${e.message}`))
   rsApply.init({ db, brand: process.env.CHAT_BOT_BRAND })
   telnyxPendingOrders = db.collection('telnyxPendingOrders')
   telnyxPendingOrders.createIndex({ status: 1, nextCheckAt: 1 }).catch(() => {})
@@ -12645,15 +12646,6 @@ Enter new value:`), bc)
       await set(state, chatId, 'action', a.validatorSelectCountry)
     },
 
-    // BulkSMS "Validate first": its uploaded list skips the validator questions (USA, all carriers, owner names) → straight to checkout.
-    validateForBulkSms: async (list) => {
-      const phones = [...new Set(list.map(p => String(p).replace(/\D/g, '')).filter(p => /^1\d{10}$/.test(p)))]
-      await saveInfo('country', 'USA'); await saveInfo('phones', phones); await saveInfo('amount', phones.length)
-      await saveInfo('carrier', 'Mixed Carriers'); await saveInfo('cnam', true); await saveInfo('format', validatorSelectFormat[1])
-      await saveInfo('price', phones.length * (RATE_LEAD_VALIDATOR + RATE_CNAM_VALIDATOR)); await saveInfo('bseValReturn', true)
-      if (info) Object.assign(info, { country: 'USA', phones, amount: phones.length, carrier: 'Mixed Carriers', cnam: true, format: validatorSelectFormat[1], price: phones.length * (RATE_LEAD_VALIDATOR + RATE_CNAM_VALIDATOR), bseValReturn: true })
-      return goto.askCoupon(a.validatorSelectFormat)
-    },
     validatorPhoneNumber: async () => {
       send(chatId, t.validatorPhoneNumber, bc)
       await set(state, chatId, 'action', a.validatorPhoneNumber)

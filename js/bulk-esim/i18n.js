@@ -905,8 +905,8 @@ for (const [l, d] of Object.entries(GUIDE)) { const { btn: b, ...rest } = d; Obj
 // Validate-first + "text these numbers" after validating or buying leads.
 const VALIDATE = {
   en: {
-    val_tip: (o) => `💡 <b>Tip:</b> every uploaded number is charged ($${o.sms} each) — even landlines and disconnected ones. Validate first for <b>$${o.val}</b> a number and only pay to text real, active mobiles.`,
-    val_save: (o) => `💡 <b>${o.skipped}</b> of these can’t get texts but would still cost <b>$${o.waste}</b>. Validate first for <b>$${o.cost}</b> to remove them and any disconnected numbers.`,
+    val_tip: (o) => `💡 <b>Tip:</b> every uploaded number is charged ($${o.sms} each) — even landlines and disconnected ones. Add validation for <b>$${o.val}</b> a number — you pay once, and texting for every number that fails comes back to your wallet.`,
+    val_save: (o) => `💡 <b>${o.skipped}</b> of these can’t get texts but would still cost <b>$${o.waste}</b>. Add validation for <b>$${o.cost}</b>: they’re removed with any dead numbers and that texting money comes back to your wallet.`,
     val_upload: '✅ Send your list here (paste it or upload a .txt / .csv) and I’ll validate it first.',
     val_start: (n) => `✅ Validating <b>${n}</b> numbers before your campaign. Pick how to pay below — you’ll come straight back here when it’s done.`,
     ho_intro: (o) => `📲 <b>${o.n} valid numbers are ready to text.</b>\nSend them a BulkSMS campaign now, or schedule it ${o.minHours} h+ ahead for ${o.pct}% off. No re-upload needed.`,
@@ -971,6 +971,70 @@ const VALIDATE = {
   },
 }
 for (const [l, d] of Object.entries(VALIDATE)) { const { btn: b, ...rest } = d; Object.assign(LANGS[l], rest); Object.assign(LANGS[l].btn, b) }
+// One checkout (validation + texting), saved lists, savings recap.
+const VALIDATE2 = {
+  en: {
+    val_marked: (o) => `✅ <b>Validation added.</b> You pay once at checkout: texting for all ${o.n} numbers + $${o.fee} to validate them. Right after payment we remove landlines and dead numbers, and the texting money for every removed number goes back to your wallet.`,
+    val_line: (o) => `✅ Validation of ${o.n} numbers: $${o.fee} — texting for numbers that fail goes back to your wallet`,
+    val_running: (n) => `✅ Paid. Validating your ${n} numbers now — your campaign is confirmed as soon as it’s done.`,
+    val_done: (o) => `✅ <b>Validation done:</b> ${o.n} valid numbers kept, ${o.removed} removed.${o.refund > 0 ? ` <b>$${o.refund}</b> went back to your wallet.` : ''} Your campaign is confirmed.`,
+    val_failed: (fee) => `⚠️ Validation isn’t available right now, so your campaign goes to the full list. The $${fee} validation fee went back to your wallet.`,
+    val_few_refund: (o) => `⚠️ Only ${o.n} numbers passed validation — a campaign needs at least ${o.min}, so it was cancelled. $${o.refund} went back to your wallet (validation fee kept).`,
+    n_saved: (removed, saved, fee) => `💰 Validating first removed ${removed} numbers that couldn’t get your texts${saved > 0 ? ` and saved you $${saved} (after the $${fee} fee)` : ''}.`,
+    lists_q: '♻️ <b>Your validated lists</b> (last 5, kept 30 days). Pick one to text it again — no upload, no new validation:',
+    list_label: (o) => `📋 ${o.n} numbers · ${o.date}`,
+    btn: { lists: '♻️ Use a validated list' },
+  },
+  fr: {
+    val_marked: (o) => `✅ <b>Validation ajoutée.</b> Vous payez une seule fois : l’envoi aux ${o.n} numéros + ${o.fee} $ de validation. Juste après le paiement, nous retirons les fixes et numéros coupés, et l’envoi de chaque numéro retiré revient sur votre portefeuille.`,
+    val_line: (o) => `✅ Validation de ${o.n} numéros : ${o.fee} $ — l’envoi des numéros refusés revient sur votre portefeuille`,
+    val_running: (n) => `✅ Payé. Validation de vos ${n} numéros en cours — votre campagne est confirmée dès que c’est fini.`,
+    val_done: (o) => `✅ <b>Validation terminée :</b> ${o.n} numéros valides gardés, ${o.removed} retirés.${o.refund > 0 ? ` <b>${o.refund} $</b> sont revenus sur votre portefeuille.` : ''} Votre campagne est confirmée.`,
+    val_failed: (fee) => `⚠️ La validation n’est pas disponible pour le moment, la campagne part donc vers toute la liste. Les ${fee} $ de validation sont revenus sur votre portefeuille.`,
+    val_few_refund: (o) => `⚠️ Seulement ${o.n} numéros ont passé la validation — il en faut au moins ${o.min}, la campagne est donc annulée. ${o.refund} $ sont revenus sur votre portefeuille (frais de validation retenus).`,
+    n_saved: (removed, saved, fee) => `💰 La validation a retiré ${removed} numéros qui ne pouvaient pas recevoir vos SMS${saved > 0 ? ` et vous a fait économiser ${saved} $ (après ${fee} $ de frais)` : ''}.`,
+    lists_q: '♻️ <b>Vos listes validées</b> (5 dernières, gardées 30 jours). Choisissez-en une pour la réutiliser — sans envoi ni nouvelle validation :',
+    list_label: (o) => `📋 ${o.n} numéros · ${o.date}`,
+    btn: { lists: '♻️ Utiliser une liste validée' },
+  },
+  zh: {
+    val_marked: (o) => `✅ <b>已添加验证。</b>结账时只需付一次：${o.n} 个号码的短信费 + 验证费 $${o.fee}。付款后我们会立即去掉座机和停机号码，被去掉号码的短信费会退回您的钱包。`,
+    val_line: (o) => `✅ 验证 ${o.n} 个号码：$${o.fee} — 未通过号码的短信费退回钱包`,
+    val_running: (n) => `✅ 已付款。正在验证您的 ${n} 个号码 — 完成后活动立即确认。`,
+    val_done: (o) => `✅ <b>验证完成：</b>保留 ${o.n} 个有效号码，去掉 ${o.removed} 个。${o.refund > 0 ? `<b>$${o.refund}</b> 已退回您的钱包。` : ''}您的活动已确认。`,
+    val_failed: (fee) => `⚠️ 暂时无法验证，活动将发送给完整列表。验证费 $${fee} 已退回您的钱包。`,
+    val_few_refund: (o) => `⚠️ 仅 ${o.n} 个号码通过验证 — 活动至少需要 ${o.min} 个，因此已取消。$${o.refund} 已退回您的钱包（验证费不退）。`,
+    n_saved: (removed, saved, fee) => `💰 先验证去掉了 ${removed} 个收不到短信的号码${saved > 0 ? `，为您节省了 $${saved}（已扣除 $${fee} 验证费）` : ''}。`,
+    lists_q: '♻️ <b>您已验证的列表</b>（最近 5 个，保留 30 天）。选择一个再次发送 — 无需上传或重新验证：',
+    list_label: (o) => `📋 ${o.n} 个号码 · ${o.date}`,
+    btn: { lists: '♻️ 使用已验证的列表' },
+  },
+  hi: {
+    val_marked: (o) => `✅ <b>वैलिडेशन जुड़ गया।</b> चेकआउट पर एक बार भुगतान: सभी ${o.n} नंबरों का SMS + $${o.fee} वैलिडेशन। भुगतान के तुरंत बाद हम लैंडलाइन और बंद नंबर हटाते हैं, और हटाए गए हर नंबर का SMS पैसा आपके वॉलेट में लौटता है।`,
+    val_line: (o) => `✅ ${o.n} नंबरों का वैलिडेशन: $${o.fee} — फ़ेल नंबरों का SMS पैसा वॉलेट में लौटेगा`,
+    val_running: (n) => `✅ भुगतान हो गया। आपके ${n} नंबर अभी वैलिडेट हो रहे हैं — पूरा होते ही कैंपेन कन्फ़र्म हो जाएगा।`,
+    val_done: (o) => `✅ <b>वैलिडेशन पूरा:</b> ${o.n} वैध नंबर रखे, ${o.removed} हटाए।${o.refund > 0 ? ` <b>$${o.refund}</b> आपके वॉलेट में लौटे।` : ''} आपका कैंपेन कन्फ़र्म है।`,
+    val_failed: (fee) => `⚠️ अभी वैलिडेशन उपलब्ध नहीं है, इसलिए कैंपेन पूरी सूची पर जाएगा। $${fee} वैलिडेशन शुल्क आपके वॉलेट में लौट गया।`,
+    val_few_refund: (o) => `⚠️ सिर्फ़ ${o.n} नंबर वैलिडेशन में पास हुए — कैंपेन के लिए कम से कम ${o.min} चाहिए, इसलिए रद्द किया गया। $${o.refund} आपके वॉलेट में लौटे (वैलिडेशन शुल्क नहीं लौटता)।`,
+    n_saved: (removed, saved, fee) => `💰 पहले वैलिडेट करने से ${removed} ऐसे नंबर हटे जिन पर SMS नहीं जाता${saved > 0 ? ` और आपके $${saved} बचे ($${fee} शुल्क के बाद)` : ''}।`,
+    lists_q: '♻️ <b>आपकी वैलिडेट की हुई सूचियाँ</b> (आख़िरी 5, 30 दिन तक)। दोबारा भेजने के लिए एक चुनें — न अपलोड, न नया वैलिडेशन:',
+    list_label: (o) => `📋 ${o.n} नंबर · ${o.date}`,
+    btn: { lists: '♻️ वैलिडेट की हुई सूची इस्तेमाल करें' },
+  },
+  fa: {
+    val_marked: (o) => `✅ <b>اعتبارسنجی اضافه شد.</b> یک بار پرداخت می‌کنید: پیامک برای همه ${o.n} شماره + $${o.fee} اعتبارسنجی. بلافاصله پس از پرداخت تلفن‌های ثابت و شماره‌های قطع‌شده حذف می‌شوند و هزینه پیامک هر شماره حذف‌شده به کیف پول شما برمی‌گردد.`,
+    val_line: (o) => `✅ اعتبارسنجی ${o.n} شماره: $${o.fee} — هزینه پیامک شماره‌های ردشده به کیف پول برمی‌گردد`,
+    val_running: (n) => `✅ پرداخت شد. ${n} شماره شما در حال اعتبارسنجی است — پس از پایان، کمپین تأیید می‌شود.`,
+    val_done: (o) => `✅ <b>اعتبارسنجی انجام شد:</b> ${o.n} شماره معتبر ماند، ${o.removed} حذف شد.${o.refund > 0 ? ` <b>$${o.refund}</b> به کیف پول شما برگشت.` : ''} کمپین شما تأیید شد.`,
+    val_failed: (fee) => `⚠️ اعتبارسنجی فعلاً در دسترس نیست، پس کمپین برای کل فهرست ارسال می‌شود. هزینه $${fee} اعتبارسنجی به کیف پول شما برگشت.`,
+    val_few_refund: (o) => `⚠️ فقط ${o.n} شماره از اعتبارسنجی گذشت — کمپین دست‌کم ${o.min} شماره می‌خواهد، پس لغو شد. $${o.refund} به کیف پول شما برگشت (هزینه اعتبارسنجی برنمی‌گردد).`,
+    n_saved: (removed, saved, fee) => `💰 اعتبارسنجی ${removed} شماره‌ای را که پیامک دریافت نمی‌کردند حذف کرد${saved > 0 ? ` و $${saved} برای شما صرفه‌جویی کرد (پس از $${fee} هزینه)` : ''}.`,
+    lists_q: '♻️ <b>فهرست‌های اعتبارسنجی‌شده شما</b> (۵ مورد آخر، ۳۰ روز). یکی را برای ارسال دوباره انتخاب کنید — بدون بارگذاری یا اعتبارسنجی دوباره:',
+    list_label: (o) => `📋 ${o.n} شماره · ${o.date}`,
+    btn: { lists: '♻️ استفاده از فهرست اعتبارسنجی‌شده' },
+  },
+}
+for (const [l, d] of Object.entries(VALIDATE2)) { const { btn: b, ...rest } = d; Object.assign(LANGS[l], rest); Object.assign(LANGS[l].btn, b) }
 // Home shows the path to a successful send in one line.
 const PATH = { en: '🧭 Numbers → message → free test → send now or later', fr: '🧭 Numéros → message → test gratuit → envoi maintenant ou plus tard', zh: '🧭 号码 → 短信 → 免费测试 → 立即或稍后发送', hi: '🧭 नंबर → मैसेज → मुफ़्त टेस्ट → अभी या बाद में भेजें', fa: '🧭 شماره‌ها ← پیام ← تست رایگان ← ارسال حالا یا بعداً' }
 for (const [l, line] of Object.entries(PATH)) { const h = LANGS[l].home; LANGS[l].home = (o) => h(o).replace('\n\n', `\n${line}\n\n`) }
