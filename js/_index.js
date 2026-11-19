@@ -1491,7 +1491,7 @@ const isTelnyxIntl = (provider, cc) => provider === 'telnyx' && !['US', 'CA'].in
  * Returns null on failure → caller refunds exactly as before.
  */
 // Which provider an order came from (MultiTEL ids 'mt:', Infobip 'ib:'); used so each number routes through its own provider.
-const providerOfOrder = (o) => o?._provider || (String(o?.id || '').startsWith('mt:') ? 'multitel' : String(o?.id || '').startsWith('ib:') ? 'infobip' : 'telnyx')
+const providerOfOrder = (o) => o?._provider || (String(o?.id || '').startsWith('rt:') ? 'retell' : String(o?.id || '').startsWith('mt:') ? 'multitel' : String(o?.id || '').startsWith('ib:') ? 'infobip' : 'telnyx')
 async function telnyxPaidCheckout(chatId, selectedNumber, ctx = {}) {
   // MultiTEL / Infobip numbers: their own instant buy (with provider backup), never the Telnyx paperwork flow.
   if (require('./multitel').isMtSearched(selectedNumber) || require('./infobip').isIbSearched(selectedNumber)) return telnyxApi.buyNumber(selectedNumber, null, null, { countryCode: ctx.countryCode || 'US', numberType: ctx.numberType || 'local', areaCode: ctx.areaCode || null })
@@ -14828,7 +14828,7 @@ Enter new value:`), bc)
         const numberDoc = {
           phoneNumber: selectedNumber,
           telnyxOrderId: orderResult.id,
-          provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
+          provider: providerOfOrder(orderResult), ...(orderResult?._landingNumber ? { landingNumber: orderResult._landingNumber } : {}), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
           country: countryCode,
           countryName: countryName,
           type: info?.cpNumberType || 'local',
@@ -30420,7 +30420,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const countryCode = info?.cpCountryCode || 'US'
     let surcharge = getNumberSurcharge(countryCode, numberType)
     // MultiTEL / Infobip numbers: same add-on price as the web checkout.
-    if (['multitel', 'infobip'].includes(selectedProvider)) surcharge = require('./number-addons').get(countryCode, numberType)
+    if (['multitel', 'infobip', 'retell'].includes(selectedProvider)) surcharge = require('./number-addons').get(countryCode, numberType)
     let verifyNote = null
     // Telnyx international: live cost + tell the user BEFORE paying what verification follows
     if (isTelnyxIntl(selectedProvider, countryCode)) {
@@ -41327,7 +41327,7 @@ const bankApis = {
       type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
       purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
       autoRenew: true, status: orderResult?._pending ? 'provisioning' : 'active', sipUsername, sipPassword,
-      sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
+      sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(orderResult?._landingNumber ? { landingNumber: orderResult._landingNumber } : {}), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
       messagingProfileId: telnyxResources.messagingProfileId,
       connectionId: telnyxResources.sipConnectionId, smsUsed: 0, minutesUsed: 0,
       features: { sms: !!info?.cpTexting, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
@@ -42359,7 +42359,7 @@ app.get('/crypto-pay-phone', auth, async (req, res) => {
     type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
     purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
     autoRenew: true, status: orderResult?._pending ? 'provisioning' : 'active', sipUsername, sipPassword,
-    sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
+    sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(orderResult?._landingNumber ? { landingNumber: orderResult._landingNumber } : {}), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
     messagingProfileId: telnyxResources.messagingProfileId, connectionId: telnyxResources.sipConnectionId,
     smsUsed: 0, minutesUsed: 0,
     features: { sms: !!info?.cpTexting, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },
@@ -47710,7 +47710,7 @@ app.post('/dynopay/crypto-pay-phone', authDyno, async (req, res) => {
     type: info?.cpNumberType || 'local', plan: planKey, planPrice: price,
     purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
     autoRenew: true, status: orderResult?._pending ? 'provisioning' : 'active', sipUsername, sipPassword,
-    sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
+    sipDomain: phoneConfig.SIP_DOMAIN, provider: providerOfOrder(orderResult), ...(orderResult?._landingNumber ? { landingNumber: orderResult._landingNumber } : {}), ...(info?.cpEndUserAddress ? { endUserAddress: info.cpEndUserAddress } : {}), ...(info?.cpEndUserName ? { endUserName: info.cpEndUserName } : {}),
     messagingProfileId: telnyxResources.messagingProfileId, connectionId: telnyxResources.sipConnectionId,
     smsUsed: 0, minutesUsed: 0,
     features: { sms: !!info?.cpTexting, callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25 },

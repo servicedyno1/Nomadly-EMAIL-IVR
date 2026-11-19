@@ -5,6 +5,7 @@ const ibc = require('./infobip/countries')
 const mtc = require('./multitel/countries')
 const health = () => require('./provider-health')
 const ibOn = () => require('./infobip').selling() && !health().isDown('infobip')
+const rtOn = () => require('./retell').selling()
 const mtOn = () => require('./multitel').selling() && !health().isDown('multitel')
 
 function options(cc, type) {
@@ -13,6 +14,7 @@ function options(cc, type) {
   if (ibOn() && type === 'local' && require('./infobip').sellsIn(cc)) {
     if (ibc.isInstant(cc)) out.push({ provider: 'infobip', level: 0, cost: ibCost, sms: ['US', 'CA', 'LT', 'PL', 'PR', 'ES'].includes(cc) })
   }
+  if (rtOn() && require('./retell').sellsType(cc, type)) out.push({ provider: 'retell', level: 0, cost: require('./retell').COST[type], sms: false })
   const m = mtOn() ? mtc.offer(cc, type) : null
   if (m) out.push({ provider: 'multitel', level: m.level, cost: m.monthly, businessOnly: m.businessOnly, address: m.address, sms: m.sms })
   // "On request" countries are ordered from MultiTEL after payment, only where MultiTEL has no pick-a-number offer.
@@ -25,6 +27,7 @@ const best = (cc, type) => options(cc, type)[0] || null
 function sold() {
   const all = {}
   const add = (cc, t) => { (all[cc] = all[cc] || new Set()).add(t) }
+  if (rtOn()) { add('US', 'local'); add('US', 'toll_free'); add('CA', 'local') }
   if (ibOn()) for (const cc of Object.keys(ibc.INSTANT)) if (require('./infobip').sellsIn(cc)) add(cc, 'local')
   if (mtOn()) for (const cc of Object.keys(ibc.REQUEST)) add(cc, 'local')
   if (mtOn()) for (const [cc, types] of Object.entries(mtc.OFFERS)) for (const t of Object.keys(types)) add(cc, t)

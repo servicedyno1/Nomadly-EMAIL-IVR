@@ -41,11 +41,13 @@ function createBirdVerify({ bird, transcribe, db, log = console.log, maxAttempts
     const d = await col().findOne({ _id: n })
     if (!d || d.status === 'verified' || d.expiresAt <= new Date()) return { handled: false }
     const wav = audioBuffer.slice(0, 4).toString('latin1') === 'RIFF' // Infobip recordings are WAV
-    const t = await transcribe(audioBuffer, wav ? { filename: 'bird-code.wav', mimeType: 'audio/wav' } : { filename: 'bird-code.mp3', mimeType: 'audio/mpeg' })
+    // Phone audio: hint Whisper that it hears a spoken digit code (it misheard "six eight four" as words).
+    const hint = { language: 'en', prompt: 'A phone call reading out a six-digit verification code. Write every spoken number as a digit.' }
+    const t = await transcribe(audioBuffer, wav ? { filename: 'bird-code.wav', mimeType: 'audio/wav', ...hint } : { filename: 'bird-code.mp3', mimeType: 'audio/mpeg', ...hint })
     const code = extractCode(t?.text)
     const attempts = (d.attempts || 0) + 1
     if (!code) {
-      await col().updateOne({ _id: n, status: { $ne: 'verified' } }, { $set: { attempts, status: attempts >= maxAttempts ? 'failed' : 'calling', error: `couldn't read code from "${(t?.text || '').slice(0, 60)}"` } })
+      await col().updateOne({ _id: n, status: { $ne: 'verified' } }, { $set: { attempts, status: attempts >= maxAttempts ? 'failed' : 'calling', error: `couldn't read code from "${(t?.text || '').slice(0, 160)}"` } })
       log(`[BirdVerify] ${n}: no code in transcript (attempt ${attempts}/${maxAttempts})`)
       return { handled: true, code: null, status: attempts >= maxAttempts ? 'failed' : 'retry' }
     }
@@ -65,7 +67,7 @@ function createBirdVerify({ bird, transcribe, db, log = console.log, maxAttempts
 
   // One number at a time: arm the next customer SignalWire number that Bird can't present yet.
   // A number that didn't verify is retried after 6 h, at most 3 rounds.
-  async function autoLinkTick({ numbers }) {
+  async function autoLinkTick({ numbers, retryMs = 6 * 3600000, maxRounds = 3, onGiveUp = null }) {
     if (!bird.enabled() || !numbers.length) return { skipped: 'nothing to link' }
     const now = new Date()
     if (await col().findOne({ status: 'calling', expiresAt: { $gt: now } })) return { skipped: 'verification in progress' }
@@ -75,7 +77,11 @@ function createBirdVerify({ bird, transcribe, db, log = console.log, maxAttempts
     for (const n of numbers.map(e164)) {
       if (ready.has(n)) { if (docs.get(n)?.status !== 'verified') await col().updateOne({ _id: n }, { $set: { status: 'verified', verifiedAt: now } }, { upsert: true }); continue }
       const d = docs.get(n)
-      if (d && ((d.rounds || 0) >= 3 || d.armedAt > new Date(now - 6 * 3600000))) continue
+      if (d && (d.rounds || 0) >= maxRounds) {
+        if (onGiveUp && !d.gaveUpAt && d.status !== 'calling') { await col().updateOne({ _id: n }, { $set: { gaveUpAt: now } }); onGiveUp(n, d.error) }
+        continue
+      }
+      if (d && d.armedAt > new Date(now - retryMs)) continue
       const r = await arm(n)
       await col().updateOne({ _id: n }, { $inc: { rounds: 1 }, ...(r.error ? { $set: { status: 'failed', armedAt: now, error: r.error } } : {}) }, { upsert: true })
       return r.error ? { number: n, error: r.error } : { armed: n }

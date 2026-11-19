@@ -125,11 +125,16 @@ const isCallAlive = async (id) => !!live(id)
 const speakOnCall = async (id, text, voice, language) => (live(id) ? post(`/calls/1/calls/${raw(id)}/say`, { text: String(text || ''), language: lang2(language), preferences: voicePrefs(voice) }) : null)
 async function playbackStart(id, audioUrl, options = {}) {
   const l = live(id); if (!l) return null
-  l.stopped = false; l.gathering = false
+  l.stopped = false; l.gathering = false; l.playAt = Date.now()
   const loopCount = String(options.loop) === 'infinity' ? 1000 : Math.max(1, Number(options.loop) || 1)
   return post(`/calls/1/calls/${raw(id)}/play`, { content: { type: 'URL', fileUrl: audioUrl }, loopCount })
 }
-async function playbackStop(id) { const l = live(id); if (!l) return null; l.stopped = true; return post(`/calls/1/calls/${raw(id)}/stop-play`, {}) }
+// Infobip starts a play a moment after accepting it: a stop sent right away is lost and the loop then blocks what follows.
+async function playbackStop(id) {
+  const l = live(id); if (!l) return null
+  const wait = 2500 - (Date.now() - (l.playAt || 0)); if (wait > 0) await new Promise(r => setTimeout(r, wait))
+  l.stopped = true; return post(`/calls/1/calls/${raw(id)}/stop-play`, {})
+}
 async function gather(id, { text, voice, language, audioUrl, minDigits = 1, maxDigits = 1, timeout = 15000, interDigitTimeout = 5000, validDigits, terminator = '#' }) {
   const l = live(id); if (!l) return null
   l.gather = { minDigits, validDigits }; l.gathering = true; l.stopped = false

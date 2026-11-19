@@ -13,14 +13,14 @@ let client = null
 const enabled = () => !!(OpenAI && toFile && process.env.APP_OPEN_API_KEY)
 
 // → { text, status: 'done' | 'empty' | 'too_large' | 'unavailable' | 'failed', error? }
-async function transcribe(buffer, { filename = 'voicemail.mp3', mimeType = 'audio/mpeg', timeoutMs = 60000 } = {}) {
+async function transcribe(buffer, { filename = 'voicemail.mp3', mimeType = 'audio/mpeg', timeoutMs = 60000, prompt = null, language = null } = {}) {
   if (!enabled()) return { text: null, status: 'unavailable' }
   if (!buffer || buffer.length < MIN_BYTES) return { text: null, status: 'empty' }
   if (buffer.length > MAX_BYTES) return { text: null, status: 'too_large' }
   if (!client) client = new OpenAI({ apiKey: process.env.APP_OPEN_API_KEY, timeout: timeoutMs, maxRetries: 1 })
   try {
     const file = await toFile(buffer, filename, { type: mimeType })
-    const r = await client.audio.transcriptions.create({ file, model: MODEL, response_format: 'json', temperature: 0 })
+    const r = await client.audio.transcriptions.create({ file, model: MODEL, response_format: 'json', temperature: 0, ...(prompt ? { prompt } : {}), ...(language ? { language } : {}) })
     const text = String(r?.text || '').trim()
     return text ? { text, status: 'done' } : { text: null, status: 'empty' }
   } catch (e) {
