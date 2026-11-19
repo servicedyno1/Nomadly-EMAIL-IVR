@@ -3749,3 +3749,9 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Fix: "Change the text" after a test on a Validate-first campaign dropped validation; now kept (bot.js draft restore includes `validate`).
 - Hand-off intro (5 langs) now says the customer can send themselves a test first.
 - Test: js/tests/test_bulk_esim_test_step_entrypoints.js (23/23); guided/ready_gate/numbercheck regressions pass.
+
+## 2026-06 — Fix: BulkSMS wallet movements had no billing record (wallet audit alert)
+- Alert: 3 unrecorded changes for 5590563715 at 2026-11-19 11:52 UTC (-52.50 / +13.77 / +38.73) = the live validation test run.
+- Root cause: bulk-esim/bot.js used raw walletOps debit/credit → nothing written to `transactions`.
+- Fix: bot.js `wallet(db)` wrapper logs `bulksms-payment` / `bulksms-refund` via logTransaction for every debit/credit; Wallet history labels added in cloudivr-web/wallet.js.
+- Test: js/tests/test_bulk_esim_wallet_records.js (8/8).
