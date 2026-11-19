@@ -52,6 +52,7 @@ function countries() {
     const i = c.name.indexOf(' ')
     return { code: c.code, flag: c.name.slice(0, i), name: c.name.slice(i + 1), types: c.types || ['local', 'toll_free'] }
   })
+  if (!numberCatalog.chainSells()) for (const c of list) c.types = ['US', 'CA'].includes(c.code) ? numberCatalog.usCaTypes(c.code) : []
   const have = new Map(list.map(c => [c.code, c]))
   for (const [code, types] of Object.entries(numberCatalog.sold())) {
     const c = have.get(code)
@@ -71,7 +72,7 @@ function countries() {
       if (b) c.offers[t] = { caps, included: phoneConfig.instantNoId(c.code, t), provider: b.provider, level: b.level, ...(b.businessOnly ? { businessOnly: true } : {}), ...(b.level && b.address ? { address: b.address } : {}), ...(b.request ? { request: b.request } : {}) }
     }
   }
-  return list.sort((a, b) => (['US', 'CA'].indexOf(b.code) - ['US', 'CA'].indexOf(a.code)) || a.name.localeCompare(b.name))
+  return list.filter(c => c.types.length).sort((a, b) => (['US', 'CA'].indexOf(b.code) - ['US', 'CA'].indexOf(a.code)) || a.name.localeCompare(b.name))
 }
 const ibCountries = require('../infobip/countries')
 const numberCatalog = require('../number-catalog')

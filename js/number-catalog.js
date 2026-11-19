@@ -10,7 +10,7 @@ const mtOn = () => require('./multitel').selling() && !health().isDown('multitel
 function options(cc, type) {
   const out = []
   const ibCost = mtc.INFOBIP_COST[cc] ?? 99
-  if (ibOn() && type === 'local') {
+  if (ibOn() && type === 'local' && require('./infobip').sellsIn(cc)) {
     if (ibc.isInstant(cc)) out.push({ provider: 'infobip', level: 0, cost: ibCost, sms: ['US', 'CA', 'LT', 'PL', 'PR', 'ES'].includes(cc) })
   }
   const m = mtOn() ? mtc.offer(cc, type) : null
@@ -25,11 +25,14 @@ const best = (cc, type) => options(cc, type)[0] || null
 function sold() {
   const all = {}
   const add = (cc, t) => { (all[cc] = all[cc] || new Set()).add(t) }
-  if (ibOn()) for (const cc of Object.keys(ibc.INSTANT)) add(cc, 'local')
+  if (ibOn()) for (const cc of Object.keys(ibc.INSTANT)) if (require('./infobip').sellsIn(cc)) add(cc, 'local')
   if (mtOn()) for (const cc of Object.keys(ibc.REQUEST)) add(cc, 'local')
   if (mtOn()) for (const [cc, types] of Object.entries(mtc.OFFERS)) for (const t of Object.keys(types)) add(cc, t)
   return Object.fromEntries(Object.entries(all).map(([cc, s]) => [cc, ['local', 'mobile', 'national', 'toll_free'].filter(t => s.has(t))]))
 }
+// The US/CA provider chain beyond MultiTEL/Infobip; when nobody in it sells, US/CA show only the types the catalog sells.
+const chainSells = () => String(process.env.TELNYX_FALLBACK || '').toLowerCase() === 'true' || String(process.env.NUMBER_PROVIDERS || 'multitel,infobip').toLowerCase().split(',').some(p => ['telnyx', 'signalwire', 'twilio'].includes(p.trim()))
+const usCaTypes = (cc) => (chainSells() ? ['local', 'toll_free'] : sold()[cc] || [])
 const nameOf = (cc) => ibc.INSTANT[cc] || ibc.REQUEST[cc]?.name || mtc.NAMES[cc] || cc
 
-module.exports = { options, best, sold, nameOf }
+module.exports = { options, best, sold, nameOf, chainSells, usCaTypes }

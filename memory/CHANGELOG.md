@@ -3770,3 +3770,11 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Catalog is correct (6 TF blocks 833/844/855/866/877/888, one price each, no restrictions) and identical to earlier successful buys. Search shows stock only, not account permission.
 - Last successful buy 2026-11-18 22:40 UTC. Owned: 48 numbers (24 toll-free); calls/texts unaffected.
 - User decision: leave sales as-is (no auto-pause); user to contact MultiTEL support.
+
+## 2026-11-19 — Number sales switched to Infobip (US local only) while MultiTEL purchasing is disabled
+- Prod shared env /opt/nomadly/shared/app-main/backend.env: NUMBER_PROVIDERS=infobip, INFOBIP_SELL_COUNTRIES=US (backup: backend.env.bak-20261119T180506Z-multitel). Revert = NUMBER_PROVIDERS=multitel + remove INFOBIP_SELL_COUNTRIES.
+- Infobip has NO US toll-free via API (only local VIRTUAL_LONG_NUMBER) and no fax capability → fax/texting/toll-free/CA/other countries hidden automatically.
+- Code: infobip sellsIn() allow-list, local-only search, 60s list cache (fixes ~60 "Too many requests" per warm-up), recall() so a buy after restart/deploy/crypto finds the number; number-catalog chainSells()/usCaTypes(); phone-config bot US/CA types follow catalog; web countries() drop unsellable types; fax-numbers + bot plan list Fax only need MultiTEL selling; texting list needs provider selling; help text hides hidden options.
+- Deployed workspace to app-main (blue/green, WS_DEPLOY_EXIT=0) ×3; final release on app-main-a. Includes Get a Plan, BulkSMS test step + wallet records.
+- Customer 1005284399 (refunded $120, wallet $222.07): sent explanation (msg 3509383) + Business-plan US number list (5 Infobip numbers); they pick & pay from wallet. NOT yet purchased.
+- GitHub main NOT updated: a GitHub CI deploy would roll this back → user must Save to GitHub.

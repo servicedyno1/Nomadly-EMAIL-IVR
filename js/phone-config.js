@@ -425,7 +425,7 @@ function botCatalogCountries() {
   try { for (const c of out) countryByName[c.name] = c.code } catch {} // not defined yet during module load (country count)
   return out
 }
-const getAllCountries = () => BOT_CATALOG() ? [...countries] : numberSearchUsCaOnly() ? [...countries] : (isTwilioEnabled() ? [...countries, ...twilioCountries] : [...countries, ...(_telnyxIntlOn ? telnyxIntlCountries : [])])
+const getAllCountries = () => BOT_CATALOG() ? countries.map(c => ({ ...c, types: require('./number-catalog').usCaTypes(c.code) })).filter(c => c.types.length) : numberSearchUsCaOnly() ? [...countries] : (isTwilioEnabled() ? [...countries, ...twilioCountries] : [...countries, ...(_telnyxIntlOn ? telnyxIntlCountries : [])])
 
 // Additional countries (shown after "More Countries" button) — Twilio's list while Twilio
 // is on; the Telnyx international extras while it is off (empty → button auto-hides).

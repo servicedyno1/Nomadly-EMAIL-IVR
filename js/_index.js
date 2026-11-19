@@ -26537,15 +26537,17 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en'), KN = botKinds.T(info?.userLanguage || 'en'), rows = []
     for (const [key, b] of [['starter', pc.starterPlan], ['standard', pc.standardPlan], ['pro', pc.proPlan], ['business', pc.businessPlan]]) if (phoneConfig.isPlanAvailable(key)) rows.push([b])
     if (botKinds.textingCountries(phoneConfig).length) rows.push([KN.texting])
-    rows.push([KN.fax], [KN.helpBtn])
+    if (cpFaxSells()) rows.push([KN.fax])
+    rows.push([KN.helpBtn])
     return k.of(rows)
   }
+  const cpFaxSells = () => require('./multitel/fax').enabled() && require('./multitel').selling()
   const cpAskPlanFirst = async () => {
     for (const key of ['cpIsSubNumber', 'cpTexting']) { saveInfo(key, false); if (info) info[key] = false }
     for (const key of ['cpSubParentNumber', 'cpSubParentPlan', 'cpSubParentPlanPrice', 'cpSubParentExpiresAt', 'cpSelectedNumber', 'cpPrice', 'cpCountryCode', 'cpCountryName', 'cpProvider', 'cpPlanKey', 'cpCountryTypes']) { saveInfo(key, null); if (info) info[key] = null }
     await set(state, chatId, 'action', a.cpSelectPlan)
     const pMsg = phoneConfig.getMsg(info?.userLanguage || 'en'), KN = botKinds.T(info?.userLanguage || 'en')
-    return send(chatId, trans('t.cp_8', pMsg.buyPlansHeader, phoneConfig.plans.starter.price, phoneConfig.plans.starter.minutes, phoneConfig.plans.starter.sms, phoneConfig.SUB_NUMBER_LIMITS.starter, phoneConfig.plans.pro.price, phoneConfig.plans.pro.minutes, phoneConfig.plans.pro.sms, phoneConfig.SUB_NUMBER_LIMITS.pro, phoneConfig.plans.business.price, phoneConfig.plans.business.minutes === 'Unlimited' ? 'Unlimited' : phoneConfig.plans.business.minutes, phoneConfig.plans.business.sms, phoneConfig.SUB_NUMBER_LIMITS.business, phoneConfig.plans.standard.price, phoneConfig.plans.standard.minutes, phoneConfig.SUB_NUMBER_LIMITS.standard) + KN.plansExtra(botKinds.textingCountries(phoneConfig).length > 0), cpPlanKb())
+    return send(chatId, trans('t.cp_8', pMsg.buyPlansHeader, phoneConfig.plans.starter.price, phoneConfig.plans.starter.minutes, phoneConfig.plans.starter.sms, phoneConfig.SUB_NUMBER_LIMITS.starter, phoneConfig.plans.pro.price, phoneConfig.plans.pro.minutes, phoneConfig.plans.pro.sms, phoneConfig.SUB_NUMBER_LIMITS.pro, phoneConfig.plans.business.price, phoneConfig.plans.business.minutes === 'Unlimited' ? 'Unlimited' : phoneConfig.plans.business.minutes, phoneConfig.plans.business.sms, phoneConfig.SUB_NUMBER_LIMITS.business, phoneConfig.plans.standard.price, phoneConfig.plans.standard.minutes, phoneConfig.SUB_NUMBER_LIMITS.standard) + KN.plansExtra(botKinds.textingCountries(phoneConfig).length > 0, cpFaxSells()), cpPlanKb())
   }
   const cpAskCountry = async () => {
     const lang = info?.userLanguage || 'en', pc = phoneConfig.getBtn(lang), rows = []
@@ -26577,7 +26579,10 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const textCountries = botKinds.textingCountries(phoneConfig)
     if (action !== 'cpTextCountry') {
       if (isBackPress(message) || isCancelPress(message)) return goto.submenu5()
-      if (botKinds.isHelp(message)) return send(chatId, KN.help, { parse_mode: 'HTML', ...cpPlanKb() })
+      if (botKinds.isHelp(message)) {
+        const hide = [...(botKinds.textingCountries(phoneConfig).length ? [] : [KN.texting]), ...(cpFaxSells() ? [] : [KN.fax])].map(x => x.slice(2).trim())
+        return send(chatId, KN.help.split('\n').filter(l => !hide.some(h => l.includes(h))).join('\n'), { parse_mode: 'HTML', ...cpPlanKb() })
+      }
       const kind = botKinds.kindOf(message)
       if (kind === 'fax') return botFaxHandle(chatId, botFax.T(lang).menu, info, action)
       if (kind === 'texting') {

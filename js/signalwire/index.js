@@ -205,6 +205,7 @@ function wrap(t) {
   }
 
   w.buyNumber = async (phoneNumber, connectionId, messagingProfileId, retrySearch = null) => {
+    if (!txs.isTxSearched(phoneNumber) && !ib.isIbSearched(phoneNumber) && !mt.isMtSearched(phoneNumber)) await ib.recall(phoneNumber).catch(() => false)
     if (txs.isTxSearched(phoneNumber) && sells('telnyx')) {
       let r = await txs.buyNumber(phoneNumber)
       if (!r && retrySearch) {
