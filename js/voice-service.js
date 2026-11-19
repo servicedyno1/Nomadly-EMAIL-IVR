@@ -2614,6 +2614,10 @@ async function handleCallInitiated(payload) {
   // eSIM set to "Ring in CloudIVR" (Spenza SIP gateway): the call runs the menu of the calling number the owner picked.
   const esimLine = _db && /^\+1\d{10}$/.test(to) ? await _db.collection('esimLines').findOne({ phoneNumber: to, status: 'active', callsTo: 'browser', ivrNumber: { $ne: null } }).catch(() => null) : null
   if (esimLine) log(`[Voice] eSIM ${to} → menu of ${esimLine.ivrNumber}`)
+  // A number bought elsewhere (e.g. Retell) forwards to a landing number of ours: run the bought number's setup.
+  const landed = !esimLine && _phoneNumbersOf ? await _phoneNumbersOf.findOne({ 'val.numbers': { $elemMatch: { landingNumber: to, status: { $in: ['active', 'suspended'] } } } }).catch(() => null) : null
+  const landedNum = landed?.val?.numbers?.find(n => n.landingNumber === to)
+  if (landedNum) { log(`[Voice] Landing ${to} → ${landedNum.phoneNumber}`); to = landedNum.phoneNumber }
   // Lookup number owner — get FRESH data from DB
   const owner = await findNumberOwner(esimLine ? esimLine.ivrNumber : to)
   if (esimLine && owner.chatId && String(owner.chatId) !== String(esimLine.chatId)) owner.chatId = null
@@ -3558,7 +3562,7 @@ async function handleOutboundSipCall(payload) {
   const trunkOpt = viaEngine && num.provider === 'multitel' && process.env.CALLER_ID_PASSTHROUGH_TRUNK ? { trunk: process.env.CALLER_ID_PASSTHROUGH_TRUNK } : {}
   // MultiTEL / Infobip numbers whose softphone call reached us over Telnyx (e.g. the free SIP test login) are
   // placed the same way — the test shows our test caller ID, otherwise the number's own.
-  const viaTelnyx = num.provider === 'telnyx' || ['multitel', 'infobip'].includes(num.provider) || (!!lookupResult?.isTestCall && num.provider !== 'twilio')
+  const viaTelnyx = num.provider === 'telnyx' || ['multitel', 'infobip', 'retell'].includes(num.provider) || (!!lookupResult?.isTestCall && num.provider !== 'twilio')
   if (viaTelnyx || viaEngine) {
     const callerDisplay = num.phoneNumber || 'TEST-SIP'
     log(`[Voice] Outbound SIP (Telnyx): ${callerDisplay} → ${destination} — routing to PSTN`)
