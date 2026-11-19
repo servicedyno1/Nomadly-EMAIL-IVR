@@ -722,6 +722,14 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Applies to all Reseller API customers and all bot hosting customers (single `challengePage()` function serves all domains).
 - Visually verified via screenshot tool (dark + light modes on mobile viewport).
 
+## 2026-11-19 — Usage page under Wallet & billing — pushed to GitHub, needs publish
+- Added `GET /wallet/usage` API in `js/cloudivr-web/wallet.js`: aggregates walletLedger (call charges, AI receptionist/campaign minutes), phoneTransactions (SMS, fax), and transactions (lookups, credits) for current billing cycle.
+- Created `frontend/src/cloudivr/pages/wallet/Usage.js`: summary cards (calls, AI, campaigns, SMS, fax, lookups, total spend), per-number breakdown, destination country breakdown, detailed activity log.
+- Added as "Usage" tab between Wallet and Renewal calendar in `nav.js` and routed in `Shell.js`.
+- Billing period = earliest purchaseDate to latest expiresAt across active numbers.
+- Country detection from destination phone prefix (+1=US/CA, +44=GB, etc.).
+- No duplicate entries — each data source (walletLedger, phoneTransactions, transactions) has distinct categories.
+
 ## 2026-11-18 — Channel posting extended to all Nomadly products — pushed to GitHub, needs publish
 - Extended the channel-ads system to cover ALL Nomadly bot products, not just CloudIVR.
 - **@Hostbay** (3 posts/day at 10:00, 16:00, 22:00 UTC): all products — Anti-Red Hosting, Bulletproof Domains, VPS/RDP, Phone Leads, BulkSMS, CloudIVR, Digital Products, USA eSIM, URL Shortener, Wallet.
