@@ -923,9 +923,17 @@ async function aiVariants(cid, { text, withLinks, optOut = true, avoid = [], swa
       const r = await axios.post(`http://127.0.0.1:${process.env.BACKEND_PORT || 8001}/api/internal/bulk-esim/variants`, { text: src, limit, n: want + 2, with_links: withLinks, avoid: avoid.slice(-30) }, { timeout: 90000 }); raw = r.data?.variants || []; model = r.data?.model || model
       if (r.data?.fallback) { audit('ai_fallback', { cid, model, primaryError: r.data.primary_error }); if (await once(`aifallback:${new Date().toISOString().slice(0, 13)}`)) alert(`⚠️ Claude is not answering (${esc(r.data.primary_error)}) — AI variants are being served by OpenAI ${model} meanwhile. If the Universal Key balance is low, top it up: Profile → Manage plan → Universal Key → Add Balance.`) }
     } catch (err) {
-      const d = err.response?.data || {}; audit('ai_variants_error', { cid, error: d.error || err.message })
-      if (await once(`aidown:${new Date().toISOString().slice(0, 13)}`)) alert(`❌ AI variants unavailable — Claude and the OpenAI fallback both failed (${esc(d.error || err.message)}). Customers see "try again or keep your text". Check the Universal Key balance (Profile → Manage plan → Universal Key → Add Balance) or set OPENAI_API_KEY for an independent fallback.`)
-      return E('err_ai')
+      const d = err.response?.data || {}, primary = d.error || err.message
+      // No AI helper on this server (e.g. production) or Claude failed → ask OpenAI directly with our own key.
+      let direct = null
+      if (process.env.OPENAI_API_KEY && !P.dry()) {
+        try { raw = await openaiVariants(src, limit, want + 2, withLinks, avoid); model = OPENAI_MODEL(); audit('ai_fallback', { cid, model, primaryError: primary }) } catch (e2) { direct = e2.response?.data?.error?.message || e2.message }
+      } else direct = 'no OPENAI_API_KEY'
+      if (direct) {
+        audit('ai_variants_error', { cid, error: primary, openai: direct })
+        if (await once(`aidown:${new Date().toISOString().slice(0, 13)}`)) alert(`❌ AI variants unavailable — Claude helper failed (${esc(primary)}) and OpenAI failed (${esc(direct)}). Customers see "try again or keep your text". Check the OpenAI key / billing.`)
+        return E('err_ai')
+      }
     }
   }
   const out = []
