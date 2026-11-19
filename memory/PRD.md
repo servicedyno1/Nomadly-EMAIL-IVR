@@ -818,3 +818,4 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 
 ### 2026-06 update
 - BulkSMS: the optional test SMS step (same spot as the original flow) is confirmed on all new entry points: after validation, after buying leads, saved validated lists, and Validate-first. Agent-tested; awaiting user confirmation after publish.
+- Bot buying journey reimagined as "Get a Plan": Plan (incl. texting/fax/help) → Country → Number (instant list) → Review & pay. Agent-tested in preview; awaiting user confirmation after publish.

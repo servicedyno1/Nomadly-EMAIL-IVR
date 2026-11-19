@@ -3755,3 +3755,11 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Root cause: bulk-esim/bot.js used raw walletOps debit/credit → nothing written to `transactions`.
 - Fix: bot.js `wallet(db)` wrapper logs `bulksms-payment` / `bulksms-refund` via logTransaction for every debit/credit; Wallet history labels added in cloudivr-web/wallet.js.
 - Test: js/tests/test_bulk_esim_wallet_records.js (8/8).
+
+## 2026-06 — Bot "Get a Plan" journey (shorter)
+- Button renamed "🛒 Get a Plan" (fr Choisir un forfait, zh 选择套餐, hi प्लान लें, fa دریافت پلن); old "Get a Number"/"Choose a Plan" labels still work.
+- Removed "What is the number for?" step: plan list now has Basic/Plus/Pro/Business + 💬 Calls + texting + 📠 Fax only + 🤔 Help me choose (text guide).
+- Country → numbers right away (local first, US nationwide); under the list: Search by Area Code (US local) and switches to the country's other number types. Removed separate type/area questions.
+- Back: numbers → country → plans. Checkout was already one screen (Step 4 of 4 Review & pay).
+- Files: _index.js (cpPlanKb/cpAskPlanFirst/cpAskCountry/cpTypeOf/cpNumberExtras), bot-number-kinds.js, phone-config.js, ai-support.js.
+- Test: js/tests/test_bot_get_a_plan_journey.js (15/15) + manual run to the pay screen.
