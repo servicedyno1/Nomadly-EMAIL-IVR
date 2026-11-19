@@ -40,7 +40,7 @@ function walletOps(db) {
 
 const CREDITS = { 'hosted-sms-refund': 'Refund · Business texting', 'topup-bonus': 'Top-up bonus', 'first-deposit-bonus': 'First deposit bonus', 'admin-credit': 'Credit from CloudIVR', 'referral-reward': 'Referral reward', 'suggestion-reward': 'Free credit · adopted suggestion', 'sms-refund': 'Refund · text not delivered', 'lead-check-refund': 'Refund · numbers we couldn’t check' }
 const HOSTED = { 'hosted-sms-setup': 'Business texting setup', 'hosted-sms-renewal': 'Texting plan monthly', 'hosted-sms-text': 'Text sent · Business texting', 'hosted-sms-inbound': 'Text received · Business texting', 'lead-check': 'Lead check', 'cnam-lookup': 'Owner-name lookup', 'caller-id-verify': 'Caller ID verification', 'number-lookup': 'Number lookup', 'email-check': 'Email check', 'fax-number': 'Fax number', 'fax-number-renewal': 'Fax number monthly' }
-const LABEL = { purchase: 'Number purchase', purchase_sub: 'Extra number purchase', purchase_verification: 'Number purchase (verification)', renew: 'Number renewal', upgrade: 'Plan upgrade', release: 'Number deleted', sms_reply: 'Extra text' }
+const LABEL = { purchase: 'Number purchase', purchase_sub: 'Extra number purchase', purchase_verification: 'Number purchase (verification)', renew: 'Number renewal', upgrade: 'Plan upgrade', release: 'Number deleted', sms_reply: 'Extra text', migrate_twilio_to_telnyx: 'Number migrated', migrate_telnyx_to_signalwire: 'Number migrated', migrate_to_telnyx_sip: 'Number migrated', migrate_to_multitel: 'Number migrated', number_port: 'Number ported', esim_activation: 'eSIM activated', esim_renewal: 'eSIM renewed' }
 
 function routes(router, { db, h, coins, createCryptoDeposit, offers, cryptoPerUsd }) {
   const w = walletOps(db)
@@ -65,8 +65,10 @@ function routes(router, { db, h, coins, createCryptoDeposit, offers, cryptoPerUs
       db.collection('webDeposits').find({ chatId: id }).sort({ createdAt: -1 }).limit(20).toArray(),
     ])
     const paidAt = new Map(tx.filter(t => t.type === 'wallet-topup' && t.metadata?.ref).map(t => [t.metadata.ref, t.createdAt]))
+    // Strip provider names from any user-facing text
+    const stripProviders = (s) => s ? String(s).replace(/\b(Telnyx|Twilio|SignalWire|Infobip|Bird|telnyx|twilio|signalwire|infobip)\b/gi, '').replace(/\s{2,}/g, ' ').replace(/^\s*·\s*/, '').replace(/\s*·\s*$/, '').trim() : ''
     const history = [
-      ...ptx.filter(t => Number(t.amount) > 0).map(t => ({ id: String(t._id), at: t.timestamp, type: t.action, description: `${LABEL[t.action] || t.action} · ${t.phoneNumber || ''}`, amount: -Math.abs(Number(t.amount) || 0) })),
+      ...ptx.filter(t => Number(t.amount) > 0).map(t => ({ id: String(t._id), at: t.timestamp, type: t.action, description: stripProviders(`${LABEL[t.action] || t.action} · ${t.phoneNumber || ''}`), amount: -Math.abs(Number(t.amount) || 0) })),
       ...tx.filter(t => t.type === 'wallet-topup').map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `${t.metadata?.psp === 'mollie' ? `Card / PayPal top-up${t.metadata?.mode === 'test' ? ' (test)' : ''}` : 'Crypto top-up'} · ${t.metadata?.value || ''} ${t.metadata?.coin || ''}`.trim(), amount: Math.abs(Number(t.amount) || 0) })),
       ...tx.filter(t => HOSTED[t.type]).map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `${HOSTED[t.type]} · ${t.metadata?.phoneNumber || (t.metadata?.count ? `${t.metadata.count} number${t.metadata.count === 1 ? '' : 's'}` : '')}`, amount: -Math.abs(Number(t.amount) || 0) })),
       ...tx.filter(t => CREDITS[t.type]).map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `${CREDITS[t.type]}${t.metadata?.phoneNumber && t.type === 'hosted-sms-refund' ? ` · ${t.metadata.phoneNumber}` : ''}${t.type === 'lead-check-refund' ? ` · ${t.metadata?.count} number${t.metadata?.count === 1 ? '' : 's'}` : ''}`, amount: Math.abs(Number(t.amount) || 0) })),
@@ -122,6 +124,25 @@ function routes(router, { db, h, coins, createCryptoDeposit, offers, cryptoPerUs
       'AutoRoute_SIPOutbound': 'sip', 'SIPOutbound': 'sip', 'TwilioCall': 'outbound', 'TwilioBridge': 'outbound',
       'Bridge_Transfer': 'forward', 'BulkIVR': 'campaign', 'AIAgent': 'ai_agent', 'AutoRoute_Deferred': 'outbound',
     }
+    // Human-friendly labels — never expose provider names (Telnyx, Twilio, SignalWire, Infobip, Bird)
+    const CHARGE_LABEL = {
+      'connection_fee': 'Connection fee', 'per_minute': 'Call minutes', 'ai_agent_call': 'AI campaign call',
+      'ai_receptionist': 'AI receptionist', 'ai_agent': 'AI call', 'forward': 'Call forwarding',
+      'sip': 'SIP call', 'outbound': 'Outbound call', 'campaign': 'Campaign call', 'other': 'Usage charge',
+    }
+    const sanitizeDesc = (s) => {
+      if (!s) return null
+      return String(s).replace(/\b(Telnyx|Twilio|SignalWire|Infobip|Bird|telnyx|twilio|signalwire|infobip)\b/gi, '').replace(/\s{2,}/g, ' ').trim() || null
+    }
+    const friendlyType = (type, callType) => {
+      if (CHARGE_LABEL[type]) return CHARGE_LABEL[type]
+      const cat = callTypes[callType]
+      if (cat && CHARGE_LABEL[cat]) return CHARGE_LABEL[cat]
+      if (LABEL[type]) return LABEL[type]
+      if (HOSTED[type]) return HOSTED[type]
+      // Strip provider names from raw type
+      return sanitizeDesc(type) || 'Usage'
+    }
     const summary = { calls: 0, callSpend: 0, aiMinutes: 0, aiSpend: 0, campaignMinutes: 0, campaignSpend: 0, smsCount: 0, smsSpend: 0, faxCount: 0, faxSpend: 0, lookupCount: 0, lookupSpend: 0, totalSpend: 0, connectionFees: 0 }
     const byNumber = {}
     const byCountry = {}
@@ -174,10 +195,10 @@ function routes(router, { db, h, coins, createCryptoDeposit, offers, cryptoPerUs
         byCountry[country].calls += 1; byCountry[country].spend += amt
       }
 
-      details.push({ id: String(e._id), at: e.timestamp, type: e.type || cat, callType: e.callType, phone, destination: dest, country, amount: e.amount, description: e.description })
+      details.push({ id: String(e._id), at: e.timestamp, type: friendlyType(e.type, e.callType), phone, destination: dest, country, amount: e.amount, description: sanitizeDesc(e.description) || friendlyType(e.type, e.callType) })
     }
 
-    // Add phoneTransactions (SMS, fax, lookups, purchases)
+    // Add phoneTransactions (SMS, fax, lookups, purchases — skip $0 internal entries like migrations)
     for (const t of ptx) {
       const amt = Math.abs(Number(t.amount) || 0)
       const phone = t.phoneNumber || 'unknown'
@@ -188,7 +209,9 @@ function routes(router, { db, h, coins, createCryptoDeposit, offers, cryptoPerUs
       } else if (t.action === 'fax-number' || t.action === 'fax-number-renewal') {
         summary.faxCount += 1; summary.faxSpend += amt; byNumber[phone].fax += 1
       }
-      details.push({ id: String(t._id), at: t.timestamp, type: t.action, phone, amount: -amt, description: `${LABEL[t.action] || HOSTED[t.action] || t.action} · ${phone}` })
+      // Skip $0 internal/migration entries from the activity log
+      if (amt === 0) continue
+      details.push({ id: String(t._id), at: t.timestamp, type: LABEL[t.action] || HOSTED[t.action] || sanitizeDesc(t.action) || 'Transaction', phone, amount: -amt, description: `${LABEL[t.action] || HOSTED[t.action] || sanitizeDesc(t.action) || 'Transaction'} · ${phone}` })
     }
 
     // Add wallet transactions (lookups, topups, credits)
