@@ -2818,7 +2818,8 @@ async function handleCallInitiated(payload) {
   }
 
   // Only do unanswered SIP ring if: has SIP, no IVR, no forward-always (those need answered call), and the number is not off
-  if (hasSip && !hasIvr && !hasForwardAlways && !sessionRef.offHours) {
+  // Landed (Retell-forwarded) calls: Retell doesn't pass a caller hang-up on while unanswered, so answer and ring with ringback.
+  if (hasSip && !hasIvr && !hasForwardAlways && !sessionRef.offHours && !landedNum) {
     sessionRef.phase = 'ringing_sip'
     const sipUser = num.telnyxSipUsername || num.sipUsername
     const sipUri = `sip:${sipUser}@sip.telnyx.com`
@@ -4417,6 +4418,7 @@ async function handleCallAnswered(payload) {
           num,
           phase: 'ringing',
         }
+        session.sipRingCallControlId = newCall.callControlId // caller hang-up stops the ring
 
         const lang = await _getUserLang(chatId)
         const msg = _trans('vs.incomingCall', lang, formatPhone(from), formatPhone(to))
@@ -5480,6 +5482,7 @@ async function handleCallHangup(payload) {
       log(`[Voice] Caller hung up during SIP ring — hanging up SIP ring leg ${session.sipRingCallControlId}`)
       await _telnyxApi.hangupCall(session.sipRingCallControlId).catch(() => {})
       delete activeBridgeTransfers[session.sipRingCallControlId]
+      session._neverAnswered = true // missed while ringing → not billed
     }
   }
 

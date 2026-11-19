@@ -3786,3 +3786,10 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Submission API: POST /v1/compliance/submissions {subject_kind:'number', subject_id, country_code:'US', program:'toll_free', identity_id?, answers:[{key,value}]}. Filed csb_01m7thfac4eag8vabzxzvvw69n with our identity → ownership.status under_review.
 - User wants customer toll-free paperwork in the customer's company name (or individual if Bird allows — it doesn't for toll-free).
 - Decisions (user): Bird toll-free = companies only; company info REQUIRED (collect on CloudIVR web + bot: legal name, registration country + number, address, contact name/email/phone). Build Bird toll-free sales only AFTER test number +18882116196 is approved.
+
+## 2026-11-19 23:05Z — Fix: browser/Zoiper kept ringing after the caller hung up (Retell numbers)
+- Root cause (live-tested): Retell's no-AI forward does NOT pass a caller hang-up on while its forward leg is still ringing; the Infobip landing leg stayed alive until our 25s SIP timeout. Direct calls to the landing number cancel instantly; answered legs pass hang-up in ~1-2s.
+- Fix (js/voice-service.js): landed (Retell-forwarded) calls skip the unanswered SIP ring → answered immediately and use the answered-path SIP ring with ringback; answered path now sets session.sipRingCallControlId so a caller hang-up cancels the ring leg; caller hang-up during an unbridged SIP ring marks _neverAnswered (missed → not billed).
+- Deployed to prod app-main-a (release 20261119T181608Z-abc224b, backup /opt/nomadly/deploy-backups/landed-ringback-20261119T230308Z). Re-test: caller hung up 23:03:52 → browser ring cancelled 23:03:53.
+- User-confirmed earlier: 833 inbound rings browser. Still to confirm: answering → two-way audio; outbound caller ID shows +18337549319.
+- Not in GitHub main yet — a GitHub CI deploy would roll this back; user must Save to GitHub.
