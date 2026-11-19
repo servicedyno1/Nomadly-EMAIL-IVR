@@ -1035,6 +1035,15 @@ const VALIDATE2 = {
   },
 }
 for (const [l, d] of Object.entries(VALIDATE2)) { const { btn: b, ...rest } = d; Object.assign(LANGS[l], rest); Object.assign(LANGS[l].btn, b) }
+// Naming saved lists + strong validation nudge for landline-heavy uploads.
+const VALIDATE3 = {
+  en: { val_push: (pct) => `⭐ <b>${pct}% of this list are landlines</b> — they can’t get texts but are still billed. Validating first is strongly recommended.`, list_rename_q: '✏️ Pick the list you want to name:', list_name_q: 'Type a name for this list (e.g. Miami realtors):', list_named: (name) => `✅ Saved as “${name}”.`, btn: { list_rename: '✏️ Name a list' } },
+  fr: { val_push: (pct) => `⭐ <b>${pct} % de cette liste sont des fixes</b> — ils ne reçoivent pas de SMS mais sont facturés. Valider d’abord est fortement conseillé.`, list_rename_q: '✏️ Choisissez la liste à nommer :', list_name_q: 'Tapez un nom pour cette liste (ex. Agents immobiliers Miami) :', list_named: (name) => `✅ Enregistrée sous « ${name} ».`, btn: { list_rename: '✏️ Nommer une liste' } },
+  zh: { val_push: (pct) => `⭐ <b>此列表中 ${pct}% 是座机</b> — 收不到短信却仍会计费。强烈建议先验证。`, list_rename_q: '✏️ 选择要命名的列表：', list_name_q: '输入列表名称（例如：迈阿密房产经纪）：', list_named: (name) => `✅ 已保存为“${name}”。`, btn: { list_rename: '✏️ 给列表命名' } },
+  hi: { val_push: (pct) => `⭐ <b>इस सूची के ${pct}% नंबर लैंडलाइन हैं</b> — इन पर SMS नहीं जाता, फिर भी चार्ज लगता है। पहले वैलिडेट करना ज़ोरदार सलाह है।`, list_rename_q: '✏️ वह सूची चुनें जिसका नाम रखना है:', list_name_q: 'इस सूची का नाम लिखें (जैसे Miami realtors):', list_named: (name) => `✅ “${name}” नाम से सेव हुआ।`, btn: { list_rename: '✏️ सूची का नाम रखें' } },
+  fa: { val_push: (pct) => `⭐ <b>${pct}% این فهرست تلفن ثابت است</b> — پیامک دریافت نمی‌کنند ولی هزینه دارند. اعتبارسنجی پیش از ارسال به‌شدت توصیه می‌شود.`, list_rename_q: '✏️ فهرستی را که می‌خواهید نام‌گذاری کنید انتخاب کنید:', list_name_q: 'یک نام برای این فهرست بنویسید (مثلاً Miami realtors):', list_named: (name) => `✅ با نام «${name}» ذخیره شد.`, btn: { list_rename: '✏️ نام‌گذاری فهرست' } },
+}
+for (const [l, d] of Object.entries(VALIDATE3)) { const { btn: b, ...rest } = d; Object.assign(LANGS[l], rest); Object.assign(LANGS[l].btn, b) }
 // Home shows the path to a successful send in one line.
 const PATH = { en: '🧭 Numbers → message → free test → send now or later', fr: '🧭 Numéros → message → test gratuit → envoi maintenant ou plus tard', zh: '🧭 号码 → 短信 → 免费测试 → 立即或稍后发送', hi: '🧭 नंबर → मैसेज → मुफ़्त टेस्ट → अभी या बाद में भेजें', fa: '🧭 شماره‌ها ← پیام ← تست رایگان ← ارسال حالا یا بعداً' }
 for (const [l, line] of Object.entries(PATH)) { const h = LANGS[l].home; LANGS[l].home = (o) => h(o).replace('\n\n', `\n${line}\n\n`) }
