@@ -106,7 +106,7 @@ export function CallerIdUpsellCard() {
       <div className="w-11 h-11 rounded-xl bg-[#fbbf24]/15 flex items-center justify-center shrink-0"><ArrowUpCircle className="w-5 h-5 text-[#fbbf24]" /></div>
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-base">Show your verified caller ID with Business</div>
-        <div className="text-sm text-[#a1a1aa] mt-1">Verify numbers you own with a Bird code call, save up to 10 and pick one with a tap on every call. Upgrade to Business{gap ? ` for just ${usd(gap)}` : ''} — you pay only the price difference and your renewal date stays the same.</div>
+        <div className="text-sm text-[#a1a1aa] mt-1">Verify numbers you own with a quick code call, save up to 10 and pick one with a tap on every call. Upgrade to Business{gap ? ` for just ${usd(gap)}` : ''} — you pay only the price difference and your renewal date stays the same.</div>
       </div>
       <button type="button" onClick={upgrade} disabled={busy} className="civr-btn civr-btn-primary civr-btn-sm self-start sm:self-auto" data-testid="dashboard-callerid-upsell-cta">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Upgrade to Business</button>
       <button type="button" onClick={close} className="w-9 h-9 rounded-lg flex items-center justify-center text-[var(--c-muted)] hover:text-[var(--c-text)] hover:bg-[var(--c-accent-soft)]" aria-label="Dismiss" data-testid="dashboard-callerid-upsell-dismiss"><X className="w-4 h-4" /></button>

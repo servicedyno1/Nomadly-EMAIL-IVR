@@ -44,7 +44,7 @@ export const TERMS = [
     'US local numbers need a 10DLC brand and campaign registration before they can send texts. You must describe your real business, use case, sample messages and how people opt in; we file it with the carrier for you. Registering under someone else’s identity, or sending traffic that does not match your approved campaign, is not allowed. Carrier registration and vetting fees may apply.',
   ] },
   { id: 'carriers', title: 'Carriers and partners', body: [
-    'We provide numbers, calls and texts through licensed carriers and partners (including MultiTEL, Infobip and Bird). Their acceptable-use, messaging and reseller rules apply to you as well as ours. They may filter, block or suspend traffic, numbers or logins straight away to stop fraud, spam, spoofing or other abuse, and we may have to do the same. Each SIP login is personal to you or your team; keep it secret and remove logins you no longer use.',
+    'We provide numbers, calls and texts through licensed carriers and partners. Their acceptable-use, messaging and reseller rules apply to you as well as ours. They may filter, block or suspend traffic, numbers or logins straight away to stop fraud, spam, spoofing or other abuse, and we may have to do the same. Each SIP login is personal to you or your team; keep it secret and remove logins you no longer use.',
   ] },
   { id: 'recordings', title: 'Recordings, transcripts and AI', body: [
     'Some places require every person on a call to agree before it is recorded. If you turn on call recording, voicemail, transcripts or AI summaries, you are responsible for telling callers and getting any consent the law requires.',

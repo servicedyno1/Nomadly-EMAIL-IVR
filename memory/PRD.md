@@ -796,3 +796,10 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - New js/channel-ads-botchat.js: premium animated Telegram chat of @Nomadlybot (real menu labels) recorded 780x1688 → framed 1080x1350 MP4 (~15s); 65% botclip / 35% AI art
 - Bot: "/start channel_*" → /start; new hub open_esim
 - Dry-run verified all 3 combos locally; NOT yet deployed — user must Save to Github
+
+### 2026-11-19 — Provider names hidden (CloudIVR web + customer emails)
+- sanitize-provider.js scrubProviderNames now covers MultiTEL/Infobip/Bird(capitalised)/MessageBird/SignalWire/Twilio/Telnyx/Spenza/Vonage/Plivo/Sinch + Asterisk/Kamailio; collapses "(including X, Y and Z)"; new scrubProviderHtml (text nodes only, links intact)
+- cloudivr-web/index.js: deep scrub of human-text keys on all non-admin API responses ("text"/"body" message content left raw); admin keeps names
+- auth.js sendMail scrubs subject/html unless recipient is admin / CIVR_ADMIN_EMAIL / MULTITEL_DOCS_EMAIL
+- Hand-fixed copy: Terms §9, LOA preview, caller-ID verify texts (+es/fr keys)
+- Kept on purpose: Telegram bot + admin (user choice), filed hosted-SMS LOA PDF to carrier (names Telnyx), T-Mobile eSIM network, Mollie/crypto payment brands

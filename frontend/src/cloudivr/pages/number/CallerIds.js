@@ -28,7 +28,7 @@ function AddForm({ price, onSent, onSaved }) {
     <div className="space-y-3" data-testid="caller-ids-add-form">
       <Field label="Numbers you own" hint="One per line, with country code. Up to 10 at a time — each gets its own code."><textarea className="civr-input font-mono !h-24 py-2" value={text} onChange={e => setText(e.target.value)} placeholder={'+14155550100\n+14155550101'} data-testid="caller-ids-number-input" /></Field>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm text-[var(--c-muted)] flex-1 min-w-[200px]" data-testid="caller-ids-method-note">Bird calls each number and reads out a code. Type it in below.</span>
+        <span className="text-sm text-[var(--c-muted)] flex-1 min-w-[200px]" data-testid="caller-ids-method-note">We call each number and read out a code. Type it in below.</span>
         <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || !n} onClick={send} data-testid="caller-ids-send-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{n > 1 ? `Send ${n} codes` : 'Send code'}</button>
       </div>
       {fails.length > 0 && <ul className="text-xs text-[#fb7185] space-y-1" data-testid="caller-ids-send-failures">{fails.map(f => <li key={f.number}><span className="font-mono">{f.number}</span>: {f.message}</li>)}</ul>}
@@ -174,7 +174,7 @@ export function CallerIds() {
   return (
     <section id="caller-ids" className="civr-card p-6 mt-8 scroll-mt-24" data-testid="caller-ids-card">
       <div className="flex items-center gap-2 font-display text-xl font-bold mb-2"><ShieldCheck className="w-5 h-5 text-[var(--c-accent)]" />Your own caller IDs</div>
-      <p className="text-sm text-[var(--c-muted)] mb-6 max-w-2xl">Show a number you own, such as your mobile or office line, on Quick IVR calls, Call me first, campaigns, AI agent calls, text triggers and the browser phone. Bird calls the number and reads out a code; type it in to verify ($25, charged only when the code is accepted). Only verified numbers can be shown. Calls are still billed from your CloudIVR number.</p>
+      <p className="text-sm text-[var(--c-muted)] mb-6 max-w-2xl">Show a number you own, such as your mobile or office line, on Quick IVR calls, Call me first, campaigns, AI agent calls, text triggers and the browser phone. We call the number and read out a code; type it in to verify ($25, charged only when the code is accepted). Only verified numbers can be shown. Calls are still billed from your CloudIVR number.</p>
       <CallerIdManager />
     </section>
   );

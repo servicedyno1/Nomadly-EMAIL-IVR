@@ -95,7 +95,7 @@ async function requestCode(n, method) {
     const old = await col?.findOne({ _id: n })
     if (old?.birdId) await bird.deleteCallerId(old.birdId)
     const r = await bird.startCallerIdVerification(n)
-    if (r.error) throw new Error(`Bird couldn't call ${n}: ${r.error}`)
+    if (r.error) throw new Error(`We couldn't call ${n}: ${r.error}`)
     return { birdId: r.id }
   }
   try { await telnyxRequestCode(n, method); return {} } catch (e) {
@@ -165,8 +165,8 @@ function routes(router, { db, h, numbersApi }) {
     res.json({ enabled: ON, price: PRICE, dryRun: dry(), items: items.filter(d => !d.attested && d.method !== 'attested' && d.method !== 'review' && d.status !== 'review').filter(d => d.status === 'verified' || d.status === 'review' || Date.now() - d.createdAt < PENDING_MS).map(d => ({ ...view(d), uses30: used[d._id]?.n || 0, lastUsedAt: used[d._id]?.last || null })) })
   }))
 
-  // Manual review was retired: only numbers verified with a Bird code call can be shown.
-  router.post('/caller-ids/request', h(async (req, res) => bad(res, 410, 'verification_required', 'Manual review was retired. Add the number and verify it with the code Bird reads out in a call.')))
+  // Manual review was retired: only numbers verified with a quick code call can be shown.
+  router.post('/caller-ids/request', h(async (req, res) => bad(res, 410, 'verification_required', 'Manual review was retired. Add the number and verify it with the code we read out in a call.')))
 
   router.post('/caller-ids', h(async (req, res) => {
     if (!ON) return off(res)

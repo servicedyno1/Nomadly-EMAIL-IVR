@@ -328,16 +328,34 @@ function sanitizeUserText(text) {
 
 // Neutral wording for any customer-facing text (CloudIVR web inbox + API messages): carrier and registrar names and
 // hostnames never reach the customer. No HTML escaping, line breaks kept.
+const NAMES = ['MultiTEL', 'Multi-TEL', 'Infobip', 'MessageBird', 'SignalWire', 'Twilio', 'Telnyx', 'Spenza', 'Bandwidth\\.com', 'Vonage', 'Plivo', 'Sinch']
+// Every casing of each name; "Bird" is also an ordinary word, so only "Bird" / "BIRD" count.
+const CARRIERS = [...new Set(NAMES.flatMap(n => [n, n.toLowerCase(), n.toUpperCase(), n[0] + n.slice(1).toLowerCase()])), 'Bird', 'BIRD'].join('|')
+const CARRIER_RE = new RegExp(`\\b(?:${CARRIERS})(?:\\s+(?:LLC|Inc\\.?|Ltd\\.?))?(?:'s)?\\b`, 'g')
+const CARRIER_LIST_RE = new RegExp(`\\b(?:${CARRIERS})\\b(?:\\s*(?:,|/|&|\\band\\b|\\bor\\b)\\s*\\b(?:${CARRIERS})\\b)+`, 'g')
+const ANY_RE = new RegExp(`\\b(?:${CARRIERS})\\b|openprovider|connect\\s?reseller|asterisk|kamailio|rtpengine|coturn`, 'i')
+const HAS_CARRIER = new RegExp(`\\b(?:${CARRIERS})\\b`)
+
+// Neutral wording for any customer-facing text (CloudIVR web + emails): carrier, registrar and server software names
+// and hostnames never reach the customer. No HTML escaping, line breaks kept.
 function scrubProviderNames(text) {
-  if (typeof text !== 'string' || !/twilio|telnyx|openprovider|connect\s?reseller/i.test(text)) return text
+  if (typeof text !== 'string' || !ANY_RE.test(text)) return text
   return text
-    .replace(/https?:\/\/(?:[\w-]+\.)*(?:twilio|telnyx|openprovider|connectreseller|connect-reseller)\.[a-z]{2,6}[^\s)\]<>"';]*/gi, '')
-    .replace(/\b(?:[\w-]+\.)*(?:twilio|telnyx)\.[a-z]{2,6}\b/gi, 'our network')
+    .replace(/https?:\/\/(?:[\w-]+\.)*(?:twilio|telnyx|openprovider|connectreseller|connect-reseller|infobip|multitel|signalwire|messagebird|bird|spenza)\.[a-z]{2,6}[^\s)\]<>"';]*/gi, '')
+    .replace(/\b(?:[\w-]+\.)*(?:twilio|telnyx|infobip|multitel|signalwire|messagebird|spenza)\.[a-z]{2,6}\b/gi, 'our network')
     .replace(/\b(?:[\w-]+\.)*(?:openprovider|connectreseller|connect-reseller)\.[a-z]{2,6}\b/gi, 'the registrar')
-    .replace(/\b(?:Twilio|Telnyx)(?:'s)?\b/gi, 'our network')
+    .replace(/\s*\((?:including|incl\.?|e\.g\.?|such as|like)\s+[^)]*\)/gi, (m) => (HAS_CARRIER.test(m) ? '' : m))
+    .replace(CARRIER_LIST_RE, 'Telnyx')
+    .replace(CARRIER_RE, (m) => (/'s$/i.test(m) ? "our network's" : 'our network'))
     .replace(/\b(?:OpenProvider|Connect\s?Reseller)(?:'s)?\b/gi, 'the registrar')
+    .replace(/\b(?:Asterisk|Kamailio|RTPengine|coturn)\b/gi, 'our phone system')
+    .replace(/(^|[.!?]\s+|\n\s*)our (network|phone system)/g, (m, pre, w) => `${pre}Our ${w}`)
     .replace(/[ \t]{2,}/g, ' ')
 }
+
+// Same, for email HTML: only visible text between tags is changed — links and attributes stay intact.
+const scrubProviderHtml = (html) => (typeof html === 'string' && ANY_RE.test(html)
+  ? html.replace(/(^|>)([^<]+)(?=<|$)/g, (m, open, txt) => open + scrubProviderNames(txt)) : html)
 
 // Display name for a voice carrier in any chat message (customer, support or admin). Raw values stay in DB/logs.
 const NETWORK_LABELS = { telnyx: 'Speechcue' }
@@ -350,4 +368,5 @@ module.exports = {
   sanitizeAiContext,
   sanitizeUserText,
   scrubProviderNames,
+  scrubProviderHtml,
 }

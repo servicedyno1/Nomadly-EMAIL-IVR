@@ -92,6 +92,9 @@ function brandedHtml(subject, html) {
 }
 
 function sendMail(to, subject, html, attachments, extra) {
+  // Customers never see carrier or server names; the admin team's alerts and mail to the carrier itself keep them.
+  const internal = [...adminEmails(), process.env.CIVR_ADMIN_EMAIL, process.env.MULTITEL_DOCS_EMAIL || 'support@multitel.net'].map(e => String(e || '').toLowerCase())
+  if (!internal.includes(String(to || '').toLowerCase())) { const { scrubProviderNames, scrubProviderHtml } = require('../sanitize-provider'); subject = scrubProviderNames(subject); html = scrubProviderHtml(html) }
   html = brandedHtml(subject, html)
   const own = process.env.CLOUDIVR_MAIL_SENDER
   // Test fixtures (e2e-*@…, @example.*) never get mail: their inboxes bounce or auto-reply into the support inbox.
