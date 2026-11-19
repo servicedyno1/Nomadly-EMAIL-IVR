@@ -73,6 +73,12 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     await put('bseWhenPref', pref); await put('bseValFirst', null); await go('bse-consent')
     return send(chatId, `${say('ho_validated')}\n${say('list_ok', { n: list.length, max: c.maxVolume, dropped: r.contacts.length - list.length, send: k.sendable, skipped: k.skip.length, counts: k.counts, invalid: r.invalid, duplicates: r.duplicates, optedOut: r.optedOut })}`, kb([[L.agree], [L.back]]))
   }
+  const listLabel = (x) => (x.name ? `📋 ${x.name} · ${x.n} · ${x.at.toISOString().slice(0, 10)}` : say('list_label', { n: x.n, date: x.at.toISOString().slice(0, 10) }))
+  const showLists = async (renaming = false) => {
+    const ls = await B.savedLists(cid); if (!ls.length) { await go('bse-contacts'); return askContacts() }
+    await put('bseListIds', ls.map(x => x._id)); await put('bseListRename', renaming); await go('bse-lists')
+    return send(chatId, say(renaming ? 'list_rename_q' : 'lists_q'), kb([...ls.map(x => [listLabel(x)]), ...(renaming ? [] : [[L.list_rename]]), [L.back]]))
+  }
   const markValidate = async (n) => { await drafts().updateOne({ _id: cid }, { $set: { validate: true } }); const c = await B.cfg(); return send(chatId, say('val_marked', { n, fee: (Math.round(n * valRate() * 100) / 100).toFixed(2) }), kb([[L.agree], [L.back]])) }
   // Hands the list to the paid validator; when it's done the customer lands back here with the valid numbers (offerSend).
   if (message === L.back || /^(↩️ |🔙 |⬅️ )?(Back|Retour|返回|वापस|بازگشت)$/.test(String(message || '').trim())) { if (action === 'bse-home') { await go('none'); return goto.submenu7 ? (await goto.submenu7(), true) : false } await go('bse-home'); await home(send, chatId, lang); return true }
@@ -101,10 +107,17 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     return home(send, chatId, lang)
   }
   if (action === 'bse-lists') {
-    const ls = (await B.savedLists(cid)).filter(x => (info.bseListIds || []).includes(x._id))
-    const pick = ls.find(x => say('list_label', { n: x.n, date: x.at.toISOString().slice(0, 10) }) === message)
+    if (message === L.list_rename) return showLists(true)
+    const pick = (await B.savedLists(cid)).filter(x => (info.bseListIds || []).includes(x._id)).find(x => listLabel(x) === message)
     if (!pick) return send(chatId, say('pick_option'))
+    if (info.bseListRename) { await put('bseListRenameId', pick._id); await go('bse-list-name'); return send(chatId, say('list_name_q'), kb([[L.back]])) }
     return useList(pick.numbers)
+  }
+  if (action === 'bse-list-name') {
+    const name = String(message || '').replace(/[<>]/g, '').trim()
+    if (!name || name.length > 40) return send(chatId, say('list_name_q'))
+    await B.renameList(cid, info.bseListRenameId, name); await send(chatId, say('list_named', name))
+    return showLists()
   }
   // After validating or buying leads: the list goes straight into a campaign (Step 1 done, validated).
   if (action === 'bse-handoff') {
@@ -125,11 +138,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   // Step 1 — numbers: parsed, capped at maxVolume, checked (Telnyx carrier lookup, free); every kept number is billed, only mobiles are texted.
   if (action === 'bse-contacts') {
     if (message === L.validate_first) { await put('bseValFirst', true); return send(chatId, say('val_upload'), kb([[L.back]])) }
-    if (message === L.lists) {
-      const ls = await B.savedLists(cid); if (!ls.length) return askContacts()
-      await put('bseListIds', ls.map(x => x._id)); await go('bse-lists')
-      return send(chatId, say('lists_q'), kb([...ls.map(x => [say('list_label', { n: x.n, date: x.at.toISOString().slice(0, 10) })]), [L.back]]))
-    }
+    if (message === L.lists) return showLists()
     let raw = message, fileName = null
     if (msg?.document) {
       const name = msg.document.file_name || ''
@@ -159,6 +168,9 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     const save = k.skip.length ? `\n\n${say('val_save', { skipped: k.skip.length, waste, cost: valCost })}` : ''
     const okText = say('list_ok', { n: list.length, max: c.maxVolume, dropped: r.contacts.length - list.length, send: k.sendable, skipped: k.skip.length, counts: k.counts, invalid: r.invalid, duplicates: r.duplicates, optedOut: r.optedOut }) + ccNote
     if (info.bseValFirst) { await put('bseValFirst', null); await send(chatId, okText); return markValidate(list.length) }
+    // Landline-heavy list (free line-type check): validation becomes the first, recommended choice.
+    const pct = Math.round((k.skip.length / list.length) * 100)
+    if (pct >= 30) return send(chatId, `${okText}\n\n${say('val_push', pct)}${save}`, kb([[L.validate_these], [L.agree], [L.back]]))
     return send(chatId, okText + save, kb([[L.agree], [L.validate_these], [L.back]]))
   }
   if (action === 'bse-consent') {
