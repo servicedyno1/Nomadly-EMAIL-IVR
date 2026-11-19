@@ -5,6 +5,12 @@
 const axios = require('axios')
 const B = require('./core')
 const { walletOps } = require('../cloudivr-web/wallet')
+const { logTransaction } = require('../transaction-id.js')
+// Every BulkSMS wallet movement gets a billing record (wallet history + wallet audit).
+const wallet = (db) => {
+  const w = walletOps(db), rec = (chatId, type, amount) => logTransaction(db, { chatId, type, amount: Math.round(Number(amount) * 10000) / 10000, currency: 'USD', status: 'completed', metadata: { product: 'bulksms' } })
+  return { balance: w.balance, debit: async (c, a) => { const ok = await w.debit(c, a); if (ok && a > 0) await rec(c, 'bulksms-payment', a); return ok }, credit: async (c, a) => { await w.credit(c, a); if (a > 0) await rec(c, 'bulksms-refund', a) } }
+}
 const { saveUpload } = require('./storage')
 const { t, btn, allLabels, QN } = require('./i18n')
 
@@ -250,7 +256,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
       const o = await B.testOffer(cid), c = await B.cfg()
       if (o.barred) return send(chatId, `⚠️ ${say('err_test_guard')}`, kb([[L.cont], [L.back]]))
       if (!o.free) {
-        const cp = await B.db().collection('bsCampaigns').findOne({ _id: info.bseCampaign, cid }), need = cp ? await price(cp) : 0, bal = await walletOps(T.db).balance(chatId).catch(() => 0)
+        const cp = await B.db().collection('bsCampaigns').findOne({ _id: info.bseCampaign, cid }), need = cp ? await price(cp) : 0, bal = await wallet(T.db).balance(chatId).catch(() => 0)
         if (bal < need) return send(chatId, say('test_locked', need, Number(bal).toFixed(2), { firstTime: o.firstTime, perDay: c.testsPerDay }), kb([[L.cont], [L.back]]))
       }
       return askTestTo(o.free)
@@ -261,7 +267,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   if (action === 'bse-test-to') {
     if (message === L.cont || message === L.test_skip || message === L.send_anyway) return askWhen()
     const k = await B.testCheck(cid, info.bseCampaign, message, { altFrom: info.bseAltFrom || null }); if (k.error) return send(chatId, `⚠️ ${errText(lang, k)}`, kb([[L.cont], [L.back]]))
-    const w = walletOps(T.db)
+    const w = wallet(T.db)
     if (k.charge && !(await w.debit(chatId, k.charge))) {
       await go('bse-test')
       // One tap to the crypto top-up (the test screen's buttons stay); the test can be sent again right after.
@@ -352,7 +358,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
   if (action === 'bse-pay') {
     const b = await B.db().collection('bsBookings').findOne({ _id: info.bseBookingId, cid }); if (!b) return send(chatId, say('err_not_found'), HK)
     if (message === L.wallet) {
-      const w = walletOps(T.db)
+      const w = wallet(T.db)
       // Short: the shared checkout uses the wallet first and takes only the rest in crypto, then confirms the booking itself.
       if (!(await w.debit(chatId, b.price))) return showBooking(b)
       const r = await confirmPaid(chatId, b._id, 'wallet', b.price, lang)
@@ -371,7 +377,7 @@ async function flow({ chatId, msg, message, info, set, state, send, saveInfo, go
     // After the free intro (any review, or 3 free texts used) single texts are paid: $1 each, wallet must hold at least $20.
     // Charged on a successful send, refunded if it fails.
     const bill = await B.singleTextMode(cid).catch(() => ({ paid: false }))
-    const w = walletOps(T.db)
+    const w = wallet(T.db)
     const topupKb = { reply_markup: { inline_keyboard: [[{ text: say('topup_btn'), callback_data: 'wallet_topup_quick' }]] } }
     const r2 = (x) => Math.round(x * 100) / 100
     if (bill.paid) {
@@ -419,7 +425,7 @@ async function confirmPaid(chatId, bid, method, amount, lang) {
   return { ok: true, validating: true, n: cp.contacts.length + (cp.skipped || []).length }
 }
 async function runValidation(chatId, b, cp, method, amount, lang) {
-  const db = B.db(), w = walletOps(T.db), say = (k, ...a) => t(lang, k, ...a), tell = (x) => T.sendMessage?.(chatId, x, { parse_mode: 'HTML' }), fee = b.valFee
+  const db = B.db(), w = wallet(T.db), say = (k, ...a) => t(lang, k, ...a), tell = (x) => T.sendMessage?.(chatId, x, { parse_mode: 'HTML' }), fee = b.valFee
   const all = [...cp.contacts, ...(cp.skipped || [])]
   let valid = null
   try { const res = await T.validate(all.map(p => p.replace(/\D/g, '')), chatId); if (Array.isArray(res)) valid = res.map(x => String(Array.isArray(x) ? x[0] : x)).map(p => (p.startsWith('+') ? p : `+${p.replace(/\D/g, '')}`)) } catch (_) { valid = null }
@@ -446,13 +452,13 @@ async function runValidation(chatId, b, cp, method, amount, lang) {
 
 async function paid(chatId, info, amount, method) {
   const lang = info?.userLanguage || 'en', r = await confirmPaid(chatId, info?.bseBookingId, method, Number(amount), lang)
-  if (r.error) { await walletOps(T.db).credit(chatId, Number(amount)); return { ok: false, text: `⚠️ ${errText(lang, r)} ${t(lang, 'to_wallet', amount)}` } }
+  if (r.error) { await wallet(T.db).credit(chatId, Number(amount)); return { ok: false, text: `⚠️ ${errText(lang, r)} ${t(lang, 'to_wallet', amount)}` } }
   return { ok: true, text: r.validating ? t(lang, 'val_running', r.n) : t(lang, 'paid_ok') }
 }
 
 // Wallet chosen on the shared checkout screen.
 async function paidFromWallet(chatId, info, price) {
-  const w = walletOps(T.db), lang = info?.userLanguage || 'en'
+  const w = wallet(T.db), lang = info?.userLanguage || 'en'
   if (!(await w.debit(chatId, price))) return { ok: false, text: t(lang, 'wallet_low', price) }
   const r = await confirmPaid(chatId, info?.bseBookingId, 'wallet', price, lang)
   if (r.error) { await w.credit(chatId, price); return { ok: false, text: `⚠️ ${errText(lang, r)} ${t(lang, 'not_charged')}` } }
@@ -519,7 +525,7 @@ function startNotices(bot, db) {
       for (let i = 0; i < 20; i++) {
         const r = await col().findOneAndUpdate({ brand: brand(), sent: false }, { $set: { sent: true, sentAt: new Date() } }, { sort: { at: 1 } })
         const n = r?.value !== undefined ? r.value : r; if (!n) break
-        if (n.type === 'refund' && n.amount) await walletOps(db).credit(n.chatId, Number(n.amount))
+        if (n.type === 'refund' && n.amount) await wallet(db).credit(n.chatId, Number(n.amount))
         if (n.silent) continue
         if (n.type === 'admin') { await T?.notifyAdmin?.(n.text); continue }
         const lang = (await db.collection('state').findOne({ _id: String(n.chatId) }, { projection: { userLanguage: 1 } }).catch(() => null))?.userLanguage || 'en'
@@ -531,7 +537,7 @@ function startNotices(bot, db) {
 }
 // Every 30 s: a paid text saved because the wallet was low goes out once the wallet has the $20 minimum again.
 async function sendPendingTexts(bot, db) {
-  const w = walletOps(db), r2 = (x) => Math.round(x * 100) / 100
+  const w = wallet(db), r2 = (x) => Math.round(x * 100) / 100
   for (const c of await B.duePendingTexts(brand())) {
     if (!(await B.claimPendingText(c._id))) continue
     const pt = c.pendingText, chatId = c.chatId || String(c._id).split(':').slice(1).join(':')
