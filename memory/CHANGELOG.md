@@ -3778,3 +3778,11 @@ NOT YET DONE: (1) deploy app code to droplet; (2) LIVE browser test on cloudivr.
 - Deployed workspace to app-main (blue/green, WS_DEPLOY_EXIT=0) ×3; final release on app-main-a. Includes Get a Plan, BulkSMS test step + wallet records.
 - Customer 1005284399 (refunded $120, wallet $222.07): sent explanation (msg 3509383) + Business-plan US number list (5 Infobip numbers); they pick & pay from wallet. NOT yet purchased.
 - GitHub main NOT updated: a GitHub CI deploy would roll this back → user must Save to GitHub.
+
+## 2026-11-19 — Bird numbers unlocked (org identity approved)
+- User created Bird business identity cid_01m7th15dge0hbjjkyxnv5sckj (CloudIVR / DYNOTECH INNOVATIONS LDA, PT VAT) — all fields approved 18:30 UTC.
+- Test buy OK: US toll-free +18882116196 (nda_7kys5qvfzybp18j4nfzc0nd1ed, order nor_01m7thbp62ej5ad5a5zvzhbdcx, $0.50/mo) → status pending_ownership_registration (blocked until approved).
+- US toll-free ownership programme = `toll_free`. Required: legal_entity_name, business_registration_country, business_registration_number, business_address_line1/city/postal_code/country (state optional), contact_name/email/phone. Optional docs: letter_of_authority, proof_of_operation, proof_of_ownership. No individual option (needs a registered company).
+- Submission API: POST /v1/compliance/submissions {subject_kind:'number', subject_id, country_code:'US', program:'toll_free', identity_id?, answers:[{key,value}]}. Filed csb_01m7thfac4eag8vabzxzvvw69n with our identity → ownership.status under_review.
+- User wants customer toll-free paperwork in the customer's company name (or individual if Bird allows — it doesn't for toll-free).
+- Decisions (user): Bird toll-free = companies only; company info REQUIRED (collect on CloudIVR web + bot: legal name, registration country + number, address, contact name/email/phone). Build Bird toll-free sales only AFTER test number +18882116196 is approved.

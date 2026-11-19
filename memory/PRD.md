@@ -820,3 +820,4 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - BulkSMS: the optional test SMS step (same spot as the original flow) is confirmed on all new entry points: after validation, after buying leads, saved validated lists, and Validate-first. Agent-tested; awaiting user confirmation after publish.
 - Bot buying journey reimagined as "Get a Plan": Plan (incl. texting/fax/help) → Country → Number (instant list) → Review & pay. Agent-tested in preview; awaiting user confirmation after publish.
 - 2026-11-19: MultiTEL purchasing disabled on account → new sales on Infobip US local only (env switch, reversible). Fax/texting/toll-free/other countries hidden until MultiTEL returns.
+- Pending: Bird toll-free sales (companies only, company-details step on web + bot) — start once Bird approves test number +18882116196 (submission csb_01m7thfac4eag8vabzxzvvw69n).
