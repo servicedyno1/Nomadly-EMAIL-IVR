@@ -19,7 +19,7 @@ function Stat({ icon: Icon, label, value, to, testid, delay, title }) {
   const body = (
     <>
       <span className="flex items-center gap-1.5 text-[13px] text-[var(--c-muted)]"><Icon className="w-3.5 h-3.5 shrink-0" />{label}</span>
-      <span className="civr-stat-value block" data-testid={`${testid}-value`}>{value}</span>
+      <span className="civr-stat-value" data-testid={`${testid}-value`}>{value}</span>
     </>
   );
   return to ? <Link to={to} className="civr-stat" data-testid={testid} title={title}>{body}</Link> : <div className="civr-stat" data-testid={testid} title={title}>{body}</div>;

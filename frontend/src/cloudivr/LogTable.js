@@ -9,13 +9,13 @@ import { ShowMore, useIsPhone, usePaged, Empty } from './ui';
 import { AiSummaryCell } from './AiSummary';
 
 // One accent for normal events; colour only where something needs attention (missed = rose, failed / outside hours = amber).
-const A = '#818cf8', N = '#a1a1aa';
+const A = 'var(--c-accent,#3b82f6)', N = 'var(--c-muted,#8490a5)';
 const LABEL = {
-  missed: ['Missed call', PhoneMissed, '#fb7185'], voicemail: ['Voicemail', Voicemail, A], forwarded: ['Forwarded call', PhoneIncoming, A],
-  forward_failed: ['Forward failed', PhoneMissed, '#fbbf24'], call_recording: ['Recorded call', Mic, A], outbound_ivr: ['Quick IVR call', PhoneOutgoing, A],
+  missed: ['Missed call', PhoneMissed, 'var(--c-danger,#fb7185)'], voicemail: ['Voicemail', Voicemail, A], forwarded: ['Forwarded call', PhoneIncoming, A],
+  forward_failed: ['Forward failed', PhoneMissed, 'var(--c-warning,#fbbf24)'], call_recording: ['Recorded call', Mic, A], outbound_ivr: ['Quick IVR call', PhoneOutgoing, A],
   outbound_ivr_bulk: ['Campaign call', PhoneOutgoing, A], ivr_transfer_leg: ['IVR transfer', PhoneIncoming, A], sms: ['SMS', MessageSquare, A],
   fax: ['Fax', Printer, N], outbound_sip: ['Browser / SIP call', PhoneOutgoing, A], BulkIVR: ['Campaign charge', PhoneOutgoing, N],
-  off_hours: ['Call outside hours', Clock, '#fbbf24'], sms_out: ['SMS sent', MessageSquare, A], sms_failed: ['SMS not delivered', MessageSquare, '#fbbf24'],
+  off_hours: ['Call outside hours', Clock, 'var(--c-warning,#fbbf24)'], sms_out: ['SMS sent', MessageSquare, A], sms_failed: ['SMS not delivered', MessageSquare, 'var(--c-warning,#fbbf24)'],
 };
 export const labelOf = (t) => LABEL[t] || [String(t || 'Event').replace(/_/g, ' '), PhoneIncoming, N];
 const rowLabel = (l) => labelOf(l.type === 'sms_out' && l.smsStatus === 'failed' ? 'sms_failed' : l.type);

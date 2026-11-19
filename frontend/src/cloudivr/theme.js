@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import './theme-light.css';
 import './theme-clean.css';
-import './theme-2026.css';
 import './mobile-app.css';
 import './theme-air.css';
+import './theme-2026.css';
 import { Sun, Moon } from 'lucide-react';
 
 // In-app light/dark: 'system' (follow the device) | 'light' | 'dark', kept on this device like language.

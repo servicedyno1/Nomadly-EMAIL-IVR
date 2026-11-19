@@ -17,9 +17,9 @@ const MAIN = ['nav-dashboard', 'nav-numbers', 'nav-messages', 'nav-wallet'].map(
 // "More" sheet: everything not on the bar, under the same group headings as the desktop menu.
 const MORE_GROUPS = NAV.map(([gid, label, items]) => [gid, label, items.filter(([, , , id]) => !SHORT[id])]).filter(g => g[2].length);
 const MORE = MORE_GROUPS.flatMap(g => g[2]);
-const tab = (active) => `relative min-w-0 flex flex-col items-center justify-center gap-1 h-16 text-xs font-medium transition-colors ${active ? 'text-[#818cf8]' : 'text-[#a1a1aa]'}`;
+const tab = (active) => `relative min-w-0 flex flex-col items-center justify-center gap-1 h-16 text-xs font-medium transition-colors ${active ? 'text-[var(--c-accent,#818cf8)]' : 'text-[var(--c-muted,#a1a1aa)]'}`;
 
-const Badge = ({ n }) => (n > 0 ? <span className="absolute top-2 left-1/2 ml-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#6366f1] text-white text-xs font-bold flex items-center justify-center" data-testid="mobile-messages-unread">{n > 99 ? '99+' : n}</span> : null);
+const Badge = ({ n }) => (n > 0 ? <span className="absolute top-2 left-1/2 ml-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--c-accent-strong,#6366f1)] text-white text-xs font-bold flex items-center justify-center" data-testid="mobile-messages-unread">{n > 99 ? '99+' : n}</span> : null);
 
 // Language, private mode and sign-out (kept out of the slim phone top bar).
 function MoreSettings() {
@@ -31,17 +31,17 @@ function MoreSettings() {
   const light = theme === 'light';
   const SunIcon = light ? Sun : Moon;
   return (
-    <div className="mt-2 pt-2 border-t border-[#1f1f1f] space-y-1" data-testid="mobile-more-settings">
-      <div className="flex items-center justify-between gap-3 pl-3 min-h-[44px] text-sm font-medium text-[#d4d4d8]"><span className="flex items-center gap-3"><Globe className="w-4 h-4" />Language</span><LangSwitcher testid="mobile-lang-switcher" /></div>
+    <div className="mt-2 pt-2 border-t border-[var(--c-border,#1f1f1f)] space-y-1" data-testid="mobile-more-settings">
+      <div className="flex items-center justify-between gap-3 pl-3 min-h-[44px] text-sm font-medium text-[var(--c-text-2,#d4d4d8)]"><span className="flex items-center gap-3"><Globe className="w-4 h-4" />Language</span><LangSwitcher testid="mobile-lang-switcher" /></div>
       <button type="button" role="switch" aria-checked={on} onClick={toggle} className="civr-nav-link w-full justify-between" data-testid="mobile-private-mode-button" data-private={on ? 'on' : 'off'}>
-        <span className="flex items-center gap-3 text-left"><EyeIcon className={`w-4 h-4 shrink-0 ${on ? 'text-[#c4b5fd]' : ''}`} /><span>Private mode<span className="block text-xs font-normal text-[#a1a1aa]">Hide numbers and messages</span></span></span>
-        <span className={`relative w-11 h-6 shrink-0 rounded-full transition-colors ${on ? 'bg-[#a78bfa]' : 'bg-[#2a2a2a]'}`}><span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${on ? 'translate-x-5' : ''}`} /></span>
+        <span className="flex items-center gap-3 text-left"><EyeIcon className={`w-4 h-4 shrink-0 ${on ? 'text-[var(--c-accent)]' : ''}`} /><span>Private mode<span className="block text-xs font-normal text-[var(--c-muted,#a1a1aa)]">Hide numbers and messages</span></span></span>
+        <span className={`relative w-11 h-6 shrink-0 rounded-full transition-colors ${on ? 'bg-[var(--c-accent)]' : 'bg-[var(--c-surface-2,#2a2a2a)]'}`}><span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${on ? 'translate-x-5' : ''}`} /></span>
       </button>
       <button type="button" role="switch" aria-checked={light} onClick={() => setPref(light ? 'dark' : 'light')} className="civr-nav-link w-full justify-between" data-testid="mobile-theme-button" data-theme={theme}>
-        <span className="flex items-center gap-3 text-left"><SunIcon className="w-4 h-4 shrink-0" /><span>Light mode<span className="block text-xs font-normal text-[#a1a1aa]">{pref === 'system' ? 'Following your device' : 'Set on this device'}</span></span></span>
-        <span className={`relative w-11 h-6 shrink-0 rounded-full transition-colors ${light ? 'bg-[#6366f1]' : 'bg-[#2a2a2a]'}`}><span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${light ? 'translate-x-5' : ''}`} /></span>
+        <span className="flex items-center gap-3 text-left"><SunIcon className="w-4 h-4 shrink-0" /><span>Light mode<span className="block text-xs font-normal text-[var(--c-muted,#a1a1aa)]">{pref === 'system' ? 'Following your device' : 'Set on this device'}</span></span></span>
+        <span className={`relative w-11 h-6 shrink-0 rounded-full transition-colors ${light ? 'bg-[var(--c-accent-strong,#6366f1)]' : 'bg-[var(--c-surface-2,#2a2a2a)]'}`}><span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${light ? 'translate-x-5' : ''}`} /></span>
       </button>
-      <button type="button" onClick={async () => { if (!(await confirmLeave())) return; nav(cp(), { replace: true }); await logout(); }} className="civr-nav-link w-full !text-[#fb7185]" data-testid="mobile-logout-button"><LogOut className="w-4 h-4" />Sign out</button>
+      <button type="button" onClick={async () => { if (!(await confirmLeave())) return; nav(cp(), { replace: true }); await logout(); }} className="civr-nav-link w-full !text-[var(--c-danger,#fb7185)]" data-testid="mobile-logout-button"><LogOut className="w-4 h-4" />Sign out</button>
     </div>
   );
 }

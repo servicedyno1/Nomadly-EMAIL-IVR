@@ -71,7 +71,7 @@ export function PageHeader({ title, sub, children, testid }) {
     <div className="civr-page-head flex flex-col gap-4 md:flex-row md:items-center md:justify-between civr-rise" data-testid={testid}>
       <div className="min-w-0">
         <h1 className="civr-page-title" data-testid={testid ? `${testid}-title` : undefined}>{title}</h1>
-        {sub && <p className="text-sm md:text-[15px] mt-1.5 max-w-xl">{sub}</p>}
+        {sub && <p className="text-sm md:text-[15px] mt-1.5 max-w-xl text-[var(--c-muted)]">{sub}</p>}
       </div>
       {children && <div className="civr-page-actions flex flex-wrap gap-2 md:shrink-0 md:justify-end">{children}</div>}
     </div>
@@ -81,9 +81,9 @@ export function PageHeader({ title, sub, children, testid }) {
 export function Field({ label, hint, children }) {
   return (
     <label className="block">
-      <span className="block text-[13px] font-medium text-[#d4d4d8] mb-1.5">{label}</span>
+      <span className="block text-[13px] font-medium text-[var(--c-text-2,#d4d4d8)] mb-1.5">{label}</span>
       {children}
-      {hint && <span className="block text-xs text-[#a1a1aa] mt-1.5">{hint}</span>}
+      {hint && <span className="block text-xs text-[var(--c-muted,#a1a1aa)] mt-1.5">{hint}</span>}
     </label>
   );
 }
@@ -103,13 +103,13 @@ export function Spinner({ label = 'Loading…', testid = 'loading-indicator', in
 export function ErrorNote({ error, testid = 'error-message', onRetry, className = '' }) {
   if (!error) return null;
   if (error.code === 'queued') return (
-    <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[#fbbf24] border border-[#fbbf24]/30 bg-[#fbbf24]/5 rounded-xl px-4 py-3 ${className}`} role="status" data-testid={`${testid}-queued`}>
+    <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[var(--c-warning,#fbbf24)] border border-[var(--c-warning)]/30 bg-[var(--c-warning-soft)] rounded-xl px-4 py-3 ${className}`} role="status" data-testid={`${testid}-queued`}>
       <span className="flex-1 min-w-0">{error.message}</span>
       <Link to={cp('/app/wallet')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`${testid}-verify-id`}>Verify my ID</Link>
     </div>
   );
   return (
-    <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[#fb7185] border border-[#fb7185]/30 bg-[#fb7185]/5 rounded-xl px-4 py-3 ${className}`} role="alert" data-testid={testid}>
+    <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[var(--c-danger,#fb7185)] border border-[var(--c-danger)]/30 bg-[var(--c-danger-soft)] rounded-xl px-4 py-3 ${className}`} role="alert" data-testid={testid}>
       <span className="flex-1 min-w-0">{error.message || String(error)}</span>
       {(error.status === 402 || error.code === 'insufficient_balance') && <Link to={cp('/app/wallet')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`${testid}-topup`}>Add funds — crypto, card or bank</Link>}
       {onRetry && <button type="button" onClick={onRetry} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`${testid}-retry-button`}><RotateCcw className="w-4 h-4" />Try again</button>}
@@ -180,10 +180,10 @@ export function SkeletonPage({ cards = 3, rows = 3, header = true, testid = 'loa
 export function Locked({ feature, phone, need }) {
   return (
     <div className="civr-card p-8 flex flex-col md:flex-row md:items-center gap-4" data-testid="feature-locked">
-      <Lock className="w-6 h-6 text-[#fbbf24]" />
+      <Lock className="w-6 h-6 text-[var(--c-warning)]" />
       <div className="flex-1">
         <div className="font-semibold" data-testid="feature-locked-title">{need ? `${feature} is on the ${need} plan and up` : `${feature} needs a higher plan`}</div>
-        <div className="text-sm text-[#a1a1aa]">Upgrade this number to unlock it — your renewal date stays the same, and within 14 days of buying 25% of your current plan price comes off.</div>
+        <div className="text-sm text-[var(--c-muted)]">Upgrade this number to unlock it — your renewal date stays the same, and within 14 days of buying 25% of your current plan price comes off.</div>
       </div>
       <button type="button" onClick={() => showUpgrade({ feature, need, phone })} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="feature-locked-upgrade-link">{need ? `See what ${need} adds` : 'See plans'}</button>
     </div>
@@ -193,7 +193,7 @@ export function Locked({ feature, phone, need }) {
 export function Toggle({ checked, onChange, testid, disabled, label }) {
   return (
     <button type="button" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)} data-testid={testid}
-      className={`relative w-11 h-6 shrink-0 rounded-full transition-colors before:absolute before:content-[''] before:-inset-x-1 before:-inset-y-2.5 ${checked ? 'bg-[#818cf8]' : 'civr-toggle-off bg-[#2a2a2a] ring-1 ring-inset ring-[#71717a]/60'} disabled:opacity-40`}>
+      className={`relative w-11 h-6 shrink-0 rounded-full transition-colors before:absolute before:content-[''] before:-inset-x-1 before:-inset-y-2.5 ${checked ? 'bg-[var(--c-accent,#818cf8)]' : 'civr-toggle-off bg-[var(--c-surface-2,#2a2a2a)] ring-1 ring-inset ring-[var(--c-muted)]/40'} disabled:opacity-40`}>
       <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${checked ? 'translate-x-5' : ''}`} />
     </button>
   );
@@ -229,7 +229,7 @@ export function InstantToggle({ testid, disabled, ...rest }) {
 export function PreviewBanner({ show, livePayments }) {
   if (!show) return null;
   return (
-    <div role="region" aria-label="Preview mode notice" className="text-xs font-mono uppercase tracking-wider text-[#fbbf24] bg-[#fbbf24]/10 border-b border-[#fbbf24]/30 px-4 py-2 text-center" data-testid="preview-mode-banner">
+    <div role="region" aria-label="Preview mode notice" className="text-xs font-mono uppercase tracking-wider text-[var(--c-warning)] bg-[var(--c-warning-soft)] border-b border-[var(--c-warning)]/30 px-4 py-2 text-center" data-testid="preview-mode-banner">
       Preview — purchases and calls are simulated · {livePayments ? 'crypto top-ups are REAL' : 'top-ups too'}
     </div>
   );

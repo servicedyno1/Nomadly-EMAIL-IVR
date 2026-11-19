@@ -722,7 +722,35 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Applies to all Reseller API customers and all bot hosting customers (single `challengePage()` function serves all domains).
 - Visually verified via screenshot tool (dark + light modes on mobile viewport).
 
-## 2026-11-19 — Usage page under Wallet & billing — pushed to GitHub, needs publish
+## 2026-11-19 — Full Signed-In UX Refresh — preview, needs publish, needs user confirmation
+- Comprehensive visual style refresh across ALL signed-in CloudIVR pages via CSS theme layer.
+- **theme-2026.css** (loaded last in cascade) — 350+ lines of design tokens, component overrides, and Tailwind utility color remaps:
+  - New palette: dark base #0c0e12, card #13171f, blue accent #3b82f6/#2563eb (was indigo #818cf8)
+  - Light theme: #f8fafc base, #ffffff cards, #2563eb accent
+  - Hairline borders (8% opacity white in dark, #e2e8f0 in light), no heavy box-shadows
+  - Cards: 14px radius, 1px border, hover lift animation
+  - Buttons: 44px min-height, blue primary with glow shadow, ghost with accent hover
+  - Pills: compact 26px min-height, semantic color variants (ok/warn/bad)
+  - Inputs: 44px min-height, subtle bg, blue focus ring
+  - Glass morphism: 20px blur + 160% saturation for topbar and mobile nav
+  - Stats ribbon: auto-fit grid with 2px gap (was separate cards)
+  - Page titles: Barlow Condensed font, clamp(1.5rem, 4vw, 2rem), tight letter-spacing
+  - Tables: simpler headers, hairline rows, hover highlight
+  - Scrollbar: thin 6px with themed thumb
+  - Touch targets: 44px minimum on coarse pointer devices
+  - Reduced motion: respects prefers-reduced-motion
+  - Utility color remaps: 25+ Tailwind classes remapped from old palette to themed CSS variables (covers all pages at once without individual JS edits)
+- **Shell.js** — sidebar uses CSS vars for bg/borders, topbar balance pill uses monospace, main content gets sm:px-6 breakpoint
+- **MobileNav.js** — bottom nav glass effect via CSS, touch targets, themed toggle colors
+- **ui.js** — PageHeader subtitle uses --c-muted, Field labels use --c-text-2, Toggle uses accent var, ErrorNote/PreviewBanner use semantic color vars
+- **SectionTabs.js** — tab text uses --c-muted inactive / --c-text active
+- **Dashboard.js** — Stat component value no longer has redundant "block" class (CSS handles layout)
+- **Numbers.js** — QuickSwitch/FaxSwitch/IconBtn use CSS vars instead of hardcoded hex
+- **LogTable.js** — icon color constants use CSS vars instead of hardcoded hex
+- **confirm.js** — dialog card uses civr-card (not hardcoded #111), icon/text colors use CSS vars
+- **theme.js** — Fixed CSS load order: theme-2026.css loads LAST (was 3rd of 5, overridden by theme-air.css)
+- Testing: 100% frontend functional pass (all pages load, navigation works, interactions work, mobile viewport correct). CSS load order bug found and fixed.
+- Files changed: theme-2026.css, theme.js, Shell.js, MobileNav.js, ui.js, SectionTabs.js, Dashboard.js, Numbers.js, LogTable.js, confirm.js
 - Added `GET /wallet/usage` API in `js/cloudivr-web/wallet.js`: aggregates walletLedger (call charges, AI receptionist/campaign minutes), phoneTransactions (SMS, fax), and transactions (lookups, credits) for current billing cycle.
 - Created `frontend/src/cloudivr/pages/wallet/Usage.js`: summary cards (calls, AI, campaigns, SMS, fax, lookups, total spend), per-number breakdown, destination country breakdown, detailed activity log.
 - Added as "Usage" tab between Wallet and Renewal calendar in `nav.js` and routed in `Shell.js`.

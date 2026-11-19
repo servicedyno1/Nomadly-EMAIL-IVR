@@ -23,14 +23,14 @@ function QuickSwitch({ num, feature, label, checked, onSaved, testid }) {
   const s = useSwitch({ num, feature, label, checked, onSaved });
   return (
     <button type="button" role="switch" aria-checked={s.value} disabled={s.busy} onClick={() => s.flip(!s.value)} data-testid={testid}
-      title={`${label} ${s.value ? 'on' : 'off'} — tap to switch`} className={`civr-pill !min-h-[44px] sm:!min-h-[36px] !px-4 cursor-pointer relative z-10 transition-colors ${s.value ? 'civr-pill-on' : 'text-[#a1a1aa] hover:text-[#f3f4f6] hover:border-[#3f3f46]'}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${s.value ? 'bg-[#818cf8]' : 'bg-[#3f3f46]'}`} />{label}
+      title={`${label} ${s.value ? 'on' : 'off'} — tap to switch`} className={`civr-pill !min-h-[44px] sm:!min-h-[36px] !px-4 cursor-pointer relative z-10 transition-colors ${s.value ? 'civr-pill-on' : 'text-[var(--c-muted,#a1a1aa)] hover:text-[var(--c-text)] hover:border-[var(--c-border-hover,#3f3f46)]'}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${s.value ? 'bg-[var(--c-accent)]' : 'bg-[var(--c-surface-2,#3f3f46)]'}`} />{label}
     </button>
   );
 }
 
 const IconBtn = ({ icon: Icon, label, onClick, testid }) => (
-  <button type="button" onClick={onClick} aria-label={label} title={label} data-testid={testid} className="relative z-10 w-9 h-9 rounded-lg flex items-center justify-center text-[#a1a1aa] hover:text-[#f3f4f6] hover:bg-[#1f1f1f] transition-colors"><Icon className="w-4 h-4" /></button>
+  <button type="button" onClick={onClick} aria-label={label} title={label} data-testid={testid} className="relative z-10 w-9 h-9 rounded-lg flex items-center justify-center text-[var(--c-muted,#a1a1aa)] hover:text-[var(--c-text)] hover:bg-[var(--c-surface-2,#1f1f1f)] transition-colors"><Icon className="w-4 h-4" /></button>
 );
 
 // Fax line on/off right on the card (Business + fax-capable numbers). Warns when it would silence calls.
@@ -53,8 +53,8 @@ function FaxSwitch({ n, reload, testid }) {
   };
   return (
     <button type="button" role="switch" aria-checked={on} disabled={busy} onClick={flip} data-testid={testid}
-      title={`Fax ${on ? 'on' : 'off'} — tap to switch`} className={`civr-pill !min-h-[44px] sm:!min-h-[36px] !px-4 cursor-pointer relative z-10 transition-colors ${on ? 'civr-pill-on' : 'text-[#a1a1aa] hover:text-[#f3f4f6] hover:border-[#3f3f46]'}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${on ? 'bg-[#818cf8]' : 'bg-[#3f3f46]'}`} />Fax
+      title={`Fax ${on ? 'on' : 'off'} — tap to switch`} className={`civr-pill !min-h-[44px] sm:!min-h-[36px] !px-4 cursor-pointer relative z-10 transition-colors ${on ? 'civr-pill-on' : 'text-[var(--c-muted,#a1a1aa)] hover:text-[var(--c-text)] hover:border-[var(--c-border-hover,#3f3f46)]'}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${on ? 'bg-[var(--c-accent)]' : 'bg-[var(--c-surface-2,#3f3f46)]'}`} />Fax
     </button>
   );
 }

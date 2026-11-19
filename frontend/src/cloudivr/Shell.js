@@ -64,12 +64,12 @@ import { Onboarding, useOnboarding } from './Onboarding';
 const ShellCtx = createContext(null);
 export const useShell = () => useContext(ShellCtx);
 
-const ICON_BTN = 'relative w-11 h-11 shrink-0 flex items-center justify-center rounded-full hover:bg-[#151515] transition-colors';
+const ICON_BTN = 'relative w-11 h-11 shrink-0 flex items-center justify-center rounded-full hover:bg-[var(--c-card-hover,#151515)] transition-colors';
 
 export function FreeBadge() {
   const shell = useContext(ShellCtx);
   if (!shell?.summary?.ivrTrial) return null;
-  return <span className="ml-auto text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#6366f1] text-white" data-testid="nav-quick-call-free-badge">1 free</span>;
+  return <span className="ml-auto text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--c-accent-strong,#6366f1)] text-white" data-testid="nav-quick-call-free-badge">1 free</span>;
 }
 
 // Green dot on "Live" while a campaign is calling.
@@ -117,11 +117,11 @@ function SideNav({ onPhone }) {
 
 function Sidebar({ supportLink, channelLink, onPhone }) {
   return (
-    <aside aria-label="Main navigation" className="civr-side hidden lg:flex lg:flex-col w-64 shrink-0 h-screen sticky top-0 border-r border-[#1a1a1a] px-3 py-5 overflow-y-auto" data-testid="app-sidebar">
+    <aside aria-label="Main navigation" className="civr-side hidden lg:flex lg:flex-col w-64 shrink-0 h-screen sticky top-0 border-r border-[var(--c-border,#1a1a1a)] px-3 py-5 overflow-y-auto" data-testid="app-sidebar">
       <Link to={cp('/app')} className="civr-side-logo font-display text-2xl font-extrabold tracking-tight px-3 mb-6 flex items-center gap-2.5" data-testid="sidebar-logo"><Wordmark iconClass="w-8 h-8" /></Link>
       <SideNav onPhone={onPhone} />
-      <div className="civr-side-rule mt-auto pt-4 border-t border-[#1a1a1a] flex flex-col gap-0.5" data-testid="nav-group-support">
-        <div className="civr-side-label px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-[#a1a1aa]">Support</div>
+      <div className="civr-side-rule mt-auto pt-4 border-t border-[var(--c-border,#1a1a1a)] flex flex-col gap-0.5" data-testid="nav-group-support">
+        <div className="civr-side-label px-3 mb-1">Support</div>
         {channelLink && <a href={channelLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link" data-testid="sidebar-channel-link"><Send className="w-4 h-4" />Telegram channel</a>}
         <Link to={cp('/app/settings#suggest')} className="civr-nav-link" data-testid="sidebar-suggest-link"><Lightbulb className="w-4 h-4" />Suggest a feature</Link>
         {supportLink && <a href={supportLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link" data-testid="sidebar-support-link"><LifeBuoy className="w-4 h-4" />Message support</a>}
@@ -135,16 +135,16 @@ function Sidebar({ supportLink, channelLink, onPhone }) {
 function TopBar({ summary, onPhone }) {
   const { pathname, search } = useLocation();
   return (
-    <header className="civr-glass sticky top-0 z-30 flex items-center gap-0.5 min-[400px]:gap-1 sm:gap-2 px-3 sm:px-4 md:px-10 h-14" data-civr-topbar>
+    <header className="civr-glass sticky top-0 z-30 flex items-center gap-0.5 min-[400px]:gap-1 sm:gap-2 px-3 sm:px-4 md:px-10 h-14" data-civr-topbar data-testid="app-topbar">
       <Link to={cp('/app')} className="font-display text-xl sm:text-2xl font-extrabold tracking-tight mr-auto lg:hidden min-h-[44px] min-w-0 flex items-center gap-2" aria-label="CloudIVR home" data-testid="topbar-logo"><Wordmark iconClass="w-8 h-8" textClass="max-[379px]:sr-only" /></Link>
       <div className="hidden lg:block mr-auto" aria-hidden="true" />
-      <Link to={cp('/app/wallet')} className="civr-pill civr-pill-on !text-sm !normal-case !tracking-normal h-10 shrink-0 !px-3.5" data-testid="topbar-balance">{money(summary?.balance)}</Link>
+      <Link to={cp('/app/wallet')} className="civr-pill civr-pill-on !text-sm !normal-case !tracking-normal h-10 shrink-0 !px-3.5 font-mono" data-testid="topbar-balance">{money(summary?.balance)}</Link>
       <Link to={cp('/app/wallet')} className="civr-btn civr-btn-ghost civr-btn-sm !hidden md:!inline-flex" data-testid="topbar-add-funds-button"><Plus className="w-4 h-4" />Add funds</Link>
       <button type="button" onClick={openPalette} className={ICON_BTN} data-testid="topbar-search-button" aria-label="Jump to a number, page or action" title={`Jump to… (${isMac ? '⌘' : 'Ctrl'} K)`}><Search className="w-5 h-5" /></button>
       <Link to={helpFor(pathname, search)} className={`${ICON_BTN} hidden sm:flex`} data-testid="topbar-help-button" aria-label="Help for this page" title="Help for this page (?)"><HelpCircle className="w-5 h-5" /></Link>
       <Link to={cp('/app/inbox')} className={ICON_BTN} data-testid="topbar-inbox-button" aria-label="Notifications" title="Notifications">
         <Bell className="w-5 h-5" />
-        {summary?.unread > 0 && <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#6366f1] text-white text-xs font-bold flex items-center justify-center" data-testid="topbar-unread-count">{summary.unread > 99 ? '99+' : summary.unread}</span>}
+        {summary?.unread > 0 && <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--c-accent-strong,#6366f1)] text-white text-xs font-bold flex items-center justify-center" data-testid="topbar-unread-count">{summary.unread > 99 ? '99+' : summary.unread}</span>}
       </Link>
       <button onClick={onPhone} className={ICON_BTN} data-testid="topbar-softphone-button" aria-label="Browser phone"><Phone className="w-5 h-5" /></button>
       <AccountMenu className="hidden lg:inline-flex ml-1" />
@@ -205,7 +205,7 @@ export default function Shell() {
           <ProfileSetupDialog ready={owned > 0} />
           <CardCheckBanner />
           <PrivateBanner />
-          <main className="px-4 md:px-10 pt-5 md:pt-8 pb-40 lg:pb-16 max-w-[1400px] mx-auto" data-testid="app-main">
+          <main className="px-4 sm:px-6 md:px-10 pt-5 md:pt-8 pb-40 lg:pb-16 max-w-[1400px] mx-auto" data-testid="app-main">
            <CrashGuard inApp resetKey={pathname} supportLink={catalog?.supportLink}>
             <CrashProbe />
             <SectionTabs />
