@@ -2828,7 +2828,7 @@ async function handleCallInitiated(payload) {
     require('./sip-presence').noteIfOffline({ db: _db, bot: _bot, chatId, num, from: formatPhone(from), web: require('./cloudivr-web/notify.js').isWebChatId(chatId), log }).catch(e => log(`[SipPresence] ${e.message}`))
 
     try {
-      const newCall = await _telnyxApi.createOutboundCall(from, sipUri)
+      const newCall = await _telnyxApi.createOutboundCall(from, sipUri, null, null, { ringFor: callControlId })
       // Pass original caller's number as 'from' so SIP device shows correct caller ID
       if (newCall?.callControlId) {
         activeBridgeTransfers[newCall.callControlId] = {
@@ -4402,7 +4402,7 @@ async function handleCallAnswered(payload) {
     try {
       // Use Call Control App ID — POST /v2/calls only accepts Call Control Apps, not SIP Connection IDs
       // The SIP device registered on the credential connection is reachable via its SIP URI
-      const newCall = await _telnyxApi.createOutboundCall(from, sipUri)
+      const newCall = await _telnyxApi.createOutboundCall(from, sipUri, null, null, { ringFor: callControlId })
       // Pass original caller's number as 'from' so SIP device shows correct caller ID
       if (newCall?.callControlId) {
         // Track as SIP ring bridge — handleBridgeTransferAnswered/Hangup handles the rest
@@ -4506,7 +4506,7 @@ async function ringOwnDevices(id, session, o, ivrL) {
   const ringSecs = Math.min(60, Math.max(10, Number(o.ringSecs) || 25))
   session.phase = 'ringing_sip'
   _telnyxApi.playbackStart(id, RINGBACK_URL, { loop: 'infinity' }).catch(() => {})
-  const leg = await _telnyxApi.createOutboundCall(session.from, sipUri).catch(e => { log(`[Voice] IVR devices ring failed: ${e.message}`); return null })
+  const leg = await _telnyxApi.createOutboundCall(session.from, sipUri, null, null, { ringFor: id }).catch(e => { log(`[Voice] IVR devices ring failed: ${e.message}`); return null })
   if (!leg?.callControlId) { await _telnyxApi.playbackStop(id).catch(() => {}); return ivrKeyNoAnswer(id, session, o, ivrL) }
   activeBridgeTransfers[leg.callControlId] = { originalCallControlId: id, forwardTo: sipUri, fromNumber: session.to, type: 'sip_ring', vmConfig: null, fwdConfig: null, chatId, num, phase: 'ringing', ivrKey: o, createdAt: new Date() }
   session.sipRingCallControlId = leg.callControlId

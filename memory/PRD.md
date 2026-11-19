@@ -821,3 +821,10 @@ Per-minute/usage rates appear ONLY on /pricing (UsageRates). In-app and landing 
 - Bot buying journey reimagined as "Get a Plan": Plan (incl. texting/fax/help) → Country → Number (instant list) → Review & pay. Agent-tested in preview; awaiting user confirmation after publish.
 - 2026-11-19: MultiTEL purchasing disabled on account → new sales on Infobip US local only (env switch, reversible). Fax/texting/toll-free/other countries hidden until MultiTEL returns.
 - Pending: Bird toll-free sales (companies only, company-details step on web + bot) — start once Bird approves test number +18882116196 (submission csb_01m7thfac4eag8vabzxzvvw69n).
+
+### 2026-11-19 — Infobip → softphone ring (Retell landing fix)
+- Root cause: inbound Infobip call rang the softphone through our call engine, but the two legs live on different platforms and could not be joined on answer.
+- Fix: Infobip static SIP trunk `nomadly-softphones` (id 6aff7ba03283beeff62a81f22047, FRANKFURT, METERED, → 188.166.34.29:5060); prod env INFOBIP_SIP_TRUNK_ID. infobip createOutboundCall dials sip: via the trunk (X-Nomadly-Key header); facade routes sip: to Infobip when options.ringFor is an ib: leg; voice-service passes ringFor at the 3 sip_ring sites.
+- Hot-patched on prod release 20261119T181608Z-abc224b (backup /opt/nomadly/deploy-backups/ib-siptrunk-20261119T224651Z). NOT in GitHub yet — user must Save to Github or the next deploy reverts it.
+- Verified: trunk INVITE reaches Kamailio and is accepted (480 for an unregistered probe user). NOT verified: real call answered on Zoiper/browser phone + audio (needs user call). At check time no softphone was registered for cv6frkdxah.
+- Retell +18337549319 still forwards to landing +16479457172; +16623308363 kept on user's request.

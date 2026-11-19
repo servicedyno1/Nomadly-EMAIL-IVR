@@ -14,6 +14,7 @@ const sellsIn = (cc) => { const l = String(process.env.INFOBIP_SELL_COUNTRIES ||
 const makeHttp = () => axios.create({ baseURL: base(), headers: { Authorization: `App ${process.env.INFOBIP_API_KEY}` }, timeout: 15000 })
 const configId = () => process.env.INFOBIP_CALLS_CONFIG_ID || `${String(process.env.CHAT_BOT_BRAND || 'nomadly').toLowerCase().replace(/[^a-z0-9]/g, '')}${process.env.BOT_ENVIRONMENT === 'production' ? '' : '-dev'}`
 const errOf = (e) => { const x = e.response?.data?.requestError?.serviceException; return String(x?.text || x?.messageId || e.response?.data?.description || e.message) }
+const sipTrunk = () => process.env.INFOBIP_SIP_TRUNK_ID || ''
 const isIb = (id) => String(id || '').startsWith('ib:')
 const raw = (id) => String(id).slice(3)
 const e164 = (n) => (n && !String(n).startsWith('+') && /^\d+$/.test(String(n)) ? `+${n}` : String(n || ''))
@@ -156,10 +157,13 @@ async function transferCall(id, toNumber, fromNumber, options = {}) {
 async function bridgeCalls(aId, bId) { const r = await post('/calls/1/connect', { callIds: [raw(aId), raw(bId)] }); if (r) { emit('call.bridged', legs.get(aId)); emit('call.bridged', legs.get(bId)) } return r ? { success: true } : null }
 
 async function createOutboundCall(from, to, webhookUrl, connectionId, options = {}) {
-  if (/^sip:/i.test(String(to))) return { error: 'Infobip SIP dialing not set up', status: 422, _provider: 'infobip' }
+  const sip = /^sip:/i.test(String(to)) ? String(to).replace(/^sip:/i, '').split('@')[0] : null
+  if (sip && !sipTrunk()) return { error: 'Infobip SIP dialing not set up', status: 422, _provider: 'infobip' }
   const amd = options.answering_machine_detection && options.answering_machine_detection !== false
+  // Softphones: through our SIP trunk to our SIP server, which rings the signed-in apps.
+  const endpoint = sip ? { type: 'SIP', username: sip, sipTrunkId: sipTrunk(), customHeaders: { 'X-Nomadly-Key': process.env.SIP_SERVER_SECRET || '', 'X-Nomadly-User': sip } } : { type: 'PHONE', phoneNumber: digits(to) }
   try {
-    const r = (await M.http().post('/calls/1/calls', { endpoint: { type: 'PHONE', phoneNumber: digits(to) }, from: digits(from), callsConfigurationId: configId(), connectTimeout: options.timeout_secs || 30, ...(amd ? { machineDetection: { enabled: true } } : {}) })).data
+    const r = (await M.http().post('/calls/1/calls', { endpoint, from: digits(from), callsConfigurationId: configId(), connectTimeout: options.timeout_secs || 30, ...(amd ? { machineDetection: { enabled: true } } : {}) })).data
     if (r.state === 'FAILED') return { error: 'Infobip refused the call', status: 422, _provider: 'infobip' }
     const leg = track({ id: `ib:${r.id}`, from, to, direction: 'outgoing', connection: connectionId || process.env.TELNYX_CALL_CONTROL_APP_ID || 'infobip-app', clientState: options.client_state })
     return { callControlId: leg.id, callLegId: leg.id, callSessionId: leg.session }
@@ -283,7 +287,7 @@ async function sendSms(from, to, text) {
 }
 
 const M = module.exports = {
-  enabled, selling, sellsIn, isIb, configId, http: makeHttp, errOf, recordingToken, smsHookKey, routeSms,
+  enabled, selling, sellsIn, isIb, sipTrunk, configId, http: makeHttp, errOf, recordingToken, smsHookKey, routeSms,
   voice: { ingest, setSink, _legs: legs, answerCall, rejectCall, hangupCall, isCallAlive, speakOnCall, playbackStart, playbackStop, gatherDTMF, gatherDTMFWithSpeak, gatherDTMFWithAudio, gatherStop, startRecording, stopRecording, transferCall, bridgeCalls, createOutboundCall },
   searchNumbers, isIbSearched, recall, searchedMeta, remember, buyNumber, releaseNumber, refreshOwned, ownedNumbers, lookup, sendSms, setResaleNote,
 }

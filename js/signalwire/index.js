@@ -81,6 +81,8 @@ function wrap(t) {
     // Softphones sign in to our own SIP server only, so they're rung from our call engine — never a SignalWire retry
     // (it can't reach them: it only ever answered "No valid devices" / queue full).
     if (/^sip:/i.test(String(to))) {
+      // A call that came in on Infobip can only be joined to another Infobip call, so it rings the softphone itself.
+      if (ib.isIb(options.ringFor) && ib.sipTrunk()) return ib.voice.createOutboundCall(from, to, webhookUrl, connectionId, options)
       if (!ce.enabled() || !ce.connected()) return { error: 'call engine not connected', status: 503, _provider: 'callengine' }
       const r = await ce.createOutboundCall(from, to, webhookUrl, connectionId, options)
       if (r.error) log(`ring ${to} via CallEngine refused (${r.error}) — not retried elsewhere`)
